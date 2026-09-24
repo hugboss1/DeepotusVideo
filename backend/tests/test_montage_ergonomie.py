@@ -233,6 +233,12 @@ _TITRES_COUCHE = [
     'var ti=i===cur?"Retirer la note ("+i+" ★)":"Noter "+i+" ★"+(i===5?" — Good Take":"");',
     'title:ti,"aria-label":ti,',
     'title:minNote===n[0]?"Retirer le filtre de note — tous les rendus":n[2],',
+    # L7-B D-41 (24/09/2026, tache 6) : « ✂ auto-clips » d'une ligne du tiroir Medias (classe hors audit R1, titree quand
+    # meme), puis le popover : « Fermer », le bouton or (titre calcule, goTi) et « Creer le projet » (branche non armee)
+    'title:"Auto-clips — proposer des extraits de 15 à 60 s de ce rendu (texte connu gratuit ; transcription payante seulement après confirmation)",',
+    'title:"Fermer les auto-clips (rien n\'est lancé)",',
+    'className:"svm-goldbtn dzm-acgo",disabled:!!busy,title:goTi,onClick:lancer,children:goTxt',
+    ':"Créer un projet neuf avec cet extrait (V1, son du plan, sous-titres) — un second clic confirme",',
 ]
 for t in _TITRES_COUCHE:
     check("R1_titre_couche_x1_" + re.sub(r"\W+", "_", t[6:40]).strip("_"),

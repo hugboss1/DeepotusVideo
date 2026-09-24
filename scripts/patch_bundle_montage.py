@@ -503,6 +503,15 @@ R_M11 = ("  /* P3 — panneau « Texte » (monter en LISANT). Son état est À L
          "     M20b, la branche du gestionnaire clavier, qui l'incrémente. */\n"
          "  var stDzTb=x.useState(0),dzTbReq=stDzTb[0],"
          "setDzTbReq=stDzTb[1];\n"
+         # ── L7-B D-41 (24/09/2026, tache 6) : REPLI ici (aucune ancre neuve). La demande d'OUVERTURE d'un projet
+         # cree par les auto-clips du tiroir Medias : {n, id, name}, un COMPTEUR `n` comme dzProjReq (meme raison :
+         # la liste des projets garde son etat d'ouverture). EB3 la pose (onOpenProject du tiroir), M14 la lit
+         # (openProj) -- la liste ouvre par le chemin MEME de « ouvrir » (surete, onBefore, open, onOpen).
+         # NOMS MESURES LIBRES le 24/09/2026 : stDzAc, dzAcOpen, setDzAcOpen -- 0 dans .bak_montage et le livre.
+         "  /* L7-B D-41 (24/09/2026, tâche 6) : la demande d'ouverture d'un projet créé par\n"
+         "     les auto-clips du tiroir Médias — {n, id, name}, un COMPTEUR comme dzProjReq ;\n"
+         "     la liste des projets l'ouvre par le chemin de « ouvrir ». */\n"
+         "  var stDzAc=x.useState(null),dzAcOpen=stDzAc[0],setDzAcOpen=stDzAc[1];\n"
          # ── E-10 (lot E-C, tache 4, 23/09/2026) : LA BARRE ANCREE dans le
          # bandeau de transport. Un booleen PERSISTE (dz_svm_tb_dock, try/catch,
          # le motif de dz_svm_showdur), passe en prop `docked` au Dock (R_M19)
@@ -682,6 +691,9 @@ R_M14 = ('r.jsx(DzTracks.Projects,{name:proj.name,projectId:proj.project_id,'
          '             lieu d’en monter une seconde — un compteur, pas un\n'
          '             booléen. */\n'
          '          openReq:dzProjReq,\n'
+         # L7-B D-41 (24/09/2026, tache 6) : REPLI -- la demande d'ouverture venue des auto-clips (R_M11, EB3)
+         '          /* L7-B D-41 : ouvrir le projet créé par les auto-clips (compteur) */\n'
+         '          openProj:dzAcOpen,\n'
          '          payload:function(){return svmSavePayload()},\n'
          '          onBefore:function(){'
          'if(saveAbortRef.current){try{saveAbortRef.current.abort()}catch(_e){}}'
@@ -4666,7 +4678,12 @@ R_EB3 = (A_EB3 + '\n'
          '      r.jsx(DzTracks.MediaDrawer,{open:medOn,trId:medTr,exts:null,'
          'onClose:function(){setMedOn(!1)},dragPayload:dragPayload,\n'
          '        onAdd:function(j){addAsset({job_id:j.job_id},j.title||j.job_id,'
-         '"video",j.duration_s||0,medTr||"v1")}}),')
+         '"video",j.duration_s||0,medTr||"v1")},\n'
+         # L7-B D-41 (24/09/2026, tache 6) : REPLI -- le popover des auto-clips (couche) demande l'ouverture du
+         # projet qu'il vient de creer ; l'hote incremente le compteur que M14 passe a la liste des projets
+         '        /* L7-B D-41 : le projet créé par les auto-clips est ouvert par la liste des projets (compteur) */\n'
+         '        onOpenProject:function(p){setDzAcOpen(function(v){return {n:((v&&v.n)||0)+1,'
+         'id:p&&p.id,name:p&&p.name}})}}),')
 
 # ── EB4 (E-5, lot E-B tache 4, 23/09/2026) : LA BARRE DIT « Preview » ──────
 # Le bouton garde son handler (setPop preview) ; seul le libellé change,

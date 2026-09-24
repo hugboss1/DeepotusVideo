@@ -1165,6 +1165,35 @@ out.rf_remplace=(function(){var S={job_id:"n"},base={tr:"v1",id:"r",start:0,end:
   return [go({mode:"suivi",points:P2}),go({mode:"manuel",x:.3,points:P2}),go({mode:"centre",points:P2}),go({mode:"manuel",x:.3}),go(void 0)]})();
 out.rf_pur=(function(){var P0={mode:"suivi",points:[{t:5,x:.9},{t:1,x:2}]},C0=Object.assign({},RB,{reframe:P0}),j=JSON.stringify(C0);
   var q=T.reframeOf(C0);return [JSON.stringify(C0)===j,q.points!==P0.points,q.points[0]!==P0.points[1],q.points[1].t]})();
+/* ── [35] L7-B D-41 (24/09/2026) : les auto-clips d'un rendu — dzmAcPayload et ses formateurs purs ── */
+var AS={job_id:"j1"},AK=T.acCle(AS),EOK={ok:!0,usd:.05,eta_s:40,provider:"elevenlabs",label:"ElevenLabs",pour:AK};
+/* la clé d'une source : chaîne telle quelle, objet en JSON (ordre des clés gardé), vide pour rien */
+out.ac_cle=[T.acCle(AS),T.acCle("p/x.mp4"),T.acCle(null),T.acCle(""),T.acCle({b:1,a:2})];
+/* n : entier 1..8 arrondi, 4 pour l'illisible (vide, texte, booléen, null, NaN, infini) */
+out.ac_n=[T.acNum(3),T.acNum("5"),T.acNum(" 2 "),T.acNum(0),T.acNum(9),T.acNum(3.6),T.acNum(""),T.acNum("abc"),T.acNum(!0),
+  T.acNum(null),T.acNum(NaN),T.acNum(Infinity),T.acNum(-4)];
+/* sans rien : n 4, llm vrai, pas de texte, pas de persona, JAMAIS confirm */
+out.ac_base=T.acPayload({src:AS});
+/* llm : seul false l'éteint (0, absent -> vrai) */
+out.ac_llm=[T.acPayload({src:AS,llm:!1}).llm,T.acPayload({src:AS,llm:0}).llm,T.acPayload({src:AS,llm:void 0}).llm];
+out.ac_text=[T.acPayload({src:AS,text:"  bonjour  "}).text,"text" in T.acPayload({src:AS,text:"   "}),"text" in T.acPayload({src:AS,text:5})];
+out.ac_persona=[T.acPayload({src:AS,persona:" gamer "}).persona,T.acPayload({src:AS,persona:new Array(80).join("a")}).persona.length,
+  "persona" in T.acPayload({src:AS,persona:""})];
+/* LA RÈGLE DE LA DÉPENSE : confirm seulement case cochée (true strict) ET estimation ok vue pour CETTE source ET sans texte */
+function acf(e){var q=T.acPayload(Object.assign({src:AS},e));return q.confirm===void 0?0:q.confirm}
+out.ac_confirm=[acf({payer:!0,vu:EOK}),acf({payer:!1,vu:EOK}),acf({payer:"true",vu:EOK}),acf({payer:!0}),
+  acf({payer:!0,vu:Object.assign({},EOK,{ok:!1})}),acf({payer:!0,vu:Object.assign({},EOK,{ok:"true"})}),
+  acf({payer:!0,vu:Object.assign({},EOK,{pour:'{"job_id":"autre"}'})}),acf({payer:!0,vu:Object.assign({},EOK,{pour:void 0})}),
+  acf({payer:!0,vu:EOK,text:"le texte"}),acf({payer:!0,vu:EOK,text:"   "})];
+out.ac_src=[T.acPayload({}),T.acPayload(null),T.acPayload({src:[1]}),T.acPayload({src:5}),T.acPayload({src:""}),T.acPayload({src:"p.mp4"}).src];
+out.ac_pur=(function(){var E0={src:AS,text:" t ",n:"3",persona:" p ",llm:!1,payer:!0,vu:EOK},j=JSON.stringify(E0),q=T.acPayload(E0);
+  return [JSON.stringify(E0)===j,q.src===AS,q!==E0,Object.keys(q).sort(),q.n]})();
+out.ac_usd=[T.acUsd(.05),T.acUsd(.0067),T.acUsd(0),T.acUsd(1.234),T.acUsd(-1),T.acUsd("1"),T.acUsd(NaN)];
+out.ac_est=[T.acEstTxt(EOK),T.acEstTxt({ok:!0,usd:.4,eta_s:300,provider:"openai"}),T.acEstTxt({ok:!1,reason:"Aucune clé"}),
+  T.acEstTxt({ok:!1}),T.acEstTxt(null),T.acEstTxt({ok:!0,usd:.01,eta_s:0})];
+out.ac_tr=[T.acTrTxt("align"),T.acTrTxt("chapitre"),T.acTrTxt("stt:elevenlabs:cache"),T.acTrTxt("stt:openai"),T.acTrTxt(null),
+  T.acTrTxt("toString"),T.acTrTxt("zz")];
+out.ac_clip=[T.acClipTxt({start:12,end:44.46,origine:"llm"}),T.acClipTxt({start:0,end:15,origine:"heuristique"}),T.acClipTxt({}),T.acClipTxt(null)];
 console.log(JSON.stringify(out));
 """
 # E-9 : svmRuler / svmPad2 sont des fonctions DU BUNDLE (meme portee module que
@@ -1434,7 +1463,9 @@ try:
                  # L7-B D-34 (tache 7) : les CINQ cles de la section [33].
                  "rn","rx","rx_bornes","rx_suite","rchips",
                  # L7-B D-40 (tache 4) : les DOUZE cles de la section [34] (rf_remplace : revue du 24/09).
-                 "rf_modes","rf_suivi","rf_vitesse","rf_cap","rf_r3","rf_vide","rf_remplace","rf_at","rf_k","rf_pos","rf_css","rf_pur"]
+                 "rf_modes","rf_suivi","rf_vitesse","rf_cap","rf_r3","rf_vide","rf_remplace","rf_at","rf_k","rf_pos","rf_css","rf_pur",
+                 # L7-B D-41 (tache 6) : les TREIZE cles de la section [35].
+                 "ac_cle","ac_n","ac_base","ac_llm","ac_text","ac_persona","ac_confirm","ac_src","ac_pur","ac_usd","ac_est","ac_tr","ac_clip"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -3091,7 +3122,8 @@ check("l7b_rn_coeur_pur_ni_r_ni_x_ni_reseau_export_x1",
 _DRW = _corps("DzmMediaDrawer")
 check("l7b_tiroir_etoiles_clic_arrete_a_l_etoile_et_glisser_annule_sur_les_etoiles",
       len(_DRW) > 400 and _DRW.count('className:"svm-medstars",draggable:!0,') == 1
-      and _DRW.count("onDragStart:function(e){e.preventDefault();e.stopPropagation()}") == 1
+      # L7-B D-41 (tache 6) : le bouton « ✂ auto-clips » de la ligne annule AUSSI son glisser -> 2
+      and _DRW.count("onDragStart:function(e){e.preventDefault();e.stopPropagation()}") == 2
       and _DRW.count("onClick:function(e){e.stopPropagation();e.preventDefault();noter(j,i)}") == 1
       and _DRW.count("[1,2,3,4,5].map(") == 1 and _DRW.count('className:"svm-medstar",') == 1
       and _DRW.count('var ti=i===cur?"Retirer la note ("+i+" ★)":"Noter "+i+" ★"') == 1
@@ -3200,6 +3232,88 @@ check("l7b_rf_section_cadrage_trois_modes_curseur_leger_analyse_grisee_hooks_apr
       and 0 <= _PP.find("if(!c)return null;") < _PP.find("x.useState(2)") < _PP.find("x.useState({})") < _PP.find('row("Cadrage",')
       and _PP.count("x.useState(") == 2 and _PP.count("DzTracks") == 0,
       f"hote={len(_PP)} useState={_PP.count('x.useState(')}")
+print("\n[35] L7-B D-41 : les auto-clips d'un rendu — dzmAcPayload et ses formateurs purs, popover et tiroir (tache 6, 24/09/2026)")
+# ── L7-B D-41 (24/09/2026, tache 6, decision n°4 du plan). Le corps de POST /api/montage/autoclips (T5 : 9c55f40, 031dd6a)
+# est construit par UN coeur pur. LA REGLE DE LA DEPENSE : `confirm:true` part SEULEMENT si la case « Payer » est cochee
+# (true strict) ET qu'une estimation ok a ete vue POUR CETTE SOURCE ET sans texte connu ; tout le reste n'envoie rien.
+check("ac_cle_chaine_telle_quelle_objet_en_json_vide_pour_rien",
+      D.get("ac_cle") == ['{"job_id":"j1"}', "p/x.mp4", "", "", '{"b":1,"a":2}'], D.get("ac_cle"))
+check("ac_n_entier_1_8_arrondi_4_pour_l_illisible",
+      D.get("ac_n") == [3, 5, 2, 1, 8, 4, 4, 4, 4, 4, 4, 4, 1], D.get("ac_n"))
+check("ac_base_n4_llm_vrai_sans_texte_ni_persona_ni_confirm",
+      D.get("ac_base") == {"src": {"job_id": "j1"}, "n": 4, "llm": True}, D.get("ac_base"))
+check("ac_llm_seul_false_l_eteint", D.get("ac_llm") == [False, True, True], D.get("ac_llm"))
+check("ac_texte_rogne_blanc_ou_non_chaine_absent", D.get("ac_text") == ["bonjour", False, False], D.get("ac_text"))
+check("ac_persona_rognee_60_car_vide_absente", D.get("ac_persona") == ["gamer", 60, False], D.get("ac_persona"))
+check("ac_confirm_seulement_case_cochee_estimation_ok_vue_pour_cette_source_et_sans_texte",
+      # temoins positifs en tete et en queue (case + estimation ok + source + texte blanc) ; huit negations entre
+      D.get("ac_confirm") == [True, 0, 0, 0, 0, 0, 0, 0, 0, True], D.get("ac_confirm"))
+check("ac_source_illisible_null_chaine_gardee",
+      D.get("ac_src") == [None, None, None, None, None, "p.mp4"], D.get("ac_src"))
+check("ac_pur_entree_intacte_objet_neuf_cles_exactes",
+      D.get("ac_pur") == [True, True, True, ["llm", "n", "persona", "src", "text"], 3], D.get("ac_pur"))
+check("ac_usd_virgule_deux_decimales_moins_d_un_centime_illisible",
+      D.get("ac_usd") == ["0,05 $", "< 0,01 $", "0,00 $", "1,23 $", "? $", "? $", "? $"], D.get("ac_usd"))
+check("ac_est_cout_duree_fournisseur_refus_dit_sa_raison",
+      D.get("ac_est") == ["Transcription payante : ≈ 0,05 $ · ~40 s · ElevenLabs",
+                          "Transcription payante : ≈ 0,40 $ · ~5 min · openai",
+                          "Pas de transcription payante possible — Aucune clé",
+                          "Pas de transcription payante possible", "",
+                          "Transcription payante : ≈ 0,01 $ · ~1 s · fournisseur inconnu"], D.get("ac_est"))
+check("ac_tr_cache_dit_deja_payee_reutilisee_gratuits_par_table_prototype_ignore",
+      D.get("ac_tr") == ["texte connu calé sur le son (gratuit)", "texte du chapitre calé sur le son (gratuit)",
+                         "transcription déjà payée, réutilisée (elevenlabs)", "transcription payée (openai)",
+                         "texte : ?", "texte : toString", "texte : zz"], D.get("ac_tr"))
+check("ac_clip_bornes_duree_origine",
+      D.get("ac_clip") == ["12,0 → 44,5 s · 32,5 s · IA", "0,0 → 15,0 s · 15,0 s · heuristique",
+                           "? → ? s · ? s · heuristique", "? → ? s · ? s · heuristique"], D.get("ac_clip"))
+_L7AC = {n: _corps(n) for n in ("dzmAcCle", "dzmAcNum", "dzmAcPayload", "dzmAcDec", "dzmAcUsd", "dzmAcEstTxt", "dzmAcTrTxt", "dzmAcClipTxt")}
+check("l7b_ac_coeur_pur_ni_r_ni_x_ni_reseau_ni_dom_exports_x1",
+      all(len(c) > 60 for c in _L7AC.values())
+      and not any(re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|fetch\(|setClips|pushHistory", c) for c in _L7AC.values())
+      and _L7AC["dzmAcPayload"].count("b.confirm=!0") == 1 and _L7AC["dzmAcPayload"].count("confirm") == 1
+      and len(_DT) > 1000
+      and _DT.count("acCle:dzmAcCle,acNum:dzmAcNum,acPayload:dzmAcPayload,acUsd:dzmAcUsd,acEstTxt:dzmAcEstTxt,acTrTxt:dzmAcTrTxt,acClipTxt:dzmAcClipTxt,Autoclips:DzmAutoclips,") == 1
+      and _SRCb.count("acPayload:") == 1 and _SRCb.count("Autoclips:") == 1,
+      ({n: len(c) for n, c in _L7AC.items()}, _DT.count("acPayload:dzmAcPayload")))
+# LE POPOVER : ses dix useState sans garde avant (aucun `return null`), le corps passe TOUJOURS par le coeur (aucun
+# `confirm` litteral), la case « payer » se decoche des l'envoi confirme, quatre gardes d'obsolescence (numero de
+# requete + cle de la source + vivant), l'ouverture passe par o.onOpenProject, « Creer » est arme, AUCUNE ecriture de
+# la timeline (temoin de longueur).
+_AC = _SRCb[_SRCb.find("function DzmAutoclips(o){"):_SRCb.find("/* E-5 (lot E-B, tache 4, 23/09/2026) ")]  # borne : le docstring E-5 qui suit (il cite localStorage)
+check("l7b_ac_popover_hooks_coeur_obsolescence_armement_aucune_ecriture_de_timeline",
+      len(_AC) > 3000 and _AC.count("x.useState(") == 10 and _AC.count("return null") == 0
+      and _AC.count('className:"svm-pop dzm-autoclips"') == 1
+      and _AC.count("var b=dzmAcPayload({src:o.src,text:text,n:n,persona:persona,llm:llm,payer:payer,vu:vu});") == 1
+      and _AC.count("confirm:") == 0 and _AC.count("paye=b.confirm===!0") == 1 and _AC.count("if(paye)setPayer(!1);") == 1
+      and _AC.count("var frais=function(q,k0){return vivant.current&&q===seq.current&&cle.current===k0};") == 1
+      and _AC.count("if(!frais(q,k0))return;") == 4
+      and _AC.count('x.useEffect(function(){seq.current++;setVu(null);setPayer(!1);setRes(null);setMsg("");setBusy(0);setArm(-1)},[k]);') == 1
+      and _AC.count('fetch("/api/montage/autoclips",{method:"POST",') == 1 and _AC.count('fetch("/api/montage/autoclips/create",{method:"POST",') == 1
+      and _AC.count("o.onOpenProject({id:String(pid),name:nm})") == 1 and _AC.count("if(arm!==i){setArm(i);return}") == 1
+      and _AC.count('className:"svm-goldbtn dzm-acgo",disabled:!!busy,') == 1
+      and not re.search(r"setClips|pushHistory|addAsset|svmApplyProject|localStorage|DzTracks", _AC),
+      f"corps={len(_AC)} useState={_AC.count('x.useState(')}")
+# LE TIROIR : la ligne ouverte (un useState de plus, avant la garde), « ✂ auto-clips » dont le clic n'atteint pas la
+# ligne, le popover monte avec la cle du job et o.onOpenProject relaye ; refermer le tiroir ferme le popover.
+_iAc = _DRW.find("var s9=x.useState(null),ac=s9[0],setAc=s9[1];")
+check("l7b_ac_tiroir_bouton_de_ligne_popover_cle_du_job_relai_d_ouverture",
+      len(_DRW) > 400 and 0 <= _iAc < _DRW.find("return null")
+      and _DRW.count("onClick:function(e){e.stopPropagation();e.preventDefault();setAc(j)}") == 1
+      and _DRW.count('className:"svm-medac",draggable:!0,') == 1
+      and _DRW.count("ac?r.jsx(DzmAutoclips,{src:{job_id:String(ac.job_id)},") == 1
+      and _DRW.count("onOpenProject:o.onOpenProject},String(ac.job_id)):null") == 1
+      and _DRW.count("x.useEffect(function(){if(!o.open)setAc(null)},[o.open?1:0]);") == 1,
+      (_iAc, len(_DRW)))
+# LA LISTE DES PROJETS : `openProj` (compteur) ouvre par le chemin MEME de « ouvrir » (surete puis ouvrir), refus dit
+# quand la liste est occupee ; `n<=0` garde le montage (rien au premier rendu)
+_PJ = _SRCb[_SRCb.find("var DzmProjects=function(props){"):_SRCb.find("  function saveAs(){")]
+check("l7b_ac_projets_openProj_compteur_chemin_de_ouvrir",
+      len(_PJ) > 2000 and _PJ.count("var oproj=props&&props.openProj,opn=Number(oproj&&oproj.n)||0;") == 1
+      and _PJ.count("if(opn<=0||!oproj||!oproj.id)return;") == 1
+      and _PJ.count("surete().then(function(s){if(s)ouvrir(p,s.nom)})},[opn]);") == 1
+      and _PJ.count('if(busy){note("Liste des projets occupée') == 1,
+      f"hote={len(_PJ)}")
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)
