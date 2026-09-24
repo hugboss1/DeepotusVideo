@@ -1622,13 +1622,19 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
    MESURÉ Playwright 1400 × 900 paysage : note (250, 124, 271 × 14) ; tiroir Narration FERMÉ, la rangée .svm-playerbar
    remontée en tête (order:-1, 4bda880) est en (242, 114, 848 × 21) → CHEVAUCHEMENT (la puce « source » passe sur le
    texte) ; tiroir OUVERT, la note se pose sur l'en-tête « NARRATION » du tiroir, hors de la zone.
-   PARADE : en paysage la note rentre DANS LE FLUX de la zone (colonne flex) — `static` ignore top/left/z-index en
-   ligne, `!important` est le seul moyen de battre un style en ligne ; ordre 0 après la rangée (order:-1), avant la
-   scène : elle tombe SOUS la rangée, à 8 px (le `gap` de la zone), et la scène perd sa hauteur le temps de la note —
-   le cadre et ses timecodes descendent avec elle, aucun chevauchement possible, rangée repliée sur deux lignes
-   comprise. `align-self:flex-start` : la largeur du texte, pas celle de la zone ; `margin:0` : le `margin-top:10px`
-   de .svm-note doublerait le gap. Portrait (data-side, zone en rangée) : non touché. */
-.dzsvm .svm-playerzone:not([data-side])>.svm-note{position:static!important;align-self:flex-start;margin:0}
+   PREMIÈRE PARADE ÉCARTÉE (b54087d, `position:static!important`, note dans le flux) : MESURÉ, le cadre SAUTAIT à
+   chaque note — (420, 143, 492 × 277) → (439, 165, 453 × 255) pendant 4,5 s puis retour ; les notes sont fréquentes.
+   PARADE : la note RESTE HORS DU FLUX (absolue, z 5 en ligne conservé) ; en paysage la zone devient son bloc
+   conteneur (`position:relative`) et `top`/`left` (`!important`, seul moyen de battre un style en ligne) la posent
+   SOUS la rangée, alignée sur elle : top = rembourrage 10 + rangée 21 (MESURÉE, une ligne, ouvert comme fermé) +
+   gap 8 = 39 px ; left = rembourrage 10. `margin:0` : le `margin-top:10px` de .svm-note décalerait d'autant.
+   MESURÉ après (1400 × 900, Narration ouvert/fermé × OUTILS déplié/replié) : cadre IDENTIQUE avec et sans note,
+   note sous la rangée, hors du timecode (coin haut DROIT du cadre) ; elle passe sur le coin haut gauche de l'image,
+   comme la note d'origine. `position:relative` sur la zone : 23 descendants absolus (couches du cadre, poignées,
+   timecode, encart des scopes) tous sous `.svm-frame` positionné — AUCUN rectangle ne bouge (zone static en ligne
+   contre la feuille, mesuré) ; la barre OUTILS n'est pas dans la zone. Portrait (data-side) : non touché. */
+.dzsvm .svm-playerzone:not([data-side]){position:relative}
+.dzsvm .svm-playerzone:not([data-side])>.svm-note{top:39px!important;left:10px!important;margin:0}
 .dzsvm .dzm-lbscrim{position:absolute;inset:0;z-index:19;background:rgba(0,0,0,.62);display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box}
 .dzsvm[data-svm-theme="light"] .dzm-lbscrim{background:rgba(23,21,18,.38)}
 .dzsvm .dzm-lb{background:var(--panel2);border:1px solid var(--stroke2);border-radius:12px;padding:12px;max-width:100%;max-height:100%;overflow:auto;box-sizing:border-box;box-shadow:0 10px 28px rgba(0,0,0,.55)}

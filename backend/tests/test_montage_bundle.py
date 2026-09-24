@@ -19041,22 +19041,45 @@ check("L5_css_scopes_puce_dans_la_barre_en_tete_encart_dans_le_cadre_borne_40_po
 # REVUE FINALE L5 (24/09/2026) : LA NOTE DU LECTEUR SOUS LA RANGEE. MESURE Playwright 1400 x 900 paysage, tiroir
 # Narration ferme : la note (style EN LIGNE absolute top:58 left:18 z 5, bloc conteneur `.dzsvm.svm-col` car la zone
 # est static) en (250, 124, 271 x 14) chevauchait la rangee .svm-playerbar remontee en tete (242, 114, 848 x 21) ;
-# apres : (242, 143, 271 x 14), sous la rangee (bas 135), le cadre descend (y 165) et ses timecodes avec lui.
-# REGLE EXACTE (hors commentaires, une fois) + TEMOINS : le style en ligne que la regle doit battre est TOUJOURS la
-# (sinon `!important` serait devenu inutile ou faux), dans la zone du lecteur, AVANT la scene ; et la rangee est
-# toujours en tete (order:-1), sans quoi « sous la rangee » ne vaudrait plus.
-_NOTE_R = ".dzsvm .svm-playerzone:not([data-side])>.svm-note{position:static!important;align-self:flex-start;margin:0}"
+# PREMIERE PARADE (b54087d, `position:static!important`, note DANS LE FLUX) ECARTEE : MESURE, le cadre SAUTAIT a
+# chaque note, (420, 143, 492 x 277) -> (439, 165, 453 x 255) pendant 4,5 s puis retour.
+# PARADE : la note RESTE ABSOLUE ; en paysage la zone devient son bloc conteneur (`position:relative`) et top/left
+# (`!important` contre le style en ligne) la posent sous la rangee : top = rembourrage + rangee 21 (MESUREE, une
+# ligne, 356 px de puces pour 548 a 848 de large) + gap ; left = rembourrage. Rembourrage et gap sont LUS dans
+# son-vfx-montage.css, pas recopies. MESURE apres (1400 x 900, Narration ouvert/ferme x OUTILS deplie/replie) : cadre
+# IDENTIQUE avec et sans note, note (242, 143, 271 x 14) sous la rangee (bas 135), hors du timecode (coin haut
+# droit) ; 23 descendants absolus de la zone, zone static en ligne contre la feuille : AUCUN rectangle ne bouge, car
+# tous vivent sous `.svm-frame` qui est positionne (temoin ci-dessous).
+# REGLES EXACTES (hors commentaires, une fois) + TEMOINS : aucune regle ne remet la note dans le flux (`static`), le
+# style en ligne que la regle doit battre est TOUJOURS la (sinon `!important` serait inutile ou faux), dans la zone
+# du lecteur, AVANT la scene ; la rangee est toujours en tete (order:-1), sans quoi « sous la rangee » ne vaudrait
+# plus ; le cadre reste positionne (sinon la zone relative capterait ses couches absolues).
+_NOTE_ZB = _SVMCSS[_SVMCSS.find(".svm-playerzone{"):].split("}", 1)[0]
+_NOTE_PAD = re.search(r"padding:(\d+)px", _NOTE_ZB)
+_NOTE_GAP = re.search(r"gap:(\d+)px", _NOTE_ZB)
+_NOTE_TOP = (int(_NOTE_PAD.group(1)) + 21 + int(_NOTE_GAP.group(1))) if _NOTE_PAD and _NOTE_GAP else -1
+_NOTE_LEFT = int(_NOTE_PAD.group(1)) if _NOTE_PAD else -1
+_NOTE_RZ = ".dzsvm .svm-playerzone:not([data-side]){position:relative}"
+_NOTE_R = (".dzsvm .svm-playerzone:not([data-side])>.svm-note{top:%dpx!important;left:%dpx!important;margin:0}"
+           % (_NOTE_TOP, _NOTE_LEFT))
 _NOTE_B = BUNDLE.read_bytes().decode("utf-8-sig")
 _NOTE_L = 'note?r.jsx("div",{className:"svm-note",style:{position:"absolute",top:58,left:18,zIndex:5},children:note}):null'
 _NOTE_Z = _NOTE_B.find('r.jsxs("div",{className:"svm-playerzone"')
 _NOTE_S = _NOTE_B.find('r.jsx("div",{className:"svm-stage"', _NOTE_Z) if _NOTE_Z >= 0 else -1
-check("L5_revue_note_du_lecteur_dans_le_flux_sous_la_rangee_en_paysage",
-      _sansc(_EB_CSS).count(_NOTE_R) == 1
+_NOTE_FB = _SVMCSS[_SVMCSS.find(".svm-frame{"):].split("}", 1)[0]
+check("L5_revue_note_du_lecteur_sous_la_rangee_hors_flux_cadre_immobile_en_paysage",
+      _NOTE_TOP == 39 and _NOTE_LEFT == 10
+      and _sansc(_EB_CSS).count(_NOTE_R) == 1
+      and _sansc(_EB_CSS).count(_NOTE_RZ) == 1
       and _sansc(_EB_CSS).count(">.svm-note{") == 1
+      and _sansc(_EB_CSS).count(".svm-playerzone:not([data-side]){") == 1
+      and "static" not in _sansc(_EB_CSS)[_sansc(_EB_CSS).find(">.svm-note{"):].split("}", 1)[0]
       and _NOTE_B.count(_NOTE_L) == 1
       and 0 <= _NOTE_Z < _NOTE_B.find(_NOTE_L) < _NOTE_S
-      and _sansc(_EB_CSS).count(".dzsvm .svm-playerzone:not([data-side]) .svm-playerbar{order:-1}") == 1,
-      [_sansc(_EB_CSS).count(_NOTE_R), _NOTE_B.count(_NOTE_L), _NOTE_Z, _NOTE_S])
+      and _sansc(_EB_CSS).count(".dzsvm .svm-playerzone:not([data-side]) .svm-playerbar{order:-1}") == 1
+      and "position:relative" in _NOTE_FB,
+      [_NOTE_TOP, _NOTE_LEFT, _sansc(_EB_CSS).count(_NOTE_R), _sansc(_EB_CSS).count(_NOTE_RZ),
+       _NOTE_B.count(_NOTE_L), _NOTE_Z, _NOTE_S, "position:relative" in _NOTE_FB])
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")
