@@ -17456,8 +17456,8 @@ check("L7d1_etat_diffSt_replie_en_queue_de_EB7_ETAT_apres_boMap_avant_stDzFin_un
       # L7 D-3b (tache 4-bis) : abSt ajoute le sien, 543 -> 544 ; L7 D-22 (tache 6) : dzNewTr du tiroir, 544 -> 545
       # L7-B D-34 (tache 7, 24/09/2026) : minNote + noteMsg du tiroir Medias (couche), 545 -> 547 (les trois epingles)
       # L7-B D-40 (tache 4, 24/09/2026) : 547 -> 548, l analyse du mouvement en cours (DzmPlanProps, couche) -- les trois epingles
-      # L7-B D-41 (T6) : 548 -> 560 (+10 le popover DzmAutoclips, +1 la ligne ouverte du tiroir, +1 dzAcOpen de l'hote)
-      and s.count("x.useState(") == 560 and (_bak.count("x.useState(") == 482 and _bak.count("diffSt") == 0 if _bak else False),
+      # L7-B D-41 (T6) : 548 -> 560 (+10 le popover DzmAutoclips, +1 la ligne ouverte du tiroir, +1 dzAcOpen de l'hote) ; revue T6 : 561 (+1 la langue)
+      and s.count("x.useState(") == 561 and (_bak.count("x.useState(") == 482 and _bak.count("diffSt") == 0 if _bak else False),
       f"etat={s.count(nl(_L7D_ST))} ordre={(_iDfBo, _iDfSt, _iDfFin)} diffSt={s.count('diffSt')} useState={s.count('x.useState(')}")
 # revue 24/09 : un `diff` sans etat rend null -- jamais le popover generique
 _L7D_G = '    if(pop==="diff")return diffSt?r.jsx(DzTracks.DiffView,Object.assign({onClose:function(){setPop("")}},diffSt)):null;'
@@ -17572,7 +17572,7 @@ _L7G_ST = '  var stAb=x.useState({a:null,b:null,k:""}),abSt=stAb[0],setAbSt=stAb
 _iAbSt = s.find(nl(_L7G_ST))
 check("L7g_etat_abSt_replie_en_queue_de_EB7_ETAT_apres_diffSt_avant_stDzFin_useState_544",
       s.count(nl(_L7G_ST)) == 1 and _L7G_ST in P._EB7_ETAT and P._EB7_ETAT.endswith(_L7G_ST) and 0 < _iDfSt < _iAbSt < _iDfFin
-      and P._EB7_ETAT.count("DzTracks") == 4 and s.count("x.useState(") == 560 and (_bak.count("x.useState(") == 482 if _bak else False)  # D-41 (T6) : 548 -> 560
+      and P._EB7_ETAT.count("DzTracks") == 4 and s.count("x.useState(") == 561 and (_bak.count("x.useState(") == 482 if _bak else False)  # D-41 (T6) : 548 -> 560 -> 561 (langue)
       # MOT ENTIER (stabSt, tabSt… existent) : la declaration, abA (x2), abB (x2) = 5 ; setAbSt porte une majuscule ; x0 dans le .bak
       and len(re.findall(r"\babSt\b", s)) == 5 and (len(re.findall(r"\babSt\b", _bak)) == 0 if _bak else False)
       # la couche : aucun `abSt` entier (temoin : ses trois « dzmStabState » de L3 portent la sous-chaine)
@@ -17741,7 +17741,7 @@ check("L7f4_tiroir_etat_dzNewTr_branche_onNewTrack_avant_onChange_P16_intact_cas
       and s.count('r.jsx("input",{type:"checkbox",checked:dzNewTr,"aria-label":"Traduire dans une nouvelle piste",onChange:function(e){setDzNewTr(e.target.checked)}},"c")') == 1
       and s.count('className:"sub-trlang sub-trnew",title:"Coché : la traduction naît dans une nouvelle piste') == 1 and 0 < _iTg < _iNt < _iFn < _iTg + 1500
       and s.count('apres:dzOn.on?(dzNewTr?"Les "+dzTrN+" répliques traduites naissent dans une nouvelle piste S2, S3… — S1 reste intacte ; « Annuler » retire la piste et ses répliques.":DzTracks.subsTrTitle(dzTrN)):dzOn.pourquoi,') == 1
-      and len(re.findall(r"\bdzNewTr\b", s)) == 4 and s.count("setDzNewTr") == 2 and s.count("x.useState(") == 560  # D-41 (T6) : 548 -> 560
+      and len(re.findall(r"\bdzNewTr\b", s)) == 4 and s.count("setDzNewTr") == 2 and s.count("x.useState(") == 561  # D-41 (T6) : 548 -> 560 -> 561 (langue)
       and (_bak.count("dzNewTr") == 0 and _bak.count("sub-trnew") == 0 and _bak.count("onNewTrack") == 0 if _bak else False),
       f"ordre={(_iS9b, _iS9c, _iTrN)} case={(_iTg, _iNt, _iFn)} dzNewTr={len(re.findall(chr(92) + 'bdzNewTr' + chr(92) + 'b', s))} useState={s.count('x.useState(')}")
 # L7f4 (repli R_M24H) : l'hote passe onNewTrack -- subsNew puis svmTracksSet (historique) puis subsCopy sur setClips,
@@ -18140,6 +18140,7 @@ if len(_L7BN_LAYER) > 100000:
         "function chip(l){tous(T).filter(function(n){return n.p.children===l})[0].p.onClick()}\n"
         "function plus(){tous(T).filter(function(n){return n.p.className==='svm-secbtn svm-medplus'})[0].p.onClick()}\n"
         # restes de T7 (T6, 24/09) : les trois memoires par rendu (noteSeq, noteConf, noteFile) = les useRef a objet, dans l'ordre
+        "function msg2(){var m=tous(T).filter(function(n){return n.p.className==='svm-medst svm-mednotemsg'});return m.length?m[0].p.children:null}\n"
         "function mems(){return HS.filter(function(e){return e&&typeof e==='object'&&!Array.isArray(e)&&('current' in e)&&e.current&&typeof e.current==='object'})\n"
         "  .map(function(e){return Object.keys(e.current).sort()})}\n"
         "async function ouvre(notes,l){neuf(notes);rend();await pause();rend();chip(l);rend();await pause();rend();CALLS=[]}\n"
@@ -18159,6 +18160,11 @@ if len(_L7BN_LAYER) > 100000:
         "  neuf({j8:5,j7:4,j5:5});rend();await pause();rend();CALLS=[];DELAIS=[60];clic('j8',1);rend();R.g_pendant=mems();\n"
         "  chip('★ 3+');rend();await pause(25);rend();R.g_get_pendant=CALLS.filter(function(c){return c[1]==='GET'}).length;\n"
         "  await pause(120);rend();R.g_ordre=CALLS.map(function(c){return c[1]});R.g_ids=ids();R.g_srv=SRV[0].rating;R.g_apres=mems();\n"
+        # revue T6 : un PUT de j7 part PENDANT l'attente (refuse, 100 ms) ; sa file n'est pas celle attendue -> ses memoires
+        # restent, et le refus remet la note d'avant ET le dit
+        "  neuf({j8:5,j7:4,j5:5});rend();await pause();rend();CALLS=[];DELAIS=[60,100];clic('j8',4);rend();chip('★ 3+');rend();await pause(10);rend();\n"
+        "  MODE='ko';clic('j7',2);rend();R.h_opt=ids().length;await pause(3);MODE='ok';await pause(170);rend();\n"
+        "  R.h=[msg2(),ids(),mems(),SRV[1].rating];\n"
         "  console.log(JSON.stringify(R))})();\n")
     _pBN2 = pathlib.Path(TMP) / "l7b_notes_offset.js"; _pBN2.write_text(_L7BN2_SHIM, encoding="utf-8")
     _rBN2 = NODE(["node", str(_pBN2)], timeout=60)
@@ -18192,6 +18198,9 @@ check("L7Bn_restes_T7_chip_3_pendant_un_PUT_lent_la_recharge_attend_le_PUT_et_j8
       _BN2.get("g_get_pendant") == 0 and _BN2.get("g_ordre") == ["PUT", "GET"]
       and _BN2.get("g_srv") == 1 and _BN2.get("g_ids") == ["j7", "j5"],
       (_BN2.get("g_get_pendant"), _BN2.get("g_ordre"), _BN2.get("g_srv"), _BN2.get("g_ids")))
+check("L7Bn_revue_T6_PUT_parti_pendant_l_attente_garde_ses_memoires_son_refus_remet_la_note_et_le_dit",
+      _BN2.get("h") == ["Note refusée : refus — note d'avant remise.", ["j8", "j7"], [["j7"], ["j7"], ["j7"]], 4],
+      _BN2.get("h"))
 check("L7Bn_restes_T7_memoires_noteSeq_noteConf_noteFile_videes_apres_la_recharge_temoin_pleines_pendant",
       _BN2.get("g_pendant") == [["j8"], ["j8"], ["j8"]] and _BN2.get("g_apres") == [[], [], []],
       (_BN2.get("g_pendant"), _BN2.get("g_apres")))
@@ -18279,7 +18288,9 @@ var CL=[{i:0,start:12,end:44.5,score:82,title:'Le secret',hook:'Personne ne le d
   /* B — texte connu, n, persona, IA décochée */
   var B=pop();B.rend();texte(B,'  Bonjour à tous  ');
   find(B.T,function(n){return n.t==='input'&&n.p.type==='number'})[0].p.onChange({target:{value:'6'}});
-  cls(B.T,'dzm-acpersona')[0].p.onChange({target:{value:'gamer'}});boite(B,'dzm-accheck').p.onChange({target:{checked:false}});B.rend();
+  cls(B.T,'dzm-acpersona')[0].p.onChange({target:{value:'gamer'}});boite(B,'dzm-accheck').p.onChange({target:{checked:false}});
+  find(B.T,function(n){return n.t==='select'})[0].p.onChange({target:{value:'en'}});B.rend();
+  R.b_langues=find(B.T,function(n){return n.t==='option'}).map(function(n){return n.p.value});
   R.b_lbl=bouton(B).p.children;route(AC,200,{ok:true,source:'heuristique',transcript:'align',clips:[CL[1]]});
   bouton(B).p.onClick();B.rend();await pause();B.rend();R.b=[corps(),msg(B)];CALLS=[];
   /* C — case payer cochée PUIS texte donné : la case disparaît, pas de confirm */
@@ -18339,6 +18350,28 @@ var CL=[{i:0,start:12,end:44.5,score:82,title:'Le secret',hook:'Personne ne le d
   route('POST /api/montage/projects/p9/open',200,{ok:true});route('GET /api/montage/project',200,{clips:[{tr:'v1'}]});
   PN.P=Object.assign({},PN.P,{openProj:{n:1,id:'p9',name:'Le secret'}});PN.rend();await pause(60);PN.rend();
   R.p2=[CALLS.map(function(c){return c[0]+' '+c[1]}),BEF,APPL.length,NAMED.slice()];CALLS=[];
+  /* V — REVUE T6, le scenario du reviewer : 0,05 $ coche, texte tape (case masquee), lancement avec texte, texte vide,
+     NOUVELLE estimation 0,40 $ -> la case n'est PAS cochee et le clic suivant n'envoie pas confirm ; temoin : cocher
+     APRES la nouvelle estimation -> confirm part, plafonne a 0,40 */
+  var V=pop();V.rend();route(AC,200,{ok:false,estimate:{ok:true,usd:0.05,eta_s:40,label:'EL'}});bouton(V).p.onClick();V.rend();await pause();V.rend();
+  boite(V,'dzm-acpay').p.onChange({target:{checked:true}});V.rend();texte(V,'mon texte');V.rend();
+  route(AC,200,{ok:true,source:'heuristique',transcript:'align',clips:[]});bouton(V).p.onClick();V.rend();await pause();V.rend();
+  texte(V,'');V.rend();route(AC,200,{ok:false,estimate:{ok:true,usd:0.40,eta_s:300,label:'EL'}});bouton(V).p.onClick();V.rend();await pause();V.rend();
+  R.v_case=[boite(V,'dzm-acpay').p.checked,bouton(V).p.children];CALLS=[];
+  route(AC,200,{ok:false,estimate:{ok:true,usd:0.40,eta_s:300,label:'EL'}});bouton(V).p.onClick();V.rend();await pause();V.rend();R.v_corps=corps();CALLS=[];
+  boite(V,'dzm-acpay').p.onChange({target:{checked:true}});V.rend();
+  route(AC,200,{ok:true,source:'heuristique',transcript:'stt:el',clips:[]});bouton(V).p.onClick();V.rend();await pause();V.rend();R.v_temoin=corps();CALLS=[];
+  /* W — la coche retombe quand le nombre ou la langue changent */
+  var W=pop();W.rend();route(AC,200,{ok:false,estimate:EST,reason:'r'});bouton(W).p.onClick();W.rend();await pause();W.rend();CALLS=[];
+  boite(W,'dzm-acpay').p.onChange({target:{checked:true}});W.rend();var w1=boite(W,'dzm-acpay').p.checked;
+  find(W.T,function(n){return n.t==='input'&&n.p.type==='number'})[0].p.onChange({target:{value:'5'}});W.rend();var w2=boite(W,'dzm-acpay').p.checked;
+  boite(W,'dzm-acpay').p.onChange({target:{checked:true}});W.rend();var w3=boite(W,'dzm-acpay').p.checked;
+  find(W.T,function(n){return n.t==='select'})[0].p.onChange({target:{value:'de'}});W.rend();R.w=[w1,w2,w3,boite(W,'dzm-acpay').p.checked];
+  /* Z — deux clics sur le MEME gestionnaire (rendu non rafraichi, busy encore faux) : un seul envoi confirme */
+  var Z=pop();Z.rend();route(AC,200,{ok:false,estimate:EST,reason:'r'});bouton(Z).p.onClick();Z.rend();await pause();Z.rend();
+  boite(Z,'dzm-acpay').p.onChange({target:{checked:true}});Z.rend();CALLS=[];
+  route(AC,200,{ok:true,source:'heuristique',transcript:'stt:el',clips:[]},30);route(AC,200,{ok:true,source:'heuristique',transcript:'stt:el',clips:[]},30);
+  var hz=bouton(Z).p.onClick;hz();hz();await pause(70);Z.rend();R.z=corps().map(function(b){return b.confirm===true});CALLS=[];ROUTES={};
   console.log(JSON.stringify(R))})();
 """)
     _pAC = pathlib.Path(TMP) / "l7b_autoclips.js"; _pAC.write_text(_L7BAC_SHIM, encoding="utf-8")
@@ -18351,15 +18384,15 @@ check("L7Bac_sous_node_au_depart_estimer_lancer_sans_case_payer_IA_cochee",
       _BA.get("a0") == ["Estimer / Lancer", 0, True], _L7BAC_RT)
 check("L7Bac_sous_node_sans_case_le_corps_n_a_pas_confirm_estimation_dite_case_payer_offerte_non_cochee",
       _BA.get("a_gel") == [True, "Analyse…"]
-      and _BA.get("a1") == [[{"src": _ACS, "n": 4, "llm": True}], "Transcription payante : confirmez le coût annoncé",
+      and _BA.get("a1") == [[{"src": _ACS, "n": 4, "llm": True, "lang": "fr"}], "Transcription payante : confirmez le coût annoncé",
                             "Transcription payante : ≈ 0,05 $ · ~40 s · ElevenLabs", 1, False,
                             "Payer la transcription (≈ 0,05 $)", "Estimer / Lancer"],
       (_BA.get("a_gel"), _BA.get("a1")))
 check("L7Bac_sous_node_second_clic_sans_cocher_toujours_sans_confirm",
-      _BA.get("a2") == [{"src": _ACS, "n": 4, "llm": True}], _BA.get("a2"))
+      _BA.get("a2") == [{"src": _ACS, "n": 4, "llm": True, "lang": "fr"}], _BA.get("a2"))
 check("L7Bac_sous_node_case_cochee_le_clic_suivant_envoie_confirm_true_et_la_case_se_decoche",
       _BA.get("a_lbl") == "Payer et lancer (≈ 0,05 $)" and _BA.get("a_pendant") is False
-      and (_BA.get("a3") or [None])[0] == [{"src": _ACS, "n": 4, "llm": True, "confirm": True}]
+      and (_BA.get("a3") or [None])[0] == [{"src": _ACS, "n": 4, "llm": True, "lang": "fr", "confirm": True, "max_usd": 0.0536}]
       and (_BA.get("a3") or [None, None])[1] == "2 extraits — transcription payée (elevenlabs) ; classés par l'IA (fake).",
       (_BA.get("a_lbl"), _BA.get("a_pendant"), _BA.get("a3")))
 check("L7Bac_sous_node_resultats_score_titre_accroche_duree_origine_case_payer_retiree",
@@ -18367,16 +18400,17 @@ check("L7Bac_sous_node_resultats_score_titre_accroche_duree_origine_case_payer_r
                                     ["12,0 → 44,5 s · 32,5 s · IA", "60,0 → 80,0 s · 20,0 s · heuristique"]],
       _BA.get("a3"))
 check("L7Bac_sous_node_transcription_en_cache_dite_deja_payee_reutilisee_sans_confirm",
-      _BA.get("a4") == [[{"src": _ACS, "n": 4, "llm": True}],
+      _BA.get("a4") == [[{"src": _ACS, "n": 4, "llm": True, "lang": "fr"}],
                         "1 extrait — transcription déjà payée, réutilisée (elevenlabs) ; classés par l'heuristique (gratuit)."],
       _BA.get("a4"))
-check("L7Bac_sous_node_llm_false_texte_n_persona_dans_le_corps",
+check("L7Bac_sous_node_llm_false_texte_n_persona_langue_dans_le_corps",
       _BA.get("b_lbl") == "Lancer (texte connu, gratuit)"
-      and _BA.get("b") == [[{"src": _ACS, "n": 6, "llm": False, "text": "Bonjour à tous", "persona": "gamer"}],
-                           "1 extrait — texte connu calé sur le son (gratuit) ; classés par l'heuristique (gratuit)."],
-      (_BA.get("b_lbl"), _BA.get("b")))
+      and _BA.get("b") == [[{"src": _ACS, "n": 6, "llm": False, "lang": "en", "text": "Bonjour à tous", "persona": "gamer"}],
+                           "1 extrait — texte connu calé sur le son (gratuit) ; classés par l'heuristique (gratuit)."]
+      and _BA.get("b_langues") == ["fr", "en", "es", "de", "it"],
+      (_BA.get("b_lbl"), _BA.get("b"), _BA.get("b_langues")))
 check("L7Bac_sous_node_case_cochee_puis_texte_donne_la_case_disparait_et_rien_n_est_paye",
-      _BA.get("c_case") == 0 and _BA.get("c") == [{"src": _ACS, "n": 4, "llm": True, "text": "texte"}],
+      _BA.get("c_case") == 0 and _BA.get("c") == [{"src": _ACS, "n": 4, "llm": True, "lang": "fr", "text": "texte"}],
       (_BA.get("c_case"), _BA.get("c")))
 check("L7Bac_sous_node_sans_cle_la_raison_est_dite_aucune_case_payer",
       _BA.get("e") == ["Pas de transcription payante possible — Aucune clé de transcription configurée", 0,
@@ -18408,6 +18442,15 @@ check("L7Bac_sous_node_projets_openProj_copie_de_surete_puis_open_puis_applique_
       and (_BA.get("p1") or [])[1:4] == [1, 1, [["s1", "(non nommé) 24/09"], ["p9", "Le secret"]]]
       and "« Le secret » ouvert" in str((_BA.get("p1") or [""] * 5)[4]) and "(non nommé) 24/09" in str((_BA.get("p1") or [""] * 5)[4]),
       (_BA.get("p0"), _BA.get("p1")))
+check("L7Bac_revue_T6_scenario_du_reviewer_nouvelle_estimation_case_decochee_pas_de_confirm_temoin_coche_apres",
+      _BA.get("v_case") == [False, "Estimer / Lancer"]
+      and _BA.get("v_corps") == [{"src": _ACS, "n": 4, "llm": True, "lang": "fr"}]
+      and _BA.get("v_temoin") == [{"src": _ACS, "n": 4, "llm": True, "lang": "fr", "confirm": True, "max_usd": 0.4}],
+      (_BA.get("v_case"), _BA.get("v_corps"), _BA.get("v_temoin")))
+check("L7Bac_revue_T6_la_coche_retombe_au_changement_du_nombre_et_de_la_langue_temoin_cochee_avant",
+      _BA.get("w") == [True, False, True, False], _BA.get("w"))
+check("L7Bac_revue_T6_deux_clics_du_meme_gestionnaire_un_seul_envoi_confirme",
+      _BA.get("z") == [True], _BA.get("z"))
 check("L7Bac_sous_node_projets_montage_nomme_pas_de_copie_open_puis_applique",
       _BA.get("p2") == [["POST /api/montage/projects/p9/open", "GET /api/montage/project"], 1, 1, [["p9", "Le secret"]]],
       _BA.get("p2"))

@@ -2889,6 +2889,14 @@ async def montage_reframe(request: Request):
 # (M5, `ok:false` dit).
 _AUTOCLIPS_TEXT_MAX = 200_000
 _AUTOCLIPS_SEGS_MAX = 2000
+# Revue T6 (24/09/2026) — LE PLAFOND DE COÛT CONFIRMÉ. `confirm:true` exige
+# `max_usd` : l'`usd` de l'estimation que l'utilisateur a VUE et cochée. Avant
+# de payer, l'estimation refaite ici ne doit pas le dépasser de plus que cette
+# tolérance d'arrondi (l'`usd` est rendu arrondi à 4 décimales par
+# estimate_transcription) — sinon 409, rien n'est lancé. Défense serveur d'une
+# faille client mesurée le 24/09/2026 (case cochée pour 0,05 $ restée cochée
+# sous une nouvelle estimation à 0,40 $).
+_AUTOCLIPS_USD_TOL = 0.0005
 
 
 def _autoclips_stt_cle(p: Path, pid, lang) -> Path | None:
@@ -2969,6 +2977,11 @@ async def montage_autoclips(request: Request):
     if not isinstance(use_llm, bool):
         raise HTTPException(400, "llm illisible — true ou false.")
     confirm = body.get("confirm") is True
+    max_usd = body.get("max_usd")
+    if confirm and (isinstance(max_usd, bool) or not isinstance(max_usd, (int, float))
+                    or not math.isfinite(max_usd) or max_usd < 0):
+        raise HTTPException(400, "confirm:true exige max_usd : le coût annoncé que vous "
+                                 "avez accepté (nombre ≥ 0) — rien n'est lancé.")
     p = await _media_source(request, src, video=True)
     transcript = "align"
     if not text and chapter_id:
@@ -3007,6 +3020,11 @@ async def montage_autoclips(request: Request):
                         "reason": est.get("reason") or "Transcription payante : "
                                   "confirmez le coût annoncé (confirm:true), ou "
                                   "donnez le texte connu (gratuit)."}
+            usd = float(est.get("usd") or 0.0)
+            if usd > float(max_usd) + _AUTOCLIPS_USD_TOL:
+                raise HTTPException(409, f"Coût estimé {usd:.4f} $ supérieur au plafond "
+                                         f"confirmé {float(max_usd):.4f} $ — rien n'est lancé, "
+                                         f"réestimez puis confirmez le nouveau coût.")
             try:
                 res = await asyncio.to_thread(T.transcribe, p, provider=provider,
                                               language=lang_stt)

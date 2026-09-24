@@ -20035,6 +20035,9 @@ var DZM_NOTE_CHIPS=[[3,"★ 3+","Ne montrer que les rendus notés 3 ★ ou plus 
    manquée n'a pas été comptée, l'offset n'a pas avancé). Vignette : la première
    image de la bande (`/api/montage/strip … n=1`). Durée : `dzmDurTxt`,
    le formateur déjà partagé avec le transport (pas de second m:ss). */
+/* DZM_MED_ATT (revue T6, 24/09/2026) : l'attente des notes en vol avant une recharge depuis la page 0 est bornée
+   à 15 s — un PUT qui ne répond jamais ne bloque pas le tiroir */
+var DZM_MED_ATT=15000;
 var DZM_MED_PAGE=24,DZM_MED_REPOS=250;
 function DzmMediaDrawer(o){
   o=o||{};
@@ -20064,13 +20067,15 @@ function DzmMediaDrawer(o){
      trois mémoires par rendu (compteur, note confirmée, file) sont VIDÉES de
      tout rendu dont la file est celle qu'on a attendue — les absents de la
      nouvelle page compris ; un présent relira sa note fraîche au prochain clic.
-     Une file partie PENDANT l'attente n'est pas touchée. « Plus » n'attend pas. */
+     Une file partie PENDANT l'attente n'est pas touchée. « Plus » n'attend pas.
+     L'attente est bornée à DZM_MED_ATT (15 s, revue T6) : au-delà la recharge part. */
   var charge=function(off,qq,remplace){
     var n=++seq.current;setSt("…");if(remplace)vague.current++;
     var u="/api/jobs?limit="+DZM_MED_PAGE+"&offset="+off+"&video=1"+(qq?"&q="+encodeURIComponent(qq):"")
       +(minNote>0?"&min_rating="+minNote:"");
     var att=remplace?Object.assign({},noteFile.current):null;
-    var enVol=att?Promise.all(Object.keys(att).map(function(k2){return att[k2]})):Promise.resolve();
+    var enVol=att?new Promise(function(z){var h=setTimeout(z,DZM_MED_ATT);
+      Promise.all(Object.keys(att).map(function(k2){return att[k2]})).then(function(){clearTimeout(h);z()})}):Promise.resolve();
     var passe={};
     return enVol.then(function(){if(!vivant.current||n!==seq.current)return passe;
         return fetch(u).then(function(res){if(!res.ok)throw new Error("HTTP "+res.status);return res.json()})})
@@ -20188,12 +20193,24 @@ function DzmMediaDrawer(o){
    sans lui il faut une transcription PAYANTE, que le serveur n'exécute que
    sur `confirm:true`. RÈGLE DE LA DÉPENSE, tenue par le cœur pur
    `dzmAcPayload` : `confirm:true` part SEULEMENT si la case « Payer la
-   transcription » est cochée ET qu'une estimation `ok` a été VUE pour cette
-   même source ET qu'aucun texte connu n'est donné (le texte rend la
-   transcription inutile). Après tout envoi confirmé, la case se décoche :
-   chaque paiement demande un nouveau geste. Une transcription déjà payée est
-   rendue par le cache du serveur (`transcript:"stt:…:cache"`) et le popover
-   le dit.
+   transcription » a été cochée POUR L'ESTIMATION AFFICHÉE (l'état `payer`
+   retient l'objet estimation coché, pas un booléen : toute estimation neuve
+   est un autre objet, la coche ne la couvre pas) ET que cette estimation est
+   `ok`, pour cette même source, avec un coût lisible ET qu'aucun texte connu
+   n'est donné (le texte rend la transcription inutile). Le corps porte alors
+   `max_usd` = ce coût : le serveur refuse (409) si l'estimation qu'il refait
+   le dépasse. En plus, la coche retombe à chaque estimation reçue, à chaque
+   changement du texte, du nombre ou de la langue, et dès l'envoi confirmé ;
+   un second envoi confirmé ne part pas tant que le premier est en vol.
+   REVUE DU 24/09/2026 (mesurée par le reviewer) : la coche booléenne d'une
+   estimation à 0,05 $ survivait à un lancement avec texte puis couvrait une
+   nouvelle estimation à 0,40 $ — confirm partait sans nouvelle coche.
+   Une transcription déjà payée est rendue par le cache du serveur
+   (`transcript` en stt:…:cache) et le popover le dit.
+   Écart daté (24/09/2026) : `chapter_id` n'est pas envoyé — pas de sélecteur
+   de chapitre, le texte connu couvre le besoin ; le chemin serveur du
+   chapitre reste bancé (test_montage_l7b [4]) mais le popover ne l'appelle
+   pas. Langue : fr, en, es, de, it (défaut fr), envoyée à chaque requête.
    Le projet d'un extrait est CRÉÉ par `/autoclips/create` (le courant n'est
    pas touché) puis OUVERT par le mécanisme E-1 des projets : l'hôte relaie
    `onOpenProject({id,name})` à la liste des projets (`openProj`, un
@@ -20209,14 +20226,18 @@ function dzmAcCle(src){if(src==null||src==="")return "";if(typeof src==="string"
 /* le nombre d'extraits : entier 1..8 (arrondi, borné), 4 pour tout illisible (vide, booléen, texte) */
 function dzmAcNum(v){if(typeof v==="string")v=v.trim()===""?NaN:Number(v);
   if(typeof v!=="number"||!isFinite(v))return 4;return Math.min(8,Math.max(1,Math.round(v)))}
-/* le corps de POST /autoclips ; null sans source lisible. `vu` = l'estimation vue, marquée `pour` la clé de sa source */
+/* les langues offertes (défaut fr) ; toute autre valeur est lue fr */
+var DZM_AC_LANGS=["fr","en","es","de","it"];
+/* le corps de POST /autoclips ; null sans source lisible. `vu` = l'estimation vue, marquée `pour` la clé de sa
+   source ; `payer` = l'estimation COCHÉE (le même objet que `vu`, ou rien) ; confirm emporte max_usd = son coût */
 function dzmAcPayload(e){e=e||{};var src=e.src;
   if(!src||Array.isArray(src)||(typeof src!=="object"&&typeof src!=="string"))return null;
-  var b={src:src,n:dzmAcNum(e.n),llm:e.llm!==!1};
+  var b={src:src,n:dzmAcNum(e.n),llm:e.llm!==!1,lang:DZM_AC_LANGS.indexOf(e.lang)>=0?e.lang:"fr"};
   var t=typeof e.text==="string"?e.text.trim():"";if(t)b.text=t;
   var p=typeof e.persona==="string"?e.persona.trim().slice(0,60):"";if(p)b.persona=p;
   var v=e.vu;
-  if(!t&&e.payer===!0&&v&&typeof v==="object"&&v.ok===!0&&v.pour===dzmAcCle(src))b.confirm=!0;
+  if(!t&&v&&typeof v==="object"&&e.payer===v&&v.ok===!0&&v.pour===dzmAcCle(src)
+    &&typeof v.usd==="number"&&isFinite(v.usd)&&v.usd>=0){b.confirm=!0;b.max_usd=v.usd}
   return b}
 function dzmAcDec(v){return typeof v==="number"&&isFinite(v)?(Math.round(v*10)/10).toFixed(1).replace(".",","):"?"}
 function dzmAcUsd(u){if(typeof u!=="number"||!isFinite(u)||u<0)return "? $";
@@ -20226,11 +20247,10 @@ function dzmAcEstTxt(est){if(!est||typeof est!=="object")return "";
   if(est.ok!==!0)return "Pas de transcription payante possible"+(est.reason?" — "+String(est.reason):"");
   var eta=Number(est.eta_s)||0,d=eta>=90?"~"+Math.round(eta/60)+" min":"~"+Math.max(1,Math.round(eta))+" s";
   return "Transcription payante : ≈ "+dzmAcUsd(est.usd)+" · "+d+" · "+String(est.label||est.provider||"fournisseur inconnu")}
-/* d'où vient le texte des extraits (champ `transcript` de la réponse) — les deux chemins gratuits par table
-   (clés nues : aucun nom de gabarit de titre n'est écrit en chaîne dans la couche, règle D-21) */
-var DZM_AC_TR={align:"texte connu calé sur le son (gratuit)",chapitre:"texte du chapitre calé sur le son (gratuit)"};
+/* d'où vient le texte des extraits (champ `transcript` de la réponse). Le chemin du chapitre n'est pas appelé
+   par le popover (écart daté plus haut) : s'il revenait, il serait dit « texte : » suivi de son nom. */
 function dzmAcTrTxt(tr){var s=String(tr==null?"":tr),m;
-  if(Object.prototype.hasOwnProperty.call(DZM_AC_TR,s))return DZM_AC_TR[s];
+  if(s==="align")return "texte connu calé sur le son (gratuit)";
   if((m=/^stt:(.+):cache$/.exec(s)))return "transcription déjà payée, réutilisée ("+m[1]+")";
   if((m=/^stt:(.+)$/.exec(s)))return "transcription payée ("+m[1]+")";
   return "texte : "+(s||"?")}
@@ -20244,40 +20264,47 @@ function DzmAutoclips(o){
   var s2=x.useState(4),n=s2[0],setN=s2[1];
   var s3=x.useState(""),persona=s3[0],setPersona=s3[1];
   var s4=x.useState(!0),llm=s4[0],setLlm=s4[1];
-  var s5=x.useState(!1),payer=s5[0],setPayer=s5[1];
+  /* payer : l'estimation COCHÉE (objet), null sinon */
+  var s5=x.useState(null),payer=s5[0],setPayer=s5[1];
   var s6=x.useState(null),vu=s6[0],setVu=s6[1];
   var s7=x.useState(null),res=s7[0],setRes=s7[1];
   var s8=x.useState(""),msg=s8[0],setMsg=s8[1];
   var s9=x.useState(0),busy=s9[0],setBusy=s9[1];
   var s10=x.useState(-1),arm=s10[0],setArm=s10[1];
-  var seq=x.useRef(0),vivant=x.useRef(!0),cle=x.useRef("");
+  var s11=x.useState("fr"),lang=s11[0],setLang=s11[1];
+  /* enVolPaye : un envoi confirmé est en vol — un second ne part pas (défense en profondeur, en plus de busy) */
+  var seq=x.useRef(0),vivant=x.useRef(!0),cle=x.useRef(""),enVolPaye=x.useRef(!1);
   var k=dzmAcCle(o.src);cle.current=k;
   x.useEffect(function(){vivant.current=!0;return function(){vivant.current=!1}},[]);
   /* une autre source : tout ce qui décrivait l'ancienne est oublié, une requête en vol devient obsolète */
-  x.useEffect(function(){seq.current++;setVu(null);setPayer(!1);setRes(null);setMsg("");setBusy(0);setArm(-1)},[k]);
+  x.useEffect(function(){seq.current++;setVu(null);setPayer(null);setRes(null);setMsg("");setBusy(0);setArm(-1)},[k]);
   x.useEffect(function(){if(arm<0)return;var h=setTimeout(function(){setArm(-1)},4000);
     return function(){clearTimeout(h)}},[arm]);
   var frais=function(q,k0){return vivant.current&&q===seq.current&&cle.current===k0};
+  /* toute estimation reçue (ou oubliée) fait retomber la coche : elle ne couvrait que l'ancienne */
+  var poseVu=function(v){setVu(v);setPayer(null)};
   var lire=function(rp){return rp.json().catch(function(){return {}}).then(function(d){
     if(!rp.ok)throw new Error((d&&typeof d.detail==="string"&&d.detail)||("HTTP "+rp.status));return d})};
   var lancer=function(){if(busy)return;
-    var b=dzmAcPayload({src:o.src,text:text,n:n,persona:persona,llm:llm,payer:payer,vu:vu});
+    var b=dzmAcPayload({src:o.src,text:text,n:n,persona:persona,llm:llm,lang:lang,payer:payer,vu:vu});
     if(!b){setMsg("Source illisible — rien n'est lancé.");return}
     var q=++seq.current,k0=k,paye=b.confirm===!0;
+    if(paye){if(enVolPaye.current)return;enVolPaye.current=!0}
     setBusy(1);setArm(-1);setMsg(paye?"Transcription payante en cours, puis analyse…":"Analyse…");
     /* la case « payer » ne sert qu'une fois : décochée dès l'envoi confirmé */
-    if(paye)setPayer(!1);
+    if(paye)setPayer(null);
+    var libere=function(){if(paye)enVolPaye.current=!1};
     fetch("/api/montage/autoclips",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)})
       .then(lire)
-      .then(function(d){if(!frais(q,k0))return;setBusy(0);
+      .then(function(d){libere();if(!frais(q,k0))return;setBusy(0);
         if(d&&d.ok===!0){var cs=Array.isArray(d.clips)?d.clips:[],sc=String(d.source||"");
-          setRes(d);setVu(null);
+          setRes(d);poseVu(null);
           setMsg(cs.length+" extrait"+(cs.length>1?"s":"")+" — "+dzmAcTrTxt(d.transcript)+" ; "
             +(sc.indexOf("llm:")===0?"classés par l'IA ("+sc.slice(4)+")":"classés par l'heuristique (gratuit)")+".");return}
         var est=(d&&d.estimate&&typeof d.estimate==="object")?d.estimate:{ok:!1};
-        setRes(null);setVu(Object.assign({},est,{pour:k0}));
+        setRes(null);poseVu(Object.assign({},est,{pour:k0}));
         setMsg(String((d&&d.reason)||"Transcription payante non confirmée — rien n'a été lancé."))})
-      .catch(function(e){if(!frais(q,k0))return;setBusy(0);
+      .catch(function(e){libere();if(!frais(q,k0))return;setBusy(0);
         setMsg("Auto-clips refusés : "+String((e&&e.message)||"erreur réseau"))})};
   var creer=function(c,i){if(busy)return;
     if(arm!==i){setArm(i);return}
@@ -20291,16 +20318,17 @@ function DzmAutoclips(o){
         var pid=d&&(d.project_id||d.id);
         if(!pid){setMsg("Réponse inattendue : aucun projet n'a été créé.");return}
         var nm=String(d.name||nom||pid);
+        /* la liste des projets dit elle-même si une copie de sûreté a été faite : ce popover ne le sait pas */
         if(typeof o.onOpenProject==="function"){o.onOpenProject({id:String(pid),name:nm});
-          setMsg("Projet « "+nm+" » créé — ouverture : il remplace le montage affiché (non nommé, celui-ci est d'abord mis à l'abri).")}
+          setMsg("Projet « "+nm+" » créé — ouverture demandée : il remplace le montage affiché, la liste des projets dit le résultat.")}
         else setMsg("Projet « "+nm+" » créé — ouvrez-le depuis la liste des projets.")})
       .catch(function(e){if(!frais(q,k0))return;setBusy(0);
         setMsg("Création refusée : "+String((e&&e.message)||"erreur réseau"))})};
-  var libre=!!text.trim(),est=vu&&vu.pour===k?vu:null,estOk=!!(est&&est.ok===!0);
+  var libre=!!text.trim(),est=vu&&vu.pour===k?vu:null,estOk=!!(est&&est.ok===!0),coche=!!est&&payer===est;
   var clips=(res&&Array.isArray(res.clips))?res.clips:[];
-  var goTxt=busy?"Analyse…":libre?"Lancer (texte connu, gratuit)":estOk&&payer?"Payer et lancer (≈ "+dzmAcUsd(est.usd)+")":"Estimer / Lancer";
+  var goTxt=busy?"Analyse…":libre?"Lancer (texte connu, gratuit)":estOk&&coche?"Payer et lancer (≈ "+dzmAcUsd(est.usd)+")":"Estimer / Lancer";
   var goTi=libre?"Cale le texte connu sur le son de la vidéo (gratuit), puis propose les extraits"
-    :estOk&&payer?"Lance la transcription PAYANTE annoncée (≈ "+dzmAcUsd(est.usd)+"), puis propose les extraits"
+    :estOk&&coche?"Lance la transcription PAYANTE annoncée (≈ "+dzmAcUsd(est.usd)+"), puis propose les extraits"
     :"Sans texte connu : demande d'abord le coût de la transcription — rien n'est payé sans la case « Payer la transcription »";
   return r.jsxs("div",{className:"svm-pop dzm-autoclips",role:"dialog","aria-label":"Auto-clips",children:[
     r.jsxs("div",{className:"svm-medhead",children:[
@@ -20311,10 +20339,14 @@ function DzmAutoclips(o){
     r.jsx("textarea",{className:"dzm-actext",value:text,rows:3,disabled:!!busy,
       placeholder:"Texte connu (gratuit) — le texte dit dans la vidéo",
       title:"Texte connu (gratuit) : le script dit dans la vidéo, calé sur le son sans transcription payante. Vide : la transcription payante est estimée d'abord.",
-      onChange:function(e){setText(e.target.value)}}),
+      onChange:function(e){setText(e.target.value);setPayer(null)}}),
     r.jsxs("div",{className:"dzm-acrow",children:[
       r.jsxs("label",{className:"dzm-acn",title:"Nombre d'extraits proposés (1 à 8)",children:["Extraits ",
-        r.jsx("input",{type:"number",min:1,max:8,step:1,value:n,disabled:!!busy,onChange:function(e){setN(e.target.value)}})]}),
+        r.jsx("input",{type:"number",min:1,max:8,step:1,value:n,disabled:!!busy,onChange:function(e){setN(e.target.value);setPayer(null)}})]}),
+      r.jsx("select",{className:"dzm-aclang",value:lang,disabled:!!busy,
+        title:"Langue parlée dans la vidéo (calage du texte connu, transcription)",
+        onChange:function(e){setLang(e.target.value);setPayer(null)},
+        children:DZM_AC_LANGS.map(function(l){return r.jsx("option",{value:l,children:l},l)})}),
       r.jsx("input",{type:"text",className:"dzm-acpersona",value:persona,maxLength:60,disabled:!!busy,
         placeholder:"Persona (facultatif)",title:"Persona (facultatif, 60 caractères) : le public visé, ses mots-clés comptent dans le score",
         onChange:function(e){setPersona(e.target.value)}})]}),
@@ -20324,7 +20356,7 @@ function DzmAutoclips(o){
     est?r.jsx("div",{className:"dzm-acest","data-ok":estOk?"":void 0,children:dzmAcEstTxt(est)}):null,
     estOk&&!libre?r.jsxs("label",{className:"dzm-accheck dzm-acpay",
       title:"Cocher pour autoriser CETTE dépense au prochain « Lancer » — une seule fois ; décochée, rien n'est payé",
-      children:[r.jsx("input",{type:"checkbox",checked:!!payer,disabled:!!busy,onChange:function(e){setPayer(!!e.target.checked)}}),
+      children:[r.jsx("input",{type:"checkbox",checked:coche,disabled:!!busy,onChange:function(e){setPayer(e.target.checked?est:null)}}),
         "Payer la transcription (≈ "+dzmAcUsd(est.usd)+")"]}):null,
     r.jsx("button",{type:"button",className:"svm-goldbtn dzm-acgo",disabled:!!busy,title:goTi,onClick:lancer,children:goTxt}),
     msg?r.jsx("div",{className:"svm-medst dzm-acmsg",children:msg}):null,
@@ -20337,7 +20369,7 @@ function DzmAutoclips(o){
         c.hook?r.jsx("div",{className:"dzm-achook",children:String(c.hook)}):null,
         r.jsx("div",{className:"dzm-acmeta",children:dzmAcClipTxt(c)}),
         r.jsx("button",{type:"button",className:"svm-secbtn dzm-accreate","data-arm":ar?"":void 0,disabled:!!busy,
-          title:ar?"Confirmer : créer ce projet et l'OUVRIR — il remplace le montage affiché (non nommé, celui-ci est d'abord mis à l'abri)"
+          title:ar?"Confirmer : créer ce projet et l'OUVRIR — il remplace le montage affiché (un montage non nommé est d'abord mis à l'abri par la liste des projets)"
             :"Créer un projet neuf avec cet extrait (V1, son du plan, sous-titres) — un second clic confirme",
           onClick:function(){creer(c,i)},children:ar?"Créer et ouvrir ?":"Créer le projet"})]},i)})})]})}
 /* E-5 (lot E-B, tache 4, 23/09/2026) — LE DERNIER RENDU FINAL PAR PROJET.

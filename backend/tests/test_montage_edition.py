@@ -1179,14 +1179,20 @@ out.ac_llm=[T.acPayload({src:AS,llm:!1}).llm,T.acPayload({src:AS,llm:0}).llm,T.a
 out.ac_text=[T.acPayload({src:AS,text:"  bonjour  "}).text,"text" in T.acPayload({src:AS,text:"   "}),"text" in T.acPayload({src:AS,text:5})];
 out.ac_persona=[T.acPayload({src:AS,persona:" gamer "}).persona,T.acPayload({src:AS,persona:new Array(80).join("a")}).persona.length,
   "persona" in T.acPayload({src:AS,persona:""})];
-/* LA RÈGLE DE LA DÉPENSE : confirm seulement case cochée (true strict) ET estimation ok vue pour CETTE source ET sans texte */
+/* LA RÈGLE DE LA DÉPENSE (revue T6) : confirm seulement si la coche porte sur l'estimation AFFICHÉE (même objet),
+   ok, pour CETTE source, coût lisible ≥ 0, et sans texte ; un booléen ou une copie de l'estimation ne suffisent plus */
 function acf(e){var q=T.acPayload(Object.assign({src:AS},e));return q.confirm===void 0?0:q.confirm}
-out.ac_confirm=[acf({payer:!0,vu:EOK}),acf({payer:!1,vu:EOK}),acf({payer:"true",vu:EOK}),acf({payer:!0}),
-  acf({payer:!0,vu:Object.assign({},EOK,{ok:!1})}),acf({payer:!0,vu:Object.assign({},EOK,{ok:"true"})}),
-  acf({payer:!0,vu:Object.assign({},EOK,{pour:'{"job_id":"autre"}'})}),acf({payer:!0,vu:Object.assign({},EOK,{pour:void 0})}),
-  acf({payer:!0,vu:EOK,text:"le texte"}),acf({payer:!0,vu:EOK,text:"   "})];
+function acv(d){var v=Object.assign({},EOK,d);return {payer:v,vu:v}}
+out.ac_confirm=[acf({payer:EOK,vu:EOK}),acf({payer:!0,vu:EOK}),acf({payer:Object.assign({},EOK),vu:EOK}),acf({payer:null,vu:EOK}),
+  acf({payer:EOK}),acf(acv({ok:!1})),acf(acv({ok:"true"})),acf(acv({pour:'{"job_id":"autre"}'})),acf(acv({pour:void 0})),
+  acf(acv({usd:"0.05"})),acf(acv({usd:-1})),acf(acv({usd:NaN})),acf({payer:EOK,vu:EOK,text:"le texte"}),acf({payer:EOK,vu:EOK,text:"   "})];
+/* le plafond : max_usd = le coût de l'estimation cochée, et seulement avec confirm */
+out.ac_max=[T.acPayload({src:AS,payer:EOK,vu:EOK}).max_usd,"max_usd" in T.acPayload({src:AS,payer:!0,vu:EOK}),
+  T.acPayload(Object.assign({src:AS},acv({usd:0}))).max_usd];
+/* la langue : fr, en, es, de, it ; tout le reste (majuscules, absent, inconnu) -> fr */
+out.ac_lang=["en","it","de","es","xx","EN",null,void 0,5].map(function(l){return T.acPayload({src:AS,lang:l}).lang});
 out.ac_src=[T.acPayload({}),T.acPayload(null),T.acPayload({src:[1]}),T.acPayload({src:5}),T.acPayload({src:""}),T.acPayload({src:"p.mp4"}).src];
-out.ac_pur=(function(){var E0={src:AS,text:" t ",n:"3",persona:" p ",llm:!1,payer:!0,vu:EOK},j=JSON.stringify(E0),q=T.acPayload(E0);
+out.ac_pur=(function(){var E0={src:AS,text:" t ",n:"3",persona:" p ",llm:!1,lang:"de",payer:EOK,vu:EOK},j=JSON.stringify(E0),q=T.acPayload(E0);
   return [JSON.stringify(E0)===j,q.src===AS,q!==E0,Object.keys(q).sort(),q.n]})();
 out.ac_usd=[T.acUsd(.05),T.acUsd(.0067),T.acUsd(0),T.acUsd(1.234),T.acUsd(-1),T.acUsd("1"),T.acUsd(NaN)];
 out.ac_est=[T.acEstTxt(EOK),T.acEstTxt({ok:!0,usd:.4,eta_s:300,provider:"openai"}),T.acEstTxt({ok:!1,reason:"Aucune clé"}),
@@ -1465,7 +1471,9 @@ try:
                  # L7-B D-40 (tache 4) : les DOUZE cles de la section [34] (rf_remplace : revue du 24/09).
                  "rf_modes","rf_suivi","rf_vitesse","rf_cap","rf_r3","rf_vide","rf_remplace","rf_at","rf_k","rf_pos","rf_css","rf_pur",
                  # L7-B D-41 (tache 6) : les TREIZE cles de la section [35].
-                 "ac_cle","ac_n","ac_base","ac_llm","ac_text","ac_persona","ac_confirm","ac_src","ac_pur","ac_usd","ac_est","ac_tr","ac_clip"]
+                 "ac_cle","ac_n","ac_base","ac_llm","ac_text","ac_persona","ac_confirm","ac_src","ac_pur","ac_usd","ac_est","ac_tr","ac_clip",
+                 # revue T6 (24/09) : le plafond et la langue
+                 "ac_max","ac_lang"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -3169,7 +3177,10 @@ check("l7b_tiroir_offset_suit_le_seuil_au_succes_et_la_vague_de_chargement",
 # et vide ensuite les trois memoires des rendus dont la file est celle qu'on a attendue ; « Plus » n'attend pas
 check("l7b_tiroir_recharge_page0_attend_les_notes_en_vol_puis_vide_les_memoires",
       len(_DRW) > 400 and _DRW.count("var att=remplace?Object.assign({},noteFile.current):null;") == 1
-      and _DRW.count("var enVol=att?Promise.all(Object.keys(att).map(function(k2){return att[k2]})):Promise.resolve();") == 1
+      # revue T6 : l'attente est bornee (DZM_MED_ATT = 15 s), le minuteur est retire des que les PUT sont retombes
+      and _DRW.count("var enVol=att?new Promise(function(z){var h=setTimeout(z,DZM_MED_ATT);") == 1
+      and _DRW.count("Promise.all(Object.keys(att).map(function(k2){return att[k2]})).then(function(){clearTimeout(h);z()})}):Promise.resolve();") == 1
+      and _SRCb.count("var DZM_MED_ATT=15000;") == 1
       and _DRW.find("var enVol=") < _DRW.find("return enVol.then(function(){") < _DRW.find("return fetch(u).then(")
       and _DRW.count("if(noteFile.current[k2]!==att[k2])return;") == 1
       and _DRW.count("delete noteSeq.current[k2];delete noteConf.current[k2];delete noteFile.current[k2]") == 1
@@ -3240,18 +3251,22 @@ check("ac_cle_chaine_telle_quelle_objet_en_json_vide_pour_rien",
       D.get("ac_cle") == ['{"job_id":"j1"}', "p/x.mp4", "", "", '{"b":1,"a":2}'], D.get("ac_cle"))
 check("ac_n_entier_1_8_arrondi_4_pour_l_illisible",
       D.get("ac_n") == [3, 5, 2, 1, 8, 4, 4, 4, 4, 4, 4, 4, 1], D.get("ac_n"))
-check("ac_base_n4_llm_vrai_sans_texte_ni_persona_ni_confirm",
-      D.get("ac_base") == {"src": {"job_id": "j1"}, "n": 4, "llm": True}, D.get("ac_base"))
+check("ac_base_n4_llm_vrai_lang_fr_sans_texte_ni_persona_ni_confirm",
+      D.get("ac_base") == {"src": {"job_id": "j1"}, "n": 4, "llm": True, "lang": "fr"}, D.get("ac_base"))
 check("ac_llm_seul_false_l_eteint", D.get("ac_llm") == [False, True, True], D.get("ac_llm"))
 check("ac_texte_rogne_blanc_ou_non_chaine_absent", D.get("ac_text") == ["bonjour", False, False], D.get("ac_text"))
 check("ac_persona_rognee_60_car_vide_absente", D.get("ac_persona") == ["gamer", 60, False], D.get("ac_persona"))
-check("ac_confirm_seulement_case_cochee_estimation_ok_vue_pour_cette_source_et_sans_texte",
-      # temoins positifs en tete et en queue (case + estimation ok + source + texte blanc) ; huit negations entre
-      D.get("ac_confirm") == [True, 0, 0, 0, 0, 0, 0, 0, 0, True], D.get("ac_confirm"))
+check("ac_confirm_seulement_coche_de_l_estimation_affichee_ok_cette_source_cout_lisible_et_sans_texte",
+      # temoins positifs en tete et en queue ; douze negations entre (dont la coche BOOLEENNE et la COPIE : revue T6)
+      D.get("ac_confirm") == [True, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, True], D.get("ac_confirm"))
+check("ac_max_usd_le_cout_coche_seulement_avec_confirm",
+      D.get("ac_max") == [0.05, False, 0], D.get("ac_max"))
+check("ac_lang_cinq_langues_sinon_fr",
+      D.get("ac_lang") == ["en", "it", "de", "es", "fr", "fr", "fr", "fr", "fr"], D.get("ac_lang"))
 check("ac_source_illisible_null_chaine_gardee",
       D.get("ac_src") == [None, None, None, None, None, "p.mp4"], D.get("ac_src"))
 check("ac_pur_entree_intacte_objet_neuf_cles_exactes",
-      D.get("ac_pur") == [True, True, True, ["llm", "n", "persona", "src", "text"], 3], D.get("ac_pur"))
+      D.get("ac_pur") == [True, True, True, ["lang", "llm", "n", "persona", "src", "text"], 3], D.get("ac_pur"))
 check("ac_usd_virgule_deux_decimales_moins_d_un_centime_illisible",
       D.get("ac_usd") == ["0,05 $", "< 0,01 $", "0,00 $", "1,23 $", "? $", "? $", "? $"], D.get("ac_usd"))
 check("ac_est_cout_duree_fournisseur_refus_dit_sa_raison",
@@ -3260,8 +3275,8 @@ check("ac_est_cout_duree_fournisseur_refus_dit_sa_raison",
                           "Pas de transcription payante possible — Aucune clé",
                           "Pas de transcription payante possible", "",
                           "Transcription payante : ≈ 0,01 $ · ~1 s · fournisseur inconnu"], D.get("ac_est"))
-check("ac_tr_cache_dit_deja_payee_reutilisee_gratuits_par_table_prototype_ignore",
-      D.get("ac_tr") == ["texte connu calé sur le son (gratuit)", "texte du chapitre calé sur le son (gratuit)",
+check("ac_tr_cache_dit_deja_payee_reutilisee_chapitre_non_appele_dit_par_son_nom",
+      D.get("ac_tr") == ["texte connu calé sur le son (gratuit)", "texte : chapitre",
                          "transcription déjà payée, réutilisée (elevenlabs)", "transcription payée (openai)",
                          "texte : ?", "texte : toString", "texte : zz"], D.get("ac_tr"))
 check("ac_clip_bornes_duree_origine",
@@ -3271,7 +3286,8 @@ _L7AC = {n: _corps(n) for n in ("dzmAcCle", "dzmAcNum", "dzmAcPayload", "dzmAcDe
 check("l7b_ac_coeur_pur_ni_r_ni_x_ni_reseau_ni_dom_exports_x1",
       all(len(c) > 60 for c in _L7AC.values())
       and not any(re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|fetch\(|setClips|pushHistory", c) for c in _L7AC.values())
-      and _L7AC["dzmAcPayload"].count("b.confirm=!0") == 1 and _L7AC["dzmAcPayload"].count("confirm") == 1
+      and _L7AC["dzmAcPayload"].count("{b.confirm=!0;b.max_usd=v.usd}") == 1 and _L7AC["dzmAcPayload"].count("confirm") == 1
+      and _L7AC["dzmAcPayload"].count("e.payer===v") == 1 and _L7AC["dzmAcPayload"].count("e.payer===!0") == 0
       and len(_DT) > 1000
       and _DT.count("acCle:dzmAcCle,acNum:dzmAcNum,acPayload:dzmAcPayload,acUsd:dzmAcUsd,acEstTxt:dzmAcEstTxt,acTrTxt:dzmAcTrTxt,acClipTxt:dzmAcClipTxt,Autoclips:DzmAutoclips,") == 1
       and _SRCb.count("acPayload:") == 1 and _SRCb.count("Autoclips:") == 1,
@@ -3282,13 +3298,19 @@ check("l7b_ac_coeur_pur_ni_r_ni_x_ni_reseau_ni_dom_exports_x1",
 # la timeline (temoin de longueur).
 _AC = _SRCb[_SRCb.find("function DzmAutoclips(o){"):_SRCb.find("/* E-5 (lot E-B, tache 4, 23/09/2026) ")]  # borne : le docstring E-5 qui suit (il cite localStorage)
 check("l7b_ac_popover_hooks_coeur_obsolescence_armement_aucune_ecriture_de_timeline",
-      len(_AC) > 3000 and _AC.count("x.useState(") == 10 and _AC.count("return null") == 0
+      len(_AC) > 3000 and _AC.count("x.useState(") == 11 and _AC.count("return null") == 0
       and _AC.count('className:"svm-pop dzm-autoclips"') == 1
-      and _AC.count("var b=dzmAcPayload({src:o.src,text:text,n:n,persona:persona,llm:llm,payer:payer,vu:vu});") == 1
-      and _AC.count("confirm:") == 0 and _AC.count("paye=b.confirm===!0") == 1 and _AC.count("if(paye)setPayer(!1);") == 1
+      and _AC.count("var b=dzmAcPayload({src:o.src,text:text,n:n,persona:persona,llm:llm,lang:lang,payer:payer,vu:vu});") == 1
+      and _AC.count("confirm:") == 0 and _AC.count("paye=b.confirm===!0") == 1 and _AC.count("if(paye)setPayer(null);") == 1
+      # revue T6 : la coche retombe a CHAQUE estimation (poseVu, seul chemin vers setVu hors remise a zero), au texte, au
+      # nombre, a la langue ; la case lit `payer===est` ; un second envoi confirme en vol ne part pas (useRef)
+      and _AC.count("var poseVu=function(v){setVu(v);setPayer(null)};") == 1 and _AC.count("setVu(") == 2
+      and _AC.count("poseVu(") == 2 and _AC.count(";setPayer(null)}") == 4
+      and _AC.count("onChange:function(e){setPayer(e.target.checked?est:null)}") == 1 and _AC.count("coche=!!est&&payer===est") == 1
+      and _AC.count("if(paye){if(enVolPaye.current)return;enVolPaye.current=!0}") == 1 and _AC.count("libere();if(!frais(q,k0))return;") == 2
       and _AC.count("var frais=function(q,k0){return vivant.current&&q===seq.current&&cle.current===k0};") == 1
       and _AC.count("if(!frais(q,k0))return;") == 4
-      and _AC.count('x.useEffect(function(){seq.current++;setVu(null);setPayer(!1);setRes(null);setMsg("");setBusy(0);setArm(-1)},[k]);') == 1
+      and _AC.count('x.useEffect(function(){seq.current++;setVu(null);setPayer(null);setRes(null);setMsg("");setBusy(0);setArm(-1)},[k]);') == 1
       and _AC.count('fetch("/api/montage/autoclips",{method:"POST",') == 1 and _AC.count('fetch("/api/montage/autoclips/create",{method:"POST",') == 1
       and _AC.count("o.onOpenProject({id:String(pid),name:nm})") == 1 and _AC.count("if(arm!==i){setArm(i);return}") == 1
       and _AC.count('className:"svm-goldbtn dzm-acgo",disabled:!!busy,') == 1

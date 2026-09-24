@@ -1533,19 +1533,19 @@ check("d41_route_sans_texte_sans_confirm_ok_false_estimate_transcribe_jamais_app
       and _rn2[0] == 200 and D(_rn2[1]).get("ok") is False and _sp4["estimate"] == 2 and _sp4["transcribe"] == 0,
       (_rn, _rn2, _sp4))
 _est_rend[0] = {"ok": False, "provider": None, "usd": 0.0, "reason": "Aucune clé"}
-_rn3 = ACR({"src": {"file_path": AV}, "n": 3, "confirm": True})
+_rn3 = ACR({"src": {"file_path": AV}, "n": 3, "max_usd": 0.0134, "confirm": True})
 check("d41_route_confirm_sans_cle_ok_false_estimate_raison_transcribe_jamais_appele",
       _rn3[0] == 200 and D(_rn3[1]).get("ok") is False and D(D(_rn3[1]).get("estimate")).get("ok") is False
       and D(_rn3[1]).get("reason") == "Aucune clé" and _sp4["transcribe"] == 0 and _sp4["estimate"] == 3, (_rn3, _sp4))
 _est_rend[0] = dict(_EST)
-_rn4 = ACR({"src": {"file_path": AV}, "n": 2, "confirm": True, "lang": "auto"})
+_rn4 = ACR({"src": {"file_path": AV}, "n": 2, "max_usd": 0.0134, "confirm": True, "lang": "auto"})
 check("d41_route_confirm_vrai_transcrit_une_fois_temoin_du_refus",
       _rn4[0] == 200 and D(_rn4[1]).get("ok") is True and D(_rn4[1]).get("transcript") == "stt:fake"
       and len(L(D(_rn4[1]).get("clips"))) == 2 and _sp4["transcribe"] == 1 and _sp4["estimate"] == 4, (_rn4, _sp4))
 # I1 : la transcription payee est EN CACHE — une relance ne repaie pas
 _stt_dir = pathlib.Path(TMP) / "outputs" / "montage_cache"
 _stt_n = sorted(x.name for x in _stt_dir.glob("*_stt.json"))
-_rn5 = ACR({"src": {"file_path": AV}, "n": 3, "confirm": True, "lang": "auto"})
+_rn5 = ACR({"src": {"file_path": AV}, "n": 3, "max_usd": 0.0134, "confirm": True, "lang": "auto"})
 _rn6 = ACR({"src": {"file_path": AV}, "n": 1, "lang": "auto"})
 _rn7 = ACR({"src": {"file_path": AV}, "n": 1, "lang": "fr"})
 check("d41_revue_transcription_en_cache_relance_sans_transcribe_ni_confirm_temoin_autre_langue_refusee",
@@ -1560,14 +1560,14 @@ def _tr_echec(*a, **k):
     _echecs["n"] += 1
     raise RuntimeError("HTTP 500")
 TS.transcribe = _tr_echec
-_rn8 = ACR({"src": {"file_path": AV}, "n": 1, "lang": "en", "confirm": True})
+_rn8 = ACR({"src": {"file_path": AV}, "n": 1, "lang": "en", "max_usd": 0.0134, "confirm": True})
 TS.transcribe = _tr_ok
 check("d41_revue_transcription_en_echec_502_rien_en_cache",
       _rn8[0] == 502 and _echecs["n"] == 1 and len(list(_stt_dir.glob("*_stt.json"))) == 1
       and not any(".tmp" in x.name for x in _stt_dir.iterdir()), (_rn8, _echecs))
 _pd0 = MS._probe_duration
 MS._probe_duration = lambda p: 0.0
-_rn9 = ACR({"src": {"file_path": AV}, "n": 1, "lang": "de", "confirm": True})
+_rn9 = ACR({"src": {"file_path": AV}, "n": 1, "lang": "de", "max_usd": 0.0134, "confirm": True})
 MS._probe_duration = _pd0
 check("d41_revue_duree_sondee_nulle_estimation_refusee_dite_sans_transcription",
       _rn9[0] == 200 and D(_rn9[1]).get("ok") is False and D(D(_rn9[1]).get("estimate")).get("ok") is False
@@ -1593,6 +1593,31 @@ _al_avant = _sp4["align"]
 check("d41_route_chapitre_script_text_cale_gratuit_404_absent_400_vide",
       _ch[0][0] == 200 and D(_ch[0][1]).get("transcript") == "chapitre" and len(L(D(_ch[0][1]).get("clips"))) == 2
       and _ch[1][0] == 404 and _ch[2][0] == 400 and _sp4["transcribe"] == 1 and _al_avant == 4, (_ch, _sp4))
+
+# REVUE T6 (24/09/2026) — LE PLAFOND DE COUT CONFIRME. confirm:true exige max_usd (l'usd de l'estimation VUE et
+# cochee) : absent / illisible -> 400 AVANT resolution ; l'estimation refaite au-dela du plafond (+ tolerance
+# d'arrondi 0,0005 $) -> 409, rien n'est paye. Langues neuves (it, es, pt) : aucune transcription en cache pour elles.
+_tr_av, _res_av = _sp4["transcribe"], _sp4["resolve"]
+_mx_bad = [ACR({"src": {"file_path": AV}, "n": 1, "lang": "it", "confirm": True}),
+           ACR({"src": {"file_path": AV}, "n": 1, "lang": "it", "confirm": True, "max_usd": "0.02"}),
+           ACR({"src": {"file_path": AV}, "n": 1, "lang": "it", "confirm": True, "max_usd": True}),
+           ACR({"src": {"file_path": AV}, "n": 1, "lang": "it", "confirm": True, "max_usd": -0.01})]
+check("d41_revue_T6_confirm_sans_plafond_lisible_400_avant_resolution_rien_n_est_paye",
+      [r[0] for r in _mx_bad] == [400, 400, 400, 400] and "max_usd" in str(_mx_bad[0][1])
+      and _sp4["transcribe"] == _tr_av and _sp4["resolve"] == _res_av, ([r[0] for r in _mx_bad], _sp4))
+_est_rend[0] = dict(_EST, usd=0.40)
+_mx_haut = ACR({"src": {"file_path": AV}, "n": 1, "lang": "it", "confirm": True, "max_usd": 0.05})
+_mx_tol = ACR({"src": {"file_path": AV}, "n": 1, "lang": "it", "confirm": True, "max_usd": 0.3994})
+_tr_refus = _sp4["transcribe"]
+_mx_ok = ACR({"src": {"file_path": AV}, "n": 1, "lang": "es", "confirm": True, "max_usd": 0.40})
+_mx_ok2 = ACR({"src": {"file_path": AV}, "n": 1, "lang": "pt", "confirm": True, "max_usd": 0.3996})
+_est_rend[0] = dict(_EST)
+check("d41_revue_T6_estimation_au_dela_du_plafond_409_dite_transcribe_0_temoin_plafond_egal_paye_1",
+      _mx_haut[0] == 409 and "0.4000" in str(_mx_haut[1]) and "0.0500" in str(_mx_haut[1])
+      and _mx_tol[0] == 409 and _tr_refus == _tr_av
+      and _mx_ok[0] == 200 and D(_mx_ok[1]).get("ok") is True and D(_mx_ok[1]).get("transcript") == "stt:fake"
+      and _mx_ok2[0] == 200 and _sp4["transcribe"] == _tr_av + 2,
+      (_mx_haut, _mx_tol[0], _mx_ok[0], _mx_ok2[0], _sp4["transcribe"], _tr_av))
 
 _res_n = _sp4["resolve"]
 _bad4 = [ACR({"text": TXT, "n": 2}), ACR({"src": None, "n": 2}), ACR({"src": {"file_path": AV}, "n": 0}),
