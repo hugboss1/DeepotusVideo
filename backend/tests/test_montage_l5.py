@@ -737,6 +737,12 @@ def IMG(p):
         return None
 
 
+def SZ(p):
+    """Taille de l'image `p`, ou None — jamais d'exception (faute n6)."""
+    im = IMG(p)
+    return im.size if im is not None else None
+
+
 def MOYZ(im, box=None):
     try:
         z = (im.crop(box) if box else im).convert("L")
@@ -783,17 +789,53 @@ except Exception:                                        # noqa: BLE001
 gfar = CALL(GR, "graded_frame", TS, 50.0)
 check("t4_hors_duree_ffmpeg_nu_rien_graded_frame_derniere_image",
       not _far.exists() and IMG(gfar) is not None, str((_far.exists(), gfar)))
+# Revue T3 R-1 : le recul fixe de 0,1 s lisait `format=duration`. MESURE
+# (24/09, 8.1.1 = 9.0.1) : a 5 i/s sur 2 s, -ss 1,85 et au-dela ne rendent
+# RIEN ; video 2 s + audio 2,3 s, `format=duration` vaut 2,3 et -ss 2,0 et
+# au-dela ne rendent rien. Temoins : ffmpeg NU ne rend rien a 1,9 / 2,2.
+F5 = MKV("f5.mp4", "testsrc2=s=320x180:r=5:d=2")
+FA = MKV("fa.mp4", "", d=2.3, extra=["-f", "lavfi", "-i", "testsrc2=s=320x180:r=25:d=2",
+                                     "-f", "lavfi", "-i", "sine=d=2.3", "-c:a", "aac"])
+
+
+def NU(src, t, nom):
+    """ffmpeg NU a `t` : l'image existe-t-elle ? (temoin des fixtures)"""
+    o = FX3 / nom
+    try:
+        subprocess.run([FF, "-y", "-v", "error", "-ss", str(t), "-i", src, "-frames:v", "1", str(o)],
+                       capture_output=True, timeout=60)
+    except Exception:                                    # noqa: BLE001
+        pass
+    return o.exists()
+
+
+_nu5, _nua = NU(F5, 1.9, "nu5.png") if F5 else None, NU(FA, 2.2, "nua.png") if FA else None
+g5 = CALL(GR, "graded_frame", F5, 2.0)
+ga = CALL(GR, "graded_frame", FA, 2.2)
+check("t4_fin_lisible_5ips_et_audio_plus_long_temoins_nus_vides",
+      None not in (F5, FA) and _nu5 is False and _nua is False
+      and SZ(g5) == (512, 288) and SZ(ga) == (512, 288),
+      str((F5, FA, _nu5, _nua, g5, ga)))
 # Cache : deuxieme appel IDENTIQUE sans aucun sous-processus ; un autre
 # reglage en relance un (temoin positif de l'espion).
-_sp = {"n": 0}
+_sp = {"n": 0, "cmds": []}
 _run0 = subprocess.run
 
 
 def _espion_run(*a, **k):
     _sp["n"] += 1
+    try:
+        _sp["cmds"].append([str(x) for x in (a[0] if a else k.get("args") or [])])
+    except Exception:                                    # noqa: BLE001
+        pass
     return _run0(*a, **k)
 
 
+# M-3 : un succes du cache RAFRAICHIT la date du fichier (LRU approche).
+try:
+    os.utime(gd, (1000, 1000))
+except Exception as _e:                                  # noqa: BLE001
+    print("  (utime gd : %r)" % _e)
 subprocess.run = _espion_run
 try:
     gd2 = CALL(GR, "graded_frame", GPLAT, 1.0, EXPO)
@@ -806,10 +848,21 @@ try:
     _n_sc_hit = _sp["n"] - _n_sc
 finally:
     subprocess.run = _run0
+try:
+    _mt_hit = pathlib.Path(gd2).stat().st_mtime
+except Exception:                                        # noqa: BLE001
+    _mt_hit = None
 check("t4_cache_second_appel_sans_ffmpeg_autre_reglage_avec",
       gd2 == gd and isinstance(gd, pathlib.Path) and _n_hit == 0 and _n_miss >= 1
       and isinstance(gd3, pathlib.Path) and gd3 != gd,
       str((gd, gd2, gd3, _n_hit, _n_miss)))
+check("t4_cache_servi_rafraichit_la_date", _mt_hit is not None and _mt_hit > 1e9, str(_mt_hit))
+# M-2 : ffprobe en memoire (source deja sondee -> UN seul sous-processus,
+# ffmpeg) ; PNG sans `-q:v` (mesure : octets identiques avec ou sans).
+_png_cmds = [cm for cm in _sp["cmds"] if "-filter_complex" in cm and cm[-1].endswith(".png")]
+check("t4_probe_en_memoire_un_seul_sous_processus_png_sans_q",
+      _n_miss == 1 and len(_png_cmds) >= 2 and not any("-q:v" in cm for cm in _png_cmds),
+      str((_n_miss, [cm[:1] + cm[-3:] for cm in _sp["cmds"]])))
 sci = IMG(sc1) if isinstance(sc1, pathlib.Path) else None
 check("t4_scopes_png_512x512_et_cache",
       sci is not None and sci.size == (512, 512) and sc1b == sc1 and _n_sc_hit == 0,
@@ -820,6 +873,55 @@ try:
 except Exception:                                        # noqa: BLE001
     _dif = False
 check("t4_scopes_calcules_sur_l_image_etalonnee", _dif and sc2 != sc1, str((sc1, sc2)))
+# I-1 : sous Windows `os.replace` leve PermissionError [WinError 5] quand la
+# cible est ouverte en lecture (FileResponse qui la sert, mesure 24/09). Un
+# re-rendu de la meme cle ne doit ni lever ni laisser de `.tmp.` orphelin.
+_gi = CALL(GR, "graded_frame", TS, 1.3, None, None, 64, "png")
+try:
+    _parts = GR._grade_graph([], None, 64, 36, "gout")
+    with open(_gi, "rb"):
+        _ri = CALL(GR, "_render", pathlib.Path(TS), 1.3, _parts, "gout", _gi, "l'image etalonnee")
+    _orph = sorted(p.name for p in _gi.parent.glob(_gi.stem + ".*.tmp*"))
+except Exception as _e:                                  # noqa: BLE001
+    _ri, _orph = repr(_e), None
+check("t4_cible_ouverte_en_lecture_rerendu_sans_erreur_ni_tmp",
+      isinstance(_gi, pathlib.Path) and _ri == _gi and _orph == [], str((_gi, _ri, _orph)))
+# R-2b : un effet BORNE t0/t1 est juge tel qu'il s'applique en plein (les
+# bornes temporelles sont retirees avant la chaine) : a t=1 un effet borne
+# 5..6 s assombrit QUAND MEME l'image.
+gt = CALL(GR, "graded_frame", GPLAT, 1.0, [dict(EXPO[0], t0=5, t1=6, fade_in=0.2, ease_in="smooth")])
+_lt = MOYZ(IMG(gt))
+check("t4_effet_borne_t0_t1_juge_en_plein",
+      None not in (_lt, _ln) and _ln - _lt >= 20 and gt == gd, str((gt, gd, _lt, _ln)))
+# M-1 : un effet `off: true` n'est PAS applique (build_chain ignore `off` :
+# on le filtre avant) et sort de la cle ; `label` n'entre pas dans la cle.
+goff = CALL(GR, "graded_frame", GPLAT, 1.0, [dict(EXPO[0], off=True)])
+glab = CALL(GR, "graded_frame", GPLAT, 1.0, [dict(EXPO[0], label="Mon reglage")])
+_lo = MOYZ(IMG(goff))
+check("t4_effet_off_non_applique_label_hors_cle",
+      goff == gn and None not in (_lo, _ln) and abs(_lo - _ln) <= 1 and glab == gd,
+      str((goff, gn, _lo, _ln, glab, gd)))
+# M-1 : le mtime d'une LUT `.cube` referencee entre dans la cle — la LUT
+# reecrite rend une AUTRE image (temoin : identite puis assombrissement).
+try:
+    from app.config import settings as _cfg
+    _ld = _cfg.luts_path
+    _ld.mkdir(parents=True, exist_ok=True)
+    _cube = _ld / "zz_t3.cube"
+    _cube.write_text("LUT_3D_SIZE 2\n" + "".join(
+        "%d %d %d\n" % (r_, g_, b_) for b_ in (0, 1) for g_ in (0, 1) for r_ in (0, 1)), encoding="ascii")
+    os.utime(_cube, (2000, 2000))
+    gl1 = CALL(GR, "graded_frame", GPLAT, 1.0, [{"type": "grade", "file": "zz_t3.cube"}])
+    _cube.write_text("LUT_3D_SIZE 2\n" + "0.1 0.1 0.1\n" * 8, encoding="ascii")
+    os.utime(_cube, (3000, 3000))
+    gl2 = CALL(GR, "graded_frame", GPLAT, 1.0, [{"type": "grade", "file": "zz_t3.cube"}])
+except Exception as _e:                                  # noqa: BLE001
+    gl1 = gl2 = repr(_e)
+_m1, _m2 = MOYZ(IMG(gl1)), MOYZ(IMG(gl2))
+check("t4_lut_reecrite_autre_cle_autre_image",
+      isinstance(gl1, pathlib.Path) and isinstance(gl2, pathlib.Path) and gl1 != gl2
+      and None not in (_m1, _m2, _ln) and abs(_m1 - _ln) <= 3 and _m1 - _m2 >= 40,
+      str((gl1, gl2, _m1, _m2, _ln)))
 # Echec lisible : une source indecodable -> MediaError, jamais une exception nue.
 _txt = FX3 / "pas_une_video.mp4"
 _txt.write_text("rien", encoding="utf-8")
@@ -827,14 +929,19 @@ _ge = CALL(GR, "graded_frame", str(_txt), 1.0)
 check("t4_source_indecodable_media_error", isinstance(_ge, str) and _ge.startswith("EXC MediaError"),
       str(_ge))
 # Elagage borne PAR MOTIF : les plus recents survivent, un autre motif
-# (filmstrip du meme dossier) n'est jamais touche.
+# (filmstrip du meme dossier) n'est jamais touche. Revue T3 I-2 : les
+# fixtures sont datees dans le FUTUR — datees de 1970, les vraies images du
+# banc etaient plus recentes et « tout effacer » passait le check. On exige
+# EXACTEMENT les deux plus recents.
+import time as _time                                     # noqa: E402
+_now = _time.time()
 try:
     from app.services import montage_media as _MM3
     _cd = _MM3._cache_dir()
     for _i in range(5):
         _f = _cd / ("zz%02d_grade.jpg" % _i)
         _f.write_bytes(b"x")
-        os.utime(_f, (1000 + _i, 1000 + _i))
+        os.utime(_f, (_now + 1000 + _i, _now + 1000 + _i))
     (_cd / "zz_strip6x78x44.jpg").write_bytes(b"x")
     os.utime(_cd / "zz_strip6x78x44.jpg", (10, 10))
 except Exception as _e:                                  # noqa: BLE001
@@ -845,9 +952,23 @@ try:
 except Exception:                                        # noqa: BLE001
     _rest = []
 check("t4_elagage_borne_par_motif",
-      _pr != "ABSENT" and "zz_strip6x78x44.jpg" in _rest
-      and not any(n.startswith("zz0") and n < "zz03" for n in _rest),
+      isinstance(_pr, dict) and "zz_strip6x78x44.jpg" in _rest
+      and [n for n in _rest if n.startswith("zz0")] == ["zz03_grade.jpg", "zz04_grade.jpg"],
       str((_pr, _rest)))
+# M-3 : un `unlink` qui echoue (fichier ouvert : WinError 32, mesure) ne
+# stoppe pas l'elagage des suivants.
+try:
+    for _i in range(5):
+        _f = _cd / ("zz1%d_grade.jpg" % _i)
+        _f.write_bytes(b"x")
+        os.utime(_f, (_now + 2000 + _i, _now + 2000 + _i))
+    with open(_cd / "zz12_grade.jpg", "rb"):
+        _pr2 = CALL(GR, "prune_cache", {"*_grade.*": 2})
+    _rest2 = sorted(p.name for p in _cd.glob("zz1*"))
+except Exception as _e:                                  # noqa: BLE001
+    _pr2, _rest2 = repr(_e), None
+check("t4_elagage_un_echec_n_arrete_pas_les_suivants",
+      _rest2 == ["zz12_grade.jpg", "zz13_grade.jpg", "zz14_grade.jpg"], str((_pr2, _rest2)))
 
 # --- routes : Request starlette reelle (patron test_montage_l7b.py) ---------
 from app.services import montage_service as MS           # noqa: E402
@@ -909,9 +1030,11 @@ check("t4_route_grade_frame_defaut_240", st == 200 and IMG(bd) is not None and I
       str((st, bd)))
 _w9 = ROUTE("montage_grade_frame", {"src": {"file_path": TS}, "t": 1.0, "w": 9999})
 _w1 = ROUTE("montage_grade_frame", {"src": {"file_path": TS}, "t": 1.0, "w": 10})
+_s9, _s1 = SZ(_w9[1]), SZ(_w1[1])
 check("t4_route_grade_frame_w_borne_96_640",
-      _w9[0] == 200 and IMG(_w9[1]).size[0] == 640 and _w1[0] == 200 and IMG(_w1[1]).size[0] == 96,
-      str((_w9, _w1)))
+      _w9[0] == 200 and _s9 is not None and _s9[0] == 640
+      and _w1[0] == 200 and _s1 is not None and _s1[0] == 96,
+      str((_w9[:2], _s9, _w1[:2], _s1)))
 _PNG = str(FX3 / "image.png")
 try:
     _PI.new("RGB", (32, 32), (128, 128, 128)).save(_PNG)
@@ -919,22 +1042,22 @@ except Exception:                                        # noqa: BLE001
     pass
 _17 = [{"type": "grade_basic"}] * 17
 _16 = [{"type": "grade_basic"}] * 16
-check("t4_routes_plus_de_16_effets_400_temoin_16_200",
-      ROUTE("montage_scopes", {"src": {"file_path": TS}, "t": 1, "effects": _17})[0] == 400
-      and ROUTE("montage_grade_frame", {"src": {"file_path": TS}, "t": 1, "effects": _17})[0] == 400
-      and ROUTE("montage_grade_frame", {"src": {"file_path": TS}, "t": 1, "effects": _16})[0] == 200,
-      "")
-check("t4_routes_t_illisible_ou_negatif_400_effects_non_liste_400",
-      ROUTE("montage_scopes", {"src": {"file_path": TS}, "t": -1})[0] == 400
-      and ROUTE("montage_scopes", {"src": {"file_path": TS}, "t": "abc"})[0] == 400
-      and ROUTE("montage_grade_frame", {"src": {"file_path": TS}, "t": 1, "effects": {"type": "x"}})[0] == 400
-      and ROUTE("montage_scopes", {"src": {"file_path": TS}, "t": 1})[0] == 200, "")
-check("t4_routes_scopes_grade_frame_403_404_415",
-      ROUTE("montage_scopes", {"src": {"file_path": TS}, "t": 1}, hote="192.168.1.2")[0] == 403
-      and ROUTE("montage_grade_frame", {"src": {"file_path": TS}, "t": 1}, hote="192.168.1.2")[0] == 403
-      and ROUTE("montage_scopes", {"src": {"file_path": str(FX3 / "absent.mp4")}, "t": 1})[0] == 404
-      and ROUTE("montage_grade_frame", {"src": {"file_path": _PNG}, "t": 1})[0] == 415,
-      "")
+# Revue T3 R-2 : statuts calcules AVANT le check, detail = les statuts.
+_st16 = (ROUTE("montage_scopes", {"src": {"file_path": TS}, "t": 1, "effects": _17})[0],
+         ROUTE("montage_grade_frame", {"src": {"file_path": TS}, "t": 1, "effects": _17})[0],
+         ROUTE("montage_grade_frame", {"src": {"file_path": TS}, "t": 1, "effects": _16})[0])
+check("t4_routes_plus_de_16_effets_400_temoin_16_200", _st16 == (400, 400, 200), str(_st16))
+_stt = (ROUTE("montage_scopes", {"src": {"file_path": TS}, "t": -1})[0],
+        ROUTE("montage_scopes", {"src": {"file_path": TS}, "t": "abc"})[0],
+        ROUTE("montage_grade_frame", {"src": {"file_path": TS}, "t": 1, "effects": {"type": "x"}})[0],
+        ROUTE("montage_scopes", {"src": {"file_path": TS}, "t": 1})[0])
+check("t4_routes_t_illisible_ou_negatif_400_effects_non_liste_400", _stt == (400, 400, 400, 200),
+      str(_stt))
+_st4 = (ROUTE("montage_scopes", {"src": {"file_path": TS}, "t": 1}, hote="192.168.1.2")[0],
+        ROUTE("montage_grade_frame", {"src": {"file_path": TS}, "t": 1}, hote="192.168.1.2")[0],
+        ROUTE("montage_scopes", {"src": {"file_path": str(FX3 / "absent.mp4")}, "t": 1})[0],
+        ROUTE("montage_grade_frame", {"src": {"file_path": _PNG}, "t": 1})[0])
+check("t4_routes_scopes_grade_frame_403_404_415", _st4 == (403, 403, 404, 415), str(_st4))
 # Bout a bout par HTTP (TestClient : hote `testclient`, accepte).
 try:
     _h = c.post("/api/montage/grade-frame", json={"src": {"file_path": TS}, "t": 1.0})
