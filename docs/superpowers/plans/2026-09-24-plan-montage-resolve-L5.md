@@ -12,11 +12,11 @@
 
 ## Liste de contrôle du lot (cochée par le contrôleur à chaque tâche close = revue conformité + revue qualité + corrections + re-revue + bancs verts)
 
-- [ ] T1 — D-27/D-29/D-33 : moteur d'effets (+10 types, Netteté étendue, points de courbe hors du rack)
-- [ ] T2 — D-30 masque statique (backend) + effets rendus sur les overlays V2
-- [ ] T3 — D-28 accord de couleur + D-31 scopes + image étalonnée (backend)
-- [ ] T4 — cœur pur client (roues, courbes, masque, grade, temps de source)
-- [ ] T5 — panneau « Étalonnage » (roues, courbes, masque, accord, aperçu) + payload + contour du masque
+- [x] T1 — D-27/D-29/D-33 : moteur d'effets (+10 types, Netteté étendue, points de courbe hors du rack) (`196b175`, revue `0569a4f` ; colormatch PIVOTÉ `(val-128)*G+128+O` sur y/u/v, règle unique des courbes + `l5_courbes_vecteurs.json` 60 vecteurs, `_c` hexa strict (injection fermée), huesat force 10 ; reste pour T7 : `_c` ne tolère plus `" #00ff00"`)
+- [x] T2 — D-30 masque statique (backend) + effets rendus sur les overlays V2 (`e6ea32f`, revues `2e53857`, `8388b49` ; banc propre `test_montage_l5_masque.py` 58/0 ; V1 `overlay=0:0:shortest=1` (masque bouclé sans fin sinon) ; V2 : copie OPAQUE de la pile (`lutrgb=a=255`) puis alpha d'origine rendu par `blend=c3_mode=multiply` en gbrap — sinon cadre noir (14 effets) puis alpha AU CARRÉ (28 effets) ; masque V2 `maskedmerge` gbrap calculé à la taille de l'overlay (plus de `scale2ref`) ; `_timed` au format `ctx["fmt"]` (V2 = gbrap, sans `fmt` 300/300 identique) ; écarts : `glitch` 48/255, `grain` 7/255 ; restes pour T7 : nom du check `…scale2ref…`, sonde `dims` inutile en cover)
+- [x] T3 — D-28 accord de couleur + D-31 scopes + image étalonnée (backend) (`6d98732`, revues `27b6b87`, `9d5b04b` ; offset pivoté `O = μr−128−G(μt−128)` en plage limitée, gain réduit quand O sortirait de ±128 ; `-ss` hors durée ne rend RIEN avec rc 0 → durée du flux v:0 (tag `DURATION` en mkv/webm), recul `max(0,1 ; 1/fps)` + second essai ; cache sûr sous Windows (`os.replace` sur cible ouverte), effets `off` éteints et bornes retirées dans l'image étalonnée ; restes pour T7 : `w=0`→400 vs `w=1`→96, `gather` des deux `frame_stats`, sémaphore `/scopes`)
+- [x] T4 — cœur pur client (roues, courbes, masque, grade, temps de source) (`e43c0b0`, revues `463f5c5`, `1e5b164` ; règle unique des courbes rejouée sur les 61 vecteurs partagés, 0 divergence (fuzz 25 311 entrées) ; masque croisé 32/32 avec `mask_region.mask_of` (décimal ASCII des deux côtés) ; effet `off` jamais emporté ni posé ; pchip épinglée au 1e-6 ; vitesse lue sur V1 seulement)
+- [x] T5 — panneau « Étalonnage » (roues, courbes, masque, accord, aperçu) + payload + contour du masque (`f60dd60`, revue `f769e9b` ; aucune section neuve (replis R_DZ1/R_DZ2/R_DZ4), panneau après `ovInspector()` ; geste lié au plan SAISI, rien par image en lecture (128,7 → 10,5 ms sur 60 re-rendus), gardes de course bancées en exécution (27 mutations rouges) ; restes pour T7 : BOM dans `mask_region._f`, mention « Lecture » de l'aperçu)
 - [ ] T6 — scopes sous le lecteur, lightbox, copier/coller de grade (clavier + menus)
 - [ ] T7 — clôture (mutations, banc croisé, conception datée, revue finale, PR)
 
