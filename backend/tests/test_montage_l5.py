@@ -512,6 +512,440 @@ else:
           and HAUT("colormatch").get("y_gain") == 2 and HAUT("tmix").get("frames") == "7",
           str((len(_FUM), _ko)))
 
+# =============================================================================
+print("\n[3] D-28 — accord de couleur (color_match.py)")
+# =============================================================================
+# ETAT VIDE : avant T3 `app.services.color_match` et `app.services.grading`
+# n'existent pas -> CM / GR valent None, chaque appel rend un temoin
+# ("ABSENT", None) et TOUS les checks [3] [4] rougissent ; les temoins
+# positifs (source sans effet, ffmpeg nu hors duree) restent lisibles.
+import asyncio                                           # noqa: E402
+try:
+    from app.services import color_match as CM           # noqa: E402
+except Exception as _e:                                  # noqa: BLE001
+    print("  (color_match absent : %r)" % _e)
+    CM = None
+try:
+    from app.services import grading as GR               # noqa: E402
+except Exception as _e:                                  # noqa: BLE001
+    print("  (grading absent : %r)" % _e)
+    GR = None
+
+
+def CALL(mod, nom, *a, **k):
+    """mod.nom(*a, **k), ou une chaine temoin — jamais d'exception."""
+    f = getattr(mod, nom, None) if mod is not None else None
+    if f is None:
+        return "ABSENT"
+    try:
+        return f(*a, **k)
+    except Exception as e:                               # noqa: BLE001
+        return "EXC %s: %s" % (type(e).__name__, e)
+
+
+def STATS_OK(s):
+    """{y,u,v} -> (moyenne, ecart-type) flottants."""
+    try:
+        return set(s) == {"y", "u", "v"} and all(
+            len(s[k]) == 2 and all(isinstance(x, float) for x in s[k]) for k in "yuv")
+    except Exception:                                    # noqa: BLE001
+        return False
+
+
+def SV(s, k, i=0):
+    """s[k][i] ou None."""
+    try:
+        return s[k][i]
+    except Exception:                                    # noqa: BLE001
+        return None
+
+
+FX3 = pathlib.Path(TMP) / "l5t3"
+FX3.mkdir(parents=True, exist_ok=True)
+
+
+def MKV(nom, src, vf="", d=2, extra=None):
+    """Fabrique une video 320x180 25 i/s (lavfi) ; chemin str ou None."""
+    out = FX3 / nom
+    args = [FF, "-y", "-v", "error"] + (extra or ["-f", "lavfi", "-i", src])
+    if vf:
+        args += ["-vf", vf]
+    args += ["-t", str(d), "-pix_fmt", "yuv420p", str(out)]
+    try:
+        r = subprocess.run(args, capture_output=True, text=True, timeout=120)
+        return str(out) if r.returncode == 0 and out.is_file() else None
+    except Exception:                                    # noqa: BLE001
+        return None
+
+
+_NZ = "noise=alls=20:allf=t"
+ORG = MKV("orange.mp4", "color=c=0xc06030:s=320x180:r=25:d=2", _NZ)
+TS = MKV("testsrc2.mp4", "testsrc2=s=320x180:r=25:d=2")
+GRIS = MKV("gris.mp4", "color=c=0x808080:s=320x180:r=25:d=2", _NZ)
+GPLAT = MKV("gris_plat.mp4", "color=c=0x808080:s=320x180:r=25:d=2")
+TEINTE = MKV("teinte.mp4", "color=c=0xa08058:s=320x180:r=25:d=2", "noise=alls=8:allf=t")
+NOIR = MKV("noir.mp4", "color=c=black:s=320x180:r=25:d=2")
+BLANC = MKV("blanc.mp4", "color=c=white:s=320x180:r=25:d=2")
+# Reference NEUTRE a forte chroma : moitie rouge (200,40,40), moitie cyan
+# (40,200,200) -> Cb/Cr moyens 128 (calcul BT.601), ecart-type ~50.
+NCH = MKV("neutre_chroma.mp4", "", "", extra=[
+    "-f", "lavfi", "-i", "color=c=0xc82828:s=160x180:r=25:d=2",
+    "-f", "lavfi", "-i", "color=c=0x28c8c8:s=160x180:r=25:d=2",
+    "-filter_complex", "[0:v][1:v]hstack=inputs=2"])
+check("t3_fixtures_fabriquees", None not in (ORG, TS, GRIS, GPLAT, TEINTE, NOIR, BLANC, NCH),
+      str((ORG, TS, GRIS, GPLAT, TEINTE, NOIR, BLANC, NCH)))
+
+S_ORG, S_TS = CALL(CM, "frame_stats", ORG, 1.0), CALL(CM, "frame_stats", TS, 1.0)
+S_GRIS, S_TEI = CALL(CM, "frame_stats", GRIS, 1.0), CALL(CM, "frame_stats", TEINTE, 1.0)
+S_NCH = CALL(CM, "frame_stats", NCH, 1.0)
+check("t3_frame_stats_forme_yuv_moyenne_ecart",
+      all(STATS_OK(s) for s in (S_ORG, S_TS, S_GRIS, S_TEI, S_NCH)),
+      str((S_ORG, S_TS)))
+# L'orange est tres bleu-negatif / rouge-positif ; le gris neutre ne l'est pas.
+check("t3_frame_stats_orange_teinte_gris_neutre",
+      STATS_OK(S_ORG) and STATS_OK(S_GRIS)
+      and SV(S_ORG, "u") < 105 and SV(S_ORG, "v") > 160
+      and abs(SV(S_GRIS, "u") - 128) <= 2 and abs(SV(S_GRIS, "v") - 128) <= 2,
+      str((S_ORG, S_GRIS)))
+# PLAGE LIMITEE : noir -> Y 16, blanc -> Y 235 (plage pleine : 0 / 255).
+_sn, _sb = CALL(CM, "frame_stats", NOIR, 1.0), CALL(CM, "frame_stats", BLANC, 1.0)
+check("t3_frame_stats_plage_limitee_noir16_blanc235",
+      STATS_OK(_sn) and STATS_OK(_sb) and abs(SV(_sn, "y") - 16) <= 2 and abs(SV(_sb, "y") - 235) <= 2
+      and abs(SV(_sn, "u") - 128) <= 2,
+      str((_sn, _sb)))
+# Au-dela de la duree : la derniere image lisible, pas une erreur.
+_sfar = CALL(CM, "frame_stats", TS, 50.0)
+check("t3_frame_stats_hors_duree_derniere_image", STATS_OK(_sfar), str(_sfar))
+
+
+def RENDU_STATS(src, effs, t=1.0):
+    """Stats (plage limitee) de l'image etalonnee par `graded_frame`."""
+    p = CALL(GR, "graded_frame", src, t, effs, None, 256, "png")
+    if not isinstance(p, pathlib.Path):
+        return ("RENDU", p)
+    return CALL(CM, "image_stats", p)
+
+
+def ALIGNE(a, b, tol=6.0):
+    try:
+        return max(abs(a[k][0] - b[k][0]) for k in "yuv") < tol
+    except Exception:                                    # noqa: BLE001
+        return False
+
+
+def ECART(a, b):
+    try:
+        return round(max(abs(a[k][0] - b[k][0]) for k in "yuv"), 2)
+    except Exception:                                    # noqa: BLE001
+        return None
+
+
+def EFF_OK(e):
+    try:
+        return (e.get("type") == "colormatch"
+                and all(0.5 <= e[f"{k}_gain"] <= 2 and -128 <= e[f"{k}_off"] <= 128 for k in "yuv"))
+    except Exception:                                    # noqa: BLE001
+        return False
+
+
+# (a) testsrc2 accorde sur l'orange (gain < 1 : cas facile).
+E1 = CALL(CM, "match_effect", S_ORG, S_TS)
+R1 = RENDU_STATS(TS, [E1] if isinstance(E1, dict) else [])
+R1_0 = RENDU_STATS(TS, [])
+check("t3_match_testsrc_sur_orange_moyennes_alignees_6",
+      EFF_OK(E1) and ALIGNE(R1, S_ORG) and not ALIGNE(R1_0, S_ORG, 20),
+      str((E1, ECART(R1, S_ORG), ECART(R1_0, S_ORG))))
+# (b) orange accorde sur testsrc2 (gain 2 : le cas dur, bruit amplifie).
+E2 = CALL(CM, "match_effect", S_TS, S_ORG)
+R2 = RENDU_STATS(ORG, [E2] if isinstance(E2, dict) else [])
+check("t3_match_orange_sur_testsrc_moyennes_alignees_6",
+      EFF_OK(E2) and E2["u_gain"] >= 1.9 and ALIGNE(R2, S_TS),
+      str((E2, ECART(R2, S_TS))))
+# (b') decalage hors [-128,128] : le Reinhard NAIF (gain borne puis decalage
+# borne) rate la moyenne de ~80 ; on REDUIT le gain pour garder la moyenne
+# (priorite a la moyenne). Forme pivotee (decision controleur 24/09) :
+# sortie moyenne = (mu_t-128)·G + 128 + O.
+_ref_b, _tgt_b = {"y": (200.0, 40.0), "u": (128.0, 5.0), "v": (128.0, 5.0)}, \
+                 {"y": (60.0, 10.0), "u": (128.0, 5.0), "v": (128.0, 5.0)}
+E2b = CALL(CM, "match_effect", _ref_b, _tgt_b)
+try:
+    _moy_b = (60.0 - 128) * E2b["y_gain"] + 128 + E2b["y_off"]
+    _naif_b = (60.0 - 128) * 2.0 + 128 + max(-128, min(128, 200.0 - 128 - 2.0 * (60.0 - 128)))
+except Exception:                                        # noqa: BLE001
+    _moy_b = _naif_b = None
+check("t3_match_decalage_hors_bornes_gain_reduit_moyenne_gardee",
+      EFF_OK(E2b) and _moy_b is not None and abs(_moy_b - 200) <= 0.5 and abs(_naif_b - 200) > 50
+      and E2b["y_gain"] < 2,
+      str((E2b, _moy_b, _naif_b)))
+# (c) revue T1 : la forme `val·G+O` agissait AUTOUR DE 0 sur U/V ; forme
+# PIVOTEE (decision controleur 24/09) `(val-128)·G+128+O`, O = mu_r-128 -
+# G·(mu_t-128). Un gris neutre accorde sur lui-meme, puis sur une reference
+# neutre a FORTE chroma (gain chroma 2, decalage ~0) : u, v restent 128 +/- 2.
+# Un decalage non pivote (mu_r - mu_t = 0 avec la forme pivotee, ou la
+# forme non pivotee avec O = 0) donnerait 2·128 -> 255.
+E3 = CALL(CM, "match_effect", S_GRIS, S_GRIS)
+R3 = RENDU_STATS(GRIS, [E3] if isinstance(E3, dict) else [])
+check("t3_gris_neutre_accorde_sur_lui_meme_reste_neutre",
+      EFF_OK(E3) and STATS_OK(R3) and abs(SV(R3, "u") - 128) <= 2 and abs(SV(R3, "v") - 128) <= 2,
+      str((E3, R3)))
+E4 = CALL(CM, "match_effect", S_NCH, S_GRIS)
+R4 = RENDU_STATS(GRIS, [E4] if isinstance(E4, dict) else [])
+check("t3_gris_sur_ref_neutre_forte_chroma_gain2_reste_neutre",
+      EFF_OK(E4) and E4["u_gain"] >= 1.9 and abs(E4["u_off"]) <= 2
+      and STATS_OK(R4) and abs(SV(R4, "u") - 128) <= 2 and abs(SV(R4, "v") - 128) <= 2,
+      str((E4, R4)))
+# (d) ecart-type nul (aplat) : aucun gain invente, pas de division par zero.
+E5 = CALL(CM, "match_effect", {"y": (100.0, 0.0), "u": (128.0, 0.0), "v": (128.0, 0.0)},
+          {"y": (50.0, 0.0), "u": (120.0, 0.0), "v": (128.0, 0.0)})
+check("t3_match_ecart_type_nul_gain_1",
+      EFF_OK(E5) and E5["y_gain"] == 1 and abs(E5["y_off"] - 50) < 1e-6 and abs(E5["u_off"] - 8) < 1e-6,
+      str(E5))
+# (e) auto : un plan teinte est neutralise, un plan neutre n'est PAS teinte.
+EA = CALL(CM, "auto_effect", S_TEI)
+RA = RENDU_STATS(TEINTE, [EA] if isinstance(EA, dict) else [])
+try:
+    _du0, _dv0 = abs(S_TEI["u"][0] - 128), abs(S_TEI["v"][0] - 128)
+    _du1, _dv1 = abs(RA["u"][0] - 128), abs(RA["v"][0] - 128)
+    _dy = abs(RA["y"][0] - S_TEI["y"][0])
+except Exception:                                        # noqa: BLE001
+    _du0 = _dv0 = _du1 = _dv1 = _dy = None
+check("t3_auto_neutralise_un_plan_teinte",
+      EFF_OK(EA) and _du0 is not None and _du0 >= 8 and _dv0 >= 8
+      and _du1 <= _du0 / 2 and _dv1 <= _dv0 / 2 and _dy <= 3,
+      str((EA, (_du0, _dv0), (_du1, _dv1), _dy)))
+check("t3_auto_contraste_releve_si_plat_pas_si_riche",
+      EFF_OK(EA) and EA["y_gain"] > 1.2 and isinstance(CALL(CM, "auto_effect", S_TS), dict)
+      and CALL(CM, "auto_effect", S_TS)["y_gain"] == 1,
+      str((EA, CALL(CM, "auto_effect", S_TS))))
+EN = CALL(CM, "auto_effect", S_GRIS)
+RN = RENDU_STATS(GRIS, [EN] if isinstance(EN, dict) else [])
+check("t3_auto_sur_plan_neutre_ne_teinte_pas",
+      EFF_OK(EN) and abs(EN["u_off"]) <= 2 and abs(EN["v_off"]) <= 2
+      and STATS_OK(RN) and abs(SV(RN, "u") - 128) <= 2 and abs(SV(RN, "v") - 128) <= 2,
+      str((EN, RN)))
+
+# =============================================================================
+print("\n[4] D-31 — image etalonnee, scopes, routes (grading.py)")
+# =============================================================================
+from PIL import Image as _PI                             # noqa: E402
+
+
+def IMG(p):
+    try:
+        return _PI.open(p).copy()
+    except Exception:                                    # noqa: BLE001
+        return None
+
+
+def MOYZ(im, box=None):
+    try:
+        z = (im.crop(box) if box else im).convert("L")
+        _gf = getattr(z, "get_flattened_data", None) or z.getdata
+        px = list(_gf())
+        return sum(px) / len(px)
+    except Exception:                                    # noqa: BLE001
+        return None
+
+
+EXPO = [{"type": "grade_basic", "exposure": -100}]
+g0 = CALL(GR, "graded_frame", TS, 1.0)
+g0i = IMG(g0) if isinstance(g0, pathlib.Path) else None
+check("t4_graded_frame_png_512_par_defaut",
+      g0i is not None and g0i.size == (512, 288) and str(g0).endswith(".png")
+      and "montage_cache" in str(g0),
+      str((g0, g0i.size if g0i else None)))
+g240 = CALL(GR, "graded_frame", TS, 1.0, None, None, 240, "jpg")
+try:
+    _jb = pathlib.Path(g240).read_bytes()[:3]
+except Exception:                                        # noqa: BLE001
+    _jb = b""
+check("t4_graded_frame_jpeg_240", _jb == b"\xff\xd8\xff" and IMG(g240) is not None
+      and IMG(g240).size == (240, 136), str((g240, _jb)))
+gd = CALL(GR, "graded_frame", GPLAT, 1.0, EXPO)
+gn = CALL(GR, "graded_frame", GPLAT, 1.0)
+_ld, _ln = MOYZ(IMG(gd)), MOYZ(IMG(gn))
+check("t4_graded_frame_applique_la_pile_plus_sombre",
+      None not in (_ld, _ln) and 120 <= _ln <= 136 and _ln - _ld >= 20, str((_ld, _ln)))
+# Masque ellipse au centre : centre assombri, coin intact.
+MSK = {"shape": "ellipse", "x": 0.3, "y": 0.3, "w": 0.4, "h": 0.4, "soft": 0}
+gm = CALL(GR, "graded_frame", GPLAT, 1.0, EXPO, MSK)
+_im = IMG(gm)
+_c, _k = MOYZ(_im, (246, 134, 266, 154)), MOYZ(_im, (0, 0, 20, 20))
+check("t4_graded_frame_masque_centre_sombre_coin_intact",
+      None not in (_c, _k, _ln) and _ln - _c >= 20 and abs(_k - _ln) <= 3, str((_c, _k, _ln)))
+# Hors duree : ffmpeg NU ne rend rien (temoin mesure), graded_frame recule.
+_far = FX3 / "far.png"
+try:
+    subprocess.run([FF, "-y", "-v", "error", "-ss", "50", "-i", TS, "-frames:v", "1", str(_far)],
+                   capture_output=True, timeout=60)
+except Exception:                                        # noqa: BLE001
+    pass
+gfar = CALL(GR, "graded_frame", TS, 50.0)
+check("t4_hors_duree_ffmpeg_nu_rien_graded_frame_derniere_image",
+      not _far.exists() and IMG(gfar) is not None, str((_far.exists(), gfar)))
+# Cache : deuxieme appel IDENTIQUE sans aucun sous-processus ; un autre
+# reglage en relance un (temoin positif de l'espion).
+_sp = {"n": 0}
+_run0 = subprocess.run
+
+
+def _espion_run(*a, **k):
+    _sp["n"] += 1
+    return _run0(*a, **k)
+
+
+subprocess.run = _espion_run
+try:
+    gd2 = CALL(GR, "graded_frame", GPLAT, 1.0, EXPO)
+    _n_hit = _sp["n"]
+    gd3 = CALL(GR, "graded_frame", GPLAT, 1.0, [{"type": "grade_basic", "exposure": -50}])
+    _n_miss = _sp["n"] - _n_hit
+    sc1 = CALL(GR, "scopes_png", TS, 1.0)
+    _n_sc = _sp["n"]
+    sc1b = CALL(GR, "scopes_png", TS, 1.0)
+    _n_sc_hit = _sp["n"] - _n_sc
+finally:
+    subprocess.run = _run0
+check("t4_cache_second_appel_sans_ffmpeg_autre_reglage_avec",
+      gd2 == gd and isinstance(gd, pathlib.Path) and _n_hit == 0 and _n_miss >= 1
+      and isinstance(gd3, pathlib.Path) and gd3 != gd,
+      str((gd, gd2, gd3, _n_hit, _n_miss)))
+sci = IMG(sc1) if isinstance(sc1, pathlib.Path) else None
+check("t4_scopes_png_512x512_et_cache",
+      sci is not None and sci.size == (512, 512) and sc1b == sc1 and _n_sc_hit == 0,
+      str((sc1, sci.size if sci else None, _n_sc_hit)))
+sc2 = CALL(GR, "scopes_png", TS, 1.0, EXPO)
+try:
+    _dif = pathlib.Path(sc2).read_bytes() != pathlib.Path(sc1).read_bytes()
+except Exception:                                        # noqa: BLE001
+    _dif = False
+check("t4_scopes_calcules_sur_l_image_etalonnee", _dif and sc2 != sc1, str((sc1, sc2)))
+# Echec lisible : une source indecodable -> MediaError, jamais une exception nue.
+_txt = FX3 / "pas_une_video.mp4"
+_txt.write_text("rien", encoding="utf-8")
+_ge = CALL(GR, "graded_frame", str(_txt), 1.0)
+check("t4_source_indecodable_media_error", isinstance(_ge, str) and _ge.startswith("EXC MediaError"),
+      str(_ge))
+# Elagage borne PAR MOTIF : les plus recents survivent, un autre motif
+# (filmstrip du meme dossier) n'est jamais touche.
+try:
+    from app.services import montage_media as _MM3
+    _cd = _MM3._cache_dir()
+    for _i in range(5):
+        _f = _cd / ("zz%02d_grade.jpg" % _i)
+        _f.write_bytes(b"x")
+        os.utime(_f, (1000 + _i, 1000 + _i))
+    (_cd / "zz_strip6x78x44.jpg").write_bytes(b"x")
+    os.utime(_cd / "zz_strip6x78x44.jpg", (10, 10))
+except Exception as _e:                                  # noqa: BLE001
+    print("  (fixture elagage : %r)" % _e)
+_pr = CALL(GR, "prune_cache", {"*_grade.*": 2})
+try:
+    _rest = sorted(p.name for p in _MM3._cache_dir().glob("zz*"))
+except Exception:                                        # noqa: BLE001
+    _rest = []
+check("t4_elagage_borne_par_motif",
+      _pr != "ABSENT" and "zz_strip6x78x44.jpg" in _rest
+      and not any(n.startswith("zz0") and n < "zz03" for n in _rest),
+      str((_pr, _rest)))
+
+# --- routes : Request starlette reelle (patron test_montage_l7b.py) ---------
+from app.services import montage_service as MS           # noqa: E402
+
+
+def RQ(body, hote="127.0.0.1", path="/api/montage/x"):
+    from starlette.requests import Request as _R
+    raw = json.dumps(body).encode("utf-8")
+
+    async def rcv():
+        return {"type": "http.request", "body": raw, "more_body": False}
+    return _R({"type": "http", "method": "POST", "path": path, "query_string": b"",
+               "headers": [(b"content-type", b"application/json")], "client": (hote, 5000)}, rcv)
+
+
+def ROUTE(nom, body, hote="127.0.0.1"):
+    """(statut, corps, entetes) ; l'absence de la route est un temoin."""
+    f = getattr(MS, nom, None)
+    if f is None:
+        return ("ABSENT", None, None)
+    try:
+        r = asyncio.run(f(RQ(body, hote)))
+    except Exception as e:                               # noqa: BLE001
+        return (getattr(e, "status_code", type(e).__name__), getattr(e, "detail", str(e)), None)
+    if isinstance(r, dict):
+        return (200, r, None)
+    return (getattr(r, "status_code", None), getattr(r, "path", None), dict(getattr(r, "headers", {}) or {}))
+
+
+FP = lambda p, t=1.0: {"src": {"file_path": p}, "t": t}  # noqa: E731
+st, bd, _ = ROUTE("montage_color_match", {"target": FP(TS), "ref": FP(ORG)})
+check("t4_route_color_match_ref_200",
+      st == 200 and isinstance(bd, dict) and bd.get("ok") is True and EFF_OK(bd.get("effect"))
+      and STATS_OK(bd.get("ref")) and STATS_OK(bd.get("target")), str((st, bd)))
+st, bd, _ = ROUTE("montage_color_match", {"target": FP(TEINTE), "auto": True})
+check("t4_route_color_match_auto_200_ref_nulle",
+      st == 200 and isinstance(bd, dict) and EFF_OK(bd.get("effect")) and bd.get("ref") is None
+      and STATS_OK(bd.get("target")), str((st, bd)))
+st, bd, _ = ROUTE("montage_color_match", {"target": FP(TS)})
+check("t4_route_color_match_ni_ref_ni_auto_400", st == 400, str((st, bd)))
+st, bd, _ = ROUTE("montage_color_match", {"target": {"src": {"file_path": str(FX3 / "absent.mp4")}, "t": 1}, "auto": True})
+check("t4_route_color_match_source_inconnue_404", st == 404, str((st, bd)))
+st, bd, _ = ROUTE("montage_color_match", {"target": FP(TS), "auto": True}, hote="10.0.0.9")
+check("t4_route_color_match_hors_localhost_403_temoin_local_200",
+      st == 403 and ROUTE("montage_color_match", {"target": FP(TS), "auto": True})[0] == 200, str((st, bd)))
+st, bd, hd = ROUTE("montage_scopes", {"src": {"file_path": TS}, "t": 1.0, "effects": EXPO})
+check("t4_route_scopes_png_no_store",
+      st == 200 and (hd or {}).get("content-type") == "image/png"
+      and (hd or {}).get("cache-control") == "no-store" and IMG(bd) is not None
+      and IMG(bd).size == (512, 512), str((st, bd, hd)))
+st, bd, hd = ROUTE("montage_grade_frame", {"src": {"file_path": TS}, "t": 1.0, "effects": EXPO,
+                                           "mask": MSK, "w": 241})
+check("t4_route_grade_frame_jpeg_w_pair_max_age",
+      st == 200 and (hd or {}).get("content-type") == "image/jpeg"
+      and "max-age=3600" in ((hd or {}).get("cache-control") or "") and IMG(bd) is not None
+      and IMG(bd).size[0] == 240, str((st, bd, hd)))
+st, bd, hd = ROUTE("montage_grade_frame", {"src": {"file_path": TS}, "t": 1.0})
+check("t4_route_grade_frame_defaut_240", st == 200 and IMG(bd) is not None and IMG(bd).size[0] == 240,
+      str((st, bd)))
+_w9 = ROUTE("montage_grade_frame", {"src": {"file_path": TS}, "t": 1.0, "w": 9999})
+_w1 = ROUTE("montage_grade_frame", {"src": {"file_path": TS}, "t": 1.0, "w": 10})
+check("t4_route_grade_frame_w_borne_96_640",
+      _w9[0] == 200 and IMG(_w9[1]).size[0] == 640 and _w1[0] == 200 and IMG(_w1[1]).size[0] == 96,
+      str((_w9, _w1)))
+_PNG = str(FX3 / "image.png")
+try:
+    _PI.new("RGB", (32, 32), (128, 128, 128)).save(_PNG)
+except Exception:                                        # noqa: BLE001
+    pass
+_17 = [{"type": "grade_basic"}] * 17
+_16 = [{"type": "grade_basic"}] * 16
+check("t4_routes_plus_de_16_effets_400_temoin_16_200",
+      ROUTE("montage_scopes", {"src": {"file_path": TS}, "t": 1, "effects": _17})[0] == 400
+      and ROUTE("montage_grade_frame", {"src": {"file_path": TS}, "t": 1, "effects": _17})[0] == 400
+      and ROUTE("montage_grade_frame", {"src": {"file_path": TS}, "t": 1, "effects": _16})[0] == 200,
+      "")
+check("t4_routes_t_illisible_ou_negatif_400_effects_non_liste_400",
+      ROUTE("montage_scopes", {"src": {"file_path": TS}, "t": -1})[0] == 400
+      and ROUTE("montage_scopes", {"src": {"file_path": TS}, "t": "abc"})[0] == 400
+      and ROUTE("montage_grade_frame", {"src": {"file_path": TS}, "t": 1, "effects": {"type": "x"}})[0] == 400
+      and ROUTE("montage_scopes", {"src": {"file_path": TS}, "t": 1})[0] == 200, "")
+check("t4_routes_scopes_grade_frame_403_404_415",
+      ROUTE("montage_scopes", {"src": {"file_path": TS}, "t": 1}, hote="192.168.1.2")[0] == 403
+      and ROUTE("montage_grade_frame", {"src": {"file_path": TS}, "t": 1}, hote="192.168.1.2")[0] == 403
+      and ROUTE("montage_scopes", {"src": {"file_path": str(FX3 / "absent.mp4")}, "t": 1})[0] == 404
+      and ROUTE("montage_grade_frame", {"src": {"file_path": _PNG}, "t": 1})[0] == 415,
+      "")
+# Bout a bout par HTTP (TestClient : hote `testclient`, accepte).
+try:
+    _h = c.post("/api/montage/grade-frame", json={"src": {"file_path": TS}, "t": 1.0})
+    _hs = c.post("/api/montage/scopes", json={"src": {"file_path": TS}, "t": 1.0})
+    _hc = c.post("/api/montage/color-match", json={"target": FP(TS), "auto": True})
+    _hst = (_h.status_code, _h.headers.get("content-type"), _hs.status_code, _hc.status_code,
+            J(_hc).get("ok"))
+except Exception as _e:                                  # noqa: BLE001
+    _hst = repr(_e)
+check("t4_routes_montees_http", _hst == (200, "image/jpeg", 200, 200, True), str(_hst))
+
 print(f"\n=== {ok} passed, {fail} failed ===")
 c.__exit__(None, None, None)
 # Nettoyage : le journal loguru et le pool sqlite tiennent encore des handles

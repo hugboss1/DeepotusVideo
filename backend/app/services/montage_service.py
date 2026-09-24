@@ -5467,6 +5467,108 @@ async def montage_strip(request: Request, src: str = "", n: int = 12,
     return FileResponse(out, media_type="image/jpeg")
 
 
+# D-28 / D-31 / D-32 (L5, 24/09/2026) — ACCORD DE COULEUR, SCOPES, IMAGE
+# ÉTALONNÉE. Trois routes de précalcul (garde `_media_source` : 403 hors
+# boucle locale, 404 source introuvable, 415 non-vidéo) sur les services
+# purs `color_match` et `grading` ; le calcul part en `to_thread`. Bornes
+# communes : `t` fini ≥ 0 (au-delà de la durée, `grading` recule à
+# durée − 0,1 : MESURÉ, `-ss` hors durée ne rend AUCUNE image avec un code 0),
+# `effects` liste d'au plus 16 objets (sinon 400), `mask` assaini par
+# `mask_of` (invalide → ignoré, comme au rendu).
+_GRADE_EFFECTS_MAX = 16
+_GRADE_W_MIN, _GRADE_W_MAX, _GRADE_W_DEFAUT = 96, 640, 240
+
+
+def _grade_t(v) -> float:
+    return _scenes_num(0.0 if v is None else v, "t", mini=0.0, maxi=86400.0, strict=False)
+
+
+def _grade_effects(v) -> list:
+    if v is None:
+        return []
+    if not isinstance(v, list) or not all(isinstance(e, dict) for e in v):
+        raise HTTPException(400, "effects doit être une liste d'effets.")
+    if len(v) > _GRADE_EFFECTS_MAX:
+        raise HTTPException(400, f"Au plus {_GRADE_EFFECTS_MAX} effets par image étalonnée.")
+    return v
+
+
+def _grade_w(v) -> int:
+    """Largeur de l'image étalonnée : bornée 96..640 et PAIRE (illisible → 400)."""
+    if v is None:
+        return _GRADE_W_DEFAUT
+    f = _scenes_num(v, "w", mini=0.0, maxi=1e6, strict=True)
+    w = max(_GRADE_W_MIN, min(_GRADE_W_MAX, int(f)))
+    return w - w % 2
+
+
+@router.post("/color-match")
+async def montage_color_match(request: Request):
+    """Body `{target:{src,t}, ref?:{src,t}, auto?:bool}` → `{ok, effect, ref,
+    target}` : l'effet `colormatch` qui aligne la cible sur la référence (ou,
+    `auto`, sur des cibles neutres — `ref` est alors `null`). Ni `ref` ni
+    `auto` → 400."""
+    from app.services import color_match as CM
+    _require_local(request)
+    body = await _json_body(request)
+    tgt = body.get("target") if isinstance(body.get("target"), dict) else {}
+    ref = body.get("ref") if isinstance(body.get("ref"), dict) else None
+    if ref is None and body.get("auto") is not True:
+        raise HTTPException(400, "Il faut une référence (ref) ou auto: true.")
+    t_tgt = _grade_t(tgt.get("t"))
+    t_ref = _grade_t(ref.get("t")) if ref is not None else 0.0
+    p_tgt = await _media_source(request, tgt.get("src"), video=True)
+    p_ref = await _media_source(request, ref.get("src"), video=True) if ref is not None else None
+    try:
+        s_tgt = await asyncio.to_thread(CM.frame_stats, p_tgt, t_tgt)
+        if p_ref is not None:
+            s_ref = await asyncio.to_thread(CM.frame_stats, p_ref, t_ref)
+            eff = CM.match_effect(s_ref, s_tgt)
+        else:
+            s_ref, eff = None, CM.auto_effect(s_tgt)
+    except Exception as e:
+        raise _media_http(e)
+    return {"ok": True, "effect": eff, "ref": s_ref, "target": s_tgt}
+
+
+@router.post("/scopes")
+async def montage_scopes(request: Request):
+    """Body `{src, t, effects?, mask?}` → PNG 512×512 (waveform, vectorscope,
+    histogramme) de l'image ÉTALONNÉE. `no-store` : le client le redemande à
+    chaque arrêt, le cache disque suffit."""
+    from app.services import grading as GR
+    _require_local(request)
+    body = await _json_body(request)
+    t = _grade_t(body.get("t"))
+    effs = _grade_effects(body.get("effects"))
+    p = await _media_source(request, body.get("src"), video=True)
+    try:
+        out = await asyncio.to_thread(GR.scopes_png, p, t, effs, body.get("mask"))
+    except Exception as e:
+        raise _media_http(e)
+    return FileResponse(out, media_type="image/png", headers={"Cache-Control": "no-store"})
+
+
+@router.post("/grade-frame")
+async def montage_grade_frame(request: Request):
+    """Body `{src, t, effects?, mask?, w?}` → JPEG de l'image étalonnée
+    (`w` 96..640 pair, défaut 240) — aperçu du panneau Étalonnage et
+    vignettes de la lightbox."""
+    from app.services import grading as GR
+    _require_local(request)
+    body = await _json_body(request)
+    t = _grade_t(body.get("t"))
+    effs = _grade_effects(body.get("effects"))
+    w = _grade_w(body.get("w"))
+    p = await _media_source(request, body.get("src"), video=True)
+    try:
+        out = await asyncio.to_thread(GR.graded_frame, p, t, effs, body.get("mask"), w, "jpg")
+    except Exception as e:
+        raise _media_http(e)
+    return FileResponse(out, media_type="image/jpeg",
+                        headers={"Cache-Control": "private, max-age=3600"})
+
+
 @router.post("/proxy")
 async def montage_proxy_build(request: Request,
                               background_tasks: BackgroundTasks):
