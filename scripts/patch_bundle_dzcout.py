@@ -431,7 +431,18 @@ STABLE_PROBES = [
     # `DzTracks.reframeOf(` (payload, repli de R_DZ4). Le repli de R_DZ1 (srcWH, ratio, onReframe) et la
     # section « Cadrage » de la couche n'en ajoutent aucune. MESURE : la chaine a refuse, « sonde montage
     # x163 (want 161) », avant cette ligne.
-    ("montage", "DzTracks", 163),
+    # L5 (24/09/2026, tache 5, panneau Etalonnage) : 163 -> 166 -- trois sites de CODE, tous dans des REPLIS
+    # (aucune section neuve) : `DzTracks.GradePanel` (le panneau, repli de R_DZ1), `DzTracks.MaskBox` (le
+    # contour du masque au lecteur, repli de R_DZ2) et `DzTracks.maskOf(` (le masque au payload, repli de
+    # R_DZ4). La couche n'ecrit le nom nulle part. MESURE : la chaine a refuse, « sonde montage x166
+    # (want 163) », avant cette ligne.
+    # L5 (24/09/2026, tache 6, scopes / lightbox / grade) : 166 -> 172 -- six sites de CODE : quatre dans le repli de
+    # R_EC1 (`DzTracks.gradeCopyDo(` et `DzTracks.gradePasteDo(` = les gestes du clavier et du menu de clip,
+    # `DzTracks.gradeTake(` et `DzTracks.gradeRead(` = le grise des deux entrees du menu de clip), un dans le repli de
+    # R_EB5A (`DzTracks.Lightbox`) et un dans la SEULE section neuve L5sc1 (`DzTracks.Scopes`, sous le lecteur). Les
+    # commentaires ajoutes a l'hote ne nomment pas le contrat. MESURE : la chaine a refuse, « sonde montage x172
+    # (want 166) », avant cette ligne.
+    ("montage", "DzTracks", 172),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

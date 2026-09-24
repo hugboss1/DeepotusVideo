@@ -1124,6 +1124,12 @@ R_M16REF = (A_M16REF + "\n"
             # par Suppr, Echap (R_K7) et le clic sur un clip (EC14).
             "  var stGap=x.useState(null),gapSel=stGap[0],setGapSel=stGap[1];\n"
             "  var gapSelRef=x.useRef(null);gapSelRef.current=gapSel;\n"
+            # ── L5 D-32 (24/09/2026, tache 6) : LA LIGHTBOX DES PLANS OUVERTE -- REPLIEE ICI, meme motif que gapSel :
+            # onKey (window keydown) a des deps sans dzLb, le ref est pose a chaque rendu et lu par Echap (R_K7) ;
+            # ouverte par ☰ › Affichage (R_EC1), rendue dans R_EB5A, fermee par dzLbPick / le voile / « Fermer » /
+            # Echap. PAS dans dzScrimRef (ligne epinglee) : la lightbox porte son propre voile.
+            "  var stLb=x.useState(!1),dzLb=stLb[0],setDzLb=stLb[1];\n"
+            "  var dzLbRef=x.useRef(!1);dzLbRef.current=dzLb;\n"
             # REVUE T5 (23/09/2026) : LE TROU S'EFFACE QUAND LES CLIPS CHANGENT.
             # Mesure : gapSel survivait aux 55 `setClips(` du bundle (undo/redo,
             # dropOnTrack, blade, range_cut, remplacement...) -- un media depose
@@ -3357,7 +3363,18 @@ R_R1 = (A_R1 + "\n"
         # contentEditable (B:3376). Rubrique du menu ☰ : « Édition », par
         # DZM_MENU_RUB de la couche (copy/paste y sont ranges).
         '\n {id:"copy",sec:"Montage",lbl:"copier le clip (entre projets)",combo:"Ctrl+C"},'
-        '\n {id:"paste",sec:"Montage",lbl:"coller le clip du presse-papiers à la tête de lecture",combo:"Ctrl+V"},')
+        '\n {id:"paste",sec:"Montage",lbl:"coller le clip du presse-papiers à la tête de lecture",combo:"Ctrl+V"},'
+        # -- « L5 » (D-32, 24/09/2026, tache 6) : COPIER / COLLER LE GRADE, REPLIES ICI (meme raison que L7b1 :
+        # l'entree `paste` est x0 dans .bak_montage). COMBOS MESUREES (B:1655) : « Ctrl+Maj+C » est dans
+        # SVM_COMBO_RESERVED (inspecteur des DevTools) -> « Ctrl+Alt+C » / « Ctrl+Alt+V », ni reservees ni prises
+        # (x0 dans .bak_montage, x0 comme combo de toute autre entree de la table patchee ; « Alt+C » = la lame,
+        # combo DIFFERENTE : le dispatch cherche la combo EXACTE d'abord). Leurs variantes Maj (« Ctrl+Alt+Maj+C/V »)
+        # ne retombent sur rien : le repli Maj n'agit que pour les ids de SVM_SHIFT_VARIANTS (ni grade_copy ni
+        # grade_paste). Sous Windows Ctrl+Alt = AltGr : AltGr+C / AltGr+V ne produisent aucun caractere en AZERTY
+        # francais, et svmComboOfEvent retombe de toute facon sur la lettre PHYSIQUE (e.code) sous Alt. Rubrique
+        # du menu ☰ : « Édition » (DZM_MENU_RUB de la couche).
+        '\n {id:"grade_copy",sec:"Montage",lbl:"grade : copier (effets couleur et masque du plan sélectionné)",combo:"Ctrl+Alt+C"},'
+        '\n {id:"grade_paste",sec:"Montage",lbl:"grade : coller sur le plan sélectionné",combo:"Ctrl+Alt+V"},')
 
 # ── R2 (D-11) : la branche de dispatch ─────────────────────────────────────
 # PORTEE MESUREE dans `onKey` (meme corps de composant, closure) : `phRef`,
@@ -3561,7 +3578,13 @@ R_R2 = (A_R2 + "\n"
         'range:dzProjRef.current&&dzProjRef.current.range,locked:(function(){var o={},k;for(k in trackStRef.current)if(trackStRef.current[k]&&trackStRef.current[k].l)o[k]=!0;return o})()});'
         'if(dzPr.id==null){fireNote(dzPr.note||"Rien n\'a été collé.");return}'
         'ovSeq.current=dzPq;pushHistory();setClips(dzPr.clips);setSelId(dzPr.id);setDirty(!0);'
-        'fireNote("« "+(dzPs.clip.label||dzPr.id)+" » collé sur "+String(dzPr.track).toUpperCase()+" à "+svmShort(Number(dzPr.start)||0)+(dzPr.mode!=="ecraser"?" (mode « "+DzTracks.modeLabel(dzPr.mode)+" »)":"")+(dzPr.note?" — "+dzPr.note:"")+".");return}')
+        'fireNote("« "+(dzPs.clip.label||dzPr.id)+" » collé sur "+String(dzPr.track).toUpperCase()+" à "+svmShort(Number(dzPr.start)||0)+(dzPr.mode!=="ecraser"?" (mode « "+DzTracks.modeLabel(dzPr.mode)+" »)":"")+(dzPr.note?" — "+dzPr.note:"")+".");return}'
+        # -- « L5 » (D-32, 24/09/2026, tache 6) : LE DISPATCH DU GRADE, REPLIE ICI (meme raison que L7b2). LE GESTE
+        # VIT DANS dzGradeCopy / dzGradePaste (replis de R_EC1), que le menu de clip appelle AUSSI -- une seule
+        # source de verite (precedent dzTtAdd / dzMkToggle) ; eux-memes passent par DzTracks.gradeCopyDo /
+        # gradePasteDo, les gestes du panneau Etalonnage (un stockage, une phrase).
+        '\n      if(id==="grade_copy"){dzGradeCopy(selRef.current);return}'
+        '\n      if(id==="grade_paste"){dzGradePaste(selRef.current);return}')
 
 # ── R3 (D-11) : la bande sur la regle, apres la gouttiere ──────────────────
 # `DzmRangeBar` rend `null` tant que la plage n'est pas COMPLETE : la regle
@@ -3754,7 +3777,13 @@ A_K7 = ('if(e.key==="Escape"){\n'
         "        if(kbAudioRef.current&&kbAudioRef.current.ovEsc&&"
         "kbAudioRef.current.ovEsc())e.preventDefault();\n"
         "        return}")
-R_K7 = ('if(e.key==="Escape"){\n'
+# L5 D-32 (24/09/2026, tache 6 ; revue T6, I1) : LA LIGHTBOX EST MODALE AU CLAVIER -- la garde vient AVANT la branche
+# Echap (meme forme que celle de `kbRef` juste au-dessus dans onKey) : sous le voile, Espace lançait la lecture et
+# Suppr / Ctrl+Z modifiaient la timeline, un popover ouvert par raccourci passait au-dessus (z 20 > 19). Seul Echap
+# agit : il la ferme. Son ref est pose dans R_M16REF (la ligne epinglee de dzScrimRef ne bouge pas).
+R_K7 = ('if(dzLbRef.current){if(e.key==="Escape"){e.preventDefault();setDzLb(!1)}return}'
+        ' /* D-32 : lightbox ouverte = modale au clavier, seul Échap agit (il la ferme) ; l\'Échap de l\'overlay décrit plus haut suit */\n'
+        '      if(e.key==="Escape"){\n'
         "        if(dzMkOnRef.current){e.preventDefault();dzMkToggle(!1);return}\n"
         # E-11 (lot E-B, tache 5, 23/09/2026) : ECHAP FERME LE VOILE ET CE
         # QU'IL PORTE (popover preview/rendu, bandeau de fin). REPLI : la
@@ -4406,9 +4435,27 @@ R_DZ1 = ('        /* D-13 : les proprietes de plan (clip V1 reel seulement) */\n
          '                fireNote(pts.length?"Mouvement suivi : "+pts.length+" points.":"Peu de mouvement : centré.")})\n'
          '              .catch(function(e){fireNote("Analyse du mouvement refusée : "+((e&&e.message)||"erreur réseau"))})},\n'
          '          onChange:dzPlanSet}):null,\n'
-         + A_DZ1)
+         + A_DZ1 + "\n"
+         # L5 D-27 D-29 D-30 D-28 (24/09/2026, tache 5) : LE PANNEAU « ETALONNAGE » -- repli ici, AUCUNE ancre neuve.
+         # MEME garde que PlanProps (clip V1 rendu), monte UNE fois, APRES ovInspector() (le rack d'effets, que le
+         # panneau ecrit, reste au-dessus ; le pin d'adjacence `onChange:dzPlanSet}):null,` + `ovInspector(),` de DZ1
+         # ne bouge pas -- ecart date au plan, qui disait « a cote de PlanProps »). `clips` = la timeline (le plan
+         # precedent de l'accord), `ph` = la tete, `locked` = la forme de dzPlanSet (V1 verrouillee : la couche grise
+         # et le dit, le geste commun refuserait de toute facon), onChange = dzPlanSet (rafale de 600 ms), notes par
+         # fireNote. Le reseau (grade-frame, color-match) est dans la COUCHE : l'hote ne porte aucune route.
+         '        /* L5 : le panneau Etalonnage (clip V1 reel seulement, meme garde que les proprietes de plan) */\n'
+         '        sel&&sel.tr==="v1"&&sel.src&&sel.src.job_id?r.jsx(DzTracks.GradePanel,{clip:sel,\n'
+         # revue T5 (24/09/2026, I-3) : `playing` (l'etat de lecture de DzMontage, celui que recoivent les scopes) --
+         # pendant la lecture le panneau ne construit ni ne serialise le corps de l'apercu, aucun minuteur
+         '          clips:clips,head:ph,playing:playing,locked:!!(trackStRef.current.v1&&trackStRef.current.v1.l),onNote:fireNote,onChange:dzPlanSet}):null,')
 A_DZ2 = '            r.jsx("div",{className:"svm-tfbadge",ref:tfBadgeRef})]}):null,'
 R_DZ2 = ('            r.jsx("div",{className:"svm-tfbadge",ref:tfBadgeRef}),\n'
+         # L5 D-30 (24/09/2026, tache 5) : LE CONTOUR DU MASQUE du clip V1 selectionne -- repli ici (le plan proposait
+         # R_L7BRF1 ou une section L5m1 en queue : `.svm-tf` est DEJA le cadre en %, hors vzoom, au-dessus des hotes --
+         # mesure de D-13 -- et le masque est en fractions du cadre ; liveSync aurait du creer l'element a la main).
+         # Pose AVANT les rectangles du zoom (ils restent dessus, eux sont saisissables ; la boite ne l'est pas).
+         '            /* L5 D-30 : le contour du masque du clip V1 selectionne (sous les rectangles du zoom) */\n'
+         '            sel&&sel.tr==="v1"&&sel.mask?r.jsx(DzTracks.MaskBox,{clip:sel}):null,\n'
          '            /* D-13 : les deux fenetres du zoom dynamique du clip V1 selectionne */\n'
          '            sel&&sel.tr==="v1"&&sel.dz?r.jsx(DzTracks.DzRects,{dz:sel.dz,\n'
          '              onChange:function(nd){dzPlanSet({dz:nd})}}):null]}):null,')
@@ -4439,7 +4486,14 @@ R_DZ4 = (A_DZ4 + "\n"
          "        /* L7-B D-40 : le cadrage -- joint seulement hors centre */\n"
          # revue finale : le payload porte les points ABSOLUS (reframePayload) -- le serveur applique la meme
          # regle que la couche (srcIn courant soustrait, fenetre, points de bord).
-         '        var rfD=c.tr==="v1"&&DzTracks.reframePayload(c);if(rfD)o.reframe=rfD;')
+         '        var rfD=c.tr==="v1"&&DzTracks.reframePayload(c);if(rfD)o.reframe=rfD;\n'
+         # L5 D-30 (24/09/2026, tache 5) : LE MASQUE -- joint seulement s'il est lisible ET qu'un effet actif part
+         # (o.effects, deja filtre des `off` plus haut : sans effet le rendu l'ignore -> payload d'avant). MESURE
+         # 24/09 : la MEME map de renderPayload construit les clips V1 ET les overlays V2 (le bloc
+         # isOverlayTrack vient plus bas dans la meme fonction) -- UNE ligne couvre les deux ; `trackKind` (bundle)
+         # dit « video » pour v1, v2, v3… et jamais pour a*, s*, t*, j* ; un clip sans source (titre) ne l'emporte pas.
+         "        /* L5 D-30 : le masque (V1 et overlays V2) -- joint seulement lisible et avec des effets actifs */\n"
+         '        var mkD=o.effects&&c.src&&trackKind(c.tr)==="video"&&DzTracks.maskOf(c.mask);if(mkD)o.mask=mkD;')
 
 # ══ D-14 (L3 tache 7, 22/09/2026) — KEYFRAMES D'ECHELLE ET D'OPACITE ═══════
 # Le contrat du rendu (T7a) : `motion_points[{t,x,y,rotate?,scale?,opacity?}]`,
@@ -4730,6 +4784,10 @@ A_EB5A = ('    transPopover(),\n'
 R_EB5A = ('    transPopover(),\n'
           '    (pop||dzFin||dzMenu)?r.jsx("div",{className:"svm-modescrim",onClick:function(){setPop("");setDzFin(null);setDzMenu(null)}}):null,\n'
           + EC3_MENU + '\n'
+          # L5 D-32 (24/09/2026, tache 6) : LA LIGHTBOX DES PLANS, REPLIEE ICI (meme ancre consommee que EC3) -- apres le
+          # menu, avant kbPanel ; son propre voile .dzm-lbscrim (z 19, celui de .svm-modescrim) porte la grille ; l'etat
+          # dzLb vit dans R_M16REF, dzLbPick dans R_EC1, Echap dans R_K7.
+          '    dzLb?r.jsx(DzTracks.Lightbox,{clips:clips,onPick:function(c){dzLbPick(c.id)},onClose:function(){setDzLb(!1)}}):null,\n'
           '    kbPanel(),')
 
 # ── EB5b (E-11) : LA RACINE DE popover() ARRETE LE CLIC (motif kbPanel) ──
@@ -5026,6 +5084,8 @@ R_EC1 = (A_EC1 + "\n"
          # bascule est dans le popover ; « actif » dans la colonne des combos quand la detection est allumee
          # (pas « ✓ » : ce n'est pas la bascule elle-meme, et le banc E-10 pinne les cinq coches).
          '        {lbl:"Plans trop longs / jump cuts…",combo:bo.on?"actif":"",run:function(){setPop("boring")}},\n'
+         # L5 D-32 (24/09/2026, tache 6) : REPLIE ici -- la lightbox des plans (etat dzLb, plus haut dans ce remplacement)
+         '        {lbl:"Lightbox des plans",run:function(){setDzLb(!0)}},\n'
          # E-10 (lot E-C, tache 4) : la bascule d'ancrage de la barre (etat R_M11).
          '        {lbl:"Ancrer la barre d\'outils",combo:dzTbDock?"✓":"",run:function(){dzTbDockToggle()}}]);\n'
          '      return Object.assign(base,{rubs:rubs})}\n'
@@ -5039,7 +5099,12 @@ R_EC1 = (A_EC1 + "\n"
          '        {lbl:"Découper aux changements de plan",off:!(c.src&&c.src.job_id)||trackKind(c.tr)!=="video",run:function(){dzSceneCut(id)}},\n'
          '        {lbl:"Supprimer",combo:svmKeyLabel("delete"),run:function(){delClipById(id)}},\n'
          '        {lbl:"Remplacer la source…",off:!c.src,run:function(){dzReplaceArm(c)}},\n'
-         '        {lbl:"Effets…",off:trackKind(c.tr)==="audio",run:function(){setFxPick(!0)}},{sep:!0}]\n'
+         '        {lbl:"Effets…",off:trackKind(c.tr)==="audio",run:function(){setFxPick(!0)}},\n'
+         # L5 D-32 (24/09/2026, tache 6) : REPLIE ici -- les deux entrees du grade, AVANT le separateur existant (le
+         # compte `{sep:!0}` == 4 ne bouge pas). Toujours rendues ; grisees : rien a prendre (gradeTake null) /
+         # aucun grade copie (gradeRead, lu A L'OUVERTURE), piste non video, demo. Le geste = dzGradeCopy/Paste(id).
+         '        {lbl:"Copier le grade",combo:svmKeyLabel("grade_copy"),off:!DzTracks.gradeTake(c),run:function(){dzGradeCopy(id)}},\n'
+         '        {lbl:"Coller le grade",combo:svmKeyLabel("grade_paste"),off:!!proj.demo||trackKind(c.tr)!=="video"||!DzTracks.gradeRead(),run:function(){dzGradePaste(id)}},{sep:!0}]\n'
          '        .concat([.25,.5,.75,1,1.5,2].map(function(v){return {lbl:"Vitesse "+Math.round(v*100)+" %",combo:Math.abs(sp-v)<1e-6?"✓":"",off:!v1||!c.src||!c.src.job_id,run:function(){svmSetV1Speed(id,v)}}}))\n'
          '        .concat([{sep:!0},{lbl:"Transition…",off:!g,run:function(){openTransPopAt(id,o.x)}}])})}\n'
          '    if(kind==="track"){var ts=svmTracksOf(proj),t=ts.find(function(k){return k.id===id});if(!t)return null;\n'
@@ -5073,7 +5138,31 @@ R_EC1 = (A_EC1 + "\n"
          '        {lbl:"Supprimer la piste",off:bs,run:function(){svmTracksSet(DzTracks.remove(ts,id));\n'
          '          if(n)setClips(function(cs2){return (cs2||[]).filter(function(k){return k.tr!==id})});\n'
          '          fireNote("Piste "+(t.name||id)+" retirée"+(n?" avec "+n+" clip"+(n>1?"s":"")+" — annuler ramène les clips":"")+".")}}])})}\n'
-         '    return null}')
+         '    return null}\n'
+         # -- « L5 » (D-31 D-32, 24/09/2026, tache 6) : LA LIGHTBOX ET LE GRADE, replies ici, APRES dzMenuProps (les bancs decoupent dzExportTl..dzSceneCut..dzMenuProps : rien ne
+         # s'y intercale ; le menu est ne de CE
+         # remplacement, x0 dans .bak_montage). L'ETAT de la lightbox et son ref sont dans R_M16REF (EC1 ne porte AUCUN
+         # hook : pin EC1_dzMenuProps_..._sans_hook) ; dzLbPick = le plan
+         # RELU a la reponse (la grille est un instantane de l'ouverture) : ferme, selectionne, tete au debut.
+         # dzGradeCopy / dzGradePaste(id) = LE geste du clavier (R_R2) ET du menu de clip : refus dits (aucun plan,
+         # demo, piste non video, piste verrouillee), puis DzTracks.gradeCopyDo / gradePasteDo (les gestes du
+         # panneau) ; coller = pushHistory() UNE fois, puis setClips + setDirty. Portee : clipsRef, dzProjRef,
+         # trackStRef, trackKind, fireNote, pushHistory, seekTo -- ceux des gestes voisins (dzSceneCut, paste).
+         '  /* L5 D-31 D-32 : le choix d\'un plan dans la lightbox et les gestes du grade (clavier + menu de clip) */\n'
+         '  function dzLbPick(id){var k=clipsRef.current.find(function(q){return q.id===id});setDzLb(!1);\n'
+         '    if(!k){fireNote("Lightbox : ce plan n\'existe plus.");return}\n'
+         '    setSelId(k.id);seekTo(k.start)}\n'
+         '  function dzGradeCopy(id){var c=clipsRef.current.find(function(k){return k.id===id});\n'
+         '    if(!c){fireNote("Copier le grade : sélectionnez d\'abord un plan.");return}\n'
+         '    fireNote(DzTracks.gradeCopyDo(c).note)}\n'
+         '  function dzGradePaste(id){\n'
+         '    if(dzProjRef.current&&dzProjRef.current.demo){fireNote("Coller le grade : disponible sur un projet réel — la démo est une maquette.");return}\n'
+         '    var c=clipsRef.current.find(function(k){return k.id===id});\n'
+         '    if(!c){fireNote("Coller le grade : sélectionnez d\'abord un plan.");return}\n'
+         '    if(trackKind(c.tr)!=="video"){fireNote("Coller le grade : réservé aux plans vidéo (V1 et pistes d\'overlay).");return}\n'
+         '    if(trackStRef.current[c.tr]&&trackStRef.current[c.tr].l){fireNote("Piste "+c.tr.toUpperCase()+" verrouillée — déverrouillez-la pour coller le grade.");return}\n'
+         '    var q=DzTracks.gradePasteDo(c);if(!q.clip){fireNote(q.note);return}\n'
+         '    pushHistory();setClips(clipsRef.current.map(function(k){return k.id===c.id?q.clip:k}));setDirty(!0);fireNote(q.note)}')
 # L7 D-22 (24/09/2026) : un quatrieme separateur, entre les entrees de sous-titres et « Supprimer la piste »
 assert R_EC1.count("{sep:!0}") == 4 and R_EC1.count("dzmReplaceRef.current={") == 1
 assert EC3_MENU in R_EB5A
@@ -5668,7 +5757,13 @@ assert R_EC1.count("  function dzSceneCut(id){") == 1 and R_EC1.count("run:funct
 # L7-B D-40 (24/09/2026, tache 4) : le cadrage replie dans R_DZ1 (hote), R_DZ3 (apercu vivant), R_DZ4 (payload) -- aucune section neuve
 assert R_DZ1.count("onReframe:function(){var id=sel.id,") == 1 and R_DZ1.count('fetch("/api/montage/reframe",') == 1 and R_DZ1.count("var sg=dzRfSg(c),") == 1
 assert R_DZ1.find("var sg=dzRfSg(c),") < R_DZ1.find('fetch("/api/montage/reframe",') < R_DZ1.find("if(dzRfSg(k2)!==sg){") < R_DZ1.find("pushHistory();setClips(clipsRef.current.map(")
-assert R_DZ1.count("DzTracks.") == 3 and R_DZ1.endswith("          onChange:dzPlanSet}):null,\n" + A_DZ1) and R_DZ1.count("pl.get(livePoolKey(sel.src,\"b\"))") == 1
+# L5 (24/09/2026, tache 5) : 3 -> 4 `DzTracks.` (GradePanel) ; DZ1 ne FINIT plus par ovInspector() -- le panneau
+# Etalonnage vient juste APRES (meme garde) ; l'adjacence PlanProps -> ovInspector() reste, une fois.
+assert R_DZ1.count("DzTracks.") == 4 and R_DZ1.count("          onChange:dzPlanSet}):null,\n" + A_DZ1 + "\n") == 1 and R_DZ1.count("pl.get(livePoolKey(sel.src,\"b\"))") == 1
+assert R_DZ1.endswith('onNote:fireNote,onChange:dzPlanSet}):null,') and R_DZ1.count('?r.jsx(DzTracks.GradePanel,{clip:sel,') == 1
+assert R_DZ1.count('sel&&sel.tr==="v1"&&sel.src&&sel.src.job_id?r.jsx(DzTracks.') == 2
+assert R_DZ2.count("r.jsx(DzTracks.MaskBox,{clip:sel})") == 1 and R_DZ2.find("DzTracks.MaskBox") < R_DZ2.find("DzTracks.DzRects")
+assert R_DZ4.count("DzTracks.maskOf(c.mask);if(mkD)o.mask=mkD;") == 1 and R_DZ4.find("var rfD=") < R_DZ4.find("var mkD=")
 assert R_DZ3.count("reframe") == 0 and R_DZ3.endswith("if(lv.style.transform!==dzT)lv.style.transform=dzT;")
 assert R_DZ1.count("svmSrcKey(k.src)") == 1 and R_EC1.count(",svmSrcKey(k.src)].join(\"|\")}") == 1
 assert R_L7BRF1.startswith(A_L7BRF1) is False and R_L7BRF1.endswith(A_L7BRF1) and R_L7BRF1.count("DzTracks.reframeCss(c,(t-c.start)*svmSpeedOf(c),") == 1
@@ -5732,6 +5827,30 @@ assert R_EC15B.count("proj.demo?null:") == 0 and R_EC15K.count("proj.demo?null:"
 assert R_EC15B.count("disabled:proj.demo,") == 1 and R_EC15K.count('svm-libbtn",disabled:proj.demo,') == 1
 assert R_EC15C.count("disabled:busy||proj.demo,") == 1 and R_EC15C.count("(busy||proj.demo)?") == 1
 assert R_EB4.count("title:") == 1 and R_EA5D.count('"Rendre →"') == 1 and R_EA5D.count("title:") == 2
+
+# ══ L5 D-31 D-32 (24/09/2026, tache 6) — SCOPES, LIGHTBOX, COPIER / COLLER LE GRADE ══════════════════════════
+# Replis : les deux actions (R_R1), leur dispatch (R_R2), la rubrique « Édition » (DZM_MENU_RUB, couche), l'etat de
+# la lightbox + les gestes du grade + l'entree ☰ › Affichage + les deux entrees du menu de clip (R_EC1), la lightbox
+# rendue (R_EB5A), Echap (R_K7). UNE section neuve, parce qu'aucun remplacement ne touche la zone du lecteur :
+# L5sc1 -- LES SCOPES SOUS LA BARRE DU LECTEUR. ANCRE MESUREE 24/09/2026 : la fin du bouton « plein ecran » qui
+# ferme `.svm-playerbar` puis `.svm-playerzone` vaut 1/0/1 (x1 dans .bak_montage, touchee par aucune section, x1
+# dans le bundle livre). Le composant (DzTracks.Scopes) devient le DERNIER enfant de `.svm-playerzone` : sous la
+# barre en paysage (colonne), a droite de la barre en portrait (data-side, rangee). Props : la timeline, la tete,
+# l'etat de lecture (st4 du bundle : `playing`) -- les scopes ne demandent RIEN pendant la lecture.
+# CORRECTIF PREUVE ECRAN (24/09/2026) : MESURE Playwright 1400 x 900 -- sous la barre, la puce tombait sous la barre
+# OUTILS flottante (z 8, pied de la zone). Meme ancre, la puce devient le DERNIER enfant de la BARRE (apres « plein
+# ecran ») ; la barre passe en tete de la zone par la feuille (order:-1) et l'encart est porte dans le cadre.
+A_L5SC1 = '            onClick:svmFullscreen,children:"plein écran ("+svmKeyLabel("fullscreen")+")"})]})]}),'
+R_L5SC1 = ('            onClick:svmFullscreen,children:"plein écran ("+svmKeyLabel("fullscreen")+")"}),\n'
+           '          /* L5 D-31 : la puce des scopes du plan V1 sous la tête (bascule mémorisée, encart dans le cadre) */\n'
+           '          r.jsx(DzTracks.Scopes,{clips:clips,head:ph,playing:playing})]})]}),')
+L5 = [("L5sc1-scopes-sous-la-barre-du-lecteur", A_L5SC1, R_L5SC1)]
+assert R_L5SC1.count("DzTracks.") == 1 and R_L5SC1.endswith("playing:playing})]})]}),") and A_L5SC1.count("]})]}),") == 1
+assert R_R1.count('combo:"Ctrl+Alt+C"') == 1 and R_R1.count('combo:"Ctrl+Alt+V"') == 1 and R_R1.find('id:"paste"') < R_R1.find('id:"grade_copy"') < R_R1.find('id:"grade_paste"')
+assert R_R2.count('if(id==="grade_copy"){dzGradeCopy(selRef.current);return}') == 1 and R_R2.count('if(id==="grade_paste"){dzGradePaste(selRef.current);return}') == 1
+assert R_EC1.count("function dzGradeCopy(id){") == 1 and R_EC1.count("function dzGradePaste(id){") == 1 and R_EC1.count("pushHistory();setClips(clipsRef.current.map(function(k){return k.id===c.id?q.clip:k}))") == 1
+assert R_EC1.count("run:function(){dzGradeCopy(id)}") == 1 and R_EC1.count("run:function(){dzGradePaste(id)}") == 1 and R_EC1.count('{lbl:"Lightbox des plans",run:function(){setDzLb(!0)}}') == 1
+assert R_EB5A.count("r.jsx(DzTracks.Lightbox,") == 1 and R_K7.count('if(dzLbRef.current){if(e.key==="Escape"){e.preventDefault();setDzLb(!1)}return}') == 1 and R_K7.startswith("if(dzLbRef.current){")
 
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
@@ -5983,7 +6102,9 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("EC11-rendu-du-trou-selectionne", A_EC11, R_EC11),
            ("EC12-tete-de-lecture-dans-l-inspecteur", A_EC12, R_EC12),
            ("EC13-suppr-referme-le-trou", A_EC13, R_EC13),
-           ("EC14-clic-sur-un-clip-efface-le-trou", A_EC14, R_EC14)] + EC15 + L4 + L7A
+           ("EC14-clic-sur-un-clip-efface-le-trou", A_EC14, R_EC14)] + EC15 + L4 + L7A + L5
+           # L5 (24/09/2026, tache 6) : UNE section neuve EN QUEUE (L5sc1, les scopes sous le lecteur) ; tout le reste
+           # de la tache est replie (R_R1, R_R2, R_EC1, R_EB5A, R_K7).
            # L4 (23/09/2026, tache 4) : sept sections sur des ancres libres ; l'etat
            # (R_M16REF) et « Ajouter a la file » (R_EA5D2) sont replies.
            # E-12 (tache 6) : onze sections EC15a..k sur des ancres libres ;

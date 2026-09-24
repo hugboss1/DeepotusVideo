@@ -189,12 +189,15 @@ _iA0 = BUN.find("var SVM_ACTIONS=[")
 _iA1 = BUN.find("];", _iA0) if _iA0 >= 0 else -1
 IDS_ACT = re.findall(r'\{id:"([a-z0-9_]+)",sec:"', BUN[_iA0:_iA1]) if 0 <= _iA0 < _iA1 else []
 COMBOS_ACT = dict(re.findall(r'\{id:"([a-z0-9_]+)",sec:"[^"]*",lbl:"[^"]*",combo:"([^"]*)"\}', BUN[_iA0:_iA1])) if 0 <= _iA0 < _iA1 else {}
+# L5 D-32 (24/09/2026, tache 6) : 48 -> 50 -- grade_copy (« Ctrl+Alt+C ») et grade_paste (« Ctrl+Alt+V »), repli R_R1 ; les
+# libelles des checks gardent « 48 » (identifiants stables), les VALEURS sont realignees
 check("x1_SVM_ACTIONS_du_bundle_x1_48_actions_ids_uniques_et_les_ids_du_preset_en_font_partie",
-      BUN.count("var SVM_ACTIONS=[") == 1 and len(IDS_ACT) == 48 and len(set(IDS_ACT)) == 48 and len(COMBOS_ACT) == 48
+      BUN.count("var SVM_ACTIONS=[") == 1 and len(IDS_ACT) == 50 and len(set(IDS_ACT)) == 50 and len(COMBOS_ACT) == 50
+      and COMBOS_ACT.get("grade_copy") == "Ctrl+Alt+C" and COMBOS_ACT.get("grade_paste") == "Ctrl+Alt+V"
       and len(PRESET) == 3 and all(i in IDS_ACT for i in PRESET), (len(IDS_ACT), [i for i in PRESET if i not in IDS_ACT]))
 # ETAT VIDE : le meme compteur ne trouve pas un id invente
 check("x1_etat_vide_le_meme_compteur_ne_trouve_pas_un_id_invente_temoin_blade_trouve",
-      len(IDS_ACT) == 48 and "blade" in IDS_ACT and "zzz_pas_une_action" not in IDS_ACT and COMBOS_ACT.get("blade") == "Alt+C", COMBOS_ACT.get("blade"))
+      len(IDS_ACT) == 50 and "blade" in IDS_ACT and "zzz_pas_une_action" not in IDS_ACT and COMBOS_ACT.get("blade") == "Alt+C", COMBOS_ACT.get("blade"))
 # ecart date : trans_add a pour defaut Alt+T, Ctrl+T et Ctrl+Maj+T sont dans la table des reservees du bundle
 check("x1_ecart_date_24_09_2026_trans_add_par_defaut_Alt_T_et_Ctrl_T_Ctrl_Maj_T_reservees_par_le_bundle_le_preset_n_a_pas_de_transition",
       COMBOS_ACT.get("trans_add") == "Alt+T" and BUN.count('"Ctrl+T":1') == 1 and BUN.count('"Ctrl+Maj+T":1') == 1
@@ -224,7 +227,7 @@ check("x1_sous_node_svmKmMerge_retient_les_trois_overrides_du_preset_aucune_coll
 # temoin d'etat non vide : le juge VOIT une reservee et une combo illisible
 check("x1_temoin_les_juges_du_bundle_canonisent_ctrl_t_en_Ctrl_T_la_disent_reservee_refusent_Zork_Q_et_laissent_Alt_T_48_actions",
       isinstance(K.get("temoin"), dict) and K["temoin"].get("ctrl_t") == "Ctrl+T" and K["temoin"].get("ctrl_t_res") == "raccourci du navigateur"
-      and K["temoin"].get("zzz") == "" and K["temoin"].get("alt_t") == "" and K["temoin"].get("n") == 48 == len(IDS_ACT), _kwhy or K.get("temoin"))
+      and K["temoin"].get("zzz") == "" and K["temoin"].get("alt_t") == "" and K["temoin"].get("n") == 50 == len(IDS_ACT), _kwhy or K.get("temoin"))
 
 # -- [2] D-39 : DZM_DIFF_CLES vs les cles emises par renderPayload ------------
 print("\n[2] D-39 : DZM_DIFF_CLES (couche) ⊂ cles emises par renderPayload (bundle) ∪ cles client -- orphelines datees")

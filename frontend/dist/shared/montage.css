@@ -947,18 +947,23 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
    feuille amont. Le banc recalcule le débord à partir des valeurs LUES
    (`top`, les deux filets) et exige pied ≥ débord + 8 : aucun des deux
    nombres n'y est recopié.
-   DETTE NAVIGATEUR, DITE : tiroir Narration FERMÉ, la même bande de 19 px
-   tombe sur `.svm-playerbar` (dans `.svm-playerzone`, rembourrage 10 px)
-   — non mesurable sans écran. Si une puce s'y trouve, la parade serait
-   `top:-14px` sur l'onglet (écart à déclarer contre le §2.1) ; elle n'est
-   pas prise ici. La mesure à faire dans la console du navigateur, tiroir
-   Narration OUVERT :
+   DETTE NAVIGATEUR SOLDÉE — MESURÉ le 24/09/2026 (revue finale L5,
+   Playwright + Chrome 1400 × 900 paysage). La dette disait : tiroir
+   Narration FERMÉ, la même bande de 19 px tomberait sur `.svm-playerbar`.
+   PÉRIMÉ depuis 4bda880 : en paysage la rangée du lecteur est remontée EN
+   TÊTE de `.svm-playerzone` (order:-1, bloc D-31 plus bas) — mesurée en
+   (242, 114, 848 × 21), à 300 px au-dessus de l'onglet. Onglet OUTILS
+   replié mesuré en (246, 417, 121 × 21) : tiroir FERMÉ, il se pose sur le
+   bas de la zone (rembourrage 10 px et scène vide à gauche du cadre, qui
+   commence à x = 439) — `.svm-playerzone` sous ses trois points de sonde,
+   aucune puce ; tiroir OUVERT, sur `.svm-narr`, `t.top` 417 ≥ bas de la
+   note 220 (true). Barre OUTILS dépliée, l'onglet est sur sa propre barre
+   (`.dzm-tbgrip`, `.dzm-tbzone`). La parade `top:-14px` n'a pas lieu
+   d'être. Sonde de console conservée :
      var t=document.querySelector('.dzm-tbtab').getBoundingClientRect(),
          n=[...document.querySelectorAll('.svm-narr .svm-note')].pop()
            .getBoundingClientRect();
-     [t.top, n.bottom, t.top>=n.bottom]        // attendu : true
-   puis tiroir FERMÉ, la même contre `.svm-playerbar` (t.top contre le
-   `bottom` de son dernier enfant). */
+     [t.top, n.bottom, t.top>=n.bottom]        // attendu : true */
 .dzsvm .svm-narr{padding-bottom:27px}
 
 /* D-11 — la plage I/O sur la regle : bande ambre translucide, 4 px de haut,
@@ -1558,3 +1563,87 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
 .dzsvm .dzm-acmeta{font-family:var(--f-mono);font-size:10px;color:var(--ink3)}
 .dzsvm .dzm-accreate{align-self:flex-start;padding:3px 9px;font-size:11px}
 .dzsvm .dzm-accreate[data-arm]{border-color:var(--amber, #e0a53f);color:var(--amber, #e0a53f)}
+/* ── L5 (24/09/2026, tâche 5) : le panneau « Étalonnage » de l'inspecteur (couche, DzmGradePanel) — trois roues
+   96 px qui passent à la ligne dans un inspecteur étroit, la courbe 200 px, le masque, l'accord, l'aperçu étalonné ;
+   puis le contour du masque au lecteur (dans .svm-tf, le cadre en %, sous les rectangles du zoom). Les canvas
+   portent touch-action:none (le geste écoute la fenêtre, jamais de défilement parasite au tactile). */
+.dzsvm .dzm-gp .svm-propv{min-width:0}
+.dzsvm .dzm-gp-wheels{display:flex;flex-wrap:wrap;gap:6px 8px}
+.dzsvm .dzm-gp-wheel{display:flex;flex-direction:column;align-items:center;gap:2px;width:96px}
+.dzsvm .dzm-gp-wcv{width:96px;height:96px;cursor:crosshair;touch-action:none;border-radius:50%}
+.dzsvm .dzm-gp-wl{font-family:var(--f-mono);font-size:10px;color:var(--ink2);text-transform:uppercase;letter-spacing:.05em}
+.dzsvm .dzm-gp-wheel input[type=range]{width:90px}
+.dzsvm .dzm-gp-curve{display:flex;flex-direction:column;gap:4px;align-items:flex-start}
+.dzsvm .dzm-gp-tabs,.dzsvm .dzm-gp-cbtns,.dzsvm .dzm-gp-mks{display:inline-flex;flex-wrap:wrap;align-items:center;gap:4px}
+.dzsvm .dzm-gp-tab[data-on="1"],.dzsvm .dzm-gp-mk[data-on="1"]{border-color:var(--accent, #d8a657);box-shadow:inset 0 0 0 1px var(--accent, #d8a657)}
+.dzsvm .dzm-gp-ccv{width:200px;height:200px;max-width:100%;cursor:crosshair;touch-action:none;border:1px solid var(--stroke);border-radius:4px}
+.dzsvm .dzm-gp-cn{font-family:var(--f-mono);font-size:10px;color:var(--ink3)}
+.dzsvm .dzm-gp-mask{display:flex;flex-direction:column;gap:3px}
+.dzsvm .dzm-gp-mr{display:grid;grid-template-columns:44px 1fr 40px;align-items:center;gap:4px;font-family:var(--f-mono);font-size:10px;color:var(--ink2)}
+.dzsvm .dzm-gp-mr input[type=range]{width:100%;min-width:0}
+.dzsvm .dzm-gp-mv{text-align:right;color:var(--ink3)}
+.dzsvm .dzm-gp-inv{font-size:11px;color:var(--ink2);display:inline-flex;align-items:center;gap:4px}
+.dzsvm .dzm-gp-acc,.dzsvm .dzm-gp-grade{display:inline-flex;flex-wrap:wrap;gap:4px}
+.dzsvm .dzm-gp :disabled{opacity:.5;cursor:default}
+.dzsvm .dzm-gp-prev{display:flex;flex-direction:column;gap:3px}
+.dzsvm .dzm-gp-prev img{display:block;max-width:100%;height:auto;border-radius:4px;border:1px solid var(--stroke);background:#000}
+.dzsvm .dzm-gp-pmsg{font-family:var(--f-mono);font-size:10px;color:var(--ink3)}
+.dzsvm .dzm-maskbox{position:absolute;box-sizing:border-box;border:1.5px solid rgba(255,214,120,.9);box-shadow:0 0 0 1px rgba(0,0,0,.45);pointer-events:none}
+.dzsvm .dzm-maskbox[data-shape="ellipse"]{border-radius:50%}
+.dzsvm .dzm-maskbox[data-inv="1"]{border-style:dashed}
+/* ── L5 (24/09/2026, tâche 6) : D-31 les scopes (couche, DzmScopes) — DERNIER enfant de la barre du lecteur
+   (.svm-playerbar, après « plein écran »), l'image (512×512 rendue par ffmpeg) dans un encart du cadre (correctif
+   ci-dessous). D-32 la lightbox (couche, DzmLightbox) : son
+   voile a le z-index du voile E-11 (19 — MESURÉ l. 1370 : sous les popovers et le menu à 20) et porte
+   la grille ; tuiles 240 px de large au plus, vignettes 16:9 de repli (la vraie proportion vient de l'image). */
+/* CORRECTIF PREUVE ÉCRAN (24/09/2026) — MESURÉ Playwright 1400 × 900, tiroir Narration ouvert : la barre OUTILS
+   flottante (z 8, 831 × 83 au pied de la zone du lecteur, D-1) couvrait TOUTE la barre du lecteur (y 370 : les sept
+   puces rendaient .dzm-tbb à elementFromPoint) et la puce Scopes (y 399) ; l'image ouverte glissait dessous.
+   1. la puce Scopes est une puce DE LA BARRE (le wrapper s'efface : display:contents) ;
+   2. la barre du lecteur passe EN TÊTE de la zone (order:-1, paysage) — le cadre garde sa hauteur, seul l'ordre change ;
+      en portrait (data-side) sa colonne se cale EN HAUT, loin du pied couvert ;
+   3. l'encart (image + ligne d'état) est PORTÉ dans le cadre (DzmScopes, portail) : en haut à droite, sous le timecode,
+      borné à 40 % du cadre — la formule du cadre lui-même (unités cq de .svm-stage, --svm-arw hérité du cadre) —, z 6
+      (au-dessus des couches du cadre, sous la barre OUTILS 8 et les popovers 9+) ; l'encart couvre la vidéo SANS
+      capter un seul pointeur, image comprise (re-revue 4bda880 : `auto` sur l'image, au-dessus de .svm-tf z 3, rendait
+      poignées d'overlay et rectangles .dzm-dzrect inatteignables dans le coin haut droit, molette / double-clic / dépôt
+      perdus — le title de l'image ne s'affiche donc plus, la ligne d'état dit tout) ; repli en ligne (cadre
+      introuvable) : caché. */
+.dzsvm .dzm-scopes{display:contents}
+.dzsvm .svm-playerzone:not([data-side]) .svm-playerbar{order:-1}
+.dzsvm .svm-playerzone[data-side] .svm-playerbar{justify-content:flex-start}
+.dzsvm .svm-playerbar .dzm-scpop{display:none}
+.dzsvm .svm-frame>.dzm-scpop{position:absolute;top:34px;right:10px;z-index:6;display:flex;flex-direction:column;align-items:flex-end;gap:4px;max-width:calc(100% - 20px);pointer-events:none}
+.dzsvm .dzm-scimg{display:block;width:auto;height:auto;max-width:180px;max-height:180px;max-height:calc(min(100cqh, 100cqw / var(--svm-arw,.5625)) * .4);max-width:calc(min(100cqh * var(--svm-arw,.5625), 100cqw) * .4);border-radius:4px;border:1px solid #ffffff33;background:#000;pointer-events:none}
+.dzsvm .dzm-scmsg{font-family:var(--f-mono);font-size:10px;padding:2px 7px;border-radius:5px;background:#000000aa;color:#f2efe9;text-align:right}
+/* REVUE FINALE L5 (24/09/2026) — LA NOTE DU LECTEUR SOUS LA RANGÉE. Le bundle pose la note (`note`, ex. « Aucun grade
+   copié », Ctrl+Alt+V) en premier enfant de .svm-playerzone avec un style EN LIGNE `position:absolute; top:58px;
+   left:18px; z-index:5` ; la zone est `position:static` : le bloc conteneur est `.dzsvm.svm-col`, pas la zone.
+   MESURÉ Playwright 1400 × 900 paysage : note (250, 124, 271 × 14) ; tiroir Narration FERMÉ, la rangée .svm-playerbar
+   remontée en tête (order:-1, 4bda880) est en (242, 114, 848 × 21) → CHEVAUCHEMENT (la puce « source » passe sur le
+   texte) ; tiroir OUVERT, la note se pose sur l'en-tête « NARRATION » du tiroir, hors de la zone.
+   PREMIÈRE PARADE ÉCARTÉE (b54087d, `position:static!important`, note dans le flux) : MESURÉ, le cadre SAUTAIT à
+   chaque note — (420, 143, 492 × 277) → (439, 165, 453 × 255) pendant 4,5 s puis retour ; les notes sont fréquentes.
+   PARADE : la note RESTE HORS DU FLUX (absolue, z 5 en ligne conservé) ; en paysage la zone devient son bloc
+   conteneur (`position:relative`) et `top`/`left` (`!important`, seul moyen de battre un style en ligne) la posent
+   SOUS la rangée, alignée sur elle : top = rembourrage 10 + rangée 21 (MESURÉE, une ligne, ouvert comme fermé) +
+   gap 8 = 39 px ; left = rembourrage 10. `margin:0` : le `margin-top:10px` de .svm-note décalerait d'autant.
+   MESURÉ après (1400 × 900, Narration ouvert/fermé × OUTILS déplié/replié) : cadre IDENTIQUE avec et sans note,
+   note sous la rangée, hors du timecode (coin haut DROIT du cadre) ; elle passe sur le coin haut gauche de l'image,
+   comme la note d'origine. `position:relative` sur la zone : 23 descendants absolus (couches du cadre, poignées,
+   timecode, encart des scopes) tous sous `.svm-frame` positionné — AUCUN rectangle ne bouge (zone static en ligne
+   contre la feuille, mesuré) ; la barre OUTILS n'est pas dans la zone. Portrait (data-side) : non touché. */
+.dzsvm .svm-playerzone:not([data-side]){position:relative}
+.dzsvm .svm-playerzone:not([data-side])>.svm-note{top:39px!important;left:10px!important;margin:0}
+.dzsvm .dzm-lbscrim{position:absolute;inset:0;z-index:19;background:rgba(0,0,0,.62);display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box}
+.dzsvm[data-svm-theme="light"] .dzm-lbscrim{background:rgba(23,21,18,.38)}
+.dzsvm .dzm-lb{background:var(--panel2);border:1px solid var(--stroke2);border-radius:12px;padding:12px;max-width:100%;max-height:100%;overflow:auto;box-sizing:border-box;box-shadow:0 10px 28px rgba(0,0,0,.55)}
+.dzsvm .dzm-lbhead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.dzsvm .dzm-lbt{font-size:12px;font-weight:600;color:var(--ink)}
+.dzsvm .dzm-lbgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,240px));gap:10px}
+.dzsvm .dzm-lbtile{display:flex;flex-direction:column;gap:4px;padding:4px;border:1px solid var(--stroke);border-radius:8px;background:var(--panel3);color:var(--ink2);cursor:pointer;text-align:left;font:inherit;min-width:0}
+.dzsvm .dzm-lbtile:hover,.dzsvm .dzm-lbtile:focus-visible{border-color:var(--accent)}
+.dzsvm .dzm-lbtile img{display:block;width:100%;height:auto;border-radius:4px;background:#000}
+.dzsvm .dzm-lbph{display:flex;align-items:center;justify-content:center;aspect-ratio:16/9;border-radius:4px;background:#000;font-family:var(--f-mono);font-size:10px;color:var(--ink3)}
+.dzsvm .dzm-lbcap{font-family:var(--f-mono);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dzsvm .dzm-lbmsg{font-family:var(--f-mono);font-size:11px;color:var(--ink3);padding:24px}

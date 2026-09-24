@@ -218,6 +218,13 @@ def coerce_params(effect_type: str, raw: dict) -> dict:
             # dossier LUT. Un nom refusé est simplement ignoré.
             if fx._lut_path(str(v)) is not None:
                 out[name] = Path(str(v)).name
+    # L5 (D-29) : paramètres CACHÉS au rack (`catalog()[t]["points"]`, les
+    # courbes à points). Absents de `params`, la boucle ci-dessus les
+    # supprimerait EN SILENCE et l'aperçu montrerait une courbe identité : ils
+    # passent ici, réécrits en forme canonique (chiffres, « / », espaces).
+    for name in spec.get("points") or []:
+        if name in raw and raw[name] not in (None, ""):
+            out[name] = fx.curves_clean(raw[name])
     return out
 
 
