@@ -2182,6 +2182,16 @@ function DzMontage(props){
        qui re-rend dans ce cas-là, sans quoi le panneau resterait intitulé « Ajouter sur la
        piste V1 » pendant qu'il remplace. */
     if(ovPick!==sel.tr)openPicker(sel.tr)}
+  function dzExportTl(fmt){var lib=fmt==="edl"?"EDL":"FCPXML",ext=fmt==="edl"?".edl":".fcpxml";
+    if(proj.demo){fireNote("Export "+lib+" : disponible sur un projet réel — la démo n'est pas sauvegardée.");return}
+    fireNote("Export "+lib+" en cours…");
+    fetch("/api/montage/save",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(svmSavePayload())})
+      .then(function(res){if(!res.ok)throw new Error("sauvegarde refusée ("+res.status+")");return fetch("/api/montage/export?format="+fmt)})
+      .then(function(res){return res.text().then(function(t){
+        if(!res.ok){var m="";try{m=(JSON.parse(t)||{}).detail||""}catch(_e){}throw new Error(m||("HTTP "+res.status))}
+        var mm=/filename="([^"]+)"/.exec(res.headers.get("Content-Disposition")||"");return {nom:mm?mm[1]:"montage"+ext,t:t}})})
+      .then(function(o){if(subsDownload(o.nom,o.t,fmt==="edl"?"text/plain":"application/xml"))fireNote(lib+" exporté : "+o.nom+" — à importer dans Resolve ou Final Cut Pro");else fireNote("Export impossible dans ce navigateur")})
+      .catch(function(e){fireNote("Export "+lib+" refusé : "+((e&&e.message)||"erreur réseau"))})}
   function dzMenuProps(kind,o){
     var id=o.id,ph=phRef.current,cs=clipsRef.current,rr=rootRef.current?rootRef.current.getBoundingClientRect():{left:0,top:0,width:window.innerWidth};
     var base={kind:kind,id:id,x:Math.max(0,Math.min(o.x-rr.left,rr.width-270)),y:Math.max(0,o.y-rr.top)};
@@ -2191,7 +2201,9 @@ function DzMontage(props){
         {lbl:"Projets…",run:function(){setDzProjReq(function(n){return n+1})}},
         {lbl:"Preview 480p",run:function(){setPop("preview")}},
         {lbl:"Rendre…",run:function(){setPop("render")}},
-        {lbl:"Publier",off:!dzLast,run:function(){if(dzLast){setPop("");setDzFin(Object.assign({project_id:proj.project_id||""},dzLast))}}}]});
+        {lbl:"Publier",off:!dzLast,run:function(){if(dzLast){setPop("");setDzFin(Object.assign({project_id:proj.project_id||""},dzLast))}}},
+        {lbl:"Exporter EDL…",run:function(){dzExportTl("edl")}},
+        {lbl:"Exporter FCPXML…",run:function(){dzExportTl("fcpxml")}}]});
       var aff=rubs.filter(function(g){return g.rub==="Affichage"})[0];
       if(!aff){aff={rub:"Affichage",items:[]};rubs.splice(rubs.length-1,0,aff)}
       aff.items=aff.items.concat([

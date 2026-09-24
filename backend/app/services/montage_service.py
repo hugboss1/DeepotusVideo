@@ -52,6 +52,11 @@ Câblage « timeline → rendu » du handoff son_vfx_montage :
                               calculées par `montage_media` ; leur cache vit
                               dans outputs/montage_cache/, hors de tout
                               dossier que le dépôt énumère.
+  GET  /api/montage/export    D-37 — la timeline SAUVEGARDÉE en EDL CMX 3600
+                              (?format=edl) ou FCPXML 1.9 (?format=fcpxml),
+                              pièce jointe texte ; calcul PUR dans
+                              `edl_export`, sources résolues et sondées ici.
+                              400 : format inconnu, aucune timeline.
   DELETE /api/montage/save    Efface la sauvegarde ; GET /project reconstruit
                               alors depuis la Bibliothèque.
                               GET /project sert d'abord la sauvegarde si elle
@@ -122,12 +127,13 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from loguru import logger
 from sqlalchemy import func, or_, select
 
 from app.config import settings
 from app.models.schemas import JobStatus
+from app.services import edl_export as _edl
 from app.services import sfx_service
 from app.services.composition_service import FFMPEG_TIMEOUT_S
 from app.services.storage import JobRecord, async_session_factory
@@ -2551,6 +2557,51 @@ async def _resolve_src(src: dict | None) -> Path | None:
     if fp and Path(fp).exists():
         return Path(fp)
     return None
+
+
+# D-37 (L7-B, 24/09/2026) — EXPORT EDL / FCPXML de la timeline SAUVEGARDÉE.
+# Le client pousse d'abord sa sauvegarde (POST /save) puis appelle cette
+# route : c'est le disque qui fait foi, comme pour GET /project. Le format
+# est jugé AVANT toute lecture ; les sources sont résolues UNE fois chacune
+# par `_resolve_src` (la même loi que le rendu), sondées (durée, son) pour le
+# seul FCPXML — l'EDL n'en a pas besoin. Le calcul est PUR (`edl_export`).
+_EXPORT_FORMATS = {"edl": (".edl", "text/plain; charset=utf-8"),
+                   "fcpxml": (".fcpxml", "application/xml; charset=utf-8")}
+
+
+@router.get("/export")
+async def montage_export(format: str = ""):
+    fmt = str(format or "").strip().lower()
+    if fmt not in _EXPORT_FORMATS:
+        raise HTTPException(400, "Format d'export inconnu — edl ou fcpxml.")
+    rec = _load_saved()
+    clips = [c for c in (rec or {}).get("clips") or [] if isinstance(c, dict)]
+    if not clips:
+        raise HTTPException(400, "Aucune timeline sauvegardée à exporter.")
+    meta = _tracks_meta(rec.get("tracks"))
+    loop = asyncio.get_running_loop()
+    resolve = {}
+    for c in clips:
+        k = _edl.src_key(c.get("src"))
+        if not k or k in resolve:
+            continue
+        p = await _resolve_src(c.get("src"))
+        if p is None:
+            continue
+        info = {"path": str(p), "video": p.suffix.lower() not in _AUDIO_EXTS}
+        if fmt == "fcpxml" and p.suffix.lower() not in _IMAGE_EXTS:
+            info["dur"] = await loop.run_in_executor(None, _probe_duration, p)
+            info["audio"] = await loop.run_in_executor(None, _has_audio_stream, p)
+        resolve[k] = info
+    if fmt == "edl":
+        texte = _edl.to_edl(rec, resolve, fps=30, meta=meta)
+    else:
+        texte = _edl.to_fcpxml(rec, resolve, fps=30, size=_CANVAS.get(
+            str(rec.get("ratio") or "9:16"), _CANVAS["9:16"]), meta=meta)
+    ext, mime = _EXPORT_FORMATS[fmt]
+    nom = re.sub(r"[^A-Za-z0-9._-]+", "_", str(rec.get("name") or "")).strip("._") or "montage"
+    return Response(content=texte.encode("utf-8"), media_type=mime,
+                    headers={"Content-Disposition": f'attachment; filename="{nom[:60]}{ext}"'})
 
 
 def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,

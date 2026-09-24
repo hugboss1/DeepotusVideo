@@ -314,5 +314,17 @@ for f, g in _NULLS:
     check("R2_tolere_composant_null_" + f[len("function "):].split("(")[0],
           lay.count(f) == 1 and i >= 0 and g in lay[i:i + 400] and s.count(f) == 1)
 
+# L7-B D-37 (24/09/2026, tache 1) : les deux entrees « Exporter EDL… » / « Exporter FCPXML… » de la
+# rubrique Projet du menu ☰ -- TOUJOURS rendues (jamais conditionnelles, jamais `off` : le refus de la
+# demo est DIT par une note), leur title est leur libelle (DzmCtxMenu pose title:it.lbl, temoin x1 dans
+# la couche et dans le bundle) ; absentes du .bak
+check("R1_menu_Projet_Exporter_EDL_FCPXML_x1_sans_off_title_par_it_lbl_bak_x0",
+      s.count('{lbl:"Exporter EDL…",run:function(){dzExportTl("edl")}}') == 1
+      and s.count('{lbl:"Exporter FCPXML…",run:function(){dzExportTl("fcpxml")}}') == 1
+      and s.count('lbl:"Exporter EDL…",off:') == 0 and s.count('lbl:"Exporter FCPXML…",off:') == 0
+      and lay.count('role:"menuitem",disabled:!!it.off,title:it.lbl') == 1 and s.count('role:"menuitem",disabled:!!it.off,title:it.lbl') == 1
+      and bak.count("Exporter EDL") == 0 and bak.count("Exporter FCPXML") == 0,
+      f"edl={s.count('Exporter EDL…')} fcpxml={s.count('Exporter FCPXML…')} bak={bak.count('Exporter EDL')}")
+
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

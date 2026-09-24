@@ -4877,6 +4877,24 @@ R_EC1 = (A_EC1 + "\n"
          '       qui re-rend dans ce cas-là, sans quoi le panneau resterait intitulé « Ajouter sur la\n'
          '       piste V1 » pendant qu\'il remplace. */\n'
          '    if(ovPick!==sel.tr)openPicker(sel.tr)}\n'
+         # -- « L7Ba » (L7-B D-37, 24/09/2026) : LE GESTE D'EXPORT, replie ici avec ses
+         # deux entrees. La route lit la timeline SAUVEGARDEE (`_load_saved`) : on
+         # pousse d'abord la sauvegarde (POST /save, le corps de l'autosave
+         # svmSavePayload -- declaration hissee du meme composant), PUIS
+         # GET /export ; le nom vient du Content-Disposition du serveur (une seule
+         # autorite de nommage), le telechargement par subsDownload (module, .bak x1,
+         # le chemin de D-10 et D-22 -- jamais recopie). Refus dits par fireNote :
+         # demo (jamais sauvegardee), sauvegarde refusee, `detail` du 400, reseau.
+         '  function dzExportTl(fmt){var lib=fmt==="edl"?"EDL":"FCPXML",ext=fmt==="edl"?".edl":".fcpxml";\n'
+         '    if(proj.demo){fireNote("Export "+lib+" : disponible sur un projet réel — la démo n\'est pas sauvegardée.");return}\n'
+         '    fireNote("Export "+lib+" en cours…");\n'
+         '    fetch("/api/montage/save",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(svmSavePayload())})\n'
+         '      .then(function(res){if(!res.ok)throw new Error("sauvegarde refusée ("+res.status+")");return fetch("/api/montage/export?format="+fmt)})\n'
+         '      .then(function(res){return res.text().then(function(t){\n'
+         '        if(!res.ok){var m="";try{m=(JSON.parse(t)||{}).detail||""}catch(_e){}throw new Error(m||("HTTP "+res.status))}\n'
+         '        var mm=/filename="([^"]+)"/.exec(res.headers.get("Content-Disposition")||"");return {nom:mm?mm[1]:"montage"+ext,t:t}})})\n'
+         '      .then(function(o){if(subsDownload(o.nom,o.t,fmt==="edl"?"text/plain":"application/xml"))fireNote(lib+" exporté : "+o.nom+" — à importer dans Resolve ou Final Cut Pro");else fireNote("Export impossible dans ce navigateur")})\n'
+         '      .catch(function(e){fireNote("Export "+lib+" refusé : "+((e&&e.message)||"erreur réseau"))})}\n'
          '  function dzMenuProps(kind,o){\n'
          '    var id=o.id,ph=phRef.current,cs=clipsRef.current,rr=rootRef.current?rootRef.current.getBoundingClientRect():{left:0,top:0,width:window.innerWidth};\n'
          '    var base={kind:kind,id:id,x:Math.max(0,Math.min(o.x-rr.left,rr.width-270)),y:Math.max(0,o.y-rr.top)};\n'
@@ -4886,7 +4904,15 @@ R_EC1 = (A_EC1 + "\n"
          '        {lbl:"Projets…",run:function(){setDzProjReq(function(n){return n+1})}},\n'
          '        {lbl:"Preview 480p",run:function(){setPop("preview")}},\n'
          '        {lbl:"Rendre…",run:function(){setPop("render")}},\n'
-         '        {lbl:"Publier",off:!dzLast,run:function(){if(dzLast){setPop("");setDzFin(Object.assign({project_id:proj.project_id||""},dzLast))}}}]});\n'
+         '        {lbl:"Publier",off:!dzLast,run:function(){if(dzLast){setPop("");setDzFin(Object.assign({project_id:proj.project_id||""},dzLast))}}},\n'
+         # -- « L7Ba » (L7-B D-37, 24/09/2026) : EXPORT EDL / FCPXML, REPLIE ICI : la
+         # rubrique Projet (l'ancre du plan, `dzMenuProps`) est nee de CE remplacement,
+         # x0 dans .bak_montage. Le `title` de chaque entree est son libelle (DzmCtxMenu
+         # pose title:it.lbl, deja audite par E-12) -- libelles explicites, pas de champ
+         # neuf dans la couche (le pin `title:it.lbl` du banc edition et de la
+         # campagne EC reste intact). Le geste est dzExportTl (plus bas).
+         '        {lbl:"Exporter EDL…",run:function(){dzExportTl("edl")}},\n'
+         '        {lbl:"Exporter FCPXML…",run:function(){dzExportTl("fcpxml")}}]});\n'
          '      var aff=rubs.filter(function(g){return g.rub==="Affichage"})[0];\n'
          '      if(!aff){aff={rub:"Affichage",items:[]};rubs.splice(rubs.length-1,0,aff)}\n'
          '      aff.items=aff.items.concat([\n'
@@ -5511,7 +5537,11 @@ assert R_L7F1.count("DzTracks.subsBurnId(svmTracksOf(proj))") == 1 and R_L7F1.co
 assert R_L7F2.count('"data-burn":') == 1 and R_L7F2.count('trackKind(tr.id)==="subs"') == 2 and R_L7F2.count('tr.id==="s1"') == 0 and R_L7F2.count("DzTracks.subsBurnId(") == 1
 assert R_EC1.count("DzTracks.subsBurnId(ts)") == 1 and R_EC1.count("DzTracks.subsBurn(ts,id)") == 1 and R_EC1.count("DzTracks.subsNew(ts,lg)") == 1 and R_EC1.count("window.prompt(") == 1
 assert R_EC1.count('lbl:"Exporter .srt"') == 1 and R_EC1.count('lbl:"Exporter .vtt"') == 1 and R_EC1.count('lbl:"Exporter .txt"') == 1 and R_EC1.count('"Nouvelle piste de langue…"') == 1
-assert R_EC1.count('combo:bid===id?"gravée":""') == 1 and R_EC1.count("subsToSrt(") == 1 and R_EC1.count("subsToVtt(") == 1 and R_EC1.count("subsToTxt(") == 1 and R_EC1.count("subsDownload(") == 1
+assert R_EC1.count('combo:bid===id?"gravée":""') == 1 and R_EC1.count("subsToSrt(") == 1 and R_EC1.count("subsToVtt(") == 1 and R_EC1.count("subsToTxt(") == 1 and R_EC1.count("subsDownload(") == 2
+# L7-B D-37 (24/09/2026) : subsDownload x2 dans R_EC1 -- D-22 (la piste) + dzExportTl (repli L7Ba) ;
+# le geste d'export : sauvegarde PUIS export, deux entrees de la rubrique Projet, un seul appel chacune
+assert R_EC1.count("function dzExportTl(fmt){") == 1 and R_EC1.count('run:function(){dzExportTl("edl")}') == 1 and R_EC1.count('run:function(){dzExportTl("fcpxml")}') == 1
+assert R_EC1.count('fetch("/api/montage/export?format="+fmt)') == 1 and R_EC1.count("JSON.stringify(svmSavePayload())") == 1 and R_EC1.find("function dzExportTl(fmt){") < R_EC1.find("  function dzMenuProps(kind,o){")
 assert R_M26A.count("x.useState(!1),dzNewTr=s9c[0],setDzNewTr=s9c[1];") == 1 and R_M26A.count("props.onNewTrack(dzTo,dzNext)") == 1 and R_M26A.count("if(props.onChange)props.onChange(dzNext,!0);") == 1
 assert R_M26B.count('"aria-label":"Traduire dans une nouvelle piste"') == 1 and R_M26B.count("sub-trnew") == 1 and R_M26B.count("dzNewTr?") == 1 and R_M26B.count("title:") == 2
 assert R_M24H.count("onNewTrack:function(lang,segs){") == 1 and R_M24H.count("DzTracks.subsNew(svmTracksOf(dzProjRef.current),lang)") == 1 and R_M24H.count("svmTracksOf(proj)") == 1 and R_M24H.count('DzTracks.subsCopy(cs,"s1",r2.id,segs)') == 1

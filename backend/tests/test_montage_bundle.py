@@ -17782,6 +17782,81 @@ check("L7f_sous_node_sans_marque_s1_part_s2_marquee_s2_part_s1_video_la_premiere
       _L7F_RT == [["a"], ["b"], ["b"], ["a"], ["a"]],
       f"bornes={(_iKo, _iKoE, _iSt2, _iSt2E, _iBi, _iBiE, s.count(_L7F_FILTRE))} rt={_L7F_RT}")
 
+print("\n[L7B] D-37 tache 1 : exporter EDL / FCPXML depuis la rubrique Projet du menu ☰ (24/09/2026)")
+# ── L7-B D-37 (24/09/2026, tache 1). MESURE qui contredit le plan : la rubrique Projet
+# (`rubs.unshift({rub:"Projet"…`) et `dzMenuProps` sont x0 dans .bak_montage -- nes de
+# R_EC1 -- donc AUCUNE section L7B : le geste `dzExportTl` et ses deux entrees sont
+# REPLIES dans R_EC1 (191 ancres, inchange). SONDE dzcout : 159 inchangee -- le geste ne
+# nomme pas DzTracks (fetch, subsDownload, fireNote, svmSavePayload), mesure ci-dessous.
+_L7B_E1 = '        {lbl:"Exporter EDL…",run:function(){dzExportTl("edl")}},'
+_L7B_E2 = '        {lbl:"Exporter FCPXML…",run:function(){dzExportTl("fcpxml")}}]});'
+_L7B_PUB = '        {lbl:"Publier",off:!dzLast,run:function(){if(dzLast){setPop("");setDzFin(Object.assign({project_id:proj.project_id||""},dzLast))}}},'
+_iB_pub = s.find(nl(_L7B_PUB)); _iB_e1 = s.find(nl(_L7B_E1)); _iB_e2 = s.find(nl(_L7B_E2)); _iB_aff = s.find('var aff=rubs.filter(function(g){return g.rub==="Affichage"})[0];')
+check("L7Ba_deux_entrees_Exporter_EDL_FCPXML_repliees_dans_R_EC1_apres_Publier_avant_Affichage_x1_bak_x0",
+      all(s.count(nl(e)) == 1 and e in P.R_EC1 for e in (_L7B_PUB, _L7B_E1, _L7B_E2))
+      and 0 < _iB_pub < _iB_e1 < _iB_e2 < _iB_aff < _iB_pub + 400
+      and s.count('dzExportTl("edl")') == 1 and s.count('dzExportTl("fcpxml")') == 1
+      and (_bak.count("dzExportTl") == 0 and _bak.count("Exporter EDL") == 0 and _bak.count('rub:"Projet"') == 0
+           and _bak.count("function dzMenuProps(") == 0 if _bak else False)
+      and not any(t[0].startswith("L7B") for t in P.PATCHES),
+      f"ordre={(_iB_pub, _iB_e1, _iB_e2, _iB_aff)} bak={_bak.count('dzExportTl') if _bak else '?'}")
+_iB_f = s.find("  function dzExportTl(fmt){"); _iB_m = s.find("  function dzMenuProps(kind,o){")
+_L7B_F = s[_iB_f:_iB_m] if 0 < _iB_f < _iB_m else ""
+check("L7Ba_le_geste_sauvegarde_PUIS_export_nom_du_serveur_subsDownload_refus_par_fireNote_sans_DzTracks",
+      s.count("  function dzExportTl(fmt){") == 1 and 200 < len(_L7B_F) < 1800 and _iB_m - _iB_f == len(_L7B_F)
+      and _L7B_F.count('fetch("/api/montage/save",{method:"POST"') == 1 and _L7B_F.count("JSON.stringify(svmSavePayload())") == 1
+      and _L7B_F.count('fetch("/api/montage/export?format="+fmt)') == 1
+      and _L7B_F.find("if(proj.demo)") < _L7B_F.find('fetch("/api/montage/save"') < _L7B_F.find('fetch("/api/montage/export')
+      and _L7B_F.count("subsDownload(o.nom,o.t,") == 1 and _L7B_F.count('res.headers.get("Content-Disposition")') == 1
+      and _L7B_F.count("fireNote(") == 5 and _L7B_F.count(".catch(") == 1
+      and _L7B_F.count("DzTracks") == 0 and s.count("DzTracks") == 159 and _sonde.get("montage") == 159
+      and s.count("function subsDownload(name,text,mime){") == 1 and s.count("function svmSavePayload(){") == 1,
+      f"f={len(_L7B_F)} fireNote={_L7B_F.count('fireNote(')} dz={s.count('DzTracks')} sonde={_sonde.get('montage')}")
+# le client appelle la route que le backend declare, avec les deux formats qu'il accepte
+_L7B_MS = _lire(ROOT / "backend" / "app" / "services" / "montage_service.py")
+check("L7Ba_la_route_GET_export_existe_cote_backend_formats_edl_fcpxml",
+      _L7B_MS.count('@router.get("/export")') == 1 and _L7B_MS.count('_EXPORT_FORMATS = {"edl": (".edl",') == 1
+      and _L7B_MS.count('"fcpxml": (".fcpxml",') == 1 and s.count('"/api/montage/export?format="') == 1,
+      f"route={_L7B_MS.count('@router.get(chr(34)/export)')}")
+# SOUS NODE : le geste extrait tel quel, fetch / subsDownload / fireNote factices -- ordre des appels,
+# nom tire du Content-Disposition, detail d'un 400 dit, sauvegarde refusee = aucun export, demo = aucun appel
+_L7B_RT = None
+if _L7B_F:
+    _L7B_SHIM = ("var notes=[],dl=[],calls=[],MODE='ok',proj={demo:!1};\n"
+                 "function fireNote(m){notes.push(m)}function svmSavePayload(){return {name:'x',clips:[]}}\n"
+                 "function subsDownload(n,t,m){dl.push([n,t,m]);return !0}\n"
+                 "function fetch(u,o){calls.push([u,(o&&o.method)||'GET']);\n"
+                 "  if(u==='/api/montage/save')return Promise.resolve({ok:MODE!=='saveko',status:MODE==='saveko'?400:200});\n"
+                 "  var ok=MODE!=='exportko';return Promise.resolve({ok:ok,status:ok?200:400,\n"
+                 "    headers:{get:function(k){return k==='Content-Disposition'?'attachment; filename=\"Essai_export.edl\"':null}},\n"
+                 "    text:function(){return Promise.resolve(ok?'TITLE: x':JSON.stringify({detail:'Aucune timeline sauvegardée à exporter.'}))}})}\n"
+                 + _L7B_F +
+                 "function pause(){return new Promise(function(r){setTimeout(r,30)})}\n"
+                 "(async function(){var R={};function coup(k,m,f,demo){notes=[];dl=[];calls=[];MODE=m;proj.demo=!!demo;dzExportTl(f);\n"
+                 "  return pause().then(function(){R[k]={calls:calls,dl:dl,notes:notes}})}\n"
+                 "  await coup('ok','ok','edl');await coup('ko','exportko','fcpxml');await coup('save','saveko','edl');await coup('demo','ok','edl',1);\n"
+                 "  console.log(JSON.stringify(R))})();\n").replace("\r\n", "\n")
+    _pB = pathlib.Path(TMP) / "l7b_export.js"; _pB.write_text(_L7B_SHIM, encoding="utf-8")
+    _rB = NODE(["node", str(_pB)], timeout=60)
+    try: _L7B_RT = json.loads(_rB.stdout) if _rB.returncode == 0 else ("rc=" + str(_rB.returncode) + " " + (_rB.stderr or "")[-300:])
+    except Exception as _e: _L7B_RT = temoin(_e)
+_B = _L7B_RT if isinstance(_L7B_RT, dict) else {}
+check("L7Ba_sous_node_sauvegarde_puis_export_nom_Essai_export_edl_telecharge_note_dite",
+      (_B.get("ok") or {}).get("calls") == [["/api/montage/save", "POST"], ["/api/montage/export?format=edl", "GET"]]
+      and (_B.get("ok") or {}).get("dl") == [["Essai_export.edl", "TITLE: x", "text/plain"]]
+      and (_B.get("ok") or {}).get("notes") == ["Export EDL en cours…", "EDL exporté : Essai_export.edl — à importer dans Resolve ou Final Cut Pro"],
+      _L7B_RT)
+check("L7Ba_sous_node_refus_400_dit_avec_le_detail_sauvegarde_refusee_sans_export_demo_sans_appel",
+      (_B.get("ko") or {}).get("calls") == [["/api/montage/save", "POST"], ["/api/montage/export?format=fcpxml", "GET"]]
+      and (_B.get("ko") or {}).get("dl") == []
+      and (_B.get("ko") or {}).get("notes") == ["Export FCPXML en cours…", "Export FCPXML refusé : Aucune timeline sauvegardée à exporter."]
+      and (_B.get("save") or {}).get("calls") == [["/api/montage/save", "POST"]] and (_B.get("save") or {}).get("dl") == []
+      and (_B.get("save") or {}).get("notes") == ["Export EDL en cours…", "Export EDL refusé : sauvegarde refusée (400)"]
+      # temoin de la demo : le coup precedent a bien appele fetch, celui-ci non
+      and (_B.get("demo") or {}).get("calls") == [] and (_B.get("demo") or {}).get("dl") == []
+      and (_B.get("demo") or {}).get("notes") == ["Export EDL : disponible sur un projet réel — la démo n'est pas sauvegardée."],
+      _L7B_RT)
+
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")
 
