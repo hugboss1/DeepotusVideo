@@ -23,7 +23,10 @@ mouvement MOYENNE de chaque colonne ; le barycentre des colonnes au-dessus
 de `noise` (poids `v − noise`) est la position du mouvement, datée au milieu
 de la paire ((i + ½)/fps) ; lissage EMA 0,5. Lecture au fil de l'eau
 (revue du 24/09/2026) : chaque PNG est chargé, comparé à l'image précédente
-SEULE puis supprimé — mémoire constante quelle que soit la durée.
+SEULE puis supprimé — mémoire constante quelle que soit la durée. Le DISQUE,
+lui, ne l'est pas (revue L7-B) : ffmpeg écrit TOUS les PNG de l'extrait
+avant la lecture, le dossier atteint donc son pic (l'extrait entier, ~fps × durée
+petites images grises de 96 px) puis se vide au fil de la lecture.
 
 MESURE DE L'ÉTAPE 1 — ffmpeg 8.1.1 essentials, Windows 11, 24/09/2026
 (source 480×270 à 30 i/s, carré blanc de 60 px dont le centre vaut

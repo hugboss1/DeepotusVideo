@@ -41,7 +41,8 @@ EDL (CMX 3600, 30 i/s NON-DROP, CRLF)
   sondée de la source sortante est connue et que `so + d·vitesse` la
   dépasse : `* HANDLES: insuffisantes (n images)` sous l'événement, n =
   images de poignée DISPONIBLES après la sortie. Durée inconnue : rien
-  n'est dit (la route ne sonde aujourd'hui que pour le FCPXML).
+  n'est dit. La route sonde la durée pour les DEUX formats (EDL et FCPXML)
+  depuis `140c3d5` ; seule une sonde en échec laisse la durée inconnue.
   Plus de 999 événements : arrêt et `* TRUNCATED: …` (numéro sur 3 chiffres).
   Vitesse V1 (0,25..4, `_v1_speed`) : durée source = durée timeline ×
   vitesse, ligne `M2` (vitesse × 30 en i/s) + `* SPEED: <x>`.

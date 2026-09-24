@@ -1381,17 +1381,33 @@ def _reframe_crop(rf: dict | None, w: int, h: int) -> str:
 
 
 def _probe_dims(path: Path) -> tuple | None:
-    """(largeur, hauteur) du premier flux vidéo par ffprobe, ou None."""
+    """(largeur, hauteur) AFFICHÉES du premier flux vidéo par ffprobe, ou None.
+
+    Rotation (revue L7-B, mesurée le 24/09/2026 sur ffmpeg/ffprobe 8.1.1,
+    sources 64×36 remuxées par `-display_rotation 90|-90|180`) : ffprobe
+    rend toujours `width=64,height=36` codés et la matrice d'affichage dans
+    `side_data_list[].rotation` (90, -90, -180) ; `tags.rotate` (ancien
+    muxeur) est lu aussi. Le rendu AUTOROTATE (showinfo dans un
+    -filter_complex : `s:36x64` pour 90, `s:64x36` pour 180) : un quart de
+    tour impair PERMUTE donc largeur et hauteur, sinon rien."""
     try:
         out = subprocess.run(
             ["ffprobe", "-v", "error", "-select_streams", "v:0",
-             "-show_entries", "stream=width,height", "-of", "csv=p=0:s=x",
-             str(path)],
-            check=False, capture_output=True, text=True, timeout=30).stdout.strip()
-        a, b = out.splitlines()[0].split("x")[:2]
-        return int(a), int(b)
-    except (ValueError, IndexError, FileNotFoundError, OSError,
-            subprocess.TimeoutExpired):
+             "-show_entries",
+             "stream=width,height:stream_tags=rotate:stream_side_data=rotation",
+             "-of", "json", str(path)],
+            check=False, capture_output=True, text=True, timeout=30).stdout
+        s = (json.loads(out or "{}").get("streams") or [])[0]
+        a, b = int(s["width"]), int(s["height"])
+        rot = (s.get("tags") or {}).get("rotate")
+        for sd in s.get("side_data_list") or []:
+            if isinstance(sd, dict) and "rotation" in sd:
+                rot = sd["rotation"]
+        if rot is not None and round(float(rot) / 90) % 2:
+            a, b = b, a
+        return a, b
+    except (ValueError, IndexError, KeyError, TypeError, AttributeError,
+            FileNotFoundError, OSError, subprocess.TimeoutExpired):
         return None
 
 
@@ -2999,9 +3015,12 @@ async def montage_autoclips(request: Request):
             await asyncio.to_thread(_autoclips_stt_ecrire, cle, res)
             transcript = "stt:%s" % (res.get("source") or "?")
     words = res.get("words") or []
-    wins = _autoclips.windows(words)
-    out = await asyncio.to_thread(_autoclips.score, wins, None if use_llm else False,
-                                  n, persona)
+    # Revue L7-B : windows() mesurée à 1,3 s pour 18 000 mots — elle passe
+    # dans le MÊME thread que score, jamais sur la boucle.
+    def _fenetres_et_score():
+        ws = _autoclips.windows(words)
+        return ws, _autoclips.score(ws, None if use_llm else False, n, persona)
+    wins, out = await asyncio.to_thread(_fenetres_et_score)
     return {"ok": True, "source": out["source"], "transcript": transcript,
             "words": len(words), "windows": len(wins),
             "duration": round(float(res.get("audio_duration_s") or res.get("end") or 0.0), 3),
@@ -4259,15 +4278,31 @@ def _ff_run(cmd, **kw):
         import tempfile
         i = cmd.index("-filter_complex")
         fd, nom = tempfile.mkstemp(prefix="dzgraphe_", suffix=".txt")
-        with open(fd, "w", encoding="utf-8", newline="") as f:
-            f.write(cmd[i + 1])
+        # Revue L7-B : le chemin est retenu AVANT l'écriture — un write qui
+        # lève (disque plein, encodage) ne laisse pas le fichier derrière lui.
         fichier = Path(nom)
+        try:
+            with open(fd, "w", encoding="utf-8", newline="") as f:
+                f.write(cmd[i + 1])
+        except BaseException:
+            _ff_menage(fichier)
+            raise
         cmd = list(cmd[:i]) + ["-/filter_complex", nom] + list(cmd[i + 2:])
     try:
         return subprocess.run(cmd, **kw)
     finally:
         if fichier is not None:
-            fichier.unlink(missing_ok=True)
+            _ff_menage(fichier)
+
+
+def _ff_menage(fichier: Path) -> None:
+    """Supprime le graphe temporaire ; un OSError (fichier verrouillé par
+    l'antivirus…) est journalisé, jamais levé : il ne masque ni le résultat
+    de ffmpeg ni l'exception d'origine."""
+    try:
+        fichier.unlink(missing_ok=True)
+    except OSError as e:
+        logger.warning(f"montage: graphe temporaire non supprimé {fichier} : {e}")
 
 
 def _run_ffmpeg(cmd, out: Path) -> Path:

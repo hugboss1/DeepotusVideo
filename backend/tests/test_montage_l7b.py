@@ -1676,6 +1676,118 @@ check("d41_revue_garde_0_3_s_apres_bornage_de_end_et_duree_nulle_415",
 check("d41_create_404_415_et_400_debut_apres_la_fin_de_la_source",
       _c404[0] == 404 and _c415[0] == 415 and _capres[0] == 400, (_c404, _c415, _capres))
 
+print("\n[8] L7-B restes backend des revues (24/09/2026)")
+# R1 — _ff_run : un write qui leve (surrogate isole : UnicodeEncodeError a
+# l'encodage utf-8) ne laisse AUCUN fichier ; l'exception d'origine remonte ;
+# subprocess.run n'est pas appele. Espion de tempfile.mkstemp pour le nom.
+import tempfile as _tf8, threading as _th8
+_mk0 = _tf8.mkstemp
+_noms8 = []
+def _mk_espion(*a, **k):
+    fd, nom = _mk0(*a, **k)
+    _noms8.append(nom)
+    return fd, nom
+_run8 = MS.subprocess.run
+_appels8 = []
+MS.subprocess.run = lambda cmd, *a, **k: _appels8.append(list(cmd)) or "RESULTAT"
+_tf8.mkstemp = _mk_espion
+try:
+    try:
+        MS._ff_run(["ffmpeg", "-filter_complex", "\ud800" + "a" * 31000, "o.mp4"])
+        _r8 = "PAS D'EXCEPTION"
+    except UnicodeEncodeError as _e:
+        _r8 = "UnicodeEncodeError"
+    except Exception as _e:
+        _r8 = "%s: %s" % (type(_e).__name__, _e)
+    # temoin : le chemin normal ecrit bien un fichier (espion vu) puis rend le resultat
+    _ok8 = MS._ff_run(["ffmpeg", "-filter_complex", "a" * 31000, "o.mp4"])
+finally:
+    _tf8.mkstemp = _mk0
+    MS.subprocess.run = _run8
+check("l7b_restes_ff_run_write_qui_leve_aucun_fichier_restant_exception_d_origine",
+      len(_noms8) == 2 and _r8 == "UnicodeEncodeError" and not os.path.exists(_noms8[0])
+      and _ok8 == "RESULTAT" and len(_appels8) == 1 and "-/filter_complex" in _appels8[0]
+      and not os.path.exists(_noms8[1]), (_noms8, _r8, _ok8, len(_appels8)))
+
+# R1-bis — unlink qui leve OSError ne masque ni le resultat ni l'exception d'origine
+_ul0 = pathlib.Path.unlink
+_vus_ul = []
+def _ul_espion(self, *a, **k):
+    if self.name.startswith("dzgraphe_"):
+        _vus_ul.append(self.name)
+        raise PermissionError("verrou simule")
+    return _ul0(self, *a, **k)
+_noms8b = []
+_tf8.mkstemp = lambda *a, **k: (lambda r: (_noms8b.append(r[1]), r)[1])(_mk0(*a, **k))
+pathlib.Path.unlink = _ul_espion
+def _leve(cmd, *a, **k):
+    raise RuntimeError("origine")
+try:
+    MS.subprocess.run = lambda cmd, *a, **k: "RESULTAT"
+    try:
+        _u1 = MS._ff_run(["ffmpeg", "-filter_complex", "a" * 31000, "o.mp4"])
+    except Exception as _e:
+        _u1 = "%s: %s" % (type(_e).__name__, _e)
+    MS.subprocess.run = _leve
+    try:
+        MS._ff_run(["ffmpeg", "-filter_complex", "a" * 31000, "o.mp4"])
+        _u2 = "PAS D'EXCEPTION"
+    except Exception as _e:
+        _u2 = "%s: %s" % (type(_e).__name__, _e)
+finally:
+    pathlib.Path.unlink = _ul0
+    _tf8.mkstemp = _mk0
+    MS.subprocess.run = _run8
+for _n in _noms8b:
+    pathlib.Path(_n).unlink(missing_ok=True)
+check("l7b_restes_ff_run_unlink_qui_leve_ne_masque_ni_resultat_ni_exception_d_origine",
+      len(_vus_ul) == 2 and _u1 == "RESULTAT" and _u2 == "RuntimeError: origine", (_vus_ul, _u1, _u2))
+
+# R2 — reframe.py : le docstring dit le pic de disque (ffmpeg ecrit tout avant la lecture)
+_rdoc = (RF.__doc__ or "") if RF is not None else ""
+check("l7b_restes_reframe_docstring_pic_de_disque_memoire_constante",
+      "avant la lecture" in _rdoc and "pic" in _rdoc and "mémoire constante" in _rdoc
+      and "ne l'est pas" in _rdoc, len(_rdoc))
+
+# R3 — _probe_dims tient compte de la rotation (side_data_list rotation, mesure
+# ffprobe 8.1.1 le 24/09/2026 : 90, -90, -180 ; le rendu autorotate : 36x64)
+if _FB is None:
+    check("l7b_restes_probe_dims_rotation_SKIP_sans_ffmpeg", True)
+else:
+    _pl = str(pathlib.Path(TMP) / "rot_plain.mp4")
+    subprocess.run([_FB, "-y", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc2=s=64x36:r=10:d=1",
+                    "-c:v", "libx264", "-pix_fmt", "yuv420p", _pl], check=False, capture_output=True, timeout=60)
+    _dr = {}
+    for _deg in ("90", "-90", "180"):
+        _o = str(pathlib.Path(TMP) / ("rot_%s.mp4" % _deg.replace("-", "m")))
+        subprocess.run([_FB, "-y", "-loglevel", "error", "-display_rotation", _deg, "-i", _pl, "-c", "copy", _o],
+                       check=False, capture_output=True, timeout=60)
+        _dr[_deg] = MS._probe_dims(pathlib.Path(_o))
+    _dp = MS._probe_dims(pathlib.Path(_pl))
+    check("l7b_restes_probe_dims_rotation_90_permute_180_non_temoin_sans_rotation",
+          _dp == (64, 36) and _dr == {"90": (36, 64), "-90": (36, 64), "180": (64, 36)}, (_dp, _dr))
+
+# R4 — /autoclips : windows() tourne HORS du thread de la boucle
+_win0 = MS._autoclips.windows
+_fils = []
+def _win_espion(*a, **k):
+    _fils.append(_th8.get_ident())
+    return _win0(*a, **k)
+MS._autoclips.windows = _win_espion
+try:
+    _rw = ACR({"src": {"file_path": AV}, "text": TXT, "n": 2, "llm": False})
+finally:
+    MS._autoclips.windows = _win0
+check("l7b_restes_autoclips_windows_hors_du_thread_de_la_boucle",
+      _rw[0] == 200 and len(L(D(_rw[1]).get("clips"))) == 2 and len(_fils) == 1
+      and _fils[0] != _th8.main_thread().ident, (_rw[0], _fils, _th8.main_thread().ident))
+
+# R5 — edl_export : le docstring ne dit plus que la route ne sonde que pour le FCPXML
+_edoc = (EX.__doc__ or "") if EX is not None else ""
+check("l7b_restes_edl_export_docstring_route_sonde_pour_les_deux_formats",
+      "HANDLES" in _edoc and "que pour le FCPXML" not in _edoc and "140c3d5" in _edoc, len(_edoc))
+
+
 for _k, _v in _T0.items():
     setattr(TS, _k, _v)
 MS._resolve_src = _rs0
