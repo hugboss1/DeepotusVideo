@@ -1565,6 +1565,8 @@ var SVM_ACTIONS=[
  {id:"trans_add",sec:"Montage",lbl:"transition : fondu à la coupe du plan sélectionné",combo:"Alt+T"},
  {id:"copy",sec:"Montage",lbl:"copier le clip (entre projets)",combo:"Ctrl+C"},
  {id:"paste",sec:"Montage",lbl:"coller le clip du presse-papiers à la tête de lecture",combo:"Ctrl+V"},
+ {id:"grade_copy",sec:"Montage",lbl:"grade : copier (effets couleur et masque du plan sélectionné)",combo:"Ctrl+Alt+C"},
+ {id:"grade_paste",sec:"Montage",lbl:"grade : coller sur le plan sélectionné",combo:"Ctrl+Alt+V"},
  {id:"zoom_in",sec:"Affichage",lbl:"zoom avant (crans)",combo:"Ctrl+="},
  {id:"zoom_out",sec:"Affichage",lbl:"zoom arrière (crans)",combo:"Ctrl+-"},
  {id:"zoom100",sec:"Affichage",lbl:"zoom 100 %",combo:"Maj+Z"},
@@ -1809,6 +1811,8 @@ function DzMontage(props){
   var dzScrimRef=x.useRef(!1);dzScrimRef.current=!!(pop||dzFin||dzMenu);
   var stGap=x.useState(null),gapSel=stGap[0],setGapSel=stGap[1];
   var gapSelRef=x.useRef(null);gapSelRef.current=gapSel;
+  var stLb=x.useState(!1),dzLb=stLb[0],setDzLb=stLb[1];
+  var dzLbRef=x.useRef(!1);dzLbRef.current=dzLb;
   x.useEffect(function(){setGapSel(null)},[clips]);
   var stDzFS=x.useState(function(){try{return JSON.parse(localStorage.getItem("dz_montage_lastfin")||"{}")||{}}catch(_e){return {}}}),dzFinStore=stDzFS[0],setDzFinStore=stDzFS[1];
   var dzLast=DzTracks.finOf(dzFinStore,proj.project_id||"_");
@@ -2231,6 +2235,7 @@ function DzMontage(props){
         {lbl:"Médias",combo:medOn?"✓":"",run:function(){if(proj.demo){fireNote("Ajout d'assets : disponible sur un projet réel — la démo reste une maquette.");return}setMedTr("");setMedOn(!medOn);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)}},
         {lbl:"Durées sur les clips",combo:showDur?"✓":"",run:function(){setShowDur(function(v){var n=!v;try{localStorage.setItem("dz_svm_showdur",n?"1":"0")}catch(_e){}return n})}},
         {lbl:"Plans trop longs / jump cuts…",combo:bo.on?"actif":"",run:function(){setPop("boring")}},
+        {lbl:"Lightbox des plans",run:function(){setDzLb(!0)}},
         {lbl:"Ancrer la barre d'outils",combo:dzTbDock?"✓":"",run:function(){dzTbDockToggle()}}]);
       return Object.assign(base,{rubs:rubs})}
     if(kind==="clip"){var c=cs.find(function(k){return k.id===id});if(!c)return null;
@@ -2240,7 +2245,9 @@ function DzMontage(props){
         {lbl:"Découper aux changements de plan",off:!(c.src&&c.src.job_id)||trackKind(c.tr)!=="video",run:function(){dzSceneCut(id)}},
         {lbl:"Supprimer",combo:svmKeyLabel("delete"),run:function(){delClipById(id)}},
         {lbl:"Remplacer la source…",off:!c.src,run:function(){dzReplaceArm(c)}},
-        {lbl:"Effets…",off:trackKind(c.tr)==="audio",run:function(){setFxPick(!0)}},{sep:!0}]
+        {lbl:"Effets…",off:trackKind(c.tr)==="audio",run:function(){setFxPick(!0)}},
+        {lbl:"Copier le grade",combo:svmKeyLabel("grade_copy"),off:!DzTracks.gradeTake(c),run:function(){dzGradeCopy(id)}},
+        {lbl:"Coller le grade",combo:svmKeyLabel("grade_paste"),off:!!proj.demo||trackKind(c.tr)!=="video"||!DzTracks.gradeRead(),run:function(){dzGradePaste(id)}},{sep:!0}]
         .concat([.25,.5,.75,1,1.5,2].map(function(v){return {lbl:"Vitesse "+Math.round(v*100)+" %",combo:Math.abs(sp-v)<1e-6?"✓":"",off:!v1||!c.src||!c.src.job_id,run:function(){svmSetV1Speed(id,v)}}}))
         .concat([{sep:!0},{lbl:"Transition…",off:!g,run:function(){openTransPopAt(id,o.x)}}])})}
     if(kind==="track"){var ts=svmTracksOf(proj),t=ts.find(function(k){return k.id===id});if(!t)return null;
@@ -2266,6 +2273,21 @@ function DzMontage(props){
           if(n)setClips(function(cs2){return (cs2||[]).filter(function(k){return k.tr!==id})});
           fireNote("Piste "+(t.name||id)+" retirée"+(n?" avec "+n+" clip"+(n>1?"s":"")+" — annuler ramène les clips":"")+".")}}])})}
     return null}
+  /* L5 D-31 D-32 : le choix d'un plan dans la lightbox et les gestes du grade (clavier + menu de clip) */
+  function dzLbPick(id){var k=clipsRef.current.find(function(q){return q.id===id});setDzLb(!1);
+    if(!k){fireNote("Lightbox : ce plan n'existe plus.");return}
+    setSelId(k.id);seekTo(k.start)}
+  function dzGradeCopy(id){var c=clipsRef.current.find(function(k){return k.id===id});
+    if(!c){fireNote("Copier le grade : sélectionnez d'abord un plan.");return}
+    fireNote(DzTracks.gradeCopyDo(c).note)}
+  function dzGradePaste(id){
+    if(dzProjRef.current&&dzProjRef.current.demo){fireNote("Coller le grade : disponible sur un projet réel — la démo est une maquette.");return}
+    var c=clipsRef.current.find(function(k){return k.id===id});
+    if(!c){fireNote("Coller le grade : sélectionnez d'abord un plan.");return}
+    if(trackKind(c.tr)!=="video"){fireNote("Coller le grade : réservé aux plans vidéo (V1 et pistes d'overlay).");return}
+    if(trackStRef.current[c.tr]&&trackStRef.current[c.tr].l){fireNote("Piste "+c.tr.toUpperCase()+" verrouillée — déverrouillez-la pour coller le grade.");return}
+    var q=DzTracks.gradePasteDo(c);if(!q.clip){fireNote(q.note);return}
+    pushHistory();setClips(clipsRef.current.map(function(k){return k.id===c.id?q.clip:k}));setDirty(!0);fireNote(q.note)}
 
   /* ── applique une réponse /api/montage/project — Bibliothèque OU
      sauvegarde (A). La sauvegarde porte le modèle CLIENT complet : chaque
@@ -3479,6 +3501,7 @@ function DzMontage(props){
       /* Échap : un overlay sélectionné tient les flèches (R4b) — les rendre
          à la tête de lecture ; sinon la touche reste sans effet ici */
       if(e.key==="Escape"){
+        if(dzLbRef.current){e.preventDefault();setDzLb(!1);return}
         if(dzMkOnRef.current){e.preventDefault();dzMkToggle(!1);return}
         if(gapSelRef.current){e.preventDefault();setGapSel(null);return}
         if(dzScrimRef.current){e.preventDefault();setPop("");setDzFin(null);setDzMenu(null);return}
@@ -3544,6 +3567,8 @@ function DzMontage(props){
       if(id==="trans_add"){var dzTc=(clipsRef.current||[]).filter(function(k){return k&&k.id===selRef.current&&k.tr==="v1"})[0];if(!dzTc){fireNote("Transition : sélectionnez d'abord un plan de V1.");return}if(trackStRef.current.v1&&trackStRef.current.v1.l){fireNote("Piste V1 verrouillée.");return}if(!DzTracks.voisins(clipsRef.current,dzTc).g){fireNote("Transition : « "+(dzTc.label||dzTc.id)+" » n'a pas de coupe à sa gauche.");return}svmSetTransType(dzTc.id,"fade");fireNote("Fondu de "+svmTransS(dzTc).toFixed(1)+" s posé à la coupe de « "+(dzTc.label||dzTc.id)+" » — le losange en règle la durée.");return}
       if(id==="copy"){var dzCp=(clipsRef.current||[]).filter(function(k){return k&&k.id===selRef.current})[0];if(!dzCp){fireNote("Copier : sélectionnez d'abord un clip.");return}try{localStorage.setItem("dz_montage_clipboard",JSON.stringify({v:1,at:new Date().toISOString(),clip:DzTracks.clipCopy(dzCp)}))}catch(e){fireNote("Presse-papiers indisponible dans ce navigateur (stockage refusé).");return}fireNote("« "+(dzCp.label||dzCp.id)+" » copié — "+(svmKeyLabelNow("paste")||"Coller")+" le colle à la tête de lecture, dans ce projet ou dans un autre.");return}
       if(id==="paste"){if(dzProjRef.current&&dzProjRef.current.demo){fireNote("Coller : disponible sur un projet réel — la démo est une maquette.");return}var dzPs=null;try{dzPs=JSON.parse(localStorage.getItem("dz_montage_clipboard")||"null")}catch(e){dzPs=null}var dzPq=ovSeq.current+1,dzPr=DzTracks.clipPaste(clipsRef.current||[],dzPs,{head:phRef.current,tracks:dzTracksRef.current||svmTracksOf(dzProjRef.current),mode:dzModeRef.current,seq:dzPq,range:dzProjRef.current&&dzProjRef.current.range,locked:(function(){var o={},k;for(k in trackStRef.current)if(trackStRef.current[k]&&trackStRef.current[k].l)o[k]=!0;return o})()});if(dzPr.id==null){fireNote(dzPr.note||"Rien n'a été collé.");return}ovSeq.current=dzPq;pushHistory();setClips(dzPr.clips);setSelId(dzPr.id);setDirty(!0);fireNote("« "+(dzPs.clip.label||dzPr.id)+" » collé sur "+String(dzPr.track).toUpperCase()+" à "+svmShort(Number(dzPr.start)||0)+(dzPr.mode!=="ecraser"?" (mode « "+DzTracks.modeLabel(dzPr.mode)+" »)":"")+(dzPr.note?" — "+dzPr.note:"")+".");return}
+      if(id==="grade_copy"){dzGradeCopy(selRef.current);return}
+      if(id==="grade_paste"){dzGradePaste(selRef.current);return}
       if(id==="zoom_in"){zoomApply(zoomPctRef.current*1.25);return}
       if(id==="zoom_out"){zoomApply(zoomPctRef.current/1.25);return}
       if(id==="zoom100"){zoomApply(100);return}
@@ -5972,6 +5997,7 @@ function DzMontage(props){
     transPopover(),
     (pop||dzFin||dzMenu)?r.jsx("div",{className:"svm-modescrim",onClick:function(){setPop("");setDzFin(null);setDzMenu(null)}}):null,
     dzMenu?r.jsx(DzTracks.CtxMenu,Object.assign({onClose:function(){setDzMenu(null)}},dzMenu)):null,
+    dzLb?r.jsx(DzTracks.Lightbox,{clips:clips,onPick:function(c){dzLbPick(c.id)},onClose:function(){setDzLb(!1)}}):null,
     kbPanel(),
     /* tiroir sons + tiroir narration + lecteur + inspecteur */
     r.jsxs("div",{className:"svm-mid",children:[
@@ -6108,7 +6134,9 @@ function DzMontage(props){
             "aria-pressed":safeOn,title:"tiers, centre et marges sur le cadre",
             onClick:function(){setSafeOn(!safeOn)},children:"zones sûres ("+svmKeyLabel("safezones")+")"}),
           r.jsx("button",{className:"svm-pchip",title:"plein écran du cadre (Échap pour sortir)",
-            onClick:svmFullscreen,children:"plein écran ("+svmKeyLabel("fullscreen")+")"})]})]}),
+            onClick:svmFullscreen,children:"plein écran ("+svmKeyLabel("fullscreen")+")"})]}),
+        /* L5 D-31 : les scopes du plan V1 sous la tête (bascule mémorisée, rafraîchis à l'arrêt) */
+        r.jsx(DzTracks.Scopes,{clips:clips,head:ph,playing:playing})]}),
       inspOn?r.jsxs("aside",{className:"svm-insp",style:{width:inspW},"data-w":inspW,children:[r.jsx("div",{className:"svm-insphandle",onPointerDown:inspDown,title:"Glisser pour redimensionner l'inspecteur (260–480 px)"}),
         r.jsx("div",{className:"svm-insphead",title:"Tête de lecture (HH:MM:SS:image à 30 i/s)",children:DzTracks.teteTxt(ph,sel,svmTcFF)}),
         r.jsx(SvmLabel,{children:"Clip sélectionné"}),
@@ -20547,6 +20575,7 @@ var DZM_MENU_RUB={undo:"Édition",redo:"Édition",delete:"Édition",ripple:"Édi
   gain_up:"Édition",gain_down:"Édition",fade_in_cycle:"Édition",fade_out_cycle:"Édition",mute:"Édition",solo:"Édition",
   snap:"Édition",/* revue 23/09 : bascule sœur de ripple, même rubrique */
   copy:"Édition",paste:"Édition",/* L7 D-6 (24/09/2026) : le presse-papiers est une édition, pas une action de timeline */
+  grade_copy:"Édition",grade_paste:"Édition",/* L5 D-32 (24/09/2026) : copier / coller le grade, avec le presse-papiers de clips */
   marker_toggle:"Marqueurs",marker_prev:"Marqueurs",marker_next:"Marqueurs",marker_index:"Marqueurs",
   zoom_in:"Affichage",zoom_out:"Affichage",zoom100:"Affichage",toolbar:"Affichage",narration:"Affichage",
   sounds_drawer:"Affichage",fullscreen:"Affichage",safezones:"Affichage",
@@ -21269,7 +21298,8 @@ var DZM_GP_TABS=[["m","M","Courbe maître : les trois canaux ensemble"],["r","R"
   DZM_GP_ROUES=[["lift","Lift","Ombres (lift)",-.5,.5],["gamma","Gamma","Tons moyens (gamma)",-2,2],["gain","Gain","Hautes lumières (gain)",-1,1]],
   DZM_GP_MASK0={x:.25,y:.25,w:.5,h:.5,soft:.05,inv:!1};
 /* LE RÉSEAU, LE STOCKAGE, LE GESTE ET LE DESSIN du panneau (hors des aides pures) :
-   dzmGpFetch(url, corps, blob) -> promesse du JSON (ou du Blob) ; un refus HTTP rejette avec le détail du serveur,
+   dzmGpFetch(url, corps, blob, signal?) -> promesse du JSON (ou du Blob) ; `signal` (tâche 6) = celui d'un contrôleur
+   d'abandon, joint seulement s'il est donné ; un refus HTTP rejette avec le détail du serveur,
    sinon « HTTP 404 — route absente de ce serveur » : les routes viennent de la tâche 3, un backend plus ancien le
    dit par une note ou dans l'aperçu, rien ne casse.
    dzmGpRead / dzmGpWrite : le grade du presse-papiers, clé « dz_montage_grade » du magasin de dzmTbStore (le même
@@ -21279,8 +21309,10 @@ var DZM_GP_TABS=[["m","M","Courbe maître : les trois canaux ensemble"],["r","R"
    filtré par pointerId, coalescé par rAF, le dernier point en attente rejoué au relâcher.
    dzmGpDrawWheel / dzmGpDrawCurve : le dessin des canvas (anneau de teinte R 90°, G 210°, B 330° comme la roue du
    cœur ; grille, diagonale, courbe pchip échantillonnée, points). */
-function dzmGpFetch(url,body,blob){
-  return fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}).then(function(res){
+function dzmGpFetch(url,body,blob,sig){
+  var op={method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)};
+  if(sig)op.signal=sig;
+  return fetch(url,op).then(function(res){
     if(res.ok)return blob?res.blob():res.json();
     return res.json().catch(function(){return {}}).then(function(j){
       var d=j&&typeof j.detail==="string"&&j.detail;
@@ -21422,8 +21454,9 @@ function DzmGradePanel(o){
       on({effects:dzmColorMatchPut(k.effects,j.effect)},!0);
       note(auto?"Accord automatique posé (effet « Accord couleur »).":"Plan accordé sur le précédent (effet « Accord couleur »).")},
     function(e){if(vivant.current)note("Accord refusé : "+((e&&e.message)||"erreur réseau"))}).then(fin,fin)};
-  /* D-32 (boutons ; le clavier et les menus viennent en tâche 6) : copier / coller le grade */
-  var gt=dzmGradeTake(c),gs=dzmGpRead(),nfx=function(g){var n=g.effects.length;return n+" effet"+(n>1?"s":"")};
+  /* D-32 : copier / coller le grade — les MÊMES gestes que le clavier et les menus (tâche 6) : dzmGradeCopyDo /
+     dzmGradePasteDo, un seul stockage (dzmGpRead / dzmGpWrite), une seule phrase par issue */
+  var gt=dzmGradeTake(c),gs=dzmGpRead();
   var kids=[
     row("Roues",r.jsx("div",{className:"dzm-gp-wheels",children:DZM_GP_ROUES.map(roue)}),"roues"),
     row("Courbes",r.jsxs("div",{className:"dzm-gp-curve",children:[
@@ -21463,12 +21496,12 @@ function DzmGradePanel(o){
     row("Grade",r.jsxs("span",{className:"dzm-plan-hint dzm-gp-grade",children:[
       r.jsx("button",{className:"svm-minibtn",disabled:!gt,
         title:gt?"Copier le grade de ce plan : effets couleur et masque":"Rien à copier : ni effet couleur ni masque sur ce plan",
-        onClick:function(){if(!gt)return;if(dzmGpWrite(gt))note("Grade copié ("+nfx(gt)+")");else note("Copie refusée : stockage du navigateur indisponible.")},
+        onClick:function(){if(gt)note(dzmGradeCopyDo(c).note)},
         children:"Copier le grade"}),
       r.jsx("button",{className:"svm-minibtn",disabled:lock||!gs,
         title:lock?lockT:gs?"Coller le grade copié : remplace les effets couleur de ce plan, les autres restent":"Aucun grade copié (Copier le grade d'abord)",
-        onClick:function(){var g=dzmGpRead();if(lock||!g)return;var n=dzmGradePaste(cur.current,g);
-          on({effects:n.effects,mask:n.mask},!0);note("Grade collé ("+nfx(g)+")")},children:"Coller le grade"})]}),"grade"),
+        onClick:function(){if(lock)return;var q=dzmGradePasteDo(cur.current);
+          if(q.clip)on({effects:q.clip.effects,mask:q.clip.mask},!0);note(q.note)},children:"Coller le grade"})]}),"grade"),
     row("Aperçu",r.jsxs("div",{className:"dzm-gp-prev",children:[
       img?r.jsx("img",{src:img,alt:"Image étalonnée du plan",title:"Image étalonnée (la pile d'effets du plan rendue par ffmpeg) à "+(body?body.t:0)+" s de source"}):null,
       r.jsx("span",{className:"dzm-gp-pmsg",children:imgMsg||(img?"":"calcul de l'aperçu…")})]}),"prev")];
@@ -21483,6 +21516,137 @@ function DzmMaskBox(o){
   var pc=function(v){return Math.round(v*1e4)/100+"%"};
   return r.jsx("div",{className:"dzm-maskbox","data-shape":m.shape,"data-inv":m.inv?"1":"","aria-hidden":"true",
     style:{left:pc(m.x),top:pc(m.y),width:pc(m.w),height:pc(m.h)}})}
+/* ── L5 (24/09/2026, tâche 6) : D-31 LES SCOPES sous le lecteur, D-32 LA LIGHTBOX des plans et LES GESTES PARTAGÉS du
+   grade. D'abord les aides PURES (valeurs en entrée, valeurs neuves en sortie) :
+   dzmScopesAt = le plan de V1 sous la tête ([début, fin[, tête lue par dzmRfNum ; illisible -> null) ;
+   dzmScopesBody = le corps de POST /api/montage/scopes, celui de grade-frame SANS largeur (effets actifs, masque
+   seulement avec des effets ; plan sans source -> null) ;
+   dzmLbPlans = les plans de V1 dans l'ordre du début (bornes lisibles), copie triée ;
+   dzmLbNext(ids, états, max) = les identifiants à lancer : les premiers SANS état, tant que « run » + lancés < max
+   (max illisible ou < 1 -> DZM_LB_MAX, jamais au-delà de DZM_LB_MAX).
+   MÉMOIRE de la bascule : dzmScopesGet / dzmScopesSet, clé « dz_montage_scopes » du magasin de dzmTbStore (« 1 » / « 0 »,
+   éteinte par défaut, magasin en panne -> éteinte ; Set rend ce qu'il pose, comme dzmTbOpenSet).
+   GESTES PARTAGÉS : dzmGradeCopyDo(clip) -> {ok, note} et dzmGradePasteDo(clip) -> {clip|null, note} — le panneau, le
+   clavier (grade_copy / grade_paste) et le menu de clip passent TOUS par eux : un stockage (dzmGpRead / dzmGpWrite),
+   une phrase par issue ; coller rend le NOUVEAU clip, c'est l'appelant qui l'écrit (et qui refuse verrou et démo). */
+var DZM_SC_CLE="dz_montage_scopes",DZM_SC_MS=300,DZM_LB_W=240,DZM_LB_MAX=3;
+function dzmScopesAt(clips,head){
+  var t=dzmRfNum(head),best=null,bs=0;
+  if(!Array.isArray(clips)||t===null)return null;
+  clips.forEach(function(k){if(!k||typeof k!=="object"||k.tr!=="v1")return;var s=dzmRfNum(k.start),e=dzmRfNum(k.end);
+    if(s!==null&&e!==null&&t>=s&&t<e&&(!best||s>bs)){best=k;bs=s}});
+  return best}
+function dzmScopesBody(c,head){
+  var b=dzmFrameBody(c,head,DZM_LB_W);if(!b)return null;
+  var o={src:b.src,t:b.t};if(b.effects)o.effects=b.effects;if(b.mask)o.mask=b.mask;
+  return o}
+function dzmLbPlans(clips){
+  return (Array.isArray(clips)?clips:[]).filter(function(k){return !!k&&typeof k==="object"&&k.tr==="v1"&&dzmRfNum(k.start)!==null&&dzmRfNum(k.end)!==null})
+    .sort(function(a,b){return dzmRfNum(a.start)-dzmRfNum(b.start)})}
+function dzmLbNext(ids,st,max){
+  var m=Math.floor(Number(max)),s=st&&typeof st==="object"?st:{},run=0,out=[];
+  if(!(m>=1))m=DZM_LB_MAX;m=Math.min(m,DZM_LB_MAX);
+  if(!Array.isArray(ids))return out;
+  ids.forEach(function(id){if(s[id]==="run")run++});
+  ids.forEach(function(id){if(run+out.length<m&&!s[id])out.push(id)});
+  return out}
+function dzmScopesGet(st){
+  var s=st||dzmTbStore();
+  try{return !!s&&s.getItem(DZM_SC_CLE)==="1"}catch(e){return !1}}
+function dzmScopesSet(v,st){
+  var s=st||dzmTbStore();
+  try{if(s)s.setItem(DZM_SC_CLE,v?"1":"0")}catch(e){}
+  return !!v}
+function dzmGpNfx(g){var n=g&&Array.isArray(g.effects)?g.effects.length:0;return n+" effet"+(n>1?"s":"")}
+function dzmGradeCopyDo(clip,st){
+  var g=dzmGradeTake(clip);
+  if(!g)return {ok:!1,note:"Rien à copier : ni effet couleur ni masque sur ce plan"};
+  if(!dzmGpWrite(g,st))return {ok:!1,note:"Copie refusée : stockage du navigateur indisponible."};
+  return {ok:!0,note:"Grade copié ("+dzmGpNfx(g)+")"}}
+function dzmGradePasteDo(clip,st){
+  var g=dzmGpRead(st);
+  if(!g)return {clip:null,note:"Aucun grade copié (Copier le grade d'abord)"};
+  return {clip:dzmGradePaste(clip,g),note:"Grade collé ("+dzmGpNfx(g)+")"}}
+/* LES SCOPES (section L5sc1 de l'hôte, sous la barre du lecteur) : props {clips, head, playing}. Une bascule « Scopes »
+   (mémoire dz_montage_scopes lue UNE fois, au montage) ; allumée et À L'ARRÊT, le PNG de POST /api/montage/scopes pour le
+   plan V1 sous la tête (effets actifs + masque : le scope mesure ce que le rendu produira), à l'instant de source.
+   PAS DE TRAVAIL PAR IMAGE : pendant la lecture l'hôte re-rend à chaque image — le plan n'est pas cherché, le corps n'est
+   pas sérialisé, rien n'est lu ni demandé (l'empreinte vaut "", l'effet ne part pas, et son nettoyage ABANDONNE la
+   requête en vol). À l'arrêt : anti-rebond de 300 ms sur l'empreinte (une chaîne : dépendance PRIMITIVE), numéro de
+   requête (une réponse périmée est jetée) + contrôleur d'abandon ; l'image ne s'affiche que pour SON empreinte (un autre
+   plan ou un autre instant ne montre jamais l'image d'avant) ; URL de blob révoquée au remplacement, à l'extinction et
+   au démontage ; le refus d'une requête abandonnée se tait, un refus courant se dit. */
+function DzmScopes(o){
+  if(!o)return null;
+  var s1=x.useState(function(){return dzmScopesGet()}),on=s1[0],setOn=s1[1];
+  var s2=x.useState(null),img=s2[0],setImg=s2[1];
+  var s3=x.useState(null),err=s3[0],setErr=s3[1];
+  var seq=x.useRef(0),urlR=x.useRef(null),vivant=x.useRef(!0);
+  var jouant=!!o.playing,c=on&&!jouant?dzmScopesAt(o.clips,o.head):null,body=c&&c.src?dzmScopesBody(c,o.head):null,
+    sig=body?JSON.stringify(body):"";
+  var libere=function(){if(urlR.current){URL.revokeObjectURL(urlR.current);urlR.current=null}};
+  x.useEffect(function(){vivant.current=!0;return function(){vivant.current=!1;seq.current++;libere()}},[]);
+  x.useEffect(function(){
+    if(!sig)return;
+    var q=++seq.current,ac=typeof AbortController==="function"?new AbortController():null,b=JSON.parse(sig);
+    var h=setTimeout(function(){
+      dzmGpFetch("/api/montage/scopes",b,!0,ac?ac.signal:null).then(function(bl){
+        if(!vivant.current||q!==seq.current)return;
+        var u=URL.createObjectURL(bl);libere();urlR.current=u;setImg({u:u,sig:sig})},
+      function(e){if(vivant.current&&q===seq.current&&!(ac&&ac.signal.aborted))
+        setErr({sig:sig,msg:"Scopes indisponibles : "+((e&&e.message)||"erreur réseau")})})},DZM_SC_MS);
+    return function(){seq.current++;clearTimeout(h);if(ac)ac.abort()}},[sig]);
+  var bascule=function(){var n=dzmScopesSet(!on);setOn(n);if(!n){seq.current++;libere();setImg(null);setErr(null)}};
+  var voit=!!(sig&&img&&img.sig===sig);
+  var msg=!on?"":jouant?"Lecture : les scopes se rafraîchissent à l'arrêt":!c?"Aucun plan sous la tête":
+    !c.src?"Plan sans source : rien à mesurer":err&&err.sig===sig?err.msg:voit?"":"Mesure en cours…";
+  return r.jsxs("div",{className:"dzm-scopes","data-on":on?"1":"",children:[
+    r.jsx("button",{className:"svm-pchip dzm-scbtn","data-on":on?"":void 0,"aria-pressed":on,
+      title:on?"Masquer les scopes":"Afficher les scopes du plan V1 sous la tête (forme d'onde, vecteurscope, histogramme de l'image étalonnée) — rafraîchis à l'arrêt, jamais pendant la lecture",
+      onClick:bascule,children:"Scopes"}),
+    voit?r.jsx("img",{className:"dzm-scimg",src:img.u,alt:"Scopes du plan sous la tête",
+      title:"Forme d'onde (haut), vecteurscope et histogramme (bas) de l'image étalonnée à "+body.t+" s de source"}):null,
+    msg?r.jsx("span",{className:"dzm-scmsg",children:msg}):null]})}
+/* LA LIGHTBOX DES PLANS (ouverte par ☰ › Affichage, montée par l'hôte dans le repli R_EB5A) : props {clips, onPick(plan),
+   onClose()}. Voile (z-index du voile E-11 : 19, sous les popovers) + grille des plans de V1 dans l'ordre, pris UNE fois à
+   l'ouverture (instantané : la lightbox est modale). Chaque vignette = POST /api/montage/grade-frame, 240 px, au milieu du
+   plan, effets actifs + masque ; au plus DZM_LB_MAX requêtes en vol (dzmLbNext), une réponse OU un refus libère une place ;
+   un plan sans source a sa tuile (on peut y aller) sans requête. L'état d'une vignette est posé AVANT le test de vie :
+   la pompe est la SEULE porte qui empêche une requête de partir après la fermeture (banc [38], mutation M4). Clic sur une tuile -> onPick ; clic du voile ou
+   « Fermer » -> onClose ; Échap : l'hôte (R_K7). À la fermeture (démontage) : toutes les requêtes en vol ABANDONNÉES,
+   plus rien ne part, les URL de blob révoquées. */
+function DzmLightbox(o){
+  if(!o)return null;
+  var s1=x.useState(function(){return dzmLbPlans(o.clips)}),pl=s1[0];
+  var s2=x.useState({}),imgs=s2[0],setImgs=s2[1];
+  var fin=typeof o.onClose==="function"?o.onClose:function(){},pick=typeof o.onPick==="function"?o.onPick:function(){};
+  x.useEffect(function(){
+    var vivant=!0,st={},urls=[],acs={},ids=[],corps={};
+    pl.forEach(function(c){var b=c.src?dzmFrameBody(c,null,DZM_LB_W):null;if(b){ids.push(c.id);corps[c.id]=b}});
+    var pose=function(id,v){if(vivant)setImgs(function(m){var n=Object.assign({},m);n[id]=v;return n})};
+    var pompe=function(){if(!vivant)return;
+      dzmLbNext(ids,st,DZM_LB_MAX).forEach(function(id){
+        var ac=typeof AbortController==="function"?new AbortController():null;st[id]="run";acs[id]=ac;
+        dzmGpFetch("/api/montage/grade-frame",corps[id],!0,ac?ac.signal:null).then(function(bl){
+            st[id]="ok";if(!vivant)return;var u=URL.createObjectURL(bl);urls.push(u);pose(id,u)},
+          function(){st[id]="err";if(!vivant)return;pose(id,"")})
+          .then(function(){delete acs[id];pompe()})})};
+    pompe();
+    return function(){vivant=!1;Object.keys(acs).forEach(function(k){if(acs[k])acs[k].abort()});
+      urls.forEach(function(u){URL.revokeObjectURL(u)})}},[]);
+  var tuiles=pl.map(function(c,i){var u=imgs[c.id],lbl=c.label||c.id;
+    return r.jsxs("button",{className:"dzm-lbtile","data-id":c.id,
+      title:"Aller au plan « "+lbl+" » (début à "+dzmCoR(dzmRfNum(c.start),2)+" s) et le sélectionner",
+      onClick:function(){pick(c)},children:[
+        u?r.jsx("img",{src:u,alt:"Plan « "+lbl+" » étalonné"})
+          :r.jsx("span",{className:"dzm-lbph",children:!c.src?"sans source":u===""?"image indisponible":"calcul…"}),
+        r.jsx("span",{className:"dzm-lbcap",children:(i+1)+". "+lbl})]},c.id)});
+  return r.jsx("div",{className:"dzm-lbscrim",onClick:function(e){if(e&&e.target===e.currentTarget)fin()},children:
+    r.jsxs("div",{className:"dzm-lb",role:"dialog","aria-label":"Lightbox des plans",children:[
+      r.jsxs("div",{className:"dzm-lbhead",children:[
+        r.jsx("span",{className:"dzm-lbt",children:"Lightbox des plans · V1 ("+pl.length+")"}),
+        r.jsx("button",{className:"svm-minibtn",title:"Fermer la lightbox (Échap, ou clic hors de la grille)",onClick:fin,children:"Fermer"})]}),
+      pl.length?r.jsx("div",{className:"dzm-lbgrid",children:tuiles}):r.jsx("div",{className:"dzm-lbmsg",children:"Aucun plan sur V1"})]})})}
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
   TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,cutOpts:dzmCutOpts,withWords:dzmWithWords,
@@ -21611,6 +21775,8 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   colorTypes:DZM_COLOR_TYPES,wheelToRgb:dzmWheelToRgb,wheelFromRgb:dzmWheelFromRgb,wheelsSet:dzmWheelsSet,curveClean:dzmCurveClean,curveParse:dzmCurveParse,curveStr:dzmCurveStr,curveEval:dzmCurveEval,maskOf:dzmMaskOf,gradeTake:dzmGradeTake,gradePaste:dzmGradePaste,colorMatchPut:dzmColorMatchPut,srcTimeAt:dzmSrcTimeAt,
   /* L5 D-27 D-29 D-30 D-28 (24/09/2026, tache 5) : le panneau Etalonnage -- aides pures, panneau, contour du masque au lecteur */
   fxOf:dzmFxOf,fxPut:dzmFxPut,curveHit:dzmCurveHit,curveMove:dzmCurveMove,curveAdd:dzmCurveAdd,curveDel:dzmCurveDel,curveMid:dzmCurveMid,gradePrev:dzmGradePrev,matchBody:dzmMatchBody,frameBody:dzmFrameBody,gpSig:dzmGpSig,GradePanel:DzmGradePanel,MaskBox:DzmMaskBox,
+  /* L5 D-31 D-32 (24/09/2026, tache 6) : scopes sous le lecteur, lightbox des plans, gestes partages du grade */
+  scopesAt:dzmScopesAt,scopesBody:dzmScopesBody,scopesGet:dzmScopesGet,scopesSet:dzmScopesSet,SC_CLE:DZM_SC_CLE,lbPlans:dzmLbPlans,lbNext:dzmLbNext,LB_MAX:DZM_LB_MAX,gradeCopyDo:dzmGradeCopyDo,gradePasteDo:dzmGradePasteDo,gradeRead:dzmGpRead,Scopes:DzmScopes,Lightbox:DzmLightbox,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;
 

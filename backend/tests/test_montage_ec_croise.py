@@ -100,8 +100,9 @@ mR, nR = un(r'var DZM_MENU_RUB=\{(.*?)\};\nfunction dzmMenuRub\(a\)\{', JS, re.S
 check("x1_DZM_MENU_RUB_est_lue_une_fois_dans_la_couche_jusqu_a_dzmMenuRub", nR == 1 and mR is not None, nR)
 _corpsR = re.sub(r"/\*.*?\*/", "", mR.group(1), flags=re.S) if mR else ""
 RUB = dict(re.findall(r'(\w+):"([^"]+)"', _corpsR))
+# L5 D-32 (24/09/2026, tache 6) : 34 -> 36 ids -- grade_copy et grade_paste ranges en Édition (libelle garde, valeur realignee)
 check("x1_la_table_porte_trente_quatre_ids_et_six_rubriques_moins_Projet_et_Timeline",
-      len(RUB) == 34 and set(RUB.values()) == {"Édition", "Marqueurs", "Affichage", "Aide"}, (len(RUB), sorted(set(RUB.values()))))
+      len(RUB) == 36 and RUB.get("grade_copy") == "Édition" and RUB.get("grade_paste") == "Édition" and set(RUB.values()) == {"Édition", "Marqueurs", "Affichage", "Aide"}, (len(RUB), sorted(set(RUB.values()))))
 _i0 = BUN.find("var SVM_ACTIONS=[")
 _i1 = BUN.find("];", _i0) if _i0 >= 0 else -1
 _TAB = BUN[_i0:_i1] if 0 <= _i0 < _i1 else ""
@@ -117,12 +118,14 @@ COMBOS = [a[2] for a in ACT]
 # 46 -> 48 le 24/09/2026 (L7 D-6, tache 2) : `copy` (« Ctrl+C ») et `paste`
 # (« Ctrl+V »), sec Montage, repli dans R_R1 ; ranges en Édition par DZM_MENU_RUB
 # (32 -> 34 ids dans la table des rubriques).
-NACT = 48
+# 48 -> 50 le 24/09/2026 (L5 D-32, tache 6) : `grade_copy` (« Ctrl+Alt+C ») et `grade_paste` (« Ctrl+Alt+V »), sec
+# Montage, repli dans R_R1 (« Ctrl+Maj+C » est reservee), ranges en Édition (34 -> 36 ids dans la table des rubriques).
+NACT = 50
 check("x1_le_bundle_patche_porte_quarante_huit_actions_ids_uniques_quatre_sections",
       len(ACT) == NACT and len(set(IDS)) == NACT and set(SEC.values()) == {"Lecture", "Montage", "Affichage", "Audio"},
       (len(ACT), sorted(set(SEC.values()))))
 check("x1_chaque_id_de_la_table_des_rubriques_existe_dans_SVM_ACTIONS",
-      len(RUB) == 34 and len(IDS) == NACT and set(RUB) <= set(IDS), sorted(set(RUB) - set(IDS)))
+      len(RUB) == 36 and len(IDS) == NACT and set(RUB) <= set(IDS), sorted(set(RUB) - set(IDS)))
 # les ids SANS rubrique tombent par `sec` : Lecture / Montage -> Timeline -- ce
 # sont les QUATORZE gestes de tete (pinnes) ; aucun id Audio / Affichage n'est
 # hors table (sinon le repli Audio -> Edition / Affichage parlerait a sa place)
@@ -130,12 +133,12 @@ HORS = set(IDS) - set(RUB)
 TETE = {"play", "jog_back", "jog_pause", "jog_fwd", "step_back", "step_fwd", "cut_prev", "cut_next",
         "home", "end", "blade", "title_add", "adjust_add", "trans_add"}
 check("x1_les_quatorze_ids_hors_table_sont_les_gestes_de_tete_Lecture_ou_Montage_vers_Timeline",
-      len(RUB) == 34 and len(IDS) == NACT and HORS == TETE and all(SEC[i] in ("Lecture", "Montage") for i in HORS),
+      len(RUB) == 36 and len(IDS) == NACT and HORS == TETE and all(SEC[i] in ("Lecture", "Montage") for i in HORS),
       sorted(HORS ^ TETE))
 mRub, nRub = un(r'function dzmMenuRub\(a\)\{\n  var s=a&&DZM_MENU_RUB\[a\.id\];if\(s\)return s;\n  return a\.sec==="Audio"\?"Édition":a\.sec==="Affichage"\?"Affichage":"Timeline"\}', JS)
 check("x1_le_repli_de_rubrique_est_ecrit_une_fois_Audio_Edition_Affichage_Affichage_sinon_Timeline", nRub == 1 and mRub is not None, nRub)
 check("x1_les_quatre_marqueurs_vont_en_Marqueurs_keys_panel_en_Aide_undo_en_Edition",
-      len(RUB) == 34 and all(RUB.get(k) == "Marqueurs" for k in ("marker_toggle", "marker_prev", "marker_next", "marker_index"))
+      len(RUB) == 36 and all(RUB.get(k) == "Marqueurs" for k in ("marker_toggle", "marker_prev", "marker_next", "marker_index"))
       and RUB.get("keys_panel") == "Aide" and RUB.get("undo") == "Édition" and RUB.get("snap") == "Édition", RUB)
 
 # ── [2] E-6 : chaque combo parsable et aller-retour sous node ──────────

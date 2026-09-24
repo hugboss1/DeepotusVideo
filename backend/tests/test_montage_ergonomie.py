@@ -325,6 +325,10 @@ _NULLS = [
     # l'autre n'est un bouton ; dates ici parce qu'ils rendent null
     ("function DzmGradePanel(o){", "if(!c)return null;"),
     ("function DzmMaskBox(o){", "return null;"),
+    # L5 (24/09/2026, tache 6) : les scopes et la lightbox rendent null SANS props (l'hote les monte toujours avec) --
+    # garde en tete, avant les hooks ; ni l'un ni l'autre n'est un bouton
+    ("function DzmScopes(o){", "if(!o)return null;"),
+    ("function DzmLightbox(o){", "if(!o)return null;"),
 ]
 for f, g in _NULLS:
     i = lay.find(f)
@@ -391,6 +395,26 @@ check("R1_R2_etalonnage_huit_sites_de_bouton_tous_titres_aucun_conditionnel_masq
       and _GPE.count("disabled:") >= 8 and _pp_n >= 3 and _pp_manq == []
       and s.count("function DzmGradePanel(o){") == 1 and bak.count("DzmGradePanel") == 0,
       f"sites={_gp_n} manquants={_gp_manq} conditionnels={_gp_cond} temoin={_pp_n}")
+
+# L5 (24/09/2026, tache 6) : les scopes (DzmScopes) et la lightbox (DzmLightbox) -- TROIS sites de bouton, TOUTES classes
+# confondues (la bascule « Scopes » est une svm-pchip et la tuile une dzm-lbtile, hors CLASSES auditees : le scanner
+# ci-dessous ne filtre PAS par classe), chacun TITRE (props lues jusqu'a children:) ; AUCUN conditionnel (la bascule reste
+# rendue eteinte, une tuile sans source reste rendue et dit « sans source »). Les entrees de menu (☰ Lightbox, Copier /
+# Coller le grade) passent par DzmCtxMenu (title:it.lbl, pin EXPORT ci-dessus). Temoin : le meme scanner voit 8 sites
+# dans le panneau Etalonnage.
+_L5Z = lay[lay.find("function DzmScopes(o){"):lay.find("var DzTracks={")]
+def _l5_sites(z):
+    b = [m.start() for m in re.finditer(r'r\.jsxs?\("button",\{', z)]
+    return b, [z[i:i + 60] for i in b if "title:" not in z[i:z.find("children:", i)]]
+_l5_b, _l5_sans = _l5_sites(_L5Z)
+_l5_tb, _l5_tsans = _l5_sites(_GPE)
+_l5_cond = [m.group(0) for m in RX_COND.finditer(_L5Z)]
+check("R1_R2_L5_scopes_et_lightbox_trois_sites_de_bouton_tous_titres_toutes_classes_aucun_conditionnel_temoin_Etalonnage",
+      len(_L5Z) > 3000 and len(_l5_b) == 3 and _l5_sans == [] and _l5_cond == []
+      and len(_l5_tb) == 8 and _l5_tsans == []
+      and _L5Z.count('children:"Scopes"') == 1 and _L5Z.count('"sans source"') == 1
+      and s.count("function DzmScopes(o){") == 1 and s.count("function DzmLightbox(o){") == 1 and bak.count("DzmScopes") == 0,
+      f"sites={len(_l5_b)} sans_title={_l5_sans} conditionnels={_l5_cond} temoin={len(_l5_tb)}")
 
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

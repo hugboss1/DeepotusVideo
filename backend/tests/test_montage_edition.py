@@ -1404,6 +1404,63 @@ out.gp_grade=gpShim(function(log,S){var N=[],on=[];
   var brut=S.dz_montage_grade;S.dz_montage_grade="{pas du json";var m3=T.GradePanel({clip:cible,clips:[],head:1});
   return [typeof brut==="string"&&JSON.parse(brut),N,!!cb.p.disabled,on.map(function(q){return [q[0].effects,"mask" in q[0],q[0].mask,q[1]]}),
     !!gpBtn(m3,"Coller le grade").p.disabled]});
+/* ── [38] L5 D-31 D-32 (24/09/2026, tâche 6) : scopes sous le lecteur, lightbox des plans, copier / coller du grade (gestes partagés) ── */
+var SC=[{tr:"v2",id:"o",start:0,end:10,src:{job_id:"O"}},
+  {tr:"v1",id:"a",start:0,end:4,src:{job_id:"A"},effects:[{type:"wheels",gain_r:1.2},{type:"blur",off:!0}],mask:{shape:"rect",x:0,y:0,w:.5,h:.5}},
+  {tr:"v1",id:"b",start:4,end:8,srcIn:2,speed:2,src:{job_id:"B"}},{tr:"v1",id:"d",start:9,end:11}];
+/* le plan V1 sous la tête : [début, fin[, V2 ignoré, tête illisible -> null */
+out.sc_at=[4,3.999,0,8,8.5,9.5,-1,"x",null,"4.5"].map(function(h){var c=T.scopesAt(SC,h);return c?c.id:null})
+  .concat([T.scopesAt(null,1),T.scopesAt([null,5],1)]);
+/* le corps de POST /api/montage/scopes : celui de grade-frame SANS largeur (effets actifs, masque avec effets) ; sans source -> null */
+out.sc_body=[T.scopesBody(SC[1],1),T.scopesBody(SC[2],5),T.scopesBody(SC[3],10),T.scopesBody(null,1)];
+/* la mémoire de la bascule : clé dz_montage_scopes, « 1 » / « 0 », éteinte par défaut, magasin en panne -> éteinte, rend ce qu'elle a posé */
+function scSt(S){return {getItem:function(k){return Object.prototype.hasOwnProperty.call(S,k)?S[k]:null},setItem:function(k,v){S[k]=String(v)}}}
+var SCBAD={getItem:function(){throw new Error("refus")},setItem:function(){throw new Error("refus")}};
+out.sc_store=(function(){var S={},st=scSt(S),a=T.scopesGet(st),b=T.scopesSet(!0,st),c=T.scopesGet(st),d=S.dz_montage_scopes,
+  e=T.scopesSet(!1,st),f=S.dz_montage_scopes;
+  return [a,b,c,d,e,f,T.scopesGet(st),T.scopesGet(SCBAD),T.scopesSet(!0,SCBAD),T.SC_CLE]})();
+/* la lightbox : les plans de V1 dans l'ordre du début (bornes lisibles), l'entrée intacte */
+out.lb_plans=(function(){var L=SC.concat([{tr:"v1",id:"z",start:-2,end:0},{tr:"v1",id:"n",start:"x",end:3},null]),j=JSON.stringify(L);
+  return [T.lbPlans(L).map(function(c){return c.id}),JSON.stringify(L)===j,T.lbPlans(null),T.lbPlans([])]})();
+/* la file des vignettes : au plus trois en vol, les premières en attente dans l'ordre, max illisible -> 3, borné à 3 */
+out.lb_next=[T.lbNext(["a","b","c","d","e"],{},3),T.lbNext(["a","b","c","d","e"],{a:"run",b:"ok",c:"run"},3),
+  T.lbNext(["a","b","c","d"],{a:"run",b:"run",c:"run"},3),T.lbNext(["a","b"],{a:"ok",b:"err"},3),T.lbNext(null,{},3),
+  T.lbNext(["a","b"],null,0),T.lbNext(["a","b","c","d"],{},"x"),T.lbNext(["a","b","c","d","e"],{},5),T.lbNext(["a","b","c"],{z:"run",y:"run"},3),T.LB_MAX];
+/* copier / coller : LES gestes partagés du panneau, du clavier et des menus (même stockage dz_montage_grade, même phrase) */
+out.gc=(function(){var S={},st=scSt(S);
+  var src={tr:"v1",id:"s",effects:[{type:"grain"},{type:"wheels",gain_r:1.2,t0:1},{type:"curves",pts_m:"0/0 1/1",off:!0}],mask:{shape:"ellipse",x:.1,y:.1,w:.5,h:.5}};
+  var c1=T.gradeCopyDo(src,st),stored=JSON.parse(S.dz_montage_grade||"null");
+  var c2=T.gradeCopyDo({effects:[{type:"grain"}]},st),c3=T.gradeCopyDo(src,SCBAD),c4=T.gradeCopyDo(null,st);
+  var cible={tr:"v2",id:"t",effects:[{type:"blur"},{type:"huesat",hue:10},{type:"grain"}],mask:{shape:"rect",x:0,y:0,w:1,h:1}},cj=JSON.stringify(cible);
+  var p1=T.gradePasteDo(cible,st),p2=T.gradePasteDo(cible,scSt({})),p3=T.gradePasteDo(cible,SCBAD);
+  var p4=T.gradePasteDo(cible,scSt({dz_montage_grade:JSON.stringify({effects:[{type:"lut",file:"a.cube"},{type:"grade",x:1}],mask:null})}));
+  return [c1,stored,c2,c3,c4,p1,p2,p3,p4,"mask" in p4.clip,JSON.stringify(cible)===cj,JSON.stringify(stored)===S.dz_montage_grade]})();
+/* LES COMPOSANTS sous shim (gpShim : jsx factice, hooks factices, magasin factice là où dzmTbStore le lit) */
+/* scShim = gpShim dont useState JOUE l'initialiseur paresseux (la bascule et les plans sont lus UNE fois, au montage) */
+function scShim(fn,store){var G=globalThis;
+  return gpShim(function(log,S){var x1=G.x;G.x=Object.assign({},x1,{useState:function(v){return x1.useState(typeof v==="function"?v():v)}});
+    try{return fn(log,S)}finally{G.x=x1}},store)}
+function scMsg(m){return gpTous(m).filter(function(n){return /dzm-scmsg/.test(n.p.className||"")}).map(gpTxt)}
+out.sc_null=(function(){var r0=r;try{r={jsx:function(t,p){return {t:t,p:p}},jsxs:function(t,p){return {t:t,p:p}}};
+  return [T.Scopes(null),T.Lightbox(null)]}catch(e){return "autre:"+e}finally{r=r0}})();
+out.sc_rendu=scShim(function(log,S){
+  var off=T.Scopes({clips:SC,head:1,playing:!1}),b0=gpBtns(off);
+  S.dz_montage_scopes="1";
+  var on=T.Scopes({clips:SC,head:1,playing:!1}),lec=T.Scopes({clips:SC,head:1,playing:!0}),
+    vide=T.Scopes({clips:SC,head:8.5,playing:!1}),ss=T.Scopes({clips:SC,head:10,playing:!1});
+  return [off.t,off.p.className,b0.map(function(b){return [gpTxt(b),b.p.title,b.p["aria-pressed"],b.p["data-on"]]}),scMsg(off),
+    gpBtns(on).map(function(b){return [gpTxt(b),b.p.title,b.p["aria-pressed"],b.p["data-on"]]}),scMsg(on),scMsg(lec),scMsg(vide),scMsg(ss),
+    log.st,log.eff.slice(0,2),log.eff.length]});
+out.lb_rendu=scShim(function(log){var P=[],C=[];
+  var m=T.Lightbox({clips:SC,onPick:function(c){P.push(c.id)},onClose:function(){C.push(1)}});
+  var all=gpTous(m),tiles=all.filter(function(n){return /dzm-lbtile/.test(n.p.className||"")});
+  tiles[1].p.onClick();
+  m.p.onClick({target:1,currentTarget:2});m.p.onClick({target:m,currentTarget:m});
+  gpBtns(m).filter(function(b){return gpTxt(b)==="Fermer"})[0].p.onClick();
+  var vide=T.Lightbox({clips:[{tr:"v2",id:"o",start:0,end:1}],onPick:function(){},onClose:function(){}});
+  return [m.t,m.p.className,tiles.map(function(b){return [b.t,b.p["data-id"],typeof b.p.title==="string"&&b.p.title.length>5]}),P,C.length,
+    gpBtns(m).every(function(b){return typeof b.p.title==="string"&&b.p.title.length>3}),gpBtns(m).length,
+    gpTous(vide).filter(function(n){return /dzm-lbmsg/.test(n.p.className||"")}).map(gpTxt),log.st,log.eff.slice(0,1)]});
 console.log(JSON.stringify(out));
 """
 # E-9 : svmRuler / svmPad2 sont des fonctions DU BUNDLE (meme portee module que
@@ -1733,7 +1790,9 @@ try:
                  "co_paste_off","co_vec","co_maskx",
                  # L5 D-27 D-29 D-30 D-28 (tache 5, 24/09) : les DIX-HUIT cles de la section [37].
                  "gp_fx","gp_hit","gp_move","gp_add","gp_del","gp_mid","gp_prev","gp_match","gp_frame","gp_sig",
-                 "gp_pure","gp_null","gp_box","gp_rendu","gp_verrou","gp_vide","gp_geste","gp_grade"]
+                 "gp_pure","gp_null","gp_box","gp_rendu","gp_verrou","gp_vide","gp_geste","gp_grade",
+                 # L5 D-31 D-32 (tache 6, 24/09) : les NEUF cles de la section [38] (les gardes en execution ont leur shim a part).
+                 "sc_at","sc_body","sc_store","lb_plans","lb_next","gc","sc_null","sc_rendu","lb_rendu"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -3840,7 +3899,8 @@ check("l5_gp_composant_garde_avant_hooks_gestes_fenetre_sans_capture_stockage_pr
       len(_GPC) > 3000 and 0 <= _GPC.find("if(!c)return null;") < _GPC.find("x.useState(")
       and _GPC.count("x.useState(") == 4 and _GPC.count("x.useEffect(") == 2
       and _GPC.count("setPointerCapture") == 0 and _SRCb.count("setPointerCapture") == 1
-      and _SRCb.count('dzmGpFetch("/api/montage/grade-frame",') == 1 and _SRCb.count('dzmGpFetch("/api/montage/color-match",') == 1
+      # tache 6 (24/09/2026) : grade-frame 1 -> 2, la lightbox (DzmLightbox) appelle la meme route -- ecart date, pin realigne
+      and _SRCb.count('dzmGpFetch("/api/montage/grade-frame",') == 2 and _SRCb.count('dzmGpFetch("/api/montage/color-match",') == 1
       and _GPC.count("URL.revokeObjectURL(") == 2 and _GPC.count("},400);") == 1 and _GPC.count("DzTracks") == 0
       and _SRCb.count('var DZM_GP_CLE="dz_montage_grade"') == 1
       and _corps("dzmGpRead").count("try{") == 1 and _corps("dzmGpWrite").count("try{") == 1
@@ -3851,6 +3911,200 @@ check("l5_gp_composant_garde_avant_hooks_gestes_fenetre_sans_capture_stockage_pr
                     "curveMid:dzmCurveMid,gradePrev:dzmGradePrev,matchBody:dzmMatchBody,frameBody:dzmFrameBody,gpSig:dzmGpSig,"
                     "GradePanel:DzmGradePanel,MaskBox:DzmMaskBox,") == 1,
       f"corps={len(_GPC)} useState={_GPC.count('x.useState(')}")
+
+print("\n[38] L5 D-31 D-32 : scopes sous le lecteur, lightbox des plans, gestes partages du grade (tache 6, 24/09/2026)")
+# ── L5 (24/09/2026, tache 6). Les aides PURES (plan sous la tete, corps de /scopes, plans de la lightbox, file des
+# vignettes, memoire de la bascule), les GESTES PARTAGES du grade (panneau, clavier, menu de clip : un stockage, une
+# phrase), puis les deux composants : rendu sous shim, et leurs GARDES DE COURSE ET DE FUITE jouees en EXECUTION sous un
+# mini-React (etats et effets persistants, minuteurs, fetch, URL et AbortController factices) -- une mutation qui retire
+# une garde doit rougir ici, pas seulement un pin de texte. Faute n6 : chaque lecture passe par D.get / DX.get / at().
+check("sc_at_plan_v1_sous_la_tete_debut_inclus_fin_exclue_v2_ignore_tete_illisible_rien",
+      D.get("sc_at") == ["b", "a", "a", None, None, "d", None, None, None, "b", None, None], D.get("sc_at"))
+_SCM = {"shape": "rect", "x": 0, "y": 0, "w": 0.5, "h": 0.5, "soft": 0, "inv": False}
+check("sc_body_corps_de_grade_frame_sans_largeur_effets_actifs_masque_avec_effets_sans_source_rien",
+      D.get("sc_body") == [{"src": {"job_id": "A"}, "t": 1, "effects": [{"type": "wheels", "gain_r": 1.2}], "mask": _SCM},
+                           {"src": {"job_id": "B"}, "t": 4}, None, None], D.get("sc_body"))
+check("sc_store_cle_dz_montage_scopes_eteinte_par_defaut_1_0_magasin_en_panne_eteinte_rend_ce_qu_elle_pose",
+      D.get("sc_store") == [False, True, True, "1", False, "0", False, False, True, "dz_montage_scopes"], D.get("sc_store"))
+check("lb_plans_v1_dans_l_ordre_du_debut_bornes_lisibles_entree_intacte",
+      D.get("lb_plans") == [["z", "a", "b", "d"], True, [], []], D.get("lb_plans"))
+check("lb_next_au_plus_trois_en_vol_premieres_en_attente_max_illisible_trois_borne_a_trois",
+      D.get("lb_next") == [["a", "b", "c"], ["d"], [], [], [], ["a", "b"], ["a", "b", "c"], ["a", "b", "c"], ["a", "b", "c"], 3],
+      D.get("lb_next"))
+_GCM = {"shape": "ellipse", "x": 0.1, "y": 0.1, "w": 0.5, "h": 0.5, "soft": 0, "inv": False}
+_GCs = {"effects": [{"type": "wheels", "gain_r": 1.2}], "mask": _GCM}
+_GCn = "Aucun grade copié (Copier le grade d'abord)"
+check("gc_copier_ecrit_le_grade_sans_bornes_ni_effet_eteint_rien_a_copier_stockage_en_panne_dit",
+      at("gc", 0) == {"ok": True, "note": "Grade copié (1 effet)"} and at("gc", 1) == _GCs
+      and at("gc", 2) == {"ok": False, "note": "Rien à copier : ni effet couleur ni masque sur ce plan"}
+      and at("gc", 3) == {"ok": False, "note": "Copie refusée : stockage du navigateur indisponible."}
+      and at("gc", 4) == {"ok": False, "note": "Rien à copier : ni effet couleur ni masque sur ce plan"} and at("gc", 11) is True,
+      D.get("gc"))
+check("gc_coller_rend_le_nouveau_clip_couleur_remplacee_a_sa_place_masque_pose_ou_retire_sans_grade_dit_entree_intacte",
+      at("gc", 5) == {"clip": {"tr": "v2", "id": "t", "effects": [{"type": "blur"}, {"type": "wheels", "gain_r": 1.2}, {"type": "grain"}],
+                               "mask": _GCM}, "note": "Grade collé (1 effet)"}
+      and at("gc", 6) == {"clip": None, "note": _GCn} and at("gc", 7) == {"clip": None, "note": _GCn}
+      and at("gc", 8) == {"clip": {"tr": "v2", "id": "t", "effects": [{"type": "blur"}, {"type": "lut", "file": "a.cube"}, {"type": "grade", "x": 1},
+                                                                 {"type": "grain"}]}, "note": "Grade collé (2 effets)"}
+      and at("gc", 9) is False and at("gc", 10) is True, D.get("gc"))
+check("sc_null_sans_props_rien_sans_toucher_x", "sc_null" in D and D.get("sc_null") == [None, None], D.get("sc_null"))
+_SCR = D.get("sc_rendu") if isinstance(D.get("sc_rendu"), list) and len(D.get("sc_rendu")) == 12 else [None] * 12
+_SCt0 = ("Afficher les scopes du plan V1 sous la tête (forme d'onde, vecteurscope, histogramme de l'image étalonnée) "
+         "— rafraîchis à l'arrêt, jamais pendant la lecture")
+check("sc_rendu_eteint_un_bouton_titre_non_presse_aucun_message",
+      _SCR[:4] == ["div", "dzm-scopes", [["Scopes", _SCt0, False, None]], []], _SCR[:4])
+check("sc_rendu_allume_presse_mesure_en_cours_lecture_dite_aucun_plan_dit_plan_sans_source_dit",
+      _SCR[4:9] == [[["Scopes", "Masquer les scopes", True, ""]], ["Mesure en cours…"],
+                    ["Lecture : les scopes se rafraîchissent à l'arrêt"], ["Aucun plan sous la tête"], ["Plan sans source : rien à mesurer"]],
+      _SCR[4:9])
+check("sc_rendu_trois_useState_deux_useEffect_par_rendu", _SCR[9:12] == [15, [0, 1], 10], _SCR[9:12])
+_LBR = D.get("lb_rendu") if isinstance(D.get("lb_rendu"), list) and len(D.get("lb_rendu")) == 10 else [None] * 10
+check("lb_rendu_voile_trois_tuiles_v1_dans_l_ordre_titrees_clic_choisit_le_plan_voile_et_fermer_ferment_tout_bouton_titre",
+      _LBR[:7] == ["div", "dzm-lbscrim", [["button", "a", True], ["button", "b", True], ["button", "d", True]], ["b"], 2, True, 4], _LBR[:7])
+check("lb_rendu_sans_plan_v1_le_dit_deux_useState_un_useEffect_au_montage",
+      _LBR[7:] == [["Aucun plan sur V1"], 4, [0]], _LBR[7:])
+# LE SOURCE : aides pures sans r / x / reseau / DOM / stockage ; exports au contrat ; la route /scopes appelee UNE fois
+_L5SC = {n: _corps(n) for n in ("dzmScopesAt", "dzmScopesBody", "dzmLbPlans", "dzmLbNext")}
+check("l5_sc_aides_pures_ni_r_ni_x_ni_reseau_ni_dom_ni_stockage",
+      all(len(c) > 40 for c in _L5SC.values())
+      and not any(re.search(r"\br\.jsx|\bx\.use|localStorage|sessionStorage|\bwindow\b|\bdocument\b|\bnavigator\b|fetch\(|setClips|pushHistory|style\.|URL\.", c)
+                  for c in _L5SC.values())
+      and _L5SC["dzmScopesBody"].count("dzmFrameBody(") == 1 and _L5SC["dzmLbNext"].count("DZM_LB_MAX") == 2,
+      {n: len(c) for n, c in _L5SC.items()})
+check("l5_sc_exports_au_contrat_route_scopes_x1_grade_frame_x2_panneau_et_lightbox_gestes_partages_dans_le_panneau",
+      _DT.count("scopesAt:dzmScopesAt,scopesBody:dzmScopesBody,scopesGet:dzmScopesGet,scopesSet:dzmScopesSet,SC_CLE:DZM_SC_CLE,"
+                "lbPlans:dzmLbPlans,lbNext:dzmLbNext,LB_MAX:DZM_LB_MAX,gradeCopyDo:dzmGradeCopyDo,gradePasteDo:dzmGradePasteDo,gradeRead:dzmGpRead,"
+                "Scopes:DzmScopes,Lightbox:DzmLightbox,") == 1
+      and _SRCb.count('dzmGpFetch("/api/montage/scopes",') == 1 and _SRCb.count('dzmGpFetch("/api/montage/grade-frame",') == 2
+      and _SRCb.count('var DZM_SC_CLE="dz_montage_scopes"') == 1
+      and _GPC.count("dzmGradeCopyDo(c)") == 1 and _GPC.count("dzmGradePasteDo(cur.current)") == 1 and _GPC.count("dzmGpWrite(") == 0,
+      [_SRCb.count('dzmGpFetch("/api/montage/scopes",'), _SRCb.count('dzmGpFetch("/api/montage/grade-frame",')])
+
+# ── LES GARDES EN EXECUTION : un second shim (asynchrone), un mini-React ─────────────────────────────────────────────
+PROBE_L5X = r"""
+var T=window.DzTracks,out={},G=globalThis,r=null; /* `r` : le runtime jsx que la couche lit a l'appel (pose par mini) */
+function mini(Comp){var H={s:[],f:[],e:[],p:null,out:null,dirty:!1};
+  function render(p){if(p!==void 0)H.p=p;var r0=r,hx=Object.prototype.hasOwnProperty.call(G,"x"),x0=G.x,i=0,j=0,k=0,run=[];
+    r={jsx:function(t,q){return {t:t,p:q}},jsxs:function(t,q){return {t:t,p:q}}};
+    G.x={useState:function(v){var a=i++;if(!(a in H.s))H.s[a]=typeof v==="function"?v():v;
+        return [H.s[a],function(nv){H.s[a]=typeof nv==="function"?nv(H.s[a]):nv;H.dirty=!0}]},
+      useRef:function(v){var a=j++;if(!(a in H.f))H.f[a]={current:v};return H.f[a]},
+      useEffect:function(fn,d){var a=k++,o=H.e[a];
+        if(!o||!d||!o.d||d.length!==o.d.length||d.some(function(v,q){return v!==o.d[q]}))run.push([a,fn,d])}};
+    try{H.out=Comp(H.p)}finally{r=r0;if(hx)G.x=x0;else delete G.x}
+    run.forEach(function(q){var o=H.e[q[0]];if(o&&typeof o.c==="function")o.c();H.e[q[0]]={d:q[2],c:q[1]()}});
+    return H.out}
+  function flush(){var g=0;while(H.dirty&&g++<20){H.dirty=!1;render()}return H.out}
+  function unmount(){H.e.forEach(function(o){if(o&&typeof o.c==="function")o.c()});H.e=[]}
+  return {render:render,flush:flush,unmount:unmount,H:H}}
+function tous(n,acc){acc=acc||[];if(!n||typeof n!=="object")return acc;
+  if(Array.isArray(n)){n.forEach(function(k){tous(k,acc)});return acc}
+  if(n.t!==void 0&&n.p){acc.push(n);tous(n.p.children,acc)}return acc}
+function txt(n){var c=n&&n.p&&n.p.children;return typeof c==="string"?c:Array.isArray(c)?c.filter(function(k){return typeof k==="string"}).join(""):""}
+function msg(m){return tous(m).filter(function(n){return /dzm-scmsg/.test(n.p.className||"")}).map(txt)}
+function imgs(m){return tous(m).filter(function(n){return n.t==="img"}).map(function(n){return n.p.src})}
+function btn(m,l){return tous(m).filter(function(n){return n.t==="button"&&txt(n)===l})[0]}
+var TM=[],TID=0;G.setTimeout=function(f,ms){var id=++TID;TM.push({id:id,f:f,ms:ms});return id};
+G.clearTimeout=function(id){TM=TM.filter(function(t){return t.id!==id})};
+function tick(){var l=TM;TM=[];l.forEach(function(t){t.f()});return l.length}
+var FQ=[];G.fetch=function(u,op){var d={},p=new Promise(function(a,b){d.a=a;d.b=b});
+  FQ.push({u:u,body:JSON.parse(op.body),sig:op.signal||null,d:d});return p};
+function rep(i,tag){FQ[i].d.a({ok:!0,status:200,blob:function(){return Promise.resolve({blob:tag})}})}
+var UR={made:[],rev:[]};G.URL={createObjectURL:function(b){var u="blob:"+b.blob;UR.made.push(u);return u},revokeObjectURL:function(u){UR.rev.push(u)}};
+function settle(){var p=Promise.resolve();for(var i=0;i<12;i++)p=p.then(function(){return new Promise(function(a){setImmediate(a)})});return p}
+var S={dz_montage_scopes:"1"};window.localStorage={getItem:function(k){return Object.prototype.hasOwnProperty.call(S,k)?S[k]:null},setItem:function(k,v){S[k]=String(v)}};
+var SC=[{tr:"v1",id:"a",start:0,end:4,src:{job_id:"A"},effects:[{type:"wheels",gain_r:1.2}]},{tr:"v1",id:"b",start:4,end:8,src:{job_id:"B"}}];
+var M=mini(T.Scopes),R={};
+(async function(){
+  /* 1 : en lecture, AUCUN minuteur, AUCUNE requête (l'état de lecture est lu, pas seulement l'anti-rebond) */
+  M.render({clips:SC,head:1,playing:!0});R.lecture=[TM.length,FQ.length,msg(M.H.out)];
+  /* 2 : à l'arrêt, UN minuteur de 300 ms et rien avant ; 3 : la tête bouge avant 300 ms -> l'ancien minuteur annulé */
+  M.render({clips:SC,head:1,playing:!1});R.arret=[TM.map(function(t){return t.ms}),FQ.length];
+  M.render({clips:SC,head:1.5,playing:!1});R.rebond=[TM.length,FQ.length];
+  tick();R.req=[FQ.length,FQ[0]&&FQ[0].u,FQ[0]&&FQ[0].body];
+  /* 4 : nouvel instant avant la réponse -> la 1re requête ABANDONNÉE ; elle répond APRÈS la 2e : JETÉE (numéro de requête) */
+  M.render({clips:SC,head:2,playing:!1});R.abort1=!!(FQ[0]&&FQ[0].sig&&FQ[0].sig.aborted);tick();
+  rep(1,"B");await settle();M.flush();rep(0,"A");await settle();M.flush();
+  R.perimee=[imgs(M.H.out),UR.made.slice(),msg(M.H.out)];
+  /* 5 : changement de plan -> l'image de l'autre plan n'est plus montrée ; la nouvelle REMPLACE et révoque l'ancienne */
+  M.render({clips:SC,head:5,playing:!1});R.plan=[imgs(M.H.out),msg(M.H.out)];
+  tick();rep(2,"C");await settle();M.flush();R.remplace=[imgs(M.H.out),UR.rev.slice()];
+  /* 6 : la lecture repart pendant une requête en vol -> abandon, minuteur annulé, la réponse tardive est jetée */
+  M.render({clips:SC,head:5.5,playing:!1});tick();M.render({clips:SC,head:5.6,playing:!0});
+  R.lecture_abort=[!!(FQ[3]&&FQ[3].sig&&FQ[3].sig.aborted),TM.length];rep(3,"D");await settle();M.flush();R.lecture_jette=UR.made.slice();
+  /* 7 : aller-retour de la tête (6 -> 6,5 -> 6) : les DEUX requêtes abandonnées refusent APRÈS le retour — elles se taisent
+     (même quand leur empreinte redevient la courante) ; le refus de la requête COURANTE se dit, avec le détail du serveur */
+  M.render({clips:SC,head:6,playing:!1});tick();M.render({clips:SC,head:6.5,playing:!1});tick();M.render({clips:SC,head:6,playing:!1});tick();
+  FQ[5].d.a({ok:!1,status:500,json:function(){return Promise.resolve({detail:"périmé"})}});await settle();M.flush();
+  FQ[4].d.b(new Error("abandon"));await settle();M.flush();R.refus_abandon=msg(M.H.out);
+  FQ[6].d.a({ok:!1,status:500,json:function(){return Promise.resolve({detail:"ffmpeg a refusé"})}});await settle();M.flush();R.refus=msg(M.H.out);
+  /* 8 : éteindre -> URL révoquée, mémoire « 0 », plus aucune requête */
+  var n0=UR.rev.length;btn(M.H.out,"Scopes").p.onClick();M.flush();tick();
+  R.eteint=[UR.rev.slice(n0),S.dz_montage_scopes,FQ.length,imgs(M.H.out)];
+  /* 9 : rallumer, une image, une requête en vol, DÉMONTER -> abandon + URL révoquée, la réponse tardive ne crée rien */
+  btn(M.H.out,"Scopes").p.onClick();M.flush();tick();rep(7,"E");await settle();M.flush();
+  M.render({clips:SC,head:7,playing:!1});tick();var n1=UR.rev.length,nm=UR.made.length;M.unmount();
+  rep(8,"F");await settle();R.demonte=[!!(FQ[8]&&FQ[8].sig&&FQ[8].sig.aborted),UR.rev.slice(n1),UR.made.length-nm,TM.length];
+  /* LA LIGHTBOX : six plans rendus + un sans source ; au plus trois en vol ; la file suit ; fermer abandonne et révoque */
+  FQ=[];UR.made=[];UR.rev=[];TM=[];
+  var PL=[];for(var i=0;i<6;i++)PL.push({tr:"v1",id:"p"+i,start:i*2,end:i*2+2,srcIn:i,src:{job_id:"J"+i}});
+  PL.splice(2,0,{tr:"v1",id:"t",start:3.5,end:4});PL.push({tr:"v2",id:"o",start:0,end:9,src:{job_id:"O"}});
+  var L=mini(T.Lightbox),PK=[],CL=0;L.render({clips:PL,onPick:function(c){PK.push(c.id)},onClose:function(){CL++}});
+  R.lb_vol=[FQ.length,FQ.map(function(q){return [q.u,q.body.src.job_id,q.body.t,q.body.w]})];
+  rep(0,"L0");await settle();L.flush();R.lb_suite=[FQ.length,FQ[3]&&FQ[3].body.src.job_id,imgs(L.H.out)];
+  FQ[1].d.b(new Error("x"));await settle();L.flush();
+  R.lb_err=[FQ.length,tous(L.H.out).filter(function(n){return /dzm-lbph/.test(n.p.className||"")}).map(txt)];
+  L.unmount();rep(2,"tard");await settle();
+  R.lb_ferme=[FQ.slice(2).map(function(q){return !!(q.sig&&q.sig.aborted)}),UR.rev.slice(),UR.made.slice(),FQ.length];
+  out.R=R;
+})().catch(function(e){out.err=String(e&&e.stack||e)}).then(function(){console.log(JSON.stringify(out))});
+"""
+DX = {}
+if NODE and os.path.isfile(SRC_PATH) and globals().get("SRC"):
+    _shx = os.path.join(TMP, "shim_l5x.js")
+    with open(_shx, "w", encoding="utf-8") as fh:
+        fh.write('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + SRC + "\n" + PROBE_L5X)
+    _rx = sh([NODE, _shx])
+    _lx = (_rx.stdout or "").strip().splitlines()
+    try:
+        DX = json.loads(_lx[-1]) if _lx else {}
+    except Exception as _e:
+        DX = {"err": temoin(_e)}
+    check("l5x_shim_execute_sans_erreur", _rx.returncode == 0 and "err" not in DX and isinstance(DX.get("R"), dict),
+          (DX.get("err"), (_rx.stderr or "")[-400:]))
+else:
+    check("l5x_shim_execute_sans_erreur", False, "node ou source absents")
+_RX = DX.get("R") if isinstance(DX.get("R"), dict) else {}
+check("l5x_scopes_en_lecture_aucun_minuteur_aucune_requete_la_lecture_dite",
+      _RX.get("lecture") == [0, 0, ["Lecture : les scopes se rafraîchissent à l'arrêt"]], _RX.get("lecture"))
+check("l5x_scopes_a_l_arret_un_minuteur_300_ms_puis_une_requete_anti_rebond_annule_l_ancien",
+      _RX.get("arret") == [[300], 0] and _RX.get("rebond") == [1, 0]
+      and _RX.get("req") == [1, "/api/montage/scopes", {"src": {"job_id": "A"}, "t": 1.5, "effects": [{"type": "wheels", "gain_r": 1.2}]}],
+      [_RX.get("arret"), _RX.get("rebond"), _RX.get("req")])
+check("l5x_scopes_requete_remplacee_abandonnee_et_reponse_perimee_jetee",
+      _RX.get("abort1") is True and _RX.get("perimee") == [["blob:B"], ["blob:B"], []], [_RX.get("abort1"), _RX.get("perimee")])
+check("l5x_scopes_changement_de_plan_l_ancienne_image_cachee_puis_remplacee_et_revoquee",
+      _RX.get("plan") == [[], ["Mesure en cours…"]] and _RX.get("remplace") == [["blob:C"], ["blob:B"]],
+      [_RX.get("plan"), _RX.get("remplace")])
+check("l5x_scopes_la_lecture_repart_requete_abandonnee_minuteur_annule_reponse_tardive_jetee",
+      _RX.get("lecture_abort") == [True, 0] and _RX.get("lecture_jette") == ["blob:B", "blob:C"],
+      [_RX.get("lecture_abort"), _RX.get("lecture_jette")])
+check("l5x_scopes_aller_retour_les_refus_des_requetes_abandonnees_se_taisent_refus_courant_dit_avec_le_detail",
+      _RX.get("refus_abandon") == ["Mesure en cours…"] and _RX.get("refus") == ["Scopes indisponibles : ffmpeg a refusé"],
+      [_RX.get("refus_abandon"), _RX.get("refus")])
+check("l5x_scopes_eteindre_revoque_memorise_0_et_ne_demande_plus_rien",
+      _RX.get("eteint") == [["blob:C"], "0", 7, []], _RX.get("eteint"))
+check("l5x_scopes_demontage_abandonne_la_requete_revoque_l_url_la_reponse_tardive_ne_cree_rien",
+      _RX.get("demonte") == [True, ["blob:E"], 0, 0], _RX.get("demonte"))
+check("l5x_lightbox_trois_requetes_en_vol_au_plus_vignette_240_au_milieu_du_plan_dans_l_ordre",
+      _RX.get("lb_vol") == [3, [["/api/montage/grade-frame", "J0", 1, 240], ["/api/montage/grade-frame", "J1", 2, 240],
+                                ["/api/montage/grade-frame", "J2", 3, 240]]], _RX.get("lb_vol"))
+check("l5x_lightbox_une_reponse_libere_une_place_la_file_suit_l_image_montree",
+      _RX.get("lb_suite") == [4, "J3", ["blob:L0"]], _RX.get("lb_suite"))
+check("l5x_lightbox_un_refus_libere_aussi_une_place_et_se_dit_sur_la_tuile_sans_source_dit",
+      _RX.get("lb_err") == [5, ["image indisponible", "sans source", "calcul…", "calcul…", "calcul…", "calcul…"]], _RX.get("lb_err"))
+check("l5x_lightbox_fermer_abandonne_les_trois_en_vol_revoque_les_urls_rien_ne_part_ni_ne_se_cree_apres",
+      _RX.get("lb_ferme") == [[True, True, True], ["blob:L0"], ["blob:L0"], 5], _RX.get("lb_ferme"))
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)
