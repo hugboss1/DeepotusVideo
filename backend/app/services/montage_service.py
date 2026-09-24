@@ -52,6 +52,21 @@ Câblage « timeline → rendu » du handoff son_vfx_montage :
                               calculées par `montage_media` ; leur cache vit
                               dans outputs/montage_cache/, hors de tout
                               dossier que le dépôt énumère.
+  GET  /api/montage/export    D-37 — la timeline SAUVEGARDÉE en EDL CMX 3600
+                              (?format=edl) ou FCPXML 1.9 (?format=fcpxml),
+                              pièce jointe texte ; calcul PUR dans
+                              `edl_export`, sources résolues et sondées ici.
+                              400 : format inconnu, aucune timeline.
+  POST /api/montage/scenes    D-42 — {src, srcIn, dur, threshold?} → {ok,
+                              times} : les changements de plan (scdet) de
+                              l'extrait, en secondes relatives à srcIn ;
+                              `scenes.detect`, cache dans montage_cache/.
+                              400 paramètres, 404 source, 415 non vidéo.
+  POST /api/montage/reframe   D-40 — {src, srcIn, dur} → {ok, mode, points,
+                              fps, x?, motion} : le suivi horizontal du
+                              mouvement de l'extrait (`reframe.motion_track`,
+                              cache dans montage_cache/) pour le champ V1
+                              `reframe`. 400 paramètres, 404, 415.
   DELETE /api/montage/save    Efface la sauvegarde ; GET /project reconstruit
                               alors depuis la Bibliothèque.
                               GET /project sert d'abord la sauvegarde si elle
@@ -122,12 +137,16 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from loguru import logger
 from sqlalchemy import func, or_, select
 
 from app.config import settings
 from app.models.schemas import JobStatus
+from app.services import autoclips as _autoclips
+from app.services import edl_export as _edl
+from app.services import reframe as _reframe
+from app.services import scenes as _scenes
 from app.services import sfx_service
 from app.services.composition_service import FFMPEG_TIMEOUT_S
 from app.services.storage import JobRecord, async_session_factory
@@ -1216,6 +1235,226 @@ def _dz_filter(dz: dict, w: int, h: int, fps: int, dur: float) -> str:
             f":x='iw*{lerp(dz['x0'], dz['x1'])}'"
             f":y='ih*{lerp(dz['y0'], dz['y1'])}'"
             f":d=1:s={w}x{h}:fps={fps}")
+
+
+# D-40 (L7-B, 24/09/2026) — RECADRAGE. Champ optionnel `reframe` d'un clip
+# V1 : {mode: "centre"|"suivi"|"manuel", x?, points?}. Le cover historique
+# centre la fenêtre (`crop={w}:{h}`) ; `manuel` la pose à `x` (fraction de la
+# largeur de la source, centre de la fenêtre), `suivi` la fait glisser le long
+# de `points` [{t, x}]. FORMAT DU CHAMP (revue finale du lot, 24/09/2026) : t
+# en secondes ABSOLUES de la source (le client pose srcIn_analyse + t_relatif
+# à la réception de /reframe). Pourquoi : la lame, la découpe aux plans, la
+# coupe ripple et le rognage de tête AVANCENT srcIn et COPIENT le champ — en
+# temps relatif, le morceau droit d'un plan [0,10] suivi 0,2→0,8 coupé à 5 s
+# cadrait 0,2→0,5 au lieu de 0,5→0,8. En absolu, le champ reste attaché à la
+# source et chaque morceau lit sa fenêtre. `_reframe_of` rend, lui, des t
+# RELATIFS au srcIn COURANT (le temps LOCAL du flux au point du crop, qui
+# précède setpts=PTS/speed : MESURÉ, voir reframe.py), bornés à
+# (end − start) × vitesse. Aucun marqueur de format : les projets de la
+# branche n'ont jamais été livrés, et un champ relatif posé à srcIn 0 se lit
+# pareil. `centre` = None (chaîne
+# historique octet pour octet). MESURÉ le 24/09 : un `x` animé de crop passe
+# dans ffmpeg 8.1.1 (seuls w/h sont figés à la configuration, −22 de D-13).
+_RF_MODES = ("centre", "suivi", "manuel")
+_RF_MAX_POINTS = 240
+_RF_TOL = 0.004             # simplification RDP du rendu (fraction de largeur)
+
+
+def _rf_num(v) -> float | None:
+    if isinstance(v, bool):
+        return None
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return None
+    return f if math.isfinite(f) else None
+
+
+def _rf_lerp_val(pts: list, t: float) -> float:
+    """x(t) sur des paires (t, x) TRIÉES : constante avant le premier point et
+    après le dernier, linéaire entre — la règle de _mp_lerp_expr et de
+    dzmReframeAt côté client (mêmes opérations, dans le même ordre)."""
+    if t < pts[0][0]:
+        return pts[0][1]
+    for i in range(1, len(pts)):
+        if t < pts[i][0]:
+            t0, x0 = pts[i - 1]
+            t1, x1 = pts[i]
+            return x0 + (x1 - x0) * (t - t0) / (t1 - t0)
+    return pts[-1][1]
+
+
+def _reframe_of(c: dict) -> dict | None:
+    """clips V1 [].reframe → None (centré, historique) | {"mode": "manuel",
+    "x"} | {"mode": "suivi", "points": [(t, x)…]} — les points du CHAMP sont
+    en secondes ABSOLUES de source ; ceux RENDUS sont relatifs au srcIn
+    courant (a = srcIn borné à 0) : fenêtre [a, a + (end − start) × vitesse]
+    (sans durée lisible, bornée à gauche seulement) ; x borné à [0, 1] ; les
+    points hors fenêtre tombent, et un point de BORD interpolé (constante
+    au-delà du dernier) est posé en a ou en a + durée s'il en est tombé de ce
+    côté ; puis t − a arrondi au millième, dédoublonnés à 5 ms (le dernier
+    gagne), au plus 240 (sous-échantillonnés régulièrement). Même règle que
+    dzmReframeOf (client). Champ, mode ou x illisible, ou aucun point
+    valable : warning et None — jamais dans un filtergraph. Un point
+    illisible parmi d'autres est ignoré (warning)."""
+    raw = c.get("reframe")
+    if raw is None:
+        return None
+    lbl = c.get("label") or c.get("tr") or "v1"
+    if not isinstance(raw, dict) or raw.get("mode") not in _RF_MODES:
+        logger.warning(f"montage: reframe invalide ({str(raw)[:80]!r}), "
+                       f"cadrage centré — {lbl}")
+        return None
+    mode = raw["mode"]
+    if mode == "centre":
+        return None
+    if mode == "manuel":
+        x = _rf_num(raw.get("x"))
+        if x is None:
+            logger.warning(f"montage: reframe manuel sans x lisible "
+                           f"({raw.get('x')!r}), cadrage centré — {lbl}")
+            return None
+        return {"mode": "manuel", "x": max(0.0, min(1.0, x))}
+    pts_in = raw.get("points")
+    if not isinstance(pts_in, list):
+        logger.warning(f"montage: reframe suivi sans points, cadrage centré — {lbl}")
+        return None
+    spd = _v1_speed(c) or 1.0
+    s0, s1 = _rf_num(c.get("start")), _rf_num(c.get("end"))
+    dur = (s1 - s0) * spd if s0 is not None and s1 is not None else 0.0
+    a = _rf_num(c.get("srcIn"))
+    a = max(0.0, a) if a is not None else 0.0
+    b_ = a + dur if dur > 0 else None
+    pts, bad = [], 0
+    for q in pts_in:
+        if isinstance(q, dict):
+            t, x = _rf_num(q.get("t")), _rf_num(q.get("x"))
+        elif isinstance(q, (list, tuple)) and len(q) == 2:
+            t, x = _rf_num(q[0]), _rf_num(q[1])
+        else:
+            t = x = None
+        if t is None or x is None:
+            bad += 1
+            continue
+        pts.append((t, max(0.0, min(1.0, x))))
+    if bad:
+        logger.warning(f"montage: reframe — {bad} point(s) illisible(s) "
+                       f"ignoré(s) — {lbl}")
+    pts.sort(key=lambda q: q[0])
+    win: list = []
+    if pts:
+        win = [q for q in pts if q[0] >= a and (b_ is None or q[0] <= b_)]
+        if pts[0][0] < a and not (win and win[0][0] == a):
+            win.insert(0, (a, _rf_lerp_val(pts, a)))
+        if b_ is not None and pts[-1][0] > b_ and not (win and win[-1][0] == b_):
+            win.append((b_, _rf_lerp_val(pts, b_)))
+    out: list = []
+    for q in [(round(t - a, 3), x) for t, x in win]:
+        if out and q[0] - out[-1][0] < 0.005:
+            out[-1] = q
+            continue
+        out.append(q)
+    if not out:
+        logger.warning(f"montage: reframe suivi sans point valable, cadrage "
+                       f"centré — {lbl}")
+        return None
+    if len(out) > _RF_MAX_POINTS:
+        logger.warning(f"montage: reframe — {len(out)} points (max "
+                       f"{_RF_MAX_POINTS}), sous-échantillonnés — {lbl}")
+        n = len(out)
+        out = [out[round(k * (n - 1) / (_RF_MAX_POINTS - 1))]
+               for k in range(_RF_MAX_POINTS)]
+    return {"mode": "suivi", "points": out}
+
+
+def _rf_lerp_expr(pts: list, var: str = "t") -> str:
+    """La MÊME interpolation linéaire par morceaux que :func:`_mp_lerp_expr`
+    (constante avant le premier point et après le dernier), mais en ARBRE
+    ÉQUILIBRÉ de if(lt(…)) : profondeur ~log2(n) au lieu de n. MESURÉ en revue
+    le 24/09/2026 (ffmpeg 8.1.1, crop x) : l'expression en CHAÎNE de
+    `_mp_lerp_expr` échoue à la configuration (−22, « Invalid argument ») au-
+    delà de 93 points dans `clip(iw*(…)-w/2,0,iw-w)` (96 nue) — l'analyseur
+    d'expressions borne sa récursion. `_mp_lerp_expr` reste juste pour ses
+    usages (8 et 12 points au plus) ; le recadrage peut en porter 240."""
+    n = sfx_service.fnum
+    if len(pts) == 1:
+        return n(pts[0][1])
+
+    def seg(k: int) -> str:
+        (t0, v0), (t1, v1) = pts[k], pts[k + 1]
+        return f"{n(v0)}+({n(v1 - v0)})*({var}-{n(t0)})/{n(t1 - t0)}"
+
+    def arbre(a: int, b: int) -> str:          # segments a .. b-1
+        if b - a == 1:
+            return seg(a)
+        m = (a + b) // 2
+        return f"if(lt({var},{n(pts[m][0])}),{arbre(a, m)},{arbre(m, b)})"
+
+    return (f"if(lt({var},{n(pts[0][0])}),{n(pts[0][1])},"
+            f"if(lt({var},{n(pts[-1][0])}),{arbre(0, len(pts) - 1)},{n(pts[-1][1])}))")
+
+
+def _reframe_crop(rf: dict | None, w: int, h: int) -> str:
+    """Le `crop` de la chaîne cover V1 : `crop={w}:{h}` sans recadrage
+    (historique), sinon la fenêtre centrée sur iw·x, bornée au cadre :
+    `crop={w}:{h}:x='clip(iw*X-{w/2},0,iw-{w})':y=(ih-{h})/2` — X constant
+    (manuel) ou `_rf_lerp_expr` (arbre équilibré) des points simplifiés (RDP, tolérance
+    _RF_TOL : 240 points bruts feraient ~13 000 caractères par clip, plafond
+    CreateProcess 32 767) en `t` LOCAL du flux (mesuré, voir reframe.py).
+    Une source plus haute que le cadre (iw == w) : x reste 0, rien ne bouge."""
+    base = f"crop={w}:{h}"
+    if not isinstance(rf, dict):
+        return base
+    n = sfx_service.fnum
+    if rf.get("mode") == "manuel":
+        xe = n(rf["x"])
+    elif rf.get("mode") == "suivi" and rf.get("points"):
+        xe = f"({_rf_lerp_expr(_reframe.simplifier(list(rf['points']), _RF_TOL))})"
+    else:
+        return base
+    return f"{base}:x='clip(iw*{xe}-{n(w / 2)},0,iw-{w})':y=(ih-{h})/2"
+
+
+def _probe_dims(path: Path) -> tuple | None:
+    """(largeur, hauteur) AFFICHÉES du premier flux vidéo par ffprobe, ou None.
+
+    Rotation (revue L7-B, mesurée le 24/09/2026 sur ffmpeg/ffprobe 8.1.1,
+    sources 64×36 remuxées par `-display_rotation 90|-90|180`) : ffprobe
+    rend toujours `width=64,height=36` codés et la matrice d'affichage dans
+    `side_data_list[].rotation` (90, -90, -180) ; `tags.rotate` (ancien
+    muxeur) est lu aussi. Le rendu AUTOROTATE (showinfo dans un
+    -filter_complex : `s:36x64` pour 90, `s:64x36` pour 180) : un quart de
+    tour impair PERMUTE donc largeur et hauteur, sinon rien."""
+    try:
+        out = subprocess.run(
+            ["ffprobe", "-v", "error", "-select_streams", "v:0",
+             "-show_entries",
+             "stream=width,height:stream_tags=rotate:stream_side_data=rotation",
+             "-of", "json", str(path)],
+            check=False, capture_output=True, text=True, timeout=30).stdout
+        s = (json.loads(out or "{}").get("streams") or [])[0]
+        a, b = int(s["width"]), int(s["height"])
+        rot = (s.get("tags") or {}).get("rotate")
+        for sd in s.get("side_data_list") or []:
+            if isinstance(sd, dict) and "rotation" in sd:
+                rot = sd["rotation"]
+        if rot is not None and round(float(rot) / 90) % 2:
+            a, b = b, a
+        return a, b
+    except (ValueError, IndexError, KeyError, TypeError, AttributeError,
+            FileNotFoundError, OSError, subprocess.TimeoutExpired):
+        return None
+
+
+def _reframe_utile(iw: int, ih: int, w: int, h: int) -> bool:
+    """Vrai si le cover laisse de la largeur à balayer : la source mise à
+    l'échelle par force_original_aspect_ratio=increase est plus LARGE que le
+    cadre. Une source plus haute (ou de même ratio) : iw == w après scale,
+    x reste 0 — le recadrage n'a aucun effet horizontal."""
+    if iw <= 0 or ih <= 0 or w <= 0 or h <= 0:
+        return True
+    k = max(w / iw, h / ih)
+    return iw * k > w + 1
 
 
 # D-15 (22/09/2026) — RETIME. Champ optionnel `retime` d'un clip V1 :
@@ -2376,17 +2615,27 @@ async def montage_project_create(request: Request):
         cur = await asyncio.to_thread(_load_saved)
     if cur is None or (not cur.get("clips") and cur.get("vide") is not True):
         raise HTTPException(400, "Aucune timeline à enregistrer.")
+    rec = await _nouveau_projet(cur, body.get("name"), cur.get("name"), courant=True)
+    return {"ok": True, **_project_meta(rec)}
+
+
+async def _nouveau_projet(cur: dict, name, fallback, *, courant: bool) -> dict:
+    """Un projet NEUF depuis une timeline normalisée (`_save_record`) : un
+    identifiant `m_…`, le nom nettoyé, l'écriture atomique sous `_ecrit`.
+    `courant=True` (POST /projects) en fait aussi la timeline courante ;
+    `False` (POST /autoclips/create) laisse le courant intouché. Partagée
+    depuis la revue D-41 du 24/09/2026 (M7)."""
     pid = f"m_{uuid4().hex[:8]}"
-    rec = dict(cur, id=pid, project_id=pid,
-               name=_project_name(body.get("name"), cur.get("name")))
+    rec = dict(cur, id=pid, project_id=pid, name=_project_name(name, fallback))
     async with _ecrit:
         try:
             await asyncio.to_thread(_write_json_atomic,
                                     _project_path(pid, create=True), rec)
-            await asyncio.to_thread(_write_saved, rec)
+            if courant:
+                await asyncio.to_thread(_write_saved, rec)
         except OSError as e:
             raise HTTPException(500, f"Écriture du projet impossible : {e}")
-    return {"ok": True, **_project_meta(rec)}
+    return rec
 
 
 @router.get("/projects/{pid}")
@@ -2553,6 +2802,400 @@ async def _resolve_src(src: dict | None) -> Path | None:
     return None
 
 
+# D-37 (L7-B, 24/09/2026) — EXPORT EDL / FCPXML de la timeline SAUVEGARDÉE.
+# Le client pousse d'abord sa sauvegarde (POST /save) puis appelle cette
+# route : c'est le disque qui fait foi, comme pour GET /project. Le format
+# est jugé AVANT toute lecture ; les sources sont résolues UNE fois chacune
+# par `_resolve_src` (la même loi que le rendu), sondées (durée, son) pour les
+# DEUX formats — revue du 24/09/2026 : sans la durée, l'EDL ne pouvait pas dire
+# `* HANDLES: insuffisantes`. Le calcul est PUR (`edl_export`).
+_EXPORT_FORMATS = {"edl": (".edl", "text/plain; charset=utf-8"),
+                   "fcpxml": (".fcpxml", "application/xml; charset=utf-8")}
+
+
+@router.get("/export")
+async def montage_export(request: Request, format: str = ""):
+    # revue finale du lot (24/09/2026) : la route livre des CHEMINS du disque
+    # (SOURCE FILE, media-rep) — boucle locale seulement, comme les précalculs ;
+    # la sauvegarde est lue hors de la boucle d'événements.
+    _require_local(request)
+    fmt = str(format or "").strip().lower()
+    if fmt not in _EXPORT_FORMATS:
+        raise HTTPException(400, "Format d'export inconnu — edl ou fcpxml.")
+    rec = await asyncio.to_thread(_load_saved)
+    clips = [c for c in (rec or {}).get("clips") or [] if isinstance(c, dict)]
+    if not clips:
+        raise HTTPException(400, "Aucune timeline sauvegardée à exporter.")
+    meta = _tracks_meta(rec.get("tracks"))
+    loop = asyncio.get_running_loop()
+    resolve = {}
+    for c in clips:
+        k = _edl.src_key(c.get("src"))
+        if not k or k in resolve:
+            continue
+        p = await _resolve_src(c.get("src"))
+        if p is None:
+            continue
+        info = {"path": str(p), "video": p.suffix.lower() not in _AUDIO_EXTS}
+        if p.suffix.lower() not in _IMAGE_EXTS:
+            info["dur"] = await loop.run_in_executor(None, _probe_duration, p)
+            info["audio"] = await loop.run_in_executor(None, _has_audio_stream, p)
+        resolve[k] = info
+    if fmt == "edl":
+        texte = _edl.to_edl(rec, resolve, fps=30, meta=meta)
+    else:
+        texte = _edl.to_fcpxml(rec, resolve, fps=30, size=_CANVAS.get(
+            str(rec.get("ratio") or "9:16"), _CANVAS["9:16"]), meta=meta)
+    ext, mime = _EXPORT_FORMATS[fmt]
+    nom = re.sub(r"[^A-Za-z0-9._-]+", "_", str(rec.get("name") or "")).strip("._") or "montage"
+    return Response(content=texte.encode("utf-8"), media_type=mime,
+                    headers={"Content-Disposition": f'attachment; filename="{nom[:60]}{ext}"'})
+
+
+# D-42 (L7-B, 24/09/2026) — LES CHANGEMENTS DE PLAN d'un extrait de source,
+# pour « Découper aux changements de plan » (menu contextuel d'un clip
+# vidéo). Paramètres jugés AVANT toute résolution (400) ; la source passe par
+# `_media_source` (boucle locale, 404 introuvable, 415 non vidéo — la même
+# garde que les précalculs) ; le calcul est `scenes.detect` (cache disque,
+# MediaError → 415 nommé par `_media_http`). `times` en secondes RELATIVES au
+# `srcIn` demandé ; l'écran les convertit en temps de timeline (`dzmCutAt`).
+_SCENES_DUR_MAX = 4 * 3600.0
+
+
+def _scenes_num(v, nom: str, *, mini: float, maxi: float, strict: bool) -> float:
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        raise HTTPException(400, f"{nom} illisible.")
+    if not math.isfinite(f) or f > maxi or (f <= mini if strict else f < mini):
+        raise HTTPException(400, f"{nom} hors bornes.")
+    return f
+
+
+@router.post("/scenes")
+async def montage_scenes(request: Request):
+    body = await _json_body(request)
+    src_in = _scenes_num(body.get("srcIn", 0), "srcIn", mini=0.0, maxi=_SCENES_DUR_MAX * 6, strict=False)
+    dur = _scenes_num(body.get("dur"), "dur", mini=0.0, maxi=_SCENES_DUR_MAX, strict=True)
+    th = _scenes_num(body.get("threshold", 10.0), "threshold", mini=0.0, maxi=100.0, strict=True)
+    p = await _media_source(request, body.get("src"), video=True)
+    try:
+        times = await asyncio.to_thread(_scenes.detect, p, src_in, dur, threshold=th)
+    except Exception as e:
+        raise _media_http(e)
+    return {"ok": True, "times": times}
+
+
+# D-40 (L7-B, 24/09/2026) — LE SUIVI DU MOUVEMENT d'un extrait de source,
+# pour « Suivre le mouvement » (section Cadrage de l'inspecteur d'un clip V1).
+# Mêmes gardes que /scenes : paramètres jugés AVANT toute résolution (400),
+# source par `_media_source` (404 / 415), calcul `reframe.motion_track`
+# (cache disque, MediaError → 415 nommé). `points[].t` en secondes de
+# SOURCE relatives au `srcIn` demandé.
+@router.post("/reframe")
+async def montage_reframe(request: Request):
+    body = await _json_body(request)
+    src_in = _scenes_num(body.get("srcIn", 0), "srcIn", mini=0.0, maxi=_SCENES_DUR_MAX * 6, strict=False)
+    dur = _scenes_num(body.get("dur"), "dur", mini=0.0, maxi=_SCENES_DUR_MAX, strict=True)
+    p = await _media_source(request, body.get("src"), video=True)
+    try:
+        res = await asyncio.to_thread(_reframe.motion_track, p, src_in, dur)
+    except Exception as e:
+        raise _media_http(e)
+    return {"ok": True, **res}
+
+
+# D-41 (L7-B, 24/09/2026) — AUTO-CLIPS d'une source parlée. Deux routes :
+# `POST /autoclips` propose des extraits notés (service PUR `autoclips`),
+# `POST /autoclips/create` en fait un PROJET nommé. Paramètres jugés AVANT
+# toute résolution (400) ; source par `_media_source` (404 / 415 non vidéo).
+# LE TEXTE : fourni (`text`) ou celui d'un chapitre (`chapter_id` →
+# `Chapter.script_text`) → `align_to_audio` sur la source ELLE-MÊME (ffprobe
+# + silencedetect lisent la piste son d'un mp4 : aucune extraction, mesuré
+# par le banc [4] sur testsrc2+sine), gratuit. Sans texte : l'ESTIMATION
+# (`estimate_transcription`) revient `{ok:false, estimate}` tant que
+# `confirm` n'est pas `true` — puis `transcribe` (payant, synchrone : l'écran
+# attend la réponse, comme /reframe). Un `confirm` sans clé configurée rend
+# le même `{ok:false, estimate}` (estimate.ok false, `reason` lisible).
+# REVUE du 24/09/2026 : la route reste SYNCHRONE (décision du contrôleur,
+# datée) et les mots transcrits sont MIS EN CACHE (I1) sous
+# `outputs/montage_cache/<sha(chemin résolu, taille, mtime_ns, fournisseur,
+# langue)>_stt.json` — écriture atomique, jamais sur échec : une relance
+# (« Lancer » une seconde fois, un autre `n`, `llm:false`) ne repaie pas, et
+# la réponse le dit (`transcript: "stt:<f>:cache"`, sans `confirm` requis).
+# `llm:false` (I4) : heuristique seule, aucun appel au modèle. `text` et
+# `chapter_id` ensemble : 400 (M4). Durée sondée nulle : pas d'estimation
+# (M5, `ok:false` dit).
+_AUTOCLIPS_TEXT_MAX = 200_000
+_AUTOCLIPS_SEGS_MAX = 2000
+# Revue T6 (24/09/2026) — LE PLAFOND DE COÛT CONFIRMÉ. `confirm:true` exige
+# `max_usd` : l'`usd` de l'estimation que l'utilisateur a VUE et cochée. Avant
+# de payer, l'estimation refaite ici ne doit pas le dépasser de plus que cette
+# tolérance d'arrondi (l'`usd` est rendu arrondi à 4 décimales par
+# estimate_transcription) — sinon 409, rien n'est lancé. Défense serveur d'une
+# faille client mesurée le 24/09/2026 (case cochée pour 0,05 $ restée cochée
+# sous une nouvelle estimation à 0,40 $).
+_AUTOCLIPS_USD_TOL = 0.0005
+# Clôture L7-B (T8, 24/09/2026) — L'ARGENT, TROIS RESTES DES REVUES :
+#  . VERROU par clé de cache de transcription (source, taille, mtime,
+#    fournisseur, langue — la clé même de `_autoclips_stt_cle`) : une
+#    transcription payante déjà EN COURS sur la même clé rend 409 « déjà en
+#    cours » sans appeler `transcribe` (deux « Lancer » payants en parallèle,
+#    deux onglets, payaient deux fois : le cache n'est écrit qu'au retour).
+#    Test-et-pose SANS `await` entre les deux (la boucle est mono-fil), le
+#    verrou est libéré en `finally` (échec compris). Ensemble du module,
+#    borné par nature (une entrée par transcription en vol).
+#  . Le 409 « coût dépassé » rend la NOUVELLE estimation dans son corps
+#    (`estimate`, à côté de `detail`) : le client l'affiche NON cochée.
+#  . `confirm:true` SANS `max_usd` n'est refusé (400) que sur le CHEMIN
+#    PAYANT ; texte connu, chapitre ou transcription en cache : accepté.
+_AUTOCLIPS_STT_EN_COURS: set[str] = set()
+
+
+def _autoclips_stt_cle(p: Path, pid, lang) -> Path | None:
+    import hashlib
+    from app.services import montage_media as _MM
+    try:
+        st = p.stat()
+    except OSError:
+        return None
+    brut = "%s|%d|%d|%s|%s|stt" % (p.resolve(), st.st_size, st.st_mtime_ns,
+                                   pid or "", lang or "auto")
+    key = hashlib.sha1(brut.encode("utf-8")).hexdigest()[:20]
+    return _MM._cache_dir() / ("%s_stt.json" % key)
+
+
+def _autoclips_stt_lire(cle: Path | None) -> dict | None:
+    if cle is None or not cle.is_file():
+        return None
+    try:
+        v = json.loads(cle.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None                     # cache illisible : on refait
+    if not isinstance(v, dict) or not isinstance(v.get("words"), list) or not v["words"]:
+        return None
+    return v
+
+
+def _autoclips_stt_ecrire(cle: Path | None, res: dict) -> None:
+    from app.services import montage_media as _MM
+    words = res.get("words") if isinstance(res, dict) else None
+    if cle is None or not isinstance(words, list) or not words:
+        return
+    tmp = _MM._tmp_de(cle)
+    try:
+        tmp.write_text(json.dumps({"source": res.get("source"), "words": words,
+                                   "audio_duration_s": res.get("audio_duration_s"),
+                                   "end": res.get("end")}, ensure_ascii=False),
+                       encoding="utf-8")
+        _MM._ecrire(tmp, cle)
+    except OSError as e:
+        logger.warning(f"montage: cache de transcription non écrit — {e}")
+    finally:
+        if tmp.exists():
+            tmp.unlink(missing_ok=True)
+
+
+def _autoclips_str(v, nom: str, maxi: int) -> str:
+    if v is None:
+        return ""
+    if not isinstance(v, str) or len(v) > maxi:
+        raise HTTPException(400, f"{nom} illisible ou trop long.")
+    return v.strip()
+
+
+def _autoclips_src(v):
+    if not isinstance(v, (dict, str)) or not v:
+        raise HTTPException(400, "src illisible.")
+    return v
+
+
+@router.post("/autoclips")
+async def montage_autoclips(request: Request):
+    from app.services import transcribe_service as T
+    body = await _json_body(request)
+    src = _autoclips_src(body.get("src"))
+    text = _autoclips_str(body.get("text"), "text", _AUTOCLIPS_TEXT_MAX)
+    chapter_id = _autoclips_str(body.get("chapter_id"), "chapter_id", 36)
+    persona = _autoclips_str(body.get("persona"), "persona", 60) or None
+    lang_raw = _autoclips_str(body.get("lang"), "lang", 5).lower()
+    lang_stt = None if lang_raw in ("", "auto") else lang_raw
+    provider = _autoclips_str(body.get("provider"), "provider", 20) or None
+    n = body.get("n", 4)
+    if isinstance(n, bool) or not isinstance(n, (int, float)) or not 1 <= n <= 8 or n != int(n):
+        raise HTTPException(400, "n hors bornes — un entier de 1 à 8.")
+    if text and chapter_id:             # M4 : deux textes, lequel ? on ne devine pas
+        raise HTTPException(400, "text ou chapter_id, pas les deux.")
+    use_llm = body.get("llm", True)     # I4 : « Classer avec l'IA » (défaut vrai)
+    if not isinstance(use_llm, bool):
+        raise HTTPException(400, "llm illisible — true ou false.")
+    confirm = body.get("confirm") is True
+    max_usd = body.get("max_usd")
+    p = await _media_source(request, src, video=True)
+    transcript = "align"
+    if not text and chapter_id:
+        from app.services.storage import Chapter
+        async with async_session_factory() as session:
+            ch = await session.get(Chapter, chapter_id)
+        if ch is None:
+            raise HTTPException(404, "Chapitre introuvable.")
+        text = str(ch.script_text or "").strip()
+        if not text:
+            raise HTTPException(400, "Ce chapitre n'a pas de texte à caler.")
+        transcript = "chapitre"
+    if text:
+        try:
+            res = await asyncio.to_thread(T.align_to_audio, text, p, start=0.0,
+                                          lang=lang_stt or "fr")
+        except (ValueError, OSError) as e:
+            raise HTTPException(400, f"Calage impossible : {e}")
+    else:
+        dur = await asyncio.to_thread(_probe_duration, p)
+        try:
+            est = T.estimate_transcription(dur, provider)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        if dur <= 0:                    # M5 : on n'annonce pas un coût nul
+            return {"ok": False, "estimate": dict(est, ok=False),
+                    "reason": f"Durée de « {p.name} » illisible : aucune "
+                              f"estimation possible, rien n'est lancé."}
+        cle = _autoclips_stt_cle(p, est.get("provider"), lang_stt) if est.get("ok") else None
+        res = await asyncio.to_thread(_autoclips_stt_lire, cle) if cle else None
+        if res is not None:             # I1 : déjà payée, rendue gratuitement
+            transcript = "stt:%s:cache" % (res.get("source") or "?")
+        else:
+            if not confirm or not est.get("ok"):
+                return {"ok": False, "estimate": est,
+                        "reason": est.get("reason") or "Transcription payante : "
+                                  "confirmez le coût annoncé (confirm:true), ou "
+                                  "donnez le texte connu (gratuit)."}
+            if (isinstance(max_usd, bool) or not isinstance(max_usd, (int, float))
+                    or not math.isfinite(max_usd) or max_usd < 0):
+                raise HTTPException(400, "confirm:true exige max_usd : le coût annoncé que vous "
+                                         "avez accepté (nombre ≥ 0) — rien n'est lancé.")
+            usd = float(est.get("usd") or 0.0)
+            if usd > float(max_usd) + _AUTOCLIPS_USD_TOL:
+                return JSONResponse(status_code=409, content={
+                    "detail": f"Coût estimé {usd:.4f} $ supérieur au plafond confirmé "
+                              f"{float(max_usd):.4f} $ — rien n'est lancé, cochez puis "
+                              f"confirmez le nouveau coût.",
+                    "estimate": est})
+            verrou = str(cle) if cle is not None else "src:%s|%s|%s" % (p.resolve(), est.get("provider"), lang_stt)
+            if verrou in _AUTOCLIPS_STT_EN_COURS:
+                raise HTTPException(409, "Transcription de cette source déjà en cours — rien "
+                                         "n'est relancé ; relancez à son retour (elle sera "
+                                         "rendue par le cache, sans repayer).")
+            _AUTOCLIPS_STT_EN_COURS.add(verrou)
+            try:
+                try:
+                    res = await asyncio.to_thread(T.transcribe, p, provider=provider,
+                                                  language=lang_stt)
+                except Exception as e:
+                    raise HTTPException(502, f"Transcription impossible : {e}")
+                await asyncio.to_thread(_autoclips_stt_ecrire, cle, res)
+            finally:
+                _AUTOCLIPS_STT_EN_COURS.discard(verrou)
+            transcript = "stt:%s" % (res.get("source") or "?")
+    words = res.get("words") or []
+    # Revue L7-B : windows() mesurée à 1,3 s pour 18 000 mots — elle passe
+    # dans le MÊME thread que score, jamais sur la boucle.
+    def _fenetres_et_score():
+        ws = _autoclips.windows(words)
+        return ws, _autoclips.score(ws, None if use_llm else False, n, persona)
+    wins, out = await asyncio.to_thread(_fenetres_et_score)
+    return {"ok": True, "source": out["source"], "transcript": transcript,
+            "words": len(words), "windows": len(wins),
+            "duration": round(float(res.get("audio_duration_s") or res.get("end") or 0.0), 3),
+            "clips": out["clips"]}
+
+
+def _autoclips_num(v, nom: str) -> float:
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        raise HTTPException(400, f"clip.{nom} illisible.")
+    if isinstance(v, bool) or not math.isfinite(f) or f < 0 or f > _SCENES_DUR_MAX * 6:
+        raise HTTPException(400, f"clip.{nom} hors bornes.")
+    return f
+
+
+@router.post("/autoclips/create")
+async def montage_autoclips_create(request: Request):
+    """{src, clip:{start, end, segments?, title?}, name?} → un PROJET NEUF
+    (V1 = la fenêtre, A1 « son du plan » si la source a du son, S1 = les
+    segments décalés de −start et coupés à [0, dur]) → `{ok, project_id, …}`.
+    Le projet est ÉCRIT, pas ouvert : la timeline courante n'est pas touchée
+    (l'écran l'ouvre ensuite par POST /projects/{pid}/open, geste E-1)."""
+    body = await _json_body(request)
+    src = _autoclips_src(body.get("src"))
+    clip = body.get("clip")
+    if not isinstance(clip, dict):
+        raise HTTPException(400, "clip illisible.")
+    start = _autoclips_num(clip.get("start"), "start")
+    end = _autoclips_num(clip.get("end"), "end")
+    if end - start < 0.3:
+        raise HTTPException(400, "clip trop court (end − start < 0,3 s).")
+    segs = clip.get("segments", [])
+    if not isinstance(segs, list) or len(segs) > _AUTOCLIPS_SEGS_MAX:
+        raise HTTPException(400, "clip.segments illisible ou trop long.")
+    name = body.get("name")
+    if name is not None and not isinstance(name, str):
+        raise HTTPException(400, "name illisible.")
+    p = await _media_source(request, src, video=True)
+    if not isinstance(src, dict):
+        src = _src_query(src)
+    sdur = await asyncio.to_thread(_probe_duration, p)
+    if sdur <= 0:                       # M1 : sans durée, aucune fenêtre n'est sûre
+        raise HTTPException(415, f"Durée de « {p.name} » illisible : projet non créé.")
+    end = min(end, sdur)
+    if end - start < 0.3:               # M1 : la garde APRÈS le bornage
+        raise HTTPException(400, "Le clip commence après la fin de la source "
+                                 "(ou en garde moins de 0,3 s).")
+    dur = round(end - start, 3)
+    titre = str(clip.get("title") or "").strip()[:48]
+    label = (titre or p.stem)[:48]
+    clips = [{"tr": "v1", "id": "v1_ac", "label": label, "src": src,
+              "srcIn": round(start, 3), "start": 0.0, "end": dur,
+              "transition": "cut", "transition_s": 0.0}]
+    if await asyncio.to_thread(_has_audio_stream, p):
+        clips.append({"tr": "a1", "id": "a1_ac", "label": f"{label[:40]} · son du plan",
+                      "src": src, "srcIn": round(start, 3), "start": 0.0, "end": dur})
+    k = 0
+    for sg in segs:
+        if not isinstance(sg, dict):
+            continue
+        a = max(0.0, _f_or(sg.get("start")) - start)
+        b = min(dur, _f_or(sg.get("end")) - start)
+        txt = str(sg.get("text") or "").strip()
+        if not txt or b - a < 0.05:
+            continue
+        k += 1
+        s1 = {"tr": "s1", "id": f"s1ac{k:04d}", "start": round(a, 3), "end": round(b, 3),
+              "text": txt, "label": txt if len(txt) <= 46 else txt[:45] + "…"}
+        ws = []
+        for w in sg.get("words") or []:
+            if not isinstance(w, dict) or not str(w.get("w") or "").strip():
+                continue
+            ws.append({"w": str(w["w"]), "start": round(min(max(_f_or(w.get("start")) - start, a), b), 3),
+                       "end": round(min(max(_f_or(w.get("end")) - start, a), b), 3)})
+        if ws:
+            s1["words"] = ws
+        clips.append(s1)
+    cur = _save_record({"name": name or titre or f"{p.stem} · auto-clip", "ratio": "9:16",
+                        "duration": dur, "mix": {}, "clips": clips,
+                        "tracks": _CLIENT_DEFAULT_TRACKS})
+    rec = await _nouveau_projet(cur, name, titre or f"{p.stem} · auto-clip", courant=False)
+    return {"ok": True, "project_id": rec["id"], **_project_meta(rec)}
+
+
+def _f_or(v, d: float = 0.0) -> float:
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return d
+    return f if math.isfinite(f) else d
+
+
 def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
                            ducking, duration_master, preview, out,
                            audio_only=False, subs_ass=None, titles_ass=None,
@@ -2620,6 +3263,13 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     `scale=`. `stab` sans `trf` (ou `trf` disparu) : warning, plan historique.
     L'audio d'une entrée V1 n'entre jamais dans le graphe (MESURÉ) : l'entrée
     entière ne désynchronise rien.
+    D-40 : `reframe` sur v1 (None = inchangé, sinon dict nettoyé par
+    _reframe_of) — seul le `crop={w}:{h}` du cover devient
+    `crop={w}:{h}:x='clip(iw*X-w/2,0,iw-w)':y=(ih-h)/2` (_reframe_crop), X
+    constant (manuel) ou interpolé en `t` LOCAL du flux lu (suivi ; le crop
+    précède setpts=PTS/speed, donc t = temps de source depuis srcIn —
+    mesuré le 24/09, voir reframe.py). Voies vitesse, zoom et stabilisation
+    comprises ; overlays V2 intacts.
     S1 : `subs_ass` = chemin d'un fichier ASS déjà écrit (piste de
     sous-titres). Il devient le DERNIER maillon de la chaîne vidéo, juste
     avant `format=yuv420p` : le texte passe donc au-dessus des overlays V2 et
@@ -2752,6 +3402,9 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
             # format=yuv420p. Sans `dz` : dzp vide, préfixe historique.
             dzf = s.get("dz")
             dzp = f",{_dz_filter(dzf, w, h, fps, seg_durs[k])}" if isinstance(dzf, dict) else ""
+            # D-40 : recadrage — seul le `crop` du cover change (fenêtre à x
+            # fixe ou animé) ; sans `reframe` : crp = crop={w}:{h}, historique.
+            crp = _reframe_crop(s.get("reframe"), w, h)
             if spd:
                 # D-15 : retime — `flow` (minterpolate) AVANT fps=, `blend`
                 # (tblend) APRÈS fps= et avant le zoompan (voir _RETIME).
@@ -2759,12 +3412,13 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
                 rt = _v1_retime(s)
                 rtp = f",{_RETIME[rt].format(fps=fps)}" if rt else ""
                 pre = (f"scale={w}:{h}:force_original_aspect_ratio=increase,"
-                       f"crop={w}:{h},setsar=1,"
+                       f"{crp},setsar=1,"
                        f"setpts=PTS/{sfx_service.fnum(spd)}{rtp if rt == 'flow' else ''},"
                        f"fps={fps}{rtp if rt == 'blend' else ''}{dzp},format=yuv420p")
             else:
-                pre = sf if not dzp else (f"scale={w}:{h}:force_original_aspect_ratio=increase,"
-                                          f"crop={w}:{h},setsar=1,fps={fps}{dzp},format=yuv420p")
+                pre = sf if not dzp and crp == f"crop={w}:{h}" else (
+                    f"scale={w}:{h}:force_original_aspect_ratio=increase,"
+                    f"{crp},setsar=1,fps={fps}{dzp},format=yuv420p")
             # D-16 : stabilisation — vidstabtransform sur la source entière
             # PUIS trim=start=src_in:duration=d_src (ce que -ss/-t faisaient),
             # AVANT le recadrage : les bords découverts (crop=keep|black,
@@ -3407,7 +4061,7 @@ def _loudnorm_pass1(v1, v2, a_clips, music, *, loudness, **kw):
     if cmd is None:
         return None
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+        r = _ff_run(cmd, capture_output=True, text=True, timeout=180)
     except subprocess.TimeoutExpired:
         raise RuntimeError("mesure loudness (passe 1) interrompue — ffmpeg a "
                            "dépassé 3 min.")
@@ -3683,10 +4337,60 @@ async def montage_deliver_presets_put(request: Request):
     return {"ok": True, "presets": presets}
 
 
+# Revue D-40 (24/09/2026) — COMMANDE LONGUE. CreateProcess refuse une ligne
+# de plus de 32 767 caractères (WinError 206) : MESURÉ en revue, quatre clips
+# V1 en mode suivi à points bruités font 38 013 caractères. Au-delà de
+# _CMD_MAX (mesuré par subprocess.list2cmdline, la forme que Windows reçoit),
+# le graphe part dans un fichier UTF-8 temporaire et `-filter_complex <g>`
+# devient `-/filter_complex <fichier>` — la forme MESURÉE le 24/09 sur ffmpeg
+# 8.1.1 (rc 0 ; `-filter_complex_script` passe encore mais s'annonce
+# « deprecated, use -/filter_complex … instead »). Le fichier est lu par le
+# même analyseur que l'argument : contenu identique, quotes comprises. Sous
+# le seuil, ou sans -filter_complex : commande inchangée octet pour octet.
+# Rendu (_run_ffmpeg), passe 1 loudnorm et /measure passent tous par ici.
+_CMD_MAX = 30000
+
+
+def _ff_run(cmd, **kw):
+    """`subprocess.run(cmd, **kw)`, graphe long écrit dans un fichier (voir
+    plus haut) et supprimé après l'exécution, succès ou échec."""
+    fichier = None
+    if "-filter_complex" in cmd and len(subprocess.list2cmdline(
+            [str(a) for a in cmd])) > _CMD_MAX:
+        import tempfile
+        i = cmd.index("-filter_complex")
+        fd, nom = tempfile.mkstemp(prefix="dzgraphe_", suffix=".txt")
+        # Revue L7-B : le chemin est retenu AVANT l'écriture — un write qui
+        # lève (disque plein, encodage) ne laisse pas le fichier derrière lui.
+        fichier = Path(nom)
+        try:
+            with open(fd, "w", encoding="utf-8", newline="") as f:
+                f.write(cmd[i + 1])
+        except BaseException:
+            _ff_menage(fichier)
+            raise
+        cmd = list(cmd[:i]) + ["-/filter_complex", nom] + list(cmd[i + 2:])
+    try:
+        return subprocess.run(cmd, **kw)
+    finally:
+        if fichier is not None:
+            _ff_menage(fichier)
+
+
+def _ff_menage(fichier: Path) -> None:
+    """Supprime le graphe temporaire ; un OSError (fichier verrouillé par
+    l'antivirus…) est journalisé, jamais levé : il ne masque ni le résultat
+    de ffmpeg ni l'exception d'origine."""
+    try:
+        fichier.unlink(missing_ok=True)
+    except OSError as e:
+        logger.warning(f"montage: graphe temporaire non supprimé {fichier} : {e}")
+
+
 def _run_ffmpeg(cmd, out: Path) -> Path:
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True,
-                           timeout=FFMPEG_TIMEOUT_S)
+        r = _ff_run(cmd, capture_output=True, text=True,
+                    timeout=FFMPEG_TIMEOUT_S)
     except subprocess.TimeoutExpired:
         raise RuntimeError(
             f"ffmpeg a dépassé {FFMPEG_TIMEOUT_S // 60} min — rendu interrompu.")
@@ -4007,6 +4711,14 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                         await _fail(f"Stabilisation impossible : {e}")
                         return
                     st["trf"] = str(trf)
+                rf = _reframe_of(c)     # D-40 — None = historique
+                if rf is not None:
+                    dims = await loop.run_in_executor(None, _probe_dims, p)
+                    if dims and not _reframe_utile(dims[0], dims[1], w, h):
+                        logger.info(f"montage: recadrage sans effet horizontal "
+                                    f"(source {dims[0]}×{dims[1]} au moins aussi "
+                                    f"haute que le cadre {w}×{h}) — "
+                                    f"{c.get('label') or c.get('src')}")
                 v1.append({"path": p, "src_dur": sdur or 9999.0,
                            "src_in": max(0.0, float(c.get("srcIn") or 0)),
                            "start": float(c.get("start") or 0),
@@ -4015,6 +4727,7 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                            "transition_s": c.get("transition_s"),
                            "speed": _v1_speed(c),  # C4 — 0.0 = historique
                            "dz": _dz_spec(c),      # D-13 — None = historique
+                           "reframe": rf,          # D-40 — None = historique
                            "retime": _v1_retime(c),  # D-15 — None = historique
                            "stab": st,             # D-16 — None = historique
                            "effects": (c.get("effects")
@@ -4332,8 +5045,7 @@ async def montage_measure(request: Request):
         out=None, audio_only=True)
 
     def _measure():
-        return subprocess.run(cmd, capture_output=True, text=True,
-                              timeout=180)
+        return _ff_run(cmd, capture_output=True, text=True, timeout=180)
     try:
         r = await asyncio.to_thread(_measure)
     except subprocess.TimeoutExpired:

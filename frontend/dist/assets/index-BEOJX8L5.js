@@ -1978,6 +1978,10 @@ function DzMontage(props){
      booléen piloté d'ici en aurait fait une seconde source. C'est
      M20b, la branche du gestionnaire clavier, qui l'incrémente. */
   var stDzTb=x.useState(0),dzTbReq=stDzTb[0],setDzTbReq=stDzTb[1];
+  /* L7-B D-41 (24/09/2026, tâche 6) : la demande d'ouverture d'un projet créé par
+     les auto-clips du tiroir Médias — {n, id, name}, un COMPTEUR comme dzProjReq ;
+     la liste des projets l'ouvre par le chemin de « ouvrir ». */
+  var stDzAc=x.useState(null),dzAcOpen=stDzAc[0],setDzAcOpen=stDzAc[1];
   /* E-10 (lot E-C, tâche 4, 23/09/2026) : la barre d'outils ANCRÉE dans le
      bandeau — un booléen persisté (clé ci-dessous), passé en prop `docked`
      au Dock ; l'entrée ☰ › Affichage le bascule. */
@@ -2182,6 +2186,32 @@ function DzMontage(props){
        qui re-rend dans ce cas-là, sans quoi le panneau resterait intitulé « Ajouter sur la
        piste V1 » pendant qu'il remplace. */
     if(ovPick!==sel.tr)openPicker(sel.tr)}
+  function dzExportTl(fmt){var lib=fmt==="edl"?"EDL":"FCPXML",ext=fmt==="edl"?".edl":".fcpxml";
+    if(proj.demo){fireNote("Export "+lib+" : disponible sur un projet réel — la démo n'est pas sauvegardée.");return}
+    fireNote("Export "+lib+" en cours…");
+    fetch("/api/montage/save",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(svmSavePayload())})
+      .then(function(res){if(!res.ok)throw new Error("sauvegarde refusée ("+res.status+")");return fetch("/api/montage/export?format="+fmt)})
+      .then(function(res){return res.text().then(function(t){
+        if(!res.ok){var m="";try{m=(JSON.parse(t)||{}).detail||""}catch(_e){}throw new Error(m||("HTTP "+res.status))}
+        var mm=/filename="([^"]+)"/.exec(res.headers.get("Content-Disposition")||"");return {nom:mm?mm[1]:"montage"+ext,t:t}})})
+      .then(function(o){if(subsDownload(o.nom,o.t,fmt==="edl"?"text/plain":"application/xml"))fireNote(lib+" exporté : "+o.nom+" — à importer dans Resolve ou Final Cut Pro");else fireNote("Export impossible dans ce navigateur")})
+      .catch(function(e){fireNote("Export "+lib+" refusé : "+((e&&e.message)||"erreur réseau"))})}
+  function dzSceneCut(id){var c=clipsRef.current.find(function(k){return k.id===id});
+    if(!c||!c.src||!c.src.job_id){fireNote("Découpe aux changements de plan : réservée aux clips vidéo rendus.");return}
+    if(trackStRef.current[c.tr]&&trackStRef.current[c.tr].l){fireNote("Piste "+c.tr.toUpperCase()+" verrouillée — déverrouillez-la pour découper ce plan.");return}
+    var sp=typeof c.speed==="number"&&c.speed>0?c.speed:1,du=Math.round(Math.max(0,(c.end-c.start)*sp)*1e3)/1e3;
+    function dzSg(k){return [Number(k.srcIn)||0,typeof k.speed==="number"&&k.speed>0?k.speed:1,Number(k.start)||0,Number(k.end)||0,svmSrcKey(k.src)].join("|")}
+    var sg=dzSg(c);
+    fireNote("Analyse des changements de plan…");
+    fetch("/api/montage/scenes",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({src:c.src,srcIn:Number(c.srcIn)||0,dur:du})})
+      .then(function(res){return res.json().catch(function(){return {}}).then(function(j){
+        if(!res.ok)throw new Error((j&&typeof j.detail==="string"&&j.detail)||("HTTP "+res.status));return j})})
+      .then(function(j){var k2=clipsRef.current.find(function(k){return k.id===id});
+        if(k2&&dzSg(k2)!==sg){fireNote("Découpe aux changements de plan refusée : le plan a changé pendant l'analyse — relancez.");return}
+        var r2=DzTracks.cutAt(clipsRef.current,id,j&&j.times,DzTracks.cutOpts(proj,trackStRef.current));
+        if(r2.refus){fireNote(r2.note);return}
+        pushHistory();setClips(r2.clips);setDirty(!0);fireNote(r2.note)})
+      .catch(function(e){fireNote("Découpe aux changements de plan refusée : "+((e&&e.message)||"erreur réseau"))})}
   function dzMenuProps(kind,o){
     var id=o.id,ph=phRef.current,cs=clipsRef.current,rr=rootRef.current?rootRef.current.getBoundingClientRect():{left:0,top:0,width:window.innerWidth};
     var base={kind:kind,id:id,x:Math.max(0,Math.min(o.x-rr.left,rr.width-270)),y:Math.max(0,o.y-rr.top)};
@@ -2191,7 +2221,9 @@ function DzMontage(props){
         {lbl:"Projets…",run:function(){setDzProjReq(function(n){return n+1})}},
         {lbl:"Preview 480p",run:function(){setPop("preview")}},
         {lbl:"Rendre…",run:function(){setPop("render")}},
-        {lbl:"Publier",off:!dzLast,run:function(){if(dzLast){setPop("");setDzFin(Object.assign({project_id:proj.project_id||""},dzLast))}}}]});
+        {lbl:"Publier",off:!dzLast,run:function(){if(dzLast){setPop("");setDzFin(Object.assign({project_id:proj.project_id||""},dzLast))}}},
+        {lbl:"Exporter EDL…",run:function(){dzExportTl("edl")}},
+        {lbl:"Exporter FCPXML…",run:function(){dzExportTl("fcpxml")}}]});
       var aff=rubs.filter(function(g){return g.rub==="Affichage"})[0];
       if(!aff){aff={rub:"Affichage",items:[]};rubs.splice(rubs.length-1,0,aff)}
       aff.items=aff.items.concat([
@@ -2205,6 +2237,7 @@ function DzMontage(props){
       var v1=c.tr==="v1",sp=svmSpeedOf(c),g=DzTracks.voisins(cs,c).g;
       return Object.assign(base,{items:[
         {lbl:"Couper à la tête",combo:svmKeyLabel("blade"),off:!(ph>c.start+.05&&ph<c.end-.05),run:function(){dzFire("blade")}},
+        {lbl:"Découper aux changements de plan",off:!(c.src&&c.src.job_id)||trackKind(c.tr)!=="video",run:function(){dzSceneCut(id)}},
         {lbl:"Supprimer",combo:svmKeyLabel("delete"),run:function(){delClipById(id)}},
         {lbl:"Remplacer la source…",off:!c.src,run:function(){dzReplaceArm(c)}},
         {lbl:"Effets…",off:trackKind(c.tr)==="audio",run:function(){setFxPick(!0)}},{sep:!0}]
@@ -2732,6 +2765,12 @@ function DzMontage(props){
         if(!lv.paused)lv.pause();
         if(lv.playbackRate!==1)lv.playbackRate=1;
         liveSeek(lv,wt)}}
+    /* L7-B D-40 : le cadrage EN DIRECT -- la fenetre du crop du rendu, a la tete en temps de source,
+       sur la <video> active ou l'<img> du fond V1 */
+    var rfEl=c?(lv||(host.firstChild&&host.firstChild.tagName==="IMG"?host.firstChild:null)):null;
+    if(rfEl){var rfP=DzTracks.reframeCss(c,(t-c.start)*svmSpeedOf(c),rfEl.videoWidth||rfEl.naturalWidth,
+      rfEl.videoHeight||rfEl.naturalHeight,rfEl.clientWidth,rfEl.clientHeight);
+      if(rfEl.style.objectPosition!==rfP)rfEl.style.objectPosition=rfP}
     /* overlays V2 actifs à t, au-dessus du fond, opacité appliquée */
     var act={};
     cs.forEach(function(k){
@@ -4688,6 +4727,8 @@ function DzMontage(props){
         var rtD=o.speed&&DzTracks.retimeOf(c);if(rtD)o.retime=rtD;
         /* D-16 : la stabilisation -- jointe seulement si elle existe */
         var sbD=c.tr==="v1"&&DzTracks.stabOf(c);if(sbD)o.stab=sbD;
+        /* L7-B D-40 : le cadrage -- joint seulement hors centre */
+        var rfD=c.tr==="v1"&&DzTracks.reframePayload(c);if(rfD)o.reframe=rfD;
         /* mixage par clip (pistes audio) — joint seulement si non nul :
            un projet sans réglage envoie exactement le payload d'avant */
         if(trackKind(c.tr)==="audio"){
@@ -5947,7 +5988,9 @@ function DzMontage(props){
       narrPanel(),
       /* E-2 : tiroir Médias (rendus vidéo) — même emplacement, exclusif */
       r.jsx(DzTracks.MediaDrawer,{open:medOn,trId:medTr,exts:null,onClose:function(){setMedOn(!1)},dragPayload:dragPayload,
-        onAdd:function(j){addAsset({job_id:j.job_id},j.title||j.job_id,"video",j.duration_s||0,medTr||"v1")}}),
+        onAdd:function(j){addAsset({job_id:j.job_id},j.title||j.job_id,"video",j.duration_s||0,medTr||"v1")},
+        /* L7-B D-41 : le projet créé par les auto-clips est ouvert par la liste des projets (compteur) */
+        onOpenProject:function(p){setDzAcOpen(function(v){return {n:((v&&v.n)||0)+1,id:p&&p.id,name:p&&p.name}})}}),
       r.jsxs("div",{className:"svm-playerzone",
         /* formats portrait : la barre du lecteur passe dans la zone latérale
            morte (colonne à droite), le cadre garde toute la hauteur */
@@ -6217,6 +6260,28 @@ function DzMontage(props){
             if(res.refus){fireNote(res.refus==="bord"?"Trop près d'un bord (0,3 s)":"Impossible de diviser ici");return}
             pushHistory();setClips(res.clips);setSelId(res.right);setDirty(!0)},
           stabJob:dzStabJobs[DzTracks.srcKey(sel.src)]||null,onStab:function(){dzStabStart(sel.src)},
+          ratio:svmRatioW(proj.ratio),srcWH:(function(){var pl=livePoolRef.current,it=pl&&pl.get(livePoolKey(sel.src,"b"));
+            return it?[it.el.videoWidth||it.el.naturalWidth||0,it.el.videoHeight||it.el.naturalHeight||0]:[0,0]})(),
+          onReframe:function(){var id=sel.id,c=clipsRef.current.find(function(k){return k.id===id});
+            if(!c||!c.src||!c.src.job_id){fireNote("Analyse du mouvement : réservée aux clips vidéo rendus.");return Promise.resolve()}
+            function dzRfSg(k){return [Number(k.srcIn)||0,svmSpeedOf(k),Number(k.start)||0,Number(k.end)||0,svmSrcKey(k.src),
+              k.reframe&&typeof k.reframe==="object"?String(k.reframe.mode):""].join("|")}
+            var sg=dzRfSg(c),du=Math.round(Math.max(0,(c.end-c.start)*svmSpeedOf(c))*1e3)/1e3;
+            if(!(du>0)){fireNote("Analyse du mouvement refusée : plan de durée nulle.");return Promise.resolve()}
+            fireNote("Analyse du mouvement…");
+            return fetch("/api/montage/reframe",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({src:c.src,srcIn:Number(c.srcIn)||0,dur:du})})
+              .then(function(res){return res.json().catch(function(){return {}}).then(function(j){
+                if(!res.ok)throw new Error((j&&typeof j.detail==="string"&&j.detail)||("HTTP "+res.status));return j})})
+              .then(function(j){var k2=clipsRef.current.find(function(k){return k.id===id});
+                if(!k2){fireNote("Analyse du mouvement : le plan a disparu — rien n'est écrit.");return}
+                if(dzRfSg(k2)!==sg){fireNote("Analyse du mouvement refusée : le plan a changé pendant l'analyse — relancez.");return}
+                var tl=trackStRef.current.v1;if(tl&&tl.l){fireNote("Piste V1 verrouillée — cadrage non écrit.");return}
+                var si=Number(c.srcIn)||0,pts=(j&&j.mode==="suivi"&&Array.isArray(j.points)?j.points:[])
+                  .map(function(q){return {t:Math.round((si+Number(q.t))*1e3)/1e3,x:q.x}});
+                pushHistory();setClips(clipsRef.current.map(function(k){if(k.id!==id)return k;var nk=Object.assign({},k);
+                  if(pts.length)nk.reframe={mode:"suivi",points:pts};else delete nk.reframe;return nk}));setDirty(!0);
+                fireNote(pts.length?"Mouvement suivi : "+pts.length+" points.":"Peu de mouvement : centré.")})
+              .catch(function(e){fireNote("Analyse du mouvement refusée : "+((e&&e.message)||"erreur réseau"))})},
           onChange:dzPlanSet}):null,
         ovInspector(),
         audioInspector(),
@@ -6452,6 +6517,8 @@ function DzMontage(props){
              lieu d’en monter une seconde — un compteur, pas un
              booléen. */
           openReq:dzProjReq,
+          /* L7-B D-41 : ouvrir le projet créé par les auto-clips (compteur) */
+          openProj:dzAcOpen,
           payload:function(){return svmSavePayload()},
           onBefore:function(){if(saveAbortRef.current){try{saveAbortRef.current.abort()}catch(_e){}}saveSeqRef.current++;setSaveInfo(null)},
           onFail:function(){if(dirty)svmDoSave(++saveSeqRef.current)},
@@ -14676,6 +14743,23 @@ var DzmProjects=function(props){
     if(oreq<=0)return;
     setOp(!0);setArm("");setRen(null);load()},[oreq]);
 
+  /* L7-B D-41 (24/09/2026, tâche 6) — OUVRIR UN PROJET DEMANDÉ DE L'EXTÉRIEUR.
+     Le popover des auto-clips crée un projet neuf (le courant n'est pas
+     touché) puis demande son ouverture ici : `openProj` = {n, id, name}, un
+     COMPTEUR `n` pour la même raison qu'`openReq`. La demande passe par le
+     chemin MÊME de « ouvrir » : copie de sûreté d'un montage non nommé
+     (`surete`), `onBefore` (autosave en vol annulé), POST …/open, `onOpen`
+     (l'écran applique), `onNamed`, note ; un échec est dit dans la liste,
+     ouverte pour l'occasion. Pas de second clic ici : le popover l'a déjà
+     demandé (« Créer et ouvrir ? »). Liste occupée : refus dit, rien ne part. */
+  var oproj=props&&props.openProj,opn=Number(oproj&&oproj.n)||0;
+  x.useEffect(function(){
+    if(opn<=0||!oproj||!oproj.id)return;
+    var p={id:String(oproj.id),name:String(oproj.name||oproj.id)};
+    if(busy){note("Liste des projets occupée — ouvrez « "+p.name+" » depuis ☰ › Projets.");return}
+    setOp(!0);setArm("");setRen(null);setBusy(1);setErr("");
+    surete().then(function(s){if(s)ouvrir(p,s.nom)})},[opn]);
+
   function saveAs(){
     if(busy)return;
     setBusy(1);setErr("");
@@ -15120,6 +15204,15 @@ function dzmReplaceSrc(c,src,label,srcDur,now){
     .concat([hi]).slice(-DZM_HIST_MAX);
   k.src=src;k.label=label||o.label;
   if("srcOut" in k)delete k.srcOut;
+  /* L7-B D-40 (revue du 24/09/2026) : les points d'un suivi du mouvement
+     (reframe.points) décrivent l'ANCIENNE source — retirés ; le mode centré
+     ou manuel (x) est gardé, un suivi redevient centré. Dit dans la note. */
+  var ro=o.reframe,rfOld=ro&&typeof ro==="object"&&Array.isArray(ro.points)&&ro.points.length?ro:null,rfDit="";
+  if(rfOld){
+    if(rfOld.mode==="manuel"){k.reframe=Object.assign({},rfOld);delete k.reframe.points}
+    else delete k.reframe;
+    rfDit=" Le suivi du mouvement de l'ancienne source est retiré"+(rfOld.mode==="suivi"?" (cadrage centré)":"")+
+      " — relancez « Analyser le mouvement »."}
   if(d<=0){
     warn="Durée de la nouvelle source inconnue : les bornes du plan n'ont "+
       "pas pu être vérifiées — contrôlez sa fin."}
@@ -15136,7 +15229,7 @@ function dzmReplaceSrc(c,src,label,srcDur,now){
   return {clip:k,warn:warn,
     note:"Source de « "+(o.label||"ce plan")+" » remplacée par « "+
       (k.label||"")+" ». Bornes, effets, transition et mixage conservés."+
-      (warn?" "+warn:"")+" Annuler restaure les clips et le mixage — pas la "+
+      (warn?" "+warn:"")+rfDit+" Annuler restaure les clips et le mixage — pas la "+
       "durée du projet ni les pistes ; « Revenir à la version précédente » "+
       "rend aussi l'ancienne source."}}
 function dzmRevertSrc(c){
@@ -19631,6 +19724,132 @@ function dzmMpKeep(np,vals,prev){
     if((vals&&vals[k]!=null)||(prev&&prev[k]!=null))
       if(isFinite(v))np[k]=Math.min(b[1],Math.max(b[0],Math.round(v*b[2])/b[2]))});
   return np}
+/* ── L7-B D-40 (24/09/2026, tâche 4) : LE CADRAGE D'UN CLIP V1 ─────────────
+   Champ `reframe` = {mode:"centre"|"suivi"|"manuel", x?, points?:[{t,x}]}.
+   dzmReframeOf(c) est la règle MÊME de _reframe_of du backend (d70989c) :
+   centre, mode inconnu ou champ illisible -> null (cadrage historique, rien
+   ne part au rendu) ; manuel -> {mode, x borné 0..1} (x illisible -> null) ;
+   suivi -> {mode, points RELATIFS au srcIn courant}. FORMAT DU CHAMP (revue
+   finale du lot, 24/09/2026) : les t du champ sont en secondes ABSOLUES de
+   la source (posés srcIn de l'analyse + t rendu par /reframe) — la lame, la
+   découpe aux plans, la coupe ripple et le rognage de tête avancent srcIn
+   et COPIENT le champ : en absolu chaque morceau lit sa propre fenêtre (en
+   relatif, le morceau droit rejouait le début du suivi). Aucun marqueur de
+   format (projets de la branche jamais livrés ; un relatif posé à srcIn 0
+   se lit pareil). La règle, celle de _reframe_of : a = srcIn borné à 0,
+   fenêtre [a, a + (end − start) × vitesse] (vitesse lue comme _v1_speed —
+   bornée 0,25..4, « inf » -> 4, illisible, NaN ou ≤ 0 -> 1, dzmRfSpeed ; sans
+   durée lisible, bornée à gauche seulement) ; x borné 0..1 ; points triés
+   (tri stable), ceux hors fenêtre tombent et un point de BORD interpolé
+   (dzmRfLerp, constante au-delà) est posé en a ou en a + durée s'il en est
+   tombé de ce côté ; t − a arrondi au millième COMME round(t, 3) (dzmRfR3 :
+   valeur exacte du flottant, demi exact au pair — 0,0045 -> 0,004, 0,0625 ->
+   0,062), dédoublonnés à 5 ms (le dernier gagne), au plus 240 (sous-échantillonnés
+   régulièrement, index arrondi : jamais de demi exact, 239 est premier) ;
+   un point illisible est ignoré, aucun point valable -> null. Un nombre est
+   un nombre fini ou une chaîne numérique non vide (un booléen ne l'est pas,
+   comme float() côté serveur) ; ÉCART DATÉ : une chaîne en base 16/8/2 est
+   refusée des deux côtés, mais « 1_0 » (lu 10 par le serveur) est refusé ici.
+   UNITÉ RENDUE : t en secondes de SOURCE depuis srcIn (le crop précède le
+   changement de vitesse au rendu) — la tête de lecture se convertit par
+   (tête − start) × vitesse. Le rendu simplifie les points (écart ≤ 0,004 de
+   largeur), l'aperçu les lit bruts. dzmReframePayload(c) : ce que
+   renderPayload envoie — null hors cadrage, {mode, x} en manuel, et en suivi
+   les points ABSOLUS lisibles du champ (le serveur applique la même règle).
+   dzmReframeAt(rf, t) : x à l'instant t (secondes de source) d'un cadrage
+   NORMALISÉ (sortie de dzmReframeOf) — 0,5 sans cadrage, x du manuel, lerp
+   entre points, constante avant le premier et après le dernier (la forme de
+   _mp_lerp_expr). dzmReframeK(w, h, ratio) : la largeur RELATIVE de la
+   source (w/h rapporté au ratio largeur/hauteur du cadre), null si l'une des
+   mesures manque ; au-dessous de DZM_RF_UTILE la fenêtre horizontale ne
+   peut pas bouger (source portrait sur projet paysage, ou déjà au ratio) —
+   1,001 : un pixel sur un cadre de 1080, la marge de _reframe_utile du
+   backend (iw·k > w + 1).
+   dzmReframePos(x, k) : la position horizontale de l'aperçu (fraction 0..1
+   du débord, la forme d'une position d'objet couvrant) qui montre la même
+   fenêtre que le crop du rendu, centre iw·x borné au cadre :
+   (k·x − ½)/(k − 1) borné 0..1 ; null si k est inconnu ou inutile.
+   ÉCARTS DATÉS (24/09/2026, revue de T4 — T8 décidera) : la liste des clés
+   de la comparaison de projets (D-39) ne voit pas `reframe` (épinglée par
+   trois bancs) ; la chaîne « 1_0 », lue 10 par float() côté serveur, est
+   refusée ici ; les dimensions de la source (grisé, aperçu) restent
+   inconnues tant que le lecteur vivant n'a pas chargé la source — rien
+   n'est grisé alors, l'infobulle le dit ; un plan IMAGE sur V1 n'a pas la
+   section Cadrage (l'hôte ne monte que sur un rendu vidéo), l'aperçu lui
+   applique pourtant un cadrage posé (collé, ou d'avant un remplacement).
+   dzmReframeCss(c, t, w, h, fw, fh) : la chaîne de position de l'aperçu
+   vivant (« p% 50% ») ou "" (rien à écrire : pas de cadrage, source pas
+   plus large, cadre non mesurable). */
+var DZM_RF_MAX=240,DZM_RF_UTILE=1.001;
+function dzmRfNum(v){
+  if(typeof v==="number")return isFinite(v)?v:null;
+  if(typeof v!=="string"||!v.trim()||/[xob_]/i.test(v))return null;
+  var f=Number(v);return isFinite(f)?f:null}
+function dzmRfR3(t){var f=Math.floor(t*1000),k=2*f+1;
+  if(k%125===0&&k/2000===t)return (f%2?f+1:f)/1000;
+  return Number(t.toFixed(3))}
+function dzmRfSpeed(v){
+  if(typeof v==="boolean")v=v?1:0;
+  if(typeof v==="string"){var s=v.trim().toLowerCase();
+    v=/^\+?inf(inity)?$/.test(s)?4:!s||/[xob_]/.test(s)?NaN:Number(s)}
+  if(typeof v!=="number"||v!==v||v<=0)return 1;
+  return Math.max(.25,Math.min(4,v))}
+function dzmRfLerp(p,t){
+  if(t<p[0].t)return p[0].x;
+  for(var i=1;i<p.length;i++){
+    if(t<p[i].t)return p[i-1].x+(p[i].x-p[i-1].x)*(t-p[i-1].t)/(p[i].t-p[i-1].t)}
+  return p[p.length-1].x}
+function dzmRfPoints(raw){
+  var pts=[];
+  raw.forEach(function(q){var t=null,x=null;
+    if(Array.isArray(q)){if(q.length===2){t=dzmRfNum(q[0]);x=dzmRfNum(q[1])}}
+    else if(q&&typeof q==="object"){t=dzmRfNum(q.t);x=dzmRfNum(q.x)}
+    if(t===null||x===null)return;
+    pts.push({t:t,x:Math.max(0,Math.min(1,x))})});
+  return pts}
+function dzmReframeOf(c){
+  var raw=c&&c.reframe;
+  if(!raw||typeof raw!=="object"||Array.isArray(raw))return null;
+  if(raw.mode==="manuel"){var mx=dzmRfNum(raw.x);return mx===null?null:{mode:"manuel",x:Math.max(0,Math.min(1,mx))}}
+  if(raw.mode!=="suivi"||!Array.isArray(raw.points))return null;
+  var sp=dzmRfSpeed(c.speed);
+  var s0=dzmRfNum(c.start),s1=dzmRfNum(c.end),dur=s0!==null&&s1!==null?(s1-s0)*sp:0;
+  var a=dzmRfNum(c.srcIn);a=a!==null?Math.max(0,a):0;
+  var b=dur>0?a+dur:null,pts=dzmRfPoints(raw.points),win=[],out=[];
+  pts.sort(function(p,q){return p.t-q.t});
+  if(pts.length){
+    win=pts.filter(function(q){return q.t>=a&&(b===null||q.t<=b)});
+    if(pts[0].t<a&&!(win.length&&win[0].t===a))win.unshift({t:a,x:dzmRfLerp(pts,a)});
+    if(b!==null&&pts[pts.length-1].t>b&&!(win.length&&win[win.length-1].t===b))win.push({t:b,x:dzmRfLerp(pts,b)})}
+  win.forEach(function(q){q={t:dzmRfR3(q.t-a),x:q.x};
+    if(out.length&&q.t-out[out.length-1].t<.005)out[out.length-1]=q;else out.push(q)});
+  if(!out.length)return null;
+  if(out.length>DZM_RF_MAX){var n=out.length,all=out;out=[];
+    for(var k=0;k<DZM_RF_MAX;k++)out.push(all[Math.round(k*(n-1)/(DZM_RF_MAX-1))])}
+  return {mode:"suivi",points:out}}
+function dzmReframeAt(rf,t){
+  if(!rf)return .5;
+  if(rf.mode==="manuel")return typeof rf.x==="number"?rf.x:.5;
+  var p=Array.isArray(rf.points)?rf.points:[];
+  if(!p.length)return .5;
+  t=Number(t);if(!isFinite(t))t=0;
+  return dzmRfLerp(p,t)}
+function dzmReframePayload(c){
+  var rf=dzmReframeOf(c);
+  if(!rf||rf.mode!=="suivi")return rf;
+  return {mode:"suivi",points:dzmRfPoints(c.reframe.points)}}
+function dzmReframeK(w,h,ratio){
+  w=Number(w);h=Number(h);ratio=Number(ratio);
+  return w>0&&h>0&&ratio>0&&isFinite(w/h/ratio)?w/h/ratio:null}
+function dzmReframePos(x,k){
+  if(!(typeof k==="number"&&k>DZM_RF_UTILE&&isFinite(k)))return null;
+  x=Number(x);if(!isFinite(x))x=.5;
+  return Math.max(0,Math.min(1,(k*x-.5)/(k-1)))}
+function dzmReframeCss(c,t,w,h,fw,fh){
+  var rf=dzmReframeOf(c);if(!rf)return "";
+  fw=Number(fw);fh=Number(fh);
+  var p=dzmReframePos(dzmReframeAt(rf,t),fh>0?dzmReframeK(w,h,fw/fh):null);
+  return p===null?"":Math.round(p*1e4)/100+"% 50%"}
 /* L'HÔTE DES PROPRIÉTÉS DE PLAN (D-13, puis D-15 et D-16) : UNE section de
    l'inspecteur, montée UNE fois (DZ1) sur un clip V1 réel. props : {clip,
    u (avancement 0..1 de la tête dans le clip), speed (vitesse du clip),
@@ -19644,6 +19863,9 @@ function DzmPlanProps(o){
   var c=o&&o.clip,on=typeof (o&&o.onChange)==="function"?o.onChange:function(){};
   if(!c)return null;
   var st=x.useState(2),rampSpd=st[0],setRampSpd=st[1];
+  /* L7-B D-40 : les analyses du mouvement EN COURS, par id de clip (un ensemble : deux plans analysés en même temps
+     gardent chacun leur indicateur, revue du 24/09) — second useState, toujours après la garde */
+  var sb2=x.useState({}),rfBusy=!!sb2[0][c.id],setRfBusy=sb2[1];
   var dz=dzmDzOf(c),spd=Number(o.speed)||1,rt=dzmRetimeOf(c),head=Number(o.head);
   var inClip=isFinite(head)&&head-c.start>=.3&&c.end-head>=.3;
   var row=function(label,kids,key){return r.jsxs("div",{className:"svm-prop dzm-plan-row",children:[
@@ -19693,6 +19915,58 @@ function DzmPlanProps(o){
     kids.push(rng("zoom",-30,30,"Zoom","Zoom fixe en % pour cacher les bords (0 = optzoom)"));
     kids.push(row("Bords",sel(sb.crop,[["keep","garder"],["black","noir"]],
       function(v){on({stab:dzmStabNorm(Object.assign({},sb,{crop:v}))},!0)},"Que faire des bords découverts"),"stab-crop"))}
+  /* L7-B D-40 (24/09/2026, tâche 4) : le CADRAGE — trois modes (boutons,
+     lourds), la position du mode manuel (curseur 0..100 %, léger : la
+     rafale de 600 ms fait UNE entrée), « Analyser le mouvement »
+     (o.onReframe, qui rend une promesse ; désactivé pendant l'analyse DE CE
+     clip, le second useState — après la garde, comme la rampe). REVUE du
+     24/09 : pendant l'analyse d'un clip, ses TROIS modes et le curseur sont
+     GELÉS (grisés, titre « analyse en cours ») — la réponse ne doit pas
+     écraser un mode choisi entre-temps ; le bundle garde en plus le mode dans
+     l'empreinte de la réponse. props :
+     srcWH = [largeur, hauteur] de la source lues sur l'élément du lecteur
+     vivant ([0,0] si inconnues), ratio = largeur/hauteur du cadre. Source pas
+     plus large que le cadre : le crop horizontal ne bouge rien -> Suivre,
+     Manuel, le curseur et l'analyse sont GRISÉS avec une infobulle (E-12 :
+     jamais masqués) ; « Centré » reste actif. Les points de l'analyse restent
+     sur le clip en mode centré ou manuel : revenir à « Suivre » ne relance
+     rien (le payload ne les porte qu'en mode suivi, dzmReframeOf). */
+  var rf=c.reframe&&typeof c.reframe==="object"&&!Array.isArray(c.reframe)?c.reframe:null,rfN=dzmReframeOf(c);
+  var rfMode=rfN?rfN.mode:"centre",wh=Array.isArray(o.srcWH)?o.srcWH:[0,0];
+  var rfK=dzmReframeK(wh[0],wh[1],o.ratio),rfSans=rfK!==null&&!(rfK>DZM_RF_UTILE);
+  var rfPts=rf&&Array.isArray(rf.points)&&rf.points.length?rf.points:null;
+  var rfT0=isFinite(head)?Math.max(0,(head-c.start)*spd):0;
+  /* le manuel part de la position que le suivi montrerait à la tête (points gardés compris), sinon du cadrage courant */
+  var rfSuivi=rfPts?dzmReframeOf({start:c.start,end:c.end,speed:c.speed,srcIn:c.srcIn,reframe:{mode:"suivi",points:rfPts}}):null;
+  var rfNon="Sans effet sur ce plan : la source n'est pas plus large que le cadre du projet — le recadrage horizontal ne déplace rien";
+  var rfInc=rfK===null?" (dimensions de la source pas encore lues : placez la tête sur le plan)":"";
+  var rfGel="Analyse du mouvement en cours sur ce plan — les modes reviennent à la fin";
+  var rfAnalyse=function(){if(typeof o.onReframe!=="function"||rfBusy)return;var id=c.id;
+    setRfBusy(function(m){var n=Object.assign({},m);n[id]=!0;return n});
+    var fin=function(){setRfBusy(function(m){var n=Object.assign({},m);delete n[id];return n})};
+    Promise.resolve(o.onReframe()).then(fin,fin)};
+  var rfBtn=function(m,lbl,title,dis,cb){return r.jsx("button",{className:"svm-minibtn dzm-rf-mode","data-on":rfMode===m?"1":"",
+    "aria-pressed":rfMode===m,disabled:dis,title:title,onClick:cb,children:lbl},"rf-"+m)};
+  kids.push(row("Cadrage",r.jsxs("span",{className:"dzm-plan-hint dzm-rf",children:[
+    rfBtn("centre","Centré",rfBusy?rfGel:"Cadrage centré (historique) — les points d'une analyse restent gardés pour « Suivre »",rfBusy,
+      function(){on({reframe:rfPts?{mode:"centre",points:rfPts}:void 0},!0)}),
+    rfBtn("suivi","Suivre",rfSans?rfNon:rfBusy?rfGel:(rfPts?"Suivre le mouvement analysé ("+rfPts.length+" points)":"Suivre le mouvement : analyse la source puis fait glisser la fenêtre")+rfInc,
+      rfSans||rfBusy,function(){if(rfPts)on({reframe:{mode:"suivi",points:rfPts}},!0);else rfAnalyse()}),
+    rfBtn("manuel","Manuel",rfSans?rfNon:rfBusy?rfGel:"Position fixe de la fenêtre, réglée au curseur"+rfInc,rfSans||rfBusy,
+      function(){var m={mode:"manuel",x:Math.round(dzmReframeAt(rfSuivi||rfN,rfT0)*1000)/1000};if(rfPts)m.points=rfPts;on({reframe:m},!0)})]}),"rf"));
+  if(rfMode==="manuel"){var rfV=Math.round(rfN.x*100);
+    kids.push(row("Position",r.jsxs("span",{className:"dzm-plan-hint dzm-rf",children:[
+      r.jsx("input",{type:"range",min:0,max:100,step:1,value:rfV,disabled:rfSans||rfBusy,"aria-label":"Position horizontale du cadrage",
+        title:rfSans?rfNon:rfBusy?rfGel:"Position horizontale de la fenêtre dans la source : 0 % à gauche, 100 % à droite",
+        onChange:function(e){var v=Number(e.target.value);if(!isFinite(v))return;
+          on({reframe:Object.assign({},rf,{mode:"manuel",x:Math.max(0,Math.min(100,v))/100})},!1)}}),
+      r.jsx("span",{className:"dzm-rf-val",children:rfV+" %"})]}),"rf-x"))}
+  kids.push(row("Mouvement",r.jsxs("span",{className:"dzm-plan-hint dzm-rf",children:[
+    r.jsx("button",{className:"svm-minibtn",disabled:rfSans||rfBusy,
+      title:rfSans?rfNon:rfBusy?rfGel:"Analyser le mouvement de l'extrait (srcIn, durée de source) et passer en « Suivre »"+rfInc,
+      onClick:rfAnalyse,children:"Analyser le mouvement"}),
+    r.jsx("span",{className:"dzm-rf-st","data-st":rfBusy?"busy":rfMode==="suivi"?"suivi":"",
+      children:rfBusy?"analyse…":rfMode==="suivi"?rfN.points.length+" points":""})]}),"rf-an"));
   return r.jsxs("div",{className:"dzm-plan",children:[r.jsx("div",{className:"dzm-plan-t",children:"Propriétés du plan"}),
     r.jsx("div",{className:"svm-props",children:kids})]})}
 /* LES DEUX RECTANGLES (vert = début, rouge = fin) dans le cadre du lecteur,
@@ -19752,7 +20026,21 @@ function dzmProvChips(jobs){var out=["Tout"],seen={};(jobs||[]).forEach(function
 function dzmMediaFiltre(jobs,f){var g=(f&&f.groupe)||"Tout",q=String((f&&f.q)||"").trim().toLowerCase();
   return (jobs||[]).filter(function(j){if(!j)return !1;if(g!=="Tout"&&dzmProvGroupe(j.provider)!==g)return !1;
     return !q||String(j.title||j.job_id||"").toLowerCase().indexOf(q)>=0})}
-/* LE COMPOSANT. props : {open, trId, exts, onAdd(job), onClose(), dragPayload(e,src,label,kind,dur)}.
+/* ── L7-B D-34 (24/09/2026) : LA NOTE ÉTOILE D'UN RENDU — deux fonctions PURES ──
+   La note vit EN BASE (colonne jobs.rating, `PUT /api/jobs/{id}/rating`,
+   0 = sans note ; `GET /api/jobs?min_rating=` filtre avant le limit).
+   ratingNorm : ce que le serveur rend (0..5 entier) ou 0 pour tout le reste
+   (null, "3", 3.5, true, hors bornes) — même juge que la route, qui refuse
+   ces valeurs. ratingNext : l'étoile cliquée devient la note, sauf l'étoile
+   COURANTE qui la retire (0) ; un clic illisible rend la note courante.
+   Les chips de filtre du tiroir : DZM_NOTE_CHIPS (seuil, libellé, titre). */
+function dzmRatingNorm(v){return typeof v==="number"&&v%1===0&&v>=0&&v<=5?v:0}
+function dzmRatingNext(cur,clic){var c=dzmRatingNorm(cur),k=dzmRatingNorm(clic);
+  if(!k)return c;return k===c?0:k}
+var DZM_NOTE_CHIPS=[[3,"★ 3+","Ne montrer que les rendus notés 3 ★ ou plus (filtré par le serveur)"],
+  [5,"★ 5","Ne montrer que les Good Take (5 ★, filtré par le serveur)"]];
+/* LE COMPOSANT. props : {open, trId, exts, onAdd(job), onClose(), dragPayload(e,src,label,kind,dur),
+   onOpenProject({id,name}) (L7-B D-41 : relayé au popover des auto-clips)}.
    Il lit `r`/`x` À L'APPEL (comme DzmFinBandeau) et ses hooks tournent
    ferme comme ouvert — l'hôte le monte en permanence et bascule `open`,
    la règle des hooks interdit un `return null` avant les useState.
@@ -19773,6 +20061,9 @@ function dzmMediaFiltre(jobs,f){var g=(f&&f.groupe)||"Tout",q=String((f&&f.q)||"
    manquée n'a pas été comptée, l'offset n'a pas avancé). Vignette : la première
    image de la bande (`/api/montage/strip … n=1`). Durée : `dzmDurTxt`,
    le formateur déjà partagé avec le transport (pas de second m:ss). */
+/* DZM_MED_ATT (revue T6, 24/09/2026) : l'attente des notes en vol avant une recharge depuis la page 0 est bornée
+   à 15 s — un PUT qui ne répond jamais ne bloque pas le tiroir */
+var DZM_MED_ATT=15000;
 var DZM_MED_PAGE=24,DZM_MED_REPOS=250;
 function DzmMediaDrawer(o){
   o=o||{};
@@ -19782,15 +20073,46 @@ function DzmMediaDrawer(o){
   var s4=x.useState("Tout"),groupe=s4[0],setGroupe=s4[1];
   var s5=x.useState(""),q=s5[0],setQ=s5[1];
   var s6=x.useState(""),st=s6[0],setSt=s6[1];
-  var seq=x.useRef(0),vivant=x.useRef(!0);
+  /* L7-B D-34 : seuil de note (0 = tous) passé au serveur, et la phrase d'un refus de note */
+  var s7=x.useState(0),minNote=s7[0],setMinNote=s7[1];
+  var s8=x.useState(""),noteMsg=s8[0],setNoteMsg=s8[1];
+  /* noteSeq : compteur de clics par job ; noteConf : dernière note confirmée par le serveur ;
+     noteFile : la file des PUT par job ; vague : +1 à chaque rechargement depuis la page 0 */
+  var seq=x.useRef(0),vivant=x.useRef(!0),noteSeq=x.useRef({}),noteConf=x.useRef({}),noteFile=x.useRef({}),vague=x.useRef(0);
+  /* L7-B D-41 : la ligne dont le popover des auto-clips est ouvert (null = fermé) ; refermer le tiroir le ferme */
+  var s9=x.useState(null),ac=s9[0],setAc=s9[1];
   x.useEffect(function(){vivant.current=!0;return function(){vivant.current=!1}},[]);
+  x.useEffect(function(){if(!o.open)setAc(null)},[o.open?1:0]);
   var qServ=q.trim().length>=2?q.trim():"";
+  /* L7-B D-34 (revue 24/09/2026, restes de T7) : une recharge DEPUIS LA PAGE 0
+     attend d'abord les notes en vol (toutes les files de PUT, qui ne rejettent
+     jamais : chacune finit par son propre retour arrière) — sans cela, sous
+     filtre, la liste était demandée AVANT que le serveur ait reçu la note et
+     montrait l'ancienne (mesuré en scénario : ★ 3+ cliquée pendant un PUT lent
+     qui baisse j8 à 1 → j8 revenait noté 5). Au retour de cette page 0, les
+     trois mémoires par rendu (compteur, note confirmée, file) sont VIDÉES de
+     tout rendu dont la file est celle qu'on a attendue — les absents de la
+     nouvelle page compris ; un présent relira sa note fraîche au prochain clic.
+     Une file partie PENDANT l'attente n'est pas touchée. « Plus » n'attend pas.
+     L'attente est bornée à DZM_MED_ATT (15 s, revue T6) : au-delà la recharge part.
+     Clôture T8 (24/09/2026) : chaque file attendue marque sa FIN (`fini`) ; un
+     rendu dont le PUT est ENCORE en cours après le plafond garde ses trois
+     mémoires (son retour arrière éventuel reste juste). */
   var charge=function(off,qq,remplace){
-    var n=++seq.current;setSt("…");
-    var u="/api/jobs?limit="+DZM_MED_PAGE+"&offset="+off+"&video=1"+(qq?"&q="+encodeURIComponent(qq):"");
-    return fetch(u).then(function(res){if(!res.ok)throw new Error("HTTP "+res.status);return res.json()})
-      .then(function(d){if(!vivant.current||n!==seq.current)return;
+    var n=++seq.current;setSt("…");if(remplace)vague.current++;
+    var u="/api/jobs?limit="+DZM_MED_PAGE+"&offset="+off+"&video=1"+(qq?"&q="+encodeURIComponent(qq):"")
+      +(minNote>0?"&min_rating="+minNote:"");
+    var att=remplace?Object.assign({},noteFile.current):null,fini={};
+    var enVol=att?new Promise(function(z){var h=setTimeout(z,DZM_MED_ATT);
+      Promise.all(Object.keys(att).map(function(k2){return att[k2].then(function(){fini[k2]=1})})).then(function(){clearTimeout(h);z()})}):Promise.resolve();
+    var passe={};
+    return enVol.then(function(){if(!vivant.current||n!==seq.current)return passe;
+        return fetch(u).then(function(res){if(!res.ok)throw new Error("HTTP "+res.status);return res.json()})})
+      .then(function(d){if(d===passe||!vivant.current||n!==seq.current)return;
         var page=Array.isArray(d)?d:[];
+        if(att)Object.keys(Object.assign({},noteSeq.current,noteConf.current,noteFile.current)).forEach(function(k2){
+          if(noteFile.current[k2]!==att[k2]||(att[k2]&&!fini[k2]))return;
+          delete noteSeq.current[k2];delete noteConf.current[k2];delete noteFile.current[k2]});
         setJobs(function(prev){var base=remplace?[]:prev,vu={};base.forEach(function(j){if(j&&j.job_id)vu[j.job_id]=1});
           return base.concat(page.filter(function(j){if(!j||!j.job_id||vu[j.job_id])return !1;vu[j.job_id]=1;return !0}))});
         setOffset(off+page.length);setFin(page.length<DZM_MED_PAGE);setSt("")})
@@ -19799,7 +20121,39 @@ function DzmMediaDrawer(o){
   x.useEffect(function(){
     if(!o.open)return;
     var t=setTimeout(function(){charge(0,qServ,!0)},qServ?DZM_MED_REPOS:0);
-    return function(){clearTimeout(t)}},[o.open?1:0,qServ]);
+    return function(){clearTimeout(t)}},[o.open?1:0,qServ,minNote]);
+  /* L7-B D-34 : noter un rendu. Mise à jour LOCALE d'abord (optimiste), puis
+     PUT. Les PUT d'un même rendu partent EN FILE (chaîne par job) : deux
+     clics rapides arrivent au serveur dans l'ordre, la dernière note gagne.
+     Un refus remet la dernière note CONFIRMÉE par le serveur — seulement si
+     aucune note plus récente n'a été posée entre-temps (compteur par job) —
+     et le dit. Ni pose sur la piste ni glisser : la ligne n'en voit rien.
+     OFFSET SOUS FILTRE (revue 24/09/2026, mesuré : ★ 5, limit 2, page 1
+     [j8, j5], j8 remis à 0, « Plus » demandait offset 2 et rendait [] — j2
+     n'apparaissait jamais) : la ligne RESTE affichée (on peut la re-noter
+     aussitôt), mais au SUCCÈS l'offset local suit ce que le serveur compte
+     désormais sous le filtre : −1 quand la note confirmée passe sous le seuil,
+     +1 quand elle le repasse. Rien sur un refus (le serveur n'a pas bougé),
+     rien si la liste a été rechargée entre-temps (vague de chargement). */
+  var noter=function(j,clic){var jid=String(j.job_id||"");if(!jid)return;
+    var avant=dzmRatingNorm(j.rating),apres=dzmRatingNext(avant,clic);if(apres===avant)return;
+    var k=(noteSeq.current[jid]||0)+1;noteSeq.current[jid]=k;
+    if(!(jid in noteConf.current))noteConf.current[jid]=avant;
+    var seuil=minNote,v0=vague.current;
+    var pose=function(v){setJobs(function(prev){return prev.map(function(q2){
+      return q2&&q2.job_id===jid?Object.assign({},q2,{rating:v}):q2})})};
+    pose(apres);setNoteMsg("");
+    var envoi=(noteFile.current[jid]||Promise.resolve()).then(function(){
+      return fetch("/api/jobs/"+encodeURIComponent(jid)+"/rating",{method:"PUT",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({rating:apres})})})
+      .then(function(res){if(!res.ok)return res.json().catch(function(){return {}}).then(function(d){
+        throw new Error((d&&typeof d.detail==="string"&&d.detail)||("HTTP "+res.status))})
+        var c0=noteConf.current[jid];noteConf.current[jid]=apres;
+        if(vivant.current&&seuil>0&&vague.current===v0){var dl=(apres>=seuil?1:0)-(c0>=seuil?1:0);
+          if(dl)setOffset(function(o2){return Math.max(0,o2+dl)})}})
+      .catch(function(e){if(!vivant.current||noteSeq.current[jid]!==k)return;pose(noteConf.current[jid]);
+        setNoteMsg("Note refusée : "+String((e&&e.message)||"erreur réseau")+" — note d'avant remise.")});
+    noteFile.current[jid]=envoi};
   if(!o.open)return null;
   var vus=jobs.filter(function(j){return dzmIsVideoJob(j,o.exts)});
   var chips=dzmProvChips(vus),g=chips.indexOf(groupe)>=0?groupe:"Tout";
@@ -19817,7 +20171,26 @@ function DzmMediaDrawer(o){
           r.jsx("div",{className:"svm-medtitle",children:lbl}),
           r.jsxs("div",{className:"svm-medsub",children:[
             r.jsx("span",{children:j.duration_s>0?dzmDurTxt(j.duration_s):"—"}),
-            r.jsx("span",{className:"svm-themechip svm-medgrp",children:dzmProvGroupe(j.provider)})]})]})]},jid||lbl)};
+            r.jsx("span",{className:"svm-themechip svm-medgrp",children:dzmProvGroupe(j.provider)}),
+            /* L7-B D-41 : « ✂ auto-clips » ouvre le popover de CETTE ligne ; comme les étoiles, son clic
+               n'atteint pas la ligne (pas de pose) et un glisser commencé dessus est annulé */
+            r.jsx("button",{type:"button",className:"svm-medac",draggable:!0,
+              title:"Auto-clips — proposer des extraits de 15 à 60 s de ce rendu (texte connu gratuit ; transcription payante seulement après confirmation)",
+              "aria-label":"Auto-clips de « "+lbl+" »","data-on":ac&&String(ac.job_id)===jid?"":void 0,
+              onDragStart:function(e){e.preventDefault();e.stopPropagation()},
+              onClick:function(e){e.stopPropagation();e.preventDefault();setAc(j)},children:"✂ auto-clips"})]}),
+          /* L7-B D-34 : cinq étoiles. Le span est son propre point de glisser
+             (annulé) pour qu'un geste commencé sur une étoile ne tire pas la
+             ligne ; le clic d'une étoile n'atteint pas la ligne (pas de pose). */
+          r.jsx("span",{className:"svm-medstars",draggable:!0,
+            onDragStart:function(e){e.preventDefault();e.stopPropagation()},
+            children:[1,2,3,4,5].map(function(i){var cur=dzmRatingNorm(j.rating);
+              /* une étoile n'est pas une bascule (l'étoile 2 d'une note 4 est allumée
+                 mais cliquer la baisse) : on dit l'ACTION, même phrase que l'infobulle */
+              var ti=i===cur?"Retirer la note ("+i+" ★)":"Noter "+i+" ★"+(i===5?" — Good Take":"");
+              return r.jsx("button",{type:"button",className:"svm-medstar","data-on":i<=cur?"":void 0,
+                title:ti,"aria-label":ti,
+                onClick:function(e){e.stopPropagation();e.preventDefault();noter(j,i)},children:"★"},i)})})]})]},jid||lbl)};
   return r.jsxs("div",{className:"svm-meddrawer",children:[
     r.jsxs("div",{className:"svm-medhead",children:[
       r.jsx("div",{className:"svm-poptitle",children:"Médias — rendus vidéo"+(o.trId?" → "+o.trId:"")}),
@@ -19827,12 +20200,213 @@ function DzmMediaDrawer(o){
     r.jsx("div",{className:"svm-medchips",children:chips.map(function(c){
       return r.jsx("button",{className:"svm-themechip","data-on":c===g?"":void 0,
         onClick:function(){setGroupe(c)},children:c},c)})}),
+    /* L7-B D-34 : les chips de note — re-demandent la liste au serveur depuis la page 0 ; re-cliquer la chip active la retire */
+    r.jsx("div",{className:"svm-medchips svm-mednotes",children:DZM_NOTE_CHIPS.map(function(n){
+      return r.jsx("button",{type:"button",className:"svm-themechip","data-on":minNote===n[0]?"":void 0,
+        title:minNote===n[0]?"Retirer le filtre de note — tous les rendus":n[2],
+        onClick:function(){setMinNote(minNote===n[0]?0:n[0])},children:n[1]},n[0])})}),
     r.jsx("div",{className:"svm-medlist",children:liste.map(row)}),
+    noteMsg?r.jsx("div",{className:"svm-medst svm-mednotemsg",children:noteMsg}):null,
     st?r.jsx("div",{className:"svm-medst",children:st}):null,
-    !st&&!liste.length?r.jsx("div",{className:"svm-medst",children:vus.length?"Aucun rendu dans ce groupe.":"Aucun rendu vidéo terminé."}):null,
+    !st&&!liste.length?r.jsx("div",{className:"svm-medst",children:vus.length?"Aucun rendu dans ce groupe.":minNote?"Aucun rendu noté "+(minNote>=5?"5 ★":minNote+" ★ ou plus")+".":"Aucun rendu vidéo terminé."}):null,
     !fin?r.jsx("button",{className:"svm-secbtn svm-medplus",disabled:st==="…",
       title:"Charger les rendus suivants",
-      onClick:function(){charge(offset,qServ,!1)},children:"Plus"}):null]})}
+      onClick:function(){charge(offset,qServ,!1)},children:"Plus"}):null,
+    /* L7-B D-41 : le popover des auto-clips de la ligne choisie ; la clé (le job) le remonte à neuf quand la ligne change */
+    ac?r.jsx(DzmAutoclips,{src:{job_id:String(ac.job_id)},label:ac.title||String(ac.job_id),dur:ac.duration_s||0,
+      onClose:function(){setAc(null)},onOpenProject:o.onOpenProject},String(ac.job_id)):null]})}
+/* ── L7-B D-41 (24/09/2026, tâche 6) : LES AUTO-CLIPS D'UN RENDU — le client ──
+   Le backend (`POST /api/montage/autoclips`, T5) propose 1 à 8 extraits de
+   15–60 s d'une vidéo, notés 0–100 (IA si la case est cochée, repli
+   heuristique gratuit sinon). Le TEXTE CONNU est calé sur le son (gratuit) ;
+   sans lui il faut une transcription PAYANTE, que le serveur n'exécute que
+   sur `confirm:true`. RÈGLE DE LA DÉPENSE, tenue par le cœur pur
+   `dzmAcPayload` : `confirm:true` part SEULEMENT si la case « Payer la
+   transcription » a été cochée POUR L'ESTIMATION AFFICHÉE (l'état `payer`
+   retient l'objet estimation coché, pas un booléen : toute estimation neuve
+   est un autre objet, la coche ne la couvre pas) ET que cette estimation est
+   `ok`, pour cette même source, avec un coût lisible ET qu'aucun texte connu
+   n'est donné (le texte rend la transcription inutile). Le corps porte alors
+   `max_usd` = ce coût : le serveur refuse (409) si l'estimation qu'il refait
+   le dépasse. En plus, la coche retombe à chaque estimation reçue, à chaque
+   changement du texte, du nombre ou de la langue, et dès l'envoi confirmé ;
+   un second envoi confirmé ne part pas tant que le premier est en vol.
+   REVUE DU 24/09/2026 (mesurée par le reviewer) : la coche booléenne d'une
+   estimation à 0,05 $ survivait à un lancement avec texte puis couvrait une
+   nouvelle estimation à 0,40 $ — confirm partait sans nouvelle coche.
+   Une transcription déjà payée est rendue par le cache du serveur
+   (`transcript` en stt:…:cache) et le popover le dit.
+   Écart daté (24/09/2026) : `chapter_id` n'est pas envoyé — pas de sélecteur
+   de chapitre, le texte connu couvre le besoin ; le chemin serveur du
+   chapitre reste bancé (test_montage_l7b [4]) mais le popover ne l'appelle
+   pas. Langue : fr, en, es, de, it (défaut fr), envoyée à chaque requête.
+   Le projet d'un extrait est CRÉÉ par `/autoclips/create` (le courant n'est
+   pas touché) puis OUVERT par le mécanisme E-1 des projets : l'hôte relaie
+   `onOpenProject({id,name})` à la liste des projets (`openProj`, un
+   compteur), qui fait la copie de sûreté d'un montage non nommé, annule
+   l'autosave en vol, ouvre et applique — ce popover n'écrit JAMAIS la
+   timeline. « Créer le projet » est ARMÉ (second clic) comme « ouvrir ».
+   OBSOLESCENCE (même idée que D-40) : chaque requête emporte le numéro de
+   requête et la clé de la source ; une réponse arrivée après un changement
+   de ligne, une fermeture ou une requête plus récente est ignorée. Le
+   bouton est gelé pendant l'analyse. */
+function dzmAcCle(src){if(src==null||src==="")return "";if(typeof src==="string")return src;
+  try{return JSON.stringify(src)||""}catch(_e){return ""}}
+/* le nombre d'extraits : entier 1..8 (arrondi, borné), 4 pour tout illisible (vide, booléen, texte) */
+function dzmAcNum(v){if(typeof v==="string")v=v.trim()===""?NaN:Number(v);
+  if(typeof v!=="number"||!isFinite(v))return 4;return Math.min(8,Math.max(1,Math.round(v)))}
+/* les langues offertes (défaut fr) ; toute autre valeur est lue fr */
+var DZM_AC_LANGS=["fr","en","es","de","it"];
+/* le corps de POST /autoclips ; null sans source lisible. `vu` = l'estimation vue, marquée `pour` la clé de sa
+   source ; `payer` = l'estimation COCHÉE (le même objet que `vu`, ou rien) ; confirm emporte max_usd = son coût */
+function dzmAcPayload(e){e=e||{};var src=e.src;
+  if(!src||Array.isArray(src)||(typeof src!=="object"&&typeof src!=="string"))return null;
+  var b={src:src,n:dzmAcNum(e.n),llm:e.llm!==!1,lang:DZM_AC_LANGS.indexOf(e.lang)>=0?e.lang:"fr"};
+  var t=typeof e.text==="string"?e.text.trim():"";if(t)b.text=t;
+  var p=typeof e.persona==="string"?e.persona.trim().slice(0,60):"";if(p)b.persona=p;
+  var v=e.vu;
+  if(!t&&v&&typeof v==="object"&&e.payer===v&&v.ok===!0&&v.pour===dzmAcCle(src)
+    &&typeof v.usd==="number"&&isFinite(v.usd)&&v.usd>=0){b.confirm=!0;b.max_usd=v.usd}
+  return b}
+/* clôture T8 (24/09/2026) : le 409 « coût dépassé » porte la NOUVELLE estimation dans son corps ; elle devient la
+   vue marquée `pour` la source (objet neuf, jamais l'objet du corps), null sans estimation lisible. Elle passe par
+   poseVu : la coche retombe, la règle « la coche vise l'objet de l'estimation affichée » reste entière. */
+function dzmAcEstRefus(d,pour){var e=d&&typeof d==="object"?d.estimate:null;
+  if(!e||typeof e!=="object"||Array.isArray(e))return null;return Object.assign({},e,{pour:pour})}
+function dzmAcDec(v){return typeof v==="number"&&isFinite(v)?(Math.round(v*10)/10).toFixed(1).replace(".",","):"?"}
+function dzmAcUsd(u){if(typeof u!=="number"||!isFinite(u)||u<0)return "? $";
+  return u>0&&u<.01?"< 0,01 $":u.toFixed(2).replace(".",",")+" $"}
+/* l'estimation dite en une ligne : coût, durée, fournisseur ; un refus dit sa raison */
+function dzmAcEstTxt(est){if(!est||typeof est!=="object")return "";
+  if(est.ok!==!0)return "Pas de transcription payante possible"+(est.reason?" — "+String(est.reason):"");
+  var eta=Number(est.eta_s)||0,d=eta>=90?"~"+Math.round(eta/60)+" min":"~"+Math.max(1,Math.round(eta))+" s";
+  return "Transcription payante : ≈ "+dzmAcUsd(est.usd)+" · "+d+" · "+String(est.label||est.provider||"fournisseur inconnu")}
+/* d'où vient le texte des extraits (champ `transcript` de la réponse). Le chemin du chapitre n'est pas appelé
+   par le popover (écart daté plus haut) : s'il revenait, il serait dit « texte : » suivi de son nom. */
+function dzmAcTrTxt(tr){var s=String(tr==null?"":tr),m;
+  if(s==="align")return "texte connu calé sur le son (gratuit)";
+  if((m=/^stt:(.+):cache$/.exec(s)))return "transcription déjà payée, réutilisée ("+m[1]+")";
+  if((m=/^stt:(.+)$/.exec(s)))return "transcription payée ("+m[1]+")";
+  return "texte : "+(s||"?")}
+/* la ligne d'un extrait : bornes en secondes de SOURCE, durée, origine du score */
+function dzmAcClipTxt(c){c=c||{};var a=Number(c.start),b=Number(c.end);
+  return dzmAcDec(a)+" → "+dzmAcDec(b)+" s · "+dzmAcDec(b-a)+" s · "+(c.origine==="llm"?"IA":"heuristique")}
+/* LE COMPOSANT. props : {src, label, dur, onClose(), onOpenProject({id,name})}. Lit `r`/`x` À L'APPEL. */
+function DzmAutoclips(o){
+  o=o||{};
+  var s1=x.useState(""),text=s1[0],setText=s1[1];
+  var s2=x.useState(4),n=s2[0],setN=s2[1];
+  var s3=x.useState(""),persona=s3[0],setPersona=s3[1];
+  var s4=x.useState(!0),llm=s4[0],setLlm=s4[1];
+  /* payer : l'estimation COCHÉE (objet), null sinon */
+  var s5=x.useState(null),payer=s5[0],setPayer=s5[1];
+  var s6=x.useState(null),vu=s6[0],setVu=s6[1];
+  var s7=x.useState(null),res=s7[0],setRes=s7[1];
+  var s8=x.useState(""),msg=s8[0],setMsg=s8[1];
+  var s9=x.useState(0),busy=s9[0],setBusy=s9[1];
+  var s10=x.useState(-1),arm=s10[0],setArm=s10[1];
+  var s11=x.useState("fr"),lang=s11[0],setLang=s11[1];
+  /* enVolPaye : un envoi confirmé est en vol — un second ne part pas (défense en profondeur, en plus de busy) */
+  var seq=x.useRef(0),vivant=x.useRef(!0),cle=x.useRef(""),enVolPaye=x.useRef(!1);
+  var k=dzmAcCle(o.src);cle.current=k;
+  x.useEffect(function(){vivant.current=!0;return function(){vivant.current=!1}},[]);
+  /* une autre source : tout ce qui décrivait l'ancienne est oublié, une requête en vol devient obsolète */
+  x.useEffect(function(){seq.current++;setVu(null);setPayer(null);setRes(null);setMsg("");setBusy(0);setArm(-1)},[k]);
+  x.useEffect(function(){if(arm<0)return;var h=setTimeout(function(){setArm(-1)},4000);
+    return function(){clearTimeout(h)}},[arm]);
+  var frais=function(q,k0){return vivant.current&&q===seq.current&&cle.current===k0};
+  /* toute estimation reçue (ou oubliée) fait retomber la coche : elle ne couvrait que l'ancienne */
+  var poseVu=function(v){setVu(v);setPayer(null)};
+  var lire=function(rp){return rp.json().catch(function(){return {}}).then(function(d){
+    if(!rp.ok){var er=new Error((d&&typeof d.detail==="string"&&d.detail)||("HTTP "+rp.status));er.corps=d;throw er}return d})};
+  var lancer=function(){if(busy)return;
+    var b=dzmAcPayload({src:o.src,text:text,n:n,persona:persona,llm:llm,lang:lang,payer:payer,vu:vu});
+    if(!b){setMsg("Source illisible — rien n'est lancé.");return}
+    var q=++seq.current,k0=k,paye=b.confirm===!0;
+    if(paye){if(enVolPaye.current)return;enVolPaye.current=!0}
+    setBusy(1);setArm(-1);setMsg(paye?"Transcription payante en cours, puis analyse…":"Analyse…");
+    /* la case « payer » ne sert qu'une fois : décochée dès l'envoi confirmé */
+    if(paye)setPayer(null);
+    var libere=function(){if(paye)enVolPaye.current=!1};
+    fetch("/api/montage/autoclips",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)})
+      .then(lire)
+      .then(function(d){libere();if(!frais(q,k0))return;setBusy(0);
+        if(d&&d.ok===!0){var cs=Array.isArray(d.clips)?d.clips:[],sc=String(d.source||"");
+          setRes(d);poseVu(null);
+          setMsg(cs.length+" extrait"+(cs.length>1?"s":"")+" — "+dzmAcTrTxt(d.transcript)+" ; "
+            +(sc.indexOf("llm:")===0?"classés par l'IA ("+sc.slice(4)+")":"classés par l'heuristique (gratuit)")+".");return}
+        var est=(d&&d.estimate&&typeof d.estimate==="object")?d.estimate:{ok:!1};
+        setRes(null);poseVu(Object.assign({},est,{pour:k0}));
+        setMsg(String((d&&d.reason)||"Transcription payante non confirmée — rien n'a été lancé."))})
+      .catch(function(e){libere();if(!frais(q,k0))return;setBusy(0);
+        var ne=dzmAcEstRefus(e&&e.corps,k0);if(ne)poseVu(ne);
+        setMsg("Auto-clips refusés : "+String((e&&e.message)||"erreur réseau"))})};
+  var creer=function(c,i){if(busy)return;
+    if(arm!==i){setArm(i);return}
+    var q=++seq.current,k0=k,nom=String((c&&c.title)||"").trim().slice(0,48);
+    setArm(-1);setBusy(1);setMsg("Création du projet…");
+    fetch("/api/montage/autoclips/create",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({src:o.src,clip:{start:c.start,end:c.end,segments:Array.isArray(c.segments)?c.segments:[],title:nom},
+        name:nom||void 0})})
+      .then(lire)
+      .then(function(d){if(!frais(q,k0))return;setBusy(0);
+        var pid=d&&(d.project_id||d.id);
+        if(!pid){setMsg("Réponse inattendue : aucun projet n'a été créé.");return}
+        var nm=String(d.name||nom||pid);
+        /* la liste des projets dit elle-même si une copie de sûreté a été faite : ce popover ne le sait pas */
+        if(typeof o.onOpenProject==="function"){o.onOpenProject({id:String(pid),name:nm});
+          setMsg("Projet « "+nm+" » créé — ouverture demandée : il remplace le montage affiché, la liste des projets dit le résultat.")}
+        else setMsg("Projet « "+nm+" » créé — ouvrez-le depuis la liste des projets.")})
+      .catch(function(e){if(!frais(q,k0))return;setBusy(0);
+        setMsg("Création refusée : "+String((e&&e.message)||"erreur réseau"))})};
+  var libre=!!text.trim(),est=vu&&vu.pour===k?vu:null,estOk=!!(est&&est.ok===!0),coche=!!est&&payer===est;
+  var clips=(res&&Array.isArray(res.clips))?res.clips:[];
+  var goTxt=busy?"Analyse…":libre?"Lancer (texte connu, gratuit)":estOk&&coche?"Payer et lancer (≈ "+dzmAcUsd(est.usd)+")":"Estimer / Lancer";
+  var goTi=libre?"Cale le texte connu sur le son de la vidéo (gratuit), puis propose les extraits"
+    :estOk&&coche?"Lance la transcription PAYANTE annoncée (≈ "+dzmAcUsd(est.usd)+"), puis propose les extraits"
+    :"Sans texte connu : demande d'abord le coût de la transcription — rien n'est payé sans la case « Payer la transcription »";
+  return r.jsxs("div",{className:"svm-pop dzm-autoclips",role:"dialog","aria-label":"Auto-clips",children:[
+    r.jsxs("div",{className:"svm-medhead",children:[
+      r.jsx("div",{className:"svm-poptitle",children:"Auto-clips — extraits de 15 à 60 s"}),
+      r.jsx("button",{type:"button",className:"svm-secbtn",title:"Fermer les auto-clips (rien n'est lancé)",
+        onClick:function(){if(o.onClose)o.onClose()},children:"Fermer"})]}),
+    r.jsx("div",{className:"dzm-acsrc",title:k,children:"Source : "+String(o.label||"rendu")+(o.dur>0?" · "+dzmAcDec(Number(o.dur))+" s":"")}),
+    r.jsx("textarea",{className:"dzm-actext",value:text,rows:3,disabled:!!busy,
+      placeholder:"Texte connu (gratuit) — le texte dit dans la vidéo",
+      title:"Texte connu (gratuit) : le script dit dans la vidéo, calé sur le son sans transcription payante. Vide : la transcription payante est estimée d'abord.",
+      onChange:function(e){setText(e.target.value);setPayer(null)}}),
+    r.jsxs("div",{className:"dzm-acrow",children:[
+      r.jsxs("label",{className:"dzm-acn",title:"Nombre d'extraits proposés (1 à 8)",children:["Extraits ",
+        r.jsx("input",{type:"number",min:1,max:8,step:1,value:n,disabled:!!busy,onChange:function(e){setN(e.target.value);setPayer(null)}})]}),
+      r.jsx("select",{className:"dzm-aclang",value:lang,disabled:!!busy,
+        title:"Langue parlée dans la vidéo (calage du texte connu, transcription)",
+        onChange:function(e){setLang(e.target.value);setPayer(null)},
+        children:DZM_AC_LANGS.map(function(l){return r.jsx("option",{value:l,children:l},l)})}),
+      r.jsx("input",{type:"text",className:"dzm-acpersona",value:persona,maxLength:60,disabled:!!busy,
+        placeholder:"Persona (facultatif)",title:"Persona (facultatif, 60 caractères) : le public visé, ses mots-clés comptent dans le score",
+        onChange:function(e){setPersona(e.target.value)}})]}),
+    r.jsxs("label",{className:"dzm-accheck",title:"Coché : un modèle de langue note et titre les extraits (quelques centimes). Décoché : score heuristique, gratuit.",
+      children:[r.jsx("input",{type:"checkbox",checked:!!llm,disabled:!!busy,onChange:function(e){setLlm(!!e.target.checked)}}),
+        "Classer avec l'IA (quelques centimes)"]}),
+    est?r.jsx("div",{className:"dzm-acest","data-ok":estOk?"":void 0,children:dzmAcEstTxt(est)}):null,
+    estOk&&!libre?r.jsxs("label",{className:"dzm-accheck dzm-acpay",
+      title:"Cocher pour autoriser CETTE dépense au prochain « Lancer » — une seule fois ; décochée, rien n'est payé",
+      children:[r.jsx("input",{type:"checkbox",checked:coche,disabled:!!busy,onChange:function(e){setPayer(e.target.checked?est:null)}}),
+        "Payer la transcription (≈ "+dzmAcUsd(est.usd)+")"]}):null,
+    r.jsx("button",{type:"button",className:"svm-goldbtn dzm-acgo",disabled:!!busy,title:goTi,onClick:lancer,children:goTxt}),
+    msg?r.jsx("div",{className:"svm-medst dzm-acmsg",children:msg}):null,
+    r.jsx("div",{className:"dzm-aclist",children:clips.map(function(c,i){var ar=arm===i;
+      return r.jsxs("div",{className:"dzm-acclip",children:[
+        r.jsxs("div",{className:"dzm-achead",children:[
+          r.jsx("span",{className:"dzm-acscore",title:"Score 0–100 ("+(c.origine==="llm"?"IA":"heuristique")+")",
+            children:String(Math.round(Number(c.score)||0))}),
+          r.jsx("span",{className:"dzm-actitle",children:String(c.title||"Extrait "+(i+1))})]}),
+        c.hook?r.jsx("div",{className:"dzm-achook",children:String(c.hook)}):null,
+        r.jsx("div",{className:"dzm-acmeta",children:dzmAcClipTxt(c)}),
+        r.jsx("button",{type:"button",className:"svm-secbtn dzm-accreate","data-arm":ar?"":void 0,disabled:!!busy,
+          title:ar?"Confirmer : créer ce projet et l'OUVRIR — il remplace le montage affiché (un montage non nommé est d'abord mis à l'abri par la liste des projets)"
+            :"Créer un projet neuf avec cet extrait (V1, son du plan, sous-titres) — un second clic confirme",
+          onClick:function(){creer(c,i)},children:ar?"Créer et ouvrir ?":"Créer le projet"})]},i)})})]})}
 /* E-5 (lot E-B, tache 4, 23/09/2026) — LE DERNIER RENDU FINAL PAR PROJET.
    Aucun JobRecord ne porte de project_id (mesure routes.py:3330, _job_to_dict) :
    la memoire est COTE CLIENT, un store {project_id:{job_id,name,at}} que l'hote
@@ -20192,7 +20766,7 @@ function dzmBoring(clips,opts){
    la vue : le m:ss du bundle (svmRuler, réutilisé) + un dixième à la
    virgule quand il y en a un. L'hôte lit l'autre projet, appelle diff
    sur la timeline courante et monte DiffView dans son popover. */
-var DZM_DIFF_CLES=["gain","opacity","x","y","scale","rotate","effects","dz","speed","retime","stab","text","transition","transition_s","fade_in","fade_out","label","tr"];
+var DZM_DIFF_CLES=["gain","opacity","x","y","scale","rotate","effects","dz","speed","retime","stab","text","transition","transition_s","fade_in","fade_out","label","tr","reframe"];
 function dzmDiffIndex(clips){
   var m={},ord=[];
   (Array.isArray(clips)?clips:[]).forEach(function(c){
@@ -20368,6 +20942,70 @@ function dzmSubsCopy(clips,deTr,versTr,segments){
       if(s.hidden)c.hidden=!0}
     pool.push(c);out.push(c)});
   return out}
+var DZM_CUT_BORD=.05;
+/* ── L7-B D-42 (24/09/2026) : DÉCOUPER UN CLIP AUX CHANGEMENTS DE PLAN ─────
+   dzmCutAt(clips, id, times, opts) PUR -> {clips, n, refus, note}. `times`
+   = ce que rend POST /api/montage/scenes : des secondes de SOURCE comptées
+   depuis le srcIn du clip. Chaque t devient la position de timeline
+   start + t / vitesse (vitesse ×s : s secondes de source par seconde de
+   timeline, la loi de la lame) ; les positions à moins de DZM_CUT_BORD
+   (0,05 s, la tolérance de la lame) d'un bord du clip sont ignorées, comme
+   les valeurs illisibles. ÉCART MINIMAL (revue du 24/09/2026) : triées, les
+   positions candidates forment une CHAÎNE ; une position à moins de
+   DZM_CUT_BORD de la candidate PRÉCÉDENTE (retenue ou non) est ignorée —
+   une rafale de coupes (flash, fondu détecté image par image) ne garde que
+   sa première : 5 ; 5,001 ; 5,04 ; 5,06 font UNE coupe, 5 ; 5,1 en font
+   deux. Les doublons exacts tombent par la même règle. Le clip est remplacé EN PLACE par
+   ses morceaux : le premier garde son id et sa transition d'entrée, chaque
+   suivant démarre sur une jonction « cut » (transition_s 0), son srcIn
+   avance de (p − start) × vitesse — seulement si le clip a une source ou un
+   srcIn (pas de fenêtre de source inventée) — et reçoit un id UNIQUE par
+   dzmUniqueId sur la base de la lame (id + "_b" + dixièmes de p) : deux
+   coupes à moins de 0,1 s donnent p_b50 et p_b50_2, là où la lame
+   donnerait deux fois le même. Les autres champs du clip (label, src, fx…)
+   sont repris tels quels, comme par la lame. ÉCART DATÉ (24/09/2026,
+   commun avec la lame, non recalé) : les champs exprimés en temps LOCAL du
+   clip — motion_points, dz, effets animés (effects), volume_points, words,
+   reframe — sont COPIÉS tels quels sur chaque morceau ; un point posé à 3 s
+   dans le clip d'origine reste à 3 s dans chaque morceau. Côté serveur,
+   écarts datés eux aussi : le cache de l'analyse n'est pas borné en nombre
+   et sa clé ne porte pas l'empreinte du filtre (changer la chaîne scdet
+   exige de vider montage_cache) ; deux analyses simultanées ne sont pas
+   limitées (aucune file, aucun verrou par source). opts.locked = {piste: vrai}
+   (la forme de dzmCutOpts) : la piste du clip verrouillée -> refus
+   "verrou". Refus "clip" (introuvable), "aucune_coupe" (rien d'utilisable)
+   : les clips reviennent intacts (tableau neuf), n = 0, la note le dit. */
+function dzmCutAt(clips,id,times,opts){
+  var cs=Array.isArray(clips)?clips:[],locked=(opts&&opts.locked)||{};
+  var c=null,i;
+  for(i=0;i<cs.length;i++)if(cs[i]&&id!=null&&cs[i].id===id){c=cs[i];break}
+  if(!c)return {clips:cs.slice(),n:0,refus:"clip",note:"Clip introuvable — rien à découper."};
+  if(locked[c.tr])return {clips:cs.slice(),n:0,refus:"verrou",
+    note:"Piste "+String(c.tr).toUpperCase()+" verrouillée — déverrouillez-la pour découper ce plan."};
+  var c0=Number(c.start)||0,c1=Number(c.end)||0;
+  var sp=(typeof c.speed==="number"&&c.speed>0)?c.speed:1,si=Number(c.srcIn)||0;
+  var cand=[],ps=[],prev=null;
+  (Array.isArray(times)?times:[]).forEach(function(t){
+    if(t==null||t==="")return;
+    var v=Number(t);if(!isFinite(v))return;
+    var p=dzmR3(c0+v/sp);
+    if(p>c0+DZM_CUT_BORD&&p<c1-DZM_CUT_BORD)cand.push(p)});
+  cand.sort(function(a,b){return a-b});
+  cand.forEach(function(p){if(prev===null||p-prev>=DZM_CUT_BORD-1e-9)ps.push(p);prev=p});
+  if(!ps.length)return {clips:cs.slice(),n:0,refus:"aucune_coupe",
+    note:"Aucun changement de plan à découper dans ce clip."};
+  var pool=cs.slice(),bornes=[c0].concat(ps,[c1]),morceaux=[];
+  for(i=0;i<bornes.length-1;i++){
+    if(i===0){morceaux.push(Object.assign({},c,{end:bornes[1]}));continue}
+    var p=bornes[i],nid=dzmUniqueId(pool,String(c.id)+"_b"+Math.round(p*10));
+    pool.push({id:nid});
+    var k=Object.assign({},c,{id:nid,start:p,end:bornes[i+1],transition:"cut",transition_s:0});
+    if(c.srcIn!=null||c.src)k.srcIn=dzmR3(si+(p-c0)*sp);
+    morceaux.push(k)}
+  var out=[];
+  cs.forEach(function(k){if(k===c)out.push.apply(out,morceaux);else out.push(k)});
+  return {clips:out,n:ps.length,refus:"",
+    note:ps.length+" coupe"+(ps.length>1?"s":"")+" aux changements de plan"}}
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
   TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,cutOpts:dzmCutOpts,withWords:dzmWithWords,
@@ -20481,6 +21119,15 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   ovExtra:dzmOvExtra,
   /* L7 D-22 (24/09/2026, tache 6) : pistes de sous-titres par langue, une seule gravee */
   subsTracks:dzmSubsTracks,subsNew:dzmSubsNew,subsBurn:dzmSubsBurn,subsBurnId:dzmSubsBurnId,subsCopy:dzmSubsCopy,
+  /* L7-B D-42 (24/09/2026, tache 2) : decouper un clip aux changements de plan */
+  cutAt:dzmCutAt,
+  /* L7-B D-34 (24/09/2026, tache 7) : la note etoile d'un rendu (tiroir Medias) */
+  ratingNorm:dzmRatingNorm,ratingNext:dzmRatingNext,
+  /* L7-B D-40 (24/09/2026, tache 4) : le cadrage d'un clip V1 (regle du backend, apercu vivant) */
+  reframeOf:dzmReframeOf,reframePayload:dzmReframePayload,reframeAt:dzmReframeAt,reframeK:dzmReframeK,reframePos:dzmReframePos,reframeCss:dzmReframeCss,
+  /* L7-B D-41 (24/09/2026, tache 6) : les auto-clips d'un rendu (tiroir Medias) -- coeur pur et popover */
+  acCle:dzmAcCle,acNum:dzmAcNum,acPayload:dzmAcPayload,acUsd:dzmAcUsd,acEstTxt:dzmAcEstTxt,acTrTxt:dzmAcTrTxt,acClipTxt:dzmAcClipTxt,Autoclips:DzmAutoclips,
+  acEstRefus:dzmAcEstRefus,
   /* E-13 / E-14 (lot E-C, tache 5) : la tete dans l'inspecteur, le trou selectionne et son ripple */
   teteTxt:dzmTeteTxt,trou:dzmTrou,trouRipple:dzmTrouRipple,
   DEFAULTS:DZM_DEFAULT_TRACKS};

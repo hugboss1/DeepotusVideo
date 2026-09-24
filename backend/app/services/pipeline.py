@@ -1280,8 +1280,25 @@ class Pipeline:
             return job
 
     @staticmethod
+    async def set_rating(job_id: str, rating: int) -> JobRecord | None:
+        """D-34 (24/09/2026) : pose la note 0..5 d'un rendu (0 = sans note,
+        écrit NULL comme une base d'avant la colonne). La route valide les
+        bornes et le type ; ici on ne fait que l'écrire."""
+        async with async_session_factory() as session:
+            res = await session.execute(
+                select(JobRecord).where(JobRecord.id == job_id))
+            job = res.scalar_one_or_none()
+            if not job:
+                return None
+            job.rating = int(rating) or None
+            await session.commit()
+            await session.refresh(job)
+            return job
+
+    @staticmethod
     async def list_jobs(limit: int = 50, offset: int = 0, providers=None,
-                        q: str | None = None, video_exts=None) -> list[JobRecord]:
+                        q: str | None = None, video_exts=None,
+                        min_rating: int = 0) -> list[JobRecord]:
         """La fenêtre des jobs récents servie par `GET /api/jobs`.
 
         E-2 (23/09/2026) : pagination `offset`, filtre `providers` (liste de
@@ -1346,6 +1363,15 @@ class Pipeline:
             _fp = func.coalesce(func.nullif(JobRecord.final_video_path, ""),
                                 JobRecord.video_path)
             stmt = stmt.where(or_(*[_fp.ilike(f"%{e}") for e in exts]))
+        # D-34 (24/09/2026) : note minimale 0..5 (hors bornes RAMENÉE, comme
+        # limit/offset) ; un `where` avant le `limit`, même leçon que P8-bis.
+        # `coalesce(rating, 0)` : NULL (rendus d'avant la colonne) = sans note.
+        try:
+            min_rating = max(0, min(5, int(min_rating or 0)))
+        except (TypeError, ValueError):
+            min_rating = 0
+        if min_rating > 0:
+            stmt = stmt.where(func.coalesce(JobRecord.rating, 0) >= min_rating)
         async with async_session_factory() as session:
             res = await session.execute(
                 stmt.order_by(JobRecord.created_at.desc()).offset(offset).limit(limit)

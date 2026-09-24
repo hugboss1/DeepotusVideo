@@ -3362,24 +3362,28 @@ def _job_to_dict(j) -> dict:
         "batch_size": j.batch_size,
         "created_at": j.created_at.isoformat() if j.created_at else None,
         "completed_at": j.completed_at.isoformat() if j.completed_at else None,
+        # D-34 (24/09/2026) : note 0..5 ; NULL (base d'avant la colonne) = 0
+        "rating": int(getattr(j, "rating", None) or 0),
     }
 
 
 @router.get("/jobs")
 async def list_jobs(limit: int = 50, offset: int = 0, providers: str | None = None,
-                    q: str | None = None, video: int = 0):
+                    q: str | None = None, video: int = 0, min_rating: int = 0):
     """E-2 (23/09/2026) : `offset` pagine, `providers` est une liste séparée
     par des virgules, `q` cherche dans le titre, `video=1` ne garde que les
     artefacts vidéo selon `montage_service.media_rules()` — le MÊME juge que
     `GET /api/montage/media-rules` lit (import tardif, comme les autres
     emprunts à montage_service dans ce fichier). Bornes ramenées dans
-    `Pipeline.list_jobs`."""
+    `Pipeline.list_jobs`. D-34 (24/09/2026) : `min_rating` (0..5, ramené)
+    ne garde que les rendus notés au moins autant — filtre AVANT le limit."""
     provs = [p.strip() for p in providers.split(",") if p.strip()] if providers else None
     exts = None
     if video:
         from app.services import montage_service as _ms
         exts = tuple(_ms.media_rules().get("video_exts") or ())
-    jobs = await Pipeline.list_jobs(limit=limit, offset=offset, providers=provs, q=q, video_exts=exts)
+    jobs = await Pipeline.list_jobs(limit=limit, offset=offset, providers=provs, q=q, video_exts=exts,
+                                    min_rating=min_rating)
     return [_job_to_dict(j) for j in jobs]
 
 
@@ -3432,6 +3436,25 @@ async def rename_job(job_id: str, request: JobRenameRequest):
     """Rename a render so it's identifiable in the queue and the
     'existing' clip / audio pickers."""
     j = await Pipeline.rename_job(job_id, request.title)
+    if not j:
+        raise HTTPException(404, "Job not found")
+    return _job_to_dict(j)
+
+
+@router.put("/jobs/{job_id}/rating")
+async def rate_job(job_id: str, request: Request):
+    """D-34 (24/09/2026) : note étoile d'un rendu. Body: {rating: 0..5}
+    (0 = sans note). Un ENTIER seulement : `True` (bool est un int en
+    Python), `"3"`, `3.0`, `null` ou un corps illisible sont refusés en 400
+    — le client envoie toujours un entier. 404 si le job est inconnu."""
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(400, "Corps JSON attendu : {rating: 0..5}")
+    r = body.get("rating") if isinstance(body, dict) else None
+    if type(r) is not int or not 0 <= r <= 5:
+        raise HTTPException(400, "rating doit être un entier de 0 à 5")
+    j = await Pipeline.set_rating(job_id, r)
     if not j:
         raise HTTPException(404, "Job not found")
     return _job_to_dict(j)

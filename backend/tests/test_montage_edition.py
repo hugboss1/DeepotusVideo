@@ -1078,6 +1078,158 @@ out.sc_pur=[JSON.stringify(TRS)===_trs0,JSON.stringify(CLS)===_cls0,JSON.stringi
 out.rm=T.remove(out.sn.tracks,"s2").map(function(t){return t.id});
 out.rm_s1=T.remove(TRS,"s1")===TRS;
 out.tp=T.payload({tracks:out.sb});
+/* ── [32] L7-B D-42 (24/09/2026) : découper un clip aux changements de plan — dzmCutAt pur ── */
+var CA=[{tr:"v1",id:"p",start:2,end:12,srcIn:1,src:{job_id:"j"},transition:"fade",transition_s:.5,label:"P"},
+  {tr:"a1",id:"n",start:0,end:12,src:{a:1}}],_ca0=JSON.stringify(CA);
+function ca(res){return (res&&res.clips||[]).map(function(c){return [c.id,c.tr,c.start,c.end,c.srcIn==null?null:c.srcIn,c.transition,c.transition_s]})}
+var ca3=T.cutAt(CA,"p",[3,6,8],{});
+out.ca=[ca(ca3),ca3.n,ca3.refus,ca3.note];
+/* vitesse ×2 : t (secondes de SOURCE depuis srcIn) → timeline start + t/2 ; srcIn = srcIn + t */
+var ca2=T.cutAt([Object.assign({},CA[0],{speed:2})],"p",[4,8],{});
+out.ca_vitesse=[ca(ca2),ca2.n];
+/* deux coupes à moins de 0,1 s (4,96 et 5,04 : écart 0,08 ≥ 0,05) : même base d'identifiant (p_b50), ids uniques quand même */
+out.ca_ids=ca(T.cutAt(CA,"p",[2.96,3.04],{})).map(function(q){return q[0]});
+/* revue 24/09 : écart minimal 0,05 s entre candidates successives (chaîne) — 7 ; 7,001 ; 7,04 ; 7,06 → UNE coupe ; témoin 7 ; 7,1 → deux */
+out.ca_ecart=[T.cutAt(CA,"p",[5,5.001,5.04,5.06],{}).n,ca(T.cutAt(CA,"p",[5.06,5,5.04,5.001],{})).map(function(q){return q[3]}),
+  T.cutAt(CA,"p",[5,5.1],{}).n,ca(T.cutAt(CA,"p",[5,5.1],{})).map(function(q){return q[3]})];
+out.ca_ids_pris=ca(T.cutAt(CA.concat([{tr:"v2",id:"p_b50",start:0,end:1}]),"p",[3],{})).map(function(q){return q[0]});
+/* bords : à moins de 0,05 s du début ou de la fin → ignorées ; doublon, négatif, illisible, au-delà → ignorés ; non trié → trié */
+var cab=T.cutAt(CA,"p",[.02,9.97,5,5,-1,"x",null,20,1],{});
+out.ca_bords=[ca(cab).map(function(q){return [q[0],q[2],q[3]]}),cab.n];
+/* refus : clip absent, piste verrouillée (celle du clip ; une autre piste verrouillée ne gêne pas), aucune coupe utilisable, times illisible */
+var r1=T.cutAt(CA,"zz",[3],{}),r2=T.cutAt(CA,"p",[3],{locked:{v1:!0}}),r3=T.cutAt(CA,"p",[3],{locked:{a1:!0}}),
+  r4=T.cutAt(CA,"p",[.01,9.99],{}),r5=T.cutAt(CA,"p",null,null),r6=T.cutAt(null,"p",[3],{});
+out.ca_refus=[[r1.refus,r1.n,ca(r1).length,r1.note],[r2.refus,r2.n,ca(r2).length,r2.note],[r3.refus,r3.n,ca(r3).length],
+  [r4.refus,r4.n,r4.note],[r5.refus,r5.n],[r6.refus,r6.n,ca(r6).length]];
+/* une seule coupe : « 1 coupe » (singulier) ; le clip sans srcIn (mais avec src) démarre à 0 ; un clip SANS src ne gagne pas de srcIn */
+var c1=T.cutAt([{tr:"v1",id:"q",start:0,end:4,src:{job_id:"k"}}],"q",[2],{});
+out.ca_un=[ca(c1),c1.note];
+out.ca_sans_src=ca(T.cutAt([{tr:"v1",id:"q",start:0,end:4}],"q",[2],{}));
+/* la moitié droite garde les autres champs du clip (label, src, fx) — comme la lame */
+out.ca_champs=(function(){var o=T.cutAt([Object.assign({},CA[0],{fx:["x"]})],"p",[3],{}).clips[1];return [o.label,o.src,o.fx]})();
+out.ca_pur=[JSON.stringify(CA)===_ca0,T.cutAt(CA,"p",[3],{}).clips!==CA,T.cutAt(CA,"p",[3],{}).clips[2]===CA[1]];
+/* ── [33] L7-B D-34 (24/09/2026) : la note étoile d'un rendu — dzmRatingNorm / dzmRatingNext purs ── */
+out.rn=[T.ratingNorm(0),T.ratingNorm(3),T.ratingNorm(5),T.ratingNorm(6),T.ratingNorm(-1),T.ratingNorm("3"),T.ratingNorm(3.5),
+  T.ratingNorm(!0),T.ratingNorm(null),T.ratingNorm(void 0),T.ratingNorm(NaN),T.ratingNorm(3.0)];
+/* l'étoile cliquée devient la note ; l'étoile COURANTE la retire (0) ; une note serveur illisible est lue 0 */
+out.rx=[T.ratingNext(0,3),T.ratingNext(3,3),T.ratingNext(3,5),T.ratingNext(5,1),T.ratingNext(1,1),T.ratingNext(null,4),T.ratingNext("3",3)];
+/* clic illisible (0, 6, "2", null) : la note courante, normalisée (9 → 0) */
+out.rx_bornes=[T.ratingNext(3,0),T.ratingNext(3,6),T.ratingNext(3,"2"),T.ratingNext(3,null),T.ratingNext(9,9),T.ratingNext(9,2)];
+/* une suite de clics sur la même ligne : 0 -3→ 3 -3→ 0 -5→ 5 -2→ 2 -2→ 0 */
+out.rx_suite=(function(){var v=0,s=[];[3,3,5,2,2].forEach(function(c){v=T.ratingNext(v,c);s.push(v)});return s})();
+/* les chips du tiroir : deux seuils, 3 puis 5, chacune avec un titre */
+out.rchips=typeof DZM_NOTE_CHIPS==="undefined"?null:DZM_NOTE_CHIPS.map(function(n){return [n[0],n[1],typeof n[2]==="string"&&n[2].length>10]});
+/* ── [34] L7-B D-40 (24/09/2026) : le cadrage d'un clip V1 — dzmReframeOf / At / K / Pos / Css purs ── */
+var RB={tr:"v1",id:"r",start:2,end:6,srcIn:1};
+function rof(rf,extra){return T.reframeOf(Object.assign({},RB,extra||{},{reframe:rf}))}
+function rfR6(v){return typeof v==="number"?Math.round(v*1e6)/1e6:v}
+/* centre, inconnu, illisible -> null ; manuel borné, chaîne numérique lue, booléen / vide / base 16 / absent -> null */
+out.rf_modes=[rof({mode:"centre"}),rof({mode:"zzz"}),rof(null),rof("suivi"),rof([1,2]),rof({mode:"manuel",x:.3}),
+  rof({mode:"manuel",x:1.7}),rof({mode:"manuel",x:-2}),rof({mode:"manuel",x:" 0.25 "}),rof({mode:"manuel",x:!0}),
+  rof({mode:"manuel"}),rof({mode:"manuel",x:"0x1"}),rof({mode:"manuel",x:""}),rof({mode:"manuel",x:NaN}),
+  T.reframeOf({tr:"v1"}),T.reframeOf(null)];
+/* suivi : t borné à [0, (end−start)×vitesse = 4], x à [0,1], illisibles ignorés, tri stable, doublons à 5 ms (le dernier gagne) */
+out.rf_suivi=rof({mode:"suivi",points:[{t:5,x:.9},{t:-1,x:.2},[2,1.5],{t:"x",x:.5},{t:1,x:null},{t:1.0001,x:.4},
+  {t:1.003,x:.45},[1,2,3],{t:9,x:.7},"z",null]});
+/* vitesse (la lecture de _v1_speed, e09552b) : ×2 -> dur 8 ; 10 -> bornée 4 (dur 16) ; 0 -> ×1 (dur 4) ; "2" lue ; sans start -> t borné à 0 seulement ;
+   0,1 -> 0,25 (dur 1) ; "inf" et Infinity -> 4 ; vrai -> 1 ; "nan", base 16, négatif -> 1 */
+out.rf_vitesse=[{speed:2},{speed:10},{speed:0},{speed:"2"},{start:null},{speed:.1},{speed:"inf"},{speed:Infinity},{speed:!0},{speed:"nan"},{speed:"0x2"},{speed:-3}].map(function(e){
+  var q=rof({mode:"suivi",points:[{t:7,x:.5}]},e);return q&&q.points[0].t});
+/* au plus 240 points, sous-échantillonnés régulièrement (500 -> 240 : premier, dernier, index 2 au second) */
+out.rf_cap=(function(){var m=[],i;for(i=0;i<500;i++)m.push({t:i/100,x:(i%10)/10});
+  var q=T.reframeOf({tr:"v1",start:0,end:10,reframe:{mode:"suivi",points:m}});return [q.points.length,q.points[0].t,q.points[239].t,q.points[1].t]})();
+/* l'arrondi du millième est celui de round(t, 3) du backend : valeur exacte du flottant, demi exact au pair */
+out.rf_r3=[.0045,.0625,.1875,.0055,1.0005,2.0625,.3125].map(function(v){return rof({mode:"suivi",points:[{t:v,x:.5}]},{srcIn:0}).points[0].t});
+/* revue finale du lot (24/09/2026) : points ABSOLUS de source, srcIn COURANT soustrait — les QUATRE gestes qui
+   avancent srcIn en copiant le champ gardent le bon cadrage sur le morceau droit. Plan [0,10] srcIn 0 suivi
+   0,2 -> 0,8 ; la découpe aux plans (cutAt, couche) et la coupe ripple (rippleCut, couche) EXÉCUTÉES ; la
+   lame et le rognage de tête vivent dans le bundle (banc bundle, sous node). */
+var RG={tr:"v1",id:"g",start:0,end:10,srcIn:0,src:{job_id:"j"},reframe:{mode:"suivi",points:[{t:0,x:.2},{t:10,x:.8}]}};
+function rfPts(c){var q=T.reframeOf(c);return q&&q.points.map(function(z){return [z.t,rfR6(z.x)]})}
+out.rf_gestes=(function(){var ca=T.cutAt([RG],"g",[5],{}),rc=T.rippleCut([RG],2,3,{});
+  var d1=ca.clips.filter(function(k){return k.start===5})[0],d2=rc.clips.filter(function(k){return k.start===2})[0];
+  return [ca.n,rfPts(ca.clips[0]),d1&&d1.srcIn,d1&&rfPts(d1),d2&&d2.srcIn,d2&&rfPts(d2)]})();
+/* la fenêtre : points de BORD interpolés, tout avant / tout après, sans fin lisible (bornée à gauche seulement) */
+out.rf_fenetre=[rfPts({start:0,end:2,srcIn:5,reframe:{mode:"suivi",points:[{t:4,x:.2},{t:6,x:.4},{t:8,x:.8}]}}),
+  rfPts({start:0,end:2,srcIn:5,reframe:{mode:"suivi",points:[{t:5,x:.2},{t:7,x:.8}]}}),
+  rfPts({start:0,end:2,srcIn:5,reframe:{mode:"suivi",points:[{t:1,x:.2},{t:2,x:.9}]}}),
+  rfPts({start:0,end:2,srcIn:5,reframe:{mode:"suivi",points:[{t:10,x:.2},{t:12,x:.9}]}}),
+  rfPts({start:0,srcIn:5,reframe:{mode:"suivi",points:[{t:4,x:.2},{t:9,x:.7}]}})];
+/* le payload : points ABSOLUS lisibles du champ en suivi, {mode, x} en manuel, rien au centre */
+out.rf_payload=[T.reframePayload({start:0,end:2,srcIn:5,reframe:{mode:"suivi",points:[{t:4,x:1.4},"z",[6,.4]]}}),
+  T.reframePayload({start:0,end:2,reframe:{mode:"manuel",x:.3,points:[{t:0,x:.1}]}}),
+  T.reframePayload({start:0,end:2,reframe:{mode:"centre",points:[{t:0,x:.1}]}}),
+  T.reframePayload({start:0,end:2,reframe:{mode:"suivi",points:["z"]}})];
+out.rf_vide=[rof({mode:"suivi",points:[]}),rof({mode:"suivi",points:[{t:"a",x:1}]}),rof({mode:"suivi"}),rof({mode:"suivi",points:{t:1,x:.5}})];
+/* x à l'instant t (secondes de source) : constante avant/après, lerp entre ; manuel ; sans cadrage 0,5 */
+var RA={mode:"suivi",points:[{t:1,x:.2},{t:3,x:.6}]};
+out.rf_at=[0,1,2,2.5,3,9].map(function(t){return rfR6(T.reframeAt(RA,t))}).concat([T.reframeAt({mode:"manuel",x:.7},5),
+  T.reframeAt(null,2),rfR6(T.reframeAt(RA,NaN)),T.reframeAt({mode:"suivi",points:[]},1)]);
+/* largeur relative de la source : 16:9 dans 9:16, 9:16 dans 16:9, même ratio, mesures manquantes */
+out.rf_k=[T.reframeK(1920,1080,9/16),T.reframeK(1080,1920,16/9),T.reframeK(1920,1080,16/9),T.reframeK(0,1080,1),
+  T.reframeK(1920,1080,0),T.reframeK(null,1,1)].map(function(v){return v===null?null:Math.round(v*1e4)/1e4});
+/* position de l'aperçu : (k·x − ½)/(k − 1) bornée ; k ≤ 1,001 (un pixel sur 1080, _reframe_utile) ou inconnu -> null ; 1,005 agit déjà */
+out.rf_pos=[[.5,3],[0,3],[1,3],[.3,3],[.5,1],[.5,1.0005],[.5,null],[.9,2],["x",3],[.9,1.005]].map(function(a){return rfR6(T.reframePos(a[0],a[1]))});
+/* la chaîne de l'aperçu vivant : manuel 0,3 sur 16:9 -> 9:16 ; sans cadrage, portrait sur paysage, cadre ou source non mesurés -> "" */
+var RCM=Object.assign({},RB,{reframe:{mode:"manuel",x:.3}});
+out.rf_css=[T.reframeCss(RCM,1,1920,1080,540,960),T.reframeCss(RB,1,1920,1080,540,960),T.reframeCss(RCM,1,1080,1920,960,540),
+  T.reframeCss(RCM,1,1920,1080,0,0),T.reframeCss(RCM,1,0,0,540,960),
+  T.reframeCss(Object.assign({},RB,{reframe:{mode:"suivi",points:[{t:0,x:0},{t:4,x:1}]}}),2,1920,1080,540,960),
+  T.reframeCss(Object.assign({},RB,{reframe:{mode:"centre",points:[{t:0,x:0}]}}),2,1920,1080,540,960)];
+/* pur : l'entrée n'est pas touchée, les points rendus sont des objets neufs */
+/* revue 24/09 : « Remplacer la source » retire les points du suivi (ils décrivent l'ANCIENNE source), garde
+   centré / manuel (x), un suivi redevient centré ; la note le dit — témoin : sans points, clip et note inchangés */
+out.rf_remplace=(function(){var S={job_id:"n"},base={tr:"v1",id:"r",start:0,end:4,srcIn:0,src:{job_id:"o"},label:"A"},P2=[{t:0,x:.2},{t:4,x:.6}];
+  function go(rf){var q=T.replaceSrc(Object.assign({},base,rf===void 0?{}:{reframe:rf}),S,"B",20,1);
+    return [q.clip.reframe===void 0?null:q.clip.reframe,q.note.indexOf("suivi du mouvement de l'ancienne source est retiré")>0,q.note.indexOf("(cadrage centré)")>0]}
+  return [go({mode:"suivi",points:P2}),go({mode:"manuel",x:.3,points:P2}),go({mode:"centre",points:P2}),go({mode:"manuel",x:.3}),go(void 0)]})();
+out.rf_pur=(function(){var P0={mode:"suivi",points:[{t:5,x:.9},{t:1,x:2}]},C0=Object.assign({},RB,{reframe:P0}),j=JSON.stringify(C0);
+  var q=T.reframeOf(C0);return [JSON.stringify(C0)===j,q.points!==P0.points,q.points[0]!==P0.points[1],q.points[1].t]})();
+/* ── [35] L7-B D-41 (24/09/2026) : les auto-clips d'un rendu — dzmAcPayload et ses formateurs purs ── */
+var AS={job_id:"j1"},AK=T.acCle(AS),EOK={ok:!0,usd:.05,eta_s:40,provider:"elevenlabs",label:"ElevenLabs",pour:AK};
+/* la clé d'une source : chaîne telle quelle, objet en JSON (ordre des clés gardé), vide pour rien */
+out.ac_cle=[T.acCle(AS),T.acCle("p/x.mp4"),T.acCle(null),T.acCle(""),T.acCle({b:1,a:2})];
+/* n : entier 1..8 arrondi, 4 pour l'illisible (vide, texte, booléen, null, NaN, infini) */
+out.ac_n=[T.acNum(3),T.acNum("5"),T.acNum(" 2 "),T.acNum(0),T.acNum(9),T.acNum(3.6),T.acNum(""),T.acNum("abc"),T.acNum(!0),
+  T.acNum(null),T.acNum(NaN),T.acNum(Infinity),T.acNum(-4)];
+/* sans rien : n 4, llm vrai, pas de texte, pas de persona, JAMAIS confirm */
+out.ac_base=T.acPayload({src:AS});
+/* llm : seul false l'éteint (0, absent -> vrai) */
+out.ac_llm=[T.acPayload({src:AS,llm:!1}).llm,T.acPayload({src:AS,llm:0}).llm,T.acPayload({src:AS,llm:void 0}).llm];
+out.ac_text=[T.acPayload({src:AS,text:"  bonjour  "}).text,"text" in T.acPayload({src:AS,text:"   "}),"text" in T.acPayload({src:AS,text:5})];
+out.ac_persona=[T.acPayload({src:AS,persona:" gamer "}).persona,T.acPayload({src:AS,persona:new Array(80).join("a")}).persona.length,
+  "persona" in T.acPayload({src:AS,persona:""})];
+/* LA RÈGLE DE LA DÉPENSE (revue T6) : confirm seulement si la coche porte sur l'estimation AFFICHÉE (même objet),
+   ok, pour CETTE source, coût lisible ≥ 0, et sans texte ; un booléen ou une copie de l'estimation ne suffisent plus */
+function acf(e){var q=T.acPayload(Object.assign({src:AS},e));return q.confirm===void 0?0:q.confirm}
+function acv(d){var v=Object.assign({},EOK,d);return {payer:v,vu:v}}
+out.ac_confirm=[acf({payer:EOK,vu:EOK}),acf({payer:!0,vu:EOK}),acf({payer:Object.assign({},EOK),vu:EOK}),acf({payer:null,vu:EOK}),
+  acf({payer:EOK}),acf(acv({ok:!1})),acf(acv({ok:"true"})),acf(acv({pour:'{"job_id":"autre"}'})),acf(acv({pour:void 0})),
+  acf(acv({usd:"0.05"})),acf(acv({usd:-1})),acf(acv({usd:NaN})),acf({payer:EOK,vu:EOK,text:"le texte"}),acf({payer:EOK,vu:EOK,text:"   "})];
+/* le plafond : max_usd = le coût de l'estimation cochée, et seulement avec confirm */
+out.ac_max=[T.acPayload({src:AS,payer:EOK,vu:EOK}).max_usd,"max_usd" in T.acPayload({src:AS,payer:!0,vu:EOK}),
+  T.acPayload(Object.assign({src:AS},acv({usd:0}))).max_usd];
+/* la langue : fr, en, es, de, it ; tout le reste (majuscules, absent, inconnu) -> fr */
+out.ac_lang=["en","it","de","es","xx","EN",null,void 0,5].map(function(l){return T.acPayload({src:AS,lang:l}).lang});
+out.ac_src=[T.acPayload({}),T.acPayload(null),T.acPayload({src:[1]}),T.acPayload({src:5}),T.acPayload({src:""}),T.acPayload({src:"p.mp4"}).src];
+out.ac_pur=(function(){var E0={src:AS,text:" t ",n:"3",persona:" p ",llm:!1,lang:"de",payer:EOK,vu:EOK},j=JSON.stringify(E0),q=T.acPayload(E0);
+  return [JSON.stringify(E0)===j,q.src===AS,q!==E0,Object.keys(q).sort(),q.n]})();
+out.ac_usd=[T.acUsd(.05),T.acUsd(.0067),T.acUsd(0),T.acUsd(1.234),T.acUsd(-1),T.acUsd("1"),T.acUsd(NaN)];
+out.ac_est=[T.acEstTxt(EOK),T.acEstTxt({ok:!0,usd:.4,eta_s:300,provider:"openai"}),T.acEstTxt({ok:!1,reason:"Aucune clé"}),
+  T.acEstTxt({ok:!1}),T.acEstTxt(null),T.acEstTxt({ok:!0,usd:.01,eta_s:0})];
+out.ac_tr=[T.acTrTxt("align"),T.acTrTxt("chapitre"),T.acTrTxt("stt:elevenlabs:cache"),T.acTrTxt("stt:openai"),T.acTrTxt(null),
+  T.acTrTxt("toString"),T.acTrTxt("zz")];
+out.ac_clip=[T.acClipTxt({start:12,end:44.46,origine:"llm"}),T.acClipTxt({start:0,end:15,origine:"heuristique"}),T.acClipTxt({}),T.acClipTxt(null)];
+/* clôture T8 (24/09/2026) : le 409 « coût dépassé » porte la NOUVELLE estimation ; acEstRefus la marque pour la
+   source (objet neuf) ou rend null ; la coche de l'ANCIENNE ne la couvre pas (règle de la coche intacte), témoin :
+   cocher la nouvelle couvre la nouvelle */
+var E409={detail:"Coût estimé 0.4000 $",estimate:{ok:!0,usd:.4,provider:"elevenlabs"}},N409=T.acEstRefus(E409,AK);
+out.ac_409=[N409,N409!==E409.estimate,T.acEstRefus({detail:"x"},AK),T.acEstRefus(null,AK),T.acEstRefus({estimate:"x"},AK),
+  T.acEstRefus({estimate:[1]},AK),acf({payer:EOK,vu:N409}),acf({payer:N409,vu:N409}),T.acPayload({src:AS,payer:N409,vu:N409}).max_usd];
+/* clôture T8 : D-39 compare aussi le cadrage — un A/B qui ne diffère que par `reframe` n'est plus « identique » ; témoin : même cadrage */
+out.df_reframe=[T.diff([{id:"1",tr:"v1",start:0,end:5}],[{id:"1",tr:"v1",start:0,end:5,reframe:{mode:"manuel",x:.3}}]).changed,
+  T.diff([{id:"1",tr:"v1",start:0,end:5,reframe:{mode:"manuel",x:.3}}],[{id:"1",tr:"v1",start:0,end:5,reframe:{mode:"manuel",x:.3}}]).changed,
+  T.diff([{id:"1",tr:"v1",start:0,end:5,reframe:{mode:"manuel",x:.3}}],[{id:"1",tr:"v1",start:0,end:5,reframe:{mode:"manuel",x:.7}}]).changed];
 console.log(JSON.stringify(out));
 """
 # E-9 : svmRuler / svmPad2 sont des fonctions DU BUNDLE (meme portee module que
@@ -1341,7 +1493,19 @@ try:
                  "ox","ox_rayon","ox_ombre","ox_mou","ox_pur",
                  # L7 D-22 (tache 6) : les DIX-NEUF cles de la section [31].
                  "sst","sst_bornes","sn","sn2","sn_place","sb","sb_defaut","sb_neuf","sb_bascule","bid",
-                 "sc","sc_clips","sc_memes","sc_ids","sc_bornes","sc_pur","rm","rm_s1","tp"]
+                 "sc","sc_clips","sc_memes","sc_ids","sc_bornes","sc_pur","rm","rm_s1","tp",
+                 # L7-B D-42 (tache 2) : les ONZE cles de la section [32] (ca_ecart : revue du 24/09).
+                 "ca","ca_vitesse","ca_ids","ca_ids_pris","ca_bords","ca_refus","ca_un","ca_sans_src","ca_champs","ca_pur","ca_ecart",
+                 # L7-B D-34 (tache 7) : les CINQ cles de la section [33].
+                 "rn","rx","rx_bornes","rx_suite","rchips",
+                 # L7-B D-40 (tache 4) : les QUINZE cles de la section [34] (rf_remplace : revue du 24/09 ; rf_gestes, rf_fenetre, rf_payload : revue finale).
+                 "rf_modes","rf_suivi","rf_vitesse","rf_cap","rf_r3","rf_vide","rf_remplace","rf_gestes","rf_fenetre","rf_payload","rf_at","rf_k","rf_pos","rf_css","rf_pur",
+                 # L7-B D-41 (tache 6) : les TREIZE cles de la section [35].
+                 "ac_cle","ac_n","ac_base","ac_llm","ac_text","ac_persona","ac_confirm","ac_src","ac_pur","ac_usd","ac_est","ac_tr","ac_clip",
+                 # revue T6 (24/09) : le plafond et la langue
+                 "ac_max","ac_lang",
+                 # cloture T8 (24/09) : l'estimation du 409 et le cadrage compare par D-39
+                 "ac_409","df_reframe"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -2746,6 +2910,8 @@ check("df_noms_B_prime_sinon_A_jamais_d_entree_sans_libelle_supprimes_dans_l_ord
 check("df_cles_absent_null_undefined_se_valent_0_compte_effects_en_profondeur_kind_hors_liste_ordre_de_la_liste",
       D.get("df_cles") == [[], [{"id": "1", "cles": ["gain"]}], [{"id": "1", "cles": ["effects"]}], [],
                            [{"id": "1", "cles": ["opacity", "text", "transition", "transition_s"]}]], D.get("df_cles"))
+check("df_reframe_cloture_T8_un_cadrage_different_est_modifie_reframe_temoin_meme_cadrage_rien",
+      D.get("df_reframe") == [[{"id": "1", "cles": ["reframe"]}], [], [{"id": "1", "cles": ["reframe"]}]], D.get("df_reframe"))
 check("df_tolerance_1e_9_n_est_ni_deplace_ni_rogne_1_ms_deplace_1_ms_de_srcIn_rogne_temoin",
       D.get("df_tolerance") == [_DF_VIDE, dict(_DF_VIDE, moved=[{"id": "1", "de": 5, "en": 5.001}]),
                                 dict(_DF_VIDE, trimmed=[{"id": "1", "de": [5, 8], "en": [5, 8], "src": [1, 1.001]}])], D.get("df_tolerance"))
@@ -2771,8 +2937,9 @@ _L7D = {n: _corps(n) for n in ("dzmDiffIndex", "dzmDiff", "dzmDiffTemps")}
 _L7DV = _corps("DzmDiffView")
 check("l7d_coeur_pur_x3_cles_ecrites_une_fois_index_par_id_stringify_x2_vue_lit_r_a_l_appel_et_reutilise_svmRuler",
       all(len(c) > 60 and not re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|fetch\(", c) for c in _L7D.values())
+      # cloture T8 (24/09/2026) : `reframe` (D-40) rejoint la liste en queue -- dix-neuf cles
       and _SRCb.count('var DZM_DIFF_CLES=["gain","opacity","x","y","scale","rotate","effects","dz","speed","retime","stab","text",'
-                      '"transition","transition_s","fade_in","fade_out","label","tr"];') == 1
+                      '"transition","transition_s","fade_in","fade_out","label","tr","reframe"];') == 1
       # x3 : la definition, le filtre de dzmDiff, le commentaire du bloc
       and _SRCb.count("DZM_DIFF_CLES") == 3 and _L7D["dzmDiff"].count("dzmDiffIndex(") == 2 and _L7D["dzmDiff"].count("JSON.stringify(") == 1
       and _L7D["dzmDiff"].count("out.moved.push(") == 1 and _L7D["dzmDiff"].count("out.trimmed.push(") == 1
@@ -2919,6 +3086,317 @@ check("l7f_coeur_pur_cinq_fonctions_genre_par_dzmKindOf_x0_egalite_s1_exports_x1
       and _SRCb.count("subsBurn:") == 1 and _SRCb.count('return (id==="v1"||id==="s1")?ts:ts.filter(function(t){return t.id!==id})}') == 1
       and _SRCb.count('if(t.kind==="subs"){if(t.lang)o.lang=String(t.lang);if(t.burn)o.burn=!0;if(t.lang&&t.name)o.name=String(t.name)}') == 1,
       ({n: len(c) for n, c in _L7F.items()}, _DT.count("subsBurn:dzmSubsBurn,"), sum(c.count('"s1"') for c in _L7F.values())))
+
+print("\n[32] L7-B D-42 : decouper un clip aux changements de plan — dzmCutAt pur (tache 2, 24/09/2026)")
+# ── L7-B D-42 (24/09/2026, tache 2, decision n°2 du plan). dzmCutAt(clips, id, times, opts) PUR -> {clips, n, refus, note} :
+# `times` = secondes de SOURCE depuis le srcIn du clip (ce que rend POST /api/montage/scenes), converties en timeline
+# `start + t/speed` ; coupes a moins de 0,05 s d'un bord ignorees (la tolerance de la lame) ; piste verrouillee -> refus ;
+# moities droites `transition:"cut", transition_s:0` et `srcIn` recale (srcIn + (p - start) x speed) ; ids par
+# dzmUniqueId sur la base de la lame (id + "_b" + round(p x 10)) -- uniques meme a < 0,1 s d'ecart (la lame, elle, ne
+# l'est pas : fait mesure du plan). Le clip est remplace EN PLACE par ses morceaux (la lame, elle, ajoute en queue).
+_CA_N = ["n", "a1", 0, 12, None, None, None]
+check("ca_trois_coupes_quatre_morceaux_en_place_srcIn_recales_moities_droites_en_cut_note_n_coupes",
+      D.get("ca") == [[["p", "v1", 2, 5, 1, "fade", 0.5], ["p_b50", "v1", 5, 8, 4, "cut", 0], ["p_b80", "v1", 8, 10, 7, "cut", 0],
+                       ["p_b100", "v1", 10, 12, 9, "cut", 0], _CA_N], 3, "", "3 coupes aux changements de plan"],
+      D.get("ca"))
+check("ca_vitesse_x2_timeline_start_plus_t_sur_2_srcIn_plus_t",
+      D.get("ca_vitesse") == [[["p", "v1", 2, 4, 1, "fade", 0.5], ["p_b40", "v1", 4, 6, 5, "cut", 0], ["p_b60", "v1", 6, 12, 9, "cut", 0]], 2],
+      D.get("ca_vitesse"))
+check("ca_ids_uniques_a_moins_de_0_1_s_meme_base_p_b50_et_contre_un_id_deja_pris",
+      D.get("ca_ids") == ["p", "p_b50", "p_b50_2", "n"] and D.get("ca_ids_pris") == ["p", "p_b50_2", "n", "p_b50"],
+      (D.get("ca_ids"), D.get("ca_ids_pris")))
+check("ca_bords_0_05_ignores_doublon_negatif_illisible_nul_au_dela_ignores_tri",
+      D.get("ca_bords") == [[["p", 2, 3], ["p_b30", 3, 7], ["p_b70", 7, 12], ["n", 0, 12]], 2], D.get("ca_bords"))
+check("ca_refus_clip_absent_verrou_de_sa_piste_aucune_coupe_times_ou_clips_illisibles_autre_piste_verrouillee_passe",
+      D.get("ca_refus") == [["clip", 0, 2, "Clip introuvable — rien à découper."],
+                            ["verrou", 0, 2, "Piste V1 verrouillée — déverrouillez-la pour découper ce plan."],
+                            ["", 1, 3],
+                            ["aucune_coupe", 0, "Aucun changement de plan à découper dans ce clip."],
+                            ["aucune_coupe", 0], ["clip", 0, 0]],
+      D.get("ca_refus"))
+check("ca_une_coupe_au_singulier_clip_sans_srcIn_part_de_0",
+      D.get("ca_un") == [[["q", "v1", 0, 2, None, None, None], ["q_b20", "v1", 2, 4, 2, "cut", 0]], "1 coupe aux changements de plan"],
+      D.get("ca_un"))
+check("ca_clip_sans_source_ne_gagne_pas_de_srcIn",
+      # temoin : la meme coupe AVEC source pose srcIn 2 (ligne precedente)
+      D.get("ca_sans_src") == [["q", "v1", 0, 2, None, None, None], ["q_b20", "v1", 2, 4, None, "cut", 0]]
+      # faute n°6 (revue 24/09) : chaque niveau garde sa longueur avant l'index
+      and isinstance(D.get("ca_un"), list) and len(D["ca_un"]) > 0 and isinstance(D["ca_un"][0], list)
+      and len(D["ca_un"][0]) > 1 and isinstance(D["ca_un"][0][1], list) and len(D["ca_un"][0][1]) > 4
+      and D["ca_un"][0][1][4] == 2, D.get("ca_sans_src"))
+# revue 24/09 : ECART MINIMAL entre coupes (chaine de candidates, DZM_CUT_BORD) -- la rafale 7 ; 7,001 ; 7,04 ; 7,06
+# (dans le desordre aussi) garde la seule premiere ; temoin : 7 ; 7,1 en garde deux
+check("ca_ecart_minimal_0_05_entre_candidates_une_rafale_fait_une_coupe_temoin_deux_coupes_a_0_1",
+      D.get("ca_ecart") == [1, [7, 12, 12], 2, [7, 7.1, 12, 12]], D.get("ca_ecart"))
+check("ca_moitie_droite_garde_label_src_fx_comme_la_lame", D.get("ca_champs") == ["P", {"job_id": "j"}, ["x"]], D.get("ca_champs"))
+check("ca_pur_entree_intacte_tableau_neuf_autres_clips_memes_objets", D.get("ca_pur") == [True, True, True], D.get("ca_pur"))
+_L7BC = _corps("dzmCutAt")
+check("l7b_ca_coeur_pur_dzmUniqueId_x1_bord_par_constante_export_cutAt_x1",
+      len(_L7BC) > 300
+      and not re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|fetch\(|setClips|pushHistory", _L7BC)
+      and _L7BC.count("dzmUniqueId(") == 1 and _L7BC.count("DZM_CUT_BORD") == 3 and _L7BC.count(".05") == 0
+      and _SRCb.count("var DZM_CUT_BORD=.05;") == 1
+      and len(_DT) > 1000 and _DT.count("cutAt:dzmCutAt,") == 1 and _SRCb.count("cutAt:") == 1,
+      (len(_L7BC), _L7BC.count("dzmUniqueId("), _L7BC.count("DZM_CUT_BORD"), _DT.count("cutAt:dzmCutAt,")))
+
+print("\n[33] L7-B D-34 : la note etoile d'un rendu — dzmRatingNorm / dzmRatingNext purs, etoiles et chips du tiroir (tache 7, 24/09/2026)")
+# ── L7-B D-34 (24/09/2026, tache 7, decision n°5 du plan). La note vit EN BASE (jobs.rating, PUT /api/jobs/{id}/rating,
+# GET /api/jobs?min_rating= : banc backend test_montage_l7b_notes.py). Ici le coeur PUR du client : ratingNorm lit ce que
+# le serveur rend (entier 0..5, tout le reste -> 0, MEME juge que la route qui refuse "3", 3.5, true) ; ratingNext : l'etoile
+# cliquee devient la note, l'etoile COURANTE la retire (0), un clic illisible rend la note courante.
+check("rn_norm_entier_0_5_sinon_0_chaine_flottant_bool_null_nan_hors_bornes",
+      D.get("rn") == [0, 3, 5, 0, 0, 0, 0, 0, 0, 0, 0, 3], D.get("rn"))
+check("rx_etoile_cliquee_devient_la_note_etoile_courante_la_retire",
+      D.get("rx") == [3, 0, 5, 1, 0, 4, 3], D.get("rx"))
+check("rx_bornes_clic_illisible_rend_la_note_courante_normalisee",
+      D.get("rx_bornes") == [3, 3, 3, 3, 0, 2], D.get("rx_bornes"))
+check("rx_suite_de_clics_3_3_5_2_2", D.get("rx_suite") == [3, 0, 5, 2, 0], D.get("rx_suite"))
+check("rchips_deux_seuils_3_puis_5_avec_titre",
+      D.get("rchips") == [[3, "★ 3+", True], [5, "★ 5", True]], D.get("rchips"))
+_L7N = {n: _corps(n) for n in ("dzmRatingNorm", "dzmRatingNext")}
+check("l7b_rn_coeur_pur_ni_r_ni_x_ni_reseau_export_x1",
+      all(len(c) > 60 for c in _L7N.values())
+      and not any(re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|fetch\(|setJobs", c) for c in _L7N.values())
+      and len(_DT) > 1000 and _DT.count("ratingNorm:dzmRatingNorm,ratingNext:dzmRatingNext,") == 1
+      and _SRCb.count("ratingNext:") == 1 and _SRCb.count("ratingNorm:") == 1,
+      ({n: len(c) for n, c in _L7N.items()}, _DT.count("ratingNext:dzmRatingNext")))
+# le TIROIR : cinq etoiles par ligne (clic qui n'atteint pas la ligne, glisser annule sur les etoiles), PUT optimiste avec
+# retour arriere garde par un compteur par rendu, chips qui passent min_rating au serveur et rechargent depuis la page 0.
+_DRW = _corps("DzmMediaDrawer")
+check("l7b_tiroir_etoiles_clic_arrete_a_l_etoile_et_glisser_annule_sur_les_etoiles",
+      len(_DRW) > 400 and _DRW.count('className:"svm-medstars",draggable:!0,') == 1
+      # L7-B D-41 (tache 6) : le bouton « ✂ auto-clips » de la ligne annule AUSSI son glisser -> 2
+      and _DRW.count("onDragStart:function(e){e.preventDefault();e.stopPropagation()}") == 2
+      and _DRW.count("onClick:function(e){e.stopPropagation();e.preventDefault();noter(j,i)}") == 1
+      and _DRW.count("[1,2,3,4,5].map(") == 1 and _DRW.count('className:"svm-medstar",') == 1
+      and _DRW.count('var ti=i===cur?"Retirer la note ("+i+" ★)":"Noter "+i+" ★"') == 1
+      # revue 24/09 : une etoile n'est pas une bascule -- aria-label = l'infobulle, plus d'aria-pressed
+      and _DRW.count('title:ti,"aria-label":ti,') == 1 and _DRW.count('"aria-pressed":i<=cur') == 0,
+      f"corps={len(_DRW)}")
+check("l7b_tiroir_note_optimiste_put_puis_retour_arriere_garde_par_compteur",
+      len(_DRW) > 400 and _DRW.count('fetch("/api/jobs/"+encodeURIComponent(jid)+"/rating",{method:"PUT",') == 1
+      and _DRW.count("apres=dzmRatingNext(avant,clic)") == 1 and _DRW.count("avant=dzmRatingNorm(j.rating)") == 1
+      and _DRW.find("pose(apres);") < _DRW.find('fetch("/api/jobs/"+encodeURIComponent(jid)')
+      # revue 24/09 : le refus remet la derniere note CONFIRMEE par le serveur (et non la note d'avant le clic)
+      and _DRW.count("noteSeq.current[jid]!==k)return;pose(noteConf.current[jid]);") == 1
+      and _DRW.count("pose(avant)") == 0
+      and _DRW.count('setNoteMsg("Note refusée : "') == 1,
+      (_DRW.find("pose(apres);"), _DRW.find('fetch("/api/jobs/"+encodeURIComponent(jid)')))
+check("l7b_tiroir_chips_passent_min_rating_au_serveur_et_rechargent_page_0",
+      len(_DRW) > 400 and _DRW.count('+(minNote>0?"&min_rating="+minNote:"")') == 1
+      and _DRW.count("},[o.open?1:0,qServ,minNote]);") == 1 and _DRW.count("charge(0,qServ,!0)") == 1
+      and _DRW.count("DZM_NOTE_CHIPS.map(") == 1 and _DRW.count("setMinNote(minNote===n[0]?0:n[0])") == 1
+      # temoin : la requete de base garde limit/offset/video=1
+      and _DRW.count('"/api/jobs?limit="+DZM_MED_PAGE+"&offset="+off+"&video=1"') == 1,
+      f"corps={len(_DRW)}")
+# regle des hooks : les deux useState neufs et le useRef du compteur viennent AVANT le `return null` du tiroir ferme
+_iN7 = _DRW.find("x.useState(0),minNote="); _iN8 = _DRW.find('x.useState(""),noteMsg=');
+_iNr = _DRW.find("noteSeq=x.useRef({}),noteConf=x.useRef({}),noteFile=x.useRef({}),vague=x.useRef(0);"); _iNul2 = _DRW.find("return null")
+check("l7b_tiroir_hooks_de_la_note_avant_le_return_null",
+      0 <= _iN7 < _iNul2 and 0 <= _iN8 < _iNul2 and 0 <= _iNr < _iNul2, (_iN7, _iN8, _iNr, _iNul2))
+# revue 24/09 (2) : les PUT d'un meme rendu partent EN FILE -- chaque envoi s'enchaine a la promesse du precedent
+check("l7b_tiroir_put_en_file_par_rendu",
+      len(_DRW) > 400 and _DRW.count("var envoi=(noteFile.current[jid]||Promise.resolve()).then(function(){") == 1
+      and _DRW.count("noteFile.current[jid]=envoi}") == 1
+      and _DRW.find("var envoi=(noteFile.current[jid]") < _DRW.find('fetch("/api/jobs/"+encodeURIComponent(jid)') < _DRW.find("noteFile.current[jid]=envoi}"),
+      f"corps={len(_DRW)}")
+# revue 24/09 (1) : sous filtre, l'offset suit la note CONFIRMEE (seuil franchi -> -1 / +1), jamais sur un refus ni apres rechargement
+check("l7b_tiroir_offset_suit_le_seuil_au_succes_et_la_vague_de_chargement",
+      len(_DRW) > 400 and _DRW.count("var dl=(apres>=seuil?1:0)-(c0>=seuil?1:0);") == 1
+      and _DRW.count("if(dl)setOffset(function(o2){return Math.max(0,o2+dl)})") == 1
+      and _DRW.count("if(vivant.current&&seuil>0&&vague.current===v0)") == 1
+      and _DRW.count("if(remplace)vague.current++;") == 1 and _DRW.count("var seuil=minNote,v0=vague.current;") == 1
+      and _DRW.find("var dl=") < _DRW.find(".catch(function(e){if(!vivant.current||noteSeq"),
+      f"corps={len(_DRW)}")
+# restes de T7 (fermes en T6, 24/09/2026) : la recharge depuis la page 0 attend TOUTES les files de PUT avant son GET,
+# et vide ensuite les trois memoires des rendus dont la file est celle qu'on a attendue ; « Plus » n'attend pas
+check("l7b_tiroir_recharge_page0_attend_les_notes_en_vol_puis_vide_les_memoires",
+      len(_DRW) > 400 and _DRW.count("var att=remplace?Object.assign({},noteFile.current):null,fini={};") == 1
+      # revue T6 : l'attente est bornee (DZM_MED_ATT = 15 s), le minuteur est retire des que les PUT sont retombes
+      and _DRW.count("var enVol=att?new Promise(function(z){var h=setTimeout(z,DZM_MED_ATT);") == 1
+      # cloture T8 (24/09/2026, reste c) : chaque file attendue marque sa FIN (`fini`) ; apres le plafond de 15 s, un
+      # rendu dont le PUT est ENCORE en cours garde ses trois memoires (temoin : un rendu sans file est vide)
+      and _DRW.count("Promise.all(Object.keys(att).map(function(k2){return att[k2].then(function(){fini[k2]=1})})).then(function(){clearTimeout(h);z()})}):Promise.resolve();") == 1
+      and _SRCb.count("var DZM_MED_ATT=15000;") == 1
+      and _DRW.find("var enVol=") < _DRW.find("return enVol.then(function(){") < _DRW.find("return fetch(u).then(")
+      and _DRW.count("if(noteFile.current[k2]!==att[k2]||(att[k2]&&!fini[k2]))return;") == 1
+      and _DRW.count("delete noteSeq.current[k2];delete noteConf.current[k2];delete noteFile.current[k2]") == 1
+      and _DRW.count("fetch(u)") == 1,
+      f"corps={len(_DRW)}")
+
+print("\n[34] L7-B D-40 : le cadrage d'un clip V1 — dzmReframeOf / At / K / Pos / Css purs (tache 4, 24/09/2026)")
+# ── L7-B D-40 (24/09/2026, tache 4, decision n°3 du plan). dzmReframeOf est la regle MEME de _reframe_of du backend
+# (d70989c) : centre / illisible -> null (rien ne part), manuel x borne, suivi t borne a (end-start) x vitesse (vitesse
+# bornee 0,25..4), x borne, tri stable, doublons a 5 ms (le dernier gagne), <= 240. t en secondes de SOURCE depuis srcIn.
+_M = {"mode": "manuel"}
+check("rf_modes_centre_inconnu_illisible_null_manuel_borne_chaine_lue_bool_vide_base16_nan_null",
+      D.get("rf_modes") == [None, None, None, None, None, dict(_M, x=0.3), dict(_M, x=1), dict(_M, x=0), dict(_M, x=0.25),
+                            None, None, None, None, None, None, None], D.get("rf_modes"))
+# revue finale (24/09/2026) : RB lit la source depuis srcIn 1 -> fenetre [1, 5] en temps ABSOLU. Le point de bord
+# gauche (t 0) est remplace par 1,0001 -> 0 puis 1,003 -> 0,003 (doublons a 5 ms, le dernier gagne) ; 9 -> 0,7 tombe
+# a droite, 5 -> 0,9 est PILE sur le bord (aucun point de bord ajoute)
+check("rf_suivi_fenetre_srcIn_duree_x_0_1_illisibles_ignores_tri_stable_doublon_5ms_le_dernier_gagne",
+      D.get("rf_suivi") == {"mode": "suivi", "points": [{"t": 0.003, "x": 0.45}, {"t": 1, "x": 1}, {"t": 4, "x": 0.9}]},
+      D.get("rf_suivi"))
+# un point a t 7 absolu, srcIn 1 -> t 6 relatif ; vitesse 0 (x1) : fenetre [1,5], le point tombe, bord droit a 4 ;
+# 0,1 -> 0,25 : fenetre [1, 2], bord a 1 ; sans start : pas de borne droite
+check("rf_vitesse_duree_de_source_x2_bornee_4_nulle_1_chaine_sans_start_non_borne_0_1_vaut_0_25",
+      D.get("rf_vitesse") == [6, 6, 4, 6, 6, 1, 6, 6, 4, 4, 4, 4], D.get("rf_vitesse"))
+check("rf_gestes_decoupe_et_coupe_ripple_le_morceau_droit_cadre_0_5_0_8_le_gauche_0_2_0_5",
+      D.get("rf_gestes") == [1, [[0, 0.2], [5, 0.5]], 5, [[0, 0.5], [5, 0.8]], 3, [[0, 0.38], [7, 0.8]]], D.get("rf_gestes"))
+check("rf_fenetre_bords_interpoles_pile_sur_les_bords_tout_avant_tout_apres_sans_fin",
+      D.get("rf_fenetre") == [[[0, 0.3], [1, 0.4], [2, 0.6]], [[0, 0.2], [2, 0.8]], [[0, 0.9]], [[2, 0.2]],
+                              [[0, 0.3], [4, 0.7]]], D.get("rf_fenetre"))
+check("rf_payload_points_absolus_lisibles_en_suivi_x_en_manuel_rien_au_centre_ni_sans_point",
+      D.get("rf_payload") == [{"mode": "suivi", "points": [{"t": 4, "x": 1}, {"t": 6, "x": 0.4}]}, {"mode": "manuel", "x": 0.3},
+                              None, None], D.get("rf_payload"))
+check("rf_cap_240_points_sous_echantillonnes_premier_dernier_second",
+      D.get("rf_cap") == [240, 0, 4.99, 0.02], D.get("rf_cap"))
+check("rf_r3_arrondi_du_millieme_comme_round_python_valeur_exacte_demi_au_pair",
+      D.get("rf_r3") == [0.004, 0.062, 0.188, 0.005, 1, 2.062, 0.312], D.get("rf_r3"))
+check("rf_vide_suivi_sans_point_valable_null", D.get("rf_vide") == [None, None, None, None], D.get("rf_vide"))
+check("rf_at_constante_avant_apres_lerp_entre_manuel_x_sans_cadrage_0_5",
+      D.get("rf_at") == [0.2, 0.2, 0.4, 0.5, 0.6, 0.6, 0.7, 0.5, 0.2, 0.5], D.get("rf_at"))
+check("rf_k_largeur_relative_paysage_dans_portrait_portrait_dans_paysage_meme_ratio_manquants_null",
+      D.get("rf_k") == [3.1605, 0.3164, 1, None, None, None], D.get("rf_k"))
+check("rf_pos_formule_du_crop_bornee_k_inutile_ou_inconnu_null",
+      D.get("rf_pos") == [0.5, 0, 1, 0.2, None, None, None, 1, 0.5, 1], D.get("rf_pos"))
+check("rf_css_apercu_manuel_et_suivi_vide_sans_cadrage_portrait_cadre_ou_source_non_mesures_centre_garde",
+      # revue finale : le suivi (0,0) -> (4,1) ABSOLU lu depuis srcIn 1 -> bord gauche (0 ; 0,25), (3 ; 1) : a t 2, x 0,75
+      D.get("rf_css") == ["20.74% 50%", "", "", "", "", "86.57% 50%", ""], D.get("rf_css"))
+check("rf_remplace_la_source_retire_les_points_garde_centre_manuel_suivi_devient_centre_note_dite_temoin_sans_points",
+      D.get("rf_remplace") == [[None, True, True], [{"mode": "manuel", "x": 0.3}, True, False], [None, True, False],
+                               [{"mode": "manuel", "x": 0.3}, False, False], [None, False, False]], D.get("rf_remplace"))
+check("rf_pur_entree_intacte_points_neufs", D.get("rf_pur") == [True, True, True, 4], D.get("rf_pur"))
+_L7RF = {n: _corps(n) for n in ("dzmRfNum", "dzmRfR3", "dzmRfSpeed", "dzmRfLerp", "dzmRfPoints", "dzmReframeOf", "dzmReframeAt",
+                                 "dzmReframePayload", "dzmReframeK", "dzmReframePos", "dzmReframeCss")}
+check("l7b_rf_coeur_pur_ni_r_ni_x_ni_reseau_ni_dom_constantes_uniques_exports_x1",
+      all(len(c) > 80 for c in _L7RF.values())
+      and not any(re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|fetch\(|setClips|style\.", c) for c in _L7RF.values())
+      and _SRCb.count("var DZM_RF_MAX=240,DZM_RF_UTILE=1.001;") == 1
+      and _L7RF["dzmReframeOf"].count("DZM_RF_MAX") == 3 and _L7RF["dzmReframeOf"].count("240") == 0
+      and _L7RF["dzmReframeOf"].count("dzmRfR3(q.t-a)") == 1 and _L7RF["dzmReframeOf"].count("dzmRfLerp(pts,") == 2 and _L7RF["dzmReframeOf"].count("dzmR3(") == 0 and _L7RF["dzmReframeOf"].count("<.005") == 1
+      and len(_DT) > 1000
+      and _DT.count("reframeOf:dzmReframeOf,reframePayload:dzmReframePayload,reframeAt:dzmReframeAt,reframeK:dzmReframeK,reframePos:dzmReframePos,reframeCss:dzmReframeCss,") == 1
+      and all(_SRCb.count(k + ":dzmReframe") == 1 for k in ("reframeOf", "reframePayload", "reframeAt", "reframeK", "reframePos", "reframeCss")),
+      ({n: len(c) for n, c in _L7RF.items()}, _DT.count("reframeOf:dzmReframeOf")))
+# LA SECTION « Cadrage » de l'inspecteur de plan (DzmPlanProps, couche) : trois modes, curseur du manuel (leger, rafale),
+# « Analyser le mouvement » (o.onReframe), grise-jamais-masque (E-12), le second useState APRES la garde.
+_PP = _SRCb[_SRCb.find("function DzmPlanProps(o){"):_SRCb.find("function DzmDzRects(o){")]
+check("l7b_rf_section_cadrage_trois_modes_curseur_leger_analyse_grisee_hooks_apres_garde",
+      len(_PP) > 3000 and _PP.count('row("Cadrage",') == 1 and _PP.count('row("Position",') == 1 and _PP.count('row("Mouvement",') == 1
+      and _PP.count('rfBtn("centre","Centré",') == 1 and _PP.count('rfBtn("suivi","Suivre",') == 1 and _PP.count('rfBtn("manuel","Manuel",') == 1
+      and _PP.count('children:"Analyser le mouvement"') == 1 and _PP.count("disabled:rfSans||rfBusy,") == 2  # l analyse et (revue 24/09) le curseur gele
+      and _PP.count("rfBusy?rfGel:") == 5
+      and _PP.count("rfSans||rfBusy,function(){if(rfPts)") == 1 and _PP.count("rfNon") >= 5
+      and _PP.count("x:Math.max(0,Math.min(100,v))/100})},!1)") == 1  # le curseur : leger (rafale 600 ms)
+      and _PP.count('on({reframe:rfPts?{mode:"centre",points:rfPts}:void 0},!0)') == 1
+      and _PP.count("Promise.resolve(o.onReframe()).then(fin,fin)") == 1
+      and 0 <= _PP.find("if(!c)return null;") < _PP.find("x.useState(2)") < _PP.find("x.useState({})") < _PP.find('row("Cadrage",')
+      and _PP.count("x.useState(") == 2 and _PP.count("DzTracks") == 0,
+      f"hote={len(_PP)} useState={_PP.count('x.useState(')}")
+print("\n[35] L7-B D-41 : les auto-clips d'un rendu — dzmAcPayload et ses formateurs purs, popover et tiroir (tache 6, 24/09/2026)")
+# ── L7-B D-41 (24/09/2026, tache 6, decision n°4 du plan). Le corps de POST /api/montage/autoclips (T5 : 9c55f40, 031dd6a)
+# est construit par UN coeur pur. LA REGLE DE LA DEPENSE : `confirm:true` part SEULEMENT si la case « Payer » est cochee
+# (true strict) ET qu'une estimation ok a ete vue POUR CETTE SOURCE ET sans texte connu ; tout le reste n'envoie rien.
+check("ac_cle_chaine_telle_quelle_objet_en_json_vide_pour_rien",
+      D.get("ac_cle") == ['{"job_id":"j1"}', "p/x.mp4", "", "", '{"b":1,"a":2}'], D.get("ac_cle"))
+check("ac_n_entier_1_8_arrondi_4_pour_l_illisible",
+      D.get("ac_n") == [3, 5, 2, 1, 8, 4, 4, 4, 4, 4, 4, 4, 1], D.get("ac_n"))
+check("ac_base_n4_llm_vrai_lang_fr_sans_texte_ni_persona_ni_confirm",
+      D.get("ac_base") == {"src": {"job_id": "j1"}, "n": 4, "llm": True, "lang": "fr"}, D.get("ac_base"))
+check("ac_llm_seul_false_l_eteint", D.get("ac_llm") == [False, True, True], D.get("ac_llm"))
+check("ac_texte_rogne_blanc_ou_non_chaine_absent", D.get("ac_text") == ["bonjour", False, False], D.get("ac_text"))
+check("ac_persona_rognee_60_car_vide_absente", D.get("ac_persona") == ["gamer", 60, False], D.get("ac_persona"))
+check("ac_confirm_seulement_coche_de_l_estimation_affichee_ok_cette_source_cout_lisible_et_sans_texte",
+      # temoins positifs en tete et en queue ; douze negations entre (dont la coche BOOLEENNE et la COPIE : revue T6)
+      D.get("ac_confirm") == [True, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, True], D.get("ac_confirm"))
+check("ac_max_usd_le_cout_coche_seulement_avec_confirm",
+      D.get("ac_max") == [0.05, False, 0], D.get("ac_max"))
+check("ac_lang_cinq_langues_sinon_fr",
+      D.get("ac_lang") == ["en", "it", "de", "es", "fr", "fr", "fr", "fr", "fr"], D.get("ac_lang"))
+check("ac_source_illisible_null_chaine_gardee",
+      D.get("ac_src") == [None, None, None, None, None, "p.mp4"], D.get("ac_src"))
+check("ac_pur_entree_intacte_objet_neuf_cles_exactes",
+      D.get("ac_pur") == [True, True, True, ["lang", "llm", "n", "persona", "src", "text"], 3], D.get("ac_pur"))
+check("ac_usd_virgule_deux_decimales_moins_d_un_centime_illisible",
+      D.get("ac_usd") == ["0,05 $", "< 0,01 $", "0,00 $", "1,23 $", "? $", "? $", "? $"], D.get("ac_usd"))
+check("ac_est_cout_duree_fournisseur_refus_dit_sa_raison",
+      D.get("ac_est") == ["Transcription payante : ≈ 0,05 $ · ~40 s · ElevenLabs",
+                          "Transcription payante : ≈ 0,40 $ · ~5 min · openai",
+                          "Pas de transcription payante possible — Aucune clé",
+                          "Pas de transcription payante possible", "",
+                          "Transcription payante : ≈ 0,01 $ · ~1 s · fournisseur inconnu"], D.get("ac_est"))
+check("ac_tr_cache_dit_deja_payee_reutilisee_chapitre_non_appele_dit_par_son_nom",
+      D.get("ac_tr") == ["texte connu calé sur le son (gratuit)", "texte : chapitre",
+                         "transcription déjà payée, réutilisée (elevenlabs)", "transcription payée (openai)",
+                         "texte : ?", "texte : toString", "texte : zz"], D.get("ac_tr"))
+check("ac_clip_bornes_duree_origine",
+      D.get("ac_clip") == ["12,0 → 44,5 s · 32,5 s · IA", "0,0 → 15,0 s · 15,0 s · heuristique",
+                           "? → ? s · ? s · heuristique", "? → ? s · ? s · heuristique"], D.get("ac_clip"))
+# cloture T8 (24/09/2026, reste b) : l'estimation du 409 « cout depasse » -> vue NON cochee, pour la source ; la
+# coche de l'ancienne ne couvre pas la nouvelle (0) ; cocher la nouvelle la couvre (temoin : True, max_usd 0,4)
+check("ac_409_estimation_du_corps_marquee_pour_la_source_objet_neuf_null_sinon_coche_ancienne_ne_couvre_pas",
+      D.get("ac_409") == [{"ok": True, "usd": 0.4, "provider": "elevenlabs", "pour": '{"job_id":"j1"}'}, True,
+                          None, None, None, None, 0, True, 0.4], D.get("ac_409"))
+_L7AC = {n: _corps(n) for n in ("dzmAcCle", "dzmAcNum", "dzmAcPayload", "dzmAcDec", "dzmAcUsd", "dzmAcEstTxt", "dzmAcTrTxt", "dzmAcClipTxt", "dzmAcEstRefus")}
+check("l7b_ac_coeur_pur_ni_r_ni_x_ni_reseau_ni_dom_exports_x1",
+      all(len(c) > 60 for c in _L7AC.values())
+      and not any(re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|fetch\(|setClips|pushHistory", c) for c in _L7AC.values())
+      and _L7AC["dzmAcPayload"].count("{b.confirm=!0;b.max_usd=v.usd}") == 1 and _L7AC["dzmAcPayload"].count("confirm") == 1
+      and _L7AC["dzmAcPayload"].count("e.payer===v") == 1 and _L7AC["dzmAcPayload"].count("e.payer===!0") == 0
+      and len(_DT) > 1000
+      and _DT.count("acCle:dzmAcCle,acNum:dzmAcNum,acPayload:dzmAcPayload,acUsd:dzmAcUsd,acEstTxt:dzmAcEstTxt,acTrTxt:dzmAcTrTxt,acClipTxt:dzmAcClipTxt,Autoclips:DzmAutoclips,") == 1
+      and _SRCb.count("acPayload:") == 1 and _SRCb.count("Autoclips:") == 1
+      and _DT.count("acEstRefus:dzmAcEstRefus,") == 1 and _SRCb.count("acEstRefus:") == 1,
+      ({n: len(c) for n, c in _L7AC.items()}, _DT.count("acPayload:dzmAcPayload")))
+# LE POPOVER : ses dix useState sans garde avant (aucun `return null`), le corps passe TOUJOURS par le coeur (aucun
+# `confirm` litteral), la case « payer » se decoche des l'envoi confirme, quatre gardes d'obsolescence (numero de
+# requete + cle de la source + vivant), l'ouverture passe par o.onOpenProject, « Creer » est arme, AUCUNE ecriture de
+# la timeline (temoin de longueur).
+_AC = _SRCb[_SRCb.find("function DzmAutoclips(o){"):_SRCb.find("/* E-5 (lot E-B, tache 4, 23/09/2026) ")]  # borne : le docstring E-5 qui suit (il cite localStorage)
+check("l7b_ac_popover_hooks_coeur_obsolescence_armement_aucune_ecriture_de_timeline",
+      len(_AC) > 3000 and _AC.count("x.useState(") == 11 and _AC.count("return null") == 0
+      and _AC.count('className:"svm-pop dzm-autoclips"') == 1
+      and _AC.count("var b=dzmAcPayload({src:o.src,text:text,n:n,persona:persona,llm:llm,lang:lang,payer:payer,vu:vu});") == 1
+      and _AC.count("confirm:") == 0 and _AC.count("paye=b.confirm===!0") == 1 and _AC.count("if(paye)setPayer(null);") == 1
+      # revue T6 : la coche retombe a CHAQUE estimation (poseVu, seul chemin vers setVu hors remise a zero), au texte, au
+      # nombre, a la langue ; la case lit `payer===est` ; un second envoi confirme en vol ne part pas (useRef)
+      and _AC.count("var poseVu=function(v){setVu(v);setPayer(null)};") == 1 and _AC.count("setVu(") == 2
+      # cloture T8 (24/09/2026) : poseVu x3 -- l'estimation du 409 passe AUSSI par poseVu (donc decochee)
+      and _AC.count("poseVu(") == 3 and _AC.count(";setPayer(null)}") == 4
+      and _AC.count("var ne=dzmAcEstRefus(e&&e.corps,k0);if(ne)poseVu(ne);") == 1
+      and _AC.count("var er=new Error(") == 1 and _AC.count("er.corps=d;throw er") == 1
+      and _AC.count("onChange:function(e){setPayer(e.target.checked?est:null)}") == 1 and _AC.count("coche=!!est&&payer===est") == 1
+      and _AC.count("if(paye){if(enVolPaye.current)return;enVolPaye.current=!0}") == 1 and _AC.count("libere();if(!frais(q,k0))return;") == 2
+      and _AC.count("var frais=function(q,k0){return vivant.current&&q===seq.current&&cle.current===k0};") == 1
+      and _AC.count("if(!frais(q,k0))return;") == 4
+      and _AC.count('x.useEffect(function(){seq.current++;setVu(null);setPayer(null);setRes(null);setMsg("");setBusy(0);setArm(-1)},[k]);') == 1
+      and _AC.count('fetch("/api/montage/autoclips",{method:"POST",') == 1 and _AC.count('fetch("/api/montage/autoclips/create",{method:"POST",') == 1
+      and _AC.count("o.onOpenProject({id:String(pid),name:nm})") == 1 and _AC.count("if(arm!==i){setArm(i);return}") == 1
+      and _AC.count('className:"svm-goldbtn dzm-acgo",disabled:!!busy,') == 1
+      and not re.search(r"setClips|pushHistory|addAsset|svmApplyProject|localStorage|DzTracks", _AC),
+      f"corps={len(_AC)} useState={_AC.count('x.useState(')}")
+# LE TIROIR : la ligne ouverte (un useState de plus, avant la garde), « ✂ auto-clips » dont le clic n'atteint pas la
+# ligne, le popover monte avec la cle du job et o.onOpenProject relaye ; refermer le tiroir ferme le popover.
+_iAc = _DRW.find("var s9=x.useState(null),ac=s9[0],setAc=s9[1];")
+check("l7b_ac_tiroir_bouton_de_ligne_popover_cle_du_job_relai_d_ouverture",
+      len(_DRW) > 400 and 0 <= _iAc < _DRW.find("return null")
+      and _DRW.count("onClick:function(e){e.stopPropagation();e.preventDefault();setAc(j)}") == 1
+      and _DRW.count('className:"svm-medac",draggable:!0,') == 1
+      and _DRW.count("ac?r.jsx(DzmAutoclips,{src:{job_id:String(ac.job_id)},") == 1
+      and _DRW.count("onOpenProject:o.onOpenProject},String(ac.job_id)):null") == 1
+      and _DRW.count("x.useEffect(function(){if(!o.open)setAc(null)},[o.open?1:0]);") == 1,
+      (_iAc, len(_DRW)))
+# LA LISTE DES PROJETS : `openProj` (compteur) ouvre par le chemin MEME de « ouvrir » (surete puis ouvrir), refus dit
+# quand la liste est occupee ; `n<=0` garde le montage (rien au premier rendu)
+_PJ = _SRCb[_SRCb.find("var DzmProjects=function(props){"):_SRCb.find("  function saveAs(){")]
+check("l7b_ac_projets_openProj_compteur_chemin_de_ouvrir",
+      len(_PJ) > 2000 and _PJ.count("var oproj=props&&props.openProj,opn=Number(oproj&&oproj.n)||0;") == 1
+      and _PJ.count("if(opn<=0||!oproj||!oproj.id)return;") == 1
+      and _PJ.count("surete().then(function(s){if(s)ouvrir(p,s.nom)})},[opn]);") == 1
+      and _PJ.count('if(busy){note("Liste des projets occupée') == 1,
+      f"hote={len(_PJ)}")
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

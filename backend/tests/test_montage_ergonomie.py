@@ -227,6 +227,18 @@ _TITRES_COUCHE = [
     # « Fermer » de la vue diff -- dans la COUCHE, donc ici et non dans _TITRES (ecart au plan, qui disait _TITRES +2)
     ':"Comparer « "+(p.name||"")+" » à la timeline courante (rien n\'est modifié)",',
     'title:"Fermer la comparaison (Échap)",onClick:function(){if(o.onClose)o.onClose()},children:"Fermer"',
+    # L7-B D-34 (24/09/2026, tache 7) : les cinq etoiles d'une ligne du tiroir Medias (l'etoile courante dit « retirer »)
+    # et les deux chips de note (la chip active dit « retirer le filtre ») -- classes hors audit R1, titrees quand meme
+    # revue 24/09 : l'infobulle est calculee une fois (ti) et sert aussi d'aria-label
+    'var ti=i===cur?"Retirer la note ("+i+" ★)":"Noter "+i+" ★"+(i===5?" — Good Take":"");',
+    'title:ti,"aria-label":ti,',
+    'title:minNote===n[0]?"Retirer le filtre de note — tous les rendus":n[2],',
+    # L7-B D-41 (24/09/2026, tache 6) : « ✂ auto-clips » d'une ligne du tiroir Medias (classe hors audit R1, titree quand
+    # meme), puis le popover : « Fermer », le bouton or (titre calcule, goTi) et « Creer le projet » (branche non armee)
+    'title:"Auto-clips — proposer des extraits de 15 à 60 s de ce rendu (texte connu gratuit ; transcription payante seulement après confirmation)",',
+    'title:"Fermer les auto-clips (rien n\'est lancé)",',
+    'className:"svm-goldbtn dzm-acgo",disabled:!!busy,title:goTi,onClick:lancer,children:goTxt',
+    ':"Créer un projet neuf avec cet extrait (V1, son du plan, sous-titres) — un second clic confirme",',
 ]
 for t in _TITRES_COUCHE:
     check("R1_titre_couche_x1_" + re.sub(r"\W+", "_", t[6:40]).strip("_"),
@@ -313,6 +325,52 @@ for f, g in _NULLS:
     i = lay.find(f)
     check("R2_tolere_composant_null_" + f[len("function "):].split("(")[0],
           lay.count(f) == 1 and i >= 0 and g in lay[i:i + 400] and s.count(f) == 1)
+
+# L7-B D-37 (24/09/2026, tache 1) : les deux entrees « Exporter EDL… » / « Exporter FCPXML… » de la
+# rubrique Projet du menu ☰ -- TOUJOURS rendues (jamais conditionnelles, jamais `off` : le refus de la
+# demo est DIT par une note), leur title est leur libelle (DzmCtxMenu pose title:it.lbl, temoin x1 dans
+# la couche et dans le bundle) ; absentes du .bak
+check("R1_menu_Projet_Exporter_EDL_FCPXML_x1_sans_off_title_par_it_lbl_bak_x0",
+      s.count('{lbl:"Exporter EDL…",run:function(){dzExportTl("edl")}}') == 1
+      and s.count('{lbl:"Exporter FCPXML…",run:function(){dzExportTl("fcpxml")}}') == 1
+      and s.count('lbl:"Exporter EDL…",off:') == 0 and s.count('lbl:"Exporter FCPXML…",off:') == 0
+      and lay.count('role:"menuitem",disabled:!!it.off,title:it.lbl') == 1 and s.count('role:"menuitem",disabled:!!it.off,title:it.lbl') == 1
+      and bak.count("Exporter EDL") == 0 and bak.count("Exporter FCPXML") == 0,
+      f"edl={s.count('Exporter EDL…')} fcpxml={s.count('Exporter FCPXML…')} bak={bak.count('Exporter EDL')}")
+
+# L7-B D-42 (24/09/2026, tache 2) : « Découper aux changements de plan » du menu contextuel de clip -- TOUJOURS
+# rendue (jamais conditionnelle), GRISEE (off) hors d'un clip video rendu, jamais cachee ; son title est son libelle
+# (DzmCtxMenu pose title:it.lbl) ; le refus d'un clic sur une entree grisee n'existe pas (disabled), celui d'une
+# analyse est DIT par une note (le geste) ; absente du .bak
+check("R1_menu_clip_Decouper_aux_changements_de_plan_x1_grisee_hors_video_rendu_title_par_it_lbl_bak_x0",
+      s.count('{lbl:"Découper aux changements de plan",off:!(c.src&&c.src.job_id)||trackKind(c.tr)!=="video",run:function(){dzSceneCut(id)}}') == 1
+      and s.count("Découper aux changements de plan") == 1
+      and lay.count('role:"menuitem",disabled:!!it.off,title:it.lbl') == 1
+      and bak.count("Découper aux changements") == 0,
+      f"n={s.count('Découper aux changements de plan')} bak={bak.count('Découper aux changements')}")
+
+# L7-B D-40 (24/09/2026, tache 4) : la section « Cadrage » de l'inspecteur de plan (couche, DzmPlanProps) -- les
+# quatre boutons (Centré / Suivre / Manuel par la fabrique rfBtn, « Analyser le mouvement ») sont TOUJOURS rendus,
+# svm-minibtn avec title ; « sans effet » (source pas plus large que le cadre) les GRISE (disabled) et le DIT par le
+# title (rfNon), jamais par un `?null:` ; « Centré » n'est jamais grisé. Le curseur du mode manuel est un <input
+# range> (hors classes auditees) : grise et titre lui aussi. Temoin : la regle 1 compte la fabrique (UN
+# r.jsx("button" pour trois boutons) ; absent du .bak.
+_PPE = lay[lay.find("function DzmPlanProps(o){"):lay.find("function DzmDzRects(o){")]
+_RFB = 'var rfBtn=function(m,lbl,title,dis,cb){return r.jsx("button",{className:"svm-minibtn dzm-rf-mode","data-on":rfMode===m?"1":"",'
+check("R1_R2_cadrage_quatre_boutons_toujours_rendus_titres_grises_sans_effet_centre_grise_seulement_pendant_l_analyse_bak_x0",
+      len(_PPE) > 3000 and _PPE.count(_RFB) == 1 and _PPE.count('"aria-pressed":rfMode===m,disabled:dis,title:title,onClick:cb') == 1
+      and _PPE.count('rfBtn("centre","Centré",rfBusy?rfGel:"Cadrage centré') == 1 and _PPE.count("rfSans?rfNon:") == 4
+      and _PPE.count('rfBtn("') == 3 and _PPE.count("?null:rfBtn(") == 0 and _PPE.count("&&rfBtn(") == 0
+      and _PPE.count("pas plus large que le cadre du projet") == 1
+      # « Centré » : dis = !1 ; Suivre : rfSans||rfBusy ; Manuel : rfSans ; Analyser : disabled:rfSans||rfBusy
+      # revue 24/09 : « Centré » n est grise QUE pendant l analyse de ce plan (modes geles), titre « en cours »
+      and _PPE.count('les points d\'une analyse restent gardés pour « Suivre »",rfBusy,') == 1
+      and _PPE.count("rfBusy?rfGel:") == 5 and _PPE.count('disabled:rfSans||rfBusy,"aria-label"') == 1
+      and _PPE.count('r.jsx("button",{className:"svm-minibtn",disabled:rfSans||rfBusy,') == 1
+      and _PPE.count('children:"Analyser le mouvement"') == 1
+      and _PPE.count('r.jsx("input",{type:"range",min:0,max:100,step:1,value:rfV,disabled:rfSans||rfBusy,') == 1
+      and s.count('children:"Analyser le mouvement"') == 1 and bak.count("Analyser le mouvement") == 0,
+      f"hote={len(_PPE)} rfBtn={_PPE.count('rfBtn(')} non={_PPE.count('rfSans?rfNon:')}")
 
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

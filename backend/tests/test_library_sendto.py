@@ -25,7 +25,12 @@ def test_le_miroir_bundle_envoyer_vers():
     # greffe Montage : pose image + pose clip (menu) + lecture + delete
     # + 1 COMMENTAIRE de la couche montage.js (P7, 05/09/2026) qui cite
     # le jeton — str.count est global, le commentaire compte (mesuré).
-    assert s.count("__dzMontageAdd") == 5
+    # + 2 poses « Ouvrir dans le Montage » de E-3 (f510e87, 22/09/2026,
+    # patch_bundle_montage : bouton du Studio `{job_id:n.id,...}` et
+    # bouton des Chapitres `{job_id:epJob,...}`) — pin rouge depuis ce
+    # commit, réaligné le 24/09/2026 (mesuré sur origin/main a284485 : 7 ;
+    # la lecture+delete de libsend est reprise à l'identique par EA1).
+    assert s.count("__dzMontageAdd") == 7
     # cibles existantes réutilisées : Sprite Lab (def + 2 modal + 2 menu),
     # Impression 3D (def + hub + menu — le pin de test_print3d suit à 3)
     assert s.count("__dzToSpriteLab") == 5

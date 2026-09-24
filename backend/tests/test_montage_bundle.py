@@ -1208,9 +1208,11 @@ check("D11_une_demi_plage_est_dite_par_une_note",
 check("D11_les_options_de_coupe_ne_sont_ecrites_qu_une_fois",
       src.count("function dzmCutOpts(proj,trackSt){") == 1
       and src.count("cutOpts:dzmCutOpts,") == 1
-      and s.count("DzTracks.cutOpts(") == 2
+      # L7-B D-42 (24/09/2026) : 2 -> 3, le geste dzSceneCut (R_EC1) lit le verrou par cutOpts
+      and s.count("DzTracks.cutOpts(") == 3
       and "DzTracks.cutOpts(proj,trackSt)" in P.R_M12
       and "DzTracks.cutOpts(dzProjRef.current,trackStRef.current)" in P.R_R2
+      and "DzTracks.cutOpts(proj,trackStRef.current)" in P.R_EC1
       # le SEUL `{loopTracks:...}` litteral du bundle est celui que rend
       # `dzmCutOpts` lui-meme, DANS la couche : tout autre est un appelant qui
       # a rebati la paire a la main. Mesure du 21/09/2026 : 1 et 1.
@@ -2963,7 +2965,9 @@ check("P11_la_route_de_duree_existe_des_deux_cotes",
 check("P11_la_route_reutilise_la_resolution_et_la_sonde",
       # TROIS depuis P12 : /duration, /has-audio et le premier appelant.
       SVC.count("p = await _media_source(request, src, video=False)") == 3
-      and SVC.count("dur = await asyncio.to_thread(_probe_duration, p)") == 1,
+      # D-41 (T5, 9c55f40, 24/09/2026) : 1 -> 3, /autoclips et /autoclips/create (sdur = ...) reutilisent la meme mesure ;
+      # realigne par T4 (le banc rougissait sur la branche depuis 9c55f40, ecart date)
+      and SVC.count("dur = await asyncio.to_thread(_probe_duration, p)") == 3,
       f'media_source={SVC.count("p = await _media_source(request, src, video=False)")} '
       f'probe={SVC.count("dur = await asyncio.to_thread(_probe_duration, p)")}')
 
@@ -3194,8 +3198,10 @@ check("P12_la_route_has_audio_existe_des_deux_cotes",
       f'couche={src.count(chr(34) + "/api/montage/has-audio?src=" + chr(34))} '
       f'route={SVC.count(chr(34) + "@router.get(" + chr(34) + "/has-audio" + chr(34) + ")")}')
 check("P12_la_route_reutilise_la_sonde_du_rendu",
-      SVC.count("asyncio.to_thread(_has_audio_stream, p)") == 1
-      and SVC.count("asyncio.to_thread(_probe_duration, p)") == 2,
+      # D-41 (T5, 9c55f40, 24/09/2026) : 1 -> 2 et 2 -> 4, /autoclips et /autoclips/create reutilisent la sonde
+      # du rendu et la mesure de duree (aucune copie) ; realigne par T4 (ecart date)
+      SVC.count("asyncio.to_thread(_has_audio_stream, p)") == 2
+      and SVC.count("asyncio.to_thread(_probe_duration, p)") == 4,
       f'has_audio={SVC.count("asyncio.to_thread(_has_audio_stream, p)")} '
       f'probe={SVC.count("asyncio.to_thread(_probe_duration, p)")}')
 # LA FEUILLE habille le bouton, sans toucher a la liste de P6.
@@ -3774,8 +3780,9 @@ _lk = s.count("trackStRef.current[k.tr]&&trackStRef.current[k.tr].l")
 _lc = s.count("trackStRef.current[c.tr]&&trackStRef.current[c.tr].l")
 _lc_bak = _bak_s.count("trackStRef.current[c.tr]&&trackStRef.current[c.tr].l")
 check("P14_le_verrou_suit_la_piste_du_clip",
-      _lk == 3 and _lc == _lc_bak + 1 and _v2[2] == 0 and _v2_bak[2] == 8,
-      f"[k.tr]={_lk} (veut 3) [c.tr]={_lc} (veut bak {_lc_bak} + 1) "
+      # L7-B D-42 (24/09/2026) : + 1 -> + 2, la garde de verrou du geste dzSceneCut (R_EC1) lit `c.tr`
+      _lk == 3 and _lc == _lc_bak + 2 and _v2[2] == 0 and _v2_bak[2] == 8,
+      f"[k.tr]={_lk} (veut 3) [c.tr]={_lc} (veut bak {_lc_bak} + 2) "
       f"verrou v2 bundle={_v2[2]} bak={_v2_bak[2]}")
 # DEUX FACES pour chaque identifiant de la couche que les sections appellent
 # (un appel dans le bundle, un export et une declaration dans la couche).
@@ -14353,8 +14360,10 @@ check("D21_les_seize_appels_de_trackKind_sont_des_egalites",
       # 24/09/2026 (L7 D-22, T6) : 32 -> 35, 30 -> 33. TROIS de plus, des EGALITES `==="subs"` :
       # data-sub et data-burn de la rangee (L7f2, x2), les entrees de sous-titres du menu de piste (R_EC1, x1).
       # revue T6 : 35 -> 36, 33 -> 34 -- data-hidden par genre (L7f6, `==="subs"`).
-      and s.count(nl("trackKind(")) == 36
-      and len(_TKAPP) == 34 and all(k in ("===", "!==") for k in _TKAPP)
+      # L7-B D-42 (24/09/2026) : 36 -> 37, 34 -> 35 -- « Découper aux changements de plan » est grisée
+      # hors d'une piste vidéo (`!=="video"`, R_EC1) : une comparaison, pas une lecture nue.
+      and s.count(nl("trackKind(")) == 37
+      and len(_TKAPP) == 35 and all(k in ("===", "!==") for k in _TKAPP)
       and s.count(nl("var rkd=trackKind(rk.tr);")) == 1
       and s.count(nl("if(rkd!==akd){")) == 1,
       f'bak={_bak.count(_nlb("trackKind(")) if _bak else "?"} '
@@ -15229,7 +15238,9 @@ _DZ_I = _DZ_TAGS.index("EA6-bandeau-ferme-au-lancement")
 # E-12 (T6, 23/09/2026) : onze sections EC15a..EC15k apres EC14 (title x9, bouton or et « bibliothèque » grises sur la demo) ;
 # « Preview » (R_EB4) et « Rendre → » (R_EA5D) sont des replis ; aucune reference a la couche : la sonde RESTE 132
 check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB8b_puis_EC_en_queue_apres_EA6_et_la_sonde_dit_132",
-      [t.split("-")[0] for t in _DZ_TAGS[_DZ_I + 1:]] == ["DZ1", "DZ2", "DZ3", "DZ4",
+      [t.split("-")[0] for t in _DZ_TAGS[_DZ_I + 1:]] == [# L7-B D-40 (revue 24/09/2026) : l apercu du cadrage, ancre libre, pose AVANT DZ1 (hors queue)
+                                                          "L7Brf1",
+                                                          "DZ1", "DZ2", "DZ3", "DZ4",
                                                           "KF1", "KF2", "KF2b", "KF2c", "KF3a", "KF3b", "KF3c", "KF4", "KF5",
                                                           "AJ2a", "AJ2b", "AJ6a", "AJ6b", "AJ7",
                                                           "EB1", "EB2", "EB2b", "EB2c", "EB2d", "EB2e", "EB2f", "EB3",
@@ -15269,10 +15280,13 @@ check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB8b_puis_
                                                           "L7f1", "L7f2",
                                                           # revue T6 : subsOverlay (sonde 158 -> 159) et data-hidden par genre
                                                           "L7f5", "L7f6"]
+      # L7-B D-37 et D-42 (24/09/2026) : AUCUNE section de plus (replis dans R_EC1) ; D-42 : sonde 159 -> 161
+      # (cutAt + cutOpts dans le geste dzSceneCut) ; L7-B D-40 (T4) : AUCUNE section de plus (replis dans
+      # R_DZ1/R_DZ3/R_DZ4), sonde 161 -> 163 (reframeCss dans l apercu vivant, reframeOf dans le payload)
       and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1
               and s.count(nl(a)) == (1 if a in r else 0)
               for _t, a, r in P.PATCHES[_DZ_I + 1:])
-      and _sonde.get("montage") == 159 and s.count("DzTracks") == 159
+      and _sonde.get("montage") == 163 and s.count("DzTracks") == 163
       if _bak else False,
       f"queue={_DZ_TAGS[_DZ_I + 1:]} sonde={_sonde.get('montage')} bundle={s.count('DzTracks')}")
 
@@ -15316,7 +15330,8 @@ check("RT_la_couche_porte_retimeOf_rampe_les_exports_et_les_deux_rangees",
       and _RT_HOTE.count('children:"Diviser à la tête →"') == 1
       and _RT_HOTE.count("o.onRampe(head,spd,rampSpd)") == 1
       and _RT_HOTE.count('"Sans effet à 100 % — change d\'abord la vitesse"') == 1
-      and _RT_HOTE.find("if(!c)return null;") < _RT_HOTE.find("x.useState(2)") and _RT_HOTE.count("x.useState(") == 1
+      # L7-B D-40 (T4) : 1 -> 2, le second (analyse du mouvement en cours) vient juste apres celui de la rampe
+      and _RT_HOTE.find("if(!c)return null;") < _RT_HOTE.find("x.useState(2)") < _RT_HOTE.find("x.useState({})") and _RT_HOTE.count("x.useState(") == 2
       and src.count("R.srcIn=dzmR3((Number(c.srcIn)||0)+(t-s)*sp);") == 1  # la regle de dzmCarve
       and src.count("delete R.transition;delete R.transition_s;") == 1
       # revue : vitesse SANS arrondi (remplir pose 1,333) et continuite du zoom au raccord
@@ -15385,7 +15400,7 @@ check("SB_la_couche_porte_les_pures_les_exports_et_la_section",
       and _SB_HOTE.count('sjBloque=!!sj&&sj.status!=="failed"') == 1 and _SB_HOTE.count("sjEnCours") == 0
       and _SB_HOTE.count("disabled:!sb||sjBloque,") == 1 and _SB_HOTE.count('children:"Analyser"') == 1
       and _SB_HOTE.count('"data-st":sj?sj.status:""') == 1
-      and _SB_HOTE.count("x.useState(") == 1,
+      and _SB_HOTE.count("x.useState(") == 2,  # L7-B D-40 (T4) : + l analyse du mouvement en cours
       f"rangees={_SB_HOTE.count('row(\"Stabilis.\",')}/{_SB_HOTE.count('row(\"Bords\",')} useState={_SB_HOTE.count('x.useState(')}")
 _SB_CSS = CSS.read_text(encoding="utf-8")
 check("SB_la_feuille_porte_la_chip_et_les_curseurs",
@@ -16590,11 +16605,15 @@ _EC_SONDE = _lire(ROOT / "scripts" / "patch_bundle_dzcout.py")
 # -> 146 (L7 D-39, T4, 24/09/2026 : diff dans le repli L7d1 de R_M14, DiffView dans le repli de R_L7C3).
 # -> 149 (L7 D-3b, T4-bis, 24/09/2026 : voisins + abSecs + roll dans la section neuve L7g1).
 # -> 150 (revue D-3b, 24/09/2026 : abRollDit dans abRoll, L7g1).
-check("EC_la_sonde_dzcout_compte_DzTracks_159",
+check("EC_la_sonde_dzcout_compte_DzTracks_163",
       # 24/09/2026 (L7 D-19 client, T5) : 150 -> 151, ovExtra dans svmOvTfOf (L7e2a)
       # 24/09/2026 (L7 D-22, T6) : 151 -> 158, sept sites de code (subsBurnId x3, subsBurn, subsNew x2, subsCopy)
       # revue T6 : 158 -> 159 (subsOverlay lit subsBurnId)
-      _EC_SONDE.count('("montage", "DzTracks", 159),') == 1 and _EC_SONDE.count('("montage", "DzTracks", 158),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 151),') == 0
+      # 24/09/2026 (L7-B D-42, T2) : 159 -> 161, cutAt + cutOpts dans le geste dzSceneCut (repli R_EC1)
+      # 24/09/2026 (L7-B D-40, T4) : 161 -> 163, reframeCss (repli R_DZ3) + reframeOf (repli R_DZ4)
+      _EC_SONDE.count('("montage", "DzTracks", 163),') == 1 and _EC_SONDE.count('("montage", "DzTracks", 161),') == 0
+      and _EC_SONDE.count('("montage", "DzTracks", 159),') == 0
+      and _EC_SONDE.count('("montage", "DzTracks", 158),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 151),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 150),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 149),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 146),') == 0
@@ -16602,7 +16621,7 @@ check("EC_la_sonde_dzcout_compte_DzTracks_159",
       and _EC_SONDE.count('("montage", "DzTracks", 142),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 139),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 135),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 132),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 129),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 128),') == 0
-      and _EC_SONDE.count('("montage", "DzTracks", 123),') == 0 and s.count("DzTracks") == 159,
+      and _EC_SONDE.count('("montage", "DzTracks", 123),') == 0 and s.count("DzTracks") == 163,
       f"sonde={_EC_SONDE.count(chr(40) + chr(34) + 'montage')} bundle={s.count('DzTracks')}")
 
 print("\n[EC] E-7 : les trois vues Medias · Montage · Livraison (lot E-C, tache 3)")
@@ -17435,7 +17454,10 @@ check("L7d1_etat_diffSt_replie_en_queue_de_EB7_ETAT_apres_boMap_avant_stDzFin_un
       and s.count("diffSt") == 3 and src.count("diffSt") == 0
       # MESURE 24/09 : 543 useState dans le livre, 482 dans le .bak -- +61 par la chaine, dont celui-ci
       # L7 D-3b (tache 4-bis) : abSt ajoute le sien, 543 -> 544 ; L7 D-22 (tache 6) : dzNewTr du tiroir, 544 -> 545
-      and s.count("x.useState(") == 545 and (_bak.count("x.useState(") == 482 and _bak.count("diffSt") == 0 if _bak else False),
+      # L7-B D-34 (tache 7, 24/09/2026) : minNote + noteMsg du tiroir Medias (couche), 545 -> 547 (les trois epingles)
+      # L7-B D-40 (tache 4, 24/09/2026) : 547 -> 548, l analyse du mouvement en cours (DzmPlanProps, couche) -- les trois epingles
+      # L7-B D-41 (T6) : 548 -> 560 (+10 le popover DzmAutoclips, +1 la ligne ouverte du tiroir, +1 dzAcOpen de l'hote) ; revue T6 : 561 (+1 la langue)
+      and s.count("x.useState(") == 561 and (_bak.count("x.useState(") == 482 and _bak.count("diffSt") == 0 if _bak else False),
       f"etat={s.count(nl(_L7D_ST))} ordre={(_iDfBo, _iDfSt, _iDfFin)} diffSt={s.count('diffSt')} useState={s.count('x.useState(')}")
 # revue 24/09 : un `diff` sans etat rend null -- jamais le popover generique
 _L7D_G = '    if(pop==="diff")return diffSt?r.jsx(DzTracks.DiffView,Object.assign({onClose:function(){setPop("")}},diffSt)):null;'
@@ -17456,7 +17478,8 @@ _L7D_BTN = '        r.jsx("button",{className:"svm-tbtn dzm-projbtn dzm-projdiff
 _iDfDup = s.find('onClick:function(){doDup(p)},children:"dupliquer"},"dp"),'); _iDfBtn = s.find(nl(_L7D_BTN)); _iDfOp = s.find('r.jsx("button",{className:"svm-tbtn dzm-projbtn dzm-projop",')
 check("L7d_la_couche_DZM_DIFF_CLES_diffIndex_diff_diffTemps_DiffView_bouton_compare_entre_dupliquer_et_ouvrir_exports_x1",
       all(s.count(k) == 1 and src.count(k) == 1 for k in (
-          'var DZM_DIFF_CLES=["gain","opacity","x","y","scale","rotate","effects","dz","speed","retime","stab","text","transition","transition_s","fade_in","fade_out","label","tr"];',
+          # cloture L7-B (T8, 24/09/2026) : `reframe` rejoint la liste en queue
+          'var DZM_DIFF_CLES=["gain","opacity","x","y","scale","rotate","effects","dz","speed","retime","stab","text","transition","transition_s","fade_in","fade_out","label","tr","reframe"];',
           "function dzmDiffIndex(clips){", "function dzmDiff(a,b){", "function dzmDiffTemps(v){", "function DzmDiffView(o){",
           'className:"svm-pop dzm-diff"', "diff:dzmDiff,DiffView:DzmDiffView,diffTemps:dzmDiffTemps,", "dzm-projdiff"))
       and s.count(nl(_L7D_BTN)) == 1 and 0 < _iDfDup < _iDfBtn < _iDfOp < _iDfBtn + 900
@@ -17550,7 +17573,7 @@ _L7G_ST = '  var stAb=x.useState({a:null,b:null,k:""}),abSt=stAb[0],setAbSt=stAb
 _iAbSt = s.find(nl(_L7G_ST))
 check("L7g_etat_abSt_replie_en_queue_de_EB7_ETAT_apres_diffSt_avant_stDzFin_useState_544",
       s.count(nl(_L7G_ST)) == 1 and _L7G_ST in P._EB7_ETAT and P._EB7_ETAT.endswith(_L7G_ST) and 0 < _iDfSt < _iAbSt < _iDfFin
-      and P._EB7_ETAT.count("DzTracks") == 4 and s.count("x.useState(") == 545 and (_bak.count("x.useState(") == 482 if _bak else False)
+      and P._EB7_ETAT.count("DzTracks") == 4 and s.count("x.useState(") == 561 and (_bak.count("x.useState(") == 482 if _bak else False)  # D-41 (T6) : 548 -> 560 -> 561 (langue)
       # MOT ENTIER (stabSt, tabSt… existent) : la declaration, abA (x2), abB (x2) = 5 ; setAbSt porte une majuscule ; x0 dans le .bak
       and len(re.findall(r"\babSt\b", s)) == 5 and (len(re.findall(r"\babSt\b", _bak)) == 0 if _bak else False)
       # la couche : aucun `abSt` entier (temoin : ses trois « dzmStabState » de L3 portent la sous-chaine)
@@ -17719,7 +17742,7 @@ check("L7f4_tiroir_etat_dzNewTr_branche_onNewTrack_avant_onChange_P16_intact_cas
       and s.count('r.jsx("input",{type:"checkbox",checked:dzNewTr,"aria-label":"Traduire dans une nouvelle piste",onChange:function(e){setDzNewTr(e.target.checked)}},"c")') == 1
       and s.count('className:"sub-trlang sub-trnew",title:"Coché : la traduction naît dans une nouvelle piste') == 1 and 0 < _iTg < _iNt < _iFn < _iTg + 1500
       and s.count('apres:dzOn.on?(dzNewTr?"Les "+dzTrN+" répliques traduites naissent dans une nouvelle piste S2, S3… — S1 reste intacte ; « Annuler » retire la piste et ses répliques.":DzTracks.subsTrTitle(dzTrN)):dzOn.pourquoi,') == 1
-      and len(re.findall(r"\bdzNewTr\b", s)) == 4 and s.count("setDzNewTr") == 2 and s.count("x.useState(") == 545
+      and len(re.findall(r"\bdzNewTr\b", s)) == 4 and s.count("setDzNewTr") == 2 and s.count("x.useState(") == 561  # D-41 (T6) : 548 -> 560 -> 561 (langue)
       and (_bak.count("dzNewTr") == 0 and _bak.count("sub-trnew") == 0 and _bak.count("onNewTrack") == 0 if _bak else False),
       f"ordre={(_iS9b, _iS9c, _iTrN)} case={(_iTg, _iNt, _iFn)} dzNewTr={len(re.findall(chr(92) + 'bdzNewTr' + chr(92) + 'b', s))} useState={s.count('x.useState(')}")
 # L7f4 (repli R_M24H) : l'hote passe onNewTrack -- subsNew puis svmTracksSet (historique) puis subsCopy sur setClips,
@@ -17781,6 +17804,948 @@ if 0 < _iKo < _iKoE and 0 < _iSt2 < _iSt2E and 0 < _iBi < _iBiE and s.count(_L7F
 check("L7f_sous_node_sans_marque_s1_part_s2_marquee_s2_part_s1_video_la_premiere_subs_sans_subs_s1",
       _L7F_RT == [["a"], ["b"], ["b"], ["a"], ["a"]],
       f"bornes={(_iKo, _iKoE, _iSt2, _iSt2E, _iBi, _iBiE, s.count(_L7F_FILTRE))} rt={_L7F_RT}")
+
+print("\n[L7B] D-37 tache 1 : exporter EDL / FCPXML depuis la rubrique Projet du menu ☰ (24/09/2026)")
+# ── L7-B D-37 (24/09/2026, tache 1). MESURE qui contredit le plan : la rubrique Projet
+# (`rubs.unshift({rub:"Projet"…`) et `dzMenuProps` sont x0 dans .bak_montage -- nes de
+# R_EC1 -- donc AUCUNE section L7B : le geste `dzExportTl` et ses deux entrees sont
+# REPLIES dans R_EC1 (191 ancres, inchange). SONDE dzcout : 159 inchangee -- le geste ne
+# nomme pas DzTracks (fetch, subsDownload, fireNote, svmSavePayload), mesure ci-dessous.
+_L7B_E1 = '        {lbl:"Exporter EDL…",run:function(){dzExportTl("edl")}},'
+_L7B_E2 = '        {lbl:"Exporter FCPXML…",run:function(){dzExportTl("fcpxml")}}]});'
+_L7B_PUB = '        {lbl:"Publier",off:!dzLast,run:function(){if(dzLast){setPop("");setDzFin(Object.assign({project_id:proj.project_id||""},dzLast))}}},'
+_iB_pub = s.find(nl(_L7B_PUB)); _iB_e1 = s.find(nl(_L7B_E1)); _iB_e2 = s.find(nl(_L7B_E2)); _iB_aff = s.find('var aff=rubs.filter(function(g){return g.rub==="Affichage"})[0];')
+check("L7Ba_deux_entrees_Exporter_EDL_FCPXML_repliees_dans_R_EC1_apres_Publier_avant_Affichage_x1_bak_x0",
+      all(s.count(nl(e)) == 1 and e in P.R_EC1 for e in (_L7B_PUB, _L7B_E1, _L7B_E2))
+      and 0 < _iB_pub < _iB_e1 < _iB_e2 < _iB_aff < _iB_pub + 400
+      and s.count('dzExportTl("edl")') == 1 and s.count('dzExportTl("fcpxml")') == 1
+      and (_bak.count("dzExportTl") == 0 and _bak.count("Exporter EDL") == 0 and _bak.count('rub:"Projet"') == 0
+           and _bak.count("function dzMenuProps(") == 0 if _bak else False)
+      and [t[0] for t in P.PATCHES if t[0].startswith("L7B")] == ["L7Brf1-apercu-du-cadrage-video-ou-image"],
+      f"ordre={(_iB_pub, _iB_e1, _iB_e2, _iB_aff)} bak={_bak.count('dzExportTl') if _bak else '?'}")
+# L7-B D-42 (24/09/2026, tache 2) : le geste dzSceneCut s'intercale entre dzExportTl et dzMenuProps -- l'extrait
+# s'arrete desormais a lui (la fonction SUIVANTE), et le compte DzTracks du bundle passe a 161 (cutAt + cutOpts)
+_iB_f = s.find("  function dzExportTl(fmt){"); _iB_m = s.find("  function dzSceneCut(id){")
+_L7B_F = s[_iB_f:_iB_m] if 0 < _iB_f < _iB_m else ""
+check("L7Ba_le_geste_sauvegarde_PUIS_export_nom_du_serveur_subsDownload_refus_par_fireNote_sans_DzTracks",
+      s.count("  function dzExportTl(fmt){") == 1 and 200 < len(_L7B_F) < 1800 and _iB_m - _iB_f == len(_L7B_F)
+      and _L7B_F.count('fetch("/api/montage/save",{method:"POST"') == 1 and _L7B_F.count("JSON.stringify(svmSavePayload())") == 1
+      and _L7B_F.count('fetch("/api/montage/export?format="+fmt)') == 1
+      and _L7B_F.find("if(proj.demo)") < _L7B_F.find('fetch("/api/montage/save"') < _L7B_F.find('fetch("/api/montage/export')
+      and _L7B_F.count("subsDownload(o.nom,o.t,") == 1 and _L7B_F.count('res.headers.get("Content-Disposition")') == 1
+      and _L7B_F.count("fireNote(") == 5 and _L7B_F.count(".catch(") == 1
+      and _L7B_F.count("DzTracks") == 0 and s.count("DzTracks") == 163 and _sonde.get("montage") == 163  # D-40 (T4) : 161 -> 163
+      and s.count("function subsDownload(name,text,mime){") == 1 and s.count("function svmSavePayload(){") == 1,
+      f"f={len(_L7B_F)} fireNote={_L7B_F.count('fireNote(')} dz={s.count('DzTracks')} sonde={_sonde.get('montage')}")
+# le client appelle la route que le backend declare, avec les deux formats qu'il accepte
+_L7B_MS = _lire(ROOT / "backend" / "app" / "services" / "montage_service.py")
+check("L7Ba_la_route_GET_export_existe_cote_backend_formats_edl_fcpxml",
+      _L7B_MS.count('@router.get("/export")') == 1 and _L7B_MS.count('_EXPORT_FORMATS = {"edl": (".edl",') == 1
+      and _L7B_MS.count('"fcpxml": (".fcpxml",') == 1 and s.count('"/api/montage/export?format="') == 1,
+      f"route={_L7B_MS.count('@router.get(chr(34)/export)')}")
+# SOUS NODE : le geste extrait tel quel, fetch / subsDownload / fireNote factices -- ordre des appels,
+# nom tire du Content-Disposition, detail d'un 400 dit, sauvegarde refusee = aucun export, demo = aucun appel
+_L7B_RT = None
+if _L7B_F:
+    _L7B_SHIM = ("var notes=[],dl=[],calls=[],MODE='ok',proj={demo:!1};\n"
+                 "function fireNote(m){notes.push(m)}function svmSavePayload(){return {name:'x',clips:[]}}\n"
+                 "function subsDownload(n,t,m){dl.push([n,t,m]);return !0}\n"
+                 "function fetch(u,o){calls.push([u,(o&&o.method)||'GET']);\n"
+                 "  if(u==='/api/montage/save')return Promise.resolve({ok:MODE!=='saveko',status:MODE==='saveko'?400:200});\n"
+                 "  var ok=MODE!=='exportko';return Promise.resolve({ok:ok,status:ok?200:400,\n"
+                 "    headers:{get:function(k){return k==='Content-Disposition'?'attachment; filename=\"Essai_export.edl\"':null}},\n"
+                 "    text:function(){return Promise.resolve(ok?'TITLE: x':JSON.stringify({detail:'Aucune timeline sauvegardée à exporter.'}))}})}\n"
+                 + _L7B_F +
+                 "function pause(){return new Promise(function(r){setTimeout(r,30)})}\n"
+                 "(async function(){var R={};function coup(k,m,f,demo){notes=[];dl=[];calls=[];MODE=m;proj.demo=!!demo;dzExportTl(f);\n"
+                 "  return pause().then(function(){R[k]={calls:calls,dl:dl,notes:notes}})}\n"
+                 "  await coup('ok','ok','edl');await coup('ko','exportko','fcpxml');await coup('save','saveko','edl');await coup('demo','ok','edl',1);\n"
+                 "  console.log(JSON.stringify(R))})();\n").replace("\r\n", "\n")
+    _pB = pathlib.Path(TMP) / "l7b_export.js"; _pB.write_text(_L7B_SHIM, encoding="utf-8")
+    _rB = NODE(["node", str(_pB)], timeout=60)
+    try: _L7B_RT = json.loads(_rB.stdout) if _rB.returncode == 0 else ("rc=" + str(_rB.returncode) + " " + (_rB.stderr or "")[-300:])
+    except Exception as _e: _L7B_RT = temoin(_e)
+_B = _L7B_RT if isinstance(_L7B_RT, dict) else {}
+check("L7Ba_sous_node_sauvegarde_puis_export_nom_Essai_export_edl_telecharge_note_dite",
+      (_B.get("ok") or {}).get("calls") == [["/api/montage/save", "POST"], ["/api/montage/export?format=edl", "GET"]]
+      and (_B.get("ok") or {}).get("dl") == [["Essai_export.edl", "TITLE: x", "text/plain"]]
+      and (_B.get("ok") or {}).get("notes") == ["Export EDL en cours…", "EDL exporté : Essai_export.edl — à importer dans Resolve ou Final Cut Pro"],
+      _L7B_RT)
+check("L7Ba_sous_node_refus_400_dit_avec_le_detail_sauvegarde_refusee_sans_export_demo_sans_appel",
+      (_B.get("ko") or {}).get("calls") == [["/api/montage/save", "POST"], ["/api/montage/export?format=fcpxml", "GET"]]
+      and (_B.get("ko") or {}).get("dl") == []
+      and (_B.get("ko") or {}).get("notes") == ["Export FCPXML en cours…", "Export FCPXML refusé : Aucune timeline sauvegardée à exporter."]
+      and (_B.get("save") or {}).get("calls") == [["/api/montage/save", "POST"]] and (_B.get("save") or {}).get("dl") == []
+      and (_B.get("save") or {}).get("notes") == ["Export EDL en cours…", "Export EDL refusé : sauvegarde refusée (400)"]
+      # temoin de la demo : le coup precedent a bien appele fetch, celui-ci non
+      and (_B.get("demo") or {}).get("calls") == [] and (_B.get("demo") or {}).get("dl") == []
+      and (_B.get("demo") or {}).get("notes") == ["Export EDL : disponible sur un projet réel — la démo n'est pas sauvegardée."],
+      _L7B_RT)
+
+print("\n[L7B] D-42 tache 2 : decouper un clip aux changements de plan depuis son menu contextuel (24/09/2026)")
+# ── L7-B D-42 (24/09/2026, tache 2). MESURE : le menu de clip (`if(kind==="clip")`) et `dzMenuProps`
+# sont x0 dans .bak_montage -- nes de R_EC1 (E-6) -- donc AUCUNE section L7B : le geste dzSceneCut et
+# son entree sont REPLIES dans R_EC1 (191 ancres, inchange). SONDE dzcout 159 -> 161 : cutAt + cutOpts.
+_L7BB_E = '        {lbl:"Découper aux changements de plan",off:!(c.src&&c.src.job_id)||trackKind(c.tr)!=="video",run:function(){dzSceneCut(id)}},'
+_iBB_cut = s.find('{lbl:"Couper à la tête",combo:svmKeyLabel("blade")'); _iBB_e = s.find(nl(_L7BB_E))
+_iBB_sup = s.find('{lbl:"Supprimer",combo:svmKeyLabel("delete")')
+check("L7Bb_entree_Decouper_aux_changements_de_plan_repliee_dans_R_EC1_apres_Couper_a_la_tete_grisee_hors_clip_video_rendu_bak_x0",
+      s.count(nl(_L7BB_E)) == 1 and _L7BB_E in P.R_EC1 and 0 < _iBB_cut < _iBB_e < _iBB_sup < _iBB_cut + 600
+      and s.count("run:function(){dzSceneCut(id)}") == 1 and s.count("dzSceneCut(") == 2
+      and s.count("Découper aux changements de plan") == 1
+      and (_bak.count("dzSceneCut") == 0 and _bak.count("Découper aux changements") == 0
+           and _bak.count('if(kind==="clip")') == 0 if _bak else False)
+      and [t[0] for t in P.PATCHES if t[0].startswith("L7B")] == ["L7Brf1-apercu-du-cadrage-video-ou-image"],
+      f"ordre={(_iBB_cut, _iBB_e, _iBB_sup)} n={s.count(nl(_L7BB_E))}")
+_iBB_f = s.find("  function dzSceneCut(id){"); _iBB_m = s.find("  function dzMenuProps(kind,o){")
+_L7BB_F = s[_iBB_f:_iBB_m] if 0 < _iBB_f < _iBB_m else ""
+check("L7Bb_le_geste_garde_video_et_verrou_AVANT_l_appel_decoupe_par_la_couche_historique_PUIS_setClips",
+      s.count("  function dzSceneCut(id){") == 1 and 300 < len(_L7BB_F) < 2000
+      and _L7BB_F.find("!c.src.job_id") < _L7BB_F.find("trackStRef.current[c.tr]&&trackStRef.current[c.tr].l")
+      < _L7BB_F.find('fetch("/api/montage/scenes",') < _L7BB_F.find("DzTracks.cutAt(clipsRef.current,id,")
+      < _L7BB_F.find("pushHistory();setClips(r2.clips);setDirty(!0);fireNote(r2.note)")
+      and _L7BB_F.count('fetch("/api/montage/scenes",{method:"POST"') == 1
+      and _L7BB_F.count("JSON.stringify({src:c.src,srcIn:Number(c.srcIn)||0,dur:du})") == 1
+      and _L7BB_F.count("DzTracks.cutOpts(proj,trackStRef.current)") == 1 and _L7BB_F.count("DzTracks") == 2
+      and _L7BB_F.count("pushHistory()") == 1 and _L7BB_F.count("setClips(") == 1 and _L7BB_F.count(".catch(") == 2
+      and s.count("DzTracks") == 163 and _sonde.get("montage") == 163,  # D-40 (T4) : 161 -> 163
+      f"f={len(_L7BB_F)} dz={_L7BB_F.count('DzTracks')} bundle={s.count('DzTracks')} sonde={_sonde.get('montage')}")
+check("L7Bb_la_route_POST_scenes_existe_cote_backend_et_le_client_l_appelle_une_fois",
+      _L7B_MS.count('@router.post("/scenes")') == 1 and _L7B_MS.count("_scenes.detect, p, src_in, dur, threshold=th") == 1
+      and s.count('"/api/montage/scenes"') == 1, _L7B_MS.count('@router.post("/scenes")'))
+# SOUS NODE : la VRAIE couche (montage.js, DzTracks.cutAt / cutOpts) + le geste extrait tel quel ; fetch, pushHistory,
+# setClips, setDirty, fireNote factices. Coups : ok, vitesse x2 (dur de SOURCE), 415 dit, aucune coupe, verrou avant
+# l'appel (aucun fetch), clip non video (aucun fetch), verrou pose PENDANT l'analyse, clip supprime pendant l'analyse, reseau.
+_L7BB_RT = None
+# revue D-40 (24/09/2026) : l empreinte lit svmSrcKey (module du bundle) -- EXTRAITE de .bak_montage
+_mSK = re.search(r"function svmSrcKey\(s\)\{[^\n]*\}", _bak or "")
+_SVM_SK = _mSK.group(0) if _mSK else ""
+if _L7BB_F and src and _SVM_SK:
+    _L7BB_SHIM = ('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + src + "\n"
+                  "var notes=[],calls=[],hist=0,set=null,dirty=!1,MODE='ok',proj={demo:!1},PEND=null;\n" + _SVM_SK + "\n"
+                  "var clipsRef={current:[]},trackStRef={current:{}};\n"
+                  "function fireNote(m){notes.push(m)}function pushHistory(){hist++}function setClips(v){set=v}function setDirty(v){dirty=v}\n"
+                  "function fetch(u,o){calls.push([u,JSON.parse(o.body)]);if(MODE==='net')return Promise.reject(new Error('panne'));\n"
+                  "  if(MODE==='415')return Promise.resolve({ok:!1,status:415,json:function(){return Promise.resolve({detail:'« x.png » n\\'est pas une vidéo'})}});\n"
+                  "  var t=MODE==='vide'?[]:[1,3];if(PEND)PEND();\n"
+                  "  return Promise.resolve({ok:!0,status:200,json:function(){return Promise.resolve({ok:!0,times:t})}})}\n"
+                  + _L7BB_F +
+                  "function pause(){return new Promise(function(r){setTimeout(r,30)})}\n"
+                  "var P={tr:'v1',id:'p',start:0,end:5,srcIn:2,src:{job_id:'j'}};\n"
+                  "(async function(){var R={};function coup(k,m,cs,ts,pend){notes=[];calls=[];hist=0;set=null;dirty=!1;MODE=m;\n"
+                  "  clipsRef.current=cs;trackStRef.current=ts||{};PEND=pend||null;dzSceneCut('p');\n"
+                  "  return pause().then(function(){R[k]={calls:calls,hist:hist,dirty:dirty,notes:notes,\n"
+                  "    set:set&&set.map(function(c){return [c.id,c.start,c.end,c.srcIn,c.transition||null]})}})}\n"
+                  "  await coup('ok','ok',[P]);await coup('x2','ok',[Object.assign({},P,{speed:2})]);await coup('ko','415',[P]);\n"
+                  "  await coup('vide','vide',[P]);await coup('verrou','ok',[P],{v1:{l:!0}});\n"
+                  "  await coup('image','ok',[Object.assign({},P,{src:{image:'x.png'}})]);\n"
+                  "  await coup('verrou_pendant','ok',[P],{},function(){trackStRef.current={v1:{l:!0}}});\n"
+                  "  await coup('supprime','ok',[P],{},function(){clipsRef.current=[]});await coup('net','net',[P]);\n"
+                  # revue 24/09 : le plan change PENDANT l'analyse (fin rognee, vitesse, srcIn) -> refus dit ; temoin :
+                  # une COPIE identique (autre objet, memes champs) coupe normalement
+                  "  await coup('change_fin','ok',[P],{},function(){clipsRef.current=[Object.assign({},P,{end:4})]});\n"
+                  "  await coup('change_vitesse','ok',[P],{},function(){clipsRef.current=[Object.assign({},P,{speed:2})]});\n"
+                  "  await coup('change_srcin','ok',[P],{},function(){clipsRef.current=[Object.assign({},P,{srcIn:2.5})]});\n"
+                  "  await coup('copie','ok',[P],{},function(){clipsRef.current=[Object.assign({},P)]});\n"
+                  # revue D-40 : la SOURCE remplacee pendant l analyse (meme id, memes bornes) -> refus dit
+                  "  await coup('change_source','ok',[P],{},function(){clipsRef.current=[Object.assign({},P,{src:{job_id:'autre'}})]});\n"
+                  "  console.log(JSON.stringify(R))})();\n").replace("\r\n", "\n")
+    _pBB = pathlib.Path(TMP) / "l7b_scenes.js"; _pBB.write_text(_L7BB_SHIM, encoding="utf-8")
+    _rBB = NODE(["node", str(_pBB)], timeout=60)
+    try: _L7BB_RT = json.loads(_rBB.stdout.strip().splitlines()[-1]) if _rBB.returncode == 0 else ("rc=" + str(_rBB.returncode) + " " + (_rBB.stderr or "")[-400:])
+    except Exception as _e: _L7BB_RT = temoin(_e)
+_BB = _L7BB_RT if isinstance(_L7BB_RT, dict) else {}
+_BB_Q = {"job_id": "j"}
+check("L7Bb_sous_node_ok_appel_src_srcIn_dur_puis_deux_coupes_historique_setClips_dirty_note",
+      (_BB.get("ok") or {}).get("calls") == [["/api/montage/scenes", {"src": _BB_Q, "srcIn": 2, "dur": 5}]]
+      and (_BB.get("ok") or {}).get("set") == [["p", 0, 1, 2, None], ["p_b10", 1, 3, 3, "cut"], ["p_b30", 3, 5, 5, "cut"]]
+      and (_BB.get("ok") or {}).get("hist") == 1 and (_BB.get("ok") or {}).get("dirty") is True
+      and (_BB.get("ok") or {}).get("notes") == ["Analyse des changements de plan…", "2 coupes aux changements de plan"],
+      _L7BB_RT)
+check("L7Bb_sous_node_vitesse_x2_demande_la_duree_de_SOURCE_10_s_et_coupe_a_t_sur_2",
+      (_BB.get("x2") or {}).get("calls") == [["/api/montage/scenes", {"src": _BB_Q, "srcIn": 2, "dur": 10}]]
+      and (_BB.get("x2") or {}).get("set") == [["p", 0, 0.5, 2, None], ["p_b5", 0.5, 1.5, 3, "cut"], ["p_b15", 1.5, 5, 5, "cut"]],
+      (_BB.get("x2")))
+check("L7Bb_sous_node_refus_415_dit_aucune_coupe_dite_ni_historique_ni_setClips",
+      # temoin : le coup « ok » a pousse l'historique et pose les clips
+      (_BB.get("ok") or {}).get("hist") == 1
+      and (_BB.get("ko") or {}).get("hist") == 0 and (_BB.get("ko") or {}).get("set") is None and len((_BB.get("ko") or {}).get("calls") or []) == 1
+      and (_BB.get("ko") or {}).get("notes") == ["Analyse des changements de plan…", "Découpe aux changements de plan refusée : « x.png » n'est pas une vidéo"]
+      and (_BB.get("vide") or {}).get("hist") == 0 and (_BB.get("vide") or {}).get("set") is None
+      and (_BB.get("vide") or {}).get("notes") == ["Analyse des changements de plan…", "Aucun changement de plan à découper dans ce clip."]
+      and (_BB.get("net") or {}).get("hist") == 0
+      and (_BB.get("net") or {}).get("notes") == ["Analyse des changements de plan…", "Découpe aux changements de plan refusée : panne"],
+      (_BB.get("ko"), _BB.get("vide"), _BB.get("net")))
+check("L7Bb_sous_node_verrou_ou_clip_non_video_refuses_AVANT_tout_appel",
+      (_BB.get("verrou") or {}).get("calls") == [] and (_BB.get("verrou") or {}).get("hist") == 0
+      and (_BB.get("verrou") or {}).get("notes") == ["Piste V1 verrouillée — déverrouillez-la pour découper ce plan."]
+      and (_BB.get("image") or {}).get("calls") == [] and (_BB.get("image") or {}).get("hist") == 0
+      and (_BB.get("image") or {}).get("notes") == ["Découpe aux changements de plan : réservée aux clips vidéo rendus."],
+      (_BB.get("verrou"), _BB.get("image")))
+check("L7Bb_sous_node_verrou_pose_ou_clip_supprime_PENDANT_l_analyse_rien_n_est_coupe",
+      # temoin : l'appel a eu lieu (le refus vient de la couche, a la reponse)
+      len((_BB.get("verrou_pendant") or {}).get("calls") or []) == 1 and (_BB.get("verrou_pendant") or {}).get("hist") == 0
+      and (_BB.get("verrou_pendant") or {}).get("set") is None
+      and (_BB.get("verrou_pendant") or {}).get("notes") == ["Analyse des changements de plan…", "Piste V1 verrouillée — déverrouillez-la pour découper ce plan."]
+      and len((_BB.get("supprime") or {}).get("calls") or []) == 1 and (_BB.get("supprime") or {}).get("hist") == 0
+      and (_BB.get("supprime") or {}).get("notes") == ["Analyse des changements de plan…", "Clip introuvable — rien à découper."],
+      (_BB.get("verrou_pendant"), _BB.get("supprime")))
+_BB_OBS = ["Analyse des changements de plan…", "Découpe aux changements de plan refusée : le plan a changé pendant l'analyse — relancez."]
+check("L7Bb_sous_node_revue_D40_source_remplacee_pendant_l_analyse_meme_id_memes_bornes_refus_dit_temoin_copie_coupe",
+      len((_BB.get("change_source") or {}).get("calls") or []) == 1 and (_BB.get("change_source") or {}).get("hist") == 0
+      and (_BB.get("change_source") or {}).get("set") is None and (_BB.get("change_source") or {}).get("notes") == _BB_OBS
+      and (_BB.get("copie") or {}).get("hist") == 1 and len(_SVM_SK) > 40 and _L7BB_F.count(",svmSrcKey(k.src)].join(") == 1,
+      (_BB.get("change_source"), _BB.get("copie")))
+check("L7Bb_sous_node_reponse_obsolete_fin_vitesse_ou_srcIn_changes_pendant_l_analyse_refus_dit_sans_ecriture_temoin_copie_identique_coupe",
+      all(len((_BB.get(k) or {}).get("calls") or []) == 1 and (_BB.get(k) or {}).get("hist") == 0
+          and (_BB.get(k) or {}).get("set") is None and (_BB.get(k) or {}).get("notes") == _BB_OBS
+          for k in ("change_fin", "change_vitesse", "change_srcin"))
+      # temoin : un AUTRE objet aux memes champs n'est pas obsolete -- il est coupe
+      and (_BB.get("copie") or {}).get("hist") == 1
+      and (_BB.get("copie") or {}).get("set") == [["p", 0, 1, 2, None], ["p_b10", 1, 3, 3, "cut"], ["p_b30", 3, 5, 5, "cut"]]
+      and _L7BB_F.count("var sg=dzSg(c);") == 1 and _L7BB_F.find("if(k2&&dzSg(k2)!==sg){") < _L7BB_F.find("DzTracks.cutAt("),
+      {k: _BB.get(k) for k in ("change_fin", "change_vitesse", "change_srcin", "copie")})
+
+print("\n[L7B] D-34 tache 7 : note etoile des rendus et chips de note du tiroir Medias (24/09/2026)")
+# ── L7-B D-34 (24/09/2026, tache 7). Tout le client vit dans la COUCHE (DzmMediaDrawer, dzmRatingNorm,
+# dzmRatingNext, DZM_NOTE_CHIPS) : AUCUNE section du patcher (191 ancres, inchange), aucune reference neuve au
+# contrat DzTracks (le tiroir appelle les fonctions de la couche par leur nom) -> SONDE dzcout 161 INCHANGEE.
+# Le miroir : les morceaux sont x1 dans la couche ET dans le bundle livre, x0 dans .bak_montage ; puis le TIROIR
+# DU BUNDLE LIVRE (extrait mot pour mot entre l'en-tete de la couche et `window.DzTracks=DzTracks;`) est JOUE sous
+# node avec des hooks et un reseau bouchonnes : clic d'etoile optimiste, PUT, retour arriere sur refus, chips.
+_L7BN_P = ['function dzmRatingNorm(v){', 'function dzmRatingNext(cur,clic){', 'var DZM_NOTE_CHIPS=[',
+           'ratingNorm:dzmRatingNorm,ratingNext:dzmRatingNext,', 'className:"svm-medstars",draggable:!0,',
+           'onClick:function(e){e.stopPropagation();e.preventDefault();noter(j,i)}',
+           '+(minNote>0?"&min_rating="+minNote:"")', 'fetch("/api/jobs/"+encodeURIComponent(jid)+"/rating",{method:"PUT",']
+check("L7Bn_morceaux_x1_couche_et_bundle_x0_bak_aucune_section_L7B_sonde_161",
+      all(src.count(t) == 1 and s.count(t) == 1 for t in _L7BN_P)
+      and (all(_bak.count(t) == 0 for t in _L7BN_P) and _bak.count("svm-medstar") == 0 if _bak else False)
+      and [t[0] for t in P.PATCHES if t[0].startswith("L7B")] == ["L7Brf1-apercu-du-cadrage-video-ou-image"]
+      and s.count("DzTracks") == 163 and _sonde.get("montage") == 163,  # D-40 (T4) : 161 -> 163
+      {t[:30]: (src.count(t), s.count(t)) for t in _L7BN_P})
+check("L7Bn_css_etoiles_et_message_de_note_x1_dans_la_feuille",
+      _EB_CSS.count(".dzsvm .svm-medstars{") == 1 and _EB_CSS.count(".dzsvm .svm-medstar{") == 1
+      and _EB_CSS.count(".dzsvm .svm-medstar[data-on]{") == 1 and _EB_CSS.count(".dzsvm .svm-mednotemsg{") == 1
+      # temoin : la rangee du tiroir (E-2) est toujours la
+      and _EB_CSS.count(".dzsvm .svm-medrow{") == 1,
+      [_EB_CSS.count(k) for k in (".dzsvm .svm-medstars{", ".dzsvm .svm-medstar{", ".dzsvm .svm-mednotemsg{")])
+_iN_d = s.find("/* ── Montage, couche window.DzTracks"); _iN_f = s.find("window.DzTracks=DzTracks;")
+_L7BN_LAYER = s[_iN_d:_iN_f + len("window.DzTracks=DzTracks;")].replace("\r\n", "\n") if 0 <= _iN_d < _iN_f else ""
+_L7BN_RT = "non joue"
+if len(_L7BN_LAYER) > 100000:
+    _L7BN_SHIM = ('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + _L7BN_LAYER + "\n" +
+        "var HS=[],HI=0,EFF=[];\n"
+        "function deps(a,b){if(!a||!b||a.length!==b.length)return !0;for(var i=0;i<a.length;i++)if(a[i]!==b[i])return !0;return !1}\n"
+        "var x={useState:function(v){var i=HI++;if(!(i in HS))HS[i]=v;return [HS[i],function(n){HS[i]=typeof n==='function'?n(HS[i]):n}]},\n"
+        "  useRef:function(v){var i=HI++;if(!(i in HS))HS[i]={current:v};return HS[i]},\n"
+        "  useEffect:function(f,d){var i=HI++;if(!(i in HS)||deps(HS[i],d)){HS[i]=d;EFF.push(f)}}};\n"
+        "var r={jsx:function(t,p){return {t:t,p:p||{}}},jsxs:function(t,p){return {t:t,p:p||{}}}};\n"
+        "var MODE='ok',CALLS=[];\n"
+        "var JOBS=[{job_id:'a',status:'done',video_path:'/o/a.mp4',title:'A',rating:0,provider:'seedance'},\n"
+        "  {job_id:'b',status:'done',video_path:'/o/b.mp4',title:'B',rating:4,provider:'seedance'}];\n"
+        "function rep(ok,st,d){return Promise.resolve({ok:ok,status:st,json:function(){return Promise.resolve(d)}})}\n"
+        "function fetch(u,o){CALLS.push([u,o&&o.method||'GET',o&&o.body?JSON.parse(o.body):null]);\n"
+        "  if(!o||!o.method)return rep(!0,200,JSON.parse(JSON.stringify(JOBS)));\n"
+        "  if(MODE==='net')return Promise.reject(new Error('panne'));\n"
+        "  return MODE==='ok'?rep(!0,200,{}):rep(!1,400,{detail:'rating doit être un entier de 0 à 5'})}\n"
+        "function pause(){return new Promise(function(z){setTimeout(z,20)})}\n"
+        "var O={open:!0,trId:'v1',exts:null,onAdd:function(){ADD++},onClose:function(){}},ADD=0,T;\n"
+        "function rend(){HI=0;T=DzmMediaDrawer(O);var e=EFF;EFF=[];e.forEach(function(f){f()});return T}\n"
+        "function tous(n,out){out=out||[];if(!n||typeof n!=='object')return out;if(Array.isArray(n)){n.forEach(function(k){tous(k,out)});return out}\n"
+        "  if(n.t){out.push(n);tous(n.p&&n.p.children,out)}return out}\n"
+        "function cls(c){return tous(T).filter(function(n){return n.p&&n.p.className===c})}\n"
+        "function etoiles(){return cls('svm-medrow').map(function(rw){return tous(rw.p.children).filter(function(n){return n.p.className==='svm-medstar'})\n"
+        "  .map(function(b){return b.p['data-on']===''?1:0}).reduce(function(a,b){return a+b},0)})}\n"
+        "function ev(){var e={sp:0,pd:0,stopPropagation:function(){e.sp++},preventDefault:function(){e.pd++}};return e}\n"
+        "function clic(row,i){var rw=cls('svm-medrow')[row],b=tous(rw.p.children).filter(function(n){return n.p.className==='svm-medstar'})[i-1];\n"
+        "  var e=ev();b.p.onClick(e);return e}\n"
+        "function msg(){var m=cls('svm-medst svm-mednotemsg');return m.length?m[0].p.children:null}\n"
+        "(async function(){var R={};rend();await pause();rend();\n"
+        "  R.charge=[CALLS.slice(),etoiles()];CALLS=[];\n"
+        "  var st=cls('svm-medstars')[0];R.span=[st.p.draggable,(function(){var e=ev();st.p.onDragStart(e);return [e.sp,e.pd]})()];\n"
+        "  R.titres=tous(cls('svm-medrow')[1].p.children).filter(function(n){return n.p.className==='svm-medstar'}).map(function(b){return b.p.title});\n"
+        "  MODE='ok';var e1=clic(0,3);rend();R.ok_opt=etoiles();await pause();rend();R.ok=[CALLS.slice(),etoiles(),msg(),e1.sp,e1.pd,ADD];CALLS=[];\n"
+        "  MODE='ko';clic(1,2);rend();R.ko_opt=etoiles();await pause();rend();R.ko=[CALLS.slice(),etoiles(),msg()];CALLS=[];\n"
+        "  MODE='ok';clic(0,3);rend();await pause();rend();R.zero=[CALLS.slice(),etoiles(),msg()];CALLS=[];\n"
+        "  MODE='net';clic(1,5);rend();await pause();rend();R.net=[etoiles(),msg()];CALLS=[];\n"
+        "  var ch=tous(T).filter(function(n){return n.t==='button'&&n.p.className==='svm-themechip'&&(n.p.children==='★ 3+'||n.p.children==='★ 5')});\n"
+        "  R.chips=ch.map(function(n){return [n.p.children,typeof n.p.title==='string'&&n.p.title.length>10,n.p['data-on']===void 0]});\n"
+        "  ch[0].p.onClick();rend();await pause();rend();R.f3=[CALLS.map(function(c){return c[0]}),\n"
+        "    tous(T).filter(function(n){return n.p.children==='★ 3+'})[0].p['data-on']];CALLS=[];\n"
+        "  tous(T).filter(function(n){return n.p.children==='★ 3+'})[0].p.onClick();rend();await pause();rend();R.f0=CALLS.map(function(c){return c[0]});\n"
+        "  console.log(JSON.stringify(R))})();\n")
+    _pBN = pathlib.Path(TMP) / "l7b_notes.js"; _pBN.write_text(_L7BN_SHIM, encoding="utf-8")
+    _rBN = NODE(["node", str(_pBN)], timeout=60)
+    try: _L7BN_RT = json.loads(_rBN.stdout.strip().splitlines()[-1]) if _rBN.returncode == 0 else ("rc=" + str(_rBN.returncode) + " " + (_rBN.stderr or "")[-400:])
+    except Exception as _e: _L7BN_RT = temoin(_e)
+_BN = _L7BN_RT if isinstance(_L7BN_RT, dict) else {}
+_BN_GET = "/api/jobs?limit=24&offset=0&video=1"
+check("L7Bn_sous_node_le_tiroir_du_bundle_charge_et_lit_la_note_du_serveur",
+      _BN.get("charge") == [[[_BN_GET, "GET", None]], [0, 4]], _L7BN_RT)
+check("L7Bn_sous_node_les_etoiles_annulent_leur_glisser_et_le_titre_dit_retirer_sur_l_etoile_courante",
+      _BN.get("span") == [True, [1, 1]]
+      and _BN.get("titres") == ["Noter 1 ★", "Noter 2 ★", "Noter 3 ★", "Retirer la note (4 ★)", "Noter 5 ★ — Good Take"],
+      (_BN.get("span"), _BN.get("titres")))
+check("L7Bn_sous_node_clic_optimiste_PUT_3_clic_arrete_a_l_etoile_rien_n_est_pose_sur_la_piste",
+      _BN.get("ok_opt") == [3, 4]
+      and _BN.get("ok") == [[["/api/jobs/a/rating", "PUT", {"rating": 3}]], [3, 4], None, 1, 1, 0],
+      (_BN.get("ok_opt"), _BN.get("ok")))
+check("L7Bn_sous_node_refus_400_remet_la_note_d_avant_et_le_dit",
+      # temoin : la note optimiste a bien ete posee (2) avant le retour arriere (4)
+      _BN.get("ko_opt") == [3, 2]
+      and _BN.get("ko") == [[["/api/jobs/b/rating", "PUT", {"rating": 2}]], [3, 4],
+                           "Note refusée : rating doit être un entier de 0 à 5 — note d'avant remise."],
+      (_BN.get("ko_opt"), _BN.get("ko")))
+check("L7Bn_sous_node_clic_sur_l_etoile_courante_envoie_0_et_efface_le_message",
+      _BN.get("zero") == [[["/api/jobs/a/rating", "PUT", {"rating": 0}]], [0, 4], None], _BN.get("zero"))
+check("L7Bn_sous_node_panne_reseau_remet_la_note_et_le_dit",
+      _BN.get("net") == [[0, 4], "Note refusée : panne — note d'avant remise."], _BN.get("net"))
+check("L7Bn_sous_node_chips_3_puis_5_titrees_eteintes_au_depart",
+      _BN.get("chips") == [["★ 3+", True, True], ["★ 5", True, True]], _BN.get("chips"))
+check("L7Bn_sous_node_chip_3_redemande_la_page_0_avec_min_rating_3_puis_la_retirer_redemande_sans",
+      _BN.get("f3") == [[_BN_GET + "&min_rating=3"], ""] and _BN.get("f0") == [_BN_GET],
+      (_BN.get("f3"), _BN.get("f0")))
+# ── REVUE D-34 (24/09/2026) : la page suivante ne saute plus un rendu sous filtre, et les PUT d'un rendu partent en file.
+# MESURE du reviewer : filtre ★ 5, limit 2, page 1 [j8, j5], j8 remis a 0, « Plus » demandait offset 2 -> [] et j2
+# n'apparaissait JAMAIS. Second shim, MEME tiroir extrait du bundle, avec un SERVEUR bouchonne qui filtre et pagine
+# vraiment (min_rating, offset, limit) et applique chaque PUT A SA REPONSE (delai propre a chaque appel).
+_L7BN2_RT = "non joue"
+if len(_L7BN_LAYER) > 100000:
+    _L7BN2_SHIM = ('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + _L7BN_LAYER + "\n" +
+        "DZM_MED_PAGE=2;\n"
+        "var HS,HI,EFF,SRV,CALLS,MODE,DELAIS,T;\n"
+        "function deps(a,b){if(!a||!b||a.length!==b.length)return !0;for(var i=0;i<a.length;i++)if(a[i]!==b[i])return !0;return !1}\n"
+        "var x={useState:function(v){var i=HI++;if(!(i in HS))HS[i]=v;return [HS[i],function(n){HS[i]=typeof n==='function'?n(HS[i]):n}]},\n"
+        "  useRef:function(v){var i=HI++;if(!(i in HS))HS[i]={current:v};return HS[i]},\n"
+        "  useEffect:function(f,d){var i=HI++;if(!(i in HS)||deps(HS[i],d)){HS[i]=d;EFF.push(f)}}};\n"
+        "var r={jsx:function(t,p){return {t:t,p:p||{}}},jsxs:function(t,p){return {t:t,p:p||{}}}};\n"
+        "function neuf(notes){HS=[];HI=0;EFF=[];CALLS=[];MODE='ok';DELAIS=[];\n"
+        "  SRV=Object.keys(notes).map(function(k){return {job_id:k,status:'done',video_path:'/o/'+k+'.mp4',title:k,rating:notes[k],provider:'seedance'}})}\n"
+        "function rep(ok,st,d){return {ok:ok,status:st,json:function(){return Promise.resolve(d)}}}\n"
+        "function arg(u,k){var m=new RegExp('[?&]'+k+'=([^&]*)').exec(u);return m?m[1]:null}\n"
+        "function fetch(u,o){CALLS.push([u,o&&o.method||'GET',o&&o.body?JSON.parse(o.body):null]);\n"
+        "  if(!o||!o.method){var mr=+(arg(u,'min_rating')||0),off=+arg(u,'offset'),lim=+arg(u,'limit');\n"
+        "    return Promise.resolve(rep(!0,200,JSON.parse(JSON.stringify(SRV.filter(function(j){return (j.rating||0)>=mr}).slice(off,off+lim)))))}\n"
+        "  var b=JSON.parse(o.body),jid=u.split('/')[3],d=DELAIS.length?DELAIS.shift():0,mo=MODE;\n"
+        "  return new Promise(function(z){setTimeout(function(){if(mo!=='ok'){z(rep(!1,400,{detail:'refus'}));return}\n"
+        "    SRV.forEach(function(j){if(j.job_id===jid)j.rating=b.rating});z(rep(!0,200,{}))},d)})}\n"
+        "function pause(ms){return new Promise(function(z){setTimeout(z,ms||20)})}\n"
+        "var O={open:!0,trId:'v1',exts:null,onAdd:function(){},onClose:function(){}};\n"
+        "function rend(){HI=0;T=DzmMediaDrawer(O);var e=EFF;EFF=[];e.forEach(function(f){f()});return T}\n"
+        "function tous(n,out){out=out||[];if(!n||typeof n!=='object')return out;if(Array.isArray(n)){n.forEach(function(k){tous(k,out)});return out}\n"
+        "  if(n.t){out.push(n);tous(n.p&&n.p.children,out)}return out}\n"
+        "function lignes(){return tous(T).filter(function(n){return n.p.className==='svm-medrow'})}\n"
+        "function ids(){return lignes().map(function(rw){return tous(rw.p.children).filter(function(n){return n.p.className==='svm-medtitle'})[0].p.children})}\n"
+        "function clic(jid,i){var rw=lignes()[ids().indexOf(jid)];tous(rw.p.children).filter(function(n){return n.p.className==='svm-medstar'})[i-1]\n"
+        "  .p.onClick({stopPropagation:function(){},preventDefault:function(){}})}\n"
+        "function chip(l){tous(T).filter(function(n){return n.p.children===l})[0].p.onClick()}\n"
+        "function plus(){tous(T).filter(function(n){return n.p.className==='svm-secbtn svm-medplus'})[0].p.onClick()}\n"
+        # restes de T7 (T6, 24/09) : les trois memoires par rendu (noteSeq, noteConf, noteFile) = les useRef a objet, dans l'ordre
+        "function msg2(){var m=tous(T).filter(function(n){return n.p.className==='svm-medst svm-mednotemsg'});return m.length?m[0].p.children:null}\n"
+        "function mems(){return HS.filter(function(e){return e&&typeof e==='object'&&!Array.isArray(e)&&('current' in e)&&e.current&&typeof e.current==='object'})\n"
+        "  .map(function(e){return Object.keys(e.current).sort()})}\n"
+        "async function ouvre(notes,l){neuf(notes);rend();await pause();rend();chip(l);rend();await pause();rend();CALLS=[]}\n"
+        "async function plusUrl(){rend();plus();rend();await pause();rend();var g=CALLS.filter(function(c){return c[1]==='GET'});CALLS=[];return g.map(function(c){return arg(c[0],'offset')})}\n"
+        "(async function(){var R={};var N={j8:5,j7:0,j5:5,j2:5};\n"
+        "  await ouvre(N,'★ 5');R.a_page1=ids();clic('j8',5);rend();await pause();rend();\n"
+        "  R.a_plus=await plusUrl();R.a_fin=ids();R.a_srv=SRV.map(function(j){return j.job_id+':'+j.rating});\n"
+        "  await ouvre({j8:5,j7:0,j5:5,j2:5,j1:3},'★ 3+');R.b_page1=ids();clic('j8',4);rend();await pause();rend();\n"
+        "  R.b_plus=await plusUrl();R.b_fin=ids();\n"
+        "  await ouvre(N,'★ 5');MODE='ko';clic('j8',5);rend();await pause();rend();MODE='ok';R.c_plus=await plusUrl();\n"
+        "  await ouvre(N,'★ 5');clic('j8',5);rend();await pause();rend();clic('j8',5);rend();await pause();rend();R.d_plus=await plusUrl();\n"
+        "  await ouvre({j8:5,j7:0,j5:5},'★ 5');DELAIS=[40,5];clic('j8',2);rend();clic('j8',4);rend();await pause(90);rend();\n"
+        "  R.e=[SRV[0].rating,CALLS.filter(function(c){return c[1]==='PUT'}).map(function(c){return c[2].rating})];\n"
+        "  await ouvre(N,'★ 5');DELAIS=[40];clic('j8',5);rend();chip('★ 5');rend();await pause(90);rend();\n"
+        "  R.f_recharge=CALLS.filter(function(c){return c[1]==='GET'}).map(function(c){return c[0]});CALLS=[];R.f_plus=await plusUrl();\n"
+        # restes de T7 : sans filtre, j8 (5) baisse a 1 par un PUT LENT (60 ms) ; ★ 3+ cliquee pendant ce PUT
+        "  neuf({j8:5,j7:4,j5:5});rend();await pause();rend();CALLS=[];DELAIS=[60];clic('j8',1);rend();R.g_pendant=mems();\n"
+        "  chip('★ 3+');rend();await pause(25);rend();R.g_get_pendant=CALLS.filter(function(c){return c[1]==='GET'}).length;\n"
+        "  await pause(120);rend();R.g_ordre=CALLS.map(function(c){return c[1]});R.g_ids=ids();R.g_srv=SRV[0].rating;R.g_apres=mems();\n"
+        # revue T6 : un PUT de j7 part PENDANT l'attente (refuse, 100 ms) ; sa file n'est pas celle attendue -> ses memoires
+        # restent, et le refus remet la note d'avant ET le dit
+        "  neuf({j8:5,j7:4,j5:5});rend();await pause();rend();CALLS=[];DELAIS=[60,100];clic('j8',4);rend();chip('★ 3+');rend();await pause(10);rend();\n"
+        "  MODE='ko';clic('j7',2);rend();R.h_opt=ids().length;await pause(3);MODE='ok';await pause(170);rend();\n"
+        "  R.h=[msg2(),ids(),mems(),SRV[1].rating];\n"
+        "  console.log(JSON.stringify(R))})();\n")
+    _pBN2 = pathlib.Path(TMP) / "l7b_notes_offset.js"; _pBN2.write_text(_L7BN2_SHIM, encoding="utf-8")
+    _rBN2 = NODE(["node", str(_pBN2)], timeout=60)
+    try: _L7BN2_RT = json.loads(_rBN2.stdout.strip().splitlines()[-1]) if _rBN2.returncode == 0 else ("rc=" + str(_rBN2.returncode) + " " + (_rBN2.stderr or "")[-400:])
+    except Exception as _e: _L7BN2_RT = temoin(_e)
+_BN2 = _L7BN2_RT if isinstance(_L7BN2_RT, dict) else {}
+check("L7Bn_revue_filtre_5_remettre_j8_a_0_Plus_demande_offset_1_et_j2_apparait",
+      _BN2.get("a_page1") == ["j8", "j5"] and _BN2.get("a_plus") == ["1"]
+      and _BN2.get("a_fin") == ["j8", "j5", "j2"] and "j8:0" in (_BN2.get("a_srv") or []),
+      _L7BN2_RT)
+check("L7Bn_revue_temoin_filtre_3_baisse_5_vers_4_reste_au_dessus_offset_inchange",
+      _BN2.get("b_page1") == ["j8", "j5"] and _BN2.get("b_plus") == ["2"] and _BN2.get("b_fin") == ["j8", "j5", "j2", "j1"],
+      (_BN2.get("b_page1"), _BN2.get("b_plus"), _BN2.get("b_fin")))
+check("L7Bn_revue_refus_du_PUT_offset_inchange",
+      # temoin : le meme clic accepte (scenario a) ramene l'offset a 1
+      _BN2.get("c_plus") == ["2"] and _BN2.get("a_plus") == ["1"], (_BN2.get("c_plus"), _BN2.get("a_plus")))
+check("L7Bn_revue_retirer_puis_remettre_5_l_offset_revient_a_2",
+      _BN2.get("d_plus") == ["2"], _BN2.get("d_plus"))
+check("L7Bn_revue_rechargement_pendant_le_PUT_l_offset_du_rechargement_n_est_pas_touche",
+      # le filtre est retire pendant un PUT lent qui fait passer j8 sous 5 : la liste rechargee (2 lignes) garde offset 2
+      _BN2.get("f_recharge") == ["/api/jobs?limit=2&offset=0&video=1"] and _BN2.get("f_plus") == ["2"],
+      (_BN2.get("f_recharge"), _BN2.get("f_plus")))
+check("L7Bn_revue_deux_PUT_rapides_le_serveur_garde_la_derniere_note_cliquee",
+      # le premier PUT repond en 40 ms, le second en 5 : sans file, le serveur finirait sur 2
+      _BN2.get("e") == [4, [2, 4]], _BN2.get("e"))
+# ── RESTES DE T7 (fermes en T6, 24/09/2026) : la recharge depuis la page 0 ATTEND les notes en vol, puis vide les
+# memoires des rendus dont la file est retombee. Sans l'attente, la liste ★ 3+ etait demandee avant que le PUT lent
+# ait abaisse j8 (5 -> 1) : le serveur rendait encore j8 note 5. Temoins : le GET part bien APRES (g_ordre), les
+# memoires portaient j8 pendant le PUT (g_pendant).
+check("L7Bn_restes_T7_chip_3_pendant_un_PUT_lent_la_recharge_attend_le_PUT_et_j8_n_y_est_plus",
+      _BN2.get("g_get_pendant") == 0 and _BN2.get("g_ordre") == ["PUT", "GET"]
+      and _BN2.get("g_srv") == 1 and _BN2.get("g_ids") == ["j7", "j5"],
+      (_BN2.get("g_get_pendant"), _BN2.get("g_ordre"), _BN2.get("g_srv"), _BN2.get("g_ids")))
+check("L7Bn_revue_T6_PUT_parti_pendant_l_attente_garde_ses_memoires_son_refus_remet_la_note_et_le_dit",
+      _BN2.get("h") == ["Note refusée : refus — note d'avant remise.", ["j8", "j7"], [["j7"], ["j7"], ["j7"]], 4],
+      _BN2.get("h"))
+check("L7Bn_restes_T7_memoires_noteSeq_noteConf_noteFile_videes_apres_la_recharge_temoin_pleines_pendant",
+      _BN2.get("g_pendant") == [["j8"], ["j8"], ["j8"]] and _BN2.get("g_apres") == [[], [], []],
+      (_BN2.get("g_pendant"), _BN2.get("g_apres")))
+
+print("\n[L7B] D-41 tache 6 : les auto-clips d'un rendu depuis le tiroir Medias (24/09/2026)")
+# ── L7-B D-41 (24/09/2026, tache 6, decision n°4). Le popover vit dans la COUCHE (DzmAutoclips, coeur pur dzmAcPayload)
+# et le tiroir le monte ; l'hote ne recoit que TROIS REPLIS, aucune section neuve (192 ancres, une seule section L7B) :
+# R_M11 (l'etat dzAcOpen, un compteur), R_EB3 (onOpenProject du tiroir), R_M14 (openProj de la liste des projets).
+# Aucune reference neuve au contrat (le tiroir appelle DzmAutoclips par son nom) -> SONDE dzcout 163 INCHANGEE.
+_L7BAC_L = ['function dzmAcPayload(e){', 'function DzmAutoclips(o){', 'Autoclips:DzmAutoclips,', 'className:"svm-medac",draggable:!0,',
+            'var oproj=props&&props.openProj,opn=Number(oproj&&oproj.n)||0;', 'ac?r.jsx(DzmAutoclips,{src:{job_id:String(ac.job_id)},']
+_L7BAC_H = ['var stDzAc=x.useState(null),dzAcOpen=stDzAc[0],setDzAcOpen=stDzAc[1];', 'openProj:dzAcOpen,',
+            'onOpenProject:function(p){setDzAcOpen(function(v){return {n:((v&&v.n)||0)+1,id:p&&p.id,name:p&&p.name}})}}),']
+check("L7Bac_morceaux_x1_couche_et_bundle_hote_x1_bundle_x0_bak_aucune_section_neuve_sonde_163",
+      all(src.count(t) == 1 and s.count(t) == 1 for t in _L7BAC_L)
+      and all(src.count(t) == 0 and s.count(t) == 1 for t in _L7BAC_H)
+      and (all(_bak.count(t) == 0 for t in _L7BAC_L + _L7BAC_H) and _bak.count("dzAcOpen") == 0 if _bak else False)
+      and [t[0] for t in P.PATCHES if t[0].startswith("L7B")] == ["L7Brf1-apercu-du-cadrage-video-ou-image"]
+      and len(P.PATCHES) == 191  # (le --check annonce 192 ancres : inchange)
+      and s.count("DzTracks") == 163 and _sonde.get("montage") == 163,
+      ({t[:30]: (src.count(t), s.count(t)) for t in _L7BAC_L + _L7BAC_H}, len(P.PATCHES), s.count("DzTracks")))
+# les trois replis sont dans LEURS remplacements (le patcher) : l'etat avant dzTbDock, openProj apres openReq, le relai du tiroir
+check("L7Bac_replis_dans_R_M11_R_M14_R_EB3",
+      P.R_M11.count("var stDzAc=x.useState(null),dzAcOpen=stDzAc[0],setDzAcOpen=stDzAc[1];") == 1
+      and P.R_M14.count("openProj:dzAcOpen,") == 1 and P.R_M14.find("openReq:dzProjReq,") < P.R_M14.find("openProj:dzAcOpen,")
+      and P.R_EB3.count("onOpenProject:function(p){setDzAcOpen(") == 1 and P.R_EB3.count("onAdd:function(j){addAsset(") == 1,
+      (P.R_M11.count("dzAcOpen"), P.R_M14.count("openProj"), P.R_EB3.count("onOpenProject")))
+check("L7Bac_css_bouton_de_ligne_et_popover_x1_dans_la_feuille",
+      all(_EB_CSS.count(k) == 1 for k in (".dzsvm .svm-medac{", ".dzsvm .dzm-autoclips{", ".dzsvm .dzm-acest{", ".dzsvm .dzm-acpay{",
+                                          ".dzsvm .dzm-acclip{", ".dzsvm .dzm-accreate[data-arm]{", ".dzsvm .dzm-acgo:disabled{"))
+      and _EB_CSS.count(".dzsvm .svm-medrow{") == 1,
+      [_EB_CSS.count(k) for k in (".dzsvm .svm-medac{", ".dzsvm .dzm-autoclips{", ".dzsvm .dzm-acpay{")])
+# LE POPOVER, LE TIROIR ET LA LISTE DES PROJETS DU BUNDLE LIVRE, joues sous node : hooks par instance, reseau bouchonne
+# par route (file de reponses, delai propre) -- AUCUN appel reel.
+_L7BAC_RT = "non joue"
+if len(_L7BN_LAYER) > 100000:
+    _L7BAC_SHIM = ('"use strict";\nvar window={addEventListener:function(){},removeEventListener:function(){}};var SVM_TRACK_BUS={};\n'
+        + _L7BN_LAYER + "\n" + r"""
+var CUR=null;
+function deps(a,b){if(!a||!b||a.length!==b.length)return !0;for(var i=0;i<a.length;i++)if(a[i]!==b[i])return !0;return !1}
+var x={useState:function(v){var I=CUR,i=I.HI++;if(!(i in I.HS))I.HS[i]=typeof v==='function'?v():v;
+    return [I.HS[i],function(n){I.HS[i]=typeof n==='function'?n(I.HS[i]):n}]},
+  useRef:function(v){var I=CUR,i=I.HI++;if(!(i in I.HS))I.HS[i]={current:v};return I.HS[i]},
+  useEffect:function(f,d){var I=CUR,i=I.HI++;if(!(i in I.HS)||deps(I.HS[i],d)){I.HS[i]=d;I.EFF.push(f)}}};
+var r={jsx:function(t,p,k){return {t:t,p:p||{},k:k}},jsxs:function(t,p,k){return {t:t,p:p||{},k:k}}};
+function inst(C,P){var I={HS:[],EFF:[],P:P,T:null,HI:0};
+  I.rend=function(){CUR=I;I.HI=0;I.T=C(I.P);CUR=null;var e=I.EFF;I.EFF=[];e.forEach(function(f){f()});return I.T};return I}
+var CALLS=[],ROUTES={};
+function route(k,st,d,delay){(ROUTES[k]=ROUTES[k]||[]).push({st:st,d:d,delay:delay||0})}
+function fetch(u,o){var m=(o&&o.method)||'GET',b=o&&o.body?JSON.parse(o.body):null;CALLS.push([m,u,b]);
+  var q=ROUTES[m+' '+u],x0=q&&q.length?q.shift():{st:404,d:{detail:'pas de route '+m+' '+u},delay:0};
+  return new Promise(function(z){setTimeout(function(){z({ok:x0.st<300,status:x0.st,json:function(){return Promise.resolve(JSON.parse(JSON.stringify(x0.d)))}})},x0.delay)})}
+function pause(ms){return new Promise(function(z){setTimeout(z,ms||15)})}
+function tous(n,out){out=out||[];if(!n||typeof n!=='object')return out;if(Array.isArray(n)){n.forEach(function(k){tous(k,out)});return out}
+  if(n.t){out.push(n);tous(n.p&&n.p.children,out)}return out}
+function find(T,f){return tous(T).filter(f)}
+function cls(T,c){return find(T,function(n){return n.p&&typeof n.p.className==='string'&&n.p.className.split(' ').indexOf(c)>=0})}
+function boite(I,c){var l=cls(I.T,c)[0];return l?find(l.p.children,function(n){return n.t==='input'})[0]:null}
+function msg(I){var m=cls(I.T,'dzm-acmsg');return m.length?m[0].p.children:null}
+function bouton(I){return cls(I.T,'dzm-acgo')[0]}
+function corps(){return CALLS.map(function(c){return c[2]})}
+var AC='POST /api/montage/autoclips',CR='POST /api/montage/autoclips/create';
+var OPEN=[];
+function pop(){return inst(DzmAutoclips,{src:{job_id:'j1'},label:'Clip A',dur:120,onClose:function(){},onOpenProject:function(p){OPEN.push(p)}})}
+function texte(I,v){find(I.T,function(n){return n.t==='textarea'})[0].p.onChange({target:{value:v}})}
+var EST={ok:true,provider:'elevenlabs',label:'ElevenLabs',usd:0.0536,eta_s:40};
+var CL=[{i:0,start:12,end:44.5,score:82,title:'Le secret',hook:'Personne ne le dit',origine:'llm',segments:[{start:12,end:14,text:'a'}]},
+  {i:3,start:60,end:80,score:55,title:'',hook:'',origine:'heuristique',segments:[]}];
+(async function(){var R={};
+  /* A — estimation, case payer, confirm, cache */
+  var A=pop();A.rend();R.a0=[bouton(A).p.children,cls(A.T,'dzm-acpay').length,boite(A,'dzm-accheck').p.checked];
+  route(AC,200,{ok:false,estimate:EST,reason:'Transcription payante : confirmez le coût annoncé'});
+  bouton(A).p.onClick();A.rend();R.a_gel=[bouton(A).p.disabled,bouton(A).p.children];await pause();A.rend();
+  R.a1=[corps(),msg(A),cls(A.T,'dzm-acest')[0].p.children,cls(A.T,'dzm-acpay').length,boite(A,'dzm-acpay').p.checked,
+    cls(A.T,'dzm-acpay')[0].p.children[1],bouton(A).p.children];CALLS=[];
+  route(AC,200,{ok:false,estimate:EST,reason:'r2'});bouton(A).p.onClick();A.rend();await pause();A.rend();R.a2=corps();CALLS=[];
+  boite(A,'dzm-acpay').p.onChange({target:{checked:true}});A.rend();R.a_lbl=bouton(A).p.children;
+  route(AC,200,{ok:true,source:'llm:fake',transcript:'stt:elevenlabs',words:120,windows:9,duration:120,clips:CL});
+  bouton(A).p.onClick();A.rend();R.a_pendant=boite(A,'dzm-acpay').p.checked;await pause();A.rend();
+  R.a3=[corps(),msg(A),cls(A.T,'dzm-acclip').length,cls(A.T,'dzm-acpay').length,
+    cls(A.T,'dzm-acscore').map(function(n){return n.p.children}),cls(A.T,'dzm-actitle').map(function(n){return n.p.children}),
+    cls(A.T,'dzm-achook').map(function(n){return n.p.children}),cls(A.T,'dzm-acmeta').map(function(n){return n.p.children})];CALLS=[];
+  route(AC,200,{ok:true,source:'heuristique',transcript:'stt:elevenlabs:cache',clips:CL.slice(1)});
+  bouton(A).p.onClick();A.rend();await pause();A.rend();R.a4=[corps(),msg(A)];CALLS=[];
+  /* B — texte connu, n, persona, IA décochée */
+  var B=pop();B.rend();texte(B,'  Bonjour à tous  ');
+  find(B.T,function(n){return n.t==='input'&&n.p.type==='number'})[0].p.onChange({target:{value:'6'}});
+  cls(B.T,'dzm-acpersona')[0].p.onChange({target:{value:'gamer'}});boite(B,'dzm-accheck').p.onChange({target:{checked:false}});
+  find(B.T,function(n){return n.t==='select'})[0].p.onChange({target:{value:'en'}});B.rend();
+  R.b_langues=find(B.T,function(n){return n.t==='option'}).map(function(n){return n.p.value});
+  R.b_lbl=bouton(B).p.children;route(AC,200,{ok:true,source:'heuristique',transcript:'align',clips:[CL[1]]});
+  bouton(B).p.onClick();B.rend();await pause();B.rend();R.b=[corps(),msg(B)];CALLS=[];
+  /* C — case payer cochée PUIS texte donné : la case disparaît, pas de confirm */
+  var C=pop();C.rend();route(AC,200,{ok:false,estimate:EST,reason:'r'});bouton(C).p.onClick();C.rend();await pause();C.rend();CALLS=[];
+  boite(C,'dzm-acpay').p.onChange({target:{checked:true}});C.rend();texte(C,'texte');C.rend();R.c_case=cls(C.T,'dzm-acpay').length;
+  route(AC,200,{ok:true,source:'heuristique',transcript:'align',clips:[]});bouton(C).p.onClick();C.rend();await pause();C.rend();R.c=corps();CALLS=[];
+  /* E — aucune clé : la raison est dite, aucune case payer */
+  var E=pop();E.rend();route(AC,200,{ok:false,estimate:{ok:false,usd:0,eta_s:0,provider:null,reason:'Aucune clé de transcription configurée'},
+    reason:'Aucune clé de transcription configurée'});bouton(E).p.onClick();E.rend();await pause();E.rend();
+  R.e=[cls(E.T,'dzm-acest')[0].p.children,cls(E.T,'dzm-acpay').length,msg(E)];CALLS=[];
+  /* D — créer : armé, puis create -> onOpenProject ; refus dits */
+  var D=pop();D.rend();texte(D,'t');D.rend();route(AC,200,{ok:true,source:'llm:fake',transcript:'align',clips:CL});
+  bouton(D).p.onClick();D.rend();await pause();D.rend();CALLS=[];
+  var cb=function(){return cls(D.T,'dzm-accreate')[0]};
+  R.d0=[cb().p.children,cb().p['data-arm']===void 0];cb().p.onClick();D.rend();R.d_arme=[CALLS.length,cb().p.children,cb().p['data-arm']===''];
+  route(CR,200,{ok:true,project_id:'p9',id:'p9',name:'Le secret'});cb().p.onClick();D.rend();await pause();D.rend();
+  R.d=[CALLS.slice(),OPEN.slice(),msg(D)];CALLS=[];OPEN=[];
+  cb().p.onClick();D.rend();route(CR,400,{detail:'clip trop court (end − start < 0,3 s).'});cb().p.onClick();D.rend();await pause();D.rend();
+  R.d_refus=[CALLS.length,OPEN.length,msg(D)];CALLS=[];
+  route(AC,400,{detail:'n hors bornes — un entier de 1 à 8.'});bouton(D).p.onClick();D.rend();await pause();D.rend();
+  R.d_refus2=[msg(D),cls(D.T,'dzm-acclip').length];CALLS=[];
+  /* G — réponse lente : bouton gelé, second clic sans requête ; la ligne change -> réponse refusée ; témoin : sans changement elle est lue */
+  var G=pop();G.rend();texte(G,'t');G.rend();route(AC,200,{ok:true,source:'heuristique',transcript:'align',clips:CL},40);
+  bouton(G).p.onClick();G.rend();R.g_gel=[bouton(G).p.disabled,find(G.T,function(n){return n.t==='textarea'})[0].p.disabled];
+  bouton(G).p.onClick();G.rend();R.g_calls=CALLS.length;
+  G.P=Object.assign({},G.P,{src:{job_id:'j2'},label:'Clip B'});G.rend();await pause(80);G.rend();
+  R.g=[cls(G.T,'dzm-acclip').length,msg(G),bouton(G).p.disabled];CALLS=[];
+  var G2=pop();G2.rend();texte(G2,'t');G2.rend();route(AC,200,{ok:true,source:'heuristique',transcript:'align',clips:CL},40);
+  bouton(G2).p.onClick();G2.rend();await pause(80);G2.rend();R.g_temoin=cls(G2.T,'dzm-acclip').length;CALLS=[];
+  /* M — le tiroir : « ✂ auto-clips » monte le popover de la ligne sans poser le rendu */
+  var JOBS=[{job_id:'a',status:'done',video_path:'/o/a.mp4',title:'A',rating:0,provider:'seedance'}];
+  var JG='GET /api/jobs?limit=24&offset=0&video=1';route(JG,200,JOBS);route(JG,200,JOBS);
+  var ADD=0,OPR=function(){};
+  var M=inst(DzmMediaDrawer,{open:true,trId:'v1',exts:null,onAdd:function(){ADD++},onClose:function(){},onOpenProject:OPR,dragPayload:function(){}});
+  M.rend();await pause(60);M.rend();
+  var bt=cls(M.T,'svm-medac')[0],ev=function(){var e={sp:0,pd:0,stopPropagation:function(){e.sp++},preventDefault:function(){e.pd++}};return e};
+  var e1=ev(),e2=ev();bt.p.onDragStart(e2);R.m_avant=[find(M.T,function(n){return n.t===DzmAutoclips}).length,bt.p['data-on']===void 0];
+  bt.p.onClick(e1);M.rend();var pn=find(M.T,function(n){return n.t===DzmAutoclips})[0];
+  R.m=[ADD,e1.sp,e1.pd,[e2.sp,e2.pd],!!pn,pn&&pn.p.src,pn&&pn.p.label,pn&&pn.p.dur,pn&&pn.k,!!pn&&pn.p.onOpenProject===OPR,
+    cls(M.T,'svm-medac')[0].p['data-on']==='',typeof bt.p.title==='string'&&bt.p.title.length>40];
+  pn.p.onClose();M.rend();R.m_ferme=find(M.T,function(n){return n.t===DzmAutoclips}).length;
+  cls(M.T,'svm-medac')[0].p.onClick(ev());M.rend();R.m_rouvert=find(M.T,function(n){return n.t===DzmAutoclips}).length;
+  M.P=Object.assign({},M.P,{open:false});M.rend();M.P=Object.assign({},M.P,{open:true});M.rend();await pause();M.rend();
+  R.m_tiroir=find(M.T,function(n){return n.t===DzmAutoclips}).length;CALLS=[];
+  /* P — la liste des projets ouvre le projet demandé par le chemin de « ouvrir » */
+  var APPL=[],NAMED=[],BEF=0,NOTES=[];
+  function projets(pid,pay,op){return inst(DzmProjects,{name:'montage',projectId:pid,nu:!0,note:function(m){NOTES.push(m)},
+    payload:function(){return pay},onBefore:function(){BEF++},onFail:function(){},onOpen:function(d){APPL.push(d);return !0},
+    onNamed:function(i,n){NAMED.push([i,n])},openProj:op})}
+  var P0=projets('',{clips:[{tr:'v1',id:'c'}]},{n:0,id:'p9',name:'Le secret'});P0.rend();await pause();P0.rend();R.p0=[CALLS.length,BEF];
+  var PJ=projets('',{clips:[{tr:'v1',id:'c'}]},null);PJ.rend();
+  route('POST /api/montage/projects',200,{id:'s1',name:'(non nommé) 24/09'});route('POST /api/montage/projects/p9/open',200,{ok:true});
+  route('GET /api/montage/project',200,{clips:[{tr:'v1'}],name:'Le secret'});
+  PJ.P=Object.assign({},PJ.P,{openProj:{n:1,id:'p9',name:'Le secret'}});PJ.rend();await pause(60);PJ.rend();
+  R.p1=[CALLS.map(function(c){return c[0]+' '+c[1]}),BEF,APPL.length,NAMED.slice(),NOTES[NOTES.length-1]];CALLS=[];NAMED=[];BEF=0;APPL=[];
+  var PN=projets('pX',{clips:[{tr:'v1',id:'c'}]},null);PN.rend();
+  route('POST /api/montage/projects/p9/open',200,{ok:true});route('GET /api/montage/project',200,{clips:[{tr:'v1'}]});
+  PN.P=Object.assign({},PN.P,{openProj:{n:1,id:'p9',name:'Le secret'}});PN.rend();await pause(60);PN.rend();
+  R.p2=[CALLS.map(function(c){return c[0]+' '+c[1]}),BEF,APPL.length,NAMED.slice()];CALLS=[];
+  /* V — REVUE T6, le scenario du reviewer : 0,05 $ coche, texte tape (case masquee), lancement avec texte, texte vide,
+     NOUVELLE estimation 0,40 $ -> la case n'est PAS cochee et le clic suivant n'envoie pas confirm ; temoin : cocher
+     APRES la nouvelle estimation -> confirm part, plafonne a 0,40 */
+  var V=pop();V.rend();route(AC,200,{ok:false,estimate:{ok:true,usd:0.05,eta_s:40,label:'EL'}});bouton(V).p.onClick();V.rend();await pause();V.rend();
+  boite(V,'dzm-acpay').p.onChange({target:{checked:true}});V.rend();texte(V,'mon texte');V.rend();
+  route(AC,200,{ok:true,source:'heuristique',transcript:'align',clips:[]});bouton(V).p.onClick();V.rend();await pause();V.rend();
+  texte(V,'');V.rend();route(AC,200,{ok:false,estimate:{ok:true,usd:0.40,eta_s:300,label:'EL'}});bouton(V).p.onClick();V.rend();await pause();V.rend();
+  R.v_case=[boite(V,'dzm-acpay').p.checked,bouton(V).p.children];CALLS=[];
+  route(AC,200,{ok:false,estimate:{ok:true,usd:0.40,eta_s:300,label:'EL'}});bouton(V).p.onClick();V.rend();await pause();V.rend();R.v_corps=corps();CALLS=[];
+  boite(V,'dzm-acpay').p.onChange({target:{checked:true}});V.rend();
+  route(AC,200,{ok:true,source:'heuristique',transcript:'stt:el',clips:[]});bouton(V).p.onClick();V.rend();await pause();V.rend();R.v_temoin=corps();CALLS=[];
+  /* W — la coche retombe quand le nombre ou la langue changent */
+  var W=pop();W.rend();route(AC,200,{ok:false,estimate:EST,reason:'r'});bouton(W).p.onClick();W.rend();await pause();W.rend();CALLS=[];
+  boite(W,'dzm-acpay').p.onChange({target:{checked:true}});W.rend();var w1=boite(W,'dzm-acpay').p.checked;
+  find(W.T,function(n){return n.t==='input'&&n.p.type==='number'})[0].p.onChange({target:{value:'5'}});W.rend();var w2=boite(W,'dzm-acpay').p.checked;
+  boite(W,'dzm-acpay').p.onChange({target:{checked:true}});W.rend();var w3=boite(W,'dzm-acpay').p.checked;
+  find(W.T,function(n){return n.t==='select'})[0].p.onChange({target:{value:'de'}});W.rend();R.w=[w1,w2,w3,boite(W,'dzm-acpay').p.checked];
+  /* Z — deux clics sur le MEME gestionnaire (rendu non rafraichi, busy encore faux) : un seul envoi confirme */
+  var Z=pop();Z.rend();route(AC,200,{ok:false,estimate:EST,reason:'r'});bouton(Z).p.onClick();Z.rend();await pause();Z.rend();
+  boite(Z,'dzm-acpay').p.onChange({target:{checked:true}});Z.rend();CALLS=[];
+  route(AC,200,{ok:true,source:'heuristique',transcript:'stt:el',clips:[]},30);route(AC,200,{ok:true,source:'heuristique',transcript:'stt:el',clips:[]},30);
+  var hz=bouton(Z).p.onClick;hz();hz();await pause(70);Z.rend();R.z=corps().map(function(b){return b.confirm===true});CALLS=[];ROUTES={};
+  console.log(JSON.stringify(R))})();
+""")
+    _pAC = pathlib.Path(TMP) / "l7b_autoclips.js"; _pAC.write_text(_L7BAC_SHIM, encoding="utf-8")
+    _rAC = NODE(["node", str(_pAC)], timeout=60)
+    try: _L7BAC_RT = json.loads(_rAC.stdout.strip().splitlines()[-1]) if _rAC.returncode == 0 else ("rc=" + str(_rAC.returncode) + " " + (_rAC.stderr or "")[-600:])
+    except Exception as _e: _L7BAC_RT = temoin(_e)
+_BA = _L7BAC_RT if isinstance(_L7BAC_RT, dict) else {}
+_ACS = {"job_id": "j1"}
+check("L7Bac_sous_node_au_depart_estimer_lancer_sans_case_payer_IA_cochee",
+      _BA.get("a0") == ["Estimer / Lancer", 0, True], _L7BAC_RT)
+check("L7Bac_sous_node_sans_case_le_corps_n_a_pas_confirm_estimation_dite_case_payer_offerte_non_cochee",
+      _BA.get("a_gel") == [True, "Analyse…"]
+      and _BA.get("a1") == [[{"src": _ACS, "n": 4, "llm": True, "lang": "fr"}], "Transcription payante : confirmez le coût annoncé",
+                            "Transcription payante : ≈ 0,05 $ · ~40 s · ElevenLabs", 1, False,
+                            "Payer la transcription (≈ 0,05 $)", "Estimer / Lancer"],
+      (_BA.get("a_gel"), _BA.get("a1")))
+check("L7Bac_sous_node_second_clic_sans_cocher_toujours_sans_confirm",
+      _BA.get("a2") == [{"src": _ACS, "n": 4, "llm": True, "lang": "fr"}], _BA.get("a2"))
+check("L7Bac_sous_node_case_cochee_le_clic_suivant_envoie_confirm_true_et_la_case_se_decoche",
+      _BA.get("a_lbl") == "Payer et lancer (≈ 0,05 $)" and _BA.get("a_pendant") is False
+      and (_BA.get("a3") or [None])[0] == [{"src": _ACS, "n": 4, "llm": True, "lang": "fr", "confirm": True, "max_usd": 0.0536}]
+      and (_BA.get("a3") or [None, None])[1] == "2 extraits — transcription payée (elevenlabs) ; classés par l'IA (fake).",
+      (_BA.get("a_lbl"), _BA.get("a_pendant"), _BA.get("a3")))
+check("L7Bac_sous_node_resultats_score_titre_accroche_duree_origine_case_payer_retiree",
+      (_BA.get("a3") or [])[2:] == [2, 0, ["82", "55"], ["Le secret", "Extrait 2"], ["Personne ne le dit"],
+                                    ["12,0 → 44,5 s · 32,5 s · IA", "60,0 → 80,0 s · 20,0 s · heuristique"]],
+      _BA.get("a3"))
+check("L7Bac_sous_node_transcription_en_cache_dite_deja_payee_reutilisee_sans_confirm",
+      _BA.get("a4") == [[{"src": _ACS, "n": 4, "llm": True, "lang": "fr"}],
+                        "1 extrait — transcription déjà payée, réutilisée (elevenlabs) ; classés par l'heuristique (gratuit)."],
+      _BA.get("a4"))
+check("L7Bac_sous_node_llm_false_texte_n_persona_langue_dans_le_corps",
+      _BA.get("b_lbl") == "Lancer (texte connu, gratuit)"
+      and _BA.get("b") == [[{"src": _ACS, "n": 6, "llm": False, "lang": "en", "text": "Bonjour à tous", "persona": "gamer"}],
+                           "1 extrait — texte connu calé sur le son (gratuit) ; classés par l'heuristique (gratuit)."]
+      and _BA.get("b_langues") == ["fr", "en", "es", "de", "it"],
+      (_BA.get("b_lbl"), _BA.get("b"), _BA.get("b_langues")))
+check("L7Bac_sous_node_case_cochee_puis_texte_donne_la_case_disparait_et_rien_n_est_paye",
+      _BA.get("c_case") == 0 and _BA.get("c") == [{"src": _ACS, "n": 4, "llm": True, "lang": "fr", "text": "texte"}],
+      (_BA.get("c_case"), _BA.get("c")))
+check("L7Bac_sous_node_sans_cle_la_raison_est_dite_aucune_case_payer",
+      _BA.get("e") == ["Pas de transcription payante possible — Aucune clé de transcription configurée", 0,
+                       "Aucune clé de transcription configurée"], _BA.get("e"))
+check("L7Bac_sous_node_creer_arme_puis_create_puis_onOpenProject",
+      _BA.get("d0") == ["Créer le projet", True] and _BA.get("d_arme") == [0, "Créer et ouvrir ?", True]
+      and (_BA.get("d") or [None])[0] == [["POST", "/api/montage/autoclips/create",
+                                           {"src": _ACS, "clip": {"start": 12, "end": 44.5, "segments": [{"start": 12, "end": 14, "text": "a"}],
+                                                                  "title": "Le secret"}, "name": "Le secret"}]]
+      and (_BA.get("d") or [None, None])[1] == [{"id": "p9", "name": "Le secret"}]
+      and str((_BA.get("d") or [None, None, ""])[2]).startswith("Projet « Le secret » créé — ouverture"),
+      (_BA.get("d0"), _BA.get("d_arme"), _BA.get("d")))
+check("L7Bac_sous_node_refus_de_create_et_d_autoclips_dits_rien_n_est_ouvert",
+      _BA.get("d_refus") == [1, 0, "Création refusée : clip trop court (end − start < 0,3 s)."]
+      and _BA.get("d_refus2") == ["Auto-clips refusés : n hors bornes — un entier de 1 à 8.", 2],
+      (_BA.get("d_refus"), _BA.get("d_refus2")))
+check("L7Bac_sous_node_analyse_longue_gelee_ligne_changee_reponse_refusee_temoin_lue_sans_changement",
+      _BA.get("g_gel") == [True, True] and _BA.get("g_calls") == 1 and _BA.get("g") == [0, None, False]
+      and _BA.get("g_temoin") == 2,
+      (_BA.get("g_gel"), _BA.get("g_calls"), _BA.get("g"), _BA.get("g_temoin")))
+check("L7Bac_sous_node_tiroir_bouton_de_ligne_monte_le_popover_sans_poser_glisser_annule_cle_du_job",
+      _BA.get("m_avant") == [0, True]
+      and _BA.get("m") == [0, 1, 1, [1, 1], True, {"job_id": "a"}, "A", 0, "a", True, True, True]  # sans duration_s (dzmDurTxt lit svmRuler, absent du shim) : dur 0
+      and _BA.get("m_ferme") == 0 and _BA.get("m_rouvert") == 1 and _BA.get("m_tiroir") == 0,
+      (_BA.get("m_avant"), _BA.get("m"), _BA.get("m_ferme"), _BA.get("m_rouvert"), _BA.get("m_tiroir")))
+check("L7Bac_sous_node_projets_openProj_copie_de_surete_puis_open_puis_applique_temoin_n0_rien",
+      _BA.get("p0") == [0, 0]
+      and (_BA.get("p1") or [None])[0] == ["POST /api/montage/projects", "POST /api/montage/projects/p9/open", "GET /api/montage/project"]
+      and (_BA.get("p1") or [])[1:4] == [1, 1, [["s1", "(non nommé) 24/09"], ["p9", "Le secret"]]]
+      and "« Le secret » ouvert" in str((_BA.get("p1") or [""] * 5)[4]) and "(non nommé) 24/09" in str((_BA.get("p1") or [""] * 5)[4]),
+      (_BA.get("p0"), _BA.get("p1")))
+check("L7Bac_revue_T6_scenario_du_reviewer_nouvelle_estimation_case_decochee_pas_de_confirm_temoin_coche_apres",
+      _BA.get("v_case") == [False, "Estimer / Lancer"]
+      and _BA.get("v_corps") == [{"src": _ACS, "n": 4, "llm": True, "lang": "fr"}]
+      and _BA.get("v_temoin") == [{"src": _ACS, "n": 4, "llm": True, "lang": "fr", "confirm": True, "max_usd": 0.4}],
+      (_BA.get("v_case"), _BA.get("v_corps"), _BA.get("v_temoin")))
+check("L7Bac_revue_T6_la_coche_retombe_au_changement_du_nombre_et_de_la_langue_temoin_cochee_avant",
+      _BA.get("w") == [True, False, True, False], _BA.get("w"))
+check("L7Bac_revue_T6_deux_clics_du_meme_gestionnaire_un_seul_envoi_confirme",
+      _BA.get("z") == [True], _BA.get("z"))
+check("L7Bac_sous_node_projets_montage_nomme_pas_de_copie_open_puis_applique",
+      _BA.get("p2") == [["POST /api/montage/projects/p9/open", "GET /api/montage/project"], 1, 1, [["p9", "Le secret"]]],
+      _BA.get("p2"))
+
+print("\n[L7B] D-40 tache 4 : le cadrage dans l'inspecteur de plan, l'apercu vivant et le payload (24/09/2026)")
+# ── L7-B D-40 (24/09/2026, tache 4, decision n°3). AUCUNE section neuve : trois REPLIS dans les hotes de D-13 --
+# R_DZ1 (l'hote de DzTracks.PlanProps recoit ratio, srcWH et onReframe), R_DZ3 (l'apercu vivant ecrit la position
+# de l'objet sur la <video> V1 active), R_DZ4 (renderPayload joint `reframe` hors centre). Le coeur et la section
+# « Cadrage » vivent dans la COUCHE (banc d'edition [34]). 191 ancres inchangees ; sonde dzcout 161 -> 163
+# (reframeCss + reframeOf). Puis SOUS NODE, tels qu'ils sont DANS LE BUNDLE LIVRE : le geste d'analyse (garde
+# d'obsolescence de dzSceneCut), la ligne du payload, les deux lignes de l'apercu, et l'inspecteur rendu avec des
+# hooks bouchonnes (grise-jamais-masque, E-12).
+_RF_P = ['ratio:svmRatioW(proj.ratio),srcWH:(function(){var pl=livePoolRef.current,it=pl&&pl.get(livePoolKey(sel.src,"b"));',
+         'onReframe:function(){var id=sel.id,c=clipsRef.current.find(function(k){return k.id===id});',
+         'fetch("/api/montage/reframe",{method:"POST",',
+         'if(dzRfSg(k2)!==sg){fireNote("Analyse du mouvement refusée : le plan a changé pendant l\'analyse — relancez.");return}',
+         'if(rfEl){var rfP=DzTracks.reframeCss(c,(t-c.start)*svmSpeedOf(c),rfEl.videoWidth||rfEl.naturalWidth,',
+         'if(rfEl.style.objectPosition!==rfP)rfEl.style.objectPosition=rfP}',
+         # revue finale : le payload porte les points ABSOLUS (reframePayload) ; la reponse est decalee au srcIn envoye
+         'var rfD=c.tr==="v1"&&DzTracks.reframePayload(c);if(rfD)o.reframe=rfD;',
+         '.map(function(q){return {t:Math.round((si+Number(q.t))*1e3)/1e3,x:q.x}});']
+check("L7Brf_replis_x1_dans_R_DZ1_R_DZ3_R_DZ4_bundle_x1_bak_x0_une_section_L7Brf1_191_triplets_sonde_163",
+      all(s.count(t) == 1 for t in _RF_P)
+      and all(t in P.R_DZ1 for t in _RF_P[:4]) and all(t in P.R_L7BRF1 for t in _RF_P[4:6]) and _RF_P[6] in P.R_DZ4
+      # revue 24/09 : l apercu a quitte R_DZ3 (une IMAGE du fond V1 n y passait jamais) pour la section L7Brf1,
+      # posee AVANT DZ1 sur le commentaire des overlays (1/0/1) ; R_DZ3 redevient celui de D-13
+      and P.R_DZ3.count("reframe") == 0 and s.count(nl(P.R_L7BRF1)) == 1 and _bak.count(_nlb(P.A_L7BRF1)) == 1
+      and s.find(nl("        liveSeek(lv,wt)}}")) < s.find("var rfEl=c?(lv||") < s.find(nl(P.A_L7BRF1))
+      # l empreinte de la reponse porte la SOURCE (svmSrcKey, module) et le mode du cadrage
+      and P.R_DZ1.count("svmSrcKey(k.src),") == 1 and P.R_DZ1.count('String(k.reframe.mode)') == 1
+      and P.R_DZ1.count("it.el.videoWidth||it.el.naturalWidth||0") == 1
+      and (all(_bak.count(t) == 0 for t in _RF_P) and _bak.count("reframe") == 0 if _bak else False)
+      and len(P.PATCHES) == 191  # 191 triplets (le --check dit 192 ancres) -- L7Brf1 compris
+      # DZ1 finit comme avant, le payload joint reframe APRES stab et avant le mixage audio
+      and s.count(nl("          onChange:dzPlanSet}):null,\n        ovInspector(),")) == 1
+      and 0 < s.find("var sbD=") < s.find("var rfD=") < s.find('        if(trackKind(c.tr)==="audio"){')
+      and s.count("o.reframe=") == 1 and s.count("DzTracks.reframePayload(") == 1 and s.count("DzTracks.reframeOf(") == 0
+      and s.count("DzTracks.reframeCss(") == 1 and _RF_P[7] in P.R_DZ1
+      and s.count('"/api/montage/reframe"') == 1
+      and s.count("DzTracks") == 163 and _sonde.get("montage") == 163,
+      {t[:40]: s.count(t) for t in _RF_P})
+check("L7Brf_la_route_POST_reframe_existe_cote_backend_et_le_client_l_appelle_une_fois",
+      _L7B_MS.count('@router.post("/reframe")') == 1 and _L7B_MS.count("_reframe.motion_track, p, src_in, dur") == 1
+      and s.count('fetch("/api/montage/reframe",') == 1, _L7B_MS.count('@router.post("/reframe")'))
+check("L7Brf_css_cadrage_x1_dans_la_feuille",
+      all(_EB_CSS.count(k) == 1 for k in (".dzsvm .dzm-rf{", '.dzsvm .dzm-rf-mode[data-on="1"]{', ".dzsvm .dzm-rf input[type=range]{",
+                                          '.dzsvm .dzm-rf-st[data-st="busy"]{', '.dzsvm .dzm-rf-st[data-st="suivi"]{'))
+      and _EB_CSS.count(".dzsvm .dzm-stab input[type=range]{") == 1,  # temoin : la stabilisation voisine est intacte
+      [_EB_CSS.count(k) for k in (".dzsvm .dzm-rf{", '.dzsvm .dzm-rf-mode[data-on="1"]{')])
+# LE GESTE D'ANALYSE, extrait du bundle livre (de `onReframe:` a la ligne `onChange:dzPlanSet` de DZ1).
+_iRF_a = s.find("onReframe:function(){"); _iRF_b = s.find("          onChange:dzPlanSet}):null,", _iRF_a)
+_RF_F = s[_iRF_a + len("onReframe:"):_iRF_b].replace("\r\n", "\n").rstrip().rstrip(",") if 0 < _iRF_a < _iRF_b else ""
+check("L7Brf_le_geste_garde_video_duree_empreinte_AVANT_l_appel_puis_obsolete_supprime_verrou_AVANT_l_ecriture",
+      800 < len(_RF_F) < 3000
+      and 0 < _RF_F.find("!c.src.job_id") < _RF_F.find("var sg=dzRfSg(c),") < _RF_F.find("if(!(du>0))")
+      < _RF_F.find('fireNote("Analyse du mouvement…")') < _RF_F.find('fetch("/api/montage/reframe",')
+      < _RF_F.find("if(!k2){") < _RF_F.find("if(dzRfSg(k2)!==sg){") < _RF_F.find("var tl=trackStRef.current.v1;if(tl&&tl.l)")
+      < _RF_F.find("pushHistory();setClips(")
+      and _RF_F.count("JSON.stringify({src:c.src,srcIn:Number(c.srcIn)||0,dur:du})") == 1
+      and _RF_F.count("pushHistory()") == 1 and _RF_F.count("setClips(") == 1 and _RF_F.count(".catch(") == 2
+      and _RF_F.count("selRef") == 0 and _RF_F.count("DzTracks") == 0,
+      f"f={len(_RF_F)}")
+_L7RF_RT = "non joue"
+if _RF_F and _SVM_SK:
+    _L7RF_SHIM = ('"use strict";\n'
+        "var notes=[],calls=[],hist=0,set=null,dirty=!1,MODE='ok',PEND=null;\n"
+        "var clipsRef={current:[]},trackStRef={current:{}},sel={id:'p'};\n" + _SVM_SK + "\n"
+        "function svmSpeedOf(c){return c&&typeof c.speed==='number'&&c.speed>0?c.speed:1}\n"
+        "function fireNote(m){notes.push(m)}function pushHistory(){hist++}function setClips(v){set=v}function setDirty(v){dirty=v}\n"
+        "var PTS=[{t:0,x:.3},{t:1,x:.6}];\n"
+        "function fetch(u,o){calls.push([u,JSON.parse(o.body)]);if(MODE==='net')return Promise.reject(new Error('panne'));\n"
+        "  if(MODE==='415')return Promise.resolve({ok:!1,status:415,json:function(){return Promise.resolve({detail:'« x.png » n\\'est pas une vidéo'})}});\n"
+        "  if(PEND)PEND();var d=MODE==='centre'?{ok:!0,mode:'centre',x:.5,points:[],fps:4}:{ok:!0,mode:'suivi',points:PTS,fps:4};\n"
+        "  return Promise.resolve({ok:!0,status:200,json:function(){return Promise.resolve(d)}})}\n"
+        "var run=" + _RF_F + ";\n"
+        "function pause(){return new Promise(function(r){setTimeout(r,30)})}\n"
+        "var P={tr:'v1',id:'p',start:0,end:5,srcIn:2,src:{job_id:'j'},reframe:{mode:'manuel',x:.1}},Q={tr:'v1',id:'q',start:5,end:6,src:{job_id:'k'}};\n"
+        "(async function(){var R={};function coup(k,m,cs,ts,pend){notes=[];calls=[];hist=0;set=null;dirty=!1;MODE=m;\n"
+        "  clipsRef.current=cs;trackStRef.current=ts||{};PEND=pend||null;var pr=run();\n"
+        "  return Promise.resolve(pr).then(pause).then(function(){R[k]={calls:calls,hist:hist,dirty:dirty,notes:notes,promesse:!!pr&&typeof pr.then==='function',\n"
+        "    set:set&&set.map(function(c){return [c.id,c.reframe===void 0?null:c.reframe]})}})}\n"
+        "  await coup('ok','ok',[P,Q]);await coup('x2','ok',[Object.assign({},P,{speed:2})]);await coup('centre','centre',[P,Q]);\n"
+        "  await coup('ko','415',[P]);await coup('net','net',[P]);\n"
+        "  await coup('image','ok',[Object.assign({},P,{src:{image:'x.png'}})]);await coup('nulle','ok',[Object.assign({},P,{end:0})]);\n"
+        "  await coup('verrou_pendant','ok',[P],{},function(){trackStRef.current={v1:{l:!0}}});\n"
+        "  await coup('supprime','ok',[P],{},function(){clipsRef.current=[Q]});\n"
+        "  await coup('change_fin','ok',[P],{},function(){clipsRef.current=[Object.assign({},P,{end:4})]});\n"
+        "  await coup('change_vitesse','ok',[P],{},function(){clipsRef.current=[Object.assign({},P,{speed:2})]});\n"
+        "  await coup('change_srcin','ok',[P],{},function(){clipsRef.current=[Object.assign({},P,{srcIn:2.5})]});\n"
+        "  await coup('copie','ok',[P],{},function(){clipsRef.current=[Object.assign({},P,{label:'autre'})]});\n"
+        "  await coup('change_source','ok',[P],{},function(){clipsRef.current=[Object.assign({},P,{src:{job_id:'autre'}})]});\n"
+        "  await coup('change_mode','ok',[P],{},function(){clipsRef.current=[Object.assign({},P,{reframe:{mode:'centre'}})]});\n"
+        "  sel={id:'p'};await coup('selection_changee','ok',[P,Q],{},function(){sel={id:'q'}});\n"
+        "  console.log(JSON.stringify(R))})();\n")
+    _pRF = pathlib.Path(TMP) / "l7b_reframe.js"; _pRF.write_text(_L7RF_SHIM, encoding="utf-8")
+    _rRF = NODE(["node", str(_pRF)], timeout=60)
+    try: _L7RF_RT = json.loads(_rRF.stdout.strip().splitlines()[-1]) if _rRF.returncode == 0 else ("rc=" + str(_rRF.returncode) + " " + (_rRF.stderr or "")[-400:])
+    except Exception as _e: _L7RF_RT = temoin(_e)
+_RF = _L7RF_RT if isinstance(_L7RF_RT, dict) else {}
+# revue finale : la reponse (relative au srcIn 2 ENVOYE) est ecrite en temps ABSOLU de source -- 0 -> 2, 1 -> 3
+_RF_SUIVI = {"mode": "suivi", "points": [{"t": 2, "x": 0.3}, {"t": 3, "x": 0.6}]}
+_RF_AN = "Analyse du mouvement…"
+check("L7Brf_sous_node_ok_POST_srcIn_duree_de_source_une_entree_d_historique_le_clip_vise_seul_passe_en_suivi_note",
+      _RF.get("ok") == {"calls": [["/api/montage/reframe", {"src": {"job_id": "j"}, "srcIn": 2, "dur": 5}]], "hist": 1, "dirty": True,
+                        "notes": [_RF_AN, "Mouvement suivi : 2 points."], "promesse": True,
+                        "set": [["p", _RF_SUIVI], ["q", None]]}, _RF.get("ok"))
+check("L7Brf_sous_node_vitesse_x2_la_duree_envoyee_est_celle_de_la_source",
+      ((_RF.get("x2") or {}).get("calls") or [[None, {}]])[0][1].get("dur") == 10 and (_RF.get("x2") or {}).get("hist") == 1,
+      _RF.get("x2"))
+check("L7Brf_sous_node_resultat_centre_du_tracker_retire_le_champ_et_dit_peu_de_mouvement",
+      _RF.get("centre") == {"calls": [["/api/montage/reframe", {"src": {"job_id": "j"}, "srcIn": 2, "dur": 5}]], "hist": 1, "dirty": True,
+                            "notes": [_RF_AN, "Peu de mouvement : centré."], "promesse": True, "set": [["p", None], ["q", None]]},
+      _RF.get("centre"))
+check("L7Brf_sous_node_refus_415_et_panne_dits_sans_ecriture",
+      (_RF.get("ko") or {}).get("notes") == [_RF_AN, "Analyse du mouvement refusée : « x.png » n'est pas une vidéo"]
+      and (_RF.get("net") or {}).get("notes") == [_RF_AN, "Analyse du mouvement refusée : panne"]
+      and all((_RF.get(k) or {}).get("hist") == 0 and (_RF.get(k) or {}).get("set") is None
+              and len((_RF.get(k) or {}).get("calls") or []) == 1 for k in ("ko", "net")),
+      (_RF.get("ko"), _RF.get("net")))
+check("L7Brf_sous_node_image_ou_duree_nulle_refus_AVANT_l_appel_aucun_fetch_promesse_rendue",
+      (_RF.get("image") or {}).get("notes") == ["Analyse du mouvement : réservée aux clips vidéo rendus."]
+      and (_RF.get("nulle") or {}).get("notes") == ["Analyse du mouvement refusée : plan de durée nulle."]
+      and all((_RF.get(k) or {}).get("calls") == [] and (_RF.get(k) or {}).get("hist") == 0
+              and (_RF.get(k) or {}).get("promesse") is True for k in ("image", "nulle")),
+      (_RF.get("image"), _RF.get("nulle")))
+check("L7Brf_sous_node_verrou_pose_ou_plan_supprime_PENDANT_l_analyse_refus_dit_sans_ecriture",
+      (_RF.get("verrou_pendant") or {}).get("notes") == [_RF_AN, "Piste V1 verrouillée — cadrage non écrit."]
+      and (_RF.get("supprime") or {}).get("notes") == [_RF_AN, "Analyse du mouvement : le plan a disparu — rien n'est écrit."]
+      and all((_RF.get(k) or {}).get("hist") == 0 and (_RF.get(k) or {}).get("set") is None
+              and len((_RF.get(k) or {}).get("calls") or []) == 1 for k in ("verrou_pendant", "supprime")),
+      (_RF.get("verrou_pendant"), _RF.get("supprime")))
+_RF_OBS = [_RF_AN, "Analyse du mouvement refusée : le plan a changé pendant l'analyse — relancez."]
+check("L7Brf_sous_node_reponse_obsolete_fin_vitesse_ou_srcIn_changes_refus_dit_sans_ecriture_temoin_copie_autre_label_ecrit",
+      all(len((_RF.get(k) or {}).get("calls") or []) == 1 and (_RF.get(k) or {}).get("hist") == 0
+          and (_RF.get(k) or {}).get("set") is None and (_RF.get(k) or {}).get("notes") == _RF_OBS
+          for k in ("change_fin", "change_vitesse", "change_srcin"))
+      and (_RF.get("copie") or {}).get("hist") == 1 and (_RF.get("copie") or {}).get("set") == [["p", _RF_SUIVI]],
+      {k: _RF.get(k) for k in ("change_fin", "change_vitesse", "change_srcin", "copie")})
+check("L7Brf_sous_node_revue_source_remplacee_ou_mode_change_pendant_l_analyse_refus_dit_sans_ecriture",
+      all(len((_RF.get(k) or {}).get("calls") or []) == 1 and (_RF.get(k) or {}).get("hist") == 0
+          and (_RF.get(k) or {}).get("set") is None and (_RF.get(k) or {}).get("notes") == _RF_OBS
+          for k in ("change_source", "change_mode"))
+      and (_RF.get("copie") or {}).get("hist") == 1,  # temoin : meme source, meme mode, autre label -> ecrit
+      {k: _RF.get(k) for k in ("change_source", "change_mode")})
+check("L7Brf_sous_node_la_selection_change_pendant_l_analyse_l_ecriture_vise_le_clip_ENVOYE",
+      (_RF.get("selection_changee") or {}).get("set") == [["p", _RF_SUIVI], ["q", None]], _RF.get("selection_changee"))
+# LE PAYLOAD ET L'APERCU, lignes EXTRAITES du bundle livre, jouees sur la VRAIE couche (du bundle livre).
+_RF_LIGNE_PL = _RF_P[6]
+_RF_LIGNE_AP = P.R_L7BRF1[:-len(P.A_L7BRF1)]
+_L7RFP_RT = "non joue"
+if len(_L7BN_LAYER) > 100000 and s.count(_RF_LIGNE_PL) == 1 and s.count(nl(P.R_L7BRF1)) == 1 and len(_RF_LIGNE_AP) > 200:
+    _L7RFP_SHIM = ('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + _L7BN_LAYER + "\n" +
+        "function svmSpeedOf(c){return c&&typeof c.speed==='number'&&c.speed>0?c.speed:1}\n"
+        "function pl(c){var o={};" + _RF_LIGNE_PL + "return o.reframe===void 0?null:o.reframe}\n"
+        "var ECR=0,host={firstChild:null},lv={videoWidth:1920,videoHeight:1080,clientWidth:540,clientHeight:960,style:{_op:'',get objectPosition(){return this._op},set objectPosition(v){ECR++;this._op=v}}};\n"
+        "var IMG={tagName:'IMG',naturalWidth:1920,naturalHeight:1080,clientWidth:540,clientHeight:960,style:{objectPosition:''}};\n"
+        "function ap(c,t){" + _RF_LIGNE_AP + "\nreturn lv?lv.style.objectPosition:host.firstChild&&host.firstChild.style.objectPosition}\n"
+        "var B={tr:'v1',id:'p',start:2,end:6,srcIn:1,src:{job_id:'j'}},R={};\n"
+        "R.pl=[pl(B),pl(Object.assign({},B,{reframe:{mode:'centre',points:[{t:0,x:0}]}})),pl(Object.assign({},B,{reframe:{mode:'manuel',x:.3,points:[{t:0,x:0}]}})),\n"
+        "  pl(Object.assign({},B,{reframe:{mode:'suivi',points:[{t:9,x:.2}]}})),pl(Object.assign({},B,{tr:'v2',reframe:{mode:'manuel',x:.3}})),\n"
+        "  pl(Object.assign({},B,{reframe:{mode:'zzz'}}))];\n"
+        # revue finale : points ABSOLUS -- B lit la source depuis srcIn 1, le suivi 1 -> 5 y vaut 0 -> 4 relatif
+        "var S=Object.assign({},B,{reframe:{mode:'suivi',points:[{t:1,x:0},{t:5,x:1}]}}),S2=Object.assign({},S,{speed:2});\n"
+        "R.ap=[ap(S,2),ECR,ap(S,2),ECR,ap(S,4),ap(S,5),ap(S2,3),ap(B,3),ECR];\n"
+        "lv.videoWidth=1080;lv.videoHeight=1920;lv.clientWidth=960;lv.clientHeight=540;R.portrait=ap(S,5);\n"
+        "lv.videoWidth=1920;lv.videoHeight=1080;lv.clientWidth=0;lv.clientHeight=0;R.cache=ap(S,5);\n"
+        # revue : une IMAGE du fond V1 (lv nul, l <img> est le premier enfant de l hote) recoit la position ;
+        # sans clip rien n est ecrit ; un <div> n est pas une image
+        "var LV=lv;lv=null;host.firstChild=IMG;R.image=[ap(S,5),ap(B,5)];IMG.style.objectPosition='x';R.sans_clip=ap(null,5);\n"
+        "host.firstChild={tagName:'DIV',style:{objectPosition:'y'}};R.div=ap(S,5);lv=LV;\n"
+        "console.log(JSON.stringify(R));\n")
+    _pRFP = pathlib.Path(TMP) / "l7b_reframe_ap.js"; _pRFP.write_text(_L7RFP_SHIM, encoding="utf-8")
+    _rRFP = NODE(["node", str(_pRFP)], timeout=60)
+    try: _L7RFP_RT = json.loads(_rRFP.stdout.strip().splitlines()[-1]) if _rRFP.returncode == 0 else ("rc=" + str(_rRFP.returncode) + " " + (_rRFP.stderr or "")[-400:])
+    except Exception as _e: _L7RFP_RT = temoin(_e)
+_RFP = _L7RFP_RT if isinstance(_L7RFP_RT, dict) else {}
+check("L7Brf_sous_node_payload_reframe_seulement_hors_centre_manuel_sans_points_suivi_borne_v2_et_illisible_rien",
+      # revue finale : en suivi, les points ABSOLUS lisibles du champ (le serveur fenetre lui-meme) ; les points gardes
+      # d'un manuel ne partent pas
+      _RFP.get("pl") == [None, None, {"mode": "manuel", "x": 0.3}, {"mode": "suivi", "points": [{"t": 9, "x": 0.2}]}, None, None],
+      _L7RFP_RT if not _RFP else _RFP.get("pl"))
+# apercu : S glisse de x 0 (t source 0) a x 1 (t source 4) ; tete 2 -> t source 0 -> x 0 -> 0 % ; tete 4 -> 2 -> x .5 -> 50 % ;
+# tete 5 -> 3 -> x .75 -> (k.75 - .5)/(k - 1) = 86,57 % (k = 256/81) ; a x2, tete 3 -> t source 2 -> x .5. Une ecriture seulement si la valeur change (ECR).
+check("L7Brf_sous_node_apercu_tete_en_temps_de_source_vitesse_comprise_ecrit_seulement_si_change_vide_sans_cadrage",
+      _RFP.get("ap") == ["0% 50%", 1, "0% 50%", 1, "50% 50%", "86.57% 50%", "50% 50%", "", 5], _RFP.get("ap"))
+check("L7Brf_sous_node_revue_apercu_image_du_fond_v1_recoit_la_position_sans_clip_ou_hors_image_rien",
+      _RFP.get("image") == ["86.57% 50%", ""] and _RFP.get("sans_clip") == "x" and _RFP.get("div") == "y",
+      (_RFP.get("image"), _RFP.get("sans_clip"), _RFP.get("div")))
+check("L7Brf_sous_node_apercu_portrait_sur_paysage_et_cadre_non_mesure_rendent_la_position_par_defaut",
+      _RFP.get("portrait") == "" and _RFP.get("cache") == "", (_RFP.get("portrait"), _RFP.get("cache")))
+# L'INSPECTEUR, rendu sur la couche du bundle livre (hooks bouchonnes) : grise-jamais-masque, gestes des trois modes.
+_L7RFI_RT = "non joue"
+if len(_L7BN_LAYER) > 100000:
+    _L7RFI_SHIM = ('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + _L7BN_LAYER + "\n" +
+        "var HS=[],HI=0;\n"
+        "var x={useState:function(v){var i=HI++;if(!(i in HS))HS[i]=v;return [HS[i],function(n){HS[i]=typeof n==='function'?n(HS[i]):n}]},\n"
+        "  useRef:function(v){var i=HI++;if(!(i in HS))HS[i]={current:v};return HS[i]},useEffect:function(){}};\n"
+        "var r={jsx:function(t,p){return {t:t,p:p||{}}},jsxs:function(t,p){return {t:t,p:p||{}}}};\n"
+        "function tous(n,out){out=out||[];if(!n||typeof n!=='object')return out;if(Array.isArray(n)){n.forEach(function(k){tous(k,out)});return out}\n"
+        "  if(n.t){out.push(n);tous(n.p&&n.p.children,out)}return out}\n"
+        "var CH=[],AN=0,FINS=[];\n"
+        "function rend(c,wh,ratio){HI=0;return tous(DzmPlanProps({clip:c,speed:1,head:4,srcWH:wh,ratio:ratio,\n"
+        "  onChange:function(p,h){CH.push([p,h])},onReframe:function(){AN++;return new Promise(function(z){FINS.push(z)})}}))}\n"
+        "function btn(T,lbl){return T.filter(function(n){return n.t==='button'&&n.p.children===lbl})[0]}\n"
+        "function etat(T){return ['Centré','Suivre','Manuel','Analyser le mouvement'].map(function(l){var b=btn(T,l);return b?[!!b.p.disabled,typeof b.p.title==='string'&&b.p.title.length>20]:null})}\n"
+        "var C={tr:'v1',id:'p',start:2,end:6,srcIn:1,src:{job_id:'j'}},R={};\n"
+        "var T=rend(C,[1920,1080],9/16);R.large=etat(T);R.mode=btn(T,'Centré').p['data-on'];R.position=T.some(function(n){return n.t==='input'&&n.p.type==='range'&&n.p['aria-label']});\n"
+        "T=rend(C,[1080,1920],16/9);R.etroit=etat(T);R.titre_etroit=btn(T,'Suivre').p.title.indexOf('pas plus large')>0;\n"
+        "T=rend(C,[0,0],9/16);R.inconnu=etat(T);R.titre_inconnu=btn(T,'Manuel').p.title.indexOf('pas encore lues')>0;\n"
+        "T=rend(C,[1920,1080],9/16);btn(T,'Suivre').p.onClick();R.suivre_sans_points=[AN,CH.length];\n"
+        "T=rend(C,[1920,1080],9/16);R.pendant=['Analyser le mouvement','Suivre','Centré','Manuel'].map(function(l){return !!btn(T,l).p.disabled});\n"
+        "R.gel_titre=btn(T,'Centré').p.title.indexOf('en cours')>0;btn(T,'Analyser le mouvement').p.onClick();R.pas_de_second=AN;\n"
+        # revue : une analyse PAR CLIP -- q lance la sienne, p reste marque ; p finit, q reste marque
+        "var C2=Object.assign({},C,{id:'q'});T=rend(C2,[1920,1080],9/16);R.q_libre=!!btn(T,'Analyser le mouvement').p.disabled;btn(T,'Analyser le mouvement').p.onClick();\n"
+        "T=rend(C,[1920,1080],9/16);var pB=!!btn(T,'Analyser le mouvement').p.disabled;T=rend(C2,[1920,1080],9/16);R.deux=[AN,pB,!!btn(T,'Analyser le mouvement').p.disabled];\n"
+        "FINS[0]();setTimeout(function(){T=rend(C,[1920,1080],9/16);R.apres=!!btn(T,'Analyser le mouvement').p.disabled;\n"
+        "  T=rend(C2,[1920,1080],9/16);R.q_encore=!!btn(T,'Analyser le mouvement').p.disabled;FINS[1]();\n"
+        "  var P2=Object.assign({},C,{reframe:{mode:'centre',points:[{t:1,x:.2},{t:5,x:.6}]}});CH=[];\n"
+        "  T=rend(P2,[1920,1080],9/16);btn(T,'Suivre').p.onClick();btn(T,'Manuel').p.onClick();btn(T,'Centré').p.onClick();R.gestes=CH;\n"
+        "  var M=Object.assign({},C,{reframe:{mode:'manuel',x:.3,points:[{t:0,x:.2}]}});CH=[];T=rend(M,[1920,1080],9/16);\n"
+        "  var rg=T.filter(function(n){return n.t==='input'&&n.p.type==='range'})[0];R.curseur=[rg.p.value,rg.p.min,rg.p.max,btn(T,'Manuel').p['data-on']];\n"
+        "  rg.p.onChange({target:{value:'75'}});R.curseur_geste=CH;\n"
+        "  T=rend(M,[1080,1920],16/9);rg=T.filter(function(n){return n.t==='input'&&n.p.type==='range'})[0];R.curseur_etroit=[!!rg.p.disabled,rg.p.title.indexOf('pas plus large')>0];\n"
+        "  console.log(JSON.stringify(R))},30);\n")
+    _pRFI = pathlib.Path(TMP) / "l7b_reframe_insp.js"; _pRFI.write_text(_L7RFI_SHIM, encoding="utf-8")
+    _rRFI = NODE(["node", str(_pRFI)], timeout=60)
+    try: _L7RFI_RT = json.loads(_rRFI.stdout.strip().splitlines()[-1]) if _rRFI.returncode == 0 else ("rc=" + str(_rRFI.returncode) + " " + (_rRFI.stderr or "")[-400:])
+    except Exception as _e: _L7RFI_RT = temoin(_e)
+_RFI = _L7RFI_RT if isinstance(_L7RFI_RT, dict) else {}
+_ACTIF = [False, True]; _GRIS = [True, True]
+check("L7Brf_sous_node_inspecteur_source_large_quatre_boutons_actifs_titres_centre_allume_pas_de_curseur",
+      _RFI.get("large") == [_ACTIF] * 4 and _RFI.get("mode") == "1" and _RFI.get("position") is False,
+      _L7RFI_RT if not _RFI else (_RFI.get("large"), _RFI.get("mode")))
+check("L7Brf_sous_node_inspecteur_source_pas_plus_large_suivre_manuel_analyse_GRISES_titres_dits_centre_actif",
+      _RFI.get("etroit") == [_ACTIF, _GRIS, _GRIS, _GRIS] and _RFI.get("titre_etroit") is True, _RFI.get("etroit"))
+check("L7Brf_sous_node_inspecteur_dimensions_inconnues_rien_n_est_grise_le_titre_le_dit",
+      _RFI.get("inconnu") == [_ACTIF] * 4 and _RFI.get("titre_inconnu") is True, _RFI.get("inconnu"))
+check("L7Brf_sous_node_suivre_sans_points_lance_l_analyse_bouton_desactive_pendant_pas_de_second_appel_reactive_apres",
+      _RFI.get("suivre_sans_points") == [1, 0] and _RFI.get("pas_de_second") == 1 and _RFI.get("apres") is False
+      # revue 24/09 : pendant l analyse les TROIS modes et l analyse sont geles (grises, titre « en cours »)
+      and _RFI.get("pendant") == [True, True, True, True] and _RFI.get("gel_titre") is True
+      # une analyse PAR clip : q libre pendant celle de p, les deux marques ensemble, p fini -> q encore marque
+      and _RFI.get("q_libre") is False and _RFI.get("deux") == [2, True, True] and _RFI.get("q_encore") is True,
+      (_RFI.get("suivre_sans_points"), _RFI.get("pendant"), _RFI.get("apres")))
+check("L7Brf_sous_node_gestes_suivre_reprend_les_points_manuel_x_a_la_tete_centre_les_garde_tous_lourds",
+      # revue finale : C lit la source depuis srcIn 1 -- le suivi ABSOLU 1 -> 5 vaut 0,4 a la tete (t source 2 relatif)
+      _RFI.get("gestes") == [[{"reframe": {"mode": "suivi", "points": [{"t": 1, "x": 0.2}, {"t": 5, "x": 0.6}]}}, True],
+                             [{"reframe": {"mode": "manuel", "x": 0.4, "points": [{"t": 1, "x": 0.2}, {"t": 5, "x": 0.6}]}}, True],
+                             [{"reframe": {"mode": "centre", "points": [{"t": 1, "x": 0.2}, {"t": 5, "x": 0.6}]}}, True]],
+      _RFI.get("gestes"))
+check("L7Brf_sous_node_curseur_manuel_0_100_valeur_30_geste_LEGER_rafale_grise_si_sans_effet",
+      _RFI.get("curseur") == [30, 0, 100, "1"]
+      and _RFI.get("curseur_geste") == [[{"reframe": {"mode": "manuel", "x": 0.75, "points": [{"t": 0, "x": 0.2}]}}, False]]
+      and _RFI.get("curseur_etroit") == [True, True],
+      (_RFI.get("curseur"), _RFI.get("curseur_geste"), _RFI.get("curseur_etroit")))
+
+# ── revue finale du lot (24/09/2026) : la LAME et le ROGNAGE DE TETE (bundle) avancent srcIn et COPIENT le champ
+# reframe ; en temps ABSOLU le morceau droit garde son cadrage. Les deux expressions sont EXTRAITES du bundle livre
+# (la moitie droite de la lame, l'objet `upd` du rognage gauche) et jouees sur la couche du bundle livre : plan
+# [0,10] srcIn 0 suivi 0,2 -> 0,8 ; lame a 5 -> [0 ; 0,5] [5 ; 0,8] ; rognage de 2 s -> [0 ; 0,32] [8 ; 0,8].
+_iLa = s.find(".concat([Object.assign({},c,{id:c.id+\"_b\"+Math.round(p*10),start:p,")
+_iLb = s.find(nl("]));\n    setDirty(!0);fireNote(\"Clip coupé à \""), _iLa)
+_LAME = s[_iLa + len(".concat(["):_iLb].replace("\r\n", "\n") if 0 < _iLa < _iLb else ""
+_iRa = s.find("var upd={start:v};")
+_iRb = s.find("return Object.assign({},k,upd)}", _iRa)
+_ROGNE = s[_iRa:_iRb].replace("\r\n", "\n") if 0 < _iRa < _iRb else ""
+check("L7Brf_revue_finale_lame_et_rognage_de_tete_avancent_srcIn_et_copient_le_champ_extraits_du_bundle",
+      100 < len(_LAME) < 700 and "srcIn:(c.srcIn||0)+(p-c.start)*" in _LAME and _LAME.startswith("Object.assign({},c,{")
+      and 100 < len(_ROGNE) < 800 and "if(k.src)upd.srcIn=Math.max(0,(c.srcIn||0)+(v-s0)*svmSpeedOf(c));" in _ROGNE,
+      (len(_LAME), len(_ROGNE)))
+_L7RFG_RT = "non joue"
+if len(_L7BN_LAYER) > 100000 and _LAME and _ROGNE:
+    _L7RFG_SHIM = ('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + _L7BN_LAYER + "\n" +
+        "function svmSpeedOf(c){return c&&typeof c.speed==='number'&&c.speed>0?c.speed:1}\n"
+        "function lame(c,p){return " + _LAME + "}\n"
+        "function rogne(k,c,v,s0){" + _ROGNE + "\nreturn Object.assign({},k,upd)}\n"
+        "function pts(c){var q=DzTracks.reframeOf(c);return q&&q.points.map(function(z){return [z.t,Math.round(z.x*1e6)/1e6]})}\n"
+        "var P={tr:'v1',id:'p',start:0,end:10,srcIn:0,src:{job_id:'j'},reframe:{mode:'suivi',points:[{t:0,x:.2},{t:10,x:.8}]}},R={};\n"
+        "var d=lame(P,5),g=Object.assign({},P,{end:5});R.lame=[d.srcIn,d.start,d.reframe===P.reframe,pts(g),pts(d)];\n"
+        "var d2=lame(Object.assign({},P,{speed:2,end:5}),2.5);R.lame_x2=[d2.srcIn,pts(d2)];\n"
+        "var t=rogne(P,P,2,0);R.rogne=[t.srcIn,t.start,pts(t)];\n"
+        "console.log(JSON.stringify(R));\n")
+    _pRFG = pathlib.Path(TMP) / "l7b_reframe_gestes.js"; _pRFG.write_text(_L7RFG_SHIM, encoding="utf-8")
+    _rRFG = NODE(["node", str(_pRFG)], timeout=60)
+    try: _L7RFG_RT = json.loads(_rRFG.stdout.strip().splitlines()[-1]) if _rRFG.returncode == 0 else ("rc=" + str(_rRFG.returncode) + " " + (_rRFG.stderr or "")[-400:])
+    except Exception as _e: _L7RFG_RT = temoin(_e)
+_RFG = _L7RFG_RT if isinstance(_L7RFG_RT, dict) else {}
+check("L7Brf_revue_finale_sous_node_lame_a_5_le_morceau_droit_cadre_0_5_0_8_le_gauche_0_2_0_5",
+      _RFG.get("lame") == [5, 5, True, [[0, 0.2], [5, 0.5]], [[0, 0.5], [5, 0.8]]], _L7RFG_RT if not _RFG else _RFG.get("lame"))
+check("L7Brf_revue_finale_sous_node_lame_a_vitesse_2_le_morceau_droit_lit_la_source_5_10",
+      # plan [0,5] a x2 (source 0..10) coupe a 2,5 : srcIn 5, fenetre [5, 10] -> 0,5 -> 0,8
+      _RFG.get("lame_x2") == [5, [[0, 0.5], [5, 0.8]]], _RFG.get("lame_x2"))
+check("L7Brf_revue_finale_sous_node_rognage_de_tete_de_2_s_cadre_0_32_0_8",
+      _RFG.get("rogne") == [2, 2, [[0, 0.32], [8, 0.8]]], _RFG.get("rogne"))
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")

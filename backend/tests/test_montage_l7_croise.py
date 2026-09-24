@@ -33,7 +33,8 @@ qui le lit exige d'abord la cle (etat vide construit).
       `o.<cle>=`) ∪ cles CLIENT connues -- MESURE 24/09/2026 : les orphelines
       sont EXACTEMENT ["label","text"] (« label » n'est jamais rendu, le
       « text » d'une replique voyage dans subsPayload().segments, celui d'un
-      carton dans `title`) ; temoin : les quinze autres cles sont emises ;
+      carton dans `title`) ; temoin : les autres cles sont emises (seize,
+      dix-sept depuis l'ajout de `reframe` le 24/09/2026, cloture L7-B) ;
   [3] D-19 : les cles `radius`/`shadow` que renderPayload emet (`o.radius`,
       `o.shadow`) == les cles lues par `_ov_transform` (`spec`, regex) ;
       bornes IDENTIQUES des deux cotes : couche DZM_OV_RADIUS_MAX=200 et
@@ -234,7 +235,10 @@ if mC:
         CLES = json.loads(mC.group(1))
     except ValueError:
         CLES = []
-check("x2_DZM_DIFF_CLES_lu_une_fois_dix_huit_cles_uniques", nC == 1 and len(CLES) == 18 and len(set(CLES)) == 18, (nC, CLES))
+# REALIGNE le 24/09/2026 (cloture L7-B, T8) : `reframe` (D-40) rejoint DZM_DIFF_CLES -- dix-neuf cles, et renderPayload
+# l'emet (`o.reframe=`) : les orphelines restent label et text, les emises passent de seize a dix-sept
+check("x2_DZM_DIFF_CLES_lu_une_fois_dix_neuf_cles_uniques_dont_reframe", nC == 1 and len(CLES) == 19 and len(set(CLES)) == 19
+      and "reframe" in CLES, (nC, CLES))
 _iR0 = BUN.find("  function renderPayload(preview,queue){")
 _iR1 = BUN.find("  function launchRender(", _iR0) if _iR0 >= 0 else -1
 RP = BUN[_iR0:_iR1] if 0 <= _iR0 < _iR1 else ""
@@ -247,8 +251,9 @@ check("x2_renderPayload_x1_le_litteral_var_o_et_les_o_cle_sont_lus_au_moins_ving
       BUN.count("  function renderPayload(preview,queue){") == 1 and 0 < _iR0 < _iR1 and 0 <= _iO0 < _iO1 and len(EMIS) >= 20
       and all(k in EMIS for k in ("tr", "src", "start", "end", "srcIn", "kind", "title", "transition", "transition_s", "effects", "opacity")), (len(EMIS), EMIS))
 ORPH = sorted(k for k in CLES if k not in EMIS)
-check("x2_date_24_09_2026_les_orphelines_de_DZM_DIFF_CLES_sont_exactement_label_et_text_les_seize_autres_sont_emises",
-      len(CLES) == 18 and len(EMIS) >= 20 and ORPH == ["label", "text"] and sum(1 for k in CLES if k in EMIS) == 16, (ORPH, EMIS))
+check("x2_date_24_09_2026_les_orphelines_de_DZM_DIFF_CLES_sont_exactement_label_et_text_les_dix_sept_autres_sont_emises",
+      len(CLES) == 19 and len(EMIS) >= 20 and ORPH == ["label", "text"] and sum(1 for k in CLES if k in EMIS) == 17
+      and "reframe" in EMIS, (ORPH, EMIS))
 # le « text » d'une replique voyage dans subsPayload().segments (`text:` dans le corps de subsPayload), jamais dans clips ; « label » jamais
 _iS0 = BUN.find("  function subsPayload(){"); _iS1 = BUN.find("  function subs", _iS0 + 10) if _iS0 >= 0 else -1
 SP = BUN[_iS0:_iS1] if 0 <= _iS0 < _iS1 else ""

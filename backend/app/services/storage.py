@@ -52,6 +52,10 @@ class JobRecord(Base):
     cost_meta: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     # W-a (v1.19) — which video model rendered the clip (VIDEO_MODELS id)
     video_model: Mapped[Optional[str]] = mapped_column(String(48), nullable=True)
+    # D-34 (24/09/2026) — note 0..5 du rendu (« Good Take » = 5) ; NULL et 0
+    # = sans note. Posée par `PUT /api/jobs/{id}/rating`, filtrée par
+    # `Pipeline.list_jobs(min_rating=)` ; migrée par V1_2_NEW_COLUMNS.
+    rating: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
 
 class MeshyTaskRecord(Base):
@@ -377,6 +381,8 @@ V1_2_NEW_COLUMNS = [
     ("cost_meta", "TEXT"),
     # W-a (v1.19) — selected video model id
     ("video_model", "VARCHAR(48)"),
+    # D-34 (24/09/2026) — note étoile du rendu (0..5, NULL = sans note)
+    ("rating", "INTEGER"),
 ]
 
 

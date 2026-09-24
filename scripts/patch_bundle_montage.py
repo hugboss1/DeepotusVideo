@@ -503,6 +503,15 @@ R_M11 = ("  /* P3 — panneau « Texte » (monter en LISANT). Son état est À L
          "     M20b, la branche du gestionnaire clavier, qui l'incrémente. */\n"
          "  var stDzTb=x.useState(0),dzTbReq=stDzTb[0],"
          "setDzTbReq=stDzTb[1];\n"
+         # ── L7-B D-41 (24/09/2026, tache 6) : REPLI ici (aucune ancre neuve). La demande d'OUVERTURE d'un projet
+         # cree par les auto-clips du tiroir Medias : {n, id, name}, un COMPTEUR `n` comme dzProjReq (meme raison :
+         # la liste des projets garde son etat d'ouverture). EB3 la pose (onOpenProject du tiroir), M14 la lit
+         # (openProj) -- la liste ouvre par le chemin MEME de « ouvrir » (surete, onBefore, open, onOpen).
+         # NOMS MESURES LIBRES le 24/09/2026 : stDzAc, dzAcOpen, setDzAcOpen -- 0 dans .bak_montage et le livre.
+         "  /* L7-B D-41 (24/09/2026, tâche 6) : la demande d'ouverture d'un projet créé par\n"
+         "     les auto-clips du tiroir Médias — {n, id, name}, un COMPTEUR comme dzProjReq ;\n"
+         "     la liste des projets l'ouvre par le chemin de « ouvrir ». */\n"
+         "  var stDzAc=x.useState(null),dzAcOpen=stDzAc[0],setDzAcOpen=stDzAc[1];\n"
          # ── E-10 (lot E-C, tache 4, 23/09/2026) : LA BARRE ANCREE dans le
          # bandeau de transport. Un booleen PERSISTE (dz_svm_tb_dock, try/catch,
          # le motif de dz_svm_showdur), passe en prop `docked` au Dock (R_M19)
@@ -682,6 +691,9 @@ R_M14 = ('r.jsx(DzTracks.Projects,{name:proj.name,projectId:proj.project_id,'
          '             lieu d’en monter une seconde — un compteur, pas un\n'
          '             booléen. */\n'
          '          openReq:dzProjReq,\n'
+         # L7-B D-41 (24/09/2026, tache 6) : REPLI -- la demande d'ouverture venue des auto-clips (R_M11, EB3)
+         '          /* L7-B D-41 : ouvrir le projet créé par les auto-clips (compteur) */\n'
+         '          openProj:dzAcOpen,\n'
          '          payload:function(){return svmSavePayload()},\n'
          '          onBefore:function(){'
          'if(saveAbortRef.current){try{saveAbortRef.current.abort()}catch(_e){}}'
@@ -4346,6 +4358,53 @@ R_DZ1 = ('        /* D-13 : les proprietes de plan (clip V1 reel seulement) */\n
          # revue : la cle est CANONIQUE (`srcKey`, cles triees -- la regle
          # tranchee pour dzmTwinClip), jamais un JSON.stringify a l ordre pres.
          '          stabJob:dzStabJobs[DzTracks.srcKey(sel.src)]||null,onStab:function(){dzStabStart(sel.src)},\n'
+         # L7-B D-40 (24/09/2026, tache 4) : LE CADRAGE -- repli ici, AUCUNE ancre
+         # neuve (DZ1 finit comme avant). `srcWH` = dimensions de la source lues sur
+         # l'element du lecteur vivant de CETTE source, SANS le creer (Map.get du pool,
+         # role "b" -- la forme de svmOvMediaHW) : [0,0] si le pool ne l'a pas ou si
+         # les metadonnees ne sont pas lues (la couche dit alors « pas encore lues »,
+         # rien n'est grise). `ratio` = svmRatioW(proj.ratio), le ratio du cadre.
+         # `onReframe` : POST /api/montage/reframe {src, srcIn, dur = (end-start) x
+         # vitesse, duree de SOURCE}, note PENDANT l'analyse ; a la reponse, la garde
+         # d'obsolescence de dzSceneCut (8517a25) : l'empreinte (srcIn, vitesse,
+         # start, end) du plan ENVOYE doit etre celle du plan A LA REPONSE, sinon
+         # refus dit sans ecriture ; plan supprime ou V1 verrouillee -> refus dit.
+         # L'ecriture vise le clip `id` (jamais selRef : la selection a pu changer),
+         # pushHistory() PUIS setClips ; un resultat `centre` du tracker retire le
+         # champ et le dit (« Peu de mouvement : centré. »). Rend la promesse (la
+         # couche desactive le bouton jusqu'a sa fin). AUCUN DzTracks ici.
+         # REVUE du 24/09/2026 : (1) l'empreinte porte aussi l'IDENTITE de la source
+         # (svmSrcKey du bundle, portee module, .bak x1 : j:/a:/i: -- la forme sans
+         # DzTracks, sonde inchangee) : « Remplacer la source » garde l'id et souvent
+         # srcIn/start/end, les points de l'ANCIENNE source auraient ete ecrits ; (2)
+         # le MODE du cadrage aussi (la couche gele les modes pendant l'analyse, un
+         # annuler pourrait encore le changer) ; (3) srcWH lit naturalWidth/Height
+         # d'une image du pool (plan image sur V1 -- l'hote ne monte que sur un rendu
+         # video aujourd'hui, date dans la couche).
+         '          ratio:svmRatioW(proj.ratio),srcWH:(function(){var pl=livePoolRef.current,it=pl&&pl.get(livePoolKey(sel.src,"b"));\n'
+         '            return it?[it.el.videoWidth||it.el.naturalWidth||0,it.el.videoHeight||it.el.naturalHeight||0]:[0,0]})(),\n'
+         '          onReframe:function(){var id=sel.id,c=clipsRef.current.find(function(k){return k.id===id});\n'
+         '            if(!c||!c.src||!c.src.job_id){fireNote("Analyse du mouvement : réservée aux clips vidéo rendus.");return Promise.resolve()}\n'
+         '            function dzRfSg(k){return [Number(k.srcIn)||0,svmSpeedOf(k),Number(k.start)||0,Number(k.end)||0,svmSrcKey(k.src),\n'
+         '              k.reframe&&typeof k.reframe==="object"?String(k.reframe.mode):""].join("|")}\n'
+         '            var sg=dzRfSg(c),du=Math.round(Math.max(0,(c.end-c.start)*svmSpeedOf(c))*1e3)/1e3;\n'
+         '            if(!(du>0)){fireNote("Analyse du mouvement refusée : plan de durée nulle.");return Promise.resolve()}\n'
+         '            fireNote("Analyse du mouvement…");\n'
+         '            return fetch("/api/montage/reframe",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({src:c.src,srcIn:Number(c.srcIn)||0,dur:du})})\n'
+         '              .then(function(res){return res.json().catch(function(){return {}}).then(function(j){\n'
+         '                if(!res.ok)throw new Error((j&&typeof j.detail==="string"&&j.detail)||("HTTP "+res.status));return j})})\n'
+         '              .then(function(j){var k2=clipsRef.current.find(function(k){return k.id===id});\n'
+         '                if(!k2){fireNote("Analyse du mouvement : le plan a disparu — rien n\'est écrit.");return}\n'
+         '                if(dzRfSg(k2)!==sg){fireNote("Analyse du mouvement refusée : le plan a changé pendant l\'analyse — relancez.");return}\n'
+         '                var tl=trackStRef.current.v1;if(tl&&tl.l){fireNote("Piste V1 verrouillée — cadrage non écrit.");return}\n'
+         # revue finale du lot (24/09/2026) : les points du CHAMP sont en temps ABSOLU de source -- la reponse
+         # (relative au srcIn ENVOYE, qui est aussi celui du plan : l'empreinte l'a verifie) est decalee ici.
+         '                var si=Number(c.srcIn)||0,pts=(j&&j.mode==="suivi"&&Array.isArray(j.points)?j.points:[])\n'
+         '                  .map(function(q){return {t:Math.round((si+Number(q.t))*1e3)/1e3,x:q.x}});\n'
+         '                pushHistory();setClips(clipsRef.current.map(function(k){if(k.id!==id)return k;var nk=Object.assign({},k);\n'
+         '                  if(pts.length)nk.reframe={mode:"suivi",points:pts};else delete nk.reframe;return nk}));setDirty(!0);\n'
+         '                fireNote(pts.length?"Mouvement suivi : "+pts.length+" points.":"Peu de mouvement : centré.")})\n'
+         '              .catch(function(e){fireNote("Analyse du mouvement refusée : "+((e&&e.message)||"erreur réseau"))})},\n'
          '          onChange:dzPlanSet}):null,\n'
          + A_DZ1)
 A_DZ2 = '            r.jsx("div",{className:"svm-tfbadge",ref:tfBadgeRef})]}):null,'
@@ -4373,7 +4432,14 @@ R_DZ4 = (A_DZ4 + "\n"
          # existe (normalisee par la couche, UNE occurrence de `stabOf(` via
          # `sbD` -- la sonde compte chaque jeton) ; payload d'avant sinon.
          "        /* D-16 : la stabilisation -- jointe seulement si elle existe */\n"
-         '        var sbD=c.tr==="v1"&&DzTracks.stabOf(c);if(sbD)o.stab=sbD;')
+         '        var sbD=c.tr==="v1"&&DzTracks.stabOf(c);if(sbD)o.stab=sbD;\n'
+         # L7-B D-40 (24/09/2026, tache 4) : le cadrage, joint seulement HORS centre
+         # (la couche rend null pour centre / illisible : payload d'avant sinon ; les
+         # points gardes en mode centre ou manuel ne partent pas).
+         "        /* L7-B D-40 : le cadrage -- joint seulement hors centre */\n"
+         # revue finale : le payload porte les points ABSOLUS (reframePayload) -- le serveur applique la meme
+         # regle que la couche (srcIn courant soustrait, fenetre, points de bord).
+         '        var rfD=c.tr==="v1"&&DzTracks.reframePayload(c);if(rfD)o.reframe=rfD;')
 
 # ══ D-14 (L3 tache 7, 22/09/2026) — KEYFRAMES D'ECHELLE ET D'OPACITE ═══════
 # Le contrat du rendu (T7a) : `motion_points[{t,x,y,rotate?,scale?,opacity?}]`,
@@ -4617,7 +4683,12 @@ R_EB3 = (A_EB3 + '\n'
          '      r.jsx(DzTracks.MediaDrawer,{open:medOn,trId:medTr,exts:null,'
          'onClose:function(){setMedOn(!1)},dragPayload:dragPayload,\n'
          '        onAdd:function(j){addAsset({job_id:j.job_id},j.title||j.job_id,'
-         '"video",j.duration_s||0,medTr||"v1")}}),')
+         '"video",j.duration_s||0,medTr||"v1")},\n'
+         # L7-B D-41 (24/09/2026, tache 6) : REPLI -- le popover des auto-clips (couche) demande l'ouverture du
+         # projet qu'il vient de creer ; l'hote incremente le compteur que M14 passe a la liste des projets
+         '        /* L7-B D-41 : le projet créé par les auto-clips est ouvert par la liste des projets (compteur) */\n'
+         '        onOpenProject:function(p){setDzAcOpen(function(v){return {n:((v&&v.n)||0)+1,'
+         'id:p&&p.id,name:p&&p.name}})}}),')
 
 # ── EB4 (E-5, lot E-B tache 4, 23/09/2026) : LA BARRE DIT « Preview » ──────
 # Le bouton garde son handler (setPop preview) ; seul le libellé change,
@@ -4877,6 +4948,55 @@ R_EC1 = (A_EC1 + "\n"
          '       qui re-rend dans ce cas-là, sans quoi le panneau resterait intitulé « Ajouter sur la\n'
          '       piste V1 » pendant qu\'il remplace. */\n'
          '    if(ovPick!==sel.tr)openPicker(sel.tr)}\n'
+         # -- « L7Ba » (L7-B D-37, 24/09/2026) : LE GESTE D'EXPORT, replie ici avec ses
+         # deux entrees. La route lit la timeline SAUVEGARDEE (`_load_saved`) : on
+         # pousse d'abord la sauvegarde (POST /save, le corps de l'autosave
+         # svmSavePayload -- declaration hissee du meme composant), PUIS
+         # GET /export ; le nom vient du Content-Disposition du serveur (une seule
+         # autorite de nommage), le telechargement par subsDownload (module, .bak x1,
+         # le chemin de D-10 et D-22 -- jamais recopie). Refus dits par fireNote :
+         # demo (jamais sauvegardee), sauvegarde refusee, `detail` du 400, reseau.
+         '  function dzExportTl(fmt){var lib=fmt==="edl"?"EDL":"FCPXML",ext=fmt==="edl"?".edl":".fcpxml";\n'
+         '    if(proj.demo){fireNote("Export "+lib+" : disponible sur un projet réel — la démo n\'est pas sauvegardée.");return}\n'
+         '    fireNote("Export "+lib+" en cours…");\n'
+         '    fetch("/api/montage/save",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(svmSavePayload())})\n'
+         '      .then(function(res){if(!res.ok)throw new Error("sauvegarde refusée ("+res.status+")");return fetch("/api/montage/export?format="+fmt)})\n'
+         '      .then(function(res){return res.text().then(function(t){\n'
+         '        if(!res.ok){var m="";try{m=(JSON.parse(t)||{}).detail||""}catch(_e){}throw new Error(m||("HTTP "+res.status))}\n'
+         '        var mm=/filename="([^"]+)"/.exec(res.headers.get("Content-Disposition")||"");return {nom:mm?mm[1]:"montage"+ext,t:t}})})\n'
+         '      .then(function(o){if(subsDownload(o.nom,o.t,fmt==="edl"?"text/plain":"application/xml"))fireNote(lib+" exporté : "+o.nom+" — à importer dans Resolve ou Final Cut Pro");else fireNote("Export impossible dans ce navigateur")})\n'
+         '      .catch(function(e){fireNote("Export "+lib+" refusé : "+((e&&e.message)||"erreur réseau"))})}\n'
+         # -- « L7Bb » (L7-B D-42, 24/09/2026) : LE GESTE « Decouper aux changements de
+         # plan », replie ici avec son entree (le menu de clip est ne de CE remplacement,
+         # x0 dans .bak_montage). Garde du clip (video rendue : src.job_id) et du verrou
+         # AVANT l'appel ; POST /scenes avec srcIn et la duree de SOURCE consommee
+         # ((end-start) x vitesse, la loi de la lame) ; la reponse est appliquee au clip
+         # tel qu'il est A LA REPONSE (clipsRef, jamais la copie du clic : l'analyse
+         # prend du temps) par DzTracks.cutAt, avec le verrou de DzTracks.cutOpts ;
+         # pushHistory() PUIS setClips (annuler ramene le clip entier), setDirty ; la
+         # note dit « n coupes » ou le refus (detail du 4xx, reseau).
+         '  function dzSceneCut(id){var c=clipsRef.current.find(function(k){return k.id===id});\n'
+         '    if(!c||!c.src||!c.src.job_id){fireNote("Découpe aux changements de plan : réservée aux clips vidéo rendus.");return}\n'
+         '    if(trackStRef.current[c.tr]&&trackStRef.current[c.tr].l){fireNote("Piste "+c.tr.toUpperCase()+" verrouillée — déverrouillez-la pour découper ce plan.");return}\n'
+         '    var sp=typeof c.speed==="number"&&c.speed>0?c.speed:1,du=Math.round(Math.max(0,(c.end-c.start)*sp)*1e3)/1e3;\n'
+         # revue D-42 (24/09/2026) : REPONSE OBSOLETE -- l'empreinte (srcIn, vitesse, start, end) du plan
+         # ENVOYE est gardee ; a la reponse, un plan dont l'un d'eux a change (trim, slip, vitesse) est
+         # refuse, DIT, sans ecriture : les instants rendus ne valent que pour la fenetre analysee. Un plan
+         # supprime passe a la couche (refus « Clip introuvable »).
+         # revue D-40 (24/09/2026) : l'IDENTITE de la source entre dans l'empreinte (svmSrcKey, module,
+         # sans DzTracks) -- « Remplacer la source » pendant l'analyse garde l'id et souvent les bornes.
+         '    function dzSg(k){return [Number(k.srcIn)||0,typeof k.speed==="number"&&k.speed>0?k.speed:1,Number(k.start)||0,Number(k.end)||0,svmSrcKey(k.src)].join("|")}\n'
+         '    var sg=dzSg(c);\n'
+         '    fireNote("Analyse des changements de plan…");\n'
+         '    fetch("/api/montage/scenes",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({src:c.src,srcIn:Number(c.srcIn)||0,dur:du})})\n'
+         '      .then(function(res){return res.json().catch(function(){return {}}).then(function(j){\n'
+         '        if(!res.ok)throw new Error((j&&typeof j.detail==="string"&&j.detail)||("HTTP "+res.status));return j})})\n'
+         '      .then(function(j){var k2=clipsRef.current.find(function(k){return k.id===id});\n'
+         '        if(k2&&dzSg(k2)!==sg){fireNote("Découpe aux changements de plan refusée : le plan a changé pendant l\'analyse — relancez.");return}\n'
+         '        var r2=DzTracks.cutAt(clipsRef.current,id,j&&j.times,DzTracks.cutOpts(proj,trackStRef.current));\n'
+         '        if(r2.refus){fireNote(r2.note);return}\n'
+         '        pushHistory();setClips(r2.clips);setDirty(!0);fireNote(r2.note)})\n'
+         '      .catch(function(e){fireNote("Découpe aux changements de plan refusée : "+((e&&e.message)||"erreur réseau"))})}\n'
          '  function dzMenuProps(kind,o){\n'
          '    var id=o.id,ph=phRef.current,cs=clipsRef.current,rr=rootRef.current?rootRef.current.getBoundingClientRect():{left:0,top:0,width:window.innerWidth};\n'
          '    var base={kind:kind,id:id,x:Math.max(0,Math.min(o.x-rr.left,rr.width-270)),y:Math.max(0,o.y-rr.top)};\n'
@@ -4886,7 +5006,15 @@ R_EC1 = (A_EC1 + "\n"
          '        {lbl:"Projets…",run:function(){setDzProjReq(function(n){return n+1})}},\n'
          '        {lbl:"Preview 480p",run:function(){setPop("preview")}},\n'
          '        {lbl:"Rendre…",run:function(){setPop("render")}},\n'
-         '        {lbl:"Publier",off:!dzLast,run:function(){if(dzLast){setPop("");setDzFin(Object.assign({project_id:proj.project_id||""},dzLast))}}}]});\n'
+         '        {lbl:"Publier",off:!dzLast,run:function(){if(dzLast){setPop("");setDzFin(Object.assign({project_id:proj.project_id||""},dzLast))}}},\n'
+         # -- « L7Ba » (L7-B D-37, 24/09/2026) : EXPORT EDL / FCPXML, REPLIE ICI : la
+         # rubrique Projet (l'ancre du plan, `dzMenuProps`) est nee de CE remplacement,
+         # x0 dans .bak_montage. Le `title` de chaque entree est son libelle (DzmCtxMenu
+         # pose title:it.lbl, deja audite par E-12) -- libelles explicites, pas de champ
+         # neuf dans la couche (le pin `title:it.lbl` du banc edition et de la
+         # campagne EC reste intact). Le geste est dzExportTl (plus bas).
+         '        {lbl:"Exporter EDL…",run:function(){dzExportTl("edl")}},\n'
+         '        {lbl:"Exporter FCPXML…",run:function(){dzExportTl("fcpxml")}}]});\n'
          '      var aff=rubs.filter(function(g){return g.rub==="Affichage"})[0];\n'
          '      if(!aff){aff={rub:"Affichage",items:[]};rubs.splice(rubs.length-1,0,aff)}\n'
          '      aff.items=aff.items.concat([\n'
@@ -4905,6 +5033,10 @@ R_EC1 = (A_EC1 + "\n"
          '      var v1=c.tr==="v1",sp=svmSpeedOf(c),g=DzTracks.voisins(cs,c).g;\n'
          '      return Object.assign(base,{items:[\n'
          '        {lbl:"Couper à la tête",combo:svmKeyLabel("blade"),off:!(ph>c.start+.05&&ph<c.end-.05),run:function(){dzFire("blade")}},\n'
+         # -- « L7Bb » (L7-B D-42) : TOUJOURS rendue, grisee hors d'un clip video rendu
+         # (src.job_id sur une piste video : le jumeau audio d'un plan porte aussi le
+         # job_id, il est exclu par le genre de piste) ; title = libelle (DzmCtxMenu).
+         '        {lbl:"Découper aux changements de plan",off:!(c.src&&c.src.job_id)||trackKind(c.tr)!=="video",run:function(){dzSceneCut(id)}},\n'
          '        {lbl:"Supprimer",combo:svmKeyLabel("delete"),run:function(){delClipById(id)}},\n'
          '        {lbl:"Remplacer la source…",off:!c.src,run:function(){dzReplaceArm(c)}},\n'
          '        {lbl:"Effets…",off:trackKind(c.tr)==="audio",run:function(){setFxPick(!0)}},{sep:!0}]\n'
@@ -5434,6 +5566,21 @@ R_L7E7B = '      if(el2){var tsig=cur.x+"|"+cur.y+"|"+cur.scale+"|"+cur.rotate+"
 A_L7E8 = '      delete nk.x;delete nk.y;delete nk.scale;delete nk.rotate;'
 R_L7E8 = (A_L7E8 + '\n'
           '      delete nk.radius;delete nk.shadow; /* L7 D-19 : plein cadre = sans coins ni ombre (la chaîne cover du rendu les ignorerait) */')
+# ══ L7-B D-40 (revue du 24/09/2026) — L'APERCU DU CADRAGE, VIDEO OU IMAGE DU FOND V1 ═══════════
+# T4 posait l'apercu dans R_DZ3 (dans `if(lv&&c){`) : une IMAGE sur V1 n'y passe jamais (liveVideoRef
+# n'est pose que pour une video). Section propre, AVANT le commentaire des overlays V2 (1/0/1 dans
+# .bak_montage, mesure) : `lv`, `c`, `t` et `host` du lecteur sont connus ; l'element est la <video>
+# active, sinon l'<img> du fond. Dimensions de l'element (videoWidth||naturalWidth), cadre = la boite de
+# l'element ; la couche rend « p% 50% » ou "" (pas de cadrage, source pas plus large, cadre non mesure).
+# Ecrite seulement si elle change ; "" rend la position par defaut (l'element du pool est reutilise).
+A_L7BRF1 = "    /* overlays V2 actifs à t, au-dessus du fond, opacité appliquée */"
+R_L7BRF1 = ("    /* L7-B D-40 : le cadrage EN DIRECT -- la fenetre du crop du rendu, a la tete en temps de source,\n"
+            "       sur la <video> active ou l'<img> du fond V1 */\n"
+            '    var rfEl=c?(lv||(host.firstChild&&host.firstChild.tagName==="IMG"?host.firstChild:null)):null;\n'
+            "    if(rfEl){var rfP=DzTracks.reframeCss(c,(t-c.start)*svmSpeedOf(c),rfEl.videoWidth||rfEl.naturalWidth,\n"
+            "      rfEl.videoHeight||rfEl.naturalHeight,rfEl.clientWidth,rfEl.clientHeight);\n"
+            "      if(rfEl.style.objectPosition!==rfP)rfEl.style.objectPosition=rfP}\n"
+            + A_L7BRF1)
 L7A = [("L7a3-preset-resolve-export-import-du-mappage", A_L7A3, R_L7A3),
        ("L7b3-le-texte-selectionne-garde-son-Ctrl-C", A_L7B3, R_L7B3),
        ("L7c3-popover-plans-trop-longs-jump-cuts", A_L7C3, R_L7C3),
@@ -5511,7 +5658,25 @@ assert R_L7F1.count("DzTracks.subsBurnId(svmTracksOf(proj))") == 1 and R_L7F1.co
 assert R_L7F2.count('"data-burn":') == 1 and R_L7F2.count('trackKind(tr.id)==="subs"') == 2 and R_L7F2.count('tr.id==="s1"') == 0 and R_L7F2.count("DzTracks.subsBurnId(") == 1
 assert R_EC1.count("DzTracks.subsBurnId(ts)") == 1 and R_EC1.count("DzTracks.subsBurn(ts,id)") == 1 and R_EC1.count("DzTracks.subsNew(ts,lg)") == 1 and R_EC1.count("window.prompt(") == 1
 assert R_EC1.count('lbl:"Exporter .srt"') == 1 and R_EC1.count('lbl:"Exporter .vtt"') == 1 and R_EC1.count('lbl:"Exporter .txt"') == 1 and R_EC1.count('"Nouvelle piste de langue…"') == 1
-assert R_EC1.count('combo:bid===id?"gravée":""') == 1 and R_EC1.count("subsToSrt(") == 1 and R_EC1.count("subsToVtt(") == 1 and R_EC1.count("subsToTxt(") == 1 and R_EC1.count("subsDownload(") == 1
+assert R_EC1.count('combo:bid===id?"gravée":""') == 1 and R_EC1.count("subsToSrt(") == 1 and R_EC1.count("subsToVtt(") == 1 and R_EC1.count("subsToTxt(") == 1 and R_EC1.count("subsDownload(") == 2
+# L7-B D-37 (24/09/2026) : subsDownload x2 dans R_EC1 -- D-22 (la piste) + dzExportTl (repli L7Ba) ;
+# le geste d'export : sauvegarde PUIS export, deux entrees de la rubrique Projet, un seul appel chacune
+assert R_EC1.count("function dzExportTl(fmt){") == 1 and R_EC1.count('run:function(){dzExportTl("edl")}') == 1 and R_EC1.count('run:function(){dzExportTl("fcpxml")}') == 1
+assert R_EC1.count('fetch("/api/montage/export?format="+fmt)') == 1 and R_EC1.count("JSON.stringify(svmSavePayload())") == 1 and R_EC1.find("function dzExportTl(fmt){") < R_EC1.find("  function dzMenuProps(kind,o){")
+# L7-B D-42 (24/09/2026) : le geste « Decouper aux changements de plan » et son entree du menu de clip, repliés dans R_EC1
+assert R_EC1.count("  function dzSceneCut(id){") == 1 and R_EC1.count("run:function(){dzSceneCut(id)}") == 1 and R_EC1.count('fetch("/api/montage/scenes",') == 1
+# L7-B D-40 (24/09/2026, tache 4) : le cadrage replie dans R_DZ1 (hote), R_DZ3 (apercu vivant), R_DZ4 (payload) -- aucune section neuve
+assert R_DZ1.count("onReframe:function(){var id=sel.id,") == 1 and R_DZ1.count('fetch("/api/montage/reframe",') == 1 and R_DZ1.count("var sg=dzRfSg(c),") == 1
+assert R_DZ1.find("var sg=dzRfSg(c),") < R_DZ1.find('fetch("/api/montage/reframe",') < R_DZ1.find("if(dzRfSg(k2)!==sg){") < R_DZ1.find("pushHistory();setClips(clipsRef.current.map(")
+assert R_DZ1.count("DzTracks.") == 3 and R_DZ1.endswith("          onChange:dzPlanSet}):null,\n" + A_DZ1) and R_DZ1.count("pl.get(livePoolKey(sel.src,\"b\"))") == 1
+assert R_DZ3.count("reframe") == 0 and R_DZ3.endswith("if(lv.style.transform!==dzT)lv.style.transform=dzT;")
+assert R_DZ1.count("svmSrcKey(k.src)") == 1 and R_EC1.count(",svmSrcKey(k.src)].join(\"|\")}") == 1
+assert R_L7BRF1.startswith(A_L7BRF1) is False and R_L7BRF1.endswith(A_L7BRF1) and R_L7BRF1.count("DzTracks.reframeCss(c,(t-c.start)*svmSpeedOf(c),") == 1
+assert R_L7BRF1.count('if(rfEl.style.objectPosition!==rfP)rfEl.style.objectPosition=rfP}') == 1 and R_L7BRF1.count("DzTracks") == 1
+assert R_DZ4.count('var rfD=c.tr==="v1"&&DzTracks.reframePayload(c);if(rfD)o.reframe=rfD;') == 1 and R_DZ1.count("var si=Number(c.srcIn)||0,pts=") == 1 and R_DZ4.find("var sbD=") < R_DZ4.find("var rfD=")
+assert R_EC1.count("var sg=dzSg(c);") == 1 and R_EC1.count("if(k2&&dzSg(k2)!==sg){") == 1 and R_EC1.find("if(k2&&dzSg(k2)!==sg){") < R_EC1.find("DzTracks.cutAt(clipsRef.current,id,")
+assert R_EC1.count("DzTracks.cutAt(clipsRef.current,id,") == 1 and R_EC1.count("DzTracks.cutOpts(proj,trackStRef.current)") == 1 and R_EC1.count("pushHistory();setClips(r2.clips);setDirty(!0);") == 1
+assert R_EC1.find("  function dzSceneCut(id){") < R_EC1.find("  function dzMenuProps(kind,o){") < R_EC1.find('lbl:"Couper à la tête"') < R_EC1.find('lbl:"Découper aux changements de plan"') < R_EC1.find('lbl:"Supprimer",combo:')
 assert R_M26A.count("x.useState(!1),dzNewTr=s9c[0],setDzNewTr=s9c[1];") == 1 and R_M26A.count("props.onNewTrack(dzTo,dzNext)") == 1 and R_M26A.count("if(props.onChange)props.onChange(dzNext,!0);") == 1
 assert R_M26B.count('"aria-label":"Traduire dans une nouvelle piste"') == 1 and R_M26B.count("sub-trnew") == 1 and R_M26B.count("dzNewTr?") == 1 and R_M26B.count("title:") == 2
 assert R_M24H.count("onNewTrack:function(lang,segs){") == 1 and R_M24H.count("DzTracks.subsNew(svmTracksOf(dzProjRef.current),lang)") == 1 and R_M24H.count("svmTracksOf(proj)") == 1 and R_M24H.count('DzTracks.subsCopy(cs,"s1",r2.id,segs)') == 1
@@ -5756,6 +5921,10 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("EA6-bandeau-ferme-au-lancement", A_EA6, R_EA6),
            # D-13 (22/09/2026, L3 tache 2) : quatre ancres du bundle d'origine,
            # 1/1 dans .bak_montage ; dzPlanSet est replie dans R_M16REF.
+           # L7-B D-40 (revue du 24/09/2026) : l apercu du cadrage (video OU image du fond V1), ancre libre
+           # 1/0/1 -- posee AVANT DZ1 et non en queue : les pins de la queue (L4, L7A, L7e, L7f...) comptent
+           # par index negatif, et l ordre est indifferent (ancre independante des autres sections).
+           ("L7Brf1-apercu-du-cadrage-video-ou-image", A_L7BRF1, R_L7BRF1),
            ("DZ1-proprietes-de-plan", A_DZ1, R_DZ1),
            ("DZ2-rectangles-du-lecteur", A_DZ2, R_DZ2),
            ("DZ3-zoom-en-direct", A_DZ3, R_DZ3),
