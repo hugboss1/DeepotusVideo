@@ -14,7 +14,7 @@
 
 - [x] T1 — D-37 export EDL + FCPXML (`5d5eadc`, revue `562a048`, `140c3d5` ; FCPXML 1.9, FROM CLIP NAME = fichier, poignées dites)
 - [x] T2 — D-42 découper aux changements de plan (`4c48d45`, revue `8517a25` ; réponse obsolète refusée, écart minimal entre coupes)
-- [ ] T3 — D-40 recadrage : backend (tracker PIL, crop à x animé)
+- [x] T3 — D-40 recadrage : backend (tracker PIL, crop à x animé) (`d70989c`, revue `e09552b` ; `-/filter_complex <fichier>` au-delà de 30 000 car., arbre `_rf_lerp_expr` car la chaîne échoue au-delà de 93 points ; restes mineurs pour T8)
 - [ ] T4 — D-40 recadrage : client (inspecteur « Cadrage »)
 - [ ] T5 — D-41 auto-clips : backend
 - [ ] T6 — D-41 auto-clips : client
