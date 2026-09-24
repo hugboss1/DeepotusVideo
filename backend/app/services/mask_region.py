@@ -38,11 +38,14 @@ _NUM = re.compile(r"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?")
 def _f(v):
     """float fini ou None. Un booléen n'est PAS un nombre (float(True) vaut
     1.0 : un `x: false` passait pour 0) -> None, comme une valeur illisible.
-    Une chaîne : décimal ASCII seulement (`_NUM`, blancs d'entourage ôtés)."""
+    Une chaîne : décimal ASCII seulement (`_NUM`, blancs d'entourage ôtés,
+    U+FEFF compris : Number() de JS l'ôte, str.strip() non)."""
     if isinstance(v, bool):
         return None
-    if isinstance(v, str) and not _NUM.fullmatch(v.strip()):
-        return None
+    if isinstance(v, str):
+        v = v.strip().strip("﻿")
+        if not _NUM.fullmatch(v):
+            return None
     try:
         x = float(v)
     except (TypeError, ValueError):

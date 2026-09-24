@@ -234,12 +234,12 @@ check("m1_soft_booleen_zero_inv_vrai_seulement_pour_True",
 # regle des courbes (effects_engine._CURVE_NUM) : float() de Python accepte « 1_0 » (10) et les chiffres Unicode
 # (« ٠.٥ », « ０.５ ») que Number() de JS refuse (dzmRfNum) -> divergence avec la couche. Mesure avant correctif :
 # les chaines decimales ASCII (« 0.5 », « 0.5 » entoure de blancs, « 5e-1 », « .5 », « 5. ») sont LUES : gardees.
-_sA = [mask_of({"shape": "rect", "x": 0, "y": 0, "w": w, "h": .5}) for w in ("0.5", " 0.5 ", "5e-1", ".5", "+0.5")]
+_sA = [mask_of({"shape": "rect", "x": 0, "y": 0, "w": w, "h": .5}) for w in ("0.5", " 0.5 ", "5e-1", ".5", "+0.5", "﻿0.5")]
 _sR = [mask_of({"shape": "rect", "x": 0, "y": 0, "w": w, "h": .5}) for w in ("1_0", "٠.٥", "０.５", "0x1", "inf", "1e999")]
 _sS = [mask_of({"shape": "rect", "x": 0, "y": 0, "w": .5, "h": .5, "soft": s}) for s in ("1_0", "0.2")]
 _W5 = {"shape": "rect", "x": 0.0, "y": 0.0, "w": 0.5, "h": 0.5, "soft": 0.0, "inv": False}
 check("m1_chaines_decimal_ascii_lues_underscore_et_chiffres_unicode_refuses_soft_1_0_zero",
-      _sA == [_W5] * 5 and _sR == [None] * 6
+      _sA == [_W5] * 6 and _sR == [None] * 6  # re-revue T6 : « ﻿0.5 » lu comme Number() de JS (5 -> 6)
       and _sS == [_W5, dict(_W5, soft=0.2)], str((_sA, _sR, _sS)))
 try:
     from app.services import mask_region as _mr_mod, effects_engine as _ee_mod
@@ -248,7 +248,7 @@ except Exception as _e:
     _mr_num = ("import", repr(_e))
 check("m1_expression_des_chaines_identique_a_celle_des_courbes",
       isinstance(_mr_num[1], str) and len(_mr_num[1]) > 20 and _mr_num[0] == _mr_num[1], _mr_num)
-_g1 =mask_graph(_m1, 320, 180, 25, "mk0") if isinstance(_m1, dict) else "ABSENT"
+_g1 = mask_graph(_m1, 320, 180, 25, "mk0") if isinstance(_m1, dict) else "ABSENT"
 check("m1_mask_graph_geq_une_fois_trim_loop_gris_etiquette",
       isinstance(_g1, str) and _g1.startswith("color=c=black:s=320x180:r=25:d=1,format=gray,geq=lum='")
       and _g1.endswith(",trim=end_frame=1,loop=loop=-1:size=1:start=0[mk0]") and "hypot(" in _g1
@@ -722,8 +722,14 @@ check("r_effects_v2_lus_seuls_les_dicts_et_mask_v2_borne",
       and _a2.get("mask") == {"shape": "rect", "x": 0.25, "y": 0.25, "w": 0.5, "h": 0.5, "soft": 0.5, "inv": False}
       and "negate" in (_cap.get("cmd") or "") and "maskedmerge" in (_cap.get("cmd") or ""),
       (_st, _a2.get("effects"), _a2.get("mask"), (_cap.get("cmd") or "")[-300:]))
-check("r_dims_v2_sondees_quand_une_pile_est_posee",
-      _st == 200 and tuple(_a2.get("dims") or ()) == (64, 64), _a2.get("dims"))
+# Restes L5 (0380ba1, 24/09) : la chaine COVER (ni tf ni points de mouvement) n'a pas besoin des dims -- seule la chaine
+# TRANSFORMEE sonde. Realigne : la meme pile sur un overlay transforme (scale 0.5) -> dims (64, 64) ; temoin : _a2
+# (cover, meme pile) -> aucune cle dims.
+_stT, _aT1, _aT2 = RENDU({}, {"effects": INV + ["x", {"type": "nope"}], "mask": dict(ELL, shape="rect", soft=2), "scale": 0.5})
+check("r_dims_v2_sondees_quand_une_pile_est_posee_sur_un_overlay_transforme_cover_sans_dims",
+      _stT == 200 and tuple(_aT2.get("dims") or ()) == (64, 64) and _aT2.get("tf") is not None
+      and _st == 200 and "dims" not in _a2 and _a2.get("effects") == [{"type": "invert"}, {"type": "nope"}],
+      (_stT, _aT2.get("dims"), _aT2.get("tf"), sorted(_a2)))
 _st0, _b1, _b2 = RENDU({"mask": {"shape": "star"}}, {"mask": "x", "effects": []})
 check("r_masque_invalide_et_pile_vide_cles_absentes_dict_historique",
       isinstance(_a1.get("mask"), dict) and _st0 == 200 and "path" in _b1 and "path" in _b2
@@ -748,16 +754,22 @@ def RENDU_D(v2extra, dims_fn):
         MS._probe_dims = _vrai_dims
 
 
+# Realigne sur 0380ba1 (24/09) : les deux cas sur un overlay TRANSFORME (scale 0.5) -- pile inconnue : 0 sonde ; pile
+# connue : 1 sonde ; temoin neuf : la meme pile connue en chaine COVER -> 0 sonde, aucune cle dims.
 _sondes.clear()
-_s3a = RENDU_D({"effects": [{"type": "nope"}, {"type": "zz"}]}, _dims_espion)
+_s3a = RENDU_D({"effects": [{"type": "nope"}, {"type": "zz"}], "scale": 0.5}, _dims_espion)
 _n_inc = len([p for p in _sondes if p.endswith("ovr.png")])
 _sondes.clear()
-_s3b = RENDU_D({"effects": INV}, _dims_espion)
+_s3b = RENDU_D({"effects": INV, "scale": 0.5}, _dims_espion)
 _n_con = len([p for p in _sondes if p.endswith("ovr.png")])
-check("m3_dims_sondees_seulement_si_la_pile_porte_un_effet_connu",
+_sondes.clear()
+_s3c = RENDU_D({"effects": INV}, _dims_espion)
+_n_cov = len([p for p in _sondes if p.endswith("ovr.png")])
+check("m3_dims_sondees_seulement_si_la_pile_porte_un_effet_connu_et_l_overlay_est_transforme",
       _s3a[0] == 200 and _n_inc == 0 and "effects" not in _s3a[2] and "dims" not in _s3a[2]
-      and _s3b[0] == 200 and _n_con == 1 and tuple(_s3b[2].get("dims") or ()) == (64, 64),
-      (_s3a[0], _n_inc, sorted(_s3a[2]), _s3b[0], _n_con, _s3b[2].get("dims")))
+      and _s3b[0] == 200 and _n_con == 1 and tuple(_s3b[2].get("dims") or ()) == (64, 64)
+      and _s3c[0] == 200 and _n_cov == 0 and "dims" not in _s3c[2] and _s3c[2].get("effects") == INV,
+      (_s3a[0], _n_inc, sorted(_s3a[2]), _s3b[0], _n_con, _s3b[2].get("dims"), _s3c[0], _n_cov, sorted(_s3c[2])))
 WARN.clear()
 _s1 = RENDU_D({"effects": INV, "mask": dict(ELL), "scale": 0.5}, lambda p: None)
 _cm1 = _cap.get("cmd") or ""

@@ -3781,7 +3781,8 @@ A_K7 = ('if(e.key==="Escape"){\n'
 # Echap (meme forme que celle de `kbRef` juste au-dessus dans onKey) : sous le voile, Espace lançait la lecture et
 # Suppr / Ctrl+Z modifiaient la timeline, un popover ouvert par raccourci passait au-dessus (z 20 > 19). Seul Echap
 # agit : il la ferme. Son ref est pose dans R_M16REF (la ligne epinglee de dzScrimRef ne bouge pas).
-R_K7 = ('if(dzLbRef.current){if(e.key==="Escape"){e.preventDefault();setDzLb(!1)}return}\n'
+R_K7 = ('if(dzLbRef.current){if(e.key==="Escape"){e.preventDefault();setDzLb(!1)}return}'
+        ' /* D-32 : lightbox ouverte = modale au clavier, seul Échap agit (il la ferme) ; l\'Échap de l\'overlay décrit plus haut suit */\n'
         '      if(e.key==="Escape"){\n'
         "        if(dzMkOnRef.current){e.preventDefault();dzMkToggle(!1);return}\n"
         # E-11 (lot E-B, tache 5, 23/09/2026) : ECHAP FERME LE VOILE ET CE
@@ -5836,12 +5837,15 @@ assert R_EB4.count("title:") == 1 and R_EA5D.count('"Rendre →"') == 1 and R_EA
 # dans le bundle livre). Le composant (DzTracks.Scopes) devient le DERNIER enfant de `.svm-playerzone` : sous la
 # barre en paysage (colonne), a droite de la barre en portrait (data-side, rangee). Props : la timeline, la tete,
 # l'etat de lecture (st4 du bundle : `playing`) -- les scopes ne demandent RIEN pendant la lecture.
+# CORRECTIF PREUVE ECRAN (24/09/2026) : MESURE Playwright 1400 x 900 -- sous la barre, la puce tombait sous la barre
+# OUTILS flottante (z 8, pied de la zone). Meme ancre, la puce devient le DERNIER enfant de la BARRE (apres « plein
+# ecran ») ; la barre passe en tete de la zone par la feuille (order:-1) et l'encart est porte dans le cadre.
 A_L5SC1 = '            onClick:svmFullscreen,children:"plein écran ("+svmKeyLabel("fullscreen")+")"})]})]}),'
-R_L5SC1 = ('            onClick:svmFullscreen,children:"plein écran ("+svmKeyLabel("fullscreen")+")"})]}),\n'
-           '        /* L5 D-31 : les scopes du plan V1 sous la tête (bascule mémorisée, rafraîchis à l\'arrêt) */\n'
-           '        r.jsx(DzTracks.Scopes,{clips:clips,head:ph,playing:playing})]}),')
+R_L5SC1 = ('            onClick:svmFullscreen,children:"plein écran ("+svmKeyLabel("fullscreen")+")"}),\n'
+           '          /* L5 D-31 : la puce des scopes du plan V1 sous la tête (bascule mémorisée, encart dans le cadre) */\n'
+           '          r.jsx(DzTracks.Scopes,{clips:clips,head:ph,playing:playing})]})]}),')
 L5 = [("L5sc1-scopes-sous-la-barre-du-lecteur", A_L5SC1, R_L5SC1)]
-assert R_L5SC1.count("DzTracks.") == 1 and R_L5SC1.endswith("})]}),") and A_L5SC1.count("]})]}),") == 1
+assert R_L5SC1.count("DzTracks.") == 1 and R_L5SC1.endswith("playing:playing})]})]}),") and A_L5SC1.count("]})]}),") == 1
 assert R_R1.count('combo:"Ctrl+Alt+C"') == 1 and R_R1.count('combo:"Ctrl+Alt+V"') == 1 and R_R1.find('id:"paste"') < R_R1.find('id:"grade_copy"') < R_R1.find('id:"grade_paste"')
 assert R_R2.count('if(id==="grade_copy"){dzGradeCopy(selRef.current);return}') == 1 and R_R2.count('if(id==="grade_paste"){dzGradePaste(selRef.current);return}') == 1
 assert R_EC1.count("function dzGradeCopy(id){") == 1 and R_EC1.count("function dzGradePaste(id){") == 1 and R_EC1.count("pushHistory();setClips(clipsRef.current.map(function(k){return k.id===c.id?q.clip:k}))") == 1

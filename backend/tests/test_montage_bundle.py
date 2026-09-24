@@ -12075,17 +12075,23 @@ _R_LBL = _regle(_MC, ".dzsvm .dzm-tbl{")
 _MASQUES = list(re.finditer(r"([^{}]*)\{([^{}]*display:none[^{}]*)\}",
                             _sansc(_MC)))
 _MASQ_VUE = [_m for _m in _MASQUES if "[data-view=" in _m.group(1)]
+# Correctif preuve ecran L5 T6 (24/09/2026) : UNE regle de plus, le repli EN LIGNE de l'encart des scopes (cadre
+# introuvable) -- son selecteur est exactement `.dzsvm .svm-playerbar .dzm-scpop` : un noeud de la barre du LECTEUR,
+# jamais de la barre OUTILS (.dzm-tb*) ; 4 -> 5, pin realigne, les trois masques du bandeau restent `[data-bdoff`.
+_MASQ_SC = [_m for _m in _MASQUES if _m.group(1).strip() == ".dzsvm .svm-playerbar .dzm-scpop"]
 check("tb_d_seul_le_libelle_est_masquable_jamais_le_recentrage",
       _R_LBL is not None and "display:var(--lbl, block)" in _R_LBL
       and _sansc(_MC).count("var(--lbl") == 1
       and _R_WIN is not None and "display:flex" in _R_WIN
       and _R_WB is not None and "display:flex" in _R_WB
       and "--lbl" not in _R_WIN and "--lbl" not in _R_WB
-      and len(_MASQUES) == 4 and len(_MASQ_VUE) == 1
-      and all("[data-bdoff" in _m.group(1) for _m in _MASQUES if _m not in _MASQ_VUE)
+      and len(_MASQUES) == 5 and len(_MASQ_VUE) == 1 and len(_MASQ_SC) == 1
+      and all("[data-bdoff" in _m.group(1) for _m in _MASQUES if _m not in _MASQ_VUE and _m not in _MASQ_SC)
       and _MASQ_VUE[0].group(1).count(".dzsvm[data-view=") == 4
       and set(re.findall(r"\.(svm-[a-z]+)\s*(?:,|$)", _MASQ_VUE[0].group(1).strip())) == {"svm-tl", "svm-tlhandle"}
-      and not any(".dzm-" in _m.group(1) for _m in _MASQUES),
+      # le seul `.dzm-` masque est l'encart des scopes en repli, au selecteur EXACT ci-dessus (aucun .dzm-tb*)
+      and not any(".dzm-" in _m.group(1) for _m in _MASQUES if _m not in _MASQ_SC)
+      and not any(".dzm-tb" in _m.group(1) for _m in _MASQUES),
       f'lbl={_R_LBL!r} lectures={_sansc(_MC).count("var(--lbl")} '
       f'masques={[_m.group(1).strip()[:60] for _m in _MASQUES]}')
 check("tb_d_la_barre_rend_sa_reference_et_sa_poignee_saisit",
@@ -12454,7 +12460,10 @@ _ORD = [_m.group(1) for _m in _REGLES(_MC)
         if re.search(r"(^|[;\s])order:1(;|$)", _m.group(2).strip())]
 check("bd_le_zoom_et_ajuster_sont_le_dernier_bloc_du_bandeau",
       len(_ORD) == 1 and ".svm-zoom" in _ORD[0] and ".dzm-durctl" in _ORD[0]
-      and len(re.findall(r"(^|[;\s{])order:", _sansc(_MC))) == 1,
+      # correctif preuve ecran L5 T6 (24/09) : 1 -> 2, le second `order:` est EXACTEMENT celui de la barre du lecteur
+      # passee en tete de sa zone (hors du bandeau) -- pin realigne
+      and len(re.findall(r"(^|[;\s{])order:", _sansc(_MC))) == 2
+      and _sansc(_MC).count(".dzsvm .svm-playerzone:not([data-side]) .svm-playerbar{order:-1}") == 1,
       f'{_ORD}')
 # LE STYLE COMMUN DES BOUTONS (§5.2) — 26 px, 0 9px, 11 px, filet, radius 0.
 # SCOPE AU BANDEAU : `.svm-tbtn` sert aussi l'inspecteur et les en-tetes de
@@ -17493,7 +17502,7 @@ check("L7d1_etat_diffSt_replie_en_queue_de_EB7_ETAT_apres_boMap_avant_stDzFin_un
       # L7-B D-34 (tache 7, 24/09/2026) : minNote + noteMsg du tiroir Medias (couche), 545 -> 547 (les trois epingles)
       # L7-B D-40 (tache 4, 24/09/2026) : 547 -> 548, l analyse du mouvement en cours (DzmPlanProps, couche) -- les trois epingles
       # L7-B D-41 (T6) : 548 -> 560 (+10 le popover DzmAutoclips, +1 la ligne ouverte du tiroir, +1 dzAcOpen de l'hote) ; revue T6 : 561 (+1 la langue)
-      and s.count("x.useState(") == 572 and (_bak.count("x.useState(") == 482 and _bak.count("diffSt") == 0 if _bak else False),  # L5 (T5, 24/09) : 561 -> 565, les quatre du panneau Etalonnage (couche) ; L5 (T6) : -> 571 (Scopes x3, Lightbox x2, dzLb x1) ; revue T5 : -> 572 (panneau : relecture du grade sur « storage »)
+      and s.count("x.useState(") == 573 and (_bak.count("x.useState(") == 482 and _bak.count("diffSt") == 0 if _bak else False),  # L5 (T5, 24/09) : 561 -> 565, les quatre du panneau Etalonnage (couche) ; L5 (T6) : -> 571 (Scopes x3, Lightbox x2, dzLb x1) ; revue T5 : -> 572 (panneau : relecture du grade sur « storage ») ; correctif preuve ecran T6 : -> 573 (Scopes : le cadre hote de l'encart)
       f"etat={s.count(nl(_L7D_ST))} ordre={(_iDfBo, _iDfSt, _iDfFin)} diffSt={s.count('diffSt')} useState={s.count('x.useState(')}")
 # revue 24/09 : un `diff` sans etat rend null -- jamais le popover generique
 _L7D_G = '    if(pop==="diff")return diffSt?r.jsx(DzTracks.DiffView,Object.assign({onClose:function(){setPop("")}},diffSt)):null;'
@@ -17609,7 +17618,7 @@ _L7G_ST = '  var stAb=x.useState({a:null,b:null,k:""}),abSt=stAb[0],setAbSt=stAb
 _iAbSt = s.find(nl(_L7G_ST))
 check("L7g_etat_abSt_replie_en_queue_de_EB7_ETAT_apres_diffSt_avant_stDzFin_useState_544",
       s.count(nl(_L7G_ST)) == 1 and _L7G_ST in P._EB7_ETAT and P._EB7_ETAT.endswith(_L7G_ST) and 0 < _iDfSt < _iAbSt < _iDfFin
-      and P._EB7_ETAT.count("DzTracks") == 4 and s.count("x.useState(") == 572 and (_bak.count("x.useState(") == 482 if _bak else False)  # D-41 (T6) : 548 -> 560 -> 561 (langue) ; L5 (T5, 24/09) : -> 565 (panneau Etalonnage) ; L5 (T6) : -> 571 ; revue T5 : -> 572
+      and P._EB7_ETAT.count("DzTracks") == 4 and s.count("x.useState(") == 573 and (_bak.count("x.useState(") == 482 if _bak else False)  # D-41 (T6) : 548 -> 560 -> 561 (langue) ; L5 (T5, 24/09) : -> 565 (panneau Etalonnage) ; L5 (T6) : -> 571 ; revue T5 : -> 572 ; correctif preuve ecran T6 : -> 573 (Scopes : cadre hote)
       # MOT ENTIER (stabSt, tabSt… existent) : la declaration, abA (x2), abB (x2) = 5 ; setAbSt porte une majuscule ; x0 dans le .bak
       and len(re.findall(r"\babSt\b", s)) == 5 and (len(re.findall(r"\babSt\b", _bak)) == 0 if _bak else False)
       # la couche : aucun `abSt` entier (temoin : ses trois « dzmStabState » de L3 portent la sous-chaine)
@@ -17778,7 +17787,7 @@ check("L7f4_tiroir_etat_dzNewTr_branche_onNewTrack_avant_onChange_P16_intact_cas
       and s.count('r.jsx("input",{type:"checkbox",checked:dzNewTr,"aria-label":"Traduire dans une nouvelle piste",onChange:function(e){setDzNewTr(e.target.checked)}},"c")') == 1
       and s.count('className:"sub-trlang sub-trnew",title:"Coché : la traduction naît dans une nouvelle piste') == 1 and 0 < _iTg < _iNt < _iFn < _iTg + 1500
       and s.count('apres:dzOn.on?(dzNewTr?"Les "+dzTrN+" répliques traduites naissent dans une nouvelle piste S2, S3… — S1 reste intacte ; « Annuler » retire la piste et ses répliques.":DzTracks.subsTrTitle(dzTrN)):dzOn.pourquoi,') == 1
-      and len(re.findall(r"\bdzNewTr\b", s)) == 4 and s.count("setDzNewTr") == 2 and s.count("x.useState(") == 572  # D-41 (T6) : 548 -> 560 -> 561 (langue) ; L5 (T5, 24/09) : -> 565 (panneau Etalonnage) ; L5 (T6) : -> 571 ; revue T5 : -> 572
+      and len(re.findall(r"\bdzNewTr\b", s)) == 4 and s.count("setDzNewTr") == 2 and s.count("x.useState(") == 573  # D-41 (T6) : 548 -> 560 -> 561 (langue) ; L5 (T5, 24/09) : -> 565 (panneau Etalonnage) ; L5 (T6) : -> 571 ; revue T5 : -> 572 ; correctif preuve ecran T6 : -> 573 (Scopes : cadre hote)
       and (_bak.count("dzNewTr") == 0 and _bak.count("sub-trnew") == 0 and _bak.count("onNewTrack") == 0 if _bak else False),
       f"ordre={(_iS9b, _iS9c, _iTrN)} case={(_iTg, _iNt, _iFn)} dzNewTr={len(re.findall(chr(92) + 'bdzNewTr' + chr(92) + 'b', s))} useState={s.count('x.useState(')}")
 # L7f4 (repli R_M24H) : l'hote passe onNewTrack -- subsNew puis svmTracksSet (historique) puis subsCopy sur setClips,
@@ -18864,6 +18873,10 @@ check("L5sc1_section_unique_en_queue_ancre_libre_1_0_1_scopes_derniers_enfants_d
       and P.A_L5SC1 == _L5SC_A and s.count(nl(_L5SC_A)) == 0 and s.count(nl(P.R_L5SC1)) == 1
       and s.count("r.jsx(DzTracks.Scopes,{clips:clips,head:ph,playing:playing})") == 1
       and 0 < s.find('className:"svm-playerbar"') < s.find("r.jsx(DzTracks.Scopes,") < s.find('inspOn?r.jsxs("aside",{className:"svm-insp"')
+      # correctif preuve ecran (24/09) : la puce est le DERNIER enfant de la BARRE du lecteur (apres « plein ecran »),
+      # plus celui de la zone -- la barre puis la zone se ferment APRES elle
+      and P.R_L5SC1.endswith("r.jsx(DzTracks.Scopes,{clips:clips,head:ph,playing:playing})]})]}),")
+      and P.R_L5SC1.count("]})]}),") == 1 and P.R_L5SC1.startswith('            onClick:svmFullscreen,children:"plein écran ("+svmKeyLabel("fullscreen")+")"}),\n')
       and [t[0][:2] for t in P.PATCHES].count("L5") == 1
       and (_bak.count(_nlb(_L5SC_A)) == 1 and _bak.count("DzTracks.Scopes") == 0 if _bak else False),
       [s.count(nl(P.R_L5SC1)), _bak.count(_nlb(_L5SC_A)) if _bak else "?", [p[0] for p in P.PATCHES[-2:]]])
@@ -18998,10 +19011,28 @@ check("L5_sous_node_lightbox_choisir_ferme_selectionne_et_met_la_tete_au_debut_p
       [_HG.get("lb"), _HG.get("lb_absent")])
 check("L5_css_scopes_et_lightbox_x1_voile_au_z_du_voile_E11",
       all(_EB_CSS.count(k) == 1 for k in (".dzsvm .dzm-scopes{", ".dzsvm .dzm-scimg{", ".dzsvm .dzm-scmsg{", ".dzsvm .dzm-lbscrim{",
-                                            ".dzsvm .dzm-lb{", ".dzsvm .dzm-lbgrid{", ".dzsvm .dzm-lbtile{", ".dzsvm .dzm-lbph{",
-                                            ".dzsvm .svm-playerzone[data-side] .dzm-scopes{"))
+                                            ".dzsvm .dzm-lb{", ".dzsvm .dzm-lbgrid{", ".dzsvm .dzm-lbtile{", ".dzsvm .dzm-lbph{"))
       and _EB_CSS.count(".dzsvm .dzm-lbscrim{position:absolute;inset:0;z-index:19;") == 1,
       [_EB_CSS.count(k) for k in (".dzsvm .dzm-scopes{", ".dzsvm .dzm-lbscrim{")])
+# Correctif preuve ecran (24/09) : MESURE Playwright 1400 x 900 -- la barre OUTILS flottante (z 8, 831 x 83 au pied de la
+# zone du lecteur) couvrait TOUTE la barre du lecteur (y 370) et la puce Scopes (y 399). La barre du lecteur passe EN
+# TETE de la zone (order:-1, paysage) ; en portrait (data-side) sa colonne se cale en haut ; le wrapper des scopes
+# s'efface (display:contents : la puce est une puce de la barre) ; l'encart vit DANS le cadre (portail), en haut a
+# droite sous le timecode, borne a 40 % du cadre (unites cq de .svm-stage + --svm-arw, la formule du cadre), z 6 (sous
+# la barre OUTILS 8), sans pointeur sauf l'image ; repli en ligne (sans cadre trouve) : cache.
+_SC_CSS = {k: _EB_CSS.count(k) for k in (
+    ".dzsvm .dzm-scopes{display:contents}",
+    ".dzsvm .svm-playerzone:not([data-side]) .svm-playerbar{order:-1}",
+    ".dzsvm .svm-playerzone[data-side] .svm-playerbar{justify-content:flex-start}",
+    ".dzsvm .svm-playerbar .dzm-scpop{display:none}",
+    ".dzsvm .svm-frame>.dzm-scpop{position:absolute;top:34px;right:10px;z-index:6;",
+    "max-height:calc(min(100cqh, 100cqw / var(--svm-arw,.5625)) * .4)",
+    "max-width:calc(min(100cqh * var(--svm-arw,.5625), 100cqw) * .4)",
+    ".dzsvm .svm-playerzone[data-side] .dzm-scopes{")}
+check("L5_css_scopes_puce_dans_la_barre_en_tete_encart_dans_le_cadre_borne_40_pourcent_sous_la_barre_outils",
+      list(_SC_CSS.values()) == [1, 1, 1, 1, 1, 1, 1, 0]
+      and "pointer-events:none" in _EB_CSS[_EB_CSS.find(".dzsvm .svm-frame>.dzm-scpop{"):][:400]
+      and "pointer-events:auto" in _EB_CSS[_EB_CSS.find(".dzsvm .dzm-scimg{"):][:400], _SC_CSS)
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")

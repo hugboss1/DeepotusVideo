@@ -1466,7 +1466,8 @@ out.sc_rendu=scShim(function(log,S){
     vide=T.Scopes({clips:SC,head:8.5,playing:!1}),ss=T.Scopes({clips:SC,head:10,playing:!1});
   return [off.t,off.p.className,b0.map(function(b){return [gpTxt(b),b.p.title,b.p["aria-pressed"],b.p["data-on"]]}),scMsg(off),
     gpBtns(on).map(function(b){return [gpTxt(b),b.p.title,b.p["aria-pressed"],b.p["data-on"]]}),scMsg(on),scMsg(lec),scMsg(vide),scMsg(ss),
-    log.st,log.eff.slice(0,2),log.eff.length]});
+    log.st,log.eff.slice(0,2),log.eff.length,
+    [off,on,lec].map(function(m){return gpTous(m).filter(function(n){return /dzm-scpop/.test(n.p.className||"")}).length})]});
 out.lb_rendu=scShim(function(log){var P=[],C=[];
   var m=T.Lightbox({clips:SC,onPick:function(c){P.push(c.id)},onClose:function(){C.push(1)}});
   var all=gpTous(m),tiles=all.filter(function(n){return /dzm-lbtile/.test(n.p.className||"")});
@@ -1542,6 +1543,8 @@ _L5_MASKS = [
     # revue T4 (24/09, T4-4) : float() de Python lisait « 1_0 » (10) et les chiffres Unicode ; Number() de JS non
     {"shape": "rect", "x": 0, "y": 0, "w": "1_0", "h": 0.5},
     {"shape": "rect", "x": 0, "y": 0, "w": 0.5, "h": "٠.٥", "soft": "1_0"},
+    # re-revue T6 (24/09) : Number() de JS ote U+FEFF (un blanc pour ECMAScript) ; str.strip() de Python non
+    {"shape": "rect", "x": 0, "y": 0, "w": "﻿0.5", "h": 0.5},
 ]
 PROBE = PROBE.replace("/*L5_MASKS*/", json.dumps(_L5_MASKS))
 try:
@@ -3786,8 +3789,9 @@ _mx_js = D.get("co_maskx") if isinstance(D.get("co_maskx"), list) else []
 _mx_py = [_py_mask_of(m) for m in _L5_MASKS] if _py_mask_of else []
 _mx_dv = [(i, m, p, j) for i, (m, p, j) in enumerate(zip(_L5_MASKS, _mx_py, _mx_js)) if p != j]
 check("co_maskx_trente_masques_croises_avec_mask_of_python_zero_divergence_valides_et_refuses",
-      # revue T4 (24/09) : 30 -> 32 masques (« 1_0 », chiffres Unicode : refuses des deux cotes -- pin realigne)
-      _py_mask_of is not None and len(_L5_MASKS) == 32 and len(_mx_py) == 32 and len(_mx_js) == 32 and _mx_dv == []
+      # revue T4 (24/09) : 30 -> 32 masques (« 1_0 », chiffres Unicode : refuses des deux cotes -- pin realigne) ;
+      # re-revue T6 (24/09) : 32 -> 33 (« ﻿0.5 » : LU des deux cotes -- pin realigne)
+      _py_mask_of is not None and len(_L5_MASKS) == 33 and len(_mx_py) == 33 and len(_mx_js) == 33 and _mx_dv == []
       and sum(p is not None for p in _mx_py) >= 10 and sum(p is None for p in _mx_py) >= 10,
       (_py_mask_err, len(_mx_js), _mx_dv))
 # ── revue T4 (24/09/2026, second passage). T4-1 : la pchip EPINGLEE au 1e-6 -- moyenne arithmetique, retrait de la borne
@@ -4006,7 +4010,7 @@ check("gc_coller_rend_le_nouveau_clip_couleur_remplacee_a_sa_place_masque_pose_o
                                                                  {"type": "grain"}]}, "note": "Grade collé (2 effets)"}
       and at("gc", 9) is False and at("gc", 10) is True, D.get("gc"))
 check("sc_null_sans_props_rien_sans_toucher_x", "sc_null" in D and D.get("sc_null") == [None, None], D.get("sc_null"))
-_SCR = D.get("sc_rendu") if isinstance(D.get("sc_rendu"), list) and len(D.get("sc_rendu")) == 12 else [None] * 12
+_SCR = D.get("sc_rendu") if isinstance(D.get("sc_rendu"), list) and len(D.get("sc_rendu")) == 13 else [None] * 13
 _SCt0 = ("Afficher les scopes du plan V1 sous la tête (forme d'onde, vecteurscope, histogramme de l'image étalonnée) "
          "— rafraîchis à l'arrêt, jamais pendant la lecture")
 check("sc_rendu_eteint_un_bouton_titre_non_presse_aucun_message",
@@ -4015,7 +4019,17 @@ check("sc_rendu_allume_presse_mesure_en_cours_lecture_dite_aucun_plan_dit_plan_s
       _SCR[4:9] == [[["Scopes", "Masquer les scopes", True, ""]], ["Mesure en cours…"],
                     ["Lecture : les scopes se rafraîchissent à l'arrêt"], ["Aucun plan sous la tête"], ["Plan sans source : rien à mesurer"]],
       _SCR[4:9])
-check("sc_rendu_trois_useState_deux_useEffect_par_rendu", _SCR[9:12] == [15, [0, 1], 10], _SCR[9:12])
+# Correctif preuve ecran (24/09) : la puce vit dans la barre du lecteur, l'ENCART (dzm-scpop : image + ligne d'etat) est
+# porte dans le cadre de lecture -- un quatrieme useState (le cadre hote) et un troisieme useEffect (le chercher, deps
+# [on]) : 15 -> 20 et 10 -> 15, pins realignes ; l'encart n'existe qu'allume (eteint : 0 ; allume, arret ou lecture : 1).
+check("sc_rendu_quatre_useState_trois_useEffect_par_rendu_encart_seulement_allume",
+      _SCR[9:13] == [20, [0, 1], 15, [0, 1, 1]], _SCR[9:13])
+_SCB = _corps("DzmScopes")
+check("sc_encart_porte_dans_le_cadre_du_lecteur_cherche_a_l_allumage_repli_sans_portail",
+      len(_SCB) > 200 and _SCB.count("Pu.createPortal(") == 1 and _SCB.count('typeof Pu!=="undefined"') == 1
+      and _SCB.count('closest(".svm-playerzone")') == 1 and _SCB.count('querySelector(".svm-frame")') == 1
+      and _SCB.count("isConnected") == 1 and _SCB.count("},[on]);") == 1 and _SCB.count('className:"dzm-scpop"') == 1,
+      [_SCB.count(k) for k in ("Pu.createPortal(", 'closest(".svm-playerzone")', 'querySelector(".svm-frame")', "},[on]);")])
 _LBR = D.get("lb_rendu") if isinstance(D.get("lb_rendu"), list) and len(D.get("lb_rendu")) == 10 else [None] * 10
 check("lb_rendu_voile_trois_tuiles_v1_dans_l_ordre_titrees_clic_choisit_le_plan_voile_et_fermer_ferment_tout_bouton_titre",
       _LBR[:7] == ["div", "dzm-lbscrim", [["button", "a", True], ["button", "b", True], ["button", "d", True]], ["b"], 2, True, 4], _LBR[:7])
@@ -4159,6 +4173,9 @@ var M=mini(T.Scopes),R={};
   tick();P.render(gpP({head:5.5}));R.gp_ab=[FQ.length,!!(FQ[0]&&FQ[0].sig&&FQ[0].sig.aborted)];tick();
   rep(1,"P1");await settle();P.flush();rep(0,"P0");await settle();P.flush();
   R.gp_perimee=[imgs(P.H.out),UR.made.slice(),pmsg(P.H.out)];
+  /* re-revue T6 (24/09) : EN LECTURE avec une image déjà montrée, la ligne dit la lecture (comme les scopes : `jouant`
+     testé AVANT `voit`) ; aucune requête ne part (sig vide) */
+  var fqL=FQ.length;P.render(gpP({head:5.5,playing:!0}));R.gp_lec_img=[imgs(P.H.out),pmsg(P.H.out),FQ.length-fqL];
   /* 4 (M-a) : un AUTRE plan -- l'image du précédent n'est plus montrée ; son refus ne se dit que sur lui ; retour : l'image de g */
   P.render(gpP({clip:GPh}));var mh=[imgs(P.H.out),pmsg(P.H.out)];tick();
   FQ[2].d.a({ok:!1,status:500,json:function(){return Promise.resolve({detail:"ffmpeg a refusé"})}});await settle();P.flush();
@@ -4298,6 +4315,8 @@ check("l5x_gp_I3_temoin_soixante_re_rendus_a_l_arret_sans_changement_zero_dessin
 check("l5x_gp_Mb_requete_remplacee_abandonnee_I1_reponse_perimee_jetee",
       _RX.get("gp_ab") == [1, True] and _RX.get("gp_perimee") == [["blob:P1"], ["blob:P1"], [""]],
       [_RX.get("gp_ab"), _RX.get("gp_perimee")])
+check("l5x_gp_lecture_avec_image_montree_la_ligne_dit_la_lecture_aucune_requete",
+      _RX.get("gp_lec_img") == [["blob:P1"], ["Lecture : l'aperçu se rafraîchit à l'arrêt"], 0], _RX.get("gp_lec_img"))
 check("l5x_gp_Ma_autre_plan_image_du_precedent_cachee_son_refus_dit_sur_lui_seul_retour_image_rendue",
       _RX.get("gp_plan") == [[], ["calcul de l'aperçu…"], ["Aperçu étalonné indisponible : ffmpeg a refusé"], ["blob:P1"], [""]],
       _RX.get("gp_plan"))

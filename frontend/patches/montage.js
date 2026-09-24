@@ -8233,7 +8233,8 @@ function DzmGradePanel(o){
      dzmGradePasteDo, un seul stockage (dzmGpRead / dzmGpWrite), une seule phrase par issue */
   if(!gsR.current||gsR.current.v!==DZM_GP_VER.n)gsR.current={v:DZM_GP_VER.n,g:dzmGpRead()};
   var gt=dzmGradeTake(c),gs=gsR.current.g;
-  var voit=!!(img&&img.id===c.id),pMsg=imgErr&&imgErr.id===c.id?imgErr.msg:voit?"":jouant?"Lecture : l'aperçu se rafraîchit à l'arrêt":"calcul de l'aperçu…";
+  /* re-revue T6 : `jouant` testé AVANT `voit` (comme les scopes) -- une image déjà montrée ne tait plus la lecture */
+  var voit=!!(img&&img.id===c.id),pMsg=jouant?"Lecture : l'aperçu se rafraîchit à l'arrêt":imgErr&&imgErr.id===c.id?imgErr.msg:voit?"":"calcul de l'aperçu…";
   var kids=[
     row("Roues",r.jsx("div",{className:"dzm-gp-wheels",children:DZM_GP_ROUES.map(roue)}),"roues"),
     row("Courbes",r.jsxs("div",{className:"dzm-gp-curve",children:[
@@ -8356,13 +8357,18 @@ function dzmGradePasteDo(clip,st){
    `seq` AVANT d'abandonner — revue T6, M3 : la garde « signal abandonné » était redondante, retirée), un refus courant se
    dit. UNE IMAGE EN RÉSERVE, PAR EMPREINTE (revue T6, M2) : la dernière reçue reste gardée (une seule URL vivante) mais
    ne s'affiche que pour son empreinte. Un succès EFFACE le refus gardé, et l'image est testée AVANT le refus : un refus
-   périmé ne se montre jamais à côté d'une image fraîche (revue T6, M1). La ligne d'état est aria-live (M4). */
+   périmé ne se montre jamais à côté d'une image fraîche (revue T6, M1). La ligne d'état est aria-live (M4).
+   CORRECTIF PREUVE ÉCRAN (24/09/2026) : la puce est le dernier enfant de la BARRE du lecteur (le wrapper est en
+   display:contents) ; l'ENCART (image + ligne d'état) est PORTÉ dans le cadre de lecture (`.svm-frame` de la même zone,
+   cherché UNE fois par allumage — rien par image), en haut à droite, borné par la feuille : la barre OUTILS flottante
+   couvrait le pied de la zone. Sans cadre trouvé (ou sans portail) l'encart reste en ligne, et la feuille le cache. */
 function DzmScopes(o){
   if(!o)return null;
   var s1=x.useState(function(){return dzmScopesGet()}),on=s1[0],setOn=s1[1];
   var s2=x.useState(null),img=s2[0],setImg=s2[1];
   var s3=x.useState(null),err=s3[0],setErr=s3[1];
-  var seq=x.useRef(0),urlR=x.useRef(null),vivant=x.useRef(!0);
+  var s4=x.useState(null),hote=s4[0],setHote=s4[1];
+  var seq=x.useRef(0),urlR=x.useRef(null),vivant=x.useRef(!0),wrapR=x.useRef(null);
   var jouant=!!o.playing,c=on&&!jouant?dzmScopesAt(o.clips,o.head):null,body=c&&c.src?dzmScopesBody(c,o.head):null,
     sig=body?JSON.stringify(body):"";
   var libere=function(){if(urlR.current){URL.revokeObjectURL(urlR.current);urlR.current=null}};
@@ -8377,17 +8383,23 @@ function DzmScopes(o){
       function(e){if(vivant.current&&q===seq.current)
         setErr({sig:sig,msg:"Scopes indisponibles : "+((e&&e.message)||"erreur réseau")})})},DZM_SC_MS);
     return function(){seq.current++;clearTimeout(h);if(ac)ac.abort()}},[sig]);
+  /* le cadre de lecture de la MÊME zone, cherché à l'allumage (pas à chaque rendu) */
+  x.useEffect(function(){if(!on)return;var z=wrapR.current,zn=z&&typeof z.closest==="function"?z.closest(".svm-playerzone"):null,
+    f=zn&&typeof zn.querySelector==="function"?zn.querySelector(".svm-frame"):null;if(f!==hote)setHote(f)},[on]);
   var bascule=function(){var n=dzmScopesSet(!on);setOn(n);if(!n){seq.current++;libere();setImg(null);setErr(null)}};
   var voit=!!(sig&&img&&img.sig===sig);
   var msg=!on?"":jouant?"Lecture : les scopes se rafraîchissent à l'arrêt":!c?"Aucun plan sous la tête":
     !c.src?"Plan sans source : rien à mesurer":voit?"":err&&err.sig===sig?err.msg:"Mesure en cours…";
-  return r.jsxs("div",{className:"dzm-scopes","data-on":on?"1":"",children:[
+  var encart=on?r.jsxs("div",{className:"dzm-scpop",children:[
+    voit?r.jsx("img",{className:"dzm-scimg",src:img.u,alt:"Scopes du plan sous la tête",
+      title:"Forme d'onde (haut), vecteurscope et histogramme (bas) de l'image étalonnée à "+body.t+" s de source"}):null,
+    msg?r.jsx("span",{className:"dzm-scmsg","aria-live":"polite",children:msg}):null]}):null;
+  var cible=encart&&hote&&hote.isConnected!==!1&&typeof Pu!=="undefined"&&Pu&&typeof Pu.createPortal==="function"?hote:null;
+  return r.jsxs("div",{className:"dzm-scopes","data-on":on?"1":"",ref:wrapR,children:[
     r.jsx("button",{className:"svm-pchip dzm-scbtn","data-on":on?"":void 0,"aria-pressed":on,
       title:on?"Masquer les scopes":"Afficher les scopes du plan V1 sous la tête (forme d'onde, vecteurscope, histogramme de l'image étalonnée) — rafraîchis à l'arrêt, jamais pendant la lecture",
       onClick:bascule,children:"Scopes"}),
-    voit?r.jsx("img",{className:"dzm-scimg",src:img.u,alt:"Scopes du plan sous la tête",
-      title:"Forme d'onde (haut), vecteurscope et histogramme (bas) de l'image étalonnée à "+body.t+" s de source"}):null,
-    msg?r.jsx("span",{className:"dzm-scmsg","aria-live":"polite",children:msg}):null]})}
+    cible?Pu.createPortal(encart,cible):encart]})}
 /* LA LIGHTBOX DES PLANS (ouverte par ☰ › Affichage, montée par l'hôte dans le repli R_EB5A) : props {clips, onPick(plan),
    onClose()}. Voile (z-index du voile E-11 : 19, sous les popovers) + grille des plans de V1 dans l'ordre, pris UNE fois à
    l'ouverture (instantané : la lightbox est modale). Chaque vignette = POST /api/montage/grade-frame, 240 px, au milieu du
