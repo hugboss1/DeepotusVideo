@@ -228,11 +228,19 @@ for k, (ng, ns) in CLES.items():
 # et celle du lot E-C (`dz_svm_tb_dock`, E-10 -- x1/x1, pinnee par
 # test_montage_ec_croise.py), mesure du 23/09/2026 : une cle neuve doit
 # passer par ici
-_ANTERIEURES = {"dz_svm_keymap", "dz_svm_theme", "dz_svm_tb_dock"}
+# REALIGNE 24/09/2026 (cloture L7-A) : `dz_svm_boring` (L7 D-8, T3 -- reglages du boring detector, lue x1 par
+# l'etat stBo, ecrite x1 par le popover) est la HUITIEME ; la cle du presse-papiers (`dz_montage_clipboard`, L7 D-6,
+# x1/x1) n'est PAS du motif `dz_montage_last*` et vit dans le banc bundle [L7] D-6 -- mesure ci-dessous pour memoire
+_ANTERIEURES = {"dz_svm_keymap", "dz_svm_theme", "dz_svm_tb_dock", "dz_svm_boring"}
 _lues = set(re.findall(r'localStorage\.(?:get|set)Item\("(dz_svm_\w+|dz_montage_last\w*)"', BUN))
-check("x5_les_cles_dz_svm_et_dz_montage_last_du_bundle_sont_les_quatre_plus_keymap_theme_et_tb_dock",
-      sum(BUN.count(f'"{k}"') for k in CLES) >= 8 and len(_lues) == 7
+check("x5_les_cles_dz_svm_et_dz_montage_last_du_bundle_sont_les_quatre_plus_keymap_theme_tb_dock_et_boring",
+      sum(BUN.count(f'"{k}"') for k in CLES) >= 8 and len(_lues) == 8
       and _lues == set(CLES) | _ANTERIEURES, sorted(_lues))
+check("x5_L7_dz_svm_boring_lue_x1_ecrite_x1_et_dz_montage_clipboard_lue_x1_ecrite_x1_hors_motif_last",
+      BUN.count('localStorage.getItem("dz_svm_boring")') == 1 and BUN.count('localStorage.setItem("dz_svm_boring"') == 1
+      and BUN.count('localStorage.getItem("dz_montage_clipboard")') == 1 and BUN.count('localStorage.setItem("dz_montage_clipboard"') == 1
+      and "dz_montage_clipboard" not in _lues and len(_lues) == 8,
+      (BUN.count('localStorage.getItem("dz_svm_boring")'), BUN.count('localStorage.getItem("dz_montage_clipboard")')))
 # la couche, elle, ne touche pas localStorage : les fonctions sont pures
 _coeur = JS[JS.find("function dzmFinKey(pid){"):JS.find("var DzTracks={")]
 check("x5_le_coeur_E5_E8_E9_D7_de_la_couche_ne_touche_pas_localStorage",
