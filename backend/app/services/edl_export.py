@@ -18,8 +18,10 @@ ENTRÉES
 EDL (CMX 3600, 30 i/s NON-DROP, CRLF)
   `TITLE:`, `FCM: NON-DROP FRAME`, puis les événements V1 (piste `V`), puis
   l'audio (première piste audio déclarée `A`, les suivantes `A2`, `A3`…).
-  Bobine `AX` (fichier sans bobine), le fichier dans `* SOURCE FILE:`, le
-  libellé dans `* FROM CLIP NAME:`. Timecodes source depuis 00:00:00:00 (les
+  Bobine `AX` (fichier sans bobine), le chemin dans `* SOURCE FILE:`, le NOM
+  DU FICHIER dans `* FROM CLIP NAME:` / `* TO CLIP NAME:` (la clé de
+  reconnexion de Resolve et Premiere — décision de revue du 24/09/2026 ; le
+  libellé de l'app passe dans `* CLIP LABEL:`). Timecodes source depuis 00:00:00:00 (les
   fichiers de l'app n'ont pas de TC embarqué) ; timecodes d'enregistrement =
   la timeline (00:00:00:00 = t 0).
   Transitions V1 : `fade`/`dissolve` (et les clés historiques `xfade`,
@@ -29,6 +31,18 @@ EDL (CMX 3600, 30 i/s NON-DROP, CRLF)
   le noir `BL` après un trou (> 0,1 s, le seuil du rendu) ; les autres
   transitions → coupe `C` + `* TRANSITION: <nom> (non exportée)`. Le premier
   plan collé à t 0 n'a pas de transition entrante (le rendu non plus).
+  Durée du fondu bornée COMME LE RENDU : ≤ durée du plan entrant − 0,1 s et
+  ≤ son début − 0,1 s (le « total » du rendu), au moins une image.
+  ÉCART DATÉ 24/09/2026 (revue) — FORME CMX GARDÉE : le fondu de l'EDL
+  COMMENCE à la coupe et consomme `d` images de POIGNÉE du plan sortant
+  au-delà de sa sortie ; le rendu, lui, pose l'xfade à `offset = total −
+  tau` : il MANGE la queue du plan sortant, sans poignée. Les deux ne
+  montrent donc pas les mêmes images pendant le fondu. Quand la durée
+  sondée de la source sortante est connue et que `so + d·vitesse` la
+  dépasse : `* HANDLES: insuffisantes (n images)` sous l'événement, n =
+  images de poignée DISPONIBLES après la sortie. Durée inconnue : rien
+  n'est dit (la route ne sonde aujourd'hui que pour le FCPXML).
+  Plus de 999 événements : arrêt et `* TRUNCATED: …` (numéro sur 3 chiffres).
   Vitesse V1 (0,25..4, `_v1_speed`) : durée source = durée timeline ×
   vitesse, ligne `M2` (vitesse × 30 en i/s) + `* SPEED: <x>`.
   ÉCART DATÉ 24/09/2026 : le plan disait « M2 non émis » — il EST émis,
@@ -71,7 +85,10 @@ VÉRIFIÉ par un import réel (ni FCP ni Resolve dans la session).
   de l'image. Transitions : NON exportées en FCPXML (un `transition` exige
   des poignées de média des deux côtés) — dites en commentaire
   `TRANSITION: <nom> <d> s (non exportée en FCPXML)`. Sauts : commentaires
-  `SKIPPED: …` comme l'EDL.
+  `SKIPPED: …` comme l'EDL. Tout texte de commentaire passe par
+  `_commentaire` (`--` espacé, espace finale : XML 1.0 §2.5). Plans V1 qui
+  se chevauchent : le suivant commence à la fin du précédent et son `start`
+  avance d'autant.
 """
 from __future__ import annotations
 
@@ -202,6 +219,25 @@ def _ev(n, reel, piste, tr, dur, si, so, ri, ro, fps) -> str:
         n, reel, piste, tr, dur, _tc(si, fps), _tc(so, fps), _tc(ri, fps), _tc(ro, fps))
 
 
+def _nom_fichier(info) -> str:
+    """La clé de reconnexion d'un logiciel qui relit l'EDL : le NOM du fichier."""
+    return Path(str(info.get("path") or "")).name
+
+
+def _poignee(info, so, besoin, fps):
+    """Images de poignée DISPONIBLES après `so` (sortie source du plan
+    sortant) si la durée sondée est connue et ne couvre pas `besoin`, sinon
+    None (assez, ou durée inconnue : rien à dire)."""
+    d = _num(info.get("dur"), 0.0)
+    if d <= 0:
+        return None
+    dispo = _fr(d, fps) - so
+    return max(0, dispo) if dispo < besoin else None
+
+
+_EDL_MAX = 999     # le numéro d'événement CMX tient en trois chiffres
+
+
 def to_edl(rec, resolve, fps=30, meta=None) -> str:
     fps = int(fps) if int(fps or 0) > 0 else 30
     rec = rec if isinstance(rec, dict) else {}
@@ -209,25 +245,34 @@ def to_edl(rec, resolve, fps=30, meta=None) -> str:
     out = ["TITLE: " + titre, "FCM: NON-DROP FRAME", ""]
     v1, aud, sauts = _classer(rec, resolve or {}, meta)
     n = 0
-    prev = None                       # (clip, so, fin en s)
-    for i, c in enumerate(v1):
+    tronque = False
+    prev = None                       # (clip, so, fin en s, info, vitesse)
+    for c in v1:
         info = resolve[src_key(c.get("src"))]
         sp = _speed(c)
         ri, ro = _fr(_num(c.get("start")), fps), _fr(_num(c.get("end")), fps)
         if ro <= ri:
             continue
+        if n >= _EDL_MAX:
+            tronque = True
+            break
         si = _fr(_num(c.get("srcIn")), fps)
         so = si + int(round((ro - ri) * sp))
         n += 1
         tn = _trans(c)
-        debut = _num(c.get("start"))
+        debut, fin = _num(c.get("start")), _num(c.get("end"))
         trou = debut - (prev[2] if prev else 0.0) > _GAP_S
         bloc = []
         if tn in _DISSOLVES and (prev is not None or trou):
-            d = max(1, min(999, ro - ri, _fr(_num(c.get("transition_s"), 0.4) or 0.4, fps)))
+            # la durée bornée comme au rendu : tau ≤ seg − 0,1 et ≤ total − 0,1
+            tau = _num(c.get("transition_s"), 0.4) or 0.4
+            tau = min(tau, max(0.1, (fin - debut) - 0.1), max(0.1, debut - 0.1))
+            d = max(1, min(_EDL_MAX, ro - ri, _fr(tau, fps)))
+            hd = None
             if prev is not None and not trou:
                 bloc.append(_ev(n, "AX", "V", "C", "", prev[1], prev[1], ri, ri, fps))
-                de = _libelle(prev[0], "plan")
+                de = _nom_fichier(prev[3])
+                hd = _poignee(prev[3], prev[1], int(round(d * prev[4])), fps)
             else:
                 bloc.append(_ev(n, "BL", "V", "C", "", 0, 0, ri, ri, fps))
                 de = None
@@ -236,29 +281,37 @@ def to_edl(rec, resolve, fps=30, meta=None) -> str:
                 bloc.append("M2   %-8s %05.1f                %s" % ("AX", fps * sp, _tc(si, fps)))
             if de is not None:
                 bloc.append("* FROM CLIP NAME: " + de)
-            bloc.append("* TO CLIP NAME: " + _libelle(c, "plan"))
+            bloc.append("* TO CLIP NAME: " + _nom_fichier(info))
+            bloc.append("* CLIP LABEL: " + _libelle(c, "plan"))
+            if hd is not None:
+                bloc.append("* HANDLES: insuffisantes (%d images)" % hd)
         else:
             bloc.append(_ev(n, "AX", "V", "C", "", si, so, ri, ro, fps))
             if sp != 1.0:
                 bloc.append("M2   %-8s %05.1f                %s" % ("AX", fps * sp, _tc(si, fps)))
-            bloc.append("* FROM CLIP NAME: " + _libelle(c, "plan"))
+            bloc.append("* FROM CLIP NAME: " + _nom_fichier(info))
+            bloc.append("* CLIP LABEL: " + _libelle(c, "plan"))
             if tn not in ("cut", "") and tn not in _DISSOLVES:
                 bloc.append("* TRANSITION: %s (non exportée)" % tn)
         if sp != 1.0:
             bloc.append("* SPEED: " + _fmt_speed(sp))
         bloc.append("* SOURCE FILE: " + str(info["path"]))
         out += bloc + [""]
-        prev = (c, so, _num(c.get("end")))
-    for rang, tr, bus, loop, c in aud:
+        prev = (c, so, fin, info, sp)
+    for rang, tr, bus, loop, c in ([] if tronque else aud):
         info = resolve[src_key(c.get("src"))]
         ri, ro = _fr(_num(c.get("start")), fps), _fr(_num(c.get("end")), fps)
         if ro <= ri:
             continue
+        if n >= _EDL_MAX:
+            tronque = True
+            break
         si = _fr(_num(c.get("srcIn")), fps)
         n += 1
         piste = "A" if rang == 0 else "A%d" % (rang + 1)
         bloc = [_ev(n, "AX", piste, "C", "", si, si + (ro - ri), ri, ro, fps),
-                "* FROM CLIP NAME: " + _libelle(c, tr)]
+                "* FROM CLIP NAME: " + _nom_fichier(info),
+                "* CLIP LABEL: " + _libelle(c, tr)]
         asp = _num(c.get("speed"), 1.0)
         if asp > 0 and abs(asp - 1.0) > 1e-6:
             bloc.append("* SPEED: %s (audio, non exportée)" % _fmt_speed(asp))
@@ -266,6 +319,8 @@ def to_edl(rec, resolve, fps=30, meta=None) -> str:
             bloc.append("* LOOP: non exportée")
         bloc.append("* SOURCE FILE: " + str(info["path"]))
         out += bloc + [""]
+    if tronque:
+        out += ["* TRUNCATED: plus de %d événements — la suite n'est pas exportée" % _EDL_MAX, ""]
     for s in sauts:
         out.append("* SKIPPED: " + s)
     if sauts:
@@ -274,6 +329,17 @@ def to_edl(rec, resolve, fps=30, meta=None) -> str:
 
 
 # ─────────────────────────────────────────────────────────── FCPXML ───
+
+def _commentaire(txt: str):
+    """Un commentaire XML SÛR : `--` est interdit dans un commentaire et un
+    `-` final fermerait `--->` (XML 1.0 §2.5) — un libellé `x--y-` rendait le
+    FCPXML illisible (revue du 24/09/2026). Les tirets doublés sont espacés,
+    le tiret final suivi d'une espace."""
+    t = str(txt)
+    while "--" in t:
+        t = t.replace("--", "- -")
+    return ET.Comment(" " + t + " ")      # l'espace finale : jamais `-` devant `-->`
+
 
 def _t(f: int, fps: int) -> str:
     return "0s" if f <= 0 else "%d/%ds" % (f, fps)
@@ -329,7 +395,7 @@ def to_fcpxml(rec, resolve, fps=30, size=(1080, 1920), meta=None) -> str:
     seq = ET.SubElement(proj, "sequence", {"format": "r1", "duration": "0s", "tcStart": "0s",
                                            "tcFormat": "NDF", "audioLayout": "stereo", "audioRate": "48k"})
     for s in sauts:
-        seq.append(ET.Comment(" SKIPPED: %s " % s))
+        seq.append(_commentaire("SKIPPED: %s" % s))
     spine = ET.SubElement(seq, "spine")
     elems = []                         # (offset, durée, élément, start local, vitesse)
     cur = 0
@@ -337,6 +403,9 @@ def to_fcpxml(rec, resolve, fps=30, size=(1080, 1920), meta=None) -> str:
         k = src_key(c.get("src"))
         sp = _speed(c)
         ri, ro = _fr(_num(c.get("start")), fps), _fr(_num(c.get("end")), fps)
+        # chevauchement V1 : le plan commence à `cur` et sa source AVANCE d'autant
+        # (revue 24/09/2026 : `start` restait sur srcIn, décalage mesuré de 6 images)
+        avance = max(0, cur - ri)
         ri = max(ri, cur)
         if ro <= ri:
             continue
@@ -346,10 +415,10 @@ def to_fcpxml(rec, resolve, fps=30, size=(1080, 1920), meta=None) -> str:
             elems.append((cur, ri - cur, g, 0, 1.0))
         tn = _trans(c)
         if tn not in ("cut", "") and elems:
-            spine.append(ET.Comment(" TRANSITION: %s %s s (non exportée en FCPXML) " % (
+            spine.append(_commentaire("TRANSITION: %s %s s (non exportée en FCPXML)" % (
                 tn, _fmt_speed(_num(c.get("transition_s"), 0.4) or 0.4))))
         si = _fr(_num(c.get("srcIn")), fps)
-        st = int(round(si / sp))
+        st = int(round(si / sp)) + avance
         at = {"ref": ids[k], "name": _libelle(c, "plan"), "offset": _t(ri, fps),
               "start": _t(st, fps), "duration": _t(ro - ri, fps)}
         if aaud[k]:

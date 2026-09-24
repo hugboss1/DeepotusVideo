@@ -28,6 +28,10 @@ plan2 (timeMap 0→0, 45/30s→90/30s), voix ANCREE sous plan1 en lane -1 a
 offset 30 + 15 = 45/30s (temps local du parent).
 Route : espion `_load_saved` ; 200 + Content-Disposition ; 400 sans
 timeline, timeline vide, format inconnu.
+REVUE du 24/09/2026 : `FROM/TO CLIP NAME` = nom du FICHIER, libelle dans
+`* CLIP LABEL:` ; poignee insuffisante dite (`* HANDLES:`) ; fondu borne
+comme le rendu ; arret a 999 evenements ; commentaires XML surs (`x--y-`) ;
+chevauchement V1 en FCPXML ; nom hostile dans Content-Disposition.
 Regle des assertions negatives : chaque « pas de X » est precede dans la
 MEME expression du temoin positif qui prouve que la mesure a eu lieu.
 """
@@ -146,17 +150,20 @@ _ATT = [
     "TITLE: Essai export",
     "FCM: NON-DROP FRAME",
     "001  AX       V     C        00:00:01:00 00:00:02:15 00:00:00:00 00:00:01:15",
-    "* FROM CLIP NAME: plan1",
+    "* FROM CLIP NAME: plan1.mp4",
+    "* CLIP LABEL: plan1",
     "* SOURCE FILE: " + S1,
     "002  AX       V     C        00:00:02:15 00:00:02:15 00:00:01:15 00:00:01:15",
     "002  AX       V     D    012 00:00:00:00 00:00:02:00 00:00:01:15 00:00:02:15",
     "M2   AX       060.0                00:00:00:00",
-    "* FROM CLIP NAME: plan1",
-    "* TO CLIP NAME: plan2",
+    "* FROM CLIP NAME: plan1.mp4",
+    "* TO CLIP NAME: plan2.mp4",
+    "* CLIP LABEL: plan2",
     "* SPEED: 2",
     "* SOURCE FILE: " + S2,
     "003  AX       A     C        00:00:00:06 00:00:01:21 00:00:00:15 00:00:02:00",
-    "* FROM CLIP NAME: voix",
+    "* FROM CLIP NAME: voix.wav",
+    "* CLIP LABEL: voix",
     "* SOURCE FILE: " + VX,
     "* SKIPPED: title Titre",
 ]
@@ -195,7 +202,9 @@ _l2 = [l for l in _e2.splitlines() if l.strip()]
 check("d37_edl_fondu_apres_un_trou_part_du_noir_BL_duree_15_images",
       "002  BL       V     C        00:00:00:00 00:00:00:00 00:00:02:00 00:00:02:00" in _l2
       and "002  AX       V     D    015 00:00:00:00 00:00:01:00 00:00:02:00 00:00:03:00" in _l2
-      and "* TO CLIP NAME: B" in _l2, _l2)
+      and "* TO CLIP NAME: plan2.mp4" in _l2 and "* CLIP LABEL: B" in _l2
+      # temoin : partir du noir ne demande AUCUNE poignee
+      and not any(l.startswith("* HANDLES:") for l in _l2), _l2)
 check("d37_edl_transition_non_exportee_dite_en_commentaire_et_coupe_C",
       "003  AX       V     C        00:00:00:00 00:00:01:00 00:00:03:00 00:00:04:00" in _l2
       and "* TRANSITION: slideleft (non exportée)" in _l2
@@ -290,6 +299,60 @@ check("d37_fcpxml_trou_rendu_par_un_gap_et_transitions_dites_non_exportees",
       and "SKIPPED: source introuvable D" in _fx2,
       [(e.tag, e.attrib) for e in _sp2])
 
+# ── revue du 24/09/2026 : poignees, borne du fondu, 999 evenements, commentaires XML surs, chevauchement
+def _res_d(d1):
+    k = X("src_key")
+    r = RES()
+    r[k({"file_path": S1})] = dict(r[k({"file_path": S1})], dur=d1)
+    return r
+# A : S1 srcIn 2,0 de 0 a 0,9 s -> src 60..87 ; S1 dure 3 s = 90 images -> 3 images de poignee.
+# B : 0,9 -> 1,2 s (9 images), fondu 0,4 demande -> borne a min(0,4 ; 0,3-0,1 ; 0,9-0,1) = 0,2 s = 6 images > 3.
+_r3 = {"name": "h", "tracks": [{"id": "v1", "kind": "video"}], "clips": [
+    {"tr": "v1", "id": "a", "label": "A", "src": {"file_path": S1}, "srcIn": 2.0, "start": 0, "end": 0.9},
+    {"tr": "v1", "id": "b", "label": "B", "src": {"file_path": S2}, "srcIn": 0, "start": 0.9, "end": 1.2,
+     "transition": "fade", "transition_s": 0.4}]}
+_e3 = X("to_edl")(_r3, _res_d(3.0), fps=30, meta=META(_r3)); _e3 = _e3 if isinstance(_e3, str) else ""
+_l3 = [l for l in _e3.splitlines() if l.strip()]
+_e3b = X("to_edl")(_r3, _res_d(None), fps=30, meta=META(_r3)); _e3b = _e3b if isinstance(_e3b, str) else ""
+_e3c = X("to_edl")(_r3, _res_d(4.0), fps=30, meta=META(_r3)); _e3c = _e3c if isinstance(_e3c, str) else ""
+check("d37_revue_fondu_borne_comme_le_rendu_6_images_et_poignee_insuffisante_dite_3_images",
+      "002  AX       V     C        00:00:02:27 00:00:02:27 00:00:00:27 00:00:00:27" in _l3
+      and "002  AX       V     D    006 00:00:00:00 00:00:00:09 00:00:00:27 00:00:01:06" in _l3
+      and "* HANDLES: insuffisantes (3 images)" in _l3
+      and _l3.index("* HANDLES: insuffisantes (3 images)") > _l3.index("* CLIP LABEL: B")
+      # temoins : duree inconnue -> rien ; source de 4 s (33 images de poignee) -> rien, le fondu est la
+      and "D    006" in _e3b and "HANDLES" not in _e3b and "D    006" in _e3c and "HANDLES" not in _e3c, _l3)
+_r4 = {"name": "n", "tracks": [{"id": "v1", "kind": "video"}], "clips": [
+    {"tr": "v1", "id": "c%d" % i, "label": "c%d" % i, "src": {"file_path": S1}, "srcIn": 0,
+     "start": i / 10, "end": (i + 1) / 10} for i in range(1001)]}
+_e4 = X("to_edl")(_r4, RES(), fps=30, meta=META(_r4)); _e4 = _e4 if isinstance(_e4, str) else ""
+_l4 = [l for l in _e4.splitlines() if l.strip()]
+check("d37_revue_plus_de_999_evenements_arret_et_TRUNCATED",
+      sum(1 for l in _l4 if re.match(r"^\d{3}  AX", l)) == 999 and any(l.startswith("999  AX") for l in _l4)
+      and not any(l.startswith("1000") for l in _l4)
+      and _l4[-1] == "* TRUNCATED: plus de 999 événements — la suite n'est pas exportée", _l4[-3:])
+_r5 = {"name": "c", "tracks": [{"id": "v1", "kind": "video"}, {"id": "t1", "kind": "title"}], "clips": [
+    {"tr": "v1", "id": "a", "label": "A", "src": {"file_path": S1}, "srcIn": 0, "start": 0, "end": 1},
+    {"tr": "v1", "id": "b", "label": "B", "src": {"file_path": S2}, "srcIn": 1.0, "start": 0.8, "end": 2,
+     "transition": "wipe--x-", "transition_s": 0.4},
+    {"tr": "t1", "id": "t", "label": "x--y-", "start": 0, "end": 1}]}
+_f5 = X("to_fcpxml")(_r5, RES(), fps=30, size=(1080, 1920), meta=META(_r5)); _f5 = _f5 if isinstance(_f5, str) else ""
+try:
+    _root5 = ET.fromstring(_f5.encode("utf-8"))
+except Exception as _e:
+    print("  (FCPXML _r5 illisible : %s)" % _e)
+    _root5 = ET.Element("illisible")
+check("d37_revue_libelle_x__y_tiret_final_le_FCPXML_reste_lisible_commentaires_neutralises",
+      _root5.tag == "fcpxml" and "<!-- SKIPPED: title x- -y- -->" in _f5
+      and "<!-- TRANSITION: wipe- -x- 0.4 s (non exportée en FCPXML) -->" in _f5
+      and _f5.count("<!--") == 2 and all("--" not in c[4:-3] for c in re.findall(r"<!--.*?-->", _f5)), _f5[-700:])
+_spn5 = _root5.find("library/event/project/sequence/spine")
+_sp5 = [(e.get("name"), e.get("offset"), e.get("start"), e.get("duration"))
+        for e in (list(_spn5) if _spn5 is not None else []) if e.tag == "asset-clip"]
+# B commence a 0,8 s (24) mais A finit a 30 : B part a 30 et sa source AVANCE de 6 images (srcIn 30 + 6 = 36)
+check("d37_revue_chevauchement_V1_start_avance_avec_le_debut_36_30s",
+      _sp5 == [("A", "0s", "0s", "30/30s"), ("B", "30/30s", "36/30s", "30/30s")], _sp5)
+
 # ── la route
 _espion = {"n": 0, "rend": None}
 _ls0 = A("_load_saved", None)
@@ -324,8 +387,10 @@ try:
     _froot = ET.fromstring(_f_body) if isinstance(_f_body, bytes) else ET.Element("x")
 except Exception:
     _froot = ET.Element("x")
-_fasset = {pathlib.Path(a.find("media-rep").get("src")).name if a.find("media-rep") is not None else "?": a
+_fasset = {pathlib.Path(a.find("media-rep").get("src") or "").name if a.find("media-rep") is not None else "?": a
            for a in _froot.iter("asset")}
+if _FB is None:
+    print("  (ffmpeg absent : la duree sondee et hasAudio de la route FCPXML ne sont PAS verifies)")
 check("d37_route_fcpxml_200_piece_jointe_xml_parsable_duree_sondee",
       _f_st == 200 and (_f_h or {}).get("content-disposition") == 'attachment; filename="Essai_export.fcpxml"'
       and "xml" in ((_f_h or {}).get("content-type") or "") and _froot.tag == "fcpxml"
@@ -347,6 +412,12 @@ check("d37_route_400_sans_timeline_timeline_vide_et_format_inconnu_avant_toute_l
       and "format" in str(_u_det).lower() and _espion["n"] == _n0
       # temoin : les deux premiers ont bien lu la sauvegarde
       and _n0 == 4, (_n_st, _n_det, _v_st, _v_det, _u_st, _u_det, _espion))
+_espion["rend"] = dict(REC(), name='a"b\r\nc/../d')
+_h_st, _h_body, _h_h = ROUTE("edl")
+_h_cd = (_h_h or {}).get("content-disposition") or ""
+check("d37_revue_nom_hostile_guillemet_crlf_chemin_neutralise_dans_Content_Disposition",
+      _h_st == 200 and _h_cd == 'attachment; filename="a_b_c_.._d.edl"'
+      and _h_cd.count('"') == 2 and "\r" not in _h_cd and "\n" not in _h_cd and "/" not in _h_cd, (_h_st, _h_cd))
 MS._load_saved = _ls0
 
 # ══ [2] D-42 DECOUPER AUX CHANGEMENTS DE PLAN ═══════════════════════════════
