@@ -19032,7 +19032,12 @@ _SC_CSS = {k: _EB_CSS.count(k) for k in (
 check("L5_css_scopes_puce_dans_la_barre_en_tete_encart_dans_le_cadre_borne_40_pourcent_sous_la_barre_outils",
       list(_SC_CSS.values()) == [1, 1, 1, 1, 1, 1, 1, 0]
       and "pointer-events:none" in _EB_CSS[_EB_CSS.find(".dzsvm .svm-frame>.dzm-scpop{"):][:400]
-      and "pointer-events:auto" in _EB_CSS[_EB_CSS.find(".dzsvm .dzm-scimg{"):][:400], _SC_CSS)
+      # re-revue 4bda880 (24/09) : l'image est TRANSPARENTE aux gestes -- `auto` captait les pointeurs au-dessus de
+      # .svm-tf (z 3) : poignees d'overlay et rectangles .dzm-dzrect inatteignables sous l'encart (coin haut droit),
+      # molette / double-clic / depot perdus. Pin realigne : `none` dans la REGLE (jusqu'a son `}`), `auto` nulle part.
+      and "pointer-events:none" in _EB_CSS[_EB_CSS.find(".dzsvm .dzm-scimg{"):].split("}", 1)[0]
+      and "pointer-events:auto" not in _EB_CSS[_EB_CSS.find(".dzsvm .dzm-scimg{"):].split("}", 1)[0]
+      and _EB_CSS.count(".dzm-scimg{") == 1, _SC_CSS)
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")

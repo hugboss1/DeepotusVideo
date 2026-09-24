@@ -5530,7 +5530,7 @@ async def montage_strip(request: Request, src: str = "", n: int = 12,
 # `effects` liste d'au plus 16 objets (sinon 400), `mask` assaini par
 # `mask_of` (invalide → ignoré, comme au rendu).
 _GRADE_EFFECTS_MAX = 16
-_GRADE_W_MIN, _GRADE_W_MAX, _GRADE_W_DEFAUT = 96, 640, 240
+_GRADE_W_DEFAUT = 240     # les bornes 96..640 sont celles de `_prev_w` (re-revue 4bda880 : constantes mortes ôtées)
 
 
 def _grade_t(v) -> float:
@@ -5618,6 +5618,11 @@ async def montage_scopes(request: Request):
     p = await _media_source(request, body.get("src"), video=True)
     try:
         async with _scopes_sem():
+            # re-revue 4bda880 (24/09) : le client a pu PARTIR pendant l'attente du sémaphore (tête déplacée : le
+            # client abandonne sa requête) — alors rien ne se calcule : 499 (« client closed request », convention
+            # nginx), sans corps, que personne ne lira ; ffmpeg n'est pas lancé et la place se libère aussitôt.
+            if await request.is_disconnected():
+                return Response(status_code=499)
             out = await asyncio.to_thread(GR.scopes_png, p, t, effs, body.get("mask"))
     except Exception as e:
         raise _media_http(e)

@@ -1599,14 +1599,17 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
       en portrait (data-side) sa colonne se cale EN HAUT, loin du pied couvert ;
    3. l'encart (image + ligne d'état) est PORTÉ dans le cadre (DzmScopes, portail) : en haut à droite, sous le timecode,
       borné à 40 % du cadre — la formule du cadre lui-même (unités cq de .svm-stage, --svm-arw hérité du cadre) —, z 6
-      (au-dessus des couches du cadre, sous la barre OUTILS 8 et les popovers 9+) ; seul l'encart couvre la vidéo, sans
-      pointeur hors de l'image (le title de l'image reste au survol) ; repli en ligne (cadre introuvable) : caché. */
+      (au-dessus des couches du cadre, sous la barre OUTILS 8 et les popovers 9+) ; l'encart couvre la vidéo SANS
+      capter un seul pointeur, image comprise (re-revue 4bda880 : `auto` sur l'image, au-dessus de .svm-tf z 3, rendait
+      poignées d'overlay et rectangles .dzm-dzrect inatteignables dans le coin haut droit, molette / double-clic / dépôt
+      perdus — le title de l'image ne s'affiche donc plus, la ligne d'état dit tout) ; repli en ligne (cadre
+      introuvable) : caché. */
 .dzsvm .dzm-scopes{display:contents}
 .dzsvm .svm-playerzone:not([data-side]) .svm-playerbar{order:-1}
 .dzsvm .svm-playerzone[data-side] .svm-playerbar{justify-content:flex-start}
 .dzsvm .svm-playerbar .dzm-scpop{display:none}
 .dzsvm .svm-frame>.dzm-scpop{position:absolute;top:34px;right:10px;z-index:6;display:flex;flex-direction:column;align-items:flex-end;gap:4px;max-width:calc(100% - 20px);pointer-events:none}
-.dzsvm .dzm-scimg{display:block;width:auto;height:auto;max-width:180px;max-height:180px;max-height:calc(min(100cqh, 100cqw / var(--svm-arw,.5625)) * .4);max-width:calc(min(100cqh * var(--svm-arw,.5625), 100cqw) * .4);border-radius:4px;border:1px solid #ffffff33;background:#000;pointer-events:auto}
+.dzsvm .dzm-scimg{display:block;width:auto;height:auto;max-width:180px;max-height:180px;max-height:calc(min(100cqh, 100cqw / var(--svm-arw,.5625)) * .4);max-width:calc(min(100cqh * var(--svm-arw,.5625), 100cqw) * .4);border-radius:4px;border:1px solid #ffffff33;background:#000;pointer-events:none}
 .dzsvm .dzm-scmsg{font-family:var(--f-mono);font-size:10px;padding:2px 7px;border-radius:5px;background:#000000aa;color:#f2efe9;text-align:right}
 .dzsvm .dzm-lbscrim{position:absolute;inset:0;z-index:19;background:rgba(0,0,0,.62);display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box}
 .dzsvm[data-svm-theme="light"] .dzm-lbscrim{background:rgba(23,21,18,.38)}

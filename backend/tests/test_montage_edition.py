@@ -4251,6 +4251,22 @@ var M=mini(T.Scopes),R={};
   L6.render({clips:[{tr:"v1",id:"q",start:0,end:2,src:{job_id:"Q"}}],onPick:function(){},onClose:function(){}});
   var f0=FOC.slice(),dlg=tous(L6.H.out).filter(function(n){return n.p.role==="dialog"})[0];L6.unmount();
   R.t6_lb=[f0,FOC.slice(),dlg&&dlg.p["aria-modal"]];delete G.document;
+  /* ── re-revue 4bda880 (24/09/2026) : LE PORTAIL DE L'ENCART, en exécution. Pu factice (createPortal rend un nœud
+     « portail » qui garde sa cible) ; la ref du mini est montée sur un faux nœud dont closest(".svm-playerzone") rend une
+     fausse zone dont querySelector(".svm-frame") rend un faux cadre -- les recherches sont COMPTÉES. Cadre connecté :
+     l'encart part dans le portail (et nulle part en ligne) ; cinq re-rendus, la tête bouge : AUCUNE nouvelle recherche
+     (deps [on]) ; cadre détaché (isConnected faux) : l'encart retombe en ligne, hors portail. */
+  FQ=[];UR.made=[];UR.rev=[];TM=[];S.dz_montage_scopes="1";
+  var NQ={cl:0,qs:0},FR={isConnected:!0},ZN={querySelector:function(s){NQ.qs++;return s===".svm-frame"?FR:null}};
+  G.Pu={createPortal:function(el,c){return {t:"portail",p:{children:[el],cible:c}}}};
+  var estPop=function(n){return /dzm-scpop/.test(n.p.className||"")};
+  function ou(m){var k=m&&m.p&&Array.isArray(m.p.children)?m.p.children[1]:null,dp=k&&k.t==="portail";
+    return [k?k.t:null,dp?k.p.cible===FR:null,tous(m).filter(estPop).length,dp?tous(k.p.children).filter(estPop).length:0]}
+  var M7=mini(T.Scopes,function(){return {closest:function(s){NQ.cl++;return s===".svm-playerzone"?ZN:null}}});
+  M7.render({clips:SC,head:1,playing:!1});M7.flush();var pc=ou(M7.H.out);
+  for(var hi=1;hi<=5;hi++)M7.render({clips:SC,head:1+hi*.2,playing:!1});M7.flush();var pr=[ou(M7.H.out),NQ.cl,NQ.qs];
+  FR.isConnected=!1;M7.render({clips:SC,head:2.4,playing:!1});M7.flush();var pd=ou(M7.H.out);
+  R.pt_portail=[pc,pr,pd,[NQ.cl,NQ.qs]];M7.unmount();delete G.Pu;
   out.R=R;
 })().catch(function(e){out.err=String(e&&e.stack||e)}).then(function(){console.log(JSON.stringify(out))});
 """
@@ -4349,6 +4365,12 @@ check("l5x_t6_M1_refus_dit_puis_succes_ailleurs_retour_mesure_en_cours_puis_imag
       _RX.get("t6_err"))
 check("l5x_t6_M4_lightbox_modale_focus_sur_fermer_a_l_ouverture_rendu_au_depart_a_la_fermeture",
       _RX.get("t6_lb") == [["focus:Fermer"], ["focus:Fermer", "avant"], "true"], _RX.get("t6_lb"))
+# ── re-revue 4bda880 (24/09/2026) : le portail de l'encart EXECUTE (le compte de texte sc_encart_... ne suffisait pas).
+# Mutations qui rougissent ici : portail retire (en ligne des le cadre connecte), test isConnected retire (cadre detache
+# encore porte), deps [on] -> aucune (une recherche par rendu : 7 au lieu de 1).
+check("l5x_pt_encart_porte_dans_le_cadre_connecte_une_recherche_par_allumage_retombe_en_ligne_cadre_detache",
+      _RX.get("pt_portail") == [["portail", True, 1, 1], [["portail", True, 1, 1], 1, 1], ["div", None, 1, 0], [1, 1]],
+      _RX.get("pt_portail"))
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

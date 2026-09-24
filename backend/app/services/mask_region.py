@@ -43,7 +43,7 @@ def _f(v):
     if isinstance(v, bool):
         return None
     if isinstance(v, str):
-        v = v.strip().strip("﻿")
+        v = v.strip().strip("\ufeff")
         if not _NUM.fullmatch(v):
             return None
     try:

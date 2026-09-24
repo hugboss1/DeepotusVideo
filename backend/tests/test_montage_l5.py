@@ -1258,6 +1258,80 @@ check("r3_scopes_semaphore_deux_au_plus_sur_deux_boucles_temoin_nu_cinq",
       _scA == ([200] * 5, 2) and _scB == ([200] * 5, 2) and _sc_temoin == 5,
       str((_scA, _scB, _sc_temoin)))
 
+# --- R3-bis (re-revue 4bda880, 24/09) : le semaphore est RENDU apres une exception ; une requete dont le client est
+# PARTI pendant l'attente du semaphore repond 499 SANS lancer ffmpeg (espion : aucun appel a scopes_png) ------------
+_sc_appels = []
+
+
+def _sc_leve(*a, **k):
+    _sc_appels.append("leve")
+    raise RuntimeError("ffmpeg a plante")
+
+
+def _sc_espion(*a, **k):
+    _sc_appels.append("calcul")
+    return _PNG
+
+
+def RQ_PARTI(body, hote="127.0.0.1", path="/api/montage/x"):
+    """Request dont le client est PARTI : le corps, puis `http.disconnect` a chaque lecture."""
+    from starlette.requests import Request as _R
+    raw = json.dumps(body).encode("utf-8")
+    msgs = [{"type": "http.request", "body": raw, "more_body": False}]
+
+    async def rcv():
+        return msgs.pop(0) if msgs else {"type": "http.disconnect"}
+    return _R({"type": "http", "method": "POST", "path": path, "query_string": b"",
+               "headers": [(b"content-type", b"application/json")], "client": (hote, 5000)}, rcv)
+
+
+async def _sc_un(rq):
+    try:
+        r = await asyncio.wait_for(MS.montage_scopes(rq), 5)     # un semaphore fui PENDRAIT : borne a 5 s
+        return getattr(r, "status_code", None)
+    except Exception as e:                               # noqa: BLE001
+        return getattr(e, "status_code", type(e).__name__)
+
+
+async def _sc_exc(k=4):
+    st = [await _sc_un(RQ({"src": {"file_path": TS}, "t": 1.0})) for _ in range(k)]
+    return st, MS._scopes_sem()._value
+
+
+async def _sc_fuite_temoin():
+    s = MS._scopes_sem()
+    await s.acquire()                                    # acquis SANS rendre : ce que le banc doit savoir voir
+    return s._value
+
+
+async def _sc_parti():
+    st = await _sc_un(RQ_PARTI({"src": {"file_path": TS}, "t": 1.0}))
+    return st, MS._scopes_sem()._value
+
+
+async def _sc_present():
+    return await _sc_un(RQ({"src": {"file_path": TS}, "t": 1.0}))
+
+_scE = _scP = _scT = None
+if GR is not None:
+    try:
+        GR.scopes_png = _sc_leve
+        _scE = asyncio.run(_sc_exc()), list(_sc_appels)
+        _sc_appels.clear()
+        GR.scopes_png = _sc_espion
+        _scP = asyncio.run(_sc_parti()), list(_sc_appels)
+        _sc_appels.clear()
+        _scT = asyncio.run(_sc_present()), list(_sc_appels)
+    finally:
+        GR.scopes_png = _vrai_sc
+_scF = asyncio.run(_sc_fuite_temoin())
+check("r3b_scopes_semaphore_rendu_apres_quatre_exceptions_temoin_fuite_un",
+      _scE is not None and _scE[0][1] == MS._SCOPES_MAX == 2 and len(_scE[0][0]) == 4
+      and all(s not in (200, "TimeoutError") for s in _scE[0][0]) and len(set(_scE[0][0])) == 1
+      and _scE[1] == ["leve"] * 4 and _scF == 1, str((_scE, _scF)))
+check("r3b_scopes_client_parti_499_sans_ffmpeg_semaphore_rendu_temoin_present_un_calcul",
+      _scP == ((499, 2), []) and _scT == (200, ["calcul"]), str((_scP, _scT)))
+
 # --- R4 : /render — la chaine COVER d'un overlay V2 ne sonde pas ses dims -----
 _vrai_build, _vrai_run, _vrai_dims = MS._build_montage_command, MS._run_ffmpeg, MS._probe_dims
 _cap, _sondes = {}, []
