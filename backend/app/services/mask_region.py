@@ -29,7 +29,10 @@ SHAPES = ("rect", "ellipse")
 
 
 def _f(v):
-    """float fini ou None."""
+    """float fini ou None. Un booléen n'est PAS un nombre (float(True) vaut
+    1.0 : un `x: false` passait pour 0) -> None, comme une valeur illisible."""
+    if isinstance(v, bool):
+        return None
     try:
         x = float(v)
     except (TypeError, ValueError):
@@ -39,8 +42,9 @@ def _f(v):
 
 def mask_of(raw) -> dict | None:
     """{shape,x,y,w,h,soft,inv} borné : x,y ∈ [0,1], w,h ∈ [0.01, 1-x|1-y],
-    soft ∈ [0,0.5], inv bool (True seulement pour True) ; forme inconnue / non
-    dict / coordonnée illisible / w|h < 0.01 -> None. Arrondi 1e-4."""
+    soft ∈ [0,0.5], inv bool (True seulement pour le booléen True) ; forme
+    inconnue / non dict / coordonnée illisible (booléen compris) / w|h < 0.01
+    -> None ; soft illisible ou booléen -> 0. Arrondi 1e-4."""
     if not isinstance(raw, dict) or raw.get("shape") not in SHAPES:
         return None
     x, y, w, h = (_f(raw.get(k)) for k in ("x", "y", "w", "h"))

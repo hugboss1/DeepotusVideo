@@ -196,6 +196,29 @@ _nuls = [mask_of(v) for v in ({}, None, "rect", [1], {"shape": "star", "x": 0, "
                                {"shape": "rect", "x": 0, "y": 0, "h": .5})]
 check("m1_forme_inconnue_non_dict_trop_petit_ou_illisible_rend_None",
       isinstance(_m1, dict) and _nuls == [None] * 10, _nuls)
+# Revue T1 (24/09) : un BOOLEEN n'est pas un nombre (float(True) == 1.0).
+# x/y/w/h booleens -> None comme illisibles ; soft booleen -> 0 ; inv vrai
+# seulement pour le booleen True. Temoins : les memes valeurs en nombres
+# (0 / 1 entiers, soft 0.2) sont lues.
+_bool = [mask_of({"shape": "rect", "x": False, "y": 0, "w": .5, "h": .5}),
+         mask_of({"shape": "rect", "x": 0, "y": False, "w": .5, "h": .5}),
+         mask_of({"shape": "rect", "x": 0, "y": 0, "w": True, "h": .5}),
+         mask_of({"shape": "ellipse", "x": 0, "y": 0, "w": .5, "h": True})]
+_bnum = mask_of({"shape": "rect", "x": 0, "y": 0, "w": 1, "h": .5})
+check("m1_booleens_x_y_w_h_illisibles_temoin_entiers_lus",
+      _bool == [None] * 4
+      and _bnum == {"shape": "rect", "x": 0.0, "y": 0.0, "w": 1.0, "h": 0.5, "soft": 0.0, "inv": False},
+      str((_bool, _bnum)))
+_bs = mask_of({"shape": "rect", "x": 0, "y": 0, "w": .5, "h": .5, "soft": True})
+_bs2 = mask_of({"shape": "rect", "x": 0, "y": 0, "w": .5, "h": .5, "soft": 0.2})
+_bi1 = mask_of({"shape": "rect", "x": 0, "y": 0, "w": .5, "h": .5, "inv": 1})
+_biT = mask_of({"shape": "rect", "x": 0, "y": 0, "w": .5, "h": .5, "inv": True})
+check("m1_soft_booleen_zero_inv_vrai_seulement_pour_True",
+      isinstance(_bs, dict) and _bs.get("soft") == 0.0
+      and isinstance(_bs2, dict) and _bs2.get("soft") == 0.2
+      and isinstance(_bi1, dict) and _bi1.get("inv") is False
+      and isinstance(_biT, dict) and _biT.get("inv") is True,
+      str((_bs, _bs2, _bi1, _biT)))
 _g1 = mask_graph(_m1, 320, 180, 25, "mk0") if isinstance(_m1, dict) else "ABSENT"
 check("m1_mask_graph_geq_une_fois_trim_loop_gris_etiquette",
       isinstance(_g1, str) and _g1.startswith("color=c=black:s=320x180:r=25:d=1,format=gray,geq=lum='")

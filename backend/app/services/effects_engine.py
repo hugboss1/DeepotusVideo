@@ -13,6 +13,7 @@ Each effect dict: {"type": <name>, "intensity": 0..100, ...params}.
 """
 from __future__ import annotations
 import math
+import re
 
 
 def _clamp01(v, lo=0.0, hi=1.0):
@@ -357,9 +358,9 @@ def _sharpen(eff, i, o, u, ctx):
     OCTET POUR OCTET celle d'avant le lot, verrouillée par
     `t1_sharpen_defaut_inchange_et_cas` de test_montage_l5.py) ou `cas`
     (Contrast Adaptive Sharpening, 0,28 s contre 0,24 s mesurés sur 2 s de
-    1280x720). Mode inconnu -> `unsharp`."""
+    1280x720). Mode inconnu -> `unsharp` (liste fermée, `_choice`)."""
     t = _inten(eff, 60)
-    if str(eff.get("mode") or "unsharp") == "cas":
+    if _choice(eff, "mode", ("unsharp", "cas"), "unsharp") == "cas":
         return _one(i, o, f"cas=strength={t:.2f}")
     return _one(i, o, f"unsharp=5:5:{0.5 + 2.0 * t:.2f}:5:5:0.0")
 
@@ -770,9 +771,26 @@ def _f3(v):
     return "0" if s in ("", "-0") else s
 
 
+#: RÈGLE UNIQUE de lecture (24/09/2026 — Python et JS divergeaient ; le client
+#: la rejoue sur tests/l5_courbes_vecteurs.json). Séparateurs : blancs ASCII
+#: (espace, tab, CR, LF) OU virgules — PAS \x0b, \x0c, \x1c…, ni les blancs
+#: Unicode que `str.split()` acceptait. Chiffres ASCII seulement (`\d` de
+#: Python accepte « ١ » ou « １ »).
+_CURVE_SEP = re.compile(r"[ \t\r\n,]+")
+_CURVE_NUM = r"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?"
+_CURVE_TOK = re.compile(_CURVE_NUM + "/" + _CURVE_NUM)
+_CURVE_MAX_TOK = 256
+
+
 def curves_clean(s) -> str:
     """'x/y x/y …' -> chaîne canonique d'une courbe `curves` de ffmpeg.
 
+    Lecture (règle unique, voir `_CURVE_SEP`) : jetons séparés par blancs
+    ASCII ou virgules ; seuls les 256 premiers jetons non vides sont lus
+    (invalides compris) ; un jeton valide est EXACTEMENT NOMBRE/NOMBRE
+    (décimal ASCII, exposant permis ; ni `_`, ni inf/nan, un seul `/`) ; un
+    jeton invalide — ou un nombre qui déborde en infini (1e999) — est SAUTÉ,
+    les autres gardés.
     x, y bornés à [0, 1] et arrondis au millième ; triés ; x dupliqués
     fusionnés (le DERNIER gagne) ; extrémités x=0 et x=1 ajoutées si absentes,
     à la valeur du point le plus proche (mesuré : un point UNIQUE donne une
@@ -783,14 +801,12 @@ def curves_clean(s) -> str:
     if not isinstance(s, str):
         return _CURVE_IDENT
     pts = {}
-    for tok in s.split()[:256]:
-        a, sep, b = tok.partition("/")
-        if not sep:
+    toks = [t for t in _CURVE_SEP.split(s) if t][:_CURVE_MAX_TOK]
+    for tok in toks:
+        if not _CURVE_TOK.fullmatch(tok):
             continue
-        try:
-            x, y = float(a), float(b)
-        except ValueError:
-            continue
+        a, _, b = tok.partition("/")
+        x, y = float(a), float(b)
         if not (math.isfinite(x) and math.isfinite(y)):
             continue
         x = round(min(1.0, max(0.0, x)), 3) + 0.0
@@ -860,19 +876,21 @@ def _curves(eff, i, o, u, ctx):
 
 
 def _colormatch(eff, i, o, u, ctx):
-    """D-28 — accord de couleur : transfert affine par plan en `lutyuv`
-    (plage LIMITÉE, celle du flux yuv420p du rendu : mesuré 126 -> 161 pour
-    val·1,2 + 10). Les gains et décalages sont calculés par color_match.py ;
-    ici on ne fait que les borner et les émettre. Tout neutre -> `null`."""
+    """D-28 — accord de couleur : transfert affine par plan en `lutyuv`,
+    PIVOTÉ autour de 128 (décision du contrôleur, 24/09/2026) :
+        out = clip((val − 128)·G + 128 + O, 0, 255)
+    Sans pivot, un gain sur U/V déplaçait un gris neutre (mesuré : U 128 ->
+    192 pour un gain 1,5) ; pivoté, le gris reste à 128 ±2 et seul O le
+    décale. Plage LIMITÉE, celle du flux yuv420p du rendu (mesuré Y 126 ->
+    ~136 pour G 1,2 et O 10). Les gains et décalages sont calculés par
+    color_match.py ; ici on ne fait que les borner et les émettre, les trois
+    plans sous la même forme. Tout neutre -> `null`."""
     parts, actif = [], False
     for p in "yuv":
         g = round(_num(eff, f"{p}_gain", 1, 0.5, 2), 3)
         off = round(_num(eff, f"{p}_off", 0, -128, 128), 3)
-        if g == 1 and off == 0:
-            parts.append(f"{p}='val'")
-            continue
-        actif = True
-        parts.append(f"{p}='clip(val*{g:.3f}{off:+.3f},0,255)'")
+        actif = actif or g != 1 or off != 0
+        parts.append(f"{p}='clip((val-128)*{g:.3f}+128{off:+.3f},0,255)'")
     if not actif:
         return _one(i, o, "null")
     return _one(i, o, "lutyuv=" + ":".join(parts))
@@ -884,13 +902,14 @@ _HUESAT_COLORS = ("a", "r", "y", "g", "c", "b", "m")
 def _huesat(eff, i, o, u, ctx):
     """D-29 — teinte / saturation par couleur (`huesaturation`). Mesuré :
     `saturation=-1:colors=r` ne touche QUE la bande rouge ((200,40,40) ->
-    (133,73,73)) ; une désaturation complète demande `strength` 10. `a` =
-    toutes les couleurs. Teinte 0 et saturation 0 -> `null`."""
+    (133,73,73)) à la force 1 ; une désaturation complète demande `strength`
+    10 — c'est donc la force PAR DÉFAUT (revue T1, M-4). `a` = toutes les
+    couleurs. Teinte 0 et saturation 0 -> `null`."""
     h = round(_num(eff, "hue", 0, -180, 180), 1)
     s = round(_num(eff, "sat", 0, -100, 100), 1)
     if h == 0 and s == 0:
         return _one(i, o, "null")
-    st = _num(eff, "strength", 1, 1, 100)
+    st = _num(eff, "strength", 10, 1, 100)
     col = _choice(eff, "colors", _HUESAT_COLORS, "a")
     cols = "r+y+g+c+b+m+a" if col == "a" else col
     return _one(i, o, f"huesaturation=hue={h:.1f}:saturation={s / 100.0:.3f}:"
@@ -907,14 +926,16 @@ def _monochrome(eff, i, o, u, ctx):
 
 def _denoise(eff, i, o, u, ctx):
     """D-33 — débruitage. `nlmeans` ÉCARTÉ (88 s pour 2 s de 720p, 19 s même
-    allégé). `hqdn3d` (0,34 s) ou `atadenoise` (0,26 s). t = intensité/50 :
-    l'intensité par défaut (50) donne les valeurs mesurées 4:3:6:4.5 et les
-    seuils par défaut d'atadenoise ; 0 -> `null`."""
+    allégé). `hqdn3d` (0,34 s) ou `atadenoise` (0,26 s). t = intensité/50,
+    donc t ∈ [0, 2] : l'intensité par défaut (50) donne les valeurs mesurées
+    4:3:6:4.5 et, en atadenoise, les seuils par défaut de ffmpeg (a 0,02,
+    b 0,04) ; à 100 ils doublent (0,04 / 0,08), loin des plafonds de ffmpeg
+    (0,3 / 5) — d'où aucun `min` ici. 0 -> `null`."""
     t = _num(eff, "intensity", 50, 0, 100) / 50.0
     if t <= 0:
         return _one(i, o, "null")
     if _choice(eff, "mode", ("hqdn3d", "atadenoise"), "hqdn3d") == "atadenoise":
-        a, b = min(0.3, 0.02 * t), min(5.0, 0.04 * t)
+        a, b = 0.02 * t, 0.04 * t
         th = ":".join(f"{p}a={a:.4f}:{p}b={b:.4f}" for p in "012")
         return _one(i, o, f"atadenoise={th}:s=9")
     return _one(i, o, f"hqdn3d={4 * t:.3f}:{3 * t:.3f}:{6 * t:.3f}:{4.5 * t:.3f}")
@@ -934,23 +955,13 @@ def _deband(eff, i, o, u, ctx):
     return _one(i, o, f"deband=1thr={thr:.3f}:2thr={thr:.3f}:3thr={thr:.3f}:range=16:blur=1")
 
 
-def _hex(v, default):
-    """Couleur « #rrggbb » stricte -> « 0xrrggbb », sinon `default`."""
-    s = str(v or "").strip().lstrip("#").lower()
-    if len(s) == 3:
-        s = "".join(ch * 2 for ch in s)
-    if len(s) != 6 or any(ch not in "0123456789abcdef" for ch in s):
-        s = default
-    return "0x" + s
-
-
 def _chromakey(eff, i, o, u, ctx):
     """D-33 — clé couleur. Mesuré : `chromakey=color=0x00FF00:similarity=0.1`
     puis `overlay` rend le vert transparent ; `despill` nettoie le bord
     ((104,84,85) -> (84,0,85)). Piège : `color=c=green` vaut 0x007F00, d'où
     une couleur hexadécimale explicite. L'alpha n'a de sens que sur un plan
     SUPERPOSÉ (V2) : sur V1, le `format=yuv420p` du rendu le perd."""
-    key = _hex(eff.get("key", "#00ff00"), "00ff00")
+    key = _c(eff.get("key", "#00ff00"), "00ff00")
     sim = _num(eff, "similarity", 10, 1, 100) / 100.0
     bl = _num(eff, "smooth", 0, 0, 100) / 100.0
     sp = _choice(eff, "despill", ("aucun", "vert", "bleu"), "vert")
@@ -1242,7 +1253,7 @@ _PARAM_DEFAULTS = {
     "sat":       {"type": "range", "min": -100, "max": 100, "step": 1,
                   "default": 0, "label": "Saturation"},
     "strength":  {"type": "range", "min": 1, "max": 100, "step": 1,
-                  "default": 1, "label": "Force"},
+                  "default": 10, "label": "Force"},
     "colors":    {"type": "choice", "choices": list(_HUESAT_COLORS),
                   "default": "a", "label": "Couleurs"},
     "cb":        {"type": "range", "min": -1, "max": 1, "step": 0.01,
@@ -1289,7 +1300,8 @@ _CATALOG = {
                    {}),
     "huesat":     ("etalonnage", "Teinte / saturation par couleur",
                    ["colors", "hue", "sat", "strength"],
-                   "Décale la teinte ou la saturation d'une seule gamme de couleurs.", {}),
+                   "Teinte ou saturation d'une gamme de couleurs ; force 10 = désaturation complète.",
+                   {}),
     "colormatch": ("etalonnage", "Accord de couleur",
                    ["y_gain", "y_off", "u_gain", "u_off", "v_gain", "v_off"],
                    "Aligne ce plan sur les statistiques d'un autre (panneau Étalonnage).",
