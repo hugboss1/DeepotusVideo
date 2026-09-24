@@ -62,6 +62,11 @@ Câblage « timeline → rendu » du handoff son_vfx_montage :
                               l'extrait, en secondes relatives à srcIn ;
                               `scenes.detect`, cache dans montage_cache/.
                               400 paramètres, 404 source, 415 non vidéo.
+  POST /api/montage/reframe   D-40 — {src, srcIn, dur} → {ok, mode, points,
+                              fps, x?, motion} : le suivi horizontal du
+                              mouvement de l'extrait (`reframe.motion_track`,
+                              cache dans montage_cache/) pour le champ V1
+                              `reframe`. 400 paramètres, 404, 415.
   DELETE /api/montage/save    Efface la sauvegarde ; GET /project reconstruit
                               alors depuis la Bibliothèque.
                               GET /project sert d'abord la sauvegarde si elle
@@ -139,6 +144,7 @@ from sqlalchemy import func, or_, select
 from app.config import settings
 from app.models.schemas import JobStatus
 from app.services import edl_export as _edl
+from app.services import reframe as _reframe
 from app.services import scenes as _scenes
 from app.services import sfx_service
 from app.services.composition_service import FFMPEG_TIMEOUT_S
@@ -1228,6 +1234,123 @@ def _dz_filter(dz: dict, w: int, h: int, fps: int, dur: float) -> str:
             f":x='iw*{lerp(dz['x0'], dz['x1'])}'"
             f":y='ih*{lerp(dz['y0'], dz['y1'])}'"
             f":d=1:s={w}x{h}:fps={fps}")
+
+
+# D-40 (L7-B, 24/09/2026) — RECADRAGE. Champ optionnel `reframe` d'un clip
+# V1 : {mode: "centre"|"suivi"|"manuel", x?, points?}. Le cover historique
+# centre la fenêtre (`crop={w}:{h}`) ; `manuel` la pose à `x` (fraction de la
+# largeur de la source, centre de la fenêtre), `suivi` la fait glisser le long
+# de `points` [{t, x}] — t en secondes de SOURCE depuis srcIn (le temps LOCAL
+# du flux au point du crop, qui précède setpts=PTS/speed : MESURÉ, voir
+# reframe.py), borné à (end − start) × vitesse. `centre` = None (chaîne
+# historique octet pour octet). MESURÉ le 24/09 : un `x` animé de crop passe
+# dans ffmpeg 8.1.1 (seuls w/h sont figés à la configuration, −22 de D-13).
+_RF_MODES = ("centre", "suivi", "manuel")
+_RF_MAX_POINTS = 240
+_RF_TOL = 0.004             # simplification RDP du rendu (fraction de largeur)
+
+
+def _rf_num(v) -> float | None:
+    if isinstance(v, bool):
+        return None
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return None
+    return f if math.isfinite(f) else None
+
+
+def _reframe_of(c: dict) -> dict | None:
+    """clips V1 [].reframe → None (centré, historique) | {"mode": "manuel",
+    "x"} | {"mode": "suivi", "points": [(t, x)…]} — x borné à [0, 1], t à
+    [0, (end − start) × vitesse], points triés, dédoublonnés à 5 ms (le
+    dernier gagne), au plus 240 (sous-échantillonnés régulièrement). Champ,
+    mode ou x illisible, ou aucun point valable : warning et None — jamais
+    dans un filtergraph. Un point illisible parmi d'autres est ignoré
+    (warning)."""
+    raw = c.get("reframe")
+    if raw is None:
+        return None
+    lbl = c.get("label") or c.get("tr") or "v1"
+    if not isinstance(raw, dict) or raw.get("mode") not in _RF_MODES:
+        logger.warning(f"montage: reframe invalide ({str(raw)[:80]!r}), "
+                       f"cadrage centré — {lbl}")
+        return None
+    mode = raw["mode"]
+    if mode == "centre":
+        return None
+    if mode == "manuel":
+        x = _rf_num(raw.get("x"))
+        if x is None:
+            logger.warning(f"montage: reframe manuel sans x lisible "
+                           f"({raw.get('x')!r}), cadrage centré — {lbl}")
+            return None
+        return {"mode": "manuel", "x": max(0.0, min(1.0, x))}
+    pts_in = raw.get("points")
+    if not isinstance(pts_in, list):
+        logger.warning(f"montage: reframe suivi sans points, cadrage centré — {lbl}")
+        return None
+    spd = _rf_num(c.get("speed"))
+    spd = max(0.25, min(4.0, spd)) if spd is not None and spd > 0 else 1.0
+    s0, s1 = _rf_num(c.get("start")), _rf_num(c.get("end"))
+    dur = (s1 - s0) * spd if s0 is not None and s1 is not None else 0.0
+    pts, bad = [], 0
+    for q in pts_in:
+        if isinstance(q, dict):
+            t, x = _rf_num(q.get("t")), _rf_num(q.get("x"))
+        elif isinstance(q, (list, tuple)) and len(q) == 2:
+            t, x = _rf_num(q[0]), _rf_num(q[1])
+        else:
+            t = x = None
+        if t is None or x is None:
+            bad += 1
+            continue
+        t = max(0.0, t)
+        if dur > 0:
+            t = min(t, dur)
+        pts.append((round(t, 3), max(0.0, min(1.0, x))))
+    if bad:
+        logger.warning(f"montage: reframe — {bad} point(s) illisible(s) "
+                       f"ignoré(s) — {lbl}")
+    pts.sort(key=lambda q: q[0])
+    out: list = []
+    for q in pts:
+        if out and q[0] - out[-1][0] < 0.005:
+            out[-1] = q
+            continue
+        out.append(q)
+    if not out:
+        logger.warning(f"montage: reframe suivi sans point valable, cadrage "
+                       f"centré — {lbl}")
+        return None
+    if len(out) > _RF_MAX_POINTS:
+        logger.warning(f"montage: reframe — {len(out)} points (max "
+                       f"{_RF_MAX_POINTS}), sous-échantillonnés — {lbl}")
+        n = len(out)
+        out = [out[round(k * (n - 1) / (_RF_MAX_POINTS - 1))]
+               for k in range(_RF_MAX_POINTS)]
+    return {"mode": "suivi", "points": out}
+
+
+def _reframe_crop(rf: dict | None, w: int, h: int) -> str:
+    """Le `crop` de la chaîne cover V1 : `crop={w}:{h}` sans recadrage
+    (historique), sinon la fenêtre centrée sur iw·x, bornée au cadre :
+    `crop={w}:{h}:x='clip(iw*X-{w/2},0,iw-{w})':y=(ih-{h})/2` — X constant
+    (manuel) ou `_mp_lerp_expr` des points simplifiés (RDP, tolérance
+    _RF_TOL : 240 points bruts feraient ~13 000 caractères par clip, plafond
+    CreateProcess 32 767) en `t` LOCAL du flux (mesuré, voir reframe.py).
+    Une source plus haute que le cadre (iw == w) : x reste 0, rien ne bouge."""
+    base = f"crop={w}:{h}"
+    if not isinstance(rf, dict):
+        return base
+    n = sfx_service.fnum
+    if rf.get("mode") == "manuel":
+        xe = n(rf["x"])
+    elif rf.get("mode") == "suivi" and rf.get("points"):
+        xe = f"({_mp_lerp_expr(_reframe.simplifier(list(rf['points']), _RF_TOL))})"
+    else:
+        return base
+    return f"{base}:x='clip(iw*{xe}-{n(w / 2)},0,iw-{w})':y=(ih-{h})/2"
 
 
 # D-15 (22/09/2026) — RETIME. Champ optionnel `retime` d'un clip V1 :
@@ -2645,6 +2768,25 @@ async def montage_scenes(request: Request):
     return {"ok": True, "times": times}
 
 
+# D-40 (L7-B, 24/09/2026) — LE SUIVI DU MOUVEMENT d'un extrait de source,
+# pour « Suivre le mouvement » (section Cadrage de l'inspecteur d'un clip V1).
+# Mêmes gardes que /scenes : paramètres jugés AVANT toute résolution (400),
+# source par `_media_source` (404 / 415), calcul `reframe.motion_track`
+# (cache disque, MediaError → 415 nommé). `points[].t` en secondes de
+# SOURCE relatives au `srcIn` demandé.
+@router.post("/reframe")
+async def montage_reframe(request: Request):
+    body = await _json_body(request)
+    src_in = _scenes_num(body.get("srcIn", 0), "srcIn", mini=0.0, maxi=_SCENES_DUR_MAX * 6, strict=False)
+    dur = _scenes_num(body.get("dur"), "dur", mini=0.0, maxi=_SCENES_DUR_MAX, strict=True)
+    p = await _media_source(request, body.get("src"), video=True)
+    try:
+        res = await asyncio.to_thread(_reframe.motion_track, p, src_in, dur)
+    except Exception as e:
+        raise _media_http(e)
+    return {"ok": True, **res}
+
+
 def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
                            ducking, duration_master, preview, out,
                            audio_only=False, subs_ass=None, titles_ass=None,
@@ -2712,6 +2854,13 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     `scale=`. `stab` sans `trf` (ou `trf` disparu) : warning, plan historique.
     L'audio d'une entrée V1 n'entre jamais dans le graphe (MESURÉ) : l'entrée
     entière ne désynchronise rien.
+    D-40 : `reframe` sur v1 (None = inchangé, sinon dict nettoyé par
+    _reframe_of) — seul le `crop={w}:{h}` du cover devient
+    `crop={w}:{h}:x='clip(iw*X-w/2,0,iw-w)':y=(ih-h)/2` (_reframe_crop), X
+    constant (manuel) ou interpolé en `t` LOCAL du flux lu (suivi ; le crop
+    précède setpts=PTS/speed, donc t = temps de source depuis srcIn —
+    mesuré le 24/09, voir reframe.py). Voies vitesse, zoom et stabilisation
+    comprises ; overlays V2 intacts.
     S1 : `subs_ass` = chemin d'un fichier ASS déjà écrit (piste de
     sous-titres). Il devient le DERNIER maillon de la chaîne vidéo, juste
     avant `format=yuv420p` : le texte passe donc au-dessus des overlays V2 et
@@ -2844,6 +2993,9 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
             # format=yuv420p. Sans `dz` : dzp vide, préfixe historique.
             dzf = s.get("dz")
             dzp = f",{_dz_filter(dzf, w, h, fps, seg_durs[k])}" if isinstance(dzf, dict) else ""
+            # D-40 : recadrage — seul le `crop` du cover change (fenêtre à x
+            # fixe ou animé) ; sans `reframe` : crp = crop={w}:{h}, historique.
+            crp = _reframe_crop(s.get("reframe"), w, h)
             if spd:
                 # D-15 : retime — `flow` (minterpolate) AVANT fps=, `blend`
                 # (tblend) APRÈS fps= et avant le zoompan (voir _RETIME).
@@ -2851,12 +3003,13 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
                 rt = _v1_retime(s)
                 rtp = f",{_RETIME[rt].format(fps=fps)}" if rt else ""
                 pre = (f"scale={w}:{h}:force_original_aspect_ratio=increase,"
-                       f"crop={w}:{h},setsar=1,"
+                       f"{crp},setsar=1,"
                        f"setpts=PTS/{sfx_service.fnum(spd)}{rtp if rt == 'flow' else ''},"
                        f"fps={fps}{rtp if rt == 'blend' else ''}{dzp},format=yuv420p")
             else:
-                pre = sf if not dzp else (f"scale={w}:{h}:force_original_aspect_ratio=increase,"
-                                          f"crop={w}:{h},setsar=1,fps={fps}{dzp},format=yuv420p")
+                pre = sf if not dzp and crp == f"crop={w}:{h}" else (
+                    f"scale={w}:{h}:force_original_aspect_ratio=increase,"
+                    f"{crp},setsar=1,fps={fps}{dzp},format=yuv420p")
             # D-16 : stabilisation — vidstabtransform sur la source entière
             # PUIS trim=start=src_in:duration=d_src (ce que -ss/-t faisaient),
             # AVANT le recadrage : les bords découverts (crop=keep|black,
@@ -4107,6 +4260,7 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                            "transition_s": c.get("transition_s"),
                            "speed": _v1_speed(c),  # C4 — 0.0 = historique
                            "dz": _dz_spec(c),      # D-13 — None = historique
+                           "reframe": _reframe_of(c),  # D-40 — None = historique
                            "retime": _v1_retime(c),  # D-15 — None = historique
                            "stab": st,             # D-16 — None = historique
                            "effects": (c.get("effects")
