@@ -21006,6 +21006,162 @@ function dzmCutAt(clips,id,times,opts){
   cs.forEach(function(k){if(k===c)out.push.apply(out,morceaux);else out.push(k)});
   return {clips:out,n:ps.length,refus:"",
     note:ps.length+" coupe"+(ps.length>1?"s":"")+" aux changements de plan"}}
+var DZM_COLOR_TYPES=Object.freeze(["grade","lut","grade_basic","wheels","curves","colormatch","huesat","monochrome"]);
+/* ── L5 (24/09/2026, tâche 4) : le cœur PUR de la couleur, décisions 1, 2, 4 et 8 du plan
+   docs/superpowers/plans/2026-09-24-plan-montage-resolve-L5.md. Aucune de ces fonctions ne touche au rendu,
+   au réseau ni au stockage : elles prennent des valeurs et rendent des valeurs neuves (l'entrée n'est
+   jamais modifiée).
+
+   ROUE (D-27) : un disque (x, y) borné au disque unité et un maître m donnent trois canaux. Angles
+   R 90°, G 210°, B 330° ; proj_c = x·cos θc + y·sin θc ;
+     lift  : L_c = clamp(m + 0,25·proj_c, −0,5, 0,5)
+     gamma : Γ_c = clamp(2^(m + 0,5·proj_c), 0,25, 4)
+     gain  : G_c = clamp(1 + m + 0,5·proj_c, 0, 2)
+   bornes = celles des curseurs du rack (effet `wheels`, T1) ; arrondi au millième. Le retour
+   (moindres carrés) : m = moyenne des v_c (v = L, log2 Γ ou G − 1) et x|y = (2/3)·Σ(v_c − m)·cos|sin θc / k,
+   exact tant qu'aucun canal n'est saturé (Σ proj_c = 0 et Σ cos² = Σ sin² = 3/2 sur trois angles à 120°).
+
+   COURBES (D-29) : dzmCurveClean est la règle MÊME de curves_clean (effects_engine.py, T1) — banc croisé
+   en T7. « x/y x/y … » : un jeton illisible rend TOUTE l'entrée invalide ; x et y bornés à [0, 1] puis
+   arrondis au millième comme round(v, 3) de Python (valeur exacte du flottant, demi au pair) ; x dupliqués
+   APRÈS l'arrondi fusionnés, le dernier gagne ; tri ; extrémités x = 0 et x = 1 ajoutées à la valeur du
+   point le plus proche ; au-delà de 16 points, sous-échantillonnage régulier index round(k·(n−1)/15)
+   (dénominateur impair : jamais d'égalité à trancher) ; invalide ou vide -> « 0/0 1/1 ». Nombres écrits
+   comme le format g de Python (« 0 », « 0.6 », jamais « 0.0 »). dzmCurveEval : pchip de Fritsch–Carlson
+   (moyenne harmonique pondérée, extrémités à trois points bornées), celui d'interp=pchip du rendu.
+
+   MASQUE (D-30) : dzmMaskOf est la règle de mask_of (mask_region.py, T2) : x, y bornés à [0, 1] ; w, h
+   illisibles ou < 0,01 -> null, puis bornés à 1 − x | 1 − y et de nouveau < 0,01 -> null ; soft borné à
+   [0, 0,5] (absent ou illisible : 0) ; inv vrai seulement pour le booléen vrai ; arrondi 1e-4.
+
+   GRADE (D-32) : les effets des types de la liste ci-dessus, recopiés SANS les bornes de temps de
+   DZM_GRADE_TIMING (règle [a] de dzmGradeCopy) ni `off`, et le masque. Coller REMPLACE les effets couleur
+   de la cible à la place du premier d'entre eux (sinon en queue) et garde les autres dans leur ordre. */
+var DZM_WHEEL_ANG=[90,210,330],DZM_WHEEL_K={lift:.25,gamma:.5,gain:.5},DZM_WHEEL_B={lift:[-.5,.5,0],gamma:[.25,4,1],gain:[0,2,1]};
+var DZM_CURVE_MAX=16,DZM_CURVE_ID="0/0 1/1",DZM_MASK_SHAPES=["rect","ellipse"];
+/* l'arrondi à n décimales de round(v, n) de Python : valeur exacte du flottant, demi exact au pair
+   (généralise dzmRfR3 : une égalité exacte k/(2·10^n) n'existe que si 5^n divise k) */
+function dzmCoR(v,n){var p=Math.pow(10,n),f=Math.floor(v*p),k=2*f+1;
+  if(k%Math.pow(5,n)===0&&k/(2*p)===v)return (f%2?f+1:f)/p;
+  return Number(v.toFixed(n))}
+function dzmWheelToRgb(kind,x,y,m){
+  if(!Object.prototype.hasOwnProperty.call(DZM_WHEEL_B,kind))return null;
+  var b=DZM_WHEEL_B[kind],k=DZM_WHEEL_K[kind],o={};
+  x=dzmRfNum(x);y=dzmRfNum(y);m=dzmRfNum(m);
+  if(x===null)x=0;if(y===null)y=0;if(m===null)m=0;
+  var d=Math.sqrt(x*x+y*y);if(d>1){x/=d;y/=d}
+  ["r","g","b"].forEach(function(c,i){var a=DZM_WHEEL_ANG[i]*Math.PI/180,v=m+k*(x*Math.cos(a)+y*Math.sin(a));
+    v=kind==="gamma"?Math.pow(2,v):kind==="gain"?1+v:v;
+    o[c]=dzmCoR(Math.max(b[0],Math.min(b[1],v)),3)});
+  return o}
+function dzmWheelFromRgb(kind,rgb){
+  if(!Object.prototype.hasOwnProperty.call(DZM_WHEEL_B,kind))return null;
+  var b=DZM_WHEEL_B[kind],k=DZM_WHEEL_K[kind],q=rgb&&typeof rgb==="object"?rgb:{},v=[],x=0,y=0;
+  ["r","g","b"].forEach(function(c){var n=dzmRfNum(q[c]);n=n===null?b[2]:Math.max(b[0],Math.min(b[1],n));
+    v.push(kind==="gamma"?Math.log(n)/Math.LN2:kind==="gain"?n-1:n)});
+  var m=(v[0]+v[1]+v[2])/3;
+  v.forEach(function(w,i){var a=DZM_WHEEL_ANG[i]*Math.PI/180;x+=(w-m)*Math.cos(a);y+=(w-m)*Math.sin(a)});
+  x=x*2/3/k;y=y*2/3/k;
+  var d=Math.sqrt(x*x+y*y);if(d>1){x/=d;y/=d}
+  return {x:dzmCoR(x,3),y:dzmCoR(y,3),m:dzmCoR(m,3)}}
+/* un NOUVEL effet wheels : celui donné s'il est déjà `wheels` (ses autres clés gardées), sinon un neuf */
+function dzmWheelsSet(eff,kind,x,y,m){
+  var o=Object.assign({},eff&&eff.type==="wheels"?eff:{type:"wheels"}),v=dzmWheelToRgb(kind,x,y,m);
+  if(v){o[kind+"_r"]=v.r;o[kind+"_g"]=v.g;o[kind+"_b"]=v.b}
+  return o}
+function dzmCurveNum(s){
+  return /^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(s)?Number(s):null}
+function dzmCurveClean(s){
+  if(typeof s!=="string")return DZM_CURVE_ID;
+  var tk=s.trim().split(/\s+/),by=Object.create(null),xs=[],i;
+  if(!tk[0])return DZM_CURVE_ID;
+  for(i=0;i<tk.length;i++){var p=tk[i].split("/"),x,y;
+    if(p.length!==2)return DZM_CURVE_ID;
+    x=dzmCurveNum(p[0]);y=dzmCurveNum(p[1]);
+    if(x===null||y===null||!isFinite(x)||!isFinite(y))return DZM_CURVE_ID;
+    x=dzmCoR(Math.max(0,Math.min(1,x)),3);y=dzmCoR(Math.max(0,Math.min(1,y)),3);
+    if(!(String(x) in by))xs.push(x);
+    by[String(x)]=y}
+  xs.sort(function(a,b){return a-b});
+  var pts=xs.map(function(x){return [x,by[String(x)]]});
+  if(pts[0][0]!==0)pts.unshift([0,pts[0][1]]);
+  if(pts[pts.length-1][0]!==1)pts.push([1,pts[pts.length-1][1]]);
+  if(pts.length>DZM_CURVE_MAX){var n=pts.length,all=pts;pts=[];
+    for(i=0;i<DZM_CURVE_MAX;i++)pts.push(all[Math.round(i*(n-1)/(DZM_CURVE_MAX-1))])}
+  return pts.map(function(q){return q[0]+"/"+q[1]}).join(" ")}
+/* la chaîne canonique -> [[x, y], …] (toujours au moins les deux extrémités) */
+function dzmCurveParse(s){
+  return dzmCurveClean(s).split(" ").map(function(t){var p=t.split("/");return [Number(p[0]),Number(p[1])]})}
+/* [[x, y], …] -> chaîne canonique ; un point illisible rend l'entrée invalide (identité), comme un jeton */
+function dzmCurveStr(pts){
+  if(!Array.isArray(pts))return DZM_CURVE_ID;
+  return dzmCurveClean(pts.map(function(q){return Array.isArray(q)&&q.length===2?q[0]+"/"+q[1]:"?"}).join(" "))}
+/* y(x) par pchip ; pts = chaîne ou [[x, y], …] (repassés par la règle canonique) ; x hors [0, 1] -> extrémité */
+function dzmCurveEval(pts,x){
+  var p=dzmCurveParse(typeof pts==="string"?pts:dzmCurveStr(pts)),n=p.length,h=[],d=[],m=[],i;
+  x=Number(x);if(x!==x)x=0;
+  if(x<=p[0][0])return p[0][1];
+  if(x>=p[n-1][0])return p[n-1][1];
+  for(i=0;i<n-1;i++){h[i]=p[i+1][0]-p[i][0];d[i]=(p[i+1][1]-p[i][1])/h[i]}
+  function bord(h0,h1,m0,m1){var e=((2*h0+h1)*m0-h0*m1)/(h0+h1);
+    if(Math.sign(e)!==Math.sign(m0))return 0;
+    if(Math.sign(m0)!==Math.sign(m1)&&Math.abs(e)>3*Math.abs(m0))return 3*m0;
+    return e}
+  if(n===2){m=[d[0],d[0]]}
+  else{for(i=1;i<n-1;i++){
+      if(d[i-1]*d[i]>0){var w1=2*h[i]+h[i-1],w2=h[i]+2*h[i-1];m[i]=(w1+w2)/(w1/d[i-1]+w2/d[i])}else m[i]=0}
+    m[0]=bord(h[0],h[1],d[0],d[1]);m[n-1]=bord(h[n-2],h[n-3],d[n-2],d[n-3])}
+  for(i=0;i<n-2&&x>=p[i+1][0];i++);
+  var t=(x-p[i][0])/h[i],t2=t*t,t3=t2*t;
+  var y=(2*t3-3*t2+1)*p[i][1]+(t3-2*t2+t)*h[i]*m[i]+(-2*t3+3*t2)*p[i+1][1]+(t3-t2)*h[i]*m[i+1];
+  return Math.max(0,Math.min(1,y))}
+function dzmMaskOf(m){
+  if(!m||typeof m!=="object"||Array.isArray(m)||DZM_MASK_SHAPES.indexOf(m.shape)<0)return null;
+  var x=dzmRfNum(m.x),y=dzmRfNum(m.y),w=dzmRfNum(m.w),h=dzmRfNum(m.h),s=dzmRfNum(m.soft);
+  if(x===null||y===null||w===null||h===null||w<.01||h<.01)return null;
+  x=dzmCoR(Math.max(0,Math.min(1,x)),4);y=dzmCoR(Math.max(0,Math.min(1,y)),4);
+  w=dzmCoR(Math.min(w,1-x),4);h=dzmCoR(Math.min(h,1-y),4);
+  if(w<.01||h<.01)return null;
+  return {shape:m.shape,x:x,y:y,w:w,h:h,soft:s===null?0:dzmCoR(Math.max(0,Math.min(.5,s)),4),inv:m.inv===!0}}
+/* copie d'un effet sans bornes de temps (DZM_GRADE_TIMING, lue à l'APPEL : aucune dépendance au chargement,
+   le banc bundle exécute sous node le code compris entre dzmKmImport et l'objet du contrat) ni `off` ;
+   « est-ce un effet couleur » */
+function dzmGradeEffCopy(e){var o={};
+  Object.keys(e).forEach(function(k){if(k!=="off"&&DZM_GRADE_TIMING.indexOf(k)<0)o[k]=e[k]});
+  return o}
+function dzmIsColorEff(e){return !!e&&typeof e==="object"&&DZM_COLOR_TYPES.indexOf(e.type)>=0}
+/* {effects, mask} du clip, ou null s'il n'y a rien à prendre (aucun effet couleur, aucun masque lisible) */
+function dzmGradeTake(clip){
+  if(!clip||typeof clip!=="object")return null;
+  var es=(Array.isArray(clip.effects)?clip.effects:[]).filter(dzmIsColorEff).map(dzmGradeEffCopy),mk=dzmMaskOf(clip.mask);
+  if(!es.length&&!mk)return null;
+  return {effects:es,mask:mk}}
+/* un NOUVEAU clip ; grade illisible -> le clip tel quel ; masque du grade posé, sinon retiré */
+function dzmGradePaste(clip,g){
+  if(!clip||typeof clip!=="object"||!g||typeof g!=="object"||!Array.isArray(g.effects))return clip;
+  var nv=g.effects.filter(dzmIsColorEff).map(dzmGradeEffCopy),st=[],at=-1;
+  (Array.isArray(clip.effects)?clip.effects:[]).forEach(function(e){
+    if(dzmIsColorEff(e)){if(at<0)at=st.length}else st.push(e)});
+  if(at<0)at=st.length;
+  var o=Object.assign({},clip,{effects:st.slice(0,at).concat(nv,st.slice(at))}),mk=dzmMaskOf(g.mask);
+  if(mk)o.mask=mk;else delete o.mask;
+  return o}
+/* une NOUVELLE pile : le premier colormatch remplacé (les suivants retirés), sinon ajouté en queue */
+function dzmColorMatchPut(effects,eff){
+  var cp=Object.assign({},eff&&typeof eff==="object"?eff:{},{type:"colormatch"}),out=[],pose=!1;
+  (Array.isArray(effects)?effects:[]).forEach(function(e){
+    if(e&&e.type==="colormatch"){if(!pose){out.push(cp);pose=!0}}else out.push(e)});
+  if(!pose)out.push(cp);
+  return out}
+/* l'instant de SOURCE sous la tête : srcIn + (tête − début)·vitesse (vitesse lue par dzmRfSpeed : 0,25..4,
+   illisible -> 1), tête dans [début, fin[ ; hors plan ou illisible -> le milieu du plan ; arrondi au millième */
+function dzmSrcTimeAt(clip,head){
+  if(!clip||typeof clip!=="object")return 0;
+  var a=dzmRfNum(clip.srcIn),s=dzmRfNum(clip.start),e=dzmRfNum(clip.end),sp=dzmRfSpeed(clip.speed),t=dzmRfNum(head);
+  a=a===null?0:Math.max(0,a);
+  if(s===null||e===null||!(e>s))return dzmCoR(a,3);
+  if(t===null||t<s||t>=e)t=(s+e)/2;
+  return dzmCoR(a+(t-s)*sp,3)}
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
   TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,cutOpts:dzmCutOpts,withWords:dzmWithWords,
@@ -21130,6 +21286,8 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   acEstRefus:dzmAcEstRefus,
   /* E-13 / E-14 (lot E-C, tache 5) : la tete dans l'inspecteur, le trou selectionne et son ripple */
   teteTxt:dzmTeteTxt,trou:dzmTrou,trouRipple:dzmTrouRipple,
+  /* L5 D-27 D-29 D-30 D-32 (24/09/2026, tache 4) : le coeur pur de la couleur -- roues, courbes, masque, grade, temps de source */
+  colorTypes:DZM_COLOR_TYPES,wheelToRgb:dzmWheelToRgb,wheelFromRgb:dzmWheelFromRgb,wheelsSet:dzmWheelsSet,curveClean:dzmCurveClean,curveParse:dzmCurveParse,curveStr:dzmCurveStr,curveEval:dzmCurveEval,maskOf:dzmMaskOf,gradeTake:dzmGradeTake,gradePaste:dzmGradePaste,colorMatchPut:dzmColorMatchPut,srcTimeAt:dzmSrcTimeAt,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;
 

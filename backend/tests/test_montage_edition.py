@@ -1230,6 +1230,69 @@ out.ac_409=[N409,N409!==E409.estimate,T.acEstRefus({detail:"x"},AK),T.acEstRefus
 out.df_reframe=[T.diff([{id:"1",tr:"v1",start:0,end:5}],[{id:"1",tr:"v1",start:0,end:5,reframe:{mode:"manuel",x:.3}}]).changed,
   T.diff([{id:"1",tr:"v1",start:0,end:5,reframe:{mode:"manuel",x:.3}}],[{id:"1",tr:"v1",start:0,end:5,reframe:{mode:"manuel",x:.3}}]).changed,
   T.diff([{id:"1",tr:"v1",start:0,end:5,reframe:{mode:"manuel",x:.3}}],[{id:"1",tr:"v1",start:0,end:5,reframe:{mode:"manuel",x:.7}}]).changed];
+/* ── [36] L5 D-27 D-29 D-30 D-32 (24/09/2026) : le cœur pur de la couleur — roues, courbes, masque, grade, temps de source ── */
+out.co_types=[T.colorTypes.slice(),Object.isFrozen(T.colorTypes)];
+/* roue neutre -> identité EXACTE (lift 0, gamma 1, gain 1) */
+out.co_neutre=[T.wheelToRgb("lift",0,0,0),T.wheelToRgb("gamma",0,0,0),T.wheelToRgb("gain",0,0,0)];
+/* valeurs : R à 90°, G à 210°, B à 330° ; bornes ; disque borné à 1 ; illisible -> neutre ; genre inconnu (y compris hérité) -> null */
+out.co_val=[T.wheelToRgb("gain",0,1,0),T.wheelToRgb("lift",1,0,0),T.wheelToRgb("gamma",0,0,1),T.wheelToRgb("gamma",0,0,5),
+  T.wheelToRgb("lift",0,0,1),T.wheelToRgb("gain",0,0,-3),T.wheelToRgb("gain",0,3,0),T.wheelToRgb("gain","a",null,void 0),
+  T.wheelToRgb("zz",0,0,0),T.wheelToRgb("toString",0,0,0)];
+/* aller-retour sur 20 points du disque par genre (maître choisi hors saturation) */
+out.co_rt=(function(){var M={lift:.05,gamma:.2,gain:-.1},err=0,n=0;
+  ["lift","gamma","gain"].forEach(function(k){for(var i=0;i<20;i++){var r=.15+.45*(i%4)/3,a=i*18*Math.PI/180,x=r*Math.cos(a),y=r*Math.sin(a);
+    var q=T.wheelFromRgb(k,T.wheelToRgb(k,x,y,M[k]));n++;
+    err=Math.max(err,Math.abs(q.x-x),Math.abs(q.y-y),Math.abs(q.m-M[k]))}});
+  return [n,Math.round(err*1e4)/1e4]})();
+out.co_from=[T.wheelFromRgb("gain",{r:1.5,g:.75,b:.75}),T.wheelFromRgb("gamma",{r:2,g:2,b:2}),T.wheelFromRgb("lift",{}),
+  T.wheelFromRgb("lift",null),T.wheelFromRgb("zz",{r:1})];
+var WE={type:"wheels",lift_r:.1,t0:1};
+out.co_set=[T.wheelsSet(null,"gain",0,1,0),T.wheelsSet(WE,"gamma",0,0,1),T.wheelsSet({type:"grade_basic",exposure:3},"lift",0,0,0),
+  T.wheelsSet(WE,"zz",0,0,0),JSON.stringify(WE)==='{"type":"wheels","lift_r":0.1,"t0":1}',T.wheelsSet(WE,"zz",0,0,0)!==WE];
+/* courbes : les cas de T1 §Étape 1 du plan, puis les bords */
+out.co_clean=["0.5/0.6","0/0 0.5/0.7 1/1","1/1 0/0 0.5/0.7","0/0 0.5/0.2 0.5/0.7 1/1","abc","","0/0 0.5/1.4 1/1",
+  null,5,"0.2/0.3 0.8/0.9","0.12345/0.5","0.1/0.2 zz","-0.5/0.2 1.5/0.8","  0/0\t1/1  ","0.5/0.6/0.7","0.0005/0.2 1/1"].map(function(s){return T.curveClean(s)});
+var C20=[];for(var ci=0;ci<20;ci++)C20.push((ci/19)+"/"+(ci/19));
+var C20c=T.curveClean(C20.join(" ")),C20p=C20c.split(" ");
+out.co_c20=[C20p.length,C20p[0].split("/")[0],C20p[15].split("/")[0],T.curveClean(C20c)===C20c,C20p[1]];
+out.co_parse=[T.curveParse("0.5/0.6"),T.curveParse(null)];
+out.co_str=[T.curveStr([[0.5,0.7],[0,0],[1,1]]),T.curveStr(null),T.curveStr([]),T.curveStr([[0.5,NaN]]),T.curveStr([[.25,.3]])];
+/* pchip : monotone sur des points monotones, dans [0,1], passe par les points, plateau tenu, pas de dépassement ;
+   mesure du plan (ffmpeg interp=pchip) : '0/0 0.5/0.6 1/1' fait 64 -> 83 (81 en natural) */
+out.co_eval=(function(){var P=[[0,0],[.25,.1],[.5,.7],[1,1]],mono=!0,prev=-1,dans=!0,i,v;
+  for(i=0;i<=200;i++){v=T.curveEval(P,i/200);if(v<prev-1e-12)mono=!1;prev=v;if(v<0||v>1)dans=!1}
+  var passe=P.every(function(p){return Math.abs(T.curveEval(P,p[0])-p[1])<1e-9});
+  var plat=[.4,.5,.6].map(function(x){return Math.round(T.curveEval([[0,0],[.4,.5],[.6,.5],[1,1]],x)*1e6)/1e6});
+  var bosse=0;for(i=0;i<=200;i++)bosse=Math.max(bosse,T.curveEval([[0,0],[.5,1],[1,0]],i/200));
+  return [mono,dans,passe,plat,Math.round(bosse*1e6)/1e6,Math.round(T.curveEval([[0,0],[1,1]],.3)*1e6)/1e6,
+    T.curveEval([[0,.2],[1,.8]],-1),T.curveEval([[0,.2],[1,.8]],2),
+    Math.round(T.curveEval([[0,0],[.5,.6],[1,1]],64/255)*2550)/10,Math.round(T.curveEval("0/0 0.5/0.6 1/1",64/255)*2550)/10]})();
+/* masque : bornes, forme inconnue / non objet / trop petit -> null, arrondi 1e-4, objet neuf */
+var MV={shape:"ellipse",x:.25,y:.25,w:.5,h:.5,soft:.1,inv:!0};
+out.co_mask=[T.maskOf(MV),T.maskOf({shape:"rect",x:-1,y:.8,w:2,h:.5,soft:.9}),T.maskOf({shape:"star",x:0,y:0,w:.5,h:.5}),
+  T.maskOf({}),T.maskOf(null),T.maskOf("rect"),T.maskOf([1]),T.maskOf({shape:"rect",x:0,y:0,w:.005,h:.5}),
+  T.maskOf({shape:"rect",x:.995,y:0,w:.5,h:.5}),T.maskOf({shape:"rect",x:.123456,y:" 0.5 ",w:.5,h:.25,inv:"true"}),
+  T.maskOf({shape:"rect",y:0,w:.5,h:.5}),T.maskOf({shape:"ellipse",x:0,y:0,w:1,h:1,soft:"abc",inv:1}),
+  T.maskOf(MV)!==MV];
+/* grade : prise sans bornes de temps ni `off`, types couleur seulement ; pose à la place du premier effet couleur */
+var GK={tr:"v1",id:"k",effects:[{type:"grain",amount:3},{type:"grade_basic",exposure:10,t0:1,t1:2,fade_in:.5,off:!0},
+  {type:"wheels",gain_r:1.2,ease_out:.3},{type:"vignette"}],mask:{shape:"rect",x:0,y:0,w:.5,h:.5}},GKj=JSON.stringify(GK),GT=T.gradeTake(GK);
+out.co_take=[GT,T.gradeTake(null),T.gradeTake({effects:[{type:"grain"}]}),T.gradeTake({mask:{shape:"ellipse",x:0,y:0,w:.5,h:.5}}),
+  T.gradeTake({effects:[{type:"lut",lut:"a"}],mask:{shape:"zz"}}),T.gradeTake({effects:"x"}),
+  JSON.stringify(GK)===GKj,GT.effects[1]!==GK.effects[2]];
+var PT={tr:"v1",id:"t",effects:[{type:"grain",amount:1},{type:"grade_basic",exposure:-5},{type:"blur"},{type:"lut",lut:"x"}],mask:{shape:"ellipse",x:0,y:0,w:.3,h:.3}},PTj=JSON.stringify(PT);
+var PG={effects:[{type:"wheels",gain_r:1.2,t0:3},{type:"grain"}],mask:null},PR=T.gradePaste(PT,PG);
+var PR2=T.gradePaste({id:"u",effects:[{type:"grain"}]},{effects:[{type:"curves",pts_m:"0/0 1/1"}],mask:{shape:"ellipse",x:.1,y:.1,w:.2,h:.2}});
+out.co_paste=[PR.effects,"mask" in PR,PR.id,PR2.effects,PR2.mask,T.gradePaste(PT,null)===PT,T.gradePaste(PT,{effects:[]}).effects,
+  T.gradePaste(PT,GT).effects.map(function(e){return e.type}),JSON.stringify(PT)===PTj,PR.effects[1]!==PG.effects[0],PR.effects[0]===PT.effects[0]];
+var CM={type:"colormatch",y_gain:1.5},CMin=[{type:"grain"},{type:"colormatch",y_gain:1},{type:"blur"},{type:"colormatch",y_gain:2}];
+out.co_cm=[T.colorMatchPut(CMin,CM),T.colorMatchPut([{type:"grain"}],CM),T.colorMatchPut(null,{y_gain:2}),
+  T.colorMatchPut(CMin,CM).filter(function(e){return e.type==="colormatch"}).length,CMin.length,T.colorMatchPut(CMin,CM)[1]!==CM];
+/* temps de source sous la tête : srcIn + (tête − début)·vitesse, vitesse lue comme le cadrage (0,25..4) ; hors plan -> milieu */
+var SK={start:2,end:6,srcIn:1,speed:2};
+out.co_src=[T.srcTimeAt(SK,3),T.srcTimeAt(SK,2),T.srcTimeAt(SK,7),T.srcTimeAt(SK,1),T.srcTimeAt(SK,6),T.srcTimeAt(SK,NaN),
+  T.srcTimeAt({start:2,end:6,srcIn:1},4),T.srcTimeAt({start:0,end:4},1),T.srcTimeAt(null,1),T.srcTimeAt({start:2,end:6,srcIn:1,speed:10},3),
+  T.srcTimeAt({start:0,end:3,srcIn:.5},1/3)];
 console.log(JSON.stringify(out));
 """
 # E-9 : svmRuler / svmPad2 sont des fonctions DU BUNDLE (meme portee module que
@@ -1505,7 +1568,10 @@ try:
                  # revue T6 (24/09) : le plafond et la langue
                  "ac_max","ac_lang",
                  # cloture T8 (24/09) : l'estimation du 409 et le cadrage compare par D-39
-                 "ac_409","df_reframe"]
+                 "ac_409","df_reframe",
+                 # L5 D-27 D-29 D-30 D-32 (tache 4, 24/09) : les SEIZE cles de la section [36].
+                 "co_types","co_neutre","co_val","co_rt","co_from","co_set","co_clean","co_c20","co_parse","co_str",
+                 "co_eval","co_mask","co_take","co_paste","co_cm","co_src"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -3397,6 +3463,90 @@ check("l7b_ac_projets_openProj_compteur_chemin_de_ouvrir",
       and _PJ.count("surete().then(function(s){if(s)ouvrir(p,s.nom)})},[opn]);") == 1
       and _PJ.count('if(busy){note("Liste des projets occupée') == 1,
       f"hote={len(_PJ)}")
+print("\n[36] L5 D-27 D-29 D-30 D-32 : le coeur pur de la couleur — roues, courbes, masque, grade, temps de source (tache 4, 24/09/2026)")
+# ── L5 (24/09/2026, tache 4, decisions 1, 2, 4, 8 du plan). Roue : disque (x, y) + maitre m -> trois canaux, angles
+# R 90, G 210, B 330 ; courbes : MEMES regles que curves_clean (T1, backend) ; masque : MEMES bornes que mask_of (T2) ;
+# grade = effets des types couleur sans bornes de temps ni `off` + masque. Temoins positifs dans chaque liste.
+_CO_TYPES = ["grade", "lut", "grade_basic", "wheels", "curves", "colormatch", "huesat", "monochrome"]
+check("co_types_les_huit_types_couleur_du_plan_gele", D.get("co_types") == [_CO_TYPES, True], D.get("co_types"))
+check("co_neutre_roue_au_centre_identite_exacte_lift_0_gamma_1_gain_1",
+      D.get("co_neutre") == [{"r": 0, "g": 0, "b": 0}, {"r": 1, "g": 1, "b": 1}, {"r": 1, "g": 1, "b": 1}], D.get("co_neutre"))
+check("co_val_angles_r90_g210_b330_bornes_disque_borne_illisible_neutre_genre_inconnu_null",
+      D.get("co_val") == [{"r": 1.5, "g": 0.75, "b": 0.75}, {"r": 0, "g": -0.217, "b": 0.217}, {"r": 2, "g": 2, "b": 2},
+                          {"r": 4, "g": 4, "b": 4}, {"r": 0.5, "g": 0.5, "b": 0.5}, {"r": 0, "g": 0, "b": 0},
+                          {"r": 1.5, "g": 0.75, "b": 0.75}, {"r": 1, "g": 1, "b": 1}, None, None], D.get("co_val"))
+_rt = D.get("co_rt") if isinstance(D.get("co_rt"), list) and len(D.get("co_rt")) == 2 else [0, 9]
+check("co_rt_aller_retour_60_points_a_1e_2", _rt[0] == 60 and isinstance(_rt[1], (int, float)) and _rt[1] <= 0.01, D.get("co_rt"))
+check("co_from_moindres_carres_defauts_neutres_genre_inconnu_null",
+      D.get("co_from") == [{"x": 0, "y": 1, "m": 0}, {"x": 0, "y": 0, "m": 1}, {"x": 0, "y": 0, "m": 0},
+                           {"x": 0, "y": 0, "m": 0}, None], D.get("co_from"))
+check("co_set_effet_neuf_cree_ou_complete_autres_cles_gardees_grade_basic_intact_entree_intacte",
+      D.get("co_set") == [{"type": "wheels", "gain_r": 1.5, "gain_g": 0.75, "gain_b": 0.75},
+                          {"type": "wheels", "lift_r": 0.1, "t0": 1, "gamma_r": 2, "gamma_g": 2, "gamma_b": 2},
+                          {"type": "wheels", "lift_r": 0, "lift_g": 0, "lift_b": 0},
+                          {"type": "wheels", "lift_r": 0.1, "t0": 1}, True, True], D.get("co_set"))
+check("co_clean_regles_de_curves_clean_extremites_prolongees_tri_dernier_gagne_bornes_arrondi_python_invalide_identite",
+      D.get("co_clean") == ["0/0.6 0.5/0.6 1/0.6", "0/0 0.5/0.7 1/1", "0/0 0.5/0.7 1/1", "0/0 0.5/0.7 1/1", "0/0 1/1", "0/0 1/1",
+                            "0/0 0.5/1 1/1", "0/0 1/1", "0/0 1/1", "0/0.3 0.2/0.3 0.8/0.9 1/0.9", "0/0.5 0.123/0.5 1/0.5",
+                            "0/0 1/1", "0/0.2 1/0.8", "0/0 1/1", "0/0 1/1", f"0/0.2 {round(0.0005, 3):g}/0.2 1/1"],
+      D.get("co_clean"))
+# 20 points i/19 -> 16 sous-echantillonnes (index round(k*19/15) : le second est l'index 1 = 1/19 arrondi), extremites gardees, idempotent
+check("co_c20_seize_points_extremites_gardees_idempotent",
+      D.get("co_c20") == [16, "0", "1", True, f"{round(1 / 19, 3):g}/{round(1 / 19, 3):g}"], D.get("co_c20"))
+check("co_parse_str_chaine_canonique_et_points",
+      D.get("co_parse") == [[[0, 0.6], [0.5, 0.6], [1, 0.6]], [[0, 0], [1, 1]]]
+      and D.get("co_str") == ["0/0 0.5/0.7 1/1", "0/0 1/1", "0/0 1/1", "0/0 1/1", "0/0.3 0.25/0.3 1/0.3"],
+      (D.get("co_parse"), D.get("co_str")))
+_ev = D.get("co_eval") if isinstance(D.get("co_eval"), list) and len(D.get("co_eval")) == 10 else [None] * 10
+check("co_eval_pchip_monotone_dans_0_1_passe_par_les_points_plateau_sans_depassement_lineaire_a_deux_points",
+      _ev[:8] == [True, True, True, [0.5, 0.5, 0.5], 1, 0.3, 0.2, 0.8], _ev)
+# la mesure du plan : 64 -> 83 en pchip, 81 en natural (spline naturelle : 81,6) -- la valeur calculee tombe dans la
+# fenetre pchip et HORS de la naturelle ; chaine et points donnent la meme valeur
+check("co_eval_pchip_comme_ffmpeg_64_vers_83_pas_la_spline_naturelle",
+      isinstance(_ev[8], (int, float)) and 82.5 <= _ev[8] <= 84.5 and _ev[8] == _ev[9], _ev[8:])
+check("co_mask_bornes_de_mask_of_forme_inconnue_non_objet_trop_petit_null_arrondi_1e_4_objet_neuf",
+      D.get("co_mask") == [{"shape": "ellipse", "x": 0.25, "y": 0.25, "w": 0.5, "h": 0.5, "soft": 0.1, "inv": True},
+                           {"shape": "rect", "x": 0, "y": 0.8, "w": 1, "h": 0.2, "soft": 0.5, "inv": False},
+                           None, None, None, None, None, None, None,
+                           {"shape": "rect", "x": 0.1235, "y": 0.5, "w": 0.5, "h": 0.25, "soft": 0, "inv": False},
+                           None, {"shape": "ellipse", "x": 0, "y": 0, "w": 1, "h": 1, "soft": 0, "inv": False}, True],
+      D.get("co_mask"))
+_MK = {"shape": "rect", "x": 0, "y": 0, "w": 0.5, "h": 0.5, "soft": 0, "inv": False}
+check("co_take_sans_t0_ni_off_ni_grain_wheels_emporte_masque_normalise_rien_a_prendre_null_entree_intacte",
+      D.get("co_take") == [{"effects": [{"type": "grade_basic", "exposure": 10}, {"type": "wheels", "gain_r": 1.2}], "mask": _MK},
+                           None, None, {"effects": [], "mask": dict(_MK, shape="ellipse")},
+                           {"effects": [{"type": "lut", "lut": "a"}], "mask": None}, None, True, True], D.get("co_take"))
+check("co_paste_grain_a_sa_place_grade_basic_remplace_par_wheels_masque_pose_ou_retire_entree_intacte_copies",
+      D.get("co_paste") == [[{"type": "grain", "amount": 1}, {"type": "wheels", "gain_r": 1.2}, {"type": "blur"}], False, "t",
+                            [{"type": "grain"}, {"type": "curves", "pts_m": "0/0 1/1"}],
+                            {"shape": "ellipse", "x": 0.1, "y": 0.1, "w": 0.2, "h": 0.2, "soft": 0, "inv": False},
+                            True, [{"type": "grain", "amount": 1}, {"type": "blur"}],
+                            ["grain", "grade_basic", "wheels", "blur"], True, True, True], D.get("co_paste"))
+check("co_cm_un_seul_colormatch_a_la_place_du_premier_sinon_en_queue",
+      D.get("co_cm") == [[{"type": "grain"}, {"type": "colormatch", "y_gain": 1.5}, {"type": "blur"}],
+                         [{"type": "grain"}, {"type": "colormatch", "y_gain": 1.5}], [{"type": "colormatch", "y_gain": 2}],
+                         1, 4, True], D.get("co_cm"))
+check("co_src_srcin_plus_ecart_fois_vitesse_hors_plan_milieu_vitesse_bornee",
+      D.get("co_src") == [3, 1, 5, 5, 5, 5, 3, 1, 0, 5, 0.833], D.get("co_src"))
+_L5CO = {n: _corps(n) for n in ("dzmCoR", "dzmWheelToRgb", "dzmWheelFromRgb", "dzmWheelsSet", "dzmCurveNum", "dzmCurveClean",
+                                 "dzmCurveParse", "dzmCurveStr", "dzmCurveEval", "dzmMaskOf", "dzmGradeEffCopy", "dzmIsColorEff",
+                                 "dzmGradeTake", "dzmGradePaste", "dzmColorMatchPut", "dzmSrcTimeAt")}
+_CO_EXP = ("colorTypes:DZM_COLOR_TYPES,wheelToRgb:dzmWheelToRgb,wheelFromRgb:dzmWheelFromRgb,wheelsSet:dzmWheelsSet,"
+           "curveClean:dzmCurveClean,curveParse:dzmCurveParse,curveStr:dzmCurveStr,curveEval:dzmCurveEval,maskOf:dzmMaskOf,"
+           "gradeTake:dzmGradeTake,gradePaste:dzmGradePaste,colorMatchPut:dzmColorMatchPut,srcTimeAt:dzmSrcTimeAt,")
+check("l5_co_coeur_pur_ni_r_ni_x_ni_reseau_ni_dom_ni_stockage_constantes_uniques_bornes_de_temps_reutilisees_exports_x1",
+      all(len(c) > 40 for c in _L5CO.values())
+      and not any(re.search(r"\br\.jsx|\bx\.use|localStorage|sessionStorage|\bwindow\b|\bdocument\b|\bnavigator\b|fetch\(|setClips|pushHistory|style\.", c)
+                  for c in _L5CO.values())
+      and _SRCb.count('var DZM_COLOR_TYPES=Object.freeze(["grade","lut","grade_basic","wheels","curves","colormatch","huesat","monochrome"]);') == 1
+      # les bornes de temps : la liste de dzmGradeCopy lue a l'APPEL (une dependance au chargement cassait le shim
+      # node du banc bundle, L7_revue_I1, qui execute tout le code entre dzmKmImport et l'objet du contrat -- mesure 24/09)
+      and _L5CO["dzmGradeEffCopy"].count('k!=="off"&&DZM_GRADE_TIMING.indexOf(k)<0') == 1 and _SRCb.count("DZM_GRADE_SANS") == 0
+      and _L5CO["dzmCurveClean"].count("DZM_CURVE_MAX") >= 2 and _L5CO["dzmMaskOf"].count("dzmRfNum(") == 5
+      and _L5CO["dzmSrcTimeAt"].count("dzmRfSpeed(") == 1
+      and len(_DT) > 1000 and _DT.count(_CO_EXP) == 1
+      and all(_SRCb.count(k) == 1 for k in _CO_EXP.split(",") if k),
+      ({n: len(c) for n, c in _L5CO.items()}, _DT.count(_CO_EXP)))
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)
