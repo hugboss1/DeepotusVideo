@@ -15253,12 +15253,13 @@ check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB8b_puis_
                                                           # _EB7_ETAT et R_L7C3), sonde 144 -> 146 (diff dans R_M14, DiffView dans R_L7C3)
                                                           "L7c3",
                                                           # L7 D-3b (T4-bis, 24/09/2026) : DEUX sections en queue (abSt replie dans
-                                                          # _EB7_ETAT), sonde 146 -> 149 (voisins, abSecs, roll dans L7g1)
+                                                          # _EB7_ETAT), sonde 146 -> 149 (voisins, abSecs, roll dans L7g1) ; revue :
+                                                          # 149 -> 150 (abRollDit dans abRoll, L7g1)
                                                           "L7g1", "L7g2"]
       and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1
               and s.count(nl(a)) == (1 if a in r else 0)
               for _t, a, r in P.PATCHES[_DZ_I + 1:])
-      and _sonde.get("montage") == 149 and s.count("DzTracks") == 149
+      and _sonde.get("montage") == 150 and s.count("DzTracks") == 150
       if _bak else False,
       f"queue={_DZ_TAGS[_DZ_I + 1:]} sonde={_sonde.get('montage')} bundle={s.count('DzTracks')}")
 
@@ -16574,13 +16575,15 @@ _EC_SONDE = _lire(ROOT / "scripts" / "patch_bundle_dzcout.py")
 # -> 144 (L7 D-8, T3, 24/09/2026 : boringDef + boring dans le repli L7c1 de _EB7_ETAT / R_EB6B).
 # -> 146 (L7 D-39, T4, 24/09/2026 : diff dans le repli L7d1 de R_M14, DiffView dans le repli de R_L7C3).
 # -> 149 (L7 D-3b, T4-bis, 24/09/2026 : voisins + abSecs + roll dans la section neuve L7g1).
-check("EC_la_sonde_dzcout_compte_DzTracks_149",
-      _EC_SONDE.count('("montage", "DzTracks", 149),') == 1 and _EC_SONDE.count('("montage", "DzTracks", 146),') == 0
+# -> 150 (revue D-3b, 24/09/2026 : abRollDit dans abRoll, L7g1).
+check("EC_la_sonde_dzcout_compte_DzTracks_150",
+      _EC_SONDE.count('("montage", "DzTracks", 150),') == 1 and _EC_SONDE.count('("montage", "DzTracks", 149),') == 0
+      and _EC_SONDE.count('("montage", "DzTracks", 146),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 144),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 142),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 139),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 135),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 132),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 129),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 128),') == 0
-      and _EC_SONDE.count('("montage", "DzTracks", 123),') == 0 and s.count("DzTracks") == 149,
+      and _EC_SONDE.count('("montage", "DzTracks", 123),') == 0 and s.count("DzTracks") == 150,
       f"sonde={_EC_SONDE.count(chr(40) + chr(34) + 'montage')} bundle={s.count('DzTracks')}")
 
 print("\n[EC] E-7 : les trois vues Medias · Montage · Livraison (lot E-C, tache 3)")
@@ -17454,7 +17457,8 @@ print("\n[L7] D-3b tache 4-bis : vignettes A/B et roll d'une image a la jonction
 # section L7g2 (la rangee, AVANT le curseur) ; (3) l'etat abSt rejoint diffSt en queue de _EB7_ETAT (repli
 # R_EB6B) ; (4) svmThumb attend l'OBJET src ({job_id}), comme SvmFilmstrip, et rend la dataURL ou null, le
 # rappel etant appele a l'arrivee ; (5) dzmRoll refuse en rendant un tableau NEUF de contenu identique -> le
-# refus se lit sur le start du clip droit ; (6) 174 -> 176 ancres, sonde 146 -> 149 (voisins, abSecs, roll).
+# refus se lit sur le start du clip droit ; (6) 174 -> 176 ancres, sonde 146 -> 149 (voisins, abSecs, roll), puis
+# 150 a la revue (abRollDit : le roll borne par dzmRoll est DIT, k images seulement).
 _L7G1 = [t for t in P.L7A if t[0].startswith("L7g1")]; _L7G2 = [t for t in P.L7A if t[0].startswith("L7g2")]
 _iAbEff = s.find(nl('      window.removeEventListener("keydown",onEsc,!0)}},[transPop]);')); _iAbK = s.find("var dzAbJ=transPop?")
 _iAbUse = s.find(nl("  x.useEffect(function(){\n    if(!dzAbK)")); _iAbRoll = s.find("  function abRoll(n){")
@@ -17469,7 +17473,9 @@ _L7G_BLOC = s[_iAbEff:_iAbOv] if 0 < _iAbEff < _iAbOv else ""
 # l'effet : garde par la cle (vide -> l'etat se vide sans re-rendu inutile), deux svmThumb avec le MEME rappel,
 # deps [dzAbK] ; voisin par la couche (meme mesure que le roll), secondes par la couche, cle par svmSrcKey x2
 check("L7g1_effet_garde_par_dzAbK_deux_svmThumb_meme_rappel_deps_dzAbK_voisins_abSecs_srcKey_x2",
-      len(_L7G_BLOC) > 600 and _L7G_BLOC.count("svmThumb(dzAbG.src,dzAbS.a,lire)") == 1 and _L7G_BLOC.count("svmThumb(dzAbJ.src,dzAbS.b,lire)") == 1
+      # revue 24/09 : le rappel n'est inscrit qu'au premier passage (cb=reg?lire:null, lire(!0)) -- jamais empile en double
+      len(_L7G_BLOC) > 600 and _L7G_BLOC.count("svmThumb(dzAbG.src,dzAbS.a,cb)") == 1 and _L7G_BLOC.count("svmThumb(dzAbJ.src,dzAbS.b,cb)") == 1
+      and _L7G_BLOC.count("cb=reg?lire:null") == 1 and _L7G_BLOC.count("lire(!0);") == 1 and _L7G_BLOC.count(",lire)") == 0
       and _L7G_BLOC.count("svmThumb(") == 2 and s.count("svmThumb(") == 4 and (_bak.count("svmThumb(") == 2 if _bak else False)
       and _L7G_BLOC.count("DzTracks.voisins(clips,dzAbJ).g") == 1 and _L7G_BLOC.count("DzTracks.abSecs(dzAbG,dzAbJ)") == 1
       and _L7G_BLOC.count("svmSrcKey(") == 2 and _L7G_BLOC.count("},[dzAbK]);") == 1
@@ -17479,13 +17485,17 @@ check("L7g1_effet_garde_par_dzAbK_deux_svmThumb_meme_rappel_deps_dzAbK_voisins_a
       f"bloc={len(_L7G_BLOC)} thumbs={_L7G_BLOC.count('svmThumb(')} total={s.count('svmThumb(')}")
 # abRoll : verrou de piste dit, roll par la couche (n/30, Maj x10 vient du bouton), refus lu sur le start du clip
 # droit et DIT, sinon pushHistory() AVANT setClips() puis setDirty
-_iAbRp = _L7G_BLOC.find("pushHistory();"); _iAbRs = _L7G_BLOC.find("setClips(r2)"); _iAbRd = _L7G_BLOC.find("setDirty(!0)}")
+_iAbRp = _L7G_BLOC.find("pushHistory();"); _iAbRs = _L7G_BLOC.find("setClips(r2)"); _iAbRd = _L7G_BLOC.find("setDirty(!0);"); _iAbPa = _L7G_BLOC.find("if(dit.partiel)fireNote(")
 check("L7g1_abRoll_verrou_dit_roll_n_sur_30_refus_dit_par_le_start_pushHistory_avant_setClips_setDirty",
       _L7G_BLOC.count("DzTracks.roll(cs,dzAbG.id,dzAbJ.id,n/30)") == 1 and s.count("DzTracks.roll(") == 2 and (_bak.count("DzTracks.roll(") == 0 if _bak else False)
-      and _L7G_BLOC.count("trackStRef.current[dzAbJ.tr].l") == 1 and _L7G_BLOC.count("fireNote(") == 2
-      and _L7G_BLOC.count("Math.abs(Number(q.start)-Number(dzAbJ.start))<1e-9") == 1
-      and 0 < _iAbRp < _iAbRs < _iAbRd < _iAbRp + 60 and _L7G_BLOC.count("pushHistory(") == 1,
-      f"ordre={(_iAbRp, _iAbRs, _iAbRd)} roll={s.count('DzTracks.roll(')}")
+      # revue 24/09 : le roll BORNE est dit -- abRollDit (couche) compare le start ecrit a n/30 : nul = refus sans ecriture,
+      # partiel = ecriture faite PUIS « Borne atteinte : k image(s) seulement », total = rien a dire ; trois fireNote
+      and _L7G_BLOC.count("DzTracks.abRollDit(dzAbJ.start,q?q.start:dzAbJ.start,n)") == 1 and s.count("DzTracks.abRollDit(") == 1
+      and _L7G_BLOC.count("trackStRef.current[dzAbJ.tr].l") == 1 and _L7G_BLOC.count("fireNote(") == 3
+      and _L7G_BLOC.count("if(!dit.k){fireNote(") == 1 and _L7G_BLOC.count('if(dit.partiel)fireNote("Borne atteinte : "+Math.abs(dit.k)+" image"') == 1
+      and s.count("Borne atteinte : ") == 1 and (_bak.count("Borne atteinte : ") == 0 and _bak.count("abRollDit") == 0 if _bak else False)
+      and 0 < _iAbRp < _iAbRs < _iAbRd < _iAbPa < _iAbRp + 120 and _L7G_BLOC.count("pushHistory(") == 1,
+      f"ordre={(_iAbRp, _iAbRs, _iAbRd, _iAbPa)} roll={s.count('DzTracks.roll(')} dit={s.count('DzTracks.abRollDit(')}")
 # la rangee : section L7g2, ancre = la rangee Duree (trois lignes, 1/0/1), la rangee AVANT le curseur ; deux <img>
 # (src absent tant que la vignette manque : aucune icone cassee), deux boutons TOUJOURS rendus, grises (disabled +
 # aria-disabled) quand la jonction n'est pas deux videos en contact, Maj = x10, quatre title (E-12)
@@ -17524,7 +17534,8 @@ _L7G_CSS = ('.dzsvm .svm-abrow{display:flex;gap:6px;align-items:center;margin-to
             '.dzsvm .svm-abthumb{width:78px;height:44px;object-fit:cover;background:#111;border-radius:3px;flex:none}',
             '.dzsvm .svm-abbtn{')
 check("L7g_couche_dzmAbSecs_export_x1_css_abrow_abthumb_abbtn_x1_montage_css_x0_couche_x0_son_vfx",
-      s.count("function dzmAbSecs(g,d){") == 1 and src.count("function dzmAbSecs(g,d){") == 1 and s.count("abSecs:dzmAbSecs,") == 1
+      s.count("function dzmAbSecs(g,d){") == 1 and src.count("function dzmAbSecs(g,d){") == 1 and s.count("abSecs:dzmAbSecs,abRollDit:dzmAbRollDit,") == 1
+      and s.count("function dzmAbRollDit(avant,apres,n){") == 1 and src.count("function dzmAbRollDit(avant,apres,n){") == 1
       and all(_css.count(k) == 1 and src.count(k) == 0 and _L7_SV.count(k) == 0 for k in _L7G_CSS)
       and _L7_SV.count("svm-abrow") == 0 and _L7_SV.count(".svm-pop") == 9 and s.count("var SVM_THUMB_W=78,SVM_THUMB_H=44;") == 1
       and (_bak.count("dzmAbSecs") == 0 if _bak else False),

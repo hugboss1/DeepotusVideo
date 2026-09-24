@@ -4054,18 +4054,23 @@ function DzMontage(props){
   var dzAbJ=transPop?clips.filter(function(k){return k&&k.id===transPop.id})[0]||null:null,dzAbG=dzAbJ?DzTracks.voisins(clips,dzAbJ).g:null,
       dzAbS=DzTracks.abSecs(dzAbG,dzAbJ),dzAbK=dzAbS?svmSrcKey(dzAbG.src)+"@"+dzAbS.a+"|"+svmSrcKey(dzAbJ.src)+"@"+dzAbS.b:"",
       abOk=!!dzAbK,abA=abSt.k===dzAbK?abSt.a:null,abB=abSt.k===dzAbK?abSt.b:null;
+  /* les deps sont la clé seule : elle encode source ET seconde des deux côtés, un roll ou un autre losange la changent */
   x.useEffect(function(){
     if(!dzAbK){setAbSt(function(s){return s.k?{a:null,b:null,k:""}:s});return}
     var alive=!0;
-    function lire(){if(!alive)return;var a=svmThumb(dzAbG.src,dzAbS.a,lire),b=svmThumb(dzAbJ.src,dzAbS.b,lire);setAbSt({a:a,b:b,k:dzAbK})}
-    lire();return function(){alive=!1}},[dzAbK]);
-  /* le roll d'une image (n images, signé) à la jonction en édition : verrou dit, borne dite, historique avant l'écriture */
+    /* revue 24/09 : le rappel n'est inscrit qu'au premier passage (reg) — relu depuis le cache à chaque arrivée, jamais empilé en double */
+    function lire(reg){if(!alive)return;var cb=reg?lire:null,a=svmThumb(dzAbG.src,dzAbS.a,cb),b=svmThumb(dzAbJ.src,dzAbS.b,cb);setAbSt({a:a,b:b,k:dzAbK})}
+    lire(!0);return function(){alive=!1}},[dzAbK]);
+  /* le roll de n images (signé) à la jonction en édition : verrou dit, borne dite, historique avant l'écriture ;
+     n/30 : 30 i/s en dur, la cadence du rendu et du juge des jump cuts (revue 24/09 : le roll borné est DIT, k images seulement) */
   function abRoll(n){
     if(!dzAbJ||!dzAbG)return;
     if(trackStRef.current[dzAbJ.tr]&&trackStRef.current[dzAbJ.tr].l){fireNote("Piste "+String(dzAbJ.tr).toUpperCase()+" verrouillée.");return}
     var cs=clipsRef.current,r2=DzTracks.roll(cs,dzAbG.id,dzAbJ.id,n/30),q=r2.filter(function(k){return k&&k.id===dzAbJ.id})[0];
-    if(!q||Math.abs(Number(q.start)-Number(dzAbJ.start))<1e-9){fireNote("Jonction à sa borne — chaque plan garde au moins 0,3 s et B ne remonte pas avant le début de sa source.");return}
-    pushHistory();setClips(r2);setDirty(!0)}
+    var dit=DzTracks.abRollDit(dzAbJ.start,q?q.start:dzAbJ.start,n);
+    if(!dit.k){fireNote("Jonction à sa borne — chaque plan garde au moins 0,3 s et B ne remonte pas avant le début de sa source.");return}
+    pushHistory();setClips(r2);setDirty(!0);
+    if(dit.partiel)fireNote("Borne atteinte : "+Math.abs(dit.k)+" image"+(Math.abs(dit.k)>1?"s":"")+" seulement")}
 
   /* ── ajout d'assets depuis la Bibliothèque, sur n'importe quelle piste ──
      ovPick vaut "" (fermé) ou l'identifiant de la piste visée. Les sources
@@ -20190,6 +20195,16 @@ function dzmAbSecs(g,d){
   var len=(Number(g.end)||0)-(Number(g.start)||0);if(!(len>0))return null;
   var a=(Number(g.srcIn)||0)+len*dzmSpeedNum(g)-DZM_AB_IMG,b=Number(d.srcIn)||0;
   return {a:dzmR3(Math.round(Math.max(0,a)*30)/30),b:dzmR3(Math.round(Math.max(0,b)*30)/30)}}
+/* revue 24/09 : ce que le roll d'une jonction a VRAIMENT fait, en images — dzmRoll
+   borne `d` sans un mot (chaque plan garde 0,3 s, B ne remonte pas avant sa
+   source) : avec dix images demandées près de la borne, quatre peuvent passer.
+   {k : images faites (signé), partiel : k ≠ 0 et k ≠ n}. Tolérance 1 ms : un
+   start qui n'a pas bougé rend k = 0 (refus à dire, rien à écrire). */
+function dzmAbRollDit(avant,apres,n){
+  var d=(Number(apres)||0)-(Number(avant)||0),k0=Number(n)||0;
+  if(Math.abs(d)<1e-3)return {k:0,partiel:!1};
+  if(Math.abs(d-k0*DZM_AB_IMG)<1e-3)return {k:k0,partiel:!1};
+  return {k:Math.round(d/DZM_AB_IMG),partiel:!0}}
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
   TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,cutOpts:dzmCutOpts,withWords:dzmWithWords,
@@ -20299,7 +20314,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   clipCopy:dzmClipCopy,clipPaste:dzmClipPaste,
   boring:dzmBoring,boringDef:DZM_BORING_DEF,
   diff:dzmDiff,DiffView:DzmDiffView,diffTemps:dzmDiffTemps,
-  abSecs:dzmAbSecs,
+  abSecs:dzmAbSecs,abRollDit:dzmAbRollDit,
   /* E-13 / E-14 (lot E-C, tache 5) : la tete dans l'inspecteur, le trou selectionne et son ripple */
   teteTxt:dzmTeteTxt,trou:dzmTrou,trouRipple:dzmTrouRipple,
   DEFAULTS:DZM_DEFAULT_TRACKS};

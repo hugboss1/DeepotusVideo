@@ -1024,6 +1024,9 @@ out.ab_contact=[T.abSecs(AG,Object.assign({},AD,{start:3.1})),T.abSecs(AG,Object
 out.ab_zero=[T.abSecs({id:"g",tr:"v1",start:0,end:.02,srcIn:0,src:{job_id:"j"}},{id:"d",tr:"v1",start:.02,end:2,srcIn:-1,src:{job_id:"j"}}),
   T.abSecs(Object.assign({},AG,{srcIn:2.0104}),Object.assign({},AD,{srcIn:1.0499}))];
 out.ab_pur=[JSON.stringify(AG)===_ag0,JSON.stringify(AD)===_ad0];
+/* revue 24/09 : ce que le roll a fait — total (k = n), partiel (k < n, dit), nul (refus), signé, entrées molles, 0,5 ms = rien */
+out.abd=[T.abRollDit(3,3+10/30,10),T.abRollDit(3,3+4/30,10),T.abRollDit(3,3,10),T.abRollDit(3,3-1/30,-1),T.abRollDit(3,3-1/30,-10),
+  T.abRollDit("x",null,3),T.abRollDit(3,3.0005,1),T.abRollDit(3.001,3.334,10)];
 console.log(JSON.stringify(out));
 """
 # E-9 : svmRuler / svmPad2 sont des fonctions DU BUNDLE (meme portee module que
@@ -1282,7 +1285,7 @@ try:
                  "df","df_id","df_vide","df_slip","df_piste","df_rogne_et_bouge","df_noms","df_cles","df_pur","df_temps",
                  "df_vue","df_vue_noms","df_tolerance",
                  # L7 D-3b (tache 4-bis) : les SEPT cles de la section [29].
-                 "ab","ab_vitesse","ab_sans_srcin","ab_refus","ab_contact","ab_zero","ab_pur"]
+                 "ab","ab_vitesse","ab_sans_srcin","ab_refus","ab_contact","ab_zero","ab_pur","abd"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -2756,14 +2759,21 @@ check("ab_contact_tolerance_du_roll_3_1_passe_3_11_refuse_temoin_droit_avant_gau
 check("ab_zero_bornes_a_0_et_arrondi_a_l_image_puis_au_millieme",
       D.get("ab_zero") == [{"a": 0, "b": 0}, {"a": 4.967, "b": 1.033}], D.get("ab_zero"))
 check("ab_pur_les_deux_clips_ne_sont_pas_mutes", D.get("ab_pur") == [True, True], D.get("ab_pur"))
-_L7G = _corps("dzmAbSecs")
-check("l7g_coeur_pur_reutilise_dzmSpeedNum_et_dzmR3_constante_DZM_AB_IMG_x2_export_abSecs_x1",
-      len(_L7G) > 120 and not re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|fetch\(", _L7G)
-      and _L7G.count("dzmSpeedNum(") == 1 and _L7G.count("dzmR3(") == 2 and _L7G.count("DZM_AB_IMG") == 1
-      # x2 : la definition et l'usage -- 1/30 n'est ecrit qu'UNE fois dans le bloc
-      and _SRCb.count("var DZM_AB_IMG=1/30;") == 1 and _SRCb.count("DZM_AB_IMG") == 2
-      and len(_DT) > 1000 and _DT.count("abSecs:dzmAbSecs,") == 1,
-      (len(_L7G), _SRCb.count("DZM_AB_IMG"), _DT.count("abSecs:dzmAbSecs,")))
+# revue 24/09 : dzmAbRollDit(avant, apres, n) -> {k, partiel} -- total (k = n, rien a dire), partiel (dzmRoll a borne : k
+# images seulement, a DIRE apres l'ecriture), nul (refus, rien a ecrire) ; signe ; tolerance 1 ms (un start arrondi au
+# millieme par dzmR3 reste « total » : 3.001 -> 3.334 pour dix images, temoin)
+check("abd_total_partiel_nul_signe_entrees_molles_demi_ms_rien_millieme_arrondi_total",
+      D.get("abd") == [{"k": 10, "partiel": False}, {"k": 4, "partiel": True}, {"k": 0, "partiel": False}, {"k": -1, "partiel": False},
+                       {"k": -1, "partiel": True}, {"k": 0, "partiel": False}, {"k": 0, "partiel": False}, {"k": 10, "partiel": False}], D.get("abd"))
+_L7G = _corps("dzmAbSecs"); _L7GD = _corps("dzmAbRollDit")
+check("l7g_coeur_pur_x2_reutilise_dzmSpeedNum_et_dzmR3_constante_DZM_AB_IMG_x4_exports_abSecs_abRollDit_x1",
+      len(_L7G) > 120 and len(_L7GD) > 80
+      and all(not re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|fetch\(", c) for c in (_L7G, _L7GD))
+      and _L7G.count("dzmSpeedNum(") == 1 and _L7G.count("dzmR3(") == 2 and _L7G.count("DZM_AB_IMG") == 1 and _L7GD.count("DZM_AB_IMG") == 2
+      # x4 : la definition, abSecs, abRollDit x2 -- 1/30 n'est ecrit qu'UNE fois dans le bloc
+      and _SRCb.count("var DZM_AB_IMG=1/30;") == 1 and _SRCb.count("DZM_AB_IMG") == 4 and _L7GD.count("1e-3") == 2
+      and len(_DT) > 1000 and _DT.count("abSecs:dzmAbSecs,abRollDit:dzmAbRollDit,") == 1,
+      (len(_L7G), len(_L7GD), _SRCb.count("DZM_AB_IMG"), _DT.count("abSecs:dzmAbSecs,")))
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

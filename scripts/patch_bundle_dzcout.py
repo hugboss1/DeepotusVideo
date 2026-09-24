@@ -411,7 +411,9 @@ STABLE_PROBES = [
     # repli abSt de _EB7_ETAT et le bloc pur de la couche (dzmAbSecs) n en
     # ajoutent aucune -- la cle des vignettes passe par svmSrcKey du bundle,
     # et les commentaires de l'hote taisent le nom a dessein.
-    ("montage", "DzTracks", 149),
+    # 24/09/2026, revue de D-3b : 149 -> 150. UNE de plus, dans L7g1 :
+    # `DzTracks.abRollDit(` (abRoll dit le roll borne, k images seulement).
+    ("montage", "DzTracks", 150),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

@@ -5277,18 +5277,23 @@ R_L7G1 = (A_L7G1 + '\n'
           '      dzAbS=DzTracks.abSecs(dzAbG,dzAbJ),'
           'dzAbK=dzAbS?svmSrcKey(dzAbG.src)+"@"+dzAbS.a+"|"+svmSrcKey(dzAbJ.src)+"@"+dzAbS.b:"",\n'
           '      abOk=!!dzAbK,abA=abSt.k===dzAbK?abSt.a:null,abB=abSt.k===dzAbK?abSt.b:null;\n'
+          '  /* les deps sont la clé seule : elle encode source ET seconde des deux côtés, un roll ou un autre losange la changent */\n'
           '  x.useEffect(function(){\n'
           '    if(!dzAbK){setAbSt(function(s){return s.k?{a:null,b:null,k:""}:s});return}\n'
           '    var alive=!0;\n'
-          '    function lire(){if(!alive)return;var a=svmThumb(dzAbG.src,dzAbS.a,lire),b=svmThumb(dzAbJ.src,dzAbS.b,lire);setAbSt({a:a,b:b,k:dzAbK})}\n'
-          '    lire();return function(){alive=!1}},[dzAbK]);\n'
-          '  /* le roll d\'une image (n images, signé) à la jonction en édition : verrou dit, borne dite, historique avant l\'écriture */\n'
+          '    /* revue 24/09 : le rappel n\'est inscrit qu\'au premier passage (reg) — relu depuis le cache à chaque arrivée, jamais empilé en double */\n'
+          '    function lire(reg){if(!alive)return;var cb=reg?lire:null,a=svmThumb(dzAbG.src,dzAbS.a,cb),b=svmThumb(dzAbJ.src,dzAbS.b,cb);setAbSt({a:a,b:b,k:dzAbK})}\n'
+          '    lire(!0);return function(){alive=!1}},[dzAbK]);\n'
+          '  /* le roll de n images (signé) à la jonction en édition : verrou dit, borne dite, historique avant l\'écriture ;\n'
+          '     n/30 : 30 i/s en dur, la cadence du rendu et du juge des jump cuts (revue 24/09 : le roll borné est DIT, k images seulement) */\n'
           '  function abRoll(n){\n'
           '    if(!dzAbJ||!dzAbG)return;\n'
           '    if(trackStRef.current[dzAbJ.tr]&&trackStRef.current[dzAbJ.tr].l){fireNote("Piste "+String(dzAbJ.tr).toUpperCase()+" verrouillée.");return}\n'
           '    var cs=clipsRef.current,r2=DzTracks.roll(cs,dzAbG.id,dzAbJ.id,n/30),q=r2.filter(function(k){return k&&k.id===dzAbJ.id})[0];\n'
-          '    if(!q||Math.abs(Number(q.start)-Number(dzAbJ.start))<1e-9){fireNote("Jonction à sa borne — chaque plan garde au moins 0,3 s et B ne remonte pas avant le début de sa source.");return}\n'
-          '    pushHistory();setClips(r2);setDirty(!0)}')
+          '    var dit=DzTracks.abRollDit(dzAbJ.start,q?q.start:dzAbJ.start,n);\n'
+          '    if(!dit.k){fireNote("Jonction à sa borne — chaque plan garde au moins 0,3 s et B ne remonte pas avant le début de sa source.");return}\n'
+          '    pushHistory();setClips(r2);setDirty(!0);\n'
+          '    if(dit.partiel)fireNote("Borne atteinte : "+Math.abs(dit.k)+" image"+(Math.abs(dit.k)>1?"s":"")+" seulement")}')
 A_L7G2 = ('      r.jsxs("div",{className:"svm-fxedit",style:{marginTop:10},children:[\n'
           '        r.jsx("span",{className:"svm-fxeditname",children:"Durée"}),\n'
           '        r.jsx("span",{className:"svm-transbound","aria-hidden":!0,children:"0.1 s"}),')
@@ -5309,8 +5314,10 @@ L7A = [("L7a3-preset-resolve-export-import-du-mappage", A_L7A3, R_L7A3),
        ("L7g1-jonction-en-edition-vignettes-A-B-et-abRoll", A_L7G1, R_L7G1),
        ("L7g2-rangee-A-B-du-popover-de-jonction", A_L7G2, R_L7G2)]
 assert R_L7G1.startswith(A_L7G1) and R_L7G1.count("svmThumb(") == 2 and R_L7G1.count("DzTracks.voisins(") == 1 and R_L7G1.count("DzTracks.abSecs(") == 1
-assert R_L7G1.count("DzTracks.roll(") == 1 and R_L7G1.count("DzTracks") == 3 and R_L7G1.count("fireNote(") == 2 and R_L7G1.count("},[dzAbK]);") == 1
-assert R_L7G1.find("pushHistory();") < R_L7G1.find("setClips(r2)") < R_L7G1.find("setDirty(!0)}") and R_L7G1.count("pushHistory(") == 1
+# revue 24/09 : abRollDit (quatrieme reference), trois fireNote (verrou, borne, partiel), rappel inscrit UNE fois (reg)
+assert R_L7G1.count("DzTracks.roll(") == 1 and R_L7G1.count("DzTracks.abRollDit(") == 1 and R_L7G1.count("DzTracks") == 4 and R_L7G1.count("fireNote(") == 3 and R_L7G1.count("},[dzAbK]);") == 1
+assert R_L7G1.find("pushHistory();") < R_L7G1.find("setClips(r2)") < R_L7G1.find("setDirty(!0);") < R_L7G1.find("if(dit.partiel)fireNote(") and R_L7G1.count("pushHistory(") == 1
+assert R_L7G1.count("cb=reg?lire:null") == 1 and R_L7G1.count(",cb)") == 2 and R_L7G1.count("lire(!0);") == 1 and R_L7G1.count(",lire)") == 0
 assert R_L7G2.endswith(A_L7G2) and R_L7G2.count("title:") == 4 and R_L7G2.count('className:"svm-abthumb"') == 2 and R_L7G2.count("DzTracks") == 0
 assert R_L7G2.count('disabled:!abOk,"aria-disabled":!abOk,') == 2 and R_L7G2.count("abRoll(e.shiftKey?") == 2 and R_L7G2.count("svm-abrow") == 1
 assert _EB7_ETAT.endswith('  var stAb=x.useState({a:null,b:null,k:""}),abSt=stAb[0],setAbSt=stAb[1];') and _EB7_ETAT.count("abSt") == 1
