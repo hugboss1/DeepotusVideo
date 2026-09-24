@@ -3076,22 +3076,25 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
         if shadow:
             # D-19 : ombre portée — le flux (setpts compris : les deux côtés
             # du split héritent du même PTS) est doublé : l'image paddée de
-            # 2u, l'ombre (noir à 55 %) paddée décalée de u PUIS floutée u
+            # 3u, l'ombre (noir à 55 %) paddée décalée de u PUIS floutée u
             # (revue 24/09/2026 : boxblur AVANT pad floutait un alpha
             # constant dans son propre cadre — bord net, alpha 0 → 140 sur
             # 1 px ; après pad le dégradé existe), u = 6 px à l'échelle k
             # (≥ 1) ; l'ombre SOUS l'image par overlay=0:0:format=auto (rgba
             # conservé) ; le label [ov{j}] et le maillon de composition
             # restent ceux de la chaîne nue. Écart daté : w/h du maillon de
-            # pose = taille paddée — le canvas transparent s'étend de 2u,
+            # pose = taille paddée — le canvas transparent s'étend de 3u
+            # (re-revue 24/09/2026 : à 2u le dégradé était coupé à droite/en
+            # bas, alpha 75/51/41 au dernier rang puis 0 ; à 3u : 17/5/1 —
+            # marge droite 2u ≥ u+1),
             # l'image reste centrée sur sa pose « centre − w/2 ».
             u = max(1, int(round(6 * k)))
             parts.append(f"[{idx}:v]{och}[oa{j}]")
             parts.append(f"[oa{j}]split[oo{j}][os{j}]")
-            parts.append(f"[oo{j}]pad=iw+{4 * u}:ih+{4 * u}:{2 * u}:{2 * u}:"
+            parts.append(f"[oo{j}]pad=iw+{6 * u}:ih+{6 * u}:{3 * u}:{3 * u}:"
                          f"color=black@0[op{j}]")
             parts.append(f"[os{j}]colorchannelmixer=rr=0:gg=0:bb=0:aa=0.55,"
-                         f"pad=iw+{4 * u}:ih+{4 * u}:{3 * u}:{3 * u}:color=black@0,"
+                         f"pad=iw+{6 * u}:ih+{6 * u}:{4 * u}:{4 * u}:color=black@0,"
                          f"boxblur={u}[osp{j}]")
             parts.append(f"[osp{j}][op{j}]overlay=0:0:format=auto[ov{j}]")
         else:

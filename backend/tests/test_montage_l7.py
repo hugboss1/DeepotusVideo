@@ -27,12 +27,15 @@ mesure, la signature ne le porte pas) : radius 40 → 40 en 1080x1920, 10 en
 270x480, 2 en 64x64. COUT DATE (B-3, revue 24/09/2026, 1080p) : geq ≈
 0,105 s/image, ×29 la chaine nue ; masque statique par `alphamerge` note
 pour L7-B, pas fait. `shadow` → le maillon `[idx:v]{och}[ov{j}]` devient
-cinq : `[oa{j}]`, `split[oo{j}][os{j}]`, `pad=iw+4u:ih+4u:2u:2u` (l'image),
-`colorchannelmixer rr=0:gg=0:bb=0:aa=0.55,pad=…:3u:3u,boxblur=u` (l'ombre,
+cinq : `[oa{j}]`, `split[oo{j}][os{j}]`, `pad=iw+6u:ih+6u:3u:3u` (l'image),
+`colorchannelmixer rr=0:gg=0:bb=0:aa=0.55,pad=…:4u:4u,boxblur=u` (l'ombre,
 decalee de u PUIS floutee — B-2 : boxblur AVANT pad floutait un alpha
 constant dans son propre cadre, mesure alpha 0 → 140 sur 1 px ; apres pad
 le degrade existe : colonne mediane d'une ombre 240x140 u=2, alpha
-140,140,134,123,106,84,62,50 de y=140 a 147), u = max(1, round(6·k)) ;
+140,140,134,123,106,84,62,50 de y=140 a 147 ; RE-REVUE R-1 : canvas +6u, marge
+droite/bas 2u ≥ u+1 pour que le degrade ne soit jamais coupe — a +4u le
+dernier rang valait alpha 75/51/41 puis 0, ressaut de 16 % ; a +6u 17/5/1),
+u = max(1, round(6·k)) ;
 `[osp{j}][op{j}]overlay=0:0:format=auto[ov{j}]` (B-4, rgba conserve) — le
 label final `[ov{j}]` et le maillon de composition sont INCHANGES. `setpts` est dans `och` : le split herite du
 meme PTS des deux cotes (mesure [M]). Sans les deux champs → chaine octet
@@ -42,13 +45,15 @@ ignores avec warning.
 [M] MESURE ffmpeg REELLE (SKIP si absent) : 2 s, fond `color=c=blue`
 480x270 (k = 0,25 : rayon 60 → 15 px, u = 2), overlay PNG rouge 240x140 en
 `radius=60, shadow=1` (scale 0,5 → ow2 240, image posee en (120,65), pad
-248x148 en (116,61), ombre dure de (122,67) a (361,206)) → rc 0, fichier
+252x152 en (114,59), ombre dure de (122,67) a (361,206), dernier rang du
+canvas y=210) → rc 0, fichier
 > 0 ; DEUX pixels lus par `ffmpeg -ss 1 … -vf crop=1:1:X:Y -f rawvideo
 -pix_fmt rgb24 -` (format=rgb24 AVANT crop : en yuv420p un crop 1x1 a une
 chroma de 0 px et ffmpeg refuse) : le coin de l'image (121,66) est BLEU (fond), le milieu
 du bord haut (240,66) est ROUGE (overlay) ; un troisieme, 1 px sous le
 bord bas (240,205), est un bleu ASSOMBRI (l'ombre dure, alpha 0,55) ; un
-quatrieme HORS de l'emprise (240,225) ≈ fond ; un cinquieme dans le degrade
+quatrieme HORS de l'emprise (240,225) ≈ fond ; un sixieme au DERNIER rang du
+canvas padde (240,210) ≈ fond ± 8 (R-1) ; un cinquieme dans le degrade
 (240,207) est STRICTEMENT entre l'ombre dure et le fond (B-2 : sans le
 flou apres pad, ce pixel serait le fond).
 Regle des assertions negatives : chaque « pas de X » est precede dans la
@@ -231,7 +236,7 @@ check("d19_le_rayon_est_le_literal_de_tf_temoin_40_vs_12",
 def OMBRE_U(u):
     return ("[oa0]split[oo0][os0];[oo0]pad=iw+%d:ih+%d:%d:%d:color=black@0[op0];"
             "[os0]colorchannelmixer=rr=0:gg=0:bb=0:aa=0.55,pad=iw+%d:ih+%d:%d:%d:color=black@0,boxblur=%d[osp0];"
-            "[osp0][op0]overlay=0:0:format=auto[ov0]" % (4 * u, 4 * u, 2 * u, 2 * u, 4 * u, 4 * u, 3 * u, 3 * u, u))
+            "[osp0][op0]overlay=0:0:format=auto[ov0]" % (6 * u, 6 * u, 3 * u, 3 * u, 6 * u, 6 * u, 4 * u, 4 * u, u))
 OMBRE = OMBRE_U(6)
 _cs = OVBUILD(w=1080, h=1920, tf=dict(TF0, shadow=1))
 _ss = _seg(_cs)
@@ -334,7 +339,7 @@ else:
         _rc, _err = _r.returncode, (_r.stderr or "")[-400:]
     _size = pathlib.Path(_OUT).stat().st_size if os.path.isfile(_OUT) else -1
     check("d19_rendu_reel_rc_0_fichier_non_vide_geq_et_ombre_dans_la_commande",
-          _rc == 0 and _size > 0 and "min(15,min(W/2,H/2))" in FLAT(_cmd or []) and ":6:6:color=black@0,boxblur=2[osp0]" in FLAT(_cmd or []), (_rc, _size, _err))
+          _rc == 0 and _size > 0 and "min(15,min(W/2,H/2))" in FLAT(_cmd or []) and ":8:8:color=black@0,boxblur=2[osp0]" in FLAT(_cmd or []), (_rc, _size, _err))
 
     def _px(x, y, t="1"):
         """Le pixel (x, y) de l'image a t s (1 par defaut), lu par ffmpeg en rgb24 brut."""
@@ -346,7 +351,7 @@ else:
         except Exception:
             return None
     _coin, _bord, _ombre, _fond = _px(121, 66), _px(240, 66), _px(240, 205), _px(10, 10)
-    _hors, _degr = _px(240, 225), _px(240, 207)
+    _hors, _degr, _dern = _px(240, 225), _px(240, 207), _px(240, 210)
     def _bleu(p): return p is not None and p[0] < 60 and p[1] < 60 and p[2] > 180
     def _rouge(p): return p is not None and p[0] > 180 and p[1] < 60 and p[2] < 60
     check("d19_rendu_reel_le_coin_de_l_overlay_est_le_bleu_du_fond_et_le_bord_est_rouge",
@@ -360,6 +365,11 @@ else:
     check("d19_rendu_reel_hors_emprise_le_fond_et_dans_le_degrade_un_bleu_intermediaire",
           _rc == 0 and _hors is not None and _degr is not None and _ombre is not None and _fond is not None
           and abs(_hors[2] - _fond[2]) <= 12 and _ombre[2] + 15 < _degr[2] < _fond[2] - 15, (_ombre, _degr, _hors, _fond))
+    # R-1 : le dernier rang du canvas padde (y = 59 + 152 - 1 = 210) est deja le
+    # fond (± 8) : le degrade s'eteint AVANT le bord, jamais coupe.
+    check("d19_rendu_reel_le_dernier_rang_du_canvas_d_ombre_est_le_fond_le_degrade_n_est_pas_coupe",
+          _rc == 0 and _dern is not None and _fond is not None and abs(_dern[2] - _fond[2]) <= 8
+          and _dern[0] < 30 and _dern[1] < 30, (_dern, _fond))
     # Le setpts est DANS och : le split herite du PTS des deux cotes ; l'overlay
     # intermediaire ne decale rien → 50 images pour 2 s a 25 i/s (temoin).
     _nb = -1
