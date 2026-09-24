@@ -6797,13 +6797,30 @@ function DzmMediaDrawer(o){
   var seq=x.useRef(0),vivant=x.useRef(!0),noteSeq=x.useRef({}),noteConf=x.useRef({}),noteFile=x.useRef({}),vague=x.useRef(0);
   x.useEffect(function(){vivant.current=!0;return function(){vivant.current=!1}},[]);
   var qServ=q.trim().length>=2?q.trim():"";
+  /* L7-B D-34 (revue 24/09/2026, restes de T7) : une recharge DEPUIS LA PAGE 0
+     attend d'abord les notes en vol (toutes les files de PUT, qui ne rejettent
+     jamais : chacune finit par son propre retour arrière) — sans cela, sous
+     filtre, la liste était demandée AVANT que le serveur ait reçu la note et
+     montrait l'ancienne (mesuré en scénario : ★ 3+ cliquée pendant un PUT lent
+     qui baisse j8 à 1 → j8 revenait noté 5). Au retour de cette page 0, les
+     trois mémoires par rendu (compteur, note confirmée, file) sont VIDÉES de
+     tout rendu dont la file est celle qu'on a attendue — les absents de la
+     nouvelle page compris ; un présent relira sa note fraîche au prochain clic.
+     Une file partie PENDANT l'attente n'est pas touchée. « Plus » n'attend pas. */
   var charge=function(off,qq,remplace){
     var n=++seq.current;setSt("…");if(remplace)vague.current++;
     var u="/api/jobs?limit="+DZM_MED_PAGE+"&offset="+off+"&video=1"+(qq?"&q="+encodeURIComponent(qq):"")
       +(minNote>0?"&min_rating="+minNote:"");
-    return fetch(u).then(function(res){if(!res.ok)throw new Error("HTTP "+res.status);return res.json()})
-      .then(function(d){if(!vivant.current||n!==seq.current)return;
+    var att=remplace?Object.assign({},noteFile.current):null;
+    var enVol=att?Promise.all(Object.keys(att).map(function(k2){return att[k2]})):Promise.resolve();
+    var passe={};
+    return enVol.then(function(){if(!vivant.current||n!==seq.current)return passe;
+        return fetch(u).then(function(res){if(!res.ok)throw new Error("HTTP "+res.status);return res.json()})})
+      .then(function(d){if(d===passe||!vivant.current||n!==seq.current)return;
         var page=Array.isArray(d)?d:[];
+        if(att)Object.keys(Object.assign({},noteSeq.current,noteConf.current,noteFile.current)).forEach(function(k2){
+          if(noteFile.current[k2]!==att[k2])return;
+          delete noteSeq.current[k2];delete noteConf.current[k2];delete noteFile.current[k2]});
         setJobs(function(prev){var base=remplace?[]:prev,vu={};base.forEach(function(j){if(j&&j.job_id)vu[j.job_id]=1});
           return base.concat(page.filter(function(j){if(!j||!j.job_id||vu[j.job_id])return !1;vu[j.job_id]=1;return !0}))});
         setOffset(off+page.length);setFin(page.length<DZM_MED_PAGE);setSt("")})

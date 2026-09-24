@@ -18138,6 +18138,9 @@ if len(_L7BN_LAYER) > 100000:
         "  .p.onClick({stopPropagation:function(){},preventDefault:function(){}})}\n"
         "function chip(l){tous(T).filter(function(n){return n.p.children===l})[0].p.onClick()}\n"
         "function plus(){tous(T).filter(function(n){return n.p.className==='svm-secbtn svm-medplus'})[0].p.onClick()}\n"
+        # restes de T7 (T6, 24/09) : les trois memoires par rendu (noteSeq, noteConf, noteFile) = les useRef a objet, dans l'ordre
+        "function mems(){return HS.filter(function(e){return e&&typeof e==='object'&&!Array.isArray(e)&&('current' in e)&&e.current&&typeof e.current==='object'})\n"
+        "  .map(function(e){return Object.keys(e.current).sort()})}\n"
         "async function ouvre(notes,l){neuf(notes);rend();await pause();rend();chip(l);rend();await pause();rend();CALLS=[]}\n"
         "async function plusUrl(){rend();plus();rend();await pause();rend();var g=CALLS.filter(function(c){return c[1]==='GET'});CALLS=[];return g.map(function(c){return arg(c[0],'offset')})}\n"
         "(async function(){var R={};var N={j8:5,j7:0,j5:5,j2:5};\n"
@@ -18151,6 +18154,10 @@ if len(_L7BN_LAYER) > 100000:
         "  R.e=[SRV[0].rating,CALLS.filter(function(c){return c[1]==='PUT'}).map(function(c){return c[2].rating})];\n"
         "  await ouvre(N,'★ 5');DELAIS=[40];clic('j8',5);rend();chip('★ 5');rend();await pause(90);rend();\n"
         "  R.f_recharge=CALLS.filter(function(c){return c[1]==='GET'}).map(function(c){return c[0]});CALLS=[];R.f_plus=await plusUrl();\n"
+        # restes de T7 : sans filtre, j8 (5) baisse a 1 par un PUT LENT (60 ms) ; ★ 3+ cliquee pendant ce PUT
+        "  neuf({j8:5,j7:4,j5:5});rend();await pause();rend();CALLS=[];DELAIS=[60];clic('j8',1);rend();R.g_pendant=mems();\n"
+        "  chip('★ 3+');rend();await pause(25);rend();R.g_get_pendant=CALLS.filter(function(c){return c[1]==='GET'}).length;\n"
+        "  await pause(120);rend();R.g_ordre=CALLS.map(function(c){return c[1]});R.g_ids=ids();R.g_srv=SRV[0].rating;R.g_apres=mems();\n"
         "  console.log(JSON.stringify(R))})();\n")
     _pBN2 = pathlib.Path(TMP) / "l7b_notes_offset.js"; _pBN2.write_text(_L7BN2_SHIM, encoding="utf-8")
     _rBN2 = NODE(["node", str(_pBN2)], timeout=60)
@@ -18176,6 +18183,17 @@ check("L7Bn_revue_rechargement_pendant_le_PUT_l_offset_du_rechargement_n_est_pas
 check("L7Bn_revue_deux_PUT_rapides_le_serveur_garde_la_derniere_note_cliquee",
       # le premier PUT repond en 40 ms, le second en 5 : sans file, le serveur finirait sur 2
       _BN2.get("e") == [4, [2, 4]], _BN2.get("e"))
+# ── RESTES DE T7 (fermes en T6, 24/09/2026) : la recharge depuis la page 0 ATTEND les notes en vol, puis vide les
+# memoires des rendus dont la file est retombee. Sans l'attente, la liste ★ 3+ etait demandee avant que le PUT lent
+# ait abaisse j8 (5 -> 1) : le serveur rendait encore j8 note 5. Temoins : le GET part bien APRES (g_ordre), les
+# memoires portaient j8 pendant le PUT (g_pendant).
+check("L7Bn_restes_T7_chip_3_pendant_un_PUT_lent_la_recharge_attend_le_PUT_et_j8_n_y_est_plus",
+      _BN2.get("g_get_pendant") == 0 and _BN2.get("g_ordre") == ["PUT", "GET"]
+      and _BN2.get("g_srv") == 1 and _BN2.get("g_ids") == ["j7", "j5"],
+      (_BN2.get("g_get_pendant"), _BN2.get("g_ordre"), _BN2.get("g_srv"), _BN2.get("g_ids")))
+check("L7Bn_restes_T7_memoires_noteSeq_noteConf_noteFile_videes_apres_la_recharge_temoin_pleines_pendant",
+      _BN2.get("g_pendant") == [["j8"], ["j8"], ["j8"]] and _BN2.get("g_apres") == [[], [], []],
+      (_BN2.get("g_pendant"), _BN2.get("g_apres")))
 
 print("\n[L7B] D-40 tache 4 : le cadrage dans l'inspecteur de plan, l'apercu vivant et le payload (24/09/2026)")
 # ── L7-B D-40 (24/09/2026, tache 4, decision n°3). AUCUNE section neuve : trois REPLIS dans les hotes de D-13 --

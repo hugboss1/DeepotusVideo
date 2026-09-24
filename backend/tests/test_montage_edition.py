@@ -3133,6 +3133,16 @@ check("l7b_tiroir_offset_suit_le_seuil_au_succes_et_la_vague_de_chargement",
       and _DRW.count("if(remplace)vague.current++;") == 1 and _DRW.count("var seuil=minNote,v0=vague.current;") == 1
       and _DRW.find("var dl=") < _DRW.find(".catch(function(e){if(!vivant.current||noteSeq"),
       f"corps={len(_DRW)}")
+# restes de T7 (fermes en T6, 24/09/2026) : la recharge depuis la page 0 attend TOUTES les files de PUT avant son GET,
+# et vide ensuite les trois memoires des rendus dont la file est celle qu'on a attendue ; « Plus » n'attend pas
+check("l7b_tiroir_recharge_page0_attend_les_notes_en_vol_puis_vide_les_memoires",
+      len(_DRW) > 400 and _DRW.count("var att=remplace?Object.assign({},noteFile.current):null;") == 1
+      and _DRW.count("var enVol=att?Promise.all(Object.keys(att).map(function(k2){return att[k2]})):Promise.resolve();") == 1
+      and _DRW.find("var enVol=") < _DRW.find("return enVol.then(function(){") < _DRW.find("return fetch(u).then(")
+      and _DRW.count("if(noteFile.current[k2]!==att[k2])return;") == 1
+      and _DRW.count("delete noteSeq.current[k2];delete noteConf.current[k2];delete noteFile.current[k2]") == 1
+      and _DRW.count("fetch(u)") == 1,
+      f"corps={len(_DRW)}")
 
 print("\n[34] L7-B D-40 : le cadrage d'un clip V1 — dzmReframeOf / At / K / Pos / Css purs (tache 4, 24/09/2026)")
 # ── L7-B D-40 (24/09/2026, tache 4, decision n°3 du plan). dzmReframeOf est la regle MEME de _reframe_of du backend
