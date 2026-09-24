@@ -1293,6 +1293,105 @@ var SK={start:2,end:6,srcIn:1,speed:2};
 out.co_src=[T.srcTimeAt(SK,3),T.srcTimeAt(SK,2),T.srcTimeAt(SK,7),T.srcTimeAt(SK,1),T.srcTimeAt(SK,6),T.srcTimeAt(SK,NaN),
   T.srcTimeAt({start:2,end:6,srcIn:1},4),T.srcTimeAt({start:0,end:4},1),T.srcTimeAt(null,1),T.srcTimeAt({start:2,end:6,srcIn:1,speed:10},3),
   T.srcTimeAt({start:0,end:3,srcIn:.5},1/3)];
+/* ── [37] L5 D-27 D-29 D-30 D-28 (24/09/2026, tâche 5) : le panneau Étalonnage — aides pures, puis le composant sous shim ── */
+/* la pile : le premier effet d'un type ; poser à la place du PREMIER de son type (les suivants gardés), sinon en queue */
+out.gp_fx=[T.fxOf([{type:"grain"},{type:"wheels",a:1},{type:"wheels",a:2}],"wheels"),T.fxOf(null,"wheels"),T.fxOf([{type:"grain"}],"curves"),
+  T.fxPut([{type:"grain"},{type:"wheels",a:1},{type:"blur"},{type:"wheels",a:2}],{type:"wheels",a:9}),T.fxPut([{type:"grain"}],{type:"curves"}),
+  T.fxPut(null,{type:"x"}),(function(){var L=[{type:"a"}],j=JSON.stringify(L),n=T.fxPut(L,{type:"a",v:1});return [JSON.stringify(L)===j,n!==L,n[0].v]})()];
+/* l'édition des points d'une courbe : toucher, déplacer (x entre les voisins, extrémités fixes en x), ajouter (16 au plus), retirer, milieu */
+var CP=[[0,0],[.5,.6],[1,1]],CPj=JSON.stringify(CP);
+out.gp_hit=[T.curveHit(CP,.51,.62,.04),T.curveHit(CP,.3,.3,.04),T.curveHit(CP,0,.01,.04),T.curveHit(null,0,0,.04),T.curveHit(CP,.98,.99,.04)];
+out.gp_move=[T.curveMove(CP,1,.7,.9),T.curveMove(CP,1,1.5,-1),T.curveMove(CP,1,-3,2),T.curveMove(CP,0,.3,.2),T.curveMove(CP,2,.2,.5),
+  T.curveMove(CP,5,.3,.3),T.curveMove(CP,1,.3333333,.66666),T.curveMove(CP,1,NaN,"x")];
+var C16=[];for(var gi=0;gi<16;gi++)C16.push([gi/15,gi/15]);
+out.gp_add=[T.curveAdd(CP,.25,.4),T.curveAdd(CP,.5,.9),T.curveAdd(CP,1.2,.3),T.curveAdd(C16,.01,.5),T.curveAdd(CP,NaN,.5),T.curveAdd(null,.2,.2),
+  T.curveAdd(C16.slice(0,15),.01,1.7).i,JSON.stringify(CP)===CPj];
+out.gp_del=[T.curveDel(CP,1),T.curveDel(CP,0),T.curveDel(CP,2),T.curveDel(null,1),T.curveDel(CP,1)!==CP];
+out.gp_mid=(function(){var m=T.curveMid(CP),m2=T.curveMid([[0,0],[.2,.1],[1,1]]);
+  return [m.x,m.y===Math.round(T.curveEval(CP,m.x)*1000)/1000,T.curveMid([[0,0],[1,1]]),m2.x,T.curveMid(null)]})();
+/* le plan précédent de V1 : voisin gauche en contact, sinon le plus proche qui finit avant ; plans sans source écartés */
+var GV=[{tr:"v1",id:"a",start:0,end:4,src:{job_id:"A"}},{tr:"v1",id:"b",start:4,end:8,src:{job_id:"B"}},{tr:"v1",id:"c",start:10,end:12,src:{job_id:"C"}},
+  {tr:"v2",id:"o",start:0,end:10,src:{job_id:"O"}},{tr:"v1",id:"t",start:12,end:13},{tr:"v1",id:"d",start:13,end:15,src:{job_id:"D"}}];
+out.gp_prev=["b","c","a","d","o"].map(function(k){var p=T.gradePrev(GV,GV.filter(function(q){return q.id===k})[0]);return p?p.id:null})
+  .concat([T.gradePrev(null,GV[1]),T.gradePrev(GV,null)]);
+/* le corps de POST /api/montage/color-match : cible = instant de source sous la tête ; référence = milieu du précédent ; auto sans référence */
+var MC={tr:"v1",id:"b",start:4,end:8,srcIn:1,speed:2,src:{job_id:"B"}};
+out.gp_match=[T.matchBody(MC,5,GV[0],!1),T.matchBody(MC,5,null,!0),T.matchBody(MC,5,null,!1),T.matchBody(MC,5,{id:"z"},!1),
+  T.matchBody(null,1,GV[0],!0),T.matchBody(MC,5,GV[0],!0)];
+/* le corps de POST /api/montage/grade-frame : effets actifs (pas les `off`), masque seulement avec des effets, largeur paire 96..640 */
+var FC={tr:"v1",id:"f",start:0,end:4,srcIn:0,src:{job_id:"F"},effects:[{type:"wheels",gain_r:1.2},{type:"blur",off:!0}],mask:{shape:"rect",x:0,y:0,w:.5,h:.5}};
+out.gp_frame=[T.frameBody(FC,1,320),T.frameBody(Object.assign({},FC,{effects:[]}),1,320),T.frameBody(FC,1,7),T.frameBody(FC,1,999),
+  T.frameBody(FC,1,"x"),T.frameBody(null,1,320),T.frameBody(Object.assign({},FC,{effects:[{type:"blur",off:!0}]}),9,241)];
+/* l'empreinte d'obsolescence : source + fenêtre de source + géométrie (les effets n'y entrent pas) */
+out.gp_sig=[T.gpSig(MC)===T.gpSig(Object.assign({},MC,{effects:[1]})),T.gpSig(MC)!==T.gpSig(Object.assign({},MC,{srcIn:2})),
+  T.gpSig(MC)!==T.gpSig(Object.assign({},MC,{src:{job_id:"Z"}})),T.gpSig(MC)!==T.gpSig(Object.assign({},MC,{speed:1})),T.gpSig(null)];
+/* LE COMPOSANT : `r` et `x` lus à l'appel ; shim = jsx factice {t,p}, hooks factices posés sur l'objet global le temps de l'appel
+   (un `var x` du banc casserait drawer_touche_x), magasin factice (un objet par appel) posé là où dzmTbStore le lit :
+   `window` du shim (le cœur E-5..D-7 ne nomme pas le stockage, eb_croise x5 — la couche passe par dzmTbStore) */
+function gpShim(fn,store){var r0=r,G=globalThis,hx=Object.prototype.hasOwnProperty.call(G,"x"),x0=G.x,
+  hl=Object.prototype.hasOwnProperty.call(window,"localStorage"),l0=window.localStorage,log={st:0,eff:[],ref:0},S=store||{};
+  try{r={jsx:function(t,p){return {t:t,p:p}},jsxs:function(t,p){return {t:t,p:p}}};
+    G.x={useState:function(v){log.st++;return [v,function(){}]},useRef:function(v){log.ref++;return {current:v}},
+      useEffect:function(f,d){log.eff.push(Array.isArray(d)?d.length:-1)}};
+    window.localStorage={getItem:function(k){return Object.prototype.hasOwnProperty.call(S,k)?S[k]:null},setItem:function(k,v){S[k]=String(v)}};
+    return fn(log,S)}catch(e){return "autre:"+e}finally{r=r0;if(hx)G.x=x0;else delete G.x;if(hl)window.localStorage=l0;else delete window.localStorage}}
+function gpTous(n,acc){acc=acc||[];if(!n||typeof n!=="object")return acc;
+  if(Array.isArray(n)){n.forEach(function(k){gpTous(k,acc)});return acc}
+  if(n.t!==void 0&&n.p){acc.push(n);gpTous(n.p.children,acc)}return acc}
+function gpTxt(n){var c=n&&n.p&&n.p.children;if(typeof c==="string")return c;
+  if(Array.isArray(c))return c.filter(function(k){return typeof k==="string"}).join("");return ""}
+function gpBtns(m){return gpTous(m).filter(function(n){return n.t==="button"})}
+function gpBtn(m,lbl){return gpBtns(m).filter(function(b){return gpTxt(b)===lbl})[0]}
+var GC={tr:"v1",id:"g",start:4,end:8,srcIn:0,src:{job_id:"G"},effects:[{type:"wheels",gain_r:1.5,gain_g:.75,gain_b:.75},{type:"curves",pts_m:"0/0 0.5/0.7 1/1"}],
+  mask:{shape:"ellipse",x:.25,y:.25,w:.5,h:.5}};
+out.gp_pure=[typeof T.GradePanel,typeof T.MaskBox];
+/* sans clip : null SANS toucher x (la garde précède les hooks) ; boîte du masque : null sans masque lisible ou sans effet actif */
+out.gp_null=(function(){var r0=r;try{r={jsx:function(t,p){return {t:t,p:p}},jsxs:function(t,p){return {t:t,p:p}}};
+  return [T.GradePanel(null),T.GradePanel({}),T.MaskBox(null),T.MaskBox({clip:{effects:[{type:"blur"}]}}),
+    T.MaskBox({clip:{mask:{shape:"rect",x:0,y:0,w:.5,h:.5}}}),T.MaskBox({clip:{mask:{shape:"rect",x:0,y:0,w:.5,h:.5},effects:[{type:"blur",off:!0}]}}),
+    T.MaskBox({clip:{mask:{shape:"zz",x:0,y:0,w:.5,h:.5},effects:[{type:"blur"}]}})]}catch(e){return "autre:"+e}finally{r=r0}})();
+out.gp_box=(function(){var r0=r;try{r={jsx:function(t,p){return {t:t,p:p}},jsxs:function(t,p){return {t:t,p:p}}};
+  var m=T.MaskBox({clip:{mask:{shape:"ellipse",x:.1,y:.2,w:.3,h:.4,inv:!0},effects:[{type:"blur"}]}}),m2=T.MaskBox({clip:{mask:{shape:"rect",x:0,y:0,w:1,h:1},effects:[{type:"blur"}]}});
+  return [m.t,m.p.className,m.p["data-shape"],m.p["data-inv"],m.p.style,m2.p["data-shape"],m2.p["data-inv"]]}catch(e){return "autre:"+e}finally{r=r0}})();
+/* le rendu : racine, titre, rangées, 13 boutons TITRÉS dans l'ordre, 4 canvas, 8 curseurs + 1 case, valeurs lues, 4 useState + 2 useEffect */
+out.gp_rendu=gpShim(function(log){var m=T.GradePanel({clip:GC,clips:[GV[0],GC],head:5,onChange:function(){},onNote:function(){}}),all=gpTous(m);
+  var rng=all.filter(function(n){return n.t==="input"&&n.p.type==="range"}),cv=all.filter(function(n){return n.t==="canvas"});
+  return [m.t,m.p.className,m.p.children[0].p.children,all.filter(function(n){return /dzm-plan-row/.test(n.p.className||"")}).map(function(n){return n.p.children[0].p.children}),
+    gpBtns(m).map(function(b){return [gpTxt(b),typeof b.p.title==="string"&&b.p.title.length>3,!!b.p.disabled]}),
+    cv.map(function(n){return [n.p["data-kind"],n.p.width,n.p.height,typeof n.p.onPointerDown,typeof n.p.ref,!!n.p.title]}),
+    rng.map(function(n){return [n.p.value,!!n.p.disabled,!!n.p.title]}),
+    all.filter(function(n){return n.t==="input"&&n.p.type==="checkbox"}).map(function(n){return [n.p.checked,!!n.p.disabled,!!n.p.title]}),
+    log.st,log.eff,gpBtn(m,"M").p["aria-pressed"],gpBtn(m,"Ellipse").p["aria-pressed"]]});
+/* verrou de V1 : toute écriture grisée et dite (titre « verrouillée »), les onglets et « Copier » restent (lecture seule) ;
+   un grade EST copié (sinon « Coller » serait grisé pour une autre raison : mutation survivante du 24/09, corrigée) */
+out.gp_verrou=gpShim(function(){var m=T.GradePanel({clip:GC,clips:[GV[0],GC],head:5,locked:!0});
+  return gpBtns(m).map(function(b){return [gpTxt(b),!!b.p.disabled,/verrouillée/.test(b.p.title||"")]}).concat([
+    gpTous(m).filter(function(n){return n.t==="input"}).every(function(n){return n.p.disabled===!0&&/verrouillée/.test(n.p.title||"")})])},
+  {dz_montage_grade:JSON.stringify({effects:[{type:"wheels",gain_r:1.1}],mask:null})});
+/* état vide : ni effet, ni masque, ni voisin — masque grisé et dit (« ajoutez-en un »), accord grisé et dit, rien à copier */
+out.gp_vide=gpShim(function(){var m=T.GradePanel({clip:{tr:"v1",id:"v",start:0,end:4,src:{job_id:"V"}},clips:[],head:1});
+  return gpBtns(m).map(function(b){return [gpTxt(b),!!b.p.disabled,b.p.title]}).concat([
+    gpTous(m).filter(function(n){return n.t==="input"}).map(function(n){return !!n.p.disabled})])});
+/* les gestes qui n'ont pas besoin de la fenêtre : double-clic d'une roue (remise à zéro, léger), maître (léger), onglets, masque
+   (forme = lourd, curseur = léger, « Aucun » retire la clé), « À plat » (le canal courant revient à l'identité), « + Point » */
+out.gp_geste=gpShim(function(){var L=[],on=function(p,h){L.push([JSON.parse(JSON.stringify(p)),Object.keys(p),h])};
+  var m=T.GradePanel({clip:GC,clips:[GV[0],GC],head:5,onChange:on});
+  var cv=gpTous(m).filter(function(n){return n.t==="canvas"}),rng=gpTous(m).filter(function(n){return n.t==="input"&&n.p.type==="range"});
+  cv[2].p.onDoubleClick({});rng[2].p.onChange({target:{value:"20"}});
+  gpBtn(m,"Rectangle").p.onClick();gpBtn(m,"Aucun").p.onClick();rng[3].p.onChange({target:{value:"40"}});rng[7].p.onChange({target:{value:"30"}});
+  gpTous(m).filter(function(n){return n.t==="input"&&n.p.type==="checkbox"})[0].p.onChange({target:{checked:!0}});
+  gpBtn(m,"À plat").p.onClick();gpBtn(m,"+ Point").p.onClick();
+  return L});
+/* copier / coller le grade par le stockage `dz_montage_grade` (objet factice) : copier écrit gradeTake, coller remplace les effets couleur */
+out.gp_grade=gpShim(function(log,S){var N=[],on=[];
+  var m=T.GradePanel({clip:GC,clips:[],head:5,onNote:function(t){N.push(t)},onChange:function(p,h){on.push([p,h])}});
+  gpBtn(m,"Copier le grade").p.onClick();
+  var cible={tr:"v1",id:"h",start:0,end:4,src:{job_id:"H"},effects:[{type:"grain"},{type:"grade_basic",exposure:3}]};
+  var m2=T.GradePanel({clip:cible,clips:[],head:1,onNote:function(t){N.push(t)},onChange:function(p,h){on.push([p,h])}}),cb=gpBtn(m2,"Coller le grade");
+  cb.p.onClick();
+  var brut=S.dz_montage_grade;S.dz_montage_grade="{pas du json";var m3=T.GradePanel({clip:cible,clips:[],head:1});
+  return [typeof brut==="string"&&JSON.parse(brut),N,!!cb.p.disabled,on.map(function(q){return [q[0].effects,"mask" in q[0],q[0].mask,q[1]]}),
+    !!gpBtn(m3,"Coller le grade").p.disabled]});
 console.log(JSON.stringify(out));
 """
 # E-9 : svmRuler / svmPad2 sont des fonctions DU BUNDLE (meme portee module que
@@ -1571,7 +1670,10 @@ try:
                  "ac_409","df_reframe",
                  # L5 D-27 D-29 D-30 D-32 (tache 4, 24/09) : les SEIZE cles de la section [36].
                  "co_types","co_neutre","co_val","co_rt","co_from","co_set","co_clean","co_c20","co_parse","co_str",
-                 "co_eval","co_mask","co_take","co_paste","co_cm","co_src"]
+                 "co_eval","co_mask","co_take","co_paste","co_cm","co_src",
+                 # L5 D-27 D-29 D-30 D-28 (tache 5, 24/09) : les DIX-HUIT cles de la section [37].
+                 "gp_fx","gp_hit","gp_move","gp_add","gp_del","gp_mid","gp_prev","gp_match","gp_frame","gp_sig",
+                 "gp_pure","gp_null","gp_box","gp_rendu","gp_verrou","gp_vide","gp_geste","gp_grade"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -3547,6 +3649,130 @@ check("l5_co_coeur_pur_ni_r_ni_x_ni_reseau_ni_dom_ni_stockage_constantes_uniques
       and len(_DT) > 1000 and _DT.count(_CO_EXP) == 1
       and all(_SRCb.count(k) == 1 for k in _CO_EXP.split(",") if k),
       ({n: len(c) for n, c in _L5CO.items()}, _DT.count(_CO_EXP)))
+print("\n[37] L5 D-27 D-29 D-30 D-28 : le panneau Etalonnage — aides pures et composant sous shim (tache 5, 24/09/2026)")
+# ── L5 (24/09/2026, tache 5). Les aides PURES du panneau (pile, points de courbe, plan precedent, corps des deux routes
+# de T3, empreinte d'obsolescence), puis DzmGradePanel et DzmMaskBox EXECUTES sous un jsx factice {t,p} et des hooks
+# factices poses sur l'objet global le temps de l'appel. Faute n6 : chaque lecture passe par D.get / at().
+check("gp_fx_premier_du_type_pose_a_la_place_du_premier_sinon_en_queue_entree_intacte",
+      D.get("gp_fx") == [{"type": "wheels", "a": 1}, None, None,
+                         [{"type": "grain"}, {"type": "wheels", "a": 9}, {"type": "blur"}, {"type": "wheels", "a": 2}],
+                         [{"type": "grain"}, {"type": "curves"}], [{"type": "x"}], [True, True, 1]], D.get("gp_fx"))
+check("gp_hit_point_le_plus_proche_a_la_tolerance_sinon_moins_un",
+      D.get("gp_hit") == [1, -1, 0, -1, 2], D.get("gp_hit"))
+check("gp_move_x_entre_les_voisins_extremites_fixes_en_x_y_borne_arrondi_hors_liste_copie_illisible_garde",
+      D.get("gp_move") == [[[0, 0], [0.7, 0.9], [1, 1]], [[0, 0], [0.999, 0], [1, 1]], [[0, 0], [0.001, 1], [1, 1]],
+                           [[0, 0.2], [0.5, 0.6], [1, 1]], [[0, 0], [0.5, 0.6], [1, 0.5]], [[0, 0], [0.5, 0.6], [1, 1]],
+                           [[0, 0], [0.333, 0.667], [1, 1]], [[0, 0], [0.5, 0.6], [1, 1]]], D.get("gp_move"))
+check("gp_add_insere_trie_refuse_x_existant_16_points_illisible_entree_intacte",
+      D.get("gp_add") == [{"pts": [[0, 0], [0.25, 0.4], [0.5, 0.6], [1, 1]], "i": 1}, None, None, None, None, None, 1, True],
+      D.get("gp_add"))
+check("gp_del_retire_un_point_interieur_jamais_une_extremite_copie_neuve",
+      D.get("gp_del") == [[[0, 0], [1, 1]], [[0, 0], [0.5, 0.6], [1, 1]], [[0, 0], [0.5, 0.6], [1, 1]], [], True], D.get("gp_del"))
+check("gp_mid_milieu_du_plus_grand_ecart_sur_la_courbe",
+      D.get("gp_mid") == [0.25, True, {"x": 0.5, "y": 0.5}, 0.6, None], D.get("gp_mid"))
+check("gp_prev_voisin_gauche_en_contact_sinon_le_plus_proche_avant_sans_source_ecarte_autre_piste_rien",
+      D.get("gp_prev") == ["a", "b", None, "c", None, None, None], D.get("gp_prev"))
+_GT, _GA = {"src": {"job_id": "B"}, "t": 3}, {"src": {"job_id": "A"}, "t": 2}
+check("gp_match_cible_temps_de_source_sous_la_tete_reference_milieu_du_precedent_auto_sans_reference",
+      D.get("gp_match") == [{"target": _GT, "ref": _GA}, {"target": _GT, "auto": True}, None, None, None, {"target": _GT, "auto": True}],
+      D.get("gp_match"))
+_GF = {"src": {"job_id": "F"}, "t": 1, "w": 320}
+check("gp_frame_effets_actifs_masque_avec_effets_seulement_largeur_paire_96_640",
+      D.get("gp_frame") == [dict(_GF, effects=[{"type": "wheels", "gain_r": 1.2}],
+                                 mask={"shape": "rect", "x": 0, "y": 0, "w": 0.5, "h": 0.5, "soft": 0, "inv": False}),
+                            _GF, dict(_GF, w=96, effects=[{"type": "wheels", "gain_r": 1.2}],
+                                      mask={"shape": "rect", "x": 0, "y": 0, "w": 0.5, "h": 0.5, "soft": 0, "inv": False}),
+                            dict(_GF, w=640, effects=[{"type": "wheels", "gain_r": 1.2}],
+                                 mask={"shape": "rect", "x": 0, "y": 0, "w": 0.5, "h": 0.5, "soft": 0, "inv": False}),
+                            dict(_GF, w=240, effects=[{"type": "wheels", "gain_r": 1.2}],
+                                 mask={"shape": "rect", "x": 0, "y": 0, "w": 0.5, "h": 0.5, "soft": 0, "inv": False}),
+                            None, {"src": {"job_id": "F"}, "t": 2, "w": 242}], D.get("gp_frame"))
+check("gp_sig_source_fenetre_geometrie_sans_les_effets", D.get("gp_sig") == [True, True, True, True, ""], D.get("gp_sig"))
+check("gp_composants_exportes", D.get("gp_pure") == ["function", "function"], D.get("gp_pure"))
+check("gp_null_sans_clip_sans_toucher_x_boite_sans_masque_lisible_ou_sans_effet_actif",
+      "gp_null" in D and D.get("gp_null") == [None] * 7, D.get("gp_null"))
+check("gp_box_boite_du_masque_en_pour_cent_du_cadre_forme_et_inversion",
+      D.get("gp_box") == ["div", "dzm-maskbox", "ellipse", "1", {"left": "10%", "top": "20%", "width": "30%", "height": "40%"}, "rect", ""],
+      D.get("gp_box"))
+_GB = ["M", "R", "G", "B", "+ Point", "À plat", "Aucun", "Rectangle", "Ellipse", "Accorder sur le plan précédent", "Auto",
+       "Copier le grade", "Coller le grade"]
+_GR = D.get("gp_rendu") if isinstance(D.get("gp_rendu"), list) and len(D.get("gp_rendu")) == 12 else [None] * 12
+check("gp_rendu_racine_titre_six_rangees",
+      _GR[:4] == ["div", "dzm-plan dzm-gp", "Étalonnage", ["Roues", "Courbes", "Masque", "Accord", "Grade", "Aperçu"]], _GR[:4])
+check("gp_rendu_treize_boutons_tous_titres_dans_l_ordre_seul_coller_grise_sans_grade_copie",
+      _GR[4] == [[b, True, b == "Coller le grade"] for b in _GB], _GR[4])
+check("gp_rendu_quatre_canvas_trois_roues_96_une_courbe_200_geste_et_dessin_titres",
+      _GR[5] == [[k, 96, 96, "function", "function", True] for k in ("lift", "gamma", "gain")] + [["curve", 200, 200, "function", "function", True]],
+      _GR[5])
+check("gp_rendu_huit_curseurs_trois_maitres_cinq_du_masque_valeurs_lues_une_case_inverser",
+      _GR[6] == [[0, False, True], [0, False, True], [0, False, True], [25, False, True], [25, False, True], [50, False, True],
+                 [50, False, True], [0, False, True]] and _GR[7] == [[False, False, True]], (_GR[6], _GR[7]))
+check("gp_rendu_quatre_useState_deux_useEffect_montage_et_signature_onglet_M_et_ellipse_presses",
+      _GR[8:12] == [4, [0, 1], True, True], _GR[8:12])
+_GV = D.get("gp_verrou") if isinstance(D.get("gp_verrou"), list) and len(D.get("gp_verrou")) == 14 else [None] * 14
+check("gp_verrou_toute_ecriture_grisee_et_dite_onglets_et_copier_restent_tous_les_champs_grises",
+      _GV == [[b, b not in ("M", "R", "G", "B", "Copier le grade"), b not in ("M", "R", "G", "B", "Copier le grade")] for b in _GB] + [True],
+      _GV)
+_MT = "Le masque limite les effets du plan : ajoutez-en un"
+check("gp_vide_masque_grise_et_dit_accord_grise_rien_a_copier_ni_a_coller_curseurs_du_masque_grises",
+      D.get("gp_vide") == [["M", False, "Courbe maître : les trois canaux ensemble"], ["R", False, "Courbe du canal rouge"],
+                           ["G", False, "Courbe du canal vert"], ["B", False, "Courbe du canal bleu"],
+                           ["+ Point", False, "Ajouter un point au milieu du plus grand écart (16 au plus) — ou cliquer dans la courbe"],
+                           ["À plat", True, "Courbe déjà à plat sur ce canal"], ["Aucun", True, "Aucun masque posé"],
+                           ["Rectangle", True, _MT], ["Ellipse", True, _MT],
+                           ["Accorder sur le plan précédent", True, "Aucun plan précédent sur V1 : rien à accorder"],
+                           ["Auto", False, "Accord automatique : neutralise la dominante et étire le contraste (pose ou remplace l'effet « Accord couleur »)"],
+                           ["Copier le grade", True, "Rien à copier : ni effet couleur ni masque sur ce plan"],
+                           ["Coller le grade", True, "Aucun grade copié (Copier le grade d'abord)"],
+                           [False, False, False, True, True, True, True, True, True]], D.get("gp_vide"))
+_W0 = {"type": "wheels", "gain_r": 1.5, "gain_g": 0.75, "gain_b": 0.75}
+_CU = {"type": "curves", "pts_m": "0/0 0.5/0.7 1/1"}
+_ME = {"shape": "ellipse", "x": 0.25, "y": 0.25, "w": 0.5, "h": 0.5, "soft": 0, "inv": False}
+_GG = D.get("gp_geste") if isinstance(D.get("gp_geste"), list) and len(D.get("gp_geste")) == 9 else [None] * 9
+check("gp_geste_roue_double_clic_neutre_leger_maitre_leger_forme_lourde_aucun_retire_curseurs_legers_inverser_lourd_a_plat_lourd",
+      _GG[:8] == [[{"effects": [{"type": "wheels", "gain_r": 1, "gain_g": 1, "gain_b": 1}, _CU]}, ["effects"], False],
+                  [{"effects": [{"type": "wheels", "gain_r": 1.7, "gain_g": 0.95, "gain_b": 0.95}, _CU]}, ["effects"], False],
+                  [{"mask": dict(_ME, shape="rect")}, ["mask"], True], [{}, ["mask"], True],
+                  [{"mask": dict(_ME, x=0.4)}, ["mask"], False], [{"mask": dict(_ME, soft=0.3)}, ["mask"], False],
+                  [{"mask": dict(_ME, inv=True)}, ["mask"], True],
+                  [{"effects": [_W0, {"type": "curves", "pts_m": "0/0 1/1"}]}, ["effects"], True]], _GG[:8])
+_GP = _GG[8] if isinstance(_GG[8], list) and len(_GG[8]) == 3 and isinstance(_GG[8][0], dict) else [{}, [], None]
+_GPe = _GP[0].get("effects") if isinstance(_GP[0].get("effects"), list) and len(_GP[0].get("effects")) == 2 else [{}, {}]
+check("gp_geste_plus_point_quatre_points_au_quart_sur_la_courbe_lourd",
+      _GPe[0] == _W0 and str(_GPe[1].get("pts_m", "")).startswith("0/0 0.25/") and str(_GPe[1].get("pts_m", "")).endswith(" 0.5/0.7 1/1")
+      and len(str(_GPe[1].get("pts_m", "")).split(" ")) == 4 and _GP[2] is True, _GP)
+_GD = D.get("gp_grade") if isinstance(D.get("gp_grade"), list) and len(D.get("gp_grade")) == 5 else [None] * 5
+_GTK = {"effects": [_W0, _CU], "mask": _ME}
+check("gp_grade_copier_ecrit_gradeTake_coller_remplace_les_effets_couleur_masque_pose_lourd_json_illisible_grise",
+      _GD == [_GTK, ["Grade copié (2 effets)", "Grade collé (2 effets)"], False,
+              [[[{"type": "grain"}, _W0, _CU], True, _ME, True]], True], _GD)
+# LE SOURCE : aides pures sans r / x / reseau / DOM / stockage ; composant : garde AVANT les hooks, gestes sur la fenetre sans
+# capture, stockage en try/catch, deux routes appelees UNE fois chacune, URL de blob revoquee, anti-rebond 400 ms
+_L5GP = {n: _corps(n) for n in ("dzmFxOf", "dzmFxPut", "dzmCurveHit", "dzmCurveMove", "dzmCurveAdd", "dzmCurveDel", "dzmCurveMid",
+                                 "dzmGradePrev", "dzmMatchBody", "dzmFrameBody", "dzmGpSig")}
+check("l5_gp_aides_pures_ni_r_ni_x_ni_reseau_ni_dom_ni_stockage",
+      all(len(c) > 40 for c in _L5GP.values())
+      and not any(re.search(r"\br\.jsx|\bx\.use|localStorage|sessionStorage|\bwindow\b|\bdocument\b|\bnavigator\b|fetch\(|setClips|pushHistory|style\.|URL\.", c)
+                  for c in _L5GP.values())
+      and _L5GP["dzmCurveAdd"].count("DZM_CURVE_MAX") == 1 and _L5GP["dzmGradePrev"].count("dzmVoisins(") == 1
+      and _L5GP["dzmMatchBody"].count("dzmSrcTimeAt(") == 2 and _L5GP["dzmFrameBody"].count("dzmMaskOf(") == 1,
+      {n: len(c) for n, c in _L5GP.items()})
+_GPC = _SRCb[_SRCb.find("function DzmGradePanel(o){"):_SRCb.find("function DzmMaskBox(o){")]
+check("l5_gp_composant_garde_avant_hooks_gestes_fenetre_sans_capture_stockage_protege_routes_x1_blob_revoque_400ms",
+      len(_GPC) > 3000 and 0 <= _GPC.find("if(!c)return null;") < _GPC.find("x.useState(")
+      and _GPC.count("x.useState(") == 4 and _GPC.count("x.useEffect(") == 2
+      and _GPC.count("setPointerCapture") == 0 and _SRCb.count("setPointerCapture") == 1
+      and _SRCb.count('dzmGpFetch("/api/montage/grade-frame",') == 1 and _SRCb.count('dzmGpFetch("/api/montage/color-match",') == 1
+      and _GPC.count("URL.revokeObjectURL(") == 2 and _GPC.count("},400);") == 1 and _GPC.count("DzTracks") == 0
+      and _SRCb.count('var DZM_GP_CLE="dz_montage_grade"') == 1
+      and _corps("dzmGpRead").count("try{") == 1 and _corps("dzmGpWrite").count("try{") == 1
+      and _corps("dzmGpRead").count("st||dzmTbStore()") == 1 and _corps("dzmGpWrite").count("st||dzmTbStore()") == 1
+      and _corps("dzmGpDrag").count('w.addEventListener("pointermove",mv)') == 1 and _corps("dzmGpDrag").count("requestAnimationFrame(") == 1
+      and len(_DT) > 1000
+      and _DT.count("fxOf:dzmFxOf,fxPut:dzmFxPut,curveHit:dzmCurveHit,curveMove:dzmCurveMove,curveAdd:dzmCurveAdd,curveDel:dzmCurveDel,"
+                    "curveMid:dzmCurveMid,gradePrev:dzmGradePrev,matchBody:dzmMatchBody,frameBody:dzmFrameBody,gpSig:dzmGpSig,"
+                    "GradePanel:DzmGradePanel,MaskBox:DzmMaskBox,") == 1,
+      f"corps={len(_GPC)} useState={_GPC.count('x.useState(')}")
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

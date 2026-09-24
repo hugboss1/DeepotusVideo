@@ -431,7 +431,12 @@ STABLE_PROBES = [
     # `DzTracks.reframeOf(` (payload, repli de R_DZ4). Le repli de R_DZ1 (srcWH, ratio, onReframe) et la
     # section « Cadrage » de la couche n'en ajoutent aucune. MESURE : la chaine a refuse, « sonde montage
     # x163 (want 161) », avant cette ligne.
-    ("montage", "DzTracks", 163),
+    # L5 (24/09/2026, tache 5, panneau Etalonnage) : 163 -> 166 -- trois sites de CODE, tous dans des REPLIS
+    # (aucune section neuve) : `DzTracks.GradePanel` (le panneau, repli de R_DZ1), `DzTracks.MaskBox` (le
+    # contour du masque au lecteur, repli de R_DZ2) et `DzTracks.maskOf(` (le masque au payload, repli de
+    # R_DZ4). La couche n'ecrit le nom nulle part. MESURE : la chaine a refuse, « sonde montage x166
+    # (want 163) », avant cette ligne.
+    ("montage", "DzTracks", 166),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

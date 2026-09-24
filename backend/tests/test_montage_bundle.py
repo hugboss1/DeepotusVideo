@@ -14362,8 +14362,10 @@ check("D21_les_seize_appels_de_trackKind_sont_des_egalites",
       # revue T6 : 35 -> 36, 33 -> 34 -- data-hidden par genre (L7f6, `==="subs"`).
       # L7-B D-42 (24/09/2026) : 36 -> 37, 34 -> 35 -- « Découper aux changements de plan » est grisée
       # hors d'une piste vidéo (`!=="video"`, R_EC1) : une comparaison, pas une lecture nue.
-      and s.count(nl("trackKind(")) == 37
-      and len(_TKAPP) == 35 and all(k in ("===", "!==") for k in _TKAPP)
+      # L5 (24/09/2026, tache 5) : 37 -> 38, 35 -> 36 -- le masque au payload n'est joint que sur une piste
+      # vidéo (`==="video"`, repli de R_DZ4 : V1 et overlays V2) : une EGALITE, pas une lecture nue.
+      and s.count(nl("trackKind(")) == 38
+      and len(_TKAPP) == 36 and all(k in ("===", "!==") for k in _TKAPP)
       and s.count(nl("var rkd=trackKind(rk.tr);")) == 1
       and s.count(nl("if(rkd!==akd){")) == 1,
       f'bak={_bak.count(_nlb("trackKind(")) if _bak else "?"} '
@@ -15167,7 +15169,13 @@ check("DZ4_le_payload_joint_dz_seulement_s_il_existe",
 # LA COUCHE PORTE LES SEPT PURES, LES DEUX COMPOSANTS ET LES NEUF EXPORTS ;
 # le geste des rectangles ecoute la FENETRE (la forme de la maison — le pin
 # tb_d de la barre exige deja `.setPointerCapture(` = 0 sur toute la couche).
-_DZ_RECTS = src[src.find("function DzmDzRects(o){"):src.find("var DzTracks={")]
+# L5 (24/09/2026, tache 5) : la fenetre allait de DzmDzRects a `var DzTracks={` -- 1 200 lignes de couche (E-2 ... T4)
+# qui, par chance, ne portaient aucun geste. Le panneau Etalonnage pose le SIEN (dzmGpDrag, meme forme : fenetre,
+# pointercancel, rAF) juste avant le contrat : la fenetre est BORNEE au corps de DzmDzRects (jusqu'a la premiere
+# declaration de tete qui suit, `var DZM_PROV_LBL` mesure), les comptes du corps sont inchanges.
+_iDZR = src.find("function DzmDzRects(o){")
+_iDZRf = min([v for v in (src.find("\nfunction ", _iDZR + 1), src.find("\nvar ", _iDZR + 1)) if v >= 0] or [-1]) if _iDZR >= 0 else -1
+_DZ_RECTS = src[_iDZR:_iDZRf] if 0 <= _iDZR < _iDZRf else ""
 _DZ_EXP = ("dzNorm:dzmDzNorm,", "dzOf:dzmDzOf,", "dzAt:dzmDzAt,", "dzPreset:dzmDzPreset,",
            "dzMove:dzmDzMove,", "dzScale:dzmDzScale,", "dzCss:dzmDzCss,",
            "PlanProps:DzmPlanProps,", "DzRects:DzmDzRects,")
@@ -15286,7 +15294,7 @@ check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB8b_puis_
       and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1
               and s.count(nl(a)) == (1 if a in r else 0)
               for _t, a, r in P.PATCHES[_DZ_I + 1:])
-      and _sonde.get("montage") == 163 and s.count("DzTracks") == 163
+      and _sonde.get("montage") == 166 and s.count("DzTracks") == 166
       if _bak else False,
       f"queue={_DZ_TAGS[_DZ_I + 1:]} sonde={_sonde.get('montage')} bundle={s.count('DzTracks')}")
 
@@ -16605,13 +16613,15 @@ _EC_SONDE = _lire(ROOT / "scripts" / "patch_bundle_dzcout.py")
 # -> 146 (L7 D-39, T4, 24/09/2026 : diff dans le repli L7d1 de R_M14, DiffView dans le repli de R_L7C3).
 # -> 149 (L7 D-3b, T4-bis, 24/09/2026 : voisins + abSecs + roll dans la section neuve L7g1).
 # -> 150 (revue D-3b, 24/09/2026 : abRollDit dans abRoll, L7g1).
-check("EC_la_sonde_dzcout_compte_DzTracks_163",
+check("EC_la_sonde_dzcout_compte_DzTracks_166",
       # 24/09/2026 (L7 D-19 client, T5) : 150 -> 151, ovExtra dans svmOvTfOf (L7e2a)
       # 24/09/2026 (L7 D-22, T6) : 151 -> 158, sept sites de code (subsBurnId x3, subsBurn, subsNew x2, subsCopy)
       # revue T6 : 158 -> 159 (subsOverlay lit subsBurnId)
       # 24/09/2026 (L7-B D-42, T2) : 159 -> 161, cutAt + cutOpts dans le geste dzSceneCut (repli R_EC1)
       # 24/09/2026 (L7-B D-40, T4) : 161 -> 163, reframeCss (repli R_DZ3) + reframeOf (repli R_DZ4)
-      _EC_SONDE.count('("montage", "DzTracks", 163),') == 1 and _EC_SONDE.count('("montage", "DzTracks", 161),') == 0
+      # 24/09/2026 (L5, T5) : 163 -> 166, GradePanel (repli R_DZ1), MaskBox (repli R_DZ2), maskOf (repli R_DZ4)
+      _EC_SONDE.count('("montage", "DzTracks", 166),') == 1 and _EC_SONDE.count('("montage", "DzTracks", 163),') == 0
+      and _EC_SONDE.count('("montage", "DzTracks", 161),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 159),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 158),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 151),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 150),') == 0
@@ -16621,7 +16631,7 @@ check("EC_la_sonde_dzcout_compte_DzTracks_163",
       and _EC_SONDE.count('("montage", "DzTracks", 142),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 139),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 135),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 132),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 129),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 128),') == 0
-      and _EC_SONDE.count('("montage", "DzTracks", 123),') == 0 and s.count("DzTracks") == 163,
+      and _EC_SONDE.count('("montage", "DzTracks", 123),') == 0 and s.count("DzTracks") == 166,
       f"sonde={_EC_SONDE.count(chr(40) + chr(34) + 'montage')} bundle={s.count('DzTracks')}")
 
 print("\n[EC] E-7 : les trois vues Medias · Montage · Livraison (lot E-C, tache 3)")
@@ -17457,7 +17467,7 @@ check("L7d1_etat_diffSt_replie_en_queue_de_EB7_ETAT_apres_boMap_avant_stDzFin_un
       # L7-B D-34 (tache 7, 24/09/2026) : minNote + noteMsg du tiroir Medias (couche), 545 -> 547 (les trois epingles)
       # L7-B D-40 (tache 4, 24/09/2026) : 547 -> 548, l analyse du mouvement en cours (DzmPlanProps, couche) -- les trois epingles
       # L7-B D-41 (T6) : 548 -> 560 (+10 le popover DzmAutoclips, +1 la ligne ouverte du tiroir, +1 dzAcOpen de l'hote) ; revue T6 : 561 (+1 la langue)
-      and s.count("x.useState(") == 561 and (_bak.count("x.useState(") == 482 and _bak.count("diffSt") == 0 if _bak else False),
+      and s.count("x.useState(") == 565 and (_bak.count("x.useState(") == 482 and _bak.count("diffSt") == 0 if _bak else False),  # L5 (T5, 24/09) : 561 -> 565, les quatre du panneau Etalonnage (couche)
       f"etat={s.count(nl(_L7D_ST))} ordre={(_iDfBo, _iDfSt, _iDfFin)} diffSt={s.count('diffSt')} useState={s.count('x.useState(')}")
 # revue 24/09 : un `diff` sans etat rend null -- jamais le popover generique
 _L7D_G = '    if(pop==="diff")return diffSt?r.jsx(DzTracks.DiffView,Object.assign({onClose:function(){setPop("")}},diffSt)):null;'
@@ -17573,7 +17583,7 @@ _L7G_ST = '  var stAb=x.useState({a:null,b:null,k:""}),abSt=stAb[0],setAbSt=stAb
 _iAbSt = s.find(nl(_L7G_ST))
 check("L7g_etat_abSt_replie_en_queue_de_EB7_ETAT_apres_diffSt_avant_stDzFin_useState_544",
       s.count(nl(_L7G_ST)) == 1 and _L7G_ST in P._EB7_ETAT and P._EB7_ETAT.endswith(_L7G_ST) and 0 < _iDfSt < _iAbSt < _iDfFin
-      and P._EB7_ETAT.count("DzTracks") == 4 and s.count("x.useState(") == 561 and (_bak.count("x.useState(") == 482 if _bak else False)  # D-41 (T6) : 548 -> 560 -> 561 (langue)
+      and P._EB7_ETAT.count("DzTracks") == 4 and s.count("x.useState(") == 565 and (_bak.count("x.useState(") == 482 if _bak else False)  # D-41 (T6) : 548 -> 560 -> 561 (langue) ; L5 (T5, 24/09) : -> 565 (panneau Etalonnage)
       # MOT ENTIER (stabSt, tabSt… existent) : la declaration, abA (x2), abB (x2) = 5 ; setAbSt porte une majuscule ; x0 dans le .bak
       and len(re.findall(r"\babSt\b", s)) == 5 and (len(re.findall(r"\babSt\b", _bak)) == 0 if _bak else False)
       # la couche : aucun `abSt` entier (temoin : ses trois « dzmStabState » de L3 portent la sous-chaine)
@@ -17742,7 +17752,7 @@ check("L7f4_tiroir_etat_dzNewTr_branche_onNewTrack_avant_onChange_P16_intact_cas
       and s.count('r.jsx("input",{type:"checkbox",checked:dzNewTr,"aria-label":"Traduire dans une nouvelle piste",onChange:function(e){setDzNewTr(e.target.checked)}},"c")') == 1
       and s.count('className:"sub-trlang sub-trnew",title:"Coché : la traduction naît dans une nouvelle piste') == 1 and 0 < _iTg < _iNt < _iFn < _iTg + 1500
       and s.count('apres:dzOn.on?(dzNewTr?"Les "+dzTrN+" répliques traduites naissent dans une nouvelle piste S2, S3… — S1 reste intacte ; « Annuler » retire la piste et ses répliques.":DzTracks.subsTrTitle(dzTrN)):dzOn.pourquoi,') == 1
-      and len(re.findall(r"\bdzNewTr\b", s)) == 4 and s.count("setDzNewTr") == 2 and s.count("x.useState(") == 561  # D-41 (T6) : 548 -> 560 -> 561 (langue)
+      and len(re.findall(r"\bdzNewTr\b", s)) == 4 and s.count("setDzNewTr") == 2 and s.count("x.useState(") == 565  # D-41 (T6) : 548 -> 560 -> 561 (langue) ; L5 (T5, 24/09) : -> 565 (panneau Etalonnage)
       and (_bak.count("dzNewTr") == 0 and _bak.count("sub-trnew") == 0 and _bak.count("onNewTrack") == 0 if _bak else False),
       f"ordre={(_iS9b, _iS9c, _iTrN)} case={(_iTg, _iNt, _iFn)} dzNewTr={len(re.findall(chr(92) + 'bdzNewTr' + chr(92) + 'b', s))} useState={s.count('x.useState(')}")
 # L7f4 (repli R_M24H) : l'hote passe onNewTrack -- subsNew puis svmTracksSet (historique) puis subsCopy sur setClips,
@@ -17834,7 +17844,7 @@ check("L7Ba_le_geste_sauvegarde_PUIS_export_nom_du_serveur_subsDownload_refus_pa
       and _L7B_F.find("if(proj.demo)") < _L7B_F.find('fetch("/api/montage/save"') < _L7B_F.find('fetch("/api/montage/export')
       and _L7B_F.count("subsDownload(o.nom,o.t,") == 1 and _L7B_F.count('res.headers.get("Content-Disposition")') == 1
       and _L7B_F.count("fireNote(") == 5 and _L7B_F.count(".catch(") == 1
-      and _L7B_F.count("DzTracks") == 0 and s.count("DzTracks") == 163 and _sonde.get("montage") == 163  # D-40 (T4) : 161 -> 163
+      and _L7B_F.count("DzTracks") == 0 and s.count("DzTracks") == 166 and _sonde.get("montage") == 166  # D-40 (T4) : 161 -> 163
       and s.count("function subsDownload(name,text,mime){") == 1 and s.count("function svmSavePayload(){") == 1,
       f"f={len(_L7B_F)} fireNote={_L7B_F.count('fireNote(')} dz={s.count('DzTracks')} sonde={_sonde.get('montage')}")
 # le client appelle la route que le backend declare, avec les deux formats qu'il accepte
@@ -17908,7 +17918,7 @@ check("L7Bb_le_geste_garde_video_et_verrou_AVANT_l_appel_decoupe_par_la_couche_h
       and _L7BB_F.count("JSON.stringify({src:c.src,srcIn:Number(c.srcIn)||0,dur:du})") == 1
       and _L7BB_F.count("DzTracks.cutOpts(proj,trackStRef.current)") == 1 and _L7BB_F.count("DzTracks") == 2
       and _L7BB_F.count("pushHistory()") == 1 and _L7BB_F.count("setClips(") == 1 and _L7BB_F.count(".catch(") == 2
-      and s.count("DzTracks") == 163 and _sonde.get("montage") == 163,  # D-40 (T4) : 161 -> 163
+      and s.count("DzTracks") == 166 and _sonde.get("montage") == 166,  # D-40 (T4) : 161 -> 163
       f"f={len(_L7BB_F)} dz={_L7BB_F.count('DzTracks')} bundle={s.count('DzTracks')} sonde={_sonde.get('montage')}")
 check("L7Bb_la_route_POST_scenes_existe_cote_backend_et_le_client_l_appelle_une_fois",
       _L7B_MS.count('@router.post("/scenes")') == 1 and _L7B_MS.count("_scenes.detect, p, src_in, dur, threshold=th") == 1
@@ -18021,7 +18031,7 @@ check("L7Bn_morceaux_x1_couche_et_bundle_x0_bak_aucune_section_L7B_sonde_161",
       all(src.count(t) == 1 and s.count(t) == 1 for t in _L7BN_P)
       and (all(_bak.count(t) == 0 for t in _L7BN_P) and _bak.count("svm-medstar") == 0 if _bak else False)
       and [t[0] for t in P.PATCHES if t[0].startswith("L7B")] == ["L7Brf1-apercu-du-cadrage-video-ou-image"]
-      and s.count("DzTracks") == 163 and _sonde.get("montage") == 163,  # D-40 (T4) : 161 -> 163
+      and s.count("DzTracks") == 166 and _sonde.get("montage") == 166,  # D-40 (T4) : 161 -> 163
       {t[:30]: (src.count(t), s.count(t)) for t in _L7BN_P})
 check("L7Bn_css_etoiles_et_message_de_note_x1_dans_la_feuille",
       _EB_CSS.count(".dzsvm .svm-medstars{") == 1 and _EB_CSS.count(".dzsvm .svm-medstar{") == 1
@@ -18221,7 +18231,7 @@ check("L7Bac_morceaux_x1_couche_et_bundle_hote_x1_bundle_x0_bak_aucune_section_n
       and (all(_bak.count(t) == 0 for t in _L7BAC_L + _L7BAC_H) and _bak.count("dzAcOpen") == 0 if _bak else False)
       and [t[0] for t in P.PATCHES if t[0].startswith("L7B")] == ["L7Brf1-apercu-du-cadrage-video-ou-image"]
       and len(P.PATCHES) == 191  # (le --check annonce 192 ancres : inchange)
-      and s.count("DzTracks") == 163 and _sonde.get("montage") == 163,
+      and s.count("DzTracks") == 166 and _sonde.get("montage") == 166,
       ({t[:30]: (src.count(t), s.count(t)) for t in _L7BAC_L + _L7BAC_H}, len(P.PATCHES), s.count("DzTracks")))
 # les trois replis sont dans LEURS remplacements (le patcher) : l'etat avant dzTbDock, openProj apres openReq, le relai du tiroir
 check("L7Bac_replis_dans_R_M11_R_M14_R_EB3",
@@ -18491,7 +18501,7 @@ check("L7Brf_replis_x1_dans_R_DZ1_R_DZ3_R_DZ4_bundle_x1_bak_x0_une_section_L7Brf
       and s.count("o.reframe=") == 1 and s.count("DzTracks.reframePayload(") == 1 and s.count("DzTracks.reframeOf(") == 0
       and s.count("DzTracks.reframeCss(") == 1 and _RF_P[7] in P.R_DZ1
       and s.count('"/api/montage/reframe"') == 1
-      and s.count("DzTracks") == 163 and _sonde.get("montage") == 163,
+      and s.count("DzTracks") == 166 and _sonde.get("montage") == 166,
       {t[:40]: s.count(t) for t in _RF_P})
 check("L7Brf_la_route_POST_reframe_existe_cote_backend_et_le_client_l_appelle_une_fois",
       _L7B_MS.count('@router.post("/reframe")') == 1 and _L7B_MS.count("_reframe.motion_track, p, src_in, dur") == 1
@@ -18746,6 +18756,71 @@ check("L7Brf_revue_finale_sous_node_lame_a_vitesse_2_le_morceau_droit_lit_la_sou
       _RFG.get("lame_x2") == [5, [[0, 0.5], [5, 0.8]]], _RFG.get("lame_x2"))
 check("L7Brf_revue_finale_sous_node_rognage_de_tete_de_2_s_cadre_0_32_0_8",
       _RFG.get("rogne") == [2, 2, [[0, 0.32], [8, 0.8]]], _RFG.get("rogne"))
+
+print("\n[L5] D-27 D-29 D-30 D-28 tache 5 : le panneau Etalonnage, le masque au payload, son contour au lecteur (24/09/2026)")
+# ── L5 (24/09/2026, tache 5). AUCUNE section neuve : trois REPLIS dans les hotes de D-13 -- R_DZ1 (le panneau monte
+# UNE fois, APRES ovInspector() -- le pin d'adjacence de DZ1 reste -- avec la MEME garde que PlanProps), R_DZ2 (le
+# contour du masque dans `.svm-tf`, le cadre en %, sous les rectangles du zoom), R_DZ4 (le masque dans le payload :
+# la MEME map de renderPayload construit les clips V1 ET les overlays V2, mesure 24/09 -- une ligne couvre les deux).
+# 191 triplets inchanges ; sonde dzcout 163 -> 166. Puis SOUS NODE la ligne du payload telle qu'elle est DANS LE BUNDLE.
+_GP_GARDE = 'sel&&sel.tr==="v1"&&sel.src&&sel.src.job_id?r.jsx(DzTracks.'
+_GP_HOTE = _GP_GARDE + 'GradePanel,{clip:sel,'
+_GP_PROPS = 'clips:clips,head:ph,locked:!!(trackStRef.current.v1&&trackStRef.current.v1.l),onNote:fireNote,onChange:dzPlanSet}):null,'
+_GP_BOX = 'sel&&sel.tr==="v1"&&sel.mask?r.jsx(DzTracks.MaskBox,{clip:sel}):null,'
+_GP_MK = 'var mkD=o.effects&&c.src&&trackKind(c.tr)==="video"&&DzTracks.maskOf(c.mask);if(mkD)o.mask=mkD;'
+check("L5gp_panneau_monte_une_fois_dans_R_DZ1_meme_garde_que_PlanProps_apres_ovInspector_bak_x0",
+      P.R_DZ1.count(_GP_HOTE) == 1 and P.R_DZ1.count(_GP_PROPS) == 1 and P.R_DZ1.count(_GP_GARDE) == 2
+      and s.count(_GP_HOTE) == 1 and s.count(_GP_GARDE) == 2 and s.count("DzTracks.GradePanel") == 1
+      and s.count(nl("          onChange:dzPlanSet}):null,\n        ovInspector(),")) == 1
+      and 0 < s.find(nl("        ovInspector(),\n")) < s.find(_GP_HOTE) < s.find(_GP_PROPS) < s.find(nl("        audioInspector(),"))
+      and (_bak.count("GradePanel") == 0 and _bak.count(_GP_GARDE) == 0 if _bak else False),
+      (s.count(_GP_HOTE), s.count(_GP_GARDE), P.R_DZ1.count(_GP_GARDE)))
+check("L5gp_contour_du_masque_dans_R_DZ2_sous_les_rectangles_du_zoom_bak_x0",
+      P.R_DZ2.count(_GP_BOX) == 1 and s.count(_GP_BOX) == 1 and s.count("DzTracks.MaskBox") == 1
+      and s.find('r.jsx("div",{className:"svm-tfbadge",ref:tfBadgeRef}),') < s.find(_GP_BOX) < s.find("r.jsx(DzTracks.DzRects,")
+      and s.count(nl('              onChange:function(nd){dzPlanSet({dz:nd})}}):null]}):null,')) == 1
+      and (_bak.count("MaskBox") == 0 if _bak else False), s.count(_GP_BOX))
+_iRP = s.find("function renderPayload(preview,queue){")
+check("L5gp_masque_au_payload_dans_R_DZ4_meme_map_que_les_overlays_V2_apres_le_cadrage_bak_x0",
+      # « o.mask= » vaut 2 : la ligne du payload et dzmGradePaste de la couche (T4) -- la forme exacte, pas le jeton
+      P.R_DZ4.count(_GP_MK) == 1 and s.count(_GP_MK) == 1 and s.count("o.mask=mkD") == 1 and s.count("o.mask=") == 2
+      and 0 < _iRP < s.find("var rfD=", _iRP) < s.find(_GP_MK) < s.find('        if(trackKind(c.tr)==="audio"){', _iRP)
+      < s.find("if(DzTracks.isOverlayTrack(c.tr,dzTracksRef.current)){", _iRP)
+      and (_bak.count("o.mask=") == 0 if _bak else False)
+      and len(P.PATCHES) == 191 and s.count("DzTracks") == 166 and _sonde.get("montage") == 166,
+      (s.count(_GP_MK), len(P.PATCHES), s.count("DzTracks"), _sonde.get("montage")))
+check("L5gp_couche_du_bundle_porte_le_panneau_la_boite_et_les_aides_exports_x1",
+      len(_L7BN_LAYER) > 100000 and _L7BN_LAYER.count("function DzmGradePanel(o){") == 1 and _L7BN_LAYER.count("function DzmMaskBox(o){") == 1
+      and _L7BN_LAYER.count("GradePanel:DzmGradePanel,MaskBox:DzmMaskBox,") == 1 and _L7BN_LAYER.count("setPointerCapture") == 1,
+      len(_L7BN_LAYER))
+_L5GP_RT = "non joue"
+_iMk = s.find(_GP_MK)
+if len(_L7BN_LAYER) > 100000 and _iMk > 0:
+    _L5GP_SHIM = ('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + _L7BN_LAYER + "\n" +
+        "function trackKind(t){return t==='a1'?'audio':t==='t1'?'title':'video'}\n"
+        "function pay(c){var o={};var _fx=(c.effects||[]).filter(function(f){return !f.off});o.effects=_fx.length?_fx:void 0;\n"
+        + s[_iMk:_iMk + len(_GP_MK)] + "\nreturn 'mask' in o?o.mask:'absent'}\n"
+        "var M={shape:'ellipse',x:.1,y:.2,w:.3,h:.4,inv:!0},F=[{type:'wheels',gain_r:1.2}],S={job_id:'j'},R={};\n"
+        "R.v1=pay({tr:'v1',src:S,effects:F,mask:M});R.v2=pay({tr:'v2',src:S,effects:F,mask:M});R.v3=pay({tr:'v3',src:S,effects:F,mask:M});\n"
+        "R.a1=pay({tr:'a1',src:S,effects:F,mask:M});R.sans_effet=pay({tr:'v1',src:S,mask:M});R.off=pay({tr:'v1',src:S,effects:[{type:'blur',off:!0}],mask:M});\n"
+        "R.illisible=pay({tr:'v1',src:S,effects:F,mask:{shape:'zz',x:0,y:0,w:.5,h:.5}});R.sans_masque=pay({tr:'v1',src:S,effects:F});\n"
+        "R.titre=pay({tr:'t1',effects:F,mask:M});R.sans_src=pay({tr:'v1',effects:F,mask:M});\n"
+        "console.log(JSON.stringify(R));\n")
+    _pGP = pathlib.Path(TMP) / "l5_gp_payload.js"; _pGP.write_text(_L5GP_SHIM, encoding="utf-8")
+    _rGP = NODE(["node", str(_pGP)], timeout=60)
+    try: _L5GP_RT = json.loads(_rGP.stdout.strip().splitlines()[-1]) if _rGP.returncode == 0 else ("rc=" + str(_rGP.returncode) + " " + (_rGP.stderr or "")[-400:])
+    except Exception as _e: _L5GP_RT = temoin(_e)
+_GPR = _L5GP_RT if isinstance(_L5GP_RT, dict) else {}
+_GPM = {"shape": "ellipse", "x": 0.1, "y": 0.2, "w": 0.3, "h": 0.4, "soft": 0, "inv": True}
+check("L5gp_sous_node_masque_joint_sur_V1_et_V2_V3_normalise_absent_audio_sans_effet_off_illisible_titre_sans_source",
+      _GPR.get("v1") == _GPM and _GPR.get("v2") == _GPM and _GPR.get("v3") == _GPM
+      and [_GPR.get(k) for k in ("a1", "sans_effet", "off", "illisible", "sans_masque", "titre", "sans_src")] == ["absent"] * 7,
+      _L5GP_RT if not _GPR else _GPR)
+check("L5gp_css_du_panneau_et_de_la_boite_x1",
+      all(_EB_CSS.count(k) == 1 for k in (".dzsvm .dzm-gp-wheels{", ".dzsvm .dzm-gp-wcv{", ".dzsvm .dzm-gp-ccv{", ".dzsvm .dzm-gp-prev img{",
+                                            ".dzsvm .dzm-maskbox{", '.dzsvm .dzm-maskbox[data-shape="ellipse"]{'))
+      and _EB_CSS.count("touch-action:none") >= 2,
+      [_EB_CSS.count(k) for k in (".dzsvm .dzm-gp-wheels{", ".dzsvm .dzm-maskbox{")])
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")

@@ -4406,9 +4406,25 @@ R_DZ1 = ('        /* D-13 : les proprietes de plan (clip V1 reel seulement) */\n
          '                fireNote(pts.length?"Mouvement suivi : "+pts.length+" points.":"Peu de mouvement : centré.")})\n'
          '              .catch(function(e){fireNote("Analyse du mouvement refusée : "+((e&&e.message)||"erreur réseau"))})},\n'
          '          onChange:dzPlanSet}):null,\n'
-         + A_DZ1)
+         + A_DZ1 + "\n"
+         # L5 D-27 D-29 D-30 D-28 (24/09/2026, tache 5) : LE PANNEAU « ETALONNAGE » -- repli ici, AUCUNE ancre neuve.
+         # MEME garde que PlanProps (clip V1 rendu), monte UNE fois, APRES ovInspector() (le rack d'effets, que le
+         # panneau ecrit, reste au-dessus ; le pin d'adjacence `onChange:dzPlanSet}):null,` + `ovInspector(),` de DZ1
+         # ne bouge pas -- ecart date au plan, qui disait « a cote de PlanProps »). `clips` = la timeline (le plan
+         # precedent de l'accord), `ph` = la tete, `locked` = la forme de dzPlanSet (V1 verrouillee : la couche grise
+         # et le dit, le geste commun refuserait de toute facon), onChange = dzPlanSet (rafale de 600 ms), notes par
+         # fireNote. Le reseau (grade-frame, color-match) est dans la COUCHE : l'hote ne porte aucune route.
+         '        /* L5 : le panneau Etalonnage (clip V1 reel seulement, meme garde que les proprietes de plan) */\n'
+         '        sel&&sel.tr==="v1"&&sel.src&&sel.src.job_id?r.jsx(DzTracks.GradePanel,{clip:sel,\n'
+         '          clips:clips,head:ph,locked:!!(trackStRef.current.v1&&trackStRef.current.v1.l),onNote:fireNote,onChange:dzPlanSet}):null,')
 A_DZ2 = '            r.jsx("div",{className:"svm-tfbadge",ref:tfBadgeRef})]}):null,'
 R_DZ2 = ('            r.jsx("div",{className:"svm-tfbadge",ref:tfBadgeRef}),\n'
+         # L5 D-30 (24/09/2026, tache 5) : LE CONTOUR DU MASQUE du clip V1 selectionne -- repli ici (le plan proposait
+         # R_L7BRF1 ou une section L5m1 en queue : `.svm-tf` est DEJA le cadre en %, hors vzoom, au-dessus des hotes --
+         # mesure de D-13 -- et le masque est en fractions du cadre ; liveSync aurait du creer l'element a la main).
+         # Pose AVANT les rectangles du zoom (ils restent dessus, eux sont saisissables ; la boite ne l'est pas).
+         '            /* L5 D-30 : le contour du masque du clip V1 selectionne (sous les rectangles du zoom) */\n'
+         '            sel&&sel.tr==="v1"&&sel.mask?r.jsx(DzTracks.MaskBox,{clip:sel}):null,\n'
          '            /* D-13 : les deux fenetres du zoom dynamique du clip V1 selectionne */\n'
          '            sel&&sel.tr==="v1"&&sel.dz?r.jsx(DzTracks.DzRects,{dz:sel.dz,\n'
          '              onChange:function(nd){dzPlanSet({dz:nd})}}):null]}):null,')
@@ -4439,7 +4455,14 @@ R_DZ4 = (A_DZ4 + "\n"
          "        /* L7-B D-40 : le cadrage -- joint seulement hors centre */\n"
          # revue finale : le payload porte les points ABSOLUS (reframePayload) -- le serveur applique la meme
          # regle que la couche (srcIn courant soustrait, fenetre, points de bord).
-         '        var rfD=c.tr==="v1"&&DzTracks.reframePayload(c);if(rfD)o.reframe=rfD;')
+         '        var rfD=c.tr==="v1"&&DzTracks.reframePayload(c);if(rfD)o.reframe=rfD;\n'
+         # L5 D-30 (24/09/2026, tache 5) : LE MASQUE -- joint seulement s'il est lisible ET qu'un effet actif part
+         # (o.effects, deja filtre des `off` plus haut : sans effet le rendu l'ignore -> payload d'avant). MESURE
+         # 24/09 : la MEME map de renderPayload construit les clips V1 ET les overlays V2 (le bloc
+         # isOverlayTrack vient plus bas dans la meme fonction) -- UNE ligne couvre les deux ; `trackKind` (bundle)
+         # dit « video » pour v1, v2, v3… et jamais pour a*, s*, t*, j* ; un clip sans source (titre) ne l'emporte pas.
+         "        /* L5 D-30 : le masque (V1 et overlays V2) -- joint seulement lisible et avec des effets actifs */\n"
+         '        var mkD=o.effects&&c.src&&trackKind(c.tr)==="video"&&DzTracks.maskOf(c.mask);if(mkD)o.mask=mkD;')
 
 # ══ D-14 (L3 tache 7, 22/09/2026) — KEYFRAMES D'ECHELLE ET D'OPACITE ═══════
 # Le contrat du rendu (T7a) : `motion_points[{t,x,y,rotate?,scale?,opacity?}]`,
@@ -5668,7 +5691,13 @@ assert R_EC1.count("  function dzSceneCut(id){") == 1 and R_EC1.count("run:funct
 # L7-B D-40 (24/09/2026, tache 4) : le cadrage replie dans R_DZ1 (hote), R_DZ3 (apercu vivant), R_DZ4 (payload) -- aucune section neuve
 assert R_DZ1.count("onReframe:function(){var id=sel.id,") == 1 and R_DZ1.count('fetch("/api/montage/reframe",') == 1 and R_DZ1.count("var sg=dzRfSg(c),") == 1
 assert R_DZ1.find("var sg=dzRfSg(c),") < R_DZ1.find('fetch("/api/montage/reframe",') < R_DZ1.find("if(dzRfSg(k2)!==sg){") < R_DZ1.find("pushHistory();setClips(clipsRef.current.map(")
-assert R_DZ1.count("DzTracks.") == 3 and R_DZ1.endswith("          onChange:dzPlanSet}):null,\n" + A_DZ1) and R_DZ1.count("pl.get(livePoolKey(sel.src,\"b\"))") == 1
+# L5 (24/09/2026, tache 5) : 3 -> 4 `DzTracks.` (GradePanel) ; DZ1 ne FINIT plus par ovInspector() -- le panneau
+# Etalonnage vient juste APRES (meme garde) ; l'adjacence PlanProps -> ovInspector() reste, une fois.
+assert R_DZ1.count("DzTracks.") == 4 and R_DZ1.count("          onChange:dzPlanSet}):null,\n" + A_DZ1 + "\n") == 1 and R_DZ1.count("pl.get(livePoolKey(sel.src,\"b\"))") == 1
+assert R_DZ1.endswith('onNote:fireNote,onChange:dzPlanSet}):null,') and R_DZ1.count('?r.jsx(DzTracks.GradePanel,{clip:sel,') == 1
+assert R_DZ1.count('sel&&sel.tr==="v1"&&sel.src&&sel.src.job_id?r.jsx(DzTracks.') == 2
+assert R_DZ2.count("r.jsx(DzTracks.MaskBox,{clip:sel})") == 1 and R_DZ2.find("DzTracks.MaskBox") < R_DZ2.find("DzTracks.DzRects")
+assert R_DZ4.count("DzTracks.maskOf(c.mask);if(mkD)o.mask=mkD;") == 1 and R_DZ4.find("var rfD=") < R_DZ4.find("var mkD=")
 assert R_DZ3.count("reframe") == 0 and R_DZ3.endswith("if(lv.style.transform!==dzT)lv.style.transform=dzT;")
 assert R_DZ1.count("svmSrcKey(k.src)") == 1 and R_EC1.count(",svmSrcKey(k.src)].join(\"|\")}") == 1
 assert R_L7BRF1.startswith(A_L7BRF1) is False and R_L7BRF1.endswith(A_L7BRF1) and R_L7BRF1.count("DzTracks.reframeCss(c,(t-c.start)*svmSpeedOf(c),") == 1

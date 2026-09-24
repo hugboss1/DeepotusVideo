@@ -320,6 +320,11 @@ _NULLS = [
     ("function dzmRevertBtn(", "if(!h)return null;"),
     ("function dzmGradeAllBtn(", "if(!dzmGradeOf(sel))return null;"),
     ("function dzmExtractBtn(sel,o){", 'if(!sel||!sel.src||sel.src.image||dzmKindOf(sel.tr)!=="video")return null;'),
+    # L5 (24/09/2026, tache 5) : le panneau Etalonnage (sans clip -- l'hote R_DZ1 ne le monte qu'avec un clip V1 rendu)
+    # et le contour du masque au lecteur (sans masque lisible ou sans effet actif : rien a dessiner) -- ni l'un ni
+    # l'autre n'est un bouton ; dates ici parce qu'ils rendent null
+    ("function DzmGradePanel(o){", "if(!c)return null;"),
+    ("function DzmMaskBox(o){", "return null;"),
 ]
 for f, g in _NULLS:
     i = lay.find(f)
@@ -371,6 +376,21 @@ check("R1_R2_cadrage_quatre_boutons_toujours_rendus_titres_grises_sans_effet_cen
       and _PPE.count('r.jsx("input",{type:"range",min:0,max:100,step:1,value:rfV,disabled:rfSans||rfBusy,') == 1
       and s.count('children:"Analyser le mouvement"') == 1 and bak.count("Analyser le mouvement") == 0,
       f"hote={len(_PPE)} rfBtn={_PPE.count('rfBtn(')} non={_PPE.count('rfSans?rfNon:')}")
+
+# L5 (24/09/2026, tache 5) : le panneau « Étalonnage » (couche, DzmGradePanel) -- HUIT sites r.jsx("button" (les
+# onglets M/R/G/B et les trois formes du masque par fabrique, « + Point », « À plat », les deux boutons d'accord,
+# copier / coller le grade), TOUS titres ; AUCUN bouton conditionnel (on grise : disabled + title qui dit pourquoi) ;
+# le « sans effet » du masque est DIT par son title. Temoin : le meme scanner voit les boutons de DzmPlanProps.
+_GPE = lay[lay.find("function DzmGradePanel(o){"):lay.find("function DzmMaskBox(o){")]
+_gp_n, _gp_manq = scan_titres(_GPE, [(0, len(_GPE))]) if len(_GPE) > 3000 else (0, ["zone introuvable"])
+_gp_cond = scan_cond(_GPE, [(0, len(_GPE))]) if len(_GPE) > 3000 else ["zone introuvable"]
+_pp_n, _pp_manq = scan_titres(_PPE, [(0, len(_PPE))])
+check("R1_R2_etalonnage_huit_sites_de_bouton_tous_titres_aucun_conditionnel_masque_grise_et_dit_temoin_PlanProps",
+      len(_GPE) > 3000 and _gp_n == 8 and _gp_manq == [] and _gp_cond == []
+      and _GPE.count('"Le masque limite les effets du plan : ajoutez-en un"') == 1
+      and _GPE.count("disabled:") >= 8 and _pp_n >= 3 and _pp_manq == []
+      and s.count("function DzmGradePanel(o){") == 1 and bak.count("DzmGradePanel") == 0,
+      f"sites={_gp_n} manquants={_gp_manq} conditionnels={_gp_cond} temoin={_pp_n}")
 
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)
