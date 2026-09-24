@@ -816,6 +816,31 @@ check("t4_fin_lisible_5ips_et_audio_plus_long_temoins_nus_vides",
       None not in (F5, FA) and _nu5 is False and _nua is False
       and SZ(g5) == (512, 288) and SZ(ga) == (512, 288),
       str((F5, FA, _nu5, _nua, g5, ga)))
+# Revue T3 (second tour) : en .mkv / .webm, `stream=duration` est VIDE — la
+# duree du flux video est dans le tag `DURATION` (« 00:00:02.000000000 ») ;
+# le repli `format=duration` inclut l'audio plus long (mesure : 2,623 s pour
+# une video de 2,00 s + audio 2,6 s). Temoin : ffmpeg NU a 2,5 ne rend rien.
+FMK = MKV("fa26.mkv", "", d=2.6, extra=["-f", "lavfi", "-i", "testsrc2=s=320x180:r=25:d=2",
+                                        "-f", "lavfi", "-i", "sine=d=2.6", "-c:a", "aac"])
+FWB = MKV("fa26.webm", "", d=2.6, extra=["-f", "lavfi", "-i", "testsrc2=s=320x180:r=25:d=2",
+                                         "-f", "lavfi", "-i", "sine=d=2.6",
+                                         "-c:v", "libvpx", "-c:a", "libopus"])
+_numk = NU(FMK, 2.5, "nuk.png") if FMK else None
+_nuwb = NU(FWB, 2.5, "nuwb.png") if FWB else None
+gmk = CALL(GR, "graded_frame", FMK, 2.5)
+gwb = CALL(GR, "graded_frame", FWB, 2.5)
+_pmk = CALL(GR, "_probe", pathlib.Path(FMK)) if FMK else None
+_pwb = CALL(GR, "_probe", pathlib.Path(FWB)) if FWB else None
+check("t4_mkv_webm_duree_du_flux_par_tag_temoins_nus_vides",
+      None not in (FMK, FWB) and _numk is False and _nuwb is False
+      and SZ(gmk) == (512, 288) and SZ(gwb) == (512, 288),
+      str((FMK, FWB, _numk, _nuwb, gmk, gwb, _pmk, _pwb)))
+# Lecture robuste du tag : heures/minutes comptees, variante de cle, illisible -> 0.
+_hv = [CALL(GR, "_hms", v) for v in ("01:02:03.5", "00:01:02.500000000", "2.5", "abc", "1:2:3:4", None)]
+_tv = [CALL(GR, "_tag_duree", s_) for s_ in ({"tags": {"DURATION-eng": "00:00:02.000000000"}},
+                                             {"tags": {"duration": "0:00:01.5"}}, {"tags": {}}, {})]
+check("t4_tag_duration_lu_hms_variantes_illisible_zero",
+      _hv == [3723.5, 62.5, 2.5, 0.0, 0.0, 0.0] and _tv == [2.0, 1.5, 0.0, 0.0], str((_hv, _tv)))
 # Cache : deuxieme appel IDENTIQUE sans aucun sous-processus ; un autre
 # reglage en relance un (temoin positif de l'espion).
 _sp = {"n": 0, "cmds": []}
@@ -873,6 +898,36 @@ try:
 except Exception:                                        # noqa: BLE001
     _dif = False
 check("t4_scopes_calcules_sur_l_image_etalonnee", _dif and sc2 != sc1, str((sc1, sc2)))
+# Revue T3 (second tour) : le SECOND ESSAI est garde SEUL. Les fixtures
+# passent au premier essai grace au recul ; ici `_probe` GONFLE la duree
+# d'une image (dur + 1/fps) : le premier essai tombe sur 2,0 s de la source
+# 5 i/s (muet, mesure), seul le second (t - 1/fps) rend. Deux ffmpeg exiges.
+_probe0 = getattr(GR, "_probe", None)
+
+
+def _probe_gonfle(p):
+    d_, w_, h_, f_ = _probe0(p)
+    return (d_ + 1.0 / f_, w_, h_, f_)
+
+
+try:
+    pathlib.Path(g5).unlink()
+except Exception as _e:                                  # noqa: BLE001
+    print("  (unlink g5 : %r)" % _e)
+_sp["n"], _sp["cmds"] = 0, []
+_se = "ABSENT"
+if _probe0 is not None and F5:
+    GR._probe = _probe_gonfle
+    subprocess.run = _espion_run
+    try:
+        _se = CALL(GR, "graded_frame", F5, 2.0)
+    finally:
+        subprocess.run = _run0
+        GR._probe = _probe0
+_ff_se = [cm for cm in _sp["cmds"] if "-filter_complex" in cm]
+check("t4_second_essai_seul_rend_quand_le_premier_est_muet",
+      SZ(_se) == (512, 288) and len(_ff_se) == 2,
+      str((_se, [cm[cm.index("-ss") + 1] if "-ss" in cm else "?" for cm in _ff_se])))
 # I-1 : sous Windows `os.replace` leve PermissionError [WinError 5] quand la
 # cible est ouverte en lecture (FileResponse qui la sert, mesure 24/09). Un
 # re-rendu de la meme cle ne doit ni lever ni laisser de `.tmp.` orphelin.
@@ -884,8 +939,12 @@ try:
     _orph = sorted(p.name for p in _gi.parent.glob(_gi.stem + ".*.tmp*"))
 except Exception as _e:                                  # noqa: BLE001
     _ri, _orph = repr(_e), None
-check("t4_cible_ouverte_en_lecture_rerendu_sans_erreur_ni_tmp",
-      isinstance(_gi, pathlib.Path) and _ri == _gi and _orph == [], str((_gi, _ri, _orph)))
+if os.name == "nt":                                      # verrou Windows seul
+    check("t4_cible_ouverte_en_lecture_rerendu_sans_erreur_ni_tmp",
+          isinstance(_gi, pathlib.Path) and _ri == _gi and _orph == [], str((_gi, _ri, _orph)))
+else:
+    check("t4_cible_ouverte_en_lecture_SKIP", True)
+    print("  SKIP  t4_cible_ouverte_en_lecture : pas de verrou de lecture hors Windows")
 # R-2b : un effet BORNE t0/t1 est juge tel qu'il s'applique en plein (les
 # bornes temporelles sont retirees avant la chaine) : a t=1 un effet borne
 # 5..6 s assombrit QUAND MEME l'image.
@@ -967,8 +1026,12 @@ try:
     _rest2 = sorted(p.name for p in _cd.glob("zz1*"))
 except Exception as _e:                                  # noqa: BLE001
     _pr2, _rest2 = repr(_e), None
-check("t4_elagage_un_echec_n_arrete_pas_les_suivants",
-      _rest2 == ["zz12_grade.jpg", "zz13_grade.jpg", "zz14_grade.jpg"], str((_pr2, _rest2)))
+if os.name == "nt":                                      # verrou Windows seul
+    check("t4_elagage_un_echec_n_arrete_pas_les_suivants",
+          _rest2 == ["zz12_grade.jpg", "zz13_grade.jpg", "zz14_grade.jpg"], str((_pr2, _rest2)))
+else:
+    check("t4_elagage_un_echec_SKIP", True)
+    print("  SKIP  t4_elagage_un_echec : pas de verrou de lecture hors Windows")
 
 # --- routes : Request starlette reelle (patron test_montage_l7b.py) ---------
 from app.services import montage_service as MS           # noqa: E402

@@ -27,7 +27,8 @@ image rend ZÉRO image avec un code de sortie 0 (échec muet). 25 i/s sur
 recul fixe de 0,1 s ne suffit pas) ; vidéo 2,00 s + audio 2,30 s :
 `format=duration` vaut 2,30 et 2,00 ne rend rien (la durée du CONTENEUR
 ment). D'où `_probe` qui lit `stream=duration,r_frame_rate` du flux `v:0`
-(repli `format=duration`), `_t_lisible` qui recule à `durée − max(0,1 ;
+(puis son tag `DURATION` — .mkv/.webm, où `stream=duration` est vide —,
+repli `format=duration`), `_t_lisible` qui recule à `durée − max(0,1 ;
 1/fps)`, UN second essai à `t − 1/fps` si la sortie manque, et un fichier
 de sortie absent qui reste une `MediaError`, jamais un succès.
 
@@ -51,6 +52,7 @@ import hashlib
 import json
 import math
 import os
+import threading
 from pathlib import Path
 
 from app.services import effects_engine as _fx
@@ -72,6 +74,7 @@ _TEMPS = ("t0", "t1", "fade_in", "fade_out", "ease_in", "ease_out")
 _HORS_CLE = frozenset(_TEMPS + ("label", "id", "off"))
 _PROBES: dict = {}             # (chemin résolu, mtime_ns) → (durée, w, h, fps)
 _PROBES_MAX = 256
+_PROBES_LOCK = threading.Lock()  # éviction/insertion concurrentes (routes en thread)
 
 # `scale=512:-2` retiré en tête (revue T3 M-2) : l'entrée est DÉJÀ large de
 # 512 (`_grade_graph(…, 512, …)`), PNG octet pour octet identique (mesuré).
@@ -129,27 +132,63 @@ def _num(v) -> float:
     return f if math.isfinite(f) and f > 0 else 0.0
 
 
+def _hms(v) -> float:
+    """Secondes d'un tag `DURATION` Matroska (« 00:00:02.000000000 », aussi
+    « 2.5 » ou « 1:02.5 »), 0 si illisible — jamais d'exception."""
+    try:
+        morceaux = str(v).strip().split(":")
+        if not 1 <= len(morceaux) <= 3:
+            return 0.0
+        s = 0.0
+        for m in morceaux:
+            s = s * 60 + float(m)
+    except (TypeError, ValueError):
+        return 0.0
+    return s if math.isfinite(s) and s > 0 else 0.0
+
+
+def _tag_duree(s: dict) -> float:
+    """Durée du flux lue dans ses tags (`DURATION`, clé insensible à la casse,
+    variantes `DURATION-eng` comprises), 0 sinon."""
+    tags = s.get("tags") if isinstance(s, dict) else None
+    if not isinstance(tags, dict):
+        return 0.0
+    for k, v in tags.items():
+        if str(k).upper().split("-", 1)[0] == "DURATION":
+            d = _hms(v)
+            if d > 0:
+                return d
+    return 0.0
+
+
 def _probe(path: Path) -> tuple[float, int, int, float]:
     """(durée, largeur, hauteur, i/s) du flux `v:0`. `MediaError` sinon.
 
     La durée est celle du FLUX vidéo (celle du conteneur inclut l'audio plus
-    long : mesuré 2,30 pour une vidéo de 2,00), repli `format=duration`. En
-    mémoire par (chemin résolu, mtime_ns), 256 entrées au plus."""
+    long : mesuré 2,30 pour une vidéo de 2,00) : `stream.duration`, puis le
+    tag `DURATION` du flux (.mkv / .webm, où `stream.duration` est VIDE —
+    mesuré : `format=duration` y vaut 2,623 pour une vidéo de 2,00 + audio
+    2,6), repli `format=duration`. En mémoire par (chemin résolu, mtime_ns),
+    256 entrées au plus, sous verrou (appels concurrents des routes)."""
     try:
         cle = (str(path.resolve()), path.stat().st_mtime_ns)
     except OSError:
         cle = None
-    if cle is not None and cle in _PROBES:
-        return _PROBES[cle]
+    if cle is not None:
+        with _PROBES_LOCK:
+            deja = _PROBES.get(cle)
+        if deja is not None:
+            return deja
     r = _MM._run(["ffprobe", "-v", "error", "-select_streams", "v:0",
                   "-show_entries", "stream=width,height,duration,r_frame_rate,avg_frame_rate"
-                  ":format=duration", "-of", "json", str(path)],
+                  ":stream_tags=DURATION:format=duration", "-of", "json", str(path)],
                  timeout=30, quoi="la lecture de la source")
     try:
         d = json.loads((r.stdout or b"").decode("utf-8", errors="replace") or "{}")
         s = (d.get("streams") or [{}])[0]
         w, h = int(s.get("width") or 0), int(s.get("height") or 0)
-        dur = _num(s.get("duration")) or _num((d.get("format") or {}).get("duration"))
+        dur = (_num(s.get("duration")) or _tag_duree(s)
+               or _num((d.get("format") or {}).get("duration")))
         fps = _num(s.get("r_frame_rate")) or _num(s.get("avg_frame_rate"))
     except (ValueError, TypeError, AttributeError):
         w = h = 0
@@ -159,9 +198,10 @@ def _probe(path: Path) -> tuple[float, int, int, float]:
                              % (path.name, _MM._lignes_utiles(r.stderr)))
     res = (dur, w, h, fps if 0 < fps <= 1000 else float(_FPS))
     if cle is not None:
-        if len(_PROBES) >= _PROBES_MAX:
-            _PROBES.pop(next(iter(_PROBES)))
-        _PROBES[cle] = res
+        with _PROBES_LOCK:
+            while len(_PROBES) >= _PROBES_MAX:
+                _PROBES.pop(next(iter(_PROBES)), None)
+            _PROBES[cle] = res
     return res
 
 
