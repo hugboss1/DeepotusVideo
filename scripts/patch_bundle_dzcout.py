@@ -422,8 +422,8 @@ STABLE_PROBES = [
     # couche (dzmOvExtra) n'en ajoutent aucune.
     # L7 D-22 (24/09/2026, tache 6) : 151 -> 158 -- sept sites de CODE, aucun commentaire : menu de piste x3
     # (subsBurnId, subsBurn, subsNew), subsPayload x1 (subsBurnId), hote du tiroir x2 (subsNew, subsCopy),
-    # rangee de piste x1 (subsBurnId pour data-burn).
-    ("montage", "DzTracks", 158),
+    # rangee de piste x1 (subsBurnId pour data-burn). Revue T6 : 158 -> 159, subsOverlay x1 (subsBurnId).
+    ("montage", "DzTracks", 159),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

@@ -4266,7 +4266,7 @@ function DzMontage(props){
          visent la même piste de dialogue. */
       srcTracks:svmTracksOf(proj),
       /* L7 D-22 (24/09/2026) : la traduction « dans une nouvelle piste » — S<n> naît, ses répliques sont des clips neufs, S1 intacte */
-      onNewTrack:function(lang,segs){var r2=DzTracks.subsNew(svmTracksOf(proj),lang);svmTracksSet(r2.tracks);
+      onNewTrack:function(lang,segs){var r2=DzTracks.subsNew(svmTracksOf(dzProjRef.current),lang);svmTracksSet(r2.tracks);
         setClips(function(cs){return DzTracks.subsCopy(cs,"s1",r2.id,segs)});setDirty(!0);
         fireNote("Piste "+r2.id.toUpperCase()+" ("+lang+") créée avec "+(segs||[]).length+" répliques — S1 intacte ; clic droit sur la tête de "+r2.id.toUpperCase()+" pour la graver au rendu.")}})}
   /* LE karaoké : le mot prononcé se surligne dans le lecteur, à l'échelle
@@ -4278,7 +4278,9 @@ function DzMontage(props){
   function subsOverlay(){
     var d=subsLayer();
     if(!d||!d.Overlay)return null;
-    var segs=subsSegsOf(clips);
+    /* L7 D-22 (revue T6, 24/09/2026) : l'aperçu montre la piste que le rendu grave (subsBurnId) — l'éditeur reste sur s1 */
+    var dzBid=DzTracks.subsBurnId(svmTracksOf(proj));
+    var segs=(clips||[]).filter(function(c){return c.tr===dzBid});
     if(!segs.length&&!subsOn)return null;
     return r.jsx(d.Overlay,{segments:segs,style:subsStyleNow(),t:ph,
       edit:subsOn,onStyle:subsStyleSet,
@@ -6619,7 +6621,7 @@ function DzMontage(props){
                        rétrogradait en ambre. */
                     "data-cid":tr.id==="s1"?c.id:void 0,
                     "data-warn":tr.id==="s1"?(subsSev(c.id).sev||void 0):void 0,
-                    "data-hidden":tr.id==="s1"&&c.hidden?"":void 0,
+                    "data-hidden":trackKind(tr.id)==="subs"&&c.hidden?"":void 0, /* L7 D-22 (revue T6) : masqué se voit sur toute piste subs */
                     /* couverture : le plan qui ne porte aucune réplique se
                        marque sur la timeline. « 16 s sous-titrées sur 1:09 »
                        était vrai et invisible — trois plans muets, et pas un
@@ -20304,9 +20306,12 @@ function dzmOvExtra(c){
      sinon la première subs quand s1 manque.
    · subsCopy(clips, deTr, versTr, segments?) — segments donnés → clips neufs
      {id "s<n>c<k>" unique par dzmUniqueId, tr:versTr, start, end, text,
-     label:text (46 car., « (vide) »), hidden si vrai} ; sans segments → copie
-     des clips de deTr (mêmes clés, id et tr neufs). Les autres clips sont les
-     MÊMES objets ; rien n'est retiré de la piste cible. */
+     label:text (46 car., « (vide) »), hidden si vrai} — les `words` (karaoké
+     mot à mot) ne suivent PAS : une traduction change les mots, dzmSubsTrApply
+     les met déjà à null, et une piste de langue naît sans karaoké (daté) ;
+     sans segments → copie des clips de deTr (mêmes clés, words compris, id et
+     tr neufs). Les autres clips sont les MÊMES objets ; rien n'est retiré de
+     la piste cible. */
 var DZM_SUBS_LABEL_MAX=46;
 function dzmSubsTracks(ts){
   var out=[];(Array.isArray(ts)?ts:[]).forEach(function(t){
@@ -20335,6 +20340,9 @@ function dzmSubsBurn(ts,id){
   return list.map(function(t){
     if(!t||t.id==null||dzmKindOf(t.id,t.kind)!=="subs")return t;
     return Object.assign({},t,{burn:String(t.id)===want})})}
+/* = subsLabelOf du bloc subs (subs.js:104-107), tenu à l'identique : blancs
+   repliés, « (vide) », 46 caractères puis « … ». Le bloc est hors de portée de
+   la couche au chargement (inliné avant elle) ; le banc [31] pinne la règle. */
 function dzmSubsLabelOf(txt){
   var t=String(txt==null?"":txt).replace(/\s+/g," ").trim();
   if(!t)return "(vide)";

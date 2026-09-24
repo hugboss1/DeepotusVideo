@@ -7135,9 +7135,12 @@ function dzmOvExtra(c){
      sinon la première subs quand s1 manque.
    · subsCopy(clips, deTr, versTr, segments?) — segments donnés → clips neufs
      {id "s<n>c<k>" unique par dzmUniqueId, tr:versTr, start, end, text,
-     label:text (46 car., « (vide) »), hidden si vrai} ; sans segments → copie
-     des clips de deTr (mêmes clés, id et tr neufs). Les autres clips sont les
-     MÊMES objets ; rien n'est retiré de la piste cible. */
+     label:text (46 car., « (vide) »), hidden si vrai} — les `words` (karaoké
+     mot à mot) ne suivent PAS : une traduction change les mots, dzmSubsTrApply
+     les met déjà à null, et une piste de langue naît sans karaoké (daté) ;
+     sans segments → copie des clips de deTr (mêmes clés, words compris, id et
+     tr neufs). Les autres clips sont les MÊMES objets ; rien n'est retiré de
+     la piste cible. */
 var DZM_SUBS_LABEL_MAX=46;
 function dzmSubsTracks(ts){
   var out=[];(Array.isArray(ts)?ts:[]).forEach(function(t){
@@ -7166,6 +7169,9 @@ function dzmSubsBurn(ts,id){
   return list.map(function(t){
     if(!t||t.id==null||dzmKindOf(t.id,t.kind)!=="subs")return t;
     return Object.assign({},t,{burn:String(t.id)===want})})}
+/* = subsLabelOf du bloc subs (subs.js:104-107), tenu à l'identique : blancs
+   repliés, « (vide) », 46 caractères puis « … ». Le bloc est hors de portée de
+   la couche au chargement (inliné avant elle) ; le banc [31] pinne la règle. */
 function dzmSubsLabelOf(txt){
   var t=String(txt==null?"":txt).replace(/\s+/g," ").trim();
   if(!t)return "(vide)";

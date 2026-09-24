@@ -2817,10 +2817,11 @@ R_M24H = ("onPlanFlag:subsPlanFlag,\n"
           # L7 D-22 (24/09/2026, tache 6) : REPLIE ici (cette queue de props est nee de CE remplacement) --
           # la traduction « dans une nouvelle piste » : la piste S<n> nait (subsNew ; svmTracksSet = historique
           # D-0, bus, projet, NON ENREGISTRE), ses repliques sont des clips neufs tr:"s<n>" (subsCopy), S1 intacte.
-          # `proj` est celui du rendu qui a monte le tiroir (ecart date : une piste ajoutee PENDANT la requete
-          # de traduction ne serait pas vue -- quelques secondes, pas de projRef dans le bundle, mesure).
+          # Revue T6 : les pistes sont lues sur dzProjRef.current (tenu a jour a chaque rendu, .bak:1932, le
+          # meme que dzmHistHost) et non sur le `proj` capture par le rendu qui a monte le tiroir -- une piste
+          # ajoutee PENDANT la requete de traduction est vue.
           "      /* L7 D-22 (24/09/2026) : la traduction « dans une nouvelle piste » — S<n> naît, ses répliques sont des clips neufs, S1 intacte */\n"
-          '      onNewTrack:function(lang,segs){var r2=DzTracks.subsNew(svmTracksOf(proj),lang);svmTracksSet(r2.tracks);\n'
+          '      onNewTrack:function(lang,segs){var r2=DzTracks.subsNew(svmTracksOf(dzProjRef.current),lang);svmTracksSet(r2.tracks);\n'
           '        setClips(function(cs){return DzTracks.subsCopy(cs,"s1",r2.id,segs)});setDirty(!0);\n'
           '        fireNote("Piste "+r2.id.toUpperCase()+" ("+lang+") créée avec "+(segs||[]).length+" répliques — S1 intacte ; clic droit sur la tête de "+r2.id.toUpperCase()+" pour la graver au rendu.")}})}')
 # M24i — l'HÔTE envoie `srcIn` : sans lui, la route ne peut retrancher que
@@ -5482,8 +5483,30 @@ A_L7F2 = '            return r.jsxs("div",{className:"svm-track","data-sub":tr.i
 R_L7F2 = ('            /* L7 D-22 (24/09/2026) : data-sub par genre (S2… aussi), data-burn sur la piste que le rendu grave (s1 sans marque) */\n'
           '            return r.jsxs("div",{className:"svm-track","data-sub":trackKind(tr.id)==="subs"?"":void 0,'
           '"data-burn":trackKind(tr.id)==="subs"&&DzTracks.subsBurnId(svmTracksOf(proj))===tr.id?"":void 0,')
+# Revue T6 (24/09/2026) : (1) l'APERCU VIVANT (subsOverlay) lisait subsSegsOf(clips) = s1 alors que Preview et
+# Rendu gravent la piste marquee -- il filtre par subsBurnId lui aussi (L7f5 ; ancre sur QUATRE lignes : la ligne
+# `var segs=subsSegsOf(clips);` existe deux fois dans le .bak, subsOverlay et le lecteur karaoke) ; l'editeur, le
+# verdict, la couverture et les emojis restent sur s1 (date : subsSegsOf( x7 ailleurs). (2) `data-hidden` ne se
+# posait que sur s1 : un clip s2 masque se dessinait normal et ne partait pas au rendu sans signe -- par genre
+# (L7f6, comme data-sub). Ancres libres 1/0/1.
+A_L7F5 = ('  function subsOverlay(){\n'
+          '    var d=subsLayer();\n'
+          '    if(!d||!d.Overlay)return null;\n'
+          '    var segs=subsSegsOf(clips);')
+R_L7F5 = ('  function subsOverlay(){\n'
+          '    var d=subsLayer();\n'
+          '    if(!d||!d.Overlay)return null;\n'
+          "    /* L7 D-22 (revue T6, 24/09/2026) : l'aperçu montre la piste que le rendu grave (subsBurnId) — l'éditeur reste sur s1 */\n"
+          '    var dzBid=DzTracks.subsBurnId(svmTracksOf(proj));\n'
+          '    var segs=(clips||[]).filter(function(c){return c.tr===dzBid});')
+A_L7F6 = '                    "data-hidden":tr.id==="s1"&&c.hidden?"":void 0,'
+R_L7F6 = '                    "data-hidden":trackKind(tr.id)==="subs"&&c.hidden?"":void 0, /* L7 D-22 (revue T6) : masqué se voit sur toute piste subs */'
 L7A += [("L7f1-subsPayload-grave-la-piste-marquee", A_L7F1, R_L7F1),
-        ("L7f2-data-sub-par-genre-et-data-burn", A_L7F2, R_L7F2)]
+        ("L7f2-data-sub-par-genre-et-data-burn", A_L7F2, R_L7F2),
+        ("L7f5-subsOverlay-montre-la-piste-gravee", A_L7F5, R_L7F5),
+        ("L7f6-data-hidden-sur-toute-piste-subs", A_L7F6, R_L7F6)]
+assert R_L7F5.startswith(A_L7F5[:A_L7F5.rfind("\n")]) and R_L7F5.count("subsSegsOf(") == 0 and R_L7F5.count("DzTracks.subsBurnId(svmTracksOf(proj))") == 1 and R_L7F5.count("c.tr===dzBid") == 1
+assert R_L7F6.count('trackKind(tr.id)==="subs"&&c.hidden') == 1 and R_L7F6.count('tr.id==="s1"') == 0
 assert R_L7F1.count("DzTracks.subsBurnId(svmTracksOf(proj))") == 1 and R_L7F1.count("subsSegsOf(") == 0 and R_L7F1.count("subsSegsOf") == 1 and R_L7F1.count("c.tr===bid") == 1 and A_L7F1 not in R_L7F1
 assert R_L7F2.count('"data-burn":') == 1 and R_L7F2.count('trackKind(tr.id)==="subs"') == 2 and R_L7F2.count('tr.id==="s1"') == 0 and R_L7F2.count("DzTracks.subsBurnId(") == 1
 assert R_EC1.count("DzTracks.subsBurnId(ts)") == 1 and R_EC1.count("DzTracks.subsBurn(ts,id)") == 1 and R_EC1.count("DzTracks.subsNew(ts,lg)") == 1 and R_EC1.count("window.prompt(") == 1
@@ -5491,7 +5514,7 @@ assert R_EC1.count('lbl:"Exporter .srt"') == 1 and R_EC1.count('lbl:"Exporter .v
 assert R_EC1.count('combo:bid===id?"gravée":""') == 1 and R_EC1.count("subsToSrt(") == 1 and R_EC1.count("subsToVtt(") == 1 and R_EC1.count("subsToTxt(") == 1 and R_EC1.count("subsDownload(") == 1
 assert R_M26A.count("x.useState(!1),dzNewTr=s9c[0],setDzNewTr=s9c[1];") == 1 and R_M26A.count("props.onNewTrack(dzTo,dzNext)") == 1 and R_M26A.count("if(props.onChange)props.onChange(dzNext,!0);") == 1
 assert R_M26B.count('"aria-label":"Traduire dans une nouvelle piste"') == 1 and R_M26B.count("sub-trnew") == 1 and R_M26B.count("dzNewTr?") == 1 and R_M26B.count("title:") == 2
-assert R_M24H.count("onNewTrack:function(lang,segs){") == 1 and R_M24H.count("DzTracks.subsNew(svmTracksOf(proj),lang)") == 1 and R_M24H.count('DzTracks.subsCopy(cs,"s1",r2.id,segs)') == 1
+assert R_M24H.count("onNewTrack:function(lang,segs){") == 1 and R_M24H.count("DzTracks.subsNew(svmTracksOf(dzProjRef.current),lang)") == 1 and R_M24H.count("svmTracksOf(proj)") == 1 and R_M24H.count('DzTracks.subsCopy(cs,"s1",r2.id,segs)') == 1
 assert R_L7G1.startswith(A_L7G1) and R_L7G1.count("svmThumb(") == 2 and R_L7G1.count("DzTracks.voisins(") == 1 and R_L7G1.count("DzTracks.abSecs(") == 1
 # revue 24/09 : abRollDit (quatrieme reference), trois fireNote (verrou, borne, partiel), rappel inscrit UNE fois (reg)
 assert R_L7G1.count("DzTracks.roll(") == 1 and R_L7G1.count("DzTracks.abRollDit(") == 1 and R_L7G1.count("DzTracks") == 4 and R_L7G1.count("fireNote(") == 3 and R_L7G1.count("},[dzAbK]);") == 1
