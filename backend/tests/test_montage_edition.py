@@ -1027,6 +1027,18 @@ out.ab_pur=[JSON.stringify(AG)===_ag0,JSON.stringify(AD)===_ad0];
 /* revue 24/09 : ce que le roll a fait — total (k = n), partiel (k < n, dit), nul (refus), signé, entrées molles, 0,5 ms = rien */
 out.abd=[T.abRollDit(3,3+10/30,10),T.abRollDit(3,3+4/30,10),T.abRollDit(3,3,10),T.abRollDit(3,3-1/30,-1),T.abRollDit(3,3-1/30,-10),
   T.abRollDit("x",null,3),T.abRollDit(3,3.0005,1),T.abRollDit(3.001,3.334,10)];
+/* ── [30] L7 D-19 (24/09/2026) : coins arrondis et ombre d'un overlay — dzmOvExtra pur ── */
+var OVX={id:"o",tr:"v2",radius:40,shadow:1,x:.5},_ovx0=JSON.stringify(OVX);
+out.ox=T.ovExtra(OVX);
+/* bornes : 999 → 200, −1 → 0, 12.6 → 13 (entier), "abc" → 0, chaîne "40" lue, absent → 0 */
+out.ox_rayon=[T.ovExtra({radius:999}).radius,T.ovExtra({radius:-1}).radius,T.ovExtra({radius:12.6}).radius,
+  T.ovExtra({radius:"abc"}).radius,T.ovExtra({radius:"40"}).radius,T.ovExtra({}).radius];
+/* ombre : true / "1" / 2 / .5 → 1 ; 0 / null / .49 / "x" / absent → 0 (la règle du backend : numérique ≥ 0,5) */
+out.ox_ombre=[T.ovExtra({shadow:!0}).shadow,T.ovExtra({shadow:"1"}).shadow,T.ovExtra({shadow:2}).shadow,T.ovExtra({shadow:.5}).shadow,
+  T.ovExtra({shadow:0}).shadow,T.ovExtra({shadow:null}).shadow,T.ovExtra({shadow:.49}).shadow,T.ovExtra({shadow:"x"}).shadow,T.ovExtra({}).shadow];
+/* entrées molles : null, chaîne, nombre → {0,0} ; toujours les deux clés et rien d'autre */
+out.ox_mou=[T.ovExtra(null),T.ovExtra("a"),T.ovExtra(7),Object.keys(T.ovExtra(OVX))];
+out.ox_pur=JSON.stringify(OVX)===_ovx0;
 console.log(JSON.stringify(out));
 """
 # E-9 : svmRuler / svmPad2 sont des fonctions DU BUNDLE (meme portee module que
@@ -1285,7 +1297,9 @@ try:
                  "df","df_id","df_vide","df_slip","df_piste","df_rogne_et_bouge","df_noms","df_cles","df_pur","df_temps",
                  "df_vue","df_vue_noms","df_tolerance",
                  # L7 D-3b (tache 4-bis) : les SEPT cles de la section [29].
-                 "ab","ab_vitesse","ab_sans_srcin","ab_refus","ab_contact","ab_zero","ab_pur","abd"]
+                 "ab","ab_vitesse","ab_sans_srcin","ab_refus","ab_contact","ab_zero","ab_pur","abd",
+                 # L7 D-19 (tache 5, client) : les CINQ cles de la section [30].
+                 "ox","ox_rayon","ox_ombre","ox_mou","ox_pur"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -2774,6 +2788,29 @@ check("l7g_coeur_pur_x2_reutilise_dzmSpeedNum_et_dzmR3_constante_DZM_AB_IMG_x4_e
       and _SRCb.count("var DZM_AB_IMG=1/30;") == 1 and _SRCb.count("DZM_AB_IMG") == 4 and _L7GD.count("1e-3") == 2
       and len(_DT) > 1000 and _DT.count("abSecs:dzmAbSecs,abRollDit:dzmAbRollDit,") == 1,
       (len(_L7G), len(_L7GD), _SRCb.count("DZM_AB_IMG"), _DT.count("abSecs:dzmAbSecs,")))
+
+print("\n[30] L7 D-19 : coins arrondis et ombre d'un overlay — dzmOvExtra pur (tache 5, client, 24/09/2026)")
+# ── L7 D-19 (24/09/2026, tache 5, moitie client). dzmOvExtra(c) pur -> {radius, shadow} : le rayon des coins en px
+# du canvas (entier 0..200, arrondi) et l'ombre portee (0|1 : numerique >= 0,5, la regle meme de _ov_transform cote
+# backend), TOUJOURS les deux cles, defauts 0 ; entree molle -> {0,0}. Une seule mesure pour svmOvTfOf, donc pour
+# l'apercu, l'inspecteur et le payload (L7e2) ; jamais dans les keyframes (D-14 : statiques, date).
+check("ox_rayon_et_ombre_lus_sur_le_clip", D.get("ox") == {"radius": 40, "shadow": 1}, D.get("ox"))
+check("ox_rayon_borne_0_200_entier_chaine_lue_illisible_ou_absent_0",
+      D.get("ox_rayon") == [200, 0, 13, 0, 40, 0], D.get("ox_rayon"))
+check("ox_ombre_vrai_1_2_et_demi_valent_1_zero_nul_049_x_absent_valent_0",
+      D.get("ox_ombre") == [1, 1, 1, 1, 0, 0, 0, 0, 0], D.get("ox_ombre"))
+check("ox_entrees_molles_0_0_x3_et_deux_cles_seulement",
+      D.get("ox_mou") == [{"radius": 0, "shadow": 0}] * 3 + [["radius", "shadow"]], D.get("ox_mou"))
+check("ox_pur_le_clip_n_est_pas_mute", D.get("ox_pur") is True, D.get("ox_pur"))
+_L7E = _corps("dzmOvExtra")
+check("l7e_coeur_pur_constante_DZM_OV_RADIUS_MAX_x2_export_ovExtra_x1",
+      len(_L7E) > 80
+      and not re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|fetch\(", _L7E)
+      # x2 : la definition et la borne du corps -- 200 n'est ecrit qu'UNE fois dans le bloc
+      and _L7E.count("DZM_OV_RADIUS_MAX") == 1 and _SRCb.count("var DZM_OV_RADIUS_MAX=200;") == 1
+      and _SRCb.count("DZM_OV_RADIUS_MAX") == 2 and _L7E.count("200") == 0
+      and len(_DT) > 1000 and _DT.count("ovExtra:dzmOvExtra,") == 1 and _SRCb.count("ovExtra:") == 1,
+      (len(_L7E), _SRCb.count("DZM_OV_RADIUS_MAX"), _DT.count("ovExtra:dzmOvExtra,")))
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

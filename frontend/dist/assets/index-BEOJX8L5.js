@@ -1456,12 +1456,16 @@ function SvmFilmstrip(props){
    degrés. AUCUN champ posé sur le clip → null : l'overlay reste plein cadre
    (cover), lecteur, payload et rendu strictement identiques à avant. */
 function svmOvTfOf(c){
-  if(!c||(c.x==null&&c.y==null&&c.scale==null&&c.rotate==null))return null;
+  /* L7 D-19 (24/09/2026) : un rayon > 0 ou une ombre matérialisent aussi l'état « transformé » — le rendu fait de même
+     (plein cadre par défaut) ; la couche borne les deux (entier 0..200, 0|1) */
+  var ex=DzTracks.ovExtra(c);
+  if(!c||(c.x==null&&c.y==null&&c.scale==null&&c.rotate==null&&!ex.radius&&!ex.shadow))return null;
   function n(v,d){v=Number(v);return isFinite(v)?v:d}
   return {x:Math.min(1.2,Math.max(-.2,n(c.x,.5))),
           y:Math.min(1.2,Math.max(-.2,n(c.y,.5))),
           scale:Math.min(3,Math.max(.05,n(c.scale,1))),
-          rotate:Math.min(180,Math.max(-180,n(c.rotate,0)))}}
+          rotate:Math.min(180,Math.max(-180,n(c.rotate,0))),
+          radius:ex.radius,shadow:ex.shadow}}
 /* application impérative sur une couche live — même géométrie que le rendu
    ffmpeg : largeur = scale·canvas, hauteur auto, centre posé en left/top %,
    rotation autour du centre ; tf null = retour au cover plein cadre */
@@ -1469,9 +1473,15 @@ function svmApplyTf(el,tf){
   if(tf){el.setAttribute("data-svmtf","");
     el.style.left=tf.x*100+"%";el.style.top=tf.y*100+"%";
     el.style.width=tf.scale*100+"%";
-    el.style.transform="translate(-50%,-50%) rotate("+tf.rotate+"deg)"}
+    el.style.transform="translate(-50%,-50%) rotate("+tf.rotate+"deg)";
+    /* L7 D-19 : coins et ombre de l'aperçu — le rayon (px d'un canvas de 1920 de large en paysage, 1080 sinon) est ramené
+       à l'échelle affichée par la largeur du cadre ; cadre non mesurable (volet caché) : rayon brut, aperçu approximatif */
+    var rad=tf.radius||0,pe=el.parentElement,pw=pe?pe.clientWidth:0,pk=pw>0?pw/(pw>pe.clientHeight?1920:1080):1;
+    el.style.borderRadius=rad>0?Math.round(rad*pk*100)/100+"px":"";
+    el.style.boxShadow=tf.shadow?"6px 6px 12px rgba(0,0,0,.55)":""}
   else{el.removeAttribute("data-svmtf");
-    el.style.left="";el.style.top="";el.style.width="";el.style.transform=""}}
+    el.style.left="";el.style.top="";el.style.width="";el.style.transform="";
+    el.style.borderRadius="";el.style.boxShadow=""}}
 /* ── keyframes de position d'un overlay V2 (R4b) — points {t local 0..durée,
    x, y, rotate?} posés sur le clip (motion_points), TOUJOURS triés par t
    (invariant maintenu par chaque mutation). Contrat backend : max 8 points,
@@ -1508,7 +1518,9 @@ function svmOvTfAt(c,t){
   return {x:mx==null?base.x:Math.min(1.2,Math.max(-.2,mx)),
           y:my==null?base.y:Math.min(1.2,Math.max(-.2,my)),
           scale:DzTracks.mpLerp2(mp,tl,"scale",base.scale),
-          rotate:mr==null?base.rotate:Math.min(180,Math.max(-180,mr))}}
+          rotate:mr==null?base.rotate:Math.min(180,Math.max(-180,mr)),
+          /* L7 D-19 : coins et ombre restent la statique — jamais keyframés */
+          radius:base.radius||0,shadow:base.shadow||0}}
 
 /* ── raccourcis clavier — actions NOMMÉES et REMAPPABLES (R4c) ─────────────
    Chaque action : id stable, libellé FR, section, combo par défaut. La table
@@ -2748,7 +2760,8 @@ function DzMontage(props){
          s'interpolent ici — le scrub et la lecture MONTRENT le mouvement ;
          sans point, svmOvTfAt rend la statique (ou null : cover intact) */
       var ktf=dragTfRef.current&&dragTfRef.current.id===id?dragTfRef.current:svmOvTfAt(k,t);
-      var tsig=ktf?ktf.x+"|"+ktf.y+"|"+ktf.scale+"|"+ktf.rotate:"";
+      /* L7 D-19 : coins et ombre entrent dans la signature — un rayon changé est ré-appliqué */
+      var tsig=ktf?ktf.x+"|"+ktf.y+"|"+ktf.scale+"|"+ktf.rotate+"|"+(ktf.radius||0)+"|"+(ktf.shadow||0):"";
       if(el._svmTfSig!==tsig){el._svmTfSig=tsig;svmApplyTf(el,ktf)}
       if(el.tagName==="VIDEO"){
         el.muted=!0; /* un overlay ne porte jamais le son */
@@ -2981,7 +2994,8 @@ function DzMontage(props){
     var t0=svmOvTfAt(k,tG0)||{x:.5,y:.5,scale:1,rotate:0};
     var h0={clips:clipsRef.current,mixDb:mixRef.current};
     var x0=e.clientX,y0=e.clientY,moved=!1,fired=!1;
-    var cur={id:k.id,x:t0.x,y:t0.y,scale:t0.scale,rotate:t0.rotate};
+    /* L7 D-19 : le geste garde coins et ombre à l'aperçu (jamais écrits par lui : p ne porte que x/y/scale/rotate) */
+    var cur={id:k.id,x:t0.x,y:t0.y,scale:t0.scale,rotate:t0.rotate,radius:t0.radius||0,shadow:t0.shadow||0};
     var cpx=frect.left+frect.width/2+(t0.x-.5)*frect.width*vz,
         cpy=frect.top+frect.height/2+(t0.y-.5)*frect.height*vz;
     var d0=Math.max(8,Math.hypot(x0-cpx,y0-cpy)),a0=Math.atan2(y0-cpy,x0-cpx);
@@ -3000,7 +3014,7 @@ function DzMontage(props){
       var ov=liveOvRef.current,el2=null,i;
       if(ov)for(i=0;i<ov.children.length;i++){
         if(ov.children[i]._svmId===k.id){el2=ov.children[i];break}}
-      if(el2){var tsig=cur.x+"|"+cur.y+"|"+cur.scale+"|"+cur.rotate;
+      if(el2){var tsig=cur.x+"|"+cur.y+"|"+cur.scale+"|"+cur.rotate+"|"+(cur.radius||0)+"|"+(cur.shadow||0);
         if(el2._svmTfSig!==tsig){el2._svmTfSig=tsig;svmApplyTf(el2,cur)}}
       tfSyncBox()}
     function mv(ev){
@@ -3117,6 +3131,7 @@ function DzMontage(props){
       if(c2.id!==id)return c2;
       var nk=Object.assign({},c2);
       delete nk.x;delete nk.y;delete nk.scale;delete nk.rotate;
+      delete nk.radius;delete nk.shadow; /* L7 D-19 : plein cadre = sans coins ni ombre (la chaîne cover du rendu les ignorerait) */
       delete nk.motion_points; /* plein cadre = trajectoire retirée aussi */
       return nk}));
     setDirty(!0);
@@ -4684,7 +4699,9 @@ function DzMontage(props){
           if(tf){o.scale=tf.scale;
             if(Math.abs(tf.x-.5)>1e-4)o.x=tf.x;
             if(Math.abs(tf.y-.5)>1e-4)o.y=tf.y;
-            if(Math.abs(tf.rotate)>=.05)o.rotate=tf.rotate}
+            if(Math.abs(tf.rotate)>=.05)o.rotate=tf.rotate;
+            /* L7 D-19 : coins et ombre, joints seulement hors défaut (tf est non nul dès que l'un des deux est posé) */
+            if(tf.radius>0)o.radius=tf.radius;if(tf.shadow)o.shadow=1}
           /* keyframes de position (R4b) — jointes à 2 points ou plus (en
              deçà rien ne part : l'inspecteur le dit), t 0,01 / x·y 0,001 /
              rotate 0,1 ; l'échelle reste la statique ci-dessus (pas de
@@ -4941,6 +4958,20 @@ function DzMontage(props){
             setClips(clipsRef.current.map(function(k){return k.id===id?Object.assign({},k,{opacity:nv>=1?void 0:nv}):k}));
             setDirty(!0)}}),
         r.jsx("span",{className:"svm-rangeval",children:vOp+" %"})]}),
+      /* L7 D-19 (24/09/2026, tâche 5) : coins arrondis (px du canvas, 0..200) et ombre portée — statiques même avec des
+         keyframes (D-14) ; écrits par svmOvTfField (historique par rafale de 600 ms, comme l'opacité) */
+      r.jsxs("div",{className:"svm-fadegain",children:[
+        r.jsx("span",{className:"svm-fxeditname",style:{width:50},children:"Coins"}),
+        fieldNum({min:0,max:200,step:5,value:t.radius||0,
+          title:"Rayon des coins de l'overlay en px du canvas (0 = coins droits, 200 au plus) — statique, les keyframes ne l'animent pas",
+          "aria-label":"Coins (px)",
+          onChange:function(e){var v=Number(e.target.value);
+            if(!isFinite(v))return;svmOvTfField({radius:Math.max(0,Math.min(200,Math.round(v)))})}}),
+        r.jsx("span",{className:"svm-rangeval",style:{width:"auto"},children:"px"})]}),
+      r.jsxs("div",{className:"svm-fadegain",children:[
+        r.jsx("span",{className:"svm-fxeditname",style:{width:50},children:"Ombre"}),
+        r.jsxs("label",{className:"svm-delrange svm-ovshadow",title:"Ombre portée sous l'overlay (noir à 55 %, décalée de 6 px au rendu) — statique, retirée par « plein cadre »",children:[
+          r.jsx("input",{type:"checkbox",checked:!!t.shadow,"aria-label":"Ombre portée",onChange:function(e){svmOvTfField({shadow:e.target.checked?1:0})}})," portée"]})]}),
       /* ── trajectoire (keyframes de position, R4b) — ◇ pose/écrase à la
          tête, liste compacte (clic : caler la tête, poubelle : retirer),
          losanges sur le clip V2 de la timeline ; ≥ 2 points partent au
@@ -20205,6 +20236,17 @@ function dzmAbRollDit(avant,apres,n){
   if(Math.abs(d)<1e-3)return {k:0,partiel:!1};
   if(Math.abs(d-k0*DZM_AB_IMG)<1e-3)return {k:k0,partiel:!1};
   return {k:Math.round(d/DZM_AB_IMG),partiel:!0}}
+/* ── L7 D-19 (24/09/2026) : coins arrondis et ombre portée d'un overlay (pur) ──
+   {radius : rayon des coins en px du canvas, entier 0..200 (arrondi, borné) ;
+   shadow : 0|1, numérique ≥ 0,5 ou true → 1} — la règle même de _ov_transform
+   côté rendu, lue UNE fois (svmOvTfOf) pour l'aperçu, l'inspecteur et le
+   payload. Toujours les deux clés, défauts 0 ; entrée molle → {0,0}. Jamais
+   dans les keyframes (D-14) : les deux restent statiques, daté. */
+var DZM_OV_RADIUS_MAX=200;
+function dzmOvExtra(c){
+  var o=c&&typeof c==="object"?c:{},r=Number(o.radius),s=Number(o.shadow);
+  r=isFinite(r)?Math.round(r):0;
+  return {radius:Math.max(0,Math.min(DZM_OV_RADIUS_MAX,r)),shadow:isFinite(s)&&s>=.5?1:0}}
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
   TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,cutOpts:dzmCutOpts,withWords:dzmWithWords,
@@ -20315,6 +20357,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   boring:dzmBoring,boringDef:DZM_BORING_DEF,
   diff:dzmDiff,DiffView:DzmDiffView,diffTemps:dzmDiffTemps,
   abSecs:dzmAbSecs,abRollDit:dzmAbRollDit,
+  ovExtra:dzmOvExtra,
   /* E-13 / E-14 (lot E-C, tache 5) : la tete dans l'inspecteur, le trou selectionne et son ripple */
   teteTxt:dzmTeteTxt,trou:dzmTrou,trouRipple:dzmTrouRipple,
   DEFAULTS:DZM_DEFAULT_TRACKS};

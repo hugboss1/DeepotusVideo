@@ -413,7 +413,14 @@ STABLE_PROBES = [
     # et les commentaires de l'hote taisent le nom a dessein.
     # 24/09/2026, revue de D-3b : 149 -> 150. UNE de plus, dans L7g1 :
     # `DzTracks.abRollDit(` (abRoll dit le roll borne, k images seulement).
-    ("montage", "DzTracks", 150),
+    # 24/09/2026, L7 D-19 (tache 5, moitie client : coins arrondis et ombre
+    # portee d'un overlay) : 150 -> 151. UNE de plus, dans la section L7e2a
+    # (svmOvTfOf, niveau module du bundle) : `DzTracks.ovExtra(c)` -- la
+    # couche borne radius/shadow UNE fois pour l'inspecteur, l'apercu et le
+    # payload. Les dix autres sections L7e (inspecteur, renderPayload,
+    # svmApplyTf, svmOvTfAt, signatures, geste, reset) et le bloc pur de la
+    # couche (dzmOvExtra) n'en ajoutent aucune.
+    ("montage", "DzTracks", 151),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

@@ -5308,11 +5308,116 @@ R_L7G2 = ('      /* L7 D-3b (24/09/2026, tâche 4-bis) : A/B à la jonction — 
           'title:"Avancer la jonction d\'une image (Maj : dix) — A s\'allonge, B raccourcit",onClick:function(e){abRoll(e.shiftKey?10:1)},children:"+1 ▶"}),\n'
           '        r.jsx("img",{className:"svm-abthumb",src:abB||void 0,alt:"","data-ab":"b",draggable:!1,title:"B — première image du plan de droite"})]}),\n'
           + A_L7G2)
+# ══ L7 D-19 (24/09/2026, tache 5, moitie CLIENT) — COINS ARRONDIS ET OMBRE PORTEE D'UN OVERLAY ═
+# Le backend (37b8d57) lit `radius` (entier 0..200) et `shadow` (0|1) au meme
+# niveau que x/y/scale/rotate dans _ov_transform ; poses seuls ils rendent tf
+# non-None (chaine transformee plein cadre). Le client fait de MEME : la couche
+# rend {radius, shadow} bornes (dzmOvExtra, pur), lus UNE fois dans svmOvTfOf
+# (L7e2a/b) -- donc l'inspecteur, l'apercu et le payload voient la meme mesure.
+# MESURES contre le plan (qui prevoyait quatre sections L7e1..L7e4) : ONZE
+# ancres, toutes LIBRES 1/0/1, parce que (1) svmOvTfAt (.bak:1503) REBATIT un
+# objet {x,y,scale,rotate} quand des keyframes existent : sans L7e5, coins et
+# ombre disparaissaient de l'apercu des qu'un point etait pose ; (2) liveSync
+# (.bak:2751) et le geste (.bak:3003) gardent une SIGNATURE x|y|scale|rotate
+# avant d'appeler svmApplyTf : sans L7e6/L7e7b un rayon change n'etait jamais
+# re-applique ; (3) le geste (.bak:2984) construit `cur` sans les deux cles :
+# les coins sautaient pendant le glisser (L7e7a) ; (4) svmOvTfReset
+# (.bak:3119) ne retirait que quatre cles : « plein cadre » gardait un rayon
+# que le rendu portait alors en chaine transformee (L7e8). Le rayon de
+# l'apercu est ramene a l'echelle affichee par la largeur du cadre (.svm-liveov
+# = inset:0 du cadre au ratio du projet ; 1920 de large si paysage, 1080 sinon
+# -- la regle de _CANVAS et du canvasW des sous-titres, .bak:4250) ; cadre non
+# mesurable : rayon brut, apercu approximatif (date). renderPayload n'emet
+# x/y/rotate que hors defaut : un rayon seul part avec o.scale=1 (tf non nul)
+# et o.radius -- MESURE par le banc bundle. Les deux champs passent par
+# svmOvTfField : historique par rafale de 600 ms (ovHistAt), comme l'opacite.
+# Keyframes D-14 : radius/shadow restent STATIQUES (pas dans svmMpField), date.
+# 176 -> 187 ancres ; sonde 150 -> 151 (DzTracks.ovExtra dans svmOvTfOf).
+A_L7E1 = '        r.jsx("span",{className:"svm-rangeval",children:vOp+" %"})]}),'
+R_L7E1 = (A_L7E1 + '\n'
+          '      /* L7 D-19 (24/09/2026, tâche 5) : coins arrondis (px du canvas, 0..200) et ombre portée — statiques même avec des\n'
+          '         keyframes (D-14) ; écrits par svmOvTfField (historique par rafale de 600 ms, comme l\'opacité) */\n'
+          '      r.jsxs("div",{className:"svm-fadegain",children:[\n'
+          '        r.jsx("span",{className:"svm-fxeditname",style:{width:50},children:"Coins"}),\n'
+          '        fieldNum({min:0,max:200,step:5,value:t.radius||0,\n'
+          '          title:"Rayon des coins de l\'overlay en px du canvas (0 = coins droits, 200 au plus) — statique, les keyframes ne l\'animent pas",\n'
+          '          "aria-label":"Coins (px)",\n'
+          '          onChange:function(e){var v=Number(e.target.value);\n'
+          '            if(!isFinite(v))return;svmOvTfField({radius:Math.max(0,Math.min(200,Math.round(v)))})}}),\n'
+          '        r.jsx("span",{className:"svm-rangeval",style:{width:"auto"},children:"px"})]}),\n'
+          '      r.jsxs("div",{className:"svm-fadegain",children:[\n'
+          '        r.jsx("span",{className:"svm-fxeditname",style:{width:50},children:"Ombre"}),\n'
+          '        r.jsxs("label",{className:"svm-delrange svm-ovshadow",'
+          'title:"Ombre portée sous l\'overlay (noir à 55 %, décalée de 6 px au rendu) — statique, retirée par « plein cadre »",children:[\n'
+          '          r.jsx("input",{type:"checkbox",checked:!!t.shadow,"aria-label":"Ombre portée",'
+          'onChange:function(e){svmOvTfField({shadow:e.target.checked?1:0})}})," portée"]})]}),')
+A_L7E2A = '  if(!c||(c.x==null&&c.y==null&&c.scale==null&&c.rotate==null))return null;'
+R_L7E2A = ('  /* L7 D-19 (24/09/2026) : un rayon > 0 ou une ombre matérialisent aussi l\'état « transformé » — le rendu fait de même\n'
+           '     (plein cadre par défaut) ; la couche borne les deux (entier 0..200, 0|1) */\n'
+           '  var ex=DzTracks.ovExtra(c);\n'
+           '  if(!c||(c.x==null&&c.y==null&&c.scale==null&&c.rotate==null&&!ex.radius&&!ex.shadow))return null;')
+A_L7E2B = '          rotate:Math.min(180,Math.max(-180,n(c.rotate,0)))}}'
+R_L7E2B = ('          rotate:Math.min(180,Math.max(-180,n(c.rotate,0))),\n'
+           '          radius:ex.radius,shadow:ex.shadow}}')
+A_L7E3 = '            if(Math.abs(tf.rotate)>=.05)o.rotate=tf.rotate}'
+R_L7E3 = ('            if(Math.abs(tf.rotate)>=.05)o.rotate=tf.rotate;\n'
+          '            /* L7 D-19 : coins et ombre, joints seulement hors défaut (tf est non nul dès que l\'un des deux est posé) */\n'
+          '            if(tf.radius>0)o.radius=tf.radius;if(tf.shadow)o.shadow=1}')
+A_L7E4A = '    el.style.transform="translate(-50%,-50%) rotate("+tf.rotate+"deg)"}'
+R_L7E4A = ('    el.style.transform="translate(-50%,-50%) rotate("+tf.rotate+"deg)";\n'
+           '    /* L7 D-19 : coins et ombre de l\'aperçu — le rayon (px d\'un canvas de 1920 de large en paysage, 1080 sinon) est ramené\n'
+           '       à l\'échelle affichée par la largeur du cadre ; cadre non mesurable (volet caché) : rayon brut, aperçu approximatif */\n'
+           '    var rad=tf.radius||0,pe=el.parentElement,pw=pe?pe.clientWidth:0,pk=pw>0?pw/(pw>pe.clientHeight?1920:1080):1;\n'
+           '    el.style.borderRadius=rad>0?Math.round(rad*pk*100)/100+"px":"";\n'
+           '    el.style.boxShadow=tf.shadow?"6px 6px 12px rgba(0,0,0,.55)":""}')
+A_L7E4B = '    el.style.left="";el.style.top="";el.style.width="";el.style.transform=""}}'
+R_L7E4B = ('    el.style.left="";el.style.top="";el.style.width="";el.style.transform="";\n'
+           '    el.style.borderRadius="";el.style.boxShadow=""}}')
+A_L7E5 = '          rotate:mr==null?base.rotate:Math.min(180,Math.max(-180,mr))}}'
+R_L7E5 = ('          rotate:mr==null?base.rotate:Math.min(180,Math.max(-180,mr)),\n'
+          '          /* L7 D-19 : coins et ombre restent la statique — jamais keyframés */\n'
+          '          radius:base.radius||0,shadow:base.shadow||0}}')
+A_L7E6 = '      var tsig=ktf?ktf.x+"|"+ktf.y+"|"+ktf.scale+"|"+ktf.rotate:"";'
+R_L7E6 = ('      /* L7 D-19 : coins et ombre entrent dans la signature — un rayon changé est ré-appliqué */\n'
+          '      var tsig=ktf?ktf.x+"|"+ktf.y+"|"+ktf.scale+"|"+ktf.rotate+"|"+(ktf.radius||0)+"|"+(ktf.shadow||0):"";')
+A_L7E7A = '    var cur={id:k.id,x:t0.x,y:t0.y,scale:t0.scale,rotate:t0.rotate};'
+R_L7E7A = ('    /* L7 D-19 : le geste garde coins et ombre à l\'aperçu (jamais écrits par lui : p ne porte que x/y/scale/rotate) */\n'
+           '    var cur={id:k.id,x:t0.x,y:t0.y,scale:t0.scale,rotate:t0.rotate,radius:t0.radius||0,shadow:t0.shadow||0};')
+A_L7E7B = '      if(el2){var tsig=cur.x+"|"+cur.y+"|"+cur.scale+"|"+cur.rotate;'
+R_L7E7B = '      if(el2){var tsig=cur.x+"|"+cur.y+"|"+cur.scale+"|"+cur.rotate+"|"+(cur.radius||0)+"|"+(cur.shadow||0);'
+A_L7E8 = '      delete nk.x;delete nk.y;delete nk.scale;delete nk.rotate;'
+R_L7E8 = (A_L7E8 + '\n'
+          '      delete nk.radius;delete nk.shadow; /* L7 D-19 : plein cadre = sans coins ni ombre (la chaîne cover du rendu les ignorerait) */')
 L7A = [("L7a3-preset-resolve-export-import-du-mappage", A_L7A3, R_L7A3),
        ("L7b3-le-texte-selectionne-garde-son-Ctrl-C", A_L7B3, R_L7B3),
        ("L7c3-popover-plans-trop-longs-jump-cuts", A_L7C3, R_L7C3),
        ("L7g1-jonction-en-edition-vignettes-A-B-et-abRoll", A_L7G1, R_L7G1),
-       ("L7g2-rangee-A-B-du-popover-de-jonction", A_L7G2, R_L7G2)]
+       ("L7g2-rangee-A-B-du-popover-de-jonction", A_L7G2, R_L7G2),
+       ("L7e1-inspecteur-coins-et-ombre", A_L7E1, R_L7E1),
+       ("L7e2a-svmOvTfOf-garde-radius-shadow", A_L7E2A, R_L7E2A),
+       ("L7e2b-svmOvTfOf-porte-radius-shadow", A_L7E2B, R_L7E2B),
+       ("L7e3-renderPayload-emet-radius-shadow", A_L7E3, R_L7E3),
+       ("L7e4a-svmApplyTf-apercu-coins-et-ombre", A_L7E4A, R_L7E4A),
+       ("L7e4b-svmApplyTf-retour-au-cover", A_L7E4B, R_L7E4B),
+       ("L7e5-svmOvTfAt-garde-la-statique", A_L7E5, R_L7E5),
+       ("L7e6-liveSync-signature", A_L7E6, R_L7E6),
+       ("L7e7a-geste-cur-porte-radius-shadow", A_L7E7A, R_L7E7A),
+       ("L7e7b-geste-signature", A_L7E7B, R_L7E7B),
+       ("L7e8-reset-retire-radius-shadow", A_L7E8, R_L7E8)]
+_L7E = [t for t in L7A if t[0].startswith("L7e")]
+# deux remplacements CONTIENNENT leur ancre (e1, e8 : ajout apres) ; les neuf autres la REECRIVENT (meme tete de ligne)
+assert len(_L7E) == 11 and sum(t[1] in t[2] for t in _L7E) == 2 and R_L7E1.startswith(A_L7E1) and R_L7E8.startswith(A_L7E8)
+# les neuf autres gardent la TETE de leur ancre (apres un eventuel commentaire de tete) : la ligne n'est pas remplacee par autre chose
+assert all(t[1].lstrip()[:20] in t[2] for t in _L7E)
+assert R_L7E1.count("fieldNum(") == 1 and R_L7E1.count('type:"checkbox"') == 1 and R_L7E1.count("title:") == 2 and R_L7E1.count("svmOvTfField(") == 2
+assert R_L7E1.count("svmOvTfField({radius:") == 1 and R_L7E1.count("svmOvTfField({shadow:e.target.checked?1:0})") == 1 and R_L7E1.count("svmMpField(") == 0 and R_L7E1.count("DzTracks") == 0
+assert R_L7E2A.count("DzTracks.ovExtra(c)") == 1 and R_L7E2A.count("&&!ex.radius&&!ex.shadow))return null;") == 1 and R_L7E2B.count("radius:ex.radius,shadow:ex.shadow}}") == 1
+assert R_L7E3.count("if(tf.radius>0)o.radius=tf.radius;if(tf.shadow)o.shadow=1}") == 1 and R_L7E3.count("o.radius=") == 1 and R_L7E3.count("o.shadow=1") == 1
+assert R_L7E4A.count("el.style.borderRadius=") == 1 and R_L7E4A.count('el.style.boxShadow=tf.shadow?"6px 6px 12px rgba(0,0,0,.55)":""') == 1 and R_L7E4A.count("?1920:1080") == 1
+assert R_L7E4B.count('el.style.borderRadius="";el.style.boxShadow=""') == 1 and R_L7E5.count("radius:base.radius||0,shadow:base.shadow||0}}") == 1
+assert R_L7E6.count('+"|"+(ktf.radius||0)+"|"+(ktf.shadow||0)') == 1 and R_L7E7B.count('+"|"+(cur.radius||0)+"|"+(cur.shadow||0)') == 1
+assert R_L7E7A.count("radius:t0.radius||0,shadow:t0.shadow||0}") == 1 and R_L7E8.count("delete nk.radius;delete nk.shadow;") == 1
+assert sum(t[2].count("DzTracks") for t in _L7E) == 1
 assert R_L7G1.startswith(A_L7G1) and R_L7G1.count("svmThumb(") == 2 and R_L7G1.count("DzTracks.voisins(") == 1 and R_L7G1.count("DzTracks.abSecs(") == 1
 # revue 24/09 : abRollDit (quatrieme reference), trois fireNote (verrou, borne, partiel), rappel inscrit UNE fois (reg)
 assert R_L7G1.count("DzTracks.roll(") == 1 and R_L7G1.count("DzTracks.abRollDit(") == 1 and R_L7G1.count("DzTracks") == 4 and R_L7G1.count("fireNote(") == 3 and R_L7G1.count("},[dzAbK]);") == 1

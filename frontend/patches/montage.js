@@ -7095,6 +7095,17 @@ function dzmAbRollDit(avant,apres,n){
   if(Math.abs(d)<1e-3)return {k:0,partiel:!1};
   if(Math.abs(d-k0*DZM_AB_IMG)<1e-3)return {k:k0,partiel:!1};
   return {k:Math.round(d/DZM_AB_IMG),partiel:!0}}
+/* ── L7 D-19 (24/09/2026) : coins arrondis et ombre portée d'un overlay (pur) ──
+   {radius : rayon des coins en px du canvas, entier 0..200 (arrondi, borné) ;
+   shadow : 0|1, numérique ≥ 0,5 ou true → 1} — la règle même de _ov_transform
+   côté rendu, lue UNE fois (svmOvTfOf) pour l'aperçu, l'inspecteur et le
+   payload. Toujours les deux clés, défauts 0 ; entrée molle → {0,0}. Jamais
+   dans les keyframes (D-14) : les deux restent statiques, daté. */
+var DZM_OV_RADIUS_MAX=200;
+function dzmOvExtra(c){
+  var o=c&&typeof c==="object"?c:{},r=Number(o.radius),s=Number(o.shadow);
+  r=isFinite(r)?Math.round(r):0;
+  return {radius:Math.max(0,Math.min(DZM_OV_RADIUS_MAX,r)),shadow:isFinite(s)&&s>=.5?1:0}}
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
   TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,cutOpts:dzmCutOpts,withWords:dzmWithWords,
@@ -7205,6 +7216,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   boring:dzmBoring,boringDef:DZM_BORING_DEF,
   diff:dzmDiff,DiffView:DzmDiffView,diffTemps:dzmDiffTemps,
   abSecs:dzmAbSecs,abRollDit:dzmAbRollDit,
+  ovExtra:dzmOvExtra,
   /* E-13 / E-14 (lot E-C, tache 5) : la tete dans l'inspecteur, le trou selectionne et son ripple */
   teteTxt:dzmTeteTxt,trou:dzmTrou,trouRipple:dzmTrouRipple,
   DEFAULTS:DZM_DEFAULT_TRACKS};

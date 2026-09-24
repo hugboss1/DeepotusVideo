@@ -204,6 +204,9 @@ _TITRES = [
     'title:"Reculer la jonction d\'une image (Maj : dix) — A raccourcit, B s\'allonge",',
     'title:"Avancer la jonction d\'une image (Maj : dix) — A s\'allonge, B raccourcit",',
     'title:"B — première image du plan de droite"',
+    # L7 D-19 (24/09/2026, tache 5, client) : le champ « Coins » et la case « Ombre portée » de l'inspecteur d'overlay
+    'title:"Rayon des coins de l\'overlay en px du canvas (0 = coins droits, 200 au plus) — statique, les keyframes ne l\'animent pas",',
+    'title:"Ombre portée sous l\'overlay (noir à 55 %, décalée de 6 px au rendu) — statique, retirée par « plein cadre »",',
 ]
 for t in _TITRES:
     check("R1_titre_pose_x1_" + re.sub(r"\W+", "_", t[6:40]).strip("_"),

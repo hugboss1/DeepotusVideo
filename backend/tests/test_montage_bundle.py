@@ -15255,11 +15255,15 @@ check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB8b_puis_
                                                           # L7 D-3b (T4-bis, 24/09/2026) : DEUX sections en queue (abSt replie dans
                                                           # _EB7_ETAT), sonde 146 -> 149 (voisins, abSecs, roll dans L7g1) ; revue :
                                                           # 149 -> 150 (abRollDit dans abRoll, L7g1)
-                                                          "L7g1", "L7g2"]
+                                                          "L7g1", "L7g2",
+                                                          # L7 D-19 (T5 client, 24/09/2026) : ONZE sections en queue (svmOvTfAt,
+                                                          # signatures, geste et reset mesures hors plan), sonde 150 -> 151
+                                                          # (ovExtra dans svmOvTfOf, L7e2a)
+                                                          "L7e1", "L7e2a", "L7e2b", "L7e3", "L7e4a", "L7e4b", "L7e5", "L7e6", "L7e7a", "L7e7b", "L7e8"]
       and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1
               and s.count(nl(a)) == (1 if a in r else 0)
               for _t, a, r in P.PATCHES[_DZ_I + 1:])
-      and _sonde.get("montage") == 150 and s.count("DzTracks") == 150
+      and _sonde.get("montage") == 151 and s.count("DzTracks") == 151
       if _bak else False,
       f"queue={_DZ_TAGS[_DZ_I + 1:]} sonde={_sonde.get('montage')} bundle={s.count('DzTracks')}")
 
@@ -16576,14 +16580,16 @@ _EC_SONDE = _lire(ROOT / "scripts" / "patch_bundle_dzcout.py")
 # -> 146 (L7 D-39, T4, 24/09/2026 : diff dans le repli L7d1 de R_M14, DiffView dans le repli de R_L7C3).
 # -> 149 (L7 D-3b, T4-bis, 24/09/2026 : voisins + abSecs + roll dans la section neuve L7g1).
 # -> 150 (revue D-3b, 24/09/2026 : abRollDit dans abRoll, L7g1).
-check("EC_la_sonde_dzcout_compte_DzTracks_150",
-      _EC_SONDE.count('("montage", "DzTracks", 150),') == 1 and _EC_SONDE.count('("montage", "DzTracks", 149),') == 0
+check("EC_la_sonde_dzcout_compte_DzTracks_151",
+      # 24/09/2026 (L7 D-19 client, T5) : 150 -> 151, ovExtra dans svmOvTfOf (L7e2a)
+      _EC_SONDE.count('("montage", "DzTracks", 151),') == 1 and _EC_SONDE.count('("montage", "DzTracks", 150),') == 0
+      and _EC_SONDE.count('("montage", "DzTracks", 149),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 146),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 144),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 142),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 139),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 135),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 132),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 129),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 128),') == 0
-      and _EC_SONDE.count('("montage", "DzTracks", 123),') == 0 and s.count("DzTracks") == 150,
+      and _EC_SONDE.count('("montage", "DzTracks", 123),') == 0 and s.count("DzTracks") == 151,
       f"sonde={_EC_SONDE.count(chr(40) + chr(34) + 'montage')} bundle={s.count('DzTracks')}")
 
 print("\n[EC] E-7 : les trois vues Medias · Montage · Livraison (lot E-C, tache 3)")
@@ -17111,7 +17117,8 @@ check("L7a3_section_unique_en_queue_de_PATCHES_ancre_libre_1_0_1_remplacement_x1
       # 24/09/2026 (L7 D-6 revue I-1) : L7b3 rejoint L7A en queue -- L7a3 est la premiere des deux
       # 24/09/2026 (L7 D-8, T3) : L7c3 rejoint L7A en queue -- trois sections, L7a3 toujours la premiere
       # 24/09/2026 (L7 D-3b, T4-bis) : L7g1/L7g2 rejoignent L7A en queue -- cinq sections, L7a3 toujours la premiere
-      len(P.L7A) == 5 and len(_L7A3) == 1 and P.PATCHES[-5:] == P.L7A and P.PATCHES[-6] == P.L4[-1]
+      # 24/09/2026 (L7 D-19 client, T5) : onze sections L7e en queue -- seize sections, L7a3 toujours la premiere
+      len(P.L7A) == 16 and len(_L7A3) == 1 and P.PATCHES[-16:] == P.L7A and P.PATCHES[-17] == P.L4[-1] and P.L7A[0] == _L7A3[0]
       # l'ancre (le commentaire) est CONSERVEE en queue du remplacement : x1 dans le livre
       and s.count(nl(_L7A3[0][1])) == 1 and s.count(nl(_L7A3[0][2])) == 1 and _L7A3[0][2].endswith(_L7A3[0][1])
       and (_bak.count(_nlb(_L7A3[0][1])) == 1 and _bak.count(_nlb(_L7A3[0][2])) == 0 if _bak else False)
@@ -17273,7 +17280,8 @@ check("L7b_la_couche_clipCopy_pisteCible_clipPaste_nocopy_exports_rubrique_Editi
           'var DZM_CLIP_NOCOPY=["id","transition","transition_s","src_history"];',
           "clipCopy:dzmClipCopy,clipPaste:dzmClipPaste,", 'copy:"Édition",paste:"Édition",'))
       # 24/09/2026 (L7 D-8, T3) : L7c3 en queue ; (L7 D-3b, T4-bis) : L7g1/L7g2 -- cinq sections dans L7A, toujours une seule L7b
-      and len(P.L7A) == 5 and P.PATCHES[-5:] == P.L7A and sum(1 for _t in P.PATCHES if _t[0].startswith("L7b")) == 1
+      # 24/09/2026 (L7 D-19 client, T5) : onze sections L7e en queue -- seize dans L7A, toujours une seule L7b
+      and len(P.L7A) == 16 and P.PATCHES[-16:] == P.L7A and sum(1 for _t in P.PATCHES if _t[0].startswith("L7b")) == 1
       and (_bak.count("dzmClipCopy") == 0 and _bak.count("dzmClipPaste") == 0 and _bak.count("DZM_CLIP_NOCOPY") == 0 if _bak else False),
       f"pures={[s.count(k) for k in ('function dzmClipCopy(c){', 'function dzmClipPaste(clips,payload,opts){')]} sections={[p[0] for p in P.PATCHES[-2:]]}")
 
@@ -17322,7 +17330,8 @@ _iBoFe = min([v for v in (s.find(nl("\n  var "), _iBoF + 1), s.find(nl("\n  func
 _BOP = s[_iBoF:_iBoFe] if 0 <= _iBoF < _iBoFe else ""
 check("L7c3_section_en_queue_ancre_libre_1_0_1_conservee_boringPopover_defini_avant_popover_et_delegue_par_sa_garde_avant_isR",
       # 24/09/2026 (L7 D-3b, T4-bis) : L7g1/L7g2 suivent -- L7c3 est l'antepenultieme
-      len(_L7C3) == 1 and P.PATCHES[-3] == _L7C3[0] and s.count(nl(_L7C3[0][1])) == 1 and s.count(nl(_L7C3[0][2])) == 1
+      # 24/09/2026 (L7 D-19 client, T5) : onze sections L7e apres L7g2 -- L7c3 est a PATCHES[-14]
+      len(_L7C3) == 1 and P.PATCHES[-14] == _L7C3[0] and s.count(nl(_L7C3[0][1])) == 1 and s.count(nl(_L7C3[0][2])) == 1
       and _L7C3[0][2].endswith('    if(pop==="boring")return boringPopover();') and _L7C3[0][1] in _L7C3[0][2]
       and 0 < _iBoF < _iBoG < _iBoD < _iBoR < _iBoD + 120 and s.count("function boringPopover(){") == 1 and s.count("boringPopover()") == 2
       and sum(1 for _t in P.PATCHES if _L7C3[0][1] in _t[2] and _t[0] != _L7C3[0][0]) == 0
@@ -17419,7 +17428,8 @@ _iDfG = s.find(nl(_L7D_G))
 check("L7d1_garde_diff_repliee_dans_R_L7C3_entre_la_garde_pop_et_la_branche_boring_avant_isR_section_L7c3_toujours_une_boringPopover_sans_DzTracks",
       s.count(nl(_L7D_G)) == 1 and _L7D_G in P.R_L7C3 and 0 < _iBoG < _iDfG < _iBoD < _iBoR
       # L7 D-3b (tache 4-bis) : deux sections neuves L7g1/L7g2 en queue -- L7c3 n'est plus la derniere (3 -> 5)
-      and len(_L7C3) == 1 and _L7C3[0] in P.PATCHES and len(P.L7A) == 5
+      # L7 D-19 (tache 5, client) : onze sections L7e en queue (5 -> 16)
+      and len(_L7C3) == 1 and _L7C3[0] in P.PATCHES and len(P.L7A) == 16
       and _L7C3[0][2].endswith('    if(pop==="boring")return boringPopover();') and s.count("DzTracks.DiffView") == 1
       and _BOP.count("DzTracks") == 0 and P.R_L7C3.count("DzTracks") == 1
       and (_bak.count('pop==="diff"') == 0 and _bak.count("DiffView") == 0 if _bak else False),
@@ -17464,7 +17474,9 @@ _iAbEff = s.find(nl('      window.removeEventListener("keydown",onEsc,!0)}},[tra
 _iAbUse = s.find(nl("  x.useEffect(function(){\n    if(!dzAbK)")); _iAbRoll = s.find("  function abRoll(n){")
 _iAbOv = s.find("  /* ── ajout d'assets depuis la Bibliothèque, sur n'importe quelle piste ──")
 check("L7g1_section_neuve_ancre_fin_de_l_effet_transPop_1_0_1_calcul_effet_abRoll_avant_les_assets",
-      len(_L7G1) == 1 and len(_L7G2) == 1 and len(P.L7A) == 5 and P.PATCHES[-1] == _L7G2[0] and P.PATCHES[-2] == _L7G1[0]
+      # 24/09/2026, tache 5 (D-19 client) : les ONZE sections L7e suivent L7g2 en queue -- L7A passe de 5 a 16 et
+      # L7g1/L7g2 sont a PATCHES[-13]/[-12] ; la queue est mesuree par [L7] D-19
+      len(_L7G1) == 1 and len(_L7G2) == 1 and len(P.L7A) == 16 and P.PATCHES[-12] == _L7G2[0] and P.PATCHES[-13] == _L7G1[0]
       and s.count(nl(_L7G1[0][1])) == 1 and _L7G1[0][2].startswith(_L7G1[0][1])
       and 0 < _iAbEff < _iAbK < _iAbUse < _iAbRoll < _iAbOv < _iAbEff + 2600
       and (_bak.count(_nlb(_L7G1[0][1])) == 1 and _bak.count("dzAbK") == 0 and _bak.count("abRoll") == 0 and len(re.findall(r"\babSt\b", _bak)) == 0 if _bak else False),
@@ -17540,6 +17552,86 @@ check("L7g_couche_dzmAbSecs_export_x1_css_abrow_abthumb_abbtn_x1_montage_css_x0_
       and _L7_SV.count("svm-abrow") == 0 and _L7_SV.count(".svm-pop") == 9 and s.count("var SVM_THUMB_W=78,SVM_THUMB_H=44;") == 1
       and (_bak.count("dzmAbSecs") == 0 if _bak else False),
       f"css={[_css.count(k) for k in _L7G_CSS]} couche={src.count('function dzmAbSecs(g,d){')}")
+
+print("\n[L7] D-19 tache 5 (client) : coins arrondis et ombre portee d'un overlay (24/09/2026)")
+# ── L7 D-19 (24/09/2026, tache 5, moitie client ; backend 37b8d57). MESURES contre le plan (quatre sections
+# L7e1..L7e4) : ONZE ancres libres 1/0/1 -- (1) svmOvTfAt REBATIT {x,y,scale,rotate} avec des keyframes (L7e5) ;
+# (2) liveSync et le geste gardent une SIGNATURE avant svmApplyTf (L7e6/L7e7b) ; (3) `cur` du geste naissait sans
+# les deux cles (L7e7a) ; (4) svmOvTfReset ne retirait que quatre cles (L7e8). La couche rend {radius, shadow}
+# bornes (dzmOvExtra, pur, banc edition [30]), lus UNE fois dans svmOvTfOf (L7e2a/b) : inspecteur, apercu et
+# payload voient la meme mesure. 176 -> 187 ancres ; sonde 150 -> 151 (DzTracks.ovExtra dans svmOvTfOf).
+_L7E = [t for t in P.L7A if t[0].startswith("L7e")]
+check("L7e_onze_sections_en_queue_ancres_1_0_1_dans_le_bak_remplacements_x1_dans_le_bundle_x0_dans_le_bak",
+      len(_L7E) == 11 and P.PATCHES[-11:] == _L7E and [t[0][:5] for t in _L7E] == ["L7e1-", "L7e2a", "L7e2b", "L7e3-", "L7e4a", "L7e4b", "L7e5-", "L7e6-", "L7e7a", "L7e7b", "L7e8-"]
+      # e1 et e8 CONTIENNENT leur ancre (ajout apres) ; les neuf autres la reecrivent (meme tete de ligne, 24 caracteres)
+      and all(s.count(nl(t[2])) == 1 and t[1].lstrip()[:20] in t[2] for t in _L7E) and sum(t[1] in t[2] for t in _L7E) == 2
+      and (all(_bak.count(_nlb(t[1])) == 1 and _bak.count(_nlb(t[2])) == 0 for t in _L7E) if _bak else False),
+      f"sections={[t[0] for t in _L7E]} bundle={[s.count(nl(t[2])) for t in _L7E]} bak={[_bak.count(_nlb(t[1])) for t in _L7E] if _bak else None}")
+# l'inspecteur : les deux rangees APRES « Opacité » et AVANT « Trajectoire », un fieldNum (0..200, pas 5) et UNE case
+# a cocher (title, E-12), toutes deux par svmOvTfField (historique par rafale : ovHistAt vit dans svmOvTfField, x3
+# inchange) ; JAMAIS par svmMpField (D-14 : statiques) -- le compte de svmMpField ne bouge pas
+_iOvOp = s.find('children:"Opacité"}),'); _iOvCo = s.find('children:"Coins"}),'); _iOvSh = s.find('children:"Ombre"}),'); _iOvTr = s.find('children:"Trajectoire"}),')
+check("L7e1_Coins_et_Ombre_entre_Opacite_et_Trajectoire_fieldNum_0_200_pas_5_case_title_svmOvTfField_x2_jamais_svmMpField",
+      0 < _iOvOp < _iOvCo < _iOvSh < _iOvTr < _iOvOp + 2600
+      and s.count('fieldNum({min:0,max:200,step:5,value:t.radius||0,') == 1 and s.count("svmOvTfField({radius:Math.max(0,Math.min(200,Math.round(v)))})") == 1
+      and s.count('className:"svm-delrange svm-ovshadow",title:"Ombre portée sous l\'overlay') == 1
+      and s.count('r.jsx("input",{type:"checkbox",checked:!!t.shadow,"aria-label":"Ombre portée",onChange:function(e){svmOvTfField({shadow:e.target.checked?1:0})}})') == 1
+      # MESURE : le .bak porte 5 svmOvTfField( et 4 svmMpField( ; les sections d'avant en ajoutent NET 0 et 2 (une section
+      # reecrit une ligne qui portait deja svmOvTfField : R − A, pas R seul) ; L7e1 : 2 et 0
+      and s.count("svmOvTfField(") == (_bak.count("svmOvTfField(") if _bak else -1) + sum(t[2].count("svmOvTfField(") - t[1].count("svmOvTfField(") for t in P.PATCHES)
+      and sum(t[2].count("svmOvTfField(") for t in _L7E) == 2 and s.count("svmOvTfField(") == 7
+      and s.count("svmMpField(") == (_bak.count("svmMpField(") if _bak else -1) + sum(t[2].count("svmMpField(") - t[1].count("svmMpField(") for t in P.PATCHES)
+      and sum(t[2].count("svmMpField(") for t in _L7E) == 0 and s.count("svmMpField(") == 6
+      and s.count("if(now-ovHistAt.current>600)pushHistory();") == 3 and s.count("  function svmOvTfField(patch){\r\n    var id=selRef.current,now=Date.now();\r\n    if(now-ovHistAt.current>600)pushHistory();".replace("\r\n", "\n" if not crlf else "\r\n")) == 1
+      and (_bak.count('children:"Coins"}),') == 0 and _bak.count("svm-ovshadow") == 0 if _bak else False),
+      f"ordre={(_iOvOp, _iOvCo, _iOvSh, _iOvTr)} tfField={s.count('svmOvTfField(')} mpField={s.count('svmMpField(')}")
+# svmOvTfOf / svmOvTfAt / svmApplyTf / renderPayload / signatures / geste / reset : les jetons, une fois chacun,
+# x0 dans le .bak ; `radius` en mot entier : bak + couche + SEIZE des sections (L7e1 x2, e2a x1, e2b x2, e3 x3,
+# e4a x1, e5 x2, e6 x1, e7a x2, e7b x1, e8 x1)
+_rad = lambda t: len(re.findall(r"\bradius\b", t))
+check("L7e2_a_8_ovExtra_x1_o_radius_o_shadow_borderRadius_boxShadow_x2_signatures_x2_cur_reset_radius_x16_des_sections",
+      s.count("DzTracks.ovExtra(c)") == 1 and s.count("DzTracks.ovExtra(") == 1 and s.count("&&!ex.radius&&!ex.shadow))return null;") == 1
+      and s.count("radius:ex.radius,shadow:ex.shadow}}") == 1 and s.count("radius:base.radius||0,shadow:base.shadow||0}}") == 1
+      and s.count("o.radius=") == 1 and s.count("o.shadow=1") == 1 and s.count("if(tf.radius>0)o.radius=tf.radius;if(tf.shadow)o.shadow=1}") == 1
+      and s.count("el.style.borderRadius=") == 2 and s.count("el.style.boxShadow=") == 2 and s.count('el.style.boxShadow=tf.shadow?"6px 6px 12px rgba(0,0,0,.55)":""') == 1
+      and s.count("pk=pw>0?pw/(pw>pe.clientHeight?1920:1080):1") == 1
+      and s.count('+"|"+(ktf.radius||0)+"|"+(ktf.shadow||0)') == 1 and s.count('+"|"+(cur.radius||0)+"|"+(cur.shadow||0)') == 1
+      and s.count("radius:t0.radius||0,shadow:t0.shadow||0}") == 1 and s.count("delete nk.radius;delete nk.shadow;") == 1
+      and s.count("function dzmOvExtra(c){") == 1 and src.count("function dzmOvExtra(c){") == 1 and s.count("ovExtra:dzmOvExtra,") == 1
+      and _rad(s) - _rad(_bak if _bak else "") - _rad(src) == 16
+      # le .bak porte 342 `borderRadius` et 60 `boxShadow` de React ailleurs : les jetons mesures sont `el.style.<x>=` (x0)
+      and (all(_bak.count(k) == 0 for k in ("ovExtra", "o.radius=", "o.shadow=1", "el.style.borderRadius=", "el.style.boxShadow=", "nk.radius", "dzmOvExtra")) if _bak else False),
+      f"ovExtra={s.count('DzTracks.ovExtra(')} bR={s.count('el.style.borderRadius=')} bS={s.count('el.style.boxShadow=')} radius={_rad(s)}-{_rad(_bak) if _bak else '?'}-{_rad(src)}")
+# SOUS NODE, contre le bundle : svmOvTfOf + dzmOvExtra (la couche) + le maillon `tf` de renderPayload extrait tel quel --
+# un rayon SEUL (x/y/scale/rotate absents) rend tf non nul et PART (o.scale=1, o.radius=40, ni x ni y ni rotate) ;
+# une ombre seule aussi ; {radius:0,shadow:0} et {} rendent null (temoins) ; l'apercu svmOvTfAt garde la statique
+# avec des keyframes
+_iOvF = s.find("function svmOvTfOf(c){"); _iOvFe = s.find("\nfunction ", _iOvF + 1)
+_iOvX = s.find("function dzmOvExtra(c){"); _iOvXe = s.find("\nvar ", _iOvX + 1)
+_iOvP = s.find("          var tf=svmOvTfOf(c);\n".replace("\n", "\r\n" if crlf else "\n"), _iOvF); _iOvPe = s.find("if(tf.shadow)o.shadow=1}", _iOvP)
+_iOvA = s.find("function svmOvTfAt(c,t){"); _iOvAe = s.find(nl("\n\n"), _iOvA + 1)
+_L7E_RT = None
+if 0 < _iOvF < _iOvFe and 0 < _iOvX < _iOvXe and 0 < _iOvP < _iOvPe and 0 < _iOvA < _iOvAe:
+    _L7E_SHIM = ("var DZM_OV_RADIUS_MAX=200;\n" + s[_iOvX:_iOvXe] + "\nvar DzTracks={ovExtra:dzmOvExtra,mpLerp2:function(mp,tl,k,d){return d}};\n"
+                 + "function svmMpOf(c){return c.motion_points||null}function svmMpLerp(){return null}\n"
+                 + s[_iOvF:_iOvFe] + "\n" + s[_iOvA:_iOvAe] + "\n"
+                 + "function maillon(c){var o={};" + s[_iOvP:_iOvPe + len("if(tf.shadow)o.shadow=1}")] + "return o}\n"
+                 + "var out=[svmOvTfOf({radius:40}),maillon({radius:40}),maillon({shadow:1}),svmOvTfOf({radius:0,shadow:0}),svmOvTfOf({}),\n"
+                 + "  maillon({x:.3,scale:.5,radius:999,shadow:\"1\"}),svmOvTfAt({start:0,radius:20,shadow:1,motion_points:[{t:0,x:0,y:0}]},1)];\n"
+                 + "console.log(JSON.stringify(out));\n").replace("\r\n", "\n")
+    _pE = pathlib.Path(TMP) / "l7_ov.js"; _pE.write_text(_L7E_SHIM, encoding="utf-8")
+    _rE = NODE(["node", str(_pE)], timeout=60)
+    try: _L7E_RT = json.loads(_rE.stdout) if _rE.returncode == 0 else ("rc=" + str(_rE.returncode) + " " + (_rE.stderr or "")[-300:])
+    except Exception as _e: _L7E_RT = temoin(_e)
+check("L7e_sous_node_un_rayon_seul_part_avec_scale_1_ombre_seule_aussi_zero_et_vide_rendent_null_bornes_TfAt_garde_la_statique",
+      isinstance(_L7E_RT, list) and len(_L7E_RT) == 7
+      and _L7E_RT[0] == {"x": .5, "y": .5, "scale": 1, "rotate": 0, "radius": 40, "shadow": 0}
+      and _L7E_RT[1] == {"scale": 1, "radius": 40} and _L7E_RT[2] == {"scale": 1, "shadow": 1}
+      and _L7E_RT[3] is None and _L7E_RT[4] is None
+      and _L7E_RT[5] == {"scale": .5, "x": .3, "radius": 200, "shadow": 1}
+      # svmMpLerp est bouche a null (la statique gagne) : le point n'y change rien, radius/shadow SURVIVENT au rebati
+      and _L7E_RT[6] == {"x": .5, "y": .5, "scale": 1, "rotate": 0, "radius": 20, "shadow": 1},
+      f"bornes={(_iOvF, _iOvFe, _iOvX, _iOvXe, _iOvP, _iOvPe, _iOvA, _iOvAe)} rt={_L7E_RT}")
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")
