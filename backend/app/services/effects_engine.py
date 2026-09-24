@@ -30,7 +30,10 @@ def _c(hexstr, default="ffffff"):
     s = str(hexstr or "").lstrip("#").strip() or default
     if len(s) == 3:
         s = "".join(ch * 2 for ch in s)
-    if len(s) != 6:
+    # L5 (24/09/2026) : la longueur seule ne suffisait pas — « ;[x]ab »
+    # fait 6 caractères et partait tel quel dans le `-filter_complex` (le rendu
+    # du Montage n'applique pas coerce_params). Chiffres hexadécimaux seulement.
+    if len(s) != 6 or any(ch not in "0123456789abcdefABCDEF" for ch in s):
         s = default
     return "0x" + s.lower()
 
@@ -350,7 +353,14 @@ def _oldfilm(eff, i, o, u, ctx):
 
 
 def _sharpen(eff, i, o, u, ctx):
+    """Netteté. `mode` (L5, D-33) : `unsharp` (défaut — la commande est
+    OCTET POUR OCTET celle d'avant le lot, verrouillée par
+    `t1_sharpen_defaut_inchange_et_cas` de test_montage_l5.py) ou `cas`
+    (Contrast Adaptive Sharpening, 0,28 s contre 0,24 s mesurés sur 2 s de
+    1280x720). Mode inconnu -> `unsharp`."""
     t = _inten(eff, 60)
+    if str(eff.get("mode") or "unsharp") == "cas":
+        return _one(i, o, f"cas=strength={t:.2f}")
     return _one(i, o, f"unsharp=5:5:{0.5 + 2.0 * t:.2f}:5:5:0.0")
 
 
@@ -734,8 +744,233 @@ def _paper(eff, i, o, u, ctx):
             f"[{u}mx]vignette=angle={0.9 - 0.25 * t:.2f}[{o}]"]
 
 
+# =============================================================================
+# L5 — couleur (D-27 roues, D-28 accord, D-29 courbes + teinte/saturation par
+# couleur) et D-33 (effets de correction). Mesures du 24/09/2026 sur ffmpeg
+# 9.0.1 (binaire de l'app) ET 8.1.1 (PATH de développement) : valeurs
+# identiques. Le rendu du Montage n'applique PAS coerce_params : chaque
+# constructeur borne lui-même ses paramètres par `_num` / `_choice`.
+# =============================================================================
+
+#: Les quatre courbes à points de l'effet `curves` (maître, rouge, vert, bleu).
+_CURVE_KEYS = ("pts_m", "pts_r", "pts_g", "pts_b")
+
+#: Paramètres CACHÉS au rack : le rack (vfxrack.js) dessine un curseur pour
+#: tout type qu'il ne connaît pas — une chaîne de points y deviendrait un
+#: curseur absurde. `catalog()` les liste sous la clé `points`, hors `params` ;
+#: `coerce_params` les garde nettoyés par `curves_clean`.
+_HIDDEN = {"curves": _CURVE_KEYS}
+
+_CURVE_IDENT = "0/0 1/1"
+
+
+def _f3(v):
+    """Nombre au millième, sans zéros inutiles : 0.500 -> 0.5, 1.000 -> 1."""
+    s = f"{float(v):.3f}".rstrip("0").rstrip(".")
+    return "0" if s in ("", "-0") else s
+
+
+def curves_clean(s) -> str:
+    """'x/y x/y …' -> chaîne canonique d'une courbe `curves` de ffmpeg.
+
+    x, y bornés à [0, 1] et arrondis au millième ; triés ; x dupliqués
+    fusionnés (le DERNIER gagne) ; extrémités x=0 et x=1 ajoutées si absentes,
+    à la valeur du point le plus proche (mesuré : un point UNIQUE donne une
+    courbe constante, et ffmpeg refuse (-22) des x non strictement croissants
+    ou un y hors [0, 1]) ; 16 points au plus (au-delà : sous-échantillonné en
+    gardant les extrémités). Entrée invalide ou vide -> '0/0 1/1'.
+    """
+    if not isinstance(s, str):
+        return _CURVE_IDENT
+    pts = {}
+    for tok in s.split()[:256]:
+        a, sep, b = tok.partition("/")
+        if not sep:
+            continue
+        try:
+            x, y = float(a), float(b)
+        except ValueError:
+            continue
+        if not (math.isfinite(x) and math.isfinite(y)):
+            continue
+        x = round(min(1.0, max(0.0, x)), 3) + 0.0
+        y = round(min(1.0, max(0.0, y)), 3) + 0.0
+        pts[x] = y
+    if not pts:
+        return _CURVE_IDENT
+    xs = sorted(pts)
+    if xs[0] != 0.0:
+        pts[0.0] = pts[xs[0]]
+    if xs[-1] != 1.0:
+        pts[1.0] = pts[xs[-1]]
+    xs = sorted(pts)
+    if len(xs) > 16:
+        n = len(xs)
+        xs = [xs[k] for k in sorted({round(j * (n - 1) / 15) for j in range(16)})]
+    return " ".join(f"{_f3(x)}/{_f3(pts[x])}" for x in xs)
+
+
+def _choice(eff, key, choices, default):
+    """Valeur d'une liste fermée ; toute autre -> `default`."""
+    v = str(eff.get(key, default))
+    return v if v in choices else default
+
+
+def _wheels(eff, i, o, u, ctx):
+    """D-27 — roues lift / gamma / gain, par canal RVB.
+
+    PAS `colorbalance` : mesuré sur un gris 128, `rs=0.3` ne bouge rien (il
+    n'agit que sur les ombres) — inutilisable comme décalage. PAS `eq`
+    `gamma_r/g/b` : il agit sur les plans YUV, pas RVB. Formule mesurée
+    (rampe 0/64/128/192/255, L/G/Γ = 0.1/1.2/1.5 -> R [54,132,191,242,255],
+    écart <= 1 niveau au calcul Python) :
+        out = 255 · clip(L + (val/255)·(G − L), 0, 1) ^ (1/Γ)
+    Canal neutre (L 0, G 1, Γ 1) -> `val` ; tout neutre -> `null`.
+    """
+    parts, actif = [], False
+    for ch in "rgb":
+        lo = round(_num(eff, f"lift_{ch}", 0, -0.5, 0.5), 3)
+        ga = round(_num(eff, f"gamma_{ch}", 1, 0.25, 4), 3)
+        gn = round(_num(eff, f"gain_{ch}", 1, 0, 2), 3)
+        if lo == 0 and ga == 1 and gn == 1:
+            parts.append(f"{ch}='val'")
+            continue
+        actif = True
+        parts.append(f"{ch}='255*pow(clip({lo:.3f}+(val/255)*({gn:.3f}-({lo:.3f})),0,1),"
+                     f"{1.0 / ga:.4f})'")
+    if not actif:
+        return _one(i, o, "null")
+    return _one(i, o, "lutrgb=" + ":".join(parts))
+
+
+def _curves(eff, i, o, u, ctx):
+    """D-29 — courbes à points (maître + RVB), interpolation `pchip`
+    (monotone : pas de dépassement entre deux points, mesuré 64 -> 83 contre
+    81 en `natural`). Seules les courbes non identité sont émises ; le maître
+    s'applique APRÈS les canaux (mesuré). Tout identité -> `null`."""
+    parts = []
+    for key, letter in zip(_CURVE_KEYS, "mrgb"):
+        s = curves_clean(eff.get(key, _CURVE_IDENT))
+        if all(a == b for a, b in (p.split("/") for p in s.split(" "))):
+            continue
+        parts.append(f"{letter}='{s}'")
+    if not parts:
+        return _one(i, o, "null")
+    return _one(i, o, "curves=interp=pchip:" + ":".join(parts))
+
+
+def _colormatch(eff, i, o, u, ctx):
+    """D-28 — accord de couleur : transfert affine par plan en `lutyuv`
+    (plage LIMITÉE, celle du flux yuv420p du rendu : mesuré 126 -> 161 pour
+    val·1,2 + 10). Les gains et décalages sont calculés par color_match.py ;
+    ici on ne fait que les borner et les émettre. Tout neutre -> `null`."""
+    parts, actif = [], False
+    for p in "yuv":
+        g = round(_num(eff, f"{p}_gain", 1, 0.5, 2), 3)
+        off = round(_num(eff, f"{p}_off", 0, -128, 128), 3)
+        if g == 1 and off == 0:
+            parts.append(f"{p}='val'")
+            continue
+        actif = True
+        parts.append(f"{p}='clip(val*{g:.3f}{off:+.3f},0,255)'")
+    if not actif:
+        return _one(i, o, "null")
+    return _one(i, o, "lutyuv=" + ":".join(parts))
+
+
+_HUESAT_COLORS = ("a", "r", "y", "g", "c", "b", "m")
+
+
+def _huesat(eff, i, o, u, ctx):
+    """D-29 — teinte / saturation par couleur (`huesaturation`). Mesuré :
+    `saturation=-1:colors=r` ne touche QUE la bande rouge ((200,40,40) ->
+    (133,73,73)) ; une désaturation complète demande `strength` 10. `a` =
+    toutes les couleurs. Teinte 0 et saturation 0 -> `null`."""
+    h = round(_num(eff, "hue", 0, -180, 180), 1)
+    s = round(_num(eff, "sat", 0, -100, 100), 1)
+    if h == 0 and s == 0:
+        return _one(i, o, "null")
+    st = _num(eff, "strength", 1, 1, 100)
+    col = _choice(eff, "colors", _HUESAT_COLORS, "a")
+    cols = "r+y+g+c+b+m+a" if col == "a" else col
+    return _one(i, o, f"huesaturation=hue={h:.1f}:saturation={s / 100.0:.3f}:"
+                      f"strength={st:.1f}:colors={cols}")
+
+
+def _monochrome(eff, i, o, u, ctx):
+    """Monochrome teinté : `cb`/`cr` placent la teinte du filtre coloré. Pas
+    d'identité (un monochrome est toujours gris)."""
+    cb = _num(eff, "cb", 0, -1, 1)
+    cr = _num(eff, "cr", 0, -1, 1)
+    return _one(i, o, f"monochrome=cb={cb:.2f}:cr={cr:.2f}:size=1:high=0")
+
+
+def _denoise(eff, i, o, u, ctx):
+    """D-33 — débruitage. `nlmeans` ÉCARTÉ (88 s pour 2 s de 720p, 19 s même
+    allégé). `hqdn3d` (0,34 s) ou `atadenoise` (0,26 s). t = intensité/50 :
+    l'intensité par défaut (50) donne les valeurs mesurées 4:3:6:4.5 et les
+    seuils par défaut d'atadenoise ; 0 -> `null`."""
+    t = _num(eff, "intensity", 50, 0, 100) / 50.0
+    if t <= 0:
+        return _one(i, o, "null")
+    if _choice(eff, "mode", ("hqdn3d", "atadenoise"), "hqdn3d") == "atadenoise":
+        a, b = min(0.3, 0.02 * t), min(5.0, 0.04 * t)
+        th = ":".join(f"{p}a={a:.4f}:{p}b={b:.4f}" for p in "012")
+        return _one(i, o, f"atadenoise={th}:s=9")
+    return _one(i, o, f"hqdn3d={4 * t:.3f}:{3 * t:.3f}:{6 * t:.3f}:{4.5 * t:.3f}")
+
+
+def _deflicker(eff, i, o, u, ctx):
+    """D-33 — anti-scintillement (moyenne arithmétique de N images)."""
+    n = int(round(_num(eff, "size", 5, 2, 15)))
+    return _one(i, o, f"deflicker=size={n}:mode=am")
+
+
+def _deband(eff, i, o, u, ctx):
+    """D-33 — anti-escaliers de dégradé. Seuil 0,005 + 0,04·t sur les trois
+    plans (0,02 = défaut ffmpeg à t ≈ 0,375)."""
+    t = _inten(eff, 40)
+    thr = 0.005 + 0.04 * t
+    return _one(i, o, f"deband=1thr={thr:.3f}:2thr={thr:.3f}:3thr={thr:.3f}:range=16:blur=1")
+
+
+def _hex(v, default):
+    """Couleur « #rrggbb » stricte -> « 0xrrggbb », sinon `default`."""
+    s = str(v or "").strip().lstrip("#").lower()
+    if len(s) == 3:
+        s = "".join(ch * 2 for ch in s)
+    if len(s) != 6 or any(ch not in "0123456789abcdef" for ch in s):
+        s = default
+    return "0x" + s
+
+
+def _chromakey(eff, i, o, u, ctx):
+    """D-33 — clé couleur. Mesuré : `chromakey=color=0x00FF00:similarity=0.1`
+    puis `overlay` rend le vert transparent ; `despill` nettoie le bord
+    ((104,84,85) -> (84,0,85)). Piège : `color=c=green` vaut 0x007F00, d'où
+    une couleur hexadécimale explicite. L'alpha n'a de sens que sur un plan
+    SUPERPOSÉ (V2) : sur V1, le `format=yuv420p` du rendu le perd."""
+    key = _hex(eff.get("key", "#00ff00"), "00ff00")
+    sim = _num(eff, "similarity", 10, 1, 100) / 100.0
+    bl = _num(eff, "smooth", 0, 0, 100) / 100.0
+    sp = _choice(eff, "despill", ("aucun", "vert", "bleu"), "vert")
+    tail = {"vert": ",despill=type=green", "bleu": ",despill=type=blue"}.get(sp, "")
+    return _one(i, o, f"format=yuva420p,chromakey=color={key}:similarity={sim:.3f}:"
+                      f"blend={bl:.3f}{tail}")
+
+
+def _tmix(eff, i, o, u, ctx):
+    """D-33 — fondu d'images successives (traînée / lissage temporel)."""
+    return _one(i, o, f"tmix=frames={_choice(eff, 'frames', ('3', '5', '7'), '3')}")
+
+
 EFFECTS = {
     "grade": _grade, "lut": _grade, "grade_basic": _grade_basic,
+    # --- L5 : couleur et correction ---
+    "wheels": _wheels, "curves": _curves, "colormatch": _colormatch,
+    "huesat": _huesat, "monochrome": _monochrome, "denoise": _denoise,
+    "deflicker": _deflicker, "deband": _deband, "chromakey": _chromakey,
+    "tmix": _tmix,
     "colorize": _colorize, "vhs": _vhs,
     "gradient": _gradient, "grain": _grain, "vignette": _vignette,
     "chroma": _chroma, "glitch": _glitch, "bloom": _bloom, "halation": _halation,
@@ -939,6 +1174,9 @@ def build_chain(effects, in_lbl, out_lbl, uid, ctx):
 #: Catégories, dans l'ordre d'affichage du rack.
 CATEGORIES = (
     ("etalonnage", "Étalonnage"),
+    # L5 (D-33) : débruitage, anti-scintillement, anti-escaliers. Le rack
+    # (vfxNormCat) affiche toute catégorie servie ici, sans rien côté écran.
+    ("correction", "Correction"),
     ("retro", "Rétro"),
     ("lumiere", "Lumière"),
     ("atmosphere", "Atmosphère"),
@@ -983,6 +1221,47 @@ _PARAM_DEFAULTS = {
     "preset":    {"type": "choice", "choices": [], "default": "",
                   "label": "Préréglage"},
     "file":      {"type": "lut", "default": "", "label": "LUT .cube"},
+    # --- L5 (24/09/2026). Aucun de ces noms n'existait : pas de collision de
+    # sens avec un gabarit partagé (mesuré avant). `mode` est un gabarit VIDE,
+    # chaque effet qui l'emploie fournit ses choix par surcharge (entry[4]).
+    **{f"lift_{k}": {"type": "range", "min": -0.5, "max": 0.5, "step": 0.01,
+                     "default": 0, "label": f"Lift {n}"}
+       for k, n in (("r", "rouge"), ("g", "vert"), ("b", "bleu"))},
+    **{f"gamma_{k}": {"type": "range", "min": 0.25, "max": 4, "step": 0.01,
+                      "default": 1, "label": f"Gamma {n}"}
+       for k, n in (("r", "rouge"), ("g", "vert"), ("b", "bleu"))},
+    **{f"gain_{k}": {"type": "range", "min": 0, "max": 2, "step": 0.01,
+                     "default": 1, "label": f"Gain {n}"}
+       for k, n in (("r", "rouge"), ("g", "vert"), ("b", "bleu"))},
+    **{f"{p}_gain": {"type": "range", "min": 0.5, "max": 2, "step": 0.01,
+                     "default": 1, "label": f"Gain {p.upper()}"} for p in "yuv"},
+    **{f"{p}_off": {"type": "range", "min": -128, "max": 128, "step": 1,
+                    "default": 0, "label": f"Décalage {p.upper()}"} for p in "yuv"},
+    "hue":       {"type": "range", "min": -180, "max": 180, "step": 1,
+                  "default": 0, "label": "Teinte", "unit": "°"},
+    "sat":       {"type": "range", "min": -100, "max": 100, "step": 1,
+                  "default": 0, "label": "Saturation"},
+    "strength":  {"type": "range", "min": 1, "max": 100, "step": 1,
+                  "default": 1, "label": "Force"},
+    "colors":    {"type": "choice", "choices": list(_HUESAT_COLORS),
+                  "default": "a", "label": "Couleurs"},
+    "cb":        {"type": "range", "min": -1, "max": 1, "step": 0.01,
+                  "default": 0, "label": "Teinte bleue"},
+    "cr":        {"type": "range", "min": -1, "max": 1, "step": 0.01,
+                  "default": 0, "label": "Teinte rouge"},
+    "mode":      {"type": "choice", "choices": [], "default": "",
+                  "label": "Mode"},
+    "key":       {"type": "color", "default": "#00ff00", "label": "Couleur clé"},
+    "similarity": {"type": "range", "min": 1, "max": 100, "step": 1,
+                   "default": 10, "label": "Similarité"},
+    "smooth":    {"type": "range", "min": 0, "max": 100, "step": 1,
+                  "default": 0, "label": "Fondu du bord"},
+    "despill":   {"type": "choice", "choices": ["aucun", "vert", "bleu"],
+                  "default": "vert", "label": "Débordement"},
+    "frames":    {"type": "choice", "choices": ["3", "5", "7"],
+                  "default": "3", "label": "Images"},
+    "size":      {"type": "range", "min": 2, "max": 15, "step": 1,
+                  "default": 5, "label": "Images"},
 }
 
 #: (catégorie, libellé, paramètres, aide) + surcharges de bornes éventuelles.
@@ -998,11 +1277,40 @@ _CATALOG = {
                     ["exposure", "contrast", "saturation", "temperature"],
                     "Exposition, contraste, saturation, température — sous la LUT.",
                     {}),
+    # --- L5 (D-27/D-28/D-29) : l'étalonnage passe de 6 à 11 (alias lut
+    # compris). Les neuf curseurs des roues restent VISIBLES : ce sont les
+    # seuls réglages possibles sur un clip d'ajustement (D-9), où le panneau
+    # Étalonnage n'est pas monté.
+    "wheels":     ("etalonnage", "Roues lift / gamma / gain",
+                   [f"{g}_{k}" for g in ("lift", "gamma", "gain") for k in "rgb"],
+                   "Ombres, tons moyens, hautes lumières : un réglage par canal.", {}),
+    "curves":     ("etalonnage", "Courbes", [],
+                   "Courbes à points maître et RVB — se règlent dans le panneau Étalonnage.",
+                   {}),
+    "huesat":     ("etalonnage", "Teinte / saturation par couleur",
+                   ["colors", "hue", "sat", "strength"],
+                   "Décale la teinte ou la saturation d'une seule gamme de couleurs.", {}),
+    "colormatch": ("etalonnage", "Accord de couleur",
+                   ["y_gain", "y_off", "u_gain", "u_off", "v_gain", "v_off"],
+                   "Aligne ce plan sur les statistiques d'un autre (panneau Étalonnage).",
+                   {}),
+    "monochrome": ("etalonnage", "Monochrome", ["cb", "cr"],
+                   "Noir et blanc à travers un filtre coloré.", {}),
     "colorize":   ("etalonnage", "Colorisation", ["preset", "intensity"],
                    "Sépia, noir et blanc, duotone, matrice.", {}),
     "invert":     ("etalonnage", "Négatif", [], "Inverse toutes les couleurs.", {}),
     "posterize":  ("etalonnage", "Postérisation", ["intensity"],
                    "Réduit le nombre de niveaux : aplats façon sérigraphie.", {}),
+    # --- Correction (L5, D-33) ---
+    "denoise":    ("correction", "Débruitage", ["mode", "intensity"],
+                   "Réduit le bruit vidéo : hqdn3d (fort) ou atadenoise (doux).",
+                   {"mode": {"choices": ["hqdn3d", "atadenoise"], "default": "hqdn3d"},
+                    "intensity": {"default": 50}}),
+    "deflicker":  ("correction", "Anti-scintillement", ["size"],
+                   "Lisse les variations de luminosité d'une image à l'autre.", {}),
+    "deband":     ("correction", "Anti-escaliers", ["intensity"],
+                   "Adoucit les marches visibles dans les dégradés.",
+                   {"intensity": {"default": 40}}),
     # --- Rétro ---
     "vhs":        ("retro", "VHS", ["intensity", "speed"],
                    "Bande usée : lignes tremblées, bavure chroma, bruit.", {}),
@@ -1071,17 +1379,23 @@ _CATALOG = {
                    "Tremblement de cadre.", {}),
     "shakezoom":  ("mouvement", "Secousse + zoom", ["intensity", "speed"],
                    "Caméra à l'épaule : recadrage serré, roulis et tremblement.", {}),
+    "tmix":       ("mouvement", "Traînée d'images", ["frames"],
+                   "Mélange les images successives : traînée ou lissage temporel.", {}),
     # --- Cadrage ---
     "letterbox":  ("cadrage", "Bandes cinéma", ["ratio"],
                    "Bandes noires au format choisi.", {}),
     "mirror":     ("cadrage", "Miroir", [], "Symétrie gauche/droite.", {}),
     "kaleido":    ("cadrage", "Kaléidoscope", [],
                    "Symétrie 4 voies, motif de kaléidoscope.", {}),
+    "chromakey":  ("cadrage", "Incrustation (clé couleur)",
+                   ["key", "similarity", "smooth", "despill"],
+                   "Rend transparente une couleur — sur un plan superposé (V2).", {}),
     # --- Stylisation ---
     "pixelate":   ("stylisation", "Pixelisation", ["intensity"],
                    "Gros pixels, façon censure ou jeu rétro.", {}),
-    "sharpen":    ("stylisation", "Netteté", ["intensity"],
-                   "Renforce les détails.", {}),
+    "sharpen":    ("stylisation", "Netteté", ["intensity", "mode"],
+                   "Renforce les détails : unsharp (classique) ou cas (adaptatif).",
+                   {"mode": {"choices": ["unsharp", "cas"], "default": "unsharp"}}),
     "dreamy":     ("stylisation", "Doux / Rêve", ["intensity"],
                    "Voile diffus sur les hautes lumières.", {}),
     "glowedge":   ("stylisation", "Bord lumineux", ["intensity"],
@@ -1144,6 +1458,9 @@ def catalog():
                 "bounds": {p: param_spec(p, name) for p in params}}
         if "preset" in params:
             spec["presets"] = list(spec["bounds"]["preset"].get("choices") or [])
+        if name in _HIDDEN:
+            # Paramètres cachés au rack (voir `_HIDDEN`), hors `params`.
+            spec["points"] = list(_HIDDEN[name])
         out[name] = spec
     # « lut » reste exposé (compat) mais pointe sur la même définition.
     for alias, target in _ALIASES.items():

@@ -295,9 +295,11 @@ check("route_catalogue_sert_les_quatre_curseurs",
       str(peff.get("label")) + " " + str(sorted((peff.get("bounds") or {}).keys())))
 # Le compte de la categorie « Étalonnage » du rack suit le catalogue : mesure
 # AVANT P4 = 5 (grade, colorize, invert, posterize + l'alias lut), donc 6.
+# Réaligné le 24/09/2026 — L5 : wheels, curves, colormatch, huesat, monochrome
+# entrent en « Étalonnage » (D-27/D-28/D-29/D-33), donc 6 + 5 = 11.
 _eta = [c for c in pay.get("categories") or [] if c.get("id") == "etalonnage"]
 check("categorie_etalonnage_compte_le_nouvel_effet",
-      len(_eta) == 1 and _eta[0].get("count") == 6, str(_eta))
+      len(_eta) == 1 and _eta[0].get("count") == 11, str(_eta))
 
 
 # =============================================================================
