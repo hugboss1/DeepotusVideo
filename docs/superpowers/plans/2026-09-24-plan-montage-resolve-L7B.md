@@ -16,7 +16,7 @@
 - [x] T2 — D-42 découper aux changements de plan (`4c48d45`, revue `8517a25` ; réponse obsolète refusée, écart minimal entre coupes)
 - [x] T3 — D-40 recadrage : backend (tracker PIL, crop à x animé) (`d70989c`, revue `e09552b` ; `-/filter_complex <fichier>` au-delà de 30 000 car., arbre `_rf_lerp_expr` car la chaîne échoue au-delà de 93 points ; restes mineurs pour T8)
 - [ ] T4 — D-40 recadrage : client (inspecteur « Cadrage »)
-- [ ] T5 — D-41 auto-clips : backend
+- [x] T5 — D-41 auto-clips : backend (`9c55f40`, revue `031dd6a` ; toute la source examinée, 60 candidats par tranches, mots transcrits en cache, clips disjoints, `llm:false` ; reste : `windows` hors `to_thread`, pour T8)
 - [ ] T6 — D-41 auto-clips : client
 - [ ] T7 — D-34 note ★ des rendus (base + tiroir Médias)
 - [ ] T8 — clôture (mutations, banc croisé, conception datée, revue finale, PR)
