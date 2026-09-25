@@ -1149,6 +1149,12 @@ R_M16REF = (A_M16REF + "\n"
             # `proj` est déclaré avant (stP, :1717 < :1766 dans le livré).
             '  var stDzFS=x.useState(function(){try{return JSON.parse(localStorage.getItem("dz_montage_lastfin")||"{}")||{}}catch(_e){return {}}}),dzFinStore=stDzFS[0],setDzFinStore=stDzFS[1];\n'
             '  var dzLast=DzTracks.finOf(dzFinStore,proj.project_id||"_");\n'
+            # ── L6 D-26 (25/09/2026, tache 6) : LA BASCULE DE LA VOIX OFF -- REPLIEE ICI (0 dans .bak_montage), APRES dzLast :
+            # posee entre dzLbRef et stDzFS, elle ecartait dzLast de stDzFin au-dela des 700 o que le pin EB du store mesure
+            # (703 en octets CRLF, MESURE) -- on ne desserre pas le pin, on pose la ligne plus loin. La puce de la couche
+            # (section L6vo1) y inscrit sa bascule a chaque rendu et la retire au demontage ; onKey (action vo_record, repli
+            # de R_R2) la lit a l'appel. Un ref, pas un etat : aucun rendu de plus.
+            '  var dzVoRef=x.useRef(null);\n'
             # ── E-7 (lot E-C, tache 3, 23/09/2026) : LES TROIS VUES (Medias · Montage ·
             # Livraison). REPLIE ICI (0 dans .bak_montage), APRES dzLast que le panneau
             # lit (EC9). `view` est un etat de SESSION -- decision 4 : aucun
@@ -3374,7 +3380,15 @@ R_R1 = (A_R1 + "\n"
         # francais, et svmComboOfEvent retombe de toute facon sur la lettre PHYSIQUE (e.code) sous Alt. Rubrique
         # du menu ☰ : « Édition » (DZM_MENU_RUB de la couche).
         '\n {id:"grade_copy",sec:"Montage",lbl:"grade : copier (effets couleur et masque du plan sélectionné)",combo:"Ctrl+Alt+C"},'
-        '\n {id:"grade_paste",sec:"Montage",lbl:"grade : coller sur le plan sélectionné",combo:"Ctrl+Alt+V"},')
+        '\n {id:"grade_paste",sec:"Montage",lbl:"grade : coller sur le plan sélectionné",combo:"Ctrl+Alt+V"},'
+        # -- « L6 » (D-26, 25/09/2026, tache 6) : ENREGISTRER UNE VOIX OFF, REPLIE ICI (meme raison que L5 : l'entree
+        # `grade_paste` est x0 dans .bak_montage). COMBO MESUREE (B:1534-1587 + B:1657) : « Alt+R » n'est le defaut d'aucune
+        # action (x0 dans .bak_montage, x0 dans la table patchee), n'est PAS dans SVM_COMBO_RESERVED (qui ne porte que
+        # Ctrl+R / Ctrl+Maj+R) et svmComboReserved ne la refuse pas (ni touche F, ni Echap, ni Tab) ; aucun gestionnaire
+        # du bundle ni des couches ne lit `KeyR` (x0). « R » reste au ripple : le dispatch cherche la combo EXACTE d'abord,
+        # et sous Alt svmComboOfEvent retombe sur la lettre PHYSIQUE (e.code), donc AZERTY / QWERTY donnent « Alt+R ».
+        # sec « Audio » : la ligne du panneau « ? » ; rubrique du menu ☰ : « Édition » (DZM_MENU_RUB de la couche, dite).
+        '\n {id:"vo_record",sec:"Audio",lbl:"voix off : enregistrer / arrêter une prise au micro (lecture du montage)",combo:"Alt+R"},')
 
 # ── R2 (D-11) : la branche de dispatch ─────────────────────────────────────
 # PORTEE MESUREE dans `onKey` (meme corps de composant, closure) : `phRef`,
@@ -3584,7 +3598,12 @@ R_R2 = (A_R2 + "\n"
         # source de verite (precedent dzTtAdd / dzMkToggle) ; eux-memes passent par DzTracks.gradeCopyDo /
         # gradePasteDo, les gestes du panneau Etalonnage (un stockage, une phrase).
         '\n      if(id==="grade_copy"){dzGradeCopy(selRef.current);return}'
-        '\n      if(id==="grade_paste"){dzGradePaste(selRef.current);return}')
+        '\n      if(id==="grade_paste"){dzGradePaste(selRef.current);return}'
+        # -- « L6 » (D-26, 25/09/2026, tache 6) : LE DISPATCH DE LA VOIX OFF, REPLIE ICI (meme raison que L5). Le geste vit
+        # dans la puce (la couche) : elle inscrit sa bascule dans dzVoRef (repli de R_M16REF) a chaque rendu et l'en retire au
+        # demontage -- le clavier et le clic font LE MEME geste (une source de verite, comme dzGradeCopy). Sans puce montee,
+        # la frappe est DITE, jamais muette.
+        '\n      if(id==="vo_record"){if(typeof dzVoRef.current==="function")dzVoRef.current();else fireNote("Voix off : l\'enregistreur n\'est pas prêt.");return}')
 
 # ── R3 (D-11) : la bande sur la regle, apres la gouttiere ──────────────────
 # `DzmRangeBar` rend `null` tant que la plage n'est pas COMPLETE : la regle
@@ -6006,15 +6025,54 @@ R_L6NL1 = ('          onAudition:sfxAudition},sel.id),\n'
            '        r.jsx(DzTracks.NoiseLearn,{clip:sel,range:proj.range,demo:!!proj.demo,music:isMus,onNote:fireNote,\n'
            '          onFx:function(id,f){var k=clipsRef.current.find(function(q){return q.id===id});\n'
            '            if(k)svmSetClipAudio(id,{fx:f(Array.isArray(k.fx)?k.fx:[])})}},sel.id)]}):null]})}')
+# ══ L6 D-26 (25/09/2026, tache 6) — L'ENREGISTREUR DE VOIX OFF ════════════════════════════════════════════════════
+# Replis : l'action vo_record (R_R1, « Alt+R » mesuree libre), son dispatch (R_R2), la bascule dzVoRef (R_M16REF), la
+# rubrique « Édition » (DZM_MENU_RUB, couche). UNE section neuve, parce qu'aucun remplacement ne touche la rangee des
+# puces de la barre du haut :
+# L6vo1 -- LA PUCE « ● voix off » APRES « narration ». ANCRE MESUREE 25/09/2026 : la fin du bouton « narration »
+# (`onClick:narrToggle,children:"narration"}),`) vaut 1/0/1 (x1 dans .bak_montage, touchee par aucune section, x1 dans
+# le bundle livre). Le composant (DzTracks.VoiceRec) tient le micro et l'enregistreur ; l'HOTE fournit :
+#   onStart -> t0 = la tete (phRef) au debut de la prise, et lance la lecture (setSpd(1) + setPlaying(!0), le geste
+#              MESURE de l'action « play », B:3518) : on parle sur l'image ;
+#   onStop  -> setPlaying(!1) (le geste MESURE de « jog_pause ») ;
+#   onDone(f, d, t0) -> la POSE : piste = DzTracks.dialogueTrack (jamais pickTrack, qui peut rendre A2 musique) ; sans
+#              piste de dialogue, ou piste VERROUILLEE, le refus est DIT et la prise reste dans la Bibliotheque (la route
+#              l'y a deja rangee) ; sinon addAsset({audio:f}, « Voix off n », "audio", d, piste, t0) avec le MODE
+#              D'EDITION FORCE A « ecraser » LE TEMPS DE L'APPEL : addAsset lit dzModeRef.current SYNCHRONEMENT dans
+#              DzTracks.insere (B:4556) et dans sa note (« remplir » -> « Plage effacee ») ; la prise a une duree > 0
+#              (la puce refuse une duree illisible) et le projet n'est pas la demo (la puce est grisee) : addAsset ne
+#              part ni mesurer la duree ni attendre la timeline -- aucun chemin differe ne relirait le mode non force.
+#              Le mode REMPLACEMENT arme (dzmReplaceRef, P6) est suspendu de meme : sans cela une prise ferait de
+#              {audio} la source du plan a remplacer. Les deux refs sont RESTAUREES dans un finally. Puis la tete va a
+#              t0 + d (seekTo) : les prises successives s'enchainent.
+# Quatre references a la couche (sonde +4) : VoiceRec, dialogueTrack, voLabel, voCount.
+A_L6VO1 = '          onClick:narrToggle,children:"narration"}),'
+R_L6VO1 = (A_L6VO1 + '\n'
+           '        /* L6 D-26 : la puce ● voix off — enregistre au micro pendant la lecture ; la prise est posée sur la piste de\n'
+           '           dialogue à l\'instant où elle a commencé, en mode « écraser » forcé, puis la tête va à sa fin */\n'
+           '        r.jsx(DzTracks.VoiceRec,{demo:!!proj.demo,ctl:dzVoRef,combo:svmKeyLabel("vo_record"),onNote:fireNote,\n'
+           '          onStart:function(){var t=Math.max(0,Number(phRef.current)||0);setSpd(1);setPlaying(!0);return t},\n'
+           '          onStop:function(){setPlaying(!1)},\n'
+           '          onDone:function(f,d,t0){var ts=dzTracksRef.current||svmTracksOf(proj),tr=DzTracks.dialogueTrack(ts);\n'
+           '            if(!tr){fireNote("Prise « "+f+" » enregistrée dans la Bibliothèque, mais ce projet n\'a pas de piste de dialogue : ajoutez une piste audio, puis posez-la depuis le tiroir Sons.");return}\n'
+           '            if(trackStRef.current[tr]&&trackStRef.current[tr].l){fireNote("Piste "+tr.toUpperCase()+" verrouillée — déverrouillez-la pour ajouter. La prise « "+f+" » reste dans la Bibliothèque.");return}\n'
+           '            var m0=dzModeRef.current,rp=dzmReplaceRef.current;dzModeRef.current="ecraser";dzmReplaceRef.current=null;\n'
+           '            try{addAsset({audio:f},DzTracks.voLabel(DzTracks.voCount(clipsRef.current||[])),"audio",d,tr,t0)}\n'
+           '            finally{dzModeRef.current=m0;dzmReplaceRef.current=rp}\n'
+           '            seekTo(t0+d)}}),')
+
 L6 = [("L6fx1-catalogue-ordre-de-chaine-et-anti-ronflement", A_L6FX1, R_L6FX1),
       ("L6fx2-debruiteur-plancher-plage-apprise-et-eq6", A_L6FX2, R_L6FX2),
       ("L6fx3-arrondi-au-millieme-par-dec", A_L6FX3, R_L6FX3),
       ("L6fx4-resumes-eq6-dehum-debruiteur-appris", A_L6FX4, R_L6FX4),
       ("L6fx5-rangee-cachee-non-rendue", A_L6FX5, R_L6FX5),
       ("L6au1-ecoute-rendue-du-son-d-un-plan", A_L6AU1, R_L6AU1),
-      ("L6nl1-apprendre-le-bruit-sous-le-rack", A_L6NL1, R_L6NL1)]
+      ("L6nl1-apprendre-le-bruit-sous-le-rack", A_L6NL1, R_L6NL1),
+      ("L6vo1-puce-voix-off-apres-narration", A_L6VO1, R_L6VO1)]
 for _n, _a, _r in L6:
-    assert _a != _r and _r.count("DzTracks") == (1 if _n.startswith("L6nl1") else 0), _n
+    assert _a != _r and _r.count("DzTracks") == (1 if _n.startswith("L6nl1") else 4 if _n.startswith("L6vo1") else 0), _n
+assert R_L6VO1.startswith(A_L6VO1 + "\n") and R_L6VO1.endswith("seekTo(t0+d)}}),") and R_L6VO1.count('dzModeRef.current="ecraser"') == 1
+assert R_L6VO1.find('dzModeRef.current="ecraser"') < R_L6VO1.find("try{addAsset(") < R_L6VO1.find("finally{dzModeRef.current=m0;dzmReplaceRef.current=rp}") < R_L6VO1.find("seekTo(t0+d)")
 assert R_L6FX1.endswith(A_L6FX1.split("\n")[-1]) and R_L6FX1.count('{type:"dehum",') == 1 and R_L6FX1.find('type:"dehum"') < R_L6FX1.find('type:"eq3"')
 assert R_L6FX2.startswith(A_L6FX2[:-3]) and R_L6FX2.count("hide:1") == 2 and R_L6FX2.count("dec:3") == 2 and R_L6FX2.count('{k:"') == 21
 assert R_L6FX5.count("if(pd.hide)return null;") == 1 and R_L6FX5.count("title:pd.tip||void 0,") == 1 and R_L6AU1.count("body.job_id=String(c.src.job_id)") == 1 and R_L6AU1.count("filename:") == 0

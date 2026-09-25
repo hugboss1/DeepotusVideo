@@ -7303,6 +7303,7 @@ var DZM_MENU_RUB={undo:"Édition",redo:"Édition",delete:"Édition",ripple:"Édi
   snap:"Édition",/* revue 23/09 : bascule sœur de ripple, même rubrique */
   copy:"Édition",paste:"Édition",/* L7 D-6 (24/09/2026) : le presse-papiers est une édition, pas une action de timeline */
   grade_copy:"Édition",grade_paste:"Édition",/* L5 D-32 (24/09/2026) : copier / coller le grade, avec le presse-papiers de clips */
+  vo_record:"Édition",/* L6 D-26 (25/09/2026) : enregistrer une voix off, avec les gestes audio (sec « Audio » -> Édition, dit ici) */
   marker_toggle:"Marqueurs",marker_prev:"Marqueurs",marker_next:"Marqueurs",marker_index:"Marqueurs",
   zoom_in:"Affichage",zoom_out:"Affichage",zoom100:"Affichage",toolbar:"Affichage",narration:"Affichage",
   sounds_drawer:"Affichage",fullscreen:"Affichage",safezones:"Affichage",
@@ -8479,6 +8480,118 @@ function DzmNoiseLearn(o){
       onClick:oublier,children:"Oublier"}),
     r.jsx("span",{className:"dzm-nlst svm-mono","aria-live":"polite",
       children:ap?"appris "+ap.a+"–"+ap.b+" s · "+(ap.nf?ap.nf+" dB":"auto"):"aucun bruit appris"})]})}
+/* L6 D-26 (25/09/2026, tâche 6) : aides PURES de l'enregistreur de voix off. dzmVoExt(type) -> l'extension du fichier
+   envoyé (ogg | m4a | webm ; la route transcode tout, le nom n'est qu'un indice) ; dzmVoChrono(s) -> « m:ss » (entier
+   inférieur, illisible ou négatif -> 0:00) ; dzmVoErr(e) -> la raison d'un refus du micro en français (accès refusé,
+   aucun micro, sinon le message, sinon « erreur inconnue »). */
+function dzmVoExt(t){
+  var s=typeof t==="string"?t.toLowerCase():"";
+  return s.indexOf("ogg")>=0?"ogg":s.indexOf("mp4")>=0||s.indexOf("aac")>=0?"m4a":"webm"}
+function dzmVoChrono(s){
+  var n=Math.floor(Number(s));if(!(n>0))n=0;
+  var m=Math.floor(n/60),q=n%60;
+  return m+":"+(q<10?"0":"")+q}
+function dzmVoErr(e){
+  var n=e&&typeof e==="object"?String(e.name||""):"";
+  if(n==="NotAllowedError"||n==="SecurityError"||n==="PermissionDeniedError")return "accès au micro refusé";
+  if(n==="NotFoundError"||n==="DevicesNotFoundError"||n==="OverconstrainedError")return "aucun micro détecté";
+  if(n==="NotReadableError"||n==="TrackStartError")return "micro occupé par une autre application";
+  var m=e&&typeof e==="object"&&e.message?String(e.message):typeof e==="string"?e:"";
+  return m||"erreur inconnue"}
+/* L'ENREGISTREUR DE VOIX OFF (puce montée par l'hôte à côté de « narration », section L6vo1) : props {demo, combo (le
+   raccourci vivant de vo_record, pour le title), ctl (une réf de l'hôte : la bascule y est inscrite à chaque rendu, pour
+   l'action clavier vo_record ; retirée au démontage), onStart() -> t0 (la tête ; l'hôte lance la lecture : on parle sur
+   l'image), onStop() (l'hôte arrête la lecture), onDone(filename, dur, t0) (l'hôte pose la prise sur la piste de
+   dialogue, mode « écraser » forcé, puis avance la tête), onNote(msg), rec (INJECTION du banc : {media(contraintes) ->
+   promesse du flux, Rec (constructeur de l'enregistreur), juge(type) -> bool}) ; sans injection, le micro et
+   l'enregistreur du navigateur sont lus À L'APPEL, jamais au chargement}. UN SEUL bouton à deux états (E-12) :
+   « ● voix off » au repos, « ■ m:ss » pendant la prise ; « micro… » pendant l'accord et « envoi… » pendant l'envoi
+   (grisé, titré) ; grisé et titré sur la démo (la bascule du clavier y DIT le refus). À l'arrêt : l'hôte arrête la
+   lecture, l'enregistreur s'arrête, les pistes du flux sont coupées ; la prise part UNE fois à POST /api/audio/recording
+   (multipart, champ file) ; tout échec est DIT (« prise non enregistrée »). Démontage pendant l'accord ou la prise :
+   enregistreur arrêté, flux coupé, rien n'est envoyé ni dit. */
+function DzmVoiceRec(o){
+  if(!o)return null;
+  var s1=x.useState("repos"),st=s1[0],setSt=s1[1];
+  var s2=x.useState(0),tic=s2[0],setTic=s2[1];
+  var mR=x.useRef(null);if(!mR.current)mR.current={st:"repos",rec:null,flux:null,t0:0,deb:0,vivant:!0};
+  var M=mR.current,demo=!!o.demo,ctl=o.ctl&&typeof o.ctl==="object"?o.ctl:null;
+  /* les rappels de l'hôte sont lus sur les DERNIÈRES props (M.o) : la prise se termine bien des rendus après le clic */
+  M.o=o;
+  var note=function(msg){var q=M.o;if(q&&typeof q.onNote==="function")q.onNote(msg)};
+  var hote=function(k,a,b2,c2){var q=M.o;return q&&typeof q[k]==="function"?q[k](a,b2,c2):void 0};
+  function pose(v){M.st=v;setSt(v)}
+  function coupeFlux(f){if(f&&typeof f.getTracks==="function")try{f.getTracks().forEach(function(t){try{t.stop()}catch(e){}})}catch(e){}}
+  function coupe(){var f=M.flux;M.flux=null;coupeFlux(f)}
+  x.useEffect(function(){M.vivant=!0;return function(){M.vivant=!1;var rc=M.rec;M.rec=null;
+    if(rc&&rc.state!=="inactive")try{rc.stop()}catch(e){}
+    coupe();if(ctl)ctl.current=null}},[]);
+  x.useEffect(function(){if(st!=="prise")return;
+    var h=setTimeout(function(){setTic(function(n){return n+1})},500);return function(){clearTimeout(h)}},[st,tic]);
+  function envoie(rc,morceaux,mime){
+    if(M.rec===rc)M.rec=null;
+    if(!M.vivant)return;
+    var type=(rc&&rc.mimeType)||mime||"audio/webm",bl=null;
+    try{bl=new Blob(morceaux,{type:type})}catch(e){bl=null}
+    if(!bl||!bl.size){pose("repos");note("Prise vide : rien n'a été capté — prise non enregistrée");return}
+    var fd=new FormData(),t0=M.t0;fd.append("file",bl,"prise."+dzmVoExt(type));
+    fetch("/api/audio/recording",{method:"POST",body:fd}).then(function(res){
+      return res.json().catch(function(){return null}).then(function(j){
+        if(!res.ok)throw new Error((j&&j.detail&&String(j.detail))||("HTTP "+res.status));return j})})
+    .then(function(d){
+      if(!M.vivant)return;
+      pose("repos");
+      var du=d?Number(d.dur):NaN;
+      if(!d||typeof d.filename!=="string"||!d.filename||!(du>0)){
+        note("Voix off : réponse illisible du serveur — "+(d&&d.filename?"la prise « "+d.filename+" » est dans la Bibliothèque, non posée":"prise non enregistrée"));return}
+      hote("onDone",d.filename,du,t0)},
+    function(e){
+      if(!M.vivant)return;
+      pose("repos");
+      note("Envoi de la prise impossible : "+dzmVoErr(e)+" — prise non enregistrée")})}
+  function demarre(){
+    if(demo){note("Voix off : disponible sur un projet réel — la démo est une maquette.");return}
+    var I=o.rec&&typeof o.rec==="object"?o.rec:null,N=typeof navigator!=="undefined"?navigator:null;
+    var md=I&&typeof I.media==="function"?I.media
+      :N&&N.mediaDevices&&typeof N.mediaDevices.getUserMedia==="function"?function(c){return N.mediaDevices.getUserMedia(c)}:null;
+    var Rec=I&&typeof I.Rec==="function"?I.Rec:typeof MediaRecorder==="function"?MediaRecorder:null;
+    if(!md||!Rec){note("Micro indisponible : ce navigateur n'enregistre pas le son ici (page non sûre ou fonction absente)");return}
+    var juge=I&&typeof I.juge==="function"?I.juge:typeof Rec.isTypeSupported==="function"?function(t){return Rec.isTypeSupported(t)}:null;
+    pose("micro");
+    var p;try{p=Promise.resolve(md({audio:!0}))}catch(e){p=Promise.reject(e)}
+    p.then(function(flux){
+      if(!M.vivant||M.st!=="micro"){coupeFlux(flux);return}
+      M.flux=flux;
+      var mime=dzmRecMime(juge),rc,morceaux=[];
+      try{rc=mime?new Rec(flux,{mimeType:mime}):new Rec(flux)}
+      catch(e){coupe();pose("repos");note("Micro indisponible : "+dzmVoErr(e));return}
+      rc.ondataavailable=function(ev){if(ev&&ev.data&&ev.data.size>0)morceaux.push(ev.data)};
+      rc.onstop=function(){envoie(rc,morceaux,mime)};
+      var t0=0;try{t0=Number(hote("onStart"))||0}catch(e){t0=0}
+      M.rec=rc;M.t0=t0;M.deb=Date.now();
+      try{rc.start(1000)}
+      catch(e){M.rec=null;coupe();try{hote("onStop")}catch(e2){}
+        pose("repos");note("Enregistrement impossible : "+dzmVoErr(e));return}
+      pose("prise")},
+    function(e){if(!M.vivant)return;pose("repos");note("Micro indisponible : "+dzmVoErr(e))})}
+  function arrete(){
+    var rc=M.rec;if(!rc)return;
+    pose("envoi");
+    try{hote("onStop")}catch(e){}
+    try{rc.stop()}catch(e){M.rec=null;coupe();pose("repos");note("Arrêt impossible : "+dzmVoErr(e)+" — prise non enregistrée");return}
+    coupe()}
+  function bascule(){if(M.st==="repos")demarre();else if(M.st==="prise")arrete()}
+  if(ctl)ctl.current=bascule;
+  var cb=o.combo?" ("+o.combo+")":"",el=st==="prise"?dzmVoChrono((Date.now()-M.deb)/1000):"";
+  var dis=demo||st==="micro"||st==="envoi";
+  var tt=demo?"Projet de démonstration : l'enregistrement d'une voix off est désactivé"
+    :st==="micro"?"Accès au micro en cours — autorisez-le dans le navigateur"
+    :st==="envoi"?"Envoi de la prise en cours…"
+    :st==="prise"?"Arrêter la prise ("+el+")"+cb+" — elle sera posée sur la piste de dialogue à l'instant où elle a commencé"
+    :"Enregistrer une voix off au micro"+cb+" — le montage est lu pendant la prise, qui est posée sur la piste de dialogue à la tête de lecture (mode « écraser »)";
+  return r.jsx("button",{className:"svm-themechip dzm-vochip","data-rec":st==="prise"?"1":void 0,"aria-pressed":st==="prise",
+    disabled:dis,"aria-disabled":dis,title:tt,onClick:bascule,
+    children:st==="prise"?"■ "+el:st==="micro"?"micro…":st==="envoi"?"envoi…":"● voix off"})}
 /* LES SCOPES (section L5sc1 de l'hôte, sous la barre du lecteur) : props {clips, head, playing}. Une bascule « Scopes »
    (mémoire dz_montage_scopes lue UNE fois, au montage) ; allumée et À L'ARRÊT, le PNG de POST /api/montage/scopes pour le
    plan V1 sous la tête (effets actifs + masque : le scope mesure ce que le rendu produira), à l'instant de source.
@@ -8717,5 +8830,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   /* L6 D-25 D-26 (25/09/2026, tache 4) : le coeur pur audio -- plage de bruit en temps de source, debruiteur appris, prises, type d'enregistrement */
   learnRange:dzmLearnRange,denoiseLearn:dzmDenoiseLearn,denoiseForget:dzmDenoiseForget,voCount:dzmVoCount,voLabel:dzmVoLabel,recMime:dzmRecMime,VO_MIMES:DZM_VO_MIMES,
   nlAppris:dzmNlAppris,NoiseLearn:DzmNoiseLearn,
+  /* L6 D-26 (25/09/2026, tache 6) : l'enregistreur de voix off -- aides pures et la puce */
+  voExt:dzmVoExt,voChrono:dzmVoChrono,voErr:dzmVoErr,VoiceRec:DzmVoiceRec,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;

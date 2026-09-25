@@ -421,7 +421,9 @@ check("R1_R2_L5_scopes_et_lightbox_trois_sites_de_bouton_tous_titres_toutes_clas
 # `children` et son `title` changent pendant la mesure, jamais un ternaire de deux boutons), grise sans plage I/O / sur la
 # demo / pendant la mesure ; « Oublier » grise sans plage apprise. Le composant vit HORS de la zone _L5Z (avant
 # DzmScopes). Temoin : le meme scanner voit trois sites dans _L5Z ; absent du .bak.
-_L6N = lay[lay.find("function DzmNoiseLearn(o){"):lay.find("function DzmScopes(o){")]
+# L6 (25/09/2026, tache 6) : la zone s'arrete desormais a DzmVoiceRec (pose APRES DzmNoiseLearn, avant DzmScopes) --
+# sinon le bouton de la voix off serait compte ici comme un troisieme site ; il a sa propre ligne ci-dessous.
+_L6N = lay[lay.find("function DzmNoiseLearn(o){"):lay.find("function DzmVoiceRec(")]
 _l6_b, _l6_sans = _l5_sites(_L6N) if len(_L6N) > 1500 else ([], ["zone introuvable"])
 _l6_cond = [m.group(0) for m in RX_COND.finditer(_L6N)]
 _l6_n, _l6_manq = scan_titres(_L6N, [(0, len(_L6N))])
@@ -433,5 +435,24 @@ check("R1_R2_L6_apprendre_le_bruit_deux_sites_de_bouton_titres_grises_aucun_cond
       and len(_l5_b) == 3 and s.count("function DzmNoiseLearn(o){") == 1 and bak.count("NoiseLearn") == 0,
       f"sites={len(_l6_b)} sans_title={_l6_sans} conditionnels={_l6_cond} audites={_l6_n} manquants={_l6_manq}")
 
+# L6 D-26 (25/09/2026, tache 6) : l'enregistreur de voix off (couche, DzmVoiceRec, puce montee par l'hote apres
+# « narration », section L6vo1) -- UN SEUL site de bouton (toutes classes : svm-themechip hors CLASSES auditees, le scanner
+# _l5_sites ne filtre pas), TITRE, AUCUN conditionnel : c'est UN bouton a deux etats (repos « ● voix off » / prise
+# « ■ m:ss », plus « micro… » et « envoi… » grises) dont `children` ET `title` changent -- jamais un ternaire de deux
+# boutons ; grise sur la demo (disabled + title qui le dit). Le composant vit HORS de la zone _L5Z (avant DzmScopes).
+# Temoins : le meme scanner voit deux sites dans _L6N et trois dans _L5Z ; absent du .bak.
+_L6V = lay[lay.find("function DzmVoiceRec(o){"):lay.find("function DzmScopes(o){")]
+_l6v_b, _l6v_sans = _l5_sites(_L6V) if len(_L6V) > 2500 else ([], ["zone introuvable"])
+_l6v_cond = [m.group(0) for m in RX_COND.finditer(_L6V)]
+check("R1_R2_L6_voix_off_un_seul_bouton_a_deux_etats_titre_dans_les_deux_etats_grise_sur_la_demo_hors_zone_L5",
+      len(_L6V) > 2500 and len(_l6v_b) == 1 and _l6v_sans == [] and _l6v_cond == []
+      and _L6V.count("disabled:dis,") == 1 and _L6V.count("var dis=demo||") == 1 and _L6V.count("title:tt,") == 1
+      and _L6V.count('children:st==="prise"?"■ "+el:st==="micro"?"micro…":st==="envoi"?"envoi…":"● voix off"') == 1
+      and _L6V.count('var tt=demo?"Projet de démonstration') == 1 and _L6V.count(':st==="prise"?"Arrêter la prise (') == 1
+      and _L6V.count(':"Enregistrer une voix off au micro"') == 1
+      and 0 < lay.find("function DzmNoiseLearn(o){") < lay.find("function DzmVoiceRec(o){") < lay.find("function DzmScopes(o){")
+      and _L5Z.count("VoiceRec") == 0 and len(_l6_b) == 2 and len(_l5_b) == 3
+      and s.count("function DzmVoiceRec(o){") == 1 and bak.count("VoiceRec") == 0,
+      f"sites={len(_l6v_b)} sans_title={_l6v_sans} conditionnels={_l6v_cond} zone={len(_L6V)}")
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

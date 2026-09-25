@@ -4595,6 +4595,189 @@ check("l6x_nlAppris_pur_ni_r_ni_x_ni_reseau_ni_dom_exporte_une_fois_composant_av
       and 0 <= _SRCb.find("var DZM_VO_MIMES=") < _SRCb.find("function DzmNoiseLearn(o){") < _SRCb.find("function DzmScopes(o){")
       and _SRCb.count('dzmGpFetch("/api/montage/noise-profile",') == 1,
       [len(_NLA), _DT.count("NoiseLearn:DzmNoiseLearn,")])
+
+print("\n[41] L6 D-26 : l'enregistreur de voix off — le composant joue sous le mini-React, faux micro injecte (tache 6, 25/09/2026)")
+# ── L6 (25/09/2026, tache 6). DzmVoiceRec sous le MEME harnais que [40] (tranche _L6H de PROBE_L5X) ; le micro et
+# l'enregistreur sont INJECTES (o.rec = {media, Rec, juge}) ; le reseau est un faux `fetch` propre a cette section (le
+# corps est un FormData, que le faux de [40] ne sait pas lire). Aucune route payante : l'URL appelee est RELEVEE et
+# comparee (jamais /api/audio/voiceover). Faute n6 : chaque lecture passe par .get / une liste de longueur verifiee.
+PROBE_L6V = _L6H + r"""
+var FV=[];G.fetch=function(u,op){var d={},p=new Promise(function(a,b){d.a=a;d.b=b});
+  var f=op&&op.body&&typeof op.body.get==="function"?op.body.get("file"):null;
+  FV.push({u:u,m:op&&op.method,champs:op&&op.body&&typeof op.body.keys==="function"?Array.from(op.body.keys()):null,
+    nom:f&&f.name,type:f&&f.type,taille:f&&f.size,d:d});return p};
+function vrep(i,ok,st,j){FV[i].d.a({ok:ok,status:st,json:function(){return Promise.resolve(j)}})}
+function bts(m){return tous(m).filter(function(n){return n.t==="button"})}
+function etat(m){return bts(m).map(function(b){return [txt(b),!!b.p.disabled,typeof b.p.title==="string"?b.p.title:null,b.p["data-rec"]||""]})}
+var RC=[],CN=[],PISTES=[];
+function flux(){var f={pistes:[{n:0,stop:function(){this.n++}}],getTracks:function(){return this.pistes}};PISTES.push(f);return f}
+function FauxRec(fl,opt){this.fl=fl;this.opt=opt===void 0?null:opt;this.state="inactive";this.mimeType=(opt&&opt.mimeType)||"";this.starts=[];this.stops=0;RC.push(this)}
+FauxRec.prototype.start=function(ts){this.state="recording";this.starts.push(ts)};
+FauxRec.prototype.stop=function(){this.stops++;if(this.state==="inactive")return;this.state="inactive";var s=this;
+  Promise.resolve().then(function(){if(s.ondataavailable)s.ondataavailable({data:s.vide?new Blob([]):new Blob(["prise"],{type:"audio/ogg"})});
+    if(s.onstop)s.onstop()})};
+function RecVide(fl,opt){FauxRec.call(this,fl,opt);this.vide=!0}RecVide.prototype=FauxRec.prototype;
+var OGG=function(t){return t==="audio/ogg;codecs=opus"};
+function inj(extra){return Object.assign({media:function(c){CN.push(c);return Promise.resolve(flux())},Rec:FauxRec,juge:OGG},extra||{})}
+var R={},NT=[],ST=[],SP=[],DN=[];
+function props(extra){var ctl={current:null};return Object.assign({demo:!1,ctl:ctl,rec:inj(),
+  onNote:function(m){NT.push(m)},onStart:function(){ST.push(1);return 12.5},onStop:function(){SP.push(1)},
+  onDone:function(f,d,t0){DN.push([f,d,t0])}},extra||{})}
+(async function(){
+  /* 1 : démo -> UN bouton, grisé, titré ; la bascule du clavier (ctl) DIT le refus et n'ouvre pas le micro */
+  var P=props({demo:!0}),M=mini(T.VoiceRec);M.render(P);R.demo=[etat(M.H.out),typeof P.ctl.current];
+  P.ctl.current();await settle();R.demo_ctl=[CN.length,NT.slice(-1),ST.length];M.unmount();
+  /* 2 : sans injection (node n'a ni micro ni enregistreur) -> « Micro indisponible », rien ne démarre, le bouton reste actif */
+  P=props({rec:null});M=mini(T.VoiceRec);M.render(P);bts(M.H.out)[0].p.onClick();await settle();M.flush();
+  R.absent=[NT.slice(-1),ST.length,etat(M.H.out)[0].slice(0,2)];M.unmount();
+  /* 3 : micro refusé -> la raison est dite, retour au repos */
+  P=props({rec:inj({media:function(){return Promise.reject({name:"NotAllowedError",message:"Permission denied"})}})});
+  M=mini(T.VoiceRec);M.render(P);bts(M.H.out)[0].p.onClick();M.flush();R.refus_attente=etat(M.H.out)[0].slice(0,2);
+  await settle();M.flush();R.refus=[NT.slice(-1),ST.length,etat(M.H.out)[0].slice(0,2)];M.unmount();
+  /* 4 : LE CYCLE. clic -> micro demandé (audio), enregistreur au type choisi par le juge, onStart UNE fois (t0 = 12,5),
+     bouton « ■ … » titré ; second clic -> onStop UNE fois, pistes coupées, « envoi… » grisé ; la prise part UNE fois
+     à /api/audio/recording (POST, champ file, prise.ogg) ; réponse -> onDone UNE fois avec (filename, dur, t0) */
+  var n0=NT.length;P=props();M=mini(T.VoiceRec);M.render(P);R.repos=etat(M.H.out);
+  bts(M.H.out)[0].p.onClick();bts(M.H.out)[0].p.onClick();M.flush();R.attente=[etat(M.H.out)[0].slice(0,2),CN.length];
+  await settle();M.flush();var rc=RC[RC.length-1];
+  R.prise=[CN.slice(-1),rc&&rc.opt,rc&&rc.state,rc&&rc.starts.length,ST.length,etat(M.H.out)[0],typeof P.ctl.current];
+  bts(M.H.out)[0].p.onClick();M.flush();var fl=PISTES[PISTES.length-1];
+  R.arret=[SP.length,fl&&fl.pistes[0].n,etat(M.H.out)[0].slice(0,2),rc&&rc.stops];
+  await settle();M.flush();
+  R.envoi=[FV.length,FV[0]&&FV[0].u,FV[0]&&FV[0].m,FV[0]&&FV[0].champs,FV[0]&&FV[0].nom,FV[0]&&FV[0].taille>0];
+  /* les rappels sont lus sur les DERNIERES props : un rendu de l'hote pendant l'envoi remplace onDone */
+  P=Object.assign({},P,{onDone:function(f,d,t0){DN.push(["neuf",f,d,t0])}});M.render(P);
+  vrep(0,!0,200,{ok:!0,filename:"voix-off-20260925-101010.wav",url:"/audio/voix-off-20260925-101010.wav",dur:3.25,size_kb:305});
+  await settle();M.flush();R.pose=[DN.slice(),etat(M.H.out)[0].slice(0,2),NT.length-n0];
+  /* 5 : LA BASCULE DU CLAVIER (ctl) fait le même cycle ; l'envoi échoue (415) -> « prise non enregistrée », rien de posé */
+  P.ctl.current();await settle();M.flush();P.ctl.current();await settle();M.flush();
+  R.ctl=[ST.length,SP.length,FV.length];vrep(1,!1,415,{detail:"Enregistrement illisible"});await settle();M.flush();
+  R.echec=[DN.length,NT.slice(-1),etat(M.H.out)[0].slice(0,2)];
+  /* 6 : réponse sans durée lisible -> dite, rien de posé (addAsset partirait mesurer la durée hors du mode forcé) */
+  bts(M.H.out)[0].p.onClick();await settle();M.flush();bts(M.H.out)[0].p.onClick();await settle();M.flush();
+  vrep(2,!0,200,{ok:!0,filename:"voix-off-x.wav",dur:0});await settle();M.flush();R.sans_duree=[DN.length,NT.slice(-1)];
+  M.unmount();
+  /* 7 : DÉMONTAGE PENDANT UNE PRISE -> enregistreur arrêté, flux coupé, rien d'envoyé, rien de dit, rien de posé */
+  var nf=FV.length,nn=NT.length;P=props();M=mini(T.VoiceRec);M.render(P);bts(M.H.out)[0].p.onClick();await settle();M.flush();
+  rc=RC[RC.length-1];fl=PISTES[PISTES.length-1];M.unmount();await settle();
+  R.demonte=[rc&&rc.state,rc&&rc.stops,fl&&fl.pistes[0].n,FV.length-nf,NT.length-nn,P.ctl.current];
+  /* 8 : démontage PENDANT l'accord du micro -> le flux arrivé en retard est coupé aussitôt, aucun enregistreur */
+  var dly={},nr=RC.length;P=props({rec:inj({media:function(){return new Promise(function(a){dly.a=a})}})});
+  M=mini(T.VoiceRec);M.render(P);bts(M.H.out)[0].p.onClick();M.unmount();var tard=flux();dly.a(tard);await settle();
+  R.tard=[tard.pistes[0].n,RC.length-nr];
+  /* 9 : prise vide -> dite, rien d'envoyé ; 10 : sans type accepté par le juge -> enregistreur SANS option */
+  nf=FV.length;P=props({rec:inj({Rec:RecVide})});M=mini(T.VoiceRec);M.render(P);bts(M.H.out)[0].p.onClick();await settle();M.flush();
+  bts(M.H.out)[0].p.onClick();await settle();M.flush();R.vide=[FV.length-nf,NT.slice(-1)];M.unmount();
+  P=props({rec:inj({juge:function(){return !1}})});M=mini(T.VoiceRec);M.render(P);bts(M.H.out)[0].p.onClick();await settle();M.flush();
+  R.sans_type=[RC[RC.length-1].opt];M.unmount();
+  /* 11 : aides pures */
+  R.pur=[T.voExt("audio/ogg;codecs=opus"),T.voExt("audio/mp4"),T.voExt("audio/webm;codecs=opus"),T.voExt(""),T.voExt(null),
+    T.voChrono(0),T.voChrono(3.9),T.voChrono(65),T.voChrono(-2),T.voChrono("x"),
+    T.voErr({name:"NotAllowedError"}),T.voErr({name:"NotFoundError"}),T.voErr(new Error("boum")),T.voErr(null)];
+  R.nul=T.VoiceRec(null);
+  /* 12 : POURQUOI L'HÔTE FORCE « écraser » : en « insérer », la prise pousserait le clip suivant de la même piste */
+  var CL=[{tr:"a1",id:"q",start:14,end:18,src:{audio:"z.wav"},srcIn:0}],NV={tr:"a1",id:"vo",start:12.5,end:15.75,src:{audio:"voix-off-1.wav"},srcIn:0};
+  var ins=T.insere(CL,NV,"inserer",{tracks:T.DEFAULTS,head:12.5}),ecr=T.insere(CL,NV,"ecraser",{tracks:T.DEFAULTS,head:12.5});
+  function q(res){var k=(res.clips||[]).filter(function(c){return c.id==="q"})[0];return k?[k.start,k.end]:null}
+  R.mode=[q(ins),q(ecr)];
+  out.R=R;
+})().catch(function(e){out.err=String(e&&e.stack||e)}).then(function(){console.log(JSON.stringify(out))});
+"""
+D7 = {}
+if NODE and os.path.isfile(SRC_PATH) and globals().get("SRC") and len(_L6H) > 2000 and "function mini(" in _L6H:
+    _sh7 = os.path.join(TMP, "shim_l6v.js")
+    with open(_sh7, "w", encoding="utf-8") as fh:
+        fh.write('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + SRC + "\n" + PROBE_L6V)
+    _r7 = sh([NODE, _sh7])
+    _l7x = (_r7.stdout or "").strip().splitlines()
+    try:
+        D7 = json.loads(_l7x[-1]) if _l7x else {}
+    except Exception as _e:
+        D7 = {"err": temoin(_e)}
+    check("l6v_shim_execute_sans_erreur", _r7.returncode == 0 and "err" not in D7 and isinstance(D7.get("R"), dict),
+          (D7.get("err"), (_r7.stderr or "")[-400:]))
+else:
+    check("l6v_shim_execute_sans_erreur", False, ("node, source ou harnais absents", len(_L6H)))
+_R7 = D7.get("R") if isinstance(D7.get("R"), dict) else {}
+def _l7(k, n):
+    v = _R7.get(k)
+    return v if isinstance(v, list) and len(v) == n else [None] * n
+_V1 = _l7("demo", 2)
+_V1b = _l7("demo_ctl", 3)
+check("l6v_demo_un_bouton_grise_titre_la_bascule_clavier_dit_le_refus_sans_ouvrir_le_micro",
+      isinstance(_V1[0], list) and len(_V1[0]) == 1 and _V1[0][0][:2] == ["● voix off", True]
+      and "démonstration" in (_V1[0][0][2] or "") and _V1[1] == "function"
+      and _V1b[0] == 0 and _V1b[2] == 0 and isinstance(_V1b[1], list) and len(_V1b[1]) == 1 and "démo" in _V1b[1][0],
+      [_V1, _V1b])
+_V2 = _l7("absent", 3)
+check("l6v_sans_micro_ni_enregistreur_micro_indisponible_dit_rien_ne_demarre_bouton_actif",
+      isinstance(_V2[0], list) and len(_V2[0]) == 1 and _V2[0][0].startswith("Micro indisponible : ")
+      and _V2[1] == 0 and _V2[2] == ["● voix off", False], _V2)
+_V3 = _l7("refus", 3)
+check("l6v_micro_refuse_la_raison_est_dite_attente_grisee_retour_au_repos",
+      _R7.get("refus_attente") == ["micro…", True]
+      and _V3[0] == ["Micro indisponible : accès au micro refusé"] and _V3[1] == 0 and _V3[2] == ["● voix off", False],
+      [_R7.get("refus_attente"), _V3])
+_V4r = _R7.get("repos") if isinstance(_R7.get("repos"), list) else []
+_V4a = _l7("attente", 2)
+_V4 = _l7("prise", 7)
+check("l6v_cycle_prise_micro_audio_type_du_juge_onStart_une_fois_bouton_a_deux_etats_titre_une_demande_malgre_deux_clics",
+      len(_V4r) == 1 and _V4r[0][:2] == ["● voix off", False] and len(_V4r[0][2] or "") > 20 and "()" not in (_V4r[0][2] or "")
+      and _V4a == [["micro…", True], 1]
+      and _V4[0] == [{"audio": True}] and _V4[1] == {"mimeType": "audio/ogg;codecs=opus"} and _V4[2] == "recording"
+      and _V4[3] == 1 and _V4[4] == 1 and isinstance(_V4[5], list) and str(_V4[5][0]).startswith("■ 0:0")
+      and _V4[5][1] is False and "Arrêter" in (_V4[5][2] or "") and _V4[5][3] == "1" and _V4[6] == "function"
+      and _V4r[0][2] != _V4[5][2],
+      [_V4r, _V4a, _V4])
+_V5 = _l7("arret", 4)
+_V6 = _l7("envoi", 6)
+check("l6v_second_clic_onStop_une_fois_pistes_coupees_envoi_grise_une_requete_audio_recording_multipart_file_prise_ogg",
+      _V5 == [1, 1, ["envoi…", True], 1]
+      and _V6 == [1, "/api/audio/recording", "POST", ["file"], "prise.ogg", True],
+      [_V5, _V6])
+_V7 = _l7("pose", 3)
+check("l6v_reponse_onDone_des_dernieres_props_une_fois_avec_filename_dur_et_t0_de_la_tete_au_debut_retour_au_repos_rien_de_dit",
+      _V7 == [[["neuf", "voix-off-20260925-101010.wav", 3.25, 12.5]], ["● voix off", False], 0], _V7)
+_V8 = _l7("ctl", 3)
+_V8b = _l7("echec", 3)
+check("l6v_bascule_clavier_meme_cycle_envoi_en_echec_dit_prise_non_enregistree_rien_de_pose",
+      _V8 == [2, 2, 2] and _V8b[0] == 1
+      and _V8b[1] == ["Envoi de la prise impossible : Enregistrement illisible — prise non enregistrée"]
+      and _V8b[2] == ["● voix off", False],
+      [_V8, _V8b])
+_V9 = _l7("sans_duree", 2)
+check("l6v_reponse_sans_duree_lisible_dite_rien_de_pose",
+      _V9[0] == 1 and isinstance(_V9[1], list) and len(_V9[1]) == 1 and "prise non enregistrée" not in _V9[1][0]
+      and "illisible" in _V9[1][0], _V9)
+_V10 = _l7("demonte", 6)
+check("l6v_demontage_pendant_la_prise_enregistreur_arrete_flux_coupe_rien_envoye_rien_dit_bascule_retiree",
+      _V10 == ["inactive", 1, 1, 0, 0, None], _V10)
+check("l6v_demontage_pendant_l_accord_le_flux_tardif_est_coupe_aucun_enregistreur",
+      _R7.get("tard") == [1, 0], _R7.get("tard"))
+_V11 = _l7("vide", 2)
+check("l6v_prise_vide_dite_rien_envoye_sans_type_accepte_enregistreur_sans_option",
+      _V11 == [0, ["Prise vide : rien n'a été capté — prise non enregistrée"]] and _R7.get("sans_type") == [None],
+      [_V11, _R7.get("sans_type")])
+check("l6v_aides_pures_extension_chrono_raison",
+      _R7.get("pur") == ["ogg", "m4a", "webm", "webm", "webm", "0:00", "0:03", "1:05", "0:00", "0:00",
+                         "accès au micro refusé", "aucun micro détecté", "boum", "erreur inconnue"]
+      and "nul" in _R7 and _R7.get("nul") is None, _R7.get("pur"))
+_V12 = _l7("mode", 2)
+check("l6v_pourquoi_ecraser_force_inserer_pousserait_le_clip_suivant_ecraser_le_rogne_sans_rien_decaler",
+      isinstance(_V12[0], list) and _V12[0][0] > 14 and _V12[1] == [15.75, 18], _V12)
+_VRC = _corps("DzmVoiceRec")
+_VPU = {n: _corps(n) for n in ("dzmVoExt", "dzmVoChrono", "dzmVoErr")}
+check("l6v_aides_pures_ni_r_ni_x_ni_api_navigateur_composant_lit_micro_et_enregistreur_a_l_appel_route_unique",
+      all(len(c) > 40 for c in _VPU.values())
+      and not any(re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|\bnavigator\b|MediaRecorder|"
+                            r"getUserMedia|isTypeSupported|fetch\(|setClips|pushHistory|URL\.", c) for c in _VPU.values())
+      and len(_VRC) > 2500 and _VRC.count('fetch("/api/audio/recording",{method:"POST",body:fd})') == 1
+      and _VRC.count("/api/audio/voiceover") == 0 and _SRCb.count("/api/audio/voiceover") == 0
+      and _VRC.count("getTracks()") == 1 and _VRC.count("typeof MediaRecorder") == 1 and _VRC.count('typeof navigator!=="undefined"?navigator:null') == 1 and _VRC.count("N.mediaDevices.getUserMedia(c)") == 1
+      and _VRC.count('r.jsx("button",') == 1 and _VRC.count("x.useState(") == 2
+      and _DT.count("voExt:dzmVoExt,voChrono:dzmVoChrono,voErr:dzmVoErr,VoiceRec:DzmVoiceRec,") == 1
+      and 0 < _SRCb.find("function DzmNoiseLearn(o){") < _SRCb.find("function DzmVoiceRec(o){") < _SRCb.find("function DzmScopes(o){"),
+      [len(_VRC), {n: len(c) for n, c in _VPU.items()}])
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)
