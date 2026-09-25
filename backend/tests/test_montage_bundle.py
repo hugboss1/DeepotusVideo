@@ -19156,9 +19156,33 @@ check("L6_catalogue_eq6_dehum_en_rendu_seul_libelles_plancher_dit_auto_plage_app
       == [("dehum", "0"), ("denoise", "0"), ("eq6", "0")]
       and _SVD.count('{type:"eq6",label:"Égaliseur 6 bandes",live:0,') == 1 and _SVD.count('{type:"dehum",label:"Anti-ronflement",live:0,') == 1
       and _SVD.count('{k:"nf",label:"Plancher 0=auto",') == 1 and _SVD.count("hide:1") == 2 and _SVD.count("dec:3") == 2
+      # revue T5 (25/09) : le plancher dit sa borne effective (0 = auto, -20 au plus) par le title de son libelle
+      and _SVD.count('tip:"Plancher du débruiteur : 0 = auto, −20 au plus') == 1 and _SVD.count("tip:") == 1
       and _SVD.count('{k:"base",label:"Secteur",min:50,max:60,d:50,step:10,unit:"Hz"}') == 1 and _SVD.count('kind:"seg"') == 1
       and _SVDk.count("hide:1") == 0 and _SVDk.count("dec:") == 0,
       [_SVD.count("hide:1"), _SVD.count("dec:3"), _SVD.count('kind:"seg"')])
+# LE RESUME DU DEBRUITEUR SOUS NODE (revue T5, 25/09) : svxModSummary EXTRAIT du bundle livre ; le plancher affiche est la
+# valeur EFFECTIVE du rendu (_fx_denoise : nf <= -0,5 borne a [-80, -20], sinon automatique -- rien d'affiche).
+# Temoin : l'ancienne formule affichait « plancher -5 dB » (le rendu pose -20).
+def _svx_sum_run(t):
+    i = t.find("function svxModSummary(def,p){"); j = t.find("\nfunction ", i + 10) if i >= 0 else -1
+    if not (0 <= i < j):
+        return {"err": "extraction"}
+    f = os.path.join(TMP, "l6_resume.js")
+    with open(f, "w", encoding="utf-8") as fh:
+        fh.write('"use strict";\nfunction svxDb1(v){return String(v)}\n' + t[i:j] + "\n"
+                 + 'var D={type:"denoise"};console.log(JSON.stringify([-5,-31,-95,0,-0.3,-20].map(function(n){'
+                 + 'return svxModSummary(D,{amount:24,nf:n})})));\n')
+    rr = NODE(["node", f], timeout=60)
+    try:
+        return {"ok": json.loads((rr.stdout or "").strip().splitlines()[-1])}
+    except Exception as _e:
+        return {"err": temoin(_e), "stderr": (rr.stderr or "")[-300:]}
+_SUM = _svx_sum_run(s)
+check("L6_resume_debruiteur_plancher_effectif_moins_5_affiche_moins_20_auto_sans_mention_borne_moins_80",
+      _SUM.get("ok") == ["24 dB · plancher -20 dB", "24 dB · plancher -31 dB", "24 dB · plancher -80 dB", "24 dB", "24 dB",
+                         "24 dB · plancher -20 dB"],
+      _SUM)
 # LE RACK EXECUTE SOUS NODE : les fonctions du vocabulaire client (svxClamp..svxEmitFx) EXTRAITES du bundle livre, puis
 # du .bak (temoin). La retouche d'un curseur rejoue setParam du rack (svxCleanParams du module, puis svxEmitFx) : la plage
 # apprise SURVIT au millieme (bundle) ; le .bak la PERDAIT (temoin : c'est la mesure qui a decide hide/dec).
@@ -19201,15 +19225,22 @@ check("L6_rack_sous_node_defauts_eq6_dehum_complets_bornes_appliquees_secteur_ga
 check("L6_rack_rangee_cachee_non_rendue_resumes_eq6_dehum_debruiteur_appris",
       s.count(nl("  function paramRow(def,pd,p,on){\n    if(pd.hide)return null;\n    var v=p[pd.k];")) == 1
       and s.count("p[pd.k]=svxRound(n,pd.dec!=null?pd.dec:(pd.step<1?1:0))}});") == 1 and s.count("p[pd.k]=svxRound(n,pd.step<1?1:0)}});") == 0
-      and s.count('" · appris":""') == 1 and s.count('case "eq6":{var nb=') == 1 and s.count('case "dehum":return (p.base>=55?60:50)+" Hz ×"') == 1
+      and s.count('" · appris":""') == 1 and s.count('case "eq6":{var nb=') == 1
+      and s.count('r.jsx("span",{className:"svx-plabel",title:pd.tip||void 0,children:pd.label}),') == 1
+      and s.count('r.jsx("span",{className:"svx-plabel",children:pd.label}),') == 0 and s.count('case "dehum":return (p.base>=55?60:50)+" Hz ×"') == 1
       and (_bak.count("pd.hide") == 0 and _bak.count('case "eq6"') == 0 if _bak else False),
       [s.count("if(pd.hide)return null;"), s.count('case "eq6":')])
 # L'ECOUTE RENDUE (decision 6) : le son d'un plan {job_id} n'est plus refuse ; filename seulement pour un son de la
 # Bibliotheque ; temoin : le refus d'avant est dans le .bak, plus dans le bundle. Dans sfxAudition, une fois.
+# Revue T5 (25/09) : job_id D'ABORD (l'ordre de _resolve_src du rendu) -- l'ancien ordre (filename d'abord) compte 0.
 _AUD = s[s.find("  function sfxAudition(fx){"):s.find("  function duckCfg(){")]
 check("L6_ecoute_rendue_accepte_le_son_d_un_plan_job_id_filename_pour_la_bibliotheque_refus_d_avant_retire",
       len(_AUD) > 800 and _AUD.count("if(!c||!c.src||!(c.src.audio||c.src.job_id)){") == 1
-      and _AUD.count("if(c.src.audio)body.filename=c.src.audio;else body.job_id=String(c.src.job_id);") == 1
+      and _AUD.count("if(c.src.job_id)body.job_id=String(c.src.job_id);else body.filename=c.src.audio;") == 1
+      and _AUD.count("if(c.src.audio)body.filename=c.src.audio;") == 0
+      and 0 < _AUD.find("body.job_id=") < _AUD.find("body.filename=")
+      and 0 < SVC.find("async def _resolve_src(") < SVC.find('    jid = src.get("job_id")', SVC.find("async def _resolve_src("))
+      < SVC.find('    name = src.get("audio") or src.get("filename")', SVC.find("async def _resolve_src("))
       and _AUD.count("filename:") == 0 and _AUD.count('fetch("/api/audio/audition",') == 1
       and s.count("le son d'un plan vidéo s'entend via la Preview 480p") == 0
       and (_bak.count("le son d'un plan vidéo s'entend via la Preview 480p") == 1 if _bak else False),

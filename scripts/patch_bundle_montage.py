@@ -5900,7 +5900,7 @@ A_L6FX2 = (' {type:"denoise",label:"Débruiteur",live:0,params:[\n'
            '   {k:"amount",label:"Réduction",min:0,max:97,d:12,step:1,unit:"dB"}]},')
 R_L6FX2 = (' {type:"denoise",label:"Débruiteur",live:0,params:[\n'
            '   {k:"amount",label:"Réduction",min:0,max:97,d:12,step:1,unit:"dB"},\n'
-           '   {k:"nf",label:"Plancher 0=auto",min:-80,max:0,d:0,step:1,unit:"dB"},\n'
+           '   {k:"nf",label:"Plancher 0=auto",min:-80,max:0,d:0,step:1,unit:"dB",tip:"Plancher du débruiteur : 0 = auto, −20 au plus (le rendu ramène −19…−1 à −20)"},\n'
            '   {k:"learn_in",label:"Appris de",min:0,max:86400,d:0,step:0.001,dec:3,unit:"s",hide:1},\n'
            '   {k:"learn_out",label:"Appris à",min:0,max:86400,d:0,step:0.001,dec:3,unit:"s",hide:1}]},\n'
            ' {type:"eq6",label:"Égaliseur 6 bandes",live:0,params:[\n'
@@ -5925,18 +5925,55 @@ R_L6FX2 = (' {type:"denoise",label:"Débruiteur",live:0,params:[\n'
 A_L6FX3 = '      p[pd.k]=svxRound(n,pd.step<1?1:0)}});'
 R_L6FX3 = '      p[pd.k]=svxRound(n,pd.dec!=null?pd.dec:(pd.step<1?1:0))}});'
 # les resumes du module replie : eq6 (bandes actives, passe-haut), dehum (secteur, harmoniques, dosage), debruiteur
-# (plancher, « appris ») -- la meme garde 0,2 s que learn_of
+# (plancher, « appris ») -- la meme garde 0,2 s que learn_of ; le plancher affiche est la valeur EFFECTIVE du rendu
+# (_fx_denoise : nf <= -0,5 borne a [-80, -20], sinon automatique -- revue T5 25/09 : « -5 » affiche, -20 rendu)
 A_L6FX4 = '    case "denoise":return p.amount+" dB";'
-R_L6FX4 = ('    case "denoise":return p.amount+" dB"+(p.nf?" · plancher "+p.nf+" dB":"")+((Number(p.learn_out)||0)-(Number(p.learn_in)||0)>=.2?" · appris":"");\n'
+R_L6FX4 = ('    case "denoise":return p.amount+" dB"+(Number(p.nf)<=-.5?" · plancher "+Math.max(-80,Math.min(-20,Number(p.nf)))+" dB":"")+((Number(p.learn_out)||0)-(Number(p.learn_in)||0)>=.2?" · appris":"");\n'
            '    case "eq6":{var nb=["ls","p1","p2","p3","p4","hs"].filter(function(b){return Math.abs(Number(p[b+"_g"])||0)>=.05}).length;\n'
            '      return (p.hp_hz>0?"PH "+Math.round(p.hp_hz)+" Hz · ":"")+(nb?nb+" bande"+(nb>1?"s":""):"neutre")}\n'
            '    case "dehum":return (p.base>=55?60:50)+" Hz ×"+p.harmonics+" · "+p.amount+" %";')
 # une rangee cachee (plage apprise) ne se rend pas -- le param reste dans le module (svxCleanParams le garde)
-A_L6FX5 = '  function paramRow(def,pd,p,on){\n    var v=p[pd.k];'
-R_L6FX5 = '  function paramRow(def,pd,p,on){\n    if(pd.hide)return null;\n    var v=p[pd.k];'
+# et le libelle d'une rangee porte son `tip` en title quand il est declare (le plancher : « 0 = auto, -20 au plus ») --
+# revue T5 25/09 : l'ancre s'etend jusqu'au libelle (aucune autre section ne touche ces lignes, compte 1/1 sur le .bak)
+A_L6FX5 = ('  function paramRow(def,pd,p,on){\n'
+           '    var v=p[pd.k];\n'
+           '    if(pd.kind==="seg")\n'
+           '      return r.jsxs("div",{className:"svx-prow",children:[\n'
+           '        r.jsx("span",{className:"svx-plabel",children:"Mode"}),\n'
+           '        r.jsx("div",{className:"svx-gseg",role:"radiogroup","aria-label":"Mode du filtre",\n'
+           '          children:pd.opts.map(function(o){\n'
+           '          return r.jsx("button",{className:"svx-gsegbtn",role:"radio",\n'
+           '            "aria-checked":v===o[0],"data-on":v===o[0]?"":void 0,\n'
+           '            onClick:function(){setParam(def.type,pd.k,o[0])},children:o[1]},o[0])})})]},pd.k);\n'
+           '    var sv,smin,smax,sstep;\n'
+           '    if(pd.log){smin=0;smax=1000;sstep=1;\n'
+           '      sv=Math.round(1000*Math.log(svxClamp(v,pd.min,pd.max)/pd.min)/Math.log(pd.max/pd.min))}\n'
+           '    else{smin=pd.min;smax=pd.max;sstep=pd.step;sv=v}\n'
+           '    var disp=pd.step<1?svxRound(v,1):Math.round(v);\n'
+           '    return r.jsxs("div",{className:"svx-prow","data-dim":on?void 0:"",children:[\n'
+           '      r.jsx("span",{className:"svx-plabel",children:pd.label}),')
+R_L6FX5 = ('  function paramRow(def,pd,p,on){\n'
+           '    if(pd.hide)return null;\n'
+           '    var v=p[pd.k];\n'
+           '    if(pd.kind==="seg")\n'
+           '      return r.jsxs("div",{className:"svx-prow",children:[\n'
+           '        r.jsx("span",{className:"svx-plabel",children:"Mode"}),\n'
+           '        r.jsx("div",{className:"svx-gseg",role:"radiogroup","aria-label":"Mode du filtre",\n'
+           '          children:pd.opts.map(function(o){\n'
+           '          return r.jsx("button",{className:"svx-gsegbtn",role:"radio",\n'
+           '            "aria-checked":v===o[0],"data-on":v===o[0]?"":void 0,\n'
+           '            onClick:function(){setParam(def.type,pd.k,o[0])},children:o[1]},o[0])})})]},pd.k);\n'
+           '    var sv,smin,smax,sstep;\n'
+           '    if(pd.log){smin=0;smax=1000;sstep=1;\n'
+           '      sv=Math.round(1000*Math.log(svxClamp(v,pd.min,pd.max)/pd.min)/Math.log(pd.max/pd.min))}\n'
+           '    else{smin=pd.min;smax=pd.max;sstep=pd.step;sv=v}\n'
+           '    var disp=pd.step<1?svxRound(v,1):Math.round(v);\n'
+           '    return r.jsxs("div",{className:"svx-prow","data-dim":on?void 0:"",children:[\n'
+           '      r.jsx("span",{className:"svx-plabel",title:pd.tip||void 0,children:pd.label}),')
 # DECISION 6 DU PLAN : l'ecoute rendue accepte le son d'un plan {job_id} (la route POST /api/audio/audition le resout
-# deja, routes.py : `elif payload.get("job_id")` -> fichier du job) ; `filename` n'est envoye que pour un son de la
-# Bibliotheque (la route teste `filename` EN PREMIER). Seul le clip sans source audio lisible est refuse, et le dit.
+# deja, routes.py : `elif payload.get("job_id")` -> fichier du job) ; UN SEUL champ part : `job_id` D'ABORD quand le
+# clip le porte (l'ordre de _resolve_src du rendu : l'ecoute entend la meme source que le rendu -- revue T5 25/09),
+# sinon `filename` (son de la Bibliotheque). Seul le clip sans source audio lisible est refuse, et le dit.
 A_L6AU1 = ('    if(!c||!c.src||!c.src.audio){\n'
            '      fireNote("Écoute rendue : disponible pour les sons de la Bibliothèque — le son d\'un plan vidéo s\'entend via la Preview 480p.");return}\n'
            '    stopAudition();narrStop();\n'
@@ -5956,15 +5993,16 @@ R_L6AU1 = ('    if(!c||!c.src||!(c.src.audio||c.src.job_id)){\n'
            '      gain_db:Math.round(Number(c.gain)||0),\n'
            '      speed:typeof c.speed==="number"&&c.speed>0?c.speed:1,\n'
            '      fx:Array.isArray(fx)?fx:[]};\n'
-           '    if(c.src.audio)body.filename=c.src.audio;else body.job_id=String(c.src.job_id);')
+           '    if(c.src.job_id)body.job_id=String(c.src.job_id);else body.filename=c.src.audio;')
 # « APPRENDRE LE BRUIT » : le composant de la couche (NoiseLearn), monte sous le rack de l'inspecteur audio, DANS le
-# fragment du rack (sans couche SFX le rack est absent : le debruiteur qu'il ecrit n'a pas d'editeur). La reponse de la
-# route s'applique au clip VISE par son id, a sa liste fx COURANTE (le clip a pu changer pendant la mesure) ; `music`
+# fragment du rack (sans couche SFX le rack est absent : le debruiteur qu'il ecrit n'a pas d'editeur). Monte avec la cle
+# sel.id : si la selection change pendant la mesure, le composant est demonte et la reponse JETEE ; sinon elle
+# s'applique au clip vise par son id, a sa liste fx COURANTE (ses effets ont pu changer pendant la mesure) ; `music`
 # (la musique bouclee : le rendu n'applique que le plancher) ; `demo` grise. UNE reference a la couche (sonde +1).
 A_L6NL1 = '          onAudition:sfxAudition},sel.id)]}):null]})}'
 R_L6NL1 = ('          onAudition:sfxAudition},sel.id),\n'
-           '        /* L6 D-25 : « Apprendre le bruit » / « Oublier » sous le rack — plage I/O du projet, réponse appliquée au\n'
-           '           clip visé (par son id) sur sa liste d\'effets courante */\n'
+           '        /* L6 D-25 : « Apprendre le bruit » / « Oublier » sous le rack — plage I/O du projet ; réponse appliquée au\n'
+           '           clip visé (par son id) sur sa liste d\'effets courante, jetée si la sélection change pendant la mesure */\n'
            '        r.jsx(DzTracks.NoiseLearn,{clip:sel,range:proj.range,demo:!!proj.demo,music:isMus,onNote:fireNote,\n'
            '          onFx:function(id,f){var k=clipsRef.current.find(function(q){return q.id===id});\n'
            '            if(k)svmSetClipAudio(id,{fx:f(Array.isArray(k.fx)?k.fx:[])})}},sel.id)]}):null]})}')
@@ -5979,7 +6017,7 @@ for _n, _a, _r in L6:
     assert _a != _r and _r.count("DzTracks") == (1 if _n.startswith("L6nl1") else 0), _n
 assert R_L6FX1.endswith(A_L6FX1.split("\n")[-1]) and R_L6FX1.count('{type:"dehum",') == 1 and R_L6FX1.find('type:"dehum"') < R_L6FX1.find('type:"eq3"')
 assert R_L6FX2.startswith(A_L6FX2[:-3]) and R_L6FX2.count("hide:1") == 2 and R_L6FX2.count("dec:3") == 2 and R_L6FX2.count('{k:"') == 21
-assert R_L6FX5.count("if(pd.hide)return null;") == 1 and R_L6AU1.count("body.job_id=String(c.src.job_id)") == 1 and R_L6AU1.count("filename:") == 0
+assert R_L6FX5.count("if(pd.hide)return null;") == 1 and R_L6FX5.count("title:pd.tip||void 0,") == 1 and R_L6AU1.count("body.job_id=String(c.src.job_id)") == 1 and R_L6AU1.count("filename:") == 0
 assert R_L6NL1.startswith("          onAudition:sfxAudition},sel.id),\n") and R_L6NL1.endswith("},sel.id)]}):null]})}")
 
 

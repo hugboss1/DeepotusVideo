@@ -1502,6 +1502,11 @@ out.au_dl=[T.denoiseLearn([],7,8,-31),DL,DL[0]===DQ[0],DL!==DQ,DL[1]!==DQ[1],JSO
   DFL,JSON.stringify(DF)===DFj,T.denoiseLearn(null,7,8,-31),T.denoiseLearn(DQ,7,8,"x")[1],T.denoiseLearn(DQ,"a",8,-31),
   T.denoiseLearn(DQ,8,7,-31),T.denoiseLearn([{type:"denoise",params:{amount:30}},{type:"denoise",params:{amount:50}}],1,2,-30),
   T.denoiseLearn([{type:"denoise",params:[1]}],1,2,-30),T.denoiseLearn([],1,2,-95)[0].params.nf,T.denoiseLearn([],1,2,5)[0].params.nf];
+/* revue T5 (25/09) : un debruiteur COUPE est reactive par l'apprentissage ; temoin : l'eq3 coupe reste coupe, entree intacte */
+var DX=[{type:"eq3",enabled:!1,params:{bass_db:2}},{type:"denoise",enabled:!1,params:{amount:30}},{type:"deesser",enabled:!1,amount:3}],
+  DXj=JSON.stringify(DX),DXL=T.denoiseLearn(DX,1,2,-30);
+out.au_dx=[DXL,DXL[0]===DX[0],DXL[2]===DX[2],JSON.stringify(DX)===DXj,
+  T.denoiseLearn([{type:"denoise",enabled:!1,amount:30}],1,2,-30),T.denoiseLearn([{type:"denoise",enabled:!0,amount:30}],1,2,-30)];
 var FG=[{type:"eq3",params:{bass_db:2}},{type:"denoise",params:{amount:30,nf:-31,learn_in:7,learn_out:8}},{type:"denoise",nf:-2,learn_in:1,learn_out:2,amount:9}],
   FGj=JSON.stringify(FG),FGo=T.denoiseForget(FG);
 out.au_df=[FGo,FGo[0]===FG[0],JSON.stringify(FG)===FGj,T.denoiseForget(null),T.denoiseForget([{type:"eq3"}]),
@@ -1847,8 +1852,8 @@ try:
                  "gp_pure","gp_null","gp_box","gp_rendu","gp_verrou","gp_vide","gp_geste","gp_grade",
                  # L5 D-31 D-32 (tache 6, 24/09) : les NEUF cles de la section [38] (les gardes en execution ont leur shim a part).
                  "sc_at","sc_body","sc_store","lb_plans","lb_next","gc","sc_null","sc_rendu","lb_rendu",
-                 # L6 D-25 D-26 (tache 4, 25/09) : les SIX cles de la section [39].
-                 "au_lr","au_lr_note","au_dl","au_df","au_vo","au_rm"]
+                 # L6 D-25 D-26 (tache 4, 25/09) : les SIX cles de la section [39] ; + au_dx (revue T5, 25/09).
+                 "au_lr","au_lr_note","au_dl","au_df","au_vo","au_rm","au_dx"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -4439,6 +4444,16 @@ check("au_dl_plancher_illisible_auto_0_borne_moins_80_0_plage_illisible_ou_court
       and at("au_dl", 13) == [{"type": "denoise", "params": [1], "nf": -30, "learn_in": 1, "learn_out": 2}]
       and at("au_dl", 14) == -80 and at("au_dl", 15) == 0,
       D.get("au_dl"))
+# revue T5 (25/09) : un denoise enabled:false (saute par sanitize_fx au rendu) recevait l'apprentissage SANS effet ; il est
+# REACTIVE (cle retiree, forme gardee), l'eq3 et le deesser coupes gardent leur reference ; enabled:true garde tel quel.
+check("au_dx_apprendre_reactive_le_debruiteur_coupe_autres_modules_coupes_intacts_entree_intacte",
+      at("au_dx", 0) == [{"type": "eq3", "enabled": False, "params": {"bass_db": 2}},
+                         {"type": "denoise", "params": {"amount": 30, "nf": -30, "learn_in": 1, "learn_out": 2}},
+                         {"type": "deesser", "enabled": False, "amount": 3}]
+      and at("au_dx", 1) is True and at("au_dx", 2) is True and at("au_dx", 3) is True
+      and at("au_dx", 4) == [{"type": "denoise", "amount": 30, "nf": -30, "learn_in": 1, "learn_out": 2}]
+      and at("au_dx", 5) == [{"type": "denoise", "enabled": True, "amount": 30, "nf": -30, "learn_in": 1, "learn_out": 2}],
+      D.get("au_dx"))
 check("au_df_oublier_retire_nf_et_apprentissage_de_chaque_denoise_module_garde_autres_meme_reference_entree_intacte",
       D.get("au_df") == [[{"type": "eq3", "params": {"bass_db": 2}}, {"type": "denoise", "params": {"amount": 30}},
                           {"type": "denoise", "amount": 9}], True, True, [], [{"type": "eq3"}], _AUQ,

@@ -5502,7 +5502,7 @@ function DzMontage(props){
       gain_db:Math.round(Number(c.gain)||0),
       speed:typeof c.speed==="number"&&c.speed>0?c.speed:1,
       fx:Array.isArray(fx)?fx:[]};
-    if(c.src.audio)body.filename=c.src.audio;else body.job_id=String(c.src.job_id);
+    if(c.src.job_id)body.job_id=String(c.src.job_id);else body.filename=c.src.audio;
     fetch("/api/audio/audition",{method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify(body)})
       .then(function(res){
@@ -5670,8 +5670,8 @@ function DzMontage(props){
             gainDb:g,fadeIn:Number(sel.fade_in)||0,
             fadeOut:Number(sel.fade_out)||0,speed:spdv},
           onAudition:sfxAudition},sel.id),
-        /* L6 D-25 : « Apprendre le bruit » / « Oublier » sous le rack — plage I/O du projet, réponse appliquée au
-           clip visé (par son id) sur sa liste d'effets courante */
+        /* L6 D-25 : « Apprendre le bruit » / « Oublier » sous le rack — plage I/O du projet ; réponse appliquée au
+           clip visé (par son id) sur sa liste d'effets courante, jetée si la sélection change pendant la mesure */
         r.jsx(DzTracks.NoiseLearn,{clip:sel,range:proj.range,demo:!!proj.demo,music:isMus,onNote:fireNote,
           onFx:function(id,f){var k=clipsRef.current.find(function(q){return q.id===id});
             if(k)svmSetClipAudio(id,{fx:f(Array.isArray(k.fx)?k.fx:[])})}},sel.id)]}):null]})}
@@ -6989,7 +6989,7 @@ var SVX_FX_DEFS=[
    {k:"treble_db",label:"Aigus",min:-12,max:12,d:0,step:0.5,unit:"dB"}]},
  {type:"denoise",label:"Débruiteur",live:0,params:[
    {k:"amount",label:"Réduction",min:0,max:97,d:12,step:1,unit:"dB"},
-   {k:"nf",label:"Plancher 0=auto",min:-80,max:0,d:0,step:1,unit:"dB"},
+   {k:"nf",label:"Plancher 0=auto",min:-80,max:0,d:0,step:1,unit:"dB",tip:"Plancher du débruiteur : 0 = auto, −20 au plus (le rendu ramène −19…−1 à −20)"},
    {k:"learn_in",label:"Appris de",min:0,max:86400,d:0,step:0.001,dec:3,unit:"s",hide:1},
    {k:"learn_out",label:"Appris à",min:0,max:86400,d:0,step:0.001,dec:3,unit:"s",hide:1}]},
  {type:"eq6",label:"Égaliseur 6 bandes",live:0,params:[
@@ -7073,7 +7073,7 @@ function svxModSummary(def,p){
     case "filter":{var mm={low:"grave",high:"aigu",band:"bande"};
       return (mm[p.mode]||p.mode)+" "+Math.round(p.freq)+" Hz"}
     case "eq3":return svxDb1(p.bass_db).replace(".0","")+" / "+svxDb1(p.mid_db).replace(".0","")+" / "+svxDb1(p.treble_db).replace(".0","");
-    case "denoise":return p.amount+" dB"+(p.nf?" · plancher "+p.nf+" dB":"")+((Number(p.learn_out)||0)-(Number(p.learn_in)||0)>=.2?" · appris":"");
+    case "denoise":return p.amount+" dB"+(Number(p.nf)<=-.5?" · plancher "+Math.max(-80,Math.min(-20,Number(p.nf)))+" dB":"")+((Number(p.learn_out)||0)-(Number(p.learn_in)||0)>=.2?" · appris":"");
     case "eq6":{var nb=["ls","p1","p2","p3","p4","hs"].filter(function(b){return Math.abs(Number(p[b+"_g"])||0)>=.05}).length;
       return (p.hp_hz>0?"PH "+Math.round(p.hp_hz)+" Hz · ":"")+(nb?nb+" bande"+(nb>1?"s":""):"neutre")}
     case "dehum":return (p.base>=55?60:50)+" Hz ×"+p.harmonics+" · "+p.amount+" %";
@@ -8021,7 +8021,7 @@ const SvxRack=(props)=>{
     else{smin=pd.min;smax=pd.max;sstep=pd.step;sv=v}
     var disp=pd.step<1?svxRound(v,1):Math.round(v);
     return r.jsxs("div",{className:"svx-prow","data-dim":on?void 0:"",children:[
-      r.jsx("span",{className:"svx-plabel",children:pd.label}),
+      r.jsx("span",{className:"svx-plabel",title:pd.tip||void 0,children:pd.label}),
       r.jsx("input",{className:"svx-prange",type:"range",min:smin,max:smax,step:sstep,
         value:sv,"aria-label":def.label+" — "+pd.label,
         onChange:function(e){
@@ -21668,7 +21668,8 @@ function dzmGradePasteDo(clip,st){
    dzmDenoiseLearn(fx, a, b, nf) : NOUVELLE liste ; le PREMIER module denoise (celui que garde le rack) reçoit nf
    (illisible -> 0 = automatique, borné −80..0 comme _FX_PARAMS), learn_in = a, learn_out = b, en gardant SA forme
    ({type, params} si params est un objet, sinon à plat — la règle de sanitize_fx) ; absent -> créé en queue,
-   {type:"denoise", params:{amount:24, …}}. Plage illisible ou < 0,2 s (même tolérance) -> copie inchangée. Les autres modules gardent
+   {type:"denoise", params:{amount:24, …}}. Un débruiteur COUPÉ (enabled:false, que sanitize_fx saute au rendu) est
+   RÉACTIVÉ : sa clé enabled est retirée (les autres modules coupés restent coupés). Plage illisible ou < 0,2 s (même tolérance) -> copie inchangée. Les autres modules gardent
    leur référence ; l'entrée n'est jamais mutée.
    dzmDenoiseForget(fx) : nouvelle liste ; nf, learn_in, learn_out retirés de CHAQUE denoise (module gardé).
    dzmVoCount(clips) = 1 + le nombre de clips dont src.audio COMMENCE (préfixe, pas sous-chaîne) par « voix-off- » (le nom que la route voiceover
@@ -21697,6 +21698,7 @@ function dzmDenoiseLearn(fx,a,b,nf){
   if(k<0){L.push({type:"denoise",params:Object.assign({amount:24},put)});return L}
   var m=L[k],p=m.params;
   L[k]=p&&typeof p==="object"&&!Array.isArray(p)?Object.assign({},m,{params:Object.assign({},p,put)}):Object.assign({},m,put);
+  if(L[k].enabled===!1)delete L[k].enabled;
   return L}
 function dzmDenoiseForget(fx){
   var C=["nf","learn_in","learn_out"];
@@ -21738,8 +21740,9 @@ function dzmNlAppris(fx){
    noise-profile {src, t0, t1, fx} ; la plage de SOURCE vient de dzmLearnRange (durée de source : le verdict has-audio EN
    CACHE, lu sans requête ; absent = 0 = inconnue) ; un refus (courte, longue, hors source) se DIT et rien ne part.
    Réponse ok:false -> « Plage muette » ; sinon onFx(id du clip VISÉ au clic, f) où f(fx courante) = dzmDenoiseLearn :
-   l'hôte l'applique à la liste COURANTE de ce clip (la mesure prend du temps, le clip a pu changer ou ne plus être
-   sélectionné). Démonté pendant la mesure : la réponse est ignorée (ni note, ni écriture). Musique bouclée : le rendu
+   l'hôte l'applique à la liste COURANTE de ce clip (la mesure prend du temps, ses effets ont pu changer). L'hôte le
+   monte avec la clé sel.id : une sélection qui change pendant la mesure le démonte, et la réponse est alors JETÉE (ni
+   note, ni écriture). Musique bouclée : le rendu
    n'applique que le plancher (l'apprentissage par préfixe y est ignoré) — le title le dit. */
 function DzmNoiseLearn(o){
   if(!o||!o.clip)return null;

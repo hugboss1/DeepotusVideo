@@ -8358,7 +8358,8 @@ function dzmGradePasteDo(clip,st){
    dzmDenoiseLearn(fx, a, b, nf) : NOUVELLE liste ; le PREMIER module denoise (celui que garde le rack) reçoit nf
    (illisible -> 0 = automatique, borné −80..0 comme _FX_PARAMS), learn_in = a, learn_out = b, en gardant SA forme
    ({type, params} si params est un objet, sinon à plat — la règle de sanitize_fx) ; absent -> créé en queue,
-   {type:"denoise", params:{amount:24, …}}. Plage illisible ou < 0,2 s (même tolérance) -> copie inchangée. Les autres modules gardent
+   {type:"denoise", params:{amount:24, …}}. Un débruiteur COUPÉ (enabled:false, que sanitize_fx saute au rendu) est
+   RÉACTIVÉ : sa clé enabled est retirée (les autres modules coupés restent coupés). Plage illisible ou < 0,2 s (même tolérance) -> copie inchangée. Les autres modules gardent
    leur référence ; l'entrée n'est jamais mutée.
    dzmDenoiseForget(fx) : nouvelle liste ; nf, learn_in, learn_out retirés de CHAQUE denoise (module gardé).
    dzmVoCount(clips) = 1 + le nombre de clips dont src.audio COMMENCE (préfixe, pas sous-chaîne) par « voix-off- » (le nom que la route voiceover
@@ -8387,6 +8388,7 @@ function dzmDenoiseLearn(fx,a,b,nf){
   if(k<0){L.push({type:"denoise",params:Object.assign({amount:24},put)});return L}
   var m=L[k],p=m.params;
   L[k]=p&&typeof p==="object"&&!Array.isArray(p)?Object.assign({},m,{params:Object.assign({},p,put)}):Object.assign({},m,put);
+  if(L[k].enabled===!1)delete L[k].enabled;
   return L}
 function dzmDenoiseForget(fx){
   var C=["nf","learn_in","learn_out"];
@@ -8428,8 +8430,9 @@ function dzmNlAppris(fx){
    noise-profile {src, t0, t1, fx} ; la plage de SOURCE vient de dzmLearnRange (durée de source : le verdict has-audio EN
    CACHE, lu sans requête ; absent = 0 = inconnue) ; un refus (courte, longue, hors source) se DIT et rien ne part.
    Réponse ok:false -> « Plage muette » ; sinon onFx(id du clip VISÉ au clic, f) où f(fx courante) = dzmDenoiseLearn :
-   l'hôte l'applique à la liste COURANTE de ce clip (la mesure prend du temps, le clip a pu changer ou ne plus être
-   sélectionné). Démonté pendant la mesure : la réponse est ignorée (ni note, ni écriture). Musique bouclée : le rendu
+   l'hôte l'applique à la liste COURANTE de ce clip (la mesure prend du temps, ses effets ont pu changer). L'hôte le
+   monte avec la clé sel.id : une sélection qui change pendant la mesure le démonte, et la réponse est alors JETÉE (ni
+   note, ni écriture). Musique bouclée : le rendu
    n'applique que le plancher (l'apprentissage par préfixe y est ignoré) — le title le dit. */
 function DzmNoiseLearn(o){
   if(!o||!o.clip)return null;
