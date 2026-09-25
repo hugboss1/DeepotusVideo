@@ -4609,7 +4609,7 @@ var FV=[];G.fetch=function(u,op){var d={},p=new Promise(function(a,b){d.a=a;d.b=
 function vrep(i,ok,st,j){FV[i].d.a({ok:ok,status:st,json:function(){return Promise.resolve(j)}})}
 function bts(m){return tous(m).filter(function(n){return n.t==="button"})}
 function etat(m){return bts(m).map(function(b){return [txt(b),!!b.p.disabled,typeof b.p.title==="string"?b.p.title:null,b.p["data-rec"]||""]})}
-var RC=[],CN=[],PISTES=[];
+var RC=[],CN=[],PISTES=[],RecCrash=null;
 function flux(){var f={pistes:[{n:0,stop:function(){this.n++}}],getTracks:function(){return this.pistes}};PISTES.push(f);return f}
 function FauxRec(fl,opt){this.fl=fl;this.opt=opt===void 0?null:opt;this.state="inactive";this.mimeType=(opt&&opt.mimeType)||"";this.starts=[];this.stops=0;RC.push(this)}
 FauxRec.prototype.start=function(ts){this.state="recording";this.starts.push(ts)};
@@ -4648,7 +4648,7 @@ function props(extra){var ctl={current:null};return Object.assign({demo:!1,ctl:c
   /* les rappels sont lus sur les DERNIERES props : un rendu de l'hote pendant l'envoi remplace onDone */
   P=Object.assign({},P,{onDone:function(f,d,t0){DN.push(["neuf",f,d,t0])}});M.render(P);
   vrep(0,!0,200,{ok:!0,filename:"voix-off-20260925-101010.wav",url:"/audio/voix-off-20260925-101010.wav",dur:3.25,size_kb:305});
-  await settle();M.flush();R.pose=[DN.slice(),etat(M.H.out)[0].slice(0,2),NT.length-n0];
+  await settle();M.flush();R.pose=[DN.slice(),etat(M.H.out)[0].slice(0,2),NT.slice(n0)];
   /* 5 : LA BASCULE DU CLAVIER (ctl) fait le même cycle ; l'envoi échoue (415) -> « prise non enregistrée », rien de posé */
   P.ctl.current();await settle();M.flush();P.ctl.current();await settle();M.flush();
   R.ctl=[ST.length,SP.length,FV.length];vrep(1,!1,415,{detail:"Enregistrement illisible"});await settle();M.flush();
@@ -4675,6 +4675,31 @@ function props(extra){var ctl={current:null};return Object.assign({demo:!1,ctl:c
     T.voChrono(0),T.voChrono(3.9),T.voChrono(65),T.voChrono(-2),T.voChrono("x"),
     T.voErr({name:"NotAllowedError"}),T.voErr({name:"NotFoundError"}),T.voErr(new Error("boum")),T.voErr(null)];
   R.nul=T.VoiceRec(null);
+  /* revue T6 — 13 : ARRÊT SPONTANÉ (erreur de l'enregistreur puis arrêt, sans passer par la puce) -> la raison est dite,
+     les pistes coupées, la lecture arrêtée, « envoi… » ; le clavier pendant l'envoi dit l'attente ; la prise part quand
+     même, et onDone reçoit l'identité du projet rendue par onStart ({t0, pj}) */
+  RecCrash=function(fl,opt){FauxRec.call(this,fl,opt)};RecCrash.prototype=Object.create(FauxRec.prototype);
+  RecCrash.prototype.crash=function(){this.state="inactive";var s=this;Promise.resolve().then(function(){
+    if(s.onerror)s.onerror({error:{name:"NotReadableError"}});
+    if(s.ondataavailable)s.ondataavailable({data:new Blob(["x"],{type:"audio/ogg"})});if(s.onstop)s.onstop()})};
+  var D4=[],sp0=SP.length,nf0=FV.length;
+  P=props({rec:inj({Rec:RecCrash}),onStart:function(){return {t0:4,pj:"P1"}},onDone:function(f,d,t0,pj){D4.push([f,d,t0,pj])}});
+  M=mini(T.VoiceRec);M.render(P);bts(M.H.out)[0].p.onClick();await settle();M.flush();
+  rc=RC[RC.length-1];fl=PISTES[PISTES.length-1];var nn0=NT.length;rc.crash();await settle();M.flush();
+  R.crash=[fl.pistes[0].n,SP.length-sp0,etat(M.H.out)[0].slice(0,2),FV.length-nf0,NT.slice(nn0),rc.stops];
+  P.ctl.current();R.crash_ctl=NT.slice(-1);
+  vrep(FV.length-1,!0,200,{ok:!0,filename:"voix-off-c.wav",dur:1.5});await settle();M.flush();
+  R.crash_pose=[D4.slice(),etat(M.H.out)[0].slice(0,2)];
+  /* 14 : un refus 422 dont le détail est une LISTE -> détail sérialisé, jamais « [object Object] » */
+  bts(M.H.out)[0].p.onClick();await settle();M.flush();RC[RC.length-1].crash();await settle();M.flush();
+  vrep(FV.length-1,!1,422,{detail:[{loc:["body","file"],msg:"field required"}]});await settle();M.flush();R.d422=NT.slice(-1);M.unmount();
+  /* 15 (reste de la tâche 5) : le plancher AFFICHÉ par « Apprendre le bruit » est celui du RENDU (dzmNfEffectif) */
+  R.nfe=[T.nfEffectif(-5),T.nfEffectif(-0.3),T.nfEffectif(-0.5),T.nfEffectif(-90),T.nfEffectif(-31),T.nfEffectif("x"),T.nfEffectif(0),T.nfEffectif(null)];
+  function nlst(nf){var AP={tr:"a1",id:"k",start:10,end:20,srcIn:5,src:{audio:"a.wav"},fx:[{type:"denoise",params:{amount:30,nf:nf,learn_in:7,learn_out:8}}]};
+    var K=mini(T.NoiseLearn);K.render({clip:AP,range:null,demo:!1,music:!1,onNote:function(){},onFx:function(){}});
+    var sn=tous(K.H.out).filter(function(n){return /dzm-nlst/.test(n.p.className||"")}).map(txt),
+      ob=bts(K.H.out).filter(function(n){return txt(n)==="Oublier"}).map(function(n){return n.p.title});K.unmount();return [sn,ob]}
+  R.nlst=[nlst(-5),nlst(-0.3),nlst(-31)];
   /* 12 : POURQUOI L'HÔTE FORCE « écraser » : en « insérer », la prise pousserait le clip suivant de la même piste */
   var CL=[{tr:"a1",id:"q",start:14,end:18,src:{audio:"z.wav"},srcIn:0}],NV={tr:"a1",id:"vo",start:12.5,end:15.75,src:{audio:"voix-off-1.wav"},srcIn:0};
   var ins=T.insere(CL,NV,"inserer",{tracks:T.DEFAULTS,head:12.5}),ecr=T.insere(CL,NV,"ecraser",{tracks:T.DEFAULTS,head:12.5});
@@ -4737,7 +4762,8 @@ check("l6v_second_clic_onStop_une_fois_pistes_coupees_envoi_grise_une_requete_au
       [_V5, _V6])
 _V7 = _l7("pose", 3)
 check("l6v_reponse_onDone_des_dernieres_props_une_fois_avec_filename_dur_et_t0_de_la_tete_au_debut_retour_au_repos_rien_de_dit",
-      _V7 == [[["neuf", "voix-off-20260925-101010.wav", 3.25, 12.5]], ["● voix off", False], 0], _V7)
+      # revue T6 : le second clic pendant « micro… » (bouton grise ; le clavier, lui, y arrive) DIT l'attente
+      _V7 == [[["neuf", "voix-off-20260925-101010.wav", 3.25, 12.5]], ["● voix off", False], ["Voix off : accès au micro en cours…"]], _V7)
 _V8 = _l7("ctl", 3)
 _V8b = _l7("echec", 3)
 check("l6v_bascule_clavier_meme_cycle_envoi_en_echec_dit_prise_non_enregistree_rien_de_pose",
@@ -4765,6 +4791,22 @@ check("l6v_aides_pures_extension_chrono_raison",
 _V12 = _l7("mode", 2)
 check("l6v_pourquoi_ecraser_force_inserer_pousserait_le_clip_suivant_ecraser_le_rogne_sans_rien_decaler",
       isinstance(_V12[0], list) and _V12[0][0] > 14 and _V12[1] == [15.75, 18], _V12)
+_V13 = _l7("crash", 6)
+check("l6v_arret_spontane_raison_dite_pistes_coupees_lecture_arretee_passage_par_envoi_la_prise_part_une_fois",
+      _V13 == [1, 1, ["envoi…", True], 1, ["Enregistreur arrêté : micro occupé par une autre application"], 0]
+      and _R7.get("crash_ctl") == ["Voix off : prise en cours d'envoi…"], [_V13, _R7.get("crash_ctl")])
+check("l6v_arret_spontane_onDone_recoit_l_identite_du_projet_rendue_par_onStart",
+      _R7.get("crash_pose") == [[["voix-off-c.wav", 1.5, 4, "P1"]], ["● voix off", False]], _R7.get("crash_pose"))
+check("l6v_refus_422_detail_liste_serialise_jamais_object_Object",
+      _R7.get("d422") == ['Envoi de la prise impossible : [{"loc":["body","file"],"msg":"field required"}] — prise non enregistrée'],
+      _R7.get("d422"))
+check("l6v_nfEffectif_regle_du_rendu_auto_au_dessus_de_moins_0_5_sinon_borne_80_20",
+      _R7.get("nfe") == [-20, None, -20, -80, -31, None, None, None], _R7.get("nfe"))
+_NLS = _R7.get("nlst") if isinstance(_R7.get("nlst"), list) and len(_R7.get("nlst")) == 3 else [[None, None]] * 3
+check("l6v_statut_et_title_d_oublier_montrent_le_plancher_du_rendu_moins_5_devient_moins_20_moins_0_3_auto_temoin_moins_31",
+      _NLS[0][0] == ["appris 7–8 s · -20 dB"] and isinstance(_NLS[0][1], list) and len(_NLS[0][1]) == 1 and "plancher -20 dB" in _NLS[0][1][0]
+      and _NLS[1][0] == ["appris 7–8 s · auto"] and "plancher automatique" in (_NLS[1][1] or [""])[0]
+      and _NLS[2][0] == ["appris 7–8 s · -31 dB"], _NLS)
 _VRC = _corps("DzmVoiceRec")
 _VPU = {n: _corps(n) for n in ("dzmVoExt", "dzmVoChrono", "dzmVoErr")}
 check("l6v_aides_pures_ni_r_ni_x_ni_api_navigateur_composant_lit_micro_et_enregistreur_a_l_appel_route_unique",

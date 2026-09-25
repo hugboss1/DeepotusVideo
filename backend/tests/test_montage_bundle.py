@@ -19325,17 +19325,23 @@ check("L6vo_feuille_puce_rouge_pendant_la_prise_pastille_pulsee_coupee_en_mouvem
       _CSSV.count(".dzm-vochip"))
 # LA POSE, JOUEE : onStart / onStop / onDone extraits du bundle LIVRE, executes sous node a cote de la VRAIE couche
 # (dialogueTrack, voLabel, voCount) ; addAsset, seekTo, fireNote sont des sondes qui relevent le mode d'edition et le
-# mode remplacement AU MOMENT de l'appel.
+# mode remplacement AU MOMENT de l'appel. Le finally REMET dzmReplaceRef a sa valeur ; dans l'hote reel l'effet [ovPick]
+# (B:2332) le desarme juste apres, puisque la pose fait setOvPick("") -- un remplacement arme est donc DESARME par la
+# pose d'une prise (revue T6 : c'est ce qui se passe, ce banc ne mesure que le temps de l'appel). La sonde addAsset
+# avance ovSeq quand elle ACCEPTE (comme le vrai, qui ne le consomme qu'apres le refus du verrou) ; REFUSE = refus muet
+# ici (le vrai dit toujours son refus par une note). Revue T6 : l'identite du projet (pj) est prise par onStart et
+# comparee par onDone.
 def _vo_fn(k, fin):
     i = s.find(k, _iVo)
     j = s.find(fin, i) if i >= 0 else -1
     return s[i + len(k.split(":")[0]) + 1:j + len(fin)] if 0 <= _iVo < i < j < _iVo + 2600 else ""
-_VO_ST = _vo_fn("onStart:function(){", "return t}")
+_VO_ST = _vo_fn("onStart:function(){", "return {t0:t,pj:String(p&&(p.project_id||p.name)||\"\")}}")
 _VO_SP = _vo_fn("onStop:function(){", "setPlaying(!1)}")
-_VO_DN = _vo_fn("onDone:function(f,d,t0){", "seekTo(t0+d)}")
+_VO_DN = _vo_fn("onDone:function(f,d,t0,pj){", "if(ovSeq.current!==q0)seekTo(t0+d)}")
 _VO_JS = r"""
-var LOG=[],THROW=!1;
+var LOG=[],THROW=!1,REFUSE=!1;
 var dzModeRef={current:"inserer"},dzmReplaceRef={current:{id:"z",tr:"v1"}},trackStRef={current:{}},phRef={current:7.2};
+var ovSeq={current:4},dzProjRef={current:{demo:!1,project_id:"P1",name:"un"}};
 var TS=[{id:"v1",kind:"video"},{id:"a1",kind:"audio",bus:"dialogue"},{id:"a2",kind:"audio",bus:"music"}];
 var dzTracksRef={current:TS},proj={demo:!1};
 var clipsRef={current:[{tr:"a1",id:"k",start:0,end:2,src:{audio:"voix-off-20260925-090000.wav"}},{tr:"a2",id:"m",start:0,end:9,src:{audio:"m.mp3"}}]};
@@ -19344,16 +19350,23 @@ function fireNote(m){LOG.push(["note",m])}
 function setSpd(v){LOG.push(["spd",v])}
 function setPlaying(v){LOG.push(["play",v])}
 function seekTo(p){LOG.push(["seek",p])}
-function addAsset(a,l,k,d,tr,t0){LOG.push(["add",a,l,k,d,tr,t0,dzModeRef.current,dzmReplaceRef.current]);if(THROW)throw new Error("refus")}
+function addAsset(a,l,k,d,tr,t0){LOG.push(["add",a,l,k,d,tr,t0,dzModeRef.current,dzmReplaceRef.current]);if(THROW)throw new Error("refus");
+  if(!REFUSE)ovSeq.current=ovSeq.current+1}
 var onStart=__ST__,onStop=__SP__,onDone=__DN__;
 var out={};
 out.start=[onStart(),LOG.splice(0)];phRef.current=-3;out.start_neg=onStart();LOG.splice(0);
+dzProjRef.current={demo:!1,name:"sans-id"};out.start_nom=onStart().pj;LOG.splice(0);dzProjRef.current={demo:!1,project_id:"P1",name:"un"};
 onStop();out.stop=LOG.splice(0);
-onDone("voix-off-20260925-101010.wav",3.25,12.5);out.pose=[LOG.splice(0),dzModeRef.current,dzmReplaceRef.current&&dzmReplaceRef.current.id];
-THROW=!0;try{onDone("voix-off-b.wav",1,2)}catch(e){out.leve=String(e.message)}THROW=!1;
+/* projet change pendant la prise (svmApplyProject garde la puce) : rien de pose, la tete ne bouge pas, la note le dit */
+dzProjRef.current={demo:!1,project_id:"P2",name:"deux"};onDone("voix-off-x.wav",2,3,"P1");out.autre=LOG.splice(0);
+dzProjRef.current={demo:!1,project_id:"P1",name:"un"};
+/* refus MUET d'addAsset (ovSeq n'avance pas) : la tete ne bouge pas */
+REFUSE=!0;onDone("voix-off-r.wav",2,3,"P1");out.refus_muet=LOG.splice(0).map(function(q){return q[0]});REFUSE=!1;
+onDone("voix-off-20260925-101010.wav",3.25,12.5,"P1");out.pose=[LOG.splice(0),dzModeRef.current,dzmReplaceRef.current&&dzmReplaceRef.current.id];
+THROW=!0;try{onDone("voix-off-b.wav",1,2,"P1")}catch(e){out.leve=String(e.message)}THROW=!1;
 out.apres_refus=[LOG.splice(0).map(function(q){return q[0]}),dzModeRef.current,dzmReplaceRef.current&&dzmReplaceRef.current.id];
-trackStRef.current={a1:{l:!0}};onDone("voix-off-c.wav",1,2);out.verrou=LOG.splice(0);trackStRef.current={};
-dzTracksRef.current=[{id:"v1",kind:"video"},{id:"a2",kind:"audio",bus:"music"}];onDone("voix-off-d.wav",1,2);out.sans=LOG.splice(0);
+trackStRef.current={a1:{l:!0}};onDone("voix-off-c.wav",1,2,"P1");out.verrou=LOG.splice(0);trackStRef.current={};
+dzTracksRef.current=[{id:"v1",kind:"video"},{id:"a2",kind:"audio",bus:"music"}];onDone("voix-off-d.wav",1,2,"P1");out.sans=LOG.splice(0);
 console.log(JSON.stringify(out));
 """
 _VOD = {}
@@ -19373,9 +19386,19 @@ if _VO_ST and _VO_SP and _VO_DN:
 else:
     check("L6vo_la_pose_jouee_sous_node_s_execute", False, ("rappels introuvables dans le bundle", len(_VO_ST), len(_VO_SP), len(_VO_DN)))
 _VOs = _VOD.get("start") if isinstance(_VOD.get("start"), list) and len(_VOD.get("start")) == 2 else [None, None]
-check("L6vo_onStart_rend_la_tete_bornee_a_0_et_lance_la_lecture_onStop_l_arrete",
-      _VOs == [7.2, [["spd", 1], ["play", True]]] and _VOD.get("start_neg") == 0 and _VOD.get("stop") == [["play", False]],
-      [_VOs, _VOD.get("start_neg"), _VOD.get("stop")])
+check("L6vo_onStart_rend_la_tete_bornee_a_0_et_l_identite_du_projet_id_sinon_nom_et_lance_la_lecture_onStop_l_arrete",
+      _VOs == [{"t0": 7.2, "pj": "P1"}, [["spd", 1], ["play", True]]] and _VOD.get("start_neg") == {"t0": 0, "pj": "P1"}
+      and _VOD.get("start_nom") == "sans-id" and _VOD.get("stop") == [["play", False]],
+      [_VOs, _VOD.get("start_neg"), _VOD.get("start_nom"), _VOD.get("stop")])
+_VOa = _VOD.get("autre") if isinstance(_VOD.get("autre"), list) else []
+check("L6vo_projet_change_pendant_la_prise_rien_de_pose_tete_immobile_la_note_le_dit_temoin_meme_projet_pose",
+      len(_VOa) == 1 and _VOa[0] == ["note", "Prise « voix-off-x.wav » enregistrée dans la Bibliothèque ; le projet a changé pendant "
+                                               "la prise, elle n'a pas été posée."]
+      and isinstance(_VOD.get("pose"), list) and len(_VOD["pose"]) == 3 and isinstance(_VOD["pose"][0], list)
+      and [q[0] for q in _VOD["pose"][0]] == ["add", "seek"],
+      [_VOa, _VOD.get("pose")])
+check("L6vo_refus_muet_d_addAsset_ovSeq_immobile_la_tete_ne_bouge_pas",
+      _VOD.get("refus_muet") == ["add"], _VOD.get("refus_muet"))
 _VOp = _VOD.get("pose") if isinstance(_VOD.get("pose"), list) and len(_VOD.get("pose")) == 3 else [None] * 3
 check("L6vo_la_pose_force_ecraser_suspend_le_remplacement_le_temps_de_l_appel_restaure_les_deux_tete_a_t0_plus_duree",
       _VOp == [[["add", {"audio": "voix-off-20260925-101010.wav"}, "Voix off 2", "audio", 3.25, "a1", 12.5, "ecraser", None],
@@ -19391,6 +19414,15 @@ check("L6vo_piste_de_dialogue_verrouillee_ou_absente_le_refus_est_dit_la_prise_r
       and "voix-off-c.wav" in _VOv[0][1]
       and len(_VOn) == 1 and _VOn[0][0] == "note" and "pas de piste de dialogue" in _VOn[0][1] and "voix-off-d.wav" in _VOn[0][1],
       [_VOv, _VOn])
+
+# revue T6 (reste de la tache 5) : le plancher AFFICHE par « Apprendre le bruit » (dzmNfEffectif, couche) et celui du resume
+# du rack (L6fx4, bloc SFXSTUDIO, qui ne parle pas a la couche) sont LA MEME regle : > -0,5 = auto, sinon borne [-80, -20].
+_NFE = src[src.find("function dzmNfEffectif(nf){"):src.find("function DzmNoiseLearn(o){")]
+check("L6vo_nfEffectif_de_la_couche_et_resume_du_rack_meme_regle_seuil_moins_0_5_bornes_80_20",
+      len(_NFE) > 40 and _NFE.count("n>-.5)return null;") == 1 and _NFE.count("return Math.max(-80,Math.min(-20,n))}") == 1
+      and P.R_L6FX4.count("Number(p.nf)<=-.5?") == 1 and P.R_L6FX4.count("Math.max(-80,Math.min(-20,Number(p.nf)))") == 1
+      and s.count("nfEffectif:dzmNfEffectif,") == 1 and src.count("apNf=ap?dzmNfEffectif(ap.nf):null") == 1,
+      len(_NFE))
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")

@@ -5992,15 +5992,18 @@ function DzMontage(props){
         /* L6 D-26 : la puce ● voix off — enregistre au micro pendant la lecture ; la prise est posée sur la piste de
            dialogue à l'instant où elle a commencé, en mode « écraser » forcé, puis la tête va à sa fin */
         r.jsx(DzTracks.VoiceRec,{demo:!!proj.demo,ctl:dzVoRef,combo:svmKeyLabel("vo_record"),onNote:fireNote,
-          onStart:function(){var t=Math.max(0,Number(phRef.current)||0);setSpd(1);setPlaying(!0);return t},
+          onStart:function(){var t=Math.max(0,Number(phRef.current)||0),p=dzProjRef.current;setSpd(1);setPlaying(!0);
+            return {t0:t,pj:String(p&&(p.project_id||p.name)||"")}},
           onStop:function(){setPlaying(!1)},
-          onDone:function(f,d,t0){var ts=dzTracksRef.current||svmTracksOf(proj),tr=DzTracks.dialogueTrack(ts);
+          onDone:function(f,d,t0,pj){var pc=dzProjRef.current;
+            if(pj!==String(pc&&(pc.project_id||pc.name)||"")){fireNote("Prise « "+f+" » enregistrée dans la Bibliothèque ; le projet a changé pendant la prise, elle n'a pas été posée.");return}
+            var ts=dzTracksRef.current||svmTracksOf(proj),tr=DzTracks.dialogueTrack(ts);
             if(!tr){fireNote("Prise « "+f+" » enregistrée dans la Bibliothèque, mais ce projet n'a pas de piste de dialogue : ajoutez une piste audio, puis posez-la depuis le tiroir Sons.");return}
             if(trackStRef.current[tr]&&trackStRef.current[tr].l){fireNote("Piste "+tr.toUpperCase()+" verrouillée — déverrouillez-la pour ajouter. La prise « "+f+" » reste dans la Bibliothèque.");return}
-            var m0=dzModeRef.current,rp=dzmReplaceRef.current;dzModeRef.current="ecraser";dzmReplaceRef.current=null;
+            var m0=dzModeRef.current,rp=dzmReplaceRef.current,q0=ovSeq.current;dzModeRef.current="ecraser";dzmReplaceRef.current=null;
             try{addAsset({audio:f},DzTracks.voLabel(DzTracks.voCount(clipsRef.current||[])),"audio",d,tr,t0)}
             finally{dzModeRef.current=m0;dzmReplaceRef.current=rp}
-            seekTo(t0+d)}}),
+            if(ovSeq.current!==q0)seekTo(t0+d)}}),
         r.jsx(SvmThemeChip,{theme:theme,setTheme:setTheme})]})]}),
     popover(),
     dzFin?r.jsx(DzTracks.FinBandeau,{fin:dzFin,memo:(function(){try{return JSON.parse(localStorage.getItem("dz_montage_channels")||"null")}catch(_e){return null}})(),
@@ -21749,6 +21752,13 @@ function dzmNlAppris(fx){
     a=dzmRfNum(p.learn_in);b=dzmRfNum(p.learn_out);n=dzmRfNum(p.nf);
     return a!==null&&b!==null&&b-a>=.2?{a:a,b:b,nf:n===null?0:n}:null}
   return null}
+/* revue T6 (25/09/2026) : dzmNfEffectif(nf) -> le plancher que le RENDU applique : > −0,5 (ou illisible) = automatique
+   (null), sinon borné à [−80, −20] — la règle du serveur, celle que le résumé du rack écrit déjà (« plancher … dB ») ;
+   le statut et le title de « Oublier » passent par elle (un −5 retouché au curseur s'affichait « −5 dB », rendu à −20). Pure. */
+function dzmNfEffectif(nf){
+  var n=Number(nf);
+  if(!isFinite(n)||n>-.5)return null;
+  return Math.max(-80,Math.min(-20,n))}
 /* « APPRENDRE LE BRUIT » (monté par l'hôte sous le rack de l'inspecteur audio, section L6nl1) : props {clip, range (la
    plage I/O du projet, en temps de TIMELINE), demo, music, onFx(id, f), onNote(msg)}. DEUX boutons TOUJOURS rendus (règle
    E-12 : on grise, rien ne disparaît) : « Apprendre le bruit » — grisé sans plage I/O, sur la démo, pendant la mesure (son
@@ -21766,7 +21776,7 @@ function DzmNoiseLearn(o){
   var vivant=x.useRef(!0);
   x.useEffect(function(){vivant.current=!0;return function(){vivant.current=!1}},[]);
   var c=o.clip,fx=Array.isArray(c.fx)?c.fx:[],au=dzmAudioOf(c.src),sd=au&&au.dur>0?au.dur:0;
-  var lr=dzmLearnRange(c,o.range,sd),ap=dzmNlAppris(fx),demo=!!o.demo;
+  var lr=dzmLearnRange(c,o.range,sd),ap=dzmNlAppris(fx),demo=!!o.demo,apNf=ap?dzmNfEffectif(ap.nf):null;
   var note=typeof o.onNote==="function"?o.onNote:function(){},ecrit=typeof o.onFx==="function"?o.onFx:function(){};
   var sansPlage=lr.refus==="plage"||lr.refus==="clip",dis=demo||busy||sansPlage;
   var tt=demo?"Projet de démonstration : l'apprentissage du bruit est désactivé"
@@ -21800,11 +21810,11 @@ function DzmNoiseLearn(o){
     r.jsx("button",{className:"svm-minibtn dzm-nlbtn",disabled:dis,"aria-disabled":dis,title:tt,onClick:apprendre,
       children:busy?"Mesure…":"Apprendre le bruit"}),
     r.jsx("button",{className:"svm-minibtn dzm-nlbtn",disabled:!ap,"aria-disabled":!ap,
-      title:ap?"Oublier le bruit appris ("+ap.a+"–"+ap.b+" s de source, plancher "+(ap.nf?ap.nf+" dB":"automatique")+") — le débruiteur reste"
+      title:ap?"Oublier le bruit appris ("+ap.a+"–"+ap.b+" s de source, plancher "+(apNf!==null?apNf+" dB":"automatique")+") — le débruiteur reste"
         :"Aucun bruit appris sur ce clip : rien à oublier",
       onClick:oublier,children:"Oublier"}),
     r.jsx("span",{className:"dzm-nlst svm-mono","aria-live":"polite",
-      children:ap?"appris "+ap.a+"–"+ap.b+" s · "+(ap.nf?ap.nf+" dB":"auto"):"aucun bruit appris"})]})}
+      children:ap?"appris "+ap.a+"–"+ap.b+" s · "+(apNf!==null?apNf+" dB":"auto"):"aucun bruit appris"})]})}
 /* L6 D-26 (25/09/2026, tâche 6) : aides PURES de l'enregistreur de voix off. dzmVoExt(type) -> l'extension du fichier
    envoyé (ogg | m4a | webm ; la route transcode tout, le nom n'est qu'un indice) ; dzmVoChrono(s) -> « m:ss » (entier
    inférieur, illisible ou négatif -> 0:00) ; dzmVoErr(e) -> la raison d'un refus du micro en français (accès refusé,
@@ -21825,16 +21835,21 @@ function dzmVoErr(e){
   return m||"erreur inconnue"}
 /* L'ENREGISTREUR DE VOIX OFF (puce montée par l'hôte à côté de « narration », section L6vo1) : props {demo, combo (le
    raccourci vivant de vo_record, pour le title), ctl (une réf de l'hôte : la bascule y est inscrite à chaque rendu, pour
-   l'action clavier vo_record ; retirée au démontage), onStart() -> t0 (la tête ; l'hôte lance la lecture : on parle sur
-   l'image), onStop() (l'hôte arrête la lecture), onDone(filename, dur, t0) (l'hôte pose la prise sur la piste de
-   dialogue, mode « écraser » forcé, puis avance la tête), onNote(msg), rec (INJECTION du banc : {media(contraintes) ->
+   l'action clavier vo_record ; retirée au démontage), onStart() -> t0 ou {t0, pj} (la tête, et l'identité du projet au
+   début de la prise ; l'hôte lance la lecture : on parle sur l'image), onStop() (l'hôte arrête la lecture),
+   onDone(filename, dur, t0, pj) (l'hôte pose la prise sur la piste de dialogue, mode « écraser » forcé, puis avance la
+   tête — ou refuse si le projet a changé pendant la prise), onNote(msg), rec (INJECTION du banc : {media(contraintes) ->
    promesse du flux, Rec (constructeur de l'enregistreur), juge(type) -> bool}) ; sans injection, le micro et
    l'enregistreur du navigateur sont lus À L'APPEL, jamais au chargement}. UN SEUL bouton à deux états (E-12) :
    « ● voix off » au repos, « ■ m:ss » pendant la prise ; « micro… » pendant l'accord et « envoi… » pendant l'envoi
    (grisé, titré) ; grisé et titré sur la démo (la bascule du clavier y DIT le refus). À l'arrêt : l'hôte arrête la
    lecture, l'enregistreur s'arrête, les pistes du flux sont coupées ; la prise part UNE fois à POST /api/audio/recording
-   (multipart, champ file) ; tout échec est DIT (« prise non enregistrée »). Démontage pendant l'accord ou la prise :
-   enregistreur arrêté, flux coupé, rien n'est envoyé ni dit. */
+   (multipart, champ file) ; tout échec est DIT (« prise non enregistrée »). ARRÊT SPONTANÉ (revue T6 : micro débranché,
+   accès révoqué, erreur de l'enregistreur -> son erreur est DITE, puis dernier morceau et arrêt sans passer par
+   l'arrêt de la puce) : le flux est coupé, l'hôte arrête la lecture, la puce passe à « envoi… » et la prise part quand
+   même. Bascule pendant « micro… » ou « envoi… » : une note courte, jamais le silence. Démontage pendant l'accord ou la
+   prise : enregistreur arrêté, flux coupé, rien n'est envoyé ni dit ; pendant l'envoi : la prise arrive dans la
+   Bibliothèque, rien n'est posé ni dit (écart daté 25/09). */
 function DzmVoiceRec(o){
   if(!o)return null;
   var s1=x.useState("repos"),st=s1[0],setSt=s1[1];
@@ -21844,7 +21859,7 @@ function DzmVoiceRec(o){
   /* les rappels de l'hôte sont lus sur les DERNIÈRES props (M.o) : la prise se termine bien des rendus après le clic */
   M.o=o;
   var note=function(msg){var q=M.o;if(q&&typeof q.onNote==="function")q.onNote(msg)};
-  var hote=function(k,a,b2,c2){var q=M.o;return q&&typeof q[k]==="function"?q[k](a,b2,c2):void 0};
+  var hote=function(k,a,b2,c2,d2){var q=M.o;return q&&typeof q[k]==="function"?q[k](a,b2,c2,d2):void 0};
   function pose(v){M.st=v;setSt(v)}
   function coupeFlux(f){if(f&&typeof f.getTracks==="function")try{f.getTracks().forEach(function(t){try{t.stop()}catch(e){}})}catch(e){}}
   function coupe(){var f=M.flux;M.flux=null;coupeFlux(f)}
@@ -21855,21 +21870,25 @@ function DzmVoiceRec(o){
     var h=setTimeout(function(){setTic(function(n){return n+1})},500);return function(){clearTimeout(h)}},[st,tic]);
   function envoie(rc,morceaux,mime){
     if(M.rec===rc)M.rec=null;
+    coupe();
     if(!M.vivant)return;
+    /* revue T6 : l'enregistreur s'est arrêté SEUL (l'arrêt de la puce a déjà posé « envoi ») -> l'hôte arrête la lecture */
+    if(M.st==="prise"){try{hote("onStop")}catch(e){}pose("envoi")}
     var type=(rc&&rc.mimeType)||mime||"audio/webm",bl=null;
     try{bl=new Blob(morceaux,{type:type})}catch(e){bl=null}
     if(!bl||!bl.size){pose("repos");note("Prise vide : rien n'a été capté — prise non enregistrée");return}
-    var fd=new FormData(),t0=M.t0;fd.append("file",bl,"prise."+dzmVoExt(type));
+    var fd=new FormData(),t0=M.t0,pj=M.pj;fd.append("file",bl,"prise."+dzmVoExt(type));
     fetch("/api/audio/recording",{method:"POST",body:fd}).then(function(res){
       return res.json().catch(function(){return null}).then(function(j){
-        if(!res.ok)throw new Error((j&&j.detail&&String(j.detail))||("HTTP "+res.status));return j})})
+        var dt=j&&j.detail!=null?(typeof j.detail==="string"?j.detail:JSON.stringify(j.detail)):"";
+        if(!res.ok)throw new Error(dt||("HTTP "+res.status));return j})})
     .then(function(d){
       if(!M.vivant)return;
       pose("repos");
       var du=d?Number(d.dur):NaN;
       if(!d||typeof d.filename!=="string"||!d.filename||!(du>0)){
         note("Voix off : réponse illisible du serveur — "+(d&&d.filename?"la prise « "+d.filename+" » est dans la Bibliothèque, non posée":"prise non enregistrée"));return}
-      hote("onDone",d.filename,du,t0)},
+      hote("onDone",d.filename,du,t0,pj)},
     function(e){
       if(!M.vivant)return;
       pose("repos");
@@ -21892,8 +21911,10 @@ function DzmVoiceRec(o){
       catch(e){coupe();pose("repos");note("Micro indisponible : "+dzmVoErr(e));return}
       rc.ondataavailable=function(ev){if(ev&&ev.data&&ev.data.size>0)morceaux.push(ev.data)};
       rc.onstop=function(){envoie(rc,morceaux,mime)};
-      var t0=0;try{t0=Number(hote("onStart"))||0}catch(e){t0=0}
-      M.rec=rc;M.t0=t0;M.deb=Date.now();
+      rc.onerror=function(ev){if(M.vivant)note("Enregistreur arrêté : "+dzmVoErr(ev&&ev.error?ev.error:ev))};
+      var r0=0;try{r0=hote("onStart")}catch(e){r0=0}
+      var ob=r0&&typeof r0==="object",t0=Number(ob?r0.t0:r0)||0;
+      M.rec=rc;M.t0=t0;M.pj=ob?r0.pj:void 0;M.deb=Date.now();
       try{rc.start(1000)}
       catch(e){M.rec=null;coupe();try{hote("onStop")}catch(e2){}
         pose("repos");note("Enregistrement impossible : "+dzmVoErr(e));return}
@@ -21905,7 +21926,8 @@ function DzmVoiceRec(o){
     try{hote("onStop")}catch(e){}
     try{rc.stop()}catch(e){M.rec=null;coupe();pose("repos");note("Arrêt impossible : "+dzmVoErr(e)+" — prise non enregistrée");return}
     coupe()}
-  function bascule(){if(M.st==="repos")demarre();else if(M.st==="prise")arrete()}
+  function bascule(){if(M.st==="repos")demarre();else if(M.st==="prise")arrete();
+    else if(M.st==="micro")note("Voix off : accès au micro en cours…");else if(M.st==="envoi")note("Voix off : prise en cours d'envoi…")}
   if(ctl)ctl.current=bascule;
   var cb=o.combo?" ("+o.combo+")":"",el=st==="prise"?dzmVoChrono((Date.now()-M.deb)/1000):"";
   var dis=demo||st==="micro"||st==="envoi";
@@ -22154,7 +22176,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   gpDrag:dzmGpDrag,
   /* L6 D-25 D-26 (25/09/2026, tache 4) : le coeur pur audio -- plage de bruit en temps de source, debruiteur appris, prises, type d'enregistrement */
   learnRange:dzmLearnRange,denoiseLearn:dzmDenoiseLearn,denoiseForget:dzmDenoiseForget,voCount:dzmVoCount,voLabel:dzmVoLabel,recMime:dzmRecMime,VO_MIMES:DZM_VO_MIMES,
-  nlAppris:dzmNlAppris,NoiseLearn:DzmNoiseLearn,
+  nlAppris:dzmNlAppris,NoiseLearn:DzmNoiseLearn,nfEffectif:dzmNfEffectif,
   /* L6 D-26 (25/09/2026, tache 6) : l'enregistreur de voix off -- aides pures et la puce */
   voExt:dzmVoExt,voChrono:dzmVoChrono,voErr:dzmVoErr,VoiceRec:DzmVoiceRec,
   DEFAULTS:DZM_DEFAULT_TRACKS};

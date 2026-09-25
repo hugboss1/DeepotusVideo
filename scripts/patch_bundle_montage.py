@@ -6032,10 +6032,13 @@ R_L6NL1 = ('          onAudition:sfxAudition},sel.id),\n'
 # L6vo1 -- LA PUCE « ● voix off » APRES « narration ». ANCRE MESUREE 25/09/2026 : la fin du bouton « narration »
 # (`onClick:narrToggle,children:"narration"}),`) vaut 1/0/1 (x1 dans .bak_montage, touchee par aucune section, x1 dans
 # le bundle livre). Le composant (DzTracks.VoiceRec) tient le micro et l'enregistreur ; l'HOTE fournit :
-#   onStart -> t0 = la tete (phRef) au debut de la prise, et lance la lecture (setSpd(1) + setPlaying(!0), le geste
-#              MESURE de l'action « play », B:3518) : on parle sur l'image ;
+#   onStart -> {t0, pj} : t0 = la tete (phRef) au debut de la prise, pj = l'IDENTITE du projet a ce moment
+#              (dzProjRef.current.project_id, le nom a defaut -- revue T6 : svmApplyProject garde la MEME instance de la
+#              puce, et une prise commencee dans un projet se posait dans le suivant, au t0 de l'ancien) ; lance la
+#              lecture (setSpd(1) + setPlaying(!0), le geste MESURE de l'action « play », B:3518) : on parle sur l'image ;
 #   onStop  -> setPlaying(!1) (le geste MESURE de « jog_pause ») ;
-#   onDone(f, d, t0) -> la POSE : piste = DzTracks.dialogueTrack (jamais pickTrack, qui peut rendre A2 musique) ; sans
+#   onDone(f, d, t0, pj) -> projet change depuis le debut de la prise : RIEN n'est pose, la note le dit (la prise est
+#              dans la Bibliotheque). Sinon la POSE : piste = DzTracks.dialogueTrack (jamais pickTrack, qui peut rendre A2 musique) ; sans
 #              piste de dialogue, ou piste VERROUILLEE, le refus est DIT et la prise reste dans la Bibliotheque (la route
 #              l'y a deja rangee) ; sinon addAsset({audio:f}, « Voix off n », "audio", d, piste, t0) avec le MODE
 #              D'EDITION FORCE A « ecraser » LE TEMPS DE L'APPEL : addAsset lit dzModeRef.current SYNCHRONEMENT dans
@@ -6043,23 +6046,30 @@ R_L6NL1 = ('          onAudition:sfxAudition},sel.id),\n'
 #              (la puce refuse une duree illisible) et le projet n'est pas la demo (la puce est grisee) : addAsset ne
 #              part ni mesurer la duree ni attendre la timeline -- aucun chemin differe ne relirait le mode non force.
 #              Le mode REMPLACEMENT arme (dzmReplaceRef, P6) est suspendu de meme : sans cela une prise ferait de
-#              {audio} la source du plan a remplacer. Les deux refs sont RESTAUREES dans un finally. Puis la tete va a
-#              t0 + d (seekTo) : les prises successives s'enchainent.
+#              {audio} la source du plan a remplacer. Les deux refs sont remises dans un finally ; MAIS (revue T6,
+#              mesure B:2332) la pose fait setOvPick("") et l'effet [ovPick] desarme alors le remplacement (ovPick !==
+#              rp.tr) : en pratique un remplacement arme est DESARME par la pose d'une prise -- le finally ne le garde
+#              que le temps de l'appel. Puis, SEULEMENT si la prise est reellement posee (ovSeq.current a avance : addAsset
+#              ne le consomme qu'une fois l'insertion acceptee ; chacun de ses refus le dit deja par sa note), la tete va
+#              a t0 + d (seekTo) : les prises successives s'enchainent.
 # Quatre references a la couche (sonde +4) : VoiceRec, dialogueTrack, voLabel, voCount.
 A_L6VO1 = '          onClick:narrToggle,children:"narration"}),'
 R_L6VO1 = (A_L6VO1 + '\n'
            '        /* L6 D-26 : la puce ● voix off — enregistre au micro pendant la lecture ; la prise est posée sur la piste de\n'
            '           dialogue à l\'instant où elle a commencé, en mode « écraser » forcé, puis la tête va à sa fin */\n'
            '        r.jsx(DzTracks.VoiceRec,{demo:!!proj.demo,ctl:dzVoRef,combo:svmKeyLabel("vo_record"),onNote:fireNote,\n'
-           '          onStart:function(){var t=Math.max(0,Number(phRef.current)||0);setSpd(1);setPlaying(!0);return t},\n'
+           '          onStart:function(){var t=Math.max(0,Number(phRef.current)||0),p=dzProjRef.current;setSpd(1);setPlaying(!0);\n'
+           '            return {t0:t,pj:String(p&&(p.project_id||p.name)||"")}},\n'
            '          onStop:function(){setPlaying(!1)},\n'
-           '          onDone:function(f,d,t0){var ts=dzTracksRef.current||svmTracksOf(proj),tr=DzTracks.dialogueTrack(ts);\n'
+           '          onDone:function(f,d,t0,pj){var pc=dzProjRef.current;\n'
+           '            if(pj!==String(pc&&(pc.project_id||pc.name)||"")){fireNote("Prise « "+f+" » enregistrée dans la Bibliothèque ; le projet a changé pendant la prise, elle n\'a pas été posée.");return}\n'
+           '            var ts=dzTracksRef.current||svmTracksOf(proj),tr=DzTracks.dialogueTrack(ts);\n'
            '            if(!tr){fireNote("Prise « "+f+" » enregistrée dans la Bibliothèque, mais ce projet n\'a pas de piste de dialogue : ajoutez une piste audio, puis posez-la depuis le tiroir Sons.");return}\n'
            '            if(trackStRef.current[tr]&&trackStRef.current[tr].l){fireNote("Piste "+tr.toUpperCase()+" verrouillée — déverrouillez-la pour ajouter. La prise « "+f+" » reste dans la Bibliothèque.");return}\n'
-           '            var m0=dzModeRef.current,rp=dzmReplaceRef.current;dzModeRef.current="ecraser";dzmReplaceRef.current=null;\n'
+           '            var m0=dzModeRef.current,rp=dzmReplaceRef.current,q0=ovSeq.current;dzModeRef.current="ecraser";dzmReplaceRef.current=null;\n'
            '            try{addAsset({audio:f},DzTracks.voLabel(DzTracks.voCount(clipsRef.current||[])),"audio",d,tr,t0)}\n'
            '            finally{dzModeRef.current=m0;dzmReplaceRef.current=rp}\n'
-           '            seekTo(t0+d)}}),')
+           '            if(ovSeq.current!==q0)seekTo(t0+d)}}),')
 
 L6 = [("L6fx1-catalogue-ordre-de-chaine-et-anti-ronflement", A_L6FX1, R_L6FX1),
       ("L6fx2-debruiteur-plancher-plage-apprise-et-eq6", A_L6FX2, R_L6FX2),
@@ -6071,7 +6081,7 @@ L6 = [("L6fx1-catalogue-ordre-de-chaine-et-anti-ronflement", A_L6FX1, R_L6FX1),
       ("L6vo1-puce-voix-off-apres-narration", A_L6VO1, R_L6VO1)]
 for _n, _a, _r in L6:
     assert _a != _r and _r.count("DzTracks") == (1 if _n.startswith("L6nl1") else 4 if _n.startswith("L6vo1") else 0), _n
-assert R_L6VO1.startswith(A_L6VO1 + "\n") and R_L6VO1.endswith("seekTo(t0+d)}}),") and R_L6VO1.count('dzModeRef.current="ecraser"') == 1
+assert R_L6VO1.startswith(A_L6VO1 + "\n") and R_L6VO1.endswith("if(ovSeq.current!==q0)seekTo(t0+d)}}),") and R_L6VO1.count('dzModeRef.current="ecraser"') == 1
 assert R_L6VO1.find('dzModeRef.current="ecraser"') < R_L6VO1.find("try{addAsset(") < R_L6VO1.find("finally{dzModeRef.current=m0;dzmReplaceRef.current=rp}") < R_L6VO1.find("seekTo(t0+d)")
 assert R_L6FX1.endswith(A_L6FX1.split("\n")[-1]) and R_L6FX1.count('{type:"dehum",') == 1 and R_L6FX1.find('type:"dehum"') < R_L6FX1.find('type:"eq3"')
 assert R_L6FX2.startswith(A_L6FX2[:-3]) and R_L6FX2.count("hide:1") == 2 and R_L6FX2.count("dec:3") == 2 and R_L6FX2.count('{k:"') == 21
