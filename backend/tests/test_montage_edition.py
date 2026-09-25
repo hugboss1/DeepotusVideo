@@ -4677,13 +4677,14 @@ function props(extra){var ctl={current:null};return Object.assign({demo:!1,ctl:c
   R.nul=T.VoiceRec(null);
   /* revue T6 — 13 : ARRÊT SPONTANÉ (erreur de l'enregistreur puis arrêt, sans passer par la puce) -> la raison est dite,
      les pistes coupées, la lecture arrêtée, « envoi… » ; le clavier pendant l'envoi dit l'attente ; la prise part quand
-     même, et onDone reçoit l'identité du projet rendue par onStart ({t0, pj}) */
+     même, et onDone reçoit l'identité du projet rendue par onStart ({t0, pj}) ; revue de
+     T6 : une identité PROPRE au cas (P9) : avec P1, la mutation `M.pj="P1"` en dur survivait */
   RecCrash=function(fl,opt){FauxRec.call(this,fl,opt)};RecCrash.prototype=Object.create(FauxRec.prototype);
   RecCrash.prototype.crash=function(){this.state="inactive";var s=this;Promise.resolve().then(function(){
     if(s.onerror)s.onerror({error:{name:"NotReadableError"}});
     if(s.ondataavailable)s.ondataavailable({data:new Blob(["x"],{type:"audio/ogg"})});if(s.onstop)s.onstop()})};
   var D4=[],sp0=SP.length,nf0=FV.length;
-  P=props({rec:inj({Rec:RecCrash}),onStart:function(){return {t0:4,pj:"P1"}},onDone:function(f,d,t0,pj){D4.push([f,d,t0,pj])}});
+  P=props({rec:inj({Rec:RecCrash}),onStart:function(){return {t0:4,pj:"P9"}},onDone:function(f,d,t0,pj){D4.push([f,d,t0,pj])}});
   M=mini(T.VoiceRec);M.render(P);bts(M.H.out)[0].p.onClick();await settle();M.flush();
   rc=RC[RC.length-1];fl=PISTES[PISTES.length-1];var nn0=NT.length;rc.crash();await settle();M.flush();
   R.crash=[fl.pistes[0].n,SP.length-sp0,etat(M.H.out)[0].slice(0,2),FV.length-nf0,NT.slice(nn0),rc.stops];
@@ -4796,7 +4797,7 @@ check("l6v_arret_spontane_raison_dite_pistes_coupees_lecture_arretee_passage_par
       _V13 == [1, 1, ["envoi…", True], 1, ["Enregistreur arrêté : micro occupé par une autre application"], 0]
       and _R7.get("crash_ctl") == ["Voix off : prise en cours d'envoi…"], [_V13, _R7.get("crash_ctl")])
 check("l6v_arret_spontane_onDone_recoit_l_identite_du_projet_rendue_par_onStart",
-      _R7.get("crash_pose") == [[["voix-off-c.wav", 1.5, 4, "P1"]], ["● voix off", False]], _R7.get("crash_pose"))
+      _R7.get("crash_pose") == [[["voix-off-c.wav", 1.5, 4, "P9"]], ["● voix off", False]], _R7.get("crash_pose"))
 check("l6v_refus_422_detail_liste_serialise_jamais_object_Object",
       _R7.get("d422") == ['Envoi de la prise impossible : [{"loc":["body","file"],"msg":"field required"}] — prise non enregistrée'],
       _R7.get("d422"))

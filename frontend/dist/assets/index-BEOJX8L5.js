@@ -21835,8 +21835,9 @@ function dzmVoErr(e){
   return m||"erreur inconnue"}
 /* L'ENREGISTREUR DE VOIX OFF (puce montée par l'hôte à côté de « narration », section L6vo1) : props {demo, combo (le
    raccourci vivant de vo_record, pour le title), ctl (une réf de l'hôte : la bascule y est inscrite à chaque rendu, pour
-   l'action clavier vo_record ; retirée au démontage), onStart() -> t0 ou {t0, pj} (la tête, et l'identité du projet au
-   début de la prise ; l'hôte lance la lecture : on parle sur l'image), onStop() (l'hôte arrête la lecture),
+   l'action clavier vo_record ; retirée au démontage), onStart() -> {t0, pj} (SEULE forme acceptée : la tête, et l'identité du
+   projet au début de la prise — un nombre seul laisserait pj indéfini et onDone refuserait toujours la pose ; l'hôte
+   lance la lecture : on parle sur l'image), onStop() (l'hôte arrête la lecture),
    onDone(filename, dur, t0, pj) (l'hôte pose la prise sur la piste de dialogue, mode « écraser » forcé, puis avance la
    tête — ou refuse si le projet a changé pendant la prise), onNote(msg), rec (INJECTION du banc : {media(contraintes) ->
    promesse du flux, Rec (constructeur de l'enregistreur), juge(type) -> bool}) ; sans injection, le micro et
