@@ -2193,6 +2193,101 @@ async def upload_audio(file: UploadFile = File(...)):
     return {"saved": str(dest), "filename": safe, "size_kb": len(contents) // 1024}
 
 
+_RECORDING_MAX = 50 * 1024 * 1024
+_RECORDING_MIN_S = 0.1
+
+
+def _recording_name(folder: Path, now: datetime) -> Path:
+    """Réserve (création exclusive) voix-off-AAAAMMJJ-HHMMSS[-n].wav : deux
+    prises dans la même seconde ne s'écrasent jamais (-2, -3…)."""
+    base = f"voix-off-{now.strftime('%Y%m%d-%H%M%S')}"
+    n = 1
+    while True:
+        dest = folder / (f"{base}.wav" if n == 1 else f"{base}-{n}.wav")
+        try:
+            with open(dest, "xb"):
+                return dest
+        except FileExistsError:
+            n += 1
+
+
+@router.post("/audio/recording")
+async def audio_recording(request: Request, file: UploadFile = File(...)):
+    """D-26 (25/09/2026) — prise de voix off enregistrée au micro dans le
+    Montage (webm/opus, ogg, mp4, wav… tel que le navigateur l'a produit).
+
+    Chemin à part : /audio/voiceover est la synthèse vocale payante, et
+    /audio/upload refuse le .webm et écrase un nom existant. Garde locale ;
+    champ multipart `file` ≤ 50 Mo (413 au-delà) ; transcodée par ffmpeg
+    (PATH, comme /audio/audition, en thread) en WAV PCM s16 48 kHz MONO
+    voix-off-AAAAMMJJ-HHMMSS[-n].wav dans le dossier audio, jamais écrasée ;
+    ffmpeg en échec ou prise < 0,1 s → 415 {detail} et rien d'écrit
+    (temporaires supprimés dans tous les cas). Fiche sons kind « voix »
+    (tiroir Sons → piste A1), Bibliothèque « import ».
+    → {ok, filename, url, dur, size_kb}"""
+    _require_localhost(request)
+    contents = await file.read(_RECORDING_MAX + 1)
+    if len(contents) > _RECORDING_MAX:
+        raise HTTPException(413, "Prise trop lourde (50 Mo max).")
+    if not contents:
+        raise HTTPException(415, "Prise vide : aucun son reçu.")
+    import os
+    import shutil
+    import subprocess
+    import tempfile
+    import wave
+
+    def _transcode() -> tuple[bool, str, float]:
+        """ffmpeg → WAV temporaire → nom réservé ; rend (ok, nom | erreur,
+        durée). Le dossier temporaire part dans tous les cas."""
+        tmpd = Path(tempfile.mkdtemp(prefix="dzvo_", dir=str(settings.outputs_path)))
+        try:
+            src, out = tmpd / "prise.bin", tmpd / "prise.wav"
+            src.write_bytes(contents)
+            try:
+                r = subprocess.run(
+                    ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+                     "-i", str(src), "-vn", "-map", "0:a:0", "-ac", "1",
+                     "-ar", "48000", "-c:a", "pcm_s16le", "-f", "wav", str(out)],
+                    capture_output=True, text=True, timeout=180)
+            except Exception as e:                       # noqa: BLE001
+                return (False, f"ffmpeg injoignable : {e}", 0.0)
+            if r.returncode != 0 or not out.is_file():
+                return (False, "Format de prise illisible : "
+                        f"{(r.stderr or '').strip()[-200:]}", 0.0)
+            try:
+                with wave.open(str(out), "rb") as w:
+                    dur = w.getnframes() / float(w.getframerate() or 1)
+            except Exception as e:                       # noqa: BLE001
+                return (False, f"WAV illisible : {e}", 0.0)
+            if dur < _RECORDING_MIN_S:
+                return (False, f"Prise trop courte ({dur:.2f} s).", dur)
+            dest = _recording_name(_audio_dir(), datetime.now())
+            try:
+                try:
+                    os.replace(out, dest)
+                except OSError:                          # autre volume
+                    shutil.copyfile(out, dest)
+            except BaseException:
+                dest.unlink(missing_ok=True)             # jamais de prise vide réservée
+                raise
+            return (True, dest.name, dur)
+        finally:
+            shutil.rmtree(tmpd, ignore_errors=True)
+
+    ok, fn, dur = await asyncio.to_thread(_transcode)
+    if not ok:
+        raise HTTPException(415, fn)
+    from app.services import sfx_service
+    await asyncio.to_thread(sfx_service.record_meta, fn, {
+        "kind": "voix", "dur": round(dur, 3),
+        "created": datetime.now().isoformat(timespec="seconds")})
+    await LI.noter([fn], "import", kind="audio")
+    return {"ok": True, "filename": fn, "url": f"/api/audio/{fn}",
+            "dur": round(dur, 3),
+            "size_kb": (_audio_dir() / fn).stat().st_size // 1024}
+
+
 # ── R1 gauntlet SFX — meta, génération ElevenLabs, audition ────────────────
 # NB : /audio/meta DOIT être déclaré AVANT /audio/{filename} (ordre FastAPI).
 
