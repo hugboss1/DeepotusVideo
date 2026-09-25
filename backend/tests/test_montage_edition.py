@@ -1478,6 +1478,34 @@ out.lb_rendu=scShim(function(log){var P=[],C=[];
   return [m.t,m.p.className,tiles.map(function(b){return [b.t,b.p["data-id"],typeof b.p.title==="string"&&b.p.title.length>5]}),P,C.length,
     gpBtns(m).every(function(b){return typeof b.p.title==="string"&&b.p.title.length>3}),gpBtns(m).length,
     gpTous(vide).filter(function(n){return /dzm-lbmsg/.test(n.p.className||"")}).map(gpTxt),log.st,log.eff.slice(0,1)]});
+/* ── [39] L6 D-25 D-26 (25/09/2026, tâche 4) : le cœur pur audio — plage de bruit en temps de source, débruiteur appris, prises, type d'enregistrement ── */
+function auR(o){return o&&o.refus?o.refus:o}
+var AK={tr:"a1",id:"k",start:10,end:20,srcIn:5,src:{audio:"a.wav"}};
+out.au_lr=[T.learnRange(AK,{"in":12,out:13},0),T.learnRange(Object.assign({},AK,{speed:2}),{"in":12,out:13},0),
+  T.learnRange(AK,{"in":8,out:9},0),auR(T.learnRange(AK,{"in":2,out:3},0)),auR(T.learnRange(AK,null,0)),
+  auR(T.learnRange(AK,{"in":null,out:3},0)),auR(T.learnRange(AK,{"in":12,out:12.1},0)),auR(T.learnRange(AK,{"in":12,out:13},7.5)),
+  T.learnRange(AK,{"in":12,out:13},8),auR(T.learnRange(AK,{"in":12,out:43},0)),T.learnRange(AK,{"in":12,out:42},0),
+  auR(T.learnRange(null,{"in":12,out:13},0)),auR(T.learnRange(AK,{"in":13,out:12},0)),
+  T.learnRange(Object.assign({},AK,{speed:1.0004}),{"in":12,out:13},0),T.learnRange(Object.assign({},AK,{speed:9}),{"in":12,out:13},0),
+  T.learnRange(Object.assign({},AK,{srcIn:null}),{"in":12,out:13},0),T.learnRange(AK,{"in":"12",out:"13"},0),
+  T.learnRange(AK,{"in":12,out:12.2},0),auR(T.learnRange(AK,{"in":6,out:6.2},0))];
+/* chaque refus porte une phrase */
+out.au_lr_note=[T.learnRange(AK,null,0),T.learnRange(AK,{"in":2,out:3},0),T.learnRange(AK,{"in":12,out:12.1},0),
+  T.learnRange(AK,{"in":12,out:43},0),T.learnRange(null,{"in":1,out:2},0)].map(function(o){return typeof o.note==="string"&&o.note.length>10});
+var DQ=[{type:"eq3",params:{bass_db:2}},{type:"denoise",params:{amount:30}}],DQj=JSON.stringify(DQ),DL=T.denoiseLearn(DQ,7,8,-31);
+var DF=[{type:"denoise",amount:30,enabled:!0}],DFj=JSON.stringify(DF),DFL=T.denoiseLearn(DF,1,2,-40);
+out.au_dl=[T.denoiseLearn([],7,8,-31),DL,DL[0]===DQ[0],DL!==DQ,DL[1]!==DQ[1],JSON.stringify(DQ)===DQj,
+  DFL,JSON.stringify(DF)===DFj,T.denoiseLearn(null,7,8,-31),T.denoiseLearn(DQ,7,8,"x")[1],T.denoiseLearn(DQ,"a",8,-31),
+  T.denoiseLearn(DQ,8,7,-31),T.denoiseLearn([{type:"denoise",params:{amount:30}},{type:"denoise",params:{amount:50}}],1,2,-30),
+  T.denoiseLearn([{type:"denoise",params:[1]}],1,2,-30),T.denoiseLearn([],1,2,-95)[0].params.nf,T.denoiseLearn([],1,2,5)[0].params.nf];
+var FG=[{type:"eq3",params:{bass_db:2}},{type:"denoise",params:{amount:30,nf:-31,learn_in:7,learn_out:8}},{type:"denoise",nf:-2,learn_in:1,learn_out:2,amount:9}],
+  FGj=JSON.stringify(FG),FGo=T.denoiseForget(FG);
+out.au_df=[FGo,FGo[0]===FG[0],JSON.stringify(FG)===FGj,T.denoiseForget(null),T.denoiseForget([{type:"eq3"}]),
+  T.denoiseForget(T.denoiseLearn(DQ,7,8,-31)),T.denoiseForget([{type:"denoise",params:{amount:30}}])[0]];
+out.au_vo=[T.voCount([{src:{audio:"voix-off-20260925-101010.wav"}},{src:{audio:"voix-off-20260925-101011-2.wav"}},{src:{audio:"musique.mp3"}},
+  {src:{job_id:"voix-off-x"}},null,{src:null}]),T.voCount([]),T.voCount(null),T.voLabel(3),T.voLabel(1),T.voLabel(0),T.voLabel("x"),T.voLabel(2.7)];
+out.au_rm=[T.recMime(function(t){return t==="audio/ogg;codecs=opus"}),T.recMime(function(){return !1}),T.recMime(function(){return !0}),
+  T.recMime(null),T.recMime(function(t){if(t!=="audio/mp4")throw new Error("x");return !0}),T.VO_MIMES.slice(),Object.isFrozen(T.VO_MIMES)];
 console.log(JSON.stringify(out));
 """
 # E-9 : svmRuler / svmPad2 sont des fonctions DU BUNDLE (meme portee module que
@@ -1814,7 +1842,9 @@ try:
                  "gp_fx","gp_hit","gp_move","gp_add","gp_del","gp_mid","gp_prev","gp_match","gp_frame","gp_sig",
                  "gp_pure","gp_null","gp_box","gp_rendu","gp_verrou","gp_vide","gp_geste","gp_grade",
                  # L5 D-31 D-32 (tache 6, 24/09) : les NEUF cles de la section [38] (les gardes en execution ont leur shim a part).
-                 "sc_at","sc_body","sc_store","lb_plans","lb_next","gc","sc_null","sc_rendu","lb_rendu"]
+                 "sc_at","sc_body","sc_store","lb_plans","lb_next","gc","sc_null","sc_rendu","lb_rendu",
+                 # L6 D-25 D-26 (tache 4, 25/09) : les SIX cles de la section [39].
+                 "au_lr","au_lr_note","au_dl","au_df","au_vo","au_rm"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -4371,6 +4401,63 @@ check("l5x_t6_M4_lightbox_modale_focus_sur_fermer_a_l_ouverture_rendu_au_depart_
 check("l5x_pt_encart_porte_dans_le_cadre_connecte_une_recherche_par_allumage_retombe_en_ligne_cadre_detache",
       _RX.get("pt_portail") == [["portail", True, 1, 1], [["portail", True, 1, 1], 1, 1], ["div", None, 1, 0], [1, 1]],
       _RX.get("pt_portail"))
+
+print("\n[39] L6 D-25 D-26 : le coeur pur audio — plage de bruit en temps de source, debruiteur appris, prises, type d'enregistrement (tache 4, 25/09/2026)")
+# ── L6 (25/09/2026, tache 4). La plage I/O (temps de TIMELINE) devient une plage de SOURCE du clip selectionne
+# (a = srcIn + (in - start)·v ; v = la vitesse audio lue comme sfx_service.clamp_speed : 0,5..2, ~1 -> 1) ; elle peut
+# sortir du clip mais pas de la source ; la garde 0,2 s est la MEME soustraction flottante que learn_of du backend
+# (1,2 - 1,0 = 0,19999… : refusee des deux cotes). Faute n6 : chaque lecture passe par D.get / at().
+check("au_lr_plage_de_source_vitesse_hors_clip_hors_source_plage_absente_courte_longue_clip_absent_ordre_inverse",
+      D.get("au_lr") == [{"a": 7, "b": 8}, {"a": 9, "b": 11}, {"a": 3, "b": 4}, "hors_source", "plage", "plage", "courte",
+                         "hors_source", {"a": 7, "b": 8}, "longue", {"a": 7, "b": 37}, "clip", "plage",
+                         {"a": 7, "b": 8}, {"a": 9, "b": 11}, {"a": 2, "b": 3}, {"a": 7, "b": 8}, {"a": 7, "b": 7.2}, "courte"],
+      D.get("au_lr"))
+check("au_lr_chaque_refus_porte_une_phrase", D.get("au_lr_note") == [True] * 5, D.get("au_lr_note"))
+_AUL = {"type": "denoise", "params": {"amount": 30, "nf": -31, "learn_in": 7, "learn_out": 8}}
+_AUQ = [{"type": "eq3", "params": {"bass_db": 2}}, {"type": "denoise", "params": {"amount": 30}}]
+check("au_dl_debruiteur_cree_amount_24_ou_garde_forme_params_ou_a_plat_autres_modules_meme_reference_entree_intacte",
+      at("au_dl", 0) == [{"type": "denoise", "params": {"amount": 24, "nf": -31, "learn_in": 7, "learn_out": 8}}]
+      and at("au_dl", 1) == [_AUQ[0], _AUL] and at("au_dl", 2) is True and at("au_dl", 3) is True and at("au_dl", 4) is True
+      and at("au_dl", 5) is True
+      and at("au_dl", 6) == [{"type": "denoise", "amount": 30, "enabled": True, "nf": -40, "learn_in": 1, "learn_out": 2}]
+      and at("au_dl", 7) is True
+      and at("au_dl", 8) == [{"type": "denoise", "params": {"amount": 24, "nf": -31, "learn_in": 7, "learn_out": 8}}],
+      D.get("au_dl"))
+check("au_dl_plancher_illisible_auto_0_borne_moins_80_0_plage_illisible_ou_courte_liste_inchangee_premier_denoise_seul_params_non_objet_a_plat",
+      at("au_dl", 9) == {"type": "denoise", "params": {"amount": 30, "nf": 0, "learn_in": 7, "learn_out": 8}}
+      and at("au_dl", 10) == _AUQ and at("au_dl", 11) == _AUQ
+      and at("au_dl", 12) == [{"type": "denoise", "params": {"amount": 30, "nf": -30, "learn_in": 1, "learn_out": 2}},
+                              {"type": "denoise", "params": {"amount": 50}}]
+      and at("au_dl", 13) == [{"type": "denoise", "params": [1], "nf": -30, "learn_in": 1, "learn_out": 2}]
+      and at("au_dl", 14) == -80 and at("au_dl", 15) == 0,
+      D.get("au_dl"))
+check("au_df_oublier_retire_nf_et_apprentissage_de_chaque_denoise_module_garde_autres_meme_reference_entree_intacte",
+      D.get("au_df") == [[{"type": "eq3", "params": {"bass_db": 2}}, {"type": "denoise", "params": {"amount": 30}},
+                          {"type": "denoise", "amount": 9}], True, True, [], [{"type": "eq3"}], _AUQ,
+                         {"type": "denoise", "params": {"amount": 30}}],
+      D.get("au_df"))
+check("au_vo_prises_comptees_par_le_prefixe_voix_off_du_fichier_son_libelle_numero_lisible_au_moins_1",
+      D.get("au_vo") == [3, 1, 1, "Voix off 3", "Voix off 1", "Voix off 1", "Voix off 1", "Voix off 2"], D.get("au_vo"))
+check("au_rm_premier_type_accepte_dans_l_ordre_aucun_rien_juge_absent_rien_juge_qui_leve_saute_liste_gelee",
+      D.get("au_rm") == ["audio/ogg;codecs=opus", "", "audio/webm;codecs=opus", "", "audio/mp4",
+                         ["audio/webm;codecs=opus", "audio/ogg;codecs=opus", "audio/webm", "audio/mp4"], True],
+      D.get("au_rm"))
+# LE SOURCE : les six fonctions sont PURES (ni r / x, ni reseau, ni DOM, ni stockage, ni API du navigateur -- le juge du type
+# d'enregistrement est INJECTE) ; regex gardee par un temoin de longueur ; exports au contrat ; hors de la zone _L5Z.
+_L6A = {n: _corps(n) for n in ("dzmLearnRange", "dzmDenoiseLearn", "dzmDenoiseForget", "dzmVoCount", "dzmVoLabel", "dzmRecMime")}
+check("l6_au_six_fonctions_pures_ni_r_ni_x_ni_reseau_ni_dom_ni_stockage_ni_api_navigateur",
+      all(len(c) > 40 for c in _L6A.values())
+      and not any(re.search(r"\br\.jsx|\bx\.use|localStorage|sessionStorage|\bwindow\b|\bdocument\b|\bnavigator\b|MediaRecorder|"
+                            r"getUserMedia|isTypeSupported|fetch\(|setClips|pushHistory|style\.|URL\.", c) for c in _L6A.values())
+      and _L6A["dzmRecMime"].count("ok(DZM_VO_MIMES[i])") == 1 and _L6A["dzmLearnRange"].count("dzmCoR(") == 2,
+      {n: len(c) for n, c in _L6A.items()})
+check("l6_au_exports_au_contrat_une_fois_mimes_declares_une_fois_avant_la_zone_des_composants_l5",
+      _DT.count("learnRange:dzmLearnRange,denoiseLearn:dzmDenoiseLearn,denoiseForget:dzmDenoiseForget,"
+                "voCount:dzmVoCount,voLabel:dzmVoLabel,recMime:dzmRecMime,VO_MIMES:DZM_VO_MIMES,") == 1
+      and _SRCb.count("var DZM_VO_MIMES=") == 1
+      and 0 <= _SRCb.find("function dzmRecMime(") < _SRCb.find("function DzmScopes(o){")
+      and 0 <= _SRCb.find("function dzmLearnRange(") < _SRCb.find("function DzmScopes(o){"),
+      [_DT.count("learnRange:dzmLearnRange,"), _SRCb.count("var DZM_VO_MIMES=")])
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)
