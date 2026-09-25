@@ -19196,10 +19196,14 @@ def _svx_sum_run(t):
     with open(f, "w", encoding="utf-8") as fh:
         fh.write('"use strict";\nfunction svxDb1(v){return String(v)}\n' + t[i:j] + "\n"
                  + 'var D={type:"denoise"};console.log(JSON.stringify([-5,-31,-95,0,-0.3,-20].map(function(n){'
-                 + 'return svxModSummary(D,{amount:24,nf:n})})));\n')
+                 + 'return svxModSummary(D,{amount:24,nf:n})})));\n'
+                 # revue finale L6 : la garde « appris » a la tolerance de learn_of (1,2 - 1,0 = 0,1999... en JS)
+                 + 'console.log(JSON.stringify([[1,1.2],[1,1.199],[7,8]].map(function(q){'
+                 + 'return svxModSummary(D,{amount:24,nf:0,learn_in:q[0],learn_out:q[1]})})));\n')
     rr = NODE(["node", f], timeout=60)
     try:
-        return {"ok": json.loads((rr.stdout or "").strip().splitlines()[-1])}
+        _ls = (rr.stdout or "").strip().splitlines()
+        return {"ok": json.loads(_ls[-2]), "ap": json.loads(_ls[-1])}
     except Exception as _e:
         return {"err": temoin(_e), "stderr": (rr.stderr or "")[-300:]}
 _SUM = _svx_sum_run(s)
@@ -19207,6 +19211,11 @@ check("L6_resume_debruiteur_plancher_effectif_moins_5_affiche_moins_20_auto_sans
       _SUM.get("ok") == ["24 dB · plancher -20 dB", "24 dB · plancher -31 dB", "24 dB · plancher -80 dB", "24 dB", "24 dB",
                          "24 dB · plancher -20 dB"],
       _SUM)
+check("L6_resume_debruiteur_appris_sur_1_0_1_2_comme_learn_of_contre_temoin_1_199_sans_mention",
+      _SUM.get("ap") == ["24 dB · appris", "24 dB", "24 dB · appris"]
+      and s.count('(Number(p.learn_out)||0)-(Number(p.learn_in)||0)>=.2-1e-9?" · appris":""') == 1
+      and s.count('(Number(p.learn_in)||0)>=.2?" · appris"') == 0,
+      _SUM.get("ap"))
 # LE RACK EXECUTE SOUS NODE : les fonctions du vocabulaire client (svxClamp..svxEmitFx) EXTRAITES du bundle livre, puis
 # du .bak (temoin). La retouche d'un curseur rejoue setParam du rack (svxCleanParams du module, puis svxEmitFx) : la plage
 # apprise SURVIT au millieme (bundle) ; le .bak la PERDAIT (temoin : c'est la mesure qui a decide hide/dec).

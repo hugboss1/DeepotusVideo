@@ -5944,10 +5944,10 @@ R_L6FX2 = (' {type:"denoise",label:"Débruiteur",live:0,params:[\n'
 A_L6FX3 = '      p[pd.k]=svxRound(n,pd.step<1?1:0)}});'
 R_L6FX3 = '      p[pd.k]=svxRound(n,pd.dec!=null?pd.dec:(pd.step<1?1:0))}});'
 # les resumes du module replie : eq6 (bandes actives, passe-haut), dehum (secteur, harmoniques, dosage), debruiteur
-# (plancher, « appris ») -- la meme garde 0,2 s que learn_of ; le plancher affiche est la valeur EFFECTIVE du rendu
+# (plancher, « appris ») -- la meme garde 0,2 s que learn_of (LEARN_MIN - 1e-9 : 1,2 - 1,0 = 0,1999... en JS) ; le plancher affiche est la valeur EFFECTIVE du rendu
 # (_fx_denoise : nf <= -0,5 borne a [-80, -20], sinon automatique -- revue T5 25/09 : « -5 » affiche, -20 rendu)
 A_L6FX4 = '    case "denoise":return p.amount+" dB";'
-R_L6FX4 = ('    case "denoise":return p.amount+" dB"+(Number(p.nf)<=-.5?" · plancher "+Math.max(-80,Math.min(-20,Number(p.nf)))+" dB":"")+((Number(p.learn_out)||0)-(Number(p.learn_in)||0)>=.2?" · appris":"");\n'
+R_L6FX4 = ('    case "denoise":return p.amount+" dB"+(Number(p.nf)<=-.5?" · plancher "+Math.max(-80,Math.min(-20,Number(p.nf)))+" dB":"")+((Number(p.learn_out)||0)-(Number(p.learn_in)||0)>=.2-1e-9?" · appris":"");\n'
            '    case "eq6":{var nb=["ls","p1","p2","p3","p4","hs"].filter(function(b){return Math.abs(Number(p[b+"_g"])||0)>=.05}).length;\n'
            '      return (p.hp_hz>0?"PH "+Math.round(p.hp_hz)+" Hz · ":"")+(nb?nb+" bande"+(nb>1?"s":""):"neutre")}\n'
            '    case "dehum":return (p.base>=55?60:50)+" Hz ×"+p.harmonics+" · "+p.amount+" %";')

@@ -66,6 +66,10 @@ sur les lignes declarees et au compte declare ; code de sortie 0 ; sha256 des
 fichiers identiques avant / apres chaque mutation (patcher, bundle et
 .bak_dzcout compris). Comptes des bancs au repos : l6 110/0, l6_voix 36/0,
 edition 598/0, bundle 2340/0, l6_croise 29/0. 106 lignes rouges au total.
+REVUE FINALE (25/09/2026, correctif I-1 : garde 0,2 s de l'affichage alignee
+sur learn_of) : n°24 ajoutee, LES VINGT-CINQ ROUGES, code de sortie 0 ; bancs
+au repos : edition 599/0, bundle 2341/0, l6_croise 32/0 ; la n°14 a revele
+un compte a l'horloge (5 ou 6, voir sa note) -- declare comme tel.
 
     #   fonction visee                                    banc       rouges
     0   _FX_ORDER : dehum apres eq6                       l6         3
@@ -82,7 +86,7 @@ edition 598/0, bundle 2340/0, l6_croise 29/0. 106 lignes rouges au total.
    11   src_dur_sonde ignore (repli 9999)                 l6         3
    12   noise-profile sans tolerance 1e-9                 l6_croise  1
    13   /audio/recording sans -ac 1                       l6_voix    1
-   14   nom reserve en wb (ecrase)                        l6_voix    6
+   14   nom reserve en wb (ecrase)                        l6_voix    5|6
    15   dzmLearnRange sans tolerance                      edition    1
    16   dzmNfEffectif sans borne -20                      edition    2
    17   DzmVoiceRec : M.pj="P1" en dur                    edition    1
@@ -92,6 +96,7 @@ edition 598/0, bundle 2340/0, l6_croise 29/0. 106 lignes rouges au total.
    21   patcher : mode ecraser non restaure               bundle     3
    22   patcher : onDone sans comparaison du projet       bundle     1
    23   patcher : vo_record sur Ctrl+R (reservee)         l6_croise  2
+   24   dzmNlAppris sans tolerance 1e-9 (revue finale)    edition    1
 
 CE QUE CETTE TABLE A MESURE, ET QUI NE SE DEVINAIT PAS :
   . la n°9 etait SURVIVANTE a la premiere passe : TROU du banc `l6` -- la
@@ -227,6 +232,11 @@ M = [
      '"-i", str(src), "-vn", "-map", "0:a:0",',
      ['v1_wav_200_nom_voix_off_wav_48k_mono_16_bits_duree_fabriquee']),
     # 14 -- nom reserve en `wb` : deux prises dans la meme seconde s'ecrasent.
+    #       COMPTE A L'HORLOGE (mesure revue finale 25/09 : 6, 6, 5, 6, 5) : les
+    #       trois prises v1 (webm, ogg, wav) s'enchainent ; que la prise wav tombe
+    #       dans la seconde de l'ogg (meme nom, ecrasee -> `v1_wav_un_seul_fichier_neuf`
+    #       rouge) depend de la frontiere de seconde. Les deux lignes nommees (v2)
+    #       sont deterministes ; le compte admis est {5, 6}.
     (B_VOIX, RTS,
      '            with open(dest, "xb"):\n',
      '            with open(dest, "wb"):\n',
@@ -292,10 +302,18 @@ M = [
      'combo:"Ctrl+R"},',
      ['x6_la_combo_effective_de_vo_record_n_est_pas_reservee',
       'x6_vo_record_une_fois_au_bundle_avec_Alt_R']),
+    # -- revue finale L6 ---------------------------------------------------------------
+    # 24 -- dzmNlAppris sans la tolerance de learn_of : 1,0-1,2 (ecrite par la
+    #       couche, apprise au rendu) s'affiche « aucun bruit appris », « Oublier » grise.
+    (B_EDIT, JS,
+     'return a!==null&&b!==null&&b-a>=.2-1e-9?{a:a,b:b,',
+     'return a!==null&&b!==null&&b-a>=.2?{a:a,b:b,',
+     ['l6x_nlAppris_garde_0_2_tolerance_de_learn_of_1_0_1_2_appris']),
 ]
 
-# LE COMPTE MESURE, compare par main() -- une ligne par mutation de M.
-N_ROUGES = (3, 1, 2, 1, 23, 15, 15, 10, 5, 1, 2, 3, 1, 1, 6, 1, 2, 1, 5, 1, 1, 3, 1, 2)
+# LE COMPTE MESURE, compare par main() -- une ligne par mutation de M ; un tuple = les comptes
+# ADMIS d'une mutation dont une ligne depend de l'horloge (n°14, voir sa note), jamais un « a peu pres ».
+N_ROUGES = (3, 1, 2, 1, 23, 15, 15, 10, 5, 1, 2, 3, 1, 1, (5, 6), 1, 2, 1, 5, 1, 1, 3, 1, 2, 1)
 assert len(N_ROUGES) == len(M), (len(N_ROUGES), len(M))
 
 # Les fichiers dont le sha256 doit revenir a l'identique apres une mutation du
@@ -434,7 +452,7 @@ def main():
             verdict = "SURVIVANT"
         elif manquants:
             verdict = "ROUGE(autres)"
-        elif len(rg) != N_ROUGES[i]:
+        elif len(rg) not in (N_ROUGES[i] if isinstance(N_ROUGES[i], tuple) else (N_ROUGES[i],)):
             verdict = "ROUGE(compte)"
         else:
             verdict = "ROUGE"

@@ -4530,6 +4530,13 @@ function props(extra){return Object.assign({clip:AK,range:{"in":12,out:13},demo:
   M=mini(T.NoiseLearn);M.render(props({music:!0}));R.musique=/seul le plancher/.test(etat(M.H.out)[0][2]||"");M.unmount();
   R.nla=[T.nlAppris([{type:"denoise",learn_in:1,learn_out:2,nf:"x"}]),T.nlAppris([{type:"denoise",params:{learn_in:1,learn_out:1.1}}]),
     T.nlAppris(null),T.nlAppris([{type:"eq3"},{type:"denoise",params:{amount:3}},{type:"denoise",params:{learn_in:1,learn_out:2}}])];
+  /* 12 : revue finale L6 -- la garde de l'AFFICHAGE a la tolérance de learn_of (LEARN_MIN − 1e-9) : 1,0–1,2 (que
+     dzmLearnRange accepte, que dzmDenoiseLearn écrit et que le rendu apprend) EST appris, alors que 1,2 − 1,0 vaut
+     0,1999… en JS ; contre-témoin 1,0–1,199 -> null. Le composant le dit (état, « Oublier » actif / grisé). */
+  R.lim=[T.nlAppris([{type:"denoise",params:{learn_in:1,learn_out:1.2}}]),T.nlAppris([{type:"denoise",params:{learn_in:1,learn_out:1.199}}]),
+    T.denoiseLearn([],1,1.2,0)];
+  [1.2,1.199].forEach(function(b){var C=Object.assign({},AK,{fx:[{type:"denoise",params:{amount:24,learn_in:1,learn_out:b}}]});
+    M=mini(T.NoiseLearn);M.render(props({clip:C}));R.lim.push([etat(M.H.out)[1][1],st(M.H.out)]);M.unmount()});
   R.nul=T.NoiseLearn(null);
   out.R=R;
 })().catch(function(e){out.err=String(e&&e.stack||e)}).then(function(){console.log(JSON.stringify(out))});
@@ -4588,6 +4595,16 @@ check("l6x_demonte_pendant_la_mesure_la_reponse_tardive_ne_note_ni_n_ecrit_rien_
       _R6.get("demonte") == [0, 0] and _R6.get("musique") is True, [_R6.get("demonte"), _R6.get("musique")])
 check("l6x_nlAppris_pur_forme_a_plat_garde_0_2_premier_denoise_seul_null_sans_clip",
       _R6.get("nla") == [{"a": 1, "b": 2, "nf": 0}, None, None, None] and "nul" in _R6 and _R6.get("nul") is None, _R6.get("nla"))
+# revue finale L6 (25/09) : 1,2 - 1,0 = 0,19999999999999996 en JS -- l'ancienne garde (b-a>=.2) rendait null sur une plage
+# que learn_of rend (1.0, 1.2) ; contre-temoin 1,0-1,199 -> null, « aucun bruit appris », « Oublier » grise.
+_LIM = _R6.get("lim") if isinstance(_R6.get("lim"), list) and len(_R6.get("lim")) == 5 else [None] * 5
+_LIM4 = _LIM[3] if isinstance(_LIM[3], list) and len(_LIM[3]) == 2 else [None, None]
+check("l6x_nlAppris_garde_0_2_tolerance_de_learn_of_1_0_1_2_appris_1_199_null_le_composant_le_dit",
+      _LIM[0] == {"a": 1, "b": 1.2, "nf": 0} and _LIM[1] is None
+      and _LIM[2] == [{"type": "denoise", "params": {"amount": 24, "nf": 0, "learn_in": 1, "learn_out": 1.2}}]
+      and _LIM4[0] is False and isinstance(_LIM4[1], list) and len(_LIM4[1]) == 1 and str(_LIM4[1][0]).startswith("appris ")
+      and _LIM[4] == [True, ["aucun bruit appris"]],
+      _LIM)
 _NLA = _corps("dzmNlAppris")
 check("l6x_nlAppris_pur_ni_r_ni_x_ni_reseau_ni_dom_exporte_une_fois_composant_avant_la_zone_l5",
       len(_NLA) > 200 and not re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|\bnavigator\b|fetch\(|setClips|pushHistory", _NLA)

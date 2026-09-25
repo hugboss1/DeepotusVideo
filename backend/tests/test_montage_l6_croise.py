@@ -25,7 +25,9 @@ CE QUI EST COMPARE.
       `noise-profile` (0,2..30) sur une table de cas (0,2 ; 0,19999 ;
       1,0-1,2 ; 2,0-2,2 ; 30 ; 30,01) ; et ce que la couche ECRIT
       (`dzmDenoiseLearn`) est relu par `sanitize_fx` + `learn_of` comme une
-      plage apprise.
+      plage apprise ; les deux gardes de L'AFFICHAGE (`dzmNlAppris`, couche,
+      et le resume « · appris » du rack, bundle) jugent comme `learn_of` sur
+      0,2 / 1,0-1,2 / 1,0-1,199 (revue finale : 1,2 - 1,0 = 0,1999... en JS).
   [4] D-25 : `dzmNfEffectif` (node) == le plancher EMIS par `_fx_denoise`
       (Python, par `sanitize_fx` + `fx_chain`) sur -95, -80, -20,5, -19, -5,
       -0,6, -0,3, 0.
@@ -272,13 +274,19 @@ out.lr=CAS.map(function(c){return dzmLearnRange({start:0,srcIn:0,speed:1,end:60}
 out.ecrit=CAS.map(function(c){var r=dzmLearnRange({start:0,srcIn:0,speed:1,end:60},{"in":c[0],out:c[1]},0);
   return r.refus?null:dzmDenoiseLearn([],r.a,r.b,-30)});
 out.nfe=[-95,-80,-20.5,-19,-5,-0.6,-0.3,0].map(function(n){return dzmNfEffectif(n)});
+out.aff=__AFF__.map(function(c){return dzmNlAppris([{type:"denoise",params:{amount:12,learn_in:c[0],learn_out:c[1]}}])!==null});
 console.log(JSON.stringify(out));
 """
 _shim = ('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + JS + "\n"
          + _PROBE.replace("__CAS__", json.dumps([[a, b] for a, b, _ in CAS])))
+# LES GARDES DE L'AFFICHAGE (revue finale L6, 25/09) : dzmNlAppris (statut, « Oublier ») et le resume « · appris » du
+# rack (bundle) jugent la plage comme learn_of (LEARN_MIN - 1e-9) -- 1,2 - 1,0 = 0,19999999999999996 en JS : sans la
+# tolerance, 1,0-1,2 (que la couche ecrit et que le rendu apprend) s'affichait « aucun bruit appris ».
+AFF = [(0.0, 0.2, True), (1.0, 1.2, True), (1.0, 1.199, False), (7.0, 8.0, True)]
+_shim = _shim.replace("__AFF__", json.dumps([[a, b] for a, b, _ in AFF]))
 D, _dwhy = node_json("l6x_couche.js", _shim)
 check("x0_la_couche_s_execute_sous_node_et_rend_les_cles_de_la_sonde",
-      bool(D) and all(k in D for k in ("lr", "ecrit", "nfe")), _dwhy or sorted(D))
+      bool(D) and all(k in D for k in ("lr", "ecrit", "nfe", "aff")), _dwhy or sorted(D))
 LR = D.get("lr") if isinstance(D.get("lr"), list) else []
 JS_OK = [isinstance(v, dict) and "a" in v and "refus" not in v for v in LR]
 
@@ -366,6 +374,23 @@ check("x3_la_plage_ecrite_par_dzmDenoiseLearn_est_relue_par_sanitize_fx_et_learn
       len(_rel) == 6 and all(isinstance(r[1], tuple) and r[1][0] == R3(r[0][0])
                              and abs(r[1][1] - (R3(r[0][0]) + min(R3(r[0][1]) - R3(r[0][0]), 1.0))) < 1e-6 and r[2] == -30.0
                              for r in _rel), _rel)
+# LES DEUX GARDES DE L'AFFICHAGE == learn_of sur la table AFF : dzmNlAppris (couche, node) et le resume du rack
+# (svxModSummary EXTRAIT du bundle livre, node) ; temoin : le verdict de learn_of sur la table est celui attendu.
+JAFF = D.get("aff") if isinstance(D.get("aff"), list) else []
+PAFF = [_lo(a, b) for a, b, _ in AFF] if sx is not None else []
+_fsum = entre(BUN, "function svxModSummary(def,p){", "\nfunction ")
+DS, _dswhy = node_json("l6x_resume.js", '"use strict";\nfunction svxDb1(v){return String(v)}\n' + _fsum
+                       + "\nconsole.log(JSON.stringify({ap:" + json.dumps([[a, b] for a, b, _ in AFF])
+                       + ".map(function(q){return / · appris$/.test(svxModSummary({type:\"denoise\"},"
+                       + "{amount:12,nf:0,learn_in:q[0],learn_out:q[1]}))})}));\n")
+BAFF = DS.get("ap") if isinstance(DS.get("ap"), list) else []
+check("x3_temoin_learn_of_sur_la_table_de_l_affichage_1_0_1_2_accepte_1_199_refuse",
+      PAFF == [c[2] for c in AFF] and PAFF[1] is True and PAFF[2] is False, PAFF)
+check("x3_dzmNlAppris_juge_la_plage_comme_learn_of_1_0_1_2_appris",
+      len(JAFF) == len(AFF) == len(PAFF) and JAFF == PAFF and JAFF[1] is True, list(zip(AFF, JAFF, PAFF)))
+check("x3_resume_du_rack_bundle_dit_appris_comme_learn_of_1_0_1_2_compris",
+      len(_fsum) > 300 and len(BAFF) == len(AFF) == len(PAFF) and BAFF == PAFF and BAFF[1] is True,
+      (list(zip(AFF, BAFF, PAFF)), _dswhy))
 
 # ═════════════════════════════════════════════════════════════════════════════
 print("\n[4] D-25 : dzmNfEffectif (couche) == le plancher emis par _fx_denoise (service)")

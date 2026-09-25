@@ -8363,7 +8363,7 @@ function dzmGradePasteDo(clip,st){
    RÉACTIVÉ : sa clé enabled est retirée (les autres modules coupés restent coupés). Plage illisible ou < 0,2 s (même tolérance) -> copie inchangée. Les autres modules gardent
    leur référence ; l'entrée n'est jamais mutée.
    dzmDenoiseForget(fx) : nouvelle liste ; nf, learn_in, learn_out retirés de CHAQUE denoise (module gardé).
-   dzmVoCount(clips) = 1 + le nombre de clips dont src.audio COMMENCE (préfixe, pas sous-chaîne) par « voix-off- » (le nom que la route voiceover
+   dzmVoCount(clips) = 1 + le nombre de clips dont src.audio COMMENCE (préfixe, pas sous-chaîne) par « voix-off- » (le nom que /api/audio/recording
    donne à une prise) ; dzmVoLabel(n) = « Voix off n » (n illisible ou < 1 -> 1, partie entière).
    dzmRecMime(juge) : le premier type de DZM_VO_MIMES que le juge INJECTÉ accepte (le juge qui lève est sauté) ; aucun,
    ou pas de juge -> "" (l'enregistreur choisit alors son type par défaut). */
@@ -8414,7 +8414,7 @@ function dzmRecMime(ok){
   return ""}
 var DZM_VO_MIMES=Object.freeze(["audio/webm;codecs=opus","audio/ogg;codecs=opus","audio/webm","audio/mp4"]);
 /* L6 D-25 (25/09/2026, tâche 5) : dzmNlAppris(fx) -> {a, b, nf} du PREMIER module denoise (celui que garde le rack) quand
-   il porte une plage apprise (learn_out − learn_in >= 0,2, la garde de learn_of ; params imbriqués ou à plat), sinon null.
+   il porte une plage apprise (learn_out − learn_in >= 0,2 − 1e-9, la garde de learn_of — LEARN_MIN − 1e-9 : 1,2 − 1,0 vaut 0,1999… en JS ; params imbriqués ou à plat), sinon null.
    nf illisible -> 0 (automatique). Pure. */
 function dzmNlAppris(fx){
   var L=Array.isArray(fx)?fx:[],j,m,p,a,b,n;
@@ -8422,7 +8422,7 @@ function dzmNlAppris(fx){
     if(!m||typeof m!=="object"||m.type!=="denoise")continue;
     p=m.params&&typeof m.params==="object"&&!Array.isArray(m.params)?m.params:m;
     a=dzmRfNum(p.learn_in);b=dzmRfNum(p.learn_out);n=dzmRfNum(p.nf);
-    return a!==null&&b!==null&&b-a>=.2?{a:a,b:b,nf:n===null?0:n}:null}
+    return a!==null&&b!==null&&b-a>=.2-1e-9?{a:a,b:b,nf:n===null?0:n}:null}
   return null}
 /* revue T6 (25/09/2026) : dzmNfEffectif(nf) -> le plancher que le RENDU applique : > −0,5 (ou illisible) = automatique
    (null), sinon borné à [−80, −20] — la règle du serveur, celle que le résumé du rack écrit déjà (« plancher … dB ») ;
