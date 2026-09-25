@@ -435,8 +435,15 @@ def _fx_stereo(p: dict) -> str:
     # −6,02 dB à ±0,5) remplacé par `pan` à puissance constante ; l'upmix
     # mono → stéréo de `aformat` coûte −3 dB/canal, déjà payé en aval de la
     # chaîne par clip (aformat=…stereo) : aucune perte neuve.
+    # Revue T1 (I-2, mesuré 25/09/2026) : `stereotools=slev` REFUSE < 0,015625
+    # sur les deux binaires (le curseur descend à 0 : rendu en échec) et `_g`
+    # arrondit 0,015625 à 0,0156, encore hors bornes. Sous 1,6 % : vraie somme
+    # mono par `pan` (même sortie que slev → 0 : −17,89 dB sur les deux canaux).
     parts = []
-    if p["width"] < 99.5:                       # mono-mix partiel
+    if p["width"] < 1.6:                        # mono pur
+        parts.append("aformat=channel_layouts=stereo,"
+                     "pan=stereo|c0=0.5*c0+0.5*c1|c1=0.5*c0+0.5*c1")
+    elif p["width"] < 99.5:                     # mono-mix partiel
         parts.append(f"stereotools=slev={_g(p['width'] / 100.0)}")
     if p["width"] > 100.5:                      # élargissement
         t = max(0.0, min(1.0, (p["width"] - 100.0) / 100.0))
@@ -467,6 +474,12 @@ def _fx_denoise(p: dict, uid: str = "", prefix_s: float = 0.0) -> str:
     du nom dans le graphe) puis retiré ici. `tn` jamais posé (il écrase le
     profil appris — mesuré)."""
     pre = int(round(prefix_s * DN_RATE)) if prefix_s > 0 else 0
+    # Revue T1 (M-2) : uid filtré avant d'entrer dans un nom d'instance ; un
+    # uid VIDE avec préfixe est REFUSÉ (un `afftdn@dn` partagé ferait piloter
+    # l'apprentissage d'un clip par l'asendcmd d'un autre).
+    uid = re.sub(r"[^0-9A-Za-z_]", "", str(uid or ""))
+    if pre and p["amount"] >= 0.5 and not uid:
+        raise ValueError("denoise appris : uid requis (unique dans le graphe)")
     if p["amount"] < 0.5:
         # module sans effet ; un préfixe éventuel doit quand même partir
         return (f"aresample={DN_RATE},atrim=start_sample={pre},"
@@ -488,10 +501,11 @@ def _fx_denoise(p: dict, uid: str = "", prefix_s: float = 0.0) -> str:
 
 
 def learn_of(fx: list[dict]) -> tuple[float, float] | None:
-    """(a, a+L) en secondes de SOURCE si le PREMIER denoise actif (amount ≥
-    0,5) porte learn_out − learn_in ≥ LEARN_MIN ; L = min(learn_out −
-    learn_in, LEARN_MAX), arrondi 1e-3. Sinon None (l'appelant ne préfixe
-    pas)."""
+    """(a, a+L) en secondes de SOURCE si le PREMIER denoise trouvé porte
+    learn_out − learn_in ≥ LEARN_MIN ; L = min(learn_out − learn_in,
+    LEARN_MAX), arrondi 1e-3. None s'il est coupé (amount < 0,5), si sa
+    plage est trop courte, ou sans denoise (l'appelant ne préfixe pas) ;
+    un denoise suivant n'est jamais consulté."""
     for e in fx or ():
         if not isinstance(e, dict) or e.get("type") != "denoise":
             continue
@@ -606,8 +620,8 @@ def parse_ducking(v):
 
 def build_audition_command(src: Path, out: Path, *, src_in: float = 0.0,
                            length: float = 4.0, gain_db: float = 0.0,
-                           speed: float = 0.0, fx: list[dict] | None = None
-                           ) -> list[str]:
+                           speed: float = 0.0, fx: list[dict] | None = None,
+                           src_dur: float | None = None) -> list[str]:
     """Extrait traité → WAV 44.1 k stéréo. -ss/-t AVANT -i (seek démuxeur,
     aucun décodage vidéo : -vn) — latence visée < 2 s sur ≤ 12 s.
     Chaîne : atempo → FX (ordre contrat) → volume (gain existant en dernier).
@@ -616,8 +630,17 @@ def build_audition_command(src: Path, out: Path, *, src_in: float = 0.0,
     (-ss a -t L puis -ss src_in -t length), le préfixe de bruit concaténé
     devant l'extrait (jamais d'atempo sur lui) traverse les filtres amont du
     vocabulaire et est appris puis retiré par le denoise. Sans apprentissage,
-    commande inchangée octet pour octet."""
+    commande inchangée octet pour octet.
+    Revue T1 (I-1) : le préfixe est forcé à P = round(L·48000) échantillons
+    exacts (une plage en partie hors de la source coupait le début de
+    l'extrait) ; une plage qui COMMENCE au-delà de la fin de la source
+    (`src_dur`, sondée par ffprobe si absent ; 0 = inconnue) n'est pas
+    préfixée — MESURÉ : l'entrée vide fait échouer tout le graphe (rc 183)."""
     lrn = learn_of(fx or [])
+    if lrn:
+        dur = _probe_duration(src) if src_dur is None else float(src_dur or 0.0)
+        if dur > 0 and lrn[0] >= dur - LEARN_MIN:
+            lrn = None
     if lrn:
         return _build_audition_learned(src, out, lrn, src_in=src_in,
                                        length=length, gain_db=gain_db,
@@ -656,7 +679,9 @@ def _build_audition_learned(src: Path, out: Path, lrn: tuple[float, float], *,
         tail.append(ch)
     if abs(gain_db) >= 0.05:
         tail.append(f"volume={_g(10.0 ** (gain_db / 20.0))}")
-    fc = (f"[0:a]asetpts=PTS-STARTPTS,aresample={DN_RATE}[p];"
+    P = int(round(L * DN_RATE))
+    fc = (f"[0:a]asetpts=PTS-STARTPTS,aresample={DN_RATE},"
+          f"atrim=end_sample={P},apad=whole_len={P}[p];"
           + ",".join(clip) + ";" + ",".join(tail) + "[o]")
     cmd = ["ffmpeg", "-y", "-hide_banner"]
     if a > 0:

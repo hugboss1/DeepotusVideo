@@ -901,6 +901,98 @@ if _SRC2 and _V1R:
 else:
     check("t2_reel_fixtures_fabriquees", False, "sources non fabriquees")
 
+
+# ═══════════════ [3] revue de T1 : prefixe exact, largeur stereo bornee, uid ═══════════════
+print("\n[3] revue T1 (I-1 prefixe de longueur exacte, I-2 largeur stereo, M-2 uid)")
+_A6 = pathlib.Path(TMP) / "l6src.wav"          # source de [1] : 6 s, clic a 3,0 s
+if not _A6.exists():
+    _A6 = MK("l6src_bis.wav", ["-f", "lavfi", "-i",
+                                "aevalsrc='0.05*sin(2*PI*440*t)+0.01*(random(0)-0.5)+if(eq(n\\,144000)\\,0.9\\,0)'"
+                                ":s=48000:d=6", "-c:a", "pcm_s16le"])
+
+
+def AUD(a, b, **kw):
+    """(cmd, trames, pic du canal gauche) d'une audition apprise reelle (src_in 2, 2,5 s)."""
+    out = _W / ("aud_%s_%s.wav" % (a, b))
+    r = CALL(S.build_audition_command, _A6, out, src_in=2.0, length=2.5,
+             fx=SAN([{"type": "denoise", "amount": 20, "learn_in": a, "learn_out": b}]), **kw)
+    cm = r[1] if r[0] == "ok" and isinstance(r[1], list) else []
+    n = pk = -1
+    if cm and _A6:
+        try:
+            rr = subprocess.run([FF2] + cm[1:], capture_output=True, text=True, timeout=60)
+            if rr.returncode == 0:
+                with wave.open(str(out), "rb") as w:
+                    n = w.getnframes()
+                    sm = array.array("h")
+                    raw = w.readframes(n)
+                    sm.frombytes(raw[: len(raw) // 2 * 2])
+                    Lc = sm[0::w.getnchannels()]
+                    pk = max(range(len(Lc)), key=lambda i: abs(Lc[i])) if len(Lc) else -1
+            else:
+                print("    audition rc", rr.returncode, (rr.stderr or "")[-200:])
+        except Exception as e:                           # noqa: BLE001
+            print("    audition :", repr(e))
+    return cm, n, pk
+
+
+_c_in, _n_in, _k_in = AUD(0.2, 1.2)
+_c_pa, _n_pa, _k_pa = AUD(5.5, 6.5)
+_c_ho, _n_ho, _k_ho = AUD(10.0, 11.0)
+_s_in, _s_ho = " ".join(map(str, _c_in)), " ".join(map(str, _c_ho))
+check("r1_audition_prefixe_force_a_P_echantillons",
+      "aresample=48000,atrim=end_sample=48000,apad=whole_len=48000[p]" in _s_in, _s_in[-400:])
+check("r1_audition_temoin_plage_dans_la_source_duree_exacte_clic",
+      abs(_n_in - 110250) <= 1 and abs(_k_in - 44100) <= 2, (_n_in, _k_in))
+check("r1_audition_plage_en_partie_hors_source_duree_exacte_clic",
+      abs(_n_pa - 110250) <= 1 and abs(_k_pa - 44100) <= 2 and "concat=n=2" in " ".join(map(str, _c_pa)),
+      (_n_pa, _k_pa))
+check("r1_audition_plage_entierement_hors_source_sans_prefixe_duree_exacte_temoin_concat",
+      "concat" not in _s_ho and "afftdn=nr=20" in _s_ho and "concat=n=2" in _s_in
+      and abs(_n_ho - 110250) <= 1 and abs(_k_ho - 44100) <= 2, (_n_ho, _k_ho, _s_ho[-200:]))
+_c_sd, _, _ = AUD(10.0, 11.0, src_dur=0.0)
+check("r1_audition_src_dur_0_inconnue_garde_le_prefixe_temoin_sonde",
+      "concat=n=2" in " ".join(map(str, _c_sd)) and "concat" not in _s_ho, " ".join(map(str, _c_sd))[-200:])
+
+# I-2 : largeur stereo 0..1,6 % -> somme mono par pan ; au-dela slev borne
+_w0, _w1, _w16, _w50 = (CH([{"type": "stereo", "width": w}]) for w in (0, 1, 1.6, 50))
+_MONO = "aformat=channel_layouts=stereo,pan=stereo|c0=0.5*c0+0.5*c1|c1=0.5*c0+0.5*c1"
+check("r2_largeur_0_et_1_somme_mono_par_pan_temoin_slev_a_50",
+      _w0 == _MONO and _w1 == _MONO and "slev" not in _w0 and _w16 == "stereotools=slev=0.016"
+      and _w50 == "stereotools=slev=0.5", (_w0, _w1, _w16, _w50))
+
+
+def RC_ST(af):
+    """rc d'un rendu lavfi stereo differencie -> af, et RMS gauche/droite (dB)."""
+    try:
+        r = subprocess.run([FF2, "-hide_banner", "-f", "lavfi", "-i",
+                            "aevalsrc='0.3*sin(2*PI*440*t)|0.2*sin(2*PI*660*t)':s=48000:d=1", "-af",
+                            af + ",astats=measure_overall=none:measure_perchannel=RMS_level", "-f", "null", "-"],
+                           capture_output=True, text=True, timeout=60)
+        v = [float(ln.split(":")[-1]) for ln in (r.stderr or "").splitlines() if "RMS level dB" in ln]
+        return r.returncode, v
+    except Exception as e:                               # noqa: BLE001
+        return repr(e), []
+
+
+_r0, _r1, _r16, _r50 = (RC_ST(x) for x in (_w0, _w1, _w16, _w50))
+check("r2_reel_largeur_0_1_1_6_rc0_canaux_egaux_temoin_50_differencie",
+      _r0[0] == 0 and _r1[0] == 0 and _r16[0] == 0 and len(_r0[1]) == 2 and abs(_r0[1][0] - _r0[1][1]) < 0.01
+      and len(_r50[1]) == 2 and abs(_r50[1][0] - _r50[1][1]) > 0.5, (_r0, _r1, _r16, _r50))
+_old = RC_ST("stereotools=slev=0")
+check("r2_temoin_ancienne_ecriture_slev_0_refusee", _old[0] not in (0, None), _old)
+
+# M-2 : uid filtre ; uid vide avec prefixe refuse
+_u_ok = CALL(S.fx_chain, SAN([{"type": "denoise"}]), uid="a-b", prefix_s=1.0)
+_u_vide = CALL(S.fx_chain, SAN([{"type": "denoise"}]), uid="", prefix_s=1.0)
+_u_moins = CALL(S.fx_chain, SAN([{"type": "denoise"}]), uid="--", prefix_s=1.0)
+_u_sans = CALL(S.fx_chain, SAN([{"type": "denoise"}]), uid="", prefix_s=0.0)
+check("r3_uid_filtre_dans_le_nom_d_instance",
+      _u_ok[0] == "ok" and "afftdn@dnab=" in _u_ok[1] and "a-b" not in _u_ok[1], _u_ok)
+check("r3_uid_vide_ou_filtre_vide_avec_prefixe_refuse_temoin_sans_prefixe_ok",
+      _u_vide == ("exc", "ValueError") and _u_moins == ("exc", "ValueError") and _u_sans[0] == "ok"
+      and "afftdn=nr=12" in _u_sans[1], (_u_vide, _u_moins, _u_sans))
+
 print(f"\n=== {ok} passed, {fail} failed ===")
 c.__exit__(None, None, None)
 # Nettoyage : le journal loguru et le pool sqlite tiennent encore des handles
