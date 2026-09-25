@@ -635,11 +635,15 @@ def build_audition_command(src: Path, out: Path, *, src_in: float = 0.0,
     exacts (une plage en partie hors de la source coupait le début de
     l'extrait) ; une plage qui COMMENCE au-delà de la fin de la source
     (`src_dur`, sondée par ffprobe si absent ; 0 = inconnue) n'est pas
-    préfixée — MESURÉ : l'entrée vide fait échouer tout le graphe (rc 183)."""
+    préfixée — MESURÉ : l'entrée vide fait échouer tout le graphe (rc 183).
+    Revue T2 : une durée INCONNUE (sonde en échec, `src_dur` ≤ 0) abandonne
+    aussi le préfixe, comme le Montage — commande alors identique à
+    l'audition sans apprentissage (une plage au-delà de la fin rendait
+    « Nothing was written… Conversion failed! »)."""
     lrn = learn_of(fx or [])
     if lrn:
         dur = _probe_duration(src) if src_dur is None else float(src_dur or 0.0)
-        if dur > 0 and lrn[0] >= dur - LEARN_MIN:
+        if dur <= 0 or lrn[0] >= dur - LEARN_MIN:
             lrn = None
     if lrn:
         return _build_audition_learned(src, out, lrn, src_in=src_in,

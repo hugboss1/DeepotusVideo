@@ -2448,9 +2448,16 @@ async def audition_audio(request: Request):
         raise HTTPException(400, "Cette source n'a pas de piste audio.")
     out = (settings.outputs_path / "audio"
            / f"audition_{uuid4().hex[:10]}.wav")
+    # Revue L6 T2 : avec apprentissage, la durée de la source se sonde HORS
+    # de la boucle (ffprobe synchrone, timeout 30 s) puis arrive au builder
+    # par `src_dur` — sans apprentissage, aucune sonde.
+    src_dur = None
+    if sfx_service.learn_of(fx) is not None:
+        src_dur = await loop.run_in_executor(
+            None, sfx_service._probe_duration, src)
     cmd = sfx_service.build_audition_command(
         src, out, src_in=src_in, length=length, gain_db=gain_db,
-        speed=speed, fx=fx)
+        speed=speed, fx=fx, src_dur=src_dur)
 
     def _run():
         import subprocess

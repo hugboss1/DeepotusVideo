@@ -297,7 +297,10 @@ _aud = [CALL(S.build_audition_command, _SRCP, _OUTP, **k) for k in _JEUX]
 check("t1_audition_non_regression_trois_jeux_9aca870",
       [a[1] for a in _aud] == AUDITIONS_9ACA870 and len(AUDITIONS_9ACA870) == 3, str(_aud))
 _FXL = SAN([{"type": "denoise", "amount": 20, "learn_in": 1, "learn_out": 2}, {"type": "eq3", "mid_db": 3}])
-_al = CALL(S.build_audition_command, _SRCP, _OUTP, src_in=3.0, length=2.5, gain_db=-2.0, speed=1.25, fx=_FXL)
+# revue T2 : source FICTIVE -> la sonde rend 0 (inconnue) et abandonne le prefixe ; la duree est donc
+# donnee ici (`src_dur`, comme la route qui la sonde hors boucle) — le cas inconnu est banc en [3]
+_al = CALL(S.build_audition_command, _SRCP, _OUTP, src_in=3.0, length=2.5, gain_db=-2.0, speed=1.25, fx=_FXL,
+           src_dur=60.0)
 _alc = _al[1] if _al[0] == "ok" and isinstance(_al[1], list) else []
 _als = " ".join(map(str, _alc))
 check("t1_audition_apprise_deux_entrees_concat",
@@ -567,13 +570,25 @@ _bf, _ff = BUILD([AC(_DENL, src_dur=10.1)])
 _bg, _fg = BUILD([AC(_DENL, src_dur=11.0)])
 check("t2_prefixe_hors_source_ignore_temoin_source_longue_prefixee",
       "afftdn@" not in _ff and "afftdn=nr=24" in _ff and "afftdn@dn0" in _fg, (_ff[:250], _fg[:250]))
-# duree de source INCONNUE (repli 9999 de /render) : pas de prefixe — mesure : une entree -ss au-dela de
-# la fin ne rend aucun paquet et fait echouer TOUT le rendu (temoin : 9998 s, connue, prefixee)
-_bu, _fu = BUILD([AC(_DENL, src_dur=9999.0)])
+# duree de source INCONNUE : pas de prefixe — mesure : une entree -ss au-dela de la fin ne rend aucun
+# paquet et fait echouer TOUT le rendu. Revue T2 : /render transporte la duree SONDEE brute
+# (`src_dur_sonde`, None = inconnue) a cote du repli 9999 de `src_dur` ; le builder teste None, plus 9999
+# (une source reelle de plus de 2 h 46 perdait son apprentissage). Temoins : 9999 s et 10 000 s SONDEES
+# gardent le prefixe ; un dict sans la cle (bancs) lit `src_dur` (9998 s, prefixe).
+_bu, _fu = BUILD([AC(_DENL, src_dur=9999.0, src_dur_sonde=None)])
 _bk, _fk = BUILD([AC(_DENL, src_dur=9998.0)])
+_b99, _f99 = BUILD([AC(_DENL, src_dur=9999.0, src_dur_sonde=9999.0)])
+_blg, _flg = BUILD([AC(_DENL, src_dur=10000.0, src_dur_sonde=10000.0)])
 check("t2_duree_inconnue_pas_de_prefixe_temoin_duree_connue",
       "afftdn@" not in _fu and "afftdn=nr=24" in _fu and _bu.count("-i") == 2 and "afftdn@dn0" in _fk,
       (_fu[:250], _fk[:250]))
+check("r4_source_longue_sondee_9999_et_10000_s_gardent_le_prefixe_temoin_inconnue_sans",
+      "afftdn@dn0" in _f99 and "[l6p0]" in _f99 and "afftdn@dn0" in _flg and "[l6p0]" in _flg
+      and _blg.count("-i") == 3 and "afftdn@" not in _fu, (_f99[:250], _flg[:250]))
+_b1s, _ = BUILD([AC(_DEN, src_dur_sonde=None)])
+_b1t, _ = BUILD([AC(_DEN, src_dur_sonde=20.0)])
+check("r4_sans_apprentissage_cle_src_dur_sonde_commande_T1_octet_pour_octet",
+      T1_CMDS.get("den") and _b1s == T1_CMDS["den"][0] and _b1t == T1_CMDS["den"][0], str(_b1s)[:300])
 
 # audio_only (/measure, passe 1) : meme prefixe
 _ba, _fa = BUILD([AC(_DENL)], audio_only=True, out=None)
@@ -658,6 +673,33 @@ check("t2_render_fx_list_normalisee_au_builder_et_commande_prefixee",
       and _ac2[0]["fx_list"][0].get("params", {}).get("learn_out") == 1.0
       and "afftdn@dn0" in _fc2 and "[l6p0]" in _fc2,
       (_rs.status_code, J(_rs).get("detail"), _ac2 and _ac2[0].get("fx_list"), _fc2[:200]))
+
+# revue T2 (3) : /render transporte la duree SONDEE brute ; sonde espionnee : 0 (inconnue) -> None et
+# pas de prefixe ; 10 000 s (source longue) -> prefixe. Temoin : la vraie sonde rend 6 s.
+_sd_ok = _ac2[0].get("src_dur_sonde") if _ac2 else "ABSENT"
+_vpd = MS._probe_duration
+
+
+def RENDER_SONDE(val):
+    MS._probe_duration = lambda p: val
+    try:
+        r = RENDER_SPY(TLR(_FXL))
+    finally:
+        MS._probe_duration = _vpd
+    a = (_cap2.get("a_clips") or [{}])[0]
+    cm = _cap2.get("cmd") if isinstance(_cap2.get("cmd"), list) else []
+    fc = cm[cm.index("-filter_complex") + 1] if "-filter_complex" in cm else ""
+    return r.status_code, a.get("src_dur_sonde", "ABSENT"), a.get("src_dur"), fc
+
+
+_rz = RENDER_SONDE(0.0)
+_rl = RENDER_SONDE(10000.0)
+check("r4_render_duree_sondee_brute_transportee_6_s_temoin_vraie_sonde",
+      isinstance(_sd_ok, float) and abs(_sd_ok - 6.0) < 0.05, _sd_ok)
+check("r4_render_sonde_0_inconnue_none_repli_9999_sans_prefixe_temoin_10000_s_prefixe",
+      _rz[0] == 200 and _rz[1] is None and _rz[2] == 9999.0 and "afftdn=nr=24" in _rz[3] and "afftdn@" not in _rz[3]
+      and _rl[0] == 200 and _rl[1] == 10000.0 and "afftdn@dn0" in _rl[3] and "[l6p0]" in _rl[3],
+      (_rz[:3], _rz[3][:200], _rl[:3], _rl[3][:200]))
 _rs2 = RENDER_SPY(TLR([{"type": "denoise", "amount": 24, "nf": -30}]))
 _fc2b = ""
 if isinstance(_cap2.get("cmd"), list) and "-filter_complex" in _cap2["cmd"]:
@@ -705,7 +747,10 @@ _vff = MS._ff_run
 def _esp_ff(cmd, **kw):
     _np_n["n"] += 1
     _np_n["cmd"] = list(cmd)
-    return _vff(cmd, **kw)
+    mut = _np_n.get("mut")                  # revue T2 (4) : commande alteree pour un echec REEL
+    r = _vff(mut(list(cmd)) if mut else cmd, **kw)
+    _np_n["stderr"] = getattr(r, "stderr", "")
+    return r
 
 
 def NP(body, hote="127.0.0.1"):
@@ -783,6 +828,24 @@ check("t2_route_plage_muette_ok_false_temoin_bruit_ok_true",
 _nhttp = c.post("/api/montage/noise-profile", json={"src": _SP, "t0": 0, "t1": 1})
 check("t2_route_montee_sur_le_routeur_api_montage",
       _nhttp.status_code == 200 and J(_nhttp).get("ok") is True, (_nhttp.status_code, _nhttp.text[:200]))
+
+# revue T2 (4) : un echec REEL de ffmpeg (option d'astats inconnue, apres ouverture de l'entree) -> 502
+# dont le message ne porte PAS le chemin de la source (temoins : le stderr brut le portait, le message
+# garde le nom de fichier)
+_np_n["mut"] = lambda cm: [("astats=option_inexistante_l6=1" if x.startswith("astats=") else x) for x in cm]
+try:
+    _n502 = NP({"src": _SP, "t0": 0.0, "t1": 1.0})
+finally:
+    _np_n.pop("mut", None)
+_m502 = str(_n502[1])
+_raw502 = str(_np_n.get("stderr") or "")
+check("r4_noise_profile_502_sans_chemin_du_tmp_temoins_stderr_brut_et_nom_de_fichier",
+      _n502[0] == 502 and str(_SRC2) in _raw502 and TMP not in _m502 and str(_W) not in _m502
+      and _W.as_posix() not in _m502 and "voix_bruit.wav" in _m502 and "Mesure du bruit" in _m502
+      # la queue de 400 car. peut couper le debut du chemin : aucun des dossiers ne doit y rester
+      and _W.name + "\\" not in _m502 and _W.name + "/" not in _m502
+      and pathlib.Path(TMP).name not in _m502 and "from 'voix_bruit.wav'" in _m502,
+      (_n502[0], _m502[-300:], _raw502[-200:]))
 
 # --- rendu REEL : preset audio_wav, apprentissage vs plancher seul ------------------
 _NF = _d.get("nf_db") if isinstance(_d.get("nf_db"), int) else -30
@@ -950,9 +1013,70 @@ check("r1_audition_plage_en_partie_hors_source_duree_exacte_clic",
 check("r1_audition_plage_entierement_hors_source_sans_prefixe_duree_exacte_temoin_concat",
       "concat" not in _s_ho and "afftdn=nr=20" in _s_ho and "concat=n=2" in _s_in
       and abs(_n_ho - 110250) <= 1 and abs(_k_ho - 44100) <= 2, (_n_ho, _k_ho, _s_ho[-200:]))
-_c_sd, _, _ = AUD(10.0, 11.0, src_dur=0.0)
-check("r1_audition_src_dur_0_inconnue_garde_le_prefixe_temoin_sonde",
-      "concat=n=2" in " ".join(map(str, _c_sd)) and "concat" not in _s_ho, " ".join(map(str, _c_sd))[-200:])
+# revue T2 (1) : duree INCONNUE (src_dur 0) -> pas de prefixe, comme le Montage ; commande IDENTIQUE a
+# l'audition sans apprentissage, rendu REEL rc 0 et duree exacte (avant : prefixe garde, plage au-dela
+# de la fin -> « Nothing was written… Conversion failed! »). Temoin : duree connue 6 s -> prefixe.
+_c_sd, _n_sd, _k_sd = AUD(10.0, 11.0, src_dur=0.0)
+_c_nl = CALL(S.build_audition_command, _A6, _W / "aud_10.0_11.0.wav", src_in=2.0, length=2.5,
+             fx=SAN([{"type": "denoise", "amount": 20}]))
+_c_k6, _n_k6, _ = AUD(0.2, 1.2, src_dur=6.0)
+check("r1_audition_src_dur_0_inconnue_sans_prefixe_commande_sans_apprentissage_rendu_reel",
+      _c_nl[0] == "ok" and _c_sd == _c_nl[1] and "concat" not in " ".join(map(str, _c_sd))
+      and abs(_n_sd - 110250) <= 1 and abs(_k_sd - 44100) <= 2
+      and "concat=n=2" in " ".join(map(str, _c_k6)) and abs(_n_k6 - 110250) <= 1,
+      (" ".join(map(str, _c_sd))[-200:], _n_sd, _k_sd, _n_k6))
+_c_10k = CALL(S.build_audition_command, _A6, _W / "x.wav", src_in=2.0, length=2.5,
+              fx=SAN([{"type": "denoise", "amount": 20, "learn_in": 10.0, "learn_out": 11.0}]), src_dur=10000.0)
+check("r1_audition_duree_longue_donnee_prefixe_sans_sonde",
+      _c_10k[0] == "ok" and "concat=n=2" in " ".join(map(str, _c_10k[1])), _c_10k)
+
+# revue T2 (2) : /audio/audition sonde la duree HORS de la boucle (executor : aucune boucle en cours dans
+# le thread de la sonde) SEULEMENT pour une audition apprise, et la passe au builder par `src_dur`
+import shutil as _sh                                     # noqa: E402
+_AUD_DIR = pathlib.Path(TMP) / "audio"
+try:
+    from app.api import routes as _RT
+    _AUD_DIR = _RT._audio_dir()
+    _sh.copyfile(_A6, _AUD_DIR / "l6_aud.wav")
+except Exception as _e:                                  # noqa: BLE001
+    print("    audition route :", repr(_e))
+_spy = {"sonde": [], "build": []}
+_vpr, _vbac = S._probe_duration, S.build_audition_command
+
+
+def _esp_sonde(p):
+    try:
+        asyncio.get_running_loop()
+        hors = False
+    except RuntimeError:
+        hors = True
+    v = _vpr(p)
+    _spy["sonde"].append((pathlib.Path(p).name, hors, v))
+    return v
+
+
+def _esp_bac(*a, **k):
+    _spy["build"].append(k.get("src_dur", "ABSENT"))
+    return _vbac(*a, **k)
+
+
+def AUDR(fx):
+    _spy["sonde"].clear(); _spy["build"].clear()
+    S._probe_duration, S.build_audition_command = _esp_sonde, _esp_bac
+    try:
+        r = c.post("/api/audio/audition", json={"filename": "l6_aud.wav", "src_in": 2.0, "len": 2.5, "fx": fx})
+    finally:
+        S._probe_duration, S.build_audition_command = _vpr, _vbac
+    return r.status_code, list(_spy["sonde"]), list(_spy["build"]), r.headers.get("content-type", "")
+
+
+_ar_l = AUDR([{"type": "denoise", "amount": 20, "learn_in": 0.2, "learn_out": 1.2}])
+_ar_n = AUDR([{"type": "denoise", "amount": 20}])
+check("r4_audition_route_apprise_sonde_une_fois_hors_boucle_src_dur_au_builder",
+      _ar_l[0] == 200 and "audio/wav" in _ar_l[3] and len(_ar_l[1]) == 1 and _ar_l[1][0][1] is True
+      and abs(_ar_l[1][0][2] - 6.0) < 0.05 and len(_ar_l[2]) == 1 and _ar_l[2][0] == _ar_l[1][0][2], _ar_l)
+check("r4_audition_route_sans_apprentissage_aucune_sonde_src_dur_none_temoin_200",
+      _ar_n[0] == 200 and _ar_n[1] == [] and _ar_n[2] == [None], _ar_n)
 
 # I-2 : largeur stereo 0..1,6 % -> somme mono par pan ; au-dela slev borne
 _w0, _w1, _w16, _w50 = (CH([{"type": "stereo", "width": w}]) for w in (0, 1, 1.6, 50))

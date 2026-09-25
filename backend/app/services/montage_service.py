@@ -2940,8 +2940,12 @@ async def montage_noise_profile(request: Request):
     except (FileNotFoundError, OSError) as e:
         raise HTTPException(502, f"ffmpeg indisponible : {e}")
     if r.returncode != 0:
+        # Revue L6 T2 : ffmpeg recopie le chemin COMPLET de la source dans
+        # stderr — le message n'en garde que le nom de fichier.
+        err = ((r.stderr or "").replace(str(p), p.name)
+               .replace(str(p.parent), "").replace(p.parent.as_posix(), ""))
         raise HTTPException(502, f"Mesure du bruit échouée ({r.returncode}) : "
-                                 f"{(r.stderr or '')[-400:]}")
+                                 f"{err[-400:]}")
     vals = _NP_RMS.findall(r.stderr or "")
     if not vals:
         raise HTTPException(502, "Mesure du bruit : astats n'a rien rendu.")
@@ -3622,15 +3626,20 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
         # plan bufférise tout le clip quand le préfixe est placé après lui
         # (359 460 Kio pour 10 min contre 19 100 avec une seconde entrée).
         # Plage entièrement hors de la source, ou durée de source INCONNUE
-        # (repli 9999 de /render) : pas de préfixe — MESURÉ : une entrée
-        # `-ss` au-delà de la fin ne rend aucun paquet et fait échouer TOUT
-        # le rendu (« Nothing was written into output file »). Sans
-        # apprentissage : chaîne inchangée octet pour octet.
+        # : pas de préfixe — MESURÉ : une entrée `-ss` au-delà de la fin ne
+        # rend aucun paquet et fait échouer TOUT le rendu (« Nothing was
+        # written into output file »). Revue T2 : la durée SONDÉE brute
+        # voyage à part (`src_dur_sonde`, None = inconnue) — le repli 9999
+        # de `src_dur` n'est plus lu comme une durée (une source réelle de
+        # plus de 2 h 46 garde son apprentissage) ; un dict sans la clé
+        # (bancs) lit `src_dur`. Sans apprentissage : chaîne inchangée
+        # octet pour octet.
         lrn = sfx_service.learn_of(c.get("fx_list") or [])
-        if lrn and (float(c["src_dur"]) >= 9999.0 or
-                    lrn[0] >= float(c["src_dur"]) - sfx_service.LEARN_MIN):
+        sd = c["src_dur_sonde"] if "src_dur_sonde" in c else c.get("src_dur")
+        if lrn and (sd is None or
+                    lrn[0] >= float(sd) - sfx_service.LEARN_MIN):
             logger.warning(f"montage: plage de bruit {lrn[0]}–{lrn[1]} s hors "
-                           f"de la source ou durée inconnue ({c['src_dur']} s) "
+                           f"de la source ou durée inconnue ({sd} s) "
                            f"— apprentissage ignoré ({Path(str(c['path'])).name})")
             lrn = None
         l6pre = ""
@@ -5086,6 +5095,7 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                     a_clips.append({
                         "tr": "a1" if bus == "dialogue" else "a3",
                         "path": p, "src_dur": sdur or 9999.0,
+                        "src_dur_sonde": sdur or None,   # revue L6 T2
                         "src_in": max(0.0, float(c.get("srcIn") or 0)),
                         "start": max(0.0, float(c.get("start") or 0)),
                         "end": float(c.get("end") or 0),
@@ -5293,6 +5303,7 @@ async def montage_measure(request: Request):
             a_clips.append({
                 "tr": "a1" if bus == "dialogue" else "a3",
                 "path": p, "src_dur": sdur or 9999.0,
+                "src_dur_sonde": sdur or None,           # revue L6 T2
                 "src_in": max(0.0, float(c.get("srcIn") or 0)),
                 "start": max(0.0, float(c.get("start") or 0)),
                 "end": float(c.get("end") or 0),
