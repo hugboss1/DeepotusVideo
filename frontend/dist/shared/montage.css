@@ -1647,3 +1647,20 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
 .dzsvm .dzm-lbph{display:flex;align-items:center;justify-content:center;aspect-ratio:16/9;border-radius:4px;background:#000;font-family:var(--f-mono);font-size:10px;color:var(--ink3)}
 .dzsvm .dzm-lbcap{font-family:var(--f-mono);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dzsvm .dzm-lbmsg{font-family:var(--f-mono);font-size:11px;color:var(--ink3);padding:24px}
+/* L6 D-25 (25/09/2026, tache 5) : « Apprendre le bruit » / « Oublier » sous le rack de l inspecteur audio -- deux boutons
+   toujours rendus (grises, jamais retires) et la ligne d etat de la plage apprise */
+.dzsvm .dzm-nl{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:8px 0 0}
+.dzsvm .dzm-nlbtn:disabled{opacity:.45;cursor:not-allowed}
+.dzsvm .dzm-nlst{flex:1 1 auto;min-width:0;font-size:10px;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* L6 D-26 (25/09/2026, tache 6) : la puce « ● voix off » de la barre du haut (DzmVoiceRec) -- UN bouton a deux etats ;
+   pendant la prise (data-rec) : fond rouge, pastille pulsee ; grisee pendant l accord du micro, l envoi et sur la demo.
+   prefers-reduced-motion : la pastille ne pulse pas (le coupe-circuit global ne ramene que la duree a .001 ms : la regle
+   retire l animation elle-meme, la pastille reste pleine). */
+.dzsvm .dzm-vochip{font-variant-numeric:tabular-nums}
+.dzsvm .dzm-vochip:disabled{opacity:.45;cursor:not-allowed}
+.dzsvm .dzm-vochip[data-rec]{background:#c62f36;border-color:#e5484d;color:#fff}
+.dzsvm .dzm-vochip[data-rec]::before{content:"";display:inline-block;width:7px;height:7px;margin-right:5px;border-radius:50%;background:#fff;vertical-align:1px;animation:dzmVoPulse 1.2s ease-in-out infinite}
+@keyframes dzmVoPulse{0%,100%{opacity:1}50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){
+  .dzsvm .dzm-vochip[data-rec]::before{animation:none}
+}

@@ -2887,6 +2887,76 @@ async def montage_scenes(request: Request):
     return {"ok": True, "times": times}
 
 
+# D-25 (L6, 25/09/2026) — « APPRENDRE LE BRUIT » : le RMS d'une plage de
+# bruit seul d'une source audio (le son d'un plan `{job_id}`, un son
+# `{audio}`…), pour le plancher `nf` du débruiteur. Garde locale d'abord
+# (403), plage jugée avant toute résolution (400 : 0,2 ≤ t1 − t0 ≤ 30 s,
+# t0 ≥ 0), source par `_media_source(video=False)` (404), sans piste audio
+# 415, plage commençant au-delà de la fin de la source 400. La plage passe
+# par les filtres AMONT du vocabulaire présents dans `fx` (filter, dehum,
+# eq3 — ceux que le préfixe traverse au rendu, dans l'ordre du vocabulaire)
+# puis `astats` (RMS global ; son « Noise floor dB » n'est PAS utilisable,
+# mesuré). Plage muette (RMS −inf) → 200 {ok:false, reason:"muet"} ; sinon
+# {ok:true, rms_db, nf_db = sfx_service.nf_of(rms), t0, t1}.
+_NP_MIN, _NP_MAX = 0.2, 30.0
+_NP_UPSTREAM = ("filter", "dehum", "eq3")
+_NP_RMS = re.compile(r"RMS level dB:\s*(-?inf|-?nan|-?[\d.]+)")
+
+
+def _noise_profile_cmd(p: Path, t0: float, t1: float, fx: list[dict]) -> list[str]:
+    """Commande pure de la mesure : -ss/-t AVANT -i, filtres amont, astats."""
+    ch = sfx_service.fx_chain([e for e in fx if e.get("type") in _NP_UPSTREAM])
+    af = (ch + "," if ch else "") + ("astats=measure_overall=RMS_level:"
+                                     "measure_perchannel=none")
+    return ["ffmpeg", "-hide_banner", "-nostats", "-ss", str(round(t0, 3)),
+            "-t", str(round(t1 - t0, 3)), "-i", str(p), "-vn", "-af", af,
+            "-f", "null", "-"]
+
+
+@router.post("/noise-profile")
+async def montage_noise_profile(request: Request):
+    _require_local(request)
+    body = await _json_body(request)
+    t0 = _scenes_num(body.get("t0"), "t0", mini=0.0, maxi=_SCENES_DUR_MAX * 6, strict=False)
+    t1 = _scenes_num(body.get("t1"), "t1", mini=0.0, maxi=_SCENES_DUR_MAX * 6 + _NP_MAX, strict=True)
+    if not (_NP_MIN - 1e-9 <= t1 - t0 <= _NP_MAX + 1e-9):
+        raise HTTPException(400, f"plage de bruit de {round(t1 - t0, 3)} s — "
+                                 f"attendu {_NP_MIN} à {_NP_MAX:g} s.")
+    raw_fx = body.get("fx")
+    fx = sfx_service.sanitize_fx(raw_fx, "noise-profile") if isinstance(raw_fx, list) else []
+    p = await _media_source(request, body.get("src"), video=False)
+    if not await asyncio.to_thread(_has_audio_stream, p):
+        raise HTTPException(415, f"« {p.name} » n'a pas de piste audio.")
+    sdur = await asyncio.to_thread(_probe_duration, p)
+    if sdur and t0 >= sdur - _NP_MIN + 1e-9:
+        raise HTTPException(400, f"plage de bruit au-delà de la fin de "
+                                 f"« {p.name} » ({round(sdur, 3)} s).")
+    cmd = _noise_profile_cmd(p, t0, t1, fx)
+    try:
+        r = await asyncio.to_thread(_ff_run, cmd, capture_output=True, text=True,
+                                    encoding="utf-8", errors="replace", timeout=60)
+    except subprocess.TimeoutExpired:
+        raise HTTPException(502, "Mesure du bruit interrompue — ffmpeg a dépassé 60 s.")
+    except (FileNotFoundError, OSError) as e:
+        raise HTTPException(502, f"ffmpeg indisponible : {e}")
+    if r.returncode != 0:
+        # Revue L6 T2 : ffmpeg recopie le chemin COMPLET de la source dans
+        # stderr — le message n'en garde que le nom de fichier.
+        err = ((r.stderr or "").replace(str(p), p.name)
+               .replace(str(p.parent), "").replace(p.parent.as_posix(), ""))
+        raise HTTPException(502, f"Mesure du bruit échouée ({r.returncode}) : "
+                                 f"{err[-400:]}")
+    vals = _NP_RMS.findall(r.stderr or "")
+    if not vals:
+        raise HTTPException(502, "Mesure du bruit : astats n'a rien rendu.")
+    try:
+        rms = float(vals[-1])
+        nf = sfx_service.nf_of(rms)
+    except ValueError:
+        return {"ok": False, "reason": "muet", "t0": t0, "t1": t1}
+    return {"ok": True, "rms_db": round(rms, 2), "nf_db": nf, "t0": t0, "t1": t1}
+
+
 # D-40 (L7-B, 24/09/2026) — LE SUIVI DU MOUVEMENT d'un extrait de source,
 # pour « Suivre le mouvement » (section Cadrage de l'inspecteur d'un clip V1).
 # Mêmes gardes que /scenes : paramètres jugés AVANT toute résolution (400),
@@ -3242,6 +3312,13 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     inchangé, sinon 0.5–2 → atempo, la durée effective du clip devient
     d/speed) ; `ducking` accepte le bool historique OU un dict
     {threshold, ratio, attack, release} (sfx_service.parse_ducking).
+    L6 D-25 : a_clips acceptent `fx_list` (liste normalisée sanitize_fx) ;
+    si `sfx_service.learn_of(fx_list)` rend (a, b) et que a est dans la
+    source, une SECONDE entrée `-ss a -t L -i path` fournit un préfixe de
+    bruit de P = round(L·48000) échantillons exacts, concaténé devant le
+    clip et appris puis retiré par le denoise (`afftdn@dn{n}`) ; l'entrée
+    suivante décale donc idx de 2. La musique ignore l'apprentissage
+    (plancher seul). Sans apprentissage : commande inchangée.
     R2 : `fade_in_curve` / `fade_out_curve` (lin|douce|expo|log, voir
     _fade_curve) sur a_clips ET music — lin/absent n'émet pas de curve=.
     R4 : `volume_points` (liste (t, db) déjà sanitizée par _volume_points,
@@ -3536,6 +3613,50 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
             d_eff = d
             proc = ""
         fxc = c.get("fx_chain") or ""
+        # L6 D-25 : bruit APPRIS. Le premier denoise de `fx_list` (liste
+        # normalisée posée par /render et /measure) désigne une plage de
+        # bruit seul en secondes de SOURCE ; elle entre comme SECONDE entrée
+        # de la même source (`-ss a -t L`), forcée à P échantillons exacts à
+        # 48 kHz (un préfixe plus court — fin de source, décodeur en retard
+        # au seek — décalerait le retrait), concaténée DEVANT le clip,
+        # traverse les filtres amont du vocabulaire (filter, dehum, eq3),
+        # est apprise par `afftdn@dn{n}` (n unique dans le graphe) puis
+        # retirée DANS le denoise : fondus et automation restent sur
+        # l'horloge locale du clip. MESURÉ le 25/09/2026 : l'`asplit` du
+        # plan bufférise tout le clip quand le préfixe est placé après lui
+        # (359 460 Kio pour 10 min contre 19 100 avec une seconde entrée).
+        # Plage entièrement hors de la source, ou durée de source INCONNUE
+        # : pas de préfixe — MESURÉ : une entrée `-ss` au-delà de la fin ne
+        # rend aucun paquet et fait échouer TOUT le rendu (« Nothing was
+        # written into output file »). Revue T2 : la durée SONDÉE brute
+        # voyage à part (`src_dur_sonde`, None = inconnue) — le repli 9999
+        # de `src_dur` n'est plus lu comme une durée (une source réelle de
+        # plus de 2 h 46 garde son apprentissage) ; un dict sans la clé
+        # (bancs) lit `src_dur`. Sans apprentissage : chaîne inchangée
+        # octet pour octet.
+        lrn = sfx_service.learn_of(c.get("fx_list") or [])
+        sd = c["src_dur_sonde"] if "src_dur_sonde" in c else c.get("src_dur")
+        if lrn and (sd is None or
+                    lrn[0] >= float(sd) - sfx_service.LEARN_MIN):
+            logger.warning(f"montage: plage de bruit {lrn[0]}–{lrn[1]} s hors "
+                           f"de la source ou durée inconnue ({sd} s) "
+                           f"— apprentissage ignoré ({Path(str(c['path'])).name})")
+            lrn = None
+        l6pre = ""
+        if lrn:
+            L = round(lrn[1] - lrn[0], 3)
+            P = int(round(L * sfx_service.DN_RATE))
+            fxc = sfx_service.fx_chain(c["fx_list"], uid=f"{n}", prefix_s=L)
+            inputs.extend(["-ss", str(round(lrn[0], 3)), "-t", str(L),
+                           "-i", str(c["path"])])
+            parts.append(f"[{idx + 1}:a]asetpts=PTS-STARTPTS,"
+                         f"aresample={sfx_service.DN_RATE},atrim=end_sample={P},"
+                         f"apad=whole_len={P}[l6p{n}]")
+            parts.append(f"[{idx}:a]atrim={round(sin, 3)}:{round(sin + d, 3)},"
+                         f"asetpts=PTS-STARTPTS,{proc}"
+                         f"aresample={sfx_service.DN_RATE}[l6c{n}]")
+            l6pre = f"[l6p{n}][l6c{n}]concat=n=2:v=0:a=1,"
+            proc = ""
         if fxc:
             proc += fxc + ","
         # Fondus PAR CLIP (optionnels) — insérés après asetpts, sur l'horloge
@@ -3562,15 +3683,17 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
         # multiplient leurs gains. Sans points : chaîne octet pour octet.
         vp = c.get("volume_points")
         autom = f"volume='{_vp_expr(vp)}':eval=frame," if vp else ""
+        head = (l6pre if lrn else
+                f"[{idx}:a]atrim={round(sin, 3)}:{round(sin + d, 3)},"
+                f"asetpts=PTS-STARTPTS,")
         parts.append(
-            f"[{idx}:a]atrim={round(sin, 3)}:{round(sin + d, 3)},"
-            f"asetpts=PTS-STARTPTS,{proc}{fades}{autom}"
+            f"{head}{proc}{fades}{autom}"
             f"aresample=async=1,aformat=sample_rates=44100:"
             f"channel_layouts=stereo,volume={c['gain']},"
             f"adelay={dly}|{dly}[{'va' if c['tr'] == 'a1' else 'sa'}{n}]")
         (voice_lbl if c["tr"] == "a1" else sfx_lbl).append(
             f"[{'va' if c['tr'] == 'a1' else 'sa'}{n}]")
-        idx += 1
+        idx += 2 if lrn else 1
 
     # Maître de durée : la voix n'est jamais coupée — la vidéo gèle sa
     # dernière image jusqu'à la fin de l'audio. La vitesse d'un clip change
@@ -4939,9 +5062,13 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                 gdb, c_fi, c_fo = _clip_mix_params(c)
                 # R1 : rack d'effets (chaîne ffmpeg pré-construite, "" sans
                 # fx) + vitesse (0.0 = inchangé) — voir sfx_service.
-                fx_ch = (sfx_service.fx_chain(sfx_service.sanitize_fx(
-                    c.get("fx"), str(c.get("label") or c.get("tr"))))
-                    if c.get("fx") else "")
+                # L6 : la liste NORMALISÉE suit le clip (`fx_list`) — le
+                # builder y lit le bruit appris (learn_of) ; la chaîne sans
+                # apprentissage reste celle-ci.
+                fx_l = (sfx_service.sanitize_fx(
+                    c.get("fx"), str(c.get("label") or c.get("tr")))
+                    if c.get("fx") else [])
+                fx_ch = sfx_service.fx_chain(fx_l) if c.get("fx") else ""
                 spd = sfx_service.clamp_speed(c.get("speed"))
                 # R4 : volume_points sanitized ici (None sans le champ — la
                 # commande émise reste alors l'historique, bit à bit).
@@ -4960,7 +5087,7 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                              "fade_in": c_fi, "fade_out": c_fo,
                              "fade_in_curve": c.get("fade_in_curve"),
                              "fade_out_curve": c.get("fade_out_curve"),
-                             "fx_chain": fx_ch, "speed": spd,
+                             "fx_chain": fx_ch, "fx_list": fx_l, "speed": spd,
                              "volume_points": vp}
                 else:
                     base = {"dialogue": g_voice, "musique": g_music,
@@ -4968,6 +5095,7 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                     a_clips.append({
                         "tr": "a1" if bus == "dialogue" else "a3",
                         "path": p, "src_dur": sdur or 9999.0,
+                        "src_dur_sonde": sdur or None,   # revue L6 T2
                         "src_in": max(0.0, float(c.get("srcIn") or 0)),
                         "start": max(0.0, float(c.get("start") or 0)),
                         "end": float(c.get("end") or 0),
@@ -4976,7 +5104,7 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                         "fade_in": c_fi, "fade_out": c_fo,
                         "fade_in_curve": c.get("fade_in_curve"),
                         "fade_out_curve": c.get("fade_out_curve"),
-                        "fx_chain": fx_ch, "speed": spd,
+                        "fx_chain": fx_ch, "fx_list": fx_l, "speed": spd,
                         "volume_points": vp})
 
             # D-24 : PASSE 1 (mesure) AVANT la commande finale, en rendu
@@ -5155,9 +5283,10 @@ async def montage_measure(request: Request):
             continue
         sdur = await loop.run_in_executor(None, _probe_duration, p)
         gdb, c_fi, c_fo = _clip_mix_params(c)
-        fx_ch = (sfx_service.fx_chain(sfx_service.sanitize_fx(
-            c.get("fx"), str(c.get("label") or c.get("tr"))))
-            if c.get("fx") else "")
+        fx_l = (sfx_service.sanitize_fx(      # L6 : fx_list, comme /render
+            c.get("fx"), str(c.get("label") or c.get("tr")))
+            if c.get("fx") else [])
+        fx_ch = sfx_service.fx_chain(fx_l) if c.get("fx") else ""
         spd = sfx_service.clamp_speed(c.get("speed"))
         vp = _volume_points(c)  # R4 : la mesure entend l'automation du rendu
         if m["loop"] and music is None:   # P1 — même règle qu'au rendu
@@ -5167,13 +5296,14 @@ async def montage_measure(request: Request):
                      "fade_in": c_fi, "fade_out": c_fo,
                      "fade_in_curve": c.get("fade_in_curve"),
                      "fade_out_curve": c.get("fade_out_curve"),
-                     "fx_chain": fx_ch, "speed": spd,
+                     "fx_chain": fx_ch, "fx_list": fx_l, "speed": spd,
                      "volume_points": vp}
         else:
             base = {"dialogue": g_voice, "musique": g_music, "sfx": g_sfx}[bus]
             a_clips.append({
                 "tr": "a1" if bus == "dialogue" else "a3",
                 "path": p, "src_dur": sdur or 9999.0,
+                "src_dur_sonde": sdur or None,           # revue L6 T2
                 "src_in": max(0.0, float(c.get("srcIn") or 0)),
                 "start": max(0.0, float(c.get("start") or 0)),
                 "end": float(c.get("end") or 0),
@@ -5182,7 +5312,7 @@ async def montage_measure(request: Request):
                 "fade_in": c_fi, "fade_out": c_fo,
                 "fade_in_curve": c.get("fade_in_curve"),
                 "fade_out_curve": c.get("fade_out_curve"),
-                "fx_chain": fx_ch, "speed": spd,
+                "fx_chain": fx_ch, "fx_list": fx_l, "speed": spd,
                 "volume_points": vp})
 
     cmd, total = _build_montage_command(

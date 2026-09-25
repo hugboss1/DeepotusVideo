@@ -31,6 +31,7 @@ ffprobe résolus via PATH comme partout ailleurs (le launcher ajoute
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 import subprocess
@@ -228,8 +229,20 @@ def generate_sfx(prompt: str, duration_s: float | None = None,
 # ──────────────────── vocabulaire FX (contrat partagé) ─────────────────────
 
 # Ordre de chaîne FIXE (contrat) — l'ordre d'arrivée du payload est ignoré.
-_FX_ORDER = ("filter", "eq3", "denoise", "deesser", "compressor",
+# L6 : `dehum` et `eq6` insérés, ordre RELATIF des dix types d'avant inchangé
+# (projets existants : commande identique). Le ronflement est ôté avant le
+# débruiteur (le bruit est appris sur une source sans ronflement), l'EQ 6
+# bandes vient APRÈS lui (il ne fausse pas le plancher `nf`).
+_FX_ORDER = ("filter", "dehum", "eq3", "denoise", "eq6", "deesser", "compressor",
              "distortion", "echo", "reverb", "stereo", "normalize")
+
+# Débruiteur (mesures L6 du 25/09, ffmpeg 8.1.1 = 9.0.1) : afftdn retarde le
+# son de 1200 échantillons à 48 kHz et garde la longueur (les 25 dernières ms
+# du clip étaient perdues) → fréquence imposée, apad devant, atrim derrière.
+DN_RATE = 48000          # fréquence imposée avant afftdn
+DN_DELAY = 1200          # retard d'afftdn à 48 kHz (mesuré)
+LEARN_MAX = 1.0          # secondes de préfixe appris au plus
+LEARN_MIN = 0.2          # plage d'apprentissage minimale (s)
 
 # type → {param: (lo, hi, défaut)} ; « mode » du filtre traité à part (enum).
 _FX_PARAMS: dict[str, dict[str, tuple[float, float, float]]] = {
@@ -244,9 +257,30 @@ _FX_PARAMS: dict[str, dict[str, tuple[float, float, float]]] = {
     "compressor": {"threshold_db": (-60.0, 0.0, -20.0), "ratio": (1.0, 20.0, 4.0),
                    "attack_ms": (1.0, 500.0, 50.0),
                    "release_ms": (10.0, 2000.0, 250.0)},
-    "denoise": {"amount": (0.0, 97.0, 12.0)},
+    # nf 0 = automatique (omis) ; learn_in/out en secondes de SOURCE.
+    "denoise": {"amount": (0.0, 97.0, 12.0), "nf": (-80.0, 0.0, 0.0),
+                "learn_in": (0.0, 86400.0, 0.0),
+                "learn_out": (0.0, 86400.0, 0.0)},
     "deesser": {"intensity": (0.0, 100.0, 50.0)},
     "normalize": {"target_lufs": (-30.0, -10.0, -16.0)},
+    # L6 D-23 : passe-haut optionnel (0 = coupé), plateau grave, quatre
+    # cloches, plateau aigu ; bornes serrées (g hors bornes ou f < 0 FONT
+    # ÉCHOUER le rendu ffmpeg — mesuré).
+    "eq6": {"hp_hz": (0.0, 300.0, 0.0),
+            "ls_f": (30.0, 500.0, 100.0), "ls_g": (-12.0, 12.0, 0.0),
+            "p1_f": (40.0, 16000.0, 250.0), "p1_g": (-12.0, 12.0, 0.0),
+            "p1_q": (0.3, 8.0, 1.0),
+            "p2_f": (40.0, 16000.0, 800.0), "p2_g": (-12.0, 12.0, 0.0),
+            "p2_q": (0.3, 8.0, 1.0),
+            "p3_f": (40.0, 16000.0, 2500.0), "p3_g": (-12.0, 12.0, 0.0),
+            "p3_q": (0.3, 8.0, 1.0),
+            "p4_f": (40.0, 16000.0, 6000.0), "p4_g": (-12.0, 12.0, 0.0),
+            "p4_q": (0.3, 8.0, 1.0),
+            "hs_f": (1000.0, 16000.0, 8000.0), "hs_g": (-12.0, 12.0, 0.0)},
+    # L6 D-25 : fondamentale 50|60 (arrondie par le constructeur), crans aux
+    # harmoniques, dosage linéaire en amplitude.
+    "dehum": {"base": (50.0, 60.0, 50.0), "harmonics": (1.0, 6.0, 4.0),
+              "amount": (0.0, 100.0, 100.0)},
 }
 _FILTER_MODES = {"low": "lowpass", "high": "highpass", "band": "bandpass"}
 
@@ -312,6 +346,39 @@ def _fx_eq3(p: dict) -> str:
     return ",".join(bands)
 
 
+def _fx_eq6(p: dict) -> str:
+    """Égaliseur 6 bandes (biquads natifs : exacts, retard 0, identité à g=0).
+    Seules les bandes |g| ≥ 0,05 sont émises ; tout neutre → "". Ouvert par
+    `aformat=sample_fmts=fltp` : sur une source s16 un equalizer en dernier
+    maillon écrête (mesuré)."""
+    bands = []
+    if p["hp_hz"] >= 20.0:                      # < 20 Hz = coupé
+        bands.append(f"highpass=f={_g(p['hp_hz'])}")
+    if abs(p["ls_g"]) >= 0.05:
+        bands.append(f"lowshelf=f={_g(p['ls_f'])}:g={_g(p['ls_g'])}")
+    for k in (1, 2, 3, 4):
+        g = p[f"p{k}_g"]
+        if abs(g) >= 0.05:
+            bands.append(f"equalizer=f={_g(p[f'p{k}_f'])}:t=q"
+                         f":w={_g(p[f'p{k}_q'])}:g={_g(g)}")
+    if abs(p["hs_g"]) >= 0.05:
+        bands.append(f"highshelf=f={_g(p['hs_f'])}:g={_g(p['hs_g'])}")
+    return ",".join(["aformat=sample_fmts=fltp"] + bands) if bands else ""
+
+
+def _fx_dehum(p: dict) -> str:
+    """Anti-ronflement : cascade bandreject Q=10 aux harmoniques de la
+    fondamentale (tient ±0,3 Hz de dérive ; voix −0,2 dB mesuré), `m` =
+    dosage linéaire. anequalizer écarté (chaque canal à déclarer)."""
+    if p["amount"] < 0.5:
+        return ""
+    base = 60 if p["base"] >= 55 else 50
+    n = max(1, min(6, int(round(p["harmonics"]))))
+    m = _g(p["amount"] / 100.0)
+    return ",".join(f"bandreject=f={base * k}:width_type=q:w=10:m={m}"
+                    for k in range(1, n + 1))
+
+
 def _fx_echo(p: dict) -> str:
     if p["mix"] < 0.5:
         return ""
@@ -350,19 +417,42 @@ def _fx_distortion(p: dict) -> str:
     return f"volume={_g(pre)},asoftclip=type=atan"
 
 
+def pan_gains(pan: float) -> tuple[float, float]:
+    """Loi de balance à PUISSANCE CONSTANTE normalisée (L6, mesurée) :
+    θ = (p+1)·π/4, gL = min(1, √2·cos θ), gR = min(1, √2·sin θ), p ∈ [−1, 1]
+    → 0 dB au centre, −5,33 dB à ±0,5, un canal éteint à ±1 (comme la
+    `StereoPanner` WebAudio de l'audition du rack)."""
+    p = max(-1.0, min(1.0, float(pan)))
+    th = (p + 1.0) * math.pi / 4.0
+    gl = min(1.0, math.sqrt(2.0) * math.cos(th))
+    gr = min(1.0, math.sqrt(2.0) * math.sin(th))
+    return max(0.0, gl), max(0.0, gr)
+
+
 def _fx_stereo(p: dict) -> str:
-    opts = []
-    if abs(p["pan"]) >= 0.5:
-        opts.append(f"balance_out={_g(p['pan'] / 100.0)}")
-    if p["width"] < 99.5:                       # mono-mix partiel
-        opts.append(f"slev={_g(p['width'] / 100.0)}")
+    # Largeur d'abord, balance EN SORTIE ensuite (comme balance_out de
+    # stereotools avant L6). `stereotools=balance_out` (loi LINÉAIRE,
+    # −6,02 dB à ±0,5) remplacé par `pan` à puissance constante ; l'upmix
+    # mono → stéréo de `aformat` coûte −3 dB/canal, déjà payé en aval de la
+    # chaîne par clip (aformat=…stereo) : aucune perte neuve.
+    # Revue T1 (I-2, mesuré 25/09/2026) : `stereotools=slev` REFUSE < 0,015625
+    # sur les deux binaires (le curseur descend à 0 : rendu en échec) et `_g`
+    # arrondit 0,015625 à 0,0156, encore hors bornes. Sous 1,6 % : vraie somme
+    # mono par `pan` (même sortie que slev → 0 : −17,89 dB sur les deux canaux).
     parts = []
-    if opts:
-        parts.append("stereotools=" + ":".join(opts))
+    if p["width"] < 1.6:                        # mono pur
+        parts.append("aformat=channel_layouts=stereo,"
+                     "pan=stereo|c0=0.5*c0+0.5*c1|c1=0.5*c0+0.5*c1")
+    elif p["width"] < 99.5:                     # mono-mix partiel
+        parts.append(f"stereotools=slev={_g(p['width'] / 100.0)}")
     if p["width"] > 100.5:                      # élargissement
         t = max(0.0, min(1.0, (p["width"] - 100.0) / 100.0))
         parts.append(f"stereowiden=delay=15:feedback={_g(0.2 + 0.25 * t)}"
                      f":crossfeed={_g(0.15 + 0.35 * t)}:drymix=0.85")
+    if abs(p["pan"]) >= 0.5:
+        gl, gr = pan_gains(p["pan"] / 100.0)
+        parts.append(f"aformat=channel_layouts=stereo,"
+                     f"pan=stereo|c0={_g(gl)}*c0|c1={_g(gr)}*c1")
     return ",".join(parts)
 
 
@@ -373,8 +463,77 @@ def _fx_compressor(p: dict) -> str:
             f":release={_g(p['release_ms'])}")
 
 
-def _fx_denoise(p: dict) -> str:
-    return f"afftdn=nr={_g(p['amount'])}" if p["amount"] >= 0.5 else ""
+def _fx_denoise(p: dict, uid: str = "", prefix_s: float = 0.0) -> str:
+    """Débruiteur afftdn, retard COMPENSÉ (1200 éch. à 48 kHz, mesuré) et
+    trames remises à 4096 (afftdn sort des trames de 600 : les biquads en
+    aval coûtaient ×2,3 ; `p=0` sinon la durée s'allonge).
+    `nf` 0 = automatique (omis), sinon borné à [−80, −20] (bornes d'afftdn,
+    qui REFUSE hors bornes). prefix_s > 0 : l'appelant a concaténé en tête
+    prefix_s secondes de bruit seul ; il est appris par asendcmd sur une
+    instance NOMMÉE `afftdn@dn<uid>` (un asendcmd vise toutes les instances
+    du nom dans le graphe) puis retiré ici. `tn` jamais posé (il écrase le
+    profil appris — mesuré)."""
+    pre = int(round(prefix_s * DN_RATE)) if prefix_s > 0 else 0
+    # Revue T1 (M-2) : uid filtré avant d'entrer dans un nom d'instance ; un
+    # uid VIDE avec préfixe est REFUSÉ (un `afftdn@dn` partagé ferait piloter
+    # l'apprentissage d'un clip par l'asendcmd d'un autre).
+    uid = re.sub(r"[^0-9A-Za-z_]", "", str(uid or ""))
+    if pre and p["amount"] >= 0.5 and not uid:
+        raise ValueError("denoise appris : uid requis (unique dans le graphe)")
+    if p["amount"] < 0.5:
+        # module sans effet ; un préfixe éventuel doit quand même partir
+        return (f"aresample={DN_RATE},atrim=start_sample={pre},"
+                f"asetpts=PTS-STARTPTS" if pre else "")
+    opts = f"nr={_g(p['amount'])}"
+    nf = p.get("nf", 0.0)
+    if nf <= -0.5:
+        opts += f":nf={_g(max(-80.0, min(-20.0, nf)))}"
+    parts = [f"aresample={DN_RATE}"]
+    name = "afftdn"
+    if pre:
+        name = f"afftdn@dn{uid}"
+        parts.append(f"asendcmd=c='0.0 {name} sn start;"
+                     f"{_g(max(0.0, prefix_s - 0.05))} {name} sn stop'")
+    parts += [f"apad=pad_len={DN_DELAY}", f"{name}={opts}",
+              f"atrim=start_sample={DN_DELAY + pre}", "asetpts=PTS-STARTPTS",
+              "asetnsamples=n=4096:p=0"]
+    return ",".join(parts)
+
+
+def learn_of(fx: list[dict]) -> tuple[float, float] | None:
+    """(a, a+L) en secondes de SOURCE si le PREMIER denoise trouvé porte
+    learn_out − learn_in ≥ LEARN_MIN ; L = min(learn_out − learn_in,
+    LEARN_MAX), arrondi 1e-3. None s'il est coupé (amount < 0,5), si sa
+    plage est trop courte, ou sans denoise (l'appelant ne préfixe pas) ;
+    un denoise suivant n'est jamais consulté."""
+    for e in fx or ():
+        if not isinstance(e, dict) or e.get("type") != "denoise":
+            continue
+        p = e.get("params") or {}
+        try:
+            amount = float(p.get("amount", 12.0))
+            a = float(p.get("learn_in", 0.0))
+            b = float(p.get("learn_out", 0.0))
+        except (TypeError, ValueError):
+            return None
+        if amount < 0.5 or not (math.isfinite(a) and math.isfinite(b)):
+            return None
+        if b - a < LEARN_MIN - 1e-9:
+            return None
+        a = round(max(0.0, a), 3)
+        return a, round(a + min(b - a, LEARN_MAX), 3)
+    return None
+
+
+def nf_of(rms_db: float) -> int:
+    """Plancher de bruit d'afftdn tiré du RMS d'une plage de bruit seul :
+    clamp(round(rms_db + 10), −80, −20) (règle validée sur trois niveaux ;
+    le « Noise floor dB » d'astats n'est PAS utilisable). Non fini →
+    ValueError (plage muette)."""
+    v = float(rms_db)
+    if not math.isfinite(v):
+        raise ValueError(f"RMS non fini : {rms_db!r}")
+    return int(max(-80, min(-20, round(v + 10.0))))
 
 
 def _fx_deesser(p: dict) -> str:
@@ -390,16 +549,32 @@ _FX_BUILD = {"filter": _fx_filter, "eq3": _fx_eq3, "echo": _fx_echo,
              "reverb": _fx_reverb, "distortion": _fx_distortion,
              "stereo": _fx_stereo, "compressor": _fx_compressor,
              "denoise": _fx_denoise, "deesser": _fx_deesser,
-             "normalize": _fx_normalize}
+             "normalize": _fx_normalize, "eq6": _fx_eq6,
+             "dehum": _fx_dehum}
 
 
-def fx_chain(fx: list[dict]) -> str:
+def fx_chain(fx: list[dict], *, uid: str = "", prefix_s: float = 0.0) -> str:
     """Liste normalisée (sanitize_fx) → fragment de filtergraph ffmpeg
-    (« aecho=…,acompressor=… »), ordre de chaîne fixe, "" si vide/no-op."""
+    (« aecho=…,acompressor=… »), ordre de chaîne fixe, "" si vide/no-op.
+
+    prefix_s > 0 : l'appelant a concaténé en tête un préfixe de bruit de
+    prefix_s secondes (plage learn_of) ; le PREMIER denoise l'apprend
+    (afftdn@dn<uid>, uid UNIQUE dans le graphe) puis le retire — les filtres
+    placés avant lui (filter, dehum, eq3) le traversent comme le clip. Sans
+    denoise, prefix_s est ignoré (learn_of rend alors None : ne pas
+    préfixer)."""
     ordered = sorted((e for e in fx or ()),
                      key=lambda e: _FX_ORDER.index(e["type"]))
-    frags = [f for e in ordered
-             if (f := _FX_BUILD[e["type"]](e["params"]))]
+    frags = []
+    pending = prefix_s if prefix_s and prefix_s > 0 else 0.0
+    for e in ordered:
+        if e["type"] == "denoise":
+            f = _fx_denoise(e["params"], uid, pending)
+            pending = 0.0                       # un seul apprentissage
+        else:
+            f = _FX_BUILD[e["type"]](e["params"])
+        if f:
+            frags.append(f)
     return ",".join(frags)
 
 
@@ -445,11 +620,35 @@ def parse_ducking(v):
 
 def build_audition_command(src: Path, out: Path, *, src_in: float = 0.0,
                            length: float = 4.0, gain_db: float = 0.0,
-                           speed: float = 0.0, fx: list[dict] | None = None
-                           ) -> list[str]:
+                           speed: float = 0.0, fx: list[dict] | None = None,
+                           src_dur: float | None = None) -> list[str]:
     """Extrait traité → WAV 44.1 k stéréo. -ss/-t AVANT -i (seek démuxeur,
     aucun décodage vidéo : -vn) — latence visée < 2 s sur ≤ 12 s.
-    Chaîne : atempo → FX (ordre contrat) → volume (gain existant en dernier)."""
+    Chaîne : atempo → FX (ordre contrat) → volume (gain existant en dernier).
+
+    L6 : si learn_of(fx) rend (a, b), DEUX entrées de la même source
+    (-ss a -t L puis -ss src_in -t length), le préfixe de bruit concaténé
+    devant l'extrait (jamais d'atempo sur lui) traverse les filtres amont du
+    vocabulaire et est appris puis retiré par le denoise. Sans apprentissage,
+    commande inchangée octet pour octet.
+    Revue T1 (I-1) : le préfixe est forcé à P = round(L·48000) échantillons
+    exacts (une plage en partie hors de la source coupait le début de
+    l'extrait) ; une plage qui COMMENCE au-delà de la fin de la source
+    (`src_dur`, sondée par ffprobe si absent ; 0 = inconnue) n'est pas
+    préfixée — MESURÉ : l'entrée vide fait échouer tout le graphe (rc 183).
+    Revue T2 : une durée INCONNUE (sonde en échec, `src_dur` ≤ 0) abandonne
+    aussi le préfixe, comme le Montage — commande alors identique à
+    l'audition sans apprentissage (une plage au-delà de la fin rendait
+    « Nothing was written… Conversion failed! »)."""
+    lrn = learn_of(fx or [])
+    if lrn:
+        dur = _probe_duration(src) if src_dur is None else float(src_dur or 0.0)
+        if dur <= 0 or lrn[0] >= dur - LEARN_MIN:
+            lrn = None
+    if lrn:
+        return _build_audition_learned(src, out, lrn, src_in=src_in,
+                                       length=length, gain_db=gain_db,
+                                       speed=speed, fx=fx or [])
     af = []
     if speed:
         af.append(f"atempo={_g(speed)}")
@@ -466,6 +665,37 @@ def build_audition_command(src: Path, out: Path, *, src_in: float = 0.0,
     if af:
         cmd += ["-af", ",".join(af)]
     cmd += ["-ar", "44100", "-ac", "2", "-f", "wav", str(out)]
+    return cmd
+
+
+def _build_audition_learned(src: Path, out: Path, lrn: tuple[float, float], *,
+                            src_in: float, length: float, gain_db: float,
+                            speed: float, fx: list[dict]) -> list[str]:
+    a, b = lrn
+    L = round(b - a, 3)
+    clip = [f"[1:a]asetpts=PTS-STARTPTS"]
+    if speed:
+        clip.append(f"atempo={_g(speed)}")
+    clip.append(f"aresample={DN_RATE}[c]")
+    tail = [f"[p][c]concat=n=2:v=0:a=1"]
+    ch = fx_chain(fx, uid="a", prefix_s=L)
+    if ch:
+        tail.append(ch)
+    if abs(gain_db) >= 0.05:
+        tail.append(f"volume={_g(10.0 ** (gain_db / 20.0))}")
+    P = int(round(L * DN_RATE))
+    fc = (f"[0:a]asetpts=PTS-STARTPTS,aresample={DN_RATE},"
+          f"atrim=end_sample={P},apad=whole_len={P}[p];"
+          + ",".join(clip) + ";" + ",".join(tail) + "[o]")
+    cmd = ["ffmpeg", "-y", "-hide_banner"]
+    if a > 0:
+        cmd += ["-ss", str(round(a, 3))]
+    cmd += ["-t", str(L), "-i", str(src)]
+    if src_in > 0:
+        cmd += ["-ss", str(round(src_in, 3))]
+    cmd += ["-t", str(round(max(0.1, min(12.0, length)), 3)), "-i", str(src),
+            "-filter_complex", fc, "-map", "[o]", "-vn",
+            "-ar", "44100", "-ac", "2", "-f", "wav", str(out)]
     return cmd
 
 

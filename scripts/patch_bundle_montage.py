@@ -1149,6 +1149,12 @@ R_M16REF = (A_M16REF + "\n"
             # `proj` est déclaré avant (stP, :1717 < :1766 dans le livré).
             '  var stDzFS=x.useState(function(){try{return JSON.parse(localStorage.getItem("dz_montage_lastfin")||"{}")||{}}catch(_e){return {}}}),dzFinStore=stDzFS[0],setDzFinStore=stDzFS[1];\n'
             '  var dzLast=DzTracks.finOf(dzFinStore,proj.project_id||"_");\n'
+            # ── L6 D-26 (25/09/2026, tache 6) : LA BASCULE DE LA VOIX OFF -- REPLIEE ICI (0 dans .bak_montage), APRES dzLast :
+            # posee entre dzLbRef et stDzFS, elle ecartait dzLast de stDzFin au-dela des 700 o que le pin EB du store mesure
+            # (703 en octets CRLF, MESURE) -- on ne desserre pas le pin, on pose la ligne plus loin. La puce de la couche
+            # (section L6vo1) y inscrit sa bascule a chaque rendu et la retire au demontage ; onKey (action vo_record, repli
+            # de R_R2) la lit a l'appel. Un ref, pas un etat : aucun rendu de plus.
+            '  var dzVoRef=x.useRef(null);\n'
             # ── E-7 (lot E-C, tache 3, 23/09/2026) : LES TROIS VUES (Medias · Montage ·
             # Livraison). REPLIE ICI (0 dans .bak_montage), APRES dzLast que le panneau
             # lit (EC9). `view` est un etat de SESSION -- decision 4 : aucun
@@ -3374,7 +3380,15 @@ R_R1 = (A_R1 + "\n"
         # francais, et svmComboOfEvent retombe de toute facon sur la lettre PHYSIQUE (e.code) sous Alt. Rubrique
         # du menu ☰ : « Édition » (DZM_MENU_RUB de la couche).
         '\n {id:"grade_copy",sec:"Montage",lbl:"grade : copier (effets couleur et masque du plan sélectionné)",combo:"Ctrl+Alt+C"},'
-        '\n {id:"grade_paste",sec:"Montage",lbl:"grade : coller sur le plan sélectionné",combo:"Ctrl+Alt+V"},')
+        '\n {id:"grade_paste",sec:"Montage",lbl:"grade : coller sur le plan sélectionné",combo:"Ctrl+Alt+V"},'
+        # -- « L6 » (D-26, 25/09/2026, tache 6) : ENREGISTRER UNE VOIX OFF, REPLIE ICI (meme raison que L5 : l'entree
+        # `grade_paste` est x0 dans .bak_montage). COMBO MESUREE (B:1534-1587 + B:1657) : « Alt+R » n'est le defaut d'aucune
+        # action (x0 dans .bak_montage, x0 dans la table patchee), n'est PAS dans SVM_COMBO_RESERVED (qui ne porte que
+        # Ctrl+R / Ctrl+Maj+R) et svmComboReserved ne la refuse pas (ni touche F, ni Echap, ni Tab) ; aucun gestionnaire
+        # du bundle ni des couches ne lit `KeyR` (x0). « R » reste au ripple : le dispatch cherche la combo EXACTE d'abord,
+        # et sous Alt svmComboOfEvent retombe sur la lettre PHYSIQUE (e.code), donc AZERTY / QWERTY donnent « Alt+R ».
+        # sec « Audio » : la ligne du panneau « ? » ; rubrique du menu ☰ : « Édition » (DZM_MENU_RUB de la couche, dite).
+        '\n {id:"vo_record",sec:"Audio",lbl:"voix off : enregistrer / arrêter une prise au micro (lecture du montage)",combo:"Alt+R"},')
 
 # ── R2 (D-11) : la branche de dispatch ─────────────────────────────────────
 # PORTEE MESUREE dans `onKey` (meme corps de composant, closure) : `phRef`,
@@ -3584,7 +3598,12 @@ R_R2 = (A_R2 + "\n"
         # source de verite (precedent dzTtAdd / dzMkToggle) ; eux-memes passent par DzTracks.gradeCopyDo /
         # gradePasteDo, les gestes du panneau Etalonnage (un stockage, une phrase).
         '\n      if(id==="grade_copy"){dzGradeCopy(selRef.current);return}'
-        '\n      if(id==="grade_paste"){dzGradePaste(selRef.current);return}')
+        '\n      if(id==="grade_paste"){dzGradePaste(selRef.current);return}'
+        # -- « L6 » (D-26, 25/09/2026, tache 6) : LE DISPATCH DE LA VOIX OFF, REPLIE ICI (meme raison que L5). Le geste vit
+        # dans la puce (la couche) : elle inscrit sa bascule dans dzVoRef (repli de R_M16REF) a chaque rendu et l'en retire au
+        # demontage -- le clavier et le clic font LE MEME geste (une source de verite, comme dzGradeCopy). Sans puce montee,
+        # la frappe est DITE, jamais muette.
+        '\n      if(id==="vo_record"){if(typeof dzVoRef.current==="function")dzVoRef.current();else fireNote("Voix off : l\'enregistreur n\'est pas prêt.");return}')
 
 # ── R3 (D-11) : la bande sur la regle, apres la gouttiere ──────────────────
 # `DzmRangeBar` rend `null` tant que la plage n'est pas COMPLETE : la regle
@@ -5852,6 +5871,223 @@ assert R_EC1.count("function dzGradeCopy(id){") == 1 and R_EC1.count("function d
 assert R_EC1.count("run:function(){dzGradeCopy(id)}") == 1 and R_EC1.count("run:function(){dzGradePaste(id)}") == 1 and R_EC1.count('{lbl:"Lightbox des plans",run:function(){setDzLb(!0)}}') == 1
 assert R_EB5A.count("r.jsx(DzTracks.Lightbox,") == 1 and R_K7.count('if(dzLbRef.current){if(e.key==="Escape"){e.preventDefault();setDzLb(!1)}return}') == 1 and R_K7.startswith("if(dzLbRef.current){")
 
+# ══ L6 D-23 D-25 (25/09/2026, tache 5) — RACK ETENDU, « APPRENDRE LE BRUIT », ECOUTE RENDUE DU SON D'UN PLAN ══════════
+# PREMIERE FOIS que des sections du patcher montage entrent dans le bloc SFXSTUDIO (rack SvxRack, SVX_FX_DEFS,
+# svxCleanParams, svxModSummary, paramRow) : le maillon amont `sfxstudio` n'a PAS de .bak dans cette copie, sa source
+# frontend/patches/sfxstudio.js est INTOUCHABLE -- le bloc se patche ici, depuis .bak_montage, a chaque rejeu. Les ancres
+# L6fx1..L6fx5 sont donc des LIGNES DE sfxstudio.js telles que .bak_montage les porte : un maillon amont reconstruit
+# depuis une source modifiee doit garder ces lignes, sinon le --check le dit (ancre 0) -- jamais en silence.
+# ANCRES MESUREES 25/09/2026 : les sept valent 1/0/1 (x1 dans .bak_montage, touchees par aucune section, x1 livrees).
+# MESURES qui decident de la forme (lecture du bloc, 25/09) :
+#   * svxCleanParams NE GARDE QUE les params DECLARES et arrondit a 1 decimale (`pd.step<1?1:0`) : learn_in / learn_out
+#     etaient PERDUS a la premiere retouche d'un curseur du debruiteur -> declares, caches (`hide:1`, paramRow rend null)
+#     et arrondis au MILLIEME (`dec:3`, lu par L6fx3 ; les params sans `dec` gardent la regle d'avant, octet pour octet) ;
+#   * un `seg` NUMERIQUE ne marche pas : svxCleanParams compare String(v) a o[0] en strict (un 60 nombre retombe sur le
+#     defaut) et paramRow ecrit « Mode » / « Mode du filtre » en dur -> `dehum.base` est un CURSEUR 50..60 pas 10 (le
+#     constructeur backend arrondit : >= 55 -> 60) ;
+#   * le graphe Web Audio du rack lit des types NOMMES (on.eq3, on.stereo…) : eq6 / dehum y sont ignores -> live:0
+#     (« Écouter (rendu) »), comme le plan le fixe.
+# ORDRE D'AFFICHAGE = ORDRE DE CHAINE (_FX_ORDER de sfx_service) : « Anti-ronflement » AVANT l'egaliseur 3 bandes,
+# « Égaliseur 6 bandes » APRES le debruiteur. ECART AU PLAN (date 25/09) : le plan posait eq6 ET dehum apres la ligne
+# eq3 ; le rack montrant la chaine dans son ordre de rendu, dehum vient avant (svxEmitFx emet dans l'ordre du
+# catalogue, le backend retrie de toute facon).
+A_L6FX1 = ('   Ordre de chaîne fixe : filter → eq3 → denoise → deesser → compressor →\n'
+           '   distortion → echo → reverb → stereo → normalize. live:1 = audible dans\n'
+           '   l\'audition Web Audio du rack ; live:0 = « Écouter (rendu) » (ffmpeg). */\n'
+           'var SVX_FX_DEFS=[\n'
+           ' {type:"filter",label:"Filtre",live:1,params:[\n'
+           '   {k:"mode",kind:"seg",opts:[["low","grave"],["high","aigu"],["band","bande"]],d:"low"},\n'
+           '   {k:"freq",label:"Fréq",min:20,max:20000,d:1000,step:1,unit:"Hz",log:1},\n'
+           '   {k:"q",label:"Q",min:0.1,max:10,d:1,step:0.1,unit:""}]},\n'
+           ' {type:"eq3",label:"Égaliseur",live:1,params:[')
+R_L6FX1 = ('   Ordre de chaîne fixe : filter → dehum → eq3 → denoise → eq6 → deesser →\n'
+           '   compressor → distortion → echo → reverb → stereo → normalize (L6, 25/09/2026 :\n'
+           '   dehum et eq6 insérés, ordre relatif des dix d\'avant inchangé). live:1 = audible dans\n'
+           '   l\'audition Web Audio du rack ; live:0 = « Écouter (rendu) » (ffmpeg). */\n'
+           'var SVX_FX_DEFS=[\n'
+           ' {type:"filter",label:"Filtre",live:1,params:[\n'
+           '   {k:"mode",kind:"seg",opts:[["low","grave"],["high","aigu"],["band","bande"]],d:"low"},\n'
+           '   {k:"freq",label:"Fréq",min:20,max:20000,d:1000,step:1,unit:"Hz",log:1},\n'
+           '   {k:"q",label:"Q",min:0.1,max:10,d:1,step:0.1,unit:""}]},\n'
+           ' {type:"dehum",label:"Anti-ronflement",live:0,params:[\n'
+           '   {k:"base",label:"Secteur",min:50,max:60,d:50,step:10,unit:"Hz"},\n'
+           '   {k:"harmonics",label:"Harmon.",min:1,max:6,d:4,step:1,unit:""},\n'
+           '   {k:"amount",label:"Dosage",min:0,max:100,d:100,step:1,unit:"%"}]},\n'
+           ' {type:"eq3",label:"Égaliseur",live:1,params:[')
+# le debruiteur gagne le plancher (visible) et la plage apprise (cachee, au millieme) ; eq6 le suit (ordre de chaine)
+A_L6FX2 = (' {type:"denoise",label:"Débruiteur",live:0,params:[\n'
+           '   {k:"amount",label:"Réduction",min:0,max:97,d:12,step:1,unit:"dB"}]},')
+R_L6FX2 = (' {type:"denoise",label:"Débruiteur",live:0,params:[\n'
+           '   {k:"amount",label:"Réduction",min:0,max:97,d:12,step:1,unit:"dB"},\n'
+           '   {k:"nf",label:"Plancher 0=auto",min:-80,max:0,d:0,step:1,unit:"dB",tip:"Plancher du débruiteur : 0 = auto, −20 au plus (le rendu ramène −19…−1 à −20)"},\n'
+           '   {k:"learn_in",label:"Appris de",min:0,max:86400,d:0,step:0.001,dec:3,unit:"s",hide:1},\n'
+           '   {k:"learn_out",label:"Appris à",min:0,max:86400,d:0,step:0.001,dec:3,unit:"s",hide:1}]},\n'
+           ' {type:"eq6",label:"Égaliseur 6 bandes",live:0,params:[\n'
+           '   {k:"hp_hz",label:"Passe-haut",min:0,max:300,d:0,step:1,unit:"Hz"},\n'
+           '   {k:"ls_f",label:"Grave Hz",min:30,max:500,d:100,step:1,unit:"Hz",log:1},\n'
+           '   {k:"ls_g",label:"Grave dB",min:-12,max:12,d:0,step:0.5,unit:"dB"},\n'
+           '   {k:"p1_f",label:"Cloche 1 Hz",min:40,max:16000,d:250,step:1,unit:"Hz",log:1},\n'
+           '   {k:"p1_g",label:"Cloche 1 dB",min:-12,max:12,d:0,step:0.5,unit:"dB"},\n'
+           '   {k:"p1_q",label:"Q1",min:0.3,max:8,d:1,step:0.1,unit:""},\n'
+           '   {k:"p2_f",label:"Cloche 2 Hz",min:40,max:16000,d:800,step:1,unit:"Hz",log:1},\n'
+           '   {k:"p2_g",label:"Cloche 2 dB",min:-12,max:12,d:0,step:0.5,unit:"dB"},\n'
+           '   {k:"p2_q",label:"Q2",min:0.3,max:8,d:1,step:0.1,unit:""},\n'
+           '   {k:"p3_f",label:"Cloche 3 Hz",min:40,max:16000,d:2500,step:1,unit:"Hz",log:1},\n'
+           '   {k:"p3_g",label:"Cloche 3 dB",min:-12,max:12,d:0,step:0.5,unit:"dB"},\n'
+           '   {k:"p3_q",label:"Q3",min:0.3,max:8,d:1,step:0.1,unit:""},\n'
+           '   {k:"p4_f",label:"Cloche 4 Hz",min:40,max:16000,d:6000,step:1,unit:"Hz",log:1},\n'
+           '   {k:"p4_g",label:"Cloche 4 dB",min:-12,max:12,d:0,step:0.5,unit:"dB"},\n'
+           '   {k:"p4_q",label:"Q4",min:0.3,max:8,d:1,step:0.1,unit:""},\n'
+           '   {k:"hs_f",label:"Aigu Hz",min:1000,max:16000,d:8000,step:1,unit:"Hz",log:1},\n'
+           '   {k:"hs_g",label:"Aigu dB",min:-12,max:12,d:0,step:0.5,unit:"dB"}]},')
+# l'arrondi d'un param : `dec` quand il est declare (plage apprise au millieme), sinon la regle d'avant
+A_L6FX3 = '      p[pd.k]=svxRound(n,pd.step<1?1:0)}});'
+R_L6FX3 = '      p[pd.k]=svxRound(n,pd.dec!=null?pd.dec:(pd.step<1?1:0))}});'
+# les resumes du module replie : eq6 (bandes actives, passe-haut), dehum (secteur, harmoniques, dosage), debruiteur
+# (plancher, « appris ») -- la meme garde 0,2 s que learn_of (LEARN_MIN - 1e-9 : 1,2 - 1,0 = 0,1999... en JS) ; le plancher affiche est la valeur EFFECTIVE du rendu
+# (_fx_denoise : nf <= -0,5 borne a [-80, -20], sinon automatique -- revue T5 25/09 : « -5 » affiche, -20 rendu)
+A_L6FX4 = '    case "denoise":return p.amount+" dB";'
+R_L6FX4 = ('    case "denoise":return p.amount+" dB"+(Number(p.nf)<=-.5?" · plancher "+Math.max(-80,Math.min(-20,Number(p.nf)))+" dB":"")+((Number(p.learn_out)||0)-(Number(p.learn_in)||0)>=.2-1e-9?" · appris":"");\n'
+           '    case "eq6":{var nb=["ls","p1","p2","p3","p4","hs"].filter(function(b){return Math.abs(Number(p[b+"_g"])||0)>=.05}).length;\n'
+           '      return (p.hp_hz>0?"PH "+Math.round(p.hp_hz)+" Hz · ":"")+(nb?nb+" bande"+(nb>1?"s":""):"neutre")}\n'
+           '    case "dehum":return (p.base>=55?60:50)+" Hz ×"+p.harmonics+" · "+p.amount+" %";')
+# une rangee cachee (plage apprise) ne se rend pas -- le param reste dans le module (svxCleanParams le garde)
+# et le libelle d'une rangee porte son `tip` en title quand il est declare (le plancher : « 0 = auto, -20 au plus ») --
+# revue T5 25/09 : l'ancre s'etend jusqu'au libelle (aucune autre section ne touche ces lignes, compte 1/1 sur le .bak)
+A_L6FX5 = ('  function paramRow(def,pd,p,on){\n'
+           '    var v=p[pd.k];\n'
+           '    if(pd.kind==="seg")\n'
+           '      return r.jsxs("div",{className:"svx-prow",children:[\n'
+           '        r.jsx("span",{className:"svx-plabel",children:"Mode"}),\n'
+           '        r.jsx("div",{className:"svx-gseg",role:"radiogroup","aria-label":"Mode du filtre",\n'
+           '          children:pd.opts.map(function(o){\n'
+           '          return r.jsx("button",{className:"svx-gsegbtn",role:"radio",\n'
+           '            "aria-checked":v===o[0],"data-on":v===o[0]?"":void 0,\n'
+           '            onClick:function(){setParam(def.type,pd.k,o[0])},children:o[1]},o[0])})})]},pd.k);\n'
+           '    var sv,smin,smax,sstep;\n'
+           '    if(pd.log){smin=0;smax=1000;sstep=1;\n'
+           '      sv=Math.round(1000*Math.log(svxClamp(v,pd.min,pd.max)/pd.min)/Math.log(pd.max/pd.min))}\n'
+           '    else{smin=pd.min;smax=pd.max;sstep=pd.step;sv=v}\n'
+           '    var disp=pd.step<1?svxRound(v,1):Math.round(v);\n'
+           '    return r.jsxs("div",{className:"svx-prow","data-dim":on?void 0:"",children:[\n'
+           '      r.jsx("span",{className:"svx-plabel",children:pd.label}),')
+R_L6FX5 = ('  function paramRow(def,pd,p,on){\n'
+           '    if(pd.hide)return null;\n'
+           '    var v=p[pd.k];\n'
+           '    if(pd.kind==="seg")\n'
+           '      return r.jsxs("div",{className:"svx-prow",children:[\n'
+           '        r.jsx("span",{className:"svx-plabel",children:"Mode"}),\n'
+           '        r.jsx("div",{className:"svx-gseg",role:"radiogroup","aria-label":"Mode du filtre",\n'
+           '          children:pd.opts.map(function(o){\n'
+           '          return r.jsx("button",{className:"svx-gsegbtn",role:"radio",\n'
+           '            "aria-checked":v===o[0],"data-on":v===o[0]?"":void 0,\n'
+           '            onClick:function(){setParam(def.type,pd.k,o[0])},children:o[1]},o[0])})})]},pd.k);\n'
+           '    var sv,smin,smax,sstep;\n'
+           '    if(pd.log){smin=0;smax=1000;sstep=1;\n'
+           '      sv=Math.round(1000*Math.log(svxClamp(v,pd.min,pd.max)/pd.min)/Math.log(pd.max/pd.min))}\n'
+           '    else{smin=pd.min;smax=pd.max;sstep=pd.step;sv=v}\n'
+           '    var disp=pd.step<1?svxRound(v,1):Math.round(v);\n'
+           '    return r.jsxs("div",{className:"svx-prow","data-dim":on?void 0:"",children:[\n'
+           '      r.jsx("span",{className:"svx-plabel",title:pd.tip||void 0,children:pd.label}),')
+# DECISION 6 DU PLAN : l'ecoute rendue accepte le son d'un plan {job_id} (la route POST /api/audio/audition le resout
+# deja, routes.py : `elif payload.get("job_id")` -> fichier du job) ; UN SEUL champ part : `job_id` D'ABORD quand le
+# clip le porte (l'ordre de _resolve_src du rendu : l'ecoute entend la meme source que le rendu -- revue T5 25/09),
+# sinon `filename` (son de la Bibliotheque). Seul le clip sans source audio lisible est refuse, et le dit.
+A_L6AU1 = ('    if(!c||!c.src||!c.src.audio){\n'
+           '      fireNote("Écoute rendue : disponible pour les sons de la Bibliothèque — le son d\'un plan vidéo s\'entend via la Preview 480p.");return}\n'
+           '    stopAudition();narrStop();\n'
+           '    if(playingRef.current)setPlaying(!1); /* jamais deux flux à la fois */\n'
+           '    var body={filename:c.src.audio,src_in:c.srcIn||0,\n'
+           '      len:Math.min(12,Math.max(.2,c.end-c.start)),\n'
+           '      gain_db:Math.round(Number(c.gain)||0),\n'
+           '      speed:typeof c.speed==="number"&&c.speed>0?c.speed:1,\n'
+           '      fx:Array.isArray(fx)?fx:[]};')
+R_L6AU1 = ('    if(!c||!c.src||!(c.src.audio||c.src.job_id)){\n'
+           '      fireNote("Écoute rendue : ce clip n\'a pas de source audio lisible (ni son de la Bibliothèque, ni son d\'un plan).");return}\n'
+           '    stopAudition();narrStop();\n'
+           '    if(playingRef.current)setPlaying(!1); /* jamais deux flux à la fois */\n'
+           '    /* L6 (25/09/2026) : le son d\'un plan s\'écoute rendu lui aussi (la route résout le job en son fichier rendu) */\n'
+           '    var body={src_in:c.srcIn||0,\n'
+           '      len:Math.min(12,Math.max(.2,c.end-c.start)),\n'
+           '      gain_db:Math.round(Number(c.gain)||0),\n'
+           '      speed:typeof c.speed==="number"&&c.speed>0?c.speed:1,\n'
+           '      fx:Array.isArray(fx)?fx:[]};\n'
+           '    if(c.src.job_id)body.job_id=String(c.src.job_id);else body.filename=c.src.audio;')
+# « APPRENDRE LE BRUIT » : le composant de la couche (NoiseLearn), monte sous le rack de l'inspecteur audio, DANS le
+# fragment du rack (sans couche SFX le rack est absent : le debruiteur qu'il ecrit n'a pas d'editeur). Monte avec la cle
+# sel.id : si la selection change pendant la mesure, le composant est demonte et la reponse JETEE ; sinon elle
+# s'applique au clip vise par son id, a sa liste fx COURANTE (ses effets ont pu changer pendant la mesure) ; `music`
+# (la musique bouclee : le rendu n'applique que le plancher) ; `demo` grise. UNE reference a la couche (sonde +1).
+A_L6NL1 = '          onAudition:sfxAudition},sel.id)]}):null]})}'
+R_L6NL1 = ('          onAudition:sfxAudition},sel.id),\n'
+           '        /* L6 D-25 : « Apprendre le bruit » / « Oublier » sous le rack — plage I/O du projet ; réponse appliquée au\n'
+           '           clip visé (par son id) sur sa liste d\'effets courante, jetée si la sélection change pendant la mesure */\n'
+           '        r.jsx(DzTracks.NoiseLearn,{clip:sel,range:proj.range,demo:!!proj.demo,music:isMus,onNote:fireNote,\n'
+           '          onFx:function(id,f){var k=clipsRef.current.find(function(q){return q.id===id});\n'
+           '            if(k)svmSetClipAudio(id,{fx:f(Array.isArray(k.fx)?k.fx:[])})}},sel.id)]}):null]})}')
+# ══ L6 D-26 (25/09/2026, tache 6) — L'ENREGISTREUR DE VOIX OFF ════════════════════════════════════════════════════
+# Replis : l'action vo_record (R_R1, « Alt+R » mesuree libre), son dispatch (R_R2), la bascule dzVoRef (R_M16REF), la
+# rubrique « Édition » (DZM_MENU_RUB, couche). UNE section neuve, parce qu'aucun remplacement ne touche la rangee des
+# puces de la barre du haut :
+# L6vo1 -- LA PUCE « ● voix off » APRES « narration ». ANCRE MESUREE 25/09/2026 : la fin du bouton « narration »
+# (`onClick:narrToggle,children:"narration"}),`) vaut 1/0/1 (x1 dans .bak_montage, touchee par aucune section, x1 dans
+# le bundle livre). Le composant (DzTracks.VoiceRec) tient le micro et l'enregistreur ; l'HOTE fournit :
+#   onStart -> {t0, pj} : t0 = la tete (phRef) au debut de la prise, pj = l'IDENTITE du projet a ce moment
+#              (dzProjRef.current.project_id, le nom a defaut -- revue T6 : svmApplyProject garde la MEME instance de la
+#              puce, et une prise commencee dans un projet se posait dans le suivant, au t0 de l'ancien) ; lance la
+#              lecture (setSpd(1) + setPlaying(!0), le geste MESURE de l'action « play », B:3518) : on parle sur l'image ;
+#   onStop  -> setPlaying(!1) (le geste MESURE de « jog_pause ») ;
+#   onDone(f, d, t0, pj) -> projet change depuis le debut de la prise : RIEN n'est pose, la note le dit (la prise est
+#              dans la Bibliotheque). Sinon la POSE : piste = DzTracks.dialogueTrack (jamais pickTrack, qui peut rendre A2 musique) ; sans
+#              piste de dialogue, ou piste VERROUILLEE, le refus est DIT et la prise reste dans la Bibliotheque (la route
+#              l'y a deja rangee) ; sinon addAsset({audio:f}, « Voix off n », "audio", d, piste, t0) avec le MODE
+#              D'EDITION FORCE A « ecraser » LE TEMPS DE L'APPEL : addAsset lit dzModeRef.current SYNCHRONEMENT dans
+#              DzTracks.insere (B:4556) et dans sa note (« remplir » -> « Plage effacee ») ; la prise a une duree > 0
+#              (la puce refuse une duree illisible) et le projet n'est pas la demo (la puce est grisee) : addAsset ne
+#              part ni mesurer la duree ni attendre la timeline -- aucun chemin differe ne relirait le mode non force.
+#              Le mode REMPLACEMENT arme (dzmReplaceRef, P6) est suspendu de meme : sans cela une prise ferait de
+#              {audio} la source du plan a remplacer. Les deux refs sont remises dans un finally ; MAIS (revue T6,
+#              mesure B:2332) la pose fait setOvPick("") et l'effet [ovPick] desarme alors le remplacement (ovPick !==
+#              rp.tr) : en pratique un remplacement arme est DESARME par la pose d'une prise -- le finally ne le garde
+#              que le temps de l'appel. Puis, SEULEMENT si la prise est reellement posee (ovSeq.current a avance : addAsset
+#              ne le consomme qu'une fois l'insertion acceptee ; chacun de ses refus le dit deja par sa note), la tete va
+#              a t0 + d (seekTo) : les prises successives s'enchainent.
+# Quatre references a la couche (sonde +4) : VoiceRec, dialogueTrack, voLabel, voCount.
+A_L6VO1 = '          onClick:narrToggle,children:"narration"}),'
+R_L6VO1 = (A_L6VO1 + '\n'
+           '        /* L6 D-26 : la puce ● voix off — enregistre au micro pendant la lecture ; la prise est posée sur la piste de\n'
+           '           dialogue à l\'instant où elle a commencé, en mode « écraser » forcé, puis la tête va à sa fin */\n'
+           '        r.jsx(DzTracks.VoiceRec,{demo:!!proj.demo,ctl:dzVoRef,combo:svmKeyLabel("vo_record"),onNote:fireNote,\n'
+           '          onStart:function(){var t=Math.max(0,Number(phRef.current)||0),p=dzProjRef.current;setSpd(1);setPlaying(!0);\n'
+           '            return {t0:t,pj:String(p&&(p.project_id||p.name)||"")}},\n'
+           '          onStop:function(){setPlaying(!1)},\n'
+           '          onDone:function(f,d,t0,pj){var pc=dzProjRef.current;\n'
+           '            if(pj!==String(pc&&(pc.project_id||pc.name)||"")){fireNote("Prise « "+f+" » enregistrée dans la Bibliothèque ; le projet a changé pendant la prise, elle n\'a pas été posée.");return}\n'
+           '            var ts=dzTracksRef.current||svmTracksOf(proj),tr=DzTracks.dialogueTrack(ts);\n'
+           '            if(!tr){fireNote("Prise « "+f+" » enregistrée dans la Bibliothèque, mais ce projet n\'a pas de piste de dialogue : ajoutez une piste audio, puis posez-la depuis le tiroir Sons.");return}\n'
+           '            if(trackStRef.current[tr]&&trackStRef.current[tr].l){fireNote("Piste "+tr.toUpperCase()+" verrouillée — déverrouillez-la pour ajouter. La prise « "+f+" » reste dans la Bibliothèque.");return}\n'
+           '            var m0=dzModeRef.current,rp=dzmReplaceRef.current,q0=ovSeq.current;dzModeRef.current="ecraser";dzmReplaceRef.current=null;\n'
+           '            try{addAsset({audio:f},DzTracks.voLabel(DzTracks.voCount(clipsRef.current||[])),"audio",d,tr,t0)}\n'
+           '            finally{dzModeRef.current=m0;dzmReplaceRef.current=rp}\n'
+           '            if(ovSeq.current!==q0)seekTo(t0+d)}}),')
+
+L6 = [("L6fx1-catalogue-ordre-de-chaine-et-anti-ronflement", A_L6FX1, R_L6FX1),
+      ("L6fx2-debruiteur-plancher-plage-apprise-et-eq6", A_L6FX2, R_L6FX2),
+      ("L6fx3-arrondi-au-millieme-par-dec", A_L6FX3, R_L6FX3),
+      ("L6fx4-resumes-eq6-dehum-debruiteur-appris", A_L6FX4, R_L6FX4),
+      ("L6fx5-rangee-cachee-non-rendue", A_L6FX5, R_L6FX5),
+      ("L6au1-ecoute-rendue-du-son-d-un-plan", A_L6AU1, R_L6AU1),
+      ("L6nl1-apprendre-le-bruit-sous-le-rack", A_L6NL1, R_L6NL1),
+      ("L6vo1-puce-voix-off-apres-narration", A_L6VO1, R_L6VO1)]
+for _n, _a, _r in L6:
+    assert _a != _r and _r.count("DzTracks") == (1 if _n.startswith("L6nl1") else 4 if _n.startswith("L6vo1") else 0), _n
+assert R_L6VO1.startswith(A_L6VO1 + "\n") and R_L6VO1.endswith("if(ovSeq.current!==q0)seekTo(t0+d)}}),") and R_L6VO1.count('dzModeRef.current="ecraser"') == 1
+assert R_L6VO1.find('dzModeRef.current="ecraser"') < R_L6VO1.find("try{addAsset(") < R_L6VO1.find("finally{dzModeRef.current=m0;dzmReplaceRef.current=rp}") < R_L6VO1.find("seekTo(t0+d)")
+assert R_L6FX1.endswith(A_L6FX1.split("\n")[-1]) and R_L6FX1.count('{type:"dehum",') == 1 and R_L6FX1.find('type:"dehum"') < R_L6FX1.find('type:"eq3"')
+assert R_L6FX2.startswith(A_L6FX2[:-3]) and R_L6FX2.count("hide:1") == 2 and R_L6FX2.count("dec:3") == 2 and R_L6FX2.count('{k:"') == 21
+assert R_L6FX5.count("if(pd.hide)return null;") == 1 and R_L6FX5.count("title:pd.tip||void 0,") == 1 and R_L6AU1.count("body.job_id=String(c.src.job_id)") == 1 and R_L6AU1.count("filename:") == 0
+assert R_L6NL1.startswith("          onAudition:sfxAudition},sel.id),\n") and R_L6NL1.endswith("},sel.id)]}):null]})}")
+
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
@@ -6102,7 +6338,9 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("EC11-rendu-du-trou-selectionne", A_EC11, R_EC11),
            ("EC12-tete-de-lecture-dans-l-inspecteur", A_EC12, R_EC12),
            ("EC13-suppr-referme-le-trou", A_EC13, R_EC13),
-           ("EC14-clic-sur-un-clip-efface-le-trou", A_EC14, R_EC14)] + EC15 + L4 + L7A + L5
+           ("EC14-clic-sur-un-clip-efface-le-trou", A_EC14, R_EC14)] + EC15 + L4 + L7A + L5 + L6
+           # L6 (25/09/2026, tache 5) : SEPT sections EN QUEUE, apres L5 (cinq dans le bloc SFXSTUDIO -- une premiere --,
+           # l'ecoute rendue du son d'un plan, le bouton « Apprendre le bruit » sous le rack) ; aucun repli.
            # L5 (24/09/2026, tache 6) : UNE section neuve EN QUEUE (L5sc1, les scopes sous le lecteur) ; tout le reste
            # de la tache est replie (R_R1, R_R2, R_EC1, R_EB5A, R_K7).
            # L4 (23/09/2026, tache 4) : sept sections sur des ancres libres ; l'etat

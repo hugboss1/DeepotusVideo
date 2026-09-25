@@ -1478,6 +1478,43 @@ out.lb_rendu=scShim(function(log){var P=[],C=[];
   return [m.t,m.p.className,tiles.map(function(b){return [b.t,b.p["data-id"],typeof b.p.title==="string"&&b.p.title.length>5]}),P,C.length,
     gpBtns(m).every(function(b){return typeof b.p.title==="string"&&b.p.title.length>3}),gpBtns(m).length,
     gpTous(vide).filter(function(n){return /dzm-lbmsg/.test(n.p.className||"")}).map(gpTxt),log.st,log.eff.slice(0,1)]});
+/* ── [39] L6 D-25 D-26 (25/09/2026, tâche 4) : le cœur pur audio — plage de bruit en temps de source, débruiteur appris, prises, type d'enregistrement ── */
+function auR(o){return o&&o.refus?o.refus:o}
+var AK={tr:"a1",id:"k",start:10,end:20,srcIn:5,src:{audio:"a.wav"}};
+out.au_lr=[T.learnRange(AK,{"in":12,out:13},0),T.learnRange(Object.assign({},AK,{speed:2}),{"in":12,out:13},0),
+  T.learnRange(AK,{"in":8,out:9},0),auR(T.learnRange(AK,{"in":2,out:3},0)),auR(T.learnRange(AK,null,0)),
+  auR(T.learnRange(AK,{"in":null,out:3},0)),auR(T.learnRange(AK,{"in":12,out:12.1},0)),auR(T.learnRange(AK,{"in":12,out:13},7.5)),
+  T.learnRange(AK,{"in":12,out:13},8),auR(T.learnRange(AK,{"in":12,out:43},0)),T.learnRange(AK,{"in":12,out:42},0),
+  auR(T.learnRange(null,{"in":12,out:13},0)),auR(T.learnRange(AK,{"in":13,out:12},0)),
+  T.learnRange(Object.assign({},AK,{speed:1.0004}),{"in":12,out:13},0),T.learnRange(Object.assign({},AK,{speed:9}),{"in":12,out:13},0),
+  T.learnRange(Object.assign({},AK,{srcIn:null}),{"in":12,out:13},0),T.learnRange(AK,{"in":"12",out:"13"},0),
+  T.learnRange(AK,{"in":12,out:12.2},0),auR(T.learnRange(AK,{"in":6,out:6.2},0)),auR(T.learnRange(AK,{"in":6,out:6.199},0)),
+  auR(T.learnRange({tr:"a1",id:"k",end:20,srcIn:5,src:{audio:"a.wav"}},{"in":12,out:13},0)),
+  auR(T.learnRange(Object.assign({},AK,{start:"x"}),{"in":12,out:13},0)),
+  T.learnRange(Object.assign({},AK,{srcIn:-3}),{"in":10.5,out:11.5},0)];
+/* chaque refus porte une phrase */
+out.au_lr_note=[T.learnRange(AK,null,0),T.learnRange(AK,{"in":2,out:3},0),T.learnRange(AK,{"in":12,out:12.1},0),
+  T.learnRange(AK,{"in":12,out:43},0),T.learnRange(null,{"in":1,out:2},0),
+  T.learnRange(Object.assign({},AK,{start:"x"}),{"in":12,out:13},0)].map(function(o){return typeof o.note==="string"&&o.note.length>10});
+var DQ=[{type:"eq3",params:{bass_db:2}},{type:"denoise",params:{amount:30}}],DQj=JSON.stringify(DQ),DL=T.denoiseLearn(DQ,7,8,-31);
+var DF=[{type:"denoise",amount:30,enabled:!0}],DFj=JSON.stringify(DF),DFL=T.denoiseLearn(DF,1,2,-40);
+out.au_dl=[T.denoiseLearn([],7,8,-31),DL,DL[0]===DQ[0],DL!==DQ,DL[1]!==DQ[1],JSON.stringify(DQ)===DQj,
+  DFL,JSON.stringify(DF)===DFj,T.denoiseLearn(null,7,8,-31),T.denoiseLearn(DQ,7,8,"x")[1],T.denoiseLearn(DQ,"a",8,-31),
+  T.denoiseLearn(DQ,8,7,-31),T.denoiseLearn([{type:"denoise",params:{amount:30}},{type:"denoise",params:{amount:50}}],1,2,-30),
+  T.denoiseLearn([{type:"denoise",params:[1]}],1,2,-30),T.denoiseLearn([],1,2,-95)[0].params.nf,T.denoiseLearn([],1,2,5)[0].params.nf];
+/* revue T5 (25/09) : un debruiteur COUPE est reactive par l'apprentissage ; temoin : l'eq3 coupe reste coupe, entree intacte */
+var DX=[{type:"eq3",enabled:!1,params:{bass_db:2}},{type:"denoise",enabled:!1,params:{amount:30}},{type:"deesser",enabled:!1,amount:3}],
+  DXj=JSON.stringify(DX),DXL=T.denoiseLearn(DX,1,2,-30);
+out.au_dx=[DXL,DXL[0]===DX[0],DXL[2]===DX[2],JSON.stringify(DX)===DXj,
+  T.denoiseLearn([{type:"denoise",enabled:!1,amount:30}],1,2,-30),T.denoiseLearn([{type:"denoise",enabled:!0,amount:30}],1,2,-30)];
+var FG=[{type:"eq3",params:{bass_db:2}},{type:"denoise",params:{amount:30,nf:-31,learn_in:7,learn_out:8}},{type:"denoise",nf:-2,learn_in:1,learn_out:2,amount:9}],
+  FGj=JSON.stringify(FG),FGo=T.denoiseForget(FG);
+out.au_df=[FGo,FGo[0]===FG[0],JSON.stringify(FG)===FGj,T.denoiseForget(null),T.denoiseForget([{type:"eq3"}]),
+  T.denoiseForget(T.denoiseLearn(DQ,7,8,-31)),T.denoiseForget([{type:"denoise",params:{amount:30}}])[0]];
+out.au_vo=[T.voCount([{src:{audio:"voix-off-20260925-101010.wav"}},{src:{audio:"voix-off-20260925-101011-2.wav"}},{src:{audio:"musique.mp3"}},
+  {src:{job_id:"voix-off-x"}},null,{src:null},{src:{audio:"ma-voix-off-1.wav"}}]),T.voCount([]),T.voCount(null),T.voLabel(3),T.voLabel(1),T.voLabel(0),T.voLabel("x"),T.voLabel(2.7)];
+out.au_rm=[T.recMime(function(t){return t==="audio/ogg;codecs=opus"}),T.recMime(function(){return !1}),T.recMime(function(){return !0}),
+  T.recMime(null),T.recMime(function(t){if(t!=="audio/mp4")throw new Error("x");return !0}),T.VO_MIMES.slice(),Object.isFrozen(T.VO_MIMES)];
 console.log(JSON.stringify(out));
 """
 # E-9 : svmRuler / svmPad2 sont des fonctions DU BUNDLE (meme portee module que
@@ -1814,7 +1851,9 @@ try:
                  "gp_fx","gp_hit","gp_move","gp_add","gp_del","gp_mid","gp_prev","gp_match","gp_frame","gp_sig",
                  "gp_pure","gp_null","gp_box","gp_rendu","gp_verrou","gp_vide","gp_geste","gp_grade",
                  # L5 D-31 D-32 (tache 6, 24/09) : les NEUF cles de la section [38] (les gardes en execution ont leur shim a part).
-                 "sc_at","sc_body","sc_store","lb_plans","lb_next","gc","sc_null","sc_rendu","lb_rendu"]
+                 "sc_at","sc_body","sc_store","lb_plans","lb_next","gc","sc_null","sc_rendu","lb_rendu",
+                 # L6 D-25 D-26 (tache 4, 25/09) : les SIX cles de la section [39] ; + au_dx (revue T5, 25/09).
+                 "au_lr","au_lr_note","au_dl","au_df","au_vo","au_rm","au_dx"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -4371,6 +4410,434 @@ check("l5x_t6_M4_lightbox_modale_focus_sur_fermer_a_l_ouverture_rendu_au_depart_
 check("l5x_pt_encart_porte_dans_le_cadre_connecte_une_recherche_par_allumage_retombe_en_ligne_cadre_detache",
       _RX.get("pt_portail") == [["portail", True, 1, 1], [["portail", True, 1, 1], 1, 1], ["div", None, 1, 0], [1, 1]],
       _RX.get("pt_portail"))
+
+print("\n[39] L6 D-25 D-26 : le coeur pur audio — plage de bruit en temps de source, debruiteur appris, prises, type d'enregistrement (tache 4, 25/09/2026)")
+# ── L6 (25/09/2026, tache 4). La plage I/O (temps de TIMELINE) devient une plage de SOURCE du clip selectionne
+# (a = srcIn + (in - start)·v ; v = la vitesse audio lue comme sfx_service.clamp_speed : 0,5..2, ~1 -> 1) ; elle peut
+# sortir du clip mais pas de la source ; la garde 0,2 s porte la MEME tolerance que learn_of du backend
+# (b - a < LEARN_MIN - 1e-9 refuse ; revue T4 25/09 L6 : l'ancienne garde nue `< .2` refusait 1,0-1,2 (0,19999…) et
+# acceptait 7,0-7,2 -- le verdict dependait de la POSITION de la plage). Temoins : 1,0-1,2 ACCEPTEE comme 7,0-7,2,
+# 1,0-1,199 refusee (courte). Clip sans debut lisible -> clip (pas plage) ; srcIn negatif borne a 0.
+# Faute n6 : chaque lecture passe par D.get / at().
+check("au_lr_plage_de_source_vitesse_hors_clip_hors_source_plage_absente_courte_longue_clip_absent_ordre_inverse",
+      D.get("au_lr") == [{"a": 7, "b": 8}, {"a": 9, "b": 11}, {"a": 3, "b": 4}, "hors_source", "plage", "plage", "courte",
+                         "hors_source", {"a": 7, "b": 8}, "longue", {"a": 7, "b": 37}, "clip", "plage",
+                         {"a": 7, "b": 8}, {"a": 9, "b": 11}, {"a": 2, "b": 3}, {"a": 7, "b": 8}, {"a": 7, "b": 7.2},
+                         {"a": 1, "b": 1.2}, "courte", "clip", "clip", {"a": 0.5, "b": 1.5}],
+      D.get("au_lr"))
+check("au_lr_chaque_refus_porte_une_phrase", D.get("au_lr_note") == [True] * 6, D.get("au_lr_note"))
+_AUL = {"type": "denoise", "params": {"amount": 30, "nf": -31, "learn_in": 7, "learn_out": 8}}
+_AUQ = [{"type": "eq3", "params": {"bass_db": 2}}, {"type": "denoise", "params": {"amount": 30}}]
+check("au_dl_debruiteur_cree_amount_24_ou_garde_forme_params_ou_a_plat_autres_modules_meme_reference_entree_intacte",
+      at("au_dl", 0) == [{"type": "denoise", "params": {"amount": 24, "nf": -31, "learn_in": 7, "learn_out": 8}}]
+      and at("au_dl", 1) == [_AUQ[0], _AUL] and at("au_dl", 2) is True and at("au_dl", 3) is True and at("au_dl", 4) is True
+      and at("au_dl", 5) is True
+      and at("au_dl", 6) == [{"type": "denoise", "amount": 30, "enabled": True, "nf": -40, "learn_in": 1, "learn_out": 2}]
+      and at("au_dl", 7) is True
+      and at("au_dl", 8) == [{"type": "denoise", "params": {"amount": 24, "nf": -31, "learn_in": 7, "learn_out": 8}}],
+      D.get("au_dl"))
+check("au_dl_plancher_illisible_auto_0_borne_moins_80_0_plage_illisible_ou_courte_liste_inchangee_premier_denoise_seul_params_non_objet_a_plat",
+      at("au_dl", 9) == {"type": "denoise", "params": {"amount": 30, "nf": 0, "learn_in": 7, "learn_out": 8}}
+      and at("au_dl", 10) == _AUQ and at("au_dl", 11) == _AUQ
+      and at("au_dl", 12) == [{"type": "denoise", "params": {"amount": 30, "nf": -30, "learn_in": 1, "learn_out": 2}},
+                              {"type": "denoise", "params": {"amount": 50}}]
+      and at("au_dl", 13) == [{"type": "denoise", "params": [1], "nf": -30, "learn_in": 1, "learn_out": 2}]
+      and at("au_dl", 14) == -80 and at("au_dl", 15) == 0,
+      D.get("au_dl"))
+# revue T5 (25/09) : un denoise enabled:false (saute par sanitize_fx au rendu) recevait l'apprentissage SANS effet ; il est
+# REACTIVE (cle retiree, forme gardee), l'eq3 et le deesser coupes gardent leur reference ; enabled:true garde tel quel.
+check("au_dx_apprendre_reactive_le_debruiteur_coupe_autres_modules_coupes_intacts_entree_intacte",
+      at("au_dx", 0) == [{"type": "eq3", "enabled": False, "params": {"bass_db": 2}},
+                         {"type": "denoise", "params": {"amount": 30, "nf": -30, "learn_in": 1, "learn_out": 2}},
+                         {"type": "deesser", "enabled": False, "amount": 3}]
+      and at("au_dx", 1) is True and at("au_dx", 2) is True and at("au_dx", 3) is True
+      and at("au_dx", 4) == [{"type": "denoise", "amount": 30, "nf": -30, "learn_in": 1, "learn_out": 2}]
+      and at("au_dx", 5) == [{"type": "denoise", "enabled": True, "amount": 30, "nf": -30, "learn_in": 1, "learn_out": 2}],
+      D.get("au_dx"))
+check("au_df_oublier_retire_nf_et_apprentissage_de_chaque_denoise_module_garde_autres_meme_reference_entree_intacte",
+      D.get("au_df") == [[{"type": "eq3", "params": {"bass_db": 2}}, {"type": "denoise", "params": {"amount": 30}},
+                          {"type": "denoise", "amount": 9}], True, True, [], [{"type": "eq3"}], _AUQ,
+                         {"type": "denoise", "params": {"amount": 30}}],
+      D.get("au_df"))
+# Temoin « ma-voix-off-1.wav » (revue T4) : la sous-chaine SANS prefixe n'est pas une prise (indexOf >= 0 -> 4, rouge).
+check("au_vo_prises_comptees_par_le_prefixe_voix_off_du_fichier_son_libelle_numero_lisible_au_moins_1",
+      D.get("au_vo") == [3, 1, 1, "Voix off 3", "Voix off 1", "Voix off 1", "Voix off 1", "Voix off 2"], D.get("au_vo"))
+check("au_rm_premier_type_accepte_dans_l_ordre_aucun_rien_juge_absent_rien_juge_qui_leve_saute_liste_gelee",
+      D.get("au_rm") == ["audio/ogg;codecs=opus", "", "audio/webm;codecs=opus", "", "audio/mp4",
+                         ["audio/webm;codecs=opus", "audio/ogg;codecs=opus", "audio/webm", "audio/mp4"], True],
+      D.get("au_rm"))
+# LE SOURCE : les six fonctions sont PURES (ni r / x, ni reseau, ni DOM, ni stockage, ni API du navigateur -- le juge du type
+# d'enregistrement est INJECTE) ; regex gardee par un temoin de longueur ; exports au contrat ; hors de la zone _L5Z.
+_L6A = {n: _corps(n) for n in ("dzmLearnRange", "dzmDenoiseLearn", "dzmDenoiseForget", "dzmVoCount", "dzmVoLabel", "dzmRecMime")}
+check("l6_au_six_fonctions_pures_ni_r_ni_x_ni_reseau_ni_dom_ni_stockage_ni_api_navigateur",
+      all(len(c) > 40 for c in _L6A.values())
+      and not any(re.search(r"\br\.jsx|\bx\.use|localStorage|sessionStorage|\bwindow\b|\bdocument\b|\bnavigator\b|MediaRecorder|"
+                            r"getUserMedia|isTypeSupported|fetch\(|setClips|pushHistory|style\.|URL\.", c) for c in _L6A.values())
+      and _L6A["dzmRecMime"].count("ok(DZM_VO_MIMES[i])") == 1 and _L6A["dzmLearnRange"].count("dzmCoR(") == 2,
+      {n: len(c) for n, c in _L6A.items()})
+check("l6_au_exports_au_contrat_une_fois_mimes_declares_une_fois_avant_la_zone_des_composants_l5",
+      _DT.count("learnRange:dzmLearnRange,denoiseLearn:dzmDenoiseLearn,denoiseForget:dzmDenoiseForget,"
+                "voCount:dzmVoCount,voLabel:dzmVoLabel,recMime:dzmRecMime,VO_MIMES:DZM_VO_MIMES,") == 1
+      and _SRCb.count("var DZM_VO_MIMES=") == 1
+      and 0 <= _SRCb.find("function dzmRecMime(") < _SRCb.find("function DzmScopes(o){")
+      and 0 <= _SRCb.find("function dzmLearnRange(") < _SRCb.find("function DzmScopes(o){"),
+      [_DT.count("learnRange:dzmLearnRange,"), _SRCb.count("var DZM_VO_MIMES=")])
+
+print("\n[40] L6 D-25 : « Apprendre le bruit » sous le rack — le composant joue sous le mini-React (tache 5, 25/09/2026)")
+# ── L6 (25/09/2026, tache 5). DzmNoiseLearn sous le mini-React de PROBE_L5X (harnais REPRIS par tranche, pas recopie :
+# de son debut a la memoire des scopes ; temoin de longueur) ; le reseau est un faux `fetch` en file. Faute n6 : chaque
+# lecture passe par .get / une liste de longueur verifiee, detail calcule avant.
+_L6H = PROBE_L5X[:PROBE_L5X.find("var S={dz_montage_scopes")] if "var S={dz_montage_scopes" in PROBE_L5X else ""
+PROBE_L6 = _L6H + r"""
+function jrep(i,ok,st,j){FQ[i].d.a({ok:ok,status:st,json:function(){return Promise.resolve(j)}})}
+function bts(m){return tous(m).filter(function(n){return n.t==="button"})}
+function etat(m){return bts(m).map(function(b){return [txt(b),!!b.p.disabled,typeof b.p.title==="string"?b.p.title:null]})}
+function st(m){return tous(m).filter(function(n){return /dzm-nlst/.test(n.p.className||"")}).map(txt)}
+var AK={tr:"a1",id:"k",start:10,end:20,srcIn:5,src:{audio:"a.wav"},fx:[{type:"eq3",params:{bass_db:2}}]};
+var R={},NT=[],FX=[];
+function props(extra){return Object.assign({clip:AK,range:{"in":12,out:13},demo:!1,music:!1,
+  onNote:function(m){NT.push(m)},onFx:function(id,f){FX.push([id,f])}},extra||{})}
+(async function(){
+  /* 1 : sans plage I/O -> les DEUX boutons rendus, grisés, titrés ; aucune requête ; état « aucun bruit appris » */
+  var M=mini(T.NoiseLearn);M.render(props({range:null}));R.sans=[etat(M.H.out),st(M.H.out),FQ.length];
+  M.bts=bts(M.H.out);M.bts[0].p.onClick();R.sans_clic=[FQ.length,NT.length];M.unmount();
+  /* 2 : démo -> grisé et dit ; 3 : plage 12–13 sur un clip calé à 10 (srcIn 5) -> source 7–8, UNE requête, libellé « Mesure… » */
+  M=mini(T.NoiseLearn);M.render(props({demo:!0}));R.demo=etat(M.H.out)[0];M.unmount();
+  M=mini(T.NoiseLearn);M.render(props());R.pret=etat(M.H.out);bts(M.H.out)[0].p.onClick();M.flush();
+  R.req=[FQ.length,FQ[0]&&FQ[0].u,FQ[0]&&FQ[0].body,etat(M.H.out)[0]];
+  bts(M.H.out)[0].p.onClick();R.pas_deux=FQ.length;
+  /* 4 : réponse ok -> onFx(id du clip, f) UNE fois, f applique dzmDenoiseLearn à la liste COURANTE ; la note dit la plage */
+  jrep(0,!0,200,{ok:!0,rms_db:-40.2,nf_db:-30,t0:7,t1:8});await settle();M.flush();
+  var f0=FX.length===1?FX[0][1]:null;
+  R.ok=[FX.length,FX[0]&&FX[0][0],f0?f0([{type:"eq3",params:{bass_db:2}}]):null,NT.slice(-1),etat(M.H.out)[0][0]];
+  /* 5 : réponse ok:false -> « Plage muette », rien d'écrit ; 6 : 404 -> la note porte le détail ; rien d'écrit */
+  bts(M.H.out)[0].p.onClick();jrep(1,!0,200,{ok:!1,reason:"muet"});await settle();M.flush();R.muet=[FX.length,NT.slice(-1)];
+  bts(M.H.out)[0].p.onClick();jrep(2,!1,404,{detail:"Not Found"});await settle();M.flush();R.err=[FX.length,NT.slice(-1),etat(M.H.out)[0][1]];
+  M.unmount();
+  /* 7 : plage trop courte -> bouton ACTIF, le clic DIT le refus, rien ne part ; 8 : durée de source EN CACHE (7,5 s) -> hors source */
+  var n0=FQ.length;M=mini(T.NoiseLearn);M.render(props({range:{"in":12,out:12.1}}));R.courte_actif=!etat(M.H.out)[0][1];
+  bts(M.H.out)[0].p.onClick();R.courte=[FQ.length-n0,NT.slice(-1)];M.unmount();
+  var SK={tr:"a1",id:"q",start:10,end:20,srcIn:5,src:{audio:"court.wav"}};T.audioSet(SK.src,{has_audio:!0,dur:7.5,pourquoi:"mesure"});
+  M=mini(T.NoiseLearn);M.render(props({clip:SK}));bts(M.H.out)[0].p.onClick();R.cache=[FQ.length-n0,NT.slice(-1)];M.unmount();
+  /* 9 : clip appris -> « Oublier » actif, l'état le dit ; clic -> onFx(id, f) où f retire la plage apprise */
+  var AP=Object.assign({},AK,{fx:[{type:"denoise",params:{amount:30,nf:-31,learn_in:7,learn_out:8}}]}),nf=FX.length;
+  M=mini(T.NoiseLearn);M.render(props({clip:AP}));R.appris=[etat(M.H.out)[1][1],st(M.H.out)];bts(M.H.out)[1].p.onClick();
+  R.oublie=[FX.length-nf,FX[nf]&&FX[nf][0],FX[nf]?FX[nf][1](AP.fx):null,NT.slice(-1)];M.unmount();
+  /* 10 : démonté PENDANT la mesure -> la réponse tardive ne note ni n'écrit rien */
+  M=mini(T.NoiseLearn);M.render(props());bts(M.H.out)[0].p.onClick();var q=FQ.length-1,nn=NT.length,nx=FX.length;M.unmount();
+  jrep(q,!0,200,{ok:!0,nf_db:-33});await settle();R.demonte=[NT.length-nn,FX.length-nx];
+  /* 11 : musique bouclée -> le title le dit ; nlAppris pur (forme à plat, garde 0,2 s, nf illisible -> 0) */
+  M=mini(T.NoiseLearn);M.render(props({music:!0}));R.musique=/seul le plancher/.test(etat(M.H.out)[0][2]||"");M.unmount();
+  R.nla=[T.nlAppris([{type:"denoise",learn_in:1,learn_out:2,nf:"x"}]),T.nlAppris([{type:"denoise",params:{learn_in:1,learn_out:1.1}}]),
+    T.nlAppris(null),T.nlAppris([{type:"eq3"},{type:"denoise",params:{amount:3}},{type:"denoise",params:{learn_in:1,learn_out:2}}])];
+  /* 12 : revue finale L6 -- la garde de l'AFFICHAGE a la tolérance de learn_of (LEARN_MIN − 1e-9) : 1,0–1,2 (que
+     dzmLearnRange accepte, que dzmDenoiseLearn écrit et que le rendu apprend) EST appris, alors que 1,2 − 1,0 vaut
+     0,1999… en JS ; contre-témoin 1,0–1,199 -> null. Le composant le dit (état, « Oublier » actif / grisé). */
+  R.lim=[T.nlAppris([{type:"denoise",params:{learn_in:1,learn_out:1.2}}]),T.nlAppris([{type:"denoise",params:{learn_in:1,learn_out:1.199}}]),
+    T.denoiseLearn([],1,1.2,0)];
+  [1.2,1.199].forEach(function(b){var C=Object.assign({},AK,{fx:[{type:"denoise",params:{amount:24,learn_in:1,learn_out:b}}]});
+    M=mini(T.NoiseLearn);M.render(props({clip:C}));R.lim.push([etat(M.H.out)[1][1],st(M.H.out)]);M.unmount()});
+  R.nul=T.NoiseLearn(null);
+  out.R=R;
+})().catch(function(e){out.err=String(e&&e.stack||e)}).then(function(){console.log(JSON.stringify(out))});
+"""
+D6 = {}
+if NODE and os.path.isfile(SRC_PATH) and globals().get("SRC") and len(_L6H) > 2000 and "function mini(" in _L6H:
+    _sh6 = os.path.join(TMP, "shim_l6.js")
+    with open(_sh6, "w", encoding="utf-8") as fh:
+        fh.write('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + SRC + "\n" + PROBE_L6)
+    _r6 = sh([NODE, _sh6])
+    _l6x = (_r6.stdout or "").strip().splitlines()
+    try:
+        D6 = json.loads(_l6x[-1]) if _l6x else {}
+    except Exception as _e:
+        D6 = {"err": temoin(_e)}
+    check("l6x_shim_execute_sans_erreur", _r6.returncode == 0 and "err" not in D6 and isinstance(D6.get("R"), dict),
+          (D6.get("err"), (_r6.stderr or "")[-400:]))
+else:
+    check("l6x_shim_execute_sans_erreur", False, ("node, source ou harnais absents", len(_L6H)))
+_R6 = D6.get("R") if isinstance(D6.get("R"), dict) else {}
+_S6 = _R6.get("sans") if isinstance(_R6.get("sans"), list) and len(_R6.get("sans")) == 3 else [None] * 3
+check("l6x_sans_plage_deux_boutons_rendus_grises_titres_aucune_requete_le_clic_ne_fait_rien",
+      isinstance(_S6[0], list) and [b[:2] for b in _S6[0]] == [["Apprendre le bruit", True], ["Oublier", True]]
+      and all(isinstance(b[2], str) and len(b[2]) > 10 for b in _S6[0]) and "plage I/O" in (_S6[0][0][2] or "")
+      and _S6[1] == ["aucun bruit appris"] and _S6[2] == 0 and _R6.get("sans_clic") == [0, 0],
+      [_S6, _R6.get("sans_clic")])
+_D6d = _R6.get("demo") if isinstance(_R6.get("demo"), list) else [None] * 3
+check("l6x_demo_grise_et_dit", _D6d[:2] == ["Apprendre le bruit", True] and "démonstration" in (_D6d[2] or ""), _D6d)
+_RQ = _R6.get("req") if isinstance(_R6.get("req"), list) and len(_R6.get("req")) == 4 else [None] * 4
+check("l6x_plage_12_13_devient_7_8_de_source_une_requete_noise_profile_libelle_mesure_grise_pas_de_seconde_requete",
+      isinstance(_R6.get("pret"), list) and _R6["pret"][0][:2] == ["Apprendre le bruit", False] and "7–8 s de source" in (_R6["pret"][0][2] or "")
+      and _RQ[:3] == [1, "/api/montage/noise-profile", {"src": {"audio": "a.wav"}, "t0": 7, "t1": 8, "fx": [{"type": "eq3", "params": {"bass_db": 2}}]}]
+      and isinstance(_RQ[3], list) and _RQ[3][:2] == ["Mesure…", True] and _R6.get("pas_deux") == 1,
+      [_R6.get("pret"), _RQ, _R6.get("pas_deux")])
+check("l6x_reponse_ok_onFx_une_fois_pour_le_clip_vise_f_ecrit_le_debruiteur_appris_la_note_dit_la_plage",
+      _R6.get("ok") == [1, "k", [{"type": "eq3", "params": {"bass_db": 2}},
+                                 {"type": "denoise", "params": {"amount": 24, "nf": -30, "learn_in": 7, "learn_out": 8}}],
+                        ["Bruit appris sur 7–8 s (source) : plancher -30 dB"], "Apprendre le bruit"],
+      _R6.get("ok"))
+check("l6x_plage_muette_et_refus_du_serveur_dits_rien_d_ecrit_bouton_rendu_actif",
+      _R6.get("muet") == [1, ["Plage muette : rien à apprendre"]]
+      and isinstance(_R6.get("err"), list) and _R6["err"][0] == 1 and _R6["err"][2] is False
+      and isinstance(_R6["err"][1], list) and len(_R6["err"][1]) == 1 and _R6["err"][1][0].startswith("Apprentissage impossible : Not Found"),
+      [_R6.get("muet"), _R6.get("err")])
+check("l6x_plage_courte_bouton_actif_le_clic_dit_le_refus_rien_ne_part_duree_de_source_lue_dans_le_cache",
+      _R6.get("courte_actif") is True
+      and _R6.get("courte") == [0, ["Plage trop courte : il faut au moins 0,2 s de bruit seul (dans la source)"]]
+      and _R6.get("cache") == [0, ["La plage sort de la source de ce clip : posez-la sur un passage que la source contient"]],
+      [_R6.get("courte_actif"), _R6.get("courte"), _R6.get("cache")])
+check("l6x_clip_appris_oublier_actif_etat_dit_clic_retire_la_plage_module_garde",
+      _R6.get("appris") == [False, ["appris 7–8 s · -31 dB"]]
+      and _R6.get("oublie") == [1, "k", [{"type": "denoise", "params": {"amount": 30}}],
+                                ["Bruit appris oublié : le débruiteur reste, plancher automatique"]],
+      [_R6.get("appris"), _R6.get("oublie")])
+check("l6x_demonte_pendant_la_mesure_la_reponse_tardive_ne_note_ni_n_ecrit_rien_musique_dite",
+      _R6.get("demonte") == [0, 0] and _R6.get("musique") is True, [_R6.get("demonte"), _R6.get("musique")])
+check("l6x_nlAppris_pur_forme_a_plat_garde_0_2_premier_denoise_seul_null_sans_clip",
+      _R6.get("nla") == [{"a": 1, "b": 2, "nf": 0}, None, None, None] and "nul" in _R6 and _R6.get("nul") is None, _R6.get("nla"))
+# revue finale L6 (25/09) : 1,2 - 1,0 = 0,19999999999999996 en JS -- l'ancienne garde (b-a>=.2) rendait null sur une plage
+# que learn_of rend (1.0, 1.2) ; contre-temoin 1,0-1,199 -> null, « aucun bruit appris », « Oublier » grise.
+_LIM = _R6.get("lim") if isinstance(_R6.get("lim"), list) and len(_R6.get("lim")) == 5 else [None] * 5
+_LIM4 = _LIM[3] if isinstance(_LIM[3], list) and len(_LIM[3]) == 2 else [None, None]
+check("l6x_nlAppris_garde_0_2_tolerance_de_learn_of_1_0_1_2_appris_1_199_null_le_composant_le_dit",
+      _LIM[0] == {"a": 1, "b": 1.2, "nf": 0} and _LIM[1] is None
+      and _LIM[2] == [{"type": "denoise", "params": {"amount": 24, "nf": 0, "learn_in": 1, "learn_out": 1.2}}]
+      and _LIM4[0] is False and isinstance(_LIM4[1], list) and len(_LIM4[1]) == 1 and str(_LIM4[1][0]).startswith("appris ")
+      and _LIM[4] == [True, ["aucun bruit appris"]],
+      _LIM)
+_NLA = _corps("dzmNlAppris")
+check("l6x_nlAppris_pur_ni_r_ni_x_ni_reseau_ni_dom_exporte_une_fois_composant_avant_la_zone_l5",
+      len(_NLA) > 200 and not re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|\bnavigator\b|fetch\(|setClips|pushHistory", _NLA)
+      and _DT.count("nlAppris:dzmNlAppris,NoiseLearn:DzmNoiseLearn,") == 1
+      and 0 <= _SRCb.find("var DZM_VO_MIMES=") < _SRCb.find("function DzmNoiseLearn(o){") < _SRCb.find("function DzmScopes(o){")
+      and _SRCb.count('dzmGpFetch("/api/montage/noise-profile",') == 1,
+      [len(_NLA), _DT.count("NoiseLearn:DzmNoiseLearn,")])
+
+print("\n[41] L6 D-26 : l'enregistreur de voix off — le composant joue sous le mini-React, faux micro injecte (tache 6, 25/09/2026)")
+# ── L6 (25/09/2026, tache 6). DzmVoiceRec sous le MEME harnais que [40] (tranche _L6H de PROBE_L5X) ; le micro et
+# l'enregistreur sont INJECTES (o.rec = {media, Rec, juge}) ; le reseau est un faux `fetch` propre a cette section (le
+# corps est un FormData, que le faux de [40] ne sait pas lire). Aucune route payante : l'URL appelee est RELEVEE et
+# comparee (jamais /api/audio/voiceover). Faute n6 : chaque lecture passe par .get / une liste de longueur verifiee.
+PROBE_L6V = _L6H + r"""
+var FV=[];G.fetch=function(u,op){var d={},p=new Promise(function(a,b){d.a=a;d.b=b});
+  var f=op&&op.body&&typeof op.body.get==="function"?op.body.get("file"):null;
+  FV.push({u:u,m:op&&op.method,champs:op&&op.body&&typeof op.body.keys==="function"?Array.from(op.body.keys()):null,
+    nom:f&&f.name,type:f&&f.type,taille:f&&f.size,d:d});return p};
+function vrep(i,ok,st,j){FV[i].d.a({ok:ok,status:st,json:function(){return Promise.resolve(j)}})}
+function bts(m){return tous(m).filter(function(n){return n.t==="button"})}
+function etat(m){return bts(m).map(function(b){return [txt(b),!!b.p.disabled,typeof b.p.title==="string"?b.p.title:null,b.p["data-rec"]||""]})}
+var RC=[],CN=[],PISTES=[],RecCrash=null;
+function flux(){var f={pistes:[{n:0,stop:function(){this.n++}}],getTracks:function(){return this.pistes}};PISTES.push(f);return f}
+function FauxRec(fl,opt){this.fl=fl;this.opt=opt===void 0?null:opt;this.state="inactive";this.mimeType=(opt&&opt.mimeType)||"";this.starts=[];this.stops=0;RC.push(this)}
+FauxRec.prototype.start=function(ts){this.state="recording";this.starts.push(ts)};
+FauxRec.prototype.stop=function(){this.stops++;if(this.state==="inactive")return;this.state="inactive";var s=this;
+  Promise.resolve().then(function(){if(s.ondataavailable)s.ondataavailable({data:s.vide?new Blob([]):new Blob(["prise"],{type:"audio/ogg"})});
+    if(s.onstop)s.onstop()})};
+function RecVide(fl,opt){FauxRec.call(this,fl,opt);this.vide=!0}RecVide.prototype=FauxRec.prototype;
+var OGG=function(t){return t==="audio/ogg;codecs=opus"};
+function inj(extra){return Object.assign({media:function(c){CN.push(c);return Promise.resolve(flux())},Rec:FauxRec,juge:OGG},extra||{})}
+var R={},NT=[],ST=[],SP=[],DN=[];
+function props(extra){var ctl={current:null};return Object.assign({demo:!1,ctl:ctl,rec:inj(),
+  onNote:function(m){NT.push(m)},onStart:function(){ST.push(1);return 12.5},onStop:function(){SP.push(1)},
+  onDone:function(f,d,t0){DN.push([f,d,t0])}},extra||{})}
+(async function(){
+  /* 1 : démo -> UN bouton, grisé, titré ; la bascule du clavier (ctl) DIT le refus et n'ouvre pas le micro */
+  var P=props({demo:!0}),M=mini(T.VoiceRec);M.render(P);R.demo=[etat(M.H.out),typeof P.ctl.current];
+  P.ctl.current();await settle();R.demo_ctl=[CN.length,NT.slice(-1),ST.length];M.unmount();
+  /* 2 : sans injection (node n'a ni micro ni enregistreur) -> « Micro indisponible », rien ne démarre, le bouton reste actif */
+  P=props({rec:null});M=mini(T.VoiceRec);M.render(P);bts(M.H.out)[0].p.onClick();await settle();M.flush();
+  R.absent=[NT.slice(-1),ST.length,etat(M.H.out)[0].slice(0,2)];M.unmount();
+  /* 3 : micro refusé -> la raison est dite, retour au repos */
+  P=props({rec:inj({media:function(){return Promise.reject({name:"NotAllowedError",message:"Permission denied"})}})});
+  M=mini(T.VoiceRec);M.render(P);bts(M.H.out)[0].p.onClick();M.flush();R.refus_attente=etat(M.H.out)[0].slice(0,2);
+  await settle();M.flush();R.refus=[NT.slice(-1),ST.length,etat(M.H.out)[0].slice(0,2)];M.unmount();
+  /* 4 : LE CYCLE. clic -> micro demandé (audio), enregistreur au type choisi par le juge, onStart UNE fois (t0 = 12,5),
+     bouton « ■ … » titré ; second clic -> onStop UNE fois, pistes coupées, « envoi… » grisé ; la prise part UNE fois
+     à /api/audio/recording (POST, champ file, prise.ogg) ; réponse -> onDone UNE fois avec (filename, dur, t0) */
+  var n0=NT.length;P=props();M=mini(T.VoiceRec);M.render(P);R.repos=etat(M.H.out);
+  bts(M.H.out)[0].p.onClick();bts(M.H.out)[0].p.onClick();M.flush();R.attente=[etat(M.H.out)[0].slice(0,2),CN.length];
+  await settle();M.flush();var rc=RC[RC.length-1];
+  R.prise=[CN.slice(-1),rc&&rc.opt,rc&&rc.state,rc&&rc.starts.length,ST.length,etat(M.H.out)[0],typeof P.ctl.current];
+  bts(M.H.out)[0].p.onClick();M.flush();var fl=PISTES[PISTES.length-1];
+  R.arret=[SP.length,fl&&fl.pistes[0].n,etat(M.H.out)[0].slice(0,2),rc&&rc.stops];
+  await settle();M.flush();
+  R.envoi=[FV.length,FV[0]&&FV[0].u,FV[0]&&FV[0].m,FV[0]&&FV[0].champs,FV[0]&&FV[0].nom,FV[0]&&FV[0].taille>0];
+  /* les rappels sont lus sur les DERNIERES props : un rendu de l'hote pendant l'envoi remplace onDone */
+  P=Object.assign({},P,{onDone:function(f,d,t0){DN.push(["neuf",f,d,t0])}});M.render(P);
+  vrep(0,!0,200,{ok:!0,filename:"voix-off-20260925-101010.wav",url:"/audio/voix-off-20260925-101010.wav",dur:3.25,size_kb:305});
+  await settle();M.flush();R.pose=[DN.slice(),etat(M.H.out)[0].slice(0,2),NT.slice(n0)];
+  /* 5 : LA BASCULE DU CLAVIER (ctl) fait le même cycle ; l'envoi échoue (415) -> « prise non enregistrée », rien de posé */
+  P.ctl.current();await settle();M.flush();P.ctl.current();await settle();M.flush();
+  R.ctl=[ST.length,SP.length,FV.length];vrep(1,!1,415,{detail:"Enregistrement illisible"});await settle();M.flush();
+  R.echec=[DN.length,NT.slice(-1),etat(M.H.out)[0].slice(0,2)];
+  /* 6 : réponse sans durée lisible -> dite, rien de posé (addAsset partirait mesurer la durée hors du mode forcé) */
+  bts(M.H.out)[0].p.onClick();await settle();M.flush();bts(M.H.out)[0].p.onClick();await settle();M.flush();
+  vrep(2,!0,200,{ok:!0,filename:"voix-off-x.wav",dur:0});await settle();M.flush();R.sans_duree=[DN.length,NT.slice(-1)];
+  M.unmount();
+  /* 7 : DÉMONTAGE PENDANT UNE PRISE -> enregistreur arrêté, flux coupé, rien d'envoyé, rien de dit, rien de posé */
+  var nf=FV.length,nn=NT.length;P=props();M=mini(T.VoiceRec);M.render(P);bts(M.H.out)[0].p.onClick();await settle();M.flush();
+  rc=RC[RC.length-1];fl=PISTES[PISTES.length-1];M.unmount();await settle();
+  R.demonte=[rc&&rc.state,rc&&rc.stops,fl&&fl.pistes[0].n,FV.length-nf,NT.length-nn,P.ctl.current];
+  /* 8 : démontage PENDANT l'accord du micro -> le flux arrivé en retard est coupé aussitôt, aucun enregistreur */
+  var dly={},nr=RC.length;P=props({rec:inj({media:function(){return new Promise(function(a){dly.a=a})}})});
+  M=mini(T.VoiceRec);M.render(P);bts(M.H.out)[0].p.onClick();M.unmount();var tard=flux();dly.a(tard);await settle();
+  R.tard=[tard.pistes[0].n,RC.length-nr];
+  /* 9 : prise vide -> dite, rien d'envoyé ; 10 : sans type accepté par le juge -> enregistreur SANS option */
+  nf=FV.length;P=props({rec:inj({Rec:RecVide})});M=mini(T.VoiceRec);M.render(P);bts(M.H.out)[0].p.onClick();await settle();M.flush();
+  bts(M.H.out)[0].p.onClick();await settle();M.flush();R.vide=[FV.length-nf,NT.slice(-1)];M.unmount();
+  P=props({rec:inj({juge:function(){return !1}})});M=mini(T.VoiceRec);M.render(P);bts(M.H.out)[0].p.onClick();await settle();M.flush();
+  R.sans_type=[RC[RC.length-1].opt];M.unmount();
+  /* 11 : aides pures */
+  R.pur=[T.voExt("audio/ogg;codecs=opus"),T.voExt("audio/mp4"),T.voExt("audio/webm;codecs=opus"),T.voExt(""),T.voExt(null),
+    T.voChrono(0),T.voChrono(3.9),T.voChrono(65),T.voChrono(-2),T.voChrono("x"),
+    T.voErr({name:"NotAllowedError"}),T.voErr({name:"NotFoundError"}),T.voErr(new Error("boum")),T.voErr(null)];
+  R.nul=T.VoiceRec(null);
+  /* revue T6 — 13 : ARRÊT SPONTANÉ (erreur de l'enregistreur puis arrêt, sans passer par la puce) -> la raison est dite,
+     les pistes coupées, la lecture arrêtée, « envoi… » ; le clavier pendant l'envoi dit l'attente ; la prise part quand
+     même, et onDone reçoit l'identité du projet rendue par onStart ({t0, pj}) ; revue de
+     T6 : une identité PROPRE au cas (P9) : avec P1, la mutation `M.pj="P1"` en dur survivait */
+  RecCrash=function(fl,opt){FauxRec.call(this,fl,opt)};RecCrash.prototype=Object.create(FauxRec.prototype);
+  RecCrash.prototype.crash=function(){this.state="inactive";var s=this;Promise.resolve().then(function(){
+    if(s.onerror)s.onerror({error:{name:"NotReadableError"}});
+    if(s.ondataavailable)s.ondataavailable({data:new Blob(["x"],{type:"audio/ogg"})});if(s.onstop)s.onstop()})};
+  var D4=[],sp0=SP.length,nf0=FV.length;
+  P=props({rec:inj({Rec:RecCrash}),onStart:function(){return {t0:4,pj:"P9"}},onDone:function(f,d,t0,pj){D4.push([f,d,t0,pj])}});
+  M=mini(T.VoiceRec);M.render(P);bts(M.H.out)[0].p.onClick();await settle();M.flush();
+  rc=RC[RC.length-1];fl=PISTES[PISTES.length-1];var nn0=NT.length;rc.crash();await settle();M.flush();
+  R.crash=[fl.pistes[0].n,SP.length-sp0,etat(M.H.out)[0].slice(0,2),FV.length-nf0,NT.slice(nn0),rc.stops];
+  P.ctl.current();R.crash_ctl=NT.slice(-1);
+  vrep(FV.length-1,!0,200,{ok:!0,filename:"voix-off-c.wav",dur:1.5});await settle();M.flush();
+  R.crash_pose=[D4.slice(),etat(M.H.out)[0].slice(0,2)];
+  /* 14 : un refus 422 dont le détail est une LISTE -> détail sérialisé, jamais « [object Object] » */
+  bts(M.H.out)[0].p.onClick();await settle();M.flush();RC[RC.length-1].crash();await settle();M.flush();
+  vrep(FV.length-1,!1,422,{detail:[{loc:["body","file"],msg:"field required"}]});await settle();M.flush();R.d422=NT.slice(-1);M.unmount();
+  /* 15 (reste de la tâche 5) : le plancher AFFICHÉ par « Apprendre le bruit » est celui du RENDU (dzmNfEffectif) */
+  R.nfe=[T.nfEffectif(-5),T.nfEffectif(-0.3),T.nfEffectif(-0.5),T.nfEffectif(-90),T.nfEffectif(-31),T.nfEffectif("x"),T.nfEffectif(0),T.nfEffectif(null)];
+  function nlst(nf){var AP={tr:"a1",id:"k",start:10,end:20,srcIn:5,src:{audio:"a.wav"},fx:[{type:"denoise",params:{amount:30,nf:nf,learn_in:7,learn_out:8}}]};
+    var K=mini(T.NoiseLearn);K.render({clip:AP,range:null,demo:!1,music:!1,onNote:function(){},onFx:function(){}});
+    var sn=tous(K.H.out).filter(function(n){return /dzm-nlst/.test(n.p.className||"")}).map(txt),
+      ob=bts(K.H.out).filter(function(n){return txt(n)==="Oublier"}).map(function(n){return n.p.title});K.unmount();return [sn,ob]}
+  R.nlst=[nlst(-5),nlst(-0.3),nlst(-31)];
+  /* 12 : POURQUOI L'HÔTE FORCE « écraser » : en « insérer », la prise pousserait le clip suivant de la même piste */
+  var CL=[{tr:"a1",id:"q",start:14,end:18,src:{audio:"z.wav"},srcIn:0}],NV={tr:"a1",id:"vo",start:12.5,end:15.75,src:{audio:"voix-off-1.wav"},srcIn:0};
+  var ins=T.insere(CL,NV,"inserer",{tracks:T.DEFAULTS,head:12.5}),ecr=T.insere(CL,NV,"ecraser",{tracks:T.DEFAULTS,head:12.5});
+  function q(res){var k=(res.clips||[]).filter(function(c){return c.id==="q"})[0];return k?[k.start,k.end]:null}
+  R.mode=[q(ins),q(ecr)];
+  out.R=R;
+})().catch(function(e){out.err=String(e&&e.stack||e)}).then(function(){console.log(JSON.stringify(out))});
+"""
+D7 = {}
+if NODE and os.path.isfile(SRC_PATH) and globals().get("SRC") and len(_L6H) > 2000 and "function mini(" in _L6H:
+    _sh7 = os.path.join(TMP, "shim_l6v.js")
+    with open(_sh7, "w", encoding="utf-8") as fh:
+        fh.write('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + SRC + "\n" + PROBE_L6V)
+    _r7 = sh([NODE, _sh7])
+    _l7x = (_r7.stdout or "").strip().splitlines()
+    try:
+        D7 = json.loads(_l7x[-1]) if _l7x else {}
+    except Exception as _e:
+        D7 = {"err": temoin(_e)}
+    check("l6v_shim_execute_sans_erreur", _r7.returncode == 0 and "err" not in D7 and isinstance(D7.get("R"), dict),
+          (D7.get("err"), (_r7.stderr or "")[-400:]))
+else:
+    check("l6v_shim_execute_sans_erreur", False, ("node, source ou harnais absents", len(_L6H)))
+_R7 = D7.get("R") if isinstance(D7.get("R"), dict) else {}
+def _l7(k, n):
+    v = _R7.get(k)
+    return v if isinstance(v, list) and len(v) == n else [None] * n
+_V1 = _l7("demo", 2)
+_V1b = _l7("demo_ctl", 3)
+check("l6v_demo_un_bouton_grise_titre_la_bascule_clavier_dit_le_refus_sans_ouvrir_le_micro",
+      isinstance(_V1[0], list) and len(_V1[0]) == 1 and _V1[0][0][:2] == ["● voix off", True]
+      and "démonstration" in (_V1[0][0][2] or "") and _V1[1] == "function"
+      and _V1b[0] == 0 and _V1b[2] == 0 and isinstance(_V1b[1], list) and len(_V1b[1]) == 1 and "démo" in _V1b[1][0],
+      [_V1, _V1b])
+_V2 = _l7("absent", 3)
+check("l6v_sans_micro_ni_enregistreur_micro_indisponible_dit_rien_ne_demarre_bouton_actif",
+      isinstance(_V2[0], list) and len(_V2[0]) == 1 and _V2[0][0].startswith("Micro indisponible : ")
+      and _V2[1] == 0 and _V2[2] == ["● voix off", False], _V2)
+_V3 = _l7("refus", 3)
+check("l6v_micro_refuse_la_raison_est_dite_attente_grisee_retour_au_repos",
+      _R7.get("refus_attente") == ["micro…", True]
+      and _V3[0] == ["Micro indisponible : accès au micro refusé"] and _V3[1] == 0 and _V3[2] == ["● voix off", False],
+      [_R7.get("refus_attente"), _V3])
+_V4r = _R7.get("repos") if isinstance(_R7.get("repos"), list) else []
+_V4a = _l7("attente", 2)
+_V4 = _l7("prise", 7)
+check("l6v_cycle_prise_micro_audio_type_du_juge_onStart_une_fois_bouton_a_deux_etats_titre_une_demande_malgre_deux_clics",
+      len(_V4r) == 1 and _V4r[0][:2] == ["● voix off", False] and len(_V4r[0][2] or "") > 20 and "()" not in (_V4r[0][2] or "")
+      and _V4a == [["micro…", True], 1]
+      and _V4[0] == [{"audio": True}] and _V4[1] == {"mimeType": "audio/ogg;codecs=opus"} and _V4[2] == "recording"
+      and _V4[3] == 1 and _V4[4] == 1 and isinstance(_V4[5], list) and str(_V4[5][0]).startswith("■ 0:0")
+      and _V4[5][1] is False and "Arrêter" in (_V4[5][2] or "") and _V4[5][3] == "1" and _V4[6] == "function"
+      and _V4r[0][2] != _V4[5][2],
+      [_V4r, _V4a, _V4])
+_V5 = _l7("arret", 4)
+_V6 = _l7("envoi", 6)
+check("l6v_second_clic_onStop_une_fois_pistes_coupees_envoi_grise_une_requete_audio_recording_multipart_file_prise_ogg",
+      _V5 == [1, 1, ["envoi…", True], 1]
+      and _V6 == [1, "/api/audio/recording", "POST", ["file"], "prise.ogg", True],
+      [_V5, _V6])
+_V7 = _l7("pose", 3)
+check("l6v_reponse_onDone_des_dernieres_props_une_fois_avec_filename_dur_et_t0_de_la_tete_au_debut_retour_au_repos_rien_de_dit",
+      # revue T6 : le second clic pendant « micro… » (bouton grise ; le clavier, lui, y arrive) DIT l'attente
+      _V7 == [[["neuf", "voix-off-20260925-101010.wav", 3.25, 12.5]], ["● voix off", False], ["Voix off : accès au micro en cours…"]], _V7)
+_V8 = _l7("ctl", 3)
+_V8b = _l7("echec", 3)
+check("l6v_bascule_clavier_meme_cycle_envoi_en_echec_dit_prise_non_enregistree_rien_de_pose",
+      _V8 == [2, 2, 2] and _V8b[0] == 1
+      and _V8b[1] == ["Envoi de la prise impossible : Enregistrement illisible — prise non enregistrée"]
+      and _V8b[2] == ["● voix off", False],
+      [_V8, _V8b])
+_V9 = _l7("sans_duree", 2)
+check("l6v_reponse_sans_duree_lisible_dite_rien_de_pose",
+      _V9[0] == 1 and isinstance(_V9[1], list) and len(_V9[1]) == 1 and "prise non enregistrée" not in _V9[1][0]
+      and "illisible" in _V9[1][0], _V9)
+_V10 = _l7("demonte", 6)
+check("l6v_demontage_pendant_la_prise_enregistreur_arrete_flux_coupe_rien_envoye_rien_dit_bascule_retiree",
+      _V10 == ["inactive", 1, 1, 0, 0, None], _V10)
+check("l6v_demontage_pendant_l_accord_le_flux_tardif_est_coupe_aucun_enregistreur",
+      _R7.get("tard") == [1, 0], _R7.get("tard"))
+_V11 = _l7("vide", 2)
+check("l6v_prise_vide_dite_rien_envoye_sans_type_accepte_enregistreur_sans_option",
+      _V11 == [0, ["Prise vide : rien n'a été capté — prise non enregistrée"]] and _R7.get("sans_type") == [None],
+      [_V11, _R7.get("sans_type")])
+check("l6v_aides_pures_extension_chrono_raison",
+      _R7.get("pur") == ["ogg", "m4a", "webm", "webm", "webm", "0:00", "0:03", "1:05", "0:00", "0:00",
+                         "accès au micro refusé", "aucun micro détecté", "boum", "erreur inconnue"]
+      and "nul" in _R7 and _R7.get("nul") is None, _R7.get("pur"))
+_V12 = _l7("mode", 2)
+check("l6v_pourquoi_ecraser_force_inserer_pousserait_le_clip_suivant_ecraser_le_rogne_sans_rien_decaler",
+      isinstance(_V12[0], list) and _V12[0][0] > 14 and _V12[1] == [15.75, 18], _V12)
+_V13 = _l7("crash", 6)
+check("l6v_arret_spontane_raison_dite_pistes_coupees_lecture_arretee_passage_par_envoi_la_prise_part_une_fois",
+      _V13 == [1, 1, ["envoi…", True], 1, ["Enregistreur arrêté : micro occupé par une autre application"], 0]
+      and _R7.get("crash_ctl") == ["Voix off : prise en cours d'envoi…"], [_V13, _R7.get("crash_ctl")])
+check("l6v_arret_spontane_onDone_recoit_l_identite_du_projet_rendue_par_onStart",
+      _R7.get("crash_pose") == [[["voix-off-c.wav", 1.5, 4, "P9"]], ["● voix off", False]], _R7.get("crash_pose"))
+check("l6v_refus_422_detail_liste_serialise_jamais_object_Object",
+      _R7.get("d422") == ['Envoi de la prise impossible : [{"loc":["body","file"],"msg":"field required"}] — prise non enregistrée'],
+      _R7.get("d422"))
+check("l6v_nfEffectif_regle_du_rendu_auto_au_dessus_de_moins_0_5_sinon_borne_80_20",
+      _R7.get("nfe") == [-20, None, -20, -80, -31, None, None, None], _R7.get("nfe"))
+_NLS = _R7.get("nlst") if isinstance(_R7.get("nlst"), list) and len(_R7.get("nlst")) == 3 else [[None, None]] * 3
+check("l6v_statut_et_title_d_oublier_montrent_le_plancher_du_rendu_moins_5_devient_moins_20_moins_0_3_auto_temoin_moins_31",
+      _NLS[0][0] == ["appris 7–8 s · -20 dB"] and isinstance(_NLS[0][1], list) and len(_NLS[0][1]) == 1 and "plancher -20 dB" in _NLS[0][1][0]
+      and _NLS[1][0] == ["appris 7–8 s · auto"] and "plancher automatique" in (_NLS[1][1] or [""])[0]
+      and _NLS[2][0] == ["appris 7–8 s · -31 dB"], _NLS)
+_VRC = _corps("DzmVoiceRec")
+_VPU = {n: _corps(n) for n in ("dzmVoExt", "dzmVoChrono", "dzmVoErr")}
+check("l6v_aides_pures_ni_r_ni_x_ni_api_navigateur_composant_lit_micro_et_enregistreur_a_l_appel_route_unique",
+      all(len(c) > 40 for c in _VPU.values())
+      and not any(re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|\bnavigator\b|MediaRecorder|"
+                            r"getUserMedia|isTypeSupported|fetch\(|setClips|pushHistory|URL\.", c) for c in _VPU.values())
+      and len(_VRC) > 2500 and _VRC.count('fetch("/api/audio/recording",{method:"POST",body:fd})') == 1
+      and _VRC.count("/api/audio/voiceover") == 0 and _SRCb.count("/api/audio/voiceover") == 0
+      and _VRC.count("getTracks()") == 1 and _VRC.count("typeof MediaRecorder") == 1 and _VRC.count('typeof navigator!=="undefined"?navigator:null') == 1 and _VRC.count("N.mediaDevices.getUserMedia(c)") == 1
+      and _VRC.count('r.jsx("button",') == 1 and _VRC.count("x.useState(") == 2
+      and _DT.count("voExt:dzmVoExt,voChrono:dzmVoChrono,voErr:dzmVoErr,VoiceRec:DzmVoiceRec,") == 1
+      and 0 < _SRCb.find("function DzmNoiseLearn(o){") < _SRCb.find("function DzmVoiceRec(o){") < _SRCb.find("function DzmScopes(o){"),
+      [len(_VRC), {n: len(c) for n, c in _VPU.items()}])
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)
