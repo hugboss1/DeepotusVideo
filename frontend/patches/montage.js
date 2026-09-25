@@ -8350,35 +8350,37 @@ function dzmGradePasteDo(clip,st){
    a = srcIn + (in − start)·v, b = srcIn + (out − start)·v, v = la vitesse du clip audio lue comme le backend
    (sfx_service.clamp_speed : absente ou ≈ 1 -> 1, sinon bornée 0,5..2 — le rendu fait atrim sur la source PUIS atempo) ;
    arrondis au millième. La plage peut sortir du clip (bruit pris ailleurs dans la source) mais pas de la source :
-   a >= 0, et b <= srcDur si srcDur > 0 (0 = inconnue). Garde b − a >= 0,2 : la MÊME soustraction flottante que learn_of
-   du backend (1,2 − 1,0 = 0,19999… est refusée des deux côtés) ; b − a <= 30 (la borne de la route noise-profile).
-   -> {a, b} | {refus, note} avec refus ∈ clip (aucun clip lisible) | plage (plage absente, illisible ou vide) |
+   a >= 0, et b <= srcDur si srcDur > 0 (0 = inconnue). Garde b − a >= 0,2 avec la MÊME tolérance que learn_of
+   du backend (b − a < 0,2 − 1e-9 refusé : 1,2 − 1,0 = 0,19999… est ACCEPTée des deux côtés, où que soit la plage) ;
+   b − a <= 30 (la borne de la route noise-profile). srcIn illisible ou négatif -> 0.
+   -> {a, b} | {refus, note} avec refus ∈ clip (aucun clip, ou clip sans début lisible) | plage (plage absente, illisible ou vide) |
    courte | longue | hors_source.
    dzmDenoiseLearn(fx, a, b, nf) : NOUVELLE liste ; le PREMIER module denoise (celui que garde le rack) reçoit nf
    (illisible -> 0 = automatique, borné −80..0 comme _FX_PARAMS), learn_in = a, learn_out = b, en gardant SA forme
    ({type, params} si params est un objet, sinon à plat — la règle de sanitize_fx) ; absent -> créé en queue,
-   {type:"denoise", params:{amount:24, …}}. Plage illisible ou < 0,2 s -> copie inchangée. Les autres modules gardent
+   {type:"denoise", params:{amount:24, …}}. Plage illisible ou < 0,2 s (même tolérance) -> copie inchangée. Les autres modules gardent
    leur référence ; l'entrée n'est jamais mutée.
    dzmDenoiseForget(fx) : nouvelle liste ; nf, learn_in, learn_out retirés de CHAQUE denoise (module gardé).
-   dzmVoCount(clips) = 1 + le nombre de clips dont src.audio commence par « voix-off- » (le nom que la route voiceover
+   dzmVoCount(clips) = 1 + le nombre de clips dont src.audio COMMENCE (préfixe, pas sous-chaîne) par « voix-off- » (le nom que la route voiceover
    donne à une prise) ; dzmVoLabel(n) = « Voix off n » (n illisible ou < 1 -> 1, partie entière).
    dzmRecMime(juge) : le premier type de DZM_VO_MIMES que le juge INJECTÉ accepte (le juge qui lève est sauté) ; aucun,
    ou pas de juge -> "" (l'enregistreur choisit alors son type par défaut). */
 function dzmLearnRange(clip,range,srcDur){
   if(!clip||typeof clip!=="object")return {refus:"clip",note:"Aucun clip audio sélectionné : rien à apprendre"};
   var s=dzmRfNum(clip.start),i=range&&typeof range==="object"?dzmRfNum(range["in"]):null,o=range&&typeof range==="object"?dzmRfNum(range.out):null;
-  if(s===null||i===null||o===null||!(o>i))return {refus:"plage",note:"Posez une plage I/O (I puis U) sur un passage de bruit seul"};
+  if(s===null)return {refus:"clip",note:"Ce clip audio n'a pas de début lisible : rien à apprendre"};
+  if(i===null||o===null||!(o>i))return {refus:"plage",note:"Posez une plage I/O (I puis U) sur un passage de bruit seul"};
   var si=dzmRfNum(clip.srcIn),v=dzmRfNum(clip.speed),d=dzmRfNum(srcDur);
   si=si===null?0:Math.max(0,si);
   v=v===null||!(v>0)||Math.abs(v-1)<1e-3?1:Math.max(.5,Math.min(2,v));
   var a=dzmCoR(si+(i-s)*v,3),b=dzmCoR(si+(o-s)*v,3);
-  if(b-a<.2)return {refus:"courte",note:"Plage trop courte : il faut au moins 0,2 s de bruit seul (dans la source)"};
+  if(b-a<.2-1e-9)return {refus:"courte",note:"Plage trop courte : il faut au moins 0,2 s de bruit seul (dans la source)"};
   if(b-a>30)return {refus:"longue",note:"Plage trop longue : 30 s de bruit seul au plus (dans la source)"};
   if(a<0||(d!==null&&d>0&&b>d))return {refus:"hors_source",note:"La plage sort de la source de ce clip : posez-la sur un passage que la source contient"};
   return {a:a,b:b}}
 function dzmDenoiseLearn(fx,a,b,nf){
   var L=Array.isArray(fx)?fx.slice():[],A=dzmRfNum(a),B=dzmRfNum(b),n=dzmRfNum(nf),k=-1,j;
-  if(A===null||B===null||B-A<.2)return L;
+  if(A===null||B===null||B-A<.2-1e-9)return L;
   n=n===null?0:Math.max(-80,Math.min(0,n));
   for(j=0;j<L.length&&k<0;j++)if(L[j]&&typeof L[j]==="object"&&L[j].type==="denoise")k=j;
   var put={nf:n,learn_in:A,learn_out:B};

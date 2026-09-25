@@ -1488,10 +1488,14 @@ out.au_lr=[T.learnRange(AK,{"in":12,out:13},0),T.learnRange(Object.assign({},AK,
   auR(T.learnRange(null,{"in":12,out:13},0)),auR(T.learnRange(AK,{"in":13,out:12},0)),
   T.learnRange(Object.assign({},AK,{speed:1.0004}),{"in":12,out:13},0),T.learnRange(Object.assign({},AK,{speed:9}),{"in":12,out:13},0),
   T.learnRange(Object.assign({},AK,{srcIn:null}),{"in":12,out:13},0),T.learnRange(AK,{"in":"12",out:"13"},0),
-  T.learnRange(AK,{"in":12,out:12.2},0),auR(T.learnRange(AK,{"in":6,out:6.2},0))];
+  T.learnRange(AK,{"in":12,out:12.2},0),auR(T.learnRange(AK,{"in":6,out:6.2},0)),auR(T.learnRange(AK,{"in":6,out:6.199},0)),
+  auR(T.learnRange({tr:"a1",id:"k",end:20,srcIn:5,src:{audio:"a.wav"}},{"in":12,out:13},0)),
+  auR(T.learnRange(Object.assign({},AK,{start:"x"}),{"in":12,out:13},0)),
+  T.learnRange(Object.assign({},AK,{srcIn:-3}),{"in":10.5,out:11.5},0)];
 /* chaque refus porte une phrase */
 out.au_lr_note=[T.learnRange(AK,null,0),T.learnRange(AK,{"in":2,out:3},0),T.learnRange(AK,{"in":12,out:12.1},0),
-  T.learnRange(AK,{"in":12,out:43},0),T.learnRange(null,{"in":1,out:2},0)].map(function(o){return typeof o.note==="string"&&o.note.length>10});
+  T.learnRange(AK,{"in":12,out:43},0),T.learnRange(null,{"in":1,out:2},0),
+  T.learnRange(Object.assign({},AK,{start:"x"}),{"in":12,out:13},0)].map(function(o){return typeof o.note==="string"&&o.note.length>10});
 var DQ=[{type:"eq3",params:{bass_db:2}},{type:"denoise",params:{amount:30}}],DQj=JSON.stringify(DQ),DL=T.denoiseLearn(DQ,7,8,-31);
 var DF=[{type:"denoise",amount:30,enabled:!0}],DFj=JSON.stringify(DF),DFL=T.denoiseLearn(DF,1,2,-40);
 out.au_dl=[T.denoiseLearn([],7,8,-31),DL,DL[0]===DQ[0],DL!==DQ,DL[1]!==DQ[1],JSON.stringify(DQ)===DQj,
@@ -1503,7 +1507,7 @@ var FG=[{type:"eq3",params:{bass_db:2}},{type:"denoise",params:{amount:30,nf:-31
 out.au_df=[FGo,FGo[0]===FG[0],JSON.stringify(FG)===FGj,T.denoiseForget(null),T.denoiseForget([{type:"eq3"}]),
   T.denoiseForget(T.denoiseLearn(DQ,7,8,-31)),T.denoiseForget([{type:"denoise",params:{amount:30}}])[0]];
 out.au_vo=[T.voCount([{src:{audio:"voix-off-20260925-101010.wav"}},{src:{audio:"voix-off-20260925-101011-2.wav"}},{src:{audio:"musique.mp3"}},
-  {src:{job_id:"voix-off-x"}},null,{src:null}]),T.voCount([]),T.voCount(null),T.voLabel(3),T.voLabel(1),T.voLabel(0),T.voLabel("x"),T.voLabel(2.7)];
+  {src:{job_id:"voix-off-x"}},null,{src:null},{src:{audio:"ma-voix-off-1.wav"}}]),T.voCount([]),T.voCount(null),T.voLabel(3),T.voLabel(1),T.voLabel(0),T.voLabel("x"),T.voLabel(2.7)];
 out.au_rm=[T.recMime(function(t){return t==="audio/ogg;codecs=opus"}),T.recMime(function(){return !1}),T.recMime(function(){return !0}),
   T.recMime(null),T.recMime(function(t){if(t!=="audio/mp4")throw new Error("x");return !0}),T.VO_MIMES.slice(),Object.isFrozen(T.VO_MIMES)];
 console.log(JSON.stringify(out));
@@ -4405,14 +4409,18 @@ check("l5x_pt_encart_porte_dans_le_cadre_connecte_une_recherche_par_allumage_ret
 print("\n[39] L6 D-25 D-26 : le coeur pur audio — plage de bruit en temps de source, debruiteur appris, prises, type d'enregistrement (tache 4, 25/09/2026)")
 # ── L6 (25/09/2026, tache 4). La plage I/O (temps de TIMELINE) devient une plage de SOURCE du clip selectionne
 # (a = srcIn + (in - start)·v ; v = la vitesse audio lue comme sfx_service.clamp_speed : 0,5..2, ~1 -> 1) ; elle peut
-# sortir du clip mais pas de la source ; la garde 0,2 s est la MEME soustraction flottante que learn_of du backend
-# (1,2 - 1,0 = 0,19999… : refusee des deux cotes). Faute n6 : chaque lecture passe par D.get / at().
+# sortir du clip mais pas de la source ; la garde 0,2 s porte la MEME tolerance que learn_of du backend
+# (b - a < LEARN_MIN - 1e-9 refuse ; revue T4 25/09 L6 : l'ancienne garde nue `< .2` refusait 1,0-1,2 (0,19999…) et
+# acceptait 7,0-7,2 -- le verdict dependait de la POSITION de la plage). Temoins : 1,0-1,2 ACCEPTEE comme 7,0-7,2,
+# 1,0-1,199 refusee (courte). Clip sans debut lisible -> clip (pas plage) ; srcIn negatif borne a 0.
+# Faute n6 : chaque lecture passe par D.get / at().
 check("au_lr_plage_de_source_vitesse_hors_clip_hors_source_plage_absente_courte_longue_clip_absent_ordre_inverse",
       D.get("au_lr") == [{"a": 7, "b": 8}, {"a": 9, "b": 11}, {"a": 3, "b": 4}, "hors_source", "plage", "plage", "courte",
                          "hors_source", {"a": 7, "b": 8}, "longue", {"a": 7, "b": 37}, "clip", "plage",
-                         {"a": 7, "b": 8}, {"a": 9, "b": 11}, {"a": 2, "b": 3}, {"a": 7, "b": 8}, {"a": 7, "b": 7.2}, "courte"],
+                         {"a": 7, "b": 8}, {"a": 9, "b": 11}, {"a": 2, "b": 3}, {"a": 7, "b": 8}, {"a": 7, "b": 7.2},
+                         {"a": 1, "b": 1.2}, "courte", "clip", "clip", {"a": 0.5, "b": 1.5}],
       D.get("au_lr"))
-check("au_lr_chaque_refus_porte_une_phrase", D.get("au_lr_note") == [True] * 5, D.get("au_lr_note"))
+check("au_lr_chaque_refus_porte_une_phrase", D.get("au_lr_note") == [True] * 6, D.get("au_lr_note"))
 _AUL = {"type": "denoise", "params": {"amount": 30, "nf": -31, "learn_in": 7, "learn_out": 8}}
 _AUQ = [{"type": "eq3", "params": {"bass_db": 2}}, {"type": "denoise", "params": {"amount": 30}}]
 check("au_dl_debruiteur_cree_amount_24_ou_garde_forme_params_ou_a_plat_autres_modules_meme_reference_entree_intacte",
@@ -4436,6 +4444,7 @@ check("au_df_oublier_retire_nf_et_apprentissage_de_chaque_denoise_module_garde_a
                           {"type": "denoise", "amount": 9}], True, True, [], [{"type": "eq3"}], _AUQ,
                          {"type": "denoise", "params": {"amount": 30}}],
       D.get("au_df"))
+# Temoin « ma-voix-off-1.wav » (revue T4) : la sous-chaine SANS prefixe n'est pas une prise (indexOf >= 0 -> 4, rouge).
 check("au_vo_prises_comptees_par_le_prefixe_voix_off_du_fichier_son_libelle_numero_lisible_au_moins_1",
       D.get("au_vo") == [3, 1, 1, "Voix off 3", "Voix off 1", "Voix off 1", "Voix off 1", "Voix off 2"], D.get("au_vo"))
 check("au_rm_premier_type_accepte_dans_l_ordre_aucun_rien_juge_absent_rien_juge_qui_leve_saute_liste_gelee",

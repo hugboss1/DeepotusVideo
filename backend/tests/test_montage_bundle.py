@@ -2967,7 +2967,10 @@ check("P11_la_route_reutilise_la_resolution_et_la_sonde",
       SVC.count("p = await _media_source(request, src, video=False)") == 3
       # D-41 (T5, 9c55f40, 24/09/2026) : 1 -> 3, /autoclips et /autoclips/create (sdur = ...) reutilisent la meme mesure ;
       # realigne par T4 (le banc rougissait sur la branche depuis 9c55f40, ecart date)
-      and SVC.count("dur = await asyncio.to_thread(_probe_duration, p)") == 3,
+      # L6 D-25 (T2, 9ea55da, 25/09/2026) : 3 -> 4, la route noise-profile mesure la duree de source par la meme sonde
+      # (`sdur = await asyncio.to_thread(_probe_duration, p)` contient le motif) ; _media_source reste 3 (elle lit
+      # body.get("src"), pas `src`) ; realigne a la revue T4 (compte exact)
+      and SVC.count("dur = await asyncio.to_thread(_probe_duration, p)") == 4,
       f'media_source={SVC.count("p = await _media_source(request, src, video=False)")} '
       f'probe={SVC.count("dur = await asyncio.to_thread(_probe_duration, p)")}')
 
@@ -3200,8 +3203,10 @@ check("P12_la_route_has_audio_existe_des_deux_cotes",
 check("P12_la_route_reutilise_la_sonde_du_rendu",
       # D-41 (T5, 9c55f40, 24/09/2026) : 1 -> 2 et 2 -> 4, /autoclips et /autoclips/create reutilisent la sonde
       # du rendu et la mesure de duree (aucune copie) ; realigne par T4 (ecart date)
-      SVC.count("asyncio.to_thread(_has_audio_stream, p)") == 2
-      and SVC.count("asyncio.to_thread(_probe_duration, p)") == 4,
+      # L6 D-25 (T2, 9ea55da, 25/09/2026) : 2 -> 3 et 4 -> 5, la route noise-profile refuse une source muette par la
+      # sonde du rendu puis mesure sa duree par la meme sonde (aucune copie) ; realigne a la revue T4 (compte exact)
+      SVC.count("asyncio.to_thread(_has_audio_stream, p)") == 3
+      and SVC.count("asyncio.to_thread(_probe_duration, p)") == 5,
       f'has_audio={SVC.count("asyncio.to_thread(_has_audio_stream, p)")} '
       f'probe={SVC.count("asyncio.to_thread(_probe_duration, p)")}')
 # LA FEUILLE habille le bouton, sans toucher a la liste de P6.
