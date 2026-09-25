@@ -273,6 +273,14 @@ check("t1_learn_of_court_none_temoin_long",
       and LO([{"type": "denoise", "learn_in": 5, "learn_out": 5.2}]) == ("ok", (5.0, 5.2)),
       str((LO([{"type": "denoise", "learn_in": 5, "learn_out": 5.1}]),
            LO([{"type": "denoise", "learn_in": 5, "learn_out": 5.2}]))))
+# cloture L6 (mutations, 25/09/2026) : TROU ferme -- la garde `LEARN_MIN - 1e-9` de learn_of n'etait tenue par aucune
+# ligne (5 -> 5,2 vaut 0,2000…02 en flottant et passe sans la tolerance) ; 1,0 -> 1,2 vaut 0,1999…96 : sans elle, refusee
+# alors que la couche (dzmLearnRange) et la route noise-profile l'acceptent. Temoin : 1,0 -> 1,19 refusee.
+check("t1_learn_of_tolerance_1_0_1_2_acceptee_temoin_1_19_refusee",
+      LO([{"type": "denoise", "learn_in": 1.0, "learn_out": 1.2}]) == ("ok", (1.0, 1.2))
+      and LO([{"type": "denoise", "learn_in": 1.0, "learn_out": 1.19}]) == ("ok", None),
+      str((LO([{"type": "denoise", "learn_in": 1.0, "learn_out": 1.2}]),
+           LO([{"type": "denoise", "learn_in": 1.0, "learn_out": 1.19}]))))
 check("t1_learn_of_borne_a_une_seconde",
       LO([{"type": "denoise", "learn_in": 10, "learn_out": 13}]) == ("ok", (10.0, 11.0)),
       str(LO([{"type": "denoise", "learn_in": 10, "learn_out": 13}])))
