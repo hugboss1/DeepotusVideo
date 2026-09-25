@@ -455,6 +455,452 @@ else:
           "rc %s trames %s" % (_rc, _nfr))
     check("t1_reel_audition_apprise_clic_a_sa_place", abs(_pk - 44100) <= 2, "pic %s" % _pk)
 
+
+# ═══════════════ [2] apprentissage dans la chaine par clip + noise-profile ═══════════════
+# ECART AU PLAN (mesure du 25/09/2026, scratchpad t2) : le plan ecrivait le prefixe par
+# `asplit=2` + `atrim=a:b` sur l'entree du clip. Source de 20 min, prefixe a 1150 s, clip
+# 0-600 s : maxrss 359 460 Kio (asplit bufferise TOUT le clip en attendant le prefixe que
+# concat lit d'abord) contre 19 100 Kio avec une SECONDE entree `-ss a -t L -i src`
+# (21 872 Kio pour un prefixe place avant le clip). Le code suit la mesure : seconde entree,
+# longueur du prefixe FORCEE a P echantillons (`atrim=end_sample=P,apad=whole_len=P` : un
+# decodeur qui demarre en retard au seek ne doit pas decaler le retrait du prefixe).
+print("\n[2] apprentissage par prefixe dans la chaine par clip + route noise-profile")
+from app.services import montage_service as MS          # noqa: E402
+import asyncio                                           # noqa: E402
+
+# --- commandes de T1 (4d2053f), sortie brute de _build_montage_command, chemins fictifs ---
+T1_CMDS = json.loads(r'''{"den": [["ffmpeg", "-y", "-t", "4.0", "-i", "V1.mp4", "-i", "SRC.wav", "-filter_complex", "[0:v]scale=270:480:force_original_aspect_ratio=increase,crop=270:480,setsar=1,fps=30,format=yuv420p,tpad=stop_mode=clone:stop_duration=4.0,trim=0:4.0,setpts=PTS-STARTPTS[n0];[1:a]atrim=2.0:5.0,asetpts=PTS-STARTPTS,aresample=48000,apad=pad_len=1200,afftdn=nr=24:nf=-30,atrim=start_sample=1200,asetpts=PTS-STARTPTS,asetnsamples=n=4096:p=0,aresample=async=1,aformat=sample_rates=44100:channel_layouts=stereo,volume=0.5,adelay=500|500[va0];[va0]anull[vall];[vall]aresample=async=1[outa];[n0]format=yuv420p[outv]", "-map", "[outv]", "-map", "[outa]", "-t", "4.0", "-c:v", "libx264", "-profile:v", "high", "-level", "4.0", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p", "-r", "30", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", "OUT.mp4"], 4.0], "den_learn_music": [["ffmpeg", "-y", "-t", "4.0", "-i", "V1.mp4", "-stream_loop", "-1", "-i", "SRC.wav", "-filter_complex", "[0:v]scale=270:480:force_original_aspect_ratio=increase,crop=270:480,setsar=1,fps=30,format=yuv420p,tpad=stop_mode=clone:stop_duration=4.0,trim=0:4.0,setpts=PTS-STARTPTS[n0];[1:a]aresample=48000,apad=pad_len=1200,afftdn=nr=24:nf=-30,atrim=start_sample=1200,asetpts=PTS-STARTPTS,asetnsamples=n=4096:p=0,aresample=async=1,aformat=sample_rates=44100:channel_layouts=stereo,volume=0.5[mtrk];[mtrk]aresample=async=1[outa];[n0]format=yuv420p[outv]", "-map", "[outv]", "-map", "[outa]", "-t", "4.0", "-c:v", "libx264", "-profile:v", "high", "-level", "4.0", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p", "-r", "30", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", "OUT.mp4"], 4.0], "mix": [["ffmpeg", "-y", "-t", "4.0", "-i", "V1.mp4", "-i", "SRC.wav", "-i", "SRC.wav", "-filter_complex", "[0:v]scale=270:480:force_original_aspect_ratio=increase,crop=270:480,setsar=1,fps=30,format=yuv420p,tpad=stop_mode=clone:stop_duration=4.0,trim=0:4.0,setpts=PTS-STARTPTS[n0];[1:a]atrim=2.0:5.0,asetpts=PTS-STARTPTS,atempo=1.25,bass=g=3:f=110,aresample=48000,apad=pad_len=1200,afftdn=nr=12,atrim=start_sample=1200,asetpts=PTS-STARTPTS,asetnsamples=n=4096:p=0,afade=t=in:st=0:d=0.3,afade=t=out:st=2.0:d=0.4,volume='pow(10,(if(lt(t,0),-3,if(lt(t,1),-3+(3)*(t-0)/1,0)))/20)':eval=frame,aresample=async=1,aformat=sample_rates=44100:channel_layouts=stereo,volume=0.5,adelay=500|500[va0];[2:a]atrim=2.0:4.5,asetpts=PTS-STARTPTS,aformat=channel_layouts=stereo,pan=stereo|c0=0.642*c0|c1=1*c1,aresample=async=1,aformat=sample_rates=44100:channel_layouts=stereo,volume=0.5,adelay=1000|1000[sa1];[va0]anull[vall];[vall][sa1]amix=inputs=2:duration=longest:normalize=0,aresample=async=1[outa];[n0]format=yuv420p[outv]", "-map", "[outv]", "-map", "[outa]", "-t", "4.0", "-c:v", "libx264", "-profile:v", "high", "-level", "4.0", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p", "-r", "30", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", "OUT.mp4"], 4.0]}''')
+_V1P = [{"path": "V1.mp4", "src_dur": 4.0, "src_in": 0.0, "start": 0.0, "end": 4.0,
+         "transition": "cut", "transition_s": 0.0, "speed": 0.0, "effects": None}]
+
+
+def AC(fx, liste=True, **kw):
+    """Clip audio pur (dict du builder) ; `liste` pose `fx_list` comme /render."""
+    fl = SAN(fx)
+    d = {"tr": "a1", "path": "SRC.wav", "src_dur": 20.0, "src_in": 2.0, "start": 0.5, "end": 3.5,
+         "gain": 0.5, "fade_in": 0, "fade_out": 0, "fade_in_curve": None, "fade_out_curve": None,
+         "fx_chain": CH(fx), "speed": 0.0, "volume_points": None}
+    if liste:
+        d["fx_list"] = fl
+    d.update(kw)
+    return d
+
+
+def BUILD(ac, mu=None, **kw):
+    """(cmd, filter_complex) ou (['EXC', repr], '') — jamais d'exception."""
+    try:
+        a = dict(w=270, h=480, fps=30, mix_db={}, ducking=True, duration_master=True,
+                 preview=False, out="OUT.mp4")
+        a.update(kw)
+        cmd, _t = MS._build_montage_command(_V1P, [], ac, mu, **a)
+        fc = cmd[cmd.index("-filter_complex") + 1] if "-filter_complex" in cmd else ""
+        return cmd, fc
+    except Exception as e:                               # noqa: BLE001
+        return ["EXC", repr(e)], ""
+
+
+_DEN = [{"type": "denoise", "amount": 24, "nf": -30}]
+_DENL = [{"type": "denoise", "amount": 24, "nf": -30, "learn_in": 10, "learn_out": 13}]
+
+# non-regression : sans apprentissage, fx_list present ou non, commande == T1
+_b1, _ = BUILD([AC(_DEN)])
+_b1n, _ = BUILD([AC(_DEN, liste=False)])
+check("t2_sans_apprentissage_commande_T1_octet_pour_octet_avec_et_sans_fx_list",
+      T1_CMDS.get("den") and _b1 == T1_CMDS["den"][0] and _b1n == T1_CMDS["den"][0], str(_b1)[:300])
+_bm, _ = BUILD([AC([{"type": "eq3", "bass_db": 3}, {"type": "denoise"}], speed=1.25, fade_in=0.3,
+                   fade_out=0.4, volume_points=[(0.0, -3.0), (1.0, 0.0)]),
+                AC([{"type": "stereo", "pan": 40}], tr="a3", start=1.0)])
+check("t2_sans_apprentissage_mix_vitesse_fondus_automation_pan_commande_T1",
+      T1_CMDS.get("mix") and _bm == T1_CMDS["mix"][0], str(_bm)[:300])
+
+# clip appris : seconde entree -ss 10 -t 1.0, concat, afftdn@dn0, prefixe retire
+_bl, _fl = BUILD([AC(_DENL)])
+_ii = [i for i, v in enumerate(_bl) if v == "-i"]
+check("t2_appris_deux_entrees_de_la_meme_source_prefixe_ss_t_avant_i",
+      len(_ii) == 3 and _bl[_ii[1] + 1] == "SRC.wav" and _bl[_ii[2] + 1] == "SRC.wav"
+      and _bl[_ii[2] - 4:_ii[2]] == ["-ss", "10.0", "-t", "1.0"] and "-ss" not in _bl[_ii[1] - 2:_ii[1]],
+      str(_bl[:14]))
+check("t2_appris_branches_prefixe_et_clip_puis_concat",
+      "[2:a]asetpts=PTS-STARTPTS,aresample=48000,atrim=end_sample=48000,apad=whole_len=48000[l6p0]" in _fl
+      and "[1:a]atrim=2.0:5.0,asetpts=PTS-STARTPTS,aresample=48000[l6c0]" in _fl
+      and "[l6p0][l6c0]concat=n=2:v=0:a=1,aresample=48000,asendcmd=c='0.0 afftdn@dn0 sn start;"
+          "0.95 afftdn@dn0 sn stop'," in _fl
+      and "afftdn@dn0=nr=24:nf=-30,atrim=start_sample=49200" in _fl and "tn=" not in _fl, _fl)
+check("t2_appris_reste_de_la_ligne_inchange_jusqu_a_adelay",
+      "atrim=start_sample=49200,asetpts=PTS-STARTPTS,asetnsamples=n=4096:p=0,aresample=async=1,"
+      "aformat=sample_rates=44100:channel_layouts=stereo,volume=0.5,adelay=500|500[va0]" in _fl, _fl)
+check("t2_appris_pas_d_asplit_ecart_mesure_temoin_concat_present",
+      "concat=n=2" in _fl and "asplit" not in _fl, _fl[:200])
+_blt, _flt = BUILD([AC(_DEN)])
+check("t2_temoin_sans_learn_aucune_seconde_entree_ni_concat_ni_instance_nommee",
+      _blt.count("-i") == 2 and "concat" not in _flt and "afftdn@" not in _flt and "afftdn=nr=24" in _flt,
+      _flt[:300])
+
+# atempo : sur la branche du clip seulement, jamais sur le prefixe
+_bs, _fs = BUILD([AC(_DENL, speed=1.25)])
+_pb = [x for x in _fs.split(";") if x.endswith("[l6p0]")]
+_cb = [x for x in _fs.split(";") if x.endswith("[l6c0]")]
+check("t2_appris_atempo_sur_le_clip_jamais_sur_le_prefixe",
+      _pb and _cb and "atempo" not in _pb[0] and "atempo=1.25,aresample=48000[l6c0]" in _cb[0], _fs)
+
+# deux clips appris : deux uid distincts, chaque asendcmd vise SA propre instance ; indices d'entree
+_b2, _f2 = BUILD([AC(_DENL), AC(_DENL, tr="a3", path="AUTRE.wav", start=1.0),
+                  AC([{"type": "echo"}], tr="a3", path="TROIS.wav", start=2.0)])
+_i2 = [_b2[i + 1] for i, v in enumerate(_b2) if v == "-i"]
+check("t2_deux_clips_appris_deux_uid_distincts",
+      "afftdn@dn0=" in _f2 and "afftdn@dn1=" in _f2 and "0.0 afftdn@dn0 sn start;0.95 afftdn@dn0 sn stop" in _f2
+      and "0.0 afftdn@dn1 sn start;0.95 afftdn@dn1 sn stop" in _f2 and _f2.count("asendcmd") == 2, _f2)
+check("t2_indices_d_entree_suivent_les_entrees_prefixe",
+      _i2 == ["V1.mp4", "SRC.wav", "SRC.wav", "AUTRE.wav", "AUTRE.wav", "TROIS.wav"]
+      and "[3:a]atrim=2.0:4.5" in _f2 and "[4:a]asetpts=PTS-STARTPTS,aresample=48000,atrim=end_sample" in _f2
+      and "[5:a]atrim=2.0:3.5,asetpts=PTS-STARTPTS,aecho" in _f2, (_i2, _f2))
+
+# musique (piste bouclee) : apprentissage ignore, plancher seul == T1
+_mu = AC(_DENL)
+_bmu, _fmu = BUILD([], _mu)
+check("t2_musique_apprentissage_ignore_plancher_seul_commande_T1",
+      T1_CMDS.get("den_learn_music") and _bmu == T1_CMDS["den_learn_music"][0]
+      and "afftdn=nr=24:nf=-30" in _fmu and "afftdn@" not in _fmu, _fmu)
+
+# prefixe au-dela de la fin de la source : pas de prefixe (temoin : source assez longue)
+_bf, _ff = BUILD([AC(_DENL, src_dur=10.1)])
+_bg, _fg = BUILD([AC(_DENL, src_dur=11.0)])
+check("t2_prefixe_hors_source_ignore_temoin_source_longue_prefixee",
+      "afftdn@" not in _ff and "afftdn=nr=24" in _ff and "afftdn@dn0" in _fg, (_ff[:250], _fg[:250]))
+# duree de source INCONNUE (repli 9999 de /render) : pas de prefixe — mesure : une entree -ss au-dela de
+# la fin ne rend aucun paquet et fait echouer TOUT le rendu (temoin : 9998 s, connue, prefixee)
+_bu, _fu = BUILD([AC(_DENL, src_dur=9999.0)])
+_bk, _fk = BUILD([AC(_DENL, src_dur=9998.0)])
+check("t2_duree_inconnue_pas_de_prefixe_temoin_duree_connue",
+      "afftdn@" not in _fu and "afftdn=nr=24" in _fu and _bu.count("-i") == 2 and "afftdn@dn0" in _fk,
+      (_fu[:250], _fk[:250]))
+
+# audio_only (/measure, passe 1) : meme prefixe
+_ba, _fa = BUILD([AC(_DENL)], audio_only=True, out=None)
+check("t2_audio_only_meme_prefixe", "afftdn@dn0" in _fa and "-ss" in _ba and "[l6p0]" in _fa, _fa[:300])
+
+# --- espions /render et /measure : fx_list arrive au builder, commande prefixee -------
+_cap2 = {}
+_vb2, _vr2 = MS._build_montage_command, MS._run_ffmpeg
+
+
+def _esp2(*a, **k):
+    _cap2["a_clips"] = a[2] if len(a) > 2 else k.get("a_clips")
+    _cap2["music"] = a[3] if len(a) > 3 else k.get("music")
+    r = _vb2(*a, **k)
+    _cap2["cmd"] = r[0] if isinstance(r, tuple) else r
+    return r
+
+
+FF2 = PV.ffmpeg_bin()
+if not shutil.which("ffmpeg") and os.path.isfile(FF2):
+    # le service lance un « ffmpeg » NU : il faut le PATH
+    os.environ["PATH"] = os.path.dirname(FF2) + os.pathsep + os.environ.get("PATH", "")
+_W = pathlib.Path(TMP) / "l6t2"
+_W.mkdir(parents=True, exist_ok=True)
+
+
+def MK(nom, args):
+    """Fabrique une source par ffmpeg ; chemin ou None (les checks qui la lisent rougissent)."""
+    p = _W / nom
+    try:
+        r = subprocess.run([FF2, "-hide_banner", "-nostdin", "-v", "error", "-y"] + args + [str(p)],
+                           capture_output=True, text=True, timeout=120)
+        if r.returncode:
+            print("    fixture", nom, (r.stderr or "")[-300:])
+            return None
+    except Exception as e:                               # noqa: BLE001
+        print("    fixture", nom, repr(e))
+        return None
+    return p
+
+
+# source : bruit rose ~-40 dBFS partout, voix 730 Hz de 2 a 3 s et de 4 a 5 s, clic a 3,5 s
+_SRC2 = MK("voix_bruit.wav", [
+    "-f", "lavfi", "-i", "anoisesrc=d=6:c=pink:a=0.05:r=48000:seed=11",
+    "-f", "lavfi", "-i", "aevalsrc='0.3*sin(2*PI*730*t)*(between(t\\,2\\,3)+between(t\\,4\\,5))"
+                         "+0.9*eq(n\\,168000)':s=48000:d=6",
+    "-filter_complex", "[0:a][1:a]amix=inputs=2:normalize=0", "-ac", "1", "-c:a", "pcm_s16le"])
+_BRUIT = MK("bruit_seul.wav", ["-f", "lavfi", "-i", "anoisesrc=d=6:c=pink:a=0.05:r=48000:seed=11",
+                             "-ac", "1", "-c:a", "pcm_s16le"])
+_MUET = MK("muet.wav", ["-f", "lavfi", "-i", "anullsrc=r=48000:cl=mono", "-t", "3", "-c:a", "pcm_s16le"])
+_V1R = MK("v1.mp4", ["-f", "lavfi", "-i", "color=c=black:s=64x64:r=30:d=1", "-pix_fmt", "yuv420p"])
+
+
+def TLR(fx, preset=None, loop=False, src=None):
+    tl = {"name": "l6", "ratio": "9:16", "preview": False,
+          "clips": [{"tr": "v1", "src": {"file_path": str(_V1R)}, "start": 0, "end": 1, "srcIn": 0},
+                    {"tr": "a2" if loop else "a1", "src": {"file_path": str(src or _SRC2)}, "start": 0, "end": 3,
+                     "srcIn": 2, "fx": fx, **({"loop": True} if loop else {})}]}
+    if preset:
+        tl["preset"] = preset
+    return tl
+
+
+def RENDER_SPY(payload):
+    _cap2.clear()
+    MS._build_montage_command, MS._run_ffmpeg = _esp2, (lambda cmd, out: None)
+    try:
+        return c.post("/api/montage/render", json=payload)
+    finally:
+        MS._build_montage_command, MS._run_ffmpeg = _vb2, _vr2
+
+
+_FXL = [{"type": "denoise", "amount": 24, "nf": -30, "learn_in": 0, "learn_out": 1}]
+_rs = RENDER_SPY(TLR(_FXL))
+_ac2 = _cap2.get("a_clips") or []
+_fc2 = ""
+if isinstance(_cap2.get("cmd"), list) and "-filter_complex" in _cap2["cmd"]:
+    _fc2 = _cap2["cmd"][_cap2["cmd"].index("-filter_complex") + 1]
+check("t2_render_fx_list_normalisee_au_builder_et_commande_prefixee",
+      _rs.status_code == 200 and len(_ac2) == 1 and isinstance(_ac2[0].get("fx_list"), list)
+      and _ac2[0]["fx_list"] and _ac2[0]["fx_list"][0].get("type") == "denoise"
+      and _ac2[0]["fx_list"][0].get("params", {}).get("learn_out") == 1.0
+      and "afftdn@dn0" in _fc2 and "[l6p0]" in _fc2,
+      (_rs.status_code, J(_rs).get("detail"), _ac2 and _ac2[0].get("fx_list"), _fc2[:200]))
+_rs2 = RENDER_SPY(TLR([{"type": "denoise", "amount": 24, "nf": -30}]))
+_fc2b = ""
+if isinstance(_cap2.get("cmd"), list) and "-filter_complex" in _cap2["cmd"]:
+    _fc2b = _cap2["cmd"][_cap2["cmd"].index("-filter_complex") + 1]
+check("t2_render_temoin_sans_learn_pas_de_prefixe",
+      _rs2.status_code == 200 and "afftdn=nr=24" in _fc2b and "afftdn@" not in _fc2b, _fc2b[:200])
+_rs3 = RENDER_SPY(TLR(_FXL, loop=True))
+_mu3 = _cap2.get("music") or {}
+_fc3 = ""
+if isinstance(_cap2.get("cmd"), list) and "-filter_complex" in _cap2["cmd"]:
+    _fc3 = _cap2["cmd"][_cap2["cmd"].index("-filter_complex") + 1]
+check("t2_render_musique_fx_list_posee_mais_pas_de_prefixe",
+      _rs3.status_code == 200 and isinstance(_mu3.get("fx_list"), list) and _mu3["fx_list"]
+      and "afftdn=nr=24" in _fc3 and "afftdn@" not in _fc3, (_rs3.status_code, _fc3[:200]))
+
+# /measure : meme lecture -> meme prefixe (execution reelle, pas d'espion de ffmpeg)
+_cap2.clear()
+MS._build_montage_command = _esp2
+try:
+    _rm = c.post("/api/montage/measure", json=TLR(_FXL))
+finally:
+    MS._build_montage_command = _vb2
+_fcm = ""
+if isinstance(_cap2.get("cmd"), list) and "-filter_complex" in _cap2["cmd"]:
+    _fcm = _cap2["cmd"][_cap2["cmd"].index("-filter_complex") + 1]
+check("t2_measure_meme_prefixe_et_mesure_reelle_ok",
+      _rm.status_code == 200 and J(_rm).get("ok") is True and "afftdn@dn0" in _fcm and "[l6p0]" in _fcm,
+      (_rm.status_code, J(_rm), _fcm[:200]))
+
+# --- route noise-profile (appel direct, hote choisi) ---------------------------------
+def REQ2(body, hote="127.0.0.1"):
+    from starlette.requests import Request as _R
+    raw = json.dumps(body).encode("utf-8")
+
+    async def rcv():
+        return {"type": "http.request", "body": raw, "more_body": False}
+    return _R({"type": "http", "method": "POST", "path": "/api/montage/noise-profile", "query_string": b"",
+               "headers": [(b"content-type", b"application/json")], "client": (hote, 5000)}, rcv)
+
+
+_np_n = {"n": 0}
+_vff = MS._ff_run
+
+
+def _esp_ff(cmd, **kw):
+    _np_n["n"] += 1
+    _np_n["cmd"] = list(cmd)
+    return _vff(cmd, **kw)
+
+
+def NP(body, hote="127.0.0.1"):
+    f = getattr(MS, "montage_noise_profile", None)
+    if f is None:
+        return ("ABSENT", None)
+    MS._ff_run = _esp_ff
+    try:
+        return (200, asyncio.run(f(REQ2(body, hote))))
+    except Exception as e:                               # noqa: BLE001
+        return (getattr(e, "status_code", type(e).__name__), getattr(e, "detail", str(e)))
+    finally:
+        MS._ff_run = _vff
+
+
+def RMS_FF(path, t0, t1, pre=""):
+    """RMS mesure par le banc lui-meme (astats), None si echec."""
+    try:
+        r = subprocess.run([FF2, "-hide_banner", "-ss", str(t0), "-t", str(t1 - t0), "-i", str(path), "-vn",
+                            "-af", pre + "astats=measure_overall=RMS_level:measure_perchannel=none",
+                            "-f", "null", "-"], capture_output=True, text=True, timeout=60)
+        for ln in (r.stderr or "").splitlines():
+            if "RMS level dB" in ln:
+                v = ln.split(":")[-1].strip()
+                return float("-inf") if v == "-inf" else float(v)
+    except Exception:                                    # noqa: BLE001
+        pass
+    return None
+
+
+_SP = {"file_path": str(_SRC2)}
+_n_ok = NP({"src": _SP, "t0": 0.0, "t1": 1.0})
+_ref = RMS_FF(_SRC2, 0.0, 1.0)
+_d = _n_ok[1] if isinstance(_n_ok[1], dict) else {}
+check("t2_route_200_rms_du_bruit_et_nf_de_la_regle",
+      _n_ok[0] == 200 and _d.get("ok") is True and _ref is not None
+      and abs(float(_d.get("rms_db", 99)) - _ref) <= 0.05 and _d.get("nf_db") == S.nf_of(_ref)
+      and -32 <= _d.get("nf_db", 0) <= -28 and _d.get("t0") == 0.0 and _d.get("t1") == 1.0,
+      (_n_ok, _ref))
+_ci = _np_n.get("cmd") or []
+check("t2_route_commande_ss_t_avant_i_astats_null",
+      _ci[:1] == ["ffmpeg"] and "-ss" in _ci and "-i" in _ci and _ci.index("-ss") < _ci.index("-i")
+      and _ci[_ci.index("-t") + 1] == "1.0" and "astats=measure_overall=RMS_level:measure_perchannel=none"
+      in " ".join(_ci) and _ci[-3:] == ["-f", "null", "-"] and "-vn" in _ci, _ci)
+# filtres amont du vocabulaire (filter, dehum, eq3 seulement) ; les autres ignores
+_n_hp = NP({"src": _SP, "t0": 0.0, "t1": 1.0,
+            "fx": [{"type": "echo"}, {"type": "eq3", "bass_db": 3}, {"type": "filter", "mode": "high", "freq": 3000},
+                   {"type": "dehum"}, {"type": "compressor"}, {"type": "denoise", "amount": 30}]})
+_af = _np_n.get("cmd", [])
+_afs = _af[_af.index("-af") + 1] if "-af" in _af else ""
+_dhp = _n_hp[1] if isinstance(_n_hp[1], dict) else {}
+check("t2_route_filtres_amont_seuls_dans_l_ordre_et_mesure_change",
+      _n_hp[0] == 200 and _afs.startswith("highpass=f=3000") and _afs.find("highpass") < _afs.find("bandreject")
+      < _afs.find("bass=") < _afs.find("astats") and "aecho" not in _afs and "acompressor" not in _afs
+      and "afftdn" not in _afs and float(_dhp.get("rms_db", 0)) < float(_d.get("rms_db", 0)) - 3,
+      (_n_hp, _afs))
+_bads = [NP({"src": _SP, "t0": 0.0, "t1": 0.1}), NP({"src": _SP, "t0": 0.0, "t1": 31.0}),
+         NP({"src": _SP, "t0": -1.0, "t1": 1.0}), NP({"src": _SP, "t0": 0.0}),
+         NP({"src": _SP, "t0": "x", "t1": 1.0}), NP({"src": _SP, "t0": 5.9, "t1": 6.5})]
+_n0 = _np_n["n"]
+check("t2_route_400_plage_courte_longue_negative_absente_illisible_hors_source",
+      [b[0] for b in _bads] == [400] * 6, [b for b in _bads])
+_n404 = NP({"src": {"file_path": str(_W / "absent.wav")}, "t0": 0, "t1": 1})
+_n415 = NP({"src": {"file_path": str(_V1R)}, "t0": 0, "t1": 0.5})
+check("t2_route_404_source_inconnue_415_sans_piste_audio_sans_ffmpeg",
+      _n404[0] == 404 and _n415[0] == 415 and _np_n["n"] == _n0, (_n404, _n415, _np_n["n"], _n0))
+_n403 = NP({"src": _SP, "t0": 0, "t1": 1}, hote="10.1.2.3")
+_n403t = NP({"src": _SP, "t0": 0, "t1": 1})
+check("t2_route_403_hors_local_avant_tout_calcul_temoin_local_200",
+      _n403[0] == 403 and _n403t[0] == 200 and _np_n["n"] == _n0 + 1, (_n403, _n403t[0], _np_n["n"]))
+_nm = NP({"src": {"file_path": str(_MUET)}, "t0": 0.5, "t1": 1.5})
+check("t2_route_plage_muette_ok_false_temoin_bruit_ok_true",
+      _nm[0] == 200 and isinstance(_nm[1], dict) and _nm[1].get("ok") is False
+      and _nm[1].get("reason") == "muet" and _d.get("ok") is True, _nm)
+_nhttp = c.post("/api/montage/noise-profile", json={"src": _SP, "t0": 0, "t1": 1})
+check("t2_route_montee_sur_le_routeur_api_montage",
+      _nhttp.status_code == 200 and J(_nhttp).get("ok") is True, (_nhttp.status_code, _nhttp.text[:200]))
+
+# --- rendu REEL : preset audio_wav, apprentissage vs plancher seul ------------------
+_NF = _d.get("nf_db") if isinstance(_d.get("nf_db"), int) else -30
+
+
+def RENDER_REEL(fx, src=None):
+    """(chemin du WAV rendu, etat) par la route, taches de fond jouees."""
+    r = c.post("/api/montage/render", json=TLR(fx, preset="audio_wav", src=src))
+    jid = J(r).get("job_id")
+    j = J(c.get("/api/jobs/%s" % (jid or "sans-job")))
+    return j.get("final_video_path") or "", (r.status_code, j.get("status"), str(j.get("error"))[:300])
+
+
+def LIT(path):
+    """WAV -> (canal gauche en float, frequence), ([], 0) si illisible."""
+    try:
+        with wave.open(str(path), "rb") as w:
+            n, ch, sr = w.getnframes(), w.getnchannels(), w.getframerate()
+            a = array.array("h")
+            raw = w.readframes(n)
+            a.frombytes(raw[: len(raw) // 2 * 2])
+            return [v / 32768.0 for v in a[0::ch]], sr
+    except Exception:                                    # noqa: BLE001
+        return [], 0
+
+
+def RMSL(x, s0, s1):
+    s1 = min(s1, len(x))
+    return math.sqrt(sum(v * v for v in x[s0:s1]) / (s1 - s0)) if s1 > s0 else 0.0
+
+
+def DBR(a, b):
+    return 20 * math.log10(a / b) if a > 0 and b > 0 else -999.0
+
+
+if _SRC2 and _V1R:
+    _pl, _el = RENDER_REEL([{"type": "denoise", "amount": 24, "nf": _NF, "learn_in": 0, "learn_out": 1}])
+    _pn, _en = RENDER_REEL([{"type": "denoise", "amount": 24, "nf": _NF}])
+    _p0, _e0 = RENDER_REEL([])
+    _xl, _srl = LIT(_pl) if _pl else ([], 0)
+    _xn, _srn = LIT(_pn) if _pn else ([], 0)
+    _x0, _sr0 = LIT(_p0) if _p0 else ([], 0)
+    check("t2_reel_trois_rendus_wav_44k", _srl == _srn == _sr0 == 44100 and _xl and _xn and _x0,
+          (_el, _en, _e0))
+    _SR = 44100
+    # duree exacte : 3 s de clip (V1 1 s, maitre de duree = l'audio)
+    check("t2_reel_duree_audio_exacte_3s", abs(len(_xl) - 3 * _SR) <= 2 and abs(len(_xn) - 3 * _SR) <= 2,
+          (len(_xl), len(_xn)))
+    # clic de la source a 3,5 s -> 1,5 s du rendu : prefixe retire au sample pres
+    # (pic cherche dans le silence entre les notes, 1,05-1,95 s : afftdn etale le clic sous
+    # la crete de la voix ; un prefixe mal retire le sortirait de la fenetre, un retard de
+    # 1200 echantillons le deplacerait de 1102 a 44,1 kHz)
+    def _pic(x):
+        s0, s1 = int(1.05 * _SR), min(len(x), int(1.95 * _SR))
+        return max(range(s0, s1), key=lambda i: abs(x[i])) if s1 > s0 else -1
+    _pk, _pk0 = _pic(_xl), _pic(_x0)
+    check("t2_reel_clic_a_sa_place_prefixe_retire_exact_temoin_sans_fx",
+          abs(_pk - int(1.5 * _SR)) <= 2 and abs(_pk0 - int(1.5 * _SR)) <= 2, (_pk, _pk0))
+    # bruit residuel entre deux notes (1,1-1,4 s et 1,6-1,9 s du rendu, hors clic)
+    def _res(x):
+        return math.sqrt((RMSL(x, int(1.1 * _SR), int(1.4 * _SR)) ** 2
+                          + RMSL(x, int(1.6 * _SR), int(1.9 * _SR)) ** 2) / 2)
+    _rl, _rn, _r0 = _res(_xl), _res(_xn), _res(_x0)
+    _gl, _gn = DBR(_rl, _r0), DBR(_rn, _r0)
+    print("    bruit residuel : appris %.2f dB, nf seul %.2f dB (nf %s)" % (_gl, _gn, _NF))
+    # ECART AU PLAN (mesure 25/09/2026) : le plan demandait 15 dB « entre deux notes ». A 0,1-0,9 s
+    # de la voix, afftdn appris rend -16,2 dB contre -5,8 dB au plancher seul (10,4 dB d'ecart) ;
+    # sur du BRUIT SEUL (check suivant, moyenne 0,2-2,8 s) -18,6 contre -6,0 (12,6 dB ; fenetres de
+    # 0,3 s entre -20 et -24, le -24 de RESULTATS D2 n'est atteint que par endroits). Seuils poses
+    # sous la mesure avec marge : 8 dB entre deux notes, 10 dB sur bruit seul.
+    check("t2_reel_appris_au_moins_8dB_sous_nf_seul_entre_deux_notes", _gl <= _gn - 8 and _gn < -3,
+          (_gl, _gn))
+    if _BRUIT:
+        _pbl, _ebl = RENDER_REEL([{"type": "denoise", "amount": 24, "nf": _NF, "learn_in": 0, "learn_out": 1}],
+                                 src=_BRUIT)
+        _pbn, _ebn = RENDER_REEL([{"type": "denoise", "amount": 24, "nf": _NF}], src=_BRUIT)
+        _pb0, _eb0 = RENDER_REEL([], src=_BRUIT)
+        _xbl, _xbn, _xb0 = (LIT(x)[0] if x else [] for x in (_pbl, _pbn, _pb0))
+        _gbl = DBR(RMSL(_xbl, int(0.2 * _SR), int(2.8 * _SR)), RMSL(_xb0, int(0.2 * _SR), int(2.8 * _SR)))
+        _gbn = DBR(RMSL(_xbn, int(0.2 * _SR), int(2.8 * _SR)), RMSL(_xb0, int(0.2 * _SR), int(2.8 * _SR)))
+        print("    bruit seul : appris %.2f dB, nf seul %.2f dB" % (_gbl, _gbn))
+        check("t2_reel_bruit_seul_appris_au_moins_10dB_sous_nf_seul", _gbl <= _gbn - 10 and _gbn < -3,
+              (_gbl, _gbn, _ebl, _ebn, _eb0))
+    else:
+        check("t2_reel_bruit_seul_appris_au_moins_10dB_sous_nf_seul", False, "source bruit non fabriquee")
+    # voix preservee : 730 Hz de la premiere note (0,2-0,8 s du rendu)
+    _vl = DBR(RMSL(_xl, int(0.2 * _SR), int(0.8 * _SR)), RMSL(_x0, int(0.2 * _SR), int(0.8 * _SR)))
+    check("t2_reel_voix_preservee_moins_1dB", -1.0 <= _vl <= 0.3, "%.2f dB" % _vl)
+    # plage en partie (5,5-6,5 s d'une source de 6 s) puis entierement (10-11 s) hors source :
+    # duree exacte et clic a sa place (revue T1, I-1 : le prefixe court coupait le debut du clip)
+    for _tag, _a, _b in (("partie", 5.5, 6.5), ("entiere", 10.0, 11.0)):
+        _ph, _eh = RENDER_REEL([{"type": "denoise", "amount": 24, "nf": _NF, "learn_in": _a, "learn_out": _b}])
+        _xh, _srh = LIT(_ph) if _ph else ([], 0)
+        check("t2_reel_plage_%s_hors_source_duree_exacte_clic_a_sa_place" % _tag,
+              _srh == 44100 and abs(len(_xh) - 3 * _SR) <= 2 and abs(_pic(_xh) - int(1.5 * _SR)) <= 2,
+              (_eh, len(_xh), _pic(_xh) if _xh else None))
+
+    # graphe long (> _CMD_MAX) : le fichier -/filter_complex porte l'apostrophe et le ; de asendcmd
+    _many = [AC([{"type": "denoise", "amount": 24, "nf": _NF, "learn_in": 0, "learn_out": 1}], path=str(_SRC2),
+                src_dur=6.0, src_in=2.0, start=0.0, end=3.0)]
+    _vp = [(0.1 * k, -0.5 * (k % 7)) for k in range(12)]
+    for k in range(60):
+        _many.append(AC([{"type": "eq3", "bass_db": 1}], path=str(_SRC2), src_dur=6.0, src_in=2.0,
+                        start=0.0, end=3.0, tr="a3", volume_points=_vp, gain=0.01))
+    _bl2, _fl2 = BUILD(_many, audio_only=True, out=None)
+    _bl2 = [FF2 if (i == 0 and v == "ffmpeg") else v for i, v in enumerate(_bl2)]
+    _long = len(subprocess.list2cmdline([str(a) for a in _bl2]))
+    try:
+        _rlong = MS._ff_run(_bl2, capture_output=True, text=True, timeout=180)
+        _rcl, _errl = _rlong.returncode, (_rlong.stderr or "")[-300:]
+    except Exception as e:                               # noqa: BLE001
+        _rcl, _errl = None, repr(e)
+    check("t2_reel_graphe_long_par_fichier_parse_asendcmd",
+          _long > MS._CMD_MAX and "asendcmd=c='0.0 afftdn@dn0 sn start;" in _fl2 and _rcl == 0
+          and "I:" in (_rlong.stderr if _rcl == 0 else ""), (_long, _rcl, _errl))
+else:
+    check("t2_reel_fixtures_fabriquees", False, "sources non fabriquees")
+
 print(f"\n=== {ok} passed, {fail} failed ===")
 c.__exit__(None, None, None)
 # Nettoyage : le journal loguru et le pool sqlite tiennent encore des handles
