@@ -2221,11 +2221,19 @@ async def audio_recording(request: Request, file: UploadFile = File(...)):
     champ multipart `file` ≤ 50 Mo (413 au-delà) ; transcodée par ffmpeg
     (PATH, comme /audio/audition, en thread) en WAV PCM s16 48 kHz MONO
     voix-off-AAAAMMJJ-HHMMSS[-n].wav dans le dossier audio, jamais écrasée ;
-    ffmpeg en échec ou prise < 0,1 s → 415 {detail} et rien d'écrit
-    (temporaires supprimés dans tous les cas). Fiche sons kind « voix »
+    ffmpeg en échec ou prise < 0,1 s → 415 {detail}, transcodage > 180 s →
+    504, écriture impossible → 500, et rien d'écrit (temporaires et nom
+    réservé supprimés dans tous les cas) ; sortie plafonnée à 2 h. Fiche sons kind « voix »
     (tiroir Sons → piste A1), Bibliothèque « import ».
     → {ok, filename, url, dur, size_kb}"""
     _require_localhost(request)
+    # Refus précoce sur l'en-tête (marge multipart 64 Kio) ; le read reste borné.
+    try:
+        _cl = int(request.headers.get("content-length") or 0)
+    except ValueError:
+        _cl = 0
+    if _cl > _RECORDING_MAX + 65536:
+        raise HTTPException(413, "Prise trop lourde (50 Mo max).")
     contents = await file.read(_RECORDING_MAX + 1)
     if len(contents) > _RECORDING_MAX:
         raise HTTPException(413, "Prise trop lourde (50 Mo max).")
@@ -2237,47 +2245,55 @@ async def audio_recording(request: Request, file: UploadFile = File(...)):
     import tempfile
     import wave
 
-    def _transcode() -> tuple[bool, str, float]:
-        """ffmpeg → WAV temporaire → nom réservé ; rend (ok, nom | erreur,
-        durée). Le dossier temporaire part dans tous les cas."""
+    def _transcode() -> tuple[int, str, float]:
+        """ffmpeg → WAV temporaire → nom réservé ; rend (code HTTP, nom |
+        erreur, durée) — 200 si écrit. Le dossier temporaire part dans tous
+        les cas. Sortie plafonnée à 2 h (-t 7200) : un opus très bas débit de
+        50 Mo dépasserait sinon 4 Gio de WAV (en-tête RIFF faux)."""
         tmpd = Path(tempfile.mkdtemp(prefix="dzvo_", dir=str(settings.outputs_path)))
         try:
             src, out = tmpd / "prise.bin", tmpd / "prise.wav"
             src.write_bytes(contents)
             try:
                 r = subprocess.run(
-                    ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+                    ["ffmpeg", "-nostdin", "-y", "-hide_banner", "-loglevel", "error",
                      "-i", str(src), "-vn", "-map", "0:a:0", "-ac", "1",
-                     "-ar", "48000", "-c:a", "pcm_s16le", "-f", "wav", str(out)],
-                    capture_output=True, text=True, timeout=180)
+                     "-ar", "48000", "-c:a", "pcm_s16le", "-t", "7200",
+                     "-f", "wav", str(out)],
+                    capture_output=True, text=True, encoding="utf-8",
+                    errors="replace", stdin=subprocess.DEVNULL, timeout=180)
+            except subprocess.TimeoutExpired:
+                return (504, "Transcodage trop long (180 s) : prise abandonnée.", 0.0)
             except Exception as e:                       # noqa: BLE001
-                return (False, f"ffmpeg injoignable : {e}", 0.0)
+                return (415, f"ffmpeg injoignable : {e}", 0.0)
             if r.returncode != 0 or not out.is_file():
-                return (False, "Format de prise illisible : "
+                return (415, "Format de prise illisible : "
                         f"{(r.stderr or '').strip()[-200:]}", 0.0)
             try:
                 with wave.open(str(out), "rb") as w:
                     dur = w.getnframes() / float(w.getframerate() or 1)
             except Exception as e:                       # noqa: BLE001
-                return (False, f"WAV illisible : {e}", 0.0)
+                return (415, f"WAV illisible : {e}", 0.0)
             if dur < _RECORDING_MIN_S:
-                return (False, f"Prise trop courte ({dur:.2f} s).", dur)
+                return (415, f"Prise trop courte ({dur:.2f} s).", dur)
             dest = _recording_name(_audio_dir(), datetime.now())
             try:
                 try:
                     os.replace(out, dest)
                 except OSError:                          # autre volume
                     shutil.copyfile(out, dest)
-            except BaseException:
+            except BaseException as e:
                 dest.unlink(missing_ok=True)             # jamais de prise vide réservée
+                if isinstance(e, OSError):
+                    return (500, f"Écriture de la prise impossible : {e}", 0.0)
                 raise
-            return (True, dest.name, dur)
+            return (200, dest.name, dur)
         finally:
             shutil.rmtree(tmpd, ignore_errors=True)
 
-    ok, fn, dur = await asyncio.to_thread(_transcode)
-    if not ok:
-        raise HTTPException(415, fn)
+    code, fn, dur = await asyncio.to_thread(_transcode)
+    if code != 200:
+        raise HTTPException(code, fn)
     from app.services import sfx_service
     await asyncio.to_thread(sfx_service.record_meta, fn, {
         "kind": "voix", "dur": round(dur, 3),

@@ -312,6 +312,129 @@ check("v4_hors_local_403_rien_d_ecrit_temoin_meme_prise_locale_200",
       f"{_s10} {_d10} | {_s11} {_d11}")
 check("v4_aucun_temporaire_laisse_apres_les_refus", RESTES() == [], str(RESTES()))
 
+print("\n[5] revue : plafond 2 h, 504 au timeout, nettoyage du nom reserve, 413 precoce")
+_run0 = subprocess.run
+_cmds = []
+
+
+def _espion_run(cmd, *a, **kw):
+    _cmds.append((list(cmd), dict(kw)))
+    return _run0(cmd, *a, **kw)
+
+
+subprocess.run = _espion_run
+try:
+    _s12, _d12 = POST(OGG) if OGG else ("ABSENT", {})
+finally:
+    subprocess.run = _run0
+_ff = [x for x in _cmds if x[0] and "ffmpeg" in str(x[0][0]).lower()]
+_cm, _kw = (_ff[0] if len(_ff) == 1 else ([], {}))
+def _ix(lst, v):
+    return lst.index(v) if v in lst else -1
+
+
+_it, _ii, _in = _ix(_cm, "-t"), _ix(_cm, "-i"), _ix(_cm, "-nostdin")
+check("v5_commande_ffmpeg_plafonnee_t_7200_avant_la_sortie_nostdin_temoin_200",
+      _s12 == 200 and _ii >= 0 and _it > _ii + 1 and _it < len(_cm) - 2
+      and _cm[_it + 1] == "7200" and str(_cm[-1]).endswith("prise.wav")
+      and 0 <= _in < _ii,
+      f"{_s12} {_cm}")
+check("v5_stderr_decode_utf8_replace_et_stdin_devnull",
+      _kw.get("encoding") == "utf-8" and _kw.get("errors") == "replace"
+      and _kw.get("stdin") is subprocess.DEVNULL and _kw.get("timeout") == 180,
+      str({k: v for k, v in _kw.items() if k != "input"}))
+
+
+def _trop_long(cmd, *a, **kw):
+    if cmd and "ffmpeg" in str(cmd[0]).lower():
+        raise subprocess.TimeoutExpired(cmd, kw.get("timeout") or 180)
+    return _run0(cmd, *a, **kw)
+
+
+_avant = LISTE()
+subprocess.run = _trop_long
+try:
+    _s13, _d13 = POST(OGG) if OGG else ("ABSENT", {})
+finally:
+    subprocess.run = _run0
+check("v5_timeout_ffmpeg_504_transcodage_trop_long_rien_d_ecrit_ni_temporaire",
+      _s13 == 504 and "trop long" in str(_d13.get("detail") or "").lower()
+      and LISTE() == _avant and RESTES() == [],
+      f"{_s13} {_d13} {sorted(set(LISTE()) - set(_avant))} {RESTES()}")
+_s14, _d14 = POST(OGG) if OGG else ("ABSENT", {})
+check("v5_temoin_meme_prise_sans_espion_200_un_fichier_neuf",
+      _s14 == 200 and len(LISTE()) == len(_avant) + 1, f"{_s14} {_d14}")
+
+# os.replace ET shutil.copyfile echouent vers le dossier audio : le nom reserve
+# (cree vide par _recording_name) doit repartir, rien ne reste.
+_rep0, _cop0 = os.replace, shutil.copyfile
+_echecs = []
+
+
+def _rep_ko(a, b, *r, **k):
+    if pathlib.Path(b).name.startswith("voix-off-"):
+        _echecs.append(("replace", pathlib.Path(b).name))
+        raise OSError(18, "volume different (simule)")
+    return _rep0(a, b, *r, **k)
+
+
+def _cop_ko(a, b, *r, **k):
+    if pathlib.Path(b).name.startswith("voix-off-"):
+        _echecs.append(("copyfile", pathlib.Path(b).name))
+        raise OSError(28, "disque plein (simule)")
+    return _cop0(a, b, *r, **k)
+
+
+_avant = LISTE()
+os.replace, shutil.copyfile = _rep_ko, _cop_ko
+try:
+    _s15, _d15 = POST(OGG) if OGG else ("ABSENT", {})
+finally:
+    os.replace, shutil.copyfile = _rep0, _cop0
+check("v5_replace_et_copie_en_echec_les_deux_voies_traversees_vers_le_meme_nom",
+      [x[0] for x in _echecs] == ["replace", "copyfile"] and len({x[1] for x in _echecs}) == 1
+      and bool(NOM_RE.match(_echecs[0][1] if _echecs else "")), str(_echecs))
+check("v5_ecriture_impossible_500_nom_reserve_supprime_dossier_inchange_sans_temporaire",
+      _s15 == 500 and "impossible" in str(_d15.get("detail") or "").lower()
+      and LISTE() == _avant and RESTES() == [],
+      f"{_s15} {_d15} {sorted(set(LISTE()) - set(_avant))} {RESTES()}")
+
+# 413 precoce sur l'en-tete content-length : appel direct de la route, le
+# fichier factice compte ses lectures.
+from starlette.requests import Request as _Req           # noqa: E402
+from fastapi import HTTPException as _HE                 # noqa: E402
+
+
+class _Fich:
+    def __init__(self):
+        self.lus = 0
+
+    async def read(self, n=-1):
+        self.lus += 1
+        return b""
+
+
+def _direct(cl):
+    f = _Fich()
+    rq = _Req({"type": "http", "method": "POST", "path": "/api/audio/recording",
+               "headers": [(b"content-length", str(cl).encode())],
+               "client": ("127.0.0.1", 50001), "query_string": b""})
+    try:
+        asyncio.run(R.audio_recording(rq, f))
+        return "SANS_REFUS", "", f.lus
+    except _HE as e:
+        return e.status_code, str(e.detail), f.lus
+    except Exception as e:                               # noqa: BLE001
+        return f"EXC {e!r}", "", f.lus
+
+
+_avant = LISTE()
+_g1 = _direct(_LIM + 65536 + 1)
+_g0 = _direct(_LIM + 65536)
+check("v5_en_tete_au_dela_de_50_mo_plus_64_kio_413_sans_lecture_temoin_a_la_limite_lu_puis_415",
+      _g1[0] == 413 and "50" in _g1[1] and _g1[2] == 0
+      and _g0[0] == 415 and _g0[2] == 1 and LISTE() == _avant, f"{_g1} {_g0}")
+
 print(f"\n=== {ok} passed, {fail} failed ===")
 c.__exit__(None, None, None)
 # Nettoyage : le journal loguru et le pool sqlite tiennent encore des handles
