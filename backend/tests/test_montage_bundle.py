@@ -15229,7 +15229,10 @@ _DZ_TAGS = [t for t, _a, _r in P.PATCHES]
 # L5 (24/09/2026, tache 6) : UNE section neuve EN QUEUE (P.L5 = [L5sc1], les scopes sous le lecteur). Les pins de
 # queue des lots precedents (L4, L7A, L7c3, L7g, L7e, L7f) se lisent desormais sur _PQ = PATCHES SANS la queue L5 --
 # chaque index negatif garde sa valeur, mesuree sur _PQ, rien n'est relache -- et la queue L5 est epinglee a part.
-_PQ = P.PATCHES[:len(P.PATCHES) - len(getattr(P, "L5", []))]
+# L6 (25/09/2026, tache 5) : une queue L6 (P.L6) vient APRES L5 -- _PQ retire les DEUX queues (L5 puis L6) : les index
+# negatifs des lots precedents gardent leur valeur (mesuree sur _PQ, rien n'est relache), L5 et L6 sont epinglees a part.
+_L6Q = list(getattr(P, "L6", []))
+_PQ = P.PATCHES[:len(P.PATCHES) - len(getattr(P, "L5", [])) - len(_L6Q)]
 _DZ_I = _DZ_TAGS.index("EA6-bandeau-ferme-au-lancement")
 # D-9 (tache 9) : QUATRE sections AJ2a, AJ2b, AJ6a, AJ6b APRES KF5, sonde 114
 # = 112 + adjustNew x1 + adjustTrack x1 (le repli dzAjAdd de R_M16REF).
@@ -17045,7 +17048,8 @@ _iL4q = P.PATCHES.index(P.L4[0]) if P.L4 and P.L4[0] in P.PATCHES else -1
 check("L4_sept_sections_consecutives_apres_EC15k_puis_L7A",
       len(P.L4) == 7 and _iL4q > 0 and P.PATCHES[_iL4q:_iL4q + 7] == P.L4 and P.PATCHES[_iL4q - 1][0].startswith("EC15k")
       # L5 (24/09/2026, tache 6) : L7A n'est plus la derniere -- L5 la suit
-      and P.PATCHES[_iL4q + 7:_iL4q + 7 + len(P.L7A)] == P.L7A and P.PATCHES[_iL4q + 7 + len(P.L7A):] == P.L5, [p[0] for p in P.PATCHES[-9:]])
+      # L6 (25/09/2026, tache 5) : L5 n'est plus la derniere -- la queue L6 la suit (la meme egalite, stricte, sur L5 + L6)
+      and P.PATCHES[_iL4q + 7:_iL4q + 7 + len(P.L7A)] == P.L7A and P.PATCHES[_iL4q + 7 + len(P.L7A):] == P.L5 + _L6Q, [p[0] for p in P.PATCHES[-9:]])
 # L4a : l'etat dzDel (localStorage dz_montage_deliver lu x1 en try/catch, ecrit x1 par dzDelSet), la ref posee a chaque
 # rendu, dzApi + l'effet [pop] (GET x1, vivant), dzSavePreset (PUT x1, prompt natif -- ecart date, aucun dialogue maison)
 _L4_ST = '  var stDzDel=x.useState(function(){try{var v=JSON.parse(localStorage.getItem("dz_montage_deliver")||"null");if(!v||typeof v!=="object")return {};delete v.rangeOnly;return v}catch(_e){return {}}}),dzDel=stDzDel[0],setDzDel=stDzDel[1];'
@@ -18869,7 +18873,9 @@ print("\n[L5] D-31 D-32 tache 6 : scopes sous le lecteur, lightbox des plans, co
 # par .get, detail calcule avant).
 _L5SC_A = '            onClick:svmFullscreen,children:"plein écran ("+svmKeyLabel("fullscreen")+")"})]})]}),'
 check("L5sc1_section_unique_en_queue_ancre_libre_1_0_1_scopes_derniers_enfants_de_la_zone_du_lecteur",
-      len(getattr(P, "L5", [])) == 1 and P.PATCHES[-1:] == P.L5 and P.L5[0][0] == "L5sc1-scopes-sous-la-barre-du-lecteur"
+      # L6 (25/09/2026, tache 5) : L5sc1 est la derniere section AVANT la queue L6 (plus la derniere tout court)
+      len(getattr(P, "L5", [])) == 1 and P.PATCHES[len(P.PATCHES) - len(_L6Q) - 1:len(P.PATCHES) - len(_L6Q)] == P.L5
+      and P.L5[0][0] == "L5sc1-scopes-sous-la-barre-du-lecteur"
       and P.A_L5SC1 == _L5SC_A and s.count(nl(_L5SC_A)) == 0 and s.count(nl(P.R_L5SC1)) == 1
       and s.count("r.jsx(DzTracks.Scopes,{clips:clips,head:ph,playing:playing})") == 1
       and 0 < s.find('className:"svm-playerbar"') < s.find("r.jsx(DzTracks.Scopes,") < s.find('inspOn?r.jsxs("aside",{className:"svm-insp"')
