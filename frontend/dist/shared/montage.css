@@ -1647,3 +1647,8 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
 .dzsvm .dzm-lbph{display:flex;align-items:center;justify-content:center;aspect-ratio:16/9;border-radius:4px;background:#000;font-family:var(--f-mono);font-size:10px;color:var(--ink3)}
 .dzsvm .dzm-lbcap{font-family:var(--f-mono);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dzsvm .dzm-lbmsg{font-family:var(--f-mono);font-size:11px;color:var(--ink3);padding:24px}
+/* L6 D-25 (25/09/2026, tache 5) : « Apprendre le bruit » / « Oublier » sous le rack de l inspecteur audio -- deux boutons
+   toujours rendus (grises, jamais retires) et la ligne d etat de la plage apprise */
+.dzsvm .dzm-nl{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:8px 0 0}
+.dzsvm .dzm-nlbtn:disabled{opacity:.45;cursor:not-allowed}
+.dzsvm .dzm-nlst{flex:1 1 auto;min-width:0;font-size:10px;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

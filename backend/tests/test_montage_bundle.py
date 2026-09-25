@@ -15314,14 +15314,19 @@ check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB8b_puis_
                                                           # L5 (T6, 24/09/2026) : UNE section en queue, les scopes sous le
                                                           # lecteur ; sonde 166 -> 172 (Scopes ici ; gradeCopyDo, gradePasteDo,
                                                           # gradeTake, gradeRead dans R_EC1 ; Lightbox dans R_EB5A)
-                                                          "L5sc1"]
+                                                          "L5sc1",
+                                                          # L6 (T5, 25/09/2026) : SEPT sections en queue, sonde 172 -> 173
+                                                          # (NoiseLearn dans L6nl1 ; L6fx1..L6fx5 dans le bloc SFXSTUDIO et
+                                                          # L6au1 ne parlent pas a la couche)
+                                                          "L6fx1", "L6fx2", "L6fx3", "L6fx4", "L6fx5", "L6au1", "L6nl1"]
       # L7-B D-37 et D-42 (24/09/2026) : AUCUNE section de plus (replis dans R_EC1) ; D-42 : sonde 159 -> 161
       # (cutAt + cutOpts dans le geste dzSceneCut) ; L7-B D-40 (T4) : AUCUNE section de plus (replis dans
       # R_DZ1/R_DZ3/R_DZ4), sonde 161 -> 163 (reframeCss dans l apercu vivant, reframeOf dans le payload)
       and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1
               and s.count(nl(a)) == (1 if a in r else 0)
               for _t, a, r in P.PATCHES[_DZ_I + 1:])
-      and _sonde.get("montage") == 172 and s.count("DzTracks") == 172
+      # L6 (25/09/2026, tache 5) : 172 -> 173, NoiseLearn (L6nl1, seul site de code des sept sections L6)
+      and _sonde.get("montage") == 173 and s.count("DzTracks") == 173
       if _bak else False,
       f"queue={_DZ_TAGS[_DZ_I + 1:]} sonde={_sonde.get('montage')} bundle={s.count('DzTracks')}")
 
@@ -16655,7 +16660,8 @@ check("EC_la_sonde_dzcout_compte_DzTracks_166",
       # 24/09/2026 (L5, T5) : 163 -> 166, GradePanel (repli R_DZ1), MaskBox (repli R_DZ2), maskOf (repli R_DZ4)
       # 24/09/2026 (L5, T6) : 166 -> 172, Scopes (L5sc1), Lightbox (repli R_EB5A), gradeCopyDo / gradePasteDo / gradeTake /
       # gradeRead (repli R_EC1)
-      _EC_SONDE.count('("montage", "DzTracks", 172),') == 1 and _EC_SONDE.count('("montage", "DzTracks", 166),') == 0
+      # 25/09/2026 (L6, T5) : 172 -> 173, NoiseLearn (L6nl1)
+      _EC_SONDE.count('("montage", "DzTracks", 173),') == 1 and _EC_SONDE.count('("montage", "DzTracks", 172),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 163),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 161),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 159),') == 0
@@ -16667,7 +16673,7 @@ check("EC_la_sonde_dzcout_compte_DzTracks_166",
       and _EC_SONDE.count('("montage", "DzTracks", 142),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 139),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 135),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 132),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 129),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 128),') == 0
-      and _EC_SONDE.count('("montage", "DzTracks", 123),') == 0 and s.count("DzTracks") == 172,
+      and _EC_SONDE.count('("montage", "DzTracks", 123),') == 0 and s.count("DzTracks") == 173,  # L6 (T5, 25/09) : 172 -> 173
       f"sonde={_EC_SONDE.count(chr(40) + chr(34) + 'montage')} bundle={s.count('DzTracks')}")
 
 print("\n[EC] E-7 : les trois vues Medias · Montage · Livraison (lot E-C, tache 3)")
@@ -17506,7 +17512,7 @@ check("L7d1_etat_diffSt_replie_en_queue_de_EB7_ETAT_apres_boMap_avant_stDzFin_un
       # L7-B D-34 (tache 7, 24/09/2026) : minNote + noteMsg du tiroir Medias (couche), 545 -> 547 (les trois epingles)
       # L7-B D-40 (tache 4, 24/09/2026) : 547 -> 548, l analyse du mouvement en cours (DzmPlanProps, couche) -- les trois epingles
       # L7-B D-41 (T6) : 548 -> 560 (+10 le popover DzmAutoclips, +1 la ligne ouverte du tiroir, +1 dzAcOpen de l'hote) ; revue T6 : 561 (+1 la langue)
-      and s.count("x.useState(") == 573 and (_bak.count("x.useState(") == 482 and _bak.count("diffSt") == 0 if _bak else False),  # L5 (T5, 24/09) : 561 -> 565, les quatre du panneau Etalonnage (couche) ; L5 (T6) : -> 571 (Scopes x3, Lightbox x2, dzLb x1) ; revue T5 : -> 572 (panneau : relecture du grade sur « storage ») ; correctif preuve ecran T6 : -> 573 (Scopes : le cadre hote de l'encart)
+      and s.count("x.useState(") == 574 and (_bak.count("x.useState(") == 482 and _bak.count("diffSt") == 0 if _bak else False),  # L6 (T5, 25/09) : 573 -> 574 (NoiseLearn : la mesure en cours) ; L5 (T5, 24/09) : 561 -> 565, les quatre du panneau Etalonnage (couche) ; L5 (T6) : -> 571 (Scopes x3, Lightbox x2, dzLb x1) ; revue T5 : -> 572 (panneau : relecture du grade sur « storage ») ; correctif preuve ecran T6 : -> 573 (Scopes : le cadre hote de l'encart)
       f"etat={s.count(nl(_L7D_ST))} ordre={(_iDfBo, _iDfSt, _iDfFin)} diffSt={s.count('diffSt')} useState={s.count('x.useState(')}")
 # revue 24/09 : un `diff` sans etat rend null -- jamais le popover generique
 _L7D_G = '    if(pop==="diff")return diffSt?r.jsx(DzTracks.DiffView,Object.assign({onClose:function(){setPop("")}},diffSt)):null;'
@@ -17622,7 +17628,7 @@ _L7G_ST = '  var stAb=x.useState({a:null,b:null,k:""}),abSt=stAb[0],setAbSt=stAb
 _iAbSt = s.find(nl(_L7G_ST))
 check("L7g_etat_abSt_replie_en_queue_de_EB7_ETAT_apres_diffSt_avant_stDzFin_useState_544",
       s.count(nl(_L7G_ST)) == 1 and _L7G_ST in P._EB7_ETAT and P._EB7_ETAT.endswith(_L7G_ST) and 0 < _iDfSt < _iAbSt < _iDfFin
-      and P._EB7_ETAT.count("DzTracks") == 4 and s.count("x.useState(") == 573 and (_bak.count("x.useState(") == 482 if _bak else False)  # D-41 (T6) : 548 -> 560 -> 561 (langue) ; L5 (T5, 24/09) : -> 565 (panneau Etalonnage) ; L5 (T6) : -> 571 ; revue T5 : -> 572 ; correctif preuve ecran T6 : -> 573 (Scopes : cadre hote)
+      and P._EB7_ETAT.count("DzTracks") == 4 and s.count("x.useState(") == 574 and (_bak.count("x.useState(") == 482 if _bak else False)  # L6 (T5, 25/09) : 573 -> 574 (NoiseLearn) ; D-41 (T6) : 548 -> 560 -> 561 (langue) ; L5 (T5, 24/09) : -> 565 (panneau Etalonnage) ; L5 (T6) : -> 571 ; revue T5 : -> 572 ; correctif preuve ecran T6 : -> 573 (Scopes : cadre hote)
       # MOT ENTIER (stabSt, tabSt… existent) : la declaration, abA (x2), abB (x2) = 5 ; setAbSt porte une majuscule ; x0 dans le .bak
       and len(re.findall(r"\babSt\b", s)) == 5 and (len(re.findall(r"\babSt\b", _bak)) == 0 if _bak else False)
       # la couche : aucun `abSt` entier (temoin : ses trois « dzmStabState » de L3 portent la sous-chaine)
@@ -17791,7 +17797,7 @@ check("L7f4_tiroir_etat_dzNewTr_branche_onNewTrack_avant_onChange_P16_intact_cas
       and s.count('r.jsx("input",{type:"checkbox",checked:dzNewTr,"aria-label":"Traduire dans une nouvelle piste",onChange:function(e){setDzNewTr(e.target.checked)}},"c")') == 1
       and s.count('className:"sub-trlang sub-trnew",title:"Coché : la traduction naît dans une nouvelle piste') == 1 and 0 < _iTg < _iNt < _iFn < _iTg + 1500
       and s.count('apres:dzOn.on?(dzNewTr?"Les "+dzTrN+" répliques traduites naissent dans une nouvelle piste S2, S3… — S1 reste intacte ; « Annuler » retire la piste et ses répliques.":DzTracks.subsTrTitle(dzTrN)):dzOn.pourquoi,') == 1
-      and len(re.findall(r"\bdzNewTr\b", s)) == 4 and s.count("setDzNewTr") == 2 and s.count("x.useState(") == 573  # D-41 (T6) : 548 -> 560 -> 561 (langue) ; L5 (T5, 24/09) : -> 565 (panneau Etalonnage) ; L5 (T6) : -> 571 ; revue T5 : -> 572 ; correctif preuve ecran T6 : -> 573 (Scopes : cadre hote)
+      and len(re.findall(r"\bdzNewTr\b", s)) == 4 and s.count("setDzNewTr") == 2 and s.count("x.useState(") == 574  # L6 (T5, 25/09) : 573 -> 574 (NoiseLearn) ; D-41 (T6) : 548 -> 560 -> 561 (langue) ; L5 (T5, 24/09) : -> 565 (panneau Etalonnage) ; L5 (T6) : -> 571 ; revue T5 : -> 572 ; correctif preuve ecran T6 : -> 573 (Scopes : cadre hote)
       and (_bak.count("dzNewTr") == 0 and _bak.count("sub-trnew") == 0 and _bak.count("onNewTrack") == 0 if _bak else False),
       f"ordre={(_iS9b, _iS9c, _iTrN)} case={(_iTg, _iNt, _iFn)} dzNewTr={len(re.findall(chr(92) + 'bdzNewTr' + chr(92) + 'b', s))} useState={s.count('x.useState(')}")
 # L7f4 (repli R_M24H) : l'hote passe onNewTrack -- subsNew puis svmTracksSet (historique) puis subsCopy sur setClips,
@@ -17883,7 +17889,7 @@ check("L7Ba_le_geste_sauvegarde_PUIS_export_nom_du_serveur_subsDownload_refus_pa
       and _L7B_F.find("if(proj.demo)") < _L7B_F.find('fetch("/api/montage/save"') < _L7B_F.find('fetch("/api/montage/export')
       and _L7B_F.count("subsDownload(o.nom,o.t,") == 1 and _L7B_F.count('res.headers.get("Content-Disposition")') == 1
       and _L7B_F.count("fireNote(") == 5 and _L7B_F.count(".catch(") == 1
-      and _L7B_F.count("DzTracks") == 0 and s.count("DzTracks") == 172 and _sonde.get("montage") == 172  # D-40 (T4) : 161 -> 163 ; L5 (T5) : 166 ; L5 (T6) : 172
+      and _L7B_F.count("DzTracks") == 0 and s.count("DzTracks") == 173 and _sonde.get("montage") == 173  # D-40 (T4) : 161 -> 163 ; L5 (T5) : 166 ; L5 (T6) : 172 ; L6 (T5, 25/09) : 173 (NoiseLearn)
       and s.count("function subsDownload(name,text,mime){") == 1 and s.count("function svmSavePayload(){") == 1,
       f"f={len(_L7B_F)} fireNote={_L7B_F.count('fireNote(')} dz={s.count('DzTracks')} sonde={_sonde.get('montage')}")
 # le client appelle la route que le backend declare, avec les deux formats qu'il accepte
@@ -17957,7 +17963,7 @@ check("L7Bb_le_geste_garde_video_et_verrou_AVANT_l_appel_decoupe_par_la_couche_h
       and _L7BB_F.count("JSON.stringify({src:c.src,srcIn:Number(c.srcIn)||0,dur:du})") == 1
       and _L7BB_F.count("DzTracks.cutOpts(proj,trackStRef.current)") == 1 and _L7BB_F.count("DzTracks") == 2
       and _L7BB_F.count("pushHistory()") == 1 and _L7BB_F.count("setClips(") == 1 and _L7BB_F.count(".catch(") == 2
-      and s.count("DzTracks") == 172 and _sonde.get("montage") == 172,  # D-40 (T4) : 161 -> 163 ; L5 (T5) : 166 ; L5 (T6) : 172
+      and s.count("DzTracks") == 173 and _sonde.get("montage") == 173,  # D-40 (T4) : 161 -> 163 ; L5 (T5) : 166 ; L5 (T6) : 172 ; L6 (T5, 25/09) : 173 (NoiseLearn)
       f"f={len(_L7BB_F)} dz={_L7BB_F.count('DzTracks')} bundle={s.count('DzTracks')} sonde={_sonde.get('montage')}")
 check("L7Bb_la_route_POST_scenes_existe_cote_backend_et_le_client_l_appelle_une_fois",
       _L7B_MS.count('@router.post("/scenes")') == 1 and _L7B_MS.count("_scenes.detect, p, src_in, dur, threshold=th") == 1
@@ -18070,7 +18076,7 @@ check("L7Bn_morceaux_x1_couche_et_bundle_x0_bak_aucune_section_L7B_sonde_161",
       all(src.count(t) == 1 and s.count(t) == 1 for t in _L7BN_P)
       and (all(_bak.count(t) == 0 for t in _L7BN_P) and _bak.count("svm-medstar") == 0 if _bak else False)
       and [t[0] for t in P.PATCHES if t[0].startswith("L7B")] == ["L7Brf1-apercu-du-cadrage-video-ou-image"]
-      and s.count("DzTracks") == 172 and _sonde.get("montage") == 172,  # D-40 (T4) : 161 -> 163 ; L5 (T5) : 166 ; L5 (T6) : 172
+      and s.count("DzTracks") == 173 and _sonde.get("montage") == 173,  # D-40 (T4) : 161 -> 163 ; L5 (T5) : 166 ; L5 (T6) : 172 ; L6 (T5, 25/09) : 173 (NoiseLearn)
       {t[:30]: (src.count(t), s.count(t)) for t in _L7BN_P})
 check("L7Bn_css_etoiles_et_message_de_note_x1_dans_la_feuille",
       _EB_CSS.count(".dzsvm .svm-medstars{") == 1 and _EB_CSS.count(".dzsvm .svm-medstar{") == 1
@@ -18269,8 +18275,8 @@ check("L7Bac_morceaux_x1_couche_et_bundle_hote_x1_bundle_x0_bak_aucune_section_n
       and all(src.count(t) == 0 and s.count(t) == 1 for t in _L7BAC_H)
       and (all(_bak.count(t) == 0 for t in _L7BAC_L + _L7BAC_H) and _bak.count("dzAcOpen") == 0 if _bak else False)
       and [t[0] for t in P.PATCHES if t[0].startswith("L7B")] == ["L7Brf1-apercu-du-cadrage-video-ou-image"]
-      and len(P.PATCHES) == 192  # (le --check annonce 193 ancres) ; L5 (T6, 24/09) : 191 -> 192, la section L5sc1
-      and s.count("DzTracks") == 172 and _sonde.get("montage") == 172,
+      and len(P.PATCHES) == 199  # (le --check annonce 200 ancres) ; L5 (T6, 24/09) : 191 -> 192, la section L5sc1 ; L6 (T5, 25/09) : -> 199, sept sections L6
+      and s.count("DzTracks") == 173 and _sonde.get("montage") == 173,
       ({t[:30]: (src.count(t), s.count(t)) for t in _L7BAC_L + _L7BAC_H}, len(P.PATCHES), s.count("DzTracks")))
 # les trois replis sont dans LEURS remplacements (le patcher) : l'etat avant dzTbDock, openProj apres openReq, le relai du tiroir
 check("L7Bac_replis_dans_R_M11_R_M14_R_EB3",
@@ -18533,14 +18539,14 @@ check("L7Brf_replis_x1_dans_R_DZ1_R_DZ3_R_DZ4_bundle_x1_bak_x0_une_section_L7Brf
       and P.R_DZ1.count("svmSrcKey(k.src),") == 1 and P.R_DZ1.count('String(k.reframe.mode)') == 1
       and P.R_DZ1.count("it.el.videoWidth||it.el.naturalWidth||0") == 1
       and (all(_bak.count(t) == 0 for t in _RF_P) and _bak.count("reframe") == 0 if _bak else False)
-      and len(P.PATCHES) == 192  # 192 triplets (le --check dit 193 ancres) -- L7Brf1 et L5sc1 (T6, 24/09) compris
+      and len(P.PATCHES) == 199  # 199 triplets (le --check dit 200 ancres) -- L7Brf1 et L5sc1 (T6, 24/09) compris ; L6 (T5, 25/09) : +7 sections L6
       # DZ1 finit comme avant, le payload joint reframe APRES stab et avant le mixage audio
       and s.count(nl("          onChange:dzPlanSet}):null,\n        ovInspector(),")) == 1
       and 0 < s.find("var sbD=") < s.find("var rfD=") < s.find('        if(trackKind(c.tr)==="audio"){')
       and s.count("o.reframe=") == 1 and s.count("DzTracks.reframePayload(") == 1 and s.count("DzTracks.reframeOf(") == 0
       and s.count("DzTracks.reframeCss(") == 1 and _RF_P[7] in P.R_DZ1
       and s.count('"/api/montage/reframe"') == 1
-      and s.count("DzTracks") == 172 and _sonde.get("montage") == 172,  # L5 (T6, 24/09) : 166 -> 172
+      and s.count("DzTracks") == 173 and _sonde.get("montage") == 173,  # L5 (T6, 24/09) : 166 -> 172 ; L6 (T5, 25/09) : -> 173 (NoiseLearn)
       {t[:40]: s.count(t) for t in _RF_P})
 check("L7Brf_la_route_POST_reframe_existe_cote_backend_et_le_client_l_appelle_une_fois",
       _L7B_MS.count('@router.post("/reframe")') == 1 and _L7B_MS.count("_reframe.motion_track, p, src_in, dur") == 1
@@ -18831,7 +18837,7 @@ check("L5gp_masque_au_payload_dans_R_DZ4_meme_map_que_les_overlays_V2_apres_le_c
       and 0 < _iRP < s.find("var rfD=", _iRP) < s.find(_GP_MK) < s.find('        if(trackKind(c.tr)==="audio"){', _iRP)
       < s.find("if(DzTracks.isOverlayTrack(c.tr,dzTracksRef.current)){", _iRP)
       and (_bak.count("o.mask=") == 0 if _bak else False)
-      and len(P.PATCHES) == 192 and s.count("DzTracks") == 172 and _sonde.get("montage") == 172,  # L5 (T6, 24/09) : L5sc1 ; sonde 166 -> 172
+      and len(P.PATCHES) == 199 and s.count("DzTracks") == 173 and _sonde.get("montage") == 173,  # L5 (T6, 24/09) : L5sc1 ; sonde 166 -> 172 ; L6 (T5, 25/09) : 199 sections, sonde 173
       (s.count(_GP_MK), len(P.PATCHES), s.count("DzTracks"), _sonde.get("montage")))
 check("L5gp_couche_du_bundle_porte_le_panneau_la_boite_et_les_aides_exports_x1",
       len(_L7BN_LAYER) > 100000 and _L7BN_LAYER.count("function DzmGradePanel(o){") == 1 and _L7BN_LAYER.count("function DzmMaskBox(o){") == 1
@@ -19086,6 +19092,135 @@ check("L5_revue_note_du_lecteur_sous_la_rangee_hors_flux_cadre_immobile_en_paysa
       and "position:relative" in _NOTE_FB,
       [_NOTE_TOP, _NOTE_LEFT, _sansc(_EB_CSS).count(_NOTE_R), _sansc(_EB_CSS).count(_NOTE_RZ),
        _NOTE_B.count(_NOTE_L), _NOTE_Z, _NOTE_S, "position:relative" in _NOTE_FB])
+
+# ══════════════════════════════════════════════════════════════════════════
+print("\n[L6] D-23 D-25 tache 5 : rack etendu (eq6, dehum, plancher et plage apprise), ecoute rendue du son d'un plan, "
+      "« Apprendre le bruit » (25/09/2026)")
+# ── L6 (25/09/2026, tache 5). SEPT sections EN QUEUE (P.L6), aucun repli ; cinq dans le bloc SFXSTUDIO (une premiere :
+# sfxstudio n'a pas de .bak ici, le bloc se patche depuis .bak_montage). Faute n6 : lectures par .get / sous garde,
+# detail calcule avant le court-circuit.
+_L6T = ["L6fx1", "L6fx2", "L6fx3", "L6fx4", "L6fx5", "L6au1", "L6nl1"]
+check("L6_sept_sections_en_queue_apres_L5_ancres_1_0_1_touchees_par_aucune_autre_section",
+      [t[0].split("-")[0] for t in _L6Q] == _L6T and P.PATCHES[-len(_L6T):] == _L6Q and P.PATCHES[-len(_L6T) - 1:-len(_L6T)] == P.L5
+      and (all(_bak.count(_nlb(a)) == 1 and s.count(nl(a)) == (1 if a in r else 0) and s.count(nl(r)) == 1
+               and sum(1 for _t in P.PATCHES if _t[0] != t and (a in _t[1] or a in _t[2])) == 0
+               for t, a, r in _L6Q) if _bak else False),
+      [(t[:6], _bak.count(_nlb(a)) if _bak else "?", s.count(nl(a)), s.count(nl(r))) for t, a, r in _L6Q])
+# LE CATALOGUE DU RACK (SVX_FX_DEFS du bundle LIVRE, lu entre ses deux bornes 1/1) : douze types dans l'ORDRE DE CHAINE,
+# temoin : le .bak en porte dix (l'ordre d'avant) ; les bornes de TOUS les params numeriques == _FX_PARAMS de
+# sfx_service (lu par ast, sans import), `mode` du filtre a part (seg). Regex gardee par un temoin de compte.
+import ast as _ast_l6
+def _fxp_l6():
+    try:
+        _tree = _ast_l6.parse((ROOT / "backend" / "app" / "services" / "sfx_service.py").read_bytes().decode("utf-8-sig"))
+        for _nd in _tree.body:
+            _tg = _nd.target if isinstance(_nd, _ast_l6.AnnAssign) else (_nd.targets[0] if isinstance(_nd, _ast_l6.Assign) else None)
+            if isinstance(_tg, _ast_l6.Name) and _tg.id in ("_FX_PARAMS", "_FX_ORDER"):
+                yield _tg.id, _ast_l6.literal_eval(_nd.value)
+    except Exception as _e:
+        yield "err", temoin(_e)
+_FXB = dict(_fxp_l6())
+def _svx_defs(t):
+    i = t.find("var SVX_FX_DEFS=["); j = t.find("var SVX_FX_BY={};", i) if i >= 0 else -1
+    return t[i:j] if 0 <= i < j else ""
+_SVD, _SVDk = _svx_defs(s), _svx_defs(_bak)
+_RX_T = re.compile(r'\{type:"(\w+)",label:"([^"]+)",live:([01]),params:\[')
+_RX_P = re.compile(r'\{k:"(\w+)",label:"[^"]*",min:(-?[\d.]+),max:(-?[\d.]+),d:(-?[\d.]+),step:(-?[\d.]+)')
+def _svx_params(t):
+    out = {}
+    for m in _RX_T.finditer(t):
+        fin = t.find("]}", m.end())
+        out[m.group(1)] = {k: (float(a), float(b), float(d)) for k, a, b, d, _st in _RX_P.findall(t[m.end():fin])}
+    return out
+_SVP = _svx_params(_SVD)
+_ORD = [m.group(1) for m in _RX_T.finditer(_SVD)]
+check("L6_catalogue_douze_types_dans_l_ordre_de_chaine_de_sfx_service_temoin_bak_dix",
+      len(_SVD) > 2000 and _ORD == list(_FXB.get("_FX_ORDER", ())) and len(_ORD) == 12
+      and [m.group(1) for m in _RX_T.finditer(_SVDk)] == ["filter", "eq3", "denoise", "deesser", "compressor", "distortion",
+                                                           "echo", "reverb", "stereo", "normalize"],
+      [_ORD, _FXB.get("_FX_ORDER")])
+check("L6_catalogue_bornes_et_defauts_de_TOUS_les_params_numeriques_egaux_a_FX_PARAMS_temoin_compte",
+      # MESURE 25/09 : 43 params numeriques des deux cotes (filter 2 -- `mode` a part --, eq3 3, denoise 4, eq6 17, dehum 3...)
+      isinstance(_FXB.get("_FX_PARAMS"), dict) and sum(len(v) for v in _SVP.values()) == 43
+      and sum(len(v) for v in _FXB["_FX_PARAMS"].values()) == 43
+      and set(_SVP) == set(_FXB["_FX_PARAMS"]) and all(_SVP[t] == _FXB["_FX_PARAMS"][t] for t in _SVP),
+      [sum(len(v) for v in _SVP.values()), {t: (_SVP.get(t), (_FXB.get("_FX_PARAMS") or {}).get(t)) for t in set(_SVP) | set(_FXB.get("_FX_PARAMS") or {})
+       if _SVP.get(t) != (_FXB.get("_FX_PARAMS") or {}).get(t)}, _FXB.get("err")])
+check("L6_catalogue_eq6_dehum_en_rendu_seul_libelles_plancher_dit_auto_plage_apprise_cachee_au_millieme",
+      [(m.group(1), m.group(3)) for m in _RX_T.finditer(_SVD) if m.group(1) in ("dehum", "eq6", "denoise")]
+      == [("dehum", "0"), ("denoise", "0"), ("eq6", "0")]
+      and _SVD.count('{type:"eq6",label:"Égaliseur 6 bandes",live:0,') == 1 and _SVD.count('{type:"dehum",label:"Anti-ronflement",live:0,') == 1
+      and _SVD.count('{k:"nf",label:"Plancher 0=auto",') == 1 and _SVD.count("hide:1") == 2 and _SVD.count("dec:3") == 2
+      and _SVD.count('{k:"base",label:"Secteur",min:50,max:60,d:50,step:10,unit:"Hz"}') == 1 and _SVD.count('kind:"seg"') == 1
+      and _SVDk.count("hide:1") == 0 and _SVDk.count("dec:") == 0,
+      [_SVD.count("hide:1"), _SVD.count("dec:3"), _SVD.count('kind:"seg"')])
+# LE RACK EXECUTE SOUS NODE : les fonctions du vocabulaire client (svxClamp..svxEmitFx) EXTRAITES du bundle livre, puis
+# du .bak (temoin). La retouche d'un curseur rejoue setParam du rack (svxCleanParams du module, puis svxEmitFx) : la plage
+# apprise SURVIT au millieme (bundle) ; le .bak la PERDAIT (temoin : c'est la mesure qui a decide hide/dec).
+def _svx_js(t):
+    i = t.find("function svxClamp(v,a,b){"); j = t.find("function svxN(v,d){", i); k = t.find("function svxRound(v,dec){", j)
+    k2 = t.find("\n", k); a = t.find("var SVX_FX_DEFS=["); b = t.find("function svxFxSig(on){", a)
+    return (t[i:k2] + "\n" + t[a:b]) if min(i, j, k, a) >= 0 and b > a else ""
+_SVX_JS = r"""
+var L=[{type:"denoise",params:{amount:30,nf:-31,learn_in:7.123,learn_out:8.456}},{type:"eq3",params:{bass_db:2}}];
+var n=svxNormFx(L),on=Object.assign({},n.on),p=Object.assign({},on.denoise);p.amount=40;on.denoise=svxCleanParams("denoise",p);
+var e=svxEmitFx(on,n.unknown),n2=svxNormFx(e);
+console.log(JSON.stringify({garde:n2.on.denoise||null,emis:e.map(function(m){return m.type}),
+  eq6:svxFxDefaults("eq6"),dehum:svxFxDefaults("dehum"),borne:svxNormFx([{type:"eq6",params:{p1_q:0,ls_g:40,p2_f:99999}}]).on.eq6,
+  base:svxNormFx([{type:"dehum",params:{base:55}}]).on.dehum}));
+"""
+def _svx_run(t, nom):
+    js = _svx_js(t)
+    if len(js) < 1500:
+        return {"err": "extraction %d" % len(js)}
+    f = os.path.join(TMP, nom)
+    with open(f, "w", encoding="utf-8") as fh:
+        fh.write('"use strict";\n' + js + "\n" + _SVX_JS)
+    rr = NODE(["node", f], timeout=60)
+    try:
+        return json.loads((rr.stdout or "").strip().splitlines()[-1])
+    except Exception as _e:
+        return {"err": temoin(_e), "stderr": (rr.stderr or "")[-300:]}
+_SXL, _SXK = _svx_run(s, "l6_rack.js"), (_svx_run(_bak, "l6_rack_bak.js") if _bak else {"err": "bak"})
+check("L6_rack_sous_node_la_retouche_d_un_curseur_garde_la_plage_apprise_au_millieme_temoin_bak_la_perdait",
+      _SXL.get("garde") == {"amount": 40, "nf": -31, "learn_in": 7.123, "learn_out": 8.456} and _SXL.get("emis") == ["eq3", "denoise"]
+      and _SXK.get("garde") == {"amount": 40} and "err" not in _SXK,
+      [_SXL.get("garde"), _SXK.get("garde"), _SXL.get("err"), _SXK.get("err")])
+check("L6_rack_sous_node_defauts_eq6_dehum_complets_bornes_appliquees_secteur_garde_tel_quel",
+      _SXL.get("eq6") == {"hp_hz": 0, "ls_f": 100, "ls_g": 0, "p1_f": 250, "p1_g": 0, "p1_q": 1, "p2_f": 800, "p2_g": 0, "p2_q": 1,
+                          "p3_f": 2500, "p3_g": 0, "p3_q": 1, "p4_f": 6000, "p4_g": 0, "p4_q": 1, "hs_f": 8000, "hs_g": 0}
+      and _SXL.get("dehum") == {"base": 50, "harmonics": 4, "amount": 100}
+      and isinstance(_SXL.get("borne"), dict) and _SXL["borne"].get("p1_q") == 0.3 and _SXL["borne"].get("ls_g") == 12
+      and _SXL["borne"].get("p2_f") == 16000 and _SXL.get("base") == {"base": 55, "harmonics": 4, "amount": 100},
+      [_SXL.get("borne"), _SXL.get("base"), _SXL.get("err")])
+check("L6_rack_rangee_cachee_non_rendue_resumes_eq6_dehum_debruiteur_appris",
+      s.count(nl("  function paramRow(def,pd,p,on){\n    if(pd.hide)return null;\n    var v=p[pd.k];")) == 1
+      and s.count("p[pd.k]=svxRound(n,pd.dec!=null?pd.dec:(pd.step<1?1:0))}});") == 1 and s.count("p[pd.k]=svxRound(n,pd.step<1?1:0)}});") == 0
+      and s.count('" · appris":""') == 1 and s.count('case "eq6":{var nb=') == 1 and s.count('case "dehum":return (p.base>=55?60:50)+" Hz ×"') == 1
+      and (_bak.count("pd.hide") == 0 and _bak.count('case "eq6"') == 0 if _bak else False),
+      [s.count("if(pd.hide)return null;"), s.count('case "eq6":')])
+# L'ECOUTE RENDUE (decision 6) : le son d'un plan {job_id} n'est plus refuse ; filename seulement pour un son de la
+# Bibliotheque ; temoin : le refus d'avant est dans le .bak, plus dans le bundle. Dans sfxAudition, une fois.
+_AUD = s[s.find("  function sfxAudition(fx){"):s.find("  function duckCfg(){")]
+check("L6_ecoute_rendue_accepte_le_son_d_un_plan_job_id_filename_pour_la_bibliotheque_refus_d_avant_retire",
+      len(_AUD) > 800 and _AUD.count("if(!c||!c.src||!(c.src.audio||c.src.job_id)){") == 1
+      and _AUD.count("if(c.src.audio)body.filename=c.src.audio;else body.job_id=String(c.src.job_id);") == 1
+      and _AUD.count("filename:") == 0 and _AUD.count('fetch("/api/audio/audition",') == 1
+      and s.count("le son d'un plan vidéo s'entend via la Preview 480p") == 0
+      and (_bak.count("le son d'un plan vidéo s'entend via la Preview 480p") == 1 if _bak else False),
+      [len(_AUD), _AUD.count("body.job_id=")])
+# « APPRENDRE LE BRUIT » : monte UNE fois, dans audioInspector, APRES le rack et dans son fragment ; la couche l'exporte
+# UNE fois ; son composant vit AVANT la zone des composants L5 (DzmScopes -> var DzTracks=) et apres le coeur pur.
+_AIN = s[s.find("  function audioInspector(){"):s.find("  function narrStop(){")]
+_NLM = "r.jsx(DzTracks.NoiseLearn,{clip:sel,range:proj.range,demo:!!proj.demo,music:isMus,onNote:fireNote,"
+check("L6_apprendre_le_bruit_monte_une_fois_sous_le_rack_dans_son_fragment_clip_vise_par_id_exporte_une_fois",
+      len(_AIN) > 3000 and s.count(_NLM) == 1 and _AIN.count(_NLM) == 1
+      and 0 < _AIN.find("r.jsx(dzsfx.Rack,") < _AIN.find(_NLM) < _AIN.find("]}):null]})}")
+      and _AIN.count("svmSetClipAudio(id,{fx:f(Array.isArray(k.fx)?k.fx:[])})") == 1
+      and src.count("NoiseLearn:DzmNoiseLearn,") == 1 and s.count("NoiseLearn:DzmNoiseLearn,") == 1
+      and 0 < src.find("function dzmRecMime(") < src.find("function DzmNoiseLearn(o){") < src.find("function DzmScopes(o){")
+      and src.count('dzmGpFetch("/api/montage/noise-profile",') == 1 and (_bak.count("NoiseLearn") == 0 if _bak else False),
+      [s.count(_NLM), src.count("function DzmNoiseLearn(o){"), src.count('dzmGpFetch("/api/montage/noise-profile",')])
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")

@@ -5852,6 +5852,136 @@ assert R_EC1.count("function dzGradeCopy(id){") == 1 and R_EC1.count("function d
 assert R_EC1.count("run:function(){dzGradeCopy(id)}") == 1 and R_EC1.count("run:function(){dzGradePaste(id)}") == 1 and R_EC1.count('{lbl:"Lightbox des plans",run:function(){setDzLb(!0)}}') == 1
 assert R_EB5A.count("r.jsx(DzTracks.Lightbox,") == 1 and R_K7.count('if(dzLbRef.current){if(e.key==="Escape"){e.preventDefault();setDzLb(!1)}return}') == 1 and R_K7.startswith("if(dzLbRef.current){")
 
+# ══ L6 D-23 D-25 (25/09/2026, tache 5) — RACK ETENDU, « APPRENDRE LE BRUIT », ECOUTE RENDUE DU SON D'UN PLAN ══════════
+# PREMIERE FOIS que des sections du patcher montage entrent dans le bloc SFXSTUDIO (rack SvxRack, SVX_FX_DEFS,
+# svxCleanParams, svxModSummary, paramRow) : le maillon amont `sfxstudio` n'a PAS de .bak dans cette copie, sa source
+# frontend/patches/sfxstudio.js est INTOUCHABLE -- le bloc se patche ici, depuis .bak_montage, a chaque rejeu. Les ancres
+# L6fx1..L6fx5 sont donc des LIGNES DE sfxstudio.js telles que .bak_montage les porte : un maillon amont reconstruit
+# depuis une source modifiee doit garder ces lignes, sinon le --check le dit (ancre 0) -- jamais en silence.
+# ANCRES MESUREES 25/09/2026 : les sept valent 1/0/1 (x1 dans .bak_montage, touchees par aucune section, x1 livrees).
+# MESURES qui decident de la forme (lecture du bloc, 25/09) :
+#   * svxCleanParams NE GARDE QUE les params DECLARES et arrondit a 1 decimale (`pd.step<1?1:0`) : learn_in / learn_out
+#     etaient PERDUS a la premiere retouche d'un curseur du debruiteur -> declares, caches (`hide:1`, paramRow rend null)
+#     et arrondis au MILLIEME (`dec:3`, lu par L6fx3 ; les params sans `dec` gardent la regle d'avant, octet pour octet) ;
+#   * un `seg` NUMERIQUE ne marche pas : svxCleanParams compare String(v) a o[0] en strict (un 60 nombre retombe sur le
+#     defaut) et paramRow ecrit « Mode » / « Mode du filtre » en dur -> `dehum.base` est un CURSEUR 50..60 pas 10 (le
+#     constructeur backend arrondit : >= 55 -> 60) ;
+#   * le graphe Web Audio du rack lit des types NOMMES (on.eq3, on.stereo…) : eq6 / dehum y sont ignores -> live:0
+#     (« Écouter (rendu) »), comme le plan le fixe.
+# ORDRE D'AFFICHAGE = ORDRE DE CHAINE (_FX_ORDER de sfx_service) : « Anti-ronflement » AVANT l'egaliseur 3 bandes,
+# « Égaliseur 6 bandes » APRES le debruiteur. ECART AU PLAN (date 25/09) : le plan posait eq6 ET dehum apres la ligne
+# eq3 ; le rack montrant la chaine dans son ordre de rendu, dehum vient avant (svxEmitFx emet dans l'ordre du
+# catalogue, le backend retrie de toute facon).
+A_L6FX1 = ('   Ordre de chaîne fixe : filter → eq3 → denoise → deesser → compressor →\n'
+           '   distortion → echo → reverb → stereo → normalize. live:1 = audible dans\n'
+           '   l\'audition Web Audio du rack ; live:0 = « Écouter (rendu) » (ffmpeg). */\n'
+           'var SVX_FX_DEFS=[\n'
+           ' {type:"filter",label:"Filtre",live:1,params:[\n'
+           '   {k:"mode",kind:"seg",opts:[["low","grave"],["high","aigu"],["band","bande"]],d:"low"},\n'
+           '   {k:"freq",label:"Fréq",min:20,max:20000,d:1000,step:1,unit:"Hz",log:1},\n'
+           '   {k:"q",label:"Q",min:0.1,max:10,d:1,step:0.1,unit:""}]},\n'
+           ' {type:"eq3",label:"Égaliseur",live:1,params:[')
+R_L6FX1 = ('   Ordre de chaîne fixe : filter → dehum → eq3 → denoise → eq6 → deesser →\n'
+           '   compressor → distortion → echo → reverb → stereo → normalize (L6, 25/09/2026 :\n'
+           '   dehum et eq6 insérés, ordre relatif des dix d\'avant inchangé). live:1 = audible dans\n'
+           '   l\'audition Web Audio du rack ; live:0 = « Écouter (rendu) » (ffmpeg). */\n'
+           'var SVX_FX_DEFS=[\n'
+           ' {type:"filter",label:"Filtre",live:1,params:[\n'
+           '   {k:"mode",kind:"seg",opts:[["low","grave"],["high","aigu"],["band","bande"]],d:"low"},\n'
+           '   {k:"freq",label:"Fréq",min:20,max:20000,d:1000,step:1,unit:"Hz",log:1},\n'
+           '   {k:"q",label:"Q",min:0.1,max:10,d:1,step:0.1,unit:""}]},\n'
+           ' {type:"dehum",label:"Anti-ronflement",live:0,params:[\n'
+           '   {k:"base",label:"Secteur",min:50,max:60,d:50,step:10,unit:"Hz"},\n'
+           '   {k:"harmonics",label:"Harmon.",min:1,max:6,d:4,step:1,unit:""},\n'
+           '   {k:"amount",label:"Dosage",min:0,max:100,d:100,step:1,unit:"%"}]},\n'
+           ' {type:"eq3",label:"Égaliseur",live:1,params:[')
+# le debruiteur gagne le plancher (visible) et la plage apprise (cachee, au millieme) ; eq6 le suit (ordre de chaine)
+A_L6FX2 = (' {type:"denoise",label:"Débruiteur",live:0,params:[\n'
+           '   {k:"amount",label:"Réduction",min:0,max:97,d:12,step:1,unit:"dB"}]},')
+R_L6FX2 = (' {type:"denoise",label:"Débruiteur",live:0,params:[\n'
+           '   {k:"amount",label:"Réduction",min:0,max:97,d:12,step:1,unit:"dB"},\n'
+           '   {k:"nf",label:"Plancher 0=auto",min:-80,max:0,d:0,step:1,unit:"dB"},\n'
+           '   {k:"learn_in",label:"Appris de",min:0,max:86400,d:0,step:0.001,dec:3,unit:"s",hide:1},\n'
+           '   {k:"learn_out",label:"Appris à",min:0,max:86400,d:0,step:0.001,dec:3,unit:"s",hide:1}]},\n'
+           ' {type:"eq6",label:"Égaliseur 6 bandes",live:0,params:[\n'
+           '   {k:"hp_hz",label:"Passe-haut",min:0,max:300,d:0,step:1,unit:"Hz"},\n'
+           '   {k:"ls_f",label:"Grave Hz",min:30,max:500,d:100,step:1,unit:"Hz",log:1},\n'
+           '   {k:"ls_g",label:"Grave dB",min:-12,max:12,d:0,step:0.5,unit:"dB"},\n'
+           '   {k:"p1_f",label:"Cloche 1 Hz",min:40,max:16000,d:250,step:1,unit:"Hz",log:1},\n'
+           '   {k:"p1_g",label:"Cloche 1 dB",min:-12,max:12,d:0,step:0.5,unit:"dB"},\n'
+           '   {k:"p1_q",label:"Q1",min:0.3,max:8,d:1,step:0.1,unit:""},\n'
+           '   {k:"p2_f",label:"Cloche 2 Hz",min:40,max:16000,d:800,step:1,unit:"Hz",log:1},\n'
+           '   {k:"p2_g",label:"Cloche 2 dB",min:-12,max:12,d:0,step:0.5,unit:"dB"},\n'
+           '   {k:"p2_q",label:"Q2",min:0.3,max:8,d:1,step:0.1,unit:""},\n'
+           '   {k:"p3_f",label:"Cloche 3 Hz",min:40,max:16000,d:2500,step:1,unit:"Hz",log:1},\n'
+           '   {k:"p3_g",label:"Cloche 3 dB",min:-12,max:12,d:0,step:0.5,unit:"dB"},\n'
+           '   {k:"p3_q",label:"Q3",min:0.3,max:8,d:1,step:0.1,unit:""},\n'
+           '   {k:"p4_f",label:"Cloche 4 Hz",min:40,max:16000,d:6000,step:1,unit:"Hz",log:1},\n'
+           '   {k:"p4_g",label:"Cloche 4 dB",min:-12,max:12,d:0,step:0.5,unit:"dB"},\n'
+           '   {k:"p4_q",label:"Q4",min:0.3,max:8,d:1,step:0.1,unit:""},\n'
+           '   {k:"hs_f",label:"Aigu Hz",min:1000,max:16000,d:8000,step:1,unit:"Hz",log:1},\n'
+           '   {k:"hs_g",label:"Aigu dB",min:-12,max:12,d:0,step:0.5,unit:"dB"}]},')
+# l'arrondi d'un param : `dec` quand il est declare (plage apprise au millieme), sinon la regle d'avant
+A_L6FX3 = '      p[pd.k]=svxRound(n,pd.step<1?1:0)}});'
+R_L6FX3 = '      p[pd.k]=svxRound(n,pd.dec!=null?pd.dec:(pd.step<1?1:0))}});'
+# les resumes du module replie : eq6 (bandes actives, passe-haut), dehum (secteur, harmoniques, dosage), debruiteur
+# (plancher, « appris ») -- la meme garde 0,2 s que learn_of
+A_L6FX4 = '    case "denoise":return p.amount+" dB";'
+R_L6FX4 = ('    case "denoise":return p.amount+" dB"+(p.nf?" · plancher "+p.nf+" dB":"")+((Number(p.learn_out)||0)-(Number(p.learn_in)||0)>=.2?" · appris":"");\n'
+           '    case "eq6":{var nb=["ls","p1","p2","p3","p4","hs"].filter(function(b){return Math.abs(Number(p[b+"_g"])||0)>=.05}).length;\n'
+           '      return (p.hp_hz>0?"PH "+Math.round(p.hp_hz)+" Hz · ":"")+(nb?nb+" bande"+(nb>1?"s":""):"neutre")}\n'
+           '    case "dehum":return (p.base>=55?60:50)+" Hz ×"+p.harmonics+" · "+p.amount+" %";')
+# une rangee cachee (plage apprise) ne se rend pas -- le param reste dans le module (svxCleanParams le garde)
+A_L6FX5 = '  function paramRow(def,pd,p,on){\n    var v=p[pd.k];'
+R_L6FX5 = '  function paramRow(def,pd,p,on){\n    if(pd.hide)return null;\n    var v=p[pd.k];'
+# DECISION 6 DU PLAN : l'ecoute rendue accepte le son d'un plan {job_id} (la route POST /api/audio/audition le resout
+# deja, routes.py : `elif payload.get("job_id")` -> fichier du job) ; `filename` n'est envoye que pour un son de la
+# Bibliotheque (la route teste `filename` EN PREMIER). Seul le clip sans source audio lisible est refuse, et le dit.
+A_L6AU1 = ('    if(!c||!c.src||!c.src.audio){\n'
+           '      fireNote("Écoute rendue : disponible pour les sons de la Bibliothèque — le son d\'un plan vidéo s\'entend via la Preview 480p.");return}\n'
+           '    stopAudition();narrStop();\n'
+           '    if(playingRef.current)setPlaying(!1); /* jamais deux flux à la fois */\n'
+           '    var body={filename:c.src.audio,src_in:c.srcIn||0,\n'
+           '      len:Math.min(12,Math.max(.2,c.end-c.start)),\n'
+           '      gain_db:Math.round(Number(c.gain)||0),\n'
+           '      speed:typeof c.speed==="number"&&c.speed>0?c.speed:1,\n'
+           '      fx:Array.isArray(fx)?fx:[]};')
+R_L6AU1 = ('    if(!c||!c.src||!(c.src.audio||c.src.job_id)){\n'
+           '      fireNote("Écoute rendue : ce clip n\'a pas de source audio lisible (ni son de la Bibliothèque, ni son d\'un plan).");return}\n'
+           '    stopAudition();narrStop();\n'
+           '    if(playingRef.current)setPlaying(!1); /* jamais deux flux à la fois */\n'
+           '    /* L6 (25/09/2026) : le son d\'un plan s\'écoute rendu lui aussi (la route résout le job en son fichier rendu) */\n'
+           '    var body={src_in:c.srcIn||0,\n'
+           '      len:Math.min(12,Math.max(.2,c.end-c.start)),\n'
+           '      gain_db:Math.round(Number(c.gain)||0),\n'
+           '      speed:typeof c.speed==="number"&&c.speed>0?c.speed:1,\n'
+           '      fx:Array.isArray(fx)?fx:[]};\n'
+           '    if(c.src.audio)body.filename=c.src.audio;else body.job_id=String(c.src.job_id);')
+# « APPRENDRE LE BRUIT » : le composant de la couche (NoiseLearn), monte sous le rack de l'inspecteur audio, DANS le
+# fragment du rack (sans couche SFX le rack est absent : le debruiteur qu'il ecrit n'a pas d'editeur). La reponse de la
+# route s'applique au clip VISE par son id, a sa liste fx COURANTE (le clip a pu changer pendant la mesure) ; `music`
+# (la musique bouclee : le rendu n'applique que le plancher) ; `demo` grise. UNE reference a la couche (sonde +1).
+A_L6NL1 = '          onAudition:sfxAudition},sel.id)]}):null]})}'
+R_L6NL1 = ('          onAudition:sfxAudition},sel.id),\n'
+           '        /* L6 D-25 : « Apprendre le bruit » / « Oublier » sous le rack — plage I/O du projet, réponse appliquée au\n'
+           '           clip visé (par son id) sur sa liste d\'effets courante */\n'
+           '        r.jsx(DzTracks.NoiseLearn,{clip:sel,range:proj.range,demo:!!proj.demo,music:isMus,onNote:fireNote,\n'
+           '          onFx:function(id,f){var k=clipsRef.current.find(function(q){return q.id===id});\n'
+           '            if(k)svmSetClipAudio(id,{fx:f(Array.isArray(k.fx)?k.fx:[])})}},sel.id)]}):null]})}')
+L6 = [("L6fx1-catalogue-ordre-de-chaine-et-anti-ronflement", A_L6FX1, R_L6FX1),
+      ("L6fx2-debruiteur-plancher-plage-apprise-et-eq6", A_L6FX2, R_L6FX2),
+      ("L6fx3-arrondi-au-millieme-par-dec", A_L6FX3, R_L6FX3),
+      ("L6fx4-resumes-eq6-dehum-debruiteur-appris", A_L6FX4, R_L6FX4),
+      ("L6fx5-rangee-cachee-non-rendue", A_L6FX5, R_L6FX5),
+      ("L6au1-ecoute-rendue-du-son-d-un-plan", A_L6AU1, R_L6AU1),
+      ("L6nl1-apprendre-le-bruit-sous-le-rack", A_L6NL1, R_L6NL1)]
+for _n, _a, _r in L6:
+    assert _a != _r and _r.count("DzTracks") == (1 if _n.startswith("L6nl1") else 0), _n
+assert R_L6FX1.endswith(A_L6FX1.split("\n")[-1]) and R_L6FX1.count('{type:"dehum",') == 1 and R_L6FX1.find('type:"dehum"') < R_L6FX1.find('type:"eq3"')
+assert R_L6FX2.startswith(A_L6FX2[:-3]) and R_L6FX2.count("hide:1") == 2 and R_L6FX2.count("dec:3") == 2 and R_L6FX2.count('{k:"') == 21
+assert R_L6FX5.count("if(pd.hide)return null;") == 1 and R_L6AU1.count("body.job_id=String(c.src.job_id)") == 1 and R_L6AU1.count("filename:") == 0
+assert R_L6NL1.startswith("          onAudition:sfxAudition},sel.id),\n") and R_L6NL1.endswith("},sel.id)]}):null]})}")
+
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
@@ -6102,7 +6232,9 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("EC11-rendu-du-trou-selectionne", A_EC11, R_EC11),
            ("EC12-tete-de-lecture-dans-l-inspecteur", A_EC12, R_EC12),
            ("EC13-suppr-referme-le-trou", A_EC13, R_EC13),
-           ("EC14-clic-sur-un-clip-efface-le-trou", A_EC14, R_EC14)] + EC15 + L4 + L7A + L5
+           ("EC14-clic-sur-un-clip-efface-le-trou", A_EC14, R_EC14)] + EC15 + L4 + L7A + L5 + L6
+           # L6 (25/09/2026, tache 5) : SEPT sections EN QUEUE, apres L5 (cinq dans le bloc SFXSTUDIO -- une premiere --,
+           # l'ecoute rendue du son d'un plan, le bouton « Apprendre le bruit » sous le rack) ; aucun repli.
            # L5 (24/09/2026, tache 6) : UNE section neuve EN QUEUE (L5sc1, les scopes sous le lecteur) ; tout le reste
            # de la tache est replie (R_R1, R_R2, R_EC1, R_EB5A, R_K7).
            # L4 (23/09/2026, tache 4) : sept sections sur des ancres libres ; l'etat

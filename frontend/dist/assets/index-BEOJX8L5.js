@@ -5492,15 +5492,17 @@ function DzMontage(props){
   x.useEffect(function(){return stopAudition},[]);
   function sfxAudition(fx){
     var c=clipsRef.current.find(function(k){return k.id===selRef.current});
-    if(!c||!c.src||!c.src.audio){
-      fireNote("Écoute rendue : disponible pour les sons de la Bibliothèque — le son d'un plan vidéo s'entend via la Preview 480p.");return}
+    if(!c||!c.src||!(c.src.audio||c.src.job_id)){
+      fireNote("Écoute rendue : ce clip n'a pas de source audio lisible (ni son de la Bibliothèque, ni son d'un plan).");return}
     stopAudition();narrStop();
     if(playingRef.current)setPlaying(!1); /* jamais deux flux à la fois */
-    var body={filename:c.src.audio,src_in:c.srcIn||0,
+    /* L6 (25/09/2026) : le son d'un plan s'écoute rendu lui aussi (la route résout le job en son fichier rendu) */
+    var body={src_in:c.srcIn||0,
       len:Math.min(12,Math.max(.2,c.end-c.start)),
       gain_db:Math.round(Number(c.gain)||0),
       speed:typeof c.speed==="number"&&c.speed>0?c.speed:1,
       fx:Array.isArray(fx)?fx:[]};
+    if(c.src.audio)body.filename=c.src.audio;else body.job_id=String(c.src.job_id);
     fetch("/api/audio/audition",{method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify(body)})
       .then(function(res){
@@ -5667,7 +5669,12 @@ function DzMontage(props){
           clip:{url:svmSrcUrl(sel.src),srcIn:sel.srcIn||0,len:len,
             gainDb:g,fadeIn:Number(sel.fade_in)||0,
             fadeOut:Number(sel.fade_out)||0,speed:spdv},
-          onAudition:sfxAudition},sel.id)]}):null]})}
+          onAudition:sfxAudition},sel.id),
+        /* L6 D-25 : « Apprendre le bruit » / « Oublier » sous le rack — plage I/O du projet, réponse appliquée au
+           clip visé (par son id) sur sa liste d'effets courante */
+        r.jsx(DzTracks.NoiseLearn,{clip:sel,range:proj.range,demo:!!proj.demo,music:isMus,onNote:fireNote,
+          onFx:function(id,f){var k=clipsRef.current.find(function(q){return q.id===id});
+            if(k)svmSetClipAudio(id,{fx:f(Array.isArray(k.fx)?k.fx:[])})}},sel.id)]}):null]})}
 
   /* ── tiroir « Narration » — la narration s'écrit et se re-prend PAR LE
      TEXTE, un bloc par clip A1. Honnêteté : aucune transcription automatique
@@ -6963,20 +6970,46 @@ function svxBuf(url,cb){
   return e}
 
 /* ── vocabulaire FX (contrat backend/frontend — noms et bornes EXACTS) ────
-   Ordre de chaîne fixe : filter → eq3 → denoise → deesser → compressor →
-   distortion → echo → reverb → stereo → normalize. live:1 = audible dans
+   Ordre de chaîne fixe : filter → dehum → eq3 → denoise → eq6 → deesser →
+   compressor → distortion → echo → reverb → stereo → normalize (L6, 25/09/2026 :
+   dehum et eq6 insérés, ordre relatif des dix d'avant inchangé). live:1 = audible dans
    l'audition Web Audio du rack ; live:0 = « Écouter (rendu) » (ffmpeg). */
 var SVX_FX_DEFS=[
  {type:"filter",label:"Filtre",live:1,params:[
    {k:"mode",kind:"seg",opts:[["low","grave"],["high","aigu"],["band","bande"]],d:"low"},
    {k:"freq",label:"Fréq",min:20,max:20000,d:1000,step:1,unit:"Hz",log:1},
    {k:"q",label:"Q",min:0.1,max:10,d:1,step:0.1,unit:""}]},
+ {type:"dehum",label:"Anti-ronflement",live:0,params:[
+   {k:"base",label:"Secteur",min:50,max:60,d:50,step:10,unit:"Hz"},
+   {k:"harmonics",label:"Harmon.",min:1,max:6,d:4,step:1,unit:""},
+   {k:"amount",label:"Dosage",min:0,max:100,d:100,step:1,unit:"%"}]},
  {type:"eq3",label:"Égaliseur",live:1,params:[
    {k:"bass_db",label:"Graves",min:-12,max:12,d:0,step:0.5,unit:"dB"},
    {k:"mid_db",label:"Médiums",min:-12,max:12,d:0,step:0.5,unit:"dB"},
    {k:"treble_db",label:"Aigus",min:-12,max:12,d:0,step:0.5,unit:"dB"}]},
  {type:"denoise",label:"Débruiteur",live:0,params:[
-   {k:"amount",label:"Réduction",min:0,max:97,d:12,step:1,unit:"dB"}]},
+   {k:"amount",label:"Réduction",min:0,max:97,d:12,step:1,unit:"dB"},
+   {k:"nf",label:"Plancher 0=auto",min:-80,max:0,d:0,step:1,unit:"dB"},
+   {k:"learn_in",label:"Appris de",min:0,max:86400,d:0,step:0.001,dec:3,unit:"s",hide:1},
+   {k:"learn_out",label:"Appris à",min:0,max:86400,d:0,step:0.001,dec:3,unit:"s",hide:1}]},
+ {type:"eq6",label:"Égaliseur 6 bandes",live:0,params:[
+   {k:"hp_hz",label:"Passe-haut",min:0,max:300,d:0,step:1,unit:"Hz"},
+   {k:"ls_f",label:"Grave Hz",min:30,max:500,d:100,step:1,unit:"Hz",log:1},
+   {k:"ls_g",label:"Grave dB",min:-12,max:12,d:0,step:0.5,unit:"dB"},
+   {k:"p1_f",label:"Cloche 1 Hz",min:40,max:16000,d:250,step:1,unit:"Hz",log:1},
+   {k:"p1_g",label:"Cloche 1 dB",min:-12,max:12,d:0,step:0.5,unit:"dB"},
+   {k:"p1_q",label:"Q1",min:0.3,max:8,d:1,step:0.1,unit:""},
+   {k:"p2_f",label:"Cloche 2 Hz",min:40,max:16000,d:800,step:1,unit:"Hz",log:1},
+   {k:"p2_g",label:"Cloche 2 dB",min:-12,max:12,d:0,step:0.5,unit:"dB"},
+   {k:"p2_q",label:"Q2",min:0.3,max:8,d:1,step:0.1,unit:""},
+   {k:"p3_f",label:"Cloche 3 Hz",min:40,max:16000,d:2500,step:1,unit:"Hz",log:1},
+   {k:"p3_g",label:"Cloche 3 dB",min:-12,max:12,d:0,step:0.5,unit:"dB"},
+   {k:"p3_q",label:"Q3",min:0.3,max:8,d:1,step:0.1,unit:""},
+   {k:"p4_f",label:"Cloche 4 Hz",min:40,max:16000,d:6000,step:1,unit:"Hz",log:1},
+   {k:"p4_g",label:"Cloche 4 dB",min:-12,max:12,d:0,step:0.5,unit:"dB"},
+   {k:"p4_q",label:"Q4",min:0.3,max:8,d:1,step:0.1,unit:""},
+   {k:"hs_f",label:"Aigu Hz",min:1000,max:16000,d:8000,step:1,unit:"Hz",log:1},
+   {k:"hs_g",label:"Aigu dB",min:-12,max:12,d:0,step:0.5,unit:"dB"}]},
  {type:"deesser",label:"Dé-esseur",live:0,params:[
    {k:"intensity",label:"Intensité",min:0,max:100,d:50,step:1,unit:"%"}]},
  {type:"compressor",label:"Compresseur",live:1,params:[
@@ -7017,7 +7050,7 @@ function svxCleanParams(type,raw){
       p[pd.k]=ok?v:pd.d}
     else{
       var n=svxClamp(svxN(raw[pd.k],pd.d),pd.min,pd.max);
-      p[pd.k]=svxRound(n,pd.step<1?1:0)}});
+      p[pd.k]=svxRound(n,pd.dec!=null?pd.dec:(pd.step<1?1:0))}});
   return p}
 function svxNormFx(list){
   var on={},unknown=[];
@@ -7040,7 +7073,10 @@ function svxModSummary(def,p){
     case "filter":{var mm={low:"grave",high:"aigu",band:"bande"};
       return (mm[p.mode]||p.mode)+" "+Math.round(p.freq)+" Hz"}
     case "eq3":return svxDb1(p.bass_db).replace(".0","")+" / "+svxDb1(p.mid_db).replace(".0","")+" / "+svxDb1(p.treble_db).replace(".0","");
-    case "denoise":return p.amount+" dB";
+    case "denoise":return p.amount+" dB"+(p.nf?" · plancher "+p.nf+" dB":"")+((Number(p.learn_out)||0)-(Number(p.learn_in)||0)>=.2?" · appris":"");
+    case "eq6":{var nb=["ls","p1","p2","p3","p4","hs"].filter(function(b){return Math.abs(Number(p[b+"_g"])||0)>=.05}).length;
+      return (p.hp_hz>0?"PH "+Math.round(p.hp_hz)+" Hz · ":"")+(nb?nb+" bande"+(nb>1?"s":""):"neutre")}
+    case "dehum":return (p.base>=55?60:50)+" Hz ×"+p.harmonics+" · "+p.amount+" %";
     case "deesser":return p.intensity+" %";
     case "compressor":return svxDb1(p.threshold_db).replace(".0","")+" dB · "+p.ratio+":1";
     case "distortion":return p.drive+" %";
@@ -7969,6 +8005,7 @@ const SvxRack=(props)=>{
     svxRelease(wrapRef.current)}},[]);
 
   function paramRow(def,pd,p,on){
+    if(pd.hide)return null;
     var v=p[pd.k];
     if(pd.kind==="seg")
       return r.jsxs("div",{className:"svx-prow",children:[
@@ -21681,6 +21718,72 @@ function dzmRecMime(ok){
   for(var i=0;i<DZM_VO_MIMES.length;i++){try{if(ok(DZM_VO_MIMES[i]))return DZM_VO_MIMES[i]}catch(e){}}
   return ""}
 var DZM_VO_MIMES=Object.freeze(["audio/webm;codecs=opus","audio/ogg;codecs=opus","audio/webm","audio/mp4"]);
+/* L6 D-25 (25/09/2026, tâche 5) : dzmNlAppris(fx) -> {a, b, nf} du PREMIER module denoise (celui que garde le rack) quand
+   il porte une plage apprise (learn_out − learn_in >= 0,2, la garde de learn_of ; params imbriqués ou à plat), sinon null.
+   nf illisible -> 0 (automatique). Pure. */
+function dzmNlAppris(fx){
+  var L=Array.isArray(fx)?fx:[],j,m,p,a,b,n;
+  for(j=0;j<L.length;j++){m=L[j];
+    if(!m||typeof m!=="object"||m.type!=="denoise")continue;
+    p=m.params&&typeof m.params==="object"&&!Array.isArray(m.params)?m.params:m;
+    a=dzmRfNum(p.learn_in);b=dzmRfNum(p.learn_out);n=dzmRfNum(p.nf);
+    return a!==null&&b!==null&&b-a>=.2?{a:a,b:b,nf:n===null?0:n}:null}
+  return null}
+/* « APPRENDRE LE BRUIT » (monté par l'hôte sous le rack de l'inspecteur audio, section L6nl1) : props {clip, range (la
+   plage I/O du projet, en temps de TIMELINE), demo, music, onFx(id, f), onNote(msg)}. DEUX boutons TOUJOURS rendus (règle
+   E-12 : on grise, rien ne disparaît) : « Apprendre le bruit » — grisé sans plage I/O, sur la démo, pendant la mesure (son
+   libellé devient « Mesure… ») — et « Oublier » — grisé sans plage apprise. Un clic = UNE requête à la route
+   noise-profile {src, t0, t1, fx} ; la plage de SOURCE vient de dzmLearnRange (durée de source : le verdict has-audio EN
+   CACHE, lu sans requête ; absent = 0 = inconnue) ; un refus (courte, longue, hors source) se DIT et rien ne part.
+   Réponse ok:false -> « Plage muette » ; sinon onFx(id du clip VISÉ au clic, f) où f(fx courante) = dzmDenoiseLearn :
+   l'hôte l'applique à la liste COURANTE de ce clip (la mesure prend du temps, le clip a pu changer ou ne plus être
+   sélectionné). Démonté pendant la mesure : la réponse est ignorée (ni note, ni écriture). Musique bouclée : le rendu
+   n'applique que le plancher (l'apprentissage par préfixe y est ignoré) — le title le dit. */
+function DzmNoiseLearn(o){
+  if(!o||!o.clip)return null;
+  var s1=x.useState(!1),busy=s1[0],setBusy=s1[1];
+  var vivant=x.useRef(!0);
+  x.useEffect(function(){vivant.current=!0;return function(){vivant.current=!1}},[]);
+  var c=o.clip,fx=Array.isArray(c.fx)?c.fx:[],au=dzmAudioOf(c.src),sd=au&&au.dur>0?au.dur:0;
+  var lr=dzmLearnRange(c,o.range,sd),ap=dzmNlAppris(fx),demo=!!o.demo;
+  var note=typeof o.onNote==="function"?o.onNote:function(){},ecrit=typeof o.onFx==="function"?o.onFx:function(){};
+  var sansPlage=lr.refus==="plage"||lr.refus==="clip",dis=demo||busy||sansPlage;
+  var tt=demo?"Projet de démonstration : l'apprentissage du bruit est désactivé"
+    :busy?"Mesure du bruit en cours…"
+    :sansPlage?"Posez une plage I/O (I puis U) sur un passage de bruit seul, puis apprenez-le"
+    :lr.refus?"Apprendre le bruit — "+lr.note
+    :"Apprendre le bruit sur la plage I/O ("+lr.a+"–"+lr.b+" s de source) : son niveau règle le plancher du débruiteur, "
+      +"et le rendu apprend son timbre"+(o.music?" — musique bouclée : seul le plancher s'applique au rendu":"");
+  function apprendre(){
+    if(dis)return;
+    if(lr.refus){note(lr.note);return}
+    var id=c.id,a=lr.a,b=lr.b;
+    setBusy(!0);
+    dzmGpFetch("/api/montage/noise-profile",{src:c.src,t0:a,t1:b,fx:fx},!1,null).then(function(d){
+      if(!vivant.current)return;
+      setBusy(!1);
+      if(!d||d.ok!==!0){note("Plage muette : rien à apprendre");return}
+      var nf=dzmRfNum(d.nf_db);
+      if(nf===null){note("Apprentissage : réponse illisible du serveur");return}
+      ecrit(id,function(cur){return dzmDenoiseLearn(cur,a,b,nf)});
+      note("Bruit appris sur "+a+"–"+b+" s (source) : plancher "+nf+" dB")},
+    function(e){
+      if(!vivant.current)return;
+      setBusy(!1);
+      note("Apprentissage impossible : "+((e&&e.message)||"erreur réseau"))})}
+  function oublier(){
+    if(!ap)return;
+    ecrit(c.id,dzmDenoiseForget);
+    note("Bruit appris oublié : le débruiteur reste, plancher automatique")}
+  return r.jsxs("div",{className:"dzm-nl",children:[
+    r.jsx("button",{className:"svm-minibtn dzm-nlbtn",disabled:dis,"aria-disabled":dis,title:tt,onClick:apprendre,
+      children:busy?"Mesure…":"Apprendre le bruit"}),
+    r.jsx("button",{className:"svm-minibtn dzm-nlbtn",disabled:!ap,"aria-disabled":!ap,
+      title:ap?"Oublier le bruit appris ("+ap.a+"–"+ap.b+" s de source, plancher "+(ap.nf?ap.nf+" dB":"automatique")+") — le débruiteur reste"
+        :"Aucun bruit appris sur ce clip : rien à oublier",
+      onClick:oublier,children:"Oublier"}),
+    r.jsx("span",{className:"dzm-nlst svm-mono","aria-live":"polite",
+      children:ap?"appris "+ap.a+"–"+ap.b+" s · "+(ap.nf?ap.nf+" dB":"auto"):"aucun bruit appris"})]})}
 /* LES SCOPES (section L5sc1 de l'hôte, sous la barre du lecteur) : props {clips, head, playing}. Une bascule « Scopes »
    (mémoire dz_montage_scopes lue UNE fois, au montage) ; allumée et À L'ARRÊT, le PNG de POST /api/montage/scopes pour le
    plan V1 sous la tête (effets actifs + masque : le scope mesure ce que le rendu produira), à l'instant de source.
@@ -21918,6 +22021,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   gpDrag:dzmGpDrag,
   /* L6 D-25 D-26 (25/09/2026, tache 4) : le coeur pur audio -- plage de bruit en temps de source, debruiteur appris, prises, type d'enregistrement */
   learnRange:dzmLearnRange,denoiseLearn:dzmDenoiseLearn,denoiseForget:dzmDenoiseForget,voCount:dzmVoCount,voLabel:dzmVoLabel,recMime:dzmRecMime,VO_MIMES:DZM_VO_MIMES,
+  nlAppris:dzmNlAppris,NoiseLearn:DzmNoiseLearn,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;
 

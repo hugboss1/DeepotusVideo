@@ -442,7 +442,11 @@ STABLE_PROBES = [
     # R_EB5A (`DzTracks.Lightbox`) et un dans la SEULE section neuve L5sc1 (`DzTracks.Scopes`, sous le lecteur). Les
     # commentaires ajoutes a l'hote ne nomment pas le contrat. MESURE : la chaine a refuse, « sonde montage x172
     # (want 166) », avant cette ligne.
-    ("montage", "DzTracks", 172),
+    # L6 (25/09/2026, tache 5, rack etendu / apprendre le bruit) : 172 -> 173 -- UN site de CODE, dans la section neuve
+    # L6nl1 (`DzTracks.NoiseLearn`, sous le rack de l'inspecteur audio). Les cinq sections du bloc SFXSTUDIO et
+    # l'ecoute rendue (L6au1) ne parlent pas a la couche ; les commentaires ajoutes a l'hote ne nomment pas le contrat.
+    # MESURE : la chaine a refuse, « sonde montage x173 (want 172) », avant cette ligne.
+    ("montage", "DzTracks", 173),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

@@ -8408,6 +8408,72 @@ function dzmRecMime(ok){
   for(var i=0;i<DZM_VO_MIMES.length;i++){try{if(ok(DZM_VO_MIMES[i]))return DZM_VO_MIMES[i]}catch(e){}}
   return ""}
 var DZM_VO_MIMES=Object.freeze(["audio/webm;codecs=opus","audio/ogg;codecs=opus","audio/webm","audio/mp4"]);
+/* L6 D-25 (25/09/2026, tâche 5) : dzmNlAppris(fx) -> {a, b, nf} du PREMIER module denoise (celui que garde le rack) quand
+   il porte une plage apprise (learn_out − learn_in >= 0,2, la garde de learn_of ; params imbriqués ou à plat), sinon null.
+   nf illisible -> 0 (automatique). Pure. */
+function dzmNlAppris(fx){
+  var L=Array.isArray(fx)?fx:[],j,m,p,a,b,n;
+  for(j=0;j<L.length;j++){m=L[j];
+    if(!m||typeof m!=="object"||m.type!=="denoise")continue;
+    p=m.params&&typeof m.params==="object"&&!Array.isArray(m.params)?m.params:m;
+    a=dzmRfNum(p.learn_in);b=dzmRfNum(p.learn_out);n=dzmRfNum(p.nf);
+    return a!==null&&b!==null&&b-a>=.2?{a:a,b:b,nf:n===null?0:n}:null}
+  return null}
+/* « APPRENDRE LE BRUIT » (monté par l'hôte sous le rack de l'inspecteur audio, section L6nl1) : props {clip, range (la
+   plage I/O du projet, en temps de TIMELINE), demo, music, onFx(id, f), onNote(msg)}. DEUX boutons TOUJOURS rendus (règle
+   E-12 : on grise, rien ne disparaît) : « Apprendre le bruit » — grisé sans plage I/O, sur la démo, pendant la mesure (son
+   libellé devient « Mesure… ») — et « Oublier » — grisé sans plage apprise. Un clic = UNE requête à la route
+   noise-profile {src, t0, t1, fx} ; la plage de SOURCE vient de dzmLearnRange (durée de source : le verdict has-audio EN
+   CACHE, lu sans requête ; absent = 0 = inconnue) ; un refus (courte, longue, hors source) se DIT et rien ne part.
+   Réponse ok:false -> « Plage muette » ; sinon onFx(id du clip VISÉ au clic, f) où f(fx courante) = dzmDenoiseLearn :
+   l'hôte l'applique à la liste COURANTE de ce clip (la mesure prend du temps, le clip a pu changer ou ne plus être
+   sélectionné). Démonté pendant la mesure : la réponse est ignorée (ni note, ni écriture). Musique bouclée : le rendu
+   n'applique que le plancher (l'apprentissage par préfixe y est ignoré) — le title le dit. */
+function DzmNoiseLearn(o){
+  if(!o||!o.clip)return null;
+  var s1=x.useState(!1),busy=s1[0],setBusy=s1[1];
+  var vivant=x.useRef(!0);
+  x.useEffect(function(){vivant.current=!0;return function(){vivant.current=!1}},[]);
+  var c=o.clip,fx=Array.isArray(c.fx)?c.fx:[],au=dzmAudioOf(c.src),sd=au&&au.dur>0?au.dur:0;
+  var lr=dzmLearnRange(c,o.range,sd),ap=dzmNlAppris(fx),demo=!!o.demo;
+  var note=typeof o.onNote==="function"?o.onNote:function(){},ecrit=typeof o.onFx==="function"?o.onFx:function(){};
+  var sansPlage=lr.refus==="plage"||lr.refus==="clip",dis=demo||busy||sansPlage;
+  var tt=demo?"Projet de démonstration : l'apprentissage du bruit est désactivé"
+    :busy?"Mesure du bruit en cours…"
+    :sansPlage?"Posez une plage I/O (I puis U) sur un passage de bruit seul, puis apprenez-le"
+    :lr.refus?"Apprendre le bruit — "+lr.note
+    :"Apprendre le bruit sur la plage I/O ("+lr.a+"–"+lr.b+" s de source) : son niveau règle le plancher du débruiteur, "
+      +"et le rendu apprend son timbre"+(o.music?" — musique bouclée : seul le plancher s'applique au rendu":"");
+  function apprendre(){
+    if(dis)return;
+    if(lr.refus){note(lr.note);return}
+    var id=c.id,a=lr.a,b=lr.b;
+    setBusy(!0);
+    dzmGpFetch("/api/montage/noise-profile",{src:c.src,t0:a,t1:b,fx:fx},!1,null).then(function(d){
+      if(!vivant.current)return;
+      setBusy(!1);
+      if(!d||d.ok!==!0){note("Plage muette : rien à apprendre");return}
+      var nf=dzmRfNum(d.nf_db);
+      if(nf===null){note("Apprentissage : réponse illisible du serveur");return}
+      ecrit(id,function(cur){return dzmDenoiseLearn(cur,a,b,nf)});
+      note("Bruit appris sur "+a+"–"+b+" s (source) : plancher "+nf+" dB")},
+    function(e){
+      if(!vivant.current)return;
+      setBusy(!1);
+      note("Apprentissage impossible : "+((e&&e.message)||"erreur réseau"))})}
+  function oublier(){
+    if(!ap)return;
+    ecrit(c.id,dzmDenoiseForget);
+    note("Bruit appris oublié : le débruiteur reste, plancher automatique")}
+  return r.jsxs("div",{className:"dzm-nl",children:[
+    r.jsx("button",{className:"svm-minibtn dzm-nlbtn",disabled:dis,"aria-disabled":dis,title:tt,onClick:apprendre,
+      children:busy?"Mesure…":"Apprendre le bruit"}),
+    r.jsx("button",{className:"svm-minibtn dzm-nlbtn",disabled:!ap,"aria-disabled":!ap,
+      title:ap?"Oublier le bruit appris ("+ap.a+"–"+ap.b+" s de source, plancher "+(ap.nf?ap.nf+" dB":"automatique")+") — le débruiteur reste"
+        :"Aucun bruit appris sur ce clip : rien à oublier",
+      onClick:oublier,children:"Oublier"}),
+    r.jsx("span",{className:"dzm-nlst svm-mono","aria-live":"polite",
+      children:ap?"appris "+ap.a+"–"+ap.b+" s · "+(ap.nf?ap.nf+" dB":"auto"):"aucun bruit appris"})]})}
 /* LES SCOPES (section L5sc1 de l'hôte, sous la barre du lecteur) : props {clips, head, playing}. Une bascule « Scopes »
    (mémoire dz_montage_scopes lue UNE fois, au montage) ; allumée et À L'ARRÊT, le PNG de POST /api/montage/scopes pour le
    plan V1 sous la tête (effets actifs + masque : le scope mesure ce que le rendu produira), à l'instant de source.
@@ -8645,5 +8711,6 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   gpDrag:dzmGpDrag,
   /* L6 D-25 D-26 (25/09/2026, tache 4) : le coeur pur audio -- plage de bruit en temps de source, debruiteur appris, prises, type d'enregistrement */
   learnRange:dzmLearnRange,denoiseLearn:dzmDenoiseLearn,denoiseForget:dzmDenoiseForget,voCount:dzmVoCount,voLabel:dzmVoLabel,recMime:dzmRecMime,VO_MIMES:DZM_VO_MIMES,
+  nlAppris:dzmNlAppris,NoiseLearn:DzmNoiseLearn,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;

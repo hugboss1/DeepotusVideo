@@ -449,17 +449,22 @@ if ms is not None:
     for _r in getattr(ms.router, "routes", []):
         if getattr(_r, "path", "") in ("/color-match", "/scopes", "/grade-frame"):
             _rts.setdefault(_r.path, set()).update(getattr(_r, "methods", set()) or set())
+# L6 (25/09/2026, tache 5) : « Apprendre le bruit » (DzmNoiseLearn) REUTILISE dzmGpFetch pour POST /noise-profile -- une
+# quatrieme route, voulue (pas de copie du client reseau). Les TROIS routes L5 restent exigees, egales a DECL ; la
+# declaration de /noise-profile (tache 2 du lot L6) est tenue par le banc croise L6 (tache 7), pas ici.
+_L6_APPELS = {"/api/montage/noise-profile"}
 check("x5_la_couche_appelle_trois_routes_par_dzmGpFetch_en_POST",
-      APPELS == {"/api/montage/color-match", "/api/montage/scopes", "/api/montage/grade-frame"}
+      APPELS == {"/api/montage/color-match", "/api/montage/scopes", "/api/montage/grade-frame"} | _L6_APPELS
       and JS.count('var op={method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)};') == 1,
       sorted(APPELS))
 check("x5_ces_routes_sont_declarees_POST_seulement_sous_le_prefixe_de_main",
-      DECL == APPELS and MAIN.count('app.include_router(montage_router, prefix="/api/montage")') == 1
+      DECL == APPELS - _L6_APPELS and MAIN.count('app.include_router(montage_router, prefix="/api/montage")') == 1
       and {k: sorted(v) for k, v in _rts.items()} == {"/color-match": ["POST"], "/scopes": ["POST"], "/grade-frame": ["POST"]},
       (sorted(DECL), {k: sorted(v) for k, v in _rts.items()}))
 # temoin : une route que la couche appelle ailleurs (strip, GET) n'est pas comptee ici
 check("x5_temoin_strip_est_appelee_par_la_couche_mais_hors_des_trois",
-      '"/api/montage/strip' in JS and "/api/montage/strip" not in APPELS and len(APPELS) == 3, sorted(APPELS))
+      '"/api/montage/strip' in JS and "/api/montage/strip" not in APPELS and len(APPELS - _L6_APPELS) == 3 and len(APPELS) == 4,
+      sorted(APPELS))  # L6 (T5, 25/09) : 3 -> 4 (noise-profile), les trois L5 comptees a part
 
 # ═════════════════════════════════════════════════════════════════════════════
 print("\n[6] Champs : corps de dzmFrameBody / dzmScopesBody / dzmMatchBody == champs lus par les routes")
