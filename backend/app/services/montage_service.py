@@ -1048,6 +1048,21 @@ def _vp_expr(pts: list) -> str:
     return f"pow(10,({db_expr})/20)"
 
 
+def _music_bornes(c: dict) -> dict:
+    """Retours L6 T2 (26/09/2026) : bornes du clip musique d'une piste en
+    boucle, lues comme /render lit les clips a1/a3 — {start, end, src_in}
+    en secondes (start, src_in ≥ 0). Le builder les ignore si end ≤ start
+    (chaîne historique : la musique joue de 0 au total)."""
+    def num(v):
+        try:
+            x = float(v or 0)
+        except (TypeError, ValueError):
+            return 0.0
+        return x if x == x else 0.0
+    return {"start": max(0.0, num(c.get("start"))), "end": num(c.get("end")),
+            "src_in": max(0.0, num(c.get("srcIn")))}
+
+
 def _ov_transform(c: dict) -> dict | None:
     """Transformation optionnelle d'un overlay V2 (champs du payload) :
     x / y = centre en fraction du canvas (défaut 0.5, clamp −0.5..1.5 — l'UI
@@ -4071,22 +4086,62 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     music_lbl = None
     if music is not None:
         inputs.extend(["-stream_loop", "-1", "-i", str(music["path"])])
+        # Retours L6 T2 (26/09/2026) : BORNES DU CLIP. `/render` et
+        # `/measure` posent `bornes = {start, end, src_in}` (le PREMIER clip
+        # de la piste en boucle) : la source reste bouclée en entrée, puis
+        # `atrim=src_in:src_in+D·vitesse` sur le flux bouclé — MESURÉ sur
+        # 8.1.1 et 9.0.1 : lue depuis src_in, la boucle repart du DÉBUT de
+        # la source (`-ss src_in` en entrée fait la même reprise ; atrim est
+        # gardé, précis à l'échantillon comme les clips a1/a3) — fondus sur
+        # la durée du CLIP, `adelay=start`, automation APRÈS adelay (son `t`
+        # y est l'horloge globale, mesuré), `apad` jusqu'au total (le flux
+        # dure tout le rendu : chaîne latérale du ducking inchangée). Sans
+        # `bornes` (ou bornes dégénérées) : chaîne historique octet pour
+        # octet — la musique joue de 0 à la fin du rendu.
+        bor = music.get("bornes") if isinstance(music.get("bornes"), dict) else None
+        mdur = mtrim = None
+        if bor is not None:
+            try:
+                b_st = max(0.0, float(bor.get("start") or 0))
+                b_d = float(bor.get("end") or 0) - b_st
+                b_in = max(0.0, float(bor.get("src_in") or 0))
+            except (TypeError, ValueError):
+                b_d = -1.0
+            if math.isfinite(b_d) and b_d > 0 and math.isfinite(b_in + b_st):
+                sd = music.get("src_dur_sonde")
+                try:
+                    sd = float(sd) if sd else 0.0
+                except (TypeError, ValueError):
+                    sd = 0.0
+                if sd > 0 and b_in >= sd:
+                    # au-delà de la source : la boucle y arriverait ; modulo
+                    # pour ne pas décoder N tours pour rien
+                    b_in = b_in % sd
+                spd0 = float(music.get("speed") or 0.0)
+                mdur = round(b_d, 3)
+                b_len = b_d * spd0 if spd0 else b_d
+                mtrim = (f"atrim={round(b_in, 3)}:{round(b_in + b_len, 3)},"
+                         f"asetpts=PTS-STARTPTS,")
+                mdly = int(round(b_st * 1000))
         # Fondus de la musique bouclée : entrée au démarrage, sortie calée
-        # sur la FIN du rendu (`total`, la boucle est coupée là par -t).
+        # sur la FIN du rendu (`total`, la boucle est coupée là par -t) — ou,
+        # bornée, sur la fin du CLIP (horloge locale 0..D, avant adelay).
         # Sans fondu la chaîne reste octet pour octet celle d'avant.
         # R2 : mêmes courbes optionnelles que les clips (lin/absent = rien).
-        mfi = min(float(music.get("fade_in") or 0), max(0.0, total))
-        mfo = min(float(music.get("fade_out") or 0), max(0.0, total))
+        mref = max(0.0, total) if mdur is None else mdur
+        mfi = min(float(music.get("fade_in") or 0), mref)
+        mfo = min(float(music.get("fade_out") or 0), mref)
         mf = ""
         if mfi > 0:
             mf += (f"afade=t=in:st=0:d={round(mfi, 3)}"
                    f"{_fade_curve(music, 'fade_in_curve')},")
         if mfo > 0:
-            mf += (f"afade=t=out:st={round(max(0.0, total - mfo), 3)}:"
+            mf += (f"afade=t=out:st={round(max(0.0, mref - mfo), 3)}:"
                    f"d={round(mfo, 3)}{_fade_curve(music, 'fade_out_curve')},")
         # R1 : vitesse + effets aussi sur la musique (boucle coupée à `total`
-        # par -t, la durée effective n'entre pas en jeu). Champs absents ⇒
-        # chaîne historique intacte.
+        # par -t, la durée effective n'entre pas en jeu ; bornée, la source
+        # est coupée à D × vitesse et atempo rend D : le clip garde sa place
+        # sur la timeline). Champs absents ⇒ chaîne historique intacte.
         mproc = ""
         mspd = float(music.get("speed") or 0.0)
         if mspd:
@@ -4094,18 +4149,26 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
         mfx = music.get("fx_chain") or ""
         if mfx:
             mproc += mfx + ","
-        # R4 : automation de volume de la musique — le flux bouclé n'est
-        # jamais retrimé : t = horloge GLOBALE du rendu (0..total), les
-        # points s'expriment donc en temps de MONTAGE (l'UI convertit et
-        # l'affiche). Même position que les clips : après les fondus, avant
-        # aresample ; se multiplie au gain statique. Sans points : chaîne
-        # octet pour octet historique.
+        # R4 : automation de volume de la musique — t = horloge GLOBALE du
+        # rendu (0..total), les points s'expriment donc en temps de MONTAGE
+        # (l'UI convertit et l'affiche). Sans bornes (flux jamais retrimé) :
+        # même position que les clips, après les fondus, avant aresample ;
+        # bornée : APRÈS adelay, où `t` est redevenu global (mesuré). Se
+        # multiplie au gain statique. Sans points : chaîne octet pour octet.
         mvp = music.get("volume_points")
         mautom = f"volume='{_vp_expr(mvp)}':eval=frame," if mvp else ""
-        parts.append(
-            f"[{idx}:a]{mproc}{mf}{mautom}"
-            f"aresample=async=1,aformat=sample_rates=44100:"
-            f"channel_layouts=stereo,volume={music['gain']}[mtrk]")
+        if mtrim is None:
+            parts.append(
+                f"[{idx}:a]{mproc}{mf}{mautom}"
+                f"aresample=async=1,aformat=sample_rates=44100:"
+                f"channel_layouts=stereo,volume={music['gain']}[mtrk]")
+        else:
+            parts.append(
+                f"[{idx}:a]{mtrim}{mproc}{mf}"
+                f"aresample=async=1,aformat=sample_rates=44100:"
+                f"channel_layouts=stereo,volume={music['gain']},"
+                f"adelay={mdly}|{mdly},{mautom}"
+                f"apad=whole_dur={round(total, 3)}[mtrk]")
         music_lbl = "[mtrk]"
         idx += 1
 
@@ -5175,6 +5238,9 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                 # clip du bus musique repart ici avec son GAIN musique
                 # (corrigé), mais range son flux dans les bruitages : ni
                 # bouclé, ni ducké. Ce n'est pas un point fermé.
+                # Retours L6 T2 : les BORNES du clip voyagent (`bornes`) — la
+                # musique joue dans [start, end], lue depuis srcIn, bouclée à
+                # l'intérieur ; `src_dur_sonde` = durée sondée (None inconnue).
                 if m["loop"] and music is None:
                     music = {"path": p,
                              "gain": g_music if not gdb else
@@ -5183,7 +5249,9 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                              "fade_in_curve": c.get("fade_in_curve"),
                              "fade_out_curve": c.get("fade_out_curve"),
                              "fx_chain": fx_ch, "fx_list": fx_l, "speed": spd,
-                             "volume_points": vp}
+                             "volume_points": vp,
+                             "bornes": _music_bornes(c),
+                             "src_dur_sonde": sdur or None}
                 else:
                     base = {"dialogue": g_voice, "musique": g_music,
                             "sfx": g_sfx}[bus]
@@ -5392,7 +5460,9 @@ async def montage_measure(request: Request):
                      "fade_in_curve": c.get("fade_in_curve"),
                      "fade_out_curve": c.get("fade_out_curve"),
                      "fx_chain": fx_ch, "fx_list": fx_l, "speed": spd,
-                     "volume_points": vp}
+                     "volume_points": vp,
+                     "bornes": _music_bornes(c),   # retours L6 T2, comme /render
+                     "src_dur_sonde": sdur or None}
         else:
             base = {"dialogue": g_voice, "musique": g_music, "sfx": g_sfx}[bus]
             a_clips.append({
