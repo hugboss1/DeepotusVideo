@@ -318,7 +318,9 @@ if _gok:
     # F. automation en temps GLOBAL : clip 5–15, points −40 dB jusqu'a 6,5 s globales, 0 dB des 7 s
     xf, ff_ = RUN([], M(MUSC, {"start": 5.0, "end": 15.0, "src_in": 0.0},
                         volume_points=[(0.0, -40.0), (6.5, -40.0), (7.0, 0.0)]))
-    f_bas, f_haut = rms_db(xf, 5.3, 6.3), rms_db(xf, 8.0, 14.0)
+    # Revue T2 (M-1) : fenetre « haut » 8–11 s, la ou une automation en temps LOCAL (t − 5) vaudrait
+    # encore −40 dB — sur 8–14 la mutation « automation avant adelay » passait (−18,23 dB).
+    f_bas, f_haut = rms_db(xf, 5.3, 6.3), rms_db(xf, 8.0, 11.0)
     check("rF_automation_en_temps_global",
           f_bas is not None and f_haut is not None and f_haut > -20 and f_bas < f_haut - 30, (f_bas, f_haut))
     # G. ducking inchange : voix 0–3 s, musique 0–11,1 → bande 440 Hz baissee pendant la voix
@@ -334,6 +336,19 @@ if _gok:
           "F bas %s haut %s ; G 440 Hz pendant voix %s apres %s, apres clip %s ; D niveaux %s"
           % (min(v for v in pa if v is not None) if any(v is not None for v in pa) else None, sa, s0, pb, s1,
              e_plein, e_fin, f_bas, f_haut, g_pen, g_apr, g_sil, pd))
+    # I. revue T2 (I-1) : end 1e20 → D plafonne au total, commande acceptee (rc 0), musique jusqu'au bout
+    xi, fi_ = RUN([], M(MUSC, {"start": 2.0, "end": 1e20, "src_in": 0.0}, fade_out=1.0))
+    _mi = next((p for p in fi_.split(";") if p.endswith("[mtrk]")), "")
+    check("rI_end_1e20_plafonne_au_total_rc0",
+          isinstance(xi, array.array) and "atrim=0.0:18.0," in _mi and "e+" not in _mi
+          and (rms_db(xi, 3.0, 18.5) or -200) > -20 and (rms_db(xi, 0.0, 1.9) or 0) < -80,
+          (str(xi)[:200], _mi))
+    # J. clip qui demarre apres la fin du rendu (25–30 s, total 20) : rc 0, silence (pas l'historique)
+    xj, fj_ = RUN([], M(MUSC, {"start": 25.0, "end": 30.0, "src_in": 0.0}))
+    _mj = next((p for p in fj_.split(";") if p.endswith("[mtrk]")), "")
+    check("rJ_clip_apres_la_fin_du_rendu_silence_rc0",
+          isinstance(xj, array.array) and "adelay=20000|20000" in _mj
+          and (rms_db(xj, 0.0, 19.9) or 0) < -80, (str(xj)[:200], _mj))
     # H. temoin historique reel : SANS bornes la musique joue jusqu'au bout (le bug, conserve hors /render)
     xh, _ = RUN([], M(MUSC, None))
     check("rH_temoin_sans_bornes_la_musique_va_au_bout", (rms_db(xh, 15.0, 19.5) or -200) > -20,

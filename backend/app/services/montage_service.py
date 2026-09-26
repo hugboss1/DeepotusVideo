@@ -1051,8 +1051,12 @@ def _vp_expr(pts: list) -> str:
 def _music_bornes(c: dict) -> dict:
     """Retours L6 T2 (26/09/2026) : bornes du clip musique d'une piste en
     boucle, lues comme /render lit les clips a1/a3 — {start, end, src_in}
-    en secondes (start, src_in ≥ 0). Le builder les ignore si end ≤ start
-    (chaîne historique : la musique joue de 0 au total)."""
+    en secondes (start, src_in ≥ 0 ; valeur illisible ou NaN → 0). Bornes
+    DÉGÉNÉRÉES (end ≤ start, end absent/NaN → 0) : le builder les ignore et
+    émet la commande historique — la musique joue sur TOUT le rendu. C'est
+    voulu : un ancien client sans `end` garde le comportement d'avant plutôt
+    qu'une musique muette. `end` au-delà du rendu est plafonné au total par
+    le builder."""
     def num(v):
         try:
             x = float(v or 0)
@@ -4097,7 +4101,11 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
         # y est l'horloge globale, mesuré), `apad` jusqu'au total (le flux
         # dure tout le rendu : chaîne latérale du ducking inchangée). Sans
         # `bornes` (ou bornes dégénérées) : chaîne historique octet pour
-        # octet — la musique joue de 0 à la fin du rendu.
+        # octet — la musique joue de 0 à la fin du rendu. Écart daté (revue
+        # T2, 26/09/2026) : sans fondu de sortie, la TRAÎNE d'un écho/réverbe
+        # du rack dépasse la fin du clip d'au plus son délai maximal (mesuré
+        # −19,5 dB de 3,1 à 3,9 s pour aecho 1000 ms sur un clip 1–3 s) —
+        # comme pour les clips a1/a3 ; l'`apad` n'y coupe rien.
         bor = music.get("bornes") if isinstance(music.get("bornes"), dict) else None
         mdur = mtrim = None
         if bor is not None:
@@ -4107,6 +4115,15 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
                 b_in = max(0.0, float(bor.get("src_in") or 0))
             except (TypeError, ValueError):
                 b_d = -1.0
+            # Revue T2 (I-1) : D PLAFONNÉ au total. `end` = 1e20 écrivait
+            # `atrim=0.0:1.5e+20` — ffmpeg refuse la notation exponentielle
+            # (« Unable to parse end option value »), job en échec. Au-delà
+            # du rendu, rien ne s'entend (-t coupe) : D ≤ total − start ; un
+            # clip qui démarre après la fin du rendu est posé à `total` pour
+            # 0,1 s (coupé par -t : silence, jamais la musique historique).
+            if math.isfinite(b_d) and b_d > 0 and math.isfinite(b_in + b_st):
+                b_st = min(b_st, max(0.0, total))
+                b_d = min(b_d, max(0.1, total - b_st))
             if math.isfinite(b_d) and b_d > 0 and math.isfinite(b_in + b_st):
                 sd = music.get("src_dur_sonde")
                 try:
@@ -4117,6 +4134,10 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
                     # au-delà de la source : la boucle y arriverait ; modulo
                     # pour ne pas décoder N tours pour rien
                     b_in = b_in % sd
+                elif sd <= 0:
+                    # durée inconnue : pas de modulo possible ; plafond pour
+                    # ne jamais écrire une notation exponentielle (≥ 1e16)
+                    b_in = min(b_in, 1e6)
                 spd0 = float(music.get("speed") or 0.0)
                 mdur = round(b_d, 3)
                 b_len = b_d * spd0 if spd0 else b_d
