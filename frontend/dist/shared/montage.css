@@ -1664,3 +1664,14 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
 @media (prefers-reduced-motion:reduce){
   .dzsvm .dzm-vochip[data-rec]::before{animation:none}
 }
+/* Retours L6 (26/09/2026, tache 4) : L'IMAGE ETALONNEE DANS LA FENETRE PRINCIPALE, A L'ARRET (couche, DzmGradeLive ;
+   section R6gl1). L'enveloppe est posee dans le cadre du lecteur ENTRE la couche V1 (.svm-live) et les overlays V2
+   (.svm-liveov) : PAS DE z-index, l'ordre du DOM fait la pile (meme parti que le voile D-12 ci-dessus) -- V2, titres,
+   voile, cadre de selection et sous-titres restent dessus, comme au rendu. Elle couvre le cadre et ne capte AUCUN
+   pointeur (molette, double-clic, depot et poignees du cadre passent au travers). L'image EST au format du cadre (la
+   route la calcule dans sa geometrie) : object-fit:fill, aucune deformation ; l'echelle du zoom molette (scale(vzoom))
+   est posee en ligne par la couche, comme sur .svm-live ; l'ORIGINE (centre) est ici, dans la feuille. La pastille « etalonne » est un TEXTE (pas
+   un bouton), en haut a gauche sous la rangee du timecode (top 34 px, l'aplomb de l'encart des scopes a droite). */
+.dzsvm .dzm-glive{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.dzsvm .dzm-glimg{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;display:block;pointer-events:none;transform-origin:center center}
+.dzsvm .dzm-glbadge{position:absolute;top:34px;left:10px;font-family:var(--f-mono);font-size:10px;padding:2px 7px;border-radius:5px;background:#000000aa;color:#f2efe9;pointer-events:none}

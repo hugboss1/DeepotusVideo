@@ -451,7 +451,10 @@ STABLE_PROBES = [
     # de la pose), `DzTracks.voLabel(` et `DzTracks.voCount(` (le libelle « Voix off n »). Les replis (R_R1 l'action,
     # R_R2 son dispatch par dzVoRef, R_M16REF le ref) et la rubrique de la couche n'en ajoutent aucune. MESURE : la
     # chaine a refuse, « sonde montage x177 (want 173) », avant cette ligne.
-    ("montage", "DzTracks", 177),
+    # Retours L6 (26/09/2026, tache 4, image etalonnee dans le lecteur) : 177 -> 178 -- UN site de CODE, dans la section
+    # neuve R6gl1 (`DzTracks.GradeLive`, entre la couche V1 et les overlays V2 du cadre) ; la couche n'ecrit le nom nulle
+    # part (l'export est `GradeLive:DzmGradeLive`) et le commentaire de la section ne le nomme pas.
+    ("montage", "DzTracks", 178),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

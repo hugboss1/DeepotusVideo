@@ -454,5 +454,19 @@ check("R1_R2_L6_voix_off_un_seul_bouton_a_deux_etats_titre_dans_les_deux_etats_g
       and _L5Z.count("VoiceRec") == 0 and len(_l6_b) == 2 and len(_l5_b) == 3
       and s.count("function DzmVoiceRec(o){") == 1 and bak.count("VoiceRec") == 0,
       f"sites={len(_l6v_b)} sans_title={_l6v_sans} conditionnels={_l6v_cond} zone={len(_L6V)}")
+
+# Retours L6 (26/09/2026, tache 4) : l'image etalonnee dans la fenetre principale (couche, DzmGradeLive, montee par l'hote
+# dans le cadre du lecteur, section R6gl1) -- AUCUN bouton (toutes classes, le scanner _l5_sites ne filtre pas) : c'est
+# une image et une pastille de TEXTE, sans pointeur ; tolere null ; posee APRES DzmMaskBox et AVANT DzmNoiseLearn, donc
+# hors des zones _GPE, _L5Z, _L6N et _L6V (leurs comptes de boutons restent 8 / 3 / 2 / 1). Absente du .bak.
+_R6Z = lay[lay.find("function DzmGradeLive(o){"):lay.find("/* L6 D-25 D-26 (25/09/2026, tâche 4)")]
+_r6_b, _r6_sans = _l5_sites(_R6Z) if len(_R6Z) > 800 else (["zone introuvable"], [])
+check("R1_R2_retours_L6_image_etalonnee_aucun_bouton_tolere_null_hors_des_zones_L5_L6_bak_x0",
+      len(_R6Z) > 800 and _r6_b == [] and _R6Z.count("if(!o)return null;") == 1 and _R6Z.count("<button") == 0
+      and 0 < lay.find("function DzmMaskBox(o){") < lay.find("function DzmGradeLive(o){") < lay.find("function DzmNoiseLearn(o){")
+      and _GPE.count("GradeLive") == 0 and _L5Z.count("GradeLive") == 0 and _L6N.count("GradeLive") == 0 and _L6V.count("GradeLive") == 0
+      and len(_l5_tb) == 8 and len(_l5_b) == 3 and len(_l6_b) == 2 and len(_l6v_b) == 1
+      and s.count("function DzmGradeLive(o){") == 1 and bak.count("GradeLive") == 0,
+      f"zone={len(_R6Z)} sites={_r6_b}")
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

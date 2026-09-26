@@ -6088,6 +6088,24 @@ assert R_L6FX2.startswith(A_L6FX2[:-3]) and R_L6FX2.count("hide:1") == 2 and R_L
 assert R_L6FX5.count("if(pd.hide)return null;") == 1 and R_L6FX5.count("title:pd.tip||void 0,") == 1 and R_L6AU1.count("body.job_id=String(c.src.job_id)") == 1 and R_L6AU1.count("filename:") == 0
 assert R_L6NL1.startswith("          onAudition:sfxAudition},sel.id),\n") and R_L6NL1.endswith("},sel.id)]}):null]})}")
 
+# ══ RETOURS L6 (26/09/2026, tache 4) — L'IMAGE ETALONNEE DANS LA FENETRE PRINCIPALE, A L'ARRET ══════════════════════
+# Le lecteur vivant montre les sources BRUTES (decision L5 n°9) : les effets d'un plan, appliques au rendu, y etaient
+# invisibles (retour de l'utilisateur, 26/09). UNE section neuve, aucun repli :
+# R6gl1 -- LE COMPOSANT DzmGradeLive (couche) monte dans le cadre du lecteur, ENTRE la couche V1 (.svm-live) et les
+# overlays V2 (.svm-liveov) : V2, titres, voile des fondus, cadre de selection et sous-titres restent AU-DESSUS par
+# l'ordre du DOM (aucun z-index, comme le voile D-12). ANCRE MESUREE 26/09/2026 : l'ouverture de la couche des overlays
+# (`liveOn?r.jsx("div",{className:"svm-liveov",ref:liveOvRef,`) vaut 1/0/1 (x1 dans .bak_montage, touchee par aucune
+# section, x1 dans le bundle livre) ; elle est GARDEE en queue du remplacement. Monte sous `liveOn` comme ses voisines
+# (jamais sur la demo ni avec un rendu d'apercu charge). Les noms de l'hote sont MESURES dans DzMontage : `clips`,
+# `ph` (la tete), `playing`, `vzoom` (le zoom molette du viewport), `proj.ratio` (le ratio du cadre et du payload de
+# rendu). UNE reference a la couche (sonde 177 -> 178).
+A_R6GL1 = 'liveOn?r.jsx("div",{className:"svm-liveov",ref:liveOvRef,'
+R_R6GL1 = ('/* retours L6 (26/09) : l\'image etalonnee du plan V1 sous la tete, a l\'arret -- sous les overlays V2 */\n'
+           '          liveOn?r.jsx(DzTracks.GradeLive,{clips:clips,head:ph,playing:playing,vzoom:vzoom,ratio:proj.ratio}):null,\n'
+           '          ' + A_R6GL1)
+R6 = [("R6gl1-image-etalonnee-dans-le-lecteur-a-l-arret", A_R6GL1, R_R6GL1)]
+assert R_R6GL1.endswith(A_R6GL1) and R_R6GL1.count("DzTracks") == 1 and R_R6GL1.count(A_R6GL1) == 1
+
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
@@ -6338,7 +6356,8 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("EC11-rendu-du-trou-selectionne", A_EC11, R_EC11),
            ("EC12-tete-de-lecture-dans-l-inspecteur", A_EC12, R_EC12),
            ("EC13-suppr-referme-le-trou", A_EC13, R_EC13),
-           ("EC14-clic-sur-un-clip-efface-le-trou", A_EC14, R_EC14)] + EC15 + L4 + L7A + L5 + L6
+           ("EC14-clic-sur-un-clip-efface-le-trou", A_EC14, R_EC14)] + EC15 + L4 + L7A + L5 + L6 + R6
+           # retours L6 (26/09/2026, tache 4) : UNE section EN QUEUE, apres L6 (R6gl1, l'image etalonnee dans le lecteur).
            # L6 (25/09/2026, tache 5) : SEPT sections EN QUEUE, apres L5 (cinq dans le bloc SFXSTUDIO -- une premiere --,
            # l'ecoute rendue du son d'un plan, le bouton « Apprendre le bruit » sous le rack) ; aucun repli.
            # L5 (24/09/2026, tache 6) : UNE section neuve EN QUEUE (L5sc1, les scopes sous le lecteur) ; tout le reste

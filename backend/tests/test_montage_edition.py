@@ -4001,7 +4001,8 @@ check("l5_gp_composant_garde_avant_hooks_gestes_fenetre_sans_capture_stockage_pr
       and _corps("dzmGpDrawCurve").count("dzmCurveEval(") == 0 and _corps("dzmGpDrag").count("return stop}") == 1
       and _GPC.count("setPointerCapture") == 0 and _SRCb.count("setPointerCapture") == 1
       # tache 6 (24/09/2026) : grade-frame 1 -> 2, la lightbox (DzmLightbox) appelle la meme route -- ecart date, pin realigne
-      and _SRCb.count('dzmGpFetch("/api/montage/grade-frame",') == 2 and _SRCb.count('dzmGpFetch("/api/montage/color-match",') == 1
+      # retours L6 (26/09/2026, tache 4) : 2 -> 3, l'image etalonnee du lecteur (DzmGradeLive) appelle la meme route -- pin realigne
+      and _SRCb.count('dzmGpFetch("/api/montage/grade-frame",') == 3 and _SRCb.count('dzmGpFetch("/api/montage/color-match",') == 1
       and _GPC.count("URL.revokeObjectURL(") == 2 and _GPC.count("},400);") == 1 and _GPC.count("DzTracks") == 0
       and _SRCb.count('var DZM_GP_CLE="dz_montage_grade"') == 1
       and _corps("dzmGpRead").count("try{") == 1 and _corps("dzmGpWrite").count("try{") == 1
@@ -4086,7 +4087,8 @@ check("l5_sc_exports_au_contrat_route_scopes_x1_grade_frame_x2_panneau_et_lightb
       _DT.count("scopesAt:dzmScopesAt,scopesBody:dzmScopesBody,scopesGet:dzmScopesGet,scopesSet:dzmScopesSet,SC_CLE:DZM_SC_CLE,"
                 "lbPlans:dzmLbPlans,lbNext:dzmLbNext,LB_MAX:DZM_LB_MAX,gradeCopyDo:dzmGradeCopyDo,gradePasteDo:dzmGradePasteDo,gradeRead:dzmGpRead,"
                 "Scopes:DzmScopes,Lightbox:DzmLightbox,") == 1
-      and _SRCb.count('dzmGpFetch("/api/montage/scopes",') == 1 and _SRCb.count('dzmGpFetch("/api/montage/grade-frame",') == 2
+      # retours L6 (26/09/2026, tache 4) : grade-frame 2 -> 3 (DzmGradeLive, l'image etalonnee du lecteur) -- pin realigne
+      and _SRCb.count('dzmGpFetch("/api/montage/scopes",') == 1 and _SRCb.count('dzmGpFetch("/api/montage/grade-frame",') == 3
       and _SRCb.count('var DZM_SC_CLE="dz_montage_scopes"') == 1
       and _GPC.count("dzmGradeCopyDo(c)") == 1 and _GPC.count("dzmGradePasteDo(cur.current)") == 1 and _GPC.count("dzmGpWrite(") == 0,
       [_SRCb.count('dzmGpFetch("/api/montage/scopes",'), _SRCb.count('dzmGpFetch("/api/montage/grade-frame",')])
@@ -4838,6 +4840,148 @@ check("l6v_aides_pures_ni_r_ni_x_ni_api_navigateur_composant_lit_micro_et_enregi
       and _DT.count("voExt:dzmVoExt,voChrono:dzmVoChrono,voErr:dzmVoErr,VoiceRec:DzmVoiceRec,") == 1
       and 0 < _SRCb.find("function DzmNoiseLearn(o){") < _SRCb.find("function DzmVoiceRec(o){") < _SRCb.find("function DzmScopes(o){"),
       [len(_VRC), {n: len(c) for n, c in _VPU.items()}])
+
+print("\n[41] retours L6 (26/09/2026, tache 4) : l'image étalonnée dans la fenêtre principale, à l'arrêt (DzmGradeLive)")
+# ── Retours L6 T4. DzmGradeLive sous le mini-React de PROBE_L5X (harnais REPRIS par tranche, _L6H) ; réseau = faux
+# `fetch` en file (la route grade-frame avec `cadre` est la tâche 3 : le banc code CONTRE LE CONTRAT du plan, pas contre
+# un serveur) ; refs objets montées par att (largeur CSS du cadre). Faute n6 : lectures par .get / listes de longueur
+# vérifiée, détail calculé avant le court-circuit.
+PROBE_R6 = _L6H + r"""
+var R={};window.devicePixelRatio=2;
+var GA={tr:"v1",id:"g",start:4,end:8,srcIn:2,src:{job_id:"G"},effects:[{type:"negate"},{type:"blur",off:!0}],
+    mask:{shape:"ellipse",x:.25,y:.25,w:.5,h:.5}},
+  GB={tr:"v1",id:"n",start:0,end:4,src:{job_id:"N"}},
+  GC={tr:"v1",id:"o",start:8,end:12,src:{job_id:"O"},effects:[{type:"negate",off:!0}]},
+  GD={tr:"v1",id:"d",start:12,end:16,srcIn:0,src:{job_id:"D"},effects:[{type:"pixelate"}],
+    dz:{x0:0,y0:0,w0:1,x1:.25,y1:.25,w1:.5},reframe:{mode:"manuel",x:.3}},
+  GS={tr:"v1",id:"s",start:16,end:20,effects:[{type:"negate"}]},
+  GV={tr:"v2",id:"v",start:0,end:30,src:{job_id:"V"},effects:[{type:"negate"}]};
+var CL=[GB,GA,GC,GD,GS,GV];
+function gimg(m){return tous(m).filter(function(n){return n.t==="img"})}
+function badge(m){return tous(m).filter(function(n){return /dzm-glbadge/.test(n.p.className||"")}).map(txt)}
+function bts(m){return tous(m).filter(function(n){return n.t==="button"})}
+function att(){return {clientWidth:405}}
+function P(h,j,z,rt){return {clips:CL,head:h,playing:!!j,vzoom:z===void 0?1:z,ratio:rt||"16:9"}}
+(async function(){
+  /* 0 : les aides pures -- largeur (CSS x dpr, paire, 96..1280, illisible -> 720), ratio (contrat, inconnu -> 9:16), corps */
+  R.w=[T.glW(405,2),T.glW(700,2),T.glW(null,2),T.glW(40,1),T.glW(401,1),T.glW(405,"x"),T.glW(405,0),T.glW(640,1),T.glW(0,2)];
+  R.ratio=[T.glRatio("16:9"),T.glRatio("1:1"),T.glRatio("4:5"),T.glRatio("9:16"),T.glRatio("3:2"),T.glRatio(void 0)];
+  R.body=[T.glBody(GA,5,"16:9"),T.glBody(GB,1,"9:16"),T.glBody(GC,9,"9:16"),T.glBody(null,1,"9:16"),
+    T.glBody(GS,17,"9:16"),T.glBody(GA,null,"1:1")];
+  R.bodyD=[T.glBody(GD,13,"bizarre"),T.dzOf(GD),T.reframePayload(GD)];
+  R.nul=T.GradeLive(null);
+  var M=mini(T.GradeLive,att);
+  /* 1 : en lecture -> aucun minuteur, aucune requête, aucune image ; jamais de bouton */
+  M.render(P(5,1));M.flush();R.lecture=[TM.length,FQ.length,gimg(M.H.out).length,bts(M.H.out).length];
+  /* 2 : plan sans effet, effets tous coupés, plan sans source, hors de V1 -> rien ne part */
+  [1,9,17,25].forEach(function(h){M.render(P(h));M.flush()});tick();R.sans=[TM.length,FQ.length,gimg(M.H.out).length];
+  /* 3 : arrêt sur GA -> UN minuteur de 250 ms puis UNE requête au corps exact (cadre du contrat T3, w = 405 x 2) */
+  M.render(P(5));M.flush();R.arret=[TM.map(function(t){return t.ms}),FQ.length];
+  tick();R.req=[FQ.length,FQ[0]&&FQ[0].u,FQ[0]&&FQ[0].body];
+  /* 4 : la réponse -> l'image couvre le cadre à l'échelle du lecteur, la pastille « étalonné » (texte) */
+  rep(0,"A");await settle();M.flush();var im=gimg(M.H.out)[0];
+  R.vue=[im?im.p.src:null,im?im.p.style:null,badge(M.H.out),bts(M.H.out).length,im?im.p.className:null];
+  /* 5 : le zoom du lecteur change -> l'image suit, AUCUNE requête (vzoom hors de l'empreinte) */
+  M.render(P(5,0,2));M.flush();tick();im=gimg(M.H.out)[0];R.zoom=[im?im.p.style.transform:null,FQ.length];
+  /* 6 : la tête bouge -> l'image PÉRIMÉE est masquée tout de suite ; la requête suivante porte le nouvel instant */
+  M.render(P(6));M.flush();R.perime=[gimg(M.H.out).length,badge(M.H.out)];
+  tick();R.req2=FQ.length===2?[FQ[1].body.t,FQ[1].body.cadre.t_local]:null;
+  /* 7 : la lecture repart pendant la requête -> abandon, rien d'affiché, la réponse tardive est jetée (aucune URL créée) */
+  M.render(P(6.2,1));M.flush();R.lecture_abort=[!!(FQ[1]&&FQ[1].sig&&FQ[1].sig.aborted),TM.length,gimg(M.H.out).length];
+  var nm=UR.made.length;rep(1,"B");await settle();M.flush();R.jete=[UR.made.length-nm,gimg(M.H.out).length];
+  /* 8 : refus 415 (V1 en image fixe) -> silence : rien d'affiché, aucune ligne d'état ; 9 : réseau en panne -> idem */
+  M.render(P(6.4));M.flush();tick();
+  FQ[2].d.a({ok:!1,status:415,json:function(){return Promise.resolve({detail:"image fixe"})}});await settle();M.flush();
+  R.refus=[gimg(M.H.out).length,badge(M.H.out),tous(M.H.out).filter(function(n){return n.p["aria-live"]!==void 0||n.t==="span"}).length];
+  M.render(P(6.6));M.flush();tick();FQ[3].d.b(new Error("réseau"));await settle();M.flush();R.panne=[gimg(M.H.out).length,badge(M.H.out)];
+  /* 10 : une nouvelle image REMPLACE et révoque l'ancienne ; démontage en vol -> abandon, révocation, rien de créé après */
+  M.render(P(7));M.flush();tick();rep(4,"C");await settle();M.flush();
+  R.remplace=[gimg(M.H.out).map(function(n){return n.p.src}),UR.rev.slice()];
+  M.render(P(7.5));M.flush();tick();var nr=UR.rev.length,nm2=UR.made.length;M.unmount();
+  rep(5,"D");await settle();R.demonte=[!!(FQ[5]&&FQ[5].sig&&FQ[5].sig.aborted),UR.rev.slice(nr),UR.made.length-nm2,TM.length];
+  /* 11 : cadre non mesurable et pas de devicePixelRatio -> w 720 ; ratio inconnu -> 9:16 ; zoom illisible -> scale(1) */
+  delete window.devicePixelRatio;var M2=mini(T.GradeLive);M2.render(P(5,0,"x","3:2"));M2.flush();tick();
+  var q=FQ[FQ.length-1];R.defaut=[FQ.length,q&&q.body.w,q&&q.body.cadre.ratio];
+  rep(FQ.length-1,"E");await settle();M2.flush();im=gimg(M2.H.out)[0];R.vz=im?im.p.style.transform:null;M2.unmount();
+  out.R=R;
+})().catch(function(e){out.err=String(e&&e.stack||e)}).then(function(){console.log(JSON.stringify(out))});
+"""
+D8 = {}
+if NODE and os.path.isfile(SRC_PATH) and globals().get("SRC") and len(_L6H) > 2000 and "function mini(" in _L6H:
+    _sh8 = os.path.join(TMP, "shim_r6.js")
+    with open(_sh8, "w", encoding="utf-8") as fh:
+        fh.write('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + SRC + "\n" + PROBE_R6)
+    _r8 = sh([NODE, _sh8])
+    _l8x = (_r8.stdout or "").strip().splitlines()
+    try:
+        D8 = json.loads(_l8x[-1]) if _l8x else {}
+    except Exception as _e:
+        D8 = {"err": temoin(_e)}
+    check("r6_shim_execute_sans_erreur", _r8.returncode == 0 and "err" not in D8 and isinstance(D8.get("R"), dict),
+          (D8.get("err"), (_r8.stderr or "")[-400:]))
+else:
+    check("r6_shim_execute_sans_erreur", False, ("node, source ou harnais absents", len(_L6H)))
+_R8 = D8.get("R") if isinstance(D8.get("R"), dict) else {}
+def _r8(k, n):
+    v = _R8.get(k)
+    return v if isinstance(v, list) and len(v) == n else [None] * n
+check("r6_largeur_css_fois_dpr_paire_bornee_96_1280_illisible_720",
+      _R8.get("w") == [810, 1280, 720, 96, 402, 406, 406, 640, 720], _R8.get("w"))
+check("r6_ratio_du_contrat_inconnu_vaut_9_16",
+      _R8.get("ratio") == ["16:9", "1:1", "4:5", "9:16", "9:16", "9:16"], _R8.get("ratio"))
+_GL_MK = {"shape": "ellipse", "x": 0.25, "y": 0.25, "w": 0.5, "h": 0.5, "soft": 0, "inv": False}
+_GL_A = {"src": {"job_id": "G"}, "t": 3, "effects": [{"type": "negate"}], "mask": _GL_MK, "cadre": {"ratio": "16:9", "t_local": 1}}
+_B8 = _r8("body", 6)
+check("r6_corps_effets_actifs_masque_cadre_temps_local_nul_sans_effet_actif_ou_sans_source_tete_illisible_milieu",
+      _B8[0] == _GL_A and _B8[1] is None and _B8[2] is None and _B8[3] is None and _B8[4] is None
+      and _B8[5] == dict(_GL_A, t=4, cadre={"ratio": "1:1", "t_local": 2}), _B8)
+_BD = _r8("bodyD", 3)
+check("r6_corps_cadre_porte_reframe_et_dz_normalises_comme_le_payload_du_rendu_ratio_inconnu_9_16",
+      isinstance(_BD[0], dict) and isinstance(_BD[1], dict) and isinstance(_BD[2], dict)
+      and _BD[0].get("cadre") == {"ratio": "9:16", "t_local": 1, "reframe": _BD[2], "dz": _BD[1]}
+      and _BD[0].get("t") == 1 and _BD[0].get("effects") == [{"type": "pixelate"}] and "mask" not in _BD[0] and "w" not in _BD[0],
+      _BD)
+check("r6_composant_tolere_null", "nul" in _R8 and _R8.get("nul") is None, _R8.get("nul"))
+check("r6_en_lecture_aucun_minuteur_aucune_requete_aucune_image_aucun_bouton",
+      _R8.get("lecture") == [0, 0, 0, 0], _R8.get("lecture"))
+check("r6_sans_effet_actif_sans_source_hors_v1_aucune_requete",
+      _R8.get("sans") == [0, 0, 0], _R8.get("sans"))
+_Q8 = _r8("req", 3)
+check("r6_a_l_arret_un_minuteur_250_ms_puis_une_requete_grade_frame_au_corps_exact_avec_cadre_et_w",
+      _R8.get("arret") == [[250], 0] and _Q8[0] == 1 and _Q8[1] == "/api/montage/grade-frame"
+      and _Q8[2] == dict(_GL_A, w=810), [_R8.get("arret"), _Q8])
+_V8 = _r8("vue", 5)
+# l'ORIGINE (centre, comme .svm-live) vient de la FEUILLE (.dzm-glimg, pin du banc bundle) : le style en ligne ne porte
+# que l'echelle -- le pin DZ3 du banc bundle compte les `transformOrigin` du bundle contre le .bak (aucun de plus).
+check("r6_image_affichee_echelle_du_lecteur_en_ligne_seule_pastille_etalonne_aucun_bouton",
+      _V8[0] == "blob:A" and _V8[1] == {"transform": "scale(1)"} and _V8[2] == ["étalonné"] and _V8[3] == 0
+      and _V8[4] == "dzm-glimg", _V8)
+check("r6_zoom_du_lecteur_suivi_sans_requete",
+      _R8.get("zoom") == ["scale(2)", 1], _R8.get("zoom"))
+check("r6_tete_deplacee_image_perimee_masquee_aussitot_nouvelle_requete_au_nouvel_instant",
+      _R8.get("perime") == [0, []] and _R8.get("req2") == [4, 2], [_R8.get("perime"), _R8.get("req2")])
+check("r6_la_lecture_repart_requete_abandonnee_minuteur_annule_reponse_tardive_jetee",
+      _R8.get("lecture_abort") == [True, 0, 0] and _R8.get("jete") == [0, 0],
+      [_R8.get("lecture_abort"), _R8.get("jete")])
+check("r6_refus_415_et_panne_reseau_silence_rien_d_affiche_aucune_ligne_d_etat",
+      _R8.get("refus") == [0, [], 0] and _R8.get("panne") == [0, []], [_R8.get("refus"), _R8.get("panne")])
+check("r6_nouvelle_image_remplace_et_revoque_l_ancienne_demontage_abandonne_et_revoque",
+      _R8.get("remplace") == [["blob:C"], ["blob:A"]] and _R8.get("demonte") == [True, ["blob:C"], 0, 0],
+      [_R8.get("remplace"), _R8.get("demonte")])
+check("r6_cadre_non_mesurable_w_720_ratio_inconnu_9_16_zoom_illisible_scale_1",
+      _r8("defaut", 3)[1:] == [720, "9:16"] and _R8.get("vz") == "scale(1)", [_R8.get("defaut"), _R8.get("vz")])
+_GLC = _corps("DzmGradeLive")
+_GLP = {n: _corps(n) for n in ("dzmGlRatio", "dzmGlW", "dzmGlBody")}
+check("r6_aides_pures_sans_r_ni_x_ni_api_navigateur_composant_une_route_un_etat_aucun_bouton_place_apres_MaskBox_avant_NoiseLearn",
+      all(len(c) > 40 for c in _GLP.values())
+      and not any(re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|\bnavigator\b|fetch\(|setClips|pushHistory|URL\.", c)
+                  for c in _GLP.values())
+      and len(_GLC) > 800 and _GLC.count('dzmGpFetch("/api/montage/grade-frame",') == 1 and _GLC.count("x.useState(") == 1
+      and _GLC.count('"button"') == 0 and _GLC.count("URL.revokeObjectURL(") >= 1 and _GLC.count("AbortController") >= 1
+      and _GLC.count("devicePixelRatio") == 1 and _GLC.count("dzmScopesAt(") == 1
+      and _DT.count("glRatio:dzmGlRatio,glW:dzmGlW,glBody:dzmGlBody,GradeLive:DzmGradeLive,") == 1
+      and 0 < _SRCb.find("function DzmMaskBox(o){") < _SRCb.find("function DzmGradeLive(o){") < _SRCb.find("function DzmNoiseLearn(o){"),
+      [len(_GLC), {n: len(c) for n, c in _GLP.items()}])
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

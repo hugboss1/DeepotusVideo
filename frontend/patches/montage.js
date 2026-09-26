@@ -8346,6 +8346,78 @@ function dzmGradePasteDo(clip,st){
   var g=dzmGpRead(st);
   if(!g)return {clip:null,note:"Aucun grade copié (Copier le grade d'abord)"};
   return {clip:dzmGradePaste(clip,g),note:"Grade collé ("+dzmGpNfx(g)+")"}}
+var DZM_GL_MS=250,DZM_GL_RATIOS=["9:16","16:9","1:1","4:5"];
+/* ── Retours L6 (26/09/2026, tâche 4) : L'IMAGE ÉTALONNÉE DANS LA FENÊTRE PRINCIPALE, À L'ARRÊT. Le lecteur vivant montre
+   les sources brutes (décision L5 n°9) : les effets d'un plan, appliqués au rendu, y étaient invisibles. D'abord les aides
+   PURES (valeurs en entrée, valeurs neuves en sortie) :
+   dzmGlRatio(ratio) = le ratio du projet s'il est l'un des quatre du contrat grade-frame (ceux de _CANVAS au rendu), sinon
+   « 9:16 » (le défaut du cadre du lecteur) ;
+   dzmGlW(largeur CSS, densité) = la largeur de sortie demandée : largeur × densité (densité illisible ou <= 0 -> 1),
+   arrondie au pair, bornée 96..1280 ; largeur illisible ou <= 0 (cadre non mesurable) -> 720, le défaut de la route ;
+   dzmGlBody(plan, tête, ratio) = le corps de POST /api/montage/grade-frame en MODE CADRE (contrat de la tâche 3), SANS w
+   (mesuré au départ de la requête) : {src, t (temps de SOURCE, dzmSrcTimeAt), effects (ACTIFS seulement, comme au
+   rendu), mask? (lisible, seulement avec des effets), cadre:{ratio, t_local, reframe?, dz?}} — t_local = tête − début
+   (temps LOCAL au plan, celui des bornes t0/t1 des effets au rendu : setpts=PTS-STARTPTS précède la pile), tête
+   illisible ou hors du plan -> le milieu ; reframe et dz normalisés par les MÊMES aides que le payload du rendu
+   (dzmReframePayload, dzmDzOf), joints seulement s'ils existent. Plan sans source ou sans effet actif -> null : rien à
+   montrer, rien ne part.
+   LE COMPOSANT (monté par l'hôte dans le cadre du lecteur, section R6gl1, AVANT les overlays V2 : V2, titres, voile et
+   sous-titres restent AU-DESSUS, par l'ordre du DOM) : props {clips, head, playing, vzoom, ratio}. À l'ARRÊT seulement,
+   pour le plan V1 sous la tête (dzmScopesAt) qui porte au moins un effet actif : anti-rebond DZM_GL_MS, une requête
+   (AbortController + numéro de requête : une réponse remplacée ou tardive est jetée), blob -> URL (l'ancienne révoquée,
+   la dernière au démontage). L'image n'est montrée que si son EMPREINTE (id du plan + corps sans w) est celle de l'état
+   courant : jamais une image périmée (tête déplacée, pile changée, lecture). Elle couvre le cadre (elle EST au format du
+   cadre), à l'échelle du lecteur (scale(vzoom) en ligne ; l'origine au centre vient de la feuille, comme pour les couches
+   vivantes), sans capter un pointeur ;
+   une pastille « étalonné » (texte, pas un bouton) le dit. Refus (415 : V1 en image fixe) ou réseau en panne -> rien,
+   en silence (aucune note à chaque arrêt). */
+function dzmGlRatio(ratio){
+  return DZM_GL_RATIOS.indexOf(ratio)>=0?ratio:"9:16"}
+function dzmGlW(css,dpr){
+  var w=Number(css),d=Number(dpr);
+  if(!isFinite(w)||w<=0)return 720;
+  if(!isFinite(d)||d<=0)d=1;
+  return Math.max(96,Math.min(1280,Math.round(w*d/2)*2))}
+function dzmGlBody(c,head,ratio){
+  if(!c||typeof c!=="object"||!c.src)return null;
+  var fx=(Array.isArray(c.effects)?c.effects:[]).filter(function(f){return !!f&&typeof f==="object"&&!f.off});
+  if(!fx.length)return null;
+  var s=dzmRfNum(c.start),e=dzmRfNum(c.end),h=dzmRfNum(head);
+  if(s===null)s=0;
+  if(e!==null&&e>s&&(h===null||h<s||h>=e))h=(s+e)/2;
+  if(h===null)h=s;
+  var cadre={ratio:dzmGlRatio(ratio),t_local:dzmCoR(Math.max(0,h-s),3)},rf=dzmReframePayload(c),dz=dzmDzOf(c),mk=dzmMaskOf(c.mask);
+  if(rf)cadre.reframe=rf;
+  if(dz)cadre.dz=dz;
+  var b={src:c.src,t:dzmSrcTimeAt(c,head),effects:fx};
+  if(mk)b.mask=mk;
+  b.cadre=cadre;
+  return b}
+function DzmGradeLive(o){
+  if(!o)return null;
+  var s1=x.useState(null),img=s1[0],setImg=s1[1];
+  var seq=x.useRef(0),urlR=x.useRef(null),vivant=x.useRef(!0),boxR=x.useRef(null);
+  var c=o.playing?null:dzmScopesAt(o.clips,o.head),body=c?dzmGlBody(c,o.head,o.ratio):null,
+    sig=body?JSON.stringify([String(c.id),body]):"";
+  var libere=function(){if(urlR.current){URL.revokeObjectURL(urlR.current);urlR.current=null}};
+  x.useEffect(function(){vivant.current=!0;return function(){vivant.current=!1;seq.current++;libere()}},[]);
+  x.useEffect(function(){
+    if(!sig)return;
+    var q=++seq.current,ac=typeof AbortController==="function"?new AbortController():null,b=JSON.parse(sig)[1];
+    var h=setTimeout(function(){
+      var el=boxR.current,g=typeof window==="object"&&window?window:null;
+      b.w=dzmGlW(el?el.clientWidth:null,g?g.devicePixelRatio:1);
+      dzmGpFetch("/api/montage/grade-frame",b,!0,ac?ac.signal:null).then(function(bl){
+        if(!vivant.current||q!==seq.current)return;
+        var u=URL.createObjectURL(bl);libere();urlR.current=u;setImg({u:u,sig:sig})},
+      function(){})},DZM_GL_MS);
+    return function(){seq.current++;clearTimeout(h);if(ac)ac.abort()}},[sig]);
+  var voit=!!(sig&&img&&img.sig===sig),z=Number(o.vzoom);
+  if(!isFinite(z)||z<=0)z=1;
+  return r.jsxs("div",{className:"dzm-glive",ref:boxR,"aria-hidden":"true","data-on":voit?"1":"",children:[
+    voit?r.jsx("img",{className:"dzm-glimg",src:img.u,alt:"",draggable:!1,
+      style:{transform:"scale("+z+")"}}):null,
+    voit?r.jsx("span",{className:"dzm-glbadge",children:"étalonné"}):null]})}
 /* L6 D-25 D-26 (25/09/2026, tâche 4) : LE CŒUR PUR AUDIO — aucune fonction ne touche r / x, le réseau, le DOM ni le stockage.
    dzmLearnRange(clip, plage I/O, durée de source) : la plage I/O (temps de TIMELINE) devient une plage de SOURCE du clip,
    a = srcIn + (in − start)·v, b = srcIn + (out − start)·v, v = la vitesse du clip audio lue comme le backend
@@ -8852,5 +8924,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   nlAppris:dzmNlAppris,NoiseLearn:DzmNoiseLearn,nfEffectif:dzmNfEffectif,
   /* L6 D-26 (25/09/2026, tache 6) : l'enregistreur de voix off -- aides pures et la puce */
   voExt:dzmVoExt,voChrono:dzmVoChrono,voErr:dzmVoErr,VoiceRec:DzmVoiceRec,
+  /* retours L6 (26/09/2026, tache 4) : l'image etalonnee du plan V1 dans le lecteur, a l'arret */
+  glRatio:dzmGlRatio,glW:dzmGlW,glBody:dzmGlBody,GradeLive:DzmGradeLive,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;
