@@ -6163,7 +6163,7 @@ function DzMontage(props){
           r.jsx("button",{className:"svm-pchip",title:"plein écran du cadre (Échap pour sortir)",
             onClick:svmFullscreen,children:"plein écran ("+svmKeyLabel("fullscreen")+")"}),
           /* L5 D-31 : la puce des scopes du plan V1 sous la tête (bascule mémorisée, encart dans le cadre) */
-          r.jsx(DzTracks.Scopes,{clips:clips,head:ph,playing:playing})]})]}),
+          r.jsx(DzTracks.Scopes,{clips:clips,head:ph,playing:playing,ratio:proj.ratio})]})]}),
       inspOn?r.jsxs("aside",{className:"svm-insp",style:{width:inspW},"data-w":inspW,children:[r.jsx("div",{className:"svm-insphandle",onPointerDown:inspDown,title:"Glisser pour redimensionner l'inspecteur (260–480 px)"}),
         r.jsx("div",{className:"svm-insphead",title:"Tête de lecture (HH:MM:SS:image à 30 i/s)",children:DzTracks.teteTxt(ph,sel,svmTcFF)}),
         r.jsx(SvmLabel,{children:"Clip sélectionné"}),
@@ -21708,21 +21708,90 @@ function dzmGlW(css,dpr){
   if(!isFinite(w)||w<=0)return 720;
   if(!isFinite(d)||d<=0)d=1;
   return Math.max(96,Math.min(1280,Math.round(w*d/2)*2))}
+function dzmGlCadre(c,head,ratio){
+  var s=dzmRfNum(c&&c.start),e=dzmRfNum(c&&c.end),h=dzmRfNum(head);
+  if(s===null)s=0;
+  if(e!==null&&e>s&&(h===null||h<s||h>=e))h=(s+e)/2;
+  if(h===null)h=s;
+  var cadre={ratio:dzmGlRatio(ratio),t_local:dzmCoR(Math.max(0,h-s),3)},rf=dzmReframePayload(c),dz=dzmDzOf(c);
+  if(e!==null&&e>s)cadre.dur=dzmCoR(e-s,3);
+  if(rf)cadre.reframe=rf;
+  if(dz)cadre.dz=dz;
+  return cadre}
 function dzmGlBody(c,head,ratio){
   if(!c||typeof c!=="object"||!c.src)return null;
   var fx=(Array.isArray(c.effects)?c.effects:[]).filter(function(f){return !!f&&typeof f==="object"&&!f.off});
   if(!fx.length)return null;
-  var s=dzmRfNum(c.start),e=dzmRfNum(c.end),h=dzmRfNum(head);
-  if(s===null)s=0;
-  if(e!==null&&e>s&&(h===null||h<s||h>=e))h=(s+e)/2;
-  if(h===null)h=s;
-  var cadre={ratio:dzmGlRatio(ratio),t_local:dzmCoR(Math.max(0,h-s),3)},rf=dzmReframePayload(c),dz=dzmDzOf(c),mk=dzmMaskOf(c.mask);
-  if(rf)cadre.reframe=rf;
-  if(dz)cadre.dz=dz;
-  var b={src:c.src,t:dzmSrcTimeAt(c,head),effects:fx};
+  var mk=dzmMaskOf(c.mask),b={src:c.src,t:dzmSrcTimeAt(c,head),effects:fx};
   if(mk)b.mask=mk;
-  b.cadre=cadre;
+  b.cadre=dzmGlCadre(c,head,ratio);
   return b}
+/* ── Retours L6 (26/09/2026, tâche 5) : LES SCOPES DANS UNE FENÊTRE FLOTTANTE, déplaçable et redimensionnable (l'encart
+   de 180 px dans le coin du cadre était trop petit). Les aides PURES (valeurs en entrée, valeurs neuves en sortie) ; la
+   géométrie {x, y, s} est en px dans la RACINE de la vue (.dzsvm) : x, y = coin haut gauche de la fenêtre, s = le côté
+   du CARRÉ de l'image (la barre de titre, DZM_SCW_BAR px, s'y ajoute en hauteur) :
+   dzmGlCadre(plan, tête, ratio) = LE cadre du contrat de la tâche 3, partagé par l'image étalonnée du lecteur et par
+   les scopes : {ratio, t_local, dur?, reframe?, dz?} — dur = fin − début du plan (s, au millième ; bornes illisibles
+   ou plan vide -> absente) : sans elle le serveur ignore le zoom dynamique D-13 (progression t_local / dur) et ne
+   borne pas t1 (contrat réel livré en 71673fa) ;
+   dzmScwSize(côté, densité) = la taille demandée à /scopes (contrat de la tâche 3) : côté × densité, arrondie au PAIR
+   (la route borne paire), bornée 256..1024 ; côté illisible ou <= 0 -> DZM_SCW_DEF, densité illisible ou <= 0 -> 1 ;
+   dzmScwBody(plan, tête, ratio, côté, densité) = le corps de POST /api/montage/scopes : celui de dzmScopesBody (effets
+   actifs, masque avec des effets) + size + cadre (dzmGlCadre, LE cadre de l'image étalonnée du lecteur : ratio du
+   projet, temps local, reframe et dz normalisés comme au rendu) ; plan sans source -> null ;
+   dzmScwFit(géo, L, H) = la géométrie recadrée dans une racine L × H : côté borné DZM_SCW_MIN..min(DZM_SCW_MAX, L,
+   H − barre) (une racine plus petite que le minimum garde le minimum, collé en haut à gauche), coin borné pour que
+   la fenêtre tienne, arrondis au px ; racine non mesurable ou géométrie illisible -> null ;
+   dzmScwDef(L, H) = le défaut EN HAUT À DROITE (marge DZM_SCW_MARGE, haut DZM_SCW_HAUT, côté DZM_SCW_DEF), recadré ;
+   dzmScwInit(géo, L, H) = la géométrie mémorisée recadrée, sinon le défaut ;
+   dzmScwGeste(k, géo, dx, dy, L, H) = le geste : « m » déplace de (dx, dy), « s » agrandit le carré du PLUS GRAND des
+   deux écarts (poignée de coin), recadré ; écart illisible ou pas de géométrie -> null ; l'entrée n'est jamais mutée ;
+   MÉMOIRE : dzmScwGet / dzmScwSet, clé « dz_montage_scopes_geo » du magasin de dzmTbStore (JSON {x, y, s} en nombres ;
+   corrompue, incomplète ou magasin en panne -> null, le défaut s'applique ; Set rend ce qu'il pose, comme dzmTbOffSet) ;
+   dzmScwFin(fenêtre, pointerId, fn) = l'écoute du RELÂCHER du geste (pointerup / pointercancel de CE pointeur) -> son
+   retrait ; fenêtre sans écouteurs -> retrait vide. dzmGpDrag ne dit pas quand le geste finit : ses propres écouteurs
+   sont posés AVANT (le dernier point est rejoué d'abord), celui-ci mémorise ensuite. */
+var DZM_SCW_CLE="dz_montage_scopes_geo",DZM_SCW_MIN=240,DZM_SCW_MAX=1024,DZM_SCW_DEF=320,DZM_SCW_BAR=24,DZM_SCW_MARGE=16,DZM_SCW_HAUT=56;
+function dzmScwSize(side,dpr){
+  var s=Number(side),d=Number(dpr);
+  if(!isFinite(s)||s<=0)s=DZM_SCW_DEF;
+  if(!isFinite(d)||d<=0)d=1;
+  return Math.max(256,Math.min(1024,Math.round(s*d/2)*2))}
+function dzmScwBody(c,head,ratio,side,dpr){
+  var b=dzmScopesBody(c,head);if(!b)return null;
+  b.size=dzmScwSize(side,dpr);b.cadre=dzmGlCadre(c,head,ratio);
+  return b}
+function dzmScwFit(g,W,H){
+  var w=Number(W),h=Number(H),gx=g&&typeof g==="object"?g.x:NaN,gy=g&&typeof g==="object"?g.y:NaN,s=g&&typeof g==="object"?g.s:NaN;
+  if(!(w>0)||!(h>0)||!isFinite(w)||!isFinite(h)||typeof gx!=="number"||typeof gy!=="number"||typeof s!=="number"
+     ||!isFinite(gx)||!isFinite(gy)||!isFinite(s))return null;
+  s=Math.round(Math.max(DZM_SCW_MIN,Math.min(s,DZM_SCW_MAX,w,h-DZM_SCW_BAR)));
+  return {x:Math.round(Math.max(0,Math.min(gx,w-s))),y:Math.round(Math.max(0,Math.min(gy,h-s-DZM_SCW_BAR))),s:s}}
+function dzmScwDef(W,H){
+  return dzmScwFit({x:Number(W)-DZM_SCW_DEF-DZM_SCW_MARGE,y:DZM_SCW_HAUT,s:DZM_SCW_DEF},W,H)}
+function dzmScwInit(g,W,H){
+  return (g?dzmScwFit(g,W,H):null)||dzmScwDef(W,H)}
+function dzmScwGeste(k,g,dx,dy,W,H){
+  var a=Number(dx),b=Number(dy);
+  if(!g||typeof g!=="object"||!isFinite(a)||!isFinite(b))return null;
+  return dzmScwFit(k==="s"?{x:g.x,y:g.y,s:g.s+Math.max(a,b)}:{x:g.x+a,y:g.y+b,s:g.s},W,H)}
+function dzmScwGet(st){
+  var s=st||dzmTbStore(),v=null;
+  try{v=s?s.getItem(DZM_SCW_CLE):null}catch(e){return null}
+  if(typeof v!=="string")return null;
+  try{v=JSON.parse(v)}catch(e){return null}
+  if(!v||typeof v!=="object"||[v.x,v.y,v.s].some(function(n){return typeof n!=="number"||!isFinite(n)}))return null;
+  return {x:v.x,y:v.y,s:v.s}}
+function dzmScwSet(g,st){
+  var s=st||dzmTbStore(),q=function(n,d){n=Math.round(Number(n));return isFinite(n)?n:d};
+  var v={x:q(g&&g.x,0),y:q(g&&g.y,0),s:q(g&&g.s,DZM_SCW_DEF)};
+  try{if(s)s.setItem(DZM_SCW_CLE,JSON.stringify(v))}catch(e){}
+  return v}
+function dzmScwFin(w,pid,fn){
+  if(!w||typeof w.addEventListener!=="function"||typeof w.removeEventListener!=="function"||typeof fn!=="function")return function(){};
+  var h=function(e){if(e&&e.pointerId===pid)fn()};
+  w.addEventListener("pointerup",h);w.addEventListener("pointercancel",h);
+  return function(){w.removeEventListener("pointerup",h);w.removeEventListener("pointercancel",h)}}
 function DzmGradeLive(o){
   if(!o)return null;
   var s1=x.useState(null),img=s1[0],setImg=s1[1];
@@ -22030,18 +22099,35 @@ function DzmVoiceRec(o){
    CORRECTIF PREUVE ÉCRAN (24/09/2026) : la puce est le dernier enfant de la BARRE du lecteur (le wrapper est en
    display:contents) ; l'ENCART (image + ligne d'état) est PORTÉ dans le cadre de lecture (`.svm-frame` de la même zone,
    cherché UNE fois par allumage — rien par image), en haut à droite, borné par la feuille : la barre OUTILS flottante
-   couvrait le pied de la zone. Sans cadre trouvé (ou sans portail) l'encart reste en ligne, et la feuille le cache. */
+   couvrait le pied de la zone. Sans cadre trouvé (ou sans portail) l'encart reste en ligne, et la feuille le cache.
+   RETOURS L6 (26/09/2026, tâche 5) : L'ENCART DEVIENT UNE FENÊTRE FLOTTANTE (.dzm-scwin, classe dzm-scpop gardée : le
+   repli en ligne reste caché par la même règle), PORTÉE dans la RACINE de la vue (.dzsvm, cherchée UNE fois par
+   allumage) : elle n'est plus dans le cadre, elle ne couvre donc plus ses poignées, et elle capte ses pointeurs. Barre
+   de titre « Scopes » = DÉPLACER ; poignée de coin = REDIMENSIONNER (carré DZM_SCW_MIN..DZM_SCW_MAX, borné à la
+   racine) ; « × » (titré) = ÉTEINDRE, le même geste que la puce. Les deux gestes passent par dzmGpDrag (fenêtre,
+   pointerId, rAF) ; le relâcher (dzmScwFin) MÉMORISE la géométrie (dz_montage_scopes_geo) et FIXE le côté demandé :
+   l'image de /scopes est demandée à size = côté FIXÉ × densité (dzmScwSize), donc JAMAIS pendant un geste (le côté
+   affiché bouge, l'empreinte non : l'image en place s'étire, aucune requête) — la requête part au relâcher, après
+   l'anti-rebond de 300 ms. Le corps porte le CADRE du projet (props.ratio, dzmGlCadre) comme l'image étalonnée du
+   lecteur. La fenêtre du navigateur rétrécit (resize, dzmTbVeille) : la fenêtre est RECADRÉE dans la racine (affichage
+   seulement ; la mémoire garde le dernier geste). Mémoire absente ou corrompue -> en haut à droite (dzmScwDef) ; racine
+   non mesurable (onglet caché) -> aucune géométrie en ligne, la feuille pose le même défaut. Démontage ou extinction en
+   plein geste -> les écouteurs du geste retirés, rien de mémorisé. */
 function DzmScopes(o){
   if(!o)return null;
   var s1=x.useState(function(){return dzmScopesGet()}),on=s1[0],setOn=s1[1];
   var s2=x.useState(null),img=s2[0],setImg=s2[1];
   var s3=x.useState(null),err=s3[0],setErr=s3[1];
   var s4=x.useState(null),hote=s4[0],setHote=s4[1];
-  var seq=x.useRef(0),urlR=x.useRef(null),vivant=x.useRef(!0),wrapR=x.useRef(null);
-  var jouant=!!o.playing,c=on&&!jouant?dzmScopesAt(o.clips,o.head):null,body=c&&c.src?dzmScopesBody(c,o.head):null,
+  var s5=x.useState(null),geo=s5[0],setGeo=s5[1];
+  var seq=x.useRef(0),urlR=x.useRef(null),vivant=x.useRef(!0),wrapR=x.useRef(null),gesteR=x.useRef(null);
+  var g=typeof window!=="undefined"&&window?window:null;
+  var jouant=!!o.playing,c=on&&!jouant?dzmScopesAt(o.clips,o.head):null,
+    body=c&&c.src?dzmScwBody(c,o.head,o.ratio,geo?geo.f:DZM_SCW_DEF,g?g.devicePixelRatio:1):null,
     sig=body?JSON.stringify(body):"";
   var libere=function(){if(urlR.current){URL.revokeObjectURL(urlR.current);urlR.current=null}};
-  x.useEffect(function(){vivant.current=!0;return function(){vivant.current=!1;seq.current++;libere()}},[]);
+  var finGeste=function(){var f=gesteR.current;gesteR.current=null;if(f)f()};
+  x.useEffect(function(){vivant.current=!0;return function(){vivant.current=!1;seq.current++;libere();finGeste()}},[]);
   x.useEffect(function(){
     if(!sig)return;
     var q=++seq.current,ac=typeof AbortController==="function"?new AbortController():null,b=JSON.parse(sig);
@@ -22052,17 +22138,48 @@ function DzmScopes(o){
       function(e){if(vivant.current&&q===seq.current)
         setErr({sig:sig,msg:"Scopes indisponibles : "+((e&&e.message)||"erreur réseau")})})},DZM_SC_MS);
     return function(){seq.current++;clearTimeout(h);if(ac)ac.abort()}},[sig]);
-  /* le cadre de lecture de la MÊME zone, cherché à l'allumage (pas à chaque rendu) */
-  x.useEffect(function(){if(!on)return;var z=wrapR.current,zn=z&&typeof z.closest==="function"?z.closest(".svm-playerzone"):null,
-    f=zn&&typeof zn.querySelector==="function"?zn.querySelector(".svm-frame"):null;if(f!==hote)setHote(f)},[on]);
-  var bascule=function(){var n=dzmScopesSet(!on);setOn(n);if(!n){seq.current++;libere();setImg(null);setErr(null)}};
+  /* la RACINE de la même vue, cherchée à l'allumage (pas à chaque rendu) ; la géométrie mémorisée y est recadrée */
+  x.useEffect(function(){if(!on)return;var z=wrapR.current,f=z&&typeof z.closest==="function"?z.closest(".dzsvm"):null;
+    if(f!==hote)setHote(f);
+    var n=f?dzmScwInit(dzmScwGet(),f.clientWidth,f.clientHeight):null;
+    setGeo(n?{x:n.x,y:n.y,s:n.s,f:n.s}:null)},[on]);
+  /* la fenêtre du navigateur change : la fenêtre des scopes est recadrée dans la racine (affichage, rien de mémorisé) */
+  x.useEffect(function(){if(!on||!hote)return;
+    return dzmTbVeille(g,function(){var W=hote.clientWidth,H=hote.clientHeight;
+      setGeo(function(q){var n=q?dzmScwFit(q,W,H):dzmScwDef(W,H);
+        return !n||(q&&n.x===q.x&&n.y===q.y&&n.s===q.s)?q:{x:n.x,y:n.y,s:n.s,f:n.s}})})},[on,hote]);
+  var bascule=function(){var n=dzmScopesSet(!on);setOn(n);if(!n){finGeste();seq.current++;libere();setImg(null);setErr(null)}};
+  /* LES DEUX GESTES (k = « m » déplacer par la barre, « s » agrandir par la poignée) : bouton principal seulement, rien
+     sur le « × » ; la géométrie affichée suit le pointeur, le côté FIXÉ (f) ne change qu'au relâcher */
+  var saisir=function(k){return function(e){
+    if(!e||e.button!==0||!hote)return;
+    var t=e.target;if(t&&typeof t.closest==="function"&&t.closest("button"))return;
+    var W=hote.clientWidth,H=hote.clientHeight,g0=geo||dzmScwDef(W,H);if(!g0)return;
+    if(typeof e.preventDefault==="function")e.preventDefault();
+    finGeste();
+    var x0=e.clientX,y0=e.clientY,f0=geo?geo.f:g0.s,dern=null,ote=null;
+    var arret=dzmGpDrag(e,function(cx,cy){var n=dzmScwGeste(k,g0,cx-x0,cy-y0,W,H);
+      if(n&&vivant.current){dern=n;setGeo({x:n.x,y:n.y,s:n.s,f:f0})}});
+    var fin=function(ok){if(ote)ote();arret();if(gesteR.current===abandon)gesteR.current=null;
+      if(ok&&dern&&vivant.current){var m=dzmScwSet(dern);setGeo({x:m.x,y:m.y,s:m.s,f:m.s})}};
+    var abandon=function(){fin(!1)};
+    ote=dzmScwFin(g,e.pointerId,function(){fin(!0)});
+    gesteR.current=abandon}};
   var voit=!!(sig&&img&&img.sig===sig);
   var msg=!on?"":jouant?"Lecture : les scopes se rafraîchissent à l'arrêt":!c?"Aucun plan sous la tête":
     !c.src?"Plan sans source : rien à mesurer":voit?"":err&&err.sig===sig?err.msg:"Mesure en cours…";
-  var encart=on?r.jsxs("div",{className:"dzm-scpop",children:[
-    voit?r.jsx("img",{className:"dzm-scimg",src:img.u,alt:"Scopes du plan sous la tête",
-      title:"Forme d'onde (haut), vecteurscope et histogramme (bas) de l'image étalonnée à "+body.t+" s de source"}):null,
-    msg?r.jsx("span",{className:"dzm-scmsg","aria-live":"polite",children:msg}):null]}):null;
+  var encart=on?r.jsxs("div",{className:"dzm-scpop dzm-scwin",role:"dialog","aria-label":"Scopes",
+    style:geo?{left:geo.x+"px",top:geo.y+"px",width:geo.s+"px"}:void 0,children:[
+    r.jsxs("div",{className:"dzm-scwbar",title:"Déplacer la fenêtre des scopes (glisser la barre de titre)",onPointerDown:saisir("m"),children:[
+      r.jsx("span",{className:"dzm-scwt",children:"Scopes"}),
+      r.jsx("button",{className:"dzm-scwx",title:"Fermer les scopes (comme la puce « Scopes » de la barre du lecteur)",
+        "aria-label":"Fermer les scopes",onClick:bascule,children:"×"})]}),
+    r.jsxs("div",{className:"dzm-scwbody",style:geo?{height:geo.s+"px"}:void 0,children:[
+      voit?r.jsx("img",{className:"dzm-scimg",src:img.u,alt:"Scopes du plan sous la tête",
+        title:"Forme d'onde (haut), vecteurscope et histogramme (bas) de l'image étalonnée à "+body.t+" s de source"}):null,
+      msg?r.jsx("span",{className:"dzm-scmsg","aria-live":"polite",children:msg}):null]}),
+    r.jsx("div",{className:"dzm-scwgrip",title:"Redimensionner les scopes (carré, "+DZM_SCW_MIN+" à "+DZM_SCW_MAX+" px)",
+      "aria-hidden":"true",onPointerDown:saisir("s")})]}):null;
   var cible=encart&&hote&&hote.isConnected!==!1&&typeof Pu!=="undefined"&&Pu&&typeof Pu.createPortal==="function"?hote:null;
   return r.jsxs("div",{className:"dzm-scopes","data-on":on?"1":"",ref:wrapR,children:[
     r.jsx("button",{className:"svm-pchip dzm-scbtn","data-on":on?"":void 0,"aria-pressed":on,
@@ -22256,6 +22373,8 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   voExt:dzmVoExt,voChrono:dzmVoChrono,voErr:dzmVoErr,VoiceRec:DzmVoiceRec,
   /* retours L6 (26/09/2026, tache 4) : l'image etalonnee du plan V1 dans le lecteur, a l'arret */
   glRatio:dzmGlRatio,glW:dzmGlW,glBody:dzmGlBody,GradeLive:DzmGradeLive,
+  /* retours L6 (26/09/2026, tache 5) : les scopes en fenetre flottante -- le cadre partage, la taille, la geometrie, la memoire */
+  glCadre:dzmGlCadre,scwSize:dzmScwSize,scwBody:dzmScwBody,scwFit:dzmScwFit,scwDef:dzmScwDef,scwInit:dzmScwInit,scwGeste:dzmScwGeste,scwGet:dzmScwGet,scwSet:dzmScwSet,scwFin:dzmScwFin,SCW_CLE:DZM_SCW_CLE,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;
 

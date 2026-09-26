@@ -1613,9 +1613,30 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
 .dzsvm .svm-playerzone:not([data-side]) .svm-playerbar{order:-1}
 .dzsvm .svm-playerzone[data-side] .svm-playerbar{justify-content:flex-start}
 .dzsvm .svm-playerbar .dzm-scpop{display:none}
-.dzsvm .svm-frame>.dzm-scpop{position:absolute;top:34px;right:10px;z-index:6;display:flex;flex-direction:column;align-items:flex-end;gap:4px;max-width:calc(100% - 20px);pointer-events:none}
-.dzsvm .dzm-scimg{display:block;width:auto;height:auto;max-width:180px;max-height:180px;max-height:calc(min(100cqh, 100cqw / var(--svm-arw,.5625)) * .4);max-width:calc(min(100cqh * var(--svm-arw,.5625), 100cqw) * .4);border-radius:4px;border:1px solid #ffffff33;background:#000;pointer-events:none}
+/* RETOURS L6 (26/09/2026, tâche 5) — LES SCOPES DANS UNE FENÊTRE FLOTTANTE. L'encart de 180 px dans le coin du cadre
+   (sa règle, retirée) était trop petit : la couche porte désormais une FENÊTRE dans la RACINE de la
+   vue (.dzsvm, portail), déplaçable par sa barre de titre et redimensionnable par sa poignée de coin (carré 240..1024 px,
+   borné à la racine, géométrie mémorisée « dz_montage_scopes_geo » et posée EN LIGNE : left / top / width, hauteur du
+   corps). Ici le DÉFAUT (mémoire absente, ou racine non mesurable) : en haut à droite, sous la barre de titre de la vue
+   (48 px), côté 320. Z-INDEX 9 — MESURÉ dans les trois feuilles : la barre OUTILS est à 8 (.dzm-tbar, .dzm-tbtab), le
+   premier popover à 9 (.dzm-projp, sous le nom du projet à GAUCHE de l'en-tête ; à égalité, l'ordre du DOM tranche),
+   .svm-transpop 10, la lightbox et le voile de mode 19, menus et modales 20 : au-dessus de la barre OUTILS, sous tout
+   ce qui s'ouvre par-dessus. Elle CAPTE ses pointeurs (elle n'est plus dans le cadre : ses poignées, ses rectangles et
+   son dépôt restent atteignables hors de la fenêtre). Le bord est une OMBRE (box-shadow), pas une bordure : la boîte
+   mesure exactement côté × (barre 24 + côté), la géométrie de la couche (DZM_SCW_BAR). L'image REMPLIT le carré
+   (object-fit:contain : le PNG de /scopes est carré) et ne capte rien ; la ligne d'état se pose en bas à droite de
+   l'image. Barre et poignée : touch-action:none (gestes par dzmGpDrag, sans capture). Aucun `display:none` de plus : le
+   repli en ligne (portail impossible) reste caché par la règle `.svm-playerbar .dzm-scpop` ci-dessus. */
+.dzsvm>.dzm-scwin{position:absolute;top:56px;right:16px;width:320px;z-index:9;display:flex;flex-direction:column;box-sizing:content-box;background:var(--panel2, var(--bg-panel-2, #1c1c21));border-radius:6px;overflow:hidden;box-shadow:0 0 0 1px var(--stroke2, var(--stroke-strong, #3d3b45)),0 10px 28px rgba(0,0,0,.55);pointer-events:auto}
+.dzsvm .dzm-scwbar{display:flex;align-items:center;justify-content:space-between;gap:6px;height:24px;flex:none;padding:0 3px 0 9px;box-sizing:border-box;cursor:move;touch-action:none;user-select:none;-webkit-user-select:none;font-family:var(--f-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2, var(--ink, #c4bfb6))}
+.dzsvm .dzm-scwt{pointer-events:none}
+.dzsvm .dzm-scwx{width:20px;height:20px;padding:0;border:0;border-radius:4px;background:transparent;color:inherit;font-size:14px;line-height:20px;text-align:center;cursor:pointer}
+.dzsvm .dzm-scwx:hover,.dzsvm .dzm-scwx:focus-visible{background:var(--panel3, #26252c);color:var(--ink, #f2efe9)}
+.dzsvm .dzm-scwbody{position:relative;height:320px;flex:none;background:#000}
+.dzsvm .dzm-scimg{display:block;width:100%;height:100%;object-fit:contain;background:#000;pointer-events:none}
 .dzsvm .dzm-scmsg{font-family:var(--f-mono);font-size:10px;padding:2px 7px;border-radius:5px;background:#000000aa;color:#f2efe9;text-align:right}
+.dzsvm .dzm-scwbody>.dzm-scmsg{position:absolute;right:6px;bottom:6px;max-width:calc(100% - 12px);pointer-events:none}
+.dzsvm .dzm-scwgrip{position:absolute;right:0;bottom:0;width:16px;height:16px;cursor:nwse-resize;touch-action:none;background:linear-gradient(135deg,transparent 0 55%,rgba(242,239,233,.55) 55% 62%,transparent 62% 72%,rgba(242,239,233,.55) 72% 79%,transparent 79%)}
 /* REVUE FINALE L5 (24/09/2026) — LA NOTE DU LECTEUR SOUS LA RANGÉE. Le bundle pose la note (`note`, ex. « Aucun grade
    copié », Ctrl+Alt+V) en premier enfant de .svm-playerzone avec un style EN LIGNE `position:absolute; top:58px;
    left:18px; z-index:5` ; la zone est `position:static` : le bloc conteneur est `.dzsvm.svm-col`, pas la zone.

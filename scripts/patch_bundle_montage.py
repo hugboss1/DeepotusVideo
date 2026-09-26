@@ -5859,12 +5859,16 @@ assert R_EB4.count("title:") == 1 and R_EA5D.count('"Rendre →"') == 1 and R_EA
 # CORRECTIF PREUVE ECRAN (24/09/2026) : MESURE Playwright 1400 x 900 -- sous la barre, la puce tombait sous la barre
 # OUTILS flottante (z 8, pied de la zone). Meme ancre, la puce devient le DERNIER enfant de la BARRE (apres « plein
 # ecran ») ; la barre passe en tete de la zone par la feuille (order:-1) et l'encart est porte dans le cadre.
+# RETOURS L6 (26/09/2026, tache 5) : la puce recoit AUSSI le ratio du projet (`proj.ratio`, le nom MESURE par R6gl1,
+# declare dans DzMontage AVANT la barre du lecteur) -- le corps de /scopes porte le CADRE du projet (contrat T3), et
+# l'encart devient une fenetre flottante portee dans la racine .dzsvm (couche). Meme ancre, meme section, aucune
+# reference DzTracks de plus (sonde 178 inchangee).
 A_L5SC1 = '            onClick:svmFullscreen,children:"plein écran ("+svmKeyLabel("fullscreen")+")"})]})]}),'
 R_L5SC1 = ('            onClick:svmFullscreen,children:"plein écran ("+svmKeyLabel("fullscreen")+")"}),\n'
            '          /* L5 D-31 : la puce des scopes du plan V1 sous la tête (bascule mémorisée, encart dans le cadre) */\n'
-           '          r.jsx(DzTracks.Scopes,{clips:clips,head:ph,playing:playing})]})]}),')
+           '          r.jsx(DzTracks.Scopes,{clips:clips,head:ph,playing:playing,ratio:proj.ratio})]})]}),')
 L5 = [("L5sc1-scopes-sous-la-barre-du-lecteur", A_L5SC1, R_L5SC1)]
-assert R_L5SC1.count("DzTracks.") == 1 and R_L5SC1.endswith("playing:playing})]})]}),") and A_L5SC1.count("]})]}),") == 1
+assert R_L5SC1.count("DzTracks.") == 1 and R_L5SC1.endswith("playing:playing,ratio:proj.ratio})]})]}),") and A_L5SC1.count("]})]}),") == 1
 assert R_R1.count('combo:"Ctrl+Alt+C"') == 1 and R_R1.count('combo:"Ctrl+Alt+V"') == 1 and R_R1.find('id:"paste"') < R_R1.find('id:"grade_copy"') < R_R1.find('id:"grade_paste"')
 assert R_R2.count('if(id==="grade_copy"){dzGradeCopy(selRef.current);return}') == 1 and R_R2.count('if(id==="grade_paste"){dzGradePaste(selRef.current);return}') == 1
 assert R_EC1.count("function dzGradeCopy(id){") == 1 and R_EC1.count("function dzGradePaste(id){") == 1 and R_EC1.count("pushHistory();setClips(clipsRef.current.map(function(k){return k.id===c.id?q.clip:k}))") == 1
