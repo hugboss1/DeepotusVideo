@@ -717,8 +717,24 @@ LIB = ROOT / "lib"
 FIX("dossiers", lambda: [d.mkdir(parents=True, exist_ok=True)
                          for d in (LIB, ROOT / "images", ROOT / "audio")])
 
-# Les fixtures ne sont PAS des medias valides : rien ici n'est decode. Ce que
-# le code sous test lit, c'est l'EXTENSION du chemin range en base.
+# Les fixtures qui PASSENT le pre-vol sont des medias VALIDES depuis le
+# correctif du 26/09/2026 (sources vides ou illisibles, banc
+# test_sources_illisibles.py) : le pre-vol SONDE desormais la lisibilite des
+# sources qu'il laisse passer, et « \x00faux mp4 » y est refuse, a raison.
+# Elles sont fabriquees par ffmpeg (`_media`) ; le reste du banc lit toujours
+# l'EXTENSION du chemin range en base. Le maillage et la planche restent des
+# octets faux : le pre-vol les refuse a l'extension, avant toute sonde.
+def _media(ext, *args):
+    """Octets d'un petit media fabrique par ffmpeg (dans une FIXTURE gardee)."""
+    from app.services.effects_preview import ffmpeg_bin
+    out = pathlib.Path(TMP) / ("_fab" + ext)
+    subprocess.run([ffmpeg_bin(), "-y", "-loglevel", "error", *args, str(out)],
+                   capture_output=True, timeout=60, check=False)
+    return out.read_bytes()
+
+
+_VID = ("-f", "lavfi", "-i", "testsrc2=s=64x64:r=10:d=5", "-c:v", "libx264",
+        "-pix_fmt", "yuv420p")
 F_MP4 = LIB / "plan_seedance.mp4"
 F_PNG = LIB / "sheet.png"
 F_GLB = LIB / "model.glb"
@@ -738,12 +754,16 @@ F_MOV = LIB / "Rush_Camera.MOV"
 CARTON = ROOT / "images" / "carton.png"
 VOIX = ROOT / "audio" / "voix.wav"
 FIX("fichiers sources", lambda: [p.write_bytes(o) for p, o in (
-    (F_MP4, b"\x00faux mp4"),
-    (F_MOV, b"\x00faux mov"),
+    (F_MP4, _media(".mp4", *_VID)),
+    # 7 s comme le job qui le pose (`casse_mixte_duree_du_rush`) : un media
+    # REEL est sonde par la construction, sa duree doit dire la meme chose.
+    (F_MOV, _media(".mov", "-f", "lavfi", "-i", "testsrc2=s=64x64:r=10:d=7",
+                   *_VID[4:])),
     (F_PNG, b"\x89PNG\r\n\x1a\nfaux"),
     (F_GLB, b"glTF\x02\x00\x00\x00faux"),
-    (CARTON, b"\x89PNG\r\n\x1a\ncarton"),
-    (VOIX, b"RIFFfauxWAVE"))])
+    (CARTON, _media(".png", "-f", "lavfi", "-i", "color=c=red:s=64x64",
+                    "-frames:v", "1")),
+    (VOIX, _media(".wav", "-f", "lavfi", "-i", "sine=f=440:d=3")))])
 
 ID_MP4 = "aaaaaaaa-0000-0000-0000-000000000001"
 ID_PNG = "bbbbbbbb-0000-0000-0000-000000000002"
@@ -961,8 +981,9 @@ d_mov = J(api("GET", "/api/montage/project"))
 v1_mov = [c.get("src", {}).get("job_id")
           for c in (d_mov.get("clips") or []) if c.get("tr") == "v1"]
 check("casse_mixte_acceptee_a_la_construction", ID_MOV in v1_mov, str(v1_mov))
-# Et sa duree vient bien du job (7 s), pas du repli `or 4.0` : la ligne
-# ci-dessus resterait verte si le .MOV entrait comme un carton vide.
+# Et sa duree vient du media reel (7 s, sonde — le job dit 7 s lui aussi),
+# pas du repli `or 4.0` : la ligne ci-dessus resterait verte si le .MOV
+# entrait comme un carton vide.
 c_mov = [c for c in (d_mov.get("clips") or [])
          if c.get("tr") == "v1" and c.get("src", {}).get("job_id") == ID_MOV]
 check("casse_mixte_duree_du_rush",
