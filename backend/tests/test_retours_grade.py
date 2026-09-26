@@ -414,11 +414,19 @@ _pres = {k: (v is not None and v < _l0 - 30) for k, v in _li.items()}
 check("r2_bornes_infinies_comme_le_rendu_t1_inf_a_dur_t0_moins_inf_a_0",
       _pres == {"t1inf_a2": False, "t1inf_a5_5": True, "t1inf_a6_5_dur6": False, "t1inf_a7_sans_dur": True,
                 "t0moinsinf_a2": True, "t0moinsinf_a4": False}, str((_pres, _li)))
+# Cloture (26/09) : NaN MESURE au rendu (8.1.1 et 9.0.1, effet invert) — t0 NaN -> [0, t1[ (max(0, nan) = 0) ;
+# t1 NaN -> [t0, inf) si t0 > 0, JAMAIS si t0 = 0. Les cas v, u, s rendent le check DISCRIMINANT (t_local 2 < t0 = 3 ;
+# t0 0 ; t0 NaN hors de [0, 1[) : l'ancienne lecture « NaN = tout le plan » les gardait tous.
+_NAN = float("nan")
 _ai = CALL(GR, "_au_temps", [{"type": "x", "t0": 5, "t1": _INF}, {"type": "y", "t0": _INF, "t1": 3},
-                             {"type": "z", "t0": float("nan"), "t1": 3}, {"type": "w", "t0": 1, "t1": float("nan")}],
+                             {"type": "z", "t0": _NAN, "t1": 3}, {"type": "w", "t0": 1, "t1": _NAN},
+                             {"type": "v", "t0": 3, "t1": _NAN}, {"type": "u", "t0": 0, "t1": _NAN},
+                             {"type": "s", "t0": _NAN, "t1": 1}, {"type": "r", "t0": _NAN, "t1": _NAN}],
            2.0, 6.0)
-check("r2_au_temps_t0_inf_tout_le_plan_comme_timed_nan_tout_le_plan",
-      isinstance(_ai, list) and [e["type"] for e in _ai] == ["y", "z", "w"], str(_ai))
+_ai3 = CALL(GR, "_au_temps", [{"type": "v", "t0": 3, "t1": _NAN}], 3.0, 6.0)
+check("r2_au_temps_t0_inf_tout_le_plan_nan_comme_le_rendu_mesure",
+      isinstance(_ai, list) and [e["type"] for e in _ai] == ["y", "z", "w"]
+      and isinstance(_ai3, list) and [e["type"] for e in _ai3] == ["v"], str((_ai, _ai3)))
 
 # Cache : la cle porte le cadre ; un second appel identique ne lance rien.
 _cmds.clear()

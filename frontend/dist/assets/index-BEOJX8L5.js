@@ -21723,17 +21723,26 @@ function dzmGlCadre(c,head,ratio){
   if(dz)cadre.dz=dz;
   return cadre}
 /* RETOURS L6 (26/09/2026, revue T4 m3) : un effet BORNÉ n'agit que sur son intervalle, comme au rendu
-   (effects_engine._timed) : dzmGlSec lit une borne comme float() de Python (nombre, booléen, chaîne non vide ;
-   absente, vide, objet ou illisible -> null) ; dzmGlActif(effet, t_local, dur) : une borne illisible -> tout le plan ;
-   t0 = max(0, t0), t1 = min(t1, dur) si dur ; intervalle < 0,05 s -> tout le plan ; sinon présent sur [t0, t1[. */
+   (effects_engine._timed) : dzmGlSec lit une borne comme float() de Python pour les nombres et les chaînes décimales
+   (booléen -> 0/1 ; chaîne : espaces retirés, « nan », « inf », « infinity » signés sans casse, tirets bas entre deux
+   chiffres ; absente, vide, objet, « 0x5 » ou illisible -> null ; un nombre NaN / ±Infinity est gardé tel quel, comme
+   float() — la couche ne peut pas en tenir, son état vient de JSON) ; dzmGlActif(effet, t_local, dur) : une borne
+   illisible -> tout le plan ; t0 = max(0, t0) (NaN -> 0), t1 = min(t1, dur) si dur ; t1 NaN -> [t0, ∞) si t0 > 0,
+   jamais sinon (MESURÉ au rendu le 26/09, clôture des retours L6 : l'extinction tombe à 0) ; intervalle < 0,05 s ->
+   tout le plan ; sinon présent sur [t0, t1[. Table partagée avec grading._au_temps : retours_bornes_vecteurs.json. */
 function dzmGlSec(v){
-  if(typeof v==="boolean")v=+v;
-  if(typeof v==="string"){if(!v.trim())return null;v=Number(v)}
-  return typeof v==="number"&&!isNaN(v)?v:null}
+  if(typeof v==="boolean")return +v;
+  if(typeof v==="number")return v;
+  if(typeof v!=="string")return null;
+  var s=v.trim(),m=/^([+-]?)(nan|inf|infinity)$/i.exec(s);
+  if(m)return m[2].toLowerCase()==="nan"?NaN:m[1]==="-"?-Infinity:Infinity;
+  if(!/^[+-]?(\d(_?\d)*(\.(\d(_?\d)*)?)?|\.\d(_?\d)*)([eE][+-]?\d(_?\d)*)?$/.test(s))return null;
+  return Number(s.replace(/_/g,""))}
 function dzmGlActif(f,tl,dur){
   var a=dzmGlSec(f&&f.t0),b=dzmGlSec(f&&f.t1),d=Number(dur);
   if(a===null||b===null)return !0;
-  a=Math.max(0,a);if(d>0)b=Math.min(b,d);
+  a=a>0?a:0;if(d>0)b=Math.min(b,d);
+  if(b!==b)return a>0&&tl>=a;
   if(b-a<.05)return !0;
   return tl>=a&&tl<b}
 /* revue T4 (m4) : un plan V1 en IMAGE FIXE -> rien (la route refuse 415) ; (m3) aucun effet actif À t_local -> rien
@@ -22201,7 +22210,7 @@ function DzmScopes(o){
     ote=dzmScwFin(g,e.pointerId,function(){fin(!0)});
     gesteR.current=abandon}};
   var voit=!!(sig&&img&&img.sig===sig);
-  var msg=!on?"":jouant?"Lecture : les scopes se rafraîchissent à l'arrêt":!c?"Aucun plan sous la tête":
+  var msg=!on?"":jouant?"Lecture : les scopes se rafraîchissent à l'arrêt":!c?"Aucun plan lisible sous la tête":
     voit?"":err&&err.sig===sig?err.msg:"Mesure en cours…";
   var encart=on?r.jsxs("div",{className:"dzm-scpop dzm-scwin",role:"region","aria-label":"Scopes",
     style:geo?{left:geo.x+"px",top:geo.y+"px",width:geo.s+"px"}:void 0,children:[

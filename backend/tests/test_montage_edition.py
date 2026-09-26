@@ -4070,8 +4070,10 @@ check("sc_rendu_eteint_un_bouton_titre_non_presse_aucun_message",
 _SCx = "Fermer les scopes (comme la puce « Scopes » de la barre du lecteur)"
 check("sc_rendu_allume_presse_mesure_en_cours_lecture_dite_aucun_plan_dit_plan_sans_source_dit",
       _SCR[4:9] == [[["Scopes", "Masquer les scopes", True, ""], ["×", _SCx, None, None]], ["Mesure en cours…"],
-                    # revue T4 m2 : le plan sans source n'est plus sous la tete -- « Aucun plan sous la tete » (pin realigne)
-                    ["Lecture : les scopes se rafraîchissent à l'arrêt"], ["Aucun plan sous la tête"], ["Aucun plan sous la tête"]],
+                    # revue T4 m2 : le plan sans source n'est plus sous la tete (pin realigne) ; cloture des retours L6
+                    # (26/09) : « Aucun plan LISIBLE sous la tete » -- vrai pour le vide comme pour le plan sans source
+                    ["Lecture : les scopes se rafraîchissent à l'arrêt"], ["Aucun plan lisible sous la tête"],
+                    ["Aucun plan lisible sous la tête"]],
       _SCR[4:9])
 # Correctif preuve ecran (24/09) : la puce vit dans la barre du lecteur, l'ENCART (dzm-scpop : image + ligne d'etat) est
 # porte dans le cadre de lecture -- un quatrieme useState (le cadre hote) et un troisieme useEffect (le chercher, deps

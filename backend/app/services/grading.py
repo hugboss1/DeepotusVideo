@@ -314,10 +314,11 @@ def _render(path: Path, t: float, parts: list[str], out_lbl: str, out: Path,
 def _au_temps(effects, t_local: float, dur=None) -> list:
     """Retours L6 (26/09/2026) — MODE CADRE : les effets PRÉSENTS au rendu à
     `t_local` (temps LOCAL du plan). Même lecture des bornes que
-    `effects_engine._timed` : bornes illisibles (ou non finies) → effet sur
-    tout le plan ; `t0` ramené à 0, `t1` borné à la durée du plan si elle
-    est connue ; intervalle < 0,05 s → tout le plan ; sinon présent sur
-    [t0, t1[ (l'opacité retombe à 0 À t1). Les fondus sont IGNORÉS (l'effet
+    `effects_engine._timed` : bornes illisibles → effet sur tout le plan ;
+    `t0` ramené à 0 (NaN aussi), `t1` borné à la durée du plan si elle est
+    connue ; `t1` NaN → [t0, ∞) si t0 > 0, jamais sinon (mesuré au rendu) ;
+    intervalle < 0,05 s → tout le plan ; sinon présent sur [t0, t1[
+    (l'opacité retombe à 0 À t1). Les fondus sont IGNORÉS (l'effet
     est montré plein, puis `_pile` retire les bornes)."""
     res = []
     for e in effects or []:
@@ -332,12 +333,19 @@ def _au_temps(effects, t_local: float, dur=None) -> list:
         # borné à la durée) AVANT tout test — une borne INFINIE n'est plus
         # « tout le plan » : `t1 = +inf` est ramené à `dur` comme au rendu,
         # `t0 = -inf` à 0 ; `t0 = +inf` (t1 fini) donne t1 − t0 < 0,05 → tout
-        # le plan, comme `_timed`. Seul NaN (sendcmd illisible au rendu)
-        # reste « tout le plan ».
+        # le plan, comme `_timed`.
+        # Clôture (26/09/2026) : NaN n'est PAS « tout le plan » — MESURÉ sur
+        # 8.1.1 et 9.0.1 (effet invert, clip de 4 s, dur 4) : `max(0.0, nan)`
+        # vaut 0.0, donc t0 NaN → [0, t1[ ; t1 NaN (min(nan, dur) reste nan)
+        # → `_opacity_cmds` pose l'extinction à `max(0, nan)` = 0 : l'effet
+        # s'allume à t0 et ne s'éteint JAMAIS → [t0, ∞) si t0 > 0, et JAMAIS
+        # allumé si t0 = 0 (l'allumage et les deux extinctions tombent à 0,
+        # sendcmd les joue dans l'ordre : la dernière gagne).
         t0 = max(0.0, t0)
         t1 = min(t1, dur) if dur else t1
-        if t0 != t0 or t1 != t1:
-            res.append(e)
+        if t1 != t1:
+            if t0 > 0 and t_local >= t0:
+                res.append(e)
             continue
         if t1 - t0 < 0.05 or t0 <= t_local < t1:
             res.append(e)

@@ -1,14 +1,17 @@
 # -*- coding: utf-8 -*-
 """Retours L6 — T1 : ECHO et REVERBE, le « mix » dose la part d'effet, le son
-SEC reste a son niveau. En-tete recopie de test_montage_l6.py (env, check, J,
-TestClient sans port ouvert ; fin : fermeture des handles puis rmtree) :
+SEC reste a son niveau. En-tete recopie de test_montage_l6.py (env, check ;
+fin : fermeture des handles puis rmtree) — SANS TestClient (cloture 26/09 :
+le banc n'appelle aucune route, le lifespan de l'app ne servait a rien) :
 dossier de donnees NEUF par execution, toute lecture gardee — un banc qui
 meurt sur un acces nu ne dit pas quelles assertions manquent (faute n6 : le
 DETAIL est evalue AVANT le court-circuit de la condition, il ne doit donc
 jamais lever).
 Run : & $PY tests/test_retours_sfx.py   (depuis backend/)
 Deux binaires : rejouer avec %LOCALAPPDATA%\\DeepotusVideoGen\\bin en tete du
-PATH (`effects_preview.ffmpeg_bin()` prend celui du PATH d'abord).
+PATH (`effects_preview.ffmpeg_bin()` prend celui du PATH d'abord). ffmpeg
+injoignable -> le banc ROUGIT (`m_ffmpeg_joignable`) au lieu de sauter ses
+mesures en silence (cloture 26/09).
 
 Diagnostic (26/09) : `aecho=0.9:{mix/100}:…` — `aecho` est un filtre a
 PROPAGATION AVANT (mesure a l'impulsion sur 8.1.1 et 9.0.1) :
@@ -37,27 +40,12 @@ os.environ["OUTPUTS_FOLDER"] = TMP + "/outputs"
 os.environ.setdefault("FAL_KEY", "test-key")
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 
-from fastapi.testclient import TestClient                # noqa: E402
-from app.main import app                                 # noqa: E402
-
 ok = fail = 0
 def check(label, cond, detail=""):
     global ok, fail
     if cond: ok += 1; print(f"  PASS  {label}")
     else: fail += 1; print(f"  FAIL  {label} {detail}")
 
-
-def J(resp):
-    """Corps JSON, ou {} — le banc doit ROUGIR, pas mourir sur un .json() nu."""
-    try:
-        v = resp.json()
-    except Exception:
-        return {}
-    return v if isinstance(v, dict) else {"_liste": v}
-
-
-c = TestClient(app, raise_server_exceptions=False)
-c.__enter__()
 
 from app.services import sfx_service as S                # noqa: E402
 from app.services import effects_preview as PV           # noqa: E402
@@ -218,9 +206,9 @@ try:
     _ver = subprocess.run([FF, "-version"], capture_output=True, text=True, timeout=30).stdout.split("\n")[0]
 except Exception:                                        # noqa: BLE001
     _ver = ""
-if not _ver:
-    print("  SKIP rendu reel : ffmpeg injoignable")
-else:
+# cloture (26/09) : ffmpeg absent ROUGIT — un banc de mesure qui saute ses mesures n'a rien prouve
+check("m_ffmpeg_joignable", bool(_ver), repr(FF))
+if _ver:
     print("  ffmpeg :", _ver[:60], "(", FF, ")")
     SR = 48000
 
@@ -335,6 +323,9 @@ else:
     check("m8_aucun_ecretage_interne_au_coin_extreme_temoin_sans_marge",
           _ext is not None and _ext_sans_marge is not None and _ext[1] == 0 and _ext_sans_marge[1] > 0
           and _ext[0] > _ext_sans_marge[0], str((_ext, _ext_sans_marge)))
+    # cloture (26/09) : le coin extreme (mix 100, fb 90, 20 ms) EPINGLE — mesure +6,10 dB (8.1.1 et 9.0.1) ; au-dessus
+    # de 0 dBFS en flottant pour une entree a -6 dBFS (ecart date : loudnorm TP -1,5 au rendu final le ramene)
+    check("m9_coin_extreme_crete_au_plus_6_2_db", _ext is not None and _ext[0] <= 6.2, str(_ext))
     print("   crete (dB au-dessus de l'entree, echantillons a 1,0) :", _cr, "extreme :", _ext)
 
     # --- reverbe vs audition WebAudio (convolueur NORMALISE, spec Web Audio) : ecart DIT --------
@@ -347,7 +338,6 @@ else:
               if nous is not None else "   reverbe illisible")
 
 print(f"\n=== {ok} passed, {fail} failed ===")
-c.__exit__(None, None, None)
 # Nettoyage : le journal loguru et le pool sqlite tiennent encore des handles
 # apres le lifespan (mesure : logs/*.log, t.db-wal/-shm survivaient a un
 # rmtree nu) — on les ferme d'abord, puis on efface sans jamais rougir.
