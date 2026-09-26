@@ -231,6 +231,11 @@ app.include_router(montage_router, prefix="/api/montage")
 from app.services.cards import router as cards_router
 app.include_router(cards_router, prefix="/api/cards")
 # __DZ_CARDS_ROUTER_END__
+# __DZ_DICTATION_ROUTER_BEGIN__
+# Dictée des champs IA (27/09/2026) : /api/dictation/estimate et /api/dictation
+from app.services.dictation_service import router as dictation_router
+app.include_router(dictation_router, prefix="/api")
+# __DZ_DICTATION_ROUTER_END__
 
 # ── Guide: serve the illustrated getting-started guide (FR/EN HTML + PDF +
 # screenshots) at /guide. Linked from the sidebar footer.
