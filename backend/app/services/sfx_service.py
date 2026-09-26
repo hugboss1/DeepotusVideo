@@ -379,20 +379,39 @@ def _fx_dehum(p: dict) -> str:
                     for k in range(1, n + 1))
 
 
+# Écho / réverbe (retours L6, mesuré 26/09 sur 8.1.1 et 9.0.1) : `aecho` est
+# à PROPAGATION AVANT — sortie = (entrée·in_gain + Σ entrée(t−d_k)·decay_k)
+# · out_gain. L'ancienne forme `aecho=0.9:{mix}:…` baissait donc le SEC
+# (mix 22 % → −14,1 dB). « mix » = part d'effet, comme l'audition WebAudio
+# du rack (dry 1, ewet = mix) : le sec reste à 0 dB EXACT (0,25 × 1 × 4),
+# chaque prise vaut mix·r_k. La marge 0,25 → ×4 existe parce que `aecho`
+# ÉCRÊTE à ±1 en interne même en flottant (mesuré) : pire somme cohérente
+# 1 + 1 + 0,9 + 0,81 = 3,71 < 4 ; `volume=4` rend le niveau sans écrêter en
+# flottant (l'aval décide). Fragment linéaire, toujours ouvert par `aecho`.
+_AECHO_MARGE = 0.25
+
+
+def _aecho(delays: list[str], taps: list[float], mix: float) -> str:
+    h = _AECHO_MARGE
+    decays = [_g(max(0.0001, h * mix * r)) for r in taps]   # jamais « 0 »
+    return (f"aecho={_g(h)}:1:{'|'.join(delays)}:{'|'.join(decays)}"
+            f",volume={_g(1.0 / h)}")
+
+
 def _fx_echo(p: dict) -> str:
     if p["mix"] < 0.5:
         return ""
     t = max(1, int(round(p["time_ms"])))
-    fb = max(0.01, min(0.9, p["feedback"] / 100.0))
-    delays, decays, d = [], [], 1.0
+    fb = max(0.0, min(0.9, p["feedback"] / 100.0))
+    delays, taps, d = [], [], 1.0
     for k in range(1, 4):                       # 3 répétitions t, 2t, 3t
-        d *= fb
-        if d < 0.005 and delays:
-            break
+        if k > 1:
+            d *= fb                             # WebAudio : mix, mix·fb, mix·fb²
+            if d < 0.005:
+                break
         delays.append(str(t * k))
-        decays.append(_g(max(0.005, d)))
-    og = _g(max(0.01, min(1.0, p["mix"] / 100.0)))
-    return f"aecho=0.9:{og}:{'|'.join(delays)}:{'|'.join(decays)}"
+        taps.append(d)
+    return _aecho(delays, taps, min(1.0, p["mix"] / 100.0))
 
 
 def _fx_reverb(p: dict) -> str:
@@ -402,12 +421,11 @@ def _fx_reverb(p: dict) -> str:
     delays = [str(max(1, int(round(dec * 1000 * f))))
               for f in (0.043, 0.101, 0.187, 0.313)]  # 4 taps espacés
     gper = max(0.2, min(0.75, 0.3 + dec * 0.055))     # decays ∝ decay_s
-    decays, d = [], 1.0
+    taps, d = [], 1.0
     for _ in range(4):
         d *= gper
-        decays.append(_g(max(0.005, d)))
-    og = _g(max(0.01, min(1.0, p["mix"] / 100.0)))
-    return f"aecho=0.9:{og}:{'|'.join(delays)}:{'|'.join(decays)}"
+        taps.append(max(0.005, d))
+    return _aecho(delays, taps, min(1.0, p["mix"] / 100.0))
 
 
 def _fx_distortion(p: dict) -> str:

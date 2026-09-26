@@ -1048,6 +1048,40 @@ def _vp_expr(pts: list) -> str:
     return f"pow(10,({db_expr})/20)"
 
 
+def _music_bornes(c: dict) -> dict:
+    """Retours L6 T2 (26/09/2026) : bornes du clip musique d'une piste en
+    boucle, lues comme /render lit les clips a1/a3 — {start, end, src_in}
+    en secondes (start, src_in ≥ 0 ; valeur illisible ou NaN → 0). Bornes
+    DÉGÉNÉRÉES (end ≤ start, end absent/NaN → 0) : le builder les ignore et
+    émet la commande historique — la musique joue sur TOUT le rendu. C'est
+    voulu : un ancien client sans `end` garde le comportement d'avant plutôt
+    qu'une musique muette. `end` au-delà du rendu est plafonné au total par
+    le builder.
+
+    Revue T3 (26/09/2026) : `Infinity` passe `json.loads` et le garde
+    `isfinite` du builder retombait alors sur la commande historique
+    (musique depuis 0, `start` perdu). Choix : une valeur NON FINIE est lue
+    comme ABSENTE (0) pour `start` et `src_in` ; pour `end`, `+Infinity` =
+    « jusqu'au bout » → `_MUSIC_END_INF` (fini, plafonné au total par le
+    builder : `start` respecté, musique jusqu'à la fin du rendu), `-Infinity`
+    → 0 (bornes dégénérées, comme un `end` absent)."""
+    def num(v, inf=0.0):
+        try:
+            x = float(v or 0)
+        except (TypeError, ValueError):
+            return 0.0
+        if x != x:
+            return 0.0
+        if math.isinf(x):
+            return inf if x > 0 else 0.0
+        return x
+    return {"start": max(0.0, num(c.get("start"))), "end": num(c.get("end"), _MUSIC_END_INF),
+            "src_in": max(0.0, num(c.get("srcIn")))}
+
+
+_MUSIC_END_INF = 1e9       # « +Infinity » : au-delà de tout rendu, plafonné au total
+
+
 def _ov_transform(c: dict) -> dict | None:
     """Transformation optionnelle d'un overlay V2 (champs du payload) :
     x / y = centre en fraction du canvas (défaut 0.5, clamp −0.5..1.5 — l'UI
@@ -4071,22 +4105,81 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     music_lbl = None
     if music is not None:
         inputs.extend(["-stream_loop", "-1", "-i", str(music["path"])])
+        # Retours L6 T2 (26/09/2026) : BORNES DU CLIP. `/render` et
+        # `/measure` posent `bornes = {start, end, src_in}` (le PREMIER clip
+        # de la piste en boucle) : la source reste bouclée en entrée, puis
+        # `atrim=src_in:src_in+D·vitesse` sur le flux bouclé — MESURÉ sur
+        # 8.1.1 et 9.0.1 : lue depuis src_in, la boucle repart du DÉBUT de
+        # la source (`-ss src_in` en entrée fait la même reprise ; atrim est
+        # gardé, précis à l'échantillon comme les clips a1/a3) — fondus sur
+        # la durée du CLIP, `adelay=start`, automation APRÈS adelay (son `t`
+        # y est l'horloge globale, mesuré), `apad` jusqu'au total (le flux
+        # dure tout le rendu : chaîne latérale du ducking inchangée). Sans
+        # `bornes` (ou bornes dégénérées) : chaîne historique octet pour
+        # octet — la musique joue de 0 à la fin du rendu. Écart daté (revue
+        # T2, 26/09/2026) : sans fondu de sortie, la TRAÎNE d'un écho/réverbe
+        # du rack dépasse la fin du clip d'au plus son délai maximal (mesuré
+        # −19,5 dB de 3,1 à 3,9 s pour aecho 1000 ms sur un clip 1–3 s) —
+        # comme pour les clips a1/a3 ; l'`apad` n'y coupe rien.
+        bor = music.get("bornes") if isinstance(music.get("bornes"), dict) else None
+        mdur = mtrim = None
+        if bor is not None:
+            try:
+                b_st = max(0.0, float(bor.get("start") or 0))
+                b_d = float(bor.get("end") or 0) - b_st
+                b_in = max(0.0, float(bor.get("src_in") or 0))
+            except (TypeError, ValueError):
+                b_d = -1.0
+            # Revue T2 (I-1) : D PLAFONNÉ au total. `end` = 1e20 écrivait
+            # `atrim=0.0:1.5e+20` — ffmpeg refuse la notation exponentielle
+            # (« Unable to parse end option value »), job en échec. Au-delà
+            # du rendu, rien ne s'entend (-t coupe) : D ≤ total − start ; un
+            # clip qui démarre après la fin du rendu est posé à `total` pour
+            # 0,1 s (coupé par -t : silence, jamais la musique historique).
+            if math.isfinite(b_d) and b_d > 0 and math.isfinite(b_in + b_st):
+                b_st = min(b_st, max(0.0, total))
+                b_d = min(b_d, max(0.1, total - b_st))
+            if math.isfinite(b_d) and b_d > 0 and math.isfinite(b_in + b_st):
+                sd = music.get("src_dur_sonde")
+                try:
+                    sd = float(sd) if sd else 0.0
+                except (TypeError, ValueError):
+                    sd = 0.0
+                if sd > 0 and b_in >= sd:
+                    # au-delà de la source : la boucle y arriverait ; modulo
+                    # pour ne pas décoder N tours pour rien
+                    b_in = b_in % sd
+                elif sd <= 0:
+                    # durée inconnue : pas de modulo possible ; plafond pour
+                    # ne jamais écrire une notation exponentielle (≥ 1e16)
+                    b_in = min(b_in, 1e6)
+                spd0 = float(music.get("speed") or 0.0)
+                mdur = round(b_d, 3)
+                b_len = b_d * spd0 if spd0 else b_d
+                mtrim = (f"atrim={round(b_in, 3)}:{round(b_in + b_len, 3)},"
+                         f"asetpts=PTS-STARTPTS,")
+                mdly = int(round(b_st * 1000))
         # Fondus de la musique bouclée : entrée au démarrage, sortie calée
-        # sur la FIN du rendu (`total`, la boucle est coupée là par -t).
+        # sur la FIN du rendu (`total`, la boucle est coupée là par -t) — ou,
+        # bornée, sur la fin du CLIP (horloge locale 0..D, avant adelay).
+        # Un clip qui DÉPASSE le rendu a son D plafonné au total (revue T2
+        # I-1) : son fondu de sortie tombe alors sur la fin du RENDU.
         # Sans fondu la chaîne reste octet pour octet celle d'avant.
         # R2 : mêmes courbes optionnelles que les clips (lin/absent = rien).
-        mfi = min(float(music.get("fade_in") or 0), max(0.0, total))
-        mfo = min(float(music.get("fade_out") or 0), max(0.0, total))
+        mref = max(0.0, total) if mdur is None else mdur
+        mfi = min(float(music.get("fade_in") or 0), mref)
+        mfo = min(float(music.get("fade_out") or 0), mref)
         mf = ""
         if mfi > 0:
             mf += (f"afade=t=in:st=0:d={round(mfi, 3)}"
                    f"{_fade_curve(music, 'fade_in_curve')},")
         if mfo > 0:
-            mf += (f"afade=t=out:st={round(max(0.0, total - mfo), 3)}:"
+            mf += (f"afade=t=out:st={round(max(0.0, mref - mfo), 3)}:"
                    f"d={round(mfo, 3)}{_fade_curve(music, 'fade_out_curve')},")
         # R1 : vitesse + effets aussi sur la musique (boucle coupée à `total`
-        # par -t, la durée effective n'entre pas en jeu). Champs absents ⇒
-        # chaîne historique intacte.
+        # par -t, la durée effective n'entre pas en jeu ; bornée, la source
+        # est coupée à D × vitesse et atempo rend D : le clip garde sa place
+        # sur la timeline). Champs absents ⇒ chaîne historique intacte.
         mproc = ""
         mspd = float(music.get("speed") or 0.0)
         if mspd:
@@ -4094,18 +4187,26 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
         mfx = music.get("fx_chain") or ""
         if mfx:
             mproc += mfx + ","
-        # R4 : automation de volume de la musique — le flux bouclé n'est
-        # jamais retrimé : t = horloge GLOBALE du rendu (0..total), les
-        # points s'expriment donc en temps de MONTAGE (l'UI convertit et
-        # l'affiche). Même position que les clips : après les fondus, avant
-        # aresample ; se multiplie au gain statique. Sans points : chaîne
-        # octet pour octet historique.
+        # R4 : automation de volume de la musique — t = horloge GLOBALE du
+        # rendu (0..total), les points s'expriment donc en temps de MONTAGE
+        # (l'UI convertit et l'affiche). Sans bornes (flux jamais retrimé) :
+        # même position que les clips, après les fondus, avant aresample ;
+        # bornée : APRÈS adelay, où `t` est redevenu global (mesuré). Se
+        # multiplie au gain statique. Sans points : chaîne octet pour octet.
         mvp = music.get("volume_points")
         mautom = f"volume='{_vp_expr(mvp)}':eval=frame," if mvp else ""
-        parts.append(
-            f"[{idx}:a]{mproc}{mf}{mautom}"
-            f"aresample=async=1,aformat=sample_rates=44100:"
-            f"channel_layouts=stereo,volume={music['gain']}[mtrk]")
+        if mtrim is None:
+            parts.append(
+                f"[{idx}:a]{mproc}{mf}{mautom}"
+                f"aresample=async=1,aformat=sample_rates=44100:"
+                f"channel_layouts=stereo,volume={music['gain']}[mtrk]")
+        else:
+            parts.append(
+                f"[{idx}:a]{mtrim}{mproc}{mf}"
+                f"aresample=async=1,aformat=sample_rates=44100:"
+                f"channel_layouts=stereo,volume={music['gain']},"
+                f"adelay={mdly}|{mdly},{mautom}"
+                f"apad=whole_dur={round(total, 3)}[mtrk]")
         music_lbl = "[mtrk]"
         idx += 1
 
@@ -5175,6 +5276,9 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                 # clip du bus musique repart ici avec son GAIN musique
                 # (corrigé), mais range son flux dans les bruitages : ni
                 # bouclé, ni ducké. Ce n'est pas un point fermé.
+                # Retours L6 T2 : les BORNES du clip voyagent (`bornes`) — la
+                # musique joue dans [start, end], lue depuis srcIn, bouclée à
+                # l'intérieur ; `src_dur_sonde` = durée sondée (None inconnue).
                 if m["loop"] and music is None:
                     music = {"path": p,
                              "gain": g_music if not gdb else
@@ -5183,7 +5287,9 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                              "fade_in_curve": c.get("fade_in_curve"),
                              "fade_out_curve": c.get("fade_out_curve"),
                              "fx_chain": fx_ch, "fx_list": fx_l, "speed": spd,
-                             "volume_points": vp}
+                             "volume_points": vp,
+                             "bornes": _music_bornes(c),
+                             "src_dur_sonde": sdur or None}
                 else:
                     base = {"dialogue": g_voice, "musique": g_music,
                             "sfx": g_sfx}[bus]
@@ -5392,7 +5498,9 @@ async def montage_measure(request: Request):
                      "fade_in_curve": c.get("fade_in_curve"),
                      "fade_out_curve": c.get("fade_out_curve"),
                      "fx_chain": fx_ch, "fx_list": fx_l, "speed": spd,
-                     "volume_points": vp}
+                     "volume_points": vp,
+                     "bornes": _music_bornes(c),   # retours L6 T2, comme /render
+                     "src_dur_sonde": sdur or None}
         else:
             base = {"dialogue": g_voice, "musique": g_music, "sfx": g_sfx}[bus]
             a_clips.append({
@@ -5780,6 +5888,104 @@ def _grade_w(v) -> int:
     return _prev_w(v, _GRADE_W_DEFAUT)
 
 
+# --- Retours L6 (26/09/2026, tâche 3) : MODE CADRE et TAILLE DES SCOPES -----
+# `cadre = {ratio, t_local, dur?, reframe?, dz?}` (client : dzmGlBody) — l'image
+# est calculée DANS LA GÉOMÉTRIE DU RENDU V1 au même instant : les fonctions
+# du rendu sont RÉUTILISÉES (`_CANVAS`, `_reframe_of` + `_reframe_crop` D-40,
+# `_dz_spec` + `_dz_filter` D-13), aucune commande de rendu ne change.
+# `dur` (durée du plan, fin − début) est un AJOUT au contrat du plan : le
+# rendu interpole le zoom sur u = it / durée du segment (`_dz_filter`) —
+# sans elle la progression du zoom est inconnaissable ; sans `dur`, le zoom
+# est IGNORÉ (et les bornes t1 ne sont pas ramenées à la durée).
+_CADRE_W_DEFAUT, _CADRE_W_MIN, _CADRE_W_MAX = 720, 96, 1280
+_SCOPES_SIZE_DEFAUT, _SCOPES_SIZE_MIN, _SCOPES_SIZE_MAX = 512, 256, 1024
+
+
+def _borne_paire(raw, defaut: int, mini: int, maxi: int) -> int:
+    """Même règle que `_prev_w` sur d'autres bornes : illisible (absent,
+    texte, NaN, infini, booléen) → défaut ; bornée ; PAIRE."""
+    try:
+        v = int(float(str(raw)))
+    except (TypeError, ValueError, OverflowError):
+        v = defaut
+    v = max(mini, min(maxi, v))
+    return v - v % 2
+
+
+def _cadre_w(v) -> int:
+    """Largeur de l'image en mode cadre : 96..1280 paire, défaut 720."""
+    return _borne_paire(v, _CADRE_W_DEFAUT, _CADRE_W_MIN, _CADRE_W_MAX)
+
+
+def _scopes_size(v) -> int:
+    """Côté des scopes : 256..1024 pair, défaut 512 (L5 inchangé)."""
+    return _borne_paire(v, _SCOPES_SIZE_DEFAUT, _SCOPES_SIZE_MIN, _SCOPES_SIZE_MAX)
+
+
+def _cadre_of(raw) -> dict | None:
+    """`cadre` du corps → dict NORMALISÉ (JSON, il entre dans la clé du cache)
+    ou None (absent). Non-objet → 400 ; `t_local` illisible ou négatif →
+    400 ; ratio inconnu → 9:16 (comme `/render`) ; `dur` illisible ou ≤ 0 →
+    None ; `reframe` lu par `_reframe_of` sur srcIn 0 (ses points restent
+    donc en temps ABSOLU de source, lus au `t` de l'image — le temps du
+    crop du rendu est srcIn + t_local·vitesse = ce `t`) ; `dz` par
+    `_dz_spec`. Invalides → ignorés avec warning, comme au rendu."""
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        raise HTTPException(400, "cadre doit être un objet {ratio, t_local, dur?, reframe?, dz?}.")
+    # Revue T3 : une liste / un objet n'est pas hachable — `in _CANVAS` levait
+    # TypeError (500) ; tout ratio qui n'est pas une chaîne connue → 9:16.
+    r = raw.get("ratio")
+    ratio = r if isinstance(r, str) and r in _CANVAS else "9:16"
+    tl = _scenes_num(0.0 if raw.get("t_local") is None else raw.get("t_local"), "cadre.t_local",
+                     mini=0.0, maxi=86400.0, strict=False)
+    dur = _rf_num(raw.get("dur"))
+    dur = round(dur, 3) if dur is not None and 0 < dur <= 86400 else None
+    return {"ratio": ratio, "t_local": round(tl, 3), "dur": dur,
+            "reframe": _reframe_of({"reframe": raw.get("reframe"), "srcIn": 0, "label": "cadre"}),
+            "dz": _dz_spec({"dz": raw.get("dz"), "label": "cadre"})}
+
+
+def _cadre_pre(cad: dict, w: int, h: int, t_src: float) -> str:
+    """Le préfixe de géométrie d'UNE image, celui de la chaîne V1 du rendu
+    (`scale=…:force_original_aspect_ratio=increase,<crop>,setsar=1,
+    [zoompan],format=yuv420p`) avec deux horloges posées par `setpts` — l'image
+    extraite par `-ss` arrive à t ≈ 0 : le crop lit `t` = temps de SOURCE
+    (points absolus, voir `_cadre_of`), le zoompan lit `it` = `t_local`
+    (au rendu : temps du segment après fps=), et la pile lit `t` = `t_local`
+    (au rendu : après setpts=PTS-STARTPTS). MESURÉ le 26/09 (8.1.1) : zoompan
+    d=1 sur une image unique suit `it` posé par setpts. Sans vitesse ni
+    retime ni stabilisation (hors contrat : l'image reste celle de la source
+    à `t`)."""
+    n = sfx_service.fnum
+    rf, dz, tl, dur = cad.get("reframe"), cad.get("dz"), cad.get("t_local") or 0.0, cad.get("dur")
+    pre = []
+    if isinstance(rf, dict) and rf.get("mode") == "suivi":
+        pre.append(f"setpts=PTS-STARTPTS+{n(t_src)}/TB")
+    pre.append(f"scale={w}:{h}:force_original_aspect_ratio=increase,{_reframe_crop(rf, w, h)},setsar=1")
+    horloge = f"setpts=PTS-STARTPTS+{n(tl)}/TB"
+    pre.append(horloge)
+    if isinstance(dz, dict) and dur:
+        pre += [_dz_filter(dz, w, h, 30, dur), horloge]
+    pre.append("format=yuv420p")
+    return ",".join(pre)
+
+
+# Sémaphore propre à /grade-frame (même patron que `_scopes_sem`, distinct :
+# une rafale d'aperçus ne bloque pas les scopes, ni l'inverse).
+_GRADE_MAX = 2
+_GRADE_SEM: tuple | None = None        # (boucle, asyncio.Semaphore)
+
+
+def _grade_sem() -> asyncio.Semaphore:
+    global _GRADE_SEM
+    loop = asyncio.get_running_loop()
+    if _GRADE_SEM is None or _GRADE_SEM[0] is not loop:
+        _GRADE_SEM = (loop, asyncio.Semaphore(_GRADE_MAX))
+    return _GRADE_SEM[1]
+
+
 @router.post("/color-match")
 async def montage_color_match(request: Request):
     """Body `{target:{src,t}, ref?:{src,t}, auto?:bool}` → `{ok, effect, ref,
@@ -5832,14 +6038,20 @@ def _scopes_sem() -> asyncio.Semaphore:
 
 @router.post("/scopes")
 async def montage_scopes(request: Request):
-    """Body `{src, t, effects?, mask?}` → PNG 512×512 (waveform, vectorscope,
-    histogramme) de l'image ÉTALONNÉE. `no-store` : le client le redemande à
-    chaque arrêt, le cache disque suffit."""
+    """Body `{src, t, effects?, mask?, size?, cadre?}` → PNG size×size (256..1024
+    pair, défaut 512 ; waveform, vectorscope, histogramme) de l'image
+    ÉTALONNÉE — en mode `cadre`, celle de `/grade-frame` en mode cadre.
+    `no-store` : le client le redemande à chaque arrêt, le cache disque
+    suffit."""
     from app.services import grading as GR
     _require_local(request)
     body = await _json_body(request)
     t = _grade_t(body.get("t"))
     effs = _grade_effects(body.get("effects"))
+    size = _scopes_size(body.get("size"))
+    cad = _cadre_of(body.get("cadre"))
+    # 512 sans cadre : l'appel de L5 tel quel (positionnel).
+    kw = {} if size == _SCOPES_SIZE_DEFAUT and cad is None else {"size": size, "cadre": cad}
     p = await _media_source(request, body.get("src"), video=True)
     try:
         async with _scopes_sem():
@@ -5848,7 +6060,7 @@ async def montage_scopes(request: Request):
             # nginx), sans corps, que personne ne lira ; ffmpeg n'est pas lancé et la place se libère aussitôt.
             if await request.is_disconnected():
                 return Response(status_code=499)
-            out = await asyncio.to_thread(GR.scopes_png, p, t, effs, body.get("mask"))
+            out = await asyncio.to_thread(GR.scopes_png, p, t, effs, body.get("mask"), **kw)
     except Exception as e:
         raise _media_http(e)
     return FileResponse(out, media_type="image/png", headers={"Cache-Control": "no-store"})
@@ -5856,18 +6068,26 @@ async def montage_scopes(request: Request):
 
 @router.post("/grade-frame")
 async def montage_grade_frame(request: Request):
-    """Body `{src, t, effects?, mask?, w?}` → JPEG de l'image étalonnée
+    """Body `{src, t, effects?, mask?, w?, cadre?}` → JPEG de l'image étalonnée
     (`w` 96..640 pair, défaut 240) — aperçu du panneau Étalonnage et
-    vignettes de la lightbox."""
+    vignettes de la lightbox. Retours L6 : avec `cadre` (voir `_cadre_of`),
+    l'image du LECTEUR — géométrie du rendu, effets présents à `t_local` —,
+    `w` 96..1280 pair, défaut 720. Au plus deux calculs à la fois
+    (`_grade_sem`) ; client parti pendant l'attente → 499 sans ffmpeg."""
     from app.services import grading as GR
     _require_local(request)
     body = await _json_body(request)
     t = _grade_t(body.get("t"))
     effs = _grade_effects(body.get("effects"))
-    w = _grade_w(body.get("w"))
+    cad = _cadre_of(body.get("cadre"))
+    w = _grade_w(body.get("w")) if cad is None else _cadre_w(body.get("w"))
+    kw = {} if cad is None else {"cadre": cad}
     p = await _media_source(request, body.get("src"), video=True)
     try:
-        out = await asyncio.to_thread(GR.graded_frame, p, t, effs, body.get("mask"), w, "jpg")
+        async with _grade_sem():
+            if await request.is_disconnected():
+                return Response(status_code=499)
+            out = await asyncio.to_thread(GR.graded_frame, p, t, effs, body.get("mask"), w, "jpg", **kw)
     except Exception as e:
         raise _media_http(e)
     return FileResponse(out, media_type="image/jpeg",

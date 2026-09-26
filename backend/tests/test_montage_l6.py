@@ -111,22 +111,24 @@ LISTES = [
      {"type": "eq3", "mid_db": 5}, {"type": "stereo", "width": 180}, {"type": "echo", "time_ms": 120},
      {"type": "compressor"}, {"type": "distortion", "drive": 10}, {"type": "deesser"}],
 ]
+# 26/09 retours L6 T1 : écho/réverbe, le mix dose l'effet (sec à 0 dB) — voulu (listes 3, 4, 9)
 CHAINES_9ACA870 = [
     '',
     'lowpass=f=800:width_type=q:w=2',
     'bass=g=3:f=110,equalizer=f=1000:t=q:w=1:g=-2,treble=g=4:f=8000',
-    'aecho=0.9:0.3:300|600|900:0.3|0.09|0.027',
-    'aecho=0.9:0.4:129|303|561|939:0.465|0.2162|0.1005|0.0468',
+    'aecho=0.25:1:300|600|900:0.075|0.0225|0.0067,volume=4',
+    'aecho=0.25:1:129|303|561|939:0.0465|0.0216|0.0101|0.0047,volume=4',
     'volume=10.5,asoftclip=type=atan',
     'stereotools=slev=0.5',
     'stereowiden=delay=15:feedback=0.325:crossfeed=0.325:drymix=0.85',
     'deesser=i=0.7,acompressor=threshold=0.0316:ratio=6:attack=50:release=250,loudnorm=I=-14:TP=-1.5:LRA=11',
-    'bandpass=f=2000:width_type=q:w=1,equalizer=f=1000:t=q:w=1:g=5,deesser=i=0.5,acompressor=threshold=0.1:ratio=4:attack=50:release=250,volume=2.9,asoftclip=type=atan,aecho=0.9:0.3:120|240|360:0.3|0.09|0.027,aecho=0.9:0.2:86|202|374|626:0.41|0.1681|0.0689|0.0283,stereowiden=delay=15:feedback=0.4:crossfeed=0.43:drymix=0.85,loudnorm=I=-16:TP=-1.5:LRA=11',
+    'bandpass=f=2000:width_type=q:w=1,equalizer=f=1000:t=q:w=1:g=5,deesser=i=0.5,acompressor=threshold=0.1:ratio=4:attack=50:release=250,volume=2.9,asoftclip=type=atan,aecho=0.25:1:120|240|360:0.075|0.0225|0.0067,volume=4,aecho=0.25:1:86|202|374|626:0.0205|0.0084|0.0034|0.0014,volume=4,stereowiden=delay=15:feedback=0.4:crossfeed=0.43:drymix=0.85,loudnorm=I=-16:TP=-1.5:LRA=11',
 ]
+# 26/09 retours L6 T1 : écho/réverbe, le mix dose l'effet (sec à 0 dB) — voulu (jeux 1 et 2)
 AUDITIONS_9ACA870 = [
     ['ffmpeg', '-y', '-hide_banner', '-t', '4.0', '-i', 'C:\\l6\\src.wav', '-vn', '-ar', '44100', '-ac', '2', '-f', 'wav', 'C:\\l6\\out.wav'],
-    ['ffmpeg', '-y', '-hide_banner', '-ss', '2.5', '-t', '6.0', '-i', 'C:\\l6\\src.wav', '-vn', '-af', 'atempo=1.25,bass=g=3:f=110,equalizer=f=1000:t=q:w=1:g=-2,treble=g=4:f=8000,aecho=0.9:0.3:300|600|900:0.3|0.09|0.027,volume=0.7079', '-ar', '44100', '-ac', '2', '-f', 'wav', 'C:\\l6\\out.wav'],
-    ['ffmpeg', '-y', '-hide_banner', '-ss', '10.0', '-t', '12.0', '-i', 'C:\\l6\\src.wav', '-vn', '-af', 'bandpass=f=2000:width_type=q:w=1,equalizer=f=1000:t=q:w=1:g=5,deesser=i=0.5,acompressor=threshold=0.1:ratio=4:attack=50:release=250,volume=2.9,asoftclip=type=atan,aecho=0.9:0.3:120|240|360:0.3|0.09|0.027,aecho=0.9:0.2:86|202|374|626:0.41|0.1681|0.0689|0.0283,stereowiden=delay=15:feedback=0.4:crossfeed=0.43:drymix=0.85,loudnorm=I=-16:TP=-1.5:LRA=11', '-ar', '44100', '-ac', '2', '-f', 'wav', 'C:\\l6\\out.wav'],
+    ['ffmpeg', '-y', '-hide_banner', '-ss', '2.5', '-t', '6.0', '-i', 'C:\\l6\\src.wav', '-vn', '-af', 'atempo=1.25,bass=g=3:f=110,equalizer=f=1000:t=q:w=1:g=-2,treble=g=4:f=8000,aecho=0.25:1:300|600|900:0.075|0.0225|0.0067,volume=4,volume=0.7079', '-ar', '44100', '-ac', '2', '-f', 'wav', 'C:\\l6\\out.wav'],
+    ['ffmpeg', '-y', '-hide_banner', '-ss', '10.0', '-t', '12.0', '-i', 'C:\\l6\\src.wav', '-vn', '-af', 'bandpass=f=2000:width_type=q:w=1,equalizer=f=1000:t=q:w=1:g=5,deesser=i=0.5,acompressor=threshold=0.1:ratio=4:attack=50:release=250,volume=2.9,asoftclip=type=atan,aecho=0.25:1:120|240|360:0.075|0.0225|0.0067,volume=4,aecho=0.25:1:86|202|374|626:0.0205|0.0084|0.0034|0.0014,volume=4,stereowiden=delay=15:feedback=0.4:crossfeed=0.43:drymix=0.85,loudnorm=I=-16:TP=-1.5:LRA=11', '-ar', '44100', '-ac', '2', '-f', 'wav', 'C:\\l6\\out.wav'],
 ]
 
 # --- contrats : ordre, constantes -------------------------------------------

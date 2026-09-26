@@ -1427,6 +1427,12 @@ var SC=[{tr:"v2",id:"o",start:0,end:10,src:{job_id:"O"}},
 /* le plan V1 sous la tête : [début, fin[, V2 ignoré, tête illisible -> null */
 out.sc_at=[4,3.999,0,8,8.5,9.5,-1,"x",null,"4.5"].map(function(h){var c=T.scopesAt(SC,h);return c?c.id:null})
   .concat([T.scopesAt(null,1),T.scopesAt([null,5],1)]);
+/* retours L6 (26/09/2026, revue T4 m2) : la règle du lecteur (svmActiveV1) -- source exigée (job_id ou image), deux débuts
+   égaux : le DERNIER de la liste gagne ; témoin : un début plus tardif gagne toujours, quel que soit l'ordre */
+var SC2=[{tr:"v1",id:"p",start:0,end:5,src:{job_id:"P"}},{tr:"v1",id:"q",start:0,end:4,src:{image:"x.png"}},
+  {tr:"v1",id:"z",start:0,end:6,src:{}},{tr:"v1",id:"w",start:0,end:6,src:{job_id:""}}];
+out.sc_at2=[1,4.5,5.5].map(function(h){var c=T.scopesAt(SC2,h);return c?c.id:null})
+  .concat([T.scopesAt([SC2[1],SC2[0]],1).id,T.scopesAt([{tr:"v1",id:"l",start:.5,end:3,src:{job_id:"L"}},SC2[0]],1).id]);
 /* le corps de POST /api/montage/scopes : celui de grade-frame SANS largeur (effets actifs, masque avec effets) ; sans source -> null */
 out.sc_body=[T.scopesBody(SC[1],1),T.scopesBody(SC[2],5),T.scopesBody(SC[3],10),T.scopesBody(null,1)];
 /* la mémoire de la bascule : clé dz_montage_scopes, « 1 » / « 0 », éteinte par défaut, magasin en panne -> éteinte, rend ce qu'elle a posé */
@@ -4001,7 +4007,8 @@ check("l5_gp_composant_garde_avant_hooks_gestes_fenetre_sans_capture_stockage_pr
       and _corps("dzmGpDrawCurve").count("dzmCurveEval(") == 0 and _corps("dzmGpDrag").count("return stop}") == 1
       and _GPC.count("setPointerCapture") == 0 and _SRCb.count("setPointerCapture") == 1
       # tache 6 (24/09/2026) : grade-frame 1 -> 2, la lightbox (DzmLightbox) appelle la meme route -- ecart date, pin realigne
-      and _SRCb.count('dzmGpFetch("/api/montage/grade-frame",') == 2 and _SRCb.count('dzmGpFetch("/api/montage/color-match",') == 1
+      # retours L6 (26/09/2026, tache 4) : 2 -> 3, l'image etalonnee du lecteur (DzmGradeLive) appelle la meme route -- pin realigne
+      and _SRCb.count('dzmGpFetch("/api/montage/grade-frame",') == 3 and _SRCb.count('dzmGpFetch("/api/montage/color-match",') == 1
       and _GPC.count("URL.revokeObjectURL(") == 2 and _GPC.count("},400);") == 1 and _GPC.count("DzTracks") == 0
       and _SRCb.count('var DZM_GP_CLE="dz_montage_grade"') == 1
       and _corps("dzmGpRead").count("try{") == 1 and _corps("dzmGpWrite").count("try{") == 1
@@ -4019,8 +4026,12 @@ print("\n[38] L5 D-31 D-32 : scopes sous le lecteur, lightbox des plans, gestes 
 # phrase), puis les deux composants : rendu sous shim, et leurs GARDES DE COURSE ET DE FUITE jouees en EXECUTION sous un
 # mini-React (etats et effets persistants, minuteurs, fetch, URL et AbortController factices) -- une mutation qui retire
 # une garde doit rougir ici, pas seulement un pin de texte. Faute n6 : chaque lecture passe par D.get / DX.get / at().
-check("sc_at_plan_v1_sous_la_tete_debut_inclus_fin_exclue_v2_ignore_tete_illisible_rien",
-      D.get("sc_at") == ["b", "a", "a", None, None, "d", None, None, None, "b", None, None], D.get("sc_at"))
+# retours L6 (26/09/2026, revue T4 m2) : un plan SANS SOURCE n'est plus « sous la tete » (regle svmActiveV1 du lecteur) --
+# tete 9,5 : « d » -> None, pin realigne ; debuts egaux : le DERNIER gagne
+check("sc_at_plan_v1_sous_la_tete_debut_inclus_fin_exclue_v2_ignore_sans_source_ignore_tete_illisible_rien",
+      D.get("sc_at") == ["b", "a", "a", None, None, None, None, None, None, "b", None, None], D.get("sc_at"))
+check("sc_at2_regle_du_lecteur_source_job_id_ou_image_exigee_debuts_egaux_le_dernier_gagne_debut_tardif_gagne",
+      D.get("sc_at2") == ["q", "p", None, "p", "l"], D.get("sc_at2"))
 _SCM = {"shape": "rect", "x": 0, "y": 0, "w": 0.5, "h": 0.5, "soft": 0, "inv": False}
 check("sc_body_corps_de_grade_frame_sans_largeur_effets_actifs_masque_avec_effets_sans_source_rien",
       D.get("sc_body") == [{"src": {"job_id": "A"}, "t": 1, "effects": [{"type": "wheels", "gain_r": 1.2}], "mask": _SCM},
@@ -4054,21 +4065,33 @@ _SCt0 = ("Afficher les scopes du plan V1 sous la tête (forme d'onde, vecteursco
          "— rafraîchis à l'arrêt, jamais pendant la lecture")
 check("sc_rendu_eteint_un_bouton_titre_non_presse_aucun_message",
       _SCR[:4] == ["div", "dzm-scopes", [["Scopes", _SCt0, False, None]], []], _SCR[:4])
+# retours L6 (26/09/2026, tache 5) : la fenetre flottante porte UN bouton de plus, « × » (titre, eteint comme la puce) --
+# pin realigne : allume, deux boutons (la puce pressee, puis « × » sans aria-pressed ni data-on)
+_SCx = "Fermer les scopes (comme la puce « Scopes » de la barre du lecteur)"
 check("sc_rendu_allume_presse_mesure_en_cours_lecture_dite_aucun_plan_dit_plan_sans_source_dit",
-      _SCR[4:9] == [[["Scopes", "Masquer les scopes", True, ""]], ["Mesure en cours…"],
-                    ["Lecture : les scopes se rafraîchissent à l'arrêt"], ["Aucun plan sous la tête"], ["Plan sans source : rien à mesurer"]],
+      _SCR[4:9] == [[["Scopes", "Masquer les scopes", True, ""], ["×", _SCx, None, None]], ["Mesure en cours…"],
+                    # revue T4 m2 : le plan sans source n'est plus sous la tete (pin realigne) ; cloture des retours L6
+                    # (26/09) : « Aucun plan LISIBLE sous la tete » -- vrai pour le vide comme pour le plan sans source
+                    ["Lecture : les scopes se rafraîchissent à l'arrêt"], ["Aucun plan lisible sous la tête"],
+                    ["Aucun plan lisible sous la tête"]],
       _SCR[4:9])
 # Correctif preuve ecran (24/09) : la puce vit dans la barre du lecteur, l'ENCART (dzm-scpop : image + ligne d'etat) est
 # porte dans le cadre de lecture -- un quatrieme useState (le cadre hote) et un troisieme useEffect (le chercher, deps
 # [on]) : 15 -> 20 et 10 -> 15, pins realignes ; l'encart n'existe qu'allume (eteint : 0 ; allume, arret ou lecture : 1).
-check("sc_rendu_quatre_useState_trois_useEffect_par_rendu_encart_seulement_allume",
-      _SCR[9:13] == [20, [0, 1], 15, [0, 1, 1]], _SCR[9:13])
+# retours L6 (26/09/2026, tache 5) : la fenetre flottante -- un cinquieme useState (la geometrie {x, y, s, f}) et un
+# quatrieme useEffect (le recadrage au redimensionnement du navigateur, deps [on, hote]) : 20 -> 25 et 15 -> 20 sur les
+# cinq rendus, pins realignes.
+check("sc_rendu_cinq_useState_quatre_useEffect_par_rendu_encart_seulement_allume",
+      _SCR[9:13] == [25, [0, 1], 20, [0, 1, 1]], _SCR[9:13])
 _SCB = _corps("DzmScopes")
-check("sc_encart_porte_dans_le_cadre_du_lecteur_cherche_a_l_allumage_repli_sans_portail",
+# retours L6 (26/09/2026, tache 5) : l'encart devient une FENETRE FLOTTANTE portee dans la RACINE de la vue (.dzsvm),
+# plus dans le cadre (.svm-frame) : closest(".dzsvm") remplace closest(".svm-playerzone") + querySelector(".svm-frame") ;
+# la classe garde « dzm-scpop » (le repli en ligne reste cache par la MEME regle, _MASQUES inchange) -- pins realignes.
+check("sc_encart_porte_dans_la_racine_de_la_vue_cherchee_a_l_allumage_repli_sans_portail",
       len(_SCB) > 200 and _SCB.count("Pu.createPortal(") == 1 and _SCB.count('typeof Pu!=="undefined"') == 1
-      and _SCB.count('closest(".svm-playerzone")') == 1 and _SCB.count('querySelector(".svm-frame")') == 1
-      and _SCB.count("isConnected") == 1 and _SCB.count("},[on]);") == 1 and _SCB.count('className:"dzm-scpop"') == 1,
-      [_SCB.count(k) for k in ("Pu.createPortal(", 'closest(".svm-playerzone")', 'querySelector(".svm-frame")', "},[on]);")])
+      and _SCB.count('closest(".dzsvm")') == 1 and _SCB.count('closest(".svm-playerzone")') == 0 and _SCB.count('querySelector(".svm-frame")') == 0
+      and _SCB.count("isConnected") == 1 and _SCB.count("},[on]);") == 1 and _SCB.count('className:"dzm-scpop dzm-scwin"') == 1,
+      [_SCB.count(k) for k in ("Pu.createPortal(", 'closest(".dzsvm")', 'querySelector(".svm-frame")', "},[on]);")])
 _LBR = D.get("lb_rendu") if isinstance(D.get("lb_rendu"), list) and len(D.get("lb_rendu")) == 10 else [None] * 10
 check("lb_rendu_voile_trois_tuiles_v1_dans_l_ordre_titrees_clic_choisit_le_plan_voile_et_fermer_ferment_tout_bouton_titre",
       _LBR[:7] == ["div", "dzm-lbscrim", [["button", "a", True], ["button", "b", True], ["button", "d", True]], ["b"], 2, True, 4], _LBR[:7])
@@ -4086,7 +4109,8 @@ check("l5_sc_exports_au_contrat_route_scopes_x1_grade_frame_x2_panneau_et_lightb
       _DT.count("scopesAt:dzmScopesAt,scopesBody:dzmScopesBody,scopesGet:dzmScopesGet,scopesSet:dzmScopesSet,SC_CLE:DZM_SC_CLE,"
                 "lbPlans:dzmLbPlans,lbNext:dzmLbNext,LB_MAX:DZM_LB_MAX,gradeCopyDo:dzmGradeCopyDo,gradePasteDo:dzmGradePasteDo,gradeRead:dzmGpRead,"
                 "Scopes:DzmScopes,Lightbox:DzmLightbox,") == 1
-      and _SRCb.count('dzmGpFetch("/api/montage/scopes",') == 1 and _SRCb.count('dzmGpFetch("/api/montage/grade-frame",') == 2
+      # retours L6 (26/09/2026, tache 4) : grade-frame 2 -> 3 (DzmGradeLive, l'image etalonnee du lecteur) -- pin realigne
+      and _SRCb.count('dzmGpFetch("/api/montage/scopes",') == 1 and _SRCb.count('dzmGpFetch("/api/montage/grade-frame",') == 3
       and _SRCb.count('var DZM_SC_CLE="dz_montage_scopes"') == 1
       and _GPC.count("dzmGradeCopyDo(c)") == 1 and _GPC.count("dzmGradePasteDo(cur.current)") == 1 and _GPC.count("dzmGpWrite(") == 0,
       [_SRCb.count('dzmGpFetch("/api/montage/scopes",'), _SRCb.count('dzmGpFetch("/api/montage/grade-frame",')])
@@ -4296,12 +4320,13 @@ var M=mini(T.Scopes),R={};
      l'encart part dans le portail (et nulle part en ligne) ; cinq re-rendus, la tête bouge : AUCUNE nouvelle recherche
      (deps [on]) ; cadre détaché (isConnected faux) : l'encart retombe en ligne, hors portail. */
   FQ=[];UR.made=[];UR.rev=[];TM=[];S.dz_montage_scopes="1";
-  var NQ={cl:0,qs:0},FR={isConnected:!0},ZN={querySelector:function(s){NQ.qs++;return s===".svm-frame"?FR:null}};
+  /* retours L6 (26/09/2026, tâche 5) : la cible est la RACINE .dzsvm (closest), plus le cadre de la zone -- NQ.qs reste 0 */
+  var NQ={cl:0,qs:0},FR={isConnected:!0};
   G.Pu={createPortal:function(el,c){return {t:"portail",p:{children:[el],cible:c}}}};
   var estPop=function(n){return /dzm-scpop/.test(n.p.className||"")};
   function ou(m){var k=m&&m.p&&Array.isArray(m.p.children)?m.p.children[1]:null,dp=k&&k.t==="portail";
     return [k?k.t:null,dp?k.p.cible===FR:null,tous(m).filter(estPop).length,dp?tous(k.p.children).filter(estPop).length:0]}
-  var M7=mini(T.Scopes,function(){return {closest:function(s){NQ.cl++;return s===".svm-playerzone"?ZN:null}}});
+  var M7=mini(T.Scopes,function(){return {closest:function(s){NQ.cl++;return s===".dzsvm"?FR:null}}});
   M7.render({clips:SC,head:1,playing:!1});M7.flush();var pc=ou(M7.H.out);
   for(var hi=1;hi<=5;hi++)M7.render({clips:SC,head:1+hi*.2,playing:!1});M7.flush();var pr=[ou(M7.H.out),NQ.cl,NQ.qs];
   FR.isConnected=!1;M7.render({clips:SC,head:2.4,playing:!1});M7.flush();var pd=ou(M7.H.out);
@@ -4329,7 +4354,10 @@ check("l5x_scopes_en_lecture_aucun_minuteur_aucune_requete_la_lecture_dite",
       _RX.get("lecture") == [0, 0, ["Lecture : les scopes se rafraîchissent à l'arrêt"]], _RX.get("lecture"))
 check("l5x_scopes_a_l_arret_un_minuteur_300_ms_puis_une_requete_anti_rebond_annule_l_ancien",
       _RX.get("arret") == [[300], 0] and _RX.get("rebond") == [1, 0]
-      and _RX.get("req") == [1, "/api/montage/scopes", {"src": {"job_id": "A"}, "t": 1.5, "effects": [{"type": "wheels", "gain_r": 1.2}]}],
+      # retours L6 (26/09/2026, tache 5) : le corps porte size (cote 320 par defaut x densite 1 sous node) et cadre (ratio
+      # absent des props -> 9:16, t_local = tete - debut), contrat de la tache 3 -- pin realigne
+      and _RX.get("req") == [1, "/api/montage/scopes", {"src": {"job_id": "A"}, "t": 1.5, "effects": [{"type": "wheels", "gain_r": 1.2}],
+                                                        "size": 320, "cadre": {"ratio": "9:16", "t_local": 1.5, "dur": 4}}],
       [_RX.get("arret"), _RX.get("rebond"), _RX.get("req")])
 check("l5x_scopes_requete_remplacee_abandonnee_et_reponse_perimee_jetee",
       _RX.get("abort1") is True and _RX.get("perimee") == [["blob:B"], ["blob:B"], []], [_RX.get("abort1"), _RX.get("perimee")])
@@ -4408,7 +4436,8 @@ check("l5x_t6_M4_lightbox_modale_focus_sur_fermer_a_l_ouverture_rendu_au_depart_
 # Mutations qui rougissent ici : portail retire (en ligne des le cadre connecte), test isConnected retire (cadre detache
 # encore porte), deps [on] -> aucune (une recherche par rendu : 7 au lieu de 1).
 check("l5x_pt_encart_porte_dans_le_cadre_connecte_une_recherche_par_allumage_retombe_en_ligne_cadre_detache",
-      _RX.get("pt_portail") == [["portail", True, 1, 1], [["portail", True, 1, 1], 1, 1], ["div", None, 1, 0], [1, 1]],
+      # retours L6 (26/09/2026, tache 5) : une recherche closest(".dzsvm") par allumage, aucune querySelector -- pin realigne
+      _RX.get("pt_portail") == [["portail", True, 1, 1], [["portail", True, 1, 1], 1, 0], ["div", None, 1, 0], [1, 0]],
       _RX.get("pt_portail"))
 
 print("\n[39] L6 D-25 D-26 : le coeur pur audio — plage de bruit en temps de source, debruiteur appris, prises, type d'enregistrement (tache 4, 25/09/2026)")
@@ -4838,6 +4867,389 @@ check("l6v_aides_pures_ni_r_ni_x_ni_api_navigateur_composant_lit_micro_et_enregi
       and _DT.count("voExt:dzmVoExt,voChrono:dzmVoChrono,voErr:dzmVoErr,VoiceRec:DzmVoiceRec,") == 1
       and 0 < _SRCb.find("function DzmNoiseLearn(o){") < _SRCb.find("function DzmVoiceRec(o){") < _SRCb.find("function DzmScopes(o){"),
       [len(_VRC), {n: len(c) for n, c in _VPU.items()}])
+
+print("\n[41] retours L6 (26/09/2026, tache 4) : l'image étalonnée dans la fenêtre principale, à l'arrêt (DzmGradeLive)")
+# ── Retours L6 T4. DzmGradeLive sous le mini-React de PROBE_L5X (harnais REPRIS par tranche, _L6H) ; réseau = faux
+# `fetch` en file (la route grade-frame avec `cadre` est la tâche 3 : le banc code CONTRE LE CONTRAT du plan, pas contre
+# un serveur) ; refs objets montées par att (largeur CSS du cadre). Faute n6 : lectures par .get / listes de longueur
+# vérifiée, détail calculé avant le court-circuit.
+PROBE_R6 = _L6H + r"""
+var R={};window.devicePixelRatio=2;
+var GA={tr:"v1",id:"g",start:4,end:8,srcIn:2,src:{job_id:"G"},effects:[{type:"negate"},{type:"blur",off:!0}],
+    mask:{shape:"ellipse",x:.25,y:.25,w:.5,h:.5}},
+  GB={tr:"v1",id:"n",start:0,end:4,src:{job_id:"N"}},
+  GC={tr:"v1",id:"o",start:8,end:12,src:{job_id:"O"},effects:[{type:"negate",off:!0}]},
+  GD={tr:"v1",id:"d",start:12,end:16,srcIn:0,src:{job_id:"D"},effects:[{type:"pixelate"}],
+    dz:{x0:0,y0:0,w0:1,x1:.25,y1:.25,w1:.5},reframe:{mode:"manuel",x:.3}},
+  GS={tr:"v1",id:"s",start:16,end:20,effects:[{type:"negate"}]},
+  GV={tr:"v2",id:"v",start:0,end:30,src:{job_id:"V"},effects:[{type:"negate"}]};
+var CL=[GB,GA,GC,GD,GS,GV];
+function gimg(m){return tous(m).filter(function(n){return n.t==="img"})}
+function badge(m){return tous(m).filter(function(n){return /dzm-glbadge/.test(n.p.className||"")}).map(txt)}
+function bts(m){return tous(m).filter(function(n){return n.t==="button"})}
+function att(){return {clientWidth:405}}
+function P(h,j,z,rt){return {clips:CL,head:h,playing:!!j,vzoom:z===void 0?1:z,ratio:rt||"16:9"}}
+(async function(){
+  /* 0 : les aides pures -- largeur (CSS x dpr, paire, 96..1280, illisible -> 720), ratio (contrat, inconnu -> 9:16), corps */
+  R.w=[T.glW(405,2),T.glW(700,2),T.glW(null,2),T.glW(40,1),T.glW(401,1),T.glW(405,"x"),T.glW(405,0),T.glW(640,1),T.glW(0,2)];
+  R.ratio=[T.glRatio("16:9"),T.glRatio("1:1"),T.glRatio("4:5"),T.glRatio("9:16"),T.glRatio("3:2"),T.glRatio(void 0)];
+  R.body=[T.glBody(GA,5,"16:9"),T.glBody(GB,1,"9:16"),T.glBody(GC,9,"9:16"),T.glBody(null,1,"9:16"),
+    T.glBody(GS,17,"9:16"),T.glBody(GA,null,"1:1")];
+  R.bodyD=[T.glBody(GD,13,"bizarre"),T.dzOf(GD),T.reframePayload(GD)];
+  R.nul=T.GradeLive(null);
+  var M=mini(T.GradeLive,att);
+  /* 1 : en lecture -> aucun minuteur, aucune requête, aucune image ; jamais de bouton */
+  M.render(P(5,1));M.flush();R.lecture=[TM.length,FQ.length,gimg(M.H.out).length,bts(M.H.out).length];
+  /* 2 : plan sans effet, effets tous coupés, plan sans source, hors de V1 -> rien ne part */
+  [1,9,17,25].forEach(function(h){M.render(P(h));M.flush()});tick();R.sans=[TM.length,FQ.length,gimg(M.H.out).length];
+  /* 3 : arrêt sur GA -> UN minuteur de 250 ms puis UNE requête au corps exact (cadre du contrat T3, w = 405 x 2) */
+  M.render(P(5));M.flush();R.arret=[TM.map(function(t){return t.ms}),FQ.length];
+  tick();R.req=[FQ.length,FQ[0]&&FQ[0].u,FQ[0]&&FQ[0].body];
+  /* 4 : la réponse -> l'image couvre le cadre à l'échelle du lecteur, la pastille « étalonné » (texte) */
+  rep(0,"A");await settle();M.flush();var im=gimg(M.H.out)[0];
+  R.vue=[im?im.p.src:null,im?im.p.style:null,badge(M.H.out),bts(M.H.out).length,im?im.p.className:null];
+  /* 5 : le zoom du lecteur change -> l'image suit, AUCUNE requête (vzoom hors de l'empreinte) */
+  M.render(P(5,0,2));M.flush();tick();im=gimg(M.H.out)[0];R.zoom=[im?im.p.style.transform:null,FQ.length];
+  /* 6 : la tête bouge -> l'image PÉRIMÉE est masquée tout de suite ; la requête suivante porte le nouvel instant */
+  M.render(P(6));M.flush();R.perime=[gimg(M.H.out).length,badge(M.H.out)];
+  tick();R.req2=FQ.length===2?[FQ[1].body.t,FQ[1].body.cadre.t_local]:null;
+  /* 7 : la lecture repart pendant la requête -> abandon, rien d'affiché, la réponse tardive est jetée (aucune URL créée) */
+  M.render(P(6.2,1));M.flush();R.lecture_abort=[!!(FQ[1]&&FQ[1].sig&&FQ[1].sig.aborted),TM.length,gimg(M.H.out).length];
+  var nm=UR.made.length;rep(1,"B");await settle();M.flush();R.jete=[UR.made.length-nm,gimg(M.H.out).length];
+  /* 8 : refus 415 (V1 en image fixe) -> silence : rien d'affiché, aucune ligne d'état ; 9 : réseau en panne -> idem */
+  M.render(P(6.4));M.flush();tick();
+  FQ[2].d.a({ok:!1,status:415,json:function(){return Promise.resolve({detail:"image fixe"})}});await settle();M.flush();
+  R.refus=[gimg(M.H.out).length,badge(M.H.out),tous(M.H.out).filter(function(n){return n.p["aria-live"]!==void 0||n.t==="span"}).length];
+  M.render(P(6.6));M.flush();tick();FQ[3].d.b(new Error("réseau"));await settle();M.flush();R.panne=[gimg(M.H.out).length,badge(M.H.out)];
+  /* 10 : une nouvelle image REMPLACE et révoque l'ancienne ; démontage en vol -> abandon, révocation, rien de créé après */
+  M.render(P(7));M.flush();tick();rep(4,"C");await settle();M.flush();
+  R.remplace=[gimg(M.H.out).map(function(n){return n.p.src}),UR.rev.slice()];
+  M.render(P(7.5));M.flush();tick();var nr=UR.rev.length,nm2=UR.made.length;M.unmount();
+  rep(5,"D");await settle();R.demonte=[!!(FQ[5]&&FQ[5].sig&&FQ[5].sig.aborted),UR.rev.slice(nr),UR.made.length-nm2,TM.length];
+  /* 11 : cadre non mesurable et pas de devicePixelRatio -> w 720 ; ratio inconnu -> 9:16 ; zoom illisible -> scale(1) */
+  delete window.devicePixelRatio;var M2=mini(T.GradeLive);M2.render(P(5,0,"x","3:2"));M2.flush();tick();
+  var q=FQ[FQ.length-1];R.defaut=[FQ.length,q&&q.body.w,q&&q.body.cadre.ratio];
+  rep(FQ.length-1,"E");await settle();M2.flush();im=gimg(M2.H.out)[0];R.vz=im?im.p.style.transform:null;M2.unmount();
+  /* 12 (revue T4, Important) : une RAFALE de positions de tête avant l'anti-rebond -- chaque changement d'empreinte
+     annule le minuteur d'avant : UN seul minuteur vivant, UNE seule requête, à la DERNIÈRE position (5,2 -> t 3,2) */
+  window.devicePixelRatio=2;TM=[];var n12=FQ.length,M4=mini(T.GradeLive,att);
+  M4.render(P(5));M4.render(P(5.1));M4.render(P(5.2));M4.flush();var vivants=TM.map(function(t){return t.ms});tick();
+  R.rafale=[vivants,FQ.length-n12,FQ.length>n12?FQ[FQ.length-1].body.t:null];M4.unmount();
+  /* 13 (m3) : un effet BORNÉ n'agit que sur [t0, t1[ (effects_engine._timed) : hors de l'intervalle, ni requête ni
+     pastille ; dedans, une requête ; (m4) un plan V1 en IMAGE FIXE : rien (la route refuserait 415) */
+  var GT={tr:"v1",id:"t",start:0,end:10,src:{job_id:"T"},effects:[{type:"negate",t0:5,t1:6}]},
+    GI={tr:"v1",id:"i",start:10,end:14,src:{image:"x.png"},effects:[{type:"negate"}]};
+  TM=[];var n13=FQ.length,M5=mini(T.GradeLive,att),C13={clips:[GT,GI],head:2,playing:!1,vzoom:1,ratio:"9:16"};
+  M5.render(C13);M5.flush();tick();var hors=[FQ.length-n13,badge(M5.H.out)];
+  M5.render(Object.assign({},C13,{head:11}));M5.flush();tick();var fixe=[FQ.length-n13,badge(M5.H.out)];
+  M5.render(Object.assign({},C13,{head:5.5}));M5.flush();tick();var dans=[FQ.length-n13,FQ.length>n13?FQ[FQ.length-1].body.cadre.t_local:null];
+  M5.unmount();R.borne=[hors,fixe,dans];
+  function E(t0,t1){return {tr:"v1",id:"e",start:0,end:10,src:{job_id:"E"},effects:[{type:"negate",t0:t0,t1:t1}]}}
+  R.actif=[[E(5,6),2],[E(5,6),5],[E(5,6),5.999],[E(5,6),6],[E(5,5.02),2],[E(8,50),9.9],[E(9.98,50),1],[E(-3,1),0],
+    [E(void 0,6),9],[E(5,"x"),1],[E("",6),9],[E("5","6"),5.5],[E(!0,2),1.5],[E({},6),9]].map(function(q){return !!T.glBody(q[0],q[1],"9:16")})
+    .concat([T.glBody({tr:"v1",id:"i",start:0,end:4,src:{image:"x.png"},effects:[{type:"negate"}]},1,"9:16"),
+      T.glActif({t0:1,t1:2},1.5,0),T.glActif({t0:1,t1:9},5,3),T.glSec(" 2 "),T.glSec(null),T.glSec([]),T.glSec(!1)]);
+  out.R=R;
+})().catch(function(e){out.err=String(e&&e.stack||e)}).then(function(){console.log(JSON.stringify(out))});
+"""
+D8 = {}
+if NODE and os.path.isfile(SRC_PATH) and globals().get("SRC") and len(_L6H) > 2000 and "function mini(" in _L6H:
+    _sh8 = os.path.join(TMP, "shim_r6.js")
+    with open(_sh8, "w", encoding="utf-8") as fh:
+        fh.write('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + SRC + "\n" + PROBE_R6)
+    _r8 = sh([NODE, _sh8])
+    _l8x = (_r8.stdout or "").strip().splitlines()
+    try:
+        D8 = json.loads(_l8x[-1]) if _l8x else {}
+    except Exception as _e:
+        D8 = {"err": temoin(_e)}
+    check("r6_shim_execute_sans_erreur", _r8.returncode == 0 and "err" not in D8 and isinstance(D8.get("R"), dict),
+          (D8.get("err"), (_r8.stderr or "")[-400:]))
+else:
+    check("r6_shim_execute_sans_erreur", False, ("node, source ou harnais absents", len(_L6H)))
+_R8 = D8.get("R") if isinstance(D8.get("R"), dict) else {}
+def _r8(k, n):
+    v = _R8.get(k)
+    return v if isinstance(v, list) and len(v) == n else [None] * n
+check("r6_largeur_css_fois_dpr_paire_bornee_96_1280_illisible_720",
+      _R8.get("w") == [810, 1280, 720, 96, 402, 406, 406, 640, 720], _R8.get("w"))
+check("r6_ratio_du_contrat_inconnu_vaut_9_16",
+      _R8.get("ratio") == ["16:9", "1:1", "4:5", "9:16", "9:16", "9:16"], _R8.get("ratio"))
+_GL_MK = {"shape": "ellipse", "x": 0.25, "y": 0.25, "w": 0.5, "h": 0.5, "soft": 0, "inv": False}
+# retours L6 (26/09/2026, tache 5) : le cadre porte `dur` = fin - debut du plan (contrat reel de la tache 3, 71673fa :
+# sans lui le serveur ignore le zoom dynamique D-13 et ne borne pas t1) -- pins realignes (_GL_A, _B8[5], _BD[0])
+_GL_A = {"src": {"job_id": "G"}, "t": 3, "effects": [{"type": "negate"}], "mask": _GL_MK, "cadre": {"ratio": "16:9", "t_local": 1, "dur": 4}}
+_B8 = _r8("body", 6)
+check("r6_corps_effets_actifs_masque_cadre_temps_local_nul_sans_effet_actif_ou_sans_source_tete_illisible_milieu",
+      _B8[0] == _GL_A and _B8[1] is None and _B8[2] is None and _B8[3] is None and _B8[4] is None
+      and _B8[5] == dict(_GL_A, t=4, cadre={"ratio": "1:1", "t_local": 2, "dur": 4}), _B8)
+_BD = _r8("bodyD", 3)
+check("r6_corps_cadre_porte_reframe_et_dz_normalises_comme_le_payload_du_rendu_ratio_inconnu_9_16",
+      isinstance(_BD[0], dict) and isinstance(_BD[1], dict) and isinstance(_BD[2], dict)
+      and _BD[0].get("cadre") == {"ratio": "9:16", "t_local": 1, "dur": 4, "reframe": _BD[2], "dz": _BD[1]}
+      and _BD[0].get("t") == 1 and _BD[0].get("effects") == [{"type": "pixelate"}] and "mask" not in _BD[0] and "w" not in _BD[0],
+      _BD)
+check("r6_composant_tolere_null", "nul" in _R8 and _R8.get("nul") is None, _R8.get("nul"))
+check("r6_en_lecture_aucun_minuteur_aucune_requete_aucune_image_aucun_bouton",
+      _R8.get("lecture") == [0, 0, 0, 0], _R8.get("lecture"))
+check("r6_sans_effet_actif_sans_source_hors_v1_aucune_requete",
+      _R8.get("sans") == [0, 0, 0], _R8.get("sans"))
+_Q8 = _r8("req", 3)
+check("r6_a_l_arret_un_minuteur_250_ms_puis_une_requete_grade_frame_au_corps_exact_avec_cadre_et_w",
+      _R8.get("arret") == [[250], 0] and _Q8[0] == 1 and _Q8[1] == "/api/montage/grade-frame"
+      and _Q8[2] == dict(_GL_A, w=810), [_R8.get("arret"), _Q8])
+_V8 = _r8("vue", 5)
+# l'ORIGINE (centre, comme .svm-live) vient de la FEUILLE (.dzm-glimg, pin du banc bundle) : le style en ligne ne porte
+# que l'echelle -- le pin DZ3 du banc bundle compte les `transformOrigin` du bundle contre le .bak (aucun de plus).
+check("r6_image_affichee_echelle_du_lecteur_en_ligne_seule_pastille_etalonne_aucun_bouton",
+      _V8[0] == "blob:A" and _V8[1] == {"transform": "scale(1)"} and _V8[2] == ["étalonné"] and _V8[3] == 0
+      and _V8[4] == "dzm-glimg", _V8)
+check("r6_zoom_du_lecteur_suivi_sans_requete",
+      _R8.get("zoom") == ["scale(2)", 1], _R8.get("zoom"))
+check("r6_tete_deplacee_image_perimee_masquee_aussitot_nouvelle_requete_au_nouvel_instant",
+      _R8.get("perime") == [0, []] and _R8.get("req2") == [4, 2], [_R8.get("perime"), _R8.get("req2")])
+check("r6_la_lecture_repart_requete_abandonnee_minuteur_annule_reponse_tardive_jetee",
+      _R8.get("lecture_abort") == [True, 0, 0] and _R8.get("jete") == [0, 0],
+      [_R8.get("lecture_abort"), _R8.get("jete")])
+check("r6_refus_415_et_panne_reseau_silence_rien_d_affiche_aucune_ligne_d_etat",
+      _R8.get("refus") == [0, [], 0] and _R8.get("panne") == [0, []], [_R8.get("refus"), _R8.get("panne")])
+check("r6_nouvelle_image_remplace_et_revoque_l_ancienne_demontage_abandonne_et_revoque",
+      _R8.get("remplace") == [["blob:C"], ["blob:A"]] and _R8.get("demonte") == [True, ["blob:C"], 0, 0],
+      [_R8.get("remplace"), _R8.get("demonte")])
+check("r6_rafale_de_positions_un_seul_minuteur_vivant_une_seule_requete_a_la_derniere_position",
+      _R8.get("rafale") == [[250], 1, 3.2], _R8.get("rafale"))
+check("r6_m3_effet_borne_hors_de_son_intervalle_ni_requete_ni_pastille_m4_image_fixe_rien_dedans_une_requete",
+      _R8.get("borne") == [[0, []], [0, []], [1, 5.5]], _R8.get("borne"))
+check("r6_m3_actif_comme_effects_engine_timed_intervalle_t1_exclu_t1_borne_a_dur_moins_de_5_centiemes_tout_le_plan_bornes_illisibles_tout_le_plan",
+      _R8.get("actif") == [False, True, True, False, True, True, True, True, True, True, True, True, True, True,
+                           None, True, False, 2, None, None, 0], _R8.get("actif"))
+check("r6_cadre_non_mesurable_w_720_ratio_inconnu_9_16_zoom_illisible_scale_1",
+      _r8("defaut", 3)[1:] == [720, "9:16"] and _R8.get("vz") == "scale(1)", [_R8.get("defaut"), _R8.get("vz")])
+_GLC = _corps("DzmGradeLive")
+_GLP = {n: _corps(n) for n in ("dzmGlRatio", "dzmGlW", "dzmGlBody")}
+check("r6_aides_pures_sans_r_ni_x_ni_api_navigateur_composant_une_route_un_etat_aucun_bouton_place_apres_MaskBox_avant_NoiseLearn",
+      all(len(c) > 40 for c in _GLP.values())
+      and not any(re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|\bnavigator\b|fetch\(|setClips|pushHistory|URL\.", c)
+                  for c in _GLP.values())
+      and len(_GLC) > 800 and _GLC.count('dzmGpFetch("/api/montage/grade-frame",') == 1 and _GLC.count("x.useState(") == 1
+      and _GLC.count('"button"') == 0 and _GLC.count("URL.revokeObjectURL(") >= 1 and _GLC.count("AbortController") >= 1
+      and _GLC.count("devicePixelRatio") == 1 and _GLC.count("dzmScopesAt(") == 1
+      and _DT.count("glRatio:dzmGlRatio,glW:dzmGlW,glBody:dzmGlBody,GradeLive:DzmGradeLive,") == 1
+      and 0 < _SRCb.find("function DzmMaskBox(o){") < _SRCb.find("function DzmGradeLive(o){") < _SRCb.find("function DzmNoiseLearn(o){"),
+      [len(_GLC), {n: len(c) for n, c in _GLP.items()}])
+
+print("\n[42] retours L6 (26/09/2026, tache 5) : les scopes dans une fenêtre flottante déplaçable et redimensionnable")
+# ── Retours L6 T5. DzmScopes sous le mini-React de PROBE_L5X (harnais REPRIS par tranche, _L6H) : racine factice mesurable
+# (closest(".dzsvm")), portail factice, fenêtre factice qui COMPTE ses écouteurs, faux rAF, magasin factice ; réseau = faux
+# `fetch` en file (la route /scopes avec `size` et `cadre` est la tâche 3 : le banc code CONTRE LE CONTRAT du plan). Faute
+# n6 : lectures par .get / listes de longueur vérifiée, détail calculé avant le court-circuit.
+PROBE_R6S = _L6H + r"""
+var R={};window.devicePixelRatio=2;
+var S={dz_montage_scopes:"1"};window.localStorage={getItem:function(k){return Object.prototype.hasOwnProperty.call(S,k)?S[k]:null},setItem:function(k,v){S[k]=String(v)}};
+function scSt(Q){return {getItem:function(k){return Object.prototype.hasOwnProperty.call(Q,k)?Q[k]:null},setItem:function(k,v){Q[k]=String(v)}}}
+var SCBAD={getItem:function(){throw new Error("refus")},setItem:function(){throw new Error("refus")}};
+var LS={},WL={add:[],rem:[]};
+window.addEventListener=function(t,f){WL.add.push(t);(LS[t]=LS[t]||[]).push(f)};
+window.removeEventListener=function(t,f){WL.rem.push(t);LS[t]=(LS[t]||[]).filter(function(g){return g!==f})};
+function fire(t,e){(LS[t]||[]).slice().forEach(function(f){f(e)})}
+function nls(){return ["pointermove","pointerup","pointercancel","resize"].map(function(k){return (LS[k]||[]).length})}
+var RQ=[],RID=0,CAF=0;G.requestAnimationFrame=function(f){var id=++RID;RQ.push({id:id,f:f});return id};
+G.cancelAnimationFrame=function(id){CAF++;RQ=RQ.filter(function(q){return q.id!==id})};
+function frame(){var l=RQ;RQ=[];l.forEach(function(q){q.f()});return l.length}
+G.Pu={createPortal:function(el,c){return {t:"portail",p:{children:[el],cible:c}}}};
+var ROOT={isConnected:!0,clientWidth:1400,clientHeight:900},NCL=0;
+function att(){return {closest:function(s){NCL++;return s===".dzsvm"?ROOT:null}}}
+function cls(m,k){return tous(m).filter(function(n){return typeof n.p.className==="string"&&n.p.className.split(" ").indexOf(k)>=0})}
+function win(m){return cls(m,"dzm-scwin")[0]}
+function sty(m){var w=win(m),b=cls(m,"dzm-scwbody")[0];return [w?(w.p.style||null):"absente",b?(b.p.style||null):"absent"]}
+function pdn(id,cx,cy,o){return Object.assign({button:0,pointerId:id,clientX:cx,clientY:cy,preventDefault:function(){}},o||{})}
+var SA={tr:"v1",id:"a",start:0,end:4,src:{job_id:"A"},effects:[{type:"wheels",gain_r:1.2},{type:"blur",off:!0}],mask:{shape:"rect",x:0,y:0,w:.5,h:.5}},
+  SB={tr:"v1",id:"b",start:4,end:8,srcIn:2,src:{job_id:"B"},reframe:{mode:"manuel",x:.3},dz:{x0:0,y0:0,w0:1,x1:.25,y1:.25,w1:.5}},
+  SN={tr:"v1",id:"n",start:8,end:9};
+var CL=[SA,SB,SN];
+function P(h,j){return {clips:CL,head:h,playing:!!j,ratio:"16:9"}}
+(async function(){
+  /* 0 : les aides PURES -- taille demandée (côté x densité, bornée 256..1024), recadrage dans la racine (carré 240..1024,
+     borné), défaut en haut à droite, gestes (déplacer / agrandir), mémoire (corrompue -> null), corps de /scopes */
+  R.size=[T.scwSize(320,2),T.scwSize(320,1),T.scwSize(100,1),T.scwSize(700,2),T.scwSize(300,"x"),T.scwSize(null,1),T.scwSize(333.4,1),T.scwSize(240,0)];
+  R.fit=[T.scwFit({x:5000,y:10,s:2000},1400,900),T.scwFit({x:-50,y:-9,s:100},1400,900),T.scwFit({x:100,y:100,s:300},0,900),
+    T.scwFit({x:"a",y:1,s:300},1400,900),T.scwFit(null,1400,900),T.scwFit({x:10.4,y:20.6,s:300.5},1400,900),T.scwFit({x:0,y:0,s:500},200,150)];
+  R.def=[T.scwDef(1400,900),T.scwDef(300,900),T.scwDef(null,900)];
+  var G0={x:100,y:100,s:320};
+  R.geste=[T.scwGeste("m",G0,50,-20,1400,900),T.scwGeste("s",G0,100,60,1400,900),T.scwGeste("s",G0,-500,-400,1400,900),
+    T.scwGeste("s",{x:1000,y:500,s:320},900,900,1400,900),T.scwGeste("m",G0,"x",1,1400,900),T.scwGeste("m",null,1,1,1400,900),G0];
+  var Q={},st=scSt(Q),a=T.scwGet(st),b=T.scwSet({x:10.4,y:20,s:300},st),c=Q.dz_montage_scopes_geo,d=T.scwGet(st);
+  var bad=["{pas du json",'{"x":"1","y":2,"s":3}',"[1,2]","null",'{"x":1,"y":2}'].map(function(v){return T.scwGet(scSt({dz_montage_scopes_geo:v}))});
+  R.store=[a,b,c,d,bad,T.scwGet(SCBAD),T.scwSet({x:1,y:2,s:300},SCBAD),T.SCW_CLE];
+  R.body=[T.scwBody(SA,1,"16:9",320,2),T.scwBody(SB,5,"bizarre",500,1),T.scwBody(SN,8.5,"9:16",320,1),T.scwBody(null,1,"9:16",320,1),
+    T.reframePayload(SB),T.dzOf(SB),T.glCadre(SB,5,"1:1"),T.glCadre(SB,null,"9:16"),T.glCadre({start:2},3,"1:1"),T.glCadre({start:2,end:2},2,"1:1")];
+  /* 1 : allumée, racine mesurable -> portée dans la RACINE, géométrie par défaut (haut droite), une requête à 300 ms au
+     corps exact (size = 320 x 2, cadre du ratio du projet) */
+  var M=mini(T.Scopes,att);M.render(P(1));M.flush();var pt=M.H.out.p.children[1];
+  R.monte=[pt?pt.t:null,!!pt&&pt.p.cible===ROOT,sty(M.H.out),TM.map(function(t){return t.ms}),NCL,nls()];
+  tick();R.req=[FQ.length,FQ[0]&&FQ[0].u,FQ[0]&&FQ[0].body];rep(0,"S1");await settle();M.flush();R.img=imgs(M.H.out);
+  /* 2 : DÉPLACER par la barre de titre -- suit le pointeur (rAF), mémorisée au relâcher, AUCUNE requête (taille inchangée) */
+  var bar=cls(M.H.out,"dzm-scwbar")[0];bar.p.onPointerDown(pdn(3,500,100));var ls0=nls();
+  fire("pointermove",{pointerId:3,clientX:450,clientY:130});frame();M.flush();var pend=sty(M.H.out)[0],S0=S.dz_montage_scopes_geo;
+  fire("pointerup",{pointerId:3});M.flush();var nt=TM.length;tick();
+  R.move=[ls0,pend,S0===void 0,S.dz_montage_scopes_geo,sty(M.H.out)[0],nt,FQ.length,nls()];
+  /* 3 : REDIMENSIONNER par la poignée -- carré, borné à la racine ; PENDANT le geste l'image reste (étirée), aucun minuteur,
+     aucune requête ; au relâcher : mémorisée, puis UNE requête à la nouvelle taille (420 x 2) */
+  var gr=cls(M.H.out,"dzm-scwgrip")[0];gr.p.onPointerDown(pdn(4,1334,430));
+  fire("pointermove",{pointerId:4,clientX:1434,clientY:470});frame();M.flush();
+  var dur=[sty(M.H.out),TM.length,imgs(M.H.out)];tick();dur.push(FQ.length);
+  fire("pointerup",{pointerId:4});M.flush();var apres=TM.map(function(t){return t.ms});tick();
+  R.grow=dur.concat([S.dz_montage_scopes_geo,apres,FQ.length,FQ[1]&&FQ[1].body.size,FQ[1]&&FQ[1].body.cadre]);
+  rep(1,"S2");await settle();M.flush();R.img2=[imgs(M.H.out),UR.rev.slice()];
+  /* 4 : bouton secondaire, ou pointeur posé sur le « × » de la barre -> aucun geste (aucun écouteur) */
+  var a4=WL.add.length;bar=cls(M.H.out,"dzm-scwbar")[0];bar.p.onPointerDown(pdn(6,10,10,{button:2}));
+  bar.p.onPointerDown(pdn(7,10,10,{target:{closest:function(s){return s==="button"?{}:null}}}));R.ignore=WL.add.length-a4;
+  /* 5 : la fenêtre du NAVIGATEUR rétrécit -> la fenêtre des scopes est recadrée dans la racine (affichage), la mémoire garde
+     le dernier geste, aucune requête (taille inchangée) */
+  ROOT.clientWidth=800;fire("resize",{});M.flush();tick();R.recadre=[sty(M.H.out)[0],S.dz_montage_scopes_geo,FQ.length];
+  /* 6 : « × » (titré) éteint comme la puce -- mémoire « 0 », fenêtre retirée, écouteur de redimensionnement ôté */
+  var bx=btn(M.H.out,"×");R.x=[bx?bx.p.title:null,bx?bx.p["aria-label"]:null];bx.p.onClick();M.flush();tick();
+  R.ferme=[S.dz_montage_scopes,cls(M.H.out,"dzm-scwin").length,btn(M.H.out,"Scopes").p["aria-pressed"],FQ.length,nls(),UR.rev.slice()];
+  /* 7 : mémoire corrompue -> défaut en haut à droite de la racine (800 de large) ; démontage EN PLEIN GESTE -> les cinq
+     écouteurs du geste ôtés, le rAF annulé, rien mémorisé */
+  S.dz_montage_scopes_geo="{pas du json";btn(M.H.out,"Scopes").p.onClick();M.flush();R.corrompu=sty(M.H.out);
+  gr=cls(M.H.out,"dzm-scwgrip")[0];gr.p.onPointerDown(pdn(9,700,400));fire("pointermove",{pointerId:9,clientX:760,clientY:420});
+  var c0=CAF,dg=nls();M.unmount();frame();
+  R.demonte=[dg,nls(),CAF-c0,S.dz_montage_scopes_geo];
+  /* 8 : racine NON mesurable (onglet caché) -> pas de géométrie en ligne (la feuille pose le défaut), taille par défaut */
+  FQ=[];TM=[];S.dz_montage_scopes="1";delete S.dz_montage_scopes_geo;
+  var M2=mini(T.Scopes,function(){return {closest:function(){return {isConnected:!0}}}});M2.render(P(1));M2.flush();tick();
+  R.nonmes=[sty(M2.H.out),FQ.length,FQ[0]&&FQ[0].body.size];M2.unmount();
+  /* 9 : en lecture, la fenêtre reste (la ligne le dit) mais rien n'est demandé */
+  FQ=[];TM=[];var M3=mini(T.Scopes,att);M3.render(P(1,1));M3.flush();tick();R.lecture=[FQ.length,msg(M3.H.out),cls(M3.H.out,"dzm-scwin").length];M3.unmount();
+  /* ── revue T5 (26/09/2026). 10 (m5) : une RÉGION nommée, pas un dialogue ; (m1a) « × » EN PLEIN GESTE -> le geste est
+     abandonné : rien de mémorisé, même quand le relâcher arrive ensuite, écouteurs ôtés */
+  ROOT.clientWidth=1400;ROOT.clientHeight=900;S.dz_montage_scopes="1";S.dz_montage_scopes_geo='{"x":100,"y":100,"s":320}';FQ=[];TM=[];
+  var M6=mini(T.Scopes,att);M6.render(P(1));M6.flush();var w6=win(M6.H.out);R.role=[w6?w6.p.role:null,w6?w6.p["aria-label"]:null,w6?w6.p["aria-modal"]:null];
+  cls(M6.H.out,"dzm-scwgrip")[0].p.onPointerDown(pdn(30,500,500));fire("pointermove",{pointerId:30,clientX:560,clientY:520});frame();M6.flush();
+  btn(M6.H.out,"×").p.onClick();M6.flush();var nx=nls();fire("pointerup",{pointerId:30});frame();M6.flush();
+  R.x_geste=[nx,S.dz_montage_scopes_geo,S.dz_montage_scopes,nls()];
+  /* 11 (m1b) : un SECOND pointerdown pendant un geste abandonne le premier (écouteurs ôtés, pas doublés ; son relâcher
+     ne mémorise rien) ; le second part de la géométrie AFFICHÉE et seul lui est mémorisé */
+  btn(M6.H.out,"Scopes").p.onClick();M6.flush();
+  cls(M6.H.out,"dzm-scwgrip")[0].p.onPointerDown(pdn(40,500,500));fire("pointermove",{pointerId:40,clientX:600,clientY:500});frame();M6.flush();
+  cls(M6.H.out,"dzm-scwbar")[0].p.onPointerDown(pdn(41,200,110));var dbl=nls();
+  fire("pointerup",{pointerId:40});frame();M6.flush();var apres40=S.dz_montage_scopes_geo;
+  fire("pointermove",{pointerId:41,clientX:250,clientY:130});frame();fire("pointerup",{pointerId:41});M6.flush();
+  R.second=[dbl,apres40,S.dz_montage_scopes_geo,nls()];
+  /* 12 (m3) : le navigateur rétrécit EN PLEIN GESTE -> aucun recadrage ni minuteur pendant le geste ; au relâcher, la
+     géométrie est recadrée dans la racine COURANTE (600 de large), mémorisée, puis une requête à la nouvelle taille */
+  cls(M6.H.out,"dzm-scwgrip")[0].p.onPointerDown(pdn(50,700,700));fire("pointermove",{pointerId:50,clientX:800,clientY:700});frame();M6.flush();
+  TM=[];ROOT.clientWidth=600;fire("resize",{});M6.flush();var pend8=[sty(M6.H.out)[0],TM.length];
+  fire("pointerup",{pointerId:50});M6.flush();
+  R.resize_geste=[pend8,S.dz_montage_scopes_geo,sty(M6.H.out)[0],TM.map(function(t){return t.ms})];M6.unmount();
+  out.R=R;
+})().catch(function(e){out.err=String(e&&e.stack||e)}).then(function(){console.log(JSON.stringify(out))});
+"""
+D9 = {}
+if NODE and os.path.isfile(SRC_PATH) and globals().get("SRC") and len(_L6H) > 2000 and "function mini(" in _L6H:
+    _sh9 = os.path.join(TMP, "shim_r6s.js")
+    with open(_sh9, "w", encoding="utf-8") as fh:
+        fh.write('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + SRC + "\n" + PROBE_R6S)
+    _r9 = sh([NODE, _sh9])
+    _l9x = (_r9.stdout or "").strip().splitlines()
+    try:
+        D9 = json.loads(_l9x[-1]) if _l9x else {}
+    except Exception as _e:
+        D9 = {"err": temoin(_e)}
+    check("r6s_shim_execute_sans_erreur", _r9.returncode == 0 and "err" not in D9 and isinstance(D9.get("R"), dict),
+          (D9.get("err"), (_r9.stderr or "")[-400:]))
+else:
+    check("r6s_shim_execute_sans_erreur", False, ("node, source ou harnais absents", len(_L6H)))
+_R9 = D9.get("R") if isinstance(D9.get("R"), dict) else {}
+def _r9(k, n):
+    v = _R9.get(k)
+    return v if isinstance(v, list) and len(v) == n else [None] * n
+check("r6s_taille_demandee_cote_fois_densite_paire_bornee_256_1024_illisible_cote_320_densite_1",
+      _R9.get("size") == [640, 320, 256, 1024, 300, 320, 334, 256], _R9.get("size"))
+check("r6s_recadrage_carre_240_1024_borne_a_la_racine_arrondi_racine_non_mesurable_ou_geometrie_illisible_null",
+      _R9.get("fit") == [{"x": 524, "y": 0, "s": 876}, {"x": 0, "y": 0, "s": 240}, None, None, None, {"x": 10, "y": 21, "s": 301},
+                         {"x": 0, "y": 0, "s": 240}], _R9.get("fit"))
+check("r6s_defaut_en_haut_a_droite_marge_16_haut_56_cote_320_borne_racine_non_mesurable_null",
+      _R9.get("def") == [{"x": 1064, "y": 56, "s": 320}, {"x": 0, "y": 56, "s": 300}, None], _R9.get("def"))
+check("r6s_gestes_deplacer_agrandir_le_plus_grand_des_deux_ecarts_bornes_entree_intacte_illisible_null",
+      _R9.get("geste") == [{"x": 150, "y": 80, "s": 320}, {"x": 100, "y": 100, "s": 420}, {"x": 100, "y": 100, "s": 240},
+                           {"x": 524, "y": 0, "s": 876}, None, None, {"x": 100, "y": 100, "s": 320}], _R9.get("geste"))
+check("r6s_memoire_cle_dz_montage_scopes_geo_rend_ce_qu_elle_pose_corrompue_ou_incomplete_null_magasin_en_panne_tolere",
+      _R9.get("store") == [None, {"x": 10, "y": 20, "s": 300}, '{"x":10,"y":20,"s":300}', {"x": 10, "y": 20, "s": 300},
+                           [None] * 5, None, {"x": 1, "y": 2, "s": 300}, "dz_montage_scopes_geo"], _R9.get("store"))
+_B9 = _r9("body", 10)
+_SC_MK = {"shape": "rect", "x": 0, "y": 0, "w": 0.5, "h": 0.5, "soft": 0, "inv": False}
+check("r6s_corps_scopes_effets_actifs_masque_size_et_cadre_du_contrat_T3_dur_du_plan_reframe_dz_normalises_sans_source_null",
+      _B9[0] == {"src": {"job_id": "A"}, "t": 1, "effects": [{"type": "wheels", "gain_r": 1.2}], "mask": _SC_MK, "size": 640,
+                 "cadre": {"ratio": "16:9", "t_local": 1, "dur": 4}}
+      and isinstance(_B9[4], dict) and isinstance(_B9[5], dict)
+      and _B9[1] == {"src": {"job_id": "B"}, "t": 3, "size": 500, "cadre": {"ratio": "9:16", "t_local": 1, "dur": 4, "reframe": _B9[4], "dz": _B9[5]}}
+      and _B9[2] is None and _B9[3] is None
+      and _B9[6] == {"ratio": "1:1", "t_local": 1, "dur": 4, "reframe": _B9[4], "dz": _B9[5]} and isinstance(_B9[7], dict)
+      and _B9[7].get("t_local") == 2 and _B9[7].get("dur") == 4
+      # dur ABSENTE sans fin lisible ou sur un plan vide (le serveur la lit optionnelle)
+      and _B9[8] == {"ratio": "1:1", "t_local": 1} and _B9[9] == {"ratio": "1:1", "t_local": 0},
+      _B9)
+_M9 = _r9("monte", 6)
+check("r6s_allumee_portee_dans_la_racine_geometrie_par_defaut_en_ligne_un_minuteur_300_une_recherche_ecouteur_resize",
+      _M9[0] == "portail" and _M9[1] is True
+      and _M9[2] == [{"left": "1064px", "top": "56px", "width": "320px"}, {"height": "320px"}]
+      and _M9[3] == [300] and _M9[4] == 1 and _M9[5] == [0, 0, 0, 1], _M9)
+_Q9 = _r9("req", 3)
+check("r6s_requete_scopes_au_corps_exact_size_cote_fois_densite_cadre_du_ratio_du_projet",
+      _Q9[0] == 1 and _Q9[1] == "/api/montage/scopes"
+      and _Q9[2] == {"src": {"job_id": "A"}, "t": 1, "effects": [{"type": "wheels", "gain_r": 1.2}], "mask": _SC_MK, "size": 640,
+                     "cadre": {"ratio": "16:9", "t_local": 1, "dur": 4}} and _R9.get("img") == ["blob:S1"], [_Q9, _R9.get("img")])
+_V9 = _r9("move", 8)
+check("r6s_deplacer_suit_le_pointeur_memorise_au_relacher_seulement_aucune_requete_ecouteurs_otes",
+      _V9[0] == [1, 2, 2, 1] and _V9[1] == {"left": "1014px", "top": "86px", "width": "320px"} and _V9[2] is True
+      and _V9[3] == '{"x":1014,"y":86,"s":320}' and _V9[4] == {"left": "1014px", "top": "86px", "width": "320px"}
+      and _V9[5] == 0 and _V9[6] == 1 and _V9[7] == [0, 0, 0, 1], _V9)
+_G9 = _r9("grow", 9)
+check("r6s_redimensionner_carre_borne_racine_pendant_le_geste_image_gardee_aucun_minuteur_aucune_requete",
+      _G9[0] == [{"left": "980px", "top": "86px", "width": "420px"}, {"height": "420px"}] and _G9[1] == 0
+      and _G9[2] == ["blob:S1"] and _G9[3] == 1, _G9[:4])
+check("r6s_redimensionner_au_relacher_memorise_puis_une_requete_a_la_nouvelle_taille_image_remplacee",
+      _G9[4] == '{"x":980,"y":86,"s":420}' and _G9[5] == [300] and _G9[6] == 2 and _G9[7] == 840
+      and _G9[8] == {"ratio": "16:9", "t_local": 1, "dur": 4} and _R9.get("img2") == [["blob:S2"], ["blob:S1"]], [_G9[4:], _R9.get("img2")])
+check("r6s_bouton_secondaire_ou_pointeur_sur_le_x_aucun_geste", _R9.get("ignore") == 0, _R9.get("ignore"))
+check("r6s_navigateur_retreci_fenetre_recadree_dans_la_racine_memoire_gardee_aucune_requete",
+      _R9.get("recadre") == [{"left": "380px", "top": "86px", "width": "420px"}, '{"x":980,"y":86,"s":420}', 2], _R9.get("recadre"))
+check("r6s_croix_titree_eteint_comme_la_puce_memoire_0_fenetre_retiree_ecouteur_resize_ote_url_revoquee",
+      _R9.get("x") == ["Fermer les scopes (comme la puce « Scopes » de la barre du lecteur)", "Fermer les scopes"]
+      and _R9.get("ferme") == ["0", 0, False, 2, [0, 0, 0, 0], ["blob:S1", "blob:S2"]], [_R9.get("x"), _R9.get("ferme")])
+check("r6s_memoire_corrompue_defaut_en_haut_a_droite_de_la_racine",
+      _R9.get("corrompu") == [{"left": "464px", "top": "56px", "width": "320px"}, {"height": "320px"}], _R9.get("corrompu"))
+check("r6s_demontage_en_plein_geste_cinq_ecouteurs_otes_raf_annule_rien_memorise",
+      _R9.get("demonte") == [[1, 2, 2, 1], [0, 0, 0, 0], 1, "{pas du json"], _R9.get("demonte"))
+check("r6s_racine_non_mesurable_aucune_geometrie_en_ligne_taille_par_defaut",
+      _R9.get("nonmes") == [[None, None], 1, 640], _R9.get("nonmes"))
+check("r6s_en_lecture_fenetre_gardee_la_lecture_dite_aucune_requete",
+      _R9.get("lecture") == [0, ["Lecture : les scopes se rafraîchissent à l'arrêt"], 1], _R9.get("lecture"))
+check("r6s_revue_m5_une_region_nommee_pas_un_dialogue", _R9.get("role") == ["region", "Scopes", None], _R9.get("role"))
+check("r6s_revue_m1a_croix_en_plein_geste_abandonne_le_geste_rien_memorise_meme_au_relacher_ecouteurs_otes",
+      _R9.get("x_geste") == [[0, 0, 0, 0], '{"x":100,"y":100,"s":320}', "0", [0, 0, 0, 0]], _R9.get("x_geste"))
+check("r6s_revue_m1b_second_pointerdown_abandonne_le_premier_ecouteurs_non_doubles_seul_le_second_memorise",
+      _R9.get("second") == [[1, 2, 2, 1], '{"x":100,"y":100,"s":320}', '{"x":150,"y":120,"s":420}', [0, 0, 0, 1]], _R9.get("second"))
+check("r6s_revue_m3_navigateur_retreci_en_plein_geste_aucun_recadrage_ni_minuteur_recadre_dans_la_racine_courante_au_relacher",
+      _R9.get("resize_geste") == [[{"left": "150px", "top": "120px", "width": "520px"}, 0], '{"x":80,"y":120,"s":520}',
+                                  {"left": "80px", "top": "120px", "width": "520px"}, [300]], _R9.get("resize_geste"))
+_SWP = {n: _corps(n) for n in ("dzmGlCadre", "dzmScwSize", "dzmScwBody", "dzmScwFit", "dzmScwDef", "dzmScwInit", "dzmScwGeste",
+                               "dzmScwGet", "dzmScwSet", "dzmScwFin")}
+_SWC = _corps("DzmScopes")
+check("r6s_aides_pures_sans_r_ni_x_ni_reseau_ni_dom_composant_geste_par_dzmGpDrag_sans_capture_exports",
+      all(len(c) > 40 for c in _SWP.values())
+      and not any(re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|\bnavigator\b|fetch\(|setClips|pushHistory|URL\.", c)
+                  for c in _SWP.values())
+      and _SWP["dzmScwBody"].count("dzmScopesBody(") == 1 and _SWP["dzmScwBody"].count("dzmGlCadre(") == 1
+      and _corps("dzmGlBody").count("var cadre=dzmGlCadre(c,head,ratio);") == 1
+      and _SWC.count("dzmGpDrag(e,") == 1 and _SWC.count("setPointerCapture") == 0 and _SWC.count("dzmScwBody(") == 1
+      and _SWC.count("dzmTbVeille(") == 1 and _SWC.count("},[on,hote]);") == 1 and _SWC.count("x.useState(") == 5
+      and _SRCb.count('var DZM_SCW_CLE="dz_montage_scopes_geo"') == 1
+      and _DT.count("glCadre:dzmGlCadre,scwSize:dzmScwSize,scwBody:dzmScwBody,scwFit:dzmScwFit,scwDef:dzmScwDef,scwInit:dzmScwInit,"
+                    "scwGeste:dzmScwGeste,scwGet:dzmScwGet,scwSet:dzmScwSet,scwFin:dzmScwFin,SCW_CLE:DZM_SCW_CLE,") == 1,
+      [{n: len(c) for n, c in _SWP.items()}, len(_SWC)])
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

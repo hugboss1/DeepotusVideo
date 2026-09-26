@@ -15253,8 +15253,11 @@ _DZ_TAGS = [t for t, _a, _r in P.PATCHES]
 # chaque index negatif garde sa valeur, mesuree sur _PQ, rien n'est relache -- et la queue L5 est epinglee a part.
 # L6 (25/09/2026, tache 5) : une queue L6 (P.L6) vient APRES L5 -- _PQ retire les DEUX queues (L5 puis L6) : les index
 # negatifs des lots precedents gardent leur valeur (mesuree sur _PQ, rien n'est relache), L5 et L6 sont epinglees a part.
+# retours L6 (26/09/2026, tache 4) : une queue R6 (P.R6 = [R6gl1], l'image etalonnee dans le lecteur) vient APRES L6 -- _PQ
+# retire les TROIS queues (L5, L6, R6) : les index negatifs des lots precedents gardent leur valeur, R6 est epinglee a part.
 _L6Q = list(getattr(P, "L6", []))
-_PQ = P.PATCHES[:len(P.PATCHES) - len(getattr(P, "L5", [])) - len(_L6Q)]
+_R6Q = list(getattr(P, "R6", []))
+_PQ = P.PATCHES[:len(P.PATCHES) - len(getattr(P, "L5", [])) - len(_L6Q) - len(_R6Q)]
 _DZ_I = _DZ_TAGS.index("EA6-bandeau-ferme-au-lancement")
 # D-9 (tache 9) : QUATRE sections AJ2a, AJ2b, AJ6a, AJ6b APRES KF5, sonde 114
 # = 112 + adjustNew x1 + adjustTrack x1 (le repli dzAjAdd de R_M16REF).
@@ -15342,7 +15345,12 @@ check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB8b_puis_
                                                           # L6au1 ne parlent pas a la couche)
                                                           "L6fx1", "L6fx2", "L6fx3", "L6fx4", "L6fx5", "L6au1", "L6nl1",
                                                           # L6 (T6, 25/09/2026) : la puce voix off, sonde 173 -> 177
-                                                          "L6vo1"]
+                                                          "L6vo1",
+                                                          # retours L6 (T4, 26/09/2026) : l'image etalonnee dans le lecteur, sonde 177 -> 178
+                                                          "R6gl1",
+                                                          # retours L6 (revue T2, 26/09/2026) : les six textes de la musique
+                                                          # bornee (aucun site de code, sonde inchangee)
+                                                          "R6mu1", "R6mu2", "R6mu3", "R6mu4", "R6mu5", "R6mu6"]
       # L7-B D-37 et D-42 (24/09/2026) : AUCUNE section de plus (replis dans R_EC1) ; D-42 : sonde 159 -> 161
       # (cutAt + cutOpts dans le geste dzSceneCut) ; L7-B D-40 (T4) : AUCUNE section de plus (replis dans
       # R_DZ1/R_DZ3/R_DZ4), sonde 161 -> 163 (reframeCss dans l apercu vivant, reframeOf dans le payload)
@@ -15351,7 +15359,8 @@ check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB8b_puis_
               for _t, a, r in P.PATCHES[_DZ_I + 1:])
       # L6 (25/09/2026, tache 5) : 172 -> 173, NoiseLearn (L6nl1, seul site de code des sept sections L6)
       # L6 (25/09/2026, tache 6) : 173 -> 177, VoiceRec + dialogueTrack + voLabel + voCount (L6vo1, la puce voix off)
-      and _sonde.get("montage") == 177 and s.count("DzTracks") == 177
+      # retours L6 (26/09/2026, tache 4) : 177 -> 178, GradeLive (R6gl1, l'image etalonnee dans le lecteur)
+      and _sonde.get("montage") == 178 and s.count("DzTracks") == 178
       if _bak else False,
       f"queue={_DZ_TAGS[_DZ_I + 1:]} sonde={_sonde.get('montage')} bundle={s.count('DzTracks')}")
 
@@ -16688,7 +16697,9 @@ check("EC_la_sonde_dzcout_compte_DzTracks_166",
       # gradeRead (repli R_EC1)
       # 25/09/2026 (L6, T5) : 172 -> 173, NoiseLearn (L6nl1)
       # 25/09/2026 (L6, T6) : 173 -> 177, VoiceRec / dialogueTrack / voLabel / voCount (L6vo1)
-      _EC_SONDE.count('("montage", "DzTracks", 177),') == 1 and _EC_SONDE.count('("montage", "DzTracks", 173),') == 0
+      # 26/09/2026 (retours L6, T4) : 177 -> 178, GradeLive (R6gl1)
+      _EC_SONDE.count('("montage", "DzTracks", 178),') == 1 and _EC_SONDE.count('("montage", "DzTracks", 177),') == 0
+      and _EC_SONDE.count('("montage", "DzTracks", 173),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 172),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 163),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 161),') == 0
@@ -16701,7 +16712,7 @@ check("EC_la_sonde_dzcout_compte_DzTracks_166",
       and _EC_SONDE.count('("montage", "DzTracks", 142),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 139),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 135),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 132),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 129),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 128),') == 0
-      and _EC_SONDE.count('("montage", "DzTracks", 123),') == 0 and s.count("DzTracks") == 177,  # L6 (T5, 25/09) : 172 -> 173 ; L6 (T6, 25/09) : 177
+      and _EC_SONDE.count('("montage", "DzTracks", 123),') == 0 and s.count("DzTracks") == 178,  # L6 (T5, 25/09) : 172 -> 173 ; L6 (T6, 25/09) : 177 ; retours L6 (T4, 26/09) : 177 -> 178 (GradeLive, section R6gl1)
       f"sonde={_EC_SONDE.count(chr(40) + chr(34) + 'montage')} bundle={s.count('DzTracks')}")
 
 print("\n[EC] E-7 : les trois vues Medias · Montage · Livraison (lot E-C, tache 3)")
@@ -17083,7 +17094,8 @@ check("L4_sept_sections_consecutives_apres_EC15k_puis_L7A",
       len(P.L4) == 7 and _iL4q > 0 and P.PATCHES[_iL4q:_iL4q + 7] == P.L4 and P.PATCHES[_iL4q - 1][0].startswith("EC15k")
       # L5 (24/09/2026, tache 6) : L7A n'est plus la derniere -- L5 la suit
       # L6 (25/09/2026, tache 5) : L5 n'est plus la derniere -- la queue L6 la suit (la meme egalite, stricte, sur L5 + L6)
-      and P.PATCHES[_iL4q + 7:_iL4q + 7 + len(P.L7A)] == P.L7A and P.PATCHES[_iL4q + 7 + len(P.L7A):] == P.L5 + _L6Q, [p[0] for p in P.PATCHES[-9:]])
+      # retours L6 (26/09/2026, tache 4) : la queue R6 suit L6 (la meme egalite, stricte, sur L5 + L6 + R6)
+      and P.PATCHES[_iL4q + 7:_iL4q + 7 + len(P.L7A)] == P.L7A and P.PATCHES[_iL4q + 7 + len(P.L7A):] == P.L5 + _L6Q + _R6Q, [p[0] for p in P.PATCHES[-9:]])
 # L4a : l'etat dzDel (localStorage dz_montage_deliver lu x1 en try/catch, ecrit x1 par dzDelSet), la ref posee a chaque
 # rendu, dzApi + l'effet [pop] (GET x1, vivant), dzSavePreset (PUT x1, prompt natif -- ecart date, aucun dialogue maison)
 _L4_ST = '  var stDzDel=x.useState(function(){try{var v=JSON.parse(localStorage.getItem("dz_montage_deliver")||"null");if(!v||typeof v!=="object")return {};delete v.rangeOnly;return v}catch(_e){return {}}}),dzDel=stDzDel[0],setDzDel=stDzDel[1];'
@@ -17540,7 +17552,7 @@ check("L7d1_etat_diffSt_replie_en_queue_de_EB7_ETAT_apres_boMap_avant_stDzFin_un
       # L7-B D-34 (tache 7, 24/09/2026) : minNote + noteMsg du tiroir Medias (couche), 545 -> 547 (les trois epingles)
       # L7-B D-40 (tache 4, 24/09/2026) : 547 -> 548, l analyse du mouvement en cours (DzmPlanProps, couche) -- les trois epingles
       # L7-B D-41 (T6) : 548 -> 560 (+10 le popover DzmAutoclips, +1 la ligne ouverte du tiroir, +1 dzAcOpen de l'hote) ; revue T6 : 561 (+1 la langue)
-      and s.count("x.useState(") == 576 and (_bak.count("x.useState(") == 482 and _bak.count("diffSt") == 0 if _bak else False),  # L6 (T6, 25/09) : 574 -> 576 (VoiceRec : la phase et le chrono) ; L6 (T5, 25/09) : 573 -> 574 (NoiseLearn : la mesure en cours) ; L5 (T5, 24/09) : 561 -> 565, les quatre du panneau Etalonnage (couche) ; L5 (T6) : -> 571 (Scopes x3, Lightbox x2, dzLb x1) ; revue T5 : -> 572 (panneau : relecture du grade sur « storage ») ; correctif preuve ecran T6 : -> 573 (Scopes : le cadre hote de l'encart)
+      and s.count("x.useState(") == 578 and (_bak.count("x.useState(") == 482 and _bak.count("diffSt") == 0 if _bak else False),  # retours L6 (T5, 26/09) : 577 -> 578 (Scopes : la geometrie de la fenetre flottante) ; retours L6 (T4, 26/09) : 576 -> 577 (GradeLive) ; L6 (T6, 25/09) : 574 -> 576 (VoiceRec : la phase et le chrono) ; L6 (T5, 25/09) : 573 -> 574 (NoiseLearn : la mesure en cours) ; L5 (T5, 24/09) : 561 -> 565, les quatre du panneau Etalonnage (couche) ; L5 (T6) : -> 571 (Scopes x3, Lightbox x2, dzLb x1) ; revue T5 : -> 572 (panneau : relecture du grade sur « storage ») ; correctif preuve ecran T6 : -> 573 (Scopes : le cadre hote de l'encart)
       f"etat={s.count(nl(_L7D_ST))} ordre={(_iDfBo, _iDfSt, _iDfFin)} diffSt={s.count('diffSt')} useState={s.count('x.useState(')}")
 # revue 24/09 : un `diff` sans etat rend null -- jamais le popover generique
 _L7D_G = '    if(pop==="diff")return diffSt?r.jsx(DzTracks.DiffView,Object.assign({onClose:function(){setPop("")}},diffSt)):null;'
@@ -17656,7 +17668,7 @@ _L7G_ST = '  var stAb=x.useState({a:null,b:null,k:""}),abSt=stAb[0],setAbSt=stAb
 _iAbSt = s.find(nl(_L7G_ST))
 check("L7g_etat_abSt_replie_en_queue_de_EB7_ETAT_apres_diffSt_avant_stDzFin_useState_544",
       s.count(nl(_L7G_ST)) == 1 and _L7G_ST in P._EB7_ETAT and P._EB7_ETAT.endswith(_L7G_ST) and 0 < _iDfSt < _iAbSt < _iDfFin
-      and P._EB7_ETAT.count("DzTracks") == 4 and s.count("x.useState(") == 576 and (_bak.count("x.useState(") == 482 if _bak else False)  # L6 (T6, 25/09) : 574 -> 576 (VoiceRec : la phase et le chrono) ; L6 (T5, 25/09) : 573 -> 574 (NoiseLearn) ; D-41 (T6) : 548 -> 560 -> 561 (langue) ; L5 (T5, 24/09) : -> 565 (panneau Etalonnage) ; L5 (T6) : -> 571 ; revue T5 : -> 572 ; correctif preuve ecran T6 : -> 573 (Scopes : cadre hote)
+      and P._EB7_ETAT.count("DzTracks") == 4 and s.count("x.useState(") == 578 and (_bak.count("x.useState(") == 482 if _bak else False)  # retours L6 (T5, 26/09) : 577 -> 578 (Scopes : geometrie) ; retours L6 (T4, 26/09) : 576 -> 577 (GradeLive) ; L6 (T6, 25/09) : 574 -> 576 (VoiceRec : la phase et le chrono) ; L6 (T5, 25/09) : 573 -> 574 (NoiseLearn) ; D-41 (T6) : 548 -> 560 -> 561 (langue) ; L5 (T5, 24/09) : -> 565 (panneau Etalonnage) ; L5 (T6) : -> 571 ; revue T5 : -> 572 ; correctif preuve ecran T6 : -> 573 (Scopes : cadre hote)
       # MOT ENTIER (stabSt, tabSt… existent) : la declaration, abA (x2), abB (x2) = 5 ; setAbSt porte une majuscule ; x0 dans le .bak
       and len(re.findall(r"\babSt\b", s)) == 5 and (len(re.findall(r"\babSt\b", _bak)) == 0 if _bak else False)
       # la couche : aucun `abSt` entier (temoin : ses trois « dzmStabState » de L3 portent la sous-chaine)
@@ -17825,7 +17837,7 @@ check("L7f4_tiroir_etat_dzNewTr_branche_onNewTrack_avant_onChange_P16_intact_cas
       and s.count('r.jsx("input",{type:"checkbox",checked:dzNewTr,"aria-label":"Traduire dans une nouvelle piste",onChange:function(e){setDzNewTr(e.target.checked)}},"c")') == 1
       and s.count('className:"sub-trlang sub-trnew",title:"Coché : la traduction naît dans une nouvelle piste') == 1 and 0 < _iTg < _iNt < _iFn < _iTg + 1500
       and s.count('apres:dzOn.on?(dzNewTr?"Les "+dzTrN+" répliques traduites naissent dans une nouvelle piste S2, S3… — S1 reste intacte ; « Annuler » retire la piste et ses répliques.":DzTracks.subsTrTitle(dzTrN)):dzOn.pourquoi,') == 1
-      and len(re.findall(r"\bdzNewTr\b", s)) == 4 and s.count("setDzNewTr") == 2 and s.count("x.useState(") == 576  # L6 (T6, 25/09) : 574 -> 576 (VoiceRec : la phase et le chrono) ; L6 (T5, 25/09) : 573 -> 574 (NoiseLearn) ; D-41 (T6) : 548 -> 560 -> 561 (langue) ; L5 (T5, 24/09) : -> 565 (panneau Etalonnage) ; L5 (T6) : -> 571 ; revue T5 : -> 572 ; correctif preuve ecran T6 : -> 573 (Scopes : cadre hote)
+      and len(re.findall(r"\bdzNewTr\b", s)) == 4 and s.count("setDzNewTr") == 2 and s.count("x.useState(") == 578  # retours L6 (T5, 26/09) : 577 -> 578 (Scopes : geometrie) ; retours L6 (T4, 26/09) : 576 -> 577 (GradeLive) ; L6 (T6, 25/09) : 574 -> 576 (VoiceRec : la phase et le chrono) ; L6 (T5, 25/09) : 573 -> 574 (NoiseLearn) ; D-41 (T6) : 548 -> 560 -> 561 (langue) ; L5 (T5, 24/09) : -> 565 (panneau Etalonnage) ; L5 (T6) : -> 571 ; revue T5 : -> 572 ; correctif preuve ecran T6 : -> 573 (Scopes : cadre hote)
       and (_bak.count("dzNewTr") == 0 and _bak.count("sub-trnew") == 0 and _bak.count("onNewTrack") == 0 if _bak else False),
       f"ordre={(_iS9b, _iS9c, _iTrN)} case={(_iTg, _iNt, _iFn)} dzNewTr={len(re.findall(chr(92) + 'bdzNewTr' + chr(92) + 'b', s))} useState={s.count('x.useState(')}")
 # L7f4 (repli R_M24H) : l'hote passe onNewTrack -- subsNew puis svmTracksSet (historique) puis subsCopy sur setClips,
@@ -17917,7 +17929,7 @@ check("L7Ba_le_geste_sauvegarde_PUIS_export_nom_du_serveur_subsDownload_refus_pa
       and _L7B_F.find("if(proj.demo)") < _L7B_F.find('fetch("/api/montage/save"') < _L7B_F.find('fetch("/api/montage/export')
       and _L7B_F.count("subsDownload(o.nom,o.t,") == 1 and _L7B_F.count('res.headers.get("Content-Disposition")') == 1
       and _L7B_F.count("fireNote(") == 5 and _L7B_F.count(".catch(") == 1
-      and _L7B_F.count("DzTracks") == 0 and s.count("DzTracks") == 177 and _sonde.get("montage") == 177  # D-40 (T4) : 161 -> 163 ; L5 (T5) : 166 ; L5 (T6) : 172 ; L6 (T5, 25/09) : 173 (NoiseLearn) ; L6 (T6, 25/09) : 177 (L6vo1)
+      and _L7B_F.count("DzTracks") == 0 and s.count("DzTracks") == 178 and _sonde.get("montage") == 178  # D-40 (T4) : 161 -> 163 ; L5 (T5) : 166 ; L5 (T6) : 172 ; L6 (T5, 25/09) : 173 (NoiseLearn) ; L6 (T6, 25/09) : 177 (L6vo1) ; retours L6 (T4, 26/09) : 177 -> 178 (GradeLive, section R6gl1)
       and s.count("function subsDownload(name,text,mime){") == 1 and s.count("function svmSavePayload(){") == 1,
       f"f={len(_L7B_F)} fireNote={_L7B_F.count('fireNote(')} dz={s.count('DzTracks')} sonde={_sonde.get('montage')}")
 # le client appelle la route que le backend declare, avec les deux formats qu'il accepte
@@ -17991,7 +18003,7 @@ check("L7Bb_le_geste_garde_video_et_verrou_AVANT_l_appel_decoupe_par_la_couche_h
       and _L7BB_F.count("JSON.stringify({src:c.src,srcIn:Number(c.srcIn)||0,dur:du})") == 1
       and _L7BB_F.count("DzTracks.cutOpts(proj,trackStRef.current)") == 1 and _L7BB_F.count("DzTracks") == 2
       and _L7BB_F.count("pushHistory()") == 1 and _L7BB_F.count("setClips(") == 1 and _L7BB_F.count(".catch(") == 2
-      and s.count("DzTracks") == 177 and _sonde.get("montage") == 177,  # D-40 (T4) : 161 -> 163 ; L5 (T5) : 166 ; L5 (T6) : 172 ; L6 (T5, 25/09) : 173 (NoiseLearn) ; L6 (T6, 25/09) : 177 (L6vo1)
+      and s.count("DzTracks") == 178 and _sonde.get("montage") == 178,  # D-40 (T4) : 161 -> 163 ; L5 (T5) : 166 ; L5 (T6) : 172 ; L6 (T5, 25/09) : 173 (NoiseLearn) ; L6 (T6, 25/09) : 177 (L6vo1) ; retours L6 (T4, 26/09) : 177 -> 178 (GradeLive, section R6gl1)
       f"f={len(_L7BB_F)} dz={_L7BB_F.count('DzTracks')} bundle={s.count('DzTracks')} sonde={_sonde.get('montage')}")
 check("L7Bb_la_route_POST_scenes_existe_cote_backend_et_le_client_l_appelle_une_fois",
       _L7B_MS.count('@router.post("/scenes")') == 1 and _L7B_MS.count("_scenes.detect, p, src_in, dur, threshold=th") == 1
@@ -18104,7 +18116,7 @@ check("L7Bn_morceaux_x1_couche_et_bundle_x0_bak_aucune_section_L7B_sonde_161",
       all(src.count(t) == 1 and s.count(t) == 1 for t in _L7BN_P)
       and (all(_bak.count(t) == 0 for t in _L7BN_P) and _bak.count("svm-medstar") == 0 if _bak else False)
       and [t[0] for t in P.PATCHES if t[0].startswith("L7B")] == ["L7Brf1-apercu-du-cadrage-video-ou-image"]
-      and s.count("DzTracks") == 177 and _sonde.get("montage") == 177,  # D-40 (T4) : 161 -> 163 ; L5 (T5) : 166 ; L5 (T6) : 172 ; L6 (T5, 25/09) : 173 (NoiseLearn) ; L6 (T6, 25/09) : 177 (L6vo1)
+      and s.count("DzTracks") == 178 and _sonde.get("montage") == 178,  # D-40 (T4) : 161 -> 163 ; L5 (T5) : 166 ; L5 (T6) : 172 ; L6 (T5, 25/09) : 173 (NoiseLearn) ; L6 (T6, 25/09) : 177 (L6vo1) ; retours L6 (T4, 26/09) : 177 -> 178 (GradeLive, section R6gl1)
       {t[:30]: (src.count(t), s.count(t)) for t in _L7BN_P})
 check("L7Bn_css_etoiles_et_message_de_note_x1_dans_la_feuille",
       _EB_CSS.count(".dzsvm .svm-medstars{") == 1 and _EB_CSS.count(".dzsvm .svm-medstar{") == 1
@@ -18303,8 +18315,8 @@ check("L7Bac_morceaux_x1_couche_et_bundle_hote_x1_bundle_x0_bak_aucune_section_n
       and all(src.count(t) == 0 and s.count(t) == 1 for t in _L7BAC_H)
       and (all(_bak.count(t) == 0 for t in _L7BAC_L + _L7BAC_H) and _bak.count("dzAcOpen") == 0 if _bak else False)
       and [t[0] for t in P.PATCHES if t[0].startswith("L7B")] == ["L7Brf1-apercu-du-cadrage-video-ou-image"]
-      and len(P.PATCHES) == 200  # (le --check annonce 201 ancres) ; L5 (T6, 24/09) : 191 -> 192, la section L5sc1 ; L6 (T5, 25/09) : -> 199, sept sections L6 ; L6 (T6, 25/09) : -> 200, L6vo1
-      and s.count("DzTracks") == 177 and _sonde.get("montage") == 177,
+      and len(P.PATCHES) == 207  # retours L6 (revue T2, 26/09) : 201 -> 207, R6mu1..R6mu6 (le --check annonce 208 ancres) ; L5 (T6, 24/09) : 191 -> 192, la section L5sc1 ; L6 (T5, 25/09) : -> 199, sept sections L6 ; L6 (T6, 25/09) : -> 200, L6vo1 ; retours L6 (T4, 26/09) : -> 201, R6gl1
+      and s.count("DzTracks") == 178 and _sonde.get("montage") == 178,  # retours L6 (T4, 26/09) : 177 -> 178 (GradeLive)
       ({t[:30]: (src.count(t), s.count(t)) for t in _L7BAC_L + _L7BAC_H}, len(P.PATCHES), s.count("DzTracks")))
 # les trois replis sont dans LEURS remplacements (le patcher) : l'etat avant dzTbDock, openProj apres openReq, le relai du tiroir
 check("L7Bac_replis_dans_R_M11_R_M14_R_EB3",
@@ -18567,14 +18579,14 @@ check("L7Brf_replis_x1_dans_R_DZ1_R_DZ3_R_DZ4_bundle_x1_bak_x0_une_section_L7Brf
       and P.R_DZ1.count("svmSrcKey(k.src),") == 1 and P.R_DZ1.count('String(k.reframe.mode)') == 1
       and P.R_DZ1.count("it.el.videoWidth||it.el.naturalWidth||0") == 1
       and (all(_bak.count(t) == 0 for t in _RF_P) and _bak.count("reframe") == 0 if _bak else False)
-      and len(P.PATCHES) == 200  # 200 triplets (le --check dit 201 ancres) -- L7Brf1 et L5sc1 (T6, 24/09) compris ; L6 (T5, 25/09) : +7 sections L6 ; L6 (T6, 25/09) : +1, L6vo1
+      and len(P.PATCHES) == 207  # retours L6 (revue T2, 26/09) : 201 -> 207, R6mu1..R6mu6 (le --check dit 208 ancres) ; avant : 201 triplets -- L7Brf1 et L5sc1 (T6, 24/09) compris ; L6 (T5, 25/09) : +7 sections L6 ; L6 (T6, 25/09) : +1, L6vo1 ; retours L6 (T4, 26/09) : +1, R6gl1
       # DZ1 finit comme avant, le payload joint reframe APRES stab et avant le mixage audio
       and s.count(nl("          onChange:dzPlanSet}):null,\n        ovInspector(),")) == 1
       and 0 < s.find("var sbD=") < s.find("var rfD=") < s.find('        if(trackKind(c.tr)==="audio"){')
       and s.count("o.reframe=") == 1 and s.count("DzTracks.reframePayload(") == 1 and s.count("DzTracks.reframeOf(") == 0
       and s.count("DzTracks.reframeCss(") == 1 and _RF_P[7] in P.R_DZ1
       and s.count('"/api/montage/reframe"') == 1
-      and s.count("DzTracks") == 177 and _sonde.get("montage") == 177,  # L5 (T6, 24/09) : 166 -> 172 ; L6 (T5, 25/09) : -> 173 (NoiseLearn) ; L6 (T6, 25/09) : -> 177 (L6vo1)
+      and s.count("DzTracks") == 178 and _sonde.get("montage") == 178,  # L5 (T6, 24/09) : 166 -> 172 ; L6 (T5, 25/09) : -> 173 (NoiseLearn) ; L6 (T6, 25/09) : -> 177 (L6vo1) ; retours L6 (T4, 26/09) : -> 178 (GradeLive)
       {t[:40]: s.count(t) for t in _RF_P})
 check("L7Brf_la_route_POST_reframe_existe_cote_backend_et_le_client_l_appelle_une_fois",
       _L7B_MS.count('@router.post("/reframe")') == 1 and _L7B_MS.count("_reframe.motion_track, p, src_in, dur") == 1
@@ -18849,7 +18861,8 @@ check("L5gp_panneau_monte_une_fois_dans_R_DZ1_meme_garde_que_PlanProps_apres_ovI
       and 0 < s.find(nl("        ovInspector(),\n")) < s.find(_GP_HOTE) < s.find(_GP_PROPS) < s.find(nl("        audioInspector(),"))
       # `playing` lu est CELUI de DzMontage (declare entre sa tete et le montage du panneau, meme etat que les scopes)
       and 0 < s.find("function DzMontage(props){") < s.find("var st4=x.useState(!1),playing=st4[0],setPlaying=st4[1];") < s.find(_GP_HOTE)
-      and s.count("r.jsx(DzTracks.Scopes,{clips:clips,head:ph,playing:playing})") == 1
+      # retours L6 (26/09/2026, tache 5) : + ratio:proj.ratio (le cadre du corps de /scopes) -- pin realigne
+      and s.count("r.jsx(DzTracks.Scopes,{clips:clips,head:ph,playing:playing,ratio:proj.ratio})") == 1
       and (_bak.count("GradePanel") == 0 and _bak.count(_GP_GARDE) == 0 if _bak else False),
       (s.count(_GP_HOTE), s.count(_GP_GARDE), P.R_DZ1.count(_GP_GARDE)))
 check("L5gp_contour_du_masque_dans_R_DZ2_sous_les_rectangles_du_zoom_bak_x0",
@@ -18865,7 +18878,7 @@ check("L5gp_masque_au_payload_dans_R_DZ4_meme_map_que_les_overlays_V2_apres_le_c
       and 0 < _iRP < s.find("var rfD=", _iRP) < s.find(_GP_MK) < s.find('        if(trackKind(c.tr)==="audio"){', _iRP)
       < s.find("if(DzTracks.isOverlayTrack(c.tr,dzTracksRef.current)){", _iRP)
       and (_bak.count("o.mask=") == 0 if _bak else False)
-      and len(P.PATCHES) == 200 and s.count("DzTracks") == 177 and _sonde.get("montage") == 177,  # L5 (T6, 24/09) : L5sc1 ; sonde 166 -> 172 ; L6 (T5, 25/09) : 199 sections, sonde 173 ; L6 (T6, 25/09) : 200 sections, sonde 177
+      and len(P.PATCHES) == 207 and s.count("DzTracks") == 178 and _sonde.get("montage") == 178,  # retours L6 (revue T2, 26/09) : 201 -> 207 (R6mu1..6, sonde inchangee) ; L5 (T6, 24/09) : L5sc1 ; sonde 166 -> 172 ; L6 (T5, 25/09) : 199 sections, sonde 173 ; L6 (T6, 25/09) : 200 sections, sonde 177 ; retours L6 (T4, 26/09) : 201 sections, sonde 178
       (s.count(_GP_MK), len(P.PATCHES), s.count("DzTracks"), _sonde.get("montage")))
 check("L5gp_couche_du_bundle_porte_le_panneau_la_boite_et_les_aides_exports_x1",
       len(_L7BN_LAYER) > 100000 and _L7BN_LAYER.count("function DzmGradePanel(o){") == 1 and _L7BN_LAYER.count("function DzmMaskBox(o){") == 1
@@ -18908,14 +18921,16 @@ print("\n[L5] D-31 D-32 tache 6 : scopes sous le lecteur, lightbox des plans, co
 _L5SC_A = '            onClick:svmFullscreen,children:"plein écran ("+svmKeyLabel("fullscreen")+")"})]})]}),'
 check("L5sc1_section_unique_en_queue_ancre_libre_1_0_1_scopes_derniers_enfants_de_la_zone_du_lecteur",
       # L6 (25/09/2026, tache 5) : L5sc1 est la derniere section AVANT la queue L6 (plus la derniere tout court)
-      len(getattr(P, "L5", [])) == 1 and P.PATCHES[len(P.PATCHES) - len(_L6Q) - 1:len(P.PATCHES) - len(_L6Q)] == P.L5
+      # retours L6 (26/09/2026, tache 4) : ... et la queue R6 vient apres L6 -- L5sc1 est lue AVANT les deux (rien relache)
+      len(getattr(P, "L5", [])) == 1 and P.PATCHES[len(P.PATCHES) - len(_R6Q) - len(_L6Q) - 1:len(P.PATCHES) - len(_R6Q) - len(_L6Q)] == P.L5
       and P.L5[0][0] == "L5sc1-scopes-sous-la-barre-du-lecteur"
       and P.A_L5SC1 == _L5SC_A and s.count(nl(_L5SC_A)) == 0 and s.count(nl(P.R_L5SC1)) == 1
-      and s.count("r.jsx(DzTracks.Scopes,{clips:clips,head:ph,playing:playing})") == 1
+      # retours L6 (26/09/2026, tache 5) : + ratio:proj.ratio (le cadre du corps de /scopes, contrat T3) -- pins realignes
+      and s.count("r.jsx(DzTracks.Scopes,{clips:clips,head:ph,playing:playing,ratio:proj.ratio})") == 1
       and 0 < s.find('className:"svm-playerbar"') < s.find("r.jsx(DzTracks.Scopes,") < s.find('inspOn?r.jsxs("aside",{className:"svm-insp"')
       # correctif preuve ecran (24/09) : la puce est le DERNIER enfant de la BARRE du lecteur (apres « plein ecran »),
       # plus celui de la zone -- la barre puis la zone se ferment APRES elle
-      and P.R_L5SC1.endswith("r.jsx(DzTracks.Scopes,{clips:clips,head:ph,playing:playing})]})]}),")
+      and P.R_L5SC1.endswith("r.jsx(DzTracks.Scopes,{clips:clips,head:ph,playing:playing,ratio:proj.ratio})]})]}),")
       and P.R_L5SC1.count("]})]}),") == 1 and P.R_L5SC1.startswith('            onClick:svmFullscreen,children:"plein écran ("+svmKeyLabel("fullscreen")+")"}),\n')
       and [t[0][:2] for t in P.PATCHES].count("L5") == 1
       and (_bak.count(_nlb(_L5SC_A)) == 1 and _bak.count("DzTracks.Scopes") == 0 if _bak else False),
@@ -19069,9 +19084,11 @@ _SC_CSS = {k: _EB_CSS.count(k) for k in (
     "max-height:calc(min(100cqh, 100cqw / var(--svm-arw,.5625)) * .4)",
     "max-width:calc(min(100cqh * var(--svm-arw,.5625), 100cqw) * .4)",
     ".dzsvm .svm-playerzone[data-side] .dzm-scopes{")}
-check("L5_css_scopes_puce_dans_la_barre_en_tete_encart_dans_le_cadre_borne_40_pourcent_sous_la_barre_outils",
-      list(_SC_CSS.values()) == [1, 1, 1, 1, 1, 1, 1, 0]
-      and "pointer-events:none" in _EB_CSS[_EB_CSS.find(".dzsvm .svm-frame>.dzm-scpop{"):][:400]
+# retours L6 (26/09/2026, tache 5) : l'encart QUITTE le cadre (fenetre flottante portee dans la racine .dzsvm, pins [R6s]
+# ci-dessous) -- la regle `.svm-frame>.dzm-scpop` et ses deux bornes a 40 % du cadre disparaissent : [.., 1, 1, 1, 0] ->
+# [.., 0, 0, 0, 0], pins realignes ; la puce reste dans la barre (display:contents), le repli en ligne reste cache.
+check("L5_css_scopes_puce_dans_la_barre_en_tete_repli_en_ligne_cache_encart_hors_du_cadre",
+      list(_SC_CSS.values()) == [1, 1, 1, 1, 0, 0, 0, 0]
       # re-revue 4bda880 (24/09) : l'image est TRANSPARENTE aux gestes -- `auto` captait les pointeurs au-dessus de
       # .svm-tf (z 3) : poignees d'overlay et rectangles .dzm-dzrect inatteignables sous l'encart (coin haut droit),
       # molette / double-clic / depot perdus. Pin realigne : `none` dans la REGLE (jusqu'a son `}`), `auto` nulle part.
@@ -19130,7 +19147,11 @@ print("\n[L6] D-23 D-25 tache 5 : rack etendu (eq6, dehum, plancher et plage app
 # L6 (25/09/2026, tache 6) : + L6vo1, la puce « ● voix off » apres « narration » -- HUIT sections en queue
 _L6T = ["L6fx1", "L6fx2", "L6fx3", "L6fx4", "L6fx5", "L6au1", "L6nl1", "L6vo1"]
 check("L6_sept_sections_en_queue_apres_L5_ancres_1_0_1_touchees_par_aucune_autre_section",
-      [t[0].split("-")[0] for t in _L6Q] == _L6T and P.PATCHES[-len(_L6T):] == _L6Q and P.PATCHES[-len(_L6T) - 1:-len(_L6T)] == P.L5
+      [t[0].split("-")[0] for t in _L6Q] == _L6T
+      # retours L6 (26/09/2026, tache 4) : la queue R6 (une section) vient APRES L6 -- L6 est lue juste AVANT elle (rien relache)
+      # retours L6 (revue T2, 26/09/2026) : la queue R6 compte SEPT sections (R6gl1 + R6mu1..R6mu6) -- pin realigne
+      and len(_R6Q) == 7 and P.PATCHES[len(P.PATCHES) - len(_R6Q) - len(_L6T):len(P.PATCHES) - len(_R6Q)] == _L6Q
+      and P.PATCHES[len(P.PATCHES) - len(_R6Q) - len(_L6T) - 1:len(P.PATCHES) - len(_R6Q) - len(_L6T)] == P.L5
       and (all(_bak.count(_nlb(a)) == 1 and s.count(nl(a)) == (1 if a in r else 0) and s.count(nl(r)) == 1
                and sum(1 for _t in P.PATCHES if _t[0] != t and (a in _t[1] or a in _t[2])) == 0
                for t, a, r in _L6Q) if _bak else False),
@@ -19432,6 +19453,145 @@ check("L6vo_nfEffectif_de_la_couche_et_resume_du_rack_meme_regle_seuil_moins_0_5
       and P.R_L6FX4.count("Number(p.nf)<=-.5?") == 1 and P.R_L6FX4.count("Math.max(-80,Math.min(-20,Number(p.nf)))") == 1
       and s.count("nfEffectif:dzmNfEffectif,") == 1 and src.count("apNf=ap?dzmNfEffectif(ap.nf):null") == 1,
       len(_NFE))
+
+# ══════════════════════════════════════════════════════════════════════════
+print("\n[R6] retours L6 (26/09/2026, tache 4) : l'image etalonnee dans la fenetre principale, a l'arret")
+# ── Retours L6 T4. UNE section EN QUEUE (P.R6 = [R6gl1]), posee APRES L6, sur l'ancre LIBRE de la couche des overlays V2
+# (`liveOn?r.jsx("div",{className:"svm-liveov",ref:liveOvRef,`, 1/0/1 : x1 dans .bak_montage, touchee par aucune autre
+# section, x1 dans le bundle livre -- elle est GARDEE en queue du remplacement). Le composant (couche, DzmGradeLive) est
+# monte ENTRE la couche V1 (.svm-live) et les overlays V2 : V2, titres, voile, cadre de selection et sous-titres restent
+# AU-DESSUS par l'ordre du DOM (aucun z-index). Les noms de l'hote sont MESURES (B:~1723-1772, DzMontage) : clips, ph (la
+# tete), playing, vzoom (le zoom molette), proj.ratio (le ratio du projet, celui du cadre et du payload de rendu).
+_R6_REPL = 'liveOn?r.jsx(DzTracks.GradeLive,{clips:clips,head:ph,playing:playing,vzoom:vzoom,ratio:proj.ratio}):null,'
+_R6_A = 'liveOn?r.jsx("div",{className:"svm-liveov",ref:liveOvRef,'
+check("R6_une_section_en_queue_apres_L6_ancre_libre_1_0_1_gardee_touchee_par_aucune_autre_section",
+      # retours L6 (revue T2, 26/09/2026) : la queue R6 porte en plus R6mu1..R6mu6 (epinglees en [R6mu]) -- R6gl1 reste la
+      # PREMIERE de la queue, juste apres L6 ; 201 -> 207 (pins realignes)
+      [t[0].split("-")[0] for t in _R6Q] == ["R6gl1", "R6mu1", "R6mu2", "R6mu3", "R6mu4", "R6mu5", "R6mu6"]
+      and P.PATCHES[-len(_R6Q):] == _R6Q
+      and P.PATCHES[-len(_R6Q) - 1:-len(_R6Q)] == _L6Q[-1:] and len(P.PATCHES) == 207
+      and (all(_bak.count(_nlb(a)) == 1 and a == _R6_A and r.endswith(a) and r.count(_R6_REPL) == 1
+               and r.count("DzTracks") == 1 and s.count(nl(a)) == 1 and s.count(nl(r)) == 1
+               and sum(1 for _t in P.PATCHES if _t[0] != t and (a in _t[1] or a in _t[2])) == 0
+               for t, a, r in _R6Q[:1]) if _bak and _R6Q else False),
+      [(t[:6], _bak.count(_nlb(a)) if _bak else "?", s.count(nl(a)), s.count(nl(r))) for t, a, r in _R6Q])
+_R6_I = {k: s.find(v) for k, v in (("frame", 'r.jsxs("div",{className:"svm-frame",ref:frameRef,'),
+                                     ("live", 'liveOn?r.jsx("div",{className:"svm-live",ref:liveHostRef,'),
+                                     ("gl", _R6_REPL), ("ov", _R6_A),
+                                     ("tt", 'liveOn?r.jsx("div",{className:"svm-livetitle",ref:dzTtHostRef,'),
+                                     ("veil", 'liveOn?r.jsx("i",{className:"svm-xfveil",ref:dzVeilRef,'),
+                                     ("tf", 'liveOn?r.jsxs("div",{className:"svm-tf",children:['),
+                                     ("subs", "subsOverlay(),"),
+                                     ("tc", 'r.jsx("div",{className:"svm-frametc svm-frametr",children:svmTcFF(ph)})'))}
+check("R6_image_etalonnee_montee_une_fois_dans_le_cadre_apres_la_couche_V1_avant_overlays_titres_voile_selection_sous_titres",
+      s.count("DzTracks.GradeLive") == 1 and s.count(_R6_REPL) == 1 and _bak.count("GradeLive") == 0
+      and all(v > 0 for v in _R6_I.values())
+      and _R6_I["frame"] < _R6_I["live"] < _R6_I["gl"] < _R6_I["ov"] < _R6_I["tt"] < _R6_I["veil"] < _R6_I["tf"] < _R6_I["subs"] < _R6_I["tc"]
+      and s.count('className:"svm-frame",ref:frameRef,') == 1 and s.count('className:"svm-live",ref:liveHostRef,') == 1,
+      _R6_I)
+# LES NOMS DE L'HOTE, MESURES : declares une fois dans DzMontage AVANT le montage (le composant en lit cinq)
+_R6_H = {k: (s.count(v), s.find(v)) for k, v in (("clips", "var st1=x.useState(svmDemoClips),clips=st1[0],setClips=st1[1];"),
+                                                   ("ph", "var st3=x.useState(18.4),ph=st3[0],setPh=st3[1];"),
+                                                   ("playing", "var st4=x.useState(!1),playing=st4[0],setPlaying=st4[1];"),
+                                                   ("vzoom", "var stVZ=x.useState(1),vzoom=stVZ[0],setVzoom=stVZ[1];"),
+                                                   ("ratio", 'style:{aspectRatio:String(proj.ratio||"9:16").replace(":","/"),'))}
+check("R6_noms_de_l_hote_mesures_clips_ph_playing_vzoom_proj_ratio_declares_une_fois_avant_le_montage",
+      all(n == 1 and 0 < i < _R6_I["gl"] for n, i in _R6_H.values())
+      and _R6_H["clips"][1] < _R6_H["ph"][1] < _R6_H["playing"][1] < _R6_H["vzoom"][1] < _R6_H["ratio"][1],
+      _R6_H)
+# LA FEUILLE : l'enveloppe couvre le cadre sans capter un pointeur, SANS z-index (l'ordre du DOM fait la pile, comme le
+# voile D-12) ; l'image est AU FORMAT du cadre (object-fit:fill) ; la pastille est un texte, sous le timecode a gauche.
+_R6_CSS = {k: _EB_CSS.count(k) for k in (
+    ".dzsvm .dzm-glive{position:absolute;inset:0;pointer-events:none;overflow:hidden}",
+    ".dzsvm .dzm-glimg{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;display:block;pointer-events:none;transform-origin:center center}",
+    ".dzsvm .dzm-glbadge{position:absolute;top:34px;left:10px;")}
+_R6_RG = _EB_CSS[_EB_CSS.find(".dzsvm .dzm-glive{"):]
+_R6_RG = _R6_RG[:_R6_RG.find(".dzsvm .dzm-glbadge{")] if ".dzsvm .dzm-glbadge{" in _R6_RG else ""
+_R6_BG = _EB_CSS[_EB_CSS.find(".dzsvm .dzm-glbadge{"):]
+_R6_BG = _R6_BG[:_R6_BG.find("}") + 1]
+check("R6_css_enveloppe_sans_pointeur_ni_z_index_image_au_format_du_cadre_pastille_texte_sans_pointeur",
+      list(_R6_CSS.values()) == [1, 1, 1] and len(_R6_RG) > 60 and "z-index" not in _R6_RG
+      and "pointer-events:none" in _R6_BG and "z-index" not in _R6_BG and _EB_CSS.count("dzm-gl") == 3,
+      [_R6_CSS, len(_R6_RG), _R6_BG])
+
+# ══════════════════════════════════════════════════════════════════════════
+print("\n[R6s] retours L6 (26/09/2026, tache 5) : les scopes dans une fenetre flottante deplacable et redimensionnable")
+# ── Retours L6 T5. AUCUNE section neuve (201 triplets, sonde 178 inchanges) : la section L5sc1 passe en plus le ratio du
+# projet a la puce (le cadre du corps de /scopes, contrat T3 -- `proj.ratio`, le nom MESURE par R6gl1, declare AVANT la
+# puce). La fenetre est portee par la couche dans la RACINE .dzsvm (Pu.createPortal) : la feuille la pose en absolu, en
+# haut a droite par defaut (la geometrie memorisee passe en ligne), z-index 9 -- MESURE dans les trois feuilles : la barre
+# OUTILS est a 8 (.dzm-tbar, .dzm-tbtab), les popovers a 10 (.dzm-projp -- 9 -> 10 le 26/09, revue T5 m2 : a egalite la
+# fenetre, plus tardive dans le DOM de la meme racine, couvrait la liste des projets -- et .svm-transpop), la lightbox et
+# le voile de mode 19, menus et modales 20 : au-dessus de la barre OUTILS, STRICTEMENT sous tout le reste. Elle CAPTE ses pointeurs (pointer-events:auto : elle n'est plus
+# dans le cadre, elle ne masque plus ses poignees) ; la barre de titre et la poignee sont `touch-action:none` (gestes
+# par dzmGpDrag, sans capture) ; l'image remplit le carre (object-fit:contain) SANS pointeur. Aucun `display:none` de
+# plus (_MASQUES reste a 5).
+_R6S_HOTE = "r.jsx(DzTracks.Scopes,{clips:clips,head:ph,playing:playing,ratio:proj.ratio})"
+check("R6s_puce_des_scopes_recoit_le_ratio_du_projet_x1_declare_avant_aucune_section_neuve",
+      s.count(_R6S_HOTE) == 1 and P.R_L5SC1.count(_R6S_HOTE) == 1 and len(P.PATCHES) == 207  # revue T2 : 201 -> 207 (R6mu)
+      and 0 < s.find('style:{aspectRatio:String(proj.ratio||"9:16").replace(":","/"),') < s.find(_R6S_HOTE)
+      and s.count("DzTracks.Scopes") == 1 and s.count("DzTracks") == 178 and _sonde.get("montage") == 178,
+      [s.count(_R6S_HOTE), len(P.PATCHES), s.count("DzTracks")])
+def _r6s_regle(sel):
+    i = _EB_CSS.find(sel + "{")
+    return _EB_CSS[i:_EB_CSS.find("}", i) + 1] if i >= 0 else ""
+_R6S_W = _r6s_regle(".dzsvm>.dzm-scwin")
+_R6S_B = _r6s_regle(".dzsvm .dzm-scwbar")
+_R6S_G = _r6s_regle(".dzsvm .dzm-scwgrip")
+_R6S_I = _r6s_regle(".dzsvm .dzm-scimg")
+check("R6s_css_fenetre_absolue_dans_la_racine_z9_au_dessus_des_outils_sous_les_popovers_capte_ses_pointeurs",
+      _EB_CSS.count(".dzsvm>.dzm-scwin{") == 1 and "position:absolute" in _R6S_W and "z-index:9;" in _R6S_W
+      and "pointer-events:auto" in _R6S_W and "top:56px" in _R6S_W and "right:16px" in _R6S_W and "width:320px" in _R6S_W
+      and _EB_CSS.count(".dzsvm .dzm-tbar{") == 1 and "z-index:8;" in _r6s_regle(".dzsvm .dzm-tbar")
+      and "z-index:10;" in _r6s_regle(".dzsvm .dzm-projp") and "z-index:9;" not in _r6s_regle(".dzsvm .dzm-projp")
+      and "z-index:19;" in _r6s_regle(".dzsvm .dzm-lbscrim")
+      and _EB_CSS.count(".svm-frame>.dzm-scpop") == 0,
+      [_R6S_W])
+check("R6s_css_barre_et_poignee_sans_geste_tactile_image_remplit_le_carre_sans_pointeur_corps_carre_par_defaut",
+      "touch-action:none" in _R6S_B and "cursor:move" in _R6S_B and "height:24px" in _R6S_B
+      and "touch-action:none" in _R6S_G and "cursor:nwse-resize" in _R6S_G and "position:absolute" in _R6S_G
+      and "object-fit:contain" in _R6S_I and "pointer-events:none" in _R6S_I and "max-width:180px" not in _R6S_I
+      and _EB_CSS.count(".dzsvm .dzm-scwbody{") == 1 and "height:320px" in _r6s_regle(".dzsvm .dzm-scwbody")
+      and _EB_CSS.count(".dzsvm .dzm-scwx{") == 1,
+      [_R6S_B, _R6S_G, _R6S_I])
+# LA COUCHE DU BUNDLE : le portail vise la racine, la fenetre porte la barre (glisser), le « × » titre, la poignee ; la
+# memoire a sa cle ; le corps de /scopes passe par dzmScwBody (size + cadre) ; UN setPointerCapture dans toute la couche
+_R6S_L = _L7BN_LAYER[_L7BN_LAYER.find("function DzmScopes(o){"):_L7BN_LAYER.find("function DzmLightbox(o){")]
+check("R6s_couche_du_bundle_portail_dans_la_racine_barre_croix_poignee_memoire_corps_size_cadre_une_seule_capture",
+      len(_R6S_L) > 3000 and _R6S_L.count('closest(".dzsvm")') == 1 and _R6S_L.count('querySelector(".svm-frame")') == 0
+      and _R6S_L.count('className:"dzm-scpop dzm-scwin"') == 1 and _R6S_L.count('className:"dzm-scwbar"') == 1
+      and _R6S_L.count('className:"dzm-scwgrip"') == 1 and _R6S_L.count('className:"dzm-scwx"') == 1
+      and _R6S_L.count("dzmScwBody(") == 1 and _R6S_L.count("dzmScopesBody(") == 0 and _R6S_L.count("dzmGpDrag(e,") == 1
+      and _L7BN_LAYER.count('var DZM_SCW_CLE="dz_montage_scopes_geo"') == 1 and _L7BN_LAYER.count("setPointerCapture") == 1
+      and s.count('"dz_montage_scopes_geo"') == 1 and (_bak.count("dz_montage_scopes_geo") == 0 if _bak else False),
+      len(_R6S_L))
+
+# ══════════════════════════════════════════════════════════════════════════
+print("\n[R6mu] retours L6 (26/09/2026, revue T2) : les textes de la musique bornee a son clip")
+# ── Depuis e845de1 la musique d'une piste en boucle boucle DANS les bornes de son clip, fondu de sortie cale sur la fin du
+# CLIP. Six textes du maillon amont (son-vfx-montage, jamais edite) etaient faux : ils sont corriges par SIX sections en
+# queue de R6 (ancres 1/0/1 comptees sur .bak_montage, aucune gardee dans son remplacement). Les ANCIENS textes tombent a
+# 0 dans le bundle, les NOUVEAUX valent 1 ; temoin : le .bak porte les anciens.
+_R6MU = _R6Q[1:]
+check("R6mu_six_sections_en_queue_de_R6_ancres_1_0_1_non_gardees_touchees_par_aucune_autre_section",
+      [t[0].split("-")[0] for t in _R6MU] == ["R6mu1", "R6mu2", "R6mu3", "R6mu4", "R6mu5", "R6mu6"]
+      and (all(_bak.count(_nlb(a)) == 1 and a not in r and s.count(nl(a)) == 0 and s.count(nl(r)) == 1 and "DzTracks" not in r
+               and sum(1 for _t in P.PATCHES if _t[0] != t and (a in _t[1] or a in _t[2] or r in _t[2])) == 0
+               for t, a, r in _R6MU) if _bak and len(_R6MU) == 6 else False),
+      [(t[:5], _bak.count(_nlb(a)) if _bak else "?", s.count(nl(a)), s.count(nl(r))) for t, a, r in _R6MU])
+_R6MU_VIEUX = ("Fondu de fin de rendu", "musique bouclée sur toute la durée", "fondu de sortie calé sur la fin du rendu",
+               "fade_out = fin de rendu", "jamais retrimé", "le flux bouclé n'est")
+_R6MU_NEUF = ('title:(isMus?"Fondu de fin du clip":"Fondu de sortie")+" (0 à "+fmax+" s)",',
+              '"aria-label":isMus?"Fondu de fin du clip (s)":"Fondu de sortie (s)",',
+              'children:"musique bouclée dans les bornes de son clip — fondu de sortie calé sur la fin du clip"',
+              'title:(isMus?"Fondu de fin du clip (musique bouclée dans les bornes de son clip) : "',
+              "/* clip musique bouclée dans les bornes de son clip (fade_out = fondu de fin du clip) */",
+              "son fade_out = fondu de fin du clip (retours L6, 26/09/2026) */")
+check("R6mu_anciens_textes_a_0_nouveaux_a_1_temoin_le_bak_porte_les_anciens",
+      all(s.count(v) == 0 for v in _R6MU_VIEUX) and all(s.count(n) == 1 for n in _R6MU_NEUF)
+      and s.count("fin de rendu") == 0 and s.count("Fondu de fin du clip") == 3
+      and (all(_bak.count(v) >= 1 for v in _R6MU_VIEUX) and all(_bak.count(n) == 0 for n in _R6MU_NEUF) if _bak else False),
+      ([s.count(v) for v in _R6MU_VIEUX], [s.count(n) for n in _R6MU_NEUF], s.count("fin de rendu")))
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")

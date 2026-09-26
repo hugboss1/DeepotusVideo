@@ -200,8 +200,11 @@
 /* 300px : quatre boutons d'action (renommer, dupliquer, ouvrir, ×) plus un
    nom lisible ne tiennent pas en moins, et au-delà le panneau couvrirait la
    piste V1. `z-index:9` passe au-dessus des en-têtes de piste, qui sont en
-   sticky (z-index 3, cf. .dzm-hb). */
-.dzsvm .dzm-projp{position:absolute; top:calc(100% + 4px); left:0; z-index:9;
+   sticky (z-index 3, cf. .dzm-hb). RETOURS L6 (26/09/2026, revue T5 m2) : 9 -> 10 —
+   la fenêtre flottante des scopes (.dzm-scwin) prend le 9, dans le MÊME contexte
+   d'empilement (la racine .dzsvm) et plus tard dans le DOM : à égalité elle
+   passait AU-DESSUS de la liste des projets ; à 10 la liste repasse devant. */
+.dzsvm .dzm-projp{position:absolute; top:calc(100% + 4px); left:0; z-index:10;
   width:300px; max-height:52vh; overflow:auto;
   display:flex; flex-direction:column; gap:7px; padding:9px;
   border-radius:8px; border:1px solid var(--stroke, #2a2930);
@@ -503,6 +506,8 @@
    l'écran, les couches empilées vont de 0 à 20 : le CONTENU de la timeline
    plafonne à 7 (`.sub-hud`), les POPOVERS commencent à 9 (`.dzm-projp`) puis
    10 (`.svm-transpop`), les MODALES sont à 20 (`.svm-pop`, `.svm-kbscrim`).
+   [26/09/2026, retours L6 : `.dzm-projp` passe à 10, le 9 est la fenêtre flottante
+   des scopes — la barre reste sous les deux.]
    La barre doit passer au-dessus de la timeline et sous tout ce qui s'ouvre
    par-dessus elle : 8 est le seul entier qui tienne les deux. Le prototype
    dit `z-index:20` — écart délibéré : il n'a ni popover ni modale à laisser
@@ -1613,9 +1618,30 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
 .dzsvm .svm-playerzone:not([data-side]) .svm-playerbar{order:-1}
 .dzsvm .svm-playerzone[data-side] .svm-playerbar{justify-content:flex-start}
 .dzsvm .svm-playerbar .dzm-scpop{display:none}
-.dzsvm .svm-frame>.dzm-scpop{position:absolute;top:34px;right:10px;z-index:6;display:flex;flex-direction:column;align-items:flex-end;gap:4px;max-width:calc(100% - 20px);pointer-events:none}
-.dzsvm .dzm-scimg{display:block;width:auto;height:auto;max-width:180px;max-height:180px;max-height:calc(min(100cqh, 100cqw / var(--svm-arw,.5625)) * .4);max-width:calc(min(100cqh * var(--svm-arw,.5625), 100cqw) * .4);border-radius:4px;border:1px solid #ffffff33;background:#000;pointer-events:none}
+/* RETOURS L6 (26/09/2026, tâche 5) — LES SCOPES DANS UNE FENÊTRE FLOTTANTE. L'encart de 180 px dans le coin du cadre
+   (sa règle, retirée) était trop petit : la couche porte désormais une FENÊTRE dans la RACINE de la
+   vue (.dzsvm, portail), déplaçable par sa barre de titre et redimensionnable par sa poignée de coin (carré 240..1024 px,
+   borné à la racine, géométrie mémorisée « dz_montage_scopes_geo » et posée EN LIGNE : left / top / width, hauteur du
+   corps). Ici le DÉFAUT (mémoire absente, ou racine non mesurable) : en haut à droite, sous la barre de titre de la vue
+   (48 px), côté 320. Z-INDEX 9 — MESURÉ dans les trois feuilles : la barre OUTILS est à 8 (.dzm-tbar, .dzm-tbtab),
+   les popovers à 10 (.dzm-projp — passé de 9 à 10 le 26/09/2026, revue T5 m2 : à égalité la fenêtre, plus tardive dans
+   le DOM de la même racine, couvrait la liste des projets —, .svm-transpop), la lightbox et le voile de mode 19, menus
+   et modales 20 : au-dessus de la barre OUTILS, sous tout ce qui s'ouvre par-dessus. Elle CAPTE ses pointeurs (elle n'est plus dans le cadre : ses poignées, ses rectangles et
+   son dépôt restent atteignables hors de la fenêtre). Le bord est une OMBRE (box-shadow), pas une bordure : la boîte
+   mesure exactement côté × (barre 24 + côté), la géométrie de la couche (DZM_SCW_BAR). L'image REMPLIT le carré
+   (object-fit:contain : le PNG de /scopes est carré) et ne capte rien ; la ligne d'état se pose en bas à droite de
+   l'image. Barre et poignée : touch-action:none (gestes par dzmGpDrag, sans capture). Aucun `display:none` de plus : le
+   repli en ligne (portail impossible) reste caché par la règle `.svm-playerbar .dzm-scpop` ci-dessus. */
+.dzsvm>.dzm-scwin{position:absolute;top:56px;right:16px;width:320px;z-index:9;display:flex;flex-direction:column;box-sizing:content-box;background:var(--panel2, var(--bg-panel-2, #1c1c21));border-radius:6px;overflow:hidden;box-shadow:0 0 0 1px var(--stroke2, var(--stroke-strong, #3d3b45)),0 10px 28px rgba(0,0,0,.55);pointer-events:auto}
+.dzsvm .dzm-scwbar{display:flex;align-items:center;justify-content:space-between;gap:6px;height:24px;flex:none;padding:0 3px 0 9px;box-sizing:border-box;cursor:move;touch-action:none;user-select:none;-webkit-user-select:none;font-family:var(--f-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2, var(--ink, #c4bfb6))}
+.dzsvm .dzm-scwt{pointer-events:none}
+.dzsvm .dzm-scwx{width:20px;height:20px;padding:0;border:0;border-radius:4px;background:transparent;color:inherit;font-size:14px;line-height:20px;text-align:center;cursor:pointer}
+.dzsvm .dzm-scwx:hover,.dzsvm .dzm-scwx:focus-visible{background:var(--panel3, #26252c);color:var(--ink, #f2efe9)}
+.dzsvm .dzm-scwbody{position:relative;height:320px;flex:none;background:#000}
+.dzsvm .dzm-scimg{display:block;width:100%;height:100%;object-fit:contain;background:#000;pointer-events:none}
 .dzsvm .dzm-scmsg{font-family:var(--f-mono);font-size:10px;padding:2px 7px;border-radius:5px;background:#000000aa;color:#f2efe9;text-align:right}
+.dzsvm .dzm-scwbody>.dzm-scmsg{position:absolute;right:6px;bottom:6px;max-width:calc(100% - 12px);pointer-events:none}
+.dzsvm .dzm-scwgrip{position:absolute;right:0;bottom:0;width:16px;height:16px;cursor:nwse-resize;touch-action:none;background:linear-gradient(135deg,transparent 0 55%,rgba(242,239,233,.55) 55% 62%,transparent 62% 72%,rgba(242,239,233,.55) 72% 79%,transparent 79%)}
 /* REVUE FINALE L5 (24/09/2026) — LA NOTE DU LECTEUR SOUS LA RANGÉE. Le bundle pose la note (`note`, ex. « Aucun grade
    copié », Ctrl+Alt+V) en premier enfant de .svm-playerzone avec un style EN LIGNE `position:absolute; top:58px;
    left:18px; z-index:5` ; la zone est `position:static` : le bloc conteneur est `.dzsvm.svm-col`, pas la zone.
@@ -1664,3 +1690,14 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
 @media (prefers-reduced-motion:reduce){
   .dzsvm .dzm-vochip[data-rec]::before{animation:none}
 }
+/* Retours L6 (26/09/2026, tache 4) : L'IMAGE ETALONNEE DANS LA FENETRE PRINCIPALE, A L'ARRET (couche, DzmGradeLive ;
+   section R6gl1). L'enveloppe est posee dans le cadre du lecteur ENTRE la couche V1 (.svm-live) et les overlays V2
+   (.svm-liveov) : PAS DE z-index, l'ordre du DOM fait la pile (meme parti que le voile D-12 ci-dessus) -- V2, titres,
+   voile, cadre de selection et sous-titres restent dessus, comme au rendu. Elle couvre le cadre et ne capte AUCUN
+   pointeur (molette, double-clic, depot et poignees du cadre passent au travers). L'image EST au format du cadre (la
+   route la calcule dans sa geometrie) : object-fit:fill, aucune deformation ; l'echelle du zoom molette (scale(vzoom))
+   est posee en ligne par la couche, comme sur .svm-live ; l'ORIGINE (centre) est ici, dans la feuille. La pastille « etalonne » est un TEXTE (pas
+   un bouton), en haut a gauche sous la rangee du timecode (top 34 px, l'aplomb de l'encart des scopes a droite). */
+.dzsvm .dzm-glive{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.dzsvm .dzm-glimg{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;display:block;pointer-events:none;transform-origin:center center}
+.dzsvm .dzm-glbadge{position:absolute;top:34px;left:10px;font-family:var(--f-mono);font-size:10px;padding:2px 7px;border-radius:5px;background:#000000aa;color:#f2efe9;pointer-events:none}

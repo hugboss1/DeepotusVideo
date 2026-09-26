@@ -409,10 +409,16 @@ def _l5_sites(z):
 _l5_b, _l5_sans = _l5_sites(_L5Z)
 _l5_tb, _l5_tsans = _l5_sites(_GPE)
 _l5_cond = [m.group(0) for m in RX_COND.finditer(_L5Z)]
-check("R1_R2_L5_scopes_et_lightbox_trois_sites_de_bouton_tous_titres_toutes_classes_aucun_conditionnel_temoin_Etalonnage",
-      len(_L5Z) > 3000 and len(_l5_b) == 3 and _l5_sans == [] and _l5_cond == []
+# retours L6 (26/09/2026, tache 5) : la fenetre flottante des scopes porte UN bouton de plus, « × » (dzm-scwx, titre et
+# aria-label, eteint comme la puce ; JAMAIS conditionnel : il vit dans la fenetre, qui n'existe qu'allumee -- l'encart
+# entier, pas le bouton, est l'objet du ternaire) -- 3 -> 4 sites, pin realigne.
+check("R1_R2_L5_scopes_et_lightbox_quatre_sites_de_bouton_tous_titres_toutes_classes_aucun_conditionnel_temoin_Etalonnage",
+      len(_L5Z) > 3000 and len(_l5_b) == 4 and _l5_sans == [] and _l5_cond == []
+      and _L5Z.count('r.jsx("button",{className:"dzm-scwx",title:"Fermer les scopes (comme la puce « Scopes » de la barre du lecteur)",') == 1
+      and _L5Z.count('"aria-label":"Fermer les scopes",onClick:bascule,children:"×"') == 1
       and len(_l5_tb) == 8 and _l5_tsans == []
-      and _L5Z.count('children:"Scopes"') == 1 and _L5Z.count('"sans source"') == 1
+      # retours L6 (T5, 26/09) : 1 -> 2, le titre de la fenetre flottante (span dzm-scwt, pas un bouton) dit aussi Scopes
+      and _L5Z.count('children:"Scopes"') == 2 and _L5Z.count('"sans source"') == 1
       and s.count("function DzmScopes(o){") == 1 and s.count("function DzmLightbox(o){") == 1 and bak.count("DzmScopes") == 0,
       f"sites={len(_l5_b)} sans_title={_l5_sans} conditionnels={_l5_cond} temoin={len(_l5_tb)}")
 
@@ -432,7 +438,7 @@ check("R1_R2_L6_apprendre_le_bruit_deux_sites_de_bouton_titres_grises_aucun_cond
       and _L6N.count("disabled:dis,") == 1 and _L6N.count("disabled:!ap,") == 1
       and _L6N.count('children:busy?"Mesure…":"Apprendre le bruit"') == 1 and _L6N.count('children:"Oublier"') == 1
       and 0 < lay.find("function DzmNoiseLearn(o){") < lay.find("function DzmScopes(o){") and _L5Z.count("NoiseLearn") == 0
-      and len(_l5_b) == 3 and s.count("function DzmNoiseLearn(o){") == 1 and bak.count("NoiseLearn") == 0,
+      and len(_l5_b) == 4 and s.count("function DzmNoiseLearn(o){") == 1 and bak.count("NoiseLearn") == 0,  # retours L6 (T5, 26/09) : 3 -> 4 (« × » des scopes)
       f"sites={len(_l6_b)} sans_title={_l6_sans} conditionnels={_l6_cond} audites={_l6_n} manquants={_l6_manq}")
 
 # L6 D-26 (25/09/2026, tache 6) : l'enregistreur de voix off (couche, DzmVoiceRec, puce montee par l'hote apres
@@ -451,8 +457,22 @@ check("R1_R2_L6_voix_off_un_seul_bouton_a_deux_etats_titre_dans_les_deux_etats_g
       and _L6V.count('var tt=demo?"Projet de démonstration') == 1 and _L6V.count(':st==="prise"?"Arrêter la prise (') == 1
       and _L6V.count(':"Enregistrer une voix off au micro"') == 1
       and 0 < lay.find("function DzmNoiseLearn(o){") < lay.find("function DzmVoiceRec(o){") < lay.find("function DzmScopes(o){")
-      and _L5Z.count("VoiceRec") == 0 and len(_l6_b) == 2 and len(_l5_b) == 3
+      and _L5Z.count("VoiceRec") == 0 and len(_l6_b) == 2 and len(_l5_b) == 4  # retours L6 (T5, 26/09) : 3 -> 4
       and s.count("function DzmVoiceRec(o){") == 1 and bak.count("VoiceRec") == 0,
       f"sites={len(_l6v_b)} sans_title={_l6v_sans} conditionnels={_l6v_cond} zone={len(_L6V)}")
+
+# Retours L6 (26/09/2026, tache 4) : l'image etalonnee dans la fenetre principale (couche, DzmGradeLive, montee par l'hote
+# dans le cadre du lecteur, section R6gl1) -- AUCUN bouton (toutes classes, le scanner _l5_sites ne filtre pas) : c'est
+# une image et une pastille de TEXTE, sans pointeur ; tolere null ; posee APRES DzmMaskBox et AVANT DzmNoiseLearn, donc
+# hors des zones _GPE, _L5Z, _L6N et _L6V (leurs comptes de boutons restent 8 / 3 / 2 / 1). Absente du .bak.
+_R6Z = lay[lay.find("function DzmGradeLive(o){"):lay.find("/* L6 D-25 D-26 (25/09/2026, tâche 4)")]
+_r6_b, _r6_sans = _l5_sites(_R6Z) if len(_R6Z) > 800 else (["zone introuvable"], [])
+check("R1_R2_retours_L6_image_etalonnee_aucun_bouton_tolere_null_hors_des_zones_L5_L6_bak_x0",
+      len(_R6Z) > 800 and _r6_b == [] and _R6Z.count("if(!o)return null;") == 1 and _R6Z.count("<button") == 0
+      and 0 < lay.find("function DzmMaskBox(o){") < lay.find("function DzmGradeLive(o){") < lay.find("function DzmNoiseLearn(o){")
+      and _GPE.count("GradeLive") == 0 and _L5Z.count("GradeLive") == 0 and _L6N.count("GradeLive") == 0 and _L6V.count("GradeLive") == 0
+      and len(_l5_tb) == 8 and len(_l5_b) == 4 and len(_l6_b) == 2 and len(_l6v_b) == 1  # retours L6 (T5, 26/09) : _L5Z 3 -> 4 (« × »)
+      and s.count("function DzmGradeLive(o){") == 1 and bak.count("GradeLive") == 0,
+      f"zone={len(_R6Z)} sites={_r6_b}")
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)
