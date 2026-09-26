@@ -2183,20 +2183,30 @@ async def upload_audio(file: UploadFile = File(...)):
         raise HTTPException(400, "Audio too large (max 50 MB)")
     dest = folder / safe
     # Correctif du 26/09/2026 : vide (0 octet) ou illisible par ffprobe → 415,
-    # rien d'écrit. La sonde lit un temporaire VOISIN : un envoi illisible
-    # n'écrase jamais un son existant du même nom.
+    # rien d'écrit. La sonde lit un TEMPORAIRE hors du dossier audio (dans
+    # outputs, comme /audio/recording) : un envoi illisible n'écrase jamais
+    # un son existant du même nom, et le temporaire n'apparaît ni dans
+    # GET /api/audio ni dans l'index de la Bibliothèque.
     if not contents:
         raise HTTPException(415, f"Fichier vide ou illisible : {safe} (0 octet)")
-    tmp = folder / f".~sonde_{uuid4().hex[:8]}{Path(safe).suffix}"
+    import os          # pas d'`import os` en tête de ce module (mesuré)
+    import shutil
+    import tempfile
+    fd, _tmpn = tempfile.mkstemp(prefix="dzsonde_", suffix=Path(safe).suffix,
+                                 dir=str(settings.outputs_path))
+    os.close(fd)
+    tmp = Path(_tmpn)
     try:
-        import os
         tmp.write_bytes(contents)
         from app.services.montage_service import _sonde_flux
         r = await asyncio.to_thread(_sonde_flux, tmp)
-        if r:
+        if isinstance(r, str):          # `_INDECIS` (pas pu juger) passe
             raise HTTPException(415, f"Fichier vide ou illisible : {safe} "
                                      f"(illisible : {r})")
-        os.replace(tmp, dest)
+        try:
+            os.replace(tmp, dest)
+        except OSError:                 # autre volume
+            shutil.copyfile(tmp, dest)
     finally:
         tmp.unlink(missing_ok=True)
     # R1 — sidecar meta (tags du tiroir Sons) : import ou musique selon le nom.
@@ -2885,7 +2895,8 @@ async def upload_video(file: UploadFile = File(...)):
     if raison is None:
         from app.services.montage_service import _sonde_flux
         r = await asyncio.to_thread(_sonde_flux, dest)
-        raison = r and f"illisible : {r}"
+        # `_INDECIS` (ffprobe injoignable, sonde expirée) : accepté, comme avant.
+        raison = f"illisible : {r}" if isinstance(r, str) else None
     if raison:
         dest.unlink(missing_ok=True)
         raise HTTPException(415, f"Fichier vide ou illisible : {safe} ({raison})")

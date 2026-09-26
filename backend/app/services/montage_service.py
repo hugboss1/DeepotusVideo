@@ -680,15 +680,21 @@ def _has_audio_stream(path: Path) -> bool:
 # média sur une piste, jugée à l'extension) : c'est la LISIBILITÉ du fichier,
 # que seule une sonde peut dire.
 _LISIBLE_CACHE: dict[tuple[str, int, int], str | None] = {}
+# « Pas pu juger » (ffprobe injoignable, sonde expirée) — DISTINCT de
+# « lisible » (None). Revue du 26/09 : ranger None dans le cache faisait
+# passer pour TOUJOURS un fichier illisible sondé une fois sans ffprobe.
+_INDECIS = object()
 
 
-def _sonde_flux(path: Path, timeout: float = 15) -> str | None:
-    """ffprobe liste les flux de `path` : None si au moins un flux se lit,
-    sinon une raison COURTE (« aucun flux », ou la ligne du démultiplexeur,
-    chemin et préfixe `[mov,mp4… @ 0x…]` retirés, ≤ 120 car.). ffprobe
-    injoignable ou sonde expirée → None : on ne juge pas ce qu'on n'a pas pu
-    lire (le rendu garde alors son chemin d'avant). Appelée hors de la boucle
-    asyncio (`asyncio.to_thread`) par l'upload et par le pré-vol."""
+def _sonde_flux(path: Path, timeout: float = 15):
+    """ffprobe liste les flux de `path` : None si AU MOINS UN flux se lit —
+    c'est la limite de la sonde : elle ne décode rien, un PNG dont seul
+    l'en-tête est valide passe —, sinon une raison COURTE (« aucun flux », ou
+    la ligne du démultiplexeur, chemin et préfixe `[mov,mp4… @ 0x…]` retirés,
+    ≤ 120 car.). ffprobe injoignable ou sonde expirée → `_INDECIS` : on ne
+    juge pas ce qu'on n'a pas pu lire (la source passe, comme avant, et
+    n'est PAS mise en cache). Appelée hors de la boucle asyncio
+    (`asyncio.to_thread`) par l'upload et par le pré-vol."""
     try:
         r = subprocess.run(
             ["ffprobe", "-v", "error", "-show_entries", "stream=codec_type",
@@ -696,7 +702,7 @@ def _sonde_flux(path: Path, timeout: float = 15) -> str | None:
             check=False, capture_output=True, text=True, encoding="utf-8",
             errors="replace", timeout=timeout)
     except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
-        return None
+        return _INDECIS
     if r.returncode == 0 and (r.stdout or "").strip():
         return None
     lignes = []
@@ -723,7 +729,12 @@ async def _source_illisible(path: Path) -> str | None:
     cle = (str(path), st.st_size, st.st_mtime_ns)
     if cle in _LISIBLE_CACHE:
         return _LISIBLE_CACHE[cle]
-    raison = await asyncio.to_thread(_sonde_flux, path)
+    try:
+        raison = await asyncio.to_thread(_sonde_flux, path)
+    except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
+        raison = _INDECIS
+    if raison is _INDECIS:
+        return None                     # passe, SANS cache : re-sondé la fois suivante
     res = None if raison is None else f"illisible : {raison}"
     if len(_LISIBLE_CACHE) > 512:
         _LISIBLE_CACHE.clear()
@@ -4922,14 +4933,17 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
         p = await _resolve_src(c.get("src"))
         if p is not None and _ffmpeg_ouvrira(p):
             # Même bornage que P8 (libellé [:60], refus[:8]) ; la piste et
-            # le temps sont des chaînes CLIENTES, bornées aussi.
+            # le temps sont des chaînes CLIENTES, bornées aussi. Le NOM du
+            # plan : le payload du client le porte dans `title` (preuve écran
+            # du 26/09 : « v1 » affiché faute de `label`) — les deux sites.
             raison = await _source_illisible(p)
             if raison:
-                dit = str(c.get("label") or c.get("id") or c.get("tr") or "?")[:60]
+                dit = str(c.get("title") or c.get("label") or c.get("id")
+                      or c.get("tr") or "?")[:60]
                 try:
                     t0 = max(0, int(float(c.get("start") or 0)))
-                except (TypeError, ValueError):
-                    t0 = 0
+                except (TypeError, ValueError, OverflowError):
+                    t0 = 0              # 1e999 / Infinity : pas de 500
                 piste = str(c.get("tr") or "?").upper()[:12]
                 illisibles.append(f"« {dit} » ({piste}, à {t0 // 60}:{t0 % 60:02d})"
                                   f" → {p.name} ({raison})")
@@ -4941,7 +4955,8 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
             # immédiat borne déjà de la même façon (`title` du JobRecord,
             # `[:60]`) ; on s'aligne. Le nom de fichier, lui, vient du disque
             # et le système de fichiers le borne déjà.
-            dit = str(c.get("label") or c.get("id") or c.get("tr") or "?")[:60]
+            dit = str(c.get("title") or c.get("label") or c.get("id")
+                      or c.get("tr") or "?")[:60]
             refus.append(f"« {dit} » → {p.name}")
     if refus:
         raise HTTPException(

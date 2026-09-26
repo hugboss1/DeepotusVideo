@@ -981,8 +981,9 @@ d_mov = J(api("GET", "/api/montage/project"))
 v1_mov = [c.get("src", {}).get("job_id")
           for c in (d_mov.get("clips") or []) if c.get("tr") == "v1"]
 check("casse_mixte_acceptee_a_la_construction", ID_MOV in v1_mov, str(v1_mov))
-# Et sa duree vient bien du job (7 s), pas du repli `or 4.0` : la ligne
-# ci-dessus resterait verte si le .MOV entrait comme un carton vide.
+# Et sa duree vient du media reel (7 s, sonde — le job dit 7 s lui aussi),
+# pas du repli `or 4.0` : la ligne ci-dessus resterait verte si le .MOV
+# entrait comme un carton vide.
 c_mov = [c for c in (d_mov.get("clips") or [])
          if c.get("tr") == "v1" and c.get("src", {}).get("job_id") == ID_MOV]
 check("casse_mixte_duree_du_rush",

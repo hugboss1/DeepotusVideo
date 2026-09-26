@@ -233,13 +233,31 @@ def _talon(cmd, out, *a, **k):
 
 MS._run_ffmpeg = _talon
 
-# L'espion : chaque appel de la sonde de lisibilite, par chemin.
-SONDES = []
+# L'espion : chaque appel de la sonde de lisibilite, par chemin ; il note
+# aussi si l'appel tourne HORS de la boucle asyncio (m-1 : dans un thread,
+# `get_running_loop()` leve RuntimeError), ce que liste le dossier audio a
+# cet instant (m-3), et peut lever une fois (I-1 : « pas pu juger »).
+import asyncio                                           # noqa: E402
+SONDES, HORS_BOUCLE, AUDIO_PENDANT = [], [], []
+LEVER = []            # chemins (suffixes) pour lesquels lever UNE fois
 _vraie_sonde = getattr(MS, "_sonde_flux", None)
 
 
 def _espion(p, *a, **k):
     SONDES.append(str(p))
+    try:
+        asyncio.get_running_loop()
+        HORS_BOUCLE.append((str(p), False))
+    except RuntimeError:
+        HORS_BOUCLE.append((str(p), True))
+    try:
+        AUDIO_PENDANT.append(sorted(q.name for q in ADIR.iterdir()))
+    except Exception:                                    # noqa: BLE001
+        AUDIO_PENDANT.append(["<illisible>"])
+    for s in list(LEVER):
+        if str(p).endswith(s):
+            LEVER.remove(s)
+            raise FileNotFoundError("ffprobe (simule)")
     return _vraie_sonde(p, *a, **k)
 
 
@@ -381,6 +399,63 @@ except Exception as e:                                   # noqa: BLE001
 rc4 = RENDER([V1("k1", "cache", JID_C, 0, 2)])
 check("cache_taille_change_nouvelle_sonde_et_refus",
       rc4.status_code == 400 and _sur_c() == 3, f"{rc4.status_code} sondes={_sur_c()}")
+
+print("\n[5] REVUE du 26/09 — nom du plan, indecis non cache, hors boucle, bornes.")
+# A — le client envoie le NOM du plan dans `title` (sans `label`).
+rA = RENDER([PLAN_OK, {"tr": "v1", "id": "v1", "title": "plan B", "start": 6,
+                       "end": 8, "src": {"job_id": JID_VIDE}, "srcIn": 0,
+                       "transition": "cut"}])
+dA = str(J(rA).get("detail") or "")
+check("titre_du_plan_nomme_au_prevol_illisible",
+      rA.status_code == 400 and "« plan B » (V1, à 0:06)" in dA, f"{rA.status_code} {dA[:200]}")
+GLB = SRC / "maillage.glb"
+try:
+    GLB.write_bytes(b"glTF\x02\x00\x00\x00faux")
+except Exception as e:                                   # noqa: BLE001
+    print("  (glb : %s)" % e)
+rA2 = RENDER([PLAN_OK, {"tr": "v2", "id": "v2", "title": "maillage B", "start": 0,
+                        "end": 2, "src": {"file_path": str(GLB)}}])
+dA2 = str(J(rA2).get("detail") or "")
+check("titre_du_plan_nomme_au_prevol_p8",
+      rA2.status_code == 400 and "« maillage B »" in dA2, f"{rA2.status_code} {dA2[:200]}")
+
+# I-1 — « pas pu juger » passe SANS cache : le rendu suivant re-sonde et refuse.
+JID_I, P_I = JOB_UP("indecis.mp4", MP4B)
+try:
+    P_I.write_bytes(TRONQUE)
+except Exception as e:                                   # noqa: BLE001
+    print("  (troncature : %s)" % e)
+LEVER.append("indecis.mp4")
+rI1 = RENDER([V1("i1", "indecis", JID_I, 0, 2)])
+rI2 = RENDER([V1("i1", "indecis", JID_I, 0, 2)])
+check("indecis_passe_puis_refus_au_rendu_suivant",
+      rI1.status_code == 200 and rI2.status_code == 400
+      and "indecis.mp4 (illisible : " in str(J(rI2).get("detail") or ""),
+      f"{rI1.status_code}/{rI2.status_code} {rI2.text[:200]}")
+check("indecis_l_espion_a_bien_leve", not LEVER, str(LEVER))
+
+# m-1 — la sonde tourne hors de la boucle : pre-vol ET /audio/upload.
+_pv = [h for (s, h) in HORS_BOUCLE if s.endswith("indecis.mp4")]
+check("sonde_hors_boucle_prevol", len(_pv) >= 2 and all(_pv), str(_pv))
+n_hb, n_ap = len(HORS_BOUCLE), len(AUDIO_PENDANT)
+rU = UPLOAD("pendant.wav", WAVB, route="/api/audio/upload", mime="audio/wav")
+_au = [h for (s, h) in HORS_BOUCLE[n_hb:]]
+check("sonde_hors_boucle_audio_upload",
+      rU.status_code == 200 and len(_au) == 1 and all(_au), f"{rU.status_code} {_au}")
+# m-3 — le temporaire de sonde n'est jamais dans le dossier audio liste.
+_pend = AUDIO_PENDANT[n_ap:]
+_liste = [str(x.get("name")) for x in (J(c.get("/api/audio")).get("audio") or [])]
+check("audio_temporaire_de_sonde_hors_du_dossier_liste",
+      len(_pend) == 1 and not any("sonde" in n for n in _pend[0])
+      and "pendant.wav" not in _pend[0]
+      and "pendant.wav" in _liste and not any("sonde" in n for n in _liste),
+      f"pendant={_pend} apres={_liste}")
+
+# m-2 — un `start` non fini ne fait pas de 500.
+rS = RENDER([PLAN_OK, V1("s1", "infini", JID_VIDE, "1e999", 4)])
+dS = str(J(rS).get("detail") or "")
+check("start_non_fini_400_pas_500",
+      rS.status_code == 400 and "« infini » (V1, à 0:00)" in dS, f"{rS.status_code} {dS[:200]}")
 
 if _vraie_sonde is not None:
     MS._sonde_flux = _vraie_sonde
