@@ -291,3 +291,6 @@ retire par la corbeille 🗑 de sa carte.
   - pastille grisée sans clé ;
   - dictée avec `--use-fake-device-for-media-stream`, où la voie 1 est
     mesurée dans Chrome.
+
+### I — GPT Image 2.5 (ajout validé le 27/09)
+Quatre entrées `gpt-image-2.5-flare`, `gpt-image-2.5-sunburst` (OpenAI) et `-flare-fal`, `-sunburst-fal` (fal), qualité `high`, 0,053 $/image ; routage des `-fal` avant le préfixe `gpt-image` ; sprites/pixel-art/tuiles partent d'une image de la Library (générateur global) et sont couverts par le registre. Détail : plan `2026-09-27-plan-retours-ia.md` §I.
