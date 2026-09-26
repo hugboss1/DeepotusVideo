@@ -236,10 +236,10 @@ MS._run_ffmpeg = _talon
 # L'espion : chaque appel de la sonde de lisibilite, par chemin ; il note
 # aussi si l'appel tourne HORS de la boucle asyncio (m-1 : dans un thread,
 # `get_running_loop()` leve RuntimeError), ce que liste le dossier audio a
-# cet instant (m-3), et peut lever une fois (I-1 : « pas pu juger »).
+# cet instant (m-3). L'indecision (I-1) ne passe PAS par l'espion : elle est
+# provoquee DANS la vraie sonde, cf. section [5].
 import asyncio                                           # noqa: E402
 SONDES, HORS_BOUCLE, AUDIO_PENDANT = [], [], []
-LEVER = []            # chemins (suffixes) pour lesquels lever UNE fois
 _vraie_sonde = getattr(MS, "_sonde_flux", None)
 
 
@@ -254,10 +254,6 @@ def _espion(p, *a, **k):
         AUDIO_PENDANT.append(sorted(q.name for q in ADIR.iterdir()))
     except Exception:                                    # noqa: BLE001
         AUDIO_PENDANT.append(["<illisible>"])
-    for s in list(LEVER):
-        if str(p).endswith(s):
-            LEVER.remove(s)
-            raise FileNotFoundError("ffprobe (simule)")
     return _vraie_sonde(p, *a, **k)
 
 
@@ -420,19 +416,73 @@ check("titre_du_plan_nomme_au_prevol_p8",
       rA2.status_code == 400 and "« maillage B »" in dA2, f"{rA2.status_code} {dA2[:200]}")
 
 # I-1 — « pas pu juger » passe SANS cache : le rendu suivant re-sonde et refuse.
-JID_I, P_I = JOB_UP("indecis.mp4", MP4B)
+# L'indecision passe par la VRAIE `_sonde_flux` : c'est `subprocess.run`
+# (le module que `_sonde_flux` appelle, `MS.subprocess`) qui leve, pour la
+# SEULE commande de sonde de flux (`stream=codec_type`) visant un suffixe
+# donne ; tout autre appel (ffmpeg, sonde de duree) passe. Restaure en finally.
+_vrai_run = MS.subprocess.run
+INJOIGNABLE = {}      # suffixe -> nombre de levees restantes (-1 : toujours)
+LEVEES = []
+
+
+def _run_indecis(cmd, *a, **k):
+    try:
+        vise = (isinstance(cmd, (list, tuple)) and "stream=codec_type" in cmd)
+        cible = str(cmd[-1]) if vise else ""
+    except Exception:                                    # noqa: BLE001
+        vise, cible = False, ""
+    for s, n in list(INJOIGNABLE.items()):
+        if vise and cible.endswith(s) and n != 0:
+            INJOIGNABLE[s] = n - 1 if n > 0 else n
+            LEVEES.append(cible)
+            raise FileNotFoundError("ffprobe injoignable (simule)")
+    return _vrai_run(cmd, *a, **k)
+
+
+MS.subprocess.run = _run_indecis
 try:
-    P_I.write_bytes(TRONQUE)
-except Exception as e:                                   # noqa: BLE001
-    print("  (troncature : %s)" % e)
-LEVER.append("indecis.mp4")
-rI1 = RENDER([V1("i1", "indecis", JID_I, 0, 2)])
-rI2 = RENDER([V1("i1", "indecis", JID_I, 0, 2)])
-check("indecis_passe_puis_refus_au_rendu_suivant",
-      rI1.status_code == 200 and rI2.status_code == 400
-      and "indecis.mp4 (illisible : " in str(J(rI2).get("detail") or ""),
-      f"{rI1.status_code}/{rI2.status_code} {rI2.text[:200]}")
-check("indecis_l_espion_a_bien_leve", not LEVER, str(LEVER))
+    JID_I, P_I = JOB_UP("indecis.mp4", MP4B)
+    try:
+        P_I.write_bytes(TRONQUE)
+    except Exception as e:                               # noqa: BLE001
+        print("  (troncature : %s)" % e)
+    INJOIGNABLE["indecis.mp4"] = 1
+    rI1 = RENDER([V1("i1", "indecis", JID_I, 0, 2)])
+    rI2 = RENDER([V1("i1", "indecis", JID_I, 0, 2)])
+    check("indecis_passe_puis_refus_au_rendu_suivant",
+          rI1.status_code == 200 and rI2.status_code == 400
+          and "indecis.mp4 (illisible : " in str(J(rI2).get("detail") or ""),
+          f"{rI1.status_code}/{rI2.status_code} {rI2.text[:200]}")
+    check("indecis_la_vraie_sonde_a_bien_leve",
+          sum(1 for s in LEVEES if s.endswith("indecis.mp4")) == 1, str(LEVEES))
+    # La sonde ELLE-MEME rend `_INDECIS` (et non None) quand ffprobe manque.
+    INJOIGNABLE["indecis.mp4"] = 1
+    try:
+        _r = _vraie_sonde(P_I)
+    except Exception as e:                               # noqa: BLE001
+        _r = e
+    check("sonde_rend_indecis_si_ffprobe_injoignable",
+          _r is getattr(MS, "_INDECIS", "absent"), repr(_r))
+    # Upload INDECIS : accepte comme avant (200, fichier ecrit, job video).
+    INJOIGNABLE[".wav"] = -1
+    rAI = UPLOAD("indecis_son.wav", WAVB, route="/api/audio/upload", mime="audio/wav")
+    check("upload_audio_indecis_accepte_et_ecrit",
+          rAI.status_code == 200 and LIRE(ADIR / "indecis_son.wav") == WAVB,
+          f"{rAI.status_code} {rAI.text[:200]}")
+    INJOIGNABLE.pop(".wav", None)
+    INJOIGNABLE["indecis_video.mp4"] = -1
+    av_j = N_JOBS()
+    rVI = UPLOAD("indecis_video.mp4", MP4B)
+    check("upload_video_indecis_accepte_ecrit_et_job",
+          rVI.status_code == 200 and bool(J(rVI).get("job_id"))
+          and N_JOBS() == av_j + 1 and LIRE(UP / "indecis_video.mp4") == MP4B,
+          f"{rVI.status_code} {rVI.text[:200]} jobs {av_j}->{N_JOBS()}")
+    check("upload_indecis_la_vraie_sonde_a_bien_leve",
+          any(s.endswith(".wav") and "dzsonde_" in s for s in LEVEES)
+          and any(s.endswith("indecis_video.mp4") for s in LEVEES), str(LEVEES))
+finally:
+    INJOIGNABLE.clear()
+    MS.subprocess.run = _vrai_run
 
 # m-1 — la sonde tourne hors de la boucle : pre-vol ET /audio/upload.
 _pv = [h for (s, h) in HORS_BOUCLE if s.endswith("indecis.mp4")]
