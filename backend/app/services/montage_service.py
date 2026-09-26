@@ -1056,15 +1056,30 @@ def _music_bornes(c: dict) -> dict:
     émet la commande historique — la musique joue sur TOUT le rendu. C'est
     voulu : un ancien client sans `end` garde le comportement d'avant plutôt
     qu'une musique muette. `end` au-delà du rendu est plafonné au total par
-    le builder."""
-    def num(v):
+    le builder.
+
+    Revue T3 (26/09/2026) : `Infinity` passe `json.loads` et le garde
+    `isfinite` du builder retombait alors sur la commande historique
+    (musique depuis 0, `start` perdu). Choix : une valeur NON FINIE est lue
+    comme ABSENTE (0) pour `start` et `src_in` ; pour `end`, `+Infinity` =
+    « jusqu'au bout » → `_MUSIC_END_INF` (fini, plafonné au total par le
+    builder : `start` respecté, musique jusqu'à la fin du rendu), `-Infinity`
+    → 0 (bornes dégénérées, comme un `end` absent)."""
+    def num(v, inf=0.0):
         try:
             x = float(v or 0)
         except (TypeError, ValueError):
             return 0.0
-        return x if x == x else 0.0
-    return {"start": max(0.0, num(c.get("start"))), "end": num(c.get("end")),
+        if x != x:
+            return 0.0
+        if math.isinf(x):
+            return inf if x > 0 else 0.0
+        return x
+    return {"start": max(0.0, num(c.get("start"))), "end": num(c.get("end"), _MUSIC_END_INF),
             "src_in": max(0.0, num(c.get("srcIn")))}
+
+
+_MUSIC_END_INF = 1e9       # « +Infinity » : au-delà de tout rendu, plafonné au total
 
 
 def _ov_transform(c: dict) -> dict | None:
@@ -4147,6 +4162,8 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
         # Fondus de la musique bouclée : entrée au démarrage, sortie calée
         # sur la FIN du rendu (`total`, la boucle est coupée là par -t) — ou,
         # bornée, sur la fin du CLIP (horloge locale 0..D, avant adelay).
+        # Un clip qui DÉPASSE le rendu a son D plafonné au total (revue T2
+        # I-1) : son fondu de sortie tombe alors sur la fin du RENDU.
         # Sans fondu la chaîne reste octet pour octet celle d'avant.
         # R2 : mêmes courbes optionnelles que les clips (lin/absent = rien).
         mref = max(0.0, total) if mdur is None else mdur
@@ -5917,7 +5934,10 @@ def _cadre_of(raw) -> dict | None:
         return None
     if not isinstance(raw, dict):
         raise HTTPException(400, "cadre doit être un objet {ratio, t_local, dur?, reframe?, dz?}.")
-    ratio = raw.get("ratio") if raw.get("ratio") in _CANVAS else "9:16"
+    # Revue T3 : une liste / un objet n'est pas hachable — `in _CANVAS` levait
+    # TypeError (500) ; tout ratio qui n'est pas une chaîne connue → 9:16.
+    r = raw.get("ratio")
+    ratio = r if isinstance(r, str) and r in _CANVAS else "9:16"
     tl = _scenes_num(0.0 if raw.get("t_local") is None else raw.get("t_local"), "cadre.t_local",
                      mini=0.0, maxi=86400.0, strict=False)
     dur = _rf_num(raw.get("dur"))

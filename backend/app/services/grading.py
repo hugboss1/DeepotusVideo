@@ -328,11 +328,17 @@ def _au_temps(effects, t_local: float, dur=None) -> list:
         except (TypeError, ValueError):
             res.append(e)
             continue
-        if not (math.isfinite(t0) and math.isfinite(t1)):
-            res.append(e)
-            continue
+        # Revue T3 : MÊME arithmétique que `_timed` (t0 = max(0, t0), t1
+        # borné à la durée) AVANT tout test — une borne INFINIE n'est plus
+        # « tout le plan » : `t1 = +inf` est ramené à `dur` comme au rendu,
+        # `t0 = -inf` à 0 ; `t0 = +inf` (t1 fini) donne t1 − t0 < 0,05 → tout
+        # le plan, comme `_timed`. Seul NaN (sendcmd illisible au rendu)
+        # reste « tout le plan ».
         t0 = max(0.0, t0)
         t1 = min(t1, dur) if dur else t1
+        if t0 != t0 or t1 != t1:
+            res.append(e)
+            continue
         if t1 - t0 < 0.05 or t0 <= t_local < t1:
             res.append(e)
     return res

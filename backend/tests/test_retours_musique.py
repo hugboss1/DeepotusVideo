@@ -343,6 +343,15 @@ if _gok:
           isinstance(xi, array.array) and "atrim=0.0:18.0," in _mi and "e+" not in _mi
           and (rms_db(xi, 3.0, 18.5) or -200) > -20 and (rms_db(xi, 0.0, 1.9) or 0) < -80,
           (str(xi)[:200], _mi))
+    # K. revue T3 (m) : `Infinity` (json.loads l'accepte) — end = +inf = « jusqu'au bout » (start RESPECTE,
+    # D plafonne au total), src_in = +inf lu comme absent ; avant : garde isfinite -> musique HISTORIQUE depuis 0.
+    _bk = MS._music_bornes({"start": 2, "end": float("inf"), "srcIn": float("inf")})
+    xk, fk_ = RUN([], M(MUSC, _bk, fade_out=1.0))
+    _mk = next((p for p in fk_.split(";") if p.endswith("[mtrk]")), "")
+    check("rK_end_infini_start_respecte_plafonne_au_total_src_in_infini_absent",
+          isinstance(xk, array.array) and "atrim=0.0:18.0," in _mk and "adelay=2000|2000" in _mk
+          and (rms_db(xk, 3.0, 18.5) or -200) > -20 and (rms_db(xk, 0.0, 1.9) or 0) < -80,
+          (_bk, str(xk)[:120], _mk))
     # J. clip qui demarre apres la fin du rendu (25–30 s, total 20) : rc 0, silence (pas l'historique)
     xj, fj_ = RUN([], M(MUSC, {"start": 25.0, "end": 30.0, "src_in": 0.0}))
     _mj = next((p for p in fj_.split(";") if p.endswith("[mtrk]")), "")
@@ -353,6 +362,19 @@ if _gok:
     xh, _ = RUN([], M(MUSC, None))
     check("rH_temoin_sans_bornes_la_musique_va_au_bout", (rms_db(xh, 15.0, 19.5) or -200) > -20,
           rms_db(xh, 15.0, 19.5))
+
+
+# Revue T3 (m) : lecture des bornes non finies par `_music_bornes` (sans ffmpeg).
+_INF = float("inf")
+try:
+    _mbv = [MS._music_bornes(x) for x in (
+        {"start": 2, "end": _INF, "srcIn": _INF}, {"start": _INF, "end": 5, "srcIn": -_INF},
+        {"start": 1, "end": -_INF, "srcIn": 0}, {"start": 1, "end": float("nan"), "srcIn": 2})]
+except Exception as _e:                                  # noqa: BLE001
+    _mbv = repr(_e)
+check("rK_music_bornes_infinis_end_plus_inf_fin_du_rendu_autres_absents",
+      _mbv == [{"start": 2.0, "end": 1e9, "src_in": 0.0}, {"start": 0.0, "end": 5.0, "src_in": 0.0},
+               {"start": 1.0, "end": 0.0, "src_in": 0.0}, {"start": 1.0, "end": 0.0, "src_in": 2.0}], str(_mbv))
 
 
 # ═══════════════ [3] /render et /measure : ce que la route transmet ═══════════════

@@ -316,6 +316,35 @@ _bad = {k: GF(BANDES, cadre=v)[0] for k, v in (
     ("tl_neg", {"ratio": "9:16", "t_local": -1}), ("vide", {}))}
 check("r2_cadre_illisible_400_temoin_objet_vide_200",
       _bad == {"texte": 400, "liste": 400, "tl_abc": 400, "tl_neg": 400, "vide": 200}, str(_bad))
+# Revue T3 (I) : un ratio NON HACHABLE levait TypeError dans `in _CANVAS` -> 500.
+_rh = {k: GFS(PLAT, cadre={"ratio": v, "t_local": 0}, w=96)
+       for k, v in (("liste", [1]), ("objet", {}), ("bool", True), ("nul", None), ("nombre", 916))}
+check("r2_cadre_ratio_liste_objet_booleen_nul_nombre_200_en_9_16",
+      _rh == {k: (200, (96, 170)) for k in ("liste", "objet", "bool", "nul", "nombre")}, str(_rh))
+# ... et AUCUN champ du cadre (ni w/size, ni bornes d'effet) ne fait un 500, sur les deux routes.
+_ETR = ([1], {}, True, "x", None, [[{}, []]], {"t": [1], "x": {}})
+_fz = []
+for _champ in ("ratio", "t_local", "dur", "reframe", "dz"):
+    for _v in _ETR:
+        _fz.append(({"cadre": {"ratio": "9:16", "t_local": 0, _champ: _v}, "w": 96}, {"size": 256}))
+for _v in ({"mode": [1]}, {"mode": {}}, {"mode": "manuel", "x": [1]}, {"mode": "manuel", "x": True},
+           {"mode": "suivi", "points": [[{}, []], {"t": {}, "x": [1]}, 5]}, {"mode": "suivi", "points": {}}):
+    _fz.append(({"cadre": {"ratio": "9:16", "t_local": 0, "reframe": _v}, "w": 96}, {"size": 256}))
+for _v in ({"x0": [1], "y0": {}, "w0": True, "x1": 0, "y1": 0, "w1": 1}, {"ease": [1], "x0": 0, "y0": 0, "w0": 0.5,
+           "x1": 0, "y1": 0, "w1": 0.5}):
+    _fz.append(({"cadre": {"ratio": "9:16", "t_local": 0, "dur": 2, "dz": _v}, "w": 96}, {"size": 256}))
+_fz.append(({"cadre": {"ratio": "9:16", "t_local": 0}, "w": [1],
+             "effects": [dict(EXPO[0], t0=[1], t1={}), dict(EXPO[0], t0=True, t1="x")]}, {"size": {}}))
+_fzs = []
+for _b, _extra in _fz:
+    _s1 = ROUTE("montage_grade_frame", dict({"src": {"file_path": PLAT}, "t": 1.0}, **_b))[0]
+    _bs = {k: v for k, v in _b.items() if k != "w"}
+    _s2 = ROUTE("montage_scopes", dict({"src": {"file_path": PLAT}, "t": 1.0}, **_bs, **_extra))[0]
+    _fzs.append((_s1, _s2))
+_mauvais = [(_fz[i][0], s) for i, s in enumerate(_fzs) if not all(x in (200, 400) for x in s)]
+check("r2_cadre_types_inattendus_jamais_500_sur_les_deux_routes_%d_cas" % (2 * len(_fz)),
+      not _mauvais and len(_fzs) == len(_fz) >= 40 and (200, 200) in _fzs and any(400 in s for s in _fzs),
+      str(_mauvais[:4]))
 
 # D-40 : recadrage manuel et suivi (temps ABSOLU de source = `t`).
 _rm = {x: DOM(GF(BANDES, cadre={"ratio": "9:16", "t_local": 0, "reframe": {"mode": "manuel", "x": x}})[1])
@@ -371,6 +400,25 @@ _loff = LUM(GF(PLAT, cadre={"ratio": "9:16", "t_local": 1.0}, effects=[dict(EXPO
 check("r2_bornes_comme_le_rendu_t1_borne_a_dur_intervalle_court_plein_sans_borne_plein_off_eteint",
       None not in (_ldur, _lcourt, _lnb, _loff) and abs(_ldur - _l0) <= 2 and _lcourt < _l0 - 30
       and _lnb < _l0 - 30 and abs(_loff - _l0) <= 2, str((_ldur, _lcourt, _lnb, _loff, _l0)))
+
+# Revue T3 (m) : bornes INFINIES alignees sur `_timed` (t1 = +inf ramene a la
+# duree du plan, t0 = -inf a 0) — avant : « tout le plan », l'apercu montrait
+# un effet que le rendu n'a pas. JSON `Infinity` (accepte par json.loads).
+_INF = float("inf")
+_li = {k: LUM(GF(PLAT, cadre=dict({"ratio": "9:16", "t_local": tl}, **({"dur": d} if d else {})),
+                 effects=[dict(EXPO[0], t0=a, t1=b)])[1])
+       for k, (a, b, tl, d) in {"t1inf_a2": (5, _INF, 2.0, 6), "t1inf_a5_5": (5, _INF, 5.5, 6),
+                                "t1inf_a6_5_dur6": (5, _INF, 6.5, 6), "t1inf_a7_sans_dur": (5, _INF, 7.0, None),
+                                "t0moinsinf_a2": (-_INF, 3, 2.0, 6), "t0moinsinf_a4": (-_INF, 3, 4.0, 6)}.items()}
+_pres = {k: (v is not None and v < _l0 - 30) for k, v in _li.items()}
+check("r2_bornes_infinies_comme_le_rendu_t1_inf_a_dur_t0_moins_inf_a_0",
+      _pres == {"t1inf_a2": False, "t1inf_a5_5": True, "t1inf_a6_5_dur6": False, "t1inf_a7_sans_dur": True,
+                "t0moinsinf_a2": True, "t0moinsinf_a4": False}, str((_pres, _li)))
+_ai = CALL(GR, "_au_temps", [{"type": "x", "t0": 5, "t1": _INF}, {"type": "y", "t0": _INF, "t1": 3},
+                             {"type": "z", "t0": float("nan"), "t1": 3}, {"type": "w", "t0": 1, "t1": float("nan")}],
+           2.0, 6.0)
+check("r2_au_temps_t0_inf_tout_le_plan_comme_timed_nan_tout_le_plan",
+      isinstance(_ai, list) and [e["type"] for e in _ai] == ["y", "z", "w"], str(_ai))
 
 # Cache : la cle porte le cadre ; un second appel identique ne lance rien.
 _cmds.clear()
@@ -481,6 +529,42 @@ asyncio.run(_gf_nu())
 check("r4_grade_frame_deux_au_plus_sur_deux_boucles_temoin_nu_cinq",
       _gA == ([200] * 5, 2) and _gB == ([200] * 5, 2) and _gs["max"] == 5, str((_gA, _gB, _gs["max"])))
 check("r4_grade_frame_client_parti_499_sans_calcul", _gP == (499, 0), str(_gP))
+# Revue T3 (m) : deux requetes LENTES (0,5 s et 1,2 s) tiennent les deux places ;
+# une troisieme part DES que la premiere libere la sienne (pas apres la seconde),
+# et une requete dont le client est PARTI pendant l'attente rend 499 sans calcul.
+_dep = {}
+
+
+def _gf_dure(p, t, *a, **k):
+    _dep[t] = time.perf_counter()
+    time.sleep({1.0: 0.5, 2.0: 1.2}.get(float(t), 0.05))
+    return _JPG
+
+
+async def _gf_trois():
+    f = MS.montage_grade_frame
+    t0 = time.perf_counter()
+    ta = asyncio.ensure_future(f(RQ({"src": {"file_path": TS}, "t": 1.0})))
+    tb = asyncio.ensure_future(f(RQ({"src": {"file_path": TS}, "t": 2.0})))
+    await asyncio.sleep(0.1)
+    td = asyncio.ensure_future(_gf_un(RQ_PARTI({"src": {"file_path": TS}, "t": 4.0})))
+    await asyncio.sleep(0.05)
+    tc = asyncio.ensure_future(f(RQ({"src": {"file_path": TS}, "t": 3.0})))
+    rs = await asyncio.gather(ta, tb, tc, td, return_exceptions=True)
+    return [getattr(r, "status_code", r) for r in rs], t0
+
+_g3 = None
+GR.graded_frame = _gf_dure
+try:
+    _st3, _t03 = asyncio.run(_gf_trois())
+    _g3 = (_st3, {k: round(v - _t03, 2) for k, v in _dep.items()})
+except Exception as _e:                                  # noqa: BLE001
+    _g3 = repr(_e)
+finally:
+    GR.graded_frame = _vrai_gf
+check("r4_troisieme_part_des_la_premiere_place_libre_client_parti_499_sans_calcul",
+      isinstance(_g3, tuple) and _g3[0] == [200, 200, 200, 499] and 4.0 not in _g3[1]
+      and 0.4 <= _g3[1].get(3.0, -1) <= 0.9 and _g3[1].get(2.0, 9) < 0.2, str(_g3))
 check("r4_grade_frame_semaphore_distinct_de_scopes",
       hasattr(MS, "_grade_sem") and MS._grade_sem is not MS._scopes_sem, str(getattr(MS, "_grade_sem", None)))
 
