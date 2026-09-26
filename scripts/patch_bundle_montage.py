@@ -6110,6 +6110,40 @@ R_R6GL1 = ('/* retours L6 (26/09) : l\'image etalonnee du plan V1 sous la tete, 
 R6 = [("R6gl1-image-etalonnee-dans-le-lecteur-a-l-arret", A_R6GL1, R_R6GL1)]
 assert R_R6GL1.endswith(A_R6GL1) and R_R6GL1.count("DzTracks") == 1 and R_R6GL1.count(A_R6GL1) == 1
 
+# ══ RETOURS L6 (26/09/2026, revue de la tache 2) — LES TEXTES DE LA MUSIQUE BORNEE ═══════════════════════════════════
+# Depuis e845de1 la musique d'une piste en boucle (le premier clip a2) respecte les bornes de son clip au rendu : elle
+# boucle DANS son clip et son fondu de sortie se cale sur la fin du CLIP, plus sur la fin du rendu. Six textes du maillon
+# AMONT (son-vfx-montage, jamais edite ici) etaient devenus FAUX : trois textes d'interface (le title et l'aria-label du
+# curseur de fondu de l'inspecteur, la note de l'inspecteur, le title de la poignee de fondu de la timeline) et trois
+# commentaires. SIX sections neuves en queue de R6, ancres MESUREES 26/09/2026 : chacune vaut 1/0/1 (x1 dans
+# .bak_montage, touchee par aucune autre section, x1 dans le bundle livre) ; aucune n'est gardee dans son remplacement
+# (l'ancien texte tombe a 0) ; aucune reference DzTracks (sonde 178 inchangee).
+A_R6MU1 = "   occurrence a2 avec source dans l'ordre des clips ; son fade_out = fondu de\n   fin de rendu */"
+R_R6MU1 = ("   occurrence a2 avec source dans l'ordre des clips ; bouclée dans les bornes de son clip,\n"
+           "   son fade_out = fondu de fin du clip (retours L6, 26/09/2026) */")
+A_R6MU2 = "/* clip musique bouclée (fade_out = fin de rendu) */"
+R_R6MU2 = "/* clip musique bouclée dans les bornes de son clip (fade_out = fondu de fin du clip) */"
+A_R6MU3 = ("bouclée : le rendu lit t en temps GLOBAL (le flux bouclé n'est\n"
+           "             jamais retrimé) — on convertit")
+R_R6MU3 = ("bouclée dans les bornes de son clip : le rendu lit son automation en temps\n"
+           "             GLOBAL (temps de la timeline, retours L6 26/09/2026) — on convertit")
+A_R6MU4 = ('          title:(isMus?"Fondu de fin de rendu":"Fondu de sortie")+" (0 à "+fmax+" s)",\n'
+           '          "aria-label":isMus?"Fondu de fin de rendu (s)":"Fondu de sortie (s)",')
+R_R6MU4 = ('          title:(isMus?"Fondu de fin du clip":"Fondu de sortie")+" (0 à "+fmax+" s)",\n'
+           '          "aria-label":isMus?"Fondu de fin du clip (s)":"Fondu de sortie (s)",')
+A_R6MU5 = 'children:"musique bouclée sur toute la durée — fondu de sortie calé sur la fin du rendu"'
+R_R6MU5 = 'children:"musique bouclée dans les bornes de son clip — fondu de sortie calé sur la fin du clip"'
+A_R6MU6 = 'title:(isMus?"Fondu de fin de rendu (musique bouclée sur toute la durée) : "'
+R_R6MU6 = 'title:(isMus?"Fondu de fin du clip (musique bouclée dans les bornes de son clip) : "'
+R6 += [("R6mu1-commentaire-premiere-a2-fondu-de-fin-du-clip", A_R6MU1, R_R6MU1),
+       ("R6mu2-commentaire-firstA2-fondu-de-fin-du-clip", A_R6MU2, R_R6MU2),
+       ("R6mu3-commentaire-automation-musique-bornee", A_R6MU3, R_R6MU3),
+       ("R6mu4-curseur-fondu-de-fin-du-clip", A_R6MU4, R_R6MU4),
+       ("R6mu5-note-musique-bouclee-dans-son-clip", A_R6MU5, R_R6MU5),
+       ("R6mu6-poignee-fondu-de-fin-du-clip", A_R6MU6, R_R6MU6)]
+assert len(R6) == 7 and all(a not in r and "DzTracks" not in r and "fin de rendu" not in r and "sur toute la durée" not in r
+                            for _t, a, r in R6[1:])
+
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
@@ -6361,6 +6395,7 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("EC12-tete-de-lecture-dans-l-inspecteur", A_EC12, R_EC12),
            ("EC13-suppr-referme-le-trou", A_EC13, R_EC13),
            ("EC14-clic-sur-un-clip-efface-le-trou", A_EC14, R_EC14)] + EC15 + L4 + L7A + L5 + L6 + R6
+           # retours L6 (26/09/2026, revue T2) : + SIX sections en queue de R6 (R6mu1..R6mu6, les textes de la musique bornee).
            # retours L6 (26/09/2026, tache 4) : UNE section EN QUEUE, apres L6 (R6gl1, l'image etalonnee dans le lecteur).
            # L6 (25/09/2026, tache 5) : SEPT sections EN QUEUE, apres L5 (cinq dans le bloc SFXSTUDIO -- une premiere --,
            # l'ecoute rendue du son d'un plan, le bouton « Apprendre le bruit » sous le rack) ; aucun repli.

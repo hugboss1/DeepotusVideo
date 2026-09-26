@@ -8297,7 +8297,10 @@ function DzmMaskBox(o){
     style:{left:pc(m.x),top:pc(m.y),width:pc(m.w),height:pc(m.h)}})}
 /* ── L5 (24/09/2026, tâche 6) : D-31 LES SCOPES sous le lecteur, D-32 LA LIGHTBOX des plans et LES GESTES PARTAGÉS du
    grade. D'abord les aides PURES (valeurs en entrée, valeurs neuves en sortie) :
-   dzmScopesAt = le plan de V1 sous la tête ([début, fin[, tête lue par dzmRfNum ; illisible -> null) ;
+   dzmScopesAt = le plan de V1 sous la tête ([début, fin[, tête lue par dzmRfNum ; illisible -> null) ; RETOURS L6
+   (26/09/2026, revue T4 m2) : LA RÈGLE DU LECTEUR (svmActiveV1 du bundle) — source exigée (job_id ou image), et de
+   deux plans qui commencent au même instant c'est le DERNIER de la liste qui gagne (>=) : l'image étalonnée et les
+   scopes mesurent le plan que le lecteur montre ;
    dzmScopesBody = le corps de POST /api/montage/scopes, celui de grade-frame SANS largeur (effets actifs, masque
    seulement avec des effets ; plan sans source -> null) ;
    dzmLbPlans = les plans de V1 dans l'ordre du début (bornes lisibles), copie triée ;
@@ -8312,8 +8315,9 @@ var DZM_SC_CLE="dz_montage_scopes",DZM_SC_MS=300,DZM_LB_W=240,DZM_LB_MAX=3;
 function dzmScopesAt(clips,head){
   var t=dzmRfNum(head),best=null,bs=0;
   if(!Array.isArray(clips)||t===null)return null;
-  clips.forEach(function(k){if(!k||typeof k!=="object"||k.tr!=="v1")return;var s=dzmRfNum(k.start),e=dzmRfNum(k.end);
-    if(s!==null&&e!==null&&t>=s&&t<e&&(!best||s>bs)){best=k;bs=s}});
+  clips.forEach(function(k){if(!k||typeof k!=="object"||k.tr!=="v1"||!k.src||!(k.src.job_id||k.src.image))return;
+    var s=dzmRfNum(k.start),e=dzmRfNum(k.end);
+    if(s!==null&&e!==null&&t>=s&&t<e&&(!best||s>=bs)){best=k;bs=s}});
   return best}
 function dzmScopesBody(c,head){
   var b=dzmFrameBody(c,head,DZM_LB_W);if(!b)return null;
@@ -8388,13 +8392,31 @@ function dzmGlCadre(c,head,ratio){
   if(rf)cadre.reframe=rf;
   if(dz)cadre.dz=dz;
   return cadre}
+/* RETOURS L6 (26/09/2026, revue T4 m3) : un effet BORNÉ n'agit que sur son intervalle, comme au rendu
+   (effects_engine._timed) : dzmGlSec lit une borne comme float() de Python (nombre, booléen, chaîne non vide ;
+   absente, vide, objet ou illisible -> null) ; dzmGlActif(effet, t_local, dur) : une borne illisible -> tout le plan ;
+   t0 = max(0, t0), t1 = min(t1, dur) si dur ; intervalle < 0,05 s -> tout le plan ; sinon présent sur [t0, t1[. */
+function dzmGlSec(v){
+  if(typeof v==="boolean")v=+v;
+  if(typeof v==="string"){if(!v.trim())return null;v=Number(v)}
+  return typeof v==="number"&&!isNaN(v)?v:null}
+function dzmGlActif(f,tl,dur){
+  var a=dzmGlSec(f&&f.t0),b=dzmGlSec(f&&f.t1),d=Number(dur);
+  if(a===null||b===null)return !0;
+  a=Math.max(0,a);if(d>0)b=Math.min(b,d);
+  if(b-a<.05)return !0;
+  return tl>=a&&tl<b}
+/* revue T4 (m4) : un plan V1 en IMAGE FIXE -> rien (la route refuse 415) ; (m3) aucun effet actif À t_local -> rien
+   (ni requête ni pastille) ; sinon les effets allumés partent tels quels, le serveur applique leurs bornes. */
 function dzmGlBody(c,head,ratio){
-  if(!c||typeof c!=="object"||!c.src)return null;
+  if(!c||typeof c!=="object"||!c.src||c.src.image)return null;
   var fx=(Array.isArray(c.effects)?c.effects:[]).filter(function(f){return !!f&&typeof f==="object"&&!f.off});
   if(!fx.length)return null;
+  var cadre=dzmGlCadre(c,head,ratio);
+  if(!fx.some(function(f){return dzmGlActif(f,cadre.t_local,cadre.dur)}))return null;
   var mk=dzmMaskOf(c.mask),b={src:c.src,t:dzmSrcTimeAt(c,head),effects:fx};
   if(mk)b.mask=mk;
-  b.cadre=dzmGlCadre(c,head,ratio);
+  b.cadre=cadre;
   return b}
 /* ── Retours L6 (26/09/2026, tâche 5) : LES SCOPES DANS UNE FENÊTRE FLOTTANTE, déplaçable et redimensionnable (l'encart
    de 180 px dans le coin du cadre était trop petit). Les aides PURES (valeurs en entrée, valeurs neuves en sortie) ; la
@@ -8782,7 +8804,15 @@ function DzmVoiceRec(o){
    lecteur. La fenêtre du navigateur rétrécit (resize, dzmTbVeille) : la fenêtre est RECADRÉE dans la racine (affichage
    seulement ; la mémoire garde le dernier geste). Mémoire absente ou corrompue -> en haut à droite (dzmScwDef) ; racine
    non mesurable (onglet caché) -> aucune géométrie en ligne, la feuille pose le même défaut. Démontage ou extinction en
-   plein geste -> les écouteurs du geste retirés, rien de mémorisé. */
+   plein geste -> les écouteurs du geste retirés, rien de mémorisé.
+   REVUE T5 (26/09/2026) : un pointercancel est traité comme un RELÂCHER (la géométrie atteinte est mémorisée, comme
+   dzmGpDrag qui rejoue le dernier point sur pointercancel) ; un SECOND pointerdown pendant un geste abandonne le premier
+   (ses écouteurs retirés, rien de mémorisé) et le second part de la géométrie affichée ; un redimensionnement du
+   navigateur EN PLEIN GESTE ne recadre rien (ni requête : le côté fixé ne bouge pas) — la géométrie est recadrée dans
+   la racine courante AU RELÂCHER ; la fenêtre est une région nommée (role region + aria-label), pas un dialogue : elle
+   ne prend pas le focus et ne bloque rien. ÉCART DATÉ (26/09/2026) : en plein écran (.svm-frame en fullscreen), les
+   scopes, désormais dans la racine .dzsvm et non plus dans le cadre, ne sont PLUS visibles — accepté, à reprendre si
+   l'usage le demande. */
 function DzmScopes(o){
   if(!o)return null;
   var s1=x.useState(function(){return dzmScopesGet()}),on=s1[0],setOn=s1[1];
@@ -8815,7 +8845,7 @@ function DzmScopes(o){
     setGeo(n?{x:n.x,y:n.y,s:n.s,f:n.s}:null)},[on]);
   /* la fenêtre du navigateur change : la fenêtre des scopes est recadrée dans la racine (affichage, rien de mémorisé) */
   x.useEffect(function(){if(!on||!hote)return;
-    return dzmTbVeille(g,function(){var W=hote.clientWidth,H=hote.clientHeight;
+    return dzmTbVeille(g,function(){if(gesteR.current)return;var W=hote.clientWidth,H=hote.clientHeight;
       setGeo(function(q){var n=q?dzmScwFit(q,W,H):dzmScwDef(W,H);
         return !n||(q&&n.x===q.x&&n.y===q.y&&n.s===q.s)?q:{x:n.x,y:n.y,s:n.s,f:n.s}})})},[on,hote]);
   var bascule=function(){var n=dzmScopesSet(!on);setOn(n);if(!n){finGeste();seq.current++;libere();setImg(null);setErr(null)}};
@@ -8831,14 +8861,19 @@ function DzmScopes(o){
     var arret=dzmGpDrag(e,function(cx,cy){var n=dzmScwGeste(k,g0,cx-x0,cy-y0,W,H);
       if(n&&vivant.current){dern=n;setGeo({x:n.x,y:n.y,s:n.s,f:f0})}});
     var fin=function(ok){if(ote)ote();arret();if(gesteR.current===abandon)gesteR.current=null;
-      if(ok&&dern&&vivant.current){var m=dzmScwSet(dern);setGeo({x:m.x,y:m.y,s:m.s,f:m.s})}};
+      if(!ok||!vivant.current)return;
+      /* revue T5 (m3) : recadrée dans la racine COURANTE (le navigateur a pu changer pendant le geste, W / H sont périmés) */
+      var W2=hote.clientWidth,H2=hote.clientHeight;
+      if(dern){var m=dzmScwSet(dzmScwFit(dern,W2,H2)||dern);setGeo({x:m.x,y:m.y,s:m.s,f:m.s});return}
+      setGeo(function(q){var n=q?dzmScwFit(q,W2,H2):null;
+        return !n||(n.x===q.x&&n.y===q.y&&n.s===q.s)?q:{x:n.x,y:n.y,s:n.s,f:n.s}})};
     var abandon=function(){fin(!1)};
     ote=dzmScwFin(g,e.pointerId,function(){fin(!0)});
     gesteR.current=abandon}};
   var voit=!!(sig&&img&&img.sig===sig);
   var msg=!on?"":jouant?"Lecture : les scopes se rafraîchissent à l'arrêt":!c?"Aucun plan sous la tête":
-    !c.src?"Plan sans source : rien à mesurer":voit?"":err&&err.sig===sig?err.msg:"Mesure en cours…";
-  var encart=on?r.jsxs("div",{className:"dzm-scpop dzm-scwin",role:"dialog","aria-label":"Scopes",
+    voit?"":err&&err.sig===sig?err.msg:"Mesure en cours…";
+  var encart=on?r.jsxs("div",{className:"dzm-scpop dzm-scwin",role:"region","aria-label":"Scopes",
     style:geo?{left:geo.x+"px",top:geo.y+"px",width:geo.s+"px"}:void 0,children:[
     r.jsxs("div",{className:"dzm-scwbar",title:"Déplacer la fenêtre des scopes (glisser la barre de titre)",onPointerDown:saisir("m"),children:[
       r.jsx("span",{className:"dzm-scwt",children:"Scopes"}),
@@ -9044,6 +9079,6 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   /* retours L6 (26/09/2026, tache 4) : l'image etalonnee du plan V1 dans le lecteur, a l'arret */
   glRatio:dzmGlRatio,glW:dzmGlW,glBody:dzmGlBody,GradeLive:DzmGradeLive,
   /* retours L6 (26/09/2026, tache 5) : les scopes en fenetre flottante -- le cadre partage, la taille, la geometrie, la memoire */
-  glCadre:dzmGlCadre,scwSize:dzmScwSize,scwBody:dzmScwBody,scwFit:dzmScwFit,scwDef:dzmScwDef,scwInit:dzmScwInit,scwGeste:dzmScwGeste,scwGet:dzmScwGet,scwSet:dzmScwSet,scwFin:dzmScwFin,SCW_CLE:DZM_SCW_CLE,
+  glSec:dzmGlSec,glActif:dzmGlActif,glCadre:dzmGlCadre,scwSize:dzmScwSize,scwBody:dzmScwBody,scwFit:dzmScwFit,scwDef:dzmScwDef,scwInit:dzmScwInit,scwGeste:dzmScwGeste,scwGet:dzmScwGet,scwSet:dzmScwSet,scwFin:dzmScwFin,SCW_CLE:DZM_SCW_CLE,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;

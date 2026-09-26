@@ -200,8 +200,11 @@
 /* 300px : quatre boutons d'action (renommer, dupliquer, ouvrir, ×) plus un
    nom lisible ne tiennent pas en moins, et au-delà le panneau couvrirait la
    piste V1. `z-index:9` passe au-dessus des en-têtes de piste, qui sont en
-   sticky (z-index 3, cf. .dzm-hb). */
-.dzsvm .dzm-projp{position:absolute; top:calc(100% + 4px); left:0; z-index:9;
+   sticky (z-index 3, cf. .dzm-hb). RETOURS L6 (26/09/2026, revue T5 m2) : 9 -> 10 —
+   la fenêtre flottante des scopes (.dzm-scwin) prend le 9, dans le MÊME contexte
+   d'empilement (la racine .dzsvm) et plus tard dans le DOM : à égalité elle
+   passait AU-DESSUS de la liste des projets ; à 10 la liste repasse devant. */
+.dzsvm .dzm-projp{position:absolute; top:calc(100% + 4px); left:0; z-index:10;
   width:300px; max-height:52vh; overflow:auto;
   display:flex; flex-direction:column; gap:7px; padding:9px;
   border-radius:8px; border:1px solid var(--stroke, #2a2930);
@@ -503,6 +506,8 @@
    l'écran, les couches empilées vont de 0 à 20 : le CONTENU de la timeline
    plafonne à 7 (`.sub-hud`), les POPOVERS commencent à 9 (`.dzm-projp`) puis
    10 (`.svm-transpop`), les MODALES sont à 20 (`.svm-pop`, `.svm-kbscrim`).
+   [26/09/2026, retours L6 : `.dzm-projp` passe à 10, le 9 est la fenêtre flottante
+   des scopes — la barre reste sous les deux.]
    La barre doit passer au-dessus de la timeline et sous tout ce qui s'ouvre
    par-dessus elle : 8 est le seul entier qui tienne les deux. Le prototype
    dit `z-index:20` — écart délibéré : il n'a ni popover ni modale à laisser
@@ -1618,10 +1623,10 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
    vue (.dzsvm, portail), déplaçable par sa barre de titre et redimensionnable par sa poignée de coin (carré 240..1024 px,
    borné à la racine, géométrie mémorisée « dz_montage_scopes_geo » et posée EN LIGNE : left / top / width, hauteur du
    corps). Ici le DÉFAUT (mémoire absente, ou racine non mesurable) : en haut à droite, sous la barre de titre de la vue
-   (48 px), côté 320. Z-INDEX 9 — MESURÉ dans les trois feuilles : la barre OUTILS est à 8 (.dzm-tbar, .dzm-tbtab), le
-   premier popover à 9 (.dzm-projp, sous le nom du projet à GAUCHE de l'en-tête ; à égalité, l'ordre du DOM tranche),
-   .svm-transpop 10, la lightbox et le voile de mode 19, menus et modales 20 : au-dessus de la barre OUTILS, sous tout
-   ce qui s'ouvre par-dessus. Elle CAPTE ses pointeurs (elle n'est plus dans le cadre : ses poignées, ses rectangles et
+   (48 px), côté 320. Z-INDEX 9 — MESURÉ dans les trois feuilles : la barre OUTILS est à 8 (.dzm-tbar, .dzm-tbtab),
+   les popovers à 10 (.dzm-projp — passé de 9 à 10 le 26/09/2026, revue T5 m2 : à égalité la fenêtre, plus tardive dans
+   le DOM de la même racine, couvrait la liste des projets —, .svm-transpop), la lightbox et le voile de mode 19, menus
+   et modales 20 : au-dessus de la barre OUTILS, sous tout ce qui s'ouvre par-dessus. Elle CAPTE ses pointeurs (elle n'est plus dans le cadre : ses poignées, ses rectangles et
    son dépôt restent atteignables hors de la fenêtre). Le bord est une OMBRE (box-shadow), pas une bordure : la boîte
    mesure exactement côté × (barre 24 + côté), la géométrie de la couche (DZM_SCW_BAR). L'image REMPLIT le carré
    (object-fit:contain : le PNG de /scopes est carré) et ne capte rien ; la ligne d'état se pose en bas à droite de

@@ -15347,7 +15347,10 @@ check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB8b_puis_
                                                           # L6 (T6, 25/09/2026) : la puce voix off, sonde 173 -> 177
                                                           "L6vo1",
                                                           # retours L6 (T4, 26/09/2026) : l'image etalonnee dans le lecteur, sonde 177 -> 178
-                                                          "R6gl1"]
+                                                          "R6gl1",
+                                                          # retours L6 (revue T2, 26/09/2026) : les six textes de la musique
+                                                          # bornee (aucun site de code, sonde inchangee)
+                                                          "R6mu1", "R6mu2", "R6mu3", "R6mu4", "R6mu5", "R6mu6"]
       # L7-B D-37 et D-42 (24/09/2026) : AUCUNE section de plus (replis dans R_EC1) ; D-42 : sonde 159 -> 161
       # (cutAt + cutOpts dans le geste dzSceneCut) ; L7-B D-40 (T4) : AUCUNE section de plus (replis dans
       # R_DZ1/R_DZ3/R_DZ4), sonde 161 -> 163 (reframeCss dans l apercu vivant, reframeOf dans le payload)
@@ -18312,7 +18315,7 @@ check("L7Bac_morceaux_x1_couche_et_bundle_hote_x1_bundle_x0_bak_aucune_section_n
       and all(src.count(t) == 0 and s.count(t) == 1 for t in _L7BAC_H)
       and (all(_bak.count(t) == 0 for t in _L7BAC_L + _L7BAC_H) and _bak.count("dzAcOpen") == 0 if _bak else False)
       and [t[0] for t in P.PATCHES if t[0].startswith("L7B")] == ["L7Brf1-apercu-du-cadrage-video-ou-image"]
-      and len(P.PATCHES) == 201  # (le --check annonce 202 ancres) ; L5 (T6, 24/09) : 191 -> 192, la section L5sc1 ; L6 (T5, 25/09) : -> 199, sept sections L6 ; L6 (T6, 25/09) : -> 200, L6vo1 ; retours L6 (T4, 26/09) : -> 201, R6gl1
+      and len(P.PATCHES) == 207  # retours L6 (revue T2, 26/09) : 201 -> 207, R6mu1..R6mu6 (le --check annonce 208 ancres) ; L5 (T6, 24/09) : 191 -> 192, la section L5sc1 ; L6 (T5, 25/09) : -> 199, sept sections L6 ; L6 (T6, 25/09) : -> 200, L6vo1 ; retours L6 (T4, 26/09) : -> 201, R6gl1
       and s.count("DzTracks") == 178 and _sonde.get("montage") == 178,  # retours L6 (T4, 26/09) : 177 -> 178 (GradeLive)
       ({t[:30]: (src.count(t), s.count(t)) for t in _L7BAC_L + _L7BAC_H}, len(P.PATCHES), s.count("DzTracks")))
 # les trois replis sont dans LEURS remplacements (le patcher) : l'etat avant dzTbDock, openProj apres openReq, le relai du tiroir
@@ -18576,7 +18579,7 @@ check("L7Brf_replis_x1_dans_R_DZ1_R_DZ3_R_DZ4_bundle_x1_bak_x0_une_section_L7Brf
       and P.R_DZ1.count("svmSrcKey(k.src),") == 1 and P.R_DZ1.count('String(k.reframe.mode)') == 1
       and P.R_DZ1.count("it.el.videoWidth||it.el.naturalWidth||0") == 1
       and (all(_bak.count(t) == 0 for t in _RF_P) and _bak.count("reframe") == 0 if _bak else False)
-      and len(P.PATCHES) == 201  # 201 triplets (le --check dit 202 ancres) -- L7Brf1 et L5sc1 (T6, 24/09) compris ; L6 (T5, 25/09) : +7 sections L6 ; L6 (T6, 25/09) : +1, L6vo1 ; retours L6 (T4, 26/09) : +1, R6gl1
+      and len(P.PATCHES) == 207  # retours L6 (revue T2, 26/09) : 201 -> 207, R6mu1..R6mu6 (le --check dit 208 ancres) ; avant : 201 triplets -- L7Brf1 et L5sc1 (T6, 24/09) compris ; L6 (T5, 25/09) : +7 sections L6 ; L6 (T6, 25/09) : +1, L6vo1 ; retours L6 (T4, 26/09) : +1, R6gl1
       # DZ1 finit comme avant, le payload joint reframe APRES stab et avant le mixage audio
       and s.count(nl("          onChange:dzPlanSet}):null,\n        ovInspector(),")) == 1
       and 0 < s.find("var sbD=") < s.find("var rfD=") < s.find('        if(trackKind(c.tr)==="audio"){')
@@ -18875,7 +18878,7 @@ check("L5gp_masque_au_payload_dans_R_DZ4_meme_map_que_les_overlays_V2_apres_le_c
       and 0 < _iRP < s.find("var rfD=", _iRP) < s.find(_GP_MK) < s.find('        if(trackKind(c.tr)==="audio"){', _iRP)
       < s.find("if(DzTracks.isOverlayTrack(c.tr,dzTracksRef.current)){", _iRP)
       and (_bak.count("o.mask=") == 0 if _bak else False)
-      and len(P.PATCHES) == 201 and s.count("DzTracks") == 178 and _sonde.get("montage") == 178,  # L5 (T6, 24/09) : L5sc1 ; sonde 166 -> 172 ; L6 (T5, 25/09) : 199 sections, sonde 173 ; L6 (T6, 25/09) : 200 sections, sonde 177 ; retours L6 (T4, 26/09) : 201 sections, sonde 178
+      and len(P.PATCHES) == 207 and s.count("DzTracks") == 178 and _sonde.get("montage") == 178,  # retours L6 (revue T2, 26/09) : 201 -> 207 (R6mu1..6, sonde inchangee) ; L5 (T6, 24/09) : L5sc1 ; sonde 166 -> 172 ; L6 (T5, 25/09) : 199 sections, sonde 173 ; L6 (T6, 25/09) : 200 sections, sonde 177 ; retours L6 (T4, 26/09) : 201 sections, sonde 178
       (s.count(_GP_MK), len(P.PATCHES), s.count("DzTracks"), _sonde.get("montage")))
 check("L5gp_couche_du_bundle_porte_le_panneau_la_boite_et_les_aides_exports_x1",
       len(_L7BN_LAYER) > 100000 and _L7BN_LAYER.count("function DzmGradePanel(o){") == 1 and _L7BN_LAYER.count("function DzmMaskBox(o){") == 1
@@ -19146,7 +19149,8 @@ _L6T = ["L6fx1", "L6fx2", "L6fx3", "L6fx4", "L6fx5", "L6au1", "L6nl1", "L6vo1"]
 check("L6_sept_sections_en_queue_apres_L5_ancres_1_0_1_touchees_par_aucune_autre_section",
       [t[0].split("-")[0] for t in _L6Q] == _L6T
       # retours L6 (26/09/2026, tache 4) : la queue R6 (une section) vient APRES L6 -- L6 est lue juste AVANT elle (rien relache)
-      and len(_R6Q) == 1 and P.PATCHES[len(P.PATCHES) - len(_R6Q) - len(_L6T):len(P.PATCHES) - len(_R6Q)] == _L6Q
+      # retours L6 (revue T2, 26/09/2026) : la queue R6 compte SEPT sections (R6gl1 + R6mu1..R6mu6) -- pin realigne
+      and len(_R6Q) == 7 and P.PATCHES[len(P.PATCHES) - len(_R6Q) - len(_L6T):len(P.PATCHES) - len(_R6Q)] == _L6Q
       and P.PATCHES[len(P.PATCHES) - len(_R6Q) - len(_L6T) - 1:len(P.PATCHES) - len(_R6Q) - len(_L6T)] == P.L5
       and (all(_bak.count(_nlb(a)) == 1 and s.count(nl(a)) == (1 if a in r else 0) and s.count(nl(r)) == 1
                and sum(1 for _t in P.PATCHES if _t[0] != t and (a in _t[1] or a in _t[2])) == 0
@@ -19461,12 +19465,15 @@ print("\n[R6] retours L6 (26/09/2026, tache 4) : l'image etalonnee dans la fenet
 _R6_REPL = 'liveOn?r.jsx(DzTracks.GradeLive,{clips:clips,head:ph,playing:playing,vzoom:vzoom,ratio:proj.ratio}):null,'
 _R6_A = 'liveOn?r.jsx("div",{className:"svm-liveov",ref:liveOvRef,'
 check("R6_une_section_en_queue_apres_L6_ancre_libre_1_0_1_gardee_touchee_par_aucune_autre_section",
-      [t[0].split("-")[0] for t in _R6Q] == ["R6gl1"] and P.PATCHES[-1:] == _R6Q
-      and P.PATCHES[-2:-1] == _L6Q[-1:] and len(P.PATCHES) == 201
+      # retours L6 (revue T2, 26/09/2026) : la queue R6 porte en plus R6mu1..R6mu6 (epinglees en [R6mu]) -- R6gl1 reste la
+      # PREMIERE de la queue, juste apres L6 ; 201 -> 207 (pins realignes)
+      [t[0].split("-")[0] for t in _R6Q] == ["R6gl1", "R6mu1", "R6mu2", "R6mu3", "R6mu4", "R6mu5", "R6mu6"]
+      and P.PATCHES[-len(_R6Q):] == _R6Q
+      and P.PATCHES[-len(_R6Q) - 1:-len(_R6Q)] == _L6Q[-1:] and len(P.PATCHES) == 207
       and (all(_bak.count(_nlb(a)) == 1 and a == _R6_A and r.endswith(a) and r.count(_R6_REPL) == 1
                and r.count("DzTracks") == 1 and s.count(nl(a)) == 1 and s.count(nl(r)) == 1
                and sum(1 for _t in P.PATCHES if _t[0] != t and (a in _t[1] or a in _t[2])) == 0
-               for t, a, r in _R6Q) if _bak and _R6Q else False),
+               for t, a, r in _R6Q[:1]) if _bak and _R6Q else False),
       [(t[:6], _bak.count(_nlb(a)) if _bak else "?", s.count(nl(a)), s.count(nl(r))) for t, a, r in _R6Q])
 _R6_I = {k: s.find(v) for k, v in (("frame", 'r.jsxs("div",{className:"svm-frame",ref:frameRef,'),
                                      ("live", 'liveOn?r.jsx("div",{className:"svm-live",ref:liveHostRef,'),
@@ -19513,15 +19520,15 @@ print("\n[R6s] retours L6 (26/09/2026, tache 5) : les scopes dans une fenetre fl
 # projet a la puce (le cadre du corps de /scopes, contrat T3 -- `proj.ratio`, le nom MESURE par R6gl1, declare AVANT la
 # puce). La fenetre est portee par la couche dans la RACINE .dzsvm (Pu.createPortal) : la feuille la pose en absolu, en
 # haut a droite par defaut (la geometrie memorisee passe en ligne), z-index 9 -- MESURE dans les trois feuilles : la barre
-# OUTILS est a 8 (.dzm-tbar, .dzm-tbtab), le premier popover a 9 (.dzm-projp, ancre sous le nom du projet a GAUCHE de
-# l'en-tete ; a egalite, l'ordre du DOM tranche), .svm-transpop 10, la lightbox et le voile de mode 19, menus et modales
-# 20 : au-dessus de la barre OUTILS, sous tout le reste. Elle CAPTE ses pointeurs (pointer-events:auto : elle n'est plus
+# OUTILS est a 8 (.dzm-tbar, .dzm-tbtab), les popovers a 10 (.dzm-projp -- 9 -> 10 le 26/09, revue T5 m2 : a egalite la
+# fenetre, plus tardive dans le DOM de la meme racine, couvrait la liste des projets -- et .svm-transpop), la lightbox et
+# le voile de mode 19, menus et modales 20 : au-dessus de la barre OUTILS, STRICTEMENT sous tout le reste. Elle CAPTE ses pointeurs (pointer-events:auto : elle n'est plus
 # dans le cadre, elle ne masque plus ses poignees) ; la barre de titre et la poignee sont `touch-action:none` (gestes
 # par dzmGpDrag, sans capture) ; l'image remplit le carre (object-fit:contain) SANS pointeur. Aucun `display:none` de
 # plus (_MASQUES reste a 5).
 _R6S_HOTE = "r.jsx(DzTracks.Scopes,{clips:clips,head:ph,playing:playing,ratio:proj.ratio})"
 check("R6s_puce_des_scopes_recoit_le_ratio_du_projet_x1_declare_avant_aucune_section_neuve",
-      s.count(_R6S_HOTE) == 1 and P.R_L5SC1.count(_R6S_HOTE) == 1 and len(P.PATCHES) == 201
+      s.count(_R6S_HOTE) == 1 and P.R_L5SC1.count(_R6S_HOTE) == 1 and len(P.PATCHES) == 207  # revue T2 : 201 -> 207 (R6mu)
       and 0 < s.find('style:{aspectRatio:String(proj.ratio||"9:16").replace(":","/"),') < s.find(_R6S_HOTE)
       and s.count("DzTracks.Scopes") == 1 and s.count("DzTracks") == 178 and _sonde.get("montage") == 178,
       [s.count(_R6S_HOTE), len(P.PATCHES), s.count("DzTracks")])
@@ -19536,7 +19543,8 @@ check("R6s_css_fenetre_absolue_dans_la_racine_z9_au_dessus_des_outils_sous_les_p
       _EB_CSS.count(".dzsvm>.dzm-scwin{") == 1 and "position:absolute" in _R6S_W and "z-index:9;" in _R6S_W
       and "pointer-events:auto" in _R6S_W and "top:56px" in _R6S_W and "right:16px" in _R6S_W and "width:320px" in _R6S_W
       and _EB_CSS.count(".dzsvm .dzm-tbar{") == 1 and "z-index:8;" in _r6s_regle(".dzsvm .dzm-tbar")
-      and "z-index:9;" in _r6s_regle(".dzsvm .dzm-projp") and "z-index:19;" in _r6s_regle(".dzsvm .dzm-lbscrim")
+      and "z-index:10;" in _r6s_regle(".dzsvm .dzm-projp") and "z-index:9;" not in _r6s_regle(".dzsvm .dzm-projp")
+      and "z-index:19;" in _r6s_regle(".dzsvm .dzm-lbscrim")
       and _EB_CSS.count(".svm-frame>.dzm-scpop") == 0,
       [_R6S_W])
 check("R6s_css_barre_et_poignee_sans_geste_tactile_image_remplit_le_carre_sans_pointeur_corps_carre_par_defaut",
@@ -19557,6 +19565,33 @@ check("R6s_couche_du_bundle_portail_dans_la_racine_barre_croix_poignee_memoire_c
       and _L7BN_LAYER.count('var DZM_SCW_CLE="dz_montage_scopes_geo"') == 1 and _L7BN_LAYER.count("setPointerCapture") == 1
       and s.count('"dz_montage_scopes_geo"') == 1 and (_bak.count("dz_montage_scopes_geo") == 0 if _bak else False),
       len(_R6S_L))
+
+# ══════════════════════════════════════════════════════════════════════════
+print("\n[R6mu] retours L6 (26/09/2026, revue T2) : les textes de la musique bornee a son clip")
+# ── Depuis e845de1 la musique d'une piste en boucle boucle DANS les bornes de son clip, fondu de sortie cale sur la fin du
+# CLIP. Six textes du maillon amont (son-vfx-montage, jamais edite) etaient faux : ils sont corriges par SIX sections en
+# queue de R6 (ancres 1/0/1 comptees sur .bak_montage, aucune gardee dans son remplacement). Les ANCIENS textes tombent a
+# 0 dans le bundle, les NOUVEAUX valent 1 ; temoin : le .bak porte les anciens.
+_R6MU = _R6Q[1:]
+check("R6mu_six_sections_en_queue_de_R6_ancres_1_0_1_non_gardees_touchees_par_aucune_autre_section",
+      [t[0].split("-")[0] for t in _R6MU] == ["R6mu1", "R6mu2", "R6mu3", "R6mu4", "R6mu5", "R6mu6"]
+      and (all(_bak.count(_nlb(a)) == 1 and a not in r and s.count(nl(a)) == 0 and s.count(nl(r)) == 1 and "DzTracks" not in r
+               and sum(1 for _t in P.PATCHES if _t[0] != t and (a in _t[1] or a in _t[2] or r in _t[2])) == 0
+               for t, a, r in _R6MU) if _bak and len(_R6MU) == 6 else False),
+      [(t[:5], _bak.count(_nlb(a)) if _bak else "?", s.count(nl(a)), s.count(nl(r))) for t, a, r in _R6MU])
+_R6MU_VIEUX = ("Fondu de fin de rendu", "musique bouclée sur toute la durée", "fondu de sortie calé sur la fin du rendu",
+               "fade_out = fin de rendu", "jamais retrimé", "le flux bouclé n'est")
+_R6MU_NEUF = ('title:(isMus?"Fondu de fin du clip":"Fondu de sortie")+" (0 à "+fmax+" s)",',
+              '"aria-label":isMus?"Fondu de fin du clip (s)":"Fondu de sortie (s)",',
+              'children:"musique bouclée dans les bornes de son clip — fondu de sortie calé sur la fin du clip"',
+              'title:(isMus?"Fondu de fin du clip (musique bouclée dans les bornes de son clip) : "',
+              "/* clip musique bouclée dans les bornes de son clip (fade_out = fondu de fin du clip) */",
+              "son fade_out = fondu de fin du clip (retours L6, 26/09/2026) */")
+check("R6mu_anciens_textes_a_0_nouveaux_a_1_temoin_le_bak_porte_les_anciens",
+      all(s.count(v) == 0 for v in _R6MU_VIEUX) and all(s.count(n) == 1 for n in _R6MU_NEUF)
+      and s.count("fin de rendu") == 0 and s.count("Fondu de fin du clip") == 3
+      and (all(_bak.count(v) >= 1 for v in _R6MU_VIEUX) and all(_bak.count(n) == 0 for n in _R6MU_NEUF) if _bak else False),
+      ([s.count(v) for v in _R6MU_VIEUX], [s.count(n) for n in _R6MU_NEUF], s.count("fin de rendu")))
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")
