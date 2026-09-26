@@ -484,10 +484,13 @@ FR = D.get("frame") if isinstance(D.get("frame"), dict) else {}
 SC = D.get("scopes") if isinstance(D.get("scopes"), dict) else {}
 MR = D.get("match_ref") if isinstance(D.get("match_ref"), dict) else {}
 MA = D.get("match_auto") if isinstance(D.get("match_auto"), dict) else {}
+# Retours L6 (26/09/2026, tache 3) : les routes lisent en plus des champs OPTIONNELS du mode cadre
+# (`cadre` ; `size` pour les scopes) que le panneau L5 n'envoie pas — pins realignes EN LE DISANT.
+_GF_R6, _SC_R6 = {"cadre"}, {"cadre", "size"}
 check("x6_grade_frame_champs_envoyes_src_t_w_effects_mask_egaux_aux_champs_lus",
-      set(FR) == {"src", "t", "w", "effects", "mask"} and set(FR) == LU_GF, (sorted(FR), sorted(LU_GF)))
+      set(FR) == {"src", "t", "w", "effects", "mask"} and set(FR) | _GF_R6 == LU_GF, (sorted(FR), sorted(LU_GF)))
 check("x6_scopes_champs_envoyes_src_t_effects_mask_egaux_aux_champs_lus_sans_largeur",
-      set(SC) == {"src", "t", "effects", "mask"} and set(SC) == LU_SC and "w" not in LU_SC, (sorted(SC), sorted(LU_SC)))
+      set(SC) == {"src", "t", "effects", "mask"} and set(SC) | _SC_R6 == LU_SC and "w" not in LU_SC, (sorted(SC), sorted(LU_SC)))
 check("x6_color_match_corps_ref_et_auto_egaux_aux_champs_lus_cible_et_reference_src_t",
       set(MR) == {"target", "ref"} and set(MA) == {"target", "auto"} and set(MR) | set(MA) == LU_CM
       and set(MR.get("target") or {}) == LU_TGT == {"src", "t"} and set(MR.get("ref") or {}) == LU_REF == {"src", "t"}

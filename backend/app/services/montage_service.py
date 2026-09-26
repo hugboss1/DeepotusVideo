@@ -5850,6 +5850,101 @@ def _grade_w(v) -> int:
     return _prev_w(v, _GRADE_W_DEFAUT)
 
 
+# --- Retours L6 (26/09/2026, tâche 3) : MODE CADRE et TAILLE DES SCOPES -----
+# `cadre = {ratio, t_local, dur?, reframe?, dz?}` (client : dzmGlBody) — l'image
+# est calculée DANS LA GÉOMÉTRIE DU RENDU V1 au même instant : les fonctions
+# du rendu sont RÉUTILISÉES (`_CANVAS`, `_reframe_of` + `_reframe_crop` D-40,
+# `_dz_spec` + `_dz_filter` D-13), aucune commande de rendu ne change.
+# `dur` (durée du plan, fin − début) est un AJOUT au contrat du plan : le
+# rendu interpole le zoom sur u = it / durée du segment (`_dz_filter`) —
+# sans elle la progression du zoom est inconnaissable ; sans `dur`, le zoom
+# est IGNORÉ (et les bornes t1 ne sont pas ramenées à la durée).
+_CADRE_W_DEFAUT, _CADRE_W_MIN, _CADRE_W_MAX = 720, 96, 1280
+_SCOPES_SIZE_DEFAUT, _SCOPES_SIZE_MIN, _SCOPES_SIZE_MAX = 512, 256, 1024
+
+
+def _borne_paire(raw, defaut: int, mini: int, maxi: int) -> int:
+    """Même règle que `_prev_w` sur d'autres bornes : illisible (absent,
+    texte, NaN, infini, booléen) → défaut ; bornée ; PAIRE."""
+    try:
+        v = int(float(str(raw)))
+    except (TypeError, ValueError, OverflowError):
+        v = defaut
+    v = max(mini, min(maxi, v))
+    return v - v % 2
+
+
+def _cadre_w(v) -> int:
+    """Largeur de l'image en mode cadre : 96..1280 paire, défaut 720."""
+    return _borne_paire(v, _CADRE_W_DEFAUT, _CADRE_W_MIN, _CADRE_W_MAX)
+
+
+def _scopes_size(v) -> int:
+    """Côté des scopes : 256..1024 pair, défaut 512 (L5 inchangé)."""
+    return _borne_paire(v, _SCOPES_SIZE_DEFAUT, _SCOPES_SIZE_MIN, _SCOPES_SIZE_MAX)
+
+
+def _cadre_of(raw) -> dict | None:
+    """`cadre` du corps → dict NORMALISÉ (JSON, il entre dans la clé du cache)
+    ou None (absent). Non-objet → 400 ; `t_local` illisible ou négatif →
+    400 ; ratio inconnu → 9:16 (comme `/render`) ; `dur` illisible ou ≤ 0 →
+    None ; `reframe` lu par `_reframe_of` sur srcIn 0 (ses points restent
+    donc en temps ABSOLU de source, lus au `t` de l'image — le temps du
+    crop du rendu est srcIn + t_local·vitesse = ce `t`) ; `dz` par
+    `_dz_spec`. Invalides → ignorés avec warning, comme au rendu."""
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        raise HTTPException(400, "cadre doit être un objet {ratio, t_local, dur?, reframe?, dz?}.")
+    ratio = raw.get("ratio") if raw.get("ratio") in _CANVAS else "9:16"
+    tl = _scenes_num(0.0 if raw.get("t_local") is None else raw.get("t_local"), "cadre.t_local",
+                     mini=0.0, maxi=86400.0, strict=False)
+    dur = _rf_num(raw.get("dur"))
+    dur = round(dur, 3) if dur is not None and 0 < dur <= 86400 else None
+    return {"ratio": ratio, "t_local": round(tl, 3), "dur": dur,
+            "reframe": _reframe_of({"reframe": raw.get("reframe"), "srcIn": 0, "label": "cadre"}),
+            "dz": _dz_spec({"dz": raw.get("dz"), "label": "cadre"})}
+
+
+def _cadre_pre(cad: dict, w: int, h: int, t_src: float) -> str:
+    """Le préfixe de géométrie d'UNE image, celui de la chaîne V1 du rendu
+    (`scale=…:force_original_aspect_ratio=increase,<crop>,setsar=1,
+    [zoompan],format=yuv420p`) avec deux horloges posées par `setpts` — l'image
+    extraite par `-ss` arrive à t ≈ 0 : le crop lit `t` = temps de SOURCE
+    (points absolus, voir `_cadre_of`), le zoompan lit `it` = `t_local`
+    (au rendu : temps du segment après fps=), et la pile lit `t` = `t_local`
+    (au rendu : après setpts=PTS-STARTPTS). MESURÉ le 26/09 (8.1.1) : zoompan
+    d=1 sur une image unique suit `it` posé par setpts. Sans vitesse ni
+    retime ni stabilisation (hors contrat : l'image reste celle de la source
+    à `t`)."""
+    n = sfx_service.fnum
+    rf, dz, tl, dur = cad.get("reframe"), cad.get("dz"), cad.get("t_local") or 0.0, cad.get("dur")
+    pre = []
+    if isinstance(rf, dict) and rf.get("mode") == "suivi":
+        pre.append(f"setpts=PTS-STARTPTS+{n(t_src)}/TB")
+    pre.append(f"scale={w}:{h}:force_original_aspect_ratio=increase,{_reframe_crop(rf, w, h)},setsar=1")
+    horloge = f"setpts=PTS-STARTPTS+{n(tl)}/TB"
+    pre.append(horloge)
+    if isinstance(dz, dict) and dur:
+        pre += [_dz_filter(dz, w, h, 30, dur), horloge]
+    pre.append("format=yuv420p")
+    return ",".join(pre)
+
+
+# Sémaphore propre à /grade-frame (même patron que `_scopes_sem`, distinct :
+# une rafale d'aperçus ne bloque pas les scopes, ni l'inverse).
+_GRADE_MAX = 2
+_GRADE_SEM: tuple | None = None        # (boucle, asyncio.Semaphore)
+
+
+def _grade_sem() -> asyncio.Semaphore:
+    global _GRADE_SEM
+    loop = asyncio.get_running_loop()
+    if _GRADE_SEM is None or _GRADE_SEM[0] is not loop:
+        _GRADE_SEM = (loop, asyncio.Semaphore(_GRADE_MAX))
+    return _GRADE_SEM[1]
+
+
 @router.post("/color-match")
 async def montage_color_match(request: Request):
     """Body `{target:{src,t}, ref?:{src,t}, auto?:bool}` → `{ok, effect, ref,
@@ -5902,14 +5997,20 @@ def _scopes_sem() -> asyncio.Semaphore:
 
 @router.post("/scopes")
 async def montage_scopes(request: Request):
-    """Body `{src, t, effects?, mask?}` → PNG 512×512 (waveform, vectorscope,
-    histogramme) de l'image ÉTALONNÉE. `no-store` : le client le redemande à
-    chaque arrêt, le cache disque suffit."""
+    """Body `{src, t, effects?, mask?, size?, cadre?}` → PNG size×size (256..1024
+    pair, défaut 512 ; waveform, vectorscope, histogramme) de l'image
+    ÉTALONNÉE — en mode `cadre`, celle de `/grade-frame` en mode cadre.
+    `no-store` : le client le redemande à chaque arrêt, le cache disque
+    suffit."""
     from app.services import grading as GR
     _require_local(request)
     body = await _json_body(request)
     t = _grade_t(body.get("t"))
     effs = _grade_effects(body.get("effects"))
+    size = _scopes_size(body.get("size"))
+    cad = _cadre_of(body.get("cadre"))
+    # 512 sans cadre : l'appel de L5 tel quel (positionnel).
+    kw = {} if size == _SCOPES_SIZE_DEFAUT and cad is None else {"size": size, "cadre": cad}
     p = await _media_source(request, body.get("src"), video=True)
     try:
         async with _scopes_sem():
@@ -5918,7 +6019,7 @@ async def montage_scopes(request: Request):
             # nginx), sans corps, que personne ne lira ; ffmpeg n'est pas lancé et la place se libère aussitôt.
             if await request.is_disconnected():
                 return Response(status_code=499)
-            out = await asyncio.to_thread(GR.scopes_png, p, t, effs, body.get("mask"))
+            out = await asyncio.to_thread(GR.scopes_png, p, t, effs, body.get("mask"), **kw)
     except Exception as e:
         raise _media_http(e)
     return FileResponse(out, media_type="image/png", headers={"Cache-Control": "no-store"})
@@ -5926,18 +6027,26 @@ async def montage_scopes(request: Request):
 
 @router.post("/grade-frame")
 async def montage_grade_frame(request: Request):
-    """Body `{src, t, effects?, mask?, w?}` → JPEG de l'image étalonnée
+    """Body `{src, t, effects?, mask?, w?, cadre?}` → JPEG de l'image étalonnée
     (`w` 96..640 pair, défaut 240) — aperçu du panneau Étalonnage et
-    vignettes de la lightbox."""
+    vignettes de la lightbox. Retours L6 : avec `cadre` (voir `_cadre_of`),
+    l'image du LECTEUR — géométrie du rendu, effets présents à `t_local` —,
+    `w` 96..1280 pair, défaut 720. Au plus deux calculs à la fois
+    (`_grade_sem`) ; client parti pendant l'attente → 499 sans ffmpeg."""
     from app.services import grading as GR
     _require_local(request)
     body = await _json_body(request)
     t = _grade_t(body.get("t"))
     effs = _grade_effects(body.get("effects"))
-    w = _grade_w(body.get("w"))
+    cad = _cadre_of(body.get("cadre"))
+    w = _grade_w(body.get("w")) if cad is None else _cadre_w(body.get("w"))
+    kw = {} if cad is None else {"cadre": cad}
     p = await _media_source(request, body.get("src"), video=True)
     try:
-        out = await asyncio.to_thread(GR.graded_frame, p, t, effs, body.get("mask"), w, "jpg")
+        async with _grade_sem():
+            if await request.is_disconnected():
+                return Response(status_code=499)
+            out = await asyncio.to_thread(GR.graded_frame, p, t, effs, body.get("mask"), w, "jpg", **kw)
     except Exception as e:
         raise _media_http(e)
     return FileResponse(out, media_type="image/jpeg",
