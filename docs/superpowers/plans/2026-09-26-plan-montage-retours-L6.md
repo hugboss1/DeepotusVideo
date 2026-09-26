@@ -12,11 +12,11 @@
 
 ## Liste de contrôle (cochée par le contrôleur : revue conformité + qualité + corrections + re-revue + bancs verts)
 
-- [ ] T1 — `sfx_service` : le « mix » de l'écho et de la réverbe dose la part d'effet, le son sec reste à son niveau
-- [ ] T2 — `montage_service` : la musique d'une piste en boucle respecte les bornes de son clip (début, fin, entrée source), boucle à l'intérieur
-- [ ] T3 — routes `grade-frame` (mode cadre, haute définition, effets bornés au temps local) et `scopes` (taille)
-- [ ] T4 — client : image étalonnée dans la fenêtre principale, à l'arrêt
-- [ ] T5 — client : scopes en fenêtre flottante déplaçable/redimensionnable
+- [x] T1 — `sfx_service` : le « mix » de l'écho et de la réverbe dose la part d'effet, le son sec reste à son niveau (`234831b`, pins l6 `411700d` ; `aecho=0.25:1:<délais>:<0,25·mix·r_k>,volume=4` : sec exact, marge contre l'écrêtage INTERNE d'aecho à ±1 mesuré ; écho = modèle WebAudio (1, mix, mix·fb, mix·fb²) ; sec du projet −14/−20 dB → 0 ; fuzz 297 fragments sans échec sur les deux binaires)
+- [x] T2 — `montage_service` : la musique d'une piste en boucle respecte les bornes de son clip (début, fin, entrée source), boucle à l'intérieur (`e845de1`, revues `2d3d750`, `aba302b` ; `music["bornes"]`, `-stream_loop -1` + `atrim` + fondus sur le clip + `adelay` + automation GLOBALE après adelay + `apad=whole_dur` ; D plafonné au total ; ±inf traités ; textes de l'interface corrigés par R6mu1..6 `3b99cd7`)
+- [x] T3 — routes `grade-frame` (mode cadre, haute définition, effets bornés au temps local) et `scopes` (taille) (`71673fa`, revue `aba302b` ; géométrie du RENDU réutilisée (`_reframe_crop`, `_dz_filter`, `_CANVAS`) ; `cadre.dur` AJOUTÉ au contrat ; écart au rendu réel 0,7–0,8/255 PNG ; 190 ms à 720 px ; sans cadre octet pour octet ; sémaphore 2 ; jamais de 500 (fuzz) ; le RENDU est en avance d'environ une image — préexistant, daté)
+- [x] T4 — client : image étalonnée dans la fenêtre principale, à l'arrêt (`c9e2631`, revue `3b99cd7` ; `DzmGradeLive` + section `R6gl1` avant `.svm-liveov` ; anti-rebond prouvé en rafale ; plan sous la tête = règle `svmActiveV1` ; aucun effet actif à t_local ou image fixe → rien)
+- [x] T5 — client : scopes en fenêtre flottante déplaçable/redimensionnable (`c2488ee`, revue `3b99cd7` ; `.dzm-scwin` dans `.dzsvm`, z 9 sous tous les popovers (`.dzm-projp` → 10), taille demandée au relâcher, géométrie mémorisée, recadrage suspendu pendant un geste, `role=region`)
 - [ ] T6 — clôture (mutations, banc croisé, preuve écran, conception/mémoire datées, revue finale, PR)
 
 Ordonnancement : vague 1 **T1** (`sfx_service.py`, banc neuf `test_retours_sfx.py`) ∥ **T2** (`montage_service.py` musique, banc neuf `test_retours_musique.py`) ∥ **T4** (couche + patcher + bundle + CSS, code contre le contrat T3 écrit ici) ; vague 2 **T3** (après T2 : même `montage_service.py` ; `grading.py`, banc neuf `test_retours_grade.py`) ∥ **T5** (après T4 : même patcher) ; **T6** en dernier. Revues en arrière-plan sur le SHA figé.
