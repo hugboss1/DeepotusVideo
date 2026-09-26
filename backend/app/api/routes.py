@@ -2182,7 +2182,23 @@ async def upload_audio(file: UploadFile = File(...)):
     if len(contents) > 50 * 1024 * 1024:
         raise HTTPException(400, "Audio too large (max 50 MB)")
     dest = folder / safe
-    dest.write_bytes(contents)
+    # Correctif du 26/09/2026 : vide (0 octet) ou illisible par ffprobe → 415,
+    # rien d'écrit. La sonde lit un temporaire VOISIN : un envoi illisible
+    # n'écrase jamais un son existant du même nom.
+    if not contents:
+        raise HTTPException(415, f"Fichier vide ou illisible : {safe} (0 octet)")
+    tmp = folder / f".~sonde_{uuid4().hex[:8]}{Path(safe).suffix}"
+    try:
+        import os
+        tmp.write_bytes(contents)
+        from app.services.montage_service import _sonde_flux
+        r = await asyncio.to_thread(_sonde_flux, tmp)
+        if r:
+            raise HTTPException(415, f"Fichier vide ou illisible : {safe} "
+                                     f"(illisible : {r})")
+        os.replace(tmp, dest)
+    finally:
+        tmp.unlink(missing_ok=True)
     # R1 — sidecar meta (tags du tiroir Sons) : import ou musique selon le nom.
     from app.services import sfx_service
     await asyncio.get_running_loop().run_in_executor(
@@ -2862,6 +2878,17 @@ async def upload_video(file: UploadFile = File(...)):
         n += 1
     contents = await file.read()
     dest.write_bytes(contents)
+    # Correctif du 26/09/2026 : un fichier vide (0 octet) ou que ffprobe ne
+    # sait pas lire (aucun flux, erreur de démultiplexeur) n'entre PAS — 415,
+    # fichier supprimé, aucun job. Un son seul reste accepté (il porte un flux).
+    raison = "0 octet" if not contents else None
+    if raison is None:
+        from app.services.montage_service import _sonde_flux
+        r = await asyncio.to_thread(_sonde_flux, dest)
+        raison = r and f"illisible : {r}"
+    if raison:
+        dest.unlink(missing_ok=True)
+        raise HTTPException(415, f"Fichier vide ou illisible : {safe} ({raison})")
 
     dur = await asyncio.to_thread(_probe_seconds, str(dest)) or 0.0
     job_id = str(uuid4())

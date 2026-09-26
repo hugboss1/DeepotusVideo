@@ -673,6 +673,64 @@ def _has_audio_stream(path: Path) -> bool:
         return False
 
 
+# Correctif du 26/09/2026 — sources VIDES ou ILLISIBLES. MESURÉ le 25/09 : un
+# upload de juillet faisait 0 octet, `/videos/upload` l'avait accepté, et le
+# rendu qui l'utilisait mourait sur « moov atom not found » en tranche brute.
+# Ce n'est PAS la question que `_ffmpeg_ouvrira` écarte (la PERTINENCE d'un
+# média sur une piste, jugée à l'extension) : c'est la LISIBILITÉ du fichier,
+# que seule une sonde peut dire.
+_LISIBLE_CACHE: dict[tuple[str, int, int], str | None] = {}
+
+
+def _sonde_flux(path: Path, timeout: float = 15) -> str | None:
+    """ffprobe liste les flux de `path` : None si au moins un flux se lit,
+    sinon une raison COURTE (« aucun flux », ou la ligne du démultiplexeur,
+    chemin et préfixe `[mov,mp4… @ 0x…]` retirés, ≤ 120 car.). ffprobe
+    injoignable ou sonde expirée → None : on ne juge pas ce qu'on n'a pas pu
+    lire (le rendu garde alors son chemin d'avant). Appelée hors de la boucle
+    asyncio (`asyncio.to_thread`) par l'upload et par le pré-vol."""
+    try:
+        r = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "stream=codec_type",
+             "-of", "csv=p=0", str(path)],
+            check=False, capture_output=True, text=True, encoding="utf-8",
+            errors="replace", timeout=timeout)
+    except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
+        return None
+    if r.returncode == 0 and (r.stdout or "").strip():
+        return None
+    lignes = []
+    for l in (r.stderr or "").splitlines():
+        l = re.sub(r"^\[[^\]]*@\s*[0-9a-fA-Fx]+\]\s*", "", l.strip())
+        l = l.replace(str(path), "").replace(path.name, "").lstrip(": ").strip()
+        if l and l not in lignes:
+            lignes.append(l)
+    return (" ; ".join(lignes[:2]) or "aucun flux")[:120]
+
+
+async def _source_illisible(path: Path) -> str | None:
+    """Pré-vol de `/render` : « 0 octet », « illisible : <raison> », ou None
+    (lisible — ou DISPARUE, qui reste hors pré-vol). La sonde est CACHÉE par
+    (chemin, taille, mtime_ns) : un fichier inchangé n'est sondé qu'une fois
+    entre deux rendus ; qu'il change de taille ou de date, il l'est de
+    nouveau."""
+    try:
+        st = path.stat()
+    except OSError:
+        return None
+    if st.st_size == 0:
+        return "0 octet"
+    cle = (str(path), st.st_size, st.st_mtime_ns)
+    if cle in _LISIBLE_CACHE:
+        return _LISIBLE_CACHE[cle]
+    raison = await asyncio.to_thread(_sonde_flux, path)
+    res = None if raison is None else f"illisible : {raison}"
+    if len(_LISIBLE_CACHE) > 512:
+        _LISIBLE_CACHE.clear()
+    _LISIBLE_CACHE[cle] = res
+    return res
+
+
 # P8 — extensions qu'un DÉMULTIPLEXEUR vidéo sait ouvrir. La liste est
 # FERMÉE par choix : `sprite2d` range sa planche PNG et `asset3d` son maillage
 # GLB dans la MÊME colonne `final_video_path` qu'un rendu `seedance`, et un
@@ -4760,7 +4818,10 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
     en file d'attente. Une image reste légitime (carton fixe V1, incrustation
     V2) et un son sur une piste audio : la frontière est « ce que ffmpeg sait
     ouvrir », pas « vidéo ». Une source DISPARUE n'est pas concernée : ce
-    chemin reste inchangé.
+    chemin reste inchangé. Correctif du 26/09/2026 : une source résolue VIDE
+    (0 octet) ou ILLISIBLE (ffprobe n'y lit aucun flux) est refusée de même,
+    nommée avec sa piste et son temps (`_source_illisible`, sonde cachée
+    par chemin, taille et mtime).
     → {job_id} ; poll /api/jobs/{id}."""
     global _RENDER_PENDING                      # D-36
     try:
@@ -4853,11 +4914,25 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
     # du pré-vol : ce chemin reste celui d'avant (échec nommé dans `_run`
     # pour V1, warning et clip ignoré pour les overlays et l'audio).
     refus = []
+    illisibles = []                 # correctif 26/09 : vides ou illisibles
     for c in clips:
         m = meta.get(c.get("tr"))
         if not m or m["kind"] == "subs" or not isinstance(c.get("src"), dict):
             continue
         p = await _resolve_src(c.get("src"))
+        if p is not None and _ffmpeg_ouvrira(p):
+            # Même bornage que P8 (libellé [:60], refus[:8]) ; la piste et
+            # le temps sont des chaînes CLIENTES, bornées aussi.
+            raison = await _source_illisible(p)
+            if raison:
+                dit = str(c.get("label") or c.get("id") or c.get("tr") or "?")[:60]
+                try:
+                    t0 = max(0, int(float(c.get("start") or 0)))
+                except (TypeError, ValueError):
+                    t0 = 0
+                piste = str(c.get("tr") or "?").upper()[:12]
+                illisibles.append(f"« {dit} » ({piste}, à {t0 // 60}:{t0 % 60:02d})"
+                                  f" → {p.name} ({raison})")
         if p is not None and not _ffmpeg_ouvrira(p):
             # P8-bis — le NOMBRE de fautifs était borné (`refus[:8]` plus bas),
             # la LONGUEUR de chacun ne l'était pas : `label`, `id` et `tr`
@@ -4875,6 +4950,11 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                  f"n'est pas un plan : retire ces clips de la timeline, ou "
                  f"remplace-les par une vidéo (mp4/mov/webm) ou une image "
                  f"(png/jpg).")
+    if illisibles:
+        raise HTTPException(
+            400, f"Rendu impossible : {len(illisibles)} source(s) illisible(s) "
+                 f"— {' ; '.join(illisibles[:8])}. Remplace ou retire ces "
+                 f"plans.")
 
     job_id = str(uuid4())
     short = job_id[:8]
