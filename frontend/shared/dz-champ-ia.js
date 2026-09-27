@@ -123,7 +123,10 @@
     "@keyframes dzia-tour{to{--dzia-ang:360deg}}",
     "@keyframes dzia-balai{0%{background-position:120% 0,0 0,0 0,0 0,0 0}100%{background-position:-120% 0,0 0,0 0,0 0,0 0}}",
     /* la barre : frère absolu, ne capture pas les clics hors de ses boutons */
-    ".dzia-barre{position:absolute;left:0;top:0;z-index:3;display:flex;align-items:center;gap:4px;margin:0;padding:0;" +
+    /* flex-wrap et largeur imposés (T10, mesuré au Vitrail) : un hôte à `flex-wrap:wrap` et un bloc
+       conteneur étroit repliaient le micro sur une seconde ligne, EN PLEIN champ ; classe doublée :
+       `.ap-ligne > span { width: 52px }` du Vectorlab (0,1,1) battait `.dzia-barre` (0,1,0) */
+    ".dzia-barre.dzia-barre{position:absolute;left:0;top:0;z-index:3;display:flex;flex-wrap:nowrap!important;width:max-content!important;align-items:center;gap:4px;margin:0;padding:0;" +
       "pointer-events:none;line-height:1;white-space:nowrap;box-sizing:border-box}",
     ".dzia-badge{display:inline-block;font:700 9px/1 system-ui,-apple-system,'Segoe UI',sans-serif;letter-spacing:.06em;" +
       "padding:3px 6px;border-radius:999px;background:linear-gradient(90deg,#8b5cf6,#3b82f6,#f97316);color:#fff;" +

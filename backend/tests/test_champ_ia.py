@@ -1305,6 +1305,10 @@ def main():
     check("barre absolue et sans capture des clics (le champ reste cliquable)",
           re.search(r"\.dzia-barre\{[^}]*position:absolute", css) is not None
           and re.search(r"\.dzia-barre\{[^}]*pointer-events:none", css) is not None)
+    check("barre jamais repliée sur deux lignes (mesuré au Vitrail : l'hôte impose flex-wrap:wrap et la largeur manque) : "
+          "flex-wrap:nowrap!important et width:max-content",
+          re.search(r"\.dzia-barre\{[^}]*flex-wrap:nowrap!important", css) is not None
+          and re.search(r"\.dzia-barre\.dzia-barre\{[^}]*width:max-content!important", css) is not None)
     check("le texte garde son contraste : aucune règle ne change color du champ",
           not any(re.match(r"\.dzia-(champ|lis|bord|halo)", s) and re.search(r"(^|;)\s*color:", c) for s, c in regles_css))
 
