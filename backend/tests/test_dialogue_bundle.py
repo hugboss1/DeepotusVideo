@@ -64,8 +64,10 @@ def main():
     hors = s[:i] + s[j:]
     check("plus aucun confirm( ni prompt( natif hors couche",
           re.search(r"(?<![\w.])(?:confirm|prompt)\(", hors) is None and "window.confirm(" not in hors)
-    check("await __dzDialogue.saisir ×2 hors couche",
-          hors.count("await window.__dzDialogue.saisir(") == 2, str(hors.count("await window.__dzDialogue.saisir(")))
+    # 27/09/2026 : + 1, le bouton Save du Studio (section R8sv1 de patch_bundle_montage, maillon AVAL) -- ce releve
+    # ne voyait que les `prompt(` NUS ; les `window.prompt(` (dix restants) lui avaient echappe.
+    check("await __dzDialogue.saisir ×3 hors couche (2 de ce maillon + le Save du Studio, R8sv1)",
+          hors.count("await window.__dzDialogue.saisir(") == 3, str(hors.count("await window.__dzDialogue.saisir(")))
     SRC = RACINE / "frontend" / "shared" / "dialogue.js"
     check("la couche du patcher = frontend/shared/dialogue.js octet pour octet (source unique)",
           SRC.exists() and COUCHE.read_bytes() == SRC.read_bytes())

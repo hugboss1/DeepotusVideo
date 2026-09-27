@@ -6335,6 +6335,13 @@ R_R8OG1 = ('function DzOpenGraph({onPick}){var st=x.useState([]),gs=st[0],setGs=
 A_R8HG1 = 'e.type==="HeyGenAvatar"?r.jsx(DzAvatarPick,{p:n,set:o})'
 R_R8HG1 = ('e.type==="HeyGenAvatar"?r.jsxs(r.Fragment,{children:[r.jsx(DzAvatarPick,{p:n,set:o}),'
            'r.jsx(DzHgFormat,{graph:g,node:e})]})')
+# R8sv1 (27/09, suite) -- le bouton Save du Studio demandait le nom par le `prompt()` NATIF (« 127.0.0.1:8765 indique »,
+#   et « prompt() is not supported » dans le navigateur integre de l'app de bureau) : il passe par le dialogue maison
+#   `window.__dzDialogue.saisir` (patch_bundle_dialogue, en amont : meme contrat, null = annule). Le onClick est deja
+#   async ; le reste du geste (nom vide -> « My graph », POST /api/studio-graphs, dz-graphs-changed) est inchange.
+A_R8SV1 = 'var nm=window.prompt("Name this graph:",(o.name||"My graph"));'
+R_R8SV1 = ('var nm=await window.__dzDialogue.saisir("Nom du graphe :",{titre:"Enregistrer le graphe",'
+           'valeur:(o.name||"My graph"),ok:"Enregistrer"});')
 R8 = [("R8ic1-icones-dossier-ouvert-et-panneau", A_R8IC1, R_R8IC1),
       ("R8st1-etat-du-repli-et-format-heygen", A_R8ST1, R_R8ST1),
       ("R8in1-classe-de-repli-sur-la-grille", A_R8IN1, R_R8IN1),
@@ -6342,9 +6349,11 @@ R8 = [("R8ic1-icones-dossier-ouvert-et-panneau", A_R8IC1, R_R8IC1),
       ("R8in3-replier-depuis-l-en-tete-du-graphe", A_R8IN3, R_R8IN3),
       ("R8in4-poignee-inspector-du-canevas", A_R8IN4, R_R8IN4),
       ("R8og1-ouvrir-un-graphe-en-icone", A_R8OG1, R_R8OG1),
-      ("R8hg1-format-impose-dans-l-inspecteur-heygen", A_R8HG1, R_R8HG1)]
-assert len(R8) == 8 and all("DzTracks" not in r for _t, _a, r in R8)
-assert [a in r for _t, a, r in R8] == [True, True, False, False, False, True, False, False]
+      ("R8hg1-format-impose-dans-l-inspecteur-heygen", A_R8HG1, R_R8HG1),
+      ("R8sv1-save-demande-le-nom-par-le-dialogue-maison", A_R8SV1, R_R8SV1)]
+assert len(R8) == 9 and all("DzTracks" not in r for _t, _a, r in R8)
+assert [a in r for _t, a, r in R8] == [True, True, False, False, False, True, False, False, False]
+assert "prompt(" not in R_R8SV1 and R_R8SV1.count("await window.__dzDialogue.saisir(") == 1
 assert 'name:"more"' not in R_R8IN2 and "Open graph" not in R_R8OG1 and R_R8ST1.count("function ") == 5
 
 
@@ -6599,7 +6608,7 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("EC13-suppr-referme-le-trou", A_EC13, R_EC13),
            ("EC14-clic-sur-un-clip-efface-le-trou", A_EC14, R_EC14)] + EC15 + L4 + L7A + L5 + L6 + R6 + R7 + R8
            # studio 27/09 : + HUIT sections EN QUEUE, groupe R8 apres R7 (format HeyGen impose par le template, « Ouvrir un graphe » en icone,
-           # repli de l'inspecteur) ; 213 -> 221, le --check dit 222 ancres.
+           # repli de l'inspecteur) ; 213 -> 221, le --check dit 222 ancres ; + R8sv1 (Save par le dialogue maison) : 222, le --check dit 223.
            # retours 26/09 (plan du 27/09, tache 4) : + QUATRE sections EN QUEUE, groupe R7 apres R6 (R7up1 l'upload
            # refuse lisible ; R7vm1..R7vm3 Seedance 2.5 par defaut dans le Studio) ; 207 -> 211, le --check dit 212 ancres.
            # cloture T11b (27/09) : + DEUX sections en queue de R7 (R7er1 postJson, R7er2 rendu de layout, les erreurs de

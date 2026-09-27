@@ -62,7 +62,7 @@ R8 = list(getattr(P, "R8", []))
 print("\n[0] preconditions")
 check("0.1 .bak_montage present (temoin)", bool(bak), _d(str(BAK)))
 check("0.2 node present", bool(NODE), _d(NODE))
-check("0.3 groupe R8 : huit sections, en QUEUE de PATCHES", len(R8) == 8 and P.PATCHES[-8:] == R8,
+check("0.3 groupe R8 : neuf sections, en QUEUE de PATCHES", len(R8) == 9 and P.PATCHES[-9:] == R8,
       _d([t[0] for t in P.PATCHES[-9:]]))
 
 print("\n[1] chaque section : ancre x1 dans le .bak, remplacement x1 dans le livre")
@@ -184,6 +184,18 @@ check("4.8 node : ouvert par defaut ; dziOpen(false) -> classe posee, \"0\" memo
 check("4.9 node : toggle rouvre (\"1\", classe retiree) ; close puis open -> ouvert",
       _r2.get("bascule") == {"open": True, "ls": "1", "cls": False} and _r2.get("rouvre") == {"open": True, "cls": False},
       _d(_r2))
+
+print("\n[5] Save : le nom du graphe par le dialogue maison, plus par prompt()")
+check("5.1 plus de window.prompt(\"Name this graph\" (temoin : x1 dans le .bak)",
+      s.count('window.prompt("Name this graph:"') == 0 and bak.count('window.prompt("Name this graph:"') == 1, "")
+check("5.2 await window.__dzDialogue.saisir, titre, valeur = nom courant, bouton Enregistrer ; annuler (null) sort",
+      s.count('var nm=await window.__dzDialogue.saisir("Nom du graphe :",{titre:"Enregistrer le graphe",'
+              'valeur:(o.name||"My graph"),ok:"Enregistrer"});if(nm==null)return;') == 1, "")
+check("5.3 ... dans le onClick ASYNC du bouton Save (« Save this graph »)",
+      s.count('title:"Save this graph",onClick:async()=>{try{var nm=await window.__dzDialogue.saisir(') == 1, "")
+check("5.4 la couche de dialogue est dans le bundle (saisir defini) -- temoin : deja au .bak",
+      'saisir: function (m, o) { return ouvrir("saisir", m, o); }' in s
+      and 'saisir: function (m, o) { return ouvrir("saisir", m, o); }' in bak, "")
 
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)
