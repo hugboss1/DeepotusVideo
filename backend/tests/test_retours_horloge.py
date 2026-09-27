@@ -443,6 +443,43 @@ for name, ov in _V2CAS.items():
     co = (ro.get("clips") or [{}, {}])[-1]
     check(f"7 temoin 3e01fbe {name} : l'overlay avancait d'une image (ecart median 1)",
           "err" not in ro and co.get("img0") == 13 and co.get("ecart_med") == 1, _d(resume(ro)))
+# Re-revue T1 : la pose de la TOILE D-14 (echelle animee -> pad + zoompan,
+# `decrease,setsar=1,{ofps},format=rgba`) n'etait gardee par aucun banc ; et un
+# overlay hors grille (d = 1,017 : 31 images, la derniere a t = 1,4 < en = 1,417).
+# Images attendues : st <= j/fps < en (le trim borne le flux a d).
+_TFC = {"x": 0.5, "y": 0.5, "scale": 1.0, "rotate": 0.0}
+
+
+def _mp(st, en, t1):
+    return MS._motion_points({"start": st, "end": en, "motion_points": [
+        {"t": 0, "x": 0.5, "y": 0.5, "scale": 1.0, "opacity": 1.0},
+        {"t": t1, "x": 0.5, "y": 0.5, "scale": 1.05, "opacity": 0.999}]})
+
+
+_V2CAS2 = {
+    "V2 D-14 echelle animee (zoompan + sendcmd), d = 1,0": (V2(0.4, 1.4, 0.5, tf=dict(_TFC), mp=_mp(0.4, 1.4, 1.0)), 30),
+    "V2 cover hors grille, d = 1,017": (V2(0.4, 1.417, 0.5), 31),
+    "V2 D-14 echelle animee, d = 1,017": (V2(0.4, 1.417, 0.5, tf=dict(_TFC), mp=_mp(0.4, 1.417, 1.017)), 31),
+}
+for name, (ov, natt) in _V2CAS2.items():
+    base = [clip("30", 0, 2, 5.0)]
+    _natt = sum(1 for j in range(60) if ov["start"] - 1e-9 <= j / 30 < ov["end"] - 1e-9)
+    rn = run_case(MS, base, 30, "30", v2=[ov])
+    cv = (rn.get("clips") or [{}, {}])[-1]
+    check(f"7 {name} : image 0 = image in, j0 = start, ecart median 0, {natt} images",
+          _natt == natt and "err" not in rn and cv.get("j0") == cv.get("j0_att") == 12
+          and cv.get("img0") == cv.get("img0_att") == 13
+          and cv.get("ecart_med") in (0, 0.0) and cv.get("n") == natt, _d(_natt, resume(rn)))
+    ro = run_case(T3E, base, 30, "30", v2=[ov]) if T3E is not None else {"err": "temoin absent"}
+    co = (ro.get("clips") or [{}, {}])[-1]
+    check(f"7 temoin 3e01fbe {name} : l'overlay avancait d'une image (ecart median 1)",
+          "err" not in ro and co.get("img0") == 13 and co.get("ecart_med") == 1, _d(resume(ro)))
+_cz, _ = build(MS, [clip("30", 0, 2, 5.0)], 30, _o, v2=[V2(0.4, 1.4, 0.5, tf=dict(_TFC), mp=_mp(0.4, 1.4, 1.0))])
+_gz = " ".join(_cz)
+check("7.7 chaine D-14 : toile decrease puis fps=30:start_time=0,trim=duration=1.0,format=rgba, zoompan present",
+      "decrease,setsar=1,fps=30:start_time=0,trim=duration=1.0,format=rgba" in _gz and "zoompan=z='" in _gz,
+      _d(_gz[-700:]))
+
 _ci, _ = build(MS, [clip("30", 0, 2, 5.0)], 30, _o, v2=[V2(0.4, 1.4, 0.5)])
 _gi = " ".join(_ci)
 check("7.5 chaine V2 video : fps=30:start_time=0,trim=duration=1.0 puis setpts decale",
