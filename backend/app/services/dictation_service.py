@@ -52,6 +52,11 @@ DICTATION_MAX_BYTES = 25 * 1024 * 1024
 DICTATION_MIN_S = 0.1
 DICTATION_MAX_S = 600.0
 _EPS_USD = 1e-9
+# Raison PROPRE à la dictée (clôture T11, revue T10) : celle de
+# transcribe_service propose « le calage d'un texte connu », un chemin que le
+# micro des champs IA n'offre pas. Le client la montre dans le title du micro.
+SANS_CLE = ("Aucune clé de transcription configurée (Réglages : ElevenLabs ou "
+            "OpenAI) : la dictée enregistrée ne peut pas être transcrite.")
 
 
 def _garde(request: Request) -> None:
@@ -151,7 +156,7 @@ async def dictation_estimate(request: Request, file: UploadFile = File(...)):
         out["label"] = est.get("label")
         out["eta_s"] = est.get("eta_s")
     else:
-        out["reason"] = est.get("reason") or "Transcription indisponible."
+        out["reason"] = SANS_CLE
     return out
 
 
@@ -168,8 +173,7 @@ async def dictation(request: Request, file: UploadFile = File(...),
         raise HTTPException(422, "Plafond max_usd invalide.")
     contents = await _lire(request, file)
     if not TS.resolve_provider():
-        raise HTTPException(503, "Aucune clé de transcription configurée "
-                                 "(Réglages : ElevenLabs ou OpenAI).")
+        raise HTTPException(503, SANS_CLE)
     lang = _langue(language)
 
     def _travail() -> dict:
@@ -180,8 +184,7 @@ async def dictation(request: Request, file: UploadFile = File(...),
                 dur = w.getnframes() / float(w.getframerate() or 1)
             est = TS.estimate_transcription(dur)
             if not est.get("ok"):
-                raise HTTPException(503, est.get("reason")
-                                    or "Transcription indisponible.")
+                raise HTTPException(503, SANS_CLE)
             usd = float(est.get("usd") or 0.0)
             if usd > float(max_usd) + _EPS_USD:
                 raise HTTPException(

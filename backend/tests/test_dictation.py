@@ -203,6 +203,15 @@ check("estimate sans cle : 200, available faux, reason lisible",
       r.status_code == 200 and d.get("available") is False
       and isinstance(d.get("reason"), str) and len(d.get("reason") or "") > 10,
       f"{r.status_code} {d}")
+# Cloture T11 (revue T10) : la raison est PROPRE a la dictee -- celle de
+# transcribe_service parle du « calage d'un texte connu », un chemin que le
+# champ IA n'offre pas. Temoin : transcribe_service la dit bien, elle.
+_r_ts = TS.estimate_transcription(6.0).get("reason") or ""
+check("estimate sans cle : raison propre a la dictee (les deux cles nommees, pas de « calage ») ; temoin : "
+      "celle de transcribe_service parle du calage",
+      "calage" in _r_ts and "calage" not in (d.get("reason") or "")
+      and "ElevenLabs" in (d.get("reason") or "") and "OpenAI" in (d.get("reason") or "")
+      and "dict" in (d.get("reason") or "").lower(), f"{d.get('reason')!r} / ts={_r_ts[:60]!r}")
 check("estimate sans cle : duree tout de meme mesuree, usd 0",
       5.8 <= (d.get("duration_s") or -1) <= 6.2 and d.get("usd") == 0, f"{d}")
 
