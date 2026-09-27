@@ -6205,6 +6205,148 @@ R7 += [("R7er1-postJson-lit-le-detail-du-refus", A_R7ER1, R_R7ER1),
        ("R7er2-rendu-de-layout-lit-le-detail-du-refus", A_R7ER2, R_R7ER2)]
 assert len(R7) == 6 and all(a not in r and "DzTracks" not in r for _t, a, r in R7[4:])
 
+# ══ STUDIO 27/09/2026 — FORMAT HEYGEN IMPOSE, « OUVRIR UN GRAPHE » EN ICONE, REPLI DE L'INSPECTEUR ═══════════════════
+# Retours utilisateur du 27/09 (captures du Studio, rendu 427b1a6d). Groupe R8 EN QUEUE, apres R7. Toutes les ancres
+# sont sur le code MINIFIE amont (jamais edite ici), MESUREES 27/09/2026 sur .bak_montage : chacune vaut 1 et n'est
+# touchee par aucune autre section. R8ic1, R8st1, R8in3 et R8in4 INSERENT devant leur ancre (elle reste dans le
+# bundle livre, une fois) ; les autres la consomment.
+# R8ic1 -- deux icones dans la table SVG `Sh` : `folderOpen` (l'icone `folder` du bundle dessine des CALQUES
+#   empiles, pas un dossier) et `panelR` (panneau de droite + chevron), au trait des boutons de la barre (download).
+# R8st1 -- module-scope, devant `dzCompose` : l'etat du repli de l'inspecteur (`dziSt`, cle localStorage
+#   `dz_studio_insp`, "1" ouvert par defaut), `dziOpen(v)` (bascule EN DIRECT la classe `dz-insp-hidden` de la grille,
+#   comme `dzdOpen` du dock NODES), la poignee QA `window.__dzInsp` ; et `dzHgAspect`/`DzHgFormat` : le format que
+#   le TEMPLATE impose a la generation HeyGen (meme regle que `pipeline._heygen_aspect_for_slot`, qui fait autorite
+#   au rendu : 9:16, 1:1 ou 16:9 le plus proche de la region, ecart en log du rapport).
+# R8in1 -- la classe de la grille calculee au rendu porte aussi `dz-insp-hidden` (un re-rendu ne l'efface pas).
+# R8in2 -- l'en-tete de l'inspecteur d'un NOEUD (`Oh`) : les trois points decoratifs (aucun onClick) deviennent le
+#   bouton « Replier l'inspecteur ». R8in3 -- l'en-tete du GRAPHE (`Fh`, aucun noeud choisi) recoit le meme bouton :
+#   sans lui, rien ne repliait le panneau quand aucun noeud n'est selectionne.
+# R8in4 -- la poignee « INSPECTOR » sur le bord DROIT du canevas (visible panneau replie), soeur de celle du dock.
+# R8og1 -- `DzOpenGraph` : le select maison large de 150 px (« Open graph… » sur deux lignes, chevron decale)
+#   devient un bouton icone `folderOpen` (gabarit outline/sm de New et Save) qui deroule la meme liste
+#   (/api/studio-graphs, rafraichie par dz-graphs-changed) ; Echap ou un clic dehors la referment.
+# R8hg1 -- l'inspecteur du noeud HeyGen affiche, SOUS le choix de l'avatar, le format impose quand sa sortie
+#   alimente (directement ou via Avatar master) un Spatial compose.
+# CSS : injectee par R8st1 (voir _R8_CSS).
+_R8_FOLDER = ('folderOpen:r.jsx("path",{stroke:"currentColor",strokeWidth:"1.6",fill:"none",strokeLinejoin:"round",'
+              'd:"M3.5 18V7A1.5 1.5 0 0 1 5 5.5h4l2 2h7A1.5 1.5 0 0 1 19.5 9v2M3.5 18l2.2-6.4A1.5 1.5 0 0 1 7.1 10.5'
+              'H20a1 1 0 0 1 .95 1.3L19 17.4a1.5 1.5 0 0 1-1.43 1.1H4a.5.5 0 0 1-.5-.5z"}),')
+_R8_PANEL = ('panelR:r.jsxs("g",{stroke:"currentColor",strokeWidth:"1.6",fill:"none",strokeLinecap:"round",'
+             'strokeLinejoin:"round",children:[r.jsx("rect",{x:"3.5",y:"4.5",width:"17",height:"15",rx:"2"}),'
+             'r.jsx("path",{d:"M14.5 4.5v15"}),r.jsx("path",{d:"M8 9.5l2.5 2.5L8 14.5"})]}),')
+A_R8IC1 = 'more:r.jsxs("g",{fill:"currentColor",children:['
+R_R8IC1 = _R8_FOLDER + _R8_PANEL + A_R8IC1
+A_R8ST1 = 'async function dzCompose('
+# CSS du groupe, injectee par un <style id="dz-studio-r8"> comme celle du dock NODES (patch_bundle_nodedock) et NON
+# dans montage.css : cette feuille est epinglee par test_montage_bundle (aucun `:last-child`, cinq masques
+# `display:none` comptes). Les deux replis se cumulent : la regle a TROIS classes pese plus que chacune des regles a
+# deux. Le dernier enfant de la grille est l'inspecteur ($h, une seule racine). La poignee est a 112 px et non 64 comme
+# celle du dock : a 64 elle chevauchait l'aide « / nodes ⌘K palette » du coin haut droit (preuve ecran 27/09).
+_R8_CSS = (
+    ".dz-studio-grid.dz-insp-hidden{grid-template-columns:260px 1fr 0px!important}"
+    ".dz-studio-grid.dz-dock-hidden.dz-insp-hidden{grid-template-columns:0px 1fr 0px!important}"
+    ".dz-studio-grid>:last-child{min-width:0;transition:opacity .18s ease}"
+    ".dz-studio-grid.dz-insp-hidden>:last-child{opacity:0;pointer-events:none;overflow:hidden}"
+    ".dz-insp-handle{position:absolute;right:0;top:112px;z-index:5;display:inline-flex;align-items:center;gap:5px;"
+    "padding:7px 7px 7px 9px;background:var(--bg-panel);border:1px solid var(--stroke);border-right:0;"
+    "border-radius:8px 0 0 8px;cursor:pointer;color:var(--ink-soft);font-family:var(--f-mono);font-size:10px;"
+    "letter-spacing:.5px;transition:color .15s ease,border-color .15s ease}"
+    ".dz-insp-handle:hover{color:var(--ink-strong);border-color:var(--stroke-strong)}"
+    ".dz-studio-grid:not(.dz-insp-hidden) .dz-insp-handle{display:none}"
+    "@media (prefers-reduced-motion: reduce){.dz-studio-grid>:last-child{transition:none}}"
+    ".dz-opengraph{position:relative;display:inline-flex}"
+    ".dz-opengraph-menu{position:absolute;top:calc(100% + 4px);left:0;z-index:40;min-width:200px;max-width:320px;"
+    "max-height:320px;overflow:auto;display:flex;flex-direction:column;padding:4px;background:var(--bg-panel);"
+    "border:1px solid var(--stroke-strong);border-radius:var(--r-sm);box-shadow:0 12px 32px #00000088}"
+    ".dz-opengraph-item{all:unset;box-sizing:border-box;padding:7px 10px;border-radius:6px;font-family:var(--f-mono);"
+    "font-size:12px;color:var(--ink);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}"
+    ".dz-opengraph-item:hover,.dz-opengraph-item:focus-visible{background:var(--bg-panel-2);color:var(--ink-strong)}"
+    ".dz-opengraph-vide{padding:7px 10px;font-size:12px;color:var(--ink-muted)}")
+assert '"' not in _R8_CSS and "\\" not in _R8_CSS
+R_R8ST1 = (
+    '(function(){try{if(document.getElementById("dz-studio-r8"))return;var st=document.createElement("style");'
+    'st.id="dz-studio-r8";st.textContent="' + _R8_CSS + '";document.head.appendChild(st)}catch(_e){}})();'
+    'var dziSt={open:function(){try{return localStorage.getItem("dz_studio_insp")!=="0"}catch(_e){return!0}}()};'
+    'function dziOpen(v){var nx=v==null?!dziSt.open:!!v;dziSt.open=nx;'
+    'try{localStorage.setItem("dz_studio_insp",nx?"1":"0")}catch(_e){}'
+    'var g1=document.querySelector(".dz-studio-grid");g1&&g1.classList.toggle("dz-insp-hidden",!nx)}'
+    'window.__dzInsp={open:function(){dziOpen(!0)},close:function(){dziOpen(!1)},toggle:function(){dziOpen()},'
+    'get state(){return dziSt.open}};'
+    'function dzHgAspect(w,h){w=Number(w);h=Number(h);if(!(w>0&&h>0))return null;var ar=w/h,best=null,bd=1/0;'
+    '[["9:16",9/16],["1:1",1],["16:9",16/9]].forEach(function(a){var d=Math.abs(Math.log(ar/a[1]));'
+    'if(d<bd){bd=d;best=a[0]}});return best}'
+    'function dzHgTarget(g,nid){var cur=[nid],seen={},k=0,hit=null;while(cur.length&&k++<6&&!hit){var nx=[];'
+    'cur.forEach(function(id){(g&&g.edges||[]).forEach(function(E){if(hit||E.from!==id)return;'
+    'var to=(g.nodes||[]).find(function(n1){return n1.id===E.to});if(!to||seen[to.id])return;seen[to.id]=1;'
+    'if(to.type==="SpatialCompose")hit={sc:to,port:E.toPort};else if(to.type==="AvatarMaster")nx.push(to.id)})});'
+    'cur=nx}return hit}'
+    'var __dzHgTpl={};'
+    'function DzHgFormat({graph:g,node:nd}){var hit=dzHgTarget(g,nd.id),'
+    'tid=hit?((hit.sc.props&&hit.sc.props.templateId)||"tpl_news_reel"):null,st=x.useState(0),bump=st[1];'
+    'x.useEffect(function(){if(!tid||__dzHgTpl[tid])return;var on=!0;'
+    'fetch("/api/layout-templates/"+encodeURIComponent(tid)).then(function(R){return R.ok?R.json():null})'
+    '.then(function(t){if(t&&t.regions){__dzHgTpl[tid]=t;on&&bump(function(v){return v+1})}}).catch(function(){});'
+    'return function(){on=!1}},[tid]);'
+    'var tpl=tid&&__dzHgTpl[tid];if(!hit||!tpl)return null;'
+    'var sp=dzSpatialSlots(tpl,hit.sc.props||{}),pt=sp.ports.find(function(p){return p.id===hit.port}),'
+    'rg=pt&&tpl.regions.find(function(z){return z.type==="video_slot"&&z.slot_name===pt.slot}),'
+    'a=rg&&dzHgAspect(rg.width,rg.height);if(!a)return null;'
+    'return r.jsx(ie,{label:"Format",children:r.jsx(O,{label:"Génération HeyGen",'
+    'hint:"Imposé par la région « "+(rg.slot_label||rg.slot_name)+" » du template ("+rg.width+"×"+rg.height+")'
+    ' : l\'avatar remplit sa zone, sans bande vide.",children:r.jsx("span",{className:"mono dz-hg-format",'
+    'style:{color:"var(--cyan)",fontSize:13},children:a})})})}'
+    + A_R8ST1)
+A_R8IN1 = 'className:"dz-studio-grid"+(dzdSt.open?"":" dz-dock-hidden"),'
+R_R8IN1 = 'className:"dz-studio-grid"+(dzdSt.open?"":" dz-dock-hidden")+(dziSt.open?"":" dz-insp-hidden"),'
+_R8_REPLIER = ('r.jsx(se,{name:"panelR",title:"Replier l\'inspecteur","aria-label":"Replier l\'inspecteur",'
+               'className:"dz-insp-fold",onClick:function(){dziOpen(!1)}})')
+A_R8IN2 = 'r.jsx(se,{name:"more"})]})})}function Fh('
+R_R8IN2 = _R8_REPLIER + ']})})}function Fh('
+A_R8IN3 = ('function Fh({graph:e,onRename:t}){return r.jsxs(r.Fragment,{children:[r.jsxs("div",{style:{padding:"14px 16px",'
+           'borderBottom:"1px solid var(--stroke)"},children:[')
+R_R8IN3 = ('function Fh({graph:e,onRename:t}){return r.jsxs(r.Fragment,{children:[r.jsxs("div",{style:{position:"relative",'
+           'padding:"14px 16px",borderBottom:"1px solid var(--stroke)"},children:[r.jsx("span",{style:{position:"absolute",'
+           'right:12,top:14},children:' + _R8_REPLIER + '}),')
+A_R8IN4 = 'r.jsxs("button",{className:"dz-dock-handle",'
+R_R8IN4 = ('r.jsxs("button",{className:"dz-insp-handle",title:"Inspecteur — rouvrir",onClick:function(){dziOpen(!0)},'
+           'children:[r.jsx(X,{name:"panelR",size:11}),"INSPECTOR"]}),' + A_R8IN4)
+A_R8OG1 = ('function DzOpenGraph({onPick}){var st=x.useState([]),gs=st[0],setGs=st[1];x.useEffect(function(){var on=!0;'
+           'function load(){fetch("/api/studio-graphs").then(function(R){return R.json()}).then(function(d){on&&setGs((d&&d.graphs)||[])})'
+           '.catch(function(){})}load();window.addEventListener("dz-graphs-changed",load);return function(){on=!1;'
+           'window.removeEventListener("dz-graphs-changed",load)}},[]);return r.jsx(re,{value:"",onChange:function(id){id&&onPick(id)},'
+           'options:[{value:"",label:gs.length?"Open graph…":"No saved graphs"}].concat(gs.map(function(G){return{value:G.id,label:G.name}})),'
+           'style:{width:150}})}')
+R_R8OG1 = ('function DzOpenGraph({onPick}){var st=x.useState([]),gs=st[0],setGs=st[1],so=x.useState(!1),open=so[0],setOpen=so[1],'
+           'ref=x.useRef(null);x.useEffect(function(){var on=!0;'
+           'function load(){fetch("/api/studio-graphs").then(function(R){return R.json()}).then(function(d){on&&setGs((d&&d.graphs)||[])})'
+           '.catch(function(){})}load();window.addEventListener("dz-graphs-changed",load);return function(){on=!1;'
+           'window.removeEventListener("dz-graphs-changed",load)}},[]);'
+           'x.useEffect(function(){if(!open)return;function out(ev){ref.current&&!ref.current.contains(ev.target)&&setOpen(!1)}'
+           'function esc(ev){ev.key==="Escape"&&setOpen(!1)}document.addEventListener("mousedown",out);'
+           'document.addEventListener("keydown",esc);return function(){document.removeEventListener("mousedown",out);'
+           'document.removeEventListener("keydown",esc)}},[open]);'
+           'return r.jsxs("span",{ref:ref,className:"dz-opengraph",children:[r.jsx(K,{variant:"outline",size:"sm",icon:"folderOpen",'
+           'title:gs.length?"Ouvrir un graphe…":"Aucun graphe enregistré","aria-label":"Ouvrir un graphe",'
+           '"aria-haspopup":"menu","aria-expanded":open,onClick:function(){setOpen(!open)}}),'
+           'open?r.jsx("div",{role:"menu",className:"dz-opengraph-menu",children:gs.length?gs.map(function(G){'
+           'return r.jsx("button",{role:"menuitem",className:"dz-opengraph-item",title:G.name,'
+           'onClick:function(){setOpen(!1);onPick(G.id)},children:G.name},G.id)}):'
+           'r.jsx("div",{className:"dz-opengraph-vide",children:"Aucun graphe enregistré"})}):null]})}')
+A_R8HG1 = 'e.type==="HeyGenAvatar"?r.jsx(DzAvatarPick,{p:n,set:o})'
+R_R8HG1 = ('e.type==="HeyGenAvatar"?r.jsxs(r.Fragment,{children:[r.jsx(DzAvatarPick,{p:n,set:o}),'
+           'r.jsx(DzHgFormat,{graph:g,node:e})]})')
+R8 = [("R8ic1-icones-dossier-ouvert-et-panneau", A_R8IC1, R_R8IC1),
+      ("R8st1-etat-du-repli-et-format-heygen", A_R8ST1, R_R8ST1),
+      ("R8in1-classe-de-repli-sur-la-grille", A_R8IN1, R_R8IN1),
+      ("R8in2-trois-points-deviennent-replier", A_R8IN2, R_R8IN2),
+      ("R8in3-replier-depuis-l-en-tete-du-graphe", A_R8IN3, R_R8IN3),
+      ("R8in4-poignee-inspector-du-canevas", A_R8IN4, R_R8IN4),
+      ("R8og1-ouvrir-un-graphe-en-icone", A_R8OG1, R_R8OG1),
+      ("R8hg1-format-impose-dans-l-inspecteur-heygen", A_R8HG1, R_R8HG1)]
+assert len(R8) == 8 and all("DzTracks" not in r for _t, _a, r in R8)
+assert [a in r for _t, a, r in R8] == [True, True, False, False, False, True, False, False]
+assert 'name:"more"' not in R_R8IN2 and "Open graph" not in R_R8OG1 and R_R8ST1.count("function ") == 5
+
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
@@ -6455,7 +6597,9 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("EC11-rendu-du-trou-selectionne", A_EC11, R_EC11),
            ("EC12-tete-de-lecture-dans-l-inspecteur", A_EC12, R_EC12),
            ("EC13-suppr-referme-le-trou", A_EC13, R_EC13),
-           ("EC14-clic-sur-un-clip-efface-le-trou", A_EC14, R_EC14)] + EC15 + L4 + L7A + L5 + L6 + R6 + R7
+           ("EC14-clic-sur-un-clip-efface-le-trou", A_EC14, R_EC14)] + EC15 + L4 + L7A + L5 + L6 + R6 + R7 + R8
+           # studio 27/09 : + HUIT sections EN QUEUE, groupe R8 apres R7 (format HeyGen impose par le template, « Ouvrir un graphe » en icone,
+           # repli de l'inspecteur) ; 213 -> 221, le --check dit 222 ancres.
            # retours 26/09 (plan du 27/09, tache 4) : + QUATRE sections EN QUEUE, groupe R7 apres R6 (R7up1 l'upload
            # refuse lisible ; R7vm1..R7vm3 Seedance 2.5 par defaut dans le Studio) ; 207 -> 211, le --check dit 212 ancres.
            # cloture T11b (27/09) : + DEUX sections en queue de R7 (R7er1 postJson, R7er2 rendu de layout, les erreurs de
