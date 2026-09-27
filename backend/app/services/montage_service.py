@@ -3586,8 +3586,11 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     for c in v1:
         g = c["start"] - prev_end
         if g > 0.1:
+            # Revue T1 (27/09) : le +0,04 compense la coupe ENTRANTE dans le
+            # trou — un trou EN TÊTE n'en a pas (MESURÉ : 2,54 s au lieu de
+            # 2,5 et tous les plans suivants reculés d'une image).
             segs.append({"gap": True,
-                         "dur": round(g + _tau_for(c) + 0.04, 3)})
+                         "dur": round(g + _tau_for(c) + (0.04 if segs else 0.0), 3)})
         segs.append(c)
         prev_end = c["end"]
 
@@ -3920,6 +3923,16 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
             op = None
         tf = o.get("tf")
         mp = o.get("mp")
+        # Revue T1 (27/09) : un overlay VIDÉO lu derrière -ss garde un pts
+        # résiduel > 0 — `fps` sans start_time partait de l'image suivante
+        # (MESURÉ : source 25 i/s, in 0,5, canevas 30 → 13,14,15,16 au lieu
+        # de 13,13,14,15), comme la chaîne V1 avant 3e01fbe. Les images
+        # (-loop 1, pts depuis 0) gardent la chaîne historique. Le trim borne
+        # le flux à d : parti de 0, fps rendait une image de plus que d·fps
+        # (la dernière source finit après d) et `enable=between(t,st,en)`,
+        # inclusif, la montrait à t = en (MESURÉ : 31 images pour 1 s).
+        ofps = (f"fps={fps}" if o["is_image"]
+                else f"fps={fps}:start_time=0,trim=duration={d}")
         if mp and tf is None:
             # R4b : keyframes sans champ statique — défauts de _ov_transform
             # (centre, échelle 1). Jamais le cas d'un payload historique :
@@ -3929,7 +3942,7 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
             # Chaîne historique (cover plein cadre) — STRICTEMENT inchangée
             # quand aucun champ de transformation n'est posé.
             och = (f"scale={w}:{h}:force_original_aspect_ratio=increase,"
-                   f"crop={w}:{h},setsar=1,fps={fps}")
+                   f"crop={w}:{h},setsar=1,{ofps}")
             cut, fxw, fxh = len(och), w, h      # L5 : fin de la mise à l'échelle
             if op is not None and 0.0 <= op < 1.0:
                 och += f",format=yuva420p,colorchannelmixer=aa={round(op, 3)}"
@@ -3983,11 +3996,11 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
                 fh = max(2, min(2 * fw, 3 * h) // 2 * 2)
                 owmin = max(2, int(round(w * smin / 2.0)) * 2)
                 och = (f"scale=w={owmin}:h={fh}:force_original_aspect_ratio="
-                       f"decrease,setsar=1,fps={fps},format=rgba")
+                       f"decrease,setsar=1,{ofps},format=rgba")
                 fxw, fxh = _ov_fx_dims(o.get("dims"), owmin, fh, "dec")
             else:
                 ow2 = max(2, int(round(w * scale / 2.0)) * 2)
-                och = f"scale={ow2}:-2,setsar=1,fps={fps},format=rgba"
+                och = f"scale={ow2}:-2,setsar=1,{ofps},format=rgba"
                 fxw, fxh = _ov_fx_dims(o.get("dims"), ow2, h, "-2")
             cut = len(och)                      # L5 : fin de la mise à l'échelle
             if op_pts:

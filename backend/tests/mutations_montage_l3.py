@@ -180,8 +180,8 @@ M = [
     # 2 — le zoompan pose AVANT `fps=` (branche sans vitesse) : sur un flux
     #     retime il dupliquerait chaque image ; ici l'ordre pinne rougit.
     (B_L3, SVC,
-     'f"crop={w}:{h},setsar=1,fps={fps}{dzp},format=yuv420p")\n',
-     'f"crop={w}:{h},setsar=1{dzp},fps={fps},format=yuv420p")\n',
+     'f"{crp},setsar=1,fps={fps}:start_time=0{dzp},format=yuv420p")\n',
+     'f"{crp},setsar=1{dzp},fps={fps}:start_time=0,format=yuv420p")\n',
      ["d13_avec_dz_le_zoompan_est_pose_apres_fps_et_avant_format"]),
     # ── D-15, le retime ──────────────────────────────────────────────────
     # 3 — `_v1_retime` accepte « nearest » : `_RETIME["nearest"]` n'existe
@@ -200,8 +200,8 @@ M = [
     #     setpts quel qu'il soit, et fps= ne le porte plus.
     (B_L3, SVC,
      [("{rtp if rt == 'flow' else ''},\"\n", "{rtp},\"\n"),
-      ("f\"fps={fps}{rtp if rt == 'blend' else ''}{dzp},format=yuv420p\")\n",
-       "f\"fps={fps}{dzp},format=yuv420p\")\n")],
+      ("f\"fps={fps}:start_time=0{rtp if rt == 'blend' else ''}{dzp},format=yuv420p\")\n",
+       "f\"fps={fps}:start_time=0{dzp},format=yuv420p\")\n")],
      None,
      ["d15_blend_pose_tblend_average_apres_fps_avant_format",
       "d15_avec_dz_l_ordre_est_setpts_fps_tblend_zoompan_format"]),
@@ -344,7 +344,12 @@ M = [
 # Retours 26/09 (T2, 27/09) : n°7 et n°12 rougissent en plus la ligne
 # `t2_commande_de_rendu_identique_a_fc2d7ad_octet_pour_octet_7_cas` (l3 [7]) —
 # 2 -> 3 chacune, MESURE sur a4bbc5f (worktree temporaire, 9.0.1).
-N_ROUGES = (1, 7, 1, 2, 2, 1, 1, 3, 13, 4, 2, 1, 3, 1, 1, 2, 2, 1, 1, 1, 3, 3, 4)
+# Revue T1 (27/09) : les ancres n°2 et n°4 visaient une ligne disparue (n°2
+# depuis D-40 : `f"{crp},…"`, n°4 depuis 3e01fbe : `fps={fps}:start_time=0`) ;
+# realignees, elles mutent a nouveau. n°1, n°4 et n°6 rougissent en plus la
+# ligne `t2_commande_de_rendu_identique_a_fc2d7ad_octet_pour_octet_7_cas` :
+# 7 -> 8, 2 -> 3, 1 -> 2 — MESURE sur le sommet de la revue T1 (9.0.1).
+N_ROUGES = (1, 8, 1, 2, 3, 1, 2, 3, 13, 4, 2, 1, 3, 1, 1, 2, 2, 1, 1, 1, 3, 3, 4)
 assert len(N_ROUGES) == len(M), (len(N_ROUGES), len(M))
 
 

@@ -133,19 +133,20 @@ def clip(rk, start, end, src_in, **kw):
     return d
 
 
-def build(mod, clips, fps, out, **kw):
-    return mod._build_montage_command(clips, [], [], None, w=W, h=H, fps=fps, mix_db={},
+def build(mod, clips, fps, out, v2=None, **kw):
+    return mod._build_montage_command(clips, list(v2 or []), [], None, w=W, h=H, fps=fps, mix_db={},
                                       ducking=False, duration_master=False, preview=False,
                                       out=str(out), **kw)
 
 
 _nrun = [0]
-def run_case(mod, clips, fps, rk, subs_ass=None):
-    """Rend et mesure ; {'err': ...} si ffmpeg echoue (le banc rougit, ne meurt pas)."""
+def run_case(mod, clips, fps, rk, subs_ass=None, v2=None):
+    """Rend et mesure ; {'err': ...} si ffmpeg echoue (le banc rougit, ne meurt pas).
+    Mesure chaque plan V1 PUIS chaque overlay V2 (`_rk` : cadence de SA source)."""
     _nrun[0] += 1
     out = pathlib.Path(TMP) / f"o_{_nrun[0]}.mp4"
     try:
-        cmd, total = build(mod, clips, fps, out, **({"subs_ass": subs_ass} if subs_ass else {}))
+        cmd, total = build(mod, clips, fps, out, v2=v2, **({"subs_ass": subs_ass} if subs_ass else {}))
     except Exception as e:
         return {"err": f"build : {e}"}
     r = subprocess.run([FF] + cmd[1:], capture_output=True, text=True)
@@ -153,9 +154,9 @@ def run_case(mod, clips, fps, rk, subs_ass=None):
         return {"err": r.stderr[-400:], "cmd": cmd}
     raw = frames(out)
     fr = decode(raw)
-    R = RVAL[rk]
     per = []
-    for k, c in enumerate(clips):
+    for k, c in enumerate(list(clips) + list(v2 or [])):
+        R = RVAL[c.get("_rk") or rk]
         spd = float(c.get("speed") or 0.0) or 1.0
         lo = c["src_in"] * R - 1.5
         hi = (c["src_in"] + (c["end"] - c["start"]) * spd) * R + 1.5
@@ -177,7 +178,7 @@ def run_case(mod, clips, fps, rk, subs_ass=None):
         per.append({"clip": k, "j0": j0, "j0_att": int(round(c["start"] * fps)),
                     "img0": fr[j0][0], "img0_att": math.ceil(c["src_in"] * R - 1e-6),
                     "ecart_med": (statistics.median(ec) if ec else None), "n": len(js)})
-    return {"n": len(fr), "n_att": int(round(clips[-1]["end"] * fps)), "total": total,
+    return {"n": len(fr), "n_att": int(round(max(c["end"] for c in clips) * fps)), "total": total,
             "clips": per, "raw": raw, "cmd": cmd}
 
 
@@ -357,6 +358,102 @@ for name in ("3 plans en coupe a 30", PIRE):
     check(f"5 {name} : ASS present exactement sur les images 30 a 59 (temoin : 90 images des deux cotes)",
           na == ns == 90 and diff == list(range(30, 60)),
           _d(na, ns, diff[:3], diff[-3:], len(diff), avec.get("err", "")[-200:]))
+
+
+# --- revue T1 (27/09) : temoin 3e01fbe (T1 livre, avant la revue) ---------------
+T3E = None
+try:
+    _src3 = subprocess.run(["git", "show", "3e01fbe:backend/app/services/montage_service.py"],
+                           cwd=str(BACKEND.parent), capture_output=True).stdout
+    if _src3:
+        _p3 = pathlib.Path(TMP) / "montage_service_3e01fbe.py"
+        _p3.write_bytes(_src3)
+        _spec3 = importlib.util.spec_from_file_location("app.services._ms_3e01fbe", str(_p3))
+        T3E = importlib.util.module_from_spec(_spec3)
+        _spec3.loader.exec_module(T3E)
+except Exception as e:
+    print(f"  (temoin 3e01fbe indisponible : {e})")
+    T3E = None
+check("6.0 temoin 3e01fbe importe (git show)", T3E is not None
+      and callable(getattr(T3E, "_build_montage_command", None)), _d(T3E is not None))
+
+print("\n[6] trou EN TETE de timeline (revue T1) : pas de coupe entrante, pas de +0,04")
+# src_in != 0 : le noir du trou (luminance 16 = image 0) ne se confond pas avec un plan.
+_TETE = {
+    "trou initial 0,5 s + 2 plans en coupe": [clip("30", 0.5, 1.5, 1.0), clip("30", 1.5, 2.5, 3.0)],
+    "trou initial 0,5 s + 3 plans en coupe": [clip("30", 0.5, 1.5, 1.0), clip("30", 1.5, 2.5, 3.0),
+                                              clip("30", 2.5, 3.5, 5.0)],
+}
+
+
+def aligne_tete(res):
+    """Comme aligne(), sauf le plan qui suit le trou : j0/img0 a +1 au plus (ecart
+    date : un trou suivi d'un plan en coupe avale sa premiere image)."""
+    if "err" in res or res.get("n") != res.get("n_att"):
+        return False
+    for i, c in enumerate(res.get("clips", [])):
+        if c.get("absent") or c.get("ecart_med") not in (0, 0.0):
+            return False
+        tol = (0, 1) if i == 0 else (0,)
+        if (c.get("j0", -9) - c.get("j0_att", 0)) not in tol or (c.get("img0", -9) - c.get("img0_att", 0)) not in tol:
+            return False
+    return True
+
+
+for name, cl in _TETE.items():
+    fin = cl[-1]["end"]
+    rn = run_case(MS, cl, 30, "30")
+    check(f"6 {name} : total = timeline {fin} s, n images, ecart median 0 par plan",
+          rn.get("total") == fin and aligne_tete(rn), _d(resume(rn)))
+    try:
+        _cma, _tma = build(MS, cl, 30, _o, audio_only=True)
+    except Exception as e:
+        _tma = f"ERR {e}"
+    check(f"6 {name} : /measure (audio_only) meme total = {fin} s", _tma == fin, _d(_tma))
+    ro = run_case(T3E, cl, 30, "30") if T3E is not None else {"err": "temoin absent"}
+    _eco = [c.get("ecart_med") for c in ro.get("clips", []) if not c.get("absent")]
+    check(f"6 temoin 3e01fbe {name} : total + 0,04, une image de trop, plans a -1",
+          "err" not in ro and ro.get("total") == round(fin + 0.04, 3)
+          and ro.get("n") == ro.get("n_att", 0) + 1 and _eco and all(e == -1 for e in _eco), _d(resume(ro)))
+
+print("\n[7] overlays V2 VIDEO (revue T1) : fps depuis 0, flux borne a sa duree")
+
+
+def V2(start, end, src_in, **kw):
+    d = {"path": str(src_of("25")), "is_image": False, "src_dur": 7.0, "src_in": src_in,
+         "start": start, "end": end, "opacity": None, "tf": None, "mp": None, "layer": 0, "_rk": "25"}
+    d.update(kw)
+    return d
+
+
+# V1 lu a partir de 5 s (images 150+) : jamais confondu avec l'overlay (images 13..38).
+_V2CAS = {
+    "V2 plein cadre, source 25, in 0,5, canevas 30": V2(0.4, 1.4, 0.5),
+    "V2 transforme (tf), source 25, in 0,5": V2(0.4, 1.4, 0.5, tf={"x": 0.5, "y": 0.5, "scale": 1.0,
+                                                                    "rotate": 0.0}),
+}
+for name, ov in _V2CAS.items():
+    base = [clip("30", 0, 2, 5.0)]
+    rn = run_case(MS, base, 30, "30", v2=[ov])
+    cv = (rn.get("clips") or [{}, {}])[-1]
+    check(f"7 {name} : image 0 = image in, j0 = start, ecart median 0, 30 images (1 s)",
+          "err" not in rn and cv.get("j0") == cv.get("j0_att") == 12 and cv.get("img0") == cv.get("img0_att") == 13
+          and cv.get("ecart_med") in (0, 0.0) and cv.get("n") == 30, _d(resume(rn)))
+    ro = run_case(T3E, base, 30, "30", v2=[ov]) if T3E is not None else {"err": "temoin absent"}
+    co = (ro.get("clips") or [{}, {}])[-1]
+    check(f"7 temoin 3e01fbe {name} : l'overlay avancait d'une image (ecart median 1)",
+          "err" not in ro and co.get("img0") == 13 and co.get("ecart_med") == 1, _d(resume(ro)))
+_ci, _ = build(MS, [clip("30", 0, 2, 5.0)], 30, _o, v2=[V2(0.4, 1.4, 0.5)])
+_gi = " ".join(_ci)
+check("7.5 chaine V2 video : fps=30:start_time=0,trim=duration=1.0 puis setpts decale",
+      "setsar=1,fps=30:start_time=0,trim=duration=1.0,setpts=PTS-STARTPTS+0.4/TB[ov0]" in _gi, _d(_gi[-500:]))
+_png = pathlib.Path(TMP) / "ov.png"
+subprocess.run([FF, "-y", "-v", "error", "-f", "lavfi", "-i", "color=red:s=16x16", "-frames:v", "1", str(_png)])
+_cp, _ = build(MS, [clip("30", 0, 2, 5.0)], 30, _o, v2=[V2(0.4, 1.4, 0.0, path=str(_png), is_image=True)])
+_gp = " ".join(_cp)
+check("7.6 overlay IMAGE : chaine historique, sans start_time ni trim (temoin : l'overlay est la)",
+      "[ov0]" in _gp and "setsar=1,fps=30,setpts=PTS-STARTPTS+0.4/TB[ov0]" in _gp
+      and "start_time" not in _gp.split("[ov0]")[0].split(";")[-1], _d(_gp[-500:]))
 
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)
