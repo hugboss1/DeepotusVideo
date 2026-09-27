@@ -299,6 +299,55 @@ check("echec du fournisseur : 502 avec detail",
       f"{r.status_code} {r.text[:200]}")
 check("echec du fournisseur : temporaire supprime", RESTES() == [], f"restes={RESTES()}")
 
+print("\n== Revue T7 : plafond invalide, duree maximale, ffmpeg absent ==")
+from app.services import dictation_service as DS         # noqa: E402
+n0 = len(APPELS)
+for v in ("nan", "NaN", "inf", "-1"):
+    r = DIC(B_WEBM, v)
+    check(f"dictation max_usd={v} : 422 avec detail",
+          r.status_code == 422 and bool(J(r).get("detail")),
+          f"{r.status_code} {r.text[:200]}")
+check("max_usd invalide : espion jamais appele", len(APPELS) == n0,
+      f"appels={len(APPELS) - n0}")
+check("max_usd invalide : aucun temporaire laisse", RESTES() == [], f"restes={RESTES()}")
+r = DIC(B_WEBM, "0")
+check("temoin : max_usd=0 (fini, positif) reste un 402, pas un 422",
+      r.status_code == 402, f"{r.status_code} {r.text[:200]}")
+
+_max = DS.DICTATION_MAX_S
+DS.DICTATION_MAX_S = 2
+try:
+    r1 = EST(B_WEBM)
+    r2 = DIC(B_WEBM, 1)
+    r3 = EST(B_OGG, "prise.ogg")        # 3 s > 2 s : aussi refusee
+finally:
+    DS.DICTATION_MAX_S = _max
+check("duree maximale (posee a 2 s) : prise de 6 s -> 413 sur estimate",
+      r1.status_code == 413 and bool(J(r1).get("detail")), f"{r1.status_code} {r1.text[:200]}")
+check("duree maximale (posee a 2 s) : prise de 6 s -> 413 sur dictation",
+      r2.status_code == 413 and bool(J(r2).get("detail")), f"{r2.status_code} {r2.text[:200]}")
+check("duree maximale : espion jamais appele", len(APPELS) == n0, f"appels={len(APPELS) - n0}")
+check("duree maximale : aucun temporaire laisse", RESTES() == [], f"restes={RESTES()}")
+r = EST(B_WEBM)
+check("temoin : plafond restaure, la prise de 6 s repasse (200)", r.status_code == 200,
+      f"{r.status_code} {r.text[:200]}")
+
+_bin = TS._bin
+TS._bin = lambda name: str(pathlib.Path(TMP) / "introuvable" / f"{name}.exe")
+try:
+    r1 = EST(B_WEBM)
+    r2 = DIC(B_WEBM, 1)
+finally:
+    TS._bin = _bin
+check("ffmpeg introuvable : 503 'ffmpeg injoignable' sur estimate",
+      r1.status_code == 503 and "ffmpeg injoignable" in str(J(r1).get("detail", "")),
+      f"{r1.status_code} {r1.text[:200]}")
+check("ffmpeg introuvable : 503 'ffmpeg injoignable' sur dictation",
+      r2.status_code == 503 and "ffmpeg injoignable" in str(J(r2).get("detail", "")),
+      f"{r2.status_code} {r2.text[:200]}")
+check("ffmpeg introuvable : espion jamais appele, aucun temporaire",
+      len(APPELS) == n0 and RESTES() == [], f"appels={len(APPELS) - n0} restes={RESTES()}")
+
 TS.transcribe = _VRAI
 CLES("", "")
 try:

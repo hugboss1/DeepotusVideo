@@ -18,6 +18,8 @@ surprise) :
   les routes qui dépensent) ;
 - prise ≤ 25 Mo (413 au-delà) — le plafond de Whisper-1 ; vide ou illisible
   → 415 {detail} ; durée transcodée < 0,1 s → 415, > 10 min → 413 ;
+  ffmpeg absent ou impossible à lancer → 503 ; `max_usd` NaN, infini ou
+  négatif → 422 avant tout transcodage ;
 - la prise est transcodée par ffmpeg (patron de /audio/recording, en
   thread) en WAV PCM s16 16 kHz MONO dans un dossier temporaire `dzdict_*`
   d'outputs, supprimé dans TOUS les cas ;
@@ -32,6 +34,7 @@ surprise) :
 from __future__ import annotations
 
 import asyncio
+import math
 import shutil
 import subprocess
 import tempfile
@@ -88,7 +91,9 @@ def _transcoder(contents: bytes, tmpd: Path) -> Path:
     except subprocess.TimeoutExpired:
         raise HTTPException(504, "Transcodage trop long (120 s) : prise abandonnée.")
     except Exception as e:                               # noqa: BLE001
-        raise HTTPException(415, f"ffmpeg injoignable : {e}")
+        # Binaire absent ou impossible à lancer : panne du serveur, pas de
+        # la prise → 503 (revue T7).
+        raise HTTPException(503, f"ffmpeg injoignable : {e}")
     if r.returncode != 0 or not out.is_file():
         raise HTTPException(415, "Format de prise illisible : "
                                  f"{(r.stderr or '').strip()[-200:]}")
@@ -157,6 +162,10 @@ async def dictation(request: Request, file: UploadFile = File(...),
     """Transcrit une prise si son coût RECALCULÉ ne dépasse pas `max_usd`.
     → {text, usd, provider} ; 402 au-delà du plafond, 503 sans clé."""
     _garde(request)
+    # NaN/inf passent `float` et rendent toute comparaison fausse (nan) ou
+    # vraie (inf) : plafond refusé AVANT tout transcodage (revue T7).
+    if not math.isfinite(max_usd) or max_usd < 0:
+        raise HTTPException(422, "Plafond max_usd invalide.")
     contents = await _lire(request, file)
     if not TS.resolve_provider():
         raise HTTPException(503, "Aucune clé de transcription configurée "
