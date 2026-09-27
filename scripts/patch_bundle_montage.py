@@ -6144,6 +6144,42 @@ R6 += [("R6mu1-commentaire-premiere-a2-fondu-de-fin-du-clip", A_R6MU1, R_R6MU1),
 assert len(R6) == 7 and all(a not in r and "DzTracks" not in r and "fin de rendu" not in r and "sur toute la durée" not in r
                             for _t, a, r in R6[1:])
 
+# ══ RETOURS 26/09 (plan du 27/09/2026, tache 4) — D ET F5 : UPLOAD REFUSE LISIBLE, SEEDANCE 2.5 PAR DEFAUT ═══════════
+# QUATRE sections neuves EN QUEUE, groupe R7 pose APRES R6, aucun repli, aucune reference DzTracks (sonde 178 inchangee).
+# Toutes sur le code MINIFIE amont (api du bundle, registre des noeuds du Studio, bloc videomodel), jamais edite ici.
+# ANCRES MESUREES 27/09/2026 sur .bak_montage : chacune vaut 1/0/1 (x1 dans .bak_montage, touchee par aucune autre
+# section, consommee dans le bundle livre ; son remplacement x1). Aucune n'est gardee dans son remplacement.
+# R7up1 (D) -- `uploadVideo` lit le `detail` du serveur quand l'upload est refuse (415 « Fichier vide ou illisible : … »,
+#   PR #31) : il ne disait que « HTTP 415 ». Un `detail` non-chaine (liste pydantic 422) ou vide retombe sur le code.
+#   Le motif COURT `return n.ok?await n.json():{ok:!1,error:\`HTTP ${n.status}\`}` vaut 2 dans le .bak (une AUTRE
+#   fonction de l'api le porte) : l'ancre est la fonction ENTIERE jusqu'a la fin du `try`, jamais le motif court.
+#   Deux appelants (noeud UGC du Studio, Library) affichent deja `.error`.
+# R7vm1..R7vm3 (F5) -- Seedance 2.5 devient le defaut du Studio cote client, comme `DEFAULT_VIDEO_MODEL` (tache 5) :
+#   vm1 la prop par defaut du noeud Seedance (registre `Me`) ; les graphes ENREGISTRES gardent leur modele, la fusion
+#   `ts` pose les props par defaut SOUS les props enregistrees (prouve sous node, test_retours_bundle_r7) ;
+#   vm2 le repli de `dzVmCost` pour un noeud SANS modele : tarif 2.5 du tableau (0,473 $/s, 720p) -- la valeur du
+#   backend pour un modele vide ; le repli forfaitaire `[.04,60]` d'un id INCONNU du tableau reste (le backend garde
+#   lui aussi son forfait pour un modele inconnu) ;
+#   vm3 le libelle « Défaut (… » du selecteur quand /api/video-models ne dit pas son defaut.
+#   « seedance-v1-pro » ne reste que comme cle du tableau des tarifs (ancien modele toujours choisissable).
+A_R7UP1 = ('uploadVideo:async e=>{try{const t=new FormData;t.append("file",e);const n=await fetch(`${Te}/videos/upload`,'
+           '{method:"POST",body:t});return n.ok?await n.json():{ok:!1,error:`HTTP ${n.status}`}}')
+R_R7UP1 = ('uploadVideo:async e=>{try{const t=new FormData;t.append("file",e);const n=await fetch(`${Te}/videos/upload`,'
+           '{method:"POST",body:t});if(n.ok)return await n.json();let d="";try{const j=await n.json();'
+           'd=typeof(j&&j.detail)=="string"?j.detail:""}catch(x){}return{ok:!1,error:d||`HTTP ${n.status}`}}')
+A_R7VM1 = 'props:{model:"seedance-v1-pro",style:"cinematic",durationS:10'
+R_R7VM1 = 'props:{model:"seedance-2.5",style:"cinematic",durationS:10'
+A_R7VM2 = 'en=dzVmRates[p2.model||"seedance-v1-pro"]||[.04,60]'
+R_R7VM2 = 'en=dzVmRates[p2.model||"seedance-2.5"]||[.04,60]'
+A_R7VM3 = 'label:"Défaut ("+(mm.default||"seedance-v1-pro")+")"'
+R_R7VM3 = 'label:"Défaut ("+(mm.default||"seedance-2.5")+")"'
+R7 = [("R7up1-upload-refuse-lit-le-detail-du-serveur", A_R7UP1, R_R7UP1),
+      ("R7vm1-noeud-seedance-defaut-2-5", A_R7VM1, R_R7VM1),
+      ("R7vm2-repli-du-cout-au-tarif-2-5", A_R7VM2, R_R7VM2),
+      ("R7vm3-libelle-defaut-seedance-2-5", A_R7VM3, R_R7VM3)]
+assert len(R7) == 4 and all(a not in r and "DzTracks" not in r for _t, a, r in R7)
+assert all("seedance-v1-pro" not in r for _t, _a, r in R7[1:]) and R_R7UP1.count("j.detail") == 2
+
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
@@ -6394,7 +6430,9 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("EC11-rendu-du-trou-selectionne", A_EC11, R_EC11),
            ("EC12-tete-de-lecture-dans-l-inspecteur", A_EC12, R_EC12),
            ("EC13-suppr-referme-le-trou", A_EC13, R_EC13),
-           ("EC14-clic-sur-un-clip-efface-le-trou", A_EC14, R_EC14)] + EC15 + L4 + L7A + L5 + L6 + R6
+           ("EC14-clic-sur-un-clip-efface-le-trou", A_EC14, R_EC14)] + EC15 + L4 + L7A + L5 + L6 + R6 + R7
+           # retours 26/09 (plan du 27/09, tache 4) : + QUATRE sections EN QUEUE, groupe R7 apres R6 (R7up1 l'upload
+           # refuse lisible ; R7vm1..R7vm3 Seedance 2.5 par defaut dans le Studio) ; 207 -> 211, le --check dit 212 ancres.
            # retours L6 (26/09/2026, revue T2) : + SIX sections en queue de R6 (R6mu1..R6mu6, les textes de la musique bornee).
            # retours L6 (26/09/2026, tache 4) : UNE section EN QUEUE, apres L6 (R6gl1, l'image etalonnee dans le lecteur).
            # L6 (25/09/2026, tache 5) : SEPT sections EN QUEUE, apres L5 (cinq dans le bloc SFXSTUDIO -- une premiere --,
