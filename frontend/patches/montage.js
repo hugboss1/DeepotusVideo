@@ -8424,9 +8424,25 @@ function dzmGlActif(f,tl,dur){
   if(b-a<.05)return !0;
   return tl>=a&&tl<b}
 /* RETOURS 26/09 (tâche 3, B3) : les clips de la piste d'AJUSTEMENT (genre « adjust », dzmKindOf) qui couvrent l'instant
-   GLOBAL tg ([début, fin[, bornes lisibles) et dont au moins un effet allumé est PRÉSENT à tg (dzmGlActif, temps local au
-   clip J1) -> [{start, end, effects}] (effets allumés, tels quels : le serveur applique leurs bornes, comme au rendu) ;
-   liste illisible ou tg illisible -> []. */
+   GLOBAL tg ([début, fin[, bornes lisibles) et dont au moins un effet allumé est PRÉSENT à tg -> [{start, end, effects}]
+   (effets allumés, tels quels : le serveur applique leurs bornes, comme au rendu) ; liste illisible ou tg illisible -> [].
+   REVUE T3 (27/09/2026) : « présent » est le MIROIR de la post-passe du rendu (montage_service, bornage des effets J1,
+   extrait par la tâche 2 en _adjust_bounded) et non dzmGlActif (qui lit une borne hors du plan comme « tout le plan » :
+   un J1 de 2 à 6 s portant {t0:5,t1:6} ouvrait la porte alors que le rendu n'applique rien). dzmGlAjBornes(effet, a0, a1)
+   rend [t0, t1] GLOBAUX comme Python : t0 = max(0, float(t0 or 0)), t1 = float(t1) si t1 n'est pas None sinon a1 − a0,
+   float() illisible (ValueError / TypeError) -> [0, a1 − a0] ; puis t0 = a0 + t0, t1 = min(a1, a0 + t1), arrondis au
+   millième ; t1 − t0 < 0,05 -> null (écarté). Le clip lui-même : a0 = max(0, début), a1 − a0 < 0,05 -> rien. Présent =
+   tg dans [t0, t1[ (l'enveloppe _timed). ÉCART DATÉ : la couche ne connaît ni la liste des types d'effets du moteur
+   (_fx.EFFECTS, un type inconnu est écarté au rendu) ni la durée totale (a1 = min(total, fin) au rendu). */
+function dzmGlPyFaux(v){
+  return v==null||v===0||v===""||v===!1||(Array.isArray(v)&&!v.length)
+    ||(typeof v==="object"&&!Array.isArray(v)&&!Object.keys(v).length)}
+function dzmGlAjBornes(f,a0,a1){
+  var r0=f&&f.t0,r1=f&&f.t1,l0=dzmGlPyFaux(r0)?0:dzmGlSec(r0),l1=r1==null?a1-a0:dzmGlSec(r1);
+  if(l0===null||l1===null){l0=0;l1=a1-a0}
+  l0=l0>0?l0:0;
+  var t0=dzmCoR(a0+l0,3),y=a0+l1,t1=dzmCoR(y<a1?y:a1,3);
+  return t1-t0>=.05?[t0,t1]:null}
 function dzmGlAdjust(clips,tg){
   var out=[],t=dzmRfNum(tg);
   if(!Array.isArray(clips)||t===null)return out;
@@ -8434,8 +8450,9 @@ function dzmGlAdjust(clips,tg){
     if(!k||typeof k!=="object"||dzmKindOf(k.tr,k.kind)!=="adjust")return;
     var s=dzmRfNum(k.start),e=dzmRfNum(k.end);
     if(s===null||e===null||!(e>s)||t<s||t>=e)return;
+    var a0=s>0?s:0;if(e-a0<.05)return;
     var fx=(Array.isArray(k.effects)?k.effects:[]).filter(function(f){return !!f&&typeof f==="object"&&!f.off});
-    if(fx.some(function(f){return dzmGlActif(f,t-s,e-s)}))out.push({start:s,end:e,effects:fx})});
+    if(fx.some(function(f){var bn=dzmGlAjBornes(f,a0,e);return !!bn&&t>=bn[0]&&t<bn[1]}))out.push({start:s,end:e,effects:fx})});
   return out}
 /* revue T4 (m4) : un plan V1 en IMAGE FIXE -> rien (la route refuse 415) ; (m3) aucun effet actif À t_local -> pas
    d'étalonnage ; les effets allumés partent tels quels, le serveur applique leurs bornes.

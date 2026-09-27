@@ -4973,6 +4973,14 @@ function P(h,j,z,rt){return {clips:CL,head:h,playing:!!j,vzoom:z===void 0?1:z,ra
     T.glBody(VP,9.2,"9:16",JC),T.glBody(VP,.5,"9:16",[VP,JK,JV]),T.glBody(VP,1.5,"9:16",[VP,JV]),T.glBody(VP,3,"9:16",[])];
   var bAL=T.glBody(AL,3,"16:9",[AL,JA]),bRB=T.glBody(RB,1,"9:16");
   R.b0all=[bAL,bRB];
+  /* revue T3 : la porte J1 est le MIROIR de la post-passe du rendu (_adjust_bounded) -- un effet que le rendu écarte
+     (bornes hors du clip, intervalle < 0,05 s) n'ouvre rien ; témoins : un effet borné présent à la tête ouvre */
+  function JJ(e,s,en){return {tr:"j1",id:"jj",start:s===void 0?2:s,end:en===void 0?6:en,effects:[e]}}
+  R.ajb=[[{t0:5,t1:6},3],[{t0:1,t1:1.02},3],[{t0:.5,t1:2},3],[{t0:2,t1:3},3],[{t0:2,t1:3},4.5],[{t0:.5},3],[{t0:"x",t1:1},5],
+    [{t0:1,t1:""},5.5],[{t0:1,t1:!1},3],[{t0:"",t1:1},3],[{t0:"",t1:1},2.5],[{t0:[],t1:{}},3],[{t0:-4,t1:1},2.5],[{t1:9},5.9],
+    [{t0:"1",t1:"1.5"},3.2]].map(function(q){return T.glAdjust([JJ(q[0])],q[1]).length})
+    .concat([T.glAdjust([JJ({})],2,),T.glAdjust([JJ({},2,2.03)],2).length,
+      !!T.glBody(VP,3,"9:16",[VP,JJ({type:"negate",t0:5,t1:6})]),!!T.glBody(VP,3,"9:16",[VP,JJ({type:"negate",t0:.5,t1:2})])]);
   /* la pastille dit ce qu'elle applique, plus la note du serveur (X-Dz-Grade-Note) ; une note inconnue se tait */
   R.badge=[T.glBadge(bAL,null),T.glBadge(bAL,"stab-non-analysee"),T.glBadge(bAL,"stab-trop-loin"),T.glBadge(T.glBody(RTb,2,"9:16"),null),
     T.glBadge(T.glBody(RTb,2,"9:16"),"inconnue,"),T.glBadge(T.glBody(GA,5,"16:9"),null),T.glBadge(null,null),
@@ -5101,6 +5109,13 @@ check("r6_B0_clip_J1_actif_a_la_tete_adjust_et_t_global_temoins_sans_liste_coupe
       and _B0[11] == {"src": {"job_id": "VP"}, "t": 0.5, "cadre": {"ratio": "9:16", "t_local": 0.5, "dur": 10, "t_global": 0.5,
                       "adjust": [{"start": 0, "end": 1, "effects": [{"type": "pixelate"}]}]}}
       and _B0[12] is None and _B0[13] is None, _B0[6:])
+# revue T3 (27/09) : miroir de la post-passe du rendu (montage_service, bornage des effets J1 : t0 = max(0, t0 or 0),
+# t1 = t1 absent -> fin du clip, illisible -> tout le clip, borne a la fin du clip, < 0,05 s ecarte), puis presence a la
+# tete sur [t0, t1[. Temoins : 0,5-2 present, t1 absent, t0 illisible, t0 vide ou negatif ; ecartes : 5-6 et 1-1,02 (ils
+# ouvraient la porte avant, dzmGlActif les lisait « tout le plan »), t1 faux, clip de 0,03 s.
+check("r6_B0_J1_miroir_de_la_post_passe_du_rendu_effet_ecarte_par_le_rendu_n_ouvre_rien_temoins_bornes_presentes",
+      _R8.get("ajb") == [0, 0, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, [{"start": 2, "end": 6, "effects": [{}]}], 0, False, True],
+      _R8.get("ajb"))
 _B0A = _r8("b0all", 2)
 _B0_AL = {"src": {"job_id": "AL"}, "t": 0.5, "effects": [{"type": "negate"}],
           "mask": {"shape": "rect", "x": 0, "y": 0, "w": 0.5, "h": 0.5, "soft": 0, "inv": False},
