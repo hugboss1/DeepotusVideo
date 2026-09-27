@@ -4,6 +4,7 @@
 # import LOCAL, et run() plantait en NameError A L'ETAPE MERGE, apres le
 # rendu fal paye et telecharge (trois seedance perdus le 27/08).
 import asyncio
+import math
 from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
@@ -14,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.models.schemas import (
+    AspectRatio,
     GenerateRequest,
     GenerateHeyGenRequest,
     CompositionRequest,
@@ -111,6 +113,33 @@ def _preview_slot_values(slot_values: dict) -> dict:
         else:
             out[k] = v
     return out
+
+
+# Les seuls formats que HeyGen rend (`dimension` de /v2, `aspect_ratio` de
+# /v3) ; un 4:5 y retombe en 9:16.
+_HEYGEN_ASPECTS = (("9:16", 9 / 16), ("1:1", 1.0), ("16:9", 16 / 9))
+
+
+def _heygen_aspect_for_slot(tpl: dict, slot_name: str) -> str | None:
+    """Format HeyGen le plus proche (écart en log du rapport) de la région
+    vidéo qui reçoit `slot_name` ; None si le slot n'a pas de région vidéo
+    lisible. MESURÉ 27/09/2026 (rendu 427b1a6d, News Reel) : HeyGen centre un
+    avatar presque carré dans le 9:16 demandé et comble haut et bas de la
+    couleur de fond (lignes 0-410 et 1550-1920) ; la région avatar 1080×680
+    en `cover_top` en gardait les 680 premières lignes — la bande vide et le
+    haut du crâne. Le template impose donc le format de la génération."""
+    for r in tpl.get("regions") or []:
+        if r.get("type") != "video_slot" or r.get("slot_name") != slot_name:
+            continue
+        try:
+            w, h = float(r.get("width") or 0), float(r.get("height") or 0)
+        except (TypeError, ValueError):
+            return None
+        if w <= 0 or h <= 0:
+            return None
+        ar = w / h
+        return min(_HEYGEN_ASPECTS, key=lambda a: abs(math.log(ar / a[1])))[0]
+    return None
 
 
 def _shorten_for_preview(tpl: dict, secs: float = 3.0) -> dict:
@@ -1055,6 +1084,14 @@ class Pipeline:
                             f"Slot '{sname}': source_kind=heygen but no payload")
                     if voice_mode and not sv.heygen.voice_mode:
                         sv.heygen.voice_mode = voice_mode
+                    # Le format de la génération suit la RÉGION du slot, pas
+                    # celui du graphe (voir _heygen_aspect_for_slot).
+                    asp = _heygen_aspect_for_slot(tpl, sname)
+                    if asp and sv.heygen.aspect_ratio.value != asp:
+                        logger.info(f"template {template_id} : slot '{sname}' "
+                                    f"— HeyGen {sv.heygen.aspect_ratio.value} "
+                                    f"→ {asp} (format de la région)")
+                        sv.heygen.aspect_ratio = AspectRatio(asp)
                     tasks[sname] = asyncio.create_task(
                         self.run_heygen(sv.heygen, composition_id=job_id,
                                         layer_index=len(tasks)))
