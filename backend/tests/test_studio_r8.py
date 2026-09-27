@@ -62,7 +62,7 @@ R8 = list(getattr(P, "R8", []))
 print("\n[0] preconditions")
 check("0.1 .bak_montage present (temoin)", bool(bak), _d(str(BAK)))
 check("0.2 node present", bool(NODE), _d(NODE))
-check("0.3 groupe R8 : huit sections, en QUEUE de PATCHES", len(R8) == 8 and P.PATCHES[-8:] == R8,
+check("0.3 groupe R8 : seize sections, en QUEUE de PATCHES", len(R8) == 16 and P.PATCHES[-16:] == R8,
       _d([t[0] for t in P.PATCHES[-9:]]))
 
 print("\n[1] chaque section : ancre x1 dans le .bak, remplacement x1 dans le livre")
@@ -184,6 +184,42 @@ check("4.8 node : ouvert par defaut ; dziOpen(false) -> classe posee, \"0\" memo
 check("4.9 node : toggle rouvre (\"1\", classe retiree) ; close puis open -> ouvert",
       _r2.get("bascule") == {"open": True, "ls": "1", "cls": False} and _r2.get("rouvre") == {"open": True, "cls": False},
       _d(_r2))
+
+print("\n[5] Save : le nom du graphe par le dialogue maison, plus par prompt()")
+check("5.1 plus de window.prompt(\"Name this graph\" (temoin : x1 dans le .bak)",
+      s.count('window.prompt("Name this graph:"') == 0 and bak.count('window.prompt("Name this graph:"') == 1, "")
+check("5.2 await window.__dzDialogue.saisir, titre, valeur = nom courant, bouton Enregistrer ; annuler (null) sort",
+      s.count('var nm=await window.__dzDialogue.saisir("Nom du graphe :",{titre:"Enregistrer le graphe",'
+              'valeur:(o.name||"My graph"),ok:"Enregistrer"});if(nm==null)return;') == 1, "")
+check("5.3 ... dans le onClick ASYNC du bouton Save (« Save this graph »)",
+      s.count('title:"Save this graph",onClick:async()=>{try{var nm=await window.__dzDialogue.saisir(') == 1, "")
+check("5.4 la couche de dialogue est dans le bundle (saisir defini) -- temoin : deja au .bak",
+      'saisir: function (m, o) { return ouvrir("saisir", m, o); }' in s
+      and 'saisir: function (m, o) { return ouvrir("saisir", m, o); }' in bak, "")
+
+print("\n[6] les dix autres window.prompt( natifs -> dialogue maison")
+check("6.1 plus AUCUN window.prompt( dans le bundle (temoin : 9 dans le .bak, + 2 poses par ce maillon avant le 27/09)",
+      s.count("window.prompt(") == 0 and bak.count("window.prompt(") == 9, _d(s.count("window.prompt("), bak.count("window.prompt(")))
+_SITES = [  # (fonction devenue async + await saisir, texte du dialogue)
+    ('async function saveFav(kind){if(!cur)return;var name=await window.__dzDialogue.saisir(', "Nom de ce favori"),
+    ('addEventListener("click",async function(){var lien=await window.__dzDialogue.saisir(', "Lien du calque Figma"),
+    ('async function __dzPrint3d(sh){try{var rep=await window.__dzDialogue.saisir(', "Taille cible en mm"),
+    ('r.jsx("button",{onClick:async function(){var nn=await window.__dzDialogue.saisir("Renommer ce rendu 3D :"', "Renommer ce rendu 3D"),
+    ('onClick:async()=>{var nn=await window.__dzDialogue.saisir("Renommer l\'image :"', "Renommer l'image"),
+    ('onClick:async()=>{var nn=await window.__dzDialogue.saisir("Renommer l\'asset :"', "Renommer l'asset"),
+    ('async function dzSavePreset(){var lbl=await window.__dzDialogue.saisir(', "Nom du preset maison"),
+    ('run:async function(){var lg=await window.__dzDialogue.saisir(', "Langue de la nouvelle piste"),
+]
+for _k, (_pose, _txt) in enumerate(_SITES):
+    check(f"6.{_k + 2} « {_txt} » : fonction async + await saisir, x1", s.count(nl(_pose)) == 1, _d(s.count(nl(_pose))))
+check("6.10 copie du chemin d'illustration : deux saisir(...).then(done) (presse-papiers refuse ET absent)",
+      s.count('window.__dzDialogue.saisir("Copie ce chemin d\'illustration :",{titre:"Copier le chemin",valeur:v,ok:"Fermer"}).then(done)') == 2
+      and bak.count('window.prompt("Copie ce chemin d\'illustration :",v);done()') == 2, "")
+_nc = subprocess.run([NODE, "--check", str(BUNDLE)], capture_output=True, text=True) if NODE else None
+check("6.12 le bundle ENTIER passe node --check (un await hors fonction async y serait une SyntaxError)",
+      _nc is not None and _nc.returncode == 0, _d(_nc.stderr[-300:] if _nc else "node absent"))
+check("6.11 appelants inchanges : saveFav x3 boutons, __dzPrint3d(m.short) x1 (valeur de retour jamais lue)",
+      s.count('onClick:function(){saveFav("') == 3 and s.count("__dzPrint3d(m.short)}") == 1, "")
 
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

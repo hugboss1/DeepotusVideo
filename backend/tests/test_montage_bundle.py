@@ -15266,7 +15266,8 @@ _R6Q = list(getattr(P, "R6", []))
 _R7Q = list(getattr(P, "R7", []))
 # studio 27/09/2026 : une queue R8 (HUIT sections : format HeyGen impose, « Ouvrir un graphe » en icone, repli de
 # l'inspecteur) vient APRES R7 -- _PQ la retire aussi ; les lectures depuis la fin deduisent len(_R8Q) ; R8 est
-# epinglee a part (test_studio_r8) ; len(P.PATCHES) 213 -> 221 (le --check dit 222 ancres).
+# epinglee a part (test_studio_r8) ; len(P.PATCHES) 213 -> 221 (le --check dit 222 ancres) ; + R8sv1 (Save par le
+# dialogue maison, 27/09) : 222, le --check dit 223.
 _R8Q = list(getattr(P, "R8", []))
 _PT8 = P.PATCHES[:len(P.PATCHES) - len(_R8Q)]
 _PQ = P.PATCHES[:len(P.PATCHES) - len(getattr(P, "L5", [])) - len(_L6Q) - len(_R6Q) - len(_R7Q) - len(_R8Q)]
@@ -15371,7 +15372,8 @@ check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB8b_puis_
                                                           "R7er1", "R7er2",
                                                           # studio 27/09/2026 : HUIT sections R8 en queue (format HeyGen impose, « Ouvrir un graphe » en icone,
                                                           # repli de l'inspecteur) ; aucun DzTracks, sonde inchangee
-                                                          "R8ic1", "R8st1", "R8in1", "R8in2", "R8in3", "R8in4", "R8og1", "R8hg1"]
+                                                          "R8ic1", "R8st1", "R8in1", "R8in2", "R8in3", "R8in4", "R8og1", "R8hg1", "R8sv1",
+                                                          "R8pr1", "R8pr2", "R8pr3", "R8pr4", "R8pr5", "R8pr6", "R8pr7"]
       # L7-B D-37 et D-42 (24/09/2026) : AUCUNE section de plus (replis dans R_EC1) ; D-42 : sonde 159 -> 161
       # (cutAt + cutOpts dans le geste dzSceneCut) ; L7-B D-40 (T4) : AUCUNE section de plus (replis dans
       # R_DZ1/R_DZ3/R_DZ4), sonde 161 -> 163 (reframeCss dans l apercu vivant, reframeOf dans le payload)
@@ -17135,7 +17137,10 @@ check("L4a_etat_dzDel_ref_api_effet_pop_et_dzDelSet_replies_dans_R_M16REF_apres_
       and s.count('fetch("/api/montage/deliver-presets",{method:"PUT"') == 1
       # window.prompt( : l'amont en porte NEUF (mesure .bak) -- ce lot en ajoute UN (dzSavePreset), dans R_M16REF
       # L7 D-22 (T6, 24/09/2026) : UN de plus (« Nouvelle piste de langue… », repli R_EC1) : 10 -> 11
-      and s.count("function dzSavePreset(){") == 1 and s.count("window.prompt(") == 11 and P.R_M16REF.count("window.prompt(") == 1 and P.R_EC1.count("window.prompt(") == 1
+      and s.count("function dzSavePreset(){") == 1 and s.count("window.prompt(") == 0 and P.R_M16REF.count("window.prompt(") == 0  # studio 27/09 (R8sv1) : 11 -> 10, le Save du Studio passe au dialogue maison
+      # studio 27/09 (R8pr) : plus AUCUN window.prompt( -- dzSavePreset (R_M16REF) et la piste de langue (R_EC1) passent
+      # au dialogue maison, les huit de l'amont par R8pr1..R8pr7
+      and P.R_M16REF.count("await window.__dzDialogue.saisir(") == 1 and P.R_EC1.count("await window.__dzDialogue.saisir(") == 1
       # dzDelRef x4 : la declaration, la pose a chaque rendu, la lecture dans renderPayload (L4c2) et son commentaire ; dzDelSet x3 : la definition, onChange, dzSavePreset
       and _libre21("dzDelRef", s) == 4 and s.count("dzDelRef.current=dzDel;") == 1 and s.count("dzDelRef.current,{range:proj.range") == 1 and _libre21("dzDelSet", s) == 3
       # aucun id de preset en dur dans l'hote ni dans la couche : sans choix, rien n'est poste (banc croise T5)
