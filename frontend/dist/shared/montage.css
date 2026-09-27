@@ -1631,8 +1631,12 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
    mesure exactement côté × (barre 24 + côté), la géométrie de la couche (DZM_SCW_BAR). L'image REMPLIT le carré
    (object-fit:contain : le PNG de /scopes est carré) et ne capte rien ; la ligne d'état se pose en bas à droite de
    l'image. Barre et poignée : touch-action:none (gestes par dzmGpDrag, sans capture). Aucun `display:none` de plus : le
-   repli en ligne (portail impossible) reste caché par la règle `.svm-playerbar .dzm-scpop` ci-dessus. */
-.dzsvm>.dzm-scwin{position:absolute;top:56px;right:16px;width:320px;z-index:9;display:flex;flex-direction:column;box-sizing:content-box;background:var(--panel2, var(--bg-panel-2, #1c1c21));border-radius:6px;overflow:hidden;box-shadow:0 0 0 1px var(--stroke2, var(--stroke-strong, #3d3b45)),0 10px 28px rgba(0,0,0,.55);pointer-events:auto}
+   repli en ligne (portail impossible) reste caché par la règle `.svm-playerbar .dzm-scpop` ci-dessus.
+   RETOURS 26/09 (tâche 3, C, 27/09/2026) : en PLEIN ÉCRAN (svmFullscreen met .svm-frame en fullscreen), la couche porte
+   la fenêtre DANS le cadre (seul ce qui est dans l'élément plein écran se voit) : la MÊME règle vise ce second parent
+   (`.dzsvm .svm-frame>.dzm-scwin`). Le cadre en plein écran est positionné (fixed, feuille du navigateur) : la géométrie
+   en ligne, recadrée par la couche aux dimensions du cadre, s'y pose. */
+.dzsvm>.dzm-scwin,.dzsvm .svm-frame>.dzm-scwin{position:absolute;top:56px;right:16px;width:320px;z-index:9;display:flex;flex-direction:column;box-sizing:content-box;background:var(--panel2, var(--bg-panel-2, #1c1c21));border-radius:6px;overflow:hidden;box-shadow:0 0 0 1px var(--stroke2, var(--stroke-strong, #3d3b45)),0 10px 28px rgba(0,0,0,.55);pointer-events:auto}
 .dzsvm .dzm-scwbar{display:flex;align-items:center;justify-content:space-between;gap:6px;height:24px;flex:none;padding:0 3px 0 9px;box-sizing:border-box;cursor:move;touch-action:none;user-select:none;-webkit-user-select:none;font-family:var(--f-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2, var(--ink, #c4bfb6))}
 .dzsvm .dzm-scwt{pointer-events:none}
 .dzsvm .dzm-scwx{width:20px;height:20px;padding:0;border:0;border-radius:4px;background:transparent;color:inherit;font-size:14px;line-height:20px;text-align:center;cursor:pointer}

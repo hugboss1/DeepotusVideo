@@ -17552,7 +17552,7 @@ check("L7d1_etat_diffSt_replie_en_queue_de_EB7_ETAT_apres_boMap_avant_stDzFin_un
       # L7-B D-34 (tache 7, 24/09/2026) : minNote + noteMsg du tiroir Medias (couche), 545 -> 547 (les trois epingles)
       # L7-B D-40 (tache 4, 24/09/2026) : 547 -> 548, l analyse du mouvement en cours (DzmPlanProps, couche) -- les trois epingles
       # L7-B D-41 (T6) : 548 -> 560 (+10 le popover DzmAutoclips, +1 la ligne ouverte du tiroir, +1 dzAcOpen de l'hote) ; revue T6 : 561 (+1 la langue)
-      and s.count("x.useState(") == 578 and (_bak.count("x.useState(") == 482 and _bak.count("diffSt") == 0 if _bak else False),  # retours L6 (T5, 26/09) : 577 -> 578 (Scopes : la geometrie de la fenetre flottante) ; retours L6 (T4, 26/09) : 576 -> 577 (GradeLive) ; L6 (T6, 25/09) : 574 -> 576 (VoiceRec : la phase et le chrono) ; L6 (T5, 25/09) : 573 -> 574 (NoiseLearn : la mesure en cours) ; L5 (T5, 24/09) : 561 -> 565, les quatre du panneau Etalonnage (couche) ; L5 (T6) : -> 571 (Scopes x3, Lightbox x2, dzLb x1) ; revue T5 : -> 572 (panneau : relecture du grade sur « storage ») ; correctif preuve ecran T6 : -> 573 (Scopes : le cadre hote de l'encart)
+      and s.count("x.useState(") == 579 and (_bak.count("x.useState(") == 482 and _bak.count("diffSt") == 0 if _bak else False),  # retours 26/09 (T3, 27/09) : 578 -> 579 (GradeLive : le palier de largeur) ; retours L6 (T5, 26/09) : 577 -> 578 (Scopes : la geometrie de la fenetre flottante) ; retours L6 (T4, 26/09) : 576 -> 577 (GradeLive) ; L6 (T6, 25/09) : 574 -> 576 (VoiceRec : la phase et le chrono) ; L6 (T5, 25/09) : 573 -> 574 (NoiseLearn : la mesure en cours) ; L5 (T5, 24/09) : 561 -> 565, les quatre du panneau Etalonnage (couche) ; L5 (T6) : -> 571 (Scopes x3, Lightbox x2, dzLb x1) ; revue T5 : -> 572 (panneau : relecture du grade sur « storage ») ; correctif preuve ecran T6 : -> 573 (Scopes : le cadre hote de l'encart)
       f"etat={s.count(nl(_L7D_ST))} ordre={(_iDfBo, _iDfSt, _iDfFin)} diffSt={s.count('diffSt')} useState={s.count('x.useState(')}")
 # revue 24/09 : un `diff` sans etat rend null -- jamais le popover generique
 _L7D_G = '    if(pop==="diff")return diffSt?r.jsx(DzTracks.DiffView,Object.assign({onClose:function(){setPop("")}},diffSt)):null;'
@@ -17668,7 +17668,7 @@ _L7G_ST = '  var stAb=x.useState({a:null,b:null,k:""}),abSt=stAb[0],setAbSt=stAb
 _iAbSt = s.find(nl(_L7G_ST))
 check("L7g_etat_abSt_replie_en_queue_de_EB7_ETAT_apres_diffSt_avant_stDzFin_useState_544",
       s.count(nl(_L7G_ST)) == 1 and _L7G_ST in P._EB7_ETAT and P._EB7_ETAT.endswith(_L7G_ST) and 0 < _iDfSt < _iAbSt < _iDfFin
-      and P._EB7_ETAT.count("DzTracks") == 4 and s.count("x.useState(") == 578 and (_bak.count("x.useState(") == 482 if _bak else False)  # retours L6 (T5, 26/09) : 577 -> 578 (Scopes : geometrie) ; retours L6 (T4, 26/09) : 576 -> 577 (GradeLive) ; L6 (T6, 25/09) : 574 -> 576 (VoiceRec : la phase et le chrono) ; L6 (T5, 25/09) : 573 -> 574 (NoiseLearn) ; D-41 (T6) : 548 -> 560 -> 561 (langue) ; L5 (T5, 24/09) : -> 565 (panneau Etalonnage) ; L5 (T6) : -> 571 ; revue T5 : -> 572 ; correctif preuve ecran T6 : -> 573 (Scopes : cadre hote)
+      and P._EB7_ETAT.count("DzTracks") == 4 and s.count("x.useState(") == 579 and (_bak.count("x.useState(") == 482 if _bak else False)  # retours 26/09 (T3, 27/09) : 578 -> 579 (GradeLive : palier) ; retours L6 (T5, 26/09) : 577 -> 578 (Scopes : geometrie) ; retours L6 (T4, 26/09) : 576 -> 577 (GradeLive) ; L6 (T6, 25/09) : 574 -> 576 (VoiceRec : la phase et le chrono) ; L6 (T5, 25/09) : 573 -> 574 (NoiseLearn) ; D-41 (T6) : 548 -> 560 -> 561 (langue) ; L5 (T5, 24/09) : -> 565 (panneau Etalonnage) ; L5 (T6) : -> 571 ; revue T5 : -> 572 ; correctif preuve ecran T6 : -> 573 (Scopes : cadre hote)
       # MOT ENTIER (stabSt, tabSt… existent) : la declaration, abA (x2), abB (x2) = 5 ; setAbSt porte une majuscule ; x0 dans le .bak
       and len(re.findall(r"\babSt\b", s)) == 5 and (len(re.findall(r"\babSt\b", _bak)) == 0 if _bak else False)
       # la couche : aucun `abSt` entier (temoin : ses trois « dzmStabState » de L3 portent la sous-chaine)
@@ -17837,7 +17837,7 @@ check("L7f4_tiroir_etat_dzNewTr_branche_onNewTrack_avant_onChange_P16_intact_cas
       and s.count('r.jsx("input",{type:"checkbox",checked:dzNewTr,"aria-label":"Traduire dans une nouvelle piste",onChange:function(e){setDzNewTr(e.target.checked)}},"c")') == 1
       and s.count('className:"sub-trlang sub-trnew",title:"Coché : la traduction naît dans une nouvelle piste') == 1 and 0 < _iTg < _iNt < _iFn < _iTg + 1500
       and s.count('apres:dzOn.on?(dzNewTr?"Les "+dzTrN+" répliques traduites naissent dans une nouvelle piste S2, S3… — S1 reste intacte ; « Annuler » retire la piste et ses répliques.":DzTracks.subsTrTitle(dzTrN)):dzOn.pourquoi,') == 1
-      and len(re.findall(r"\bdzNewTr\b", s)) == 4 and s.count("setDzNewTr") == 2 and s.count("x.useState(") == 578  # retours L6 (T5, 26/09) : 577 -> 578 (Scopes : geometrie) ; retours L6 (T4, 26/09) : 576 -> 577 (GradeLive) ; L6 (T6, 25/09) : 574 -> 576 (VoiceRec : la phase et le chrono) ; L6 (T5, 25/09) : 573 -> 574 (NoiseLearn) ; D-41 (T6) : 548 -> 560 -> 561 (langue) ; L5 (T5, 24/09) : -> 565 (panneau Etalonnage) ; L5 (T6) : -> 571 ; revue T5 : -> 572 ; correctif preuve ecran T6 : -> 573 (Scopes : cadre hote)
+      and len(re.findall(r"\bdzNewTr\b", s)) == 4 and s.count("setDzNewTr") == 2 and s.count("x.useState(") == 579  # retours 26/09 (T3, 27/09) : 578 -> 579 (GradeLive : palier) ; retours L6 (T5, 26/09) : 577 -> 578 (Scopes : geometrie) ; retours L6 (T4, 26/09) : 576 -> 577 (GradeLive) ; L6 (T6, 25/09) : 574 -> 576 (VoiceRec : la phase et le chrono) ; L6 (T5, 25/09) : 573 -> 574 (NoiseLearn) ; D-41 (T6) : 548 -> 560 -> 561 (langue) ; L5 (T5, 24/09) : -> 565 (panneau Etalonnage) ; L5 (T6) : -> 571 ; revue T5 : -> 572 ; correctif preuve ecran T6 : -> 573 (Scopes : cadre hote)
       and (_bak.count("dzNewTr") == 0 and _bak.count("sub-trnew") == 0 and _bak.count("onNewTrack") == 0 if _bak else False),
       f"ordre={(_iS9b, _iS9c, _iTrN)} case={(_iTg, _iNt, _iFn)} dzNewTr={len(re.findall(chr(92) + 'bdzNewTr' + chr(92) + 'b', s))} useState={s.count('x.useState(')}")
 # L7f4 (repli R_M24H) : l'hote passe onNewTrack -- subsNew puis svmTracksSet (historique) puis subsCopy sur setClips,
@@ -19535,12 +19535,14 @@ check("R6s_puce_des_scopes_recoit_le_ratio_du_projet_x1_declare_avant_aucune_sec
 def _r6s_regle(sel):
     i = _EB_CSS.find(sel + "{")
     return _EB_CSS[i:_EB_CSS.find("}", i) + 1] if i >= 0 else ""
-_R6S_W = _r6s_regle(".dzsvm>.dzm-scwin")
+# retours 26/09 (T3, C) : la regle vise AUSSI la fenetre portee dans le cadre en plein ecran (.svm-frame en fullscreen)
+_R6S_W = _r6s_regle(".dzsvm>.dzm-scwin,.dzsvm .svm-frame>.dzm-scwin")
 _R6S_B = _r6s_regle(".dzsvm .dzm-scwbar")
 _R6S_G = _r6s_regle(".dzsvm .dzm-scwgrip")
 _R6S_I = _r6s_regle(".dzsvm .dzm-scimg")
 check("R6s_css_fenetre_absolue_dans_la_racine_z9_au_dessus_des_outils_sous_les_popovers_capte_ses_pointeurs",
-      _EB_CSS.count(".dzsvm>.dzm-scwin{") == 1 and "position:absolute" in _R6S_W and "z-index:9;" in _R6S_W
+      _EB_CSS.count(".dzsvm>.dzm-scwin,.dzsvm .svm-frame>.dzm-scwin{") == 1 and _EB_CSS.count(".dzsvm>.dzm-scwin{") == 0
+      and "position:absolute" in _R6S_W and "z-index:9;" in _R6S_W
       and "pointer-events:auto" in _R6S_W and "top:56px" in _R6S_W and "right:16px" in _R6S_W and "width:320px" in _R6S_W
       and _EB_CSS.count(".dzsvm .dzm-tbar{") == 1 and "z-index:8;" in _r6s_regle(".dzsvm .dzm-tbar")
       and "z-index:10;" in _r6s_regle(".dzsvm .dzm-projp") and "z-index:9;" not in _r6s_regle(".dzsvm .dzm-projp")

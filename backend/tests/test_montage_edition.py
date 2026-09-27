@@ -4949,6 +4949,59 @@ function P(h,j,z,rt){return {clips:CL,head:h,playing:!!j,vzoom:z===void 0?1:z,ra
     [E(void 0,6),9],[E(5,"x"),1],[E("",6),9],[E("5","6"),5.5],[E(!0,2),1.5],[E({},6),9]].map(function(q){return !!T.glBody(q[0],q[1],"9:16")})
     .concat([T.glBody({tr:"v1",id:"i",start:0,end:4,src:{image:"x.png"},effects:[{type:"negate"}]},1,"9:16"),
       T.glActif({t0:1,t1:2},1.5,0),T.glActif({t0:1,t1:9},5,3),T.glSec(" 2 "),T.glSec(null),T.glSec([]),T.glSec(!1)]);
+  /* ── retours 26/09, tache 3 (B0) : la PORTE de l'aperçu à l'arrêt -- un effet actif OU un retime (blend / flow) avec
+     une vitesse != 1 OU stab.on OU un clip J1 dont un effet est présent à la tête ; le corps porte cadre.speed / retime /
+     fps, cadre.stab, cadre.adjust + t_global (contrat de la tache 2) ; un plan sans rien -> null (témoin de l'état vide) */
+  var RTb={tr:"v1",id:"rt",start:0,end:4,srcIn:1,src:{job_id:"RT"},speed:.5,retime:"blend"},
+    RTn={tr:"v1",id:"rn",start:0,end:4,src:{job_id:"RN"},speed:.5},
+    RT1={tr:"v1",id:"r1",start:0,end:4,src:{job_id:"R1"},retime:"flow"},
+    RTf={tr:"v1",id:"rf",start:0,end:4,src:{job_id:"RF"},speed:2,retime:"flow"},
+    SBo={tr:"v1",id:"sb",start:0,end:4,src:{job_id:"SB"},stab:{on:!0,smooth:30}},
+    SBx={tr:"v1",id:"sx",start:0,end:4,src:{job_id:"SX"},stab:{on:!1,smooth:30}},
+    VP={tr:"v1",id:"vp",start:0,end:10,src:{job_id:"VP"}},
+    JA={tr:"j1",id:"ja",start:2,end:6,effects:[{type:"negate"},{type:"blur",off:!0}]},
+    JO={tr:"j1",id:"jo",start:6,end:8,effects:[{type:"negate",off:!0}]},
+    JB={tr:"j1",id:"jb",start:8,end:10,effects:[{type:"negate",t0:1,t1:1.5}]},
+    JK={tr:"z9",kind:"adjust",id:"jk",start:0,end:1,effects:[{type:"pixelate"}]},
+    JV={tr:"v2",id:"jv",start:0,end:10,effects:[{type:"negate"}]},
+    JC=[VP,JA,JO,JB,JV],
+    AL={tr:"v1",id:"al",start:2,end:6,srcIn:0,src:{job_id:"AL"},speed:.5,retime:"flow",stab:{on:!0},effects:[{type:"negate"}],
+      mask:{shape:"rect",x:0,y:0,w:.5,h:.5}},
+    RB={tr:"v1",id:"rb",start:0,end:4,src:{job_id:"RB"},speed:.5,retime:"blend",effects:[{type:"negate",t0:3,t1:4}]};
+  R.b0=[T.glBody(RTb,2,"9:16"),T.glBody(RTn,2,"9:16"),T.glBody(RT1,2,"9:16"),T.glBody(RTf,1,"9:16"),T.glBody(SBo,1,"9:16"),
+    T.glBody(SBx,1,"9:16"),T.glBody(VP,3,"9:16",JC),T.glBody(VP,3,"9:16"),T.glBody(VP,7,"9:16",JC),T.glBody(VP,8.2,"9:16",JC),
+    T.glBody(VP,9.2,"9:16",JC),T.glBody(VP,.5,"9:16",[VP,JK,JV]),T.glBody(VP,1.5,"9:16",[VP,JV]),T.glBody(VP,3,"9:16",[])];
+  var bAL=T.glBody(AL,3,"16:9",[AL,JA]),bRB=T.glBody(RB,1,"9:16");
+  R.b0all=[bAL,bRB];
+  /* la pastille dit ce qu'elle applique, plus la note du serveur (X-Dz-Grade-Note) ; une note inconnue se tait */
+  R.badge=[T.glBadge(bAL,null),T.glBadge(bAL,"stab-non-analysee"),T.glBadge(bAL,"stab-trop-loin"),T.glBadge(T.glBody(RTb,2,"9:16"),null),
+    T.glBadge(T.glBody(RTb,2,"9:16"),"inconnue,"),T.glBadge(T.glBody(GA,5,"16:9"),null),T.glBadge(null,null),
+    T.glBadge(T.glBody(SBo,1,"9:16")," stab-trop-loin,stab-non-analysee"),T.glBadge(bRB,null)];
+  /* le composant : stab -> anti-rebond 600 ms ; la note lue dans l'en-tête ; la largeur mesurée par PALIERS de 160 px
+     dans l'empreinte de la requête (même palier -> rien ; palier franchi -> une requête, l'image en place GARDÉE) */
+  var BOX={clientWidth:405},WLS={};
+  window.addEventListener=function(t,f){(WLS[t]=WLS[t]||[]).push(f)};
+  window.removeEventListener=function(t,f){WLS[t]=(WLS[t]||[]).filter(function(g){return g!==f})};
+  window.devicePixelRatio=2;
+  function repH(i,tag,note){FQ[i].d.a({ok:!0,status:200,headers:{get:function(k){return String(k).toLowerCase()==="x-dz-grade-note"?note:null}},
+    blob:function(){return Promise.resolve({blob:tag})}})}
+  function rsz(){(WLS.resize||[]).slice().forEach(function(f){f({})})}
+  TM=[];var n14=FQ.length,M7=mini(T.GradeLive,function(){return BOX});
+  M7.render({clips:[AL,JA],head:3,playing:!1,vzoom:1,ratio:"16:9"});M7.flush();var ms14=TM.map(function(t){return t.ms});tick();
+  R.stab=[ms14,FQ.length-n14,FQ.length>n14?FQ[FQ.length-1].body:null,(WLS.resize||[]).length];
+  repH(FQ.length-1,"F","stab-non-analysee");await settle();M7.flush();R.note=[badge(M7.H.out),gimg(M7.H.out).map(function(n){return n.p.src})];
+  var n15=FQ.length;BOX.clientWidth=410;rsz();M7.flush();var meme=TM.length;tick();meme=[meme,FQ.length-n15];
+  BOX.clientWidth=700;rsz();M7.flush();var pend=[TM.map(function(t){return t.ms}),gimg(M7.H.out).length,badge(M7.H.out)];tick();
+  R.palier=[meme,pend,FQ.length-n15,FQ.length>n15?FQ[FQ.length-1].body.w:null];
+  repH(FQ.length-1,"G","stab-trop-loin");await settle();M7.flush();R.note2=[badge(M7.H.out),gimg(M7.H.out).map(function(n){return n.p.src})];
+  M7.unmount();R.resize_ote=(WLS.resize||[]).length;
+  /* retime seul -> 250 ms ; réponse sans en-tête -> la pastille dit « vitesse » */
+  TM=[];var n16=FQ.length,M8=mini(T.GradeLive,function(){return BOX});
+  M8.render({clips:[RTb],head:2,playing:!1,vzoom:1,ratio:"9:16"});M8.flush();var ms16=TM.map(function(t){return t.ms});tick();
+  if(FQ.length>n16)rep(FQ.length-1,"H");await settle();M8.flush();R.rt=[ms16,FQ.length-n16,badge(M8.H.out)];M8.unmount();
+  /* état vide : un plan sans rien, clips J1 absents -> ni minuteur ni requête */
+  TM=[];var n17=FQ.length,M9=mini(T.GradeLive,function(){return BOX});
+  M9.render({clips:[VP,JO],head:7,playing:!1,vzoom:1,ratio:"9:16"});M9.flush();R.vide=[TM.length,FQ.length-n17,badge(M9.H.out)];M9.unmount();
   out.R=R;
 })().catch(function(e){out.err=String(e&&e.stack||e)}).then(function(){console.log(JSON.stringify(out))});
 """
@@ -5025,13 +5078,65 @@ check("r6_m3_actif_comme_effects_engine_timed_intervalle_t1_exclu_t1_borne_a_dur
                            None, True, False, 2, None, None, 0], _R8.get("actif"))
 check("r6_cadre_non_mesurable_w_720_ratio_inconnu_9_16_zoom_illisible_scale_1",
       _r8("defaut", 3)[1:] == [720, "9:16"] and _R8.get("vz") == "scale(1)", [_R8.get("defaut"), _R8.get("vz")])
+# ── retours 26/09 (tache 3, B0) : la porte de l'aperçu a l'arret. Contrat de la tache 2 (plan 2026-09-27) : cadre +=
+# {speed, retime, fps} (retime blend/flow ET vitesse != 1), stab (objet normalise comme au rendu), adjust + t_global (clips
+# J1 couvrant la tete, un effet present a la tete). Temoins : vitesse sans retime, retime a vitesse 1, stab eteinte, J1
+# coupe ou hors de sa borne, clip V2, appel sans la liste -> null (etat vide).
+_B0 = _r8("b0", 14)
+_B0_STAB30 = {"on": True, "smooth": 30, "crop": "keep", "zoom": 0}
+check("r6_B0_retime_blend_ou_flow_avec_vitesse_ouvre_la_porte_speed_retime_fps_temoins_vitesse_seule_et_retime_a_1_null",
+      _B0[0] == {"src": {"job_id": "RT"}, "t": 2, "cadre": {"ratio": "9:16", "t_local": 2, "dur": 4, "speed": 0.5, "retime": "blend", "fps": 30}}
+      and _B0[1] is None and _B0[2] is None
+      and _B0[3] == {"src": {"job_id": "RF"}, "t": 2, "cadre": {"ratio": "9:16", "t_local": 1, "dur": 4, "speed": 2, "retime": "flow", "fps": 30}},
+      _B0[:4])
+check("r6_B0_stab_on_ouvre_la_porte_objet_normalise_comme_au_rendu_stab_eteinte_null",
+      _B0[4] == {"src": {"job_id": "SB"}, "t": 1, "cadre": {"ratio": "9:16", "t_local": 1, "dur": 4, "stab": _B0_STAB30}}
+      and _B0[5] is None, _B0[4:6])
+check("r6_B0_clip_J1_actif_a_la_tete_adjust_et_t_global_temoins_sans_liste_coupe_hors_borne_V2_liste_vide_null",
+      _B0[6] == {"src": {"job_id": "VP"}, "t": 3, "cadre": {"ratio": "9:16", "t_local": 3, "dur": 10, "t_global": 3,
+                 "adjust": [{"start": 2, "end": 6, "effects": [{"type": "negate"}]}]}}
+      and _B0[7] is None and _B0[8] is None and _B0[9] is None
+      and _B0[10] == {"src": {"job_id": "VP"}, "t": 9.2, "cadre": {"ratio": "9:16", "t_local": 9.2, "dur": 10, "t_global": 9.2,
+                      "adjust": [{"start": 8, "end": 10, "effects": [{"type": "negate", "t0": 1, "t1": 1.5}]}]}}
+      and _B0[11] == {"src": {"job_id": "VP"}, "t": 0.5, "cadre": {"ratio": "9:16", "t_local": 0.5, "dur": 10, "t_global": 0.5,
+                      "adjust": [{"start": 0, "end": 1, "effects": [{"type": "pixelate"}]}]}}
+      and _B0[12] is None and _B0[13] is None, _B0[6:])
+_B0A = _r8("b0all", 2)
+_B0_AL = {"src": {"job_id": "AL"}, "t": 0.5, "effects": [{"type": "negate"}],
+          "mask": {"shape": "rect", "x": 0, "y": 0, "w": 0.5, "h": 0.5, "soft": 0, "inv": False},
+          "cadre": {"ratio": "16:9", "t_local": 1, "dur": 4, "speed": 0.5, "retime": "flow", "fps": 30,
+                    "stab": {"on": True, "smooth": 15, "crop": "keep", "zoom": 0},
+                    "adjust": [{"start": 2, "end": 6, "effects": [{"type": "negate"}]}], "t_global": 3}}
+check("r6_B0_corps_complet_porte_exactement_les_six_champs_neufs_du_cadre_effet_borne_hors_intervalle_garde_avec_retime",
+      _B0A[0] == _B0_AL and isinstance(_B0A[0], dict)
+      and sorted(_B0A[0].get("cadre", {})) == sorted(["ratio", "t_local", "dur", "speed", "retime", "fps", "stab", "adjust", "t_global"])
+      and _B0A[1] == {"src": {"job_id": "RB"}, "t": 0.5, "effects": [{"type": "negate", "t0": 3, "t1": 4}],
+                      "cadre": {"ratio": "9:16", "t_local": 1, "dur": 4, "speed": 0.5, "retime": "blend", "fps": 30}}, _B0A)
+_BG_N = "stabilisation non analysée"
+_BG_L = "stabilisation : trop loin dans la source"
+check("r6_B0_pastille_dit_ce_qu_elle_applique_et_la_note_du_serveur_note_inconnue_tue_stab_retiree_des_appliques_si_notee",
+      _R8.get("badge") == ["étalonné · vitesse · stabilisation · ajustement", "étalonné · vitesse · ajustement · " + _BG_N,
+                           "étalonné · vitesse · ajustement · " + _BG_L, "vitesse", "vitesse", "étalonné", "",
+                           _BG_N + " · " + _BG_L, "vitesse"], _R8.get("badge"))
+check("r6_B0_composant_stab_anti_rebond_600_requete_au_corps_complet_avec_w_un_ecouteur_resize",
+      _R8.get("stab") == [[600], 1, dict(_B0_AL, w=810), 1], _R8.get("stab"))
+check("r6_B0_composant_note_lue_dans_l_en_tete_X_Dz_Grade_Note_dite_par_la_pastille",
+      _R8.get("note") == [["étalonné · vitesse · ajustement · " + _BG_N], ["blob:F"]]
+      and _R8.get("note2") == [["étalonné · vitesse · ajustement · " + _BG_L], ["blob:G"]], [_R8.get("note"), _R8.get("note2")])
+check("r6_B0_largeur_par_paliers_de_160_meme_palier_rien_palier_franchi_une_requete_w_1280_image_gardee_ecouteur_ote",
+      _R8.get("palier") == [[0, 0], [[600], 1, ["étalonné · vitesse · ajustement · " + _BG_N]], 1, 1280]
+      and _R8.get("resize_ote") == 0, [_R8.get("palier"), _R8.get("resize_ote")])
+check("r6_B0_retime_seul_anti_rebond_250_une_requete_reponse_sans_en_tete_pastille_vitesse_etat_vide_rien",
+      _R8.get("rt") == [[250], 1, ["vitesse"]] and _R8.get("vide") == [0, 0, []], [_R8.get("rt"), _R8.get("vide")])
 _GLC = _corps("DzmGradeLive")
-_GLP = {n: _corps(n) for n in ("dzmGlRatio", "dzmGlW", "dzmGlBody")}
+_GLP = {n: _corps(n) for n in ("dzmGlRatio", "dzmGlW", "dzmGlBody", "dzmGlAdjust", "dzmGlBadge")}  # retours 26/09 (T3) : + J1 et pastille
 check("r6_aides_pures_sans_r_ni_x_ni_api_navigateur_composant_une_route_un_etat_aucun_bouton_place_apres_MaskBox_avant_NoiseLearn",
       all(len(c) > 40 for c in _GLP.values())
       and not any(re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|\bnavigator\b|fetch\(|setClips|pushHistory|URL\.", c)
                   for c in _GLP.values())
-      and len(_GLC) > 800 and _GLC.count('dzmGpFetch("/api/montage/grade-frame",') == 1 and _GLC.count("x.useState(") == 1
+      and len(_GLC) > 800 and _GLC.count('dzmGpFetch("/api/montage/grade-frame",') == 1 and _GLC.count("x.useState(") == 2  # retours 26/09 (T3) : 1 -> 2 (le palier de largeur mesure)
+      and _GLC.count('"X-Dz-Grade-Note"') == 1 and _GLC.count("dzmTbVeille(") == 1 and _GLC.count("dzmGlBody(c,o.head,o.ratio,o.clips)") == 1
+      and _DT.count("glAdjust:dzmGlAdjust,glBadge:dzmGlBadge,") == 1
       and _GLC.count('"button"') == 0 and _GLC.count("URL.revokeObjectURL(") >= 1 and _GLC.count("AbortController") >= 1
       and _GLC.count("devicePixelRatio") == 1 and _GLC.count("dzmScopesAt(") == 1
       and _DT.count("glRatio:dzmGlRatio,glW:dzmGlW,glBody:dzmGlBody,GradeLive:DzmGradeLive,") == 1
@@ -5143,6 +5248,49 @@ function P(h,j){return {clips:CL,head:h,playing:!!j,ratio:"16:9"}}
   TM=[];ROOT.clientWidth=600;fire("resize",{});M6.flush();var pend8=[sty(M6.H.out)[0],TM.length];
   fire("pointerup",{pointerId:50});M6.flush();
   R.resize_geste=[pend8,S.dz_montage_scopes_geo,sty(M6.H.out)[0],TM.map(function(t){return t.ms})];M6.unmount();
+  /* ── retours 26/09, tache 3 (C) : LES SCOPES SUIVENT LE PLEIN ÉCRAN. Faux `document` (fullscreenElement + écouteurs
+     fullscreenchange COMPTÉS) ; FR = le cadre (.svm-frame) DANS la racine, AUT = un élément HORS de la racine.
+     13 : montée hors plein écran -> portée dans la racine, UN écouteur fullscreenchange */
+  var DL={},DW={add:0,rem:0};
+  G.document={fullscreenElement:null,
+    addEventListener:function(t,f){if(t==="fullscreenchange")DW.add++;(DL[t]=DL[t]||[]).push(f)},
+    removeEventListener:function(t,f){if(t==="fullscreenchange")DW.rem++;DL[t]=(DL[t]||[]).filter(function(g){return g!==f})}};
+  function fsc(el){G.document.fullscreenElement=el;(DL.fullscreenchange||[]).slice().forEach(function(f){f({})})}
+  var FR={isConnected:!0,clientWidth:800,clientHeight:500},AUT={isConnected:!0,clientWidth:1920,clientHeight:1080};
+  ROOT.clientWidth=1400;ROOT.clientHeight=900;ROOT.contains=function(n){return n===ROOT||n===FR};
+  function cib(m){var p=m&&m.p&&m.p.children?m.p.children[1]:null;
+    return p&&p.t==="portail"?(p.p.cible===ROOT?"racine":p.p.cible===FR?"plein":p.p.cible===AUT?"autre":"?"):"en ligne"}
+  S.dz_montage_scopes="1";S.dz_montage_scopes_geo='{"x":1000,"y":100,"s":320}';FQ=[];TM=[];
+  var M7=mini(T.Scopes,att);M7.render(P(1));M7.flush();tick();if(FQ.length)rep(0,"F1");await settle();M7.flush();
+  R.fs_monte=[cib(M7.H.out),DW.add,(DL.fullscreenchange||[]).length,sty(M7.H.out)[0],FQ.length];
+  /* 14 : un geste de redimensionnement EN COURS, puis le cadre (dans la racine) passe en plein écran -> portail dans le
+     cadre, géométrie recadrée au cadre (côté FIXÉ : le geste est abandonné), mémoire intacte, aucune requête */
+  cls(M7.H.out,"dzm-scwgrip")[0].p.onPointerDown(pdn(60,1320,420));fire("pointermove",{pointerId:60,clientX:1360,clientY:440});frame();M7.flush();
+  var enc=sty(M7.H.out)[0];TM=[];fsc(FR);M7.flush();var tm14=TM.length;tick();
+  R.fs_entre=[enc,cib(M7.H.out),sty(M7.H.out)[0],nls(),S.dz_montage_scopes_geo,FQ.length,tm14,imgs(M7.H.out)];
+  fire("pointerup",{pointerId:60});frame();M7.flush();R.fs_relache=S.dz_montage_scopes_geo;
+  /* 15 : le navigateur change EN plein écran -> recadrée dans le CADRE (pas la racine) ; un déplacement est borné par le
+     cadre et mémorisé au relâcher (geste de l'utilisateur) */
+  FR.clientWidth=700;fire("resize",{});M7.flush();var rz=sty(M7.H.out)[0];
+  cls(M7.H.out,"dzm-scwbar")[0].p.onPointerDown(pdn(61,500,110));fire("pointermove",{pointerId:61,clientX:1500,clientY:110});frame();M7.flush();
+  var dr=sty(M7.H.out)[0];fire("pointerup",{pointerId:61});M7.flush();tick();
+  R.fs_dans=[rz,dr,S.dz_montage_scopes_geo,FQ.length];
+  /* 16 : sortie du plein écran -> retour dans la racine, recadrée à la racine, RIEN d'écrit dans la mémoire */
+  S.dz_montage_scopes_geo='{"x":1,"y":2,"s":300}';fsc(null);M7.flush();tick();
+  R.fs_sort=[cib(M7.H.out),sty(M7.H.out)[0],S.dz_montage_scopes_geo,FQ.length];
+  /* 17 : un AUTRE élément (hors de la racine) passe en plein écran pendant un geste -> rien ne change : cible, géométrie,
+     geste en cours (écouteurs gardés) ; témoin : le relâcher du geste ôte ses écouteurs */
+  cls(M7.H.out,"dzm-scwbar")[0].p.onPointerDown(pdn(62,500,110));var av=[sty(M7.H.out)[0],nls()];
+  fsc(AUT);M7.flush();var pa=[cib(M7.H.out),sty(M7.H.out)[0],nls()];fsc(null);M7.flush();pa.push(cib(M7.H.out),nls());
+  fire("pointerup",{pointerId:62});M7.flush();tick();
+  R.fs_autre=[av,pa,nls(),FQ.length];
+  /* 18 : démontage -> l'écouteur fullscreenchange ôté */
+  M7.unmount();R.fs_demonte=[DW.add,DW.rem,(DL.fullscreenchange||[]).length];
+  /* 19 : allumée ALORS QUE le cadre est déjà en plein écran -> portée d'emblée dans le cadre, recadrée au cadre, mémoire
+     intacte */
+  G.document.fullscreenElement=FR;FR.clientWidth=800;S.dz_montage_scopes_geo='{"x":1000,"y":100,"s":320}';FQ=[];TM=[];
+  var M8=mini(T.Scopes,att);M8.render(P(1));M8.flush();R.fs_deja=[cib(M8.H.out),sty(M8.H.out)[0],S.dz_montage_scopes_geo];
+  M8.unmount();G.document.fullscreenElement=null;
   out.R=R;
 })().catch(function(e){out.err=String(e&&e.stack||e)}).then(function(){console.log(JSON.stringify(out))});
 """
@@ -5235,17 +5383,40 @@ check("r6s_revue_m1b_second_pointerdown_abandonne_le_premier_ecouteurs_non_doubl
 check("r6s_revue_m3_navigateur_retreci_en_plein_geste_aucun_recadrage_ni_minuteur_recadre_dans_la_racine_courante_au_relacher",
       _R9.get("resize_geste") == [[{"left": "150px", "top": "120px", "width": "520px"}, 0], '{"x":80,"y":120,"s":520}',
                                   {"left": "80px", "top": "120px", "width": "520px"}, [300]], _R9.get("resize_geste"))
+# ── retours 26/09 (tache 3, C) : les scopes suivent le plein ecran (.svm-frame en fullscreen, svmFullscreen du maillon amont).
+_FS_G = {"left": "1000px", "top": "100px", "width": "320px"}
+_FS_C = {"left": "480px", "top": "100px", "width": "320px"}
+_FS_3 = {"left": "380px", "top": "100px", "width": "320px"}
+check("r6s_C_montee_hors_plein_ecran_portee_dans_la_racine_un_ecouteur_fullscreenchange",
+      _R9.get("fs_monte") == ["racine", 1, 1, _FS_G, 1], _R9.get("fs_monte"))
+_FE = _r9("fs_entre", 8)
+check("r6s_C_plein_ecran_du_cadre_portail_dans_le_cadre_geometrie_recadree_au_cadre_geste_abandonne_memoire_intacte_aucune_requete",
+      _FE[0] == {"left": "1000px", "top": "100px", "width": "360px"} and _FE[1] == "plein" and _FE[2] == _FS_C
+      and _FE[3] == [0, 0, 0, 1] and _FE[4] == '{"x":1000,"y":100,"s":320}' and _FE[5] == 1 and _FE[6] == 0
+      and _FE[7] == ["blob:F1"] and _R9.get("fs_relache") == '{"x":1000,"y":100,"s":320}', [_FE, _R9.get("fs_relache")])
+check("r6s_C_en_plein_ecran_redimensionnement_et_geste_bornes_par_le_cadre_pas_la_racine_geste_memorise",
+      _R9.get("fs_dans") == [_FS_3, _FS_3, '{"x":380,"y":100,"s":320}', 1], _R9.get("fs_dans"))
+check("r6s_C_sortie_du_plein_ecran_retour_dans_la_racine_rien_ecrit_dans_la_memoire",
+      _R9.get("fs_sort") == ["racine", _FS_3, '{"x":1,"y":2,"s":300}', 1], _R9.get("fs_sort"))
+check("r6s_C_plein_ecran_d_un_element_hors_de_la_racine_ne_change_rien_geste_garde_temoin_relacher_ote_ses_ecouteurs",
+      _R9.get("fs_autre") == [[_FS_3, [1, 2, 2, 1]], ["racine", _FS_3, [1, 2, 2, 1], "racine", [1, 2, 2, 1]], [0, 0, 0, 1], 1],
+      _R9.get("fs_autre"))
+check("r6s_C_demontage_ecouteur_fullscreenchange_ote_allumee_deja_en_plein_ecran_portee_dans_le_cadre_memoire_intacte",
+      _R9.get("fs_demonte") == [1, 1, 0] and _R9.get("fs_deja") == ["plein", _FS_C, '{"x":1000,"y":100,"s":320}'],
+      [_R9.get("fs_demonte"), _R9.get("fs_deja")])
 _SWP = {n: _corps(n) for n in ("dzmGlCadre", "dzmScwSize", "dzmScwBody", "dzmScwFit", "dzmScwDef", "dzmScwInit", "dzmScwGeste",
-                               "dzmScwGet", "dzmScwSet", "dzmScwFin")}
+                               "dzmScwGet", "dzmScwSet", "dzmScwFin", "dzmScwCible", "dzmScwVeilleFs")}  # retours 26/09 (T3) : + C
 _SWC = _corps("DzmScopes")
 check("r6s_aides_pures_sans_r_ni_x_ni_reseau_ni_dom_composant_geste_par_dzmGpDrag_sans_capture_exports",
       all(len(c) > 40 for c in _SWP.values())
       and not any(re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|\bnavigator\b|fetch\(|setClips|pushHistory|URL\.", c)
                   for c in _SWP.values())
       and _SWP["dzmScwBody"].count("dzmScopesBody(") == 1 and _SWP["dzmScwBody"].count("dzmGlCadre(") == 1
-      and _corps("dzmGlBody").count("var cadre=dzmGlCadre(c,head,ratio);") == 1
+      and _corps("dzmGlBody").count("var cadre=dzmGlCadre(c,head,ratio),") == 1  # retours 26/09 (T3) : ";" -> "," (s0 et tg suivent)
       and _SWC.count("dzmGpDrag(e,") == 1 and _SWC.count("setPointerCapture") == 0 and _SWC.count("dzmScwBody(") == 1
       and _SWC.count("dzmTbVeille(") == 1 and _SWC.count("},[on,hote]);") == 1 and _SWC.count("x.useState(") == 5
+      and _SWC.count("dzmScwVeilleFs(") == 1 and _SWC.count("cibleR.current") >= 5 and _SWC.count("x.useRef(null)") >= 3
+      and _DT.count("scwCible:dzmScwCible,scwVeilleFs:dzmScwVeilleFs,") == 1
       and _SRCb.count('var DZM_SCW_CLE="dz_montage_scopes_geo"') == 1
       and _DT.count("glCadre:dzmGlCadre,scwSize:dzmScwSize,scwBody:dzmScwBody,scwFit:dzmScwFit,scwDef:dzmScwDef,scwInit:dzmScwInit,"
                     "scwGeste:dzmScwGeste,scwGet:dzmScwGet,scwSet:dzmScwSet,scwFin:dzmScwFin,SCW_CLE:DZM_SCW_CLE,") == 1,
