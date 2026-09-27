@@ -152,8 +152,13 @@ SOURCE_KINDS = ("prompt", "library", "upload")
 
 # Générateurs autorisés pour la génération depuis un prompt. La route mappe
 # ces ids sur le routage FLUX / OpenAI déjà en place (image_providers.py).
+# 27/09 : complétée des ids que `/image-models` publie (Nano Banana Pro et les
+# voies fal de GPT Image) — hors de cette liste, `clean_model` les ramenait à
+# FLUX sans rien dire.
 MODELS = ("flux", "gpt-image-2", "gpt-image-1", "gpt-image-1-mini",
-          "nano-banana")
+          "nano-banana", "nano-banana-pro", "gpt-image-2-fal",
+          "gpt-image-2.5-flare", "gpt-image-2.5-sunburst",
+          "gpt-image-2.5-flare-fal", "gpt-image-2.5-sunburst-fal")
 MODEL_ALIASES = {"gptimage": "gpt-image-1", "gpt-image": "gpt-image-1",
                  "openai": "gpt-image-1", "fal": "flux", "banana": "nano-banana"}
 

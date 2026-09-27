@@ -131,10 +131,16 @@ const MAPS = [
 const MODEL_COST = {
   "flux": 4, "nano-banana": 9, "gpt-image-2": 12,
   "gpt-image-1": 8, "gpt-image-1-mini": 3,
+  "nano-banana-pro": 13, "gpt-image-2-fal": 13,
+  "gpt-image-2.5-flare": 10, "gpt-image-2.5-sunburst": 10,
+  "gpt-image-2.5-flare-fal": 10, "gpt-image-2.5-sunburst-fal": 10,
 };
 const MODEL_SEC = {
   "flux": 6, "nano-banana": 15, "gpt-image-2": 24,
   "gpt-image-1": 17, "gpt-image-1-mini": 9,
+  "nano-banana-pro": 20, "gpt-image-2-fal": 24,
+  "gpt-image-2.5-flare": 24, "gpt-image-2.5-sunburst": 24,
+  "gpt-image-2.5-flare-fal": 24, "gpt-image-2.5-sunburst-fal": 24,
 };
 const DERIVE_SEC = { 1024: 3, 2048: 8, 4096: 24 };
 

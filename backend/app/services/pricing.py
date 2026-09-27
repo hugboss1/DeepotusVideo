@@ -40,7 +40,17 @@ DEFAULTS = {
     # facturation, deux entrées — un seul chiffre pour les deux mentirait
     # sur l'une des deux factures.
     "gpt_image_2_fal_usd": 0.145,
-    "gpt_image_1_usd": 0.06,          # OpenAI gpt-image-1, per image
+    # GPT Image 2.5 Flare / Sunburst (doc OpenAI et fal lue le 27/09/2026).
+    # Qualité `high` ÉCRITE sur les deux voies (le défaut fal) : table fal
+    # 1024² high = 0,05268 $ l'image, tarif token OpenAI identique à GPT
+    # Image 2. Un prix fixe par image, quatre clés (deux voies × deux
+    # variantes) : écart daté, ni la qualité ni la taille ne modulent le
+    # devis (1024×1536 high vaut 0,04116 chez fal).
+    "gpt_image_25_flare_usd": 0.053,
+    "gpt_image_25_sunburst_usd": 0.053,
+    "gpt_image_25_flare_fal_usd": 0.053,
+    "gpt_image_25_sunburst_fal_usd": 0.053,
+    "gpt_image_1_usd": 0.06,         # OpenAI gpt-image-1, per image
     "gpt_image_1_mini_usd": 0.015,    # OpenAI gpt-image-1-mini, per image
     # Ancien tarif forfaitaire Seedance (avant le registre W-a). Il ne sert
     # plus qu'au coût HISTORIQUE des jobs d'avant la colonne `video_model`
@@ -122,6 +132,14 @@ _IMAGE_MODELS = {
     "gpt-image-2":      ("GPT Image 2",      "openai", "gpt_image_2_usd"),
     "gpt-image-2-fal":  ("GPT Image 2 (via fal)", "fal",
                          "gpt_image_2_fal_usd"),
+    "gpt-image-2.5-flare":        ("GPT Image 2.5 Flare (OpenAI)", "openai",
+                                   "gpt_image_25_flare_usd"),
+    "gpt-image-2.5-sunburst":     ("GPT Image 2.5 Sunburst (OpenAI)", "openai",
+                                   "gpt_image_25_sunburst_usd"),
+    "gpt-image-2.5-flare-fal":    ("GPT Image 2.5 Flare (via fal)", "fal",
+                                   "gpt_image_25_flare_fal_usd"),
+    "gpt-image-2.5-sunburst-fal": ("GPT Image 2.5 Sunburst (via fal)", "fal",
+                                   "gpt_image_25_sunburst_fal_usd"),
     "gpt-image-1":      ("GPT Image 1",      "openai", "gpt_image_1_usd"),
     "gpt-image-1-mini": ("GPT Image 1 mini", "openai", "gpt_image_1_mini_usd"),
 }

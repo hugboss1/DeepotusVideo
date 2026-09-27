@@ -4850,6 +4850,25 @@ async def _generate_image_core(body: dict, background_tasks: BackgroundTasks):
         logger.info("images/generate: no model in request, saved default -> "
                     f"{model or 'flux (fallback)'}")
     import httpx as _httpx
+    from app.services import image_providers as IP
+
+    # --- façade du registre AVANT tout préfixe (27/09) ----------------------
+    # Les ids servis par fal (`gpt-image-…-fal`, nano-banana, nano-banana-pro)
+    # et les GPT Image 2.5 directs passent par image_providers : un id `-fal`
+    # commence par « gpt-image » et partait chez OpenAI (mauvaise clé, mauvaise
+    # facture), et nano-banana-pro retombait sur FLUX sans rien dire.
+    if IP.via_facade(model):
+        manque = IP.missing_key(model)
+        if manque:
+            raise HTTPException(400, f"{manque} non configurée (Réglages) "
+                                     f"pour {model}.")
+        background = (body.get("background") or "").strip().lower() or None
+        try:
+            out = await IP.generate(model, prompt, size, n,
+                                    background=background)
+        except RuntimeError as e:
+            raise HTTPException(502, str(e))
+        return {"images": out["images"], "prompt": prompt, "model": model}
 
     # --- OpenAI gpt-image / dall-e path (per the selected model) -----------
     if model.startswith("gpt-image") or model.startswith("dall-e"):
@@ -4890,16 +4909,7 @@ async def _generate_image_core(body: dict, background_tasks: BackgroundTasks):
         logger.info(f"OpenAI {model}: saved {len(saved)} image(s): {saved}")
         return {"images": saved, "prompt": prompt, "model": model}
 
-    # --- Nano Banana (Gemini via fal) --------------------------------------
-    if model == "nano-banana":
-        from app.services import image_providers as IP
-        try:
-            out = await IP.generate("nano-banana", prompt, size, n)
-        except RuntimeError as e:
-            raise HTTPException(502, str(e))
-        return {"images": out["images"], "prompt": prompt,
-                "model": "nano-banana"}
-
+    # (Nano Banana passe par la façade ci-dessus.)
     # --- fal.ai FLUX path (default) ---------------------------------------
     seed = body.get("seed")
     seed = int(seed) if isinstance(seed, (int, float)) else None
@@ -5112,9 +5122,15 @@ async def _process_image_core(body: dict):
                 model = (await _atelier_setting(
                     _s, "image_model_default")).strip().lower()
         size = body.get("size") or "portrait_16_9"
-        if model.startswith("gpt-image") or model.startswith("dall-e") \
-                or model == "nano-banana":
-            from app.services import image_providers as IP
+        from app.services import image_providers as IP
+        # façade du registre (ids fal, nano-banana-pro, GPT Image 2.5) testée
+        # AVANT le préfixe : nano-banana-pro tombait sur Kontext sans le dire
+        if IP.via_facade(model) or model.startswith("gpt-image") \
+                or model.startswith("dall-e"):
+            manque = IP.missing_key(model)
+            if manque:
+                raise HTTPException(400, f"{manque} non configurée "
+                                         f"(Réglages) pour {model}.")
             try:
                 out = await IP.generate(model, prompt, size, n,
                                         image_path=src)
@@ -5285,9 +5301,27 @@ async def list_image_models():
         # qui la lisent tous. Corrigé 28/08/2026.
         out.append({"id": "nano-banana-pro", "label": "Nano Banana Pro (Gemini 3)",
                     "provider": "fal", "note": "2K/4K, 14 refs"})
+        # Voies fal de GPT Image (27/09) : absentes tant que /images/generate
+        # les envoyait chez OpenAI par le préfixe « gpt-image ».
+        out.append({"id": "gpt-image-2-fal", "label": "GPT Image 2 (via fal)",
+                    "provider": "fal", "note": "no OpenAI key"})
+        out.append({"id": "gpt-image-2.5-flare-fal",
+                    "label": "GPT Image 2.5 Flare (via fal)",
+                    "provider": "fal", "note": "transparent background"})
+        out.append({"id": "gpt-image-2.5-sunburst-fal",
+                    "label": "GPT Image 2.5 Sunburst (via fal)",
+                    "provider": "fal", "note": "high quality"})
     if settings.OPENAI_API_KEY:
+        # gpt-image-2 reste en tête : c'est le défaut quand seule la clé
+        # OpenAI est posée (`out[0]`) — un ajout ne change pas ce défaut
         out.append({"id": "gpt-image-2", "label": "GPT Image 2",
                     "provider": "openai", "note": "best quality"})
+        out.append({"id": "gpt-image-2.5-flare",
+                    "label": "GPT Image 2.5 Flare (OpenAI)",
+                    "provider": "openai", "note": "transparent background"})
+        out.append({"id": "gpt-image-2.5-sunburst",
+                    "label": "GPT Image 2.5 Sunburst (OpenAI)",
+                    "provider": "openai", "note": "high quality"})
         out.append({"id": "gpt-image-1", "label": "GPT Image 1",
                     "provider": "openai", "note": "balanced"})
         out.append({"id": "gpt-image-1-mini", "label": "GPT Image 1 mini",
@@ -8075,7 +8109,16 @@ async def generate_material(body: dict, background_tasks: BackgroundTasks):
         if not prompt:
             raise HTTPException(400, "prompt ou filename est requis")
         model = MS.clean_model(body.get("model"))
-        if model.startswith("gpt-image") or model.startswith("dall-e"):
+        from app.services import image_providers as IP
+        # la clé EXIGÉE est celle du registre (un `gpt-image-…-fal` veut
+        # FAL_KEY, pas OPENAI_API_KEY) ; le préfixe ne sert qu'aux ids hors
+        # registre (gpt-image-1-mini)
+        if model in IP.PROVIDERS:
+            manque = IP.missing_key(model)
+            if manque:
+                raise HTTPException(400, f"{manque} non configurée "
+                                         "(Réglages).")
+        elif model.startswith("gpt-image") or model.startswith("dall-e"):
             if not settings.OPENAI_API_KEY:
                 raise HTTPException(400, "OPENAI_API_KEY non configurée "
                                          "(Réglages).")
@@ -8122,9 +8165,10 @@ async def _run_material_job(jid: str, spec: dict):
             src = _mat_library_path(spec["filename"])
         else:
             model = spec["model"]
-            if model.startswith("gpt-image") or model.startswith("dall-e") \
-                    or model == "nano-banana":
-                from app.services import image_providers as IP
+            from app.services import image_providers as IP
+            # façade AVANT le préfixe (ids fal, nano-banana-pro, GPT Image 2.5)
+            if IP.via_facade(model) or model.startswith("gpt-image") \
+                    or model.startswith("dall-e"):
                 out = await IP.generate(model, spec["full_prompt"],
                                         "square_hd", 1)
             else:
