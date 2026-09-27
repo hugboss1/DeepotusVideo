@@ -227,5 +227,51 @@ check("x4_le_plafond_de_huit_points_est_le_meme_service_et_bundle",
       and num(mMax, 1) == num(mJmax, 1) == 8 and A("_MP_MAX_POINTS", None) == 8,
       (len(BUN), nMax, nJmax))
 
+# ── [5] Retours 26/09 (T2) : /grade-frame et le rendu, une seule source ──
+print("\n[5] retours 26/09 : grade-frame partage le rendu (J1, stab, retime) et parle la langue du client")
+# Source unique : la post-passe J1 du rendu ET le cadre appellent
+# `_adjust_bounded` ; le rendu ET le cadre posent `_stab_filter` ; le rendu
+# ET le cadre lisent `_RETIME[`. Compte des APPELS (la definition exclue).
+_def_ab = SVC.count("def _adjust_bounded(")
+_app_ab = SVC.count("_adjust_bounded(") - _def_ab
+_def_sf = SVC.count("def _stab_filter(")
+_app_sf = SVC.count("_stab_filter(") - _def_sf
+_fb = SVC[SVC.find("def _build_montage_command("):SVC.find("def _build_montage_command(") + 60000]
+_fe = SVC[SVC.find("def _cadre_entree("):SVC.find("def _cadre_entree(") + 6000]
+_fn = SVC[SVC.find("def _cadre_neufs("):SVC.find("def _cadre_neufs(") + 4000]
+check("x5_adjust_bounded_une_definition_appelee_par_le_rendu_et_par_le_cadre",
+      _def_ab == 1 and _app_ab == 2 and "_adjust_bounded(aj, total)" in _fb and "_adjust_bounded(" in _fn
+      and "a1 - a0 < 0.05" not in _fb, (_def_ab, _app_ab))
+check("x5_stab_filter_une_definition_posee_par_le_rendu_et_par_le_cadre",
+      _def_sf == 1 and _app_sf >= 2 and "_stab_filter(trf, st)" in _fb and "_stab_filter(" in _fe
+      and 'f"vidstabtransform=' not in _fb and 'f"vidstabtransform=' not in _fe, (_def_sf, _app_sf))
+check("x5_retime_une_table_lue_par_le_rendu_et_par_le_cadre",
+      "_RETIME[rt]" in _fb and "_RETIME[rt]" in _fe and "tblend=" not in _fe and "minterpolate=" not in _fe,
+      (len(_fb), len(_fe)))
+# La langue des notes : les identifiants de DZM_GL_NOTES (client) sont
+# EXACTEMENT ceux que le service peut poser dans X-Dz-Grade-Note.
+mN, nN = un(r'DZM_GL_NOTES=\[\["([\w-]+)","[^"]*"\],\["([\w-]+)","[^"]*"\]\]', JS)
+_notes_svc = sorted(set(re.findall(r'\["(stab-[\w-]+)"\]', SVC)))
+check("x5_les_notes_du_client_sont_celles_du_service",
+      nN == 1 and mN is not None and sorted(mN.groups()) == _notes_svc == ["stab-non-analysee", "stab-trop-loin"],
+      (nN, mN and mN.groups(), _notes_svc))
+mF, nF = un(r'DZM_GL_FPS=(\d+)', JS)
+mFS, nFS = un(r'_CADRE_FPS_DEFAUT = (\d+)', SVC)
+check("x5_la_cadence_du_retime_client_est_le_defaut_du_service",
+      nF == 1 and nFS == 1 and num(mF, 1) == num(mFS, 1) == 30.0, (nF, nFS, num(mF, 1), num(mFS, 1)))
+# Le client envoie `cadre.stab` = dzmStabNorm (on, smooth, crop, zoom) : le
+# service le relit par `_v1_stab` sans rien perdre.
+_cn = A("_cadre_neufs", lambda raw: {})
+_c5 = _cn({"stab": {"on": True, "smooth": 30, "crop": "black", "zoom": -5}, "speed": 0.5, "retime": "flow",
+           "fps": 30, "adjust": [{"start": 1, "end": 3, "effects": [{"type": "invert"}]}], "t_global": 2})
+check("x5_le_cadre_du_client_est_relu_sans_perte_par_le_service",
+      isinstance(_c5, dict) and _c5.get("stab") == {"smooth": 30, "crop": "black", "zoom": -5}
+      and _c5.get("speed") == 0.5 and _c5.get("retime") == "flow" and _c5.get("fps") == 30
+      and _c5.get("t_global") == 2.0 and isinstance(_c5.get("adjust"), list) and len(_c5["adjust"]) == 1
+      and _c5["adjust"][0][0].get("type") == "invert", str(_c5))
+check("x5_etat_vide_un_cadre_sans_champs_neufs_n_en_porte_aucun",
+      isinstance(_c5, dict) and _c5 and _cn({}) == {} and _cn({"speed": 1, "retime": "blend"}) == {}
+      and _cn({"stab": {"on": False}}) == {} and _cn({"adjust": [], "t_global": 1}) == {}, str(_cn({})))
+
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

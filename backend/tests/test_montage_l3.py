@@ -96,6 +96,11 @@ ready, job_id}, provider `montage_stab`, suivi par GET /api/jobs/{id}) ;
 `stab:{on:true}` → la spec V1 porte `stab.trf` (= stab_path de la source) et la
 commande contient vidstabtransform ; sans `stab`, ni le champ ni le filtre.
 
+[7] RETOURS 26/09 (T2). La post-passe J1 (`_adjust_bounded`) et le
+vidstabtransform (`_stab_filter`) sont extraits pour servir aussi
+/grade-frame : la commande de rendu est celle de fc2d7ad octet pour octet
+(service de reference charge par `git show`, sept cas J1/stab/retime/dz).
+
 La mesure ffmpeg reelle (fin de section) est en SKIP si ffmpeg est injoignable,
 comme les bancs-miroirs du depot.
 """
@@ -1069,6 +1074,84 @@ else:
           isinstance(_stc, dict) and _rr0.status_code == 200 and isinstance(_v1c0, dict) and "path" in _v1c0
           and _v1c0.get("stab") is None and "vidstab" not in (_cap.get("cmd") or "x"),
           (_rr0.status_code, _v1c0.get("stab"), (_cap.get("cmd") or "")[:120]))
+
+print("\n[7] retours 26/09 (T2) : `_adjust_bounded` et `_stab_filter` extraits, commande de fc2d7ad")
+# La post-passe J1 et le vidstabtransform du rendu sont PARTAGES avec
+# /grade-frame : l'extraction ne doit changer AUCUN octet de la commande. Le
+# service de fc2d7ad (git show, module temporaire) sert de reference.
+MSA = None
+try:
+    _srca = subprocess.run(["git", "show", "fc2d7ad:backend/app/services/montage_service.py"],
+                           cwd=str(pathlib.Path(__file__).resolve().parents[2]), capture_output=True,
+                           timeout=60).stdout
+    if _srca:
+        _pha = pathlib.Path(TMP) / "ms_fc2d7ad.py"
+        _pha.write_bytes(_srca)
+        import importlib.util as _ilu
+        _spa = _ilu.spec_from_file_location("ms_fc2d7ad", str(_pha))
+        MSA = _ilu.module_from_spec(_spa)
+        _spa.loader.exec_module(MSA)
+except Exception as _e:                                  # noqa: BLE001
+    print("  (service fc2d7ad injoignable : %r)" % _e)
+    MSA = None
+check("t2_temoin_service_fc2d7ad_charge_sans_adjust_bounded",
+      MSA is not None and hasattr(MSA, "_build_montage_command") and not hasattr(MSA, "_adjust_bounded")
+      and hasattr(MS, "_adjust_bounded") and hasattr(MS, "_stab_filter"), str(MSA))
+
+
+def BUILD_DE(mod, **kw):
+    """BUILD, mais avec le service `mod` (reference fc2d7ad ou courant)."""
+    clip = {k: kw.pop(k) for k in ("dz", "speed", "retime", "stab", "src_in") if k in kw}
+    a = {"w": 64, "h": 64, "fps": 25, "mix_db": {}, "ducking": False,
+         "duration_master": False, "preview": True, "out": os.path.join(TMP, "o.mp4")}
+    a.update(kw)
+    try:
+        cmd, _ = mod._build_montage_command([V1SPEC(**clip)], [], [], None, **a)
+    except Exception as e:                               # noqa: BLE001
+        return "%s: %s" % (type(e).__name__, e)
+    return FLAT(cmd)
+
+
+_STAB7 = {"smooth": 20, "crop": "black", "zoom": 5, "trf": _trf}
+_CAS7 = {
+    "historique": {},
+    "adjust_un_clip": {"adjust_clips": AJ},
+    "adjust_deux_clips_bornes": {"adjust_clips": [
+        {"start": 1, "end": 3, "effects": [{"type": "vignette", "intensity": 60, "t0": 0.5, "t1": 9}]},
+        {"start": 0.5, "end": 2, "effects": [{"type": "invert", "t0": 0.2, "t1": 0.9},
+                                              {"type": "grade_basic", "exposure": -20}]}]},
+    "adjust_ignores": {"adjust_clips": [
+        {"start": 1, "end": 2, "effects": []}, {"start": 900, "end": 950, "effects": AJ[0]["effects"]},
+        {"start": "x", "end": 2, "effects": AJ[0]["effects"]}, "pas un objet",
+        {"start": 1, "end": 2, "effects": [{"type": "vignette", "intensity": 60, "t0": 5, "t1": 6}]}]},
+    "stab": {"stab": _STAB7, "src_in": 1.5},
+    "stab_retime_flow_dz": {"stab": _STAB7, "src_in": 0.5, "speed": 0.5, "retime": "flow",
+                            "dz": {"x0": 0, "y0": 0, "w0": 1, "x1": 0.2, "y1": 0.2, "w1": 0.6, "ease": "doux"}},
+    "retime_blend_adjust": {"speed": 2.0, "retime": "blend", "adjust_clips": AJ},
+}
+_id7 = {}
+for _k7, _kw7 in _CAS7.items():
+    _a7, _b7 = BUILD_DE(MSA, **dict(_kw7)) if MSA else "ABSENT", BUILD_DE(MS, **dict(_kw7))
+    _id7[_k7] = (_a7 == _b7 and _a7.startswith("ffmpeg"), _a7[:80], _b7[:80])
+check("t2_commande_de_rendu_identique_a_fc2d7ad_octet_pour_octet_%d_cas" % len(_CAS7),
+      all(v[0] for v in _id7.values()), str({k: v for k, v in _id7.items() if not v[0]}))
+# Temoins : la comparaison DISCRIMINE (un clip J1 et une stabilisation
+# changent bien la commande), et les cas J1 portent bien la post-passe.
+check("t2_temoin_la_comparaison_voit_le_j1_et_la_stab",
+      BUILD_DE(MS, adjust_clips=AJ) != BUILD_DE(MS) and "[ajfx0" in BUILD_DE(MS, adjust_clips=AJ)
+      and "[aj1]" in BUILD_DE(MS, **_CAS7["adjust_deux_clips_bornes"])
+      and "vidstabtransform=" in BUILD_DE(MS, **_CAS7["stab"]), BUILD_DE(MS, adjust_clips=AJ)[:120])
+_ab = getattr(MS, "_adjust_bounded", lambda *a: "ABSENT")
+_abv = _ab({"start": 1, "end": 3, "effects": [{"type": "vignette", "intensity": 60, "t0": 0.5, "t1": 9},
+                                              {"type": "inconnu"}]}, 2.5)
+check("t2_adjust_bounded_bornes_globales_coupees_a_total_inconnus_retires",
+      isinstance(_abv, list) and len(_abv) == 1 and _abv[0].get("t0") == 1.5 and _abv[0].get("t1") == 2.5
+      and _abv[0].get("intensity") == 60, str(_abv))
+check("t2_adjust_bounded_etat_vide_rien_d_exploitable",
+      _ab(None, 10) == [] and _ab({"start": 1, "end": 1.02, "effects": AJ[0]["effects"]}, 10) == []
+      and _ab({"start": 1, "end": 2, "effects": []}, 10) == []
+      and _ab({"start": "x", "end": 2, "effects": AJ[0]["effects"]}, 10) == []
+      and _ab({"start": 1, "end": 2, "effects": AJ[0]["effects"]}, 10) != [], "")
 
 print(f"\n=== {ok} passed, {fail} failed ===")
 c.__exit__(None, None, None)

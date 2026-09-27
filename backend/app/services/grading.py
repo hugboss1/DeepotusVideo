@@ -278,17 +278,28 @@ def _efface(p: Path) -> None:
         pass
 
 
+_SS_T = object()               # `_render` : le -ss est le `t` de l'essai (historique)
+
+
 def _render(path: Path, t: float, parts: list[str], out_lbl: str, out: Path,
-            quoi: str, pas: float = 0.0) -> Path:
+            quoi: str, pas: float = 0.0, ss=_SS_T) -> Path:
     """Une image de `path` à `t` par `parts` → `out`. Si ffmpeg réussit SANS
     image (au-delà de la dernière, échec muet mesuré) et `pas` > 0, UN
-    second essai à `t − pas`. Cible verrouillée (Windows) : voir l'en-tête."""
+    second essai à `t − pas`. Cible verrouillée (Windows) : voir l'en-tête.
+    Retours 26/09 (B) : `ss` explicite (mode cadre avec retime ou
+    stabilisation, `montage_service._cadre_entree`) — None : aucun -ss
+    (décodage depuis 0) ; un nombre : ce -ss, au millionième. Omis : `-ss t`
+    au millième, la commande de L5 octet pour octet."""
     tmp = _MM._tmp_de(out)
     # `-q:v` ne sert qu'au JPEG : sur PNG, octets identiques (mesuré).
     qv = ["-q:v", "3"] if out.suffix.lower() == ".jpg" else []
     essais = [t] + ([max(0.0, t - pas)] if pas > 0 and t > 0 else [])
     for i, te in enumerate(essais):
-        r = _MM._run(["ffmpeg", "-y", "-v", "error", "-ss", "%.3f" % te, "-i", str(path),
+        if ss is _SS_T:
+            entree = ["-ss", "%.3f" % te]
+        else:
+            entree = [] if ss is None else ["-ss", "%.6f" % ss]
+        r = _MM._run(["ffmpeg", "-y", "-v", "error"] + entree + ["-i", str(path),
                       "-filter_complex", ";".join(parts), "-map", f"[{out_lbl}]",
                       "-frames:v", "1"] + qv + [str(tmp)],
                      timeout=120, quoi=quoi)
@@ -353,15 +364,40 @@ def _au_temps(effects, t_local: float, dur=None) -> list:
 
 
 def _cadre_prep(cadre, w: int, t: float):
-    """(h, pre) du mode cadre : hauteur au rapport du CANVAS du
-    projet, préfixe de géométrie du rendu. La géométrie vit dans
-    `montage_service` (`_CANVAS`, `_cadre_pre` qui réutilise `_reframe_crop`
-    et `_dz_filter`) : import PARESSEUX — `montage_service` n'importe ce
-    module que dans ses routes, aucun cycle au chargement."""
+    """(h, pre, ss) du mode cadre : hauteur au rapport du CANVAS du
+    projet, préfixe de géométrie du rendu, -ss d'entrée. La géométrie vit
+    dans `montage_service` (`_CANVAS`, `_cadre_entree` → `_cadre_pre` qui
+    réutilise `_reframe_crop` et `_dz_filter` ; retime et stabilisation,
+    retours 26/09 B) : import PARESSEUX — `montage_service` n'importe ce
+    module que dans ses routes, aucun cycle au chargement. `ss` vaut `t`
+    sans retime ni stabilisation (le -ss historique)."""
     from app.services import montage_service as _MS
     w0, h0 = _MS._CANVAS.get(cadre.get("ratio"), _MS._CANVAS["9:16"])
     h = _haut(w, w0, h0)
-    return h, _MS._cadre_pre(cadre, w, h, t)
+    ss, pre = _MS._cadre_entree(cadre, w, h, t)
+    return h, pre, ss
+
+
+def _adjust_graph(cadre, w: int, h: int, src: str, out: str) -> list[str]:
+    """Retours 26/09 (B3) — la piste d'AJUSTEMENT J1 après la pile V1 et son
+    masque : `cadre["adjust"]` = une liste par clip J1 des effets PRÉSENTS à
+    `t_global` (`montage_service._cadre_neufs`, bornage du rendu), chacun
+    jugé en plein (`_pile`), chaînés dans l'ordre des clips comme la
+    post-passe du rendu. [] si rien (le graphe s'arrête à `src`)."""
+    parts, cur = [], src
+    piles = [_pile(a) for a in (cadre or {}).get("adjust") or [] if isinstance(a, list)]
+    piles = [pl for pl in piles if pl]
+    for j, pl in enumerate(piles):
+        lbl = out if j == len(piles) - 1 else f"gaj{j}"
+        parts += _fx.build_chain(pl, cur, lbl, f"gajfx{j}", {"w": w, "h": h, "dur": 1.0, "fps": _FPS})
+        cur = lbl
+    return parts
+
+
+def _aj_luts(cadre) -> list:
+    """Les LUT des effets J1 du cadre (mtime), comme `_luts` pour la pile."""
+    return _luts([e for a in (cadre or {}).get("adjust") or [] if isinstance(a, list)
+                  for e in _pile(a)])
 
 
 def graded_frame(path, t, effects=None, mask=None, w: int = W_DEFAULT,
@@ -389,18 +425,24 @@ def graded_frame(path, t, effects=None, mask=None, w: int = W_DEFAULT,
     cle = [p, "grade", round(float(t), 3), effs, _luts(effs), m, w, ext]
     if cadre is not None:
         cle.append({"cadre": cadre})
+        if _aj_luts(cadre):
+            cle.append({"aj_luts": _aj_luts(cadre)})
     out = _MM._cache_dir() / ("%s_grade%s" % (_cle(*cle), ext))
     if out.exists():
         return _servi(out)
     dur, sw, sh, fps = _probe(p)
     te = _t_lisible(t, dur, fps)
+    kw = {}
     if cadre is not None:
-        h, pre = _cadre_prep(cadre, w, te)
+        h, pre, ss = _cadre_prep(cadre, w, te)
+        if ss != te:
+            kw = {"ss": ss}      # retime / stabilisation : pas de second essai
     else:
         h, pre = _haut(w, sw, sh), None
-    parts = _grade_graph(effs, m, w, h, "gout", pre)
+    aj = _adjust_graph(cadre, w, h, "gv1", "gout") if cadre is not None else []
+    parts = _grade_graph(effs, m, w, h, "gv1" if aj else "gout", pre) + aj
     return _render(p, te, parts, "gout", out, "l'image étalonnée",
-                   pas=_pas(fps))
+                   pas=0.0 if kw else _pas(fps), **kw)
 
 
 def _scopes_graph(size: int) -> str:
@@ -435,19 +477,25 @@ def scopes_png(path, t, effects=None, mask=None, size: int = 512, cadre=None) ->
     cle = [p, "scopes", round(float(t), 3), effs, _luts(effs), m]
     if size != 512 or cadre is not None:
         cle.append({"size": size, "cadre": cadre})
+        if _aj_luts(cadre):
+            cle.append({"aj_luts": _aj_luts(cadre)})
     out = _MM._cache_dir() / ("%s_scopes.png" % _cle(*cle))
     if out.exists():
         return _servi(out)
     dur, sw, sh, fps = _probe(p)
     te = _t_lisible(t, dur, fps)
+    kw = {}
     if cadre is not None:
-        h, pre = _cadre_prep(cadre, size, te)
+        h, pre, ss = _cadre_prep(cadre, size, te)
+        if ss != te:
+            kw = {"ss": ss}
     else:
         h, pre = _haut(size, sw, sh), None
-    parts = _grade_graph(effs, m, size, h, "gsrc", pre)
+    aj = _adjust_graph(cadre, size, h, "gv1", "gsrc") if cadre is not None else []
+    parts = _grade_graph(effs, m, size, h, "gv1" if aj else "gsrc", pre) + aj
     parts.append("[gsrc]" + _scopes_graph(size) + "[scopes]")
     return _render(p, te, parts, "scopes", out, "les scopes",
-                   pas=_pas(fps))
+                   pas=0.0 if kw else _pas(fps), **kw)
 
 
 def prune_cache(keep: dict | None = None) -> dict:

@@ -230,7 +230,9 @@ SW = D.get("scw") if isinstance(D.get("scw"), dict) else {}
 CK = set(re.findall(r'\braw\.get\("([a-z_]+)"\)', MSV[MSV.find("def _cadre_of("):MSV.find("def _cadre_pre(")]))
 check("x2_corps_du_client_fabriques_avec_cadre_et_cles_du_cadre_lues_par_cadre_of",
       set(GL) == {"src", "t", "effects", "mask", "cadre", "w"} and set(SW) == {"src", "t", "effects", "mask", "size", "cadre"}
-      and CK == {"ratio", "t_local", "dur", "reframe", "dz"}
+      # Retours 26/09 (T2, 27/09) : `_cadre_neufs` (entre `_cadre_of` et `_cadre_pre`) lit aussi les champs
+      # neufs du cadre ; `retime` est lu par `_v1_retime(raw)`, hors de ce motif.
+      and CK == {"ratio", "t_local", "dur", "reframe", "dz", "speed", "fps", "stab", "adjust", "t_global"}
       and set(GL.get("cadre") or {}) == {"ratio", "t_local", "dur", "reframe", "dz"}
       and set(GL.get("cadre") or {}) <= CK and set(SW.get("cadre") or {}) <= CK,
       (sorted(GL), sorted(SW), sorted(CK), GL.get("cadre")))

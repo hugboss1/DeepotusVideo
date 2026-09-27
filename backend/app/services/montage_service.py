@@ -1621,6 +1621,53 @@ def _v1_stab_trf(s: dict) -> Path | None:
     return None
 
 
+def _stab_filter(trf, st: dict) -> str:
+    """Retours 26/09 (B2) : LE `vidstabtransform` d'un plan stabilisé (`st` =
+    `_v1_stab`), source unique du rendu et de /grade-frame."""
+    from app.services.subtitle_service import _ff_escape_path
+    return (f"vidstabtransform=input='{_ff_escape_path(trf)}':"
+            f"smoothing={st['smooth']}:crop={st['crop']}:zoom={st['zoom']}:"
+            f"optzoom=1:interpol=bilinear")
+
+
+def _adjust_bounded(aj, total) -> list:
+    """D-9 / retours 26/09 (B3) : les effets BORNÉS en horloge GLOBALE d'un
+    clip de la piste d'ajustement `aj` = {start, end, effects}, coupé à
+    `total` — [] si rien d'exploitable (clip illisible, < 0,05 s, aucun effet
+    connu, bornes locales hors du clip). Extrait tel quel de la post-passe du
+    rendu (`_build_montage_command`), qu'il sert avec /grade-frame."""
+    from app.services import effects_engine as _fx
+    if not isinstance(aj, dict):
+        return []
+    try:
+        a0 = max(0.0, float(aj.get("start") or 0))
+        a1 = min(float(total), float(aj.get("end") or 0))
+    except (TypeError, ValueError):
+        return []
+    effs = [e for e in (aj.get("effects") or [])
+            if isinstance(e, dict) and e.get("type") in _fx.EFFECTS]
+    if a1 - a0 < 0.05 or not effs:
+        return []
+    bounded = []
+    for e in effs:
+        e2 = dict(e)
+        try:
+            lt0 = max(0.0, float(e.get("t0") or 0))
+            lt1 = (float(e.get("t1")) if e.get("t1") is not None
+                   else (a1 - a0))
+        except (TypeError, ValueError):
+            lt0, lt1 = 0.0, a1 - a0
+        e2["t0"] = round(a0 + lt0, 3)
+        e2["t1"] = round(min(a1, a0 + lt1), 3)
+        # Revue (23/09/2026) : bornes locales HORS du clip ou < 0,05 s
+        # → _timed rendrait la chaîne NUE (effet plein cadre, 0..total,
+        # mesuré : `[n0]vignette=angle=0.600[aj0]` sans sendcmd). Rien.
+        if e2["t1"] - e2["t0"] < 0.05:
+            continue
+        bounded.append(e2)
+    return bounded
+
+
 # ------------------------------------------------------------------- save ---
 # A1 : sauvegarde de timeline — UN projet de montage persistant, posé dans le
 # répertoire de DONNÉES de l'app (settings.images_path.parent : le parent
@@ -3610,7 +3657,6 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
         sf = (f"scale={w}:{h}:force_original_aspect_ratio=increase,"
               f"crop={w}:{h},setsar=1,fps={fps}:start_time=0,format=yuv420p")
         from app.services import effects_engine as _fx
-        from app.services.subtitle_service import _ff_escape_path   # D-16
         for k, s in enumerate(segs):
             if s.get("gap"):
                 parts.append(f"[{seg_idx[k]}:v]setsar=1,format=yuv420p,"
@@ -3654,9 +3700,7 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
             if k in seg_stab:
                 trf, d_src = seg_stab[k]
                 st = s["stab"]
-                pre = (f"vidstabtransform=input='{_ff_escape_path(trf)}':"
-                       f"smoothing={st['smooth']}:crop={st['crop']}:zoom={st['zoom']}:"
-                       f"optzoom=1:interpol=bilinear,"
+                pre = (f"{_stab_filter(trf, st)},"
                        f"trim=start={sfx_service.fnum(s['src_in'])}:"
                        f"duration={sfx_service.fnum(d_src)},"
                        f"setpts=PTS-STARTPTS,{pre}")
@@ -4359,35 +4403,10 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     # post-pass vient après le return d'audio_only). `total` est la durée
     # APRÈS le maître de durée : un clip qui déborde est coupé à la fin
     # réelle de la vidéo, un clip qui commence après elle est ignoré.
+    # Retours 26/09 (B3) : le bornage vit dans `_adjust_bounded`, partagé
+    # avec /grade-frame (commande identique octet pour octet, l3).
     for j, aj in enumerate(adjust_clips or []):
-        if not isinstance(aj, dict):
-            continue
-        try:
-            a0 = max(0.0, float(aj.get("start") or 0))
-            a1 = min(float(total), float(aj.get("end") or 0))
-        except (TypeError, ValueError):
-            continue
-        effs = [e for e in (aj.get("effects") or [])
-                if isinstance(e, dict) and e.get("type") in _fx.EFFECTS]
-        if a1 - a0 < 0.05 or not effs:
-            continue
-        bounded = []
-        for e in effs:
-            e2 = dict(e)
-            try:
-                lt0 = max(0.0, float(e.get("t0") or 0))
-                lt1 = (float(e.get("t1")) if e.get("t1") is not None
-                       else (a1 - a0))
-            except (TypeError, ValueError):
-                lt0, lt1 = 0.0, a1 - a0
-            e2["t0"] = round(a0 + lt0, 3)
-            e2["t1"] = round(min(a1, a0 + lt1), 3)
-            # Revue (23/09/2026) : bornes locales HORS du clip ou < 0,05 s
-            # → _timed rendrait la chaîne NUE (effet plein cadre, 0..total,
-            # mesuré : `[n0]vignette=angle=0.600[aj0]` sans sendcmd). Rien.
-            if e2["t1"] - e2["t0"] < 0.05:
-                continue
-            bounded.append(e2)
+        bounded = _adjust_bounded(aj, total)
         if not bounded:
             continue
         parts += _fx.build_chain(bounded, cur, f"aj{j}", f"ajfx{j}",
@@ -5975,9 +5994,103 @@ def _cadre_of(raw) -> dict | None:
                      mini=0.0, maxi=86400.0, strict=False)
     dur = _rf_num(raw.get("dur"))
     dur = round(dur, 3) if dur is not None and 0 < dur <= 86400 else None
-    return {"ratio": ratio, "t_local": round(tl, 3), "dur": dur,
-            "reframe": _reframe_of({"reframe": raw.get("reframe"), "srcIn": 0, "label": "cadre"}),
-            "dz": _dz_spec({"dz": raw.get("dz"), "label": "cadre"})}
+    cad = {"ratio": ratio, "t_local": round(tl, 3), "dur": dur,
+           "reframe": _reframe_of({"reframe": raw.get("reframe"), "srcIn": 0, "label": "cadre"}),
+           "dz": _dz_spec({"dz": raw.get("dz"), "label": "cadre"})}
+    cad.update(_cadre_neufs(raw))
+    return cad
+
+
+# Retours 26/09 (B, plan 2026-09-27 T2) : au-delà de 20 s de source, la
+# stabilisation d'une image (décodage DEPUIS 0, vidstabtransform indexe le
+# .trf par image d'entrée) coûterait trop : l'image part sans, avec une note.
+_STAB_T_MAX = 20.0
+_CADRE_FPS_DEFAUT = 30
+_CADRE_AJ_MAX = 16
+
+
+def _cadre_neufs(raw: dict) -> dict:
+    """Les champs NEUFS du cadre (retours 26/09, B), normalisés — et ABSENTS
+    quand ils n'ont pas d'effet, pour que la clé du cache d'un cadre d'hier
+    ne change pas :
+      · speed / retime / fps : seulement si `retime` ∈ {blend, flow} et la
+        vitesse (`_v1_speed` : 0,25..4) ≠ 1 ; fps 1..120, défaut 30 ;
+      · stab : `_v1_stab` (on, smooth, crop, zoom), seulement si `on` ; le
+        `.trf` est résolu par la route (`_cadre_stab`), jamais analysé ;
+      · adjust + t_global : pour chaque clip J1 (16 au plus), ses effets
+        bornés en horloge GLOBALE (`_adjust_bounded`, celui du rendu) et
+        PRÉSENTS à `t_global` ([t0, t1[) ; clips sans effet présent retirés,
+        rien de présent → aucun des deux champs. Illisible → ignoré."""
+    out = {}
+    spd = _v1_speed({"speed": raw.get("speed"), "label": "cadre"})
+    rt = _v1_retime(raw)
+    if spd and rt:
+        try:
+            f = int(float(raw.get("fps")))
+        except (TypeError, ValueError, OverflowError):
+            f = _CADRE_FPS_DEFAUT
+        out.update({"speed": round(spd, 4), "retime": rt, "fps": max(1, min(120, f))})
+    st = _v1_stab({"stab": raw.get("stab")})
+    if st:
+        out["stab"] = st
+    tg = _rf_num(raw.get("t_global"))
+    aj = raw.get("adjust")
+    if isinstance(aj, list) and aj and tg is not None and 0 <= tg <= 86400:
+        pres = []
+        for a in aj[:_CADRE_AJ_MAX]:
+            # `_adjust_bounded` est celui du rendu, qui reçoit des clips déjà
+            # formés par /render : ici le corps est BRUT — effets non-liste ou
+            # `type` non textuel (non hachable dans `in EFFECTS`) écartés avant.
+            if not isinstance(a, dict) or not isinstance(a.get("effects"), list):
+                continue
+            a = dict(a, effects=[e for e in a["effects"]
+                                 if isinstance(e, dict) and isinstance(e.get("type"), str)])
+            effs = [e for e in _adjust_bounded(a, 86400.0) if e["t0"] <= tg < e["t1"]]
+            if effs:
+                pres.append(effs)
+        if pres:
+            out.update({"adjust": pres, "t_global": round(tg, 3)})
+    return out
+
+
+def _cadre_stab(cad: dict, p: Path, t: float) -> tuple[dict, list]:
+    """(cadre, notes) : la stabilisation du cadre RÉSOLUE sans jamais
+    analyser — le `.trf` de la source (`MM.stab_path`, cache chemin+mtime)
+    doit exister, `t` ≤ 20 s ET la source durer ≤ 20 s ; le `.trf` entre
+    alors dans le cadre avec son mtime (donc dans la clé du cache). Sinon le
+    cadre part SANS `stab` (même clé qu'un cadre sans stabilisation) et une
+    note le dit : `stab-non-analysee` ou `stab-trop-loin`.
+
+    La DURÉE DE LA SOURCE (écart au plan, qui ne bornait que `t`) — MESURÉ
+    le 27/09 (9.0.1, 160×90 et 480×270, 25 i/s) : le coût d'une image
+    stabilisée n'est PAS le décodage depuis 0 (`trim` seul : 0,11 s pour
+    24 s de source) mais `optzoom=1` (celui du rendu), calculé sur TOUT le
+    `.trf` à chaque ffmpeg et indépendant de `t` : 0,6 s pour 4 s de source,
+    3,8 s pour 12, 8,5 s pour 24, 20,5 s pour 48 (optzoom=0 : 0,11–0,19 s,
+    mais l'image ne serait plus celle du rendu). Borner `t` seul laissait
+    une image à 20 s de calcul et plus. Sonde de durée : `grading._probe`
+    (en mémoire) ; illisible → la route échouera plus loin, rien n'est
+    décidé ici. Appelée HORS de la boucle (`asyncio.to_thread`)."""
+    st = cad.get("stab") if cad is not None else None
+    if not isinstance(st, dict):
+        return cad, []
+    from app.services import grading as GR
+    from app.services import montage_media as MM
+    sans = {k: v for k, v in cad.items() if k != "stab"}
+    try:
+        trf = MM.stab_path(p)
+        mt = trf.stat().st_mtime_ns if trf.is_file() else None
+    except (OSError, MM.MediaError):
+        mt = None
+    if mt is None:
+        return sans, ["stab-non-analysee"]
+    try:
+        d_src = GR._probe(Path(p))[0]
+    except Exception:                       # noqa: BLE001 — la route le dira
+        d_src = 0.0
+    if float(t) > _STAB_T_MAX or d_src > _STAB_T_MAX:
+        return sans, ["stab-trop-loin"]
+    return dict(cad, stab=dict(st, trf=str(trf), trf_mtime=mt)), []
 
 
 def _cadre_pre(cad: dict, w: int, h: int, t_src: float) -> str:
@@ -5989,8 +6102,8 @@ def _cadre_pre(cad: dict, w: int, h: int, t_src: float) -> str:
     (au rendu : temps du segment après fps=), et la pile lit `t` = `t_local`
     (au rendu : après setpts=PTS-STARTPTS). MESURÉ le 26/09 (8.1.1) : zoompan
     d=1 sur une image unique suit `it` posé par setpts. Sans vitesse ni
-    retime ni stabilisation (hors contrat : l'image reste celle de la source
-    à `t`)."""
+    retime ni stabilisation : ceux-là passent par `_cadre_entree` (retours
+    26/09, B), qui rend ce préfixe tel quel quand le cadre n'en porte pas."""
     n = sfx_service.fnum
     rf, dz, tl, dur = cad.get("reframe"), cad.get("dz"), cad.get("t_local") or 0.0, cad.get("dur")
     pre = []
@@ -6003,6 +6116,69 @@ def _cadre_pre(cad: dict, w: int, h: int, t_src: float) -> str:
         pre += [_dz_filter(dz, w, h, 30, dur), horloge]
     pre.append("format=yuv420p")
     return ",".join(pre)
+
+
+def _cadre_entree(cad: dict, w: int, h: int, t_src: float) -> tuple:
+    """Retours 26/09 (B1, B2) — `(ss, pre)` d'une image du cadre : `ss` = le
+    `-ss` d'entrée (None : décodage DEPUIS 0, sans -ss), `pre` = le préfixe
+    `[0:v]` → image au temps `t_local`.
+
+    Cadre sans retime ni `stab` résolu (`_cadre_stab` y pose `trf`) :
+    `(t_src, _cadre_pre(…))`, l'historique octet pour octet.
+
+    STABILISATION seule : la source ENTIÈRE (vidstabtransform indexe le .trf
+    par image d'entrée, comme au rendu), `_stab_filter` (celui du rendu),
+    `trim=start=t_src`, puis `_cadre_pre`. La route borne `t_src` à 20 s.
+
+    RETIME (blend / flow, vitesse ≠ 1) : une FENÊTRE alignée sur la grille
+    du rendu, `tw = floor(t_local·F − m)/F` (m = 2 images pour blend, 4 pour
+    flow, ≥ 0), lue depuis `s0 = t_src − (t_local − tw)·vitesse` (= srcIn +
+    tw·vitesse) : même décalage des horodatages de source que le rendu (dont
+    le -ss est srcIn), décalé de `tw`, un nombre ENTIER d'images de sortie —
+    `fps=F:start_time=0` choisit donc les mêmes images de source. Même chaîne
+    que le rendu (`setpts=PTS/v`, minterpolate de `_RETIME` avant fps si
+    flow, tblend de `_RETIME` après si blend), puis l'horloge ramenée au
+    temps LOCAL (`+tw`), zoom D-13 à ce temps, `tpad` clone (fin de source,
+    comme le tpad du rendu) et `select` de la première image ≥ t_local −
+    1/(2F). Le recadrage D-40 lit le temps de SOURCE absolu (`+s0`)."""
+    st = cad.get("stab")
+    st = st if isinstance(st, dict) and st.get("trf") else None
+    rt, spd = cad.get("retime"), cad.get("speed")
+    if not st and not (rt in _RETIME and spd):
+        return t_src, _cadre_pre(cad, w, h, t_src)
+    n = sfx_service.fnum
+    if not (rt in _RETIME and spd):
+        return None, (f"{_stab_filter(st['trf'], st)},trim=start={t_src:.6f},"
+                      f"setpts=PTS-STARTPTS,{_cadre_pre(cad, w, h, t_src)}")
+    f = int(cad.get("fps") or _CADRE_FPS_DEFAUT)
+    m = 4 if rt == "flow" else 2
+    tl = float(cad.get("t_local") or 0.0)
+    tw = max(0, math.floor(tl * f + 1e-6) - m) / f
+    s0 = max(0.0, float(t_src) - (tl - tw) * spd)
+    rf, dz, dur = cad.get("reframe"), cad.get("dz"), cad.get("dur")
+    suivi = isinstance(rf, dict) and rf.get("mode") == "suivi"
+    pre = []
+    if st:
+        pre.append(f"{_stab_filter(st['trf'], st)},trim=start={s0:.6f},setpts=PTS-{s0:.6f}/TB")
+    if suivi:
+        pre.append(f"setpts=PTS+{s0:.6f}/TB")
+    pre.append(f"scale={w}:{h}:force_original_aspect_ratio=increase,{_reframe_crop(rf, w, h)},setsar=1")
+    if suivi:
+        pre.append(f"setpts=PTS-{s0:.6f}/TB")
+    rtf = _RETIME[rt].format(fps=f)
+    pre.append(f"setpts=PTS/{n(spd)}" + (f",{rtf}" if rt == "flow" else "")
+               + f",fps={f}:start_time=0" + (f",{rtf}" if rt == "blend" else ""))
+    # `round()` : setpts TRONQUE son résultat vers l'entier — MESURÉ le 27/09
+    # (9.0.1) : `+0.433333/TB` en base 1/30 donnait 12,99999 → 12, toute la
+    # fenêtre étiquetée une image trop tôt (blend : l'image de t + 1/F).
+    horloge = f"setpts=PTS-STARTPTS+round({tw:.9f}/TB)"
+    pre.append(horloge)
+    if isinstance(dz, dict) and dur:
+        pre += [_dz_filter(dz, w, h, f, dur), horloge]
+    pre.append(f"tpad=stop_mode=clone:stop_duration={n((m + 2) / f)}")
+    pre.append(f"select='gte(t,{tl - 0.5 / f:.6f})'")
+    pre.append("format=yuv420p")
+    return (None if st else s0), ",".join(pre)
 
 
 # Sémaphore propre à /grade-frame (même patron que `_scopes_sem`, distinct :
@@ -6083,9 +6259,10 @@ async def montage_scopes(request: Request):
     effs = _grade_effects(body.get("effects"))
     size = _scopes_size(body.get("size"))
     cad = _cadre_of(body.get("cadre"))
+    p = await _media_source(request, body.get("src"), video=True)
+    cad, _notes = await asyncio.to_thread(_cadre_stab, cad, p, t)   # retours 26/09 (B2) : comme /grade-frame
     # 512 sans cadre : l'appel de L5 tel quel (positionnel).
     kw = {} if size == _SCOPES_SIZE_DEFAUT and cad is None else {"size": size, "cadre": cad}
-    p = await _media_source(request, body.get("src"), video=True)
     try:
         async with _scopes_sem():
             # re-revue 4bda880 (24/09) : le client a pu PARTIR pendant l'attente du sémaphore (tête déplacée : le
@@ -6114,8 +6291,12 @@ async def montage_grade_frame(request: Request):
     effs = _grade_effects(body.get("effects"))
     cad = _cadre_of(body.get("cadre"))
     w = _grade_w(body.get("w")) if cad is None else _cadre_w(body.get("w"))
-    kw = {} if cad is None else {"cadre": cad}
     p = await _media_source(request, body.get("src"), video=True)
+    # Retours 26/09 (B2) : le .trf est LU, jamais fabriqué (aucun
+    # `stab_detect` ici) ; absent ou t > 20 s → image sans stabilisation et
+    # une note dans `X-Dz-Grade-Note` (liste à virgules) que la pastille dit.
+    cad, notes = await asyncio.to_thread(_cadre_stab, cad, p, t)
+    kw = {} if cad is None else {"cadre": cad}
     try:
         async with _grade_sem():
             if await request.is_disconnected():
@@ -6123,8 +6304,10 @@ async def montage_grade_frame(request: Request):
             out = await asyncio.to_thread(GR.graded_frame, p, t, effs, body.get("mask"), w, "jpg", **kw)
     except Exception as e:
         raise _media_http(e)
-    return FileResponse(out, media_type="image/jpeg",
-                        headers={"Cache-Control": "private, max-age=3600"})
+    hd = {"Cache-Control": "private, max-age=3600"}
+    if notes:
+        hd["X-Dz-Grade-Note"] = ",".join(notes)
+    return FileResponse(out, media_type="image/jpeg", headers=hd)
 
 
 @router.post("/proxy")
