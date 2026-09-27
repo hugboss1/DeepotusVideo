@@ -1168,9 +1168,11 @@ def BALAYE(nom, src, fps, src_in, sp, rt, stab=False, pas=3):
 
     Borne : 6/255 si le RENDU est reproductible. MESURE le 27/09 : sous
     ffmpeg 8.1.1 (PATH, pas celui de l'app), vidstabtransform n'est PAS
-    deterministe — deux rendus identiques d'un plan stabilise different de
-    0 a 11/255 selon l'image, avec ou sans retime, avec ou sans `-threads 1`
-    (9.0.1, celui de l'application : 0,00 partout). Un plan stabilise est
+    deterministe — deux rendus identiques d'un plan stabilise different
+    selon l'image, avec ou sans retime, avec ou sans `-threads 1` : 11/255
+    au premier releve, puis 44, 55 et 30/255 (ecart max rendu/rendu par
+    plan, mesure 27/09) (9.0.1, celui de l'application : 0,00 partout).
+    Un plan stabilise est
     donc rendu DEUX fois : rendu non reproductible -> l'apercu n'a pas a
     etre plus pres du rendu que le rendu de lui-meme, la borne devient
     max(25, dispersion + 6)
@@ -1243,8 +1245,9 @@ check("r13_stab_et_retime_srcin_hors_grille_chaque_instant_egal_au_rendu_6_temoi
 # la borne stricte s'applique. Ailleurs (8.1.1), la ligne le dit sans rougir.
 _v9 = "version 9." in _ver
 check("r13_ffmpeg_de_l_app_9_rendu_stabilise_reproductible_borne_stricte_6" if _v9
-      else "r13_information_ffmpeg_%s_rendu_stabilise_non_reproductible_borne_25" % _ver.split()[2][:5],
-      len(_REPRO) == 4 and (all(v <= 0.5 for v in _REPRO.values()) if _v9 else True), str(_REPRO))
+      else "r13_information_ffmpeg_%s_rendu_stabilise_non_reproductible_borne_max_25_dispersion_plus_6" % _ver.split()[2][:5],
+      len(_REPRO) == 4 and (all(v <= 0.5 for v in _REPRO.values()) if _v9 else True),
+      str({k: (round(v, 2), max(25, int(v + 6)) if v > 0.5 else 6) for k, v in _REPRO.items()}))
 
 print(f"\n=== {ok} passed, {fail} failed ===")
 c.__exit__(None, None, None)
