@@ -198,6 +198,27 @@ _XFADE.update({n: (n, None) for f in _XFADE_FAMILIES.values() for n in f["noms"]
 # Ceux que le lecteur VIVANT sait jouer en CSS (D-12) : un voile noir/blanc,
 # ou une baisse d'opacité — tout le reste n'est visible qu'après Preview.
 _XFADE_LIVE = ("fade", "fadeblack", "fadewhite")
+
+
+def _cut_tau(fps) -> float:
+    """Durée RENDUE de la coupe franche à la cadence `fps` : les 0,04 s de
+    `_XFADE["cut"]` tant qu'elles font au moins une demi-image, sinon UNE
+    image (1/fps arrondie au ms supérieur). MESURÉ 27/09/2026 (9.0.1 =
+    8.1.1) : à 12 i/s (GIF 480), 0,04 s = 0,48 image — tpad arrondit
+    l'amorce de coupe à zéro image et l'offset du xfade (0,96 s = 11,52
+    images → 12) tombe après la dernière image du plan sortant : xfade voit
+    l'EOF de sa première entrée et termine le flux (3 plans de 1 s → 12
+    images au lieu de 36). À ≥ 12,5 i/s : 0,04, commande octet pour octet."""
+    c = _XFADE["cut"][1]
+    try:
+        f = float(fps)
+    except (TypeError, ValueError):
+        return c
+    if f <= 0 or c * f >= 0.5:
+        return c
+    return math.ceil(1000.0 / f) / 1000.0
+
+
 _XFADE_LABELS = {  # libellés français du catalogue ; le nom xfade reste l'id
     "fade": "fondu", "fadeblack": "fondu noir", "fadewhite": "fondu blanc",
     "fadegrays": "fondu gris", "fadefast": "fondu rapide", "fadeslow": "fondu lent",
@@ -527,7 +548,16 @@ def _deliver_tail(spec: dict | None, preview: bool, fps, total, inputs, parts,
                 *spec.get("acodec", []), *spec.get("flags", []), str(out)]
     if spec.get("gif"):
         gfps = int(spec.get("fps") or 12)
-        parts.append(f"[{cur}]{gravure}fps={gfps},split[g0][g1];"
+        # 27/09/2026 : graphe DÉJÀ à gfps (ce que /render fait toujours) →
+        # pas de `fps=` redondant. MESURÉ (9.0.1 = 8.1.1) : xfade signale
+        # l'EOF au pts de sa DERNIÈRE image, et `fps=12` sur un flux à 12
+        # i/s jetait cette image (35 images sur 36 pour 3 plans de 1 s).
+        try:
+            deja = float(fps) == gfps
+        except (TypeError, ValueError):
+            deja = False
+        gfpsf = "" if deja else f"fps={gfps},"
+        parts.append(f"[{cur}]{gravure}{gfpsf}split[g0][g1];"
                      f"[g0]palettegen[pal];[g1][pal]paletteuse[outv]")
         if amap.startswith("["):
             parts.append(f"{amap}anullsink")
@@ -3569,10 +3599,15 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
         v2 = []
     inputs, parts = [], []
     idx = 0
+    # Durée rendue de la coupe franche (0,04 s, ou une image sous 12,5 i/s —
+    # voir `_cut_tau`) : amorce, trous, xfade et plancher des transitions.
+    cut = _cut_tau(fps)
 
     def _tau_for(c):
         _n, fixed = _XFADE.get(str(c.get("transition") or "cut")
                                .split()[0].lower(), _XFADE["cut"])
+        if (_n, fixed) == _XFADE["cut"]:
+            return cut
         return fixed if fixed is not None else float(
             c.get("transition_s") or 0.4)
 
@@ -3590,7 +3625,7 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
             # trou — un trou EN TÊTE n'en a pas (MESURÉ : 2,54 s au lieu de
             # 2,5 et tous les plans suivants reculés d'une image).
             segs.append({"gap": True,
-                         "dur": round(g + _tau_for(c) + (0.04 if segs else 0.0), 3)})
+                         "dur": round(g + _tau_for(c) + (cut if segs else 0.0), 3)})
         segs.append(c)
         prev_end = c["end"]
 
@@ -3650,7 +3685,7 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
             continue
         if _XFADE.get(str(segs[k].get("transition") or "cut").split()[0].lower(),
                       _XFADE["cut"]) == _XFADE["cut"]:
-            lead[k] = _XFADE["cut"][1]
+            lead[k] = cut
     if not audio_only:
         # Retours 26/09 (A) : `fps={fps}:start_time=0` — sans start_time, fps
         # part de la 1re image dont le pts dépasse 0 (résidu du -ss d'entrée) :
@@ -3761,12 +3796,14 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
             if s.get("gap"):
                 name, tau = _XFADE["cut"]
             else:
-                name, fixed = _XFADE.get(str(s.get("transition") or "cut")
-                                         .split()[0].lower(), _XFADE["cut"])
-                tau = fixed if fixed is not None else float(
-                    s.get("transition_s") or 0.4)
-            tau = max(0.04, min(tau, max(0.1, seg_durs[k] - 0.1),
-                                max(0.1, total - 0.1)))
+                name = _XFADE.get(str(s.get("transition") or "cut")
+                                  .split()[0].lower(), _XFADE["cut"])[0]
+                tau = _tau_for(s)
+            # Plancher = la coupe rendue : un chevauchement sous la
+            # demi-image a le même défaut d'offset que la coupe (`_cut_tau`)
+            # — c'est lui qui porte aussi la coupe d'un trou à `cut`.
+            tau = max(cut, min(tau, max(0.1, seg_durs[k] - 0.1),
+                               max(0.1, total - 0.1)))
             offset = max(0.0, round(total - tau, 3))
             starts[k] = offset
             if not audio_only:
