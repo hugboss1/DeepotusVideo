@@ -6159,7 +6159,10 @@ assert len(R6) == 7 and all(a not in r and "DzTracks" not in r and "fin de rendu
 #   `ts` pose les props par defaut SOUS les props enregistrees (prouve sous node, test_retours_bundle_r7) ;
 #   vm2 le repli de `dzVmCost` pour un noeud SANS modele : tarif 2.5 du tableau (0,473 $/s, 720p) -- la valeur du
 #   backend pour un modele vide ; le repli forfaitaire `[.04,60]` d'un id INCONNU du tableau reste (le backend garde
-#   lui aussi son forfait pour un modele inconnu) ;
+#   lui aussi son forfait pour un modele inconnu) ; CLOTURE T11 (revue T4) : la duree chiffree est aussi PLAFONNEE a
+#   10 s, le `video_max_gen_s` par defaut du serveur (pricing.DEFAULTS) -- le serveur ne genere ni ne facture plus
+#   (15 s de 2.5 : 4,73 $ et non 7,09 $) ; ancre etendue a `d2=Math.min(...)`, toujours 1/0/1 ; le 10 est compare a
+#   pricing par le banc croise (ECART DATE : un video_max_gen_s change a la main dans pricing.json n'est pas suivi) ;
 #   vm3 le libelle « Défaut (… » du selecteur quand /api/video-models ne dit pas son defaut.
 #   « seedance-v1-pro » ne reste que comme cle du tableau des tarifs (ancien modele toujours choisissable).
 A_R7UP1 = ('uploadVideo:async e=>{try{const t=new FormData;t.append("file",e);const n=await fetch(`${Te}/videos/upload`,'
@@ -6169,8 +6172,8 @@ R_R7UP1 = ('uploadVideo:async e=>{try{const t=new FormData;t.append("file",e);co
            'd=typeof(j&&j.detail)=="string"?j.detail:""}catch(x){}return{ok:!1,error:d||`HTTP ${n.status}`}}')
 A_R7VM1 = 'props:{model:"seedance-v1-pro",style:"cinematic",durationS:10'
 R_R7VM1 = 'props:{model:"seedance-2.5",style:"cinematic",durationS:10'
-A_R7VM2 = 'en=dzVmRates[p2.model||"seedance-v1-pro"]||[.04,60]'
-R_R7VM2 = 'en=dzVmRates[p2.model||"seedance-2.5"]||[.04,60]'
+A_R7VM2 = 'en=dzVmRates[p2.model||"seedance-v1-pro"]||[.04,60],d2=Math.min(Number(p2.durationS)||10,en[1])'
+R_R7VM2 = 'en=dzVmRates[p2.model||"seedance-2.5"]||[.04,60],d2=Math.min(Number(p2.durationS)||10,en[1],10)'
 A_R7VM3 = 'label:"Défaut ("+(mm.default||"seedance-v1-pro")+")"'
 R_R7VM3 = 'label:"Défaut ("+(mm.default||"seedance-2.5")+")"'
 R7 = [("R7up1-upload-refuse-lit-le-detail-du-serveur", A_R7UP1, R_R7UP1),

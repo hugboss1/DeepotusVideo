@@ -132,11 +132,14 @@ R_UP1 = ('uploadVideo:async e=>{try{const t=new FormData;t.append("file",e);cons
          '{method:"POST",body:t});if(n.ok)return await n.json();let d="";try{const j=await n.json();'
          'd=typeof(j&&j.detail)=="string"?j.detail:""}catch(x){}return{ok:!1,error:d||`HTTP ${n.status}`}}')
 A_VM1 = 'props:{model:"seedance-v1-pro",style:"cinematic",durationS:10'
-A_VM2 = 'en=dzVmRates[p2.model||"seedance-v1-pro"]||[.04,60]'
+A_VM2 = 'en=dzVmRates[p2.model||"seedance-v1-pro"]||[.04,60],d2=Math.min(Number(p2.durationS)||10,en[1])'
+# Cloture T11 (revue T4) : la duree chiffree est AUSSI plafonnee a 10 s, le `video_max_gen_s` par defaut du serveur
+# (pricing.DEFAULTS) -- le serveur ne facture jamais plus ; le banc croise compare ce 10 a pricing.
+R_VM2 = 'en=dzVmRates[p2.model||"seedance-2.5"]||[.04,60],d2=Math.min(Number(p2.durationS)||10,en[1],10)'
 A_VM3 = 'label:"Défaut ("+(mm.default||"seedance-v1-pro")+")"'
 _ATT = {"R7up1": (A_UP1, R_UP1),
         "R7vm1": (A_VM1, A_VM1.replace("seedance-v1-pro", "seedance-2.5")),
-        "R7vm2": (A_VM2, A_VM2.replace("seedance-v1-pro", "seedance-2.5")),
+        "R7vm2": (A_VM2, R_VM2),
         "R7vm3": (A_VM3, A_VM3.replace("seedance-v1-pro", "seedance-2.5"))}
 for _t, _a, _r in R7:
     _k = _t.split("-")[0]
@@ -248,17 +251,27 @@ _JS_COST = r"""
 __C__
 console.log(JSON.stringify({vide:dzVmCost({props:{}}),vide_str:dzVmCost({props:{model:""}}),sans_props:dzVmCost({}),
   v1:dzVmCost({props:{model:"seedance-v1-pro",durationS:10}}),s25_5:dzVmCost({props:{model:"seedance-2.5",durationS:5}}),
-  inconnu:dzVmCost({props:{model:"modele-inconnu",durationS:10}}),taux25:dzVmRates["seedance-2.5"]}));
+  inconnu:dzVmCost({props:{model:"modele-inconnu",durationS:10}}),taux25:dzVmRates["seedance-2.5"],
+  s25_15:dzVmCost({props:{model:"seedance-2.5",durationS:15}}),s25_30:dzVmCost({props:{model:"seedance-2.5",durationS:30}}),
+  s2_12:dzVmCost({props:{model:"seedance-2",durationS:12}}),k_8:dzVmCost({props:{model:"kling-v3-pro",durationS:8}}),
+  vide_20:dzVmCost({props:{durationS:20}})}));
 """
 _d, _why = node_json("cost_neuf.js", _JS_COST.replace("__C__", _COST))
 check("vm_cout_sans_modele_au_tarif_2_5_720p_4_73_pour_10_s",
       _d.get("vide") == "$4.73" and _d.get("vide_str") == "$4.73" and _d.get("sans_props") == "$4.73"
       and _d.get("taux25") == [0.473, 30], (_d, _why))
 check("vm_cout_d_un_modele_choisi_inchange", _d.get("v1") == "$1.24" and _d.get("s25_5") == "$2.36", _d)
+# revue T4 : 15 s de Seedance 2.5 -> le serveur genere et facture 10 s (video_max_gen_s) : 4,73 $, pas 7,09 $ ;
+# idem 30 s, un noeud sans modele a 20 s, Seedance 2 a 12 s (6,82 $) ; sous le plafond (Kling 8 s) : inchange.
+check("vm_cout_duree_plafonnee_a_10_s_comme_le_serveur_2_5_15_s_4_73_30_s_4_73_sans_modele_20_s_4_73_seedance_2_12_s_6_82",
+      _d.get("s25_15") == "$4.73" and _d.get("s25_30") == "$4.73" and _d.get("vide_20") == "$4.73"
+      and _d.get("s2_12") == "$6.82", _d)
+check("vm_cout_sous_le_plafond_inchange_kling_8_s", _d.get("k_8") == "$0.90", _d.get("k_8"))
 # un id INCONNU du tableau garde son repli forfaitaire, comme le backend (pricing : modele inconnu -> forfait)
 check("vm_cout_modele_inconnu_garde_son_repli_forfaitaire", _d.get("inconnu") == "$0.40", _d.get("inconnu"))
 _v, _whyv = node_json("cost_vieux.js", _JS_COST.replace("__C__", _COST_B))
 check("temoin_vm_le_bak_chiffrait_un_noeud_sans_modele_au_tarif_v1_pro", _v.get("vide") == "$1.24", (_v, _whyv))
+check("temoin_vm_le_bak_chiffrait_15_s_de_seedance_2_5_a_7_09", _v.get("s25_15") == "$7.09", _v.get("s25_15"))
 
 # le libelle « Défaut (… » du selecteur, quand /api/video-models ne dit pas son defaut
 _SEL = entre(S, "function DzVideoModelSel(", "var dzVoMult=")
