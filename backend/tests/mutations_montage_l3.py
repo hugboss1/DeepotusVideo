@@ -341,7 +341,10 @@ M = [
 
 
 # LE COMPTE MESURE, compare par main() -- une ligne par mutation de M.
-N_ROUGES = (1, 7, 1, 2, 2, 1, 1, 2, 13, 4, 2, 1, 2, 1, 1, 2, 2, 1, 1, 1, 3, 3, 4)
+# Retours 26/09 (T2, 27/09) : n°7 et n°12 rougissent en plus la ligne
+# `t2_commande_de_rendu_identique_a_fc2d7ad_octet_pour_octet_7_cas` (l3 [7]) —
+# 2 -> 3 chacune, MESURE sur a4bbc5f (worktree temporaire, 9.0.1).
+N_ROUGES = (1, 7, 1, 2, 2, 1, 1, 3, 13, 4, 2, 1, 3, 1, 1, 2, 2, 1, 1, 1, 3, 3, 4)
 assert len(N_ROUGES) == len(M), (len(N_ROUGES), len(M))
 
 
