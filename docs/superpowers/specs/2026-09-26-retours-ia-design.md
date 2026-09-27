@@ -318,7 +318,7 @@ Plan `2026-09-27-plan-retours-ia.md`, exécuté en subagent-driven. Chaque tâch
   - Recalage stab + retime : un `srcIn` à moins de 0,0005·(1+v) au-dessus d'une image prend l'image précédente.
   - Le lecteur envoie `fps=30` quel que soit le preset.
   - J1 ne touche que V1 dans le lecteur ; au rendu, il touche aussi V2, les trous et les titres.
-  - Les scopes n'appliquent ni retime, ni stab, ni J1.
+  - Les scopes n'appliquent ni retime, ni stab, ni J1 : le serveur (`/scopes`) sait les appliquer, c'est le client qui ne les envoie pas.
   - La couche ne connaît ni `_fx.EFFECTS` ni le total.
   - Les chiffres Unicode non ASCII sont lus par `float()` mais pas par `dzmGlSec`.
   - Seul l'événement `fullscreenchange` standard est écouté.
@@ -348,3 +348,4 @@ Plan `2026-09-27-plan-retours-ia.md`, exécuté en subagent-driven. Chaque tâch
   - L'Échap synthétique vers `__dzDialogue`/`VL.dialogue` dépend de leur comportement actuel.
 - **Exploitation.** Des routes backend changent (dictée, garde vidéo, images) : il faut relancer le backend au déploiement, et c'est l'utilisateur qui le fait.
 - Preuves écran 27/09 (8799, sans clé, espion à 0) : A 180/180 images, premières images des plans = `in` ; B écart 5,6/255 à l'image du rendu (négatif 236) ; C `.dzm-scwin` dans `.svm-frame` plein écran ; D message lisible Studio + Library ; F nœud neuf seedance-2.5 à 4,73 $ ; G/H champs, pastilles grisées, dictée voie 2 Entrée = Non ; I quatre GPT Image 2.5 à 0,053 $. Écarts vus à l'écran : largeur de l'image étalonnée en plein écran suit l'événement `resize` (pas `fullscreenchange`) ; pastilles `cardforge-texture` (Meshy) et `atelier-plan` ne signalent pas la clé absente (elles recopient la vue) ; barre IA qui recouvre le centre de `#iaTexte` (Vectorlab) de 40 px, clic transmis au champ.
+- Revue finale 27/09 : un refus d'une route de génération dont le corps n'est pas du JSON s'affiche « HTTP <code> » (section R7er1) au lieu du texte brut ; un modèle vidéo absent d'un `video_usd_per_s` remplacé EN ENTIER dans `pricing.json` retombe sur le forfait hérité 0,04 $/s (la garde sous-estimerait ; pas le cas chez l'utilisateur, qui ne surcharge que `seedance_usd_per_s`) ; `/generate*` et `/images/generate` n'ont pas de `_require_localhost` (préexistant ; les routes neuves l'ont).
