@@ -25,9 +25,21 @@ marqué pendant qu'il l'est sur `/materialforge/`. ÉTAT VIDE : une page vide ne
 reçoit aucune barre et aucune exception. Faute n°6 : aucun `detail` n'indexe
 une clé absente (`.get`).
 
+T9 (27/09) — PASTILLE DE MODÈLE, miroir du sélecteur de la vue : chaque
+règle porte un adaptateur `modele` ; le harnais simule le select CUSTOM du
+bundle (`re` : bouton [data-dzselect] qui ouvre une liste de boutons au rendu
+suivant), un <select> natif (valeur + `change` natif), les cartes de modèle du
+Son & VFX, et un faux `fetch` (routes de modèles, `/api/cost/estimate`) qui
+ESPIONNE : aucun appel de génération. Les modèles sans clé sont grisés avec
+« clé X absente » ; les vues sans choix sont en lecture seule « choisi par la
+vue ». Le registre des modèles d'image de la couche est confronté à
+`routes.list_image_models` et à `pricing._IMAGE_MODELS` (AST, sans import).
+
 Un processus, `check`, `=== N passed, M failed ===`, code de sortie.
 """
+import ast
 import json
+import warnings
 import pathlib
 import re
 import shutil
@@ -180,8 +192,22 @@ class Noeud {
   getElementsByTagName(t) { t = t.toLowerCase(); return this._tous([]).filter(e => t === "*" || e.tagName.toLowerCase() === t); }
   querySelectorAll(s) { return this._tous([]).filter(e => matchSel(e, s)); }
   querySelector(s) { return this.querySelectorAll(s)[0] || null; }
-  addEventListener() {} removeEventListener() {}
+  addEventListener(t, f, c) { (this._ev || (this._ev = [])).push({ t, f, c: !!(c === true || (c && c.capture)) }); }
+  removeEventListener(t, f) { this._ev = (this._ev || []).filter(x => !(x.t === t && x.f === f)); }
+  dispatchEvent(ev) {                    // capture (document → parent), cible, bouillonnement
+    if (!ev.target) ev.target = this;
+    const ch = []; let n = this.parentNode; while (n) { ch.push(n); n = n.parentNode; }
+    const appel = (nd, cap) => { for (const x of (nd._ev || []).slice()) if (x.t === ev.type && (cap === null || x.c === cap)) x.f.call(nd, ev); };
+    for (let i = ch.length - 1; i >= 0; i--) appel(ch[i], true);
+    appel(this, null);
+    if (ev.bubbles) for (const nd of ch) { if (ev._stop) break; appel(nd, false); }
+    return !ev.defaultPrevented;
+  }
+  click() { this.dispatchEvent(new Event("click", { bubbles: true })); }
 }
+class Event { constructor(t, o) { this.type = t; this.bubbles = !!(o && o.bubbles); this.target = null; this.defaultPrevented = false; }
+  preventDefault() { this.defaultPrevented = true; } stopPropagation() { this._stop = true; } }
+global.Event = Event;
 function notifier(cible, aj, rm) {
   for (const o of OBS) if (o.cible && (o.cible === cible || o.cible.contains(cible)))
     o.file.push({ type: "childList", target: cible, addedNodes: aj, removedNodes: rm });
@@ -212,6 +238,9 @@ class Element extends Noeud {
   set className(v) { this.setAttribute("class", v); }
   get type() { return (this.getAttribute("type") || (this.tagName === "INPUT" ? "text" : "")).toLowerCase(); }
   get placeholder() { return this.getAttribute("placeholder") || ""; }
+  get options() { return this.children.filter(c => c.tagName === "OPTION"); }
+  get text() { return this.textContent; }
+  get disabled() { return this.hasAttribute("disabled"); }
   matches(s) { return matchSel(this, s); }
   closest(s) { let n = this; while (n && n.nodeType === 1) { if (matchSel(n, s)) return n; n = n.parentNode; } return null; }
   getBoundingClientRect() {
@@ -234,7 +263,7 @@ class Element extends Noeud {
 class Texte extends Noeud { constructor(d) { super(3); this.data = d; } }
 class Doc extends Noeud {
   constructor() { super(9); }
-  createElement(t) { return new Element(t); }
+  createElement(t) { const e = new Element(t); e._rect = { left: 0, top: 0, width: 20, height: 16 }; return e; }
   createTextNode(d) { return new Texte(d); }
   getElementById(i) { return this._tous([]).find(e => e.getAttribute("id") === i) || null; }
 }
@@ -250,13 +279,40 @@ const RO_LOG = [];
 class MO { constructor(cb) { this.cb = cb; this.file = []; this.cible = null; this.opts = null; OBS.push(this); }
   observe(c, o) { this.cible = c; this.opts = o || null; } disconnect() { this.cible = null; }
   _vider() { const f = this.file; this.file = []; if (f.length) this.cb(f, this); } }
+/* faux fetch ESPION : routes de modèles simulées, estimation de coût, rien d'autre */
+const APPELS = [];
+const VIDEO = { default: "seedance-2.5", models: [
+  { id: "seedance-v1-pro", label: "Seedance 1.0 Pro", provider: "fal", available: true, usd_per_s: { "720p": 0.054, "1080p": 0.124 } },
+  { id: "seedance-2", label: "Seedance 2.0", provider: "fal", available: true, usd_per_s: { "720p": 0.3034, "1080p": 0.682 } },
+  { id: "seedance-2.5", label: "Seedance 2.5", provider: "fal", available: true, usd_per_s: { "480p": 0.2205, "720p": 0.473 } },
+  { id: "veo-3", label: "Veo 3 (Google)", provider: "google", available: false, usd_per_s: { "*": 0.4 } } ] };
+const IMG = { configured: "", default: "flux", models: [
+  { id: "flux", label: "FLUX schnell", provider: "fal" }, { id: "nano-banana", label: "Nano Banana (Gemini)", provider: "fal" },
+  { id: "nano-banana-pro", label: "Nano Banana Pro (Gemini 3)", provider: "fal" }, { id: "gpt-image-2-fal", label: "GPT Image 2 (via fal)", provider: "fal" },
+  { id: "gpt-image-2.5-flare-fal", label: "GPT Image 2.5 Flare (via fal)", provider: "fal" },
+  { id: "gpt-image-2.5-sunburst-fal", label: "GPT Image 2.5 Sunburst (via fal)", provider: "fal" } ] };
+const MUS = { enabled: true, default: "lyria3", models: [
+  { id: "lyria3", label: "Lyria 3 (Google)", usd: 0.1 }, { id: "stable-audio-25", label: "Stable Audio 2.5", usd: 0.06 },
+  { id: "minimax-music-26", label: "MiniMax Music 2.6", usd: 0.14 } ] };
+const PRIX = { "flux": 0.003, "nano-banana": 0.039, "gpt-image-2.5-flare-fal": 0.053, "gpt-image-2": 0.21 };
+const REP = { "/api/video-models": () => VIDEO, "/api/image-models": () => IMG, "/api/music-models": () => MUS,
+  "/api/atelier/settings": () => ({ settings: { image_provider: "nano-banana" } }) };
+function reponse(j) { return { ok: true, status: 200, json: () => Promise.resolve(JSON.parse(JSON.stringify(j))) }; }
+function fetchEspion(url, o) {
+  const m = (o && o.method) || "GET"; APPELS.push([m, String(url), (o && o.body) || null]);
+  if (url === "/api/cost/estimate" && m === "POST") {
+    const b = JSON.parse(o.body); return Promise.resolve(reponse({ breakdown: (b.ops || []).map(x => ({ usd: PRIX[x.model] != null ? PRIX[x.model] : 0.02 })) }));
+  }
+  const f = REP[url]; return Promise.resolve(f ? reponse(f()) : { ok: false, status: 404, json: () => Promise.resolve({}) });
+}
+const LS_ = {}; const localStorage = { getItem: k => (k in LS_ ? LS_[k] : null), setItem: (k, v) => { LS_[k] = String(v); }, removeItem: k => { delete LS_[k]; } };
 const window = {
-  document, location: { pathname: "/" },
+  document, location: { pathname: "/" }, fetch: fetchEspion, localStorage, Event, innerWidth: 1400, innerHeight: 900,
   getComputedStyle(el) { const o = Object.assign({}, DEFAUT_CS, el._cs || {}); o.getPropertyValue = k => o[k] || ""; return o; },
   matchMedia(q) { return { matches: /reduce/.test(q) ? REDUIT : false, addEventListener() {}, addListener() {} }; },
   MutationObserver: MO,
   ResizeObserver: class { observe(t) { RO_LOG.push(["o", t]); } unobserve(t) { RO_LOG.push(["u", t]); } disconnect() {} },
-  addEventListener() {}, removeEventListener() {},
+  addEventListener(t, f, c) { Noeud.prototype.addEventListener.call(this, t, f, c); }, removeEventListener() {},
   setTimeout: (f, ms) => setTimeout(f, ms), clearTimeout: t => clearTimeout(t),
   setInterval: () => 0, clearInterval: () => {},
   requestAnimationFrame: f => setTimeout(f, 0),
@@ -267,6 +323,7 @@ global.getComputedStyle = window.getComputedStyle; global.matchMedia = window.ma
 global.MutationObserver = MO; global.ResizeObserver = window.ResizeObserver;
 global.requestAnimationFrame = window.requestAnimationFrame;
 global.setInterval = window.setInterval; global.clearInterval = window.clearInterval;
+global.fetch = fetchEspion; global.localStorage = localStorage;
 
 /* ---------- fabriques ---------- */
 function el(tag, attrs, parent, rect) {
@@ -291,6 +348,35 @@ function etat(e) {
     fond: e ? e.style.getPropertyValue("--dzia-fond") : "", classe: e ? e.classList.contains("dzia-champ") : false };
 }
 function pause(ms) { return new Promise(r => setTimeout(r, ms)); }
+/* le select CUSTOM du bundle (`re`) : bouton [data-dzselect] > span ; la liste
+   (boutons > span) n'arrive qu'au rendu SUIVANT, comme sous React */
+function fauxRe(parent, options, valeur, onChange) {
+  const racine = el("div", {}, parent), btn = el("button", { "data-dzselect": "1" }, racine), sp = el("span", {}, btn);
+  const lab = v => (options.find(o => o.value === v) || {}).label || "—";
+  sp.textContent = lab(valeur); let liste = null; const o = { racine, btn, sp, clics: 0 };
+  btn.addEventListener("click", () => { o.clics++; setTimeout(() => {
+    if (liste) { racine.removeChild(liste); liste = null; return; }
+    liste = el("div", {}, racine);
+    options.forEach(op => { const b = el("button", {}, liste); el("span", {}, b).textContent = op.label;
+      b.addEventListener("click", () => { valeur = op.value; sp.textContent = lab(valeur); onChange(op.value); racine.removeChild(liste); liste = null; }); });
+  }, 5); });
+  Object.defineProperty(o, "valeur", { get: () => valeur });
+  o.poser = v => { valeur = v; sp.textContent = lab(v); };
+  return o;
+}
+function lblVue(m) {                      // la formule de DzVideoModelSel (bundle)
+  const rr = m.usd_per_s || {}; let v = rr["1080p"] != null ? rr["1080p"] : rr["*"];
+  if (v == null) for (const k in rr) { const n = Number(rr[k]); if (isFinite(n) && (v == null || n > v)) v = n; }
+  const px = v != null ? " · $" + (Number(v) >= .1 ? Number(v).toFixed(2) : Number(v).toFixed(3)) + "/s" : "";
+  return m.label + px + (m.available ? "" : " · clé manquante");
+}
+function pastille(e) { const b = e && e.nextSibling; return b && b.querySelector ? b.querySelector(".dzia-modele") : null; }
+function vuP(e) { const p = pastille(e); return p ? { tag: p.tagName, txt: p.textContent, title: p.getAttribute("title"), dis: p.getAttribute("aria-disabled"),
+  id: p.getAttribute("data-dzia-id"), mini: p.classList.contains("dzia-mini") } : null; }
+function listeOuverte() { const l = body.querySelectorAll(".dzia-liste"); return l.length ? l[l.length - 1] : null; }
+function vuListe() { const l = listeOuverte(); return l ? l.querySelectorAll(".dzia-opt").map(o => ({ id: o.getAttribute("data-id"), txt: o.textContent,
+  title: o.getAttribute("title"), dis: o.getAttribute("aria-disabled"), sel: o.getAttribute("aria-selected") })) : null; }
+function opt(id) { const l = listeOuverte(); return l ? l.querySelectorAll(".dzia-opt").find(o => o.getAttribute("data-id") === id) : null; }
 
 (async function () {
   // état vide : avant la couche, aucune API
@@ -300,7 +386,10 @@ function pause(ms) { return new Promise(r => setTimeout(r, ms)); }
   const A = window.DzChampIA;
   R.api = { type: typeof A, regles: Array.isArray(A && A.regles), marquer: typeof (A && A.marquer), version: typeof (A && A.version),
     exclus: Array.isArray(A && A.exclus) };
-  R.regles = (A && A.regles || []).map(r => ({ id: r.id, vue: r.vue, sel: r.sel || null, libelle: r.libelle || null, genre: r.genre, page: r.page || null }));
+  R.regles = (A && A.regles || []).map(r => ({ id: r.id, vue: r.vue, sel: r.sel || null, libelle: r.libelle || null, genre: r.genre, page: r.page || null,
+    modele: r.modele ? { liste: r.modele.liste === undefined ? "absente" : r.modele.liste, fixe: r.modele.fixe || null, lire: typeof r.modele.lire,
+      ecrire: typeof r.modele.ecrire, texte: typeof r.modele.texte } : null }));
+  R.catalogue = (A && A.modeles && A.modeles.catalogueImage) || null;
   R.vide = { barres: body.querySelectorAll(".dzia-barre").length, marques: body.querySelectorAll("[data-dz-ia]").length };
   const styles = head.querySelectorAll("style").filter(s => s.getAttribute("id") === "dzia-style");
   R.style = styles.length ? styles[0].textContent : "";
@@ -442,6 +531,91 @@ function pause(ms) { return new Promise(r => setTimeout(r, ms)); }
     vectorlab: page("/vectorlab/", () => ({ ia: el("textarea", { id: "iaTexte" }, body), vit: el("input", { id: "vitIaPrompt", type: "text" }, body) })),
   };
 
+  // ---------- T9 : pastille de modèle, miroir du sélecteur de la vue ----------
+  body.textContent = ""; window.location.pathname = "/"; if (A.modeles) if (A.modeles) A.modeles.fermer();
+  const q = el("div", { class: "quick" }, body), tq = ie(q, "Prompt", "textarea");
+  const vmBox = el("div", { "data-dzvmsel": "1" }, q);
+  const reQ = fauxRe(vmBox, [{ value: "", label: "Défaut (seedance-2.5)" }].concat(VIDEO.models.map(m => ({ value: m.id, label: lblVue(m) }))), "",
+    v => localStorage.setItem("dz_video_model", v));
+  const lib = el("div", {}, body), tl = el("input", { placeholder: "Describe an image to create…" }, lib), libBox = el("div", {}, lib);
+  const reL = fauxRe(libBox, IMG.models.map(m => ({ value: m.id, label: m.label })), "flux", v => localStorage.setItem("dz_image_model", v));
+  const tsfx = el("input", { class: "svm-sfxprompt", type: "text" }, body);
+  const son = el("div", {}, body), c1 = el("div", { class: "svm-card" }, son), tm = el("textarea", { class: "svm-musicprompt" }, c1);
+  const ml = el("div", { class: "svm-modellist" }, el("div", { class: "svm-card" }, son));
+  const cartes = MUS.models.map(m => { const b = el("button", { class: "svm-model" }, ml); el("span", { class: "svm-genname" }, el("div", {}, b)).textContent = m.label;
+    b.addEventListener("click", () => { cartes.forEach(x => x.removeAttribute("data-sel")); b.setAttribute("data-sel", ""); }); return b; });
+  cartes[2].setAttribute("data-sel", "");
+  const ttpl = el("input", { placeholder: "AI prompt (mascot…)" }, body);
+  A.marquer(document.body); await pause(80); A.synchroniser();
+  const T = R.t9 = {};
+  try {
+  T.slots = etat(tq).slots;
+  T.quick = vuP(tq); T.lib = vuP(tl); T.sfx = vuP(tsfx); T.mus = vuP(tm); T.tpl = vuP(ttpl);
+  const pQ = pastille(tq);
+  // la liste du Quick : prix comme la vue, Google sans clé grisé
+  pQ && pQ.click(); T.listeQ = vuListe(); T.expQ = pQ.getAttribute("aria-expanded");
+  // un modèle grisé ne s'écrit pas
+  if (opt("veo-3")) opt("veo-3").click(); await pause(150);
+  T.apresGris = { valeur: reQ.valeur, clics: reQ.clics, ouverte: !!listeOuverte() };
+  document.dispatchEvent(Object.assign(new Event("keydown", { bubbles: true }), { key: "Escape" }));
+  T.echap = !listeOuverte();
+  // choisir dans la pastille → le select custom de la vue est rejoué (clic, option), la vue écrit localStorage
+  pQ && pQ.click(); if (opt("seedance-v1-pro")) opt("seedance-v1-pro").click(); await pause(250);
+  T.choixQ = { valeur: reQ.valeur, ls: localStorage.getItem("dz_video_model"), vue: reQ.sp.textContent, clics: reQ.clics,
+    p: vuP(tq), meme: pastille(tq) === pQ, ouverte: !!listeOuverte(), resteOuverte: reQ.racine.children.length };
+  // la vue change → la pastille suit (synchronisation)
+  reQ.poser("seedance-2"); A.synchroniser(); T.vueQ = vuP(tq);
+  // Library : select custom d'image, prix par image, OpenAI sans clé grisé
+  (pastille(tl) || {click(){}}).click(); T.listeL = vuListe();
+  if (opt("nano-banana")) opt("nano-banana").click(); await pause(250);
+  T.choixL = { valeur: reL.valeur, ls: localStorage.getItem("dz_image_model"), p: vuP(tl) };
+  A.synchroniser(); T.tpl2 = vuP(ttpl);                     // Templates lit le modèle global : suit
+  // fixe : grisée, ne s'ouvre pas
+  (pastille(tsfx) || {click(){}}).click(); T.sfxOuvre = !!listeOuverte();
+  // Son & VFX : cartes
+  (pastille(tm) || {click(){}}).click(); T.listeM = vuListe();
+  if (opt("stable-audio-25")) opt("stable-audio-25").click(); await pause(60);
+  T.choixM = { sel: cartes.map(c => c.hasAttribute("data-sel")), p: vuP(tm) };
+  // E-12 : tout bouton de la barre et de la liste porte un title
+  (pastille(tq) || {click(){}}).click(); await pause(10);
+  T.sansTitre = body.querySelectorAll(".dzia-barre button, .dzia-liste button").filter(b => !(b.getAttribute("title") || "").trim()).length;
+  T.nBoutons = body.querySelectorAll(".dzia-barre button, .dzia-liste button").length;
+  if (A.modeles) A.modeles.fermer();
+
+  // pages à part : <select> natif (Material Forge), lecture seule (Atelier, Spritelab), champ étroit (Vitrail)
+  body.textContent = ""; window.location.pathname = "/materialforge/";
+  const sel = el("select", { id: "model" }, body); let nChange = 0, bulle = null;
+  ["flux", "nano-banana", "nano-banana-pro", "gpt-image-2.5-flare-fal", "gpt-image-2.5-sunburst-fal"].forEach(id => {
+    const o = el("option", { value: id }, sel); o.value = id; o.textContent = (IMG.models.find(m => m.id === id) || {}).label; });
+  sel.value = "flux"; sel.addEventListener("change", ev => { nChange++; bulle = ev.bubbles; });
+  const tmf = el("textarea", { id: "prompt" }, body);
+  A.marquer(document.body); await pause(40); A.synchroniser();
+  T.mf = vuP(tmf); (pastille(tmf) || {click(){}}).click(); T.listeMF = vuListe();
+  if (opt("gpt-image-2.5-flare-fal")) opt("gpt-image-2.5-flare-fal").click(); await pause(40);
+  T.choixMF = { valeur: sel.value, nChange, bulle, p: vuP(tmf) };
+  sel.value = "nano-banana-pro"; sel.dispatchEvent(new Event("change", { bubbles: true })); await pause(30);
+  T.vueMF = vuP(tmf);
+  body.textContent = ""; window.location.pathname = "/atelier/";
+  const tat = el("input", { id: "globalStyle" }, body); A.marquer(document.body); await pause(60); A.synchroniser(); T.atelier = vuP(tat);
+  body.textContent = ""; window.location.pathname = "/spritelab/";
+  const tsp = el("textarea", { id: "animPrompt" }, body); A.marquer(document.body); await pause(30); A.synchroniser(); T.sprite = vuP(tsp);
+  body.textContent = ""; window.location.pathname = "/vectorlab/";
+  const tvit = el("input", { id: "vitIaPrompt", type: "text" }, body, { left: 10, top: 10, width: 88, height: 30 });
+  A.marquer(document.body); await pause(30); A.synchroniser(); T.vitrail = vuP(tvit);
+
+  // SANS CLÉ : tout grisé, la raison dit la clé qui manque
+  VIDEO.models.forEach(m => { m.available = false; }); IMG.models = []; IMG.default = ""; MUS.enabled = false;
+  body.textContent = ""; window.location.pathname = "/";
+  const q2 = el("div", {}, body), tq2 = ie(q2, "Prompt", "textarea"), vm2 = el("div", { "data-dzvmsel": "1" }, q2);
+  fauxRe(vm2, [{ value: "", label: "Défaut (seedance-2.5)" }], "", () => {});
+  const tl2 = el("input", { placeholder: "Describe an image to create…" }, body);
+  A.marquer(document.body);
+  await Promise.all(["video", "image", "musique"].map(l => A.modeles && A.modeles.charger(l, true))); A.synchroniser();
+  T.sansCle = { quick: vuP(tq2), lib: vuP(tl2) };
+  const pQ2 = pastille(tq2); pQ2 && pQ2.click(); T.sansCle.ouvre = !!listeOuverte();
+  } catch (e) { R.t9err = String(e && e.stack || e).slice(0, 500); }
+  T.appels = APPELS.map(a => [a[0], a[1], a[1] === "/api/cost/estimate" ? JSON.parse(a[2] || "{}") : null]);
+
   // ---------- reduced-motion : la règle du média est présente (la cascade est celle du navigateur) ----------
   process.stdout.write(JSON.stringify(R));
 })().catch(e => { process.stdout.write(JSON.stringify({ erreur: String(e && e.stack || e) })); });
@@ -561,8 +735,8 @@ def main():
     check("TÉMOIN : champ border-box ordinaire → réserve de padding à droite (8 + 30 + 10)",
           R.get("reserve") == "48px", str(R.get("reserve")))
     check("barre : badge « IA »", st("quick").get("badge") == "IA", str(st("quick").get("badge")))
-    check("barre : emplacements VIDES modele puis micro (T9, T10)",
-          st("quick").get("slots") == ["modele:0", "micro:0"], str(st("quick").get("slots")))
+    check("barre : emplacement modele occupé par la pastille (T9), micro vide (T10)",
+          st("quick").get("slots") == ["modele:1", "micro:0"], str(st("quick").get("slots")))
     dep = R.get("deplace") or {}
     check("le champ n'est PAS déplacé (même parent, même frère précédent, même rang)",
           dep.get("parent") and dep.get("prec") and dep.get("idx"), str(dep))
@@ -626,6 +800,152 @@ def main():
     for p, k, nom in (("atelier", "script", "#script de l'Atelier"), ("atelier", "fountain", "fountain de l'Atelier"),
                       ("atelier", "sas", ".shot-actions (classe voisine)"), ("spritelab", "prompt", "#prompt hors Material Forge")):
         check(f"NÉGATIF : {nom} jamais marqué", pg(p, k).get("dz") is None, str(pg(p, k)))
+
+    # ---------- T9 : pastille de modèle ----------
+    PILOTES = {"quick-prompt", "chapitres-illus", "library-image", "son-paroles", "son-musique", "atelier-da",
+               "materialforge", "cardforge-face", "cardforge-decor", "cardforge-texture", "vectorlab-ia"}
+    FIXES = {"quick-script": "HeyGen", "quick-motion": "HeyGen", "son-sfx": "ElevenLabs", "montage-sons": "ElevenLabs",
+             "vectorlab-vitrail": "Réglages"}
+    sans_mod = [r.get("id") for r in regles if not r.get("modele")]
+    check("chaque règle porte un adaptateur modele", bool(regles) and not sans_mod, str(sans_mod))
+    mauvais = [r.get("id") for r in regles if r.get("modele") and not (
+        r["modele"].get("liste") in ("video", "image", "musique", None)
+        and (r["modele"].get("fixe") or r["modele"].get("lire") == "function" or r["modele"].get("texte") == "function"))]
+    check("adaptateur : liste video|image|musique|null, et fixe ou lire(champ)", not mauvais, str(mauvais))
+    pil = {r.get("id") for r in regles if (r.get("modele") or {}).get("ecrire") == "function"}
+    check("pilotables (ecrire) = les vues dont le sélecteur se pilote sans patch (mesuré à l'écran)", pil == PILOTES,
+          str(sorted(pil ^ PILOTES)))
+    fx = {r.get("id"): (r.get("modele") or {}).get("fixe") or "" for r in regles}
+    check("vues sans choix : libellé fixe du modèle réellement utilisé",
+          all(frag in fx.get(k, "") for k, frag in FIXES.items()), str({k: fx.get(k) for k in FIXES}))
+    check("NÉGATIF : aucune règle pilotable n'est aussi « fixe »", not any(fx.get(k) for k in PILOTES), str({k: fx.get(k) for k in PILOTES if fx.get(k)}))
+
+    # registre des modèles d'image : pas de dérive avec routes.list_image_models et pricing._IMAGE_MODELS
+    routes_src = (ROOT / "backend" / "app" / "api" / "routes.py").read_text(encoding="utf-8")
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        arbre = ast.parse(routes_src)
+    fn = next((n for n in ast.walk(arbre) if isinstance(n, ast.AsyncFunctionDef) and n.name == "list_image_models"), None)
+    srv = {}
+    for n in ast.walk(fn) if fn else []:
+        if isinstance(n, ast.Dict) and all(isinstance(k, ast.Constant) for k in n.keys):
+            d = {k.value: (v.value if isinstance(v, ast.Constant) else None) for k, v in zip(n.keys, n.values)}
+            if d.get("id") and d.get("provider"):
+                srv[d["id"]] = (d.get("label"), d["provider"])
+    pr_src = (ROOT / "backend" / "app" / "services" / "pricing.py").read_text(encoding="utf-8")
+    pim = {}
+    for n in ast.parse(pr_src).body:
+        if isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "_IMAGE_MODELS" for t in n.targets):
+            pim = ast.literal_eval(n.value)
+    cat = R.get("catalogue") or []
+    check("TÉMOIN : routes.list_image_models et pricing._IMAGE_MODELS lus (≥ 11 modèles)", len(srv) >= 11 and len(pim) >= 11,
+          f"{len(srv)} {len(pim)}")
+    cid = {c[0] for c in cat}
+    check("registre de la couche = ids de list_image_models = ids de pricing._IMAGE_MODELS",
+          bool(cat) and cid == set(srv) == set(pim), str(sorted(cid ^ set(srv))) + " " + str(sorted(cid ^ set(pim))))
+    lab_ko = [c[0] for c in cat if (srv.get(c[0]) or ("",))[0] != c[1]]
+    check("registre : libellés = ceux de list_image_models", bool(cat) and not lab_ko, str(lab_ko))
+    cle_ko = [c[0] for c in cat if c[2] != {"fal": "FAL_KEY", "openai": "OPENAI_API_KEY"}.get((pim.get(c[0]) or ("", ""))[1])]
+    check("registre : clé = fournisseur de facturation de pricing (fal → FAL_KEY, openai → OPENAI_API_KEY)", bool(cat) and not cle_ko, str(cle_ko))
+
+    T = R.get("t9") or {}
+    check("section T9 du harnais sans exception", not R.get("t9err"), str(R.get("t9err")))
+
+    def tp(k):
+        return T.get(k) or {}
+    check("barre du Quick : badge, pastille, micro vide", T.get("slots") == ["modele:1", "micro:0"], str(T.get("slots")))
+    q = tp("quick")
+    check("pastille = un BOUTON titré, pilotable (aria-disabled=false)", q.get("tag") == "BUTTON" and q.get("dis") == "false"
+          and (q.get("title") or "").startswith("Modèle : "), str(q))
+    check("Quick : « Défaut (seedance-2.5) » de la vue → Seedance 2.5, prix comme la vue ($0.47/s : 720p faute de 1080p)",
+          q.get("id") == "seedance-2.5" and q.get("txt") == "Seedance 2.5" and "$0.47/s" in (q.get("title") or ""), str(q))
+    lq = T.get("listeQ") or []
+    byq = {o.get("id"): o for o in lq}
+    check("liste du Quick : les modèles de /api/video-models, aria-expanded", set(byq) == {"seedance-v1-pro", "seedance-2", "seedance-2.5", "veo-3"}
+          and T.get("expQ") == "true", str(list(byq)))
+    check("liste : prix au format de la vue (Seedance 1.0 Pro · $0.12/s)", "$0.12/s" in (byq.get("seedance-v1-pro") or {}).get("txt", ""),
+          str(byq.get("seedance-v1-pro")))
+    check("available:false (Google) → grisé, title « clé GEMINI_API_KEY absente »",
+          (byq.get("veo-3") or {}).get("dis") == "true" and ((byq.get("veo-3") or {}).get("title") or "").startswith("clé GEMINI_API_KEY absente"),
+          str(byq.get("veo-3")))
+    check("TÉMOIN : un modèle disponible n'est pas grisé et porte un title", (byq.get("seedance-2") or {}).get("dis") is None
+          and (byq.get("seedance-2") or {}).get("title"), str(byq.get("seedance-2")))
+    check("modèle actuel marqué aria-selected", (byq.get("seedance-2.5") or {}).get("sel") == "true", str(byq.get("seedance-2.5")))
+    ag = T.get("apresGris") or {}
+    check("NÉGATIF : clic sur un modèle grisé → rien n'est écrit dans la vue (aucun clic rejoué)",
+          ag.get("valeur") == "" and ag.get("clics") == 0 and ag.get("ouverte"), str(ag))
+    check("Échap ferme la liste", T.get("echap") is True)
+    cq = T.get("choixQ") or {}
+    check("pastille → vue : le select custom est REJOUÉ (clic, option) et la vue écrit localStorage.dz_video_model",
+          cq.get("valeur") == "seedance-v1-pro" and cq.get("ls") == "seedance-v1-pro" and cq.get("clics") == 1
+          and (cq.get("vue") or "").startswith("Seedance 1.0 Pro"), str(cq))
+    check("après le choix : pastille à jour, liste fermée, liste de la vue refermée, MÊME nœud (pas d'échange de boutons)",
+          (cq.get("p") or {}).get("txt") == "Seedance 1.0 Pro" and not cq.get("ouverte") and cq.get("meme") and cq.get("resteOuverte") == 1, str(cq))
+    check("vue → pastille : la vue change (Seedance 2.0) → la pastille suit", tp("vueQ").get("txt") == "Seedance 2.0", str(T.get("vueQ")))
+    lb = tp("lib")
+    check("Library : select custom d'image lu (FLUX schnell), prix par image via /api/cost/estimate",
+          lb.get("id") == "flux" and lb.get("txt") == "FLUX schnell" and "$0.003/image" in (lb.get("title") or ""), str(lb))
+    ll = {o.get("id"): o for o in (T.get("listeL") or [])}
+    check("liste image = le registre COMPLET (11), pas seulement /api/image-models", len(ll) == 11, str(len(ll)))
+    check("modèle d'image sans clé (absent de /api/image-models) → grisé « clé OPENAI_API_KEY absente »",
+          all((ll.get(k) or {}).get("dis") == "true" and ((ll.get(k) or {}).get("title") or "").startswith("clé OPENAI_API_KEY absente")
+              for k in ("gpt-image-2", "gpt-image-2.5-flare", "gpt-image-1-mini")), str(ll.get("gpt-image-2")))
+    check("TÉMOIN : un modèle fal servi n'est pas grisé et affiche son prix ($0.053/image)",
+          (ll.get("gpt-image-2.5-flare-fal") or {}).get("dis") is None and "$0.053/image" in (ll.get("gpt-image-2.5-flare-fal") or {}).get("txt", ""),
+          str(ll.get("gpt-image-2.5-flare-fal")))
+    cl = T.get("choixL") or {}
+    check("Library : pastille → select de la vue → localStorage.dz_image_model", cl.get("valeur") == "nano-banana"
+          and cl.get("ls") == "nano-banana" and (cl.get("p") or {}).get("txt") == "Nano Banana (Gemini)", str(cl))
+    sf = tp("sfx")
+    check("vue sans choix (SFX) : pastille grisée, libellé ElevenLabs SFX, title « choisi par la vue »",
+          sf.get("dis") == "true" and sf.get("txt") == "ElevenLabs SFX" and "choisi par la vue" in (sf.get("title") or ""), str(sf))
+    check("NÉGATIF : une pastille grisée n'ouvre aucune liste", T.get("sfxOuvre") is False, str(T.get("sfxOuvre")))
+    t1, t2 = tp("tpl"), tp("tpl2")
+    check("Templates (lecture seule) : le modèle d'image global, grisé « choisi par la vue », suit le choix de la Library",
+          t1.get("dis") == "true" and "choisi par la vue" in (t1.get("title") or "") and t2.get("txt") == "Nano Banana (Gemini)", f"{t1} {t2}")
+    mu = tp("mus")
+    check("Son & VFX : la carte sélectionnée est lue (MiniMax Music 2.6, ~$0.14)", mu.get("txt") == "MiniMax Music 2.6"
+          and "~$0.14" in (mu.get("title") or "") and mu.get("dis") == "false", str(mu))
+    cm = T.get("choixM") or {}
+    check("Son & VFX : pastille → clic sur la carte de la vue", cm.get("sel") == [False, True, False]
+          and (cm.get("p") or {}).get("txt") == "Stable Audio 2.5", str(cm))
+    check("E-12 : tout bouton de la barre et de la liste a un title", (T.get("nBoutons") or 0) >= 6 and T.get("sansTitre") == 0,
+          f"{T.get('sansTitre')}/{T.get('nBoutons')}")
+    mf, lmf = tp("mf"), {o.get("id"): o for o in (T.get("listeMF") or [])}
+    check("Material Forge : <select> natif lu (FLUX schnell), pilotable", mf.get("txt") == "FLUX schnell" and mf.get("dis") == "false", str(mf))
+    check("servi mais absent du <select> de la vue → grisé « absent du sélecteur de la vue »",
+          (lmf.get("gpt-image-2-fal") or {}).get("dis") == "true" and "absent du sélecteur" in ((lmf.get("gpt-image-2-fal") or {}).get("title") or ""),
+          str(lmf.get("gpt-image-2-fal")))
+    cmf = T.get("choixMF") or {}
+    check("pastille → <select> natif : valeur posée + UN événement change natif qui bouillonne",
+          cmf.get("valeur") == "gpt-image-2.5-flare-fal" and cmf.get("nChange") == 1 and cmf.get("bulle") is True
+          and (cmf.get("p") or {}).get("txt") == "GPT Image 2.5 Flare (via fal)", str(cmf))
+    check("<select> natif changé (change) → la pastille suit", tp("vueMF").get("txt") == "Nano Banana Pro (Gemini 3)", str(T.get("vueMF")))
+    at = tp("atelier")
+    check("Atelier : lecture seule, le générateur de 🎨 DA (atelier_settings.image_provider)",
+          at.get("txt") == "Nano Banana (Gemini)" and at.get("dis") == "true" and "DA" in (at.get("title") or ""), str(at))
+    sp = tp("sprite")
+    check("Spritelab : lecture seule, le modèle vidéo par défaut du serveur (Seedance 2.5)",
+          sp.get("txt") == "Seedance 2.5" and sp.get("dis") == "true" and "choisi par la vue" in (sp.get("title") or ""), str(sp))
+    vi = tp("vitrail")
+    check("champ étroit (Vitrail, 88 px) : pastille réduite à une icône titrée (dzia-mini)",
+          vi.get("mini") is True and (vi.get("title") or "").startswith("Modèle : "), str(vi))
+    check("TÉMOIN : un champ large n'est pas réduit", tp("quick").get("mini") is False, str(tp("quick").get("mini")))
+    sc = T.get("sansCle") or {}
+    sq, sl = sc.get("quick") or {}, sc.get("lib") or {}
+    check("SANS CLÉ : Quick grisé « aucun modèle », title nomme FAL_KEY et GEMINI_API_KEY",
+          sq.get("dis") == "true" and sq.get("txt") == "aucun modèle" and "clé FAL_KEY absente" in (sq.get("title") or "")
+          and "clé GEMINI_API_KEY absente" in (sq.get("title") or ""), str(sq))
+    check("SANS CLÉ : Library grisée, title nomme FAL_KEY et OPENAI_API_KEY",
+          sl.get("dis") == "true" and "clé FAL_KEY absente" in (sl.get("title") or "") and "clé OPENAI_API_KEY absente" in (sl.get("title") or ""), str(sl))
+    check("SANS CLÉ : la pastille grisée n'ouvre pas de liste", sc.get("ouvre") is False, str(sc.get("ouvre")))
+    ap = T.get("appels") or []
+    est = [a for a in ap if a[1] == "/api/cost/estimate"]
+    check("prix d'image : UNE estimation POST (campaign, un op image par modèle du registre)",
+          bool(est) and all(a[0] == "POST" and (a[2] or {}).get("kind") == "campaign" and len((a[2] or {}).get("ops") or []) == 11 for a in est), str(est[:1])[:300])
+    autres = [a[:2] for a in ap if a[1] != "/api/cost/estimate" and not (a[0] == "GET" and a[1] in
+              ("/api/video-models", "/api/image-models", "/api/music-models", "/api/atelier/settings"))]
+    check("AUCUNE DÉPENSE : le faux fetch ne voit que des lectures de modèles et l'estimation", bool(ap) and not autres, str(autres))
 
     # ---------- le style ----------
     css = R.get("style") or ""

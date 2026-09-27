@@ -25,8 +25,8 @@
    Le liseré est peint PAR LE CHAMP LUI-MÊME (couches de fond : son propre fond
    en padding-box au-dessus du dégradé en border-box, bordure transparente de
    même épaisseur) : ni sa taille ni sa place ne changent. La BARRE (badge
-   « IA » + emplacements vides `data-dzia-slot="modele"` (T9) et `"micro"`
-   (T10)) est un frère ABSOLU posé juste après le champ, recalé sur son coin
+   « IA » + emplacement `data-dzia-slot="modele"` qui porte la PASTILLE DE
+   MODÈLE (T9, voir plus bas) et emplacement `"micro"` (T10)) est un frère ABSOLU posé juste après le champ, recalé sur son coin
    droit ; une réserve de padding (champs border-box seulement) empêche le
    texte de passer dessous. Le parent statique devient `position:relative`
    seulement s'il n'a aucun descendant absolu (sinon la barre se recale au
@@ -36,7 +36,7 @@
   var W = window, D = document;
   if (W.DzChampIA) return;
 
-  var VERSION = "1.0.0";
+  var VERSION = "1.1.0";
   var GENRES = ["video", "image", "anim", "sfx", "musique", "3d"];
 
   /* La table. `page` borne une règle à une page à part (préfixe du chemin). */
@@ -121,6 +121,29 @@
     ".dzia-champ:focus-within+.dzia-barre .dzia-badge{opacity:1}",
     ".dzia-emp{display:inline-flex;align-items:center;gap:4px;pointer-events:auto}",
     ".dzia-emp:empty{display:none}",
+    /* T9 : la pastille de modèle (un seul bouton, grisé par aria-disabled) et sa liste */
+    ".dzia-modele{display:inline-flex;align-items:center;gap:3px;max-width:118px;height:18px;margin:0;padding:0 6px 0 7px;" +
+      "border-radius:999px;border:1px solid rgba(139,92,246,.55);background:rgba(18,20,26,.92);color:#e5e7eb;" +
+      "font:600 10px/1 system-ui,-apple-system,'Segoe UI',sans-serif;cursor:pointer;pointer-events:auto;white-space:nowrap;box-sizing:border-box}",
+    ".dzia-modele .dzia-mtxt{overflow:hidden;text-overflow:ellipsis}",
+    ".dzia-modele::after{content:'\\25BE';font-size:9px;opacity:.75}",
+    ".dzia-modele:hover{border-color:#3b82f6}",
+    ".dzia-modele[aria-disabled=true]{cursor:default;opacity:.62;border-color:rgba(148,163,184,.35);border-style:dashed}",
+    ".dzia-modele[aria-disabled=true]::after{content:none}",
+    /* champ étroit (< 200 px, ex. #vitIaPrompt) : la pastille se réduit à une icône titrée */
+    ".dzia-modele.dzia-mini{width:18px;padding:0;justify-content:center}",
+    ".dzia-modele.dzia-mini .dzia-mtxt{display:none}",
+    ".dzia-modele.dzia-mini::after{content:'\\25C6';font-size:8px}",
+    ".dzia-liste{position:fixed;z-index:2147483000;min-width:230px;max-width:360px;max-height:320px;overflow:auto;padding:4px;" +
+      "border-radius:10px;background:#15171c;border:1px solid rgba(139,92,246,.5);" +
+      "box-shadow:0 12px 32px rgba(0,0,0,.5),0 0 14px -4px rgba(59,130,246,.45);box-sizing:border-box}",
+    ".dzia-opt{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;margin:0;padding:6px 8px;border:0;" +
+      "border-radius:6px;background:transparent;color:#e5e7eb;font:12px/1.25 system-ui,-apple-system,'Segoe UI',sans-serif;text-align:left;cursor:pointer}",
+    ".dzia-opt:hover{background:rgba(59,130,246,.18)}",
+    ".dzia-opt[aria-selected=true]{background:rgba(139,92,246,.24);color:#fff}",
+    ".dzia-opt[aria-disabled=true]{opacity:.42;cursor:not-allowed;background:transparent}",
+    ".dzia-oprix{opacity:.72;font-variant-numeric:tabular-nums;flex-shrink:0}",
+    ".dzia-ovide{padding:8px;color:#9ca3af;font:12px system-ui,sans-serif}",
     "@media (prefers-reduced-motion:reduce){" +
       ".dzia-lis.dzia-lis,.dzia-lis.dzia-lis:focus-within{animation:none!important;--dzia-ang:200deg;transition:none}" +
       ".dzia-badge{transition:none}}"
@@ -215,6 +238,7 @@
     mic.className = "dzia-emp";
     mic.setAttribute("data-dzia-slot", "micro");
     b.appendChild(g); b.appendChild(m); b.appendChild(mic);
+    b.__modele = m;
     return b;
   }
 
@@ -295,6 +319,8 @@
     if (!cible) el.classList.add("dzia-halo");
     st.cible = cible;
     st.barre = creerBarre(el);
+    st.modele = (regle && regle.modele) || null;
+    st.pastille = st.modele ? poserPastille(el, st.barre.__modele, regle) : null;
     if (p) {
       if (cs(p).position === "static" && !aDesAbsolus(p)) {
         p.style.position = "relative";
@@ -317,6 +343,7 @@
     var st = el.__dzia;
     if (!st) return;
     var b = st.barre;
+    if (ouverte && ouverte.b === st.pastille) fermerListe();
     if (b && b.parentNode) b.parentNode.removeChild(b);
     var k = suivis.indexOf(el);
     if (k >= 0) suivis.splice(k, 1);
@@ -384,6 +411,7 @@
     }
     if (b.style.display === "none") b.style.display = "";
     if (st.cible) teindre(st.cible);
+    if (st.pastille) rafraichirPastille(el);
     var rb = b.getBoundingClientRect(), r = el.getBoundingClientRect();
     var mono = el.tagName === "INPUT" || r.height < 44;
     reserver(el, st, rb, mono);
@@ -470,9 +498,489 @@
     }
     W.addEventListener("resize", planifierSync);
     D.addEventListener("focusin", planifierSync, true);
+    /* la vue changée met la pastille à jour : <select> natif (change) et
+       select custom / cartes du bundle (clic, après le rendu de React) */
+    D.addEventListener("change", function () { W.setTimeout(rafraichirPastilles, 0); }, true);
+    D.addEventListener("click", function () { W.setTimeout(rafraichirPastilles, 80); });
+    D.addEventListener("mousedown", horsListe, true);
+    D.addEventListener("keydown", function (ev) { if (ev.key === "Escape" && ouverte) fermerListe(); }, true);
+    D.addEventListener("scroll", function (ev) {
+      if (ouverte && !(ev.target && ev.target.nodeType === 1 && ouverte.node.contains(ev.target))) placerListe();
+    }, true);
+    W.addEventListener("resize", placerListe);
+    D.addEventListener("focusin", function (ev) {       // le réglage de l'Atelier a pu changer dans 🎨 DA
+      var st = ev.target && ev.target.__dzia;
+      if (st && st.modele && st.modele.charge && st.modele.charge.indexOf("atelier") >= 0) charger("atelier", true);
+    }, true);
     D.addEventListener("focusout", planifierSync, true);
     D.addEventListener("scroll", planifierSync, true);
     W.setInterval(function () { if (!D.hidden) synchroniser(); }, 800);
+  }
+
+  /* ─────────── T9 (27/09) : PASTILLE DE MODÈLE, miroir du sélecteur de la vue ───────────
+     Chaque règle porte un ADAPTATEUR `modele` : { liste: "video" | "image" |
+     "musique" | null, lire(champ) → id, ecrire(champ, id) → Promise, fixe? }.
+     La pastille ne décide RIEN : elle lit le choix de la vue et, quand on la
+     change, rejoue le geste dans le sélecteur de la vue (clic sur le select
+     custom du bundle — ce ne sont pas des <select> natifs —, clic sur la
+     carte de modèle du Son & VFX, ou valeur + événement `change` natif sur un
+     <select> des pages à part). La vue reste la seule source de vérité : le
+     modèle réellement envoyé est celui qu'elle affiche.
+     Vues sans choix, ou dont le choix ne se pilote pas sans patcher le bundle :
+     pastille GRISÉE (aria-disabled), libellé du modèle réellement utilisé,
+     `title` « choisi par la vue ». Un modèle dont la clé manque est grisé dans
+     la liste avec le `title` « clé FAL_KEY absente » (ou OPENAI_API_KEY,
+     GEMINI_API_KEY). E-12 : tout bouton a un title ; on grise, on n'échange
+     jamais deux boutons (la pastille est UN nœud dont on change l'état). */
+  var CLE_ABSENTE = function (cle) { return "clé " + cle + " absente"; };
+  /* Le registre COMPLET des modèles d'image : /api/image-models ne rend que
+     les DISPONIBLES (un modèle sans clé y est absent). Miroir de
+     routes.list_image_models (id, libellé) et de pricing._IMAGE_MODELS
+     (fournisseur → clé) : le banc refuse toute dérive. */
+  var CATALOGUE_IMAGE = [
+    ["flux", "FLUX schnell", "FAL_KEY"],
+    ["nano-banana", "Nano Banana (Gemini)", "FAL_KEY"],
+    ["nano-banana-pro", "Nano Banana Pro (Gemini 3)", "FAL_KEY"],
+    ["gpt-image-2-fal", "GPT Image 2 (via fal)", "FAL_KEY"],
+    ["gpt-image-2.5-flare-fal", "GPT Image 2.5 Flare (via fal)", "FAL_KEY"],
+    ["gpt-image-2.5-sunburst-fal", "GPT Image 2.5 Sunburst (via fal)", "FAL_KEY"],
+    ["gpt-image-2", "GPT Image 2", "OPENAI_API_KEY"],
+    ["gpt-image-2.5-flare", "GPT Image 2.5 Flare (OpenAI)", "OPENAI_API_KEY"],
+    ["gpt-image-2.5-sunburst", "GPT Image 2.5 Sunburst (OpenAI)", "OPENAI_API_KEY"],
+    ["gpt-image-1", "GPT Image 1", "OPENAI_API_KEY"],
+    ["gpt-image-1-mini", "GPT Image 1 mini", "OPENAI_API_KEY"]
+  ];
+  function lsGet(k) { try { return W.localStorage ? W.localStorage.getItem(k) : null; } catch (e) { return null; } }
+  function jget(url) {
+    return W.fetch(url, { cache: "no-store" }).then(function (r) {
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.json();
+    });
+  }
+  function prixTxt(v, unite) {
+    v = Number(v);
+    if (!isFinite(v)) return "";
+    return "$" + (v >= 0.1 ? v.toFixed(2) : v.toFixed(3)) + unite;
+  }
+  /* la formule du sélecteur du Quick (DzVideoModelSel du bundle) : le prix
+     1080p, sinon « * », sinon le plus cher des tarifs connus */
+  function prixVideo(m) {
+    var rr = m.usd_per_s || {}, v = rr["1080p"] != null ? rr["1080p"] : rr["*"];
+    if (v == null) for (var k in rr) { var n = Number(rr[k]); if (isFinite(n) && (v == null || n > v)) v = n; }
+    return v != null ? prixTxt(v, "/s") : "";
+  }
+  var CHARGEURS = {
+    video: function () {
+      return jget("/api/video-models").then(function (d) {
+        return { defaut: d.default || "", modeles: (d.models || []).map(function (m) {
+          var px = prixVideo(m);
+          return { id: m.id, label: m.label || m.id, dispo: !!m.available,
+                   cle: m.provider === "google" ? "GEMINI_API_KEY" : "FAL_KEY", prix: px,
+                   vue: (m.label || m.id) + (px ? " · " + px : "") + (m.available ? "" : " · clé manquante") };
+        }) };
+      });
+    },
+    image: function () {
+      return jget("/api/image-models").then(function (d) {
+        var srv = {}, i;
+        (d.models || []).forEach(function (m) { srv[m.id] = m; });
+        var mods = CATALOGUE_IMAGE.map(function (c) {
+          var s = srv[c[0]], lab = (s && s.label) || c[1];
+          return { id: c[0], label: lab, dispo: !!s, cle: c[2], prix: "", vue: lab };
+        });
+        var n = mods.length;
+        for (i = 0; i < (d.models || []).length; i++) {   // un id servi hors registre : montré tel quel, sans prix inventé
+          var m = d.models[i];
+          if (!CATALOGUE_IMAGE.some(function (c) { return c[0] === m.id; }))
+            mods.push({ id: m.id, label: m.label || m.id, dispo: true, cle: "", prix: "", vue: m.label || m.id });
+        }
+        var o = { defaut: d.default || "", modeles: mods };
+        /* le prix par image : UNE estimation (rien n'est dépensé), la table
+           des lignes de coût des vues (pricing._IMAGE_MODELS) */
+        return W.fetch("/api/cost/estimate", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ kind: "campaign", ops: mods.slice(0, n).map(function (x) { return { kind: "image", model: x.id }; }) })
+        }).then(function (r) { return r.ok ? r.json() : null; }).then(function (e) {
+          var l = (e && e.breakdown) || [];
+          if (l.length === n) for (var k = 0; k < n; k++) mods[k].prix = prixTxt(l[k].usd, "/image");
+          return o;
+        }, function () { return o; });
+      });
+    },
+    musique: function () {
+      return jget("/api/music-models").then(function (d) {
+        return { defaut: d.default || "", modeles: (d.models || []).map(function (m) {
+          return { id: m.id, label: m.label || m.id, dispo: !!d.enabled, cle: "FAL_KEY",
+                   prix: m.usd != null ? "~$" + Number(m.usd).toFixed(2) : "", vue: m.label || m.id };
+        }) };
+      });
+    },
+    /* le générateur de l'Atelier se choisit dans 🎨 DA (atelier_settings) */
+    atelier: function () {
+      return jget("/api/atelier/settings").then(function (d) {
+        var s = (d && d.settings) || {};
+        return { defaut: s.image_provider || "flux", modeles: [] };
+      });
+    }
+  };
+  var donnees = {}, enCours = {};
+  function charger(liste, force) {
+    if (!CHARGEURS[liste] || !W.fetch) return null;
+    if (enCours[liste] && !force) return enCours[liste];
+    enCours[liste] = CHARGEURS[liste]().then(function (o) {
+      donnees[liste] = o; rafraichirPastilles(); return o;
+    }, function () {
+      donnees[liste] = donnees[liste] || { defaut: "", modeles: [], erreur: true };
+      rafraichirPastilles(); return donnees[liste];
+    });
+    return enCours[liste];
+  }
+
+  function visible(e) { return !!e && e.offsetParent !== null && !dansZone(e); }
+  /* le sélecteur de la vue le plus PROCHE du champ (ancêtre par ancêtre) */
+  function proche(el, sel, filtre, max) {
+    var n = el.parentElement;
+    for (var i = 0; n && i < (max || 8); i++, n = n.parentElement) {
+      var l = n.querySelectorAll(sel);
+      for (var j = 0; j < l.length; j++) if (visible(l[j]) && (!filtre || filtre(l[j]))) return l[j];
+    }
+    return null;
+  }
+  function texteDe(b) {
+    var s = b && b.querySelector ? b.querySelector("span") : null;
+    return String(((s || b) || {}).textContent || "").trim();
+  }
+  function modeleDe(liste, id) {
+    var d = donnees[liste], l = (d && d.modeles) || [];
+    for (var i = 0; i < l.length; i++) if (l[i].id === id) return l[i];
+    return null;
+  }
+  /* texte affiché par la vue → id (« Défaut (x) » = x, le défaut du serveur) */
+  function parTexte(liste, t) {
+    var d = donnees[liste];
+    if (!d || !t) return null;
+    var m = /^Défaut \((.+)\)$/.exec(t);
+    if (m) return m[1];
+    var l = d.modeles, i;
+    for (i = 0; i < l.length; i++) if (l[i].vue === t || l[i].label === t) return l[i].id;
+    for (i = 0; i < l.length; i++) if (t.indexOf(l[i].label + " · ") === 0) return l[i].id;
+    return null;
+  }
+  /* le select CUSTOM du bundle (`re`) : un bouton [data-dzselect] ouvre une
+     liste de boutons dans le même conteneur. On rejoue le geste : clic pour
+     ouvrir, clic sur l'option dont le texte est celui de la vue. */
+  function choisirRe(btn, cible) {
+    return new Promise(function (ok) {
+      var racine = btn.parentElement, n = 0;
+      btn.click();
+      (function essai() {
+        var opts = racine ? racine.querySelectorAll("button") : [];
+        for (var i = 0; i < opts.length; i++) {
+          if (opts[i] !== btn && texteDe(opts[i]) === cible) { opts[i].click(); ok(true); return; }
+        }
+        if (++n > 20) {
+          if (opts.length > 1) btn.click();            // refermer la liste restée ouverte
+          ok(false); return;
+        }
+        W.setTimeout(essai, 25);
+      })();
+    });
+  }
+  function poserValeur(s, v) {
+    var P = W.HTMLSelectElement && W.HTMLSelectElement.prototype;
+    var d = P && Object.getOwnPropertyDescriptor(P, "value");
+    if (d && d.set) d.set.call(s, v); else s.value = v;
+    var E = W.Event;
+    s.dispatchEvent(new E("input", { bubbles: true }));
+    s.dispatchEvent(new E("change", { bubbles: true }));
+  }
+  function optionsDe(s) {
+    var o = (s && s.options) || [], out = [];
+    for (var i = 0; i < o.length; i++) {
+      if (o[i].value === "") continue;
+      var t = String(o[i].text || o[i].textContent || o[i].value).trim();
+      out.push({ id: o[i].value, label: t, dispo: !o[i].disabled, cle: "", prix: "", vue: t });
+    }
+    return out;
+  }
+
+  /* ---- les fabriques d'adaptateurs ---- */
+  function A_re(liste, sel, o) {       // select custom du bundle, piloté par clics
+    o = o || {};
+    function trouver(el) {
+      // parListe : seul un select dont le texte est un modèle DE LA LISTE est le bon (Chapitres : « Ken Burns » est plus près)
+      return proche(el, sel, o.parListe ? function (b) { return !!modeleDe(liste, parTexte(liste, texteDe(b))); } : null);
+    }
+    return { liste: liste, vue: "select custom de la vue", trouver: trouver,
+      lire: function (el) {
+        var b = trouver(el);
+        if (b) return parTexte(liste, texteDe(b));
+        return o.secours ? o.secours() : null;
+      },
+      ecrire: function (el, id) {
+        var b = trouver(el), m = modeleDe(liste, id);
+        if (!b || !m) return Promise.resolve(false);
+        return choisirRe(b, m.vue);
+      } };
+  }
+  function A_natif(liste, sel, o) {    // <select> natif : valeur + événement change natif
+    o = o || {};
+    function trouver(el) {
+      if (o.proche) return proche(el, sel, o.filtre, 6);
+      var l = D.querySelectorAll(sel);
+      for (var i = 0; i < l.length; i++) if (!dansZone(l[i])) return l[i];
+      return null;
+    }
+    return { liste: liste, vue: "sélecteur de la vue", trouver: trouver, natif: true,
+      lire: function (el) { var s = trouver(el); return s && s.value ? s.value : null; },
+      ecrire: function (el, id) {
+        var s = trouver(el);
+        if (!s || !optionsDe(s).some(function (x) { return x.id === id; })) return Promise.resolve(false);
+        poserValeur(s, id);
+        return Promise.resolve(true);
+      } };
+  }
+  function A_cartes(liste) {           // les cartes de modèle du Son & VFX (.svm-model)
+    function cartes(el) {
+      var b = proche(el, ".svm-model", null, 6);
+      return b && b.parentElement ? b.parentElement.querySelectorAll(".svm-model") : [];
+    }
+    function nom(c) { var n = c.querySelector(".svm-genname"); return String((n || c).textContent || "").trim(); }
+    return { liste: liste, vue: "cartes de modèle de la vue",
+      trouver: function (el) { return cartes(el)[0] || null; },
+      lire: function (el) {
+        var l = cartes(el);
+        for (var i = 0; i < l.length; i++) if (l[i].hasAttribute("data-sel")) return parTexte(liste, nom(l[i]));
+        return null;
+      },
+      ecrire: function (el, id) {
+        var l = cartes(el), m = modeleDe(liste, id);
+        for (var i = 0; m && i < l.length; i++) if (nom(l[i]) === m.label) { l[i].click(); return Promise.resolve(true); }
+        return Promise.resolve(false);
+      } };
+  }
+  function A_fixe(libelle) { return { liste: null, fixe: libelle }; }
+  function A_defaut(liste, lire, pourquoi, charge) {   // lecture seule : ce que la vue enverra
+    return { liste: liste, lire: lire, pourquoi: pourquoi, charge: charge };
+  }
+  function A_texte(sel, filtre, pourquoi) {           // lecture seule : le texte d'un select custom
+    return { liste: null, pourquoi: pourquoi, texte: function (el) {
+      var b = proche(el, sel, function (x) { return filtre.test(texteDe(x)); });
+      return b ? texteDe(b) : "";
+    } };
+  }
+  var imageGlobale = function () { return lsGet("dz_image_model") || (donnees.image && donnees.image.defaut) || null; };
+  var atelierLire = function () { return donnees.atelier ? donnees.atelier.defaut : null; };
+  var videoDefaut = function () { return donnees.video ? donnees.video.defaut : null; };
+  function imageSel(s) {
+    return optionsDe(s).some(function (x) { return CATALOGUE_IMAGE.some(function (c) { return c[0] === x.id; }); })
+      || /aucun modèle/.test(String(s.textContent || ""));
+  }
+  var DA = "le générateur se choisit dans 🎨 DA";
+  var MODELES = {
+    "quick-prompt": A_re("video", "[data-dzvmsel] [data-dzselect]", { secours: function () { return lsGet("dz_video_model") || videoDefaut(); } }),
+    "quick-script": A_fixe("HeyGen (avatar)"),
+    "quick-motion": A_fixe("HeyGen (photo animée)"),
+    "chapitres-illus": A_re("image", "[data-dzselect]", { parListe: true, secours: imageGlobale }),
+    "son-paroles": A_cartes("musique"),
+    "son-musique": A_cartes("musique"),
+    "son-sfx": A_fixe("ElevenLabs SFX"),
+    "montage-sons": A_fixe("ElevenLabs SFX"),
+    "templates-ia": A_defaut("image", imageGlobale, "le modèle d'image global : Library, Chapitres, Réglages"),
+    "library-image": A_re("image", "[data-dzselect]", { parListe: true, secours: imageGlobale }),
+    "game-assets-3d": A_texte("[data-dzselect]", /~\$/, "le moteur 3D se choisit dans la vue"),
+    "atelier-style": A_defaut("image", atelierLire, DA, ["image", "atelier"]),
+    "atelier-da": A_natif("image", "#daProvider"),
+    "atelier-entite": A_defaut("image", atelierLire, DA, ["image", "atelier"]),
+    "atelier-entite-style": A_defaut("image", atelierLire, DA, ["image", "atelier"]),
+    "atelier-plan": A_defaut("image", atelierLire, DA, ["image", "atelier"]),
+    "spritelab-anim": A_defaut("video", videoDefaut, "le Spritelab anime avec le modèle vidéo par défaut du serveur"),
+    "materialforge": A_natif("image", "#model"),
+    "cardforge-face": A_natif("image", "#cf-face-model"),
+    "cardforge-decor": A_natif("image", "select.cff-sel", { proche: true, filtre: imageSel }),
+    "cardforge-texture": A_natif(null, 'select[data-field="engine"]', { proche: true }),
+    "vectorlab-ia": A_natif(null, "#iaModele"),
+    "vectorlab-vitrail": A_fixe("moteur de langage des Réglages")
+  };
+  for (var iM = 0; iM < REGLES.length; iM++) REGLES[iM].modele = MODELES[REGLES[iM].id] || null;
+
+  /* la liste des modèles d'un adaptateur, telle que la pastille la montre */
+  function modelesDe(el, m) {
+    if (!m.liste) return m.natif ? optionsDe(m.trouver(el)) : [];
+    var l = ((donnees[m.liste] || {}).modeles || []).map(function (x) {
+      return { id: x.id, label: x.label, dispo: x.dispo, cle: x.cle, prix: x.prix, vue: x.vue, horsVue: false };
+    });
+    if (m.natif) {                     // un modèle disponible absent du <select> de la vue ne s'y écrit pas
+      var ids = optionsDe(m.trouver(el)).map(function (x) { return x.id; });
+      l.forEach(function (x) { if (x.dispo && ids.indexOf(x.id) < 0) x.horsVue = true; });
+    }
+    return l;
+  }
+  function clesManquantes(l) {
+    var c = [];
+    l.forEach(function (x) { if (!x.dispo && x.cle && c.indexOf(x.cle) < 0) c.push(x.cle); });
+    return c;
+  }
+  function poserPastille(el, slot, regle) {
+    var m = regle && regle.modele;
+    if (!m) return null;
+    var b = D.createElement("button");
+    b.setAttribute("type", "button");
+    b.className = "dzia-modele";
+    b.setAttribute("data-dzia-modele", regle.id);
+    b.setAttribute("aria-haspopup", "listbox");
+    b.setAttribute("aria-expanded", "false");
+    b.setAttribute("title", "Modèle de génération");
+    var t = D.createElement("span");
+    t.className = "dzia-mtxt";
+    t.textContent = "…";
+    b.appendChild(t);
+    b.addEventListener("mousedown", function (ev) { ev.preventDefault(); });   // le champ garde le focus
+    /* un contrôle étranger à l'hôte : son pointerdown ne remonte pas (le
+       Vectorlab traite tout pointerdown de #stage comme un geste d'outil, qui
+       re-rendait le dialogue IA et détruisait la pastille avant le clic) */
+    b.addEventListener("pointerdown", function (ev) { ev.stopPropagation(); });
+    b.addEventListener("click", function (ev) {
+      ev.preventDefault(); ev.stopPropagation();
+      if (b.getAttribute("aria-disabled") === "true") return;
+      ouvrirListe(el, b);
+    });
+    slot.appendChild(b);
+    var ch = m.charge || (m.liste ? [m.liste] : []);
+    for (var i = 0; i < ch.length; i++) charger(ch[i]);
+    return b;
+  }
+  function poserAttr(e, k, v) { if (e.getAttribute(k) !== v) e.setAttribute(k, v); }
+  function rafraichirPastille(el) {
+    var st = el.__dzia, b = st && st.pastille, m = st && st.modele;
+    if (!b || !m) return;
+    var label, titre, fige = true, id = null, mini = el.offsetWidth > 0 && el.offsetWidth < 200;
+    if (m.fixe) {
+      label = m.fixe;
+      titre = "Modèle : " + m.fixe + " — choisi par la vue (pas de choix de modèle ici)";
+    } else if (m.texte) {
+      var tx = m.texte(el);
+      label = tx ? tx.split(" — ")[0] : "—";
+      titre = "Modèle : " + (tx || "—") + " — choisi par la vue (" + m.pourquoi + ")";
+    } else {
+      id = m.lire(el);
+      var mod = id != null && m.liste ? modeleDe(m.liste, id) : null;
+      if (!mod && id != null && m.natif) mod = optionsDe(m.trouver(el)).filter(function (x) { return x.id === id; })[0] || null;
+      label = mod ? mod.label : (id || "—");
+      var prix = mod && mod.prix ? " · " + mod.prix : "";
+      if (!m.ecrire) {
+        titre = "Modèle : " + label + prix + " — choisi par la vue (" + m.pourquoi + ")";
+      } else {
+        var l = modelesDe(el, m), dispo = l.filter(function (x) { return x.dispo && !x.horsVue; });
+        if (m.liste && donnees[m.liste] && !dispo.length) {
+          var cm = clesManquantes(l);
+          label = "aucun modèle";
+          titre = "Aucun modèle disponible" + (cm.length ? " — " + cm.map(CLE_ABSENTE).join(", ") : "")
+            + (l.some(function (x) { return x.horsVue; }) ? " — le sélecteur de la vue n'en propose aucun" : "");
+        } else if (!m.trouver(el)) {
+          titre = "Modèle : " + label + prix + " — choisi par la vue (sélecteur de la vue introuvable ici)";
+        } else {
+          fige = false;
+          titre = "Modèle : " + label + prix + (mod && !mod.dispo && mod.cle ? " (" + CLE_ABSENTE(mod.cle) + ")" : "")
+            + " — cliquer pour changer (écrit dans le sélecteur de la vue)";
+        }
+      }
+    }
+    var t = b.firstElementChild;
+    if (t && t.textContent !== label) t.textContent = label;
+    poserAttr(b, "title", titre);
+    poserAttr(b, "aria-label", titre);
+    poserAttr(b, "aria-disabled", fige ? "true" : "false");
+    poserAttr(b, "data-dzia-id", id == null ? "" : String(id));
+    if (b.classList.contains("dzia-mini") !== mini) b.classList.toggle("dzia-mini", mini);
+    if (fige && ouverte && ouverte.b === b) fermerListe();
+  }
+  function rafraichirPastilles() {
+    for (var i = 0; i < suivis.length; i++) { try { rafraichirPastille(suivis[i]); } catch (e) {} }
+  }
+
+  var ouverte = null;
+  function fermerListe() {
+    if (!ouverte) return;
+    if (ouverte.node.parentNode) ouverte.node.parentNode.removeChild(ouverte.node);
+    ouverte.b.setAttribute("aria-expanded", "false");
+    ouverte = null;
+  }
+  function ouvrirListe(el, b) {
+    if (ouverte && ouverte.b === b) { fermerListe(); return; }
+    fermerListe();
+    var st = el.__dzia, m = st.modele, l = modelesDe(el, m), cour = m.lire(el);
+    var L = D.createElement("div");
+    L.className = "dzia-liste";
+    L.setAttribute("role", "listbox");
+    L.setAttribute("aria-label", "Modèles");
+    l.forEach(function (x) {
+      var o = D.createElement("button");
+      o.setAttribute("type", "button");
+      o.className = "dzia-opt";
+      o.setAttribute("role", "option");
+      o.setAttribute("data-id", x.id);
+      o.setAttribute("aria-selected", x.id === cour ? "true" : "false");
+      var nm = D.createElement("span");
+      nm.className = "dzia-onom";
+      nm.textContent = x.label;
+      o.appendChild(nm);
+      if (x.prix) {
+        var p = D.createElement("span");
+        p.className = "dzia-oprix";
+        p.textContent = x.prix;
+        o.appendChild(p);
+      }
+      var off = !x.dispo ? (x.cle ? CLE_ABSENTE(x.cle) : "indisponible") : (x.horsVue ? "absent du sélecteur de la vue" : "");
+      if (off) {
+        o.setAttribute("aria-disabled", "true");
+        o.classList.add("dzia-off");
+        o.setAttribute("title", off + " — " + x.label);
+      } else {
+        o.setAttribute("title", x.label + (x.prix ? " · " + x.prix : "")
+          + (x.id === cour ? " — modèle actuel de la vue" : " — choisir ce modèle (écrit dans le sélecteur de la vue)"));
+      }
+      o.addEventListener("mousedown", function (ev) { ev.preventDefault(); });
+      o.addEventListener("click", function (ev) {
+        ev.preventDefault(); ev.stopPropagation();
+        if (o.getAttribute("aria-disabled") === "true") return;
+        fermerListe();
+        Promise.resolve(m.ecrire(el, x.id)).then(function () {
+          rafraichirPastille(el);
+          W.setTimeout(function () { rafraichirPastille(el); }, 150);
+        });
+      });
+      L.appendChild(o);
+    });
+    if (!l.length) {
+      var v = D.createElement("div");
+      v.className = "dzia-ovide";
+      v.textContent = "aucun modèle";
+      L.appendChild(v);
+    }
+    (D.body || D.documentElement).appendChild(L);
+    b.setAttribute("aria-expanded", "true");
+    ouverte = { node: L, b: b };
+    placerListe();
+  }
+  /* la liste suit la pastille (défilement de l'hôte) ; elle se ferme si la
+     pastille sort de l'écran ou disparaît */
+  function placerListe() {
+    if (!ouverte) return;
+    var L = ouverte.node, b = ouverte.b;
+    if (!b.isConnected) { fermerListe(); return; }
+    var r = b.getBoundingClientRect(), iw = W.innerWidth || 1400, ih = W.innerHeight || 900;
+    if (r.bottom < 0 || r.top > ih || (!r.width && !r.height)) { fermerListe(); return; }
+    var lw = L.offsetWidth || 260, lh = L.offsetHeight || 200;
+    var x0 = Math.max(4, Math.min(r.right - lw, iw - lw - 4));
+    var y0 = r.bottom + 4 + lh > ih - 4 ? Math.max(4, r.top - 4 - lh) : r.bottom + 4;
+    L.style.left = px(x0); L.style.top = px(y0);
+  }
+  function horsListe(ev) {
+    if (!ouverte) return;
+    var t = ev.target;
+    if (t && t.nodeType === 1 && (ouverte.node.contains(t) || ouverte.b.contains(t))) return;
+    fermerListe();
   }
 
   W.DzChampIA = {
@@ -481,7 +989,8 @@
     regles: REGLES,
     exclus: ZONES.concat(EXCLUS),
     marquer: marquer,
-    synchroniser: synchroniser
+    synchroniser: synchroniser,
+    modeles: { catalogueImage: CATALOGUE_IMAGE, charger: charger, rafraichir: rafraichirPastilles, fermer: fermerListe }
   };
   if (D.body) demarrer();
   else D.addEventListener("DOMContentLoaded", demarrer);
