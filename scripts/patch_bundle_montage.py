@@ -6183,6 +6183,28 @@ R7 = [("R7up1-upload-refuse-lit-le-detail-du-serveur", A_R7UP1, R_R7UP1),
 assert len(R7) == 4 and all(a not in r and "DzTracks" not in r for _t, a, r in R7)
 assert all("seedance-v1-pro" not in r for _t, _a, r in R7[1:]) and R_R7UP1.count("j.detail") == 2
 
+# ══ RETOURS 26/09 (cloture T11b, 27/09/2026) — LES ERREURS DE GENERATION LISIBLES ═══════════════════════════════════
+# Preuve ecran : depuis la garde de cout serveur (T5, 402 {"detail":"Coût estimé 4,73 $ au-delà du plafond …"}), le
+# Studio affichait « Run failed: {"detail":"Coût estimé …"} » en JSON BRUT. Le noeud Seedance (et la composition, les
+# noeuds HeyGen, le Quick, /images/generate…) passent par `D.postJson`, qui rendait `error:await n.text()` ; le rendu
+# de layout (`renderLayoutTemplate`) rendait `HTTP <code>: <corps brut>`. DEUX sections neuves EN QUEUE de R7, meme
+# lecture que R7up1 elargie : `detail` chaine -> le texte ; liste pydantic (422) -> le premier `msg` ; sinon
+# `HTTP <code>`. `status` reste rendu par postJson. /generate/batch n'a AUCUN appelant client (mesure : 0 dans le
+# bundle et dans les couches). ANCRES MESUREES 27/09/2026 sur .bak_montage : 1/0/1 chacune (le motif court
+# `error:await n.text()` vaut 2 -- une autre fonction de l'api le garde : l'ancre est le `return` ENTIER).
+# Aucun appelant ne relisait `error` comme du JSON (mesure : aucun JSON.parse de `.error` dans le bundle).
+_R7_DETAIL = ('let d="";try{const j=JSON.parse(b),v=j&&j.detail;d=typeof v=="string"?v:Array.isArray(v)&&v[0]'
+              '&&typeof v[0].msg=="string"?v[0].msg:""}catch(x){}')
+A_R7ER1 = 'return n.ok?{ok:!0,...await n.json().catch(()=>({}))}:{ok:!1,status:n.status,error:await n.text()}'
+R_R7ER1 = ('if(n.ok)return{ok:!0,...await n.json().catch(()=>({}))};const b=await n.text().catch(()=>"");' + _R7_DETAIL
+           + 'return{ok:!1,status:n.status,error:d||`HTTP ${n.status}`}')
+A_R7ER2 = 'return s.ok?await s.json():{ok:!1,error:`HTTP ${s.status}: ${(await s.text()).slice(0,160)}`}'
+R_R7ER2 = ('if(s.ok)return await s.json();const b=await s.text().catch(()=>"");' + _R7_DETAIL
+           + 'return{ok:!1,error:d||`HTTP ${s.status}`}')
+R7 += [("R7er1-postJson-lit-le-detail-du-refus", A_R7ER1, R_R7ER1),
+       ("R7er2-rendu-de-layout-lit-le-detail-du-refus", A_R7ER2, R_R7ER2)]
+assert len(R7) == 6 and all(a not in r and "DzTracks" not in r for _t, a, r in R7[4:])
+
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
@@ -6436,6 +6458,8 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("EC14-clic-sur-un-clip-efface-le-trou", A_EC14, R_EC14)] + EC15 + L4 + L7A + L5 + L6 + R6 + R7
            # retours 26/09 (plan du 27/09, tache 4) : + QUATRE sections EN QUEUE, groupe R7 apres R6 (R7up1 l'upload
            # refuse lisible ; R7vm1..R7vm3 Seedance 2.5 par defaut dans le Studio) ; 207 -> 211, le --check dit 212 ancres.
+           # cloture T11b (27/09) : + DEUX sections en queue de R7 (R7er1 postJson, R7er2 rendu de layout, les erreurs de
+           # generation lisibles) ; 211 -> 213, le --check dit 214 ancres.
            # retours L6 (26/09/2026, revue T2) : + SIX sections en queue de R6 (R6mu1..R6mu6, les textes de la musique bornee).
            # retours L6 (26/09/2026, tache 4) : UNE section EN QUEUE, apres L6 (R6gl1, l'image etalonnee dans le lecteur).
            # L6 (25/09/2026, tache 5) : SEPT sections EN QUEUE, apres L5 (cinq dans le bloc SFXSTUDIO -- une premiere --,

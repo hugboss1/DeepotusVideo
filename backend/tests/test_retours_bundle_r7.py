@@ -16,6 +16,14 @@ patcher), jamais sur la seule source du patcher :
       /api/video-models ne dit pas son defaut. Un graphe DEJA ENREGISTRE avec
       `model:"seedance-v1-pro"` le GARDE : le defaut n'entre que dans les props
       ABSENTES (fusion `ts` du bundle, jouee sous node).
+  T11b R7er1, R7er2 (cloture, preuve ecran) -- les erreurs de GENERATION
+      lisibles : `D.postJson` (le client de /generate, /generate/composition,
+      /generate/heygen*, /images/generate… -- le noeud Seedance du Studio, la
+      composition, le Quick) et `renderLayoutTemplate` (rendu de layout)
+      rendaient le CORPS BRUT du refus (« Run failed: {"detail":"Coût
+      estimé …"} » depuis la garde 402 de T5). Ils lisent maintenant `detail` :
+      chaine -> le texte ; liste pydantic -> le premier `msg` ; sinon
+      `HTTP <code>`. /generate/batch n'a AUCUN appelant client (mesure).
 
 Chaque fonction est EXTRAITE mot pour mot du bundle livre et jouee sous node
 (faux fetch, faux React) ; le TEMOIN est la meme extraction faite dans
@@ -117,11 +125,12 @@ def nl(t):
 print("\n[1] le groupe R7 du patcher montage, en queue apres R6")
 R7 = list(getattr(P, "R7", []))
 _TAGS = [t for t, _a, _r in R7]
-check("r7_quatre_sections_nommees",
-      [t.split("-")[0] for t in _TAGS] == ["R7up1", "R7vm1", "R7vm2", "R7vm3"], _TAGS)
+# cloture T11b (27/09) : + R7er1 (D.postJson) et R7er2 (renderLayoutTemplate), les erreurs de generation lisibles
+check("r7_six_sections_nommees",
+      [t.split("-")[0] for t in _TAGS] == ["R7up1", "R7vm1", "R7vm2", "R7vm3", "R7er1", "R7er2"], _TAGS)
 _R6 = list(getattr(P, "R6", []))
 check("r7_en_queue_de_PATCHES_juste_apres_R6",
-      len(R7) == 4 and len(_R6) == 7 and P.PATCHES[-4:] == R7 and P.PATCHES[-5] == _R6[-1],
+      len(R7) == 6 and len(_R6) == 7 and P.PATCHES[-6:] == R7 and P.PATCHES[-7] == _R6[-1],
       [t[0] for t in P.PATCHES[-6:]])
 
 # Les ancres, ECRITES ICI (pas relues du patcher) : une ancre deplacee dans le
@@ -137,10 +146,21 @@ A_VM2 = 'en=dzVmRates[p2.model||"seedance-v1-pro"]||[.04,60],d2=Math.min(Number(
 # (pricing.DEFAULTS) -- le serveur ne facture jamais plus ; le banc croise compare ce 10 a pricing.
 R_VM2 = 'en=dzVmRates[p2.model||"seedance-2.5"]||[.04,60],d2=Math.min(Number(p2.durationS)||10,en[1],10)'
 A_VM3 = 'label:"Défaut ("+(mm.default||"seedance-v1-pro")+")"'
+# T11b : la lecture du `detail` d'un refus (chaine -> texte ; liste pydantic -> premier msg ; sinon HTTP <code>)
+_LIT = ('let d="";try{const j=JSON.parse(b),v=j&&j.detail;d=typeof v=="string"?v:Array.isArray(v)&&v[0]'
+        '&&typeof v[0].msg=="string"?v[0].msg:""}catch(x){}')
+A_ER1 = 'return n.ok?{ok:!0,...await n.json().catch(()=>({}))}:{ok:!1,status:n.status,error:await n.text()}'
+R_ER1 = ('if(n.ok)return{ok:!0,...await n.json().catch(()=>({}))};const b=await n.text().catch(()=>"");' + _LIT
+         + 'return{ok:!1,status:n.status,error:d||`HTTP ${n.status}`}')
+A_ER2 = 'return s.ok?await s.json():{ok:!1,error:`HTTP ${s.status}: ${(await s.text()).slice(0,160)}`}'
+R_ER2 = ('if(s.ok)return await s.json();const b=await s.text().catch(()=>"");' + _LIT
+         + 'return{ok:!1,error:d||`HTTP ${s.status}`}')
 _ATT = {"R7up1": (A_UP1, R_UP1),
         "R7vm1": (A_VM1, A_VM1.replace("seedance-v1-pro", "seedance-2.5")),
         "R7vm2": (A_VM2, R_VM2),
-        "R7vm3": (A_VM3, A_VM3.replace("seedance-v1-pro", "seedance-2.5"))}
+        "R7vm3": (A_VM3, A_VM3.replace("seedance-v1-pro", "seedance-2.5")),
+        "R7er1": (A_ER1, R_ER1),
+        "R7er2": (A_ER2, R_ER2)}
 for _t, _a, _r in R7:
     _k = _t.split("-")[0]
     _ea, _er = _ATT.get(_k, ("", ""))
@@ -291,6 +311,74 @@ check("vm_libelle_defaut_suit_le_serveur_quand_il_le_dit", _d.get("avec") == "D�
       and _d.get("attente") is None and "attente" in _d, _d)
 _v, _whyv = node_json("sel_vieux.js", _JS_SEL.replace("__SEL__", _SEL_B))
 check("temoin_vm_le_bak_disait_defaut_seedance_v1_pro", _v.get("sans") == "Défaut (seedance-v1-pro)", (_v, _whyv))
+
+# ── [4] T11b : les erreurs de generation lisibles ────────────────────────────
+print("\n[4] T11b : D.postJson et renderLayoutTemplate lisent le detail du refus, sous node (faux fetch)")
+_PJ = entre(S, "postJson:async(e,t)=>{", "};let Io=null")
+_PJ_B = entre(B, "postJson:async(e,t)=>{", "};let Io=null")
+_LT = entre(S, "renderLayoutTemplate:async", ",listSeedanceTemplates:")
+_LT_B = entre(B, "renderLayoutTemplate:async", ",listSeedanceTemplates:")
+check("er_fonctions_extraites_du_livre_et_du_bak",
+      min(len(_PJ), len(_PJ_B), len(_LT), len(_LT_B)) > 150 and _PJ.endswith("}}}") and _PJ_B.endswith("}}}"),
+      (len(_PJ), len(_PJ_B), len(_LT), len(_LT_B), _PJ[-12:]))
+_JS_ER = r"""
+const Te="/api"; var window={}; function dzGraphVoiceover(){return null}
+var REP=null;
+async function fetch(u,o){ if(REP==="reseau") throw new Error("hors ligne"); return REP; }
+function rep(status, corps){ const b=corps===undefined?"":(typeof corps=="string"?corps:JSON.stringify(corps));
+  return {ok: status>=200&&status<300, status, text: async()=>b, json: async()=>JSON.parse(b)}; }
+const api={__FN__};
+const GARDE="Coût estimé 4,73 $ au-delà du plafond 1,00 $ (max_usd envoyé) — rien n'a été généré.";
+async function un(f){ const o={};
+  REP=rep(402,{detail:GARDE}); o.r402=await f();
+  REP=rep(422,{detail:[{loc:["body","duration_s"],msg:"Input should be a valid integer",type:"int_parsing"}]}); o.r422=await f();
+  REP=rep(500,"Internal Server Error"); o.r500=await f();
+  REP=rep(503,{detail:{code:7}}); o.r503=await f();
+  REP=rep(200,{job_id:"j1"}); o.r200=await f();
+  REP="reseau"; o.rres=await f();
+  // le chemin du Studio : `if(J&&J.ok===!1)throw new Error(J.error...)` puis p("Run failed: "+String(L.message||L).slice(0,160))
+  REP=rep(402,{detail:GARDE}); const J=await f(); try{ if(J&&J.ok===!1) throw new Error(J.error||"generation failed"); }
+  catch(L){ o.bandeau="Run failed: "+String(L.message||L).slice(0,160); }
+  return o; }
+(async()=>{
+  const out={};
+  if(api.postJson) out.pj=await un(()=>api.postJson("/generate",{}));
+  if(api.renderLayoutTemplate) out.lt=await un(()=>api.renderLayoutTemplate("t1",{}));
+  console.log(JSON.stringify(out));
+})().catch(e=>{console.log(JSON.stringify({erreur:String(e)}))});
+"""
+_GARDE = "Coût estimé 4,73 $ au-delà du plafond 1,00 $ (max_usd envoyé) — rien n'a été généré."
+_BANDEAU = "Run failed: " + _GARDE[:160]
+_d, _why = node_json("er_neuf.js", _JS_ER.replace("__FN__", _PJ + "," + _LT))
+_pj, _lt = _d.get("pj") or {}, _d.get("lt") or {}
+check("er_postJson_402_garde_de_cout_rend_le_texte_du_detail_et_garde_le_status",
+      _pj.get("r402") == {"ok": False, "status": 402, "error": _GARDE}, (_pj.get("r402"), _why))
+check("er_postJson_bandeau_du_studio_lisible_sans_json_brut",
+      _pj.get("bandeau") == _BANDEAU and "{" not in (_pj.get("bandeau") or "{"), _pj.get("bandeau"))
+check("er_postJson_422_liste_pydantic_rend_le_premier_msg",
+      _pj.get("r422") == {"ok": False, "status": 422, "error": "Input should be a valid integer"}, _pj.get("r422"))
+check("er_postJson_500_texte_brut_et_503_detail_objet_retombent_sur_HTTP_code",
+      _pj.get("r500") == {"ok": False, "status": 500, "error": "HTTP 500"}
+      and _pj.get("r503") == {"ok": False, "status": 503, "error": "HTTP 503"}, (_pj.get("r500"), _pj.get("r503")))
+check("er_postJson_200_et_reseau_inchanges",
+      _pj.get("r200") == {"ok": True, "job_id": "j1"} and _pj.get("rres") == {"ok": False, "error": "hors ligne"},
+      (_pj.get("r200"), _pj.get("rres")))
+check("er_layout_402_rend_le_texte_du_detail", _lt.get("r402") == {"ok": False, "error": _GARDE}, (_lt.get("r402"), _why))
+check("er_layout_bandeau_lisible", _lt.get("bandeau") == _BANDEAU, _lt.get("bandeau"))
+check("er_layout_422_premier_msg_500_et_503_HTTP_code",
+      _lt.get("r422") == {"ok": False, "error": "Input should be a valid integer"}
+      and _lt.get("r500") == {"ok": False, "error": "HTTP 500"} and _lt.get("r503") == {"ok": False, "error": "HTTP 503"},
+      (_lt.get("r422"), _lt.get("r500"), _lt.get("r503")))
+check("er_layout_200_et_reseau_inchanges",
+      _lt.get("r200") == {"job_id": "j1"} and _lt.get("rres") == {"ok": False, "error": "hors ligne"},
+      (_lt.get("r200"), _lt.get("rres")))
+_v, _whyv = node_json("er_vieux.js", _JS_ER.replace("__FN__", _PJ_B + "," + _LT_B))
+_vpj, _vlt = _v.get("pj") or {}, _v.get("lt") or {}
+check("temoin_er_le_bak_rendait_le_json_brut_dans_le_bandeau_du_studio",
+      json.loads((_vpj.get("r402") or {}).get("error") or "null") == {"detail": _GARDE}
+      and (_vpj.get("bandeau") or "").startswith('Run failed: {"detail":"Coût estimé'), (_vpj, _whyv))
+check("temoin_er_le_bak_rendait_HTTP_402_suivi_du_json_brut_pour_le_layout",
+      ((_vlt.get("r402") or {}).get("error") or "").startswith('HTTP 402: {"detail":"Coût estimé'), _vlt.get("r402"))
 
 print(f"\n=== {ok} passed, {fail} failed ===")
 shutil.rmtree(TMP, ignore_errors=True)
