@@ -14,7 +14,6 @@ New in v1.2:
 - Smart routing: 1 image -> Pro single-image; 2 images -> Lite first-last-frame
 - Returns seed used by the model (for reproducibility / regeneration)
 """
-import asyncio
 import os
 import re
 import shutil
@@ -66,12 +65,6 @@ SEEDANCE_LITE_I2V = "fal-ai/bytedance/seedance/v1/lite/image-to-video"
 # défaut `seedance-v1-pro` reste au registre et choisissable ; les graphes et
 # jobs déjà enregistrés gardent leur modèle.
 DEFAULT_VIDEO_MODEL = "seedance-2.5"
-
-# Soumission fal : attente de base (s) entre deux essais sur une erreur de
-# TRANSPORT avant acceptation (1er rejeu après 4 s, puis 8 s). Réglable par
-# les bancs.
-_ATTENTE_SOUMISSION_S = 4.0
-_ESSAIS_SOUMISSION = 3
 
 VIDEO_MODELS: dict = {
     "seedance-v1-pro": {
@@ -355,25 +348,27 @@ class FalSeedanceClient:
 
     @staticmethod
     async def _soumettre(endpoint: str, arguments: dict):
-        """Submit to the fal queue; replays ONLY a transport error (the
-        request never reached fal, so nothing was accepted nor billed).
+        """Submit to the fal queue ONCE — the application never replays.
 
         Mesuré le 27/09 : l'ancien `@retry(stop_after_attempt(3))` posé sur
         TOUT `generate_video` rejouait `subscribe_async` (soumission +
         attente + résultat) sur n'importe quelle exception — y compris une
-        coupure pendant l'attente d'une génération DÉJÀ acceptée, donc
-        facturée : jusqu'à trois générations payées pour un clip. Une
-        réponse de fal (4xx/5xx, schéma, solde) n'est pas rejouée non plus."""
-        for essai in range(_ESSAIS_SOUMISSION):
-            try:
-                return await fal_client.submit_async(endpoint, arguments=arguments)
-            except httpx.TransportError as e:
-                if essai == _ESSAIS_SOUMISSION - 1:
-                    raise
-                attente = _ATTENTE_SOUMISSION_S * (2 ** essai)
-                logger.warning(f"fal submit transport error ({e}); "
-                               f"retry {essai + 2}/{_ESSAIS_SOUMISSION} in {attente:.0f}s")
-                await asyncio.sleep(attente)
+        coupure pendant l'attente d'une génération DÉJÀ acceptée : jusqu'à
+        trois générations payées pour un clip. Une boucle limitée aux
+        `httpx.TransportError` ne suffit pas : ReadTimeout, ReadError et
+        RemoteProtocolError arrivent APRÈS l'envoi de la requête.
+
+        RISQUE RÉSIDUEL (daté 27/09, fal_client 1.0.1) : `submit_async`
+        passe par `_async_maybe_retry_request`, qui rejoue SEUL la même POST
+        jusqu'à `MAX_ATTEMPTS = 10` fois sur toute erreur de transport
+        (dont ReadError / RemoteProtocolError après l'envoi) et sur les
+        codes 408/409/429 et 502-504 d'ingress. Sondé sur un transport
+        simulé : 10 POST pour une ReadError. Rien dans l'API publique ne le
+        coupe : `start_timeout` ne neutralise que le rejeu des timeouts
+        (1 POST sur ReadTimeout, toujours 10 sur ReadError) et change la
+        sémantique côté serveur ; baisser `fal_client.client.MAX_ATTEMPTS`
+        serait global (sondes d'état et résultats compris). Assumé tel quel."""
+        return await fal_client.submit_async(endpoint, arguments=arguments)
 
     @staticmethod
     async def generate_video(
@@ -419,7 +414,7 @@ class FalSeedanceClient:
 
         try:
             handle = await FalSeedanceClient._soumettre(endpoint, arguments)
-            # Accepted from here on: never resubmitted (see _soumettre).
+            # Accepted from here on: nothing is ever resubmitted.
             async for update in handle.iter_events(with_logs=True):
                 logger.debug(f"fal.ai update: {update}")
             result = await handle.get()

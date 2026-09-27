@@ -154,7 +154,7 @@ class GenerateRequest(BaseModel):
     # CETTE requête (lot : toutes variations comprises). Au-dessus de
     # l'estimation serveur -> 402, rien n'est généré. Sans lui, seul le
     # plafond `video_max_usd_per_request` de pricing.json s'applique.
-    max_usd: Optional[float] = Field(None, ge=0)
+    max_usd: Optional[float] = None  # validé par la route (_garde_cout)
 
     style: StylePreset = StylePreset.HYBRID
     camera: Optional[CameraMove] = None
@@ -326,7 +326,7 @@ class CompositionRequest(BaseModel):
     audio_source: Literal["seedance", "heygen"] = "heygen"
     # Garde de coût (retours-ia F3) : plafond client pour toute la
     # composition (Seedance + HeyGen) ; `seedance.max_usd` compte aussi.
-    max_usd: Optional[float] = Field(None, ge=0)
+    max_usd: Optional[float] = None  # validé par la route (_garde_cout)
 
 
 class CompositionResponse(BaseModel):
@@ -517,7 +517,7 @@ class TemplateRenderRequest(BaseModel):
     voiceover: Optional[dict] = None
     # Garde de coût (retours-ia F3) : plafond client pour tous les slots
     # générés du rendu (hors aperçu, qui ne génère rien).
-    max_usd: Optional[float] = Field(None, ge=0)
+    max_usd: Optional[float] = None  # validé par la route (_garde_cout)
 
 
 class TemplateRenderResponse(BaseModel):

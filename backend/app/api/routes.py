@@ -188,13 +188,15 @@ async def render_layout_template(
             raise HTTPException(400, "HEYGEN_API_KEY not configured. Add it to backend/.env")
         # garde de coût (retours-ia F3) : la somme des slots générés
         _ops = []
+        _maxs = [request.max_usd]
         for _sv in request.slot_values.values():
             if _sv.source_kind == "seedance" and _sv.seedance is not None:
                 _ops.append(_devis_video(_sv.seedance))
+                _maxs.append(_sv.seedance.max_usd)   # le plus bas gagne
             elif _sv.source_kind == "heygen" and _sv.heygen is not None:
                 _ops.append(_devis_heygen(_sv.heygen))
         if _ops:
-            _garde_cout(_ops, request.max_usd)
+            _garde_cout(_ops, *_maxs)
 
     job_id = str(uuid4())
 
@@ -2972,19 +2974,37 @@ def _devis_video(req, n: int = 1) -> dict:
     """`estimate` op of one GenerateRequest (× n variations), on the seconds
     actually generated (native clamp + `video_max_gen_s`)."""
     from app.services import pricing as _pricing
-    return _pricing.video_request_op(req.video_model, req.duration_s,
-                                     req.resolution, n=n)
+    try:
+        return _pricing.video_request_op(req.video_model, req.duration_s,
+                                         req.resolution, n=n)
+    except ValueError as e:
+        # id inconnu : 400 qui liste les ids valides, pas un 500 muet
+        raise HTTPException(400, str(e))
 
 
 def _devis_heygen(hg) -> dict:
     return {"kind": "heygen", "chars": len((hg.script or "").strip())}
 
 
-def _garde_cout(ops: list, max_usd=None) -> float:
+def _garde_cout(ops: list, *max_usds) -> float:
     """Garde de coût serveur (retours-ia F3) : estime `ops` et lève 402
-    AVANT toute génération si l'estimation dépasse `max_usd` (client) ou le
-    plafond `video_max_usd_per_request` de pricing.json. Rend le total."""
+    AVANT toute génération si l'estimation dépasse le plus bas des
+    `max_usds` envoyés (requête, côté seedance, slots) ou le plafond
+    `video_max_usd_per_request` de pricing.json. Rend le total.
+
+    Un `max_usd` non fini ou négatif -> 422 ICI, pas dans le schéma : la
+    réponse 422 de FastAPI recopie l'entrée, et un NaN/Infinity recopié
+    fait planter son encodage JSON (500)."""
+    import math as _math
     from app.services import pricing as _pricing
+    _vals = []
+    for _m in max_usds:
+        if _m is None:
+            continue
+        if not _math.isfinite(_m) or _m < 0:
+            raise HTTPException(422, "max_usd doit être un nombre fini >= 0")
+        _vals.append(_m)
+    max_usd = min(_vals) if _vals else None
     p = _pricing.load()
     total = _pricing.estimate({"kind": "campaign", "ops": ops}, p)["total_usd"]
     refus = _pricing.cost_guard(total, max_usd, p)
@@ -3310,9 +3330,8 @@ async def generate_composition(request: CompositionRequest, background_tasks: Ba
     if not request.heygen.avatar_id or not request.heygen.voice_id:
         raise HTTPException(400, "HeyGen avatar_id and voice_id are required")
 
-    _maxs = [m for m in (request.max_usd, request.seedance.max_usd) if m is not None]
     _garde_cout([_devis_video(request.seedance), _devis_heygen(request.heygen)],
-                min(_maxs) if _maxs else None)
+                request.max_usd, request.seedance.max_usd)
 
     async def _run():
         try:
@@ -4525,9 +4544,18 @@ def _job_to_cost(job, p):
                                   "frames": int(meta.get("frames", 0) or 0),
                                   "remove_bg": meta.get("remove_bg", "none")}, p)
     if prov in _JOBS_CAMPAGNE:
+        vdur = dur
+        if getattr(job, "video_model", None):
+            # un job AVEC modèle a été facturé sur la durée GÉNÉRÉE (clamp
+            # natif + video_max_gen_s), pas sur la cible prolongée par ffmpeg ;
+            # les jobs legacy (sans modèle) restent octet pour octet au forfait
+            try:
+                vdur = _pricing.video_gen_seconds(job.video_model, dur, p)
+            except ValueError:
+                vdur = dur      # modèle retiré du registre : durée demandée
         return _pricing.estimate({"kind": "campaign", "ops": [
             {"kind": "image"},
-            {"kind": "seedance", "duration_s": dur,
+            {"kind": "seedance", "duration_s": vdur,
              "model": getattr(job, "video_model", None) or "",
              # un job SANS modèle date d'avant la colonne (Seedance 1, au
              # forfait) : son coût historique ne suit pas le défaut du jour

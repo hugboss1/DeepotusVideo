@@ -10,6 +10,7 @@ Live remaining balances are only available for providers that expose them
 so for those the widget shows cumulative *estimated* spend + the preview.
 """
 import json
+import math
 from pathlib import Path
 
 from app.config import DATA_ROOT
@@ -244,10 +245,7 @@ def video_gen_seconds(model_id: str | None, duration_s, p: dict | None = None) -
     the pipeline sends (fal_service.generated_duration)."""
     from app.services.fal_service import generated_duration, resolve_video_model
     p = p or load()
-    try:
-        cap = float(p.get("video_max_gen_s", DEFAULTS["video_max_gen_s"]) or 0)
-    except (TypeError, ValueError):
-        cap = float(DEFAULTS["video_max_gen_s"])
+    cap = _reglage_fini(p, "video_max_gen_s")
     return generated_duration(resolve_video_model(model_id), int(duration_s or 5),
                               cap or None)
 
@@ -262,8 +260,22 @@ def video_request_op(model_id: str | None, duration_s, resolution: str | None,
             "duration_s": video_gen_seconds(mid, duration_s, p)}
 
 
+def _reglage_fini(p: dict, cle: str) -> float:
+    """Réglage numérique de pricing.json : une valeur illisible, non finie
+    (NaN, Infinity) ou négative retombe sur le défaut — elle n'ouvre jamais
+    la garde. 0 reste 0 (« aucun plafond »), comme monthly_budget_usd."""
+    try:
+        v = float(p.get(cle, DEFAULTS[cle]))
+    except (TypeError, ValueError):
+        v = float(DEFAULTS[cle])
+    if not math.isfinite(v) or v < 0:
+        v = float(DEFAULTS[cle])
+    return v
+
+
 def _usd_fr(v: float) -> str:
-    return f"{v:.2f}".replace(".", ",")
+    # round(...) + 0.0 : -0.0 et -0,001 s'affichent « 0,00 », pas « -0,00 »
+    return f"{round(float(v), 2) + 0.0:.2f}".replace(".", ",")
 
 
 def cost_guard(total_usd: float, max_usd: float | None = None,
@@ -274,10 +286,15 @@ def cost_guard(total_usd: float, max_usd: float | None = None,
     `max_usd` never lifts the server cap."""
     p = p or load()
     try:
-        plafond = float(p.get("video_max_usd_per_request",
-                              DEFAULTS["video_max_usd_per_request"]) or 0)
+        total = float(total_usd)
     except (TypeError, ValueError):
-        plafond = float(DEFAULTS["video_max_usd_per_request"])
+        total = float("nan")
+    if not math.isfinite(total):
+        # un tarif illisible (NaN) rendrait toute comparaison fausse, donc la
+        # garde ouverte : un devis qu'on ne sait pas chiffrer est refusé
+        return ("Estimation non chiffrable (tarif non fini dans les tarifs) "
+                "— rien n'a été généré.")
+    plafond = _reglage_fini(p, "video_max_usd_per_request")
     limites = []
     if max_usd is not None:
         limites.append((float(max_usd), "max_usd envoyé"))
@@ -286,7 +303,7 @@ def cost_guard(total_usd: float, max_usd: float | None = None,
     if not limites:
         return None
     lim, source = min(limites, key=lambda x: x[0])
-    tot = round(float(total_usd), 2)
+    tot = round(total, 2)
     if tot > round(lim, 2) + 1e-9:
         return (f"Estimation {_usd_fr(tot)} $ > plafond {_usd_fr(lim)} $ "
                 f"({source}) — rien n'a été généré.")

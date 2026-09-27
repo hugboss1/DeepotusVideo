@@ -17,9 +17,12 @@ Ce que le banc tient :
       en cas de refus, un appel espionné (sans réseau) en cas d'accord ;
   [5] le pipeline envoie la durée plafonnée et prolonge le reste (ffmpeg,
       espionné) ; l'ancien défaut `seedance-v1-pro` reste choisissable ;
-  [6] la soumission fal n'est REJOUÉE que sur une erreur de transport AVANT
-      acceptation — une erreur après soumission ne resoumet jamais (le
-      `@retry` de toute la méthode refacturait une génération acceptée).
+  [6] une soumission fal par clip : l'application ne rejoue JAMAIS (ni
+      avant ni après acceptation) — un ReadTimeout arrive après l'envoi, et
+      fal_client rejoue déjà en interne (risque résiduel daté) ;
+  [7] revue du 27/09 : HeyGen compte dans la garde, id inconnu -> 400,
+      valeurs non finies, max_usd des slots, coût des jobs sur la durée
+      générée, « -0,00 ».
 
 AUCUN appel fal réel : `FalSeedanceClient.{upload_image,generate_video,
 download_video}` sont des espions, et `fal_client.{submit_async,
@@ -177,7 +180,10 @@ def reset():
 async def _post(path, body):
     async with AsyncClient(transport=ASGITransport(app=app),
                            base_url="http://t") as c:
-        return await c.post("/api" + path, json=body)
+        # json.dumps du stdlib (NaN/Infinity permis) : un client peut les
+        # envoyer, httpx `json=` les refuserait avant la route
+        return await c.post("/api" + path, content=json.dumps(body),
+                            headers={"content-type": "application/json"})
 
 
 def post(path, body):
@@ -427,9 +433,12 @@ check("ancien_defaut_choisissable", _s == 200 and _g.get("model_id") == "seedanc
       f"{_s} {_g}")
 check("temoin_10s_pas_de_prolongation", ESPION["extend"] == [], repr(ESPION["extend"]))
 
-# ── [6] pas de resoumission après acceptation ───────────────────────────────
-print("\n[6] soumission fal : rejeu seulement AVANT acceptation.")
-FS._ATTENTE_SOUMISSION_S = 0
+# ── [6] une seule soumission par clip ────────────────────────────────────────
+print("\n[6] soumission fal : jamais de rejeu par l'application.")
+# Revue du 27/09 : ReadTimeout/ReadError/RemoteProtocolError sont des
+# TransportError survenues APRES l'envoi — les rejouer refacture. Et
+# fal_client rejoue DEJA en interne (MAX_ATTEMPTS=10) : la boucle
+# exterieure est supprimee, `submit_async` est appele UNE fois.
 FAUX = {"submit": 0, "get": 0}
 
 
@@ -450,13 +459,11 @@ class _Handle:
         return {"video": {"url": "https://fake.invalid/ok.mp4"}}
 
 
-def _faux_submit(echecs_transport, get_leve, autre=None):
+def _faux_submit(echecs, get_leve, exc=None):
     async def _submit(application, arguments, **kw):
         FAUX["submit"] += 1
-        if autre is not None:
-            raise autre
-        if FAUX["submit"] <= echecs_transport:
-            raise httpx.ConnectError("coupure reseau (banc)")
+        if FAUX["submit"] <= echecs:
+            raise exc
         return _Handle(get_leve)
     return _submit
 
@@ -467,54 +474,185 @@ def _appel_reel():
                           duration=10, resolution="720p", model_id="seedance-2.5"))
 
 
+def _essai(echecs, get_leve, exc=None):
+    FAUX.update(submit=0, get=0)
+    fal_client.submit_async = _faux_submit(echecs, get_leve, exc)
+    try:
+        r = _appel_reel()
+        return r, "aucune erreur"
+    except Exception as e:  # noqa: BLE001
+        return None, str(e)
+
+
 _sauve_submit = fal_client.submit_async
 _sauve_subscribe = fal_client.subscribe_async
+_req = httpx.Request("POST", "https://queue.fal.invalid/x")
 try:
-    FAUX.update(submit=0, get=0)
-    fal_client.submit_async = _faux_submit(1, False)
-    try:
-        _r = _appel_reel()
-    except Exception as e:  # noqa: BLE001
-        _r = {"_temoin": temoin(e)}
-    check("transport_avant_acceptation_rejoue_une_fois",
-          FAUX["submit"] == 2 and FAUX["get"] == 1
-          and (_r.get("video") or {}).get("url") == "https://fake.invalid/ok.mp4",
-          f"{FAUX} {_r}")
-
-    FAUX.update(submit=0, get=0)
-    fal_client.submit_async = _faux_submit(0, True)
-    try:
-        _appel_reel()
-        _e = "aucune erreur"
-    except Exception as e:  # noqa: BLE001
-        _e = str(e)
+    _r, _e = _essai(0, False)
+    check("temoin_soumission_nominale_un_submit_un_get",
+          FAUX["submit"] == 1 and FAUX["get"] == 1
+          and ((_r or {}).get("video") or {}).get("url") == "https://fake.invalid/ok.mp4",
+          f"{FAUX} {_r} {_e}")
+    for _cls in (httpx.ReadTimeout, httpx.ReadError, httpx.RemoteProtocolError,
+                 httpx.ConnectError, httpx.ConnectTimeout):
+        _r, _e = _essai(1, False, _cls("coupure (banc)", request=_req))
+        check(f"{_cls.__name__}_au_1er_essai_une_seule_soumission",
+              FAUX["submit"] == 1 and FAUX["get"] == 0 and _e.startswith("fal.ai:"),
+              f"{FAUX} {_e}")
+    _r, _e = _essai(0, True)
     check("erreur_apres_acceptation_ne_resoumet_pas",
           FAUX["submit"] == 1 and FAUX["get"] == 1, f"{FAUX} {_e}")
     check("erreur_apres_acceptation_prefixee_fal", _e.startswith("fal.ai:"), repr(_e))
-
-    FAUX.update(submit=0, get=0)
-    fal_client.submit_async = _faux_submit(0, False, autre=ValueError("422 schema"))
-    try:
-        _appel_reel()
-        _e = "aucune erreur"
-    except Exception as e:  # noqa: BLE001
-        _e = str(e)
+    _r, _e = _essai(1, False, ValueError("422 schema"))
     check("refus_non_transport_n_est_pas_rejoue", FAUX["submit"] == 1, f"{FAUX} {_e}")
-
-    FAUX.update(submit=0, get=0)
-    fal_client.submit_async = _faux_submit(99, False)
-    try:
-        _appel_reel()
-        _e = "aucune erreur"
-    except Exception as e:  # noqa: BLE001
-        _e = str(e)
-    check("transport_rejoue_au_plus_trois_fois", FAUX["submit"] == 3 and FAUX["get"] == 0,
-          f"{FAUX} {_e}")
     check("subscribe_n_est_plus_utilise", RESEAU["noms"].count("subscribe_async") == 0,
           repr(RESEAU["noms"]))
 finally:
     fal_client.submit_async = _sauve_submit
     fal_client.subscribe_async = _sauve_subscribe
+
+# ── [7] corrections de la revue du 27/09 ────────────────────────────────────
+print("\n[7] HeyGen compte, id inconnu, valeurs non finies, slots, coût des jobs.")
+import math                                                      # noqa: E402,F401
+from types import SimpleNamespace                                # noqa: E402
+
+# (a) HeyGen compte : Seedance seul (4,73) passe sous 4,80, Seedance + HeyGen
+# (300 caractères ≈ 0,085 $) le dépasse.
+HG300 = {"avatar_id": "a", "voice_id": "v", "script": "x" * 300}
+_hg_usd = P.estimate({"kind": "heygen", "chars": 300}, P.load())["total_usd"]
+check("temoin_heygen_300_car_coute_plus_de_7_cents", _hg_usd > 0.07, repr(_hg_usd))
+reset()
+_s, _j = post("/generate", gen_body(resolution="720p", max_usd=4.80))
+check("temoin_seedance_seul_passe_sous_4_80", _s == 200, f"{_s} {_j}")
+reset()
+_s, _j = post("/generate/composition", {"seedance": gen_body(resolution="720p"),
+                                        "heygen": HG300, "max_usd": 4.80})
+check("composition_heygen_fait_depasser_402", _s == 402 and AVAL["composition"] == 0
+      and len(ESPION["gen"]) == 0, f"{_s} {_j}")
+_slot = {"source_kind": "seedance", "seedance": gen_body(resolution="720p")}
+_slot_hg = {"source_kind": "heygen", "heygen": HG300}
+reset()
+_s, _j = post(f"/layout-templates/{_tid}/render",
+              {"template_id": _tid, "slot_values": {"a": _slot}, "max_usd": 4.80})
+check("temoin_layout_seedance_seul_passe_sous_4_80", _s == 200 and AVAL["layout"] == 1,
+      f"{_s} {_j}")
+reset()
+_s, _j = post(f"/layout-templates/{_tid}/render",
+              {"template_id": _tid, "slot_values": {"a": _slot, "h": _slot_hg},
+               "max_usd": 4.80})
+check("layout_heygen_fait_depasser_402", _s == 402 and AVAL["layout"] == 0
+      and len(ESPION["gen"]) == 0, f"{_s} {_j}")
+
+# (b) id de modèle inconnu -> 400 qui liste les ids, sur les quatre routes
+_nope = gen_body(video_model="nope")
+for _nom, _path, _body in (
+        ("generate", "/generate", _nope),
+        ("batch", "/generate/batch", {**_nope, "variations_count": 2}),
+        ("composition", "/generate/composition", {"seedance": _nope, "heygen": HG300}),
+        ("layout", f"/layout-templates/{_tid}/render",
+         {"template_id": _tid, "slot_values": {"a": {"source_kind": "seedance",
+                                                     "seedance": _nope}}})):
+    reset()
+    _s, _j = post(_path, _body)
+    _det = str(_j.get("detail", _j))
+    check(f"modele_inconnu_400_liste_{_nom}",
+          _s == 400 and "nope" in _det and "seedance-2.5" in _det
+          and len(ESPION["gen"]) == 0 and AVAL["composition"] == 0 and AVAL["layout"] == 0,
+          f"{_s} {_det}")
+
+# (c) valeurs non finies ou négatives venues de pricing.json ou du client
+_lot3 = gen_body(resolution="720p", variations_count=3)   # 14,19 $ > 10
+for _nom, _texte in (("nan", '{"video_max_usd_per_request": NaN}'),
+                     ("inf", '{"video_max_usd_per_request": Infinity}'),
+                     ("negatif", '{"video_max_usd_per_request": -5}')):
+    PRICING_FILE.write_text(_texte, encoding="utf-8")
+    reset()
+    _s, _j = post("/generate/batch", _lot3)
+    _det = str(_j.get("detail", _j))
+    check(f"plafond_{_nom}_retombe_a_10", _s == 402 and "plafond 10,00 $" in _det
+          and len(ESPION["gen"]) == 0, f"{_s} {_det}")
+PRICING_FILE.write_text('{"video_max_usd_per_request": 0}', encoding="utf-8")
+reset()
+_s, _j = post("/generate/batch", {**_lot3, "variations_count": 3})
+check("temoin_plafond_0_veut_dire_aucun", _s == 200 and len(ESPION["gen"]) == 3, f"{_s} {_j}")
+_tarifs = dict(P.DEFAULTS["video_usd_per_s"])
+_tarifs["seedance-2.5"] = {"480p": 0.2205, "720p": float("nan")}
+PRICING_FILE.write_text(json.dumps({"video_usd_per_s": _tarifs}), encoding="utf-8")
+reset()
+_s, _j = post("/generate", gen_body(resolution="720p", max_usd=50))
+_det = str(_j.get("detail", _j))
+check("tarif_nan_total_non_fini_refuse", _s == 402 and len(ESPION["gen"]) == 0, f"{_s} {_det}")
+for _nom, _texte in (("nan", '{"video_max_gen_s": NaN}'),
+                     ("inf", '{"video_max_gen_s": Infinity}'),
+                     ("negatif", '{"video_max_gen_s": -4}')):
+    PRICING_FILE.write_text(_texte, encoding="utf-8")
+    try:
+        _gs = P.video_gen_seconds("seedance-2.5", 20, P.load())
+    except Exception as e:  # noqa: BLE001
+        _gs = temoin(e)
+    check(f"duree_generee_{_nom}_retombe_a_10", _gs == 10, repr(_gs))
+PRICING_FILE.unlink()
+reset()
+_s, _j = post("/generate", gen_body(resolution="720p", max_usd=float("nan")))
+check("max_usd_nan_client_422", _s == 422 and len(ESPION["gen"]) == 0, f"{_s} {_j}")
+reset()
+_s, _j = post("/generate", gen_body(resolution="720p", max_usd=float("inf")))
+check("max_usd_inf_client_422", _s == 422 and len(ESPION["gen"]) == 0, f"{_s} {_j}")
+reset()
+_s, _j = post("/generate", gen_body(resolution="720p", max_usd=-1))
+check("max_usd_negatif_client_422", _s == 422 and len(ESPION["gen"]) == 0, f"{_s} {_j}")
+reset()
+_s, _j = post("/generate/composition", {"seedance": gen_body(resolution="720p",
+                                                             max_usd=float("nan")),
+                                        "heygen": HG300})
+check("max_usd_nan_cote_seedance_422", _s == 422 and AVAL["composition"] == 0, f"{_s} {_j}")
+
+# (d) layout : le max_usd de chaque slot compte (le plus bas gagne)
+_slot_max = {"source_kind": "seedance", "seedance": gen_body(resolution="720p", max_usd=1.0)}
+reset()
+_s, _j = post(f"/layout-templates/{_tid}/render",
+              {"template_id": _tid, "slot_values": {"a": _slot_max}})
+_det = str(_j.get("detail", _j))
+check("layout_max_usd_du_slot_compte", _s == 402 and "plafond 1,00 $" in _det
+      and AVAL["layout"] == 0, f"{_s} {_det}")
+reset()
+_s, _j = post(f"/layout-templates/{_tid}/render",
+              {"template_id": _tid, "slot_values": {"a": _slot_max}, "max_usd": 0.5})
+_det = str(_j.get("detail", _j))
+check("layout_le_plus_bas_gagne", _s == 402 and "plafond 0,50 $" in _det, f"{_s} {_det}")
+
+# (e) coût des jobs : durée GÉNÉRÉE pour un job avec modèle, legacy inchangé
+_p = P.load()
+
+
+def _jc(**kw):
+    job = SimpleNamespace(provider="seedance", cost_meta=None, **kw)
+    try:
+        return R._job_to_cost(job, _p)["total_usd"]
+    except Exception as e:  # noqa: BLE001
+        return temoin(e)
+
+
+_v = _jc(duration_s=20, video_model="seedance-2.5")
+_attendu = round(P.DEFAULTS["flux_image_usd"] + 10 * 0.473, 4)
+check("job_25_20s_facture_10s_generees", _v == _attendu, f"{_v} vs {_attendu}")
+_v = _jc(duration_s=20, video_model=None)
+_attendu = round(P.DEFAULTS["flux_image_usd"] + 20 * P.DEFAULTS["seedance_usd_per_s"], 4)
+check("job_legacy_20s_inchange", _v == _attendu, f"{_v} vs {_attendu}")
+_v = _jc(duration_s=60, video_model=None)
+_attendu = round(P.DEFAULTS["flux_image_usd"] + 60 * P.DEFAULTS["seedance_usd_per_s"], 4)
+check("job_legacy_60s_inchange_pas_de_plafond", _v == _attendu, f"{_v} vs {_attendu}")
+_v = _jc(duration_s=5, video_model="veo-3.1-fast-fal")
+_attendu = round(P.DEFAULTS["flux_image_usd"] + 6 * 0.1, 4)   # 5 s -> 6 s natives
+check("job_veo_5s_facture_6s_natives", _v == _attendu, f"{_v} vs {_attendu}")
+_v = _jc(duration_s=5, video_model="modele-retire")
+check("job_modele_retire_ne_plante_pas", isinstance(_v, float), repr(_v))
+
+# (f) -0.0 s'affiche « 0,00 »
+_m0, _m1 = P._usd_fr(-0.0), P._usd_fr(-0.001)
+check("usd_fr_moins_zero", _m0 == "0,00" and _m1 == "0,00", f"{_m0!r} {_m1!r}")
+_t = P._usd_fr(4.73)
+check("temoin_usd_fr", _t == "4,73", repr(_t))
 
 # ── garde réseau et plantages ───────────────────────────────────────────────
 check("aucun_appel_reseau_fal", RESEAU["n"] == 0, repr(RESEAU["noms"]))
