@@ -3584,9 +3584,31 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
         if not audio_only:
             seg_idx.append(idx)
             idx += 1
+    # Retours 26/09 (A) : coupe franche plan → plan. Le xfade `cut` est un
+    # fondu de 0,04 s qui CHEVAUCHE les deux plans : sans compensation chaque
+    # coupe avançait le plan entrant de 0,04 s (cumulatif — MESURÉ 26/09 :
+    # 3 plans à 25 i/s rendaient 31 images sur 90). Le plan ENTRANT reçoit
+    # une amorce clonée de 0,04 s (sa 1re image), posée APRÈS ses effets et
+    # son masque (plus bas), et seg_durs[k] += 0,04 : l'offset du xfade
+    # tombe sur son `start`, `total` égale la timeline (rendu ET /measure).
+    # Trous et vraies transitions : inchangés (écarts datés 27/09 : un vrai
+    # fondu avance encore les plans suivants de tau ; un trou suivi d'un plan
+    # en coupe avale la première image du plan).
+    lead = {}
+    for k in range(1, len(segs)):
+        if segs[k].get("gap") or segs[k - 1].get("gap"):
+            continue
+        if _XFADE.get(str(segs[k].get("transition") or "cut").split()[0].lower(),
+                      _XFADE["cut"]) == _XFADE["cut"]:
+            lead[k] = _XFADE["cut"][1]
     if not audio_only:
+        # Retours 26/09 (A) : `fps={fps}:start_time=0` — sans start_time, fps
+        # part de la 1re image dont le pts dépasse 0 (résidu du -ss d'entrée) :
+        # trim gardait 29 images sur 30 et setpts=PTS-STARTPTS reculait tout
+        # d'une image (une image d'avance sur le lecteur, MESURÉ 9.0.1 = 8.1.1).
+        # Même pose dans les variantes vitesse et recadrage/zoom ci-dessous.
         sf = (f"scale={w}:{h}:force_original_aspect_ratio=increase,"
-              f"crop={w}:{h},setsar=1,fps={fps},format=yuv420p")
+              f"crop={w}:{h},setsar=1,fps={fps}:start_time=0,format=yuv420p")
         from app.services import effects_engine as _fx
         from app.services.subtitle_service import _ff_escape_path   # D-16
         for k, s in enumerate(segs):
@@ -3619,11 +3641,11 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
                 pre = (f"scale={w}:{h}:force_original_aspect_ratio=increase,"
                        f"{crp},setsar=1,"
                        f"setpts=PTS/{sfx_service.fnum(spd)}{rtp if rt == 'flow' else ''},"
-                       f"fps={fps}{rtp if rt == 'blend' else ''}{dzp},format=yuv420p")
+                       f"fps={fps}:start_time=0{rtp if rt == 'blend' else ''}{dzp},format=yuv420p")
             else:
                 pre = sf if not dzp and crp == f"crop={w}:{h}" else (
                     f"scale={w}:{h}:force_original_aspect_ratio=increase,"
-                    f"{crp},setsar=1,fps={fps}{dzp},format=yuv420p")
+                    f"{crp},setsar=1,fps={fps}:start_time=0{dzp},format=yuv420p")
             # D-16 : stabilisation — vidstabtransform sur la source entière
             # PUIS trim=start=src_in:duration=d_src (ce que -ss/-t faisaient),
             # AVANT le recadrage : les bords découverts (crop=keep|black,
@@ -3671,6 +3693,17 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
             else:
                 parts.append(f"[{seg_idx[k]}:v]{chain}[n{k}]")
 
+    # Retours 26/09 (A) : amorce des coupes franches (voir `lead` plus haut) —
+    # la dernière pose qui sort [n{k}] (chaîne nue, effets ou overlay du
+    # masque) est renommée [n{k}l], puis tpad clone 0,04 s → [n{k}].
+    for k, ld in lead.items():
+        if not audio_only:
+            for i in range(len(parts) - 1, -1, -1):
+                if parts[i].endswith(f"[n{k}]"):
+                    parts[i] = parts[i][:-len(f"[n{k}]")] + f"[n{k}l]"
+                    break
+            parts.append(f"[n{k}l]tpad=start_mode=clone:start_duration={ld}[n{k}]")
+        seg_durs[k] = round(seg_durs[k] + ld, 3)
     starts = [0.0] * len(segs)
     if len(segs) == 1:
         cur, total = "n0", seg_durs[0]

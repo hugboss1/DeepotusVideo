@@ -227,13 +227,13 @@ check("d13_ease_doux_est_la_smoothstep_u_u_3_2u",
       isinstance(fd, str) and "*(3-2*" in fd and fd != f, fd)
 _c0 = BUILD()
 check("d13_sans_dz_la_commande_est_octet_pour_octet_l_historique",
-      BUILD(dz=None) == _c0 and "fps=25,format=yuv420p" in _c0 and "zoompan" not in _c0, _c0[:200])
+      BUILD(dz=None) == _c0 and "fps=25:start_time=0,format=yuv420p" in _c0 and "zoompan" not in _c0, _c0[:200])
 _cz = BUILD(dz={"x0": 0.0, "y0": 0.0, "w0": 1.0, "x1": 0.2, "y1": 0.2, "w1": 0.6, "ease": "doux"})
 check("d13_avec_dz_le_zoompan_est_pose_apres_fps_et_avant_format",
-      "zoompan" in _cz and _cz.find("fps=25,zoompan=") > 0 and _cz.find(":fps=25,format=yuv420p,tpad=") > 0, _cz[:400])
+      "zoompan" in _cz and _cz.find("fps=25:start_time=0,zoompan=") > 0 and _cz.find(":fps=25,format=yuv420p,tpad=") > 0, _cz[:400])
 _czs = BUILD(dz={"x0": 0.0, "y0": 0.0, "w0": 1.0, "x1": 0.2, "y1": 0.2, "w1": 0.6, "ease": "doux"}, speed=2.0)
 check("d13_avec_vitesse_le_zoompan_reste_apres_le_fps_qui_suit_setpts",
-      "setpts=PTS/2" in _czs and _czs.find("setpts=PTS/2,fps=25,zoompan=") > 0, _czs[:400])
+      "setpts=PTS/2" in _czs and _czs.find("setpts=PTS/2,fps=25:start_time=0,zoompan=") > 0, _czs[:400])
 def _apres(s, motif, fin):
     """Nombre lu apres `motif` jusqu'a `fin`, ou None — lecture GARDEE (faute
     n6 : aucun split()[1] nu). MESURE le 22/09 : seg_durs est ecrit par str()
@@ -397,7 +397,7 @@ check("d15_blend_et_flow_sont_les_deux_valeurs",
       (_v1_retime({"retime": "blend"}), _v1_retime({"retime": "flow"})))
 _c0 = BUILD(); _cs = BUILD(speed=2.0)
 check("d15_sans_retime_les_commandes_sont_l_historique",
-      "setpts=PTS/2,fps=25," in _cs and BUILD(retime=None) == _c0 and BUILD(retime=None, speed=2.0) == _cs
+      "setpts=PTS/2,fps=25:start_time=0," in _cs and BUILD(retime=None) == _c0 and BUILD(retime=None, speed=2.0) == _cs
       and "tblend" not in _cs and "minterpolate" not in _cs, _cs[:400])
 _cb = BUILD(speed=2.0, retime="blend")
 # Revue 22/09 : tblend AVANT fps= a x0.5 rendrait (A+B)/2,(A+B)/2,(B+C)/2…
@@ -405,23 +405,23 @@ _cb = BUILD(speed=2.0, retime="blend")
 # tblend consomme la premiere image (49/50 mesure, pts des 0,04) : le
 # setpts=PTS-STARTPTS qui le suit rebase a 0, le tpad aval clone la fin.
 check("d15_blend_pose_tblend_average_apres_fps_avant_format",
-      "setpts=PTS/2,fps=25,tblend=all_mode=average,setpts=PTS-STARTPTS,format=yuv420p," in _cb, _cb[:400])
+      "setpts=PTS/2,fps=25:start_time=0,tblend=all_mode=average,setpts=PTS-STARTPTS,format=yuv420p," in _cb, _cb[:400])
 _cf = BUILD(speed=0.5, retime="flow")
 # scd au defaut ffmpeg (fdiff) : `scd=none` interpolerait a travers une coupe.
 check("d15_flow_pose_minterpolate_mci_a_la_cadence_du_canvas_entre_setpts_et_fps",
-      "setpts=PTS/0.5,minterpolate=fps=25:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1,fps=25," in _cf
+      "setpts=PTS/0.5,minterpolate=fps=25:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1,fps=25:start_time=0," in _cf
       and "scd=" not in _cf, _cf[:400])
 check("d15_sans_vitesse_retime_ne_change_rien",
-      "fps=25,format=yuv420p" in _c0 and BUILD(retime="flow") == _c0 and BUILD(retime="blend") == _c0, _c0[:200])
+      "fps=25:start_time=0,format=yuv420p" in _c0 and BUILD(retime="flow") == _c0 and BUILD(retime="blend") == _c0, _c0[:200])
 check("d15_un_retime_inconnu_avec_vitesse_reste_l_historique",
-      "setpts=PTS/2,fps=25," in _cs and BUILD(speed=2.0, retime="zzz") == _cs
+      "setpts=PTS/2,fps=25:start_time=0," in _cs and BUILD(speed=2.0, retime="zzz") == _cs
       and BUILD(speed=2.0, retime="nearest") == _cs)
 _cfz = BUILD(speed=0.5, retime="flow", dz={"x0": 0.0, "y0": 0.0, "w0": 1.0, "x1": 0.2, "y1": 0.2, "w1": 0.6, "ease": "lin"})
 check("d15_avec_dz_l_ordre_est_setpts_minterpolate_fps_zoompan_format",
-      _cfz.find("setpts=PTS/0.5,minterpolate=") > 0 and _cfz.find(":vsbmc=1,fps=25,zoompan=") > 0
+      _cfz.find("setpts=PTS/0.5,minterpolate=") > 0 and _cfz.find(":vsbmc=1,fps=25:start_time=0,zoompan=") > 0
       and _cfz.find(":fps=25,format=yuv420p,tpad=") > 0, _cfz[:500])
 _cbz = BUILD(speed=0.5, retime="blend", dz={"x0": 0.0, "y0": 0.0, "w0": 1.0, "x1": 0.2, "y1": 0.2, "w1": 0.6, "ease": "lin"})
-_pf, _pb, _pz = (_cbz.find("setpts=PTS/0.5,fps=25,"), _cbz.find(",tblend=all_mode=average,setpts=PTS-STARTPTS,zoompan="),
+_pf, _pb, _pz = (_cbz.find("setpts=PTS/0.5,fps=25:start_time=0,"), _cbz.find(",tblend=all_mode=average,setpts=PTS-STARTPTS,zoompan="),
                  _cbz.find(":fps=25,format=yuv420p,tpad="))
 check("d15_avec_dz_l_ordre_est_setpts_fps_tblend_zoompan_format",
       0 < _pf < _pb < _pz and "minterpolate" not in _cbz, (_pf, _pb, _pz, _cbz[:500]))
@@ -491,7 +491,7 @@ check("d16_stab_path_est_dans_montage_cache_et_ne_fabrique_rien",
       and not _spp.exists(), _spp)
 _c0 = BUILD()
 check("d16_sans_stab_la_commande_est_l_historique",
-      "fps=25,format=yuv420p" in _c0 and BUILD(stab=None) == _c0 and "vidstab" not in _c0, _c0[:200])
+      "fps=25:start_time=0,format=yuv420p" in _c0 and BUILD(stab=None) == _c0 and "vidstab" not in _c0, _c0[:200])
 _trf = os.path.join(TMP, "a b.trf"); open(_trf, "wb").write(b"TRF1")
 _cs = BUILD(stab={"smooth": 20, "crop": "black", "zoom": 5, "trf": _trf}, src_in=1.5)
 _ch = BUILD(src_in=1.5)     # temoin : SANS stab, src_in=1.5 passe bien par -ss/-t

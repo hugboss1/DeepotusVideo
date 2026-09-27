@@ -605,16 +605,18 @@ _FX = [{"type": "grade_basic", "exposure": -30, "saturation": 40}, {"type": "inv
 _MKR = {"shape": "rect", "x": 0.1, "y": 0.1, "w": 0.8, "h": 0.5, "soft": 0}
 
 
-def RENDU(src, rf, dz, fx, mk, nom):
-    """Rendu Preview REEL (commande de `_build_montage_command`) -> chemin ou None."""
+def RENDU(src, rf, dz, fx, mk, nom, mod=None):
+    """Rendu Preview REEL (commande de `_build_montage_command`) -> chemin ou None.
+    `mod` : un autre module du service (temoin de l'horloge e0ab545), sinon MS."""
+    mod = mod or MS
     brut = {"reframe": rf, "dz": dz, "srcIn": 0.5, "start": 0.0, "end": 3.0, "label": "rg"}
     v1 = {"path": src, "src_dur": 4.0, "src_in": 0.5, "start": 0.0, "end": 3.0, "transition": "cut",
           "transition_s": 0.0, "speed": 0.0, "effects": fx, "mask": mk,
           "reframe": MS._reframe_of(brut), "dz": MS._dz_spec(brut)}
     out = FXD / nom
     try:
-        cmd, _ = MS._build_montage_command([v1], [], [], None, w=270, h=480, fps=30, mix_db={}, ducking=False,
-                                           duration_master=False, preview=True, out=str(out))
+        cmd, _ = mod._build_montage_command([v1], [], [], None, w=270, h=480, fps=30, mix_db={}, ducking=False,
+                                            duration_master=False, preview=True, out=str(out))
         cmd = [FF if x == "ffmpeg" else x for x in cmd]
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
         if r.returncode == 0 and out.is_file():
@@ -672,36 +674,78 @@ check("r5_temoin_bornes_ignorees_loin_du_rendu_hors_intervalle_20",
 
 # L'AVANCE du rendu, mesuree : recadrage RAPIDE (170 px/s), l'image cadre au
 # temps de source t + k/150 la plus proche de l'image du rendu a t_local.
+# Retours 26/09 (A, plan 2026-09-27 T1) : l'horloge du rendu est corrigee
+# (`fps=F:start_time=0`), le rendu n'a plus d'avance — |k| <= 1 (1/150 s).
+# TEMOIN : la chaine de e0ab545 (git show, module temporaire) rendait
+# k >= 5 (mesure 26/09 : 6 et 6 au recadrage, 5 et 5 au zoom).
+MSH = None
+try:
+    _srch = subprocess.run(["git", "show", "e0ab545:backend/app/services/montage_service.py"],
+                           cwd=str(pathlib.Path(__file__).resolve().parents[2]), capture_output=True,
+                           timeout=60).stdout
+    if _srch:
+        _ph = pathlib.Path(TMP) / "ms_horloge_e0ab545.py"
+        _ph.write_bytes(_srch)
+        _sph = importlib.util.spec_from_file_location("ms_horloge_e0ab545", str(_ph))
+        MSH = importlib.util.module_from_spec(_sph)
+        _sph.loader.exec_module(MSH)
+except Exception as _e:                                  # noqa: BLE001
+    print("  (temoin e0ab545 injoignable : %r)" % _e)
+    MSH = None
+check("r5_temoin_horloge_e0ab545_charge", MSH is not None and hasattr(MSH, "_build_montage_command")
+      and MSH is not MS, str(MSH))
+
+
+def AVANCE_RF(rendu, rfv):
+    av = {}
+    for _tl in (0.5, 1.5):
+        _ir = IMAGE_RENDU(rendu, _tl) if rendu else None
+        _sc = []
+        for _k in range(-3, 13):
+            _g = GF(FIXE, round(0.5 + _tl + _k / 150, 4), w=270,
+                    cadre={"ratio": "9:16", "t_local": _tl, "reframe": rfv})
+            _sc.append((ECART(_ir, _g[1]) if _g[0] == 200 else 999, _k))
+        av[_tl] = min(_sc)
+    return av
+
+
+def AVANCE_DZ(rendu, dzv):
+    az = {}
+    for _tl in (0.5, 1.5):
+        _ir = IMAGE_RENDU(rendu, _tl) if rendu else None
+        _sc = []
+        for _k in range(-3, 13):
+            _g = GF(FIXE, round(0.5 + _tl, 3), w=270,
+                    cadre={"ratio": "9:16", "t_local": round(_tl + _k / 150, 4), "dur": 3.0, "dz": dzv})
+            _sc.append((ECART(_ir, _g[1]) if _g[0] == 200 else 999, _k))
+        az[_tl] = min(_sc)
+    return az
+
+
 _RFV = {"mode": "suivi", "points": [{"t": 0.5, "x": 0.2}, {"t": 3.5, "x": 0.8}]}
 RENDV = RENDU(FIXE, _RFV, None, None, None, "rendu_rapide.mp4") if FIXE else None
-_av = {}
-for _tl in (0.5, 1.5):
-    _ir = IMAGE_RENDU(RENDV, _tl) if RENDV else None
-    _sc = []
-    for _k in range(-3, 13):
-        _g = GF(FIXE, round(0.5 + _tl + _k / 150, 4), w=270,
-                cadre={"ratio": "9:16", "t_local": _tl, "reframe": _RFV})
-        _sc.append((ECART(_ir, _g[1]) if _g[0] == 200 else 999, _k))
-    _av[_tl] = min(_sc)
+_av = AVANCE_RF(RENDV, _RFV)
 print("  avance du rendu, recadrage suivi (ecart, k/150 s) :", _av)
-check("r5_recadrage_suivi_egal_au_rendu_a_son_avance_pres_une_image_source_au_plus",
-      RENDV is not None and all(0 <= v[1] <= 7 and v[0] <= 3 for v in _av.values()), str(_av))
+check("r5_recadrage_suivi_egal_au_rendu_sans_avance_k_au_plus_1_sur_150",
+      RENDV is not None and all(abs(v[1]) <= 1 and v[0] <= 3 for v in _av.values()), str(_av))
+RENDVH = RENDU(FIXE, _RFV, None, None, None, "rendu_rapide_e0ab545.mp4", mod=MSH) if (FIXE and MSH) else None
+_avh = AVANCE_RF(RENDVH, _RFV) if RENDVH else {}
+print("  temoin e0ab545, recadrage suivi (ecart, k/150 s) :", _avh)
+check("r5_temoin_e0ab545_recadrage_suivi_avait_k_au_moins_5",
+      RENDVH is not None and len(_avh) == 2 and all(v[1] >= 5 and v[0] <= 3 for v in _avh.values()), str(_avh))
 # Zoom ANIME (D-13) : meme mesure sur `t_local` (le zoompan du rendu lit `it`
-# AVANT le setpts final, il avance donc comme le reste du segment).
+# AVANT le setpts final, il avancait donc comme le reste du segment).
 _DZV = {"x0": 0, "y0": 0, "w0": 1, "x1": 0.2, "y1": 0.3, "w1": 0.6, "ease": "doux"}
 RENDZ = RENDU(FIXE, None, _DZV, None, None, "rendu_zoom.mp4") if FIXE else None
-_az = {}
-for _tl in (0.5, 1.5):
-    _ir = IMAGE_RENDU(RENDZ, _tl) if RENDZ else None
-    _sc = []
-    for _k in range(-3, 13):
-        _g = GF(FIXE, round(0.5 + _tl, 3), w=270,
-                cadre={"ratio": "9:16", "t_local": round(_tl + _k / 150, 4), "dur": 3.0, "dz": _DZV})
-        _sc.append((ECART(_ir, _g[1]) if _g[0] == 200 else 999, _k))
-    _az[_tl] = min(_sc)
+_az = AVANCE_DZ(RENDZ, _DZV)
 print("  avance du rendu, zoom anime (ecart, k/150 s) :", _az)
-check("r5_zoom_anime_egal_au_rendu_a_son_avance_pres_une_image_au_plus",
-      RENDZ is not None and all(0 <= v[1] <= 7 and v[0] <= 3 for v in _az.values()), str(_az))
+check("r5_zoom_anime_egal_au_rendu_sans_avance_k_au_plus_1_sur_150",
+      RENDZ is not None and all(abs(v[1]) <= 1 and v[0] <= 3 for v in _az.values()), str(_az))
+RENDZH = RENDU(FIXE, None, _DZV, None, None, "rendu_zoom_e0ab545.mp4", mod=MSH) if (FIXE and MSH) else None
+_azh = AVANCE_DZ(RENDZH, _DZV) if RENDZH else {}
+print("  temoin e0ab545, zoom anime (ecart, k/150 s) :", _azh)
+check("r5_temoin_e0ab545_zoom_anime_avait_k_au_moins_5",
+      RENDZH is not None and len(_azh) == 2 and all(v[1] >= 5 and v[0] <= 3 for v in _azh.values()), str(_azh))
 # Information : la meme comparaison sur testsrc2 qui BOUGE (non bornee).
 _RT = RENDU(TS, None, None, _FX, _MKR, "rendu_ts.mp4") if TS else None
 _imv = GF(TS, 2.0, effects=_FX, mask=_MKR, w=270, cadre={"ratio": "9:16", "t_local": 1.5, "dur": 3.0})
