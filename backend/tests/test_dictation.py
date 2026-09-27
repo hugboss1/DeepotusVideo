@@ -240,10 +240,31 @@ check("dictation max_usd juste sous l'estimation : 402 avec detail",
       r.status_code == 402 and bool(J(r).get("detail")), f"{r.status_code} {r.text[:200]}")
 check("402 : espion jamais appele", APPELS == [], f"appels={len(APPELS)}")
 
-CLES("", "")
-r = DIC(B_WEBM, 1)
-check("dictation sans cle : 503 avec detail",
-      r.status_code == 503 and bool(J(r).get("detail")), f"{r.status_code} {r.text[:200]}")
+from app.services import dictation_service as DS         # noqa: E402
+# Espion sur le lancement de ffmpeg : la garde de clé doit refuser AVANT
+# tout transcodage (sinon `_travail` rend aussi 503, mais après un ffmpeg
+# inutile — mutation `if False` indiscernable sans cet espion).
+FFMPEG_LANCES = []
+_bin_vrai = TS._bin
+def _bin_espion(name):
+    FFMPEG_LANCES.append(name)
+    return _bin_vrai(name)
+TS._bin = _bin_espion
+try:
+    EST(B_OGG, "prise.ogg")
+    vu_temoin = list(FFMPEG_LANCES)
+    FFMPEG_LANCES.clear()
+    CLES("", "")
+    r = DIC(B_WEBM, 1)
+finally:
+    TS._bin = _bin_vrai
+check("temoin : l'espion de ffmpeg voit le transcodage d'une estimation",
+      vu_temoin == ["ffmpeg"], f"vu={vu_temoin}")
+check("dictation sans cle : 503 avec le detail SANS_CLE",
+      r.status_code == 503 and J(r).get("detail") == DS.SANS_CLE,
+      f"{r.status_code} {r.text[:200]}")
+check("dictation sans cle : refus AVANT tout transcodage (ffmpeg jamais lance)",
+      FFMPEG_LANCES == [], f"lances={FFMPEG_LANCES}")
 CLES("test-el", "")
 r = DIC(b"", 1)
 check("dictation prise vide : 415", r.status_code == 415, f"{r.status_code} {r.text[:200]}")
@@ -309,7 +330,6 @@ check("echec du fournisseur : 502 avec detail",
 check("echec du fournisseur : temporaire supprime", RESTES() == [], f"restes={RESTES()}")
 
 print("\n== Revue T7 : plafond invalide, duree maximale, ffmpeg absent ==")
-from app.services import dictation_service as DS         # noqa: E402
 n0 = len(APPELS)
 for v in ("nan", "NaN", "inf", "-1"):
     r = DIC(B_WEBM, v)
@@ -331,6 +351,8 @@ try:
     r3 = EST(B_OGG, "prise.ogg")        # 3 s > 2 s : aussi refusee
 finally:
     DS.DICTATION_MAX_S = _max
+check("duree maximale (posee a 2 s) : prise ogg de 3 s -> 413 sur estimate",
+      r3.status_code == 413 and bool(J(r3).get("detail")), f"{r3.status_code} {r3.text[:200]}")
 check("duree maximale (posee a 2 s) : prise de 6 s -> 413 sur estimate",
       r1.status_code == 413 and bool(J(r1).get("detail")), f"{r1.status_code} {r1.text[:200]}")
 check("duree maximale (posee a 2 s) : prise de 6 s -> 413 sur dictation",
