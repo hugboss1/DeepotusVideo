@@ -1199,7 +1199,8 @@ R_M16REF = (A_M16REF + "\n"
             # (motif durRef). dzApi = la reponse de GET /api/montage/deliver-presets
             # ({builtins, fps, presets}), relue a CHAQUE ouverture du popover de rendu
             # (effet [pop], vivant par drapeau local + dzAliveRef resolue a l'appel).
-            # dzSavePreset : le nom par window.prompt -- ECART DATE 23/09/2026 : le
+            # dzSavePreset : le nom par le dialogue maison window.__dzDialogue.saisir (27/09/2026 ; jusque-la par
+            # window.prompt natif, refuse par le navigateur integre) -- ECART DATE 23/09/2026 : le
             # Montage n'a AUCUN dialogue maison (DzTracks.dialogue / dzmDialogue /
             # svmDialog x0 ; VL.dialogue est celui du Vectorlab) ; slug [a-z0-9_] <= 32 ;
             # base = la base REELLE (un preset maison choisi donne SA base, aucun
@@ -1226,7 +1227,7 @@ R_M16REF = (A_M16REF + "\n"
             '    fetch("/api/montage/deliver-presets").then(function(r2){return r2.json()}).then(function(j){if(alive&&dzAliveRef.current&&j&&typeof j==="object")setDzApi(j)}).catch(function(){});\n'
             '    return function(){alive=!1}},[pop]);\n'
             '  function dzDelSet(p){setDzDel(function(d){var n=Object.assign({},d,p);try{localStorage.setItem("dz_montage_deliver",JSON.stringify(Object.assign({},n,{rangeOnly:void 0})))}catch(_e){}return n})}\n'
-            '  function dzSavePreset(){var lbl=window.prompt("Nom du preset maison (preset + cadence actuels)");if(!lbl)return;\n'
+            '  async function dzSavePreset(){var lbl=await window.__dzDialogue.saisir("Nom du preset maison (preset + cadence actuels) :",{titre:"Preset maison",ok:"Enregistrer"});if(!lbl)return;\n'
             '    var id=String(lbl).toLowerCase().replace(/[^a-z0-9_]+/g,"_").replace(/^_+|_+$/g,"").slice(0,32)||"maison";\n'
             '    var tous=dzApi&&Array.isArray(dzApi.presets)?dzApi.presets:[],bi=dzApi&&Array.isArray(dzApi.builtins)?dzApi.builtins:[];\n'
             '    var base=dzDel.preset||(bi[0]&&bi[0].id)||null,m=tous.filter(function(p){return p&&p.id===base})[0];if(m)base=m.base;\n'
@@ -5150,7 +5151,7 @@ R_EC1 = (A_EC1 + "\n"
          '          return [{lbl:bid===id?"Gravée au rendu":"Graver cette piste au rendu",combo:bid===id?"gravée":"",off:bid===id,run:function(){svmTracksSet(DzTracks.subsBurn(ts,id));\n'
          '              fireNote("Piste "+(t.name||id)+" gravée au rendu — les autres pistes de sous-titres restent à l\'écran seulement.")}},\n'
          '            {lbl:"Exporter .srt",off:!n,run:function(){dzSubsExp("srt")}},{lbl:"Exporter .vtt",off:!n,run:function(){dzSubsExp("vtt")}},{lbl:"Exporter .txt",off:!n,run:function(){dzSubsExp("txt")}},\n'
-         '            {lbl:"Nouvelle piste de langue…",run:function(){var lg=window.prompt("Langue de la nouvelle piste de sous-titres (en, de, es…)","en");if(lg==null)return;\n'
+         '            {lbl:"Nouvelle piste de langue…",run:async function(){var lg=await window.__dzDialogue.saisir("Langue de la nouvelle piste de sous-titres (en, de, es…) :",{titre:"Nouvelle piste de langue",valeur:"en",ok:"Créer"});if(lg==null)return;\n'
          '              var r2=DzTracks.subsNew(ts,lg);svmTracksSet(r2.tracks);\n'
          '              fireNote("Piste "+r2.id.toUpperCase()+(String(lg).trim()?" ("+String(lg).trim()+")":"")+" ajoutée, vide — « Traduire vers » dans le tiroir Sous-titres, case « nouvelle piste », la remplit.")}},{sep:!0}]})():[])\n'
          '        .concat([\n'
@@ -5764,7 +5765,7 @@ assert R_L7F5.startswith(A_L7F5[:A_L7F5.rfind("\n")]) and R_L7F5.count("subsSegs
 assert R_L7F6.count('trackKind(tr.id)==="subs"&&c.hidden') == 1 and R_L7F6.count('tr.id==="s1"') == 0
 assert R_L7F1.count("DzTracks.subsBurnId(svmTracksOf(proj))") == 1 and R_L7F1.count("subsSegsOf(") == 0 and R_L7F1.count("subsSegsOf") == 1 and R_L7F1.count("c.tr===bid") == 1 and A_L7F1 not in R_L7F1
 assert R_L7F2.count('"data-burn":') == 1 and R_L7F2.count('trackKind(tr.id)==="subs"') == 2 and R_L7F2.count('tr.id==="s1"') == 0 and R_L7F2.count("DzTracks.subsBurnId(") == 1
-assert R_EC1.count("DzTracks.subsBurnId(ts)") == 1 and R_EC1.count("DzTracks.subsBurn(ts,id)") == 1 and R_EC1.count("DzTracks.subsNew(ts,lg)") == 1 and R_EC1.count("window.prompt(") == 1
+assert R_EC1.count("DzTracks.subsBurnId(ts)") == 1 and R_EC1.count("DzTracks.subsBurn(ts,id)") == 1 and R_EC1.count("DzTracks.subsNew(ts,lg)") == 1 and R_EC1.count("window.prompt(") == 0 and R_EC1.count("await window.__dzDialogue.saisir(") == 1
 assert R_EC1.count('lbl:"Exporter .srt"') == 1 and R_EC1.count('lbl:"Exporter .vtt"') == 1 and R_EC1.count('lbl:"Exporter .txt"') == 1 and R_EC1.count('"Nouvelle piste de langue…"') == 1
 assert R_EC1.count('combo:bid===id?"gravée":""') == 1 and R_EC1.count("subsToSrt(") == 1 and R_EC1.count("subsToVtt(") == 1 and R_EC1.count("subsToTxt(") == 1 and R_EC1.count("subsDownload(") == 2
 # L7-B D-37 (24/09/2026) : subsDownload x2 dans R_EC1 -- D-22 (la piste) + dzExportTl (repli L7Ba) ;
@@ -5826,7 +5827,7 @@ assert R_R2.find('if(id==="trans_add"){') < R_R2.find('if(id==="copy"){') < R_R2
 assert R_R2.find("ovSeq.current=dzPq;pushHistory();setClips(dzPr.clips);setSelId(dzPr.id);setDirty(!0);") > 0
 assert R_L4C2.count("DzTracks.deliverPayload(") == 1 and R_L4B.count("DzTracks.DeliverRow") == 1 and R_L4B.count("DzTracks.rangeFrom(") == 1
 assert R_L4D3.count("o.d.queued") == 1 and R_L4D1.startswith("    if(!queue)setJob(") and R_L4C2.count("queue:queue===!0") == 1
-assert R_M16REF.count("dz_montage_deliver") == 2 and R_M16REF.count("/api/montage/deliver-presets") == 2 and R_M16REF.count("window.prompt(") == 1
+assert R_M16REF.count("dz_montage_deliver") == 2 and R_M16REF.count("/api/montage/deliver-presets") == 2 and R_M16REF.count("window.prompt(") == 0 and R_M16REF.count("await window.__dzDialogue.saisir(") == 1
 assert R_M16REF.count("rangeOnly:void 0") == 1 and R_M16REF.count("delete v.rangeOnly;") == 1
 
 EC15 = [("EC15a-title-fermer-popover-de-rendu", A_EC15A, R_EC15A),
@@ -6342,6 +6343,39 @@ R_R8HG1 = ('e.type==="HeyGenAvatar"?r.jsxs(r.Fragment,{children:[r.jsx(DzAvatarP
 A_R8SV1 = 'var nm=window.prompt("Name this graph:",(o.name||"My graph"));'
 R_R8SV1 = ('var nm=await window.__dzDialogue.saisir("Nom du graphe :",{titre:"Enregistrer le graphe",'
            'valeur:(o.name||"My graph"),ok:"Enregistrer"});')
+# R8pr1..R8pr7 (27/09, suite) -- les HUIT autres `window.prompt(` natifs poses par des maillons AMONT (anim, libpicker,
+#   print3d, asset3d, libsend, library) : le releve de patch_bundle_dialogue ne voyait que les `prompt(` NUS. Meme
+#   dialogue maison (`window.__dzDialogue.saisir`, null = annule) ; la fonction qui l'appelle devient `async` (aucun
+#   appelant ne lit sa valeur de retour : onClick, addEventListener, items de menu). Les deux « Copie ce chemin
+#   d'illustration » (presse-papiers refuse, et sans presse-papiers) montrent le chemin a copier dans le champ puis
+#   appellent `done` comme avant, par `.then(done)`. Ancres MESUREES 27/09/2026 sur .bak_montage : x1 chacune (les
+#   deux copies de chemin s'ancrent ENSEMBLE, la phrase complete ; chaque appel seul y vaut 2). Les deux derniers
+#   `window.prompt(` (dzSavePreset, piste de langue) sont des textes de CE maillon : replis dans R_M16REF et R_EC1.
+_R8_SAISIR = "await window.__dzDialogue.saisir("
+A_R8PR1 = 'function saveFav(kind){if(!cur)return;var name=window.prompt("Name this "+kind+":");'
+R_R8PR1 = ('async function saveFav(kind){if(!cur)return;var name=' + _R8_SAISIR
+           + '"Nom de ce favori ("+kind+") :",{titre:"Enregistrer un favori",ok:"Enregistrer"});')
+A_R8PR2 = ('addEventListener("click",function(){var lien=window.prompt("Lien du calque Figma (clic droit sur l\'élément → '
+           'Copy link) :","");')
+R_R8PR2 = ('addEventListener("click",async function(){var lien=' + _R8_SAISIR + '"Lien du calque Figma (clic droit sur '
+           'l\'élément → Copy link) :",{titre:"Importer depuis Figma",valeur:"",ok:"Importer"});')
+A_R8PR3 = ('function __dzPrint3d(sh){try{var rep=window.prompt("Taille cible en mm ? (ex. 80 figurine, 250 plateau — la '
+           'Centauri Carbon 2 imprime 256 mm ; vide = taille du fichier)","80");')
+R_R8PR3 = ('async function __dzPrint3d(sh){try{var rep=' + _R8_SAISIR + '"Taille cible en mm ? (ex. 80 figurine, 250 '
+           'plateau — la Centauri Carbon 2 imprime 256 mm ; vide = taille du fichier)",{titre:"Impression 3D",valeur:"80",'
+           'ok:"Continuer"});')
+A_R8PR4 = 'r.jsx("button",{onClick:function(){var nn=window.prompt("Renommer ce rendu 3D :",z.title||("3D · "+sh));'
+R_R8PR4 = ('r.jsx("button",{onClick:async function(){var nn=' + _R8_SAISIR + '"Renommer ce rendu 3D :",{titre:"Renommer",'
+           'valeur:z.title||("3D · "+sh),ok:"Renommer"});')
+A_R8PR5 = ('navigator.clipboard.writeText(v).then(done,function(){window.prompt("Copie ce chemin d\'illustration :",v);'
+           'done()})}else{window.prompt("Copie ce chemin d\'illustration :",v);done()}')
+_R8_COPIE = ('window.__dzDialogue.saisir("Copie ce chemin d\'illustration :",{titre:"Copier le chemin",valeur:v,'
+             'ok:"Fermer"}).then(done)')
+R_R8PR5 = 'navigator.clipboard.writeText(v).then(done,function(){' + _R8_COPIE + '})}else{' + _R8_COPIE + '}'
+A_R8PR6 = 'onClick:()=>{var nn=window.prompt("Rename image:",m.name);'
+R_R8PR6 = 'onClick:async()=>{var nn=' + _R8_SAISIR + '"Renommer l\'image :",{titre:"Renommer",valeur:m.name,ok:"Renommer"});'
+A_R8PR7 = 'onClick:()=>{var nn=window.prompt("Rename asset:",m.name);'
+R_R8PR7 = 'onClick:async()=>{var nn=' + _R8_SAISIR + '"Renommer l\'asset :",{titre:"Renommer",valeur:m.name,ok:"Renommer"});'
 R8 = [("R8ic1-icones-dossier-ouvert-et-panneau", A_R8IC1, R_R8IC1),
       ("R8st1-etat-du-repli-et-format-heygen", A_R8ST1, R_R8ST1),
       ("R8in1-classe-de-repli-sur-la-grille", A_R8IN1, R_R8IN1),
@@ -6350,9 +6384,18 @@ R8 = [("R8ic1-icones-dossier-ouvert-et-panneau", A_R8IC1, R_R8IC1),
       ("R8in4-poignee-inspector-du-canevas", A_R8IN4, R_R8IN4),
       ("R8og1-ouvrir-un-graphe-en-icone", A_R8OG1, R_R8OG1),
       ("R8hg1-format-impose-dans-l-inspecteur-heygen", A_R8HG1, R_R8HG1),
-      ("R8sv1-save-demande-le-nom-par-le-dialogue-maison", A_R8SV1, R_R8SV1)]
-assert len(R8) == 9 and all("DzTracks" not in r for _t, _a, r in R8)
-assert [a in r for _t, a, r in R8] == [True, True, False, False, False, True, False, False, False]
+      ("R8sv1-save-demande-le-nom-par-le-dialogue-maison", A_R8SV1, R_R8SV1),
+      ("R8pr1-favori-d-animation-par-le-dialogue", A_R8PR1, R_R8PR1),
+      ("R8pr2-lien-figma-par-le-dialogue", A_R8PR2, R_R8PR2),
+      ("R8pr3-taille-d-impression-3d-par-le-dialogue", A_R8PR3, R_R8PR3),
+      ("R8pr4-renommer-un-rendu-3d-par-le-dialogue", A_R8PR4, R_R8PR4),
+      ("R8pr5-copie-du-chemin-d-illustration-par-le-dialogue", A_R8PR5, R_R8PR5),
+      ("R8pr6-renommer-une-image-par-le-dialogue", A_R8PR6, R_R8PR6),
+      ("R8pr7-renommer-un-asset-par-le-dialogue", A_R8PR7, R_R8PR7)]
+assert len(R8) == 16 and all("DzTracks" not in r for _t, _a, r in R8)
+assert [a in r for _t, a, r in R8] == [True, True, False, False, False, True, False, False, False] + [False] * 7
+assert all("window.prompt(" in a and "window.prompt(" not in r for _t, a, r in R8[9:])
+assert sum(r.count("window.__dzDialogue.saisir(") for _t, _a, r in R8[9:]) == 8
 assert "prompt(" not in R_R8SV1 and R_R8SV1.count("await window.__dzDialogue.saisir(") == 1
 assert 'name:"more"' not in R_R8IN2 and "Open graph" not in R_R8OG1 and R_R8ST1.count("function ") == 5
 
@@ -6608,7 +6651,8 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("EC13-suppr-referme-le-trou", A_EC13, R_EC13),
            ("EC14-clic-sur-un-clip-efface-le-trou", A_EC14, R_EC14)] + EC15 + L4 + L7A + L5 + L6 + R6 + R7 + R8
            # studio 27/09 : + HUIT sections EN QUEUE, groupe R8 apres R7 (format HeyGen impose par le template, « Ouvrir un graphe » en icone,
-           # repli de l'inspecteur) ; 213 -> 221, le --check dit 222 ancres ; + R8sv1 (Save par le dialogue maison) : 222, le --check dit 223.
+           # repli de l'inspecteur) ; 213 -> 221, le --check dit 222 ancres ; + R8sv1 (Save par le dialogue maison) : 222, le --check dit 223 ;
+           # + R8pr1..R8pr7 (les autres window.prompt natifs, 27/09) : 229, le --check dit 230.
            # retours 26/09 (plan du 27/09, tache 4) : + QUATRE sections EN QUEUE, groupe R7 apres R6 (R7up1 l'upload
            # refuse lisible ; R7vm1..R7vm3 Seedance 2.5 par defaut dans le Studio) ; 207 -> 211, le --check dit 212 ancres.
            # cloture T11b (27/09) : + DEUX sections en queue de R7 (R7er1 postJson, R7er2 rendu de layout, les erreurs de

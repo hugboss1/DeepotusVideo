@@ -66,8 +66,11 @@ def main():
           re.search(r"(?<![\w.])(?:confirm|prompt)\(", hors) is None and "window.confirm(" not in hors)
     # 27/09/2026 : + 1, le bouton Save du Studio (section R8sv1 de patch_bundle_montage, maillon AVAL) -- ce releve
     # ne voyait que les `prompt(` NUS ; les `window.prompt(` (dix restants) lui avaient echappe.
-    check("await __dzDialogue.saisir ×3 hors couche (2 de ce maillon + le Save du Studio, R8sv1)",
-          hors.count("await window.__dzDialogue.saisir(") == 3, str(hors.count("await window.__dzDialogue.saisir(")))
+    # + les dix window.prompt( restants (R8pr1..R8pr7 + deux replis du maillon montage) : 11 avec await, et les deux
+    # copies de chemin enchainees par .then(done) (13 appels en tout) ; plus AUCUN window.prompt(.
+    check("await __dzDialogue.saisir ×11 hors couche (2 de ce maillon + 9 du maillon montage), saisir ×13, window.prompt( ×0",
+          hors.count("await window.__dzDialogue.saisir(") == 11 and hors.count("window.__dzDialogue.saisir(") == 13
+          and "window.prompt(" not in hors, str((hors.count("await window.__dzDialogue.saisir("), hors.count("window.prompt("))))
     SRC = RACINE / "frontend" / "shared" / "dialogue.js"
     check("la couche du patcher = frontend/shared/dialogue.js octet pour octet (source unique)",
           SRC.exists() and COUCHE.read_bytes() == SRC.read_bytes())
