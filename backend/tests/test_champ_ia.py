@@ -224,7 +224,8 @@ class Element extends Noeud {
     }
     return { left: r.left, top: r.top, width: r.width, height: r.height, right: r.left + r.width, bottom: r.top + r.height };
   }
-  get offsetWidth() { return ((this._rect || {}).width || 0) + (this._grandit && this.style.paddingRight ? 14 : 0); }
+  get offsetWidth() { return ((this._rect || {}).width || 0) + (this._grandit && this.style.paddingRight ? 14 : 0)
+    + (this._granditBord && this.classList.contains("dzia-bord") ? 2 : 0); }
   get offsetHeight() { return (this._rect || {}).height || 0; }
   get clientHeight() { return this.offsetHeight; }
   get offsetParent() { return this._cache ? null : (this.parentNode || null); }
@@ -245,15 +246,16 @@ document.documentElement = html; document.head = head; document.body = body; doc
 let REDUIT = false;
 const DEFAUT_CS = { backgroundColor: "rgb(20, 22, 28)", borderTopWidth: "1px", boxSizing: "border-box",
   position: "static", paddingTop: "8px", paddingRight: "8px", paddingBottom: "8px", paddingLeft: "8px", display: "block" };
-class MO { constructor(cb) { this.cb = cb; this.file = []; this.cible = null; OBS.push(this); }
-  observe(c) { this.cible = c; } disconnect() { this.cible = null; }
+const RO_LOG = [];
+class MO { constructor(cb) { this.cb = cb; this.file = []; this.cible = null; this.opts = null; OBS.push(this); }
+  observe(c, o) { this.cible = c; this.opts = o || null; } disconnect() { this.cible = null; }
   _vider() { const f = this.file; this.file = []; if (f.length) this.cb(f, this); } }
 const window = {
   document, location: { pathname: "/" },
   getComputedStyle(el) { const o = Object.assign({}, DEFAUT_CS, el._cs || {}); o.getPropertyValue = k => o[k] || ""; return o; },
   matchMedia(q) { return { matches: /reduce/.test(q) ? REDUIT : false, addEventListener() {}, addListener() {} }; },
   MutationObserver: MO,
-  ResizeObserver: class { observe() {} unobserve() {} disconnect() {} },
+  ResizeObserver: class { observe(t) { RO_LOG.push(["o", t]); } unobserve(t) { RO_LOG.push(["u", t]); } disconnect() {} },
   addEventListener() {}, removeEventListener() {},
   setTimeout: (f, ms) => setTimeout(f, ms), clearTimeout: t => clearTimeout(t),
   setInterval: () => 0, clearInterval: () => {},
@@ -388,6 +390,39 @@ function pause(ms) { return new Promise(r => setTimeout(r, ms)); }
   R.revu = bl.style.display;
   body.removeChild(fLib); if (A.synchroniser) A.synchroniser();
   R.nettoye = !bl.isConnected;
+
+  // ---------- revue T8, correctif 1 : détaché puis RATTACHÉ → ré-habillé ----------
+  const fR = el("input", { placeholder: "Describe an image to create… (rattaché)" }, body);
+  const fRm = el("textarea", { "data-dz-ia": "sfx" }, body);                 // manuel : l'attribut survit
+  A.marquer(document.body);
+  R.rattAvant = etat(fR);
+  body.removeChild(fR); body.removeChild(fRm); A.synchroniser();
+  R.detache = { dz: fR.getAttribute("data-dz-ia"), champ: fR.classList.contains("dzia-champ"), lis: fR.classList.contains("dzia-lis"),
+    st: !!fR.__dzia, pr: fR.style.paddingRight, man: fRm.getAttribute("data-dz-ia"), manSt: !!fRm.__dzia };
+  body.appendChild(fR); body.appendChild(fRm); OBS.forEach(o => o._vider()); await pause(120); A.synchroniser();
+  R.rattache = { r: etat(fR), m: etat(fRm), barres: [fR, fRm].map(e => body.querySelectorAll(".dzia-barre").filter(b => b.previousSibling === e).length) };
+
+  // ---------- revue T8, correctif 2 : repeint à chaud (thème, disabled) ----------
+  R.fondAvant = fSons.style.getPropertyValue("--dzia-fond");
+  fSons._cs = { backgroundColor: "rgb(250, 250, 250)" }; A.synchroniser();
+  R.fondApres = fSons.style.getPropertyValue("--dzia-fond");
+  R.moTheme = OBS.some(o => o.cible === document.documentElement && o.opts && o.opts.attributes
+    && (o.opts.attributeFilter || []).includes("data-theme") && (o.opts.attributeFilter || []).includes("class"));
+
+  // ---------- revue T8, correctif 3 : liseré qui ferait grandir le champ → halo seul, paddings rendus ----------
+  const fGb = el("input", { placeholder: "AI prompt (grandit au bord)" }, body); fGb._cs = { borderTopWidth: "0px" }; fGb._granditBord = true;
+  A.marquer(document.body);
+  R.granditBord = { halo: fGb.classList.contains("dzia-halo"), lis: fGb.classList.contains("dzia-lis"), bord: fGb.classList.contains("dzia-bord"),
+    pt: fGb.style.paddingTop, pl: fGb.style.paddingLeft, larg: fGb.offsetWidth, dz: fGb.getAttribute("data-dz-ia") };
+
+  // ---------- revue T8, correctif 4 : le parent n'est plus observé quand plus aucun champ n'y vit ----------
+  const boite = el("div", { class: "boite" }, body);
+  const fB1 = el("input", { placeholder: "AI prompt (b1)" }, boite), fB2 = el("input", { placeholder: "AI prompt (b2)" }, boite);
+  A.marquer(document.body);
+  const obsB = () => RO_LOG.filter(x => x[1] === boite).map(x => x[0]).join("");
+  R.ro = { avant: obsB() };
+  boite.removeChild(fB1); A.synchroniser(); R.ro.un = obsB();
+  boite.removeChild(fB2); A.synchroniser(); R.ro.deux = obsB();
 
   // ---------- pages à part : la même table, bornée par la page ----------
   function page(chemin, fabrique) {
@@ -551,6 +586,31 @@ def main():
     check("champ masqué (offsetParent null) → barre masquée, puis réaffichée",
           R.get("cache") == "none" and R.get("revu") == "", f"{R.get('cache')!r} {R.get('revu')!r}")
     check("champ retiré du DOM → barre retirée", R.get("nettoye") is True, str(R.get("nettoye")))
+
+    # ---------- correctifs de la revue T8 ----------
+    ra, de, rt = R.get("rattAvant") or {}, R.get("detache") or {}, R.get("rattache") or {}
+    check("TÉMOIN : le champ à rattacher était marqué avec sa barre", ra.get("dz") == "image" and ra.get("barre"), str(ra))
+    check("détaché → habillage défait (ni __dzia, ni classes, ni marque de règle, ni réserve de padding)",
+          de.get("dz") is None and not de.get("champ") and not de.get("lis") and not de.get("st") and de.get("pr") in ("", None), str(de))
+    check("détaché : un data-dz-ia MANUEL survit (l'intention reste)", de.get("man") == "sfx" and not de.get("manSt"), str(de))
+    rr, rm = rt.get("r") or {}, rt.get("m") or {}
+    check("rattaché → re-marqué, barre revenue (une seule)",
+          rr.get("dz") == "image" and rr.get("barre") and rr.get("classe") and (rt.get("barres") or [0])[0] == 1, str(rt))
+    check("rattaché : les emplacements de la barre reviennent (badge, modele, micro)",
+          rr.get("badge") == "IA" and [x.split(":")[0] for x in (rr.get("slots") or [])] == ["modele", "micro"], str(rr))
+    check("rattaché : le manuel aussi (genre gardé, barre)", rm.get("dz") == "sfx" and rm.get("barre"), str(rm))
+    check("TÉMOIN : fond peint au marquage", R.get("fondAvant") == "rgb(20, 22, 28)", str(R.get("fondAvant")))
+    check("fond du champ changé à chaud (thème clair) → --dzia-fond repeint à la synchronisation",
+          R.get("fondApres") == "rgb(250, 250, 250)", str(R.get("fondApres")))
+    check("data-theme / class de <html> observés (bascule de thème du Cardforge)", R.get("moTheme") is True, str(R.get("moTheme")))
+    gb = R.get("granditBord") or {}
+    check("liseré qui ferait grandir le champ → halo seul, sans dzia-lis ni dzia-bord, paddings inline rendus, taille intacte",
+          gb.get("halo") and not gb.get("lis") and not gb.get("bord") and gb.get("pt") in ("", None) and gb.get("pl") in ("", None)
+          and gb.get("larg") == 300 and gb.get("dz") == "image", str(gb))
+    ro = R.get("ro") or {}
+    check("TÉMOIN : le parent des champs est observé (ResizeObserver)", "o" in (ro.get("avant") or ""), str(ro))
+    check("un champ retiré sur deux : le parent reste observé (pas d'unobserve)", "u" not in (ro.get("un") or "x"), str(ro))
+    check("dernier champ retiré : unobserve du parent", (ro.get("deux") or "").endswith("u"), str(ro))
 
     # ---------- pages à part ----------
     P = R.get("pages") or {}

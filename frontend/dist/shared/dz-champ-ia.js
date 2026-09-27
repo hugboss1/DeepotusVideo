@@ -237,10 +237,18 @@
   function serre(p, el) {
     return p.offsetHeight - el.offsetHeight <= 16 && p.offsetWidth - el.offsetWidth <= 80;
   }
-  function peindre(cible) {
+  /* Les teintes sous le liseré sont RELUES à chaque synchronisation (revue
+     T8) : le Cardforge bascule clair/sombre à chaud (data-theme de <html>) et
+     un champ peut devenir disabled — une teinte figée au marquage peindrait
+     l'ancien fond. Posées seulement si elles changent. */
+  function teindre(cible) {
     var c = cs(cible), sous = fondOpaque(cible.parentElement);
-    cible.style.setProperty("--dzia-fond", alpha(c.backgroundColor) > 0 ? c.backgroundColor : sous);
-    cible.style.setProperty("--dzia-sous", sous);
+    var fond = alpha(c.backgroundColor) > 0 ? c.backgroundColor : sous;
+    if (cible.style.getPropertyValue("--dzia-fond") !== fond) cible.style.setProperty("--dzia-fond", fond);
+    if (cible.style.getPropertyValue("--dzia-sous") !== sous) cible.style.setProperty("--dzia-sous", sous);
+  }
+  function peindre(cible) {
+    teindre(cible);
     cible.classList.add("dzia-lis");
   }
 
@@ -258,8 +266,9 @@
     if (regle) el.setAttribute("data-dz-ia-regle", regle.id);
     el.classList.add("dzia-champ");
     var st = {
-      genre: genre, regle: regle ? regle.id : null,
+      genre: genre, regle: regle ? regle.id : null, manuel: !regle, parent: p,
       boite: c.boxSizing === "border-box", pad: pads(c), padInline: null,
+      inline0: [el.style.paddingTop, el.style.paddingRight, el.style.paddingBottom, el.style.paddingLeft],
       reserve: null, coin: false, cible: null, barre: null
     };
     var t0 = taille(el), tp0 = taille(p), cible = null;
@@ -299,6 +308,43 @@
     synchroniserUn(el);
   }
 
+  /* Champ DÉTACHÉ (onglet caché, rendu conditionnel) : l'habillage est défait
+     en entier — barre, classes, teintes, paddings, marque de règle, __dzia —
+     pour qu'un rattachement du MÊME nœud soit re-marqué comme neuf (revue T8 :
+     un __dzia resté posé faisait sauter le champ par `marquer`, barre perdue
+     pour toujours). Un data-dz-ia MANUEL reste : c'est une intention. */
+  function defaire(el) {
+    var st = el.__dzia;
+    if (!st) return;
+    var b = st.barre;
+    if (b && b.parentNode) b.parentNode.removeChild(b);
+    var k = suivis.indexOf(el);
+    if (k >= 0) suivis.splice(k, 1);
+    var cibles = [el];
+    if (st.cible && st.cible !== el) cibles.push(st.cible);
+    for (var i = 0; i < cibles.length; i++) {
+      cibles[i].classList.remove("dzia-lis");
+      cibles[i].style.removeProperty("--dzia-fond");
+      cibles[i].style.removeProperty("--dzia-sous");
+    }
+    el.classList.remove("dzia-champ", "dzia-bord", "dzia-halo");
+    el.style.paddingTop = st.inline0[0]; el.style.paddingRight = st.inline0[1];
+    el.style.paddingBottom = st.inline0[2]; el.style.paddingLeft = st.inline0[3];
+    if (!st.manuel) el.removeAttribute("data-dz-ia");
+    el.removeAttribute("data-dz-ia-regle");
+    var p = st.parent, reste = false;
+    for (var j = 0; j < suivis.length; j++) if (suivis[j].__dzia && suivis[j].__dzia.parent === p) { reste = true; break; }
+    if (ro) {
+      try { ro.unobserve(el); } catch (e) {}
+      if (p && !reste) { try { ro.unobserve(p); } catch (e) {} }
+    }
+    if (p && !reste && p.getAttribute && p.getAttribute("data-dzia-pos")) {
+      p.style.position = "";
+      p.removeAttribute("data-dzia-pos");
+    }
+    delete el.__dzia;
+  }
+
   function candidats(racine) {
     var out = [];
     if (!racine) return out;
@@ -330,19 +376,14 @@
   function synchroniserUn(el) {
     var st = el.__dzia, b = st && st.barre;
     if (!b) return;
-    if (!el.isConnected) {
-      if (b.parentNode) b.parentNode.removeChild(b);
-      var k = suivis.indexOf(el);
-      if (k >= 0) suivis.splice(k, 1);
-      if (ro) { try { ro.unobserve(el); } catch (e) {} }
-      return;
-    }
+    if (!el.isConnected) { defaire(el); return; }
     if (!b.isConnected && el.parentNode) el.parentNode.insertBefore(b, el.nextSibling);
     if (el.offsetParent === null && cs(el).position !== "fixed") {
       if (b.style.display !== "none") b.style.display = "none";
       return;
     }
     if (b.style.display === "none") b.style.display = "";
+    if (st.cible) teindre(st.cible);
     var rb = b.getBoundingClientRect(), r = el.getBoundingClientRect();
     var mono = el.tagName === "INPUT" || r.height < 44;
     reserver(el, st, rb, mono);
@@ -420,6 +461,12 @@
         }
         if (aMarquer.length) planifierMarquage();
       }).observe(D.documentElement, { childList: true, subtree: true });
+      /* bascule de thème (data-theme / class de <html>) : repeindre, et une
+         seconde fois après les transitions de fond de l'hôte */
+      new W.MutationObserver(function () {
+        planifierSync();
+        W.setTimeout(synchroniser, 450);
+      }).observe(D.documentElement, { attributes: true, attributeFilter: ["data-theme", "class"] });
     }
     W.addEventListener("resize", planifierSync);
     D.addEventListener("focusin", planifierSync, true);
