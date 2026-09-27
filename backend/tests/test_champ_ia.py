@@ -259,6 +259,7 @@ class Element extends Noeud {
   get clientHeight() { return this.offsetHeight; }
   get offsetParent() { return this._cache ? null : (this.parentNode || null); }
   focus() {} blur() {}
+  setSelectionRange(a, b) { this.selectionStart = a; this.selectionEnd = b; }
 }
 class Texte extends Noeud { constructor(d) { super(3); this.data = d; } }
 class Doc extends Noeud {
@@ -303,8 +304,42 @@ function fetchEspion(url, o) {
   if (url === "/api/cost/estimate" && m === "POST") {
     const b = JSON.parse(o.body); return Promise.resolve(reponse({ breakdown: (b.ops || []).map(x => ({ usd: PRIX[x.model] != null ? PRIX[x.model] : 0.02 })) }));
   }
+  if (DICT[url] && m === "POST") {
+    const [st, j] = DICT[url](o && o.body);
+    return Promise.resolve({ ok: st < 300, status: st, json: () => Promise.resolve(JSON.parse(JSON.stringify(j))) });
+  }
   const f = REP[url]; return Promise.resolve(f ? reponse(f()) : { ok: false, status: 404, json: () => Promise.resolve({}) });
 }
+/* T10 : faux services de la dictée — rien ne part vers un fournisseur */
+const DICT = {};                           // url → (corps) → [statut, json]
+const DLG = [];                            // dialogues demandés
+const SETTER = [];                         // valeurs posées par le setter du PROTOTYPE (React)
+function protoValeur() {
+  const p = {}; Object.defineProperty(p, "value", { configurable: true, get() { return this._v; },
+    set(v) { SETTER.push([this.tagName, v]); this.value = v; } }); return { prototype: p };
+}
+const SRI = [];
+class FauxSR { constructor() { SRI.push(this); this.started = 0; this.stopped = 0; this.aborted = 0; }
+  start() { this.started++; } stop() { this.stopped++; } abort() { this.aborted++; } }
+function resultat(liste, idx) {
+  return { resultIndex: idx || 0, results: liste.map(([t, fin]) => { const r = [{ transcript: t }]; r.isFinal = fin; return r; }) };
+}
+const TRACKS = { stops: 0 };
+const REC = { inst: [], gum: [], gumMode: "ok", taille: 1234 };
+const NAV = { mediaDevices: { getUserMedia(c) {
+  REC.gum.push(c);
+  if (REC.gumMode === "refus") return Promise.reject(Object.assign(new Error("Permission denied"), { name: "NotAllowedError" }));
+  return Promise.resolve({ getTracks: () => [{ stop() { TRACKS.stops++; } }] });
+} } };
+class FauxBlob { constructor(parts, o) { this.parts = parts || []; this.type = (o && o.type) || "";
+  this.size = this.parts.reduce((s, p) => s + (typeof p === "number" ? p : (p && p.size) || 0), 0); } }
+class FauxMR { constructor(flux, o) { this.flux = flux; this.o = o || null; this.state = "inactive"; REC.inst.push(this); }
+  static isTypeSupported(t) { return t === "audio/webm;codecs=opus"; }
+  start(ms) { this.state = "recording"; this.tranche = ms; }
+  stop() { this.state = "inactive"; setTimeout(() => {
+    if (this.ondataavailable) this.ondataavailable({ data: new FauxBlob(REC.taille ? [REC.taille] : [], { type: "audio/webm" }) });
+    if (this.onstop) this.onstop(); }, 5); } }
+class FauxFD { constructor() { this.e = []; } append(k, v, n) { this.e.push([k, v, n]); } }
 const LS_ = {}; const localStorage = { getItem: k => (k in LS_ ? LS_[k] : null), setItem: (k, v) => { LS_[k] = String(v); }, removeItem: k => { delete LS_[k]; } };
 const window = {
   document, location: { pathname: "/" }, fetch: fetchEspion, localStorage, Event, innerWidth: 1400, innerHeight: 900,
@@ -616,6 +651,115 @@ function opt(id) { const l = listeOuverte(); return l ? l.querySelectorAll(".dzi
   } catch (e) { R.t9err = String(e && e.stack || e).slice(0, 500); }
   T.appels = APPELS.map(a => [a[0], a[1], a[1] === "/api/cost/estimate" ? JSON.parse(a[2] || "{}") : null]);
 
+  // ---------- T10 : DICTÉE (faux SpeechRecognition, faux MediaRecorder, faux fetch : aucune transcription réelle) ----------
+  const D10 = R.t10 = {};
+  try {
+  if (A.modeles) A.modeles.fermer();
+  body.textContent = ""; window.location.pathname = "/"; html.lang = "";
+  const n0 = APPELS.length;
+  const dicts = () => APPELS.slice(n0).filter(a => /^\/api\/dictation/.test(a[1]));
+  const fd = a => a && a[2] && a[2].e ? a[2].e.map(x => [x[0], x[1] && x[1].size != null ? "blob:" + x[1].size + ":" + x[1].type : x[1], x[2] || null]) : null;
+  const boite10 = el("div", {}, body);
+  const ta = el("textarea", { placeholder: "Describe an image to create… (dictée)" }, boite10);
+  let nInput = 0; boite10.addEventListener("input", ev => { if (ev.target === ta) nInput++; });
+  // ÉTAT VIDE : ni reconnaissance, ni micro → bouton grisé, titré, sans exception au clic
+  A.marquer(document.body); await pause(30); A.synchroniser();
+  const micro = () => { const b = ta.nextSibling; return b && b.querySelector ? b.querySelector(".dzia-micro") : null; };
+  const vuM = () => { const m = micro(); return m ? { tag: m.tagName, txt: m.textContent, title: m.getAttribute("title"), dis: m.getAttribute("aria-disabled"),
+    etat: m.getAttribute("data-dzia-etat"), ecoute: ta.nextSibling.classList.contains("dzia-ecoute") } : null; };
+  const note = () => { const n = body.querySelector(".dzia-note"); return n ? n.textContent : ""; };
+  D10.slots = etat(ta).slots; D10.rien = vuM(); const m0 = micro();
+  m0 && m0.click(); await pause(20); D10.rienNote = note(); D10.rienApp = dicts().length;
+  // voie 2 seule (micro, pas de reconnaissance) : titre de la voie 2
+  window.navigator = NAV; window.MediaRecorder = FauxMR; window.Blob = FauxBlob; window.FormData = FauxFD;
+  window.HTMLTextAreaElement = protoValeur(); window.HTMLInputElement = protoValeur();
+  A.synchroniser(); D10.v2seule = vuM();
+  // voie 1 : faux SpeechRecognition
+  window.webkitSpeechRecognition = FauxSR; A.synchroniser(); D10.v1 = vuM();
+  ta.value = "Bonjour monde"; ta.selectionStart = ta.selectionEnd = 7;
+  micro().click(); await pause(20);
+  const s1 = SRI[SRI.length - 1];
+  D10.sr = s1 ? { n: SRI.length, lang: s1.lang, interim: s1.interimResults, cont: s1.continuous, start: s1.started } : null;
+  D10.ecoute = vuM(); D10.meme = micro() === m0; D10.noteEcoute = note();
+  s1 && s1.onresult && s1.onresult(resultat([["jo", false]])); await pause(5);
+  D10.interim = { val: ta.value, note: note(), set: SETTER.length };
+  s1 && s1.onresult && s1.onresult(resultat([["joli", true]])); await pause(5);
+  D10.final = { val: ta.value, set: SETTER.slice(-1)[0] || null, nInput, sel: [ta.selectionStart, ta.selectionEnd] };
+  document.dispatchEvent(Object.assign(new Event("keydown", { bubbles: true }), { key: "Escape" }));
+  D10.echap = { stop: s1 ? s1.stopped : -1 };
+  s1 && s1.onend && s1.onend(); await pause(5);
+  D10.apresFin = vuM();
+  // 2e dictée : lang du document, clic = arrêt, insertion en fin après ponctuation
+  html.lang = "en-US"; ta.value = "Fin."; ta.selectionStart = ta.selectionEnd = 4;
+  micro().click(); await pause(10);
+  const s2 = SRI[SRI.length - 1];
+  D10.lang2 = s2 && s2 !== s1 ? s2.lang : null;
+  s2.onresult(resultat([["ignoré", true], ["suite", true]], 1)); await pause(5);
+  D10.fin2 = ta.value;
+  micro().click(); await pause(5); D10.clicStop = s2.stopped; s2.onend(); await pause(5);
+  // voie 1 → erreur network → voie 2 enregistre aussitôt
+  micro().click(); await pause(10);
+  const s3 = SRI[SRI.length - 1];
+  s3.onerror({ error: "network" }); s3.onend && s3.onend(); await pause(30);
+  D10.bascule = { gum: REC.gum.length, rec: REC.inst.length, mime: REC.inst.length ? (REC.inst[REC.inst.length - 1].o || {}).mimeType : null,
+    etat: vuM(), note: note(), abort: s3.aborted };
+  // arrêt → estimation → dialogue MAISON (ni __dzDialogue, ni VL.dialogue) → Non
+  ta.value = "Avant"; ta.selectionStart = ta.selectionEnd = 5;
+  DICT["/api/dictation/estimate"] = () => [200, { duration_s: 11.6, provider: "elevenlabs", label: "ElevenLabs Scribe", usd: 0.0013, available: true, eta_s: 2 }];
+  DICT["/api/dictation"] = () => [200, { text: "bonjour tout le monde", usd: 0.0013, provider: "elevenlabs" }];
+  micro().click(); await pause(60);
+  const dlg = body.querySelector(".dzia-dlg");
+  D10.maison = dlg ? { txt: dlg.textContent, boutons: dlg.querySelectorAll("button").map(b => [b.getAttribute("data-role"), b.textContent, b.getAttribute("title")]) } : null;
+  D10.estimeAppels = dicts().map(a => [a[0], a[1], fd(a)]);
+  D10.pistes = TRACKS.stops;
+  D10.enAccord = vuM();
+  const bNon = dlg ? dlg.querySelectorAll("button").find(b => b.getAttribute("data-role") === "non") : null;
+  bNon && bNon.click(); await pause(40);
+  D10.non = { appels: dicts().map(a => a[1]), val: ta.value, note: note(), etat: vuM(), dlg: !!body.querySelector(".dzia-dlg") };
+  // __dzDialogue présent (SPA et pages à part) → Oui → POST /api/dictation avec max_usd = le montant affiché
+  window.__dzDialogue = { confirmer: (m, o) => { DLG.push(["dz", m, o]); return Promise.resolve(true); } };
+  const nA = dicts().length;
+  micro().click(); await pause(20); micro().click(); await pause(80);
+  D10.oui = { appels: dicts().slice(nA).map(a => [a[0], a[1], fd(a)]), dlg: DLG.slice(-1)[0] || null, val: ta.value, note: note(), etat: vuM(),
+    sel: [ta.selectionStart, ta.selectionEnd] };
+  // VL.dialogue (Vectorlab) : utilisé à défaut de __dzDialogue ; Non → rien
+  delete window.__dzDialogue;
+  window.VL = { dialogue: { confirmer: (m, o) => { DLG.push(["vl", m, o]); return Promise.resolve(false); } } };
+  const nB = dicts().length;
+  micro().click(); await pause(20); micro().click(); await pause(60);
+  D10.vl = { dlg: DLG.slice(-1)[0] || null, appels: dicts().slice(nB).map(a => a[1]) };
+  delete window.VL;
+  // 402 du serveur : message lisible, champ intact
+  window.__dzDialogue = { confirmer: (m, o) => { DLG.push(["dz", m, o]); return Promise.resolve(true); } };
+  DICT["/api/dictation"] = () => [402, { detail: "Coût recalculé 0.0020 $ au-delà du plafond accepté 0.0013 $ : rien n'a été envoyé." }];
+  const v402 = ta.value;
+  micro().click(); await pause(20); micro().click(); await pause(80);
+  D10.e402 = { val: ta.value === v402, note: note(), etat: vuM() };
+  // prise vide : rien n'est envoyé
+  REC.taille = 0; const nV = dicts().length;
+  micro().click(); await pause(20); micro().click(); await pause(60);
+  D10.vide = { appels: dicts().length - nV, note: note(), etat: vuM() }; REC.taille = 1234;
+  // getUserMedia refusé : note lisible, pas d'exception
+  REC.gumMode = "refus"; const nG = dicts().length;
+  micro().click(); await pause(40);
+  D10.refus = { note: note(), etat: vuM(), appels: dicts().length - nG }; REC.gumMode = "ok";
+  // champ retiré pendant la prise : enregistreur arrêté, pistes coupées, rien n'est envoyé
+  const pistesAvant = TRACKS.stops, nR = dicts().length;
+  micro().click(); await pause(20);
+  boite10.removeChild(ta); A.synchroniser(); await pause(60);
+  D10.retire = { appels: dicts().length - nR, pistes: TRACKS.stops - pistesAvant };
+  boite10.appendChild(ta); OBS.forEach(o => o._vider()); await pause(120); A.synchroniser();
+  // available:false : aucun dialogue, aucune transcription, micro grisé (voie 2) avec la raison
+  DICT["/api/dictation/estimate"] = () => [200, { duration_s: 5, provider: null, usd: 0, available: false, reason: "Aucune clé de transcription (ELEVENLABS_API_KEY ou OPENAI_API_KEY)." }];
+  const nI = dicts().length, nD = DLG.length;
+  micro().click(); await pause(20); micro().click(); await pause(60);
+  D10.indispo = { appels: dicts().slice(nI).map(a => a[1]), dlg: DLG.length - nD, etat: vuM(), note: note() };
+  const gA = REC.gum.length; micro().click(); await pause(20); D10.indispoClic = { dg: REC.gum.length - gA, etat: vuM() };
+  // E-12 : tout bouton de la barre porte un title
+  D10.sansTitre = body.querySelectorAll(".dzia-barre button").filter(b => !(b.getAttribute("title") || "").trim()).length;
+  } catch (e) { R.t10err = String(e && e.stack || e).slice(0, 600); }
+  R.t10.tout = APPELS.slice(0).filter(a => /^\/api\/dictation/.test(a[1])).map(a => a[1]);
+
   // ---------- reduced-motion : la règle du média est présente (la cascade est celle du navigateur) ----------
   process.stdout.write(JSON.stringify(R));
 })().catch(e => { process.stdout.write(JSON.stringify({ erreur: String(e && e.stack || e) })); });
@@ -735,8 +879,8 @@ def main():
     check("TÉMOIN : champ border-box ordinaire → réserve de padding à droite (8 + 30 + 10)",
           R.get("reserve") == "48px", str(R.get("reserve")))
     check("barre : badge « IA »", st("quick").get("badge") == "IA", str(st("quick").get("badge")))
-    check("barre : emplacement modele occupé par la pastille (T9), micro vide (T10)",
-          st("quick").get("slots") == ["modele:1", "micro:0"], str(st("quick").get("slots")))
+    check("barre : emplacement modele occupé par la pastille (T9), micro occupé par le bouton de dictée (T10)",
+          st("quick").get("slots") == ["modele:1", "micro:1"], str(st("quick").get("slots")))
     dep = R.get("deplace") or {}
     check("le champ n'est PAS déplacé (même parent, même frère précédent, même rang)",
           dep.get("parent") and dep.get("prec") and dep.get("idx"), str(dep))
@@ -853,7 +997,7 @@ def main():
 
     def tp(k):
         return T.get(k) or {}
-    check("barre du Quick : badge, pastille, micro vide", T.get("slots") == ["modele:1", "micro:0"], str(T.get("slots")))
+    check("barre du Quick : badge, pastille, micro", T.get("slots") == ["modele:1", "micro:1"], str(T.get("slots")))
     q = tp("quick")
     check("pastille = un BOUTON titré, pilotable (aria-disabled=false)", q.get("tag") == "BUTTON" and q.get("dis") == "false"
           and (q.get("title") or "").startswith("Modèle : "), str(q))
@@ -946,6 +1090,107 @@ def main():
     autres = [a[:2] for a in ap if a[1] != "/api/cost/estimate" and not (a[0] == "GET" and a[1] in
               ("/api/video-models", "/api/image-models", "/api/music-models", "/api/atelier/settings"))]
     check("AUCUNE DÉPENSE : le faux fetch ne voit que des lectures de modèles et l'estimation", bool(ap) and not autres, str(autres))
+
+    # ---------- T10 : dictée ----------
+    D = R.get("t10") or {}
+    check("section T10 du harnais sans exception", not R.get("t10err"), str(R.get("t10err")))
+
+    def dd(k):
+        return D.get(k) or {}
+    TITRE_V1 = "Dicter — reconnaissance vocale du navigateur (l'audio part au service du navigateur)"
+    check("barre : le micro occupe son emplacement", D.get("slots") == ["modele:1", "micro:1"], str(D.get("slots")))
+    rien = dd("rien")
+    check("ÉTAT VIDE : ni reconnaissance ni enregistreur → micro = BOUTON grisé, titré « indisponible »",
+          rien.get("tag") == "BUTTON" and rien.get("dis") == "true" and "indisponible" in (rien.get("title") or ""), str(rien))
+    check("ÉTAT VIDE : clic sur le micro grisé → note lisible, aucun appel de dictée",
+          "indisponible" in (D.get("rienNote") or "") and D.get("rienApp") == 0, f"{D.get('rienNote')!r} {D.get('rienApp')}")
+    v2 = dd("v2seule")
+    check("voie 2 seule (enregistreur, pas de reconnaissance) : titre de la voie 2 (coût et accord annoncés)",
+          v2.get("dis") == "false" and (v2.get("title") or "").startswith("Dicter — enregistrement") and "accord" in (v2.get("title") or ""), str(v2))
+    check("voie 1 : title exact du plan", dd("v1").get("title") == TITRE_V1, str(dd("v1").get("title")))
+    sr = dd("sr")
+    check("voie 1 : SpeechRecognition — lang = documentElement.lang || fr-FR, interimResults, continuous, start()",
+          sr.get("n") == 1 and sr.get("lang") == "fr-FR" and sr.get("interim") is True and sr.get("cont") is True and sr.get("start") == 1, str(sr))
+    ec = dd("ecoute")
+    check("pendant l'écoute : MÊME bouton, « ■ » titré « Arrêter la dictée », classe .dzia-ecoute",
+          ec.get("txt") == "■" and ec.get("title") == "Arrêter la dictée" and ec.get("ecoute") is True and D.get("meme") is True, f"{ec} {D.get('meme')}")
+    check("pendant l'écoute : « À l'écoute… (clic ou Échap pour arrêter) »",
+          "À l'écoute… (clic ou Échap pour arrêter)" in (D.get("noteEcoute") or ""), str(D.get("noteEcoute")))
+    it = dd("interim")
+    check("résultat provisoire : montré dans la note, le champ n'est PAS touché",
+          it.get("val") == "Bonjour monde" and "jo" in (it.get("note") or "") and it.get("set") == 0, str(it))
+    fi = dd("final")
+    check("résultat final inséré AU CURSEUR avec un espace de séparation (« Bonjour joli monde »)",
+          fi.get("val") == "Bonjour joli monde", str(fi))
+    check("valeur posée par le setter du PROTOTYPE (React) + UN événement input qui bouillonne, curseur après le texte",
+          fi.get("set") == ["TEXTAREA", "Bonjour joli monde"] and fi.get("nInput") == 1 and fi.get("sel") == [12, 12], str(fi))
+    check("Échap arrête l'écoute (stop())", dd("echap").get("stop") == 1, str(D.get("echap")))
+    af = dd("apresFin")
+    check("fin d'écoute : le bouton revient au repos (titre voie 1, plus de .dzia-ecoute)",
+          af.get("title") == TITRE_V1 and af.get("ecoute") is False and af.get("etat") == "repos" and af.get("txt") != "■", str(af))
+    check("lang du document (en-US) transmis à la reconnaissance", D.get("lang2") == "en-US", str(D.get("lang2")))
+    check("resultIndex respecté, insertion en fin après ponctuation (« Fin. suite »)", D.get("fin2") == "Fin. suite", str(D.get("fin2")))
+    check("clic sur « ■ » arrête l'écoute", D.get("clicStop") == 1, str(D.get("clicStop")))
+    ba = dd("bascule")
+    check("erreur network de la voie 1 → voie 2 aussitôt : getUserMedia, MediaRecorder (webm/opus), prise en cours, raison dite",
+          (ba.get("gum") or 0) >= 1 and (ba.get("rec") or 0) >= 1 and ba.get("mime") == "audio/webm;codecs=opus"
+          and (ba.get("etat") or {}).get("etat") == "prise" and (ba.get("etat") or {}).get("txt") == "■" and "network" in (ba.get("note") or ""), str(ba))
+    ea = D.get("estimeAppels") or []
+    check("arrêt → UNE estimation POST /api/dictation/estimate {file} (la prise, son type, dictee.webm)",
+          ea == [["POST", "/api/dictation/estimate", [["file", "blob:1234:audio/webm;codecs=opus", "dictee.webm"]]]], str(ea))
+    check("les pistes du micro sont coupées après la prise", (D.get("pistes") or 0) >= 1, str(D.get("pistes")))
+    check("en attente de l'accord : bouton occupé (état accord)", dd("enAccord").get("etat") == "accord", str(D.get("enAccord")))
+    ma = dd("maison")
+    check("dialogue MAISON (ni __dzDialogue ni VL.dialogue) : « Transcrire 12 s par ElevenLabs Scribe ≈ 0,0013 $ ? »",
+          "Transcrire 12 s par ElevenLabs Scribe ≈ 0,0013 $ ?" in (ma.get("txt") or ""), str(ma))
+    check("dialogue maison : Non et Oui, chacun titré (E-12)",
+          sorted(b[0] for b in (ma.get("boutons") or [])) == ["non", "oui"] and all((b[2] or "").strip() for b in (ma.get("boutons") or [])), str(ma.get("boutons")))
+    no = dd("non")
+    check("NÉGATIF : Non → AUCUN POST /api/dictation (seule l'estimation), champ intact, dialogue fermé",
+          no.get("appels") == ["/api/dictation/estimate"] and no.get("val") == "Avant" and no.get("dlg") is False, str(no))
+    check("Non → « rien n'a été envoyé », bouton au repos",
+          "rien n'a été envoyé" in (no.get("note") or "") and (no.get("etat") or {}).get("etat") == "repos", str(no))
+    ou = dd("oui")
+    ap = ou.get("appels") or []
+    check("TÉMOIN : Oui → estimation puis POST /api/dictation", [a[1] for a in ap] == ["/api/dictation/estimate", "/api/dictation"], str(ap))
+    corps = (ap[1][2] if len(ap) > 1 else None) or []
+    check("POST /api/dictation : {file, max_usd = le montant AFFICHÉ (0.0013), language}",
+          ["file", "blob:1234:audio/webm;codecs=opus", "dictee.webm"] in corps and ["max_usd", "0.0013", None] in corps
+          and ["language", "en-US", None] in corps, str(corps))
+    dz = ou.get("dlg") or []
+    check("window.__dzDialogue.confirmer utilisé quand il existe (titre « Dictée », même message)",
+          dz[:1] == ["dz"] and "Transcrire 12 s par ElevenLabs Scribe ≈ 0,0013 $ ?" in (dz[1] if len(dz) > 1 else "")
+          and ((dz[2] if len(dz) > 2 else None) or {}).get("titre") == "Dictée", str(dz))
+    check("texte transcrit inséré au curseur (« Avant bonjour tout le monde »), curseur après",
+          ou.get("val") == "Avant bonjour tout le monde" and ou.get("sel") == [27, 27], str(ou))
+    check("après transcription : note « Transcrit » avec le coût, bouton au repos",
+          "Transcrit" in (ou.get("note") or "") and "0,0013" in (ou.get("note") or "") and (ou.get("etat") or {}).get("etat") == "repos", str(ou))
+    vl = dd("vl")
+    check("Vectorlab : VL.dialogue.confirmer utilisé à défaut de __dzDialogue ; Non → aucune transcription",
+          (vl.get("dlg") or [None])[0] == "vl" and vl.get("appels") == ["/api/dictation/estimate"], str(vl))
+    e4 = dd("e402")
+    check("402 du serveur : champ intact, message du serveur lisible, bouton au repos",
+          e4.get("val") is True and "plafond" in (e4.get("note") or "") and (e4.get("etat") or {}).get("etat") == "repos", str(e4))
+    vi = dd("vide")
+    check("prise vide : rien n'est envoyé, note « vide »", vi.get("appels") == 0 and "vide" in (vi.get("note") or "").lower(), str(vi))
+    rf = dd("refus")
+    check("getUserMedia refusé : note « accès au micro refusé », pas d'exception, aucun appel, repos",
+          "accès au micro refusé" in (rf.get("note") or "") and rf.get("appels") == 0 and (rf.get("etat") or {}).get("etat") == "repos", str(rf))
+    rt = dd("retire")
+    check("champ retiré pendant la prise : rien n'est envoyé, pistes du micro coupées",
+          rt.get("appels") == 0 and (rt.get("pistes") or 0) >= 1, str(rt))
+    ind = dd("indispo")
+    check("available:false : aucun dialogue, aucune transcription (seule l'estimation)",
+          ind.get("appels") == ["/api/dictation/estimate"] and ind.get("dlg") == 0, str(ind))
+    check("available:false : micro GRISÉ en voie 2, title = la raison du serveur ; la note la dit",
+          (ind.get("etat") or {}).get("dis") == "true" and "ELEVENLABS_API_KEY" in ((ind.get("etat") or {}).get("title") or "")
+          and "ELEVENLABS_API_KEY" in (ind.get("note") or ""), str(ind))
+    ic = dd("indispoClic")
+    check("micro grisé : un clic n'ouvre pas le micro", ic.get("dg") == 0 and (ic.get("etat") or {}).get("dis") == "true", str(ic))
+    check("E-12 : tout bouton de la barre a un title (micro compris)", D.get("sansTitre") == 0, str(D.get("sansTitre")))
+    tout = D.get("tout") or []
+    check("AUCUNE DÉPENSE hors accord : /api/dictation n'est appelé que pour les deux « Oui » (accord, 402)",
+          tout.count("/api/dictation") == 2, str(tout))
 
     # ---------- le style ----------
     css = R.get("style") or ""
