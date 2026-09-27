@@ -149,7 +149,9 @@
       "box-shadow:0 12px 32px rgba(0,0,0,.5),0 0 14px -4px rgba(59,130,246,.45);box-sizing:border-box}",
     ".dzia-opt{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;margin:0;padding:6px 8px;border:0;" +
       "border-radius:6px;background:transparent;color:#e5e7eb;font:12px/1.25 system-ui,-apple-system,'Segoe UI',sans-serif;text-align:left;cursor:pointer}",
-    ".dzia-opt:hover{background:rgba(59,130,246,.18)}",
+    ".dzia-opt:hover,.dzia-opt.dzia-opt-actif{background:rgba(59,130,246,.18)}",
+    ".dzia-opt.dzia-opt-actif{outline:1px solid rgba(59,130,246,.7);outline-offset:-1px}",
+    ".dzia-modele:focus-visible,.dzia-micro:focus-visible{outline:2px solid #3b82f6;outline-offset:1px}",
     ".dzia-opt[aria-selected=true]{background:rgba(139,92,246,.24);color:#fff}",
     ".dzia-opt[aria-disabled=true]{opacity:.42;cursor:not-allowed;background:transparent}",
     ".dzia-oprix{opacity:.72;font-variant-numeric:tabular-nums;flex-shrink:0}",
@@ -540,7 +542,7 @@
     D.addEventListener("change", function () { W.setTimeout(rafraichirPastilles, 0); }, true);
     D.addEventListener("click", function () { W.setTimeout(rafraichirPastilles, 80); });
     D.addEventListener("mousedown", horsListe, true);
-    D.addEventListener("keydown", function (ev) { if (ev.key === "Escape" && ouverte) fermerListe(); }, true);
+    D.addEventListener("keydown", clavierListe, true);
     /* Échap arrête la dictée en cours (écoute ou prise) ; l'hôte ne le voit pas */
     D.addEventListener("keydown", function (ev) {
       var a = dic.active;
@@ -775,11 +777,20 @@
       for (var i = 0; i < l.length; i++) if (!dansZone(l[i])) return l[i];
       return null;
     }
-    return { liste: liste, vue: "sélecteur de la vue", trouver: trouver, natif: true,
+    /* revue T9 (27/09) : un <select> DÉSACTIVÉ (Vectorlab sans clé : <option>—</option>)
+       ou sans vraie option fige la pastille — il n'y a rien à y écrire */
+    function fige(el) {
+      var s = trouver(el);
+      if (!s) return "";
+      if (s.disabled) return "sélecteur de la vue désactivé";
+      var ok = optionsDe(s).filter(function (x) { return x.dispo && x.id !== "—" && x.label !== "—"; });
+      return ok.length ? "" : "sélecteur de la vue vide";
+    }
+    return { liste: liste, vue: "sélecteur de la vue", trouver: trouver, natif: true, fige: fige,
       lire: function (el) { var s = trouver(el); return s && s.value ? s.value : null; },
       ecrire: function (el, id) {
         var s = trouver(el);
-        if (!s || !optionsDe(s).some(function (x) { return x.id === id; })) return Promise.resolve(false);
+        if (!s || fige(el) || !optionsDe(s).some(function (x) { return x.id === id; })) return Promise.resolve(false);
         poserValeur(s, id);
         return Promise.resolve(true);
       } };
@@ -832,6 +843,11 @@
     "montage-sons": A_fixe("ElevenLabs SFX"),
     "templates-ia": A_defaut("image", imageGlobale, "le modèle d'image global : Library, Chapitres, Réglages"),
     "library-image": A_re("image", "[data-dzselect]", { parListe: true, secours: imageGlobale }),
+    /* Game Assets en LECTURE SEULE (mesuré à l'écran le 27/09) : le moteur 3D
+       est un select custom `[data-dzselect]` dont les options sont des moteurs
+       (Meshy, Tripo…, libellés « ~$ ») et non des modèles d'un registre
+       /api/*-models — rien à confronter ni à écrire sans patcher le bundle ;
+       la pastille lit seulement le texte du select. */
     "game-assets-3d": A_texte("[data-dzselect]", /~\$/, "le moteur 3D se choisit dans la vue"),
     "atelier-style": A_defaut("image", atelierLire, DA, ["image", "atelier"]),
     "atelier-da": A_natif("image", "#daProvider"),
@@ -916,7 +932,11 @@
         titre = "Modèle : " + label + prix + " — choisi par la vue (" + m.pourquoi + ")";
       } else {
         var l = modelesDe(el, m), dispo = l.filter(function (x) { return x.dispo && !x.horsVue; });
-        if (m.liste && donnees[m.liste] && !dispo.length) {
+        var fg = m.fige ? m.fige(el) : "";
+        if (fg) {
+          if (!mod || id === "—") label = "aucun modèle";
+          titre = "Modèle : " + label + " — choisi par la vue (" + fg + " : aucun modèle à choisir ici)";
+        } else if (m.liste && donnees[m.liste] && !dispo.length) {
           var cm = clesManquantes(l);
           label = "aucun modèle";
           titre = "Aucun modèle disponible" + (cm.length ? " — " + cm.map(CLE_ABSENTE).join(", ") : "")
@@ -948,6 +968,7 @@
     if (!ouverte) return;
     if (ouverte.node.parentNode) ouverte.node.parentNode.removeChild(ouverte.node);
     ouverte.b.setAttribute("aria-expanded", "false");
+    ouverte.b.removeAttribute("aria-activedescendant");
     ouverte = null;
   }
   function ouvrirListe(el, b) {
@@ -958,11 +979,16 @@
     L.className = "dzia-liste";
     L.setAttribute("role", "listbox");
     L.setAttribute("aria-label", "Modèles");
+    var opts = [], actif = -1;
     l.forEach(function (x) {
       var o = D.createElement("button");
       o.setAttribute("type", "button");
+      o.setAttribute("tabindex", "-1");                // le focus reste sur la pastille (aria-activedescendant)
+      o.setAttribute("id", "dzia-opt-" + (++seqOpt));
       o.className = "dzia-opt";
       o.setAttribute("role", "option");
+      if (x.id === cour) actif = opts.length;
+      opts.push(o);
       o.setAttribute("data-id", x.id);
       o.setAttribute("aria-selected", x.id === cour ? "true" : "false");
       var nm = D.createElement("span");
@@ -1004,8 +1030,50 @@
     }
     (D.body || D.documentElement).appendChild(L);
     b.setAttribute("aria-expanded", "true");
-    ouverte = { node: L, b: b };
+    ouverte = { node: L, b: b, opts: opts, actif: -1 };
+    if (actif < 0) for (var k = 0; k < opts.length; k++) if (opts[k].getAttribute("aria-disabled") !== "true") { actif = k; break; }
+    activer(actif);
     placerListe();
+  }
+  /* revue T9 (27/09) : la liste au CLAVIER. ↑/↓ déplacent l'option active
+     (aria-activedescendant sur la liste et la pastille), Entrée choisit — jamais
+     une option grisée —, Échap et Tab ferment et rendent le focus à la
+     pastille. Tant que la liste est ouverte, ces touches ne remontent PAS à
+     l'hôte (le dialogue IA du Vectorlab se ferme sur Échap, génère sur Entrée). */
+  var seqOpt = 0;
+  function activer(i) {
+    if (!ouverte) return;
+    var o = ouverte.opts;
+    if (ouverte.actif >= 0 && o[ouverte.actif]) o[ouverte.actif].classList.remove("dzia-opt-actif");
+    ouverte.actif = i;
+    var x = i >= 0 ? o[i] : null;
+    if (x) {
+      x.classList.add("dzia-opt-actif");
+      ouverte.node.setAttribute("aria-activedescendant", x.getAttribute("id"));
+      ouverte.b.setAttribute("aria-activedescendant", x.getAttribute("id"));
+      try { if (x.scrollIntoView) x.scrollIntoView({ block: "nearest" }); } catch (e) {}
+    } else {
+      ouverte.node.removeAttribute("aria-activedescendant");
+      ouverte.b.removeAttribute("aria-activedescendant");
+    }
+  }
+  function clavierListe(ev) {
+    if (!ouverte) return;
+    var k = ev.key, b = ouverte.b, n = ouverte.opts.length;
+    if (k !== "Escape" && k !== "Tab" && k !== "ArrowDown" && k !== "ArrowUp" && k !== "Enter" && k !== "Home" && k !== "End") return;
+    ev.preventDefault(); ev.stopPropagation();
+    if (k === "Escape" || k === "Tab") { fermerListe(); try { b.focus(); } catch (e) {} return; }
+    if (!n) return;
+    if (k === "ArrowDown") activer((ouverte.actif + 1 + n) % n);
+    else if (k === "ArrowUp") activer(ouverte.actif < 0 ? n - 1 : (ouverte.actif - 1 + n) % n);
+    else if (k === "Home") activer(0);
+    else if (k === "End") activer(n - 1);
+    else {
+      var o = ouverte.opts[ouverte.actif];
+      if (!o || o.getAttribute("aria-disabled") === "true") return;
+      o.click();
+      try { b.focus(); } catch (e) {}
+    }
   }
   /* la liste suit la pastille (défilement de l'hôte) ; elle se ferme si la
      pastille sort de l'écran ou disparaît */

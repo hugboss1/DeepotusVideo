@@ -258,7 +258,7 @@ class Element extends Noeud {
   get offsetHeight() { return (this._rect || {}).height || 0; }
   get clientHeight() { return this.offsetHeight; }
   get offsetParent() { return this._cache ? null : (this.parentNode || null); }
-  focus() {} blur() {}
+  focus() { document.activeElement = this; } blur() {}
   setSelectionRange(a, b) { this.selectionStart = a; this.selectionEnd = b; }
 }
 class Texte extends Noeud { constructor(d) { super(3); this.data = d; } }
@@ -501,6 +501,9 @@ function opt(id) { const l = listeOuverte(); return l ? l.querySelectorAll(".dzi
   OBS.forEach(o => o._vider());
   await pause(120);
   R.obs = { tard: etat(tard), tardStudio: etat(tardStudio), nObs: OBS.filter(o => o.cible).length };
+  // revue T9 : plusieurs pastilles d'image sur UNE page → UNE seule estimation de prix (déduplication)
+  R.nImgT8 = body.querySelectorAll(".dzia-modele").filter(p => ["chapitres-illus", "library-image", "templates-ia"].includes(p.getAttribute("data-dzia-modele"))).length;
+  R.estT8 = APPELS.filter(a => a[1] === "/api/cost/estimate").length;
 
   // ---------- barre recalée sur le champ, puis nettoyée au retrait ----------
   fLib._rect = { left: 40, top: 200, width: 400, height: 30 };
@@ -600,6 +603,26 @@ function opt(id) { const l = listeOuverte(); return l ? l.querySelectorAll(".dzi
     p: vuP(tq), meme: pastille(tq) === pQ, ouverte: !!listeOuverte(), resteOuverte: reQ.racine.children.length };
   // la vue change → la pastille suit (synchronisation)
   reQ.poser("seedance-2"); A.synchroniser(); T.vueQ = vuP(tq);
+  // revue T9 — clavier : flèches (aria-activedescendant), Entrée (jamais une option grisée), Échap/Tab rendent le focus
+  // à la pastille ; l'hôte (dialogue IA du Vectorlab) ne voit ni Échap ni Entrée tant que la liste est ouverte
+  const hote = { esc: 0, ent: 0 }; q.addEventListener("keydown", ev => { if (ev.key === "Escape") hote.esc++; if (ev.key === "Enter") hote.ent++; });
+  const touche = k => tq.dispatchEvent(Object.assign(new Event("keydown", { bubbles: true }), { key: k }));
+  touche("Escape"); T.hoteTemoin = hote.esc;
+  const actif = () => { const l = listeOuverte(), id = l && l.getAttribute("aria-activedescendant");
+    const o = id && l.querySelectorAll(".dzia-opt").find(x => x.getAttribute("id") === id); return o ? o.getAttribute("data-id") : null; };
+  pQ.click(); await pause(5);
+  T.clav = { bouton: pQ.tagName === "BUTTON" && pQ.getAttribute("tabindex") !== "-1", a0: actif(), pDesc: !!pQ.getAttribute("aria-activedescendant") };
+  touche("ArrowDown"); T.clav.a1 = actif();
+  touche("ArrowDown"); T.clav.a2 = actif();
+  touche("Enter"); await pause(60); T.clav.grise = { valeur: reQ.valeur, ouverte: !!listeOuverte(), clics: reQ.clics };
+  touche("ArrowUp"); T.clav.a3 = actif();
+  touche("Enter"); await pause(250);
+  T.clav.choix = { valeur: reQ.valeur, ouverte: !!listeOuverte(), focus: document.activeElement === pQ, txt: vuP(tq).txt };
+  document.activeElement = tq; pQ.click(); await pause(5); touche("Tab");
+  T.clav.tab = { ouverte: !!listeOuverte(), focus: document.activeElement === pQ };
+  document.activeElement = tq; pQ.click(); await pause(5); touche("Escape");
+  T.clav.esc = { ouverte: !!listeOuverte(), focus: document.activeElement === pQ };
+  T.clav.hote = { esc: hote.esc, ent: hote.ent };
   // Library : select custom d'image, prix par image, OpenAI sans clé grisé
   (pastille(tl) || {click(){}}).click(); T.listeL = vuListe();
   if (opt("nano-banana")) opt("nano-banana").click(); await pause(250);
@@ -616,6 +639,9 @@ function opt(id) { const l = listeOuverte(); return l ? l.querySelectorAll(".dzi
   T.sansTitre = body.querySelectorAll(".dzia-barre button, .dzia-liste button").filter(b => !(b.getAttribute("title") || "").trim()).length;
   T.nBoutons = body.querySelectorAll(".dzia-barre button, .dzia-liste button").length;
   if (A.modeles) A.modeles.fermer();
+  // revue T9 : liste ouverte → champ détaché → synchronisation → la liste disparaît
+  (pastille(tl) || {click(){}}).click(); T.detListe = { avant: !!listeOuverte() };
+  body.removeChild(lib); A.synchroniser(); T.detListe.apres = !!listeOuverte();
 
   // pages à part : <select> natif (Material Forge), lecture seule (Atelier, Spritelab), champ étroit (Vitrail)
   body.textContent = ""; window.location.pathname = "/materialforge/";
@@ -630,6 +656,10 @@ function opt(id) { const l = listeOuverte(); return l ? l.querySelectorAll(".dzi
   T.choixMF = { valeur: sel.value, nChange, bulle, p: vuP(tmf) };
   sel.value = "nano-banana-pro"; sel.dispatchEvent(new Event("change", { bubbles: true })); await pause(30);
   T.vueMF = vuP(tmf);
+  // revue T9 : ecrire natif d'un id ABSENT du <select> → false, aucun change
+  { const rMF = (A.regles || []).find(r => r.id === "materialforge"), c0 = nChange, v0 = sel.value;
+    const res = rMF && rMF.modele && rMF.modele.ecrire ? await rMF.modele.ecrire(tmf, "id-absent") : null;
+    T.ecrireAbsent = { res, dChange: nChange - c0, meme: sel.value === v0 }; }
   body.textContent = ""; window.location.pathname = "/atelier/";
   const tat = el("input", { id: "globalStyle" }, body); A.marquer(document.body); await pause(60); A.synchroniser(); T.atelier = vuP(tat);
   body.textContent = ""; window.location.pathname = "/spritelab/";
@@ -637,6 +667,20 @@ function opt(id) { const l = listeOuverte(); return l ? l.querySelectorAll(".dzi
   body.textContent = ""; window.location.pathname = "/vectorlab/";
   const tvit = el("input", { id: "vitIaPrompt", type: "text" }, body, { left: 10, top: 10, width: 88, height: 30 });
   A.marquer(document.body); await pause(30); A.synchroniser(); T.vitrail = vuP(tvit);
+  // revue T9 : <select> natif DÉSACTIVÉ (Vectorlab sans clé : <option>—</option>) → pastille figée, title explicite
+  const selV = el("select", { id: "iaModele", disabled: "" }, body), ov = el("option", {}, selV); ov.value = "—"; ov.textContent = "—";
+  const tia = el("textarea", { id: "iaTexte" }, body);
+  A.marquer(document.body); await pause(30); A.synchroniser();
+  T.vlSans = vuP(tia); (pastille(tia) || {click(){}}).click(); T.vlSansOuvre = !!listeOuverte();
+  { const rV = (A.regles || []).find(r => r.id === "vectorlab-ia"); T.vlSansEcrit = rV && rV.modele.ecrire ? await rV.modele.ecrire(tia, "—") : null; }
+  // témoin : le même sélecteur ACTIF avec un vrai modèle → pilotable
+  selV.removeAttribute("disabled"); selV.removeChild(ov);
+  const ov2 = el("option", { value: "m1" }, selV); ov2.value = "m1"; ov2.textContent = "Modèle 1"; selV.value = "m1";
+  A.synchroniser(); T.vlAvec = vuP(tia);
+  // <select> natif VIDE (Cardforge sans modèle) → figée
+  body.textContent = ""; window.location.pathname = "/cardforge/";
+  el("select", { id: "cf-face-model" }, body); const tcf = el("textarea", { id: "cf-face-prompt" }, body);
+  A.marquer(document.body); await pause(30); A.synchroniser(); T.cfVide = vuP(tcf);
 
   // SANS CLÉ : tout grisé, la raison dit la clé qui manque
   VIDEO.models.forEach(m => { m.available = false; }); IMG.models = []; IMG.default = ""; MUS.enabled = false;
@@ -662,6 +706,8 @@ function opt(id) { const l = listeOuverte(); return l ? l.querySelectorAll(".dzi
   const boite10 = el("div", {}, body);
   const ta = el("textarea", { placeholder: "Describe an image to create… (dictée)" }, boite10);
   let nInput = 0; boite10.addEventListener("input", ev => { if (ev.target === ta) nInput++; });
+  const hote10 = { esc: 0 }; boite10.addEventListener("keydown", ev => { if (ev.key === "Escape") hote10.esc++; });
+  ta.dispatchEvent(Object.assign(new Event("keydown", { bubbles: true }), { key: "Escape" })); D10.hoteTemoin = hote10.esc;
   // ÉTAT VIDE : ni reconnaissance, ni micro → bouton grisé, titré, sans exception au clic
   A.marquer(document.body); await pause(30); A.synchroniser();
   const micro = () => { const b = ta.nextSibling; return b && b.querySelector ? b.querySelector(".dzia-micro") : null; };
@@ -669,6 +715,7 @@ function opt(id) { const l = listeOuverte(); return l ? l.querySelectorAll(".dzi
     etat: m.getAttribute("data-dzia-etat"), ecoute: ta.nextSibling.classList.contains("dzia-ecoute") } : null; };
   const note = () => { const n = body.querySelector(".dzia-note"); return n ? n.textContent : ""; };
   D10.slots = etat(ta).slots; D10.rien = vuM(); const m0 = micro();
+  D10.clavier = m0 ? { tag: m0.tagName, type: m0.getAttribute("type"), tab: m0.getAttribute("tabindex") } : null;
   m0 && m0.click(); await pause(20); D10.rienNote = note(); D10.rienApp = dicts().length;
   // voie 2 seule (micro, pas de reconnaissance) : titre de la voie 2
   window.navigator = NAV; window.MediaRecorder = FauxMR; window.Blob = FauxBlob; window.FormData = FauxFD;
@@ -685,8 +732,8 @@ function opt(id) { const l = listeOuverte(); return l ? l.querySelectorAll(".dzi
   D10.interim = { val: ta.value, note: note(), set: SETTER.length };
   s1 && s1.onresult && s1.onresult(resultat([["joli", true]])); await pause(5);
   D10.final = { val: ta.value, set: SETTER.slice(-1)[0] || null, nInput, sel: [ta.selectionStart, ta.selectionEnd] };
-  document.dispatchEvent(Object.assign(new Event("keydown", { bubbles: true }), { key: "Escape" }));
-  D10.echap = { stop: s1 ? s1.stopped : -1 };
+  ta.dispatchEvent(Object.assign(new Event("keydown", { bubbles: true }), { key: "Escape" }));
+  D10.echap = { stop: s1 ? s1.stopped : -1, hote: hote10.esc };
   s1 && s1.onend && s1.onend(); await pause(5);
   D10.apresFin = vuM();
   // 2e dictée : lang du document, clic = arrêt, insertion en fin après ponctuation
@@ -1085,8 +1132,49 @@ def main():
     check("SANS CLÉ : la pastille grisée n'ouvre pas de liste", sc.get("ouvre") is False, str(sc.get("ouvre")))
     ap = T.get("appels") or []
     est = [a for a in ap if a[1] == "/api/cost/estimate"]
-    check("prix d'image : UNE estimation POST (campaign, un op image par modèle du registre)",
+    check("prix d'image : estimation POST (campaign, un op image par modèle du registre)",
           bool(est) and all(a[0] == "POST" and (a[2] or {}).get("kind") == "campaign" and len((a[2] or {}).get("ops") or []) == 11 for a in est), str(est[:1])[:300])
+    check("TÉMOIN (revue T9) : plusieurs pastilles d'image sur la page SPA (Chapitres, Library, Templates…)",
+          (R.get("nImgT8") or 0) >= 3, str(R.get("nImgT8")))
+    check("déduplication : ces pastilles d'image → UNE seule estimation sur la page",
+          R.get("estT8") == 1, str(R.get("estT8")))
+    check("compte exact : 2 estimations sur tout le banc (la page SPA, puis la relecture forcée « sans clé »)",
+          len(est) == 2, str(len(est)))
+    ck = T.get("clav") or {}
+    check("clavier : la pastille est un bouton focusable (pas de tabindex=-1)", ck.get("bouton") is True, str(ck))
+    check("TÉMOIN : liste fermée, Échap atteint l'hôte", T.get("hoteTemoin") == 1, str(T.get("hoteTemoin")))
+    check("clavier : à l'ouverture, l'option active (aria-activedescendant) est le modèle actuel",
+          ck.get("a0") == "seedance-2" and ck.get("pDesc") is True, str(ck))
+    check("clavier : ↓ ↓ parcourt les options (seedance-2.5 puis veo-3)", ck.get("a1") == "seedance-2.5" and ck.get("a2") == "veo-3", str(ck))
+    gr9 = ck.get("grise") or {}
+    check("NÉGATIF : Entrée sur une option GRISÉE → rien n'est écrit, la liste reste ouverte",
+          gr9.get("valeur") == "seedance-2" and gr9.get("ouverte") is True, str(gr9))
+    check("clavier : ↑ revient (seedance-2.5)", ck.get("a3") == "seedance-2.5", str(ck.get("a3")))
+    ch9 = ck.get("choix") or {}
+    check("clavier : Entrée choisit (la vue est rejouée), liste fermée, focus rendu à la pastille",
+          ch9.get("valeur") == "seedance-2.5" and ch9.get("ouverte") is False and ch9.get("focus") is True and ch9.get("txt") == "Seedance 2.5", str(ch9))
+    check("clavier : Tab ferme la liste et rend le focus à la pastille",
+          (ck.get("tab") or {}).get("ouverte") is False and (ck.get("tab") or {}).get("focus") is True, str(ck.get("tab")))
+    check("clavier : Échap ferme la liste et rend le focus à la pastille",
+          (ck.get("esc") or {}).get("ouverte") is False and (ck.get("esc") or {}).get("focus") is True, str(ck.get("esc")))
+    check("NÉGATIF : liste ouverte → ni Échap ni Entrée n'atteignent l'hôte (stopPropagation : le dialogue IA du Vectorlab reste ouvert)",
+          (ck.get("hote") or {}).get("esc") == 1 and (ck.get("hote") or {}).get("ent") == 0, str(ck.get("hote")))
+    dl = T.get("detListe") or {}
+    check("liste ouverte → champ détaché → synchronisation : la liste disparaît (TÉMOIN : elle était ouverte)",
+          dl.get("avant") is True and dl.get("apres") is False, str(dl))
+    ea9 = T.get("ecrireAbsent") or {}
+    check("ecrire natif d'un id ABSENT du <select> → false, aucun change, valeur intacte",
+          ea9.get("res") is False and ea9.get("dChange") == 0 and ea9.get("meme") is True, str(ea9))
+    vs = T.get("vlSans") or {}
+    check("<select> natif DÉSACTIVÉ (Vectorlab sans clé) → pastille figée, title « désactivé »",
+          vs.get("dis") == "true" and "désactivé" in (vs.get("title") or "") and T.get("vlSansOuvre") is False, f"{vs} {T.get('vlSansOuvre')}")
+    check("<select> natif désactivé : ecrire refuse (false)", T.get("vlSansEcrit") is False, str(T.get("vlSansEcrit")))
+    va = T.get("vlAvec") or {}
+    check("TÉMOIN : le même <select> actif avec un modèle → pastille pilotable (Modèle 1)",
+          va.get("dis") == "false" and va.get("txt") == "Modèle 1", str(va))
+    cv = T.get("cfVide") or {}
+    check("<select> natif VIDE (Cardforge) → pastille figée, title « vide »",
+          cv.get("dis") == "true" and "vide" in (cv.get("title") or ""), str(cv))
     autres = [a[:2] for a in ap if a[1] != "/api/cost/estimate" and not (a[0] == "GET" and a[1] in
               ("/api/video-models", "/api/image-models", "/api/music-models", "/api/atelier/settings"))]
     check("AUCUNE DÉPENSE : le faux fetch ne voit que des lectures de modèles et l'estimation", bool(ap) and not autres, str(autres))
@@ -1124,7 +1212,11 @@ def main():
           fi.get("val") == "Bonjour joli monde", str(fi))
     check("valeur posée par le setter du PROTOTYPE (React) + UN événement input qui bouillonne, curseur après le texte",
           fi.get("set") == ["TEXTAREA", "Bonjour joli monde"] and fi.get("nInput") == 1 and fi.get("sel") == [12, 12], str(fi))
-    check("Échap arrête l'écoute (stop())", dd("echap").get("stop") == 1, str(D.get("echap")))
+    check("TÉMOIN : au repos, Échap atteint l'hôte", D.get("hoteTemoin") == 1, str(D.get("hoteTemoin")))
+    check("Échap arrête l'écoute (stop()) SANS atteindre l'hôte", dd("echap").get("stop") == 1 and dd("echap").get("hote") == 1, str(D.get("echap")))
+    mk = D.get("clavier") or {}
+    check("micro atteignable au clavier : <button type=button> sans tabindex=-1 (Entrée/Espace natifs)",
+          mk.get("tag") == "BUTTON" and mk.get("type") == "button" and mk.get("tab") != "-1", str(mk))
     af = dd("apresFin")
     check("fin d'écoute : le bouton revient au repos (titre voie 1, plus de .dzia-ecoute)",
           af.get("title") == TITRE_V1 and af.get("ecoute") is False and af.get("etat") == "repos" and af.get("txt") != "■", str(af))
