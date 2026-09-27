@@ -299,8 +299,16 @@ def _render(path: Path, t: float, parts: list[str], out_lbl: str, out: Path,
             entree = ["-ss", "%.3f" % te]
         else:
             entree = [] if ss is None else ["-ss", "%.6f" % ss]
-        r = _MM._run(["ffmpeg", "-y", "-v", "error"] + entree + ["-i", str(path),
-                      "-filter_complex", ";".join(parts), "-map", f"[{out_lbl}]",
+        # Revue T2 (27/09) : la paire vidstabtransform + minterpolate passe
+        # sur UN thread (décodeur et graphe), comme au rendu
+        # (`_build_montage_command`, course 0xC0000005 de 8.1.1) — MESURÉ sur
+        # 8.1.1 : sans ces drapeaux, l'aperçu stab + flow rendait des images
+        # sans rapport avec le rendu (écart moyen 40 à 130/255).
+        graphe = ";".join(parts)
+        seul = (["-threads", "1"] if "vidstabtransform=" in graphe and "minterpolate=" in graphe else [])
+        r = _MM._run(["ffmpeg", "-y", "-v", "error"] + entree + seul + ["-i", str(path)]
+                     + (["-filter_complex_threads", "1"] if seul else [])
+                     + ["-filter_complex", graphe, "-map", f"[{out_lbl}]",
                       "-frames:v", "1"] + qv + [str(tmp)],
                      timeout=120, quoi=quoi)
         vide = r.returncode != 0 or not tmp.exists() or tmp.stat().st_size == 0
@@ -363,19 +371,22 @@ def _au_temps(effects, t_local: float, dur=None) -> list:
     return res
 
 
-def _cadre_prep(cadre, w: int, t: float):
-    """(h, pre, ss) du mode cadre : hauteur au rapport du CANVAS du
-    projet, préfixe de géométrie du rendu, -ss d'entrée. La géométrie vit
-    dans `montage_service` (`_CANVAS`, `_cadre_entree` → `_cadre_pre` qui
-    réutilise `_reframe_crop` et `_dz_filter` ; retime et stabilisation,
-    retours 26/09 B) : import PARESSEUX — `montage_service` n'importe ce
-    module que dans ses routes, aucun cycle au chargement. `ss` vaut `t`
-    sans retime ni stabilisation (le -ss historique)."""
+def _cadre_prep(cadre, w: int, t: float, fps_src: float = 0.0):
+    """(h, pre, kw) du mode cadre : hauteur au rapport du CANVAS du
+    projet, préfixe de géométrie du rendu, arguments de `_render`. La
+    géométrie vit dans `montage_service` (`_CANVAS`, `_cadre_entree` →
+    `_cadre_pre` qui réutilise `_reframe_crop` et `_dz_filter` ; retime et
+    stabilisation, retours 26/09 B) : import PARESSEUX — `montage_service`
+    n'importe ce module que dans ses routes, aucun cycle au chargement.
+    `kw` = {} sans retime ni stabilisation (le -ss historique, second essai
+    compris), {"ss": …} sinon — revue T2 : décidé par le drapeau
+    `explicite` de `_cadre_entree`, jamais par une égalité de flottants.
+    `fps_src` (cadence de la source) dimensionne la fenêtre du retime."""
     from app.services import montage_service as _MS
     w0, h0 = _MS._CANVAS.get(cadre.get("ratio"), _MS._CANVAS["9:16"])
     h = _haut(w, w0, h0)
-    ss, pre = _MS._cadre_entree(cadre, w, h, t)
-    return h, pre, ss
+    ss, pre, explicite = _MS._cadre_entree(cadre, w, h, t, fps_src)
+    return h, pre, ({"ss": ss} if explicite else {})
 
 
 def _adjust_graph(cadre, w: int, h: int, src: str, out: str) -> list[str]:
@@ -434,9 +445,7 @@ def graded_frame(path, t, effects=None, mask=None, w: int = W_DEFAULT,
     te = _t_lisible(t, dur, fps)
     kw = {}
     if cadre is not None:
-        h, pre, ss = _cadre_prep(cadre, w, te)
-        if ss != te:
-            kw = {"ss": ss}      # retime / stabilisation : pas de second essai
+        h, pre, kw = _cadre_prep(cadre, w, te, fps)   # kw : retime / stab → pas de second essai
     else:
         h, pre = _haut(w, sw, sh), None
     aj = _adjust_graph(cadre, w, h, "gv1", "gout") if cadre is not None else []
@@ -486,9 +495,7 @@ def scopes_png(path, t, effects=None, mask=None, size: int = 512, cadre=None) ->
     te = _t_lisible(t, dur, fps)
     kw = {}
     if cadre is not None:
-        h, pre, ss = _cadre_prep(cadre, size, te)
-        if ss != te:
-            kw = {"ss": ss}
+        h, pre, kw = _cadre_prep(cadre, size, te, fps)
     else:
         h, pre = _haut(size, sw, sh), None
     aj = _adjust_graph(cadre, size, h, "gv1", "gsrc") if cadre is not None else []

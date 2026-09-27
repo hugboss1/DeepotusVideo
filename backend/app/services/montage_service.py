@@ -6014,9 +6014,11 @@ def _cadre_of(raw) -> dict | None:
     return cad
 
 
-# Retours 26/09 (B, plan 2026-09-27 T2) : au-delà de 20 s de source, la
-# stabilisation d'une image (décodage DEPUIS 0, vidstabtransform indexe le
-# .trf par image d'entrée) coûterait trop : l'image part sans, avec une note.
+# Retours 26/09 (B, plan 2026-09-27 T2) : au-delà de 20 s — de `t` OU de
+# durée de la source — l'image stabilisée coûterait trop : elle part sans,
+# avec une note. Le coût n'est PAS le décodage depuis 0 (0,11 s pour 24 s)
+# mais `optzoom=1` (celui du rendu), recalculé sur TOUT le .trf à chaque
+# image, quel que soit `t` : ~0,35 s par seconde de source (voir `_cadre_stab`).
 _STAB_T_MAX = 20.0
 _CADRE_FPS_DEFAUT = 30
 _CADRE_AJ_MAX = 16
@@ -6131,13 +6133,16 @@ def _cadre_pre(cad: dict, w: int, h: int, t_src: float) -> str:
     return ",".join(pre)
 
 
-def _cadre_entree(cad: dict, w: int, h: int, t_src: float) -> tuple:
-    """Retours 26/09 (B1, B2) — `(ss, pre)` d'une image du cadre : `ss` = le
-    `-ss` d'entrée (None : décodage DEPUIS 0, sans -ss), `pre` = le préfixe
-    `[0:v]` → image au temps `t_local`.
+def _cadre_entree(cad: dict, w: int, h: int, t_src: float, fps_src: float = 0.0) -> tuple:
+    """Retours 26/09 (B1, B2) — `(ss, pre, explicite)` d'une image du cadre :
+    `ss` = le `-ss` d'entrée (None : décodage DEPUIS 0, sans -ss), `pre` = le
+    préfixe `[0:v]` → image au temps `t_local`, `explicite` = vrai quand `ss`
+    n'est pas le -ss historique (`grading` ne fait alors pas de second essai ;
+    revue T2 : un drapeau, plus une égalité de flottants). `fps_src` : la
+    cadence de la source (`grading._probe`), qui dimensionne la fenêtre.
 
     Cadre sans retime ni `stab` résolu (`_cadre_stab` y pose `trf`) :
-    `(t_src, _cadre_pre(…))`, l'historique octet pour octet.
+    `(t_src, _cadre_pre(…), False)`, l'historique octet pour octet.
 
     STABILISATION seule : la source ENTIÈRE (vidstabtransform indexe le .trf
     par image d'entrée, comme au rendu), `_stab_filter` (celui du rendu),
@@ -6153,18 +6158,42 @@ def _cadre_entree(cad: dict, w: int, h: int, t_src: float) -> tuple:
     flow, tblend de `_RETIME` après si blend), puis l'horloge ramenée au
     temps LOCAL (`+tw`), zoom D-13 à ce temps, `tpad` clone (fin de source,
     comme le tpad du rendu) et `select` de la première image ≥ t_local −
-    1/(2F). Le recadrage D-40 lit le temps de SOURCE absolu (`+s0`)."""
+    1/(2F). Le recadrage D-40 lit le temps de SOURCE absolu (`+s0`).
+
+    REVUE T2 (27/09), deux défauts MESURÉS par balayage image par image :
+      · la fenêtre de m images de SORTIE couvrait moins d'une image SOURCE
+        au ralenti (blend ×0,25, ou F = 60 dès ×0,5 : l'image k+1 du rendu)
+        — fps= dupliquait la première image décodée au lieu de l'image
+        source précédente. La marge est donc aussi comptée en images
+        source : m ≥ ceil(F / (fps_src·v)) + 2 (blend), 2·ceil(…) + 2 (flow,
+        minterpolate lit des voisines des deux côtés) ;
+      · STAB + RETIME : le rendu recale le plan sur la PREMIÈRE IMAGE ≥
+        srcIn (`trim=start=srcIn,setpts=PTS-STARTPTS`), pas sur srcIn — un
+        srcIn hors de la grille source donnait l'image k−1. Même recalage
+        ici (srcIn = t_src − t_local·v, reconstruit de deux valeurs que le
+        client arrondit au millième : ± 0,0005·(1 + v) ; `trim` part donc
+        de srcIn − cette tolérance — une image source DANS la tolérance
+        au-dessus du vrai srcIn serait prise à tort, cas d'un srcIn à moins
+        de ~1 ms au-dessus d'une image), puis la fenêtre `trim=start=tw·v`
+        et le décalage `−tw·v` comme le -ss du cas non stabilisé."""
     st = cad.get("stab")
     st = st if isinstance(st, dict) and st.get("trf") else None
     rt, spd = cad.get("retime"), cad.get("speed")
     if not st and not (rt in _RETIME and spd):
-        return t_src, _cadre_pre(cad, w, h, t_src)
+        return t_src, _cadre_pre(cad, w, h, t_src), False
     n = sfx_service.fnum
     if not (rt in _RETIME and spd):
         return None, (f"{_stab_filter(st['trf'], st)},trim=start={t_src:.6f},"
-                      f"setpts=PTS-STARTPTS,{_cadre_pre(cad, w, h, t_src)}")
+                      f"setpts=PTS-STARTPTS,{_cadre_pre(cad, w, h, t_src)}"), True
     f = int(cad.get("fps") or _CADRE_FPS_DEFAUT)
     m = 4 if rt == "flow" else 2
+    try:
+        fs = float(fps_src or 0.0)
+    except (TypeError, ValueError):
+        fs = 0.0
+    if fs > 0 and math.isfinite(fs):
+        par_src = math.ceil(f / (fs * spd) - 1e-9)       # images de sortie par image source
+        m = max(m, (2 if rt == "flow" else 1) * par_src + 2)
     tl = float(cad.get("t_local") or 0.0)
     tw = max(0, math.floor(tl * f + 1e-6) - m) / f
     s0 = max(0.0, float(t_src) - (tl - tw) * spd)
@@ -6172,10 +6201,20 @@ def _cadre_entree(cad: dict, w: int, h: int, t_src: float) -> tuple:
     suivi = isinstance(rf, dict) and rf.get("mode") == "suivi"
     pre = []
     if st:
-        pre.append(f"{_stab_filter(st['trf'], st)},trim=start={s0:.6f},setpts=PTS-{s0:.6f}/TB")
+        s_in = max(0.0, float(t_src) - tl * spd - 0.0005 * (1 + spd))
+        dec = tw * spd
+        pre.append(f"format=pix_fmts=yuv420p:color_ranges=tv,{_stab_filter(st['trf'], st)},trim=start={s_in:.6f},setpts=PTS-STARTPTS,"
+                   f"trim=start={dec:.6f},setpts=PTS-round({dec:.9f}/TB)")
     if suivi:
         pre.append(f"setpts=PTS+{s0:.6f}/TB")
-    pre.append(f"scale={w}:{h}:force_original_aspect_ratio=increase,{_reframe_crop(rf, w, h)},setsar=1")
+    # Revue T2 (27/09) : format ET plage épinglés AVANT le retime — MESURÉ
+    # (9.0.1, stab + flow, t_local 1,3, showinfo) : la sortie JPEG (mjpeg,
+    # plage PLEINE) fait négocier la plage au graphe entier, dès la sortie du
+    # scale ; minterpolate interpolait alors autrement (sommes de contrôle
+    # différentes dès l'entrée ; l'image du rendu k−1 en JPEG, k en PNG, mêmes
+    # horodatages). Le rendu travaille en yuv420p plage TV (source, libx264).
+    pre.append(f"scale={w}:{h}:force_original_aspect_ratio=increase,{_reframe_crop(rf, w, h)},setsar=1,"
+               f"format=pix_fmts=yuv420p:color_ranges=tv")
     if suivi:
         pre.append(f"setpts=PTS-{s0:.6f}/TB")
     rtf = _RETIME[rt].format(fps=f)
@@ -6191,7 +6230,7 @@ def _cadre_entree(cad: dict, w: int, h: int, t_src: float) -> tuple:
     pre.append(f"tpad=stop_mode=clone:stop_duration={n((m + 2) / f)}")
     pre.append(f"select='gte(t,{tl - 0.5 / f:.6f})'")
     pre.append("format=yuv420p")
-    return (None if st else s0), ",".join(pre)
+    return (None if st else s0), ",".join(pre), True
 
 
 # Sémaphore propre à /grade-frame (même patron que `_scopes_sem`, distinct :

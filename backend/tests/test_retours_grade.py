@@ -1121,6 +1121,131 @@ _mv12 = [(_fz12[i], s) for i, s in enumerate(_fzr) if not all(x in (200, 400) fo
 check("r12_champs_neufs_inattendus_jamais_500_sur_les_deux_routes_%d_cas" % (2 * len(_fz12)),
       not _mv12 and len(_fzr) == len(_fz12) >= 60 and (200, 200) in _fzr, str(_mv12[:4]))
 
+# =============================================================================
+print("\n[13] revue T2 : balayage image par image (retime lent, stab + retime hors grille)")
+# =============================================================================
+# Revue du 27/09 : [6]-[8] ne regardaient que trois instants. Ici, TOUTES les
+# 3 images de sortie de 0,1 a 2,8 s : l'image du lecteur (t = srcIn +
+# t_local·vitesse et t_local arrondis au millieme, comme dzmSrcTimeAt /
+# dzmGlCadre) contre l'image k du rendu Preview reel, et ses voisines k±1.
+# Defauts mesures par la revue sur a4bbc5f : blend x0,25 -> image k+1 (la
+# fenetre de 2 images de SORTIE couvrait moins d'une image SOURCE ; aussi a
+# F = 60 des x0,5) ; stab + retime avec srcIn hors de la grille source ->
+# image k-1 (le rendu recale sur la 1re image >= srcIn, `setpts=PTS-STARTPTS`).
+DS = MKV("defile_secoue.mp4", ["-f", "lavfi", "-i", "testsrc2=s=1100x340:r=25:d=4", "-vf",
+                               "crop=480:270:x='mod(n*12,480)+30+24*sin(n*1.7)':y='25+20*cos(n*2.3)'", "-r", "25"])
+_trfds = CALL(MM, "stab_detect", DS) if DS else None
+check("r13_temoin_source_qui_defile_et_tremble_et_son_trf", isinstance(_trfds, pathlib.Path), str(_trfds))
+_stds = dict(MS._v1_stab({"stab": _STB}) or {}, trf=str(_trfds))
+
+
+def RENDU_F(src, nom, fps, src_in, sp, rt, stab=None):
+    v1 = {"path": src, "src_dur": 4.0, "src_in": src_in, "start": 0.0, "end": 3.0, "transition": "cut",
+          "transition_s": 0.0, "speed": sp, "retime": rt, "stab": stab, "effects": None, "mask": None,
+          "reframe": None, "dz": None}
+    out = FXD / nom
+    try:
+        cmd, _ = MS._build_montage_command([v1], [], [], None, w=270, h=480, fps=fps, mix_db={}, ducking=False,
+                                           duration_master=False, preview=True, out=str(out))
+        r = subprocess.run([FF if x == "ffmpeg" else x for x in cmd], capture_output=True, text=True, timeout=600)
+        if r.returncode != 0 or not out.is_file():
+            print("  (rendu : %s)" % (r.stderr or "")[-300:])
+            return []
+        d = FXD / (out.stem + "_img")
+        d.mkdir(exist_ok=True)
+        subprocess.run([FF, "-y", "-v", "error", "-i", str(out), str(d / "%04d.png")], capture_output=True, timeout=300)
+        return sorted(d.glob("*.png"))
+    except Exception as e:                               # noqa: BLE001
+        print("  (rendu : %r)" % e)
+        return []
+
+
+_REPRO = {}
+
+
+def BALAYE(nom, src, fps, src_in, sp, rt, stab=False, pas=3):
+    """(nombre d'instants, [(k, {j: ecart a l'image k+j})] hors borne).
+
+    Borne : 6/255 si le RENDU est reproductible. MESURE le 27/09 : sous
+    ffmpeg 8.1.1 (PATH, pas celui de l'app), vidstabtransform n'est PAS
+    deterministe — deux rendus identiques d'un plan stabilise different de
+    0 a 11/255 selon l'image, avec ou sans retime, avec ou sans `-threads 1`
+    (9.0.1, celui de l'application : 0,00 partout). Un plan stabilise est
+    donc rendu DEUX fois : rendu non reproductible -> l'apercu n'a pas a
+    etre plus pres du rendu que le rendu de lui-meme, la borne devient
+    max(25, dispersion + 6)
+    (aucune image sans rapport : la course 0xC0000005 de la paire
+    vidstab + minterpolate donnait 40 a 130 avant les drapeaux `-threads 1`)
+    et le banc le DIT (`_REPRO`)."""
+    fr = RENDU_F(src, nom + ".mp4", fps, src_in, sp, rt, _stds if stab else None) if src else []
+    borne = 6
+    if stab and fr:
+        fr2 = RENDU_F(src, nom + "_bis.mp4", fps, src_in, sp, rt, _stds)
+        ec2 = [ECART(IMG(a), IMG(b)) for a, b in zip(fr, fr2)] if len(fr2) == len(fr) else [999]
+        _REPRO[nom] = max(x if isinstance(x, float) else 999 for x in ec2)
+        if _REPRO[nom] > 0.5:
+            # MESURE 27/09 (8.1.1) : rendu contre rendu jusqu'a 44/255 sur un
+            # meme plan ; l'apercu ne peut etre juge qu'a cette dispersion pres.
+            borne = max(25, int(_REPRO[nom] + 6))
+    mauvais, n = [], 0
+    for k in range(3, min(len(fr) - 1, int(2.8 * fps)), pas):
+        tl = round(k / fps, 3)
+        cz = {"ratio": "9:16", "t_local": tl, "dur": 3.0, "speed": sp, "retime": rt, "fps": fps}
+        if stab:
+            cz["stab"] = _STB
+        g = GFH(src, round(src_in + tl * sp, 3), w=270, cadre=cz)
+        if g[0] != 200:
+            mauvais.append((k, g[0]))
+            n += 1
+            continue
+        e = {j: ECART(IMG(fr[k + j]), g[1]) for j in (-1, 0, 1)}
+        n += 1
+        if not (isinstance(e[0], float) and e[0] <= borne):
+            mauvais.append((k, e))
+    print("  %s : %d instants, hors %d/255 : %d %s" % (nom, n, borne, len(mauvais), mauvais[:3]))
+    return n, mauvais
+
+
+_b13 = {
+    "blend_x0_25_F30": BALAYE("b13_blend_x025_F30", DEFIL, 30, 0.37, 0.25, "blend"),
+    "blend_x0_25_F25": BALAYE("b13_blend_x025_F25", DEFIL, 25, 0.37, 0.25, "blend"),
+    "blend_x0_5_F60": BALAYE("b13_blend_x05_F60", DEFIL, 60, 0.37, 0.5, "blend", pas=6),
+    "flow_x0_25_F30": BALAYE("b13_flow_x025_F30", DEFIL, 30, 0.37, 0.25, "flow"),
+}
+check("r13_retime_lent_blend_x0_25_et_F60_flow_x0_25_chaque_instant_egal_au_rendu_6",
+      all(v[0] >= 20 and not v[1] for v in _b13.values()), str({k: v[1][:2] for k, v in _b13.items()}))
+_s13 = {
+    "stab_blend_in0_5": BALAYE("s13_stab_blend_in05", DS, 30, 0.5, 0.5, "blend", stab=True),
+    "stab_flow_in0_5": BALAYE("s13_stab_flow_in05", DS, 30, 0.5, 0.5, "flow", stab=True),
+    "stab_blend_in0_37": BALAYE("s13_stab_blend_in037", DS, 30, 0.37, 0.5, "blend", stab=True),
+    "stab_blend_in0_4_aligne": BALAYE("s13_stab_blend_in04", DS, 30, 0.4, 0.5, "blend", stab=True),
+}
+print("  reproductibilite du rendu stabilise (ecart max rendu/rendu) :", _REPRO)
+# La paire vidstab + minterpolate passe sur UN thread, comme au rendu ; blend + stab garde ses threads.
+_thr13 = {}
+for _rt13 in ("flow", "blend"):
+    _vide_cache()
+    _cmds.clear()
+    MM._run = _run_espion
+    try:
+        GFH(DS, 1.1, w=270, cadre={"ratio": "9:16", "t_local": 1.2, "speed": 0.5, "retime": _rt13, "fps": 30,
+                                   "stab": _STB}) if DS else None
+    finally:
+        MM._run = _vrai_run
+    _ff13 = [x for x in _cmds if x and x[0] == "ffmpeg"]
+    _thr13[_rt13] = [("-threads" in x and x[x.index("-threads") + 1] == "1" and x.index("-threads") < x.index("-i"),
+                      "-filter_complex_threads" in x) for x in _ff13]
+check("r13_stab_flow_un_seul_thread_comme_le_rendu_temoin_stab_blend_sans",
+      _thr13.get("flow") == [(True, True)] and _thr13.get("blend") == [(False, False)], str(_thr13))
+check("r13_stab_et_retime_srcin_hors_grille_chaque_instant_egal_au_rendu_6_temoin_aligne",
+      all(v[0] >= 20 and not v[1] for v in _s13.values()), str({k: v[1][:2] for k, v in _s13.items()}))
+# Sous le ffmpeg de l'application (9.0.1), le rendu stabilise EST reproductible :
+# la borne stricte s'applique. Ailleurs (8.1.1), la ligne le dit sans rougir.
+_v9 = "version 9." in _ver
+check("r13_ffmpeg_de_l_app_9_rendu_stabilise_reproductible_borne_stricte_6" if _v9
+      else "r13_information_ffmpeg_%s_rendu_stabilise_non_reproductible_borne_25" % _ver.split()[2][:5],
+      len(_REPRO) == 4 and (all(v <= 0.5 for v in _REPRO.values()) if _v9 else True), str(_REPRO))
+
 print(f"\n=== {ok} passed, {fail} failed ===")
 c.__exit__(None, None, None)
 try:
