@@ -294,3 +294,57 @@ retire par la corbeille 🗑 de sa carte.
 
 ### I — GPT Image 2.5 (ajout validé le 27/09)
 Quatre entrées `gpt-image-2.5-flare`, `gpt-image-2.5-sunburst` (OpenAI) et `-flare-fal`, `-sunburst-fal` (fal), qualité `high`, 0,053 $/image ; routage des `-fal` avant le préfixe `gpt-image` ; sprites/pixel-art/tuiles partent d'une image de la Library (générateur global) et sont couverts par le registre. Détail : plan `2026-09-27-plan-retours-ia.md` §I.
+
+## 3. Exécution et écarts datés (27/09/2026)
+
+Plan `2026-09-27-plan-retours-ia.md`, exécuté en subagent-driven. Chaque tâche a été revue sur le SHA figé et corrigée, puis revue à nouveau. La campagne `mutations_retours_ia.py` compte **23 mutations, toutes rouges**. Le banc croisé `test_retours_ia_croise.py` est à 22/0.
+
+**Démentis mesurés, avec la décision prise :**
+- **Stabilisation dans l'aperçu.** Le coût d'une image stabilisée vient de `optzoom=1` appliqué à TOUTE la source, pas du décodage depuis 0 : environ 8 s par image pour une source de 24 s. Le plafond porte donc sur la durée de la SOURCE (≤ 20 s). Au-delà, la note `stab-trop-loin` s'affiche.
+- **Horodatage de `setpts`.** Il TRONQUE, d'où la parade `+round(tw/TB)`. En sortie JPEG, le graphe négocie la plage pleine : on épingle `format=yuv420p:color_ranges=tv`. vidstab et minterpolate tournent sur un seul fil.
+- **Reproductibilité selon ffmpeg.** `vidstabtransform` n'est pas déterministe sous 8.1.1 (jusqu'à 55/255 d'écart d'un rendu à l'autre) ; il l'est sous 9.0.1, celui de l'application. Le banc tolère `max(25, dispersion+6)` sous 8.1.1 seulement.
+- **Habillage des champs IA sans conteneur.** Re-parenter un champ React fait planter l'application (`NotFoundError`). Le liseré est donc peint par le champ lui-même, ou par son parent bordé, sinon on ne garde que le halo.
+- **Dictée, voie 1.** Elle réussit dans Chrome sur `deepotus.localhost` et sur `127.0.0.1`, sans erreur `network`. Les APIs de dialogue réelles sont `window.__dzDialogue` et `window.VL.dialogue` (le plan disait `DzDialogue`). `danger:true` fait valoir Entrée pour Non.
+- **Soumission fal.** fal_client 1.0.1 rejoue SEUL jusqu'à 10 POST de soumission (`MAX_ATTEMPTS`), sans API publique pour le désactiver. Notre boucle de rejeu est supprimée ; le risque restant est interne à la bibliothèque.
+- **Seedance 2.5.** Il était déjà au registre (`05696b0`) ; seul le défaut restait à changer. Côté pricing, on ajoute le drapeau `legacy` pour que les anciens jobs sans modèle gardent leur coût affiché à l'octet près.
+
+**Écarts datés, qui restent ouverts :**
+- **Rendu.**
+  - Un vrai fondu (τ > 0,04) avance encore les plans suivants de τ ; il faudrait des poignées de plan.
+  - Un trou suivi d'une coupe avale la première image du plan.
+  - Un overlay dont le `start` est hors de la grille 1/fps a un écart de {0, 1} image.
+  - Un GIF à 12 i/s avec des coupes est tronqué au premier plan : c'est préexistant, confié à la tâche séparée `task_efcc3e9b`.
+- **Aperçu à l'arrêt.**
+  - Recalage stab + retime : un `srcIn` à moins de 0,0005·(1+v) au-dessus d'une image prend l'image précédente.
+  - Le lecteur envoie `fps=30` quel que soit le preset.
+  - J1 ne touche que V1 dans le lecteur ; au rendu, il touche aussi V2, les trous et les titres.
+  - Les scopes n'appliquent ni retime, ni stab, ni J1.
+  - La couche ne connaît ni `_fx.EFFECTS` ni le total.
+  - Les chiffres Unicode non ASCII sont lus par `float()` mais pas par `dzmGlSec`.
+  - Seul l'événement `fullscreenchange` standard est écouté.
+- **Vidéo et coût.**
+  - Le plafond de 10 $ par requête refuse un lot ×8 : c'est le choix de l'utilisateur.
+  - Aucun écran ne règle `video_max_usd_per_request` ni `video_max_gen_s`.
+  - Le client n'envoie pas `max_usd`.
+  - Un plan marketing de 7 posts vidéo est estimé à environ 33 $.
+  - Un `max_usd` invalide n'est pas refusé sur les routes qui ne génèrent rien (200, sans dépense).
+  - Un plafond `null` dans `pricing.json` vaut le défaut, 10 $.
+  - La vignette applique le tarif 720p quelle que soit la résolution. Elle sous-estime sous le minimum natif et entre des durées natives discontinues, et ne suit pas un `video_max_gen_s` modifié à la main.
+  - La scène « Seedance (animated) » des Chapitres reste en Ken Burns.
+  - Seedance 2.5 n'accepte pas de seed : les variations d'un lot ne sont pas reproductibles.
+  - `scripts/qa/qa-videomodel.js` (recette manuelle) attend encore v1-pro.
+- **Images.**
+  - Prix fixe de 0,053 $ par image (1024², qualité high).
+  - Aucun contrôle de qualité ni de fond transparent à l'écran.
+  - L'éditeur de tarifs des Réglages ignore les nouvelles clés.
+  - Pas de marche 2.5 dans la série Cardforge.
+  - Nano Banana sans FAL_KEY rend 400 au lieu de 502.
+- **Champs IA.**
+  - Game Assets (moteur 3D) est en lecture seule dans la pastille.
+  - La position `relative` du parent est décidée au marquage seulement.
+  - Les règles sans `page` s'appliquent aussi aux pages à part.
+  - L'intervalle de 800 ms n'est jamais arrêté.
+  - `available:false` de la dictée est retenu jusqu'au focus suivant du champ.
+  - L'Échap synthétique vers `__dzDialogue`/`VL.dialogue` dépend de leur comportement actuel.
+- **Exploitation.** Des routes backend changent (dictée, garde vidéo, images) : il faut relancer le backend au déploiement, et c'est l'utilisateur qui le fait.
+- Preuves écran 27/09 (8799, sans clé, espion à 0) : A 180/180 images, premières images des plans = `in` ; B écart 5,6/255 à l'image du rendu (négatif 236) ; C `.dzm-scwin` dans `.svm-frame` plein écran ; D message lisible Studio + Library ; F nœud neuf seedance-2.5 à 4,73 $ ; G/H champs, pastilles grisées, dictée voie 2 Entrée = Non ; I quatre GPT Image 2.5 à 0,053 $. Écarts vus à l'écran : largeur de l'image étalonnée en plein écran suit l'événement `resize` (pas `fullscreenchange`) ; pastilles `cardforge-texture` (Meshy) et `atelier-plan` ne signalent pas la clé absente (elles recopient la vue) ; barre IA qui recouvre le centre de `#iaTexte` (Vectorlab) de 40 px, clic transmis au champ.

@@ -16,16 +16,16 @@ Conception : `docs/superpowers/specs/2026-09-26-retours-ia-design.md` (`ad6ad50`
 
 Le contrôleur coche une tâche après : revue de conformité, revue qualité, corrections, re-revue et bancs verts.
 
-- [ ] T1 — A : horloge du rendu (`fps` avec `start_time=0`, amorce après une coupe franche), bancs dorés réécrits
-- [ ] T2 — B serveur : grade-frame avec retime blend/flow, stabilisation (`.trf` en cache, plafond 20 s), piste J1 (`_adjust_bounded` partagé)
-- [ ] T3 — B client et C : porte `dzmGlBody`, champs `cadre` neufs, pastille ; scopes portés dans l'élément plein écran
-- [ ] T4 — D et F5 : sections du maillon montage (`uploadVideo` lit `detail` ; défaut du nœud `seedance-2.5` et repli `dzVmCost`)
-- [ ] T5 — F backend : `DEFAULT_VIDEO_MODEL` 2.5, estimation sans le repli 0,04, garde 402 (`max_usd` et plafond), durée générée plafonnée
-- [ ] T6 — I backend : GPT Image 2.5 Flare et Sunburst, en direct et via fal ; routage des `-fal` avant le préfixe ; prix ; `MS.MODELS` ; coût du Materialforge
+- [x] T1 — A : horloge du rendu (`fps` avec `start_time=0`, amorce après une coupe franche), bancs dorés réécrits (`3e01fbe`, revue `b536118` trou en tête + overlays V2 `start_time`, banc `554c71c` ; horloge 64/0 sous 9.0.1 ET 8.1.1)
+- [x] T2 — B serveur : grade-frame avec retime blend/flow, stabilisation (`.trf` en cache, plafond 20 s), piste J1 (`_adjust_bounded` partagé) (`a4bbc5f`, `c6b4071`, revue `70ecf06` : recalage stab+retime, marge en images SOURCE, `format=yuv420p:color_ranges=tv`, `-threads 1` ; plafond stab = SOURCE ≤ 20 s (coût = `optzoom=1`) ; retours_grade 87/0)
+- [x] T3 — B client et C : porte `dzmGlBody`, champs `cadre` neufs, pastille ; scopes portés dans l'élément plein écran (`a319ef5`, revue `6c4a353` porte J1 en miroir de la post-passe ; édition 660/0)
+- [x] T4 — D et F5 : sections du maillon montage (`uploadVideo` lit `detail` ; défaut du nœud `seedance-2.5` et repli `dzVmCost`) (`437fba6` R7up1 + R7vm1..3 ; clôture `4462cf7` plafond 10 s de la vignette ; bundle 2383/0, r7 43/0)
+- [x] T5 — F backend : `DEFAULT_VIDEO_MODEL` 2.5, estimation sans le repli 0,04, garde 402 (`max_usd` et plafond), durée générée plafonnée (`dc38d0d`, revue `8228e0e` : soumission fal unique, HeyGen dans la garde, non finis ; plafond 10 $ confirmé par l'utilisateur ; seedance_garde 96/0)
+- [x] T6 — I backend : GPT Image 2.5 Flare et Sunburst, en direct et via fal ; routage des `-fal` avant le préfixe ; prix ; `MS.MODELS` ; coût du Materialforge (`fc2d7ad`, revue `8fc4a3b` : défaut figé, 502 fournisseur, fond transparent sunburst via fal ; gpt_image_25 145/0)
 - [ ] T7 — H serveur : `/api/dictation/estimate` et `/api/dictation` (espion, 402, aucune transcription réelle)
-- [ ] T8 — G couche : `dz-champ-ia.js` (marquage par table, habillage variante B, reduced-motion), chargement SPA et pages à part, inventaire écran
-- [ ] T9 — G pastille de modèle, miroir du sélecteur de la vue (adaptateurs, clés absentes grisées)
-- [ ] T10 — H client : micro, voie 1 SpeechRecognition, voie 2 enregistrement puis estimation, dialogue et transcription
+- [x] T8 — G couche : `dz-champ-ia.js` (marquage par table, habillage variante B, reduced-motion), chargement SPA et pages à part, inventaire écran (`42927ea`, revue `5bc0c08` : défaire au détachement, repeinture au thème ; liseré peint par le champ, jamais de re-parentage)
+- [x] T9 — G pastille de modèle, miroir du sélecteur de la vue (adaptateurs, clés absentes grisées) (`074b740`, revue `21f7cec` + `75e9659`)
+- [x] T10 — H client : micro, voie 1 SpeechRecognition, voie 2 enregistrement puis estimation, dialogue et transcription (`339273b`, revue `8df4b4d` : Entrée = Non via `danger:true`, abandon caché/retiré/pagehide ; clôture `afdf017` ; champ_ia 252/0)
 - [ ] T11 — clôture : mutations, banc croisé, bancs complets, preuves écran, conception et mémoire datées, revue finale, PR
 
 ## Ordonnancement
