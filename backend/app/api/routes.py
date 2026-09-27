@@ -4844,6 +4844,16 @@ async def generate_image(body: dict, background_tasks: BackgroundTasks):
     return out
 
 
+def _erreur_fournisseur(model: str, e: Exception) -> HTTPException:
+    """Erreur d'un fournisseur d'image hors RuntimeError (délai httpx, erreur
+    fal_client…) : journalisée en entier, rendue en 502 qui nomme le modèle et
+    le TYPE d'erreur seulement — le texte brut peut porter un en-tête ou une
+    clé, il ne sort pas du journal."""
+    logger.error(f"fournisseur d'image {model} : {type(e).__name__}: {e}")
+    return HTTPException(502, f"{model} : échec du fournisseur "
+                              f"({type(e).__name__}).")
+
+
 async def _generate_image_core(body: dict, background_tasks: BackgroundTasks):
     """Text-to-image via fal.ai FLUX (same FAL_KEY as Seedance). Saves the
     PNG(s) into the images folder so they're immediately usable as Seedance
@@ -4896,6 +4906,8 @@ async def _generate_image_core(body: dict, background_tasks: BackgroundTasks):
                                     background=background)
         except RuntimeError as e:
             raise HTTPException(502, str(e))
+        except Exception as e:  # noqa: BLE001 — httpx/fal_client : 502, pas 500
+            raise _erreur_fournisseur(model, e)
         return {"images": out["images"], "prompt": prompt, "model": model}
 
     # --- OpenAI gpt-image / dall-e path (per the selected model) -----------
@@ -5164,6 +5176,8 @@ async def _process_image_core(body: dict):
                                         image_path=src)
             except RuntimeError as e:
                 raise HTTPException(502, str(e))
+            except Exception as e:  # noqa: BLE001 — httpx/fal_client : 502
+                raise _erreur_fournisseur(model, e)
             logger.info(f"images/process {op} via {model}: "
                         f"{fname} -> {out['images']}")
             return {"images": out["images"], "op": op, "model": model}

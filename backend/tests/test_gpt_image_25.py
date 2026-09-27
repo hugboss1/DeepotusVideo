@@ -245,6 +245,9 @@ check("fal_gpt_signature_preservee",
 m, a = IP.build_fal_gpt_request("p", "portrait_4_3", 1, None)
 check("temoin_fal_gpt2_endpoint_inchange", m == "openai/gpt-image-2", m)
 check("temoin_fal_gpt2_sans_background", "background" not in a, repr(a))
+m, a = IP.build_fal_gpt_request("p", "portrait_4_3", 1, None,
+                                background="transparent")
+check("temoin_fal_gpt2_background_ferme", "background" not in a, repr(a))
 for var in ("flare", "sunburst"):
     try:
         m, a = IP.build_fal_gpt_request("p", "square_hd", 1, None,
@@ -264,12 +267,18 @@ for var in ("flare", "sunburst"):
           and a2.get("image_urls") == ["http://u"], f"{m2} {a2}")
     check(f"fal_{var}_quality_high", a.get("quality") == "high", repr(a))
     check(f"fal_{var}_png", at.get("output_format") == "png", repr(at))
-    if var == "flare":
-        check("fal_flare_background_transparent",
-              at.get("background") == "transparent", repr(at))
-    else:
-        check("fal_sunburst_background_ignore", "background" not in at,
-              repr(at))
+    # doc fal (vérifiée en revue le 27/09) : `background` auto/transparent/
+    # opaque accepté par flare ET sunburst, t2i comme edit
+    check(f"fal_{var}_background_transparent",
+          at.get("background") == "transparent", repr(at))
+    try:
+        _, ae = IP.build_fal_gpt_request("p", "square_hd", 1, "http://u",
+                                         model=f"gpt-image-2.5-{var}",
+                                         background="transparent")
+    except Exception as e:  # noqa: BLE001
+        ae = {"_t": temoin(e)}
+    check(f"fal_{var}_edit_background_transparent",
+          ae.get("background") == "transparent", repr(ae))
     try:
         url, p = IP.build_openai_request(f"gpt-image-2.5-{var}", "p",
                                          "square", 1, False,
@@ -290,6 +299,7 @@ for var in ("flare", "sunburst"):
         check("openai_flare_background", p.get("background") == "transparent"
               and p.get("output_format") == "png", repr(p))
     else:
+        # la doc OpenAI ne dit rien du fond pour sunburst : fermé en direct
         check("openai_sunburst_background_ignore", "background" not in p,
               repr(p))
 url, p = IP.build_openai_request("gpt-image-2", "p", "square", 1, False)
@@ -308,6 +318,14 @@ def ids_liste(fal, openai):
 
 st, ids, js = ids_liste(True, True)
 check("image_models_200", st == 200, repr(js))
+# le DÉFAUT est figé : un ajout au catalogue ne le déplace pas
+check("defaut_deux_cles_flux", js.get("default") == "flux", repr(js))
+_st, _ids, _js = ids_liste(True, False)
+check("defaut_fal_seul_flux", _js.get("default") == "flux", repr(_js))
+_st, _ids, _js = ids_liste(False, True)
+check("defaut_openai_seul_gpt_image_2", _js.get("default") == "gpt-image-2",
+      repr(_js))
+cles(True, True)
 for mid in QUATRE + ("gpt-image-2-fal",):
     check(f"image_models_deux_cles_{mid}", mid in ids, repr(ids))
 st, ids, js = ids_liste(True, False)
@@ -420,6 +438,31 @@ st, js = call("POST", "/images/process",
 check("temoin_edit_flux_par_kontext",
       st == 200 and ESP["flux"] and ESP["flux"][0]["model"]
       == "fal-ai/flux-kontext/dev", f"{st} {ESP['flux']}")
+
+# ── [4b] erreur du fournisseur hors RuntimeError → 502, pas 500 ─────────────
+print("[4b] erreurs fournisseur")
+ESP_TO = {"n": 0}
+
+
+async def _esp_timeout(*a, **k):
+    ESP_TO["n"] += 1
+    raise httpx.ReadTimeout("delai depasse (banc) Bearer test-key")
+
+IP._fal_gpt_generate = _esp_timeout
+cles(True, True)
+st, js = call("POST", "/images/generate",
+              {"prompt": "chat", "model": "gpt-image-2.5-flare-fal"})
+check("timeout_generate_502", st == 502, f"{st} {js}")
+check("timeout_generate_sans_cle", "test-key" not in str(js), repr(js))
+check("timeout_generate_nomme_modele",
+      "gpt-image-2.5-flare-fal" in str(js), repr(js))
+st, js = call("POST", "/images/process",
+              {"op": "edit", "filename": SRC, "prompt": "or",
+               "model": "gpt-image-2.5-sunburst-fal"})
+check("timeout_process_502", st == 502, f"{st} {js}")
+check("timeout_process_sans_cle", "test-key" not in str(js), repr(js))
+check("timeout_espion_appele_deux_fois", ESP_TO["n"] == 2, repr(ESP_TO))
+IP._fal_gpt_generate = _esp_falgpt
 
 # ── [5] /materials/generate ─────────────────────────────────────────────────
 print("[5] /materials/generate")

@@ -53,8 +53,11 @@ PROVIDERS = {
 _FAL_GPT = {"gpt-image-2-fal": "gpt-image-2",
             "gpt-image-2.5-flare-fal": "gpt-image-2.5-flare",
             "gpt-image-2.5-sunburst-fal": "gpt-image-2.5-sunburst"}
-# seuls ces modèles acceptent `background: "transparent"`
-_TRANSPARENT_OK = ("gpt-image-2.5-flare",)
+# `background: "transparent"` — par VOIE, d'après la doc de chacune (27/09) :
+# fal l'accepte pour flare ET sunburst (t2i et edit, auto/transparent/opaque) ;
+# la doc OpenAI ne le dit que de flare, sunburst direct reste donc fermé.
+_TRANSPARENT_OK_FAL = ("gpt-image-2.5-flare", "gpt-image-2.5-sunburst")
+_TRANSPARENT_OK_OPENAI = ("gpt-image-2.5-flare",)
 
 
 def via_facade(model: str) -> bool:
@@ -123,7 +126,7 @@ def build_openai_request(model: str, prompt: str, size: str, n: int,
     payload = {"model": model, "prompt": prompt, "n": n, "size": osize}
     if model.startswith("gpt-image-2.5"):
         payload["quality"] = "high"
-        if background == "transparent" and model in _TRANSPARENT_OK:
+        if background == "transparent" and model in _TRANSPARENT_OK_OPENAI:
             payload["background"] = "transparent"
             payload["output_format"] = "png"
     if has_image:
@@ -215,14 +218,15 @@ def build_fal_gpt_request(prompt: str, size: str, n: int,
     `model` : `gpt-image-2` (endpoint `openai/gpt-image-2`, inchangé) ou
     `gpt-image-2.5-{flare|sunburst}` (endpoints
     `openai/gpt-image-2.5/{variante}/{text-to-image|edit}`, doc fal du
-    27/09/2026). `background="transparent"` ne part que pour Flare."""
+    27/09/2026). `background="transparent"` part pour Flare et Sunburst
+    (doc fal), jamais pour gpt-image-2."""
     args = {"prompt": prompt, "image_size": size, "quality": "high",
             "num_images": n, "output_format": "png"}
     if model.startswith("gpt-image-2.5-"):
         variante = model[len("gpt-image-2.5-"):]
         base = f"openai/gpt-image-2.5/{variante}"
         t2i = base + "/text-to-image"
-        if background == "transparent" and model in _TRANSPARENT_OK:
+        if background == "transparent" and model in _TRANSPARENT_OK_FAL:
             args["background"] = "transparent"
     else:
         base = "openai/gpt-image-2"
