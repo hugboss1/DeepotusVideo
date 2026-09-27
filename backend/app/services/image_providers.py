@@ -36,7 +36,48 @@ PROVIDERS = {
     # de sécurité côté OpenAI direct n'est pas la porte.
     "gpt-image-2-fal": {"label": "GPT Image 2 (OpenAI, via fal)",
                         "needs": "FAL_KEY", "seeds": False},
+    # GPT Image 2.5 (doc OpenAI et fal lue le 27/09/2026) : deux variantes,
+    # chacune servie en direct (clé OpenAI) ET par fal (clé fal) — quatre
+    # entrées, quatre factures. Flare seul accepte le fond transparent.
+    "gpt-image-2.5-flare": {"label": "GPT Image 2.5 Flare (OpenAI)",
+                            "needs": "OPENAI_API_KEY", "seeds": False},
+    "gpt-image-2.5-sunburst": {"label": "GPT Image 2.5 Sunburst (OpenAI)",
+                               "needs": "OPENAI_API_KEY", "seeds": False},
+    "gpt-image-2.5-flare-fal": {"label": "GPT Image 2.5 Flare (via fal)",
+                                "needs": "FAL_KEY", "seeds": False},
+    "gpt-image-2.5-sunburst-fal": {"label": "GPT Image 2.5 Sunburst (via fal)",
+                                   "needs": "FAL_KEY", "seeds": False},
 }
+
+# id `-fal` → modèle OpenAI qu'il sert (endpoint fal dérivé du modèle)
+_FAL_GPT = {"gpt-image-2-fal": "gpt-image-2",
+            "gpt-image-2.5-flare-fal": "gpt-image-2.5-flare",
+            "gpt-image-2.5-sunburst-fal": "gpt-image-2.5-sunburst"}
+# `background: "transparent"` — par VOIE, d'après la doc de chacune (27/09) :
+# fal l'accepte pour flare ET sunburst (t2i et edit, auto/transparent/opaque) ;
+# la doc OpenAI ne le dit que de flare, sunburst direct reste donc fermé.
+_TRANSPARENT_OK_FAL = ("gpt-image-2.5-flare", "gpt-image-2.5-sunburst")
+_TRANSPARENT_OK_OPENAI = ("gpt-image-2.5-flare",)
+
+
+def via_facade(model: str) -> bool:
+    """Vrai si l'id doit passer par `generate` (et non par un chemin maison
+    d'une route) : tout id du registre servi par fal (hors FLUX, que les
+    routes servent elles-mêmes) et les GPT Image 2.5 directs, dont la qualité
+    et le fond sont posés ici. Testé AVANT tout préfixe `gpt-image`."""
+    meta = PROVIDERS.get(model)
+    if not meta or model == "flux":
+        return False
+    return meta["needs"] == "FAL_KEY" or model.startswith("gpt-image-2.5")
+
+
+def missing_key(model: str) -> str | None:
+    """Nom de la clé manquante pour un id du registre, sinon None."""
+    meta = PROVIDERS.get(model)
+    if not meta:
+        return None
+    return None if str(getattr(settings, meta["needs"], "") or "").strip() \
+        else meta["needs"]
 
 _OPENAI_SIZE = {"portrait_16_9": "1024x1536", "portrait_4_3": "1024x1536",
                 "landscape_16_9": "1536x1024", "landscape_4_3": "1536x1024",
@@ -74,21 +115,31 @@ async def _download(urls: list[str]) -> list[str]:
 # ─────────────────────────── OpenAI GPT Image ───────────────────────────
 
 def build_openai_request(model: str, prompt: str, size: str, n: int,
-                         has_image: bool) -> tuple[str, dict]:
+                         has_image: bool,
+                         background: str | None = None) -> tuple[str, dict]:
     """(url, payload_gen) — payload des /generations; les /edits partent en
-    multipart construit à l'appel. Exposé pur pour les tests."""
+    multipart construit à l'appel. Exposé pur pour les tests.
+    GPT Image 2.5 : la qualité `high` est ÉCRITE (c'est elle que la table de
+    tarifs chiffre) ; `background="transparent"` n'est transmis qu'à Flare,
+    avec `output_format` png. Les modèles d'avant gardent leur payload."""
     osize = _OPENAI_SIZE.get(size, "1024x1024")
+    payload = {"model": model, "prompt": prompt, "n": n, "size": osize}
+    if model.startswith("gpt-image-2.5"):
+        payload["quality"] = "high"
+        if background == "transparent" and model in _TRANSPARENT_OK_OPENAI:
+            payload["background"] = "transparent"
+            payload["output_format"] = "png"
     if has_image:
-        return ("https://api.openai.com/v1/images/edits",
-                {"model": model, "prompt": prompt, "n": n, "size": osize})
-    return ("https://api.openai.com/v1/images/generations",
-            {"model": model, "prompt": prompt, "n": n, "size": osize})
+        return ("https://api.openai.com/v1/images/edits", payload)
+    return ("https://api.openai.com/v1/images/generations", payload)
 
 
 async def _openai_generate(model: str, prompt: str, size: str, n: int,
-                           image_path: Path | None) -> list[str]:
+                           image_path: Path | None,
+                           background: str | None = None) -> list[str]:
     url, payload = build_openai_request(model, prompt, size, n,
-                                        image_path is not None)
+                                        image_path is not None,
+                                        background=background)
     headers = {"Authorization": f"Bearer {settings.OPENAI_API_KEY}"}
     async with httpx.AsyncClient(verify=SSL_VERIFY, timeout=240.0) as c:
         if image_path is not None:
@@ -155,34 +206,54 @@ async def _banana_generate(prompt: str, size: str, n: int,
 # ───────────────────── GPT Image 2 (OpenAI, via fal) ─────────────────────
 
 def build_fal_gpt_request(prompt: str, size: str, n: int,
-                          image_url: str | None) -> tuple[str, dict]:
-    """(model_id, arguments) fal pour GPT Image 2 servi par fal. Exposé pur
+                          image_url: str | None,
+                          model: str = "gpt-image-2",
+                          background: str | None = None) -> tuple[str, dict]:
+    """(model_id, arguments) fal pour GPT Image servi par fal. Exposé pur
     pour les tests. Les identifiants de taille du projet SONT les presets
     fal (`portrait_4_3`…) : ils passent tels quels. La qualité `high` est
     ÉCRITE plutôt qu'héritée du défaut : c'est elle que la table de tarifs
     chiffre, et un défaut fal qui changerait ne doit pas changer la facture
-    en silence."""
+    en silence.
+    `model` : `gpt-image-2` (endpoint `openai/gpt-image-2`, inchangé) ou
+    `gpt-image-2.5-{flare|sunburst}` (endpoints
+    `openai/gpt-image-2.5/{variante}/{text-to-image|edit}`, doc fal du
+    27/09/2026). `background="transparent"` part pour Flare et Sunburst
+    (doc fal), jamais pour gpt-image-2."""
     args = {"prompt": prompt, "image_size": size, "quality": "high",
             "num_images": n, "output_format": "png"}
+    if model.startswith("gpt-image-2.5-"):
+        variante = model[len("gpt-image-2.5-"):]
+        base = f"openai/gpt-image-2.5/{variante}"
+        t2i = base + "/text-to-image"
+        if background == "transparent" and model in _TRANSPARENT_OK_FAL:
+            args["background"] = "transparent"
+    else:
+        base = "openai/gpt-image-2"
+        t2i = base
     if image_url:
         args["image_urls"] = [image_url]
-        return ("openai/gpt-image-2/edit", args)
-    return ("openai/gpt-image-2", args)
+        return (base + "/edit", args)
+    return (t2i, args)
 
 
 async def _fal_gpt_generate(prompt: str, size: str, n: int,
-                            image_path: Path | None) -> list[str]:
+                            image_path: Path | None,
+                            model: str = "gpt-image-2",
+                            background: str | None = None) -> list[str]:
     import fal_client
     image_url = None
     if image_path is not None:
         from app.services.fal_service import FalSeedanceClient
         image_url = await FalSeedanceClient.upload_image(image_path)
-    model, arguments = build_fal_gpt_request(prompt, size, n, image_url)
-    result = await fal_client.subscribe_async(model, arguments=arguments)
+    endpoint, arguments = build_fal_gpt_request(prompt, size, n, image_url,
+                                                model=model,
+                                                background=background)
+    result = await fal_client.subscribe_async(endpoint, arguments=arguments)
     urls = [im.get("url") for im in (result or {}).get("images", [])
             if im.get("url")]
     if not urls:
-        raise RuntimeError(f"GPT Image 2 (fal) returned no images: {result}")
+        raise RuntimeError(f"{model} (fal) returned no images: {result}")
     return await _download(urls)
 
 
@@ -191,18 +262,22 @@ async def _fal_gpt_generate(prompt: str, size: str, n: int,
 async def generate(provider: str, prompt: str, size: str, n: int = 1,
                    seed: int | None = None,
                    image_path: Path | None = None,
-                   ratio: str | None = None) -> dict:
+                   ratio: str | None = None,
+                   background: str | None = None) -> dict:
     """Génère via le provider choisi. Retour: {"images":[filenames],
     "seed": int|None} (seed None = provider non déterministe). `ratio`
     (ex. "9:16") force le cadre des EDITS (image_path fourni) — sinon le
-    modèle edit suit le cadre de l'image d'entrée."""
-    # LES CHEMINS FAL D'ABORD : « gpt-image-2-fal » commence par « gpt-image »
-    # — testé après le préfixe OpenAI, il partirait chez OpenAI avec la
-    # mauvaise clé ET la mauvaise facture.
-    if provider == "gpt-image-2-fal":
+    modèle edit suit le cadre de l'image d'entrée. `background`
+    ("transparent") n'est honoré que par GPT Image 2.5 Flare."""
+    # LES CHEMINS FAL D'ABORD : les « gpt-image-…-fal » commencent par
+    # « gpt-image » — testés après le préfixe OpenAI, ils partiraient chez
+    # OpenAI avec la mauvaise clé ET la mauvaise facture.
+    if provider in _FAL_GPT:
         if not settings.FAL_KEY:
             raise RuntimeError("FAL_KEY manquante (Réglages).")
-        imgs = await _fal_gpt_generate(prompt, size, n, image_path)
+        imgs = await _fal_gpt_generate(prompt, size, n, image_path,
+                                       model=_FAL_GPT[provider],
+                                       background=background)
         return {"images": imgs, "seed": None}
     if provider in ("nano-banana", "nano-banana-pro"):
         if not settings.FAL_KEY:
@@ -213,6 +288,7 @@ async def generate(provider: str, prompt: str, size: str, n: int = 1,
     if provider.startswith("gpt-image") or provider.startswith("dall-e"):
         if not settings.OPENAI_API_KEY:
             raise RuntimeError("OPENAI_API_KEY manquante (Réglages).")
-        imgs = await _openai_generate(provider, prompt, size, n, image_path)
+        imgs = await _openai_generate(provider, prompt, size, n, image_path,
+                                      background=background)
         return {"images": imgs, "seed": None}
     raise RuntimeError(f"Générateur inconnu: {provider}")

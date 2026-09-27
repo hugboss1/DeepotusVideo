@@ -19,6 +19,10 @@ commande est OCTET POUR OCTET celle de 81bfde3 — reference construite en
 important le module depuis `git show 81bfde3:…/montage_service.py` ecrit dans
 TMP (meme moteur d'effets pour les deux : seul le service change) ; avec
 effets + masque : split / alphamerge / overlay=0:0:shortest=1.
+Depuis les retours du 26/09 (plan 2026-09-27, T1, horloge du rendu), la
+reference de 81bfde3 passe par HORLOGE() — le correctif applique a
+l'ancienne commande (`fps=F:start_time=0` dans la chaine V1), temoin
+d'une pose transformee et une seule.
 [3] Rendu reel V1 : effet masque au centre, coin intact, 50 images.
 [4] Chaine V2 : sans effet, commande identique a 81bfde3 (cover, transforme,
 ombre, opacite, points) ; avec effets : pile rendue apres la mise a l'echelle,
@@ -126,6 +130,23 @@ def V1SPEC(**kw):
 
 def FLAT(cmd):
     return " ".join(cmd) if isinstance(cmd, list) else str(cmd)
+
+
+import re as _re
+def HORLOGE(flat):
+    """Retours 26/09 (A, plan 2026-09-27 T1) applique a une commande doree
+    d'AVANT : dans chaque chaine de segment V1 (`[i:v]…[n<k>]` ou
+    `[n<k>pre]`), le premier `fps=F` pose apres une virgule devient
+    `fps=F:start_time=0` (le `:fps=` du zoompan et le `minterpolate=fps=` ne
+    sont pas precedes d'une virgule). L'amorce des coupes franches n'est pas
+    transformee : les commandes dorees de ce banc n'ont qu'UN plan V1 — un
+    xfade y leverait l'exception (le banc rougit au lieu de mentir)."""
+    if "xfade=" in flat:
+        raise ValueError("HORLOGE : commande doree a plusieurs plans V1, amorce non transformee")
+    return _re.sub(r"(\[\d+:v\])([^;\[]*)(\[n\d+(?:pre)?\])",
+                   lambda m: m.group(1) + _re.sub(r"(?<=,)fps=(\d+(?:/\d+)?)(?=[,\[])",
+                                                  r"fps=\1:start_time=0", m.group(2), count=1) + m.group(3),
+                   flat)
 
 
 def TL(name="l5", n=1, dur=4, src=None):
@@ -282,7 +303,13 @@ check("m1_v2_quatre_plans_gbrap_image_unique_sans_loop",
       and "loop=" not in _g4 and "loop=loop=-1" in _g1, _g4)
 
 print("\n[2] chaine V1 : sans masque octet pour octet 81bfde3, avec masque alphamerge")
-_ref0, _ref1 = BUILD(MSREF), BUILD(MSREF, effects=FXD)
+_brut0, _brut1 = BUILD(MSREF), BUILD(MSREF, effects=FXD)
+_ref0, _ref1 = HORLOGE(_brut0), HORLOGE(_brut1)
+# Temoin de la transformation : elle a bien agi (une fois, sur le V1) — une
+# reference inchangee rendrait les egalites ci-dessous creuses ou fausses.
+check("v1_reference_81bfde3_transformee_par_l_horloge_une_seule_pose",
+      _brut0.count("fps=25,") == 1 and _ref0.count("fps=25:start_time=0,") == 1 and _ref0 != _brut0
+      and _ref1.count("fps=25:start_time=0,") == 1, (FC(_brut0)[:160], FC(_ref0)[:160]))
 check("v1_sans_effet_sans_masque_identique_a_81bfde3",
       _ref0.startswith("ffmpeg") and BUILD() == _ref0, (BUILD()[:200], _ref0[:200]))
 check("v1_avec_effets_sans_masque_identique_a_81bfde3",
@@ -399,7 +426,7 @@ _cas = {"cover": {}, "opacite": {"opacity": 0.5}, "tf": {"tf": dict(TFS)},
         "tf_rot_coins_ombre": {"tf": dict(TFS, rotate=12.0, radius=20, shadow=True), "opacity": 0.7},
         "points": {"motion_points": [{"t": 0, "x": .5, "y": .5, "scale": .5, "opacity": 1},
                                      {"t": 2, "x": .5, "y": .5, "scale": 1.0, "opacity": .2}]}}
-_eg = {k: (OVBUILD(MSREF, **dict(v)), OVBUILD(**dict(v))) for k, v in _cas.items()}
+_eg = {k: (HORLOGE(OVBUILD(MSREF, **dict(v))), OVBUILD(**dict(v))) for k, v in _cas.items()}
 check("v2_sans_effet_commande_identique_a_81bfde3_cinq_formes",
       all(a.startswith("ffmpeg") and a == b for a, b in _eg.values()),
       {k: (a[:80], b[:80]) for k, (a, b) in _eg.items() if a != b})

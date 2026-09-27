@@ -146,9 +146,15 @@ class GenerateRequest(BaseModel):
     custom_prompt: Optional[str] = None    # raw or builder-generated, used as-is
 
     # W-a (v1.19) — which video model renders this clip. None = app default
-    # (Seedance 1.0 Pro, unchanged). Ids come from GET /api/video-models;
-    # unknown ids fail the job with a clean error listing valid ones.
+    # (Seedance 2.5 since 27/09; Seedance 1.0 Pro stays selectable). Ids come
+    # from GET /api/video-models; unknown ids fail the job with a clean error
+    # listing valid ones.
     video_model: Optional[str] = Field(None, max_length=48)
+    # Garde de coût (retours-ia F3) : plafond en $ accepté par le client pour
+    # CETTE requête (lot : toutes variations comprises). Au-dessus de
+    # l'estimation serveur -> 402, rien n'est généré. Sans lui, seul le
+    # plafond `video_max_usd_per_request` de pricing.json s'applique.
+    max_usd: Optional[float] = None  # validé par la route (_garde_cout)
 
     style: StylePreset = StylePreset.HYBRID
     camera: Optional[CameraMove] = None
@@ -318,6 +324,9 @@ class CompositionRequest(BaseModel):
     transition_duration_s: float = Field(0.4, ge=0.0, le=2.0)
     target_duration_s: Optional[int] = None
     audio_source: Literal["seedance", "heygen"] = "heygen"
+    # Garde de coût (retours-ia F3) : plafond client pour toute la
+    # composition (Seedance + HeyGen) ; `seedance.max_usd` compte aussi.
+    max_usd: Optional[float] = None  # validé par la route (_garde_cout)
 
 
 class CompositionResponse(BaseModel):
@@ -506,6 +515,9 @@ class TemplateRenderRequest(BaseModel):
     # Optional pre-generated voice-over (Studio Voiceover node), mixed over the
     # composite after the template render: {"file": <name in audio dir>}
     voiceover: Optional[dict] = None
+    # Garde de coût (retours-ia F3) : plafond client pour tous les slots
+    # générés du rendu (hors aperçu, qui ne génère rien).
+    max_usd: Optional[float] = None  # validé par la route (_garde_cout)
 
 
 class TemplateRenderResponse(BaseModel):

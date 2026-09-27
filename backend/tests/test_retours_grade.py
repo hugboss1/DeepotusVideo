@@ -20,6 +20,20 @@ Rejoue sur l'autre binaire : PATH=C:\\Users\\olivi\\AppData\\Local\\DeepotusVide
 [4] semaphore 2 sur `grade-frame` (comme `/scopes`), 499 client parti.
 [5] l'image `cadre` == une image d'un RENDU Preview REEL
     (`_build_montage_command`) au meme instant : ecart moyen par pixel <= 6/255.
+Retours 26/09 (B, plan 2026-09-27 T2) — le cadre porte aussi la vitesse, le
+retime, la stabilisation et la piste d'ajustement J1 :
+[6] vitesse 0,5 + blend : image == rendu Preview reel (<= 6/255) ; temoin
+    sans retime loin (> 6).
+[7] meme chose en flow ; temps du flow a 720 px mesure.
+[8] mire secouee, `.trf` precalcule par `MM.stab_detect` (local) : image
+    proche du rendu stabilise ; temoin non stabilise loin.
+[9] sans `.trf` : note `stab-non-analysee`, ZERO appel a `stab_detect`.
+[10] `t` > 20 s, ou source de plus de 20 s (cout d'`optzoom=1` MESURE,
+    ecart au plan) : note `stab-trop-loin`, aucun decodage depuis 0.
+[11] J1 couvrant la tete (negatif) : applique APRES le masque V1 ; J1 hors
+    tete : rien.
+[12] sans les champs neufs : octet pour octet fc2d7ad ; le mtime du `.trf`
+    entre dans la cle ; aucun champ neuf illisible ne fait un 500.
 """
 import json, os, sys, tempfile, subprocess, pathlib, shutil, time, threading, importlib.util
 sys.stdout.reconfigure(encoding="utf-8")
@@ -605,16 +619,18 @@ _FX = [{"type": "grade_basic", "exposure": -30, "saturation": 40}, {"type": "inv
 _MKR = {"shape": "rect", "x": 0.1, "y": 0.1, "w": 0.8, "h": 0.5, "soft": 0}
 
 
-def RENDU(src, rf, dz, fx, mk, nom):
-    """Rendu Preview REEL (commande de `_build_montage_command`) -> chemin ou None."""
+def RENDU(src, rf, dz, fx, mk, nom, mod=None):
+    """Rendu Preview REEL (commande de `_build_montage_command`) -> chemin ou None.
+    `mod` : un autre module du service (temoin de l'horloge e0ab545), sinon MS."""
+    mod = mod or MS
     brut = {"reframe": rf, "dz": dz, "srcIn": 0.5, "start": 0.0, "end": 3.0, "label": "rg"}
     v1 = {"path": src, "src_dur": 4.0, "src_in": 0.5, "start": 0.0, "end": 3.0, "transition": "cut",
           "transition_s": 0.0, "speed": 0.0, "effects": fx, "mask": mk,
           "reframe": MS._reframe_of(brut), "dz": MS._dz_spec(brut)}
     out = FXD / nom
     try:
-        cmd, _ = MS._build_montage_command([v1], [], [], None, w=270, h=480, fps=30, mix_db={}, ducking=False,
-                                           duration_master=False, preview=True, out=str(out))
+        cmd, _ = mod._build_montage_command([v1], [], [], None, w=270, h=480, fps=30, mix_db={}, ducking=False,
+                                            duration_master=False, preview=True, out=str(out))
         cmd = [FF if x == "ffmpeg" else x for x in cmd]
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
         if r.returncode == 0 and out.is_file():
@@ -672,36 +688,78 @@ check("r5_temoin_bornes_ignorees_loin_du_rendu_hors_intervalle_20",
 
 # L'AVANCE du rendu, mesuree : recadrage RAPIDE (170 px/s), l'image cadre au
 # temps de source t + k/150 la plus proche de l'image du rendu a t_local.
+# Retours 26/09 (A, plan 2026-09-27 T1) : l'horloge du rendu est corrigee
+# (`fps=F:start_time=0`), le rendu n'a plus d'avance — |k| <= 1 (1/150 s).
+# TEMOIN : la chaine de e0ab545 (git show, module temporaire) rendait
+# k >= 5 (mesure 26/09 : 6 et 6 au recadrage, 5 et 5 au zoom).
+MSH = None
+try:
+    _srch = subprocess.run(["git", "show", "e0ab545:backend/app/services/montage_service.py"],
+                           cwd=str(pathlib.Path(__file__).resolve().parents[2]), capture_output=True,
+                           timeout=60).stdout
+    if _srch:
+        _ph = pathlib.Path(TMP) / "ms_horloge_e0ab545.py"
+        _ph.write_bytes(_srch)
+        _sph = importlib.util.spec_from_file_location("ms_horloge_e0ab545", str(_ph))
+        MSH = importlib.util.module_from_spec(_sph)
+        _sph.loader.exec_module(MSH)
+except Exception as _e:                                  # noqa: BLE001
+    print("  (temoin e0ab545 injoignable : %r)" % _e)
+    MSH = None
+check("r5_temoin_horloge_e0ab545_charge", MSH is not None and hasattr(MSH, "_build_montage_command")
+      and MSH is not MS, str(MSH))
+
+
+def AVANCE_RF(rendu, rfv):
+    av = {}
+    for _tl in (0.5, 1.5):
+        _ir = IMAGE_RENDU(rendu, _tl) if rendu else None
+        _sc = []
+        for _k in range(-3, 13):
+            _g = GF(FIXE, round(0.5 + _tl + _k / 150, 4), w=270,
+                    cadre={"ratio": "9:16", "t_local": _tl, "reframe": rfv})
+            _sc.append((ECART(_ir, _g[1]) if _g[0] == 200 else 999, _k))
+        av[_tl] = min(_sc)
+    return av
+
+
+def AVANCE_DZ(rendu, dzv):
+    az = {}
+    for _tl in (0.5, 1.5):
+        _ir = IMAGE_RENDU(rendu, _tl) if rendu else None
+        _sc = []
+        for _k in range(-3, 13):
+            _g = GF(FIXE, round(0.5 + _tl, 3), w=270,
+                    cadre={"ratio": "9:16", "t_local": round(_tl + _k / 150, 4), "dur": 3.0, "dz": dzv})
+            _sc.append((ECART(_ir, _g[1]) if _g[0] == 200 else 999, _k))
+        az[_tl] = min(_sc)
+    return az
+
+
 _RFV = {"mode": "suivi", "points": [{"t": 0.5, "x": 0.2}, {"t": 3.5, "x": 0.8}]}
 RENDV = RENDU(FIXE, _RFV, None, None, None, "rendu_rapide.mp4") if FIXE else None
-_av = {}
-for _tl in (0.5, 1.5):
-    _ir = IMAGE_RENDU(RENDV, _tl) if RENDV else None
-    _sc = []
-    for _k in range(-3, 13):
-        _g = GF(FIXE, round(0.5 + _tl + _k / 150, 4), w=270,
-                cadre={"ratio": "9:16", "t_local": _tl, "reframe": _RFV})
-        _sc.append((ECART(_ir, _g[1]) if _g[0] == 200 else 999, _k))
-    _av[_tl] = min(_sc)
+_av = AVANCE_RF(RENDV, _RFV)
 print("  avance du rendu, recadrage suivi (ecart, k/150 s) :", _av)
-check("r5_recadrage_suivi_egal_au_rendu_a_son_avance_pres_une_image_source_au_plus",
-      RENDV is not None and all(0 <= v[1] <= 7 and v[0] <= 3 for v in _av.values()), str(_av))
+check("r5_recadrage_suivi_egal_au_rendu_sans_avance_k_au_plus_1_sur_150",
+      RENDV is not None and all(abs(v[1]) <= 1 and v[0] <= 3 for v in _av.values()), str(_av))
+RENDVH = RENDU(FIXE, _RFV, None, None, None, "rendu_rapide_e0ab545.mp4", mod=MSH) if (FIXE and MSH) else None
+_avh = AVANCE_RF(RENDVH, _RFV) if RENDVH else {}
+print("  temoin e0ab545, recadrage suivi (ecart, k/150 s) :", _avh)
+check("r5_temoin_e0ab545_recadrage_suivi_avait_k_au_moins_5",
+      RENDVH is not None and len(_avh) == 2 and all(v[1] >= 5 and v[0] <= 3 for v in _avh.values()), str(_avh))
 # Zoom ANIME (D-13) : meme mesure sur `t_local` (le zoompan du rendu lit `it`
-# AVANT le setpts final, il avance donc comme le reste du segment).
+# AVANT le setpts final, il avancait donc comme le reste du segment).
 _DZV = {"x0": 0, "y0": 0, "w0": 1, "x1": 0.2, "y1": 0.3, "w1": 0.6, "ease": "doux"}
 RENDZ = RENDU(FIXE, None, _DZV, None, None, "rendu_zoom.mp4") if FIXE else None
-_az = {}
-for _tl in (0.5, 1.5):
-    _ir = IMAGE_RENDU(RENDZ, _tl) if RENDZ else None
-    _sc = []
-    for _k in range(-3, 13):
-        _g = GF(FIXE, round(0.5 + _tl, 3), w=270,
-                cadre={"ratio": "9:16", "t_local": round(_tl + _k / 150, 4), "dur": 3.0, "dz": _DZV})
-        _sc.append((ECART(_ir, _g[1]) if _g[0] == 200 else 999, _k))
-    _az[_tl] = min(_sc)
+_az = AVANCE_DZ(RENDZ, _DZV)
 print("  avance du rendu, zoom anime (ecart, k/150 s) :", _az)
-check("r5_zoom_anime_egal_au_rendu_a_son_avance_pres_une_image_au_plus",
-      RENDZ is not None and all(0 <= v[1] <= 7 and v[0] <= 3 for v in _az.values()), str(_az))
+check("r5_zoom_anime_egal_au_rendu_sans_avance_k_au_plus_1_sur_150",
+      RENDZ is not None and all(abs(v[1]) <= 1 and v[0] <= 3 for v in _az.values()), str(_az))
+RENDZH = RENDU(FIXE, None, _DZV, None, None, "rendu_zoom_e0ab545.mp4", mod=MSH) if (FIXE and MSH) else None
+_azh = AVANCE_DZ(RENDZH, _DZV) if RENDZH else {}
+print("  temoin e0ab545, zoom anime (ecart, k/150 s) :", _azh)
+check("r5_temoin_e0ab545_zoom_anime_avait_k_au_moins_5",
+      RENDZH is not None and len(_azh) == 2 and all(v[1] >= 5 and v[0] <= 3 for v in _azh.values()), str(_azh))
 # Information : la meme comparaison sur testsrc2 qui BOUGE (non bornee).
 _RT = RENDU(TS, None, None, _FX, _MKR, "rendu_ts.mp4") if TS else None
 _imv = GF(TS, 2.0, effects=_FX, mask=_MKR, w=270, cadre={"ratio": "9:16", "t_local": 1.5, "dur": 3.0})
@@ -717,6 +775,479 @@ for _w in (720, 1280):
     _cout[_w] = (round((time.perf_counter() - _t0) * 1000), _p[0])
 print("  cout (ms, cache vide) :", _cout)
 check("r5_cout_mesure_720_et_1280_200", all(v[1] == 200 for v in _cout.values()), str(_cout))
+
+
+# --- Retours 26/09 (B, T2) : outils communs --------------------------------
+def GFH(src, t=1.0, **kw):
+    """POST grade-frame -> (statut, image PIL|detail, chemin, note X-Dz-Grade-Note)."""
+    b = {"src": {"file_path": src}, "t": t}
+    b.update(kw)
+    st, p, hd = ROUTE("montage_grade_frame", b)
+    hd = hd or {}
+    return st, (IMG(p) if st == 200 else p), p, str(hd.get("x-dz-grade-note", ""))
+
+
+def RENDU_V1(src, nom, src_dur=4.0, src_in=0.5, end=3.0, speed=0.0, retime=None, stab=None,
+             fx=None, mk=None, adjust=None):
+    """Rendu Preview REEL (270x480, 30 i/s) d'un plan V1 [0, end] lu depuis
+    `src_in`, avec vitesse / retime / stabilisation / piste J1 -> chemin ou None."""
+    v1 = {"path": src, "src_dur": src_dur, "src_in": src_in, "start": 0.0, "end": end, "transition": "cut",
+          "transition_s": 0.0, "speed": speed, "retime": retime, "stab": stab, "effects": fx, "mask": mk,
+          "reframe": None, "dz": None}
+    out = FXD / nom
+    try:
+        kw = {"adjust_clips": adjust} if adjust else {}
+        cmd, _ = MS._build_montage_command([v1], [], [], None, w=270, h=480, fps=30, mix_db={}, ducking=False,
+                                           duration_master=False, preview=True, out=str(out), **kw)
+        cmd = [FF if x == "ffmpeg" else x for x in cmd]
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+        if r.returncode == 0 and out.is_file():
+            return out
+        print("  (rendu : %s)" % (r.stderr or "")[-400:])
+    except Exception as e:                               # noqa: BLE001
+        print("  (rendu : %r)" % e)
+    return None
+
+
+# Source qui DEFILE (12 px par image source, motif detaille) : deux images
+# voisines different partout, un fondu blend se voit sur toute l'image.
+DEFIL = MKV("defil.mp4", ["-f", "lavfi", "-i", "testsrc2=s=960x270:r=25:d=4",
+                          "-vf", "crop=480:270:x='mod(n*12,480)':y=0", "-r", "25"])
+check("r6_temoin_source_qui_defile_fabriquee", DEFIL is not None, str(DEFIL))
+_SP = 0.5
+
+
+def _CR(tl, rt):
+    c0 = {"ratio": "9:16", "t_local": tl, "dur": 3.0}
+    if rt:
+        c0.update({"speed": _SP, "retime": rt, "fps": 30})
+    return c0
+
+
+def RETIME_ECARTS(rendu, rt, instants=(0.5, 1.2, 2.3)):
+    """{t_local: (ecart image retime / rendu, ecart temoin sans retime / rendu)}."""
+    res = {}
+    for _tl in instants:
+        _ir = IMAGE_RENDU(rendu, _tl) if rendu else None
+        _t = round(0.5 + _tl * _SP, 4)
+        _g = GF(DEFIL, _t, w=270, cadre=_CR(_tl, rt))
+        _g0 = GF(DEFIL, _t, w=270, cadre=_CR(_tl, None))
+        res[_tl] = (ECART(_ir, _g[1]) if _g[0] == 200 else _g[0], ECART(_ir, _g0[1]) if _g0[0] == 200 else _g0[0])
+    return res
+
+
+# =============================================================================
+print("\n[6] vitesse 0,5 + retime blend : image == rendu Preview reel")
+# =============================================================================
+REND_B = RENDU_V1(DEFIL, "rendu_blend.mp4", speed=_SP, retime="blend") if DEFIL else None
+check("r6_temoin_rendu_blend_produit", REND_B is not None, str(REND_B))
+_eb = RETIME_ECARTS(REND_B, "blend") if REND_B else {}
+print("  ecarts blend (image retime, temoin sans retime) :", _eb)
+check("r6_blend_image_egale_rendu_ecart_moyen_6_sur_trois_instants",
+      len(_eb) == 3 and all(isinstance(v[0], float) and v[0] <= 6 for v in _eb.values()), str(_eb))
+check("r6_temoin_sans_retime_loin_du_rendu_blend_plus_de_6",
+      len(_eb) == 3 and all(isinstance(v[1], float) for v in _eb.values())
+      and max(v[1] for v in _eb.values()) > 6, str(_eb))
+
+# =============================================================================
+print("\n[7] vitesse 0,5 + retime flow : image == rendu Preview reel")
+# =============================================================================
+REND_F = RENDU_V1(DEFIL, "rendu_flow.mp4", speed=_SP, retime="flow") if DEFIL else None
+check("r7_temoin_rendu_flow_produit", REND_F is not None, str(REND_F))
+_ef = RETIME_ECARTS(REND_F, "flow") if REND_F else {}
+print("  ecarts flow (image retime, temoin sans retime) :", _ef)
+check("r7_flow_image_egale_rendu_ecart_moyen_6_sur_trois_instants",
+      len(_ef) == 3 and all(isinstance(v[0], float) and v[0] <= 6 for v in _ef.values()), str(_ef))
+check("r7_temoin_sans_retime_loin_du_rendu_flow_plus_de_6",
+      len(_ef) == 3 and all(isinstance(v[1], float) for v in _ef.values())
+      and max(v[1] for v in _ef.values()) > 6, str(_ef))
+_tflow = {}
+for _w in (270, 720):
+    _vide_cache()
+    _t0 = time.perf_counter()
+    _p = GF(DEFIL, round(0.5 + 1.2 * _SP, 4), w=_w, cadre=_CR(1.2, "flow"))
+    _tflow[_w] = (round((time.perf_counter() - _t0) * 1000), _p[0])
+print("  cout du flow (ms, cache vide) :", _tflow)
+check("r7_cout_flow_mesure_270_et_720_200", all(v[1] == 200 for v in _tflow.values()), str(_tflow))
+
+# =============================================================================
+print("\n[8] stabilisation : .trf precalcule, image == rendu stabilise")
+# =============================================================================
+# Une image DETAILLEE fixe, secouee (x +-24 px, y +-20 px, pseudo-aleatoire) :
+# stabilisee, elle ne bouge presque plus ; non stabilisee, elle saute.
+SEC = MKV("secoue.mp4", ["-f", "lavfi", "-i", "testsrc2=s=540x320:r=25:d=4", "-vf",
+                         "trim=end_frame=1,loop=loop=-1:size=1,setpts=N/25/TB,"
+                         "crop=480:270:x='30+24*sin(n*1.7)':y='25+20*cos(n*2.3)'", "-r", "25"])
+_trf = CALL(MM, "stab_detect", SEC) if SEC else None
+check("r8_temoin_trf_precalcule_localement_par_stab_detect",
+      isinstance(_trf, pathlib.Path) and _trf.is_file() and _trf.stat().st_size > 8, str(_trf))
+_STB = {"on": True, "smooth": 15, "crop": "black", "zoom": 0}
+_stv = dict(MS._v1_stab({"stab": _STB}) or {}, trf=str(_trf))
+REND_S = RENDU_V1(SEC, "rendu_stab.mp4", src_in=0.4, stab=_stv) if isinstance(_trf, pathlib.Path) else None
+check("r8_temoin_rendu_stabilise_produit", REND_S is not None, str(REND_S))
+_es = {}
+for _tl in (0.6, 1.2, 2.0):
+    _ir = IMAGE_RENDU(REND_S, _tl) if REND_S else None
+    _g = GFH(SEC, round(0.4 + _tl, 3), w=270, cadre={"ratio": "9:16", "t_local": _tl, "dur": 3.0, "stab": _STB})
+    _g0 = GF(SEC, round(0.4 + _tl, 3), w=270, cadre={"ratio": "9:16", "t_local": _tl, "dur": 3.0})
+    _es[_tl] = (ECART(_ir, _g[1]) if _g[0] == 200 else _g[0], ECART(_ir, _g0[1]) if _g0[0] == 200 else _g0[0],
+                _g[3])
+print("  ecarts stabilisation (image stab, temoin non stabilise, note) :", _es)
+check("r8_image_stabilisee_proche_du_rendu_6_sans_note",
+      len(_es) == 3 and all(isinstance(v[0], float) and v[0] <= 6 and v[2] == "" for v in _es.values()), str(_es))
+check("r8_temoin_non_stabilise_loin_du_rendu_plus_de_10",
+      len(_es) == 3 and all(isinstance(v[1], float) and v[1] > 10 for v in _es.values()), str(_es))
+
+# =============================================================================
+print("\n[9] sans .trf : note stab-non-analysee, AUCUNE analyse lancee")
+# =============================================================================
+SEC2 = None
+try:
+    if SEC:
+        SEC2 = str(FXD / "secoue_sans_trf.mp4")
+        shutil.copyfile(SEC, SEC2)
+except Exception:                                        # noqa: BLE001
+    SEC2 = None
+_sd = []
+_vrai_sd = MM.stab_detect
+
+
+def _sd_espion(*a, **k):
+    _sd.append(a)
+    return _vrai_sd(*a, **k)
+
+
+MM.stab_detect = _sd_espion
+try:
+    _g9 = GFH(SEC2, 1.6, w=270, cadre={"ratio": "9:16", "t_local": 1.2, "dur": 3.0, "stab": _STB}) if SEC2 else None
+    _g9o = GFH(SEC2, 1.6, w=270, cadre={"ratio": "9:16", "t_local": 1.2, "dur": 3.0,
+                                         "stab": dict(_STB, on=False)}) if SEC2 else None
+    _g9s = ROUTE("montage_scopes", {"src": {"file_path": SEC2}, "t": 1.6, "size": 256,
+                                     "cadre": {"ratio": "9:16", "t_local": 1.2, "stab": _STB}})[0] if SEC2 else None
+    _n9 = len(_sd)
+    # Temoin : l'espion VOIT un appel direct (le .trf de SEC existe, rendu aussitot).
+    _sd_t = CALL(MM, "stab_detect", SEC) if SEC else None
+    _n9t = len(_sd)
+finally:
+    MM.stab_detect = _vrai_sd
+_g9n = GFH(SEC2, 1.6, w=270, cadre={"ratio": "9:16", "t_local": 1.2, "dur": 3.0}) if SEC2 else None
+check("r9_sans_trf_200_note_stab_non_analysee",
+      _g9 is not None and _g9[0] == 200 and _g9[3] == "stab-non-analysee", str(_g9 and (_g9[0], _g9[3])))
+check("r9_sans_trf_zero_appel_a_stab_detect_temoin_espion_voit_un_appel_direct",
+      _g9 is not None and _n9 == 0 and _n9t == 1 and isinstance(_sd_t, pathlib.Path) and _g9s == 200,
+      str((_n9, _n9t, _g9s)))
+check("r9_sans_trf_image_non_stabilisee_meme_fichier_que_sans_stab",
+      _g9 is not None and _g9n is not None and _g9[0] == 200 and _g9n[0] == 200 and _g9[2] == _g9n[2],
+      str((_g9 and _g9[2], _g9n and _g9n[2])))
+check("r9_etat_vide_stab_eteinte_aucune_note",
+      _g9o is not None and _g9o[0] == 200 and _g9o[3] == "" and _g9o[2] == _g9n[2], str(_g9o and (_g9o[0], _g9o[3])))
+
+# =============================================================================
+print("\n[10] t > 20 s : note stab-trop-loin, aucun decodage depuis 0")
+# =============================================================================
+LONG = MKV("long.mp4", ["-f", "lavfi", "-i", "testsrc2=s=160x90:r=25:d=24"], d=24)
+_trfl = CALL(MM, "stab_detect", LONG) if LONG else None
+check("r10_temoin_source_24_s_et_trf_precalcule", isinstance(_trfl, pathlib.Path), str(_trfl))
+_CL = lambda tl: {"ratio": "16:9", "t_local": tl, "stab": _STB}  # noqa: E731
+_r10 = {}
+# (source, t) : LONG a 22 s (t > 20), LONG a 5 s (source > 20 s : le cout
+# d'`optzoom=1` suit la duree de la SOURCE, pas `t` — mesure ci-dessous),
+# temoin SEC (4 s) a 1,6 s : stabilise, decode depuis 0.
+for _cle10, _src10, _t in (("long_22", LONG, 22.0), ("long_5", LONG, 5.0), ("sec_1_6", SEC, 1.6)):
+    _vide_cache()
+    _cmds.clear()
+    MM._run = _run_espion
+    _t0 = time.perf_counter()
+    try:
+        _g10 = GFH(_src10, _t, w=160, cadre=_CL(_t)) if _src10 else None
+    finally:
+        MM._run = _vrai_run
+    _ff = [" ".join(x) for x in _cmds if x and x[0] == "ffmpeg"]
+    _r10[_cle10] = (_g10 and _g10[0], _g10 and _g10[3], len(_ff),
+                    [(" -ss " in x, "vidstabtransform=" in x) for x in _ff], round((time.perf_counter() - _t0) * 1000))
+print("  stab et distance (statut, note, n ffmpeg, [(-ss, vidstab)], ms) :", _r10)
+check("r10_t_22_note_stab_trop_loin_une_commande_avec_ss_sans_vidstab",
+      _r10.get("long_22", (0,))[0] == 200 and _r10["long_22"][1] == "stab-trop-loin" and _r10["long_22"][2] >= 1
+      and all(a and not b for a, b in _r10["long_22"][3]), str(_r10))
+check("r10_source_de_24_s_a_t_5_note_stab_trop_loin_sans_vidstab",
+      _r10.get("long_5", (0,))[0] == 200 and _r10["long_5"][1] == "stab-trop-loin" and _r10["long_5"][2] >= 1
+      and all(a and not b for a, b in _r10["long_5"][3]), str(_r10))
+check("r10_temoin_source_4_s_stabilisee_sans_ss_decode_depuis_0_sans_note",
+      _r10.get("sec_1_6", (0,))[0] == 200 and _r10["sec_1_6"][1] == "" and _r10["sec_1_6"][2] >= 1
+      and all(b and not a for a, b in _r10["sec_1_6"][3]), str(_r10))
+# Information (ecart au plan, 27/09) : le cout d'une image stabilisee est
+# `optzoom=1` sur TOUT le .trf, independant de `t` — mesure sur LONG.
+_oz = {}
+if isinstance(_trfl, pathlib.Path):
+    from app.services.subtitle_service import _ff_escape_path as _fep
+    for _o in (1, 0):
+        _t0 = time.perf_counter()
+        subprocess.run([FF, "-y", "-v", "error", "-i", LONG, "-vf",
+                        f"vidstabtransform=input='{_fep(_trfl)}':optzoom={_o},trim=start=1",
+                        "-frames:v", "1", str(FXD / "oz.jpg")], capture_output=True, timeout=300)
+        _oz[_o] = round((time.perf_counter() - _t0) * 1000)
+print("  information : une image stabilisee d'une source de 24 s, ms (optzoom=1, optzoom=0) :", _oz)
+
+# =============================================================================
+print("\n[11] piste d'ajustement J1 : apres le masque V1, seulement si presente")
+# =============================================================================
+_AJ_IN = [{"start": 0.0, "end": 5.0, "effects": [{"type": "invert"}]}]
+_AJ_HORS = [{"start": 5.0, "end": 9.0, "effects": [{"type": "invert"}]}]
+_AJ_BORNE = [{"start": 0.0, "end": 10.0, "effects": [{"type": "invert", "t0": 3, "t1": 4}]}]
+
+
+def J1(adj=None, tg=None, t=1.0):
+    c0 = {"ratio": "16:9", "t_local": t}
+    if adj is not None:
+        c0["adjust"] = adj
+    if tg is not None:
+        c0["t_global"] = tg
+    return GFH(BANDES, t, w=240, effects=EXPO, mask=MSK, cadre=c0)
+
+
+_jb = J1()
+_ji = J1(_AJ_IN, 1.0)
+_jh = J1(_AJ_HORS, 1.0)
+_jb1 = J1(_AJ_BORNE, 1.0)
+_jb35 = J1(_AJ_BORNE, 3.5)
+_jsans_tg = J1(_AJ_IN, None)
+
+
+def INV(a, b, fx, fy, tol=14):
+    """Le pixel (fx, fy) de b est le NEGATIF de celui de a (chaque canal a tol pres)."""
+    pa, pb = PX(a, fx, fy), PX(b, fx, fy)
+    return pa is not None and pb is not None and all(abs((255 - x) - y) <= tol for x, y in zip(pa, pb))
+
+
+_ok11 = all(x[0] == 200 for x in (_jb, _ji, _jh, _jb1, _jb35, _jsans_tg))
+print("  pixels coin / centre (base, J1) :", _ok11 and (PX(_jb[1], .03, .05), PX(_ji[1], .03, .05),
+                                                         PX(_jb[1], .5, .5), PX(_ji[1], .5, .5)))
+check("r11_temoin_base_coin_rouge_centre_assombri_par_le_masque",
+      _ok11 and DOM(_jb[1], 0.03, 0.05) == "r" and LUM(_jb[1], 0.5, 0.5) < 40, str(_ok11))
+check("r11_j1_couvrant_la_tete_negatif_au_coin_hors_masque_et_au_centre_etalonne",
+      _ok11 and INV(_jb[1], _ji[1], 0.03, 0.05) and INV(_jb[1], _ji[1], 0.5, 0.5)
+      and DOM(_ji[1], 0.03, 0.05) != "r" and LUM(_ji[1], 0.5, 0.5) > 215,
+      str(_ok11 and (PX(_ji[1], .03, .05), PX(_ji[1], .5, .5))))
+check("r11_j1_hors_tete_ou_effet_borne_hors_instant_rien_ne_change",
+      _ok11 and ECART(_jb[1], _jh[1]) is not None and ECART(_jb[1], _jh[1]) <= 0.5
+      and ECART(_jb[1], _jb1[1]) <= 0.5 and ECART(_jb[1], _jsans_tg[1]) <= 0.5,
+      str(_ok11 and (ECART(_jb[1], _jh[1]), ECART(_jb[1], _jb1[1]), ECART(_jb[1], _jsans_tg[1]))))
+check("r11_j1_effet_borne_local_3_4_present_a_t_global_3_5",
+      _ok11 and INV(_jb[1], _jb35[1], 0.03, 0.05), str(_ok11 and PX(_jb35[1], .03, .05)))
+
+# =============================================================================
+print("\n[12] sans les champs neufs : octet pour octet fc2d7ad ; cle et robustesse")
+# =============================================================================
+_ANC2 = None
+try:
+    _src2 = subprocess.run(["git", "show", "fc2d7ad:backend/app/services/grading.py"], capture_output=True,
+                           timeout=60, cwd=os.path.dirname(os.path.abspath(__file__))).stdout
+    _pa2 = pathlib.Path(TMP) / "grading_fc2d7ad.py"
+    _pa2.write_bytes(_src2)
+    _sp2 = importlib.util.spec_from_file_location("grading_fc2d7ad", str(_pa2))
+    _ANC2 = importlib.util.module_from_spec(_sp2)
+    _sp2.loader.exec_module(_ANC2)
+except Exception as _e:                                  # noqa: BLE001
+    print("  (grading de fc2d7ad illisible : %r)" % _e)
+check("r12_temoin_module_fc2d7ad_charge", _ANC2 is not None and hasattr(_ANC2, "graded_frame"), str(_ANC2))
+
+
+def JUMEAUX2(mod_nom, *a, **k):
+    res = []
+    for mod in (_ANC2, GR):
+        _vide_cache()
+        _cmds.clear()
+        MM._run = _run_espion
+        try:
+            p = CALL(mod, mod_nom, *a, **k)
+        finally:
+            MM._run = _vrai_run
+        res.append((getattr(p, "name", p), OCTETS(p) if isinstance(p, pathlib.Path) else None,
+                    [x[:-1] + [pathlib.Path(x[-1]).name.split(".")[0]] for x in _cmds if x and x[0] == "ffmpeg"]))
+    return res
+
+
+_c12 = MS._cadre_of({"ratio": "9:16", "t_local": 1.5, "dur": 3.0, "reframe": _RF, "dz": _DZR})
+check("r12_cadre_sans_champs_neufs_memes_cles_qu_hier",
+      isinstance(_c12, dict) and sorted(_c12) == ["dur", "dz", "ratio", "reframe", "t_local"], str(_c12))
+for _lbl, _nom, _args in (("grade_jpg_270", "graded_frame", (FIXE, 2.0, _FX, _MKR, 270, "jpg")),
+                          ("scopes_256", "scopes_png", (FIXE, 2.0, _FX, _MKR, 256))):
+    _a, _b = JUMEAUX2(_nom, *_args, cadre=_c12)
+    check(f"r12_{_lbl}_cadre_d_hier_meme_nom_memes_octets_meme_commande",
+          _a[1] is not None and _a == _b and len(_a[2]) >= 1,
+          str((_a[0], _b[0], _a[2] == _b[2], [" ".join(x)[-200:] for x in _b[2]] if _a[2] != _b[2] else "")))
+# Les champs neufs SANS effet (vitesse 1, retime inconnu ou sans vitesse, stab eteinte,
+# adjust vide) : le meme fichier que le cadre d'hier (meme cle).
+_P0 = GFH(FIXE, 2.0, w=270, effects=_FX, cadre={"ratio": "9:16", "t_local": 1.5})
+_neutres = {k: GFH(FIXE, 2.0, w=270, effects=_FX, cadre=dict({"ratio": "9:16", "t_local": 1.5}, **v))[2]
+            for k, v in (("vitesse_1", {"speed": 1, "retime": "blend", "fps": 30}),
+                         ("retime_none", {"speed": 0.5, "retime": "none", "fps": 30}),
+                         ("retime_sans_vitesse", {"retime": "flow"}),
+                         ("stab_eteinte", {"stab": {"on": False, "smooth": 30}}),
+                         ("adjust_vide", {"adjust": [], "t_global": 1.5}))}
+check("r12_champs_neufs_neutres_meme_fichier_que_le_cadre_d_hier",
+      _P0[0] == 200 and all(v == _P0[2] for v in _neutres.values()), str((_P0[2], _neutres)))
+check("r12_temoin_un_champ_neuf_actif_change_le_fichier",
+      GFH(FIXE, 2.0, w=270, effects=_FX, cadre={"ratio": "9:16", "t_local": 1.5, "speed": 0.5,
+                                                 "retime": "blend", "fps": 30})[2] not in (None, _P0[2]), "")
+# Le mtime du .trf entre dans la cle.
+_q1 = GFH(SEC, 1.6, w=270, cadre={"ratio": "9:16", "t_local": 1.2, "stab": _STB})
+try:
+    _mt = _trf.stat().st_mtime + 7
+    os.utime(_trf, (_mt, _mt))
+except Exception as _e:                                  # noqa: BLE001
+    print("  (utime : %r)" % _e)
+_q2 = GFH(SEC, 1.6, w=270, cadre={"ratio": "9:16", "t_local": 1.2, "stab": _STB})
+_q3 = GFH(SEC, 1.6, w=270, cadre={"ratio": "9:16", "t_local": 1.2, "stab": _STB})
+check("r12_mtime_du_trf_dans_la_cle_temoin_meme_mtime_meme_fichier",
+      _q1[0] == _q2[0] == _q3[0] == 200 and _q1[2] != _q2[2] and _q2[2] == _q3[2] and _q1[3] == "",
+      str((_q1[2], _q2[2], _q3[2])))
+# Aucun champ neuf illisible ne fait un 500, sur les deux routes.
+_fz12 = []
+for _champ in ("speed", "retime", "fps", "stab", "adjust", "t_global"):
+    for _v in _ETR + (float("nan"), -3, 1e9):
+        _fz12.append({"ratio": "9:16", "t_local": 0.5, "speed": 0.5, "retime": "blend", _champ: _v})
+for _v in ([{"start": [1], "end": {}, "effects": 3}], [{"start": 0, "end": 2, "effects": [[], "x", {"type": [1]}]}],
+           [5, None, "x"], [{"start": 0, "end": 2, "effects": [{"type": "invert", "t0": {}, "t1": [2]}]}]):
+    _fz12.append({"ratio": "9:16", "t_local": 0.5, "adjust": _v, "t_global": 0.5})
+for _v in ({"on": True, "smooth": [1], "crop": {}, "zoom": "x"}, {"on": [1]}):
+    _fz12.append({"ratio": "9:16", "t_local": 0.5, "stab": _v})
+_fzr = []
+for _cz in _fz12:
+    _s1 = ROUTE("montage_grade_frame", {"src": {"file_path": PLAT}, "t": 1.0, "w": 96, "cadre": _cz})[0]
+    _s2 = ROUTE("montage_scopes", {"src": {"file_path": PLAT}, "t": 1.0, "size": 256, "cadre": _cz})[0]
+    _fzr.append((_s1, _s2))
+_mv12 = [(_fz12[i], s) for i, s in enumerate(_fzr) if not all(x in (200, 400) for x in s)]
+check("r12_champs_neufs_inattendus_jamais_500_sur_les_deux_routes_%d_cas" % (2 * len(_fz12)),
+      not _mv12 and len(_fzr) == len(_fz12) >= 60 and (200, 200) in _fzr, str(_mv12[:4]))
+
+# =============================================================================
+print("\n[13] revue T2 : balayage image par image (retime lent, stab + retime hors grille)")
+# =============================================================================
+# Revue du 27/09 : [6]-[8] ne regardaient que trois instants. Ici, TOUTES les
+# 3 images de sortie de 0,1 a 2,8 s : l'image du lecteur (t = srcIn +
+# t_local·vitesse et t_local arrondis au millieme, comme dzmSrcTimeAt /
+# dzmGlCadre) contre l'image k du rendu Preview reel, et ses voisines k±1.
+# Defauts mesures par la revue sur a4bbc5f : blend x0,25 -> image k+1 (la
+# fenetre de 2 images de SORTIE couvrait moins d'une image SOURCE ; aussi a
+# F = 60 des x0,5) ; stab + retime avec srcIn hors de la grille source ->
+# image k-1 (le rendu recale sur la 1re image >= srcIn, `setpts=PTS-STARTPTS`).
+DS = MKV("defile_secoue.mp4", ["-f", "lavfi", "-i", "testsrc2=s=1100x340:r=25:d=4", "-vf",
+                               "crop=480:270:x='mod(n*12,480)+30+24*sin(n*1.7)':y='25+20*cos(n*2.3)'", "-r", "25"])
+_trfds = CALL(MM, "stab_detect", DS) if DS else None
+check("r13_temoin_source_qui_defile_et_tremble_et_son_trf", isinstance(_trfds, pathlib.Path), str(_trfds))
+_stds = dict(MS._v1_stab({"stab": _STB}) or {}, trf=str(_trfds))
+
+
+def RENDU_F(src, nom, fps, src_in, sp, rt, stab=None):
+    v1 = {"path": src, "src_dur": 4.0, "src_in": src_in, "start": 0.0, "end": 3.0, "transition": "cut",
+          "transition_s": 0.0, "speed": sp, "retime": rt, "stab": stab, "effects": None, "mask": None,
+          "reframe": None, "dz": None}
+    out = FXD / nom
+    try:
+        cmd, _ = MS._build_montage_command([v1], [], [], None, w=270, h=480, fps=fps, mix_db={}, ducking=False,
+                                           duration_master=False, preview=True, out=str(out))
+        r = subprocess.run([FF if x == "ffmpeg" else x for x in cmd], capture_output=True, text=True, timeout=600)
+        if r.returncode != 0 or not out.is_file():
+            print("  (rendu : %s)" % (r.stderr or "")[-300:])
+            return []
+        d = FXD / (out.stem + "_img")
+        d.mkdir(exist_ok=True)
+        subprocess.run([FF, "-y", "-v", "error", "-i", str(out), str(d / "%04d.png")], capture_output=True, timeout=300)
+        return sorted(d.glob("*.png"))
+    except Exception as e:                               # noqa: BLE001
+        print("  (rendu : %r)" % e)
+        return []
+
+
+_REPRO = {}
+
+
+def BALAYE(nom, src, fps, src_in, sp, rt, stab=False, pas=3):
+    """(nombre d'instants, [(k, {j: ecart a l'image k+j})] hors borne).
+
+    Borne : 6/255 si le RENDU est reproductible. MESURE le 27/09 : sous
+    ffmpeg 8.1.1 (PATH, pas celui de l'app), vidstabtransform n'est PAS
+    deterministe — deux rendus identiques d'un plan stabilise different
+    selon l'image, avec ou sans retime, avec ou sans `-threads 1` : 11/255
+    au premier releve, puis 44, 55 et 30/255 (ecart max rendu/rendu par
+    plan, mesure 27/09) (9.0.1, celui de l'application : 0,00 partout).
+    Un plan stabilise est
+    donc rendu DEUX fois : rendu non reproductible -> l'apercu n'a pas a
+    etre plus pres du rendu que le rendu de lui-meme, la borne devient
+    max(25, dispersion + 6)
+    (aucune image sans rapport : la course 0xC0000005 de la paire
+    vidstab + minterpolate donnait 40 a 130 avant les drapeaux `-threads 1`)
+    et le banc le DIT (`_REPRO`)."""
+    fr = RENDU_F(src, nom + ".mp4", fps, src_in, sp, rt, _stds if stab else None) if src else []
+    borne = 6
+    if stab and fr:
+        fr2 = RENDU_F(src, nom + "_bis.mp4", fps, src_in, sp, rt, _stds)
+        ec2 = [ECART(IMG(a), IMG(b)) for a, b in zip(fr, fr2)] if len(fr2) == len(fr) else [999]
+        _REPRO[nom] = max(x if isinstance(x, float) else 999 for x in ec2)
+        if _REPRO[nom] > 0.5:
+            # MESURE 27/09 (8.1.1) : rendu contre rendu jusqu'a 44/255 sur un
+            # meme plan ; l'apercu ne peut etre juge qu'a cette dispersion pres.
+            borne = max(25, int(_REPRO[nom] + 6))
+    mauvais, n = [], 0
+    for k in range(3, min(len(fr) - 1, int(2.8 * fps)), pas):
+        tl = round(k / fps, 3)
+        cz = {"ratio": "9:16", "t_local": tl, "dur": 3.0, "speed": sp, "retime": rt, "fps": fps}
+        if stab:
+            cz["stab"] = _STB
+        g = GFH(src, round(src_in + tl * sp, 3), w=270, cadre=cz)
+        if g[0] != 200:
+            mauvais.append((k, g[0]))
+            n += 1
+            continue
+        e = {j: ECART(IMG(fr[k + j]), g[1]) for j in (-1, 0, 1)}
+        n += 1
+        if not (isinstance(e[0], float) and e[0] <= borne):
+            mauvais.append((k, e))
+    print("  %s : %d instants, hors %d/255 : %d %s" % (nom, n, borne, len(mauvais), mauvais[:3]))
+    return n, mauvais
+
+
+_b13 = {
+    "blend_x0_25_F30": BALAYE("b13_blend_x025_F30", DEFIL, 30, 0.37, 0.25, "blend"),
+    "blend_x0_25_F25": BALAYE("b13_blend_x025_F25", DEFIL, 25, 0.37, 0.25, "blend"),
+    "blend_x0_5_F60": BALAYE("b13_blend_x05_F60", DEFIL, 60, 0.37, 0.5, "blend", pas=6),
+    "flow_x0_25_F30": BALAYE("b13_flow_x025_F30", DEFIL, 30, 0.37, 0.25, "flow"),
+}
+check("r13_retime_lent_blend_x0_25_et_F60_flow_x0_25_chaque_instant_egal_au_rendu_6",
+      all(v[0] >= 20 and not v[1] for v in _b13.values()), str({k: v[1][:2] for k, v in _b13.items()}))
+_s13 = {
+    "stab_blend_in0_5": BALAYE("s13_stab_blend_in05", DS, 30, 0.5, 0.5, "blend", stab=True),
+    "stab_flow_in0_5": BALAYE("s13_stab_flow_in05", DS, 30, 0.5, 0.5, "flow", stab=True),
+    "stab_blend_in0_37": BALAYE("s13_stab_blend_in037", DS, 30, 0.37, 0.5, "blend", stab=True),
+    "stab_blend_in0_4_aligne": BALAYE("s13_stab_blend_in04", DS, 30, 0.4, 0.5, "blend", stab=True),
+}
+print("  reproductibilite du rendu stabilise (ecart max rendu/rendu) :", _REPRO)
+# La paire vidstab + minterpolate passe sur UN thread, comme au rendu ; blend + stab garde ses threads.
+_thr13 = {}
+for _rt13 in ("flow", "blend"):
+    _vide_cache()
+    _cmds.clear()
+    MM._run = _run_espion
+    try:
+        GFH(DS, 1.1, w=270, cadre={"ratio": "9:16", "t_local": 1.2, "speed": 0.5, "retime": _rt13, "fps": 30,
+                                   "stab": _STB}) if DS else None
+    finally:
+        MM._run = _vrai_run
+    _ff13 = [x for x in _cmds if x and x[0] == "ffmpeg"]
+    _thr13[_rt13] = [("-threads" in x and x[x.index("-threads") + 1] == "1" and x.index("-threads") < x.index("-i"),
+                      "-filter_complex_threads" in x) for x in _ff13]
+check("r13_stab_flow_un_seul_thread_comme_le_rendu_temoin_stab_blend_sans",
+      _thr13.get("flow") == [(True, True)] and _thr13.get("blend") == [(False, False)], str(_thr13))
+check("r13_stab_et_retime_srcin_hors_grille_chaque_instant_egal_au_rendu_6_temoin_aligne",
+      all(v[0] >= 20 and not v[1] for v in _s13.values()), str({k: v[1][:2] for k, v in _s13.items()}))
+# Sous le ffmpeg de l'application (9.0.1), le rendu stabilise EST reproductible :
+# la borne stricte s'applique. Ailleurs (8.1.1), la ligne le dit sans rougir.
+_v9 = "version 9." in _ver
+check("r13_ffmpeg_de_l_app_9_rendu_stabilise_reproductible_borne_stricte_6" if _v9
+      else "r13_information_ffmpeg_%s_rendu_stabilise_non_reproductible_borne_max_25_dispersion_plus_6" % _ver.split()[2][:5],
+      len(_REPRO) == 4 and (all(v <= 0.5 for v in _REPRO.values()) if _v9 else True),
+      str({k: (round(v, 2), max(25, int(v + 6)) if v > 0.5 else 6) for k, v in _REPRO.items()}))
 
 print(f"\n=== {ok} passed, {fail} failed ===")
 c.__exit__(None, None, None)

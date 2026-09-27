@@ -26,7 +26,6 @@ from typing import Optional
 import fal_client
 import httpx
 from loguru import logger
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.config import settings, SSL_VERIFY
 
@@ -56,11 +55,16 @@ SEEDANCE_LITE_I2V = "fal-ai/bytedance/seedance/v1/lite/image-to-video"
 #   end_image    first-last-frame support (guard raises a clean error)
 #   seed         seed param support (unsupported -> dropped with a note)
 #   audio_param  name of the "generate audio" switch — always forced False:
-#                the app's pipeline owns audio (VO node / ElevenLabs / BGM),
-#                and the audio-off pricing column is what pricing.py encodes.
+#                the app's pipeline owns audio (VO node / ElevenLabs / BGM).
+#                For most models pricing.py encodes the audio-off column;
+#                Seedance 2.5 bills the same with or without audio (doc fal
+#                lue le 26/09 : `generate_audio` sans effet sur le prix).
 #                None on veo-google = audio is baked in (no switch, priced flat).
 # usd_per_s is mirrored in pricing.py DEFAULTS["video_usd_per_s"] (user-editable).
-DEFAULT_VIDEO_MODEL = "seedance-v1-pro"
+# Défaut : Seedance 2.5 depuis le 27/09 (plan retours-ia, tâche 5). L'ancien
+# défaut `seedance-v1-pro` reste au registre et choisissable ; les graphes et
+# jobs déjà enregistrés gardent leur modèle.
+DEFAULT_VIDEO_MODEL = "seedance-2.5"
 
 VIDEO_MODELS: dict = {
     "seedance-v1-pro": {
@@ -175,6 +179,24 @@ def clamp_duration(model: dict, requested: int) -> int:
     return min(bigger) if bigger else max(allowed)
 
 
+def generated_duration(model: dict, requested: int,
+                       max_gen_s: "Optional[float]" = None) -> int:
+    """Seconds actually GENERATED (and billed) for a `requested` clip length.
+
+    Native clamp first (`clamp_duration`, min 3 s as before), then the cap
+    `max_gen_s` (pricing.json `video_max_gen_s`, 10 s by default): above it,
+    the largest native duration <= cap (or the model's minimum when none
+    fits). The pipeline ffmpeg-extends the rest, exactly as before. A falsy
+    cap keeps the previous behavior."""
+    dur = clamp_duration(model, max(3, int(requested)))
+    if max_gen_s:
+        cap = int(max_gen_s)
+        if dur > cap:
+            under = [d for d in model["durations"] if d <= cap]
+            dur = max(under) if under else min(model["durations"])
+    return dur
+
+
 def clamp_resolution(model: dict, requested: str) -> "Optional[str]":
     """Requested resolution if the model has it; else its best available.
     None when the endpoint has no resolution param."""
@@ -257,7 +279,7 @@ def build_fal_args(
         else:
             notes.append("seed unsupported -> dropped")
     if m["audio_param"]:
-        # the pipeline owns audio (VO/BGM mix) and pricing encodes audio-off
+        # the pipeline owns audio (VO/BGM mix)
         args[m["audio_param"]] = False
     return endpoint, args, notes
 
@@ -325,11 +347,30 @@ class FalSeedanceClient:
                     logger.warning(f"Could not clean up temp file {cleanup_temp_path}: {e}")
 
     @staticmethod
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=2, min=4, max=30),
-        reraise=True,
-    )
+    async def _soumettre(endpoint: str, arguments: dict):
+        """Submit to the fal queue ONCE — the application never replays.
+
+        Mesuré le 27/09 : l'ancien `@retry(stop_after_attempt(3))` posé sur
+        TOUT `generate_video` rejouait `subscribe_async` (soumission +
+        attente + résultat) sur n'importe quelle exception — y compris une
+        coupure pendant l'attente d'une génération DÉJÀ acceptée : jusqu'à
+        trois générations payées pour un clip. Une boucle limitée aux
+        `httpx.TransportError` ne suffit pas : ReadTimeout, ReadError et
+        RemoteProtocolError arrivent APRÈS l'envoi de la requête.
+
+        RISQUE RÉSIDUEL (daté 27/09, fal_client 1.0.1) : `submit_async`
+        passe par `_async_maybe_retry_request`, qui rejoue SEUL la même POST
+        jusqu'à `MAX_ATTEMPTS = 10` fois sur toute erreur de transport
+        (dont ReadError / RemoteProtocolError après l'envoi) et sur les
+        codes 408/409/429 et 502-504 d'ingress. Sondé sur un transport
+        simulé : 10 POST pour une ReadError. Rien dans l'API publique ne le
+        coupe : `start_timeout` ne neutralise que le rejeu des timeouts
+        (1 POST sur ReadTimeout, toujours 10 sur ReadError) et change la
+        sémantique côté serveur ; baisser `fal_client.client.MAX_ATTEMPTS`
+        serait global (sondes d'état et résultats compris). Assumé tel quel."""
+        return await fal_client.submit_async(endpoint, arguments=arguments)
+
+    @staticmethod
     async def generate_video(
         image_url: str,
         prompt: str,
@@ -343,9 +384,10 @@ class FalSeedanceClient:
     ) -> dict:
         """Submit a video job to the selected fal model and wait for completion.
 
-        `model_id` picks the VIDEO_MODELS entry (default = legacy Seedance 1.0
-        Pro, whose routing — Lite endpoint when an end frame is given — is
-        preserved byte-for-byte). Args are mapped per family by build_fal_args.
+        `model_id` picks the VIDEO_MODELS entry (default = Seedance 2.5 since
+        27/09; Seedance 1.0 Pro keeps its routing — Lite endpoint when an end
+        frame is given — byte-for-byte). Args are mapped per family by
+        build_fal_args.
 
         Returns dict with at least 'video' field (URL) and possibly 'seed'.
         """
@@ -371,12 +413,11 @@ class FalSeedanceClient:
         )
 
         try:
-            result = await fal_client.subscribe_async(
-                endpoint,
-                arguments=arguments,
-                with_logs=True,
-                on_queue_update=lambda update: logger.debug(f"fal.ai update: {update}"),
-            )
+            handle = await FalSeedanceClient._soumettre(endpoint, arguments)
+            # Accepted from here on: nothing is ever resubmitted.
+            async for update in handle.iter_events(with_logs=True):
+                logger.debug(f"fal.ai update: {update}")
+            result = await handle.get()
         except Exception as e:
             # Provider-prefix so the UI surfaces a clear, linkable error
             # (credit / quota / billing failures on fal.ai).

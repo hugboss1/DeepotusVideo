@@ -231,7 +231,11 @@ for _prov, _champs, _pourquoi in SANS_DEPENSE:
 print("\n[2] la garde contre le zero general — ce qui depense paie encore.")
 _camp = _devis({"kind": "campaign", "ops": [{"kind": "image"},
                                             {"kind": "seedance",
-                                             "duration_s": 10, "model": ""}]})
+                                             "duration_s": 10, "model": "",
+                                             # job sans video_model = historique
+                                             # (retours-ia T5 : le vide ne vaut
+                                             # plus le forfait, sauf ici)
+                                             "legacy": True}]})
 _d = _cout("seedance", duration_s=10)
 check("cout_seedance_facture_son_image_et_sa_video",
       _camp > 0 and _d.get("total_usd") == round(_camp, 2)

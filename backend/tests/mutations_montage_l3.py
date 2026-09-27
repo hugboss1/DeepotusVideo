@@ -144,38 +144,12 @@ B_EDIT = "tests/test_montage_edition.py"
 B_BUND = "tests/test_montage_bundle.py"
 B_L3 = "tests/test_montage_l3.py"
 
-# Le post-pass D-9, ENTIER, tel qu'il est dans le service (0c34b06) : la
+# Le post-pass D-9, ENTIER, tel qu'il est dans le service (0c34b06 ; le
+# bornage vit dans `_adjust_bounded` depuis les retours 26/09, T2) : la
 # n°11 le RETIRE de sa place (avant les titres) et le REPOSE apres la boucle
 # des titres. Recopie a l'octet -- l'assert d'unicite le verifie.
 _AJ_BLOC = '''    for j, aj in enumerate(adjust_clips or []):
-        if not isinstance(aj, dict):
-            continue
-        try:
-            a0 = max(0.0, float(aj.get("start") or 0))
-            a1 = min(float(total), float(aj.get("end") or 0))
-        except (TypeError, ValueError):
-            continue
-        effs = [e for e in (aj.get("effects") or [])
-                if isinstance(e, dict) and e.get("type") in _fx.EFFECTS]
-        if a1 - a0 < 0.05 or not effs:
-            continue
-        bounded = []
-        for e in effs:
-            e2 = dict(e)
-            try:
-                lt0 = max(0.0, float(e.get("t0") or 0))
-                lt1 = (float(e.get("t1")) if e.get("t1") is not None
-                       else (a1 - a0))
-            except (TypeError, ValueError):
-                lt0, lt1 = 0.0, a1 - a0
-            e2["t0"] = round(a0 + lt0, 3)
-            e2["t1"] = round(min(a1, a0 + lt1), 3)
-            # Revue (23/09/2026) : bornes locales HORS du clip ou < 0,05 s
-            # → _timed rendrait la chaîne NUE (effet plein cadre, 0..total,
-            # mesuré : `[n0]vignette=angle=0.600[aj0]` sans sendcmd). Rien.
-            if e2["t1"] - e2["t0"] < 0.05:
-                continue
-            bounded.append(e2)
+        bounded = _adjust_bounded(aj, total)
         if not bounded:
             continue
         parts += _fx.build_chain(bounded, cur, f"aj{j}", f"ajfx{j}",
@@ -206,8 +180,8 @@ M = [
     # 2 — le zoompan pose AVANT `fps=` (branche sans vitesse) : sur un flux
     #     retime il dupliquerait chaque image ; ici l'ordre pinne rougit.
     (B_L3, SVC,
-     'f"crop={w}:{h},setsar=1,fps={fps}{dzp},format=yuv420p")\n',
-     'f"crop={w}:{h},setsar=1{dzp},fps={fps},format=yuv420p")\n',
+     'f"{crp},setsar=1,fps={fps}:start_time=0{dzp},format=yuv420p")\n',
+     'f"{crp},setsar=1{dzp},fps={fps}:start_time=0,format=yuv420p")\n',
      ["d13_avec_dz_le_zoompan_est_pose_apres_fps_et_avant_format"]),
     # ── D-15, le retime ──────────────────────────────────────────────────
     # 3 — `_v1_retime` accepte « nearest » : `_RETIME["nearest"]` n'existe
@@ -226,8 +200,8 @@ M = [
     #     setpts quel qu'il soit, et fps= ne le porte plus.
     (B_L3, SVC,
      [("{rtp if rt == 'flow' else ''},\"\n", "{rtp},\"\n"),
-      ("f\"fps={fps}{rtp if rt == 'blend' else ''}{dzp},format=yuv420p\")\n",
-       "f\"fps={fps}{dzp},format=yuv420p\")\n")],
+      ("f\"fps={fps}:start_time=0{rtp if rt == 'blend' else ''}{dzp},format=yuv420p\")\n",
+       "f\"fps={fps}:start_time=0{dzp},format=yuv420p\")\n")],
      None,
      ["d15_blend_pose_tblend_average_apres_fps_avant_format",
       "d15_avec_dz_l_ordre_est_setpts_fps_tblend_zoompan_format"]),
@@ -249,8 +223,8 @@ M = [
     # 7 — `_ff_escape_path` retire de `input=` : `C:\\…` nu dans un
     #     filtergraph, le `:` est lu comme separateur d'option.
     (B_L3, SVC,
-     "                pre = (f\"vidstabtransform=input='{_ff_escape_path(trf)}':\"\n",
-     "                pre = (f\"vidstabtransform=input='{trf}':\"\n",
+     "    return (f\"vidstabtransform=input='{_ff_escape_path(trf)}':\"\n",
+     "    return (f\"vidstabtransform=input='{trf}':\"\n",
      ["d16_le_chemin_trf_est_echappe_comme_un_ass"]),
     # ── D-14, les keyframes d'echelle et d'opacite ───────────────────────
     # 8 — `_motion_points` qui perd `opacity` : 5-uplets, l'opacite animee
@@ -291,7 +265,7 @@ M = [
     # 12 — la garde des bornes locales HORS du clip retiree : `_timed` rend la
     #      chaine NUE et l'effet couvre TOUT le film (mesure avant 0c34b06).
     (B_L3, SVC,
-     '            if e2["t1"] - e2["t0"] < 0.05:\n                continue\n',
+     '        if e2["t1"] - e2["t0"] < 0.05:\n            continue\n',
      '',
      ["d9_des_bornes_locales_hors_du_clip_ignorent_l_effet_jamais_plein_cadre",
       "d9_des_bornes_locales_trop_courtes_ignorent_l_effet_jamais_plein_cadre"]),
@@ -367,7 +341,15 @@ M = [
 
 
 # LE COMPTE MESURE, compare par main() -- une ligne par mutation de M.
-N_ROUGES = (1, 7, 1, 2, 2, 1, 1, 2, 13, 4, 2, 1, 2, 1, 1, 2, 2, 1, 1, 1, 3, 3, 4)
+# Retours 26/09 (T2, 27/09) : n°7 et n°12 rougissent en plus la ligne
+# `t2_commande_de_rendu_identique_a_fc2d7ad_octet_pour_octet_7_cas` (l3 [7]) —
+# 2 -> 3 chacune, MESURE sur a4bbc5f (worktree temporaire, 9.0.1).
+# Revue T1 (27/09) : les ancres n°2 et n°4 visaient une ligne disparue (n°2
+# depuis D-40 : `f"{crp},…"`, n°4 depuis 3e01fbe : `fps={fps}:start_time=0`) ;
+# realignees, elles mutent a nouveau. n°1, n°4 et n°6 rougissent en plus la
+# ligne `t2_commande_de_rendu_identique_a_fc2d7ad_octet_pour_octet_7_cas` :
+# 7 -> 8, 2 -> 3, 1 -> 2 — MESURE sur le sommet de la revue T1 (9.0.1).
+N_ROUGES = (1, 8, 1, 2, 3, 1, 2, 3, 13, 4, 2, 1, 3, 1, 1, 2, 2, 1, 1, 1, 3, 3, 4)
 assert len(N_ROUGES) == len(M), (len(N_ROUGES), len(M))
 
 

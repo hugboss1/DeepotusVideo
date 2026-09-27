@@ -186,6 +186,17 @@ async def render_layout_template(
             raise HTTPException(400, "FAL_KEY not configured. Add it to backend/.env")
         if "heygen" in kinds and not settings.has_heygen:
             raise HTTPException(400, "HEYGEN_API_KEY not configured. Add it to backend/.env")
+        # garde de coût (retours-ia F3) : la somme des slots générés
+        _ops = []
+        _maxs = [request.max_usd]
+        for _sv in request.slot_values.values():
+            if _sv.source_kind == "seedance" and _sv.seedance is not None:
+                _ops.append(_devis_video(_sv.seedance))
+                _maxs.append(_sv.seedance.max_usd)   # le plus bas gagne
+            elif _sv.source_kind == "heygen" and _sv.heygen is not None:
+                _ops.append(_devis_heygen(_sv.heygen))
+        if _ops:
+            _garde_cout(_ops, *_maxs)
 
     job_id = str(uuid4())
 
@@ -2959,6 +2970,49 @@ async def build_prompt_from_intent(request: BuildPromptRequest):
 
 # ---- Generate ----
 
+def _devis_video(req, n: int = 1) -> dict:
+    """`estimate` op of one GenerateRequest (× n variations), on the seconds
+    actually generated (native clamp + `video_max_gen_s`)."""
+    from app.services import pricing as _pricing
+    try:
+        return _pricing.video_request_op(req.video_model, req.duration_s,
+                                         req.resolution, n=n)
+    except ValueError as e:
+        # id inconnu : 400 qui liste les ids valides, pas un 500 muet
+        raise HTTPException(400, str(e))
+
+
+def _devis_heygen(hg) -> dict:
+    return {"kind": "heygen", "chars": len((hg.script or "").strip())}
+
+
+def _garde_cout(ops: list, *max_usds) -> float:
+    """Garde de coût serveur (retours-ia F3) : estime `ops` et lève 402
+    AVANT toute génération si l'estimation dépasse le plus bas des
+    `max_usds` envoyés (requête, côté seedance, slots) ou le plafond
+    `video_max_usd_per_request` de pricing.json. Rend le total.
+
+    Un `max_usd` non fini ou négatif -> 422 ICI, pas dans le schéma : la
+    réponse 422 de FastAPI recopie l'entrée, et un NaN/Infinity recopié
+    fait planter son encodage JSON (500)."""
+    import math as _math
+    from app.services import pricing as _pricing
+    _vals = []
+    for _m in max_usds:
+        if _m is None:
+            continue
+        if not _math.isfinite(_m) or _m < 0:
+            raise HTTPException(422, "max_usd doit être un nombre fini >= 0")
+        _vals.append(_m)
+    max_usd = min(_vals) if _vals else None
+    p = _pricing.load()
+    total = _pricing.estimate({"kind": "campaign", "ops": ops}, p)["total_usd"]
+    refus = _pricing.cost_guard(total, max_usd, p)
+    if refus:
+        raise HTTPException(402, refus)
+    return total
+
+
 @router.post("/generate", response_model=GenerateResponse)
 async def generate(request: GenerateRequest, background_tasks: BackgroundTasks):
     # W-a — the required key depends on the selected model's provider
@@ -2982,6 +3036,8 @@ async def generate(request: GenerateRequest, background_tasks: BackgroundTasks):
 
     if not request.template_id and not request.custom_prompt:
         raise HTTPException(400, "Must provide either template_id or custom_prompt")
+
+    _garde_cout([_devis_video(request)], request.max_usd)
 
     async def _run():
         try:
@@ -3025,6 +3081,10 @@ async def generate_batch(request: GenerateBatchRequest, background_tasks: Backgr
 
     if request.variations_count < 1 or request.variations_count > 8:
         raise HTTPException(400, "variations_count must be between 1 and 8")
+
+    # la somme des variations, contre un seul plafond
+    _garde_cout([_devis_video(request, n=request.variations_count)],
+                request.max_usd)
 
     # Determine base seed
     base_seed = request.seed if request.seed is not None else random.randint(1, 2_000_000_000)
@@ -3269,6 +3329,9 @@ async def generate_composition(request: CompositionRequest, background_tasks: Ba
         raise HTTPException(400, "HeyGen script must not be empty")
     if not request.heygen.avatar_id or not request.heygen.voice_id:
         raise HTTPException(400, "HeyGen avatar_id and voice_id are required")
+
+    _garde_cout([_devis_video(request.seedance), _devis_heygen(request.heygen)],
+                request.max_usd, request.seedance.max_usd)
 
     async def _run():
         try:
@@ -4481,10 +4544,22 @@ def _job_to_cost(job, p):
                                   "frames": int(meta.get("frames", 0) or 0),
                                   "remove_bg": meta.get("remove_bg", "none")}, p)
     if prov in _JOBS_CAMPAGNE:
+        vdur = dur
+        if getattr(job, "video_model", None):
+            # un job AVEC modèle a été facturé sur la durée GÉNÉRÉE (clamp
+            # natif + video_max_gen_s), pas sur la cible prolongée par ffmpeg ;
+            # les jobs legacy (sans modèle) restent octet pour octet au forfait
+            try:
+                vdur = _pricing.video_gen_seconds(job.video_model, dur, p)
+            except ValueError:
+                vdur = dur      # modèle retiré du registre : durée demandée
         return _pricing.estimate({"kind": "campaign", "ops": [
             {"kind": "image"},
-            {"kind": "seedance", "duration_s": dur,
-             "model": getattr(job, "video_model", None) or ""}]}, p)
+            {"kind": "seedance", "duration_s": vdur,
+             "model": getattr(job, "video_model", None) or "",
+             # un job SANS modèle date d'avant la colonne (Seedance 1, au
+             # forfait) : son coût historique ne suit pas le défaut du jour
+             "legacy": not getattr(job, "video_model", None)}]}, p)
     # LE BLANC AVOUÉ — voir la docstring. Le provider part dans la CLÉ pour
     # qu'un coup d'œil à `by_provider` dise LEQUEL n'est pas tarifé.
     return _pricing.no_spend(f"Non tarifé — provider « {prov} »",
@@ -4769,6 +4844,16 @@ async def generate_image(body: dict, background_tasks: BackgroundTasks):
     return out
 
 
+def _erreur_fournisseur(model: str, e: Exception) -> HTTPException:
+    """Erreur d'un fournisseur d'image hors RuntimeError (délai httpx, erreur
+    fal_client…) : journalisée en entier, rendue en 502 qui nomme le modèle et
+    le TYPE d'erreur seulement — le texte brut peut porter un en-tête ou une
+    clé, il ne sort pas du journal."""
+    logger.error(f"fournisseur d'image {model} : {type(e).__name__}: {e}")
+    return HTTPException(502, f"{model} : échec du fournisseur "
+                              f"({type(e).__name__}).")
+
+
 async def _generate_image_core(body: dict, background_tasks: BackgroundTasks):
     """Text-to-image via fal.ai FLUX (same FAL_KEY as Seedance). Saves the
     PNG(s) into the images folder so they're immediately usable as Seedance
@@ -4803,6 +4888,27 @@ async def _generate_image_core(body: dict, background_tasks: BackgroundTasks):
         logger.info("images/generate: no model in request, saved default -> "
                     f"{model or 'flux (fallback)'}")
     import httpx as _httpx
+    from app.services import image_providers as IP
+
+    # --- façade du registre AVANT tout préfixe (27/09) ----------------------
+    # Les ids servis par fal (`gpt-image-…-fal`, nano-banana, nano-banana-pro)
+    # et les GPT Image 2.5 directs passent par image_providers : un id `-fal`
+    # commence par « gpt-image » et partait chez OpenAI (mauvaise clé, mauvaise
+    # facture), et nano-banana-pro retombait sur FLUX sans rien dire.
+    if IP.via_facade(model):
+        manque = IP.missing_key(model)
+        if manque:
+            raise HTTPException(400, f"{manque} non configurée (Réglages) "
+                                     f"pour {model}.")
+        background = (body.get("background") or "").strip().lower() or None
+        try:
+            out = await IP.generate(model, prompt, size, n,
+                                    background=background)
+        except RuntimeError as e:
+            raise HTTPException(502, str(e))
+        except Exception as e:  # noqa: BLE001 — httpx/fal_client : 502, pas 500
+            raise _erreur_fournisseur(model, e)
+        return {"images": out["images"], "prompt": prompt, "model": model}
 
     # --- OpenAI gpt-image / dall-e path (per the selected model) -----------
     if model.startswith("gpt-image") or model.startswith("dall-e"):
@@ -4843,16 +4949,7 @@ async def _generate_image_core(body: dict, background_tasks: BackgroundTasks):
         logger.info(f"OpenAI {model}: saved {len(saved)} image(s): {saved}")
         return {"images": saved, "prompt": prompt, "model": model}
 
-    # --- Nano Banana (Gemini via fal) --------------------------------------
-    if model == "nano-banana":
-        from app.services import image_providers as IP
-        try:
-            out = await IP.generate("nano-banana", prompt, size, n)
-        except RuntimeError as e:
-            raise HTTPException(502, str(e))
-        return {"images": out["images"], "prompt": prompt,
-                "model": "nano-banana"}
-
+    # (Nano Banana passe par la façade ci-dessus.)
     # --- fal.ai FLUX path (default) ---------------------------------------
     seed = body.get("seed")
     seed = int(seed) if isinstance(seed, (int, float)) else None
@@ -5065,14 +5162,22 @@ async def _process_image_core(body: dict):
                 model = (await _atelier_setting(
                     _s, "image_model_default")).strip().lower()
         size = body.get("size") or "portrait_16_9"
-        if model.startswith("gpt-image") or model.startswith("dall-e") \
-                or model == "nano-banana":
-            from app.services import image_providers as IP
+        from app.services import image_providers as IP
+        # façade du registre (ids fal, nano-banana-pro, GPT Image 2.5) testée
+        # AVANT le préfixe : nano-banana-pro tombait sur Kontext sans le dire
+        if IP.via_facade(model) or model.startswith("gpt-image") \
+                or model.startswith("dall-e"):
+            manque = IP.missing_key(model)
+            if manque:
+                raise HTTPException(400, f"{manque} non configurée "
+                                         f"(Réglages) pour {model}.")
             try:
                 out = await IP.generate(model, prompt, size, n,
                                         image_path=src)
             except RuntimeError as e:
                 raise HTTPException(502, str(e))
+            except Exception as e:  # noqa: BLE001 — httpx/fal_client : 502
+                raise _erreur_fournisseur(model, e)
             logger.info(f"images/process {op} via {model}: "
                         f"{fname} -> {out['images']}")
             return {"images": out["images"], "op": op, "model": model}
@@ -5238,9 +5343,27 @@ async def list_image_models():
         # qui la lisent tous. Corrigé 28/08/2026.
         out.append({"id": "nano-banana-pro", "label": "Nano Banana Pro (Gemini 3)",
                     "provider": "fal", "note": "2K/4K, 14 refs"})
+        # Voies fal de GPT Image (27/09) : absentes tant que /images/generate
+        # les envoyait chez OpenAI par le préfixe « gpt-image ».
+        out.append({"id": "gpt-image-2-fal", "label": "GPT Image 2 (via fal)",
+                    "provider": "fal", "note": "no OpenAI key"})
+        out.append({"id": "gpt-image-2.5-flare-fal",
+                    "label": "GPT Image 2.5 Flare (via fal)",
+                    "provider": "fal", "note": "transparent background"})
+        out.append({"id": "gpt-image-2.5-sunburst-fal",
+                    "label": "GPT Image 2.5 Sunburst (via fal)",
+                    "provider": "fal", "note": "high quality"})
     if settings.OPENAI_API_KEY:
+        # gpt-image-2 reste en tête : c'est le défaut quand seule la clé
+        # OpenAI est posée (`out[0]`) — un ajout ne change pas ce défaut
         out.append({"id": "gpt-image-2", "label": "GPT Image 2",
                     "provider": "openai", "note": "best quality"})
+        out.append({"id": "gpt-image-2.5-flare",
+                    "label": "GPT Image 2.5 Flare (OpenAI)",
+                    "provider": "openai", "note": "transparent background"})
+        out.append({"id": "gpt-image-2.5-sunburst",
+                    "label": "GPT Image 2.5 Sunburst (OpenAI)",
+                    "provider": "openai", "note": "high quality"})
         out.append({"id": "gpt-image-1", "label": "GPT Image 1",
                     "provider": "openai", "note": "balanced"})
         out.append({"id": "gpt-image-1-mini", "label": "GPT Image 1 mini",
@@ -8028,7 +8151,16 @@ async def generate_material(body: dict, background_tasks: BackgroundTasks):
         if not prompt:
             raise HTTPException(400, "prompt ou filename est requis")
         model = MS.clean_model(body.get("model"))
-        if model.startswith("gpt-image") or model.startswith("dall-e"):
+        from app.services import image_providers as IP
+        # la clé EXIGÉE est celle du registre (un `gpt-image-…-fal` veut
+        # FAL_KEY, pas OPENAI_API_KEY) ; le préfixe ne sert qu'aux ids hors
+        # registre (gpt-image-1-mini)
+        if model in IP.PROVIDERS:
+            manque = IP.missing_key(model)
+            if manque:
+                raise HTTPException(400, f"{manque} non configurée "
+                                         "(Réglages).")
+        elif model.startswith("gpt-image") or model.startswith("dall-e"):
             if not settings.OPENAI_API_KEY:
                 raise HTTPException(400, "OPENAI_API_KEY non configurée "
                                          "(Réglages).")
@@ -8075,9 +8207,10 @@ async def _run_material_job(jid: str, spec: dict):
             src = _mat_library_path(spec["filename"])
         else:
             model = spec["model"]
-            if model.startswith("gpt-image") or model.startswith("dall-e") \
-                    or model == "nano-banana":
-                from app.services import image_providers as IP
+            from app.services import image_providers as IP
+            # façade AVANT le préfixe (ids fal, nano-banana-pro, GPT Image 2.5)
+            if IP.via_facade(model) or model.startswith("gpt-image") \
+                    or model.startswith("dall-e"):
                 out = await IP.generate(model, spec["full_prompt"],
                                         "square_hd", 1)
             else:

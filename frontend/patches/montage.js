@@ -8035,7 +8035,9 @@ var DZM_GP_TABS=[["m","M","Courbe maître : les trois canaux ensemble"],["r","R"
    dzmGpFetch(url, corps, blob, signal?) -> promesse du JSON (ou du Blob) ; `signal` (tâche 6) = celui d'un contrôleur
    d'abandon, joint seulement s'il est donné ; un refus HTTP rejette avec le détail du serveur,
    sinon « HTTP 404 — route absente de ce serveur » : les routes viennent de la tâche 3, un backend plus ancien le
-   dit par une note ou dans l'aperçu, rien ne casse.
+   dit par une note ou dans l'aperçu, rien ne casse. RETOURS 26/09 (tâche 3) : `hdr` (facultatif) reçoit les EN-TÊTES d'une
+   réponse acceptée (objet `headers` de fetch, absent -> hdr non appelé) AVANT la lecture du corps : l'image étalonnée du
+   lecteur y lit la note du serveur (X-Dz-Grade-Note).
    dzmGpRead / dzmGpWrite : le grade du presse-papiers, clé « dz_montage_grade » du magasin de dzmTbStore (le même
    accès protégé que la barre d'outils ; un magasin factice en argument pour le banc), en try/catch (stockage
    refusé, plein ou JSON illisible -> null / false). Le cœur E-5..D-7 ne nomme pas le stockage : ceci non plus.
@@ -8047,11 +8049,12 @@ var DZM_GP_TABS=[["m","M","Courbe maître : les trois canaux ensemble"],["r","R"
    un ref et appelle au démontage (revue T5, I-2).
    dzmGpDrawWheel / dzmGpDrawCurve : le dessin des canvas (anneau de teinte R 90°, G 210°, B 330° comme la roue du
    cœur ; grille, diagonale, courbe pchip échantillonnée sur UNE fabrique dzmCurveFn, points). */
-function dzmGpFetch(url,body,blob,sig){
+function dzmGpFetch(url,body,blob,sig,hdr){
   var op={method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)};
   if(sig)op.signal=sig;
   return fetch(url,op).then(function(res){
-    if(res.ok)return blob?res.blob():res.json();
+    if(res.ok){if(typeof hdr==="function"&&res.headers&&typeof res.headers.get==="function")hdr(res.headers);
+      return blob?res.blob():res.json()}
     return res.json().catch(function(){return {}}).then(function(j){
       var d=j&&typeof j.detail==="string"&&j.detail;
       throw new Error(d||("HTTP "+res.status+(res.status===404||res.status===405?" — route absente de ce serveur (backend à relancer)":"")))})})}
@@ -8351,6 +8354,11 @@ function dzmGradePasteDo(clip,st){
   if(!g)return {clip:null,note:"Aucun grade copié (Copier le grade d'abord)"};
   return {clip:dzmGradePaste(clip,g),note:"Grade collé ("+dzmGpNfx(g)+")"}}
 var DZM_GL_MS=250,DZM_GL_RATIOS=["9:16","16:9","1:1","4:5"];
+/* retours 26/09 (tâche 3) : l'anti-rebond quand la stabilisation est posée (le serveur décode depuis 0, jusqu'à 20 s de
+   source), la cadence envoyée au retime (celle du rendu Preview : `fps = 30` de la route de rendu sans preset), le palier
+   de largeur de l'empreinte, et les notes du serveur (X-Dz-Grade-Note) dans l'ordre où la pastille les dit. */
+var DZM_GL_MS_STAB=600,DZM_GL_FPS=30,DZM_GL_PAL=160,
+  DZM_GL_NOTES=[["stab-non-analysee","stabilisation non analysée"],["stab-trop-loin","stabilisation : trop loin dans la source"]];
 /* ── Retours L6 (26/09/2026, tâche 4) : L'IMAGE ÉTALONNÉE DANS LA FENÊTRE PRINCIPALE, À L'ARRÊT. Le lecteur vivant montre
    les sources brutes (décision L5 n°9) : les effets d'un plan, appliqués au rendu, y étaient invisibles. D'abord les aides
    PURES (valeurs en entrée, valeurs neuves en sortie) :
@@ -8415,18 +8423,75 @@ function dzmGlActif(f,tl,dur){
   if(b!==b)return a>0&&tl>=a;
   if(b-a<.05)return !0;
   return tl>=a&&tl<b}
-/* revue T4 (m4) : un plan V1 en IMAGE FIXE -> rien (la route refuse 415) ; (m3) aucun effet actif À t_local -> rien
-   (ni requête ni pastille) ; sinon les effets allumés partent tels quels, le serveur applique leurs bornes. */
-function dzmGlBody(c,head,ratio){
+/* RETOURS 26/09 (tâche 3, B3) : les clips de la piste d'AJUSTEMENT (genre « adjust », dzmKindOf) qui couvrent l'instant
+   GLOBAL tg ([début, fin[, bornes lisibles) et dont au moins un effet allumé est PRÉSENT à tg -> [{start, end, effects}]
+   (effets allumés, tels quels : le serveur applique leurs bornes, comme au rendu) ; liste illisible ou tg illisible -> [].
+   REVUE T3 (27/09/2026) : « présent » est le MIROIR de la post-passe du rendu (montage_service, bornage des effets J1,
+   extrait par la tâche 2 en _adjust_bounded) et non dzmGlActif (qui lit une borne hors du plan comme « tout le plan » :
+   un J1 de 2 à 6 s portant {t0:5,t1:6} ouvrait la porte alors que le rendu n'applique rien). dzmGlAjBornes(effet, a0, a1)
+   rend [t0, t1] GLOBAUX comme Python : t0 = max(0, float(t0 or 0)), t1 = float(t1) si t1 n'est pas None sinon a1 − a0,
+   float() illisible (ValueError / TypeError) -> [0, a1 − a0] ; puis t0 = a0 + t0, t1 = min(a1, a0 + t1), arrondis au
+   millième ; t1 − t0 < 0,05 -> null (écarté). Le clip lui-même : a0 = max(0, début), a1 − a0 < 0,05 -> rien. Présent =
+   tg dans [t0, t1[ (l'enveloppe _timed). ÉCART DATÉ : la couche ne connaît ni la liste des types d'effets du moteur
+   (_fx.EFFECTS, un type inconnu est écarté au rendu) ni la durée totale (a1 = min(total, fin) au rendu). */
+function dzmGlPyFaux(v){
+  return v==null||v===0||v===""||v===!1||(Array.isArray(v)&&!v.length)
+    ||(typeof v==="object"&&!Array.isArray(v)&&!Object.keys(v).length)}
+function dzmGlAjBornes(f,a0,a1){
+  var r0=f&&f.t0,r1=f&&f.t1,l0=dzmGlPyFaux(r0)?0:dzmGlSec(r0),l1=r1==null?a1-a0:dzmGlSec(r1);
+  if(l0===null||l1===null){l0=0;l1=a1-a0}
+  l0=l0>0?l0:0;
+  var t0=dzmCoR(a0+l0,3),y=a0+l1,t1=dzmCoR(y<a1?y:a1,3);
+  return t1-t0>=.05?[t0,t1]:null}
+function dzmGlAdjust(clips,tg){
+  var out=[],t=dzmRfNum(tg);
+  if(!Array.isArray(clips)||t===null)return out;
+  clips.forEach(function(k){
+    if(!k||typeof k!=="object"||dzmKindOf(k.tr,k.kind)!=="adjust")return;
+    var s=dzmRfNum(k.start),e=dzmRfNum(k.end);
+    if(s===null||e===null||!(e>s)||t<s||t>=e)return;
+    var a0=s>0?s:0;if(e-a0<.05)return;
+    var fx=(Array.isArray(k.effects)?k.effects:[]).filter(function(f){return !!f&&typeof f==="object"&&!f.off});
+    if(fx.some(function(f){var bn=dzmGlAjBornes(f,a0,e);return !!bn&&t>=bn[0]&&t<bn[1]}))out.push({start:s,end:e,effects:fx})});
+  return out}
+/* revue T4 (m4) : un plan V1 en IMAGE FIXE -> rien (la route refuse 415) ; (m3) aucun effet actif À t_local -> pas
+   d'étalonnage ; les effets allumés partent tels quels, le serveur applique leurs bornes.
+   RETOURS 26/09 (tâche 3, B0) : LA PORTE s'ouvre aussi SANS effet actif — un retime (blend / flow, dzmRetimeOf) avec une
+   vitesse != 1 (dzmRfSpeed, la lecture de dzmSrcTimeAt), OU stab.on (dzmStabOf), OU un clip J1 actif à la tête
+   (dzmGlAdjust, liste `clips` en 4e argument ; absente -> aucun). Contrat de la tâche 2 : cadre += {speed, retime, fps}
+   (seulement avec le retime), stab (l'objet normalisé que le rendu lit), adjust + t_global (= début + t_local : l'instant
+   que la pile V1 regarde). effects (et le masque, qui ne limite que des effets) seulement s'il y a des effets allumés.
+   Rien de tout cela -> null : aucune requête (et les champs neufs ne partent JAMAIS à vide : un plan d'hier garde son
+   corps, donc la clé de cache du serveur). */
+function dzmGlBody(c,head,ratio,clips){
   if(!c||typeof c!=="object"||!c.src||c.src.image)return null;
   var fx=(Array.isArray(c.effects)?c.effects:[]).filter(function(f){return !!f&&typeof f==="object"&&!f.off});
-  if(!fx.length)return null;
-  var cadre=dzmGlCadre(c,head,ratio);
-  if(!fx.some(function(f){return dzmGlActif(f,cadre.t_local,cadre.dur)}))return null;
-  var mk=dzmMaskOf(c.mask),b={src:c.src,t:dzmSrcTimeAt(c,head),effects:fx};
-  if(mk)b.mask=mk;
+  var cadre=dzmGlCadre(c,head,ratio),s0=dzmRfNum(c.start),tg=dzmCoR((s0===null?0:s0)+cadre.t_local,3);
+  var coul=fx.some(function(f){return dzmGlActif(f,cadre.t_local,cadre.dur)}),
+    sp=c.tr==="v1"?dzmRfSpeed(c.speed):1,rt=sp!==1?dzmRetimeOf(c):null,sb=dzmStabOf(c),aj=dzmGlAdjust(clips,tg);
+  if(!coul&&!rt&&!sb&&!aj.length)return null;
+  var b={src:c.src,t:dzmSrcTimeAt(c,head)};
+  if(fx.length){b.effects=fx;var mk=dzmMaskOf(c.mask);if(mk)b.mask=mk}
+  if(rt){cadre.speed=sp;cadre.retime=rt;cadre.fps=DZM_GL_FPS}
+  if(sb)cadre.stab=sb;
+  if(aj.length){cadre.adjust=aj;cadre.t_global=tg}
   b.cadre=cadre;
   return b}
+/* RETOURS 26/09 (tâche 3, B0) : LA PASTILLE dit ce qu'elle applique, dans l'ordre « étalonné » (un effet présent à
+   t_local), « vitesse » (retime), « stabilisation », « ajustement » (J1), puis ce qui MANQUE : les notes du serveur
+   (X-Dz-Grade-Note, liste à virgules, espaces tolérés ; une note inconnue se tait), dans l'ordre de DZM_GL_NOTES. Une
+   note de stabilisation retire « stabilisation » des appliqués (le serveur a rendu l'image SANS). Corps illisible -> "". */
+function dzmGlBadge(b,note){
+  if(!b||typeof b!=="object")return "";
+  var cd=b.cadre&&typeof b.cadre==="object"?b.cadre:{},fx=Array.isArray(b.effects)?b.effects:[],
+    nl=String(note==null?"":note).split(",").map(function(v){return v.trim()}),out=[],
+    dites=DZM_GL_NOTES.filter(function(n){return nl.indexOf(n[0])>=0});
+  if(fx.some(function(f){return dzmGlActif(f,cd.t_local,cd.dur)}))out.push("étalonné");
+  if(cd.retime)out.push("vitesse");
+  if(cd.stab&&!dites.some(function(n){return n[0].indexOf("stab-")===0}))out.push("stabilisation");
+  if(Array.isArray(cd.adjust)&&cd.adjust.length)out.push("ajustement");
+  dites.forEach(function(n){out.push(n[1])});
+  return out.join(" · ")}
 /* ── Retours L6 (26/09/2026, tâche 5) : LES SCOPES DANS UNE FENÊTRE FLOTTANTE, déplaçable et redimensionnable (l'encart
    de 180 px dans le coin du cadre était trop petit). Les aides PURES (valeurs en entrée, valeurs neuves en sortie) ; la
    géométrie {x, y, s} est en px dans la RACINE de la vue (.dzsvm) : x, y = coin haut gauche de la fenêtre, s = le côté
@@ -8493,31 +8558,57 @@ function dzmScwFin(w,pid,fn){
   var h=function(e){if(e&&e.pointerId===pid)fn()};
   w.addEventListener("pointerup",h);w.addEventListener("pointercancel",h);
   return function(){w.removeEventListener("pointerup",h);w.removeEventListener("pointercancel",h)}}
+/* RETOURS 26/09 (tâche 3, C) : LES SCOPES SUIVENT LE PLEIN ÉCRAN. svmFullscreen (maillon amont, intouchable) met le CADRE
+   (.svm-frame) en plein écran : seul ce qui est DANS l'élément plein écran se voit, et la fenêtre était portée dans la
+   racine .dzsvm. dzmScwCible(racine, élément plein écran) = la CIBLE du portail : l'élément plein écran quand la racine
+   le CONTIENT (Node.contains ; la racine elle-même ou rien -> la racine), sinon la racine — le plein écran d'un élément
+   hors de la vue ne change rien ; racine absente -> null.
+   dzmScwVeilleFs(doc, fn) = l'écoute de « fullscreenchange » (le bundle n'en pose aucune) -> son retrait, même
+   parade que dzmTbVeille : l'objet écouté est un ARGUMENT, le banc le remplace par un faux ; sans écouteurs -> retrait vide. */
+function dzmScwCible(hote,fs){
+  if(!hote)return null;
+  if(fs&&fs!==hote&&typeof hote.contains==="function"&&hote.contains(fs))return fs;
+  return hote}
+function dzmScwVeilleFs(d,fn){
+  if(!d||typeof d.addEventListener!=="function"||typeof d.removeEventListener!=="function"||typeof fn!=="function")return function(){};
+  d.addEventListener("fullscreenchange",fn);
+  return function(){d.removeEventListener("fullscreenchange",fn)}}
+/* RETOURS 26/09 (tâche 3) : la porte (dzmGlBody reçoit la liste des plans pour J1), l'anti-rebond DZM_GL_MS_STAB quand
+   la stabilisation est posée, la NOTE du serveur lue dans l'en-tête X-Dz-Grade-Note et dite par la pastille (dzmGlBadge),
+   et la LARGEUR mesurée par PALIERS de DZM_GL_PAL px (largeur demandée, dzmGlW) : un état `pal`, mesuré au montage et à
+   chaque redimensionnement de la fenêtre (dzmTbVeille ; le plein écran en émet un), entre dans l'empreinte de la
+   REQUÊTE (dépendances de l'effet) mais PAS dans celle de l'IMAGE : un palier franchi redemande l'image à la nouvelle
+   largeur en gardant l'ancienne affichée jusque-là (le plein écran ne garde pas une image de 720 px étirée, et ne clignote
+   pas). Même palier -> rien. */
 function DzmGradeLive(o){
   if(!o)return null;
   var s1=x.useState(null),img=s1[0],setImg=s1[1];
+  var s2=x.useState(0),pal=s2[0],setPal=s2[1];
   var seq=x.useRef(0),urlR=x.useRef(null),vivant=x.useRef(!0),boxR=x.useRef(null);
-  var c=o.playing?null:dzmScopesAt(o.clips,o.head),body=c?dzmGlBody(c,o.head,o.ratio):null,
+  var c=o.playing?null:dzmScopesAt(o.clips,o.head),body=c?dzmGlBody(c,o.head,o.ratio,o.clips):null,
     sig=body?JSON.stringify([String(c.id),body]):"";
   var libere=function(){if(urlR.current){URL.revokeObjectURL(urlR.current);urlR.current=null}};
+  var mesure=function(){var el=boxR.current,g=typeof window==="object"&&window?window:null;
+    return dzmGlW(el?el.clientWidth:null,g?g.devicePixelRatio:1)};
   x.useEffect(function(){vivant.current=!0;return function(){vivant.current=!1;seq.current++;libere()}},[]);
+  x.useEffect(function(){var m=function(){if(vivant.current)setPal(Math.ceil(mesure()/DZM_GL_PAL))};m();
+    return dzmTbVeille(typeof window==="object"&&window?window:null,m)},[]);
   x.useEffect(function(){
     if(!sig)return;
     var q=++seq.current,ac=typeof AbortController==="function"?new AbortController():null,b=JSON.parse(sig)[1];
     var h=setTimeout(function(){
-      var el=boxR.current,g=typeof window==="object"&&window?window:null;
-      b.w=dzmGlW(el?el.clientWidth:null,g?g.devicePixelRatio:1);
-      dzmGpFetch("/api/montage/grade-frame",b,!0,ac?ac.signal:null).then(function(bl){
+      var nt=null;b.w=mesure();
+      dzmGpFetch("/api/montage/grade-frame",b,!0,ac?ac.signal:null,function(hd){nt=hd.get("X-Dz-Grade-Note")}).then(function(bl){
         if(!vivant.current||q!==seq.current)return;
-        var u=URL.createObjectURL(bl);libere();urlR.current=u;setImg({u:u,sig:sig})},
-      function(){})},DZM_GL_MS);
-    return function(){seq.current++;clearTimeout(h);if(ac)ac.abort()}},[sig]);
+        var u=URL.createObjectURL(bl);libere();urlR.current=u;setImg({u:u,sig:sig,note:nt})},
+      function(){})},b.cadre&&b.cadre.stab?DZM_GL_MS_STAB:DZM_GL_MS);
+    return function(){seq.current++;clearTimeout(h);if(ac)ac.abort()}},[sig,pal]);
   var voit=!!(sig&&img&&img.sig===sig),z=Number(o.vzoom);
   if(!isFinite(z)||z<=0)z=1;
   return r.jsxs("div",{className:"dzm-glive",ref:boxR,"aria-hidden":"true","data-on":voit?"1":"",children:[
     voit?r.jsx("img",{className:"dzm-glimg",src:img.u,alt:"",draggable:!1,
       style:{transform:"scale("+z+")"}}):null,
-    voit?r.jsx("span",{className:"dzm-glbadge",children:"étalonné"}):null]})}
+    voit?r.jsx("span",{className:"dzm-glbadge",children:dzmGlBadge(body,img.note)}):null]})}
 /* L6 D-25 D-26 (25/09/2026, tâche 4) : LE CŒUR PUR AUDIO — aucune fonction ne touche r / x, le réseau, le DOM ni le stockage.
    dzmLearnRange(clip, plage I/O, durée de source) : la plage I/O (temps de TIMELINE) devient une plage de SOURCE du clip,
    a = srcIn + (in − start)·v, b = srcIn + (out − start)·v, v = la vitesse du clip audio lue comme le backend
@@ -8820,8 +8911,13 @@ function DzmVoiceRec(o){
    navigateur EN PLEIN GESTE ne recadre rien (ni requête : le côté fixé ne bouge pas) — la géométrie est recadrée dans
    la racine courante AU RELÂCHER ; la fenêtre est une région nommée (role region + aria-label), pas un dialogue : elle
    ne prend pas le focus et ne bloque rien. ÉCART DATÉ (26/09/2026) : en plein écran (.svm-frame en fullscreen), les
-   scopes, désormais dans la racine .dzsvm et non plus dans le cadre, ne sont PLUS visibles — accepté, à reprendre si
-   l'usage le demande. */
+   scopes, désormais dans la racine .dzsvm et non plus dans le cadre, ne sont PLUS visibles — REPRIS le 27/09 (retours
+   26/09, tâche 3, C) : la CIBLE du portail (ref cibleR, dzmScwCible) devient l'élément plein écran quand la racine le
+   contient, la racine sinon ; « fullscreenchange » (dzmScwVeilleFs, posé et ôté avec l'écoute du redimensionnement)
+   abandonne un geste en cours, change la cible et RECADRE la géométrie à la cible depuis le côté FIXÉ (affichage
+   seulement : rien n'est écrit dans dz_montage_scopes_geo ; côté inchangé -> aucune requête). Le redimensionnement, les
+   gestes et leur relâcher bornent par la cible (cibleR.current) ; allumée alors que le cadre est déjà en plein écran ->
+   portée d'emblée dans le cadre. La feuille pose la même fenêtre sous `.dzsvm .svm-frame>.dzm-scwin`. */
 function DzmScopes(o){
   if(!o)return null;
   var s1=x.useState(function(){return dzmScopesGet()}),on=s1[0],setOn=s1[1];
@@ -8829,8 +8925,8 @@ function DzmScopes(o){
   var s3=x.useState(null),err=s3[0],setErr=s3[1];
   var s4=x.useState(null),hote=s4[0],setHote=s4[1];
   var s5=x.useState(null),geo=s5[0],setGeo=s5[1];
-  var seq=x.useRef(0),urlR=x.useRef(null),vivant=x.useRef(!0),wrapR=x.useRef(null),gesteR=x.useRef(null);
-  var g=typeof window!=="undefined"&&window?window:null;
+  var seq=x.useRef(0),urlR=x.useRef(null),vivant=x.useRef(!0),wrapR=x.useRef(null),gesteR=x.useRef(null),cibleR=x.useRef(null);
+  var g=typeof window!=="undefined"&&window?window:null,dc=typeof document!=="undefined"&&document?document:null;
   var jouant=!!o.playing,c=on&&!jouant?dzmScopesAt(o.clips,o.head):null,
     body=c&&c.src?dzmScwBody(c,o.head,o.ratio,geo?geo.f:DZM_SCW_DEF,g?g.devicePixelRatio:1):null,
     sig=body?JSON.stringify(body):"";
@@ -8847,23 +8943,34 @@ function DzmScopes(o){
       function(e){if(vivant.current&&q===seq.current)
         setErr({sig:sig,msg:"Scopes indisponibles : "+((e&&e.message)||"erreur réseau")})})},DZM_SC_MS);
     return function(){seq.current++;clearTimeout(h);if(ac)ac.abort()}},[sig]);
-  /* la RACINE de la même vue, cherchée à l'allumage (pas à chaque rendu) ; la géométrie mémorisée y est recadrée */
+  /* la RACINE de la même vue, cherchée à l'allumage (pas à chaque rendu) ; la CIBLE (racine, ou le cadre s'il est déjà en
+     plein écran) ; la géométrie mémorisée y est recadrée */
   x.useEffect(function(){if(!on)return;var z=wrapR.current,f=z&&typeof z.closest==="function"?z.closest(".dzsvm"):null;
     if(f!==hote)setHote(f);
-    var n=f?dzmScwInit(dzmScwGet(),f.clientWidth,f.clientHeight):null;
+    var cb=dzmScwCible(f,dc?dc.fullscreenElement:null);cibleR.current=cb;
+    var n=cb?dzmScwInit(dzmScwGet(),cb.clientWidth,cb.clientHeight):null;
     setGeo(n?{x:n.x,y:n.y,s:n.s,f:n.s}:null)},[on]);
-  /* la fenêtre du navigateur change : la fenêtre des scopes est recadrée dans la racine (affichage, rien de mémorisé) */
+  /* la fenêtre du navigateur change : la fenêtre des scopes est recadrée dans la CIBLE (affichage, rien de mémorisé) ;
+     le plein écran change (C) : geste abandonné, nouvelle cible, géométrie recadrée depuis le côté FIXÉ (un
+     redimensionnement abandonné revient à son côté), un nouvel objet dans tous les cas (le portail doit changer) */
   x.useEffect(function(){if(!on||!hote)return;
-    return dzmTbVeille(g,function(){if(gesteR.current)return;var W=hote.clientWidth,H=hote.clientHeight;
+    var ote=dzmTbVeille(g,function(){if(gesteR.current)return;var cb=cibleR.current||hote,W=cb.clientWidth,H=cb.clientHeight;
       setGeo(function(q){var n=q?dzmScwFit(q,W,H):dzmScwDef(W,H);
-        return !n||(q&&n.x===q.x&&n.y===q.y&&n.s===q.s)?q:{x:n.x,y:n.y,s:n.s,f:n.s}})})},[on,hote]);
+        return !n||(q&&n.x===q.x&&n.y===q.y&&n.s===q.s)?q:{x:n.x,y:n.y,s:n.s,f:n.s}})});
+    var oteFs=dzmScwVeilleFs(dc,function(){var cb=dzmScwCible(hote,dc.fullscreenElement);
+      if(cb===(cibleR.current||hote))return;
+      finGeste();cibleR.current=cb;var W=cb.clientWidth,H=cb.clientHeight;
+      setGeo(function(q){var n=q?dzmScwFit({x:q.x,y:q.y,s:typeof q.f==="number"?q.f:q.s},W,H):dzmScwDef(W,H);
+        return n?{x:n.x,y:n.y,s:n.s,f:n.s}:q?Object.assign({},q):q})});
+    return function(){ote();oteFs()}},[on,hote]);
   var bascule=function(){var n=dzmScopesSet(!on);setOn(n);if(!n){finGeste();seq.current++;libere();setImg(null);setErr(null)}};
   /* LES DEUX GESTES (k = « m » déplacer par la barre, « s » agrandir par la poignée) : bouton principal seulement, rien
      sur le « × » ; la géométrie affichée suit le pointeur, le côté FIXÉ (f) ne change qu'au relâcher */
   var saisir=function(k){return function(e){
-    if(!e||e.button!==0||!hote)return;
+    var cb=cibleR.current||hote;
+    if(!e||e.button!==0||!cb)return;
     var t=e.target;if(t&&typeof t.closest==="function"&&t.closest("button"))return;
-    var W=hote.clientWidth,H=hote.clientHeight,g0=geo||dzmScwDef(W,H);if(!g0)return;
+    var W=cb.clientWidth,H=cb.clientHeight,g0=geo||dzmScwDef(W,H);if(!g0)return;
     if(typeof e.preventDefault==="function")e.preventDefault();
     finGeste();
     var x0=e.clientX,y0=e.clientY,f0=geo?geo.f:g0.s,dern=null,ote=null;
@@ -8871,8 +8978,9 @@ function DzmScopes(o){
       if(n&&vivant.current){dern=n;setGeo({x:n.x,y:n.y,s:n.s,f:f0})}});
     var fin=function(ok){if(ote)ote();arret();if(gesteR.current===abandon)gesteR.current=null;
       if(!ok||!vivant.current)return;
-      /* revue T5 (m3) : recadrée dans la racine COURANTE (le navigateur a pu changer pendant le geste, W / H sont périmés) */
-      var W2=hote.clientWidth,H2=hote.clientHeight;
+      /* revue T5 (m3) : recadrée dans la racine COURANTE (le navigateur a pu changer pendant le geste, W / H sont périmés) ;
+         retours 26/09 (C) : la CIBLE courante (le cadre en plein écran) */
+      var cb2=cibleR.current||hote,W2=cb2.clientWidth,H2=cb2.clientHeight;
       if(dern){var m=dzmScwSet(dzmScwFit(dern,W2,H2)||dern);setGeo({x:m.x,y:m.y,s:m.s,f:m.s});return}
       setGeo(function(q){var n=q?dzmScwFit(q,W2,H2):null;
         return !n||(n.x===q.x&&n.y===q.y&&n.s===q.s)?q:{x:n.x,y:n.y,s:n.s,f:n.s}})};
@@ -8894,7 +9002,7 @@ function DzmScopes(o){
       msg?r.jsx("span",{className:"dzm-scmsg","aria-live":"polite",children:msg}):null]}),
     r.jsx("div",{className:"dzm-scwgrip",title:"Redimensionner les scopes (carré, "+DZM_SCW_MIN+" à "+DZM_SCW_MAX+" px)",
       "aria-hidden":"true",onPointerDown:saisir("s")})]}):null;
-  var cible=encart&&hote&&hote.isConnected!==!1&&typeof Pu!=="undefined"&&Pu&&typeof Pu.createPortal==="function"?hote:null;
+  var tg=cibleR.current||hote,cible=encart&&tg&&tg.isConnected!==!1&&typeof Pu!=="undefined"&&Pu&&typeof Pu.createPortal==="function"?tg:null;
   return r.jsxs("div",{className:"dzm-scopes","data-on":on?"1":"",ref:wrapR,children:[
     r.jsx("button",{className:"svm-pchip dzm-scbtn","data-on":on?"":void 0,"aria-pressed":on,
       title:on?"Masquer les scopes":"Afficher les scopes du plan V1 sous la tête (forme d'onde, vecteurscope, histogramme de l'image étalonnée) — rafraîchis à l'arrêt, jamais pendant la lecture",
@@ -9087,6 +9195,8 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   voExt:dzmVoExt,voChrono:dzmVoChrono,voErr:dzmVoErr,VoiceRec:DzmVoiceRec,
   /* retours L6 (26/09/2026, tache 4) : l'image etalonnee du plan V1 dans le lecteur, a l'arret */
   glRatio:dzmGlRatio,glW:dzmGlW,glBody:dzmGlBody,GradeLive:DzmGradeLive,
+  /* retours 26/09 (tache 3) : la porte de l'apercu (J1) et la pastille ; les scopes suivent le plein ecran */
+  glAdjust:dzmGlAdjust,glBadge:dzmGlBadge,scwCible:dzmScwCible,scwVeilleFs:dzmScwVeilleFs,
   /* retours L6 (26/09/2026, tache 5) : les scopes en fenetre flottante -- le cadre partage, la taille, la geometrie, la memoire */
   glSec:dzmGlSec,glActif:dzmGlActif,glCadre:dzmGlCadre,scwSize:dzmScwSize,scwBody:dzmScwBody,scwFit:dzmScwFit,scwDef:dzmScwDef,scwInit:dzmScwInit,scwGeste:dzmScwGeste,scwGet:dzmScwGet,scwSet:dzmScwSet,scwFin:dzmScwFin,SCW_CLE:DZM_SCW_CLE,
   DEFAULTS:DZM_DEFAULT_TRACKS};

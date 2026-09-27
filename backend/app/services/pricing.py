@@ -10,6 +10,7 @@ Live remaining balances are only available for providers that expose them
 so for those the widget shows cumulative *estimated* spend + the preview.
 """
 import json
+import math
 from pathlib import Path
 
 from app.config import DATA_ROOT
@@ -40,9 +41,29 @@ DEFAULTS = {
     # facturation, deux entrées — un seul chiffre pour les deux mentirait
     # sur l'une des deux factures.
     "gpt_image_2_fal_usd": 0.145,
-    "gpt_image_1_usd": 0.06,          # OpenAI gpt-image-1, per image
+    # GPT Image 2.5 Flare / Sunburst (doc OpenAI et fal lue le 27/09/2026).
+    # Qualité `high` ÉCRITE sur les deux voies (le défaut fal) : table fal
+    # 1024² high = 0,05268 $ l'image, tarif token OpenAI identique à GPT
+    # Image 2. Un prix fixe par image, quatre clés (deux voies × deux
+    # variantes) : écart daté, ni la qualité ni la taille ne modulent le
+    # devis (1024×1536 high vaut 0,04116 chez fal).
+    "gpt_image_25_flare_usd": 0.053,
+    "gpt_image_25_sunburst_usd": 0.053,
+    "gpt_image_25_flare_fal_usd": 0.053,
+    "gpt_image_25_sunburst_fal_usd": 0.053,
+    "gpt_image_1_usd": 0.06,         # OpenAI gpt-image-1, per image
     "gpt_image_1_mini_usd": 0.015,    # OpenAI gpt-image-1-mini, per image
-    "seedance_usd_per_s": 0.04,       # fal.ai Seedance, per second of video
+    # Ancien tarif forfaitaire Seedance (avant le registre W-a). Il ne sert
+    # plus qu'au coût HISTORIQUE des jobs d'avant la colonne `video_model`
+    # (op `legacy: True`) : un modèle vide se résout au défaut du registre.
+    "seedance_usd_per_s": 0.04,
+    # Garde de coût serveur (retours-ia F3/F4, 27/09) : une requête vidéo
+    # (/generate, /generate/batch, /generate/composition, rendu de layout)
+    # dont l'estimation dépasse ce plafond est refusée en 402 AVANT toute
+    # génération ; 0 = pas de plafond. `video_max_gen_s` plafonne la durée
+    # GÉNÉRÉE (facturée) ; au-delà, ffmpeg prolonge comme avant.
+    "video_max_usd_per_request": 10.0,
+    "video_max_gen_s": 10,
     # W-a (v1.19) — per-model $ / second of video, audio OFF where the model
     # has a switch (the pipeline always turns it off; Veo-google audio is
     # baked in and priced flat). Keys mirror fal_service.VIDEO_MODELS; "*"
@@ -55,7 +76,9 @@ DEFAULTS = {
         # fal.ai bytedance/seedance-2.5, relu 2026-08-28 : facturation aux
         # tokens (0,0214 $/1k), soit ~0,2205 $/s en 480p et ~0,4730 $/s en
         # 720p (cas 16:9) — 1080p accepté mais non chiffré par fal, donc
-        # absent ici ET du registre (voir fal_service.VIDEO_MODELS).
+        # absent ici ET du registre (voir fal_service.VIDEO_MODELS). Même
+        # prix avec ou sans audio (doc fal du 26/09) : pas de colonne
+        # « audio off » pour ce modèle.
         "seedance-2.5":        {"480p": 0.2205, "720p": 0.473},
         "kling-v3-pro":        {"*": 0.112},
         "kling-v3-standard":   {"*": 0.084},
@@ -110,6 +133,14 @@ _IMAGE_MODELS = {
     "gpt-image-2":      ("GPT Image 2",      "openai", "gpt_image_2_usd"),
     "gpt-image-2-fal":  ("GPT Image 2 (via fal)", "fal",
                          "gpt_image_2_fal_usd"),
+    "gpt-image-2.5-flare":        ("GPT Image 2.5 Flare (OpenAI)", "openai",
+                                   "gpt_image_25_flare_usd"),
+    "gpt-image-2.5-sunburst":     ("GPT Image 2.5 Sunburst (OpenAI)", "openai",
+                                   "gpt_image_25_sunburst_usd"),
+    "gpt-image-2.5-flare-fal":    ("GPT Image 2.5 Flare (via fal)", "fal",
+                                   "gpt_image_25_flare_fal_usd"),
+    "gpt-image-2.5-sunburst-fal": ("GPT Image 2.5 Sunburst (via fal)", "fal",
+                                   "gpt_image_25_sunburst_fal_usd"),
     "gpt-image-1":      ("GPT Image 1",      "openai", "gpt_image_1_usd"),
     "gpt-image-1-mini": ("GPT Image 1 mini", "openai", "gpt_image_1_mini_usd"),
 }
@@ -200,6 +231,85 @@ def elevenlabs_rate(model_id: str | None = None, p: dict | None = None) -> float
     return base * elevenlabs_mult(model_id, p)
 
 
+def _default_video_model() -> str:
+    try:
+        from app.services.fal_service import DEFAULT_VIDEO_MODEL
+        return DEFAULT_VIDEO_MODEL
+    except Exception:
+        return "seedance-2.5"
+
+
+def video_gen_seconds(model_id: str | None, duration_s, p: dict | None = None) -> int:
+    """Seconds GENERATED (billed) by the provider for a requested clip length:
+    native clamp of the model, then the `video_max_gen_s` cap. Mirrors what
+    the pipeline sends (fal_service.generated_duration)."""
+    from app.services.fal_service import generated_duration, resolve_video_model
+    p = p or load()
+    cap = _reglage_fini(p, "video_max_gen_s")
+    return generated_duration(resolve_video_model(model_id), int(duration_s or 5),
+                              cap or None)
+
+
+def video_request_op(model_id: str | None, duration_s, resolution: str | None,
+                     n: int = 1, p: dict | None = None) -> dict:
+    """`estimate` op of a video generation request, on the seconds that will
+    ACTUALLY be generated (not the ffmpeg-extended target)."""
+    mid = (model_id or "").strip() or _default_video_model()
+    return {"kind": "seedance", "model": mid, "n": int(n),
+            "resolution": resolution or "1080p",
+            "duration_s": video_gen_seconds(mid, duration_s, p)}
+
+
+def _reglage_fini(p: dict, cle: str) -> float:
+    """Réglage numérique de pricing.json : une valeur illisible, non finie
+    (NaN, Infinity) ou négative retombe sur le défaut — elle n'ouvre jamais
+    la garde. 0 reste 0 (« aucun plafond »), comme monthly_budget_usd."""
+    try:
+        v = float(p.get(cle, DEFAULTS[cle]))
+    except (TypeError, ValueError):
+        v = float(DEFAULTS[cle])
+    if not math.isfinite(v) or v < 0:
+        v = float(DEFAULTS[cle])
+    return v
+
+
+def _usd_fr(v: float) -> str:
+    # round(...) + 0.0 : -0.0 et -0,001 s'affichent « 0,00 », pas « -0,00 »
+    return f"{round(float(v), 2) + 0.0:.2f}".replace(".", ",")
+
+
+def cost_guard(total_usd: float, max_usd: float | None = None,
+               p: dict | None = None) -> str | None:
+    """None when the request may be spent, else the refusal message naming
+    the amounts. Limit = the client's `max_usd` (if sent) AND the server cap
+    `video_max_usd_per_request` (0 = no cap): the lower one wins, a higher
+    `max_usd` never lifts the server cap."""
+    p = p or load()
+    try:
+        total = float(total_usd)
+    except (TypeError, ValueError):
+        total = float("nan")
+    if not math.isfinite(total):
+        # un tarif illisible (NaN) rendrait toute comparaison fausse, donc la
+        # garde ouverte : un devis qu'on ne sait pas chiffrer est refusé
+        return ("Estimation non chiffrable (tarif non fini dans les tarifs) "
+                "— rien n'a été généré.")
+    plafond = _reglage_fini(p, "video_max_usd_per_request")
+    limites = []
+    if max_usd is not None:
+        limites.append((float(max_usd), "max_usd envoyé"))
+    if plafond > 0:
+        limites.append((plafond, "video_max_usd_per_request des tarifs"))
+    if not limites:
+        return None
+    lim, source = min(limites, key=lambda x: x[0])
+    tot = round(total, 2)
+    if tot > round(lim, 2) + 1e-9:
+        return (f"Estimation {_usd_fr(tot)} $ > plafond {_usd_fr(lim)} $ "
+                f"({source}) — rien n'a été généré.")
+    return None
+
+
 def _video_label_provider(model_id: str) -> tuple:
     """(display label, billing provider) from the registry; safe fallback."""
     try:
@@ -242,14 +352,18 @@ def estimate(op: dict, p: dict | None = None) -> dict:
     elif kind == "seedance":
         n = int(op.get("n", 1))
         dur = float(op.get("duration_s", 10)) * n
-        model = str(op.get("model") or "").strip()
-        rate = video_rate(model, str(op.get("resolution") or "1080p"), p) \
-            if model else None
+        # Un modèle vide ou absent se résout au DÉFAUT du registre (Seedance
+        # 2.5), jamais à l'ancien forfait 0,04 $/s qui sous-estimait ×12. Le
+        # forfait ne sert plus qu'à l'historique, sur demande explicite.
+        model = str(op.get("model") or "").strip() or _default_video_model()
+        rate = None if op.get("legacy") else \
+            video_rate(model, str(op.get("resolution") or "1080p"), p)
         if rate is not None:
             label, prov = _video_label_provider(model)
             lines.append(_line(prov, label, dur, "s", dur * rate))
         else:
-            # legacy path (no model sent) — unchanged
+            # historique (job d'avant la colonne video_model) ou modèle
+            # inconnu du tableau des tarifs
             lines.append(_line("fal", "Seedance video", dur, "s",
                                dur * p["seedance_usd_per_s"]))
     elif kind == "heygen":
@@ -282,8 +396,11 @@ def estimate(op: dict, p: dict | None = None) -> dict:
                                chars * p["elevenlabs_usd_per_char"]))
         sd = float(op.get("seedance_s", 0))
         if sd:
-            lines.append(_line("fal", "Seedance video", sd, "s",
-                               sd * p["seedance_usd_per_s"]))
+            # au tarif du modèle vidéo (défaut du registre), plus au forfait
+            lines.extend(estimate({"kind": "seedance", "duration_s": sd,
+                                   "model": op.get("video_model") or "",
+                                   "resolution": op.get("resolution")},
+                                  p)["breakdown"])
     elif kind == "transcribe":
         # Sous-titres, chemin « texte inconnu ». Le chemin « texte connu »
         # (calage local d'une narration déjà écrite) coûte 0 et le dit.

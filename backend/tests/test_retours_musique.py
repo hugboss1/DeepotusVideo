@@ -138,13 +138,13 @@ def FC(cmd):
 # ═══════════════ [1] commandes : historique pinne, bornes ═══════════════
 print("\n[1] commande : historique octet pour octet sans bornes, chaine bornee avec")
 # Constantes de 62f0c75 (capturees AVANT l'implementation, sortie brute du builder).
-_SANS = ("ffmpeg -y -t 20.0 -i V1.mp4 -i VOX.wav -filter_complex [0:v]scale=64:64:force_original_aspect_ratio="
+_SANS_BRUT = ("ffmpeg -y -t 20.0 -i V1.mp4 -i VOX.wav -filter_complex [0:v]scale=64:64:force_original_aspect_ratio="
          "increase,crop=64:64,setsar=1,fps=30,format=yuv420p,tpad=stop_mode=clone:stop_duration=20.0,trim=0:20.0,"
          "setpts=PTS-STARTPTS[n0];[1:a]atrim=0.0:3.0,asetpts=PTS-STARTPTS,aresample=async=1,aformat=sample_rates="
          "44100:channel_layouts=stereo,volume=1.0,adelay=0|0[va0];[va0]anull[vall];[vall]aresample=async=1[outa];"
          "[n0]format=yuv420p[outv] -map [outv] -map [outa] -t 20.0 -c:v libx264 -profile:v high -level 4.0 "
          "-preset medium -crf 20 -pix_fmt yuv420p -r 30 -c:a aac -b:a 192k -movflags +faststart OUT.mp4")
-_HIST = ("ffmpeg -y -t 20.0 -i V1.mp4 -i VOX.wav -stream_loop -1 -i MUS.wav -filter_complex [0:v]scale=64:64:"
+_HIST_BRUT = ("ffmpeg -y -t 20.0 -i V1.mp4 -i VOX.wav -stream_loop -1 -i MUS.wav -filter_complex [0:v]scale=64:64:"
          "force_original_aspect_ratio=increase,crop=64:64,setsar=1,fps=30,format=yuv420p,tpad=stop_mode=clone:"
          "stop_duration=20.0,trim=0:20.0,setpts=PTS-STARTPTS[n0];[1:a]atrim=0.0:3.0,asetpts=PTS-STARTPTS,"
          "aresample=async=1,aformat=sample_rates=44100:channel_layouts=stereo,volume=1.0,adelay=0|0[va0];"
@@ -155,6 +155,26 @@ _HIST = ("ffmpeg -y -t 20.0 -i V1.mp4 -i VOX.wav -stream_loop -1 -i MUS.wav -fil
          "inputs=2:duration=longest:normalize=0,aresample=async=1[outa];[n0]format=yuv420p[outv] -map [outv] "
          "-map [outa] -t 20.0 -c:v libx264 -profile:v high -level 4.0 -preset medium -crf 20 -pix_fmt yuv420p "
          "-r 30 -c:a aac -b:a 192k -movflags +faststart OUT.mp4")
+import re as _re                                          # noqa: E402
+def HORLOGE(flat):
+    """Retours 26/09 (A, plan 2026-09-27 T1) applique a une commande doree
+    d'AVANT : dans chaque chaine de segment V1 (`[i:v]…[n<k>]` ou
+    `[n<k>pre]`), le premier `fps=F` pose apres une virgule devient
+    `fps=F:start_time=0` (`:fps=` du zoompan et `minterpolate=fps=` exclus).
+    Commandes a UN plan V1 : un xfade leve (l'amorce des coupes franches
+    n'est pas transformee ici — le banc rougit au lieu de mentir)."""
+    if "xfade=" in flat:
+        raise ValueError("HORLOGE : commande doree a plusieurs plans V1")
+    return _re.sub(r"(\[\d+:v\])([^;\[]*)(\[n\d+(?:pre)?\])",
+                   lambda m: m.group(1) + _re.sub(r"(?<=,)fps=(\d+(?:/\d+)?)(?=[,\[])",
+                                                  r"fps=\1:start_time=0", m.group(2), count=1) + m.group(3),
+                   flat)
+
+
+_SANS, _HIST = HORLOGE(_SANS_BRUT), HORLOGE(_HIST_BRUT)
+check("h_constantes_62f0c75_transformees_par_l_horloge_une_pose_V1",
+      all(b.count("fps=30,") == 1 and t.count("fps=30:start_time=0,") == 1 and "fps=30," not in t
+          for b, t in ((_SANS_BRUT, _SANS), (_HIST_BRUT, _HIST))), (_SANS[:160], _HIST[:160]))
 _c_sans, _ = BUILD([ASPEC()], None)
 check("h_sans_musique_commande_de_62f0c75", FLAT(_c_sans) == _SANS, FLAT(_c_sans)[:300])
 _c_hist, _ = BUILD([ASPEC()], MSPEC())
