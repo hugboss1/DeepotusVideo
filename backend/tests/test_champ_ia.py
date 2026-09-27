@@ -305,14 +305,15 @@ function fetchEspion(url, o) {
     const b = JSON.parse(o.body); return Promise.resolve(reponse({ breakdown: (b.ops || []).map(x => ({ usd: PRIX[x.model] != null ? PRIX[x.model] : 0.02 })) }));
   }
   if (DICT[url] && m === "POST") {
-    const [st, j] = DICT[url](o && o.body);
-    return Promise.resolve({ ok: st < 300, status: st, json: () => Promise.resolve(JSON.parse(JSON.stringify(j))) });
+    /* une réponse peut être RETARDÉE (promesse) : champ retiré pendant l'envoi (clôture T11, R9) */
+    return Promise.resolve(DICT[url](o && o.body)).then(([st, j]) =>
+      ({ ok: st < 300, status: st, json: () => Promise.resolve(JSON.parse(JSON.stringify(j))) }));
   }
   const f = REP[url]; return Promise.resolve(f ? reponse(f()) : { ok: false, status: 404, json: () => Promise.resolve({}) });
 }
 /* T10 : faux services de la dictée — rien ne part vers un fournisseur */
-const DICT = {};
-const TIMERS = [];                        // délais demandés par la couche (plafond de prise)                           // url → (corps) → [statut, json]
+const DICT = {};                           // url → (corps) → [statut, json] (ou sa promesse)
+const TIMERS = [];                         // délais demandés par la couche (plafond de prise)
 const DLG = [];                            // dialogues demandés
 const SETTER = [];                         // valeurs posées par le setter du PROTOTYPE (React)
 function protoValeur() {
@@ -757,6 +758,16 @@ function opt(id) { const l = listeOuverte(); return l ? l.querySelectorAll(".dzi
   ta._cache = true; A.synchroniser(); await pause(10);
   D10.cacheEcoute = { nouveau: s5 !== s4, aborted: s5.aborted, etat: A.dictee ? A.dictee.etat().etat : null };
   ta._cache = false; A.synchroniser();
+  // clôture T11 (R10) : dictée dans A, RETRAIT d'un AUTRE champ B → A reste à l'écoute ; TÉMOIN : retrait de A → abort
+  { const tb = el("textarea", { placeholder: "Describe an image to create… (autre)" }, boite10);
+    A.marquer(document.body); await pause(30); A.synchroniser();
+    const marqueB = !!tb.__dzia;
+    micro().click(); await pause(10); const s6 = SRI[SRI.length - 1];
+    boite10.removeChild(tb); A.synchroniser(); await pause(10);
+    D10.autreRetire = { marqueB, defaitB: !tb.__dzia, nouveau: s6 !== s5, aborted: s6.aborted, etat: A.dictee ? A.dictee.etat().etat : null };
+    boite10.removeChild(ta); A.synchroniser(); await pause(10);
+    D10.autreRetire.temoin = { aborted: s6.aborted, etat: A.dictee ? A.dictee.etat().etat : null };
+    boite10.appendChild(ta); OBS.forEach(o => o._vider()); await pause(120); A.synchroniser(); }
   // voie 1 → erreur network → voie 2 enregistre aussitôt
   const nT = TIMERS.length;
   micro().click(); await pause(10);
@@ -808,6 +819,20 @@ function opt(id) { const l = listeOuverte(); return l ? l.querySelectorAll(".dzi
   micro().click(); await pause(20); micro().click(); await pause(80);
   D10.oui = { appels: dicts().slice(nA).map(a => [a[0], a[1], fd(a)]), dlg: DLG.slice(-1)[0] || null, val: ta.value, note: note(), etat: vuM(),
     sel: [ta.selectionStart, ta.selectionEnd] };
+  // clôture T11 (R9) : champ RETIRÉ pendant l'ENVOI (transcription acceptée, réponse RETARDÉE) → la dictée
+  // n'est PAS abandonnée (elle reste « envoi ») et le texte arrive dans le champ rattaché
+  { let lacher = null; const nE9 = dicts().length;
+    DICT["/api/dictation"] = () => new Promise(res => { lacher = () => res([200, { text: "envoi garde", usd: 0.0013, provider: "elevenlabs" }]); });
+    ta.value = "Avant"; ta.selectionStart = ta.selectionEnd = 5;
+    micro().click(); await pause(20); micro().click(); await pause(80);
+    const pendant = A.dictee ? A.dictee.etat().etat : null;
+    boite10.removeChild(ta); A.synchroniser(); await pause(20);
+    const apresRetrait = A.dictee ? A.dictee.etat().etat : null;
+    boite10.appendChild(ta); OBS.forEach(o => o._vider()); await pause(120); A.synchroniser();
+    const lache = !!lacher; lacher && lacher(); await pause(60);
+    D10.envoiRetire = { pendant, apresRetrait, lache, val: ta.value, etat: A.dictee ? A.dictee.etat().etat : null,
+      appels: dicts().slice(nE9).map(a => a[1]) };
+    DICT["/api/dictation"] = () => [200, { text: "bonjour tout le monde", usd: 0.0013, provider: "elevenlabs" }]; }
   // VL.dialogue (Vectorlab) : utilisé à défaut de __dzDialogue ; Non → rien
   delete window.__dzDialogue;
   window.VL = { dialogue: { confirmer: (m, o) => { DLG.push(["vl", m, o]); return Promise.resolve(false); } } };
@@ -1334,6 +1359,18 @@ def main():
     ce = dd("cacheEcoute")
     check("champ caché (offsetParent null) pendant l'écoute → abort(), dictée finie",
           ce.get("nouveau") is True and ce.get("aborted") == 1 and ce.get("etat") == "repos", str(ce))
+    ar = dd("autreRetire")
+    check("R10 : dictée dans A, retrait d'un AUTRE champ B (marqué puis défait) → A reste à l'écoute, aucun abort",
+          ar.get("marqueB") is True and ar.get("defaitB") is True and ar.get("nouveau") is True
+          and ar.get("aborted") == 0 and ar.get("etat") == "ecoute", str(ar))
+    check("R10 TÉMOIN : retrait de A lui-même → abort() une fois, dictée finie",
+          (ar.get("temoin") or {}).get("aborted") == 1 and (ar.get("temoin") or {}).get("etat") == "repos", str(ar.get("temoin")))
+    ev9 = dd("envoiRetire")
+    check("R9 : champ retiré pendant l'ENVOI (réponse retardée) → la dictée reste « envoi » (TÉMOIN : elle y était)",
+          ev9.get("pendant") == "envoi" and ev9.get("apresRetrait") == "envoi", str(ev9))
+    check("R9 : la réponse arrive → le texte transcrit est inséré dans le champ rattaché, dictée finie, un seul POST",
+          ev9.get("lache") is True and "envoi garde" in (ev9.get("val") or "") and ev9.get("etat") == "repos"
+          and ev9.get("appels") == ["/api/dictation/estimate", "/api/dictation"], str(ev9))
     check("plafond de prise : un minuteur de 590 000 ms est posé au début de l'enregistrement", D.get("plafond") is True, str(D.get("plafond")))
     ph = dd("pagehide")
     check("pagehide pendant la prise → enregistreur arrêté, rien n'est envoyé (TÉMOIN : il enregistrait)",
@@ -1364,8 +1401,8 @@ def main():
           dd("indispoFocus").get("dis") == "false", str(D.get("indispoFocus")))
     check("E-12 : tout bouton de la barre a un title (micro compris)", D.get("sansTitre") == 0, str(D.get("sansTitre")))
     tout = D.get("tout") or []
-    check("AUCUNE DÉPENSE hors accord : /api/dictation n'est appelé que pour les trois « Oui » (accord, 402, 422)",
-          tout.count("/api/dictation") == 3, str(tout))
+    check("AUCUNE DÉPENSE hors accord : /api/dictation n'est appelé que pour les quatre « Oui » (accord, envoi retiré, 402, 422)",
+          tout.count("/api/dictation") == 4, str(tout))
 
     # ---------- le style ----------
     css = R.get("style") or ""
