@@ -446,6 +446,7 @@
     if (!el.isConnected) { defaire(el); return; }
     if (!b.isConnected && el.parentNode) el.parentNode.insertBefore(b, el.nextSibling);
     if (el.offsetParent === null && cs(el).position !== "fixed") {
+      abandonnerDictee(el);                            // champ caché : dictée abandonnée (sauf envoi accepté)
       if (b.style.display !== "none") b.style.display = "none";
       return;
     }
@@ -540,6 +541,12 @@
     }
     W.addEventListener("resize", planifierSync);
     D.addEventListener("focusin", planifierSync, true);
+    /* revue T10 : une indisponibilité (available:false) est oubliée au focus d'un champ IA —
+       une clé ajoutée entre-temps dans les Réglages redevient utilisable sans recharger */
+    D.addEventListener("focusin", function (ev) {
+      if (dic.indispo && !dic.active && ev.target && ev.target.__dzia) { dic.indispo = ""; rafraichirMicros(); }
+    }, true);
+    W.addEventListener("pagehide", function () { abandonnerDictee(null); });
     /* la vue changée met la pastille à jour : <select> natif (change) et
        select custom / cartes du bundle (clic, après le rendu de React) */
     D.addEventListener("change", function () { W.setTimeout(rafraichirPastilles, 0); }, true);
@@ -1260,15 +1267,31 @@
     rafraichirMicro(a.el);
     note(a.el, message || "");
   }
-  /* champ détaché : on abandonne SANS rien envoyer (sauf une transcription
-     déjà acceptée, dont le texte sera dit dans la note) */
+  /* champ détaché ou caché, page quittée : on abandonne SANS rien envoyer
+     (sauf une transcription déjà acceptée, dont le texte sera dit dans la
+     note). Pendant l'accord, le dialogue ouvert est fermé (revue T10) : le
+     dialogue maison par sa propre fermeture ; __dzDialogue et VL.dialogue
+     n'exposent pas de fermeture, seulement `ouvert()` — on leur envoie un
+     Échap synthétique, qu'ils traitent comme « Annuler » (réponse Non). */
   function abandonnerDictee(el) {
     var a = dic.active;
-    if (!a || a.el !== el || a.etat === "envoi") return;
+    if (!a || (el && a.el !== el) || a.etat === "envoi") return;
+    var accord = a.etat === "accord";
     dic.active = null;
     if (a.sr) { try { a.sr.abort(); } catch (e) {} }
-    if (a.rec) { try { a.rec.stop(); } catch (e) {} }
+    if (a.rec && a.rec.state !== "inactive") { try { a.rec.stop(); } catch (e) {} }
     finirDictee(a, "");
+    if (accord) fermerAccord(a);
+  }
+  function fermerAccord(a) {
+    if (a.fermerDlg) { a.fermerDlg(); return; }
+    var dz = W.__dzDialogue, vl = W.VL && W.VL.dialogue, ouvert = false;
+    try { ouvert = !!((dz && dz.ouvert && dz.ouvert()) || (vl && vl.ouvert && vl.ouvert())); } catch (e) {}
+    if (!ouvert) return;
+    var K = W.KeyboardEvent, ev;
+    try { ev = K ? new K("keydown", { key: "Escape", bubbles: true, cancelable: true }) : null; } catch (e) { ev = null; }
+    if (!ev) { ev = new W.Event("keydown", { bubbles: true }); ev.key = "Escape"; }
+    D.dispatchEvent(ev);
   }
   function arreterDictee() {
     var a = dic.active;
@@ -1370,21 +1393,26 @@
   function lireReponse(r) {
     return Promise.resolve(r.json()).then(null, function () { return null; }).then(function (j) {
       if (r.ok && j) return j;
-      var d = j && j.detail, m = typeof d === "string" ? d : d ? JSON.stringify(d) : "";
+      /* 422 de FastAPI : detail = [{loc, msg, type}] → le premier msg (revue T10) */
+      var d = j && j.detail, m = typeof d === "string" ? d
+        : Array.isArray(d) && d.length && d[0] && d[0].msg ? String(d[0].msg) : d ? JSON.stringify(d) : "";
       throw new Error((m || "réponse illisible") + " (HTTP " + r.status + ")");
     });
   }
-  function demanderAccord(message) {
-    var o = { titre: "Dictée", ok: "Oui, transcrire", annuler: "Non" };
+  /* danger:true (revue T10) : dans dialogue.js comme dans VL.dialogue, le
+     bouton par défaut (Entrée, focus) devient « Non » — l'action payante ne
+     l'est jamais ; « Oui » passe en rouge. */
+  function demanderAccord(message, a) {
+    var o = { titre: "Dictée", ok: "Oui, transcrire", annuler: "Non", danger: true };
     try {
       var dz = W.__dzDialogue;
       if (dz && typeof dz.confirmer === "function") return Promise.resolve(dz.confirmer(message, o)).then(function (x) { return x === true; });
       var vl = W.VL && W.VL.dialogue;
       if (vl && typeof vl.confirmer === "function") return Promise.resolve(vl.confirmer(message, o)).then(function (x) { return x === true; });
     } catch (e) {}
-    return dialogueMaison(message, o);
+    return dialogueMaison(message, o, a);
   }
-  function dialogueMaison(message, o) {
+  function dialogueMaison(message, o, a) {
     return new Promise(function (resoudre) {
       var v = D.createElement("div");
       v.className = "dzia-dlg";
@@ -1405,7 +1433,11 @@
       }
       clavier = function (ev) {
         if (ev.key === "Escape") { ev.preventDefault(); ev.stopPropagation(); fin(false); }
-        else if (ev.key === "Enter") { ev.preventDefault(); ev.stopPropagation(); fin(true); }
+        else if (ev.key === "Enter") {       // Entrée = le bouton qui a le focus ; par défaut « Non »
+          ev.preventDefault(); ev.stopPropagation();
+          var f = D.activeElement;
+          fin(!!(f && f.getAttribute && f.getAttribute("data-role") === "oui" && v.contains(f)));
+        }
       };
       [["non", o.annuler, "Ne rien envoyer : la prise est abandonnée"],
        ["oui", o.ok, "Envoyer la prise au service de transcription, au coût affiché"]].forEach(function (x) {
@@ -1421,8 +1453,9 @@
       v.addEventListener("click", function (ev) { if (ev.target === v) fin(false); });
       (D.body || D.documentElement).appendChild(v);
       D.addEventListener("keydown", clavier, true);
-      var oui = pi.querySelector ? pi.querySelector('[data-role="oui"]') : null;
-      try { if (oui) oui.focus(); } catch (e) {}
+      if (a) a.fermerDlg = function () { fin(false); };
+      var non = pi.querySelector ? pi.querySelector('[data-role="non"]') : null;
+      try { if (non) non.focus(); } catch (e) {}
     });
   }
   function estimer(a, blob, type) {
@@ -1448,7 +1481,7 @@
       a.etat = "accord";
       rafraichirMicro(el);
       note(el, "", false);
-      return demanderAccord(msg).then(function (oui) {
+      return demanderAccord(msg, a).then(function (oui) {
         if (dic.active !== a) return null;
         if (!oui) { finirDictee(a, "Dictée abandonnée : rien n'a été envoyé."); return null; }
         a.etat = "envoi";
@@ -1456,6 +1489,9 @@
         note(el, "Transcription en cours (" + usdTxt(usd) + " $ au plus)…", true);
         var f2 = new W.FormData();
         f2.append("file", blob, nom);
+        /* max_usd = la valeur EXACTE rendue par le serveur (arrondie à 4 décimales par
+           estimate_transcription) et non le texte affiché : un arrondi d'affichage vers le
+           bas ferait refuser la transcription en 402 (écart au plan, voulu, revue T10) */
         f2.append("max_usd", String(usd));
         f2.append("language", langue());
         return W.fetch("/api/dictation", { method: "POST", body: f2 }).then(lireReponse).then(function (r) {
