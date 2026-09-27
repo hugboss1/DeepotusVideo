@@ -186,6 +186,15 @@ async def render_layout_template(
             raise HTTPException(400, "FAL_KEY not configured. Add it to backend/.env")
         if "heygen" in kinds and not settings.has_heygen:
             raise HTTPException(400, "HEYGEN_API_KEY not configured. Add it to backend/.env")
+        # garde de coût (retours-ia F3) : la somme des slots générés
+        _ops = []
+        for _sv in request.slot_values.values():
+            if _sv.source_kind == "seedance" and _sv.seedance is not None:
+                _ops.append(_devis_video(_sv.seedance))
+            elif _sv.source_kind == "heygen" and _sv.heygen is not None:
+                _ops.append(_devis_heygen(_sv.heygen))
+        if _ops:
+            _garde_cout(_ops, request.max_usd)
 
     job_id = str(uuid4())
 
@@ -2959,6 +2968,31 @@ async def build_prompt_from_intent(request: BuildPromptRequest):
 
 # ---- Generate ----
 
+def _devis_video(req, n: int = 1) -> dict:
+    """`estimate` op of one GenerateRequest (× n variations), on the seconds
+    actually generated (native clamp + `video_max_gen_s`)."""
+    from app.services import pricing as _pricing
+    return _pricing.video_request_op(req.video_model, req.duration_s,
+                                     req.resolution, n=n)
+
+
+def _devis_heygen(hg) -> dict:
+    return {"kind": "heygen", "chars": len((hg.script or "").strip())}
+
+
+def _garde_cout(ops: list, max_usd=None) -> float:
+    """Garde de coût serveur (retours-ia F3) : estime `ops` et lève 402
+    AVANT toute génération si l'estimation dépasse `max_usd` (client) ou le
+    plafond `video_max_usd_per_request` de pricing.json. Rend le total."""
+    from app.services import pricing as _pricing
+    p = _pricing.load()
+    total = _pricing.estimate({"kind": "campaign", "ops": ops}, p)["total_usd"]
+    refus = _pricing.cost_guard(total, max_usd, p)
+    if refus:
+        raise HTTPException(402, refus)
+    return total
+
+
 @router.post("/generate", response_model=GenerateResponse)
 async def generate(request: GenerateRequest, background_tasks: BackgroundTasks):
     # W-a — the required key depends on the selected model's provider
@@ -2982,6 +3016,8 @@ async def generate(request: GenerateRequest, background_tasks: BackgroundTasks):
 
     if not request.template_id and not request.custom_prompt:
         raise HTTPException(400, "Must provide either template_id or custom_prompt")
+
+    _garde_cout([_devis_video(request)], request.max_usd)
 
     async def _run():
         try:
@@ -3025,6 +3061,10 @@ async def generate_batch(request: GenerateBatchRequest, background_tasks: Backgr
 
     if request.variations_count < 1 or request.variations_count > 8:
         raise HTTPException(400, "variations_count must be between 1 and 8")
+
+    # la somme des variations, contre un seul plafond
+    _garde_cout([_devis_video(request, n=request.variations_count)],
+                request.max_usd)
 
     # Determine base seed
     base_seed = request.seed if request.seed is not None else random.randint(1, 2_000_000_000)
@@ -3269,6 +3309,10 @@ async def generate_composition(request: CompositionRequest, background_tasks: Ba
         raise HTTPException(400, "HeyGen script must not be empty")
     if not request.heygen.avatar_id or not request.heygen.voice_id:
         raise HTTPException(400, "HeyGen avatar_id and voice_id are required")
+
+    _maxs = [m for m in (request.max_usd, request.seedance.max_usd) if m is not None]
+    _garde_cout([_devis_video(request.seedance), _devis_heygen(request.heygen)],
+                min(_maxs) if _maxs else None)
 
     async def _run():
         try:
@@ -4484,7 +4528,10 @@ def _job_to_cost(job, p):
         return _pricing.estimate({"kind": "campaign", "ops": [
             {"kind": "image"},
             {"kind": "seedance", "duration_s": dur,
-             "model": getattr(job, "video_model", None) or ""}]}, p)
+             "model": getattr(job, "video_model", None) or "",
+             # un job SANS modèle date d'avant la colonne (Seedance 1, au
+             # forfait) : son coût historique ne suit pas le défaut du jour
+             "legacy": not getattr(job, "video_model", None)}]}, p)
     # LE BLANC AVOUÉ — voir la docstring. Le provider part dans la CLÉ pour
     # qu'un coup d'œil à `by_provider` dise LEQUEL n'est pas tarifé.
     return _pricing.no_spend(f"Non tarifé — provider « {prov} »",

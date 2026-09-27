@@ -24,9 +24,9 @@ from app.models.schemas import (
 from app.services.fal_service import (
     FalSeedanceClient,
     DEFAULT_VIDEO_MODEL,
-    clamp_duration,
     resolve_video_model,
 )
+from app.services import pricing as _pricing
 from app.services.google_video import GoogleVeoClient
 from app.services.heygen_service import HeyGenClient
 from app.services.composition_service import CompositionService
@@ -314,10 +314,13 @@ class Pipeline:
                                    status=JobStatus.GENERATING_VIDEO.value,
                                    current_step=step_label,
                                    progress=30)
-                # Each model has its own native duration set (clamped here);
-                # longer targets are extended via ffmpeg afterwards
-                # (1 generation, same cost).
-                gen_dur = clamp_duration(model, max(3, request.duration_s))
+                # Each model has its own native duration set (clamped here),
+                # and the GENERATED (billed) length is capped at pricing.json
+                # `video_max_gen_s` (10 s by default, retours-ia F4) — the
+                # same number the route's cost guard estimated. Longer
+                # targets are extended via ffmpeg afterwards (1 generation).
+                gen_dur = _pricing.video_gen_seconds(model["id"],
+                                                     request.duration_s)
                 if model["provider"] == "google":
                     video_client = self.google
                     result = await self.google.generate_video(
