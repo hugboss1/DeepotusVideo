@@ -161,8 +161,20 @@ def load() -> dict:
 
 
 def save(d: dict) -> dict:
-    """Persist only known keys; returns the merged effective pricing."""
+    """Persist only known keys; returns the merged effective pricing.
+
+    P1 #9 (28/09/2026) : les clés reçues sont FUSIONNÉES dans les surcharges
+    existantes — l'écran Tarifs n'envoie que ses champs, et remplacer le
+    fichier effaçait tout le reste (tarifs vidéo par modèle, plafonds posés à
+    la main). Un fichier illisible ou qui n'est pas un objet repart de vide."""
     clean = {k: d[k] for k in DEFAULTS if k in d}
+    try:
+        cur = json.loads(_PRICING_FILE.read_text(encoding="utf-8")) if _PRICING_FILE.is_file() else {}
+    except Exception:
+        cur = {}
+    if not isinstance(cur, dict):
+        cur = {}
+    clean = {**cur, **clean}
     try:
         _PRICING_FILE.parent.mkdir(parents=True, exist_ok=True)
         _PRICING_FILE.write_text(json.dumps(clean, indent=2), encoding="utf-8")
@@ -366,6 +378,29 @@ def estimate(op: dict, p: dict | None = None) -> dict:
             # inconnu du tableau des tarifs
             lines.append(_line("fal", "Seedance video", dur, "s",
                                dur * p["seedance_usd_per_s"]))
+    elif kind == "video":
+        # P1 #9 (28/09/2026) : UNE requête vidéo telle que la GARDE la chiffre
+        # (`_devis_video` : bornage natif, plafond `video_max_gen_s`,
+        # résolution 1080p par défaut, × n) — l'estimation « ≈ $ » du Studio
+        # l'envoie, et c'est son total qui part en `max_usd`. Durée illisible
+        # -> 5 s (le `or 5` de video_gen_seconds) ; modèle inconnu -> ligne
+        # « seedance » brute (même repli qu'avant, rien n'est refusé ici).
+        try:
+            dur = float(op.get("duration_s") or 5)
+            if not math.isfinite(dur):
+                dur = 5.0
+        except (TypeError, ValueError):
+            dur = 5.0
+        try:
+            n = max(1, int(op.get("n", 1)))
+        except (TypeError, ValueError):
+            n = 1
+        try:
+            sub = video_request_op(op.get("model"), dur, op.get("resolution"), n=n, p=p)
+        except ValueError:
+            sub = {"kind": "seedance", "model": op.get("model"), "n": n,
+                   "resolution": op.get("resolution"), "duration_s": dur}
+        lines.extend(estimate(sub, p)["breakdown"])
     elif kind == "heygen":
         chars = float(op.get("chars", 0))
         mins = max(0.1, chars / max(1.0, p["heygen_chars_per_min"])) if chars \

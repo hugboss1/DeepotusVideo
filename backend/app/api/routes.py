@@ -5476,7 +5476,13 @@ async def list_video_models():
             "audio_included": (m["provider"] == "google"),
             "usd_per_s": rates.get(mid) or {},
         })
-    return {"models": out, "default": DEFAULT_VIDEO_MODEL}
+    # P1 #9 (28/09/2026) : le plafond EFFECTIF des secondes générées (0 = aucun)
+    # — la vignette de prix du Studio borne la durée comme la garde.
+    return {"models": out, "default": DEFAULT_VIDEO_MODEL,
+            "max_gen_s": _pricing._reglage_fini(p, "video_max_gen_s"),
+            # repli du serveur quand un modèle n'a pas de tarif (table surchargée) :
+            # le forfait historique `seedance_usd_per_s` (pricing.estimate)
+            "legacy_usd_per_s": p.get("seedance_usd_per_s")}
 
 
 @router.get("/image-models")

@@ -325,6 +325,8 @@ check("er_fonctions_extraites_du_livre_et_du_bak",
       (len(_PJ), len(_PJ_B), len(_LT), len(_LT_B), _PJ[-12:]))
 _JS_ER = r"""
 const Te="/api"; var window={}; function dzGraphVoiceover(){return null}
+// P1 #9 (28/09/2026) : le rendu de layout lit le plafond du run du Studio (dzRunMaxTake, global du bundle) -- hors run : rien
+function dzRunMaxTake(){return void 0}
 var REP=null;
 async function fetch(u,o){ if(REP==="reseau") throw new Error("hors ligne"); return REP; }
 function rep(status, corps){ const b=corps===undefined?"":(typeof corps=="string"?corps:JSON.stringify(corps));
