@@ -222,6 +222,28 @@ async def _csrf_origin_guard(request, call_next):
     return await call_next(request)
 
 
+# P1 #14 (29/09/2026) : TOUTE ÉCRITURE /api EST RÉSERVÉE À LA BOUCLE LOCALE. Mesuré le 29/09 : au moins 36 routes
+# non-GET appelaient un fournisseur payant (3D, Meshy, voix, musique, SFX, LLM, images, transcription, Cardforge…)
+# sans aucune garde d'hôte ; un inventaire route par route en oubliait (appels indirects). Décision de l'utilisateur :
+# une garde GLOBALE — POST / PUT / PATCH / DELETE vers /api depuis un autre hôte que la boucle locale -> 403, avant
+# tout routage. Les GET restent ouverts. Un futur compagnon mobile passera par _ECRITURES_OUVERTES (méthode, chemin
+# exact), VIDE aujourd'hui. Même liste d'hôtes que les Réglages (routes._HOTES_LOCAUX). Pas une faille tant que l'app
+# écoute la boucle locale : c'est la condition d'une ouverture au réseau local.
+from app.api.routes import _HOTES_LOCAUX
+_ECRITURES_OUVERTES: frozenset = frozenset()
+
+
+@app.middleware("http")
+async def _garde_ecritures_locales(request, call_next):
+    if request.method not in ("GET", "HEAD", "OPTIONS") and request.url.path.startswith("/api"):
+        host = (request.client.host if request.client else "") or ""
+        if host not in _HOTES_LOCAUX and (request.method, request.url.path) not in _ECRITURES_OUVERTES:
+            return _JSONResponse(
+                {"detail": "Écriture réservée à la machine locale (boucle locale) — rien n'a été fait."},
+                status_code=403)
+    return await call_next(request)
+
+
 app.include_router(router, prefix="/api")
 # __DZ_MONTAGE_ROUTER_BEGIN__
 from app.services.montage_service import router as montage_router

@@ -149,6 +149,54 @@ print("\n[3] une seule liste d'hotes")
 check("3.1 _require_localhost et la garde de depense partagent _HOTES_LOCAUX",
       getattr(RT, "_HOTES_LOCAUX", None) == ("127.0.0.1", "::1", "localhost", "testclient"), _d(getattr(RT, "_HOTES_LOCAUX", None)))
 
+print("\n[4] extension (decision du 29/09) : TOUTE ecriture /api reservee a la boucle locale, sur l'application REELLE")
+# Mesure qui fonde l'extension : au moins 36 routes non-GET appelaient un fournisseur sans garde. Un echantillon PAR
+# ROUTEUR (routes, montage, cartes, dictee) et par verbe ; aucune n'a le temps de rien faire (403 avant le routage).
+from app.main import app as APP                              # noqa: E402
+import app.main as MAIN                                      # noqa: E402
+ECRITURES = [
+    ("post", "/api/audio/voiceover", {"text": "bonjour"}),
+    ("post", "/api/assets/3d", {"engine": "tripo", "image_filename": "a.png"}),
+    ("post", "/api/images/process", {"op": "upscale", "filename": "a.png", "mode": "ai"}),
+    ("post", "/api/episodes/render", {"scenes": [{"text": "x"}]}),
+    ("post", "/api/settings/keys", {"entries": {"FAL_KEY": "x"}}),
+    ("post", "/api/montage/render", {"clips": []}),
+    ("post", "/api/cards/deck_00000000/rembg", {}),
+    ("post", "/api/dictation/estimate", {}),
+    ("put", "/api/cost/pricing", {"video_max_gen_s": 3}),
+    ("delete", "/api/montage/projects/m_00000000", None),
+    ("patch", "/api/materials/abc", {"name": "x"}),
+]
+lanA = TestClient(APP, client=LAN)
+locA = TestClient(APP)
+res4 = {}
+for verbe, url, corps in ECRITURES:
+    kw = {} if corps is None else {"json": corps}
+    r = getattr(lanA, verbe)(url, **kw)
+    try:
+        det = r.json().get("detail")
+    except Exception:                                        # noqa: BLE001
+        det = r.text[:80]
+    res4[f"{verbe.upper()} {url}"] = (r.status_code, str(det)[:90])
+check("4.1 depuis le reseau local : 403 « machine locale » sur chaque ecriture de l'echantillon (tous routeurs, tous verbes)",
+      all(c == 403 and "machine locale" in d for c, d in res4.values()), _d({k: v for k, v in res4.items() if v[0] != 403 or "machine locale" not in v[1]}))
+check("4.2 le fichier de tarifs n'a PAS ete ecrit par le PUT refuse (rien n'a ete fait)",
+      not (pathlib.Path(TMP) / "pricing.json").exists(), "")
+g1 = lanA.get("/api/video-models")
+o1 = lanA.options("/api/generate")
+check("4.3 les GET et OPTIONS restent ouverts au reseau local (lecture seule)", g1.status_code == 200 and o1.status_code != 403,
+      _d(g1.status_code, o1.status_code))
+r_loc = locA.post("/api/dictation/estimate", json={})
+check("4.4 temoin local : la meme ecriture depuis la boucle locale atteint la route (pas 403)", r_loc.status_code != 403, _d(r_loc.status_code))
+check("4.5 aucune exception ouverte aujourd'hui ; la garde lit la liste d'hotes des Reglages",
+      MAIN._ECRITURES_OUVERTES == frozenset() and MAIN._HOTES_LOCAUX is RT._HOTES_LOCAUX, "")
+sans = TestClient(_app(RT), client=LAN).post("/api/assets/3d", json={"engine": "tripo", "image_filename": "a.png"})
+check("4.7 TEMOIN comportemental : sans le middleware, la meme ecriture depuis le reseau local ATTEINT la route (pas 403)",
+      sans.status_code != 403, _d(sans.status_code, sans.text[:120]))
+base_main = subprocess.run(["git", "show", f"{BASE}:backend/app/main.py"], cwd=ROOT, capture_output=True).stdout.decode("utf-8")
+check("4.6 TEMOIN : le main.py de la base n'a aucune garde d'hote sur les ecritures (seulement la garde d'Origine)",
+      "_garde_ecritures_locales" not in base_main and "_csrf_origin_guard" in base_main, "")
+
 import shutil                                               # noqa: E402
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n{ok} ok, {fail} fail")
