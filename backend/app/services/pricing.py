@@ -401,6 +401,11 @@ def estimate(op: dict, p: dict | None = None) -> dict:
                                    "model": op.get("video_model") or "",
                                    "resolution": op.get("resolution")},
                                   p)["breakdown"])
+        # P1 #6 (28/09) : les scènes Seedance d'un épisode, chacune à SON
+        # modèle et SA résolution (episode_video.video_ops / cost_meta).
+        for v in op.get("videos") or []:
+            if isinstance(v, dict):
+                lines.extend(estimate(dict(v, kind="seedance"), p)["breakdown"])
     elif kind == "transcribe":
         # Sous-titres, chemin « texte inconnu ». Le chemin « texte connu »
         # (calage local d'une narration déjà écrite) coûte 0 et le dit.

@@ -221,6 +221,34 @@ class FFmpegMerger:
         return out
 
     @staticmethod
+    def scene_clip_video(video, audio, out: Path, *, dur: float = 4.0,
+                         w: int = 1080, h: int = 1920, fps: int = 30) -> Path:
+        """P1 #6 — scène animée : le clip Seedance (court) BOUCLÉ puis coupé à
+        la durée de la narration, recadré en 9:16, avec l'audio de la scène.
+        Mêmes paramètres de sortie que `scene_clip` (libx264 yuv420p, `fps`,
+        aac 192k) : `concat_clips` enchaîne les deux sortes sans réencoder."""
+        out.parent.mkdir(parents=True, exist_ok=True)
+        dur = max(0.5, round(float(dur), 3))
+        has_audio = audio is not None and Path(audio).exists()
+        vf = (f"scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},"
+              f"fps={fps},format=yuv420p")
+        cmd = ["ffmpeg", "-y", "-stream_loop", "-1", "-i", str(video)]
+        if has_audio:
+            cmd += ["-i", str(audio)]
+        cmd += ["-vf", vf, "-map", "0:v"]
+        if has_audio:
+            cmd += ["-map", "1:a", "-c:a", "aac", "-b:a", "192k"]
+        else:
+            cmd += ["-an"]
+        cmd += ["-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
+                "-t", str(dur), "-r", str(fps), "-movflags", "+faststart", str(out)]
+        try:
+            subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=300)
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(f"scene_clip_video failed: {(e.stderr or '')[-300:]}") from e
+        return out
+
+    @staticmethod
     def concat_clips(clips: list, out: Path) -> Path:
         """Concatenate scene clips (same codec params) into the final video."""
         out.parent.mkdir(parents=True, exist_ok=True)
