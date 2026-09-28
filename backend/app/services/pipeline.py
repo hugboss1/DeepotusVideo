@@ -778,7 +778,8 @@ class Pipeline:
     # ----- Composition pipeline (v1.4) -----
 
     async def run_episode(self, *, job_id: str, title=None, voice_id=None,
-                          language: str = "en", scenes: list | None = None) -> str:
+                          language: str = "en", scenes: list | None = None,
+                          episode_id: str | None = None) -> str:
         """Render a narrated illustrated episode: per-scene TTS narration + a
         Ken Burns (or still) image clip, concatenated into one 9:16 video.
         P1 #6 (28/09) : an illustrated `motion:"seedance"` scene is GENERATED
@@ -788,7 +789,9 @@ class Pipeline:
         import asyncio
         import shutil
         from app.services import episode_video as _ev
+        from app.services import episode_store as _es
         scenes = scenes or []
+        chars_payes = 0
         plan = {c["index"]: c for c in _ev.plan_videos(scenes)}
         videos_ok: list[dict] = []
         replis: list[dict] = []
@@ -827,10 +830,22 @@ class Pipeline:
                         progress=int(5 + (i / n) * 80))
                     text = (sc.get("text") or "").strip()
                     audio_i = work / f"a{i:03d}.mp3"
-                    if text and self.voice.is_enabled():
+                    # P1 t132 : la narration déjà payée d'un épisode enregistré
+                    # est RÉEMPLOYÉE (clé texte + voix + langue) ; une narration
+                    # neuve remplit le cache. Seuls les caractères réellement
+                    # payés vont dans cost_meta.chars.
+                    cache = (_es.chemin_narration(episode_id, _es.cle_narration(
+                        text, voice_id, language)) if (text and episode_id) else None)
+                    if cache is not None and cache.is_file():
+                        shutil.copyfile(cache, audio_i)
+                    elif text and self.voice.is_enabled():
                         await loop.run_in_executor(
                             None, lambda t=text, a=audio_i: self.voice.generate_long(
                                 t, a, language=language, voice_id=voice_id))
+                        chars_payes += len(text)
+                        if cache is not None and audio_i.is_file():
+                            cache.parent.mkdir(parents=True, exist_ok=True)
+                            shutil.copyfile(audio_i, cache)
                     dur = self.merger.probe_dur(audio_i) if audio_i.exists() else 0.0
                     if dur <= 0.1:
                         dur = 3.0
@@ -875,7 +890,8 @@ class Pipeline:
                     fin = ("Terminé — Seedance replié en Ken Burns : scène "
                            + ", ".join(str(r["scene"]) for r in replis))[:80]
                 meta = _json.loads(job.cost_meta or "{}")
-                meta.update({"videos": videos_ok, "replis": replis})
+                meta.update({"videos": videos_ok, "replis": replis,
+                             "chars": chars_payes})
                 await self._update(
                     session, job, status=JobStatus.DONE.value,
                     current_step=fin, final_video_path=str(final),

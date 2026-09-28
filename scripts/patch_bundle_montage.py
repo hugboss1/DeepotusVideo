@@ -6583,6 +6583,12 @@ R_P1EP4 = ('async function assembleEpisode(){var dzMx=dzEpMaxUsd(scenes);if(dzMx
            '(s.text||"").trim()});if(!sc.length){setEpErr("No scene with text (step 2).");return}setEpBusy(!0);setEpErr("");'
            'setEpStatus(null);setEpJob("");try{var d=await D.renderEpisode({title:title||"Épisode",voice_id:vid||void 0,'
            'language:lang,scenes:dzEpScenesPayload(scenes),max_usd:dzMx})')
+# repli t132 (28/09) : l'assemblage ENREGISTRE l'episode d'abord (DzEpBar pose window.__dzEpSave) et envoie son id --
+# le rendu reemploie alors la narration deja payee et rattache le job a l'episode.
+R_P1EP4 = R_P1EP4.replace('setEpStatus(null);setEpJob("");try{',
+                          'setEpStatus(null);setEpJob("");try{var dzEid=window.__dzEpSave?await window.__dzEpSave():"";', 1)
+R_P1EP4 = R_P1EP4.replace('max_usd:dzMx})', 'max_usd:dzMx,episode_id:dzEid||void 0})', 1)
+assert R_P1EP4.count("window.__dzEpSave()") == 1 and R_P1EP4.endswith("episode_id:dzEid||void 0})")
 A_P1EP5 = 'epStatus&&epStatus.status==="done"?r.jsxs("div",{style:{display:"grid",gap:10,justifyItems:"center"},children:['
 R_P1EP5 = (A_P1EP5 + 'epStatus.current_step&&epStatus.current_step!=="Complete"?r.jsx("div",{"data-dzeprepli":"1",'
            'style:{fontSize:12,color:"var(--amber)",textAlign:"center"},children:epStatus.current_step}):null,')
@@ -6597,6 +6603,91 @@ P1 += [("P1ep1-devis-et-selecteur-seedance-avant-dzepisodes", A_P1EP1, R_P1EP1),
        ("P1ep5-replis-affiches-en-fin-de-rendu", A_P1EP5, R_P1EP5),
        ("P1ep6-le-pied-ne-promet-plus-une-iteration", A_P1EP6, R_P1EP6)]
 assert len(P1) == 17 and "\\u2019" not in R_P1EP1
+
+# P1es1..P1es3 (tache t132, lot B de #6) -- les episodes s'enregistrent (store /episodes du backend) : barre Nouveau /
+# Ouvrir / Enregistrer (● modifie) / Narrer les scenes. DzEpBar n'a AUCUN hook (l'etat vit dans DzEpisodes, un seul
+# useState `dzE`) : le banc l'execute sous node. L'assemblage enregistre d'abord (repli dans R_P1EP4). Banc :
+# test_p1_episodes_store_bundle (+ test_p1_episodes_store cote backend).
+A_P1ES1 = '(function(){try{if(document.getElementById("__dzNavMotion"))return;'
+R_P1ES1 = (
+    r'function dzEpDoc(st){return{title:st.title||"",script:st.script||"",language:st.lang||"en",voice_id:st.vid||"",'
+    r'scenes:(st.scenes||[]).map(function(s){var o=Object.assign({},s);delete o.image_url;return o}),'
+    r'scene_method:st.sceneMethod||"paragraph",scene_style:st.sceneStyle||"",'
+    r'narration:st.res&&st.res.filename?{filename:st.res.filename,url:st.res.url||"",kb:st.res.kb||0}:null}}'
+    r'function dzEpSnap(st){return JSON.stringify(dzEpDoc(st))}'
+    r'function DzEpBar({st,set,dz,setDz}){var snap=dzEpSnap(st),dirty=snap!==dz.sig,'
+    r'has=!!(st.script||"").trim()||(st.scenes||[]).length>0;'
+    r'function upd(o){setDz(function(p){return Object.assign({},p,o)})}'
+    r'function msg(m){upd({msg:m})}'
+    r'async function save(auto){var body=dzEpDoc(st);try{var r2=await fetch("/api/episodes"+(dz.id?"/"+dz.id:""),'
+    r'{method:dz.id?"PUT":"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});'
+    r'var j=await r2.json().catch(function(){return{}});if(!r2.ok){msg("Enregistrement : "+((j&&j.detail)||("HTTP "+r2.status)));'
+    r'return dz.id||""}var nid=j.id||dz.id;upd({id:nid,sig:snap,msg:(auto?"Enregistré avant l’assemblage":"Enregistré")+" · "'
+    r'+new Date().toTimeString().slice(0,5)});return nid}catch(err){msg("Enregistrement : "+String((err&&err.message)||err));'
+    r'return dz.id||""}}'
+    r'window.__dzEpSave=function(){return save(!0)};'
+    r'function charger(doc,m){var sc=(doc.scenes||[]).map(function(s){return s.image_filename?Object.assign({},s,'
+    r'{image_url:D.imageUrl(s.image_filename)}):s});var st2={title:doc.title||"",script:doc.script||"",'
+    r'lang:doc.language||"en",vid:doc.voice_id||"",scenes:sc,sceneMethod:doc.scene_method||"paragraph",'
+    r'sceneStyle:doc.scene_style||"",res:doc.narration||null};set.setTitle(st2.title);set.setScript(st2.script);'
+    r'set.setLang(st2.lang);set.setVid(st2.vid);set.setScenes(st2.scenes);set.setSceneMethod(st2.sceneMethod);'
+    r'set.setSceneStyle(st2.sceneStyle);set.setRes(st2.res);set.setEpStatus(null);set.setEpJob(doc.last_job_id||"");'
+    r'setDz({id:doc.id||"",sig:doc.id?dzEpSnap(st2):"",msg:m||"",list:null,open:!1})}'
+    r'async function perdre(t){return!(dirty&&has)||await window.__dzDialogue.confirmer("Les modifications non '
+    r'enregistrées de cet épisode seront perdues. Continuer ?",{titre:t,ok:"Continuer"})}'
+    r'async function liste(){try{var j=await(await fetch("/api/episodes")).json();upd({list:(j&&j.episodes)||[]})}'
+    r'catch(err){upd({list:[]})}}'
+    r'async function basculer(){if(dz.open){upd({open:!1});return}upd({open:!0,list:null});await liste()}'
+    r'async function ouvrir(id){if(!(await perdre("Ouvrir un épisode")))return;try{var r2=await fetch("/api/episodes/"+id);'
+    r'var j=await r2.json().catch(function(){return{}});r2.ok?charger(j,"Ouvert · "+(j.title||j.id)):msg("Ouverture : "'
+    r'+((j&&j.detail)||("HTTP "+r2.status)))}catch(err){msg("Ouverture : "+String((err&&err.message)||err))}}'
+    r'async function nouveau(){if(!(await perdre("Nouvel épisode")))return;charger({},"Nouvel épisode")}'
+    r'async function supprimer(id,t){if(!(await window.__dzDialogue.confirmer("Supprimer « "+(t||id)+" » ? Sa narration '
+    r'en cache part avec lui.",{titre:"Supprimer l’épisode",ok:"Supprimer"})))return;'
+    r'await fetch("/api/episodes/"+id,{method:"DELETE"});if(id===dz.id)upd({id:"",sig:""});await liste()}'
+    r'async function narrer(){var id=await save(!1);if(!id)return;msg("Narration des scènes…");try{'
+    r'var r2=await fetch("/api/episodes/"+id+"/narrate",{method:"POST"});var j=await r2.json().catch(function(){return{}});'
+    r'if(!r2.ok){msg("Narration : "+((j&&j.detail)||("HTTP "+r2.status)));return}var sc=j.scenes||[],'
+    r'reu=sc.filter(function(z){return z.cached}).length;var doc=await(await fetch("/api/episodes/"+id)).json();'
+    r'charger(doc,"Narration : "+sc.length+" scène(s) · "+reu+" réutilisée(s) · "+(j.paid_chars||0)+" car. payés")}'
+    r'catch(err){msg("Narration : "+String((err&&err.message)||err))}}'
+    r'var bs={fontSize:11.5,padding:"5px 10px",borderRadius:"var(--r-sm)",border:"1px solid var(--stroke-strong)",'
+    r'background:"var(--bg-panel)",color:"var(--ink-strong)",cursor:"pointer"};'
+    r'return r.jsxs("div",{"data-dzepbar":"1",style:{position:"relative",display:"flex",alignItems:"center",gap:8,'
+    r'flexWrap:"wrap",marginBottom:16},children:[r.jsx("button",{"data-dzep":"nouveau",style:bs,onClick:nouveau,'
+    r'children:"Nouveau"}),r.jsx("button",{"data-dzep":"ouvrir",style:bs,onClick:basculer,children:"Ouvrir ▾"}),'
+    r'r.jsx("button",{"data-dzep":"enregistrer",style:Object.assign({},bs,dirty&&has?{borderColor:"var(--amber)",'
+    r'color:"var(--amber)"}:{}),onClick:function(){save(!1)},children:(dirty&&has?"● ":"")+"Enregistrer"}),'
+    r'r.jsx("button",{"data-dzep":"narrer",style:bs,disabled:!(st.scenes||[]).length,onClick:narrer,'
+    r'title:"Narre chaque scène une seule fois ; une scène inchangée n’est jamais repayée",'
+    r'children:"Narrer les scènes"}),r.jsx("span",{"data-dzep":"msg",style:{fontSize:11,color:"var(--ink-soft)"},'
+    r'children:(dz.id?"":"Non enregistré")+(dz.msg?(dz.id?"":" · ")+dz.msg:"")}),'
+    r'dz.open?r.jsx("div",{"data-dzep":"liste",style:{position:"absolute",top:"100%",left:0,zIndex:50,minWidth:320,'
+    r'maxHeight:320,overflowY:"auto",background:"var(--bg-panel-2)",border:"1px solid var(--stroke-strong)",'
+    r'borderRadius:"var(--r-md)",boxShadow:"var(--shadow-2)",padding:6},children:dz.list===null?r.jsx("div",'
+    r'{style:{fontSize:11.5,padding:8,color:"var(--ink-soft)"},children:"Chargement…"}):dz.list.length?'
+    r'dz.list.map(function(e){return r.jsxs("div",{"data-dzepitem":e.id,style:{display:"flex",alignItems:"center",'
+    r'gap:8,padding:"6px 8px",borderRadius:6,cursor:"pointer",background:e.id===dz.id?"var(--cyan-soft)":"transparent"},'
+    r'onClick:function(){ouvrir(e.id)},children:[r.jsxs("div",{style:{flex:1,minWidth:0},children:[r.jsx("div",'
+    r'{style:{fontSize:12,color:"var(--ink-strong)"},children:e.title||"(sans titre)"}),r.jsx("div",{style:{fontSize:10.5,'
+    r'color:"var(--ink-muted)"},children:e.scene_count+" scène(s) · "+String(e.updated_at||"").slice(0,16).replace("T"," ")})]}),'
+    r'r.jsx("button",{"data-dzepdel":e.id,title:"Supprimer",style:Object.assign({},bs,{padding:"2px 7px",'
+    r'color:"var(--red)"}),onClick:function(ev){ev.stopPropagation();supprimer(e.id,e.title)},children:"✕"})]},e.id)}):'
+    r'r.jsx("div",{style:{fontSize:11.5,padding:8,color:"var(--ink-soft)"},children:"Aucun épisode enregistré."})}):null]})};'
+    + A_P1ES1)
+A_P1ES2 = 'fileRef=yn.useRef(null);x.useEffect(function(){var on=!0;D.listVoices()'
+R_P1ES2 = ('fileRef=yn.useRef(null),_dzE=x.useState({id:"",sig:"",msg:"",list:null,open:!1}),dzE=_dzE[0],setDzE=_dzE[1];'
+           'x.useEffect(function(){var on=!0;D.listVoices()')
+A_P1ES3 = ('r.jsx("div",{style:{fontSize:12.5,color:"var(--ink-soft)",marginTop:4},children:"Transforme un chapitre de roman '
+           'en vidéo narrée illustrée — diffusable en épisodes."})]}),')
+R_P1ES3 = (A_P1ES3 + 'r.jsx(DzEpBar,{st:{title:title,script:script,lang:lang,vid:vid,scenes:scenes,sceneMethod:sceneMethod,'
+           'sceneStyle:sceneStyle,res:res},set:{setTitle:setTitle,setScript:setScript,setLang:setLang,setVid:setVid,'
+           'setScenes:setScenes,setSceneMethod:setSceneMethod,setSceneStyle:setSceneStyle,setRes:setRes,setEpJob:setEpJob,'
+           'setEpStatus:setEpStatus},dz:dzE,setDz:setDzE}),')
+P1 += [("P1es1-barre-episodes-avant-navmotion", A_P1ES1, R_P1ES1),
+       ("P1es2-etat-dze-de-l-episode-enregistre", A_P1ES2, R_P1ES2),
+       ("P1es3-barre-posee-sous-l-en-tete", A_P1ES3, R_P1ES3)]
+assert len(P1) == 20
 
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
@@ -6852,7 +6943,8 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            # file P1 (28/09) : + groupe P1 EN QUEUE apres R8 (P1fg1, la rangee FIGMA_TOKEN des Reglages) ; 229 -> 230,
            # le --check dit 231 ancres ; + P1st1..P1tp4 (tache #3, les huit controles inertes) : 238, le --check dit 239 ;
            # + P1rg1, P1rg2 (tache #4, regions des templates transparentes) : 240, le --check dit 241 ;
-           # + P1ep1..P1ep6 (tache #6 lot A, scenes Seedance des episodes) : 246, le --check dit 247.
+           # + P1ep1..P1ep6 (tache #6 lot A, scenes Seedance des episodes) : 246, le --check dit 247 ;
+           # + P1es1..P1es3 (t132, episodes enregistres) : 249, le --check dit 250.
            # studio 27/09 : + HUIT sections EN QUEUE, groupe R8 apres R7 (format HeyGen impose par le template, « Ouvrir un graphe » en icone,
            # repli de l'inspecteur) ; 213 -> 221, le --check dit 222 ancres ; + R8sv1 (Save par le dialogue maison) : 222, le --check dit 223 ;
            # + R8pr1..R8pr7 (les autres window.prompt natifs, 27/09) : 229, le --check dit 230.

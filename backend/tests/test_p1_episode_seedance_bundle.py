@@ -108,8 +108,8 @@ check("2.6 scenes modifiees depuis le devis (1080p) : refuse (false)", O.get("pe
 
 print("\n[3] groupe P1 et syntaxe")
 _P1 = [t for t, _a, _r in getattr(P, "P1", [])]
-check("3.1 P1ep1..P1ep6 en QUEUE de PATCHES",
-      [t.split("-")[0] for t in _P1[-6:]] == ["P1ep1", "P1ep2", "P1ep3", "P1ep4", "P1ep5", "P1ep6"]
+check("3.1 P1ep1..P1ep6 dans le groupe P1 (apres P1rg2), groupe en QUEUE de PATCHES",
+      [t.split("-")[0] for t in _P1[11:17]] == ["P1ep1", "P1ep2", "P1ep3", "P1ep4", "P1ep5", "P1ep6"]
       and [t for t, _a, _r in P.PATCHES[-len(_P1):]] == _P1, _d(_P1[-6:]))
 _nc = subprocess.run([NODE, "--check", str(BUNDLE)], capture_output=True, text=True) if NODE else None
 check("3.2 le bundle ENTIER passe node --check", _nc is not None and _nc.returncode == 0, _d(_nc.stderr[-300:] if _nc else ""))
