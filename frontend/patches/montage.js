@@ -8359,6 +8359,29 @@ var DZM_GL_MS=250,DZM_GL_RATIOS=["9:16","16:9","1:1","4:5"];
    de largeur de l'empreinte, et les notes du serveur (X-Dz-Grade-Note) dans l'ordre où la pastille les dit. */
 var DZM_GL_MS_STAB=600,DZM_GL_FPS=30,DZM_GL_PAL=160,
   DZM_GL_NOTES=[["stab-non-analysee","stabilisation non analysée"],["stab-trop-loin","stabilisation : trop loin dans la source"]];
+/* P1 #8 (28/09/2026) : LA CADENCE DU RETIME SUIT LE RENDU FINAL. DZM_GL_FPS (30) n'est plus que le repli : mesuré le 28/09,
+   l'image étalonnée d'un plan en retime envoyait fps = 30 quel que soit le preset (GIF 12 i/s, cadence 60 choisie…).
+   dzmGlFps(réglages, api) = la cadence que _deliver_resolve donnera au rendu FINAL, lue dans les MÊMES données que la
+   rangée de livraison : réglages = dzDel de l'hôte ({preset?, fps?}), api = la réponse de la route GET des presets de livraison
+   ({builtins:[{id, label, fps, gif}], presets:[{id, base, fps?}]}). Le preset (absent -> le premier intégré, celui que
+   la rangée affiche ; inconnu -> le premier aussi, le backend retombe sur master) est résolu vers son intégré (un
+   maison par sa base) ; un intégré GIF garde SA cadence (le backend ignore alors toute surcharge) ; sinon la cadence
+   choisie (∈ DZM_DEL_FPS, comme dzmDeliverPayload), puis celle du preset maison, puis celle de l'intégré ; rien de
+   lisible (api absente, cadence hors 1..120) -> DZM_GL_FPS. Banc croisé : test_p1_scopes_cadence [2]. */
+function dzmGlFpsOk(v){
+  var n=Number(v);return typeof v!=="boolean"&&v!==""&&v!=null&&isFinite(n)&&n>=1&&n<=120&&Math.round(n)===n?n:null}
+function dzmGlFps(del,q){
+  var d=del&&typeof del==="object"?del:{},a=q&&typeof q==="object"?q:{},
+    bi=(Array.isArray(a.builtins)?a.builtins:[]).filter(function(b){return !!b&&typeof b==="object"}),
+    mz=(Array.isArray(a.presets)?a.presets:[]).filter(function(p){return !!p&&typeof p==="object"}),
+    pid=typeof d.preset==="string"&&d.preset?d.preset:null,
+    m=pid?mz.filter(function(p){return p.id===pid&&bi.some(function(b){return b.id===p.base})})[0]:null,
+    bid=m?m.base:pid,b=bi.filter(function(k){return k.id===bid})[0]||bi[0]||null,
+    ch=Number(d.fps);
+  if(b&&b.gif)return dzmGlFpsOk(b.fps)||DZM_GL_FPS;
+  if(DZM_DEL_FPS.indexOf(ch)>=0)return ch;
+  if(m&&DZM_DEL_FPS.indexOf(Number(m.fps))>=0)return Number(m.fps);
+  return (b&&dzmGlFpsOk(b.fps))||DZM_GL_FPS}
 /* ── Retours L6 (26/09/2026, tâche 4) : L'IMAGE ÉTALONNÉE DANS LA FENÊTRE PRINCIPALE, À L'ARRÊT. Le lecteur vivant montre
    les sources brutes (décision L5 n°9) : les effets d'un plan, appliqués au rendu, y étaient invisibles. D'abord les aides
    PURES (valeurs en entrée, valeurs neuves en sortie) :
@@ -8463,18 +8486,26 @@ function dzmGlAdjust(clips,tg){
    que la pile V1 regarde). effects (et le masque, qui ne limite que des effets) seulement s'il y a des effets allumés.
    Rien de tout cela -> null : aucune requête (et les champs neufs ne partent JAMAIS à vide : un plan d'hier garde son
    corps, donc la clé de cache du serveur). */
-function dzmGlBody(c,head,ratio,clips){
-  if(!c||typeof c!=="object"||!c.src||c.src.image)return null;
-  var fx=(Array.isArray(c.effects)?c.effects:[]).filter(function(f){return !!f&&typeof f==="object"&&!f.off});
-  var cadre=dzmGlCadre(c,head,ratio),s0=dzmRfNum(c.start),tg=dzmCoR((s0===null?0:s0)+cadre.t_local,3);
-  var coul=fx.some(function(f){return dzmGlActif(f,cadre.t_local,cadre.dur)}),
-    sp=c.tr==="v1"?dzmRfSpeed(c.speed):1,rt=sp!==1?dzmRetimeOf(c):null,sb=dzmStabOf(c),aj=dzmGlAdjust(clips,tg);
-  if(!coul&&!rt&&!sb&&!aj.length)return null;
-  var b={src:c.src,t:dzmSrcTimeAt(c,head)};
-  if(fx.length){b.effects=fx;var mk=dzmMaskOf(c.mask);if(mk)b.mask=mk}
-  if(rt){cadre.speed=sp;cadre.retime=rt;cadre.fps=DZM_GL_FPS}
+/* P1 #8 (28/09/2026) : dzmGlNeufs(plan, tête, ratio, plans, fps) = LE cadre complet, partagé par l'image étalonnée ET les
+   scopes (mesuré le 28/09 : dzmScwBody n'envoyait que dzmGlCadre, les scopes d'un plan ralenti, stabilisé ou sous un J1
+   mesuraient l'image BRUTE) -> {cadre, neuf} : cadre = dzmGlCadre + speed / retime / fps (fps = dzmGlFpsOk(fps) ou
+   DZM_GL_FPS), stab, adjust + t_global, dans cet ordre (l'ordre des clés fait l'empreinte) ; neuf = au moins un de ces
+   champs posé. Sans eux, le cadre est celui d'hier : la clé de cache du serveur ne change pas. */
+function dzmGlNeufs(c,head,ratio,clips,fps){
+  var cadre=dzmGlCadre(c,head,ratio),s0=dzmRfNum(c&&c.start),tg=dzmCoR((s0===null?0:s0)+cadre.t_local,3),
+    sp=c&&c.tr==="v1"?dzmRfSpeed(c.speed):1,rt=sp!==1?dzmRetimeOf(c):null,sb=dzmStabOf(c),aj=dzmGlAdjust(clips,tg);
+  if(rt){cadre.speed=sp;cadre.retime=rt;cadre.fps=dzmGlFpsOk(fps)||DZM_GL_FPS}
   if(sb)cadre.stab=sb;
   if(aj.length){cadre.adjust=aj;cadre.t_global=tg}
+  return {cadre:cadre,neuf:!!(rt||sb||aj.length)}}
+function dzmGlBody(c,head,ratio,clips,fps){
+  if(!c||typeof c!=="object"||!c.src||c.src.image)return null;
+  var fx=(Array.isArray(c.effects)?c.effects:[]).filter(function(f){return !!f&&typeof f==="object"&&!f.off});
+  var n=dzmGlNeufs(c,head,ratio,clips,fps),cadre=n.cadre;
+  var coul=fx.some(function(f){return dzmGlActif(f,cadre.t_local,cadre.dur)});
+  if(!coul&&!n.neuf)return null;
+  var b={src:c.src,t:dzmSrcTimeAt(c,head)};
+  if(fx.length){b.effects=fx;var mk=dzmMaskOf(c.mask);if(mk)b.mask=mk}
   b.cadre=cadre;
   return b}
 /* RETOURS 26/09 (tâche 3, B0) : LA PASTILLE dit ce qu'elle applique, dans l'ordre « étalonné » (un effet présent à
@@ -8523,9 +8554,12 @@ function dzmScwSize(side,dpr){
   if(!isFinite(s)||s<=0)s=DZM_SCW_DEF;
   if(!isFinite(d)||d<=0)d=1;
   return Math.max(256,Math.min(1024,Math.round(s*d/2)*2))}
-function dzmScwBody(c,head,ratio,side,dpr){
+/* P1 #8 (28/09/2026) : le cadre des scopes est celui de dzmGlNeufs (plans, fps : 6e et 7e arguments), le MÊME que
+   l'image étalonnée — vitesse, stabilisation et ajustement J1 compris (la route /scopes les lisait déjà : _cadre_of ->
+   _cadre_neufs, _cadre_stab, _adjust_graph). */
+function dzmScwBody(c,head,ratio,side,dpr,clips,fps){
   var b=dzmScopesBody(c,head);if(!b)return null;
-  b.size=dzmScwSize(side,dpr);b.cadre=dzmGlCadre(c,head,ratio);
+  b.size=dzmScwSize(side,dpr);b.cadre=dzmGlNeufs(c,head,ratio,clips,fps).cadre;
   return b}
 function dzmScwFit(g,W,H){
   var w=Number(W),h=Number(H),gx=g&&typeof g==="object"?g.x:NaN,gy=g&&typeof g==="object"?g.y:NaN,s=g&&typeof g==="object"?g.s:NaN;
@@ -8569,10 +8603,20 @@ function dzmScwCible(hote,fs){
   if(!hote)return null;
   if(fs&&fs!==hote&&typeof hote.contains==="function"&&hote.contains(fs))return fs;
   return hote}
+/* P1 #8 (28/09/2026) : LES NOMS PRÉFIXÉS. dzmScwVeilleFs écoute les QUATRE noms de DZM_SCW_FS_EV (standard, WebKit,
+   Gecko, MS) et les retire tous ; dzmScwFsEl(doc) = l'élément plein écran lu sous les mêmes quatre noms (standard
+   d'abord), doc absent ou aucun -> null. svmFullscreen (amont, intouchable) n'entre que par requestFullscreen : c'est
+   une défense pour les moteurs qui n'émettent que le nom préfixé. */
+var DZM_SCW_FS_EV=["fullscreenchange","webkitfullscreenchange","mozfullscreenchange","MSFullscreenChange"],
+  DZM_SCW_FS_EL=["fullscreenElement","webkitFullscreenElement","mozFullScreenElement","msFullscreenElement"];
+function dzmScwFsEl(d){
+  if(!d)return null;
+  for(var i=0;i<DZM_SCW_FS_EL.length;i++){var e=d[DZM_SCW_FS_EL[i]];if(e)return e}
+  return null}
 function dzmScwVeilleFs(d,fn){
   if(!d||typeof d.addEventListener!=="function"||typeof d.removeEventListener!=="function"||typeof fn!=="function")return function(){};
-  d.addEventListener("fullscreenchange",fn);
-  return function(){d.removeEventListener("fullscreenchange",fn)}}
+  DZM_SCW_FS_EV.forEach(function(n){d.addEventListener(n,fn)});
+  return function(){DZM_SCW_FS_EV.forEach(function(n){d.removeEventListener(n,fn)})}}
 /* RETOURS 26/09 (tâche 3) : la porte (dzmGlBody reçoit la liste des plans pour J1), l'anti-rebond DZM_GL_MS_STAB quand
    la stabilisation est posée, la NOTE du serveur lue dans l'en-tête X-Dz-Grade-Note et dite par la pastille (dzmGlBadge),
    et la LARGEUR mesurée par PALIERS de DZM_GL_PAL px (largeur demandée, dzmGlW) : un état `pal`, mesuré au montage et à
@@ -8585,7 +8629,7 @@ function DzmGradeLive(o){
   var s1=x.useState(null),img=s1[0],setImg=s1[1];
   var s2=x.useState(0),pal=s2[0],setPal=s2[1];
   var seq=x.useRef(0),urlR=x.useRef(null),vivant=x.useRef(!0),boxR=x.useRef(null);
-  var c=o.playing?null:dzmScopesAt(o.clips,o.head),body=c?dzmGlBody(c,o.head,o.ratio,o.clips):null,
+  var c=o.playing?null:dzmScopesAt(o.clips,o.head),body=c?dzmGlBody(c,o.head,o.ratio,o.clips,dzmGlFps(o.dlv,o.dapi)):null,
     sig=body?JSON.stringify([String(c.id),body]):"";
   var libere=function(){if(urlR.current){URL.revokeObjectURL(urlR.current);urlR.current=null}};
   var mesure=function(){var el=boxR.current,g=typeof window==="object"&&window?window:null;
@@ -8928,7 +8972,7 @@ function DzmScopes(o){
   var seq=x.useRef(0),urlR=x.useRef(null),vivant=x.useRef(!0),wrapR=x.useRef(null),gesteR=x.useRef(null),cibleR=x.useRef(null);
   var g=typeof window!=="undefined"&&window?window:null,dc=typeof document!=="undefined"&&document?document:null;
   var jouant=!!o.playing,c=on&&!jouant?dzmScopesAt(o.clips,o.head):null,
-    body=c&&c.src?dzmScwBody(c,o.head,o.ratio,geo?geo.f:DZM_SCW_DEF,g?g.devicePixelRatio:1):null,
+    body=c&&c.src?dzmScwBody(c,o.head,o.ratio,geo?geo.f:DZM_SCW_DEF,g?g.devicePixelRatio:1,o.clips,dzmGlFps(o.dlv,o.dapi)):null,
     sig=body?JSON.stringify(body):"";
   var libere=function(){if(urlR.current){URL.revokeObjectURL(urlR.current);urlR.current=null}};
   var finGeste=function(){var f=gesteR.current;gesteR.current=null;if(f)f()};
@@ -8947,7 +8991,7 @@ function DzmScopes(o){
      plein écran) ; la géométrie mémorisée y est recadrée */
   x.useEffect(function(){if(!on)return;var z=wrapR.current,f=z&&typeof z.closest==="function"?z.closest(".dzsvm"):null;
     if(f!==hote)setHote(f);
-    var cb=dzmScwCible(f,dc?dc.fullscreenElement:null);cibleR.current=cb;
+    var cb=dzmScwCible(f,dzmScwFsEl(dc));cibleR.current=cb;
     var n=cb?dzmScwInit(dzmScwGet(),cb.clientWidth,cb.clientHeight):null;
     setGeo(n?{x:n.x,y:n.y,s:n.s,f:n.s}:null)},[on]);
   /* la fenêtre du navigateur change : la fenêtre des scopes est recadrée dans la CIBLE (affichage, rien de mémorisé) ;
@@ -8957,7 +9001,7 @@ function DzmScopes(o){
     var ote=dzmTbVeille(g,function(){if(gesteR.current)return;var cb=cibleR.current||hote,W=cb.clientWidth,H=cb.clientHeight;
       setGeo(function(q){var n=q?dzmScwFit(q,W,H):dzmScwDef(W,H);
         return !n||(q&&n.x===q.x&&n.y===q.y&&n.s===q.s)?q:{x:n.x,y:n.y,s:n.s,f:n.s}})});
-    var oteFs=dzmScwVeilleFs(dc,function(){var cb=dzmScwCible(hote,dc.fullscreenElement);
+    var oteFs=dzmScwVeilleFs(dc,function(){var cb=dzmScwCible(hote,dzmScwFsEl(dc));
       if(cb===(cibleR.current||hote))return;
       finGeste();cibleR.current=cb;var W=cb.clientWidth,H=cb.clientHeight;
       setGeo(function(q){var n=q?dzmScwFit({x:q.x,y:q.y,s:typeof q.f==="number"?q.f:q.s},W,H):dzmScwDef(W,H);
@@ -9198,6 +9242,8 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   /* retours 26/09 (tache 3) : la porte de l'apercu (J1) et la pastille ; les scopes suivent le plein ecran */
   glAdjust:dzmGlAdjust,glBadge:dzmGlBadge,scwCible:dzmScwCible,scwVeilleFs:dzmScwVeilleFs,
   /* retours L6 (26/09/2026, tache 5) : les scopes en fenetre flottante -- le cadre partage, la taille, la geometrie, la memoire */
+  /* P1 #8 (28/09/2026) : la cadence du rendu final, le cadre complet partage par l'image etalonnee et les scopes, le plein ecran prefixe */
+  glFps:dzmGlFps,glFpsOk:dzmGlFpsOk,glNeufs:dzmGlNeufs,scwFsEl:dzmScwFsEl,SCW_FS_EV:DZM_SCW_FS_EV,
   glSec:dzmGlSec,glActif:dzmGlActif,glCadre:dzmGlCadre,scwSize:dzmScwSize,scwBody:dzmScwBody,scwFit:dzmScwFit,scwDef:dzmScwDef,scwInit:dzmScwInit,scwGeste:dzmScwGeste,scwGet:dzmScwGet,scwSet:dzmScwSet,scwFin:dzmScwFin,SCW_CLE:DZM_SCW_CLE,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;
