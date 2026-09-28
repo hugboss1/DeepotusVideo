@@ -6308,7 +6308,13 @@ A_R8IN3 = ('function Fh({graph:e,onRename:t}){return r.jsxs(r.Fragment,{children
 R_R8IN3 = ('function Fh({graph:e,onRename:t}){return r.jsxs(r.Fragment,{children:[r.jsxs("div",{style:{position:"relative",'
            'padding:"14px 16px",borderBottom:"1px solid var(--stroke)"},children:[r.jsx("span",{style:{position:"absolute",'
            'right:12,top:14},children:' + _R8_REPLIER + '}),')
-A_R8IN4 = 'r.jsxs("button",{className:"dz-dock-handle",'
+# repli P1 #3 (28/09/2026) : Fh recoit onUpdateNode et calcule le resume du graphe (dzGraphResume, pose par P1st1) -- son
+# en-tete est l'ancre de R8in3, donc le changement est REPLIE ici (une section P1 ne peut pas ancrer sur ce remplacement).
+R_R8IN3 = R_R8IN3.replace('function Fh({graph:e,onRename:t}){',
+                          'function Fh({graph:e,onRename:t,onUpdateNode:U}){'
+                          'var dzRs=dzGraphResume(e),dzRn=dzRs.rn,dzRp=(dzRn&&dzRn.props)||{};', 1)
+assert R_R8IN3.count("onUpdateNode:U}){var dzRs=dzGraphResume(e),") == 1
+A_R8IN4 ='r.jsxs("button",{className:"dz-dock-handle",'
 R_R8IN4 = ('r.jsxs("button",{className:"dz-insp-handle",title:"Inspecteur — rouvrir",onClick:function(){dziOpen(!0)},'
            'children:[r.jsx(X,{name:"panelR",size:11}),"INSPECTOR"]}),' + A_R8IN4)
 A_R8OG1 = ('function DzOpenGraph({onPick}){var st=x.useState([]),gs=st[0],setGs=st[1];x.useEffect(function(){var on=!0;'
@@ -6408,8 +6414,89 @@ A_P1FG1 = 'health:"has_meshy"}];function bm(){'
 R_P1FG1 = ('health:"has_meshy"},{k:"FIGMA_TOKEN",label:"Figma (import de calques)",'
            'why:"Personal Access Token · figma.com → Settings → Security · Bibliothèque → Depuis Figma",'
            'health:"figma_configured"}];function bm(){')
-P1 = [("P1fg1-rangee-figma-token-dans-les-reglages", A_P1FG1, R_P1FG1)]
-assert len(P1) == 1 and R_P1FG1.startswith(A_P1FG1[:-len("];function bm(){")]) and R_P1FG1.endswith("];function bm(){")
+# P1st1..P1tp4 (tache #3) -- HUIT controles inertes (`onChange:()=>{}`, releves x8 dans le .bak). Mesures : le compilateur
+# du Studio (Mh) lit Render.format et Render.name, PAS Render.fps (canevas fige a 30) ; duree maitre, tail pad et loudness
+# vivent dans les noeuds AvatarMaster / SpatialCompose / Upload / Loudness ; Quick pose voiceover_enabled:!1 dans ses deux
+# requetes. D'ou : Format et Render name BRANCHES sur le noeud Render (onUpdateNode, deja offert a $h), FPS RETIRE, la
+# section « Audio master » devient un RESUME en lecture seule (dzGraphResume, pur, execute par le banc) qui donne aussi les
+# vrais « Providers » ; le toggle « Voice (HeyGen comp) » est RETIRE (le brancher lancerait une voix off payante) ; la
+# recherche des Templates filtre (dzTplFiltre, nom/id/tags sans casse ni accents ; la selection `u` reste lue dans `d`).
+# L'en-tete de Fh (onUpdateNode + dzRs) est REPLIE dans R_R8IN3 (son ancre est ce remplacement). Banc :
+# test_p1_controles_inertes (invariant execute : tout onChange rendu par Fh a un effet).
+A_P1ST1 = 'function dzIsImgNode(n){'
+R_P1ST1 = (r'function dzGraphResume(g){var ns=(g&&g.nodes)||[],P=function(n){return(n&&n.props)||{}};'
+           r'var rn=ns.find(function(n){return n.type==="Render"})||null;'
+           r'var am=ns.filter(function(n){return n.type==="AvatarMaster"}),'
+           r'sc=ns.find(function(n){return n.type==="SpatialCompose"&&P(n).useAsMaster}),'
+           r'up=ns.find(function(n){return n.type==="Upload"&&P(n).jobId&&P(n).master!==!1});'
+           r'var maitre=am.length?"Avatar master · tail "+(Number(P(am[0]).tailPadS)||0)+" s"+(am.length>1?" (+"+(am.length-1)+")":"")'
+           r':sc?"Spatial compose · slot avatar · tail "+(Number(P(sc).tailPadS)||0)+" s"'
+           r':up?"UGC · "+(Number(P(up).durationS)||0)+" s":"—";'
+           r'var lo=ns.find(function(n){return n.type==="Loudness"}),loud=lo?(Number(P(lo).lufs)||0)+" LUFS":"—";'
+           r'var pv=[],add=function(x){if(pv.indexOf(x)<0)pv.push(x)};'
+           r'ns.forEach(function(n){var t=n.type,p=P(n);'
+           r'if(["Seedance","ImageGen","ImageEdit","Variations"].indexOf(t)>=0||(t==="Upscale"&&(p.mode||"ai")==="ai")'
+           r'||(t==="RemoveBG"&&(p.method||"api")==="api"))add("fal.ai");'
+           r'else if(t==="HeyGenAvatar")add("HeyGen");else if(t==="Voiceover")add(p.provider==="voicebox"?"Voicebox":"ElevenLabs");'
+           r'else if(t==="NewsScript")add("LLM")});'
+           r'return{rn:rn,maitre:maitre,loud:loud,prov:pv.length?pv.join(" · "):"—"}}' + A_P1ST1)
+A_P1ST2 = 'r.jsx(Fh,{graph:t,onRename:i})'
+R_P1ST2 = 'r.jsx(Fh,{graph:t,onRename:i,onUpdateNode:U})'
+A_P1ST3 = ('r.jsxs(ie,{label:"Output",children:[r.jsx(O,{label:"Format",children:r.jsx(re,{value:"9:16",onChange:()=>{},'
+           'options:["9:16","1:1","16:9","4:5"]})}),r.jsx(O,{label:"FPS",children:r.jsx(re,{value:30,onChange:()=>{},'
+           'options:[24,30,48,60]})}),r.jsx(O,{label:"Render name",children:r.jsx(le,{mono:!0,value:"render.mp4",onChange:()=>{}})})]}),'
+           'r.jsxs(ie,{label:"Audio master",children:[r.jsx(O,{children:r.jsx(Ze,{checked:!0,onChange:()=>{},'
+           'label:"Avatar node is duration master"})}),r.jsx(O,{children:r.jsx(Oe,{label:"Tail pad",value:.4,min:0,max:2,step:.1,'
+           'unit:"s",onChange:()=>{}})}),r.jsx(O,{children:r.jsx(Oe,{label:"Loudness target",value:-14,min:-23,max:-9,step:.5,'
+           'unit:" LUFS",onChange:()=>{}})})]}),r.jsx(ie,{label:"Estimated",children:r.jsxs("div",{style:{display:"grid",'
+           'gridTemplateColumns:"auto 1fr",gap:"6px 12px",fontSize:12},children:[r.jsx("span",{className:"soft",children:"Duration"}),'
+           'r.jsx("span",{className:"mono strong",children:"—"}),r.jsx("span",{className:"soft",children:"Cost"}),'
+           'r.jsx("span",{className:"mono strong",style:{color:"var(--amber)"},children:"— est. at run"}),'
+           'r.jsx("span",{className:"soft",children:"Providers"}),r.jsx("span",{className:"mono strong",'
+           'children:"fal.ai · HeyGen · ElevenLabs"})]})})')
+R_P1ST3 = ('r.jsxs(ie,{label:"Output",children:dzRn?[r.jsx(O,{label:"Format",hint:"Lu dans le nœud Render à l\'exécution.",'
+           'children:r.jsx(re,{value:dzRp.format||"9:16",onChange:function(v){U&&U(dzRn.id,{format:v})},'
+           'options:["9:16","1:1","16:9","4:5"]})},"fmt"),r.jsx(O,{label:"Render name",children:r.jsx(le,{mono:!0,'
+           'value:dzRp.name||"",placeholder:"studio render",onChange:function(v){U&&U(dzRn.id,{name:v})}})},"nom")]'
+           ':[r.jsx("div",{style:{fontSize:11.5,color:"var(--ink-soft)",lineHeight:1.45},'
+           'children:"Ajoute un nœud Render : c\'est la sortie du graphe (format et nom s\'y règlent)."},"vide")]}),'
+           'r.jsx(ie,{label:"Audio",children:r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"auto 1fr",gap:"6px 12px",'
+           'fontSize:12},children:[r.jsx("span",{className:"soft",children:"Duration master"}),'
+           'r.jsx("span",{className:"mono strong",children:dzRs.maitre}),r.jsx("span",{className:"soft",children:"Loudness"}),'
+           'r.jsx("span",{className:"mono strong",children:dzRs.loud}),r.jsx("span",{style:{gridColumn:"1 / -1",fontSize:10.5,'
+           'color:"var(--ink-muted)"},children:"Se règlent dans les nœuds Avatar master, Spatial compose et Loudness."})]})}),'
+           'r.jsx(ie,{label:"Estimated",children:r.jsxs("div",{style:{display:"grid",'
+           'gridTemplateColumns:"auto 1fr",gap:"6px 12px",fontSize:12},children:[r.jsx("span",{className:"soft",children:"Duration"}),'
+           'r.jsx("span",{className:"mono strong",children:"—"}),r.jsx("span",{className:"soft",children:"Cost"}),'
+           'r.jsx("span",{className:"mono strong",style:{color:"var(--amber)"},children:"— est. at run"}),'
+           'r.jsx("span",{className:"soft",children:"Providers"}),r.jsx("span",{className:"mono strong",'
+           'children:dzRs.prov})]})})')
+A_P1QV1 = 'value:N,onChange:P})})]}),r.jsx(O,{children:r.jsx(Ze,{checked:!1,label:"Voice (HeyGen comp)",onChange:()=>{}})})'
+R_P1QV1 = 'value:N,onChange:P})})]})'
+A_P1TP1 = 'function fm({variant:e}){'
+R_P1TP1 = (r'function dzTplFiltre(d,q){var n=function(x){return String(x==null?"":x).normalize("NFD")'
+           r'.replace(/[̀-ͯ]/g,"").toLowerCase()};var k=n(q).trim();if(!k)return d;'
+           r'return d.filter(function(t){return n(t.name).indexOf(k)>=0||n(t.id).indexOf(k)>=0'
+           r'||(t.tags||[]).some(function(g){return n(g).indexOf(k)>=0})})}' + A_P1TP1)
+A_P1TP2 = '[Mn,Mns]=x.useState(null);x.useEffect(()=>{let f=!0;return D.listLayoutTemplates()'
+R_P1TP2 = '[Mn,Mns]=x.useState(null),[dzTq,dzSetTq]=x.useState("");x.useEffect(()=>{let f=!0;return D.listLayoutTemplates()'
+A_P1TP3 = ('r.jsx(te,{children:d.length}),r.jsx("div",{style:{flex:1}}),r.jsx(le,{icon:"search",placeholder:"Search…",'
+           'style:{width:220},value:"",onChange:()=>{}})')
+R_P1TP3 = ('r.jsx(te,{children:dzTq.trim()?dzTplFiltre(d,dzTq).length+" / "+d.length:d.length}),r.jsx("div",{style:{flex:1}}),'
+           'r.jsx(le,{icon:"search",placeholder:"Search…",style:{width:220},value:dzTq,onChange:dzSetTq})')
+A_P1TP4 = 'children:d.map(f=>{const m=t===f.id;return r.jsxs("div",{onClick:()=>n(f.id)'
+R_P1TP4 = 'children:dzTplFiltre(d,dzTq).map(f=>{const m=t===f.id;return r.jsxs("div",{onClick:()=>n(f.id)'
+P1 = [("P1fg1-rangee-figma-token-dans-les-reglages", A_P1FG1, R_P1FG1),
+      ("P1st1-resume-du-graphe-avant-dzisimgnode", A_P1ST1, R_P1ST1),
+      ("P1st2-l-appelant-passe-onupdatenode-a-fh", A_P1ST2, R_P1ST2),
+      ("P1st3-output-branche-sur-render-et-resume-audio", A_P1ST3, R_P1ST3),
+      ("P1qv1-toggle-voice-heygen-comp-retire-de-quick", A_P1QV1, R_P1QV1),
+      ("P1tp1-filtre-des-templates", A_P1TP1, R_P1TP1),
+      ("P1tp2-etat-de-la-recherche-des-templates", A_P1TP2, R_P1TP2),
+      ("P1tp3-champ-search-branche-et-compteur", A_P1TP3, R_P1TP3),
+      ("P1tp4-la-grille-rend-la-liste-filtree", A_P1TP4, R_P1TP4)]
+assert len(P1) == 9 and R_P1FG1.startswith(A_P1FG1[:-len("];function bm(){")]) and R_P1FG1.endswith("];function bm(){")
+assert sum(a.count("onChange:()=>{}") for _t, a, _r in P1) == 8 and all("onChange:()=>{}" not in r for _t, _a, r in P1)
 
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
@@ -6663,7 +6750,7 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("EC13-suppr-referme-le-trou", A_EC13, R_EC13),
            ("EC14-clic-sur-un-clip-efface-le-trou", A_EC14, R_EC14)] + EC15 + L4 + L7A + L5 + L6 + R6 + R7 + R8 + P1
            # file P1 (28/09) : + groupe P1 EN QUEUE apres R8 (P1fg1, la rangee FIGMA_TOKEN des Reglages) ; 229 -> 230,
-           # le --check dit 231 ancres.
+           # le --check dit 231 ancres ; + P1st1..P1tp4 (tache #3, les huit controles inertes) : 238, le --check dit 239.
            # studio 27/09 : + HUIT sections EN QUEUE, groupe R8 apres R7 (format HeyGen impose par le template, « Ouvrir un graphe » en icone,
            # repli de l'inspecteur) ; 213 -> 221, le --check dit 222 ancres ; + R8sv1 (Save par le dialogue maison) : 222, le --check dit 223 ;
            # + R8pr1..R8pr7 (les autres window.prompt natifs, 27/09) : 229, le --check dit 230.
