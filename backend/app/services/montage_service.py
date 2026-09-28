@@ -3621,19 +3621,23 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     for c in v1:
         g = c["start"] - prev_end
         if g > 0.1:
-            # Revue T1 (27/09) : le +0,04 compense la coupe ENTRANTE dans le
-            # trou — un trou EN TÊTE n'en a pas (MESURÉ : 2,54 s au lieu de
-            # 2,5 et tous les plans suivants reculés d'une image).
-            segs.append({"gap": True,
-                         "dur": round(g + _tau_for(c) + (cut if segs else 0.0), 3)})
+            # P1 #7 (28/09) : le trou vaut SA durée timeline ; la coupe qui y
+            # entre (trou non initial) est une amorce de noir ajoutée à
+            # l'entrée lavfi, et le plan qui en sort reçoit sa propre amorce
+            # (voir « poignées » plus bas) — il ne compense plus la
+            # transition du plan suivant, qui ne se joue pas après un trou.
+            segs.append({"gap": True, "dur": round(g, 3)})
         segs.append(c)
         prev_end = c["end"]
 
     seg_durs, seg_idx, seg_stab = [], [], {}   # seg_stab : k → (trf, d_src)
+    seg_dsrc = {}                              # k → secondes de SOURCE lues (poignée de sortie)
     for s in segs:
         if s.get("gap"):
             if not audio_only:
-                inputs.extend(["-f", "lavfi", "-t", str(s["dur"]), "-i",
+                # l'amorce de la coupe entrante (trou non initial) est du noir
+                gin = round(s["dur"] + (cut if seg_durs else 0.0), 3)
+                inputs.extend(["-f", "lavfi", "-t", str(gin), "-i",
                                f"color=c=black:s={w}x{h}:r={fps}"])
             seg_durs.append(s["dur"])
         else:
@@ -3665,27 +3669,85 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
                 else:
                     inputs.extend(["-i", str(s["path"])])
                     seg_stab[len(seg_durs)] = (trf, d_src)
+            seg_dsrc[len(seg_durs)] = d_src
             seg_durs.append(d)
         if not audio_only:
             seg_idx.append(idx)
             idx += 1
-    # Retours 26/09 (A) : coupe franche plan → plan. Le xfade `cut` est un
-    # fondu de 0,04 s qui CHEVAUCHE les deux plans : sans compensation chaque
-    # coupe avançait le plan entrant de 0,04 s (cumulatif — MESURÉ 26/09 :
-    # 3 plans à 25 i/s rendaient 31 images sur 90). Le plan ENTRANT reçoit
-    # une amorce clonée de 0,04 s (sa 1re image), posée APRÈS ses effets et
-    # son masque (plus bas), et seg_durs[k] += 0,04 : l'offset du xfade
-    # tombe sur son `start`, `total` égale la timeline (rendu ET /measure).
-    # Trous et vraies transitions : inchangés (écarts datés 27/09 : un vrai
-    # fondu avance encore les plans suivants de tau ; un trou suivi d'un plan
-    # en coupe avale la première image du plan).
-    lead = {}
+    # P1 #7 (28/09/2026) — POIGNÉES DE PLAN. Chaque jonction k (segment k-1
+    # → k, placée à T_k = somme des durées timeline d'avant) est :
+    #   - un VRAI fondu, entre deux plans en contact dont le k porte une
+    #     transition : CENTRÉ sur T_k comme le voile du lecteur (dzmVeil),
+    #     durée τ ; le plan sortant déborde de τ/2 APRÈS sa sortie, l'entrant
+    #     de τ/2 AVANT son entrée — images de la SOURCE (vraies poignées,
+    #     décision de l'utilisateur) quand elle en a, image figée sinon ; ni
+    #     effets, ni masque, ni zoom, ni stabilisation sur ces poignées ;
+    #   - une COUPE (0,04 s, `_cut_tau`) sinon, trous compris : l'entrant
+    #     reçoit une amorce figée de 0,04 s (noir pour un trou).
+    # L'xfade k démarre à T_k − amorce(k) et dure amorce(k) + débord(k-1) :
+    # (au µs : au ms, 1 − 1/12 s arrondi à 0,917 finissait APRÈS le flux
+    # entrant — MESURÉ 28/09 à 12 i/s, 23 images sur 24, le défaut de `_cut_tau`)
+    # le contenu de chaque segment tombe sur son `start`, rien ne se cumule,
+    # `total` = somme des durées timeline (rendu ET /measure).
+    # MESURÉ 28/09 avant correctif (25 i/s, 9.0.1) : un fondu de 0,8 s
+    # avançait B et tout le reste de 0,8 s (rendu 5,2 s pour 6,0) ; après un
+    # trou, la 1re image du plan fondait dans le noir.
+    amorce = [0.0] * len(segs)          # τ/2 (vrai fondu) ou `cut`, en tête du segment k
+    debord = [0.0] * len(segs)          # τ/2 après la sortie du segment k
+    jonction = [None] * len(segs)       # k → (nom xfade, durée)
+    vrai = [False] * len(segs)          # la coupe est AUSSI un « fade » (0,04 s) : le nom ne suffit pas
+    try:                                # comme `_cut_tau` : une cadence illisible ne casse pas le graphe
+        _fpsf = float(fps) if float(fps) > 0 else 30.0
+    except (TypeError, ValueError):
+        _fpsf = 30.0
     for k in range(1, len(segs)):
-        if segs[k].get("gap") or segs[k - 1].get("gap"):
-            continue
-        if _XFADE.get(str(segs[k].get("transition") or "cut").split()[0].lower(),
-                      _XFADE["cut"]) == _XFADE["cut"]:
-            lead[k] = cut
+        s, p = segs[k], segs[k - 1]
+        nm, _fx0 = _XFADE.get(str(s.get("transition") or "cut").split()[0].lower(),
+                              _XFADE["cut"])
+        if not s.get("gap") and not p.get("gap") and (nm, _fx0) != _XFADE["cut"]:
+            tau = max(cut, min(_tau_for(s), seg_durs[k - 1], seg_durs[k]))
+            # En IMAGES ENTIÈRES (au moins une de chaque côté) : une moitié
+            # sous la demi-image a le défaut que `_cut_tau` corrige pour la
+            # coupe (MESURÉ 28/09 : fondu plancher à 12 i/s = 23 images / 24).
+            _ni = max(2, int(round(tau * _fpsf)))
+            amorce[k] = round((_ni // 2) / _fpsf, 6)
+            debord[k - 1] = round((_ni - _ni // 2) / _fpsf, 6)
+            tau = round(amorce[k] + debord[k - 1], 6)
+            jonction[k] = (nm, tau)
+            vrai[k] = True
+        else:
+            amorce[k] = cut
+            jonction[k] = (_XFADE["cut"][0], cut)
+    # Poignées RÉELLES : une entrée de plus par côté, lue dans la source
+    # (-ss/-t), à la vitesse du plan ; None = image figée (source trop courte).
+    poignee_av, poignee_ap = {}, {}
+    if not audio_only:
+        for k, s in enumerate(segs):
+            if s.get("gap"):
+                continue
+            spd_h = float(s.get("speed") or 0.0) or 1.0
+            sin_h = float(s.get("src_in") or 0.0)
+            if vrai[k]:
+                hs = amorce[k] * spd_h        # EXACT : les bornes s'arrondissent ci-dessous
+                if sin_h - hs >= -1e-6:
+                    # -ss au ms INFÉRIEUR, -t au ms SUPÉRIEUR : arrondi au plus
+                    # proche, -ss tombait juste APRÈS l'image cherchée (MESURÉ
+                    # 28/09 à 12 i/s : 1,917 > 23/12 — poignée VIDE, plan en
+                    # avance d'une image) ; le trim en aval fixe la durée.
+                    _ss = math.floor(max(0.0, sin_h - hs) * 1000) / 1000
+                    inputs.extend(["-ss", str(_ss), "-t", str(math.ceil(round(hs * 1000, 6)) / 1000),
+                                   "-i", str(s["path"])])
+                    poignee_av[k] = idx
+                    idx += 1
+            if debord[k]:
+                hs = debord[k] * spd_h
+                fin = sin_h + seg_dsrc.get(k, seg_durs[k])
+                if fin + hs <= float(s.get("src_dur") or 0.0) + 1e-6:
+                    inputs.extend(["-ss", str(math.floor(fin * 1000) / 1000),
+                                   "-t", str(math.ceil(round(hs * 1000, 6)) / 1000),
+                                   "-i", str(s["path"])])
+                    poignee_ap[k] = idx
+                    idx += 1
     if not audio_only:
         # Retours 26/09 (A) : `fps={fps}:start_time=0` — sans start_time, fps
         # part de la 1re image dont le pts dépasse 0 (résidu du -ss d'entrée) :
@@ -3775,42 +3837,69 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
             else:
                 parts.append(f"[{seg_idx[k]}:v]{chain}[n{k}]")
 
-    # Retours 26/09 (A) : amorce des coupes franches (voir `lead` plus haut) —
-    # la dernière pose qui sort [n{k}] (chaîne nue, effets ou overlay du
-    # masque) est renommée [n{k}l], puis tpad clone 0,04 s → [n{k}].
-    for k, ld in lead.items():
-        if not audio_only:
+    # P1 #7 : pose des poignées — la dernière pose qui sort [n{k}] (chaîne
+    # nue, effets ou overlay du masque) est renommée [n{k}c] ; les côtés
+    # figés passent par tpad (clone), les côtés RÉELS par concat avec leur
+    # entrée de source (même cadrage cover, même vitesse, sans effets). Un
+    # trou porte déjà son amorce de noir dans son entrée lavfi.
+    # `fps=` APRÈS concat : concat sort en base de temps 1/1000000 et xfade
+    # exige la même base que ses voisins (MESURÉ 28/09 : « timebase do not
+    # match », aucun paquet vidéo) ; les images sont déjà à la cadence.
+    # `setpts=N/fps/TB` AVANT : au raccord, la dernière image d'une poignée
+    # d'UNE image et la 1re du cœur tombaient sur des pts que `fps` confondait
+    # (MESURÉ 28/09 à 12 i/s : 12 images au lieu de 13, plan en avance d'une) —
+    # renumérotées, les images gardent chacune leur place.
+    if not audio_only:
+        _base = (f"scale={w}:{h}:force_original_aspect_ratio=increase,"
+                 f"crop={w}:{h},setsar=1,")
+        for k, s in enumerate(segs):
+            if s.get("gap") or not (amorce[k] or debord[k]):
+                continue
             for i in range(len(parts) - 1, -1, -1):
                 if parts[i].endswith(f"[n{k}]"):
-                    parts[i] = parts[i][:-len(f"[n{k}]")] + f"[n{k}l]"
+                    parts[i] = parts[i][:-len(f"[n{k}]")] + f"[n{k}c]"
                     break
-            parts.append(f"[n{k}l]tpad=start_mode=clone:start_duration={ld}[n{k}]")
-        seg_durs[k] = round(seg_durs[k] + ld, 3)
-    starts = [0.0] * len(segs)
-    if len(segs) == 1:
-        cur, total = "n0", seg_durs[0]
-    else:
-        cur, total = "n0", seg_durs[0]
-        for k in range(1, len(segs)):
-            s = segs[k]
-            if s.get("gap"):
-                name, tau = _XFADE["cut"]
+            spd_h = float(s.get("speed") or 0.0)
+            hpre = _base + (f"setpts=PTS/{sfx_service.fnum(spd_h)}," if spd_h else "") + \
+                f"fps={fps}:start_time=0,format=yuv420p"
+            tp = []
+            if amorce[k] and k not in poignee_av:
+                tp.append(f"start_mode=clone:start_duration={amorce[k]}")
+            if debord[k] and k not in poignee_ap:
+                tp.append(f"stop_mode=clone:stop_duration={debord[k]}")
+            coeur = f"n{k}c"
+            if tp:
+                parts.append(f"[{coeur}]tpad={':'.join(tp)}[n{k}t]")
+                coeur = f"n{k}t"
+            morceaux = []
+            if k in poignee_av:
+                parts.append(f"[{poignee_av[k]}:v]{hpre},tpad=stop_mode=clone:"
+                             f"stop_duration={amorce[k]},trim=0:{amorce[k]},"
+                             f"setpts=PTS-STARTPTS[ha{k}]")
+                morceaux.append(f"[ha{k}]")
+            morceaux.append(f"[{coeur}]")
+            if k in poignee_ap:
+                parts.append(f"[{poignee_ap[k]}:v]{hpre},tpad=stop_mode=clone:"
+                             f"stop_duration={debord[k]},trim=0:{debord[k]},"
+                             f"setpts=PTS-STARTPTS[hp{k}]")
+                morceaux.append(f"[hp{k}]")
+            if len(morceaux) > 1:
+                parts.append(f"{''.join(morceaux)}concat=n={len(morceaux)}:v=1:a=0,"
+                             f"setpts=N/{fps}/TB,fps={fps}[n{k}]")
             else:
-                name = _XFADE.get(str(s.get("transition") or "cut")
-                                  .split()[0].lower(), _XFADE["cut"])[0]
-                tau = _tau_for(s)
-            # Plancher = la coupe rendue : un chevauchement sous la
-            # demi-image a le même défaut d'offset que la coupe (`_cut_tau`)
-            # — c'est lui qui porte aussi la coupe d'un trou à `cut`.
-            tau = max(cut, min(tau, max(0.1, seg_durs[k] - 0.1),
-                               max(0.1, total - 0.1)))
-            offset = max(0.0, round(total - tau, 3))
-            starts[k] = offset
-            if not audio_only:
-                parts.append(f"[{cur}][n{k}]xfade=transition={name}:"
-                             f"duration={round(tau, 3)}:offset={offset}[x{k}]")
-            cur = f"x{k}"
-            total = round(total + seg_durs[k] - tau, 3)
+                parts[-1] = parts[-1][:-len(f"[{coeur}]")] + f"[n{k}]" if tp else parts[-1]
+    cur, total = "n0", seg_durs[0]
+    T = 0.0
+    for k in range(1, len(segs)):
+        T = round(T + seg_durs[k - 1], 3)
+        name, tau = jonction[k]
+        offset = max(0.0, round(T - amorce[k], 6))
+        duree = round(amorce[k] + debord[k - 1], 6)
+        if not audio_only:
+            parts.append(f"[{cur}][n{k}]xfade=transition={name}:"
+                         f"duration={duree}:offset={offset}[x{k}]")
+        cur = f"x{k}"
+        total = round(T + seg_durs[k], 3)
 
     # --- audio : voix/sfx posées à leur position, musique bouclée + ducking ---
     voice_lbl, sfx_lbl = [], []
