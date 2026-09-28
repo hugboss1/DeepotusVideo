@@ -129,9 +129,11 @@ _TAGS = [t for t, _a, _r in R7]
 check("r7_six_sections_nommees",
       [t.split("-")[0] for t in _TAGS] == ["R7up1", "R7vm1", "R7vm2", "R7vm3", "R7er1", "R7er2"], _TAGS)
 _R6 = list(getattr(P, "R6", []))
+# les queues APRES R7 (R8 le 27/09, P1 le 28/09) sont retirees avant de lire la fin de PATCHES
+_PT8 = P.PATCHES[:len(P.PATCHES) - len(getattr(P, 'R8', [])) - len(getattr(P, 'P1', []))]
 check("r7_en_queue_de_PATCHES_juste_apres_R6",
-      len(R7) == 6 and len(_R6) == 7 and P.PATCHES[:len(P.PATCHES) - len(getattr(P, 'R8', []))][-6:] == R7 and P.PATCHES[:len(P.PATCHES) - len(getattr(P, 'R8', []))][-7] == _R6[-1],
-      [t[0] for t in P.PATCHES[:len(P.PATCHES) - len(getattr(P, 'R8', []))][-6:]])
+      len(R7) == 6 and len(_R6) == 7 and _PT8[-6:] == R7 and _PT8[-7] == _R6[-1],
+      [t[0] for t in _PT8[-6:]])
 
 # Les ancres, ECRITES ICI (pas relues du patcher) : une ancre deplacee dans le
 # patcher rougit ce banc au lieu de se valider elle-meme.

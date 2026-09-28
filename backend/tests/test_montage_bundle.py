@@ -15268,8 +15268,11 @@ _R7Q = list(getattr(P, "R7", []))
 # l'inspecteur) vient APRES R7 -- _PQ la retire aussi ; les lectures depuis la fin deduisent len(_R8Q) ; R8 est
 # epinglee a part (test_studio_r8) ; len(P.PATCHES) 213 -> 221 (le --check dit 222 ancres) ; + R8sv1 (Save par le
 # dialogue maison, 27/09) : 222, le --check dit 223.
-_R8Q = list(getattr(P, "R8", []))
-_PT8 = P.PATCHES[:len(P.PATCHES) - len(_R8Q)]
+# file P1 (28/09/2026) : le groupe P1 (P1fg1, la rangee FIGMA_TOKEN des Reglages) vient APRES R8 ; il est compte
+# dans _R8Q (« tout ce qui suit R7 ») pour que les lectures depuis la fin restent justes ; epingle a part
+# (test_p1_figma_token) ; len(P.PATCHES) 229 -> 230 (le --check dit 231 ancres).
+_R8Q = list(getattr(P, "R8", [])) + list(getattr(P, "P1", []))
+_PT8 =P.PATCHES[:len(P.PATCHES) - len(_R8Q)]
 _PQ = P.PATCHES[:len(P.PATCHES) - len(getattr(P, "L5", [])) - len(_L6Q) - len(_R6Q) - len(_R7Q) - len(_R8Q)]
 _DZ_I = _DZ_TAGS.index("EA6-bandeau-ferme-au-lancement")
 # D-9 (tache 9) : QUATRE sections AJ2a, AJ2b, AJ6a, AJ6b APRES KF5, sonde 114
@@ -15373,7 +15376,9 @@ check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB8b_puis_
                                                           # studio 27/09/2026 : HUIT sections R8 en queue (format HeyGen impose, « Ouvrir un graphe » en icone,
                                                           # repli de l'inspecteur) ; aucun DzTracks, sonde inchangee
                                                           "R8ic1", "R8st1", "R8in1", "R8in2", "R8in3", "R8in4", "R8og1", "R8hg1", "R8sv1",
-                                                          "R8pr1", "R8pr2", "R8pr3", "R8pr4", "R8pr5", "R8pr6", "R8pr7"]
+                                                          "R8pr1", "R8pr2", "R8pr3", "R8pr4", "R8pr5", "R8pr6", "R8pr7",
+                                                          # file P1 (28/09/2026) : la rangee FIGMA_TOKEN des Reglages ; aucun DzTracks
+                                                          "P1fg1"]
       # L7-B D-37 et D-42 (24/09/2026) : AUCUNE section de plus (replis dans R_EC1) ; D-42 : sonde 159 -> 161
       # (cutAt + cutOpts dans le geste dzSceneCut) ; L7-B D-40 (T4) : AUCUNE section de plus (replis dans
       # R_DZ1/R_DZ3/R_DZ4), sonde 161 -> 163 (reframeCss dans l apercu vivant, reframeOf dans le payload)
