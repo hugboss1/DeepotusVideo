@@ -6697,6 +6697,90 @@ P1 += [("P1es1-barre-episodes-avant-navmotion", A_P1ES1, R_P1ES1),
        ("P1es3-barre-posee-sous-l-en-tete", A_P1ES3, R_P1ES3)]
 assert len(P1) == 20
 
+# P1gc1..P1gc9 (tache #9, 28/09/2026) -- LA GARDE DE COUT VIDEO COTE CLIENT. Mesures (bundle livre a 399c118) : le Studio
+# n'envoyait JAMAIS `max_usd` (POST /generate, rendus de layout) ; le « ≈ $ » du graphe (DzStudioEst) chiffrait la duree
+# BRUTE du noeud (15 s affichees, 10 facturees ; Veo 5 s affichees, 6 facturees) et HeyGen a 1 minute forfaitaire ; la
+# vignette du noeud (dzVmCost) lisait une table figee (dzVmRates) bornee a 10 s EN DUR, sans le bornage natif ni
+# `video_max_gen_s` ni les tarifs de pricing.json ; l'ecran Tarifs ne reglait aucun des deux plafonds. Decisions
+# (validees par l'utilisateur le 28/09) : le Studio envoie en `max_usd` le « ≈ $ » AFFICHE, calcule comme la garde
+# (op `video` du serveur, script HeyGen compte) ; une estimation perimee ou absente refuse le lancement (sauf Preview) ;
+# la vignette est le miroir de la garde, sur le catalogue de GET /video-models (+ max_gen_s) ; deux champs dans Tarifs.
+# `max_usd` voyage par dzRunWith / dzRunMaxTake (UN coup, remis a zero apres le run) -- le motif de __dzfxPreview :
+# renderLayoutTemplate sert aussi d'autres ecrans, qui n'envoient toujours rien. Banc : test_p1_garde_cout_video.
+A_P1GC1 = 'function DzVideoModelSel({value,onChange}){'
+R_P1GC1 = (
+    'var dzVmCatV=null,dzVmCatAb=[],dzVmCatEnCours=!1;'
+    'function dzVmCatLoad(){if(dzVmCatEnCours)return;dzVmCatEnCours=!0;'
+    'fetch("/api/video-models").then(function(R){return R.ok?R.json():null}).then(function(d){dzVmCatEnCours=!1;'
+    'if(d&&Array.isArray(d.models)){dzVmCatV=d;dzVmCatAb.slice().forEach(function(f){try{f(d)}catch(_e){}})}})'
+    '.catch(function(){dzVmCatEnCours=!1})}'
+    'function dzVmGen(durs,req,cap){var a=(Array.isArray(durs)?durs:[]).map(Number).filter(function(v){return isFinite(v)});'
+    'if(!a.length)return null;var q=Math.max(3,Math.trunc(Number(req))),d;'
+    'if(!isFinite(q))return null;'
+    'if(a.indexOf(q)>=0)d=q;else{var b=a.filter(function(v){return v>q});d=b.length?Math.min.apply(null,b):Math.max.apply(null,a)}'
+    'var c=Number(cap);if(isFinite(c)&&c){c=Math.trunc(c);if(d>c){var u=a.filter(function(v){return v<=c});'
+    'd=u.length?Math.max.apply(null,u):Math.min.apply(null,a)}}return d}'
+    'function dzVmRate(rr,res){if(!rr||typeof rr!=="object")return null;var ks=Object.keys(rr);if(!ks.length)return null;'
+    'var v=rr[res];if(v==null)v=rr["*"];if(v==null)v=Math.max.apply(null,ks.map(function(k){return Number(rr[k])}));'
+    'v=Number(v);return isFinite(v)?v:null}'
+    'function dzVmCostOf(e,cat){if(!cat||!Array.isArray(cat.models))return null;var p2=e&&e.props||{},'
+    'mid=String(p2.model||"").trim()||String(cat.default||""),m=cat.models.filter(function(k){return k&&k.id===mid})[0];'
+    'if(!m)return null;var g=dzVmGen(m.durations,Number(p2.durationS)||10,cat.max_gen_s),t=dzVmRate(m.usd_per_s,"1080p");if(t==null&&cat.legacy_usd_per_s!=null&&isFinite(Number(cat.legacy_usd_per_s)))t=Number(cat.legacy_usd_per_s);'
+    'if(g==null||t==null)return null;return"$"+(Math.round(g*t*1e4)/1e4).toFixed(2)}'
+    'function DzVmCostTag({node}){var s=x.useState(dzVmCatV),c=s[0],setC=s[1];'
+    'x.useEffect(function(){var f=function(d){setC(d)};dzVmCatAb.push(f);dzVmCatLoad();'
+    'return function(){var i=dzVmCatAb.indexOf(f);if(i>=0)dzVmCatAb.splice(i,1)}},[]);'
+    'return (c?dzVmCostOf(node,c):null)||dzVmCost(node)}'
+    'function dzStudioOps(g){var ops=[],ns=g&&Array.isArray(g.nodes)?g.nodes:[];ns.forEach(function(n){var T=n&&n.type,pp=n&&n.props||{};'
+    'if(T==="Image"||T==="NewsIllustration")ops.push({kind:"image"});'
+    'else if(T==="Seedance")ops.push({kind:"video",duration_s:Number(pp.durationS)||10,model:pp.model||void 0});'
+    'else if(T==="HeyGenAvatar"){var sc=null;try{sc=typeof Wt==="function"?Wt(g,n.id,"script"):null}catch(_e){}'
+    'var tx=String(sc&&sc.props&&sc.props.value||"From the deep, the prophecy ascends.").trim();ops.push({kind:"heygen",chars:tx.length})}'
+    'else if(T==="AvatarMaster")ops.push({kind:"heygen",minutes:1})});return ops}'
+    'var dzStudioVu={sig:"",total:null};'
+    'function dzStudioVuSet(sig,t){dzStudioVu={sig:String(sig),total:typeof t==="number"&&isFinite(t)&&t>=0?t:null}}'
+    'function dzStudioMaxFor(g){var sg=JSON.stringify(dzStudioOps(g));return dzStudioVu.sig===sg&&dzStudioVu.total!=null?dzStudioVu.total:null}'
+    'var dzRunMaxV;function dzRunMaxTake(){var v=dzRunMaxV;dzRunMaxV=void 0;return v}'
+    'async function dzRunWith(mx,fn){dzRunMaxV=mx==null?void 0:mx;try{return await fn()}finally{dzRunMaxV=void 0}}'
+    + A_P1GC1)
+A_P1GC2 = 'function Qh(e){return e.type==="Seedance"?dzVmCost(e):'
+R_P1GC2 = 'function Qh(e){return e.type==="Seedance"?r.jsx(DzVmCostTag,{node:e}):'
+A_P1GC3 = ('const sig=nodes.map(n=>n.type+":"+((n.props&&n.props.durationS)||"")+":"+((n.props&&n.props.model)||"")).join(",");'
+           'x.useEffect(()=>{let on=!0;const ops=[];nodes.forEach(n=>{const T=n.type;if(T==="Image"||T==="NewsIllustration")'
+           'ops.push({kind:"image"});else if(T==="Seedance")ops.push({kind:"seedance",duration_s:Number(n.props&&n.props.durationS)'
+           '||10,model:(n.props&&n.props.model)||void 0});else if(T==="HeyGenAvatar"||T==="AvatarMaster")ops.push({kind:"heygen",'
+           'minutes:1})});if(!ops.length){setE({total_usd:0});return()=>{on=!1}}')
+R_P1GC3 = ('const ops0=dzStudioOps(graph),sig=JSON.stringify(ops0);'
+           'x.useEffect(()=>{let on=!0;const ops=ops0;if(!ops.length){setE({total_usd:0});dzStudioVuSet(sig,0);return()=>{on=!1}}')
+A_P1GC4 = ('body:JSON.stringify({kind:"campaign",ops})}).then(R=>R.ok?R.json():null).then(d=>{if(on&&d)setE(d)})'
+           '.catch(()=>{})},250);return()=>{on=!1;clearTimeout(id)}},[sig]);')
+R_P1GC4 = ('body:JSON.stringify({kind:"campaign",ops})}).then(R=>R.ok?R.json():null).then(d=>{if(on&&d){setE(d);'
+           'dzStudioVuSet(sig,d.total_usd)}}).catch(()=>{})},250);return()=>{on=!1;clearTimeout(id)}},[sig]);')
+A_P1GC5 = 'if(!R.ok){p(R.error);return}const W=o.nodes.find(L=>L.type==="Render");y(!0),k(null);'
+R_P1GC5 = ('if(!R.ok){p(R.error);return}var dzMx=dzStudioMaxFor(o);if(dzMx===null&&!window.__dzfxPreview){'
+           'p("Estimation du coût en cours — relancez dans un instant (le ≈ $ affiché part comme plafond de dépense).");return}'
+           'const W=o.nodes.find(L=>L.type==="Render");y(!0),k(null);')
+A_P1GC6 = 'J=await R.run();'
+R_P1GC6 = 'J=await dzRunWith(dzMx,R.run);'
+A_P1GC7 = 'voiceover_enabled:!1,voiceover:dzGraphVoiceover(e)||void 0,source_graph:e})'
+R_P1GC7 = 'voiceover_enabled:!1,voiceover:dzGraphVoiceover(e)||void 0,source_graph:e,max_usd:dzRunMaxTake()})'
+A_P1GC8 = 'source_graph:g||null,voiceover:dzGraphVoiceover(g)||null,preview:_pv})'
+R_P1GC8 = 'source_graph:g||null,voiceover:dzGraphVoiceover(g)||null,preview:_pv,max_usd:dzRunMaxTake()??null})'
+A_P1GC9 = '{k:"monthly_budget_usd",l:"Monthly budget cap",u:"$ — 0 = none",step:"1"}];'
+R_P1GC9 = ('{k:"monthly_budget_usd",l:"Monthly budget cap",u:"$ — 0 = none",step:"1"},'
+           '{k:"video_max_usd_per_request",l:"Plafond vidéo par requête",u:"$ — 0 = aucun",step:"0.5"},'
+           '{k:"video_max_gen_s",l:"Secondes générées max par clip",u:"s — 0 = durée native",step:"1"}];')
+P1 += [("P1gc1-catalogue-video-et-miroirs-de-la-garde", A_P1GC1, R_P1GC1),
+       ("P1gc2-vignette-du-noeud-abonnee-au-catalogue", A_P1GC2, R_P1GC2),
+       ("P1gc3-estimation-du-graphe-comme-la-garde", A_P1GC3, R_P1GC3),
+       ("P1gc4-estimation-affichee-memorisee", A_P1GC4, R_P1GC4),
+       ("P1gc5-run-refuse-sans-estimation-a-jour", A_P1GC5, R_P1GC5),
+       ("P1gc6-run-porte-le-plafond", A_P1GC6, R_P1GC6),
+       ("P1gc7-generate-envoie-max-usd", A_P1GC7, R_P1GC7),
+       ("P1gc8-rendu-de-layout-envoie-max-usd", A_P1GC8, R_P1GC8),
+       ("P1gc9-tarifs-reglent-les-deux-plafonds", A_P1GC9, R_P1GC9)]
+assert len(P1) == 29 and R_P1GC1.endswith(A_P1GC1) and R_P1GC9.startswith(A_P1GC9[:-2])
+
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
@@ -6953,6 +7037,7 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            # + P1rg1, P1rg2 (tache #4, regions des templates transparentes) : 240, le --check dit 241 ;
            # + P1ep1..P1ep6 (tache #6 lot A, scenes Seedance des episodes) : 246, le --check dit 247 ;
            # + P1es1..P1es3 (t132, episodes enregistres) : 249, le --check dit 250.
+           # + P1gc1..P1gc9 (tache #9, garde de cout video cote client) : 258, le --check dit 259.
            # studio 27/09 : + HUIT sections EN QUEUE, groupe R8 apres R7 (format HeyGen impose par le template, « Ouvrir un graphe » en icone,
            # repli de l'inspecteur) ; 213 -> 221, le --check dit 222 ancres ; + R8sv1 (Save par le dialogue maison) : 222, le --check dit 223 ;
            # + R8pr1..R8pr7 (les autres window.prompt natifs, 27/09) : 229, le --check dit 230.
