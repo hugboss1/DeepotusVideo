@@ -317,7 +317,8 @@ r = c.get("/api/montage/deliver-presets"); d = J(r)
 check("maison_get_sur_base_vide_rend_builtins_fps_et_presets_vides",
       r.status_code == 200 and d.get("presets") == [] and d.get("fps") == [24, 25, 30, 60]
       and isinstance(d.get("builtins"), list) and len(d["builtins"]) == len(D or {})
-      and all(set(b) == {"id", "label"} for b in d["builtins"])
+      and all(set(b) == {"id", "label", "fps", "gif"} for b in d["builtins"])   # P1 #8 : + fps, gif
+      and all(b["fps"] == D[b["id"]]["fps"] and b["gif"] is bool(D[b["id"]].get("gif")) for b in d["builtins"])
       and [b["id"] for b in d["builtins"]] == list(D or {})
       and not _PF.exists(), (r.status_code, str(d)[:200]))
 _M = [{"id": "maison_a", "label": "Mon 4K 60", "base": "web_4k", "fps": 60, "crf": 16},

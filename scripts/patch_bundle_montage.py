@@ -1223,7 +1223,10 @@ R_M16REF = (A_M16REF + "\n"
             '  var stDzDel=x.useState(function(){try{var v=JSON.parse(localStorage.getItem("dz_montage_deliver")||"null");if(!v||typeof v!=="object")return {};delete v.rangeOnly;return v}catch(_e){return {}}}),dzDel=stDzDel[0],setDzDel=stDzDel[1];\n'
             '  var dzDelRef=x.useRef(null);dzDelRef.current=dzDel;\n'
             '  var stDzApi=x.useState(null),dzApi=stDzApi[0],setDzApi=stDzApi[1];\n'
-            '  x.useEffect(function(){if(pop!=="render")return;var alive=!0;\n'
+            # P1 #8 (28/09/2026) : + `&&dzApi` -- la liste est chargee aussi au MONTAGE de l'hote tant qu'elle manque (MESURE
+            # le 28/09 sur 8799 : preset GIF memorise, la cadence de l'image etalonnee et des scopes restait 30 jusqu'a la
+            # premiere ouverture du popover de rendu) ; relue a chaque ouverture du popover comme avant.
+            '  x.useEffect(function(){if(pop!=="render"&&dzApi)return;var alive=!0;\n'
             '    fetch("/api/montage/deliver-presets").then(function(r2){return r2.json()}).then(function(j){if(alive&&dzAliveRef.current&&j&&typeof j==="object")setDzApi(j)}).catch(function(){});\n'
             '    return function(){alive=!1}},[pop]);\n'
             '  function dzDelSet(p){setDzDel(function(d){var n=Object.assign({},d,p);try{localStorage.setItem("dz_montage_deliver",JSON.stringify(Object.assign({},n,{rangeOnly:void 0})))}catch(_e){}return n})}\n'
@@ -5867,9 +5870,11 @@ assert R_EB4.count("title:") == 1 and R_EA5D.count('"Rendre →"') == 1 and R_EA
 A_L5SC1 = '            onClick:svmFullscreen,children:"plein écran ("+svmKeyLabel("fullscreen")+")"})]})]}),'
 R_L5SC1 = ('            onClick:svmFullscreen,children:"plein écran ("+svmKeyLabel("fullscreen")+")"}),\n'
            '          /* L5 D-31 : la puce des scopes du plan V1 sous la tête (bascule mémorisée, encart dans le cadre) */\n'
-           '          r.jsx(DzTracks.Scopes,{clips:clips,head:ph,playing:playing,ratio:proj.ratio})]})]}),')
+           '          r.jsx(DzTracks.Scopes,{clips:clips,head:ph,playing:playing,ratio:proj.ratio,dlv:dzDel,dapi:dzApi})]})]}),')
+# P1 #8 (28/09/2026) : REPLIE ICI -- la puce recoit aussi `dzDel` / `dzApi` (cadence du rendu final, dzmGlFps), comme
+# l'image etalonnee (R6gl1) ; le corps de /scopes porte desormais le cadre COMPLET (vitesse, stabilisation, J1).
 L5 = [("L5sc1-scopes-sous-la-barre-du-lecteur", A_L5SC1, R_L5SC1)]
-assert R_L5SC1.count("DzTracks.") == 1 and R_L5SC1.endswith("playing:playing,ratio:proj.ratio})]})]}),") and A_L5SC1.count("]})]}),") == 1
+assert R_L5SC1.count("DzTracks.") == 1 and R_L5SC1.endswith("playing:playing,ratio:proj.ratio,dlv:dzDel,dapi:dzApi})]})]}),") and A_L5SC1.count("]})]}),") == 1
 assert R_R1.count('combo:"Ctrl+Alt+C"') == 1 and R_R1.count('combo:"Ctrl+Alt+V"') == 1 and R_R1.find('id:"paste"') < R_R1.find('id:"grade_copy"') < R_R1.find('id:"grade_paste"')
 assert R_R2.count('if(id==="grade_copy"){dzGradeCopy(selRef.current);return}') == 1 and R_R2.count('if(id==="grade_paste"){dzGradePaste(selRef.current);return}') == 1
 assert R_EC1.count("function dzGradeCopy(id){") == 1 and R_EC1.count("function dzGradePaste(id){") == 1 and R_EC1.count("pushHistory();setClips(clipsRef.current.map(function(k){return k.id===c.id?q.clip:k}))") == 1
@@ -6106,8 +6111,11 @@ assert R_L6NL1.startswith("          onAudition:sfxAudition},sel.id),\n") and R_
 # rendu). UNE reference a la couche (sonde 177 -> 178).
 A_R6GL1 = 'liveOn?r.jsx("div",{className:"svm-liveov",ref:liveOvRef,'
 R_R6GL1 = ('/* retours L6 (26/09) : l\'image etalonnee du plan V1 sous la tete, a l\'arret -- sous les overlays V2 */\n'
-           '          liveOn?r.jsx(DzTracks.GradeLive,{clips:clips,head:ph,playing:playing,vzoom:vzoom,ratio:proj.ratio}):null,\n'
+           '          liveOn?r.jsx(DzTracks.GradeLive,{clips:clips,head:ph,playing:playing,vzoom:vzoom,ratio:proj.ratio,dlv:dzDel,dapi:dzApi}):null,\n'
            '          ' + A_R6GL1)
+# P1 #8 (28/09/2026) : REPLIE ICI (les props sont dans CE remplacement) -- la couche recoit aussi les reglages de
+# livraison de l'hote (`dzDel`, `dzApi`, declares dans DzMontage par L4a, MESURES dans la meme fonction que ce montage) :
+# la cadence du retime est celle du rendu final (dzmGlFps). Aucune reference DzTracks de plus (sonde inchangee).
 R6 = [("R6gl1-image-etalonnee-dans-le-lecteur-a-l-arret", A_R6GL1, R_R6GL1)]
 assert R_R6GL1.endswith(A_R6GL1) and R_R6GL1.count("DzTracks") == 1 and R_R6GL1.count(A_R6GL1) == 1
 

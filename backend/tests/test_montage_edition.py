@@ -5148,13 +5148,13 @@ check("r6_B0_largeur_par_paliers_de_160_meme_palier_rien_palier_franchi_une_requ
 check("r6_B0_retime_seul_anti_rebond_250_une_requete_reponse_sans_en_tete_pastille_vitesse_etat_vide_rien",
       _R8.get("rt") == [[250], 1, ["vitesse"]] and _R8.get("vide") == [0, 0, []], [_R8.get("rt"), _R8.get("vide")])
 _GLC = _corps("DzmGradeLive")
-_GLP = {n: _corps(n) for n in ("dzmGlRatio", "dzmGlW", "dzmGlBody", "dzmGlAdjust", "dzmGlBadge")}  # retours 26/09 (T3) : + J1 et pastille
+_GLP = {n: _corps(n) for n in ("dzmGlRatio", "dzmGlW", "dzmGlBody", "dzmGlAdjust", "dzmGlBadge", "dzmGlFps", "dzmGlFpsOk", "dzmGlNeufs")}  # P1 #8 : + cadence, cadre complet  # retours 26/09 (T3) : + J1 et pastille
 check("r6_aides_pures_sans_r_ni_x_ni_api_navigateur_composant_une_route_un_etat_aucun_bouton_place_apres_MaskBox_avant_NoiseLearn",
       all(len(c) > 40 for c in _GLP.values())
       and not any(re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|\bnavigator\b|fetch\(|setClips|pushHistory|URL\.", c)
                   for c in _GLP.values())
       and len(_GLC) > 800 and _GLC.count('dzmGpFetch("/api/montage/grade-frame",') == 1 and _GLC.count("x.useState(") == 2  # retours 26/09 (T3) : 1 -> 2 (le palier de largeur mesure)
-      and _GLC.count('"X-Dz-Grade-Note"') == 1 and _GLC.count("dzmTbVeille(") == 1 and _GLC.count("dzmGlBody(c,o.head,o.ratio,o.clips)") == 1
+      and _GLC.count('"X-Dz-Grade-Note"') == 1 and _GLC.count("dzmTbVeille(") == 1 and _GLC.count("dzmGlBody(c,o.head,o.ratio,o.clips,dzmGlFps(o.dlv,o.dapi))") == 1  # P1 #8 : la cadence du rendu final
       and _DT.count("glAdjust:dzmGlAdjust,glBadge:dzmGlBadge,") == 1
       and _GLC.count('"button"') == 0 and _GLC.count("URL.revokeObjectURL(") >= 1 and _GLC.count("AbortController") >= 1
       and _GLC.count("devicePixelRatio") == 1 and _GLC.count("dzmScopesAt(") == 1
@@ -5424,14 +5424,14 @@ check("r6s_C_demontage_ecouteur_fullscreenchange_ote_allumee_deja_en_plein_ecran
       _R9.get("fs_demonte") == [1, 1, 0] and _R9.get("fs_deja") == ["plein", _FS_C, '{"x":1000,"y":100,"s":320}'],
       [_R9.get("fs_demonte"), _R9.get("fs_deja")])
 _SWP = {n: _corps(n) for n in ("dzmGlCadre", "dzmScwSize", "dzmScwBody", "dzmScwFit", "dzmScwDef", "dzmScwInit", "dzmScwGeste",
-                               "dzmScwGet", "dzmScwSet", "dzmScwFin", "dzmScwCible", "dzmScwVeilleFs")}  # retours 26/09 (T3) : + C
+                               "dzmScwGet", "dzmScwSet", "dzmScwFin", "dzmScwCible", "dzmScwVeilleFs", "dzmScwFsEl")}  # P1 #8 : + plein ecran prefixe  # retours 26/09 (T3) : + C
 _SWC = _corps("DzmScopes")
 check("r6s_aides_pures_sans_r_ni_x_ni_reseau_ni_dom_composant_geste_par_dzmGpDrag_sans_capture_exports",
       all(len(c) > 40 for c in _SWP.values())
       and not any(re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|\bnavigator\b|fetch\(|setClips|pushHistory|URL\.", c)
                   for c in _SWP.values())
-      and _SWP["dzmScwBody"].count("dzmScopesBody(") == 1 and _SWP["dzmScwBody"].count("dzmGlCadre(") == 1
-      and _corps("dzmGlBody").count("var cadre=dzmGlCadre(c,head,ratio),") == 1  # retours 26/09 (T3) : ";" -> "," (s0 et tg suivent)
+      and _SWP["dzmScwBody"].count("dzmScopesBody(") == 1 and _SWP["dzmScwBody"].count("dzmGlNeufs(") == 1 and _SWP["dzmScwBody"].count("dzmGlCadre(") == 0  # P1 #8 : le cadre COMPLET
+      and _corps("dzmGlNeufs").count("var cadre=dzmGlCadre(c,head,ratio),") == 1 and _corps("dzmGlBody").count("dzmGlNeufs(c,head,ratio,clips,fps)") == 1  # P1 #8 : extrait dans dzmGlNeufs  # retours 26/09 (T3) : ";" -> "," (s0 et tg suivent)
       and _SWC.count("dzmGpDrag(e,") == 1 and _SWC.count("setPointerCapture") == 0 and _SWC.count("dzmScwBody(") == 1
       and _SWC.count("dzmTbVeille(") == 1 and _SWC.count("},[on,hote]);") == 1 and _SWC.count("x.useState(") == 5
       and _SWC.count("dzmScwVeilleFs(") == 1 and _SWC.count("cibleR.current") >= 5 and _SWC.count("x.useRef(null)") >= 3

@@ -167,7 +167,7 @@ check("x2_couche_source_import_et_route_portent_la_meme_liste_24_25_30_60",
       (FPS_JS, FPS_SRC, list(FPS), isinstance(ROUTE, dict) and ROUTE.get("fps")))
 # la couche construit ses options depuis SA liste, et ne lit pas `api.fps`
 check("x2_la_couche_rend_ses_options_depuis_DZM_DEL_FPS_x1_map_x1_indexOf_et_ne_lit_jamais_api_fps_ecart_date",
-      nF == 1 and JS.count("DZM_DEL_FPS.map(") == 1 and JS.count("DZM_DEL_FPS.indexOf(f)>=0") == 1 and JS.count("DZM_DEL_FPS") == 5
+      nF == 1 and JS.count("DZM_DEL_FPS.map(") == 1 and JS.count("DZM_DEL_FPS.indexOf(f)>=0") == 1 and JS.count("DZM_DEL_FPS") == 8  # P1 #8 : + 3 (dzmGlFps : docstring, cadence choisie, cadence maison)
       and JS.count("api.builtins") == 1 and JS.count("api.fps") == 0 and BUN.count("api.fps") == 0 and BUN.count("DZM_DEL_FPS.map(") == 1,
       (JS.count("DZM_DEL_FPS.map("), JS.count("DZM_DEL_FPS.indexOf(f)>=0"), JS.count("DZM_DEL_FPS"), JS.count("api.fps")))
 # comportement : chaque cadence de la couche est prise par _deliver_resolve, 48 ignoree

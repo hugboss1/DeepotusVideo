@@ -17138,7 +17138,7 @@ check("L4_sept_sections_consecutives_apres_EC15k_puis_L7A",
 _L4_ST = '  var stDzDel=x.useState(function(){try{var v=JSON.parse(localStorage.getItem("dz_montage_deliver")||"null");if(!v||typeof v!=="object")return {};delete v.rangeOnly;return v}catch(_e){return {}}}),dzDel=stDzDel[0],setDzDel=stDzDel[1];'
 _L4_REF = "  var dzDelRef=x.useRef(null);dzDelRef.current=dzDel;"
 _L4_API = "  var stDzApi=x.useState(null),dzApi=stDzApi[0],setDzApi=stDzApi[1];"
-_L4_EFF = ('  x.useEffect(function(){if(pop!=="render")return;var alive=!0;\n'
+_L4_EFF = ('  x.useEffect(function(){if(pop!=="render"&&dzApi)return;var alive=!0;\n'  # P1 #8 : charge aussi au montage
            '    fetch("/api/montage/deliver-presets").then(function(r2){return r2.json()}).then(function(j){if(alive&&dzAliveRef.current&&j&&typeof j==="object")setDzApi(j)}).catch(function(){});\n'
            '    return function(){alive=!1}},[pop]);')
 _L4_SET = '  function dzDelSet(p){setDzDel(function(d){var n=Object.assign({},d,p);try{localStorage.setItem("dz_montage_deliver",JSON.stringify(Object.assign({},n,{rangeOnly:void 0})))}catch(_e){}return n})}'
@@ -18903,7 +18903,7 @@ check("L5gp_panneau_monte_une_fois_dans_R_DZ1_meme_garde_que_PlanProps_apres_ovI
       # `playing` lu est CELUI de DzMontage (declare entre sa tete et le montage du panneau, meme etat que les scopes)
       and 0 < s.find("function DzMontage(props){") < s.find("var st4=x.useState(!1),playing=st4[0],setPlaying=st4[1];") < s.find(_GP_HOTE)
       # retours L6 (26/09/2026, tache 5) : + ratio:proj.ratio (le cadre du corps de /scopes) -- pin realigne
-      and s.count("r.jsx(DzTracks.Scopes,{clips:clips,head:ph,playing:playing,ratio:proj.ratio})") == 1
+      and s.count("r.jsx(DzTracks.Scopes,{clips:clips,head:ph,playing:playing,ratio:proj.ratio,dlv:dzDel,dapi:dzApi})") == 1  # P1 #8 : + dlv / dapi (cadence du rendu final)
       and (_bak.count("GradePanel") == 0 and _bak.count(_GP_GARDE) == 0 if _bak else False),
       (s.count(_GP_HOTE), s.count(_GP_GARDE), P.R_DZ1.count(_GP_GARDE)))
 check("L5gp_contour_du_masque_dans_R_DZ2_sous_les_rectangles_du_zoom_bak_x0",
@@ -18967,11 +18967,11 @@ check("L5sc1_section_unique_en_queue_ancre_libre_1_0_1_scopes_derniers_enfants_d
       and P.L5[0][0] == "L5sc1-scopes-sous-la-barre-du-lecteur"
       and P.A_L5SC1 == _L5SC_A and s.count(nl(_L5SC_A)) == 0 and s.count(nl(P.R_L5SC1)) == 1
       # retours L6 (26/09/2026, tache 5) : + ratio:proj.ratio (le cadre du corps de /scopes, contrat T3) -- pins realignes
-      and s.count("r.jsx(DzTracks.Scopes,{clips:clips,head:ph,playing:playing,ratio:proj.ratio})") == 1
+      and s.count("r.jsx(DzTracks.Scopes,{clips:clips,head:ph,playing:playing,ratio:proj.ratio,dlv:dzDel,dapi:dzApi})") == 1  # P1 #8 : + dlv / dapi (cadence du rendu final)
       and 0 < s.find('className:"svm-playerbar"') < s.find("r.jsx(DzTracks.Scopes,") < s.find('inspOn?r.jsxs("aside",{className:"svm-insp"')
       # correctif preuve ecran (24/09) : la puce est le DERNIER enfant de la BARRE du lecteur (apres « plein ecran »),
       # plus celui de la zone -- la barre puis la zone se ferment APRES elle
-      and P.R_L5SC1.endswith("r.jsx(DzTracks.Scopes,{clips:clips,head:ph,playing:playing,ratio:proj.ratio})]})]}),")
+      and P.R_L5SC1.endswith("r.jsx(DzTracks.Scopes,{clips:clips,head:ph,playing:playing,ratio:proj.ratio,dlv:dzDel,dapi:dzApi})]})]}),")
       and P.R_L5SC1.count("]})]}),") == 1 and P.R_L5SC1.startswith('            onClick:svmFullscreen,children:"plein écran ("+svmKeyLabel("fullscreen")+")"}),\n')
       and [t[0][:2] for t in P.PATCHES].count("L5") == 1
       and (_bak.count(_nlb(_L5SC_A)) == 1 and _bak.count("DzTracks.Scopes") == 0 if _bak else False),
@@ -19503,7 +19503,7 @@ print("\n[R6] retours L6 (26/09/2026, tache 4) : l'image etalonnee dans la fenet
 # monte ENTRE la couche V1 (.svm-live) et les overlays V2 : V2, titres, voile, cadre de selection et sous-titres restent
 # AU-DESSUS par l'ordre du DOM (aucun z-index). Les noms de l'hote sont MESURES (B:~1723-1772, DzMontage) : clips, ph (la
 # tete), playing, vzoom (le zoom molette), proj.ratio (le ratio du projet, celui du cadre et du payload de rendu).
-_R6_REPL = 'liveOn?r.jsx(DzTracks.GradeLive,{clips:clips,head:ph,playing:playing,vzoom:vzoom,ratio:proj.ratio}):null,'
+_R6_REPL = 'liveOn?r.jsx(DzTracks.GradeLive,{clips:clips,head:ph,playing:playing,vzoom:vzoom,ratio:proj.ratio,dlv:dzDel,dapi:dzApi}):null,'  # P1 #8
 _R6_A = 'liveOn?r.jsx("div",{className:"svm-liveov",ref:liveOvRef,'
 check("R6_une_section_en_queue_apres_L6_ancre_libre_1_0_1_gardee_touchee_par_aucune_autre_section",
       # retours L6 (revue T2, 26/09/2026) : la queue R6 porte en plus R6mu1..R6mu6 (epinglees en [R6mu]) -- R6gl1 reste la
@@ -19568,7 +19568,7 @@ print("\n[R6s] retours L6 (26/09/2026, tache 5) : les scopes dans une fenetre fl
 # dans le cadre, elle ne masque plus ses poignees) ; la barre de titre et la poignee sont `touch-action:none` (gestes
 # par dzmGpDrag, sans capture) ; l'image remplit le carre (object-fit:contain) SANS pointeur. Aucun `display:none` de
 # plus (_MASQUES reste a 5).
-_R6S_HOTE = "r.jsx(DzTracks.Scopes,{clips:clips,head:ph,playing:playing,ratio:proj.ratio})"
+_R6S_HOTE = "r.jsx(DzTracks.Scopes,{clips:clips,head:ph,playing:playing,ratio:proj.ratio,dlv:dzDel,dapi:dzApi})"  # P1 #8 : + dlv / dapi
 check("R6s_puce_des_scopes_recoit_le_ratio_du_projet_x1_declare_avant_aucune_section_neuve",
       s.count(_R6S_HOTE) == 1 and P.R_L5SC1.count(_R6S_HOTE) == 1 and len(P.PATCHES) == 213 + len(_R8Q)  # revue T2 : 201 -> 207 (R6mu)
       and 0 < s.find('style:{aspectRatio:String(proj.ratio||"9:16").replace(":","/"),') < s.find(_R6S_HOTE)

@@ -4909,11 +4909,14 @@ def _valider_presets(lst) -> list:
 
 @router.get("/deliver-presets")
 async def montage_deliver_presets():
-    """{builtins:[{id,label}], fps:[…], presets:[…maison]} — le client n'a
-    AUCUNE liste en dur : les presets intégrés ET la liste des cadences
-    viennent d'ici."""
+    """{builtins:[{id,label,fps,gif}], fps:[…], presets:[…maison]} — le client
+    n'a AUCUNE liste en dur : les presets intégrés ET la liste des cadences
+    viennent d'ici. P1 #8 (28/09/2026) : chaque intégré dit SA cadence et
+    s'il est un GIF (cadence fixe) — l'image étalonnée et les scopes d'un plan
+    en retime demandent la cadence du rendu final (`dzmGlFps`)."""
     presets = await asyncio.to_thread(_load_deliver_presets)
-    return {"builtins": [{"id": k, "label": v["label"]} for k, v in _DELIVER.items()],
+    return {"builtins": [{"id": k, "label": v["label"], "fps": int(v["fps"]), "gif": bool(v.get("gif"))}
+                         for k, v in _DELIVER.items()],
             "fps": list(_DELIVER_FPS), "presets": presets}
 
 
