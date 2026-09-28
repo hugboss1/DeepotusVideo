@@ -2872,6 +2872,11 @@ async def render_episode(request: Request, background_tasks: BackgroundTasks):
         raise HTTPException(400, str(e))
     if _plan:
         _garde_cout(_ev.video_ops(_plan), payload.get("max_usd"))
+    # P1 t132 : un épisode enregistré réemploie sa narration et garde son job
+    from app.services import episode_store as _es
+    ep_id = payload.get("episode_id") or None
+    if ep_id is not None and _es.lire(ep_id) is None:
+        raise HTTPException(404, f"Épisode introuvable : {ep_id}")
     from app.services.elevenlabs_service import VoiceoverService
     if not await asyncio.get_running_loop().run_in_executor(
             None, VoiceoverService.is_enabled):
@@ -2885,13 +2890,127 @@ async def render_episode(request: Request, background_tasks: BackgroundTasks):
                 job_id=job_id, title=payload.get("title"),
                 voice_id=(payload.get("voice_id") or "").strip() or None,
                 language=str(payload.get("language") or "en"),
-                scenes=scenes)
+                scenes=scenes, episode_id=ep_id)
         except Exception as e:
             logger.exception(f"Episode render {job_id} failed: {e}")
 
+    if ep_id is not None:
+        _es.completer(ep_id, last_job_id=job_id)
     background_tasks.add_task(_run)
     return {"ok": True, "job_id": job_id,
             "message": f"Episode render queued. Poll GET /api/jobs/{job_id}."}
+
+
+# ── P1 t132 : store des épisodes (spec 2026-06-22) ─────────────────────────
+
+def _episode_ou_404(ep_id: str) -> dict:
+    from app.services import episode_store as _es
+    doc = _es.lire(ep_id)
+    if doc is None:
+        raise HTTPException(404, f"Épisode introuvable : {ep_id}")
+    return doc
+
+
+@router.get("/episodes")
+async def list_episodes():
+    from app.services import episode_store as _es
+    return {"episodes": _es.lister()}
+
+
+@router.post("/episodes")
+async def create_episode(body: dict):
+    from app.services import episode_store as _es
+    try:
+        return _es.creer(body)
+    except ValueError as e:
+        raise HTTPException(413 if "trop gros" in str(e) else 400, str(e))
+
+
+@router.get("/episodes/{ep_id}")
+async def get_episode(ep_id: str):
+    return _episode_ou_404(ep_id)
+
+
+@router.put("/episodes/{ep_id}")
+async def put_episode(ep_id: str, body: dict):
+    from app.services import episode_store as _es
+    _episode_ou_404(ep_id)
+    try:
+        return _es.remplacer(ep_id, body)
+    except ValueError as e:
+        raise HTTPException(413 if "trop gros" in str(e) else 400, str(e))
+
+
+@router.delete("/episodes/{ep_id}")
+async def delete_episode(ep_id: str):
+    from app.services import episode_store as _es
+    if not _es.supprimer(ep_id):
+        raise HTTPException(404, f"Épisode introuvable : {ep_id}")
+    return {"deleted": ep_id}
+
+
+@router.post("/episodes/{ep_id}/narrate")
+async def narrate_episode(ep_id: str):
+    """Narre chaque scène (TTS) dans le cache de l'épisode — une scène déjà
+    narrée (même texte, voix, langue) n'est PAS repayée — puis assemble la
+    narration complète dans la Bibliothèque audio (même nom à chaque passage).
+    -> {scenes:[{scene, cached, duration_s, chars}], paid_chars, narration}."""
+    from app.services import episode_store as _es
+    from app.services.elevenlabs_service import VoiceoverService
+    import subprocess
+    doc = _episode_ou_404(ep_id)
+    loop = asyncio.get_running_loop()
+    if not await loop.run_in_executor(None, VoiceoverService.is_enabled):
+        raise HTTPException(400, "Aucune voix disponible — configure la clé "
+                                 "ElevenLabs ou lance Voicebox (Réglages).")
+    voice_id = (doc.get("voice_id") or "").strip() or None
+    lang = str(doc.get("language") or "en")
+    scenes = [dict(s) for s in (doc.get("scenes") or []) if isinstance(s, dict)]
+    lignes, morceaux, payes = [], [], 0
+    for i, sc in enumerate(scenes):
+        text = (sc.get("text") or "").strip()
+        if not text:
+            continue
+        cle = _es.cle_narration(text, voice_id, lang)
+        dest = _es.chemin_narration(ep_id, cle)
+        deja = dest.is_file()
+        if not deja:
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                await loop.run_in_executor(
+                    None, lambda t=text, d=dest: pipeline.voice.generate_long(
+                        t, d, language=lang, voice_id=voice_id))
+            except Exception as e:
+                raise HTTPException(502, _clean_vo_error(e))
+            payes += len(text)
+        dur = await loop.run_in_executor(None, pipeline.merger.probe_dur, dest)
+        sc["narration_key"], sc["duration_s"] = cle, round(float(dur or 0), 3)
+        lignes.append({"scene": i + 1, "cached": deja, "duration_s": sc["duration_s"],
+                       "chars": len(text)})
+        morceaux.append(dest)
+    if not morceaux:
+        raise HTTPException(400, "Aucune scène avec du texte à narrer")
+    base = re.sub(r"[^A-Za-z0-9_-]+", "_", str(doc.get("title") or "episode")).strip("_")[:40]
+    fn = f"{base or 'episode'}-{ep_id}.mp3"
+    out = _audio_dir() / fn
+    liste = _es.dossier_media(ep_id) / "narr" / "_concat.txt"
+    liste.write_text("".join(f"file '{p.as_posix()}'\n" for p in morceaux), encoding="utf-8")
+
+    def _concat():
+        subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(liste),
+                        "-c:a", "libmp3lame", "-b:a", "192k", str(out)],
+                       check=True, capture_output=True, text=True, timeout=600)
+    try:
+        await loop.run_in_executor(None, _concat)
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(500, f"Assemblage de la narration : {(e.stderr or '')[-200:]}")
+    from app.services import sfx_service
+    await loop.run_in_executor(None, lambda: sfx_service.record_meta(fn, {
+        "kind": "voix", "prompt": (doc.get("title") or "Épisode")[:200],
+        "created": datetime.now().isoformat(timespec="seconds")}))
+    narration = {"filename": fn, "url": f"/api/audio/{fn}", "kb": out.stat().st_size // 1024}
+    _es.completer(ep_id, scenes=scenes, narration=narration)
+    return {"ok": True, "scenes": lignes, "paid_chars": payes, "narration": narration}
 
 
 @router.post("/videos/upload")

@@ -74,8 +74,9 @@ def main():
     SRC = RACINE / "frontend" / "shared" / "dialogue.js"
     check("la couche du patcher = frontend/shared/dialogue.js octet pour octet (source unique)",
           SRC.exists() and COUCHE.read_bytes() == SRC.read_bytes())
-    check("await __dzDialogue.confirmer ×11 hors couche (la couche le cite en commentaire)",
-          hors.count("await window.__dzDialogue.confirmer(") == 11,
+    # t132 (28/09/2026) : + 2, la barre des episodes du maillon montage (P1es1 : modifications perdues, suppression).
+    check("await __dzDialogue.confirmer ×13 hors couche (11 + 2 de P1es1 ; la couche le cite en commentaire)",
+          hors.count("await window.__dzDialogue.confirmer(") == 13,
           str(hors.count("await window.__dzDialogue.confirmer(")))
     check("la couche remplace window.alert et pose __dzDialogue",
           "window.alert = function" in couche and "window.__dzDialogue = {" in couche)
