@@ -6399,6 +6399,18 @@ assert sum(r.count("window.__dzDialogue.saisir(") for _t, _a, r in R8[9:]) == 8
 assert "prompt(" not in R_R8SV1 and R_R8SV1.count("await window.__dzDialogue.saisir(") == 1
 assert 'name:"more"' not in R_R8IN2 and "Open graph" not in R_R8OG1 and R_R8ST1.count("function ") == 5
 
+# ---- groupe P1 (28/09/2026, file P1 du suivi des chantiers) : en QUEUE, apres R8 ----
+# P1fg1 (tache #2) -- l'import Figma de la Bibliotheque reclame FIGMA_TOKEN (409 sans lui), mais le catalogue `Fu`
+# des Reglages -> API keys n'offrait pas la rangee (et le serveur refusait la cle : _ALLOWED_ENV_KEYS, corrige dans
+# routes.py). La rangee s'ajoute EN DERNIER ; `health` pointe sur le drapeau `figma_configured` de /health. Invariant
+# bance (test_p1_figma_token) : toute cle du catalogue est dans la liste blanche du serveur.
+A_P1FG1 = 'health:"has_meshy"}];function bm(){'
+R_P1FG1 = ('health:"has_meshy"},{k:"FIGMA_TOKEN",label:"Figma (import de calques)",'
+           'why:"Personal Access Token · figma.com → Settings → Security · Bibliothèque → Depuis Figma",'
+           'health:"figma_configured"}];function bm(){')
+P1 = [("P1fg1-rangee-figma-token-dans-les-reglages", A_P1FG1, R_P1FG1)]
+assert len(P1) == 1 and R_P1FG1.startswith(A_P1FG1[:-len("];function bm(){")]) and R_P1FG1.endswith("];function bm(){")
+
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
@@ -6649,7 +6661,9 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("EC11-rendu-du-trou-selectionne", A_EC11, R_EC11),
            ("EC12-tete-de-lecture-dans-l-inspecteur", A_EC12, R_EC12),
            ("EC13-suppr-referme-le-trou", A_EC13, R_EC13),
-           ("EC14-clic-sur-un-clip-efface-le-trou", A_EC14, R_EC14)] + EC15 + L4 + L7A + L5 + L6 + R6 + R7 + R8
+           ("EC14-clic-sur-un-clip-efface-le-trou", A_EC14, R_EC14)] + EC15 + L4 + L7A + L5 + L6 + R6 + R7 + R8 + P1
+           # file P1 (28/09) : + groupe P1 EN QUEUE apres R8 (P1fg1, la rangee FIGMA_TOKEN des Reglages) ; 229 -> 230,
+           # le --check dit 231 ancres.
            # studio 27/09 : + HUIT sections EN QUEUE, groupe R8 apres R7 (format HeyGen impose par le template, « Ouvrir un graphe » en icone,
            # repli de l'inspecteur) ; 213 -> 221, le --check dit 222 ancres ; + R8sv1 (Save par le dialogue maison) : 222, le --check dit 223 ;
            # + R8pr1..R8pr7 (les autres window.prompt natifs, 27/09) : 229, le --check dit 230.

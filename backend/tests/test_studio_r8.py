@@ -62,8 +62,10 @@ R8 = list(getattr(P, "R8", []))
 print("\n[0] preconditions")
 check("0.1 .bak_montage present (temoin)", bool(bak), _d(str(BAK)))
 check("0.2 node present", bool(NODE), _d(NODE))
-check("0.3 groupe R8 : seize sections, en QUEUE de PATCHES", len(R8) == 16 and P.PATCHES[-16:] == R8,
-      _d([t[0] for t in P.PATCHES[-9:]]))
+# file P1 (28/09) : le groupe P1 vient APRES R8 -- R8 reste la queue de PATCHES une fois P1 retire.
+_PT1 = P.PATCHES[:len(P.PATCHES) - len(getattr(P, "P1", []))]
+check("0.3 groupe R8 : seize sections, en QUEUE de PATCHES (avant P1)", len(R8) == 16 and _PT1[-16:] == R8,
+      _d([t[0] for t in _PT1[-9:]]))
 
 print("\n[1] chaque section : ancre x1 dans le .bak, remplacement x1 dans le livre")
 for tag, a, r in R8:

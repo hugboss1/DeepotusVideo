@@ -3729,6 +3729,7 @@ async def health():
         "heygen_enabled": settings.has_heygen,
         # v2.1 (3D Studio) : clé réelle OU simulateur local MESHY_MOCK
         "has_meshy": settings.has_meshy,
+        "figma_configured": bool(str(settings.FIGMA_TOKEN or "").strip()),
         "meshy_enabled": settings.has_meshy or bool(settings.MESHY_MOCK),
         "meshy_mock": bool(settings.MESHY_MOCK),
         "summarizer_enabled": settings.has_summarizer,
@@ -3767,6 +3768,8 @@ _ALLOWED_ENV_KEYS = {
     "YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET",
     "YOUTUBE_REFRESH_TOKEN", "YOUTUBE_CHANNEL_ID",
     "IG_ACCESS_TOKEN", "IG_BUSINESS_ID",
+    # P1 #2 (28/09) : l'import Figma de la Bibliothèque le réclame (409 sans lui)
+    "FIGMA_TOKEN",
 }
 
 
@@ -10065,9 +10068,8 @@ async def import_figma(body: dict):
     if not jeton:
         raise HTTPException(409,
             "FIGMA_TOKEN absent — crée un Personal Access Token Figma "
-            "(figma.com → Settings → Security), pose FIGMA_TOKEN=... dans "
-            "le .env des données (DeepotusVideoGenData\.env) puis relance "
-            "l'application.")
+            "(figma.com → Settings → Security), colle-le dans Réglages → "
+            "API keys (rangée Figma) puis relance l'application.")
     try:
         nom = await FI.importer(str(body.get("url") or ""), jeton,
                                 settings.images_path)
