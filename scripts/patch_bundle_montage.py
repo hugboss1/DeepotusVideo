@@ -6174,11 +6174,17 @@ assert len(R6) == 7 and all(a not in r and "DzTracks" not in r and "fin de rendu
 #   pricing par le banc croise (ECART DATE : un video_max_gen_s change a la main dans pricing.json n'est pas suivi) ;
 #   vm3 le libelle « Défaut (… » du selecteur quand /api/video-models ne dit pas son defaut.
 #   « seedance-v1-pro » ne reste que comme cle du tableau des tarifs (ancien modele toujours choisissable).
+# P1 #10 (28/09/2026) : un corps NON-JSON n'est plus perdu -- `br` = son texte (balises retirees, blancs replies, 160
+# caracteres au plus), dit « HTTP <code> : <texte> » ; corps vide ou JSON sans detail lisible -> « HTTP <code> » (inchange).
+# R7up1 passe par la MEME lecture (il lisait n.json() : texte perdu, liste 422 ignoree). Banc : test_p1_refus_non_json.
+_R7_DETAIL = ('let d="",nj=!1;try{const j=JSON.parse(b),v=j&&j.detail;d=typeof v=="string"?v:Array.isArray(v)&&v[0]'
+              '&&typeof v[0].msg=="string"?v[0].msg:""}catch(x){nj=!0}'
+              'const br=nj?String(b).replace(/<[^>]*>/g," ").replace(/\\s+/g," ").trim().slice(0,160):"";')
 A_R7UP1 = ('uploadVideo:async e=>{try{const t=new FormData;t.append("file",e);const n=await fetch(`${Te}/videos/upload`,'
            '{method:"POST",body:t});return n.ok?await n.json():{ok:!1,error:`HTTP ${n.status}`}}')
 R_R7UP1 = ('uploadVideo:async e=>{try{const t=new FormData;t.append("file",e);const n=await fetch(`${Te}/videos/upload`,'
-           '{method:"POST",body:t});if(n.ok)return await n.json();let d="";try{const j=await n.json();'
-           'd=typeof(j&&j.detail)=="string"?j.detail:""}catch(x){}return{ok:!1,error:d||`HTTP ${n.status}`}}')
+           '{method:"POST",body:t});if(n.ok)return await n.json();const b=await n.text().catch(()=>"");' + _R7_DETAIL
+           + 'return{ok:!1,error:d||(br?`HTTP ${n.status} : ${br}`:`HTTP ${n.status}`)}}')
 A_R7VM1 = 'props:{model:"seedance-v1-pro",style:"cinematic",durationS:10'
 R_R7VM1 = 'props:{model:"seedance-2.5",style:"cinematic",durationS:10'
 A_R7VM2 = 'en=dzVmRates[p2.model||"seedance-v1-pro"]||[.04,60],d2=Math.min(Number(p2.durationS)||10,en[1])'
@@ -6190,7 +6196,7 @@ R7 = [("R7up1-upload-refuse-lit-le-detail-du-serveur", A_R7UP1, R_R7UP1),
       ("R7vm2-repli-du-cout-au-tarif-2-5", A_R7VM2, R_R7VM2),
       ("R7vm3-libelle-defaut-seedance-2-5", A_R7VM3, R_R7VM3)]
 assert len(R7) == 4 and all(a not in r and "DzTracks" not in r for _t, a, r in R7)
-assert all("seedance-v1-pro" not in r for _t, _a, r in R7[1:]) and R_R7UP1.count("j.detail") == 2
+assert all("seedance-v1-pro" not in r for _t, _a, r in R7[1:]) and R_R7UP1.count(_R7_DETAIL) == 1
 
 # ══ RETOURS 26/09 (cloture T11b, 27/09/2026) — LES ERREURS DE GENERATION LISIBLES ═══════════════════════════════════
 # Preuve ecran : depuis la garde de cout serveur (T5, 402 {"detail":"Coût estimé 4,73 $ au-delà du plafond …"}), le
@@ -6202,14 +6208,12 @@ assert all("seedance-v1-pro" not in r for _t, _a, r in R7[1:]) and R_R7UP1.count
 # bundle et dans les couches). ANCRES MESUREES 27/09/2026 sur .bak_montage : 1/0/1 chacune (le motif court
 # `error:await n.text()` vaut 2 -- une autre fonction de l'api le garde : l'ancre est le `return` ENTIER).
 # Aucun appelant ne relisait `error` comme du JSON (mesure : aucun JSON.parse de `.error` dans le bundle).
-_R7_DETAIL = ('let d="";try{const j=JSON.parse(b),v=j&&j.detail;d=typeof v=="string"?v:Array.isArray(v)&&v[0]'
-              '&&typeof v[0].msg=="string"?v[0].msg:""}catch(x){}')
 A_R7ER1 = 'return n.ok?{ok:!0,...await n.json().catch(()=>({}))}:{ok:!1,status:n.status,error:await n.text()}'
 R_R7ER1 = ('if(n.ok)return{ok:!0,...await n.json().catch(()=>({}))};const b=await n.text().catch(()=>"");' + _R7_DETAIL
-           + 'return{ok:!1,status:n.status,error:d||`HTTP ${n.status}`}')
+           + 'return{ok:!1,status:n.status,error:d||(br?`HTTP ${n.status} : ${br}`:`HTTP ${n.status}`)}')
 A_R7ER2 = 'return s.ok?await s.json():{ok:!1,error:`HTTP ${s.status}: ${(await s.text()).slice(0,160)}`}'
 R_R7ER2 = ('if(s.ok)return await s.json();const b=await s.text().catch(()=>"");' + _R7_DETAIL
-           + 'return{ok:!1,error:d||`HTTP ${s.status}`}')
+           + 'return{ok:!1,error:d||(br?`HTTP ${s.status} : ${br}`:`HTTP ${s.status}`)}')
 R7 += [("R7er1-postJson-lit-le-detail-du-refus", A_R7ER1, R_R7ER1),
        ("R7er2-rendu-de-layout-lit-le-detail-du-refus", A_R7ER2, R_R7ER2)]
 assert len(R7) == 6 and all(a not in r and "DzTracks" not in r for _t, a, r in R7[4:])

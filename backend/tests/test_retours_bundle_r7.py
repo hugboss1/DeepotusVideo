@@ -137,26 +137,28 @@ check("r7_en_queue_de_PATCHES_juste_apres_R6",
 
 # Les ancres, ECRITES ICI (pas relues du patcher) : une ancre deplacee dans le
 # patcher rougit ce banc au lieu de se valider elle-meme.
+# T11b : la lecture du `detail` d'un refus (chaine -> texte ; liste pydantic -> premier msg ; sinon HTTP <code>)
+# P1 #10 (28/09/2026) : + `br`, le texte d'un corps NON-JSON (« HTTP <code> : <texte> ») ; R7up1 la partage
+_LIT = ('let d="",nj=!1;try{const j=JSON.parse(b),v=j&&j.detail;d=typeof v=="string"?v:Array.isArray(v)&&v[0]'
+        '&&typeof v[0].msg=="string"?v[0].msg:""}catch(x){nj=!0}'
+        'const br=nj?String(b).replace(/<[^>]*>/g," ").replace(/\\s+/g," ").trim().slice(0,160):"";')
 A_UP1 = ('uploadVideo:async e=>{try{const t=new FormData;t.append("file",e);const n=await fetch(`${Te}/videos/upload`,'
          '{method:"POST",body:t});return n.ok?await n.json():{ok:!1,error:`HTTP ${n.status}`}}')
 R_UP1 = ('uploadVideo:async e=>{try{const t=new FormData;t.append("file",e);const n=await fetch(`${Te}/videos/upload`,'
-         '{method:"POST",body:t});if(n.ok)return await n.json();let d="";try{const j=await n.json();'
-         'd=typeof(j&&j.detail)=="string"?j.detail:""}catch(x){}return{ok:!1,error:d||`HTTP ${n.status}`}}')
+         '{method:"POST",body:t});if(n.ok)return await n.json();const b=await n.text().catch(()=>"");' + _LIT
+         + 'return{ok:!1,error:d||(br?`HTTP ${n.status} : ${br}`:`HTTP ${n.status}`)}}')  # P1 #10 : la lecture partagee
 A_VM1 = 'props:{model:"seedance-v1-pro",style:"cinematic",durationS:10'
 A_VM2 = 'en=dzVmRates[p2.model||"seedance-v1-pro"]||[.04,60],d2=Math.min(Number(p2.durationS)||10,en[1])'
 # Cloture T11 (revue T4) : la duree chiffree est AUSSI plafonnee a 10 s, le `video_max_gen_s` par defaut du serveur
 # (pricing.DEFAULTS) -- le serveur ne facture jamais plus ; le banc croise compare ce 10 a pricing.
 R_VM2 = 'en=dzVmRates[p2.model||"seedance-2.5"]||[.04,60],d2=Math.min(Number(p2.durationS)||10,en[1],10)'
 A_VM3 = 'label:"Défaut ("+(mm.default||"seedance-v1-pro")+")"'
-# T11b : la lecture du `detail` d'un refus (chaine -> texte ; liste pydantic -> premier msg ; sinon HTTP <code>)
-_LIT = ('let d="";try{const j=JSON.parse(b),v=j&&j.detail;d=typeof v=="string"?v:Array.isArray(v)&&v[0]'
-        '&&typeof v[0].msg=="string"?v[0].msg:""}catch(x){}')
 A_ER1 = 'return n.ok?{ok:!0,...await n.json().catch(()=>({}))}:{ok:!1,status:n.status,error:await n.text()}'
 R_ER1 = ('if(n.ok)return{ok:!0,...await n.json().catch(()=>({}))};const b=await n.text().catch(()=>"");' + _LIT
-         + 'return{ok:!1,status:n.status,error:d||`HTTP ${n.status}`}')
+         + 'return{ok:!1,status:n.status,error:d||(br?`HTTP ${n.status} : ${br}`:`HTTP ${n.status}`)}')
 A_ER2 = 'return s.ok?await s.json():{ok:!1,error:`HTTP ${s.status}: ${(await s.text()).slice(0,160)}`}'
 R_ER2 = ('if(s.ok)return await s.json();const b=await s.text().catch(()=>"");' + _LIT
-         + 'return{ok:!1,error:d||`HTTP ${s.status}`}')
+         + 'return{ok:!1,error:d||(br?`HTTP ${s.status} : ${br}`:`HTTP ${s.status}`)}')
 _ATT = {"R7up1": (A_UP1, R_UP1),
         "R7vm1": (A_VM1, A_VM1.replace("seedance-v1-pro", "seedance-2.5")),
         "R7vm2": (A_VM2, R_VM2),
@@ -196,6 +198,8 @@ class FormData{append(){}}
 var REP=null;
 async function fetch(u,o){ if(REP==="reseau") throw new Error("hors ligne"); return REP; }
 function rep(status, corps){ return {ok: status>=200&&status<300, status,
+  // P1 #10 : l'upload lit desormais le TEXTE du corps (la lecture partagee) ; json() reste pour le temoin du .bak
+  text: async()=>corps===undefined?"":(typeof corps=="string"?corps:JSON.stringify(corps)),
   json: async()=>{ if(corps===undefined) throw new SyntaxError("pas du JSON"); return corps; }}; }
 const api={__FN__};
 (async()=>{
@@ -214,8 +218,9 @@ check("up_415_rend_le_detail_du_serveur",
       (_d.get("r415") or {}) == {"ok": False, "error": "Fichier vide ou illisible : a.mp4 (vide)"}, (_d, _why))
 check("up_500_sans_json_rend_HTTP_500", (_d.get("r500") or {}) == {"ok": False, "error": "HTTP 500"}, _d.get("r500"))
 check("up_200_rend_le_json", (_d.get("r200") or {}) == {"ok": True, "id": "v1", "filename": "a.mp4"}, _d.get("r200"))
-# detail non-chaine (liste pydantic) ou vide : on retombe sur le code, jamais « [object Object] »
-check("up_422_detail_liste_retombe_sur_HTTP_422", (_d.get("r422") or {}) == {"ok": False, "error": "HTTP 422"}, _d.get("r422"))
+# P1 #10 (28/09/2026) : l'upload partage la lecture de R7er1 -- une liste pydantic rend son PREMIER msg (avant : HTTP 422) ;
+# jamais « [object Object] »
+check("up_422_detail_liste_rend_le_premier_msg", (_d.get("r422") or {}) == {"ok": False, "error": "field required"}, _d.get("r422"))
 check("up_413_detail_vide_retombe_sur_HTTP_413", (_d.get("r413") or {}) == {"ok": False, "error": "HTTP 413"}, _d.get("r413"))
 check("up_erreur_reseau_inchangee", (_d.get("rres") or {}) == {"ok": False, "error": "hors ligne"}, _d.get("rres"))
 _v, _whyv = node_json("up_vieux.js", _JS_UP.replace("__FN__", _UP_VIEUX))
@@ -361,8 +366,9 @@ check("er_postJson_bandeau_du_studio_lisible_sans_json_brut",
       _pj.get("bandeau") == _BANDEAU and "{" not in (_pj.get("bandeau") or "{"), _pj.get("bandeau"))
 check("er_postJson_422_liste_pydantic_rend_le_premier_msg",
       _pj.get("r422") == {"ok": False, "status": 422, "error": "Input should be a valid integer"}, _pj.get("r422"))
-check("er_postJson_500_texte_brut_et_503_detail_objet_retombent_sur_HTTP_code",
-      _pj.get("r500") == {"ok": False, "status": 500, "error": "HTTP 500"}
+# P1 #10 (28/09/2026) : un corps en TEXTE est dit apres le code (avant : perdu, « HTTP 500 »)
+check("er_postJson_500_texte_brut_dit_apres_le_code_503_detail_objet_retombe_sur_HTTP_code",
+      _pj.get("r500") == {"ok": False, "status": 500, "error": "HTTP 500 : Internal Server Error"}
       and _pj.get("r503") == {"ok": False, "status": 503, "error": "HTTP 503"}, (_pj.get("r500"), _pj.get("r503")))
 check("er_postJson_200_et_reseau_inchanges",
       _pj.get("r200") == {"ok": True, "job_id": "j1"} and _pj.get("rres") == {"ok": False, "error": "hors ligne"},
@@ -371,7 +377,7 @@ check("er_layout_402_rend_le_texte_du_detail", _lt.get("r402") == {"ok": False, 
 check("er_layout_bandeau_lisible", _lt.get("bandeau") == _BANDEAU, _lt.get("bandeau"))
 check("er_layout_422_premier_msg_500_et_503_HTTP_code",
       _lt.get("r422") == {"ok": False, "error": "Input should be a valid integer"}
-      and _lt.get("r500") == {"ok": False, "error": "HTTP 500"} and _lt.get("r503") == {"ok": False, "error": "HTTP 503"},
+      and _lt.get("r500") == {"ok": False, "error": "HTTP 500 : Internal Server Error"} and _lt.get("r503") == {"ok": False, "error": "HTTP 503"},
       (_lt.get("r422"), _lt.get("r500"), _lt.get("r503")))
 check("er_layout_200_et_reseau_inchanges",
       _lt.get("r200") == {"job_id": "j1"} and _lt.get("rres") == {"ok": False, "error": "hors ligne"},
