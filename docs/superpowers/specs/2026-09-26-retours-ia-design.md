@@ -338,7 +338,7 @@ Plan `2026-09-27-plan-retours-ia.md`, exécuté en subagent-driven. Chaque tâch
   - Aucun contrôle de qualité ni de fond transparent à l'écran.
   - L'éditeur de tarifs des Réglages ignore les nouvelles clés.
   - Pas de marche 2.5 dans la série Cardforge.
-  - Nano Banana sans FAL_KEY rend 400 au lieu de 502.
+  - ~~Nano Banana sans FAL_KEY rend 400 au lieu de 502.~~ Résolu le 28/09 (P1 #11) : mesuré, toutes les clés absentes rendaient 400 (aucune 502) ; décision de l'utilisateur, **503 partout** (43 refus, dont Figma 409 → 503).
 - **Champs IA.**
   - Game Assets (moteur 3D) est en lecture seule dans la pastille.
   - La position `relative` du parent est décidée au marquage seulement.

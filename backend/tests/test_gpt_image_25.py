@@ -368,8 +368,8 @@ reset()
 cles(False, True)
 st, js = call("POST", "/images/generate",
               {"prompt": "chat", "model": "gpt-image-2.5-sunburst-fal"})
-check("gen_fal_sans_fal_key_400_nomme",
-      st == 400 and "FAL_KEY" in str(js), f"{st} {js}")
+check("gen_fal_sans_fal_key_503_nomme",  # P1 #11 (28/09) : cle absente -> 503, plus 400
+      st == 503 and "FAL_KEY" in str(js), f"{st} {js}")
 check("gen_fal_sans_fal_key_aucun_appel",
       ESP["falgpt"] == [] and ESP["openai"] == [], repr(ESP))
 for mid in DIRECTS:
@@ -485,7 +485,7 @@ reset()
 cles(True, False)
 st, js = call("POST", "/materials/generate",
               {"prompt": "pierre", "model": "gpt-image-2.5-flare", "res": 512})
-check("temoin_mat_direct_sans_openai_400", st == 400
+check("temoin_mat_direct_sans_openai_503", st == 503  # P1 #11 : 400 -> 503
       and "OPENAI_API_KEY" in str(js), f"{st} {js}")
 reset()
 cles(True, True)
