@@ -402,22 +402,31 @@ class NewsService:
             seen.add(it["id"])
             deduped.append(it)
         deduped.sort(key=lambda x: x.get("published") or "", reverse=True)
+        # Puis le doublon SÉMANTIQUE (plan 2026-09-03, P1) : titre presque
+        # identique (Inoreader) ou recouvrement de contenu > 85 % (Feedly).
+        # Il vient APRÈS le doublon d'identifiant et AVANT le plafond : dans
+        # l'autre ordre, les 300 places partiraient en reprises de dépêche.
+        from app.services.news_filter import dedoublonner
+        avant_fusion = len(deduped)
+        deduped, fondus = dedoublonner(deduped)
         deduped = deduped[:MAX_ITEMS]
         cache = {
             "fetched_at": _now_iso(),
             "items": deduped,
             "errors": errors,
             "source_count": len(sources),
+            "merged_count": len(fondus),
         }
         self.cache_path.write_text(
             json.dumps(cache, ensure_ascii=False), encoding="utf-8")
         logger.info(
             f"news refresh: {len(deduped)} items from {len(sources)} sources, "
-            f"{len(errors)} errors")
+            f"{len(fondus)} merged (of {avant_fusion}), {len(errors)} errors")
         return {
             "fetched_at": cache["fetched_at"],
             "item_count": len(deduped),
             "source_count": len(sources),
+            "merged_count": len(fondus),
             "errors": errors,
         }
 
