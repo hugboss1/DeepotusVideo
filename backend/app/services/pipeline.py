@@ -532,44 +532,29 @@ class Pipeline:
                                    status=JobStatus.GENERATING_VIDEO.value,
                                    current_step="Submitting HeyGen video",
                                    progress=25)
-                # v1.16 — an explicit engine (avatar_iii/iv/v) routes through
-                # HeyGen API v3; no engine = untouched legacy v2 path. Talking
-                # photos always stay on v2 (v3 talking_photo mapping is
-                # undocumented).
-                use_v3 = bool(getattr(request, "engine", None)) \
-                    and request.avatar_type != "talking_photo"
-                if use_v3:
-                    video_id = await self.heygen.generate_video_v3(
-                        text=script,
-                        avatar_id=request.avatar_id,
-                        voice_id=request.voice_id,
-                        engine=request.engine,
-                        aspect_ratio=request.aspect_ratio.value,
-                        speed=request.speed,
-                        background_color=request.background_color,
-                        motion_prompt=getattr(request, "motion_prompt", None),
-                        expressiveness=getattr(request, "expressiveness", None),
-                    )
-                else:
-                    video_id = await self.heygen.generate_video(
-                        text=script,
-                        avatar_id=request.avatar_id,
-                        voice_id=request.voice_id,
-                        avatar_type=request.avatar_type,
-                        aspect_ratio=request.aspect_ratio.value,
-                        speed=request.speed,
-                        background_color=request.background_color,
-                        use_avatar_iv=request.use_avatar_iv,
-                    )
+                # 28/09/2026 — toute génération passe par l'API v3 (les
+                # endpoints v1/v2 sont retirés le 01/11/2026). Moteur : celui
+                # choisi ; sinon avatar_iv si l'ancien drapeau use_avatar_iv
+                # est posé ; sinon heygen_service le résout par look (Avatar
+                # III, comme l'ancienne génération v2). Un ancien talking
+                # photo passe aussi par v3 : HeyGen dira s'il le refuse.
+                video_id = await self.heygen.generate_video_v3(
+                    text=script,
+                    avatar_id=request.avatar_id,
+                    voice_id=request.voice_id,
+                    engine=request.engine or ("avatar_iv" if getattr(request, "use_avatar_iv", False) else None),
+                    aspect_ratio=request.aspect_ratio.value,
+                    speed=request.speed,
+                    background_color=request.background_color,
+                    motion_prompt=getattr(request, "motion_prompt", None),
+                    expressiveness=getattr(request, "expressiveness", None),
+                )
 
                 # 3. Poll until complete
                 await self._update(session, job,
                                    current_step="Rendering on HeyGen servers",
                                    progress=45)
-                if use_v3:
-                    result = await self.heygen.poll_video_status_v3(video_id)
-                else:
-                    result = await self.heygen.poll_video_status(video_id)
+                result = await self.heygen.poll_video_status_v3(video_id)
                 video_url = result.get("video_url")
                 if not video_url:
                     raise RuntimeError(f"No video_url in HeyGen result: {result}")
