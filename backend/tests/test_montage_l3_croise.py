@@ -236,7 +236,8 @@ _def_ab = SVC.count("def _adjust_bounded(")
 _app_ab = SVC.count("_adjust_bounded(") - _def_ab
 _def_sf = SVC.count("def _stab_filter(")
 _app_sf = SVC.count("_stab_filter(") - _def_sf
-_fb = SVC[SVC.find("def _build_montage_command("):SVC.find("def _build_montage_command(") + 60000]
+# P1 #7 (28/09/2026) : les poignees allongent _build_montage_command -- fenetre 60000 -> 70000.
+_fb = SVC[SVC.find("def _build_montage_command("):SVC.find("def _build_montage_command(") + 70000]
 _fe = SVC[SVC.find("def _cadre_entree("):SVC.find("def _cadre_entree(") + 6000]
 _fn = SVC[SVC.find("def _cadre_neufs("):SVC.find("def _cadre_neufs(") + 4000]
 check("x5_adjust_bounded_une_definition_appelee_par_le_rendu_et_par_le_cadre",

@@ -214,8 +214,9 @@ CASES = {
                                                             clip(rk, 2, 3, 4.1)], ()),
     "2 plans en coupe, effets+masque sur le 2e": ("12", lambda rk: [
         clip(rk, 0, 1, 0.0), clip(rk, 1, 2, 2.0, effects=FX0, mask=MASQUE_COIN)], ()),
-    "trou au milieu (1 -> 1,5)":      ("12", lambda rk: [clip(rk, 0, 1, 0.0), clip(rk, 1.5, 2.5, 2.0)], (1,)),
-    "trou en tete 0,5 + 2 plans":     ("12", lambda rk: [clip(rk, 0.5, 1.5, 1.0), clip(rk, 1.5, 2.5, 3.0)], (0,)),
+    # P1 #7 (28/09) : l'ecart date de T1 (1re image avalee apres un trou) est CORRIGE -- plus de tolerance.
+    "trou au milieu (1 -> 1,5)":      ("12", lambda rk: [clip(rk, 0, 1, 0.0), clip(rk, 1.5, 2.5, 2.0)], ()),
+    "trou en tete 0,5 + 2 plans":     ("12", lambda rk: [clip(rk, 0.5, 1.5, 1.0), clip(rk, 1.5, 2.5, 3.0)], ()),
 }
 
 print("\n[0] preconditions")
@@ -236,8 +237,8 @@ check("1.1 _cut_tau : 0,04 a >= 12,5 i/s, une image (ms superieur) en deca",
       == [0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.084, 0.1],
       _d([getattr(MS, "_cut_tau", lambda f: None)(f) for f in (60, 30, 25, 24, 15, 12.5, 12, 10)]))
 check("1.2 amorce d'UNE image (0,084 s) sur le 2e et le 3e plan, jamais 0,04",
-      "[n1l]tpad=start_mode=clone:start_duration=0.084[n1]" in _g1
-      and "[n2l]tpad=start_mode=clone:start_duration=0.084[n2]" in _g1
+      "[n1c]tpad=start_mode=clone:start_duration=0.084[n1]" in _g1   # P1 #7 (28/09) : [n1l] -> [n1c]
+      and "[n2c]tpad=start_mode=clone:start_duration=0.084[n2]" in _g1
       and "start_duration=0.04[" not in _g1, _d(_g1[-900:]))
 check("1.3 xfade de coupe d'une image, offsets sur une image entiere (11 et 23)",
       "xfade=transition=fade:duration=0.084:offset=0.916[x1]" in _g1
@@ -271,9 +272,9 @@ for name, (rk, mk, tol) in CASES.items():
 check("2.x GIF 3 plans : 36 images sur 36 (le symptome rapporte)",
       RES.get(("3 plans en coupe", True), {}).get("n") == 36, _d(resume(RES.get(("3 plans en coupe", True), {}))))
 
-# Vraies transitions a 12 i/s : ecart date de T1 (un fondu avance les plans
-# suivants de tau) — on garde n = total * fps et chaque plan PRESENT. Le
-# plancher 0,02 s est porte a une image (`_cut_tau`), comme la coupe.
+# Vraies transitions a 12 i/s : P1 #7 (28/09) -- le fondu est CENTRE avec poignees,
+# total = timeline (2,0 s -> 24 images) ; chaque plan PRESENT. Le plancher 0,02 s
+# est porte a DEUX images entieres (une de chaque cote), comme la coupe l'est a une.
 for name, cl in {
     "fondu 0,4 s": [clip("12", 0, 1, 0.0), clip("12", 1, 2, 2.0, transition="fade", transition_s=0.4)],
     "fondu 0,02 s (plancher)": [clip("12", 0, 1, 0.0), clip("12", 1, 2, 2.0, transition="fade",
@@ -314,7 +315,11 @@ check("3.4 temoin vert : 3 plans en coupe a 25 i/s alignes avec le temoin", alig
 _nv = run_case(MS, CASES["3 plans en coupe"][1]("25"), 25, "25")
 check("3.5 ... et avec le code courant", aligne(_nv), _d(resume(_nv)))
 
-print("\n[4] >= 12,5 i/s : commande identique octet pour octet au temoin")
+# P1 #7 (28/09/2026) : l'identite OCTET POUR OCTET avec f7ee2d8 (garantie du correctif
+# `_cut_tau`) ne tient plus -- les poignees changent la chaine (etiquettes [n{k}c], trous
+# sans compensation de la transition suivante, fondus centres). Le contrat devient :
+# total = timeline pour TOUS les cas (fondus compris), et egal au temoin sans fondu.
+print("\n[4] >= 12,5 i/s : total = timeline partout, egal au temoin sans fondu")
 _NR = {
     "3 plans en coupe": lambda rk: CASES["3 plans en coupe"][1](rk),
     "trou au milieu": lambda rk: CASES["trou au milieu (1 -> 1,5)"][1](rk),
@@ -332,8 +337,12 @@ for fps in (24, 25, 30, 60):
                 co, to = build(OLD, mk("25"), fps, _o, gif=gif)
             except Exception as e:
                 cn, tn, co, to = [f"ERR {e}"], None, [], None
-            check(f"4 {fps} i/s {name}{' [gif]' if gif else ''} : commande et total identiques (temoin : non vide)",
-                  bool(co) and cn == co and tn == to, _d(tn, to, len(cn), len(co)))
+            _tl = max(c["end"] for c in mk("25"))
+            _sans_fondu = not name.startswith("fondu")
+            check(f"4 {fps} i/s {name}{' [gif]' if gif else ''} : total = timeline ({_tl})"
+                  f"{' = temoin' if _sans_fondu else ' (temoin : plus court)'}",
+                  bool(co) and tn == _tl and ((tn == to) if _sans_fondu else (to is not None and to < _tl)),
+                  _d(tn, to, _tl))
 
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

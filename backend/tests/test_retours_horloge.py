@@ -259,10 +259,10 @@ check("1.3 variante zoom : fps=30:start_time=0 devant zoompan",
 _c4, _t4 = build(MS, [clip("30", 0, 1, 0.0), clip("30", 1, 2, 2.0), clip("30", 2, 3, 4.0)], 30, _o)
 _g4 = " ".join(_c4)
 check("1.4 coupe franche : amorce clonee de 0,04 s sur le 2e ET le 3e plan",
-      "[n1l]tpad=start_mode=clone:start_duration=0.04[n1]" in _g4
-      and "[n2l]tpad=start_mode=clone:start_duration=0.04[n2]" in _g4, _d(_g4[-900:]))
+      "[n1c]tpad=start_mode=clone:start_duration=0.04[n1]" in _g4   # P1 #7 (28/09) : [n1l] -> [n1c]
+      and "[n2c]tpad=start_mode=clone:start_duration=0.04[n2]" in _g4, _d(_g4[-900:]))
 check("1.5 ... et jamais sur le 1er plan (temoin : n1 l'a)",
-      "[n1l]tpad" in _g4 and "[n0l]" not in _g4, _d(_g4[-900:]))
+      "[n1c]tpad" in _g4 and "[n0c]" not in _g4, _d(_g4[-900:]))
 check("1.6 total = timeline (3,0 s pour 3 plans de 1 s en coupe)", _t4 == 3.0, _d(_t4))
 check("1.7 offsets des xfade sur les start (1.0 puis 2.0 moins le cut 0,04 amorce)",
       "offset=0.96[x1]" in _g4 and "offset=1.96[x2]" in _g4, _d(_g4[-900:]))
@@ -276,8 +276,10 @@ check("1.9 audio_only : aucune amorce video emise (temoin : la commande existe)"
       bool(_cm) and "tpad=start_mode" not in " ".join(_cm), _d(" ".join(_cm)[-300:]))
 _c5, _t5 = build(MS, [clip("30", 0, 1, 0.0), clip("30", 1.5, 2.5, 2.0)], 30, _o)
 _g5 = " ".join(_c5)
-check("1.10 trou : segment noir present et AUCUNE amorce (inchange)",
-      "color=c=black" in _g5 and "start_mode=clone" not in _g5, _d(_g5[-600:]))
+# P1 #7 (28/09) : l'ecart date (1re image avalee apres un trou) est CORRIGE -- le plan qui sort
+# du trou recoit son amorce, comme apres un plan.
+check("1.10 trou : segment noir present ET amorce de 0,04 s sur le plan qui en sort",
+      "color=c=black" in _g5 and "[n2c]tpad=start_mode=clone:start_duration=0.04[n2]" in _g5, _d(_g5[-600:]))
 check("1.11 trou : total inchange = 2,5 s", _t5 == 2.5, _d(_t5))
 _c6, _t6 = build(MS, [clip("30", 0, 1, 0.0), clip("30", 1, 2, 2.0, transition="fade",
                                                    transition_s=0.4)], 30, _o)
@@ -286,7 +288,7 @@ check("1.12 vrai fondu : xfade fade present et AUCUNE amorce (inchange)",
       "xfade=transition=fade:duration=0.4" in _g6 and "start_mode=clone" not in _g6, _d(_g6[-600:]))
 _c7, _t7 = build(MS, [clip("30", 0, 1, 0.0), clip("30", 1, 2, 2.0, effects=FX0, mask=MASQUE_COIN)], 30, _o)
 _g7 = " ".join(_c7)
-_i_ov, _i_tp = _g7.find("overlay=0:0:shortest=1"), _g7.find("[n1l]tpad=start_mode=clone")
+_i_ov, _i_tp = _g7.find("overlay=0:0:shortest=1"), _g7.find("[n1c]tpad=start_mode=clone")
 check("1.13 amorce posee APRES le masque (overlay du masque puis tpad)",
       _i_ov >= 0 and _i_tp > _i_ov, _d(_i_ov, _i_tp))
 
@@ -317,7 +319,10 @@ _pn = RES.get(PIRE, {})
 check("3.10 pire cas corrige : 90 images sur 90", _pn.get("n") == 90 and _pn.get("n_att") == 90,
       _d(resume(_pn)))
 
-print("\n[4] inchanges : trou et vrai fondu (ecarts dates)")
+# P1 #7 (28/09/2026) : les deux ecarts dates sont CORRIGES (poignees de plan). Contrat : le trou
+# est ALIGNE (1re image presente) ; le fondu CENTRE rend n = timeline et chaque plan montre son
+# image exacte hors fondu (ecart median 0) ; le temoin e0ab545 differe.
+print("\n[4] trou et vrai fondu : corriges (poignees de plan), le temoin e0ab545 differe")
 _INCH = {
     "2 plans avec un trou": (30, "30", lambda rk: [clip(rk, 0, 1, 0.0), clip(rk, 1.5, 2.5, 2.0)]),
     "2 plans en fondu 0,4": (30, "30", lambda rk: [clip(rk, 0, 1, 0.0),
@@ -327,11 +332,11 @@ for name, (fps, rk, mk) in _INCH.items():
     rn = run_case(MS, mk(rk), fps, rk)
     ro = run_case(OLD, mk(rk), fps, rk) if OLD is not None else {"err": "temoin absent"}
     _sn, _so = resume(rn), resume(ro)
-    check(f"4 {name} : rendu mesure identique a e0ab545 (temoin : les deux ont rendu)",
-          "err" not in rn and "err" not in ro and _sn == _so, _d(_sn, _so))
-    check(f"4 {name} : images identiques octet pour octet a e0ab545",
-          "err" not in rn and "err" not in ro and rn.get("raw") == ro.get("raw") and bool(rn.get("raw")),
-          _d(len(rn.get("raw") or b""), len(ro.get("raw") or b"")))
+    _bon = (aligne(rn) if "trou" in name else
+            ("err" not in rn and rn.get("n") == rn.get("n_att")
+             and all(c.get("ecart_med") in (0, 0.0) and not c.get("absent") for c in rn.get("clips", []))))
+    check(f"4 {name} : corrige (n = timeline, images exactes) et le temoin e0ab545 differe",
+          _bon and "err" not in ro and _sn != _so, _d(_sn, _so))
 
 print("\n[5] sous-titres ASS de 1,00 a 2,00 s : images 30 a 59")
 _ass = pathlib.Path(TMP) / "t.ass"

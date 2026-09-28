@@ -2761,8 +2761,9 @@ _RP = s[_rp0:_rp1] if _rp0 >= 0 and _rp1 > _rp0 else ""
 check("P10_le_payload_de_rendu_n_emporte_pas_la_duree",
       bool(_RP) and "duration:" not in _RP and "duration_master:" in _RP,
       f"payload={len(_RP)} o, duration:={'duration:' in _RP}")
+# P1 #7 (28/09/2026) : la boucle des jonctions (poignees) n'a plus de branche « un seul segment » -- 2 -> 1.
 check("P10_le_backend_recalcule_la_duree_du_film",
-      SVC.count('cur, total = "n0", seg_durs[0]') == 2
+      SVC.count('cur, total = "n0", seg_durs[0]') == 1
       and SVC.count('dur = float(body.get("duration") or 0)') == 1,
       f"seg_durs={SVC.count('cur, total = ' + chr(34) + 'n0' + chr(34) + ', seg_durs[0]')} "
       f"save={SVC.count('dur = float(body.get(' + chr(34) + 'duration' + chr(34) + ') or 0)')}")
