@@ -2832,6 +2832,22 @@ async def episode_scenes(request: Request):
     return {"scenes": scenes, "method": "paragraph", "count": len(scenes)}
 
 
+@router.post("/episodes/estimate")
+async def estimate_episode(body: dict):
+    """P1 #6 — devis des scènes Seedance d'un épisode, AVANT le rendu.
+    Body: {scenes:[{motion, image_filename, video_model?, resolution?}]}.
+    -> {total_usd, scenes:[{scene, model, resolution, duration_s, usd}]} ;
+    le client renvoie `total_usd` comme `max_usd` de /episodes/render."""
+    from app.services import episode_video as _ev
+    scenes = (body or {}).get("scenes") or []
+    if not isinstance(scenes, list):
+        raise HTTPException(400, "scenes must be a list")
+    try:
+        return _ev.devis(scenes)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
 @router.post("/episodes/render")
 async def render_episode(request: Request, background_tasks: BackgroundTasks):
     """Assemble a narrated illustrated episode (per-scene TTS narration + Ken
@@ -2847,6 +2863,15 @@ async def render_episode(request: Request, background_tasks: BackgroundTasks):
         raise HTTPException(400, "No scenes to render")
     if not any((s.get("text") or "").strip() for s in scenes if isinstance(s, dict)):
         raise HTTPException(400, "Scenes have no narration text")
+    # P1 #6 : les scènes Seedance sont GÉNÉRÉES (fal, payant) — garde de coût
+    # serveur AVANT toute mise en file, sur les clips que la pipeline tirera.
+    from app.services import episode_video as _ev
+    try:
+        _plan = _ev.plan_videos(scenes)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if _plan:
+        _garde_cout(_ev.video_ops(_plan), payload.get("max_usd"))
     from app.services.elevenlabs_service import VoiceoverService
     if not await asyncio.get_running_loop().run_in_executor(
             None, VoiceoverService.is_enabled):
@@ -4536,7 +4561,9 @@ def _job_to_cost(job, p):
             meta = {}
         return _pricing.estimate({"kind": "episode",
                                   "images": int(meta.get("images", 1) or 1),
-                                  "chars": float(meta.get("chars", 0) or 0)}, p)
+                                  "chars": float(meta.get("chars", 0) or 0),
+                                  # P1 #6 : les clips Seedance réellement générés
+                                  "videos": meta.get("videos") or []}, p)
     if prov == "sprite2d":
         import json as _json
         try:

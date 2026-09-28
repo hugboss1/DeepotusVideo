@@ -781,10 +781,17 @@ class Pipeline:
                           language: str = "en", scenes: list | None = None) -> str:
         """Render a narrated illustrated episode: per-scene TTS narration + a
         Ken Burns (or still) image clip, concatenated into one 9:16 video.
-        Seedance-marked scenes fall back to Ken Burns in v1."""
+        P1 #6 (28/09) : an illustrated `motion:"seedance"` scene is GENERATED
+        (its own model/resolution, shortest native clip — episode_video) and
+        looped to its narration ; a failed generation falls back to Ken Burns
+        and the job says so (current_step + cost_meta.replis)."""
         import asyncio
         import shutil
+        from app.services import episode_video as _ev
         scenes = scenes or []
+        plan = {c["index"]: c for c in _ev.plan_videos(scenes)}
+        videos_ok: list[dict] = []
+        replis: list[dict] = []
         loop = asyncio.get_running_loop()
         async with async_session_factory() as session:
             first_img = next((s.get("image_filename") for s in scenes
@@ -832,6 +839,28 @@ class Pipeline:
                     clip_i = work / f"c{i:03d}.mp4"
                     a_arg = audio_i if audio_i.exists() else None
                     motion = sc.get("motion") or "kenburns"
+                    if i in plan:
+                        c = plan[i]
+                        try:
+                            await self._update(
+                                session, job, status=JobStatus.GENERATING_VIDEO.value,
+                                current_step=f"Scène {i+1}/{n} — {c['model']}",
+                                progress=int(5 + (i / n) * 80))
+                            vid_i = await self._episode_video(c, img_path,
+                                                              work / f"v{i:03d}.mp4")
+                            await loop.run_in_executor(
+                                None, lambda v=vid_i, a=a_arg, o=clip_i, d=dur:
+                                self.merger.scene_clip_video(v, a, o, dur=d))
+                            videos_ok.append({"model": c["model"],
+                                              "resolution": c["resolution"],
+                                              "duration_s": c["duration_s"]})
+                            clips.append(clip_i)
+                            continue
+                        except Exception as e:  # noqa: BLE001 — repli signalé
+                            logger.warning(f"Episode {job_id} scène {i+1} : Seedance "
+                                           f"échoué, repli Ken Burns — {e}")
+                            replis.append({"scene": i + 1, "motif": str(e)[:200]})
+                            motion = "kenburns"
                     await loop.run_in_executor(
                         None, lambda ip=img_path, a=a_arg, o=clip_i, m=motion, d=dur:
                         self.merger.scene_clip(ip, a, o, motion=m, dur=d))
@@ -841,9 +870,16 @@ class Pipeline:
                 final = settings.outputs_path / "final" / f"{job_id}.mp4"
                 await loop.run_in_executor(
                     None, lambda: self.merger.concat_clips(clips, final))
+                fin = "Complete"
+                if replis:
+                    fin = ("Terminé — Seedance replié en Ken Burns : scène "
+                           + ", ".join(str(r["scene"]) for r in replis))[:80]
+                meta = _json.loads(job.cost_meta or "{}")
+                meta.update({"videos": videos_ok, "replis": replis})
                 await self._update(
                     session, job, status=JobStatus.DONE.value,
-                    current_step="Complete", final_video_path=str(final),
+                    current_step=fin, final_video_path=str(final),
+                    cost_meta=_json.dumps(meta),
                     progress=100, completed_at=datetime.utcnow())
                 logger.success(f"Episode {job_id} complete -> {final}")
                 shutil.rmtree(work, ignore_errors=True)
@@ -854,6 +890,34 @@ class Pipeline:
                                    completed_at=datetime.utcnow())
                 raise
         return job_id
+
+    async def _episode_video(self, clip: dict, image_path, dest):
+        """P1 #6 — génère le clip COURT d'une scène d'épisode (plan de
+        episode_video) et le télécharge dans `dest`. Lève sur tout échec : la
+        scène se replie alors en Ken Burns (run_episode)."""
+        from app.services.fal_service import resolve_video_model
+        if image_path is None or not Path(image_path).is_file():
+            raise RuntimeError(f"illustration introuvable : {image_path}")
+        model = resolve_video_model(clip["model"])
+        if model["provider"] == "google":
+            client = self.google
+            result = await self.google.generate_video(
+                image_path=image_path, prompt=clip["prompt"],
+                negative_prompt="", duration=clip["duration_s"],
+                aspect_ratio="9:16", resolution=clip["resolution"],
+                model=model["endpoint"])
+        else:
+            client = self.fal
+            image_url = await self.fal.upload_image(image_path)
+            result = await self.fal.generate_video(
+                image_url=image_url, prompt=clip["prompt"],
+                duration=clip["duration_s"], aspect_ratio="9:16",
+                resolution=clip["resolution"] or "1080p", model_id=model["id"])
+        url = client.extract_video_url(result)
+        if not url:
+            raise RuntimeError(f"pas d'URL vidéo dans la réponse : {str(result)[:160]}")
+        await client.download_video(url, dest)
+        return dest
 
     async def run_composition(self, request: CompositionRequest) -> tuple[str, str, str]:
         """Generate both clips in parallel, then compose them.

@@ -157,7 +157,7 @@ check("3.6 region ajoutee : x/y arrondis, champ neuf garde, sans _disp",
 
 print("\n[4] groupe P1 du maillon et syntaxe")
 _P1 = [t for t, _a, _r in getattr(P, "P1", [])]
-check("4.1 P1rg1, P1rg2 en QUEUE de PATCHES", _P1[-2:] == ["P1rg1-chargement-des-regions-transparent",
+check("4.1 P1rg1, P1rg2 dans le groupe P1 (apres P1tp4), groupe en QUEUE de PATCHES", _P1[9:11] == ["P1rg1-chargement-des-regions-transparent",
       "P1rg2-enregistrement-des-regions-transparent"]
       and [t for t, _a, _r in P.PATCHES[-len(_P1):]] == _P1, _d(_P1[-4:]))
 _nc = subprocess.run([NODE, "--check", str(BUNDLE)], capture_output=True, text=True) if NODE else None

@@ -6514,6 +6514,90 @@ P1 += [("P1rg1-chargement-des-regions-transparent", A_P1RG1, R_P1RG1),
 assert len(P1) == 11 and R_P1FG1.startswith(A_P1FG1[:-len("];function bm(){")]) and R_P1FG1.endswith("];function bm(){")
 assert sum(a.count("onChange:()=>{}") for _t, a, _r in P1) == 8 and all("onChange:()=>{}" not in r for _t, _a, r in P1)
 
+# P1ep1..P1ep6 (tache #6, lot A) -- l'ecran Chapitres proposait « Seedance (animated) » mais l'etape 4 avouait « rendu en
+# Ken Burns dans cette version » et la requete n'emportait que {text, image_filename, motion}. Le backend genere
+# maintenant ces scenes (episode_video, run_episode, /episodes/estimate, garde de cout de /episodes/render). Decisions
+# de l'utilisateur (28/09) : clip court boucle ; modele et resolution PAR SCENE (defaut : modele global, plus basse
+# resolution) ; echec -> repli Ken Burns SIGNALE. max_usd = le devis AFFICHE, lie aux scenes par dzEpSig : un devis
+# perime ou pas encore rendu REFUSE le lancement (patron « Payer » lie a l'objet de l'estimation). Banc :
+# test_p1_episode_seedance_bundle (fonctions pures executees) + test_p1_episode_seedance (backend).
+A_P1EP1 = 'function DzEpisodes({'
+R_P1EP1 = (
+    r'var __dzVmP=null;function dzVideoModels(){if(!__dzVmP)__dzVmP=fetch("/api/video-models").then(function(r2){'
+    r'return r2.ok?r2.json():{models:[]}}).catch(function(){__dzVmP=null;return{models:[]}});return __dzVmP}'
+    r'function dzEpScenesPayload(scenes){return(scenes||[]).map(function(s){return{text:s.text||"",'
+    r'image_filename:s.image_filename||null,motion:s.motion||"kenburns",video_model:s.video_model||"",'
+    r'resolution:s.resolution||"",illustration_prompt:s.illustration_prompt||""}})}'
+    r'function dzEpSig(pl){return JSON.stringify((pl||[]).filter(function(s){return s.motion==="seedance"&&s.image_filename})'
+    r'.map(function(s){return[s.image_filename,s.video_model,s.resolution]}))}'
+    r'function dzEpMaxUsd(scenes){var pl=dzEpScenesPayload(scenes);if(dzEpSig(pl)==="[]")return void 0;'
+    r'var dv=window.__dzEpDevis;return dv&&dv.sig===dzEpSig(pl)&&typeof dv.total==="number"?dv.total:!1}'
+    r'function DzEpSeedance({sc,set}){var st=x.useState(null),mm=st[0],setMM=st[1];x.useEffect(function(){var on=!0;'
+    r'dzVideoModels().then(function(d){on&&setMM(d)});return function(){on=!1}},[]);'
+    r'var mid=sc.video_model||(mm&&mm.default)||"";var m=mm&&(mm.models||[]).find(function(z){return z.id===mid});'
+    r'var rs=(m&&m.resolutions)||[];var res=sc.resolution&&rs.indexOf(sc.resolution)>=0?sc.resolution:(rs[0]||"");'
+    r'return r.jsxs("div",{"data-dzepsd":"1",style:{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"},children:['
+    r'r.jsx("span",{style:{fontSize:11,color:"var(--ink-soft)"},children:"Modèle :"}),'
+    r'r.jsx("div",{style:{width:240},children:r.jsx(DzVideoModelSel,{value:sc.video_model||"",'
+    r'onChange:function(v){set("video_model",v);set("resolution","")}})}),'
+    r'rs.length?r.jsx("div",{style:{width:96},children:r.jsx(re,{value:res,onChange:function(v){set("resolution",v)},'
+    r'options:rs})}):null,sc.image_filename?null:r.jsx("span",{style:{fontSize:11,color:"var(--amber)"},'
+    r'children:"Sans illustration : fond uni, rien n’est généré."})]})}'
+    r'function DzEpDevis({scenes}){var st=x.useState(null),dv=st[0],setDv=st[1];var pl=dzEpScenesPayload(scenes),'
+    r'sig=dzEpSig(pl);x.useEffect(function(){var on=!0;if(sig==="[]"){window.__dzEpDevis={sig:sig,total:0};'
+    r'setDv({total_usd:0,scenes:[]});return function(){on=!1}}setDv(null);'
+    r'var t=setTimeout(function(){fetch("/api/episodes/estimate",{method:"POST",headers:{"Content-Type":"application/json"},'
+    r'body:JSON.stringify({scenes:pl})}).then(function(r2){return r2.json().catch(function(){return{}}).then(function(j){'
+    r'return r2.ok?j:{error:(j&&j.detail)||("HTTP "+r2.status)}})}).then(function(d){if(!on)return;setDv(d);'
+    r'if(d&&!d.error&&typeof d.total_usd==="number")window.__dzEpDevis={sig:sig,total:d.total_usd}})'
+    r'.catch(function(err){on&&setDv({error:String((err&&err.message)||err)})})},250);'
+    r'return function(){on=!1;clearTimeout(t)}},[sig]);'
+    r'var box={fontSize:12,marginBottom:12,padding:"8px 10px",borderRadius:"var(--r-sm)",border:"1px solid var(--stroke)",'
+    r'background:"var(--bg-panel-2)"};'
+    r'if(!dv)return r.jsx("div",{"data-dzepdevis":"attente",style:box,children:"Devis Seedance…"});'
+    r'if(dv.error)return r.jsx("div",{"data-dzepdevis":"erreur",style:Object.assign({},box,{color:"var(--red)"}),'
+    r'children:"Devis Seedance : "+dv.error});'
+    r'if(!dv.scenes||!dv.scenes.length)return r.jsx("div",{"data-dzepdevis":"gratuit",style:Object.assign({},box,'
+    r'{color:"var(--ink-soft)"}),children:"Aucune scène Seedance illustrée : les images sont animées en local '
+    r'(Ken Burns ou fixe), sans coût vidéo."});'
+    r'return r.jsxs("div",{"data-dzepdevis":"payant",style:box,children:[r.jsxs("div",{style:{color:"var(--amber)",'
+    r'fontWeight:600},children:["Seedance : ",dv.scenes.length," scène(s) animée(s) · ≈ ",Number(dv.total_usd).toFixed(2),'
+    r'" $"]}),r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)",marginTop:4},children:dv.scenes.map(function(l){'
+    r'return"scène "+l.scene+" : "+l.model+(l.resolution?" "+l.resolution:"")+" · "+l.duration_s+" s ≈ "'
+    r'+Number(l.usd).toFixed(2)+" $"}).join(" — ")}),r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-muted)",'
+    r'marginTop:4},children:"Clip court bouclé sur la narration ; « Assemble episode » envoie ce montant comme plafond. '
+    r'Un échec replie la scène en Ken Burns."})]})}'
+    + A_P1EP1)
+A_P1EP2 = ('sc.motion||"kenburns",onChange:function(v){updScene(i,"motion",v)},options:[{value:"kenburns",'
+           'label:"Ken Burns (zoom)"},{value:"seedance",label:"Seedance (animated)"},{value:"still",label:"Image fixe"}]})})]})')
+R_P1EP2 = A_P1EP2 + ',sc.motion==="seedance"?r.jsx(DzEpSeedance,{sc:sc,set:function(k,v){updScene(i,k,v)}}):null'
+A_P1EP3 = '". Les scènes sans image utilisent un fond uni ; Seedance est rendu en Ken Burns dans cette version."]}),'
+R_P1EP3 = '". Les scènes sans image utilisent un fond uni."]}),r.jsx(DzEpDevis,{scenes:scenes}),'
+A_P1EP4 = ('async function assembleEpisode(){var sc=scenes.filter(function(s){return (s.text||"").trim()});if(!sc.length){'
+           'setEpErr("No scene with text (step 2).");return}setEpBusy(!0);setEpErr("");setEpStatus(null);setEpJob("");'
+           'try{var d=await D.renderEpisode({title:title||"Épisode",voice_id:vid||void 0,language:lang,'
+           'scenes:scenes.map(function(s){return{text:s.text||"",image_filename:s.image_filename||null,'
+           'motion:s.motion||"kenburns"}})})')
+R_P1EP4 = ('async function assembleEpisode(){var dzMx=dzEpMaxUsd(scenes);if(dzMx===!1){setEpErr("Devis Seedance pas '
+           'encore prêt (ou périmé) — réessaie dans un instant.");return}var sc=scenes.filter(function(s){return '
+           '(s.text||"").trim()});if(!sc.length){setEpErr("No scene with text (step 2).");return}setEpBusy(!0);setEpErr("");'
+           'setEpStatus(null);setEpJob("");try{var d=await D.renderEpisode({title:title||"Épisode",voice_id:vid||void 0,'
+           'language:lang,scenes:dzEpScenesPayload(scenes),max_usd:dzMx})')
+A_P1EP5 = 'epStatus&&epStatus.status==="done"?r.jsxs("div",{style:{display:"grid",gap:10,justifyItems:"center"},children:['
+R_P1EP5 = (A_P1EP5 + 'epStatus.current_step&&epStatus.current_step!=="Complete"?r.jsx("div",{"data-dzeprepli":"1",'
+           'style:{fontSize:12,color:"var(--amber)",textAlign:"center"},children:epStatus.current_step}):null,')
+A_P1EP6 = ('children:"La narration, les illustrations et la vidéo finale sont réutilisables (Librairie + nœuds Studio). '
+           'L\'animation Seedance par scène arrivera dans une prochaine itération."')
+R_P1EP6 = ('children:"La narration, les illustrations et la vidéo finale sont réutilisables (Librairie + nœuds Studio). '
+           'Une scène Seedance est générée en clip court bouclé sur sa narration ; un échec la replie en Ken Burns."')
+P1 += [("P1ep1-devis-et-selecteur-seedance-avant-dzepisodes", A_P1EP1, R_P1EP1),
+       ("P1ep2-modele-et-resolution-par-scene-seedance", A_P1EP2, R_P1EP2),
+       ("P1ep3-le-devis-remplace-la-phrase-ken-burns", A_P1EP3, R_P1EP3),
+       ("P1ep4-requete-payload-et-max-usd-du-devis", A_P1EP4, R_P1EP4),
+       ("P1ep5-replis-affiches-en-fin-de-rendu", A_P1EP5, R_P1EP5),
+       ("P1ep6-le-pied-ne-promet-plus-une-iteration", A_P1EP6, R_P1EP6)]
+assert len(P1) == 17 and "\\u2019" not in R_P1EP1
+
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
@@ -6767,7 +6851,8 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("EC14-clic-sur-un-clip-efface-le-trou", A_EC14, R_EC14)] + EC15 + L4 + L7A + L5 + L6 + R6 + R7 + R8 + P1
            # file P1 (28/09) : + groupe P1 EN QUEUE apres R8 (P1fg1, la rangee FIGMA_TOKEN des Reglages) ; 229 -> 230,
            # le --check dit 231 ancres ; + P1st1..P1tp4 (tache #3, les huit controles inertes) : 238, le --check dit 239 ;
-           # + P1rg1, P1rg2 (tache #4, regions des templates transparentes) : 240, le --check dit 241.
+           # + P1rg1, P1rg2 (tache #4, regions des templates transparentes) : 240, le --check dit 241 ;
+           # + P1ep1..P1ep6 (tache #6 lot A, scenes Seedance des episodes) : 246, le --check dit 247.
            # studio 27/09 : + HUIT sections EN QUEUE, groupe R8 apres R7 (format HeyGen impose par le template, « Ouvrir un graphe » en icone,
            # repli de l'inspecteur) ; 213 -> 221, le --check dit 222 ancres ; + R8sv1 (Save par le dialogue maison) : 222, le --check dit 223 ;
            # + R8pr1..R8pr7 (les autres window.prompt natifs, 27/09) : 229, le --check dit 230.
