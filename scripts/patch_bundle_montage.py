@@ -6495,7 +6495,23 @@ P1 = [("P1fg1-rangee-figma-token-dans-les-reglages", A_P1FG1, R_P1FG1),
       ("P1tp2-etat-de-la-recherche-des-templates", A_P1TP2, R_P1TP2),
       ("P1tp3-champ-search-branche-et-compteur", A_P1TP3, R_P1TP3),
       ("P1tp4-la-grille-rend-la-liste-filtree", A_P1TP4, R_P1TP4)]
-assert len(P1) == 9 and R_P1FG1.startswith(A_P1FG1[:-len("];function bm(){")]) and R_P1FG1.endswith("];function bm(){")
+# P1rg1, P1rg2 (tache #4) -- l'editeur de templates (hm) recopiait les regions champ par champ : au CHARGEMENT (litteral
+# -> fit, audio_volume, act, transition, length_s, effects... hors de l'etat) et a l'ENREGISTREMENT (seuls les champs
+# listes NON NULS de l'etat partaient, O0 revenait pour le reste). Mesure : un gabarit intact faisait deja l'aller-retour
+# sans perte (O0) ; la perte est celle d'une EDITION -- decocher « Pulse » pose effect:null, ignore -> « pulse » revenait,
+# et tout champ hors liste edite (masque, text_fit du plan templates T7) disparaissait. Dessin P1-P3 du plan
+# 2026-09-03-plan-templates (tplregion, jamais construit) : chargement par Object.assign({},F,{...}) ; enregistrement de
+# tout champ de l'etat sauf `_disp` et les undefined (les null PASSENT), AVANT les champs listes d'origine -- l'enregistrement
+# d'un gabarit intact reste identique a l'ancien (banc test_p1_regions_templates, neuf gabarits). NB : le _FIN_R du plan
+# ajoutait une `)` de trop -- `map(F=>({...}))` et `map(F=>Object.assign({},F,{...}))` se ferment tous deux par `}))`.
+A_P1RG1 = 'const H=(E.regions||[]).map(F=>({id:F.id,type:F.type,slot_name:F.slot_name||F.id,'
+R_P1RG1 = 'const H=(E.regions||[]).map(F=>Object.assign({},F,{id:F.id,type:F.type,slot_name:F.slot_name||F.id,'
+A_P1RG2 = 'const O0=(a.regions||[]).find(z=>z.id===E.id)||{};return Object.assign({},O0,{id:E.id,'
+R_P1RG2 = ('const O0=(a.regions||[]).find(z=>z.id===E.id)||{};var EX={};for(var kk in E){if(kk!=="_disp"&&E[kk]!==void 0)'
+           'EX[kk]=E[kk]}return Object.assign({},O0,EX,{id:E.id,')
+P1 += [("P1rg1-chargement-des-regions-transparent", A_P1RG1, R_P1RG1),
+       ("P1rg2-enregistrement-des-regions-transparent", A_P1RG2, R_P1RG2)]
+assert len(P1) == 11 and R_P1FG1.startswith(A_P1FG1[:-len("];function bm(){")]) and R_P1FG1.endswith("];function bm(){")
 assert sum(a.count("onChange:()=>{}") for _t, a, _r in P1) == 8 and all("onChange:()=>{}" not in r for _t, _a, r in P1)
 
 
@@ -6750,7 +6766,8 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("EC13-suppr-referme-le-trou", A_EC13, R_EC13),
            ("EC14-clic-sur-un-clip-efface-le-trou", A_EC14, R_EC14)] + EC15 + L4 + L7A + L5 + L6 + R6 + R7 + R8 + P1
            # file P1 (28/09) : + groupe P1 EN QUEUE apres R8 (P1fg1, la rangee FIGMA_TOKEN des Reglages) ; 229 -> 230,
-           # le --check dit 231 ancres ; + P1st1..P1tp4 (tache #3, les huit controles inertes) : 238, le --check dit 239.
+           # le --check dit 231 ancres ; + P1st1..P1tp4 (tache #3, les huit controles inertes) : 238, le --check dit 239 ;
+           # + P1rg1, P1rg2 (tache #4, regions des templates transparentes) : 240, le --check dit 241.
            # studio 27/09 : + HUIT sections EN QUEUE, groupe R8 apres R7 (format HeyGen impose par le template, « Ouvrir un graphe » en icone,
            # repli de l'inspecteur) ; 213 -> 221, le --check dit 222 ancres ; + R8sv1 (Save par le dialogue maison) : 222, le --check dit 223 ;
            # + R8pr1..R8pr7 (les autres window.prompt natifs, 27/09) : 229, le --check dit 230.

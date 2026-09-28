@@ -186,7 +186,8 @@ check("4.5 fm : la grille rend dzTplFiltre(d,dzTq), la selection reste lue dans 
 print("\n[5] groupe P1 du maillon et syntaxe")
 _P1 = [t for t, _a, _r in getattr(P, "P1", [])]
 check("5.1 P1 en queue de PATCHES : P1fg1 puis les sections de la tache #3",
-      _P1[:1] == ["P1fg1-rangee-figma-token-dans-les-reglages"] and len(_P1) == 9
+      _P1[:1] == ["P1fg1-rangee-figma-token-dans-les-reglages"]
+      and [x.split("-")[0] for x in _P1[1:9]] == ["P1st1", "P1st2", "P1st3", "P1qv1", "P1tp1", "P1tp2", "P1tp3", "P1tp4"]
       and [t for t, _a, _r in P.PATCHES[-len(_P1):]] == _P1, _d(_P1))
 _nc = subprocess.run([NODE, "--check", str(BUNDLE)], capture_output=True, text=True) if NODE else None
 check("5.2 le bundle ENTIER passe node --check", _nc is not None and _nc.returncode == 0, _d(_nc.stderr[-300:] if _nc else ""))
