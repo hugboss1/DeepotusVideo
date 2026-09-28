@@ -3,26 +3,31 @@
    le bundle worktree est servi par interception sur l'app installée ;
    /api/video-models est mocké (registre) et POST /api/generate est intercepté
    (capture du payload + réponse mock) → ZÉRO job réel, ZÉRO coût fal/google.
-   W1  boot : libellé v1.19.0 (bundle), zéro erreur de parse.
+   P1 #13 (28/09/2026) : plus AUCUNE valeur recopiée — la version (APP_VERSION), le modèle par défaut
+   (DEFAULT_VIDEO_MODEL) et le nombre de modèles sont LUS dans le dépôt ; en SMOKE le catalogue simulé est le
+   VRAI GET /api/video-models du backend visé (DZ_BASE, tout rendu disponible) ; le coût attendu en W4 est celui
+   que le SERVEUR calcule (POST /api/cost/estimate, op `video`). Précondition : une image dans la Library.
+   W1  boot : libellé v<APP_VERSION> (bundle), zéro erreur de parse.
    W2  graphe QA solo (Image→Seedance←Text, →Render) injecté + ouvert.
-   W3  panneau Generator : select Modèle (data-dzvmsel) en tête, 11 options
-       (Défaut + 10), prix $/s dans les labels ; sélection Kling v3 Pro.
-   W4  cost est. (RUNTIME) : $1.12 = 10 s × $0.112 (kling), plus de $0.18 dur.
-   W5  Run solo → POST /api/generate intercepté : video_model="kling-v3-pro",
+   W3  panneau Generator : select Modèle (data-dzvmsel) en tête, « Défaut (<défaut>) »
+       + un par modèle du catalogue, prix $/s dans les labels ; sélection Kling v3 Pro.
+   W4  cost est. (RUNTIME) == le montant du serveur pour kling-v3-pro à 10 s.
+   W5  Run solo → POST /api/generate intercepté : video_model="kling-v3-pro", max_usd (garde),
        final s'aligne sur le nœud (image + prompt amont intacts).
    W6  Quick : select Modèle présent ; PixVerse v6 choisi ; image Library
        sélectionnée ; Generate → payload video_model="pixverse-v6" (mock).
    W7  persistance : localStorage.dz_video_model === "pixverse-v6".
    W8  zéro erreur console inattendue.
    Mode E2E (DZ_E2E=1, sans DZ_BUNDLE) — APRÈS déploiement : /api/video-models
-   RÉEL (10 modèles, fal+google available avec les clés), select alimenté par
+   RÉEL (les modèles du registre, fal+google available avec les clés), select alimenté par
    le backend ; les générations réelles de la recette se font via l'API (voir
    CR chantier), pas ici.
    Run : node scripts/qa/qa-videomodel.js [outdir]  (deps: scripts/qa/node_modules) */
 const puppeteer = require('puppeteer-core');
 const fs = require('fs');
 const path = require('path');
-const BASE = 'http://127.0.0.1:8765';
+// P1 #13 (28/09/2026) : DZ_BASE vise un backend de PREUVE (ex. http://127.0.0.1:8799) ; défaut inchangé
+const BASE = process.env.DZ_BASE || 'http://127.0.0.1:8765';
 const OUT = process.argv[2] || path.join(__dirname, 'shots-videomodel');
 const E2E = process.env.DZ_E2E === '1';
 const LOCAL_BUNDLE = process.env.DZ_BUNDLE || '';
@@ -30,31 +35,25 @@ const SMOKE = !!LOCAL_BUNDLE;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const api = async (p) => { const r = await fetch(BASE + p); return r.json(); };
 
-/* Miroir du registre backend (labels/prix = pricing.py video_usd_per_s). */
-const REG = [
-  ['seedance-v1-pro', 'Seedance 1.0 Pro', 'fal', { '720p': 0.054, '1080p': 0.124 }],
-  ['seedance-2', 'Seedance 2.0', 'fal', { '720p': 0.3034, '1080p': 0.682 }],
-  ['seedance-2-fast', 'Seedance 2.0 Fast', 'fal', { '720p': 0.2419 }],
-  ['kling-v3-pro', 'Kling v3 Pro', 'fal', { '*': 0.112 }],
-  ['kling-v3-standard', 'Kling v3 Standard', 'fal', { '*': 0.084 }],
-  ['pixverse-v6', 'PixVerse v6', 'fal', { '720p': 0.045, '1080p': 0.09 }],
-  ['veo-3.1-fast-fal', 'Veo 3.1 Fast (fal)', 'fal', { '*': 0.10 }],
-  ['veo-3.1-google', 'Veo 3.1 (Google)', 'google', { '*': 0.40 }],
-  ['veo-3.1-fast-google', 'Veo 3.1 Fast (Google)', 'google', { '*': 0.15 }],
-  ['veo-3.1-lite-google', 'Veo 3.1 Lite (Google)', 'google', { '*': 0.10 }],
-];
-const MOCK_MODELS = {
-  models: REG.map(([id, label, provider, usd]) => ({
-    id, label, provider, available: true, durations: [4, 6, 8],
-    ratios: ['9:16', '16:9'], resolutions: ['720p', '1080p'],
-    end_image: id.startsWith('seedance') || id.startsWith('kling'),
-    seed: false, audio_included: provider === 'google', usd_per_s: usd,
-  })),
-  default: 'seedance-v1-pro',
-};
+/* P1 #13 (28/09/2026) : lu dans le DÉPÔT, jamais recopié (la table REG d'hier ignorait seedance-2.5 et inventait
+   des durées). Le banc test_p1_qa_videomodel vérifie que ces lectures rendent ce que Python importe. */
+const REPO = path.join(__dirname, '..', '..');
+const lire = f => fs.readFileSync(path.join(REPO, f), 'utf8').replace(/\r\n/g, '\n');
+const APP_VERSION = (lire('backend/app/config.py').match(/^APP_VERSION = "([^"]+)"/m) || [])[1] || '?';
+const FAL = lire('backend/app/services/fal_service.py');
+const DEFAULT_VIDEO_MODEL = (FAL.match(/^DEFAULT_VIDEO_MODEL = "([^"]+)"/m) || [])[1] || '?';
+const I_VM = FAL.indexOf('VIDEO_MODELS: dict = {');
+const BLOC_VM = I_VM >= 0 ? FAL.slice(I_VM, FAL.indexOf('\n}\n', I_VM)) : '';
+const IDS_REPO = [...BLOC_VM.matchAll(/^    "([^"]+)": \{/gm)].map(m => m[1]);
+/* SMOKE : le VRAI catalogue du backend visé, tout rendu disponible (le backend de preuve n'a pas de clé) */
+let MOCK_MODELS = null;
 
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
+  if (SMOKE) {
+    const reel = await api('/api/video-models');
+    MOCK_MODELS = Object.assign({}, reel, { models: (reel.models || []).map(m => Object.assign({}, m, { available: true })) });
+  }
   const browser = await puppeteer.launch({
     executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe',
     headless: 'new', protocolTimeout: 300000,
@@ -107,9 +106,9 @@ const MOCK_MODELS = {
   await page.goto(BASE + '/', { waitUntil: 'networkidle2', timeout: 45000 });
   await sleep(2000);
 
-  /* W1 — boot + libellé bundle (v1.21.0 depuis W-c) */
-  const w1 = await page.evaluate(() => document.body.innerText.includes('v1.21.0'));
-  T('W1 boot : libellé v1.21.0 servi, zéro erreur de parse',
+  /* W1 — boot + libellé bundle (APP_VERSION du dépôt) */
+  const w1 = await page.evaluate(v => document.body.innerText.includes('v' + v), APP_VERSION);
+  T('W1 boot : libellé v' + APP_VERSION + ' servi, zéro erreur de parse',
     w1 && errors.length === 0, JSON.stringify({ v: w1, errs: errors.slice(0, 2) }));
 
   const navTo = (label) => page.evaluate(l => {
@@ -122,11 +121,12 @@ const MOCK_MODELS = {
     await page.evaluate(() => window.dispatchEvent(new Event('dz-graphs-changed')));
     await sleep(700);
     const opened = await page.evaluate(async (nm) => {
-      const sel = [...document.querySelectorAll('[data-dzselect]')].find(b => /open graph|no saved graphs/i.test(b.innerText));
+      /* R8og1 (27/09) : le select « Open graph » est devenu un bouton icône qui déroule un menu */
+      const sel = document.querySelector('[aria-label="Ouvrir un graphe"]');
       if (!sel) return 'no-select';
       sel.click();
       await new Promise(r => setTimeout(r, 350));
-      const opt = [...document.querySelectorAll('button')].find(b => b.innerText.trim() === nm);
+      const opt = [...document.querySelectorAll('.dz-opengraph-item')].find(b => b.innerText.trim() === nm);
       if (!opt) return 'no-option';
       opt.click();
       return 'ok';
@@ -216,7 +216,8 @@ const MOCK_MODELS = {
       const btn = wrap.querySelector('[data-dzselect]') || wrap.querySelector('button');
       btn.click();
       await new Promise(r => setTimeout(r, 450));
-      const all = [...document.querySelectorAll('button')];
+      // P1 #13 : le bouton DÉCLENCHEUR (qui affiche le choix courant) n'est pas une option
+      const all = [...document.querySelectorAll('button')].filter(b0 => b0 !== btn);
       const opts = all.map(b => b.innerText.trim()).filter(t => /Défaut \(|\$[\d.]+\/s/.test(t));
       const kl = all.find(b => /^Kling v3 Pro/.test(b.innerText.trim()));
       const out = { count: opts.length, hasPrix: opts.some(t => t.includes('$0.11/s')),
@@ -227,13 +228,19 @@ const MOCK_MODELS = {
     w3opts = one; pk = one.pk;
     await sleep(600);
   }
-  T('W3 panneau : select Modèle, 11 options, prix, sélection Kling',
-    nc && w3a.present && /Défaut \(seedance-v1-pro\)/.test(w3a.label || '') && w3opts.count === 11
+  const CAT = MOCK_MODELS || await api('/api/video-models');
+  const nOpt = (CAT.models || []).length + 1;
+  T('W3 panneau : select Modèle, ' + nOpt + ' options, prix, sélection Kling',
+    nc && w3a.present && (w3a.label || '').includes('Défaut (' + CAT.default + ')') && w3opts.count === nOpt
     && w3opts.hasPrix && w3opts.kling && pk === 'ok',
     JSON.stringify({ nc, ...w3a, ...w3opts, pk }));
   await page.screenshot({ path: path.join(OUT, 'w3-select.png') });
 
-  /* W4 — cost est. (RUNTIME) suit le modèle : 10 s × $0.112 = $1.12 */
+  /* W4 — cost est. (RUNTIME) suit le modèle : le montant que le SERVEUR calcule (op `video`, bornage natif et
+     video_max_gen_s compris — la vignette en est le miroir depuis P1 #9) */
+  const est = await (await fetch(BASE + '/api/cost/estimate', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ kind: 'campaign', ops: [{ kind: 'video', model: 'kling-v3-pro', duration_s: 10 }] }) })).json();
+  const w4att = '$' + Number(est.total_usd).toFixed(2);
   await page.evaluate(() => {
     const h = [...document.querySelectorAll('button')].find(x => (x.innerText || '').trim() === 'RUNTIME');
     if (h) h.click();
@@ -245,8 +252,8 @@ const MOCK_MODELS = {
     const sibs = [...lab.parentElement.children];
     return { val: (sibs[sibs.indexOf(lab) + 1] || { innerText: '' }).innerText.trim() };
   });
-  T('W4 cost est. par modèle : $1.12 (kling 10s), plus de $0.18 dur',
-    w4.val === '$1.12', JSON.stringify(w4));
+  T('W4 cost est. par modèle : ' + w4att + ' (kling 10 s, montant du serveur)',
+    w4.val === w4att, JSON.stringify({ ...w4, attendu: w4att }));
   await page.screenshot({ path: path.join(OUT, 'w4-cost.png') });
 
   /* W5 — Run solo : payload intercepté porte video_model=kling-v3-pro */
@@ -259,10 +266,10 @@ const MOCK_MODELS = {
     });
     await sleep(2500);
     const body = genBodies[before] || null;
-    w5 = { got: genBodies.length - before, model: body && body.video_model,
+    w5 = { got: genBodies.length - before, model: body && body.video_model, max: body && body.max_usd,
       img: body && body.image_filename, prompt: body && (body.custom_prompt || '').slice(0, 30) };
-    T('W5 Run solo : POST /generate intercepté, video_model=kling-v3-pro',
-      w5.got === 1 && w5.model === 'kling-v3-pro' && w5.img === IMGN
+    T('W5 Run solo : POST /generate intercepté, video_model=kling-v3-pro, max_usd (garde de P1 #9)',
+      w5.got === 1 && w5.model === 'kling-v3-pro' && w5.img === IMGN && typeof w5.max === 'number' && w5.max > 0
       && /qa wa pumpfun/.test(w5.prompt || ''), JSON.stringify(w5));
   }
 
@@ -322,8 +329,8 @@ const MOCK_MODELS = {
     const vm = await api('/api/video-models');
     const ids = (vm.models || []).map(m => m.id);
     const av = Object.fromEntries((vm.models || []).map(m => [m.id, m.available]));
-    T('E1 /api/video-models réel : 10 modèles, défaut seedance-v1-pro',
-      ids.length === 10 && vm.default === 'seedance-v1-pro', JSON.stringify(ids));
+    T('E1 /api/video-models réel : ' + IDS_REPO.length + ' modèles (fal_service.py), défaut ' + DEFAULT_VIDEO_MODEL,
+      JSON.stringify(ids) === JSON.stringify(IDS_REPO) && vm.default === DEFAULT_VIDEO_MODEL, JSON.stringify(ids));
     T('E2 clés : fal ET google available',
       av['seedance-2'] === true && av['veo-3.1-lite-google'] === true, JSON.stringify(av));
   }
