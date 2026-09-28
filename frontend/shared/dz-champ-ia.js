@@ -219,11 +219,18 @@
     return String(f.textContent || "").trim();
   }
   function chemin() { return String((W.location && W.location.pathname) || "/"); }
+  /* P1 #12 (28/09/2026) : une PAGE À PART est un chemin qui commence par la `page` d'une règle (/atelier, /vectorlab…) ;
+     les règles SANS `page` sont celles de l'application principale et n'y sont pas essayées (mesuré : elles l'étaient). */
+  function pageAPart(ch) {
+    for (var i = 0; i < REGLES.length; i++) if (REGLES[i].page && ch.indexOf(REGLES[i].page) === 0) return true;
+    return false;
+  }
   function regleDe(el) {
-    var ch = chemin();
+    var ch = chemin(), aPart = pageAPart(ch);
     for (var i = 0; i < REGLES.length; i++) {
       var r = REGLES[i];
       if (r.page && ch.indexOf(r.page) !== 0) continue;
+      if (!r.page && aPart) continue;
       if (r.sel) { if (correspond(el, r.sel)) return r; continue; }
       if (el.tagName !== "TEXTAREA") continue;
       var lab = libelleDe(el);
@@ -369,6 +376,8 @@
     }
     el.__dzia = st;
     suivis.push(el);
+    veiller();
+    if (dic.indispo && !dic.active) dic.indispo = "";      // P1 #12 : un champ neuf (retour des Réglages) oublie l'indisponibilité
     if (ro) { try { ro.observe(el); if (p) ro.observe(p); } catch (e) {} }
     synchroniserUn(el);
   }
@@ -478,6 +487,11 @@
   function reserver(el, st, rb, mono) {
     if (st.coin || !rb.width) return;
     if (!st.boite) { st.coin = true; return; }
+    /* P1 #12 (28/09/2026) : sur une ligne, une barre qui laisse moins de 160 px au texte ou couvre plus de la moitié du
+       champ passe à cheval sur le bord haut (mesuré : #iaTexte du Vectorlab, 312 px, barre 166 px — le centre du
+       champ était sous le badge, 129 px restaient au texte) */
+    var lg = el.getBoundingClientRect().width;
+    if (mono && lg > 0 && (lg - rb.width < 160 || rb.width > lg / 2)) { st.coin = true; return; }
     var bas = !mono && rb.width > 60;
     var cle = (bas ? "b" : "r") + Math.round(bas ? rb.height : rb.width);
     if (st.reserve === cle) return;
@@ -499,7 +513,14 @@
   function synchroniser() {
     var l = suivis.slice();
     for (var i = 0; i < l.length; i++) { try { synchroniserUn(l[i]); } catch (e) {} }
+    if (!suivis.length) dormir();
   }
+  /* P1 #12 (28/09/2026) : LE BALAYAGE DE 800 ms n'existe que tant qu'un champ est suivi — posé au premier habillage,
+     arrêté (clearInterval) quand le dernier est défait et à `pagehide` ; il ne tournait plus pour rien (mesuré :
+     setInterval posé au démarrage, jamais arrêté, même sur une page sans champ IA). */
+  var tVeille = 0;
+  function veiller() { if (!tVeille) tVeille = W.setInterval(function () { if (!D.hidden) synchroniser(); }, 800); }
+  function dormir() { if (tVeille) { W.clearInterval(tVeille); tVeille = 0; } }
 
   var tSync = 0, tMarq = 0, aMarquer = [];
   function planifierSync() {
@@ -546,7 +567,8 @@
     D.addEventListener("focusin", function (ev) {
       if (dic.indispo && !dic.active && ev.target && ev.target.__dzia) { dic.indispo = ""; rafraichirMicros(); }
     }, true);
-    W.addEventListener("pagehide", function () { abandonnerDictee(null); });
+    W.addEventListener("pagehide", function () { abandonnerDictee(null); dormir(); });
+    W.addEventListener("pageshow", function () { if (suivis.length) veiller(); });   // retour du cache : le balayage reprend
     /* la vue changée met la pastille à jour : <select> natif (change) et
        select custom / cartes du bundle (clic, après le rendu de React) */
     D.addEventListener("change", function () { W.setTimeout(rafraichirPastilles, 0); }, true);
@@ -570,7 +592,7 @@
     }, true);
     D.addEventListener("focusout", planifierSync, true);
     D.addEventListener("scroll", planifierSync, true);
-    W.setInterval(function () { if (!D.hidden) synchroniser(); }, 800);
+    if (suivis.length) veiller();
   }
 
   /* ─────────── T9 (27/09) : PASTILLE DE MODÈLE, miroir du sélecteur de la vue ───────────
@@ -1126,7 +1148,15 @@
   var TITRE_STOP = "Arrêter la dictée";
   var MIMES = ["audio/webm;codecs=opus", "audio/ogg;codecs=opus", "audio/webm", "audio/mp4"];
   var PRISE_MAX_S = 590;                         // le serveur refuse au-delà de 10 min
-  var dic = { voie1Ko: "", indispo: "", active: null };
+  var dic = { voie1Ko: "", indispo: "", indispoT: 0, active: null };
+  /* P1 #12 (28/09/2026) : une indisponibilité (available:false) EXPIRE après DIC_INDISPO_MS — elle était retenue jusqu'au
+     focus suivant d'un champ IA, et le micro grisé ne donne pas le focus : une clé ajoutée dans les Réglages restait
+     ignorée. Le balayage de 800 ms rafraîchit le micro, qui redevient cliquable. */
+  var DIC_INDISPO_MS = 30000;
+  function indispo() {
+    if (dic.indispo && Date.now() - dic.indispoT > DIC_INDISPO_MS) dic.indispo = "";
+    return dic.indispo;
+  }
   var noteEl = null, tNote = 0;
 
   function ctorSR() { return W.SpeechRecognition || W.webkitSpeechRecognition || null; }
@@ -1212,7 +1242,7 @@
         : e === "envoi" ? "Transcription en cours…" : "Fin de la dictée…";
     }
     else if (v === 1) titre = TITRE_V1;
-    else if (v === 2 && dic.indispo) { dis = true; titre = "Dictée indisponible — " + dic.indispo; }
+    else if (v === 2 && indispo()) { dis = true; titre = "Dictée indisponible — " + dic.indispo; }
     else if (v === 2) titre = TITRE_V2 + (dic.voie1Ko ? " (reconnaissance du navigateur indisponible : " + dic.voie1Ko + ")" : "");
     else { dis = true; titre = "Dictée indisponible : ce navigateur n'a ni reconnaissance vocale ni enregistreur audio ici (page non sûre ?)"; }
     var s = b.firstElementChild;
@@ -1358,7 +1388,7 @@
   function enregistrer(el, prefixe) {
     prefixe = prefixe || "";
     if (!enregistreur()) { rafraichirMicro(el); note(el, prefixe + "Micro indisponible : ce navigateur n'enregistre pas le son ici (page non sûre ou fonction absente)"); return; }
-    if (dic.indispo) { rafraichirMicro(el); note(el, "Dictée indisponible — " + dic.indispo); return; }
+    if (indispo()) { rafraichirMicro(el); note(el, "Dictée indisponible — " + dic.indispo); return; }
     var a = dic.active = { el: el, voie: 2, etat: "micro" };
     rafraichirMicro(el);
     note(el, prefixe + "accès au micro…", true);
@@ -1470,7 +1500,7 @@
     W.fetch("/api/dictation/estimate", { method: "POST", body: f1 }).then(lireReponse).then(function (d) {
       if (dic.active !== a) return null;
       if (!d.available) {
-        dic.indispo = String(d.reason || "transcription indisponible");
+        dic.indispo = String(d.reason || "transcription indisponible"); dic.indispoT = Date.now();
         finirDictee(a, "Dictée indisponible — " + dic.indispo);
         rafraichirMicros();
         return null;
@@ -1517,7 +1547,7 @@
     modeles: { catalogueImage: CATALOGUE_IMAGE, charger: charger, rafraichir: rafraichirPastilles, fermer: fermerListe },
     dictee: {
       voie: voieDictee,
-      etat: function () { var a = dic.active; return { etat: a ? a.etat : "repos", voie: a ? a.voie : voieDictee(), voie1Ko: dic.voie1Ko, indispo: dic.indispo }; },
+      etat: function () { var a = dic.active; return { etat: a ? a.etat : "repos", voie: a ? a.voie : voieDictee(), voie1Ko: dic.voie1Ko, indispo: indispo(), veille: !!tVeille }; },
       arreter: arreterDictee
     }
   };
