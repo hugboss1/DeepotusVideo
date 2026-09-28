@@ -3136,9 +3136,12 @@ async def heygen_health():
         client = HeyGenClient()
         quota = await client.remaining_quota()
         rem = quota.get("remaining_quota") if isinstance(quota, dict) else None
+        usd = quota.get("remaining_usd") if isinstance(quota, dict) else None
         msg = "OK -- key valid"
         if rem is not None:
             msg += f", {rem} credits remaining"
+        elif usd is not None:  # facturation « wallet » de l'API v3 : solde en dollars
+            msg += f", ${usd:.2f} remaining"
         return {"configured": True, "reachable": True,
                 "remaining_quota": rem, "message": msg}
     except HeyGenError as e:
@@ -3151,8 +3154,8 @@ async def heygen_health():
 async def list_heygen_avatars():
     """List avatars available on your HeyGen account.
 
-    First load can take up to ~2 min (HeyGen's /v2/avatars is slow for large
-    catalogues); the result is cached so later loads are instant.
+    First load can take a while (the v3 look list is paginated, ~190 pages for
+    the full public library); the result is cached so later loads are instant.
     """
     if not settings.has_heygen:
         raise HTTPException(400, "HEYGEN_API_KEY not configured")
@@ -3361,12 +3364,9 @@ async def create_photo_avatar_endpoint(
     Flow:
       1. Save uploaded file to a temp location
       2. Call HeyGenClient.create_photo_avatar() which:
-         - uploads image to HeyGen storage
-         - creates an avatar group
-         - adds the photo as a look
-         - polls until ready (5-30s typical)
-         - optionally triggers training (do_train=True)
-      3. Returns the photo_avatar_id usable as a talking_photo in video generation.
+         - sends the image (base64) to POST /v3/avatars (type photo)
+         - polls the new look (GET /v3/avatars/looks/{id}) until trained
+      3. Returns the photo_avatar_id (a v3 look id) usable as avatar_id in video generation.
     """
     if not settings.has_heygen:
         raise HTTPException(400, "HEYGEN_API_KEY not configured")
@@ -3403,8 +3403,8 @@ async def create_photo_avatar_endpoint(
             avatar_name=result["avatar_name"],
             asset_url=result.get("asset_url"),
             message=(
-                f"Avatar '{result['avatar_name']}' created and ready. "
-                f"Use it in HeyGen mode with avatar_type='talking_photo'."
+                f"Avatar '{result['avatar_name']}' created ({result['status']}). "
+                f"Use it in HeyGen mode as a regular avatar (API v3 look)."
             ),
         )
     except HeyGenError as e:
@@ -4627,8 +4627,11 @@ async def cost_balances():
         try:
             q = await HeyGenClient().remaining_quota()
             rem = q.get("remaining_quota") if isinstance(q, dict) else None
+            usd = q.get("remaining_usd") if isinstance(q, dict) else None
+            # API v3 : un compte « wallet » donne son solde en dollars (pas de crédits).
             out["heygen"] = {"available": True, "credits": rem,
-                             "usd": round((rem or 0) * p["heygen_credit_usd"], 2)}
+                             "usd": round(usd if usd is not None
+                                          else (rem or 0) * p["heygen_credit_usd"], 2)}
         except Exception:
             out["heygen"] = {"available": False}
     from app.services import voice_providers as _VP

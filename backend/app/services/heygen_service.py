@@ -1,52 +1,125 @@
-"""HeyGen API client wrapper for v1.4 'Composition Edition'.
+"""HeyGen API client — API v3 only (migration du 28/09/2026).
 
-Implements:
-- List avatars and voices
-- Generate avatar videos (Avatar III / IV / Photo Avatar)
-- Photo avatar creation flow (group + look + train)
-- Video translation
-- Status polling and video download
+HeyGen retire ses endpoints v1/v2 le 1er novembre 2026 (developers.heygen.com,
+« Endpoint Version Comparison »). Tout passe désormais par la v3 :
+- génération   POST /v3/videos (type avatar | image | cinematic_avatar)
+- statut       GET  /v3/videos/{id}
+- avatars      GET  /v3/avatars/looks (+ GET /v3/avatars/looks/{id})
+- voix         GET  /v3/voices
+- compte       GET  /v3/users/me
+- avatar photo POST /v3/avatars (type photo)
+Réponses v3 : {"data": ...}, listes paginées par curseur (has_more, next_token).
 
-API docs: https://docs.heygen.com/reference
-Auth: X-Api-Key header.
-
-Pricing reminder for users: HeyGen is pay-as-you-go in credits; Avatar V ~6 credits/min
-video. The HEYGEN_API_KEY must be set in .env for this service to activate.
+Auth: X-Api-Key header. Pricing reminder: HeyGen is pay-as-you-go in credits.
+The HEYGEN_API_KEY must be set in .env for this service to activate.
 """
 import asyncio
+import base64
+import json
+import re
 import time
 from pathlib import Path
-from typing import Optional, Literal
+from typing import Optional
 
 import httpx
 from loguru import logger
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from app.config import settings, SSL_VERIFY
-
+from app.config import settings, SSL_VERIFY, DATA_ROOT
 
 HEYGEN_BASE = "https://api.heygen.com"
-HEYGEN_UPLOAD_BASE = "https://upload.heygen.com"
 
-# v1.15.1: HeyGen's /v2/avatars is genuinely SLOW for accounts with a large
-# avatar catalogue — 60s+ responses are normal (the payload is ~500 KB). The
-# old 15s timeout always fired, so the UI showed "0 avatars / check key" even
-# with a perfectly valid key. We now allow a long timeout AND cache the parsed
-# lists in-process so the slow fetch happens once per session, not on every
-# tab open. Health checks use remaining_quota() (fast) instead of listing.
+# Les listes v3 sont paginées (50 looks / 100 voix par page). MESURÉ le
+# 28/09/2026 sur le compte réel : 9 951 looks en 259 s (~200 pages), 2 944
+# voix en 33 s — contre ~60 s pour l'ancien /v2/avatars. D'où trois étages :
+#   mémoire (TTL 6 h) -> disque (DATA_ROOT/cache, servi jusqu'à 30 j) -> API ;
+# une copie plus vieille que le TTL est servie TOUT DE SUITE et rafraîchie en
+# arrière-plan ; deux demandes simultanées (réchauffage du lancement, main.py,
+# et l'ouverture du sélecteur) partagent UN seul parcours des pages.
 _LIST_TIMEOUT = 120.0
-# 6 h: the list is re-warmed on every app launch anyway, so a long TTL just
-# means "instant for the whole session" — matching what the guide promises.
-# Freshness is preserved by invalidate_list_cache() after creating an avatar;
-# external catalogue changes are picked up on the next launch.
+_LIST_MAX_PAGES = 400
 _LIST_CACHE_TTL = 21600.0
+_DISK_MAX_AGE = 30 * 86400.0
 _LIST_CACHE: dict[str, tuple[float, list]] = {}
+_INFLIGHT: dict[str, "asyncio.Future"] = {}
+
+
+def _disk_path(kind: str) -> Path:
+    return DATA_ROOT / "cache" / f"heygen_{kind}.json"
+
+
+def _disk_read(kind: str) -> Optional[tuple[float, list]]:
+    try:
+        d = json.loads(_disk_path(kind).read_text(encoding="utf-8"))
+        return float(d["t"]), list(d["items"])
+    except Exception:
+        return None
+
+
+def _disk_write(kind: str, items: list) -> None:
+    try:
+        p = _disk_path(kind)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        tmp = p.with_suffix(".tmp")
+        tmp.write_text(json.dumps({"t": time.time(), "items": items}, ensure_ascii=False),
+                       encoding="utf-8")
+        tmp.replace(p)
+    except Exception as e:
+        logger.warning(f"Cache HeyGen {kind} non écrit sur disque : {e}")
+
+# Moteur quand l'appelant n'en choisit pas : Avatar III, le plus proche du
+# rendu et du coût de l'ancienne génération v2 (décision du 28/09/2026). Un
+# look qui ne le supporte pas prend le premier moteur qu'il déclare.
+DEFAULT_ENGINE = "avatar_iii"
+_ENGINES = ("avatar_iii", "avatar_iv", "avatar_v")
+
+
+def _photo_png_or_jpeg(path: Path) -> tuple[str, bytes]:
+    """(media_type, octets) d'une photo pour POST /v3/avatars. Le type est lu
+    dans les OCTETS, pas dans l'extension : MESURÉ le 28/09/2026, un WebP
+    nommé .jpg est refusé (« Content type not match image/jpeg !=
+    image/webp »). La v3 ne documente que PNG et JPEG : tout autre format
+    (WebP…) est converti en PNG par Pillow."""
+    raw = path.read_bytes()
+    if raw[:8] == b"\x89PNG\r\n\x1a\n":
+        return "image/png", raw
+    if raw[:3] == b"\xff\xd8\xff":
+        return "image/jpeg", raw
+    import io
+    from PIL import Image
+    with Image.open(io.BytesIO(raw)) as im:
+        buf = io.BytesIO()
+        im.convert("RGBA" if im.mode in ("RGBA", "LA", "P") else "RGB").save(buf, "PNG")
+    return "image/png", buf.getvalue()
 
 
 def invalidate_list_cache() -> None:
-    """Drop cached avatar/voice lists (call after creating a new avatar so it
-    shows up immediately instead of waiting for the TTL)."""
+    """Drop cached avatar/voice lists, memory AND disk (call after creating a
+    new avatar so it shows up immediately instead of waiting for the TTL)."""
     _LIST_CACHE.clear()
+    for kind in ("avatars", "voices"):
+        try:
+            _disk_path(kind).unlink(missing_ok=True)
+        except Exception:
+            pass
+
+
+_SPEAK = re.compile(r"</?speak[^>]*>", re.I)
+_BREAK = re.compile(r"\s*<break\b[^>]*?/?>\s*", re.I)
+_TAG = re.compile(r"<[^>]+>")
+
+
+def ssml_to_plain(text: str) -> str:
+    """Le script v3 est du texte : la v3 ne documente pas le SSML (décision du
+    28/09/2026 : convertir plutôt que risquer des balises lues à voix haute).
+    <speak> est retiré, chaque <break …/> devient « … » (pause de
+    ponctuation), toute autre balise disparaît ; les espaces sont resserrés."""
+    t = _SPEAK.sub("", text or "")
+    t = _BREAK.sub(" … ", t)
+    t = _TAG.sub("", t)
+    t = re.sub(r"\s+", " ", t).strip()
+    t = re.sub(r"(…\s*){2,}", "… ", t)
+    return t
 
 
 class HeyGenError(RuntimeError):
@@ -54,7 +127,7 @@ class HeyGenError(RuntimeError):
 
 
 class HeyGenClient:
-    """Thin async wrapper around the HeyGen REST API."""
+    """Thin async wrapper around the HeyGen REST API (v3)."""
 
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key or settings.HEYGEN_API_KEY
@@ -74,6 +147,17 @@ class HeyGenClient:
 
     # ---------- helpers ----------
 
+    async def _get_raw(self, path: str, params: Optional[dict] = None,
+                       timeout: float = 60.0) -> dict:
+        """GET qui rend l'enveloppe ENTIÈRE (data + has_more + next_token) :
+        _parse ne garde que `data` et perdrait le curseur de pagination."""
+        async with httpx.AsyncClient(timeout=timeout, verify=SSL_VERIFY) as client:
+            r = await client.get(f"{HEYGEN_BASE}{path}",
+                                 headers=self.headers, params=params)
+            data = self._json(r)
+            self._raise_for(r, data)
+            return data
+
     async def _get(self, path: str, params: Optional[dict] = None,
                    timeout: float = 60.0) -> dict:
         async with httpx.AsyncClient(timeout=timeout, verify=SSL_VERIFY) as client:
@@ -88,156 +172,210 @@ class HeyGenClient:
             return self._parse(r)
 
     @staticmethod
-    def _parse(response: httpx.Response) -> dict:
+    def _json(response: httpx.Response):
         try:
-            data = response.json()
+            return response.json()
         except ValueError:
             raise HeyGenError(f"Non-JSON response ({response.status_code}): {response.text[:200]}")
+
+    @staticmethod
+    def _raise_for(response: httpx.Response, data) -> None:
         if response.status_code >= 400:
-            err_msg = data.get("error") or data.get("message") or str(data)
+            err = data.get("error") if isinstance(data, dict) else None
+            if isinstance(err, dict):
+                err_msg = err.get("message") or err.get("code") or str(err)
+            else:
+                err_msg = err or (data.get("message") if isinstance(data, dict) else None) or str(data)
             raise HeyGenError(f"HeyGen {response.status_code}: {err_msg}")
-        # HeyGen responses may have a top-level 'data' key
-        if "data" in data and "code" not in data:
+
+    @staticmethod
+    def _parse(response: httpx.Response) -> dict:
+        data = HeyGenClient._json(response)
+        HeyGenClient._raise_for(response, data)
+        # v3 : l'objet utile est sous `data`.
+        if isinstance(data, dict) and "data" in data and "code" not in data:
             return data["data"]
         return data
 
+    async def _paginate(self, path: str, params: dict, *, limit: int,
+                        max_pages: int = _LIST_MAX_PAGES) -> list[dict]:
+        """Suit le curseur v3 (has_more / next_token) jusqu'au bout."""
+        out: list[dict] = []
+        token = None
+        for _ in range(max_pages):
+            q = dict(params, limit=limit)
+            if token:
+                q["token"] = token
+            page = await self._get_raw(path, params=q, timeout=_LIST_TIMEOUT)
+            items = page.get("data") if isinstance(page, dict) else None
+            out.extend(x for x in (items or []) if isinstance(x, dict))
+            token = page.get("next_token") if isinstance(page, dict) else None
+            if not (isinstance(page, dict) and page.get("has_more") and token):
+                break
+        else:
+            logger.warning(f"HeyGen {path}: arrêt après {max_pages} pages ({len(out)} éléments).")
+        return out
+
     # ---------- AVATARS & VOICES ----------
 
-    async def list_avatars(self, *, use_cache: bool = True) -> list[dict]:
-        """List all available avatars (including instant avatars).
+    @staticmethod
+    def _look_to_avatar(lk: dict) -> dict:
+        """Look v3 -> forme historique attendue par l'UI (DzAvatarPick, casting,
+        Quick). Tous les looks v3 s'utilisent comme `avatar_id` de
+        POST /v3/videos, photo avatars compris : avatar_type='avatar' partout."""
+        name = lk.get("name") or lk.get("id")
+        return {
+            "avatar_id": lk.get("id"),
+            "avatar_name": name,
+            "name": name,
+            "gender": lk.get("gender"),
+            "preview_image_url": lk.get("preview_image_url"),
+            "preview_video_url": lk.get("preview_video_url"),
+            "avatar_type": "avatar",
+            "look_type": lk.get("avatar_type"),
+            "group_id": lk.get("group_id"),
+            "default_voice_id": lk.get("default_voice_id"),
+            "supported_engines": list(lk.get("supported_api_engines") or []),
+            "status": lk.get("status"),
+        }
 
-        Each item typically: avatar_id, avatar_name, gender, preview_image_url, preview_video_url.
+    # -- cache à trois étages (voir _LIST_CACHE_TTL) --
 
-        HeyGen's /v2/avatars can take 60s+ for accounts with many avatars, so
-        this uses a long timeout (_LIST_TIMEOUT) and caches the result in
-        process (_LIST_CACHE_TTL). The first load after start is slow; later
-        loads are instant. Pass use_cache=False to force a fresh fetch.
-        """
+    async def _cached_list(self, kind: str, fetch, use_cache: bool) -> list[dict]:
         if use_cache:
-            hit = _LIST_CACHE.get("avatars")
-            if hit and (time.monotonic() - hit[0]) < _LIST_CACHE_TTL:
-                logger.debug("HeyGen avatar list served from cache.")
+            now = time.time()
+            hit = _LIST_CACHE.get(kind)
+            if hit is None:
+                disk = _disk_read(kind)
+                if disk and now - disk[0] < _DISK_MAX_AGE:
+                    _LIST_CACHE[kind] = hit = disk
+            if hit is not None:
+                if now - hit[0] >= _LIST_CACHE_TTL:
+                    self._refresh_in_background(kind, fetch)
+                logger.debug(f"HeyGen {kind} list served from cache.")
                 return hit[1]
-        logger.info("Fetching HeyGen avatar list...")
-        result = await self._get("/v2/avatars", timeout=_LIST_TIMEOUT)
-        avatars = result.get("avatars", []) if isinstance(result, dict) else []
-        # /v2/avatars also returns a `talking_photos` array (uploaded photo
-        # avatars). It was being dropped, so created talking photos never
-        # showed up in any selector. Normalize them into the avatar list.
-        tps = result.get("talking_photos", []) if isinstance(result, dict) else []
-        norm_tps = []
-        for tp in tps:
-            tid = tp.get("talking_photo_id") or tp.get("id")
-            if not tid:
+        return await self._fetch_once(kind, fetch)
+
+    async def _fetch_store(self, kind: str, fetch) -> list[dict]:
+        items = await fetch()
+        _LIST_CACHE[kind] = (time.time(), items)
+        _disk_write(kind, items)
+        return items
+
+    def _start_fetch(self, kind: str, fetch) -> "asyncio.Future":
+        task = _INFLIGHT.get(kind)
+        if task is None or task.done():
+            task = asyncio.ensure_future(self._fetch_store(kind, fetch))
+            _INFLIGHT[kind] = task
+            task.add_done_callback(
+                lambda t, k=kind: _INFLIGHT.pop(k, None) if _INFLIGHT.get(k) is t else None)
+        return task
+
+    async def _fetch_once(self, kind: str, fetch) -> list[dict]:
+        """Un seul parcours des pages à la fois par liste : les appels
+        simultanés attendent le même."""
+        return await asyncio.shield(self._start_fetch(kind, fetch))
+
+    def _refresh_in_background(self, kind: str, fetch) -> None:
+        def _log(t):
+            if not t.cancelled() and t.exception() is not None:
+                logger.warning(f"Rafraîchissement HeyGen {kind} échoué : {t.exception()}")
+        self._start_fetch(kind, fetch).add_done_callback(_log)
+
+    async def list_avatars(self, *, use_cache: bool = True) -> list[dict]:
+        """Tous les looks utilisables : ceux du compte d'abord (ownership
+        private : photo avatars, digital twins), puis la bibliothèque publique.
+        Liste longue (pagination v3) : cache mémoire + disque, TTL 6 h."""
+        return await self._cached_list("avatars", self._fetch_avatars, use_cache)
+
+    async def _fetch_avatars(self) -> list[dict]:
+        logger.info("Fetching HeyGen avatar looks (v3)...")
+        mine = await self._paginate("/v3/avatars/looks", {"ownership": "private"}, limit=50)
+        public = await self._paginate("/v3/avatars/looks", {"ownership": "public"}, limit=50)
+        seen, out = set(), []
+        for lk in mine + public:
+            lid = lk.get("id")
+            if not lid or lid in seen:
                 continue
-            tname = tp.get("talking_photo_name") or tp.get("name") or "Talking Photo"
-            norm_tps.append({
-                "avatar_id": tid,
-                "avatar_name": tname,
-                "name": tname,
-                "gender": tp.get("gender"),
-                "preview_image_url": tp.get("preview_image_url"),
-                "preview_video_url": None,
-                "avatar_type": "talking_photo",
-            })
-        logger.info(
-            f"Got {len(avatars)} avatars + {len(norm_tps)} talking photos from HeyGen.")
-        out = avatars + norm_tps
-        # Also surface the account's Photo-Avatar GROUPS (the user's *generated*
-        # avatars), which live outside /v2/avatars. Best-effort — a groups
-        # failure must never break the main avatar list.
-        try:
-            group_looks = await self._list_group_looks()
-            if group_looks:
-                logger.info(f"Merged {len(group_looks)} photo-avatar group looks.")
-                out = group_looks + out  # the user's own avatars first
-        except Exception as e:
-            logger.warning(f"Photo-avatar groups not merged: {e}")
-        _LIST_CACHE["avatars"] = (time.monotonic(), out)
+            seen.add(lid)
+            out.append(self._look_to_avatar(lk))
+        logger.info(f"Got {len(mine)} private + {len(public)} public HeyGen looks.")
         return out
 
     async def list_voices(self, *, use_cache: bool = True) -> list[dict]:
-        """List all available voices.
-        Each item: voice_id, name, language, gender, preview_audio.
-        Long timeout + in-process cache, same rationale as list_avatars."""
-        if use_cache:
-            hit = _LIST_CACHE.get("voices")
-            if hit and (time.monotonic() - hit[0]) < _LIST_CACHE_TTL:
-                logger.debug("HeyGen voice list served from cache.")
-                return hit[1]
-        logger.info("Fetching HeyGen voice list...")
-        result = await self._get("/v2/voices", timeout=_LIST_TIMEOUT)
-        voices = result.get("voices", []) if isinstance(result, dict) else []
+        """Voix du compte (clones) puis voix publiques, à la forme historique
+        (voice_id, name, language, gender, preview_audio, support_pause)."""
+        return await self._cached_list("voices", self._fetch_voices, use_cache)
+
+    async def _fetch_voices(self) -> list[dict]:
+        logger.info("Fetching HeyGen voices (v3)...")
+        raw = (await self._paginate("/v3/voices", {"type": "private"}, limit=100)
+               + await self._paginate("/v3/voices", {"type": "public"}, limit=100))
+        seen, voices = set(), []
+        for v in raw:
+            vid = v.get("voice_id")
+            if not vid or vid in seen:
+                continue
+            seen.add(vid)
+            voices.append({
+                "voice_id": vid,
+                "name": v.get("name"),
+                "language": v.get("language"),
+                "gender": v.get("gender"),
+                "preview_audio": v.get("preview_audio_url"),
+                "support_pause": bool(v.get("support_pause")),
+                "support_locale": bool(v.get("support_locale")),
+                "type": v.get("type"),
+            })
         logger.info(f"Got {len(voices)} voices from HeyGen.")
-        _LIST_CACHE["voices"] = (time.monotonic(), voices)
         return voices
 
     async def remaining_quota(self) -> dict:
-        """Lightweight authenticated probe: verifies the key is valid and the
-        API is reachable WITHOUT the heavy /v2/avatars listing (which can take
-        60s+). Returns e.g. {"remaining_quota": 766, "details": {...}}.
-        Used by the health check so the HeyGen status badge stays responsive.
-        """
-        result = await self._get("/v2/user/remaining_quota", timeout=20.0)
-        return result if isinstance(result, dict) else {}
+        """Sonde légère (GET /v3/users/me) : valide la clé sans le listage
+        lourd. La v3 rend le solde selon la facturation :
+          subscription -> crédits premium + add-on  -> remaining_quota
+          usage_based  -> remaining_credits          -> remaining_quota
+          wallet       -> solde en dollars           -> remaining_usd
+        Rend {"remaining_quota", "remaining_usd", "billing_type"}."""
+        d = await self._get("/v3/users/me", timeout=20.0)
+        d = d if isinstance(d, dict) else {}
+        bt = d.get("billing_type")
+        credits = usd = None
+        sub = (d.get("subscription") or {}).get("credits") if isinstance(d.get("subscription"), dict) else None
+        if isinstance(sub, dict):
+            parts = [((sub.get(k) or {}).get("remaining")) for k in ("premium_credits", "add_on_credits")]
+            parts = [p for p in parts if isinstance(p, (int, float))]
+            credits = sum(parts) if parts else None
+        ub = d.get("usage_based")
+        if credits is None and isinstance(ub, dict) and isinstance(ub.get("remaining_credits"), (int, float)):
+            credits = ub["remaining_credits"]
+        wal = d.get("wallet")
+        if isinstance(wal, dict) and isinstance(wal.get("remaining_balance"), (int, float)):
+            usd = wal["remaining_balance"]
+        return {"remaining_quota": credits, "remaining_usd": usd, "billing_type": bt}
 
-    async def list_photo_avatar_groups(self) -> list[dict]:
-        """List photo avatar groups (collections of looks for one subject)."""
-        result = await self._get("/v2/avatar_group.list")
-        groups = result.get("avatar_group_list", []) if isinstance(result, dict) else []
-        return groups
+    async def get_look(self, look_id: str) -> dict:
+        """GET /v3/avatars/looks/{id} : moteurs supportés, statut d'entraînement."""
+        d = await self._get(f"/v3/avatars/looks/{look_id}", timeout=30.0)
+        return d if isinstance(d, dict) else {}
 
-    async def _list_group_looks(self, *, max_groups: int = 30) -> list[dict]:
-        """Fetch the looks inside the account's photo-avatar groups (the user's
-        generated avatars) and normalise them into the avatar-list shape so they
-        show up in the picker alongside stock/instant avatars."""
-        groups = await self.list_photo_avatar_groups()
-        out: list[dict] = []
-        for grp in groups[:max_groups]:
-            gid = grp.get("id") or grp.get("group_id")
-            if not gid:
-                continue
-            looks = []
-            for path in (f"/v2/avatar_group/{gid}/avatars",
-                         f"/v2/photo_avatar/avatar_group/avatars?group_id={gid}"):
-                try:
-                    res = await self._get(path, timeout=30.0)
-                except Exception:
-                    continue
-                looks = (res.get("avatar_list") or res.get("avatars") or []) \
-                    if isinstance(res, dict) else []
-                if looks:
-                    break
-            gname = grp.get("name") or "Photo avatar"
-            for lk in looks:
-                lid = lk.get("id") or lk.get("avatar_id")
-                if not lid:
-                    continue
-                lname = lk.get("name")
-                # names inside a group are often all identical ("Photo Avatar");
-                # identical avatar_names break find-by-name selection, so fall
-                # back to a short id suffix to keep every entry distinct.
-                disp = (f"{gname} · {lname}" if lname and lname != gname
-                        else f"{gname} ({str(lid)[-5:]})")
-                out.append({
-                    "avatar_id": lid,
-                    "avatar_name": disp,
-                    "name": gname,
-                    "gender": lk.get("gender"),
-                    "preview_image_url": (lk.get("image_url")
-                                          or lk.get("preview_image_url")),
-                    "preview_video_url": lk.get("motion_preview_url"),
-                    "avatar_type": "avatar",
-                    "from_group": True,
-                })
-        return out
+    async def resolve_engine(self, avatar_id: str, engine: Optional[str]) -> str:
+        """Moteur explicite : gardé tel quel. Sinon DEFAULT_ENGINE (Avatar III)
+        si le look le supporte, à défaut le premier moteur qu'il déclare. Un
+        look illisible garde DEFAULT_ENGINE : HeyGen dira s'il le refuse."""
+        if engine:
+            return engine
+        try:
+            sup = [e for e in (await self.get_look(avatar_id)).get("supported_api_engines") or []
+                   if e in _ENGINES]
+        except Exception as e:
+            logger.warning(f"HeyGen look {avatar_id} illisible ({e}) — moteur {DEFAULT_ENGINE}.")
+            return DEFAULT_ENGINE
+        if not sup or DEFAULT_ENGINE in sup:
+            return DEFAULT_ENGINE
+        return sup[0]
 
     # ---------- VIDEO GENERATION (API v3) ----------
-    # v3 (`POST /v3/videos`) supports per-request engine selection:
-    # avatar_iii (digital twin / photo-avatar looks), avatar_iv (default,
-    # motion_prompt + expressiveness), avatar_v (highest quality). The legacy
-    # v2 path below stays the default; v3 is used only when an engine is
-    # explicitly requested. NOTE: v1/v2 endpoints sunset 2026-10-31.
 
     @staticmethod
     def build_v3_avatar_body(
@@ -255,14 +393,14 @@ class HeyGenClient:
     ) -> dict:
         """Build the /v3/videos request body (type=avatar). Pure + testable.
 
-        v3 clamps voice speed to 0.5–1.5 (v2 allowed up to 2.0);
-        motion_prompt / expressiveness only apply to photo avatars on IV/V —
-        harmless to omit otherwise, so they are only sent when provided.
+        v3 clamps voice speed to 0.5–1.5; the script is plain text (SSML
+        converted by ssml_to_plain); motion_prompt / expressiveness only
+        apply to photo avatars on IV/V, so they are sent only when provided.
         """
         body: dict = {
             "type": "avatar",
             "avatar_id": avatar_id,
-            "script": text[:4900],
+            "script": ssml_to_plain(text)[:4900],
             "voice_id": voice_id,
             "engine": {"type": engine},
             "aspect_ratio": aspect_ratio,
@@ -285,7 +423,7 @@ class HeyGenClient:
         avatar_id: str,
         voice_id: str,
         *,
-        engine: str = "avatar_iv",
+        engine: Optional[str] = None,
         aspect_ratio: str = "9:16",
         speed: float = 1.0,
         background_color: str = "#02060d",
@@ -293,7 +431,9 @@ class HeyGenClient:
         expressiveness: Optional[str] = None,
         title: Optional[str] = None,
     ) -> str:
-        """Submit a v3 avatar video with an explicit engine. Returns video_id."""
+        """Submit a v3 avatar video. `engine` None = résolu par look
+        (resolve_engine). Returns video_id."""
+        engine = await self.resolve_engine(avatar_id, engine)
         body = self.build_v3_avatar_body(
             text, avatar_id, voice_id, engine=engine,
             aspect_ratio=aspect_ratio, speed=speed,
@@ -332,8 +472,11 @@ class HeyGenClient:
                 logger.info(f"HeyGen v3 video {video_id} complete.")
                 return payload
             if status == "failed":
-                err = payload.get("error") or {}
-                msg = err.get("message") if isinstance(err, dict) else str(err)
+                # v3 : failure_code / failure_message (doc « Get Video »).
+                err = payload.get("error")
+                msg = (payload.get("failure_message")
+                       or (err.get("message") if isinstance(err, dict) else err)
+                       or payload.get("failure_code"))
                 raise HeyGenError(f"HeyGen v3 video {video_id} failed: "
                                   f"{msg or 'unknown error'}")
             logger.debug(f"HeyGen v3 status {video_id}: {status} ({elapsed:.0f}s)")
@@ -452,123 +595,6 @@ class HeyGenClient:
             raise HeyGenError(f"No video_id in HeyGen v3 cinematic response: {result}")
         return video_id
 
-    # ---------- VIDEO GENERATION (legacy v2) ----------
-
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, min=4, max=30), reraise=True)
-    async def generate_video(
-        self,
-        text: str,
-        avatar_id: str,
-        voice_id: str,
-        *,
-        avatar_type: Literal["avatar", "talking_photo"] = "avatar",
-        aspect_ratio: str = "9:16",
-        speed: float = 1.0,
-        background_color: str = "#02060d",
-        use_avatar_iv: bool = False,
-    ) -> str:
-        """Submit a video generation request. Returns the video_id immediately.
-
-        Use poll_video_status() to wait for completion and get the video URL.
-        """
-        # Map aspect ratio to dimensions
-        dimensions = {
-            "9:16": {"width": 1080, "height": 1920},
-            "1:1":  {"width": 1080, "height": 1080},
-            "16:9": {"width": 1920, "height": 1080},
-        }
-        dim = dimensions.get(aspect_ratio, dimensions["9:16"])
-
-        character = {
-            "type": avatar_type,
-        }
-        if avatar_type == "talking_photo":
-            character["talking_photo_id"] = avatar_id
-        else:
-            character["avatar_id"] = avatar_id
-            character["avatar_style"] = "normal"
-
-        voice_obj = {
-            "type": "text",
-            "input_text": text[:4900],  # API limit ~5000 chars
-            "voice_id": voice_id,
-            "speed": speed,
-        }
-        # SSML pauses: when the script carries <break>/<speak> tags ("Precise"
-        # pacing in the News-script node), flag the voice as SSML so HeyGen
-        # honours the pauses instead of reading the tags aloud. Requires a
-        # voice with support_pause=true (otherwise HeyGen ignores the breaks).
-        _ssml = (text or "").strip()
-        if "<break" in _ssml or _ssml.startswith("<speak"):
-            if not _ssml.startswith("<speak"):
-                _ssml = "<speak>" + _ssml + "</speak>"
-            voice_obj["input_text"] = _ssml[:4900]
-            voice_obj["input_type"] = "ssml"
-
-        body = {
-            "video_inputs": [{
-                "character": character,
-                "voice": voice_obj,
-                "background": {
-                    "type": "color",
-                    "value": background_color,
-                },
-            }],
-            "dimension": dim,
-            "aspect_ratio": aspect_ratio,
-            "test": False,
-        }
-        if use_avatar_iv and avatar_type == "talking_photo":
-            body["video_inputs"][0]["use_avatar_iv_model"] = True
-
-        logger.info(f"Submitting HeyGen video: avatar={avatar_id}, voice={voice_id}, "
-                    f"aspect={aspect_ratio}, len={len(text)} chars")
-        result = await self._post("/v2/video/generate", body)
-        video_id = result.get("video_id")
-        if not video_id:
-            raise HeyGenError(f"No video_id in HeyGen response: {result}")
-        logger.info(f"HeyGen video submitted: {video_id}")
-        return video_id
-
-    async def poll_video_status(
-        self,
-        video_id: str,
-        *,
-        poll_every_s: float = 4.0,
-        timeout_s: float = 600.0,
-    ) -> dict:
-        """Poll HeyGen until the video is complete or fails.
-
-        Returns the final status dict containing video_url, thumbnail_url, etc.
-        """
-        elapsed = 0.0
-        last_status = None
-        while elapsed < timeout_s:
-            params = {"video_id": video_id}
-            result = await self._get("/v1/video_status.get", params=params)
-            # /v1/video_status.get returns {"code":100,"data":{"status":...,
-            # "video_url":...}}. _parse leaves that envelope intact because it
-            # has a `code`, so the status lives one level in. Without this the
-            # status is always None and the poll always times out even though
-            # HeyGen finished (the completion email still arrives).
-            payload = (result.get("data")
-                       if isinstance(result.get("data"), dict) else result)
-            status = payload.get("status")
-            last_status = status
-            if status in ("completed", "success", "done"):
-                logger.info(f"HeyGen video {video_id} complete.")
-                return payload
-            if status in ("failed", "error"):
-                err = (payload.get("error") or payload.get("message")
-                       or "unknown error")
-                raise HeyGenError(f"HeyGen video {video_id} failed: {err}")
-            logger.debug(f"HeyGen status {video_id}: {status} ({elapsed:.0f}s)")
-            await asyncio.sleep(poll_every_s)
-            elapsed += poll_every_s
-        raise HeyGenError(
-            f"HeyGen video {video_id} timed out after {timeout_s}s "
-            f"(last status: {last_status})")
-
     async def download_video(self, video_url: str, dest_path: Path) -> Path:
         dest_path.parent.mkdir(parents=True, exist_ok=True)
         logger.info(f"Downloading HeyGen video -> {dest_path}")
@@ -581,136 +607,7 @@ class HeyGenClient:
         logger.info(f"HeyGen download complete: {dest_path} ({dest_path.stat().st_size // 1024} KB)")
         return dest_path
 
-    # ---------- PHOTO AVATAR ----------
-
-    async def upload_asset(self, file_path: Path, content_type: str = "image/png") -> dict:
-        """Upload a local file to HeyGen asset storage.
-
-        Returns {"url": <asset url>, "image_key": <storage key or None>}.
-        The photo-avatar generate endpoint requires the `image_key`, not the
-        URL, so both are surfaced. HeyGen uses a separate upload endpoint that
-        accepts the raw bytes with a Content-Type header (no multipart form).
-        """
-        if not file_path.exists():
-            raise FileNotFoundError(f"Asset file not found: {file_path}")
-        # Infer content type from extension if generic was passed
-        ext = file_path.suffix.lower()
-        if content_type == "image/png":
-            content_type = {
-                ".png": "image/png",
-                ".jpg": "image/jpeg",
-                ".jpeg": "image/jpeg",
-                ".webp": "image/webp",
-            }.get(ext, "image/png")
-
-        url = f"{HEYGEN_UPLOAD_BASE}/v1/asset"
-        headers = {
-            "X-Api-Key": self.api_key,
-            "Content-Type": content_type,
-        }
-        logger.info(f"Uploading asset to HeyGen: {file_path.name} ({content_type})")
-        async with httpx.AsyncClient(timeout=180.0, verify=SSL_VERIFY) as client:
-            with file_path.open("rb") as f:
-                r = await client.post(url, headers=headers, content=f.read())
-            data = self._parse(r)
-        # The v1 /v1/asset endpoint wraps the payload as
-        # {"code":100,"data":{...,"url":...}}. _parse leaves that envelope
-        # intact (it only unwraps `data` when there is no `code` key), so
-        # look one level deeper when the URL isn't at the top.
-        payload = data.get("data") if isinstance(data.get("data"), dict) else data
-        asset_url = (payload.get("url") or payload.get("asset_url")
-                     or payload.get("image_url"))
-        image_key = payload.get("image_key") or payload.get("key")
-        if not asset_url:
-            raise HeyGenError(f"No URL in upload response: {data}")
-        logger.info(f"Asset uploaded: {asset_url} (image_key={image_key})")
-        return {"url": asset_url, "image_key": image_key}
-
-    async def create_photo_avatar_group(
-        self, name: str, image_key: Optional[str] = None
-    ) -> str:
-        """Create a new photo avatar group from an uploaded image.
-
-        HeyGen's /v2/photo_avatar/avatar_group/create requires `image_key`
-        (the storage key from the asset upload) as the group's base look.
-        Returns the group_id.
-        """
-        body = {"name": name}
-        if image_key:
-            body["image_key"] = image_key
-        result = await self._post("/v2/photo_avatar/avatar_group/create", body)
-        gid = result.get("group_id") or result.get("id")
-        if not gid:
-            raise HeyGenError(f"No group_id in response: {result}")
-        return gid
-
-    async def upload_photo_to_group(
-        self,
-        group_id: str,
-        name: str,
-        *,
-        image_key: Optional[str] = None,
-        image_url: Optional[str] = None,
-    ) -> str:
-        """Add a photo (look) to an existing avatar group. Returns the photo_avatar_id.
-
-        HeyGen's /v2/photo_avatar/photo/generate requires `image_key` (the
-        storage key returned by the asset upload), not the URL. `image_url`
-        is sent as a fallback only when no key is available.
-        """
-        if not image_key and not image_url:
-            raise HeyGenError("upload_photo_to_group needs image_key or image_url")
-        body = {"group_id": group_id, "name": name}
-        if image_key:
-            body["image_key"] = image_key
-        else:
-            body["image_url"] = image_url
-        result = await self._post("/v2/photo_avatar/photo/generate", body)
-        avatar_id = result.get("id") or result.get("photo_avatar_id")
-        if not avatar_id:
-            raise HeyGenError(f"No photo avatar id in response: {result}")
-        return avatar_id
-
-    async def train_photo_avatar_group(self, group_id: str) -> None:
-        """Initiate training of a photo avatar group. Async — poll separately if needed."""
-        body = {"group_id": group_id}
-        await self._post("/v2/photo_avatar/train", body)
-
-    async def get_photo_avatar_status(self, photo_avatar_id: str) -> dict:
-        """Check the status of a specific photo/look generation."""
-        return await self._get(f"/v2/photo_avatar/{photo_avatar_id}")
-
-    async def upload_talking_photo(
-        self, file_path: Path, content_type: str = "image/png"
-    ) -> dict:
-        """Upload a user photo as a HeyGen Talking Photo (instant avatar).
-
-        Returns {"talking_photo_id", "talking_photo_url"}. This is the correct
-        path for a user-supplied photo: the id is usable immediately in video
-        generation with avatar_type='talking_photo' -- no group, no looks, no
-        training, no polling. (The /v2/photo_avatar/* group+looks endpoints
-        are for AI-*generated* looks from a prompt and do not accept uploaded
-        images, which is why that flow 400s on image_key.)
-        """
-        if not file_path.exists():
-            raise FileNotFoundError(f"Photo not found: {file_path}")
-        ext = file_path.suffix.lower()
-        ctype = {".png": "image/png", ".jpg": "image/jpeg",
-                 ".jpeg": "image/jpeg", ".webp": "image/webp"}.get(ext, content_type)
-        url = f"{HEYGEN_UPLOAD_BASE}/v1/talking_photo"
-        headers = {"X-Api-Key": self.api_key, "Content-Type": ctype}
-        logger.info(f"Uploading talking photo to HeyGen: {file_path.name} ({ctype})")
-        async with httpx.AsyncClient(timeout=180.0, verify=SSL_VERIFY) as client:
-            with file_path.open("rb") as f:
-                r = await client.post(url, headers=headers, content=f.read())
-            data = self._parse(r)
-        payload = data.get("data") if isinstance(data.get("data"), dict) else data
-        tp_id = payload.get("talking_photo_id") or payload.get("id")
-        tp_url = payload.get("talking_photo_url") or payload.get("url")
-        if not tp_id:
-            raise HeyGenError(f"No talking_photo_id in response: {data}")
-        logger.info(f"Talking photo created: {tp_id}")
-        return {"talking_photo_id": tp_id, "talking_photo_url": tp_url}
+    # ---------- PHOTO AVATAR (v3) ----------
 
     async def create_photo_avatar(
         self,
@@ -722,52 +619,47 @@ class HeyGenClient:
         timeout_s: float = 180.0,
         do_train: bool = True,
     ) -> dict:
-        """Upload a user photo and return an instantly-usable talking photo.
-
-        Uses HeyGen's Talking Photo upload: the returned id works immediately
-        with avatar_type='talking_photo'. group_name / poll_every_s /
-        timeout_s / do_train are accepted for backward compatibility with the
-        existing route but are not needed for talking photos. Returned keys
-        are kept stable for the route/UI:
+        """Crée un photo avatar v3 (POST /v3/avatars, type photo, image en
+        base64) puis attend que son look soit entraîné (GET
+        /v3/avatars/looks/{id} -> completed). L'id du look s'utilise comme
+        avatar_id de POST /v3/videos. `group_name` / `do_train` restent
+        acceptés pour la route historique (la v3 entraîne d'elle-même).
+        Clés rendues stables pour la route et l'UI :
         {photo_avatar_id, group_id, status, asset_url, avatar_name}.
-        """
-        tp = await self.upload_talking_photo(file_path)
+        Un look en `pending_consent` est rendu tel quel (le consentement se
+        donne dans HeyGen) ; `failed` lève HeyGenError."""
+        if not file_path.exists():
+            raise FileNotFoundError(f"Photo not found: {file_path}")
+        mt, data = _photo_png_or_jpeg(file_path)
+        body = {
+            "type": "photo",
+            "name": avatar_name,
+            "file": {"type": "base64", "media_type": mt,
+                     "data": base64.b64encode(data).decode()},
+        }
+        logger.info(f"Creating HeyGen v3 photo avatar: {file_path.name} ({mt})")
+        res = await self._post("/v3/avatars", body)
+        item = (res.get("avatar_item") if isinstance(res, dict) else None) or {}
+        group = (res.get("avatar_group") if isinstance(res, dict) else None) or {}
+        look_id = item.get("id")
+        if not look_id:
+            raise HeyGenError(f"No avatar look id in HeyGen v3 response: {res}")
+        status = item.get("status") or "processing"
+        look = item
+        elapsed = 0.0
+        while status == "processing" and elapsed < timeout_s:
+            await asyncio.sleep(poll_every_s)
+            elapsed += poll_every_s
+            look = await self.get_look(look_id)
+            status = look.get("status") or status
+        if status == "failed":
+            err = look.get("error") or {}
+            raise HeyGenError("HeyGen photo avatar failed: "
+                              f"{err.get('message') if isinstance(err, dict) else err}")
         return {
-            "photo_avatar_id": tp["talking_photo_id"],
-            "group_id": "",            # talking photos have no avatar group
-            "status": "ready",         # usable immediately, no training/poll
-            "asset_url": tp.get("talking_photo_url"),
+            "photo_avatar_id": look_id,
+            "group_id": item.get("group_id") or group.get("id") or "",
+            "status": status,
+            "asset_url": look.get("preview_image_url"),
             "avatar_name": avatar_name,
         }
-
-    # ---------- VIDEO TRANSLATION ----------
-
-    async def translate_video(
-        self,
-        video_url: str,
-        target_language: str,
-        *,
-        title: Optional[str] = None,
-        mode: Literal["quality", "speed"] = "quality",
-    ) -> str:
-        """Translate an existing video to another language using HeyGen's video_translate.
-
-        Returns the translation job id (poll separately to get final URL).
-        Supported languages: 'English', 'French', 'Spanish', 'German', etc.
-        Mode 'quality' for premium lip-sync, 'speed' for fast standard.
-        """
-        body = {
-            "video_url": video_url,
-            "output_language": target_language,
-            "mode": mode,
-        }
-        if title:
-            body["title"] = title
-        result = await self._post("/v2/video_translate", body)
-        translate_id = result.get("video_translate_id") or result.get("id")
-        if not translate_id:
-            raise HeyGenError(f"No translate_id in response: {result}")
-        return translate_id
-
-    async def get_translation_status(self, translate_id: str) -> dict:
-        return await self._get(f"/v2/video_translate/{translate_id}")
