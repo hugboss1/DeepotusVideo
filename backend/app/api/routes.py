@@ -183,9 +183,9 @@ async def render_layout_template(
     kinds = {sv.source_kind for sv in request.slot_values.values()}
     if not request.preview:  # preview uses source stills, no provider keys needed
         if "seedance" in kinds and not settings.FAL_KEY:
-            raise HTTPException(400, "FAL_KEY not configured. Add it to backend/.env")
+            raise HTTPException(503, "FAL_KEY not configured. Add it to backend/.env")
         if "heygen" in kinds and not settings.has_heygen:
-            raise HTTPException(400, "HEYGEN_API_KEY not configured. Add it to backend/.env")
+            raise HTTPException(503, "HEYGEN_API_KEY not configured. Add it to backend/.env")
         # garde de coût (retours-ia F3) : la somme des slots générés
         _ops = []
         _maxs = [request.max_usd]
@@ -380,7 +380,7 @@ async def assets_3d(body: dict, background_tasks: BackgroundTasks):
     if engine not in ENGINES:
         raise HTTPException(400, f"Unknown engine: {engine}")
     if not settings.FAL_KEY:
-        raise HTTPException(400, "FAL_KEY not configured. Add it in Settings.")
+        raise HTTPException(503, "FAL_KEY not configured. Add it in Settings.")
     # fail fast on bad input instead of accepting a job that dies in background
     fn = Path(str(body.get("image_filename") or "")).name
     if not fn or not (settings.images_path / fn).is_file():
@@ -635,7 +635,7 @@ async def refine_asset3d_route(job: str, background_tasks: BackgroundTasks,
     body = body or {}
     quality = str(body.get("quality") or "hd")
     if not settings.FAL_KEY:
-        raise HTTPException(400, "FAL_KEY not configured. Add it in Settings.")
+        raise HTTPException(503, "FAL_KEY not configured. Add it in Settings.")
 
     # TOUT ce qui peut refuser refuse MAINTENANT — y compris les deux refus
     # qui ne vivaient que dans le service, et qui rendaient un 200 « queued »
@@ -1404,7 +1404,7 @@ async def assets_sprite(body: dict, background_tasks: BackgroundTasks):
     except ValueError as e:
         raise HTTPException(400, str(e))
     if opts["remove_bg"] == "api" and not settings.FAL_KEY:
-        raise HTTPException(400, "FAL_KEY not configured (Settings) — "
+        raise HTTPException(503, "FAL_KEY not configured (Settings) — "
                                  "use remove_bg 'local' or 'none'.")
     if opts["remove_bg"] == "local":
         try:
@@ -2581,7 +2581,7 @@ async def create_voiceover(request: Request):
     voice = VoiceoverService()
     loop = asyncio.get_running_loop()
     if not await loop.run_in_executor(None, VoiceoverService.is_enabled):
-        raise HTTPException(400, "Aucune voix disponible — configure la clé "
+        raise HTTPException(503, "Aucune voix disponible — configure la clé "
                                  "ElevenLabs ou lance Voicebox (Réglages).")
     voice_id = (payload.get("voice_id") or "").strip() or None
     model = (payload.get("model") or "").strip() or None
@@ -2880,7 +2880,7 @@ async def render_episode(request: Request, background_tasks: BackgroundTasks):
     from app.services.elevenlabs_service import VoiceoverService
     if not await asyncio.get_running_loop().run_in_executor(
             None, VoiceoverService.is_enabled):
-        raise HTTPException(400, "Aucune voix disponible — configure la clé "
+        raise HTTPException(503, "Aucune voix disponible — configure la clé "
                                  "ElevenLabs ou lance Voicebox (Réglages).")
     job_id = str(uuid4())
 
@@ -2961,7 +2961,7 @@ async def narrate_episode(ep_id: str):
     doc = _episode_ou_404(ep_id)
     loop = asyncio.get_running_loop()
     if not await loop.run_in_executor(None, VoiceoverService.is_enabled):
-        raise HTTPException(400, "Aucune voix disponible — configure la clé "
+        raise HTTPException(503, "Aucune voix disponible — configure la clé "
                                  "ElevenLabs ou lance Voicebox (Réglages).")
     voice_id = (doc.get("voice_id") or "").strip() or None
     lang = str(doc.get("language") or "en")
@@ -3164,10 +3164,10 @@ async def generate(request: GenerateRequest, background_tasks: BackgroundTasks):
     _mdl = VIDEO_MODELS.get(request.video_model or DEFAULT_VIDEO_MODEL)
     if _mdl and _mdl["provider"] == "google":
         if not settings.has_gemini:
-            raise HTTPException(400, "GEMINI_API_KEY not configured. "
+            raise HTTPException(503, "GEMINI_API_KEY not configured. "
                                      "Add it in Settings -> Keys")
     elif not settings.FAL_KEY:
-        raise HTTPException(400, "FAL_KEY not configured. Add it to backend/.env")
+        raise HTTPException(503, "FAL_KEY not configured. Add it to backend/.env")
 
     image_path = settings.images_path / request.image_filename
     if not image_path.exists():
@@ -3209,7 +3209,7 @@ async def generate_batch(request: GenerateBatchRequest, background_tasks: Backgr
     - All N jobs share a batch_id (returned) so the UI can group them.
     """
     if not settings.FAL_KEY:
-        raise HTTPException(400, "FAL_KEY not configured. Add it to backend/.env")
+        raise HTTPException(503, "FAL_KEY not configured. Add it to backend/.env")
 
     image_path = settings.images_path / request.image_filename
     if not image_path.exists():
@@ -3302,7 +3302,7 @@ async def list_heygen_avatars():
     the full public library); the result is cached so later loads are instant.
     """
     if not settings.has_heygen:
-        raise HTTPException(400, "HEYGEN_API_KEY not configured")
+        raise HTTPException(503, "HEYGEN_API_KEY not configured")
     try:
         client = HeyGenClient()
         avatars = await client.list_avatars()
@@ -3317,7 +3317,7 @@ async def list_heygen_avatars():
 async def list_heygen_voices():
     """List voices available on your HeyGen account."""
     if not settings.has_heygen:
-        raise HTTPException(400, "HEYGEN_API_KEY not configured")
+        raise HTTPException(503, "HEYGEN_API_KEY not configured")
     try:
         client = HeyGenClient()
         voices = await client.list_voices()
@@ -3389,7 +3389,7 @@ async def delete_avatar_preset(preset_id: str):
 async def generate_heygen(request: GenerateHeyGenRequest, background_tasks: BackgroundTasks):
     """Queue a HeyGen avatar video generation."""
     if not settings.has_heygen:
-        raise HTTPException(400, "HEYGEN_API_KEY not configured. Add it to backend/.env")
+        raise HTTPException(503, "HEYGEN_API_KEY not configured. Add it to backend/.env")
     if not request.script.strip():
         raise HTTPException(400, "Script must not be empty")
 
@@ -3412,7 +3412,7 @@ async def generate_heygen_image(request: GenerateHeyGenImageRequest,
                                 background_tasks: BackgroundTasks):
     """v1.16 (D) — animate a Library still into a talking video (HeyGen v3)."""
     if not settings.has_heygen:
-        raise HTTPException(400, "HEYGEN_API_KEY not configured. Add it to backend/.env")
+        raise HTTPException(503, "HEYGEN_API_KEY not configured. Add it to backend/.env")
     if not request.script.strip():
         raise HTTPException(400, "Script must not be empty")
     img = settings.images_path / request.image_filename
@@ -3435,7 +3435,7 @@ async def generate_heygen_cinematic(request: GenerateHeyGenCinematicRequest,
                                     background_tasks: BackgroundTasks):
     """v1.16 (D) — HeyGen v3 cinematic avatar (prompt-driven, 1–3 looks)."""
     if not settings.has_heygen:
-        raise HTTPException(400, "HEYGEN_API_KEY not configured. Add it to backend/.env")
+        raise HTTPException(503, "HEYGEN_API_KEY not configured. Add it to backend/.env")
     missing = [f for f in (request.reference_images or [])
                if not (settings.images_path / f).exists()]
     if missing:
@@ -3460,9 +3460,9 @@ async def generate_composition(request: CompositionRequest, background_tasks: Ba
     Both clips are generated in parallel, then composed via ffmpeg.
     """
     if not settings.FAL_KEY:
-        raise HTTPException(400, "FAL_KEY not configured")
+        raise HTTPException(503, "FAL_KEY not configured")
     if not settings.has_heygen:
-        raise HTTPException(400, "HEYGEN_API_KEY not configured")
+        raise HTTPException(503, "HEYGEN_API_KEY not configured")
 
     # Validate Seedance side
     img_path = settings.images_path / request.seedance.image_filename
@@ -3513,7 +3513,7 @@ async def create_photo_avatar_endpoint(
       3. Returns the photo_avatar_id (a v3 look id) usable as avatar_id in video generation.
     """
     if not settings.has_heygen:
-        raise HTTPException(400, "HEYGEN_API_KEY not configured")
+        raise HTTPException(503, "HEYGEN_API_KEY not configured")
 
     allowed = {".png", ".jpg", ".jpeg", ".webp"}
     suffix = Path(file.filename).suffix.lower() if file.filename else ".png"
@@ -4921,13 +4921,13 @@ async def test_channel(body: dict):
     ch = (body or {}).get("channel")
     if ch == "telegram":
         if not settings.has_telegram:
-            raise HTTPException(400, "Telegram keys not set")
+            raise HTTPException(503, "Telegram keys not set")
         ok, detail = await marketing.publish_telegram(
             "Deepotus Video Gen — test message. The deep hears you. 🐙")
         return {"ok": ok, "detail": detail}
     if ch == "x":
         if not settings.has_x:
-            raise HTTPException(400, "X keys not set")
+            raise HTTPException(503, "X keys not set")
         import asyncio as _aio
         def _verify():
             try:
@@ -5050,7 +5050,7 @@ async def _generate_image_core(body: dict, background_tasks: BackgroundTasks):
     if IP.via_facade(model):
         manque = IP.missing_key(model)
         if manque:
-            raise HTTPException(400, f"{manque} non configurée (Réglages) "
+            raise HTTPException(503, f"{manque} non configurée (Réglages) "
                                      f"pour {model}.")
         background = (body.get("background") or "").strip().lower() or None
         try:
@@ -5065,7 +5065,7 @@ async def _generate_image_core(body: dict, background_tasks: BackgroundTasks):
     # --- OpenAI gpt-image / dall-e path (per the selected model) -----------
     if model.startswith("gpt-image") or model.startswith("dall-e"):
         if not settings.OPENAI_API_KEY:
-            raise HTTPException(400, "OPENAI_API_KEY not configured. Add it in Settings.")
+            raise HTTPException(503, "OPENAI_API_KEY not configured. Add it in Settings.")
         osize = ("1024x1536" if "portrait" in size
                  else "1536x1024" if "landscape" in size else "1024x1024")
         payload = {"model": model, "prompt": prompt, "n": n, "size": osize}
@@ -5187,7 +5187,7 @@ async def _process_image_core(body: dict):
                         f"{fname} -> {out_name}")
             return {"images": [out_name], "op": op}
         if not settings.FAL_KEY:
-            raise HTTPException(400, "FAL_KEY not configured (Settings) — "
+            raise HTTPException(503, "FAL_KEY not configured (Settings) — "
                                      "use the 'simple' mode instead.")
         import fal_client
         from app.services.fal_service import FalSeedanceClient
@@ -5228,7 +5228,7 @@ async def _process_image_core(body: dict):
                         f"{fname} -> {out_name}")
             return {"images": [out_name], "op": op}
         if not settings.FAL_KEY:
-            raise HTTPException(400, "FAL_KEY not configured (Settings) — "
+            raise HTTPException(503, "FAL_KEY not configured (Settings) — "
                                      "use the 'local (rembg)' method.")
         import fal_client
         from app.services.fal_service import FalSeedanceClient
@@ -5321,7 +5321,7 @@ async def _process_image_core(body: dict):
                 or model.startswith("dall-e"):
             manque = IP.missing_key(model)
             if manque:
-                raise HTTPException(400, f"{manque} non configurée "
+                raise HTTPException(503, f"{manque} non configurée "
                                          f"(Réglages) pour {model}.")
             try:
                 out = await IP.generate(model, prompt, size, n,
@@ -5371,7 +5371,7 @@ async def _flux_generate(prompt: str, size: str, n: int,
     Retourne {"images": [filenames], "seed": <seed utilisé>}."""
     import httpx as _httpx
     if not settings.FAL_KEY:
-        raise HTTPException(400, "FAL_KEY not configured. Add it in Settings.")
+        raise HTTPException(503, "FAL_KEY not configured. Add it in Settings.")
     if size not in ("square_hd", "square", "portrait_4_3", "portrait_16_9",
                     "landscape_4_3", "landscape_16_9"):
         size = "portrait_16_9"
@@ -5643,7 +5643,7 @@ async def propose_art_direction(body: dict):
     from app.services.summarizer import available
     from sqlalchemy import select
     if not available():
-        raise HTTPException(400, "Aucun LLM configuré (Réglages → clés API).")
+        raise HTTPException(503, "Aucun LLM configuré (Réglages → clés API).")
     async with async_session_factory() as session:
         if body.get("chapter_id"):
             ch = await session.get(Chapter, body["chapter_id"])
@@ -5824,7 +5824,7 @@ async def generate_bible_model3d(entity_id: str, background_tasks: BackgroundTas
 
     body = body or {}
     if not settings.FAL_KEY:
-        raise HTTPException(400, "FAL_KEY not configured. Add it in Settings.")
+        raise HTTPException(503, "FAL_KEY not configured. Add it in Settings.")
 
     async with async_session_factory() as session:
         e = await session.get(BibleEntity, entity_id)
@@ -6201,7 +6201,7 @@ async def _fetch_11l_voices() -> list[dict]:
     """Voix ElevenLabs du compte, avec labels (genre/âge/accent/description)
     et preview_url — la matière du casting voix."""
     if not settings.has_voiceover:
-        raise HTTPException(400, "Clé ElevenLabs non configurée (Réglages).")
+        raise HTTPException(503, "Clé ElevenLabs non configurée (Réglages).")
     async with httpx.AsyncClient(timeout=20, verify=SSL_VERIFY) as c:
         r = await c.get("https://api.elevenlabs.io/v1/voices",
                         headers={"xi-api-key": settings.ELEVENLABS_API_KEY})
@@ -6246,7 +6246,7 @@ async def suggest_entity_voice(entity_id: str, body: dict):
     from app.services.storage import BibleEntity, async_session_factory
     from app.services.summarizer import available, _chat_dispatch
     if not available():
-        raise HTTPException(400, "Aucun LLM configuré (Réglages → clés API).")
+        raise HTTPException(503, "Aucun LLM configuré (Réglages → clés API).")
     provider, voices = await _fetch_casting_voices()
     if not voices:
         raise HTTPException(502, f"Aucune voix disponible ({provider}) — "
@@ -7522,7 +7522,7 @@ async def import_manuscript(background_tasks: BackgroundTasks,
     optionnel). Retourne {job_id} — suivre GET /atelier/manuscript/{job_id}."""
     from app.services.summarizer import available
     if not available():
-        raise HTTPException(400, "Aucun LLM configuré (Réglages → clés API) — "
+        raise HTTPException(503, "Aucun LLM configuré (Réglages → clés API) — "
                                  "l'agent manuscrit a besoin d'un modèle.")
     raw = await manuscript.read()
     if len(raw) > 30 * 1024 * 1024:
@@ -7880,7 +7880,7 @@ async def _generate_scene_vo(session, scene, lang: str) -> dict:
     voice = VoiceoverService()
     loop = asyncio.get_running_loop()
     if not await loop.run_in_executor(None, VoiceoverService.is_enabled):
-        raise HTTPException(400, "Aucune voix disponible : configure la clé "
+        raise HTTPException(503, "Aucune voix disponible : configure la clé "
                                  "ElevenLabs ou lance Voicebox (Réglages).")
     tmp = Path(_tf.mkdtemp(prefix="dz_vo_"))
     parts, plan = [], []
@@ -7934,7 +7934,7 @@ async def chapter_voiceover(chapter_id: str, body: dict,
     from app.services.elevenlabs_service import VoiceoverService
     if not await asyncio.get_running_loop().run_in_executor(
             None, VoiceoverService.is_enabled):
-        raise HTTPException(400, "Aucune voix disponible : configure la clé "
+        raise HTTPException(503, "Aucune voix disponible : configure la clé "
                                  "ElevenLabs ou lance Voicebox (Réglages).")
     async with async_session_factory() as session:
         if not await session.get(Chapter, chapter_id):
@@ -8007,7 +8007,7 @@ async def adapt_chapter_endpoint(chapter_id: str, body: dict,
     from app.services.summarizer import available
     from app.services.storage import Chapter, async_session_factory
     if not available():
-        raise HTTPException(400, "Aucun LLM configuré (Réglages → clés API).")
+        raise HTTPException(503, "Aucun LLM configuré (Réglages → clés API).")
     async with async_session_factory() as session:
         ch = await session.get(Chapter, chapter_id)
         if not ch:
@@ -8316,14 +8316,14 @@ async def generate_material(body: dict, background_tasks: BackgroundTasks):
         if model in IP.PROVIDERS:
             manque = IP.missing_key(model)
             if manque:
-                raise HTTPException(400, f"{manque} non configurée "
+                raise HTTPException(503, f"{manque} non configurée "
                                          "(Réglages).")
         elif model.startswith("gpt-image") or model.startswith("dall-e"):
             if not settings.OPENAI_API_KEY:
-                raise HTTPException(400, "OPENAI_API_KEY non configurée "
+                raise HTTPException(503, "OPENAI_API_KEY non configurée "
                                          "(Réglages).")
         elif not settings.FAL_KEY:
-            raise HTTPException(400, "FAL_KEY non configurée (Réglages).")
+            raise HTTPException(503, "FAL_KEY non configurée (Réglages).")
         spec.update({"kind": "prompt", "filename": None, "prompt": prompt,
                      "full_prompt": MS.build_full_prompt(prompt, enhance),
                      "model": model})
@@ -10213,12 +10213,12 @@ async def print3d_open(body: dict):
 async def import_figma(body: dict):
     """Body: {url} — le lien d'un CALQUE Figma (node-id présent) devient un
     PNG de la Bibliothèque (`figma_<clé>_<node>.png`, réécrit en place au
-    ré-import). Jeton = FIGMA_TOKEN du .env des données ; absent → 409
+    ré-import). Jeton = FIGMA_TOKEN du .env des données ; absent → 503 (P1 #11 : toute clé absente, 409 jusqu'au 28/09)
     parlant. Le service ne sort que vers api.figma.com."""
     from app.services import figma_import as FI
     jeton = str(getattr(settings, "FIGMA_TOKEN", "") or "").strip()
     if not jeton:
-        raise HTTPException(409,
+        raise HTTPException(503,
             "FIGMA_TOKEN absent — crée un Personal Access Token Figma "
             "(figma.com → Settings → Security), colle-le dans Réglages → "
             "API keys (rangée Figma) puis relance l'application.")
@@ -10376,7 +10376,7 @@ async def finition_upscale_measure(body: dict):
                                "lancer l'agrandissement payant."}}
     if veut_ai:
         if not settings.FAL_KEY:
-            raise HTTPException(400, "FAL_KEY not configured (Settings) — "
+            raise HTTPException(503, "FAL_KEY not configured (Settings) — "
                                      "la variante locale est déjà mesurée.")
         r2 = await _process_image_core({"op": "upscale", "filename": fn,
                                         "scale": scale, "mode": "ai"})

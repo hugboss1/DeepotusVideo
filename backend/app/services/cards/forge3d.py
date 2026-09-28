@@ -3067,7 +3067,7 @@ async def post_mesh3d(did: str, nid: str, background_tasks: BackgroundTasks,
     # ── les clés : refusées AVANT de réinitialiser quoi que ce soit — un
     #    refus ne doit jamais détruire le job précédent ───────────────────────
     if provider == "fal" and not settings.FAL_KEY:
-        raise HTTPException(400, "FAL_KEY not configured. Add it in Settings.")
+        raise HTTPException(503, "FAL_KEY not configured. Add it in Settings.")
     if provider == "meshy" and not (settings.has_meshy or settings.MESHY_MOCK):
         raise HTTPException(503, "MESHY_API_KEY not configured — add it in "
                                  "Settings (or set MESHY_MOCK=1 for the local "

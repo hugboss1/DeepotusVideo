@@ -162,11 +162,11 @@ async def main():
             Client=_FakeClient)
         VP._reach_cache["t"] = 0
         r = await c.post(f"/api/scenes/{sid}/voiceover", json={"language": "fr"})
-        assert r.status_code == 400 and "Voicebox" in r.json()["detail"], r.text
+        assert r.status_code == 503 and "Voicebox" in r.json()["detail"], r.text  # P1 #11 : cle absente -> 503
         # /episodes/render : porte provider-aware (plus settings.has_voiceover)
         r = await c.post("/api/episodes/render",
                          json={"scenes": [{"text": "La ville dort."}]})
-        assert r.status_code == 400 and "Voicebox" in r.json()["detail"], r.text
+        assert r.status_code == 503 and "Voicebox" in r.json()["detail"], r.text  # P1 #11 : cle absente -> 503
         r = await c.get("/api/health")
         assert r.json()["voiceover_enabled"] is False
     print("SCENE VO VOICEBOX TEST: PASS")

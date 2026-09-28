@@ -109,8 +109,8 @@ check("1.6 GET /settings/keys : FIGMA_TOKEN pose, apercu MASQUE (jamais la valeu
 check("1.7 /health : figma_configured suit le jeton (False puis True)",
       sante0.json().get("figma_configured") is False and sante1.json().get("figma_configured") is True,
       _d(sante0.json().get("figma_configured"), sante1.json().get("figma_configured")))
-check("1.8 import sans jeton : 409 qui renvoie aux Reglages (et nomme toujours FIGMA_TOKEN)",
-      imp.status_code == 409 and "FIGMA_TOKEN" in imp.text and "Réglages" in imp.text,
+check("1.8 import sans jeton : 503 (P1 #11, 409 jusqu'au 28/09) qui renvoie aux Reglages (et nomme toujours FIGMA_TOKEN)",
+      imp.status_code == 503 and "FIGMA_TOKEN" in imp.text and "Réglages" in imp.text,
       _d(imp.status_code, imp.text[:240]))
 
 print("\n[2] bundle : la rangee Figma du catalogue des Reglages (groupe P1)")
