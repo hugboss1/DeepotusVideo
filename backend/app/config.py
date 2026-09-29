@@ -186,6 +186,18 @@ class Settings(BaseSettings):
     def has_instagram(self) -> bool:
         return bool(self.IG_ACCESS_TOKEN.strip() and self.IG_BUSINESS_ID.strip())
 
+    # plan scheduler T5 (tâche #27) — TikTok Direct Post : client de l'app (Login Kit « Desktop »), refresh token
+    # (renouvelé par TikTok et regardé à chaque fois : tiktok_publisher.access_token) ; TIKTOK_AUDITED lève SELF_ONLY.
+    TIKTOK_CLIENT_KEY: str = ""
+    TIKTOK_CLIENT_SECRET: str = ""
+    TIKTOK_REFRESH_TOKEN: str = ""
+    TIKTOK_AUDITED: bool = False
+
+    @property
+    def has_tiktok(self) -> bool:
+        return all(v.strip() for v in (self.TIKTOK_CLIENT_KEY, self.TIKTOK_CLIENT_SECRET,
+                                       self.TIKTOK_REFRESH_TOKEN))
+
     @property
     def has_youtube(self) -> bool:
         return all(v.strip() for v in (self.YOUTUBE_CLIENT_ID, self.YOUTUBE_CLIENT_SECRET,

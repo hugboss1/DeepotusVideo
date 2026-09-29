@@ -63,7 +63,7 @@ async def main():
                         cwd=str(racine / "backend"), capture_output=True, text=True,
                         env=dict(os.environ, DEEPOTUS_DATA_DIR=str(_tmp / "neuf")))
     check("1.3 l'application seule (import app.main) enregistre instagram", _p.returncode == 0
-          and _p.stdout.strip().endswith("['instagram', 'telegram', 'x', 'youtube']"), (_p.stdout + _p.stderr)[-300:])
+          and "instagram" in set(eval(_p.stdout.strip().splitlines()[-1] or "[]")), (_p.stdout + _p.stderr)[-300:])  # #27 : par inclusion
     check("1.4 sondage : 5 minutes au plus (doc : « no more than 5 minutes »), jamais une rafale",
           0 < sum(DELAIS) <= 300 and min(DELAIS) >= 10 and len(DELAIS) <= 8, str(DELAIS))
     lim = quota.LIMITS.get("instagram", ())

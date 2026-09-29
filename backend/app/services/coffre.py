@@ -238,6 +238,22 @@ def ecrire_cle(nom: str, valeur_: str) -> None:
     _appliquer({nom: valeur_ or ""})
 
 
+def enregistrer_cle(nom: str, valeur_: str) -> str:
+    """Tâche #27 (29/09/2026) : un SERVICE reçoit une clé neuve (TikTok renouvelle son refresh token) et doit la garder
+    là où vivent les clés : coffre ouvert → coffre ; pas de coffre → .env ; coffre posé mais FERMÉ → appliquée en
+    mémoire seulement (écrire le secret en clair annulerait le coffre) et c'est journalisé. Rend l'endroit."""
+    if ouvert():
+        ecrire_cle(nom, valeur_)
+        return "coffre"
+    if est_pose():
+        _appliquer({nom: valeur_})
+        logger.warning(f"coffre fermé : {nom} renouvelée appliquée en mémoire, NON enregistrée")
+        return "memoire"
+    _ecrire_env({nom: valeur_}, set())
+    _appliquer({nom: valeur_})
+    return "env"
+
+
 def changer_mot_de_passe(ancien: str, nouveau: str) -> None:
     global _mdp_courant
     if len(nouveau or "") < MDP_MIN:
