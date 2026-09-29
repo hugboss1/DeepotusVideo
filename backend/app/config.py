@@ -170,6 +170,19 @@ class Settings(BaseSettings):
     X_ACCESS_TOKEN: str = ""
     X_ACCESS_SECRET: str = ""
 
+    # plan scheduler T3 (tâche #25, 29/09/2026) — YouTube Shorts : OAuth « application de bureau » (client Google du
+    # type Desktop), refresh token écrit par /api/oauth/youtube/callback (T6). Les clés étaient déjà stockables
+    # (_ALLOWED_ENV_KEYS, coffre) mais jamais lues ; les déclarer ici les rend applicables à chaud (cles_a_chaud).
+    YOUTUBE_CLIENT_ID: str = ""
+    YOUTUBE_CLIENT_SECRET: str = ""
+    YOUTUBE_REFRESH_TOKEN: str = ""
+    YOUTUBE_CHANNEL_ID: str = ""
+
+    @property
+    def has_youtube(self) -> bool:
+        return all(v.strip() for v in (self.YOUTUBE_CLIENT_ID, self.YOUTUBE_CLIENT_SECRET,
+                                       self.YOUTUBE_REFRESH_TOKEN))
+
     @property
     def images_path(self) -> Path:
         p = resolve_path(self.IMAGES_FOLDER)
