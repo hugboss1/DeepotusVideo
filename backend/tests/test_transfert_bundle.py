@@ -93,7 +93,15 @@ check("bloc_EST_la_couche_octet_pour_octet", _bloc == nl(src).strip(),
       f"bloc={len(_bloc)} o, couche={len(nl(src).strip())} o — le bundle "
       f"n'exécute pas le fichier que ce banc mesure")
 check("bloc_unique", s.count(nl(P.BEGIN)) == 1 and s.count(nl(P.END)) == 1)
+# 29/09/2026 (tâche #19) : depuis #15, la section P2dg4 du maillon AVAL `montage` insère la branche du Diagnostic
+# entre Pricing et Transfert ; le remplacement de T3 se lit donc avec cette insertion (échec présent sur main depuis
+# #15, ce banc n'était pas dans la série voisine — trouvé le 29/09).
+_M = load("patch_bundle_montage", PATCHER.parent / "patch_bundle_montage.py")
+_AVAL = {t: (a2, r2) for t, a2, r2 in _M.PATCHES if t.startswith("P2dg4")}
 for tag, a, rp in P.PATCHES:
+    for _a2, _r2 in _AVAL.values():
+        if _a2 in rp:
+            rp = rp.replace(_a2, _r2)
     check(tag + "_remplace", s.count(nl(rp)) == 1, f"count={s.count(nl(rp))}")
     if a not in rp:
         check(tag + "_ancre_consommee", s.count(nl(a)) == 0)
