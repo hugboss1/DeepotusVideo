@@ -3022,6 +3022,8 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>'
 
 ---
 
+> **T12–T13 EXÉCUTÉES le 29/09/2026** (tâche #19 du suivi, branche `chantier/p2-export`) — AUTREMENT que ce plan : le transfert entre machines (v2.8.0, `services/transfert.py` + `frontend/patches/transfert.js`) exportait déjà tout, sans clé ; un second exporteur `export_donnees.py` aurait été un second producteur du même paquet. Ce qui manquait y est donc AJOUTÉ : (1) une empreinte sha256 par fichier calculée pendant la copie, et celle de l'instantané de la base, au manifeste ; (2) `verifier()` + `POST /api/transfer/verify` (job) relit tout le paquet ; l'IMPORT compare aussi chaque fichier à son empreinte avant de le poser et écarte (en le nommant) un fichier abîmé ; (3) deux lots optionnels décochés par défaut — journaux et rebuts — avec leur poids servi par `/transfer/destinations` ; les secrets ne sont jamais un lot ; (4) les réponses sondées portent le NOMBRE d'empreintes, pas la liste ; (5) écran : cases des lots, « Contrôler l'intégrité » après un export et avant un import. Trouvé en route : `test_transfert_bundle` échouait sur main depuis #15 (P2dg4 insère le Diagnostic entre Pricing et Transfert ; ce banc n'était pas dans la série voisine) — corrigé. Preuve écran : export avec journaux → 29 fichiers relus, empreintes identiques ; un octet altéré → « Abîmés : assets/montage_projects/… ». Bancs : `test_transfert_integrite` 31/0, `test_transfert` 38/0, `test_transfert_bundle` 41/0.
+
 ### Task 12 : Export manuel des données — copie, manifeste, vérification d'intégrité
 
 **Files:**

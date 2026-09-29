@@ -36,9 +36,21 @@ FUSION, PAS ÉCRASEMENT : à l'import, une ligne dont la clé primaire existe
 déjà est LAISSÉE telle quelle, un fichier déjà présent au même octet près
 est sauté. Deux postes peuvent donc s'échanger leur travail dans les deux
 sens sans qu'aucun ne perde le sien.
+
+INTÉGRITÉ ET LOTS (tâche #19, plan Settings T12, 29/09/2026) :
+  * chaque fichier porte son EMPREINTE sha256 au manifeste, calculée PENDANT
+    la copie (une seule lecture : l'empreinte porte sur ce qui a été écrit) ;
+    `verifier()` relit tout le paquet — un export dont on n'a pas relu les
+    octets n'est pas une sauvegarde, c'est un espoir ; l'import compare aussi
+    chaque fichier à son empreinte AVANT de le poser, et n'installe pas un
+    fichier abîmé (il le nomme) ;
+  * deux lots OPTIONNELS, décochés par défaut : les journaux et les rebuts
+    (corbeilles datées `rebut_*`, qui pesaient 6,5 Go sur 13,8 au 03/09).
+    Les secrets ne sont JAMAIS un lot : aucune case ne les fait partir.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
@@ -74,19 +86,90 @@ JETABLE = (
 )
 
 
+# Les lots que l'utilisateur peut COCHER (tous décochés par défaut) : ils
+# retirent leur motif de la liste du jetable, jamais de celle des secrets.
+LOTS = {"journaux": ("logs/*",), "rebuts": ("rebut_*/*",)}
+BLOC = 1 << 20
+
+
+def _lots(lots) -> dict:
+    return {k: bool((lots or {}).get(k)) for k in LOTS}
+
+
 def _motif(rel: str, motifs: tuple[str, ...]) -> bool:
     p = Path(rel.replace("\\", "/"))
     return any(p.match(m) or p.as_posix().startswith(m.rstrip("*"))
                for m in motifs)
 
 
-def exclu(rel: str) -> tuple[bool, str]:
-    """(exclu ?, motif lisible) — un seul endroit décide, l'écran l'affiche."""
+def lot_de(rel: str) -> str:
+    """Le lot optionnel auquel appartient un chemin ('' = les créations)."""
+    for nom, motifs in LOTS.items():
+        if _motif(rel, motifs):
+            return nom
+    return ""
+
+
+def exclu(rel: str, lots: dict | None = None) -> tuple[bool, str]:
+    """(exclu ?, motif lisible) — un seul endroit décide, l'écran l'affiche.
+    `lots` : les lots optionnels cochés ; un secret reste exclu quoi qu'il arrive."""
     if _motif(rel, SECRETS):
         return True, "clé d'API"
+    lot = lot_de(rel)
+    if lot and _lots(lots)[lot]:
+        return False, ""
     if _motif(rel, JETABLE):
         return True, "jetable"
     return False, ""
+
+
+def poids_lots(base: Path | None = None) -> dict:
+    """{creations, journaux, rebuts} -> {fichiers, octets} en UN parcours : ce que chaque case ajouterait."""
+    base = base or racine()
+    out = {k: {"fichiers": 0, "octets": 0} for k in ("creations", *LOTS)}
+    tout = {k: True for k in LOTS}
+    for p in base.rglob("*"):
+        if not p.is_file():
+            continue
+        rel = p.relative_to(base).as_posix()
+        if exclu(rel, tout)[0]:
+            continue
+        try:
+            t = p.stat().st_size
+        except OSError:
+            continue
+        cle = lot_de(rel) or "creations"
+        out[cle]["fichiers"] += 1
+        out[cle]["octets"] += t
+    return out
+
+
+def _copie_hachee(src: Path, dst: Path) -> tuple[str, int]:
+    """Copie ET empreinte en UNE lecture ; métadonnées (dates) conservées comme `copy2`."""
+    h = hashlib.sha256()
+    n = 0
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    with src.open("rb") as fi, dst.open("wb") as fo:
+        while True:
+            b = fi.read(BLOC)
+            if not b:
+                break
+            h.update(b)
+            fo.write(b)
+            n += len(b)
+    shutil.copystat(src, dst)
+    return h.hexdigest(), n
+
+
+def _empreinte(p: Path) -> str:
+    h = hashlib.sha256()
+    with p.open("rb") as fi:
+        while True:
+            b = fi.read(BLOC)
+            if not b:
+                break
+            h.update(b)
+    return h.hexdigest()
 
 
 @dataclass
@@ -118,7 +201,7 @@ def racine() -> Path:
     return Path(DATA_ROOT)
 
 
-def inventaire(base: Path | None = None) -> tuple[list[tuple[str, int]], int]:
+def inventaire(base: Path | None = None, lots: dict | None = None) -> tuple[list[tuple[str, int]], int]:
     """Les fichiers qui partent, en chemins RELATIFS à la racine, et le poids.
 
     Trié : l'export est alors reproductible, et deux inventaires se
@@ -131,7 +214,7 @@ def inventaire(base: Path | None = None) -> tuple[list[tuple[str, int]], int]:
         if not p.is_file():
             continue
         rel = p.relative_to(base).as_posix()
-        if exclu(rel)[0]:
+        if exclu(rel, lots)[0]:
             continue
         try:
             t = p.stat().st_size
@@ -181,8 +264,9 @@ def nom_paquet(quand: float | None = None) -> str:
 
 
 def exporter(destination: str | Path, etat: Etat | None = None,
-             *, quand: float | None = None) -> dict:
-    """Écrit le paquet de transfert dans `destination`. Rend le manifeste."""
+             *, quand: float | None = None, lots: dict | None = None) -> dict:
+    """Écrit le paquet de transfert dans `destination`. Rend le manifeste. `lots` : les lots optionnels cochés."""
+    lots = _lots(lots)
     etat = etat or Etat()
     dest = Path(destination).expanduser()
     if not dest.is_dir():
@@ -192,7 +276,7 @@ def exporter(destination: str | Path, etat: Etat | None = None,
         raise ValueError(f"Un paquet du même nom existe déjà : {paquet.name}")
 
     etat.phase = "inventaire"
-    fichiers, poids = inventaire()
+    fichiers, poids = inventaire(lots=lots)
     etat.total, etat.octets_total = len(fichiers), poids
     libre = shutil.disk_usage(dest).free
     if libre < poids * 1.05:
@@ -204,15 +288,16 @@ def exporter(destination: str | Path, etat: Etat | None = None,
     etat.phase = "base"
     etat.detail = "instantané cohérent de la base"
     taille_db = instantane_base(paquet / DOSSIER_BASE / NOM_BASE)
+    base_sha = _empreinte(paquet / DOSSIER_BASE / NOM_BASE)
     lignes = compte_lignes(paquet / DOSSIER_BASE / NOM_BASE)
     etat.lignes = lignes
 
     etat.phase = "fichiers"
     src = racine()
+    empreintes: dict[str, str] = {}
     for rel, taille in fichiers:
-        cible = paquet / DOSSIER_DONNEES / rel
-        cible.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(src / rel, cible)
+        sha, _n = _copie_hachee(src / rel, paquet / DOSSIER_DONNEES / rel)
+        empreintes[rel] = sha
         etat.fait += 1
         etat.octets += taille
         etat.fichier = rel
@@ -232,6 +317,9 @@ def exporter(destination: str | Path, etat: Etat | None = None,
         "base_octets": taille_db,
         "lignes": lignes,
         "exclus": {"secrets": list(SECRETS), "jetable": list(JETABLE)},
+        "lots": lots,
+        "base_sha256": base_sha,
+        "empreintes": empreintes,
     }
     (paquet / MANIFESTE).write_text(
         json.dumps(manifeste, ensure_ascii=False, indent=1), encoding="utf-8")
@@ -299,8 +387,8 @@ def importer(dossier: str | Path, etat: Etat | None = None) -> dict:
         for p in src.rglob("*"):
             if p.is_file():
                 rel = p.relative_to(src).as_posix()
-                if exclu(rel)[0]:          # ceinture : un paquet bricolé
-                    continue               # ne réintroduit pas de `.env`
+                if exclu(rel, man.get("lots"))[0]:   # ceinture : un paquet bricolé
+                    continue                         # ne réintroduit pas de `.env`
                 t = p.stat().st_size
                 fichiers.append((rel, t))
                 poids += t
@@ -309,14 +397,23 @@ def importer(dossier: str | Path, etat: Etat | None = None) -> dict:
 
     etat.phase = "fichiers"
     ajoutes = sautes = 0
+    abimes: list[str] = []
+    empreintes = man.get("empreintes") or {}
     for rel, taille in fichiers:
         cible = racine() / rel
         if cible.exists() and cible.stat().st_size == taille:
             sautes += 1                    # déjà là, au même octet près
         else:
-            cible.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src / rel, cible)
-            ajoutes += 1
+            # posé sous un nom provisoire, comparé à son empreinte, PUIS renommé : un fichier abîmé en route
+            # n'entre jamais dans la bibliothèque (paquet antérieur à #19 sans empreintes : copie simple)
+            prov = cible.with_name(cible.name + ".dztransfert")
+            sha, _n = _copie_hachee(src / rel, prov)
+            if empreintes.get(rel) and sha != empreintes[rel]:
+                prov.unlink(missing_ok=True)
+                abimes.append(rel)
+            else:
+                prov.replace(cible)
+                ajoutes += 1
         etat.fait += 1
         etat.octets += taille
         etat.fichier = rel
@@ -327,10 +424,54 @@ def importer(dossier: str | Path, etat: Etat | None = None) -> dict:
     etat.lignes = res["ajoutees"]
     etat.phase = "fini"
     etat.detail = (f"{ajoutes} fichiers repris, {sautes} déjà présents ; "
-                   f"{sum(res['ajoutees'].values())} enregistrements ajoutés")
+                   f"{sum(res['ajoutees'].values())} enregistrements ajoutés"
+                   + (f" ; {len(abimes)} fichier(s) ABÎMÉ(S) écarté(s)" if abimes else ""))
     logger.info(f"transfert: import — {etat.detail}")
-    return {"fichiers_ajoutes": ajoutes, "fichiers_sautes": sautes,
+    return {"fichiers_ajoutes": ajoutes, "fichiers_sautes": sautes, "fichiers_abimes": abimes,
             "octets": poids, **res, "manifeste": man}
+
+
+def verifier(dossier: str | Path, etat: Etat | None = None) -> dict:
+    """Relit CHAQUE fichier du paquet et le compare à son empreinte. Rien n'est écrit.
+    Un paquet antérieur à #19 n'a pas d'empreintes : c'est dit, pas deviné."""
+    etat = etat or Etat()
+    man = lire_manifeste(dossier)
+    d = Path(man["dossier"])
+    empreintes = man.get("empreintes")
+    if not isinstance(empreintes, dict):
+        etat.phase = "fini"
+        etat.detail = "paquet sans empreintes (exporté avant la version qui les écrit)"
+        return {"ok": False, "sans_empreintes": True, "verifies": 0, "attendus": 0,
+                "manquants": [], "divergents": [], "detail": etat.detail}
+    etat.phase = "verification"
+    etat.total = len(empreintes) + 1
+    manquants: list[str] = []
+    divergents: list[str] = []
+    verifies = 0
+    base = d / DOSSIER_BASE / NOM_BASE
+    if man.get("base_sha256") and _empreinte(base) != man["base_sha256"]:
+        divergents.append(f"{DOSSIER_BASE}/{NOM_BASE}")
+    else:
+        verifies += 1
+    etat.fait = 1
+    for rel in sorted(empreintes):
+        p = d / DOSSIER_DONNEES / rel
+        etat.fichier = rel
+        if not p.is_file():
+            manquants.append(rel)
+        elif _empreinte(p) != empreintes[rel]:
+            divergents.append(rel)
+        else:
+            verifies += 1
+            etat.octets += p.stat().st_size
+        etat.fait += 1
+    ok = not manquants and not divergents
+    etat.phase = "fini"
+    etat.detail = (f"intégrité vérifiée : {verifies} fichiers relus, empreintes identiques" if ok else
+                   f"{len(divergents)} fichier(s) abîmé(s), {len(manquants)} manquant(s)")
+    logger.info(f"transfert: vérification de {d.name} — {etat.detail}")
+    return {"ok": ok, "sans_empreintes": False, "verifies": verifies, "attendus": len(empreintes) + 1,
+            "manquants": manquants, "divergents": divergents, "detail": etat.detail}
 
 
 def fusionner_base(paquet_db: Path, origine: str, ici: str) -> dict:

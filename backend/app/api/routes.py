@@ -7352,6 +7352,16 @@ _TRANSFERT_JOBS: dict[str, dict] = {}
 _TRANSFERT_MAX = 8
 
 
+def _sans_empreintes(m):
+    """Tâche #19 : le manifeste porte UNE empreinte par fichier (des milliers) ; l'écran n'en montre que le nombre.
+    Les jobs sont sondés toutes les 700 ms — on n'y promène pas la liste entière."""
+    if isinstance(m, dict) and isinstance(m.get("empreintes"), dict):
+        m = {**m, "empreintes": len(m["empreintes"])}
+    if isinstance(m, dict) and isinstance(m.get("manifeste"), dict):
+        m = {**m, "manifeste": _sans_empreintes(m["manifeste"])}
+    return m
+
+
 def _transfert_job_set(jid: str, **champs) -> None:
     j = _TRANSFERT_JOBS.setdefault(jid, {})
     j.update(champs)
@@ -7385,10 +7395,11 @@ async def transfer_destinations(request: Request):
     """
     _require_localhost(request)
     from app.services import transfert as TR
-    fichiers, poids = await asyncio.get_running_loop().run_in_executor(
-        None, TR.inventaire)
+    # tâche #19 : UN parcours rend le poids de chaque lot (créations + lots optionnels) ; l'aperçu reste celui
+    # des créations seules (les lots optionnels sont décochés par défaut)
+    lots = await asyncio.get_running_loop().run_in_executor(None, TR.poids_lots)
     return {"ok": True, "destinations": TR.destinations(),
-            "apercu": {"fichiers": len(fichiers), "octets": poids},
+            "apercu": dict(lots["creations"]), "lots": lots,
             "exclus": {"secrets": list(TR.SECRETS),
                        "jetable": list(TR.JETABLE)}}
 
@@ -7398,8 +7409,9 @@ async def transfer_export(body: dict, request: Request,
                           background_tasks: BackgroundTasks):
     """Lance l'export vers `destination`. Rend un `job_id` à interroger.
 
-    Body: {destination}. 400 si la destination n'existe pas, n'est pas un
-    dossier, ou si la place manque (le service compare AVANT d'écrire).
+    Body: {destination, lots?: {journaux, rebuts}} (tâche #19 : lots optionnels, décochés par défaut).
+    400 si la destination n'existe pas, n'est pas un dossier, ou si la place manque (le service compare AVANT
+    d'écrire).
     """
     _require_localhost(request)
     from app.services import transfert as TR
@@ -7409,6 +7421,10 @@ async def transfer_export(body: dict, request: Request,
     d = Path(dest).expanduser()
     if not d.is_dir():
         raise HTTPException(400, f"Destination introuvable : {d}")
+    lots = (body or {}).get("lots")
+    lots = {k: (lots or {}).get(k) is True for k in TR.LOTS} if isinstance(lots, dict) or lots is None else None
+    if lots is None:
+        raise HTTPException(400, "lots illisibles : un objet {journaux, rebuts} de booléens est attendu")
     jid = uuid4().hex[:12]
     etat = TR.Etat()
     _transfert_job_set(jid, sens="export", statut="en cours", _etat=etat,
@@ -7416,8 +7432,8 @@ async def transfer_export(body: dict, request: Request,
 
     def _courir():
         try:
-            res = TR.exporter(d, etat)
-            _transfert_job_set(jid, statut="fini", resultat=res)
+            res = TR.exporter(d, etat, lots=lots)
+            _transfert_job_set(jid, statut="fini", resultat=_sans_empreintes(res))
         except Exception as e:                          # noqa: BLE001
             logger.exception(f"transfert export {jid}: {e}")
             _transfert_job_set(jid, statut="echec", erreur=str(e))
@@ -7442,7 +7458,7 @@ async def transfer_inspect(body: dict, request: Request):
     if not d:
         raise HTTPException(400, "Indiquer le dossier du paquet.")
     try:
-        return {"ok": True, "manifeste": TR.lire_manifeste(d)}
+        return {"ok": True, "manifeste": _sans_empreintes(TR.lire_manifeste(d))}
     except ValueError as e:
         raise HTTPException(400, str(e))
 
@@ -7473,7 +7489,7 @@ async def transfer_import(body: dict, request: Request,
     def _courir():
         try:
             res = TR.importer(man["dossier"], etat)
-            _transfert_job_set(jid, statut="fini", resultat=res)
+            _transfert_job_set(jid, statut="fini", resultat=_sans_empreintes(res))
         except Exception as e:                          # noqa: BLE001
             logger.exception(f"transfert import {jid}: {e}")
             _transfert_job_set(jid, statut="echec", erreur=str(e))
@@ -7484,8 +7500,42 @@ async def transfer_import(body: dict, request: Request,
     for k in list(_TRANSFERT_JOBS)[:-_TRANSFERT_MAX]:
         _TRANSFERT_JOBS.pop(k, None)
     background_tasks.add_task(_fond)
-    return {"ok": True, "job_id": jid, "manifeste": man,
+    return {"ok": True, "job_id": jid, "manifeste": _sans_empreintes(man),
             "message": "Import en cours"}
+
+
+@router.post("/transfer/verify")
+async def transfer_verify(body: dict, request: Request, background_tasks: BackgroundTasks):
+    """Tâche #19 : relit chaque fichier d'un paquet et le compare à son empreinte sha256 (rien n'est écrit).
+    Body: {dossier}. Rend un `job_id` (sens « verification ») : sur une clé USB, relire des gigaoctets est long."""
+    _require_localhost(request)
+    from app.services import transfert as TR
+    d = str((body or {}).get("dossier") or "").strip()
+    if not d:
+        raise HTTPException(400, "Indiquer le dossier du paquet.")
+    try:
+        man = TR.lire_manifeste(d)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    jid = uuid4().hex[:12]
+    etat = TR.Etat()
+    _transfert_job_set(jid, sens="verification", statut="en cours", _etat=etat, erreur=None, resultat=None)
+
+    def _courir():
+        try:
+            res = TR.verifier(man["dossier"], etat)
+            _transfert_job_set(jid, statut="fini", resultat=res)
+        except Exception as e:                          # noqa: BLE001
+            logger.exception(f"transfert vérification {jid}: {e}")
+            _transfert_job_set(jid, statut="echec", erreur=str(e))
+
+    async def _fond():
+        await asyncio.get_running_loop().run_in_executor(None, _courir)
+
+    for k in list(_TRANSFERT_JOBS)[:-_TRANSFERT_MAX]:
+        _TRANSFERT_JOBS.pop(k, None)
+    background_tasks.add_task(_fond)
+    return {"ok": True, "job_id": jid, "message": "Vérification en cours"}
 
 
 @router.get("/transfer/jobs/{jid}")

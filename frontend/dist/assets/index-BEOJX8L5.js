@@ -22604,7 +22604,12 @@ window.DzTracks=DzTracks;
    MONTRE l'avancement, et dit ce qui est arrivé. Il n'écrit rien lui-même.
    Écrit avec le runtime JSX du bundle (`r.jsx` / `r.jsxs`, enfants dans
    `children`) et ses crochets React (`x.useState`…) : c'est la convention
-   des couches injectées de ce dépôt. */
+   des couches injectées de ce dépôt.
+
+   Tâche #19 (29/09/2026) : deux LOTS optionnels à l'export, décochés par
+   défaut, avec leur poids (journaux, rebuts) ; « Contrôler l'intégrité »
+   relit un paquet contre ses empreintes sha256 — après un export, et avant
+   un import ; un import dit les fichiers ABÎMÉS qu'il a écartés. */
 
 var DZT_MONO = "'IBM Plex Mono', ui-monospace, Consolas, monospace";
 
@@ -22694,6 +22699,7 @@ function DzTransfert() {
   var s5 = x.useState(null), job = s5[0], setJob = s5[1];
   var s6 = x.useState(null), apercu = s6[0], setApercu = s6[1];
   var s7 = x.useState(""), erreur = s7[0], setErreur = s7[1];
+  var s8 = x.useState({ journaux: false, rebuts: false }), lots = s8[0], setLots = s8[1];
   var tic = x.useRef(null);
 
   x.useEffect(function () {
@@ -22742,9 +22748,19 @@ function DzTransfert() {
     setJob(null);
     var url = sens === "export" ? "/api/transfer/export"
       : "/api/transfer/import";
-    var corps = sens === "export" ? { destination: dest } : { dossier: dossier };
+    var corps = sens === "export" ? { destination: dest, lots: lots } : { dossier: dossier };
     envoyer(url, corps).then(function (d) {
       setJob({ statut: "en cours", sens: sens,
+               etat: { phase: "démarrage", pct: 0 } });
+      suivre(d.job_id);
+    }).catch(function (e) { setErreur(String(e.message || e)); });
+  }
+
+  function controler(paquet) {
+    setErreur("");
+    setJob(null);
+    envoyer("/api/transfer/verify", { dossier: paquet }).then(function (d) {
+      setJob({ statut: "en cours", sens: "verification",
                etat: { phase: "démarrage", pct: 0 } });
       suivre(d.job_id);
     }).catch(function (e) { setErreur(String(e.message || e)); });
@@ -22765,6 +22781,26 @@ function DzTransfert() {
   }
 
   var ap = (info && info.apercu) || null;
+  var pl = (info && info.lots) || null;
+  var choisi = ap ? { fichiers: ap.fichiers, octets: ap.octets } : null;
+  if (choisi && pl) {
+    ["journaux", "rebuts"].forEach(function (k) {
+      if (lots[k] && pl[k]) { choisi.fichiers += pl[k].fichiers; choisi.octets += pl[k].octets; }
+    });
+  }
+  function dztCase(k, libelle, titre) {
+    var p = pl && pl[k];
+    return r.jsxs("label", { title: titre, "data-dzt-lot": k,
+      style: { display: "flex", alignItems: "center", gap: 8, fontSize: 12,
+               cursor: "pointer", color: "var(--txt-base, #cfd6dd)" }, children: [
+        r.jsx("input", { type: "checkbox", checked: !!lots[k],
+          onChange: function (ev) {
+            var n = Object.assign({}, lots); n[k] = ev.target.checked; setLots(n);
+          } }, "c"),
+        r.jsx("span", { children: libelle }, "l"),
+        r.jsx("span", { style: DZT_S.mono,
+          children: p ? p.fichiers + " fichiers · " + dztOctets(p.octets) : "" }, "p")] }, k);
+  }
   var dests = (info && info.destinations) || [];
   var et = (job && job.etat) || null;
   var enCours = !!(job && job.statut === "en cours");
@@ -22804,9 +22840,13 @@ function DzTransfert() {
             r.jsx("input", { value: dest, placeholder: "D:\\sauvegardes",
               onChange: function (ev) { setDest(ev.target.value); },
               style: DZT_S.champ }, "i")] }, "c"),
-        ap ? r.jsx("div", { style: DZT_S.mono,
-          children: ap.fichiers + " fichiers · " + dztOctets(ap.octets)
-            + " — un dossier daté sera créé à la destination" }, "a") : null,
+        r.jsx("div", { style: DZT_S.entete, children: "en plus (décoché par défaut)" }, "le"),
+        dztCase("journaux", "Journaux", "Les journaux de l'application (ils nomment des chemins de cette machine)"),
+        dztCase("rebuts", "Rebuts — corbeilles datées",
+          "Les dossiers rebut_* : ce que vous avez écarté, souvent volumineux"),
+        choisi ? r.jsx("div", { style: DZT_S.mono,
+          children: choisi.fichiers + " fichiers · " + dztOctets(choisi.octets)
+            + " — un dossier daté sera créé à la destination, chaque fichier avec son empreinte sha256" }, "a") : null,
         r.jsx("div", { style: DZT_S.faible,
           children: "Les clés d'API ne partent JAMAIS : le fichier .env, les "
             + "journaux et tout ce que l'application sait reconstruire "
@@ -22825,7 +22865,13 @@ function DzTransfert() {
               style: DZT_S.champ }, "i"),
             dztBouton({ onClick: inspecter, disabled: !dossier.trim(),
               title: "Lit le manifeste du paquet — rien n'est écrit",
-              children: "Vérifier" })] }, "c"),
+              children: "Vérifier" }),
+            dztBouton({ onClick: function () { controler(dossier); },
+              disabled: !(apercu && apercu.empreintes),
+              title: apercu && !apercu.empreintes
+                ? "Ce paquet a été exporté avant les empreintes : rien à comparer"
+                : "Relit chaque fichier du paquet et le compare à son empreinte sha256 — rien n'est écrit",
+              children: "Contrôler l'intégrité" })] }, "c"),
         apercu ? r.jsxs("div", { style: { display: "flex",
           flexDirection: "column", gap: 4, padding: 10,
           background: "var(--srf-raised, #171c22)",
@@ -22836,7 +22882,12 @@ function DzTransfert() {
                 + (apercu.app_version || "?") }, "d"),
             r.jsx("div", { style: DZT_S.mono,
               children: apercu.fichiers + " fichiers · "
-                + dztOctets(apercu.octets) }, "f"),
+                + dztOctets(apercu.octets)
+                + (apercu.empreintes ? " · " + apercu.empreintes + " empreintes"
+                   : " · sans empreintes (paquet antérieur)")
+                + (apercu.lots && (apercu.lots.journaux || apercu.lots.rebuts)
+                   ? " · avec " + ["journaux", "rebuts"].filter(function (k) {
+                       return apercu.lots[k]; }).join(" et ") : "") }, "f"),
             r.jsx("div", { style: DZT_S.mono,
               children: Object.keys(apercu.lignes || {}).filter(function (k) {
                 return apercu.lignes[k];
@@ -22866,14 +22917,28 @@ function DzTransfert() {
                 whiteSpace: "nowrap" }), children: et.fichier }, "f") : null,
         fini ? r.jsxs("div", { style: { fontSize: 12.5, lineHeight: 1.5,
           color: "var(--txt-base, #cfd6dd)" }, children: [
-            r.jsx("div", { children: (job.sens === "import"
-              || modal === "import") ? "Import terminé."
-              : "Export terminé. Le paquet est ici :" }, "t"),
-            r.jsx("div", { style: Object.assign({}, DZT_S.mono,
-              { marginTop: 4, color: "var(--txt-hi, #eef2f6)",
-                wordBreak: "break-all" }),
-              children: (res && res.dossier) || (et && et.detail)
-                || "" }, "d")] }, "ok") : null,
+            job.sens === "verification"
+              ? r.jsx("div", { "data-dzt-verdict": res && res.ok ? "ok" : "ko",
+                  style: { color: res && res.ok ? "var(--green, #39d98a)" : "#e08a8a" },
+                  children: res ? (res.ok ? "Intégrité vérifiée : " + res.verifies
+                      + " fichiers relus, empreintes identiques."
+                    : res.sans_empreintes ? "Ce paquet n'a pas d'empreintes (exporté avant cette version)."
+                    : "Abîmés : " + ((res.divergents || []).join(", ") || "aucun")
+                      + " ; manquants : " + ((res.manquants || []).join(", ") || "aucun"))
+                    : "" }, "t")
+              : r.jsx("div", { children: (job.sens === "import"
+                  || modal === "import") ? "Import terminé."
+                  : "Export terminé. Le paquet est ici :" }, "t"),
+            job.sens === "verification" ? null
+              : r.jsx("div", { style: Object.assign({}, DZT_S.mono,
+                  { marginTop: 4, color: "var(--txt-hi, #eef2f6)",
+                    wordBreak: "break-all" }),
+                  children: (res && res.dossier) || (et && et.detail)
+                    || "" }, "d"),
+            res && res.fichiers_abimes && res.fichiers_abimes.length
+              ? r.jsx("div", { style: DZT_S.erreur, "data-dzt-abimes": "1",
+                  children: res.fichiers_abimes.length + " fichier(s) abîmé(s) écarté(s) : "
+                    + res.fichiers_abimes.join(", ") }, "a") : null] }, "ok") : null,
         echec ? r.jsx("div", { style: DZT_S.erreur,
           children: job.erreur || "raison non fournie" }, "k") : null] }, "p"));
   }
@@ -22891,6 +22956,11 @@ function DzTransfert() {
         : "Ajoute le contenu du paquet à cette installation",
       children: modal === "export" ? "Lancer l'export" : "Lancer l'import" }));
   } else if (!enCours) {
+    if (fini && job.sens === "export" && res && res.dossier) {
+      pied.push(dztBouton({ onClick: function () { controler(res.dossier); },
+        title: "Relit chaque fichier écrit et le compare à son empreinte sha256",
+        children: "Contrôler l'intégrité" }));
+    }
     pied.push(dztBouton({ primaire: true, onClick: fermer,
       children: "Fermer" }));
   }
