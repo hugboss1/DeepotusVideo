@@ -7,7 +7,7 @@ comme les routeurs montage et cards.
 Toute route qui lit ou teste des clés passe par `_local()` — la garde de boucle locale des Réglages
 (`routes._require_localhost`, un seul propriétaire de la règle), GET compris : les aperçus de clés sont des Réglages.
 """
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 
 from app.config import APP_VERSION
 
@@ -31,10 +31,18 @@ async def diagnostic_complet(request: Request):
     """L'écran unique : version, poids disque, journal, clés (masquées), soldes."""
     _local(request)
     from app.api.routes import _ALLOWED_ENV_KEYS, _mask, _read_env_file
-    from app.services import diagnostic as D
+    from app.services import coffre as C, diagnostic as D
     env = _read_env_file()
-    cles = [{"cle": k, "definie": bool(env.get(k, "")), "apercu": _mask(env.get(k, "")), "testable": D.testable(k)}
-            for k in sorted(_ALLOWED_ENV_KEYS)]
+    cles = []
+    for k in sorted(_ALLOWED_ENV_KEYS):
+        # tâche #20 : une clé absorbée par le coffre n'est pas « absente » ; coffre fermé -> « verrouillé » (None)
+        v, source = env.get(k, ""), "env"
+        if not v and C.ouvert() and C.lire_cle(k):
+            v, source = C.lire_cle(k), "coffre"
+        if not v and C.verrouille() and k in C.SECRETES:
+            cles.append({"cle": k, "definie": None, "apercu": "", "source": "coffre-verrouille", "testable": D.testable(k)})
+            continue
+        cles.append({"cle": k, "definie": bool(v), "apercu": _mask(v), "source": source, "testable": D.testable(k)})
     try:
         soldes = await _soldes()
     except Exception as e:  # noqa: BLE001 — un solde muet ne masque pas le reste
@@ -53,10 +61,15 @@ async def diagnostic_cle(body: dict, request: Request):
     nom = str((body or {}).get("nom") or "").strip()
     if nom not in _ALLOWED_ENV_KEYS:
         raise HTTPException(400, f"clé inconnue ou non modifiable : {nom}")
+    from app.services import coffre as C
     env = _read_env_file()
+    if C.ouvert():          # tâche #20 : les clés du coffre ouvert se testent comme celles du .env
+        env = {**{k: C.lire_cle(k) for k in C.cles_posees()}, **{k: v for k, v in env.items() if v}}
     if nom.startswith("X_"):
         return await D.tester_x(env)
     valeur = str((body or {}).get("valeur") or "") or env.get(nom, "")
+    if not valeur and C.verrouille() and nom in C.SECRETES:
+        raise HTTPException(409, "Coffre verrouillé : ouvrez-le pour tester cette clé.")
     return await D.tester_cle(nom, valeur)
 
 
@@ -112,6 +125,135 @@ async def suivre_telechargement(request: Request):
     _local(request)
     from app.services import mise_a_jour as M
     return M.etat_telechargement()
+
+
+# ── le coffre (plan Settings T16, tâche #20) ─────────────────────────────────────────────────────────────────────
+
+
+def _crypto_ou_503() -> None:
+    """Tâche #20 : sans la roue `cryptography`, un 503 qui le dit, jamais un 500 muet au premier chiffrement."""
+    from app.services import coffre as C
+    try:
+        C._aesgcm()
+    except C.CoffreIndisponible as e:
+        raise HTTPException(503, str(e))
+
+
+def _mdp(body, cle="mot_de_passe") -> str:
+    return str((body or {}).get(cle) or "")
+
+
+@router.get("/coffre/etat")
+async def coffre_etat(request: Request):
+    _local(request)
+    from app.services import coffre as C
+    return {"pose": C.est_pose(), "ouvert": C.ouvert(), "retenu": C.retenu(),
+            "cles": sorted(C.cles_posees()) if C.ouvert() else []}
+
+
+@router.post("/coffre/poser")
+async def coffre_poser(body: dict, request: Request):
+    """Pose le coffre, l'ouvre, et y DÉPLACE les secrets du .env (ils quittent le fichier en clair)."""
+    _local(request)
+    _crypto_ou_503()
+    from app.services import coffre as C
+    mdp = _mdp(body)
+    if len(mdp) < C.MDP_MIN:
+        raise HTTPException(400, f"mot de passe trop court ({C.MDP_MIN} caractères au moins)")
+    if C.est_pose():
+        raise HTTPException(409, "un coffre existe déjà : ouvrez-le, ou changez son mot de passe — le reposer "
+                                 "écraserait son contenu")
+    C.poser(mdp, {})
+    C.ouvrir(mdp)
+    return {"ok": True, "absorbees": C.absorber_env()}
+
+
+@router.post("/coffre/ouvrir")
+async def coffre_ouvrir(body: dict, request: Request):
+    _local(request)
+    _crypto_ou_503()
+    from app.services import coffre as C
+    try:
+        cles = C.ouvrir(_mdp(body))
+    except C.MotDePasseInvalide as e:
+        raise HTTPException(401, str(e))
+    return {"ok": True, "cles": len(cles)}
+
+
+@router.post("/coffre/fermer")
+async def coffre_fermer(request: Request):
+    _local(request)
+    from app.services import coffre as C
+    C.fermer()
+    return {"ok": True}
+
+
+@router.post("/coffre/mot-de-passe")
+async def coffre_mot_de_passe(body: dict, request: Request):
+    _local(request)
+    _crypto_ou_503()
+    from app.services import coffre as C
+    try:
+        C.changer_mot_de_passe(_mdp(body, "ancien"), _mdp(body, "nouveau"))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except C.MotDePasseInvalide as e:
+        raise HTTPException(401, str(e))
+    return {"ok": True, "message": "Mot de passe changé ; l'ouverture automatique a été désarmée."}
+
+
+@router.post("/coffre/retenir")
+async def coffre_retenir(request: Request):
+    _local(request)
+    from app.services import coffre as C
+    try:
+        C.retenir()
+    except C.CoffreVerrouille as e:
+        raise HTTPException(409, str(e))
+    return {"ok": True}
+
+
+@router.post("/coffre/oublier")
+async def coffre_oublier(request: Request):
+    _local(request)
+    from app.services import coffre as C
+    C.oublier()
+    return {"ok": True}
+
+
+@router.post("/coffre/archive")
+async def coffre_archive(body: dict, request: Request):
+    """L'archive chiffrée portable (format DZKV1), rendue telle quelle ; son mot de passe est à part de celui du coffre."""
+    import time as _t
+    from fastapi.responses import Response
+    _local(request)
+    _crypto_ou_503()
+    from app.services import coffre as C
+    try:
+        blob = C.archiver(_mdp(body))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except C.CoffreVerrouille as e:
+        raise HTTPException(409, str(e))
+    nom = f"DeepotusVideoGen-{_t.strftime('%Y-%m-%d')}.dzk"
+    return Response(content=blob, media_type="application/octet-stream",
+                    headers={"Content-Disposition": f'attachment; filename="{nom}"', "Cache-Control": "no-store"})
+
+
+@router.post("/coffre/archive/importer")
+async def coffre_archive_importer(request: Request, fichier: UploadFile = File(...), mot_de_passe: str = Form("")):
+    _local(request)
+    _crypto_ou_503()
+    from app.services import coffre as C
+    blob = await fichier.read(4_000_001)
+    if len(blob) > 4_000_000:
+        raise HTTPException(413, "archive trop lourde (4 Mo au plus)")
+    try:
+        return C.restaurer(blob, mot_de_passe)
+    except C.MotDePasseInvalide as e:
+        raise HTTPException(401, str(e))
+    except C.CoffreVerrouille as e:
+        raise HTTPException(409, str(e))
 
 
 # ── plafonds de dépense mensuels (plan Settings T4-T6, tâche #16) ─────────────────────────────────────────────────

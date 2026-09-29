@@ -138,6 +138,16 @@ async def lifespan(app: FastAPI):
         await _LI.reconcilier()
     except Exception as e:
         logger.warning(f"library_index.reconcilier au boot ignoré: {e}")
+    # Coffre (tâche #20) : « retenir sur ce PC » -> DPAPI descelle le mot de passe et les clés reviennent en mémoire
+    # sans rien demander ; sinon on le DIT dans le journal plutôt que de laisser croire à des clés perdues.
+    try:
+        from app.services import coffre as _coffre
+        if _coffre.ouvrir_par_dpapi():
+            logger.info(f"  Coffre:     ouvert automatiquement ({len(_coffre.cles_posees())} clé(s))")
+        elif _coffre.est_pose():
+            logger.info("  Coffre:     posé mais VERROUILLÉ — Réglages > Coffre pour l'ouvrir")
+    except Exception as e:  # noqa: BLE001 — un coffre muet ne bloque pas le démarrage
+        logger.warning(f"coffre au démarrage ignoré : {e}")
     news_task = asyncio.create_task(news_daily_loop())
     sched_task = asyncio.create_task(schedule_loop())
 

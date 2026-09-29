@@ -3522,6 +3522,8 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>'
 
 ## Lot 2 — différenciant
 
+> **T14–T16 EXÉCUTÉES le 29/09/2026** (tâche #20 du suivi, PR 1/2, branche `chantier/p2-coffre`). Décisions de l'utilisateur : roue `cryptography`, deux PR, coffre et sceau EXCLUS du transfert entre machines. Mesures refaites : roues identiques (cryptography 50.0.1 + cffi 2.1.1 + pycparser 3.0 = 4 076 686 o ; 12 428 445 o installées), aller-retour AES-GCM sous le runtime embarqué (sur une COPIE de ce runtime : l'installé ne reçoit la roue qu'au déploiement), garde du build prouvée dans les deux sens. Écarts au plan : (1) l'application à chaud passe par `cles_a_chaud.appliquer` (#17 : client fal, client HeyGen) ; (2) FERMER retire les clés du processus (« fermé » ne ment pas) ; (3) coffre posé mais fermé : écrire, tester ou importer un secret est REFUSÉ (409) au lieu d'aller en clair au `.env` ; (4) `set_key` mixte dit `ou` et `au_coffre` ; (5) `restaurer` réécrit le `.env` ligne à ligne (commentaires gardés) ; (6) sans la roue : 503 qui le dit, jamais un 500 ; (7) archive importée bornée à 4 Mo, rendue `no-store` ; (8) `coffre.dzk`/`coffre.pc` rejoignent les SECRETS de `transfert.py`. Deux trous du banc trouvés par mutation : l'AAD n'était vérifiée par aucun décodeur indépendant (ajouté : décodage d'après la spécification seule — le contrat du mobile), et sel + nonce comparés ensemble masquaient un nonce figé. Bancs : `test_coffre_socle` 7/0, `test_coffre` 38/0, `test_coffre_integration` 44/0 ; 20/20 mutations rouges.
+
 ### Task 14 : Trancher le coffre — mesure, table de décision, roue embarquée
 
 **Files:**
