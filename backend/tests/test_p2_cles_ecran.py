@@ -61,7 +61,7 @@ check("2.1b l'Ollama local affiche le message du serveur ; X, Telegram et « Con
       and s.count("the adapter is active right away, no restart.") == 1 and s.count('children:"save the keys first"}') == 1, "")
 check("2.2 la ligne de cle a cinq colonnes, DzTestCle juste apres la pastille set/missing",
       s.count('gridTemplateColumns:"180px minmax(0,1fr) auto auto auto",gap:14') == 1 and s.count('style:{width:"100%",minWidth:0,boxSizing:"border-box",background:"var(--bg-base)",') == 1
-      and s.count('children:h&&h.set?"set":"missing"}),r.jsx(DzTestCle,{ck:k.k,def:!!(h&&h.set)}),r.jsx(K,{') == 1, "")
+      and s.count('children:h&&h.set===null?"coffre":h&&h.set?"set":"missing"}),r.jsx(DzTestCle,{ck:k.k,def:!!(h&&h.set),verrou:!!(h&&h.set===null)}),r.jsx(K,{') == 1, "")
 check("2.3 les deux messages d'enregistrement affichent celui du SERVEUR (applique / redemarrage pour …)",
       s.count("f(p.message||`${k} enregistrée.`)") == 1 and s.count("f(c.message||`${") == 1, "")
 dz = s[s.find("function DzTestCle("):s.find("const Fu=[{k:\"FAL_KEY\"")]

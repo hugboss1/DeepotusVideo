@@ -154,7 +154,7 @@ check("2.11 verifier() : lit le cache et pose le bandeau", o.get("verifier") == 
 
 print("\n[3] DzMaj dans le Diagnostic")
 s = BUNDLE.read_text(encoding="utf-8")
-dz = s[s.find("function DzMaj("):s.find("function DzPricing(")]
+dz = s[s.find("function DzMaj("):s.find("function DzCoffre(")]   # #20 : DzCoffre suit DzMaj
 check("3.1 DzMaj x1, rendu dans l'en-tete du Diagnostic juste apres le badge de version",
       s.count("function DzMaj(") == 1 and s.count("children:'v'+d.version}),r.jsx(DzMaj,{}),") == 1, "")
 check("3.2 il lit le cache et force une verification, rien d'autre", dz.count("fetch('/api/reglages/maj')") == 1
