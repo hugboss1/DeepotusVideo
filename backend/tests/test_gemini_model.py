@@ -111,7 +111,10 @@ async def main():
         r = await c.post("/api/settings/keys",
                          json={"name": "GEMINI_MODEL",
                                "value": "gemini-2.5-flash-test"})
-        assert r.status_code == 200 and r.json()["restart_required"] is True
+        # tâche #17 (29/09/2026) : la clé est appliquée À CHAUD — plus de redémarrage exigé, settings suit
+        assert r.status_code == 200 and r.json()["restart_required"] is False
+        assert settings.GEMINI_MODEL == "gemini-2.5-flash-test"
+        assert GL._url().endswith("/models/gemini-2.5-flash-test:generateContent")
         env_txt = (pathlib.Path(_tmp) / ".env").read_text(encoding="utf-8")
         assert "GEMINI_MODEL=gemini-2.5-flash-test" in env_txt
         r = await c.get("/api/settings/keys")

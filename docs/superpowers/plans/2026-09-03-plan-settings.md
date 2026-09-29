@@ -1903,6 +1903,8 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>'
 
 ---
 
+> **T8–T9 EXÉCUTÉES le 29/09/2026** (tâche #17 du suivi, branche `chantier/p2-guides`). Écarts datés au plan : (1) Step 0 fait au navigateur le 29/09 — quatre liens avaient bougé (Anthropic → `platform.claude.com/settings/keys`, ElevenLabs → `/app/developers/api-keys`, Figma → `developers.figma.com/docs/rest-api/#access-tokens`, tarifs Gemini → `/gemini-api/docs/pricing`) ; (2) FIGMA_TOKEN était déjà écrivable (P1 #2) ; (3) **mesure neuve** : l'application à chaud ne suffisait PAS en écrivant `settings` + `os.environ` — la bibliothèque `fal_client` met en cache les identifiants de son client module au premier appel, et `pipeline.heygen` mémorise un `HeyGenClient` à clé figée ; `cles_a_chaud.py` reconstruit le client fal (et rattache ses alias) et oublie le client HeyGen ; (4) le champ booléen est validé par pydantic comme au démarrage (appliqué à chaud ; une valeur refusée dit « redémarrage ») ; les fournisseurs par défaut aussi à chaud ; (5) T9 en sections `P2cl1..P2cl13` du maillon montage (pas de maillon `reglages`), ancre du bloc AVANT `const Fu=[` (entre le catalogue et `bm` vit la rangée Figma de P1fg1) ; Telegram reste dans « Connected accounts » ; cinq autres écrans qui promettaient un redémarrage après un enregistrement par l'interface sont corrigés, les deux bandeaux « éditer backend/.env à la main » restent (vrais) ; la preuve écran a mesuré un débordement de 82 px à cinq colonnes → grille `180px minmax(0,1fr) …`. Le test Figma en direct est confirmé (401 « Invalid token » sur un jeton factice). Bancs : `test_guides_et_cles` 36/0, `test_p2_cles_ecran` 26/0.
+
 ### Task 8 : Test de clé à l'enregistrement, application à chaud, guides par fournisseur
 
 **Files:**
