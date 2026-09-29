@@ -6861,7 +6861,7 @@ R_P2DG1 = ('}'
     "r.jsx(te,{tone:l.niveau==='WARNING'?'amber':'red',children:l.niveau}),"
     "r.jsx('div',{title:l.ou+' — '+l.message,style:{overflow:'hidden',"
     "textOverflow:'ellipsis',whiteSpace:'nowrap'},children:l.message})]},i))"
-    ":r.jsx('div',{style:{fontSize:12,color:'var(--ink-muted)'},children:'Rien à signaler.'})]})]})}"
+    ":r.jsx('div',{style:{fontSize:12,color:'var(--ink-muted)'},children:'Rien à signaler.'})]}),r.jsx(DzDepenses,{})]})}"
     # tache #18 (29/09/2026) : le bloc VERSION de l'en-tete (a jour / vX disponible, « Verifier » force la lecture de
     # la derniere Release GitHub, « Notes »). Le serveur n'appelle GitHub qu'une fois par jour ; le bandeau est la
     # couche /shared/dz-maj.js, que « Verifier » reveille quand une version apparait.
@@ -6999,7 +6999,7 @@ assert len(P1) == 33 and "\n" not in R_P2DG1 and "\r" not in R_P2DG1 and R_P2DG1
 #         que la couche partagee emet aussi apres chaque alerte) : le global affiche suit le champ sans recharger.
 # Le JS injecte ne contient AUCUN saut de ligne (bundle 100 % CRLF). Banc : test_p2_plafonds_ecran.
 A_P2PL1 = '"✓ Saved"}):null]})]});}function xm('
-R_P2PL1 = ('"✓ Saved"}):null]}),r.jsx(DzPlafonds,{})]});}'
+R_P2PL1 = ('"✓ Saved"}):null]}),r.jsx(DzPlafonds,{}),r.jsx(DzDepenses,{})]});}'
     "function dzUsd(v){v=Number(v)||0;var t;if(v!==0&&Math.abs(v)<0.1){t=v.toFixed(4).replace(/0+$/,'');"
     "if(t.split('.')[1].length<2)t+='0'}else t=v.toFixed(2);return t.replace('.',',')+' $'}"
     "function DzPlafonds(){"
@@ -7058,6 +7058,46 @@ R_P2PL1 = ('"✓ Saved"}):null]}),r.jsx(DzPlafonds,{})]});}'
     "title:'Enregistrer les plafonds par moteur et le seuil d’alerte (le global se règle dans le champ ci-dessus)',"
     "children:busy?'…':'Enregistrer les plafonds'}),"
     "fait?r.jsx('span',{style:{fontSize:12.5,color:'#39d98a'},children:fait}):null]})]})}"
+    # tache #21 (29/09/2026) : le tableau REEL CONTRE ESTIME du mois (plan Settings T18), monte sous les plafonds ET en
+    # bas du Diagnostic. Quatre etats jamais melanges : reel, reel partiel (n/m tirs rapproches), estime (fal,
+    # ElevenLabs, LLM : aucun cout par appel), estime non rapproche (Meshy/HeyGen qu'on n'a pas su rattacher).
+    "function DzDepenses(){const[t,setT]=x.useState(null);"
+    "const charger=()=>fetch('/api/reglages/depenses').then(R=>R.ok?R.json():null).then(j=>{if(j)setT(j)}).catch(()=>{});"
+    "x.useEffect(()=>{charger();const h=()=>charger();window.addEventListener('dz-plafonds',h);"
+    "return()=>window.removeEventListener('dz-plafonds',h)},[]);"
+    "if(!t)return null;"
+    "const ton=e=>e==='reel'?'green':e==='reel-partiel'?'cyan':e==='estime-non-rapproche'?'amber':'neutral';"
+    "const lib=l=>l.etat==='reel'?'réel':l.etat==='reel-partiel'?('réel '+l.rapproches+'/'+l.tirs):"
+    "l.etat==='estime-non-rapproche'?'estimé, non rapproché':'estimé';"
+    "const aide=e=>e==='reel'?'Chiffre facturé par le fournisseur (Meshy : crédits consommés ; HeyGen : baisse du solde)':"
+    "e==='reel-partiel'?'Une partie des tirs a un réel fournisseur, les autres gardent leur estimé':"
+    "e==='estime-non-rapproche'?'Ce moteur sait dire ce qu\u2019il facture, mais ces tirs n\u2019ont pas pu être rattachés : le chiffre reste l\u2019estimé':"
+    "'Ce moteur ne facture pas à l\u2019appel : l\u2019estimé de votre grille de prix est la seule vérité disponible';"
+    "const cols='minmax(0,1fr) minmax(0,1fr) 40px 74px 74px 74px 132px';"
+    "const tt=t.total||{};"
+    "return r.jsxs('div',{'data-dz-depenses':'1',style:{marginTop:24,paddingTop:16,borderTop:'1px solid var(--stroke)'},children:["
+    "r.jsxs('div',{style:{display:'flex',alignItems:'center',gap:10,marginBottom:6},children:["
+    "r.jsx('div',{className:'upper',children:'Dépenses du mois — réel contre estimé'}),r.jsx(te,{tone:'cyan',children:t.mois})]}),"
+    "r.jsx('p',{style:{fontSize:12,color:'var(--ink-muted)',margin:'0 0 12px',lineHeight:1.5},children:t.lignes.length?"
+    "('Compté depuis le '+t.depuis+'. '+dzUsd(tt.effectif_usd)+' au total, dont '+dzUsd(tt.reel_usd)+' facturés par les "
+    "fournisseurs ('+String(tt.couverture_pct).replace('.',',')+' %). Le reste vient de votre grille de prix : fal, ElevenLabs "
+    "et les LLM ne facturent pas à l\u2019appel.'):'Aucun tir payant ce mois-ci.'}),"
+    "t.lignes.length?r.jsxs('div',{style:{display:'grid',gridTemplateColumns:cols,gap:8,fontSize:10,color:'var(--ink-muted)',"
+    "paddingBottom:6,borderBottom:'1px solid var(--stroke)'},className:'upper',"
+    "children:['moteur','écran','tirs','estimé','réel','écart','état']}):null,"
+    "t.lignes.map(l=>r.jsxs('div',{'data-dz-depense':l.moteur+'/'+l.categorie,style:{display:'grid',gridTemplateColumns:cols,"
+    "gap:8,fontSize:11.5,alignItems:'center',padding:'5px 0',borderBottom:'1px solid var(--stroke)'},children:["
+    "r.jsx('div',{className:'mono',children:l.moteur}),"
+    "r.jsx('div',{style:{color:'var(--ink-soft)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'},children:l.categorie||'—'}),"
+    "r.jsx('div',{className:'mono',children:l.tirs}),"
+    "r.jsx('div',{className:'mono',children:dzUsd(l.estime_usd)}),"
+    "r.jsx('div',{className:'mono',title:l.reel_unites!=null?(l.reel_unites+' crédit(s) consommé(s)'):void 0,"
+    "children:l.reel_usd==null?'—':dzUsd(l.reel_usd)}),"
+    "r.jsx('div',{className:'mono',title:'réel − estimé, sur les seuls tirs rapprochés',"
+    "style:{color:l.ecart_usd==null?'var(--ink-muted)':l.ecart_usd>0?'var(--red)':'var(--green)'},"
+    "children:l.ecart_usd==null?'—':((l.ecart_usd>0?'+':'')+dzUsd(l.ecart_usd))}),"
+    "r.jsx('div',{title:aide(l.etat),'data-dz-etat':l.etat,children:r.jsx(te,{tone:ton(l.etat),dot:!0,children:lib(l)})})]},"
+    "l.moteur+'/'+l.categorie))]})}"
     "function xm(")
 A_P2PL2 = 'if(d){setP(d);setSaved(!0);'
 R_P2PL2 = "if(d){setP(d);setSaved(!0);try{window.dispatchEvent(new Event('dz-plafonds'))}catch(z){}"

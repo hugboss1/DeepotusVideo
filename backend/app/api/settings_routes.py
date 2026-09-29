@@ -277,6 +277,17 @@ async def plafonds_ecrire(body: dict, request: Request):
     return P.enregistrer(body)
 
 
+@router.get("/depenses")
+async def depenses(request: Request, mois: str | None = None):
+    """Tâche #21 : le tableau réel contre estimé du mois (ou `mois=AAAA-MM`). Le registre commence le jour où la
+    garde des plafonds a été installée : `depuis` le dit, plutôt que de laisser croire à un historique qui n'existe pas."""
+    _local(request)
+    from app.services import plafonds as P
+    if mois is not None and not (len(mois) == 7 and mois[4] == "-" and mois[:4].isdigit() and mois[5:].isdigit()):
+        raise HTTPException(400, "mois illisible : AAAA-MM attendu")
+    return await P.tableau(mois)
+
+
 @router.get("/plafonds/etat")
 async def plafonds_etat(request: Request, mois: str | None = None):
     """Le mois en cours (ou `mois=AAAA-MM`) : estimé, réel, effectif, pourcentages et alertes, global et par moteur."""
