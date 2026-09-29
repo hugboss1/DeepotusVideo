@@ -901,6 +901,8 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>'
 
 ---
 
+> **T4–T7 EXÉCUTÉES le 29/09/2026** (tâche #16 du suivi, deux PR). Décisions de l'utilisateur : garde sur **toutes** les routes payantes, plafond global = « Monthly budget cap » (`monthly_budget_usd`), deux PR. Écarts datés au plan : (1) **49 routes**, pas 21 — recensement AST (`tests/_recensement_payant.py`) qui rougit si une route atteint un fournisseur payant sans garde ; garde posée après les vérifications de clé, hors des `try/except`, et DANS la route pour les tâches de fond ; (2) le 402 porte `detail.dz_plafond` ; (3) le registre crée sa table à la volée (une base sans `init_db` cassait la route — mesuré par la série voisine) ; (4) HeyGen : réel attribué seulement à un rendu SEUL en vol (compteur de départs, pas de vols) ; Meshy : réel rattaché sur le proxy et le texturage, pas sur les nœuds mesh3d de Cardforge ; (5) T7 : l'enveloppe de `window.fetch` n'est PAS dans le bundle mais dans la couche partagée `/shared/dz-plafonds.js` (SPA + huit pages à part, qui dépensent aussi) ; la confirmation passe par le dialogue maison ; Annuler rend un 402 au `detail` CHAÎNE que tous les lecteurs d'erreur affichent ; (6) `DzPlafonds` n'écrit jamais le global (une seule vérité) — sections `P2pl1`, `P2pl2` en queue du maillon montage. Bancs : `test_plafonds` 31/0, `test_plafonds_garde` 30/0, `test_plafonds_reel` 16/0, `test_p2_plafonds_ecran` 37/0 ; mutations 17/17 et 15/15 rouges.
+
 ### Task 4 : Plafonds — le registre `depenses` et le module `plafonds.py`
 
 **Files:**
