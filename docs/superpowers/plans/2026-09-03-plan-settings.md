@@ -5127,6 +5127,8 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>'
 
 ---
 
+> **T19 EXÉCUTÉE le 29/09/2026** (tâche #22 du suivi, branche `chantier/p2-recherche`). Écarts datés au plan : (1) pas de maillon `reglages` (il n'existe pas) : `dzChercheReglage` + `DzSettingsSearch` sont repliés dans `P2pl1` avant `function xm(`, et une section neuve `P2rc1` consomme l'ancre du titre de la barre (monté avec `aller:a`, le setter de section) ; (2) les sections réelles sont treize — `transfert` existe, `export` non — et chaque entrée porte la `rubrique` TELLE QU'AFFICHÉE ; (3) une clé n'est indexée que LÀ où un écran l'affiche (les 9 lignes + Ollama sous « API keys », les 12 clés réseaux sous « Connected accounts ») : les 7 clés autorisées qu'aucun écran ne montre n'y sont pas, la recherche mènerait dans le vide ; (4) recherche sans accents ni casse, TOUS les mots requis, rang libellé > clé > rubrique > mots, huit résultats, Entrée ouvre le premier, Échap vide. Banc-miroir `test_index_reglages` 31/0 (sections, rubriques et place des clés LUES dans le bundle ; la vraie fonction de recherche exécutée par node sur l'index servi ; une clé posée ne fuit pas) ; preuve écran : « plafond » → Pricing & budget par Entrée, « clé telegram » → Connected accounts au clic, « zzz » → « Aucun réglage ne correspond. ».
+
 ### Task 19 : Recherche dans les réglages (D3, section S10)
 
 **Files:**

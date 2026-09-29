@@ -110,7 +110,7 @@ _B = racine / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js"
 s = _B.read_text(encoding="utf-8")
 vb = subprocess.run(["git", "show", "fa8762e:frontend/dist/assets/index-BEOJX8L5.js"], cwd=racine, capture_output=True).stdout.decode("utf-8")
 check("5.0 TÉMOIN : la base n'a pas DzDepenses", vb and "function DzDepenses(" not in vb)
-dz = s[s.find("function DzDepenses("):s.find("function xm(")]
+dz = s[s.find("function DzDepenses("):s.find("function dzChercheReglage(")]  # #22 : la recherche suit DzDepenses
 check("5.1 DzDepenses x1, monté DEUX fois : sous les plafonds (Pricing & budget) et en bas du Diagnostic",
       s.count("function DzDepenses(") == 1 and s.count("r.jsx(DzDepenses,{})") == 2
       and s.count("r.jsx(DzPlafonds,{}),r.jsx(DzDepenses,{})]});}") == 1

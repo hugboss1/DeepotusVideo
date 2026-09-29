@@ -189,7 +189,7 @@ s = raw.decode("utf-8")
 bak = BAK.read_bytes().decode("utf-8") if BAK.is_file() else ""
 SEC = {t: (a_, r_) for t, a_, r_ in P.PATCHES if t.startswith("P2pl")}
 check("3.1 deux sections P2pl, en QUEUE de PATCHES", list(SEC) == ["P2pl1-dzplafonds-sous-la-grille-des-tarifs",
-      "P2pl2-la-grille-previent-les-plafonds"] and [t for t, _a, _r in P.PATCHES[-15:-13]] == list(SEC) and all(t.startswith("P2cl") for t, _a, _r in P.PATCHES[-13:]), _d(list(SEC)))
+      "P2pl2-la-grille-previent-les-plafonds"] and [t for t, _a, _r in P.PATCHES[-16:-14]] == list(SEC) and all(t.startswith(("P2cl", "P2rc")) for t, _a, _r in P.PATCHES[-14:]), _d(list(SEC)))  # #22 : + P2rc1
 for t, (a_, r_) in SEC.items():
     check(f"3.x {t} : ancre x1 dans .bak_montage, touchee par aucune autre section, remplacement x1 livre, sans saut de ligne",
           bak.count(a_) == 1 and sum(1 for t2, a2, r2 in P.PATCHES if t2 != t and (a_ in a2 or a_ in r2)) == 0
@@ -205,8 +205,8 @@ check("3.5 l'enregistrement de la grille previent DzPlafonds, qui ecoute (et se 
       s.count("setSaved(!0);try{window.dispatchEvent(new Event('dz-plafonds'))}catch(z){}") == 1
       and dz.count("window.addEventListener('dz-plafonds',h)") == 1 and dz.count("window.removeEventListener('dz-plafonds',h)") == 1, "")
 r1 = SEC["P2pl1-dzplafonds-sous-la-grille-des-tarifs"][1]
-check("3.6 tout bouton et tout champ porte un title (E-12)", r1.count("r.jsx(K,{") == 1 and r1.count("r.jsx('input',{") == 2
-      and r1.count("title:") >= 5, _d(r1.count("title:")))
+check("3.6 tout bouton et tout champ porte un title (E-12) ; #22 : + le champ de recherche replie ici", r1.count("r.jsx(K,{") == 1
+      and r1.count("r.jsx('input',{") == 3 and r1.count("title:") >= 6, _d(r1.count("title:")))
 check("3.7 fins de ligne du bundle : 100 % CRLF", raw.count(b"\n") == raw.count(b"\r\n"), "")
 nc = subprocess.run([NODE, "--check", str(BUNDLE)], capture_output=True, text=True) if NODE else None
 check("3.8 node --check du bundle entier", nc is not None and nc.returncode == 0, _d(nc.stderr[-300:] if nc else ""))

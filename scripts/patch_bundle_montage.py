@@ -7098,6 +7098,37 @@ R_P2PL1 = ('"✓ Saved"}):null]}),r.jsx(DzPlafonds,{}),r.jsx(DzDepenses,{})]});}
     "children:l.ecart_usd==null?'—':((l.ecart_usd>0?'+':'')+dzUsd(l.ecart_usd))}),"
     "r.jsx('div',{title:aide(l.etat),'data-dz-etat':l.etat,children:r.jsx(te,{tone:ton(l.etat),dot:!0,children:lib(l)})})]},"
     "l.moteur+'/'+l.categorie))]})}"
+    # tache #22 (29/09/2026) : la RECHERCHE des Reglages (plan Settings T19). dzChercheReglage est pure (le banc
+    # l'execute par node sur l'index servi) : sans accents ni casse, TOUS les mots requis, rang = libelle > cle >
+    # rubrique > mots, huit resultats au plus. DzSettingsSearch est monte par P2rc1 dans la barre de xm, seul endroit
+    # ou le setter de section `a` est en portee : un resultat OUVRE sa section. Entree = le premier, Echap = vider.
+    "function dzChercheReglage(ix,q){const nz=v=>String(v||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase();"
+    "const mots=nz(q).split(/\\s+/).filter(Boolean);if(!mots.length||!ix)return[];"
+    "return ix.map((e,i)=>{const L=nz(e.libelle),C=nz(e.cle),C2=C.replace(/_/g,' '),R=nz(e.rubrique),M=nz(e.mots);let sc=0;"
+    "for(const w of mots){if(L.indexOf(w)>=0)sc+=4;else if(C.indexOf(w)>=0||C2.indexOf(w)>=0)sc+=3;"
+    "else if(R.indexOf(w)>=0)sc+=2;else if(M.indexOf(w)>=0)sc+=1;else return null}"
+    "return{e:e,sc:sc,i:i}}).filter(Boolean).sort((a,b)=>b.sc-a.sc||a.i-b.i).slice(0,8).map(o=>o.e)}"
+    "function DzSettingsSearch({aller:aller}){const[q,setQ]=x.useState(''),[ix,setIx]=x.useState(null);"
+    "x.useEffect(()=>{fetch('/api/reglages/index').then(R=>R.ok?R.json():null).then(j=>setIx(j&&j.entrees||[]))"
+    ".catch(()=>setIx([]))},[]);"
+    "const res=dzChercheReglage(ix,q);const ouvrir=e=>{aller(e.section);setQ('')};"
+    "const cel={overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'};"
+    "return r.jsxs('div',{'data-dz-recherche':'1',style:{padding:'0 6px 10px'},children:["
+    "r.jsx('input',{type:'search',value:q,onChange:ev=>setQ(ev.target.value),"
+    "onKeyDown:ev=>{if(ev.key==='Enter'&&res.length){ev.preventDefault();ouvrir(res[0])}else if(ev.key==='Escape'){setQ('')}},"
+    "placeholder:'Rechercher un réglage…','aria-label':'Rechercher un réglage',"
+    "title:'Chercher dans les réglages : Entrée ouvre le premier résultat, Échap vide le champ',"
+    "style:{width:'100%',boxSizing:'border-box',background:'var(--bg-base)',border:'1px solid var(--stroke)',"
+    "borderRadius:'var(--r-sm)',padding:'6px 9px',color:'var(--ink-strong)',fontSize:12}}),"
+    "res.length?r.jsx('div',{style:{marginTop:6,border:'1px solid var(--stroke)',borderRadius:'var(--r-sm)',"
+    "background:'var(--bg-panel-2)',overflow:'hidden'},children:res.map((e,i)=>r.jsxs('div',{'data-dz-resultat':e.section,"
+    "onClick:()=>ouvrir(e),title:e.libelle+' → '+e.rubrique,style:{padding:'6px 9px',cursor:'pointer',fontSize:11.5,"
+    "borderTop:i?'1px solid var(--stroke)':'none'},children:["
+    "r.jsx('div',{style:{color:'var(--ink-strong)',...cel},children:e.libelle}),"
+    "r.jsx('div',{style:{fontSize:10,color:'var(--ink-muted)',...cel},children:(e.cle?e.cle+' · ':'')+'→ '+e.rubrique})]},"
+    "e.section+'/'+(e.cle||e.libelle)))})"
+    ":(q.trim()?r.jsx('div',{style:{marginTop:6,fontSize:11,color:'var(--ink-muted)'},"
+    "children:ix?'Aucun réglage ne correspond.':'Chargement…'}):null)]})}"
     "function xm(")
 A_P2PL2 = 'if(d){setP(d);setSaved(!0);'
 R_P2PL2 = "if(d){setP(d);setSaved(!0);try{window.dispatchEvent(new Event('dz-plafonds'))}catch(z){}"
@@ -7209,6 +7240,17 @@ R_P2CL13 = ('placeholder:h!=null&&h.set?"paste a new value to rotate (leave empt
             'style:{width:"100%",minWidth:0,boxSizing:"border-box",background:"var(--bg-base)",')
 P1 += [("P2cl13-champ-de-cle-retrecit", A_P2CL13, R_P2CL13)]
 assert len(P1) == 48
+
+# P2rc1 (tache #22 du suivi, plan Settings T19, 29/09/2026) -- LA RECHERCHE DANS LES REGLAGES. Une ancre neuve, le titre
+# de la barre laterale de xm (comptee 1) : le champ y est insere DANS la portee de xm, seul endroit du bundle ou le
+# setter de section `a` est accessible -- un resultat OUVRE sa section au lieu de la nommer. Les composants
+# (dzChercheReglage, DzSettingsSearch) sont replies dans P2pl1, avant `function xm(`, comme DzDepenses. Ecart au plan :
+# pas de maillon `reglages` (il n'existe pas) ; l'index (`/api/reglages/index`) porte la rubrique affichee et n'indexe
+# une cle que la ou un ecran l'affiche.
+A_P2RC1 = 'className:"upper",style:{padding:"0 10px 10px"},children:"Settings"}),'
+R_P2RC1 = 'className:"upper",style:{padding:"0 10px 10px"},children:"Settings"}),r.jsx(DzSettingsSearch,{aller:a}),'
+P1 += [("P2rc1-recherche-dans-la-barre-des-reglages", A_P2RC1, R_P2RC1)]
+assert len(P1) == 49
 
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
@@ -7472,6 +7514,7 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            # + P2cl1..P2cl7 (tache #17, Tester et Guide sur l'ecran des cles) : 271, le --check dit 272 ;
            # + P2cl8..P2cl12 (les cinq autres promesses de redemarrage) : 276, le --check dit 277 ;
            # + P2cl13 (le champ de cle retrecit, ligne a cinq colonnes) : 277, le --check dit 278.
+           # + P2rc1 (tache #22, la recherche dans la barre des Reglages) : 278, le --check dit 279.
            # studio 27/09 : + HUIT sections EN QUEUE, groupe R8 apres R7 (format HeyGen impose par le template, « Ouvrir un graphe » en icone,
            # repli de l'inspecteur) ; 213 -> 221, le --check dit 222 ancres ; + R8sv1 (Save par le dialogue maison) : 222, le --check dit 223 ;
            # + R8pr1..R8pr7 (les autres window.prompt natifs, 27/09) : 229, le --check dit 230.
