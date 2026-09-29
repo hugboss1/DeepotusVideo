@@ -90,6 +90,8 @@ Pièges hérités appliqués : mesurer avant d'affirmer ; bancs-miroirs (relire 
 
 ## Lot 1 — parité
 
+> **T1–T3 EXÉCUTÉES le 29/09/2026** (tâche #15 du suivi, branche `chantier/p2-diagnostic`). Écarts datés au plan : (1) l'écran n'a pas de maillon neuf `reglages` — ses quatre sections sont en queue du maillon `montage` (groupe P1, tags `P2dg1..P2dg4`, convention de la file du suivi) ; (2) l'ancre du corps devient `s==="pricing"&&r.jsx(DzPricing,{}),` (depuis v2.8.0 `transfert` suit `pricing`) ; (3) catégories de poids complétées d'après le DATA_ROOT réel (caches du Montage et des rendus, envois, assets 3D, decks, matières, sprites, projets de montage, cache) — aucune n'en contient une autre ; (4) HeyGen v3 : le test rend crédits ET dollars du portefeuille ; (5) aucun message de test ne recopie une clé (exceptions comprises) ; (6) `/api/reglages/*` passe aussi sous la garde globale des écritures (#14). Bancs : `test_diagnostic` 27/0, `test_settings_routes` 17/0, `test_p2_diagnostic_bundle` 15/0.
+
 ### Task 1 : Diagnostic — poids disque, journal, tests de clés (moteur)
 
 **Files:**

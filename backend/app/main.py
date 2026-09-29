@@ -253,6 +253,11 @@ app.include_router(montage_router, prefix="/api/montage")
 from app.services.cards import router as cards_router
 app.include_router(cards_router, prefix="/api/cards")
 # __DZ_CARDS_ROUTER_END__
+# __DZ_REGLAGES_ROUTER_BEGIN__
+# Réglages (plan Settings, tâche #15 du suivi, 29/09/2026) : /api/reglages/diagnostic et /diagnostic/cle
+from app.api.settings_routes import router as reglages_router
+app.include_router(reglages_router, prefix="/api/reglages")
+# __DZ_REGLAGES_ROUTER_END__
 # __DZ_DICTATION_ROUTER_BEGIN__
 # Dictée des champs IA (27/09/2026) : /api/dictation/estimate et /api/dictation
 from app.services.dictation_service import router as dictation_router

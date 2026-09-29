@@ -6785,6 +6785,96 @@ P1 += [("P1gc1-catalogue-video-et-miroirs-de-la-garde", A_P1GC1, R_P1GC1),
        ("P1gc9-tarifs-reglent-les-deux-plafonds", A_P1GC9, R_P1GC9)]
 assert len(P1) == 29 and R_P1GC1.endswith(A_P1GC1) and R_P1GC9.startswith(A_P1GC9[:-2])
 
+# P2dg1..P2dg4 (tache #15 du suivi, plan Settings T3, 29/09/2026) -- L'ECRAN DIAGNOSTIC des Reglages. Le plan du 03/09
+# prevoyait un maillon neuf `reglages` ; la file du suivi range ses sections EN QUEUE du maillon montage (groupe P1, tags
+# P2dg). Moteur : backend/app/services/diagnostic.py + /api/reglages (settings_routes.py). ANCRES MESUREES 29/09 sur
+# .bak_montage et sur le bundle livre, x1 chacune, touchees par aucune autre section :
+#   P2dg1 `}function DzPricing(){` -- le bloc de composants a la portee du module (`x`, `r`, `jt`, `te`, `K` y resolvent,
+#         comme dans `bm`, l'ecran des cles) : dzOct (octets lisibles), DzDiag ;
+#   P2dg2 `[{k:"keys",l:"API keys"},` -- l'entree « Diagnostic » en tete de la barre laterale ;
+#   P2dg3 `const ym=["keys",` -- la LISTE BLANCHE des sections (sans elle ?section=diag retombe sur accounts) ;
+#   P2dg4 `s==="pricing"&&r.jsx(DzPricing,{}),` -- la branche du corps (depuis v2.8.0 `transfert` suit `pricing` :
+#         l'ancre du plan, qui fermait la liste apres pricing, vaut 0 aujourd'hui).
+# Le JS injecte ne contient AUCUN saut de ligne (bundle 100 % CRLF). Banc : test_p2_diagnostic_bundle.
+A_P2DG1 = '}function DzPricing(){'
+R_P2DG1 = ('}'
+    "function dzOct(n){n=Number(n)||0;var u=['o','Ko','Mo','Go','To'],i=0;"
+    "while(n>=1024&&i<u.length-1){n/=1024;i++}"
+    "return (i?n.toFixed(1).replace('.',','):String(n))+' '+u[i]}"
+    "function DzDiag(){"
+    "const[d,setD]=x.useState(null),[busy,setBusy]=x.useState(!1),[tests,setTests]=x.useState({});"
+    "const charger=()=>{setBusy(!0);fetch('/api/reglages/diagnostic')"
+    ".then(R=>R.ok?R.json():null).then(j=>{setBusy(!1);if(j)setD(j)})"
+    ".catch(()=>setBusy(!1))};"
+    "x.useEffect(()=>{charger()},[]);"
+    "const tester=k=>{setTests(t=>({...t,[k]:{ok:null,message:'test en cours…'}}));"
+    "fetch('/api/reglages/diagnostic/cle',{method:'POST',"
+    "headers:{'Content-Type':'application/json'},body:JSON.stringify({nom:k})})"
+    ".then(R=>R.json()).then(j=>setTests(t=>({...t,[k]:j})))"
+    ".catch(e=>setTests(t=>({...t,[k]:{ok:!1,message:String(e)}})))};"
+    "if(!d)return r.jsx('div',{style:{padding:24,color:'var(--ink-muted)'},"
+    "children:busy?'Diagnostic en cours…':'Diagnostic indisponible'});"
+    "const cats=(d.disque&&d.disque.categories||[]).filter(c=>c.octets>0).sort((a,b)=>b.octets-a.octets);"
+    "const max=cats.length?cats[0].octets:1;"
+    "return r.jsxs(r.Fragment,{children:["
+    "r.jsxs('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:16},children:["
+    "r.jsx('div',{className:'display',style:{fontSize:22,color:'var(--ink-strong)'},children:'Diagnostic'}),"
+    "r.jsx(te,{tone:'cyan',children:'v'+d.version}),"
+    "r.jsx('div',{style:{flex:1}}),"
+    "r.jsx(K,{variant:'primary',size:'sm',onClick:charger,disabled:busy,"
+    "title:'Relire les clés, le disque (mesure gardée 5 min), le journal et les soldes',"
+    "children:busy?'…':'Rafraîchir'})]}),"
+    "r.jsxs(jt,{style:{padding:16,marginBottom:14},children:["
+    "r.jsx('div',{className:'upper',style:{marginBottom:10},children:'Clés'}),"
+    "d.cles.map(c=>{const t=tests[c.cle];return r.jsxs('div',{'data-dzdiag-cle':c.cle,style:{display:'grid',"
+    "gridTemplateColumns:'210px 90px 1fr auto',gap:10,alignItems:'center',"
+    "padding:'6px 0',borderTop:'1px solid var(--stroke)'},children:["
+    "r.jsx('div',{className:'mono',style:{fontSize:11},children:c.cle}),"
+    "r.jsx(te,{tone:c.definie?'green':'neutral',dot:!0,children:c.definie?'définie':'absente'}),"
+    "r.jsx('div',{style:{fontSize:11,color:t?(t.ok===!1?'var(--red)':t.ok===!0?'var(--green)':'var(--ink-soft)')"
+    ":'var(--ink-muted)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'},"
+    "title:t?String(t.message||''):c.apercu,"
+    "children:t?String(t.message||''):(c.apercu||'')}),"
+    "c.testable&&c.definie?r.jsx(K,{variant:'ghost',size:'sm',"
+    "title:'Appel authentifié qui ne dépense rien (la clé est relue côté serveur)',"
+    "onClick:()=>tester(c.cle),children:'Tester'}):r.jsx('div',{})]},c.cle)})]}),"
+    "r.jsxs(jt,{style:{padding:16,marginBottom:14},children:["
+    "r.jsxs('div',{className:'upper',style:{marginBottom:10},children:["
+    "'Disque — ',dzOct(d.disque.total_octets),' dans ',d.disque.racine,"
+    "' (',dzOct(d.disque.libre_octets),' libres)']}),"
+    "cats.map(c=>r.jsxs('div',{'data-dzdiag-cat':c.nom,style:{display:'grid',"
+    "gridTemplateColumns:'200px 1fr 90px 70px',gap:10,alignItems:'center',"
+    "padding:'4px 0'},title:c.chemin,children:["
+    "r.jsx('div',{style:{fontSize:11.5},children:c.nom}),"
+    "r.jsx('div',{style:{height:6,background:'var(--bg-panel-2)',borderRadius:3},"
+    "children:r.jsx('div',{style:{height:6,borderRadius:3,background:'var(--brand)',"
+    "width:Math.max(2,Math.round(100*c.octets/max))+'%'}})}),"
+    "r.jsx('div',{className:'mono',style:{fontSize:11,textAlign:'right'},children:dzOct(c.octets)}),"
+    "r.jsx('div',{className:'mono',style:{fontSize:10.5,textAlign:'right',"
+    "color:'var(--ink-muted)'},children:c.fichiers+' f.'})]},c.nom))]}),"
+    "r.jsxs(jt,{style:{padding:16},children:["
+    "r.jsx('div',{className:'upper',style:{marginBottom:10},children:'Journal — dernières alertes'}),"
+    "d.journal.length?d.journal.slice(-25).reverse().map((l,i)=>r.jsxs('div',"
+    "{'data-dzdiag-log':'1',style:{display:'grid',gridTemplateColumns:'170px 80px 1fr',gap:10,"
+    "fontSize:11,padding:'3px 0'},children:["
+    "r.jsx('div',{className:'mono',style:{color:'var(--ink-muted)'},children:l.quand}),"
+    "r.jsx(te,{tone:l.niveau==='WARNING'?'amber':'red',children:l.niveau}),"
+    "r.jsx('div',{title:l.ou+' — '+l.message,style:{overflow:'hidden',"
+    "textOverflow:'ellipsis',whiteSpace:'nowrap'},children:l.message})]},i))"
+    ":r.jsx('div',{style:{fontSize:12,color:'var(--ink-muted)'},children:'Rien à signaler.'})]})]})}"
+    "function DzPricing(){")
+A_P2DG2 = '[{k:"keys",l:"API keys"},'
+R_P2DG2 = '[{k:"diag",l:"Diagnostic"},{k:"keys",l:"API keys"},'
+A_P2DG3 = 'const ym=["keys",'
+R_P2DG3 = 'const ym=["diag","keys",'
+A_P2DG4 = 's==="pricing"&&r.jsx(DzPricing,{}),'
+R_P2DG4 = 's==="pricing"&&r.jsx(DzPricing,{}),s==="diag"&&r.jsx(DzDiag,{}),'
+P1 += [("P2dg1-bloc-dzdiag-avant-dzpricing", A_P2DG1, R_P2DG1),
+       ("P2dg2-entree-diagnostic-de-la-barre", A_P2DG2, R_P2DG2),
+       ("P2dg3-diag-dans-la-liste-blanche-ym", A_P2DG3, R_P2DG3),
+       ("P2dg4-branche-diag-du-corps", A_P2DG4, R_P2DG4)]
+assert len(P1) == 33 and "\n" not in R_P2DG1 and "\r" not in R_P2DG1 and R_P2DG1.endswith(A_P2DG1[1:])
+
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
@@ -7042,6 +7132,7 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            # + P1ep1..P1ep6 (tache #6 lot A, scenes Seedance des episodes) : 246, le --check dit 247 ;
            # + P1es1..P1es3 (t132, episodes enregistres) : 249, le --check dit 250.
            # + P1gc1..P1gc9 (tache #9, garde de cout video cote client) : 258, le --check dit 259.
+           # + P2dg1..P2dg4 (tache #15, ecran Diagnostic des Reglages) : 262, le --check dit 263.
            # studio 27/09 : + HUIT sections EN QUEUE, groupe R8 apres R7 (format HeyGen impose par le template, « Ouvrir un graphe » en icone,
            # repli de l'inspecteur) ; 213 -> 221, le --check dit 222 ancres ; + R8sv1 (Save par le dialogue maison) : 222, le --check dit 223 ;
            # + R8pr1..R8pr7 (les autres window.prompt natifs, 27/09) : 229, le --check dit 230.
