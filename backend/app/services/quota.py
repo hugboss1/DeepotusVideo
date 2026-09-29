@@ -1,8 +1,10 @@
 """Compteurs de publication par canal, bornés par les quotas VÉRIFIÉS (plan scheduler, R6, 03/09/2026 — tâche #24 du
 29/09/2026). Fichier JSON DATA_ROOT/scheduler/quota.json : {"x": {"2026-09": 12}, "youtube": {"2026-09-03": 2}}.
 
-Instagram compte 50 posts par 24 h GLISSANTES ; on borne par jour UTC — plus strict d'au plus un jour, jamais plus
-permissif. Telegram n'a pas de plafond publié : non compté. Le quota est vérifié AVANT l'appel réseau et compté APRÈS
+Instagram compte 100 posts par 24 h GLISSANTES (doc relue le 29/09/2026 ; le plan du 03/09 disait 50). Un seau par
+jour UTC ne borne PAS une fenêtre glissante (100 à 23 h 59 puis 100 à 0 h 01) : ce seau n'est qu'un garde-fou local,
+le compteur d'Instagram (`content_publishing_limit`) est demandé avant chaque envoi par instagram_publisher et fait foi.
+Telegram n'a pas de plafond publié : non compté. Le quota est vérifié AVANT l'appel réseau et compté APRÈS
 un succès (publishers.publish) : un échec ne consomme rien."""
 import json
 from datetime import datetime
@@ -12,7 +14,8 @@ from app.config import DATA_ROOT
 # canal -> (période, plafond, source datée — reprise telle quelle dans l'erreur)
 LIMITS = {
     "x": ("month", 500, "palier gratuit X : 500 posts/mois (docs.x.com, 03/09/2026)"),
-    "instagram": ("day", 50, "Instagram Graph API : 50 posts/24 h (developers.facebook.com, 03/09/2026)"),
+    "instagram": ("day", 100, "Instagram : 100 posts API/24 h glissantes, compteur d'Instagram demandé avant chaque "
+                              "envoi (developers.facebook.com, relu 29/09/2026)"),
     "youtube": ("day", 100, "YouTube Data API : 100 envois/jour (developers.google.com, 03/09/2026)"),
     "tiktok": ("day", 15, "TikTok Direct Post : ~15 posts/jour par créateur (developers.tiktok.com, 03/09/2026)"),
 }

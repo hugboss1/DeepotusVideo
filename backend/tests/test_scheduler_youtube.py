@@ -60,7 +60,8 @@ async def main():
                         cwd=str(racine / "backend"), capture_output=True, text=True,
                         env=dict(os.environ, DEEPOTUS_DATA_DIR=str(_tmp / "neuf")))
     check("1.4 l'application seule (import app.main) enregistre youtube, x et telegram",
-          _p.returncode == 0 and _p.stdout.strip().endswith("['telegram', 'x', 'youtube']"), (_p.stdout + _p.stderr)[-300:])
+          _p.returncode == 0 and {"telegram", "x", "youtube"} <= set(eval(_p.stdout.strip().splitlines()[-1] or "[]")),
+          (_p.stdout + _p.stderr)[-300:])  # #26 : instagram s'y ajoute
 
     print("\n[2] OAuth appli de bureau : loopback et PKCE")
     u = httpx.URL(yp.auth_url("s1"))
