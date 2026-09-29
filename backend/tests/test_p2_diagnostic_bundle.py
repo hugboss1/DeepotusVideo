@@ -42,7 +42,7 @@ check("0.1 TEMOIN : ni DzDiag, ni entree « Diagnostic », ni 'diag' dans ym, ni
 
 print("\n[1] les quatre sections")
 check("1.1 quatre sections P2dg, en QUEUE de PATCHES", list(SEC) == ["P2dg1-bloc-dzdiag-avant-dzpricing", "P2dg2-entree-diagnostic-de-la-barre",
-      "P2dg3-diag-dans-la-liste-blanche-ym", "P2dg4-branche-diag-du-corps"] and [t for t, _a, _r in P.PATCHES[-6:-2]] == list(SEC) and all(t.startswith("P2pl") for t, _a, _r in P.PATCHES[-2:]), _d(list(SEC)))
+      "P2dg3-diag-dans-la-liste-blanche-ym", "P2dg4-branche-diag-du-corps"] and [t for t, _a, _r in P.PATCHES[-19:-15]] == list(SEC) and all(t.startswith(("P2pl", "P2cl")) for t, _a, _r in P.PATCHES[-15:]), _d(list(SEC)))
 for t, (a, r) in SEC.items():
     garde = r.endswith(a[1:]) if t.startswith("P2dg1") else True
     check(f"1.x {t} : ancre x1 dans .bak_montage, touchee par aucune autre section, remplacement x1 livre",
@@ -55,7 +55,9 @@ check("2.2 'diag' dans la liste blanche des sections (sinon ?section=diag retomb
 check("2.3 la branche du corps rend DzDiag, apres Pricing, avant Transfert",
       s.count('s==="pricing"&&r.jsx(DzPricing,{}),s==="diag"&&r.jsx(DzDiag,{}),s==="transfert"') == 1, "")
 check("2.4 DzDiag appelle les deux routes du routeur /api/reglages, et seulement elles",
-      s.count("fetch('/api/reglages/diagnostic')") == 1 and s.count("fetch('/api/reglages/diagnostic/cle',{method:'POST'") == 1, "")
+      s.count("fetch('/api/reglages/diagnostic')") == 1
+      # #17 (29/09) : DzTestCle (ecran des cles) appelle aussi /diagnostic/cle -- on compte DANS DzDiag
+      and s[s.find("function DzDiag("):s.find("function DzPricing(")].count("fetch('/api/reglages/diagnostic/cle',{method:'POST'") == 1, "")
 _dz = s[s.find("function DzDiag("):s.find("function DzPricing(")]
 check("2.5 le test de cle n'envoie que le NOM, dans le bundle LIVRE (la cle est relue cote serveur)",
       _dz.count("body:JSON.stringify({nom:k})})") == 1 and "valeur" not in _dz, "")

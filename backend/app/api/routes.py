@@ -4105,8 +4105,9 @@ async def list_keys(request: Request):
 async def set_key(body: dict, request: Request):
     """Upsert one or more keys into backend/.env.
     Accepts { name, value } or { entries: [{name, value}, …] }.
-    Empty value clears the key. The backend must be restarted for
-    changes to take effect (pydantic-settings doesn't hot-reload .env).
+    Empty value clears the key. Tâche #17 (29/09/2026) : la clé est APPLIQUÉE À CHAUD (`cles_a_chaud.appliquer`,
+    mesure et exceptions dans son en-tête) ; `restart_required` n'est plus vrai que pour une valeur que pydantic
+    refuse. `tester: true` teste dans la foulée chaque clé testable écrite (la valeur n'est jamais renvoyée).
     """
     _require_localhost(request)
     entries = body.get("entries") if isinstance(body, dict) else None
@@ -4144,11 +4145,24 @@ async def set_key(body: dict, request: Request):
             new_lines.append(f"{k}={v}")
     p.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
     logger.info(f"Wrote {len(changes)} key(s) to {p}")
+    from app.services import cles_a_chaud as _CAC
+    a_froid = _CAC.appliquer(changes)
+    tests: dict = {}
+    if isinstance(body, dict) and body.get("tester") is True:
+        from app.services import diagnostic as _D
+        for k, v in changes.items():
+            if v and _D.testable(k) and not k.startswith("X_"):
+                tests[k] = await _D.tester_cle(k, v)
+        if any(k.startswith("X_") and v for k, v in changes.items()):
+            tests["X"] = await _D.tester_x(_read_env_file())
     return {
         "ok": True,
         "written": list(changes.keys()),
-        "restart_required": True,
-        "message": "Saved. Restart the backend for changes to apply.",
+        "restart_required": bool(a_froid),
+        "restart_for": a_froid,
+        "tests": tests,
+        "message": ("Enregistré et appliqué tout de suite." if not a_froid else
+                    "Enregistré. Redémarrage nécessaire pour : " + ", ".join(a_froid) + "."),
     }
 
 
@@ -4210,11 +4224,14 @@ async def set_provider_defaults(body: dict, request: Request):
         if k not in seen:
             new_lines.append(f"{k}={v}")
     p.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+    from app.services import cles_a_chaud as _CAC   # tâche #17 : à chaud aussi
+    a_froid = _CAC.appliquer(changes)
     return {
         "ok": True,
         "written": changes,
-        "restart_required": True,
-        "message": "Saved. Restart the backend for changes to apply.",
+        "restart_required": bool(a_froid),
+        "message": ("Enregistré et appliqué tout de suite." if not a_froid else
+                    "Enregistré. Redémarrage nécessaire pour : " + ", ".join(a_froid) + "."),
     }
 
 

@@ -60,6 +60,14 @@ async def diagnostic_cle(body: dict, request: Request):
     return await D.tester_cle(nom, valeur)
 
 
+@router.get("/guides")
+async def lire_guides(request: Request):
+    """Tâche #17 : où créer chaque clé, comment on est facturé, à quoi elle sert ici (FR/EN, liens datés)."""
+    _local(request)
+    from app.services import guides_fournisseurs as G
+    return {"guides": G.tous()}
+
+
 # ── plafonds de dépense mensuels (plan Settings T4-T6, tâche #16) ─────────────────────────────────────────────────
 
 

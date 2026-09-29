@@ -143,7 +143,7 @@ _P1 = [t for t, _a, _r in getattr(P, "P1", [])]
 _ES = [t.split("-")[0] for t in _P1]
 check("2.1 P1es1..P1es3 dans le groupe P1 en queue de PATCHES, suivis des seules P1gc (tache #9)",
       "P1es1" in _ES and _ES[_ES.index("P1es1"):_ES.index("P1es1") + 3] == ["P1es1", "P1es2", "P1es3"]
-      and all(t.startswith(("P1gc", "P2dg", "P2pl")) for t in _ES[_ES.index("P1es1") + 3:])   # + P2dg (tache #15)
+      and all(t.startswith(("P1gc", "P2dg", "P2pl", "P2cl")) for t in _ES[_ES.index("P1es1") + 3:])   # + P2dg (tache #15)
       and [t for t, _a, _r in P.PATCHES[-len(_P1):]] == _P1, _d(_P1[-12:]))
 _nc = subprocess.run([NODE, "--check", str(BUNDLE)], capture_output=True, text=True) if NODE else None
 check("2.2 le bundle ENTIER passe node --check", _nc is not None and _nc.returncode == 0, _d(_nc.stderr[-300:] if _nc else ""))

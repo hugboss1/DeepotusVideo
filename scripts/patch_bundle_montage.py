@@ -6953,6 +6953,103 @@ P1 += [("P2pl1-dzplafonds-sous-la-grille-des-tarifs", A_P2PL1, R_P2PL1),
        ("P2pl2-la-grille-previent-les-plafonds", A_P2PL2, R_P2PL2)]
 assert len(P1) == 35 and "\n" not in R_P2PL1 and "\r" not in R_P2PL1 and R_P2PL1.endswith("function xm(")
 
+# P2cl1..P2cl7 (tache #17 du suivi, plan Settings T9, 29/09/2026) -- L'ECRAN DES CLES : un lien « Guide » (ou creer la
+# cle, comment on est facture, /api/reglages/guides) et un bouton « Tester » (le test de #15, cle relue cote serveur)
+# sur chaque ligne ; et la fin du mensonge « restart the backend » : depuis la tache #17 le serveur APPLIQUE la cle a
+# chaud (cles_a_chaud.py) et son message dit la verite (« applique » ou « redemarrage necessaire pour : … »).
+# Ecarts au plan du 03/09 : la rangee FIGMA_TOKEN existe deja (P1fg1) ; TELEGRAM_BOT_TOKEN reste dans « Connected
+# accounts » ; pas de maillon neuf `reglages` (sections en queue du maillon montage, convention de la file).
+# ANCRES MESUREES 29/09 sur .bak_montage et sur le bundle livre, x1 chacune, touchees par aucune autre section :
+#   P2cl1 `}const Fu=[{k:"FAL_KEY"` -- dzChargerGuides + DzTestCle a la portee du module, juste AVANT le catalogue
+#         des cles (entre `const Fu=[…];` et `function bm(){` vit la rangee Figma de P1fg1, relue d'un tenant) ;
+#   P2cl2 la grille d'une ligne de cle passe a cinq colonnes ;
+#   P2cl3 apres la pastille set/missing : DzTestCle ;
+#   P2cl4, P2cl5 les deux messages d'enregistrement lisent celui du serveur ;
+#   P2cl6 l'aide en tete d'ecran ; P2cl7 l'indication « Then in a PowerShell window: … launch.ps1 ».
+# Le JS injecte ne contient AUCUN saut de ligne (bundle 100 % CRLF). Banc : test_p2_cles_ecran.
+A_P2CL1 = '}const Fu=[{k:"FAL_KEY"'
+R_P2CL1 = ("}var dzGuides=null,dzGuidesAtt=null;"
+    "function dzChargerGuides(){if(dzGuidesAtt)return dzGuidesAtt;"
+    "dzGuidesAtt=fetch('/api/reglages/guides').then(R=>R.ok?R.json():{guides:{}})"
+    ".then(j=>{dzGuides=j.guides||{};return dzGuides}).catch(()=>{dzGuidesAtt=null;return {}});return dzGuidesAtt}"
+    "function DzTestCle({ck:ck,def:def_}){"
+    "const[e,setE]=x.useState(null),[g,setG]=x.useState(dzGuides);"
+    "x.useEffect(()=>{let on=!0;dzChargerGuides().then(v=>{if(on)setG(v)});return()=>{on=!1}},[]);"
+    "const gu=(g||{})[ck];"
+    "const tester=()=>{setE({ok:null,message:'test en cours…'});"
+    "fetch('/api/reglages/diagnostic/cle',{method:'POST',headers:{'Content-Type':'application/json'},"
+    "body:JSON.stringify({nom:ck})}).then(R=>R.json())"
+    ".then(j=>setE({ok:j.ok,message:String(j.message||j.detail||'')}))"
+    ".catch(er=>setE({ok:!1,message:String(er)}))};"
+    "return r.jsxs('div',{'data-dz-testcle':ck,style:{display:'flex',flexDirection:'column',gap:4,"
+    "alignItems:'flex-end',minWidth:0},children:["
+    "r.jsxs('div',{style:{display:'flex',gap:6,alignItems:'center'},children:["
+    "gu?r.jsx('a',{href:gu.console,target:'_blank',rel:'noreferrer',"
+    "title:gu.fr+(gu.tarifs?' — Tarifs : '+gu.tarifs:''),"
+    "style:{fontSize:11,color:'var(--cyan)',textDecoration:'none'},children:'Guide'}):null,"
+    "gu&&def_?r.jsx(K,{variant:'ghost',size:'sm',"
+    "title:'Appel authentifié qui ne dépense rien (la clé est relue côté serveur)',"
+    "onClick:tester,children:'Tester'}):null]}),"
+    "e?r.jsx('div',{'data-dz-testcle-verdict':e.ok===!0?'ok':e.ok===!1?'refus':'attente',"
+    "title:String(e.message||''),style:{fontSize:10.5,maxWidth:130,textAlign:'right',overflow:'hidden',"
+    "textOverflow:'ellipsis',whiteSpace:'nowrap',"
+    "color:e.ok===!0?'var(--green)':e.ok===!1?'var(--red)':'var(--ink-muted)'},"
+    "children:(e.ok===!0?'OK — ':e.ok===!1?'Refus — ':'')+String(e.message||'')}):null]})}"
+    "const Fu=[{k:\"FAL_KEY\"")
+A_P2CL2 = 'gridTemplateColumns:"220px 1fr auto auto",gap:14'
+# preuve 8799 (29/09) : a cinq colonnes « 220px 1fr » la ligne debordait de 82 px (Save coupe, defilement horizontal)
+# -> libelle a 180 px, champ en minmax(0,1fr) (P2cl13 lui donne width:100%) : 660 = 660 mesure.
+R_P2CL2 = 'gridTemplateColumns:"180px minmax(0,1fr) auto auto auto",gap:14'
+A_P2CL3 = 'children:h&&h.set?"set":"missing"}),'
+R_P2CL3 = 'children:h&&h.set?"set":"missing"}),r.jsx(DzTestCle,{ck:k.k,def:!!(h&&h.set)}),'
+A_P2CL4 = 'f(`${k} saved — restart the backend to apply.`)'
+R_P2CL4 = 'f(p.message||`${k} enregistrée.`)'
+A_P2CL5 = 'f(`${((p=c.written)==null?void 0:p.length)||k.length} key(s) saved — restart the backend to apply.`)'
+R_P2CL5 = 'f(c.message||`${((p=c.written)==null?void 0:p.length)||k.length} clé(s) enregistrée(s).`)'
+A_P2CL6 = 'r.jsx("strong",{children:"Restart the backend"})," after saving so pydantic-settings re-reads the file."]})'
+R_P2CL6 = ('r.jsx("strong",{children:"No restart needed"}),'
+           '" — the key applies as soon as it is saved. « Tester » asks the provider whether it accepts the key '
+           '(no spend), « Guide » says where to create it and how it is billed."]})')
+A_P2CL7 = ('r.jsxs("span",{style:{fontSize:11,color:"var(--ink-soft)"},children:["Then in a PowerShell window: ",'
+           'r.jsx("span",{className:"mono",children:"Get-Process python | Stop-Process -Force; '
+           '.\\\\\\\\scripts\\\\\\\\launch.ps1"})]}),')
+R_P2CL7 = ('r.jsx("span",{style:{fontSize:11,color:"var(--ink-soft)"},'
+           'children:"Applied immediately — the reply says so, or names the key that still needs a restart."}),')
+P1 += [("P2cl1-dztestcle-avant-l-ecran-des-cles", A_P2CL1, R_P2CL1),
+       ("P2cl2-ligne-de-cle-a-cinq-colonnes", A_P2CL2, R_P2CL2),
+       ("P2cl3-tester-et-guide-apres-la-pastille", A_P2CL3, R_P2CL3),
+       ("P2cl4-message-du-serveur-une-cle", A_P2CL4, R_P2CL4),
+       ("P2cl5-message-du-serveur-toutes-les-cles", A_P2CL5, R_P2CL5),
+       ("P2cl6-aide-sans-redemarrage", A_P2CL6, R_P2CL6),
+       ("P2cl7-plus-d-indication-powershell", A_P2CL7, R_P2CL7)]
+assert len(P1) == 42 and all("\n" not in r and "\r" not in r for _t, _a, r in P1[-7:]) and R_P2CL1.endswith(A_P2CL1[1:])
+
+# P2cl8..P2cl12 (tache #17, meme jour) -- les CINQ autres ecrans qui promettaient un redemarrage APRES un enregistrement
+# par l'interface (tous faux depuis cles_a_chaud) : modele Ollama local, notes X et Telegram, en-tete et bouton de
+# « Connected accounts ». Restent volontairement : les deux bandeaux qui disent d'EDITER backend/.env a la main (une
+# edition manuelle du fichier exige toujours un redemarrage, c'est vrai). Ancres mesurees x1 sur .bak_montage.
+A_P2CL8 = 'f("Saved — restart the backend to use the local model.")'
+R_P2CL8 = 'f(h.message||"Saved — applied right away.")'
+A_P2CL9 = ' Restart the backend after saving.",fields:[{k:"X_API_KEY"'
+R_P2CL9 = ' Applied as soon as you save — no restart.",fields:[{k:"X_API_KEY"'
+A_P2CL10 = ' Restart the backend after saving.",fields:[{k:"TELEGRAM_BOT_TOKEN"'
+R_P2CL10 = ' Applied as soon as you save — no restart.",fields:[{k:"TELEGRAM_BOT_TOKEN"'
+A_P2CL11 = '". Paste a value and Save — then restart the backend to activate the adapter. "'
+R_P2CL11 = '". Paste a value and Save — the adapter is active right away, no restart. "'
+A_P2CL12 = 'children:"save keys + restart the backend first"}'
+R_P2CL12 = 'children:"save the keys first"}'
+P1 += [("P2cl8-ollama-applique-a-chaud", A_P2CL8, R_P2CL8),
+       ("P2cl9-note-x-sans-redemarrage", A_P2CL9, R_P2CL9),
+       ("P2cl10-note-telegram-sans-redemarrage", A_P2CL10, R_P2CL10),
+       ("P2cl11-comptes-connectes-sans-redemarrage", A_P2CL11, R_P2CL11),
+       ("P2cl12-verifier-sans-redemarrage", A_P2CL12, R_P2CL12)]
+A_P2CL13 = ('placeholder:h!=null&&h.set?"paste a new value to rotate (leave empty to keep)":"paste key here…",'
+            'style:{background:"var(--bg-base)",')
+R_P2CL13 = ('placeholder:h!=null&&h.set?"paste a new value to rotate (leave empty to keep)":"paste key here…",'
+            'style:{width:"100%",minWidth:0,boxSizing:"border-box",background:"var(--bg-base)",')
+P1 += [("P2cl13-champ-de-cle-retrecit", A_P2CL13, R_P2CL13)]
+assert len(P1) == 48
+
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
@@ -7212,6 +7309,9 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            # + P1gc1..P1gc9 (tache #9, garde de cout video cote client) : 258, le --check dit 259.
            # + P2dg1..P2dg4 (tache #15, ecran Diagnostic des Reglages) : 262, le --check dit 263.
            # + P2pl1, P2pl2 (tache #16, plafonds du mois sous la grille des tarifs) : 264, le --check dit 265.
+           # + P2cl1..P2cl7 (tache #17, Tester et Guide sur l'ecran des cles) : 271, le --check dit 272 ;
+           # + P2cl8..P2cl12 (les cinq autres promesses de redemarrage) : 276, le --check dit 277 ;
+           # + P2cl13 (le champ de cle retrecit, ligne a cinq colonnes) : 277, le --check dit 278.
            # studio 27/09 : + HUIT sections EN QUEUE, groupe R8 apres R7 (format HeyGen impose par le template, « Ouvrir un graphe » en icone,
            # repli de l'inspecteur) ; 213 -> 221, le --check dit 222 ancres ; + R8sv1 (Save par le dialogue maison) : 222, le --check dit 223 ;
            # + R8pr1..R8pr7 (les autres window.prompt natifs, 27/09) : 229, le --check dit 230.
