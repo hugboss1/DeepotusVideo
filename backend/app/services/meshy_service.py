@@ -457,7 +457,15 @@ async def record_state(task: dict, base: str | None = None) -> None:
                 pass
         if row.status == "SUCCEEDED" and not row.local_dir:
             schedule_fetch = True
+        fini, credits = row.status in TERMINAL, int(row.consumed_credits or 0)
         await s.commit()
+    if fini:
+        # tâche #16 : le coût RÉEL sur la ligne de dépense rattachée à cette tâche (aucune ligne : sans effet)
+        try:
+            from app.services import plafonds as _PLAF
+            await _PLAF.noter_meshy(tid, credits)
+        except Exception as e:  # noqa: BLE001 — la comptabilité ne casse jamais le proxy
+            logger.warning(f"meshy record_state: réel non noté ({e})")
     if schedule_fetch:
         # rapatriement AVANT expires_at — spec §6 ; en tâche de fond pour ne
         # pas retarder la réponse proxifiée. On garde une référence : sans

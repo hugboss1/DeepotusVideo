@@ -212,6 +212,10 @@ async def render_layout_template(
                 _ops.append(_devis_heygen(_sv.heygen))
         if _ops:
             _garde_cout(_ops, *_maxs)
+        # tâche #16 : la garde mensuelle, sur les mêmes ops + la voix off par défaut des slots seedance
+        _vo = [o for _sv in request.slot_values.values()
+               if _sv.source_kind == "seedance" and _sv.seedance is not None for o in _op_voix_off(_sv.seedance)]
+        await _plafond(_ops + _vo, "studio")
 
     job_id = str(uuid4())
 
@@ -408,6 +412,10 @@ async def assets_3d(body: dict, background_tasks: BackgroundTasks):
     if not isinstance(fmts, list) or not all(isinstance(f, str) for f in fmts):
         raise HTTPException(400, "formats must be a list of strings")
 
+    await _plafond({"kind": "asset3d", "engine": engine, "textures": body.get("textures", True),
+                    "quality": body.get("quality") or "", "formats": fmts, "multiview": body.get("multiview"),
+                    "views": body.get("views", 3), "geometry_detaillee": body.get("geometry_detaillee"),
+                    "quad": body.get("quad")}, "moteurs3d")   # tâche #16
     job_id = str(uuid4())
     short = job_id[:8]
     async with async_session_factory() as s:
@@ -695,6 +703,8 @@ async def refine_asset3d_route(job: str, background_tasks: BackgroundTasks,
                 409, "Une passe de finition de ce maillage est déjà en cours — "
                      "attends qu'elle finisse (file des rendus).")
 
+    await _plafond({"kind": "asset3d", "engine": caps["id"], "textures": True, "quality": quality},
+                   "moteurs3d")   # tâche #16
     job_id = str(uuid4())
     async with async_session_factory() as s:
         s.add(JobRecord(
@@ -805,6 +815,8 @@ async def texturer_asset3d_route(job: str, background_tasks: BackgroundTasks,
     devis = _pricing.estimate({"kind": "asset3d_texture",
                                "texture_resolution": resolution,
                                "pbr": bool(body.get("pbr", True))})
+    _plaf_tx = await _plafond({"kind": "asset3d_texture", "texture_resolution": resolution,
+                               "pbr": bool(body.get("pbr", True))}, "moteurs3d")   # tâche #16
     job_id = str(uuid4())
     async with async_session_factory() as s:
         s.add(JobRecord(
@@ -828,6 +840,13 @@ async def texturer_asset3d_route(job: str, background_tasks: BackgroundTasks,
                 ai_model=str(body.get("ai_model") or "meshy-7"),
                 style_prompt=body.get("style_prompt"),
                 garder_uv=bool(body.get("garder_uv")), on_step=on_step)
+            # tâche #16 : le coût RÉEL (crédits Meshy consommés) rapproché sur CETTE tâche — la comptabilité ne fait
+            # jamais échouer un texturage réussi
+            try:
+                from app.services import plafonds as _PLAF
+                await _PLAF.rattacher_meshy(_plaf_tx["lignes"], r.get("meshy_task"))
+            except Exception as _e:  # noqa: BLE001
+                logger.warning(f"plafonds : réel Meshy non rattaché ({_e})")
             async with async_session_factory() as s:
                 jr = await s.get(JobRecord, job_id)
                 if jr is not None:
@@ -901,6 +920,8 @@ async def qc_asset3d(job: str, body: dict = None):
         ref_n = Path(str(body.get("ref_image") or "")).name
         ref = (settings.images_path / ref_n) if ref_n else (d / "shot_0.png")
         if rendu and ref.is_file() and rendu != ref:
+            from app.services import plafonds as _PLAF
+            await _plafond(_PLAF.op_llm(3000, 300, "anthropic"), "moteurs3d")   # tâche #16
             res["identite"] = await loop.run_in_executor(
                 None, lambda: QC.identite(rendu, ref))
         else:
@@ -1320,6 +1341,12 @@ async def meshy_proxy(meshy_path: str, request: Request):
         return Response(json.dumps(data), status_code=code,
                         media_type="application/json")
 
+    # tâche #16 : seule la CRÉATION de tâche coûte (les GET de statut sont gratuits) ; crédits par la table du client
+    _plaf_mx = None
+    if request.method == "POST" and not parsed.get("task_id"):
+        _mk = MS.get_mock()
+        _cr = _mk._credits(_mk._kind(parsed["base"], payload or {}), payload or {})
+        _plaf_mx = await _plafond({"kind": "meshy", "credits": _cr}, "moteurs3d")
     code, content, ctype = await MS.proxy_request(
         request.method, meshy_path, body, dict(request.query_params))
     # Journal (spec §6) : créations + états qui transitent par le proxy.
@@ -1328,6 +1355,12 @@ async def meshy_proxy(meshy_path: str, request: Request):
         if (request.method == "POST" and code < 400
                 and isinstance(data, dict) and data.get("result")):
             await MS.record_created(str(data["result"]), parsed["base"], payload)
+            if _plaf_mx:   # tâche #16 : jamais au prix de la réponse d'une tâche PAYÉE
+                try:
+                    from app.services import plafonds as _PLAF
+                    await _PLAF.rattacher_meshy(_plaf_mx["lignes"], str(data["result"]))
+                except Exception as _e:  # noqa: BLE001
+                    logger.warning(f"plafonds : tâche Meshy non rattachée ({_e})")
         elif (request.method == "GET" and code == 200
                 and parsed["task_id"] and isinstance(data, dict)):
             await MS.record_state(data, parsed["base"])
@@ -1429,6 +1462,8 @@ async def assets_sprite(body: dict, background_tasks: BackgroundTasks):
                 400, "rembg is not installed in this runtime — use remove_bg "
                      "'api' (fal) or 'none', or install it with: pip install rembg")
 
+    if opts["remove_bg"] == "api" and not opts.get("extract_only"):   # tâche #16
+        await _plafond({"kind": "sprite2d", "frames": int(opts.get("max_frames") or 16), "remove_bg": "api"}, "sprites")
     job_id = str(uuid4())
     short = job_id[:8]
     async with async_session_factory() as s:
@@ -1977,6 +2012,9 @@ async def generate_news_script_route(request: NewsScriptRequest):
     """Read the selected articles (when read_articles), extract the essence
     + lead images (saved to assets/images for Seedance), then render a
     deepotus 'prophet' (cynical/humorous) script + caption."""
+    from app.services import plafonds as _PLAF   # tâche #16 : un résumé par article lu + le script
+    await _plafond([_PLAF.op_llm(3000, 400)] * (len(request.items) if request.read_articles else 0)
+                   + [_PLAF.op_llm(3000, 1200)], "news")
     try:
         items = [i.model_dump() for i in request.items]
         essences: list[NewsEssence] = []
@@ -2403,6 +2441,8 @@ async def generate_sfx_audio(request: Request):
         variations = int(payload.get("variations", 1))
     except (TypeError, ValueError):
         variations = 1
+    if (settings.ELEVENLABS_API_KEY or "").strip():   # tâche #16 (sans clé, le service refuse sans dépenser)
+        await _plafond({"kind": "sfx", "duration_s": duration_s, "n": variations}, "son")
     from app.services import sfx_service
     loop = asyncio.get_running_loop()
     try:
@@ -2442,6 +2482,8 @@ async def generate_music_audio(request: Request):
         payload = await request.json()
     except Exception:
         payload = {}
+    if settings.FAL_KEY:   # tâche #16
+        await _plafond({"kind": "music", "model": (payload or {}).get("model") or ""}, "son")
     from app.services import music_service
     try:
         return await music_service.generate_music(payload or {})
@@ -2606,6 +2648,7 @@ async def create_voiceover(request: Request):
     lang = str(payload.get("language") or "en").lower()
     if lang not in ("en", "fr"):
         lang = "en"
+    await _plafond(_op_tts(script, model), "son")   # tâche #16 (Voicebox : rien)
     base = re.sub(r"[^A-Za-z0-9_-]+", "_", str(payload.get("name") or "narration")).strip("_")[:40]
     fn = f"{base or 'narration'}-{random.randint(100000, 999999)}.mp3"
     dest = _audio_dir() / fn
@@ -2835,6 +2878,8 @@ async def episode_scenes(request: Request):
         if not available():
             return {"scenes": [], "method": "ai",
                     "error": "Aucun LLM configuré (Réglages → clés API). Utilise le découpage par paragraphe."}
+        from app.services import plafonds as _PLAF   # tâche #16
+        await _plafond(_PLAF.op_llm(len(script) / 4 + 600, 4000), "chapitres")
         loop = asyncio.get_running_loop()
         scenes = await loop.run_in_executor(
             None, lambda: _ai_scenes(script, lang, sujet_seul=bool(style)))
@@ -2897,6 +2942,10 @@ async def render_episode(request: Request, background_tasks: BackgroundTasks):
             None, VoiceoverService.is_enabled):
         raise HTTPException(503, "Aucune voix disponible — configure la clé "
                                  "ElevenLabs ou lance Voicebox (Réglages).")
+    # tâche #16 : vidéos Seedance + narration (écart daté : la narration déjà payée d'un épisode enregistré est
+    # recomptée à l'estimation — sens sûr)
+    await _plafond((_ev.video_ops(_plan) if _plan else [])
+                   + _op_tts(" ".join(str(s.get("text") or "") for s in scenes if isinstance(s, dict))), "chapitres")
     job_id = str(uuid4())
 
     async def _run():
@@ -2981,6 +3030,10 @@ async def narrate_episode(ep_id: str):
     voice_id = (doc.get("voice_id") or "").strip() or None
     lang = str(doc.get("language") or "en")
     scenes = [dict(s) for s in (doc.get("scenes") or []) if isinstance(s, dict)]
+    # tâche #16 : seules les scènes ABSENTES du cache seront payées
+    await _plafond(_op_tts(" ".join(t for t in ((sc.get("text") or "").strip() for sc in scenes) if t and not
+                                    _es.chemin_narration(ep_id, _es.cle_narration(t, voice_id, lang)).is_file())),
+                   "chapitres")
     lignes, morceaux, payes = [], [], 0
     for i, sc in enumerate(scenes):
         text = (sc.get("text") or "").strip()
@@ -3145,6 +3198,46 @@ def _devis_heygen(hg) -> dict:
     return {"kind": "heygen", "chars": len((hg.script or "").strip())}
 
 
+async def _plafond(op, categorie: str, ref: str | None = None) -> dict:
+    """Tâche #16 (29/09/2026) : la garde des PLAFONDS MENSUELS (`plafonds.verifier`), posée juste AVANT la
+    dépense de chaque route payante (recensement AST : test_plafonds_garde). `op` : un op ou une liste d'ops
+    (une campagne) ; une liste vide ne chiffre rien et n'écrit rien. Lève 402 (detail `dz_plafond`).
+    La confirmation descend par l'en-tête `X-DZ-Plafond: confirme` (middleware de main.py)."""
+    from app.services import plafonds as _PLAF
+    if isinstance(op, list):
+        op = {"kind": "campaign", "ops": [o for o in op if o]}
+    return await _PLAF.verifier(op, categorie, ref)
+
+
+def _op_tts(texte, model=None) -> list:
+    """[op ElevenLabs] pour un texte lu, SEULEMENT si le fournisseur de voix résolu est ElevenLabs (Voicebox est
+    local et gratuit) ; texte vide -> []."""
+    t = (texte or "").strip()
+    if not t:
+        return []
+    try:
+        from app.services.voice_providers import resolve_provider
+        if resolve_provider() != "elevenlabs":
+            return []
+    except Exception:  # noqa: BLE001
+        return []
+    op = {"kind": "elevenlabs", "chars": len(t)}
+    if model:
+        op["model"] = model
+    return [op]
+
+
+def _op_voix_off(req) -> list:
+    """La voix off que `pipeline.run` synthétise PAR DÉFAUT (`voiceover_enabled`, script de la requête ou du
+    template, aucun fichier fourni) — mesuré le 29/09 : les gardes vidéo ne la chiffraient pas."""
+    try:
+        if not getattr(req, "voiceover_enabled", False) or getattr(req, "voiceover", None):
+            return []
+        return _op_tts(pipeline.engine.build_voiceover_script(req) or "")
+    except Exception:  # noqa: BLE001
+        return []
+
+
 def _garde_cout(ops: list, *max_usds) -> float:
     """Garde de coût serveur (retours-ia F3) : estime `ops` et lève 402
     AVANT toute génération si l'estimation dépasse le plus bas des
@@ -3197,6 +3290,7 @@ async def generate(request: GenerateRequest, background_tasks: BackgroundTasks):
         raise HTTPException(400, "Must provide either template_id or custom_prompt")
 
     _garde_cout([_devis_video(request)], request.max_usd)
+    await _plafond([_devis_video(request)] + _op_voix_off(request), "quick")   # tâche #16
 
     async def _run():
         try:
@@ -3244,6 +3338,8 @@ async def generate_batch(request: GenerateBatchRequest, background_tasks: Backgr
     # la somme des variations, contre un seul plafond
     _garde_cout([_devis_video(request, n=request.variations_count)],
                 request.max_usd)
+    await _plafond([_devis_video(request, n=request.variations_count)]
+                   + _op_voix_off(request) * request.variations_count, "quick")   # tâche #16
 
     # Determine base seed
     base_seed = request.seed if request.seed is not None else random.randint(1, 2_000_000_000)
@@ -3407,8 +3503,13 @@ async def generate_heygen(request: GenerateHeyGenRequest, background_tasks: Back
         raise HTTPException(503, "HEYGEN_API_KEY not configured. Add it to backend/.env")
     if not request.script.strip():
         raise HTTPException(400, "Script must not be empty")
+    # tâche #16 : garde mensuelle + coût RÉEL (delta du solde HeyGen, attribuable à un seul rendu en vol)
+    from app.services import plafonds as _PLAF
+    _ref_hg = f"hg:{uuid4().hex}"
+    await _plafond({"kind": "heygen", "chars": len(request.script.strip())}, "quick", _ref_hg)
 
     async def _run():
+      async with _PLAF.suivi_heygen(_ref_hg):
         try:
             await pipeline.run_heygen(request)
         except Exception as e:
@@ -3433,8 +3534,13 @@ async def generate_heygen_image(request: GenerateHeyGenImageRequest,
     img = settings.images_path / request.image_filename
     if not img.exists():
         raise HTTPException(404, f"Image not found in Library: {request.image_filename}")
+    # tâche #16 : garde mensuelle + coût RÉEL (delta du solde HeyGen, attribuable à un seul rendu en vol)
+    from app.services import plafonds as _PLAF
+    _ref_hg = f"hg:{uuid4().hex}"
+    await _plafond({"kind": "heygen", "chars": len(request.script.strip())}, "quick", _ref_hg)
 
     async def _run():
+      async with _PLAF.suivi_heygen(_ref_hg):
         try:
             await pipeline.run_heygen_image(request)
         except Exception as e:
@@ -3455,8 +3561,13 @@ async def generate_heygen_cinematic(request: GenerateHeyGenCinematicRequest,
                if not (settings.images_path / f).exists()]
     if missing:
         raise HTTPException(404, f"Reference image(s) not in Library: {missing}")
+    # tâche #16 : garde mensuelle + coût RÉEL (delta du solde HeyGen, attribuable à un seul rendu en vol)
+    from app.services import plafonds as _PLAF
+    _ref_hg = f"hg:{uuid4().hex}"
+    await _plafond({"kind": "heygen", "minutes": float(getattr(request, "duration_s", None) or 15) / 60.0}, "quick", _ref_hg)
 
     async def _run():
+      async with _PLAF.suivi_heygen(_ref_hg):
         try:
             await pipeline.run_heygen_cinematic(request)
         except Exception as e:
@@ -3494,6 +3605,8 @@ async def generate_composition(request: CompositionRequest, background_tasks: Ba
 
     _garde_cout([_devis_video(request.seedance), _devis_heygen(request.heygen)],
                 request.max_usd, request.seedance.max_usd)
+    await _plafond([_devis_video(request.seedance), _devis_heygen(request.heygen)]
+                   + _op_voix_off(request.seedance), "studio")   # tâche #16
 
     async def _run():
         try:
@@ -3544,6 +3657,7 @@ async def create_photo_avatar_endpoint(
     tmp_path.write_bytes(data)
     logger.info(f"Photo avatar upload received: {tmp_path} ({len(data)} bytes)")
 
+    await _plafond({"kind": "heygen_photo_avatar"}, "quick")   # tâche #16
     try:
         client = HeyGenClient()
         result = await client.create_photo_avatar(
@@ -3591,6 +3705,8 @@ async def build_script_endpoint(request: BuildScriptRequest):
     """
     if not request.intent.strip():
         raise HTTPException(400, "Intent must not be empty")
+    from app.services import plafonds as _PLAF   # tâche #16
+    await _plafond(_PLAF.op_llm(1500, int(request.max_words or 120) * 3 + 80), "studio")
     try:
         return await asyncio.to_thread(
             pipeline.engine.generate_script_from_intent,
@@ -3666,6 +3782,8 @@ async def refine_text(body: dict):
             parts.append("Avoid: " + "; ".join(str(a) for a in avoid) + ".")
         parts.append("Keep roughly the same length.")
         prompt = " ".join(parts) + "\n\nScript:\n" + text[:4000]
+    from app.services import plafonds as _PLAF   # tâche #16
+    await _plafond(_PLAF.op_llm(len(prompt) / 4 + 200, 800), "studio")
     try:
         out, prov = await asyncio.to_thread(
             summarizer._chat_dispatch, prompt, system, 800)
@@ -3687,6 +3805,8 @@ async def build_composition_endpoint(request: BuildCompositionRequest):
     """
     if not request.intent.strip():
         raise HTTPException(400, "Intent must not be empty")
+    from app.services import plafonds as _PLAF   # tâche #16
+    await _plafond(_PLAF.op_llm(2000, 1200), "studio")
     try:
         return pipeline.engine.generate_composition_from_intent(
             intent=request.intent,
@@ -4855,6 +4975,9 @@ async def marketing_plan(body: dict):
         raise HTTPException(400, "prompt is required")
     days = max(1, min(31, int(body.get("days") or 7)))
     ppd = max(1, min(6, int(body.get("posts_per_day") or 1)))
+    from app.services import plafonds as _PLAF   # tâche #16 : le fournisseur du PLANIFICATEUR (Ollama : gratuit)
+    await _plafond(_PLAF.op_llm(2500, days * ppd * 150 + 400, (settings.PLANNER_PROVIDER or "").strip().lower() or None),
+                   "marketing")
     plan = await marketing.generate_plan(
         prompt,
         days=days,
@@ -4898,6 +5021,9 @@ async def import_marketing_plan(
     except Exception as e:
         logger.error(f"document extraction failed: {e}")
         raise HTTPException(400, f"Could not read the document: {e}")
+    from app.services import plafonds as _PLAF   # tâche #16 (majorant : le document peut ne pas exiger de LLM)
+    await _plafond(_PLAF.op_llm(len(text) / 4 + 500, 3000, (settings.PLANNER_PROVIDER or "").strip().lower() or None),
+                   "marketing")
     try:
         plan = await marketing.plan_from_document(
             text,
@@ -5067,6 +5193,7 @@ async def _generate_image_core(body: dict, background_tasks: BackgroundTasks):
         if manque:
             raise HTTPException(503, f"{manque} non configurée (Réglages) "
                                      f"pour {model}.")
+        await _plafond({"kind": "image", "n": n, "model": model}, str(body.get("source") or "bibliotheque")[:24])   # tâche #16
         background = (body.get("background") or "").strip().lower() or None
         try:
             out = await IP.generate(model, prompt, size, n,
@@ -5081,6 +5208,7 @@ async def _generate_image_core(body: dict, background_tasks: BackgroundTasks):
     if model.startswith("gpt-image") or model.startswith("dall-e"):
         if not settings.OPENAI_API_KEY:
             raise HTTPException(503, "OPENAI_API_KEY not configured. Add it in Settings.")
+        await _plafond({"kind": "image", "n": n, "model": model}, str(body.get("source") or "bibliotheque")[:24])   # tâche #16
         osize = ("1024x1536" if "portrait" in size
                  else "1536x1024" if "landscape" in size else "1024x1024")
         payload = {"model": model, "prompt": prompt, "n": n, "size": osize}
@@ -5120,6 +5248,8 @@ async def _generate_image_core(body: dict, background_tasks: BackgroundTasks):
     # --- fal.ai FLUX path (default) ---------------------------------------
     seed = body.get("seed")
     seed = int(seed) if isinstance(seed, (int, float)) else None
+    if settings.FAL_KEY:   # tâche #16 (sans clé, _flux_generate refuse sans dépenser)
+        await _plafond({"kind": "image", "n": n, "model": "flux"}, str(body.get("source") or "bibliotheque")[:24])
     out = await _flux_generate(prompt, size, n, seed=seed)
     return {"images": out["images"], "prompt": prompt, "model": "flux",
             "seed": out.get("seed")}
@@ -5204,6 +5334,7 @@ async def _process_image_core(body: dict):
         if not settings.FAL_KEY:
             raise HTTPException(503, "FAL_KEY not configured (Settings) — "
                                      "use the 'simple' mode instead.")
+        await _plafond({"kind": "upscale", "n": 1}, str(body.get("source") or "bibliotheque")[:24])   # tâche #16
         import fal_client
         from app.services.fal_service import FalSeedanceClient
         url = await FalSeedanceClient.upload_image(src)
@@ -5245,6 +5376,8 @@ async def _process_image_core(body: dict):
         if not settings.FAL_KEY:
             raise HTTPException(503, "FAL_KEY not configured (Settings) — "
                                      "use the 'local (rembg)' method.")
+        await _plafond({"kind": "sprite2d", "frames": 1, "remove_bg": "api"},
+                       str(body.get("source") or "bibliotheque")[:24])   # tâche #16
         import fal_client
         from app.services.fal_service import FalSeedanceClient
         url = await FalSeedanceClient.upload_image(src)
@@ -5338,6 +5471,7 @@ async def _process_image_core(body: dict):
             if manque:
                 raise HTTPException(503, f"{manque} non configurée "
                                          f"(Réglages) pour {model}.")
+            await _plafond({"kind": "image", "n": n, "model": model}, str(body.get("source") or "bibliotheque")[:24])
             try:
                 out = await IP.generate(model, prompt, size, n,
                                         image_path=src)
@@ -5350,6 +5484,8 @@ async def _process_image_core(body: dict):
             return {"images": out["images"], "op": op, "model": model}
         # défaut: FLUX Kontext (génération conditionnée par l'image)
         ratio = _EDIT_RATIO.get(size)
+        if settings.FAL_KEY:   # tâche #16 (écart daté : Kontext est chiffré au tarif FLUX de la grille)
+            await _plafond({"kind": "image", "n": n, "model": "flux"}, str(body.get("source") or "bibliotheque")[:24])
         out = await _flux_generate(prompt, size, n,
                                    model="fal-ai/flux-kontext/dev",
                                    image_path=src, ratio=ratio)
@@ -5673,6 +5809,8 @@ async def propose_art_direction(body: dict):
             raise HTTPException(400, "Pas assez de texte — importe le manuscrit d'abord.")
         ents = (await session.execute(select(BibleEntity))).scalars().all()
         names = [e.name for e in ents]
+    from app.services import plafonds as _PLAF   # tâche #16
+    await _plafond(_PLAF.op_llm(len(excerpt) / 4 + 500, 1500), "atelier")
     loop = asyncio.get_running_loop()
     props = await loop.run_in_executor(
         None, lambda: MA.propose_styles(excerpt, names))
@@ -5928,6 +6066,8 @@ async def generate_bible_model3d(entity_id: str, background_tasks: BackgroundTas
     payload = {**opts, "engine": engine, "image_filename": src,
                "subject": f"{nom} — the same {kind}, consistent design",
                "title": f"3D · {nom}"}
+    await _plafond({"kind": "asset3d", **{k: v for k, v in payload.items() if k in ("engine", "textures", "quality",
+                   "multiview", "views", "formats", "quad", "geometry_detaillee")}}, "atelier")   # tâche #16
     job_id = str(uuid4())
     short = job_id[:8]
     async with async_session_factory() as s:
@@ -6083,6 +6223,8 @@ async def generate_bible_reference(entity_id: str, body: dict):
         lessons = PQC.load_lessons(await _atelier_setting(session,
                                                           "canon_lessons"))
         lesson_hint = PQC.lesson_hint(lessons, canon_key)
+        # tâche #16 : un tir par panneau de la planche, au fournisseur du projet
+        await _plafond({"kind": "image", "n": len(plan["panels"]), "model": provider}, "atelier")
         for key, ptxt, chain_on, p1size in plan["panels"]:
             # injection du canon: proportions du corps ({PROPORTIONS}) et
             # traits du visage ({FACE}) selon le style de la DA.
@@ -6294,6 +6436,8 @@ async def suggest_entity_voice(entity_id: str, body: dict):
             f"Return ONLY JSON: "
             f"{{\"best\": \"<voice_id>\", \"alternates\": [\"<voice_id>\", …], "
             f"\"why\": \"<one short sentence in French>\"}}")
+        from app.services import plafonds as _PLAF   # tâche #16
+        await _plafond(_PLAF.op_llm(len(prompt) / 4 + 300, 1200), "atelier")
         loop = asyncio.get_running_loop()
         out, _prov = await loop.run_in_executor(
             None, lambda: _chat_dispatch(prompt, system, 1200))
@@ -6585,6 +6729,8 @@ async def storyboard_decoupe(chapter_id: str, body: dict):
                         "error": "Aucun LLM configuré (Réglages → clés API). "
                                  "Utilise le découpage par paragraphe."}
             ents_resp = await list_bible_entities(None)
+            from app.services import plafonds as _PLAF   # tâche #16
+            await _plafond(_PLAF.op_llm(len(script) / 4 + 1500, 6000), "chapitres")
             loop = asyncio.get_running_loop()
             drafts = await loop.run_in_executor(
                 None, lambda: _ai_shots(script, ents_resp["entities"], lang))
@@ -6729,6 +6875,8 @@ async def generate_shot_sketch(shot_id: str, body: dict):
             prompt += ". Characters/places: " + "; ".join(descs)
         seed = body.get("seed")
         seed = int(seed) if isinstance(seed, (int, float)) else None
+        if settings.FAL_KEY:   # tâche #16
+            await _plafond({"kind": "image", "n": 1, "model": "flux"}, "chapitres")
         out = await _flux_generate(prompt, "portrait_16_9", 1, seed=seed)
         await LI.noter([out["images"][0]], "atelier")
         s.sketch_image = out["images"][0]
@@ -7393,6 +7541,8 @@ async def vector_illustration(body: dict):
     if not modele:
         raise HTTPException(400, f"Aucun modèle pour « {moteur} ».")
 
+    from app.services import plafonds as _PLAF   # tâche #16 : le moteur CHOISI (Ollama : gratuit)
+    await _plafond(_PLAF.op_llm(1500, 4000, str(moteur or "")), "vectorlab")
     loop = asyncio.get_running_loop()
     try:
         brut = await loop.run_in_executor(
@@ -7563,6 +7713,12 @@ async def import_manuscript(background_tasks: BackgroundTasks,
     _ms_register(jid, {"job_id": jid, "phase": "segmentation", "chapter_i": 0,
                        "chapter_n": 0, "message": "Segmentation en chapitres…",
                        "done": False, "error": None, "stats": {}, "series": series})
+    from app.services import plafonds as _PLAF   # tâche #16 (majorant : une extraction par chapitre + la DA)
+    try:
+        await _plafond(_PLAF.op_llm(len(text) / 4 + 4000, 12000), "atelier")
+    except HTTPException:
+        _MS_JOBS.pop(jid, None)
+        raise
     background_tasks.add_task(_run_manuscript_job, jid, text, comp_text, series)
     return {"job_id": jid, "series": series, "chars": len(text),
             "companion_chars": len(comp_text)}
@@ -7897,6 +8053,7 @@ async def _generate_scene_vo(session, scene, lang: str) -> dict:
     if not await loop.run_in_executor(None, VoiceoverService.is_enabled):
         raise HTTPException(503, "Aucune voix disponible : configure la clé "
                                  "ElevenLabs ou lance Voicebox (Réglages).")
+    await _plafond(_op_tts(" ".join(sg["text"] for sg in segments)), "chapitres")   # tâche #16
     tmp = Path(_tf.mkdtemp(prefix="dz_vo_"))
     parts, plan = [], []
     l11 = "FR" if lang.startswith("fr") else "EN"
@@ -8034,6 +8191,12 @@ async def adapt_chapter_endpoint(chapter_id: str, body: dict,
     _ms_register(jid, {"job_id": jid, "phase": "adaptation", "chapter_i": 1,
                        "chapter_n": 1, "message": "Adaptation en scénario…",
                        "done": False, "error": None, "stats": {}})
+    from app.services import plafonds as _PLAF   # tâche #16
+    try:
+        await _plafond(_PLAF.op_llm(len(ch.script_text or "") / 4 + 3000, 6000), "chapitres")
+    except HTTPException:
+        _MS_JOBS.pop(jid, None)
+        raise
     background_tasks.add_task(_run_adapt_job, jid, chapter_id, lang)
     return {"job_id": jid}
 
@@ -8339,6 +8502,7 @@ async def generate_material(body: dict, background_tasks: BackgroundTasks):
                                          "(Réglages).")
         elif not settings.FAL_KEY:
             raise HTTPException(503, "FAL_KEY non configurée (Réglages).")
+        await _plafond({"kind": "image", "n": 1, "model": model or "flux"}, "matieres")   # tâche #16
         spec.update({"kind": "prompt", "filename": None, "prompt": prompt,
                      "full_prompt": MS.build_full_prompt(prompt, enhance),
                      "model": model})
@@ -9851,6 +10015,9 @@ async def subtitles_translate(request: Request):
         raise HTTPException(400, "`target` (langue cible) est nécessaire — "
                                  "rien n'a été traduit.")
     source = str(body.get("source") or "").strip() or None
+    from app.services import plafonds as _PLAF   # tâche #16
+    _nch = sum(len(str((x or {}).get("text") or "")) for x in segs if isinstance(x, dict))
+    await _plafond(_PLAF.op_llm(_nch / 4 + 400, _nch / 3 + 200), "montage")
     loop = asyncio.get_running_loop()
     try:
         out = await loop.run_in_executor(
@@ -9969,6 +10136,11 @@ async def subtitles_transcribe(request: Request, background_tasks: BackgroundTas
         if p not in fichiers:
             fichiers.append(p)
     noms = [p.name for p in fichiers]
+    if not use_align:
+        # tâche #16 : la garde MENSUELLE, dans la route (le job tourne en fond) — chaque fichier est facturé ENTIER
+        _durs = await asyncio.gather(*(asyncio.to_thread(T.probe_duration, p) for p in fichiers))
+        await _plafond([{"kind": "transcribe", "provider": pid, "duration_s": float(d or 0)} for d in _durs],
+                       "montage")
     jid = uuid4().hex[:12]
     if len(_SUBS_JOBS) > _SUBS_JOBS_MAX:
         for k in list(_SUBS_JOBS)[:len(_SUBS_JOBS) - _SUBS_JOBS_MAX]:

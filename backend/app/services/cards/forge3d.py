@@ -3089,6 +3089,12 @@ async def post_mesh3d(did: str, nid: str, background_tasks: BackgroundTasks,
     try:
         price = await asyncio.to_thread(_mesh3d_price, node["engine"],
                                         provider, node["ultra"])
+        # tâche #16 : la garde MENSUELLE, avant d'effacer quoi que ce soit (un 402 relâche le verrou ci-dessous) ;
+        # le simulateur Meshy ne coûte rien
+        if provider == "fal" or settings.has_meshy:
+            from app.services import plafonds as _PLAF
+            await _PLAF.verifier({"kind": "asset3d", "engine": node["engine"]} if provider == "fal"
+                                 else {"kind": "meshy", "credits": price.get("credits")}, "cartes")
         d = _node_dir(did, nid)
 
         def _reinitialise() -> None:

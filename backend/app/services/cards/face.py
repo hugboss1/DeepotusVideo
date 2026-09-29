@@ -2157,6 +2157,10 @@ async def _fabriquer_case(case: str, sac: dict, journal: list) -> dict:
         avant = float(sac.get("depense_totale_usd") or 0.0)
         if not tient_sous_le_mur(avant, prix):
             raise _Plafond()
+        # tâche #16 : la garde MENSUELLE, tir par tir (un 402 arrête la campagne ; les cases faites restent au
+        # manifeste, fusionné case par case)
+        from app.services import plafonds as _PLAF
+        await _PLAF.verifier({"kind": "image", "n": int(n), "model": modele}, "cartes")
         journal.append({"case": case, "modele": modele, "n": int(n),
                         "prix_usd": round(prix, 4),
                         "cumul_avant_usd": round(avant, 4),

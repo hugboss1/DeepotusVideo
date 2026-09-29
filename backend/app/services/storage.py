@@ -331,6 +331,26 @@ class AtelierSetting(Base):
     value: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 
+class Depense(Base):
+    """Une dépense prévue par la garde des plafonds (plan Settings T4, tâche #16 du suivi, 29/09/2026).
+
+    `estime_usd` vient de `pricing.estimate` AVANT le tir ; `reel_usd` / `reel_unites` sont remplis APRÈS coup
+    quand le fournisseur donne un chiffre (crédits Meshy consommés, delta de quota HeyGen) — sinon ils restent vides
+    et l'écran dit « estimé » sur cette ligne. Table neuve : create_all suffit, aucune migration."""
+    __tablename__ = "depenses"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    quand: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    mois: Mapped[str] = mapped_column(String(7), index=True)        # "2026-09", heure locale
+    moteur: Mapped[str] = mapped_column(String(24), index=True)     # fal|heygen|elevenlabs|meshy|anthropic|…
+    categorie: Mapped[str] = mapped_column(String(24), index=True)  # écran du rail
+    op: Mapped[str] = mapped_column(String(32), default="")         # `kind` de pricing.estimate
+    estime_usd: Mapped[float] = mapped_column(Float, default=0.0)
+    reel_usd: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    reel_unites: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    ref: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
+
+
 _engine = create_async_engine(settings.DATABASE_URL, echo=False, future=True)
 async_session_factory = async_sessionmaker(_engine, expire_on_commit=False)
 
