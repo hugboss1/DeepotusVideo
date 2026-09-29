@@ -198,26 +198,41 @@ la commande à lui remettre.
 **Files :** aucun code ; le verdict s'écrit dans ce plan (section ci-dessous) et
 dans le docstring de `publishers.py` (Tâche 2).
 
-- [ ] **Étape 1 : mesurer Postiz** — `WebFetch https://docs.postiz.com/` puis
+- [x] **Étape 1 : mesurer Postiz** — `WebFetch https://docs.postiz.com/` puis
   `WebFetch https://github.com/gitroomhq/postiz-app` ; relever (a) les
   prérequis d'auto-hébergement (conteneurs, base, cache), (b) si Postiz
   dispense de créer une app développeur Meta / Google / TikTok (attendu : non —
   chaque fournisseur exige SON app et SA revue ; noter la page qui le dit),
   (c) l'existence d'une API publique pour pousser un post. Noter la date.
-- [ ] **Étape 2 : remplir la grille** (ci-dessous, à corriger si l'étape 1
+- [x] **Étape 2 : remplir la grille** (ci-dessous, à corriger si l'étape 1
   contredit) :
 
 | Critère | 3 adaptateurs directs | Postiz relais unique |
 |---|---|---|
-| Coût de dev | 3 modules ≈ 120 l. + 3 bancs (T3-T5) | 1 module + installation/maintenance d'un service (Docker, Postgres, Redis) |
+| Coût de dev | 3 modules ≈ 120 l. + 3 bancs (T3-T5) | 1 module + installation/maintenance d'un service (Docker, Postgres, Redis, Temporal — mesuré le 29/09) |
 | Comptes / revues | app Meta (Standard suffit pour son compte), projet Google Cloud, app TikTok + audit | **les mêmes** — le relais n'en dispense pas |
 | Quotas (R6) | 50/24 h IG, 100/j YT, 15/j TikTok, 500/mois X | **les mêmes** |
 | Service qui tourne | aucun : le backend publie à l'heure | un hôte permanent — refusé par R12 (réponses 4 et 6 : pas d'hôte, aucun tiers) |
 | PC éteint | le téléphone publie (R12 P3, hors plan) | Postiz local s'éteint avec le PC ; hébergé = hôte permanent |
 
-- [ ] **Étape 3 : trancher** — adaptateurs directs, sauf si l'utilisateur veut
+- [x] **Étape 3 : trancher** — adaptateurs directs, sauf si l'utilisateur veut
   un hôte permanent (R12 dit non). Postiz reste une note (R12 E2). Écrire le
   verdict daté dans le docstring de `publishers.py` (Tâche 2, étape 3).
+
+> **T0 TRANCHÉE le 29/09/2026 par l'utilisateur (tâche #23 du suivi) : ADAPTATEURS DIRECTS.** Mesure du jour
+> (WebFetch de docs.postiz.com, /self-host/installation/overview, /public-api/introduction et
+> github.com/gitroomhq/postiz-app) :
+> - auto-hébergement : Docker Compose « app plus Postgres, Redis and Temporal » (Temporal s'ajoute à la grille du 03/09) ;
+>   licence AGPL-3.0 ;
+> - comptes : « Most platforms need you to register a developer app and supply keys » — le relais ne dispense
+>   PAS des apps Meta / Google / TikTok (grille confirmée) ;
+> - API publique : `POST /upload` puis `POST /posts` (`api.postiz.com/public/v1/`), 90 créations/heure en
+>   auto-hébergé (`API_LIMIT`), 100 en cloud ;
+> - Postiz Cloud : offre hébergée payante = un tiers, refusé par R12.
+>
+> Options présentées : adaptateurs directs (recommandé), Postiz auto-hébergé, Postiz Cloud. Choix : **adaptateurs
+> directs** — httpx déjà présent, aucun service permanent, aucune dépendance nouvelle. Postiz reste une note (R12 E2).
+> Le verdict daté se recopie dans le docstring de `publishers.py` à la Tâche 2, étape 3.
 
 ### Tâche 1 : socle de données
 
