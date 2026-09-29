@@ -775,7 +775,7 @@ async def _pub_x(caption, video_path, image_path, meta) -> PublishResult:
 publishers.register("telegram", lambda: settings.has_telegram, _pub_telegram)
 publishers.register("x", lambda: settings.has_x, _pub_x)
 # les adaptateurs des autres canaux s'enregistrent à leur import (plan scheduler T3+)
-from app.services import youtube_publisher  # noqa: E402,F401
+from app.services import youtube_publisher, instagram_publisher  # noqa: E402,F401
 
 
 def auto_channels() -> set[str]:

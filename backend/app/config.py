@@ -177,6 +177,14 @@ class Settings(BaseSettings):
     YOUTUBE_CLIENT_SECRET: str = ""
     YOUTUBE_REFRESH_TOKEN: str = ""
     YOUTUBE_CHANNEL_ID: str = ""
+    # plan scheduler T4 (tâche #26) — Instagram Reels : jeton (Page Facebook « EAA… » ou utilisateur Instagram
+    # « IG… ») + id du compte professionnel.
+    IG_ACCESS_TOKEN: str = ""
+    IG_BUSINESS_ID: str = ""
+
+    @property
+    def has_instagram(self) -> bool:
+        return bool(self.IG_ACCESS_TOKEN.strip() and self.IG_BUSINESS_ID.strip())
 
     @property
     def has_youtube(self) -> bool:
