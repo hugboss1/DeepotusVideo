@@ -6875,6 +6875,84 @@ P1 += [("P2dg1-bloc-dzdiag-avant-dzpricing", A_P2DG1, R_P2DG1),
        ("P2dg4-branche-diag-du-corps", A_P2DG4, R_P2DG4)]
 assert len(P1) == 33 and "\n" not in R_P2DG1 and "\r" not in R_P2DG1 and R_P2DG1.endswith(A_P2DG1[1:])
 
+# P2pl1..P2pl2 (tache #16 du suivi, plan Settings T7, 29/09/2026) -- LES PLAFONDS DE DEPENSE MENSUELS dans l'ecran
+# « Pricing & budget ». Moteur : backend/app/services/plafonds.py + /api/reglages/plafonds (PR #53). Le plafond GLOBAL
+# reste le champ « Monthly budget cap » de DzPricing (une seule verite, decision de l'utilisateur du 29/09) : DzPlafonds
+# l'AFFICHE, il edite les plafonds PAR MOTEUR et le seuil d'alerte. Le 402 `dz_plafond` et l'alerte au seuil ne sont
+# PAS dans le bundle : la couche /shared/dz-plafonds.js enveloppe window.fetch pour toute l'application (SPA et pages
+# a part). ANCRES MESUREES 29/09 sur .bak_montage et sur le bundle livre, x1 chacune :
+#   P2pl1 `"✓ Saved"}):null]})]});}function xm(` -- la fin de DzPricing : DzPlafonds rendu en dernier enfant, et
+#         defini a la portee du module juste apres (x, r, te, jt, K y resolvent, comme dans DzDiag) ;
+#   P2pl2 `if(d){setP(d);setSaved(!0);` -- l'enregistrement de la grille previent DzPlafonds (evenement `dz-plafonds`,
+#         que la couche partagee emet aussi apres chaque alerte) : le global affiche suit le champ sans recharger.
+# Le JS injecte ne contient AUCUN saut de ligne (bundle 100 % CRLF). Banc : test_p2_plafonds_ecran.
+A_P2PL1 = '"✓ Saved"}):null]})]});}function xm('
+R_P2PL1 = ('"✓ Saved"}):null]}),r.jsx(DzPlafonds,{})]});}'
+    "function dzUsd(v){v=Number(v)||0;var t;if(v!==0&&Math.abs(v)<0.1){t=v.toFixed(4).replace(/0+$/,'');"
+    "if(t.split('.')[1].length<2)t+='0'}else t=v.toFixed(2);return t.replace('.',',')+' $'}"
+    "function DzPlafonds(){"
+    "const[e,setE]=x.useState(null),[pm,setPm]=x.useState({}),[al,setAl]=x.useState(80),"
+    "[busy,setBusy]=x.useState(!1),[fait,setFait]=x.useState('');"
+    "const charger=()=>fetch('/api/reglages/plafonds/etat').then(R=>R.ok?R.json():null).then(j=>{if(j){setE(j);"
+    "const q={};Object.keys(j.plafonds.par_moteur||{}).forEach(k=>{q[k]=String(j.plafonds.par_moteur[k])});"
+    "setPm(q);setAl(j.plafonds.alerte_pct)}}).catch(()=>{});"
+    "x.useEffect(()=>{charger();const h=()=>charger();window.addEventListener('dz-plafonds',h);"
+    "return()=>window.removeEventListener('dz-plafonds',h)},[]);"
+    "if(!e)return r.jsx('div',{style:{padding:'18px 2px',fontSize:12,color:'var(--ink-muted)'},children:'Plafonds : chargement…'});"
+    "const noms=Array.from(new Set(['fal','openai','anthropic','elevenlabs','heygen','meshy']"
+    ".concat(Object.keys(e.par_moteur||{}),Object.keys(pm)))).filter(k=>k!=='local');"
+    "const barre=(pct,plaf)=>r.jsx('div',{style:{height:6,background:'var(--bg-panel-2)',borderRadius:3},"
+    "children:plaf>0?r.jsx('div',{'data-dzplaf-pct':String(pct),style:{height:6,borderRadius:3,"
+    "width:Math.max(2,Math.min(100,pct))+'%',background:pct>=100?'var(--red)':pct>=al?'#d99a26':'var(--brand)'}}):null});"
+    "const g=e.global||{};"
+    "const enregistrer=()=>{setBusy(!0);setFait('');const par={};"
+    "Object.keys(pm).forEach(k=>{const v=parseFloat(String(pm[k]).replace(',','.'));if(v>0)par[k]=v});"
+    "fetch('/api/reglages/plafonds',{method:'POST',headers:{'Content-Type':'application/json'},"
+    "body:JSON.stringify({par_moteur:par,alerte_pct:parseInt(al,10)||80})})"
+    ".then(R=>R.ok?R.json():null).then(j=>{setBusy(!1);if(j){setFait('✓ Enregistré');setTimeout(()=>setFait(''),2500);charger()}})"
+    ".catch(()=>setBusy(!1))};"
+    "const champ={height:28,padding:'0 8px',background:'var(--bg-base)',border:'1px solid var(--stroke)',"
+    "borderRadius:'var(--r-sm)',color:'var(--ink-strong)',fontFamily:'var(--f-mono)',fontSize:12,width:'100%'};"
+    "return r.jsxs('div',{'data-dz-plafonds':'1',style:{marginTop:28,paddingTop:18,borderTop:'1px solid var(--stroke)'},children:["
+    "r.jsxs('div',{style:{display:'flex',alignItems:'center',gap:10,marginBottom:6},children:["
+    "r.jsx('div',{className:'upper',children:'Plafonds du mois'}),r.jsx(te,{tone:'cyan',children:e.mois}),"
+    "e.alerte&&e.alerte.length?r.jsx(te,{tone:'amber',dot:!0,children:'seuil atteint'}):null]}),"
+    "r.jsx('p',{style:{fontSize:12,color:'var(--ink-muted)',margin:'0 0 14px',lineHeight:1.5},children:"
+    "'Au-delà d’un plafond, chaque tir payant demande confirmation avant de partir. Dépensé = le réel quand le fournisseur "
+    "le dit (Meshy, HeyGen), sinon le devis au lancement.'+(e.depuis?' Compté depuis le '+e.depuis+'.':'')}),"
+    "r.jsxs('div',{'data-dzplaf-ligne':'global',style:{display:'grid',gridTemplateColumns:'150px 1fr 170px',gap:12,"
+    "alignItems:'center',marginBottom:12},children:["
+    "r.jsx('div',{style:{fontSize:12.5,color:'var(--ink-strong)'},children:'Global'}),barre(g.pct||0,g.plafond_usd||0),"
+    "r.jsx('div',{className:'mono',style:{fontSize:11.5,textAlign:'right'},"
+    "title:'Plafond global = le champ « Monthly budget cap » ci-dessus (Save pricing)',"
+    "children:dzUsd(g.effectif_usd)+' / '+(g.plafond_usd>0?dzUsd(g.plafond_usd):'aucun')})]}),"
+    "noms.map(k=>{const v=(e.par_moteur||{})[k]||{effectif_usd:0,estime_usd:0,reel_usd:0,pct:0};"
+    "const pl=parseFloat(String(pm[k]||'').replace(',','.'))||0;"
+    "return r.jsxs('div',{'data-dzplaf-ligne':k,style:{display:'grid',gridTemplateColumns:'150px 1fr 90px 80px',gap:12,"
+    "alignItems:'center',marginBottom:8},children:["
+    "r.jsx('div',{className:'mono',style:{fontSize:11.5},children:k}),barre(pl>0?Math.round(1000*v.effectif_usd/pl)/10:0,pl),"
+    "r.jsx('div',{className:'mono',style:{fontSize:11.5,textAlign:'right'},"
+    "title:'devis '+dzUsd(v.estime_usd)+' · réel connu '+dzUsd(v.reel_usd),children:dzUsd(v.effectif_usd)}),"
+    "r.jsx('input',{type:'number',min:'0',step:'0.5',placeholder:'aucun','data-dzplaf-champ':k,"
+    "title:'Plafond mensuel de '+k+' en $ (vide ou 0 = aucun)',value:pm[k]||'',"
+    "onChange:ev=>{const t=ev.target.value;setPm(o=>({...o,[k]:t}))},style:champ})]},k)}),"
+    "r.jsxs('div',{style:{display:'grid',gridTemplateColumns:'1fr 80px',gap:12,alignItems:'center',marginTop:12},children:["
+    "r.jsx('label',{style:{fontSize:12.5},children:'Alerte à (% d’un plafond)'}),"
+    "r.jsx('input',{type:'number',min:'1',max:'100',step:'5','data-dzplaf-alerte':'1',value:al,"
+    "title:'Un bandeau prévient une fois par mois quand un plafond atteint ce pourcentage',"
+    "onChange:ev=>setAl(ev.target.value),style:champ})]}),"
+    "r.jsxs('div',{style:{display:'flex',alignItems:'center',gap:12,marginTop:16},children:["
+    "r.jsx(K,{variant:'primary',size:'sm',onClick:enregistrer,disabled:busy,"
+    "title:'Enregistrer les plafonds par moteur et le seuil d’alerte (le global se règle dans le champ ci-dessus)',"
+    "children:busy?'…':'Enregistrer les plafonds'}),"
+    "fait?r.jsx('span',{style:{fontSize:12.5,color:'#39d98a'},children:fait}):null]})]})}"
+    "function xm(")
+A_P2PL2 = 'if(d){setP(d);setSaved(!0);'
+R_P2PL2 = "if(d){setP(d);setSaved(!0);try{window.dispatchEvent(new Event('dz-plafonds'))}catch(z){}"
+P1 += [("P2pl1-dzplafonds-sous-la-grille-des-tarifs", A_P2PL1, R_P2PL1),
+       ("P2pl2-la-grille-previent-les-plafonds", A_P2PL2, R_P2PL2)]
+assert len(P1) == 35 and "\n" not in R_P2PL1 and "\r" not in R_P2PL1 and R_P2PL1.endswith("function xm(")
+
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
@@ -7133,6 +7211,7 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            # + P1es1..P1es3 (t132, episodes enregistres) : 249, le --check dit 250.
            # + P1gc1..P1gc9 (tache #9, garde de cout video cote client) : 258, le --check dit 259.
            # + P2dg1..P2dg4 (tache #15, ecran Diagnostic des Reglages) : 262, le --check dit 263.
+           # + P2pl1, P2pl2 (tache #16, plafonds du mois sous la grille des tarifs) : 264, le --check dit 265.
            # studio 27/09 : + HUIT sections EN QUEUE, groupe R8 apres R7 (format HeyGen impose par le template, « Ouvrir un graphe » en icone,
            # repli de l'inspecteur) ; 213 -> 221, le --check dit 222 ancres ; + R8sv1 (Save par le dialogue maison) : 222, le --check dit 223 ;
            # + R8pr1..R8pr7 (les autres window.prompt natifs, 27/09) : 229, le --check dit 230.
