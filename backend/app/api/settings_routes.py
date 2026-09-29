@@ -68,6 +68,52 @@ async def lire_guides(request: Request):
     return {"guides": G.tous()}
 
 
+# ── mise à jour (plan Settings T10, tâche #18) ────────────────────────────────────────────────────────────────────
+
+_MAJ_TACHES: set = set()
+
+
+@router.get("/maj")
+async def lire_maj(request: Request):
+    """L'état connu : le cache (une vérification par jour au plus), jamais bloquant."""
+    _local(request)
+    from app.services import mise_a_jour as M
+    return await M.verifier()
+
+
+@router.post("/maj/verifier")
+async def forcer_maj(request: Request):
+    _local(request)
+    from app.services import mise_a_jour as M
+    return await M.verifier(force=True)
+
+
+@router.post("/maj/telecharger")
+async def telecharger_maj(request: Request):
+    """Lance EN FOND le téléchargement de l'installeur de la dernière Release dans DATA_ROOT/telechargements (130 Mo :
+    la route rend la main, l'écran suit /maj/telechargement). Ne le lance jamais : c'est l'utilisateur."""
+    import asyncio
+    _local(request)
+    from app.services import mise_a_jour as M
+    etat = await M.verifier()
+    a = etat.get("asset") or {}
+    if not etat.get("disponible") or not a.get("url"):
+        raise HTTPException(404, "aucune mise à jour à télécharger")
+    if M.etat_telechargement().get("en_cours"):
+        raise HTTPException(409, "un téléchargement est déjà en cours")
+    t = asyncio.create_task(M.telecharger(a["url"], a["nom"], a.get("octets") or 0))
+    _MAJ_TACHES.add(t)
+    t.add_done_callback(_MAJ_TACHES.discard)
+    return {"ok": True, "lance": True, "nom": a["nom"], "octets": a.get("octets") or 0}
+
+
+@router.get("/maj/telechargement")
+async def suivre_telechargement(request: Request):
+    _local(request)
+    from app.services import mise_a_jour as M
+    return M.etat_telechargement()
+
+
 # ── plafonds de dépense mensuels (plan Settings T4-T6, tâche #16) ─────────────────────────────────────────────────
 
 

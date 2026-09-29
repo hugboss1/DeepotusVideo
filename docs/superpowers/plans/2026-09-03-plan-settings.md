@@ -2460,6 +2460,8 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>'
 
 ---
 
+> **T10–T11 EXÉCUTÉES le 29/09/2026** (tâche #18 du suivi, branche `chantier/p2-maj`). Écarts datés au plan : (1) contrat relu par un appel réel le 29/09 : `v2.8.0`, asset `DeepotusVideoGen-Setup-2.8.0.exe` de 130 400 236 o ; le lien de téléchargement redirige (302) vers `release-assets.githubusercontent.com`, et non `objects.githubusercontent.com` — CHAQUE saut de redirection est gardé (hôtes GitHub), l'URL de départ est limitée aux Releases de CE dépôt, la taille reçue est comparée à l'annoncée ; (2) le cache n'est frais que pour la version installée (après une mise à jour, on redemande) ; (3) le téléchargement (130 Mo) part EN FOND : la route rend la main, l'écran suit `/maj/telechargement` ; un second clic pendant le premier = 409 ; (4) le Step 7 lancé hors de l'appli échoue en TLS (`CERTIFICATE_VERIFY_FAILED`) : c'est `main.py` qui injecte `truststore` — rejoué via `app.main`, il passe ; (5) T11 : pas de maillon `reglages` ; le bandeau est la couche `/shared/dz-maj.js` (SPA seulement), `DzMaj` étend la section `P2dg1` ; la preuve écran a mesuré qu'une barre à `top:0` recouvrait l'en-tête de l'application → carte flottante sous l'en-tête. Bancs : `test_mise_a_jour` 30/0, `test_p2_maj_ecran` 23/0.
+
 ### Task 10 : Vérification de mise à jour — `releases/latest`, cache, téléchargement
 
 **Files:**

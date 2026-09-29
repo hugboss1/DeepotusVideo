@@ -140,6 +140,21 @@ async def lifespan(app: FastAPI):
         logger.warning(f"library_index.reconcilier au boot ignoré: {e}")
     news_task = asyncio.create_task(news_daily_loop())
     sched_task = asyncio.create_task(schedule_loop())
+
+    async def _maj_au_demarrage():
+        """Tâche #18 : une fois par lancement, 20 s après le boot, et au plus une fois par jour (cache disque).
+        Jamais bloquant : `mise_a_jour.verifier` avale ses propres échecs."""
+        try:
+            await asyncio.sleep(20)
+            from app.services import mise_a_jour as _M
+            r = await _M.verifier()
+            if r.get("disponible"):
+                logger.info(f"Mise à jour disponible : {r['tag']} (installée {r['installee']})")
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"vérification de mise à jour ignorée : {e}")
+    maj_task = asyncio.create_task(_maj_au_demarrage())
     # v1.15.1: HeyGen's /v2/avatars is slow (60s+ for large catalogues). Warm
     # the in-process cache in the background at startup so the first time the
     # user opens the HeyGen tab the avatar list is already there (instant),
@@ -162,6 +177,7 @@ async def lifespan(app: FastAPI):
     finally:
         news_task.cancel()
         sched_task.cancel()
+        maj_task.cancel()
         if warm_task:
             warm_task.cancel()
         logger.info("Shutting down")

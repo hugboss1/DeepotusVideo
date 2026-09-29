@@ -6819,7 +6819,7 @@ R_P2DG1 = ('}'
     "return r.jsxs(r.Fragment,{children:["
     "r.jsxs('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:16},children:["
     "r.jsx('div',{className:'display',style:{fontSize:22,color:'var(--ink-strong)'},children:'Diagnostic'}),"
-    "r.jsx(te,{tone:'cyan',children:'v'+d.version}),"
+    "r.jsx(te,{tone:'cyan',children:'v'+d.version}),r.jsx(DzMaj,{}),"
     "r.jsx('div',{style:{flex:1}}),"
     "r.jsx(K,{variant:'primary',size:'sm',onClick:charger,disabled:busy,"
     "title:'Relire les clés, le disque (mesure gardée 5 min), le journal et les soldes',"
@@ -6862,6 +6862,23 @@ R_P2DG1 = ('}'
     "r.jsx('div',{title:l.ou+' — '+l.message,style:{overflow:'hidden',"
     "textOverflow:'ellipsis',whiteSpace:'nowrap'},children:l.message})]},i))"
     ":r.jsx('div',{style:{fontSize:12,color:'var(--ink-muted)'},children:'Rien à signaler.'})]})]})}"
+    # tache #18 (29/09/2026) : le bloc VERSION de l'en-tete (a jour / vX disponible, « Verifier » force la lecture de
+    # la derniere Release GitHub, « Notes »). Le serveur n'appelle GitHub qu'une fois par jour ; le bandeau est la
+    # couche /shared/dz-maj.js, que « Verifier » reveille quand une version apparait.
+    "function DzMaj(){const[m,setM]=x.useState(null),[b,setB]=x.useState(!1);"
+    "x.useEffect(()=>{let on=!0;fetch('/api/reglages/maj').then(R=>R.ok?R.json():null)"
+    ".then(j=>{if(on&&j)setM(j)}).catch(()=>{});return()=>{on=!1}},[]);"
+    "if(!m)return null;"
+    "const revoir=()=>{setB(!0);fetch('/api/reglages/maj/verifier',{method:'POST'}).then(R=>R.json())"
+    ".then(j=>{setM(j);setB(!1);if(j&&j.disponible&&window.__dzMaj)window.__dzMaj.poser(j)}).catch(()=>setB(!1))};"
+    "return r.jsxs('div',{'data-dz-majbloc':'1',style:{display:'flex',gap:8,alignItems:'center'},children:["
+    "m.disponible?r.jsx(te,{tone:'amber',dot:!0,children:m.tag+' disponible'})"
+    ":r.jsx(te,{tone:m.erreur?'neutral':'green',dot:!0,children:m.erreur?'vérification impossible':'à jour'}),"
+    "r.jsx(K,{variant:'ghost',size:'sm',onClick:revoir,disabled:b,"
+    "title:'Demander à GitHub la dernière version publiée (sinon : une fois par jour)'+(m.erreur?' — dernier échec : '+m.erreur:''),"
+    "children:b?'…':'Vérifier'}),"
+    "m.url?r.jsx('a',{href:m.url,target:'_blank',rel:'noreferrer',title:m.nom||m.tag,"
+    "style:{fontSize:11,color:'var(--cyan)',textDecoration:'none'},children:'Notes'}):null]})}"
     "function DzPricing(){")
 A_P2DG2 = '[{k:"keys",l:"API keys"},'
 R_P2DG2 = '[{k:"diag",l:"Diagnostic"},{k:"keys",l:"API keys"},'
