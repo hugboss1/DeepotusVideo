@@ -4855,6 +4855,8 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>'
 
 ---
 
+> **T18 EXÉCUTÉE le 29/09/2026** (tâche #21 du suivi, branche `chantier/p2-depenses`). Écarts datés au plan : (1) le `effectif_usd` du plan prenait le réel d'un groupe dès qu'UN tir était rapproché et perdait l'estimé des autres — l'effectif se calcule LIGNE par LIGNE (comme `_cumul` des plafonds, que le banc recoupe) et l'écart ne porte que sur les tirs rapprochés ; (2) un quatrième état `reel-partiel` (n/m tirs rapprochés) au lieu de ranger un groupe mêlé dans « réel » ; (3) un réel de 0 $ (tâche Meshy échouée) est un RÉEL, pas une absence ; (4) pas de maillon `reglages` : `DzDepenses` est défini dans `P2pl1` et monté sous les plafonds ET en bas du Diagnostic (`P2dg1`), rechargé par l'événement `dz-plafonds` ; (5) route `/api/reglages/depenses?mois=AAAA-MM` validée comme `/plafonds/etat`. Banc : `test_depenses_tableau` 27/0 (lignes posées par la vraie garde, rapprochées par `record_state` et `suivi_heygen`) ; 12/12 mutations rouges ; preuve écran : cinq lignes, quatre états, 8,7 % de couverture, pas de débordement.
+
 ### Task 18 : Dépenses par catégorie — réel contre estimé (D2, section S9)
 
 **Files:**

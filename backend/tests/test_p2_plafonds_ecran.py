@@ -194,8 +194,8 @@ for t, (a_, r_) in SEC.items():
     check(f"3.x {t} : ancre x1 dans .bak_montage, touchee par aucune autre section, remplacement x1 livre, sans saut de ligne",
           bak.count(a_) == 1 and sum(1 for t2, a2, r2 in P.PATCHES if t2 != t and (a_ in a2 or a_ in r2)) == 0
           and s.count(r_) == 1 and "\n" not in r_ and "\r" not in r_, _d(bak.count(a_), s.count(r_)))
-dz = s[s.find("function DzPlafonds("):s.find("function xm(")]
-check("3.2 DzPlafonds rendu en dernier enfant de la grille des tarifs", s.count(':null]}),r.jsx(DzPlafonds,{})]});}') == 1, "")
+dz = s[s.find("function DzPlafonds("):s.find("function DzDepenses(")]   # #21 : DzDepenses suit DzPlafonds
+check("3.2 DzPlafonds rendu en dernier enfant de la grille des tarifs", s.count(':null]}),r.jsx(DzPlafonds,{}),r.jsx(DzDepenses,{})]});}') == 1, "")
 check("3.3 il lit l'etat et ecrit les plafonds par /api/reglages, et seulement la",
       dz.count("fetch('/api/reglages/plafonds/etat')") == 1 and dz.count("fetch('/api/reglages/plafonds',{method:'POST'") == 1
       and dz.count("fetch(") == 2, "")

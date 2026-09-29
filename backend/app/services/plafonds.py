@@ -162,6 +162,66 @@ async def etat(mois: str | None = None) -> dict:
     return {"mois": mois, "global": tot, "par_moteur": par, "plafonds": p, "alerte": alerte, "depuis": c["depuis"]}
 
 
+# Tâche #21 (plan Settings T18, 29/09/2026) — le tableau réel contre estimé.
+# Les moteurs qui savent dire ce qu'ils ont VRAIMENT facturé (Meshy : crédits consommés ; HeyGen : delta du solde d'un
+# rendu seul en vol). Pour les autres (fal, ElevenLabs, les LLM), « estimé » n'est pas un défaut : c'est tout ce qui existe.
+RAPPROCHABLES = {"meshy", "heygen"}
+
+
+async def tableau(mois: str | None = None) -> dict:
+    """Une ligne par (moteur, catégorie), avec l'ÉTAT de son chiffre — jamais mélangés :
+      reel                   tous les tirs du groupe ont un réel fournisseur ;
+      reel-partiel           une partie seulement : l'effectif mêle réel et estimé, et le nombre est dit ;
+      estime                 ce moteur ne facture pas à l'appel : l'estimé est la seule vérité disponible ;
+      estime-non-rapproche   un moteur rapprochable dont AUCUN tir n'a pu être rattaché — le taire le ferait
+                             passer pour un estimé ordinaire.
+    L'effectif se calcule LIGNE par LIGNE (réel là où il existe, estimé ailleurs), comme `_cumul` des plafonds ;
+    l'écart (réel − estimé) ne porte que sur les tirs rapprochés, jamais sur un réel absent."""
+    from app.services.storage import Depense
+    mois = mois or mois_courant()
+    groupes: dict = {}
+    depuis = ""
+    async with _registre() as s:
+        lignes = (await s.execute(select(Depense).where(Depense.mois == mois))).scalars().all()
+        prem = (await s.execute(select(Depense).order_by(Depense.quand))).scalars().first()
+        if prem is not None:
+            depuis = prem.quand.strftime("%Y-%m-%d")
+    for l in lignes:
+        g = groupes.setdefault((l.moteur, l.categorie or ""), {
+            "moteur": l.moteur, "categorie": l.categorie or "", "tirs": 0, "rapproches": 0,
+            "estime_usd": 0.0, "reel_usd": None, "reel_unites": None, "effectif_usd": 0.0, "ecart_usd": None})
+        g["tirs"] += 1
+        est = float(l.estime_usd or 0.0)
+        g["estime_usd"] = round(g["estime_usd"] + est, 6)
+        if l.reel_usd is not None:
+            g["rapproches"] += 1
+            g["reel_usd"] = round((g["reel_usd"] or 0.0) + l.reel_usd, 6)
+            g["ecart_usd"] = round((g["ecart_usd"] or 0.0) + (l.reel_usd - est), 6)
+            g["effectif_usd"] = round(g["effectif_usd"] + l.reel_usd, 6)
+        else:
+            g["effectif_usd"] = round(g["effectif_usd"] + est, 6)
+        if l.reel_unites is not None:
+            g["reel_unites"] = round((g["reel_unites"] or 0.0) + l.reel_unites, 4)
+    out = []
+    for g in groupes.values():
+        if g["rapproches"] and g["rapproches"] == g["tirs"]:
+            g["etat"] = "reel"
+        elif g["rapproches"]:
+            g["etat"] = "reel-partiel"
+        elif g["moteur"] in RAPPROCHABLES:
+            g["etat"] = "estime-non-rapproche"
+        else:
+            g["etat"] = "estime"
+        out.append(g)
+    out.sort(key=lambda g: (-g["effectif_usd"], g["moteur"], g["categorie"]))
+    te = round(sum(g["estime_usd"] for g in out), 6)
+    tr = round(sum(g["reel_usd"] or 0.0 for g in out), 6)
+    tf = round(sum(g["effectif_usd"] for g in out), 6)
+    return {"mois": mois, "depuis": depuis, "lignes": out,
+            "total": {"estime_usd": te, "reel_usd": tr, "effectif_usd": tf,
+                      "couverture_pct": round(100.0 * tr / tf, 1) if tf else 0.0}}
+
+
 def _fr(v: float) -> str:
     """Deux décimales ; sous 0,10 $ jusqu'à quatre (mesuré en preuve le 29/09 : « 0,01 $ au-dessus de 0,00 $ » pour
     un devis de 0,006 $ contre un plafond de 0,001 $ — un refus qui se contredit)."""
