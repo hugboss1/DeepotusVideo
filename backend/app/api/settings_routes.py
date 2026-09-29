@@ -296,3 +296,63 @@ async def plafonds_etat(request: Request, mois: str | None = None):
     if mois is not None and not (len(mois) == 7 and mois[4] == "-" and mois[:4].isdigit() and mois[5:].isdigit()):
         raise HTTPException(400, "mois illisible : AAAA-MM attendu")
     return await P.etat(mois)
+
+
+# Tâche #22 (29/09/2026, plan Settings T19) : ce que le champ de recherche des Réglages sait trouver. `section` est la
+# clé de la barre latérale de `xm` (celle que son setter ouvre), `rubrique` son libellé TEL QU'AFFICHÉ — le banc relit
+# les deux dans le bundle livré. Écart au plan du 03/09 : une clé n'est indexée que LÀ où un écran l'affiche (9 lignes +
+# Ollama sous « API keys », les réseaux sous « Connected accounts ») ; les clés autorisées qu'aucun écran ne montre
+# (ANTHROPIC_MODEL, ELEVENLABS_VOICE_ID_*, …) n'y sont pas — la recherche mènerait dans le vide.
+_RUBRIQUES = {
+    "diag": "Diagnostic", "coffre": "Coffre", "keys": "API keys", "accounts": "Connected accounts",
+    "personas": "Personas", "branding": "Branding", "pack": "Caption pack", "defaults": "Provider defaults",
+    "paths": "Paths", "news": "News", "appearance": "Appearance", "pricing": "Pricing & budget",
+    "transfert": "Transfert entre machines",
+}
+_INDEX_FIXE = [
+    ("diag", "Diagnostic", "diagnostic santé état disque poids journal erreurs version soldes crédits test des clés"),
+    ("diag", "Mise à jour", "mise à jour nouvelle version release télécharger installer github"),
+    ("coffre", "Coffre à clés", "coffre mot de passe maître chiffrement verrouiller déverrouiller sécurité dpapi"),
+    ("coffre", "Archive chiffrée des clés", "archive exporter importer clés second poste autre machine dzk mot de passe"),
+    ("keys", "Clés API", "clé api jeton token fournisseur guide tester enregistrer"),
+    ("accounts", "Comptes connectés", "comptes réseaux sociaux publication x twitter telegram youtube instagram tester"),
+    ("personas", "Personas", "persona ton voix audience personnage profil"),
+    ("branding", "Kit de marque", "marque logo nom de l'application couleur identité branding"),
+    ("pack", "Pack de légendes", "légendes étiquettes tags emoji icône caption"),
+    ("defaults", "Fournisseurs par défaut", "défaut fournisseur génération d'image flux gpt image voix résumeur "
+                                            "planificateur modèle provider"),
+    ("paths", "Dossiers et versions", "chemins dossier images sorties python ffmpeg version backend api"),
+    ("news", "Flux d'actualités", "news actualités rss flux article ajouter rafraîchir"),
+    ("appearance", "Apparence", "apparence animations mouvement réduit halo effets"),
+    ("pricing", "Grille de prix", "prix tarif coût dollar grille estimation"),
+    ("pricing", "Plafonds de dépense", "plafond budget limite mensuel alerte dépassement confirmation dépense"),
+    ("pricing", "Dépenses du mois", "dépenses réel estimé facturé moteur écran tableau rapproché"),
+    ("transfert", "Transfert entre machines", "transfert exporter importer sauvegarde copie autre machine empreintes "
+                                              "intégrité sha256 lots"),
+]
+_CLES_ECRAN = {
+    "keys": ("FAL_KEY", "HEYGEN_API_KEY", "ELEVENLABS_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY",
+             "GEMINI_API_KEY", "GEMINI_MODEL", "MESHY_API_KEY", "FIGMA_TOKEN", "OLLAMA_URL", "OLLAMA_MODEL"),
+    "accounts": ("X_API_KEY", "X_API_SECRET", "X_ACCESS_TOKEN", "X_ACCESS_SECRET", "TELEGRAM_BOT_TOKEN",
+                 "TELEGRAM_CHAT_ID", "YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET", "YOUTUBE_REFRESH_TOKEN",
+                 "YOUTUBE_CHANNEL_ID", "IG_ACCESS_TOKEN", "IG_BUSINESS_ID"),
+}
+
+
+@router.get("/index")
+async def index_reglages(request: Request):
+    """Tout ce que la recherche des Réglages peut trouver, avec la section à ouvrir. Des NOMS et des MOTS seulement :
+    aucune valeur ni aperçu de clé n'est lu ici."""
+    _local(request)
+    from app.api.routes import _ALLOWED_ENV_KEYS
+    from app.services import guides_fournisseurs as G
+    entrees = [{"section": s, "rubrique": _RUBRIQUES[s], "libelle": l, "cle": "", "mots": m} for s, l, m in _INDEX_FIXE]
+    for s, cles in _CLES_ECRAN.items():
+        for k in cles:
+            if k not in _ALLOWED_ENV_KEYS:
+                continue
+            g = G.guide(k) or {}
+            mots = " ".join(filter(None, ["clé", k.replace("_", " ").lower(), g.get("nom", ""), g.get("fr", "")[:220]]))
+            entrees.append({"section": s, "rubrique": _RUBRIQUES[s], "libelle": g.get("nom") or k, "cle": k,
+                            "mots": mots})
+    return {"entrees": entrees}

@@ -42,7 +42,8 @@ check("0.1 TEMOIN : ni DzTestCle ni guides ; les deux messages et l'aide promett
       and vieux.count("Then in a PowerShell window") == 1, "")
 
 print("\n[1] les sept sections")
-check("1.1 treize sections P2cl, en QUEUE de PATCHES", len(SEC) == 13 and [t for t, _a, _r in P.PATCHES[-13:]] == list(SEC), _d(list(SEC)))
+check("1.1 treize sections P2cl, en QUEUE de PATCHES (suivies de la seule P2rc1, tache #22)", len(SEC) == 13
+      and [t for t, _a, _r in P.PATCHES[-14:-1]] == list(SEC) and P.PATCHES[-1][0].startswith("P2rc1"), _d(list(SEC)))
 for t, (a, r) in SEC.items():
     check(f"1.x {t} : ancre x1 dans .bak_montage, touchee par aucune autre section, remplacement x1 livre, sans saut de ligne",
           bak.count(a) == 1 and sum(1 for t2, a2, r2 in P.PATCHES if t2 != t and (a in a2 or a in r2)) == 0
