@@ -122,6 +122,61 @@ class ScheduledPost(Base):
     # avatar_script_short, avatar_script_long, scheduling_notes}. La caption
     # Telegram y prime sur `caption` à la publication (marketing.fire_post).
     brief: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # plan scheduler (03/09/2026, tâche #24 du 29/09) — P1 ids distants par canal, P5 validation par lot, D2 fils et
+    # séries, D3 recyclage, D1 qui a publié (pc | appareil R12).
+    remote_ids: Mapped[Optional[str]] = mapped_column(Text, nullable=True)   # JSON {"x": "17…", "youtube": "dQw…"}
+    validated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    thread_of: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    thread_index: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    series_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    recycled_from: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    published_by: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+
+
+class PostMetric(Base):
+    """Instantané daté des métriques d'un post sur un canal (plan scheduler P2). L'engagement est calculé
+    (metrics_service.engagement), jamais stocké."""
+    __tablename__ = "post_metrics"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    post_id: Mapped[str] = mapped_column(String(36), index=True)
+    channel: Mapped[str] = mapped_column(String(20), index=True)
+    remote_id: Mapped[str] = mapped_column(String(80), default="")
+    fetched_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    views: Mapped[int] = mapped_column(Integer, default=0)
+    likes: Mapped[int] = mapped_column(Integer, default=0)
+    comments: Mapped[int] = mapped_column(Integer, default=0)
+    shares: Mapped[int] = mapped_column(Integer, default=0)
+    saves: Mapped[int] = mapped_column(Integer, default=0)
+    raw: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
+class CampaignBrief(Base):
+    """Plan scheduler D2 — brief persistant lu par generate_plan (un seul actif)."""
+    __tablename__ = "campaign_briefs"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    name: Mapped[str] = mapped_column(String(120), default="")
+    objective: Mapped[str] = mapped_column(Text, default="")
+    start_date: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+    end_date: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+    messages: Mapped[str] = mapped_column(Text, default="")    # une ligne par message clé
+    forbidden: Mapped[str] = mapped_column(Text, default="")   # une ligne par terme interdit
+    rubrics: Mapped[str] = mapped_column(Text, default="")     # une ligne par rubrique fixe
+    active: Mapped[int] = mapped_column(Integer, default=1)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class PostSeries(Base):
+    """Plan scheduler D2 — série récurrente matérialisée en brouillons (series_service)."""
+    __tablename__ = "post_series"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    name: Mapped[str] = mapped_column(String(120), default="")
+    weekdays: Mapped[str] = mapped_column(String(20), default="0")   # csv 0=lundi … 6=dimanche
+    time: Mapped[str] = mapped_column(String(5), default="09:30")    # heure LOCALE
+    channels: Mapped[str] = mapped_column(String(120), default="x")
+    format: Mapped[str] = mapped_column(String(20), default="image")
+    caption_template: Mapped[str] = mapped_column(Text, default="")  # {date} {weekday} {week}
+    active: Mapped[int] = mapped_column(Integer, default=1)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
 class AvatarPreset(Base):
@@ -431,6 +486,10 @@ SCHEDULED_POSTS_COLUMNS = [
     ("source_image", "VARCHAR(255)"),
     # v1.27 additions
     ("brief", "TEXT"),
+    # plan scheduler (03/09/2026, tâche #24)
+    ("remote_ids", "TEXT"), ("validated_at", "DATETIME"), ("thread_of", "VARCHAR(36)"),
+    ("thread_index", "INTEGER"), ("series_id", "VARCHAR(36)"),
+    ("recycled_from", "VARCHAR(36)"), ("published_by", "VARCHAR(40)"),
 ]
 
 

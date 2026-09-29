@@ -234,6 +234,8 @@ dans le docstring de `publishers.py` (Tâche 2).
 > directs** — httpx déjà présent, aucun service permanent, aucune dépendance nouvelle. Postiz reste une note (R12 E2).
 > Le verdict daté se recopie dans le docstring de `publishers.py` à la Tâche 2, étape 3.
 
+> **T1 + T2 EXÉCUTÉES le 29/09/2026** (tâche #24 du suivi, branche `chantier/p3-scheduler-socle`). Écarts datés au plan : (1) les bancs du plan ne posaient que `DATABASE_URL` : le `.env` du vrai data-dir aurait fourni les clés X/Telegram et un `fire_post` de banc pouvait PUBLIER — `test_scheduler_socle` et `test_scheduler_publish` posent `DEEPOTUS_DATA_DIR` temporaire et vident les six clés ; `publish_x` / `publish_telegram` sont remplacés au banc (aucun réseau) ; (2) `tiktok` n'entre PAS encore dans `plan_schema._CHANNELS` ni dans le prompt : la table des canaux `_t` du bundle ne le connaît qu'à T11, un plan qui le proposerait avant afficherait un canal inconnu — l'ajout est reporté à T5/T11 ; (3) le verdict T0 recopié dans le docstring de `publishers.py` est celui du 29/09 (mesure Postiz du jour, choix de l'utilisateur) ; (4) `_post_to_dict` passe par `_remote_ids()` (JSON illisible ou non-objet = None). Bancs : `test_scheduler_socle` 8/0 (base v1.27 héritée, PRAGMA), `test_scheduler_publish` 23/0 (registre, rejeu, quota avant/après, échecs non comptés, X au mois, Telegram non compté, tg_caption, reply_to) ; `test_plan_brief` PASS.
+
 ### Tâche 1 : socle de données
 
 **Files :**
