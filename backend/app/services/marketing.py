@@ -25,7 +25,8 @@ from loguru import logger
 from sqlalchemy import select, update as _sa_update
 
 from app.config import settings, SSL_VERIFY
-from app.services import plan_schema
+from app.services import plan_schema, publishers
+from app.services.publishers import PublishResult
 from app.services.storage import ScheduledPost, JobRecord, async_session_factory
 
 # ---------------------------------------------------------------- plan gen
@@ -552,9 +553,9 @@ def _x_api_v1():
 
 
 def _publish_x_sync(caption: str, video_path: str | None,
-                    image_path: str | None) -> tuple[bool, str, str | None]:
+                    image_path: str | None, reply_to: str | None = None) -> tuple[bool, str, str | None]:
     """Blocking tweepy calls — run via asyncio.to_thread. Returns
-    (ok, detail, tweet_id)."""
+    (ok, detail, tweet_id). `reply_to` (plan scheduler, fils X de D2) : l'id du tweet auquel celui-ci répond."""
     try:
         client = _x_client()
         media_ids = None
@@ -569,7 +570,7 @@ def _publish_x_sync(caption: str, video_path: str | None,
             media = api.media_upload(filename=str(image_path))
             media_ids = [media.media_id_string]
         resp = client.create_tweet(
-            text=(caption or "")[:280], media_ids=media_ids)
+            text=(caption or "")[:280], media_ids=media_ids, in_reply_to_tweet_id=reply_to)
         tid = str((resp.data or {}).get("id", ""))
         return True, f"tweet {tid}", tid or None
     except Exception as e:
@@ -578,14 +579,14 @@ def _publish_x_sync(caption: str, video_path: str | None,
 
 async def publish_x(caption: str, *, video_path: str | None = None,
                     image_path: str | None = None,
-                    retries: int = 2) -> tuple[bool, str, str | None]:
+                    retries: int = 2, reply_to: str | None = None) -> tuple[bool, str, str | None]:
     """Post to X with media. One retry on transient failure. Never raises."""
     if not settings.has_x:
         return False, "X keys not set (X_API_KEY/SECRET + ACCESS_TOKEN/SECRET)", None
     last = ("", None)
     for attempt in range(retries):
         ok, detail, tid = await asyncio.to_thread(
-            _publish_x_sync, caption, video_path, image_path)
+            _publish_x_sync, caption, video_path, image_path, reply_to)
         if ok:
             return True, detail, tid
         last = (detail, None)
@@ -757,14 +758,27 @@ async def _resolve_post_image(post) -> str | None:
     return None
 
 
+# plan scheduler T2 (tâche #24, 29/09/2026) : X et Telegram passent par le registre des adaptateurs (publishers.py),
+# comme les canaux à venir. `publish_x` / `publish_telegram` sont relus à l'appel (et non capturés ici) : un banc qui
+# les remplace remplace bien ce que le registre appelle.
+async def _pub_telegram(caption, video_path, image_path, meta) -> PublishResult:
+    ok, detail = await publish_telegram(caption, video_path=video_path, image_path=image_path)
+    return PublishResult(ok, f"telegram: {detail}")
+
+
+async def _pub_x(caption, video_path, image_path, meta) -> PublishResult:
+    ok, detail, tid = await publish_x(caption, video_path=video_path,
+                                      image_path=image_path, reply_to=meta.get("reply_to"))
+    return PublishResult(ok, f"x: {detail}", tid)
+
+
+publishers.register("telegram", lambda: settings.has_telegram, _pub_telegram)
+publishers.register("x", lambda: settings.has_x, _pub_x)
+
+
 def auto_channels() -> set[str]:
-    """Channels with a working auto-publish adapter given current keys."""
-    out = set()
-    if settings.has_telegram:
-        out.add("telegram")
-    if settings.has_x:
-        out.add("x")
-    return out
+    """Canaux dont l'adaptateur est enregistré ET dont les clés sont là."""
+    return publishers.available_channels()
 
 
 async def fire_post(post_id: str) -> dict:
@@ -804,26 +818,37 @@ async def fire_post(post_id: str) -> dict:
             # v1.27 — le brief peut porter une caption Telegram dédiée
             # (TG_CAPTION du plan structuré) : elle prime sur la caption X.
             tg_caption = None
+            brief_d = {}
             if post.brief:
                 try:
-                    tg_caption = (json.loads(post.brief) or {}).get("tg_caption")
+                    brief_d = json.loads(post.brief) or {}
                 except (ValueError, TypeError):
-                    tg_caption = None
+                    brief_d = {}
+                tg_caption = brief_d.get("tg_caption") if isinstance(brief_d, dict) else None
+            # plan scheduler T2 : le registre publie, remote_ids garde l'id distant PAR CANAL — un rejeu après échec
+            # partiel ne republie jamais un canal déjà parti.
+            remote: dict = {}
+            if post.remote_ids:
+                try:
+                    remote = json.loads(post.remote_ids) or {}
+                except (ValueError, TypeError):
+                    remote = {}
+            meta = {"title": post.title, "brief": brief_d}
             for ch in channels:
-                if ch == "telegram" and settings.has_telegram:
-                    ok, detail = await publish_telegram(
-                        tg_caption or post.caption or post.title,
-                        video_path=video, image_path=image)
-                    (sent if ok else errors).append(f"{ch}: {detail}")
-                elif ch == "x" and settings.has_x:
-                    ok, detail, tid = await publish_x(
-                        post.caption or post.title,
-                        video_path=video, image_path=image)
-                    if ok and tid:
-                        post.x_post_id = tid
-                    (sent if ok else errors).append(f"{ch}: {detail}")
+                if ch in remote:
+                    sent.append(f"{ch}: déjà publié ({remote[ch]})")
+                    continue
+                cap = tg_caption if (ch == "telegram" and tg_caption) else (post.caption or post.title)
+                res = await publishers.publish(ch, cap, video, image, meta)
+                if res.ok:
+                    sent.append(res.detail)
+                    if res.remote_id:
+                        remote[ch] = res.remote_id
+                        if ch == "x":
+                            post.x_post_id = res.remote_id
                 else:
-                    errors.append(f"{ch}: assisted (no auto adapter)")
+                    errors.append(res.detail)
+            post.remote_ids = json.dumps(remote) if remote else None
         except Exception as e:
             # Never leave the claim dangling: a post stuck in 'posting' can
             # never be fired again (the loop only picks up 'scheduled').

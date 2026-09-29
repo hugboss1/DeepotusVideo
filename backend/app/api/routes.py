@@ -4542,7 +4542,17 @@ def _post_to_dict(p: ScheduledPost) -> dict:
         "x_post_id": p.x_post_id,
         "metrics": p.metrics,
         "source_image": p.source_image,
+        # plan scheduler T2 (tâche #24) : l'id distant par canal ; illisible = None, jamais un 500
+        "remote_ids": _remote_ids(p),
     }
+
+
+def _remote_ids(p: ScheduledPost) -> dict | None:
+    try:
+        d = json.loads(p.remote_ids) if getattr(p, "remote_ids", None) else None
+    except (ValueError, TypeError):
+        return None
+    return d if isinstance(d, dict) else None
 
 
 @router.get("/schedule")
