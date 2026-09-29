@@ -58,3 +58,34 @@ async def diagnostic_cle(body: dict, request: Request):
         return await D.tester_x(env)
     valeur = str((body or {}).get("valeur") or "") or env.get(nom, "")
     return await D.tester_cle(nom, valeur)
+
+
+# ── plafonds de dépense mensuels (plan Settings T4-T6, tâche #16) ─────────────────────────────────────────────────
+
+
+@router.get("/plafonds")
+async def plafonds_lire(request: Request):
+    """{global_usd (= « Monthly budget cap » de la grille), par_moteur, alerte_pct}."""
+    _local(request)
+    from app.services import plafonds as P
+    return P.charger()
+
+
+@router.post("/plafonds")
+async def plafonds_ecrire(body: dict, request: Request):
+    """Enregistre les plafonds ; les valeurs invalides sont écartées (rendu = ce qui est RÉELLEMENT enregistré)."""
+    _local(request)
+    from app.services import plafonds as P
+    if not isinstance(body, dict):
+        raise HTTPException(400, "corps illisible : un objet {global_usd, par_moteur, alerte_pct} est attendu")
+    return P.enregistrer(body)
+
+
+@router.get("/plafonds/etat")
+async def plafonds_etat(request: Request, mois: str | None = None):
+    """Le mois en cours (ou `mois=AAAA-MM`) : estimé, réel, effectif, pourcentages et alertes, global et par moteur."""
+    _local(request)
+    from app.services import plafonds as P
+    if mois is not None and not (len(mois) == 7 and mois[4] == "-" and mois[:4].isdigit() and mois[5:].isdigit()):
+        raise HTTPException(400, "mois illisible : AAAA-MM attendu")
+    return await P.etat(mois)

@@ -244,6 +244,22 @@ async def _garde_ecritures_locales(request, call_next):
     return await call_next(request)
 
 
+# Tâche #16 (29/09/2026) : la CONFIRMATION d'un dépassement de plafond mensuel. Un 402 `dz_plafond` dit le cumul, le
+# devis et le plafond ; l'écran rejoue la MÊME requête avec l'en-tête `X-DZ-Plafond: confirme`, posé ici dans la
+# ContextVar que `plafonds.verifier()` lit (elle descend vers la route et ses tâches de fond, jamais vers une autre
+# requête). Aucun corps n'est relu ni modifié.
+@app.middleware("http")
+async def _dz_plafond_confirme(request, call_next):
+    if request.headers.get("x-dz-plafond", "").strip().lower() != "confirme":
+        return await call_next(request)
+    from app.services.plafonds import CONFIRME
+    jeton = CONFIRME.set(True)
+    try:
+        return await call_next(request)
+    finally:
+        CONFIRME.reset(jeton)
+
+
 app.include_router(router, prefix="/api")
 # __DZ_MONTAGE_ROUTER_BEGIN__
 from app.services.montage_service import router as montage_router

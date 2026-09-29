@@ -97,6 +97,16 @@ DEFAULTS = {
     "heygen_credit_usd": 0.04,        # $ value of one HeyGen credit
     "heygen_chars_per_min": 850.0,    # ~speaking rate to map a script to minutes
     "elevenlabs_usd_per_char": 0.00024,
+    # Tâche #16 (29/09/2026) : les dépenses que la grille ne savait pas chiffrer (garde des plafonds mensuels).
+    # MESURÉ : l'avatar photo HeyGen coûte 1,32 $ (migration HeyGen v3, 28/09). DIRECTIONNELS, À VÉRIFIER
+    # (de mémoire, éditables dans Tarifs) : SFX ElevenLabs en crédits (≈ caractères) — 40 par seconde
+    # demandée, 200 quand le modèle choisit la durée ; l'upscale fal esrgan par image ; une tâche Meshy
+    # générique (proxy) à 20 crédits quand l'endpoint ne dit pas mieux.
+    "heygen_photo_avatar_usd": 1.32,
+    "elevenlabs_sfx_credits_per_s": 40.0,
+    "elevenlabs_sfx_credits_auto": 200.0,
+    "esrgan_usd": 0.002,
+    "meshy_task_credits_defaut": 20.0,
     # W-b (v1.20) — multiplicateur de tarif par modèle TTS ElevenLabs,
     # appliqué à elevenlabs_usd_per_char (flash v2.5 = −50 %, docs 22/07/2026).
     # Keys mirror elevenlabs_service.ELEVEN_MODELS.
@@ -459,10 +469,14 @@ def estimate(op: dict, p: dict | None = None) -> dict:
                            float(op.get("duration_s", 0)), "s", 0.0))
     elif kind == "llm":
         prov = op.get("provider", "openai")
-        rates = p["llm_usd_per_mtok"].get(prov, p["llm_usd_per_mtok"]["openai"])
         it = float(op.get("in_tok", 1000)); ot = float(op.get("out_tok", 400))
-        usd = it / 1e6 * rates["in"] + ot / 1e6 * rates["out"]
-        lines.append(_line(prov, "LLM tokens", it + ot, "tok", usd))
+        if prov in ("ollama", "local"):
+            # tâche #16 (29/09/2026) : un LLM LOCAL (Ollama) est gratuit — il tombait sur le tarif OpenAI par repli
+            lines.append(_line("local", "LLM local (Ollama)", it + ot, "tok", 0.0))
+        else:
+            rates = p["llm_usd_per_mtok"].get(prov, p["llm_usd_per_mtok"]["openai"])
+            usd = it / 1e6 * rates["in"] + ot / 1e6 * rates["out"]
+            lines.append(_line(prov, "LLM tokens", it + ot, "tok", usd))
     elif kind in ("composition", "campaign"):
         for sub in op.get("parts") or op.get("ops") or []:
             lines.extend(estimate(sub, p)["breakdown"])
@@ -525,6 +539,27 @@ def estimate(op: dict, p: dict | None = None) -> dict:
                                frames * p.get("rembg_api_usd",
                                              DEFAULTS["rembg_api_usd"])))
         lines.append(_line("local", "Sprite sheet (ffmpeg+PIL)", 1, "sheet", 0.0))
+    elif kind == "music":
+        # tâche #16 : le prix PAR GÉNÉRATION du catalogue de music_service (une seule source)
+        from app.services import music_service as _mu
+        mid = str(op.get("model") or "").strip() or _mu.DEFAULT_MUSIC_MODEL
+        m = _mu.MUSIC_MODELS.get(mid) or _mu.MUSIC_MODELS[_mu.DEFAULT_MUSIC_MODEL]
+        n = max(1, int(op.get("n", 1)))
+        lines.append(_line("fal", f"Musique ({m['label']}) x{n}", n, "piste", n * float(m["usd"])))
+    elif kind == "sfx":
+        n = max(1, min(4, int(op.get("n", op.get("variations", 1)) or 1)))
+        d = op.get("duration_s")
+        cr = (float(d) * float(p.get("elevenlabs_sfx_credits_per_s", 40.0)) if d not in (None, "", 0)
+              else float(p.get("elevenlabs_sfx_credits_auto", 200.0)))
+        lines.append(_line("elevenlabs", f"Bruitage x{n}", cr * n, "chars", cr * n * float(p["elevenlabs_usd_per_char"])))
+    elif kind == "upscale":
+        n = max(1, int(op.get("n", 1)))
+        lines.append(_line("fal", f"Upscale esrgan x{n}", n, "image", n * float(p.get("esrgan_usd", 0.002))))
+    elif kind == "heygen_photo_avatar":
+        lines.append(_line("heygen", "Avatar photo HeyGen", 1, "avatar", float(p.get("heygen_photo_avatar_usd", 1.32))))
+    elif kind == "meshy":
+        cr = float(op["credits"] if op.get("credits") is not None else p.get("meshy_task_credits_defaut", 20.0))
+        lines.append(_line("meshy", "Tâche Meshy", cr, "credits", cr * float(p["meshy_credit_usd"])))
     elif kind == "animate":
         # Animation node: per-frame Pillow + ffmpeg, all local compute, no
         # external API -> $0 (kept in the breakdown so the cost pill is honest).

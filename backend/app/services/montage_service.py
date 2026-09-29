@@ -3331,6 +3331,10 @@ async def montage_autoclips(request: Request):
                               f"{float(max_usd):.4f} $ — rien n'est lancé, cochez puis "
                               f"confirmez le nouveau coût.",
                     "estimate": est})
+            # tâche #16 : la garde MENSUELLE, après la confirmation du devis et avant l'envoi payant
+            from app.services import plafonds as _PLAF
+            await _PLAF.verifier({"kind": "transcribe", "provider": est.get("provider"), "duration_s": dur},
+                                 "montage")
             verrou = str(cle) if cle is not None else "src:%s|%s|%s" % (p.resolve(), est.get("provider"), lang_stt)
             if verrou in _AUTOCLIPS_STT_EN_COURS:
                 raise HTTPException(409, "Transcription de cette source déjà en cours — rien "
@@ -3353,6 +3357,9 @@ async def montage_autoclips(request: Request):
     def _fenetres_et_score():
         ws = _autoclips.windows(words)
         return ws, _autoclips.score(ws, None if use_llm else False, n, persona)
+    if use_llm:                         # tâche #16 : le classement par LLM (Ollama : gratuit, rien d'écrit)
+        from app.services import plafonds as _PLAF
+        await _PLAF.verifier(_PLAF.op_llm(len(words) * 1.5 + 800, 1500), "montage")
     wins, out = await asyncio.to_thread(_fenetres_et_score)
     return {"ok": True, "source": out["source"], "transcript": transcript,
             "words": len(words), "windows": len(wins),

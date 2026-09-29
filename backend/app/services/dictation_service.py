@@ -176,34 +176,40 @@ async def dictation(request: Request, file: UploadFile = File(...),
         raise HTTPException(503, SANS_CLE)
     lang = _langue(language)
 
-    def _travail() -> dict:
-        tmpd = _dossier_tmp()
-        try:
-            wav = _transcoder(contents, tmpd)
-            with wave.open(str(wav), "rb") as w:
-                dur = w.getnframes() / float(w.getframerate() or 1)
-            est = TS.estimate_transcription(dur)
-            if not est.get("ok"):
-                raise HTTPException(503, SANS_CLE)
-            usd = float(est.get("usd") or 0.0)
-            if usd > float(max_usd) + _EPS_USD:
-                raise HTTPException(
-                    402, f"Coût recalculé {usd:.4f} $ supérieur au plafond "
-                         f"accepté {float(max_usd):.4f} $ : rien n'a été envoyé.")
-            pid = est.get("provider")
-            logger.info(f"dictation: {dur:.1f}s via {pid} ≈ {usd:.4f} $ "
-                        f"(plafond {float(max_usd):.4f} $)")
-            try:
-                res = TS.transcribe(wav, provider=pid, language=lang)
-            except ValueError as e:
-                raise HTTPException(413, str(e))
-            except (RuntimeError, OSError) as e:
-                raise HTTPException(502, f"Transcription échouée : {e}")
-            except Exception as e:                       # noqa: BLE001
-                raise HTTPException(502, f"Transcription échouée : {e}")
-            return {"text": str((res or {}).get("text") or "").strip(),
-                    "usd": usd, "provider": pid}
-        finally:
-            shutil.rmtree(tmpd, ignore_errors=True)
+    def _mesurer(tmpd) -> tuple:
+        wav = _transcoder(contents, tmpd)
+        with wave.open(str(wav), "rb") as w:
+            dur = w.getnframes() / float(w.getframerate() or 1)
+        est = TS.estimate_transcription(dur)
+        if not est.get("ok"):
+            raise HTTPException(503, SANS_CLE)
+        usd = float(est.get("usd") or 0.0)
+        if usd > float(max_usd) + _EPS_USD:
+            raise HTTPException(
+                402, f"Coût recalculé {usd:.4f} $ supérieur au plafond "
+                     f"accepté {float(max_usd):.4f} $ : rien n'a été envoyé.")
+        return wav, dur, est.get("provider"), usd
 
-    return await asyncio.to_thread(_travail)
+    def _transcrire(wav, dur, pid, usd) -> dict:
+        logger.info(f"dictation: {dur:.1f}s via {pid} ≈ {usd:.4f} $ "
+                    f"(plafond {float(max_usd):.4f} $)")
+        try:
+            res = TS.transcribe(wav, provider=pid, language=lang)
+        except ValueError as e:
+            raise HTTPException(413, str(e))
+        except (RuntimeError, OSError) as e:
+            raise HTTPException(502, f"Transcription échouée : {e}")
+        except Exception as e:                       # noqa: BLE001
+            raise HTTPException(502, f"Transcription échouée : {e}")
+        return {"text": str((res or {}).get("text") or "").strip(),
+                "usd": usd, "provider": pid}
+
+    tmpd = await asyncio.to_thread(_dossier_tmp)
+    try:
+        wav, dur, pid, usd = await asyncio.to_thread(_mesurer, tmpd)
+        # tâche #16 : la garde MENSUELLE, entre la mesure (gratuite) et l'envoi (payant)
+        from app.services import plafonds as _PLAF
+        await _PLAF.verifier({"kind": "transcribe", "provider": pid, "duration_s": dur}, "dictee")
+        return await asyncio.to_thread(_transcrire, wav, dur, pid, usd)
+    finally:
+        shutil.rmtree(tmpd, ignore_errors=True)

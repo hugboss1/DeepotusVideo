@@ -2115,6 +2115,8 @@ async def post_rembg(did: str):
                          f"{_sans_chemin(e)}")
             prefixe = PREFIXE_LOCAL
         else:
+            from app.services import plafonds as _PLAF   # tâche #16
+            await _PLAF.verifier({"kind": "sprite2d", "frames": 1, "remove_bg": "api"}, "cartes")
             data = await _rembg_fal(recto)
             prefixe = PREFIXE_FAL
         return await asyncio.to_thread(_store_layer, did, SUJET_NAME, data,
