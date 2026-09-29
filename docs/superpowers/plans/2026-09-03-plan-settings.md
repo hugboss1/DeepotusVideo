@@ -4650,6 +4650,8 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>'
 
 ---
 
+> **T17 EXÉCUTÉE le 29/09/2026** (tâche #20, PR 2/2, branche `chantier/p2-coffre-ecran`). Écarts datés : pas de maillon `reglages` — `DzCoffre` vit dans la section `P2dg1` (bloc des Réglages), l'entrée, la liste blanche et la branche étendent `P2dg2..P2dg4`, la pastille à trois états élargit l'ancre de `P2cl3` (nos propres sections : aucune ancre ne chevauche le texte d'une autre) ; l'écran ajoute « Changer le mot de passe » (absent de S8) ; POSER passe par une confirmation du dialogue maison — sans lui, on ne pose pas ; le blob de l'archive est révoqué après 2 s ; la preuve écran a mesuré que le badge `te` n'affiche pas de `title` → l'explication « coffre fermé » vit dans `DzTestCle` (prop `verrou`). Preuve : coffre posé depuis l'écran (clé hors du `.env`), fermé → pastilles ambre « coffre » + « coffre fermé », mauvais mot de passe refusé, ouvert, retenu → rouvert seul au redémarrage (journal : « ouvert automatiquement »). Banc : `test_p2_coffre_ecran` 19/0 ; 12/12 mutations rouges.
+
 ### Task 17 : L'écran du coffre (section S8)
 
 **Files:**

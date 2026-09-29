@@ -6879,13 +6879,108 @@ R_P2DG1 = ('}'
     "children:b?'…':'Vérifier'}),"
     "m.url?r.jsx('a',{href:m.url,target:'_blank',rel:'noreferrer',title:m.nom||m.tag,"
     "style:{fontSize:11,color:'var(--cyan)',textDecoration:'none'},children:'Notes'}):null]})}"
+    # tache #20 (29/09/2026) : L'ECRAN DU COFFRE (plan Settings T17). Poser (deux saisies, confirmation par le dialogue
+    # maison : les secrets QUITTENT le .env), ouvrir, fermer, retenir / ne plus retenir sur ce PC, changer le mot de
+    # passe, archive chiffree (export telecharge, import par fichier) avec un mot de passe A PART. Le serveur :
+    # backend/app/services/coffre.py + /api/reglages/coffre/*.
+    "function DzCoffre(){"
+    "const[e,setE]=x.useState(null),[m1,setM1]=x.useState(''),[m2,setM2]=x.useState(''),[anc,setAnc]=x.useState(''),"
+    "[arc,setArc]=x.useState(''),[msg,setMsg]=x.useState(null),[busy,setBusy]=x.useState(!1);"
+    "const lire=()=>fetch('/api/reglages/coffre/etat').then(R=>R.ok?R.json():null).then(j=>{if(j)setE(j)}).catch(()=>{});"
+    "x.useEffect(()=>{lire()},[]);"
+    "const dire=(ok,t)=>setMsg({ok:ok,t:t});"
+    "const poste=(u,b)=>{setBusy(!0);return fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},"
+    "body:JSON.stringify(b||{})}).then(R=>R.json().catch(()=>({})).then(j=>{setBusy(!1);return{s:R.status,j:j}}))"
+    ".catch(er=>{setBusy(!1);return{s:0,j:{detail:String(er)}}})};"
+    "const refus=o=>'Refus : '+((o.j&&o.j.detail)||('HTTP '+o.s));"
+    "const poser=async()=>{if(m1.length<8){dire(!1,'Mot de passe trop court (8 caractères au moins).');return}"
+    "if(m1!==m2){dire(!1,'Les deux saisies diffèrent.');return}"
+    "const D=window.__dzDialogue;if(!D||!(await D.confirmer('Poser le coffre : vos clés secrètes QUITTENT le fichier .env "
+    "en clair et ne s\u2019ouvrent plus qu\u2019avec ce mot de passe. Il n\u2019est stocké nulle part : perdu, il faudra "
+    "régénérer les clés chez chaque fournisseur.',{titre:'Coffre à clés',ok:'Poser le coffre',annuler:'Annuler'})))return;"
+    "const o=await poste('/api/reglages/coffre/poser',{mot_de_passe:m1});"
+    "dire(o.s===200,o.s===200?('Coffre posé et ouvert. Clés déplacées hors du .env : '+((o.j.absorbees||[]).join(', ')||'aucune')+'.'):refus(o));"
+    "setM1('');setM2('');lire()};"
+    "const ouvrir=async()=>{const o=await poste('/api/reglages/coffre/ouvrir',{mot_de_passe:m1});"
+    "dire(o.s===200,o.s===200?('Coffre ouvert : '+o.j.cles+' clé(s), actives tout de suite.'):o.s===401?'Mot de passe incorrect.':refus(o));"
+    "setM1('');lire()};"
+    "const fermer=async()=>{await poste('/api/reglages/coffre/fermer');dire(!0,'Coffre fermé : ses clés ne sont plus en mémoire.');lire()};"
+    "const retenir=async()=>{const o=await poste('/api/reglages/coffre/retenir');"
+    "dire(o.s===200,o.s===200?'Ouverture automatique armée pour cette session Windows.':refus(o));lire()};"
+    "const oublier=async()=>{await poste('/api/reglages/coffre/oublier');dire(!0,'Ouverture automatique désarmée.');lire()};"
+    "const changer=async()=>{if(m1.length<8||m1!==m2){dire(!1,'Nouveau mot de passe : 8 caractères au moins, saisi deux fois.');return}"
+    "const o=await poste('/api/reglages/coffre/mot-de-passe',{ancien:anc,nouveau:m1});"
+    "dire(o.s===200,o.s===200?o.j.message:o.s===401?'Ancien mot de passe incorrect.':refus(o));setAnc('');setM1('');setM2('');lire()};"
+    "const archiver=()=>{if(arc.length<8){dire(!1,'Mot de passe de l\u2019archive trop court (8 caractères au moins).');return}"
+    "setBusy(!0);fetch('/api/reglages/coffre/archive',{method:'POST',headers:{'Content-Type':'application/json'},"
+    "body:JSON.stringify({mot_de_passe:arc})}).then(R=>{if(!R.ok)return R.json().then(j=>{setBusy(!1);dire(!1,'Refus : '+(j.detail||R.status))});"
+    "return R.blob().then(bl=>{setBusy(!1);const u=URL.createObjectURL(bl),a=document.createElement('a');a.href=u;"
+    "a.download='DeepotusVideoGen-'+new Date().toISOString().slice(0,10)+'.dzk';document.body.appendChild(a);a.click();a.remove();"
+    "setTimeout(()=>URL.revokeObjectURL(u),2000);"
+    "dire(!0,'Archive téléchargée. Gardez son mot de passe : sans lui elle est définitivement illisible.')})})"
+    ".catch(er=>{setBusy(!1);dire(!1,'Échec : '+er)})};"
+    "const importer=ev=>{const f=ev.target.files&&ev.target.files[0];ev.target.value='';if(!f)return;"
+    "if(arc.length<1){dire(!1,'Saisissez d\u2019abord le mot de passe de l\u2019archive.');return}"
+    "const fd=new FormData();fd.append('fichier',f);fd.append('mot_de_passe',arc);setBusy(!0);"
+    "fetch('/api/reglages/coffre/archive/importer',{method:'POST',body:fd}).then(R=>R.json().then(j=>({s:R.status,j:j})))"
+    ".then(o=>{setBusy(!1);dire(o.s===200,o.s===200?('Archive lue : '+o.j.cles+' clé(s), venue de '+(o.j.venue_de||'?')+' ('+(o.j.creee_le||'?')+')'"
+    "+(o.j.au_coffre&&o.j.au_coffre.length?' ; au coffre : '+o.j.au_coffre.join(', '):'')"
+    "+(o.j.au_env&&o.j.au_env.length?' ; au .env : '+o.j.au_env.join(', '):'')+'.'):o.s===401?'Mot de passe de l\u2019archive incorrect.':refus(o));lire()})"
+    ".catch(er=>{setBusy(!1);dire(!1,'Échec : '+er)})};"
+    "const champ=(v,set,ph,ac,cle)=>r.jsx('input',{type:'password',value:v,autoComplete:ac,'data-dzc-champ':cle,"
+    "onChange:ev=>set(ev.target.value),placeholder:ph,style:{background:'var(--bg-base)',border:'1px solid var(--stroke)',"
+    "borderRadius:'var(--r-sm)',padding:'6px 10px',color:'var(--ink-strong)',fontFamily:'var(--f-mono)',fontSize:12,width:240}},cle);"
+    "const rang=c=>r.jsx('div',{style:{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap',marginTop:10},children:c});"
+    "if(!e)return r.jsx('div',{style:{padding:24,color:'var(--ink-muted)'},children:'Coffre…'});"
+    "return r.jsxs(r.Fragment,{children:["
+    "r.jsx('div',{className:'display',style:{fontSize:22,color:'var(--ink-strong)',marginBottom:4},children:'Coffre'}),"
+    "r.jsx('div',{style:{fontSize:12,color:'var(--ink-soft)',marginBottom:18,maxWidth:640,lineHeight:1.5},children:"
+    "'Vos clés d\u2019API chiffrées par un mot de passe maître (AES-256-GCM, PBKDF2-HMAC-SHA256). Une fois le coffre posé, "
+    "elles quittent le fichier .env en clair ; coffre fermé, elles ne sont plus en mémoire et l\u2019application ne peut plus "
+    "s\u2019en servir. Le mot de passe n\u2019est stocké nulle part.'}),"
+    "r.jsxs(jt,{'data-dzc-bloc':'coffre',style:{padding:16,marginBottom:14},children:["
+    "r.jsxs('div',{style:{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'},children:["
+    "r.jsx(te,{tone:e.pose?'green':'neutral',dot:!0,children:e.pose?'coffre posé':'aucun coffre'}),"
+    "e.pose?r.jsx(te,{tone:e.ouvert?'green':'amber',dot:!0,children:e.ouvert?('ouvert — '+e.cles.length+' clé(s)'):'verrouillé'}):null,"
+    "e.pose?r.jsx(te,{tone:e.retenu?'cyan':'neutral',dot:!0,children:e.retenu?'retenu sur ce PC':'demandé à chaque lancement'}):null]}),"
+    "e.ouvert&&e.cles.length?r.jsx('div',{className:'mono',style:{fontSize:11,color:'var(--ink-muted)',marginTop:8},children:e.cles.join(' · ')}):null,"
+    "!e.pose?rang([champ(m1,setM1,'mot de passe maître','new-password','m1'),champ(m2,setM2,'le même, pour vérifier','new-password','m2'),"
+    "r.jsx(K,{variant:'primary',size:'md',icon:'check',onClick:poser,disabled:busy,"
+    "title:'Crée le coffre et y déplace les clés secrètes du .env',children:'Poser le coffre'},'p')]):null,"
+    "e.pose&&!e.ouvert?rang([champ(m1,setM1,'mot de passe maître','current-password','m1'),"
+    "r.jsx(K,{variant:'primary',size:'md',icon:'check',onClick:ouvrir,disabled:busy||!m1,"
+    "title:'Déchiffre le coffre et rend ses clés actives tout de suite',children:'Ouvrir'},'o')]):null,"
+    "e.ouvert?rang([r.jsx(K,{variant:'ghost',size:'md',onClick:fermer,disabled:busy,"
+    "title:'Retire les clés du coffre de la mémoire de l\u2019application',children:'Fermer'},'f'),"
+    "e.retenu?r.jsx(K,{variant:'ghost',size:'md',onClick:oublier,disabled:busy,"
+    "title:'Le coffre redemandera son mot de passe au prochain lancement',children:'Ne plus retenir'},'u')"
+    ":r.jsx(K,{variant:'ghost',size:'md',onClick:retenir,disabled:busy,"
+    "title:'Ouvre le coffre seul au lancement, pour cette session Windows seulement (DPAPI)',children:'Retenir sur ce PC'},'r')]):null,"
+    "e.pose?r.jsxs('details',{style:{marginTop:12},children:[r.jsx('summary',{style:{fontSize:12,cursor:'pointer',color:'var(--ink-soft)'},"
+    "children:'Changer le mot de passe'}),rang([champ(anc,setAnc,'ancien mot de passe','current-password','anc'),"
+    "champ(m1,setM1,'nouveau','new-password','m1n'),champ(m2,setM2,'le même','new-password','m2n'),"
+    "r.jsx(K,{variant:'ghost',size:'md',onClick:changer,disabled:busy,"
+    "title:'Rechiffre le coffre ; l\u2019ouverture automatique est désarmée',children:'Changer'},'c')])]}):null,"
+    "msg?r.jsx('div',{'data-dzc-msg':msg.ok?'ok':'ko',style:{fontSize:12,marginTop:12,lineHeight:1.5,"
+    "color:msg.ok?'var(--green)':'var(--red)'},children:msg.t}):null]}),"
+    "r.jsxs(jt,{'data-dzc-bloc':'archive',style:{padding:16},children:["
+    "r.jsx('div',{className:'upper',style:{marginBottom:8},children:'Archive chiffrée'}),"
+    "r.jsx('div',{style:{fontSize:12,color:'var(--ink-soft)',marginBottom:4,maxWidth:640,lineHeight:1.5},children:"
+    "'Un fichier .dzk qui porte vos clés (coffre et .env), vos plafonds et votre grille de prix, pour un second poste ou "
+    "le téléphone. Son mot de passe est demandé à part : ce n\u2019est pas celui du coffre, et mieux vaut qu\u2019il ne le soit pas.'}),"
+    "rang([champ(arc,setArc,'mot de passe de l\u2019archive','new-password','arc'),"
+    "r.jsx(K,{variant:'primary',size:'md',onClick:archiver,disabled:busy,"
+    "title:'Télécharge l\u2019archive chiffrée (format DZKV1)',children:'Exporter l\u2019archive'},'x'),"
+    "r.jsxs('label',{title:'Relit une archive .dzk avec le mot de passe saisi ; ses clés secrètes vont au coffre ouvert',"
+    "style:{fontSize:12,color:'var(--cyan)',cursor:'pointer'},children:['Importer une archive…',"
+    "r.jsx('input',{type:'file',accept:'.dzk',onChange:importer,style:{display:'none'},'data-dzc-fichier':'1'})]},'i')])]})]})}"
     "function DzPricing(){")
 A_P2DG2 = '[{k:"keys",l:"API keys"},'
-R_P2DG2 = '[{k:"diag",l:"Diagnostic"},{k:"keys",l:"API keys"},'
+R_P2DG2 = '[{k:"diag",l:"Diagnostic"},{k:"coffre",l:"Coffre"},{k:"keys",l:"API keys"},'   # + Coffre (tache #20)
 A_P2DG3 = 'const ym=["keys",'
-R_P2DG3 = 'const ym=["diag","keys",'
+R_P2DG3 = 'const ym=["diag","coffre","keys",'   # + coffre (tache #20)
 A_P2DG4 = 's==="pricing"&&r.jsx(DzPricing,{}),'
-R_P2DG4 = 's==="pricing"&&r.jsx(DzPricing,{}),s==="diag"&&r.jsx(DzDiag,{}),'
+R_P2DG4 = 's==="pricing"&&r.jsx(DzPricing,{}),s==="diag"&&r.jsx(DzDiag,{}),s==="coffre"&&r.jsx(DzCoffre,{}),'   # + coffre (tache #20)
 P1 += [("P2dg1-bloc-dzdiag-avant-dzpricing", A_P2DG1, R_P2DG1),
        ("P2dg2-entree-diagnostic-de-la-barre", A_P2DG2, R_P2DG2),
        ("P2dg3-diag-dans-la-liste-blanche-ym", A_P2DG3, R_P2DG3),
@@ -6989,7 +7084,7 @@ R_P2CL1 = ("}var dzGuides=null,dzGuidesAtt=null;"
     "function dzChargerGuides(){if(dzGuidesAtt)return dzGuidesAtt;"
     "dzGuidesAtt=fetch('/api/reglages/guides').then(R=>R.ok?R.json():{guides:{}})"
     ".then(j=>{dzGuides=j.guides||{};return dzGuides}).catch(()=>{dzGuidesAtt=null;return {}});return dzGuidesAtt}"
-    "function DzTestCle({ck:ck,def:def_}){"
+    "function DzTestCle({ck:ck,def:def_,verrou:verrou}){"
     "const[e,setE]=x.useState(null),[g,setG]=x.useState(dzGuides);"
     "x.useEffect(()=>{let on=!0;dzChargerGuides().then(v=>{if(on)setG(v)});return()=>{on=!1}},[]);"
     "const gu=(g||{})[ck];"
@@ -7004,6 +7099,9 @@ R_P2CL1 = ("}var dzGuides=null,dzGuidesAtt=null;"
     "gu?r.jsx('a',{href:gu.console,target:'_blank',rel:'noreferrer',"
     "title:gu.fr+(gu.tarifs?' — Tarifs : '+gu.tarifs:''),"
     "style:{fontSize:11,color:'var(--cyan)',textDecoration:'none'},children:'Guide'}):null,"
+    "verrou?r.jsx('span',{'data-dz-testcle-verrou':'1',style:{fontSize:10.5,color:'#d99a26'},"
+    "title:'Coffre verrouillé : ouvrez-le (Réglages → Coffre) pour voir, tester ou modifier cette clé',"
+    "children:'coffre fermé'}):null,"
     "gu&&def_?r.jsx(K,{variant:'ghost',size:'sm',"
     "title:'Appel authentifié qui ne dépense rien (la clé est relue côté serveur)',"
     "onClick:tester,children:'Tester'}):null]}),"
@@ -7017,8 +7115,13 @@ A_P2CL2 = 'gridTemplateColumns:"220px 1fr auto auto",gap:14'
 # preuve 8799 (29/09) : a cinq colonnes « 220px 1fr » la ligne debordait de 82 px (Save coupe, defilement horizontal)
 # -> libelle a 180 px, champ en minmax(0,1fr) (P2cl13 lui donne width:100%) : 660 = 660 mesure.
 R_P2CL2 = 'gridTemplateColumns:"180px minmax(0,1fr) auto auto auto",gap:14'
-A_P2CL3 = 'children:h&&h.set?"set":"missing"}),'
-R_P2CL3 = 'children:h&&h.set?"set":"missing"}),r.jsx(DzTestCle,{ck:k.k,def:!!(h&&h.set)}),'
+# tache #20 : l'ancre est ELARGIE a la pastille entiere (ton + libelle) : list_keys rend set=null quand le coffre est
+# verrouille, et une pastille rouge « missing » sur une cle qui existe serait un mensonge -> trois etats.
+A_P2CL3 = 'r.jsx(te,{tone:h&&h.set?"green":"red",dot:!0,children:h&&h.set?"set":"missing"}),'
+R_P2CL3 = ('r.jsx(te,{tone:h&&h.set===null?"amber":h&&h.set?"green":"red",dot:!0,'
+           'children:h&&h.set===null?"coffre":h&&h.set?"set":"missing"}),'
+           'r.jsx(DzTestCle,{ck:k.k,def:!!(h&&h.set),verrou:!!(h&&h.set===null)}),')
+# preuve 8799 (29/09) : le badge `te` n'affiche PAS de `title` -> l'explication du 3e etat vit dans DzTestCle (verrou)
 A_P2CL4 = 'f(`${k} saved — restart the backend to apply.`)'
 R_P2CL4 = 'f(p.message||`${k} enregistrée.`)'
 A_P2CL5 = 'f(`${((p=c.written)==null?void 0:p.length)||k.length} key(s) saved — restart the backend to apply.`)'

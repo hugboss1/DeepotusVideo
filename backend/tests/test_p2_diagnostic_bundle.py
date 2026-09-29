@@ -50,10 +50,10 @@ for t, (a, r) in SEC.items():
           and s.count(r) == 1 and garde and "\n" not in r and "\r" not in r, _d(bak.count(a), s.count(r)))
 
 print("\n[2] l'ecran dans le bundle livre")
-check("2.1 « Diagnostic » en TETE de la barre laterale", s.count('[{k:"diag",l:"Diagnostic"},{k:"keys",l:"API keys"},') == 1, "")
-check("2.2 'diag' dans la liste blanche des sections (sinon ?section=diag retombe sur accounts)", s.count('const ym=["diag","keys",') == 1, "")
+check("2.1 « Diagnostic » en TETE de la barre laterale", s.count('[{k:"diag",l:"Diagnostic"},{k:"coffre",l:"Coffre"},{k:"keys",l:"API keys"},') == 1, "")
+check("2.2 'diag' dans la liste blanche des sections (sinon ?section=diag retombe sur accounts)", s.count('const ym=["diag","coffre","keys",') == 1, "")
 check("2.3 la branche du corps rend DzDiag, apres Pricing, avant Transfert",
-      s.count('s==="pricing"&&r.jsx(DzPricing,{}),s==="diag"&&r.jsx(DzDiag,{}),s==="transfert"') == 1, "")
+      s.count('s==="pricing"&&r.jsx(DzPricing,{}),s==="diag"&&r.jsx(DzDiag,{}),s==="coffre"&&r.jsx(DzCoffre,{}),s==="transfert"') == 1, "")
 check("2.4 DzDiag appelle les deux routes du routeur /api/reglages, et seulement elles",
       s.count("fetch('/api/reglages/diagnostic')") == 1
       # #17 (29/09) : DzTestCle (ecran des cles) appelle aussi /diagnostic/cle -- on compte DANS DzDiag
@@ -61,7 +61,10 @@ check("2.4 DzDiag appelle les deux routes du routeur /api/reglages, et seulement
 _dz = s[s.find("function DzDiag("):s.find("function DzPricing(")]
 check("2.5 le test de cle n'envoie que le NOM, dans le bundle LIVRE (la cle est relue cote serveur)",
       _dz.count("body:JSON.stringify({nom:k})})") == 1 and "valeur" not in _dz, "")
-check("2.6 tout bouton porte un title (E-12)", SEC["P2dg1-bloc-dzdiag-avant-dzpricing"][1].count("r.jsx(K,{") == SEC["P2dg1-bloc-dzdiag-avant-dzpricing"][1].count("title:'"), "")
+import re as _re                                              # noqa: E402
+# #20 : la section porte aussi DzMaj et DzCoffre (des `title:` hors boutons) -> chaque bouton K, lu jusqu'a ses enfants
+_ks = _re.findall(r"r\.jsx\(K,\{(.*?)children:", SEC["P2dg1-bloc-dzdiag-avant-dzpricing"][1])
+check("2.6 tout bouton porte un title (E-12)", _ks and all("title:" in k for k in _ks), str(len(_ks)))
 check("2.7 fins de ligne : 100 % CRLF", raw.count(b"\n") == raw.count(b"\r\n"), _d(raw.count(b"\n"), raw.count(b"\r\n")))
 nc = subprocess.run([NODE, "--check", str(BUNDLE)], capture_output=True, text=True) if NODE else None
 check("2.8 node --check du bundle entier", nc is not None and nc.returncode == 0, _d(nc.stderr[-300:] if nc else ""))
