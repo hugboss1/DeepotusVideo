@@ -4091,14 +4091,26 @@ def _require_localhost(request: Request) -> None:
 @router.get("/settings/keys")
 async def list_keys(request: Request):
     """Every allowed key with `set` (bool) + masked `preview`. Raw values
-    are never returned."""
+    are never returned.
+
+    Tâche #20 (29/09/2026) — la SOURCE de chaque clé : `env` (le .env en clair), `coffre` (le coffre, ouvert),
+    `coffre-verrouille` (le coffre est posé mais fermé : on NE SAIT PAS si la clé y est, et `set` vaut None plutôt
+    que de faire semblant qu'elle manque)."""
     _require_localhost(request)
+    from app.services import coffre as _C
     env = _read_env_file()
+    verrou = _C.verrouille()
     out = []
     for k in sorted(_ALLOWED_ENV_KEYS):
-        v = env.get(k, "")
-        out.append({"key": k, "set": bool(v), "preview": _mask(v)})
-    return {"keys": out, "env_path": str(_env_path())}
+        v, source = env.get(k, ""), "env"
+        if not v and _C.ouvert() and _C.lire_cle(k):
+            v, source = _C.lire_cle(k), "coffre"
+        if not v and verrou and k in _C.SECRETES:
+            out.append({"key": k, "set": None, "preview": "", "source": "coffre-verrouille"})
+            continue
+        out.append({"key": k, "set": bool(v), "preview": _mask(v), "source": source})
+    return {"keys": out, "env_path": str(_env_path()),
+            "coffre": {"pose": _C.est_pose(), "ouvert": _C.ouvert()}}
 
 
 @router.post("/settings/keys")
@@ -4121,6 +4133,32 @@ async def set_key(body: dict, request: Request):
         n = (e.get("name") or "").strip()
         if n not in _ALLOWED_ENV_KEYS:
             raise HTTPException(400, f"Key not allowed: {n}")
+
+    # Tâche #20 : coffre OUVERT -> les secrets y vont (jamais au .env en clair) ; coffre posé mais FERMÉ -> refus, un
+    # secret écrit en clair à sa place annulerait le coffre.
+    from app.services import coffre as _C
+    secrets_ = {(e.get("name") or "").strip(): (e.get("value") or "").strip()
+                for e in entries if (e.get("name") or "").strip() in _C.SECRETES}
+    au_coffre: list = []
+    if secrets_ and _C.verrouille():
+        raise HTTPException(409, "Coffre verrouillé : ouvrez-le (Réglages → Coffre) pour enregistrer une clé secrète.")
+    if secrets_ and _C.ouvert():
+        for n, v in secrets_.items():
+            _C.ecrire_cle(n, v)
+        au_coffre = sorted(secrets_)
+        entries = [e for e in entries if (e.get("name") or "").strip() not in secrets_]
+    if not entries:
+        tests_c: dict = {}
+        if isinstance(body, dict) and body.get("tester") is True:
+            from app.services import diagnostic as _D
+            for k, v in secrets_.items():
+                if v and _D.testable(k) and not k.startswith("X_"):
+                    tests_c[k] = await _D.tester_cle(k, v)
+            if any(k.startswith("X_") and v for k, v in secrets_.items()):
+                tests_c["X"] = await _D.tester_x({**_read_env_file(), **{k: _C.lire_cle(k) or "" for k in _C.SECRETES}})
+        return {"ok": True, "written": au_coffre, "ou": "coffre", "au_coffre": au_coffre,
+                "restart_required": False, "restart_for": [], "tests": tests_c,
+                "message": "Enregistré dans le coffre et appliqué tout de suite."}
 
     p = _env_path()
     lines = p.read_text(encoding="utf-8").splitlines() if p.exists() else []
@@ -4157,7 +4195,9 @@ async def set_key(body: dict, request: Request):
             tests["X"] = await _D.tester_x(_read_env_file())
     return {
         "ok": True,
-        "written": list(changes.keys()),
+        "written": list(changes.keys()) + au_coffre,
+        "ou": "mixte" if au_coffre else "env",
+        "au_coffre": au_coffre,
         "restart_required": bool(a_froid),
         "restart_for": a_froid,
         "tests": tests,

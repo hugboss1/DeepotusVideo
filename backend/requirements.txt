@@ -34,6 +34,14 @@ tweepy>=4.14.0
 # OS trust store for TLS (fixes AV/corporate HTTPS inspection on any machine)
 truststore>=0.10.0
 
+# Coffre a mot de passe maitre + archive chiffree (plan Settings T14, tache #20, 29/09/2026).
+# La stdlib embarquee n'a PAS d'AES : sans cette roue, pas de mot de passe maitre et pas d'archive
+# lisible par le telephone (AES-256-GCM + PBKDF2-HMAC-SHA256, standard dans CommonCrypto et javax.crypto).
+# Roue abi3 : la meme vaut pour tout CPython >= 3.11. Mesure du 29/09 : cryptography 50.0.1 + cffi 2.1.1 +
+# pycparser 3.0 = 4 076 686 o de roues, 12 428 445 o installees ; importee et aller-retour AES-GCM prouve
+# sous le runtime embarque 3.13.15.
+cryptography>=46.0.0
+
 # Utilities
 aiofiles>=24.1.0
 loguru>=0.7.2

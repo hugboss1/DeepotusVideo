@@ -71,7 +71,10 @@ FORMAT = 1                      # version du format de transfert
 
 # ── ce qui ne part pas ────────────────────────────────────────────────
 # Motif par motif, pour que la raison de chaque exclusion se lise.
-SECRETS = ("*.env", ".env", ".env.*")          # les clés d'API
+SECRETS = ("*.env", ".env", ".env.*",          # les clés d'API
+           # tâche #20 (décision du 29/09) : le coffre et son sceau DPAPI ne partent JAMAIS — un import écraserait
+           # le coffre de l'autre poste ; les clés voyagent par l'archive chiffrée du coffre, avec son mot de passe
+           "coffre.dzk", "coffre.dzk.*", "coffre.pc", "coffre.pc.*")
 JETABLE = (
     "logs/*",                    # journaux : chemins de l'autre machine
     "*.db-wal", "*.db-shm",      # journal SQLite : l'instantané le contient

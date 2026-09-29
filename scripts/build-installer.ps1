@@ -162,6 +162,23 @@ Get-ChildItem $sitePkgs -Recurse -Directory -Filter "__pycache__" |
     Remove-Item -Recurse -Force
 Write-Host "  $pkgCount packages staged (bytecode purged)" -ForegroundColor Green
 
+# Garde du coffre (plan Settings T14, tache #20, 29/09/2026) : la roue cryptography doit non seulement
+# etre posee, mais IMPORTABLE PAR LE PYTHON EMBARQUE (abi3), pas seulement par le python de build. Sans
+# cette garde, un acheteur decouvrirait le probleme au premier deverrouillage, cles dans le coffre ferme.
+# PYTHONPATH est ignore par le ._pth de l'embeddable : le chemin se force par sys.path.insert.
+$pyEmb = Join-Path $runtime "python.exe"
+$probe = "import sys, os; sys.path.insert(0, r'$sitePkgs'); " +
+         "from cryptography.hazmat.primitives.ciphers.aead import AESGCM; " +
+         "import cryptography; k = AESGCM.generate_key(bit_length=256); " +
+         "a = AESGCM(k); n = os.urandom(12); " +
+         "assert a.decrypt(n, a.encrypt(n, b'x', b'y'), b'y') == b'x'; " +
+         "print(cryptography.__version__)"
+$cryptoVer = (& $pyEmb -c $probe)
+if ($LASTEXITCODE -ne 0) {
+    throw "cryptography inutilisable sous le runtime embarque -- le coffre ne s'ouvrirait pas chez l'acheteur"
+}
+Write-Host "  cryptography $cryptoVer utilisable par le runtime embarque" -ForegroundColor Green
+
 # ---- 4. ffmpeg essentials ---------------------------------------------------
 $ffZip = Join-Path $cache "ffmpeg-release-essentials.zip"
 if (-not $SkipDownloads -or -not (Test-Path $ffZip)) {
