@@ -10,7 +10,7 @@ from uuid import uuid4
 
 import httpx
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, UploadFile, File, Form, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile, File, Form, Request, Response
 from fastapi.responses import FileResponse
 from PIL import Image as PILImage
 from loguru import logger
@@ -60,6 +60,21 @@ from app.services.news_service import news_service
 
 
 router = APIRouter()
+
+# P1 #14 (29/09/2026) : LES HÔTES DE LA BOUCLE LOCALE, une seule liste (Réglages et générations payantes).
+# `testclient` = le client du TestClient de Starlette (bancs).
+_HOTES_LOCAUX = ("127.0.0.1", "::1", "localhost", "testclient")
+
+
+def _require_local_depense(request: Request) -> None:
+    """P1 #14 : garde des routes qui DÉPENSENT une clé fournisseur (/generate*, /images/generate). Posée en
+    dépendance du décorateur : FastAPI la résout AVANT de valider le corps, donc un client du réseau local reçoit
+    403 avant toute lecture, garde de coût, clé ou job (mesuré le 29/09 : /generate/heygen répondait 200 et
+    lançait le pipeline pour 192.168.1.20). Pas une faille tant que l'app écoute la boucle locale : à tenir AVANT
+    toute ouverture au réseau local (compagnon mobile)."""
+    host = (request.client.host if request.client else "") or ""
+    if host not in _HOTES_LOCAUX:
+        raise HTTPException(403, "Génération payante réservée à la machine locale — rien n'a été lancé.")
 pipeline = Pipeline(persona_id="deepotus")
 template_engine = TemplateEngine()
 
@@ -3157,7 +3172,7 @@ def _garde_cout(ops: list, *max_usds) -> float:
     return total
 
 
-@router.post("/generate", response_model=GenerateResponse)
+@router.post("/generate", response_model=GenerateResponse, dependencies=[Depends(_require_local_depense)])
 async def generate(request: GenerateRequest, background_tasks: BackgroundTasks):
     # W-a — the required key depends on the selected model's provider
     from app.services.fal_service import VIDEO_MODELS, DEFAULT_VIDEO_MODEL
@@ -3199,7 +3214,7 @@ async def generate(request: GenerateRequest, background_tasks: BackgroundTasks):
 
 
 # v1.3: Batch generate — N variations with offset seeds
-@router.post("/generate/batch", response_model=GenerateBatchResponse)
+@router.post("/generate/batch", response_model=GenerateBatchResponse, dependencies=[Depends(_require_local_depense)])
 async def generate_batch(request: GenerateBatchRequest, background_tasks: BackgroundTasks):
     """Queue N jobs sharing the same config but with offset seeds.
 
@@ -3385,7 +3400,7 @@ async def delete_avatar_preset(preset_id: str):
     return {"ok": True}
 
 
-@router.post("/generate/heygen")
+@router.post("/generate/heygen", dependencies=[Depends(_require_local_depense)])
 async def generate_heygen(request: GenerateHeyGenRequest, background_tasks: BackgroundTasks):
     """Queue a HeyGen avatar video generation."""
     if not settings.has_heygen:
@@ -3407,7 +3422,7 @@ async def generate_heygen(request: GenerateHeyGenRequest, background_tasks: Back
     )
 
 
-@router.post("/generate/heygen-image")
+@router.post("/generate/heygen-image", dependencies=[Depends(_require_local_depense)])
 async def generate_heygen_image(request: GenerateHeyGenImageRequest,
                                 background_tasks: BackgroundTasks):
     """v1.16 (D) — animate a Library still into a talking video (HeyGen v3)."""
@@ -3430,7 +3445,7 @@ async def generate_heygen_image(request: GenerateHeyGenImageRequest,
                             message="HeyGen image-animation job queued. Poll GET /jobs.")
 
 
-@router.post("/generate/heygen-cinematic")
+@router.post("/generate/heygen-cinematic", dependencies=[Depends(_require_local_depense)])
 async def generate_heygen_cinematic(request: GenerateHeyGenCinematicRequest,
                                     background_tasks: BackgroundTasks):
     """v1.16 (D) — HeyGen v3 cinematic avatar (prompt-driven, 1–3 looks)."""
@@ -3452,7 +3467,7 @@ async def generate_heygen_cinematic(request: GenerateHeyGenCinematicRequest,
                             message="HeyGen cinematic job queued. Poll GET /jobs.")
 
 
-@router.post("/generate/composition", response_model=CompositionResponse)
+@router.post("/generate/composition", response_model=CompositionResponse, dependencies=[Depends(_require_local_depense)])
 async def generate_composition(request: CompositionRequest, background_tasks: BackgroundTasks):
     """Queue a composition job: Seedance clip + HeyGen clip combined.
 
@@ -3949,7 +3964,7 @@ def _require_localhost(request: Request) -> None:
     """The settings surface reads/writes API keys — refuse any client that
     isn't loopback, even if HOST was misconfigured to 0.0.0.0."""
     host = (request.client.host if request.client else "") or ""
-    if host not in ("127.0.0.1", "::1", "localhost", "testclient"):
+    if host not in _HOTES_LOCAUX:
         raise HTTPException(403, "Settings are only accessible from localhost")
 
 
@@ -4978,7 +4993,7 @@ async def import_image_url(body: dict):
     return {"filename": fname}
 
 
-@router.post("/images/generate")
+@router.post("/images/generate", dependencies=[Depends(_require_local_depense)])
 async def generate_image(body: dict, background_tasks: BackgroundTasks):
     """Provenance (28/08) : l'enveloppe indexe les images rendues par les
     trois chemins modèles d'un coup — source = hint `source` du body si
