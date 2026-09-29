@@ -5,6 +5,9 @@ les fichiers posés à l'import sont relus sur disque. Témoin : la base 02bdff4
 vérification. Zéro réseau, deux racines de données jetables (machine A et machine B).
 Run : & $PY tests/test_transfert_integrite.py   (depuis backend/)"""
 import hashlib, json, os, pathlib, sqlite3, subprocess, sys, tempfile, time
+# 30/09 : le journal factice porte la date du JOUR — l'app écrit le sien (deepotus-<aujourd'hui>.log) au démarrage du
+# TestClient ; daté en dur du 29/09, le lot « journaux » comptait deux fichiers dès le lendemain
+JOUR = __import__('datetime').datetime.now().strftime('%Y-%m-%d')
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 _tmp = pathlib.Path(tempfile.mkdtemp(prefix="dztri_"))
 A = _tmp / "machineA"
@@ -40,7 +43,7 @@ def semer(racine):
     ecrire(racine / "assets" / "images" / "a.png", b"A" * 4096)
     ecrire(racine / "assets" / "images" / "b.png", b"B" * 100)
     ecrire(racine / "pricing.json", b'{"flux_image_usd": 0.003}')
-    ecrire(racine / "logs" / "deepotus-2026-09-29.log", b"L" * 10)
+    ecrire(racine / "logs" / f"deepotus-{JOUR}.log", b"L" * 10)
     ecrire(racine / "rebut_decks_2026-08-26" / "gros.bin", b"R" * 5000)
     ecrire(racine / ".env", b"FAL_KEY=secret-a-ne-jamais-copier\n")
 
@@ -115,7 +118,7 @@ check("5.1 le fichier abîmé est écarté et NOMMÉ ; il n'est pas posé", res[
 check("5.2 les fichiers sains sont posés, octet pour octet", sha(B / "assets" / "images" / "a.png") == sha(A / "assets" / "images" / "a.png")
       and res["fichiers_ajoutes"] == 4, str(res.get("fichiers_ajoutes")))
 check("5.3 les lots cochés à l'export sont repris (rebuts, journaux)", (B / "rebut_decks_2026-08-26" / "gros.bin").is_file()
-      and (B / "logs" / "deepotus-2026-09-29.log").is_file(), "")
+      and (B / "logs" / f"deepotus-{JOUR}.log").is_file(), "")
 check("5.4 un .env glissé dans un paquet n'est JAMAIS repris", not (B / ".env").exists(), "")
 check("5.5 aucun fichier provisoire laissé", not list(B.rglob("*.dztransfert")), "")
 check("5.6 la base fusionne toujours", sqlite3.connect(str(B / "deepotus.db")).execute("select count(*) from notes").fetchone()[0] == 1, "")

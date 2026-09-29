@@ -76,8 +76,10 @@ from app.config import settings                            # noqa: E402
 from app.main import app                                   # noqa: E402
 check("1.1 temoin : l'ancienne liste blanche REFUSAIT FIGMA_TOKEN", OLD is not None and "FIGMA_TOKEN" not in OLD, "")
 check("1.2 FIGMA_TOKEN dans _ALLOWED_ENV_KEYS", "FIGMA_TOKEN" in R._ALLOWED_ENV_KEYS, "")
+# tâche #28 (30/09/2026) : les quatre clés TikTok du plan scheduler T6 entrent aussi, et rien d'autre
+_TIKTOK = {"TIKTOK_CLIENT_KEY", "TIKTOK_CLIENT_SECRET", "TIKTOK_REFRESH_TOKEN", "TIKTOK_AUDITED"}
 check("1.3 rien d'autre n'entre ni ne sort de la liste blanche",
-      OLD is not None and R._ALLOWED_ENV_KEYS - OLD == {"FIGMA_TOKEN"} and not (OLD - R._ALLOWED_ENV_KEYS),
+      OLD is not None and R._ALLOWED_ENV_KEYS - OLD == {"FIGMA_TOKEN"} | _TIKTOK and not (OLD - R._ALLOWED_ENV_KEYS),
       _d(sorted((R._ALLOWED_ENV_KEYS ^ OLD) if OLD else [])))
 
 
