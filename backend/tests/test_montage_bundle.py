@@ -15398,7 +15398,9 @@ check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB8b_puis_
                                                           "P2cl1", "P2cl2", "P2cl3", "P2cl4", "P2cl5", "P2cl6", "P2cl7",
                                                           "P2cl8", "P2cl9", "P2cl10", "P2cl11", "P2cl12", "P2cl13",
                                                           # tache #22 (29/09/2026) : la recherche dans la barre des Reglages ; aucun DzTracks
-                                                          "P2rc1"]
+                                                          "P2rc1",
+                                                          # tache #31 (30/09/2026) : l'ecran du Scheduler (panneaux DOM, TikTok) ; aucun DzTracks
+                                                          "P3sc0", "P3sc1", "P3sc2", "P3sc3", "P3sc4", "P3sc5", "P3sc6"]
       # L7-B D-37 et D-42 (24/09/2026) : AUCUNE section de plus (replis dans R_EC1) ; D-42 : sonde 159 -> 161
       # (cutAt + cutOpts dans le geste dzSceneCut) ; L7-B D-40 (T4) : AUCUNE section de plus (replis dans
       # R_DZ1/R_DZ3/R_DZ4), sonde 161 -> 163 (reframeCss dans l apercu vivant, reframeOf dans le payload)

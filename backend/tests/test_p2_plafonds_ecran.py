@@ -189,7 +189,9 @@ s = raw.decode("utf-8")
 bak = BAK.read_bytes().decode("utf-8") if BAK.is_file() else ""
 SEC = {t: (a_, r_) for t, a_, r_ in P.PATCHES if t.startswith("P2pl")}
 check("3.1 deux sections P2pl, en QUEUE de PATCHES", list(SEC) == ["P2pl1-dzplafonds-sous-la-grille-des-tarifs",
-      "P2pl2-la-grille-previent-les-plafonds"] and [t for t, _a, _r in P.PATCHES[-16:-14]] == list(SEC) and all(t.startswith(("P2cl", "P2rc")) for t, _a, _r in P.PATCHES[-14:]), _d(list(SEC)))  # #22 : + P2rc1
+      "P2pl2-la-grille-previent-les-plafonds"] and [t for t, _a, _r in P.PATCHES][[t for t, _a, _r in P.PATCHES].index(list(SEC)[0]):][:2] == list(SEC)
+      and all(t.startswith(("P2cl", "P2rc", "P3")) for t in [t for t, _a, _r in P.PATCHES][[t for t, _a, _r in P.PATCHES].index(list(SEC)[0]) + 2:]),
+      _d(list(SEC)))  # #22 : + P2rc1 ; #31 : repéré par position, + le lot P3
 for t, (a_, r_) in SEC.items():
     check(f"3.x {t} : ancre x1 dans .bak_montage, touchee par aucune autre section, remplacement x1 livre, sans saut de ligne",
           bak.count(a_) == 1 and sum(1 for t2, a2, r2 in P.PATCHES if t2 != t and (a_ in a2 or a_ in r2)) == 0

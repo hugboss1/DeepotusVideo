@@ -42,7 +42,9 @@ check("0.1 TEMOIN : ni DzDiag, ni entree « Diagnostic », ni 'diag' dans ym, ni
 
 print("\n[1] les quatre sections")
 check("1.1 quatre sections P2dg, en QUEUE de PATCHES", list(SEC) == ["P2dg1-bloc-dzdiag-avant-dzpricing", "P2dg2-entree-diagnostic-de-la-barre",
-      "P2dg3-diag-dans-la-liste-blanche-ym", "P2dg4-branche-diag-du-corps"] and [t for t, _a, _r in P.PATCHES[-20:-16]] == list(SEC) and all(t.startswith(("P2pl", "P2cl", "P2rc")) for t, _a, _r in P.PATCHES[-16:]), _d(list(SEC)))  # #22 : + P2rc1
+      "P2dg3-diag-dans-la-liste-blanche-ym", "P2dg4-branche-diag-du-corps"] and [t for t, _a, _r in P.PATCHES][[t for t, _a, _r in P.PATCHES].index(list(SEC)[0]):][:4] == list(SEC)
+      and all(t.startswith(("P2pl", "P2cl", "P2rc", "P3")) for t in [t for t, _a, _r in P.PATCHES][[t for t, _a, _r in P.PATCHES].index(list(SEC)[0]) + 4:]),
+      _d(list(SEC)))  # #22 : + P2rc1 ; #31 : repéré par position, + le lot P3
 for t, (a, r) in SEC.items():
     garde = r.endswith(a[1:]) if t.startswith("P2dg1") else True
     check(f"1.x {t} : ancre x1 dans .bak_montage, touchee par aucune autre section, remplacement x1 livre",

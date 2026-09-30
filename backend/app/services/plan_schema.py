@@ -35,7 +35,8 @@ _CAPS = {
     "scheduling_notes": 500,
 }
 
-_CHANNELS = ("x", "telegram", "youtube", "instagram")
+# tâche #31 (30/09/2026) : TikTok entre avec l'écran du Scheduler qui le connaît (reporté depuis le socle #24)
+_CHANNELS = ("x", "telegram", "youtube", "instagram", "tiktok")
 
 # La sortie étant ~5× plus riche qu'avant, les appels providers doivent
 # monter leur max_tokens à cette valeur (sinon JSON tronqué → fallback).
@@ -78,7 +79,7 @@ def system_prompt(days: int, posts_per_day: int, language: str,
         "\"priority\":\"High|Medium|Low\","
         "\"aspect_ratio\":str (e.g. \"1:1\", \"9:16\"),"
         "\"scheduling_notes\":str,"
-        "\"channels\":[\"x\"|\"telegram\"|\"youtube\"|\"instagram\"]}]}. "
+        "\"channels\":[\"x\"|\"telegram\"|\"youtube\"|\"instagram\"|\"tiktok\"]}]}. "
         f"{count_rule}Language: {language}. {pdesc}"
         "Field rules — every post is a COMPLETE ready-to-publish block: "
         "caption = final X post text, line breaks allowed, at most 2 emojis, "
