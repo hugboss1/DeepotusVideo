@@ -126,5 +126,27 @@ orig = dict(SOL)
 R.classer([SOL], brief="solana")
 check("C5 les articles d'entree ne sont pas mutes", SOL == orig)
 
+print("\n[E] brief d'abord (decision de l'utilisateur du 30/09, cas reel mesure sur 8799)")
+espion(None)
+corps40 = " ".join(f"mot{n}x" for n in range(45))
+estonie = _it("Estonia blames Russia for arson attack", sid="s3", resume=corps40,
+              doublons=[{"source_name": "A"}, {"source_name": "B"}])
+king = _it("Canada Crypto King to represent himself", sid="s4", resume="judge objections",
+           doublons=[{"source_name": "C"}])
+c = R.classer([estonie, king], brief="crypto")
+check("E1 avec un brief, l'article qui en porte un mot passe devant l'article hors brief tres repris",
+      [i["title"][:6] for i in c] == ["Canada", "Estoni"], str([(i["title"][:6], i["score"]) for i in c]))
+check("E2 hors brief : reprises et corps divises par deux (10 + (24 + 12) // 2 = 28), et le motif le dit",
+      c[1]["score"] == 28 and "hors brief" in c[1]["score_pourquoi"], f'{c[1]["score"]} {c[1]["score_pourquoi"]}')
+check("E2b l'article du brief garde tous ses points : 10 + 18 + 12 = 40", c[0]["score"] == 40, str(c[0]["score"]))
+check("E3 sans brief, rien ne change : 10 + 24 + 12 = 46", R.classer([estonie], brief="")[0]["score"] == 46)
+seul = _it("Crypto rises", sid="s5", pub="2026-09-01T00:00:00+00:00")
+max_hors = _it("Weather news", sid="s6", resume=corps40, pub="2026-09-03T00:00:00+00:00",
+               doublons=[{"source_name": "A"}, {"source_name": "B"}])
+c = R.classer([max_hors, seul], brief="crypto")
+check("E4 a egalite (28 contre 28), l'article du brief passe devant meme plus ancien",
+      [i["score"] for i in c] == [28, 28] and c[0]["title"] == "Crypto rises", str([(i["title"], i["score"]) for i in c]))
+check("E5 score_deterministe sans mots du brief : bareme inchange", R.score_deterministe(estonie, [])[0] == 46)
+
 print(f"\n{ok} ok, {fail} echec(s)")
 raise SystemExit(1 if fail else 0)
