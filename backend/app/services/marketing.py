@@ -27,7 +27,7 @@ from sqlalchemy import select, update as _sa_update
 from app.config import settings, SSL_VERIFY
 from app.services import metrics_service, plan_schema, publishers
 from app.services.publishers import PublishResult
-from app.services.storage import ScheduledPost, JobRecord, async_session_factory
+from app.services.storage import CampaignBrief, ScheduledPost, JobRecord, async_session_factory
 
 # ---------------------------------------------------------------- plan gen
 
@@ -236,7 +236,12 @@ async def generate_plan(prompt: str, *, days: int = 7,
     """Returns {"posts": [...], "engine": "<provider>"|"deterministic"}."""
     channels = channels or ["x"]
     perf = await performance_context()
-    full_prompt = f"{prompt}\n\n{perf}" if perf else prompt
+    # plan scheduler T13 (tâche #32) : le brief de campagne actif entre dans le prompt, et ses interdits sont RETIRÉS
+    # de la sortie (les dire ne suffit pas : on mesure ce qui sort) ; le plan rend le nom du brief et ce qui a été retiré
+    brief = await active_brief()
+    morceaux = [prompt, brief_context(brief), perf]
+    full_prompt = "\n\n".join(m for m in morceaux if m)
+    interdits = (brief or {}).get("forbidden") or []
     pref = settings.PLANNER_PROVIDER.strip().lower()
     order = [p for p in _PLAN_PRIORITY if _plan_available(p)]
     if pref and pref in order:
@@ -247,10 +252,14 @@ async def generate_plan(prompt: str, *, days: int = 7,
             posts = await fn(full_prompt, days, posts_per_day, channels,
                              language, persona)
             if posts is not None:
-                return {"posts": posts, "engine": engine}
+                posts, retires = apply_forbidden(posts, interdits)
+                return {"posts": posts, "engine": engine,
+                        "campaign_brief": (brief or {}).get("name"), "removed": retires}
     posts = _deterministic_plan(prompt, days, posts_per_day, channels,
                                 language, persona)
-    return {"posts": posts, "engine": "deterministic"}
+    posts, retires = apply_forbidden(posts, interdits)
+    return {"posts": posts, "engine": "deterministic",
+            "campaign_brief": (brief or {}).get("name"), "removed": retires}
 
 
 async def materialize_plan(posts: list[dict], *, start_date: str,
@@ -658,6 +667,65 @@ async def performance_context(limit: int = 12) -> str:
                      f"on {p.channels}{m}")
     return ("Recent posted content and performance (favor formats and "
             "angles that performed):\n" + "\n".join(lines))
+
+
+# ---------------------------------------------------------------- brief de campagne (plan scheduler T13, tâche #32)
+
+def _lignes(s: str | None) -> list[str]:
+    return [x.strip() for x in (s or "").splitlines() if x.strip()]
+
+
+async def active_brief() -> dict | None:
+    """Le brief de campagne actif, ou None. Un seul actif à la fois."""
+    async with async_session_factory() as session:
+        res = await session.execute(
+            select(CampaignBrief).where(CampaignBrief.active == 1)
+            .order_by(CampaignBrief.updated_at.desc()).limit(1))
+        b = res.scalar_one_or_none()
+    if b is None:
+        return None
+    return {"id": b.id, "name": b.name, "objective": b.objective,
+            "start_date": b.start_date, "end_date": b.end_date,
+            "messages": _lignes(b.messages), "forbidden": _lignes(b.forbidden),
+            "rubrics": _lignes(b.rubrics), "active": b.active,
+            "updated_at": b.updated_at.isoformat() + "Z"}
+
+
+def brief_context(b: dict | None) -> str:
+    """Le brief tel qu'il entre dans le prompt du planificateur. Les interdits sont DITS au modèle (il évitera souvent)
+    ET retirés après coup (apply_forbidden)."""
+    if not b:
+        return ""
+    out = [f"Campaign brief « {b['name']} ».", f"Objective: {b['objective']}."]
+    if b.get("start_date") or b.get("end_date"):
+        out.append(f"Window: {b.get('start_date') or '?'} -> {b.get('end_date') or '?'}.")
+    if b.get("messages"):
+        out.append("Key messages (weave them in, one per post at most):\n" + "\n".join(f"- {m}" for m in b["messages"]))
+    if b.get("rubrics"):
+        out.append("Fixed rubrics to honour:\n" + "\n".join(f"- {r}" for r in b["rubrics"]))
+    if b.get("forbidden"):
+        out.append("NEVER use these words, claims or hashtags: " + ", ".join(b["forbidden"]) + ".")
+    return "\n".join(out)
+
+
+def apply_forbidden(posts: list[dict], forbidden: list[str]) -> tuple[list[dict], list[str]]:
+    """Retire les termes interdits des champs de texte du plan (sans égard à la casse) et rend ceux qui ont dû être
+    retirés. Écart au plan du 03/09 : le terme est cherché ENTRE LIMITES DE MOT — interdire « garanti » ne mutile pas
+    « garantie » en « e », interdire « #1000x » ne touche pas « #1000xyz »."""
+    champs = ("caption", "tg_caption", "hook", "title", "hashtags", "on_image_text", "cta")
+    motifs = [(mot, re.compile(r"(?<!\w)" + re.escape(mot) + r"(?!\w)", re.IGNORECASE)) for mot in forbidden if mot]
+    retires: set[str] = set()
+    for p in posts:
+        for k in champs:
+            v = p.get(k)
+            if not isinstance(v, str) or not v:
+                continue
+            for mot, pat in motifs:
+                if pat.search(v):
+                    retires.add(mot)
+                    v = pat.sub("", v)
+            p[k] = re.sub(r"\s{2,}", " ", v).strip()
+    return posts, sorted(retires)
 
 
 # ---------------------------------------------------------------- telegram
