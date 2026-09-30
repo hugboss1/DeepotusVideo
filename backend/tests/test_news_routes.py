@@ -123,5 +123,30 @@ with TestClient(app, client=("127.0.0.1", 50000)) as c:
           and r.json()["compte"]["lus"] == 0, r.text[:200])
     check("D2 brief trop long : 422", c.post("/api/news/rank", json={"brief": "x" * 2001}).status_code == 422)
 
+print("\n[E] memoire et equilibre dans le classement (T8, tache #34)")
+from app.services import news_memory as M                           # noqa: E402
+with TestClient(app, client=("127.0.0.1", 50000)) as c:
+    if M.chemin_couverture().is_file():
+        M.chemin_couverture().unlink()
+    _poser_cache()
+    c.put("/api/news/filter", json={"mots_cles": [], "sources_noires": [], "mots_noirs": [], "fraicheur_h": 24 * 30})
+    avant = {i["id"]: i for i in c.post("/api/news/rank", json={"brief": ""}).json()["items"]}
+    check("E0 temoin : memoire vide, aucune marque ni malus", avant["a1"].get("deja_couvert") is None
+          and "sur-representee" not in avant["a1"]["score_pourquoi"], str(avant.get("a1")))
+    M.noter_couverture([{"title": "Solana network hits a record in daily transactions", "source_id": "s1",
+                         "source_name": "CoinDesk"}], post_id="p1")
+    j = {i["id"]: i for i in c.post("/api/news/rank", json={"brief": ""}).json()["items"]}
+    check("E1 un sujet deja couvert est marque, l'autre non", j["a1"].get("deja_couvert") == "Solana network hits a record in daily transactions"
+          and j["a2"].get("deja_couvert") is None, str(j.get("a1")))
+    for n in range(6):
+        M.noter_couverture([{"title": f"Un sujet CoinDesk de plus numero {n}", "source_id": "s1", "source_name": "CoinDesk"}], post_id=f"q{n}")
+    M.noter_couverture([{"title": "Un sujet Spammy", "source_id": "s2", "source_name": "Spammy Feed"}], post_id="q9")
+    j = {i["id"]: i for i in c.post("/api/news/rank", json={"brief": ""}).json()["items"]}
+    check("E2 la source sur-representee perd des points, et le motif le dit", j["a1"]["score"] < avant["a1"]["score"]
+          and "source sur-representee" in j["a1"]["score_pourquoi"] and j["a2"]["score"] == avant["a2"]["score"],
+          f'{avant["a1"]["score"]} -> {j["a1"]["score"]} {j["a1"]["score_pourquoi"]}')
+    if M.chemin_couverture().is_file():
+        M.chemin_couverture().unlink()
+
 print(f"\n{ok} ok, {fail} echec(s)")
 raise SystemExit(1 if fail else 0)
