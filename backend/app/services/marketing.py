@@ -728,6 +728,40 @@ def apply_forbidden(posts: list[dict], forbidden: list[str]) -> tuple[list[dict]
     return posts, sorted(retires)
 
 
+# ---------------------------------------------------------------- recyclage (plan scheduler T16, tâche #32)
+
+_RELANCES = ["On y revient : ", "Rappel : ", "Toujours vrai — ", "À relire : ", "Ça méritait un second passage : "]
+
+
+async def vary_caption(caption: str, *, persona: dict | None = None, forbidden: list[str] | None = None,
+                       use_llm: bool = False) -> tuple[str, str]:
+    """Une AUTRE légende pour le même contenu. Par défaut DÉTERMINISTE (relance choisie par le hachage de la légende +
+    trois hashtags du persona hors interdits) — écart au plan : on n'appelle un LLM, payant, que sur demande
+    (use_llm, la route passe alors par la garde des plafonds). Les interdits sont retirés dans les deux cas (limites
+    de mot, apply_forbidden). Jamais la même chaîne que l'originale. Rend (légende, moteur)."""
+    base = (caption or "").strip()
+    forbidden = forbidden or []
+    order = [p for p in _PLAN_PRIORITY if _plan_available(p)] if use_llm else []
+    if order:
+        prompt = ("Rewrite this social post so it says the same thing with a different opening and rhythm. Same "
+                  "language. One or two sentences. No hashtags. Answer with the rewrite only.\n\n" + base[:1500])
+        try:
+            posts = await _PLAN_PROVIDERS[order[0]](prompt, 1, 1, ["x"], "FR", persona)
+            neuf = ((posts or [{}])[0].get("caption") or "").strip()
+            if neuf and neuf != base:
+                out, _r = apply_forbidden([{"caption": neuf}], forbidden)
+                return out[0]["caption"], order[0]
+        except Exception as e:
+            logger.warning(f"vary_caption {order[0]}: {e}")
+    corps = apply_forbidden([{"caption": base}], forbidden)[0][0]["caption"]
+    relance = _RELANCES[sum(ord(ch) for ch in base) % len(_RELANCES)]
+    interdits = {f.lower() for f in forbidden}
+    pool = [h for h in ((persona or {}).get("default_hashtags_pool") or []) if h.lower() not in interdits]
+    tags = " ".join(pool[:3])
+    neuf = (relance + corps + (" " + tags if tags else "")).strip()
+    return (neuf if neuf != base else relance + base), "deterministic"
+
+
 # ---------------------------------------------------------------- telegram
 
 def _scrub_token(text: str) -> str:

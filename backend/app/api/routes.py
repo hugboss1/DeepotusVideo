@@ -4734,6 +4734,74 @@ async def materialize_post_series(series_id: str, body: dict):
     return res
 
 
+# plan scheduler T16 (tâche #32) : le recyclage PROPOSÉ. Une consultation ne coûte rien : la variation est
+# déterministe, sauf `llm=true`, qui passe par la garde des plafonds comme toute dépense.
+@router.get("/schedule/recycle/suggest")
+async def suggest_recycle(days: int = 90, limit: int = 5, min_age_days: int = 21, llm: bool = False):
+    """Les posts les mieux mesurés (P2), publiés il y a au moins `min_age_days`, jamais encore recyclés. Rien n'est
+    créé ici : c'est une PROPOSITION, à matérialiser par POST /schedule/recycle."""
+    from app.services import metrics_service as _ms
+    a = await _ms.analytics(max(1, min(365, days)))
+    brief = await marketing.active_brief()
+    interdits = (brief or {}).get("forbidden") or []
+    limite = _dt.utcnow() - _td(days=max(0, min_age_days))
+    async with async_session_factory() as session:
+        res = await session.execute(_select(ScheduledPost).where(ScheduledPost.recycled_from.isnot(None)))
+        deja = {p.recycled_from for p in res.scalars().all()}
+        ids = [it["id"] for it in a["items"]]
+        res = await session.execute(_select(ScheduledPost).where(ScheduledPost.id.in_(ids or ["-"])))
+        rows = {p.id: p for p in res.scalars().all()}
+    candidats, vus = [], set()
+    for it in a["items"]:                      # déjà trié par engagement
+        p = rows.get(it["id"])
+        if it["id"] in deja or it["id"] in vus or p is None or p.posted_at is None or p.posted_at > limite:
+            continue
+        vus.add(it["id"])
+        candidats.append((it, p))
+        if len(candidats) >= max(1, min(20, limit)):
+            break
+    if llm and candidats:
+        from app.services import plafonds as _PLAF
+        await _plafond(_PLAF.op_llm(600 * len(candidats), 150 * len(candidats),
+                                    (settings.PLANNER_PROVIDER or "").strip().lower() or None), "marketing")
+    out = []
+    for it, p in candidats:
+        cap, moteur = await marketing.vary_caption(p.caption or p.title or "", persona=pipeline.engine.persona,
+                                                   forbidden=interdits, use_llm=llm)
+        out.append({"source_id": p.id, "title": p.title,
+                    "channels": [c for c in (p.channels or "").split(",") if c],
+                    "format": p.format, "source_image": p.source_image, "job_id": p.job_id,
+                    "engagement": it["engagement"], "views": it["views"],
+                    "age_days": (_dt.utcnow() - p.posted_at).days, "caption": cap, "engine": moteur})
+    return {"days": days, "min_age_days": min_age_days, "suggestions": out}
+
+
+@router.post("/schedule/recycle")
+async def create_recycled_post(body: dict):
+    """Matérialise UNE proposition en BROUILLON (jamais en `scheduled` : le recyclage repasse par la validation par
+    lot, comme le reste)."""
+    body = body or {}
+    src_id = str(body.get("source_id") or "")
+    try:
+        run_at = _dt.fromisoformat(str(body.get("run_at") or "").replace("Z", ""))
+    except ValueError:
+        raise HTTPException(400, f"run_at invalide : {body.get('run_at')}")
+    async with async_session_factory() as session:
+        res = await session.execute(_select(ScheduledPost).where(ScheduledPost.id == src_id))
+        src = res.scalar_one_or_none()
+        if src is None:
+            raise HTTPException(404, "post source inconnu")
+        p = ScheduledPost(
+            id=str(uuid4()), title=f"{(src.title or 'Post')[:180]} (repost)",
+            caption=str(body.get("caption") or src.caption or "")[:4000],
+            channels=src.channels, run_at=run_at, status="draft", mode="assisted", format=src.format,
+            hook=src.hook, script_idea=src.script_idea, image_idea=src.image_idea,
+            source_image=src.source_image, job_id=src.job_id, brief=src.brief, recycled_from=src.id)
+        session.add(p)
+        await session.commit()
+        return _post_to_dict(p)
+
+
 def _sha256_size(p: Path) -> tuple[str, int]:
     h = hashlib.sha256()
     n = 0
