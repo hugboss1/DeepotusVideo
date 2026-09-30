@@ -55,6 +55,9 @@ def score_deterministe(item: dict, mots_du_brief: list[str]) -> tuple[int, str]:
           repris est un sujet qui compte ;
       +12 si l'article a un corps exploitable (au moins 40 jetons distincts) ;
       +10 de socle, pour qu'un article hors brief ne soit pas a zero.
+    Brief d'abord (decision de l'utilisateur, 30/09/2026) : quand un brief est donne et que l'article n'en porte aucun
+    mot, reprises et corps comptent pour MOITIE — mesure sur 8799 : deux reprises (+24) et un corps (+12) mettaient un
+    article hors brief devant un article du brief (+18). A egalite, `classer` fait passer l'article du brief devant.
     """
     corpus = _sans_accents(f"{item.get('title', '')} {item.get('summary', '')} {item.get('essence', '')}")
     touches = [m for m in mots_du_brief if m and m in corpus]
@@ -63,7 +66,9 @@ def score_deterministe(item: dict, mots_du_brief: list[str]) -> tuple[int, str]:
     pts_reprises = min(24, 12 * reprises)
     corps = len(set(jetons(item.get("essence") or item.get("summary") or "")))
     pts_corps = 12 if corps >= 40 else 0
-    total = min(100, 10 + pts_mots + pts_reprises + pts_corps)
+    hors_brief = bool(mots_du_brief) and not touches
+    signaux = (pts_reprises + pts_corps) // 2 if hors_brief else pts_reprises + pts_corps
+    total = min(100, 10 + pts_mots + signaux)
     bouts = []
     if touches:
         bouts.append("brief : " + ", ".join(touches[:3]))
@@ -71,6 +76,8 @@ def score_deterministe(item: dict, mots_du_brief: list[str]) -> tuple[int, str]:
         bouts.append(f"{reprises} media(s) sur le meme sujet")
     if pts_corps:
         bouts.append("article lisible")
+    if hors_brief and signaux:
+        bouts.append("hors brief : moitie des points")
     return total, " ; ".join(bouts) or "aucun signal, socle seulement"
 
 
@@ -168,6 +175,7 @@ def classer(items: list[dict], *, brief: str = "", penalites: dict | None = None
         sortie.append(copie)
     # tri stable : score decroissant, puis le plus recent d'abord
     sortie.sort(key=lambda x: str(x.get("published") or ""), reverse=True)
+    sortie.sort(key=lambda x: str(x.get("score_pourquoi") or "").startswith("brief :"), reverse=True)   # brief d'abord a egalite
     sortie.sort(key=lambda x: x["score"], reverse=True)
     for c in sortie[:EN_TETE_MAX]:
         c["en_tete"] = True
