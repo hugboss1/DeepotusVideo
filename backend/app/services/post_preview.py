@@ -267,11 +267,64 @@ def _render_telegram(caption, hero_path, display_name):
     return img
 
 
+# plan scheduler T9 (tâche #30, 30/09/2026) — aperçus des lecteurs VERTICAUX. Zones d'interface en fraction du cadre
+# 9:16 : de mémoire (03/09/2026), à corriger sur des captures d'un vrai téléphone ; le bandeau de l'aperçu le rappelle
+# (« zones indicatives »).
+SAFE_ZONES = {
+    "instagram": {"top": 0.06, "bottom": 0.17, "right": 0.12, "label": "Reels"},
+    "youtube": {"top": 0.07, "bottom": 0.15, "right": 0.12, "label": "Shorts"},
+    "tiktok": {"top": 0.08, "bottom": 0.20, "right": 0.14, "label": "TikTok"},
+}
+CANVAS = (540, 960)
+
+
+def _cover(im, w, h):
+    iw, ih = im.size
+    s = max(w / iw, h / ih)
+    im = im.resize((max(1, int(iw * s)), max(1, int(ih * s))), Image.LANCZOS)
+    x, y = (im.size[0] - w) // 2, (im.size[1] - h) // 2
+    return im.crop((x, y, x + w, y + h))
+
+
+def _render_vertical(caption, hero_path, handle, network):
+    W, H = CANVAS
+    z = SAFE_ZONES[network]
+    hero = None
+    if hero_path and Path(hero_path).is_file():
+        try:
+            hero = _cover(Image.open(hero_path).convert("RGBA"), W, H)
+        except Exception:
+            hero = None
+    img = hero or _placeholder(W, H, "Aucun visuel — rendu 9:16 attendu")
+    top, bot, right = int(H * z["top"]), int(H * z["bottom"]), int(W * z["right"])
+    ov = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(ov)
+    d.rectangle([0, 0, W, top], fill=(0, 0, 0, 130))
+    d.rectangle([0, H - bot, W, H], fill=(0, 0, 0, 160))
+    d.rectangle([W - right, top, W, H - bot], fill=(0, 0, 0, 130))
+    for y in range(top, H - bot, 18):              # hachures = masqué par l'interface du lecteur
+        d.line([(W - right, y), (W, y + 18)], fill=(244, 33, 46, 90), width=1)
+    img = Image.alpha_composite(img.convert("RGBA"), ov)
+    d = ImageDraw.Draw(img)
+    f_name, f_cap, f_small = _bold(20), _regular(19), _regular(14)
+    ef = _emoji(19)
+    white = (255, 255, 255, 255)
+    d.text((16, 12), f"{z['label']} · zones indicatives · {len(caption or '')} car.", font=f_small, fill=white)
+    d.text((16, H - bot + 12), f"@{handle}", font=f_name, fill=white)
+    y = H - bot + 42
+    for ln in _wrap(caption or "", f_cap, ef, 19, W - right - 32)[:3]:
+        _draw_line(d, 16, y, ln, f_cap, ef, white, 19)
+        y += 26
+    return img
+
+
 def render_preview(*, channel: str, caption: str, hero_path: Optional[str],
                    display_name: str = "Deepotus", handle: str = "deepotus") -> bytes:
     ch = (channel or "x").lower()
     if ch in ("telegram", "tg"):
         img = _render_telegram(caption or "", hero_path, display_name)
+    elif ch in SAFE_ZONES:
+        img = _render_vertical(caption or "", hero_path, handle, ch)
     else:
         img = _render_x(caption or "", hero_path, display_name, handle)
     buf = io.BytesIO()

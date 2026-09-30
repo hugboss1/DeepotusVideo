@@ -4551,6 +4551,10 @@ def _post_to_dict(p: ScheduledPost) -> dict:
         "source_image": p.source_image,
         # plan scheduler T2 (tâche #24) : l'id distant par canal ; illisible = None, jamais un 500
         "remote_ids": _remote_ids(p),
+        # plan scheduler T10 (tâche #30) : validation par lot, fils, séries, recyclage, qui a publié
+        "validated_at": (p.validated_at.isoformat() + "Z") if getattr(p, "validated_at", None) else None,
+        "thread_of": p.thread_of, "thread_index": p.thread_index, "series_id": p.series_id,
+        "recycled_from": p.recycled_from, "published_by": p.published_by,
     }
 
 
@@ -4625,6 +4629,9 @@ async def update_scheduled_post(post_id: str, body: dict):
         p = res.scalar_one_or_none()
         if not p:
             raise HTTPException(404, "Post not found")
+        # plan scheduler T10 (tâche #30) : l'empreinte du CONTENU avant modification — seule une valeur qui change
+        # vraiment dévalide (un formulaire renvoyé tel quel, ou un statut seul, ne casse pas la validation)
+        avant = (p.title, p.caption, p.channels, p.run_at, p.job_id, p.source_image, p.brief)
         if "title" in body:
             p.title = (body["title"] or "")[:200]
         if "caption" in body:
@@ -4652,9 +4659,38 @@ async def update_scheduled_post(post_id: str, body: dict):
             p.brief = (json.dumps(body["brief"], ensure_ascii=False)
                        if isinstance(body["brief"], dict) and body["brief"]
                        else None)
+        if p.validated_at and avant != (p.title, p.caption, p.channels, p.run_at, p.job_id, p.source_image, p.brief):
+            p.validated_at, p.mode, p.status = None, "assisted", "draft"
         await session.commit()
         await session.refresh(p)
         return _post_to_dict(p)
+
+
+@router.post("/schedule/validate")
+async def validate_lot(body: dict):
+    """Plan scheduler T10 (tâche #30) — valide un LOT : les posts draft/scheduled de la fenêtre [from, to] (UTC ISO ;
+    défaut = maintenant → +7 j) ou du `plan_id` passent scheduled + auto + validated_at. Un post SANS média (ni job_id
+    ni source_image) est ignoré et nommé : l'automatique n'envoie pas de texte nu."""
+    body = body or {}
+    try:
+        lo = _dt.fromisoformat(str(body["from"]).replace("Z", "")) if body.get("from") else _dt.utcnow()
+        hi = _dt.fromisoformat(str(body["to"]).replace("Z", "")) if body.get("to") else lo + _td(days=7)
+    except ValueError:
+        raise HTTPException(400, "from/to : ISO UTC attendu")
+    plan_id = body.get("plan_id")
+    validated, skipped = [], []
+    async with async_session_factory() as session:
+        q = _select(ScheduledPost).where(ScheduledPost.status.in_(("draft", "scheduled")))
+        q = (q.where(ScheduledPost.plan_id == plan_id) if plan_id
+             else q.where(ScheduledPost.run_at >= lo).where(ScheduledPost.run_at <= hi))
+        for p in (await session.execute(q.order_by(ScheduledPost.run_at))).scalars().all():
+            if not (p.job_id or p.source_image):
+                skipped.append({"id": p.id, "title": p.title, "reason": "sans média"})
+                continue
+            p.status, p.mode, p.validated_at = "scheduled", "auto", _dt.utcnow()
+            validated.append(p.id)
+        await session.commit()
+    return {"validated": validated, "skipped": skipped}
 
 
 @router.delete("/schedule/{post_id}")
@@ -4727,6 +4763,27 @@ async def schedule_analytics_refresh():
     """Passe manuelle, rationnée comme la quotidienne (10 posts par canal, budget mensuel de lectures X)."""
     from app.services import metrics_service as _ms
     return await _ms.refresh_all(max_per_channel=10)
+
+
+# plan scheduler T8 (tâche #30, 30/09/2026) : les créneaux par canal (heures LOCALES, fuseau du navigateur)
+@router.get("/schedule/slots")
+async def get_slots():
+    from app.services import schedule_slots as _sl
+    return _sl.load()
+
+
+@router.put("/schedule/slots")
+async def put_slots(body: dict):
+    from app.services import schedule_slots as _sl
+    return _sl.save(body or {})
+
+
+@router.get("/schedule/slots/suggest")
+async def suggest_slots(days: int = 56, tz_offset_minutes: int | None = None):
+    from app.services import metrics_service as _ms, schedule_slots as _sl
+    a = await _ms.analytics(max(1, min(365, days)))
+    tz = _sl.tz_offset() if tz_offset_minutes is None else tz_offset_minutes
+    return {"suggested": _sl.suggest(a["items"], tz), "slots": _sl.load()}
 
 
 @router.get("/schedule/{post_id}/preview.png")
@@ -5081,6 +5138,10 @@ async def marketing_plan(body: dict):
         language=body.get("language") or "EN",
         persona=body.get("persona"),
     )
+    # plan scheduler T8 (tâche #30) : les heures du plan suivent les créneaux du canal (use_slots=false les garde)
+    if body.get("use_slots", True):
+        from app.services import schedule_slots as _sl
+        _sl.assign(plan["posts"])
     materialized: list[str] = []
     if body.get("auto_materialize"):
         start = body.get("start_date") or _dt.now().strftime("%Y-%m-%d")

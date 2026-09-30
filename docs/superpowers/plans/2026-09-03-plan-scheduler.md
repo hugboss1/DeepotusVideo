@@ -1832,6 +1832,8 @@ git add backend/app/services/metrics_service.py backend/app/services/marketing.p
 git commit -m 'scheduler : metriques par canal et tableau de bord' -m 'Table post_metrics alimentée par un fetcher par canal (X rationné à 10 posts par passe, Telegram dit sans métriques), agrégats par canal, format et semaine ISO, top et quotas ; passe quotidienne de la boucle et passe manuelle.' -m 'Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>'
 ```
 
+> **T8 EXÉCUTÉE le 30/09/2026** (tâche #30 du suivi, branche `chantier/p3-scheduler-creneaux`). Écarts datés : un fichier illisible rend les défauts (pas d'exception) ; `/schedule/slots/suggest` prend le fuseau ENREGISTRÉ par défaut ; un canal sans créneau retombe sur SES défauts avant ceux de X. Banc `test_scheduler_slots` 17/0 (dont « chaque jour repart du premier créneau » et « la moyenne décide, pas la somme », ajoutés après deux mutants survivants).
+
 ### Tâche 8 : créneaux par canal et horaire proposé (P3)
 
 **Files :**
@@ -2000,6 +2002,8 @@ git add backend/app/services/schedule_slots.py backend/app/api/routes.py backend
 git commit -m 'scheduler : creneaux par canal et horaire propose par les metriques' -m 'slots.json sous DATA_ROOT (défauts du skill deepotus-comms), affectation des heures du plan par canal, proposition d horaire quand cinq posts au moins sont mesurés.' -m 'Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>'
 ```
 
+> **T9 EXÉCUTÉE le 30/09/2026** (tâche #30). Écarts datés : le bandeau dit « zones indicatives » (fractions de mémoire, à corriger sur captures réelles) ; les hachures ne couvrent que le rail, pas les bandes. Banc `test_scheduler_preview` 12/0 (lit les pixels ; un visuel paysage aux bords rouges PLEINS prouve le recadrage, la légende est mesurée sous le @compte).
+
 ### Tâche 9 : aperçus Reels, Shorts, TikTok avec zones sûres (P4)
 
 **Files :**
@@ -2129,6 +2133,8 @@ def _render_vertical(caption, hero_path, handle, network):
 git add backend/app/services/post_preview.py backend/tests/test_scheduler_preview.py
 git commit -m 'scheduler : apercus Reels, Shorts et TikTok a zones sures' -m 'Rendu vertical 540×960 par Pillow : rail droit, bande haute et bande basse assombris et hachurés, légende dans la bande ; fractions dites de mémoire, à corriger sur captures réelles ; le banc lit les pixels.' -m 'Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>'
 ```
+
+> **T10 EXÉCUTÉE le 30/09/2026** (tâche #30). Écarts datés : (1) le PATCH ne dévalide que si le contenu CHANGE vraiment (empreinte avant/après) — le plan dévalidait dès qu'un champ figurait dans la requête, même inchangé (un écran qui renvoie tout le formulaire aurait cassé chaque validation) ; (2) `timedelta` s'écrit `_td` dans `routes.py` ; (3) le banc tourne dans UNE boucle asynchrone (ASGITransport, sans lifespan) : `asyncio.run(tick())` sous un TestClient mêlerait deux boucles sur le même moteur SQLAlchemy. Banc `test_scheduler_validate` 14/0. Campagne sur T8-T10 : 23/23 mutations rouges.
 
 ### Tâche 10 : validation par lot (P5) et `tick()` de la boucle
 
