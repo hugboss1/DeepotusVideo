@@ -7365,7 +7365,7 @@ A_P3NR4 = 'if(sort==="relevance")shown=shown.slice().sort((a,b)=>(b.summary||"")
 R_P3NR4 = ('if(sort==="relevance"&&ranked&&ranked.items){var ord={},sc={};ranked.items.forEach(function(z,ix){ord[z.id]=ix;sc[z.id]=z});'
            'shown=shown.filter(function(z){return ord[z.id]!=null}).sort(function(a,b){return ord[a.id]-ord[b.id]})'
            '.map(function(z){var m=sc[z.id];return Object.assign({},z,{score:m.score,score_pourquoi:m.score_pourquoi,'
-           'score_origine:m.score_origine,en_tete:m.en_tete,deja_couvert:m.deja_couvert})});if(plie)shown=shown.filter(function(z){return z.en_tete})}')
+           'score_origine:m.score_origine,en_tete:m.en_tete,deja_couvert:m.deja_couvert,tendance:m.tendance,tendance_sources:m.tendance_sources})});if(plie)shown=shown.filter(function(z){return z.en_tete})}')
 A_P3NR5 = 'const[sort,setSort]=x.useState("recent");'
 R_P3NR5 = 'const[sort,setSort]=x.useState("relevance");'
 A_P3NR6 = 'fontWeight:500,marginBottom:4},children:i.title})'
@@ -7376,6 +7376,9 @@ R_P3NR6 = (A_P3NR6 + ',i.score!=null?r.jsxs("div",{title:i.score_origine==="dete
            'r.jsx("span",{style:{color:"var(--ink-soft)"},children:i.score_pourquoi}),i.score_origine!=="deterministe"?'
            'r.jsx("span",{style:{color:"var(--violet)"},children:"IA · "+i.score_origine}):null,'
            # tache #34 (T8) : le sujet deja couvert est MONTRE en ambre, pas cache - a l'utilisateur de trancher
+           # tache #35 (T14) : la tendance, cite par au moins trois medias le meme jour
+           'i.tendance?r.jsx("span",{title:"Cité par "+i.tendance_sources+" médias distincts le même jour",'
+           'style:{color:"var(--green)"},children:"tendance · "+i.tendance_sources}):null,'
            'i.deja_couvert?r.jsx("span",{title:"Sujet proche d’un reel déjà lancé : "+i.deja_couvert,'
            'style:{color:"var(--amber)"},children:"déjà couvert"}):null]}):null')
 A_P3NR7 = 'function payload(){return chosen().map(i=>({title:i.title,summary:i.summary,source_name:i.source,link:i.link}))}'
@@ -7423,6 +7426,69 @@ P1 += [("P3nr1-ponts-news-avant-pm", A_P3NR1, R_P3NR1),
        ("P3nr9-libelle-score-du-jour", A_P3NR9, R_P3NR9),
        ("P3nr10-brief-et-filtre-a-la-place-du-style-mort", A_P3NR10, R_P3NR10)]
 assert len(P1) == 68 and all("\n" not in r and "\r" not in r for _t, _a, r in P1[-10:])
+# P3nc1..P3nc5 (tache #35 PR 3/3, plan news T15, 30/09/2026) -- LA CHAINE DU JOUR A L'ECRAN. Ecarts au plan du 03/09 :
+# (1) un GROUPE du maillon montage, pas de patcher `newschain` ; (2) la chaine vit dans un PANNEAU DOM (les aides du
+# Scheduler, __dzSchedPanel/Champ/Btn/Out/Api, sont reutilisees) : Preparer (gratuit), Polir avec l'IA (payant, garde ;
+# un 402 annule garde le brouillon), Programmer le lot (post + reel cartes), Signal X (sur clic, quota) ; (3) « Send to
+# Studio » reste — « Chaine du jour » s'ajoute a cote ; (4) la voix « Auto (selon le sujet) » devient le defaut et
+# n'envoie pas de voice_mode (le serveur choisit, gratuit) ; le motif du choix s'affiche sous le script ; (5) la
+# tendance (T14) s'affiche sur la carte, recopiee du classement par P3nr4 et montree par P3nr6.
+A_P3NC1 = "async function dzDelTemplate(id,nm,refresh,selId,setSel){"
+R_P3NC1 = ('function __dzNewsSel(d,lbl,opts,val,titre){var r=document.createElement("div");r.style.cssText="display:flex;gap:8px;align-items:center;padding:3px 0";'
+           'var l=document.createElement("span");l.textContent=lbl;l.style.cssText="width:190px;opacity:.8";var s=document.createElement("select");s.title=titre;'
+           's.style.cssText="flex:1;min-width:0;background:var(--bg-base,#0b0e12);border:1px solid var(--stroke,#20262d);border-radius:6px;color:var(--ink,#cfd6dd);padding:5px 8px;font-size:12px";'
+           'opts.forEach(function(o){var e=document.createElement("option");e.value=o[0];e.textContent=o[1];s.appendChild(e)});s.value=val;r.appendChild(l);r.appendChild(s);d.appendChild(r);return s}'
+           'function __dzNewsChaine(brief){var d=__dzSchedPanel("Cha\u00eene du jour");'
+           '__dzSchedTexte(d,"Pr\u00e9pare le lot gratuitement : articles class\u00e9s, brouillon de script, l\u00e9gende avec ses sources, cr\u00e9neau du Scheduler. Rien n\u2019est \u00e9crit ni d\u00e9pens\u00e9 avant \u00ab Programmer \u00bb. Le reel \u00ab cartes \u00bb est rendu localement (gratuit) ; les autres formes sont chiffr\u00e9es, \u00e0 lancer \u00e0 la main.");'
+           'var fo=__dzNewsSel(d,"Forme",[["cartes","Cartes anim\u00e9es (gratuit)"]],"cartes","Forme du reel : son co\u00fbt s\u2019affiche avant tout tir");'
+           '__dzSchedApi("GET","/news/forms").then(function(j){fo.textContent="";(j.forms||[]).forEach(function(f){var e=document.createElement("option");e.value=f.id;'
+           'e.textContent=f.label+(f.disponible?"":" (cl\u00e9 absente)");fo.appendChild(e)});fo.value="cartes"}).catch(function(){});'
+           'var na=__dzNewsSel(d,"Articles",[["1","1"],["2","2"],["3","3"],["4","4"],["5","5"]],"3","Nombre d\u2019articles du lot");'
+           'var ca=__dzSchedChamp(d,"Canaux (virgules)","x");var zone=document.createElement("div");d.appendChild(zone);var o=__dzSchedOut();'
+           'var lot=null,sc=null,cap=null,cr=null;var dire=function(m){o.textContent=m};'
+           'var bPrep=__dzSchedBtn("Pr\u00e9parer (gratuit)","Assembler le lot du jour sans aucun appel payant",function(){dire("Pr\u00e9paration\u2026");zone.textContent="";'
+           '__dzSchedApi("POST","/news/chain/preview",{brief:brief||"",forme:fo.value,articles_max:parseInt(na.value,10)||3,language:"EN",canal:(ca.value.split(",")[0]||"x").trim()||"x"}).then(function(j){lot=j;'
+           'var pa=__dzSchedOut();pa.textContent="Articles :\\n"+(j.articles||[]).map(function(a){return(a.en_tete?"\u2605 ":"")+(a.score!=null?a.score+"/100 ":"")+a.title'
+           '+(a.tendance?" \u2014 tendance ("+a.tendance_sources+" m\u00e9dias)":"")+(a.deja_couvert?" \u2014 d\u00e9j\u00e0 couvert":"")}).join("\\n");zone.appendChild(pa);'
+           'sc=__dzSchedChamp(zone,"Script (brouillon)",j.script,!0);cap=__dzSchedChamp(zone,"L\u00e9gende",j.caption,!0);cr=__dzSchedChamp(zone,"Cr\u00e9neau (ISO, UTC)",j.creneau);'
+           'var c=j.cout||{},t=Number(c.total_usd||0);dire("Voix : "+j.voice_mode+" \u2014 "+j.voice_mode_reason+"\\nCo\u00fbt de la forme \u00ab "+j.forme+" \u00bb : "+t.toFixed(2)+" $"'
+           '+(t>0?" (\u00e0 lancer \u00e0 la main ; le post du lot re\u00e7oit le reel cartes, gratuit)":" (rendu local)"));bPol.style.display="";bProg.style.display="";bProg.disabled=!1})'
+           '.catch(function(e){dire("\u00c9chec : "+e.message)})});'
+           'var bPol=__dzSchedBtn("Polir avec l\u2019IA","Polir ce script par l\u2019IA : payant, sous le plafond de d\u00e9pense (si vous annulez, le brouillon reste)",function(){if(!sc)return;'
+           'dire("Polissage\u2026");fetch("/api/news/chain/polish",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({script:sc.value,'
+           'voice_mode:lot&&lot.voice_mode||null,language:"EN"})}).then(function(R){if(R.status===402){dire("Polissage annul\u00e9 (plafond de d\u00e9pense) : le brouillon est gard\u00e9.");return null}'
+           'return R.json().then(function(j){if(!R.ok)throw new Error(j&&j.detail||R.status);return j})}).then(function(j){if(!j)return;if(j.poli){sc.value=j.script;lot.poli=!0;'
+           'dire("Script poli ("+j.fournisseur+").")}else dire(j.motif||"Rien n\u2019a \u00e9t\u00e9 poli.")}).catch(function(e){dire("\u00c9chec : "+e.message)})});'
+           'var bProg=__dzSchedBtn("Programmer le lot","Programmer un post avec ce script et cette l\u00e9gende ; son reel cartes se rend localement (gratuit)",function(){if(!lot)return;'
+           'var L=Object.assign({},lot,{script:sc.value,caption:cap.value,creneau:cr.value});var chs=ca.value.split(",").map(function(x){return x.trim()}).filter(Boolean);'
+           'dire("Programmation\u2026");__dzSchedApi("POST","/news/chain/commit",{lot:L,channels:chs.length?chs:["x"],mode:"assisted"}).then(function(j){'
+           'dire("Programm\u00e9 : post "+String(j.post_id).slice(0,8)+" \u2014 "+j.message);bProg.disabled=!0;__dzSchedRecharger()}).catch(function(e){dire("\u00c9chec : "+e.message)})});'
+           'var bX=__dzSchedBtn("Signal X","Une recherche X sur le brief : 3 par jour, compt\u00e9e dans le quota x_lecture",function(){var q=(brief||"").trim();'
+           'if(!q){dire("Saisissez d\u2019abord un brief : la recherche X porte sur lui.");return}dire("Lecture X\u2026");'
+           '__dzSchedApi("GET","/news/trends?x_query="+encodeURIComponent(q)).then(function(j){var x=j.x||{};dire(x.posts==null?"Signal X : "+x.motif:'
+           '"Signal X : "+x.posts+" posts r\u00e9cents sur \u00ab "+q+" \u00bb \u2014 quota "+x.quota+", encore "+x.restant_jour+" aujourd\u2019hui")}).catch(function(e){dire("\u00c9chec : "+e.message)})});'
+           'bPol.style.display="none";bProg.style.display="none";[bPrep,bPol,bProg,bX].forEach(function(b){d.appendChild(b)});d.appendChild(o)}'
+           + A_P3NC1)
+A_P3NC2 = '{value:"oracle",label:"Oracle (smooth)"}'
+R_P3NC2 = '{value:"auto",label:"Auto (selon le sujet)"},' + A_P3NC2
+A_P3NC3 = 'const[voice,setVoice]=x.useState("oracle");'
+R_P3NC3 = 'const[voice,setVoice]=x.useState("auto");'
+A_P3NC4 = 'voice_mode:voice,language:"EN"'
+R_P3NC4 = 'voice_mode:voice==="auto"?void 0:voice,language:"EN"'
+A_P3NC5 = 'r.jsx(K,{variant:"violet",size:"md",icon:"flow",onClick:()=>Go&&Go("studio"),children:"Send to Studio"})'
+R_P3NC5 = (A_P3NC5 + ',r.jsx(K,{variant:"outline",size:"md",icon:"send",title:"Pr\u00e9parer le lot du jour (gratuit), le polir si besoin, '
+           'le programmer avec son reel cartes",onClick:function(){__dzNewsChaine(brief)},children:"Cha\u00eene du jour"})')
+A_P3NC6 = ('script.suggested_caption?r.jsx("div",{style:{marginTop:8,fontSize:11,color:"var(--violet)",fontStyle:"italic"},'
+           'children:script.suggested_caption}):null')
+R_P3NC6 = (A_P3NC6 + ',script.voice_mode_auto?r.jsx("div",{style:{marginTop:6,fontSize:10.5,color:"var(--ink-soft)"},'
+           'children:"Voix : "+script.voice_mode_auto+" \u2014 "+(script.voice_mode_reason||"")}):null')
+P1 += [("P3nc1-panneau-chaine-du-jour-avant-dzdeltemplate", A_P3NC1, R_P3NC1),
+       ("P3nc2-voix-auto-dans-le-selecteur", A_P3NC2, R_P3NC2),
+       ("P3nc3-voix-auto-par-defaut", A_P3NC3, R_P3NC3),
+       ("P3nc4-voix-auto-non-envoyee", A_P3NC4, R_P3NC4),
+       ("P3nc5-bouton-chaine-du-jour", A_P3NC5, R_P3NC5),
+       ("P3nc6-motif-de-la-voix-sous-le-script", A_P3NC6, R_P3NC6)]
+assert len(P1) == 74 and all("\n" not in r and "\r" not in r for _t, _a, r in P1[-6:])
 
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
@@ -7691,6 +7757,7 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            # + P3sc7 (tache #32 PR4, la suite de fil dans l'inspecteur) : 286, le --check dit 287.
            # + P3sc8 (tache #32 PR4, le Scheduler recharge sa liste) : 287, le --check dit 288.
            # + P3nr1..P3nr10 (tache #33 PR2, l'ecran News trie par le score) : 297, le --check dit 298.
+           # + P3nc1..P3nc6 (tache #35 PR3, la chaine du jour a l'ecran) : 303, le --check dit 304.
            # studio 27/09 : + HUIT sections EN QUEUE, groupe R8 apres R7 (format HeyGen impose par le template, « Ouvrir un graphe » en icone,
            # repli de l'inspecteur) ; 213 -> 221, le --check dit 222 ancres ; + R8sv1 (Save par le dialogue maison) : 222, le --check dit 223 ;
            # + R8pr1..R8pr7 (les autres window.prompt natifs, 27/09) : 229, le --check dit 230.
