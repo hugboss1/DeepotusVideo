@@ -50,7 +50,10 @@ check("A6 « Score du jour » remplace « By relevance » et devient le tri par 
 check("A7 le select de style mort est retire DES DEUX COTES (etat et JSX)", "sty" not in pm.replace("style", "").replace("Sty", "")
       and "setSty" not in pm and '["deep-sea","cinematic","glitch","documentary"]' not in pm)
 check("A8 les items gardent published et doublons ; payload emporte id et published",
-      'published:z.published||"",doublons:z.doublons||[]' in pm and 'link:i.link,id:i.id,published:i.published||""}))}' in pm)
+      'published:z.published||"",doublons:z.doublons||[]' in pm and 'link:i.link,id:i.id,source_id:i.source_id||"",published:i.published||""}))}' in pm)
+check("A16 (tache #34) le sujet deja couvert est recopie du classement et montre en ambre, avec son titre au survol",
+      'en_tete:m.en_tete,deja_couvert:m.deja_couvert})' in pm and 'i.deja_couvert?r.jsx("span",{title:"Sujet proche d\u2019un reel d\u00e9j\u00e0 lanc\u00e9 : "+i.deja_couvert,' in pm
+      and 'children:"d\u00e9j\u00e0 couvert"' in pm)
 check("A9 la carte montre score, motif, etoile de tete et origine IA", 'children:i.score_pourquoi' in pm
       and '(i.en_tete?"★ ":"")+i.score+"/100"' in pm and '"IA · "+i.score_origine' in pm)
 check("A10 les ecartes : puce comptee, motifs au survol (span porteur du title : `te` ne le transmet pas)",
