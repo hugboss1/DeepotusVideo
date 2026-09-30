@@ -148,5 +148,42 @@ with TestClient(app, client=("127.0.0.1", 50000)) as c:
     if M.chemin_couverture().is_file():
         M.chemin_couverture().unlink()
 
+print("\n[F] formes, tendances et signal X (T11, T14, tache #35)")
+from app.config import settings                                     # noqa: E402
+from app.services import news_trends as NT                           # noqa: E402
+with TestClient(app, client=("127.0.0.1", 50000)) as c:
+    f = c.get("/api/news/forms").json().get("forms", [])
+    check("F1 GET /news/forms : cinq formes, chacune dit si elle est payante et disponible",
+          len(f) == 5 and f[0]["id"] == "cartes" and f[0]["disponible"] is True and all("payant" in x and "disponible" in x for x in f), str(f)[:200])
+    r = c.post("/api/news/forms/estimate", json={"forme": "illustration_ia", "items": [ARTICLES[0]], "options": {"model": "flux"}})
+    check("F2 devis d'une forme payante : 200 et un total > 0", r.status_code == 200 and r.json()["total_usd"] > 0, r.text[:200])
+    r = c.post("/api/news/forms/estimate", json={"forme": "cartes", "items": [ARTICLES[0]]})
+    check("F3 devis des cartes : 0 $", r.status_code == 200 and r.json()["total_usd"] == 0, r.text[:200])
+    r = c.post("/api/news/forms/estimate", json={"forme": "hologramme", "items": [ARTICLES[0]]})
+    check("F4 forme inconnue : 400 motive", r.status_code == 400 and "hologramme" in r.text, r.text[:200])
+    check("F5 selection vide : 422", c.post("/api/news/forms/estimate", json={"forme": "cartes", "items": []}).status_code == 422)
+    fondu = dict(ARTICLES[0], doublons=[{"source_name": "Decrypt"}, {"source_name": "The Block"}])
+    _poser_cache([fondu, ARTICLES[1]])
+    c.put("/api/news/filter", json={"mots_cles": [], "sources_noires": [], "mots_noirs": [], "fraicheur_h": 24 * 30})
+    j = {i["id"]: i for i in c.post("/api/news/rank", json={"brief": ""}).json()["items"]}
+    check("F6 le classement porte la tendance : a1 (3 medias fondus) oui, a2 non", j["a1"]["tendance"] is True
+          and j["a1"]["tendance_sources"] == 3 and j["a2"]["tendance"] is False, str(j.get("a1"))[:200])
+    lus = []
+    NT._lire_x = lambda q: (lus.append(q), {"posts": 10})[1]
+    r = c.get("/api/news/trends").json()
+    check("F7 GET /news/trends sans requete : tendances locales, AUCUNE lecture X", r["x"] is None and lus == []
+          and [t["id"] for t in r["tendances"]] == ["a1"], str(r))
+    cles = (settings.X_API_KEY, settings.X_API_SECRET, settings.X_ACCESS_TOKEN, settings.X_ACCESS_SECRET)
+    settings.X_API_KEY = settings.X_API_SECRET = settings.X_ACCESS_TOKEN = settings.X_ACCESS_SECRET = ""
+    r = c.get("/api/news/trends?x_query=solana").json()
+    check("F8 sans cle X : refus lisible, aucune lecture", r["x"]["posts"] is None and "cle X" in r["x"]["motif"] and lus == [], str(r["x"]))
+    settings.X_API_KEY = settings.X_API_SECRET = settings.X_ACCESS_TOKEN = settings.X_ACCESS_SECRET = "k"
+    r = c.get("/api/news/trends?x_query=solana").json()
+    check("F9 avec cle : une lecture, comptee", r["x"]["posts"] == 10 and lus == ["solana"], str(r["x"]))
+    settings.X_API_KEY, settings.X_API_SECRET, settings.X_ACCESS_TOKEN, settings.X_ACCESS_SECRET = cles
+with TestClient(app, client=("203.0.113.9", 50000)) as c2:
+    check("F10 hors de la machine : la lecture X est refusee (403), la tendance locale reste lisible",
+          c2.get("/api/news/trends?x_query=solana").status_code == 403 and c2.get("/api/news/trends").status_code == 200 and lus == ["solana"])
+
 print(f"\n{ok} ok, {fail} echec(s)")
 raise SystemExit(1 if fail else 0)

@@ -640,12 +640,28 @@ class NewsRankedItem(BaseModel):
     en_tete: bool = False
     doublons: List[dict] = []
     deja_couvert: Optional[str] = None          # T8 (tâche #34) : le sujet déjà couvert dont l'article est proche
+    tendance: bool = False                      # T14 (tâche #35) : cité par au moins trois médias le même jour
+    tendance_sources: int = 0
 
 
 class NewsDropped(BaseModel):
     id: str
     title: str = ""
     motif: str = ""
+
+
+class NewsFormEstimateRequest(BaseModel):   # plan News T11 (tâche #35) : le coût d'une forme AVANT tir
+    forme: str = Field(..., max_length=40)
+    items: List[NewsScriptItem] = Field(..., min_length=1, max_length=40)
+    options: dict = {}
+
+
+class NewsFormEstimateResponse(BaseModel):
+    forme: str
+    breakdown: List[dict] = []
+    total_usd: float = 0.0
+    credits: dict = {}
+    detail: dict = {}
 
 
 class NewsRankResponse(BaseModel):
