@@ -88,6 +88,12 @@ async def main():
         attendus = [h for h in persona_pool if h.lower() != "#1000x"][:3]
         check("1.5 les trois premiers hashtags du persona sont ajoutés, hors interdits (#1000x du pool écarté)",
               attendus and all(h in cap for h in attendus) and "#1000x" in persona_pool, f"{cap} / {attendus}")
+        v1, _m1 = await marketing.vary_caption("Un texte", persona={"default_hashtags_pool": ["#1000x", "#A", "#B", "#C"]},
+                                              forbidden=["#1000X"])
+        check("1.5b un hashtag interdit du persona n'est JAMAIS ajouté, même en tête du pool (casse ignorée)",
+              "#1000x" not in v1 and v1.endswith("#A #B #C"), v1)
+        v2, _m2 = await marketing.vary_caption("Texte simple", persona={}, forbidden=[])
+        check("1.5c sans interdit ni hashtag, la légende change quand même (la relance)", v2 != "Texte simple" and v2.endswith("Texte simple"), v2)
         r2 = (await c.get("/api/schedule/recycle/suggest", params={"days": 90, "limit": 1})).json()
         check("1.6 limit respecté", len(r2["suggestions"]) == 1)
 
