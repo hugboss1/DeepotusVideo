@@ -56,6 +56,8 @@ from app.models.schemas import (
     NewsRankedItem,
     NewsDropped,
     NewsRankResponse,
+    NewsFormEstimateRequest,
+    NewsFormEstimateResponse,
     VoiceMode,
 )
 from app.services.pipeline import Pipeline
@@ -2034,13 +2036,14 @@ async def rank_news(request: NewsRankRequest):
     — décision de l'utilisateur du 30/09 : sur demande seulement — passe D'ABORD par la garde des plafonds, et
     seulement s'il reste un article à noter : aucun appel payant sur un article que le filtre a écarté (P1).
     La réponse dit aussi ce qui est tombé et pourquoi."""
-    from app.services import news_filter, news_memory, news_rank
+    from app.services import news_filter, news_memory, news_rank, news_trends
     cache = news_service.get_items()
     bruts = cache.get("items") or []
     gardes, motifs = news_filter.filtrer(bruts, news_filter.lire_reglages())
     # T8 (tâche #34) : la marque « déjà couvert » et le malus de source sont posés AVANT le score, pour que le malus
     # entre dans le nombre affiché et que son motif soit lisible dans la même phrase.
     gardes = news_memory.marquer(gardes)
+    gardes = news_trends.marquer_tendances(gardes)   # T14 (tâche #35) : local et gratuit
     penalites = news_memory.penalites_de_source()
     if request.llm and gardes:
         from app.services import plafonds as _PLAF
@@ -2057,6 +2060,42 @@ async def rank_news(request: NewsRankRequest):
         compte={"lus": len(bruts), "gardes": len(classes), "ecartes": len(ecartes)},
         fetched_at=cache.get("fetched_at"),
     )
+
+
+# plan News T11 et T14 (tâche #35, 30/09/2026) : les formes de reel chiffrées avant tir, et les tendances.
+@router.get("/news/forms")
+async def list_news_forms():
+    """Les formes de reel, leur caractère payant et leur disponibilité réelle (clé du fournisseur)."""
+    from app.services import news_forms
+    return {"forms": [dict(f, disponible=news_forms.disponible(f["id"])) for f in news_forms.catalogue()]}
+
+
+@router.post("/news/forms/estimate", response_model=NewsFormEstimateResponse)
+async def estimate_news_form(request: NewsFormEstimateRequest):
+    """Le coût d'une forme AVANT tir. Rien n'est généré ici. Un refus dit lequel des deux motifs."""
+    from app.services import news_forms
+    try:
+        devis = news_forms.estimer(request.forme, [i.model_dump() for i in request.items], request.options)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return NewsFormEstimateResponse(**{k: devis.get(k) for k in NewsFormEstimateResponse.model_fields
+                                       if devis.get(k) is not None})
+
+
+@router.get("/news/trends")
+async def news_trends_route(request: Request, x_query: str = ""):
+    """Les tendances du cache (locales, gratuites). `x_query` ajoute UNE recherche X — seulement sur demande,
+    bornée (trois par jour, quota x_lecture, jamais sans clé X) et réservée à la boucle locale."""
+    from app.services import news_trends
+    items = news_trends.marquer_tendances(news_service.get_items().get("items") or [])
+    chauds = [{"id": i.get("id"), "title": i.get("title"), "sources": i["tendance_sources"]}
+              for i in items if i["tendance"]]
+    out = {"tendances": chauds, "x": None}
+    q = (x_query or "").strip()[:200]
+    if q:
+        _require_localhost(request)          # une lecture X consomme un quota : jamais depuis hors de la machine
+        out["x"] = await asyncio.to_thread(news_trends.signal_x, q)
+    return out
 
 
 @router.post("/news/script", response_model=NewsScriptResponse)
