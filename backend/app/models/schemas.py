@@ -178,6 +178,8 @@ class GenerateRequest(BaseModel):
     voice_mode: Optional[VoiceMode] = Field(None, description="Brand voice mode: oracle/alpha/zen/memer")
     # Studio node graph that produced this render (for "Reopen in Studio").
     source_graph: Optional[dict] = None
+    # P1 (plan Quick T1, tâche #48) — recette Quick (JSON de l'écran) pour « Rouvrir dans Quick ».
+    quick_recipe: Optional[dict] = None
     # Optional looped background music: {"file": <name in audio dir>, "volume_db": -14}
     music: Optional[dict] = None
     # Optional pre-generated voice-over (Studio Voiceover node), mixed over
@@ -248,6 +250,8 @@ class GenerateHeyGenRequest(BaseModel):
     custom_caption: Optional[str] = None
     # Studio node graph that produced this render (for "Reopen in Studio").
     source_graph: Optional[dict] = None
+    # P1 (plan Quick T1, tâche #48) — recette Quick (JSON de l'écran) pour « Rouvrir dans Quick ».
+    quick_recipe: Optional[dict] = None
     # Optional looped background music: {"file": <name in audio dir>, "volume_db": -14}
     music: Optional[dict] = None
     # Optional pre-generated voice-over (Studio Voiceover node), mixed with
@@ -327,6 +331,8 @@ class CompositionRequest(BaseModel):
     # Garde de coût (retours-ia F3) : plafond client pour toute la
     # composition (Seedance + HeyGen) ; `seedance.max_usd` compte aussi.
     max_usd: Optional[float] = None  # validé par la route (_garde_cout)
+    # P1 (plan Quick T1, tâche #48) — recette Quick (JSON de l'écran) pour « Rouvrir dans Quick ».
+    quick_recipe: Optional[dict] = None
 
 
 class CompositionResponse(BaseModel):
