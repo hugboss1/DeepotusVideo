@@ -52,6 +52,7 @@ PAYANTES = {
     ("dictation", "POST", "/dictation"), ("montage", "POST", "/autoclips"), ("capture", "POST", "/rembg"),
     ("face", "POST", "/serie/generer"), ("forge3d", "POST", "/mesh3d/{nid}"),
     ("routes", "POST", "/news/rank"),   # tâche #33 : le score LLM sur demande
+    ("routes", "POST", "/news/chain/polish"),   # tâche #35 : le polissage LLM d'un script du lot
 }
 
 

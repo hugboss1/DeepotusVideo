@@ -29,6 +29,7 @@ PUITS = {
     "generate_plan", "plan_from_document", "_ai_scenes", "_ai_shots", "summarize_items", "build_news_script",
     "tirer", "translate", "identite", "enrich_items",
     "classer",   # news_rank.classer(llm=True) -> _chat_dispatch (tâche #33)
+    "polir",     # news_chain.polir -> rewrite_script, le polissage LLM (tâche #35)
     # voix / son
     "generate_music", "generate_sfx", "_generate_scene_vo", "generate_long", "generate_sprites",
     # transcription

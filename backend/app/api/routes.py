@@ -58,6 +58,12 @@ from app.models.schemas import (
     NewsRankResponse,
     NewsFormEstimateRequest,
     NewsFormEstimateResponse,
+    NewsChainRequest,
+    NewsChainLot,
+    NewsChainCommitRequest,
+    NewsChainCommitResponse,
+    NewsChainPolishRequest,
+    NewsScriptItem,
     VoiceMode,
 )
 from app.services.pipeline import Pipeline
@@ -2080,6 +2086,55 @@ async def estimate_news_form(request: NewsFormEstimateRequest):
         raise HTTPException(400, str(e))
     return NewsFormEstimateResponse(**{k: devis.get(k) for k in NewsFormEstimateResponse.model_fields
                                        if devis.get(k) is not None})
+
+
+# plan News T12-T13 (tâche #35, 30/09/2026) : la chaîne article -> post. Préparer est GRATUIT (décision de
+# l'utilisateur) ; polir est PAYANT et gardé ; valider programme le post avec son reel « cartes » (gratuit, local).
+@router.post("/news/chain/preview", response_model=NewsChainLot)
+async def preview_news_chain(request: NewsChainRequest):
+    """Le lot du jour, préparé sans rien écrire ni rien dépenser : articles classés, brouillon de script, forme
+    chiffrée, créneau du Scheduler. La validation est une route à part : préparer ne publie jamais par accident."""
+    from app.services import news_chain
+    try:
+        lot = await news_chain.preparer(
+            pipeline.engine, brief=request.brief, forme=request.forme, articles_max=request.articles_max,
+            language=request.language.value, creneau=request.creneau,
+            voice_mode=(request.voice_mode.value if request.voice_mode else None), canal=request.canal)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return NewsChainLot(**lot)
+
+
+@router.post("/news/chain/polish")
+async def polish_news_chain(request: NewsChainPolishRequest):
+    """« Polir avec l'IA » UN script du lot : PAYANT, donc la garde des plafonds d'abord (402 sans appel)."""
+    from app.services import news_chain, plafonds as _PLAF
+    await _plafond(_PLAF.op_llm(len(request.script) / 4 + 600, request.max_words * 2 + 200), "news")
+    try:
+        script, prov = await asyncio.to_thread(
+            news_chain.polir, pipeline.engine, request.script,
+            voice_mode=(request.voice_mode.value if request.voice_mode else None),
+            language=request.language.value, max_words=request.max_words)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"script": script, "poli": bool(prov), "fournisseur": prov,
+            "motif": "" if prov else "aucun fournisseur n'a répondu (clé absente ?) : le brouillon est gardé"}
+
+
+@router.post("/news/chain/commit", response_model=NewsChainCommitResponse)
+async def commit_news_chain(request: NewsChainCommitRequest, background_tasks: BackgroundTasks):
+    """Programme le lot en UN post, et lance son reel « cartes » (ffmpeg local, gratuit) dont le `job_id` est posé
+    sur le post. La couverture est notée au rendu réussi. Passe par `marketing.materialize_plan`."""
+    from app.services import news_chain
+    try:
+        out = await news_chain.valider(request.lot.model_dump(), channels=request.channels, mode=request.mode)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    items = [NewsScriptItem(**{k: a.get(k) for k in NewsScriptItem.model_fields if a.get(k) is not None}).model_dump()
+             for a in out["articles"]]
+    background_tasks.add_task(news_chain.rendre_et_noter, pipeline, items, job_id=out["job_id"], post_id=out["post_id"])
+    return NewsChainCommitResponse(post_id=out["post_id"], job_id=out["job_id"],
+                                   message="Post programmé ; le reel cartes se rend (file des rendus).")
 
 
 @router.get("/news/trends")

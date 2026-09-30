@@ -608,6 +608,26 @@ class PromptEngine:
             rationale=rationale,
         )
 
+    def polish_news_script(self, script: str, *, voice_mode: Optional[VoiceMode] = None,
+                           language: Language = Language.EN, max_words: int = 90) -> tuple:
+        """Le polissage LLM d'un script News (PAYANT), puis le filtre de marque et de vocabulaire. Rend
+        (script_poli, fournisseur) ou (None, "") sans clé ou sur refus. Appelé par generate_news_script (polir=True)
+        et par la route « Polir avec l'IA » de la chaîne, qui passe d'abord la garde des plafonds."""
+        from app.services import summarizer as _sum
+        mode_block = _voice_mode_block(self.persona, voice_mode.value if voice_mode else None)
+        lang = getattr(language, "value", language) or "EN"
+        is_fr = str(lang).upper().startswith("FR")
+        polished, prov = _sum.rewrite_script(
+            script,
+            voice_desc=(mode_block.get("description", "") if mode_block
+                        else "cynical, dry-witty deep-sea prophet"),
+            language=("FR" if is_fr else "EN"),
+            max_words=max_words,
+        )
+        if not polished:
+            return None, ""
+        return _scrub_news(self.persona, _filter_avoid_words(self.persona, polished)), prov
+
     def generate_news_script(
         self,
         items: list,
@@ -616,8 +636,12 @@ class PromptEngine:
         language: Language = Language.EN,
         max_words: int = 90,
         angle: Optional[str] = None,
+        polir: bool = True,
     ) -> "BuildScriptResponse":
         """Turn selected news items into a deepotus-voice spoken script.
+
+        `polir=False` (tâche #35, 30/09/2026) : brouillon déterministe, AUCUN appel au LLM même quand une clé existe —
+        la chaîne News prépare ses lots gratuitement ; le polissage se demande post par post (`polish_news_script`).
 
         Deterministic + persona-driven (no LLM, like the rest of the engine):
         voice-mode hook -> optional angle framing -> one concise line per
@@ -742,24 +766,19 @@ class PromptEngine:
         # v1.15.1 — honest AI: LLM-polish the prophet draft when a key exists,
         # then re-apply the brand scrub + vocabulary filter. Deterministic
         # fallback on no-key / any error.
-        try:
-            from app.services import summarizer as _sum
-            _polished, _prov = _sum.rewrite_script(
-                script,
-                voice_desc=(mode_block.get("description", "") if mode_block
-                            else "cynical, dry-witty deep-sea prophet"),
-                language=("FR" if is_fr else "EN"),
-                max_words=max_words,
-            )
-            if _polished:
-                script = _scrub_news(
-                    self.persona,
-                    _filter_avoid_words(self.persona, _polished))
-                rationale.append(f"LLM-polished via {_prov}")
-            else:
-                rationale.append("deterministic draft (no LLM key)")
-        except Exception:
-            rationale.append("deterministic draft (LLM rewrite skipped)")
+        if not polir:
+            rationale.append("deterministic draft (LLM polish not requested)")
+        else:
+            try:
+                _polished, _prov = self.polish_news_script(
+                    script, voice_mode=voice_mode, language=language, max_words=max_words)
+                if _polished:
+                    script = _polished
+                    rationale.append(f"LLM-polished via {_prov}")
+                else:
+                    rationale.append("deterministic draft (no LLM key)")
+            except Exception:
+                rationale.append("deterministic draft (LLM rewrite skipped)")
 
         tags = " ".join(self.persona.get("default_hashtags_pool", [])[:4])
         lead = _condense(_g(items[0], "title"))[:90] if items else "Deepotus"
