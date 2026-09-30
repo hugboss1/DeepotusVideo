@@ -4729,6 +4729,27 @@ async def schedule_analytics_refresh():
     return await _ms.refresh_all(max_per_channel=10)
 
 
+# plan scheduler T8 (tâche #30, 30/09/2026) : les créneaux par canal (heures LOCALES, fuseau du navigateur)
+@router.get("/schedule/slots")
+async def get_slots():
+    from app.services import schedule_slots as _sl
+    return _sl.load()
+
+
+@router.put("/schedule/slots")
+async def put_slots(body: dict):
+    from app.services import schedule_slots as _sl
+    return _sl.save(body or {})
+
+
+@router.get("/schedule/slots/suggest")
+async def suggest_slots(days: int = 56, tz_offset_minutes: int | None = None):
+    from app.services import metrics_service as _ms, schedule_slots as _sl
+    a = await _ms.analytics(max(1, min(365, days)))
+    tz = _sl.tz_offset() if tz_offset_minutes is None else tz_offset_minutes
+    return {"suggested": _sl.suggest(a["items"], tz), "slots": _sl.load()}
+
+
 @router.get("/schedule/{post_id}/preview.png")
 async def scheduled_post_preview(post_id: str, channel: str = "x",
                                  caption: str | None = None,
@@ -5081,6 +5102,10 @@ async def marketing_plan(body: dict):
         language=body.get("language") or "EN",
         persona=body.get("persona"),
     )
+    # plan scheduler T8 (tâche #30) : les heures du plan suivent les créneaux du canal (use_slots=false les garde)
+    if body.get("use_slots", True):
+        from app.services import schedule_slots as _sl
+        _sl.assign(plan["posts"])
     materialized: list[str] = []
     if body.get("auto_materialize"):
         start = body.get("start_date") or _dt.now().strftime("%Y-%m-%d")
