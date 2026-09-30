@@ -2268,7 +2268,8 @@ def test_les_maillons_voisins_de_la_chaine_Bibliotheque_gardent_leurs_comptes():
     s = _bundle()
     attendus = {
         "__dzLibPicker": 10, "__dzSrcChips": 2, "__dzSendTo": 2,
-        "__dzPrint3d": 3, "__dzToSpriteLab": 5, "__dzQuickStart": 3,
+        "__dzPrint3d": 3, "__dzToSpriteLab": 5, "__dzQuickStart": 4,   # 3 -> 4 : tache #48, dzQuickApply (Rouvrir dans Quick)
+       
         # __dzMontageAdd : 4 -> 5 le 05/09/2026 (chantier montage, P7) —
         # la couche montage.js cite le jeton dans un COMMENTAIRE (« le
         # greffon amont, lui, ne tire qu'une fois ») ; str.count est

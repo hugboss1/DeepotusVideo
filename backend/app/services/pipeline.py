@@ -29,6 +29,7 @@ from app.services.fal_service import (
     resolve_video_model,
 )
 from app.services import pricing as _pricing
+from app.services import quick_recipe   # plan Quick T1 (tâche #48) : « Rouvrir dans Quick »
 from app.services.google_video import GoogleVeoClient
 from app.services.heygen_service import HeyGenClient
 from app.services.composition_service import CompositionService
@@ -274,6 +275,7 @@ class Pipeline:
             session.add(job)
             await session.commit()
             _save_source_graph(job_id, getattr(request, "source_graph", None))
+            quick_recipe.save(job_id, getattr(request, "quick_recipe", None))   # plan Quick T1 : AVANT tout appel payant
 
             try:
                 # 1. Build prompt
@@ -502,6 +504,7 @@ class Pipeline:
             session.add(job)
             await session.commit()
             _save_source_graph(job_id, getattr(request, "source_graph", None))
+            quick_recipe.save(job_id, getattr(request, "quick_recipe", None))   # plan Quick T1 : AVANT tout appel payant
 
             try:
                 # 1. Build the script (apply voice-mode tone if requested)
@@ -944,6 +947,8 @@ class Pipeline:
         import asyncio
         composition_id = str(uuid4())
         logger.info(f"Starting composition {composition_id} (layout={request.layout.value})")
+        # plan Quick T1 : la recette de la composition, écrite AVANT les deux rendus payés
+        quick_recipe.save(composition_id, getattr(request, "quick_recipe", None))
 
         # 1. Kick off both generations in parallel
         seedance_task = asyncio.create_task(

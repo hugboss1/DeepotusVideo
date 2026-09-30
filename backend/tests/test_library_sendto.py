@@ -21,7 +21,9 @@ def test_le_miroir_bundle_envoyer_vers():
     assert s.count("__dzSendTo") == 2
     assert "Envoyer vers…" in s
     # greffe Quick : pose (menu) + lecture/consommation (mount de Quick)
-    assert s.count("__dzQuickStart") == 3
+    # 3 -> 4 (tache #48, 01/10/2026) : dzQuickApply (Rouvrir dans Quick) pose aussi le global quand la liste
+    # d'images n'est pas encore chargee — le .then de listImages tient un `w` fige et ecraserait l'image de la recette
+    assert s.count("__dzQuickStart") == 4
     # greffe Montage : pose image + pose clip (menu) + lecture + delete
     # + 1 COMMENTAIRE de la couche montage.js (P7, 05/09/2026) qui cite
     # le jeton — str.count est global, le commentaire compte (mesuré).
@@ -51,7 +53,9 @@ def test_les_cibles_portent_les_mecanismes_reels():
     # Cardforge : le chemin img: résolu par artSource, via presse-papier
     assert '"img:"+nom' in s
     # Scheduler : brouillon + sélection (patron Épisodes)
-    assert s.count("deepotus:select-post") == 6
+    # 6 -> 7 (tache #32 PR4, 30/09/2026) : la « Suite (fil X) » du Scheduler selectionne le post ajoute. Relevé le
+    # 01/10 seulement : ce banc pytest n'a pas de lanceur __main__, un passage autonome sort 0 sans rien tester.
+    assert s.count("deepotus:select-post") == 7
 
 
 def test_le_patcher_libsend_est_garde():

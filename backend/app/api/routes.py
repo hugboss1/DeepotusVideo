@@ -268,6 +268,17 @@ async def render_layout_template(
     )
 
 
+@router.get("/jobs/{job_id}/recipe")
+async def get_job_recipe(job_id: str):
+    """Plan Quick T1 (tâche #48) — la recette Quick qui a produit ce rendu (écrite au démarrage du job). 404 sans
+    recette : rendu Studio/Template, ou antérieur — l'écran retombe alors sur les colonnes du job (__dzQuickFromJob)."""
+    from app.services import quick_recipe
+    d = quick_recipe.load(job_id)
+    if d is None:
+        raise HTTPException(404, "No Quick recipe for this render")
+    return d
+
+
 @router.get("/jobs/{job_id}/graph")
 async def get_job_graph(job_id: str):
     """The Studio node graph that produced this render (saved at render time),
