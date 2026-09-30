@@ -101,6 +101,8 @@ Sortie attendue de `node --check` : rien (code 0). L'inventaire AVANT se prend u
 
 ## Lot 1 — parité
 
+> **T1 EXÉCUTÉE le 01/10/2026** (tâche #48 du suivi, branche `chantier/p5-quick-recette`). Écarts datés : (1) pas de patcher `quickreopen` ni de squelette `_patch_quick.py` : un GROUPE `P5qr1..P5qr7` du maillon montage (pratique actuelle), ancres re-mesurées sur `.bak_montage` (toutes à 1, noms d'état de `um` inchangés) ; (2) aucun `window.alert` : l'échec se dit par `__dzToast` ; boutons avec `title` (E-12) ; (3) la recette d'une COMPOSITION est écrite au début de `run_composition` (la ligne du job n'existe qu'à la fin, après les rendus payés) ; recette bornée à 64 Ko, nom de fichier assaini ; (4) pins `__dzQuickStart` 3 → 4 dans `test_library_sendto` et `test_etabli_canevas` ; au passage, `test_library_sendto` portait un `select-post` à 6 devenu 7 depuis la tâche #32 — invisible parce que ce banc pytest n'a pas de lanceur `__main__` (un passage autonome sort 0). Bancs : `test_quick_recipe` 13/0 (vraies routes, fournisseurs stub qui lèvent APRÈS l'écriture), `test_quick_bundle` 16/0 (`__dzReopenQuick` et `dzQuickApply` EXÉCUTÉS sous node : les 19 setters vérifiés un à un), `test_montage_bundle` 2650/0 ; 16/16 mutations rouges ; preuve écran 8799 : l'icône de la file rouvre Quick avec prompt, modèle Kling v3 Pro, 1:1 et 5 s.
+
 ### Task 1 (P1) : rouvrir un rendu dans Quick, prérempli
 
 **Files :**
