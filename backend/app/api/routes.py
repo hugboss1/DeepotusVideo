@@ -4708,6 +4708,27 @@ def _render_poster_frame(jobrec) -> str | None:
         return None
 
 
+# plan scheduler T7 (tâche #29, 30/09/2026) : le tableau de bord des métriques. Aucun GET /schedule/{post_id} nu
+# n'existe : l'ordre de déclaration est libre (le banc le prouve).
+@router.get("/schedule/analytics")
+async def schedule_analytics(days: int = 28):
+    from app.services import metrics_service as _ms
+    return await _ms.analytics(max(1, min(365, days)))
+
+
+@router.get("/schedule/quotas")
+async def schedule_quotas():
+    from app.services import quota as _q
+    return _q.summary()
+
+
+@router.post("/schedule/analytics/refresh")
+async def schedule_analytics_refresh():
+    """Passe manuelle, rationnée comme la quotidienne (10 posts par canal, budget mensuel de lectures X)."""
+    from app.services import metrics_service as _ms
+    return await _ms.refresh_all(max_per_channel=10)
+
+
 @router.get("/schedule/{post_id}/preview.png")
 async def scheduled_post_preview(post_id: str, channel: str = "x",
                                  caption: str | None = None,

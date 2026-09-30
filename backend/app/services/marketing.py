@@ -25,7 +25,7 @@ from loguru import logger
 from sqlalchemy import select, update as _sa_update
 
 from app.config import settings, SSL_VERIFY
-from app.services import plan_schema, publishers
+from app.services import metrics_service, plan_schema, publishers
 from app.services.publishers import PublishResult
 from app.services.storage import ScheduledPost, JobRecord, async_session_factory
 
@@ -614,31 +614,21 @@ def _fetch_x_metrics_sync(tweet_ids: list[str]) -> dict[str, dict]:
         return {}
 
 
-async def refresh_x_metrics(max_posts: int = 10) -> int:
-    """Best-effort daily pass: pull public_metrics for the most recent posts
-    that went out via the X adapter. Returns number updated."""
-    if not settings.has_x:
-        return 0
-    async with async_session_factory() as session:
-        res = await session.execute(
-            select(ScheduledPost)
-            .where(ScheduledPost.x_post_id.isnot(None))
-            .where(ScheduledPost.status == "posted")
-            .order_by(ScheduledPost.posted_at.desc())
-            .limit(max_posts))
-        posts = list(res.scalars().all())
-        if not posts:
-            return 0
-        ids = [p.x_post_id for p in posts if p.x_post_id]
-        metrics = await asyncio.to_thread(_fetch_x_metrics_sync, ids)
-        n = 0
-        for p in posts:
-            m = metrics.get(p.x_post_id or "")
-            if m:
-                p.metrics = json.dumps(m)
-                n += 1
-        await session.commit()
-        return n
+# plan scheduler T7 (tâche #29, 30/09/2026) : la passe X passe par metrics_service (comme les autres canaux) ;
+# refresh_x_metrics a disparu. La forme normalisée alimente post_metrics, le BRUT garde la colonne `metrics` que
+# performance_context lit.
+def _x_norm(m: dict) -> dict:
+    return {"views": int(m.get("impression_count", 0)), "likes": int(m.get("like_count", 0)),
+            "comments": int(m.get("reply_count", 0)), "shares": int(m.get("retweet_count", 0)), "saves": 0,
+            "brut": dict(m)}
+
+
+async def _fetch_x_metrics(ids: list[str]) -> dict[str, dict]:
+    raw = await asyncio.to_thread(_fetch_x_metrics_sync, ids)
+    return {k: _x_norm(v) for k, v in raw.items()}
+
+
+metrics_service.FETCHERS["x"] = _fetch_x_metrics
 
 
 async def performance_context(limit: int = 12) -> str:
@@ -886,11 +876,11 @@ async def schedule_loop() -> None:
             if last_metrics_day != today:
                 last_metrics_day = today
                 try:
-                    n = await refresh_x_metrics(max_posts=10)
+                    n = await metrics_service.refresh_all(max_per_channel=10)
                     if n:
-                        logger.info(f"x metrics refreshed for {n} post(s)")
+                        logger.info(f"metrics refreshed: {n}")
                 except Exception as e:
-                    logger.warning(f"x metrics pass failed: {e}")
+                    logger.warning(f"metrics pass failed: {e}")
             async with async_session_factory() as session:
                 res = await session.execute(
                     select(ScheduledPost)

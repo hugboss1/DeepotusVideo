@@ -26,7 +26,7 @@ from pathlib import Path
 import httpx
 
 from app.config import settings, SSL_VERIFY
-from app.services import publishers
+from app.services import metrics_service, publishers
 from app.services.publishers import PublishResult
 
 VERSION = "v25.0"
@@ -136,3 +136,4 @@ async def fetch_insights(media_ids: list[str]) -> dict[str, dict]:
 
 
 publishers.register("instagram", available, publish)
+metrics_service.FETCHERS["instagram"] = fetch_insights   # tâche #29 : la passe de métriques
