@@ -18,6 +18,8 @@ LIMITS = {
                               "envoi (developers.facebook.com, relu 29/09/2026)"),
     "youtube": ("day", 100, "YouTube Data API : 100 envois/jour (developers.google.com, 03/09/2026)"),
     "tiktok": ("day", 15, "TikTok Direct Post : ~15 posts/jour par créateur (developers.tiktok.com, 03/09/2026)"),
+    # tâche #29 (30/09) : un budget de LECTURES, pas de publications — la passe de métriques (metrics_service) le borne
+    "x_lecture": ("month", 100, "palier gratuit X : 100 lectures/mois (docs.x.com, 03/09/2026)"),
 }
 _FILE = DATA_ROOT / "scheduler" / "quota.json"
 
@@ -57,15 +59,15 @@ def check(channel: str, now: datetime | None = None) -> tuple[bool, str]:
     return True, f"{n}/{lim[1]}"
 
 
-def count(channel: str, now: datetime | None = None) -> int:
-    """+1 sur la période courante. Synchrone de bout en bout : entre la lecture et l'écriture, la boucle d'événements
+def count(channel: str, now: datetime | None = None, n: int = 1) -> int:
+    """+n (1 par défaut) sur la période courante. Synchrone de bout en bout : entre la lecture et l'écriture, la boucle d'événements
     ne rend pas la main — deux publications concurrentes ne peuvent pas perdre un compte."""
     lim = LIMITS.get(channel)
     if not lim:
         return 0
     d = _load()
     k = _key(lim[0], now)
-    d.setdefault(channel, {})[k] = int(d.get(channel, {}).get(k, 0)) + 1
+    d.setdefault(channel, {})[k] = int(d.get(channel, {}).get(k, 0)) + int(n)
     _save(d)
     return d[channel][k]
 

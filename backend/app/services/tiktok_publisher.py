@@ -28,7 +28,7 @@ import httpx
 from loguru import logger
 
 from app.config import settings, SSL_VERIFY
-from app.services import publishers
+from app.services import metrics_service, publishers
 from app.services.publishers import PublishResult
 
 AUTH_URL = "https://www.tiktok.com/v2/auth/authorize/"
@@ -216,3 +216,4 @@ async def fetch_stats(video_ids: list[str]) -> dict[str, dict]:
 
 
 publishers.register("tiktok", lambda: settings.has_tiktok, publish)
+metrics_service.FETCHERS["tiktok"] = fetch_stats   # tâche #29 : la passe de métriques

@@ -26,7 +26,7 @@ import httpx
 from loguru import logger
 
 from app.config import settings, SSL_VERIFY
-from app.services import publishers
+from app.services import metrics_service, publishers
 from app.services.publishers import PublishResult
 
 AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
@@ -159,3 +159,4 @@ async def fetch_stats(video_ids: list[str]) -> dict[str, dict]:
 
 
 publishers.register("youtube", lambda: settings.has_youtube, publish)
+metrics_service.FETCHERS["youtube"] = fetch_stats   # tâche #29 : la passe de métriques
