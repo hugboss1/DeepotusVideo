@@ -112,6 +112,16 @@ def _setup_file_logging() -> Path | None:
         return None
 
 
+_HEYGEN_WARM_TIMEOUT_S = 900.0   # 9 951 looks + 2 944 voix mesurés en ~300 s le 28/09 : marge ×3
+
+
+def _heygen_warm_delay_s() -> float:
+    try:
+        return max(0.0, float(os.environ.get("DEEPOTUS_HEYGEN_WARM_DELAY_S", "15")))
+    except ValueError:
+        return 15.0
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _log_dir = _setup_file_logging()
@@ -170,27 +180,55 @@ async def lifespan(app: FastAPI):
     # user opens the HeyGen tab the avatar list is already there (instant),
     # instead of staring at a 60s "loading" that looks like a hang. Fire and
     # forget — never blocks startup, all failures are non-fatal.
+    # 30/09/2026 : le préchargement pouvait empêcher l'ARRÊT (bancs figés à la fermeture de TestClient). Il part
+    # donc après un délai (une session courte ne le lance jamais), il est borné, et le contexte TLS est construit
+    # une seule fois par heygen_service (0,34 s bloquantes par client mesurées, une par page).
     warm_task = None
     if settings.has_heygen:
         async def _warm_heygen_cache():
             try:
+                await asyncio.sleep(_heygen_warm_delay_s())
                 from app.services.heygen_service import HeyGenClient
                 client = HeyGenClient()
-                await client.list_avatars()
-                await client.list_voices()
+                async def _tout():
+                    await client.list_avatars()
+                    await client.list_voices()
+                await asyncio.wait_for(_tout(), timeout=_HEYGEN_WARM_TIMEOUT_S)
                 logger.info("HeyGen avatar/voice cache warmed.")
+            except asyncio.CancelledError:
+                raise
+            except asyncio.TimeoutError:
+                from app.services.heygen_service import annuler_en_vol
+                annuler_en_vol()
+                logger.warning(f"HeyGen cache warm abandoned after {_HEYGEN_WARM_TIMEOUT_S:.0f} s (non-fatal)")
             except Exception as e:
-                logger.warning(f"HeyGen cache warm skipped (non-fatal): {e}")
+                logger.warning(f"HeyGen cache warm skipped (non-fatal): {e!r}")
         warm_task = asyncio.create_task(_warm_heygen_cache())
     try:
         yield
     finally:
-        news_task.cancel()
-        sched_task.cancel()
-        maj_task.cancel()
         if warm_task:
-            warm_task.cancel()
+            from app.services.heygen_service import annuler_en_vol
+            annuler_en_vol()
+        await _arreter_taches([t for t in (news_task, sched_task, maj_task, warm_task) if t])
         logger.info("Shutting down")
+
+
+async def _arreter_taches(taches: list, *, tours: int = 5, attente_s: float = 1.0) -> None:
+    """Annule les tâches de fond et ATTEND qu'elles sortent, en ré-annulant celles qui ont avalé l'annulation.
+    Mesuré le 30/09/2026 : le pool SQLAlchemy attrape le CancelledError qui tombe pendant la fermeture d'une connexion
+    aiosqlite (« Exception terminating connection ») ; schedule_loop repartait dormir et l'arrêt attendait pour toujours
+    (asyncio.runners n'annule qu'une fois). Borné : au pire tours × attente_s, puis on rend la main quand même."""
+    en_cours = list(taches)
+    for _ in range(tours):
+        if not en_cours:
+            return
+        for t in en_cours:
+            t.cancel()
+        _, restantes = await asyncio.wait(en_cours, timeout=attente_s)
+        en_cours = list(restantes)
+    if en_cours:
+        logger.warning(f"arrêt : {len(en_cours)} tâche(s) de fond n'ont pas rendu la main")
 
 
 app = FastAPI(

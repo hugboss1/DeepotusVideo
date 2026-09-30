@@ -910,4 +910,9 @@ async def schedule_loop() -> None:
             raise
         except Exception as e:
             logger.error(f"schedule loop tick failed: {e}")
+        # 30/09/2026 : une annulation AVALÉE pendant le tick (le pool SQLAlchemy l'attrape en fermant une connexion
+        # aiosqlite) reste demandée — on la respecte au lieu de repartir dormir 60 s.
+        tache = asyncio.current_task()
+        if tache is not None and tache.cancelling():
+            raise asyncio.CancelledError
         await asyncio.sleep(60)
