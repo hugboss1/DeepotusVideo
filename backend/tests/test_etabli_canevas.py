@@ -638,7 +638,15 @@ def test_le_07_navigue_DANS_l_iframe_et_previent_avant_de_tuer_une_serie():
     # hors de l'Établi pour toute la durée d'une série — qui se compte en
     # minutes. (L'Établi, lui, REFUSE : son remède est dans la barre du bas.
     # Voir test_le_retour_refuse_de_perdre_les_modifications_en_attente.)
-    assert "confirm(" in corps
+    #
+    # 01/10/2026 : le `confirm(` natif est devenu le dialogue maison
+    # `window.__dzDialogue.confirmer(` le 20/09 (8815cba, dialogues maison
+    # partout). Il est ASYNCHRONE : sans `await`, la promesse est vraie et
+    # `!promesse` ne retient jamais la navigation — d'où l'épingle sur le
+    # `!await`, et sur l'ordre garde < navigation.
+    assert "!await window.__dzDialogue.confirmer(" in corps
+    assert corps.index("__dzDialogue.confirmer(") < corps.index("location.href")
+    assert "confirm(" not in corps.replace("__dzDialogue.confirmer(", "")
 
 
 def test_le_rail_gauche_offre_l_etape_07():
@@ -2136,7 +2144,11 @@ def test_l_onglet_vide_ne_se_remplit_pas_d_items_de_demonstration():
     assert "return(T[o]||[]).length||vo[o].length," in s
     assert '"Établi":[]' in s
     assert '"Établi":[{' not in s          # jamais d'items de démonstration
-    assert s.count("Établi") == 2          # la clé de `vo` + celle de `T`
+    # la clé de `vo` + celle de `T`. On compte la CLÉ citée (`"Établi":`) et
+    # non le mot nu depuis le 01/10/2026 : le 20/09 (8815cba) le maillon
+    # dialogue a injecté frontend/shared/dialogue.js, dont un COMMENTAIRE
+    # nomme « l'Établi » — mot nu 2 -> 3 sans aucune clé de plus.
+    assert s.count('"Établi":') == 2
 
 
 def test_la_liste_vient_de_la_route_greffee_sur_le_sondage_EXISTANT():
@@ -2275,7 +2287,12 @@ def test_les_maillons_voisins_de_la_chaine_Bibliotheque_gardent_leurs_comptes():
         # greffon amont, lui, ne tire qu'une fois ») ; str.count est
         # global, le commentaire compte. Mesure du 06/09 : 2 poses menu
         # + 1 commentaire + lecture + delete = 5.
-        "__dzMontageAdd": 5, "deepotus:select-post": 6,
+        # 5 -> 7 le 22/09/2026 (f510e87, montage E-3 « Ouvrir dans le
+        # Montage » depuis Chapitres et Studio : deux poses de plus) ;
+        # select-post 6 -> 7 le 30/09 (9543c2b, Scheduler lot 2, « Suite
+        # ajoutée au fil »). Relevé le 01/10 : ce banc n'était lancé que
+        # par `python tests/...`, qui n'exécutait aucun test pytest.
+        "__dzMontageAdd": 7, "deepotus:select-post": 7,
         "dz_nav_collapsed": 2, "__dzCatBar": 2,
     }
     for jeton, combien in attendus.items():
@@ -2285,8 +2302,20 @@ def test_les_maillons_voisins_de_la_chaine_Bibliotheque_gardent_leurs_comptes():
     for _nom, sonde, combien in P.STABLE_PROBES:
         if sonde in attendus:
             assert combien == attendus[sonde], sonde
+    # POST_COUNTS est la vérité du patcher À SON APPLICATION ; un maillon aval
+    # légitime peut ajouter des occurrences. Chaque dérive est datée ici, et
+    # le patcher n'est pas réécrit (01/10/2026).
+    derives_aval = {
+        # 20/09 (8815cba) : le commentaire de frontend/shared/dialogue.js,
+        # injecté par patch_bundle_dialogue, nomme « l'Établi ».
+        "Établi": 1,
+        # 22/09 (f510e87) : montage E-3, deux poses « Ouvrir dans le Montage ».
+        "__dzMontageAdd": 2,
+        # 30/09 (9543c2b) : Scheduler lot 2, « Suite ajoutée au fil ».
+        "deepotus:select-post": 1,
+    }
     for sonde, combien in P.POST_COUNTS:
-        assert s.count(sonde) == combien, sonde
+        assert s.count(sonde) == combien + derives_aval.get(sonde, 0), sonde
 
 
 def test_le_patcher_etabli_est_un_assert_garde_en_queue_de_chaine():
@@ -2343,7 +2372,9 @@ def test_le_bundle_livre_est_EXACTEMENT_le_patch_applique_UNE_fois():
         assert nu.count(repl) == 1, tag
         nu = nu.replace(repl, ancre)
     assert P.MARKER not in nu
-    assert "Établi" not in nu
+    # la CLÉ, pas le mot nu (01/10/2026) : le commentaire de dialogue.js
+    # injecté le 20/09 (8815cba) nomme « l'Établi » hors de ce patcher.
+    assert '"Établi"' not in nu
     assert len(livre) - len(nu) == P.SPEC_CHAR_DELTA
 
     refait = nu
