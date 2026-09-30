@@ -112,6 +112,53 @@ check("4.2 route refusée (409 coffre fermé) : l'onglet est refermé, la raison
       and c["409"]["m"].startswith("Échec"), str(c.get("409")))
 check("4.3 __dzSchedApi : un refus du serveur devient une erreur portant son detail", c.get("api", {}).get("m") == "mauvais", str(c.get("api")))
 
+print("\n[6] lot 2 (tâche #32 PR4) : campagne, séries, recyclage, suite de fil")
+for f in ("__dzSchedBrief", "__dzSchedSeries", "__dzSchedRecycler", "__dzSchedCampagne", "__dzSchedSuite", "__dzSchedChamp"):
+    check(f"6.{f} défini une fois", s.count(f"function {f}(") == 1, str(s.count(f"function {f}(")))
+helpers2 = s[s.find("function __dzSchedApi("):s.find("function __dzSendSched")]
+for u in ('"/marketing/brief"', '"/schedule/series"', '"/schedule/series/"+x.id+"/materialize"', '"/schedule/series/"+x.id',
+          '"/schedule/recycle/suggest?days=90&limit=5"', '"/schedule/recycle"', '"/schedule/"+id+"/thread"'):
+    check(f"6.route {u}", u in helpers2)
+ent2 = s[s.find('children:"New post"})'):s.find('children:"New post"})') + 2000]
+check("6.10 l'en-tête gagne « Campagne », avec son title", 'onClick:function(){__dzSchedCampagne()},children:"Campagne"})' in ent2
+      and 'icon:"book",title:' in ent2)
+ins = s[s.find('onClick:P,children:"Duplicate to next day"})') - 50:s.find('onClick:P,children:"Duplicate to next day"})') + 600]
+check("6.11 l'inspecteur gagne « Suite (fil X) » — seulement pour un post sur X, avec son title",
+      '(e.channels||[]).indexOf("x")>=0&&r.jsx(K,{' in ins and "__dzSchedSuite(e.id)" in ins and 'children:"Suite (fil X)"' in ins
+      and 'title:"Écrire la suite de ce post' in ins
+      and s.count('children:"Suite (fil X)"') == 1, ins[:300])
+check("6.12 toujours AUCUN window.prompt ni window.alert dans le neuf (formulaires dans les panneaux)",
+      "window.prompt(" not in s and "window.alert(" not in helpers2)
+check("6.13 le menu de libsend est RÉUTILISÉ pour Campagne, pas recopié", s.count("function __dzSendMenu(") == 1
+      and "__dzSendMenu([" in helpers2)
+check("6.14 la série se crée par un FORMULAIRE (nom, jours, heure, canaux, gabarit)", all(x in helpers2 for x in
+      ('"Nom de la s\\u00e9rie"', '"Jours (0=lundi \\u2026 6=dimanche)"', '"Heure locale (HH:MM)"', '"Canaux (virgules)"')))
+check("6.15 le recyclage ne demande JAMAIS le LLM payant depuis l'écran (pas de llm=true)", "llm=true" not in helpers2)
+lm = s[s.find("function Lm("):s.find("function Lm(") + 3000]
+check("6.17 le Scheduler RECHARGE sa liste sur deepotus:schedule-reload (reloadPosts), écouteur retiré au démontage",
+      'window.addEventListener("deepotus:schedule-reload",R)' in lm and 'window.removeEventListener("deepotus:schedule-reload",R)' in lm
+      and "function R(){o&&o()}" in lm and "reloadPosts:o" in lm)
+check("6.18 chaque action qui crée ou change des posts demande ce rechargement (valider, poser, proposer, suite)",
+      helpers2.count("__dzSchedRecharger();") == 4 and "rouvrez la semaine" not in helpers2, str(helpers2.count("__dzSchedRecharger();")))
+js2 = helpers2 + r"""
+var vu = null;
+globalThis.__dzSendMenu = function(items, titre){ vu = {titre: titre, lbls: items.map(function(i){return i.lbl}),
+  fns: items.map(function(i){return i.fn === __dzSchedBrief ? "brief" : i.fn === __dzSchedSeries ? "series" : i.fn === __dzSchedRecycler ? "recycler" : "?"})} };
+__dzSchedCampagne();
+process.stdout.write(JSON.stringify(vu));
+"""
+res2 = None
+if _n and helpers2:
+    tmp2 = pathlib.Path(tempfile.mkdtemp()) / "m.js"
+    tmp2.write_text("var document={};function __dzToast(){}\n" + js2, "utf-8")
+    p2 = subprocess.run([_n, str(tmp2)], capture_output=True, text=True, encoding="utf-8")
+    try:
+        res2 = json.loads(p2.stdout)
+    except ValueError:
+        print(p2.stderr[-300:])
+check("6.16 Campagne ouvre le menu à trois entrées, chacune branchée sur SON panneau (exécuté sous node)",
+      res2 is not None and res2.get("fns") == ["brief", "series", "recycler"] and len(res2.get("lbls", [])) == 3, str(res2))
+
 print("\n[5] le reste")
 _nc = subprocess.run([_n, "--check", str(B)], capture_output=True, text=True) if _n else None
 check("5.1 node --check du bundle entier", _nc is not None and _nc.returncode == 0, (_nc.stderr[-200:] if _nc else ""))
