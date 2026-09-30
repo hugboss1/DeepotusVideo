@@ -7559,6 +7559,52 @@ P1 += [("P5qr1-helpers-avant-dzreopenstudio", A_P5QR1, R_P5QR1),
        ("P5qr6-bouton-bibliotheque", A_P5QR6, R_P5QR6),
        ("P5qr7-icone-de-la-file", A_P5QR7, R_P5QR7)]
 assert len(P1) == 81 and all("\n" not in r and "\r" not in r for _t, _a, r in P1[-7:])
+# P5ef1..P5ef5 (tache #49, plan Quick T3, 01/10/2026) -- L'IMAGE DE FIN, VISIBLE ET GRISEE AVEC LA RAISON. Ecarts au
+# plan du 03/09 : (1) un GROUPE du maillon montage, pas de patcher `quickend` ; (2) E1 s'ancre avant `var dzVMatch=`
+# (le plan l'ancrait sur `var dzApplyRef=`, une chaine ecrite par P5qr2 : le maillon exige des ancres presentes dans
+# .bak_montage) ; (3) apostrophes typographiques. Le select custom `re` n'a pas de prop `disabled` : quand le modele
+# refuse le first-last, une ligne d'explication REMPLACE le select ; le bouton « Parcourir » de fin disparait ; le
+# payload n'envoie jamais une fin refusee ; changer pour un modele qui la refuse vide le champ. Les listes de modeles
+# ne sont PAS ecrites en dur : elles viennent de /api/video-models (end_image par modele).
+A_P5EF1 = "var dzVMatch=function(q){"
+R_P5EF1 = ('var dzEcS=x.useState(null),dzEndCaps=dzEcS[0],dzSetEndCaps=dzEcS[1];'
+           'x.useEffect(function(){var on=!0;fetch("/api/video-models")'
+           '.then(function(r2){return r2.ok?r2.json():null}).then(function(d2){if(!on)return;'
+           'var mm={},ll=[];((d2&&d2.models)||[]).forEach(function(m2){mm[m2.id]=!!m2.end_image;'
+           'if(m2.end_image)ll.push(m2.label)});'
+           'dzSetEndCaps({map:mm,dflt:(d2&&d2.default)||"",oui:ll})})'
+           '.catch(function(){});return function(){on=!1}},[]);'
+           'function dzEndOK(){if(!dzEndCaps)return!0;var id=VMQ||dzEndCaps.dflt;return dzEndCaps.map[id]!==!1}'
+           'function dzEndWhy(){return"« "+(VMQ||(dzEndCaps&&dzEndCaps.dflt)||"ce modèle")'
+           '+" » n’accepte pas d’image de fin. Modèles qui l’acceptent : "'
+           '+((dzEndCaps&&dzEndCaps.oui)||[]).join(", ")}'
+           + A_P5EF1)
+A_P5EF2 = ('r.jsx(O,{label:"End image (optional)",children:u.length>0?r.jsx(re,{value:g,'
+           'options:[{value:"",label:"— none —"},...u.map(B=>({value:B,label:B}))],'
+           'onChange:k}):r.jsx(vd,{label:"drop or pick",kind:"image"})}),')
+R_P5EF2 = ('r.jsx(O,{label:dzEndOK()?"Image de fin (optionnelle)":"Image de fin — indisponible",'
+           'children:dzEndOK()?(u.length>0?r.jsx(re,{value:g,'
+           'options:[{value:"",label:"— aucune —"},...u.map(B=>({value:B,label:B}))],onChange:k})'
+           ':r.jsx(vd,{label:"drop or pick",kind:"image"})):r.jsx("div",{title:"Choisissez un modèle qui accepte une image de fin",'
+           'style:{fontSize:11,padding:8,background:"var(--amber-soft)",border:"1px solid var(--amber)",'
+           'borderRadius:"var(--r-sm)",color:"var(--ink)"},children:dzEndWhy()})}),')
+A_P5EF3 = ('r.jsx(O,{label:"",children:r.jsx("button",{style:{width:"100%",fontSize:12,'
+           'padding:"6px 12px",borderRadius:7,cursor:"pointer",background:"var(--bg-panel-2)",'
+           'border:"1px solid var(--stroke)",color:"var(--ink)"},onClick:function(){'
+           '__dzLibPicker({titre:"Image de fin (optionnelle)"},k)},'
+           'children:"\U0001f4da Parcourir les vignettes…"},"dzlpe")})')
+R_P5EF3 = "dzEndOK()&&" + A_P5EF3
+A_P5EF4 = "image_filename_end:g||null,"
+R_P5EF4 = 'image_filename_end:(dzEndOK()?g:"")||null,'
+A_P5EF5 = 'onChange:function(v2){dzSetVMQ(v2);try{localStorage.setItem("dz_video_model",v2)}catch(_e){}}'
+R_P5EF5 = ('onChange:function(v2){dzSetVMQ(v2);try{localStorage.setItem("dz_video_model",v2)}'
+           'catch(_e){}if(dzEndCaps&&dzEndCaps.map[v2]===!1)k("")}')
+P1 += [("P5ef1-capacites-fin-avant-dzvmatch", A_P5EF1, R_P5EF1),
+       ("P5ef2-champ-fin-grise-avec-la-raison", A_P5EF2, R_P5EF2),
+       ("P5ef3-bouton-parcourir-fin-conditionnel", A_P5EF3, R_P5EF3),
+       ("P5ef4-payload-sans-fin-refusee", A_P5EF4, R_P5EF4),
+       ("P5ef5-changer-de-modele-vide-la-fin", A_P5EF5, R_P5EF5)]
+assert len(P1) == 86 and all("\n" not in r and "\r" not in r for _t, _a, r in P1[-5:])
 
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
@@ -7829,6 +7875,7 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            # + P3nr1..P3nr10 (tache #33 PR2, l'ecran News trie par le score) : 297, le --check dit 298.
            # + P3nc1..P3nc6 (tache #35 PR3, la chaine du jour a l'ecran) : 303, le --check dit 304.
            # + P5qr1..P5qr7 (tache #48, rouvrir un rendu dans Quick) : 310, le --check dit 311.
+           # + P5ef1..P5ef5 (tache #49, l'image de fin grisee avec la raison) : 315, le --check dit 316.
            # studio 27/09 : + HUIT sections EN QUEUE, groupe R8 apres R7 (format HeyGen impose par le template, « Ouvrir un graphe » en icone,
            # repli de l'inspecteur) ; 213 -> 221, le --check dit 222 ancres ; + R8sv1 (Save par le dialogue maison) : 222, le --check dit 223 ;
            # + R8pr1..R8pr7 (les autres window.prompt natifs, 27/09) : 229, le --check dit 230.
