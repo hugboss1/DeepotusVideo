@@ -51,6 +51,11 @@ from app.models.schemas import (
     NewsEssence,
     NewsIllustrationRequest,
     NewsIllustrationResponse,
+    NewsFilterSettings,
+    NewsRankRequest,
+    NewsRankedItem,
+    NewsDropped,
+    NewsRankResponse,
 )
 from app.services.pipeline import Pipeline
 from app.services.fs_guard import is_virtualized as fs_is_virtualized
@@ -2005,6 +2010,48 @@ async def refresh_news():
 @router.get("/news/items")
 async def list_news_items():
     return news_service.get_items()
+
+
+# plan News T5 (tâche #33, 30/09/2026) : les réglages du filtre gratuit et le classement du jour.
+@router.get("/news/filter", response_model=NewsFilterSettings)
+async def get_news_filter():
+    """Les réglages du filtre gratuit (mots-clés, listes noires, fraîcheur)."""
+    from app.services import news_filter
+    return NewsFilterSettings(**news_filter.lire_reglages())
+
+
+@router.put("/news/filter", response_model=NewsFilterSettings)
+async def put_news_filter(request: NewsFilterSettings):
+    """Écrit les réglages NORMALISÉS et rend ce qui a été écrit."""
+    from app.services import news_filter
+    return NewsFilterSettings(**news_filter.ecrire_reglages(request.model_dump()))
+
+
+@router.post("/news/rank", response_model=NewsRankResponse)
+async def rank_news(request: NewsRankRequest):
+    """Le tri du jour : filtre gratuit, puis score sur ce qui reste. Déterministe (gratuit) par défaut ; `llm=true`
+    — décision de l'utilisateur du 30/09 : sur demande seulement — passe D'ABORD par la garde des plafonds, et
+    seulement s'il reste un article à noter : aucun appel payant sur un article que le filtre a écarté (P1).
+    La réponse dit aussi ce qui est tombé et pourquoi."""
+    from app.services import news_filter, news_rank
+    cache = news_service.get_items()
+    bruts = cache.get("items") or []
+    gardes, motifs = news_filter.filtrer(bruts, news_filter.lire_reglages())
+    if request.llm and gardes:
+        from app.services import plafonds as _PLAF
+        await _plafond(_PLAF.op_llm(*news_rank.jetons_llm(len(gardes))), "news")
+    classes = await asyncio.to_thread(news_rank.classer, gardes, brief=request.brief,
+                                      llm=bool(request.llm and gardes))
+    par_id = {str(i.get("id")): i for i in bruts}
+    ecartes = [NewsDropped(id=str(k), title=str((par_id.get(str(k)) or {}).get("title") or ""), motif=v)
+               for k, v in motifs.items()]
+    champs = set(NewsRankedItem.model_fields)
+    return NewsRankResponse(
+        items=[NewsRankedItem(**{k: v for k, v in it.items() if k in champs}) for it in classes],
+        ecartes=ecartes,
+        compte={"lus": len(bruts), "gardes": len(classes), "ecartes": len(ecartes)},
+        fetched_at=cache.get("fetched_at"),
+    )
 
 
 @router.post("/news/script", response_model=NewsScriptResponse)

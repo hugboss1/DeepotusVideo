@@ -1,0 +1,127 @@
+# -*- coding: utf-8 -*-
+"""Les routes News du filtre et du classement (plan 2026-09-03 T5, tache #33 du suivi, 30/09/2026).
+
+Aucun reseau : le cache est ECRIT a la main sur le disque, `summarizer._chat_dispatch` est un espion qui compte ses
+appels. Banc-miroir : JSON rendu par la route, fichier de reglages relu sur le disque, lignes du registre des
+depenses relues en base. Le score LLM est PAYANT : par defaut zero appel ; `llm=true` passe par la garde des
+plafonds (402 sans depense au-dessus du plafond, puis un appel et une ligne « news » une fois confirme).
+Run (depuis backend/) : & $PY tests/test_news_routes.py"""
+import asyncio, json, os, pathlib, sys, tempfile
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+_tmp = pathlib.Path(tempfile.mkdtemp(prefix="dznewsr_"))
+os.environ["DEEPOTUS_DATA_DIR"] = str(_tmp)
+os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{(_tmp / 't.db').as_posix()}"
+os.environ.setdefault("FAL_KEY", "test-key")
+for d in ("images", "outputs"):
+    (_tmp / d).mkdir(exist_ok=True)
+os.environ["IMAGES_FOLDER"] = str(_tmp / "images")
+os.environ["OUTPUTS_FOLDER"] = str(_tmp / "outputs")
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+from loguru import logger                                           # noqa: E402
+logger.remove()
+from fastapi.testclient import TestClient                           # noqa: E402
+from sqlalchemy import select                                       # noqa: E402
+from app.main import app                                            # noqa: E402
+from app.services import summarizer, plafonds as P                  # noqa: E402
+from app.services.news_service import news_service                  # noqa: E402
+from app.services.storage import Depense, async_session_factory, init_db  # noqa: E402
+
+ok = fail = 0
+def check(label, cond, detail=""):
+    global ok, fail
+    if cond: ok += 1; print(f"  PASS  {label}")
+    else: fail += 1; print(f"  FAIL  {label} {detail}")
+
+
+appels = []
+def _espion(p, s, m):
+    appels.append(p)
+    return json.dumps([{"id": "a1", "score": 91, "pourquoi": "coeur du brief"}]), "anthropic"
+summarizer._chat_dispatch = _espion
+summarizer.active_provider = lambda: "anthropic"      # une cle « reglee » : le devis n'est pas gratuit
+
+ARTICLES = [
+    {"id": "a1", "source_id": "s1", "source_name": "CoinDesk", "title": "Solana network hits record daily transactions",
+     "summary": "", "link": "https://c/1", "published": "2026-09-03T11:00:00+00:00", "doublons": []},
+    {"id": "a2", "source_id": "s2", "source_name": "Spammy Feed", "title": "Free giveaway airdrop inside",
+     "summary": "", "link": "https://s/1", "published": "2026-09-03T10:00:00+00:00", "doublons": []},
+]
+
+
+def _poser_cache(items=None):
+    news_service.cache_path.parent.mkdir(parents=True, exist_ok=True)
+    news_service.cache_path.write_text(json.dumps(
+        {"fetched_at": "2026-09-03T11:30:00+00:00", "items": ARTICLES if items is None else items,
+         "errors": [], "source_count": 2, "merged_count": 0}, ensure_ascii=False), encoding="utf-8")
+
+
+def _lignes():
+    async def f():
+        async with async_session_factory() as s:
+            return (await s.execute(select(Depense).order_by(Depense.id))).scalars().all()
+    return asyncio.run(f())
+
+
+asyncio.run(init_db())
+with TestClient(app, client=("127.0.0.1", 50000)) as c:
+    print("\n[A] reglages du filtre")
+    r = c.get("/api/news/filter")
+    check("A1 GET /news/filter : 200 et la fraicheur", r.status_code == 200 and "fraicheur_h" in r.json(), f"{r.status_code} {r.text[:200]}")
+    r = c.put("/api/news/filter", json={"mots_cles": ["Solana"], "sources_noires": [], "mots_noirs": ["giveaway"],
+                                        "fraicheur_h": 24 * 30})
+    check("A2 PUT rend les reglages NORMALISES", r.status_code == 200 and r.json().get("mots_cles") == ["solana"], r.text[:200])
+    from app.services import news_filter as F
+    sur = json.loads(F.chemin_reglages().read_text("utf-8")) if F.chemin_reglages().is_file() else {}
+    check("A3 et les ecrit sur le disque", sur.get("mots_noirs") == ["giveaway"], str(sur))
+    check("A4 fraicheur 0 : 422", c.put("/api/news/filter", json={"fraicheur_h": 0}).status_code == 422)
+    check("A5 fraicheur > 30 jours : 422", c.put("/api/news/filter", json={"fraicheur_h": 24 * 31}).status_code == 422)
+
+    print("\n[B] classement du jour, gratuit par defaut")
+    c.put("/api/news/filter", json={"mots_cles": [], "sources_noires": [], "mots_noirs": ["giveaway"], "fraicheur_h": 24 * 30})
+    _poser_cache()
+    appels.clear()
+    r = c.post("/api/news/rank", json={"brief": "crypto Solana"})
+    j = r.json() if r.status_code == 200 else {}
+    check("B1 POST /news/rank : 200", r.status_code == 200, f"{r.status_code} {r.text[:200]}")
+    check("B2 garde a1, en tete, score deterministe", [i["id"] for i in j.get("items", [])] == ["a1"]
+          and j["items"][0]["en_tete"] is True and j["items"][0]["score_origine"] == "deterministe", str(j)[:300])
+    check("B3 l'ecarte et son motif sont rendus", j.get("ecartes") == [{"id": "a2", "title": "Free giveaway airdrop inside",
+                                                                         "motif": "mot sur liste noire"}], str(j.get("ecartes")))
+    check("B4 le compte", j.get("compte") == {"lus": 2, "gardes": 1, "ecartes": 1}, str(j.get("compte")))
+    check("B5 AUCUN appel payant et rien au registre sans llm", appels == [] and _lignes() == [], f"{len(appels)} {len(_lignes())}")
+
+    print("\n[C] le LLM sur demande, sous la garde des plafonds")
+    P.enregistrer({"global_usd": 0.000001, "par_moteur": {}, "alerte_pct": 80})
+    r = c.post("/api/news/rank", json={"brief": "crypto Solana", "llm": True})
+    d = r.json().get("detail") if r.headers.get("content-type", "").startswith("application/json") else None
+    dp = (d or {}).get("dz_plafond", {}) if isinstance(d, dict) else {}
+    check("C1 au-dessus du plafond : 402 dz_plafond, categorie news", r.status_code == 402 and dp.get("motif") == "global"
+          and "news" in dp.get("message", ""), f"{r.status_code} {r.text[:300]}")
+    check("C2 refus : zero appel, rien au registre", appels == [] and _lignes() == [], f"{len(appels)}")
+    r = c.post("/api/news/rank", json={"brief": "crypto Solana", "llm": True}, headers={"X-DZ-Plafond": "confirme"})
+    j = r.json() if r.status_code == 200 else {}
+    L = _lignes()
+    check("C3 confirme : 200, UN appel, score du LLM", r.status_code == 200 and len(appels) == 1
+          and j["items"][0]["score"] == 91 and j["items"][0]["score_origine"] == "anthropic", f"{r.status_code} {str(j)[:300]}")
+    check("C4 la depense est inscrite : anthropic, news, llm", len(L) == 1 and L[0].moteur == "anthropic"
+          and L[0].categorie == "news" and L[0].op == "llm" and L[0].estime_usd > 0,
+          str([(l.moteur, l.categorie, l.op, l.estime_usd) for l in L]))
+    check("C5 l'ecarte n'est PAS envoye au LLM (P1)", "giveaway" not in appels[0] if appels else False)
+    P.enregistrer({"global_usd": 0, "par_moteur": {}})
+    c.put("/api/news/filter", json={"mots_cles": [], "sources_noires": [], "mots_noirs": ["solana", "giveaway"],
+                                    "fraicheur_h": 24 * 30})
+    appels.clear()
+    n0 = len(_lignes())
+    r = c.post("/api/news/rank", json={"brief": "x", "llm": True})
+    check("C6 llm demande mais tout est ecarte : ni appel ni ligne", r.status_code == 200 and appels == []
+          and len(_lignes()) == n0 and r.json()["items"] == [], f"{r.status_code} {len(appels)}")
+
+    print("\n[D] bords")
+    _poser_cache(items=[])
+    r = c.post("/api/news/rank", json={"brief": ""})
+    check("D1 cache vide : liste vide, lus 0", r.status_code == 200 and r.json()["items"] == []
+          and r.json()["compte"]["lus"] == 0, r.text[:200])
+    check("D2 brief trop long : 422", c.post("/api/news/rank", json={"brief": "x" * 2001}).status_code == 422)
+
+print(f"\n{ok} ok, {fail} echec(s)")
+raise SystemExit(1 if fail else 0)

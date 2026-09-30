@@ -597,3 +597,46 @@ class NewsIllustrationRequest(BaseModel):
 class NewsIllustrationResponse(BaseModel):
     job_id: str
     message: str
+
+
+# ---- plan News T4-T5 (tâche #33, 30/09/2026) : filtre gratuit puis score ----
+
+class NewsFilterSettings(BaseModel):
+    mots_cles: List[str] = []
+    sources_noires: List[str] = []
+    mots_noirs: List[str] = []
+    fraicheur_h: int = Field(48, ge=1, le=24 * 30)
+
+
+class NewsRankRequest(BaseModel):
+    brief: str = Field("", max_length=2000)
+    llm: bool = False          # le score LLM, PAYANT : seulement sur demande, après la garde des plafonds
+
+
+class NewsRankedItem(BaseModel):
+    id: str
+    title: str
+    source_name: str = ""
+    source_id: str = ""
+    link: str = ""
+    published: str = ""
+    summary: str = ""
+    image: Optional[str] = None
+    score: int = 0
+    score_origine: str = ""
+    score_pourquoi: str = ""
+    en_tete: bool = False
+    doublons: List[dict] = []
+
+
+class NewsDropped(BaseModel):
+    id: str
+    title: str = ""
+    motif: str = ""
+
+
+class NewsRankResponse(BaseModel):
+    items: List[NewsRankedItem] = []
+    ecartes: List[NewsDropped] = []
+    compte: dict = {}
+    fetched_at: Optional[str] = None
