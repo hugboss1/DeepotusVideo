@@ -37,10 +37,9 @@ from app.services import post_preview as PP                         # noqa: E402
 hero = _tmp / "images" / "hero.png"
 Image.new("RGB", (1080, 1920), (240, 240, 240)).save(hero)
 large = _tmp / "images" / "paysage.png"
-im = Image.new("RGB", (1920, 1080), (20, 20, 200))                  # bleu, avec des bords rouges qui doivent être rognés
-for x in range(0, 300):
-    for y in range(0, 1080, 4):
-        im.putpixel((x, y), (255, 0, 0)); im.putpixel((1919 - x, y), (255, 0, 0))
+im = Image.new("RGB", (1920, 1080), (20, 20, 200))                  # bleu, avec des bords rouges PLEINS qui doivent être rognés
+from PIL import ImageDraw as _ID                                    # noqa: E402
+_ID.Draw(im).rectangle([0, 0, 299, 1079], fill=(255, 0, 0)); _ID.Draw(im).rectangle([1620, 0, 1919, 1079], fill=(255, 0, 0))
 im.save(large)
 
 
@@ -65,8 +64,8 @@ for ch in ("instagram", "youtube", "tiktok"):
 im = rendu("tiktok", cap="LÉGENDE BLANCHE")
 W, H = im.size
 z = PP.SAFE_ZONES["tiktok"]
-bande = [im.getpixel((x, y)) for x in range(0, int(W * (1 - z["right"]))) for y in range(H - int(H * z["bottom"]), H)]
-check("1.4 la légende est écrite DANS la bande basse (pixels presque blancs sur fond assombri)",
+bande = [im.getpixel((x, y)) for x in range(0, int(W * (1 - z["right"]))) for y in range(H - int(H * z["bottom"]) + 40, H)]
+check("1.4 la légende est écrite DANS la bande basse, sous le @compte (pixels presque blancs sur fond assombri)",
       sum(1 for p in bande if min(p) > 230) > 150, str(sum(1 for p in bande if min(p) > 230)))
 vide = rendu("tiktok", cap="")
 bande0 = [vide.getpixel((x, y)) for x in range(0, int(W * (1 - z["right"]))) for y in range(H - int(H * z["bottom"]) + 40, H)]

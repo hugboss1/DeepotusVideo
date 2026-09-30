@@ -54,11 +54,13 @@ F.write_text("{pas du json", "utf-8")
 check("1.6 fichier illisible : défauts, pas d'exception", SL.load()["x"] == ["08:30", "13:00", "19:30"] and SL.tz_offset() == 0)
 
 print("\n[2] affectation")
-posts = [{"day_offset": 0, "channels": ["x"]}, {"day_offset": 0, "channels": ["x", "telegram"]},
-         {"day_offset": 1, "channels": ["youtube"]}, {"day_offset": 0, "channels": ["x"]}, {"day_offset": 0}]
+posts = [{"day_offset": 0, "channels": ["x"]}, {"day_offset": 1, "channels": ["x"]},
+         {"day_offset": 0, "channels": ["x", "telegram"]}, {"day_offset": 1, "channels": ["youtube"]},
+         {"day_offset": 0, "channels": ["x"]}, {"day_offset": 0}]
 SL.assign(posts, {"x": ["07:00", "12:00"], "youtube": ["09:30"]})
-check("2.1 k-ième post du jour sur son premier canal → k-ième créneau, en boucle ; sans canal = X",
-      [p["time"] for p in posts] == ["07:00", "12:00", "09:30", "07:00", "12:00"], str([p["time"] for p in posts]))
+check("2.1 k-ième post DU JOUR sur son premier canal → k-ième créneau, en boucle ; chaque jour repart du premier ; "
+      "sans canal = X", [p["time"] for p in posts] == ["07:00", "07:00", "12:00", "09:30", "07:00", "12:00"],
+      str([p["time"] for p in posts]))
 
 print("\n[3] proposition d'horaire")
 items = ([{"channel": "x", "posted_at": "2026-09-01T17:00:00Z", "engagement": 50}] * 3
@@ -71,6 +73,9 @@ sug = SL.suggest([{"channel": "x", "posted_at": "2026-09-01T17:40:00Z", "engagem
 check("3.2 17:40 tombe dans la demi-heure 17:30", sug == {"x": "17:30"}, str(sug))
 sug = SL.suggest([{"channel": "x", "posted_at": "pas une date", "engagement": 9}] * 9)
 check("3.3 dates illisibles ignorées, pas d'exception", sug == {}, str(sug))
+sug = SL.suggest([{"channel": "x", "posted_at": "2026-09-01T19:00:00Z", "engagement": 10}] * 5
+                 + [{"channel": "x", "posted_at": "2026-09-01T08:00:00Z", "engagement": 30}])
+check("3.4 la MOYENNE décide, pas la somme (5 posts à 10 perdent contre 1 post à 30)", sug == {"x": "08:00"}, str(sug))
 
 print("\n[4] routes et plan")
 from fastapi.testclient import TestClient                          # noqa: E402
