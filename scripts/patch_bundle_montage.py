@@ -7321,6 +7321,105 @@ R_P3SC8 = ('x.useEffect(()=>{function R(){o&&o()}return window.addEventListener(
            '()=>window.removeEventListener("deepotus:schedule-reload",R)},[o]),' + A_P3SC8)
 P1 += [("P3sc8-le-scheduler-recharge-sa-liste", A_P3SC8, R_P3SC8)]
 assert len(P1) == 58
+# P3nr1..P3nr10 (tache #33 PR 2/2, plan news T6, 30/09/2026) -- L'ECRAN NEWS TRIE PAR LE SCORE. Ecarts au plan du 03/09 :
+# (1) un GROUPE du maillon montage, pas de patcher `newsrank` separe (pratique actuelle) ; (2) decision de l'utilisateur :
+# le score est GRATUIT (deterministe) par defaut, l'IA seulement par le bouton « Classer avec l'IA » (llm=true ; le 402 du
+# plafond est gere par dz-plafonds.js, qui rejoue la requete si l'utilisateur confirme) ; (3) `loadItems` jetait
+# `published` et `doublons` : le payload du plan aurait envoye une date vide -> ils sont gardes (P3nr3) ; (4) le filtre
+# gratuit a son panneau (mots-cles, mots noirs, sources noires, fraicheur) ; (5) « Score du jour » devient le tri par
+# defaut ; (6) `te` ne transmet pas `title` : la puce des ecartes est enveloppee d'un span qui porte les motifs (E-12).
+A_P3NR1 = "function pm({variant:e,go:Go}){"
+R_P3NR1 = ('function __dzNewsRank(brief,llm){return fetch("/api/news/rank",{method:"POST",headers:{"Content-Type":"application/json"},'
+           'body:JSON.stringify({brief:brief||"",llm:!!llm})}).then(function(R){if(R.status===402)return{annule:!0};'
+           'return R.ok?R.json():null}).catch(function(){return null})}'
+           'function __dzNewsFilter(patch){var o=patch?{method:"PUT",headers:{"Content-Type":"application/json"},'
+           'body:JSON.stringify(patch)}:void 0;return fetch("/api/news/filter",o).then(function(R){return R.ok?R.json():null})'
+           '.catch(function(){return null})}'
+           'function __dzNewsListe(v){return String(v||"").split(",").map(function(x){return x.trim()}).filter(Boolean)}'
+           + A_P3NR1)
+A_P3NR2 = 'const[sty,setSty]=x.useState("deep-sea");'
+R_P3NR2 = ('const[brief,setBrief]=x.useState(function(){try{return localStorage.getItem("dzNewsBrief")||""}catch(e){return""}});'
+           'const[ranked,setRanked]=x.useState(null);const[plie,setPlie]=x.useState(!0);const[rkWork,setRkWork]=x.useState("");'
+           'const[filt,setFilt]=x.useState(null);'
+           'x.useEffect(function(){var on=!0,t=setTimeout(function(){__dzNewsRank(brief,!1).then(function(j){on&&j&&j.items&&setRanked(j)})},350);'
+           'try{localStorage.setItem("dzNewsBrief",brief)}catch(e){}return function(){on=!1;clearTimeout(t)}},[brief,items]);'
+           'x.useEffect(function(){__dzNewsFilter().then(function(j){j&&setFilt({mots_cles:(j.mots_cles||[]).join(", "),'
+           'mots_noirs:(j.mots_noirs||[]).join(", "),sources_noires:(j.sources_noires||[]).join(", "),fraicheur_h:String(j.fraicheur_h)})})},[]);'
+           'async function rankIA(){setRkWork("ia");setMsg("Classement par l’IA…");var j=await __dzNewsRank(brief,!0);setRkWork("");'
+           'if(j&&j.items){setRanked(j);setSort("relevance");setMsg("Classé par l’IA ("+((j.items[0]||{}).score_origine||"—")+").")}'
+           'else setMsg(j&&j.annule?"Classement IA annulé (plafond de dépense).":"Classement IA impossible.");'
+           'setTimeout(function(){setMsg("")},5e3)}'
+           'async function saveFilt(){if(!filt)return;var j=await __dzNewsFilter({mots_cles:__dzNewsListe(filt.mots_cles),'
+           'mots_noirs:__dzNewsListe(filt.mots_noirs),sources_noires:__dzNewsListe(filt.sources_noires),'
+           'fraicheur_h:Math.max(1,Math.min(720,parseInt(filt.fraicheur_h,10)||48))});'
+           'if(j){setFilt({mots_cles:(j.mots_cles||[]).join(", "),mots_noirs:(j.mots_noirs||[]).join(", "),'
+           'sources_noires:(j.sources_noires||[]).join(", "),fraicheur_h:String(j.fraicheur_h)});setMsg("Filtre enregistré.");'
+           '__dzNewsRank(brief,!1).then(function(k){k&&k.items&&setRanked(k)})}else setMsg("Filtre refusé (fraîcheur : 1 à 720 h).");'
+           'setTimeout(function(){setMsg("")},4e3)}'
+           'var fch=function(k,lbl,hint,ph){return r.jsx(O,{label:lbl,hint:hint,children:r.jsx(le,{placeholder:ph,title:hint,'
+           'value:filt?String(filt[k]==null?"":filt[k]):"",onChange:function(v){var t=typeof v==="string"?v:v&&v.target?v.target.value:"";'
+           'setFilt(function(f){var n=Object.assign({},f||{});n[k]=t;return n})}})})};')
+A_P3NR3 = 'link:z.link||"",summary:z.summary||""})))'
+R_P3NR3 = 'link:z.link||"",summary:z.summary||"",published:z.published||"",doublons:z.doublons||[]})))'
+A_P3NR4 = 'if(sort==="relevance")shown=shown.slice().sort((a,b)=>(b.summary||"").length-(a.summary||"").length);'
+R_P3NR4 = ('if(sort==="relevance"&&ranked&&ranked.items){var ord={},sc={};ranked.items.forEach(function(z,ix){ord[z.id]=ix;sc[z.id]=z});'
+           'shown=shown.filter(function(z){return ord[z.id]!=null}).sort(function(a,b){return ord[a.id]-ord[b.id]})'
+           '.map(function(z){var m=sc[z.id];return Object.assign({},z,{score:m.score,score_pourquoi:m.score_pourquoi,'
+           'score_origine:m.score_origine,en_tete:m.en_tete})});if(plie)shown=shown.filter(function(z){return z.en_tete})}')
+A_P3NR5 = 'const[sort,setSort]=x.useState("recent");'
+R_P3NR5 = 'const[sort,setSort]=x.useState("relevance");'
+A_P3NR6 = 'fontWeight:500,marginBottom:4},children:i.title})'
+R_P3NR6 = (A_P3NR6 + ',i.score!=null?r.jsxs("div",{title:i.score_origine==="deterministe"?"Score gratuit : mots du brief, reprises par '
+           'd’autres médias, article lisible":"Score donné par l’IA ("+i.score_origine+")",style:{display:"flex",gap:8,'
+           'alignItems:"center",flexWrap:"wrap",fontSize:10.5,marginBottom:4},children:[r.jsx("span",{className:"mono",'
+           'style:{color:i.en_tete?"var(--cyan)":"var(--ink-muted)"},children:(i.en_tete?"★ ":"")+i.score+"/100"}),'
+           'r.jsx("span",{style:{color:"var(--ink-soft)"},children:i.score_pourquoi}),i.score_origine!=="deterministe"?'
+           'r.jsx("span",{style:{color:"var(--violet)"},children:"IA · "+i.score_origine}):null]}):null')
+A_P3NR7 = 'function payload(){return chosen().map(i=>({title:i.title,summary:i.summary,source_name:i.source,link:i.link}))}'
+R_P3NR7 = ('function payload(){return chosen().map(i=>({title:i.title,summary:i.summary,source_name:i.source,link:i.link,'
+           'id:i.id,published:i.published||""}))}')
+# la barre passe a la ligne (flexWrap) et ses puces ne se coupent plus : mesure a l'ecran le 30/09, « En tete
+# seulement » forcait la colonne centrale a 822 px et poussait Compose hors de la fenetre (grille 1462 px pour 1400)
+A_P3NR8 = ('display:"flex",alignItems:"center",gap:10,background:"var(--bg-panel)"},children:[r.jsxs("span",{className:"display",'
+           'style:{fontSize:14,color:"var(--ink-strong)"},children:[shown.length," items"]}),r.jsxs(te,{tone:"cyan",children:[sel.size," selected"]})')
+R_P3NR8 = ('display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",rowGap:6,background:"var(--bg-panel)"},children:[r.jsxs("span",{className:"display",'
+           'style:{fontSize:14,color:"var(--ink-strong)",whiteSpace:"nowrap"},children:[shown.length," items"]}),r.jsxs(te,{tone:"cyan",'
+           'style:{whiteSpace:"nowrap"},children:[sel.size," selected"]})'
+           ',ranked&&ranked.ecartes&&ranked.ecartes.length?r.jsx("span",{title:ranked.ecartes.map(function(z){'
+           'return z.title+" — "+z.motif}).join("\\n"),children:r.jsx(te,{tone:"amber",style:{whiteSpace:"nowrap"},children:ranked.ecartes.length+'
+           '" écartés ce jour"})}):null,sort==="relevance"&&ranked&&ranked.items&&ranked.items.length>5?'
+           'r.jsx(K,{variant:"ghost",size:"sm",title:plie?"Afficher tout le classement du jour":"Revenir aux cinq en tête",'
+           'onClick:function(){setPlie(!plie)},children:plie?"Tout voir":"En tête seulement"}):null,'
+           'r.jsx(K,{variant:"outline",size:"sm",title:"Classer avec l’IA : payant, sous le plafond de dépense. '
+           'Sans ce bouton, le score est calculé gratuitement.",onClick:rankIA,disabled:rkWork==="ia"||!items.length,'
+           'children:rkWork==="ia"?"Classement…":"Classer avec l’IA"})')
+A_P3NR9 = '{value:"relevance",label:"By relevance"}'
+R_P3NR9 = '{value:"relevance",label:"Score du jour"}'
+A_P3NR10 = ('r.jsx(ie,{label:"Illustration",children:r.jsx(O,{label:"Style",children:r.jsx(re,{value:sty,'
+            'options:["deep-sea","cinematic","glitch","documentary"],onChange:v=>setSty(v)})})})')
+R_P3NR10 = ('r.jsx(ie,{label:"Classement du jour",children:r.jsx(O,{label:"Brief de campagne",'
+            'hint:"Les mots du brief orientent le score gratuit ; l’IA le lit aussi.",children:r.jsx(le,'
+            '{placeholder:"crypto, Solana, macro…",title:"Ce qui compte aujourd’hui : oriente le score",value:brief,'
+            'onChange:function(v){setBrief(typeof v==="string"?v:v&&v.target?v.target.value:"")}})})}),'
+            'r.jsxs(ie,{label:"Filtre gratuit",defaultOpen:!1,children:[filt?null:r.jsx("div",{style:{fontSize:11,'
+            'color:"var(--ink-soft)",padding:"0 0 8px"},children:"Filtre injoignable."}),'
+            'fch("mots_cles","Mots-clés (un au moins)","Vide : tout passe. Séparés par des virgules.","solana, bitcoin"),'
+            'fch("mots_noirs","Mots sur liste noire","Un article qui en contient un tombe.","giveaway, airdrop"),'
+            'fch("sources_noires","Sources sur liste noire","Nom du média, ou une partie.","spammy"),'
+            'fch("fraicheur_h","Fraîcheur (heures)","Au-delà, l’article tombe (1 à 720).","48"),'
+            'r.jsx(K,{variant:"outline",size:"sm",title:"Enregistrer le filtre gratuit et reclasser",onClick:saveFilt,'
+            'disabled:!filt,children:"Enregistrer le filtre"})]})')
+P1 += [("P3nr1-ponts-news-avant-pm", A_P3NR1, R_P3NR1),
+       ("P3nr2-etat-brief-classement-filtre", A_P3NR2, R_P3NR2),
+       ("P3nr3-items-gardent-date-et-doublons", A_P3NR3, R_P3NR3),
+       ("P3nr4-tri-par-le-classement", A_P3NR4, R_P3NR4),
+       ("P3nr5-score-du-jour-par-defaut", A_P3NR5, R_P3NR5),
+       ("P3nr6-score-et-motif-sur-la-carte", A_P3NR6, R_P3NR6),
+       ("P3nr7-payload-id-et-date", A_P3NR7, R_P3NR7),
+       ("P3nr8-ecartes-repli-et-classer-avec-l-ia", A_P3NR8, R_P3NR8),
+       ("P3nr9-libelle-score-du-jour", A_P3NR9, R_P3NR9),
+       ("P3nr10-brief-et-filtre-a-la-place-du-style-mort", A_P3NR10, R_P3NR10)]
+assert len(P1) == 68 and all("\n" not in r and "\r" not in r for _t, _a, r in P1[-10:])
 
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
@@ -7588,6 +7687,7 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            # + P3sc0..P3sc6 (tache #31, l'ecran du Scheduler) : 285, le --check dit 286.
            # + P3sc7 (tache #32 PR4, la suite de fil dans l'inspecteur) : 286, le --check dit 287.
            # + P3sc8 (tache #32 PR4, le Scheduler recharge sa liste) : 287, le --check dit 288.
+           # + P3nr1..P3nr10 (tache #33 PR2, l'ecran News trie par le score) : 297, le --check dit 298.
            # studio 27/09 : + HUIT sections EN QUEUE, groupe R8 apres R7 (format HeyGen impose par le template, « Ouvrir un graphe » en icone,
            # repli de l'inspecteur) ; 213 -> 221, le --check dit 222 ancres ; + R8sv1 (Save par le dialogue maison) : 222, le --check dit 223 ;
            # + R8pr1..R8pr7 (les autres window.prompt natifs, 27/09) : 229, le --check dit 230.
