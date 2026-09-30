@@ -34,6 +34,36 @@
     "#1000x",
     "#DiamondHands"
   ],
+  "voice_modes": {
+    "oracle": {
+      "description": "calme, sentencieux, image marine ; la voix par defaut",
+      "style_hints": "solemn, measured, deep-sea imagery, short prophetic sentences",
+      "sujets": ["regulation", "policy", "central bank", "treaty", "court", "election", "summit", "report"],
+      "example_caption_en": "The deep has been watching.\nFrom the deep. 🐙",
+      "example_caption_fr": "Les profondeurs observaient.\nDes profondeurs. 🐙"
+    },
+    "alpha": {
+      "description": "direct, chiffre, sans ornement ; pour un mouvement de marche",
+      "style_hints": "blunt, numbers first, no ornament, trader energy",
+      "sujets": ["crash", "surge", "rally", "liquidation", "outflow", "inflow", "etf", "yield", "hack", "exploit"],
+      "example_caption_en": "Signal check. No noise.\nMove accordingly. 🐙",
+      "example_caption_fr": "Point signal. Zero bruit.\nAgis en consequence. 🐙"
+    },
+    "zen": {
+      "description": "posee, lente, rassurante ; pour un sujet sans drame",
+      "style_hints": "calm, slow, reassuring, no hype",
+      "sujets": ["unchanged", "steady", "guidance", "stable", "delay", "postponed", "review", "consultation"],
+      "example_caption_en": "Breathe. Then look.\nStay steady. 🐙",
+      "example_caption_fr": "Respire. Puis regarde.\nReste stable. 🐙"
+    },
+    "memer": {
+      "description": "rapide, moqueuse, complice ; pour l'absurde",
+      "style_hints": "fast, playful, self-aware internet humor",
+      "sujets": ["meme", "dog", "cat", "viral", "prank", "parody", "nft", "influencer", "rug"],
+      "example_caption_en": "Okay, news dump, deepotus style.\nThat's the lore. 🐙",
+      "example_caption_fr": "Bon, revue de presse version deepotus.\nVoila le lore. 🐙"
+    }
+  },
   "templates": [
     {
       "id": "tpl_hook_reveal",

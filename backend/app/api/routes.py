@@ -56,6 +56,7 @@ from app.models.schemas import (
     NewsRankedItem,
     NewsDropped,
     NewsRankResponse,
+    VoiceMode,
 )
 from app.services.pipeline import Pipeline
 from app.services.fs_guard import is_virtualized as fs_is_virtualized
@@ -2033,14 +2034,18 @@ async def rank_news(request: NewsRankRequest):
     — décision de l'utilisateur du 30/09 : sur demande seulement — passe D'ABORD par la garde des plafonds, et
     seulement s'il reste un article à noter : aucun appel payant sur un article que le filtre a écarté (P1).
     La réponse dit aussi ce qui est tombé et pourquoi."""
-    from app.services import news_filter, news_rank
+    from app.services import news_filter, news_memory, news_rank
     cache = news_service.get_items()
     bruts = cache.get("items") or []
     gardes, motifs = news_filter.filtrer(bruts, news_filter.lire_reglages())
+    # T8 (tâche #34) : la marque « déjà couvert » et le malus de source sont posés AVANT le score, pour que le malus
+    # entre dans le nombre affiché et que son motif soit lisible dans la même phrase.
+    gardes = news_memory.marquer(gardes)
+    penalites = news_memory.penalites_de_source()
     if request.llm and gardes:
         from app.services import plafonds as _PLAF
         await _plafond(_PLAF.op_llm(*news_rank.jetons_llm(len(gardes))), "news")
-    classes = await asyncio.to_thread(news_rank.classer, gardes, brief=request.brief,
+    classes = await asyncio.to_thread(news_rank.classer, gardes, brief=request.brief, penalites=penalites,
                                       llm=bool(request.llm and gardes))
     par_id = {str(i.get("id")): i for i in bruts}
     ecartes = [NewsDropped(id=str(k), title=str((par_id.get(str(k)) or {}).get("title") or ""), motif=v)
@@ -2060,8 +2065,9 @@ async def generate_news_script_route(request: NewsScriptRequest):
     + lead images (saved to assets/images for Seedance), then render a
     deepotus 'prophet' (cynical/humorous) script + caption."""
     from app.services import plafonds as _PLAF   # tâche #16 : un résumé par article lu + le script
+    voix_llm = bool(request.voice_mode_llm and not request.voice_mode)   # T10 : le choix de voix par le LLM, demandé
     await _plafond([_PLAF.op_llm(3000, 400)] * (len(request.items) if request.read_articles else 0)
-                   + [_PLAF.op_llm(3000, 1200)], "news")
+                   + [_PLAF.op_llm(3000, 1200)] + ([_PLAF.op_llm(400, 200)] if voix_llm else []), "news")
     try:
         items = [i.model_dump() for i in request.items]
         essences: list[NewsEssence] = []
@@ -2079,19 +2085,32 @@ async def generate_news_script_route(request: NewsScriptRequest):
                     link=it.get("link", ""),
                     status=it.get("scrape_status", ""),
                 ))
+        # T10 (tâche #34) : le mode demandé gagne ; sinon les mots du sujet (gratuit), ou le LLM sur demande.
+        from app.services.news_voice import choisir_mode
+        mode_auto, mode_pourquoi = await asyncio.to_thread(
+            choisir_mode, items, force=(request.voice_mode.value if request.voice_mode else None), llm=voix_llm)
         base = await asyncio.to_thread(
             pipeline.engine.generate_news_script,
             items,
-            voice_mode=request.voice_mode,
+            voice_mode=VoiceMode(mode_auto),
             language=request.language,
             max_words=request.max_words,
             angle=request.angle,
         )
+        # T9 (tâche #34) : la ligne de sources, construite par le pipeline (jamais par le LLM), en fin de légende.
+        from app.services.news_caption import bloc_sources
+        ligne = bloc_sources(items, langue=request.language.value)
+        dump = base.model_dump()
+        if ligne:
+            dump["suggested_caption"] = (dump.get("suggested_caption") or "").rstrip() + "\n\n" + ligne
         return NewsScriptResponse(
-            **base.model_dump(),
+            **dump,
             sources_read=len(essences),
             images=images,
             essences=essences,
+            sources_line=ligne,
+            voice_mode_auto=mode_auto,
+            voice_mode_reason=mode_pourquoi,
         )
     except Exception as e:
         logger.exception("news script generation failed")
@@ -2115,6 +2134,10 @@ async def generate_news_illustration_route(
                 engine=request.engine,
                 job_id=job_id,
             )
+            # T7 (tâche #34) : un reel lancé avec succès note ses sujets — mémoire des sujets couverts et équilibre
+            # des sources (le plan attendait la chaîne du lot 2 pour le faire).
+            from app.services import news_memory
+            news_memory.noter_couverture([i.model_dump() for i in request.items], post_id=job_id)
         except Exception as e:
             logger.exception(f"news illustration {job_id} failed: {e}")
 

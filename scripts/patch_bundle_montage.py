@@ -7365,7 +7365,7 @@ A_P3NR4 = 'if(sort==="relevance")shown=shown.slice().sort((a,b)=>(b.summary||"")
 R_P3NR4 = ('if(sort==="relevance"&&ranked&&ranked.items){var ord={},sc={};ranked.items.forEach(function(z,ix){ord[z.id]=ix;sc[z.id]=z});'
            'shown=shown.filter(function(z){return ord[z.id]!=null}).sort(function(a,b){return ord[a.id]-ord[b.id]})'
            '.map(function(z){var m=sc[z.id];return Object.assign({},z,{score:m.score,score_pourquoi:m.score_pourquoi,'
-           'score_origine:m.score_origine,en_tete:m.en_tete})});if(plie)shown=shown.filter(function(z){return z.en_tete})}')
+           'score_origine:m.score_origine,en_tete:m.en_tete,deja_couvert:m.deja_couvert})});if(plie)shown=shown.filter(function(z){return z.en_tete})}')
 A_P3NR5 = 'const[sort,setSort]=x.useState("recent");'
 R_P3NR5 = 'const[sort,setSort]=x.useState("relevance");'
 A_P3NR6 = 'fontWeight:500,marginBottom:4},children:i.title})'
@@ -7374,10 +7374,13 @@ R_P3NR6 = (A_P3NR6 + ',i.score!=null?r.jsxs("div",{title:i.score_origine==="dete
            'alignItems:"center",flexWrap:"wrap",fontSize:10.5,marginBottom:4},children:[r.jsx("span",{className:"mono",'
            'style:{color:i.en_tete?"var(--cyan)":"var(--ink-muted)"},children:(i.en_tete?"★ ":"")+i.score+"/100"}),'
            'r.jsx("span",{style:{color:"var(--ink-soft)"},children:i.score_pourquoi}),i.score_origine!=="deterministe"?'
-           'r.jsx("span",{style:{color:"var(--violet)"},children:"IA · "+i.score_origine}):null]}):null')
+           'r.jsx("span",{style:{color:"var(--violet)"},children:"IA · "+i.score_origine}):null,'
+           # tache #34 (T8) : le sujet deja couvert est MONTRE en ambre, pas cache - a l'utilisateur de trancher
+           'i.deja_couvert?r.jsx("span",{title:"Sujet proche d’un reel déjà lancé : "+i.deja_couvert,'
+           'style:{color:"var(--amber)"},children:"déjà couvert"}):null]}):null')
 A_P3NR7 = 'function payload(){return chosen().map(i=>({title:i.title,summary:i.summary,source_name:i.source,link:i.link}))}'
 R_P3NR7 = ('function payload(){return chosen().map(i=>({title:i.title,summary:i.summary,source_name:i.source,link:i.link,'
-           'id:i.id,published:i.published||""}))}')
+           'id:i.id,source_id:i.source_id||"",published:i.published||""}))}')   # source_id : tache #34 (equilibre des sources)
 # la barre passe a la ligne (flexWrap) et ses puces ne se coupent plus : mesure a l'ecran le 30/09, « En tete
 # seulement » forcait la colonne centrale a 822 px et poussait Compose hors de la fenetre (grille 1462 px pour 1400)
 A_P3NR8 = ('display:"flex",alignItems:"center",gap:10,background:"var(--bg-panel)"},children:[r.jsxs("span",{className:"display",'

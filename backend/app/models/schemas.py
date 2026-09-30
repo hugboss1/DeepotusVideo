@@ -557,6 +557,12 @@ class NewsScriptItem(BaseModel):
     summary: Optional[str] = ""
     source_name: Optional[str] = ""
     link: Optional[str] = ""
+    # plan News T9 (tâche #34, 30/09/2026) : l'écran les emporte (payload, P3nr7) ; ils servent à la mémoire des
+    # sujets couverts (T7) et à la date des sources en légende (T9).
+    id: Optional[str] = ""
+    source_id: Optional[str] = ""
+    published: Optional[str] = ""
+    doublons: List[dict] = []
 
 
 class NewsScriptRequest(BaseModel):
@@ -567,6 +573,9 @@ class NewsScriptRequest(BaseModel):
     angle: Optional[str] = Field(None, max_length=200)
     read_articles: bool = True
     summary_words: int = Field(150, ge=40, le=2000)
+    # T10 (tâche #34) : sans voice_mode, le mode est déduit des mots du sujet ; le LLM (payant) ne le choisit que sur
+    # demande, et la route le chiffre alors dans sa garde des plafonds.
+    voice_mode_llm: bool = False
 
 
 class NewsEssence(BaseModel):
@@ -586,6 +595,9 @@ class NewsScriptResponse(BaseModel):
     sources_read: int = 0
     images: List[str] = []
     essences: List[NewsEssence] = []
+    sources_line: str = ""                      # T9 : la ligne de sources, posée aussi en fin de légende
+    voice_mode_auto: Optional[str] = None       # T10 : le mode retenu…
+    voice_mode_reason: str = ""                 # …et pourquoi
 
 
 class NewsIllustrationRequest(BaseModel):
@@ -627,6 +639,7 @@ class NewsRankedItem(BaseModel):
     score_pourquoi: str = ""
     en_tete: bool = False
     doublons: List[dict] = []
+    deja_couvert: Optional[str] = None          # T8 (tâche #34) : le sujet déjà couvert dont l'article est proche
 
 
 class NewsDropped(BaseModel):
