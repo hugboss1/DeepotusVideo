@@ -4855,6 +4855,35 @@ async def delete_scheduled_post(post_id: str):
     return {"deleted": post_id}
 
 
+@router.post("/schedule/{post_id}/thread")
+async def add_thread_post(post_id: str, body: dict):
+    """Plan scheduler T15 (tâche #32) — la SUITE d'un post : un fil X. La racine est le `thread_of` du parent s'il en a
+    un, sinon le parent lui-même : un fil est PLAT, jamais un arbre. Le canal est `x` (le fil est un mécanisme de X) ;
+    la suite hérite du mode du parent et part deux minutes après le dernier message du fil."""
+    body = body or {}
+    caption = str(body.get("caption") or "").strip()
+    if not caption:
+        raise HTTPException(400, "caption : la suite a besoin d'un texte")
+    async with async_session_factory() as session:
+        res = await session.execute(_select(ScheduledPost).where(ScheduledPost.id == post_id))
+        parent = res.scalar_one_or_none()
+        if parent is None:
+            raise HTTPException(404, "post inconnu")
+        racine = parent.thread_of or parent.id
+        res = await session.execute(_select(ScheduledPost).where(ScheduledPost.thread_of == racine))
+        idx = max([p.thread_index or 0 for p in res.scalars().all()] + [0]) + 1
+        tete = parent if parent.id == racine else (await session.execute(
+            _select(ScheduledPost).where(ScheduledPost.id == racine))).scalar_one_or_none() or parent
+        p = ScheduledPost(
+            id=str(uuid4()), title=f"{(tete.title or 'Fil')[:180]} ({idx + 1})",
+            caption=caption[:4000], channels="x", run_at=tete.run_at + _td(minutes=2 * idx),
+            status="scheduled", mode=parent.mode, format=parent.format,
+            plan_id=parent.plan_id, thread_of=racine, thread_index=idx)
+        session.add(p)
+        await session.commit()
+        return _post_to_dict(p)
+
+
 @router.post("/schedule/{post_id}/fire")
 async def fire_scheduled_post(post_id: str):
     """Publish NOW on auto-capable channels (Telegram). Channels without an

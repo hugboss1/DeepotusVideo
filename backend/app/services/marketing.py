@@ -894,6 +894,30 @@ async def fire_post(post_id: str) -> dict:
                 except (ValueError, TypeError):
                     remote = {}
             meta = {"title": post.title, "brief": brief_d}
+            # plan scheduler T15 (tâche #32) : une suite de fil X RÉPOND au message précédent (index - 1, ou la tête) ;
+            # tant qu'il n'est pas parti, la suite est REPORTÉE de deux minutes — jamais échouée — et c'est dit
+            if post.thread_of:
+                res_p = await session.execute(
+                    select(ScheduledPost)
+                    .where(ScheduledPost.thread_of == post.thread_of)
+                    .where(ScheduledPost.thread_index == (post.thread_index or 1) - 1))
+                amont = res_p.scalar_one_or_none()
+                if amont is None and (post.thread_index or 1) == 1:
+                    res_p = await session.execute(select(ScheduledPost).where(ScheduledPost.id == post.thread_of))
+                    amont = res_p.scalar_one_or_none()
+                rid = None
+                if amont is not None and amont.remote_ids:
+                    try:
+                        rid = (json.loads(amont.remote_ids) or {}).get("x")
+                    except (ValueError, TypeError):
+                        rid = None
+                if not rid:
+                    post.status = "scheduled"
+                    post.run_at = datetime.utcnow() + timedelta(minutes=2)
+                    post.error = "fil : attend la publication du message précédent"
+                    await session.commit()
+                    return {"ok": False, "error": post.error, "status": post.status}
+                meta["reply_to"] = rid
             for ch in channels:
                 if ch in remote:
                     sent.append(f"{ch}: déjà publié ({remote[ch]})")
