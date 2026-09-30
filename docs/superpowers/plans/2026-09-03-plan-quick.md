@@ -1072,6 +1072,8 @@ EOF
 
 ---
 
+> **T3 EXÉCUTÉE le 01/10/2026** (tâche #49 du suivi, branche `chantier/p5-quick-fin-grisee`). Écarts datés : (1) un GROUPE `P5ef1..P5ef5` du maillon montage, pas de patcher `quickend` ; (2) E1 s'ancre avant `var dzVMatch=` : le plan l'ancrait sur `var dzApplyRef=`, chaîne écrite par P5qr2 — le maillon exige des ancres présentes dans `.bak_montage` ; (3) mesure du registre confirmée (6 modèles acceptent la fin, 5 non, défaut `seedance-2.5`), rien en dur : la table vient de `/api/video-models` ; (4) la ligne de raison porte un `title` ; `x.useState(` 613 → 614. Bancs : `test_quick_bundle` 26/0 (`dzEndOK`, `dzEndWhy` et le changement de modèle EXÉCUTÉS sous node), `test_montage_bundle` 2663/0 ; 10/10 mutations rouges (deux survivants au premier tour : le défaut du serveur qui refuse, la condition du select → banc renforcé) ; preuve écran 8799 : Veo → « Image de fin — indisponible » et les six modèles nommés, un seul « Parcourir » ; Kling → le select « — aucune — » et ses deux « Parcourir ».
+
 ### Task 3 (P3) : l'image de fin exposée, grisée avec la raison
 
 **Files :**
