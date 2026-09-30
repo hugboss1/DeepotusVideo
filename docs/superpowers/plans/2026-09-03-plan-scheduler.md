@@ -2990,6 +2990,8 @@ git add backend/app/api/routes.py backend/tests/test_scheduler_lot.py
 git commit -m 'scheduler : lot valide exportable et retour d etat du compagnon' -m 'GET /schedule/lot rend les posts validés avec vidéos, légendes, heures, taille et sha256 des médias, plafonds et bornes ; POST /schedule/{id}/report fond l état rapporté, compte le quota partagé, refuse un second porteur (409) et rend un échec reprenable. Aucun jeton ne sort par ces routes.' -m 'Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>'
 ```
 
+> **T13 EXÉCUTÉE le 30/09/2026** (tâche #32, PR 2/4, branche `chantier/p3-scheduler-brief-series`). Écart daté : `apply_forbidden` cherche le terme ENTRE LIMITES DE MOT (`(?<!\w)…(?!\w)`) — le plan retirait la sous-chaîne, « garanti » aurait mutilé « garantie » en « e ». Banc `test_scheduler_brief` 15/0 : un faux moteur remplace Ollama (aucun réseau) pour prouver que le prompt REÇU porte le brief et que sa sortie insistante est nettoyée — le plan ne vérifiait que le plan déterministe, qui ne reçoit jamais le prompt enrichi.
+
 ### Tâche 13 : brief de campagne persistant (D2)
 
 **Files :**
@@ -3223,6 +3225,8 @@ Run : `python tests/test_plan_doc_import.py` → PASS
 git add backend/app/services/marketing.py backend/app/api/routes.py backend/tests/test_scheduler_brief.py
 git commit -m 'scheduler : brief de campagne persistant lu par le plan' -m 'Un brief actif (objectif, fenêtre, messages, rubriques, interdits) entre dans le prompt du planner et ses interdits sont RETIRÉS de la sortie, pas seulement demandés ; le plan rend campaign_brief et la liste des termes retirés.' -m 'Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>'
 ```
+
+> **T14 EXÉCUTÉE le 30/09/2026** (tâche #32, PR 2/4). Écarts datés : une série RETIRÉE ne se matérialise plus (le plan ne vérifiait pas `active`) ; jours et heure illisibles refusés par un message qui nomme le champ (`int("lundi")` du plan aurait rendu une erreur Python brute) ; heure normalisée (« 9:30 » → « 09:30 »). Banc `test_scheduler_series` 19/0 ; campagne T13-T14 : 17/17 mutations rouges.
 
 ### Tâche 14 : séries récurrentes (D2)
 
