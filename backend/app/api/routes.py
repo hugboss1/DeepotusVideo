@@ -4517,7 +4517,7 @@ async def upload_pack_icon(slot: str, request: Request, file: UploadFile = File(
 from datetime import datetime as _dt, timedelta as _td
 from sqlalchemy import select as _select, delete as _delete, \
     or_ as _or, and_ as _and, func as _func
-from app.services.storage import ScheduledPost, JobRecord, async_session_factory
+from app.services.storage import CampaignBrief, ScheduledPost, JobRecord, async_session_factory
 from app.services import marketing
 
 
@@ -5298,6 +5298,37 @@ async def import_marketing_plan(
     except ValueError as e:
         raise HTTPException(400, str(e))
     return {**plan, "chars_read": len(text), "filename": file.filename}
+
+
+@router.get("/marketing/brief")
+async def get_campaign_brief():
+    """Plan scheduler T13 (tâche #32) : le brief de campagne actif, ou null."""
+    return await marketing.active_brief()
+
+
+@router.put("/marketing/brief")
+async def put_campaign_brief(body: dict):
+    """Plan scheduler T13 — remplace le brief actif (un seul à la fois : les précédents passent inactifs, ils restent
+    en base pour l'historique)."""
+    body = body or {}
+    name = str(body.get("name") or "").strip()
+    if not name:
+        raise HTTPException(400, "name est requis")
+    async with async_session_factory() as session:
+        res = await session.execute(_select(CampaignBrief).where(CampaignBrief.active == 1))
+        for old in res.scalars().all():
+            old.active = 0
+        session.add(CampaignBrief(
+            id=str(uuid4()), name=name[:120],
+            objective=str(body.get("objective") or "")[:4000],
+            start_date=(str(body.get("start_date"))[:10] if body.get("start_date") else None),
+            end_date=(str(body.get("end_date"))[:10] if body.get("end_date") else None),
+            messages=str(body.get("messages") or "")[:4000],
+            forbidden=str(body.get("forbidden") or "")[:2000],
+            rubrics=str(body.get("rubrics") or "")[:2000],
+            active=1, updated_at=_dt.utcnow()))
+        await session.commit()
+    return await marketing.active_brief()
 
 
 @router.post("/marketing/plan/materialize")
