@@ -11,7 +11,7 @@ from uuid import uuid4
 import httpx
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile, File, Form, Request, Response
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from PIL import Image as PILImage
 from loguru import logger
 
@@ -4002,6 +4002,10 @@ async def health():
         "version": APP_VERSION,
         "telegram_enabled": settings.has_telegram,
         "x_enabled": settings.has_x,
+        # plan scheduler T6 (tâche #28) : les trois canaux vidéo
+        "youtube_enabled": settings.has_youtube,
+        "instagram_enabled": settings.has_instagram,
+        "tiktok_enabled": settings.has_tiktok,
         "ollama_enabled": settings.has_ollama,
         "fal_configured": bool(settings.FAL_KEY),
         "voiceover_enabled": vo_enabled,
@@ -4049,6 +4053,9 @@ _ALLOWED_ENV_KEYS = {
     "IG_ACCESS_TOKEN", "IG_BUSINESS_ID",
     # P1 #2 (28/09) : l'import Figma de la Bibliothèque le réclame (409 sans lui)
     "FIGMA_TOKEN",
+    # plan scheduler T6 (tâche #28, 30/09) : TikTok Direct Post — client (Login Kit « Desktop »), refresh token écrit par
+    # /oauth/tiktok/callback/, TIKTOK_AUDITED lève SELF_ONLY. Pas de TIKTOK_REDIRECT_URI : le rappel est loopback.
+    "TIKTOK_CLIENT_KEY", "TIKTOK_CLIENT_SECRET", "TIKTOK_REFRESH_TOKEN", "TIKTOK_AUDITED",
 }
 
 
@@ -5122,10 +5129,13 @@ async def materialize_plan_route(body: dict):
 
 
 @router.post("/channels/test")
-async def test_channel(body: dict):
+async def test_channel(body: dict, request: Request):
     """Send a test message on a channel to validate the keys. Telegram sends
     a text message; X posts a real (deletable) tweet only when confirm=true,
-    otherwise it just validates credentials by fetching the authed user."""
+    otherwise it just validates credentials by fetching the authed user.
+    Plan scheduler T6 (tâche #28) : YouTube, Instagram et TikTok lisent le compte connecté (rien n'est publié) ; la
+    route lit des jetons, elle passe donc par la garde de boucle locale des Réglages."""
+    _require_localhost(request)
     ch = (body or {}).get("channel")
     if ch == "telegram":
         if not settings.has_telegram:
@@ -5145,7 +5155,131 @@ async def test_channel(body: dict):
                 return False, str(e)
         ok, detail = await _aio.to_thread(_verify)
         return {"ok": ok, "detail": detail}
+    if ch == "youtube":
+        if not settings.has_youtube:
+            raise HTTPException(400, "YouTube : YOUTUBE_CLIENT_ID / YOUTUBE_CLIENT_SECRET puis « Connecter » (OAuth) requis")
+        from app.services import youtube_publisher as _yp
+        try:
+            tok = await _yp.access_token()
+            async with _yp._client() as hc:
+                r = await hc.get("https://www.googleapis.com/youtube/v3/channels",
+                                 params={"part": "snippet", "mine": "true"},
+                                 headers={"Authorization": f"Bearer {tok}"})
+            items = r.json().get("items") or [] if r.status_code == 200 else []
+            if items:
+                return {"ok": True, "detail": f"chaîne « {items[0]['snippet']['title']} »"}
+            return {"ok": False, "detail": f"youtube {r.status_code}: {r.text[:200]}"}
+        except Exception as e:
+            return {"ok": False, "detail": f"youtube : {e}"}
+    if ch == "instagram":
+        if not settings.has_instagram:
+            raise HTTPException(400, "Instagram : IG_ACCESS_TOKEN + IG_BUSINESS_ID requis")
+        from app.services import instagram_publisher as _ip
+        try:
+            async with _ip._client() as hc:
+                r = await hc.get(f"{_ip._graph()}/{settings.IG_BUSINESS_ID.strip()}",
+                                 params={"fields": "username", "access_token": settings.IG_ACCESS_TOKEN.strip()})
+            nom = r.json().get("username") if r.status_code == 200 else None
+            if nom:
+                return {"ok": True, "detail": f"@{nom}"}
+            return {"ok": False, "detail": _ip._scrub(f"instagram {r.status_code}: {r.text[:200]}")}
+        except Exception as e:
+            return {"ok": False, "detail": _ip._scrub(f"instagram : {e}")}
+    if ch == "tiktok":
+        if not settings.has_tiktok:
+            raise HTTPException(400, "TikTok : TIKTOK_CLIENT_KEY / TIKTOK_CLIENT_SECRET puis « Connecter » (OAuth) requis")
+        from app.services import tiktok_publisher as _tp
+        try:
+            tok = await _tp.access_token()
+            async with _tp._client() as hc:
+                r = await hc.get("https://open.tiktokapis.com/v2/user/info/", params={"fields": "display_name"},
+                                 headers={"Authorization": f"Bearer {tok}"})
+            nom = ((r.json().get("data") or {}).get("user") or {}).get("display_name") if r.status_code == 200 else None
+            if nom:
+                return {"ok": True, "detail": f"compte « {nom} »"}
+            return {"ok": False, "detail": _tp._scrub(f"tiktok {r.status_code}: {r.text[:200]}")}
+        except Exception as e:
+            return {"ok": False, "detail": _tp._scrub(f"tiktok : {e}")}
     raise HTTPException(400, f"No test available for channel: {ch}")
+
+
+# ── plan scheduler T6 (tâche #28, 30/09/2026) : connexion OAuth de YouTube et TikTok ─────────────────────────────────
+# Les deux par rappel LOOPBACK sur ce backend (doc Google « native app » et TikTok « Login Kit Desktop », relues le
+# 29/09) : la voie « coller le code » du plan du 03/09 est abandonnée. L'état et le vérificateur PKCE vivent dans
+# l'adaptateur (auth_url / exchange_code). Le refresh token rendu est rangé là où vivent les clés
+# (coffre.enregistrer_cle) ; un coffre posé mais FERMÉ refuse AVANT d'envoyer vers le fournisseur : le jeton ne
+# pourrait être gardé qu'en mémoire.
+_OAUTH_CLES = {
+    "youtube": ("YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET", "YOUTUBE_REFRESH_TOKEN", "YouTube",
+                "client OAuth Google de type « Application de bureau »"),
+    "tiktok": ("TIKTOK_CLIENT_KEY", "TIKTOK_CLIENT_SECRET", "TIKTOK_REFRESH_TOKEN", "TikTok",
+               "app TikTok for Developers, Login Kit plateforme « Desktop »"),
+}
+
+
+def _oauth_module(canal: str):
+    if canal == "youtube":
+        from app.services import youtube_publisher as m
+    else:
+        from app.services import tiktok_publisher as m
+    return m
+
+
+def _oauth_page(titre: str, texte: str, code: int = 200) -> HTMLResponse:
+    import html as _html
+    return HTMLResponse(f"<!doctype html><meta charset=utf-8><title>{_html.escape(titre)}</title>"
+                        f"<body style='font-family:system-ui;padding:32px'><h2>{_html.escape(titre)}</h2>"
+                        f"<p>{_html.escape(texte)}</p></body>", status_code=code)
+
+
+async def _oauth_start(canal: str, request: Request):
+    _require_localhost(request)
+    cid, csec, _rt, nom, quoi = _OAUTH_CLES[canal]
+    if not (str(getattr(settings, cid) or "").strip() and str(getattr(settings, csec) or "").strip()):
+        raise HTTPException(400, f"{nom} : renseignez {cid} et {csec} ({quoi}) dans les Réglages")
+    from app.services import coffre as _C
+    if _C.verrouille():
+        raise HTTPException(409, f"Coffre verrouillé : ouvrez-le (Réglages → Coffre) avant de connecter {nom}, "
+                                 "sinon le jeton rendu ne pourrait pas être gardé.")
+    return RedirectResponse(_oauth_module(canal).auth_url(uuid4().hex), status_code=302)
+
+
+async def _oauth_callback(canal: str, request: Request, code: str, state: str, error: str):
+    _require_localhost(request)
+    _cid, _csec, rt_nom, nom, _q = _OAUTH_CLES[canal]
+    m = _oauth_module(canal)
+    if error or not state or state not in m._VERIFS:
+        m._VERIFS.pop(state, None)
+        return _oauth_page(f"{nom} : connexion refusée", error or "état inconnu ou déjà utilisé — recommencez depuis les Réglages", 400)
+    rt = await m.exchange_code(code, state)
+    if not rt:
+        return _oauth_page(f"{nom} : aucun refresh token reçu",
+                           f"Révoquez l'accès de l'application dans votre compte {nom}, puis recommencez « Connecter ».", 502)
+    from app.services import coffre as _C
+    ou = _C.enregistrer_cle(rt_nom, rt)
+    garde = {"coffre": "gardé dans le coffre", "env": "gardé dans les réglages",
+             "memoire": "coffre fermé : gardé pour cette session seulement"}[ou]
+    return _oauth_page(f"{nom} connecté", f"Jeton {garde}. Vous pouvez fermer cet onglet.")
+
+
+@router.get("/oauth/youtube/start")
+async def oauth_youtube_start(request: Request):
+    return await _oauth_start("youtube", request)
+
+
+@router.get("/oauth/youtube/callback")
+async def oauth_youtube_callback(request: Request, code: str = "", state: str = "", error: str = ""):
+    return await _oauth_callback("youtube", request, code, state, error)
+
+
+@router.get("/oauth/tiktok/start")
+async def oauth_tiktok_start(request: Request):
+    return await _oauth_start("tiktok", request)
+
+
+@router.get("/oauth/tiktok/callback/")
+async def oauth_tiktok_callback(request: Request, code: str = "", state: str = "", error: str = ""):
+    return await _oauth_callback("tiktok", request, code, state, error)
 
 
 @router.post("/images/import-url")
