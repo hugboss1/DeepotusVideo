@@ -4693,6 +4693,114 @@ async def validate_lot(body: dict):
     return {"validated": validated, "skipped": skipped}
 
 
+def _sha256_size(p: Path) -> tuple[str, int]:
+    h = hashlib.sha256()
+    n = 0
+    with open(p, "rb") as fh:
+        while True:
+            chunk = fh.read(1 << 20)
+            if not chunk:
+                break
+            h.update(chunk)
+            n += len(chunk)
+    return h.hexdigest(), n
+
+
+@router.get("/schedule/lot")
+async def export_lot(days: int = 7):
+    """Plan scheduler T12 (tâche #32, D1 part backend) — le lot VALIDÉ, prêt à partir sur le compagnon : médias
+    (URL locale, taille, sha256), légendes, heures, plafonds et bornes. Le transport (appairage, jeton, LAN) et la
+    publication depuis le téléphone sont planifiés par R12, pas ici. AUCUN jeton ne sort par cette route : les clés
+    voyagent par l'archive chiffrée du coffre."""
+    from app.services import marketing as _mk, metrics_service as _ms, quota as _q
+    hi = _dt.utcnow() + _td(days=max(1, min(31, days)))
+    posts = []
+    async with async_session_factory() as session:
+        res = await session.execute(
+            _select(ScheduledPost)
+            .where(ScheduledPost.status == "scheduled")
+            .where(ScheduledPost.mode == "auto")
+            .where(ScheduledPost.validated_at.isnot(None))
+            .where(ScheduledPost.run_at <= hi)
+            .order_by(ScheduledPost.run_at.asc()))
+        rows = list(res.scalars().all())
+    for p in rows:
+        brief = {}
+        if p.brief:
+            try:
+                brief = json.loads(p.brief) or {}
+            except (ValueError, TypeError):
+                brief = {}
+        media = None
+        video = await _mk._job_video_path(p.job_id)
+        if video and Path(video).is_file():
+            sha, n = await asyncio.to_thread(_sha256_size, Path(video))
+            media = {"kind": "video", "url": f"/api/jobs/{p.job_id}/video",
+                     "filename": Path(video).name, "bytes": n, "sha256": sha}
+        else:
+            img = await _mk._resolve_post_image(p)
+            if img and Path(img).is_file():
+                sha, n = await asyncio.to_thread(_sha256_size, Path(img))
+                media = {"kind": "image", "url": f"/api/images/{Path(img).name}",
+                         "filename": Path(img).name, "bytes": n, "sha256": sha}
+        posts.append({
+            "id": p.id, "title": p.title, "caption": p.caption,
+            "tg_caption": brief.get("tg_caption"), "hashtags": brief.get("hashtags"), "links": brief.get("links"),
+            "channels": [c for c in (p.channels or "").split(",") if c],
+            "run_at": p.run_at.isoformat() + "Z", "format": p.format,
+            "media": media, "preview": f"/api/schedule/{p.id}/preview.png"})
+    return {"generated_at": _dt.utcnow().isoformat() + "Z", "posts": posts, "quotas": _q.summary(),
+            "notes": {**_ms.notes(),
+                      "tiktok": ("sans audit, l'envoi automatique est privé (SELF_ONLY) — le public passe par le "
+                                 "partage natif du téléphone")}}
+
+
+@router.post("/schedule/{post_id}/report")
+async def report_post(post_id: str, body: dict):
+    """Plan scheduler T12 — retour d'état du compagnon (R12 P3) : « j'ai publié » ou « j'ai échoué ». Idempotent et non
+    destructif : un post déjà publié par un AUTRE porteur est un 409, jamais un écrasement ; un échec rend le post
+    reprenable par le PC (`ready`), jamais définitivement `failed` — et (écart au plan) un « échec » ne dépublie
+    jamais un post déjà publié."""
+    from app.services import quota as _q
+    body = body or {}
+    status = str(body.get("status") or "").strip()
+    if status not in ("posted", "failed"):
+        raise HTTPException(400, "status : 'posted' ou 'failed' attendu")
+    who = str(body.get("published_by") or "compagnon")[:40]
+    async with async_session_factory() as session:
+        res = await session.execute(_select(ScheduledPost).where(ScheduledPost.id == post_id))
+        p = res.scalar_one_or_none()
+        if p is None:
+            raise HTTPException(404, "post inconnu")
+        if p.status == "posted" and ((p.published_by or "") != who or status == "failed"):
+            raise HTTPException(409, f"déjà publié par « {p.published_by or 'ce PC'} »")
+        if status == "failed":
+            p.status = "ready"
+            p.error = str(body.get("error") or "échec rapporté par le compagnon")[:500]
+            p.published_by = who
+            await session.commit()
+            return {"ok": False, "status": p.status}
+        remote = {}
+        if p.remote_ids:
+            try:
+                remote = json.loads(p.remote_ids) or {}
+            except (ValueError, TypeError):
+                remote = {}
+        neufs = {str(k): str(v) for k, v in (body.get("remote_ids") or {}).items() if k not in remote}
+        remote.update(neufs)
+        for ch in neufs:
+            _q.count(ch)              # le plafond du réseau est partagé entre le PC et le téléphone (R12)
+        p.remote_ids = json.dumps(remote)
+        if remote.get("x"):
+            p.x_post_id = remote["x"]
+        p.status = "posted"
+        p.published_by = who
+        p.posted_at = p.posted_at or _dt.utcnow()
+        p.error = None
+        await session.commit()
+        return {"ok": True, "status": p.status, "counted": sorted(neufs)}
+
+
 @router.delete("/schedule/{post_id}")
 async def delete_scheduled_post(post_id: str):
     async with async_session_factory() as session:
