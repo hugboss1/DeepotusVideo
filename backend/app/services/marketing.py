@@ -863,49 +863,56 @@ async def fire_post(post_id: str) -> dict:
 
 # ---------------------------------------------------------------- the loop
 
+async def tick(marker: list[str | None] | None = None) -> None:
+    """Un tour de boucle (plan scheduler T10, tâche #30), appelable par un banc. `marker[0]` porte la date de la
+    dernière passe de métriques (jour UTC) d'un tour à l'autre."""
+    marker = marker if marker is not None else [None]
+    now = datetime.utcnow()
+    today = now.strftime("%Y-%m-%d")
+    if marker[0] != today:
+        marker[0] = today
+        try:
+            n = await metrics_service.refresh_all(max_per_channel=10)
+            if n:
+                logger.info(f"metrics refreshed: {n}")
+        except Exception as e:
+            logger.warning(f"metrics pass failed: {e}")
+    async with async_session_factory() as session:
+        res = await session.execute(
+            select(ScheduledPost)
+            .where(ScheduledPost.status == "scheduled")
+            .where(ScheduledPost.run_at <= now))
+        due = list(res.scalars().all())
+    due.sort(key=lambda p: (p.thread_index or 0, p.run_at))   # un fil part dans l'ordre de ses index (T15)
+    for post in due:
+        try:
+            if post.mode == "auto":
+                result = await fire_post(post.id)
+                logger.info(f"schedule: auto-fired {post.id} "
+                            f"-> {result.get('status')}")
+            else:
+                async with async_session_factory() as session:
+                    res = await session.execute(
+                        select(ScheduledPost)
+                        .where(ScheduledPost.id == post.id))
+                    p = res.scalar_one_or_none()
+                    if p and p.status == "scheduled":
+                        p.status = "ready"
+                        await session.commit()
+                logger.info(f"schedule: {post.id} due -> ready "
+                            f"(assisted)")
+        except Exception as e:
+            logger.error(f"schedule: post {post.id} failed: {e}")
+
+
 async def schedule_loop() -> None:
-    """Fire due posts every 60 s. Robust: one bad post can't kill the loop.
-    Once a day, also refreshes X public metrics for recent posts (rationed:
-    the free X tier has a tiny read budget)."""
+    """Fire due posts every 60 s. Robust: one bad post can't kill the loop. Un tour = `tick()` ; la passe de métriques
+    (metrics_service) y est faite une fois par jour, rationnée."""
     logger.info("schedule loop started (60s tick)")
-    last_metrics_day: str | None = None
+    marker: list[str | None] = [None]
     while True:
         try:
-            now = datetime.utcnow()
-            today = now.strftime("%Y-%m-%d")
-            if last_metrics_day != today:
-                last_metrics_day = today
-                try:
-                    n = await metrics_service.refresh_all(max_per_channel=10)
-                    if n:
-                        logger.info(f"metrics refreshed: {n}")
-                except Exception as e:
-                    logger.warning(f"metrics pass failed: {e}")
-            async with async_session_factory() as session:
-                res = await session.execute(
-                    select(ScheduledPost)
-                    .where(ScheduledPost.status == "scheduled")
-                    .where(ScheduledPost.run_at <= now))
-                due = list(res.scalars().all())
-            for post in due:
-                try:
-                    if post.mode == "auto":
-                        result = await fire_post(post.id)
-                        logger.info(f"schedule: auto-fired {post.id} "
-                                    f"-> {result.get('status')}")
-                    else:
-                        async with async_session_factory() as session:
-                            res = await session.execute(
-                                select(ScheduledPost)
-                                .where(ScheduledPost.id == post.id))
-                            p = res.scalar_one_or_none()
-                            if p and p.status == "scheduled":
-                                p.status = "ready"
-                                await session.commit()
-                        logger.info(f"schedule: {post.id} due -> ready "
-                                    f"(assisted)")
-                except Exception as e:
-                    logger.error(f"schedule: post {post.id} failed: {e}")
+            await tick(marker)
         except asyncio.CancelledError:
             raise
         except Exception as e:
