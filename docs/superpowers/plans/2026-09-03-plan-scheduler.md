@@ -2756,6 +2756,8 @@ git commit -m 'scheduler : patcher du bundle - comptes, validation par lot, cren
 R6 D1 (part backend seulement : **le téléphone publie** est planifié par R12,
 pas ici), D2 (brief de campagne + séries + fils), D3 (recyclage proposé).
 
+> **T12 EXÉCUTÉE le 30/09/2026** (tâche #32, PR 1/4 — découpage décidé par l'utilisateur : T12 ; T13-T14 ; T15-T16 ; T17). Branche `chantier/p3-scheduler-lot`. Écarts datés : (1) un « échec » rapporté ne dépublie JAMAIS un post déjà publié (409) — le plan l'aurait repassé en `ready` ; (2) les bornes viennent de `metrics_service.notes()` (le dict `NOTES` du plan est devenu une fonction à #29) ; (3) `posted_at` n'est pas réécrit par un rapport répété. Banc `test_scheduler_lot` 15/0 (dont un post auto jamais validé qui ne sort pas, et `days=0` ramené à 1 jour, ajoutés après deux mutants survivants) ; 12/12 mutations rouges.
+
 ### Tâche 12 : le lot validé, exportable (D1 — part backend)
 
 **Ce que ce plan livre, et ce qu'il ne livre pas.** R12 porte l'appairage, le
