@@ -4693,6 +4693,47 @@ async def validate_lot(body: dict):
     return {"validated": validated, "skipped": skipped}
 
 
+# plan scheduler T14 (tâche #32) : les séries récurrentes, matérialisées en brouillons. DELETE /schedule/series/{id} a
+# deux segments de plus que DELETE /schedule/{post_id} : il ne peut pas être avalé (le banc le prouve).
+@router.get("/schedule/series")
+async def list_post_series():
+    from app.services import series_service as _ss
+    return await _ss.list_series()
+
+
+@router.post("/schedule/series")
+async def create_post_series(body: dict):
+    from app.services import series_service as _ss
+    try:
+        return await _ss.create(body or {})
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.delete("/schedule/series/{series_id}")
+async def delete_post_series(series_id: str):
+    from app.services import series_service as _ss
+    if not await _ss.delete(series_id):
+        raise HTTPException(404, "série inconnue")
+    return {"deleted": series_id}
+
+
+@router.post("/schedule/series/{series_id}/materialize")
+async def materialize_post_series(series_id: str, body: dict):
+    from app.services import series_service as _ss
+    body = body or {}
+    try:
+        res = await _ss.materialize(
+            series_id, weeks=int(body.get("weeks") or 1),
+            start_date=body.get("start_date") or _dt.utcnow().strftime("%Y-%m-%d"),
+            tz_offset_minutes=int(body.get("tz_offset_minutes") or 0))
+    except ValueError as e:
+        raise HTTPException(400, f"matérialisation : {e}")
+    if res.get("error"):
+        raise HTTPException(404, res["error"])
+    return res
+
+
 def _sha256_size(p: Path) -> tuple[str, int]:
     h = hashlib.sha256()
     n = 0
