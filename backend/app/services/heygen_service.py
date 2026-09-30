@@ -14,6 +14,7 @@ Auth: X-Api-Key header. Pricing reminder: HeyGen is pay-as-you-go in credits.
 The HEYGEN_API_KEY must be set in .env for this service to activate.
 """
 import asyncio
+import ssl
 import base64
 import json
 import re
@@ -42,6 +43,29 @@ _LIST_CACHE_TTL = 21600.0
 _DISK_MAX_AGE = 30 * 86400.0
 _LIST_CACHE: dict[str, tuple[float, list]] = {}
 _INFLIGHT: dict[str, "asyncio.Future"] = {}
+_SSL_CTX = None
+
+
+def annuler_en_vol() -> int:
+    """Annule les parcours de pages en cours (protégés par asyncio.shield : annuler celui qui attend ne les touche
+    pas) et les oublie. Appelé quand le préchargement dépasse sa borne et à l'arrêt de l'app (30/09/2026)."""
+    taches = list(_INFLIGHT.values())
+    _INFLIGHT.clear()
+    for t in taches:
+        t.cancel()
+    return len(taches)
+
+
+def _verify():
+    """UN contexte TLS par processus (30/09/2026) : httpx en construisait un par client, soit une lecture du magasin
+    de certificats Windows (truststore) de ~0,34 s qui BLOQUE la boucle, une par page (~400 pages au préchargement)
+    — et c'est dans cette construction qu'un arrêt restait figé."""
+    global _SSL_CTX
+    if not SSL_VERIFY:
+        return False
+    if _SSL_CTX is None:
+        _SSL_CTX = ssl.create_default_context()
+    return _SSL_CTX
 
 
 def _disk_path(kind: str) -> Path:
@@ -151,7 +175,7 @@ class HeyGenClient:
                        timeout: float = 60.0) -> dict:
         """GET qui rend l'enveloppe ENTIÈRE (data + has_more + next_token) :
         _parse ne garde que `data` et perdrait le curseur de pagination."""
-        async with httpx.AsyncClient(timeout=timeout, verify=SSL_VERIFY) as client:
+        async with httpx.AsyncClient(timeout=timeout, verify=_verify()) as client:
             r = await client.get(f"{HEYGEN_BASE}{path}",
                                  headers=self.headers, params=params)
             data = self._json(r)
@@ -160,13 +184,13 @@ class HeyGenClient:
 
     async def _get(self, path: str, params: Optional[dict] = None,
                    timeout: float = 60.0) -> dict:
-        async with httpx.AsyncClient(timeout=timeout, verify=SSL_VERIFY) as client:
+        async with httpx.AsyncClient(timeout=timeout, verify=_verify()) as client:
             r = await client.get(f"{HEYGEN_BASE}{path}",
                                  headers=self.headers, params=params)
             return self._parse(r)
 
     async def _post(self, path: str, body: Optional[dict] = None) -> dict:
-        async with httpx.AsyncClient(timeout=120.0, verify=SSL_VERIFY) as client:
+        async with httpx.AsyncClient(timeout=120.0, verify=_verify()) as client:
             r = await client.post(f"{HEYGEN_BASE}{path}",
                                   headers=self.headers, json=body or {})
             return self._parse(r)
@@ -598,7 +622,7 @@ class HeyGenClient:
     async def download_video(self, video_url: str, dest_path: Path) -> Path:
         dest_path.parent.mkdir(parents=True, exist_ok=True)
         logger.info(f"Downloading HeyGen video -> {dest_path}")
-        async with httpx.AsyncClient(timeout=180.0, verify=SSL_VERIFY) as client:
+        async with httpx.AsyncClient(timeout=180.0, verify=_verify()) as client:
             async with client.stream("GET", video_url) as response:
                 response.raise_for_status()
                 with dest_path.open("wb") as f:

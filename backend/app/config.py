@@ -271,6 +271,43 @@ class Settings(BaseSettings):
             self.X_ACCESS_TOKEN, self.X_ACCESS_SECRET))
 
 
+def _environnement_herite() -> dict:
+    """L'environnement REÇU au lancement du processus (noms en capitales), avant toute écriture dans os.environ."""
+    try:
+        import nt
+        return {k.upper(): v for k, v in nt.environ.items()}
+    except ImportError:
+        import posix
+        return {k.decode(errors="replace").upper(): v.decode(errors="replace") for k, v in posix.environ.items()}
+
+
+def _isoler_des_secrets_herites() -> list[str]:
+    """Instance ISOLÉE (DEEPOTUS_DATA_DIR posé : bancs, backend de preuve 8799) : ses secrets viennent de SON data-dir
+    et de nulle part ailleurs. Mesuré le 30/09/2026 : HEYGEN_API_KEY, ANTHROPIC_API_KEY et GEMINI_API_KEY sont des
+    variables Windows de portée Utilisateur ; un data-dir temporaire sans .env les laissait passer, et les bancs
+    voyaient la VRAIE clé HeyGen (préchargement réseau au démarrage). On retire donc de os.environ — sous-processus
+    compris — tout secret HÉRITÉ que le .env du data-dir ne pose pas lui-même. « Hérité » = présent avec la même
+    valeur dans l'environnement reçu au lancement (`nt.environ` / `posix.environ`, que les écritures dans os.environ
+    ne touchent pas) : les clés factices qu'un banc pose lui-même avant l'import restent. L'instance par défaut
+    (sans DEEPOTUS_DATA_DIR) est inchangée."""
+    if not os.environ.get("DEEPOTUS_DATA_DIR", "").strip():
+        return []
+    try:
+        from dotenv import dotenv_values
+        du_data_dir = set(dotenv_values(str(ENV_FILE))) if ENV_FILE.is_file() else set()
+    except Exception:
+        du_data_dir = set()
+    herite = _environnement_herite()
+    retires = []
+    for nom in Settings.model_fields:
+        if (nom.endswith(("_KEY", "_TOKEN", "_SECRET")) and nom not in du_data_dir and nom in os.environ
+                and herite.get(nom.upper()) == os.environ[nom]):
+            os.environ.pop(nom)
+            retires.append(nom)
+    return retires
+
+
+SECRETS_HERITES_IGNORES = _isoler_des_secrets_herites()
 settings = Settings()
 
 # v1.15.1 (sellable): TLS verification is ON by default. The OS trust store
