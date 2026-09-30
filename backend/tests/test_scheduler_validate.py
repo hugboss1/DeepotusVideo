@@ -46,6 +46,7 @@ async def _ok(cap, v, i, m):
     return PublishResult(True, "fakenet: ok", f"r{len(SENT)}")
 
 publishers.register("fakenet", lambda: True, _ok)
+publishers.register("x", lambda: True, _ok)                           # un fil est un mecanisme X (#32 T15) : X factice, aucun reseau
 iso = lambda d: d.isoformat() + "Z"                                 # noqa: E731
 
 from app.services.storage import init_db                            # noqa: E402
@@ -112,10 +113,11 @@ async def main():
         check("3.1 plan_id : tout le plan, quelle que soit la date", set(j["validated"]) == set(ids), str(j))
 
         print("\n[4] un tour de boucle")
-        t1 = await mk(title="Fil 2", caption="deux", run_at=iso(now - timedelta(minutes=3)), source_image="s.png")
-        t0 = await mk(title="Fil 1", caption="un", run_at=iso(now - timedelta(minutes=2)), source_image="s.png")
+        t1 = await mk(title="Fil 2", caption="deux", channels=["x"], run_at=iso(now - timedelta(minutes=3)), source_image="s.png")
+        t0 = await mk(title="Fil 1", caption="un", channels=["x"], run_at=iso(now - timedelta(minutes=2)), source_image="s.png")
         con = sqlite3.connect(str(_tmp / "t.db"))
-        con.executemany("UPDATE scheduled_posts SET thread_of='fil', thread_index=? WHERE id=?", [(1, t1), (0, t0)])
+        # un fil RÉALISTE (#32 T15) : la tête n'a pas de thread_of, la suite pointe vers elle — la suite répond à la tête
+        con.execute("UPDATE scheduled_posts SET thread_of=?, thread_index=1 WHERE id=?", (t0, t1))
         con.commit(); con.close()
         await valider(**{"from": iso(now - timedelta(days=1))})
         await marketing.tick([datetime.utcnow().strftime("%Y-%m-%d")])

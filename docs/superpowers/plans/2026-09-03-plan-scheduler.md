@@ -3496,6 +3496,8 @@ git add backend/app/services/series_service.py backend/app/api/routes.py backend
 git commit -m 'scheduler : series recurrentes materialisees en brouillons' -m 'Une série (jours de semaine, heure locale, canaux, format, gabarit) pose des brouillons ; rejouer est sans effet (unicité series_id + run_at) ; supprimer la règle garde les posts ; un jour hors 0-6 est refusé en le disant.' -m 'Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>'
 ```
 
+> **T15 EXÉCUTÉE le 30/09/2026** (tâche #32, PR 3/4, branche `chantier/p3-scheduler-fils-recyclage`). Écarts datés : la suite prend son heure et son titre depuis la TÊTE du fil (le plan partait du parent, qui dérive au 3e message) ; légende vide refusée (400). Le banc T10 (`test_scheduler_validate`) fabriquait un fil irréaliste — une tête qui pointait vers une racine inexistante, sur un canal autre que X — : il est corrigé (la tête sans `thread_of`, sur un X factice). Banc `test_scheduler_threads` 9/0 (dont le 3e message qui part avant le 2e, reporté aussi, et un tick qui publie le fil dans l'ordre).
+
 ### Tâche 15 : fils X (D2)
 
 **Files :**
@@ -3657,6 +3659,8 @@ l'ordre quand la boucle publie plusieurs posts au même tick).
 git add backend/app/api/routes.py backend/app/services/marketing.py backend/tests/test_scheduler_threads.py
 git commit -m 'scheduler : fils X - une suite repond au message precedent' -m 'POST /schedule/{id}/thread pose un post lié (fil plat, racine unique, canal x) ; fire_post lit l id distant de l amont et le passe en reply_to ; tant que l amont n est pas parti, la suite est reportée de deux minutes et le dit, jamais échouée.' -m 'Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>'
 ```
+
+> **T16 EXÉCUTÉE le 30/09/2026** (tâche #32, PR 3/4). Écarts datés : (1) la variation est DÉTERMINISTE par défaut — le plan appelait le premier LLM disponible depuis un simple GET de propositions, jusqu'à 20 fois, hors de la garde des plafonds ; `llm=true` le demande explicitement et passe par `_plafond(op_llm…)` ; (2) le retrait des interdits passe par `apply_forbidden` (limites de mot, T13) ; (3) le persona vient de `pipeline.engine.persona` (aucun `_load_persona` n'existe). Banc `test_scheduler_recycle` 13/0 ; campagne T15-T16 : 18/18 mutations rouges.
 
 ### Tâche 16 : recyclage proposé (D3)
 
