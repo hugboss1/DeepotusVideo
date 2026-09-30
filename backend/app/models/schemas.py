@@ -664,6 +664,50 @@ class NewsFormEstimateResponse(BaseModel):
     detail: dict = {}
 
 
+# plan News T12-T13 (tâche #35, 30/09/2026) : la chaîne article -> post
+class NewsChainRequest(BaseModel):
+    brief: str = Field("", max_length=2000)
+    forme: str = Field("cartes", max_length=40)
+    articles_max: int = Field(3, ge=1, le=8)
+    language: Language = Language.EN
+    creneau: Optional[str] = Field(None, max_length=64)
+    voice_mode: Optional[VoiceMode] = None
+    canal: str = Field("x", max_length=20)
+
+
+class NewsChainLot(BaseModel):
+    articles: List[dict] = Field([], max_length=8)
+    script: str = Field("", max_length=20000)
+    caption: str = Field("", max_length=5000)
+    sources_line: str = ""
+    forme: str = ""
+    cout: dict = {}
+    creneau: str = ""
+    voice_mode: str = ""
+    voice_mode_reason: str = ""
+    language: str = "EN"
+    poli: bool = False
+
+
+class NewsChainCommitRequest(BaseModel):
+    lot: NewsChainLot
+    channels: List[str] = Field(["x"], max_length=8)
+    mode: Literal["auto", "assisted"] = "assisted"
+
+
+class NewsChainCommitResponse(BaseModel):
+    post_id: str
+    job_id: str
+    message: str = ""
+
+
+class NewsChainPolishRequest(BaseModel):
+    script: str = Field(..., min_length=1, max_length=20000)
+    voice_mode: Optional[VoiceMode] = None
+    language: Language = Language.EN
+    max_words: int = Field(90, ge=20, le=600)
+
+
 class NewsRankResponse(BaseModel):
     items: List[NewsRankedItem] = []
     ecartes: List[NewsDropped] = []
