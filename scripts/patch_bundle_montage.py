@@ -7489,6 +7489,76 @@ P1 += [("P3nc1-panneau-chaine-du-jour-avant-dzdeltemplate", A_P3NC1, R_P3NC1),
        ("P3nc5-bouton-chaine-du-jour", A_P3NC5, R_P3NC5),
        ("P3nc6-motif-de-la-voix-sous-le-script", A_P3NC6, R_P3NC6)]
 assert len(P1) == 74 and all("\n" not in r and "\r" not in r for _t, _a, r in P1[-6:])
+# P5qr1..P5qr7 (tache #48, plan Quick T1, 01/10/2026) -- ROUVRIR UN RENDU DANS QUICK, PREREMPLI. Ecarts au plan du
+# 03/09 : (1) un GROUPE du maillon montage, pas de patcher `quickreopen` ni de squelette `_patch_quick.py` ; (2) aucun
+# `window.alert` : l'echec se dit par __dzToast ; (3) ancres re-mesurees le 01/10 sur .bak_montage (toutes a 1).
+# Q1 helpers module-scope avant __dzReopenStudio : __dzQuickFromJob (repli depuis les colonnes du job, rendus d'avant
+# la recette) et __dzReopenQuick (GET /recipe, repli GET /jobs/{id}, pose window.__dzQuickRecipe, navigue, puis emet
+# deepotus:quick-recipe si Quick est deja monte). Q2 um : dzQuickRecipe() (le JSON envoye) + dzQuickApply(rc) (rejoue
+# chaque setter) + effet de montage (global puis evenement, via un ref : l'etat courant, pas celui du montage).
+# Q3-Q5 les trois payloads portent quick_recipe EN TETE. Q6 modal Bibliotheque : bouton apres « Envoyer vers… ».
+# Q7 carte de la file (yd) : icone eclair avant « Copy », reservee aux vrais jobs (m).
+A_P5QR1 = "function __dzReopenStudio(id){"
+R_P5QR1 = ('function __dzQuickFromJob(j){var sd=(j&&j.provider)||"seedance";'
+           'return{v:1,tab:sd==="heygen"?"heygen":sd==="composition"?"comp":"seedance",'
+           'seedance:{image:j.image_filename||"",end:j.image_filename_end||"",prompt:j.final_prompt||"",'
+           'vibe:"cinematic",model:j.video_model||"",duration:j.duration_s||10,aspect:j.aspect_ratio||"9:16",'
+           'seed:j.seed!=null?String(j.seed):"",template:j.template_id||""},'
+           'heygen:{src:"avatar",avatar:sd==="heygen"?(j.image_filename||""):"",voice:"",'
+           'script:sd==="heygen"?(j.final_prompt||""):"",engine:"",image:"",motion:"",expr:""},'
+           'layout:j.composition_layout||"sequential"}}'
+           'function __dzReopenQuick(id){'
+           'fetch("/api/jobs/"+encodeURIComponent(id)+"/recipe").then(function(r){return r.ok?r.json():null})'
+           '.then(function(rec){if(rec&&rec.tab)return rec;'
+           'return fetch("/api/jobs/"+encodeURIComponent(id)).then(function(r){return r.ok?r.json():null})'
+           '.then(function(j){return j?__dzQuickFromJob(j):null})})'
+           '.then(function(rec){if(!rec){__dzToast("Rendu introuvable — rien à rouvrir");return}'
+           'window.__dzQuickRecipe=rec;__dzSendNav("quick");'
+           'setTimeout(function(){window.dispatchEvent(new CustomEvent("deepotus:quick-recipe",{detail:rec}))},60);'
+           '__dzToast("Quick prérempli depuis le rendu "+String(id).slice(0,8)+" — variez, puis Générer")})'
+           '.catch(function(e){__dzToast("Rouvrir dans Quick : "+String(e&&e.message||e))})}'
+           + A_P5QR1)
+A_P5QR2 = "[Ce,at]=x.useState(null);"
+R_P5QR2 = (A_P5QR2 +
+           'function dzQuickRecipe(){return{v:1,tab:o,seedance:{image:w,end:g,prompt:s,vibe:A,model:VMQ,'
+           'duration:h,aspect:_,seed:N,template:H||""},heygen:{src:hsrc,avatar:C,voice:ee,script:R,engine:eng,'
+           'image:mimg,motion:mp,expr:xp},layout:We}}'
+           'function dzQuickApply(rc){if(!rc)return;var sd=rc.seedance||{},hg=rc.heygen||{};'
+           'if(rc.tab&&["seedance","heygen","comp","voice"].indexOf(rc.tab)>=0)i(rc.tab);'
+           'if(sd.image!=null){v(sd.image);if(!u.length)try{window.__dzQuickStart=sd.image}catch(_e){}}'
+           'if(sd.end!=null)k(sd.end);if(sd.prompt)a(sd.prompt);if(sd.vibe)V(sd.vibe);'
+           'if(sd.model!=null){dzSetVMQ(sd.model);try{localStorage.setItem("dz_video_model",sd.model)}catch(_e){}}'
+           'if(sd.duration)b(Number(sd.duration));if(sd.aspect)z(sd.aspect);if(sd.seed!=null)P(String(sd.seed));'
+           'if(sd.template!=null)F(sd.template);'
+           'if(hg.src)Hsrc(hg.src);if(hg.avatar)Q(hg.avatar);if(hg.voice)ne(hg.voice);if(hg.script)W(hg.script);'
+           'if(hg.engine!=null)Eng(hg.engine);if(hg.image!=null)Mimg(hg.image);if(hg.motion!=null)Mp(hg.motion);'
+           'if(hg.expr!=null)Xp(hg.expr);if(rc.layout)De(rc.layout)}'
+           'var dzApplyRef=x.useRef(null);dzApplyRef.current=dzQuickApply;'
+           'x.useEffect(function(){var r0=null;try{r0=window.__dzQuickRecipe;delete window.__dzQuickRecipe}catch(_e){}'
+           'if(r0)dzApplyRef.current(r0);function onR(ev){dzApplyRef.current(ev.detail)}'
+           'window.addEventListener("deepotus:quick-recipe",onR);'
+           'return function(){window.removeEventListener("deepotus:quick-recipe",onR)}},[]);')
+A_P5QR3 = "je={video_model:VMQ||void 0,image_filename:w,"
+R_P5QR3 = "je={quick_recipe:dzQuickRecipe(),video_model:VMQ||void 0,image_filename:w,"
+A_P5QR4 = 'D.postJson("/generate/heygen",{avatar_id:C,'
+R_P5QR4 = 'D.postJson("/generate/heygen",{quick_recipe:dzQuickRecipe(),avatar_id:C,'
+A_P5QR5 = 'D.postJson("/generate/composition",{seedance:{video_model:'
+R_P5QR5 = 'D.postJson("/generate/composition",{quick_recipe:dzQuickRecipe(),seedance:{video_model:'
+A_P5QR6 = 'children:"Envoyer vers…"},"dzsend"),'
+R_P5QR6 = (A_P5QR6 + 'm.kind==="render"&&m.jobId&&r.jsx(K,{variant:"ghost",size:"sm",icon:"bolt",'
+           'title:"Rouvrir ce rendu dans Quick, prérempli (prompt, modèle, images, durée, graine)",'
+           'onClick:()=>{y(null);__dzReopenQuick(m.jobId)},children:"Rouvrir dans Quick"},"dzquick"),')
+A_P5QR7 = 'r.jsx(se,{name:"copy",title:e.status==="succeeded"?"Copy video URL":"Copy job id",onClick:n}),'
+R_P5QR7 = ('m&&r.jsx(se,{name:"bolt",title:"Rouvrir dans Quick (prérempli)",'
+           'onClick:function(){__dzReopenQuick(e.id)}}),' + A_P5QR7)
+P1 += [("P5qr1-helpers-avant-dzreopenstudio", A_P5QR1, R_P5QR1),
+       ("P5qr2-recette-et-application-dans-um", A_P5QR2, R_P5QR2),
+       ("P5qr3-payload-seedance", A_P5QR3, R_P5QR3),
+       ("P5qr4-payload-heygen", A_P5QR4, R_P5QR4),
+       ("P5qr5-payload-composition", A_P5QR5, R_P5QR5),
+       ("P5qr6-bouton-bibliotheque", A_P5QR6, R_P5QR6),
+       ("P5qr7-icone-de-la-file", A_P5QR7, R_P5QR7)]
+assert len(P1) == 81 and all("\n" not in r and "\r" not in r for _t, _a, r in P1[-7:])
 
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
@@ -7758,6 +7828,7 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            # + P3sc8 (tache #32 PR4, le Scheduler recharge sa liste) : 287, le --check dit 288.
            # + P3nr1..P3nr10 (tache #33 PR2, l'ecran News trie par le score) : 297, le --check dit 298.
            # + P3nc1..P3nc6 (tache #35 PR3, la chaine du jour a l'ecran) : 303, le --check dit 304.
+           # + P5qr1..P5qr7 (tache #48, rouvrir un rendu dans Quick) : 310, le --check dit 311.
            # studio 27/09 : + HUIT sections EN QUEUE, groupe R8 apres R7 (format HeyGen impose par le template, « Ouvrir un graphe » en icone,
            # repli de l'inspecteur) ; 213 -> 221, le --check dit 222 ancres ; + R8sv1 (Save par le dialogue maison) : 222, le --check dit 223 ;
            # + R8pr1..R8pr7 (les autres window.prompt natifs, 27/09) : 229, le --check dit 230.

@@ -15407,7 +15407,9 @@ check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB8b_puis_
                                                           "P3nr1", "P3nr2", "P3nr3", "P3nr4", "P3nr5", "P3nr6", "P3nr7",
                                                           "P3nr8", "P3nr9", "P3nr10",
                                                           # tache #35 PR3 (30/09/2026) : la chaine du jour a l ecran ; aucun DzTracks
-                                                          "P3nc1", "P3nc2", "P3nc3", "P3nc4", "P3nc5", "P3nc6"]
+                                                          "P3nc1", "P3nc2", "P3nc3", "P3nc4", "P3nc5", "P3nc6",
+                                                          # tache #48 (01/10/2026) : rouvrir un rendu dans Quick ; aucun DzTracks
+                                                          "P5qr1", "P5qr2", "P5qr3", "P5qr4", "P5qr5", "P5qr6", "P5qr7"]
       # L7-B D-37 et D-42 (24/09/2026) : AUCUNE section de plus (replis dans R_EC1) ; D-42 : sonde 159 -> 161
       # (cutAt + cutOpts dans le geste dzSceneCut) ; L7-B D-40 (T4) : AUCUNE section de plus (replis dans
       # R_DZ1/R_DZ3/R_DZ4), sonde 161 -> 163 (reframeCss dans l apercu vivant, reframeOf dans le payload)
