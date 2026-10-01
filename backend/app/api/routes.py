@@ -28,6 +28,7 @@ from app.models.schemas import (
     AvatarPresetCreate,
     CompositionRequest,
     CompositionResponse,
+    ExtendRequest,
     JobStatus,
     ImageItem,
     BuildPromptRequest,
@@ -3813,6 +3814,64 @@ async def generate_composition(request: CompositionRequest, background_tasks: Ba
 
 
 # ============ v1.5: PHOTO AVATAR UPLOAD ============
+
+# Plan Quick T2 (tâche #51, 01/10/2026) — « Prolonger le clip » (Veo 3.1 sur fal, mesuré le 01/10). L'écran MESURE
+# d'abord (check : gratuit), puis tire (POST : payant, garde des plafonds AVANT tout appel).
+@router.get("/generate/extend/check")
+async def check_extend(job_id: str, model: str = ""):
+    """La mesure du rendu source, le verdict et le prix (avec et sans son) — jamais un simple booléen : la raison du
+    refus est la moitié utile."""
+    from app.services import fal_video_tools as FV
+    model = model or FV.DEFAULT_EXTEND
+    if model not in FV.EXTEND_MODELS:
+        raise HTTPException(400, f"Modèle d'extension inconnu : {model}")
+    j = await Pipeline.get_job(job_id)
+    if j is None or not j.final_video_path:
+        raise HTTPException(404, "Rendu introuvable ou sans vidéo finale")
+    src = await asyncio.to_thread(FV.probe, j.final_video_path)
+    try:
+        FV.guard_extend(model, src)
+        ok, reason = True, ""
+    except ValueError as e:
+        ok, reason = False, str(e)
+    m = FV.EXTEND_MODELS[model]
+    return {"ok": ok, "reason": reason, "source": src, "model": model, "label": m["label"], "added_s": m["added_s"],
+            "usd_son": FV.prix(model, True), "usd_muet": FV.prix(model, False),
+            "veo_source": str(j.video_model or "").startswith("veo"),
+            "fal": bool(settings.FAL_KEY)}
+
+
+@router.post("/generate/extend", dependencies=[Depends(_require_local_depense)])
+async def generate_extend(request: ExtendRequest, background_tasks: BackgroundTasks):
+    """Prolonger un rendu. Les gardes tournent ICI, en synchrone (un refus est une 400 lisible, pas un job rouge),
+    puis la garde des plafonds chiffre l'extension (son compris ou non) AVANT tout appel payant."""
+    from app.services import fal_video_tools as FV
+    if request.model not in FV.EXTEND_MODELS:
+        raise HTTPException(400, f"Modèle d'extension inconnu : {request.model}")
+    if not settings.FAL_KEY:
+        raise HTTPException(400, "FAL_KEY not configured. Add it to backend/.env")
+    j = await Pipeline.get_job(request.parent_job_id)
+    if j is None or not j.final_video_path:
+        raise HTTPException(404, "Rendu introuvable ou sans vidéo finale")
+    src = await asyncio.to_thread(FV.probe, j.final_video_path)
+    try:
+        FV.guard_extend(request.model, src)
+        FV.build_extend_args(request.model, video_url="-", prompt=request.prompt, son=request.son)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    m = FV.EXTEND_MODELS[request.model]
+    await _plafond({"kind": "extend", "model": request.model, "duration_s": m["added_s"], "son": request.son}, "quick")
+
+    async def _run():
+        try:
+            await pipeline.run_extend(request)
+        except Exception as e:
+            logger.error(f"Background extend error: {e}")
+
+    background_tasks.add_task(_run)
+    return GenerateResponse(job_id="pending", status=JobStatus.QUEUED,
+                            message=f"Extension queued ({FV.prix(request.model, request.son):.2f} $). Poll GET /jobs.")
+
 
 @router.post("/heygen/photo-avatar/create", response_model=PhotoAvatarCreateResponse)
 async def create_photo_avatar_endpoint(

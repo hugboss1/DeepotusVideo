@@ -53,6 +53,7 @@ PAYANTES = {
     ("face", "POST", "/serie/generer"), ("forge3d", "POST", "/mesh3d/{nid}"),
     ("routes", "POST", "/news/rank"),   # tâche #33 : le score LLM sur demande
     ("routes", "POST", "/news/chain/polish"),   # tâche #35 : le polissage LLM d'un script du lot
+    ("routes", "POST", "/generate/extend"),   # tâche #51 : l'extension Veo 3.1 (fal)
 }
 
 

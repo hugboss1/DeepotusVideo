@@ -119,6 +119,12 @@ DEFAULTS = {
     # fournisseur À HORODATAGE AU MOT (cf. transcribe_service.STT_PROVIDERS).
     # Le calage d'un texte DÉJÀ connu (narration écrite dans le Montage) est
     # local et gratuit : il n'apparaît pas ici, par construction.
+    # Plan Quick T2 (tâche #51, 01/10/2026) — extension générative ($/s AJOUTÉE), relevée sur fal.ai le 01/10 ;
+    # miroir de fal_video_tools.EXTEND_MODELS[...]["usd_per_s"].
+    "extend_usd_per_s": {
+        "veo-3.1-fast-extend": {"son": 0.15, "muet": 0.10},
+        "veo-3.1-extend": {"son": 0.40, "muet": 0.20},
+    },
     "stt_usd_per_min": {
         "elevenlabs": 0.0067,   # Scribe v1, ≈ 0,40 $/h
         "openai": 0.006,        # whisper-1
@@ -451,6 +457,17 @@ def estimate(op: dict, p: dict | None = None) -> dict:
         for v in op.get("videos") or []:
             if isinstance(v, dict):
                 lines.extend(estimate(dict(v, kind="seedance"), p)["breakdown"])
+    elif kind == "extend":
+        # Plan Quick T2 (tâche #51) : l'extension générative d'un clip, au tarif du modèle, son compris ou non.
+        model = str(op.get("model") or "veo-3.1-fast-extend")
+        secs = float(op.get("duration_s", 7))
+        rates = p.get("extend_usd_per_s") or DEFAULTS["extend_usd_per_s"]
+        tarif = rates.get(model) or DEFAULTS["extend_usd_per_s"].get(model) or {"son": 0.40, "muet": 0.20}
+        try:
+            rate = float(tarif["son" if op.get("son", True) else "muet"])
+        except (TypeError, ValueError, KeyError):
+            rate = 0.40
+        lines.append(_line("fal", f"Extension ({model}, {'son' if op.get('son', True) else 'muet'})", secs, "s", secs * rate))
     elif kind == "transcribe":
         # Sous-titres, chemin « texte inconnu ». Le chemin « texte connu »
         # (calage local d'une narration déjà écrite) coûte 0 et le dit.
