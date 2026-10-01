@@ -204,6 +204,19 @@ class AvatarPreset(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
+class QuickPreset(Base):
+    """Plan Quick T6 (tâche #53, 01/10/2026) — un preset Quick = la RECETTE de T1 (quick_recipe), nommée et rangée
+    par onglet. En JSON : la recette grossit à chaque tâche (sous-titres, lip-sync, caméra) ; une colonne par champ
+    imposerait une migration à chaque fois. Table neuve : créée par create_all d'init_db."""
+    __tablename__ = "quick_presets"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    name: Mapped[str] = mapped_column(String(120))
+    tab: Mapped[str] = mapped_column(String(16), default="seedance", index=True)
+    recipe: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 class BibleEntity(Base):
     """v1.17 (Atelier P1) — one entry of the persistent story bible, shared by
     every chapter of a series. v1.19 kinds: character | place | object | date

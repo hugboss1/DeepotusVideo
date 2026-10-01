@@ -29,6 +29,7 @@ from app.models.schemas import (
     CompositionRequest,
     CompositionResponse,
     ExtendRequest,
+    QuickPresetCreate,
     JobStatus,
     ImageItem,
     BuildPromptRequest,
@@ -3709,6 +3710,56 @@ async def delete_avatar_preset(preset_id: str):
     from app.services.storage import AvatarPreset, async_session_factory
     async with async_session_factory() as session:
         row = await session.get(AvatarPreset, preset_id)
+        if not row:
+            raise HTTPException(404, "Preset not found")
+        await session.delete(row)
+        await session.commit()
+    return {"ok": True}
+
+
+# Plan Quick T6 (tâche #53, 01/10/2026) — presets Quick : un preset EST la recette de T1 nommée, rangée par onglet.
+@router.get("/quick/presets")
+async def list_quick_presets(tab: str = ""):
+    """Les presets Quick, les plus récents d'abord ; `tab` filtre l'onglet."""
+    import json as _json
+    from app.services.storage import QuickPreset, async_session_factory
+    async with async_session_factory() as session:
+        q = _select(QuickPreset).order_by(QuickPreset.created_at.desc())
+        if tab:
+            q = q.where(QuickPreset.tab == tab)
+        rows = (await session.execute(q)).scalars().all()
+    out = []
+    for p in rows:
+        try:
+            rec = _json.loads(p.recipe)
+        except ValueError:
+            rec = {}
+        out.append({"id": p.id, "name": p.name, "tab": p.tab, "recipe": rec if isinstance(rec, dict) else {},
+                    "created_at": p.created_at.isoformat() if p.created_at else None})
+    return {"presets": out}
+
+
+@router.post("/quick/presets")
+async def create_quick_preset(body: QuickPresetCreate):
+    """Enregistrer la recette courante sous un nom (recette bornée : c'est un formulaire, pas un fichier)."""
+    import json as _json
+    from app.services.storage import QuickPreset, async_session_factory
+    texte = _json.dumps(body.recipe, ensure_ascii=False)
+    if len(texte.encode("utf-8")) > 64 * 1024:
+        raise HTTPException(413, "Recette trop grosse (64 Ko au plus)")
+    pid = str(uuid4())
+    async with async_session_factory() as session:
+        session.add(QuickPreset(id=pid, name=body.name.strip(), tab=body.tab, recipe=texte))
+        await session.commit()
+    return {"id": pid, "name": body.name.strip(), "tab": body.tab, "recipe": body.recipe}
+
+
+@router.delete("/quick/presets/{preset_id}")
+async def delete_quick_preset(preset_id: str):
+    """Supprimer un preset Quick."""
+    from app.services.storage import QuickPreset, async_session_factory
+    async with async_session_factory() as session:
+        row = await session.get(QuickPreset, preset_id)
         if not row:
             raise HTTPException(404, "Preset not found")
         await session.delete(row)

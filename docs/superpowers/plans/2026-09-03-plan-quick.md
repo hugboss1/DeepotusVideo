@@ -1932,6 +1932,19 @@ EOF
 
 ---
 
+> **T6 EXÉCUTÉE le 01/10/2026** (tâche #53 du suivi, branche `chantier/p5-quick-presets`). Un preset EST la recette
+> de T1 (`dzQuickRecipe()`) nommée : table neuve `quick_presets` (id, name, tab, recipe JSON, created_at — créée par
+> `create_all`, aucune migration de colonne), routes `GET /quick/presets?tab=` (plus récents d'abord, recette rendue en
+> objet), `POST /quick/presets` (nom 1–120, onglet seedance|heygen|comp|voice, recette non vide, 64 Ko au plus → 413),
+> `DELETE /quick/presets/{id}` (404 sinon). Écarts : (1) un GROUPE du maillon montage (P5pr1, P5pr2), pas de patcher
+> `quickpresets` ; (2) l'onglet Voix garde son état DANS `DzQuickVoice` : P5pr1 l'expose (`__dzQuickVoiceGet`) et le
+> rejoue (événement `deepotus:quick-voice`, ou `__dzQuickVoicePending` si le composant n'est pas monté), la recette
+> porte `voice` sur cet onglet ; (3) dialogues maison (`__dzDialogue.saisir` / `confirmer` qui nomme le preset), deux
+> boutons à `title` ; la suppression vise le preset CHARGÉ. `x.useState(` 623 → 625. Bancs : `test_quick_presets` 15/0
+> (réponse HTTP ET ligne SQLite), `test_quick_bundle` 67/0 (gestes exécutés sous node, état voix compris),
+> `test_montage_bundle` 2687/0 ; 17/17 mutations rouges ; preuve écran 8799 : enregistrer → modifier → charger rend le
+> prompt (Seedance) et le texte (Voix), suppression confirmée ; HeyGen/Composition grisés sans clé sur 8799.
+
 ### Task 6 (P6) : presets personnels sur les quatre onglets
 
 **Files :**

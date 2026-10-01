@@ -311,5 +311,111 @@ console.log(JSON.stringify({ok:monter({o:"seedance",on:true,file:"v.mp3"}),heyge
           o.get("ok") == {"on": True, "model": "kling-lipsync", "file": "v.mp3"} and o.get("heygen") is True
           and o.get("off") is True and o.get("sansFichier") is True, str(o))
 
+print("\n[P] presets sur les quatre onglets (tache #53, plan Quick T6, groupe P5pr)")
+check("P0 temoin : la base (15c4c12) n'a ni dzQpUI ni __dzQuickVoiceGet", "dzQpUI" not in s0 and "__dzQuickVoiceGet" not in s0)
+check("P1 la rangee des presets EN TETE des quatre onglets (voix compris), une fois chacun",
+      'children:o==="voice"?[dzQpUI(),r.jsx(DzQuickVoice,{},"dzqv")]:[dzQpUI(),' in um and um.count("dzQpUI()") == 3)
+check("P2 les deux boutons ont un title ; aucun window.prompt/confirm/alert dans les gestes",
+      'title:"Enregistrer l’état complet de l’onglet sous un nom",onClick:dzQpSave' in um
+      and 'title:dzQsel?"Supprimer le preset chargé (confirmation demandée)"' in um
+      and all(w not in fonc(f, um) for f in ("dzQpSave", "dzQpDel", "dzQpLoad") for w in ("window.prompt", "window.confirm", "window.alert")))
+check("P3 la recette porte la voix (onglet Voix) et son application la rejoue",
+      'voice:(o==="voice"&&window.__dzQuickVoiceGet)?window.__dzQuickVoiceGet():void 0' in um
+      and 'window.dispatchEvent(new CustomEvent("deepotus:quick-voice",{detail:rc.voice}))' in um)
+i_qv = s.find("function DzQuickVoice(")
+qv = s[i_qv:i_qv + 20000]
+check("P4 DzQuickVoice expose son etat et ecoute l'evenement (retire au demontage)",
+      "window.__dzQuickVoiceGet=function(){return{text:txt,lang:lang,voice_id:vid,voice_name:vnm,model:dzM,tune:dzT}};" in qv
+      and 'window.removeEventListener("deepotus:quick-voice",onV)' in qv)
+if node:
+    js = r"""
+var toasts=[],fetchs=[],dlg={},applied=[],etat={o:"heygen",qp:[],sel:""};
+globalThis.__dzToast=function(m){toasts.push(m)};
+globalThis.window={__dzDialogue:{saisir:function(m,o){dlg.saisir=[m,o];return Promise.resolve(dlg.nom)},
+  confirmer:function(m,o){dlg.confirmer=[m,o];return Promise.resolve(dlg.oui)}}};
+var BASE=[{id:"p1",name:"Abysse",tab:"heygen",recipe:{v:1,tab:"heygen",heygen:{script:"bonjour"}}}];
+function rep(st,j){return Promise.resolve({status:st,ok:st>=200&&st<300,json:function(){return Promise.resolve(j)}})}
+globalThis.fetch=function(u,o){fetchs.push([u,o&&o.method||"GET",o&&o.body?JSON.parse(o.body):null]);
+  if(o&&o.method==="POST")return rep(dlg.postSt||200,dlg.postSt?{detail:"refus"}:{id:"p2",name:JSON.parse(o.body).name});
+  if(o&&o.method==="DELETE")return rep(200,{ok:true});return rep(200,{presets:BASE})};
+var o="heygen",dzQp=BASE,dzQsel="";
+function dzSetQp(v){dzQp=v;etat.qp=v}function dzSetQsel(v){dzQsel=v;etat.sel=v}
+function dzQuickApply(rc){applied.push(rc)}function dzQuickRecipe(){return{v:1,tab:o,heygen:{script:"courant"}}}
+""" + "\n".join(fonc(f, um) for f in ("dzQpRefresh", "dzQpLoad", "dzQpSave", "dzQpDel", "dzQpTab")) + r"""
+var attendre=function(){return new Promise(function(r){setTimeout(r,40)})};
+(async function(){var out={};
+ dzQpLoad("p1");out.load={applied:applied.slice(),sel:etat.sel,toast:toasts.slice(-1)[0]};
+ dzQpLoad("");out.vide={applied:applied.length,sel:etat.sel};
+ dlg.nom=null;fetchs=[];dzQpSave();await attendre();out.annule={fetchs:fetchs.length,saisir:dlg.saisir};
+ dlg.nom="  Mon preset ";fetchs=[];dzQpSave();await attendre();
+ out.save={post:fetchs[0],relit:fetchs[1]&&fetchs[1][0],sel:etat.sel,toast:toasts.slice(-1)[0]};
+ dlg.postSt=422;fetchs=[];dzQpSave();await attendre();out.refus={n:fetchs.length,toast:toasts.slice(-1)[0]};dlg.postSt=0;
+ dzQsel="";fetchs=[];dlg.confirmer=null;dzQpDel();await attendre();out.delSans={fetchs:fetchs.length,dlg:dlg.confirmer};
+ dzQsel="p1";dlg.oui=false;fetchs=[];dzQpDel();await attendre();out.delNon={fetchs:fetchs.length,msg:dlg.confirmer&&dlg.confirmer[0]};
+ dzQsel="p1";dlg.oui=true;fetchs=[];dzQpDel();await attendre();out.delOui={req:fetchs[0],sel:etat.sel,toast:toasts.slice(-1)[0]};
+ console.log(JSON.stringify(out))})();
+"""
+    f = pathlib.Path(tempfile.mkdtemp(prefix="dzquickp_"), "p.mjs"); f.write_text(js, encoding="utf-8")
+    p = subprocess.run([node, str(f)], capture_output=True, text=True, encoding="utf-8", timeout=60)
+    try:
+        o = json.loads(p.stdout.strip().splitlines()[-1])
+    except Exception:  # noqa: BLE001
+        o = {}
+        print(p.stdout[-800:], p.stderr[-1500:])
+    ld = o.get("load") or {}
+    check("P5 charger : la recette du preset part dans dzQuickApply, le choix est retenu, le toast le nomme",
+          ld.get("applied") == [BASE_RC := {"v": 1, "tab": "heygen", "heygen": {"script": "bonjour"}}] and ld.get("sel") == "p1"
+          and "« Abysse »" in str(ld.get("toast")), str(ld))
+    check("P6 la ligne vide ne charge rien", (o.get("vide") or {}) == {"applied": 1, "sel": ""}, str(o.get("vide")))
+    an = o.get("annule") or {}
+    check("P7 enregistrer annule : aucun appel ; la question nomme l'onglet", an.get("fetchs") == 0
+          and "onglet HeyGen" in str((an.get("saisir") or [""])[0]), str(an))
+    sv = o.get("save") or {}
+    check("P8 enregistrer : POST nom rogne + onglet + recette COURANTE, puis relit l'onglet et selectionne le neuf",
+          sv.get("post") == ["/api/quick/presets", "POST", {"name": "Mon preset", "tab": "heygen", "recipe": {"v": 1, "tab": "heygen", "heygen": {"script": "courant"}}}]
+          and sv.get("relit") == "/api/quick/presets?tab=heygen" and sv.get("sel") == "p2" and "enregistr" in str(sv.get("toast")), str(sv))
+    check("P9 refus serveur : dit, pas de relecture", (o.get("refus") or {}).get("n") == 1 and "refus" in str((o.get("refus") or {}).get("toast")), str(o.get("refus")))
+    check("P10 supprimer sans preset charge : ni question ni appel", (o.get("delSans") or {}) == {"fetchs": 0, "dlg": None}, str(o.get("delSans")))
+    check("P11 supprimer refuse a la confirmation : aucun appel ; la question nomme le preset",
+          (o.get("delNon") or {}).get("fetchs") == 0 and "« Abysse »" in str((o.get("delNon") or {}).get("msg")), str(o.get("delNon")))
+    do = o.get("delOui") or {}
+    check("P12 supprimer confirme : DELETE du preset charge, choix vide", do.get("req") == ["/api/quick/presets/p1", "DELETE", None]
+          and do.get("sel") == "" and "supprim" in str(do.get("toast")), str(do))
+    # l'onglet Voix : le code ECRIT dans DzQuickVoice, execute avec de faux etats
+    a_qv = qv.find("var dzQvRef=x.useRef(null);")
+    b_qv = qv.find("},[]);", qv.find('window.addEventListener("deepotus:quick-voice",onV)')) + len("},[]);")
+    js = r"""
+var ecouteurs={},effets=[],set={};globalThis.localStorage={setItem:function(k,v){set["ls:"+k]=v}};
+globalThis.window={addEventListener:function(n,f){ecouteurs[n]=f},removeEventListener:function(n,f){if(ecouteurs[n]===f)delete ecouteurs[n]},
+  __dzQuickVoicePending:{text:"en attente",lang:"en"}};
+var x={useRef:function(v){return{current:v}},useEffect:function(f){effets.push(f)}};
+var txt="t0",lang="fr",vid="",vnm="App",dzM="m0",dzT={s:1};
+function setTxt(v){set.txt=v}function setLang(v){set.lang=v}function setVid(v){set.vid=v}function setVnm(v){set.vnm=v}
+function dzSetM(v){set.m=v}function dzSetT(v){set.t=v}
+""" + qv[a_qv:b_qv] + r"""
+var out={get:window.__dzQuickVoiceGet()};var nettoie=effets[0]();out.pending=JSON.parse(JSON.stringify(set));
+out.pendingVide=!("__dzQuickVoicePending" in window);set={};
+window.__dzQuickVoicePending={text:"perime"};
+ecouteurs["deepotus:quick-voice"]({detail:{text:"T",lang:"en",voice_id:"v9",voice_name:"Nova",model:"eleven_v3",tune:{s:2}}});
+out.evt=set;out.evtPurge=!("__dzQuickVoicePending" in window);nettoie();
+out.demonte=!ecouteurs["deepotus:quick-voice"]&&!window.__dzQuickVoiceGet;
+console.log(JSON.stringify(out));
+"""
+    f = pathlib.Path(tempfile.mkdtemp(prefix="dzquickv_"), "v.mjs"); f.write_text(js, encoding="utf-8")
+    p = subprocess.run([node, str(f)], capture_output=True, text=True, encoding="utf-8", timeout=60)
+    try:
+        o = json.loads(p.stdout.strip().splitlines()[-1])
+    except Exception:  # noqa: BLE001
+        o = {}
+        print(p.stdout[-800:], p.stderr[-1500:])
+    check("P13 __dzQuickVoiceGet rend l'etat COURANT de la voix",
+          o.get("get") == {"text": "t0", "lang": "fr", "voice_id": "", "voice_name": "App", "model": "m0", "tune": {"s": 1}}, str(o.get("get")))
+    check("P14 au montage, la voix en attente est rejouee puis effacee", (o.get("pending") or {}) == {"txt": "en attente", "lang": "en"}
+          and o.get("pendingVide") is True, str(o.get("pending")))
+    check("P15 l'evenement rejoue CHAQUE champ (modele et reglages memorises) et purge l'attente perimee",
+          o.get("evt") == {"txt": "T", "lang": "en", "vid": "v9", "vnm": "Nova", "m": "eleven_v3", "ls:dz_voice_model": "eleven_v3",
+                           "t": {"s": 2}, "ls:dz_voice_tune": '{"s":2}'} and o.get("evtPurge") is True, str(o.get("evt")))
+    check("P16 au demontage : l'ecouteur et le getter sont retires", o.get("demonte") is True, str(o))
+
 print(f"\n{ok} ok, {fail} echec(s)")
 raise SystemExit(1 if fail else 0)

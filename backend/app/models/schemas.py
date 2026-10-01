@@ -363,6 +363,13 @@ class ExtendRequest(BaseModel):
     quick_recipe: Optional[dict] = None
 
 
+class QuickPresetCreate(BaseModel):
+    """Plan Quick T6 (tâche #53) — enregistrer l'état complet d'un onglet Quick sous un nom."""
+    name: str = Field(..., min_length=1, max_length=120)
+    tab: Literal["seedance", "heygen", "comp", "voice"] = "seedance"
+    recipe: dict = Field(..., min_length=1)
+
+
 # ============ v1.5 ============
 
 class PhotoAvatarCreateResponse(BaseModel):

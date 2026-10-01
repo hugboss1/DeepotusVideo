@@ -68,8 +68,9 @@ def main():
     # ne voyait que les `prompt(` NUS ; les `window.prompt(` (dix restants) lui avaient echappe.
     # + les dix window.prompt( restants (R8pr1..R8pr7 + deux replis du maillon montage) : 11 avec await, et les deux
     # copies de chemin enchainees par .then(done) (13 appels en tout) ; plus AUCUN window.prompt(.
-    check("await __dzDialogue.saisir ×11 hors couche (2 de ce maillon + 9 du maillon montage), saisir ×13, window.prompt( ×0",
-          hors.count("await window.__dzDialogue.saisir(") == 11 and hors.count("window.__dzDialogue.saisir(") == 13
+    # tache #53 (01/10/2026) : + 1 saisir enchaine par .then, le nom d'un preset Quick (P5st1, maillon montage) : 13 -> 14.
+    check("await __dzDialogue.saisir ×11 hors couche (2 de ce maillon + 9 du maillon montage), saisir ×14, window.prompt( ×0",
+          hors.count("await window.__dzDialogue.saisir(") == 11 and hors.count("window.__dzDialogue.saisir(") == 14
           and "window.prompt(" not in hors, str((hors.count("await window.__dzDialogue.saisir("), hors.count("window.prompt("))))
     SRC = RACINE / "frontend" / "shared" / "dialogue.js"
     check("la couche du patcher = frontend/shared/dialogue.js octet pour octet (source unique)",
