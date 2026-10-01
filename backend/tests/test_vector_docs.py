@@ -1542,3 +1542,10 @@ def test_le_miroir_fusion_de_calque_fait_l_aller_retour():
             assert "mix-blend-mode" in src
 
     asyncio.run(scenario())
+
+
+if __name__ == "__main__":
+    # Lanceur (01/10/2026) : sans lui, `python tests/<ce fichier>` sortait 0
+    # sans executer un seul test, et la serie par fichier le voyait vert.
+    import pytest
+    raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

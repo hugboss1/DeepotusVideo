@@ -7,6 +7,10 @@ Tests golden purs (aucun réseau, aucune app FastAPI) :
 
   runtime\\python\\python.exe -m pytest backend/tests/test_pixel_ops.py -v
 """
+# Amorce (01/10/2026) : le python embarque ignore PYTHONPATH (._pth) ; sans
+# elle, `python tests/<ce fichier>` ne trouve pas le paquet `app`.
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), ".."))
 import random
 
 import pytest
@@ -204,3 +208,10 @@ def test_tile_preview_deterministic():
     b = tile_preview(_busy_photo(), 2)
     assert a[1] == b[1] and a[0].tobytes() == b[0].tobytes()
     assert 0 <= a[1] <= 100
+
+
+if __name__ == "__main__":
+    # Lanceur (01/10/2026) : sans lui, `python tests/<ce fichier>` sortait 0
+    # sans executer un seul test, et la serie par fichier le voyait vert.
+    import pytest
+    raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

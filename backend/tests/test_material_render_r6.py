@@ -181,3 +181,10 @@ def test_a_stale_render_block_cannot_survive_a_level_change():
     assert mat["render"]["roughnessFactor"] == 1.0
     assert mat["render"]["metallicFactor"] == 1.0
     assert mat["render"]["levels_baked"] == ["metallic", "roughness"]
+
+
+if __name__ == "__main__":
+    # Lanceur (01/10/2026) : sans lui, `python tests/<ce fichier>` sortait 0
+    # sans executer un seul test, et la serie par fichier le voyait vert.
+    import pytest
+    raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

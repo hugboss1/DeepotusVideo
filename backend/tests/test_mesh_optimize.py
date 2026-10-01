@@ -12,6 +12,10 @@ Couvre : stats GLB exactes sur un tore synthétique aux comptes connus,
 simplification vers la cible (vrai gltfpack, ±20 %), passe aggressive,
 presets/clamps, erreurs (job absent, preset inconnu), GLB de sortie valide.
 """
+# Amorce (01/10/2026) : le python embarque ignore PYTHONPATH (._pth) ; sans
+# elle, `python tests/<ce fichier>` ne trouve pas le paquet `app`.
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), ".."))
 import json
 import math
 import shutil
@@ -181,3 +185,10 @@ def test_path_traversal_neutralized(torus_job, outputs):
     assert info["after"]["tris"] <= 5000 * 1.2
     with pytest.raises(FileNotFoundError):
         MO.optimize_glb("..\\..\\windows")      # basename inexistant -> 404
+
+
+if __name__ == "__main__":
+    # Lanceur (01/10/2026) : sans lui, `python tests/<ce fichier>` sortait 0
+    # sans executer un seul test, et la serie par fichier le voyait vert.
+    import pytest
+    raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

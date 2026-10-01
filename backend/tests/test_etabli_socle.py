@@ -1928,3 +1928,10 @@ def test_une_face_confondue_PARTIELLE_est_refusee_en_le_disant___la_MARCHE():
     # tout part d'un côté, même refus d'avant
     with pytest.raises(ValueError, match="ne traverse aucune"):
         mesh_cut.couper(data, [0], [0, 4, 0], [0, 1, 0])
+
+
+if __name__ == "__main__":
+    # Lanceur (01/10/2026) : sans lui, `python tests/<ce fichier>` sortait 0
+    # sans executer un seul test, et la serie par fichier le voyait vert.
+    import pytest
+    raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

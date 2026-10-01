@@ -9,6 +9,10 @@ lanceur et les titres des pages standalone.
 
 Run : python -m pytest backend/tests/test_origine_nommee.py -q
 """
+# Amorce (01/10/2026) : le python embarque ignore PYTHONPATH (._pth) ; sans
+# elle, `python tests/<ce fichier>` ne trouve pas le paquet `app`.
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), ".."))
 import pathlib
 import re
 
@@ -84,3 +88,10 @@ def test_guide_pointe_sur_l_url_nommee():
         html = (RACINE / "docs" / "guide" / f"{lang}.html").read_text(encoding="utf-8")
         assert "http://127.0.0.1:8765" not in html, lang
         assert "http://deepotus.localhost:8765" in html, lang
+
+
+if __name__ == "__main__":
+    # Lanceur (01/10/2026) : sans lui, `python tests/<ce fichier>` sortait 0
+    # sans executer un seul test, et la serie par fichier le voyait vert.
+    import pytest
+    raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

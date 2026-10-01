@@ -1,3 +1,7 @@
+# Amorce (01/10/2026) : le python embarque ignore PYTHONPATH (._pth) ; sans
+# elle, `python tests/<ce fichier>` ne trouve pas le paquet `app`.
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), ".."))
 from app.services.animation_service import ease, lerp, transform_at
 
 
@@ -115,3 +119,10 @@ def test_transform_at_legacy_unchanged():
     assert abs(mid["x"] - 50) < 1e-6 and abs(mid["opacity"] - 0.5) < 1e-6
     assert transform_at(el, 2.5) == {"x": 100, "y": 50, "scale": 1, "rotation": 90, "opacity": 1}
     assert transform_at(el, 5.0) is None
+
+
+if __name__ == "__main__":
+    # Lanceur (01/10/2026) : sans lui, `python tests/<ce fichier>` sortait 0
+    # sans executer un seul test, et la serie par fichier le voyait vert.
+    import pytest
+    raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

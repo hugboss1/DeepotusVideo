@@ -36,6 +36,10 @@ Ce fichier verrouille l'invariant, pour TOUS les maillages :
 
     runtime\\python\\python.exe -m pytest backend/tests/test_uv_orientation.py -v
 """
+# Amorce (01/10/2026) : le python embarque ignore PYTHONPATH (._pth) ; sans
+# elle, `python tests/<ce fichier>` ne trouve pas le paquet `app`.
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), ".."))
 import io
 import json
 import math
@@ -439,3 +443,10 @@ def test_glb_porte_les_uv_corriges(mesh):
     assert mirrored == 0, (
         f"{mesh} : le GLB exporté contient {mirrored}/{tested} triangles en "
         "miroir — le fichier livré ne correspond pas aux PNG.")
+
+
+if __name__ == "__main__":
+    # Lanceur (01/10/2026) : sans lui, `python tests/<ce fichier>` sortait 0
+    # sans executer un seul test, et la serie par fichier le voyait vert.
+    import pytest
+    raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

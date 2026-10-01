@@ -414,3 +414,10 @@ def test_the_alias_keeps_old_links_alive():
     assert MS.export_filename(mat, "zip", "unity") == \
         MS.export_filename(mat, "zip", "unity_urp")
     assert MS.clean_naming("n'importe quoi") == "standard"
+
+
+if __name__ == "__main__":
+    # Lanceur (01/10/2026) : sans lui, `python tests/<ce fichier>` sortait 0
+    # sans executer un seul test, et la serie par fichier le voyait vert.
+    import pytest
+    raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

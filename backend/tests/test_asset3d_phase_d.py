@@ -1629,3 +1629,10 @@ def test_route_texturer_refuse_sans_cle_meshy(monkeypatch):
             assert "MESHY_API_KEY" in r.text and "Meshy" in r.text
 
     asyncio.run(scenario())
+
+
+if __name__ == "__main__":
+    # Lanceur (01/10/2026) : sans lui, `python tests/<ce fichier>` sortait 0
+    # sans executer un seul test, et la serie par fichier le voyait vert.
+    import pytest
+    raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

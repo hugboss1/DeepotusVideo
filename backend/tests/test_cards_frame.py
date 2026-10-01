@@ -10955,3 +10955,10 @@ def test_les_colonnes_du_cadre_COULISSENT_et_la_piece_le_dit_au_CORE():
         "le contenu replie reste dans le flux au lieu d'en etre retire"
     assert "writing-mode: vertical-rl" in css, \
         "la bande de reouverture n'est pas verticale (patron stage-fold)"
+
+
+if __name__ == "__main__":
+    # Lanceur (01/10/2026) : sans lui, `python tests/<ce fichier>` sortait 0
+    # sans executer un seul test, et la serie par fichier le voyait vert.
+    import pytest
+    raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

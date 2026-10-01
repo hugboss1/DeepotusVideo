@@ -36,6 +36,10 @@ egalite des chiffres, densite) est mesure par
 Lance seul (un processus par fichier, cf. scripts/run-tests.ps1) :
     python -m pytest backend/tests/test_subs_regle_des_gestes.py -q
 """
+# Amorce (01/10/2026) : le python embarque ignore PYTHONPATH (._pth) ; sans
+# elle, `python tests/<ce fichier>` ne trouve pas le paquet `app`.
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), ".."))
 from pathlib import Path
 import re
 
@@ -620,3 +624,10 @@ def test_la_piece_a_conviction_tient_dans_le_premier_ecran():
     assert vide.index('className:"sub-empty"') < vide.index("couverture]")
     assert ".sub-empty{padding:13px" in _css(), \
         "le bloc d'invitation a ete resserre pour que les deux tiennent"
+
+
+if __name__ == "__main__":
+    # Lanceur (01/10/2026) : sans lui, `python tests/<ce fichier>` sortait 0
+    # sans executer un seul test, et la serie par fichier le voyait vert.
+    import pytest
+    raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

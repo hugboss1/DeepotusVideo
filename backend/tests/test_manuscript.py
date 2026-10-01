@@ -110,7 +110,7 @@ def test_spans_folding():
             .startswith("cle de nacre")
 
 
-async def test_pipeline():
+async def _test_pipeline():
     await init_db()
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://t") as c:
@@ -173,7 +173,17 @@ async def test_pipeline():
         assert len((await c.get("/api/chapters")).json()["chapters"]) == len(chs)
 
 
-test_segmentation()
-test_spans_folding()
-asyncio.run(test_pipeline())
-print("MANUSCRIT AGENT TEST: PASS")
+def test_pipeline():
+    asyncio.run(_test_pipeline())
+
+
+if __name__ == "__main__":
+    # Sous `if __name__` depuis le 01/10/2026 : en tete de module, ces appels
+    # s'executaient AUSSI a la collecte pytest, puis pytest les rejouait (etat
+    # deja cree, UNIQUE, reglages mutes) ; et les `async def test_` y etaient
+    # rouges faute de greffon asyncio. Pytest passe desormais par les
+    # enveloppes synchrones ; le mode script reste celui d'origine.
+    test_segmentation()
+    test_spans_folding()
+    asyncio.run(_test_pipeline())
+    print("MANUSCRIT AGENT TEST: PASS")

@@ -118,13 +118,16 @@ def test_la_route_import_figma():
                 r = await c.post("/api/images/import-figma",
                                  json={"url": url})
                 assert r.status_code == 502 and "PNG" in r.json()["detail"]
-                # jeton absent → 409 qui NOMME FIGMA_TOKEN et le .env
+                # jeton absent → 503 qui NOMME FIGMA_TOKEN et les Réglages
+                # (409 jusqu'au 28/09/2026 ; 4bb3965 « une clé de fournisseur
+                # absente répond 503, partout », P1 #11. Corrigé ici le
+                # 01/10 : le banc n'était jamais lancé par la série.)
                 ancien = settings.FIGMA_TOKEN
                 settings.FIGMA_TOKEN = ""
                 try:
                     r = await c.post("/api/images/import-figma",
                                      json={"url": url})
-                    assert r.status_code == 409
+                    assert r.status_code == 503
                     assert "FIGMA_TOKEN" in r.json()["detail"]
                 finally:
                     settings.FIGMA_TOKEN = ancien
@@ -177,3 +180,10 @@ def test_le_miroir_bundle_selecteur():
     patcher = (racine / "scripts"
                / "patch_bundle_libpicker.py").read_text("utf-8")
     assert "guard_downstream" in patcher and "STABLE_PROBES" in patcher
+
+
+if __name__ == "__main__":
+    # Lanceur (01/10/2026) : sans lui, `python tests/<ce fichier>` sortait 0
+    # sans executer un seul test, et la serie par fichier le voyait vert.
+    import pytest
+    raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

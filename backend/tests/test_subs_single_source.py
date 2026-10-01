@@ -25,6 +25,10 @@ chip / inspecteur), est mesuree dans le DOM reel par
 Lance seul (un processus par fichier, cf. scripts/run-tests.ps1) :
     python -m pytest backend/tests/test_subs_single_source.py -q
 """
+# Amorce (01/10/2026) : le python embarque ignore PYTHONPATH (._pth) ; sans
+# elle, `python tests/<ce fichier>` ne trouve pas le paquet `app`.
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), ".."))
 from pathlib import Path
 import re
 
@@ -443,3 +447,10 @@ def test_les_plans_non_couverts_sont_designes_avec_le_geste():
     # les plans entrent dans le verdict, et se voient sur la timeline
     assert "d.verdict(subsSegsOf(clips),subsStyleNow(),du,subsSrcClips(clips))" in pat
     assert '"data-nosub"' in pat
+
+
+if __name__ == "__main__":
+    # Lanceur (01/10/2026) : sans lui, `python tests/<ce fichier>` sortait 0
+    # sans executer un seul test, et la serie par fichier le voyait vert.
+    import pytest
+    raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

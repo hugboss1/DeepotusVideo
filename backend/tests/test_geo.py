@@ -194,3 +194,10 @@ def test_le_miroir_lot_h_cartes_reelles():
     qa = vl / "qa"
     for b in ("geo", "relief", "geo_doc", "carte_ui"):
         assert (qa / f"{b}.test.mjs").is_file(), b
+
+
+if __name__ == "__main__":
+    # Lanceur (01/10/2026) : sans lui, `python tests/<ce fichier>` sortait 0
+    # sans executer un seul test, et la serie par fichier le voyait vert.
+    import pytest
+    raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))
