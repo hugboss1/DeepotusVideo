@@ -2313,6 +2313,8 @@ def test_les_maillons_voisins_de_la_chaine_Bibliotheque_gardent_leurs_comptes():
         "__dzMontageAdd": 2,
         # 30/09 (9543c2b) : Scheduler lot 2, « Suite ajoutée au fil ».
         "deepotus:select-post": 1,
+        # 01/10 (3e41a61, tâche #48) : dzQuickApply « Rouvrir dans Quick ».
+        "__dzQuickStart": 1,
     }
     for sonde, combien in P.POST_COUNTS:
         assert s.count(sonde) == combien + derives_aval.get(sonde, 0), sonde
