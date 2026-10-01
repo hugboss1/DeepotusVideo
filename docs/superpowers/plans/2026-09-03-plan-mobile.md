@@ -1264,6 +1264,24 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>'
 
 ---
 
+> **TÂCHES 4 ET 5 EXÉCUTÉES le 01/10/2026** (tâche #56 du suivi, PR 2/3, branche `chantier/p6-mobile-garde`).
+> Écarts mesurés :
+> (1) **la garde des ÉCRITURES locales existait déjà** (`_garde_ecritures_locales`, décision de l'utilisateur #14
+> du 29/09) et le plan l'ignorait : avec lui, un jeton aurait ouvert TOUTES les écritures (donc les dépenses) au
+> Wi-Fi. La décision est tenue : le jeton n'ouvre que les LECTURES, et la seule écriture ouverte au réseau local est
+> `POST /api/pair/claim`, via `_ECRITURES_OUVERTES` ;
+> (2) la garde de jeton est le DERNIER middleware déclaré, donc le plus extérieur : une route inconnue répond 401,
+> pas la page ;
+> (3) aucune route WebSocket, qu'un middleware http ne garderait pas : le banc le vérifie ;
+> (4) **le bloc VBScript du plan aurait EMPÊCHÉ l'app de démarrer** (`Option Explicit`, variables non déclarées). La
+> lecture de HOST devient `LireHote(chemin)` (la DERNIÈRE ligne `HOST=` gagne, comme python-dotenv ; deux valeurs
+> seulement), le dossier vient de `DataRoot()` (comme `config._data_root`, `DEEPOTUS_DATA_DIR` compris) et
+> `hostArg` est déclaré ;
+> (5) `_adresse_lan` vise 10.255.255.255 ; `pair_start` et `/devices` rendent aussi `ecoute` (la valeur de HOST).
+> Banc `test_appairage_routes` 27/0, sur de VRAIES requêtes portant une IP du réseau local, et sur la VRAIE fonction
+> du lanceur exécutée par `cscript` (huit `.env`, le lanceur entier compilé dans une copie qui quitte avant toute
+> action, sans jamais démarrer de backend) ; 15/15 mutations rouges.
+
 ### Tâche 4 : Routes d'appairage et garde de jeton sur toute route
 
 **Files:**
