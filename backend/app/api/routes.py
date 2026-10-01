@@ -2300,14 +2300,48 @@ async def upload_image(file: UploadFile = File(...)):
     safe = Path(file.filename or "image.png").name
     if not safe or safe in (".", "..") or "/" in safe or "\\" in safe:
         raise HTTPException(400, "Invalid filename")
-    dest = folder / safe
     contents = await file.read()
+    # Garde du 01/10/2026 (un `note.txt` déposé entrait en Bibliothèque) :
+    # c'est le CONTENU qui décide, décodé par Pillow — miroir de
+    # /videos/upload (« vide ou illisible », 415). Rien n'est écrit avant.
+    fmt = await asyncio.to_thread(_format_image, contents)
+    if fmt not in _UPLOAD_IMAGE_FORMATS:
+        ext = Path(safe).suffix.lower() or "aucune"
+        recu = f"format {fmt}" if fmt else "contenu non décodable"
+        raise HTTPException(
+            415, f"Pas une image : {safe} (extension « {ext} », {recu}) — "
+                 "formats acceptés : PNG, JPEG, WebP, GIF, BMP, AVIF")
+    dest = folder / safe
+    # Homonyme : `nom-1.ext`, `nom-2.ext`… (le `filename` rendu le dit). SAUF
+    # les exports `vector_` du Vectorlab : leur nom STABLE est un contrat —
+    # Cardforge reconstruit `vector_<id>_2x.png` sans lire cette réponse
+    # (mod-face.js vecExportNom : « re-exporter RÉÉCRIT le fichier en place »).
+    if not safe.startswith("vector_"):
+        stem, ext, n = dest.stem, dest.suffix, 1
+        while dest.exists():
+            dest = folder / f"{stem}-{n}{ext}"
+            n += 1
     dest.write_bytes(contents)
     # provenance : les exports du Vectorlab passent par cette route avec
     # leur préfixe ; tout le reste est un import utilisateur
-    await LI.noter([safe], "vectorlab" if safe.startswith("vector_")
+    await LI.noter([dest.name], "vectorlab" if dest.name.startswith("vector_")
                    else "import")
-    return {"saved": str(dest), "filename": safe, "size_kb": len(contents) // 1024}
+    return {"saved": str(dest), "filename": dest.name, "size_kb": len(contents) // 1024}
+
+
+_UPLOAD_IMAGE_FORMATS = {"PNG", "JPEG", "WEBP", "GIF", "BMP", "AVIF"}
+
+
+def _format_image(contents: bytes) -> str | None:
+    """Format Pillow du contenu s'il se décode entièrement, sinon None."""
+    import io
+    try:
+        with PILImage.open(io.BytesIO(contents)) as img:
+            fmt = img.format
+            img.load()
+        return fmt
+    except Exception:
+        return None
 
 
 @router.get("/images/{filename}")
