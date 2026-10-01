@@ -12370,3 +12370,12 @@ async def sync_depot(request: Request, file: UploadFile = File(...), sha256: str
         return await _si.deposer(nom, contenu, sha256, rec, appareil)
     except _si.DepotRefuse as e:
         raise HTTPException(e.code, e.raison) from None
+
+
+# ── Plan mobile T17 (tâche #58, 02/10/2026) : les événements que le téléphone change en notifications (lecture) ─────
+
+@router.get("/sync/evenements")
+async def sync_evenements_get(request: Request, depuis: str | None = None, limite: int = 200):
+    from app.services import sync_evenements as _se
+    await _appareil_requis(request)
+    return await _se.evenements(depuis=depuis, limite=limite)
