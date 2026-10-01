@@ -33,9 +33,9 @@ check("A2 __dzQuickStart 3 -> 4 (dzQuickApply pose le global quand les images ne
 check("A3 __dzReopenQuick : definition + modal + carte de la file", s.count("__dzReopenQuick") == 3 and s.count("function __dzReopenQuick(") == 1
       and s.count("function __dzQuickFromJob(") == 1)
 check("A4 les trois payloads portent la recette EN TETE", s.count("quick_recipe:dzQuickRecipe()") == 3
-      and "je={quick_recipe:dzQuickRecipe(),video_model:VMQ||void 0,image_filename:w," in s
+      and "je={quick_recipe:dzQuickRecipe(),camera_ctrl:dzCam(),video_model:VMQ||void 0,image_filename:w," in s
       and 'D.postJson("/generate/heygen",{quick_recipe:dzQuickRecipe(),avatar_id:C,' in s
-      and 'D.postJson("/generate/composition",{quick_recipe:dzQuickRecipe(),seedance:{video_model:' in s)
+      and 'D.postJson("/generate/composition",{quick_recipe:dzQuickRecipe(),seedance:{camera_ctrl:dzCam(),video_model:' in s)
 check("A5 l'evenement : emis par le helper, ecoute par Quick (et retire au demontage)", s.count('"deepotus:quick-recipe"') == 3
       and 'window.removeEventListener("deepotus:quick-recipe",onR)' in s)
 check("A6 le bouton de la Bibliotheque (renders seulement) et l'icone de la file, avec un title",
@@ -62,7 +62,7 @@ def fonc(nom, src=s):
 if node:
     rec_fn = fonc("dzQuickRecipe")
     app_fn = fonc("dzQuickApply")
-    SETTERS = "i v k a V dzSetVMQ b z P F Hsrc Q ne W Eng Mimg Mp Xp De dzSetSubOn dzSetSubSty dzSetSubLang dzSetSubTxt dzSetSubTr dzSetLipOn dzSetLipFile".split()
+    SETTERS = "i v k a V dzSetVMQ b z P F Hsrc Q ne W Eng Mimg Mp Xp De dzSetSubOn dzSetSubSty dzSetSubLang dzSetSubTxt dzSetSubTr dzSetLipOn dzSetLipFile dzSetCamCtl".split()
     js = "\n".join([fonc("__dzQuickFromJob"), fonc("__dzReopenQuick"), r"""
 var toasts=[],navs=[],evts=[],appels=[],reponses={};
 globalThis.__dzToast=function(m){toasts.push(m)};globalThis.__dzSendNav=function(t){navs.push(t)};
@@ -73,7 +73,7 @@ globalThis.fetch=function(u){appels.push(u);var f=reponses[u];return f?f():rep(4
 var attendre=function(){return new Promise(function(r){setTimeout(r,120)})};
 var appliques={};
 function fabrique(etat){var u=etat.u||[];""" + "".join(f"var {n}=function(x){{appliques['{n}']=x}};" for n in SETTERS) + r"""
- var o=etat.o,w=etat.w,g=etat.g,s=etat.s,A=etat.A,VMQ=etat.VMQ,h=etat.h,_=etat._,N=etat.N,H=etat.H,hsrc=etat.hsrc,C=etat.C,ee=etat.ee,R=etat.R,eng=etat.eng,mimg=etat.mimg,mp=etat.mp,xp=etat.xp,We=etat.We,dzSubOn=etat.dzSubOn,dzSubSty=etat.dzSubSty,dzSubLang=etat.dzSubLang,dzSubTxt=etat.dzSubTxt,dzSubTr=etat.dzSubTr,dzLipOn=etat.dzLipOn,dzLipFile=etat.dzLipFile;
+ var o=etat.o,w=etat.w,g=etat.g,s=etat.s,A=etat.A,VMQ=etat.VMQ,h=etat.h,_=etat._,N=etat.N,H=etat.H,hsrc=etat.hsrc,C=etat.C,ee=etat.ee,R=etat.R,eng=etat.eng,mimg=etat.mimg,mp=etat.mp,xp=etat.xp,We=etat.We,dzSubOn=etat.dzSubOn,dzSubSty=etat.dzSubSty,dzSubLang=etat.dzSubLang,dzSubTxt=etat.dzSubTxt,dzSubTr=etat.dzSubTr,dzLipOn=etat.dzLipOn,dzLipFile=etat.dzLipFile,dzCamCtl=etat.dzCamCtl||{};
  """ + rec_fn + app_fn + r"""
  return {recette:dzQuickRecipe,appliquer:dzQuickApply}}
 (async function(){
@@ -90,13 +90,15 @@ function fabrique(etat){var u=etat.u||[];""" + "".join(f"var {n}=function(x){{ap
  delete window.__dzQuickRecipe;navs=[];
  __dzReopenQuick("absent");await attendre();
  out.c={nav:navs.slice(),glob:window.__dzQuickRecipe||null,toast:toasts.slice(-1)[0]};
- var ecran=fabrique({o:"seedance",w:"a.png",g:"",s:"abysse",A:"noir",VMQ:"seedance-2",h:10,_:"9:16",N:"42",H:"",hsrc:"avatar",C:"av1",ee:"vx",R:"txt",eng:"",mimg:"",mp:"",xp:"",We:"sequential",u:[1],dzSubOn:true,dzSubSty:"pop",dzSubLang:"en",dzSubTxt:"bonjour",dzSubTr:false,dzLipOn:true,dzLipFile:"voix.mp3"});
+ var ecran=fabrique({o:"seedance",w:"a.png",g:"",s:"abysse",A:"noir",VMQ:"seedance-2",h:10,_:"9:16",N:"42",H:"",hsrc:"avatar",C:"av1",ee:"vx",R:"txt",eng:"",mimg:"",mp:"",xp:"",We:"sequential",u:[1],dzSubOn:true,dzSubSty:"pop",dzSubLang:"en",dzSubTxt:"bonjour",dzSubTr:false,dzLipOn:true,dzLipFile:"voix.mp3",dzCamCtl:{zoom:7,tilt:-4}});
  out.recette=ecran.recette();
  ecran.appliquer(REC);out.appliques=appliques;
  appliques={};var vide=fabrique({u:[]});window.__dzQuickStart=null;vide.appliquer({seedance:{image:"z.png"}});out.global=window.__dzQuickStart;out.app2=appliques;
  appliques={};vide.appliquer({tab:"pirate"});out.pirate=appliques;
  appliques={};vide.appliquer({subs:{on:true,style:"neon",lang:"en",text:"t",tr:true}});out.subs=appliques;
  appliques={};vide.appliquer({lip:{on:true,file:"v.mp3"}});out.lip=appliques;
+ appliques={};vide.appliquer({cam:{pan:3}});out.cam=appliques;
+ appliques={};vide.appliquer({cam:"pirate"});out.camPirate=appliques;
  console.log(JSON.stringify(out));
 })();
 """])
@@ -138,6 +140,10 @@ function fabrique(etat){var u=etat.u||[];""" + "".join(f"var {n}=function(x){{ap
     check("N9 (tache #52) la recette porte le lip-sync et son application le restaure",
           (o.get("recette") or {}).get("lip") == {"on": True, "file": "voix.mp3"}
           and o.get("lip") == {"dzSetLipOn": True, "dzSetLipFile": "v.mp3"}, str(o.get("lip")))
+    check("N10 (tache #54) la recette porte les curseurs camera ; l'application COMPLETE les six axes a zero ; un objet seulement",
+          (o.get("recette") or {}).get("cam") == {"zoom": 7, "tilt": -4}
+          and o.get("cam") == {"dzSetCamCtl": {"zoom": 0, "horizontal": 0, "vertical": 0, "pan": 3, "tilt": 0, "roll": 0}}
+          and o.get("camPirate") == {}, str(o.get("cam")) + str(o.get("camPirate")))
 
 print("\n[E] l'image de fin grisee avec la raison (tache #49, plan Quick T3, groupe P5ef)")
 check("E0 temoin : la base (15c4c12) n'a ni dzEndOK ni le libelle « indisponible »", "dzEndOK" not in s0 and "Image de fin — indisponible" not in s0)
@@ -506,6 +512,50 @@ var attendre=function(){return new Promise(function(r){setTimeout(r,30)})};
           and bd.get("ouvert") == 1 and bd.get("n") == 2, str(bd))
     check("G13 refus du build : le detail est dit, rien ne s'ouvre", "Image introuvable" in str((o.get("refus") or {}).get("toast"))
           and (o.get("refus") or {}).get("ouvert") == 0, str(o.get("refus")))
+
+print("\n[K] curseurs camera traduits en phrase (tache #54, plan Quick T8 = D2)")
+check("K0 temoin : la base (15c4c12) n'a ni dzCam ni camera_ctrl", "function dzCam(" not in s0 and "camera_ctrl" not in s0)
+check("K1 un etat, deux payloads (solo + slot seedance de comp), l'apercu par la ROUTE (pas de traduction dans le bundle)",
+      s.count("function dzCam(") == 1 and s.count("camera_ctrl:dzCam()") == 2 and s.count("/api/quick/camera-phrase") == 1
+      and "pushing in" not in s and "zoom in" not in s)
+check("K2 la section : repliee, absente sur HeyGen, six curseurs -10..10, la note honnete, « Remettre a zero » avec un title",
+      'o!=="heygen"&&r.jsx(ie,{label:"Caméra (curseurs)",defaultOpen:!1,' in um
+      and um.count('"Zoom (− arrière / + avant)"') == 1 and "min:-10,max:10,step:1" in um
+      and "Aucun modèle du registre n’expose de contrôle caméra via fal" in um
+      and 'title:"Remettre les six curseurs à zéro"' in um)
+if node:
+    i_e = um.find("x.useEffect(function(){if(!dzCamN())")
+    eff = um[i_e:um.find("},[dzCamCtl,VMQ]);", i_e) + len("},[dzCamCtl,VMQ]);")]
+    js = r"""
+var appels=[],ph=[],nettoyages=[];var x={useEffect:function(f){var n=f();if(n)nettoyages.push(n)}};
+globalThis.fetch=function(u,o){appels.push([u,JSON.parse(o.body)]);return Promise.resolve({ok:true,json:function(){return Promise.resolve({phrase:"Camera: zoom in."})}})};
+function monter(ctrl,VMQ){var dzCamCtl=ctrl;function dzSetCamPh(p){ph.push(p)}
+""" + fonc("dzCamN", um) + fonc("dzCam", um) + "\n" + eff + r"""
+ return {cam:dzCam(),n:dzCamN()}}
+var attendre=function(ms){return new Promise(function(r){setTimeout(r,ms)})};
+(async function(){var out={};
+ out.zero=monter({zoom:0,horizontal:0,vertical:0,pan:0,tilt:0,roll:0},"kling-v3-pro");await attendre(260);
+ out.zeroAppels=appels.length;out.zeroPh=ph.slice();
+ out.un=monter({zoom:7,horizontal:0,vertical:0,pan:0,tilt:-4,roll:0},"kling-v3-pro");await attendre(60);out.avant=appels.length;
+ await attendre(260);out.apres=appels.slice();out.ph=ph.slice(-1)[0];
+ monter({zoom:1},"");nettoyages.slice(-1)[0]();await attendre(260);out.annule=appels.length;
+ console.log(JSON.stringify(out))})();
+"""
+    f = pathlib.Path(tempfile.mkdtemp(prefix="dzquickk_"), "k.mjs"); f.write_text(js, encoding="utf-8")
+    p = subprocess.run([node, str(f)], capture_output=True, text=True, encoding="utf-8", timeout=60)
+    try:
+        o = json.loads(p.stdout.strip().splitlines()[-1])
+    except Exception:  # noqa: BLE001
+        o = {}
+        print(p.stdout[-800:], p.stderr[-1500:])
+    check("K3 tout a zero : dzCam() n'envoie rien (undefined), aucun appel d'apercu, phrase videe",
+          (o.get("zero") or {}).get("n") == 0 and "cam" not in (o.get("zero") or {}) and o.get("zeroAppels") == 0 and o.get("zeroPh") == [""], str(o)[:300])
+    check("K4 deux axes : dzCam() rend une COPIE des six, l'apercu part APRES 200 ms avec le modele, la phrase de la route s'affiche",
+          (o.get("un") or {}).get("n") == 2 and (o.get("un") or {}).get("cam", {}).get("tilt") == -4 and o.get("avant") == 0
+          and o.get("apres") == [["/api/quick/camera-phrase", {"ctrl": {"zoom": 7, "horizontal": 0, "vertical": 0, "pan": 0, "tilt": -4, "roll": 0},
+                                                              "model": "kling-v3-pro"}]]
+          and o.get("ph") == "Camera: zoom in.", str(o)[:400])
+    check("K5 un curseur bouge encore avant 200 ms : l'appel precedent est annule (nettoyage de l'effet)", o.get("annule") == 1, str(o.get("annule")))
 
 print(f"\n{ok} ok, {fail} echec(s)")
 raise SystemExit(1 if fail else 0)

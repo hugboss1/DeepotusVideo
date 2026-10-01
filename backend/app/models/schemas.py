@@ -187,6 +187,9 @@ class GenerateRequest(BaseModel):
     # Plan Quick T5 (tâche #52) — lip-sync Kling sur le clip NATIF : {on: bool, model: "kling-lipsync", file: <voix
     # off du dossier audio>}. Seulement sur demande (case) ; chiffré et pré-vérifié par /generate AVANT le rendu.
     lipsync: Optional[dict] = None
+    # Plan Quick T8 (tâche #54, D2) — six curseurs de caméra {axe: -10..10} traduits en phrase par camera_lang, selon
+    # la famille du modèle choisi (aucun modèle du registre n'a de contrôle caméra chiffré via fal).
+    camera_ctrl: Optional[dict] = None
     # Optional looped background music: {"file": <name in audio dir>, "volume_db": -14}
     music: Optional[dict] = None
     # Optional pre-generated voice-over (Studio Voiceover node), mixed over

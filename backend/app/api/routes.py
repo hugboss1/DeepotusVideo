@@ -3810,6 +3810,17 @@ async def get_quick_gallery_tile(tile_id: str):
     return FileResponse(p, media_type="video/mp4")
 
 
+@router.post("/quick/camera-phrase")
+async def quick_camera_phrase(body: dict = None):
+    """Plan Quick T8 (tâche #54, D2) — l'aperçu de la phrase pendant qu'on bouge les curseurs. Une route plutôt qu'un
+    calcul dans le bundle : la traduction doit être LA MÊME que celle du rendu, et elle vit dans camera_lang."""
+    from app.services import camera_lang as CL
+    b = body if isinstance(body, dict) else {}
+    ctrl = b.get("ctrl") if isinstance(b.get("ctrl"), dict) else {}
+    fam = CL.famille_du_modele(b.get("model"))
+    return {"family": fam, "phrase": CL.phrase(ctrl, fam), "axes": list(CL.AXES)}
+
+
 @router.post("/generate/heygen", dependencies=[Depends(_require_local_depense)])
 async def generate_heygen(request: GenerateHeyGenRequest, background_tasks: BackgroundTasks):
     """Queue a HeyGen avatar video generation."""

@@ -2684,6 +2684,23 @@ EOF
 
 ---
 
+> **T8 EXÉCUTÉE le 01/10/2026** (tâche #54 du suivi, 2e PR sur 3, branche `chantier/p5-quick-camera-curseurs`).
+> `camera_lang.py`, `camera_ctrl` et la route d'aperçu suivent le plan ; la phrase s'ajoute aux DEUX branches de
+> `build_prompt` (helper `_phrase_curseurs`), après la caméra nommée. Écarts :
+> (1) pas de patcher `quickcamera` et AUCUNE section de plus : l'état vit dans R_P5ST1, la recette et son
+> application dans R_P5QR2, les payloads dans R_P5QR3/R_P5QR5, la section dans R_P5GA2 ;
+> (2) une SECTION repliée « Caméra (curseurs) » avant Parameters, absente sur HeyGen — et non six curseurs de plus
+> dans Parameters —, avec des libellés français qui disent le sens de chaque axe, le compteur d'axes dans l'en-tête
+> et « Remettre à zéro » ;
+> (3) aucun appel d'aperçu quand tout est à zéro ; l'application d'une recette complète les six axes à zéro ;
+> (4) `OverflowError` gardé (une valeur infinie ne fait pas échouer un rendu).
+> `x.useState(` 625 → 627. Bancs : `test_quick_camera` 17/0 (dont le prompt FINAL d'un vrai `/generate`, fal
+> espionné), `test_quick_bundle` 88/0 (aperçu exécuté sous node : rien à zéro, anti-rebond 200 ms, annulation),
+> `test_montage_bundle` 2692/0 ; 19/19 mutations rouges. Preuve 8799 :
+> - Zoom +7 / Bascule −4 au clavier → « Camera: pushing in, tilting down. » ;
+> - avec Kling v3 Pro → « Camera: zoom in, tilt down. » ;
+> - le preset garde les curseurs, la remise à zéro et le rechargement les rendent.
+
 ### Task 8 (D2) : curseurs caméra chiffrés, traduits en phrase
 
 **Files :**

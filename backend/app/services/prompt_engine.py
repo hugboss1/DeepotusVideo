@@ -187,6 +187,15 @@ def _has_persona_dna(text: str) -> bool:
     return any(w in lower for w in persona_words)
 
 
+def _phrase_curseurs(request) -> str:
+    """Plan Quick T8 (tâche #54, D2) — la phrase des six curseurs de caméra, ou "" (jamais d'exception)."""
+    ctrl = getattr(request, "camera_ctrl", None)
+    if not ctrl:
+        return ""
+    from app.services import camera_lang
+    return camera_lang.phrase_pour(ctrl, getattr(request, "video_model", None))
+
+
 class PromptEngine:
     def __init__(self, persona_id: str = "deepotus"):
         self.persona_id = persona_id
@@ -224,6 +233,11 @@ class PromptEngine:
                 cam = f"Camera: {request.camera.value}."
                 if cam not in base_prompt:
                     base_prompt = f"{base_prompt} {cam}"
+            # Plan Quick T8 (tâche #54, D2) — les curseurs, traduits dans le dialecte de la famille du modèle. Après la
+            # caméra nommée : les deux se cumulent sans se contredire (l'une nomme le plan, l'autre le chiffre).
+            _cp = _phrase_curseurs(request)
+            if _cp:
+                base_prompt = f"{base_prompt} {_cp}"
             # Even with custom prompt, append voice mode flavor if requested
             mode_block = _voice_mode_block(self.persona, getattr(request, "voice_mode", None) and request.voice_mode.value)
             if mode_block and mode_block.get("style_hints"):
@@ -261,7 +275,11 @@ class PromptEngine:
             f"{voice_addition}"
         )
 
-        return positive.strip(), self.persona["default_negative_prompt"].strip()
+        positive = positive.strip()
+        _cp = _phrase_curseurs(request)          # Plan Quick T8 (tâche #54, D2) — aussi sur la branche gabarit
+        if _cp:
+            positive = f"{positive} {_cp}"
+        return positive, self.persona["default_negative_prompt"].strip()
 
     def build_caption(self, request: GenerateRequest) -> str:
         if request.custom_caption:
