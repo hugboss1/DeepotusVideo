@@ -2854,6 +2854,16 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>'
 
 ---
 
+> **TÂCHE 9 EXÉCUTÉE le 01/10/2026** (tâche #57, dépôt mobile `c1406fd`). Citations datées dans
+> `docs/arriere-plan.md` :
+> - Apple : `earliestBeginDate`, « the system doesn’t guarantee launching the task at the specified date, but only that
+>   it won’t begin sooner » ;
+> - Android 14 : `SCHEDULE_EXACT_ALARM` refusée par défaut aux nouvelles installations, à accorder par l'utilisateur ;
+>   `USE_EXACT_ALARM` réservée aux calendriers et réveils ;
+> - WorkManager : différable.
+> PROMESSE (D5) : notification locale à l'heure (Android : permission « Alarmes et rappels »), puis publication au
+> premier plan ; la publication silencieuse n'est pas promise. D6 note la délégation explicite.
+
 ### Tâche 9 : P3 — mesurer l'arrière-plan iOS et Android, fixer la promesse
 
 **Files:**
@@ -2950,6 +2960,18 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>'
 ```
 
 ---
+
+> **TÂCHE 10 EXÉCUTÉE le 01/10/2026** (tâche #57, dépôt mobile `727ee62`). Écarts :
+> (1) la file suit la DÉLÉGATION (D6) : elle emporte les posts libres et ne publie que les posts confiés ; le
+> rapport ne porte pas l'appareil, que le PC lit dans le jeton ;
+> (2) pas d'`oauth-1.0a` ni de `crypto-js` : HMAC-SHA1 vient de `@noble`, et la signature est vérifiée contre
+> l'EXEMPLE OFFICIEL de X (`Ls93hJiZbQ3akF3HF3x1Bz8/zU4=` sur api.x.com, `hCtSmYh+iHYCEqBWrE7C7hYmtUk=` sur
+> api.twitter.com), tous deux recalculés en Python avant d'être écrits ;
+> (3) le rappel dit « Rappel », jamais « publication » (D5), sur un canal `rappels` ;
+> (4) le client du PC dit chaque refus (401 = réappairer, PC injoignable = hors du Wi-Fi) ;
+> (5) une INTÉGRATION RÉELLE (`DZ_PC_URL`) : le code du téléphone appaire par le QR du vrai backend de preuve, lit
+> le lot, emporte, publie, et le PC voit `posted`, `published_by` = le téléphone et la délégation levée.
+> Jest 35/35 (+1 intégration) ; 11/11 mutations rouges.
 
 ### Tâche 10 : P3 — la file du lot, la notification à l'heure, la publication (mobile)
 
@@ -3260,6 +3282,17 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>'
 ```
 
 ---
+
+> **TÂCHE 11 : bancs verts le 01/10/2026.**
+> - PC : série complète 209/210 ; seul `test_material_truth` est rouge, et il l'est déjà sur main.
+> - Mobile : jest 35/35, plus l'intégration réelle.
+> Écarts :
+> (1) le `CHANGELOG` n'a pas de section « non publiée » (il ne s'écrit qu'à la sortie d'une version, v2.8.0) :
+> l'entrée du lot 1 ira dans les notes de la prochaine version ;
+> (2) **LACUNE DU PLAN** : le lot 1 ne construit AUCUN ÉCRAN du compagnon (`App.tsx` est encore le gabarit
+> Expo). Les briques sont là et testées (archive, coffre, client du PC, file, rappels, X/Telegram), mais il
+> manque les écrans (scanner le QR, importer l'archive, la file du lot) et la recette sur un VRAI téléphone, avec
+> la mesure du PBKDF2 sous Hermes.
 
 ### Tâche 11 : Fin du lot 1 — la recette complète, mesurée de bout en bout
 
