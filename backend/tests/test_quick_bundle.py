@@ -224,5 +224,60 @@ console.log(JSON.stringify({
           (o.get("seedSansTexte") or {}).get("source") == "align" and o["seedSansTexte"]["text"] == "", str(o.get("seedSansTexte")))
     check("S8 temoin : sans texte ET case cochee, transcription demandee", (o.get("seedTr") or {}).get("source") == "transcribe", str(o.get("seedTr")))
 
+print("\n[X] prolonger le clip (tache #51, plan Quick T2, groupe P5ex)")
+check("X0 temoin : la base (15c4c12) n'a pas __dzExtendClip", "__dzExtendClip" not in s0)
+check("X1 un helper, une entree de menu (branche render), aucun window.prompt/alert",
+      s.count("function __dzExtendClip(") == 1 and s.count("__dzExtendClip(") == 2
+      and 'items.push({lbl:"⚡ Prolonger le clip (+7 s, Veo 3.1 Fast, prix montré avant)",fn:function(){onClose&&onClose();__dzExtendClip(m.jobId)}});' in s
+      and "window.prompt" not in fonc("__dzExtendClip") and "window.alert" not in fonc("__dzExtendClip"))
+if node:
+    js = fonc("__dzExtendClip") + r"""
+var toasts=[],infos=[],saisies=[],confirms=[],posts=[],etape={};
+globalThis.__dzToast=function(m){toasts.push(m)};
+globalThis.window={__dzDialogue:{informer:function(m){infos.push(m);return Promise.resolve()},
+  saisir:function(m,o){saisies.push(m);return Promise.resolve(etape.prompt)},
+  confirmer:function(m,o){confirms.push([m,o]);return Promise.resolve(etape.son)}}};
+function rep(st,j){return Promise.resolve({status:st,ok:st>=200&&st<300,json:function(){return Promise.resolve(j)}})}
+globalThis.fetch=function(u,o){if(u.indexOf("/api/generate/extend/check")===0)return rep(200,etape.check);
+  posts.push(JSON.parse(o.body));return rep(etape.postStatus||200,{detail:"x"})};
+var attendre=function(){return new Promise(function(r){setTimeout(r,60)})};
+var OK={ok:true,fal:true,veo_source:true,added_s:7,label:"Veo 3.1 Fast · extension",model:"veo-3.1-fast-extend",
+  usd_son:1.05,usd_muet:0.7,source:{duration_s:5,ratio:"9:16"}};
+(async function(){var out={};
+ etape={check:Object.assign({},OK,{ok:false,reason:"ce clip fait 25.0 s"})};__dzExtendClip("j1");await attendre();
+ out.refus={infos:infos.slice(),posts:posts.length,saisies:saisies.length};infos=[];
+ etape={check:Object.assign({},OK,{fal:false})};__dzExtendClip("j1");await attendre();out.sansFal={infos:infos.slice(),saisies:saisies.length};infos=[];
+ etape={check:OK,prompt:null};__dzExtendClip("j1");await attendre();out.annule={posts:posts.length,confirms:confirms.length};
+ saisies=[];etape={check:OK,prompt:"  plus loin ",son:false};__dzExtendClip("j1");await attendre();
+ out.muet={post:posts.slice(-1)[0],confirm:confirms.slice(-1)[0],saisie:saisies.slice(-1)[0],toast:toasts.slice(-1)[0]};
+ saisies=[];etape={check:Object.assign({},OK,{veo_source:false}),prompt:"x",son:true,postStatus:402};__dzExtendClip("j2");await attendre();
+ out.nonVeo={saisie:saisies.slice(-1)[0],post:posts.slice(-1)[0],toast:toasts.slice(-1)[0]};
+ console.log(JSON.stringify(out))})();
+"""
+    f = pathlib.Path(tempfile.mkdtemp(prefix="dzquickx_"), "x.mjs"); f.write_text(js, encoding="utf-8")
+    p = subprocess.run([node, str(f)], capture_output=True, text=True, encoding="utf-8", timeout=60)
+    try:
+        o = json.loads(p.stdout.strip().splitlines()[-1])
+    except Exception:  # noqa: BLE001
+        o = {}
+        print(p.stdout[-800:], p.stderr[-1500:])
+    r_ = o.get("refus") or {}
+    check("X2 source refusee : la raison est dite (dialogue maison), rien n'est demande ni tire",
+          r_.get("posts") == 0 and r_.get("saisies") == 0 and any("25.0 s" in i for i in r_.get("infos", [])), str(r_))
+    check("X3 sans cle fal : dit, rien demande", (o.get("sansFal") or {}).get("saisies") == 0 and any("clé fal" in i for i in (o.get("sansFal") or {}).get("infos", [])))
+    check("X4 prompt annule : ni question du son ni tir", (o.get("annule") or {}) == {"posts": 0, "confirms": 0}, str(o.get("annule")))
+    mu = o.get("muet") or {}
+    check("X5 « sans son » : POST avec son:false, prompt nettoye, modele de la mesure ; le toast dit 0.70 $",
+          mu.get("post") == {"parent_job_id": "j1", "model": "veo-3.1-fast-extend", "prompt": "plus loin", "son": False}
+          and "0.70 $" in str(mu.get("toast")), str(mu.get("post")) + str(mu.get("toast")))
+    cf = mu.get("confirm") or ["", {}]
+    check("X6 la question du son montre les DEUX prix, sur les boutons aussi", "1.05 $" in cf[0] and "0.70 $" in cf[0]
+          and cf[1].get("ok") == "Avec son (1.05 $)" and cf[1].get("annuler") == "Sans son (0.70 $)", str(cf))
+    check("X7 la saisie montre la source mesuree ; pas d'avertissement pour une source Veo", "5 s · 9:16" in str(mu.get("saisie"))
+          and "Attention" not in str(mu.get("saisie")))
+    nv = o.get("nonVeo") or {}
+    check("X8 source non-Veo : avertissement ; 402 du plafond : annule proprement", "Attention : fal prolonge surtout" in str(nv.get("saisie"))
+          and (nv.get("post") or {}).get("son") is True and "plafond" in str(nv.get("toast")), str(nv)[:300])
+
 print(f"\n{ok} ok, {fail} echec(s)")
 raise SystemExit(1 if fail else 0)

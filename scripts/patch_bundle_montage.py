@@ -7660,6 +7660,41 @@ P1 += [("P5st1-etat-sous-titres-avant-le-rendu", A_P5ST1, R_P5ST1),
        ("P5st4-payload-heygen", A_P5ST4, R_P5ST4),
        ("P5st5-payload-composition", A_P5ST5, R_P5ST5)]
 assert len(P1) == 91 and all("\n" not in r and "\r" not in r for _t, _a, r in P1[-5:])
+# P5ex1..P5ex2 (tache #51, plan Quick T2, 01/10/2026) -- « PROLONGER LE CLIP » (Veo 3.1 Fast sur fal). Ecarts au plan du
+# 03/09 : (1) un GROUPE du maillon montage, pas de patcher `quickextend` ; (2) aucun window.prompt/alert : les
+# dialogues maison (__dzDialogue.saisir / confirmer / informer) ; (3) MESURE du 01/10 : le prix reel (Fast 1,05 $ avec
+# son, 0,70 $ sans) est montre AVANT le tir, le son se choisit (decision de l'utilisateur), un 402 du plafond annule
+# proprement ; le prompt est obligatoire (fal l'exige) ; une source non-Veo est signalee (fal prolonge surtout du Veo).
+# X1 helper avant __dzSendTo : MESURE d'abord (GET /generate/extend/check), dit le refus et sa raison sinon.
+# X2 entree du menu « Envoyer vers… », branche render.
+A_P5EX1 = "function __dzSendTo("
+R_P5EX1 = ('function __dzExtendClip(id){var D=window.__dzDialogue;'
+           'fetch("/api/generate/extend/check?job_id="+encodeURIComponent(id))'
+           '.then(function(r){return r.json().then(function(d){return{s:r.status,d:d}})})'
+           '.then(function(o){if(o.s!==200){__dzToast("Prolonger : "+((o.d&&o.d.detail)||o.s));return}var d=o.d;'
+           'if(!d.fal){D.informer("Prolonger : la clé fal n’est pas réglée (Réglages → Clés).");return}'
+           'if(!d.ok){D.informer("Prolonger — refusé\\n\\n"+d.reason);return}'
+           'var av=d.veo_source?"":"\\n\\nAttention : fal prolonge surtout des clips créés par Veo ; celui-ci vient d’un autre '
+           'modèle, le résultat peut être refusé ou décevoir.";'
+           'D.saisir("Que se passe-t-il dans les "+d.added_s+" s ajoutées ?\\nSource : "+d.source.duration_s+" s · "'
+           '+d.source.ratio+" · "+d.label+av,{titre:"Prolonger le clip"}).then(function(p){p=(p||"").trim();if(!p)return;'
+           'D.confirmer("Générer aussi le son des "+d.added_s+" s ajoutées ?\\nAvec son : "+Number(d.usd_son).toFixed(2)'
+           '+" $ · sans son : "+Number(d.usd_muet).toFixed(2)+" $",{titre:"Prolonger — le son",'
+           'ok:"Avec son ("+Number(d.usd_son).toFixed(2)+" $)",annuler:"Sans son ("+Number(d.usd_muet).toFixed(2)+" $)"})'
+           '.then(function(son){son=!!son;fetch("/api/generate/extend",{method:"POST",headers:{"Content-Type":"application/json"},'
+           'body:JSON.stringify({parent_job_id:id,model:d.model,prompt:p,son:son})})'
+           '.then(function(r){return r.json().then(function(j){return{s:r.status,j:j}})})'
+           '.then(function(o2){__dzToast(o2.s===200?"Extension lancée ("+Number(son?d.usd_son:d.usd_muet).toFixed(2)+" $) — suivez la file"'
+           ':o2.s===402?"Extension annulée (plafond de dépense)":"Prolonger : "+((o2.j&&o2.j.detail)||o2.s))})})})})'
+           '.catch(function(e){__dzToast("Prolonger : "+String(e&&e.message||e))})}'
+           + A_P5EX1)
+A_P5EX2 = 'if(m.kind==="render"&&m.jobId){items.push({lbl:"\U0001f39e Montage — clip vidéo",'
+R_P5EX2 = ('if(m.kind==="render"&&m.jobId){items.push({lbl:"⚡ Prolonger le clip (+7 s, Veo 3.1 Fast, prix montré avant)",'
+           'fn:function(){onClose&&onClose();__dzExtendClip(m.jobId)}});'
+           'items.push({lbl:"\U0001f39e Montage — clip vidéo",')
+P1 += [("P5ex1-helper-prolonger-avant-dzsendto", A_P5EX1, R_P5EX1),
+       ("P5ex2-entree-prolonger-du-menu-envoyer-vers", A_P5EX2, R_P5EX2)]
+assert len(P1) == 93 and all("\n" not in r and "\r" not in r for _t, _a, r in P1[-2:])
 
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
@@ -7932,6 +7967,7 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            # + P5qr1..P5qr7 (tache #48, rouvrir un rendu dans Quick) : 310, le --check dit 311.
            # + P5ef1..P5ef5 (tache #49, l'image de fin grisee avec la raison) : 315, le --check dit 316.
            # + P5st1..P5st5 (tache #50, sous-titres graves sur le rendu Quick) : 320, le --check dit 321.
+           # + P5ex1..P5ex2 (tache #51, prolonger le clip) : 322, le --check dit 323.
            # studio 27/09 : + HUIT sections EN QUEUE, groupe R8 apres R7 (format HeyGen impose par le template, « Ouvrir un graphe » en icone,
            # repli de l'inspecteur) ; 213 -> 221, le --check dit 222 ancres ; + R8sv1 (Save par le dialogue maison) : 222, le --check dit 223 ;
            # + R8pr1..R8pr7 (les autres window.prompt natifs, 27/09) : 229, le --check dit 230.
