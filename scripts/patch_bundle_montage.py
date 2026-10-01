@@ -7522,7 +7522,7 @@ A_P5QR2 = "[Ce,at]=x.useState(null);"
 R_P5QR2 = (A_P5QR2 +
            'function dzQuickRecipe(){return{v:1,tab:o,seedance:{image:w,end:g,prompt:s,vibe:A,model:VMQ,'
            'duration:h,aspect:_,seed:N,template:H||""},heygen:{src:hsrc,avatar:C,voice:ee,script:R,engine:eng,'
-           'image:mimg,motion:mp,expr:xp},layout:We}}'
+           'image:mimg,motion:mp,expr:xp},layout:We,subs:{on:dzSubOn,style:dzSubSty,lang:dzSubLang,text:dzSubTxt,tr:dzSubTr}}}'
            'function dzQuickApply(rc){if(!rc)return;var sd=rc.seedance||{},hg=rc.heygen||{};'
            'if(rc.tab&&["seedance","heygen","comp","voice"].indexOf(rc.tab)>=0)i(rc.tab);'
            'if(sd.image!=null){v(sd.image);if(!u.length)try{window.__dzQuickStart=sd.image}catch(_e){}}'
@@ -7532,7 +7532,9 @@ R_P5QR2 = (A_P5QR2 +
            'if(sd.template!=null)F(sd.template);'
            'if(hg.src)Hsrc(hg.src);if(hg.avatar)Q(hg.avatar);if(hg.voice)ne(hg.voice);if(hg.script)W(hg.script);'
            'if(hg.engine!=null)Eng(hg.engine);if(hg.image!=null)Mimg(hg.image);if(hg.motion!=null)Mp(hg.motion);'
-           'if(hg.expr!=null)Xp(hg.expr);if(rc.layout)De(rc.layout)}'
+           'if(hg.expr!=null)Xp(hg.expr);if(rc.layout)De(rc.layout);var sb=rc.subs||{};if(sb.on!=null)dzSetSubOn(!!sb.on);'
+           'if(sb.style)dzSetSubSty(sb.style);if(sb.lang)dzSetSubLang(sb.lang);if(sb.text!=null)dzSetSubTxt(sb.text);'
+           'if(sb.tr!=null)dzSetSubTr(!!sb.tr)}'
            'var dzApplyRef=x.useRef(null);dzApplyRef.current=dzQuickApply;'
            'x.useEffect(function(){var r0=null;try{r0=window.__dzQuickRecipe;delete window.__dzQuickRecipe}catch(_e){}'
            'if(r0)dzApplyRef.current(r0);function onR(ev){dzApplyRef.current(ev.detail)}'
@@ -7605,6 +7607,59 @@ P1 += [("P5ef1-capacites-fin-avant-dzvmatch", A_P5EF1, R_P5EF1),
        ("P5ef4-payload-sans-fin-refusee", A_P5EF4, R_P5EF4),
        ("P5ef5-changer-de-modele-vide-la-fin", A_P5EF5, R_P5EF5)]
 assert len(P1) == 86 and all("\n" not in r and "\r" not in r for _t, _a, r in P1[-5:])
+# P5st1..P5st5 (tache #50, plan Quick T4, 01/10/2026) -- SOUS-TITRES GRAVES SUR LE RENDU QUICK. Ecarts au plan du
+# 03/09 : (1) un GROUPE du maillon montage, pas de patcher `quicksubs` ; (2) l'interrupteur mort « Voice (HeyGen comp) »
+# a deja ete RETIRE par P1qv1 : le bloc se pose apres « Duration » ; (3) DECISION de depense : le plan basculait SEUL
+# sur la transcription payante quand le texte manquait — ici le calage gratuit est le seul defaut, la transcription
+# exige la case « Transcrire si aucun texte (payant) » (et la route la chiffre dans sa garde des plafonds) ;
+# (4) les preselections viennent de /api/subtitles/presets (la route /subtitles/styles du plan n'existe pas) ;
+# (5) les ancres des payloads sont la FIN de chaque objet (le debut appartient a P5qr) ; la recette et son application
+# portent les sous-titres via P5qr2 lui-meme.
+A_P5ST1 = "const _n=!(n!=null&&n.heygen_enabled),Za=!(n!=null&&n.fal_configured);"
+R_P5ST1 = ('var dzSoS=x.useState(!1),dzSubOn=dzSoS[0],dzSetSubOn=dzSoS[1],'
+           'dzStS=x.useState("standard"),dzSubSty=dzStS[0],dzSetSubSty=dzStS[1],'
+           'dzSlS=x.useState("fr"),dzSubLang=dzSlS[0],dzSetSubLang=dzSlS[1],'
+           'dzStxS=x.useState(""),dzSubTxt=dzStxS[0],dzSetSubTxt=dzStxS[1],'
+           'dzStrS=x.useState(!1),dzSubTr=dzStrS[0],dzSetSubTr=dzStrS[1],'
+           'dzSpS=x.useState([]),dzSubPre=dzSpS[0],dzSetSubPre=dzSpS[1];'
+           'x.useEffect(function(){var on=!0;fetch("/api/subtitles/presets?ratio=9:16")'
+           '.then(function(r2){return r2.ok?r2.json():null}).then(function(d2){if(on&&d2)'
+           'dzSetSubPre((d2.presets||[]).map(function(p2){return{value:p2.id,label:p2.label||p2.id}}))})'
+           '.catch(function(){});return function(){on=!1}},[]);'
+           'function dzSubTexte(){return(dzSubTxt||"").trim()||(o!=="seedance"?(R||"").trim():"")}'
+           'function dzSubs(){if(!dzSubOn)return void 0;var t2=dzSubTexte();'
+           'return{on:!0,style:dzSubSty,lang:dzSubLang,cps:42,source:(!t2&&dzSubTr)?"transcribe":"align",text:t2}}'
+           + A_P5ST1)
+A_P5ST2 = 'r.jsx(O,{children:r.jsx(Oe,{label:"Duration",value:h,min:5,max:60,step:5,unit:"s",onChange:b})}),'
+R_P5ST2 = (A_P5ST2 +
+           'r.jsx(O,{children:r.jsx(Ze,{checked:dzSubOn,label:"Sous-titrer le rendu",onChange:dzSetSubOn})}),'
+           'dzSubOn&&r.jsx(O,{label:"Style de sous-titres",children:r.jsx(re,{value:dzSubSty,'
+           'options:dzSubPre.length?dzSubPre:[{value:"standard",label:"Standard"}],onChange:dzSetSubSty})}),'
+           'dzSubOn&&r.jsx(O,{label:"Langue",children:r.jsx(re,{value:dzSubLang,'
+           'options:[{value:"fr",label:"Français"},{value:"en",label:"English"}],onChange:dzSetSubLang})}),'
+           'dzSubOn&&r.jsx(O,{label:"Texte à caler (vide = le script de l’avatar)",'
+           'children:r.jsx("textarea",{value:dzSubTxt,title:"Le texte connu est calé localement sur la piste son : gratuit",'
+           'onChange:function(e2){dzSetSubTxt(e2.target.value)},'
+           'rows:3,style:{width:"100%",padding:8,background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:8,'
+           'color:"var(--ink-strong)",fontFamily:"var(--f-ui)",fontSize:12,resize:"vertical"}})}),'
+           'dzSubOn&&!dzSubTexte()&&r.jsx(O,{children:r.jsx(Ze,{checked:dzSubTr,'
+           'label:"Transcrire si aucun texte (payant, sous le plafond de dépense)",onChange:dzSetSubTr})}),'
+           'dzSubOn&&r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-soft)",marginTop:-4},'
+           'children:dzSubTexte()?"Calage local du texte connu — 0 $, hors ligne, exact sur les noms propres."'
+           ':dzSubTr?"Sans texte, le son sera TRANSCRIT : appel payant, chiffré avant le rendu."'
+           ':"Aucun texte à caler : écrivez-le, ou cochez la transcription payante. Sinon, pas de sous-titres."}),')
+A_P5ST3 = 'voiceover_enabled:!1,template_id:H||null},we=await D.postJson("/generate",je)'
+R_P5ST3 = 'voiceover_enabled:!1,template_id:H||null,subtitles:dzSubs()},we=await D.postJson("/generate",je)'
+A_P5ST4 = 'speed:1,engine:eng||void 0});at(Z.ok?{msg:"HeyGen queued."}'
+R_P5ST4 = 'speed:1,engine:eng||void 0,subtitles:dzSubs()});at(Z.ok?{msg:"HeyGen queued."}'
+A_P5ST5 = 'layout:We,audio_source:"heygen",transition_duration_s:.5});'
+R_P5ST5 = 'layout:We,audio_source:"heygen",transition_duration_s:.5,subtitles:dzSubs()});'
+P1 += [("P5st1-etat-sous-titres-avant-le-rendu", A_P5ST1, R_P5ST1),
+       ("P5st2-bloc-sous-titres-apres-duration", A_P5ST2, R_P5ST2),
+       ("P5st3-payload-seedance", A_P5ST3, R_P5ST3),
+       ("P5st4-payload-heygen", A_P5ST4, R_P5ST4),
+       ("P5st5-payload-composition", A_P5ST5, R_P5ST5)]
+assert len(P1) == 91 and all("\n" not in r and "\r" not in r for _t, _a, r in P1[-5:])
 
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
@@ -7876,6 +7931,7 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            # + P3nc1..P3nc6 (tache #35 PR3, la chaine du jour a l'ecran) : 303, le --check dit 304.
            # + P5qr1..P5qr7 (tache #48, rouvrir un rendu dans Quick) : 310, le --check dit 311.
            # + P5ef1..P5ef5 (tache #49, l'image de fin grisee avec la raison) : 315, le --check dit 316.
+           # + P5st1..P5st5 (tache #50, sous-titres graves sur le rendu Quick) : 320, le --check dit 321.
            # studio 27/09 : + HUIT sections EN QUEUE, groupe R8 apres R7 (format HeyGen impose par le template, « Ouvrir un graphe » en icone,
            # repli de l'inspecteur) ; 213 -> 221, le --check dit 222 ancres ; + R8sv1 (Save par le dialogue maison) : 222, le --check dit 223 ;
            # + R8pr1..R8pr7 (les autres window.prompt natifs, 27/09) : 229, le --check dit 230.

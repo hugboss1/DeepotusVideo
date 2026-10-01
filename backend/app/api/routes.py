@@ -3402,6 +3402,16 @@ def _op_tts(texte, model=None) -> list:
     return [op]
 
 
+def _op_soustitres(subs, duree_s) -> list:
+    """Plan Quick T4 (tâche #50) : la transcription payante des sous-titres, SEULEMENT si l'écran l'a demandée
+    explicitement (le calage du texte connu est gratuit). Chiffrée sur la durée attendue du rendu."""
+    from app.services import quick_finish
+    if not quick_finish.transcription_demandee(subs):
+        return []
+    return [{"kind": "transcribe", "provider": str(subs.get("provider") or "elevenlabs"),
+             "duration_s": float(max(1.0, min(600.0, float(duree_s or 0) or 1.0)))}]
+
+
 def _op_voix_off(req) -> list:
     """La voix off que `pipeline.run` synthétise PAR DÉFAUT (`voiceover_enabled`, script de la requête ou du
     template, aucun fichier fourni) — mesuré le 29/09 : les gardes vidéo ne la chiffraient pas."""
@@ -3465,7 +3475,8 @@ async def generate(request: GenerateRequest, background_tasks: BackgroundTasks):
         raise HTTPException(400, "Must provide either template_id or custom_prompt")
 
     _garde_cout([_devis_video(request)], request.max_usd)
-    await _plafond([_devis_video(request)] + _op_voix_off(request), "quick")   # tâche #16
+    await _plafond([_devis_video(request)] + _op_voix_off(request)
+                   + _op_soustitres(request.subtitles, request.duration_s), "quick")   # tâche #16 ; #50 sous-titres
 
     async def _run():
         try:
@@ -3681,7 +3692,9 @@ async def generate_heygen(request: GenerateHeyGenRequest, background_tasks: Back
     # tâche #16 : garde mensuelle + coût RÉEL (delta du solde HeyGen, attribuable à un seul rendu en vol)
     from app.services import plafonds as _PLAF
     _ref_hg = f"hg:{uuid4().hex}"
-    await _plafond({"kind": "heygen", "chars": len(request.script.strip())}, "quick", _ref_hg)
+    await _plafond([{"kind": "heygen", "chars": len(request.script.strip())}]
+                   + _op_soustitres(request.subtitles, len(request.script.strip()) / 14.0),   # #50 : ~14 car./s parlés
+                   "quick", _ref_hg)
 
     async def _run():
       async with _PLAF.suivi_heygen(_ref_hg):
@@ -3781,7 +3794,9 @@ async def generate_composition(request: CompositionRequest, background_tasks: Ba
     _garde_cout([_devis_video(request.seedance), _devis_heygen(request.heygen)],
                 request.max_usd, request.seedance.max_usd)
     await _plafond([_devis_video(request.seedance), _devis_heygen(request.heygen)]
-                   + _op_voix_off(request.seedance), "studio")   # tâche #16
+                   + _op_voix_off(request.seedance)
+                   + _op_soustitres(request.subtitles, request.seedance.duration_s + len(request.heygen.script.strip()) / 14.0),
+                   "studio")   # tâche #16 ; #50 sous-titres
 
     async def _run():
         try:
