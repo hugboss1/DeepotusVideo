@@ -2240,6 +2240,23 @@ EOF
 
 Les trois tâches du lot 2 supposent le lot 1 livré : D1 et D2 écrivent dans le prompt via le même point (`prompt_engine.build_prompt`), et D3 déplace des blocs posés par T3, T4, T5 et T6.
 
+> **T7 EXÉCUTÉE le 01/10/2026** (tâche #54 du suivi, 1re PR sur 3, branche `chantier/p5-quick-camera`). Le service, la
+> correction de `build_prompt` et les routes suivent le plan. Écarts :
+> (1) un GROUPE du maillon montage (P5ga1, P5ga2), pas de patcher `quickgallery` ;
+> (2) aucun `window.alert` : `__dzToast` ;
+> (3) l'ancre du helper est `function __dzSendMenu(` (celle du plan porte déjà P5qr1) ;
+> (4) l'image est RECADRÉE en 9:16 avant le zoompan, sinon une image carrée était étirée ;
+> (5) choisir une vignette REMPLACE une phrase « Camera: … . » déjà écrite, et la Vibe ne change que si le style
+> existe ; `build_prompt` n'ajoute pas de doublon ;
+> (6) la grille propose « ↻ Rendre sur » l'image de départ courante quand elle a été rendue sur une autre ; Échap et ✕
+> ferment ; le clic du bouton ne replie pas la section ;
+> (7) TROUVÉ À LA PREUVE ÉCRAN : après un re-rendu, le navigateur rejouait les ANCIENNES vignettes depuis son cache
+> (même URL) → l'URL porte l'empreinte de la source (`?v=`), banc I5 rouge puis vert.
+> Bancs : `test_quick_gallery` 24/0 (pixels en mouvement mesurés, recadrage mesuré, routes, prompt libre),
+> `test_quick_bundle` 81/0 (helper exécuté sous un faux DOM), `test_montage_bundle` 2692/0 (`icon:"film"` +1) ;
+> 19/19 mutations rouges. Preuve 8799 : 33 vignettes rendues en 4 s (image unie) et 13 s (damier), toutes jouées ;
+> choisir puis re-choisir laisse UNE phrase caméra, Vibe changée.
+
 ### Task 7 (D1) : galerie visuelle de mouvements et de styles
 
 **Files :**
