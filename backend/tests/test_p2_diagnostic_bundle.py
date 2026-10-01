@@ -53,10 +53,10 @@ for t, (a, r) in SEC.items():
           and s.count(r) == 1 and garde and "\n" not in r and "\r" not in r, _d(bak.count(a), s.count(r)))
 
 print("\n[2] l'ecran dans le bundle livre")
-check("2.1 « Diagnostic » en TETE de la barre laterale", s.count('[{k:"diag",l:"Diagnostic"},{k:"coffre",l:"Coffre"},{k:"keys",l:"API keys"},') == 1, "")
-check("2.2 'diag' dans la liste blanche des sections (sinon ?section=diag retombe sur accounts)", s.count('const ym=["diag","coffre","keys",') == 1, "")
+check("2.1 « Diagnostic » en TETE de la barre laterale", s.count('[{k:"diag",l:"Diagnostic"},{k:"coffre",l:"Coffre"},{k:"appareils",l:"Appareils"},{k:"keys",l:"API keys"},') == 1, "")
+check("2.2 'diag' dans la liste blanche des sections (sinon ?section=diag retombe sur accounts)", s.count('const ym=["diag","coffre","appareils","keys",') == 1, "")
 check("2.3 la branche du corps rend DzDiag, apres Pricing, avant Transfert",
-      s.count('s==="pricing"&&r.jsx(DzPricing,{}),s==="diag"&&r.jsx(DzDiag,{}),s==="coffre"&&r.jsx(DzCoffre,{}),s==="transfert"') == 1, "")
+      s.count('s==="pricing"&&r.jsx(DzPricing,{}),s==="diag"&&r.jsx(DzDiag,{}),s==="coffre"&&r.jsx(DzCoffre,{}),s==="appareils"&&r.jsx(DzAppair,{}),s==="transfert"') == 1, "")
 check("2.4 DzDiag appelle les deux routes du routeur /api/reglages, et seulement elles",
       s.count("fetch('/api/reglages/diagnostic')") == 1
       # #17 (29/09) : DzTestCle (ecran des cles) appelle aussi /diagnostic/cle -- on compte DANS DzDiag

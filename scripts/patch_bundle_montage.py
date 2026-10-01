@@ -6974,13 +6974,76 @@ R_P2DG1 = ('}'
     "r.jsxs('label',{title:'Relit une archive .dzk avec le mot de passe saisi ; ses clés secrètes vont au coffre ouvert',"
     "style:{fontSize:12,color:'var(--cyan)',cursor:'pointer'},children:['Importer une archive…',"
     "r.jsx('input',{type:'file',accept:'.dzk',onChange:importer,style:{display:'none'},'data-dzc-fichier':'1'})]},'i')])]})]})}"
+    # tache #56 (plan mobile T6, 01/10/2026) : la page « Appareils » — appairer par QR (PNG rendu par le backend,
+    # jamais redessine ici), lister, revoquer (dialogue maison qui nomme l'appareil), et ou regenerer ses cles.
+    # Ecart au plan : pas de patcher `dzappair` ni de section neuve — les quatre chaines P2dg portent la page, comme
+    # le Coffre (tache #20) ; libelles en francais, title sur chaque bouton (E-12).
+    "function DzAppair(){"
+    "const[l,setL]=x.useState(null),[q,setQ]=x.useState(null),[rot,setRot]=x.useState([]),[fin,setFin]=x.useState(0);"
+    "const lire=()=>fetch('/api/devices').then(R=>R.ok?R.json():null).then(j=>{if(j)setL(j)}).catch(()=>{});"
+    "const actifs=v=>((v&&v.appareils)||[]).filter(d=>!d.revoque);"
+    "x.useEffect(()=>{lire();fetch('/api/devices/rotation').then(R=>R.ok?R.json():null)"
+    ".then(j=>{if(j)setRot(j.consoles||[])}).catch(()=>{})},[]);"
+    "x.useEffect(()=>{if(!q)return;const t=setInterval(()=>{const s=Math.max(0,Math.round((q.expire_a-Date.now())/1000));"
+    "setFin(s);if(s%3===0)lire();if(!s){setQ(null);lire()}},1000);return()=>clearInterval(t)},[q]);"
+    "x.useEffect(()=>{if(q&&l&&actifs(l).length>q.n0){const n=actifs(l)[actifs(l).length-1];setQ(null);"
+    "__dzToast('« '+((n&&n.nom)||'appareil')+' » appairé')}},[l]);"
+    "const appairer=()=>fetch('/api/pair/start',{method:'POST'}).then(R=>R.json().then(j=>({s:R.status,j:j})))"
+    ".then(o=>{if(o.s!==200){__dzToast('Appairage : '+((o.j&&o.j.detail)||('HTTP '+o.s)));return}"
+    "const d=o.j.expire_dans_s||300;setQ(Object.assign({},o.j,{expire_a:Date.now()+d*1000,n0:actifs(l).length}));setFin(d)})"
+    ".catch(er=>__dzToast('Appairage : '+er));"
+    "const revoquer=async d=>{const D=window.__dzDialogue;if(!D||!(await D.confirmer('Révoquer « '+d.nom+' » ? Il ne pourra "
+    "plus rien lire sur ce PC, tout de suite. S\u2019il est perdu, régénérez aussi vos clés chez chaque fournisseur (liens "
+    "ci-dessous) : elles ont voyagé dans l\u2019archive chiffrée.',{titre:'Révoquer un appareil',ok:'Révoquer',annuler:'Garder'})))return;"
+    "const R=await fetch('/api/devices/'+encodeURIComponent(d.id)+'/revoke',{method:'POST'});"
+    "__dzToast(R.ok?('« '+d.nom+' » révoqué'):('Révocation refusée (HTTP '+R.status+')'));lire()};"
+    "if(!l)return r.jsx('div',{style:{padding:24,color:'var(--ink-muted)'},children:'Appareils…'});"
+    "const n=actifs(l).length,lan=l.ecoute==='0.0.0.0',mm=Math.floor(fin/60),ss=('0'+(fin%60)).slice(-2);"
+    "return r.jsxs(r.Fragment,{children:["
+    "r.jsx('div',{className:'display',style:{fontSize:22,color:'var(--ink-strong)',marginBottom:4},children:'Appareils'}),"
+    "r.jsx('div',{style:{fontSize:12,color:'var(--ink-soft)',marginBottom:18,maxWidth:640,lineHeight:1.5},children:"
+    "'Un téléphone appairé peut LIRE ce que ce PC produit, par le Wi-Fi de la maison. Il ne peut ni écrire, ni dépenser, "
+    "ni voir vos clés : celles-ci voyagent seulement par l\u2019archive chiffrée du Coffre.'}),"
+    "r.jsxs(jt,{'data-dza-bloc':'ecoute',style:{padding:16,marginBottom:14},children:["
+    "r.jsxs('div',{style:{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'},children:["
+    "r.jsx(te,{tone:lan?'green':'amber',dot:!0,children:lan?'réseau local ouvert':'ce PC seulement'}),"
+    "r.jsx(te,{tone:'neutral',children:n+' / '+(l.max||5)+' appareils'})]}),"
+    "lan?null:r.jsx('div',{style:{fontSize:11.5,color:'var(--ink)',marginTop:10,lineHeight:1.5},children:"
+    "'L\u2019application n\u2019écoute que ce PC : un téléphone ne peut pas l\u2019atteindre. Pour l\u2019ouvrir au Wi-Fi, "
+    "remplacez HOST=127.0.0.1 par HOST=0.0.0.0 dans le fichier .env du dossier de données, puis relancez l\u2019application '"
+    "+'(Windows demandera d\u2019autoriser Python dans le pare-feu). Sans jeton d\u2019appareil, rien n\u2019est lisible depuis le Wi-Fi.'})]}),"
+    "r.jsxs(jt,{'data-dza-bloc':'qr',style:{padding:16,marginBottom:14},children:["
+    "q?r.jsxs('div',{children:["
+    "r.jsx('img',{alt:'QR d\u2019appairage',width:264,height:264,src:'data:image/png;base64,'+q.qr_png_b64,"
+    "style:{imageRendering:'pixelated',borderRadius:6,background:'#fff',display:'block'}}),"
+    "r.jsx('div',{className:'mono',style:{fontSize:11,color:'var(--ink-soft)',marginTop:8,wordBreak:'break-all'},children:q.url}),"
+    "r.jsx('div',{className:'dza-fin',style:{fontSize:11.5,color:'var(--amber)',marginTop:4},children:"
+    "'Scannez avec l\u2019application Deepotus du téléphone. Valable '+mm+':'+ss+', un seul appareil.'}),"
+    "r.jsx('div',{style:{marginTop:10},children:r.jsx(K,{variant:'ghost',size:'md',onClick:()=>{setQ(null);lire()},"
+    "title:'Ferme le QR ; son secret expirera seul',children:'Fermer le QR'})})]})"
+    ":r.jsx(K,{variant:'primary',size:'md',icon:'plus',onClick:appairer,disabled:n>=(l.max||5),"
+    "title:n>=(l.max||5)?'Cinq appareils au plus : révoquez-en un d\u2019abord':'Affiche un QR valable 5 minutes pour UN appareil',"
+    "children:'Appairer un appareil'})]}),"
+    "r.jsx(jt,{'data-dza-bloc':'liste',style:{padding:16,marginBottom:14},children:(l.appareils||[]).length?"
+    "(l.appareils||[]).map(d=>r.jsxs('div',{className:'dza-ligne',style:{display:'flex',alignItems:'center',gap:10,"
+    "padding:'7px 0',borderBottom:'1px solid var(--stroke)'},children:["
+    "r.jsx('span',{style:{fontSize:12.5,color:d.revoque?'var(--ink-muted)':'var(--ink-strong)',flex:1},children:d.nom}),"
+    "r.jsx('span',{className:'mono',style:{fontSize:11,color:'var(--ink-soft)'},children:'appairé le '+(d.cree||'').slice(0,10)}),"
+    "d.revoque?r.jsx(te,{tone:'red',children:'révoqué'}):r.jsx(K,{variant:'ghost',size:'sm',onClick:()=>revoquer(d),"
+    "title:'Retire à « '+d.nom+' » tout accès, tout de suite (confirmation demandée)',children:'Révoquer'})]},d.id))"
+    ":r.jsx('div',{style:{fontSize:12,color:'var(--ink-muted)'},children:'Aucun appareil appairé.'})}),"
+    "r.jsxs(jt,{'data-dza-bloc':'rotation',style:{padding:12,borderLeft:'2px solid var(--amber)'},children:["
+    "r.jsx('div',{style:{fontSize:11.5,color:'var(--ink)',marginBottom:6},children:"
+    "'Appareil perdu ? Révoquer ne suffit pas : vos clés ont voyagé dans l\u2019archive. Régénérez-les chez chaque fournisseur :'}),"
+    "rot.map(c=>r.jsx('a',{href:c.url,target:'_blank',rel:'noreferrer',title:'Ouvre la console '+c.nom+' ('+c.cle+')',"
+    "style:{display:'inline-block',fontSize:11,marginRight:12,color:'var(--brand)'},children:c.nom},c.cle))]})]})}"
     "function DzPricing(){")
 A_P2DG2 = '[{k:"keys",l:"API keys"},'
-R_P2DG2 = '[{k:"diag",l:"Diagnostic"},{k:"coffre",l:"Coffre"},{k:"keys",l:"API keys"},'   # + Coffre (tache #20)
+R_P2DG2 = '[{k:"diag",l:"Diagnostic"},{k:"coffre",l:"Coffre"},{k:"appareils",l:"Appareils"},{k:"keys",l:"API keys"},'   # + Coffre (tache #20), + Appareils (tache #56)
 A_P2DG3 = 'const ym=["keys",'
-R_P2DG3 = 'const ym=["diag","coffre","keys",'   # + coffre (tache #20)
+R_P2DG3 = 'const ym=["diag","coffre","appareils","keys",'   # + coffre (tache #20), + appareils (tache #56)
 A_P2DG4 = 's==="pricing"&&r.jsx(DzPricing,{}),'
-R_P2DG4 = 's==="pricing"&&r.jsx(DzPricing,{}),s==="diag"&&r.jsx(DzDiag,{}),s==="coffre"&&r.jsx(DzCoffre,{}),'   # + coffre (tache #20)
+R_P2DG4 = 's==="pricing"&&r.jsx(DzPricing,{}),s==="diag"&&r.jsx(DzDiag,{}),s==="coffre"&&r.jsx(DzCoffre,{}),s==="appareils"&&r.jsx(DzAppair,{}),'   # + coffre (tache #20), + appareils (tache #56)
 P1 += [("P2dg1-bloc-dzdiag-avant-dzpricing", A_P2DG1, R_P2DG1),
        ("P2dg2-entree-diagnostic-de-la-barre", A_P2DG2, R_P2DG2),
        ("P2dg3-diag-dans-la-liste-blanche-ym", A_P2DG3, R_P2DG3),
