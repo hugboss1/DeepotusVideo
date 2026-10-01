@@ -444,6 +444,16 @@ class Pipeline:
                     self.merger.merge, video_dest, audio_dest or vo_path, final_dest,
                     music_path=_mus_path, music_volume_db=_mus_vol)
                 await self._update(session, job, final_video_path=str(final_dest))
+                # P4 (plan Quick T4, tâche #50) — sous-titres, APRÈS le rendu payé et le mix. Le texte de référence :
+                # celui de l'écran, sinon la voix off RÉELLEMENT dite (pas un script non lu, calé sur du silence).
+                _subs = getattr(request, "subtitles", None)
+                if _subs:
+                    from app.services import quick_finish
+                    _txt = ((_subs.get("text") or "").strip()
+                            or ((vo_script or "").strip() if request.voiceover_enabled else ""))
+                    _rep = await quick_finish.apply(final_dest, _subs, text=_txt, ratio=request.aspect_ratio.value)
+                    if _rep.get("error"):
+                        await self._update(session, job, current_step=f"Sous-titres : {_rep['error'][:60]}")
 
                 # 7. Save caption
                 if caption:
@@ -584,6 +594,14 @@ class Pipeline:
                                    video_path=str(video_dest),
                                    final_video_path=str(final_path),
                                    progress=95)
+                # P4 (plan Quick T4, tâche #50) — sous-titres de l'avatar : le texte de référence est le script lu
+                _subs = getattr(request, "subtitles", None)
+                if _subs:
+                    from app.services import quick_finish
+                    _txt = ((_subs.get("text") or "").strip() or (request.script or "").strip())
+                    _rep = await quick_finish.apply(final_path, _subs, text=_txt, ratio=request.aspect_ratio.value)
+                    if _rep.get("error"):
+                        await self._update(session, job, current_step=f"Sous-titres : {_rep['error'][:60]}")
 
                 # 5. Save caption
                 if caption:
@@ -1025,6 +1043,14 @@ class Pipeline:
             )
         else:
             raise ValueError(f"Unknown composition layout: {request.layout}")
+
+        # P4 (plan Quick T4, tâche #50) — la composition porte SON champ `subtitles` (niveau haut) ; le texte de
+        # référence est le script de l'avatar, qui est ce que l'on entend.
+        _subs = getattr(request, "subtitles", None)
+        if _subs:
+            from app.services import quick_finish
+            _txt = ((_subs.get("text") or "").strip() or (request.heygen.script or "").strip())
+            await quick_finish.apply(out_path, _subs, text=_txt, ratio=request.seedance.aspect_ratio.value)
 
         # 4. Create a "composition" parent job pointing to the final
         async with async_session_factory() as session:

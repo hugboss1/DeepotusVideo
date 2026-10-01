@@ -180,6 +180,9 @@ class GenerateRequest(BaseModel):
     source_graph: Optional[dict] = None
     # P1 (plan Quick T1, tâche #48) — recette Quick (JSON de l'écran) pour « Rouvrir dans Quick ».
     quick_recipe: Optional[dict] = None
+    # P4 (plan Quick T4, tâche #50) — sous-titres gravés sur le rendu : {on, style, lang, text, cps, source :
+    # "align" (gratuit, défaut) | "transcribe" (payant, demandé explicitement), provider}
+    subtitles: Optional[dict] = None
     # Optional looped background music: {"file": <name in audio dir>, "volume_db": -14}
     music: Optional[dict] = None
     # Optional pre-generated voice-over (Studio Voiceover node), mixed over
@@ -252,6 +255,9 @@ class GenerateHeyGenRequest(BaseModel):
     source_graph: Optional[dict] = None
     # P1 (plan Quick T1, tâche #48) — recette Quick (JSON de l'écran) pour « Rouvrir dans Quick ».
     quick_recipe: Optional[dict] = None
+    # P4 (plan Quick T4, tâche #50) — sous-titres gravés sur le rendu : {on, style, lang, text, cps, source :
+    # "align" (gratuit, défaut) | "transcribe" (payant, demandé explicitement), provider}
+    subtitles: Optional[dict] = None
     # Optional looped background music: {"file": <name in audio dir>, "volume_db": -14}
     music: Optional[dict] = None
     # Optional pre-generated voice-over (Studio Voiceover node), mixed with
@@ -333,6 +339,9 @@ class CompositionRequest(BaseModel):
     max_usd: Optional[float] = None  # validé par la route (_garde_cout)
     # P1 (plan Quick T1, tâche #48) — recette Quick (JSON de l'écran) pour « Rouvrir dans Quick ».
     quick_recipe: Optional[dict] = None
+    # P4 (plan Quick T4, tâche #50) — sous-titres gravés sur le rendu : {on, style, lang, text, cps, source :
+    # "align" (gratuit, défaut) | "transcribe" (payant, demandé explicitement), provider}
+    subtitles: Optional[dict] = None
 
 
 class CompositionResponse(BaseModel):

@@ -62,7 +62,7 @@ def fonc(nom, src=s):
 if node:
     rec_fn = fonc("dzQuickRecipe")
     app_fn = fonc("dzQuickApply")
-    SETTERS = "i v k a V dzSetVMQ b z P F Hsrc Q ne W Eng Mimg Mp Xp De".split()
+    SETTERS = "i v k a V dzSetVMQ b z P F Hsrc Q ne W Eng Mimg Mp Xp De dzSetSubOn dzSetSubSty dzSetSubLang dzSetSubTxt dzSetSubTr".split()
     js = "\n".join([fonc("__dzQuickFromJob"), fonc("__dzReopenQuick"), r"""
 var toasts=[],navs=[],evts=[],appels=[],reponses={};
 globalThis.__dzToast=function(m){toasts.push(m)};globalThis.__dzSendNav=function(t){navs.push(t)};
@@ -73,7 +73,7 @@ globalThis.fetch=function(u){appels.push(u);var f=reponses[u];return f?f():rep(4
 var attendre=function(){return new Promise(function(r){setTimeout(r,120)})};
 var appliques={};
 function fabrique(etat){var u=etat.u||[];""" + "".join(f"var {n}=function(x){{appliques['{n}']=x}};" for n in SETTERS) + r"""
- var o=etat.o,w=etat.w,g=etat.g,s=etat.s,A=etat.A,VMQ=etat.VMQ,h=etat.h,_=etat._,N=etat.N,H=etat.H,hsrc=etat.hsrc,C=etat.C,ee=etat.ee,R=etat.R,eng=etat.eng,mimg=etat.mimg,mp=etat.mp,xp=etat.xp,We=etat.We;
+ var o=etat.o,w=etat.w,g=etat.g,s=etat.s,A=etat.A,VMQ=etat.VMQ,h=etat.h,_=etat._,N=etat.N,H=etat.H,hsrc=etat.hsrc,C=etat.C,ee=etat.ee,R=etat.R,eng=etat.eng,mimg=etat.mimg,mp=etat.mp,xp=etat.xp,We=etat.We,dzSubOn=etat.dzSubOn,dzSubSty=etat.dzSubSty,dzSubLang=etat.dzSubLang,dzSubTxt=etat.dzSubTxt,dzSubTr=etat.dzSubTr;
  """ + rec_fn + app_fn + r"""
  return {recette:dzQuickRecipe,appliquer:dzQuickApply}}
 (async function(){
@@ -90,11 +90,12 @@ function fabrique(etat){var u=etat.u||[];""" + "".join(f"var {n}=function(x){{ap
  delete window.__dzQuickRecipe;navs=[];
  __dzReopenQuick("absent");await attendre();
  out.c={nav:navs.slice(),glob:window.__dzQuickRecipe||null,toast:toasts.slice(-1)[0]};
- var ecran=fabrique({o:"seedance",w:"a.png",g:"",s:"abysse",A:"noir",VMQ:"seedance-2",h:10,_:"9:16",N:"42",H:"",hsrc:"avatar",C:"av1",ee:"vx",R:"txt",eng:"",mimg:"",mp:"",xp:"",We:"sequential",u:[1]});
+ var ecran=fabrique({o:"seedance",w:"a.png",g:"",s:"abysse",A:"noir",VMQ:"seedance-2",h:10,_:"9:16",N:"42",H:"",hsrc:"avatar",C:"av1",ee:"vx",R:"txt",eng:"",mimg:"",mp:"",xp:"",We:"sequential",u:[1],dzSubOn:true,dzSubSty:"pop",dzSubLang:"en",dzSubTxt:"bonjour",dzSubTr:false});
  out.recette=ecran.recette();
  ecran.appliquer(REC);out.appliques=appliques;
  appliques={};var vide=fabrique({u:[]});window.__dzQuickStart=null;vide.appliquer({seedance:{image:"z.png"}});out.global=window.__dzQuickStart;out.app2=appliques;
  appliques={};vide.appliquer({tab:"pirate"});out.pirate=appliques;
+ appliques={};vide.appliquer({subs:{on:true,style:"neon",lang:"en",text:"t",tr:true}});out.subs=appliques;
  console.log(JSON.stringify(out));
 })();
 """])
@@ -129,6 +130,99 @@ function fabrique(etat){var u=etat.u||[];""" + "".join(f"var {n}=function(x){{ap
     check("N6 images pas encore chargees : le global __dzQuickStart est pose (la greffe libsend ne l'ecrasera pas)",
           o.get("global") == "z.png" and (o.get("app2") or {}).get("v") == "z.png")
     check("N7 un onglet inconnu n'est pas applique", "pirate" in o and "i" not in o["pirate"])
+    check("N8 (tache #50) la recette porte les sous-titres et leur application les restaure (cinq setters)",
+          (o.get("recette") or {}).get("subs") == {"on": True, "style": "pop", "lang": "en", "text": "bonjour", "tr": False}
+          and o.get("subs") == {"dzSetSubOn": True, "dzSetSubSty": "neon", "dzSetSubLang": "en", "dzSetSubTxt": "t", "dzSetSubTr": True},
+          str(o.get("subs")))
+
+print("\n[E] l'image de fin grisee avec la raison (tache #49, plan Quick T3, groupe P5ef)")
+check("E0 temoin : la base (15c4c12) n'a ni dzEndOK ni le libelle « indisponible »", "dzEndOK" not in s0 and "Image de fin — indisponible" not in s0)
+check("E1 un etat, deux fonctions, la table lue sur /api/video-models (rien en dur)", s.count("dzSetEndCaps") == 2
+      and s.count("function dzEndOK(") == 1 and s.count("function dzEndWhy(") == 1 and 'fetch("/api/video-models")' in um
+      and "kling-v3-pro" not in fonc("dzEndWhy"))
+check("E2 le champ porte la raison a la place du select, avec un title", 'label:dzEndOK()?"Image de fin (optionnelle)":"Image de fin — indisponible"' in um
+      and 'children:dzEndOK()?(u.length>0?r.jsx(re,{value:g,' in um
+      and 'r.jsx("div",{title:"Choisissez un modèle qui accepte une image de fin"' in um and 'children:dzEndWhy()})})' in um)
+check("E3 le bouton « Parcourir » de fin n'existe que si c'est accepte", 'dzEndOK()&&r.jsx(O,{label:"",children:r.jsx("button"' in um
+      and 'titre:"Image de fin (optionnelle)"},k)' in um)
+check("E4 le payload n'envoie jamais une fin refusee", 'image_filename_end:(dzEndOK()?g:"")||null,' in s and "image_filename_end:g||null," not in s)
+if node:
+    i5 = s.find('onChange:function(v2){dzSetVMQ(v2);')
+    change = s[i5 + len("onChange:"):s.find('if(dzEndCaps&&dzEndCaps.map[v2]===!1)k("")}', i5) + len('if(dzEndCaps&&dzEndCaps.map[v2]===!1)k("")}')]
+    js = r"""
+var etat={VMQ:"",caps:null,g:"b.png",vide:[]};
+globalThis.localStorage={setItem:function(){}};
+function monter(VMQ,dzEndCaps){var k=function(x){etat.vide.push(x)},dzSetVMQ=function(x){etat.VMQ=x};
+ """ + fonc("dzEndOK") + fonc("dzEndWhy") + """
+ var change=""" + change + r""";
+ return {ok:dzEndOK,why:dzEndWhy,change:change,payload:function(g){return(dzEndOK()?g:"")||null}}}
+var CAPS={map:{"kling-v3-pro":true,"seedance-2.5":true,"veo-3.1-fast-fal":false},dflt:"seedance-2.5",oui:["Kling v3 Pro","Seedance 2.5"]};
+var out={};
+var a=monter("",null);out.sansTable=a.ok();
+var b=monter("veo-3.1-fast-fal",CAPS);out.veo={ok:b.ok(),why:b.why(),payload:b.payload("b.png")};
+var c=monter("kling-v3-pro",CAPS);out.kling={ok:c.ok(),payload:c.payload("b.png")};
+var d=monter("",CAPS);out.defaut=d.ok();
+var e=monter("inconnu",CAPS);out.inconnu=e.ok();
+var f=monter("",{map:CAPS.map,dflt:"veo-3.1-fast-fal",oui:CAPS.oui});out.defautRefuse=f.ok();
+etat.vide=[];c.change("veo-3.1-fast-fal");out.versVeo=etat.vide.slice();etat.vide=[];c.change("seedance-2.5");out.versSeed=etat.vide.slice();
+console.log(JSON.stringify(out));
+"""
+    f = pathlib.Path(tempfile.mkdtemp(prefix="dzquicke_"), "e.mjs"); f.write_text(js, encoding="utf-8")
+    p = subprocess.run([node, str(f)], capture_output=True, text=True, encoding="utf-8", timeout=60)
+    try:
+        o = json.loads(p.stdout.strip().splitlines()[-1])
+    except Exception:  # noqa: BLE001
+        o = {}
+        print(p.stdout[-800:], p.stderr[-1500:])
+    check("E5 table pas encore chargee : le champ reste offert (pas de faux refus)", o.get("sansTable") is True)
+    v = o.get("veo") or {}
+    check("E6 Veo : refuse, la raison nomme le modele et ceux qui acceptent, le payload n'envoie rien", v.get("ok") is False
+          and "« veo-3.1-fast-fal » n’accepte pas d’image de fin" in v.get("why", "") and "Kling v3 Pro, Seedance 2.5" in v.get("why", "")
+          and v.get("payload") is None, str(v))
+    check("E7 Kling : accepte, la fin part dans le payload", (o.get("kling") or {}) == {"ok": True, "payload": "b.png"}, str(o.get("kling")))
+    check("E8 sans modele choisi : le defaut du serveur decide (accepte ou refuse) ; un modele inconnu n'est pas refuse",
+          o.get("defaut") is True and o.get("defautRefuse") is False and o.get("inconnu") is True, str(o.get("defautRefuse")))
+    check("E9 passer a un modele qui refuse vide la fin ; a un modele qui accepte, non", o.get("versVeo") == [""] and o.get("versSeed") == [],
+          f'{o.get("versVeo")} {o.get("versSeed")}')
+
+print("\n[S] sous-titres graves dans Quick (tache #50, plan Quick T4, groupe P5st)")
+check("S0 temoin : la base (15c4c12) n'a ni dzSubs (dzSubsExp du Montage est autre) ni « Sous-titrer le rendu »", "function dzSubs(" not in s0 and "subtitles:dzSubs()" not in s0 and "Sous-titrer le rendu" not in s0)
+check("S1 un dzSubs, trois payloads (seedance, heygen, composition)", s.count("function dzSubs(") == 1 and s.count("subtitles:dzSubs()") == 3
+      and 'template_id:H||null,subtitles:dzSubs()},we=await D.postJson("/generate",je)' in s
+      and 'engine:eng||void 0,subtitles:dzSubs()});at(Z.ok?{msg:"HeyGen queued."}' in s
+      and 'transition_duration_s:.5,subtitles:dzSubs()});' in s)
+check("S2 les preselections viennent de /api/subtitles/presets", 'fetch("/api/subtitles/presets?ratio=9:16")' in um)
+check("S3 le bloc : interrupteur, style, langue, texte, case de transcription PAYANTE (seulement sans texte), aide",
+      'r.jsx(Ze,{checked:dzSubOn,label:"Sous-titrer le rendu",onChange:dzSetSubOn})' in um
+      and 'dzSubOn&&!dzSubTexte()&&r.jsx(O,{children:r.jsx(Ze,{checked:dzSubTr,label:"Transcrire si aucun texte (payant, sous le plafond de dépense)"' in um
+      and "Calage local du texte connu — 0 $" in um)
+if node:
+    js = r"""
+function monter(st){var o=st.o,R=st.R,dzSubOn=st.on,dzSubSty="pop",dzSubLang="fr",dzSubTxt=st.txt,dzSubTr=st.tr;
+ """ + fonc("dzSubTexte") + fonc("dzSubs") + r"""
+ return dzSubs()}
+console.log(JSON.stringify({
+ off:monter({on:false,o:"heygen",R:"x",txt:"",tr:false})===undefined,
+ texte:monter({on:true,o:"seedance",R:"",txt:" Bonjour ",tr:true}),
+ avatar:monter({on:true,o:"heygen",R:"Le script lu",txt:"",tr:false}),
+ seedSansTexte:monter({on:true,o:"seedance",R:"script avatar",txt:"",tr:false}),
+ seedTr:monter({on:true,o:"seedance",R:"",txt:"",tr:true})}));
+"""
+    f = pathlib.Path(tempfile.mkdtemp(prefix="dzquicks_"), "s.mjs"); f.write_text(js, encoding="utf-8")
+    p = subprocess.run([node, str(f)], capture_output=True, text=True, encoding="utf-8", timeout=60)
+    try:
+        o = json.loads(p.stdout.strip().splitlines()[-1])
+    except Exception:  # noqa: BLE001
+        o = {}
+        print(p.stdout[-800:], p.stderr[-1500:])
+    check("S4 eteint : rien n'est envoye", o.get("off") is True)
+    check("S5 texte saisi : calage GRATUIT meme si la case payante est cochee", (o.get("texte") or {}).get("source") == "align"
+          and o["texte"]["text"] == "Bonjour", str(o.get("texte")))
+    check("S6 onglet avatar sans texte : le script de l'avatar est cale (gratuit)", (o.get("avatar") or {}).get("source") == "align"
+          and o["avatar"]["text"] == "Le script lu", str(o.get("avatar")))
+    check("S7 Seedance sans texte ni case : align a vide (le serveur dira « aucun texte »), JAMAIS transcribe",
+          (o.get("seedSansTexte") or {}).get("source") == "align" and o["seedSansTexte"]["text"] == "", str(o.get("seedSansTexte")))
+    check("S8 temoin : sans texte ET case cochee, transcription demandee", (o.get("seedTr") or {}).get("source") == "transcribe", str(o.get("seedTr")))
 
 print(f"\n{ok} ok, {fail} echec(s)")
 raise SystemExit(1 if fail else 0)
