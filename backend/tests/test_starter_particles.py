@@ -20,6 +20,10 @@ Ce que ces tests protègent, dans l'ordre d'importance :
    ne doit JAMAIS partir dans la charge utile fal (422 illisible), et doit être
    remonté à l'utilisateur.
 """
+# Amorce (01/10/2026) : le python embarque ignore PYTHONPATH (._pth) ; sans
+# elle, `python tests/<ce fichier>` ne trouve pas le paquet `app`.
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), ".."))
 import json
 
 import pytest
@@ -258,3 +262,10 @@ def test_catalog_json_est_bien_forme():
     assert data["version"] == 1
     assert (SC.STARTER_DIR / "NOTICE.txt").is_file(), (
         "NOTICE.txt manquant — les attributions doivent être livrées")
+
+
+if __name__ == "__main__":
+    # Lanceur (01/10/2026) : sans lui, `python tests/<ce fichier>` sortait 0
+    # sans executer un seul test, et la serie par fichier le voyait vert.
+    import pytest
+    raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

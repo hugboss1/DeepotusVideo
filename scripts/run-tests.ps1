@@ -60,6 +60,10 @@ foreach ($f in $files) {
     # UNIQUE-constraint failure in test_voice_providers). Everything else goes
     # through pytest, which supplies conftest's sys.path entry.
     # ...and a file with no collectable test function is a script by definition.
+    # 01/10/2026 : the eleven files that called their tests at module level now
+    # keep those calls under `if __name__ == "__main__"`, so they go through
+    # pytest here; test_hygiene_lanceurs.py forbids module-level calls and
+    # requires the launcher in every file that defines a test_ function.
     $src = Get-Content $f.FullName -Raw
     $isScript = ($src -match '(?m)^(asyncio\.run\(|test_[A-Za-z0-9_]*\()') -or
                 ($src -notmatch '(?m)^\s*(async )?def test_')
@@ -74,7 +78,7 @@ foreach ($f in $files) {
     $env:PYTHONPATH = $backend
     try {
         if ($isScript) { & $Python $f.FullName > $log 2>&1 }
-        else { & $Python -m pytest ("tests/" + $f.Name) -q > $log 2>&1 }
+        else { & $Python -m pytest ("tests/" + $f.Name) -q -p no:cacheprovider > $log 2>&1 }
         $code = $LASTEXITCODE
         if (-not $isScript -and $code -eq 5) {   # pytest collected nothing
             & $Python $f.FullName > $log 2>&1

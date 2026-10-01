@@ -236,8 +236,14 @@ def test_service_routing():
         VP.resolve_provider, VP.voicebox_tts = orig_resolve, orig_tts
 
 
-test_builders()
-test_resolution()
-test_voicebox_tts()
-test_service_routing()
-print("VOICE PROVIDERS TEST: PASS")
+if __name__ == "__main__":
+    # Sous `if __name__` depuis le 01/10/2026 : en tete de module, ces appels
+    # s'executaient AUSSI a la collecte pytest, puis pytest les rejouait (etat
+    # deja cree, UNIQUE, reglages mutes) ; et les `async def test_` y etaient
+    # rouges faute de greffon asyncio. Pytest passe desormais par les
+    # enveloppes synchrones ; le mode script reste celui d'origine.
+    test_builders()
+    test_resolution()
+    test_voicebox_tts()
+    test_service_routing()
+    print("VOICE PROVIDERS TEST: PASS")

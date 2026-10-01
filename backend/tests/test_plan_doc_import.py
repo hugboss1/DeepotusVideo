@@ -148,9 +148,6 @@ def test_docx_linebreaks():
 
 
 async def main():
-    test_structured_parse()
-    test_truncated_json_salvage()
-    test_docx_linebreaks()
     # bout en bout : document structuré, ZÉRO clé LLM configurée
     plan = await marketing.plan_from_document(DOC, days=7, channels=["x"],
                                               language="EN")
@@ -160,4 +157,19 @@ async def main():
     print("PLAN DOC IMPORT TEST: PASS")
 
 
-asyncio.run(main())
+def test_bout_en_bout():
+    asyncio.run(main())
+
+
+if __name__ == "__main__":
+    # Sous `if __name__` depuis le 01/10/2026 : en tete de module, ces appels
+    # s'executaient AUSSI a la collecte pytest, puis pytest les rejouait (etat
+    # deja cree, UNIQUE, reglages mutes) ; et les `async def test_` y etaient
+    # rouges faute de greffon asyncio. Pytest passe desormais par les
+    # enveloppes synchrones ; le mode script reste celui d'origine.
+    # (01/10/2026) les tests synchrones ne sont plus appeles par main() : pytest
+    # les collecte deja, main() les aurait rejoues une seconde fois.
+    test_structured_parse()
+    test_truncated_json_salvage()
+    test_docx_linebreaks()
+    asyncio.run(main())

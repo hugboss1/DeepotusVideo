@@ -8,6 +8,10 @@ Tests purs (aucun reseau, aucune app FastAPI, zero numpy). Ce qui est verifie :
 
   runtime\\python\\python.exe -m pytest backend/tests/test_pbr_service.py -v
 """
+# Amorce (01/10/2026) : le python embarque ignore PYTHONPATH (._pth) ; sans
+# elle, `python tests/<ce fichier>` ne trouve pas le paquet `app`.
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), ".."))
 import io
 import math
 import random
@@ -450,3 +454,10 @@ def test_derivation_time_budget():
         del maps, big
     print("\nderivation :", " ".join(f"{r}={seen[r]:.2f}s" for r in sorted(seen)))
     assert seen[4096] < 25.0, seen
+
+
+if __name__ == "__main__":
+    # Lanceur (01/10/2026) : sans lui, `python tests/<ce fichier>` sortait 0
+    # sans executer un seul test, et la serie par fichier le voyait vert.
+    import pytest
+    raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

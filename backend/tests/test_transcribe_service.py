@@ -18,6 +18,10 @@ Ce que la recette verrouille :
 
   runtime\\python\\python.exe -m pytest backend/tests/test_transcribe_service.py -v
 """
+# Amorce (01/10/2026) : le python embarque ignore PYTHONPATH (._pth) ; sans
+# elle, `python tests/<ce fichier>` ne trouve pas le paquet `app`.
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), ".."))
 import shutil
 import subprocess
 import tempfile
@@ -410,3 +414,10 @@ def test_detect_silences_on_a_built_file():
 def test_align_to_audio_rejects_missing_file():
     with pytest.raises(FileNotFoundError):
         align_to_audio("alpha", Path(tempfile.gettempdir()) / "dz_absent.mp3")
+
+
+if __name__ == "__main__":
+    # Lanceur (01/10/2026) : sans lui, `python tests/<ce fichier>` sortait 0
+    # sans executer un seul test, et la serie par fichier le voyait vert.
+    import pytest
+    raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

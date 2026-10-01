@@ -18,6 +18,10 @@ Ce qui est verifie :
 Lancement (UN PROCESSUS POUR CE FICHIER) :
     runtime\\python\\python.exe -m pytest backend/tests/test_subtitle_service.py -q
 """
+# Amorce (01/10/2026) : le python embarque ignore PYTHONPATH (._pth) ; sans
+# elle, `python tests/<ce fichier>` ne trouve pas le paquet `app`.
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), ".."))
 import re
 
 import pytest
@@ -753,3 +757,10 @@ def test_ffmpeg_grave_bien_la_fonte_embarquee(tmp_path):
     assert avec != sans_dir, \
         "meme rendu avec et sans fontsdir : le chemin des fontes embarquees " \
         "n'est pas pris en compte"
+
+
+if __name__ == "__main__":
+    # Lanceur (01/10/2026) : sans lui, `python tests/<ce fichier>` sortait 0
+    # sans executer un seul test, et la serie par fichier le voyait vert.
+    import pytest
+    raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

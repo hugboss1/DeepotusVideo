@@ -21,9 +21,23 @@ def check(label, cond, detail=""):
     else: fail += 1; print(f"  FAIL  {label} {detail}")
 
 
+def _sans_echec(f):
+    """(01/10/2026) check() compte sans lever : sous pytest, un test aux checks
+    rouges serait sorti VERT. L'enveloppe fait rougir le test qui les a émis."""
+    import functools
+
+    @functools.wraps(f)
+    def g():
+        avant = fail
+        f()
+        assert fail == avant, f"{fail - avant} check(s) FAIL dans {f.__name__}"
+    return g
+
+
 SECRET = "SECRET-ZX81-0042-cle"
 
 
+@_sans_echec
 def test_poids_disque():
     R = _tmp / "racine"
     (R / "assets" / "images").mkdir(parents=True)
@@ -55,6 +69,7 @@ def test_poids_disque():
     check("1.11 racine absente : zeros, aucune exception", vide["total_octets"] == 0 and all(c["octets"] == 0 for c in vide["categories"]), "")
 
 
+@_sans_echec
 def test_journal():
     L = _tmp / "logs"
     L.mkdir(exist_ok=True)
@@ -84,6 +99,7 @@ def _faux_http(reponses):
     return _get
 
 
+@_sans_echec
 def test_cles():
     async def sc():
         from app.services import heygen_service as HG
@@ -132,6 +148,11 @@ def test_cles():
     asyncio.run(sc())
 
 
-test_poids_disque(); test_journal(); test_cles()
-print(f"\n{ok} ok, {fail} fail")
-sys.exit(1 if fail else 0)
+if __name__ == "__main__":
+    # Sous `if __name__` depuis le 01/10/2026 : en tete de module, ces appels
+    # tournaient aussi a la collecte pytest (et le sys.exit l'interrompait).
+    # Le mode script garde son bilan complet : les fonctions nues, sans
+    # l'enveloppe qui s'arrete au premier test rouge.
+    test_poids_disque.__wrapped__(); test_journal.__wrapped__(); test_cles.__wrapped__()
+    print(f"\n{ok} ok, {fail} fail")
+    sys.exit(1 if fail else 0)

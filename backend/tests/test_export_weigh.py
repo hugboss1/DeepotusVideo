@@ -27,6 +27,10 @@ Ce que ce fichier vérifie :
 
     runtime\\python\\python.exe -m pytest backend/tests/test_export_weigh.py -v
 """
+# Amorce (01/10/2026) : le python embarque ignore PYTHONPATH (._pth) ; sans
+# elle, `python tests/<ce fichier>` ne trouve pas le paquet `app`.
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), ".."))
 import json
 import os
 import pathlib
@@ -206,3 +210,10 @@ def test_un_export_sans_fabrication_est_entierement_mesure(mat):
     listed = [e for e in d["entries"] if e["kind"] in
               ("basecolor", "normal", "ao", "height")]
     assert listed and all(e["exact"] for e in listed)
+
+
+if __name__ == "__main__":
+    # Lanceur (01/10/2026) : sans lui, `python tests/<ce fichier>` sortait 0
+    # sans executer un seul test, et la serie par fichier le voyait vert.
+    import pytest
+    raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

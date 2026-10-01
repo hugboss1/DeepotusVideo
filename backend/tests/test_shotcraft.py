@@ -162,7 +162,7 @@ def test_ai_shots_prompt_and_validation():
     assert shots[2]["energy"] is None                   # non numérique
 
 
-async def test_api(c):
+async def _test_api(c):
     # -- migration : la base legacy (sans colonnes W-d) répond, champs à None
     legacy = (await c.get("/api/chapters/chap-legacy/shots")).json()["shots"]
     assert len(legacy) == 1 and legacy[0]["id"] == "legacy1"
@@ -214,12 +214,9 @@ async def test_api(c):
 
 async def main():
     await init_db()                                    # create_all + ALTER W-d
-    test_service_fallback()
-    test_service_installed_merge()
-    test_ai_shots_prompt_and_validation()
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://t") as c:
-        await test_api(c)
+        await _test_api(c)
     # informatif : détection du vrai skill sur cette machine (non bloquant)
     os.environ["SHOTCRAFT_SKILL_DIR"] = str(
         pathlib.Path.home() / ".claude" / "skills" / "video-shotcraft")
@@ -228,4 +225,20 @@ async def main():
           f"cards={real['cards']} path={real['path']}")
     print("SHOTCRAFT W-d TEST: PASS")
 
-asyncio.run(main())
+
+def test_bout_en_bout():
+    asyncio.run(main())
+
+
+if __name__ == "__main__":
+    # Sous `if __name__` depuis le 01/10/2026 : en tete de module, ces appels
+    # s'executaient AUSSI a la collecte pytest, puis pytest les rejouait (etat
+    # deja cree, UNIQUE, reglages mutes) ; et les `async def test_` y etaient
+    # rouges faute de greffon asyncio. Pytest passe desormais par les
+    # enveloppes synchrones ; le mode script reste celui d'origine.
+    # (01/10/2026) les tests synchrones ne sont plus appeles par main() : pytest
+    # les collecte deja, main() les aurait rejoues une seconde fois.
+    test_service_fallback()
+    test_service_installed_merge()
+    test_ai_shots_prompt_and_validation()
+    asyncio.run(main())

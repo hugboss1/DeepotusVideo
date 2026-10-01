@@ -56,7 +56,7 @@ def test_cinematic_body():
     assert len(b4["avatar_id"]) == 3                    # capped at 3
 
 
-async def test_endpoints_validate():
+async def _test_endpoints_validate():
     await init_db()
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://t") as c:
@@ -74,7 +74,17 @@ async def test_endpoints_validate():
         assert r.status_code in (400, 404), r.text
 
 
-test_image_body()
-test_cinematic_body()
-asyncio.run(test_endpoints_validate())
-print("ANIMATE V3 TEST: PASS")
+def test_endpoints_validate():
+    asyncio.run(_test_endpoints_validate())
+
+
+if __name__ == "__main__":
+    # Sous `if __name__` depuis le 01/10/2026 : en tete de module, ces appels
+    # s'executaient AUSSI a la collecte pytest, puis pytest les rejouait (etat
+    # deja cree, UNIQUE, reglages mutes) ; et les `async def test_` y etaient
+    # rouges faute de greffon asyncio. Pytest passe desormais par les
+    # enveloppes synchrones ; le mode script reste celui d'origine.
+    test_image_body()
+    test_cinematic_body()
+    asyncio.run(_test_endpoints_validate())
+    print("ANIMATE V3 TEST: PASS")

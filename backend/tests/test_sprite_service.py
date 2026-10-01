@@ -11,6 +11,10 @@ Couvre : grille/manifest cohérents sur une vidéo synthétique (vrai ffmpeg),
 rejet path-traversal, survie à l'échec d'une frame remove-bg, tight vs
 animation, pack Unity présent dans le zip, pricing sprite2d.
 """
+# Amorce (01/10/2026) : le python embarque ignore PYTHONPATH (._pth) ; sans
+# elle, `python tests/<ce fichier>` ne trouve pas le paquet `app`.
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), ".."))
 import asyncio
 import io
 import json
@@ -397,3 +401,10 @@ def test_pricing_sprite2d():
     assert free["total_usd"] == 0.0
     # le breakdown reste honnête : la partie locale apparaît à 0 $
     assert any(l["provider"] == "local" for l in free["breakdown"])
+
+
+if __name__ == "__main__":
+    # Lanceur (01/10/2026) : sans lui, `python tests/<ce fichier>` sortait 0
+    # sans executer un seul test, et la serie par fichier le voyait vert.
+    import pytest
+    raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

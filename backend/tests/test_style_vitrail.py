@@ -167,3 +167,10 @@ def test_le_miroir_atelier_porte_le_preset_et_le_canon():
     # le chip du miroir embarque exactement le bloc épinglé (zéro dérive)
     assert SV.bloc_style("vitrail") in js
     assert 'id: "vitrail"' in js
+
+
+if __name__ == "__main__":
+    # Lanceur (01/10/2026) : sans lui, `python tests/<ce fichier>` sortait 0
+    # sans executer un seul test, et la serie par fichier le voyait vert.
+    import pytest
+    raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

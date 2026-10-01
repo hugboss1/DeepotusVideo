@@ -142,5 +142,15 @@ async def main():
     print("VOICEOVER TEST: PASS")
 
 
-test_parser()
-asyncio.run(main())
+def test_bout_en_bout():
+    asyncio.run(main())
+
+
+if __name__ == "__main__":
+    # Sous `if __name__` depuis le 01/10/2026 : en tete de module, ces appels
+    # s'executaient AUSSI a la collecte pytest, puis pytest les rejouait (etat
+    # deja cree, UNIQUE, reglages mutes) ; et les `async def test_` y etaient
+    # rouges faute de greffon asyncio. Pytest passe desormais par les
+    # enveloppes synchrones ; le mode script reste celui d'origine.
+    test_parser()
+    asyncio.run(main())

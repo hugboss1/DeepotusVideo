@@ -151,9 +151,19 @@ async def main():
     print("GEMINI MODEL TEST: PASS")
 
 
-test_default_model_is_stable_alias()
-test_key_in_header_never_in_url()
-test_custom_model_honored()
-test_failsafe_without_key()
-test_chains_enumerate_gemini()
-asyncio.run(main())
+def test_bout_en_bout():
+    asyncio.run(main())
+
+
+if __name__ == "__main__":
+    # Sous `if __name__` depuis le 01/10/2026 : en tete de module, ces appels
+    # s'executaient AUSSI a la collecte pytest, puis pytest les rejouait (etat
+    # deja cree, UNIQUE, reglages mutes) ; et les `async def test_` y etaient
+    # rouges faute de greffon asyncio. Pytest passe desormais par les
+    # enveloppes synchrones ; le mode script reste celui d'origine.
+    test_default_model_is_stable_alias()
+    test_key_in_header_never_in_url()
+    test_custom_model_honored()
+    test_failsafe_without_key()
+    test_chains_enumerate_gemini()
+    asyncio.run(main())

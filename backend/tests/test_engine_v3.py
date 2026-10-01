@@ -44,7 +44,7 @@ def test_v3_body_builder():
         pass
 
 
-async def test_preset_engine_roundtrip():
+async def _test_preset_engine_roundtrip():
     await init_db()
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://t") as c:
@@ -67,6 +67,16 @@ async def test_preset_engine_roundtrip():
         await c.delete(f"/api/heygen/presets/{pid}")
 
 
-test_v3_body_builder()
-asyncio.run(test_preset_engine_roundtrip())
-print("ENGINE V3 TEST: PASS")
+def test_preset_engine_roundtrip():
+    asyncio.run(_test_preset_engine_roundtrip())
+
+
+if __name__ == "__main__":
+    # Sous `if __name__` depuis le 01/10/2026 : en tete de module, ces appels
+    # s'executaient AUSSI a la collecte pytest, puis pytest les rejouait (etat
+    # deja cree, UNIQUE, reglages mutes) ; et les `async def test_` y etaient
+    # rouges faute de greffon asyncio. Pytest passe desormais par les
+    # enveloppes synchrones ; le mode script reste celui d'origine.
+    test_v3_body_builder()
+    asyncio.run(_test_preset_engine_roundtrip())
+    print("ENGINE V3 TEST: PASS")

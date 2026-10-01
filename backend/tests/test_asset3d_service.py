@@ -1,3 +1,7 @@
+# Amorce (01/10/2026) : le python embarque ignore PYTHONPATH (._pth) ; sans
+# elle, `python tests/<ce fichier>` ne trouve pas le paquet `app`.
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), ".."))
 from app.services.asset3d_service import (
     view_prompts, ENGINES, build_engine_args, parse_engine_result,
 )
@@ -209,3 +213,10 @@ def test_generate_asset3d_reports_steps(tmp_path, monkeypatch):
     assert any("Running" in l for l in labels) and labels[-1] == "Complete"
     pcts = [x[1] for x in steps]
     assert pcts == sorted(pcts) and pcts[-1] == 100
+
+
+if __name__ == "__main__":
+    # Lanceur (01/10/2026) : sans lui, `python tests/<ce fichier>` sortait 0
+    # sans executer un seul test, et la serie par fichier le voyait vert.
+    import pytest
+    raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

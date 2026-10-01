@@ -3,6 +3,10 @@
 Chaque test correspond à une faille réellement présente avant l'audit ; ils
 existent pour qu'elle ne puisse pas revenir en silence.
 """
+# Amorce (01/10/2026) : le python embarque ignore PYTHONPATH (._pth) ; sans
+# elle, `python tests/<ce fichier>` ne trouve pas le paquet `app`.
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), ".."))
 import pytest
 
 
@@ -165,3 +169,10 @@ def test_brand_mark_cannot_escape_the_templates_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(eng, "builtin_dir", builtin)
     assert eng.mark_path("marks/logo.png") == (builtin / "marks" / "logo.png").resolve()
     assert eng.mark_path("../outside.png") is None
+
+
+if __name__ == "__main__":
+    # Lanceur (01/10/2026) : sans lui, `python tests/<ce fichier>` sortait 0
+    # sans executer un seul test, et la serie par fichier le voyait vert.
+    import pytest
+    raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

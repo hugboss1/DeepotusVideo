@@ -9773,3 +9773,10 @@ def test_l_ORDRE_d_ecriture_pose_l_assise_AU_SOL_meme_avec_un_deplacement_en_att
     inverse = print3d.lire_glb_triangles(plumes["transformer"](plumes["assise"](cube)))
     assert math.dist(normale_de(inverse[0]), [0, -1, 0]) < 1e-9
     assert abs(print3d.bbox(inverse)[1][0]) > 0.1, print3d.bbox(inverse)
+
+
+if __name__ == "__main__":
+    # Lanceur (01/10/2026) : sans lui, `python tests/<ce fichier>` sortait 0
+    # sans executer un seul test, et la serie par fichier le voyait vert.
+    import pytest
+    raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

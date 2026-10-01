@@ -20,6 +20,10 @@ calculees a 20. Ce fichier verrouille le contrat de `POST /subtitles/check` :
 Lance seul (un processus par fichier, cf. scripts/run-tests.ps1) :
     python -m pytest backend/tests/test_subs_normes_api.py -q
 """
+# Amorce (01/10/2026) : le python embarque ignore PYTHONPATH (._pth) ; sans
+# elle, `python tests/<ce fichier>` ne trouve pas le paquet `app`.
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), ".."))
 import pytest
 from fastapi.testclient import TestClient
 
@@ -139,3 +143,10 @@ def test_les_seuils_du_panneau_et_ceux_du_moteur_portent_les_memes_valeurs():
     assert float(lu["minS"]) == S.MIN_DURATION
     assert float(lu["maxS"]) == S.MAX_DURATION
     assert float(lu["gapMs"]) / 1000 == S.MIN_GAP
+
+
+if __name__ == "__main__":
+    # Lanceur (01/10/2026) : sans lui, `python tests/<ce fichier>` sortait 0
+    # sans executer un seul test, et la serie par fichier le voyait vert.
+    import pytest
+    raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

@@ -152,3 +152,10 @@ def test_un_rebut_precedent_ne_sauve_pas_les_suivants(tmp_path):
     _jeu(r, "deck_aaaa0001", "Nouveau jeu")   # un banc du même id renaît
     rap = GC.gc(r, deplacer=False, date=DATE)
     assert rap["candidats"] == ["deck_aaaa0001"]
+
+
+if __name__ == "__main__":
+    # Lanceur (01/10/2026) : sans lui, `python tests/<ce fichier>` sortait 0
+    # sans executer un seul test, et la serie par fichier le voyait vert.
+    import pytest
+    raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))
