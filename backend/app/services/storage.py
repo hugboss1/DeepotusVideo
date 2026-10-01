@@ -133,6 +133,11 @@ class ScheduledPost(Base):
     series_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
     recycled_from: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
     published_by: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    # Plan mobile T8 (tâche #57, 01/10/2026) — DÉLÉGATION EXPLICITE (décision de l'utilisateur) : un post emporté par un
+    # téléphone lui est CONFIÉ (id de l'appareil) ; le Scheduler du PC ne le publie plus tant qu'il ne lui revient pas
+    # (échec rapporté, rendu, reprise à la main, appareil révoqué). Aucun doublon possible.
+    delegue_a: Mapped[Optional[str]] = mapped_column(String(36), nullable=True, index=True)
+    delegue_le: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
 
 class PostMetric(Base):
@@ -521,6 +526,8 @@ SCHEDULED_POSTS_COLUMNS = [
     ("remote_ids", "TEXT"), ("validated_at", "DATETIME"), ("thread_of", "VARCHAR(36)"),
     ("thread_index", "INTEGER"), ("series_id", "VARCHAR(36)"),
     ("recycled_from", "VARCHAR(36)"), ("published_by", "VARCHAR(40)"),
+    # plan mobile T8 (tâche #57) : la délégation à un appareil
+    ("delegue_a", "VARCHAR(36)"), ("delegue_le", "DATETIME"),
 ]
 
 

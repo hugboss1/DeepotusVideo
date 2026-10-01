@@ -132,6 +132,18 @@ async def jeton_valide(jeton) -> bool:
     return empreinte in await _charger_actifs()
 
 
+async def appareil_du_jeton(jeton) -> dict | None:
+    """Plan mobile T8 (tâche #57) — l'appareil (id, nom) qui porte ce jeton, s'il est valide et non révoqué."""
+    if not isinstance(jeton, str) or len(jeton) != 64:
+        return None
+    from app.services.storage import Device, async_session_factory
+    empreinte = hashlib.sha256(jeton.encode()).hexdigest()
+    async with async_session_factory() as session:
+        res = await session.execute(_select(Device).where(Device.jeton_sha256 == empreinte).where(Device.revoque.is_(None)))
+        d = res.scalars().first()
+    return {"id": d.id, "nom": d.nom} if d else None
+
+
 async def lister() -> list[dict]:
     """Les appareils, révoqués compris (avec leur date) — jamais le jeton ni son empreinte."""
     from app.services.storage import Device, async_session_factory
@@ -144,19 +156,24 @@ async def lister() -> list[dict]:
 
 
 async def revoquer(device_id: str) -> bool:
-    from app.services.storage import Device, async_session_factory
+    from app.services.storage import Device, ScheduledPost, async_session_factory
     async with async_session_factory() as session:
         r = await session.execute(_update(Device).where(Device.id == device_id).where(Device.revoque.is_(None))
                                   .values(revoque=datetime.utcnow()))
+        # plan mobile T8 (tâche #57) : un appareil révoqué (perdu) REND ses posts au PC, tout de suite
+        await session.execute(_update(ScheduledPost).where(ScheduledPost.delegue_a == device_id)
+                              .values(delegue_a=None, delegue_le=None))
         await session.commit()
     invalider_cache()
     return r.rowcount > 0
 
 
 async def revoquer_tout() -> int:
-    from app.services.storage import Device, async_session_factory
+    from app.services.storage import Device, ScheduledPost, async_session_factory
     async with async_session_factory() as session:
         r = await session.execute(_update(Device).where(Device.revoque.is_(None)).values(revoque=datetime.utcnow()))
+        await session.execute(_update(ScheduledPost).where(ScheduledPost.delegue_a.is_not(None))
+                              .values(delegue_a=None, delegue_le=None))
         await session.commit()
     invalider_cache()
     return r.rowcount

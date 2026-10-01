@@ -2205,6 +2205,16 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>'
 
 ---
 
+> **TÂCHE 7 EXÉCUTÉE le 01/10/2026** (tâche #57 du suivi, dépôt mobile, commit local `411480b`). La dépendance dure
+> est levée : le format DZKV1 existe depuis la tâche #20 (PBKDF2-SHA256 600 000 + AES-256-GCM, en-tête en AAD). Le
+> téléphone **déchiffre vraiment**, au lieu de ne vérifier qu'un contrat.
+> - JS pur (`@noble/hashes` et `@noble/ciphers`, MIT, audités). `expo-crypto` a AES-GCM mais pas PBKDF2.
+> - Les fixtures sont produites par `coffre.chiffrer` du PC, avec des clés FACTICES.
+> - Jest 16/16 : en-tête authentifié, tag GCM, magie, coffre refusé, dérivateur injectable, clés filtrées et rangées
+>   au coffre système seulement. 7/7 mutations rouges.
+> - **Mesure** : 4,3 s sous node pour 600 000 itérations. Hermes (sans JIT) est à mesurer sur l'appareil (tâche 11) ;
+>   un PBKDF2 natif peut remplacer le JS par injection.
+
 ### Tâche 7 : P2 — l'archive chiffrée lue par le téléphone, clés au coffre
 
 **Files:**
@@ -2409,6 +2419,22 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>'
 ```
 
 ---
+
+> **TÂCHE 8 EXÉCUTÉE le 01/10/2026** (tâche #57, branche `chantier/p6-mobile-lot`). **Le plan laissait un doublon
+> possible** : le Scheduler du PC publie tout post dû. Le téléphone aurait publié pendant que le PC était éteint, et
+> le PC aurait republié à son redémarrage. DÉCISIONS DE L'UTILISATEUR (01/10) :
+> (1) **délégation explicite** :
+> - colonnes `delegue_a` et `delegue_le` (migration) ;
+> - un post emporté est CONFIÉ à l'appareil : le tick ET « publier maintenant » l'ignorent (refus avant tout appel
+>   réseau) ;
+> - il revient au PC sur échec rapporté, rendu, reprise à la main (bouton de l'inspecteur du Scheduler, P3sc7 étendu
+>   + P3sc9) ou révocation de l'appareil ;
+> (2) **une seule écriture ouverte au réseau local** en plus de l'appairage : `POST /api/sync/lot/etat`, qui porte
+> `emporte`, `posted`, `failed` et `rendu`. L'appareil est celui du JETON, et il n'agit que sur SES posts.
+> Le lot ne porte aucun jeton ; `published_by` reçoit le nom de l'appareil ; le média se reprend par Range.
+> Banc `test_sync_lot` 29/0 : lignes relues dans la base, tick RÉEL du Scheduler (boucle de fond coupée), vraies
+> requêtes avec une IP du réseau local, bouton exécuté sous node ; 14/14 mutations rouges. Preuve 8799 : post confié
+> par un téléphone de preuve, l'inspecteur le dit, « Reprendre » le rend au PC (toast, délégation levée en base).
 
 ### Tâche 8 : P3 — export du lot validé et retour d'état (PC)
 

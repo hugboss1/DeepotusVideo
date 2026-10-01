@@ -4976,6 +4976,7 @@ def _post_to_dict(p: ScheduledPost) -> dict:
         "validated_at": (p.validated_at.isoformat() + "Z") if getattr(p, "validated_at", None) else None,
         "thread_of": p.thread_of, "thread_index": p.thread_index, "series_id": p.series_id,
         "recycled_from": p.recycled_from, "published_by": p.published_by,
+        "delegue_a": p.delegue_a,   # plan mobile T8 : confié à un appareil
     }
 
 
@@ -12273,3 +12274,54 @@ async def devices_rotation(request: Request):
     _require_localhost(request)
     from app.services import appairage
     return {"consoles": appairage.CONSOLES}
+
+
+# ── Plan mobile T8 (tâche #57, 01/10/2026) : le lot de la semaine dans la poche ────────────────────────────────────────
+# Lectures ouvertes au réseau local AVEC jeton (garde de main.py) ; la SEULE écriture ouverte est /sync/lot/etat
+# (_ECRITURES_OUVERTES, décision de l'utilisateur du 01/10). Aucune ne renvoie de secret : le téléphone a ses clés par
+# l'archive chiffrée. L'appareil est celui du JETON — jamais un champ du corps.
+
+async def _appareil_requis(request: Request) -> dict:
+    from app.services import appairage
+    entete = request.headers.get("authorization", "")
+    jeton = entete[7:].strip() if entete[:7].lower() == "bearer " else ""
+    appareil = await appairage.appareil_du_jeton(jeton)
+    if not appareil:
+        raise HTTPException(401, "Jeton d'appareil requis — appairez le téléphone depuis Réglages → Appareils.")
+    return appareil
+
+
+@router.get("/sync/lot")
+async def sync_lot_get(request: Request, jours: int = 7):
+    from app.services import sync_lot as _sl
+    return await _sl.lot((await _appareil_requis(request))["id"], jours=jours)
+
+
+@router.post("/sync/lot/etat")
+async def sync_lot_etat(request: Request, body: dict | None = None):
+    from app.services import sync_lot as _sl
+    appareil = await _appareil_requis(request)
+    return await _sl.appliquer_etat(appareil, (body or {}).get("rapports") if isinstance(body, dict) else [])
+
+
+@router.get("/sync/media/{job_id}")
+async def sync_media(job_id: str, request: Request):
+    """La vidéo d'un rendu ; FileResponse sert les requêtes Range (reprise après une coupure)."""
+    await _appareil_requis(request)
+    j = await Pipeline.get_job(job_id)
+    if not j or not getattr(j, "final_video_path", None):
+        raise HTTPException(404, "aucune vidéo pour ce rendu")
+    p = Path(j.final_video_path)
+    if not p.is_file():
+        raise HTTPException(404, "fichier absent du magasin")
+    return FileResponse(str(p), media_type="video/mp4", filename=p.name)
+
+
+@router.post("/schedule/{post_id}/reprendre")
+async def schedule_reprendre(post_id: str, request: Request):
+    """Le PC reprend un post confié à un téléphone : son Scheduler pourra de nouveau le publier."""
+    _require_localhost(request)
+    from app.services import sync_lot as _sl
+    if not await _sl.reprendre(post_id):
+        raise HTTPException(404, "Ce post n'est confié à aucun appareil")
+    return {"repris": post_id}
