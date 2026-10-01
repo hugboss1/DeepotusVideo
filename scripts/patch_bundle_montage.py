@@ -7591,9 +7591,12 @@ A_P5EF2 = ('r.jsx(O,{label:"End image (optional)",children:u.length>0?r.jsx(re,{
            'options:[{value:"",label:"— none —"},...u.map(B=>({value:B,label:B}))],'
            'onChange:k}):r.jsx(vd,{label:"drop or pick",kind:"image"})}),')
 R_P5EF2 = ('r.jsx(O,{label:dzEndOK()?"Image de fin (optionnelle)":"Image de fin — indisponible",'
-           'children:dzEndOK()?(u.length>0?r.jsx(re,{value:g,'
-           'options:[{value:"",label:"— aucune —"},...u.map(B=>({value:B,label:B}))],onChange:k})'
-           ':r.jsx(vd,{label:"drop or pick",kind:"image"})):r.jsx("div",{title:"Choisissez un modèle qui accepte une image de fin",'
+           'children:dzEndOK()?r.jsxs("div",{className:"dz-fin",children:[u.length>0?r.jsx(re,{value:g,'
+           'options:[{value:"",label:"— aucune —"},...u.map(B=>({value:B,label:B}))],onChange:k},"dzselfin")'
+           # tache #54 (plan Quick T9) : la maquette vd devient la vraie DropZone, qui alimente le select
+           ':null,r.jsx(DzQuickDrop,{label:"glissez l’image de fin ici, ou cliquez",'
+           'onFile:function(nm){f(function(p2){return p2.indexOf(nm)>=0?p2:[nm].concat(p2)});k(nm)}},"dzdropfin")]'
+           '}):r.jsx("div",{title:"Choisissez un modèle qui accepte une image de fin",'
            'style:{fontSize:11,padding:8,background:"var(--amber-soft)",border:"1px solid var(--amber)",'
            'borderRadius:"var(--r-sm)",color:"var(--ink)"},children:dzEndWhy()})}),')
 A_P5EF3 = ('r.jsx(O,{label:"",children:r.jsx("button",{style:{width:"100%",fontSize:12,'
@@ -7879,6 +7882,77 @@ assert len(P1) == 97 and all("\n" not in r and "\r" not in r for _t, _a, r in P1
 # Parameters (pas six curseurs de plus dans Parameters), libelles en francais avec le sens de chaque axe, compteur
 # d'axes dans l'en-tete, « Remettre a zero » ; (3) aucun appel d'apercu quand tout est a zero.
 
+# P5su1..P5su6 (tache #54, plan Quick T9 = D3, 01/10/2026) -- LES QUATRE ONGLETS EN « STUDIO ». Ecarts au plan du 03/09 :
+# (1) un GROUPE du maillon montage, pas de patcher `quickstudio` ; l'image de fin est dans R_P5EF2 (a moi) ;
+# (2) BUG DU PLAN : `r.jsx(DzQuickStage,…)||repli` ne retombe JAMAIS sur le repli (un element React est toujours
+# vrai) — DzQuickStage, sans hook, est APPELE comme une fonction et rend null sur Seedance sans image ;
+# (3) aucun window.alert : __dzToast avec le detail du refus (415 nomme le format) ; la zone s'ouvre aussi au CLIC
+# (selecteur de fichier), avec un title ; (4) Composition : la moitie avatar montre le portrait s'il existe ;
+# (5) l'avertissement de Composition nomme les DEUX fournisseurs (fal.ai + heygen.com).
+# S1 composants avant um. S2 la colonne source a 360 px. S3 « Start image » + DropZone. S4 l'apercu par onglet.
+# S5 le bandeau suit l'onglet. S6 l'avertissement nomme le vrai fournisseur.
+A_P5SU1 = "function um({variant:e,activePersona:t}){var el;"
+R_P5SU1 = ('function DzQuickDrop({label,onFile}){var s0=x.useState(!1),over=s0[0],setOver=s0[1],ref=x.useRef(null);'
+           # preuve ecran 01/10 : /images/upload acceptait un .txt depose (le accept du selecteur ne vaut pas pour un
+           # depot) -> la zone refuse tout fichier qui n'est pas une image, par son type MIME OU son extension
+           'function envoyer(f2){if(!f2)return;'
+           'if(!/^image\\//.test(f2.type||"")&&!/\\.(png|jpe?g|webp|gif|bmp|avif)$/i.test(f2.name||"")){'
+           '__dzToast("« "+(f2.name||"fichier")+" » n’est pas une image : rien n’est importé");return}'
+           'var fd=new FormData();fd.append("file",f2);'
+           'fetch("/api/images/upload",{method:"POST",body:fd})'
+           '.then(function(r2){return r2.json().then(function(j){return{s:r2.status,j:j}},function(){return{s:r2.status,j:null}})})'
+           '.then(function(o2){if(o2.s===200&&o2.j&&o2.j.filename){onFile(o2.j.filename);__dzToast("« "+o2.j.filename+" » importée")}'
+           'else __dzToast("Import refusé : "+((o2.j&&o2.j.detail)||o2.s))})'
+           '.catch(function(e2){__dzToast("Import : "+String(e2&&e2.message||e2))})}'
+           'return r.jsxs("div",{className:"dz-drop",title:"Glissez une image ici, ou cliquez pour la choisir : elle entre dans la Library",'
+           'onClick:function(){ref.current&&ref.current.click()},'
+           'onDragOver:function(e2){e2.preventDefault();setOver(!0)},onDragLeave:function(){setOver(!1)},'
+           'onDrop:function(e2){e2.preventDefault();setOver(!1);'
+           'envoyer(e2.dataTransfer&&e2.dataTransfer.files&&e2.dataTransfer.files[0])},'
+           'style:{height:44,marginTop:6,padding:8,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",'
+           'fontSize:11,cursor:"copy",background:over?"var(--amber-soft)":"transparent",'
+           'border:"1px dashed "+(over?"var(--amber)":"var(--stroke-strong)"),color:"var(--ink-soft)"},'
+           'children:[over?"Lâchez l’image ici":label,r.jsx("input",{ref:ref,type:"file",accept:"image/*",style:{display:"none"},'
+           'onChange:function(e2){envoyer(e2.target.files&&e2.target.files[0]);e2.target.value=""}})]})}'
+           'function DzQuickStage({tab,img,avatarUrl,layout}){var plein={position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"},'
+           'msg=function(t2){return r.jsx("div",{className:"dz-stage-msg",style:{position:"absolute",inset:0,display:"flex",'
+           'alignItems:"center",justifyContent:"center",fontSize:11,color:"var(--ink-soft)",padding:16,textAlign:"center"},children:t2})};'
+           'if(tab==="heygen")return avatarUrl?r.jsx("img",{className:"dz-stage-avatar",src:avatarUrl,alt:"avatar",style:plein})'
+           ':msg("Choisissez un avatar : son portrait s’affiche ici");'
+           'if(tab==="comp")return r.jsxs("div",{className:"dz-stage-comp","data-layout":layout,style:{position:"absolute",inset:0,display:"grid",'
+           'gridTemplateRows:layout==="split_vstack"?"1fr 1fr":"1fr",gridTemplateColumns:layout==="split_hstack"?"1fr 1fr":"1fr",gap:2},'
+           'children:[r.jsx("div",{style:{background:"#061018",backgroundImage:img?"url("+D.imageUrl(img)+")":"none",'
+           'backgroundSize:"cover",backgroundPosition:"center"}},"s"),'
+           'layout!=="sequential"&&r.jsx("div",{style:{background:"#12060f",backgroundImage:avatarUrl?"url("+avatarUrl+")":"none",'
+           'backgroundSize:"cover",backgroundPosition:"center",display:"flex",alignItems:"center",justifyContent:"center",'
+           'fontSize:10.5,color:"var(--ink-soft)"},children:avatarUrl?null:"avatar"},"a")]});'
+           'if(tab==="voice")return msg("Voix off : le résultat est un fichier audio, pas une image. Il arrive dans la Bibliothèque.");'
+           'return img?r.jsx("img",{src:D.imageUrl(img),alt:img,style:plein}):null}'
+           + A_P5SU1)
+A_P5SU2 = 'gridTemplateColumns:"380px 1fr"'
+R_P5SU2 = 'gridTemplateColumns:"360px 1fr"'
+A_P5SU3 = ('r.jsx(O,{label:"Start image",children:u.length>0?r.jsx(re,{value:w,options:u.map(B=>({value:B,label:B})),'
+           'onChange:v}):r.jsx(vd,{label:"upload images in Library",kind:"image"})})')
+R_P5SU3 = ('r.jsxs(O,{label:"Start image",children:[u.length>0?r.jsx(re,{value:w,options:u.map(B=>({value:B,label:B})),'
+           'onChange:v},"dzseldep"):null,r.jsx(DzQuickDrop,{label:"glissez une image ici, ou cliquez",'
+           'onFile:function(nm){f(function(p2){return p2.indexOf(nm)>=0?p2:[nm].concat(p2)});v(nm)}},"dzdropdep")]})')
+A_P5SU4 = ('w?r.jsx("img",{src:D.imageUrl(w),alt:w,style:{position:"absolute",inset:0,width:"100%",height:"100%",'
+           'objectFit:"cover"}}):')
+R_P5SU4 = ('DzQuickStage({tab:o,img:w,layout:We,avatarUrl:(function(){var _a=U.find(function(z){return z.avatar_id===C});'
+           'return(_a&&_a.preview_image_url)||""})()})||')
+A_P5SU5 = 'children:[A," · ",h,"s"]'
+R_P5SU5 = 'children:[o==="seedance"?A:o==="heygen"?"avatar":o==="comp"?We:"voix off"," · ",h,"s"]'
+A_P5SU6 = '"You\'re about to call ",r.jsx("span",{className:"mono strong",children:"fal.ai"})'
+R_P5SU6 = ('"You\'re about to call ",r.jsx("span",{className:"mono strong",'
+           'children:o==="heygen"?"heygen.com":o==="comp"?"fal.ai + heygen.com":"fal.ai"})')
+P1 += [("P5su1-composants-drop-et-stage-avant-um", A_P5SU1, R_P5SU1),
+       ("P5su2-colonne-source-360", A_P5SU2, R_P5SU2),
+       ("P5su3-image-de-depart-avec-dropzone", A_P5SU3, R_P5SU3),
+       ("P5su4-apercu-central-par-onglet", A_P5SU4, R_P5SU4),
+       ("P5su5-bandeau-par-onglet", A_P5SU5, R_P5SU5),
+       ("P5su6-avertissement-nomme-le-fournisseur", A_P5SU6, R_P5SU6)]
+assert len(P1) == 103 and all("\n" not in r and "\r" not in r for _t, _a, r in P1[-6:])
+
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
@@ -8154,6 +8228,7 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            # tache #52 (lip-sync) : AUCUNE section de plus — P5st1/P5st2/P5st3 et P5qr2 portent le lip-sync.
            # + P5pr1..P5pr2 (tache #53, presets sur les quatre onglets) : 324, le --check dit 325.
            # + P5ga1..P5ga2 (tache #54, galerie de mouvements) : 326, le --check dit 327.
+           # + P5su1..P5su6 (tache #54, les onglets en studio) : 332, le --check dit 333.
            # studio 27/09 : + HUIT sections EN QUEUE, groupe R8 apres R7 (format HeyGen impose par le template, « Ouvrir un graphe » en icone,
            # repli de l'inspecteur) ; 213 -> 221, le --check dit 222 ancres ; + R8sv1 (Save par le dialogue maison) : 222, le --check dit 223 ;
            # + R8pr1..R8pr7 (les autres window.prompt natifs, 27/09) : 229, le --check dit 230.

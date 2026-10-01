@@ -3034,6 +3034,27 @@ EOF
 
 ---
 
+> **T9 EXÉCUTÉE le 01/10/2026** (tâche #54 du suivi, 3e PR sur 3, branche `chantier/p5-quick-studio`) : colonne
+> source à 360 px, vraie DropZone (départ et fin), aperçu central par onglet, bandeau et fournisseur qui suivent
+> l'onglet. Écarts :
+> (1) un GROUPE du maillon montage (P5su1..P5su6), pas de patcher `quickstudio` ; l'image de fin est dans R_P5EF2 ;
+> (2) BUG DU PLAN : `r.jsx(DzQuickStage,…)||repli` ne retombait JAMAIS sur le repli (un élément React est toujours
+> vrai) → DzQuickStage, sans hook, est APPELÉ comme une fonction et rend `null` sur Seedance sans image ;
+> (3) aucun `window.alert` : `__dzToast` avec le détail du refus ; la zone s'ouvre aussi au CLIC (sélecteur de
+> fichier, `accept="image/*"`, champ remis à vide) ;
+> (4) Composition : la moitié avatar montre le portrait, et l'avertissement nomme les DEUX fournisseurs ;
+> (5) TROUVÉ À LA PREUVE ÉCRAN : `/images/upload` acceptait un `.txt` déposé (le `accept` du sélecteur ne vaut pas
+> pour un dépôt) → la zone refuse tout non-image par type MIME ou extension (U14 rouge puis vert). La garde côté
+> serveur fait l'objet d'une tâche séparée.
+> `x.useState(` 627 → 628. Bancs : `test_quick_bundle` 103/0 (les deux composants exécutés sous node : quatre
+> onglets, dépôt, refus 415, réponse illisible, dépôt vide, clic + sélecteur, non-image),
+> `test_montage_bundle` 2709/0 ; 18/18 mutations rouges. Preuve 8799 :
+> - colonne mesurée à 360 px ;
+> - un PNG déposé est importé, choisi dans le select et montré au centre ;
+> - un `.txt` est refusé et nommé, la Library est inchangée ;
+> - Voix off : la phrase au centre, bandeau « voix off · 10s ».
+> HeyGen et Composition sont grisés sans clé sur 8799 : leur aperçu est prouvé sous node.
+
 ### Task 9 (D3) : les quatre onglets en « studio »
 
 **Files :**
