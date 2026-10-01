@@ -130,5 +130,55 @@ function fabrique(etat){var u=etat.u||[];""" + "".join(f"var {n}=function(x){{ap
           o.get("global") == "z.png" and (o.get("app2") or {}).get("v") == "z.png")
     check("N7 un onglet inconnu n'est pas applique", "pirate" in o and "i" not in o["pirate"])
 
+print("\n[E] l'image de fin grisee avec la raison (tache #49, plan Quick T3, groupe P5ef)")
+check("E0 temoin : la base (15c4c12) n'a ni dzEndOK ni le libelle « indisponible »", "dzEndOK" not in s0 and "Image de fin — indisponible" not in s0)
+check("E1 un etat, deux fonctions, la table lue sur /api/video-models (rien en dur)", s.count("dzSetEndCaps") == 2
+      and s.count("function dzEndOK(") == 1 and s.count("function dzEndWhy(") == 1 and 'fetch("/api/video-models")' in um
+      and "kling-v3-pro" not in fonc("dzEndWhy"))
+check("E2 le champ porte la raison a la place du select, avec un title", 'label:dzEndOK()?"Image de fin (optionnelle)":"Image de fin — indisponible"' in um
+      and 'children:dzEndOK()?(u.length>0?r.jsx(re,{value:g,' in um
+      and 'r.jsx("div",{title:"Choisissez un modèle qui accepte une image de fin"' in um and 'children:dzEndWhy()})})' in um)
+check("E3 le bouton « Parcourir » de fin n'existe que si c'est accepte", 'dzEndOK()&&r.jsx(O,{label:"",children:r.jsx("button"' in um
+      and 'titre:"Image de fin (optionnelle)"},k)' in um)
+check("E4 le payload n'envoie jamais une fin refusee", 'image_filename_end:(dzEndOK()?g:"")||null,' in s and "image_filename_end:g||null," not in s)
+if node:
+    i5 = s.find('onChange:function(v2){dzSetVMQ(v2);')
+    change = s[i5 + len("onChange:"):s.find('if(dzEndCaps&&dzEndCaps.map[v2]===!1)k("")}', i5) + len('if(dzEndCaps&&dzEndCaps.map[v2]===!1)k("")}')]
+    js = r"""
+var etat={VMQ:"",caps:null,g:"b.png",vide:[]};
+globalThis.localStorage={setItem:function(){}};
+function monter(VMQ,dzEndCaps){var k=function(x){etat.vide.push(x)},dzSetVMQ=function(x){etat.VMQ=x};
+ """ + fonc("dzEndOK") + fonc("dzEndWhy") + """
+ var change=""" + change + r""";
+ return {ok:dzEndOK,why:dzEndWhy,change:change,payload:function(g){return(dzEndOK()?g:"")||null}}}
+var CAPS={map:{"kling-v3-pro":true,"seedance-2.5":true,"veo-3.1-fast-fal":false},dflt:"seedance-2.5",oui:["Kling v3 Pro","Seedance 2.5"]};
+var out={};
+var a=monter("",null);out.sansTable=a.ok();
+var b=monter("veo-3.1-fast-fal",CAPS);out.veo={ok:b.ok(),why:b.why(),payload:b.payload("b.png")};
+var c=monter("kling-v3-pro",CAPS);out.kling={ok:c.ok(),payload:c.payload("b.png")};
+var d=monter("",CAPS);out.defaut=d.ok();
+var e=monter("inconnu",CAPS);out.inconnu=e.ok();
+var f=monter("",{map:CAPS.map,dflt:"veo-3.1-fast-fal",oui:CAPS.oui});out.defautRefuse=f.ok();
+etat.vide=[];c.change("veo-3.1-fast-fal");out.versVeo=etat.vide.slice();etat.vide=[];c.change("seedance-2.5");out.versSeed=etat.vide.slice();
+console.log(JSON.stringify(out));
+"""
+    f = pathlib.Path(tempfile.mkdtemp(prefix="dzquicke_"), "e.mjs"); f.write_text(js, encoding="utf-8")
+    p = subprocess.run([node, str(f)], capture_output=True, text=True, encoding="utf-8", timeout=60)
+    try:
+        o = json.loads(p.stdout.strip().splitlines()[-1])
+    except Exception:  # noqa: BLE001
+        o = {}
+        print(p.stdout[-800:], p.stderr[-1500:])
+    check("E5 table pas encore chargee : le champ reste offert (pas de faux refus)", o.get("sansTable") is True)
+    v = o.get("veo") or {}
+    check("E6 Veo : refuse, la raison nomme le modele et ceux qui acceptent, le payload n'envoie rien", v.get("ok") is False
+          and "« veo-3.1-fast-fal » n’accepte pas d’image de fin" in v.get("why", "") and "Kling v3 Pro, Seedance 2.5" in v.get("why", "")
+          and v.get("payload") is None, str(v))
+    check("E7 Kling : accepte, la fin part dans le payload", (o.get("kling") or {}) == {"ok": True, "payload": "b.png"}, str(o.get("kling")))
+    check("E8 sans modele choisi : le defaut du serveur decide (accepte ou refuse) ; un modele inconnu n'est pas refuse",
+          o.get("defaut") is True and o.get("defautRefuse") is False and o.get("inconnu") is True, str(o.get("defautRefuse")))
+    check("E9 passer a un modele qui refuse vide la fin ; a un modele qui accepte, non", o.get("versVeo") == [""] and o.get("versSeed") == [],
+          f'{o.get("versVeo")} {o.get("versSeed")}')
+
 print(f"\n{ok} ok, {fail} echec(s)")
 raise SystemExit(1 if fail else 0)
