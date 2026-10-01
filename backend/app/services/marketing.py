@@ -886,13 +886,18 @@ async def fire_post(post_id: str) -> dict:
             _sa_update(ScheduledPost)
             .where(ScheduledPost.id == post_id)
             .where(ScheduledPost.status != "posting")
+            .where(ScheduledPost.delegue_a.is_(None))     # plan mobile T8 : jamais un post confié à un appareil
             .values(status="posting"))
         await session.commit()
         if claimed.rowcount == 0:
             exists = await session.execute(
-                select(ScheduledPost.id).where(ScheduledPost.id == post_id))
-            if exists.scalar_one_or_none() is None:
+                select(ScheduledPost.id, ScheduledPost.delegue_a).where(ScheduledPost.id == post_id))
+            ligne = exists.first()
+            if ligne is None:
                 return {"ok": False, "error": "post not found"}
+            if ligne[1]:
+                return {"ok": False, "error": "confié à un appareil (téléphone) : reprenez-le d'abord depuis le Scheduler",
+                        "delegue_a": ligne[1]}
             return {"ok": False, "error": "already publishing",
                     "status": "posting"}
     async with async_session_factory() as session:
@@ -1007,7 +1012,8 @@ async def tick(marker: list[str | None] | None = None) -> None:
         res = await session.execute(
             select(ScheduledPost)
             .where(ScheduledPost.status == "scheduled")
-            .where(ScheduledPost.run_at <= now))
+            .where(ScheduledPost.run_at <= now)
+            .where(ScheduledPost.delegue_a.is_(None)))     # plan mobile T8 : un post CONFIÉ à un appareil n'est pas au PC
         due = list(res.scalars().all())
     due.sort(key=lambda p: (p.thread_index or 0, p.run_at))   # un fil part dans l'ordre de ses index (T15)
     for post in due:
