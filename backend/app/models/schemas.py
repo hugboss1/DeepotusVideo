@@ -87,6 +87,7 @@ class Provider(str, Enum):
     COMPOSITION = "composition"
     TEMPLATE = "template"
     NEWS = "news"
+    EXTEND = "extend"          # plan Quick T2 (tâche #51) — clip prolongé par le modèle
 
 
 class CompositionLayout(str, Enum):
@@ -348,6 +349,15 @@ class CompositionResponse(BaseModel):
     composition_id: str
     job_id: str
     message: str
+
+
+class ExtendRequest(BaseModel):
+    """Plan Quick T2 (tâche #51) — prolonger un rendu existant. `parent_job_id` porte la lignée."""
+    parent_job_id: str = Field(..., min_length=1, max_length=36)
+    model: str = Field("veo-3.1-fast-extend", max_length=48)
+    prompt: str = Field(..., min_length=1, max_length=2000)   # fal l'exige
+    son: bool = True                                            # generate_audio : le prix en dépend
+    quick_recipe: Optional[dict] = None
 
 
 # ============ v1.5 ============

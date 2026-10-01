@@ -56,6 +56,8 @@ class JobRecord(Base):
     # = sans note. Posée par `PUT /api/jobs/{id}/rating`, filtrée par
     # `Pipeline.list_jobs(min_rating=)` ; migrée par V1_2_NEW_COLUMNS.
     rating: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # Plan Quick T2 (tâche #51, 01/10/2026) — le rendu dont ce clip est l'extension (lignée)
+    parent_job_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True, index=True)
 
 
 class MeshyTaskRecord(Base):
@@ -458,6 +460,8 @@ V1_2_NEW_COLUMNS = [
     ("video_model", "VARCHAR(48)"),
     # D-34 (24/09/2026) — note étoile du rendu (0..5, NULL = sans note)
     ("rating", "INTEGER"),
+    # Plan Quick T2 (tâche #51) — lignée d'extension
+    ("parent_job_id", "VARCHAR(36)"),
 ]
 
 

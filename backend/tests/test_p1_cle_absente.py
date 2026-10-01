@@ -81,7 +81,7 @@ print("\n[1] statique : plus aucun refus « cle absente » hors 503")
 neufs = []
 for f in FICHIERS:
     neufs += [(f, l, c) for l, c in _refus((BACKEND / f).read_text(encoding="utf-8"))]
-check("1.1 les 43 refus sont toujours la (aucun retire ni reformule)", len(neufs) == 43, _d(len(neufs)))
+check("1.1 les 43 refus sont toujours la, + 1 (tache #51 : /generate/extend, 01/10)", len(neufs) == 44, _d(len(neufs)))
 check("1.2 et TOUS repondent 503", all(c == 503 for _f, _l, c in neufs), _d([v for v in neufs if v[2] != 503]))
 
 print("\n[2] execute : sans aucune cle, les voies repondent 503 et nomment la cle")

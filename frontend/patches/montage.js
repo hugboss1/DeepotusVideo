@@ -6776,7 +6776,7 @@ function DzmDzRects(o){
    et les chips sont dérivées des jobs REÇUS, jamais une liste figée. Un
    provider inconnu s'affiche tel quel : on ne cache pas un nom sous
    « Autres ». */
-var DZM_PROV_LBL={seedance:"Studio",heygen:"Studio",composition:"Studio",animation:"Studio",
+var DZM_PROV_LBL={seedance:"Studio",heygen:"Studio",composition:"Studio",animation:"Studio",extend:"Studio",
   episode:"Chapitres",news:"News",template:"Templates",ugc:"Importés",montage:"Montages"};
 function dzmProvGroupe(p){var k=(p==null||p==="")?"seedance":String(p);return DZM_PROV_LBL[k]||k}
 /* « Tout » en tête, puis les groupes dans l'ORDRE D'APPARITION, uniques */

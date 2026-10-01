@@ -9,6 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
 
+import fal_client   # plan Quick T2 (tâche #51) : upload + subscribe de l'extension, au niveau du module
 from loguru import logger
 from sqlalchemy import select, delete, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -483,6 +484,52 @@ class Pipeline:
                 )
                 raise
 
+        return job_id
+
+    async def run_extend(self, request) -> str:
+        """Plan Quick T2 (tâche #51) — un clip DÉJÀ rendu, prolongé par Veo 3.1 (fal). Les gardes ont tourné dans la
+        route (400 lisible, puis la garde des plafonds) ; elles rejouent ici parce qu'un appel direct au pipeline ne
+        doit pas pouvoir les sauter."""
+        from app.services import fal_video_tools as FV
+        parent = await Pipeline.get_job(request.parent_job_id)
+        if parent is None or not parent.final_video_path:
+            raise ValueError(f"Rendu source introuvable ou sans vidéo : {request.parent_job_id}")
+        src = await asyncio.to_thread(FV.probe, parent.final_video_path)
+        FV.guard_extend(request.model, src)
+        endpoint, _ = FV.build_extend_args(request.model, video_url="-", prompt=request.prompt, son=request.son)
+        job_id = str(uuid4())
+        m = FV.EXTEND_MODELS[request.model]
+        async with async_session_factory() as session:
+            job = JobRecord(
+                id=job_id, status=JobStatus.QUEUED.value, image_filename=parent.image_filename or "",
+                provider=Provider.EXTEND.value, parent_job_id=parent.id, video_model=request.model,
+                aspect_ratio=src["ratio"], duration_s=int(round(src["duration_s"])) + m["added_s"],
+                final_prompt=request.prompt, title=f"Extension de {(parent.title or parent.id)[:40]}",
+                created_at=datetime.utcnow())
+            session.add(job)
+            await session.commit()
+            quick_recipe.save(job_id, getattr(request, "quick_recipe", None))   # AVANT tout appel payant
+            try:
+                await self._update(session, job, status=JobStatus.UPLOADING.value,
+                                   current_step="Uploading source clip", progress=10)
+                url = await fal_client.upload_file_async(str(parent.final_video_path))
+                endpoint, args = FV.build_extend_args(request.model, video_url=url, prompt=request.prompt, son=request.son)
+                await self._update(session, job, status=JobStatus.GENERATING_VIDEO.value,
+                                   current_step="Extending clip", progress=35)
+                res = await fal_client.subscribe_async(endpoint, arguments=args, with_logs=True)
+                vurl = FalSeedanceClient.extract_video_url(res)
+                if not vurl:
+                    raise RuntimeError("fal.ai : réponse sans URL vidéo")
+                dest = settings.outputs_path / "final" / f"{job_id}.mp4"
+                await FalSeedanceClient.download_video(vurl, dest)
+                await self._update(session, job, video_path=str(dest), final_video_path=str(dest),
+                                   status=JobStatus.DONE.value, current_step="Complete", progress=100,
+                                   completed_at=datetime.utcnow())
+            except Exception as e:
+                logger.exception(f"Extend {job_id} failed: {e}")
+                await self._update(session, job, status=JobStatus.FAILED.value, current_step="Failed",
+                                   error=str(e), completed_at=datetime.utcnow())
+                raise
         return job_id
 
     # ----- HeyGen pipeline (v1.4) -----

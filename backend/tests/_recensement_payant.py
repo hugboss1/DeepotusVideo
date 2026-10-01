@@ -30,6 +30,7 @@ PUITS = {
     "tirer", "translate", "identite", "enrich_items",
     "classer",   # news_rank.classer(llm=True) -> _chat_dispatch (tâche #33)
     "polir",     # news_chain.polir -> rewrite_script, le polissage LLM (tâche #35)
+    "run_extend",   # pipeline.run_extend -> fal Veo 3.1 extend (tâche #51)
     # voix / son
     "generate_music", "generate_sfx", "_generate_scene_vo", "generate_long", "generate_sprites",
     # transcription

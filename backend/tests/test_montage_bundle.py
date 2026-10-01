@@ -15413,7 +15413,9 @@ check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB8b_puis_
                                                           # tache #49 (01/10/2026) : l image de fin grisee ; aucun DzTracks
                                                           "P5ef1", "P5ef2", "P5ef3", "P5ef4", "P5ef5",
                                                           # tache #50 (01/10/2026) : sous-titres graves dans Quick ; aucun DzTracks
-                                                          "P5st1", "P5st2", "P5st3", "P5st4", "P5st5"]
+                                                          "P5st1", "P5st2", "P5st3", "P5st4", "P5st5",
+                                                          # tache #51 (01/10/2026) : prolonger le clip ; aucun DzTracks
+                                                          "P5ex1", "P5ex2"]
       # L7-B D-37 et D-42 (24/09/2026) : AUCUNE section de plus (replis dans R_EC1) ; D-42 : sonde 159 -> 161
       # (cutAt + cutOpts dans le geste dzSceneCut) ; L7-B D-40 (T4) : AUCUNE section de plus (replis dans
       # R_DZ1/R_DZ3/R_DZ4), sonde 161 -> 163 (reframeCss dans l apercu vivant, reframeOf dans le payload)
