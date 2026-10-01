@@ -294,7 +294,9 @@ async def _csrf_origin_guard(request, call_next):
 # exact), VIDE aujourd'hui. Même liste d'hôtes que les Réglages (routes._HOTES_LOCAUX). Pas une faille tant que l'app
 # écoute la boucle locale : c'est la condition d'une ouverture au réseau local.
 from app.api.routes import _HOTES_LOCAUX
-_ECRITURES_OUVERTES: frozenset = frozenset()
+# Plan mobile T4 (tâche #56, 01/10/2026) : la SEULE écriture ouverte au réseau local est l'échange du secret
+# d'appairage contre un jeton — le secret à usage unique de 5 minutes y tient lieu de garde.
+_ECRITURES_OUVERTES: frozenset = frozenset({("POST", "/api/pair/claim")})
 
 
 @app.middleware("http")
@@ -322,6 +324,32 @@ async def _dz_plafond_confirme(request, call_next):
         return await call_next(request)
     finally:
         CONFIRME.reset(jeton)
+
+
+# Plan mobile T4 (tâche #56, 01/10/2026) — GARDE DE JETON D'APPAREIL sur TOUTE route, hors boucle locale. Mesure qui la
+# rend nécessaire : la garde CSRF fait `if origin:` — une application NATIVE n'envoie pas d'Origin et passe. Dès que
+# HOST écoute le réseau local (HOST=0.0.0.0 dans le .env), n'importe quel appareil du Wi-Fi LIRAIT tout (pages, jobs,
+# bibliothèque). Le jeton est la garde des LECTURES ; les ÉCRITURES restent à la boucle locale (_garde_ecritures_locales,
+# décision #14), sauf _ECRITURES_OUVERTES.
+# ORDRE : Starlette insère chaque middleware EN TÊTE — le DERNIER déclaré est le PLUS EXTÉRIEUR. Déclarée ici, en
+# dernier, cette garde s'exécute donc EN PREMIER : un client du réseau local sans jeton est refusé avant tout le
+# reste, fichiers statiques et routes inconnues compris (401, jamais la page).
+# Les WebSocket ne passent PAS par un middleware http : il n'y en a aucun aujourd'hui (le banc le vérifie).
+_ROUTES_SANS_JETON = {"/api/pair/claim"}
+
+
+@app.middleware("http")
+async def _device_token_guard(request, call_next):
+    host = (request.client.host if request.client else "") or ""
+    if host in _HOTES_LOCAUX or request.url.path in _ROUTES_SANS_JETON:
+        return await call_next(request)
+    entete = request.headers.get("authorization", "")
+    jeton = entete[7:].strip() if entete[:7].lower() == "bearer " else ""
+    from app.services import appairage as _appairage
+    if not await _appairage.jeton_valide(jeton):
+        return _JSONResponse({"detail": "Jeton d'appareil requis — appairez le téléphone depuis Réglages → Appareils."},
+                             status_code=401)
+    return await call_next(request)
 
 
 app.include_router(router, prefix="/api")

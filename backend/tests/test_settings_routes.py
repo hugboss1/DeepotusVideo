@@ -41,7 +41,9 @@ async def _faux_get(url, headers=None, timeout=15.0):
 D._get = _faux_get
 
 c = TestClient(app)   # sans `with` : le lifespan (init_db, boucles) ne part pas
-lan = TestClient(app, client=("192.168.1.20", 50000))
+import sys as _sys, os as _os; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))  # noqa: E401,E702
+import _jeton_appareil as _JA  # noqa: E402 — tache #56 : le reseau local exige un jeton d'appareil (garde exterieure)
+lan = TestClient(app, client=("192.168.1.20", 50000), headers=_JA.entetes(app))
 
 print("\n[1] GET /api/reglages/diagnostic : l'ecran unique")
 r = c.get("/api/reglages/diagnostic")

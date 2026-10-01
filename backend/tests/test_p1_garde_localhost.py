@@ -167,7 +167,9 @@ ECRITURES = [
     ("delete", "/api/montage/projects/m_00000000", None),
     ("patch", "/api/materials/abc", {"name": "x"}),
 ]
-lanA = TestClient(APP, client=LAN)
+import sys as _sys, os as _os; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))  # noqa: E401,E702
+import _jeton_appareil as _JA  # noqa: E402 — tache #56 : le reseau local exige un jeton d'appareil (garde exterieure)
+lanA = TestClient(APP, client=LAN, headers=_JA.entetes(APP))
 locA = TestClient(APP)
 res4 = {}
 for verbe, url, corps in ECRITURES:
@@ -188,8 +190,12 @@ check("4.3 les GET et OPTIONS restent ouverts au reseau local (lecture seule)", 
       _d(g1.status_code, o1.status_code))
 r_loc = locA.post("/api/dictation/estimate", json={})
 check("4.4 temoin local : la meme ecriture depuis la boucle locale atteint la route (pas 403)", r_loc.status_code != 403, _d(r_loc.status_code))
-check("4.5 aucune exception ouverte aujourd'hui ; la garde lit la liste d'hotes des Reglages",
-      MAIN._ECRITURES_OUVERTES == frozenset() and MAIN._HOTES_LOCAUX is RT._HOTES_LOCAUX, "")
+# tache #56 (01/10/2026) : UNE exception, l'echange du secret d'appairage contre un jeton (plan mobile T4)
+check("4.5 une seule exception ouverte (POST /api/pair/claim) ; la garde lit la liste d'hotes des Reglages",
+      MAIN._ECRITURES_OUVERTES == frozenset({("POST", "/api/pair/claim")}) and MAIN._HOTES_LOCAUX is RT._HOTES_LOCAUX, "")
+sansj = TestClient(APP, client=LAN).get("/api/video-models")
+check("4.8 (tache #56) SANS jeton d'appareil, meme une lecture depuis le reseau local est refusee (401, garde exterieure)",
+      sansj.status_code == 401, _d(sansj.status_code))
 sans = TestClient(_app(RT), client=LAN).post("/api/assets/3d", json={"engine": "tripo", "image_filename": "a.png"})
 check("4.7 TEMOIN comportemental : sans le middleware, la meme ecriture depuis le reseau local ATTEINT la route (pas 403)",
       sans.status_code != 403, _d(sans.status_code, sans.text[:120]))

@@ -155,7 +155,9 @@ with TestClient(app, client=("127.0.0.1", 50000)) as c:
           and settings.YOUTUBE_REFRESH_TOKEN == "1//au-coffre")
     coffre.fermer()
 
-with TestClient(app, client=("192.168.1.20", 50000)) as d:
+import sys as _sys, os as _os; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))  # noqa: E401,E702
+import _jeton_appareil as _JA  # noqa: E402 — tache #56 : le reseau local exige un jeton d'appareil (garde exterieure)
+with TestClient(app, client=("192.168.1.20", 50000), headers=_JA.entetes(app)) as d:
     print("\n[7] hors boucle locale")
     codes = [d.get("/api/oauth/youtube/start", follow_redirects=False).status_code,
              d.get("/api/oauth/youtube/callback", params={"code": "x", "state": "y"}).status_code,

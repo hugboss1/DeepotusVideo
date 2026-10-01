@@ -15,7 +15,7 @@
 ' ============================================================
 Option Explicit
 
-Dim fso, shell, appDir, py, url, urlApp, attempts, binDir, env
+Dim fso, shell, appDir, py, url, urlApp, attempts, binDir, env, hostArg
 Set fso = CreateObject("Scripting.FileSystemObject")
 Set shell = CreateObject("WScript.Shell")
 
@@ -56,7 +56,11 @@ env("PYTHONDONTWRITEBYTECODE") = "1"
 
 ' Start uvicorn hidden (window style 0), working dir = backend\
 shell.CurrentDirectory = appDir & "\backend"
-shell.Run """" & py & """ -m uvicorn app.main:app --host 127.0.0.1 --port 8765", 0, False
+' L'hote d'ecoute vient du .env de l'utilisateur (DATA_ROOT), pas d'ici : le defaut reste 127.0.0.1, et
+' HOST=0.0.0.0 ouvre le reseau local au compagnon mobile (plan mobile T5, tache #56, 01/10/2026). Sans cette
+' lecture, changer config.py ne changerait RIEN sur une machine installee : c'est CETTE ligne qui decide.
+hostArg = LireHote(DataRoot() & "\.env")
+shell.Run """" & py & """ -m uvicorn app.main:app --host " & hostArg & " --port 8765", 0, False
 
 ' Wait for the API (up to ~45 s; first boot creates the DB), then open the browser.
 attempts = 0
@@ -88,6 +92,41 @@ End Function
 ' Stop a previously-launched backend so this run starts fresh. Fast no-op when
 ' nothing is listening. Reuses scripts\stop.ps1 (kills the python holding
 ' :8765), then waits for the port to free before the caller re-binds it.
+' Le dossier de donnees, comme config._data_root : DEEPOTUS_DATA_DIR s'il est pose, sinon
+' %LOCALAPPDATA%\DeepotusVideoGenData.
+Function DataRoot()
+  Dim d
+  d = Trim(shell.ExpandEnvironmentStrings("%DEEPOTUS_DATA_DIR%"))
+  If d = "" Or d = "%DEEPOTUS_DATA_DIR%" Then d = shell.ExpandEnvironmentStrings("%LOCALAPPDATA%") & "\DeepotusVideoGenData"
+  DataRoot = d
+End Function
+
+' HOST lu dans le .env : DEUX valeurs seulement (127.0.0.1, 0.0.0.0), la DERNIERE ligne HOST= gagne (comme
+' python-dotenv) ; toute autre valeur, un fichier absent ou illisible -> 127.0.0.1. Option Explicit : chaque
+' variable est declaree (une variable non declaree empecherait l'app de DEMARRER).
+Function LireHote(chemin)
+  Dim f, ligne, cand, hote
+  hote = "127.0.0.1"
+  If fso.FileExists(chemin) Then
+    On Error Resume Next
+    Set f = fso.OpenTextFile(chemin, 1)
+    If Err.Number = 0 Then
+      Do Until f.AtEndOfStream
+        ligne = Trim(f.ReadLine)
+        If Left(ligne, 4) = "HOST" And InStr(ligne, "=") > 0 Then
+          If Trim(Left(ligne, InStr(ligne, "=") - 1)) = "HOST" Then
+            cand = Trim(Mid(ligne, InStr(ligne, "=") + 1))
+            If cand = "0.0.0.0" Or cand = "127.0.0.1" Then hote = cand Else hote = "127.0.0.1"
+          End If
+        End If
+      Loop
+      f.Close
+    End If
+    On Error GoTo 0
+  End If
+  LireHote = hote
+End Function
+
 Sub StopExistingBackend()
   On Error Resume Next
   If Not HealthOk() Then Exit Sub
