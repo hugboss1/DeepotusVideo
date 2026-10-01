@@ -299,8 +299,9 @@ from app.api.routes import _HOTES_LOCAUX
 # + plan mobile T8 (tâche #57, décision de l'utilisateur du 01/10) : l'état du lot rapporté par le téléphone
 # + plan mobile T13 (tâche #58, décision du 01/10 : « une par une ») : le dépôt d'une image, vérifié (Pillow, sha256,
 #   taille bornée) et attribué à l'appareil du JETON
+# + plan mobile T18 (tâche #58, même décision) : les dépenses du téléphone, versées dans la table Depense (plafond #16)
 _ECRITURES_OUVERTES: frozenset = frozenset({("POST", "/api/pair/claim"), ("POST", "/api/sync/lot/etat"),
-                                            ("POST", "/api/sync/depot")})
+                                            ("POST", "/api/sync/depot"), ("POST", "/api/sync/depenses")})
 
 
 @app.middleware("http")
