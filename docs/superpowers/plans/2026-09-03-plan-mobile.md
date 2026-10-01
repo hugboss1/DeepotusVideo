@@ -133,6 +133,26 @@ Le coût est répété **tâche par tâche** dans une ligne `**Coût :**`. Vue d
 
 ## Lot 1 — socle et premier lot (P1 + P2 + P3)
 
+> **TÂCHE 1 EXÉCUTÉE le 01/10/2026** (tâche #55 du suivi). Les 14 pages de documentation ont été mesurées ; le
+> propriétaire a TRANCHÉ pour **React Native / Expo** sur la table mesurée (`C:\Users\olivi\deepotus-mobile\DECISIONS.md`).
+> Ce que la mesure a changé :
+> - la condition de bascule n'est pas remplie : `expo-notifications` programme une date et une heure exactes sur
+>   Android, avec `SCHEDULE_EXACT_ALARM` dès Android 12 ;
+> - **l'avantage mDNS prêté à Flutter tombe** : `multicast_dns` est du Dart pur, donc du multicast UDP brut, et iOS
+>   exige pour cela l'entitlement `com.apple.developer.networking.multicast`, accordé sur demande par Apple. Bonjour
+>   par l'API système ne l'exige pas : il faut un pont dans les deux cadres ;
+> - **`expo-sharing` reçoit désormais les partages** (module officiel, expérimental), au lieu d'une extension faite à la main ;
+> - **depuis Windows, seul Expo construit pour iOS** : EAS Build, 15 builds iOS et 15 Android par mois gratuits,
+>   Starter à 19 $/mois ; Flutter exige un Mac.
+> Dépôt NEUF créé hors de celui-ci, avec commit local et rien de poussé : Expo SDK 57 (RN 0.86, React 19.2, TS 6).
+> Écarts :
+> - `expo-barcode-scanner` est abandonné (dernière version 13.0.1, SDK 50) au profit de `expo-camera` ;
+> - `expo-sharing` est ajouté ;
+> - `oauth-1.0a`, `crypto-js` et `@testing-library/react-native` sont reportés aux tâches qui s'en servent ;
+> - `"types": ["jest"]` est déclaré dans `tsconfig.json` (TS 6).
+> Preuves : `npx jest` 2/2 (rouge « Cannot find module '../version' » puis vert), `npx tsc --noEmit` muet,
+> `npx expo-doctor` 21/21.
+
 ### Tâche 1 : Trancher le cadre mobile, mesuré, et créer le dépôt
 
 **Files:**
