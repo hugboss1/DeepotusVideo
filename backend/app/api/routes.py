@@ -3849,7 +3849,7 @@ async def generate_extend(request: ExtendRequest, background_tasks: BackgroundTa
     if request.model not in FV.EXTEND_MODELS:
         raise HTTPException(400, f"Modèle d'extension inconnu : {request.model}")
     if not settings.FAL_KEY:
-        raise HTTPException(400, "FAL_KEY not configured. Add it to backend/.env")
+        raise HTTPException(503, "FAL_KEY not configured. Add it to backend/.env")
     j = await Pipeline.get_job(request.parent_job_id)
     if j is None or not j.final_video_path:
         raise HTTPException(404, "Rendu introuvable ou sans vidéo finale")

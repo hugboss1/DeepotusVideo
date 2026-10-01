@@ -172,7 +172,7 @@ with TestClient(app, client=("127.0.0.1", 50000)) as c:
     P.enregistrer({"global_usd": 0, "par_moteur": {}})
     sauve = settings.FAL_KEY
     settings.FAL_KEY = ""
-    check("C11 sans cle fal : 400", c.post("/api/generate/extend", json={"parent_job_id": "parent-ok", "prompt": "x"}).status_code == 400)
+    check("C11 sans cle fal : 503 (regle maison P1 #11)", c.post("/api/generate/extend", json={"parent_job_id": "parent-ok", "prompt": "x"}).status_code == 503)
     settings.FAL_KEY = sauve
 
 print("\n[D] le pipeline rejoue les gardes (appel direct)")

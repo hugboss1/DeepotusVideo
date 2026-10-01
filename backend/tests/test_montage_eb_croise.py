@@ -134,13 +134,14 @@ _enum = un(r'class Provider\(str, Enum\):\n(?:    .*\n)+?(?=\n)', lire("backend/
 check("x1_l_enum_Provider_est_lue_une_fois", _enum[1] == 1 and _enum[0] is not None, _enum[1])
 ENUM = set(re.findall(r'= "([a-z0-9_]+)"', _enum[0].group(0))) if _enum[0] else set()
 check("x1_l_enum_porte_les_cinq_providers_historiques",
-      ENUM == {"seedance", "heygen", "composition", "template", "news"}, sorted(ENUM))
+      ENUM == {"seedance", "heygen", "composition", "template", "news", "extend"}, sorted(ENUM))   # + extend (tache #51, 01/10)
 BACK |= ENUM
 # LA LISTE MESUREE le 23/09/2026 — pinnee : un provider qui apparait ou
 # disparait du backend doit passer par ici (et par la table, ou par « tel quel »).
 MESURE = {"seedance", "heygen", "composition", "template", "news", "episode", "ugc",
           "montage", "animation", "asset3d", "sprite2d", "card3d",
-          "montage_proxy", "montage_stab"}
+          "montage_proxy", "montage_stab",
+          "extend"}   # 01/10/2026 (tache #51) : l'extension Quick, rangee dans « Studio »
 check("x1_les_providers_du_backend_sont_exactement_les_quatorze_mesures",
       len(BACK) >= 10 and BACK == MESURE, sorted(BACK ^ MESURE))
 check("x1_chaque_cle_de_la_table_est_un_provider_connu_du_backend",
