@@ -79,12 +79,12 @@ def test_upload_et_process_sont_sources():
         async with AsyncClient(transport=transport, base_url="http://t") as c:
             # import fichier quelconque → source "import"
             r = await c.post("/api/images/upload",
-                             files={"file": ("mon upload.png", _PNG,
+                             files={"file": ("mon upload.png", _vrai_png(),
                                             "image/png")})
             assert r.status_code == 200, r.text
             # export Vectorlab (même route, préfixe vector_) → "vectorlab"
             r = await c.post("/api/images/upload",
-                             files={"file": ("vector_0abc_2x.png", _PNG,
+                             files={"file": ("vector_0abc_2x.png", _vrai_png(),
                                             "image/png")})
             assert r.status_code == 200, r.text
             # retouche locale (crop PIL) d'une image posée → "retouche"
@@ -120,7 +120,7 @@ def test_rename_migre_et_delete_retire():
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://t") as c:
             r = await c.post("/api/images/upload",
-                             files={"file": ("a renommer.png", _PNG,
+                             files={"file": ("a renommer.png", _vrai_png(),
                                             "image/png")})
             assert r.status_code == 200
             r = await c.post("/api/images/a renommer.png/rename",
