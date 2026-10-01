@@ -7372,7 +7372,15 @@ A_P3SC7 = 'onClick:P,children:"Duplicate to next day"})]})]})}'
 R_P3SC7 = ('onClick:P,children:"Duplicate to next day"}),'
            '(e.channels||[]).indexOf("x")>=0&&r.jsx(K,{variant:"outline",size:"sm",icon:"send",'
            'title:"\u00c9crire la suite de ce post : un fil X qui lui r\u00e9pondra",'
-           'onClick:function(){__dzSchedSuite(e.id)},children:"Suite (fil X)"})]})]})}')
+           'onClick:function(){__dzSchedSuite(e.id)},children:"Suite (fil X)"}),'
+           # tache #57 (plan mobile T8, 01/10/2026) : un post CONFIE a un telephone ne part plus du PC — l'inspecteur le
+           # dit et permet de le REPRENDRE (POST /api/schedule/<id>/reprendre), puis recharge la liste
+           'e.delegueA&&r.jsx(K,{variant:"outline",size:"sm",icon:"undo",className:"dz-sched-reprendre",'
+           'title:"Ce post est confié à un téléphone appairé : le PC ne le publiera pas. Cliquez pour que le PC le reprenne",'
+           'onClick:function(){fetch("/api/schedule/"+encodeURIComponent(e.id)+"/reprendre",{method:"POST"})'
+           '.then(function(R){__dzToast(R.ok?"Post repris : le Scheduler du PC le publiera":"Reprise refusée (HTTP "+R.status+")");'
+           'window.dispatchEvent(new CustomEvent("deepotus:schedule-reload"))})'
+           '.catch(function(er){__dzToast("Reprise : "+er)})},children:"Confié au téléphone · Reprendre sur le PC"})]})]})}')
 P1 += [("P3sc7-suite-de-fil-dans-l-inspecteur", A_P3SC7, R_P3SC7)]
 assert len(P1) == 57 and "\n" not in R_P3SC7
 # P3sc8 (tache #32 PR4) : le Scheduler recharge sa liste sur « deepotus:schedule-reload » (Lm recoit reloadPosts) —
@@ -8015,6 +8023,11 @@ P1 += [("P5su1-composants-drop-et-stage-avant-um", A_P5SU1, R_P5SU1),
        ("P5su5-bandeau-par-onglet", A_P5SU5, R_P5SU5),
        ("P5su6-avertissement-nomme-le-fournisseur", A_P5SU6, R_P5SU6)]
 assert len(P1) == 103 and all("\n" not in r and "\r" not in r for _t, _a, r in P1[-6:])
+# P3sc9 (tache #57, plan mobile T8, 01/10/2026) -- la delegation a un telephone arrive dans le post du Scheduler (wh)
+A_P3SC9 = 'error:e.error||null,brief:e.brief||null}}function ta(e){'
+R_P3SC9 = 'error:e.error||null,brief:e.brief||null,delegueA:e.delegue_a||null}}function ta(e){'
+P1 += [("P3sc9-delegation-dans-le-post-du-scheduler", A_P3SC9, R_P3SC9)]
+assert len(P1) == 104 and "\n" not in R_P3SC9
 
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
@@ -8292,6 +8305,7 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            # + P5pr1..P5pr2 (tache #53, presets sur les quatre onglets) : 324, le --check dit 325.
            # + P5ga1..P5ga2 (tache #54, galerie de mouvements) : 326, le --check dit 327.
            # + P5su1..P5su6 (tache #54, les onglets en studio) : 332, le --check dit 333.
+           # + P3sc9 (tache #57, la delegation a un telephone dans le post du Scheduler) : 333, le --check dit 334.
            # studio 27/09 : + HUIT sections EN QUEUE, groupe R8 apres R7 (format HeyGen impose par le template, « Ouvrir un graphe » en icone,
            # repli de l'inspecteur) ; 213 -> 221, le --check dit 222 ancres ; + R8sv1 (Save par le dialogue maison) : 222, le --check dit 223 ;
            # + R8pr1..R8pr7 (les autres window.prompt natifs, 27/09) : 229, le --check dit 230.
