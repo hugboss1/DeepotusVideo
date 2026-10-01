@@ -4274,7 +4274,19 @@ def test_le_compteur_de_depense_est_AFFICHE_pas_seulement_charge():
         "la garde du compteur ne lit plus l'état : le montant ne s'affichera pas"
     # aucun déclencheur de campagne dans l'écran (T5 seule dépense)
     assert "serie/generer" not in src, "un bouton de campagne est apparu"
-    assert "confirmer" not in src
+    # 01/10/2026 : ce contrôle lisait `"confirmer" not in src` — la sous-chaîne
+    # NUE. Il visait la CLÉ de dépense `{"confirmer": true}` de la route de
+    # campagne (74193a2), et a rougi le 20/09 quand 8815cba a remplacé, à bon
+    # droit, le `confirm()` natif de supprimerVec par le dialogue maison
+    # `window.__dzDialogue.confirmer(`. Le BANC était trop large, pas le code :
+    # on épingle désormais la clé d'objet, quelle que soit sa graphie.
+    cle = re.compile(r"""["']?\bconfirmer\b["']?\s*:""")
+    # témoins positifs : le motif attrape bien les deux graphies de la clé…
+    assert cle.search('JSON.stringify({"confirmer": true})')
+    assert cle.search("body: JSON.stringify({ confirmer: true })")
+    # …et laisse passer l'appel au dialogue maison, présent une fois
+    assert src.count("window.__dzDialogue.confirmer(") == 1
+    assert cle.search(src) is None, "l'écran envoie la clé de confirmation de dépense"
 
 
 def test_la_serie_ne_cree_PAS_un_quatrieme_schema_de_source():
