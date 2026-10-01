@@ -61,8 +61,34 @@ def test_les_sources_ont_un_libelle():
     from app.services.library_index import SOURCES
     for slug in ("generation", "retouche", "matieres", "atelier",
                  "cardforge", "vectorlab", "figma", "news", "sprites",
-                 "assets3d", "import", "import_url", "inconnu"):
+                 "assets3d", "import", "import_url", "mobile", "inconnu"):
         assert slug in SOURCES and SOURCES[slug], slug
+
+
+def test_l_api_sert_le_catalogue_des_libelles():
+    """Source unique (02/10/2026) : les chips du front lisaient une table
+    JS figée — « mobile (1) » affiché en slug brut après la tâche #58.
+    GET /api/images sert désormais le catalogue ; les libellés sont ceux
+    que l'utilisateur voit à l'écran (décision du 02/10 : on garde le
+    wording des chips)."""
+    import asyncio
+    from httpx import ASGITransport, AsyncClient
+    from app.services.library_index import SOURCES
+
+    async def scenario():
+        from app.main import app
+        from app.services.storage import init_db
+        await init_db()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://t") as c:
+            return (await c.get("/api/images")).json()
+
+    corps = asyncio.run(scenario())
+    assert corps["sources"] == SOURCES
+    assert corps["sources"]["mobile"] == "Compagnon mobile"
+    for slug, libelle in (("generation", "Générateur"),
+                          ("matieres", "Matières"), ("import", "Imports")):
+        assert corps["sources"][slug] == libelle, slug
 
 
 # ── B. dépôt par les routes locales : la source suit le geste ────────────────
@@ -272,6 +298,42 @@ def test_le_miroir_bundle_chips():
     patcher = (racine / "scripts"
                / "patch_bundle_libprov.py").read_text("utf-8")
     assert "guard_downstream" in patcher and "STABLE_PROBES" in patcher
+
+
+def test_le_miroir_bundle_lit_les_libelles_du_backend():
+    """Maillon srclbl (02/10/2026) : l'écran Library ET le sélecteur
+    versent `sources` de GET /api/images dans __dzSrcLbl ; la table JS
+    de libprov ne sert plus que de repli (backend ancien). On EXÉCUTE la
+    table et les deux greffes sous node, et on épingle la parité de la
+    table de repli avec SOURCES (la dérive « Imports »/« Import fichier »
+    ne doit pas renaître)."""
+    import json
+    import re
+    import subprocess
+    from app.services.library_index import SOURCES
+    racine = pathlib.Path(__file__).resolve().parent.parent.parent
+    bundle = (racine / "frontend" / "dist" / "assets"
+              / "index-BEOJX8L5.js").read_bytes().decode("utf-8")
+    assert bundle.count("Object.assign(__dzSrcLbl,") == 2
+    table = re.search(r"var __dzSrcLbl=\{.*?\};(?=function __dzSrcChips)",
+                      bundle).group(0)
+    g_vm = re.search(r"if\(!C\)return;(ne&&ne\.sources&&[^;]*;)const W=",
+                     bundle).group(1)
+    g_pk = re.search(r"\.then\(function\(d\)\{(d&&d\.sources&&[^;]*;)"
+                     r"tout=", bundle).group(1)
+    js = (table + "var repli=Object.assign({},__dzSrcLbl);"
+          "var ne={sources:{mobile:'Compagnon mobile'}};" + g_vm
+          + "var vm=__dzSrcLbl.mobile;delete __dzSrcLbl.mobile;"
+          "var d={sources:{mobile:'Compagnon mobile'}};" + g_pk
+          + "var pk=__dzSrcLbl.mobile;ne=null;d={};" + g_vm + g_pk
+          + "console.log(JSON.stringify({repli:repli,vm:vm,pk:pk}))")
+    out = subprocess.run(["node", "-e", js], capture_output=True,
+                         text=True, encoding="utf-8", timeout=30)
+    assert out.returncode == 0, out.stderr
+    r = json.loads(out.stdout)
+    assert r["vm"] == "Compagnon mobile" and r["pk"] == "Compagnon mobile"
+    for slug, libelle in r["repli"].items():
+        assert SOURCES.get(slug) == libelle, (slug, libelle, SOURCES.get(slug))
 
 
 if __name__ == "__main__":

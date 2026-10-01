@@ -2261,7 +2261,8 @@ async def generate_news_illustration_route(
 async def list_images():
     folder = settings.images_path
     if not folder.exists():
-        return {"folder": str(folder), "images": [], "warning": "Folder does not exist"}
+        return {"folder": str(folder), "images": [], "sources": LI.SOURCES,
+                "warning": "Folder does not exist"}
 
     extensions = {".png", ".jpg", ".jpeg", ".webp"}
     items: list[ImageItem] = []
@@ -2290,7 +2291,10 @@ async def list_images():
         else:
             it.source = LI.heuristique(it.filename)
             it.source_origin = "heuristique"
-    return {"folder": str(folder), "images": [i.model_dump() for i in items]}
+    # le catalogue slug -> libellé voyage avec la liste : les chips du front
+    # le lisent ici (source unique, 02/10/2026 — « mobile » sortait en slug)
+    return {"folder": str(folder), "images": [i.model_dump() for i in items],
+            "sources": LI.SOURCES}
 
 
 @router.post("/images/upload")

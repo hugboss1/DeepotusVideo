@@ -22,9 +22,9 @@ from app.config import settings
 # slug stable → libellé UI (servi par GET /api/images ; le front n'invente
 # rien). L'ordre est celui des chips.
 SOURCES: dict[str, str] = {
-    "generation": "Générateur d'images",
+    "generation": "Générateur",
     "retouche": "Retouche",
-    "matieres": "Material Forge",
+    "matieres": "Matières",
     "atelier": "Atelier",
     "cardforge": "Cardforge",
     "vectorlab": "Vectorlab",
@@ -32,7 +32,7 @@ SOURCES: dict[str, str] = {
     "news": "News",
     "sprites": "Sprite Lab",
     "assets3d": "Game Assets 3D",
-    "import": "Import fichier",
+    "import": "Imports",
     "import_url": "Import URL",
     "mobile": "Compagnon mobile",   # plan mobile T12 (tâche #58) : images déposées par le téléphone
     "inconnu": "Inconnu",
