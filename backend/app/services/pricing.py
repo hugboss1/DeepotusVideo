@@ -471,8 +471,7 @@ def estimate(op: dict, p: dict | None = None) -> dict:
             rate = 0.40
         lines.append(_line("fal", f"Extension ({model}, {'son' if op.get('son', True) else 'muet'})", secs, "s", secs * rate))
     elif kind == "lipsync":
-        # Plan Quick T5 (tâche #52) : arrondi au palier de 5 s supérieur, comme fal le facture.
-        import math
+        # Plan Quick T5 (tâche #52) : arrondi au palier de 5 s supérieur, comme fal le facture (math : import du module).
         model = str(op.get("model") or "kling-lipsync")
         secs = max(0.0, float(op.get("duration_s", 0)))
         facture = max(1, math.ceil(secs / 5.0)) * 5.0

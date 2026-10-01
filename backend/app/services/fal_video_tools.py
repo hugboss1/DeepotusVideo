@@ -15,6 +15,7 @@ Décision de l'utilisateur (01/10) : Veo 3.1 Fast par défaut, le son au choix, 
 dans la garde des plafonds. Tout est PUR sauf `probe`, qui lance ffprobe.
 """
 import json
+import math
 import os
 import shutil
 import subprocess
@@ -136,7 +137,6 @@ DEFAULT_LIPSYNC = "kling-lipsync"
 
 def prix_lipsync(model_id: str, video_s: float) -> float:
     m = LIPSYNC_MODELS[model_id]
-    import math
     paliers = max(1, math.ceil(max(0.0, float(video_s or 0)) / m["palier_s"]))
     return round(paliers * m["palier_s"] * m["usd_per_s"], 4)
 
