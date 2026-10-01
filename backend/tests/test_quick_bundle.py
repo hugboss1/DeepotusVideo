@@ -151,7 +151,8 @@ check("E1 un etat, deux fonctions, la table lue sur /api/video-models (rien en d
       and s.count("function dzEndOK(") == 1 and s.count("function dzEndWhy(") == 1 and 'fetch("/api/video-models")' in um
       and "kling-v3-pro" not in fonc("dzEndWhy"))
 check("E2 le champ porte la raison a la place du select, avec un title", 'label:dzEndOK()?"Image de fin (optionnelle)":"Image de fin — indisponible"' in um
-      and 'children:dzEndOK()?(u.length>0?r.jsx(re,{value:g,' in um
+      # tache #54 T9 (01/10) : le select et la vraie DropZone dans un meme bloc « dz-fin »
+      and 'children:dzEndOK()?r.jsxs("div",{className:"dz-fin",children:[u.length>0?r.jsx(re,{value:g,' in um
       and 'r.jsx("div",{title:"Choisissez un modèle qui accepte une image de fin"' in um and 'children:dzEndWhy()})})' in um)
 check("E3 le bouton « Parcourir » de fin n'existe que si c'est accepte", 'dzEndOK()&&r.jsx(O,{label:"",children:r.jsx("button"' in um
       and 'titre:"Image de fin (optionnelle)"},k)' in um)
@@ -556,6 +557,111 @@ var attendre=function(ms){return new Promise(function(r){setTimeout(r,ms)})};
                                                               "model": "kling-v3-pro"}]]
           and o.get("ph") == "Camera: zoom in.", str(o)[:400])
     check("K5 un curseur bouge encore avant 200 ms : l'appel precedent est annule (nettoyage de l'effet)", o.get("annule") == 1, str(o.get("annule")))
+
+def fonc_d(nom, src=s):
+    """Comme fonc, pour un composant a parametres DESTRUCTURES : le corps commence apres « ){ »."""
+    i = src.find(f"function {nom}(")
+    j = src.find("){", i) + 1
+    prof = 0
+    for k in range(j, len(src)):
+        prof += {"{": 1, "}": -1}.get(src[k], 0)
+        if prof == 0:
+            return src[i:k + 1]
+
+
+print("\n[U] les quatre onglets en studio (tache #54, plan Quick T9 = D3, groupe P5su)")
+check("U0 temoin : la base (15c4c12) n'a ni DzQuickDrop ni DzQuickStage, et la colonne fait 380 px",
+      "DzQuickDrop" not in s0 and "DzQuickStage" not in s0 and 'gridTemplateColumns:"380px 1fr"' in s0)
+check("U1 deux composants, la colonne a 360 px (plus de 380), deux DropZones (depart + fin), l'apercu APPELE comme fonction",
+      s.count("function DzQuickDrop(") == 1 and s.count("function DzQuickStage(") == 1 and 'gridTemplateColumns:"360px 1fr"' in s
+      and 'gridTemplateColumns:"380px 1fr"' not in s and um.count("r.jsx(DzQuickDrop,") == 2
+      and um.count("DzQuickStage({tab:o,img:w,layout:We,avatarUrl:") == 1 and "r.jsx(DzQuickStage" not in s)
+check("U2 la maquette vd n'est plus dans les champs image de Quick ; le repli « upload an image in Library » reste derriere ||",
+      'r.jsx(vd,{label:"upload images in Library"' not in um and 'r.jsx(vd,{label:"drop or pick"' not in um
+      and 'avatarUrl:(function(){var _a=U.find(function(z){return z.avatar_id===C});return(_a&&_a.preview_image_url)||""})()})||r.jsxs("div"' in um
+      and '"upload an image in Library"' in um)
+check("U3 le bandeau et l'avertissement suivent l'onglet (Composition nomme les deux fournisseurs)",
+      'children:[o==="seedance"?A:o==="heygen"?"avatar":o==="comp"?We:"voix off"," · ",h,"s"]' in um
+      and 'children:o==="heygen"?"heygen.com":o==="comp"?"fal.ai + heygen.com":"fal.ai"})' in um)
+check("U13 chaque zone alimente SON champ (depart -> v, fin -> k) et ajoute le fichier a la liste des images",
+      'onFile:function(nm){f(function(p2){return p2.indexOf(nm)>=0?p2:[nm].concat(p2)});v(nm)}},"dzdropdep")' in um
+      and 'onFile:function(nm){f(function(p2){return p2.indexOf(nm)>=0?p2:[nm].concat(p2)});k(nm)}},"dzdropfin")' in um)
+check("U4 aucun window.alert dans les deux composants ; la zone a un title", "window.alert" not in fonc_d("DzQuickDrop")
+      and "window.alert" not in fonc_d("DzQuickStage") and 'className:"dz-drop",title:"Glissez une image ici' in s)
+if node:
+    js = r"""
+var etats=[],refs=[],toasts=[],posts=[],fichiers=[],reponse={};
+function el(t,p){return {t:t,p:p||{}}}var r={jsx:el,jsxs:el};
+var x={useState:function(v){var c=[v,function(n){c[0]=n;etats.push(n)}];return c},useRef:function(v){var o={current:v};refs.push(o);return o}};
+var D={imageUrl:function(n){return "/api/images/"+n}};globalThis.__dzToast=function(m){toasts.push(m)};
+globalThis.fetch=function(u,o){posts.push([u,o.method,o.body instanceof FormData&&o.body.get("file")&&o.body.get("file").name]);
+  return Promise.resolve({status:reponse.s,json:function(){return reponse.j===undefined?Promise.reject(new Error("pas de json")):Promise.resolve(reponse.j)}})};
+""" + fonc_d("DzQuickStage") + fonc_d("DzQuickDrop") + r"""
+function trouve(e,pred,acc){acc=acc||[];if(!e||typeof e!=="object")return acc;if(pred(e))acc.push(e);var c=e.p&&e.p.children;
+  (Array.isArray(c)?c:[c]).forEach(function(k){trouve(k,pred,acc)});return acc}
+var attendre=function(){return new Promise(function(r2){setTimeout(r2,30)})};
+(async function(){var out={};
+ out.seedVide=DzQuickStage({tab:"seedance",img:"",layout:"sequential",avatarUrl:""});
+ var sd=DzQuickStage({tab:"seedance",img:"a.png"});out.seed=sd&&sd.t+"|"+sd.p.src;
+ var hg=DzQuickStage({tab:"heygen",img:"a.png",avatarUrl:"https://x/p.jpg"});out.hg=hg.t+"|"+hg.p.src;
+ var hg0=DzQuickStage({tab:"heygen",img:"a.png",avatarUrl:""});out.hg0=hg0.p.children;
+ var c1=DzQuickStage({tab:"comp",img:"a.png",layout:"split_vstack",avatarUrl:"https://x/p.jpg"});
+ out.comp={rows:c1.p.style.gridTemplateRows,cols:c1.p.style.gridTemplateColumns,n:c1.p.children.filter(Boolean).length,
+   img:c1.p.children[0].p.style.backgroundImage,av:c1.p.children[1].p.style.backgroundImage};
+ var c2=DzQuickStage({tab:"comp",img:"a.png",layout:"sequential"});out.compSeq=c2.p.children.filter(Boolean).length;
+ var c3=DzQuickStage({tab:"comp",img:"a.png",layout:"split_hstack"});out.compH=c3.p.style.gridTemplateColumns;
+ out.voix=DzQuickStage({tab:"voice"}).p.children;
+ // la DropZone
+ var recus=[];var z=DzQuickDrop({label:"glissez",onFile:function(n){recus.push(n)}});
+ var inp=trouve(z,function(e){return e.t==="input"})[0];refs[0].current={click:function(){out.clic=(out.clic||0)+1}};
+ z.p.onClick();
+ var prevenu=0,ev=function(f){return {preventDefault:function(){prevenu++},dataTransfer:{files:f?[f]:[]}}};
+ z.p.onDragOver(ev());out.survol=etats.slice(-1)[0];
+ reponse={s:200,j:{filename:"dep.png"}};z.p.onDrop(ev(new File(["x"],"dep.png",{type:"image/png"})));await attendre();
+ out.drop={post:posts.slice(-1)[0],recus:recus.slice(),toast:toasts.slice(-1)[0],survol:etats.slice(-1)[0],prevenu:prevenu};
+ reponse={s:415,j:{detail:"Format non pris en charge (.gif)"}};z.p.onDrop(ev(new File(["x"],"a.gif")));await attendre();
+ out.refus={recus:recus.length,toast:toasts.slice(-1)[0]};
+ reponse={s:500,j:undefined};z.p.onDrop(ev(new File(["x"],"b.png")));await attendre();out.panne=toasts.slice(-1)[0];
+ var n0=posts.length;z.p.onDrop(ev(null));await attendre();out.vide=posts.length-n0;
+ // preuve ecran 01/10 : /images/upload acceptait un .txt depose (le accept du selecteur ne vaut pas pour un depot)
+ n0=posts.length;var r0=recus.length;z.p.onDrop(ev(new File(["pas une image"],"note.txt",{type:"text/plain"})));await attendre();
+ out.texte={posts:posts.length-n0,recus:recus.length-r0,toast:toasts.slice(-1)[0]};
+ n0=posts.length;reponse={s:200,j:{filename:"sans-type.JPG"}};z.p.onDrop(ev(new File(["x"],"sans-type.JPG")));await attendre();out.sansType=posts.length-n0;
+ reponse={s:200,j:{filename:"via-clic.png"}};var cible={files:[new File(["x"],"via-clic.png")],value:"C:/fakepath/via-clic.png"};
+ inp.p.onChange({target:cible});await attendre();out.input={recus:recus.slice(-1)[0],valeur:cible.value,accept:inp.p.accept,cache:inp.p.style.display};
+ console.log(JSON.stringify(out))})();
+"""
+    f = pathlib.Path(tempfile.mkdtemp(prefix="dzquicks_"), "s.mjs"); f.write_text(js, encoding="utf-8")
+    p = subprocess.run([node, str(f)], capture_output=True, text=True, encoding="utf-8", timeout=60)
+    try:
+        o = json.loads(p.stdout.strip().splitlines()[-1])
+    except Exception:  # noqa: BLE001
+        o = {}
+        print(p.stdout[-800:], p.stderr[-1500:])
+    check("U5 Seedance : l'image de depart ; SANS image : null (le repli d'origine prend la main)",
+          o.get("seedVide") is None and "seedVide" in o and o.get("seed") == "img|/api/images/a.png", str(o)[:200])
+    check("U6 HeyGen : le portrait de l'avatar, sinon une phrase qui dit quoi faire",
+          o.get("hg") == "img|https://x/p.jpg" and "Choisissez un avatar" in str(o.get("hg0")), str(o.get("hg")) + str(o.get("hg0")))
+    cp = o.get("comp") or {}
+    check("U7 Composition : deux bandes en split_vstack (image + portrait), une seule en sequentiel, colonnes en split_hstack",
+          cp.get("rows") == "1fr 1fr" and cp.get("cols") == "1fr" and cp.get("n") == 2 and cp.get("img") == "url(/api/images/a.png)"
+          and cp.get("av") == "url(https://x/p.jpg)" and o.get("compSeq") == 1 and o.get("compH") == "1fr 1fr", str(cp))
+    check("U8 Voix off : la phrase qui explique qu'il n'y a pas d'image", "fichier audio" in str(o.get("voix")))
+    dr = o.get("drop") or {}
+    check("U9 deposer un fichier : POST /api/images/upload avec CE fichier, onFile recoit le nom rendu, toast, survol retombe",
+          o.get("survol") is True and dr.get("post") == ["/api/images/upload", "POST", "dep.png"] and dr.get("recus") == ["dep.png"]
+          and "dep.png" in str(dr.get("toast")) and dr.get("survol") is False and dr.get("prevenu") == 2, str(dr))
+    check("U10 refus (415) : le detail est dit, onFile n'est PAS appele ; reponse illisible : le statut est dit",
+          (o.get("refus") or {}).get("recus") == 1 and "Format non pris en charge" in str((o.get("refus") or {}).get("toast"))
+          and "500" in str(o.get("panne")), str(o.get("refus")) + str(o.get("panne")))
+    check("U11 depot vide : aucun appel", o.get("vide") == 0)
+    tx = o.get("texte") or {}
+    check("U14 un fichier qui n'est pas une image est refuse AVANT l'envoi, en le nommant ; une image sans type MIME passe par son extension",
+          tx.get("posts") == 0 and tx.get("recus") == 0 and "note.txt" in str(tx.get("toast")) and "pas une image" in str(tx.get("toast"))
+          and o.get("sansType") == 1, str(tx) + str(o.get("sansType")))
+    check("U12 cliquer la zone ouvre le selecteur ; le fichier choisi est importe, le champ remis a vide (meme fichier rechoisissable)",
+          o.get("clic") == 1 and (o.get("input") or {}) == {"recus": "via-clic.png", "valeur": "", "accept": "image/*", "cache": "none"},
+          str(o.get("input")))
 
 print(f"\n{ok} ok, {fail} echec(s)")
 raise SystemExit(1 if fail else 0)
