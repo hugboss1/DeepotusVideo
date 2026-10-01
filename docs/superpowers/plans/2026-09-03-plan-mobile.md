@@ -315,6 +315,14 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>'
 
 ---
 
+> **TÂCHE 2 EXÉCUTÉE le 01/10/2026** (tâche #56 du suivi, PR 1/3 avec la tâche 3, branche
+> `chantier/p6-mobile-appairage`). Table `devices` et `appairage.py` conformes au plan. Écarts :
+> (1) le banc ISOLE le data-dir (`DEEPOTUS_DATA_DIR`) et n'utilise qu'une boucle asyncio ;
+> (2) `CONSOLES` couvre aussi les comptes de publication du Scheduler (YouTube, Instagram, TikTok), et le banc vérifie
+> que chaque clé citée est bien dans `_ALLOWED_ENV_KEYS` ;
+> (3) `jeton_valide` refuse un non-texte au lieu de lever ; `lister` ne rend jamais l'empreinte.
+> Banc `test_appairage` 20/0 (lignes relues dans la BASE) ; 8/8 mutations rouges.
+
 ### Tâche 2 : Table `devices` et service d'appairage (PC)
 
 **Files:**
@@ -724,6 +732,23 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>'
 ```
 
 ---
+
+> **TÂCHE 3 EXÉCUTÉE le 01/10/2026** (tâche #56, PR 1/3). Nombres 4-L confirmés (thonky.com, 01/10 : 80 données,
+> 20 correction, 1 bloc, 78 octets). **LE CODE DU PLAN PRODUISAIT DES QR ILLISIBLES** : un décodeur extérieur (jsQR,
+> installé dans un dossier jetable, hors du dépôt) n'en lisait AUCUN sur 12. Comparés module par module à l'encodeur
+> de référence npm `qrcode` (v4, L, même masque), deux bogues :
+> (a) les lignes de synchronisation couvraient toute la ligne et toute la colonne 6, et ÉCRASAIENT les trois
+> repères → elles ne courent qu'entre les repères ;
+> (b) la seconde copie du format était décalée d'un module et écrasait le module noir (n−8, 8) → bits 0..6 dans la
+> colonne 8 (lignes n−1..n−7), bits 7..14 dans la ligne 8 (colonnes n−8..n−1).
+> Après correction : matrice IDENTIQUE à la référence pour les huit masques, et jsQR relit 12/12 (URL, 1 et 78 octets,
+> UTF-8, chaque masque). Le banc de décodage du plan ne voyait aucun des deux bogues, puisqu'il partageait les mêmes
+> conventions. Il gagne :
+> - les syndromes de Reed-Solomon, calculés par un GF(256) écrit autrement ;
+> - le format comparé à la table de la norme, aux DEUX emplacements ;
+> - les huit masques FORCÉS (paramètre `masque` ajouté à `matrice` et `png`) ;
+> - chaque repère comparé EN ENTIER, avec son séparateur blanc.
+> Banc `test_qrcode_min` 17/0 ; 7/7 mutations rouges. Le scan par un vrai téléphone reste une vérification humaine.
 
 ### Tâche 3 : Encodeur QR minimal, stdlib (version 4, correction L)
 
