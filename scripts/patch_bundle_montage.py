@@ -7524,7 +7524,7 @@ R_P5QR2 = (A_P5QR2 +
            'duration:h,aspect:_,seed:N,template:H||""},heygen:{src:hsrc,avatar:C,voice:ee,script:R,engine:eng,'
            'image:mimg,motion:mp,expr:xp},layout:We,subs:{on:dzSubOn,style:dzSubSty,lang:dzSubLang,text:dzSubTxt,tr:dzSubTr},lip:{on:dzLipOn,file:dzLipFile},'
            # tache #53 : l'onglet Voix garde son etat DANS DzQuickVoice (P5pr1 l'expose par __dzQuickVoiceGet)
-           'voice:(o==="voice"&&window.__dzQuickVoiceGet)?window.__dzQuickVoiceGet():void 0}}'
+           'voice:(o==="voice"&&window.__dzQuickVoiceGet)?window.__dzQuickVoiceGet():void 0,cam:dzCamCtl}}'
            'function dzQuickApply(rc){if(!rc)return;var sd=rc.seedance||{},hg=rc.heygen||{};'
            'if(rc.tab&&["seedance","heygen","comp","voice"].indexOf(rc.tab)>=0)i(rc.tab);'
            'if(sd.image!=null){v(sd.image);if(!u.length)try{window.__dzQuickStart=sd.image}catch(_e){}}'
@@ -7538,18 +7538,20 @@ R_P5QR2 = (A_P5QR2 +
            'if(sb.style)dzSetSubSty(sb.style);if(sb.lang)dzSetSubLang(sb.lang);if(sb.text!=null)dzSetSubTxt(sb.text);'
            'if(sb.tr!=null)dzSetSubTr(!!sb.tr);var lp=rc.lip||{};if(lp.on!=null)dzSetLipOn(!!lp.on);'
            'if(lp.file!=null)dzSetLipFile(lp.file);if(rc.voice){try{window.__dzQuickVoicePending=rc.voice}catch(_e){}'
-           'window.dispatchEvent(new CustomEvent("deepotus:quick-voice",{detail:rc.voice}))}}'
+           'window.dispatchEvent(new CustomEvent("deepotus:quick-voice",{detail:rc.voice}))}'
+           'if(rc.cam&&typeof rc.cam==="object")dzSetCamCtl(Object.assign({zoom:0,horizontal:0,vertical:0,pan:0,tilt:0,roll:0},rc.cam))}'
            'var dzApplyRef=x.useRef(null);dzApplyRef.current=dzQuickApply;'
            'x.useEffect(function(){var r0=null;try{r0=window.__dzQuickRecipe;delete window.__dzQuickRecipe}catch(_e){}'
            'if(r0)dzApplyRef.current(r0);function onR(ev){dzApplyRef.current(ev.detail)}'
            'window.addEventListener("deepotus:quick-recipe",onR);'
            'return function(){window.removeEventListener("deepotus:quick-recipe",onR)}},[]);')
 A_P5QR3 = "je={video_model:VMQ||void 0,image_filename:w,"
-R_P5QR3 = "je={quick_recipe:dzQuickRecipe(),video_model:VMQ||void 0,image_filename:w,"
+# tache #54 (plan Quick T8) : les curseurs camera partent avec la demande Seedance (et le slot seedance de comp)
+R_P5QR3 = "je={quick_recipe:dzQuickRecipe(),camera_ctrl:dzCam(),video_model:VMQ||void 0,image_filename:w,"
 A_P5QR4 = 'D.postJson("/generate/heygen",{avatar_id:C,'
 R_P5QR4 = 'D.postJson("/generate/heygen",{quick_recipe:dzQuickRecipe(),avatar_id:C,'
 A_P5QR5 = 'D.postJson("/generate/composition",{seedance:{video_model:'
-R_P5QR5 = 'D.postJson("/generate/composition",{quick_recipe:dzQuickRecipe(),seedance:{video_model:'
+R_P5QR5 = 'D.postJson("/generate/composition",{quick_recipe:dzQuickRecipe(),seedance:{camera_ctrl:dzCam(),video_model:'
 A_P5QR6 = 'children:"Envoyer vers…"},"dzsend"),'
 R_P5QR6 = (A_P5QR6 + 'm.kind==="render"&&m.jobId&&r.jsx(K,{variant:"ghost",size:"sm",icon:"bolt",'
            'title:"Rouvrir ce rendu dans Quick, prérempli (prompt, modèle, images, durée, graine)",'
@@ -7642,6 +7644,18 @@ R_P5ST1 = ('var dzSoS=x.useState(!1),dzSubOn=dzSoS[0],dzSetSubOn=dzSoS[1],'
            '.catch(function(){});return function(){on=!1}},[]);'
            'function dzLip(){if(o!=="seedance"||!dzLipOn||!dzLipFile)return void 0;'
            'return{on:!0,model:"kling-lipsync",file:dzLipFile}}'
+           # tache #54 (plan Quick T8) : six curseurs camera ; l'apercu de la phrase passe par la ROUTE (la traduction
+           # n'existe qu'a un endroit, camera_lang), rien n'est appele quand tout est a zero
+           'var dzCcS=x.useState({zoom:0,horizontal:0,vertical:0,pan:0,tilt:0,roll:0}),dzCamCtl=dzCcS[0],dzSetCamCtl=dzCcS[1],'
+           'dzCpS=x.useState(""),dzCamPh=dzCpS[0],dzSetCamPh=dzCpS[1];'
+           'function dzCamN(){var n2=0;for(var k2 in dzCamCtl)if(dzCamCtl[k2])n2++;return n2}'
+           'function dzCam(){return dzCamN()?Object.assign({},dzCamCtl):void 0}'
+           'function dzCamSet(a2,v2){dzSetCamCtl(function(p2){var n2=Object.assign({},p2);n2[a2]=Number(v2)||0;return n2})}'
+           'x.useEffect(function(){if(!dzCamN()){dzSetCamPh("");return}var on=!0,id=setTimeout(function(){'
+           'fetch("/api/quick/camera-phrase",{method:"POST",headers:{"Content-Type":"application/json"},'
+           'body:JSON.stringify({ctrl:dzCamCtl,model:VMQ||void 0})}).then(function(r2){return r2.ok?r2.json():null})'
+           '.then(function(d2){if(on)dzSetCamPh((d2&&d2.phrase)||"")}).catch(function(){})},200);'
+           'return function(){on=!1;clearTimeout(id)}},[dzCamCtl,VMQ]);'
            # tache #53 (plan Quick T6) : les presets de l'onglet courant (GET /quick/presets?tab=), charger = dzQuickApply
            'var dzQpS=x.useState([]),dzQp=dzQpS[0],dzSetQp=dzQpS[1],dzQsS=x.useState(""),dzQsel=dzQsS[0],dzSetQsel=dzQsS[1];'
            'function dzQpRefresh(t2){return fetch("/api/quick/presets?tab="+encodeURIComponent(t2||o))'
@@ -7831,7 +7845,26 @@ R_P5GA1 = ('function __dzQuickGallery(img,onPick){'
            'return rendre()}).catch(function(e){__dzToast("Galerie : "+String(e&&e.message||e))})}'
            + A_P5GA1)
 A_P5GA2 = 'r.jsxs(ie,{label:"Parameters",children:['
-R_P5GA2 = ('r.jsxs(ie,{label:"Parameters",right:r.jsx(K,{variant:"ghost",size:"sm",icon:"film",'
+R_P5GA2 = (# tache #54 (plan Quick T8) : la section « Caméra (curseurs) », repliee par defaut, hors HeyGen
+           'o!=="heygen"&&r.jsx(ie,{label:"Caméra (curseurs)",defaultOpen:!1,'
+           'right:dzCamN()?r.jsx("span",{className:"mono",style:{fontSize:10.5,color:"var(--cyan)"},'
+           'children:dzCamN()+(dzCamN()>1?" axes":" axe")}):null,'
+           'children:r.jsxs("div",{className:"dz-cam",children:['
+           '[["zoom","Zoom (− arrière / + avant)"],["horizontal","Travelling (− gauche / + droite)"],'
+           '["vertical","Grue (− bas / + haut)"],["pan","Panoramique (− gauche / + droite)"],'
+           '["tilt","Bascule (− bas / + haut)"],["roll","Roulis (− anti-horaire / + horaire)"]].map(function(ax){'
+           'return r.jsx(O,{children:r.jsx(Oe,{label:ax[1],value:dzCamCtl[ax[0]],min:-10,max:10,step:1,unit:"",'
+           'onChange:function(v2){dzCamSet(ax[0],v2)}})},ax[0])}),'
+           'r.jsx("div",{className:"dz-cam-ph",style:{fontSize:10.5,fontFamily:"var(--f-mono)",color:"var(--cyan)",'
+           'marginTop:2,minHeight:14},children:dzCamN()?(dzCamPh||"…"):"— aucun mouvement demandé —"},"dzcamph"),'
+           'r.jsx("div",{style:{fontSize:10,color:"var(--ink-soft)",marginTop:4},'
+           'children:"Aucun modèle du registre n’expose de contrôle caméra via fal (mesuré le 03/09/2026) : ces curseurs '
+           'deviennent une phrase, ajoutée au prompt, dans le vocabulaire du modèle choisi."},"dzcamnote"),'
+           'dzCamN()?r.jsx("button",{className:"dz-cam-zero",title:"Remettre les six curseurs à zéro",'
+           'onClick:function(){dzSetCamCtl({zoom:0,horizontal:0,vertical:0,pan:0,tilt:0,roll:0})},style:{marginTop:6,fontSize:11.5,padding:"5px 10px",'
+           'borderRadius:7,cursor:"pointer",background:"var(--bg-panel-2)",border:"1px solid var(--stroke)",color:"var(--ink)"},'
+           'children:"Remettre à zéro"},"dzcam0"):null]})}),'
+           'r.jsxs(ie,{label:"Parameters",right:r.jsx(K,{variant:"ghost",size:"sm",icon:"film",'
            'title:"Galerie de mouvements — 11 caméras × 3 styles, rendue en local (gratuit)",'
            'onClick:function(e2){if(e2&&e2.stopPropagation)e2.stopPropagation();__dzQuickGallery(w,function(ti){'
            'if(I.some(function(z){return z.id===ti.style}))V(ti.style);'
@@ -7840,6 +7873,11 @@ R_P5GA2 = ('r.jsxs(ie,{label:"Parameters",right:r.jsx(K,{variant:"ghost",size:"s
 P1 += [("P5ga1-helper-galerie-avant-dzsendmenu", A_P5GA1, R_P5GA1),
        ("P5ga2-bouton-galerie-de-la-section-parameters", A_P5GA2, R_P5GA2)]
 assert len(P1) == 97 and all("\n" not in r and "\r" not in r for _t, _a, r in P1[-2:])
+# tache #54 (plan Quick T8 = D2, 01/10/2026) -- SIX CURSEURS CAMERA TRADUITS EN PHRASE : AUCUNE section de plus.
+# Ecarts au plan : (1) pas de patcher `quickcamera` ; l'etat vit dans R_P5ST1, la recette/application dans R_P5QR2,
+# les payloads dans R_P5QR3/R_P5QR5, la section dans R_P5GA2 ; (2) une SECTION repliee « Caméra (curseurs) » avant
+# Parameters (pas six curseurs de plus dans Parameters), libelles en francais avec le sens de chaque axe, compteur
+# d'axes dans l'en-tete, « Remettre a zero » ; (3) aucun appel d'apercu quand tout est a zero.
 
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
