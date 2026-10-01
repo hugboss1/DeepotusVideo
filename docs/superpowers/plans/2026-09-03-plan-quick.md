@@ -1221,6 +1221,8 @@ EOF
 
 ---
 
+> **T4 EXÉCUTÉE le 01/10/2026** (tâche #50 du suivi, branche `chantier/p5-quick-soustitres`). Écarts datés : (1) DÉPENSE : le plan basculait SEUL sur la transcription payante quand le texte manquait (`source:t2?"align":"transcribe"`) — décision appliquée dans la ligne des précédentes (aucune dépense sans demande) : le calage gratuit est le seul défaut, la transcription exige la case « Transcrire si aucun texte (payant…) », et les trois routes Quick la CHIFFRENT dans leur garde des plafonds (`_op_soustitres`, ~14 car./s pour l'avatar) ; `quick_finish.apply` ne transcrit que si `transcription_demandee` ; (2) dans `run`, la voix off ne sert de texte de référence que si elle est RÉELLEMENT dite (`voiceover_enabled`) — sinon le calage se ferait sur du silence ; (3) l'interrupteur mort « Voice (HeyGen comp) » avait déjà été retiré par P1qv1 : le bloc se pose après « Duration » ; (4) la route `/subtitles/styles` du plan n'existe pas : `/subtitles/presets` ; (5) groupe `P5st1..P5st5` du maillon montage, ancres des payloads en FIN d'objet, recette (P5qr2) étendue à `subs` ; `x.useState(` 614 → 620. Bancs : `test_quick_subs` 20/0 (gravure mesurée AU PIXEL, transcription espionnée, devis des trois routes avec/sans, crochets du pipeline en lecture STRUCTURELLE), `test_quick_bundle` 36/0 (`dzSubs` exécuté sous node), `test_montage_bundle` 2676/0 ; 19/19 mutations rouges ; preuve écran 8799 : sans texte, la case payante et l'avertissement ; avec texte, « Calage local … 0 $ ».
+
 ### Task 4 (P4) : sous-titres dans Quick, gravés sur le rendu
 
 **Files :**
