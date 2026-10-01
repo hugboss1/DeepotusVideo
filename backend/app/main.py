@@ -297,7 +297,10 @@ from app.api.routes import _HOTES_LOCAUX
 # Plan mobile T4 (tâche #56, 01/10/2026) : la SEULE écriture ouverte au réseau local est l'échange du secret
 # d'appairage contre un jeton — le secret à usage unique de 5 minutes y tient lieu de garde.
 # + plan mobile T8 (tâche #57, décision de l'utilisateur du 01/10) : l'état du lot rapporté par le téléphone
-_ECRITURES_OUVERTES: frozenset = frozenset({("POST", "/api/pair/claim"), ("POST", "/api/sync/lot/etat")})
+# + plan mobile T13 (tâche #58, décision du 01/10 : « une par une ») : le dépôt d'une image, vérifié (Pillow, sha256,
+#   taille bornée) et attribué à l'appareil du JETON
+_ECRITURES_OUVERTES: frozenset = frozenset({("POST", "/api/pair/claim"), ("POST", "/api/sync/lot/etat"),
+                                            ("POST", "/api/sync/depot")})
 
 
 @app.middleware("http")

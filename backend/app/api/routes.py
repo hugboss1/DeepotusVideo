@@ -12325,3 +12325,48 @@ async def schedule_reprendre(post_id: str, request: Request):
     if not await _sl.reprendre(post_id):
         raise HTTPException(404, "Ce post n'est confié à aucun appareil")
     return {"repris": post_id}
+
+
+# ── Plan mobile T12 + T13 (tâche #58, 01/10/2026) : la Bibliothèque vue du téléphone ──────────────────────────────────
+# Le manifeste est une LECTURE (jeton exigé) ; le fichier se télécharge — et se reprend — par GET /api/images/{nom}.
+# Le dépôt est la seule écriture neuve ouverte au réseau local (main._ECRITURES_OUVERTES, décision « une par une »).
+# Épingler un projet se décide sur le PC.
+
+@router.get("/sync/manifeste")
+async def sync_manifeste(request: Request, depuis: str | None = None):
+    from app.services import sync_index as _si
+    await _appareil_requis(request)
+    return await _si.manifeste(depuis=depuis)
+
+
+@router.post("/sync/projet")
+async def sync_projet(request: Request, body: dict | None = None):
+    _require_localhost(request)
+    from app.services import sync_index as _si
+    nom = str((body or {}).get("nom") or "").strip() if isinstance(body, dict) else ""
+    if not nom:
+        raise HTTPException(400, "Nom de projet requis")
+    fichiers = (body or {}).get("fichiers") or []
+    return await _si.epingler(nom, fichiers if isinstance(fichiers, list) else [])
+
+
+@router.post("/sync/depot")
+async def sync_depot(request: Request, file: UploadFile = File(...), sha256: str = Form(...),
+                     recette: str | None = Form(None)):
+    """Une image venue du téléphone. Dans l'ordre, et RIEN n'est écrit avant la fin : l'appareil du jeton, un nom
+    d'image nu, une taille bornée (lecture arrêtée au-delà), une recette lisible, le CONTENU décodé par Pillow (comme
+    /images/upload — un .png qui contient du HTML ne sera jamais servi par /api/images), puis l'empreinte."""
+    from app.services import sync_index as _si
+    appareil = await _appareil_requis(request)
+    try:
+        nom = _si.nom_depot(file.filename)
+        contenu = await file.read(_si.TAILLE_MAX + 1)
+        if len(contenu) > _si.TAILLE_MAX:
+            raise _si.DepotRefuse(413, f"Image trop lourde (maximum {_si.TAILLE_MAX} o)")
+        rec = _si.lire_recette(recette)
+        fmt = await asyncio.to_thread(_format_image, contenu)
+        if fmt not in _UPLOAD_IMAGE_FORMATS:
+            raise _si.DepotRefuse(415, f"Pas une image : {nom} ({'format ' + fmt if fmt else 'contenu non décodable'})")
+        return await _si.deposer(nom, contenu, sha256, rec, appareil)
+    except _si.DepotRefuse as e:
+        raise HTTPException(e.code, e.raison) from None
