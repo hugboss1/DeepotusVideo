@@ -417,5 +417,95 @@ console.log(JSON.stringify(out));
                            "t": {"s": 2}, "ls:dz_voice_tune": '{"s":2}'} and o.get("evtPurge") is True, str(o.get("evt")))
     check("P16 au demontage : l'ecouteur et le getter sont retires", o.get("demonte") is True, str(o))
 
+print("\n[G] galerie de mouvements (tache #54, plan Quick T7 = D1, groupe P5ga)")
+check("G0 temoin : la base (15c4c12) n'a pas __dzQuickGallery", "__dzQuickGallery" not in s0)
+check("G1 un helper + un bouton (section Parameters), aucun window.alert/prompt dans le helper",
+      s.count("function __dzQuickGallery(") == 1 and s.count("__dzQuickGallery(") == 2
+      and 'r.jsxs(ie,{label:"Parameters",right:r.jsx(K,{variant:"ghost",size:"sm",icon:"film",title:"Galerie de mouvements' in um
+      and "window.alert" not in fonc("__dzQuickGallery") and "window.prompt" not in fonc("__dzQuickGallery"))
+check("G2 deux routes seulement (manifeste + build) ; les vignettes viennent du manifeste",
+      fonc("__dzQuickGallery").count("/api/quick/gallery") == 2)
+i_g2 = um.find('right:r.jsx(K,{variant:"ghost",size:"sm",icon:"film"')
+g2 = um[i_g2:um.find('children:"Galerie"})', i_g2)]
+check("G3 le clic ne replie pas la section (stopPropagation) ; Vibe changee seulement si elle existe",
+      "e2.stopPropagation()" in g2 and "if(I.some(function(z){return z.id===ti.style}))V(ti.style);" in g2)
+if node:
+    pick = g2[g2.find("function(ti){"):g2.rfind("})}")]
+    js = r"""
+var V_=[],toasts=[],prompt="un trone abyssal";var I=[{id:"cinematic"},{id:"ugc_raw"},{id:"hybrid"}];
+function V(x){V_.push(x)}function a(f){prompt=typeof f==="function"?f(prompt):f}globalThis.__dzToast=function(m){toasts.push(m)};
+var pick=""" + pick + r"""};
+pick({camera:"crane shot descending",style:"ugc_raw"});var p1=prompt;
+pick({camera:"static, locked-off",style:"inconnu"});var p2=prompt;
+prompt="";pick({camera:"slow push-in",style:"cinematic"});
+console.log(JSON.stringify({p1:p1,p2:p2,p3:prompt,V:V_,t:toasts[0]}));
+"""
+    f = pathlib.Path(tempfile.mkdtemp(prefix="dzquickg_"), "g.mjs"); f.write_text(js, encoding="utf-8")
+    p = subprocess.run([node, str(f)], capture_output=True, text=True, encoding="utf-8", timeout=60)
+    try:
+        o = json.loads(p.stdout.strip().splitlines()[-1])
+    except Exception:  # noqa: BLE001
+        o = {}
+        print(p.stdout[-800:], p.stderr[-1500:])
+    check("G4 choisir : la phrase camera s'ajoute au prompt", o.get("p1") == "un trone abyssal Camera: crane shot descending.", str(o))
+    check("G5 rechoisir : la phrase est REMPLACEE (pas empilee), la virgule de « static, locked-off » tient",
+          o.get("p2") == "un trone abyssal Camera: static, locked-off.", str(o.get("p2")))
+    check("G6 prompt vide : la phrase seule ; Vibe posee pour les styles connus seulement",
+          o.get("p3") == "Camera: slow push-in." and o.get("V") == ["ugc_raw", "cinematic"] and "ajout" in str(o.get("t")), str(o))
+    # le helper, sous un faux DOM minimal
+    js = r"""
+var corps=[],ecouteurs={},posts=[],toasts=[],picks=[],etape={};
+function el(tag){var e={tag:tag,style:{},children:[],className:"",textContent:"",title:"",appendChild:function(c){c.parent=e;e.children.push(c)},
+  remove:function(){var i=corps.indexOf(e);if(i>=0)corps.splice(i,1)}};return e}
+globalThis.document={createElement:el,body:{appendChild:function(e){corps.push(e)}},
+  getElementById:function(id){return corps.find(function(e){return e.id===id})||null},
+  addEventListener:function(n,f){ecouteurs[n]=f},removeEventListener:function(n,f){if(ecouteurs[n]===f)delete ecouteurs[n]}};
+globalThis.__dzToast=function(m){toasts.push(m)};
+function rep(st,j){return Promise.resolve({status:st,json:function(){return Promise.resolve(j)}})}
+var MAN={built:true,source:"a.png",note:"elles montrent le mot, pas le rendu du modèle.",tiles:[{id:"t1",camera:"slow push-in",style:"cinematic",url:"/api/quick/gallery/t1"},{id:"t2",camera:"tracking shot",style:"hybrid",url:"/api/quick/gallery/t2"}]};
+globalThis.fetch=function(u,o){if(o&&o.method==="POST"){posts.push([u,JSON.parse(o.body)]);return rep(etape.postSt||200,etape.postSt?{detail:"Image introuvable"}:Object.assign({},MAN,{source:JSON.parse(o.body).image}))}
+  return rep(200,etape.man)};
+function tout(e,acc){acc=acc||[];acc.push(e);(e.children||[]).forEach(function(c){tout(c,acc)});return acc}
+var attendre=function(){return new Promise(function(r){setTimeout(r,30)})};
+""" + fonc("__dzQuickGallery") + r"""
+(async function(){var out={};
+ etape={man:MAN};__dzQuickGallery("a.png",function(t){picks.push(t)});await attendre();
+ var h=corps[0],els=h?tout(h):[];var tuiles=els.filter(function(e){return e.className==="dz-gal-tile"});
+ out.grille={hote:!!h&&h.id,n:tuiles.length,video:tuiles[0]&&tuiles[0].children[0].src,note:(els.find(function(e){return e.className==="dz-gal-note"})||{}).textContent,
+   rerender:els.some(function(e){return e.className==="dz-gal-rerender"}),posts:posts.length,titres:tuiles.every(function(t){return t.title.indexOf("Camera: ")>0})};
+ tuiles[1].onclick();out.clic={picks:picks.map(function(p){return p.camera}),ouvert:corps.length,echap:!!ecouteurs.keydown};
+ __dzQuickGallery("b.png",function(){});await attendre();
+ var els2=tout(corps[0]);out.autre={rerender:els2.some(function(e){return e.className==="dz-gal-rerender"})};
+ var stop=0;ecouteurs.keydown({key:"Escape",stopPropagation:function(){stop++}});out.echap={ouvert:corps.length,stop:stop};
+ etape={man:{built:false}};__dzQuickGallery("",function(){});await attendre();out.sansImage={posts:posts.length,toast:toasts.slice(-1)[0],ouvert:corps.length};
+ __dzQuickGallery("c.png",function(){});await attendre();out.build={post:posts.slice(-1)[0],ouvert:corps.length,n:tout(corps[0]||{children:[]}).filter(function(e){return e.className==="dz-gal-tile"}).length};
+ ecouteurs.keydown&&ecouteurs.keydown({key:"Escape",stopPropagation:function(){}});
+ etape={man:{built:false},postSt:404};__dzQuickGallery("z.png",function(){});await attendre();out.refus={toast:toasts.slice(-1)[0],ouvert:corps.length};
+ console.log(JSON.stringify(out))})();
+"""
+    f = pathlib.Path(tempfile.mkdtemp(prefix="dzquickh_"), "h.mjs"); f.write_text(js, encoding="utf-8")
+    p = subprocess.run([node, str(f)], capture_output=True, text=True, encoding="utf-8", timeout=60)
+    try:
+        o = json.loads(p.stdout.strip().splitlines()[-1])
+    except Exception:  # noqa: BLE001
+        o = {}
+        print(p.stdout[-800:], p.stderr[-1500:])
+    gr = o.get("grille") or {}
+    check("G7 galerie deja rendue : grille ouverte sans rien rendre, une tuile par vignette, la phrase honnete visible",
+          gr.get("hote") == "__dzGalHost" and gr.get("n") == 2 and gr.get("video") == "/api/quick/gallery/t1" and gr.get("posts") == 0
+          and "montrent le mot, pas le rendu du mod" in str(gr.get("note")) and gr.get("titres") is True, str(gr))
+    check("G8 meme image : pas de bouton « Rendre sur » ; image differente : il apparait",
+          gr.get("rerender") is False and (o.get("autre") or {}).get("rerender") is True, str(o.get("autre")))
+    check("G9 cliquer une tuile : onPick recoit la vignette, la grille se ferme et Echap n'est plus ecoute",
+          (o.get("clic") or {}) == {"picks": ["tracking shot"], "ouvert": 0, "echap": False}, str(o.get("clic")))
+    check("G10 Echap ferme (sans laisser passer la touche)", (o.get("echap") or {}) == {"ouvert": 0, "stop": 1}, str(o.get("echap")))
+    check("G11 jamais rendue et pas d'image : le dit, ne rend rien", (o.get("sansImage") or {}).get("posts") == 0
+          and "image de d" in str((o.get("sansImage") or {}).get("toast")) and (o.get("sansImage") or {}).get("ouvert") == 0, str(o.get("sansImage")))
+    bd = o.get("build") or {}
+    check("G12 jamais rendue + image : POST build sur l'image de depart, puis la grille", bd.get("post") == ["/api/quick/gallery/build", {"image": "c.png"}]
+          and bd.get("ouvert") == 1 and bd.get("n") == 2, str(bd))
+    check("G13 refus du build : le detail est dit, rien ne s'ouvre", "Image introuvable" in str((o.get("refus") or {}).get("toast"))
+          and (o.get("refus") or {}).get("ouvert") == 0, str(o.get("refus")))
+
 print(f"\n{ok} ok, {fail} echec(s)")
 raise SystemExit(1 if fail else 0)

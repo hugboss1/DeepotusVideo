@@ -217,6 +217,13 @@ class PromptEngine:
         """Build (positive, negative) prompts for Seedance 2.0."""
         if request.custom_prompt:
             base_prompt = request.custom_prompt.strip()
+            # Plan Quick T7 (tâche #54, D1/D2) — la caméra choisie s'applique AUSSI à un prompt libre : avant, `camera`
+            # n'était lue que sur la branche template, et la galerie n'aurait rien changé au geste le plus fréquent.
+            # Pas de doublon si la phrase est déjà écrite (la galerie l'ajoute au texte du prompt).
+            if request.camera:
+                cam = f"Camera: {request.camera.value}."
+                if cam not in base_prompt:
+                    base_prompt = f"{base_prompt} {cam}"
             # Even with custom prompt, append voice mode flavor if requested
             mode_block = _voice_mode_block(self.persona, getattr(request, "voice_mode", None) and request.voice_mode.value)
             if mode_block and mode_block.get("style_hints"):

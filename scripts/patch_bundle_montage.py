@@ -7773,6 +7773,73 @@ R_P5PR2 = 'children:o==="voice"?[dzQpUI(),r.jsx(DzQuickVoice,{},"dzqv")]:[dzQpUI
 P1 += [("P5pr1-etat-voix-expose-et-rejoue", A_P5PR1, R_P5PR1),
        ("P5pr2-presets-en-tete-des-quatre-onglets", A_P5PR2, R_P5PR2)]
 assert len(P1) == 95 and all("\n" not in r and "\r" not in r for _t, _a, r in P1[-2:])
+# P5ga1..P5ga2 (tache #54, plan Quick T7 = D1, 01/10/2026) -- GALERIE DE MOUVEMENTS ET DE STYLES. Ecarts au plan du
+# 03/09 : (1) un GROUPE du maillon montage, pas de patcher `quickgallery` ; (2) aucun window.alert : __dzToast ;
+# (3) l'ancre du helper est `function __dzSendMenu(` (celle du plan, __dzReopenStudio, porte deja P5qr1) ; (4) choisir
+# une vignette REMPLACE une phrase « Camera: … . » deja ecrite au lieu d'en empiler une seconde, et la Vibe ne change
+# que si le style existe dans la liste ; (5) la grille propose de RE-RENDRE sur l'image de depart courante quand la
+# galerie a ete rendue sur une autre ; Echap et ✕ ferment ; (6) le clic du bouton ne replie pas la section (il vit
+# dans l'en-tete cliquable : stopPropagation).
+# G1 helper module-scope : grille modale en DOM pur (pattern __dzSendMenu) — pas de re-render React a chaque survol.
+# G2 bouton « Galerie » a droite de la section Parameters.
+A_P5GA1 = "function __dzSendMenu("
+R_P5GA1 = ('function __dzQuickGallery(img,onPick){'
+           'function fermer(){var o2=document.getElementById("__dzGalHost");if(o2)o2.remove();'
+           'document.removeEventListener("keydown",echap,!0)}'
+           'function echap(e){if(e.key==="Escape"){e.stopPropagation();fermer()}}'
+           'function rendre(){__dzToast("Rendu local des 33 vignettes sur « "+img+" » (gratuit, ~30 s)…");'
+           'return fetch("/api/quick/gallery/build",{method:"POST",headers:{"Content-Type":"application/json"},'
+           'body:JSON.stringify({image:img})}).then(function(r3){return r3.json().then(function(j){return{s:r3.status,j:j}})})'
+           '.then(function(o3){if(o3.s===200&&o3.j&&o3.j.tiles)grille(o3.j);'
+           'else __dzToast("Galerie : "+((o3.j&&o3.j.detail)||o3.s))})}'
+           'function grille(d){fermer();'
+           'var h=document.createElement("div");h.id="__dzGalHost";'
+           'h.style.cssText="position:fixed;inset:0;background:rgba(4,6,10,.6);z-index:9500;'
+           'display:flex;align-items:center;justify-content:center";'
+           'var c=document.createElement("div");c.className="dz-gal";'
+           'c.style.cssText="width:min(1100px,94vw);max-height:86vh;overflow:auto;background:var(--bg-panel,#13171c);'
+           'border:1px solid var(--stroke,#20262d);border-radius:12px;padding:14px";'
+           'var hd=document.createElement("div");hd.style.cssText="display:flex;align-items:center;gap:8px;margin-bottom:4px";'
+           'var t=document.createElement("div");t.style.cssText="flex:1;font-size:13px;color:var(--ink-strong,#e6edf3)";'
+           't.textContent="Galerie de mouvements — 11 caméras × 3 styles";hd.appendChild(t);'
+           'if(img&&d.source&&d.source!==img){var rb=document.createElement("button");rb.className="dz-gal-rerender";'
+           'rb.textContent="↻ Rendre sur « "+img+" »";rb.title="Rendre la galerie sur l’image de départ courante (local, gratuit)";'
+           'rb.style.cssText="font-size:11.5px;padding:5px 10px;border-radius:7px;cursor:pointer;background:var(--bg-panel-2,#1a2027);'
+           'border:1px solid var(--stroke,#20262d);color:var(--ink,#cfd6dd)";rb.onclick=function(){rendre()};hd.appendChild(rb)}'
+           'var x2=document.createElement("button");x2.textContent="✕";x2.title="Fermer la galerie (Échap)";'
+           'x2.style.cssText="all:unset;cursor:pointer;padding:2px 8px;color:var(--ink-soft,#8b97a3);font-size:14px";'
+           'x2.onclick=fermer;hd.appendChild(x2);c.appendChild(hd);'
+           'var n=document.createElement("div");n.className="dz-gal-note";'
+           'n.style.cssText="font-size:11px;color:var(--ink-soft,#8b97a3);margin-bottom:10px";'
+           'n.textContent=(d.note||"")+(d.source?" Image : "+d.source+".":"");c.appendChild(n);'
+           'var g=document.createElement("div");'
+           'g.style.cssText="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px";'
+           '(d.tiles||[]).forEach(function(ti){var b=document.createElement("button");b.className="dz-gal-tile";'
+           'b.title="Ajouter « Camera: "+ti.camera+". » au prompt et passer la Vibe à "+ti.style;'
+           'b.style.cssText="all:unset;cursor:pointer;display:block;border:1px solid var(--stroke,#20262d);'
+           'border-radius:8px;overflow:hidden;background:#02060d";'
+           'var v=document.createElement("video");v.src=ti.url;v.muted=!0;v.loop=!0;v.autoplay=!0;v.playsInline=!0;'
+           'v.style.cssText="width:100%;display:block;aspect-ratio:9/16;object-fit:cover";'
+           'var l=document.createElement("div");l.style.cssText="font-size:10.5px;color:var(--ink,#cfd6dd);padding:5px 6px";'
+           'l.textContent=ti.camera+" · "+ti.style;b.appendChild(v);b.appendChild(l);'
+           'b.onclick=function(){fermer();onPick(ti)};g.appendChild(b)});'
+           'c.appendChild(g);h.appendChild(c);h.onclick=function(e){if(e.target===h)fermer()};'
+           'document.body.appendChild(h);document.addEventListener("keydown",echap,!0)}'
+           'fetch("/api/quick/gallery").then(function(r2){return r2.json()}).then(function(d){'
+           'if(d&&d.built)return grille(d);'
+           'if(!img){__dzToast("Choisissez d’abord une image de départ : la galerie se rend dessus");return}'
+           'return rendre()}).catch(function(e){__dzToast("Galerie : "+String(e&&e.message||e))})}'
+           + A_P5GA1)
+A_P5GA2 = 'r.jsxs(ie,{label:"Parameters",children:['
+R_P5GA2 = ('r.jsxs(ie,{label:"Parameters",right:r.jsx(K,{variant:"ghost",size:"sm",icon:"film",'
+           'title:"Galerie de mouvements — 11 caméras × 3 styles, rendue en local (gratuit)",'
+           'onClick:function(e2){if(e2&&e2.stopPropagation)e2.stopPropagation();__dzQuickGallery(w,function(ti){'
+           'if(I.some(function(z){return z.id===ti.style}))V(ti.style);'
+           'a(function(p){return((p||"").replace(/\\s*Camera: [^.]*\\./g,"")+" Camera: "+ti.camera+".").trim()});'
+           '__dzToast("« "+ti.camera+" » ajouté au prompt"+(ti.style?" · Vibe "+ti.style:""))})},children:"Galerie"}),children:[')
+P1 += [("P5ga1-helper-galerie-avant-dzsendmenu", A_P5GA1, R_P5GA1),
+       ("P5ga2-bouton-galerie-de-la-section-parameters", A_P5GA2, R_P5GA2)]
+assert len(P1) == 97 and all("\n" not in r and "\r" not in r for _t, _a, r in P1[-2:])
 
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
@@ -8048,6 +8115,7 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            # + P5ex1..P5ex2 (tache #51, prolonger le clip) : 322, le --check dit 323.
            # tache #52 (lip-sync) : AUCUNE section de plus — P5st1/P5st2/P5st3 et P5qr2 portent le lip-sync.
            # + P5pr1..P5pr2 (tache #53, presets sur les quatre onglets) : 324, le --check dit 325.
+           # + P5ga1..P5ga2 (tache #54, galerie de mouvements) : 326, le --check dit 327.
            # studio 27/09 : + HUIT sections EN QUEUE, groupe R8 apres R7 (format HeyGen impose par le template, « Ouvrir un graphe » en icone,
            # repli de l'inspecteur) ; 213 -> 221, le --check dit 222 ancres ; + R8sv1 (Save par le dialogue maison) : 222, le --check dit 223 ;
            # + R8pr1..R8pr7 (les autres window.prompt natifs, 27/09) : 229, le --check dit 230.

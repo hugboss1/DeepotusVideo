@@ -15004,7 +15004,8 @@ check("E3_ouvrir_dans_le_montage_deux_fois_chapitres_avant_scheduler_studio_en_t
       and s.count(_E3_CH) == 1 and s.count(_E3_ST) == 1 and s.count(_E3_ST2) == 1
       and s.count("window.__dzMontageAdd={") == 4
       and s.count('detail:{view:"scheduler"}') == 1
-      and s.count('icon:"film"') == _bak.count('icon:"film"') + 2
+      # + 1 : tache #54 (01/10/2026), le bouton « Galerie » de la section Parameters de Quick (P5ga2)
+      and s.count('icon:"film"') == _bak.count('icon:"film"') + 3
       and (_bak.count(_E3_LBL) == 0 and _bak.count(_E3_NAV) == 0
            and _bak.count("window.__dzMontageAdd={") == 2
            and _bak.count('detail:{view:"scheduler"}') == 1 if _bak else False),
@@ -15417,7 +15418,9 @@ check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB8b_puis_
                                                           # tache #51 (01/10/2026) : prolonger le clip ; aucun DzTracks
                                                           "P5ex1", "P5ex2",
                                                           # tache #53 (01/10/2026) : presets Quick ; aucun DzTracks
-                                                          "P5pr1", "P5pr2"]
+                                                          "P5pr1", "P5pr2",
+                                                          # tache #54 (01/10/2026) : galerie de mouvements ; aucun DzTracks
+                                                          "P5ga1", "P5ga2"]
       # L7-B D-37 et D-42 (24/09/2026) : AUCUNE section de plus (replis dans R_EC1) ; D-42 : sonde 159 -> 161
       # (cutAt + cutOpts dans le geste dzSceneCut) ; L7-B D-40 (T4) : AUCUNE section de plus (replis dans
       # R_DZ1/R_DZ3/R_DZ4), sonde 161 -> 163 (reframeCss dans l apercu vivant, reframeOf dans le payload)
