@@ -7522,7 +7522,9 @@ A_P5QR2 = "[Ce,at]=x.useState(null);"
 R_P5QR2 = (A_P5QR2 +
            'function dzQuickRecipe(){return{v:1,tab:o,seedance:{image:w,end:g,prompt:s,vibe:A,model:VMQ,'
            'duration:h,aspect:_,seed:N,template:H||""},heygen:{src:hsrc,avatar:C,voice:ee,script:R,engine:eng,'
-           'image:mimg,motion:mp,expr:xp},layout:We,subs:{on:dzSubOn,style:dzSubSty,lang:dzSubLang,text:dzSubTxt,tr:dzSubTr},lip:{on:dzLipOn,file:dzLipFile}}}'
+           'image:mimg,motion:mp,expr:xp},layout:We,subs:{on:dzSubOn,style:dzSubSty,lang:dzSubLang,text:dzSubTxt,tr:dzSubTr},lip:{on:dzLipOn,file:dzLipFile},'
+           # tache #53 : l'onglet Voix garde son etat DANS DzQuickVoice (P5pr1 l'expose par __dzQuickVoiceGet)
+           'voice:(o==="voice"&&window.__dzQuickVoiceGet)?window.__dzQuickVoiceGet():void 0}}'
            'function dzQuickApply(rc){if(!rc)return;var sd=rc.seedance||{},hg=rc.heygen||{};'
            'if(rc.tab&&["seedance","heygen","comp","voice"].indexOf(rc.tab)>=0)i(rc.tab);'
            'if(sd.image!=null){v(sd.image);if(!u.length)try{window.__dzQuickStart=sd.image}catch(_e){}}'
@@ -7535,7 +7537,8 @@ R_P5QR2 = (A_P5QR2 +
            'if(hg.expr!=null)Xp(hg.expr);if(rc.layout)De(rc.layout);var sb=rc.subs||{};if(sb.on!=null)dzSetSubOn(!!sb.on);'
            'if(sb.style)dzSetSubSty(sb.style);if(sb.lang)dzSetSubLang(sb.lang);if(sb.text!=null)dzSetSubTxt(sb.text);'
            'if(sb.tr!=null)dzSetSubTr(!!sb.tr);var lp=rc.lip||{};if(lp.on!=null)dzSetLipOn(!!lp.on);'
-           'if(lp.file!=null)dzSetLipFile(lp.file)}'
+           'if(lp.file!=null)dzSetLipFile(lp.file);if(rc.voice){try{window.__dzQuickVoicePending=rc.voice}catch(_e){}'
+           'window.dispatchEvent(new CustomEvent("deepotus:quick-voice",{detail:rc.voice}))}}'
            'var dzApplyRef=x.useRef(null);dzApplyRef.current=dzQuickApply;'
            'x.useEffect(function(){var r0=null;try{r0=window.__dzQuickRecipe;delete window.__dzQuickRecipe}catch(_e){}'
            'if(r0)dzApplyRef.current(r0);function onR(ev){dzApplyRef.current(ev.detail)}'
@@ -7639,6 +7642,40 @@ R_P5ST1 = ('var dzSoS=x.useState(!1),dzSubOn=dzSoS[0],dzSetSubOn=dzSoS[1],'
            '.catch(function(){});return function(){on=!1}},[]);'
            'function dzLip(){if(o!=="seedance"||!dzLipOn||!dzLipFile)return void 0;'
            'return{on:!0,model:"kling-lipsync",file:dzLipFile}}'
+           # tache #53 (plan Quick T6) : les presets de l'onglet courant (GET /quick/presets?tab=), charger = dzQuickApply
+           'var dzQpS=x.useState([]),dzQp=dzQpS[0],dzSetQp=dzQpS[1],dzQsS=x.useState(""),dzQsel=dzQsS[0],dzSetQsel=dzQsS[1];'
+           'function dzQpRefresh(t2){return fetch("/api/quick/presets?tab="+encodeURIComponent(t2||o))'
+           '.then(function(r2){return r2.ok?r2.json():{presets:[]}}).then(function(d2){dzSetQp((d2&&d2.presets)||[])})'
+           '.catch(function(){dzSetQp([])})}'
+           'x.useEffect(function(){dzSetQsel("");dzQpRefresh(o)},[o]);'
+           'function dzQpLoad(id){dzSetQsel(id||"");if(!id)return;var p2=dzQp.find(function(z){return z.id===id});'
+           'if(!p2)return;dzQuickApply(p2.recipe);__dzToast("Preset « "+p2.name+" » chargé — variez, puis Générer")}'
+           'function dzQpSave(){window.__dzDialogue.saisir("Nom du preset (onglet "+dzQpTab()+")",{titre:"Enregistrer un preset Quick"})'
+           '.then(function(n){n=(n||"").trim();if(!n)return;'
+           'fetch("/api/quick/presets",{method:"POST",headers:{"Content-Type":"application/json"},'
+           'body:JSON.stringify({name:n.slice(0,120),tab:o,recipe:dzQuickRecipe()})})'
+           '.then(function(r2){return r2.json().then(function(j){return{s:r2.status,j:j}})})'
+           '.then(function(o2){if(o2.s!==200){__dzToast("Preset : "+((o2.j&&o2.j.detail)||o2.s));return}'
+           'dzQpRefresh(o).then(function(){dzSetQsel(o2.j.id)});__dzToast("Preset « "+o2.j.name+" » enregistré")})})'
+           '.catch(function(e){__dzToast("Preset : "+String(e&&e.message||e))})}'
+           'function dzQpDel(){var p2=dzQp.find(function(z){return z.id===dzQsel});if(!p2)return;'
+           'window.__dzDialogue.confirmer("Supprimer le preset « "+p2.name+" » ? Les rendus déjà faits ne changent pas.",'
+           '{titre:"Supprimer un preset Quick",ok:"Supprimer",annuler:"Garder"}).then(function(y){if(!y)return;'
+           'fetch("/api/quick/presets/"+encodeURIComponent(p2.id),{method:"DELETE"}).then(function(r2){'
+           'if(!r2.ok){__dzToast("Preset : suppression refusée ("+r2.status+")");return}'
+           'dzSetQsel("");dzQpRefresh(o);__dzToast("Preset « "+p2.name+" » supprimé")})})}'
+           'function dzQpTab(){return{seedance:"Seedance",heygen:"HeyGen",comp:"Composition",voice:"Voix"}[o]||o}'
+           'function dzQpUI(){var bs={fontSize:12,padding:"6px 10px",borderRadius:7,cursor:"pointer",'
+           'background:"var(--bg-panel-2)",border:"1px solid var(--stroke)",color:"var(--ink)",whiteSpace:"nowrap"};'
+           'return r.jsx(ie,{label:"Presets ("+dzQpTab()+")",children:r.jsx(O,{label:"",children:'
+           'r.jsxs("div",{className:"dz-qp",style:{display:"flex",gap:6,alignItems:"center"},children:['
+           'r.jsx("div",{style:{flex:1,minWidth:0},title:"Charger un preset : rejoue tout l’onglet (prompt, modèle, durée, sous-titres…)",'
+           'children:r.jsx(re,{value:dzQsel,options:[{value:"",label:dzQp.length?"— charger un preset —":"— aucun preset —"}]'
+           '.concat(dzQp.map(function(z){return{value:z.id,label:z.name}})),onChange:dzQpLoad})}),'
+           'r.jsx("button",{style:bs,title:"Enregistrer l’état complet de l’onglet sous un nom",onClick:dzQpSave,children:"💾 Enregistrer…"}),'
+           'r.jsx("button",{style:Object.assign({},bs,{opacity:dzQsel?1:.45,cursor:dzQsel?"pointer":"default"}),'
+           'disabled:!dzQsel,title:dzQsel?"Supprimer le preset chargé (confirmation demandée)":"Chargez d’abord un preset pour le supprimer",'
+           'onClick:dzQpDel,children:"🗑"})]})})},"dzqp")}'
            + A_P5ST1)
 A_P5ST2 = 'r.jsx(O,{children:r.jsx(Oe,{label:"Duration",value:h,min:5,max:60,step:5,unit:"s",onChange:b})}),'
 R_P5ST2 = (A_P5ST2 +
@@ -7714,6 +7751,28 @@ R_P5EX2 = ('if(m.kind==="render"&&m.jobId){items.push({lbl:"⚡ Prolonger le cli
 P1 += [("P5ex1-helper-prolonger-avant-dzsendto", A_P5EX1, R_P5EX1),
        ("P5ex2-entree-prolonger-du-menu-envoyer-vers", A_P5EX2, R_P5EX2)]
 assert len(P1) == 93 and all("\n" not in r and "\r" not in r for _t, _a, r in P1[-2:])
+# P5pr1..P5pr2 (tache #53, plan Quick T6, 01/10/2026) -- PRESETS SUR LES QUATRE ONGLETS. Ecarts au plan du 03/09 :
+# (1) un GROUPE du maillon montage, pas de patcher `quickpresets` ; (2) un preset EST la recette de T1 (dzQuickRecipe)
+# nommee — table `quick_presets` en JSON, pas une colonne par champ ; (3) l'onglet Voix garde son etat DANS DzQuickVoice :
+# P5pr1 l'expose (__dzQuickVoiceGet) et le rejoue (evenement deepotus:quick-voice, ou __dzQuickVoicePending si le
+# composant n'est pas encore monte) ; (4) aucun window.prompt/confirm : __dzDialogue.saisir / confirmer nomme le preset.
+# L'etat et les gestes vivent dans R_P5ST1 (meme composant), la recette voix dans R_P5QR2.
+A_P5PR1 = 'qc=x.useState(!1),saving=qc[0],setSaving=qc[1];'
+R_P5PR1 = (A_P5PR1 +
+           'var dzQvRef=x.useRef(null);dzQvRef.current=function(vc){if(!vc)return;if(vc.text!=null)setTxt(vc.text);'
+           'if(vc.lang)setLang(vc.lang);if(vc.voice_id!=null)setVid(vc.voice_id);if(vc.voice_name)setVnm(vc.voice_name);'
+           'if(vc.model!=null){dzSetM(vc.model);try{localStorage.setItem("dz_voice_model",vc.model)}catch(_e){}}'
+           'if(vc.tune&&typeof vc.tune==="object"){dzSetT(vc.tune);try{localStorage.setItem("dz_voice_tune",JSON.stringify(vc.tune))}catch(_e){}}};'
+           'window.__dzQuickVoiceGet=function(){return{text:txt,lang:lang,voice_id:vid,voice_name:vnm,model:dzM,tune:dzT}};'
+           'x.useEffect(function(){var p0=null;try{p0=window.__dzQuickVoicePending;delete window.__dzQuickVoicePending}catch(_e){}'
+           'if(p0)dzQvRef.current(p0);function onV(ev){try{delete window.__dzQuickVoicePending}catch(_e){}dzQvRef.current(ev.detail)}'
+           'window.addEventListener("deepotus:quick-voice",onV);return function(){window.removeEventListener("deepotus:quick-voice",onV);'
+           'try{delete window.__dzQuickVoiceGet}catch(_e){}}},[]);')
+A_P5PR2 = 'children:o==="voice"?[r.jsx(DzQuickVoice,{},"dzqv")]:['
+R_P5PR2 = 'children:o==="voice"?[dzQpUI(),r.jsx(DzQuickVoice,{},"dzqv")]:[dzQpUI(),'
+P1 += [("P5pr1-etat-voix-expose-et-rejoue", A_P5PR1, R_P5PR1),
+       ("P5pr2-presets-en-tete-des-quatre-onglets", A_P5PR2, R_P5PR2)]
+assert len(P1) == 95 and all("\n" not in r and "\r" not in r for _t, _a, r in P1[-2:])
 
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
@@ -7988,6 +8047,7 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            # + P5st1..P5st5 (tache #50, sous-titres graves sur le rendu Quick) : 320, le --check dit 321.
            # + P5ex1..P5ex2 (tache #51, prolonger le clip) : 322, le --check dit 323.
            # tache #52 (lip-sync) : AUCUNE section de plus — P5st1/P5st2/P5st3 et P5qr2 portent le lip-sync.
+           # + P5pr1..P5pr2 (tache #53, presets sur les quatre onglets) : 324, le --check dit 325.
            # studio 27/09 : + HUIT sections EN QUEUE, groupe R8 apres R7 (format HeyGen impose par le template, « Ouvrir un graphe » en icone,
            # repli de l'inspecteur) ; 213 -> 221, le --check dit 222 ancres ; + R8sv1 (Save par le dialogue maison) : 222, le --check dit 223 ;
            # + R8pr1..R8pr7 (les autres window.prompt natifs, 27/09) : 229, le --check dit 230.
