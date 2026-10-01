@@ -1612,6 +1612,8 @@ EOF
 
 ---
 
+> **T5 EXÉCUTÉE le 01/10/2026** (tâche #52 du suivi, branche `chantier/p5-quick-lipsync`). MESURE de l'étape 1 (OpenAPI fal `fal-ai/kling-video/lipsync/audio-to-video`) : `video_url` et `audio_url` requis ; vidéo .mp4/.mov ≤ 100 Mo, 2–10 s, 720p/1080p, largeur ET hauteur 720–1920 px ; audio 2–60 s, ≤ 5 Mo. PRIX relevé sur fal.ai : 0,014 $ par seconde de VIDÉO d'entrée, au palier de 5 s supérieur (le plan : « par seconde d'audio ») — 0,07 $ ou 0,14 $. Écarts : (1) la route `/generate` PRÉ-VÉRIFIE avant le rendu payé (durée native via `pricing.video_gen_seconds`, cible ≤ natif — une boucle répéterait la parole —, voix 2–60 s et ≤ 5 Mo) et chiffre le lip-sync dans la garde des plafonds ; le plan ne refusait qu'après le rendu Seedance payé ; (2) le crochet rejoue les gardes sur la MESURE du fichier (dont les pixels) ; la fusion GARDE l'audio du clip lip-synché (`keep_video_audio`) — sans cela une musique effaçait la voix ; (3) `D.listAudio` rend `name`, pas `filename` ; (4) écran : pas de groupe neuf, P5st1/P5st2/P5st3 et P5qr2 portent le lip-sync (onglet Seedance seulement), `x.useState(` 620 → 623. Bancs : `test_quick_lipsync` 20/0 (gardes sur de vrais fichiers, prix, pré-vérifications et devis de la route, rendu Seedance COMPLET avec fal espionné, voix mesurée à 330 Hz après mixage d'une musique à 880 Hz : −21 dB contre −50 dB sans le correctif), `test_quick_bundle` 50/0, `test_montage_bundle` 2682/0 ; 17/17 mutations rouges (un survivant au premier tour : la voix perdue au mixage → banc renforcé) ; preuve écran 8799 : le bloc et ses bornes sur Seedance, absent sur HeyGen.
+
 ### Task 5 (P5) : lip-sync dans Quick
 
 **Files :**
