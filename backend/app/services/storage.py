@@ -320,6 +320,20 @@ class LibraryAsset(Base):
                                               default=datetime.utcnow)
 
 
+class Device(Base):
+    """Plan mobile T2 (tâche #56, P1, 01/10/2026) — un appareil appairé. Le jeton n'est JAMAIS stocké : seul son
+    sha256 l'est, comme un mot de passe. `revoque` non nul = l'appareil ne passe plus la garde, immédiatement (le cache
+    de la garde est invalidé par la révocation, pas par son TTL). Table neuve : `create_all` suffit (comme LibraryAsset)."""
+    __tablename__ = "devices"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    nom: Mapped[str] = mapped_column(String(60), default="")
+    jeton_sha256: Mapped[str] = mapped_column(String(64), index=True)
+    cree: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    revoque: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    vu_le: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+
 class Chapter(Base):
     """v1.17 (Atelier P1) — a story chapter: raw script text + the annotated
     spans linking text zones to bible entities ([{start,end,text,entity_id}]
