@@ -34,6 +34,7 @@ SOURCES: dict[str, str] = {
     "assets3d": "Game Assets 3D",
     "import": "Import fichier",
     "import_url": "Import URL",
+    "mobile": "Compagnon mobile",   # plan mobile T12 (tâche #58) : images déposées par le téléphone
     "inconnu": "Inconnu",
 }
 

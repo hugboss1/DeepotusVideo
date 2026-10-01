@@ -192,8 +192,9 @@ r_loc = locA.post("/api/dictation/estimate", json={})
 check("4.4 temoin local : la meme ecriture depuis la boucle locale atteint la route (pas 403)", r_loc.status_code != 403, _d(r_loc.status_code))
 # tache #56 (01/10/2026) : UNE exception, l'echange du secret d'appairage contre un jeton (plan mobile T4)
 # tache #57 (01/10/2026, decision de l'utilisateur) : + l'etat du lot rapporte par le telephone (plan mobile T8)
-check("4.5 deux exceptions ouvertes (pair/claim, sync/lot/etat), aucune qui depense ; la garde lit la liste d'hotes des Reglages",
-      MAIN._ECRITURES_OUVERTES == frozenset({("POST", "/api/pair/claim"), ("POST", "/api/sync/lot/etat")})
+# tache #58 (01/10/2026, decision « une par une ») : + le depot verifie d'une image du telephone (plan mobile T13)
+check("4.5 trois exceptions ouvertes (pair/claim, sync/lot/etat, sync/depot), aucune qui depense ; la garde lit la liste d'hotes des Reglages",
+      MAIN._ECRITURES_OUVERTES == frozenset({("POST", "/api/pair/claim"), ("POST", "/api/sync/lot/etat"), ("POST", "/api/sync/depot")})
       and MAIN._HOTES_LOCAUX is RT._HOTES_LOCAUX, "")
 sansj = TestClient(APP, client=LAN).get("/api/video-models")
 check("4.8 (tache #56) SANS jeton d'appareil, meme une lecture depuis le reseau local est refusee (401, garde exterieure)",
