@@ -7522,7 +7522,7 @@ A_P5QR2 = "[Ce,at]=x.useState(null);"
 R_P5QR2 = (A_P5QR2 +
            'function dzQuickRecipe(){return{v:1,tab:o,seedance:{image:w,end:g,prompt:s,vibe:A,model:VMQ,'
            'duration:h,aspect:_,seed:N,template:H||""},heygen:{src:hsrc,avatar:C,voice:ee,script:R,engine:eng,'
-           'image:mimg,motion:mp,expr:xp},layout:We,subs:{on:dzSubOn,style:dzSubSty,lang:dzSubLang,text:dzSubTxt,tr:dzSubTr}}}'
+           'image:mimg,motion:mp,expr:xp},layout:We,subs:{on:dzSubOn,style:dzSubSty,lang:dzSubLang,text:dzSubTxt,tr:dzSubTr},lip:{on:dzLipOn,file:dzLipFile}}}'
            'function dzQuickApply(rc){if(!rc)return;var sd=rc.seedance||{},hg=rc.heygen||{};'
            'if(rc.tab&&["seedance","heygen","comp","voice"].indexOf(rc.tab)>=0)i(rc.tab);'
            'if(sd.image!=null){v(sd.image);if(!u.length)try{window.__dzQuickStart=sd.image}catch(_e){}}'
@@ -7534,7 +7534,8 @@ R_P5QR2 = (A_P5QR2 +
            'if(hg.engine!=null)Eng(hg.engine);if(hg.image!=null)Mimg(hg.image);if(hg.motion!=null)Mp(hg.motion);'
            'if(hg.expr!=null)Xp(hg.expr);if(rc.layout)De(rc.layout);var sb=rc.subs||{};if(sb.on!=null)dzSetSubOn(!!sb.on);'
            'if(sb.style)dzSetSubSty(sb.style);if(sb.lang)dzSetSubLang(sb.lang);if(sb.text!=null)dzSetSubTxt(sb.text);'
-           'if(sb.tr!=null)dzSetSubTr(!!sb.tr)}'
+           'if(sb.tr!=null)dzSetSubTr(!!sb.tr);var lp=rc.lip||{};if(lp.on!=null)dzSetLipOn(!!lp.on);'
+           'if(lp.file!=null)dzSetLipFile(lp.file)}'
            'var dzApplyRef=x.useRef(null);dzApplyRef.current=dzQuickApply;'
            'x.useEffect(function(){var r0=null;try{r0=window.__dzQuickRecipe;delete window.__dzQuickRecipe}catch(_e){}'
            'if(r0)dzApplyRef.current(r0);function onR(ev){dzApplyRef.current(ev.detail)}'
@@ -7629,6 +7630,15 @@ R_P5ST1 = ('var dzSoS=x.useState(!1),dzSubOn=dzSoS[0],dzSetSubOn=dzSoS[1],'
            'function dzSubTexte(){return(dzSubTxt||"").trim()||(o!=="seedance"?(R||"").trim():"")}'
            'function dzSubs(){if(!dzSubOn)return void 0;var t2=dzSubTexte();'
            'return{on:!0,style:dzSubSty,lang:dzSubLang,cps:42,source:(!t2&&dzSubTr)?"transcribe":"align",text:t2}}'
+           # tache #52 (plan Quick T5) : le lip-sync Kling sur une voix off du dossier audio (Seedance seulement)
+           'var dzLoS=x.useState(!1),dzLipOn=dzLoS[0],dzSetLipOn=dzLoS[1],'
+           'dzLfS=x.useState(""),dzLipFile=dzLfS[0],dzSetLipFile=dzLfS[1],'
+           'dzLlS=x.useState([]),dzLipList=dzLlS[0],dzSetLipList=dzLlS[1];'
+           'x.useEffect(function(){var on=!0;D.listAudio().then(function(d2){if(on)'
+           'dzSetLipList(((d2&&d2.audio)||[]).map(function(z){return z.name||z.filename||z}))})'
+           '.catch(function(){});return function(){on=!1}},[]);'
+           'function dzLip(){if(o!=="seedance"||!dzLipOn||!dzLipFile)return void 0;'
+           'return{on:!0,model:"kling-lipsync",file:dzLipFile}}'
            + A_P5ST1)
 A_P5ST2 = 'r.jsx(O,{children:r.jsx(Oe,{label:"Duration",value:h,min:5,max:60,step:5,unit:"s",onChange:b})}),'
 R_P5ST2 = (A_P5ST2 +
@@ -7647,9 +7657,18 @@ R_P5ST2 = (A_P5ST2 +
            'dzSubOn&&r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-soft)",marginTop:-4},'
            'children:dzSubTexte()?"Calage local du texte connu — 0 $, hors ligne, exact sur les noms propres."'
            ':dzSubTr?"Sans texte, le son sera TRANSCRIT : appel payant, chiffré avant le rendu."'
-           ':"Aucun texte à caler : écrivez-le, ou cochez la transcription payante. Sinon, pas de sous-titres."}),')
+           ':"Aucun texte à caler : écrivez-le, ou cochez la transcription payante. Sinon, pas de sous-titres."}),'
+           # tache #52 : le bloc lip-sync (onglet Seedance seulement : HeyGen synchronise deja ses levres)
+           'o==="seedance"&&r.jsx(O,{children:r.jsx(Ze,{checked:dzLipOn,label:"Lip-sync sur une voix off (Kling, payant)",'
+           'onChange:dzSetLipOn})}),'
+           'o==="seedance"&&dzLipOn&&r.jsx(O,{label:"Voix off à synchroniser",children:r.jsx(re,{value:dzLipFile,'
+           'options:[{value:"",label:"— choisir un fichier audio —"}].concat(dzLipList.map(function(z){return{value:z,label:z}})),'
+           'onChange:dzSetLipFile})}),'
+           'o==="seedance"&&dzLipOn&&r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-soft)",marginTop:-4},'
+           'children:"Kling LipSync : le clip natif doit durer 2 à 10 s (Duration ≤ 10 s), la voix 2 à 60 s et 5 Mo au plus. '
+           '0,014 $ par seconde de clip, au palier de 5 s (0,07 $ ou 0,14 $), chiffré avant le rendu."}),')
 A_P5ST3 = 'voiceover_enabled:!1,template_id:H||null},we=await D.postJson("/generate",je)'
-R_P5ST3 = 'voiceover_enabled:!1,template_id:H||null,subtitles:dzSubs()},we=await D.postJson("/generate",je)'
+R_P5ST3 = 'voiceover_enabled:!1,template_id:H||null,subtitles:dzSubs(),lipsync:dzLip()},we=await D.postJson("/generate",je)'
 A_P5ST4 = 'speed:1,engine:eng||void 0});at(Z.ok?{msg:"HeyGen queued."}'
 R_P5ST4 = 'speed:1,engine:eng||void 0,subtitles:dzSubs()});at(Z.ok?{msg:"HeyGen queued."}'
 A_P5ST5 = 'layout:We,audio_source:"heygen",transition_duration_s:.5});'
@@ -7968,6 +7987,7 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            # + P5ef1..P5ef5 (tache #49, l'image de fin grisee avec la raison) : 315, le --check dit 316.
            # + P5st1..P5st5 (tache #50, sous-titres graves sur le rendu Quick) : 320, le --check dit 321.
            # + P5ex1..P5ex2 (tache #51, prolonger le clip) : 322, le --check dit 323.
+           # tache #52 (lip-sync) : AUCUNE section de plus — P5st1/P5st2/P5st3 et P5qr2 portent le lip-sync.
            # studio 27/09 : + HUIT sections EN QUEUE, groupe R8 apres R7 (format HeyGen impose par le template, « Ouvrir un graphe » en icone,
            # repli de l'inspecteur) ; 213 -> 221, le --check dit 222 ancres ; + R8sv1 (Save par le dialogue maison) : 222, le --check dit 223 ;
            # + R8pr1..R8pr7 (les autres window.prompt natifs, 27/09) : 229, le --check dit 230.
