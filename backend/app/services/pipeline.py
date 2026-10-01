@@ -395,6 +395,33 @@ class Pipeline:
                 video_dest = settings.outputs_path / "videos" / f"{job_id}.mp4"
                 await video_client.download_video(video_url, video_dest)
 
+                # Plan Quick T5 (tâche #52) — lip-sync Kling AVANT tout allongement ffmpeg : la borne du modèle (2–10 s)
+                # porte sur le clip NATIF. La route a déjà pré-vérifié et chiffré ; les gardes rejouent ici sur la
+                # MESURE du fichier rendu (durée, pixels) et de la voix off.
+                _lip = getattr(request, "lipsync", None)
+                _lip_fait = False
+                if isinstance(_lip, dict) and _lip.get("on"):
+                    from app.services import fal_video_tools as FV
+                    _ap = _resolve_voiceover({"file": _lip.get("file")})
+                    if _ap is None:
+                        raise ValueError("Lip-sync : aucune voix off jointe (onglet Voice Over).")
+                    _mid = str(_lip.get("model") or FV.DEFAULT_LIPSYNC)
+                    _vs = await asyncio.to_thread(FV.probe, video_dest)
+                    _as = await asyncio.to_thread(FV.probe, _ap)
+                    FV.guard_lipsync(_mid, _vs, _as, _ap.stat().st_size)
+                    await self._update(session, job, current_step="Lip-sync", progress=72)
+                    _vu = await fal_client.upload_file_async(str(video_dest))
+                    _au = await fal_client.upload_file_async(str(_ap))
+                    _ep, _args = FV.build_lipsync_args(_mid, video_url=_vu, audio_url=_au)
+                    _res = await fal_client.subscribe_async(_ep, arguments=_args, with_logs=True)
+                    _ru = FalSeedanceClient.extract_video_url(_res)
+                    if not _ru:
+                        raise RuntimeError("fal.ai : lip-sync sans URL vidéo")
+                    _lp = settings.outputs_path / "videos" / f"{job_id}_lip.mp4"
+                    await FalSeedanceClient.download_video(_ru, _lp)
+                    video_dest = _lp
+                    _lip_fait = True
+
                 # Extend to the requested 5s-increment target if longer than
                 # what Seedance produced (fit a HeyGen avatar length).
                 if request.duration_s > gen_dur:
@@ -443,7 +470,8 @@ class Pipeline:
                 _mus_path, _mus_vol = _resolve_music(request.music)
                 await asyncio.to_thread(
                     self.merger.merge, video_dest, audio_dest or vo_path, final_dest,
-                    music_path=_mus_path, music_volume_db=_mus_vol)
+                    music_path=_mus_path, music_volume_db=_mus_vol,
+                    keep_video_audio=_lip_fait)   # #52 : la voix synchronisée est DANS le clip, la musique s'y ajoute
                 await self._update(session, job, final_video_path=str(final_dest))
                 # P4 (plan Quick T4, tâche #50) — sous-titres, APRÈS le rendu payé et le mix. Le texte de référence :
                 # celui de l'écran, sinon la voix off RÉELLEMENT dite (pas un script non lu, calé sur du silence).

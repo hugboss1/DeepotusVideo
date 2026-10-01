@@ -62,7 +62,7 @@ def fonc(nom, src=s):
 if node:
     rec_fn = fonc("dzQuickRecipe")
     app_fn = fonc("dzQuickApply")
-    SETTERS = "i v k a V dzSetVMQ b z P F Hsrc Q ne W Eng Mimg Mp Xp De dzSetSubOn dzSetSubSty dzSetSubLang dzSetSubTxt dzSetSubTr".split()
+    SETTERS = "i v k a V dzSetVMQ b z P F Hsrc Q ne W Eng Mimg Mp Xp De dzSetSubOn dzSetSubSty dzSetSubLang dzSetSubTxt dzSetSubTr dzSetLipOn dzSetLipFile".split()
     js = "\n".join([fonc("__dzQuickFromJob"), fonc("__dzReopenQuick"), r"""
 var toasts=[],navs=[],evts=[],appels=[],reponses={};
 globalThis.__dzToast=function(m){toasts.push(m)};globalThis.__dzSendNav=function(t){navs.push(t)};
@@ -73,7 +73,7 @@ globalThis.fetch=function(u){appels.push(u);var f=reponses[u];return f?f():rep(4
 var attendre=function(){return new Promise(function(r){setTimeout(r,120)})};
 var appliques={};
 function fabrique(etat){var u=etat.u||[];""" + "".join(f"var {n}=function(x){{appliques['{n}']=x}};" for n in SETTERS) + r"""
- var o=etat.o,w=etat.w,g=etat.g,s=etat.s,A=etat.A,VMQ=etat.VMQ,h=etat.h,_=etat._,N=etat.N,H=etat.H,hsrc=etat.hsrc,C=etat.C,ee=etat.ee,R=etat.R,eng=etat.eng,mimg=etat.mimg,mp=etat.mp,xp=etat.xp,We=etat.We,dzSubOn=etat.dzSubOn,dzSubSty=etat.dzSubSty,dzSubLang=etat.dzSubLang,dzSubTxt=etat.dzSubTxt,dzSubTr=etat.dzSubTr;
+ var o=etat.o,w=etat.w,g=etat.g,s=etat.s,A=etat.A,VMQ=etat.VMQ,h=etat.h,_=etat._,N=etat.N,H=etat.H,hsrc=etat.hsrc,C=etat.C,ee=etat.ee,R=etat.R,eng=etat.eng,mimg=etat.mimg,mp=etat.mp,xp=etat.xp,We=etat.We,dzSubOn=etat.dzSubOn,dzSubSty=etat.dzSubSty,dzSubLang=etat.dzSubLang,dzSubTxt=etat.dzSubTxt,dzSubTr=etat.dzSubTr,dzLipOn=etat.dzLipOn,dzLipFile=etat.dzLipFile;
  """ + rec_fn + app_fn + r"""
  return {recette:dzQuickRecipe,appliquer:dzQuickApply}}
 (async function(){
@@ -90,12 +90,13 @@ function fabrique(etat){var u=etat.u||[];""" + "".join(f"var {n}=function(x){{ap
  delete window.__dzQuickRecipe;navs=[];
  __dzReopenQuick("absent");await attendre();
  out.c={nav:navs.slice(),glob:window.__dzQuickRecipe||null,toast:toasts.slice(-1)[0]};
- var ecran=fabrique({o:"seedance",w:"a.png",g:"",s:"abysse",A:"noir",VMQ:"seedance-2",h:10,_:"9:16",N:"42",H:"",hsrc:"avatar",C:"av1",ee:"vx",R:"txt",eng:"",mimg:"",mp:"",xp:"",We:"sequential",u:[1],dzSubOn:true,dzSubSty:"pop",dzSubLang:"en",dzSubTxt:"bonjour",dzSubTr:false});
+ var ecran=fabrique({o:"seedance",w:"a.png",g:"",s:"abysse",A:"noir",VMQ:"seedance-2",h:10,_:"9:16",N:"42",H:"",hsrc:"avatar",C:"av1",ee:"vx",R:"txt",eng:"",mimg:"",mp:"",xp:"",We:"sequential",u:[1],dzSubOn:true,dzSubSty:"pop",dzSubLang:"en",dzSubTxt:"bonjour",dzSubTr:false,dzLipOn:true,dzLipFile:"voix.mp3"});
  out.recette=ecran.recette();
  ecran.appliquer(REC);out.appliques=appliques;
  appliques={};var vide=fabrique({u:[]});window.__dzQuickStart=null;vide.appliquer({seedance:{image:"z.png"}});out.global=window.__dzQuickStart;out.app2=appliques;
  appliques={};vide.appliquer({tab:"pirate"});out.pirate=appliques;
  appliques={};vide.appliquer({subs:{on:true,style:"neon",lang:"en",text:"t",tr:true}});out.subs=appliques;
+ appliques={};vide.appliquer({lip:{on:true,file:"v.mp3"}});out.lip=appliques;
  console.log(JSON.stringify(out));
 })();
 """])
@@ -134,6 +135,9 @@ function fabrique(etat){var u=etat.u||[];""" + "".join(f"var {n}=function(x){{ap
           (o.get("recette") or {}).get("subs") == {"on": True, "style": "pop", "lang": "en", "text": "bonjour", "tr": False}
           and o.get("subs") == {"dzSetSubOn": True, "dzSetSubSty": "neon", "dzSetSubLang": "en", "dzSetSubTxt": "t", "dzSetSubTr": True},
           str(o.get("subs")))
+    check("N9 (tache #52) la recette porte le lip-sync et son application le restaure",
+          (o.get("recette") or {}).get("lip") == {"on": True, "file": "voix.mp3"}
+          and o.get("lip") == {"dzSetLipOn": True, "dzSetLipFile": "v.mp3"}, str(o.get("lip")))
 
 print("\n[E] l'image de fin grisee avec la raison (tache #49, plan Quick T3, groupe P5ef)")
 check("E0 temoin : la base (15c4c12) n'a ni dzEndOK ni le libelle « indisponible »", "dzEndOK" not in s0 and "Image de fin — indisponible" not in s0)
@@ -188,7 +192,7 @@ console.log(JSON.stringify(out));
 print("\n[S] sous-titres graves dans Quick (tache #50, plan Quick T4, groupe P5st)")
 check("S0 temoin : la base (15c4c12) n'a ni dzSubs (dzSubsExp du Montage est autre) ni « Sous-titrer le rendu »", "function dzSubs(" not in s0 and "subtitles:dzSubs()" not in s0 and "Sous-titrer le rendu" not in s0)
 check("S1 un dzSubs, trois payloads (seedance, heygen, composition)", s.count("function dzSubs(") == 1 and s.count("subtitles:dzSubs()") == 3
-      and 'template_id:H||null,subtitles:dzSubs()},we=await D.postJson("/generate",je)' in s
+      and 'template_id:H||null,subtitles:dzSubs(),lipsync:dzLip()},we=await D.postJson("/generate",je)' in s
       and 'engine:eng||void 0,subtitles:dzSubs()});at(Z.ok?{msg:"HeyGen queued."}' in s
       and 'transition_duration_s:.5,subtitles:dzSubs()});' in s)
 check("S2 les preselections viennent de /api/subtitles/presets", 'fetch("/api/subtitles/presets?ratio=9:16")' in um)
@@ -278,6 +282,34 @@ var OK={ok:true,fal:true,veo_source:true,added_s:7,label:"Veo 3.1 Fast · extens
     nv = o.get("nonVeo") or {}
     check("X8 source non-Veo : avertissement ; 402 du plafond : annule proprement", "Attention : fal prolonge surtout" in str(nv.get("saisie"))
           and (nv.get("post") or {}).get("son") is True and "plafond" in str(nv.get("toast")), str(nv)[:300])
+
+print("\n[L] lip-sync Kling dans Quick (tache #52, plan Quick T5)")
+check("L0 temoin : la base (15c4c12) n'a pas dzLip", "function dzLip(" not in s0)
+check("L1 un dzLip, un seul payload (Seedance), la liste des voix off du dossier audio",
+      s.count("function dzLip(") == 1 and s.count("lipsync:dzLip()") == 1 and "D.listAudio().then(function(d2){if(on)" in um
+      and "return z.name||z.filename||z" in um)
+check("L2 le bloc : onglet Seedance seulement, case qui dit payant, choix de la voix, bornes et prix ecrits",
+      'o==="seedance"&&r.jsx(O,{children:r.jsx(Ze,{checked:dzLipOn,label:"Lip-sync sur une voix off (Kling, payant)"' in um
+      and 'o==="seedance"&&dzLipOn&&r.jsx(O,{label:"Voix off \u00e0 synchroniser"' in um
+      and "le clip natif doit durer 2 \u00e0 10 s" in um and "0,07 $ ou 0,14 $" in um)
+if node:
+    js = r"""
+function monter(st){var o=st.o,dzLipOn=st.on,dzLipFile=st.file;
+ """ + fonc("dzLip") + r"""
+ return dzLip()}
+console.log(JSON.stringify({ok:monter({o:"seedance",on:true,file:"v.mp3"}),heygen:monter({o:"heygen",on:true,file:"v.mp3"})===undefined,
+ off:monter({o:"seedance",on:false,file:"v.mp3"})===undefined,sansFichier:monter({o:"seedance",on:true,file:""})===undefined}));
+"""
+    f = pathlib.Path(tempfile.mkdtemp(prefix="dzquickl_"), "l.mjs"); f.write_text(js, encoding="utf-8")
+    p = subprocess.run([node, str(f)], capture_output=True, text=True, encoding="utf-8", timeout=60)
+    try:
+        o = json.loads(p.stdout.strip().splitlines()[-1])
+    except Exception:  # noqa: BLE001
+        o = {}
+        print(p.stdout[-800:], p.stderr[-1500:])
+    check("L3 dzLip : la demande part seulement sur Seedance, case cochee ET voix choisie",
+          o.get("ok") == {"on": True, "model": "kling-lipsync", "file": "v.mp3"} and o.get("heygen") is True
+          and o.get("off") is True and o.get("sansFichier") is True, str(o))
 
 print(f"\n{ok} ok, {fail} echec(s)")
 raise SystemExit(1 if fail else 0)

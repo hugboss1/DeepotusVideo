@@ -125,6 +125,8 @@ DEFAULTS = {
         "veo-3.1-fast-extend": {"son": 0.15, "muet": 0.10},
         "veo-3.1-extend": {"son": 0.40, "muet": 0.20},
     },
+    # Plan Quick T5 (tâche #52) — lip-sync Kling : $/s de VIDÉO d'entrée, au palier de 5 s (relevé fal.ai le 01/10).
+    "lipsync_usd_per_s": {"kling-lipsync": 0.014},
     "stt_usd_per_min": {
         "elevenlabs": 0.0067,   # Scribe v1, ≈ 0,40 $/h
         "openai": 0.006,        # whisper-1
@@ -468,6 +470,17 @@ def estimate(op: dict, p: dict | None = None) -> dict:
         except (TypeError, ValueError, KeyError):
             rate = 0.40
         lines.append(_line("fal", f"Extension ({model}, {'son' if op.get('son', True) else 'muet'})", secs, "s", secs * rate))
+    elif kind == "lipsync":
+        # Plan Quick T5 (tâche #52) : arrondi au palier de 5 s supérieur, comme fal le facture (math : import du module).
+        model = str(op.get("model") or "kling-lipsync")
+        secs = max(0.0, float(op.get("duration_s", 0)))
+        facture = max(1, math.ceil(secs / 5.0)) * 5.0
+        rates = p.get("lipsync_usd_per_s") or DEFAULTS["lipsync_usd_per_s"]
+        try:
+            rate = float(rates.get(model, DEFAULTS["lipsync_usd_per_s"].get(model, 0.014)))
+        except (TypeError, ValueError):
+            rate = 0.014
+        lines.append(_line("fal", f"Lip-sync ({model}, palier de 5 s)", facture, "s", facture * rate))
     elif kind == "transcribe":
         # Sous-titres, chemin « texte inconnu ». Le chemin « texte connu »
         # (calage local d'une narration déjà écrite) coûte 0 et le dit.

@@ -184,6 +184,9 @@ class GenerateRequest(BaseModel):
     # P4 (plan Quick T4, tâche #50) — sous-titres gravés sur le rendu : {on, style, lang, text, cps, source :
     # "align" (gratuit, défaut) | "transcribe" (payant, demandé explicitement), provider}
     subtitles: Optional[dict] = None
+    # Plan Quick T5 (tâche #52) — lip-sync Kling sur le clip NATIF : {on: bool, model: "kling-lipsync", file: <voix
+    # off du dossier audio>}. Seulement sur demande (case) ; chiffré et pré-vérifié par /generate AVANT le rendu.
+    lipsync: Optional[dict] = None
     # Optional looped background music: {"file": <name in audio dir>, "volume_db": -14}
     music: Optional[dict] = None
     # Optional pre-generated voice-over (Studio Voiceover node), mixed over
