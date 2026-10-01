@@ -109,6 +109,11 @@ class Settings(BaseSettings):
     DATABASE_URL: str = f"sqlite+aiosqlite:///{(DATA_ROOT / 'deepotus.db').as_posix()}"
 
     # Server
+    # Plan mobile T5 (tâche #56, 01/10/2026) — HOST reste 127.0.0.1 PAR DÉFAUT : ouvrir le réseau local est une
+    # décision, pas un réglage. `HOST=0.0.0.0` dans le .env du DATA_ROOT (lu aussi par scripts/launch-silent.vbs,
+    # deux valeurs seulement) fait écouter le Wi-Fi — à ne faire QU'APRÈS avoir appairé un appareil : la garde de jeton
+    # (main.py, _device_token_guard) devient alors la protection des LECTURES, les écritures restant à la boucle locale
+    # (_garde_ecritures_locales) et les clés au PC (_require_localhost).
     HOST: str = "127.0.0.1"
     PORT: int = 8765
 
