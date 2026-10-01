@@ -1163,17 +1163,20 @@ r = api("POST", "/api/montage/proxy", json={"src": {"file_path": MUS}})
 check("route_proxy_post_415_sur_un_son", r.status_code == 415,
       f"{r.status_code} {r.text[:160]}")
 
+import sys as _sys, os as _os; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))  # noqa: E401,E702
+import _jeton_appareil as _JA  # noqa: E402 — tache #56 : le reseau local exige un jeton d'appareil (garde exterieure)
+_HJ = _JA.entetes(app, "10.0.0.5")
 # LA BOUCLE LOCALE. Les quatre routes, pas une seule : un appelant distant
 # ne doit obtenir NI contenu NI travail de fond.
 for _m, _p in (("GET", "/api/montage/peaks?src=" + Q({"file_path": MUS})),
                ("GET", "/api/montage/strip?src=" + Q({"file_path": V1})),
                ("GET", "/api/montage/proxy?src=" + Q({"file_path": V1}))):
-    _r = api(_m, _p, client=("10.0.0.5", 4242))
+    _r = api(_m, _p, client=("10.0.0.5", 4242), headers=_HJ)
     check("route_hors_boucle_locale_403_" + _p.split("?")[0].rsplit("/", 1)[-1]
           + "_" + _m.lower(), _r.status_code == 403,
           f"{_r.status_code} {_r.text[:120]}")
 _r = api("POST", "/api/montage/proxy", json={"src": {"file_path": V1}},
-         client=("10.0.0.5", 4242))
+         client=("10.0.0.5", 4242), headers=_HJ)
 check("route_hors_boucle_locale_403_proxy_post", _r.status_code == 403,
       f"{_r.status_code} {_r.text[:120]}")
 
@@ -1378,7 +1381,7 @@ check("route_duration_404_sans_src", r.status_code == 404,
 # LA BOUCLE LOCALE, comme les quatre autres : la garde vient de
 # `_media_source`, jamais d'une seconde liste d'hotes.
 r = api("GET", "/api/montage/duration?src=" + Q({"file_path": V1}),
-        client=("10.0.0.5", 4242))
+        client=("10.0.0.5", 4242), headers=_HJ)
 check("route_duration_403_hors_boucle_locale", r.status_code == 403,
       f"{r.status_code} {r.text[:120]}")
 
@@ -1476,7 +1479,7 @@ check("route_has_audio_404_sans_src",
       r.status_code == 404 and "Source introuvable" in r.text,
       f"{r.status_code} {r.text[:160]}")
 r = api("GET", "/api/montage/has-audio?src=" + Q({"file_path": V1}),
-        client=("10.0.0.5", 4242))
+        client=("10.0.0.5", 4242), headers=_HJ)
 check("route_has_audio_403_hors_boucle_locale", r.status_code == 403,
       f"{r.status_code} {r.text[:120]}")
 

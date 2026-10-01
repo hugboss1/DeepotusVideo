@@ -101,7 +101,9 @@ with TestClient(app, client=("127.0.0.1", 50000)) as c:
     check("4.1 /api/reglages/depenses sert le tableau du mois", len(j["lignes"]) == 5 and j["mois"] == P.mois_courant(), str(len(j.get("lignes", []))))
     check("4.2 mois illisible : 400", c.get("/api/reglages/depenses?mois=2026-9").status_code == 400)
     check("4.3 mois explicite", c.get("/api/reglages/depenses?mois=1999-01").json()["lignes"] == [])
-with TestClient(app, client=("192.168.1.20", 50000)) as c2:
+import sys as _sys, os as _os; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))  # noqa: E401,E702
+import _jeton_appareil as _JA  # noqa: E402 — tache #56 : le reseau local exige un jeton d'appareil (garde exterieure)
+with TestClient(app, client=("192.168.1.20", 50000), headers=_JA.entetes(app)) as c2:
     check("4.4 hors boucle locale : refusé", c2.get("/api/reglages/depenses").status_code == 403)
 
 print("\n[5] l'écran (bundle livré)")

@@ -154,7 +154,9 @@ with TestClient(app, client=("127.0.0.1", 50000)) as c:
           j["resultat"]["empreintes"] == 5 and c.post("/api/transfer/inspect", json={"dossier": j["resultat"]["dossier"]}).json()["manifeste"]["empreintes"] == 5,
           json.dumps(j["resultat"].get("empreintes")))
     check("6.5 /transfer/verify sans manifeste : 400 parlant", c.post("/api/transfer/verify", json={"dossier": str(_tmp)}).status_code == 400, "")
-with TestClient(app, client=("192.168.1.20", 50000)) as c2:
+import sys as _sys, os as _os; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))  # noqa: E401,E702
+import _jeton_appareil as _JA  # noqa: E402 — tache #56 : le reseau local exige un jeton d'appareil (garde exterieure)
+with TestClient(app, client=("192.168.1.20", 50000), headers=_JA.entetes(app)) as c2:
     check("6.6 hors boucle locale : vérification refusée", c2.post("/api/transfer/verify", json={"dossier": "x"}).status_code == 403, "")
 
 print("\n[7] l'écran (couche transfert livrée dans le bundle)")

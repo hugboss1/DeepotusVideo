@@ -12168,3 +12168,74 @@ async def etabli_couper(body: dict):
     except ValueError as e:
         raise HTTPException(400, str(e))
     return _etabli_ecrire(job, sortie, "couper", {"depuis": depuis, **rapport})
+
+
+# ── Plan mobile T4 (tâche #56, 01/10/2026) : appairage d'un appareil ─────────────────────────────────────────────────
+# `_require_localhost` garde ces routes : seul le PC affiche un QR, liste et révoque. `/pair/claim` est l'exception,
+# ouverte au réseau local par main.py (_ROUTES_SANS_JETON pour la garde de jeton, _ECRITURES_OUVERTES pour la garde
+# des écritures) — le secret à usage unique de 5 minutes y tient lieu de garde.
+
+def _adresse_lan() -> str:
+    """L'IP de la machine sur le réseau local. Aucun paquet n'est envoyé : `connect` sur un socket UDP ne fait que
+    choisir l'interface de sortie."""
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("10.255.255.255", 1))
+        return s.getsockname()[0]
+    except OSError:
+        return "127.0.0.1"
+    finally:
+        s.close()
+
+
+@router.post("/pair/start")
+async def pair_start(request: Request):
+    """Un secret à usage unique + l'URL que le QR porte + le QR en PNG (base64)."""
+    _require_localhost(request)
+    import base64
+    from app.services import appairage, qrcode_min
+    s = appairage.creer_secret()
+    hote = _adresse_lan()
+    url = f"dz1://pair?h={hote}&p={settings.PORT}&s={s.secret}"
+    png = qrcode_min.png(url, module=8, marge=4)
+    return {"secret": s.secret, "url": url, "hote": hote, "port": settings.PORT,
+            "expire_dans_s": appairage.DUREE_SECRET_S, "ecoute": settings.HOST,
+            "qr_png_b64": base64.b64encode(png).decode("ascii")}
+
+
+@router.post("/pair/claim")
+async def pair_claim(body: dict | None = None):
+    """Le téléphone échange le secret contre son jeton, rendu UNE seule fois."""
+    from app.services import appairage
+    b = body if isinstance(body, dict) else {}
+    try:
+        jeton, appareil = await appairage.reclamer(str(b.get("secret") or ""), str(b.get("nom") or "appareil"))
+    except appairage.SecretRefuse as e:
+        raise HTTPException(403, str(e))
+    return {"jeton": jeton, "appareil": appareil, "protocole": 1, "version": APP_VERSION}
+
+
+@router.get("/devices")
+async def devices_list(request: Request):
+    _require_localhost(request)
+    from app.services import appairage
+    return {"appareils": await appairage.lister(), "max": appairage.MAX_APPAREILS, "ecoute": settings.HOST}
+
+
+@router.post("/devices/{device_id}/revoke")
+async def devices_revoke(device_id: str, request: Request):
+    _require_localhost(request)
+    from app.services import appairage
+    if not await appairage.revoquer(device_id):
+        raise HTTPException(404, "Appareil inconnu ou déjà révoqué")
+    return {"revoque": device_id}
+
+
+@router.get("/devices/rotation")
+async def devices_rotation(request: Request):
+    """R12 réponse 12 : après un téléphone perdu, révoquer NE SUFFIT PAS — les clés ont voyagé dans l'archive
+    chiffrée. Voici où les régénérer."""
+    _require_localhost(request)
+    from app.services import appairage
+    return {"consoles": appairage.CONSOLES}

@@ -148,7 +148,9 @@ with TestClient(app, client=("127.0.0.1", 50000)) as c:
     rels = [r for r, _t in TR.inventaire()[0]]
     check("6.2 l'inventaire du transfert ne les liste pas", not any(r.startswith("coffre.") for r in rels), str([r for r in rels if "coffre" in r]))
 
-with TestClient(app, client=("192.168.1.20", 50000)) as c2:
+import sys as _sys, os as _os; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))  # noqa: E401,E702
+import _jeton_appareil as _JA  # noqa: E402 — tache #56 : le reseau local exige un jeton d'appareil (garde exterieure)
+with TestClient(app, client=("192.168.1.20", 50000), headers=_JA.entetes(app)) as c2:
     check("7.1 hors boucle locale : état, ouverture et archive refusés", c2.get("/api/reglages/coffre/etat").status_code == 403
           and c2.post("/api/reglages/coffre/ouvrir", json={"mot_de_passe": MDP}).status_code == 403
           and c2.post("/api/reglages/coffre/archive", json={"mot_de_passe": "phrase-du-telephone"}).status_code == 403)

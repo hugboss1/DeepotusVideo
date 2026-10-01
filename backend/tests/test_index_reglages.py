@@ -62,7 +62,9 @@ with TestClient(app, client=("127.0.0.1", 50000)) as c:
         e = rep.json().get("entrees", [])
     except ValueError:                                              # la base : le fourre-tout SPA rend du HTML
         e = []
-with TestClient(app, client=("192.168.1.20", 50000)) as c2:
+import sys as _sys, os as _os; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))  # noqa: E401,E702
+import _jeton_appareil as _JA  # noqa: E402 — tache #56 : le reseau local exige un jeton d'appareil (garde exterieure)
+with TestClient(app, client=("192.168.1.20", 50000), headers=_JA.entetes(app)) as c2:
     code_distant = c2.get("/api/reglages/index").status_code
 
 print("\n[1] les sections")

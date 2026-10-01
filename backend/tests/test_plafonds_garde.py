@@ -166,7 +166,9 @@ with TestClient(app, client=("127.0.0.1", 50000)) as c:
     check("C4 état : 0,012 $ fal au mois, 1,2 % de 1 $", abs(et["par_moteur"]["fal"]["estime_usd"] - 0.012) < 1e-9
           and et["par_moteur"]["fal"]["pct"] == 1.2, json.dumps(et["par_moteur"]))
     check("C5 mois illisible : 400", c.get("/api/reglages/plafonds/etat?mois=2026-9").status_code == 400, "")
-with TestClient(app, client=("192.168.1.20", 50000)) as c2:
+import sys as _sys, os as _os; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))  # noqa: E401,E702
+import _jeton_appareil as _JA  # noqa: E402 — tache #56 : le reseau local exige un jeton d'appareil (garde exterieure)
+with TestClient(app, client=("192.168.1.20", 50000), headers=_JA.entetes(app)) as c2:
     check("C6 hors boucle locale : lecture refusée", c2.get("/api/reglages/plafonds").status_code == 403, "")
     check("C7 hors boucle locale : écriture refusée", c2.post("/api/reglages/plafonds", json={"global_usd": 0}).status_code == 403, "")
 check("C8 le refus distant n'a rien écrit", P.charger()["global_usd"] == 20.0, "")

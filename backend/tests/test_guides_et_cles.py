@@ -128,7 +128,9 @@ with TestClient(app, client=("127.0.0.1", 50000)) as c:
     j = c.post("/api/settings/keys", json={"entries": [{"name": "X_API_KEY", "value": "a"}], "tester": True}).json()
     check("3.3 une clé X se teste avec les QUATRE (un seul test X, jamais clé par clé)", appels == ["X"] and "X" in j["tests"], json.dumps(j))
 
-with TestClient(app, client=("192.168.1.20", 50000)) as c2:
+import sys as _sys, os as _os; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))  # noqa: E401,E702
+import _jeton_appareil as _JA  # noqa: E402 — tache #56 : le reseau local exige un jeton d'appareil (garde exterieure)
+with TestClient(app, client=("192.168.1.20", 50000), headers=_JA.entetes(app)) as c2:
     avant = env()
     check("4.1 hors boucle locale : écriture refusée et .env intact",
           c2.post("/api/settings/keys", json={"name": "FAL_KEY", "value": "pirate"}).status_code == 403 and env() == avant

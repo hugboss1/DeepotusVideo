@@ -303,7 +303,9 @@ _s9, _d9 = POST(None, nom="pile.webm", octets=b"\0" * _LIM)
 check("v4_50_mo_plus_un_octet_413_temoin_50_mo_pile_passe_la_garde_de_taille_415",
       _s8 == 413 and "50" in str(_d8.get("detail") or "") and _s9 == 415
       and LISTE() == _avant and RESTES() == [], f"{_s8} {_d8} | {_s9} {_d9}")
-_loin = TestClient(app, raise_server_exceptions=False, client=("10.1.2.3", 50000))
+import sys as _sys, os as _os; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))  # noqa: E401,E702
+import _jeton_appareil as _JA  # noqa: E402 — tache #56 : le reseau local exige un jeton d'appareil (garde exterieure)
+_loin = TestClient(app, raise_server_exceptions=False, client=("10.1.2.3", 50000), headers=_JA.entetes(app))
 _s10, _d10 = POST(OGG, client=_loin) if OGG else ("ABSENT", {})
 _ap10 = LISTE()
 _s11, _d11 = POST(OGG) if OGG else ("ABSENT", {})

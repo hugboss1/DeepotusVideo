@@ -181,7 +181,9 @@ with TestClient(app, client=("127.0.0.1", 50000)) as c:
     r = c.get("/api/news/trends?x_query=solana").json()
     check("F9 avec cle : une lecture, comptee", r["x"]["posts"] == 10 and lus == ["solana"], str(r["x"]))
     settings.X_API_KEY, settings.X_API_SECRET, settings.X_ACCESS_TOKEN, settings.X_ACCESS_SECRET = cles
-with TestClient(app, client=("203.0.113.9", 50000)) as c2:
+import sys as _sys, os as _os; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))  # noqa: E401,E702
+import _jeton_appareil as _JA  # noqa: E402 — tache #56 : le reseau local exige un jeton d'appareil (garde exterieure)
+with TestClient(app, client=("203.0.113.9", 50000), headers=_JA.entetes(app)) as c2:
     check("F10 hors de la machine : la lecture X est refusee (403), la tendance locale reste lisible",
           c2.get("/api/news/trends?x_query=solana").status_code == 403 and c2.get("/api/news/trends").status_code == 200 and lus == ["solana"])
 
