@@ -30,10 +30,12 @@ check("0.1 TÉMOIN : ni DzCoffre, ni entrée, ni branche, ni 3e état", vieux an
       and '{k:"coffre"' not in vieux and 's==="coffre"' not in vieux and 'h.set===null' not in vieux, "")
 
 print("\n[1] l'écran branché")
-check("1.1 entrée « Coffre » juste après « Diagnostic »", s.count('[{k:"diag",l:"Diagnostic"},{k:"coffre",l:"Coffre"},{k:"keys",l:"API keys"},') == 1)
-check("1.2 'coffre' dans la liste blanche (sinon ?section=coffre retombe sur accounts)", s.count('const ym=["diag","coffre","keys",') == 1)
+check("1.1 entrée « Coffre » juste après « Diagnostic »", s.count('[{k:"diag",l:"Diagnostic"},{k:"coffre",l:"Coffre"},{k:"appareils",l:"Appareils"},{k:"keys",l:"API keys"},') == 1)
+check("1.2 'coffre' dans la liste blanche (sinon ?section=coffre retombe sur accounts)", s.count('const ym=["diag","coffre","appareils","keys",') == 1)
 check("1.3 branche du corps rend DzCoffre", s.count('s==="coffre"&&r.jsx(DzCoffre,{}),') == 1 and s.count("function DzCoffre(") == 1)
-dz = s[s.find("function DzCoffre("):s.find("function DzPricing(")]
+# tache #56 (01/10) : DzAppair suit DzCoffre (meme chaine P2dg1) -> la tranche s'arrete a lui s'il existe
+_i_dc = s.find("function DzCoffre("); _f_da = s.find("function DzAppair(")
+dz = s[_i_dc:(_f_da if _f_da > _i_dc else s.find("function DzPricing("))]
 ROUTES = ["etat", "poser", "ouvrir", "fermer", "retenir", "oublier", "mot-de-passe", "archive", "archive/importer"]
 appels = re.findall(r"'/api/reglages/coffre/([a-z/-]+)'", dz)
 check("1.4 chaque route du coffre est appelée depuis l'écran, une fois, et rien d'autre",

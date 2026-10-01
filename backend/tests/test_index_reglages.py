@@ -68,7 +68,7 @@ with TestClient(app, client=("192.168.1.20", 50000), headers=_JA.entetes(app)) a
     code_distant = c2.get("/api/reglages/index").status_code
 
 print("\n[1] les sections")
-check("1.0 le miroir a bien lu le bundle (13 sections, 9 clés, Ollama, 16 comptes dont TikTok depuis #31)", len(barre) == 13 and len(cles_keys) == 9
+check("1.0 le miroir a bien lu le bundle (14 sections dont Appareils depuis #56, 9 clés, Ollama, 16 comptes dont TikTok depuis #31)", len(barre) == 14 and len(cles_keys) == 9
       and cles_ollama == {"OLLAMA_URL", "OLLAMA_MODEL"} and len(cles_comptes) == 16, f"{barre} {cles_keys} {cles_ollama} {cles_comptes}")
 vues = {x["section"] for x in e}
 check("1.1 CHAQUE section de la barre a au moins une entrée, et aucune entrée ne vise une section qui n'existe pas",

@@ -1735,6 +1735,25 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>'
 
 ---
 
+> **TÂCHE 6 EXÉCUTÉE le 01/10/2026** (tâche #56 du suivi, PR 3/3, branche `chantier/p6-mobile-appareils`). Écarts :
+> (1) pas de patcher `dzappair` : depuis le 03/09, la barre des Réglages est portée par le maillon montage (groupe
+> P2dg). « Appareils » ÉTEND les quatre chaînes P2dg (entrée après Coffre, liste blanche `ym`, branchement, composant
+> avant DzPricing), comme le Coffre (#20) — aucune section neuve ;
+> (2) libellés en français, `title` sur chaque bouton (E-12), révocation par le dialogue maison qui NOMME
+> l'appareil et rappelle de régénérer les clés ;
+> (3) la page DIT si l'app n'écoute que ce PC (`ecoute` de `/devices`) et comment ouvrir le Wi-Fi ;
+> (4) le QR se FERME seul quand le téléphone l'a réclamé : la liste est relue toutes les 3 s, avec un compte à
+> rebours visible ; il est grisé à cinq appareils ;
+> (5) la recherche des Réglages (#22) trouve « Appareils » (téléphone, QR, appairer…).
+> `x.useState(` 628 → 632. Bancs :
+> - `test_appareils_bundle` 15/0 : DzAppair EXÉCUTÉ sous node avec un moteur de hooks ;
+> - `test_montage_bundle` 2709/0 ;
+> - `test_p2_coffre_ecran`, `test_p2_diagnostic_bundle` et `test_index_reglages` mis à jour (14 sections) ;
+> - 11/11 mutations rouges.
+> Preuve 8799, à vrais clics : la page, puis le QR affiché. **jsQR relit le QR AFFICHÉ** et retrouve l'URL exacte.
+> La réclamation du « téléphone » ferme le QR, l'appareil apparaît (1/5), la révocation passe par le dialogue
+> nommé, puis l'étiquette « révoqué » s'affiche. La recherche « téléphone » mène à la page.
+
 ### Tâche 6 : Page « Appareils » dans Settings (le SEUL patch du bundle)
 
 **Files:**

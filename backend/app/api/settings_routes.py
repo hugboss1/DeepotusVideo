@@ -304,7 +304,7 @@ async def plafonds_etat(request: Request, mois: str | None = None):
 # Ollama sous « API keys », les réseaux sous « Connected accounts ») ; les clés autorisées qu'aucun écran ne montre
 # (ANTHROPIC_MODEL, ELEVENLABS_VOICE_ID_*, …) n'y sont pas — la recherche mènerait dans le vide.
 _RUBRIQUES = {
-    "diag": "Diagnostic", "coffre": "Coffre", "keys": "API keys", "accounts": "Connected accounts",
+    "diag": "Diagnostic", "coffre": "Coffre", "appareils": "Appareils", "keys": "API keys", "accounts": "Connected accounts",
     "personas": "Personas", "branding": "Branding", "pack": "Caption pack", "defaults": "Provider defaults",
     "paths": "Paths", "news": "News", "appearance": "Appearance", "pricing": "Pricing & budget",
     "transfert": "Transfert entre machines",
@@ -314,6 +314,9 @@ _INDEX_FIXE = [
     ("diag", "Mise à jour", "mise à jour nouvelle version release télécharger installer github"),
     ("coffre", "Coffre à clés", "coffre mot de passe maître chiffrement verrouiller déverrouiller sécurité dpapi"),
     ("coffre", "Archive chiffrée des clés", "archive exporter importer clés second poste autre machine dzk mot de passe"),
+    # tâche #56 (01/10/2026, plan mobile T6) : la page « Appareils »
+    ("appareils", "Appareils appairés", "appareil téléphone mobile compagnon appairer appairage qr code révoquer wi-fi "
+                                         "réseau local host jeton perdu"),
     ("keys", "Clés API", "clé api jeton token fournisseur guide tester enregistrer"),
     ("accounts", "Comptes connectés", "comptes réseaux sociaux publication x twitter telegram youtube instagram tester"),
     ("personas", "Personas", "persona ton voix audience personnage profil"),
