@@ -12379,3 +12379,18 @@ async def sync_evenements_get(request: Request, depuis: str | None = None, limit
     from app.services import sync_evenements as _se
     await _appareil_requis(request)
     return await _se.evenements(depuis=depuis, limite=limite)
+
+
+# ── Plan mobile T18 (tâche #58, 02/10/2026) : les dépenses du téléphone, comptées par le PC (table Depense) ──────────
+# Écriture ouverte au réseau local (main._ECRITURES_OUVERTES, décision « une par une ») ; l'appareil est celui du JETON.
+
+@router.post("/sync/depenses")
+async def sync_depenses_post(request: Request, body: dict | None = None):
+    from app.services import sync_depenses as _sd
+    appareil = await _appareil_requis(request)
+    try:
+        return await _sd.fondre(appareil, (body or {}).get("tirs") if isinstance(body, dict) else None)
+    except _sd.TropDeTirs as e:
+        raise HTTPException(413, str(e)) from None
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None

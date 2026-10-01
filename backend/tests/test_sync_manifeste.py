@@ -215,8 +215,8 @@ with TestClient(app, client=("127.0.0.1", 50000), raise_server_exceptions=False)
           and js(r).get("filename") == "evil.png" and (IMAGES / "evil.png").is_file() and not (_tmp / "evil.png").exists(), r.text[:200])
     r = deposer("mob_f.png", png("white"), recette="{pas du json")
     check("D13 recette illisible : 400, rien ecrit", r.status_code == 400 and not (IMAGES / "mob_f.png").exists(), f"{r.status_code}")
-    check("D14 seule /sync/depot rejoint les ecritures ouvertes",
-          _MAIN._ECRITURES_OUVERTES == frozenset({("POST", "/api/pair/claim"), ("POST", "/api/sync/lot/etat"), ("POST", "/api/sync/depot")}),
+    check("D14 /sync/depot rejoint les ecritures ouvertes (et /sync/depenses, tache #58 T18 — rien d'autre)",
+          _MAIN._ECRITURES_OUVERTES == frozenset({("POST", "/api/pair/claim"), ("POST", "/api/sync/lot/etat"), ("POST", "/api/sync/depot"), ("POST", "/api/sync/depenses")}),
           str(sorted(_MAIN._ECRITURES_OUVERTES)))
     check("D15 la source « mobile » est au catalogue", LI.SOURCES.get("mobile") == "Compagnon mobile")
     loc.post(f"/api/devices/{moi['id']}/revoke")
