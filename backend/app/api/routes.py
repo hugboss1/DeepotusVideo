@@ -3403,6 +3403,37 @@ def _op_tts(texte, model=None) -> list:
     return [op]
 
 
+def _op_lipsync(request) -> list:
+    """Plan Quick T5 (tâche #52) : le lip-sync Kling demandé (case), PRÉ-VÉRIFIÉ ici AVANT le rendu payé — la durée
+    NATIVE du clip (2–10 s), une cible qui ne dépasse pas le natif (une boucle répéterait la parole), la voix off
+    (2–60 s, ≤ 5 Mo) — puis chiffré pour la garde des plafonds. 400 lisible sinon ; [] si non demandé."""
+    lip = getattr(request, "lipsync", None)
+    if not (isinstance(lip, dict) and lip.get("on")):
+        return []
+    from app.services import fal_video_tools as FV, pricing as _pr
+    from app.services.pipeline import _resolve_voiceover
+    mid = str(lip.get("model") or FV.DEFAULT_LIPSYNC)
+    if mid not in FV.LIPSYNC_MODELS:
+        raise HTTPException(400, f"Modèle de lip-sync inconnu : {mid}")
+    m = FV.LIPSYNC_MODELS[mid]
+    natif = _pr.video_gen_seconds(request.video_model, request.duration_s)
+    lo, hi = m["video_s"]
+    if not (lo <= natif <= hi):
+        raise HTTPException(400, f"{m['label']} : le clip natif doit durer entre {lo:.0f} et {hi:.0f} s ; "
+                                 f"ce modèle en générera {natif} s.")
+    if int(request.duration_s) > int(natif):
+        raise HTTPException(400, f"{m['label']} : la durée demandée ({request.duration_s} s) dépasse le clip natif "
+                                 f"({natif} s) — la boucle répéterait la parole. Réglez la durée à {natif} s.")
+    ap = _resolve_voiceover({"file": lip.get("file")})
+    if ap is None:
+        raise HTTPException(400, "Lip-sync : choisissez une voix off du dossier audio (onglet Voice Over).")
+    try:
+        FV.guard_lipsync_audio(mid, FV.probe(ap), ap.stat().st_size)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return [{"kind": "lipsync", "model": mid, "duration_s": float(natif)}]
+
+
 def _op_soustitres(subs, duree_s) -> list:
     """Plan Quick T4 (tâche #50) : la transcription payante des sous-titres, SEULEMENT si l'écran l'a demandée
     explicitement (le calage du texte connu est gratuit). Chiffrée sur la durée attendue du rendu."""
@@ -3476,8 +3507,10 @@ async def generate(request: GenerateRequest, background_tasks: BackgroundTasks):
         raise HTTPException(400, "Must provide either template_id or custom_prompt")
 
     _garde_cout([_devis_video(request)], request.max_usd)
+    _ops_lip = _op_lipsync(request)   # #52 : pré-vérifié AVANT le rendu payé (400 lisible)
     await _plafond([_devis_video(request)] + _op_voix_off(request)
-                   + _op_soustitres(request.subtitles, request.duration_s), "quick")   # tâche #16 ; #50 sous-titres
+                   + _op_soustitres(request.subtitles, request.duration_s) + _ops_lip,
+                   "quick")   # tâche #16 ; #50 sous-titres ; #52 lip-sync
 
     async def _run():
         try:

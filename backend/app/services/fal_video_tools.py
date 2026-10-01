@@ -110,3 +110,70 @@ def build_extend_args(model_id: str, *, video_url: str, prompt: str, son: bool =
     if not (prompt or "").strip():
         raise ValueError("Décrivez ce qui se passe dans les secondes ajoutées : fal exige un prompt.")
     return m["endpoint"], {m["video_param"]: video_url, "prompt": prompt.strip(), "generate_audio": bool(son)}
+
+
+# ── Plan Quick T5 (tâche #52, 01/10/2026) — lip-sync Kling sur la voix off ──────────────────────────────────────────
+# MESURÉ le 01/10 (OpenAPI fal `fal-ai/kling-video/lipsync/audio-to-video`) : `video_url` et `audio_url` REQUIS ;
+# vidéo .mp4/.mov ≤ 100 Mo, 2–10 s, 720p/1080p, largeur ET hauteur entre 720 et 1920 px ; audio 2–60 s, ≤ 5 Mo.
+# PRIX relevé sur fal.ai : 0,014 $ par seconde de VIDÉO d'entrée, arrondie au palier de 5 s supérieur (le plan disait
+# « par seconde d'audio ») — 0,07 $ jusqu'à 5 s, 0,14 $ jusqu'à 10 s.
+LIPSYNC_MODELS: dict = {
+    "kling-lipsync": {
+        "label": "Kling LipSync",
+        "endpoint": "fal-ai/kling-video/lipsync/audio-to-video",
+        "video_param": "video_url",
+        "audio_param": "audio_url",
+        "video_s": (2.0, 10.0),
+        "audio_s": (2.0, 60.0),
+        "px": (720, 1920),
+        "audio_mo": 5.0,
+        "usd_per_s": 0.014,
+        "palier_s": 5,
+    },
+}
+DEFAULT_LIPSYNC = "kling-lipsync"
+
+
+def prix_lipsync(model_id: str, video_s: float) -> float:
+    m = LIPSYNC_MODELS[model_id]
+    import math
+    paliers = max(1, math.ceil(max(0.0, float(video_s or 0)) / m["palier_s"]))
+    return round(paliers * m["palier_s"] * m["usd_per_s"], 4)
+
+
+def guard_lipsync_audio(model_id: str, audio: dict, taille_o: int | None = None) -> None:
+    """La voix off : durée et poids. Lève ValueError en citant la mesure."""
+    m = LIPSYNC_MODELS.get(model_id)
+    if m is None:
+        raise ValueError(f"Modèle de lip-sync inconnu : {model_id}. Disponibles : " + ", ".join(sorted(LIPSYNC_MODELS)))
+    lo, hi = m["audio_s"]
+    d = float(audio.get("duration_s") or 0)
+    if not (lo <= d <= hi):
+        raise ValueError(f"{m['label']} : la voix off doit durer entre {lo:.0f} et {hi:.0f} s ; "
+                         f"celle-ci fait {d:.1f} s. Coupez-la au Montage.")
+    if taille_o is not None and taille_o > m["audio_mo"] * 1024 * 1024:
+        raise ValueError(f"{m['label']} : la voix off doit peser {m['audio_mo']:.0f} Mo au plus ; "
+                         f"celle-ci pèse {taille_o / 1024 / 1024:.1f} Mo.")
+
+
+def guard_lipsync(model_id: str, video: dict, audio: dict, taille_audio_o: int | None = None) -> None:
+    """Lève ValueError AVANT tout appel payant, en citant les mesures (clip et voix)."""
+    m = LIPSYNC_MODELS.get(model_id)
+    if m is None:
+        raise ValueError(f"Modèle de lip-sync inconnu : {model_id}. Disponibles : " + ", ".join(sorted(LIPSYNC_MODELS)))
+    lo, hi = m["video_s"]
+    d = float(video.get("duration_s") or 0)
+    if not (lo <= d <= hi):
+        raise ValueError(f"{m['label']} : le clip doit durer entre {lo:.0f} et {hi:.0f} s ; celui-ci fait {d:.1f} s. "
+                         f"Réglez la durée du clip dans Quick.")
+    w, h = int(video.get("width") or 0), int(video.get("height") or 0)
+    pmin, pmax = m["px"]
+    if w and h and not (pmin <= w <= pmax and pmin <= h <= pmax):
+        raise ValueError(f"{m['label']} : largeur et hauteur entre {pmin} et {pmax} px (720p ou 1080p) ; "
+                         f"ce clip fait {w}x{h}.")
+    guard_lipsync_audio(model_id, audio, taille_audio_o)
+
+
+def build_lipsync_args(model_id: str, *, video_url: str, audio_url: str) -> tuple:
+    m = LIPSYNC_MODELS[model_id]
+    return m["endpoint"], {m["video_param"]: video_url, m["audio_param"]: audio_url}
