@@ -3767,6 +3767,49 @@ async def delete_quick_preset(preset_id: str):
     return {"ok": True}
 
 
+# Plan Quick T7 (tâche #54, D1, 01/10/2026) — la galerie de mouvements : 11 caméras × 3 styles rendus en local.
+@router.post("/quick/gallery/build")
+async def build_quick_gallery(body: dict = None):
+    """Rendre les 33 vignettes (ou les manquantes). Local, gratuit, long la première fois : l'appel est synchrone
+    et rend le manifeste, pour que l'écran sache quand ouvrir la grille au lieu de deviner."""
+    from app.services import quick_gallery as G
+    name = str((body or {}).get("image") or "").strip()
+    if not name:
+        raise HTTPException(400, "Choisis l'image de marque de la galerie.")
+    src = settings.images_path / Path(name).name
+    if not src.is_file():
+        raise HTTPException(404, f"Image introuvable dans la Library : {Path(name).name}")
+    try:
+        return await asyncio.to_thread(G.build, src)
+    except (ValueError, RuntimeError) as e:
+        raise HTTPException(400, str(e))
+
+
+@router.get("/quick/gallery")
+async def get_quick_gallery():
+    """Le manifeste, ou `built:false` si la galerie n'a jamais été rendue."""
+    from app.services import quick_gallery as G
+    import json as _json
+    vide = {"built": False, "cameras": list(G.CAMERAS), "styles": list(G.GRADES), "note": G.NOTE}
+    p = G.manifest_path()
+    if not p.is_file():
+        return vide
+    try:
+        return {"built": True, **_json.loads(p.read_text("utf-8"))}
+    except ValueError:
+        return vide
+
+
+@router.get("/quick/gallery/{tile_id}")
+async def get_quick_gallery_tile(tile_id: str):
+    """Une vignette mp4. La garde de nom (Path(...).name dans tile_path) empêche toute sortie du dossier."""
+    from app.services import quick_gallery as G
+    p = G.tile_path(tile_id)
+    if not p.is_file():
+        raise HTTPException(404, "Vignette non rendue")
+    return FileResponse(p, media_type="video/mp4")
+
+
 @router.post("/generate/heygen", dependencies=[Depends(_require_local_depense)])
 async def generate_heygen(request: GenerateHeyGenRequest, background_tasks: BackgroundTasks):
     """Queue a HeyGen avatar video generation."""
