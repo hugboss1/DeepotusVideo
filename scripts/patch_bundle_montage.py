@@ -8069,6 +8069,17 @@ R_P7IMP1 = ('r.jsx(DzImportGraph,{graph:o,onOpen:function(G){i(ts(G));d({});f({}
 P1 += [("P7imp1-bouton-importer-un-graphe", A_P7IMP1, R_P7IMP1)]
 assert len(P1) == 109 and "\n" not in R_P7IMP1
 
+# P7scr1 (tache #70, plan-studio T8, 02/10/2026) -- le tiroir de resultat du Studio (Jh) se PARCOURT image par image.
+# Le lecteur d'origine (controls + autoPlay) est REMPLACE par DzScrub (couche montage.js) : reglette en images, compteur,
+# ‹ ›, « , » « . », cadence LUE dans le fichier (GET /api/jobs/{id}/media) -- decisions de l'utilisateur (02/10). Le
+# plan prevoyait un maillon studioscrub ; ancre AMONT mesuree 02/10 sur .bak_montage (1) ; les deux autres lecteurs
+# autoPlay (visionneuse, file de rendu) restent tels quels. EA3, plus haut, ecrit deja la rangee de boutons de Jh.
+A_P7SCR1 = ('r.jsx("video",{src:D.jobVideoUrl(n.id),controls:!0,autoPlay:!0,'
+            'style:{width:"100%",borderRadius:8,background:"#000",border:"1px solid var(--stroke-strong)"}})')
+R_P7SCR1 = 'r.jsx(DzScrub,{jobId:n.id})'
+P1 += [("P7scr1-le-tiroir-de-resultat-se-parcourt", A_P7SCR1, R_P7SCR1)]
+assert len(P1) == 110 and "\n" not in R_P7SCR1
+
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
