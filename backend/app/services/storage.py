@@ -436,6 +436,23 @@ class Scene(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
+class TextVersion(Base):
+    """Tâche #61 (plan chapitres P2, 02/10/2026) — un instantané de l'ANCIEN texte, pris avant une écriture qui l'aurait
+    perdu. `kind` = chapter (script_text) | scene (fountain_text) | scenario (le scénario ENTIER d'un chapitre, gardé
+    avant que l'adaptation ou la remise à zéro ne supprime ses scènes ; `target_id` = le chapitre). `n` numérote les
+    instantanés d'une cible ; l'historique est élagué aux 10 derniers. Table neuve : `create_all` suffit."""
+    __tablename__ = "text_versions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    kind: Mapped[str] = mapped_column(String(10), index=True)
+    target_id: Mapped[str] = mapped_column(String(36), index=True)
+    n: Mapped[int] = mapped_column(Integer, default=1)
+    passe: Mapped[str] = mapped_column(String(16), default="manuelle")
+    text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    meta: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 class AtelierSetting(Base):
     """v1.20.4 — réglages globaux de l'Atelier (clé/valeur). Ex:
     global_style = le style de réalisation du PROJET, injecté dans toutes

@@ -1277,6 +1277,82 @@ async function msRun() {
 /* ═════════ utilitaires ═════════ */
 function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
 
+/* ═════════ tâche #61 (plan chapitres P2) — versions du texte ═════════
+   Le tiroir liste les instantanés du chapitre, de son scénario et de ses scènes ; le côte à côte compare l'instantané
+   au texte courant ; « Restaurer » garde d'abord le courant (côté serveur) ; un scénario se copie (ses scènes ont été
+   supprimées : il ne se restaure pas en scènes). */
+const PASSE_LABEL = { manuelle: "édition", adaptation: "adaptation", suppression: "scénario supprimé", import: "ré-import",
+                      telephone: "retour du téléphone", reecriture: "réécriture", restauration: "retour arrière" };
+const KIND_VER = { chapter: "texte", scenario: "scénario", scene: "scène" };
+
+function openVersions() {
+  if (!chapter) { toast("Ouvre un chapitre d'abord.", true); return; }
+  $("#verModal").classList.remove("hidden");
+  $("#verDiff").innerHTML = `<div class="empty-note">Choisis une version à gauche.</div>`;
+  const list = $("#verList");
+  list.innerHTML = "…";
+  api.get(`/chapters/${encodeURIComponent(chapter.id)}/versions`).then(({ versions }) => {
+    $("#verNote").textContent = `${versions.length} instantané(s) — « ${chapter.title} »`;
+    if (!versions.length) {
+      list.innerHTML = `<div class="empty-note">Aucun instantané : rien n'a encore été écrasé sur ce chapitre.</div>`;
+      return;
+    }
+    list.innerHTML = versions.map(v => `
+      <div class="ver-item" data-id="${escA(v.id)}" title="Comparer cet instantané au texte courant">
+        <div class="ver-line"><b>${KIND_VER[v.kind] || v.kind} v${v.n}</b> · ${esc(PASSE_LABEL[v.passe] || v.passe)}
+          <span class="ver-size">${v.taille} car.</span></div>
+        ${v.slugline ? `<div class="ver-when">${esc(v.slugline)}</div>` : ""}
+        <div class="ver-when">${new Date(v.created_at).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}</div>
+        <div class="ver-prev">${esc(v.apercu)}…</div>
+      </div>`).join("");
+    list.querySelectorAll(".ver-item").forEach(el => el.addEventListener("click", () => {
+      list.querySelectorAll(".ver-item").forEach(x => x.classList.remove("sel"));
+      el.classList.add("sel");
+      renderDiff(el.dataset.id);
+    }));
+  }).catch(e => { list.innerHTML = `<div class="empty-note">${esc(e.message)}</div>`; });
+}
+
+async function renderDiff(vid) {
+  const box = $("#verDiff");
+  box.innerHTML = "…";
+  try {
+    const d = await api.get(`/versions/${encodeURIComponent(vid)}/diff`);
+    const cls = { "=": "ver-same", "~": "ver-mod", "+": "ver-add", "-": "ver-del" };
+    const col = (k) => d.lignes.map(l => `<div class="ver-l ${cls[l.op]}">${l[k] === null ? "" : (esc(l[k]) || "&nbsp;")}</div>`).join("");
+    const action = d.version.restaurable
+      ? `<button id="verRestore" class="btn primary" title="Réécrit avec cette version — le texte courant est gardé en instantané avant">↩ Restaurer</button>`
+      : `<button id="verCopier" class="btn" title="Un scénario gardé ne se restaure pas en scènes : copiez son texte">⧉ Copier le texte</button>`;
+    box.innerHTML = `
+      <div class="ver-diff-head">
+        <span>${KIND_VER[d.version.kind] || ""} v${d.version.n} · ${esc(PASSE_LABEL[d.version.passe] || d.version.passe)}</span>
+        <span class="ver-counts">+${d.ajoutees} / −${d.supprimees} · ${d.identiques} inchangée(s)</span>
+        ${action}
+      </div>
+      <div class="ver-cols">
+        <div class="ver-col"><header>instantané</header>${col("a")}</div>
+        <div class="ver-col"><header>texte courant</header>${col("b")}</div>
+      </div>`;
+    const copier = $("#verCopier");
+    if (copier) copier.addEventListener("click", async () => {
+      try { const v = await api.get(`/versions/${encodeURIComponent(vid)}`); await navigator.clipboard.writeText(v.text); toast("Texte copié."); }
+      catch (e) { toast("Copie impossible : " + e.message, true); }
+    });
+    const rest = $("#verRestore");
+    if (rest) rest.addEventListener("click", async () => {
+      if (!await window.__dzDialogue.confirmer("Restaurer cette version ? Le texte courant est gardé en instantané.", { ok: "Restaurer" })) return;
+      clearTimeout(saveTimer);                       // une sauvegarde en attente n'écrasera pas le texte restauré
+      try {
+        await api.send("POST", `/versions/${encodeURIComponent(vid)}/restore`);
+        $("#verModal").classList.add("hidden");
+        await openChapter(chapter.id);               // texte ET surlignage recalculés par le serveur
+        if (mode === "screenplay") await loadScenes(true);
+        toast("Version restaurée — le texte précédent est dans l'historique.");
+      } catch (e) { toast("Restauration impossible : " + e.message, true); }
+    });
+  } catch (e) { box.innerHTML = `<div class="empty-note">${esc(e.message)}</div>`; }
+}
+
 /* ═════════ tâche #60 (plan chapitres P1) — plan ↔ entités, apparitions ═════════ */
 function entPicker(selected) {
   const sel = new Set(selected || []);
@@ -1322,6 +1398,8 @@ window.addEventListener("DOMContentLoaded", async () => {
     await loadChapters();
   });
   ["#chapterTitle", "#chapterSeries"].forEach(s => $(s).addEventListener("input", scheduleSave));
+  $("#verBtn").addEventListener("click", openVersions);
+  $("#verClose").addEventListener("click", () => $("#verModal").classList.add("hidden"));
 
   // éditeur
   const ta = $("#script");

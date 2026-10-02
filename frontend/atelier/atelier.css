@@ -361,3 +361,21 @@ textarea#script[readonly] { opacity: .72; cursor: not-allowed; }
 .apps-ch .btn{padding:2px 7px;font-size:10.5px}
 .shot-ents-edit{font-size:11px}.shot-ents-edit summary{cursor:pointer;color:var(--ink-muted);font-family:var(--f-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase}
 .shot-ents-edit label{display:inline-flex;align-items:center;gap:4px;margin:3px 3px 0 0;cursor:pointer}
+
+/* Tâche #61 (plan chapitres P2) — tiroir des versions */
+.modal-box.wide{max-width:1100px;width:92vw}
+.ver-body{display:grid;grid-template-columns:260px 1fr;gap:12px;max-height:70vh;padding:12px 16px;min-height:0}
+.ver-list{overflow:auto;display:flex;flex-direction:column;gap:6px}
+.ver-item{padding:7px 9px;border:1px solid var(--stroke);border-radius:var(--r);cursor:pointer;background:var(--bg-panel-2)}
+.ver-item.sel{border-color:var(--cyan)}
+.ver-size,.ver-when{font-family:var(--f-mono);font-size:10px;color:var(--ink-muted)}
+.ver-prev{font-size:11px;color:var(--ink-soft);margin-top:3px}
+.ver-diff{overflow:auto}
+.ver-diff-head{display:flex;align-items:center;gap:12px;margin-bottom:8px;font-size:12px;flex-wrap:wrap}
+.ver-counts{font-family:var(--f-mono);font-size:11px;color:var(--ink-muted)}
+.ver-cols{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ver-col header{font-family:var(--f-mono);font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-muted);padding-bottom:4px}
+.ver-l{font-family:var(--f-mono);font-size:11px;white-space:pre-wrap;padding:1px 5px;border-left:2px solid transparent;min-height:14px}
+.ver-mod{background:rgba(245,183,49,.14);border-left-color:var(--amber)}
+.ver-add{background:rgba(60,200,120,.14);border-left-color:var(--green)}
+.ver-del{background:rgba(230,80,80,.14);border-left-color:var(--red)}
