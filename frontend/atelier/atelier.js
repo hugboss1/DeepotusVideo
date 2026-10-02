@@ -623,6 +623,65 @@ async function telechargerExport(chemin) {
   } catch (e) { toast("Export : " + e.message, true); }
 }
 
+/* ═════════ tâche #66 (plan chapitres T17) — réécrire dans le ton de la bible ═════════
+   Trois temps : DEVIS (gratuit) -> dialogue qui DIT le coût -> proposition (payée, plafonds) ; appliquer est gratuit,
+   sauvegardé (version « réécriture ») et refusé si le passage a changé entre-temps (409). L'action est gardée ICI :
+   le sélecteur, lui, revient à « Réécrire… ». */
+let reeEnCours = null;      // {start, end, action, mode, attendu, langue}
+const REE_LANGUES = { fr: "français", en: "anglais", es: "espagnol", de: "allemand", it: "italien", pt: "portugais" };
+
+async function sauverMaintenant() {
+  if (!chapter || emporte) return;
+  clearTimeout(saveTimer);
+  chapter.script_text = $("#script").value;
+  await api.send("PUT", "/chapters/" + chapter.id, { title: chapter.title, series: chapter.series,
+    script_text: chapter.script_text, spans: chapter.spans });
+}
+
+async function reecrire(action) {
+  const sel = currentSelection();
+  if (!chapter || !sel) { toast("Sélectionne un passage d'abord.", true); return; }
+  let langue = "fr";
+  if (action === "traduire") {
+    const l = await window.__dzDialogue.saisir(`Langue cible : ${Object.entries(REE_LANGUES).map(([k, v]) => `${k} (${v})`).join(", ")}`,
+      { valeur: "en", ok: "Chiffrer", titre: "Traduire" });
+    if (l == null) return;
+    langue = l.trim().toLowerCase().slice(0, 2);
+    if (!REE_LANGUES[langue]) { toast(`Langue « ${l} » inconnue.`, true); return; }
+  }
+  try {
+    await sauverMaintenant();                               // le serveur chiffre et propose sur le texte À JOUR
+    const corps = { start: sel.start, end: sel.end, action, language: langue };
+    const dv = await api.send("POST", `/chapters/${encodeURIComponent(chapter.id)}/reecrire`, { ...corps, devis: true });
+    const usd = `${(dv.usd || 0).toFixed(3).replace(".", ",")} $`;
+    if (!await window.__dzDialogue.confirmer(
+        `${$("#reeAction").querySelector(`option[value="${action}"]`).textContent.replace("…", "")} — ${dv.fournisseur}, ` +
+        `≈ ${dv.jetons.entree + dv.jetons.sortie} jetons. Coût estimé : ${usd}. La proposition s'affichera ; rien n'est écrit sans votre accord.`,
+        { ok: "Proposer" })) return;
+    toast("Le modèle relit la bible… (5-20 s)");
+    const d = await api.send("POST", `/chapters/${encodeURIComponent(chapter.id)}/reecrire`, corps);
+    reeEnCours = { start: d.start, end: d.end, action, mode: d.mode, attendu: d.attendu, langue };
+    $("#reeTitre").textContent = d.mode === "remplace" ? "Proposition — remplacera la sélection" : "Proposition — sera insérée après la sélection";
+    $("#reeNote").textContent = `${action}${action === "traduire" ? " → " + REE_LANGUES[langue] : ""} · ${d.provider}`;
+    $("#reeTexte").value = d.proposition;
+    $("#reeModal").classList.remove("hidden");
+  } catch (e) { toast("Réécriture : " + e.message, true); }
+}
+
+async function reecrireAppliquer() {
+  if (!reeEnCours || !chapter) return;
+  try {
+    clearTimeout(saveTimer);                                // une sauvegarde en attente n'écrasera pas le texte appliqué
+    await api.send("POST", `/chapters/${encodeURIComponent(chapter.id)}/reecrire`, {
+      start: reeEnCours.start, end: reeEnCours.end, action: reeEnCours.action, language: reeEnCours.langue,
+      appliquer: true, texte: $("#reeTexte").value, attendu: reeEnCours.attendu });
+    $("#reeModal").classList.add("hidden");
+    reeEnCours = null;
+    await openChapter(chapter.id);                          // texte ET surlignage recalculés par le serveur
+    toast("Appliqué — l'état d'avant est dans 🕘 Versions.");
+  } catch (e) { toast("Application impossible : " + e.message, true); }
+}
+
 async function adaptChapter() {
   if (!chapter) { toast("Ouvre un chapitre d'abord.", true); return; }
   if (scenes.length && !await window.__dzDialogue.confirmer("Ré-adapter remplacera le scénario actuel de ce chapitre. Continuer ?", { ok: "Ré-adapter" })) return;
@@ -1618,6 +1677,12 @@ window.addEventListener("DOMContentLoaded", async () => {
   // barre de sélection
   document.querySelectorAll("#selBar [data-kind]").forEach(b =>
     b.addEventListener("click", () => createEntityFromSelection(b.dataset.kind)));
+  $("#reeAction").addEventListener("change", (e) => {
+    const a = e.target.value; e.target.value = "";
+    if (a) reecrire(a);
+  });
+  $("#reeAppliquer").addEventListener("click", reecrireAppliquer);
+  ["#reeClose", "#reeAnnuler"].forEach(s => $(s).addEventListener("click", () => { $("#reeModal").classList.add("hidden"); reeEnCours = null; }));
   $("#linkSelect").addEventListener("change", (e) => {
     const id = e.target.value; if (!id) return;
     const sel = currentSelection(); if (sel) addSpan(sel, id);

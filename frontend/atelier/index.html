@@ -50,6 +50,14 @@
       <select id="linkSelect" title="Lier la sélection à une entité existante">
         <option value="">🔗 Lier à…</option>
       </select>
+      <select id="reeAction" title="Une passe du modèle sur la sélection, dans le ton de la bible (personnages, voix castées, style) — le coût est dit et confirmé avant, et rien n'est écrit sans votre accord">
+        <option value="">✍ Réécrire…</option>
+        <option value="reformuler">Reformuler</option>
+        <option value="resserrer">Resserrer</option>
+        <option value="traduire">Traduire…</option>
+        <option value="scene">Proposer une scène</option>
+        <option value="dialogue">Proposer un dialogue</option>
+      </select>
     </div>
     <div id="emporte" class="emporte hidden" role="status"></div>
     <div class="editor-wrap">
@@ -292,6 +300,22 @@
       </div>
       <video id="animVideo" class="anim-video hidden" controls preload="metadata"></video>
       <div id="animVide" class="empty-note">Pas encore d'animatique pour ce chapitre : « 🎞 Monter ».</div>
+    </div>
+  </div>
+</div>
+<div id="reeModal" class="modal hidden">
+  <div class="modal-box">
+    <div class="modal-head">
+      <b id="reeTitre">Proposition</b>
+      <span id="reeNote" class="da-note"></span>
+      <button id="reeClose" class="btn ghost" title="Fermer sans rien écrire">✕</button>
+    </div>
+    <div class="ree-body">
+      <textarea id="reeTexte" rows="12" class="ree-texte" title="La proposition — modifiable avant de l'appliquer"></textarea>
+      <div class="ree-actions">
+        <button id="reeAnnuler" class="btn ghost" title="Garder le texte tel quel (la proposition est jetée)">Laisser tel quel</button>
+        <button id="reeAppliquer" class="btn primary" title="Écrire la proposition dans le chapitre — l'état d'avant est gardé dans 🕘 Versions">✔ Appliquer</button>
+      </div>
     </div>
   </div>
 </div>
