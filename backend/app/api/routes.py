@@ -4505,6 +4505,20 @@ async def download_job_video(job_id: str):
     return FileResponse(p, media_type="video/mp4", filename=p.name)
 
 
+@router.get("/jobs/{job_id}/media")
+async def job_media_info(job_id: str):
+    """Plan-studio T8 (tache #70, 02/10/2026) — la cadence REELLE du rendu (i/s, nombre d'images, duree), lue dans le
+    fichier pour le defilement image par image. Lecture impossible : 30 i/s et la raison (`source: "defaut"`)."""
+    from app.services import media_info as MI
+    j = await Pipeline.get_job(job_id)
+    if not j or not j.final_video_path:
+        raise HTTPException(404, "Final video not available")
+    p = Path(j.final_video_path)
+    if not p.exists():
+        raise HTTPException(404, "Video file missing on disk")
+    return await asyncio.get_running_loop().run_in_executor(None, MI.cadence, str(p))
+
+
 # ---- Health ----
 
 @router.get("/health")

@@ -9407,3 +9407,53 @@ function DzImportGraph({graph,onOpen}){
       onChange:function(ev){var f=ev.target.files&&ev.target.files[0];ev.target.value="";lire(f)}}),
     r.jsx(K,{variant:"outline",size:"sm",icon:"upload",title:"Importer un graphe (.json exporté du Studio) — validé par le serveur, ouvert sans être enregistré",
       "aria-label":"Importer un graphe",onClick:function(){rf.current&&rf.current.click()},children:"Importer"})]})}
+/* Tâche #70 (plan-studio T8, 02/10/2026) — le tiroir de résultat du Studio se PARCOURT image par image. La cadence est
+   LUE dans le fichier rendu (GET /api/jobs/{id}/media, ffprobe) : le nœud Render n'est pas lu par le compilateur, et un
+   clip Seedance ou HeyGen garde sa cadence d'origine ; illisible, 30 i/s et la raison sont dits. Lecture automatique à
+   l'ouverture ; le premier pas (« , » « . », ‹ ›, réglette) met en PAUSE sur l'image. « , » et « . » valent tant que le
+   tiroir est ouvert, sauf en saisie ; ← → valent sur la réglette (pas natif d'une image). Chaque image est visée en son
+   MILIEU ((k + ½) / ips) : viser son bord montre souvent la précédente. requestVideoFrameCallback affine la position
+   affichée quand le navigateur l'a — il rend le DÉBUT de l'image arrondi à la microseconde (2/24 -> 0.083333) : l'index
+   prend une marge d'un millième d'image, sinon une image sur trois s'affichait sous le numéro de la précédente
+   (mesuré à l'écran, 24 sur 72 à 24 i/s). */
+function dzScrubIndex(t,fps,n){var k=Math.floor((Number(t)||0)*fps+1e-3);return Math.max(0,Math.min(n>0?n-1:k,k))}
+function dzScrubTemps(k,fps){return (Math.max(0,k)+0.5)/fps}
+function dzScrubSaisie(el){if(!el)return!1;var t=String(el.tagName||"").toUpperCase();
+  if(t==="TEXTAREA"||t==="SELECT"||el.isContentEditable)return!0;
+  return t==="INPUT"&&String(el.type||"text").toLowerCase()!=="range"}
+function DzScrub({jobId}){
+  var vr=x.useRef(null),ms=x.useState(null),meta=ms[0],setMeta=ms[1],ts_=x.useState({d:0,t:0}),s=ts_[0],setS=ts_[1];
+  x.useEffect(function(){var vivant=!0;setMeta(null);
+    fetch("/api/jobs/"+encodeURIComponent(jobId)+"/media").then(function(R){return R.ok?R.json():{fps:30,source:"defaut",raison:"HTTP "+R.status}})
+      .catch(function(e){return{fps:30,source:"defaut",raison:String(e&&e.message||e)}})
+      .then(function(m){if(vivant)setMeta(m)});
+    return function(){vivant=!1}},[jobId]);
+  var F=meta&&Number(meta.fps)>0?Number(meta.fps):30;
+  var N=meta&&meta.frames>0?meta.frames:Math.max(1,Math.round((s.d||0)*F));
+  function pose(k){var v=vr.current;if(!v)return;v.pause();
+    var kk=Math.max(0,Math.min(N-1,k)),t=dzScrubTemps(kk,F);if(v.duration)t=Math.min(t,Math.max(0,v.duration-1e-3));
+    v.currentTime=t;setS({d:v.duration||0,t:t});
+    if(v.requestVideoFrameCallback)v.requestVideoFrameCallback(function(_n,md){setS({d:v.duration||0,t:(md&&md.mediaTime!=null?md.mediaTime:v.currentTime)})})}
+  function pas(k){var v=vr.current;if(v)pose(dzScrubIndex(v.currentTime,F,N)+k)}
+  var pasRef=x.useRef(pas);pasRef.current=pas;
+  x.useEffect(function(){function onk(ev){
+    if(ev.ctrlKey||ev.metaKey||ev.altKey||dzScrubSaisie(ev.target))return;
+    if(ev.key===","){ev.preventDefault();pasRef.current(-1)}else if(ev.key==="."){ev.preventDefault();pasRef.current(1)}}
+    window.addEventListener("keydown",onk);return function(){window.removeEventListener("keydown",onk)}},[]);
+  var idx=dzScrubIndex(s.t,F,N);
+  var cad=meta?(meta.source==="fichier"?F+" i/s (lue dans le fichier)":"30 i/s (cadence non lue : "+(meta.raison||"inconnue")+")"):"cadence…";
+  return r.jsxs("div",{className:"dz-scrub",children:[
+    r.jsx("video",{ref:vr,src:D.jobVideoUrl(jobId),controls:!0,autoPlay:!0,preload:"metadata",
+      onLoadedMetadata:function(ev){setS({d:ev.target.duration||0,t:ev.target.currentTime||0})},
+      onTimeUpdate:function(ev){setS({d:ev.target.duration||0,t:ev.target.currentTime||0})},
+      onSeeked:function(ev){setS({d:ev.target.duration||0,t:ev.target.currentTime||0})},
+      style:{width:"100%",borderRadius:8,background:"#000",border:"1px solid var(--stroke-strong)"}}),
+    r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:6,marginTop:8},children:[
+      r.jsx(K,{variant:"outline",size:"sm",title:"Image précédente (« , ») — met en pause",onClick:function(){pas(-1)},children:"‹"}),
+      r.jsx("input",{type:"range",min:0,max:Math.max(0,N-1),step:1,value:idx,title:"Parcourir image par image (← → : une image)",
+        "aria-label":"Position en images",onChange:function(ev){pose(Number(ev.target.value))},style:{flex:1,accentColor:"var(--cyan)"}}),
+      r.jsx(K,{variant:"outline",size:"sm",title:"Image suivante (« . ») — met en pause",onClick:function(){pas(1)},children:"›"}),
+      r.jsx("span",{className:"mono",style:{fontSize:10.5,color:"var(--ink-soft)",minWidth:84,textAlign:"right"},
+        children:"f "+(idx+1)+" / "+N})]}),
+    r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-muted)",marginTop:4},
+      children:"« , » et « . » : une image en arrière / en avant · ← → sur la réglette · "+cad})]})}
