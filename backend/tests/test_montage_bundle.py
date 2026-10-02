@@ -15424,7 +15424,9 @@ check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB8b_puis_
                                                           # tache #54 T9 (01/10/2026) : les onglets en studio ; aucun DzTracks
                                                           "P5su1", "P5su2", "P5su3", "P5su4", "P5su5", "P5su6",
                                                           # tache #57 (01/10/2026) : la delegation dans le post du Scheduler ; aucun DzTracks
-                                                          "P3sc9"]
+                                                          "P3sc9",
+                                                          # tache #67 PR B (02/10/2026) : les epingles du Studio ; aucun DzTracks
+                                                          "P7pin1", "P7pin2", "P7pin3", "P7pin4"]
       # L7-B D-37 et D-42 (24/09/2026) : AUCUNE section de plus (replis dans R_EC1) ; D-42 : sonde 159 -> 161
       # (cutAt + cutOpts dans le geste dzSceneCut) ; L7-B D-40 (T4) : AUCUNE section de plus (replis dans
       # R_DZ1/R_DZ3/R_DZ4), sonde 161 -> 163 (reframeCss dans l apercu vivant, reframeOf dans le payload)
