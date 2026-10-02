@@ -598,6 +598,31 @@ async function importerScenario(f) {
   } catch (e) { toast("Import du scénario : " + e.message, true); }
 }
 
+/* ═════════ tâche #65 (plan chapitres T16) — les exports : téléchargés par fetch, erreurs DITES ═════════
+   Un lien <a download> nu rendrait une erreur 400 en fichier JSON : ici l'erreur passe par le dialogue maison, et les
+   caractères remplacés dans un PDF (hors police standard) sont annoncés. */
+async function telechargerExport(chemin) {
+  if (!chapter) { toast("Ouvre un chapitre d'abord.", true); return; }
+  toast("Export…");
+  try {
+    const r = await fetch(`/api/chapters/${encodeURIComponent(chapter.id)}/${chemin}`);
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      await window.__dzDialogue.informer("Export impossible : " + (d.detail || r.statusText), { titre: "Export" });
+      return;
+    }
+    const cd = r.headers.get("Content-Disposition") || "";
+    const m = cd.match(/filename\*=UTF-8''([^;]+)/i);
+    const nom = m ? decodeURIComponent(m[1]) : (chapter.title || "export");
+    const url = URL.createObjectURL(await r.blob());
+    const a = document.createElement("a");
+    a.href = url; a.download = nom; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    const n = parseInt(r.headers.get("X-DZ-Remplacements") || "0", 10);
+    toast(`« ${nom} » exporté` + (n ? ` — ${n} caractère(s) hors de la police standard remplacé(s) dans le PDF (le .docx les garde).` : "."));
+  } catch (e) { toast("Export : " + e.message, true); }
+}
+
 async function adaptChapter() {
   if (!chapter) { toast("Ouvre un chapitre d'abord.", true); return; }
   if (scenes.length && !await window.__dzDialogue.confirmer("Ré-adapter remplacera le scénario actuel de ce chapitre. Continuer ?", { ok: "Ré-adapter" })) return;
@@ -1649,6 +1674,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     await loadShots(true);
     toast("Storyboard réinitialisé — 🎬 Découper pour en régénérer un.");
   });
+  document.querySelectorAll("[data-export]").forEach(b => b.addEventListener("click", () => telechargerExport(b.dataset.export)));
   $("#spImportFile").addEventListener("change", async (e) => {
     const f = e.target.files && e.target.files[0];
     e.target.value = "";

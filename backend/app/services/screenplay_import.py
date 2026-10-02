@@ -289,3 +289,47 @@ def lire(data: bytes, nom: str = "") -> dict:
     r = lire_fountain(decoder(data))
     r["format"] = "fountain"
     return r
+
+
+# ─────────────────────────── tâche #65 : classer les lignes d'une scène, pour l'EXPORT ───────────────────────────
+
+def elements(texte: str) -> list[tuple[str, str]]:
+    """Les lignes du texte Fountain d'UNE scène, classées avec les règles de l'import (une seule grammaire) :
+    [(type, texte)], type ∈ action | personnage | parenthese | dialogue | transition | centre | en_tete | vide.
+    Notes [[ ]], boneyard /* */, sections #, synopsis = et sauts === sont écartés ; le « ! » et le « > » ôtés."""
+    t = re.sub(r"/\*.*?\*/", "", texte or "", flags=re.DOTALL)
+    t = re.sub(r"\[\[.*?\]\]", "", t, flags=re.DOTALL)
+    lignes = t.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    out: list[tuple[str, str]] = []
+    replique = False
+    for k, l in enumerate(lignes):
+        s = l.strip()
+        if not s:
+            replique = False
+            if out and out[-1][0] != "vide":
+                out.append(("vide", ""))
+            continue
+        if s.startswith("#") or (s.startswith("=") and not s.startswith("===")) or re.fullmatch(r"={3,}", s):
+            continue
+        avant_vide = k == 0 or not lignes[k - 1].strip()
+        suivante = lignes[k + 1].strip() if k + 1 < len(lignes) else ""
+        if replique:
+            out.append(("parenthese" if s.startswith("(") and s.endswith(")") else "dialogue", s))
+            continue
+        if s.startswith(">") and s.endswith("<"):
+            out.append(("centre", s[1:-1].strip()))
+        elif s.startswith(">") or _TRANSITION.match(s):
+            out.append(("transition", s.lstrip(">").strip()))
+        elif s.startswith("!"):
+            out.append(("action", s[1:].strip()))
+        elif avant_vide and en_tete(s):
+            out.append(("en_tete", slugline(en_tete(s))))
+        elif avant_vide and suivante and _cue(s):
+            ext = _EXTENSION.search(s.lstrip("@").rstrip().rstrip("^").rstrip())
+            out.append(("personnage", _cue(s).upper() + (f" ({ext.group(1).strip()})" if ext else "")))
+            replique = True
+        else:
+            out.append(("action", s))
+    while out and out[-1][0] == "vide":
+        out.pop()
+    return out

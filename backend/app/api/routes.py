@@ -9334,9 +9334,88 @@ async def get_chapter_screenplay(chapter_id: str, format: str = "json"):
     text = MA.assemble_fountain(ch.title, scenes)
     if format == "fountain":
         return Response(content=text, media_type="text/plain; charset=utf-8",
-                        headers={"Content-Disposition":
-                                 f'attachment; filename="{ch.title[:60]}.fountain"'})
+                        headers={"Content-Disposition": _disposition(_nom_fichier(ch.title, ".fountain"))})   # #65 : « ’ » plantait
     return {"title": ch.title, "fountain": text, "scene_count": len(scenes)}
+
+
+# ── Tâche #65 (plan chapitres T14-T16, 02/10/2026) : les EXPORTS d'un chapitre ───────────────────────────────────────
+# Rendus en octets (aucun fichier temporaire), sans réseau ni dépense. Le nombre de caractères remplacés dans un PDF
+# (hors police standard) part dans l'en-tête X-DZ-Remplacements : l'écran le DIT (décision du 02/10).
+
+def _disposition(nom: str) -> str:
+    """Content-Disposition qui survit à « ’ » (RFC 5987) : un repli ASCII + filename* en UTF-8."""
+    import urllib.parse as _up
+    import unicodedata as _ud
+    nom_a = nom.translate(str.maketrans({"ł": "l", "Ł": "L", "đ": "d", "Đ": "D", "ø": "o", "Ø": "O", "œ": "oe", "Œ": "OE"}))
+    repli = "".join(c for c in _ud.normalize("NFKD", nom_a) if ord(c) < 128 and c not in '"\\/:*?<>|')
+    repli = " ".join(repli.split()) or "export"
+    return f"attachment; filename=\"{repli}\"; filename*=UTF-8''{_up.quote(nom, safe='')}"
+
+
+def _nom_fichier(titre: str, suffixe: str) -> str:
+    import re as _re
+    return (_re.sub(r'[\\/:*?"<>|\x00-\x1f]+', " ", titre or "chapitre").strip()[:80] or "chapitre") + suffixe
+
+
+async def _export_chapitre(chapter_id: str, kind: str, fmt: str):
+    from app.services import text_export as TE
+    from app.services.storage import Chapter, async_session_factory
+    if kind not in ("manuscrit", "scenario"):
+        raise HTTPException(400, "kind : « manuscrit » ou « scenario »")
+    async with async_session_factory() as session:
+        ch = await session.get(Chapter, chapter_id)
+        if not ch:
+            raise HTTPException(404, "Chapter not found")
+        scenes = [_scene_dict(s) for s in await _list_scenes(session, chapter_id)] if kind == "scenario" else []
+    titre = ch.title or "Chapitre"
+    if kind == "manuscrit" and not (ch.script_text or "").strip():
+        raise HTTPException(400, "Le chapitre est vide : rien à exporter.")
+    if kind == "scenario" and not scenes:
+        raise HTTPException(400, "Pas de scénario pour ce chapitre — lance 🎭 Adapter ou 📥 Importer d'abord.")
+    n = 0
+    if fmt == "docx":
+        data = await asyncio.to_thread(TE.manuscrit_docx if kind == "manuscrit" else TE.scenario_docx, titre,
+                                       ch.script_text if kind == "manuscrit" else scenes)
+        media = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    else:
+        data, n = await asyncio.to_thread(TE.manuscrit_pdf if kind == "manuscrit" else TE.scenario_pdf, titre,
+                                          ch.script_text if kind == "manuscrit" else scenes)
+        media = "application/pdf"
+    nom = _nom_fichier(titre, (" - scénario" if kind == "scenario" else "") + "." + fmt)
+    return Response(content=data, media_type=media, headers={"Content-Disposition": _disposition(nom),
+                                                             "X-DZ-Remplacements": str(n)})
+
+
+@router.get("/chapters/{chapter_id}/export.docx")
+async def export_chapitre_docx(chapter_id: str, kind: str = "manuscrit"):
+    """Le manuscrit (A4) ou le scénario (US Letter, Courier) en .docx — tout caractère gardé."""
+    return await _export_chapitre(chapter_id, kind, "docx")
+
+
+@router.get("/chapters/{chapter_id}/export.pdf")
+async def export_chapitre_pdf(chapter_id: str, kind: str = "manuscrit"):
+    """Le manuscrit (A4) ou le scénario (US Letter, Courier) en PDF."""
+    return await _export_chapitre(chapter_id, kind, "pdf")
+
+
+@router.get("/chapters/{chapter_id}/storyboard.pdf")
+async def export_storyboard_pdf(chapter_id: str):
+    """Le storyboard : quatre cartes par page A4, vignette 9:16 entière (production, sinon croquis)."""
+    from app.services import text_export as TE
+    from app.services.storage import BibleEntity, Chapter, async_session_factory
+    from sqlalchemy import select
+    async with async_session_factory() as session:
+        ch = await session.get(Chapter, chapter_id)
+        if not ch:
+            raise HTTPException(404, "Chapter not found")
+        shots = [_shot_dict(s) for s in await _list_shots(session, chapter_id)]
+        noms = {e.id: e.name for e in (await session.execute(select(BibleEntity))).scalars().all()}
+    if not shots:
+        raise HTTPException(400, "Pas de storyboard pour ce chapitre — découpe-le en plans (🎬 ou ¶) d'abord.")
+    data, n = await asyncio.to_thread(TE.storyboard_pdf, ch.title or "Chapitre", shots, settings.images_path, noms)
+    return Response(content=data, media_type="application/pdf",
+                    headers={"Content-Disposition": _disposition(_nom_fichier(ch.title, " - storyboard.pdf")),
+                             "X-DZ-Remplacements": str(n)})
 
 
 @router.put("/scenes/{scene_id}")
