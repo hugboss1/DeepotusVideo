@@ -243,7 +243,8 @@ _at = _ICI.parent.parent / "frontend" / "atelier"
 _js = (_at / "atelier.js").read_text(encoding="utf-8")
 _html = (_at / "index.html").read_text(encoding="utf-8")
 _fn = _js.split("async function monterAnimatique(")[1].split("\n}\n")[0] if "async function monterAnimatique(" in _js else ""
-_modale = _html.split('<div id="animModal"')[1].split('<div id="toast"')[0] if '<div id="animModal"' in _html else ""
+# la modale de l'animatique SEULE : jusqu'au bloc de premier niveau suivant (une autre modale peut la suivre, #66)
+_modale = _re.split(r"\n<div id=", _html.split('<div id="animModal"')[1])[0] if '<div id="animModal"' in _html else ""
 _boutons = _re.findall(r"<button[^>]*>", '<button id="animBtn"' + _html.split('<button id="animBtn"')[1].split(">")[0] + ">" + _modale) if _modale else []
 check("U1 le bouton 🎞 et ceux de la modale ont TOUS un title", len(_boutons) == 3 and all("title=" in b for b in _boutons), str(_boutons))
 check("U2 la case « voix témoin » n'est PAS cochee d'origine : muette par defaut", 'id="animVoix"' in _modale

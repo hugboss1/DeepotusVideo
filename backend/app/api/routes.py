@@ -12994,6 +12994,80 @@ async def sync_conflits(limite: int = 100):
 # ── Tâche #61 (plan chapitres P2, 02/10/2026) : les versions du texte ─────────────────────────────────────────────────
 # Lectures (historique, version, comparaison) et une écriture locale (restaurer : la garde globale la réserve au PC).
 
+# ── Tâche #66 (plan chapitres T17, 02/10/2026) : RÉÉCRIRE ou ENGENDRER un passage dans le ton de la bible ──────────
+# DÉCISION DE L'UTILISATEUR (02/10) : le coût est DIT et CONFIRMÉ à chaque proposition — `devis: true` le chiffre sans
+# rien appeler ; la proposition passe la garde des plafonds ; appliquer est gratuit, après instantané « reecriture »,
+# et refusé si le passage a changé entre-temps (409). Un chapitre emporté par le téléphone refuse DÈS le devis (423) :
+# on ne paie pas une proposition qu'on ne pourrait pas appliquer.
+
+@router.post("/chapters/{chapter_id}/reecrire")
+async def reecrire_passage(chapter_id: str, body: dict):
+    """Body: {start, end, action, language?, devis?, appliquer?, texte?, attendu?}. Sans `appliquer`, rien n'est écrit."""
+    from app.services import reecriture as RE
+    from app.services import plafonds as _PLAF
+    from app.services import pricing as _PR
+    from app.services import sync_verrou as _sv
+    from app.services import text_versions as TV
+    from app.services.storage import Chapter, async_session_factory
+    from app.services.summarizer import active_provider, _chat_dispatch
+    body = body or {}
+    action = str(body.get("action") or "").strip()
+    if action not in RE.ACTIONS:
+        raise HTTPException(400, f"Action « {action} » inconnue — attendu : {', '.join(RE.ACTIONS)}.")
+    langue = str(body.get("language") or "fr").lower()[:2]          # inconnue : RE.construire la refuse (400)
+    await _sv.garde(chapter_id)
+    async with async_session_factory() as session:
+        ch = await session.get(Chapter, chapter_id)
+        if not ch:
+            raise HTTPException(404, "Chapter not found")
+        texte = ch.script_text or ""
+        try:
+            a = max(0, min(len(texte), int(body.get("start", 0))))
+            b = max(a, min(len(texte), int(body.get("end", 0))))
+        except (TypeError, ValueError):
+            raise HTTPException(400, "start et end doivent être des entiers")
+        if b <= a:
+            raise HTTPException(400, "Sélectionne d'abord un passage.")
+        if "attendu" in body and texte[a:b] != str(body.get("attendu") or ""):
+            raise HTTPException(409, "Le passage a changé depuis la proposition : rien n'est écrit. Relance la passe.")
+        mode = RE.ACTIONS[action]["mode"]
+        if body.get("appliquer"):
+            neuf = str(body.get("texte") or "").strip()
+            if not neuf:
+                raise HTTPException(400, "Rien à appliquer.")
+            if "attendu" not in body:
+                raise HTTPException(400, "« attendu » (le passage proposé) est requis pour appliquer.")
+            await TV.snapshot(session, "chapter", ch.id, texte, "reecriture", {"action": action, "start": a, "end": b})
+            ch.script_text = (texte[:a] + neuf + texte[b:] if mode == "remplace" else texte[:b] + "\n\n" + neuf + texte[b:])
+            ch.spans = await _sv._spans(session, ch.script_text)          # le surlignage suit le texte
+            ch.updated_at = datetime.utcnow()
+            await session.commit()
+            await session.refresh(ch)
+            return {"applique": True, "mode": mode, "chapter": _chapter_dict(ch)}
+        style = await _atelier_setting(session, "global_style")
+    fournisseur = await asyncio.to_thread(active_provider)
+    if not fournisseur:
+        raise HTTPException(503, "Aucun LLM configuré (Réglages → clés API) : la réécriture a besoin d'Anthropic, "
+                                 "d'OpenAI ou de Gemini.")
+    ents = (await list_bible_entities(None))["entities"]
+    try:
+        system, prompt, mode = RE.construire(action, texte[a:b], texte[max(0, a - RE.CONTEXTE_MAX):a], ents, style or "",
+                                             langue)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    entree, sortie = RE.jetons(system, prompt, texte[a:b], mode)
+    op = _PLAF.op_llm(entree, sortie, fournisseur)
+    if body.get("devis"):
+        return {"devis": True, "mode": mode, "action": action, "fournisseur": fournisseur,
+                "jetons": {"entree": entree, "sortie": sortie}, "usd": _PR.estimate(op).get("total_usd", 0.0)}
+    await _plafond(op, "chapitres")                                       # avant la dépense
+    out, prov = await asyncio.get_running_loop().run_in_executor(None, lambda: _chat_dispatch(prompt, system, RE.SORTIE_MAX))
+    if not out:
+        raise HTTPException(502, "Le modèle n'a rien renvoyé — réessaie.")
+    return {"applique": False, "mode": mode, "action": action, "provider": prov, "proposition": RE.nettoyer(out),
+            "start": a, "end": b, "attendu": texte[a:b]}
+
+
 @router.get("/chapters/{chapter_id}/versions")
 async def chapter_versions(chapter_id: str):
     """Le tiroir d'un chapitre : son texte, son scénario et ses scènes, du plus récent (sans le texte : aperçu, taille)."""
