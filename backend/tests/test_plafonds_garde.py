@@ -57,6 +57,7 @@ PAYANTES = {
     ("routes", "POST", "/news/rank"),   # tâche #33 : le score LLM sur demande
     ("routes", "POST", "/news/chain/polish"),   # tâche #35 : le polissage LLM d'un script du lot
     ("routes", "POST", "/generate/extend"),   # tâche #51 : l'extension Veo 3.1 (fal)
+    ("routes", "POST", "/studio-graphs/{graph_id}/recette/lancer"),   # tâche #71 : une recette du Studio (gardée PAR la route de rendu)
 }
 
 

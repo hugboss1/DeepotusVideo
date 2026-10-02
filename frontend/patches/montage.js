@@ -9457,3 +9457,49 @@ function DzScrub({jobId}){
         children:"f "+(idx+1)+" / "+N})]}),
     r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-muted)",marginTop:4},
       children:"« , » et « . » : une image en arrière / en avant · ← → sur la réglette · "+cad})]})}
+/* Tâche #71 PR A (plan-studio T9-T10, 03/10/2026) — figer un graphe en RECETTE. La capture compile le graphe (Mh) et
+   arrête renderLayoutTemplate APRÈS la préparation des épingles (repli dans P7pin3) : elle rend la requête au lieu de
+   l'envoyer — slots, épingles et node_id compris, pour que les nœuds inchangés soient réemployés gratuitement au
+   lancement. Rien ne peut partir pendant une capture : un graphe qui tirerait DIRECTEMENT chez un fournisseur
+   (Seedance seul, avatar seul, Animation) est refusé avant compilation, et fetch est VERROUILLÉ le temps de la
+   capture (GET et la vérification gratuite des épingles seulement). Le serveur dérive lui-même les trous (images et
+   textes) ; le lancement, devis confirmé, est dans « Envoyer vers » de la Bibliothèque (PR C). */
+function dzRecRefus(g){
+  var ns=g&&Array.isArray(g.nodes)?g.nodes:[];
+  if(!ns.length)return"Le graphe est vide : rien à figer.";
+  var ugc=ns.some(function(n){return n&&n.type==="Upload"&&n.props&&n.props.jobId});
+  if(!ugc&&ns.some(function(n){return n&&n.type==="Animation"}))return"Un graphe avec un nœud Animation part par son propre rendu : il ne se fige pas en recette.";
+  if(!dzPinRendu(g))return"Une recette se fait d’un graphe composé (Spatial compose, Concatenate, ou une vidéo UGC). Un Seedance seul ou un avatar seul part directement chez le fournisseur : il n’y a rien à figer.";
+  return""}
+function dzRecVerrou(f0){
+  return function(u,o){var m=String(o&&o.method||"GET").toUpperCase(),url=String(u&&u.url||u);
+    if(m==="GET"||/\/studio\/pins\/verifier$/.test(url))return f0.apply(this,arguments);
+    return Promise.reject(new Error("Capture : requête bloquée ("+m+" "+url+") — rien ne part pendant une capture."))}}
+async function dzRecCapturer(g){
+  var why=dzRecRefus(g);if(why)throw new Error(why);
+  var R=Mh(g);if(!R||!R.ok)throw new Error((R&&R.error)||"Compilation impossible.");
+  var f0=window.fetch,out;window.fetch=dzRecVerrou(f0);window.__dzCapture=!0;
+  try{out=await R.run()}finally{window.__dzCapture=!1;window.fetch=f0}
+  if(!out||!out.captured)throw new Error((out&&out.error)||"La compilation n’a pas pu être figée.");
+  return out.captured}
+function DzRecetteBtn({graph,setGraph,dire}){
+  var bs=x.useState(!1),busy=bs[0],setB=bs[1];
+  async function figer(){
+    if(busy)return;setB(!0);
+    try{
+      var cap=await dzRecCapturer(graph);
+      var nm=await window.__dzDialogue.saisir("Nom de la recette (le graphe est enregistré avec elle) :",
+        {titre:"Figer en recette",valeur:graph.name||"Ma recette",ok:"Enregistrer"});
+      if(nm==null)return;
+      var R=await fetch("/api/studio-graphs",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({id:graph.id||void 0,name:(nm||"Ma recette").trim(),graph:graph,recette:cap})});
+      var d=await R.json().catch(function(){return{}});
+      if(!R.ok){await window.__dzDialogue.informer(String(d&&d.detail||"Recette refusée ("+R.status+")."),{titre:"Recette refusée"});return}
+      setGraph(function(G){return Object.assign({},G,{id:d.id,name:d.name})});
+      window.dispatchEvent(new Event("dz-graphs-changed"));
+      dire("Recette « "+d.name+" » : "+(d.trous||0)+" source(s) remplaçable(s) — à lancer depuis la Bibliothèque (Envoyer vers…).")}
+    catch(E){await window.__dzDialogue.informer(String(E&&E.message||E),{titre:"Recette impossible"})}
+    finally{setB(!1)}}
+  return r.jsx(K,{variant:"outline",size:"sm",icon:"check",disabled:busy,"aria-label":"Figer en recette",
+    title:"Figer ce graphe en recette : la compilation est gardée telle quelle, seules ses images et ses textes changeront au lancement (rien n’est généré ici)",
+    onClick:figer,children:busy?"Capture…":"Recette"})}
