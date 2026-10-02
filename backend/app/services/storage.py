@@ -339,6 +339,33 @@ class Device(Base):
     vu_le: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
 
+class ChapterLock(Base):
+    """Plan mobile T14/T21 (tâche #59, 02/10/2026) — un chapitre EMPORTÉ par un téléphone pour être écrit hors ligne.
+    Tant qu'il existe, le PC ne modifie, ne supprime ni ne ré-importe ce chapitre (423). `base_sha256` = empreinte du
+    texte remis au téléphone : un retour sur une autre base est un conflit. Tables neuves : `create_all` suffit."""
+    __tablename__ = "chapter_locks"
+
+    chapter_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    device_id: Mapped[str] = mapped_column(String(36), index=True)
+    device_nom: Mapped[str] = mapped_column(String(60), default="")
+    base_sha256: Mapped[str] = mapped_column(String(64), default="")
+    pris_le: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class SyncConflit(Base):
+    """Le journal des conflits de chapitres : rien n'est écrasé en silence, aucun texte n'est perdu (celui du téléphone
+    refusé, celui du manuscrit ré-importé sur un chapitre emporté, une reprise forcée)."""
+    __tablename__ = "sync_conflits"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    quand: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    chapter_id: Mapped[str] = mapped_column(String(36), index=True)
+    device_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    device_nom: Mapped[str] = mapped_column(String(60), default="")
+    motif: Mapped[str] = mapped_column(String(24))      # verrou_perdu | base_differente | reimport | repris_pc | revoque
+    texte: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
 class Chapter(Base):
     """v1.17 (Atelier P1) — a story chapter: raw script text + the annotated
     spans linking text zones to bible entities ([{start,end,text,entity_id}]

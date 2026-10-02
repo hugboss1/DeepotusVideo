@@ -300,8 +300,10 @@ from app.api.routes import _HOTES_LOCAUX
 # + plan mobile T13 (tâche #58, décision du 01/10 : « une par une ») : le dépôt d'une image, vérifié (Pillow, sha256,
 #   taille bornée) et attribué à l'appareil du JETON
 # + plan mobile T18 (tâche #58, même décision) : les dépenses du téléphone, versées dans la table Depense (plafond #16)
+# + plan mobile T14/T21 (tâche #59, décision du 02/10) : prendre / rendre un chapitre écrit hors ligne (l'id dans le corps)
 _ECRITURES_OUVERTES: frozenset = frozenset({("POST", "/api/pair/claim"), ("POST", "/api/sync/lot/etat"),
-                                            ("POST", "/api/sync/depot"), ("POST", "/api/sync/depenses")})
+                                            ("POST", "/api/sync/depot"), ("POST", "/api/sync/depenses"),
+                                            ("POST", "/api/sync/chapitre/prendre"), ("POST", "/api/sync/chapitre/rendre")})
 
 
 @app.middleware("http")

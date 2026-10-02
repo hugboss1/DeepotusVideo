@@ -345,3 +345,12 @@ span.vector-vignette.vide { display: inline-block; }
 .vector-biblio { border-top: 1px solid var(--line, #2a2f3a); }
 .vector-biblio-bar { display: flex; gap: 8px; padding: 8px 12px 0; }
 .vector-biblio-bar input[type="search"] { flex: 1; min-width: 0; }
+
+/* Tâche #59 (02/10/2026) : un chapitre emporté par le téléphone — lecture seule, « Reprendre sur le PC », journal */
+.emporte { margin: 8px 0; padding: 10px 12px; border: 1px solid var(--amber); border-radius: var(--r, 8px);
+           background: color-mix(in srgb, var(--amber) 10%, transparent); font-size: 12.5px; color: var(--ink-strong); }
+.emporte p { margin: 0 0 8px; }
+.emporte .journal { margin-top: 8px; border-top: 1px solid var(--stroke); padding-top: 8px; }
+.emporte .journal-ligne { display: flex; gap: 8px; align-items: center; padding: 4px 0; flex-wrap: wrap; }
+.emporte .journal-ligne span { flex: 1; min-width: 180px; color: var(--ink-soft); }
+textarea#script[readonly] { opacity: .72; cursor: not-allowed; }

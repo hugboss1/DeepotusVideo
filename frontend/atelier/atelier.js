@@ -69,10 +69,61 @@ async function openChapter(id) {
   if (mode === "board") await loadShots(true);
   if (mode === "screenplay") await loadScenes(true);
   await loadVectorDocs();
+  await majEmporte();
+}
+
+/* ═════════ tâche #59 (02/10/2026) : un chapitre EMPORTÉ par le téléphone ═════════
+   Tant qu'il l'écrit hors ligne, le PC le laisse en lecture seule (le serveur répond 423 à toute écriture).
+   « Reprendre sur le PC » force la libération ; tout texte refusé (retour du téléphone, ré-import) est au journal,
+   d'où on peut le copier ou le reprendre. */
+let emporte = null;         // {appareil:{nom}, pris_le} si le chapitre ouvert est emporté
+const MOTIF_LABEL = { verrou_perdu: "retour refusé (le téléphone ne l'avait plus)", base_differente: "retour sur une autre version",
+                      reimport: "ré-import du manuscrit", repris_pc: "repris sur le PC", revoque: "appareil révoqué" };
+
+async function majEmporte() {
+  const box = $("#emporte");
+  if (!chapter || !box) return;
+  let verrous = [], journal = [];
+  try {
+    verrous = (await api.get("/sync/verrous")).verrous || [];
+    journal = ((await api.get("/sync/conflits")).conflits || []).filter(c => c.chapitre === chapter.id && c.texte);
+  } catch (e) { return; }
+  emporte = verrous.find(v => v.chapitre === chapter.id) || null;
+  $("#script").readOnly = !!emporte;
+  if (!emporte && !journal.length) { box.classList.add("hidden"); box.innerHTML = ""; return; }
+  const quand = (iso) => iso ? new Date(iso).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }) : "";
+  box.innerHTML =
+    (emporte ? `<p>📱 Emporté par le téléphone « ${esc(emporte.appareil.nom)} » depuis le ${quand(emporte.pris_le)} : il l'écrit
+       hors ligne. Lecture seule ici, pour que rien ne soit écrasé.</p>
+       <button class="btn" id="btnReprendre" title="Libère le chapitre : son retour du téléphone sera gardé au journal, jamais perdu">Reprendre sur le PC</button>` : "")
+    + (journal.length ? `<div class="journal"><p>Textes gardés au journal (${journal.length}) :</p>` + journal.map(c =>
+      `<div class="journal-ligne"><span>${quand(c.quand)} · ${esc(MOTIF_LABEL[c.motif] || c.motif)}${c.appareil ? " · " + esc(c.appareil) : ""}
+       · ${c.texte.length} caractères</span>
+       <button class="btn" data-copier="${c.id}" title="Copie ce texte dans le presse-papiers">Copier</button>
+       <button class="btn" data-remplacer="${c.id}" ${emporte ? "disabled" : ""}
+         title="Remplace le texte du chapitre par celui-ci (l'actuel est perdu s'il n'est pas copié)">Remplacer le texte</button></div>`).join("") + `</div>` : "");
+  box.classList.remove("hidden");
+  const r = $("#btnReprendre");
+  if (r) r.onclick = async () => {
+    if (!await window.__dzDialogue.confirmer(`Reprendre « ${chapter.title} » sur le PC ? Le téléphone « ${emporte.appareil.nom} » ne pourra plus le rendre : son texte ira au journal.`, { ok: "Reprendre" })) return;
+    try { await api.send("POST", `/chapters/${chapter.id}/reprendre`); toast("Chapitre repris sur le PC."); }
+    catch (e) { toast("Reprise impossible : " + e.message, true); }
+    await majEmporte();
+  };
+  box.querySelectorAll("[data-copier]").forEach(b => b.onclick = async () => {
+    const c = journal.find(x => String(x.id) === b.dataset.copier);
+    try { await navigator.clipboard.writeText(c.texte); toast("Texte copié."); } catch (e) { toast("Copie impossible : " + e.message, true); }
+  });
+  box.querySelectorAll("[data-remplacer]").forEach(b => b.onclick = async () => {
+    const c = journal.find(x => String(x.id) === b.dataset.remplacer);
+    if (!await window.__dzDialogue.confirmer("Remplacer le texte actuel du chapitre par ce texte du journal ?", { ok: "Remplacer" })) return;
+    $("#script").value = c.texte; renderScript(); scheduleSave();
+  });
 }
 
 function scheduleSave() {
   if (!chapter) return;
+  if (emporte) { $("#saveState").textContent = "emporté"; $("#saveState").className = "savestate"; return; }
   $("#saveState").textContent = "…"; $("#saveState").className = "savestate saving";
   clearTimeout(saveTimer);
   saveTimer = setTimeout(async () => {
@@ -102,6 +153,7 @@ function scheduleSave() {
         } catch (e2) { e = e2; }
       }
       $("#saveState").textContent = "échec !"; toast("Sauvegarde échouée : " + e.message, true);
+      if (/emporté par le téléphone/i.test(e.message)) await majEmporte();   // emporté entre-temps : lecture seule
     }
   }, 800);
 }
