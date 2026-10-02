@@ -981,6 +981,19 @@ async function monterAnimatique() {
 }
 
 /* ═════════ tâche #66 PR B — l'animatique sort vers le Montage (film / reel), en NOUVEAU projet ═════════ */
+/* ═════════ tâche #66 PR C — la sortie « épisode », sans rendu ═════════ */
+async function versEpisode() {
+  if (!chapter) { toast("Ouvre un chapitre d'abord.", true); return; }
+  try {
+    const r = await api.send("POST", `/chapters/${encodeURIComponent(chapter.id)}/episode`, { language: "fr" });
+    if (await window.__dzDialogue.confirmer(
+        `Épisode « ${r.title} » créé : ${r.scenes} scène(s), ${r.images} avec image. Rien n'a été narré ni rendu — ` +
+        `la narration et le rendu (payants) se lancent depuis la vue Épisodes, avec leur devis. Pour l'ouvrir : vue Chapitres → « Flux d'origine » → « Ouvrir ▾ ».`,
+        { ok: "Aller aux Épisodes", annuler: "Rester ici", titre: "Épisode" }))
+      window.open(r.vue, "_blank");
+  } catch (e) { toast("Épisode : " + e.message, true); }
+}
+
 async function sortiesEtat() {
   if (!chapter) return;
   try {
@@ -1723,6 +1736,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   $("#cutAI").addEventListener("click", () => decoupe("ai"));
   $("#cutPara").addEventListener("click", () => decoupe("paragraph"));
   $("#animBtn").addEventListener("click", ouvrirAnimatique);
+  $("#versEpisode").addEventListener("click", versEpisode);
   $("#animGo").addEventListener("click", monterAnimatique);
   document.querySelectorAll("[data-sortie]").forEach(b => b.addEventListener("click", () => sortieMontage(b.dataset.sortie)));
   $("#animClose").addEventListener("click", () => {
