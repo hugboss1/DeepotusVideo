@@ -384,3 +384,12 @@ textarea#script[readonly] { opacity: .72; cursor: not-allowed; }
 .shot-prod{margin-top:6px;position:relative}
 .shot-prod img{width:100%;border-radius:var(--r);border:1px solid var(--cyan)}
 .shot-prod span{position:absolute;left:6px;bottom:6px;font-family:var(--f-mono);font-size:10px;background:var(--bg-panel);padding:1px 5px;border-radius:4px}
+
+/* Tâche #62 — la dérive de l'image de production (lecture seule) */
+.shot-prod .act-derive{position:absolute;right:6px;bottom:6px;padding:1px 6px;font-size:12px}
+.shot-derive:empty{display:none}
+.shot-derive{margin-top:4px;font-size:11px;line-height:1.45}
+.shot-derive .drv-ok b{color:var(--cyan)}
+.shot-derive .drv-ko b{color:var(--red,#e5484d)}
+.shot-derive .drv-vue{font-family:var(--f-mono);opacity:.7}
+.shot-derive .drv-mort{opacity:.65;font-style:italic;margin-top:2px}
