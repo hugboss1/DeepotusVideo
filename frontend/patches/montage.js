@@ -9372,3 +9372,38 @@ function DzPinPanel({node,graph,onUpdate}){
     r.jsx("button",{type:"button",className:"btn",title:"Retirer l'épingle : le prochain run RÉGÉNÈRE ce nœud (payant, coût affiché avant le tir)",
       onClick:function(){onUpdate({pin:null,pinPerime:null})},children:"↻ Regénérer ce nœud"}),
     r.jsx(DzPinHist,{p:p,onUpdate:onUpdate})]})}
+/* Tâche #69 (plan-studio T6-T7, 02/10/2026) — IMPORTER un graphe JSON dans le Studio. Le fichier (export du Studio :
+   graphe nu ; ou enregistrement du magasin : {id, name, graph}) est VALIDÉ par le serveur (POST
+   /api/studio-graphs/import, registre des nœuds en miroir) : un refus est dit avec sa phrase, rien ne s'ouvre. Accepté,
+   il REMPLACE le graphe ouvert — confirmé s'il a des nœuds — et s'ouvre NON enregistré (« Save » le garde). Les
+   sources absentes de cette machine et les arêtes jetées sont LISTÉES dans un dialogue, une par ligne. */
+function dzImpListe(d){
+  var miss=d&&Array.isArray(d.missing)?d.missing:[],warn=d&&Array.isArray(d.warnings)?d.warnings:[],l=[];
+  if(miss.length){l.push("Sources absentes de cette machine — à rebrancher dans leur nœud :");
+    miss.forEach(function(m){l.push("• "+m.type+" "+m.node_id+" — "+(m.champ==="jobId"?"rendu ":"image ")+m.valeur)})}
+  if(warn.length){if(l.length)l.push("");l.push("Arêtes jetées (le reste du graphe est ouvert) :");
+    warn.forEach(function(w){l.push("• "+w)})}
+  return l.join("\n")}
+function DzImportGraph({graph,onOpen}){
+  var rf=x.useRef(null);
+  function dire(m,t){return window.__dzDialogue.informer(m,{titre:t||"Importer un graphe"})}
+  async function lire(f){
+    if(!f)return;
+    if(f.size>5e6){await dire("Fichier trop gros pour un graphe Studio ("+Math.round(f.size/1e6)+" Mo).");return}
+    var g;try{g=JSON.parse(await f.text())}catch(e){await dire("« "+f.name+" » n’est pas du JSON valide : "+String(e&&e.message||e));return}
+    var R,d;
+    try{R=await fetch("/api/studio-graphs/import",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({graph:g})});
+      d=await R.json().catch(function(){return{}})}
+    catch(e){await dire("Le serveur ne répond pas : "+String(e&&e.message||e));return}
+    if(!R.ok){await dire(String(d&&d.detail||"Import refusé ("+R.status+")."),"Import refusé");return}
+    var n=graph&&Array.isArray(graph.nodes)?graph.nodes.length:0;
+    if(n&&!(await window.__dzDialogue.confirmer("Le graphe importé « "+d.graph.name+" » ("+d.graph.nodes.length+" nœuds) remplacera le graphe ouvert « "
+      +(graph.name||"sans nom")+" » ("+n+" nœuds) : ce qui n’est pas enregistré sera perdu.",{titre:"Importer un graphe",ok:"Remplacer"})))return;
+    onOpen(d.graph);
+    var l=dzImpListe(d);
+    if(l)await dire(l+"\n\nLe graphe n’est pas enregistré : « Save » le garde.","Graphe importé — à reprendre")}
+  return r.jsxs(r.Fragment,{children:[
+    r.jsx("input",{ref:rf,type:"file",accept:"application/json,.json",style:{display:"none"},
+      onChange:function(ev){var f=ev.target.files&&ev.target.files[0];ev.target.value="";lire(f)}}),
+    r.jsx(K,{variant:"outline",size:"sm",icon:"upload",title:"Importer un graphe (.json exporté du Studio) — validé par le serveur, ouvert sans être enregistré",
+      "aria-label":"Importer un graphe",onClick:function(){rf.current&&rf.current.click()},children:"Importer"})]})}

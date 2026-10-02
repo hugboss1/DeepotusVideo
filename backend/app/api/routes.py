@@ -1955,6 +1955,37 @@ async def save_studio_graph(body: dict, request: Request):
     return {"id": gid, "name": name}
 
 
+@router.post("/studio-graphs/import")
+async def import_studio_graph(body: dict, request: Request):
+    """Plan-studio T6 (tache #69, 02/10/2026) — valide un graphe JSON (export du Studio, enregistrement du magasin ou
+    ecrit a la main) contre le registre des noeuds, et rend ce qui manque sur cette machine. N'ENREGISTRE rien :
+    l'ecran ouvre le graphe rendu (sans id), l'utilisateur le garde avec « Save »."""
+    _require_localhost(request)
+    from app.services import studio_graph as SG
+    graphe = SG.deballer(body.get("graph") if isinstance(body, dict) else None)
+    noeuds = graphe.get("nodes") if isinstance(graphe, dict) else None
+    noeuds = [n for n in noeuds if isinstance(n, dict)] if isinstance(noeuds, list) else []
+    # seules les sources CITEES par le graphe sont cherchees (pas d'inventaire du disque ni de la base)
+    imgs, jids = set(), set()
+    for n in noeuds:
+        p = n.get("props") if isinstance(n.get("props"), dict) else {}
+        for typ, champ, magasin in SG.SOURCES:
+            v = p.get(champ)
+            if n.get("type") == typ and isinstance(v, str) and v:
+                (imgs if magasin == "images" else jids).add(v)
+    dispo_img = {v for v in imgs if v == Path(v).name and (settings.images_path / v).is_file()}
+    dispo_jobs = set()
+    if jids:
+        async with async_session_factory() as session:
+            res = await session.execute(_select(JobRecord.id).where(JobRecord.id.in_(list(jids)[:SG.MAX_NOEUDS])))
+            dispo_jobs = {r[0] for r in res.all()}
+    try:
+        g, avert, manques = SG.valider(graphe, images=dispo_img, jobs=dispo_jobs)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"graph": g, "warnings": avert, "missing": manques}
+
+
 @router.delete("/studio-graphs/{graph_id}")
 async def delete_studio_graph(graph_id: str):
     p = _studio_graphs_dir() / f"{Path(graph_id).name}.json"
