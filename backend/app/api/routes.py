@@ -9149,6 +9149,46 @@ async def sortie_vers_montage(chapter_id: str, nature: str):
             "duree_s": duree, "voix": sum(1 for p in plans if p.get("voix")), "job_id": job_id, "montage": "/?view=montage"}
 
 
+# ── Tâche #66 PR C (plan chapitres T19, 02/10/2026) : la sortie « épisode », SANS rendu ──────────────────────────────
+# DÉCISION DE L'UTILISATEUR (02/10) : créer un Épisode (vue Épisodes) à partir du storyboard, sans rien rendre ni narrer :
+# la narration et le rendu PAYANTS restent dans la vue Épisodes, avec leur devis et leurs plafonds. Le plan du 03/09
+# lançait un rendu payant d'ici, sans plafond, en appariant les SCÈNES du scénario aux PLANS par leur rang.
+# Une scène d'épisode = UN PLAN : son texte d'origine (la narration), son image (production, sinon croquis), un
+# mouvement Ken Burns (gratuit — jamais « seedance », payant).
+
+@router.post("/chapters/{chapter_id}/episode")
+async def sortie_episode(chapter_id: str, body: dict | None = None):
+    """Body: {language?}. Crée un Épisode du storyboard — ne rend rien, ne narre rien. Gratuit."""
+    from app.services import episode_store as _es
+    from app.services.storage import Chapter, async_session_factory
+    async with async_session_factory() as session:
+        ch = await session.get(Chapter, chapter_id)
+        if not ch:
+            raise HTTPException(404, "Chapter not found")
+        shots = [_shot_dict(s) for s in await _list_shots(session, chapter_id)]
+        narrateur, _cues = await _voice_cast(session)
+    if not shots:
+        raise HTTPException(400, "Pas de storyboard — découpe le chapitre en plans (🎬 ou ¶) d'abord.")
+    scenes = []
+    for s in sorted(shots, key=lambda x: x.get("idx", 0)):
+        texte = (s.get("source_text") or s.get("action") or "").strip()
+        if not texte:
+            continue
+        sc = {"text": texte, "illustration_prompt": (s.get("prompt") or "").strip(), "motion": "kenburns"}
+        img = s.get("image") or s.get("sketch_image")
+        if img and (settings.images_path / Path(str(img)).name).is_file():
+            sc["image_filename"] = Path(str(img)).name
+        scenes.append(sc)
+    if not scenes:
+        raise HTTPException(400, "Aucun plan n'a de texte à narrer.")
+    doc = _es.creer({"title": ch.title or "Chapitre", "script": ch.script_text or "",
+                     "language": str((body or {}).get("language") or "fr").lower()[:5],
+                     "voice_id": (narrateur or {}).get("voice_id") or "", "scenes": scenes,
+                     "scene_method": "atelier", "scene_style": "", "narration": None})
+    return {"ok": True, "episode_id": doc["id"], "title": doc["title"], "scenes": len(scenes),
+            "images": sum(1 for x in scenes if x.get("image_filename")), "vue": "/?view=episodes"}
+
+
 @router.post("/atelier/manuscript")
 async def import_manuscript(background_tasks: BackgroundTasks,
                             manuscript: UploadFile = File(...),
