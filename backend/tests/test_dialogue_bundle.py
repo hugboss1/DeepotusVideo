@@ -78,8 +78,9 @@ def main():
           SRC.exists() and COUCHE.read_bytes() == SRC.read_bytes())
     # t132 (28/09/2026) : + 2, la barre des episodes du maillon montage (P1es1 : modifications perdues, suppression).
     # tache #69 (02/10/2026) : + 1, « Remplacer » le graphe ouvert par un graphe importe (DzImportGraph, maillon montage).
-    check("await __dzDialogue.confirmer ×14 hors couche (11 + 2 de P1es1 + 1 import du Studio ; la couche le cite en commentaire)",
-          hors.count("await window.__dzDialogue.confirmer(") == 14,
+    # tache #71 PR B (03/10/2026) : + 1, le devis du duel de moteurs (DzDuelPanel, maillon montage).
+    check("await __dzDialogue.confirmer ×15 hors couche (11 + 2 de P1es1 + 1 import du Studio + 1 duel ; la couche le cite en commentaire)",
+          hors.count("await window.__dzDialogue.confirmer(") == 15,
           str(hors.count("await window.__dzDialogue.confirmer(")))
     check("la couche remplace window.alert et pose __dzDialogue",
           "window.alert = function" in couche and "window.__dzDialogue = {" in couche)
