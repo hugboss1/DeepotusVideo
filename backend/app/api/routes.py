@@ -8895,7 +8895,7 @@ def _ms_register(jid: str, state: dict) -> dict:
     long session grows this dict forever.
     """
     done = [k for k, v in _MS_JOBS.items()
-            if v.get("phase") in ("done", "error") and k != jid]
+            if v.get("phase") in ("done", "error", "terminé", "échec") and k != jid]   # #63 : phases en français aussi
     for k in done[:-20]:  # keep the last 20 finished for late pollers
         _MS_JOBS.pop(k, None)
     _MS_JOBS[jid] = state
@@ -8933,6 +8933,142 @@ def _read_upload_text(name: str, data: bytes) -> str:
         except Exception:
             continue
     return ""
+
+
+# ── Tâche #63 (plan chapitres T10, 02/10/2026) : l'ANIMATIQUE ────────────────────────────────────────────────────────
+# Les plans montés en vidéo de répétition (540×960) AVANT tout rendu vidéo payant. DÉCISIONS DE L'UTILISATEUR (02/10) :
+# muette par défaut ; voix témoin ElevenLabs SUR DEMANDE (coût dit et confirmé, garde des plafonds, voix en cache :
+# un re-rendu ne repaie rien) ; la voix est celle du NARRATEUR de la bible (comme 🔊 voix-off du chapitre).
+
+def _anim_dossier(chapter_id: str, creer: bool = False) -> Path:
+    from app.services import animatique_service as AN
+    try:
+        return AN.dossier(settings.outputs_path, chapter_id, creer=creer)
+    except ValueError:
+        raise HTTPException(400, "Identifiant de chapitre refusé")
+
+
+async def _anim_shots(chapter_id: str) -> tuple[list, dict | None]:
+    """(plans du chapitre, narrateur de la bible) ; 404 si le chapitre n'existe pas."""
+    from app.services.storage import Chapter, async_session_factory
+    async with async_session_factory() as session:
+        if not await session.get(Chapter, chapter_id):
+            raise HTTPException(404, "Chapter not found")
+        shots = [_shot_dict(s) for s in await _list_shots(session, chapter_id)]
+        narrateur, _cues = await _voice_cast(session)
+    return shots, narrateur
+
+
+def _anim_voix_a_payer(shots: list, narrateur: dict | None, lang: str, d: Path) -> list[tuple[str, str, Path]]:
+    """[(shot_id, texte, fichier de cache)] des voix témoins à faire ; celles déjà en cache sont gratuites."""
+    from app.services import animatique_service as AN
+    vid = (narrateur or {}).get("voice_id")
+    out = []
+    for s in shots:
+        t = AN.texte_plan(s)
+        if len(t) >= AN.TEXTE_MINI:
+            out.append((s["id"], t, d / "voix" / f"{AN.cle_voix(t, vid, lang)}.mp3"))
+    return out
+
+
+@router.get("/chapters/{chapter_id}/animatique")
+async def animatique_etat(chapter_id: str, language: str = "fr"):
+    """L'animatique déjà rendue (sans rien créer sur le disque) et le DEVIS de la voix témoin : caractères pas
+    encore en cache, fournisseur, coût estimé (ElevenLabs) — l'écran le dit avant de demander."""
+    from app.services import pricing as _PR
+    from app.services.voice_providers import resolve_provider
+    d = _anim_dossier(chapter_id)
+    shots, narrateur = await _anim_shots(chapter_id)
+    lang = str(language or "fr").lower()
+    manquantes = [(i, t) for i, t, f in _anim_voix_a_payer(shots, narrateur, lang, d) if not f.is_file()]
+    fournisseur = await asyncio.to_thread(resolve_provider)
+    car = sum(len(t) for _i, t in manquantes)
+    final = d / "animatique.mp4"
+    plans = sorted(d.glob("p[0-9][0-9][0-9].mp4")) if d.is_dir() else []
+    return {"existe": final.is_file(), "plans": len(plans), "storyboard": len(shots),
+            "url": f"/api/chapters/{chapter_id}/animatique.mp4",
+            "maj": final.stat().st_mtime if final.is_file() else None,
+            "voix": {"fournisseur": fournisseur or None, "narrateur": (narrateur or {}).get("name"),
+                     "a_generer": len(manquantes), "caracteres": car,
+                     "usd": round(car * _PR.elevenlabs_rate(), 4) if fournisseur == "elevenlabs" else 0.0}}
+
+
+@router.get("/chapters/{chapter_id}/animatique.mp4")
+async def animatique_fichier(chapter_id: str):
+    p = _anim_dossier(chapter_id) / "animatique.mp4"
+    if not p.is_file():
+        raise HTTPException(404, "Pas encore d'animatique pour ce chapitre")
+    return FileResponse(p, media_type="video/mp4")
+
+
+@router.post("/chapters/{chapter_id}/animatique")
+async def animatique_rendre(chapter_id: str, body: dict, background_tasks: BackgroundTasks):
+    """Monte l'animatique du storyboard. Body: {voix?: bool (défaut FAUX : muette, gratuite), language?}.
+    Suivre GET /atelier/manuscript/{job_id}."""
+    from app.services.elevenlabs_service import VoiceoverService
+    d = _anim_dossier(chapter_id)
+    shots, narrateur = await _anim_shots(chapter_id)
+    if not shots:
+        raise HTTPException(400, "Pas de storyboard — découpe le chapitre (🎬 ou ¶) d'abord.")
+    avec_voix = bool((body or {}).get("voix", False))
+    lang = str((body or {}).get("language") or "fr").lower()
+    if avec_voix:
+        if not await asyncio.get_running_loop().run_in_executor(None, VoiceoverService.is_enabled):
+            raise HTTPException(503, "Aucune voix disponible : configure la clé ElevenLabs ou lance Voicebox (Réglages).")
+        if not narrateur:
+            raise HTTPException(400, "Crée un personnage « Narrateur » dans la bible et caste sa voix (🎙 Suggérer) — "
+                                     "c'est lui qui lit la voix témoin.")
+        a_faire = [t for _i, t, f in _anim_voix_a_payer(shots, narrateur, lang, d) if not f.is_file()]
+        await _plafond(_op_tts(" ".join(a_faire)), "chapitres")     # avant la dépense ; le cache ne coûte rien
+    jid = str(uuid4())
+    _ms_register(jid, {"job_id": jid, "phase": "animatique", "chapter_i": 0, "chapter_n": len(shots),
+                       "message": "Animatique…", "done": False, "error": None, "stats": {}})
+    background_tasks.add_task(_run_animatique_job, jid, chapter_id, shots, avec_voix, lang, narrateur)
+    return {"job_id": jid, "plans": len(shots), "voix": avec_voix}
+
+
+async def _run_animatique_job(jid: str, chapter_id: str, shots: list, avec_voix: bool, lang: str,
+                              narrateur: dict | None):
+    """Voix témoins (facultatives, en cache), puis montage. La voix, quand elle existe, FIXE la durée du plan."""
+    from app.services import animatique_service as AN
+    from app.services.elevenlabs_service import VoiceoverService
+
+    def upd(**kw):
+        _MS_JOBS[jid].update(kw)
+
+    loop = asyncio.get_running_loop()
+    try:
+        d = _anim_dossier(chapter_id, creer=True)
+        audios: dict = {}
+        durees: dict = {}
+        if avec_voix:
+            voice = VoiceoverService()
+            l11 = "FR" if lang.startswith("fr") else "EN"
+            liste = _anim_voix_a_payer(shots, narrateur, lang, d)
+            for k, (sid, texte, dest) in enumerate(liste):
+                upd(chapter_i=k + 1, chapter_n=len(liste), message=f"Voix témoin {k + 1}/{len(liste)}")
+                if not dest.is_file():
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    tmp = dest.with_suffix(".part.mp3")
+                    await loop.run_in_executor(None, lambda t=texte, o=tmp: voice.generate_long(
+                        text=t, output_path=o, language=l11, voice_id=(narrateur or {}).get("voice_id")))
+                    if tmp.is_file():
+                        tmp.replace(dest)
+                if dest.is_file():
+                    audios[sid] = dest
+                    durees[sid] = _audio_duration(dest)
+        entrees = AN.plan(shots, voix=durees)
+
+        def _progres(i, n):
+            upd(phase="montage", chapter_i=i, chapter_n=n, message=f"Plan {i}/{n} — montage")
+
+        await loop.run_in_executor(None, lambda: AN.rendre(entrees, images=settings.images_path, sortie=d,
+                                                           audios=audios, progres=_progres))
+        upd(phase="terminé", done=True, message="Animatique montée — regarde-la avant de payer un rendu.",
+            stats={"plans": len(entrees), "voix": len(audios), "duree_s": AN.duree_totale(entrees)})
+    except Exception as e:
+        logger.exception(f"animatique {jid}: {e}")
+        upd(phase="échec", done=True, error=str(e))
 
 
 @router.post("/atelier/manuscript")

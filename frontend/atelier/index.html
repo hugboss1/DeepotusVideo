@@ -85,6 +85,7 @@
         <button id="cutAI" class="btn primary" title="L'IA lit le chapitre et la bible, puis découpe en plans (action, entités, cadrage, caméra, durée, prompt)">🎬 Découper (IA)</button>
         <button id="cutPara" class="btn" title="Un plan par paragraphe, sans IA">¶ Paragraphes</button>
         <button id="addShot" class="btn" title="Ajouter un plan vide à la fin">＋ Plan</button>
+        <button id="animBtn" class="btn" title="Animatique : les plans montés en vidéo de répétition (image fixe à sa durée), muette et gratuite par défaut — à regarder avant de payer un rendu">🎞 Animatique</button>
         <button id="boardReset" class="btn ghost" title="Supprimer tous les plans de ce storyboard pour repartir de zéro">🗑 Réinitialiser</button>
         <span class="board-hint">croquis = validation du cadrage et du rythme avant la production</span>
         <span id="shotcraftStatus" title="Pont video-shotcraft"></span>
@@ -261,6 +262,29 @@
     <div class="ver-body">
       <div id="verList" class="ver-list"></div>
       <div id="verDiff" class="ver-diff"><div class="empty-note">Choisis une version à gauche : le côte à côte la compare au texte courant.</div></div>
+    </div>
+  </div>
+</div>
+<div id="animModal" class="modal hidden">
+  <div class="modal-box wide">
+    <div class="modal-head">
+      <b>Animatique</b>
+      <span id="animNote" class="da-note"></span>
+      <button id="animClose" class="btn ghost" title="Fermer">✕</button>
+    </div>
+    <div class="anim-body">
+      <div class="anim-reglage">
+        <label class="anim-voix" title="Une voix témoin par plan, lue par le Narrateur de la bible : elle fixe la durée du plan. Les voix déjà faites sont en cache (gratuites).">
+          <input type="checkbox" id="animVoix"> <span>Voix témoin</span> <span id="animDevis" class="da-note"></span>
+        </label>
+        <button id="animGo" class="btn primary" title="Monter l'animatique (muette : gratuit ; avec voix : coût affiché et confirmé avant)">🎞 Monter</button>
+      </div>
+      <div id="animProgress" class="ms-progress hidden">
+        <div class="ms-bar"><div id="animBar" class="ms-bar-fill"></div></div>
+        <div id="animStatus" class="ms-status"></div>
+      </div>
+      <video id="animVideo" class="anim-video hidden" controls preload="metadata"></video>
+      <div id="animVide" class="empty-note">Pas encore d'animatique pour ce chapitre : « 🎞 Monter ».</div>
     </div>
   </div>
 </div>

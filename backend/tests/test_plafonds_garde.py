@@ -28,6 +28,7 @@ def check(label, cond, detail=""):
 # Les routes qui DÉPENSENT, relevées le 29/09 (rapport de classement + lecture du code). Une route neuve qui atteint
 # un puits sans être ici rougit A2 ; une route d'ici qui perd sa garde rougit A1.
 PAYANTES = {
+    ("routes", "POST", "/chapters/{chapter_id}/animatique"),   # tâche #63 : la voix témoin de l'animatique (sur demande)
     ("routes", "POST", "/shots/{shot_id}/image"),        # tâche #62 : l'image de production d'un plan (Nano Banana)
     ("routes", "POST", "/layout-templates/{template_id}/render"), ("routes", "POST", "/assets/3d"),
     ("routes", "POST", "/assets/3d/{job}/refine"), ("routes", "POST", "/assets/3d/{job}/texturer"),
