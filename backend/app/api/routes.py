@@ -6869,6 +6869,44 @@ async def list_bible_entities(kind: str | None = None):
     return {"entities": [_entity_dict(e) for e in rows]}
 
 
+@router.get("/bible/entities/{entity_id}/apparitions")
+async def entity_apparitions(entity_id: str):
+    """Tâche #60 (plan chapitres P1) — la fiche relationnelle : où l'entité apparaît, chapitre par chapitre —
+    mentions (spans du script), plans (shots.entities) et scènes (scenes.entities), dans l'ordre de lecture.
+    Lu en base, aucun LLM."""
+    from app.services.storage import BibleEntity, Chapter, Scene, Shot, async_session_factory
+    import json as _json
+    async with async_session_factory() as session:
+        e = await session.get(BibleEntity, entity_id)
+        if not e:
+            raise HTTPException(404, "Entity not found")
+        chapters = (await session.execute(_select(Chapter).order_by(Chapter.created_at.asc()))).scalars().all()
+        shots = (await session.execute(_select(Shot).order_by(Shot.idx.asc()))).scalars().all()
+        scenes = (await session.execute(_select(Scene).order_by(Scene.idx.asc()))).scalars().all()
+
+    def _ids(brut) -> list:
+        try:
+            v = _json.loads(brut) if brut else []
+            return v if isinstance(v, list) else []
+        except (ValueError, TypeError):
+            return []
+
+    out = []
+    for ch in chapters:
+        mentions = sum(1 for sp in _ids(ch.spans) if isinstance(sp, dict) and sp.get("entity_id") == entity_id)
+        sh = [{"id": s.id, "idx": s.idx, "action": (s.action or "")[:120], "sketch_image": s.sketch_image}
+              for s in shots if s.chapter_id == ch.id and entity_id in _ids(s.entities)]
+        sc = [{"id": s.id, "idx": s.idx, "slugline": s.slugline}
+              for s in scenes if s.chapter_id == ch.id and entity_id in _ids(s.entities)]
+        if mentions or sh or sc:
+            out.append({"chapter_id": ch.id, "title": ch.title, "series": ch.series,
+                        "mentions": mentions, "shots": sh, "scenes": sc})
+    return {"entity_id": entity_id, "name": e.name, "kind": e.kind, "ref_image": e.ref_image,
+            "chapters": out,
+            "totals": {"chapters": len(out), "mentions": sum(c["mentions"] for c in out),
+                       "shots": sum(len(c["shots"]) for c in out), "scenes": sum(len(c["scenes"]) for c in out)}}
+
+
 @router.post("/bible/entities")
 async def create_bible_entity(body: dict):
     """Create an entity. Body: {kind, name, description?, style_notes?,
@@ -7591,15 +7629,22 @@ async def _reindex(session, chapter_id: str):
         s.idx = i
 
 
-def _paragraph_shots(script: str) -> list[dict]:
+def _paragraph_shots(script: str, bible: list[dict] | None = None) -> list[dict]:
     """Fallback sans LLM : un plan par paragraphe, durée estimée à la lecture
-    (~150 mots/min, bornée 3–12 s)."""
+    (~150 mots/min, bornée 3–12 s). Tâche #60 (plan chapitres P1) : les
+    entités présentes sont LUES dans le paragraphe — nom + alias, bornes de
+    mots, sans casse ni accents (MA.compute_spans, le moteur du surlignage) —
+    pour que la table plan ↔ entités existe aussi sans clé LLM."""
+    from app.services import manuscript_agent as MA
     parts = [p.strip() for p in re.split(r"\n\s*\n", script) if p.strip()]
+    ents = [{"id": e["id"], "name": e["name"], "aliases": e.get("aliases") or [], "quotes": []}
+            for e in (bible or [])]
     out = []
     for p in parts:
         words = len(p.split())
         dur = max(3.0, min(12.0, round(words / 2.5, 1)))
-        out.append({"source_text": p, "action": p[:200], "entities": [],
+        found = list(dict.fromkeys(sp["entity_id"] for sp in MA.compute_spans(p, ents))) if ents else []
+        out.append({"source_text": p, "action": p[:200], "entities": found,
                     "shot_type": "medium", "camera_move": "static, locked-off",
                     "duration_s": dur, "prompt": "",
                     "motion_recipe": None, "energy": None})
@@ -7729,7 +7774,8 @@ async def storyboard_decoupe(chapter_id: str, body: dict):
                         "error": "Le découpage IA a échoué — réessaie ou "
                                  "utilise les paragraphes."}
         else:
-            drafts = _paragraph_shots(script)
+            ents_resp = await list_bible_entities(None)          # tâche #60 : les entités du plan, sans LLM
+            drafts = _paragraph_shots(script, ents_resp["entities"])
         for s in await _list_shots(session, chapter_id):
             await session.delete(s)
         rows = []
@@ -7806,7 +7852,13 @@ async def update_shot(shot_id: str, body: dict):
             except (TypeError, ValueError):
                 s.energy = None
         if "entities" in body:
-            s.entities = _json.dumps(body["entities"] or [])
+            # tâche #60 : des ids d'entités EXISTANTES, sans doublon, dans l'ordre donné (la fiche « apparitions » les lit)
+            brut = body["entities"] if body["entities"] is not None else []
+            if not isinstance(brut, list):
+                raise HTTPException(400, "entities : une liste d'ids d'entités de la bible")
+            from app.services.storage import BibleEntity
+            connus = set((await session.execute(_select(BibleEntity.id))).scalars().all())
+            s.entities = _json.dumps([i for i in dict.fromkeys(x for x in brut if isinstance(x, str)) if i in connus])
         s.updated_at = datetime.utcnow()
         await session.commit()
         await session.refresh(s)

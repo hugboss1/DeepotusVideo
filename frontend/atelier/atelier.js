@@ -160,6 +160,8 @@ function scheduleSave() {
 
 /* ═════════ script : surlignage + spans ═════════ */
 function esc(s) { return (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+/* tâche #60 : pour une valeur d'ATTRIBUT (title, data-*), les guillemets aussi — `esc` ne suffit pas */
+function escA(s) { return esc(String(s ?? "")).replace(/"/g, "&quot;").replace(/'/g, "&#39;"); }
 
 /* Ré-ancre les spans après édition : on recherche le texte de la zone au plus
    près de son ancien offset ; introuvable -> orpheline (à re-lier). */
@@ -292,10 +294,12 @@ async function renderBible() {
       <div class="row1">
         <span class="kinddot k-${e.kind}"></span>
         <input class="entity-name" value="${esc(e.name)}" title="Nom">
+        <button class="btn ghost act-apps" title="Où cette entité apparaît : mentions, plans, scènes, chapitre par chapitre">⛓ Apparitions</button>
         <button class="btn ghost act-del" title="Supprimer l'entité">🗑</button>
       </div>
       <textarea class="entity-desc" placeholder="Description physique / visuelle (sert de prompt de référence)">${esc(e.description)}</textarea>
       <input class="entity-style" placeholder="Style spécifique (vide = style global du projet)" title="Override ponctuel : si renseigné, cette entité est générée dans CE style au lieu du style global du projet" value="${esc(e.style_notes)}">
+      <div class="entity-apps hidden"></div>
       ${e.kind === "character" ? `
       <div class="voice-row">
         🎙 <span class="voice-name">${e.voice_name ? esc(e.voice_name) : "<i style='opacity:.55'>pas de voix</i>"}</span>
@@ -345,6 +349,7 @@ async function renderBible() {
     if (rbtn) rbtn.addEventListener("click", () => generateRef(id, null, true));
     const btn3d = card.querySelector(".act-3d");
     if (btn3d) btn3d.addEventListener("click", () => entityTo3D(id));
+    card.querySelector(".act-apps").addEventListener("click", () => showApparitions(id, card));
     card.querySelector(".act-del").addEventListener("click", async () => {
       if (!await window.__dzDialogue.confirmer(`Supprimer « ${ent().name} » de la bible ?`)) return;
       try {
@@ -646,6 +651,7 @@ function renderBoard() {
         <select class="shot-energy" title="Énergie du plan (1 calme → 5 pic) — la courbe doit respirer">${energyOptions(s.energy)}</select>
       </div>
       <div class="shot-ents">${entChips(s.entities) || "<span style='opacity:.5'>aucune entité détectée</span>"}</div>
+      ${entPicker(s.entities)}
       ${s.source_text ? `<details class="shot-src"><summary>texte source</summary><blockquote>${esc(s.source_text)}</blockquote></details>` : ""}
     </div>
   </div>`).join("");
@@ -690,6 +696,14 @@ function renderBoard() {
     });
     card.querySelector(".act-up").addEventListener("click", () => moveShot(id, -1));
     card.querySelector(".act-down").addEventListener("click", () => moveShot(id, +1));
+    card.querySelectorAll(".shot-ents-edit input").forEach(cb => cb.addEventListener("change", async () => {
+      const ids = [...card.querySelectorAll(".shot-ents-edit input:checked")].map(x => x.value);
+      try {
+        const up = await api.send("PUT", "/shots/" + id, { entities: ids });
+        Object.assign(sh(), up);
+        card.querySelector(".shot-ents").innerHTML = entChips(up.entities) || "<span style='opacity:.5'>aucune entité</span>";
+      } catch (e) { toast("Entités du plan : " + e.message, true); }
+    }));
   });
 }
 
@@ -1262,6 +1276,36 @@ async function msRun() {
 
 /* ═════════ utilitaires ═════════ */
 function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+
+/* ═════════ tâche #60 (plan chapitres P1) — plan ↔ entités, apparitions ═════════ */
+function entPicker(selected) {
+  const sel = new Set(selected || []);
+  return `<details class="shot-ents-edit"><summary title="Cocher les entités présentes dans ce plan">⛓ entités du plan</summary>
+    ${entities.map(e => `<label class="chip k-${e.kind}"><input type="checkbox" value="${escA(e.id)}" ${sel.has(e.id) ? "checked" : ""}> ${esc(e.name)}</label>`).join("")}
+  </details>`;
+}
+
+async function showApparitions(id, card) {
+  const box = card.querySelector(".entity-apps");
+  if (!box.classList.contains("hidden")) { box.classList.add("hidden"); return; }
+  box.innerHTML = "…"; box.classList.remove("hidden");
+  try {
+    const a = await api.get(`/bible/entities/${encodeURIComponent(id)}/apparitions`);
+    const t = a.totals;
+    box.innerHTML = `<div class="apps-total">${t.chapters} chapitre(s) · ${t.mentions} mention(s) · ${t.shots} plan(s) · ${t.scenes} scène(s)</div>` +
+      (a.chapters.map(c => `<div class="apps-ch"><b>${esc(c.title)}</b> — ${c.mentions} mention(s)
+        ${c.shots.map(s => `<button class="btn ghost apps-shot" data-ch="${escA(c.chapter_id)}" data-shot="${escA(s.id)}" title="${escA(s.action)}">PLAN ${s.idx + 1}</button>`).join("")}
+        ${c.scenes.map(s => `<button class="btn ghost apps-scene" data-ch="${escA(c.chapter_id)}" title="${escA(s.slugline)}">SC. ${s.idx + 1}</button>`).join("")}</div>`).join("")
+       || `<div class="empty-note">Aucune apparition — découpe un chapitre (🎬 ou ¶) ou lie l'entité à un plan.</div>`);
+    box.querySelectorAll(".apps-shot").forEach(b => b.addEventListener("click", async () => {
+      $("#chapterSelect").value = b.dataset.ch; await openChapter(b.dataset.ch); setMode("board");
+      setTimeout(() => { const el = document.querySelector(`.shot-card[data-id="${b.dataset.shot}"]`); if (el) el.scrollIntoView({ block: "center" }); }, 400);
+    }));
+    box.querySelectorAll(".apps-scene").forEach(b => b.addEventListener("click", async () => {
+      $("#chapterSelect").value = b.dataset.ch; await openChapter(b.dataset.ch); setMode("screenplay");
+    }));
+  } catch (e) { box.innerHTML = `<div class="empty-note">${esc(e.message)}</div>`; }
+}
 
 /* ═════════ wiring global ═════════ */
 window.addEventListener("DOMContentLoaded", async () => {
