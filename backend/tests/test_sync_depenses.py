@@ -82,7 +82,7 @@ with TestClient(app, client=("127.0.0.1", 50000), raise_server_exceptions=False)
     check("A1 sans jeton depuis le Wi-Fi : 401", lan.post("/api/sync/depenses", json={"tirs": [tir("t1", 0.3)]}).status_code == 401)
     check("A2 la route est ouverte au Wi-Fi, ELLE SEULE de plus",
           _MAIN._ECRITURES_OUVERTES == frozenset({("POST", "/api/pair/claim"), ("POST", "/api/sync/lot/etat"),
-                                                  ("POST", "/api/sync/depot"), ("POST", "/api/sync/depenses")}), str(sorted(_MAIN._ECRITURES_OUVERTES)))
+                                                  ("POST", "/api/sync/depot"), ("POST", "/api/sync/depenses"), ("POST", "/api/sync/chapitre/prendre"), ("POST", "/api/sync/chapitre/rendre")}), str(sorted(_MAIN._ECRITURES_OUVERTES)))
 
     print("\n[F] fusion dans la table Depense")
     vieux = (NOW - timedelta(days=62)).replace(day=15, hour=12)

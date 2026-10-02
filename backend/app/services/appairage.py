@@ -165,6 +165,8 @@ async def revoquer(device_id: str) -> bool:
                               .values(delegue_a=None, delegue_le=None))
         await session.commit()
     invalider_cache()
+    from app.services import sync_verrou   # tâche #59 : ses chapitres emportés reviennent au PC (journalisé)
+    await sync_verrou.liberer_appareil(device_id)
     return r.rowcount > 0
 
 
@@ -176,4 +178,6 @@ async def revoquer_tout() -> int:
                               .values(delegue_a=None, delegue_le=None))
         await session.commit()
     invalider_cache()
+    from app.services import sync_verrou   # tâche #59 : tous les chapitres emportés reviennent au PC
+    await sync_verrou.liberer_appareil(None)
     return r.rowcount

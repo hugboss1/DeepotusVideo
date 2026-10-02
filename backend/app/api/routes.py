@@ -7507,7 +7507,9 @@ async def get_chapter(chapter_id: str):
 @router.put("/chapters/{chapter_id}")
 async def update_chapter(chapter_id: str, body: dict):
     from app.services.storage import Chapter, async_session_factory
+    from app.services import sync_verrou as _sv
     import json as _json
+    await _sv.garde(chapter_id)          # tâche #59 : un chapitre emporté par le téléphone n'est pas écrasé (423)
     async with async_session_factory() as session:
         ch = await session.get(Chapter, chapter_id)
         if not ch:
@@ -7531,6 +7533,8 @@ async def delete_chapter(chapter_id: str):
     from sqlalchemy import delete as _delete
     from app.services.storage import (Chapter, VectorDocLink,
                                       async_session_factory)
+    from app.services import sync_verrou as _sv
+    await _sv.garde(chapter_id)          # tâche #59 : ni supprimé pendant qu'un téléphone l'écrit (423)
     async with async_session_factory() as session:
         ch = await session.get(Chapter, chapter_id)
         if not ch:
@@ -8857,11 +8861,16 @@ async def _run_manuscript_job(jid: str, text: str, companion: str, series: str):
                               for e, fe in ent_pairs]
             ch_rows = (await session.execute(select(Chapter))).scalars().all()
             ch_by_key = {(c.series or "", c.title): c for c in ch_rows}
+            from app.services import sync_verrou as _sv
+            emportes = await _sv.verrouilles()      # tâche #59 : un chapitre emporté par un téléphone est laissé tel quel
             for seg in segs:
                 spans = MA.compute_spans(seg["text"], ents_for_spans)
                 total_spans += len(spans)
                 key = (series, seg["title"][:200])
                 c = ch_by_key.get(key)
+                if c and c.id in emportes:
+                    await _sv.journaliser_reimport(c.id, seg["text"])   # le texte du manuscrit va au journal, pas perdu
+                    continue
                 if c:
                     c.script_text = seg["text"]
                     c.spans = _json.dumps(spans)
@@ -12398,3 +12407,57 @@ async def sync_depenses_post(request: Request, body: dict | None = None):
         raise HTTPException(413, str(e)) from None
     except ValueError as e:
         raise HTTPException(400, str(e)) from None
+
+
+# ── Plan mobile T14 + T21 (tâche #59, 02/10/2026) : un chapitre emporté, écrit hors ligne, rendu ─────────────────────
+# PRENDRE et RENDRE sont ouverts au Wi-Fi (main._ECRITURES_OUVERTES, décision du 02/10) ; l'id voyage dans le corps.
+# Reprendre (libération forcée) se fait sur le PC. Le journal des conflits garde tout texte refusé.
+
+def _id_chapitre(body) -> str:
+    cid = str((body or {}).get("chapitre") or "") if isinstance(body, dict) else ""
+    if not cid:
+        raise HTTPException(400, "chapitre requis")
+    return cid
+
+
+@router.post("/sync/chapitre/prendre")
+async def sync_chapitre_prendre(request: Request, body: dict | None = None):
+    from app.services import sync_verrou as _sv
+    appareil = await _appareil_requis(request)
+    return await _sv.prendre(appareil, _id_chapitre(body))
+
+
+@router.post("/sync/chapitre/rendre")
+async def sync_chapitre_rendre(request: Request, body: dict | None = None):
+    from app.services import sync_verrou as _sv
+    appareil = await _appareil_requis(request)
+    _id_chapitre(body)
+    return await _sv.rendre(appareil, body)
+
+
+@router.get("/sync/chapitre/{chapter_id}/annotations")
+async def sync_chapitre_annotations(chapter_id: str):
+    from app.services import sync_verrou as _sv
+    return {"annotations": _sv.lire_annotations(Path(chapter_id).name)}
+
+
+@router.post("/chapters/{chapter_id}/reprendre")
+async def chapter_reprendre(chapter_id: str, request: Request):
+    """« Reprendre sur le PC » : le chapitre emporté revient au PC ; le retour du téléphone ira au journal."""
+    _require_localhost(request)
+    from app.services import sync_verrou as _sv
+    if not await _sv.reprendre(chapter_id):
+        raise HTTPException(404, "Ce chapitre n'est emporté par aucun appareil")
+    return {"repris": chapter_id}
+
+
+@router.get("/sync/verrous")
+async def sync_verrous():
+    from app.services import sync_verrou as _sv
+    return await _sv.lister()
+
+
+@router.get("/sync/conflits")
+async def sync_conflits(limite: int = 100):
+    from app.services import sync_verrou as _sv
+    return await _sv.conflits(limite)

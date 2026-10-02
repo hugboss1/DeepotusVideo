@@ -194,8 +194,9 @@ check("4.4 temoin local : la meme ecriture depuis la boucle locale atteint la ro
 # tache #57 (01/10/2026, decision de l'utilisateur) : + l'etat du lot rapporte par le telephone (plan mobile T8)
 # tache #58 (01/10/2026, decision « une par une ») : + le depot verifie d'une image du telephone (plan mobile T13)
 # tache #58 (02/10/2026, meme decision) : + les depenses du telephone versees a la table Depense (plan mobile T18)
-check("4.5 quatre exceptions ouvertes (pair/claim, sync/lot/etat, sync/depot, sync/depenses), aucune qui DECLENCHE une depense ; la garde lit la liste d'hotes des Reglages",
-      MAIN._ECRITURES_OUVERTES == frozenset({("POST", "/api/pair/claim"), ("POST", "/api/sync/lot/etat"), ("POST", "/api/sync/depot"), ("POST", "/api/sync/depenses")})
+# tache #59 (02/10/2026, decision de l'utilisateur) : + prendre / rendre un chapitre ecrit hors ligne (plan mobile T14/T21)
+check("4.5 six exceptions ouvertes (pair/claim, sync/lot/etat, sync/depot, sync/depenses, sync/chapitre/prendre|rendre), aucune qui DECLENCHE une depense ; la garde lit la liste d'hotes des Reglages",
+      MAIN._ECRITURES_OUVERTES == frozenset({("POST", "/api/pair/claim"), ("POST", "/api/sync/lot/etat"), ("POST", "/api/sync/depot"), ("POST", "/api/sync/depenses"), ("POST", "/api/sync/chapitre/prendre"), ("POST", "/api/sync/chapitre/rendre")})
       and MAIN._HOTES_LOCAUX is RT._HOTES_LOCAUX, "")
 sansj = TestClient(APP, client=LAN).get("/api/video-models")
 check("4.8 (tache #56) SANS jeton d'appareil, meme une lecture depuis le reseau local est refusee (401, garde exterieure)",
