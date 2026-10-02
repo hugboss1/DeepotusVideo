@@ -9310,6 +9310,16 @@ async function dzPinPreparer(tid,slots,vm,tpl,g){
     delete slots[sn].pin;perimes.push((nid||sn)+" : "+why);
     if(nid&&typeof window.__dzStudioMaj==="function")window.__dzStudioMaj(nid,{pin:null,pinPerime:why})});
   return perimes.length?"Épingle périmée — "+perimes.join(" ; ")+". Elle est retirée et le coût recalculé : relancez pour régénérer.":""}
+/* Tâche #68 (plan-studio T5, 02/10/2026) — la PILE des rendus d'un nœud (props.hist) : chaque rendu récolté s'empile en
+   tête, sans doublon, huit au plus. « Utiliser » un rendu de la pile en fait l'épingle — le serveur la VÉRIFIE au
+   prochain run : un rendu fait avec d'autres réglages est écarté (raison dite), jamais réemployé en douce. Le plan
+   prévoyait un verrou (`lock`) contre l'écrasement par la récolte suivante : inutile ici, la récolte ne pose une
+   épingle NEUVE que si le nœud a été régénéré. */
+function dzPinHistPush(h,pin){
+  if(!pin||!pin.job_id)return Array.isArray(h)?h.slice(0,8):[];
+  var l=(Array.isArray(h)?h:[]).filter(function(x){return x&&x.job_id&&String(x.job_id)!==String(pin.job_id)});
+  l.unshift({job_id:String(pin.job_id),empreinte:pin.empreinte||null,le:pin.le||null});
+  return l.slice(0,8)}
 function dzPinRecolter(rep,g){
   var jid=rep&&rep.job_id;
   if(!jid||!g||!Array.isArray(g.nodes))return;
@@ -9325,10 +9335,27 @@ function dzPinRecolter(rep,g){
         var nd=(G.nodes||[]).filter(function(n){return n&&n.id===p.node_id})[0];
         if(!nd||nd.type!==(p.kind==="heygen"?"HeyGenAvatar":"Seedance"))return;
         vus[p.slot]=1;
+        var pin={job_id:String(p.job_id),empreinte:String(p.empreinte),le:new Date().toISOString(),reemploi:!!p.reemploi};
         if(typeof window.__dzStudioMaj==="function")window.__dzStudioMaj(p.node_id,
-          {pin:{job_id:String(p.job_id),empreinte:String(p.empreinte),le:new Date().toISOString(),reemploi:!!p.reemploi},pinPerime:null})})}}catch(_e){}
+          {pin:pin,pinPerime:null,hist:p.reemploi?((nd.props||{}).hist||[]):dzPinHistPush((nd.props||{}).hist,pin)})})}}catch(_e){}
     if(!fini&&Date.now()-t0<45*60*1000)setTimeout(tour,4000)};
   setTimeout(tour,2500)}
+function DzPinHist({p,onUpdate}){
+  var h=Array.isArray(p.hist)?p.hist:[],pin=p.pin||null;
+  if(!h.length)return null;
+  return r.jsxs("div",{className:"dz-pin-hist",style:{marginTop:8},children:[
+    r.jsx("div",{style:{color:"var(--ink-soft)",marginBottom:4},children:"Rendus de ce nœud ("+h.length+")"}),
+    r.jsx("div",{style:{display:"flex",flexDirection:"column",gap:6},children:h.map(function(x,ix){
+      var actif=!!(pin&&String(pin.job_id)===String(x.job_id)),autres=!!(pin&&pin.empreinte&&x.empreinte&&x.empreinte!==pin.empreinte);
+      return r.jsxs("div",{style:{display:"flex",gap:8,alignItems:"center",padding:6,borderRadius:"var(--r-sm)",background:"var(--bg-base)",
+        border:"1px solid var(--"+(actif?"cyan":"stroke")+")"},children:[
+        r.jsx("video",{src:D.jobVideoUrl(x.job_id),muted:!0,preload:"metadata",style:{width:40,height:70,objectFit:"cover",borderRadius:4,background:"#000"}}),
+        r.jsxs("div",{style:{flex:1,minWidth:0,fontSize:10.5,color:"var(--ink-soft)"},children:[
+          r.jsx("div",{className:"mono",style:{color:"var(--ink-strong)"},children:"rendu "+String(x.job_id).slice(0,8)}),
+          r.jsx("div",{children:(x.le?String(x.le).slice(0,16).replace("T"," "):"")+(autres?" · autres réglages":"")})]}),
+        actif?r.jsx("span",{className:"mono",style:{color:"var(--cyan)",fontSize:10},children:"en aval"}):
+        r.jsx("button",{type:"button",className:"btn",title:"Faire alimenter l'aval par ce rendu (gratuit) — vérifié au prochain run : avec d'autres réglages que ceux du nœud, il est écarté et c'est dit",
+          onClick:function(){onUpdate({pin:{job_id:String(x.job_id),empreinte:x.empreinte||"",le:x.le||null,choisi:!0},pinPerime:null})},children:"Utiliser"})]},String(x.job_id)+":"+ix)})})]})}
 function DzPinPanel({node,graph,onUpdate}){
   var p=node&&node.props||{},pin=p.pin;
   var box={padding:"10px 14px",borderBottom:"1px solid var(--stroke)",fontSize:11,lineHeight:1.45};
@@ -9336,10 +9363,12 @@ function DzPinPanel({node,graph,onUpdate}){
     children:"📌 Pas d'épingle ici : un Seedance seul (ou un HeyGen seul) part directement par /generate. L'épingle vaut dans un graphe composé (Seedance + HeyGen, Concatenate, Spatial compose, UGC)."})});
   if(!pin||!pin.job_id)return r.jsxs("div",{className:"dz-pin",style:box,children:[
     r.jsx("div",{style:{color:"var(--ink-soft)"},children:"📌 Pas encore épinglé : après le prochain rendu, son résultat est gardé et réemployé (gratuit) tant que sa requête ne change pas."}),
-    p.pinPerime?r.jsx("div",{style:{color:"var(--amber)",marginTop:4},children:"Épingle retirée : "+p.pinPerime}):null]});
+    p.pinPerime?r.jsx("div",{style:{color:"var(--amber)",marginTop:4},children:"Épingle retirée : "+p.pinPerime}):null,
+    r.jsx(DzPinHist,{p:p,onUpdate:onUpdate})]});
   return r.jsxs("div",{className:"dz-pin",style:box,children:[
     r.jsx("div",{style:{color:"var(--cyan)",marginBottom:4},children:"📌 Épinglé — réemployé (gratuit) tant que sa requête ne change pas"}),
     r.jsx("div",{className:"mono",style:{color:"var(--ink-muted)",fontSize:10,marginBottom:6},
       children:"rendu "+String(pin.job_id).slice(0,8)+(pin.le?" · "+String(pin.le).slice(0,16).replace("T"," "):"")}),
     r.jsx("button",{type:"button",className:"btn",title:"Retirer l'épingle : le prochain run RÉGÉNÈRE ce nœud (payant, coût affiché avant le tir)",
-      onClick:function(){onUpdate({pin:null,pinPerime:null})},children:"↻ Regénérer ce nœud"})]})}
+      onClick:function(){onUpdate({pin:null,pinPerime:null})},children:"↻ Regénérer ce nœud"}),
+    r.jsx(DzPinHist,{p:p,onUpdate:onUpdate})]})}
