@@ -9365,7 +9365,8 @@ async def update_scene(scene_id: str, body: dict):
             s.slugline = f"{s.int_ext}. {loc} - {s.time_of_day}"
         else:
             # slugline recomposée si int_ext / time_of_day ont changé
-            m = re.match(r"^(?:INT\.|EXT\.|INT\./EXT\.)\s*(.+?)\s*-\s*[A-ZÉÈ]+$",
+            # tâche #64 : « INT/EXT. » (la valeur de l'atelier) n'était pas reconnu — la slugline doublait à chaque édition
+            m = re.match(r"^(?:INT/EXT\.|INT\./EXT\.|INT\.|EXT\.)\s*(.+?)\s*-\s*[A-ZÉÈ]+$",
                          s.slugline or "")
             loc = m.group(1) if m else (s.slugline or "LIEU")
             s.slugline = f"{s.int_ext}. {loc} - {s.time_of_day}"
@@ -9574,6 +9575,91 @@ async def reset_screenplay(chapter_id: str):
             n += 1
         await session.commit()
     return {"ok": True, "deleted": n}
+
+
+# ── Tâche #64 (plan chapitres T12-T13, 02/10/2026) : IMPORTER un scénario Fountain / Final Draft ─────────────────────
+# DÉCISIONS DE L'UTILISATEUR (02/10) : dans le chapitre OUVERT ; « remplacer » par défaut — l'écran confirme en nommant
+# les scènes et les voix-off perdues, le scénario ENTIER est sauvegardé avant (version « import_scenario ») — ou
+# « ajouter » à la suite ; un chapitre emporté par le téléphone refuse (423) ; vocabulaire traduit (screenplay_import).
+
+@router.post("/chapters/{chapter_id}/screenplay/import")
+async def import_screenplay(chapter_id: str, file: UploadFile = File(...), mode: str = Form("remplacer")):
+    from app.services import screenplay_import as SI
+    from app.services import sync_verrou as _sv
+    from app.services import text_versions as TV
+    from app.services.storage import BibleEntity, Chapter, Scene, async_session_factory
+    from sqlalchemy import select
+    import json as _json
+    if mode not in ("remplacer", "ajouter"):
+        raise HTTPException(400, "mode : « remplacer » ou « ajouter »")
+    async with async_session_factory() as session:
+        if not await session.get(Chapter, chapter_id):
+            raise HTTPException(404, "Chapter not found")
+    await _sv.garde(chapter_id)                      # un chapitre emporté par le téléphone n'est pas touché (423)
+    data = await file.read()
+    if len(data) > 8 * 1024 * 1024:
+        raise HTTPException(413, "Fichier trop gros (8 Mo au plus).")
+    try:
+        lu = await asyncio.to_thread(SI.lire, data, file.filename or "")
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    lieux_crees = 0
+    async with async_session_factory() as session:
+        rows = (await session.execute(select(BibleEntity))).scalars().all()
+        by_key = {}
+        for e in rows:
+            by_key[(e.kind, e.name.strip().lower())] = e
+            try:
+                for a in (_json.loads(e.aliases) if e.aliases else []):
+                    by_key.setdefault((e.kind, a.strip().lower()), e)
+            except Exception:
+                pass
+
+        def lieu(nom):
+            nonlocal lieux_crees
+            e = by_key.get(("place", nom.strip().lower())) or by_key.get(("place", nom.strip().title().lower()))
+            if e:
+                return e
+            e = BibleEntity(id=str(uuid4()), kind="place", name=nom.title()[:120],
+                            description=f"Lieu établi par l'import du scénario « {file.filename or ''} ».",
+                            aliases="[]", evidence="[]", inspiration_images="[]",
+                            created_at=datetime.utcnow(), updated_at=datetime.utcnow())
+            session.add(e)
+            by_key[("place", nom.strip().lower())] = e
+            lieux_crees += 1
+            return e
+
+        existantes = list(await _list_scenes(session, chapter_id))
+        if mode == "remplacer":
+            if existantes:
+                await TV.snapshot_scenario(session, chapter_id, "import_scenario")   # restaurable dans le tiroir
+            for s in existantes:
+                await session.delete(s)
+            base = 0
+        else:
+            base = max((s.idx for s in existantes), default=-1) + 1
+        lies = 0
+        for k, d in enumerate(lu["scenes"]):
+            le = lieu(d["lieu"])
+            ids = [le.id]
+            for nom in d["personnages"]:
+                e = by_key.get(("character", nom.strip().lower())) or by_key.get(("character", nom.strip().title().lower()))
+                if e and e.id not in ids:
+                    ids.append(e.id)
+                    lies += 1
+            notes = []
+            if d["moment_original"]:
+                notes.append(f"Moment d'origine : {d['moment_original']}")
+            if d["ie_force"]:
+                notes.append("INT/EXT non précisé dans le fichier (INT par défaut)")
+            session.add(Scene(id=str(uuid4()), chapter_id=chapter_id, idx=base + k, slugline=d["slugline"][:200],
+                              int_ext=d["int_ext"], location_entity_id=le.id, time_of_day=d["moment"],
+                              fountain_text=d["texte"], camera_notes="\n".join(notes), entities=_json.dumps(ids),
+                              created_at=datetime.utcnow(), updated_at=datetime.utcnow()))
+        await session.commit()
+    return {"mode": mode, "format": lu["format"], "titre": lu["titre"], "scenes": len(lu["scenes"]),
+            "remplacees": len(existantes) if mode == "remplacer" else 0, "lieux_crees": lieux_crees,
+            "personnages_lies": lies, "prologue": lu["prologue"], "ignores": lu["ignores"]}
 
 
 @router.post("/chapters/{chapter_id}/screenplay/adapt")
