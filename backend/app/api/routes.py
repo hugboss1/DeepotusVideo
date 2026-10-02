@@ -7661,6 +7661,7 @@ def _shot_dict(s) -> dict:
             "camera_move": s.camera_move, "duration_s": s.duration_s,
             "sketch_image": s.sketch_image, "sketch_seed": s.sketch_seed,
             "prompt": s.prompt or "",
+            "image": getattr(s, "image", None), "image_refs": getattr(s, "image_refs", None),
             "motion_recipe": s.motion_recipe, "energy": s.energy}
 
 
@@ -7824,7 +7825,11 @@ async def storyboard_decoupe(chapter_id: str, body: dict):
         else:
             ents_resp = await list_bible_entities(None)          # tâche #60 : les entités du plan, sans LLM
             drafts = _paragraph_shots(script, ents_resp["entities"])
+        # tâche #62 : l'image de production (payée) d'un plan dont le texte n'a pas changé survit à la redécoupe
+        gardees = {}
         for s in await _list_shots(session, chapter_id):
+            if getattr(s, "image", None) and (s.source_text or "") not in gardees:
+                gardees[s.source_text or ""] = (s.image, s.image_refs)
             await session.delete(s)
         rows = []
         for i, d in enumerate(drafts):
@@ -7836,6 +7841,8 @@ async def storyboard_decoupe(chapter_id: str, body: dict):
                      motion_recipe=d.get("motion_recipe"),
                      energy=d.get("energy"),
                      created_at=datetime.utcnow(), updated_at=datetime.utcnow())
+            if d["source_text"] in gardees:
+                s.image, s.image_refs = gardees.pop(d["source_text"])
             session.add(s)
             rows.append(s)
         await session.commit()
@@ -7971,6 +7978,78 @@ async def generate_shot_sketch(shot_id: str, body: dict):
         await LI.noter([out["images"][0]], "atelier")
         s.sketch_image = out["images"][0]
         s.sketch_seed = out.get("seed")
+        s.updated_at = datetime.utcnow()
+        await session.commit()
+        await session.refresh(s)
+        return _shot_dict(s)
+
+
+# ── Tâche #62 (plan chapitres T8, 02/10/2026) : l'image de PRODUCTION d'un plan ──────────────────────────────────────
+# Nano Banana reçoit les VUES des entités du plan (au lieu d'une seule image). Payante : garde des plafonds (402,
+# confirmation), recensée dans test_plafonds_garde ; l'écran montre le coût et demande un geste avant (décision du 02/10).
+
+_ORDRE_VUES = ("face_front", "front", "face_left", "left", "back", "face_right", "right")
+
+
+def _refs_entrelacees(par_entite: list[dict], maxi: int) -> list[str]:
+    """Les vues de plusieurs entités, ENTRELACÉES par ordre d'importance (visage de face de chacune, puis corps de
+    face…) : avec `maxi` places, aucune entité n'est réduite à presque rien. Sans doublon."""
+    files = []
+    for vues in par_entite:
+        ordre = [vues[k] for k in _ORDRE_VUES if k in vues] + [f for k, f in vues.items() if k not in _ORDRE_VUES]
+        files.append(ordre)
+    out: list[str] = []
+    for rang in range(max((len(f) for f in files), default=0)):
+        for f in files:
+            if rang < len(f) and f[rang] not in out:
+                out.append(f[rang])
+    return out[:maxi]
+
+
+@router.post("/shots/{shot_id}/image")
+async def generate_shot_image(shot_id: str, body: dict):
+    """L'image de production du plan : Nano Banana (Pro) avec les vues de ses entités en référence (au plus
+    IP.REF_MAX). Body: {provider?}. Le croquis (FLUX, /sketch) n'est pas touché."""
+    from app.services import image_providers as IP
+    from app.services.storage import Shot, BibleEntity, async_session_factory
+    import json as _json
+    async with async_session_factory() as session:
+        s = await session.get(Shot, shot_id)
+        if not s:
+            raise HTTPException(404, "Shot not found")
+        action = (s.action or s.source_text or "").strip()
+        if not action:
+            raise HTTPException(400, "Décris l'action du plan avant l'image")
+        provider = ((body or {}).get("provider") or await _atelier_setting(session, "image_provider") or "nano-banana-pro")
+        if provider not in ("nano-banana", "nano-banana-pro"):
+            raise HTTPException(400, f"« {provider} » ne prend pas plusieurs références : choisissez Nano Banana (Pro) "
+                                     "dans la direction artistique, ou le croquis 🎨 (FLUX).")
+        try:
+            eids = _json.loads(s.entities) if s.entities else []
+        except Exception:
+            eids = []
+        par_entite, descs = [], []
+        for eid in eids:
+            e = await session.get(BibleEntity, eid)
+            if not e:
+                continue
+            descs.append(f"{e.name}: {(e.description or '')[:100]}")
+            _src, vues = await _entity_ref_views(e)
+            par_entite.append({k: f for k, f in vues.items() if (settings.images_path / Path(f).name).is_file()})
+        refs = [settings.images_path / Path(f).name for f in _refs_entrelacees(par_entite, IP.REF_MAX)]
+        if not refs:
+            raise HTTPException(400, "Aucune vue de référence : générez d'abord la planche 🎨 des entités du plan (bible).")
+        style = await _atelier_setting(session, "global_style")
+        prompt = f"Shot: {s.shot_type}, camera: {s.camera_move}. {action}"
+        if descs:
+            prompt += ". Characters/places (keep them EXACTLY as in the reference images): " + "; ".join(descs)
+        if style:
+            prompt += f". Style: {style}"
+        await _plafond({"kind": "image", "n": 1, "model": provider}, "chapitres")   # avant la dépense
+        out = await IP.generate(provider, prompt, "portrait_16_9", 1, ratio="9:16", image_paths=refs)
+        await LI.noter([out["images"][0]], "atelier")
+        s.image = out["images"][0]
+        s.image_refs = len(refs)
         s.updated_at = datetime.utcnow()
         await session.commit()
         await session.refresh(s)

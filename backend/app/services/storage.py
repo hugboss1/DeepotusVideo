@@ -399,6 +399,10 @@ class Shot(Base):
     duration_s: Mapped[float] = mapped_column(Float, default=4.0)
     sketch_image: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     sketch_seed: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # tâche #62 (plan chapitres T8) — l'image de PRODUCTION du plan, générée avec les vues des entités en référence
+    # (le croquis reste le jet FLUX bon marché) ; `image_refs` = le nombre de références réellement envoyées.
+    image: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    image_refs: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     prompt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     # v1.22 (W-d) — video-shotcraft bridge: motion recipe card slug (validated
     # against the installed skill's catalog) + 1-5 energy level of the beat.
@@ -603,6 +607,9 @@ BIBLE_ENTITIES_COLUMNS = [
 SHOTS_COLUMNS = [
     ("motion_recipe", "VARCHAR(60)"),
     ("energy", "INTEGER"),
+    # tâche #62 : image de production + nombre de références
+    ("image", "VARCHAR(255)"),
+    ("image_refs", "INTEGER"),
 ]
 
 # Vectorlab — pont cartes (27/08) : l'ancre deck_id sur les bases d'avant

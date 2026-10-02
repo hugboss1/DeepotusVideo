@@ -379,3 +379,8 @@ textarea#script[readonly] { opacity: .72; cursor: not-allowed; }
 .ver-mod{background:rgba(245,183,49,.14);border-left-color:var(--amber)}
 .ver-add{background:rgba(60,200,120,.14);border-left-color:var(--green)}
 .ver-del{background:rgba(230,80,80,.14);border-left-color:var(--red)}
+
+/* Tâche #62 — l'image de production d'un plan */
+.shot-prod{margin-top:6px;position:relative}
+.shot-prod img{width:100%;border-radius:var(--r);border:1px solid var(--cyan)}
+.shot-prod span{position:absolute;left:6px;bottom:6px;font-family:var(--f-mono);font-size:10px;background:var(--bg-panel);padding:1px 5px;border-radius:4px}

@@ -162,8 +162,11 @@ async def _openai_generate(model: str, prompt: str, size: str, n: int,
 
 # ───────────────────── Nano Banana (Gemini via fal) ─────────────────────
 
+REF_MAX = 9   # tâche #62 : fal ne documente aucun maximum pour `image_urls` (doc lue le 02/10) — 9 est notre prudence
+
+
 def build_banana_request(prompt: str, size: str, n: int,
-                         image_url: str | None,
+                         image_url: list[str] | str | None,
                          ratio: str | None = None,
                          pro: bool = False) -> tuple[str, dict]:
     """(model_id, arguments) fal pour Nano Banana. Exposé pur pour les tests.
@@ -173,8 +176,11 @@ def build_banana_request(prompt: str, size: str, n: int,
     fal-ai/nano-banana-pro (Gemini 3, mêmes arguments — doc fal du
     27/08/2026), au tarif de SA clé de prix."""
     endpoint = "fal-ai/nano-banana-pro" if pro else "fal-ai/nano-banana"
-    if image_url:
-        args = {"prompt": prompt, "image_urls": [image_url],
+    # tâche #62 : une LISTE de références (une chaîne seule reste acceptée), ordre gardé, tronquée à REF_MAX
+    urls = [image_url] if isinstance(image_url, str) else list(image_url or [])
+    urls = [u for u in urls if u][:REF_MAX]
+    if urls:
+        args = {"prompt": prompt, "image_urls": urls,
                 "num_images": n, "output_format": "png"}
         if ratio:
             args["aspect_ratio"] = ratio
@@ -185,15 +191,17 @@ def build_banana_request(prompt: str, size: str, n: int,
 
 
 async def _banana_generate(prompt: str, size: str, n: int,
-                           image_path: Path | None,
+                           image_path: Path | list[Path] | None,
                            ratio: str | None = None,
                            pro: bool = False) -> list[str]:
     import fal_client
-    image_url = None
-    if image_path is not None:
+    chemins = list(image_path) if isinstance(image_path, (list, tuple)) else ([image_path] if image_path is not None else [])
+    urls: list[str] = []
+    if chemins:
         from app.services.fal_service import FalSeedanceClient
-        image_url = await FalSeedanceClient.upload_image(image_path)
-    model, arguments = build_banana_request(prompt, size, n, image_url, ratio,
+        for ch in chemins[:REF_MAX]:
+            urls.append(await FalSeedanceClient.upload_image(ch))
+    model, arguments = build_banana_request(prompt, size, n, urls, ratio,
                                             pro)
     result = await fal_client.subscribe_async(model, arguments=arguments)
     urls = [im.get("url") for im in (result or {}).get("images", [])
@@ -263,7 +271,8 @@ async def generate(provider: str, prompt: str, size: str, n: int = 1,
                    seed: int | None = None,
                    image_path: Path | None = None,
                    ratio: str | None = None,
-                   background: str | None = None) -> dict:
+                   background: str | None = None,
+                   image_paths: list[Path] | None = None) -> dict:
     """Génère via le provider choisi. Retour: {"images":[filenames],
     "seed": int|None} (seed None = provider non déterministe). `ratio`
     (ex. "9:16") force le cadre des EDITS (image_path fourni) — sinon le
@@ -282,7 +291,8 @@ async def generate(provider: str, prompt: str, size: str, n: int = 1,
     if provider in ("nano-banana", "nano-banana-pro"):
         if not settings.FAL_KEY:
             raise RuntimeError("FAL_KEY manquante (Réglages).")
-        imgs = await _banana_generate(prompt, size, n, image_path, ratio,
+        refs = list(image_paths) if image_paths else image_path     # tâche #62 : plusieurs références
+        imgs = await _banana_generate(prompt, size, n, refs, ratio,
                                       pro=(provider == "nano-banana-pro"))
         return {"images": imgs, "seed": None}
     if provider.startswith("gpt-image") or provider.startswith("dall-e"):
