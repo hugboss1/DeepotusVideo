@@ -69,8 +69,9 @@ def main():
     # + les dix window.prompt( restants (R8pr1..R8pr7 + deux replis du maillon montage) : 11 avec await, et les deux
     # copies de chemin enchainees par .then(done) (13 appels en tout) ; plus AUCUN window.prompt(.
     # tache #53 (01/10/2026) : + 1 saisir enchaine par .then, le nom d'un preset Quick (P5st1, maillon montage) : 13 -> 14.
-    check("await __dzDialogue.saisir ×11 hors couche (2 de ce maillon + 9 du maillon montage), saisir ×14, window.prompt( ×0",
-          hors.count("await window.__dzDialogue.saisir(") == 11 and hors.count("window.__dzDialogue.saisir(") == 14
+    # tache #71 PR A (03/10/2026) : + 1 saisir avec await, le nom d'une recette du Studio (DzRecetteBtn, maillon montage).
+    check("await __dzDialogue.saisir ×12 hors couche (2 de ce maillon + 10 du maillon montage), saisir ×15, window.prompt( ×0",
+          hors.count("await window.__dzDialogue.saisir(") == 12 and hors.count("window.__dzDialogue.saisir(") == 15
           and "window.prompt(" not in hors, str((hors.count("await window.__dzDialogue.saisir("), hors.count("window.prompt("))))
     SRC = RACINE / "frontend" / "shared" / "dialogue.js"
     check("la couche du patcher = frontend/shared/dialogue.js octet pour octet (source unique)",

@@ -208,6 +208,27 @@ async def _epingles_valides(template_id: str, request) -> dict:
     return out
 
 
+async def _ops_rendu(template_id: str, request) -> tuple:
+    """Ce que coûte un rendu de template : (ops générées, ops de voix off, plafonds client, épingles valides). La garde
+    de coût du rendu ET le devis d'une recette (tâche #71) le lisent ici — un seul calcul, ils ne peuvent pas diverger.
+    Garde de coût (retours-ia F3) : la somme des slots générés — HORS épingles valides (tâche #67 : réemploi gratuit)."""
+    _epingles = await _epingles_valides(template_id, request)
+    _ops = []
+    _maxs = [request.max_usd]
+    for _sn, _sv in request.slot_values.items():
+        if _sn in _epingles:
+            continue
+        if _sv.source_kind == "seedance" and _sv.seedance is not None:
+            _ops.append(_devis_video(_sv.seedance))
+            _maxs.append(_sv.seedance.max_usd)   # le plus bas gagne
+        elif _sv.source_kind == "heygen" and _sv.heygen is not None:
+            _ops.append(_devis_heygen(_sv.heygen))
+    _vo = [o for _sn, _sv in request.slot_values.items()
+           if _sn not in _epingles and _sv.source_kind == "seedance" and _sv.seedance is not None
+           for o in _op_voix_off(_sv.seedance)]
+    return _ops, _vo, _maxs, _epingles
+
+
 @router.post("/studio/pins/verifier")
 async def studio_pins_verifier(request: TemplateRenderRequest):
     """Avant le tir (devis de l'éditeur) : pour chaque slot Seedance/HeyGen, l'empreinte de sa requête RÉELLE et, s'il
@@ -274,24 +295,10 @@ async def render_layout_template(
             raise HTTPException(503, "FAL_KEY not configured. Add it to backend/.env")
         if "heygen" in kinds and not settings.has_heygen:
             raise HTTPException(503, "HEYGEN_API_KEY not configured. Add it to backend/.env")
-        # garde de coût (retours-ia F3) : la somme des slots générés — HORS épingles valides (tâche #67 : réemploi gratuit)
-        _epingles = await _epingles_valides(template_id, request)
-        _ops = []
-        _maxs = [request.max_usd]
-        for _sn, _sv in request.slot_values.items():
-            if _sn in _epingles:
-                continue
-            if _sv.source_kind == "seedance" and _sv.seedance is not None:
-                _ops.append(_devis_video(_sv.seedance))
-                _maxs.append(_sv.seedance.max_usd)   # le plus bas gagne
-            elif _sv.source_kind == "heygen" and _sv.heygen is not None:
-                _ops.append(_devis_heygen(_sv.heygen))
+        _ops, _vo, _maxs, _epingles = await _ops_rendu(template_id, request)
         if _ops:
             _garde_cout(_ops, *_maxs)
         # tâche #16 : la garde mensuelle, sur les mêmes ops + la voix off par défaut des slots seedance
-        _vo = [o for _sn, _sv in request.slot_values.items()
-               if _sn not in _epingles and _sv.source_kind == "seedance" and _sv.seedance is not None
-               for o in _op_voix_off(_sv.seedance)]
         await _plafond(_ops + _vo, "studio")
 
     job_id = str(uuid4())
@@ -1917,7 +1924,9 @@ async def list_studio_graphs():
             d = _json.loads(f.read_text(encoding="utf-8"))
             out.append({"id": d.get("id", f.stem),
                         "name": d.get("name", f.stem),
-                        "updated_at": d.get("updated_at")})
+                        "updated_at": d.get("updated_at"),
+                        # tâche #71 : un graphe-recette dit son nombre de trous (None : pas une recette)
+                        "recette": len(d["recette"].get("trous") or []) if isinstance(d.get("recette"), dict) else None})
         except Exception:
             continue
     out.sort(key=lambda g: g.get("updated_at") or "", reverse=True)
@@ -1950,9 +1959,98 @@ async def save_studio_graph(body: dict, request: Request):
     name = (str(body.get("name") or graph.get("name") or "Untitled graph").strip())[:120]
     rec = {"id": gid, "name": name, "graph": graph,
            "updated_at": _dtnow.utcnow().isoformat()}
-    (_studio_graphs_dir() / f"{gid}.json").write_text(
-        _json.dumps(rec, ensure_ascii=False), encoding="utf-8")
-    return {"id": gid, "name": name}
+    # Tâche #71 (PR A) : `recette` = la compilation figée que le Studio vient de capturer (normalisée ICI, trous dérivés
+    # par le serveur). Sans le champ, une recette déjà posée sur ce graphe est GARDÉE : « Save » ne l'efface pas.
+    fichier = _studio_graphs_dir() / f"{gid}.json"
+    if "recette" in body:
+        from app.services import studio_recette as _SR
+        try:
+            rec["recette"] = _SR.normaliser(body.get("recette"), graph)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+    elif fichier.is_file():
+        try:
+            ancien = _json.loads(fichier.read_text(encoding="utf-8"))
+            if isinstance(ancien.get("recette"), dict):
+                rec["recette"] = ancien["recette"]
+        except (OSError, ValueError):
+            pass
+    fichier.write_text(_json.dumps(rec, ensure_ascii=False), encoding="utf-8")
+    out = {"id": gid, "name": name}
+    if "recette" in rec:
+        out["trous"] = len(rec["recette"].get("trous") or [])
+    return out
+
+
+def _recette_de(graph_id: str) -> tuple:
+    """(enregistrement, recette) du graphe `graph_id`, ou 404 qui dit lequel manque."""
+    import json as _json
+    p = _studio_graphs_dir() / f"{Path(graph_id).name}.json"
+    if not p.is_file():
+        raise HTTPException(404, "Graphe introuvable")
+    try:
+        rec = _json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        raise HTTPException(500, "Graphe illisible")
+    if not isinstance(rec.get("recette"), dict):
+        raise HTTPException(404, "Ce graphe n'est pas une recette (bouton « Recette » du Studio)")
+    return rec, rec["recette"]
+
+
+def _recette_requete(rec: dict, recette: dict, valeurs, max_usd=None):
+    """La requête de rendu d'un lancement : valeurs posées (ValueError -> 400 qui nomme le trou), images vérifiées
+    dans la Bibliothèque, graphe aux valeurs tirées en source_graph, titre « nom — recette »."""
+    from app.services import studio_recette as _SR
+    try:
+        req, g, retenues = _SR.appliquer(recette, valeurs)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    for t in recette.get("trous") or []:
+        if t["nature"] == "image" and not (settings.images_path / retenues[t["id"]]).is_file():
+            raise HTTPException(400, f"{t['libelle']} : « {retenues[t['id']]} » est absente de la Bibliothèque.")
+    req["source_graph"] = g
+    req["title"] = (str(rec.get("name") or "Recette")[:180] + " — recette")
+    req["max_usd"] = max_usd
+    try:
+        return TemplateRenderRequest(**req)
+    except Exception as e:
+        raise HTTPException(400, f"Requête de rendu invalide : {e}")
+
+
+@router.get("/studio-graphs/{graph_id}/recette")
+async def get_studio_recette(graph_id: str):
+    """Tâche #71 — les trous d'une recette (id, nature image|texte, libellé, valeur d'origine)."""
+    rec, recette = _recette_de(graph_id)
+    return {"id": rec.get("id"), "name": rec.get("name"),
+            "trous": [{k: t[k] for k in ("id", "nature", "libelle", "valeur")} for t in recette.get("trous") or []]}
+
+
+@router.post("/studio-graphs/{graph_id}/recette/devis")
+async def devis_studio_recette(graph_id: str, body: dict):
+    """Tâche #71 — ce que COÛTERAIT ce lancement (les mêmes ops que la garde du rendu, épingles valides déduites).
+    Ne génère rien, ne coûte rien : l'écran le montre et le fait confirmer avant /lancer."""
+    from app.services import pricing as _pricing
+    rec, recette = _recette_de(graph_id)
+    req = _recette_requete(rec, recette, (body or {}).get("valeurs"))
+    ops, vo, _maxs, epingles = await _ops_rendu(req.template_id, req)
+    total = _pricing.estimate({"kind": "campaign", "ops": ops + vo}, _pricing.load())["total_usd"]
+    return {"usd": round(float(total), 4), "generations": len(ops), "voix": len(vo), "reemplois": len(epingles)}
+
+
+@router.post("/studio-graphs/{graph_id}/recette/lancer", response_model=TemplateRenderResponse)
+async def lancer_studio_recette(graph_id: str, body: dict, request: Request, background_tasks: BackgroundTasks):
+    """Tâche #71 — lancer une recette : la compilation figée, valeurs posées, par la route de rendu EXISTANTE (mêmes
+    gardes : épingles vérifiées, garde de coût, plafond mensuel). `max_usd` = le devis CONFIRMÉ à l'écran : obligatoire,
+    un rendu plus cher que ce qui a été accepté est refusé (402) avant toute génération."""
+    import math as _math
+    _require_localhost(request)
+    body = body or {}
+    m = body.get("max_usd")
+    if isinstance(m, bool) or not isinstance(m, (int, float)) or not _math.isfinite(m) or m < 0:
+        raise HTTPException(400, "Lancement refusé : le devis n'a pas été confirmé (« max_usd » manquant).")
+    rec, recette = _recette_de(graph_id)
+    req = _recette_requete(rec, recette, body.get("valeurs"), float(m))
+    return await render_layout_template(req.template_id, req, background_tasks)
 
 
 @router.post("/studio-graphs/import")

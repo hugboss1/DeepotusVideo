@@ -8047,7 +8047,11 @@ R_P7PIN1 = ('onUpdateNode:(window.__dzStudioG=o,window.__dzStudioMaj=(nid,pp)=>i
 A_P7PIN2 = 'r.jsx(Yh,{node:e,onUpdate:o,graph:t,onUpdateNode:U,onSpawnNodes:sp}),'
 R_P7PIN2 = (A_P7PIN2 + '(e.type==="Seedance"||e.type==="HeyGenAvatar")&&r.jsx(DzPinPanel,{node:e,graph:t,onUpdate:o}),')
 A_P7PIN3 = 'renderLayoutTemplate:async(e,t,n,o,i,g)=>{try{var _pv=!!window.__dzfxPreview;window.__dzfxPreview=!1;'
-R_P7PIN3 = (A_P7PIN3 + 'if(!_pv&&g&&t){var dzPP=await dzPinPreparer(e,t,n,o,g);if(dzPP)return{ok:!1,error:dzPP}}')
+R_P7PIN3 = (A_P7PIN3 + 'if(!_pv&&g&&t){var dzPP=await dzPinPreparer(e,t,n,o,g);if(dzPP)return{ok:!1,error:dzPP}}'
+            # repli tache #71 (03/10) : la CAPTURE d'une recette s'arrete ICI, epingles preparees et verifiees -- la
+            # requete est rendue au lieu d'etre envoyee (dzRecCapturer, couche montage.js)
+            'if(window.__dzCapture){window.__dzCapture=!1;return{ok:!0,captured:{template_id:e,slot_values:t||{},'
+            'voice_mode:n||null,template:o||null,title:i||null,voiceover:dzGraphVoiceover(g)||null}}}')
 A_P7PIN4 = 'children:["≈ $",e.total_usd!=null?e.total_usd.toFixed(2):"0.00"]});}'
 R_P7PIN4 = ('children:["≈ $",e.total_usd!=null?e.total_usd.toFixed(2):"0.00",'
             'dzPinNb(graph)?" · "+dzPinNb(graph)+" nœud(s) réutilisé(s)":""]});}')
@@ -8064,7 +8068,10 @@ assert len(P1) == 108 and all("\n" not in r and "DzTracks" not in r for _t, _a, 
 # le graphe accepte passe par ts() (defauts du registre fusionnes) et remet a zero etats, selection et dernier rendu,
 # comme le choix d'un graphe de depart. Banc : test_studio_import_bundle.
 A_P7IMP1 = 'r.jsx(DzOpenGraph,{onPick:async id=>{'
-R_P7IMP1 = ('r.jsx(DzImportGraph,{graph:o,onOpen:function(G){i(ts(G));d({});f({});a(null);k(null);'
+# repli tache #71 PR A (03/10) : le bouton « Recette » (DzRecetteBtn, couche) juste avant « Importer » ; la capture est
+# un repli de P7pin3 (apres les epingles).
+R_P7IMP1 = ('r.jsx(DzRecetteBtn,{graph:o,setGraph:i,dire:p}),'
+            'r.jsx(DzImportGraph,{graph:o,onOpen:function(G){i(ts(G));d({});f({});a(null);k(null);'
             'p("Graphe importé (non enregistré) : "+G.name)}}),' + A_P7IMP1)
 P1 += [("P7imp1-bouton-importer-un-graphe", A_P7IMP1, R_P7IMP1)]
 assert len(P1) == 109 and "\n" not in R_P7IMP1
