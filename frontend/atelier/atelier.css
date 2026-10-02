@@ -405,3 +405,6 @@ textarea#script[readonly] { opacity: .72; cursor: not-allowed; }
 .ree-body{display:flex;flex-direction:column;gap:10px;padding:14px 16px}
 .ree-texte{width:100%;box-sizing:border-box;font-family:var(--f-mono);font-size:12.5px;line-height:1.55;background:var(--bg-panel-3);color:var(--ink);border:1px solid var(--stroke);border-radius:var(--r);padding:10px;resize:vertical}
 .ree-actions{display:flex;justify-content:flex-end;gap:8px}
+
+/* Tâche #66 — les sorties de l'animatique vers le Montage */
+.anim-sorties{display:flex;align-items:center;gap:8px;flex-wrap:wrap}

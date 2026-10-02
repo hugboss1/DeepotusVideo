@@ -141,7 +141,8 @@ BACK |= ENUM
 MESURE = {"seedance", "heygen", "composition", "template", "news", "episode", "ugc",
           "montage", "animation", "asset3d", "sprite2d", "card3d",
           "montage_proxy", "montage_stab",
-          "extend"}   # 01/10/2026 (tache #51) : l'extension Quick, rangee dans « Studio »
+          "extend",   # 01/10/2026 (tache #51) : l'extension Quick, rangee dans « Studio »
+          "animatique"}   # 02/10/2026 (tache #66) : l'instantane d'animatique envoye au Montage — affiche « tel quel »
 check("x1_les_providers_du_backend_sont_exactement_les_quatorze_mesures",
       len(BACK) >= 10 and BACK == MESURE, sorted(BACK ^ MESURE))
 check("x1_chaque_cle_de_la_table_est_un_provider_connu_du_backend",
@@ -149,7 +150,7 @@ check("x1_chaque_cle_de_la_table_est_un_provider_connu_du_backend",
 TEL_QUEL = BACK - set(TABLE)
 check("x1_les_providers_sans_groupe_tombent_tel_quel_et_sont_ceux_ci",
       len(TABLE) >= 5 and len(BACK) >= 10
-      and TEL_QUEL == {"asset3d", "sprite2d", "card3d", "montage_proxy", "montage_stab"},
+      and TEL_QUEL == {"asset3d", "sprite2d", "card3d", "montage_proxy", "montage_stab", "animatique"},
       sorted(TEL_QUEL))
 # les deux precalculs « tel quel » ne sont jamais servis : list_jobs les ecarte
 mEx, nEx = un(r'\.notin_\(\(_PROXY_PROVIDER, _STAB_PROVIDER\)\)', PIPE)

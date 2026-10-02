@@ -58,7 +58,8 @@ def plan(shots: list[dict], voix: dict | None = None, mini: float = DUREE_MINI) 
         else:
             dur, src = _cadre(s.get("duration_s") or 4.0), "plan"
         out.append({"idx": i, "shot_id": s.get("id"), "image": img, "texte": texte_plan(s),
-                    "dur": dur, "source_duree": src, "carton": img is None})
+                    "dur": dur, "source_duree": src, "carton": img is None,
+                    "energie": s.get("energy")})          # tâche #66 : le « reel » choisit les plans par énergie
     return out
 
 
@@ -106,7 +107,7 @@ def dossier(outputs: Path, chapter_id: str, creer: bool = False) -> Path:
 
 def purger(d: Path) -> None:
     """Les clips d'un rendu précédent (plus long) ne survivent pas au suivant ; le cache des voix, si."""
-    for motif in ("p[0-9][0-9][0-9].mp4", "p[0-9][0-9][0-9].png", "animatique*.mp4", "animatique*.m4a"):
+    for motif in ("p[0-9][0-9][0-9].mp4", "p[0-9][0-9][0-9].png", "animatique*.mp4", "animatique*.m4a", MANIFESTE):
         for f in d.glob(motif):
             f.unlink(missing_ok=True)
 
@@ -137,6 +138,33 @@ def filtre_audio(entrees: list[dict], audios: dict) -> tuple[list[Path], str]:
     return fichiers, ";".join(morceaux)
 
 
+MANIFESTE = "animatique.json"
+
+
+def ecrire_manifeste(sortie: Path, entrees: list[dict], audios: dict) -> Path:
+    """Tâche #66 : CE QUI A ÉTÉ MONTÉ, écrit APRÈS un rendu réussi (purgé avant le suivant) — les plans dans l'ordre,
+    leur clip, leur durée réelle, leur voix témoin. Les sorties vers le Montage lisent CE fichier, pas un recalcul : un
+    recalcul sans les durées des voix divergerait des clips."""
+    import json as _json
+    d = {"version": 1, "ips": IPS, "largeur": LARGEUR, "hauteur": HAUTEUR,
+         "plans": [{"idx": e["idx"], "shot_id": e["shot_id"], "clip": f"p{e['idx']:03d}.mp4", "dur": e["dur"],
+                    "source_duree": e["source_duree"], "texte": e["texte"], "energie": e.get("energie"),
+                    "voix": (Path(audios[e["shot_id"]]).relative_to(sortie).as_posix()
+                             if e["shot_id"] in audios and Path(audios[e["shot_id"]]).is_relative_to(sortie) else None)}
+                   for e in entrees]}
+    f = sortie / MANIFESTE
+    f.write_text(_json.dumps(d, ensure_ascii=False, indent=1), encoding="utf-8")
+    return f
+
+
+def lire_manifeste(sortie: Path) -> dict | None:
+    import json as _json
+    try:
+        return _json.loads((sortie / MANIFESTE).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
 def rendre(entrees: list[dict], *, images: Path, sortie: Path, audios: dict | None = None, progres=None) -> Path:
     """Monte l'animatique : un clip MUET par plan (pXXX.mp4, gardés), la concaténation, puis — s'il y a au moins
     une voix — la piste son unique posée dessus. `progres(i, n)` avant chaque plan."""
@@ -157,6 +185,7 @@ def rendre(entrees: list[dict], *, images: Path, sortie: Path, audios: dict | No
     final = sortie / "animatique.mp4"
     if not audios:
         FFmpegMerger.concat_clips(clips, final)
+        ecrire_manifeste(sortie, entrees, audios)
         return final
     muet = sortie / "animatique_muet.mp4"
     FFmpegMerger.concat_clips(clips, muet)
@@ -174,4 +203,5 @@ def rendre(entrees: list[dict], *, images: Path, sortie: Path, audios: dict | No
             "-movflags", "+faststart", str(final)]
     _ffmpeg(cmd, "piste son de l'animatique")
     muet.unlink(missing_ok=True)
+    ecrire_manifeste(sortie, entrees, audios)
     return final

@@ -5532,6 +5532,7 @@ _JOBS_SANS_DEPENSE = {
     "animation":     "Animation (ffmpeg + PIL locaux)",
     "news":          "News reel (ffmpeg local)",
     "ugc":           "Fichier téléversé par l'utilisateur",
+    "animatique":    "Animatique (ffmpeg local ; instantané envoyé au Montage, tâche #66)",
     "card3d":        "Publication d'une carte 3D (rien n'est fabriqué)",
     "template":      "Rendu template (job parent — les sous-jobs paient)",
     "composition":   "Composition (job parent — les sous-jobs paient)",
@@ -9069,6 +9070,83 @@ async def _run_animatique_job(jid: str, chapter_id: str, shots: list, avec_voix:
     except Exception as e:
         logger.exception(f"animatique {jid}: {e}")
         upd(phase="échec", done=True, error=str(e))
+
+
+# ── Tâche #66 PR B (plan chapitres T18-T19, 02/10/2026) : les SORTIES d'un chapitre vers le Montage ────────────────
+# DÉCISIONS DE L'UTILISATEUR (02/10) : film et reel, gratuits ; un NOUVEAU projet nommé (la timeline en cours n'est
+# jamais touchée — _nouveau_projet(courant=False), comme les auto-clips) ; les clips et les voix COPIÉS dans un
+# instantané ; le manifeste de l'animatique fait foi, et il doit décrire le storyboard ACTUEL (409 sinon).
+
+@router.get("/chapters/{chapter_id}/sorties")
+async def sorties_etat(chapter_id: str):
+    """Ce qu'on peut sortir maintenant : l'animatique est-elle montée, et à jour ? film / reel : plans et durée."""
+    from app.services import animatique_service as AN
+    from app.services import sorties as SO
+    d = _anim_dossier(chapter_id)
+    shots, _narr = await _anim_shots(chapter_id)
+    man = AN.lire_manifeste(d) if d.is_dir() else None
+    ok = SO.a_jour(man, shots)
+    out = {"animatique": man is not None, "a_jour": ok, "natures": {}}
+    if ok:
+        for nat, lib in SO.NATURES.items():
+            pl = SO.choisir(man, nat)
+            out["natures"][nat] = {"libelle": lib, "plans": len(pl), "duree_s": round(sum(float(p["dur"]) for p in pl), 3),
+                                   "voix": sum(1 for p in pl if p.get("voix"))}
+    return out
+
+
+@router.post("/chapters/{chapter_id}/sortie/{nature}")
+async def sortie_vers_montage(chapter_id: str, nature: str):
+    """Crée un NOUVEAU projet de Montage (film | reel) depuis l'animatique montée. Gratuit."""
+    import shutil as _sh
+    from app.services import animatique_service as AN
+    from app.services import montage_service as MS
+    from app.services import sorties as SO
+    from app.services.storage import Chapter, async_session_factory
+    if nature not in SO.NATURES:
+        raise HTTPException(400, f"Sortie « {nature} » inconnue — attendu : {', '.join(SO.NATURES)}.")
+    d = _anim_dossier(chapter_id)
+    shots, _narr = await _anim_shots(chapter_id)
+    man = AN.lire_manifeste(d) if d.is_dir() else None
+    if man is None:
+        raise HTTPException(409, "Pas encore d'animatique pour ce chapitre : montez-la d'abord (🎞 Animatique).")
+    if not SO.a_jour(man, shots):
+        raise HTTPException(409, "L'animatique ne correspond plus au storyboard (plans ajoutés, retirés ou déplacés) : "
+                                 "remontez-la avant de l'envoyer au Montage.")
+    plans = SO.choisir(man, nature)
+    film = d / "animatique.mp4"
+    if not film.is_file():
+        raise HTTPException(409, "La vidéo de l'animatique est introuvable : remontez-la.")
+    async with async_session_factory() as session:
+        ch = await session.get(Chapter, chapter_id)
+    titre = (ch.title if ch else "") or "Chapitre"
+    inst = settings.outputs_path / "sorties" / chapter_id / f"{datetime.utcnow().strftime('%Y%m%d_%H%M%S_%f')}_{nature}"
+
+    def copier() -> Path:
+        inst.mkdir(parents=True, exist_ok=True)
+        cible = inst / "animatique.mp4"
+        _sh.copy2(film, cible)
+        return cible
+    copie = await asyncio.to_thread(copier)
+    # L'INSTANTANÉ, enregistré comme un rendu fini (provider « animatique », sans dépense) : c'est la seule sorte de
+    # source vidéo que l'éditeur du Montage sait prévisualiser — un {file_path} se rend, mais s'affiche « TROU ».
+    from app.services.storage import JobRecord
+    job_id = str(uuid4())
+    async with async_session_factory() as session:
+        session.add(JobRecord(id=job_id, status=JobStatus.DONE.value, progress=100,
+                              title=f"{titre} — {nature} (animatique)"[:120], image_filename=copie.name,
+                              final_video_path=str(copie), video_path=str(copie),
+                              duration_s=int(round(sum(float(p["dur"]) for p in man.get("plans") or []))),
+                              aspect_ratio="9:16", provider="animatique", current_step="Animatique",
+                              completed_at=datetime.utcnow()))
+        await session.commit()
+    clips, duree = SO.clips_montage(plans, job_id)
+    nom = f"{titre} — {nature}"
+    cur = MS._save_record({"name": nom, "ratio": "9:16", "duration": duree, "mix": {}, "clips": clips,
+                           "tracks": MS._CLIENT_DEFAULT_TRACKS})
+    rec = await MS._nouveau_projet(cur, nom, nom, courant=False)
+    return {"ok": True, "nature": nature, "project_id": rec["id"], "name": rec["name"], "plans": len(plans),
+            "duree_s": duree, "voix": sum(1 for p in plans if p.get("voix")), "job_id": job_id, "montage": "/?view=montage"}
 
 
 @router.post("/atelier/manuscript")
