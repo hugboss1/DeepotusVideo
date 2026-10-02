@@ -215,13 +215,15 @@ check("2.4 mous : modele inconnu / catalogue absent -> null (repli sur l'ancienn
 
 print("\n[3] le ≈ $ du graphe, la memoire de l'estimation affichee et le plafond du run")
 PURE3 = _entre(bun, "function dzStudioOps(", "function DzVideoModelSel(")   # dzStudioOps .. dzRunWith, sans hook
+# tache #67 : dzStudioOps consulte dzPinReemploi (un noeud epingle n'est pas facture) -- extrait du bundle livre, pas recopie
+PIN3 = _entre(bun, "function dzPinRendu(", "function dzPinNb(") if "function dzPinRendu(" in bun else ""
 G = {"nodes": [{"id": "i", "type": "Image", "props": {}}, {"id": "s", "type": "Seedance", "props": {"durationS": 15, "model": "seedance-2.5"}},
                {"id": "t", "type": "Text", "props": {"value": "  Un script de quarante caracteres pile.  "}},
                {"id": "h", "type": "HeyGenAvatar", "props": {}}, {"id": "h2", "type": "HeyGenAvatar", "props": {}},
                {"id": "a", "type": "AvatarMaster", "props": {}}, {"id": "r", "type": "Render", "props": {}}],
      "edges": [{"from": "t", "to": "h", "toPort": "script"}]}
 probe3 = ("function Wt(g,id,port){var e=(g.edges||[]).filter(function(x){return x.to===id&&x.toPort===port})[0];"
-          "return e?(g.nodes||[]).filter(function(n){return n.id===e.from})[0]:null}\n" + PURE3 +
+          "return e?(g.nodes||[]).filter(function(n){return n.id===e.from})[0]:null}\n" + PIN3 + "\n" + PURE3 +
           "\nvar G=" + json.dumps(G) + ",R={};(async function(){R.ops=dzStudioOps(G);var sg=JSON.stringify(R.ops);"
           "R.m0=dzStudioMaxFor(G);dzStudioVuSet(sg,7.4);R.m1=dzStudioMaxFor(G);"
           "var G2=JSON.parse(JSON.stringify(G));G2.nodes[1].props.durationS=8;R.m2=dzStudioMaxFor(G2);"

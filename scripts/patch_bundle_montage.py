@@ -6212,7 +6212,8 @@ A_R7ER1 = 'return n.ok?{ok:!0,...await n.json().catch(()=>({}))}:{ok:!1,status:n
 R_R7ER1 = ('if(n.ok)return{ok:!0,...await n.json().catch(()=>({}))};const b=await n.text().catch(()=>"");' + _R7_DETAIL
            + 'return{ok:!1,status:n.status,error:d||(br?`HTTP ${n.status} : ${br}`:`HTTP ${n.status}`)}')
 A_R7ER2 = 'return s.ok?await s.json():{ok:!1,error:`HTTP ${s.status}: ${(await s.text()).slice(0,160)}`}'
-R_R7ER2 = ('if(s.ok)return await s.json();const b=await s.text().catch(()=>"");' + _R7_DETAIL
+# tache #67 : un rendu ACCEPTE lance la recolte des epingles (dzPinRecolter, la couche ; sans graphe : rien)
+R_R7ER2 = ('if(s.ok){var dzJ=await s.json();dzPinRecolter(dzJ,g);return dzJ}const b=await s.text().catch(()=>"");' + _R7_DETAIL
            + 'return{ok:!1,error:d||(br?`HTTP ${s.status} : ${br}`:`HTTP ${s.status}`)}')
 R7 += [("R7er1-postJson-lit-le-detail-du-refus", A_R7ER1, R_R7ER1),
        ("R7er2-rendu-de-layout-lit-le-detail-du-refus", A_R7ER2, R_R7ER2)]
@@ -6737,8 +6738,9 @@ R_P1GC1 = (
     'return (c?dzVmCostOf(node,c):null)||dzVmCost(node)}'
     'function dzStudioOps(g){var ops=[],ns=g&&Array.isArray(g.nodes)?g.nodes:[];ns.forEach(function(n){var T=n&&n.type,pp=n&&n.props||{};'
     'if(T==="Image"||T==="NewsIllustration")ops.push({kind:"image"});'
-    'else if(T==="Seedance")ops.push({kind:"video",duration_s:Number(pp.durationS)||10,model:pp.model||void 0});'
-    'else if(T==="HeyGenAvatar"){var sc=null;try{sc=typeof Wt==="function"?Wt(g,n.id,"script"):null}catch(_e){}'
+    # tache #67 : un noeud EPINGLE (dzPinReemploi, la couche) n'est pas facture -- le serveur le reemploie gratuitement
+    'else if(T==="Seedance"){if(!dzPinReemploi(g,n))ops.push({kind:"video",duration_s:Number(pp.durationS)||10,model:pp.model||void 0})}'
+    'else if(T==="HeyGenAvatar"){if(dzPinReemploi(g,n))return;var sc=null;try{sc=typeof Wt==="function"?Wt(g,n.id,"script"):null}catch(_e){}'
     'var tx=String(sc&&sc.props&&sc.props.value||"From the deep, the prophecy ascends.").trim();ops.push({kind:"heygen",chars:tx.length})}'
     'else if(T==="AvatarMaster")ops.push({kind:"heygen",minutes:1})});return ops}'
     'var dzStudioVu={sig:"",total:null};'
@@ -8028,6 +8030,32 @@ A_P3SC9 = 'error:e.error||null,brief:e.brief||null}}function ta(e){'
 R_P3SC9 = 'error:e.error||null,brief:e.brief||null,delegueA:e.delegue_a||null}}function ta(e){'
 P1 += [("P3sc9-delegation-dans-le-post-du-scheduler", A_P3SC9, R_P3SC9)]
 assert len(P1) == 104 and "\n" not in R_P3SC9
+
+# P7pin1..P7pin4 (tache #67 PR B, plan-studio T3-T4, 02/10/2026) -- EPINGLER un noeud du Studio pour ne pas le repayer.
+# Decision de l'utilisateur (02/10) : le code de l'editeur vit DANS ce maillon (pas de maillon studiopin) -- trois des
+# ancres du plan etaient du texte ecrit ici (P1gc8, P1gc3/P1gc1), et ce maillon est rejoue presque chaque jour. La
+# logique est dans la couche (frontend/patches/montage.js : dzPinRendu, dzPinReemploi, dzPinNb, dzPinPreparer,
+# dzPinRecolter, DzPinPanel) ; deux REPLIS (R_P1GC1 : dzStudioOps ne compte plus un noeud epingle ; R_R7ER2 : un rendu
+# accepte lance la recolte) et quatre sections sur des ancres AMONT, MESUREES 02/10 sur .bak_montage : chacune vaut 1.
+# P7pin1 -- le Studio expose son graphe et son setter (la recolte ecrit les epingles par lui, comme l'inspecteur).
+# P7pin2 -- le panneau d'epingle dans l'inspecteur des noeuds Seedance et HeyGenAvatar (titre sur le bouton).
+# P7pin3 -- renderLayoutTemplate prepare les slots (node_id, pin) et fait VERIFIER les epingles AVANT le tir.
+# P7pin4 -- le « ≈ $ » du graphe dit combien de noeuds sont reemployes. Banc : test_studio_epingles_bundle.
+A_P7PIN1 = ('onUpdateNode:(nid,pp)=>i(W=>({...W,nodes:W.nodes.map(S=>S.id===nid?{...S,props:{...S.props,...pp}}:S)})),')
+R_P7PIN1 = ('onUpdateNode:(window.__dzStudioG=o,window.__dzStudioMaj=(nid,pp)=>i(W=>({...W,nodes:W.nodes.map(S=>S.id===nid?'
+            '{...S,props:{...S.props,...pp}}:S)}))),')
+A_P7PIN2 = 'r.jsx(Yh,{node:e,onUpdate:o,graph:t,onUpdateNode:U,onSpawnNodes:sp}),'
+R_P7PIN2 = (A_P7PIN2 + '(e.type==="Seedance"||e.type==="HeyGenAvatar")&&r.jsx(DzPinPanel,{node:e,graph:t,onUpdate:o}),')
+A_P7PIN3 = 'renderLayoutTemplate:async(e,t,n,o,i,g)=>{try{var _pv=!!window.__dzfxPreview;window.__dzfxPreview=!1;'
+R_P7PIN3 = (A_P7PIN3 + 'if(!_pv&&g&&t){var dzPP=await dzPinPreparer(e,t,n,o,g);if(dzPP)return{ok:!1,error:dzPP}}')
+A_P7PIN4 = 'children:["≈ $",e.total_usd!=null?e.total_usd.toFixed(2):"0.00"]});}'
+R_P7PIN4 = ('children:["≈ $",e.total_usd!=null?e.total_usd.toFixed(2):"0.00",'
+            'dzPinNb(graph)?" · "+dzPinNb(graph)+" nœud(s) réutilisé(s)":""]});}')
+P1 += [("P7pin1-le-studio-expose-son-graphe", A_P7PIN1, R_P7PIN1),
+       ("P7pin2-panneau-d-epingle-dans-l-inspecteur", A_P7PIN2, R_P7PIN2),
+       ("P7pin3-rendu-prepare-et-verifie-les-epingles", A_P7PIN3, R_P7PIN3),
+       ("P7pin4-l-estimation-dit-les-reemplois", A_P7PIN4, R_P7PIN4)]
+assert len(P1) == 108 and all("\n" not in r and "DzTracks" not in r for _t, _a, r in P1[-4:])
 
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),

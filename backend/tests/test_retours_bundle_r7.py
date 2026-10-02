@@ -157,7 +157,8 @@ A_ER1 = 'return n.ok?{ok:!0,...await n.json().catch(()=>({}))}:{ok:!1,status:n.s
 R_ER1 = ('if(n.ok)return{ok:!0,...await n.json().catch(()=>({}))};const b=await n.text().catch(()=>"");' + _LIT
          + 'return{ok:!1,status:n.status,error:d||(br?`HTTP ${n.status} : ${br}`:`HTTP ${n.status}`)}')
 A_ER2 = 'return s.ok?await s.json():{ok:!1,error:`HTTP ${s.status}: ${(await s.text()).slice(0,160)}`}'
-R_ER2 = ('if(s.ok)return await s.json();const b=await s.text().catch(()=>"");' + _LIT
+# tache #67 (02/10/2026) : un rendu ACCEPTE lance la recolte des epingles du Studio (repli dans R_R7ER2)
+R_ER2 = ('if(s.ok){var dzJ=await s.json();dzPinRecolter(dzJ,g);return dzJ}const b=await s.text().catch(()=>"");' + _LIT
          + 'return{ok:!1,error:d||(br?`HTTP ${s.status} : ${br}`:`HTTP ${s.status}`)}')
 _ATT = {"R7up1": (A_UP1, R_UP1),
         "R7vm1": (A_VM1, A_VM1.replace("seedance-v1-pro", "seedance-2.5")),
@@ -332,6 +333,8 @@ _JS_ER = r"""
 const Te="/api"; var window={}; function dzGraphVoiceover(){return null}
 // P1 #9 (28/09/2026) : le rendu de layout lit le plafond du run du Studio (dzRunMaxTake, global du bundle) -- hors run : rien
 function dzRunMaxTake(){return void 0}
+// tache #67 (02/10/2026) : les epingles du Studio (globaux de la couche) -- hors graphe : rien a preparer ni a recolter
+async function dzPinPreparer(){return ""} function dzPinRecolter(){}
 var REP=null;
 async function fetch(u,o){ if(REP==="reseau") throw new Error("hors ligne"); return REP; }
 function rep(status, corps){ const b=corps===undefined?"":(typeof corps=="string"?corps:JSON.stringify(corps));

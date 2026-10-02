@@ -9247,3 +9247,99 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   glSec:dzmGlSec,glActif:dzmGlActif,glCadre:dzmGlCadre,scwSize:dzmScwSize,scwBody:dzmScwBody,scwFit:dzmScwFit,scwDef:dzmScwDef,scwInit:dzmScwInit,scwGeste:dzmScwGeste,scwGet:dzmScwGet,scwSet:dzmScwSet,scwFin:dzmScwFin,SCW_CLE:DZM_SCW_CLE,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;
+
+/* ═══ Tâche #67 PR B (plan-studio T3-T4, 02/10/2026) — ÉPINGLER un nœud du Studio pour ne pas le repayer ═══════════
+   Le SERVEUR est seul juge (PR A, studio_pins.py) : il calcule l'empreinte de la requête RÉELLE de chaque slot
+   Seedance/HeyGen, réemploie gratuitement un sous-rendu épinglé dont l'empreinte n'a pas bougé, et écrit le manifeste
+   des parties. L'éditeur, lui :
+     - garde l'épingle dans les props du nœud (`pin` : {job_id, empreinte, le}) — elle voyage avec le graphe ;
+     - la RÉCOLTE après un rendu (GET /jobs/{id}/parts, à mesure que les sous-rendus finissent), sur le graphe ouvert
+       s'il est toujours celui du rendu ;
+     - l'envoie avec chaque slot (`node_id`, `pin`) et la fait VÉRIFIER avant le tir (POST /studio/pins/verifier) :
+       une épingle périmée est retirée et le tir s'arrête, pour que le coût affiché soit recalculé — jamais de
+       régénération payée en douce ;
+     - ne compte pas les nœuds épinglés dans le « ≈ $ » (dzStudioOps) et le dit (« N nœud(s) réutilisé(s) ») ;
+     - « Regénérer ce nœud » retire l'épingle (décision du 02/10 : épingle automatique, re-tirage volontaire).
+   Un nœud SEUL (Seedance sans HeyGen, ou l'inverse, hors Upload/Concatenate/SpatialCompose) part par /generate :
+   pas d'épingle, et le panneau le dit. */
+function dzPinRendu(g){
+  var ns=g&&Array.isArray(g.nodes)?g.nodes:[];
+  var de=function(t){return ns.filter(function(n){return n&&n.type===t}).length};
+  if(ns.some(function(n){return n&&n.type==="Upload"&&n.props&&n.props.jobId}))return!0;
+  if(de("Concatenate")||de("SpatialCompose"))return!0;
+  return de("Seedance")>0&&de("HeyGenAvatar")>0}
+function dzPinReemploi(g,n){
+  var p=n&&n.props||{};
+  return!!(n&&(n.type==="Seedance"||n.type==="HeyGenAvatar")&&p.pin&&p.pin.job_id&&p.pin.empreinte&&dzPinRendu(g))}
+function dzPinNb(g){
+  var ns=g&&Array.isArray(g.nodes)?g.nodes:[];
+  return ns.filter(function(n){return dzPinReemploi(g,n)}).length}
+function dzPinTrouver(g,kind,sv,pris){
+  var ns=g&&Array.isArray(g.nodes)?g.nodes:[];
+  var vois=function(id,port){try{return typeof Wt==="function"?Wt(g,id,port):null}catch(_e){return null}};
+  if(kind==="heygen")return ns.filter(function(n){return n&&n.type==="HeyGenAvatar"&&!pris[n.id]})[0]||null;
+  var s=sv&&sv.seedance||{};
+  return ns.filter(function(n){
+    if(!n||n.type!=="Seedance"||pris[n.id])return!1;
+    var im=vois(n.id,"image"),pr=vois(n.id,"prompt"),pp=n.props||{};
+    if(!im||!im.props||im.props.filename!==s.image_filename)return!1;
+    if(pr&&pr.props&&pr.props.value&&pr.props.value!==s.custom_prompt)return!1;
+    return String(pp.model||"")===String(s.video_model||"")})[0]||null}
+async function dzPinPreparer(tid,slots,vm,tpl,g){
+  if(!slots||!g||!Array.isArray(g.nodes))return"";
+  var pris={},avec=[];
+  Object.keys(slots).forEach(function(sn){
+    var sv=slots[sn];if(!sv)return;
+    var k=sv.source_kind;if(k!=="seedance"&&k!=="heygen")return;
+    var nd=dzPinTrouver(g,k,sv,pris);if(!nd)return;
+    pris[nd.id]=1;sv.node_id=nd.id;
+    var pin=nd.props&&nd.props.pin;
+    if(pin&&pin.job_id&&pin.empreinte){sv.pin={job_id:String(pin.job_id),empreinte:String(pin.empreinte)};avec.push(sn)}});
+  if(!avec.length)return"";
+  var rep=null;
+  try{var R=await fetch("/api/studio/pins/verifier",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({template_id:tid,slot_values:slots,voice_mode:vm||null,template:tpl||null})});
+    rep=R.ok?await R.json():null}catch(_e){rep=null}
+  if(!rep||!rep.slots){
+    avec.forEach(function(sn){delete slots[sn].pin});
+    return"Vérification des épingles impossible — rien n'est parti. Relancez dans un instant."}
+  var perimes=[];
+  avec.forEach(function(sn){
+    var v=rep.slots[sn];if(v&&v.valide)return;
+    var nid=slots[sn].node_id,why=(v&&v.raison)||"épingle inconnue";
+    delete slots[sn].pin;perimes.push((nid||sn)+" : "+why);
+    if(nid&&typeof window.__dzStudioMaj==="function")window.__dzStudioMaj(nid,{pin:null,pinPerime:why})});
+  return perimes.length?"Épingle périmée — "+perimes.join(" ; ")+". Elle est retirée et le coût recalculé : relancez pour régénérer.":""}
+function dzPinRecolter(rep,g){
+  var jid=rep&&rep.job_id;
+  if(!jid||!g||!Array.isArray(g.nodes))return;
+  var nom=g.name||"",vus={},t0=Date.now();
+  var tour=async function(){
+    var fini=!1;
+    try{var j=await (await fetch("/api/jobs/"+encodeURIComponent(jid))).json();fini=!!(j&&(j.status==="done"||j.status==="failed"))}catch(_e){}
+    try{var R=await fetch("/api/jobs/"+encodeURIComponent(jid)+"/parts");
+      if(R.ok){var d=await R.json();(d&&d.parts||[]).forEach(function(p){
+        if(!p||!p.node_id||!p.job_id||!p.empreinte||vus[p.slot])return;
+        var G=window.__dzStudioG;
+        if(!G||(G.name||"")!==nom)return;
+        var nd=(G.nodes||[]).filter(function(n){return n&&n.id===p.node_id})[0];
+        if(!nd||nd.type!==(p.kind==="heygen"?"HeyGenAvatar":"Seedance"))return;
+        vus[p.slot]=1;
+        if(typeof window.__dzStudioMaj==="function")window.__dzStudioMaj(p.node_id,
+          {pin:{job_id:String(p.job_id),empreinte:String(p.empreinte),le:new Date().toISOString(),reemploi:!!p.reemploi},pinPerime:null})})}}catch(_e){}
+    if(!fini&&Date.now()-t0<45*60*1000)setTimeout(tour,4000)};
+  setTimeout(tour,2500)}
+function DzPinPanel({node,graph,onUpdate}){
+  var p=node&&node.props||{},pin=p.pin;
+  var box={padding:"10px 14px",borderBottom:"1px solid var(--stroke)",fontSize:11,lineHeight:1.45};
+  if(!dzPinRendu(graph))return r.jsx("div",{className:"dz-pin",style:box,children:r.jsx("span",{style:{color:"var(--ink-muted)"},
+    children:"📌 Pas d'épingle ici : un Seedance seul (ou un HeyGen seul) part directement par /generate. L'épingle vaut dans un graphe composé (Seedance + HeyGen, Concatenate, Spatial compose, UGC)."})});
+  if(!pin||!pin.job_id)return r.jsxs("div",{className:"dz-pin",style:box,children:[
+    r.jsx("div",{style:{color:"var(--ink-soft)"},children:"📌 Pas encore épinglé : après le prochain rendu, son résultat est gardé et réemployé (gratuit) tant que sa requête ne change pas."}),
+    p.pinPerime?r.jsx("div",{style:{color:"var(--amber)",marginTop:4},children:"Épingle retirée : "+p.pinPerime}):null]});
+  return r.jsxs("div",{className:"dz-pin",style:box,children:[
+    r.jsx("div",{style:{color:"var(--cyan)",marginBottom:4},children:"📌 Épinglé — réemployé (gratuit) tant que sa requête ne change pas"}),
+    r.jsx("div",{className:"mono",style:{color:"var(--ink-muted)",fontSize:10,marginBottom:6},
+      children:"rendu "+String(pin.job_id).slice(0,8)+(pin.le?" · "+String(pin.le).slice(0,16).replace("T"," "):"")}),
+    r.jsx("button",{type:"button",className:"btn",title:"Retirer l'épingle : le prochain run RÉGÉNÈRE ce nœud (payant, coût affiché avant le tir)",
+      onClick:function(){onUpdate({pin:null,pinPerime:null})},children:"↻ Regénérer ce nœud"})]})}
