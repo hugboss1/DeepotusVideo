@@ -8056,6 +8056,44 @@ async def generate_shot_image(shot_id: str, body: dict):
         return _shot_dict(s)
 
 
+# Tâche #62 (plan chapitres T6, 02/10/2026) : la DÉRIVE de l'image de production, en LECTURE (décision du 02/10) —
+# affichée à côté de l'image, gratuite, elle ne décide rien. Référence : la vue « corps de face » de chaque entité
+# (à défaut la première de _ORDRE_VUES, à défaut la planche) ; l'angle mort (visage, natures différentes) est rendu.
+
+@router.get("/shots/{shot_id}/derive")
+async def shot_drift(shot_id: str):
+    """Écart couleur / silhouette entre l'image de production du plan et la vue de référence de chacune de ses entités."""
+    from app.services import identity_drift as ID
+    from app.services.storage import Shot, BibleEntity, async_session_factory
+    import json as _json
+    async with async_session_factory() as session:
+        s = await session.get(Shot, shot_id)
+        if not s:
+            raise HTTPException(404, "Shot not found")
+        img = settings.images_path / Path(s.image).name if getattr(s, "image", None) else None
+        if not img or not img.is_file():
+            raise HTTPException(400, "Ce plan n'a pas d'image de production à mesurer.")
+        try:
+            eids = _json.loads(s.entities) if s.entities else []
+        except Exception:
+            eids = []
+        ents = [e for e in [await session.get(BibleEntity, eid) for eid in eids] if e]
+    out = []
+    for e in ents:
+        source, vues = await _entity_ref_views(e)
+        cle = next((k for k in ("front",) + _ORDRE_VUES + ("planche",) if k in vues), None)
+        ref = settings.images_path / Path(vues[cle]).name if cle else None
+        if not ref or not ref.is_file():
+            out.append({"entity_id": e.id, "name": e.name, "source": source, "vue": None})
+            continue
+        d = await asyncio.to_thread(ID.derive, ref, img)
+        out.append({"entity_id": e.id, "name": e.name, "source": source, "vue": cle, "fichier": ref.name,
+                    "ecart_couleur": d["ecart_couleur"], "ecart_silhouette": d["ecart_silhouette"], "verdict": d["verdict"]})
+    return {"shot_id": shot_id, "image": img.name, "entites": out,
+            "seuils": {"couleur": ID.SEUIL_COULEUR, "silhouette": ID.SEUIL_SILHOUETTE},
+            "angle_mort": ID.CE_QUE_CA_NE_MESURE_PAS}
+
+
 # ── Vectorlab (phase 0) : documents vectoriels versionnés ────────────────────
 # Plan : docs/superpowers/plans/2026-08-27-editeur-vectoriel-vitrail.md.
 # Contenu en fichiers (services/vector_store), index et ancrage en SQLite

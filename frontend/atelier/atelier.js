@@ -627,7 +627,9 @@ function renderBoard() {
         <button class="btn ghost act-prod" title="Image de production : Nano Banana avec les vues des entités du plan en référence — coût affiché et confirmé avant">🖼</button>
       </div>
       ${s.image ? `<div class="shot-prod"><img src="/api/images/${encodeURIComponent(s.image)}" alt="image de production"
-        title="Image de production — ${s.image_refs || 0} vue(s) en référence"><span>🖼 ${s.image_refs || 0} réf.</span></div>` : ""}
+        title="Image de production — ${s.image_refs || 0} vue(s) en référence"><span>🖼 ${s.image_refs || 0} réf.</span>
+        <button class="btn ghost act-derive" title="Mesurer la dérive (gratuit, lecture seule) : couleur et silhouette comparées à la vue de chaque entité">📏</button></div>
+        <div class="shot-derive"></div>` : ""}
     </div>
     <div class="shot-main">
       <div class="rowhead">
@@ -688,6 +690,7 @@ function renderBoard() {
     });
     card.querySelector(".act-sketch").addEventListener("click", () => sketchShot(id, sh().sketch_seed));
     card.querySelector(".act-prod").addEventListener("click", () => imageProduction(id));
+    card.querySelector(".act-derive")?.addEventListener("click", () => deriveProduction(id, card));
     card.querySelector(".act-resketch").addEventListener("click", () => sketchShot(id, null));
     card.querySelector(".act-insert").addEventListener("click", async () => {
       await api.send("POST", `/chapters/${chapter.id}/shots`, { after_id: id });
@@ -763,6 +766,25 @@ async function imageProduction(id) {
     renderBoard();
     toast(`Image de production du plan ${s.idx + 1} : ${up.image_refs} vue(s) en référence.`);
   } catch (e) { toast("Image de production : " + e.message, true); }
+}
+
+/* ═════════ tâche #62 (plan chapitres T6) — la DÉRIVE de l'image de production, en lecture ═════════
+   Gratuit, rien n'est décidé : l'écart de couleur (ΔE) et de silhouette avec la vue de chaque entité, et l'angle mort. */
+async function deriveProduction(id, card) {
+  const box = card.querySelector(".shot-derive");
+  if (!box) return;
+  box.textContent = "Mesure…";
+  try {
+    const d = await api.get(`/shots/${encodeURIComponent(id)}/derive`);
+    const lignes = (d.entites || []).map(e => e.vue == null
+      ? `<div class="drv-l"><b>${esc(e.name)}</b> — aucune vue de référence</div>`
+      : `<div class="drv-l drv-${e.verdict === "stable" ? "ok" : "ko"}"><b>${esc(e.name)}</b> ${e.verdict === "stable" ? "stable" : "dérive"}
+         · couleur ΔE ${e.ecart_couleur.toFixed(1).replace(".", ",")} (seuil ${d.seuils.couleur})
+         · silhouette ${e.ecart_silhouette.toFixed(2).replace(".", ",")} (seuil ${String(d.seuils.silhouette).replace(".", ",")})
+         <span class="drv-vue" title="Vue de référence : ${escA(e.fichier)} (${escA(e.source)})">vs ${esc(e.vue)}</span></div>`);
+    box.innerHTML = (lignes.join("") || "<div class=\"drv-l\">Aucune entité liée.</div>")
+      + `<div class="drv-mort" title="Ce que la mesure ne voit pas">Angle mort : ${esc(d.angle_mort)}.</div>`;
+  } catch (e) { box.textContent = "Dérive : " + e.message; }
 }
 
 async function decoupe(method) {
