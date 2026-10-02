@@ -563,6 +563,41 @@ async function chapterVo() {
   } catch (e) { toast("Voice-over : " + e.message, true); }
 }
 
+/* ═════════ tâche #64 (plan chapitres T13) — importer un scénario Fountain / Final Draft ═════════
+   Remplacer (défaut) : le dialogue NOMME les scènes et les voix-off perdues, et le scénario entier est sauvegardé
+   avant (tiroir des versions, « scénario importé ») ; sinon ajouter à la suite ; Échap deux fois = rien. */
+async function importerScenario(f) {
+  if (!f || !chapter) { if (!chapter) toast("Ouvre un chapitre d'abord.", true); return; }
+  let mode = "remplacer";
+  if (scenes.length) {
+    const vo = scenes.filter(s => s.vo_audio).length;
+    const remplacer = await window.__dzDialogue.confirmer(
+      `« ${f.name} » remplacera les ${scenes.length} scène(s) de ce chapitre` +
+      (vo ? `, dont ${vo} avec une voix-off (elle sera perdue)` : "") +
+      ". Le scénario actuel est sauvegardé avant (tiroir des versions).",
+      { ok: "Remplacer", annuler: "Ne pas remplacer" });
+    if (!remplacer) {
+      if (!await window.__dzDialogue.confirmer(`Ajouter les scènes de « ${f.name} » à la suite des ${scenes.length} existantes ?`,
+          { ok: "Ajouter à la suite" })) return;
+      mode = "ajouter";
+    }
+  }
+  const fd = new FormData(); fd.append("file", f); fd.append("mode", mode);
+  toast(`Import de « ${f.name} »…`);
+  try {
+    const r = await fetch(`/api/chapters/${encodeURIComponent(chapter.id)}/screenplay/import`, { method: "POST", body: fd });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.detail && d.detail.message ? d.detail.message : (d.detail || r.statusText));
+    await loadScenes(true);
+    const ign = Object.entries(d.ignores || {}).map(([k, n]) => `${n} ${k.replace(/_/g, " ")}`).join(", ");
+    toast(`${d.format === "fdx" ? "Final Draft" : "Fountain"} : ${d.scenes} scène(s) ${mode === "ajouter" ? "ajoutée(s)" : "importée(s)"}` +
+          (d.lieux_crees ? `, ${d.lieux_crees} lieu(x) créé(s) dans la bible` : "") +
+          (d.personnages_lies ? `, ${d.personnages_lies} lien(s) personnage` : "") +
+          (d.prologue ? " — le texte avant la 1re scène est rattaché à la scène 1" : "") +
+          (ign ? ` — écartés : ${ign}` : "") + ".");
+  } catch (e) { toast("Import du scénario : " + e.message, true); }
+}
+
 async function adaptChapter() {
   if (!chapter) { toast("Ouvre un chapitre d'abord.", true); return; }
   if (scenes.length && !await window.__dzDialogue.confirmer("Ré-adapter remplacera le scénario actuel de ce chapitre. Continuer ?", { ok: "Ré-adapter" })) return;
@@ -1411,7 +1446,8 @@ function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTi
    au texte courant ; « Restaurer » garde d'abord le courant (côté serveur) ; un scénario se copie (ses scènes ont été
    supprimées : il ne se restaure pas en scènes). */
 const PASSE_LABEL = { manuelle: "édition", adaptation: "adaptation", suppression: "scénario supprimé", import: "ré-import",
-                      telephone: "retour du téléphone", reecriture: "réécriture", restauration: "retour arrière" };
+                      telephone: "retour du téléphone", reecriture: "réécriture", restauration: "retour arrière",
+                      import_scenario: "scénario importé" };
 const KIND_VER = { chapter: "texte", scenario: "scénario", scene: "scène" };
 
 function openVersions() {
@@ -1612,6 +1648,11 @@ window.addEventListener("DOMContentLoaded", async () => {
     await api.send("DELETE", `/chapters/${chapter.id}/shots`);
     await loadShots(true);
     toast("Storyboard réinitialisé — 🎬 Découper pour en régénérer un.");
+  });
+  $("#spImportFile").addEventListener("change", async (e) => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = "";
+    await importerScenario(f);
   });
   $("#spReset").addEventListener("click", async () => {
     if (!chapter || !scenes.length) { toast("Rien à réinitialiser.", true); return; }

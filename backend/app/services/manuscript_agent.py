@@ -428,6 +428,7 @@ def compute_spans(chapter_text: str, entities: list[dict],
 # ───────────────── C. voice-over : segments Fountain ─────────────────
 
 _CUE_RE = re.compile(r"^[A-ZÀ-Ü][A-ZÀ-Ü0-9 .'\-]{1,38}(?:\s*\((?:V\.O\.|O\.S\.|CONT'D|V\.F\.)\))?$")
+_TRANSITION_RE = re.compile(r"^[A-ZÀ-Ü0-9 .'’\-]+(?:TO:|IN:|OUT[.:]?)$")   # tâche #64 : CUT TO:, FADE IN:, FADE OUT.
 
 
 def parse_fountain_segments(fountain_text: str) -> list[dict]:
@@ -470,7 +471,12 @@ def parse_fountain_segments(fountain_text: str) -> list[dict]:
                 segments.append({"kind": "dialogue", "character": cue,
                                  "text": txt})
             continue
-        narr.append(lines[i])
+        # tâche #64 : ce qui n'est pas DIT — transitions (CUT TO:), forcées ou centrées (> …), notes [[ ]] — n'est pas
+        # lu par le Narrateur ; le « ! » d'une action forcée non plus
+        if _TRANSITION_RE.match(ln) or ln.startswith(">"):
+            i += 1
+            continue
+        narr.append(re.sub(r"\[\[.*?\]\]", "", lines[i]).lstrip().removeprefix("!"))
         i += 1
     flush_narr()
     return segments

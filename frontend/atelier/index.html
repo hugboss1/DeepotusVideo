@@ -73,6 +73,8 @@
         <button id="voAll" class="btn" title="Génère le voice-over de toutes les scènes (narration = Narrateur, répliques = voix castées) — chaque scène reçoit sa durée réelle">🔊 Voice-over</button>
         <span id="voTotal" class="board-total" title="Durée totale du voice-over du chapitre">Σ VO —</span>
         <a id="fountainDl" class="btn" title="Export .fountain = simple fichier TEXTE (standard industrie). S'ouvre avec le Bloc-notes ou un logiciel de scénario (Fade In, Highland, Arc Studio). L'Atelier n'en a PAS besoin : le storyboard lit les scènes directement." download>⬇ .fountain</a>
+        <label class="btn" for="spImportFile" title="Importer un scénario Fountain (.fountain, .txt) ou Final Draft (.fdx) dans ce chapitre : remplacer les scènes (sauvegardées avant) ou les ajouter à la suite — sans IA, gratuit">📥 Importer .fountain / .fdx</label>
+        <input type="file" id="spImportFile" accept=".fountain,.spmd,.txt,.fdx" hidden>
         <button id="spReset" class="btn ghost" title="Supprimer toutes les scènes de ce chapitre (le manuscrit reste intact)">🗑 Réinitialiser</button>
         <span class="board-hint">le manuscrit reste intact — le scénario est un artefact dérivé</span>
       </div>

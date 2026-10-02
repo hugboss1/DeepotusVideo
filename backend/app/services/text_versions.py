@@ -25,7 +25,8 @@ from sqlalchemy import select
 
 GARDE = 10
 KINDS = ("chapter", "scene", "scenario")
-PASSES = ("manuelle", "adaptation", "suppression", "import", "telephone", "reecriture", "restauration")
+PASSES = ("manuelle", "adaptation", "suppression", "import", "telephone", "reecriture", "restauration",
+          "import_scenario")   # tâche #64 : avant qu'un scénario importé ne remplace les scènes
 
 
 def _dict(v, plein: bool = False) -> dict:
