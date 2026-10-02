@@ -177,7 +177,8 @@ def _palette_colors(images_path: Path, fnames: list[str], n: int = 8):
         strip.paste(im, (64 * i, 0))
     q = strip.quantize(colors=n)
     pal = q.getpalette()[:n * 3]
-    return [tuple(pal[i * 3:i * 3 + 3]) for i in range(n)]
+    # tâche #62 : moins de `n` couleurs distinctes -> palette plus courte ; un triplet tronqué faisait planter la planche
+    return [tuple(pal[i * 3:i * 3 + 3]) for i in range(len(pal) // 3)]
 
 
 def mirror_panel(images_path: Path, fname: str) -> str:
@@ -225,6 +226,62 @@ def compose_character_board(images_path: Path, panels: dict[str, str],
     board.save(images_path / fname)
     logger.info(f"board personnage composé: {fname} ({W}x{H}, colonnes alignées)")
     return fname
+
+
+def _bandes(kind: str) -> list[tuple[int, list[str]]] | None:
+    """Les bandes d'une planche composée par CE code : [(hauteur, clés de la bande, dans l'ordre)]."""
+    plan = PANEL_PLANS.get(kind)
+    if not plan:
+        return None
+    if plan.get("compose") == "character":
+        return [(300, ["face_front", "face_left", "face_right"]), (560, ["front", "left", "right", "back"])]
+    return list(zip(plan.get("row_heights") or [], plan.get("rows") or []))
+
+
+def decouper_planche(images_path: Path, board: str, kind: str) -> dict[str, str] | None:
+    """Tâche #62 (décision de l'utilisateur, 02/10) — les VUES d'une planche composée, retrouvées sans régénérer. La
+    planche est posée par `compose_character_board` / `compose_board` : bandes de hauteur connue, séparées et bordées
+    de gouttières, fond uni `_BG`, PNG sans perte. Dans chaque bande, les panneaux sont les colonnes qui ne sont pas
+    du fond. La géométrie est VÉRIFIÉE (hauteur totale, nombre de panneaux par bande) : une planche qui ne colle pas
+    rend None — jamais de vues fausses. Les vues sont écrites une fois (`<planche>_<clé>.png`) puis réutilisées."""
+    from PIL import ImageChops
+    bandes = _bandes(kind)
+    src = images_path / Path(str(board)).name
+    if not bandes or not src.is_file():
+        return None
+    try:
+        im = Image.open(src).convert("RGB")
+    except Exception:  # noqa: BLE001 — une image illisible n'a pas de vues
+        return None
+    plan = PANEL_PLANS.get(kind) or {}
+    attendu = sum(h for h, _ in bandes) + _GUTTER * (len(bandes) + 1)
+    if plan.get("palette"):
+        attendu += 46 + _GUTTER
+    if im.height != attendu:
+        return None
+    vues: dict[str, str] = {}
+    y = _GUTTER
+    for h, cles in bandes:
+        bande = im.crop((0, y, im.width, y + h))
+        diff = ImageChops.difference(bande, Image.new("RGB", bande.size, _BG)).convert("L")
+        xs = diff.point(lambda v: 255 if v else 0).getprojection()[0]
+        runs, debut = [], None
+        for x, plein in enumerate(list(xs) + [0]):
+            if plein and debut is None:
+                debut = x
+            elif not plein and debut is not None:
+                if x - debut >= 4:
+                    runs.append((debut, x))
+                debut = None
+        if len(runs) != len(cles):
+            return None
+        for (x0, x1), cle in zip(runs, cles):
+            nom = f"{src.stem}_{cle}.png"
+            if not (images_path / nom).is_file():       # chaque panneau est collé à la hauteur exacte de sa bande
+                bande.crop((x0, 0, x1, h)).save(images_path / nom)
+            vues[cle] = nom
+        y += h + _GUTTER
+    return vues
 
 
 def compose_board(images_path: Path, rows: list[list[str]],

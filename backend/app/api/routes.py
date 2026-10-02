@@ -7208,7 +7208,7 @@ async def generate_bible_reference(entity_id: str, body: dict):
         style_ref = await _atelier_setting(session, "style_ref_image")
         if style_ref and not (settings.images_path / Path(style_ref).name).is_file():
             style_ref = ""
-        if recipe and recipe.get("v") == 2:
+        if recipe and recipe.get("v") in (2, 3):          # tâche #62 : la recette v3 se rejoue aussi
             insp_file = recipe.get("ref_file") or insp_file
             provider = recipe.get("provider") or provider
             style_ref = recipe.get("style_ref") or style_ref
@@ -7217,7 +7217,7 @@ async def generate_bible_reference(entity_id: str, body: dict):
         elif not recipe:
             pass
         desc = (e.description or "").strip()
-        if not desc and not (recipe and recipe.get("v") == 2):
+        if not desc and not (recipe and recipe.get("v") in (2, 3)):
             raise HTTPException(400, "Add a description before generating")
         subj = f" Subject: {e.name}. {desc}"
         # style: l'override de l'entité prime, sinon le STYLE GLOBAL du projet
@@ -7231,7 +7231,7 @@ async def generate_bible_reference(entity_id: str, body: dict):
         # du style — défaut: canon académique De Vinci (7.5-8 têtes).
         from app.services import manuscript_agent as MA
         canon_pref = await _atelier_setting(session, "style_canon")
-        if recipe and recipe.get("v") == 2 and recipe.get("canon"):
+        if recipe and recipe.get("v") in (2, 3) and recipe.get("canon"):   # la 3e garde (oubliée par le plan)
             canon_pref = recipe["canon"]
         canon_key = MA.resolve_canon(
             style_src, canon_pref if canon_pref != "auto" else None)
@@ -7351,11 +7351,15 @@ async def generate_bible_reference(entity_id: str, body: dict):
                         {"canon_lessons": PQC.dump_lessons(lessons)})
             panels[key] = out["images"][0]
             recipe_panels.append({"key": key, "prompt": prompt,
-                                  "seed": out.get("seed"), "model": model})
+                                  "seed": out.get("seed"), "model": model,
+                                  # v3 (tâche #62) : LE FICHIER — une mosaïque n'est pas quatre références
+                                  "file": out["images"][0]})
         # profils droits = miroir logiciel du profil gauche (direction
         # opposée garantie — la diffusion confond gauche/droite)
+        mirrors_files: dict[str, str] = {}
         for tgt, src in (plan.get("mirrors") or {}).items():
             panels[tgt] = BS.mirror_panel(settings.images_path, panels[src])
+            mirrors_files[tgt] = panels[tgt]
         if plan.get("compose") == "character":
             board = BS.compose_character_board(settings.images_path, panels)
         else:
@@ -7369,13 +7373,53 @@ async def generate_bible_reference(entity_id: str, body: dict):
         e.face_image = None            # tout est dans la planche composite
         e.seed = recipe_panels[0].get("seed")
         e.prompt_recipe = _json.dumps(
-            {"v": 2, "kind": e.kind, "ref_file": insp_file,
+            {"v": 3, "kind": e.kind, "ref_file": insp_file,
              "provider": provider, "style_ref": style_ref or None,
-             "canon": canon_key, "panels": recipe_panels}, ensure_ascii=False)
+             "canon": canon_key, "panels": recipe_panels,
+             "mirrors": mirrors_files, "board": board}, ensure_ascii=False)
         e.updated_at = datetime.utcnow()
         await session.commit()
         await session.refresh(e)
         return _entity_dict(e)
+
+
+async def _entity_ref_views(e) -> tuple[str, dict[str, str]]:
+    """Tâche #62 (plan chapitres T7) — les VUES de référence d'une entité, et d'où elles viennent :
+      « recette » : les panneaux séparés (recette v3, miroirs compris), s'ils sont encore là ;
+      « decoupe » : sinon, découpés dans SA planche (géométrie du code, décision de l'utilisateur : gratuit) ;
+      « planche » : planche d'une autre géométrie — la planche entière, en le disant (c'est une mosaïque) ;
+      « aucune »  : ni recette ni planche."""
+    import json as _json
+    from app.services import board_service as BS
+    try:
+        rec = _json.loads(e.prompt_recipe) if e.prompt_recipe else None
+    except Exception:
+        rec = None
+    if isinstance(rec, dict) and rec.get("v") == 3:
+        vues = {p["key"]: p["file"] for p in (rec.get("panels") or []) if isinstance(p, dict) and p.get("file")}
+        vues.update({k: f for k, f in (rec.get("mirrors") or {}).items() if f})
+        vues = {k: f for k, f in vues.items() if (settings.images_path / Path(f).name).is_file()}
+        if vues:
+            return "recette", vues
+    if e.ref_image:
+        dec = await asyncio.to_thread(BS.decouper_planche, settings.images_path, e.ref_image, e.kind)
+        if dec:
+            await LI.noter(list(dec.values()), "atelier")
+            return "decoupe", dec
+        return "planche", {"planche": Path(e.ref_image).name}
+    return "aucune", {}
+
+
+@router.get("/bible/entities/{entity_id}/vues")
+async def entity_views(entity_id: str):
+    """Les vues de référence de l'entité — ce qu'un générateur multi-références reçoit (tâche #62)."""
+    from app.services.storage import BibleEntity, async_session_factory
+    async with async_session_factory() as session:
+        e = await session.get(BibleEntity, entity_id)
+        if not e:
+            raise HTTPException(404, "Entity not found")
+    source, par_cle = await _entity_ref_views(e)
+    return {"entity_id": entity_id, "source": source, "vues": list(dict.fromkeys(par_cle.values())), "par_cle": par_cle}
 
 
 async def _fetch_11l_voices() -> list[dict]:
