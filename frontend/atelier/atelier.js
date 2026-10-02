@@ -930,6 +930,7 @@ async function animatiqueEtat() {
   $("#animVideo").classList.toggle("hidden", !e.existe);
   $("#animVide").classList.toggle("hidden", !!e.existe);
   if (e.existe) $("#animVideo").src = `${e.url}?t=${Math.round(e.maj || 0)}`;
+  await sortiesEtat();                                       // tâche #66 : film / reel vers le Montage
   $("#animNote").textContent = `${e.storyboard} plan(s)` + (e.existe ? ` · dernier montage : ${e.plans} plan(s)` : "");
   return e;
 }
@@ -977,6 +978,31 @@ async function monterAnimatique() {
   } catch (e) {
     toast("Animatique : " + e.message, true);
   } finally { $("#animGo").disabled = false; }
+}
+
+/* ═════════ tâche #66 PR B — l'animatique sort vers le Montage (film / reel), en NOUVEAU projet ═════════ */
+async function sortiesEtat() {
+  if (!chapter) return;
+  try {
+    const s = await api.get(`/chapters/${encodeURIComponent(chapter.id)}/sorties`);
+    $("#animSorties").classList.toggle("hidden", !s.animatique);
+    ["film", "reel"].forEach(n => { const b = $(`[data-sortie="${n}"]`), v = (s.natures || {})[n];
+      b.disabled = !s.a_jour;
+      if (v) b.textContent = `${n === "film" ? "🎬 Film" : "⚡ Reel"} · ${v.plans} plan(s), ${fmtDur(v.duree_s)}`; });
+    $("#animSortieNote").textContent = s.animatique && !s.a_jour ? "le storyboard a changé : remontez l'animatique" : "";
+  } catch (_) { $("#animSorties").classList.add("hidden"); }
+}
+
+async function sortieMontage(nature) {
+  if (!chapter) return;
+  try {
+    const r = await api.send("POST", `/chapters/${encodeURIComponent(chapter.id)}/sortie/${nature}`, {});
+    if (await window.__dzDialogue.confirmer(
+        `Projet « ${r.name} » créé au Montage : ${r.plans} plan(s), ${fmtDur(r.duree_s)}, ${r.voix} voix témoin. ` +
+        `La timeline en cours n'est pas touchée — ouvrez ce projet depuis la liste des projets du Montage.`,
+        { ok: "Aller au Montage", annuler: "Rester ici", titre: "Montage" }))
+      window.open(r.montage, "_blank");
+  } catch (e) { toast("Sortie vers le Montage : " + e.message, true); }
 }
 
 async function decoupe(method) {
@@ -1698,6 +1724,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   $("#cutPara").addEventListener("click", () => decoupe("paragraph"));
   $("#animBtn").addEventListener("click", ouvrirAnimatique);
   $("#animGo").addEventListener("click", monterAnimatique);
+  document.querySelectorAll("[data-sortie]").forEach(b => b.addEventListener("click", () => sortieMontage(b.dataset.sortie)));
   $("#animClose").addEventListener("click", () => {
     $("#animVideo").pause(); $("#animVideo").removeAttribute("src");
     $("#animModal").classList.add("hidden");
