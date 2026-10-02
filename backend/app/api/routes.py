@@ -7557,7 +7557,11 @@ async def update_chapter(chapter_id: str, body: dict):
         if "series" in body:
             ch.series = body["series"] or None
         if "script_text" in body:
-            ch.script_text = body["script_text"] or ""
+            neuf = body["script_text"] or ""
+            if neuf != (ch.script_text or ""):         # tâche #61 : l'ancien texte est gardé (un titre seul ne versionne pas)
+                from app.services import text_versions as TV
+                await TV.snapshot(session, "chapter", ch.id, ch.script_text or "", "manuelle")
+            ch.script_text = neuf
         if "spans" in body:
             ch.spans = _json.dumps(body["spans"] or [])
         ch.updated_at = datetime.utcnow()
@@ -8924,6 +8928,9 @@ async def _run_manuscript_job(jid: str, text: str, companion: str, series: str):
                     await _sv.journaliser_reimport(c.id, seg["text"])   # le texte du manuscrit va au journal, pas perdu
                     continue
                 if c:
+                    if (c.script_text or "") != seg["text"]:     # tâche #61 : le texte remplacé par le ré-import est gardé
+                        from app.services import text_versions as TV
+                        await TV.snapshot(session, "chapter", c.id, c.script_text or "", "import")
                     c.script_text = seg["text"]
                     c.spans = _json.dumps(spans)
                     c.updated_at = datetime.utcnow()
@@ -9042,6 +9049,9 @@ async def update_scene(scene_id: str, body: dict):
         s = await session.get(Scene, scene_id)
         if not s:
             raise HTTPException(404, "Scene not found")
+        if "fountain_text" in body and (body["fountain_text"] or "") != (s.fountain_text or ""):   # tâche #61
+            from app.services import text_versions as TV
+            await TV.snapshot(session, "scene", s.id, s.fountain_text or "", "manuelle", {"slugline": s.slugline})
         for k in ("fountain_text", "camera_notes"):
             if k in body:
                 setattr(s, k, body[k] or "")
@@ -9258,7 +9268,9 @@ async def reset_screenplay(chapter_id: str):
     """Réinitialise le scénario du chapitre (supprime toutes les scènes).
     Le manuscrit n'est évidemment pas touché."""
     from app.services.storage import async_session_factory
+    from app.services import text_versions as TV
     async with async_session_factory() as session:
+        await TV.snapshot_scenario(session, chapter_id, "suppression")   # tâche #61 : le scénario entier est gardé
         n = 0
         for s in await _list_scenes(session, chapter_id):
             await session.delete(s)
@@ -9347,6 +9359,8 @@ async def _run_adapt_job(jid: str, chapter_id: str, lang: str):
                 created_e += 1
                 return e
 
+            from app.services import text_versions as TV
+            await TV.snapshot_scenario(session, chapter_id, "adaptation")   # tâche #61 : avant de supprimer les scènes
             for s in await _list_scenes(session, chapter_id):
                 await session.delete(s)
             n_scenes = 0
@@ -12513,3 +12527,61 @@ async def sync_verrous():
 async def sync_conflits(limite: int = 100):
     from app.services import sync_verrou as _sv
     return await _sv.conflits(limite)
+
+
+# ── Tâche #61 (plan chapitres P2, 02/10/2026) : les versions du texte ─────────────────────────────────────────────────
+# Lectures (historique, version, comparaison) et une écriture locale (restaurer : la garde globale la réserve au PC).
+
+@router.get("/chapters/{chapter_id}/versions")
+async def chapter_versions(chapter_id: str):
+    """Le tiroir d'un chapitre : son texte, son scénario et ses scènes, du plus récent (sans le texte : aperçu, taille)."""
+    from app.services import text_versions as TV
+    from app.services.storage import async_session_factory
+    async with async_session_factory() as session:
+        return {"versions": await TV.historique_chapitre(session, chapter_id)}
+
+
+@router.get("/scenes/{scene_id}/versions")
+async def scene_versions(scene_id: str):
+    from app.services import text_versions as TV
+    from app.services.storage import async_session_factory
+    async with async_session_factory() as session:
+        return {"versions": await TV.historique(session, "scene", scene_id)}
+
+
+@router.get("/versions/{version_id}")
+async def read_version(version_id: str):
+    from app.services import text_versions as TV
+    from app.services.storage import async_session_factory
+    async with async_session_factory() as session:
+        v = await TV.lire(session, version_id)
+    if not v:
+        raise HTTPException(404, "Version introuvable")
+    return v
+
+
+@router.get("/versions/{version_id}/diff")
+async def diff_version(version_id: str):
+    """La version FACE au texte courant de sa cible — la matière du côte à côte."""
+    from app.services import text_versions as TV
+    from app.services.storage import async_session_factory
+    async with async_session_factory() as session:
+        v = await TV.lire(session, version_id)
+        if not v:
+            raise HTTPException(404, "Version introuvable")
+        courant = await TV.courant(session, v["kind"], v["target_id"])
+    out = TV.diff(v["text"], courant)
+    out.update({"version": {k: v[k] for k in ("id", "n", "passe", "created_at", "kind", "restaurable")}, "target_id": v["target_id"]})
+    return out
+
+
+@router.post("/versions/{version_id}/restore")
+async def restore_version(version_id: str):
+    """Réécrit la cible avec cette version — après avoir gardé le texte courant. 423 sur un chapitre emporté."""
+    from app.services import text_versions as TV
+    from app.services.storage import async_session_factory
+    async with async_session_factory() as session:
+        out = await TV.restaurer(session, version_id)
+    if not out:
+        raise HTTPException(404, "Version introuvable")
+    return out

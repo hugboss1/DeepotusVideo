@@ -148,6 +148,9 @@ async def rendre(appareil: dict, corps: dict) -> dict:
             await _journal(s, chapter_id, "base_differente", texte, appareil)
             await s.commit()
             raise HTTPException(409, "Ce texte part d'une autre version du chapitre : il est gardé au journal des conflits.")
+        if (ch.script_text or "") != texte:              # tâche #61 : le texte que le retour remplace est gardé
+            from app.services import text_versions as TV
+            await TV.snapshot(s, "chapter", chapter_id, ch.script_text or "", "telephone", {"appareil": appareil.get("nom")})
         ch.script_text = texte
         ch.spans = await _spans(s, texte)
         ch.updated_at = datetime.utcnow()

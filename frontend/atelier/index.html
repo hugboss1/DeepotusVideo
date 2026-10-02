@@ -17,6 +17,7 @@
     <input id="chapterSeries" placeholder="Série (ex: Lost Abyss)" title="Série">
     <button id="deleteChapter" class="btn ghost" title="Supprimer ce chapitre">🗑</button>
     <span id="saveState" class="savestate">—</span>
+    <button id="verBtn" class="btn ghost" title="Versions : chaque écrasement (édition, adaptation, ré-import, retour du téléphone…) a laissé un instantané — comparer et revenir en arrière">🕘 Versions</button>
   </div>
   <a class="backlink" href="/" title="Retour à l'app">← App</a>
 </header>
@@ -250,6 +251,19 @@
   </div>
 </div>
 
+<div id="verModal" class="modal hidden">
+  <div class="modal-box wide">
+    <div class="modal-head">
+      <b>Versions du texte</b>
+      <span id="verNote" class="da-note"></span>
+      <button id="verClose" class="btn ghost" title="Fermer">✕</button>
+    </div>
+    <div class="ver-body">
+      <div id="verList" class="ver-list"></div>
+      <div id="verDiff" class="ver-diff"><div class="empty-note">Choisis une version à gauche : le côte à côte la compare au texte courant.</div></div>
+    </div>
+  </div>
+</div>
 <div id="toast" class="toast hidden"></div>
 <script src="/shared/dz-plafonds.js"></script>
 <script src="/shared/dialogue.js"></script>
