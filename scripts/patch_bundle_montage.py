@@ -8057,6 +8057,18 @@ P1 += [("P7pin1-le-studio-expose-son-graphe", A_P7PIN1, R_P7PIN1),
        ("P7pin4-l-estimation-dit-les-reemplois", A_P7PIN4, R_P7PIN4)]
 assert len(P1) == 108 and all("\n" not in r and "DzTracks" not in r for _t, _a, r in P1[-4:])
 
+# P7imp1 (tache #69, plan-studio T6-T7, 02/10/2026) -- IMPORTER un graphe JSON. Decision de l'utilisateur (02/10) : le
+# bouton vit DANS ce maillon (le plan prevoyait un maillon studioimp et un helper _patch_studio qui n'existe pas). Le
+# composant est dans la couche (DzImportGraph, dzImpListe) ; la validation est au serveur (POST /studio-graphs/import).
+# Une section, a gauche du selecteur « Ouvrir un graphe », sur une ancre AMONT mesuree 02/10 sur .bak_montage (1) :
+# le graphe accepte passe par ts() (defauts du registre fusionnes) et remet a zero etats, selection et dernier rendu,
+# comme le choix d'un graphe de depart. Banc : test_studio_import_bundle.
+A_P7IMP1 = 'r.jsx(DzOpenGraph,{onPick:async id=>{'
+R_P7IMP1 = ('r.jsx(DzImportGraph,{graph:o,onOpen:function(G){i(ts(G));d({});f({});a(null);k(null);'
+            'p("Graphe importé (non enregistré) : "+G.name)}}),' + A_P7IMP1)
+P1 += [("P7imp1-bouton-importer-un-graphe", A_P7IMP1, R_P7IMP1)]
+assert len(P1) == 109 and "\n" not in R_P7IMP1
+
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),

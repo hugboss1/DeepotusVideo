@@ -1,0 +1,562 @@
+{
+ "count": 34,
+ "source": "index-BEOJX8L5.js",
+ "types": {
+  "Animation": {
+   "cat": "motion",
+   "in": [
+    "base"
+   ],
+   "in_types": {
+    "base": "av"
+   },
+   "out": [
+    "out"
+   ],
+   "out_types": {
+    "out": "av"
+   },
+   "title": "Animation"
+  },
+  "AudioMix": {
+   "cat": "audio",
+   "in": [
+    "a",
+    "b"
+   ],
+   "in_types": {
+    "a": "audio",
+    "b": "audio"
+   },
+   "out": [
+    "out"
+   ],
+   "out_types": {
+    "out": "audio"
+   },
+   "title": "Audio mix"
+  },
+  "AvatarMaster": {
+   "cat": "master",
+   "in": [
+    "in"
+   ],
+   "in_types": {
+    "in": "av"
+   },
+   "out": [
+    "out"
+   ],
+   "out_types": {
+    "out": "av"
+   },
+   "title": "Avatar master"
+  },
+  "BrandStrip": {
+   "cat": "compose",
+   "in": [
+    "data"
+   ],
+   "in_types": {
+    "data": "data"
+   },
+   "out": [
+    "out"
+   ],
+   "out_types": {
+    "out": "image"
+   },
+   "title": "Brand strip"
+  },
+  "Concatenate": {
+   "cat": "edit",
+   "in": [
+    "a",
+    "b",
+    "c",
+    "d",
+    "e",
+    "f"
+   ],
+   "in_types": {
+    "a": "av",
+    "b": "av",
+    "c": "av",
+    "d": "av",
+    "e": "av",
+    "f": "av"
+   },
+   "out": [
+    "out"
+   ],
+   "out_types": {
+    "out": "av"
+   },
+   "title": "Concatenate"
+  },
+  "CropFormat": {
+   "cat": "edit",
+   "in": [
+    "in"
+   ],
+   "in_types": {
+    "in": "image"
+   },
+   "out": [
+    "out"
+   ],
+   "out_types": {
+    "out": "image"
+   },
+   "title": "Crop / format"
+  },
+  "Effects": {
+   "cat": "compose",
+   "in": [
+    "in"
+   ],
+   "in_types": {
+    "in": "av"
+   },
+   "out": [
+    "out"
+   ],
+   "out_types": {
+    "out": "av"
+   },
+   "title": "Effects / Mask"
+  },
+  "ExistingRender": {
+   "cat": "source",
+   "in": [],
+   "in_types": {},
+   "out": [
+    "out"
+   ],
+   "out_types": {
+    "out": "av"
+   },
+   "title": "Existing render"
+  },
+  "Extend": {
+   "cat": "edit",
+   "in": [
+    "in"
+   ],
+   "in_types": {
+    "in": "video"
+   },
+   "out": [
+    "out"
+   ],
+   "out_types": {
+    "out": "video"
+   },
+   "title": "Extend"
+  },
+  "HeyGenAvatar": {
+   "cat": "gen",
+   "in": [
+    "script"
+   ],
+   "in_types": {
+    "script": "text"
+   },
+   "out": [
+    "out"
+   ],
+   "out_types": {
+    "out": "av"
+   },
+   "title": "HeyGen avatar"
+  },
+  "Image": {
+   "cat": "source",
+   "in": [],
+   "in_types": {},
+   "out": [
+    "out"
+   ],
+   "out_types": {
+    "out": "image"
+   },
+   "title": "Image"
+  },
+  "ImageEdit": {
+   "cat": "gen",
+   "in": [
+    "in",
+    "prompt"
+   ],
+   "in_types": {
+    "in": "image",
+    "prompt": "text"
+   },
+   "out": [
+    "out"
+   ],
+   "out_types": {
+    "out": "image"
+   },
+   "title": "Image edit"
+  },
+  "ImageGen": {
+   "cat": "gen",
+   "in": [
+    "prompt"
+   ],
+   "in_types": {
+    "prompt": "text"
+   },
+   "out": [
+    "out"
+   ],
+   "out_types": {
+    "out": "image"
+   },
+   "title": "Image gen"
+  },
+  "Loudness": {
+   "cat": "audio",
+   "in": [
+    "in"
+   ],
+   "in_types": {
+    "in": "audio"
+   },
+   "out": [
+    "out"
+   ],
+   "out_types": {
+    "out": "audio"
+   },
+   "title": "Loudness norm."
+  },
+  "MusicTrack": {
+   "cat": "audio",
+   "in": [
+    "src"
+   ],
+   "in_types": {
+    "src": "audio"
+   },
+   "out": [
+    "out"
+   ],
+   "out_types": {
+    "out": "audio"
+   },
+   "title": "Music track"
+  },
+  "NewsIllustration": {
+   "cat": "gen",
+   "in": [
+    "news"
+   ],
+   "in_types": {
+    "news": "data"
+   },
+   "out": [
+    "out"
+   ],
+   "out_types": {
+    "out": "image"
+   },
+   "title": "News illust."
+  },
+  "NewsItem": {
+   "cat": "source",
+   "in": [],
+   "in_types": {},
+   "out": [
+    "out"
+   ],
+   "out_types": {
+    "out": "data"
+   },
+   "title": "News item"
+  },
+  "NewsScript": {
+   "cat": "gen",
+   "in": [
+    "news"
+   ],
+   "in_types": {
+    "news": "data"
+   },
+   "out": [
+    "script",
+    "essences"
+   ],
+   "out_types": {
+    "essences": "data",
+    "script": "text"
+   },
+   "title": "News script"
+  },
+  "Prompt": {
+   "cat": "source",
+   "in": [],
+   "in_types": {},
+   "out": [
+    "out"
+   ],
+   "out_types": {
+    "out": "text"
+   },
+   "title": "Prompt"
+  },
+  "RemoveBG": {
+   "cat": "edit",
+   "in": [
+    "in"
+   ],
+   "in_types": {
+    "in": "image"
+   },
+   "out": [
+    "out"
+   ],
+   "out_types": {
+    "out": "image"
+   },
+   "title": "Remove BG"
+  },
+  "Render": {
+   "cat": "output",
+   "in": [
+    "in",
+    "overlay",
+    "audio",
+    "fx"
+   ],
+   "in_types": {
+    "audio": "audio",
+    "fx": "av",
+    "in": "av",
+    "overlay": "av"
+   },
+   "out": [],
+   "out_types": {},
+   "title": "Render"
+  },
+  "Seedance": {
+   "cat": "gen",
+   "in": [
+    "image",
+    "end",
+    "prompt"
+   ],
+   "in_types": {
+    "end": "image",
+    "image": "image",
+    "prompt": "text"
+   },
+   "out": [
+    "out"
+   ],
+   "out_types": {
+    "out": "video"
+   },
+   "title": "Seedance"
+  },
+  "Separator": {
+   "cat": "compose",
+   "in": [],
+   "in_types": {},
+   "out": [
+    "out"
+   ],
+   "out_types": {
+    "out": "image"
+   },
+   "title": "Separator"
+  },
+  "SpatialCompose": {
+   "cat": "compose",
+   "in": [
+    "reel",
+    "avatar",
+    "s3",
+    "s4",
+    "s5",
+    "s6",
+    "brand",
+    "bg"
+   ],
+   "in_types": {
+    "avatar": "av",
+    "bg": "image",
+    "brand": "image",
+    "reel": "av",
+    "s3": "av",
+    "s4": "av",
+    "s5": "av",
+    "s6": "av"
+   },
+   "out": [
+    "out"
+   ],
+   "out_types": {
+    "out": "av"
+   },
+   "title": "Spatial compose"
+  },
+  "Speed": {
+   "cat": "edit",
+   "in": [
+    "in"
+   ],
+   "in_types": {
+    "in": "video"
+   },
+   "out": [
+    "out"
+   ],
+   "out_types": {
+    "out": "video"
+   },
+   "title": "Speed"
+  },
+  "Split": {
+   "cat": "edit",
+   "in": [
+    "in"
+   ],
+   "in_types": {
+    "in": "av"
+   },
+   "out": [
+    "a",
+    "b"
+   ],
+   "out_types": {
+    "a": "av",
+    "b": "av"
+   },
+   "title": "Split"
+  },
+  "Text": {
+   "cat": "source",
+   "in": [],
+   "in_types": {},
+   "out": [
+    "out"
+   ],
+   "out_types": {
+    "out": "text"
+   },
+   "title": "Text"
+  },
+  "TextOverlay": {
+   "cat": "compose",
+   "in": [
+    "in"
+   ],
+   "in_types": {
+    "in": "video"
+   },
+   "out": [
+    "out"
+   ],
+   "out_types": {
+    "out": "video"
+   },
+   "title": "Text overlay"
+  },
+  "Ticker": {
+   "cat": "compose",
+   "in": [
+    "in",
+    "text"
+   ],
+   "in_types": {
+    "in": "video",
+    "text": "text"
+   },
+   "out": [
+    "out"
+   ],
+   "out_types": {
+    "out": "video"
+   },
+   "title": "Ticker"
+  },
+  "Trim": {
+   "cat": "edit",
+   "in": [
+    "in"
+   ],
+   "in_types": {
+    "in": "av"
+   },
+   "out": [
+    "out"
+   ],
+   "out_types": {
+    "out": "av"
+   },
+   "title": "Trim"
+  },
+  "Upload": {
+   "cat": "source",
+   "in": [],
+   "in_types": {},
+   "out": [
+    "out"
+   ],
+   "out_types": {
+    "out": "av"
+   },
+   "title": "UGC video"
+  },
+  "Upscale": {
+   "cat": "edit",
+   "in": [
+    "in"
+   ],
+   "in_types": {
+    "in": "image"
+   },
+   "out": [
+    "out"
+   ],
+   "out_types": {
+    "out": "image"
+   },
+   "title": "Upscale"
+  },
+  "Variations": {
+   "cat": "gen",
+   "in": [
+    "in"
+   ],
+   "in_types": {
+    "in": "image"
+   },
+   "out": [
+    "out"
+   ],
+   "out_types": {
+    "out": "image"
+   },
+   "title": "Variations"
+  },
+  "Voiceover": {
+   "cat": "audio",
+   "in": [
+    "text"
+   ],
+   "in_types": {
+    "text": "text"
+   },
+   "out": [
+    "out"
+   ],
+   "out_types": {
+    "out": "audio"
+   },
+   "title": "Voiceover"
+  }
+ }
+}
