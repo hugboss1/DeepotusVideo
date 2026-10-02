@@ -624,7 +624,10 @@ function renderBoard() {
       <div class="entity-actions">
         <button class="btn primary act-sketch" title="Générer le croquis (même seed si déjà généré)">🎨</button>
         <button class="btn act-resketch" title="Nouveau croquis (seed aléatoire)">🎲</button>
+        <button class="btn ghost act-prod" title="Image de production : Nano Banana avec les vues des entités du plan en référence — coût affiché et confirmé avant">🖼</button>
       </div>
+      ${s.image ? `<div class="shot-prod"><img src="/api/images/${encodeURIComponent(s.image)}" alt="image de production"
+        title="Image de production — ${s.image_refs || 0} vue(s) en référence"><span>🖼 ${s.image_refs || 0} réf.</span></div>` : ""}
     </div>
     <div class="shot-main">
       <div class="rowhead">
@@ -684,6 +687,7 @@ function renderBoard() {
       card.querySelector(".shot-energy").addEventListener(ev, () => save(fields));
     });
     card.querySelector(".act-sketch").addEventListener("click", () => sketchShot(id, sh().sketch_seed));
+    card.querySelector(".act-prod").addEventListener("click", () => imageProduction(id));
     card.querySelector(".act-resketch").addEventListener("click", () => sketchShot(id, null));
     card.querySelector(".act-insert").addEventListener("click", async () => {
       await api.send("POST", `/chapters/${chapter.id}/shots`, { after_id: id });
@@ -729,6 +733,36 @@ async function sketchShot(id, seed) {
     renderBoard();
     toast(`Croquis du plan ${s.idx + 1} généré (seed ${up.sketch_seed}).`);
   } catch (e) { toast("Croquis échoué : " + e.message, true); }
+}
+
+/* ═════════ tâche #62 (plan chapitres T8) — l'image de PRODUCTION d'un plan ═════════
+   Nano Banana reçoit les vues des entités du plan. Dépense réelle : le coût (grille du PC) est DIT et CONFIRMÉ avant ;
+   au-delà d'un plafond mensuel, dz-plafonds.js montre le dialogue 402 et rejoue sur confirmation. */
+async function imageProduction(id) {
+  const s = shots.find(x => x.id === id);
+  if (!s) return;
+  if (!(s.entities || []).length) { toast("Liez d'abord une entité à ce plan (⛓ entités du plan).", true); return; }
+  let provider = "nano-banana-pro", usd = null;
+  try {
+    provider = (await api.get("/atelier/settings")).settings.image_provider || provider;
+    const grille = await api.get("/cost/pricing");
+    usd = grille[provider === "nano-banana" ? "nano_banana_usd" : "nano_banana_pro_usd"];
+  } catch (e) { /* le coût reste inconnu : on le dit */ }
+  if (provider !== "nano-banana" && provider !== "nano-banana-pro") {
+    toast(`« ${provider} » ne prend pas plusieurs références : choisissez Nano Banana (Pro) dans la direction artistique.`, true);
+    return;
+  }
+  const cout = typeof usd === "number" ? `${usd.toFixed(3).replace(".", ",")} $` : "coût inconnu";
+  if (!await window.__dzDialogue.confirmer(
+      `Image de production du plan ${s.idx + 1} — ${provider === "nano-banana" ? "Nano Banana" : "Nano Banana Pro"}, avec les vues de ses entités en référence. Coût : ${cout}.`,
+      { ok: "Générer" })) return;
+  toast(`Image de production du plan ${s.idx + 1}…`);
+  try {
+    const up = await api.send("POST", `/shots/${encodeURIComponent(id)}/image`, {});
+    Object.assign(s, up);
+    renderBoard();
+    toast(`Image de production du plan ${s.idx + 1} : ${up.image_refs} vue(s) en référence.`);
+  } catch (e) { toast("Image de production : " + e.message, true); }
 }
 
 async function decoupe(method) {
