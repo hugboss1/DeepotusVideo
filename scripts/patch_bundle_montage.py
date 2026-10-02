@@ -8045,7 +8045,9 @@ A_P7PIN1 = ('onUpdateNode:(nid,pp)=>i(W=>({...W,nodes:W.nodes.map(S=>S.id===nid?
 R_P7PIN1 = ('onUpdateNode:(window.__dzStudioG=o,window.__dzStudioMaj=(nid,pp)=>i(W=>({...W,nodes:W.nodes.map(S=>S.id===nid?'
             '{...S,props:{...S.props,...pp}}:S)}))),')
 A_P7PIN2 = 'r.jsx(Yh,{node:e,onUpdate:o,graph:t,onUpdateNode:U,onSpawnNodes:sp}),'
-R_P7PIN2 = (A_P7PIN2 + '(e.type==="Seedance"||e.type==="HeyGenAvatar")&&r.jsx(DzPinPanel,{node:e,graph:t,onUpdate:o}),')
+R_P7PIN2 = (A_P7PIN2 + '(e.type==="Seedance"||e.type==="HeyGenAvatar")&&r.jsx(DzPinPanel,{node:e,graph:t,onUpdate:o}),'
+            # repli tache #71 PR B (03/10) : le DUEL de moteurs dans l'inspecteur d'un noeud Image gen (DzDuelPanel, couche)
+            'e.type==="ImageGen"&&r.jsx(DzDuelPanel,{node:e,graph:t,onUpdate:o}),')
 A_P7PIN3 = 'renderLayoutTemplate:async(e,t,n,o,i,g)=>{try{var _pv=!!window.__dzfxPreview;window.__dzfxPreview=!1;'
 R_P7PIN3 = (A_P7PIN3 + 'if(!_pv&&g&&t){var dzPP=await dzPinPreparer(e,t,n,o,g);if(dzPP)return{ok:!1,error:dzPP}}'
             # repli tache #71 (03/10) : la CAPTURE d'une recette s'arrete ICI, epingles preparees et verifiees -- la

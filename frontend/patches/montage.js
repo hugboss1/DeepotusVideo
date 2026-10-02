@@ -9503,3 +9503,67 @@ function DzRecetteBtn({graph,setGraph,dire}){
   return r.jsx(K,{variant:"outline",size:"sm",icon:"check",disabled:busy,"aria-label":"Figer en recette",
     title:"Figer ce graphe en recette : la compilation est gardée telle quelle, seules ses images et ses textes changeront au lancement (rien n’est généré ici)",
     onClick:figer,children:busy?"Capture…":"Recette"})}
+/* Tâche #71 PR B (plan-studio T11, 03/10/2026) — le DUEL DE MOTEURS sur un nœud Image gen : le même prompt, au même
+   cadre, part chez deux modèles EN PARALLÈLE ; les deux images s'affichent côte à côte avec leur coût estimé et leur
+   durée mesurée ; « Garder » fait de l'une l'image du nœud. Décisions de l'utilisateur (03/10) : Image gen seulement
+   (un duel Seedance = deux rendus vidéo complets), coût des DEUX annoncé et CONFIRMÉ avant le tir, la perdante reste
+   dans la Bibliothèque (elle a été payée). Le champion est le modèle EFFECTIF du nœud — le sien, sinon celui choisi
+   dans l'app, sinon le défaut du serveur — : c'est lui qu'on chiffre, pas « flux » par défaut. Le coût est
+   l'estimation des tarifs des Réglages (le fournisseur ne renvoie pas de facture) ; la durée est mesurée ici.
+   ImageGen n'a pas d'épingle (#67 : Seedance et HeyGen) : le gagnant écrit props.filename, comme « Générer ». */
+function dzDuelPrompt(graph,node){
+  var pn=Wt(graph,node.id,"prompt");return((pn&&pn.props&&pn.props.value)||"").trim()||String((node.props||{}).prompt||"").trim()}
+function dzDuelChampion(p,mm){
+  var ls="";try{ls=localStorage.getItem("dz_image_model")||""}catch(_e){}
+  return String(p.model||ls||(mm&&mm.default)||"flux")}
+function dzDuelLabel(mm,id){var m=((mm&&mm.models)||[]).find(function(z){return z.id===id});return m?m.label:id}
+function dzDuelUsd(est,i){var l=est&&Array.isArray(est.breakdown)?est.breakdown[i]:null;return l&&isFinite(l.usd)?Number(l.usd):null}
+function DzDuelPanel({node,graph,onUpdate}){
+  var p=node&&node.props||{};
+  var ms=x.useState(null),mm=ms[0],setMM=ms[1],rs=x.useState(null),res=rs[0],setRes=rs[1],bs=x.useState(!1),busy=bs[0],setB=bs[1];
+  var gs=x.useState(""),msg=gs[0],setMsg=gs[1],vol=x.useRef(!1);   // vol : un duel EN VOL bloque tout second tir (deux duels = deux fois payé)
+  x.useEffect(function(){var on=!0;fetch("/api/image-models").then(function(R){return R.ok?R.json():null})
+    .then(function(d){on&&setMM(d||{models:[]})}).catch(function(){on&&setMM({models:[]})});return function(){on=!1}},[]);
+  var A=dzDuelChampion(p,mm),B=String(p.duelModel||""),prompt=dzDuelPrompt(graph,node);
+  async function lancer(){
+    if(busy||vol.current)return;
+    if(!prompt){setMsg("Branche un nœud Prompt/Text, ou écris un prompt dans le panneau Image gen.");return}
+    if(!B||B===A){setMsg("Choisis un challenger différent du champion.");return}
+    vol.current=!0;setB(!0);setMsg("");
+    try{
+      var E=await fetch("/api/cost/estimate",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({kind:"campaign",ops:[{kind:"image",model:A,n:1},{kind:"image",model:B,n:1}]})});
+      var est=E.ok?await E.json():null;
+      if(!est||!isFinite(est.total_usd)){setMsg("Devis impossible : le duel ne part pas.");return}
+      var ua=dzDuelUsd(est,0),ub=dzDuelUsd(est,1);
+      var ok=await window.__dzDialogue.confirmer("Duel : « "+dzDuelLabel(mm,A)+" » ≈ $"+(ua==null?"?":ua.toFixed(3))+" contre « "
+        +dzDuelLabel(mm,B)+" » ≈ $"+(ub==null?"?":ub.toFixed(3))+". Les DEUX images sont payées : ≈ $"+Number(est.total_usd).toFixed(3)
+        +" au total. La perdante reste dans la Bibliothèque.",{titre:"Duel de moteurs",ok:"Lancer le duel"});
+      if(!ok)return;
+      setRes(null);setMsg("Duel en cours…");
+      var size=p.size||"portrait_16_9";
+      function tir(m,usd){var t0=performance.now();
+        return D.generateImage(prompt,1,size,m).then(function(d){var f=d&&d.images&&d.images[0];
+          return{model:m,usd:usd,s:(performance.now()-t0)/1000,file:f||null,err:f?null:String((d&&d.error)||"génération échouée").slice(0,160)}},
+          function(e){return{model:m,usd:usd,s:(performance.now()-t0)/1000,file:null,err:String(e&&e.message||e).slice(0,160)}})}
+      var out=await Promise.all([tir(A,ua),tir(B,ub)]);
+      setRes(out);setMsg(out.every(function(o){return o.file})?"Choisis le gagnant : son image devient celle du nœud.":"Un des tirs a échoué : son erreur est dite sur sa carte.")}
+    catch(e){setMsg("Duel interrompu : "+String(e&&e.message||e).slice(0,160))}
+    finally{vol.current=!1;setB(!1)}}
+  function garder(o){onUpdate({filename:o.file});setMsg("« "+dzDuelLabel(mm,o.model)+" » gagne : son image est celle du nœud. L’autre reste dans la Bibliothèque.")}
+  var box={padding:"10px 14px",borderBottom:"1px solid var(--stroke)",fontSize:11,lineHeight:1.45};
+  return r.jsxs("div",{className:"dz-duel",style:box,children:[
+    r.jsx("div",{style:{color:"var(--ink-soft)",marginBottom:6},children:"⚔ Duel de moteurs — champion : « "+dzDuelLabel(mm,A)+" »"}),
+    r.jsx("div",{style:{marginBottom:6},children:r.jsx(DzImgModelSel,{value:B,onChange:function(v){onUpdate({duelModel:v})}})}),
+    r.jsx(K,{variant:"outline",size:"sm",icon:"sparkle",disabled:busy||!B||B===A,onClick:lancer,
+      title:"Même prompt, même cadre, deux modèles en parallèle — les DEUX images sont payées (coût annoncé et confirmé avant le tir)",
+      children:busy?"Duel…":"Lancer le duel"}),
+    res?r.jsx("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:8},children:res.map(function(o,ix){
+      return r.jsxs("div",{className:"dz-duel-carte",style:{border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",padding:6,background:"var(--bg-base)"},children:[
+        o.file?r.jsx("img",{src:D.imageUrl(o.file),alt:o.file,style:{width:"100%",aspectRatio:"9 / 16",objectFit:"contain",background:"#02060d",borderRadius:4}})
+          :r.jsx("div",{style:{color:"var(--red)",fontSize:10.5},children:"Échec : "+o.err}),
+        r.jsx("div",{style:{fontWeight:600,marginTop:4,color:"var(--ink-strong)"},children:dzDuelLabel(mm,o.model)}),
+        r.jsx("div",{className:"mono",style:{fontSize:10,color:"var(--ink-muted)"},children:"≈ $"+(o.usd==null?"?":o.usd.toFixed(3))+" · "+o.s.toFixed(1)+" s"}),
+        o.file?r.jsx(K,{variant:"outline",size:"sm",onClick:function(){garder(o)},
+          title:"Ce modèle gagne : son image devient celle du nœud ; l’autre reste dans la Bibliothèque",children:"Garder"}):null]},"d"+ix)})}):null,
+    r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-muted)",marginTop:6},children:msg||"Coût : estimation des tarifs des Réglages. Durée : mesurée ici."})]})}
