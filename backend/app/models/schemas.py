@@ -534,6 +534,11 @@ class TemplateSlotValue(BaseModel):
     file_path: Optional[str] = None
     job_id: Optional[str] = None
     text: Optional[str] = None
+    # Tâche #67 : l'épingle d'un nœud Seedance/HeyGen — {job_id, empreinte} d'un sous-rendu déjà payé. Le serveur la
+    # réemploie (gratuit) si l'empreinte de la requête RÉELLE n'a pas bougé ; sinon il génère, comme sans épingle.
+    pin: Optional[dict] = None
+    # Tâche #67 : le nœud du graphe qui remplit ce slot — porté dans le manifeste des parties (la récolte de l'éditeur).
+    node_id: Optional[str] = Field(None, max_length=64)
 
 
 class TemplateRenderRequest(BaseModel):
