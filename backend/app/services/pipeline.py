@@ -1228,9 +1228,11 @@ class Pipeline:
 
         try:
             # Phase 1: dispatch sub-generations / resolve static inputs
+            from app.services import studio_pins as _SP
             tasks: dict[str, "asyncio.Task"] = {}
             static_paths: dict[str, Path] = {}
             text_values: dict[str, str] = {}
+            empreintes: dict[str, str | None] = {}
             is_seq = tpl.get("render_mode") == "sequential"
             for slot in slots:
                 sname = slot["slot_name"]
@@ -1242,6 +1244,19 @@ class Pipeline:
                         continue  # montage act left empty -> skipped
                     raise ValueError(f"Slot '{sname}' has no value provided")
                 kind = sv.source_kind
+                # Tâche #67 : l'empreinte de la requête RÉELLE de ce slot ; une épingle valide le réemploie (gratuit).
+                # APRÈS l'injection des effets : le slot y figurait encore en Seedance, l'effet garde sa région.
+                if kind in ("seedance", "heygen"):           # en aperçu, _preview_slot_values les a déjà remplacés
+                    empreintes[sname] = _SP.empreinte(
+                        sv, voice_mode=voice_mode,
+                        heygen_aspect=_heygen_aspect_for_slot(tpl, sname) if kind == "heygen" else None)
+                    ok_pin, _raison, vid = await _SP.verifier(sv, empreintes[sname])
+                    if ok_pin:
+                        static_paths[sname] = vid
+                        _SP.ecrire_partie(job_id, {"slot": sname, "node_id": getattr(sv, "node_id", None), "kind": kind,
+                                                   "job_id": str(sv.pin["job_id"]), "empreinte": empreintes[sname],
+                                                   "reemploi": True})
+                        continue
                 if kind == "seedance":
                     if sv.seedance is None:
                         raise ValueError(
@@ -1309,25 +1324,51 @@ class Pipeline:
             # Phase 2: await generations, collect resolved sources
             resolved: dict[str, dict] = {}
             caption: str | None = None
-            for sname, task in tasks.items():
-                sub_id = await task
+
+            async def _noter_partie(sname: str, sub_id) -> None:
+                """Tâche #67 : un sous-rendu PAYÉ et fini entre au manifeste tout de suite (même si un autre échoue)."""
                 async with async_session_factory() as session:
-                    jr = await session.get(JobRecord, sub_id)
-                    if jr is None:
-                        raise RuntimeError(
-                            f"Sub-job vanished for slot '{sname}'")
-                    if jr.status != JobStatus.DONE.value:
-                        raise RuntimeError(
-                            f"Slot '{sname}' generation failed: {jr.error}")
-                    jr.composition_id = job_id
-                    jr.composition_layout = template_id
-                    await session.commit()
-                    fp = jr.final_video_path or jr.video_path
-                    if caption is None and jr.caption_text:
-                        caption = jr.caption_text
-                if not fp:
-                    raise RuntimeError(f"Slot '{sname}' produced no video")
-                resolved[sname] = {"path": Path(fp)}
+                    jr = await session.get(JobRecord, sub_id) if sub_id else None
+                if jr is not None and jr.status == JobStatus.DONE.value and (jr.final_video_path or jr.video_path):
+                    sv0 = slot_values.get(sname)
+                    _SP.ecrire_partie(job_id, {"slot": sname, "node_id": getattr(sv0, "node_id", None),
+                                               "kind": getattr(sv0, "source_kind", None), "job_id": str(sub_id),
+                                               "empreinte": empreintes.get(sname), "reemploi": False})
+
+            restants = list(tasks.items())
+            try:
+                while restants:
+                    sname, task = restants.pop(0)
+                    sub_id = await task
+                    if not preview:
+                        await _noter_partie(sname, sub_id)
+                    async with async_session_factory() as session:
+                        jr = await session.get(JobRecord, sub_id)
+                        if jr is None:
+                            raise RuntimeError(
+                                f"Sub-job vanished for slot '{sname}'")
+                        if jr.status != JobStatus.DONE.value:
+                            raise RuntimeError(
+                                f"Slot '{sname}' generation failed: {jr.error}")
+                        jr.composition_id = job_id
+                        jr.composition_layout = template_id
+                        await session.commit()
+                        fp = jr.final_video_path or jr.video_path
+                        if caption is None and jr.caption_text:
+                            caption = jr.caption_text
+                    if not fp:
+                        raise RuntimeError(f"Slot '{sname}' produced no video")
+                    resolved[sname] = {"path": Path(fp)}
+            except Exception:
+                # les autres sous-rendus tournent encore (et se paient) : on les attend et on note ceux qui finissent
+                for sname, task in restants:
+                    try:
+                        sub_id = await task
+                    except Exception:
+                        continue
+                    if not preview:
+                        await _noter_partie(sname, sub_id)
+                raise
             for sname, sp in static_paths.items():
                 resolved[sname] = {"path": sp}
             for sname, tv in text_values.items():

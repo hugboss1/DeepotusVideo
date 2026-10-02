@@ -185,6 +185,63 @@ async def delete_layout_template(template_id: str):
         raise HTTPException(404, f"Template not found: {template_id}")
     return {"deleted": template_id}
 
+# ── Tâche #67 (plan-studio T1-T2, 02/10/2026) : les ÉPINGLES du Studio, côté serveur ─────────────────────────────────
+async def _epingles_valides(template_id: str, request) -> dict:
+    """{slot: (empreinte, job épinglé)} des slots Seedance/HeyGen dont l'épingle vaut — la MÊME règle que le rendu."""
+    from app.services import studio_pins as _SP
+    from app.services.pipeline import _heygen_aspect_for_slot
+    if getattr(request, "preview", False):
+        return {}
+    try:
+        tpl = request.template if request.template is not None else template_engine.get_template(template_id)
+    except Exception:
+        tpl = {}
+    out = {}
+    for sn, sv in request.slot_values.items():
+        if sv.source_kind not in ("seedance", "heygen") or not sv.pin:
+            continue
+        emp = _SP.empreinte(sv, voice_mode=request.voice_mode,
+                            heygen_aspect=_heygen_aspect_for_slot(tpl, sn) if sv.source_kind == "heygen" else None)
+        ok, _r, _v = await _SP.verifier(sv, emp)
+        if ok:
+            out[sn] = (emp, str(sv.pin["job_id"]))
+    return out
+
+
+@router.post("/studio/pins/verifier")
+async def studio_pins_verifier(request: TemplateRenderRequest):
+    """Avant le tir (devis de l'éditeur) : pour chaque slot Seedance/HeyGen, l'empreinte de sa requête RÉELLE et, s'il
+    porte une épingle, si elle vaut (et pourquoi pas). Ne génère rien, ne coûte rien."""
+    from app.services import studio_pins as _SP
+    from app.services.pipeline import _heygen_aspect_for_slot
+    try:
+        tpl = request.template if request.template is not None else template_engine.get_template(request.template_id)
+    except FileNotFoundError:
+        raise HTTPException(404, f"Template not found: {request.template_id}")
+    out = {}
+    for sn, sv in request.slot_values.items():
+        if sv.source_kind not in ("seedance", "heygen"):
+            continue
+        emp = _SP.empreinte(sv, voice_mode=request.voice_mode,
+                            heygen_aspect=_heygen_aspect_for_slot(tpl, sn) if sv.source_kind == "heygen" else None)
+        ok, raison, _v = await _SP.verifier(sv, emp)
+        out[sn] = {"empreinte": emp, "epingle": bool(sv.pin), "valide": ok, "raison": raison, "node_id": sv.node_id}
+    return {"slots": out}
+
+
+@router.get("/jobs/{job_id}/parts")
+async def job_parts(job_id: str):
+    """Le manifeste des parties d'un rendu de graphe : quel nœud a produit (ou réemployé) quel sous-rendu, avec son
+    empreinte — ce que l'éditeur récolte pour poser ses épingles."""
+    from app.services import studio_pins as _SP
+    if _SP.chemin_parts(job_id) is None:
+        raise HTTPException(400, "Identifiant de rendu refusé")
+    doc = _SP.lire_parts(job_id)
+    if doc is None:
+        raise HTTPException(404, "Pas de manifeste des parties pour ce rendu")
+    return doc
+
+
 @router.post("/layout-templates/{template_id}/render",
              response_model=TemplateRenderResponse)
 async def render_layout_template(
@@ -217,10 +274,13 @@ async def render_layout_template(
             raise HTTPException(503, "FAL_KEY not configured. Add it to backend/.env")
         if "heygen" in kinds and not settings.has_heygen:
             raise HTTPException(503, "HEYGEN_API_KEY not configured. Add it to backend/.env")
-        # garde de coût (retours-ia F3) : la somme des slots générés
+        # garde de coût (retours-ia F3) : la somme des slots générés — HORS épingles valides (tâche #67 : réemploi gratuit)
+        _epingles = await _epingles_valides(template_id, request)
         _ops = []
         _maxs = [request.max_usd]
-        for _sv in request.slot_values.values():
+        for _sn, _sv in request.slot_values.items():
+            if _sn in _epingles:
+                continue
             if _sv.source_kind == "seedance" and _sv.seedance is not None:
                 _ops.append(_devis_video(_sv.seedance))
                 _maxs.append(_sv.seedance.max_usd)   # le plus bas gagne
@@ -229,8 +289,9 @@ async def render_layout_template(
         if _ops:
             _garde_cout(_ops, *_maxs)
         # tâche #16 : la garde mensuelle, sur les mêmes ops + la voix off par défaut des slots seedance
-        _vo = [o for _sv in request.slot_values.values()
-               if _sv.source_kind == "seedance" and _sv.seedance is not None for o in _op_voix_off(_sv.seedance)]
+        _vo = [o for _sn, _sv in request.slot_values.items()
+               if _sn not in _epingles and _sv.source_kind == "seedance" and _sv.seedance is not None
+               for o in _op_voix_off(_sv.seedance)]
         await _plafond(_ops + _vo, "studio")
 
     job_id = str(uuid4())
