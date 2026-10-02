@@ -787,6 +787,79 @@ async function deriveProduction(id, card) {
   } catch (e) { box.textContent = "Dérive : " + e.message; }
 }
 
+/* ═════════ tâche #63 (plan chapitres T11) — l'animatique : devis, progression, lecteur ═════════
+   Muette et gratuite par défaut (décision du 02/10) ; la voix témoin (Narrateur de la bible) est cochée à la main,
+   son coût — seulement les voix PAS encore en cache — est dit et confirmé avant ; au-delà d'un plafond, dz-plafonds.js
+   montre le dialogue 402 et rejoue sur confirmation. */
+let animDevis = null;
+
+async function animatiqueEtat() {
+  if (!chapter) return null;
+  $("#animDevis").textContent = "devis…";      // la sonde de Voicebox local peut prendre quelques secondes
+  const e = await api.get(`/chapters/${encodeURIComponent(chapter.id)}/animatique`);
+  animDevis = e.voix || {};
+  const v = animDevis, box = $("#animVoix");
+  let dit = "", ok = true;
+  if (!v.fournisseur) { dit = "aucune voix configurée (Réglages)"; ok = false; }
+  else if (!v.narrateur) { dit = "créez un « Narrateur » dans la bible et castez sa voix"; ok = false; }
+  else if (!v.a_generer) dit = `${v.narrateur} · tout est en cache : gratuit`;
+  else if (v.fournisseur === "elevenlabs") dit = `${v.narrateur} · ${v.a_generer} voix à générer, ${v.caracteres} car. ≈ ${v.usd.toFixed(3).replace(".", ",")} $`;
+  else dit = `${v.narrateur} · ${v.a_generer} voix (Voicebox, local, gratuit)`;
+  box.disabled = !ok;
+  if (!ok) box.checked = false;
+  $("#animDevis").textContent = dit;
+  $("#animVideo").classList.toggle("hidden", !e.existe);
+  $("#animVide").classList.toggle("hidden", !!e.existe);
+  if (e.existe) $("#animVideo").src = `${e.url}?t=${Math.round(e.maj || 0)}`;
+  $("#animNote").textContent = `${e.storyboard} plan(s)` + (e.existe ? ` · dernier montage : ${e.plans} plan(s)` : "");
+  return e;
+}
+
+async function ouvrirAnimatique() {
+  if (!chapter) { toast("Ouvre un chapitre d'abord.", true); return; }
+  $("#animProgress").classList.add("hidden");
+  $("#animModal").classList.remove("hidden");
+  try { await animatiqueEtat(); } catch (e) { toast("Animatique : " + e.message, true); }
+}
+
+function animProgres(st) {
+  const n = st.chapter_n || 0, i = st.chapter_i || 0;
+  const pct = st.done ? 100 : n ? Math.round(100 * i / n) : 0;
+  $("#animBar").style.width = pct + "%";
+  $("#animStatus").textContent = st.error ? "Échec : " + st.error : (st.message || "…");
+}
+
+async function monterAnimatique() {
+  if (!chapter) return;
+  if (!shots.length) { toast("Découpe le chapitre en plans d'abord (🎬 ou ¶).", true); return; }
+  const voix = $("#animVoix").checked;
+  if (voix) {
+    try { await animatiqueEtat(); } catch (_) { /* le devis d'avant reste affiché */ }
+    const v = animDevis || {};
+    if (v.fournisseur === "elevenlabs" && v.a_generer > 0 && !await window.__dzDialogue.confirmer(
+        `Voix témoin ElevenLabs : ${v.a_generer} voix à générer (${v.caracteres} caractères), lues par ${v.narrateur}. Coût estimé : ${v.usd.toFixed(3).replace(".", ",")} $. Les voix déjà faites restent en cache.`,
+        { ok: "Générer les voix" })) return;
+  }
+  $("#animGo").disabled = true;
+  $("#animProgress").classList.remove("hidden");
+  animProgres({ message: "Animatique…" });
+  try {
+    const r = await api.send("POST", `/chapters/${encodeURIComponent(chapter.id)}/animatique`, { voix, language: "fr" });
+    let st = {};
+    while (!st.done) {
+      await new Promise(res => setTimeout(res, 700));
+      st = await api.get(`/atelier/manuscript/${r.job_id}`);
+      animProgres(st);
+    }
+    if (st.error) { toast("Animatique échouée : " + st.error, true); return; }
+    await animatiqueEtat();
+    const s = st.stats || {};
+    toast(`Animatique montée : ${s.plans} plans, ${s.voix} voix témoin, ${fmtDur(s.duree_s || 0)}.`);
+  } catch (e) {
+    toast("Animatique : " + e.message, true);
+  } finally { $("#animGo").disabled = false; }
+}
+
 async function decoupe(method) {
   if (!chapter) { toast("Ouvre un chapitre d'abord.", true); return; }
   if (!$("#script").value.trim()) { toast("Le chapitre est vide.", true); return; }
@@ -1497,6 +1570,12 @@ window.addEventListener("DOMContentLoaded", async () => {
   $("#voAll").addEventListener("click", chapterVo);
   $("#cutAI").addEventListener("click", () => decoupe("ai"));
   $("#cutPara").addEventListener("click", () => decoupe("paragraph"));
+  $("#animBtn").addEventListener("click", ouvrirAnimatique);
+  $("#animGo").addEventListener("click", monterAnimatique);
+  $("#animClose").addEventListener("click", () => {
+    $("#animVideo").pause(); $("#animVideo").removeAttribute("src");
+    $("#animModal").classList.add("hidden");
+  });
   $("#addShot").addEventListener("click", async () => {
     if (!chapter) { toast("Ouvre un chapitre d'abord.", true); return; }
     await api.send("POST", `/chapters/${chapter.id}/shots`, {});
