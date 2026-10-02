@@ -354,3 +354,10 @@ span.vector-vignette.vide { display: inline-block; }
 .emporte .journal-ligne { display: flex; gap: 8px; align-items: center; padding: 4px 0; flex-wrap: wrap; }
 .emporte .journal-ligne span { flex: 1; min-width: 180px; color: var(--ink-soft); }
 textarea#script[readonly] { opacity: .72; cursor: not-allowed; }
+
+/* Tâche #60 (plan chapitres P1) — apparitions de l'entité et entités du plan */
+.entity-apps{font-size:11.5px;color:var(--ink);display:flex;flex-direction:column;gap:6px;padding:8px 10px;border:1px solid var(--stroke);border-radius:var(--r);background:var(--bg-panel-3)}
+.apps-total{font-family:var(--f-mono);font-size:10.5px;color:var(--cyan)}
+.apps-ch .btn{padding:2px 7px;font-size:10.5px}
+.shot-ents-edit{font-size:11px}.shot-ents-edit summary{cursor:pointer;color:var(--ink-muted);font-family:var(--f-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase}
+.shot-ents-edit label{display:inline-flex;align-items:center;gap:4px;margin:3px 3px 0 0;cursor:pointer}
