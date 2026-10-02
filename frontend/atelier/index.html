@@ -35,6 +35,8 @@
       <div class="script-actions">
         <label class="btn" for="importFile">📄 Importer (txt/docx/pdf)</label>
         <input type="file" id="importFile" accept=".txt,.md,.docx,.pdf" hidden>
+        <button id="expManDocx" class="btn" data-export="export.docx?kind=manuscrit" title="Exporter le manuscrit du chapitre en .docx (Word, A4) — tout caractère gardé">⬇ .docx</button>
+        <button id="expManPdf" class="btn" data-export="export.pdf?kind=manuscrit" title="Exporter le manuscrit du chapitre en PDF (A4, pages numérotées)">⬇ .pdf</button>
       </div>
     </div>
     <div id="selBar" class="selbar hidden">
@@ -75,6 +77,8 @@
         <a id="fountainDl" class="btn" title="Export .fountain = simple fichier TEXTE (standard industrie). S'ouvre avec le Bloc-notes ou un logiciel de scénario (Fade In, Highland, Arc Studio). L'Atelier n'en a PAS besoin : le storyboard lit les scènes directement." download>⬇ .fountain</a>
         <label class="btn" for="spImportFile" title="Importer un scénario Fountain (.fountain, .txt) ou Final Draft (.fdx) dans ce chapitre : remplacer les scènes (sauvegardées avant) ou les ajouter à la suite — sans IA, gratuit">📥 Importer .fountain / .fdx</label>
         <input type="file" id="spImportFile" accept=".fountain,.spmd,.txt,.fdx" hidden>
+        <button id="expScDocx" class="btn" data-export="export.docx?kind=scenario" title="Exporter le scénario en .docx (Courier 12, US Letter, retraits du métier)">⬇ .docx</button>
+        <button id="expScPdf" class="btn" data-export="export.pdf?kind=scenario" title="Exporter le scénario en PDF (Courier 12, US Letter, page de titre, pages numérotées)">⬇ .pdf</button>
         <button id="spReset" class="btn ghost" title="Supprimer toutes les scènes de ce chapitre (le manuscrit reste intact)">🗑 Réinitialiser</button>
         <span class="board-hint">le manuscrit reste intact — le scénario est un artefact dérivé</span>
       </div>
@@ -87,6 +91,7 @@
         <button id="cutAI" class="btn primary" title="L'IA lit le chapitre et la bible, puis découpe en plans (action, entités, cadrage, caméra, durée, prompt)">🎬 Découper (IA)</button>
         <button id="cutPara" class="btn" title="Un plan par paragraphe, sans IA">¶ Paragraphes</button>
         <button id="addShot" class="btn" title="Ajouter un plan vide à la fin">＋ Plan</button>
+        <button id="expSbPdf" class="btn" data-export="storyboard.pdf" title="Exporter le storyboard en PDF : quatre plans par page A4, vignette 9:16 entière (production, sinon croquis)">⬇ PDF</button>
         <button id="animBtn" class="btn" title="Animatique : les plans montés en vidéo de répétition (image fixe à sa durée), muette et gratuite par défaut — à regarder avant de payer un rendu">🎞 Animatique</button>
         <button id="boardReset" class="btn ghost" title="Supprimer tous les plans de ce storyboard pour repartir de zéro">🗑 Réinitialiser</button>
         <span class="board-hint">croquis = validation du cadrage et du rythme avant la production</span>
