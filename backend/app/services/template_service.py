@@ -293,6 +293,9 @@ class TemplateEngine:
         # Tâche #74 (plan-templates T4) : ajustement et effets de texte mal formés refusés en nommant région et champ.
         from app.services.template_text import verifier_textes
         verifier_textes(template["regions"])
+        # Tâche #75 (plan-templates T6) : les échantillons d'aperçu (metadata.samples) nomment des cases image/vidéo réelles.
+        from app.services.template_still import verifier_echantillons
+        verifier_echantillons(template)
 
     # ----- slot extraction -----
 
@@ -411,6 +414,31 @@ class TemplateEngine:
         finally:
             shutil.rmtree(work, ignore_errors=True)
         return output_path
+
+    def render_still(self, template_id: str, slot_values: dict[str, dict], output_png: Path,
+                     template: dict | None = None, at_s: float = 1.0) -> Path:
+        """Tâche #75 (plan-templates T5) — UNE image PNG du gabarit à l'instant `at_s` (1 s par défaut : un ticker est
+        entré, une pulsation est pleine), tirée du graphe AVANT l'encodage vidéo. Mêmes kit, validation et graphe que
+        render() ; séquentiel : l'acte qui joue à cet instant. Les cases doivent être remplies (template_still s'en
+        charge : échantillon choisi ou mire). Gratuit : ffmpeg local, aucun appel payant."""
+        tpl = template if template is not None else self.get_template(template_id)
+        tpl = self.resoudre(tpl)
+        self._validate(tpl)
+        output_png.parent.mkdir(parents=True, exist_ok=True)
+        work = Path(settings.outputs_path) / "_tmp_still" / output_png.stem
+        if work.exists():
+            shutil.rmtree(work, ignore_errors=True)
+        work.mkdir(parents=True, exist_ok=True)
+        try:
+            if tpl.get("render_mode") == "sequential":
+                cmd, _ = build_sequential_command(self, tpl, slot_values, output_png, still_at=at_s)
+                _run_ffmpeg(cmd, output_png)
+            else:
+                cmd = build_ffmpeg_command(self, tpl, slot_values, output_png, work, still_at=at_s)
+                _run_ffmpeg_in(cmd, output_png, cwd=work)
+        finally:
+            shutil.rmtree(work, ignore_errors=True)
+        return output_png
 
 
 # ---- ffmpeg command builders (module-level, testable in isolation) ----
@@ -595,7 +623,7 @@ def render_emoji_text_png(text, font_file, size, color_hex, out_path, stroke=3):
     return img.width, img.height
 
 
-def build_ffmpeg_command(engine, template, slot_values, output_path, work):
+def build_ffmpeg_command(engine, template, slot_values, output_path, work, still_at=None):
     """Compile a (spatial) template + slot values into an ffmpeg command.
 
     `work` is a per-render scratch dir that ffmpeg runs with as its cwd; text
@@ -694,7 +722,13 @@ def build_ffmpeg_command(engine, template, slot_values, output_path, work):
         else:
             logger.warning(f"BGM file missing, skipping: {music.get('file')}")
 
-    parts = [f"[0:v]format=yuv420p[base]"]
+    # Tâche #75 : l'image fixe d'un gabarit SANS effets se compose en RGB (couleurs pleines, pas de chroma sous-
+    # échantillonnée) ; avec des effets (blend, eq… calculés en yuv), elle garde la composition de la vidéo pour lui
+    # rester fidèle. Hors image fixe, rien ne change.
+    _rgb = (still_at is not None and not (template.get("post_effects") or template.get("effects"))
+            and not any(rg.get("effects") for rg in template["regions"]))
+    _fmt, _fmta = ("gbrp", "gbrap") if _rgb else ("yuv420p", "yuva420p")
+    parts = [f"[0:v]format={_fmt}[base]"]
     cur = "base"
     n = 0
 
@@ -702,6 +736,8 @@ def build_ffmpeg_command(engine, template, slot_values, output_path, work):
 
     def _w(filter_str: str, label: str) -> None:
         nonlocal cur
+        if _rgb and "]overlay=" in filter_str:   # tâche #75 : la superposition reste en RGB
+            filter_str = filter_str[:filter_str.rindex("[")] + ":format=gbrp" + filter_str[filter_str.rindex("["):]
         parts.append(filter_str)
         cur = label
 
@@ -788,7 +824,7 @@ def build_ffmpeg_command(engine, template, slot_values, output_path, work):
                       f"x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
                       f"d=1:s={rw}x{rh}:fps={fps}")
             parts.append(
-                f"[{i}:v]{sf},setsar=1,fps={fps}{zp},format=yuv420p[s{n}]")
+                f"[{i}:v]{sf},setsar=1,fps={fps}{zp},format={_fmt}[s{n}]")
             slbl = f"s{n}"
             if r.get("effects"):   # per-layer mask/effects on this region's stream
                 from app.services import effects_engine as _fx
@@ -807,7 +843,7 @@ def build_ffmpeg_command(engine, template, slot_values, output_path, work):
                 mpng, cadre = _tm.ecrire(r, rw, rh, work)
                 mi = _add_input(mpng, still=True)
                 parts.append(f"[{mi}:v]format=gray,scale={rw}:{rh},fps={fps},setsar=1[mk{n}]")
-                parts.append(f"[{slbl}]format=yuva420p[sa{n}]")
+                parts.append(f"[{slbl}]format={_fmta}[sa{n}]")
                 parts.append(f"[sa{n}][mk{n}]alphamerge[sm{n}]")
                 slbl = f"sm{n}"
             _w(f"[{cur}][{slbl}]overlay={rx}:{ry}:eof_action=repeat[o{n}]", f"o{n}")
@@ -990,6 +1026,13 @@ def build_ffmpeg_command(engine, template, slot_values, output_path, work):
         parts += _fx.build_chain(post, cur, "postfx", "gfx",
                                  {"w": w, "h": h, "fps": fps, "dur": duration})
         cur = "postfx"
+    if still_at is not None:
+        # Tâche #75 (plan-templates T5) : UNE image, prise dans le graphe AVANT l'encodage vidéo (RGB, pleine qualité),
+        # à l'instant demandé (borné à la durée) ; pas de son. Sans still_at, la commande est celle d'avant à l'octet.
+        t_img = round(max(0.0, min(float(still_at), duration - 1.0 / max(1, fps))), 3)
+        parts.append(f"[{cur}]trim=start={t_img},setpts=PTS-STARTPTS,format=rgb24[outv]")
+        return ["ffmpeg", "-y", *inputs, "-filter_complex", ";".join(parts), "-map", "[outv]",
+                "-an", "-frames:v", "1", "-update", "1", str(output_path)]
     parts.append(f"[{cur}]format=yuv420p[outv]")
 
     has_audio = len(audio_streams) > 0 or music_idx is not None
@@ -1067,7 +1110,7 @@ _XFADE = {
 }
 
 
-def build_sequential_command(engine, template, slot_values, output_path):
+def build_sequential_command(engine, template, slot_values, output_path, still_at=None):
     """Compile a `render_mode: sequential` montage: 2..N clips chained with
     per-act `transition` ({type,duration_s}) via the xfade filter.
 
@@ -1188,6 +1231,11 @@ def build_sequential_command(engine, template, slot_values, output_path):
         parts += _fx.build_chain(post, final, "postfx", "gfx",
                                  {"w": w, "h": h, "fps": fps, "dur": total})
         final = "postfx"
+    if still_at is not None:   # tâche #75 : l'image de l'acte qui joue à cet instant (transitions comprises), sans son
+        t_img = round(max(0.0, min(float(still_at), total - 1.0 / max(1, fps))), 3)
+        parts.append(f"[{final}]trim=start={t_img},setpts=PTS-STARTPTS,format=rgb24[outv]")
+        return ["ffmpeg", "-y", *inputs, "-filter_complex", ";".join(parts), "-map", "[outv]",
+                "-an", "-frames:v", "1", "-update", "1", str(output_path)], []
     parts.append(f"[{final}]format=yuv420p[outv]")
 
     # Audio: an optional audio_slot track (upload/existing) mixed at its
