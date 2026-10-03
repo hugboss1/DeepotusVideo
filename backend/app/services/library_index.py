@@ -98,6 +98,12 @@ async def noter(files, source: str, kind: str = "image",
             await session.commit()
     except Exception as e:  # noqa: BLE001 — l'index est un à-côté
         logger.warning(f"library_index.noter({source}) ignoré: {e}")
+    # Bibliothèque #78 (03/10/2026) : ce qui est produit pendant qu'un projet
+    # est actif y entre. UN seul site, parce que tous les producteurs de
+    # fichiers passent par ici (les jobs : library_projects.installer).
+    from app.services import library_projects as _LP
+    await _LP.ranger_dans_actif([Path(str(n)).name for n in files if Path(str(n)).name],
+                                "audio" if kind == "audio" else "image")
 
 
 def noter_bg(files, source: str, **kw) -> None:
@@ -121,11 +127,22 @@ async def retirer(filename: str) -> None:
                 await session.commit()
     except Exception as e:  # noqa: BLE001
         logger.warning(f"library_index.retirer ignoré: {e}")
+    from app.services import library_projects as _LP  # #78 : il quitte ses projets
+    await _LP.oublier_ref(Path(str(filename)).name)
 
 
 async def renommer(ancien: str, nouveau: str) -> None:
     """Le rename (file-only) migre la ligne d'index — la provenance suit
-    le fichier, le préfixe perdu n'efface plus rien."""
+    le fichier, le préfixe perdu n'efface plus rien — puis ses projets
+    (#78), MÊME sans ligne d'index (un fichier jamais indexé peut être rangé)."""
+    await _renommer_index(ancien, nouveau)
+    a2, n2 = Path(str(ancien or "")).name, Path(str(nouveau or "")).name
+    if a2 and n2 and a2 != n2:
+        from app.services import library_projects as _LP
+        await _LP.renommer_ref(a2, n2)
+
+
+async def _renommer_index(ancien: str, nouveau: str) -> None:
     try:
         from app.services.storage import LibraryAsset, async_session_factory
         a, n = Path(str(ancien)).name, Path(str(nouveau)).name
