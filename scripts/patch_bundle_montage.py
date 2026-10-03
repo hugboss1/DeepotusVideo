@@ -8132,9 +8132,11 @@ R_P8MSK1 = ('(c.type==="video_slot"||c.type==="image_slot")?r.jsx(DzMaskEditor,{
             # tache #75 PR B (03/10) : l'echantillon d'apercu des cases image/video, meme ancre ; ecrit metadata.samples
             # du gabarit par son setter l (Save envoie deja ...a)
             'r.jsx(DzEchantillon,{rg:c,tpl:a,setTpl:l}),'
+            # tache #76 PR B (03/10) : la section « Animation » (entree / sortie) de toute region visible, meme ancre
+            'r.jsx(DzAnimEditor,{rg:c,upd:function(pt){p(c.id,pt)}}),'
             + A_P8MSK1)
 A_P8MSK2 = 'children:[dzRegionFace(j),'
-R_P8MSK2 = 'children:[dzTexteApercu(j,dzMasqueApercu(j,dzRegionFace(j))),'   # #74 PR D : + les effets de texte en CSS
+R_P8MSK2 = 'children:[dzAnimApercu(j,dzTexteApercu(j,dzMasqueApercu(j,dzRegionFace(j)))),'   # #74 PR D : + les effets de texte en CSS ; #76 PR B : + l'animation rejouee
 P1 += [("P8msk1-section-masque-dans-l-inspecteur", A_P8MSK1, R_P8MSK1),
        ("P8msk2-la-toile-montre-le-masque", A_P8MSK2, R_P8MSK2)]
 assert len(P1) == 115 and all("\n" not in r for _t, _a, r in P1[-2:])

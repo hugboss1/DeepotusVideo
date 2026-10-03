@@ -9906,3 +9906,47 @@ function DzEchantillon({rg,tpl,setTpl}){
       r.jsx(K,{variant:"ghost",size:"sm",title:"Choisir l’image d’échantillon de « "+(rg.slot_label||rg.slot_name)+" » dans la Bibliothèque",
         onClick:function(){window.__dzLibPicker({titre:"Échantillon d’aperçu — « "+(rg.slot_label||rg.slot_name)+" »"},function(fn){if(fn)poser(String(fn))})},children:nom?"Changer…":"Choisir…"}),
       nom?r.jsx(K,{variant:"ghost",size:"sm",title:"Retirer l’échantillon : la case montrera une mire",onClick:function(){poser("")},children:"Retirer"}):null]})]})}
+/* Tâche #76 PR B (plan-templates T9 / D2, 03/10/2026) — ANIMATIONS dans l'éditeur de gabarit. Section « Animation »
+   de l'inspecteur de toute région visible : ENTRÉE et SORTIE (fondu, glissement dans un sens, pop), durée, délai,
+   courbe (douce, linéaire, rebond). « Rejouer sur la toile » joue une approximation CSS sur la case ; l'image fixe et
+   le rendu font foi. Décisions de l'utilisateur (03/10) : fondu, glissement, pop + courbes ; toutes les régions
+   visibles. Les noms suivent le serveur : le glissement dit le SENS DU MOUVEMENT (« ← » entre par la droite). */
+var DZ_ANIM_TYPES=[["","Aucune"],["fade","Fondu"],["slide_left","Glissement ←"],["slide_right","Glissement →"],["slide_up","Glissement ↑"],["slide_down","Glissement ↓"],["pop","Pop"]];
+var DZ_ANIM_COURBES=[["ease_out","Douce"],["linear","Linéaire"],["back","Rebond"]];
+var DZ_ANIM_VISIBLES=["video_slot","image_slot","text","text_slot","badge","ticker","sticker","separator","brand_strip"];
+var DZ_ANIM_CSS={ease_out:"cubic-bezier(0.33,1,0.68,1)",linear:"linear",back:"cubic-bezier(0.34,1.56,0.64,1)"};
+var __dzAnimJeu={id:null,n:0};
+function dzAnimStyle(){
+  if(typeof document==="undefined"||document.getElementById("dz-anim-css"))return;
+  var k="",dep={fade:"opacity:0",slide_left:"transform:translateX(120%)",slide_right:"transform:translateX(-120%)",slide_up:"transform:translateY(120%)",slide_down:"transform:translateY(-120%)",pop:"transform:scale(0)"},
+    fin={fade:"opacity:0",slide_left:"transform:translateX(-120%)",slide_right:"transform:translateX(120%)",slide_up:"transform:translateY(-120%)",slide_down:"transform:translateY(120%)",pop:"transform:scale(0)"};
+  Object.keys(dep).forEach(function(t){k+="@keyframes dzIn_"+t+"{from{"+dep[t]+"}}@keyframes dzOut_"+t+"{to{"+fin[t]+"}}"});
+  var s=document.createElement("style");s.id="dz-anim-css";s.textContent=k;document.head.appendChild(s)}
+function dzAnimCss(a){
+  var l=[],ent=a&&a.in,sor=a&&a.out,fe=0;
+  if(ent&&ent.type){var d=Number(ent.duration)||0.6,dl=Number(ent.delay)||0;fe=dl+d;
+    l.push("dzIn_"+ent.type+" "+d+"s "+(ent.type==="fade"?"linear":DZ_ANIM_CSS[ent.easing||"ease_out"]||DZ_ANIM_CSS.ease_out)+" "+dl+"s both")}
+  if(sor&&sor.type){var d2=Number(sor.duration)||0.6;
+    l.push("dzOut_"+sor.type+" "+d2+"s "+(sor.type==="fade"?"linear":DZ_ANIM_CSS[sor.easing||"ease_out"]||DZ_ANIM_CSS.ease_out)+" "+(Math.round((fe+0.8)*1000)/1000)+"s forwards")}
+  return l.join(",")}
+function dzAnimApercu(j,face){
+  if(!j||!j.animation||__dzAnimJeu.id!==j.id)return face;
+  var css=dzAnimCss(j.animation);if(!css)return face;dzAnimStyle();
+  return r.jsx("div",{className:"dz-anim-apercu",style:{position:"absolute",inset:0,animation:css},children:face},"dzan"+__dzAnimJeu.n)}
+function DzAnimEditor({rg,upd}){
+  if(!rg||DZ_ANIM_VISIBLES.indexOf(rg.type)<0)return null;
+  var a=rg.animation&&typeof rg.animation==="object"?rg.animation:{};
+  function maj(sens,pt){var q=Object.assign({},a);if(pt===null)delete q[sens];else q[sens]=Object.assign({},q[sens]||{type:"fade",duration:0.6,delay:0,easing:"ease_out"},pt);
+    upd({animation:Object.keys(q).length?q:null})}
+  function bloc(sens,titre){var m=a[sens]||null;
+    return r.jsxs("div",{className:"dz-anim-"+sens,style:{marginBottom:6},children:[
+      r.jsx(O,{label:titre,children:r.jsx(re,{value:m&&m.type||"",onChange:function(v){maj(sens,v?{type:v}:null)},options:DZ_ANIM_TYPES.map(function(z){return{value:z[0],label:z[1]}})})}),
+      m?r.jsxs(r.Fragment,{children:[
+        r.jsx(O,{children:r.jsx(Oe,{label:"Durée",unit:" s",value:m.duration!=null?Number(m.duration):0.6,min:0.1,max:5,step:0.1,onChange:function(v){maj(sens,{duration:v})}})}),
+        r.jsx(O,{children:r.jsx(Oe,{label:sens==="in"?"Délai après le début":"Avance sur la fin",unit:" s",value:Number(m.delay)||0,min:0,max:10,step:0.1,onChange:function(v){maj(sens,{delay:v})}})}),
+        m.type!=="fade"?r.jsx(O,{label:"Courbe",children:r.jsx(re,{value:m.easing||"ease_out",onChange:function(v){maj(sens,{easing:v})},options:DZ_ANIM_COURBES.map(function(z){return{value:z[0],label:z[1]}})})}):null]}):null]})}
+  return r.jsxs("div",{className:"dz-anim",style:{marginTop:10,paddingTop:10,borderTop:"1px solid var(--stroke)"},children:[
+    r.jsx("div",{style:{fontSize:11.5,fontWeight:600,color:"var(--ink-strong)",marginBottom:6},children:"Animation"}),
+    bloc("in","Entrée"),bloc("out","Sortie"),
+    a.in||a.out?r.jsx(K,{variant:"ghost",size:"sm",title:"Rejouer l’animation sur la toile (approximation ; l’image fixe et le rendu font foi)",
+      onClick:function(){__dzAnimJeu={id:rg.id,n:__dzAnimJeu.n+1};upd({})},children:"▶ Rejouer sur la toile"}):null]})}
