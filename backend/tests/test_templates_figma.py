@@ -176,6 +176,30 @@ check("S1 un SVG BIEN FORME a la taille de la toile, son fond ; les cases AVEC e
 txts = [t.text for t in racine.findall(f"{ns}text")]
 check("S2 les textes (echappes), et le COMPOSANT deplie (son titre surcharge) y sont", "Bonjour" in txts and "<b>&co</b>" in txts and "COMPOSANT" in txts, str(txts))
 
+print("\n[V] vers le Vectorlab (PR H)")
+BS = {"id": "bs", "type": "brand_strip", "x": 0, "y": 1800, "width": 1080, "height": 120, "z_index": 50, "background_color": "#02060d",
+      "items": [{"type": "text", "text": "$DEEPOTUS", "x": 20, "y": 10, "size": 40, "color": "#00e5ff"}]}
+TV = E.get_template(res["template_id"])
+TV["regions"].append(BS)
+TV["regions"].append({"id": "stk", "type": "sticker", "image_src": "figma_KeyABC_abc123.png", "x": 0, "y": 0, "width": 100, "height": 50, "z_index": 60})
+doc, imgs = FG.vers_vectorlab(E.resoudre(TV), IMG)
+obs = doc["calques"][0]["objets"]
+typ = [o["type"] for o in obs]
+img0 = next(o for o in obs if o["type"] == "image")
+stk = [o for o in obs if o["type"] == "image"][-1]
+check("V1 un document Vectorlab VALIDE (v 1, taille, fond, un calque « gabarit ») ; les objets dans l'ordre d'empilement, ids o1..on",
+      doc["v"] == 1 and doc["taille"] == {"w": 1080, "h": 1920} and doc["fond"] == "#000033" and doc["calques"][0]["nom"] == "gabarit"
+      and [o["id"] for o in obs] == [f"o{i}" for i in range(1, len(obs) + 1)], str(typ))
+check("V2 les cases avec echantillon deviennent des IMAGES (dimensions natives, rognage « cover » centre) ; un sticker est CONTENU et centre ; leurs octets PNG a verser",
+      img0["nat"] == {"w": 8, "h": 8} and img0["rognage"]["w"] == img0["rognage"]["h"] and img0["x"] == R["Photo_principale"]["x"]
+      and len(imgs) == 3 and all(b.startswith(FI._PNG_MAGIC) for _o, b in imgs) and stk["w"] == 50 and stk["x"] == 25 and "rognage" not in stk, f"{img0} {stk}")
+txt = [o for o in obs if o["type"] == "texte"]
+check("V3 les textes deviennent des objets TEXTE (contenu, couleur, corps, fonte, ancre) ; les textes d'un BANDEAU y sont aussi (oubli vu sur la preuve)",
+      any(t["contenu"] == "Bonjour" and t["style"]["ancre"] == "middle" and t["style"]["corps"] == 72 for t in txt)
+      and any(t["contenu"] == "$DEEPOTUS" and t["x"] == 20 and t["y"] == 1850 and t["style"]["fond"] == "#00e5ff" for t in txt), str([t["contenu"] for t in txt]))
+svg2 = FG.vers_svg(E.resoudre(TV), IMG)
+check("V4 le SVG porte aussi les textes du bandeau", "$DEEPOTUS" in svg2 and ET.fromstring(svg2) is not None)
+
 print("\n[W] les routes")
 from fastapi.testclient import TestClient                           # noqa: E402
 from app.main import app                                            # noqa: E402
@@ -200,6 +224,12 @@ with TestClient(app, client=("127.0.0.1", 50000), raise_server_exceptions=False)
     w5 = c.get(f"/api/layout-templates/{tid}/export.svg")
     w6 = c.get("/api/layout-templates/inconnu/export.svg").status_code
     w8 = c.get(f"/api/layout-templates/{TID_COMP}/export.svg")
+    os.environ["VECTOR_FOLDER"] = str(_tmp / "vector")
+    v1 = c.post(f"/api/layout-templates/{tid}/vers-vectorlab", json={"template": TV})
+    vd = v1.json() if v1.status_code == 200 else {}
+    v2 = c.get(f"/api/vector/docs/{vd.get('id')}")
+    v3 = c.get(f"/api/vector/docs/{vd.get('id')}/images/img1.png")
+    v4 = c.post("/api/layout-templates/inconnu/vers-vectorlab", json={}).status_code
 with TestClient(app, client=("192.168.1.20", 50000), raise_server_exceptions=False) as c2:
     w7 = c2.post("/api/layout-templates/import-figma", json={"url": URL}).status_code
 settings.FIGMA_TOKEN = ""
@@ -214,6 +244,12 @@ check("W3 export.svg : un fichier SVG a telecharger (nom du gabarit) ; 404 incon
       and w5.text.startswith("<svg") and w6 == 404, f"{w5.status_code} {w5.headers.get('content-disposition')}")
 check("W4 la ROUTE exporte le gabarit RESOLU : un composant y est deplie (son titre surcharge), et le SVG reste bien forme meme avec une fonte et un id de region aux guillemets",
       w8.status_code == 200 and "COMPOSANT" in w8.text and ET.fromstring(w8.text) is not None, w8.text[:200])
+
+vdoc = (v2.json() or {}).get("doc") if v2.status_code == 200 else {}
+hrefs = [o.get("href") for o in (vdoc or {}).get("calques", [{}])[0].get("objets", []) if o.get("type") == "image"]
+check("W5 « Ouvrir dans le Vectorlab » : un document CREE (le gabarit de l'editeur), lisible par le Vectorlab (ligne en base), ses images dans SON magasin (img1..) referencees par les objets ; 404 gabarit inconnu",
+      v1.status_code == 200 and vd.get("images") == 3 and v2.status_code == 200 and hrefs == ["img1.png", "img2.png", "img3.png"]
+      and v3.status_code == 200 and v3.content.startswith(FI._PNG_MAGIC) and v4 == 404, f"{v1.status_code} {v1.text[:200]} {v2.status_code} {hrefs}")
 
 print(f"\n{ok} PASS / {fail} FAIL")
 sys.exit(1 if fail else 0)

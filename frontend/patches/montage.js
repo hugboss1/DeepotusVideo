@@ -10238,3 +10238,40 @@ function DzComposantBar({W,H,regs,setRegs,select,sel}){
         r.jsxs("div",{style:{display:"flex",gap:8,justifyContent:"flex-end",marginTop:12},children:[
           r.jsx(K,{variant:"ghost",size:"sm",title:"Fermer sans rien enregistrer",onClick:function(){setDlg(null)},children:"Annuler"}),
           r.jsx(K,{variant:"primary",size:"sm",title:"Enregistrer les régions cochées comme un composant réutilisable",onClick:enregistrer,children:"Enregistrer"})]})]})}):null]})}
+
+/* Tâche #76 PR H (plan-templates T10 / D3, 03/10/2026) — FIGMA et VECTORLAB à l’écran. Galerie : « Importer un
+   cadre Figma… » (le lien d’un CADRE devient un gabarit éditable ; le coût en appels à l’API Figma est annoncé
+   avant, rendu après). Éditeur : « SVG ↓ » (le gabarit enregistré en SVG, à glisser dans Figma) et « Ouvrir dans le
+   Vectorlab » (le gabarit tel qu’à l’écran devient un document éditable, ouvert dans un onglet). Décisions de
+   l’utilisateur (03/10) : images des calques en échantillons (appel annoncé) ; export SVG ET Vectorlab. */
+function DzFigmaImport({onSaved}){
+  var ms=x.useState(""),msg=ms[0],setMsg=ms[1],vol=x.useRef(!1);
+  async function importer(){if(vol.current)return;vol.current=!0;   /* verrou AVANT le dialogue : deux clics, un seul import */
+    var url=await window.__dzDialogue.saisir("Collez le lien d’un CADRE Figma (dans Figma : clic droit sur le cadre → Copy link). L’import fait 1 appel à l’API Figma, 2 si le cadre contient des images : gratuit, mais compté sur votre quota Figma.",{titre:"Importer un cadre Figma",valeur:"",ok:"Importer"});
+    if(!url||!String(url).trim()){vol.current=!1;return}setMsg("Import Figma…");
+    try{var R=await fetch("/api/layout-templates/import-figma",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url:String(url).trim()})});
+      var d=await R.json().catch(function(){return{}});
+      if(!R.ok){setMsg(String(d.detail||("Import refusé (HTTP "+R.status+").")));return}
+      var av=Array.isArray(d.warnings)?d.warnings:[];
+      setMsg("« "+d.name+" » importé ("+d.appels+" appel"+(d.appels>1?"s":"")+" Figma"+(d.images&&d.images.length?", "+d.images.length+" image"+(d.images.length>1?"s":"")+" en Bibliothèque":"")+")"+(av.length?" — "+av.length+" remarque"+(av.length>1?"s":"")+" : "+av.slice(0,3).join(" · "):""));
+      onSaved&&onSaved(d.template_id)}
+    catch(e){setMsg(String(e&&e.message||e))}finally{vol.current=!1}}
+  return r.jsxs("div",{className:"dz-figma-import",style:{display:"flex",gap:6,alignItems:"center"},children:[
+    r.jsx(K,{variant:"outline",size:"sm",onClick:importer,title:"Importer un cadre Figma comme GABARIT éditable (textes, cases image avec leur image en échantillon) — 1 à 2 appels à l’API Figma",children:"Importer un cadre Figma…"}),
+    msg?r.jsx("span",{className:"dz-figma-msg",style:{fontSize:10.5,color:"var(--ink-soft)",maxWidth:340},children:msg}):null]})}
+function DzExportFigma({tpl,regs}){
+  var ms=x.useState(""),msg=ms[0],setMsg=ms[1],vol=x.useRef(!1);
+  if(!tpl)return null;
+  function svg(){if(!tpl.id)return;window.open("/api/layout-templates/"+encodeURIComponent(tpl.id)+"/export.svg","_blank")}
+  async function vectorlab(){if(vol.current)return;vol.current=!0;setMsg("Création du document…");
+    try{var R=await fetch("/api/layout-templates/"+encodeURIComponent(tpl.id||"_editeur")+"/vers-vectorlab",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({template:dzGabaritCourant(tpl,regs)})});
+      var d=await R.json().catch(function(){return{}});
+      if(!R.ok){setMsg(String(d.detail||("Ouverture refusée (HTTP "+R.status+").")));return}
+      setMsg("Document Vectorlab créé ("+d.objets+" objets, "+d.images+" image"+(d.images>1?"s":"")+").");
+      window.open("/vectorlab/?doc="+encodeURIComponent(d.id),"_blank")}
+    catch(e){setMsg(String(e&&e.message||e))}finally{vol.current=!1}}
+  return r.jsxs("div",{className:"dz-export-figma",style:{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap",marginTop:6},children:[
+    r.jsx(K,{variant:"outline",size:"sm",onClick:svg,disabled:!tpl.id,title:"Télécharger le gabarit ENREGISTRÉ en SVG (cases, textes, bandeaux, images d’échantillon) — à glisser dans Figma",children:"SVG ↓"}),
+    r.jsx(K,{variant:"outline",size:"sm",onClick:vectorlab,title:"Ouvrir le gabarit tel qu’à l’écran dans le Vectorlab, comme document éditable (nouvel onglet) — gratuit",children:"Ouvrir dans le Vectorlab"}),
+    msg?r.jsx("span",{className:"dz-export-figma-msg",style:{fontSize:10.5,color:"var(--ink-soft)",flexBasis:"100%"},children:msg}):null]})}
