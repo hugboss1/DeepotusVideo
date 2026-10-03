@@ -22,7 +22,8 @@ from __future__ import annotations
 
 TYPES = ("fade", "slide_left", "slide_right", "slide_up", "slide_down", "pop")
 COURBES = ("linear", "ease_out", "back")
-VISIBLES = ("video_slot", "image_slot", "text", "text_slot", "badge", "ticker", "sticker", "separator", "brand_strip")
+VISIBLES = ("video_slot", "image_slot", "text", "text_slot", "badge", "ticker", "sticker", "separator", "brand_strip",
+            "component")   # #76 PR E : l'animation d'une instance passe a chacune de ses regions
 DUREE_DEFAUT = 0.6
 
 

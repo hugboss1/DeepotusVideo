@@ -300,11 +300,16 @@ class TemplateEngine:
         # Tâche #76 (plan-templates T9) : une animation mal formée est refusée en nommant la région et le champ.
         from app.services.template_anim import verifier_animations
         verifier_animations(template)
+        # Tâche #76 (plan-templates T8) : une instance de composant nomme un composant connu ; on n'en change que textes et couleurs.
+        from app.services.template_components import verifier_instances
+        verifier_instances(template)
 
     # ----- slot extraction -----
 
     def slots_from(self, tpl: dict) -> list[dict]:
         """Extract input slots from a template dict (id or inline)."""
+        from app.services.template_components import deplier   # tâche #76 : les slots d'un composant comptent
+        tpl = deplier(tpl)
         slots: list[dict] = []
         for r in tpl.get("regions", []):
             if r["type"] not in FILLABLE_TYPES:
@@ -373,6 +378,8 @@ class TemplateEngine:
         par le kit donne (le kit ACTIF sinon). Sans jeton, le gabarit est rendu tel quel (aucune lecture des kits) ;
         un jeton inconnu leve ValueError en le nommant. La route de rendu l'appelle DEJA a l'envoi (kit fige)."""
         from app.services import brand_kits as _bk
+        from app.services.template_components import deplier   # tâche #76 : les composants se déplient AVANT les jetons
+        tpl = deplier(tpl)
         if not _bk.jetons(tpl):
             return tpl
         return _bk.appliquer(tpl, kit)
