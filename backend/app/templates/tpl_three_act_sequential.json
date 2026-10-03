@@ -30,6 +30,7 @@
     {
       "id": "r_develop",
       "type": "video_slot",
+      "transition": { "type": "cyan_flash", "duration_s": 0.3 },
       "x": 0,
       "y": 0,
       "width": 1080,
@@ -45,6 +46,7 @@
     {
       "id": "r_payoff",
       "type": "video_slot",
+      "transition": { "type": "cyan_flash", "duration_s": 0.3 },
       "x": 0,
       "y": 0,
       "width": 1080,
@@ -57,10 +59,6 @@
       "fit": "cover",
       "audio_volume": 1.0
     }
-  ],
-  "transitions": [
-    { "type": "cyan_flash", "duration_s": 0.3, "target": "r_develop" },
-    { "type": "cyan_flash", "duration_s": 0.3, "target": "r_payoff" }
   ],
   "audio": {
     "master_track": "sequential",

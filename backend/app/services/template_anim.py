@@ -17,8 +17,17 @@ Technique (mesuree sur ffmpeg 9.0.1) : la region animee est dessinee par son cod
 `replace=1`, superpositions en `format=auto`) ; la couche recoit fondus (fade alpha=1), puis pour le pop un recadrage
 sur la case et un `scale` evalue a chaque image ; elle est posee a des x/y fonctions de t.
 Le plan disait le pop impossible (« scale n'accepte pas le temps ») : faux, `scale=...:eval=frame` lit `t`.
+
+Conversion des blocs `transitions` (tache #76, 03/10/2026, decision de l'utilisateur : livres ET personnels, a la
+lecture) : le bloc PLURIEL au niveau du gabarit n'etait lu par personne. `convertir_transitions` le remplace par ce que
+le moteur lit : `fade_in` -> `animation.in` fondu de la region visee (spatial) ; entree d'un gabarit sequentiel ->
+`transition` de l'acte vise (cle singuliere lue par build_sequential_command). Ce que la region porte deja l'emporte.
+« cyan_flash » devient un VRAI flash de couleur (decision « 1+2 » : le flash blanc reste `flash`) — voir
+build_sequential_command.
 """
 from __future__ import annotations
+
+import re
 
 TYPES = ("fade", "slide_left", "slide_right", "slide_up", "slide_down", "pop")
 COURBES = ("linear", "ease_out", "back")
@@ -146,3 +155,67 @@ def chaine(anim: dict, src: str, dst: str, box: tuple, toile: tuple, duree: floa
     x = "round(" + "+".join([bx] + [f"({v})" for v in xs]) + ")" if xs else bx
     y = "round(" + "+".join([by] + [f"({v})" for v in ys]) + ")" if ys else by
     return filtres, x, y
+
+
+# ----- conversion des blocs `transitions` (tache #76, 03/10/2026) -----
+
+COULEUR = re.compile(r"^#?[0-9A-Fa-f]{6}$")
+FLASH_DEFAUT = "#00e5ff"   # le cyan de la marque (le seul des gabarits livres)
+ACTES = ("video_slot", "image_slot")   # ce que build_sequential_command enchaine
+
+
+def convertir_transitions(tpl):
+    """Le gabarit SANS bloc `transitions`, converti en ce que le moteur lit (copie ; l'entree n'est pas touchee).
+    Spatial : `fade_in` -> animation.in {fade, duration, delay} de la region visee, si elle n'a pas deja une entree.
+    Sequentiel : chaque entree -> `transition` {type, duration_s} de l'acte vise, s'il n'en a pas deja une.
+    Ce qui vise une region absente, ou un type sans equivalent, est abandonne (personne ne le lisait)."""
+    if not isinstance(tpl, dict) or "transitions" not in tpl:
+        return tpl
+    t = dict(tpl)
+    vieux = t.pop("transitions")
+    seq = t.get("render_mode") == "sequential"
+    regions = [dict(r) if isinstance(r, dict) else r for r in (t.get("regions") or [])]
+    par_id: dict = {}
+    for r in regions:
+        if isinstance(r, dict) and r.get("id"):
+            par_id.setdefault(r["id"], r)
+    for v in vieux if isinstance(vieux, list) else []:
+        if not isinstance(v, dict) or not isinstance(v.get("type"), str):
+            continue
+        r = par_id.get(v.get("target"))
+        if r is None:
+            continue
+        d, dl = v.get("duration_s"), v.get("delay_s")
+        if seq:
+            if r.get("type") in ACTES and not r.get("transition"):
+                tr = {"type": v["type"]}
+                if _n(d) and d > 0:
+                    tr["duration_s"] = float(d)
+                r["transition"] = tr
+        elif v["type"] == "fade_in" and r.get("type") in VISIBLES:
+            a = dict(r["animation"]) if isinstance(r.get("animation"), dict) else {}
+            if a.get("in"):
+                continue
+            m = {"type": "fade"}
+            if _n(d) and 0.05 <= d <= 10:
+                m["duration"] = float(d)
+            if _n(dl) and 0 <= dl <= 600:
+                m["delay"] = float(dl)
+            a["in"] = m
+            r["animation"] = a
+    t["regions"] = regions
+    return t
+
+
+def verifier_transitions(tpl: dict) -> None:
+    """La `transition` d'un acte : un objet dont la couleur (flash) est un hexa #rrggbb — elle entre dans le graphe.
+    (La duree n'est pas bornee ici : build_sequential_command la borne deja, et la refuser casserait des graphes du Studio.)"""
+    for r in (tpl or {}).get("regions") or []:
+        tr = r.get("transition") if isinstance(r, dict) else None
+        if tr is None:
+            continue
+        rid = r.get("id")
+        if not isinstance(tr, dict) or not isinstance(tr.get("type", ""), str):
+            raise ValueError(f"Region {rid} : transition attend {{\"type\": …, \"duration_s\": …}}.")
+        if "color" in tr and not (isinstance(tr["color"], str) and COULEUR.match(tr["color"])):
+            raise ValueError(f"Region {rid} : transition.color attend une couleur #rrggbb.")

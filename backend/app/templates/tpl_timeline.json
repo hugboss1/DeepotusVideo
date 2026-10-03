@@ -49,7 +49,6 @@
       "volume": 0.8
     }
   ],
-  "transitions": [],
   "audio": { "master_track": "track", "loudness_target_lufs": -14 },
   "metadata": {
     "tags": ["timeline", "montage", "film", "seedance"],

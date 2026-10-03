@@ -14,6 +14,7 @@
     {
       "id": "r_reel",
       "type": "video_slot",
+      "animation": { "in": { "type": "fade", "duration": 0.4 } },
       "x": 0,
       "y": 0,
       "width": 1080,
@@ -28,6 +29,7 @@
     {
       "id": "r_avatar",
       "type": "video_slot",
+      "animation": { "in": { "type": "fade", "duration": 0.5, "delay": 0.3 } },
       "x": 0,
       "y": 1080,
       "width": 1080,
@@ -63,10 +65,6 @@
         { "type": "text", "text": "$DEEPOTUS", "x": 820, "y": 60, "font": "JetBrains Mono", "size": 30, "color": "#00e5ff", "weight": 700 }
       ]
     }
-  ],
-  "transitions": [
-    { "type": "fade_in", "duration_s": 0.4, "target": "r_reel" },
-    { "type": "fade_in", "duration_s": 0.5, "target": "r_avatar", "delay_s": 0.3 }
   ],
   "audio": {
     "master_track": "from_slot:avatar",

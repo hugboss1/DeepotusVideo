@@ -40,7 +40,6 @@
       "audio_volume": 1.0
     }
   ],
-  "transitions": [],
   "audio": {
     "master_track": "mix",
     "background_music": null,

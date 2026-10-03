@@ -28,6 +28,7 @@
     {
       "id": "r_lower_third_bg",
       "type": "brand_strip",
+      "animation": { "in": { "type": "fade", "duration": 0.5, "delay": 0.6 } },
       "x": 0,
       "y": 1560,
       "width": 1080,
@@ -55,9 +56,6 @@
       "default_text": "From the deep.",
       "max_chars": 60
     }
-  ],
-  "transitions": [
-    { "type": "fade_in", "duration_s": 0.5, "target": "r_lower_third_bg", "delay_s": 0.6 }
   ],
   "audio": {
     "master_track": "from_slot:animation",
