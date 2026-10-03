@@ -47,7 +47,7 @@ _I = _TAGS.index(list(SEC)[0]) if SEC and list(SEC)[0] in _TAGS else -1
 # #31 : repéré par POSITION du groupe, pas par un indice négatif figé — ne le suivent que P2rc1 puis le lot P3
 check("1.1 treize sections P2cl, contiguës, en QUEUE de PATCHES (suivies seulement de P2rc1 puis du lot P3)", len(SEC) == 13
       and _I >= 0 and _TAGS[_I:_I + 13] == list(SEC) and _TAGS[_I + 13].startswith("P2rc1")
-      and all(t.startswith(("P3", "P5", "P7", "P8")) for t in _TAGS[_I + 14:]), _d(list(SEC)))   # + P5qr (tache #48, 01/10)
+      and all(t.startswith(("P3", "P5", "P7", "P8", "P9")) for t in _TAGS[_I + 14:]), _d(list(SEC)))   # + P9lib (tache #77, 03/10) ; + P5qr (tache #48, 01/10)
 for t, (a, r) in SEC.items():
     check(f"1.x {t} : ancre x1 dans .bak_montage, touchee par aucune autre section, remplacement x1 livre, sans saut de ligne",
           bak.count(a) == 1 and sum(1 for t2, a2, r2 in P.PATCHES if t2 != t and (a in a2 or a in r2)) == 0
