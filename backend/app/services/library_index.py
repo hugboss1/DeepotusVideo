@@ -225,12 +225,20 @@ async def reconcilier() -> int:
                         continue
                     if kind == "image" and p.suffix.lower() not in _IMAGE_EXTS:
                         continue
+                    if kind == "audio" and (p.name.startswith("_") or p.suffix.lower() in (".json", ".part")):
+                        continue   # tâche #81 : le sidecar _sfx_meta.json n'est pas un son
                     src = heuristique(p.name) if kind == "image" else "inconnu"
                     session.add(LibraryAsset(
                         filename=p.name, kind=kind, source=src,
                         origin="heuristique"))   # tâche #80 : la licence vient du rétro-remplissage ci-dessous
                     connus.add(p.name)
                     ajout += 1
+            # Tâche #81 : le sidecar des sons avait été indexé COMME un son — on l'en retire.
+            from sqlalchemy import delete as _del
+            r_side = await session.execute(_del(LibraryAsset).where(LibraryAsset.kind == "audio",
+                                                                  LibraryAsset.filename.like("\\_%", escape="\\")))
+            if r_side.rowcount:
+                await session.commit()
             # Tâche #80 (décision 03/10) : RÉTRO-REMPLISSAGE de la licence des lignes existantes — NULL seulement,
             # une licence saisie n'est jamais touchée. Idempotent (à chaque boot, plus rien à faire).
             res = await session.execute(select(LibraryAsset).where(LibraryAsset.licence.is_(None)))
