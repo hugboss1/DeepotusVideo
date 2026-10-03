@@ -32,6 +32,7 @@ SOURCES: dict[str, str] = {
     "news": "News",
     "sprites": "Sprite Lab",
     "assets3d": "Game Assets 3D",
+    "templates": "Templates",       # plan-templates T5 (tâche #75) : images fixes exportées d'un gabarit
     "import": "Imports",
     "import_url": "Import URL",
     "mobile": "Compagnon mobile",   # plan mobile T12 (tâche #58) : images déposées par le téléphone
@@ -48,6 +49,7 @@ _PREFIXES: list[tuple[str, str]] = [
     ("news_", "news"),
     ("board_", "atelier"),
     ("shot_", "assets3d"),
+    ("tpl_still_", "templates"),
     ("gen_", "generation"),
 ]
 

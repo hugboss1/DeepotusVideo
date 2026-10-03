@@ -242,6 +242,70 @@ async def apercu_texte(body: dict, request: Request):
     return Response(content=png, media_type="image/png", headers={"Cache-Control": "no-store"})
 
 
+_still_verrou = asyncio.Lock()
+
+
+def _gabarit_pour_image(template_id: str, body: dict) -> dict:
+    """Le gabarit de l'éditeur (`template`, non enregistré) sinon celui enregistré ; 404 inconnu."""
+    tpl = (body or {}).get("template")
+    if tpl is not None:
+        if not isinstance(tpl, dict):
+            raise HTTPException(400, "« template » doit être un gabarit.")
+        return tpl
+    try:
+        return template_engine.get_template(template_id)
+    except FileNotFoundError:
+        raise HTTPException(404, f"Template not found: {template_id}")
+
+
+@router.post("/layout-templates/{template_id}/render-image")
+async def render_layout_image(template_id: str, body: dict, request: Request):
+    """Tâche #75 (plan-templates T5) — EXPORTE une image fixe du gabarit (PNG, JPEG ou WebP) dans la Bibliothèque
+    (source « Templates »), avec sa recette à côté. Cases remplies par leur échantillon, sinon une mire. Gratuit
+    (ffmpeg local) ; une image à la fois."""
+    _require_localhost(request)
+    from app.services import template_still as _TS
+    body = body or {}
+    tpl = _gabarit_pour_image(template_id, body)
+    fmt = str(body.get("format") or "png").lower()
+    at = body.get("at_s", _TS.INSTANT_DEFAUT)
+    async with _still_verrou:
+        try:
+            octets = await asyncio.to_thread(_TS.rendre, template_engine, tpl, at, fmt, Path(settings.outputs_path) / "_tmp_still")
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        except RuntimeError as e:
+            raise HTTPException(500, f"Image impossible : {str(e)[-400:]}")
+    nom = f"tpl_still_{uuid4().hex[:10]}{_TS.FORMATS[fmt][1]}"
+    dest = settings.images_path / nom
+    dest.write_bytes(octets)
+    recette = {"template_id": tpl.get("id") or template_id, "template_name": tpl.get("name"), "at_s": float(at), "format": fmt,
+               "samples": (tpl.get("metadata") or {}).get("samples") if isinstance(tpl.get("metadata"), dict) else None,
+               "created_at": datetime.now().isoformat(timespec="seconds")}
+    (settings.images_path / f"{nom}.recette.json").write_text(json.dumps(recette, ensure_ascii=False, indent=1), encoding="utf-8")
+    await LI.noter([nom], "templates")
+    return {"filename": nom, "format": fmt, "at_s": float(at), "bytes": len(octets)}
+
+
+@router.get("/layout-templates/{template_id}/thumb")
+async def layout_template_thumb(template_id: str):
+    """Tâche #75 (plan-templates T6) — la VIGNETTE au contenu réel d'un gabarit enregistré (WebP, 360 px au plus), en
+    cache tant que le gabarit, le kit actif et ses échantillons ne changent pas. Gratuit ; une à la fois."""
+    from app.config import DATA_ROOT as _DR
+    from app.services import template_still as _TS
+    try:
+        tpl = template_engine.get_template(template_id)
+    except FileNotFoundError:
+        raise HTTPException(404, f"Template not found: {template_id}")
+    async with _still_verrou:
+        try:
+            f = await asyncio.to_thread(_TS.vignette, template_engine, tpl, _DR / "assets" / "template_thumbs",
+                                        Path(settings.outputs_path) / "_tmp_still")
+        except (ValueError, RuntimeError) as e:
+            raise HTTPException(422, f"Vignette impossible : {str(e)[-300:]}")
+    return FileResponse(f, media_type="image/webp", headers={"Cache-Control": "no-cache"})
+
+
 @router.delete("/layout-templates/{template_id}")
 async def delete_layout_template(template_id: str):
     result = template_engine.delete_template(template_id)

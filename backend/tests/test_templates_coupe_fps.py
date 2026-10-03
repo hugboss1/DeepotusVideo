@@ -38,7 +38,7 @@ def check(label, cond, detail=""):
     else: fail += 1; print(f"  FAIL  {label} {detail}")
 
 
-BASE = "aa65a65f"
+BASE = "ff050214"
 from app.services import template_service as TS                     # noqa: E402
 E = TS.TemplateEngine()
 (_tmp / "ts_base.py").write_bytes(subprocess.run(["git", "show", f"{BASE}:backend/app/services/template_service.py"],
