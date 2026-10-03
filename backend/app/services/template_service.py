@@ -290,6 +290,9 @@ class TemplateEngine:
         # Tâche #74 (plan-templates T3) : un masque mal formé est refusé en nommant la région et le champ.
         from app.services.template_mask import verifier_masques
         verifier_masques(template["regions"])
+        # Tâche #74 (plan-templates T4) : ajustement et effets de texte mal formés refusés en nommant région et champ.
+        from app.services.template_text import verifier_textes
+        verifier_textes(template["regions"])
 
     # ----- slot extraction -----
 
@@ -432,18 +435,22 @@ def _slot_text(slot_values: dict, name: str, default: str) -> str:
 
 def _drawtext(cur: str, out: str, *, font_name: str, textfile_name: str,
               size: int, color: str, x: str, y: str,
-              alpha: str | None = None) -> str:
+              alpha: str | None = None, options: str | None = None) -> str:
     """Build a drawtext filter. font_name / textfile_name are bare filenames
     resolved against ffmpeg's cwd (the per-render work dir) so no Windows
     drive-colon ever appears in the filtergraph. x / y are single-quoted so
     time expressions (scrolling) with commas survive the filtergraph parser.
     `alpha` is an optional expression (e.g. a pulse).
+    Tâche #74 : `options` = effets drawtext NATIFS (template_text.drawtext_options) ; un contour demandé remplace le
+    contour par défaut. Sans `options`, la chaîne est celle d'avant à l'octet.
     """
     extra = f":alpha='{alpha}'" if alpha else ""
+    bord = "" if options and "borderw=" in options else "borderw=3:bordercolor=0x02060d@0.65"
+    opts = ":".join(o for o in (bord, options) if o)
     return (
         f"[{cur}]drawtext=fontfile={font_name}:textfile={textfile_name}:"
         f"fontsize={size}:fontcolor=0x{color}:x='{x}':y='{y}':"
-        f"borderw=3:bordercolor=0x02060d@0.65{extra}[{out}]"
+        f"{opts}{extra}[{out}]"
     )
 
 
@@ -691,10 +698,75 @@ def build_ffmpeg_command(engine, template, slot_values, output_path, work):
     cur = "base"
     n = 0
 
+    from app.services.template_text import actif as _tt_actif   # tâche #74
+
     def _w(filter_str: str, label: str) -> None:
         nonlocal cur
         parts.append(filter_str)
         cur = label
+
+    def _texte_adapte(r, txt, size, color, box, mode, tag, pulse=None, defile=None):
+        """Tâche #74 : texte AJUSTÉ (lignes puis réduction) et/ou à EFFETS. `box` = (x, y, w, h) où le texte doit tenir ;
+        `mode` : "haut" (texte, sous-titre : en haut de la case, gauche ou centre selon align), "centre" (badge),
+        "defile" (ticker : jamais ajusté, `defile` = (vitesse, sens)). drawtext natif tant que possible ; image
+        seulement pour l'ombre floue, le dégradé et le fond arrondi (la pulsation passe alors par geq)."""
+        nonlocal n
+        from app.services import template_text as _tt
+        bx_, by_, bw_, bh_ = box
+        eff = _tt.effets(r)
+        fpath = engine.font_path(r.get("font"))
+        centre = mode == "centre" or (mode == "haut" and r.get("align") == "center")
+        if r.get("text_fit") and mode != "defile":
+            size, lignes, _tr = _tt.ajuster(txt, fpath, size, bw_, bh_, r.get("text_min_size", _tt.MIN_DEFAUT))
+        else:
+            lignes = str(txt).split("\n")
+        n += 1
+        if _tt.besoin_image(eff):
+            if mode == "defile":
+                pol = _tt._police(fpath, size)
+                marge = int(abs((eff.get("shadow") or {}).get("dx", 0)) + (eff.get("shadow") or {}).get("blur", 0)
+                            + (eff.get("box") or {}).get("pad", 0) + (eff.get("stroke") or {}).get("px", 3) + 4)
+                iw = int(max(pol.getlength(l) for l in lignes)) + 2 * marge
+                png, _bw, _bh = _tt.rendre_png(lignes, fpath, size, color, eff, iw, bh_, "center", "middle", work / f"{tag}{n}.png")
+            else:
+                iw = bw_
+                png, _bw, _bh = _tt.rendre_png(lignes, fpath, size, color, eff, bw_, bh_, "center" if centre else "left",
+                                               "middle" if mode == "centre" else "top", work / f"{tag}{n}.png")
+            ii = _add_input(png, still=True)
+            chaine = f"[{ii}:v]format=rgba"
+            if pulse is not None:
+                chaine += f",geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='alpha(X,Y)*(0.5+0.5*sin(2*PI*T*{pulse}))'"
+            parts.append(chaine + f"[{tag}i{n}]")
+            if mode == "defile":
+                vit, sens = defile
+                xe = (f"{bx_}-{iw}+mod(t*{vit},{bw_}+{iw})" if sens == "right" else f"{bx_}+{bw_}-mod(t*{vit},{bw_}+{iw})")
+                _w(f"[{cur}][{tag}i{n}]overlay=x='{xe}':y={by_}:eof_action=repeat[{tag}o{n}]", f"{tag}o{n}")
+            else:
+                _w(f"[{cur}][{tag}i{n}]overlay={bx_}:{by_}:eof_action=repeat[{tag}o{n}]", f"{tag}o{n}")
+            return
+        opts = _tt.drawtext_options(eff)
+        alpha = f"0.5+0.5*sin(2*PI*t*{pulse})" if pulse is not None else None
+        if mode != "defile" and len(lignes) > 1:
+            # UNE ligne = UN drawtext, a l'interligne de l'ajustement : drawtext espace ses lignes a ~2,5x la taille avec
+            # cette fonte (mesure 03/10), le bloc ajuste debordait donc en hauteur — trouve par la preuve a l'ecran
+            lh = _tt.hauteur_ligne(_tt._police(fpath, size))
+            haut = by_ + (bh_ - lh * len(lignes)) // 2 if mode == "centre" else by_
+            for i, ligne in enumerate(lignes):
+                _w(_drawtext(cur, f"{tag}{n}l{i}", font_name=_font_in_work(r.get("font")), textfile_name=_textfile(ligne),
+                             size=size, color=color, x=(f"{bx_}+(({bw_})-tw)/2" if centre else str(bx_)), y=str(haut + i * lh),
+                             alpha=alpha, options=opts or None), f"{tag}{n}l{i}")
+            return
+        if mode == "defile":
+            vit, sens = defile
+            xe = f"{bx_}-tw+mod(t*{vit},{bw_}+tw)" if sens == "right" else f"{bx_}+{bw_}-mod(t*{vit},{bw_}+tw)"
+            ye = f"{by_}+({bh_}-th)/2"
+        elif mode == "centre":
+            xe, ye = f"{bx_}+(({bw_})-tw)/2", f"{by_}+(({bh_})-th)/2"
+        else:
+            xe, ye = (f"{bx_}+(({bw_})-tw)/2" if centre else str(bx_)), str(by_)
+        _w(_drawtext(cur, f"{tag}{n}", font_name=_font_in_work(r.get("font")),
+                     textfile_name=_textfile("\n".join(lignes)), size=size, color=color,
+                     x=xe, y=ye, alpha=alpha, options=opts or None), f"{tag}{n}")
 
     for r in regions:
         rid = r["id"]
@@ -755,7 +827,10 @@ def build_ffmpeg_command(engine, template, slot_values, output_path, work):
             n += 1
             size = int(r.get("size", 48))
             color = _hex(r.get("color"), "ffffff")
-            if _has_emoji(txt):
+            if not _has_emoji(txt) and _tt_actif(r):   # tâche #74 : ajusté et/ou à effets ; sinon rien ne change
+                _texte_adapte(r, txt, size, color, (rx, ry, rw, rh), "haut", "ta",
+                              pulse=float(r.get("effect_speed", 1.0)) if r.get("effect") == "pulse" else None)
+            elif _has_emoji(txt):
                 ep = work / f"emojitxt{n}.png"
                 pw, _ph = render_emoji_text_png(
                     txt, engine.font_path(r.get("font")), size, color, ep)
@@ -830,7 +905,10 @@ def build_ffmpeg_command(engine, template, slot_values, output_path, work):
             if r.get("effect") == "pulse":
                 bsp = float(r.get("effect_speed", 1.2))
                 balpha = f"0.5+0.5*sin(2*PI*t*{bsp})"
-            if _has_emoji(btxt):
+            if not _has_emoji(btxt) and _tt_actif(r):   # tâche #74 : le texte tient DANS la pilule
+                _texte_adapte(r, btxt, bsize, btcol, (rx + rh // 4, ry + rh // 10, max(1, rw - rh // 2), max(1, rh - rh // 5)),
+                              "centre", "bt", pulse=float(r.get("effect_speed", 1.2)) if r.get("effect") == "pulse" else None)
+            elif _has_emoji(btxt):
                 ep = work / f"emojibd{n}.png"
                 pw, ph = render_emoji_text_png(
                     btxt, engine.font_path(r.get("font")), bsize, btcol, ep)
@@ -871,7 +949,11 @@ def build_ffmpeg_command(engine, template, slot_values, output_path, work):
             size = int(r.get("size", 40))
             tcol = _hex(r.get("color"), "00e5ff")
             tk_text = r.get("text", "")
-            if _has_emoji(tk_text):
+            if not _has_emoji(tk_text) and _tt_actif(r):   # tâche #74 : effets (un ticker défile : jamais ajusté)
+                _texte_adapte(r, tk_text, size, tcol, (rx, ry, rw, rh), "defile", "tk",
+                              pulse=float(r.get("effect_speed", 1.0)) if r.get("effect") == "pulse" else None,
+                              defile=(speed, r.get("direction")))
+            elif _has_emoji(tk_text):
                 ep = work / f"emojitk{n}.png"
                 pw, ph = render_emoji_text_png(
                     tk_text, engine.font_path(r.get("font")), size, tcol, ep)
