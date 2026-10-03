@@ -2844,6 +2844,129 @@ async def library_import_favoris(request: Request):
     return {"images": out_i, "renders": out_r}
 
 
+# ── Bibliothèque #78 (03/10/2026, plan-library T3) : les PROJETS de toutes catégories ─────────────────────────────────
+# Un projet contient images, sons, rendus, 3D, sprites ; un asset appartient à N projets ; le projet ACTIF range tout
+# ce qui est produit (library_projects). `/library/projets/actif` est déclarée AVANT `/library/projets/{pid}`, sinon
+# « actif » serait capturé comme un pid (même règle que /audio/meta avant /audio/{filename}).
+
+async def _corps_objet(request: Request) -> dict:
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(400, "Corps JSON attendu")
+    if not isinstance(body, dict):
+        raise HTTPException(400, "Corps JSON attendu : un objet")
+    return body
+
+
+@router.get("/library/projets")
+async def library_projets(ref: str | None = None):
+    """Tous les projets (avec leur nombre d'items), ou ceux qui contiennent `ref`."""
+    from app.services import library_projects as LP
+    return {"projets": await LP.lister(ref)}
+
+
+@router.post("/library/projets")
+async def library_creer_projet(request: Request):
+    """Body : {nom, couleur?, epingle?}."""
+    from app.services import library_projects as LP
+    body = await _corps_objet(request)
+    if "epingle" in body and type(body["epingle"]) is not bool:
+        raise HTTPException(400, "epingle doit être un booléen")
+    try:
+        return await LP.creer(body.get("nom"), body.get("couleur"), bool(body.get("epingle")))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.get("/library/projets/actif")
+async def library_projet_actif():
+    from app.services import library_projects as LP
+    return await LP.actif()
+
+
+@router.put("/library/projets/actif")
+async def library_poser_projet_actif(request: Request):
+    """Body : {id} — vide = plus aucun projet actif ; un id inconnu = 404."""
+    from app.services import library_projects as LP
+    body = await _corps_objet(request)
+    try:
+        return await LP.poser_actif(str(body.get("id") or ""))
+    except KeyError as e:
+        raise HTTPException(404, f"Projet inconnu : {e.args[0]}")
+
+
+@router.get("/library/projets/{pid}")
+async def library_contenu_projet(pid: str):
+    from app.services import library_projects as LP
+    try:
+        return await LP.contenu(pid)
+    except KeyError:
+        raise HTTPException(404, f"Projet inconnu : {pid}")
+
+
+@router.patch("/library/projets/{pid}")
+async def library_modifier_projet(pid: str, request: Request):
+    """Body : sous-ensemble de {nom, couleur (#rrggbb ou vide), epingle (booléen)}. État relu."""
+    from app.services import library_projects as LP
+    body = await _corps_objet(request)
+    champs = {k: body[k] for k in ("nom", "couleur", "epingle") if k in body}
+    if not champs:
+        raise HTTPException(400, "Aucun champ modifiable (attendus : nom, couleur, epingle)")
+    if "nom" in champs and not LP.nom_propre(champs["nom"]):
+        raise HTTPException(400, "Le nom du projet est vide.")
+    if "couleur" in champs and not LP.couleur_valide(champs["couleur"]):
+        raise HTTPException(400, "couleur attendue au format #rrggbb")
+    if "epingle" in champs and type(champs["epingle"]) is not bool:
+        raise HTTPException(400, "epingle doit être un booléen")
+    try:
+        return await LP.modifier(pid, champs)
+    except KeyError:
+        raise HTTPException(404, f"Projet inconnu : {pid}")
+
+
+@router.delete("/library/projets/{pid}")
+async def library_supprimer_projet(pid: str):
+    """Le projet et ses appartenances ; JAMAIS les fichiers."""
+    from app.services import library_projects as LP
+    try:
+        await LP.supprimer(pid)
+    except KeyError:
+        raise HTTPException(404, f"Projet inconnu : {pid}")
+    return {"supprime": pid}
+
+
+@router.post("/library/projets/{pid}/items")
+async def library_ajouter_au_projet(pid: str, request: Request):
+    """Body : {items: [{ref, kind}]} — kind ∈ image, audio, render, asset3d, sprite2d. Rend le nombre AJOUTÉ."""
+    from app.services import library_projects as LP
+    body = await _corps_objet(request)
+    lst = body.get("items")
+    if not isinstance(lst, list) or not all(isinstance(i, dict) for i in lst):
+        raise HTTPException(400, "items doit être une liste d'objets {ref, kind}")
+    mauvais = sorted({str(i.get("kind")) for i in lst if (i.get("kind") or "image") not in LP.KINDS})
+    if mauvais:
+        raise HTTPException(400, f"kind inconnu : {', '.join(mauvais)} (attendus : {', '.join(LP.KINDS)})")
+    try:
+        return {"ajoutes": await LP.ajouter(pid, lst)}
+    except KeyError:
+        raise HTTPException(404, f"Projet inconnu : {pid}")
+
+
+@router.delete("/library/projets/{pid}/items")
+async def library_retirer_du_projet(pid: str, request: Request):
+    """Body : {refs: [str]}. Rend le nombre retiré."""
+    from app.services import library_projects as LP
+    body = await _corps_objet(request)
+    refs = body.get("refs")
+    if not isinstance(refs, list):
+        raise HTTPException(400, "refs doit être une liste")
+    try:
+        return {"retires": await LP.retirer(pid, refs)}
+    except KeyError:
+        raise HTTPException(404, f"Projet inconnu : {pid}")
+
+
 _AUDIO_EXTS = {".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac", ".opus"}
 
 

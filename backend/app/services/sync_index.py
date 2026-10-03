@@ -40,32 +40,13 @@ class DepotRefuse(Exception):
 
 # ── projets épinglés ─────────────────────────────────────────────────────────────────────────────────────────────────
 
-def _fichier_projets() -> Path:
-    return settings.outputs_path / "_sync" / "projets.json"
-
-
-def _lire_projets() -> dict:
-    p = _fichier_projets()
-    if not p.is_file():
-        return {}
-    try:
-        tout = json.loads(p.read_text(encoding="utf-8"))
-        return tout if isinstance(tout, dict) else {}
-    except (ValueError, OSError):
-        return {}
-
-
 async def epingler(nom: str, fichiers: list) -> dict:
-    """Un projet épinglé descend EN ENTIER sur le téléphone. Un JSON, pas une table : l'entité « projet » appartient
-    à un autre chantier (R9 P2), ce fichier en est le pense-bête. Les noms sont NUS (aucun chemin ne sort)."""
-    tout = _lire_projets()
-    tout[nom] = sorted({Path(str(f)).name for f in (fichiers or []) if Path(str(f)).name})
-    p = _fichier_projets()
-    p.parent.mkdir(parents=True, exist_ok=True)
-    tmp = p.with_suffix(".part")
-    tmp.write_text(json.dumps(tout, ensure_ascii=False, indent=1), encoding="utf-8")
-    os.replace(tmp, p)
-    return {"nom": nom, "fichiers": tout[nom]}
+    """Un projet épinglé descend EN ENTIER sur le téléphone. Depuis la tâche #78 (03/10/2026, décision de
+    l'utilisateur : UN seul projet), c'est un projet de la Bibliothèque marqué « épinglé » ; ce JSON n'est plus écrit
+    (repris une fois au démarrage par library_projects.reprendre_epingles_json, puis gardé tel quel). Même contrat :
+    {nom, fichiers} → {nom, fichiers}, noms NUS triés (aucun chemin ne sort), AJOUT seulement."""
+    from app.services import library_projects as _LP
+    return await _LP.epingler_par_nom(nom, fichiers)
 
 
 # ── le manifeste ─────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -105,7 +86,9 @@ async def manifeste(depuis: str | None = None) -> dict:
                       "origine": connu.get("origin") or "heuristique",
                       "url": f"/api/images/{f.name}"})
         poids += st.st_size
-    projets = [{"nom": k, "fichiers": v, "entier": True} for k, v in sorted(_lire_projets().items())]
+    # Tâche #78 (03/10/2026, décision de l'utilisateur) : UN seul projet — les épinglés de la Bibliothèque.
+    from app.services import library_projects as _LP
+    projets = await _LP.epingles_pour_manifeste()
     return {"protocole": PROTOCOLE, "index": index, "noms": [f.name for f in tout], "projets": projets,
             "poids_index": poids, "genere_a": _iso(datetime.utcnow())}
 

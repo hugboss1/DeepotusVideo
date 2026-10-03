@@ -1676,6 +1676,9 @@ class Pipeline:
             await session.execute(delete(JobRecord).where(JobRecord.id == job_id))
             await session.commit()
             logger.info(f"Job {job_id} deleted")
+            # Bibliothèque #78 (03/10/2026) : le job supprimé quitte ses projets
+            from app.services import library_projects as _LP
+            await _LP.oublier_ref(job_id)
             return True
 
     @staticmethod
@@ -1704,4 +1707,7 @@ class Pipeline:
             )
             await session.commit()
             logger.info(f"Batch {batch_id}: deleted {count} jobs")
+            from app.services import library_projects as _LP  # #78 : ils quittent leurs projets
+            for job in jobs:
+                await _LP.oublier_ref(job.id)
             return count
