@@ -8134,9 +8134,11 @@ R_P8MSK1 = ('(c.type==="video_slot"||c.type==="image_slot")?r.jsx(DzMaskEditor,{
             'r.jsx(DzEchantillon,{rg:c,tpl:a,setTpl:l}),'
             # tache #76 PR B (03/10) : la section « Animation » (entree / sortie) de toute region visible, meme ancre
             'r.jsx(DzAnimEditor,{rg:c,upd:function(pt){p(c.id,pt)}}),'
+            # tache #76 PR F (03/10) : les textes et couleurs d'une instance de composant, meme ancre
+            'r.jsx(DzComposantEditor,{rg:c,upd:function(pt){p(c.id,pt)}}),'
             + A_P8MSK1)
 A_P8MSK2 = 'children:[dzRegionFace(j),'
-R_P8MSK2 = 'children:[dzAnimApercu(j,dzTexteApercu(j,dzMasqueApercu(j,dzRegionFace(j)))),'   # #74 PR D : + les effets de texte en CSS ; #76 PR B : + l'animation rejouee
+R_P8MSK2 = 'children:[dzAnimApercu(j,dzTexteApercu(j,dzMasqueApercu(j,dzComposantFace(j,dzRegionFace(j))))),'   # #74 PR D : + les effets de texte en CSS ; #76 PR B : + l'animation rejouee ; #76 PR F : + le dessin d'un composant
 P1 += [("P8msk1-section-masque-dans-l-inspecteur", A_P8MSK1, R_P8MSK1),
        ("P8msk2-la-toile-montre-le-masque", A_P8MSK2, R_P8MSK2)]
 assert len(P1) == 115 and all("\n" not in r for _t, _a, r in P1[-2:])
@@ -8236,6 +8238,15 @@ R_P9LIB12 = 'items.push({lbl:"📁 Projet de la Bibliothèque…",fn:function(){
 P1 += [("P9lib11-barre-des-projets", A_P9LIB11, R_P9LIB11),
        ("P9lib12-envoyer-vers-un-projet", A_P9LIB12, R_P9LIB12)]
 assert len(P1) == 130 and all("\n" not in r and "DzTracks" not in r for _t, _a, r in P1[-2:])
+
+# P8cmp1 (tache #76 PR F, plan-templates T8 / D1, 03/10/2026) -- les COMPOSANTS dans l'editeur : « + Composant » et
+# « Enregistrer comme composant » au bout de la rangee « Add: » (ancre AMONT, 1 sur .bak_montage) ; g, v = la toile,
+# d, u = les cases de travail et leur setter, m = selectionner, f = la case selectionnee. L'inspecteur et le dessin
+# sur la toile sont replies dans P8msk1 et P8msk2.
+A_P8CMP1 = 'children:"+ "+z[1]},z[0])})'
+R_P8CMP1 = A_P8CMP1 + ',r.jsx(DzComposantBar,{W:g,H:v,regs:d,setRegs:u,select:m,sel:f})'
+P1 += [("P8cmp1-poser-et-enregistrer-des-composants", A_P8CMP1, R_P8CMP1)]
+assert len(P1) == 131 and "\n" not in R_P8CMP1
 
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),

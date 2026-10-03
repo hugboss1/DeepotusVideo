@@ -25,8 +25,8 @@ r0 = subprocess.run(["git", "show", f"{BASE}:frontend/dist/assets/index-BEOJX8L5
 check("T1 temoin : la base a l'inspecteur (echantillon) mais pas l'editeur d'animation", r0.returncode == 0
       and b"DzEchantillon" in r0.stdout and b"DzAnimEditor" not in r0.stdout)
 check("T2 la section suit l'echantillon, juste avant « Delete region » (toute region : le composant filtre) ; la toile passe par l'apercu d'animation AUTOUR des autres",
-      BUN.count('r.jsx(DzEchantillon,{rg:c,tpl:a,setTpl:l}),r.jsx(DzAnimEditor,{rg:c,upd:function(pt){p(c.id,pt)}}),r.jsx("div",{style:{marginTop:10},children:r.jsx("button",{onClick:dzDelReg') == 1
-      and BUN.count("r.jsx(DzAnimEditor,") == 1 and BUN.count("children:[dzAnimApercu(j,dzTexteApercu(j,dzMasqueApercu(j,dzRegionFace(j)))),") == 1)
+      BUN.count('r.jsx(DzEchantillon,{rg:c,tpl:a,setTpl:l}),r.jsx(DzAnimEditor,{rg:c,upd:function(pt){p(c.id,pt)}}),r.jsx(DzComposantEditor,') == 1
+      and BUN.count("r.jsx(DzAnimEditor,") == 1 and BUN.count("children:[dzAnimApercu(j,dzTexteApercu(j,dzMasqueApercu(j,dzComposantFace(j,dzRegionFace(j))))),") == 1)   # #76 PR F : + le dessin d'un composant au centre
 
 
 def fonction(nom):
