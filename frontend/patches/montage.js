@@ -9906,3 +9906,100 @@ function DzEchantillon({rg,tpl,setTpl}){
       r.jsx(K,{variant:"ghost",size:"sm",title:"Choisir l’image d’échantillon de « "+(rg.slot_label||rg.slot_name)+" » dans la Bibliothèque",
         onClick:function(){window.__dzLibPicker({titre:"Échantillon d’aperçu — « "+(rg.slot_label||rg.slot_name)+" »"},function(fn){if(fn)poser(String(fn))})},children:nom?"Changer…":"Choisir…"}),
       nom?r.jsx(K,{variant:"ghost",size:"sm",title:"Retirer l’échantillon : la case montrera une mire",onClick:function(){poser("")},children:"Retirer"}):null]})]})}
+/* ── Bibliothèque #77 PR B (plan-library T2, 03/10/2026) — favori, note et tags EN BASE.
+   Les helpers du bundle (__dzFavHas, __dzFavToggle, __dzFavImgHas, __dzFavImgToggle) gardent leurs NOMS et leurs
+   appelants ; la section P9lib1 les fait déléguer ici. La vérité est le SERVEUR (library_assets.fav, jobs.fav) ;
+   DZ_FAV n'est qu'un cache, semé par les listes que l'écran charge déjà (/api/images, /api/jobs). Favori et note
+   sont DEUX notions (décision de l'utilisateur, 03/10) : rien ici n'écrit l'un en posant l'autre. Les listes du
+   navigateur (dz_fav_images, dz_fav_renders) sont reprises UNE fois, puis GARDÉES telles quelles (retour arrière). */
+var DZ_FAV={r:{},i:{},vol:{},t:{},migre:!1,essais:0};
+function dzFavHas(t,k){return!!k&&!!(DZ_FAV[t]&&DZ_FAV[t][k])}
+// Une liste rechargée (sondage de 8 s) ne doit écraser ni une bascule EN VOL, ni une bascule ACHEVÉE depuis moins de
+// 10 s : la liste a pu partir avant l'écriture et revenir après (même pour une écriture lente).
+function dzFavSemer(t,liste,cle){var n=Date.now();(liste||[]).forEach(function(z){var k=z&&z[cle],c=t+":"+k;
+  if(k&&!DZ_FAV.vol[c]&&!(n-(DZ_FAV.t[c]||0)<1e4))DZ_FAV[t][k]=!!(z&&z.fav)})}
+function dzToastSur(m){try{typeof __dzToast==="function"&&__dzToast(m)}catch(e){}}
+function dzFavToggle(t,k,apres){if(!k)return Promise.resolve();var v=!dzFavHas(t,k),c=t+":"+k;
+  var u=t==="r"?["/api/jobs/"+encodeURIComponent(k)+"/fav","PUT"]:["/api/library/asset/"+encodeURIComponent(k),"PATCH"];
+  DZ_FAV[t][k]=v;DZ_FAV.vol[c]=(DZ_FAV.vol[c]||0)+1;DZ_FAV.t[c]=Date.now();
+  return fetch(u[0],{method:u[1],headers:{"Content-Type":"application/json"},body:JSON.stringify({fav:v})})
+    .then(function(R){if(!R.ok)return R.json().catch(function(){return{}}).then(function(d){throw new Error((d&&d.detail)||("HTTP "+R.status))})})
+    .catch(function(e){if(DZ_FAV[t][k]===v)DZ_FAV[t][k]=!v;dzToastSur("Favori non enregistré : "+String(e&&e.message||e))})
+    .then(function(){DZ_FAV.vol[c]--;if(!DZ_FAV.vol[c])delete DZ_FAV.vol[c];DZ_FAV.t[c]=Date.now();apres&&apres()})}
+// Le serveur EMPORTE le favori au renommage (library_index.renommer) : on déplace le cache, sans aucun appel.
+function dzFavRenomme(a,b){if(a&&b&&a!==b){if(DZ_FAV.i[a])DZ_FAV.i[b]=!0;delete DZ_FAV.i[a]}}
+function dzFavLocaux(){function l(k){try{var v=JSON.parse(localStorage.getItem(k)||"[]");
+    return Array.isArray(v)?v.filter(function(s){return typeof s==="string"&&s}):[]}catch(e){return[]}}
+  return{images:l("dz_fav_images"),renders:l("dz_fav_renders")}}
+function dzFavMigrer(){if(DZ_FAV.migre||DZ_FAV.essais>=3)return Promise.resolve(null);DZ_FAV.migre=!0;
+  try{if(localStorage.getItem("dz_fav_migre")==="1")return Promise.resolve(null)}catch(e){return Promise.resolve(null)}
+  var L=dzFavLocaux();
+  if(!L.images.length&&!L.renders.length){try{localStorage.setItem("dz_fav_migre","1")}catch(e){}return Promise.resolve(null)}
+  DZ_FAV.essais++;
+  return fetch("/api/library/favoris/import",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(L)})
+    .then(function(R){if(!R.ok)throw new Error("HTTP "+R.status);return R.json()})
+    .then(function(d){var im=(d&&d.images)||{},rd=(d&&d.renders)||{};
+      L.images.forEach(function(k){if((im.ignores||[]).indexOf(k)<0)DZ_FAV.i[k]=!0});
+      L.renders.forEach(function(k){if((rd.ignores||[]).indexOf(k)<0)DZ_FAV.r[k]=!0});
+      try{localStorage.setItem("dz_fav_migre","1")}catch(e){}
+      var n=(im.repris||0)+(rd.repris||0);if(n)dzToastSur(n+" favori"+(n>1?"s":"")+" repris du navigateur dans la base");return d})
+    .catch(function(){DZ_FAV.migre=!1;return null})}
+// ── note et tags (pur, joué sous node) ──
+function dzMetaFiltre(L,f){if(!f||(!f.tag&&!f.note))return L||[];return(L||[]).filter(function(z){
+  if(f.tag&&((z&&z.tags)||[]).indexOf(f.tag)<0)return!1;if(f.note&&Number((z&&z.note)||0)<f.note)return!1;return!0})}
+function dzMetaComptes(lst){var tg={},nb=0;(lst||[]).forEach(function(z){((z&&z.tags)||[]).forEach(function(t){tg[t]=(tg[t]||0)+1});
+    if(z&&Number(z.note||0)>=3)nb++});
+  return{tags:Object.keys(tg).sort(function(a,b){return tg[b]-tg[a]||(a<b?-1:a>b?1:0)}).map(function(t){return{t:t,n:tg[t]}}),note3:nb}}
+function dzTagsDe(txt){return String(txt||"").split(",").map(function(s){return s.trim()}).filter(Boolean)}
+// ── l'écran ──
+function DzMetaChips({o,T,f,setF}){if(o!=="Images"&&o!=="Favoris")return null;var c=dzMetaComptes(T&&T[o]),actif=!!(f&&(f.tag||f.note));
+  if(!c.tags.length&&!c.note3&&!actif)return null;
+  function puce(cle,val,lbl,on){return r.jsx("button",{type:"button","aria-pressed":on,onClick:function(){var g={tag:f.tag,note:f.note};
+      g[cle]=on?(cle==="note"?0:""):val;setF(g)},style:{height:22,padding:"0 10px",fontSize:11,borderRadius:11,cursor:"pointer",
+      border:"1px solid "+(on?"var(--amber,#f0b429)":"var(--stroke)"),background:on?"var(--bg-panel-2)":"transparent",
+      color:on?"var(--ink-strong)":"var(--ink-soft)"},children:lbl},"dzm_"+cle+"_"+val)}
+  var ch=c.tags.map(function(z){return puce("tag",z.t,"#"+z.t+" ("+z.n+")",f.tag===z.t)});
+  if(c.note3||f.note)ch.push(puce("note",3,"★ 3+ ("+c.note3+")",f.note===3));
+  if(actif)ch.push(r.jsx("button",{type:"button",onClick:function(){setF({tag:"",note:0})},style:{height:22,padding:"0 8px",fontSize:11,
+      background:"none",border:0,color:"var(--ink-muted)",cursor:"pointer"},children:"Effacer"},"dzm_effacer"));
+  return r.jsx("div",{"data-dz":"metachips",style:{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center",marginBottom:10},children:ch})}
+function dzCarteMeta(C,rafraichir){if(!C||C.kind==="audio"||C.audioFile)return null;
+  var t=C.jobId?"r":(C.kind==="image"?"i":null),k=t==="r"?C.jobId:C.name;if(!t||!k)return null;
+  var fav=dzFavHas(t,k),note=Math.max(0,Math.min(5,Number(C.note||0))),tags=C.tags||[];
+  return r.jsxs("div",{className:"dz-carte-meta",style:{display:"flex",alignItems:"center",gap:6,marginTop:4,minHeight:16},children:[
+    r.jsx("button",{type:"button",className:"dz-fav-btn","aria-pressed":fav,title:fav?"Retirer des favoris":"Ajouter aux favoris",
+      onClick:function(ev){ev.stopPropagation();dzFavToggle(t,k,rafraichir);rafraichir&&rafraichir()},
+      style:{background:"none",border:0,padding:0,cursor:"pointer",fontSize:13,lineHeight:1,color:fav?"var(--amber)":"var(--ink-muted)"},
+      children:fav?"★":"☆"}),
+    note?r.jsx("span",{className:"dz-carte-note",title:"Note "+note+"/5",style:{fontSize:9,letterSpacing:1,color:"var(--amber)"},children:"●".repeat(note)}):null,
+    tags.length?r.jsx("span",{className:"dz-carte-tags",title:tags.map(function(g){return"#"+g}).join(" "),style:{fontSize:9.5,color:"var(--ink-muted)",
+      whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",minWidth:0},children:tags.map(function(g){return"#"+g}).join(" ")}):null]})}
+// La fiche d'une IMAGE : la note 0..5 (cliquer la note posée la retire) et les tags. Le PATCH rend l'état RELU,
+// c'est lui qu'on remonte à la liste (maj) — jamais l'état demandé.
+function DzMetaEditor({m,maj}){var ss=x.useState(""),saisie=ss[0],setSaisie=ss[1],ms=x.useState(""),msg=ms[0],setMsg=ms[1];
+  if(!m||m.kind!=="image"||m.jobId||m.audioFile)return null;
+  var note=Number(m.note||0),tags=m.tags||[];
+  function envoyer(champs){setMsg("");return fetch("/api/library/asset/"+encodeURIComponent(m.name),{method:"PATCH",
+      headers:{"Content-Type":"application/json"},body:JSON.stringify(champs)})
+    .then(function(R){return R.json().catch(function(){return{}}).then(function(d){if(!R.ok)throw new Error(d.detail||("HTTP "+R.status));return d})})
+    .then(function(d){maj({tags:d.tags||[],note:d.note||0})}).catch(function(e){setMsg("Non enregistré : "+String(e&&e.message||e))})}
+  function ajouter(){var n=dzTagsDe(saisie);if(!n.length)return;setSaisie("");envoyer({tags:tags.concat(n)})}
+  var points=[1,2,3,4,5].map(function(n){return r.jsx("button",{type:"button",title:"Note "+n+"/5"+(note===n?" — cliquer pour retirer la note":""),
+      "aria-pressed":note>=n,onClick:function(){envoyer({note:note===n?0:n})},style:{background:"none",border:0,padding:"0 1px",cursor:"pointer",
+      fontSize:14,lineHeight:1,color:note>=n?"var(--amber)":"var(--ink-muted)"},children:note>=n?"●":"○"},"n"+n)});
+  var puces=tags.map(function(g){return r.jsxs("span",{style:{display:"inline-flex",alignItems:"center",gap:3,height:20,padding:"0 4px 0 8px",
+      borderRadius:10,border:"1px solid var(--stroke)",fontSize:11,color:"var(--ink-soft)"},children:["#"+g,
+      r.jsx("button",{type:"button",title:"Retirer le tag « "+g+" »",onClick:function(){envoyer({tags:tags.filter(function(z){return z!==g})})},
+        style:{background:"none",border:0,cursor:"pointer",color:"var(--ink-muted)",fontSize:11,padding:"0 2px"},children:"×"})]},"t"+g)});
+  return r.jsxs("div",{className:"dz-meta-editeur",style:{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"},children:[
+    r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)"},children:"Note"}),r.jsx("span",{children:points}),
+    r.jsx("span",{style:{width:1,height:16,background:"var(--stroke)"}}),
+    r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)"},children:"Tags"}),
+    puces.length?r.jsx("span",{style:{display:"inline-flex",gap:4,flexWrap:"wrap"},children:puces}):null,
+    r.jsx("input",{value:saisie,placeholder:"vitrail, mer…",onChange:function(e){setSaisie(e.target.value)},
+      onKeyDown:function(e){if(e.key==="Enter"){e.preventDefault();ajouter()}},
+      style:{width:150,height:24,padding:"0 8px",fontSize:11.5,background:"var(--bg-base)",color:"var(--ink-strong)",
+        border:"1px solid var(--stroke)",borderRadius:6}}),
+    r.jsx(K,{variant:"ghost",size:"sm",onClick:ajouter,disabled:!saisie.trim(),title:"Ajouter les tags saisis (séparés par des virgules)",children:"Ajouter"}),
+    msg?r.jsx("span",{style:{fontSize:10.5,color:"var(--red)",flexBasis:"100%"},children:msg}):null]})}
+/* ── fin Bibliothèque #77 */
