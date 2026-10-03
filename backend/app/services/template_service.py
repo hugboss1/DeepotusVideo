@@ -762,7 +762,10 @@ def build_ffmpeg_command(engine, template, slot_values, output_path, work, still
         eff = _tt.effets(r)
         fpath = engine.font_path(r.get("font"))
         centre = mode == "centre" or (mode == "haut" and r.get("align") == "center")
-        if r.get("text_fit") and mode != "defile":
+        if _tt.courbe(r) is not None:   # tâche #76 : un arc trop grand pour sa case est RÉDUIT (une ligne, jamais coupé)
+            lignes = [" ".join(str(txt).split("\n"))]
+            size = _tt.taille_arc(lignes[0], fpath, size, bw_, bh_, _tt.courbe(r), eff, r.get("text_min_size", _tt.MIN_DEFAUT))
+        elif r.get("text_fit") and mode != "defile":
             size, lignes, _tr = _tt.ajuster(txt, fpath, size, bw_, bh_, r.get("text_min_size", _tt.MIN_DEFAUT))
         else:
             lignes = str(txt).split("\n")
