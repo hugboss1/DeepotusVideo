@@ -348,6 +348,38 @@ class LibraryAsset(Base):
                                                   index=True)
 
 
+class LibraryProject(Base):
+    """Bibliothèque #78 (03/10/2026, plan-library T3) — un PROJET : campagne,
+    chapitre, deck. Il contient des assets de TOUTES les catégories ; la
+    catégorie devient un filtre à l'intérieur. `epingle` = il descend EN ENTIER
+    sur le téléphone (décision de l'utilisateur : un seul projet, qui remplace
+    le projets.json de la tâche #58). Table neuve : create_all suffit."""
+    __tablename__ = "library_projects"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    nom: Mapped[str] = mapped_column(String(120))
+    couleur: Mapped[Optional[str]] = mapped_column(String(7), nullable=True)
+    note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    epingle: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime,
+                                                 default=datetime.utcnow)
+
+
+class LibraryProjectItem(Base):
+    """L'appartenance d'un asset à un projet : n:n, PK composite — l'unicité
+    de la paire est TENUE PAR LA BASE. `ref` = filename pour un fichier, job_id
+    pour un rendu / 3D / sprite : les clés que l'écran manipule déjà ; `kind`
+    reprend le vocabulaire de l'écran (image, audio, render, asset3d, sprite2d)."""
+    __tablename__ = "library_project_items"
+
+    project_id: Mapped[str] = mapped_column(String(36), primary_key=True,
+                                            index=True)
+    ref: Mapped[str] = mapped_column(String(255), primary_key=True, index=True)
+    kind: Mapped[str] = mapped_column(String(12), default="image")
+    added_at: Mapped[datetime] = mapped_column(DateTime,
+                                               default=datetime.utcnow)
+
+
 class Device(Base):
     """Plan mobile T2 (tâche #56, P1, 01/10/2026) — un appareil appairé. Le jeton n'est JAMAIS stocké : seul son
     sha256 l'est, comme un mot de passe. `revoque` non nul = l'appareil ne passe plus la garde, immédiatement (le cache

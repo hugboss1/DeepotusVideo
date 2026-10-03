@@ -87,6 +87,10 @@ _migrate_legacy_data()
 from app.api.routes import router
 from app.config import settings, APP_VERSION, APP_HOSTNAME
 from app.services.storage import init_db
+# Bibliothèque #78 (03/10/2026) : un job qui DEVIENT « done » se range dans le projet actif (un écouteur SQLAlchemy,
+# parce que l'état est posé depuis plus de vingt sites). Posé à l'import, pour toute session de l'application.
+from app.services import library_projects as _LP_boot
+_LP_boot.installer()
 from app.services.news_service import news_daily_loop
 from app.services.marketing import schedule_loop
 
@@ -148,6 +152,11 @@ async def lifespan(app: FastAPI):
         await _LI.reconcilier()
     except Exception as e:
         logger.warning(f"library_index.reconcilier au boot ignoré: {e}")
+    # #78 : les épingles du téléphone (projets.json, tâche #58) deviennent des projets épinglés — une fois.
+    try:
+        await _LP_boot.reprendre_epingles_json()
+    except Exception as e:
+        logger.warning(f"library_projects.reprendre_epingles_json au boot ignoré: {e}")
     # Coffre (tâche #20) : « retenir sur ce PC » -> DPAPI descelle le mot de passe et les clés reviennent en mémoire
     # sans rien demander ; sinon on le DIT dans le journal plutôt que de laisser croire à des clés perdues.
     try:

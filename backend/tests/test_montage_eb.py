@@ -240,8 +240,10 @@ import inspect
 _sig = inspect.signature(PL.Pipeline.list_jobs)
 # L7-B D-34 (24/09/2026) : un sixieme parametre, `min_rating` (note minimale, filtre avant le limit ;
 # banc test_montage_l7b_notes.py) -- les cinq de E-2 restent en tete, dans le meme ordre.
-check("eb_pipeline_list_jobs_porte_les_cinq_parametres_plus_min_rating_de_D34",
-      list(_sig.parameters) == ["limit", "offset", "providers", "q", "video_exts", "min_rating"], list(_sig.parameters))
+# Bibliotheque #77 PR A (03/10/2026) : un septieme, `fav` (favoris seulement, meme place avant le limit ;
+# banc test_library_meta.py J6) -- ajoute EN QUEUE, les six d'avant inchanges.
+check("eb_pipeline_list_jobs_porte_les_cinq_parametres_plus_min_rating_de_D34_plus_fav_de_77",
+      list(_sig.parameters) == ["limit", "offset", "providers", "q", "video_exts", "min_rating", "fav"], list(_sig.parameters))
 
 c.__exit__(None, None, None)
 print(f"\n=== {ok} passed, {fail} failed ===")
