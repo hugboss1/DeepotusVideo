@@ -22,7 +22,7 @@ MODES = ("auto", "debut", "centre", "fin", "etirer")
 SEUIL_CASE = 0.25                  # part de la toile au-dela de laquelle une region est une case
 BORD = 0.02                        # a moins de 2 % de deux bords opposes, une region est bord a bord (une case)
 #: Taille de police implicite des types qui ecrivent du texte (template_service : text_slot 48, badge 34, ticker 40).
-TAILLE_DEFAUT = {"text_slot": 48, "badge": 34, "ticker": 40}
+TAILLE_DEFAUT = {"text": 48, "text_slot": 48, "badge": 34, "ticker": 40}   # « text » : 48 aussi (oubli corrige, #74)
 
 
 def format_de(tpl: dict) -> str | None:
@@ -95,6 +95,16 @@ def _echelle_textes(r: dict, k: float) -> None:
         r["size"] = max(8, round(TAILLE_DEFAUT[r["type"]] * k))
     if isinstance(r.get("radius"), (int, float)):
         r["radius"] = max(0, round(r["radius"] * k))
+    if isinstance(r.get("text_min_size"), (int, float)):   # tâche #74 : la taille mini et les effets de texte suivent aussi
+        r["text_min_size"] = max(6, round(r["text_min_size"] * k))
+    fx = r.get("text_effects")
+    if isinstance(fx, dict):
+        for nom, champs in (("stroke", ("px",)), ("shadow", ("dx", "dy", "blur")), ("box", ("radius", "pad"))):
+            sous = fx.get(nom)
+            if isinstance(sous, dict):
+                for c in champs:
+                    if isinstance(sous.get(c), (int, float)):
+                        sous[c] = round(sous[c] * k, 2)
     m = r.get("mask")
     if isinstance(m, dict):   # tâche #74 : les épaisseurs du masque suivent l'échelle ; fenêtres et points sont des fractions
         for c in ("radius", "feather_px", "border_px"):
