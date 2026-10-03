@@ -68,9 +68,13 @@ def heuristique(filename: str) -> str:
 
 async def noter(files, source: str, kind: str = "image",
                 job_id: str | None = None, deck_id: str | None = None,
-                doc_id: str | None = None) -> None:
+                doc_id: str | None = None, parent: str | None = None,
+                relation: str | None = None) -> None:
     """Upsert d'index au DÉPÔT (origin=depot). Résilient : une panne
-    d'index ne doit jamais faire échouer l'écriture du fichier."""
+    d'index ne doit jamais faire échouer l'écriture du fichier.
+    Tâche #79 (03/10/2026, plan-library T5) : `parent` / `relation` — la
+    MÈRE du fichier et ce qui l'en a tiré (crop, upscale, vue_3d, sprite…).
+    Nommés : les appelants qui ne les donnent pas ne changent pas."""
     if not files:
         return
     if source not in SOURCES:
@@ -95,6 +99,14 @@ async def noter(files, source: str, kind: str = "image",
                     row.deck_id = deck_id
                 if doc_id is not None:
                     row.doc_id = doc_id
+                if parent is not None:
+                    mere = Path(str(parent)).name
+                    # Une image ne descend pas d'elle-même : une opération qui
+                    # réécrit EN PLACE rendrait le même nom, et la remontée
+                    # tournerait en rond dès la première lecture.
+                    row.parent_filename = mere[:255] if mere and mere != nom else None
+                if relation is not None:
+                    row.relation = str(relation)[:24] or None
             await session.commit()
     except Exception as e:  # noqa: BLE001 — l'index est un à-côté
         logger.warning(f"library_index.noter({source}) ignoré: {e}")
@@ -332,6 +344,78 @@ async def facettes() -> dict:
 
     return {"tags": ordonne(tags), "teintes": ordonne(teintes),
             "notes": notes, "favoris": favoris}
+
+
+LIGNEE_PAS = 32      # remontée : au-delà, une chaîne est une donnée abîmée
+LIGNEE_MAX = 500     # descente : un arbre plus grand est rendu TRONQUÉ (et dit)
+
+
+async def lignee(filename: str) -> dict | None:
+    """Tâche #79 (plan-library T5) : l'arbre d'un fichier. On REMONTE jusqu'à
+    la racine (bornée, `cycle: true` si l'on retombe sur un nom déjà vu — un
+    `parent_filename` en cycle est une donnée possible : deux éditions
+    croisées par PATCH), puis on DESCEND (largeur d'abord, bornée).
+    `mere` : la ligne de la mère, ou — mère hors de l'index (la vidéo d'un
+    rendu, pour un sprite) — {filename, externe: true, job_id} ; `filles` :
+    les enfants DIRECTS du fichier. None si le fichier n'est ni au magasin
+    ni dans l'index."""
+    from sqlalchemy import select, or_
+    from app.services.storage import LibraryAsset, JobRecord, async_session_factory
+    nom = Path(str(filename or "")).name
+    async with async_session_factory() as s:
+        res = await s.execute(select(
+            LibraryAsset.filename, LibraryAsset.parent_filename,
+            LibraryAsset.relation, LibraryAsset.source, LibraryAsset.kind,
+            LibraryAsset.job_id))
+        lignes = {r[0]: {"filename": r[0], "parent": r[1], "relation": r[2],
+                         "source": r[3], "kind": r[4], "job_id": r[5]}
+                  for r in res.fetchall()}
+        if nom not in lignes and du_magasin(nom) is None:
+            return None
+        noeud = lignes.get(nom) or {"filename": nom, "parent": None, "relation": None,
+                                    "source": None, "kind": du_magasin(nom), "job_id": None}
+        racine, vus, cycle = nom, {nom}, False
+        for _ in range(LIGNEE_PAS):
+            p = (lignes.get(racine) or {}).get("parent")
+            if not p or p not in lignes:
+                break
+            if p in vus:
+                cycle = True
+                break
+            vus.add(p)
+            racine = p
+        mere = None
+        p = noeud.get("parent")
+        if p and p in lignes:
+            mere = lignes[p]
+        elif p:
+            mere = {"filename": p, "externe": True, "job_id": None}
+            res = await s.execute(select(JobRecord.id, JobRecord.final_video_path, JobRecord.video_path)
+                                  .where(or_(JobRecord.final_video_path.like(f"%{p}"),
+                                             JobRecord.video_path.like(f"%{p}"))))
+            for jid, fv, v in res.fetchall():
+                if p in (Path(str(fv or "")).name, Path(str(v or "")).name):
+                    mere["job_id"] = jid
+                    break
+    enfants_de: dict = {}
+    for n, l in lignes.items():
+        if l["parent"]:
+            enfants_de.setdefault(l["parent"], []).append(l)
+    enfants, file_, vus2, tronque = [], [racine], {racine}, False
+    while file_:
+        cour = file_.pop(0)
+        for l in sorted(enfants_de.get(cour, []), key=lambda z: z["filename"]):
+            if l["filename"] in vus2:
+                continue
+            if len(enfants) >= LIGNEE_MAX:
+                tronque = True
+                break
+            vus2.add(l["filename"])
+            enfants.append(l)
+            file_.append(l["filename"])
+    filles = sorted((l for l in enfants_de.get(nom, []) if l["filename"] != nom), key=lambda z: z["filename"])
+    return {"filename": nom, "racine": racine, "cycle": cycle, "noeud": noeud,
+            "mere": mere, "filles": filles, "enfants": enfants, "tronque": tronque}
 
 
 async def carte() -> dict[str, dict]:
