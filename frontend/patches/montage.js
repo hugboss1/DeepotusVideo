@@ -10067,6 +10067,47 @@ function DzMetaEditor({m,maj}){var ss=x.useState(""),saisie=ss[0],setSaisie=ss[1
     r.jsx(K,{variant:"ghost",size:"sm",onClick:ajouter,disabled:!saisie.trim(),title:"Ajouter les tags saisis (séparés par des virgules)",children:"Ajouter"}),
     msg?r.jsx("span",{style:{fontSize:10.5,color:"var(--red)",flexBasis:"100%"},children:msg}):null]})}
 /* ── fin Bibliothèque #77 */
+/* ── Bibliothèque #79 PR B (plan-library T5, 03/10/2026) — la LIGNÉE dans la fiche d’une image.
+   Le serveur (PR A #153) rend GET /api/library/lignee/<nom> : la mère (ou la vidéo d’un rendu, « externe »), les
+   filles directes, la racine, `cycle`. Ici, sous la note et les tags : « Mère » et « Filles », en vignettes
+   cliquables qui OUVRENT la fiche de l’image (si elle est dans la liste chargée), avec la relation (crop, upscale,
+   vue_3d…). La relation est portée par la FILLE : sur la ligne « Mère », c’est celle de l’image ouverte.
+   Décision de l’utilisateur (03/10) : ni comparaison côte à côte ni repli dans la grille. */
+function dzLigneeVue(g,liste){if(!g)return null;
+  var parNom={};(liste||[]).forEach(function(z){if(z&&z.name)parNom[z.name]=z});
+  var rel=(g.noeud&&g.noeud.relation)||"",mere=null;
+  if(g.mere)mere=g.mere.externe?{nom:g.mere.filename,relation:rel,externe:!0,job:g.mere.job_id||null,item:null}
+    :{nom:g.mere.filename,relation:rel,externe:!1,item:parNom[g.mere.filename]||null};
+  var filles=(g.filles||[]).map(function(l){return{nom:l.filename,relation:l.relation||"",externe:!1,item:parNom[l.filename]||null}});
+  return{mere:mere,filles:filles,cycle:!!g.cycle,racine:g.racine&&g.racine!==g.filename?g.racine:null,
+    famille:(g.enfants||[]).length,tronque:!!g.tronque}}
+function DzLignee({m,liste,ouvrir}){var gs=x.useState(null),g=gs[0],setG=gs[1];
+  var nom=m&&m.kind==="image"&&!m.jobId&&!m.audioFile?m.name:null;
+  x.useEffect(function(){var on=!0;setG(null);if(!nom)return;
+    fetch("/api/library/lignee/"+encodeURIComponent(nom)).then(function(R){return R.ok?R.json():null})
+      .then(function(d){if(on)setG(d)}).catch(function(){});
+    return function(){on=!1}},[nom]);
+  var v=dzLigneeVue(g,liste);if(!nom||!v||(!v.mere&&!v.filles.length))return null;
+  function vign(e,cle){var lbl=e.nom+(e.relation?" — "+e.relation:"");
+    var t=e.externe?"La vidéo source"+(e.job?" (rendu "+e.job+")":"")+" : elle est dans les Rendus, pas dans les images"
+      :e.item?"Ouvrir la fiche de « "+e.nom+" »":"« "+e.nom+" » n’est pas dans la liste chargée (filtre, projet ou fichier retiré)";
+    return r.jsxs("button",{type:"button",title:t,disabled:!e.item,onClick:function(){if(e.item)ouvrir(e.item)},
+      style:{display:"inline-flex",alignItems:"center",gap:6,maxWidth:260,padding:"2px 8px 2px 2px",borderRadius:6,
+        border:"1px solid var(--stroke)",background:"var(--bg-base)",color:"var(--ink-soft)",fontSize:11,
+        cursor:e.item?"pointer":"default",opacity:e.item||e.externe?1:.6},children:[
+      e.externe?r.jsx("span",{style:{width:32,height:32,display:"grid",placeItems:"center",fontSize:16},children:"🎬"})
+        :r.jsx("img",{src:"/api/images/"+encodeURIComponent(e.nom),alt:"",style:{width:32,height:32,objectFit:"cover",borderRadius:4}}),
+      r.jsx("span",{style:{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"},children:lbl})]},cle)}
+  function rangee(titre,enf){return r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"},children:[
+    r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)",minWidth:54},children:titre}),...enf]})}
+  return r.jsxs("div",{className:"dz-lignee","data-dz":"lignee",style:{display:"flex",flexDirection:"column",gap:6,marginTop:8},children:[
+    v.mere?rangee("Mère",[vign(v.mere,"mere")]):null,
+    v.filles.length?rangee("Filles ("+v.filles.length+")",v.filles.map(function(e,i){return vign(e,"f"+i)})):null,
+    v.cycle?r.jsx("span",{title:"Deux images se donnent l’une l’autre pour mère : la remontée s’est arrêtée",
+      style:{fontSize:10.5,color:"var(--amber)"},children:"↺ boucle dans la lignée"}):null,
+    v.racine||v.tronque?r.jsx("span",{style:{fontSize:10.5,color:"var(--ink-muted)"},children:(v.racine?"Racine : "+v.racine+" · ":"")+
+      v.famille+" descendant"+(v.famille>1?"s":"")+" sous la racine"+(v.tronque?" (liste tronquée)":"")}):null]})}
+/* ── fin Bibliothèque #79 */
 /* ── Bibliothèque #78 PR B (plan-library T4, 03/10/2026) — les PROJETS à l'écran.
    Un projet contient des assets de toutes catégories (serveur : library_projects, PR A #144). Ici :
    - la barre « Projet » en tête du contenu : REGARDER un projet filtre TOUS les onglets (dzPF, appliqué dans Lfs) ;

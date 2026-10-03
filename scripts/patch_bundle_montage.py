@@ -8202,7 +8202,9 @@ R_P9LIB7 = A_P9LIB7 + ',dzCarteMeta(C,function(){dzMFs(function(v){return Object
 A_P9LIB8 = 'r.jsx(se,{name:"close",onClick:()=>y(null)})]}),m.kind==="sprite2d"?'
 R_P9LIB8 = ('r.jsx(se,{name:"close",onClick:()=>y(null)})]}),r.jsx(DzMetaEditor,{m:m,maj:function(md){'
             'd(function(L){return L.map(function(z){return z.name===m.name?Object.assign({},z,md):z})});'
-            'y(Object.assign({},m,md))}}),m.kind==="sprite2d"?')
+            'y(Object.assign({},m,md))}}),'
+            # tache #79 PR B (03/10/2026) : la lignee sous la note et les tags (l = la liste chargee, y = ouvrir une fiche)
+            'r.jsx(DzLignee,{m:m,liste:l,ouvrir:y}),m.kind==="sprite2d"?')
 # P9lib9 : le renommage ne bascule PLUS le favori deux fois -- le serveur l'emporte (library_index.renommer) ; la double
 # bascule l'aurait ETEINT. On deplace le cache.
 A_P9LIB9 = 'if(__dzFavImgHas(m.name)){__dzFavImgToggle(m.name);__dzFavImgToggle(j.new)}'
