@@ -24,7 +24,8 @@ r0 = subprocess.run(["git", "show", f"{BASE}:frontend/dist/assets/index-BEOJX8L5
 check("T1 temoin : la base a l'editeur de masque mais pas celui du texte", r0.returncode == 0
       and b"DzMaskEditor" in r0.stdout and b"DzTexteEditor" not in r0.stdout)
 k_msk = BUN.find('(c.type==="video_slot"||c.type==="image_slot")?r.jsx(DzMaskEditor,{rg:c,upd:function(pt){p(c.id,pt)}}):null,')
-k_txt = BUN.find('r.jsx(DzTexteEditor,{rg:c,upd:function(pt){p(c.id,pt)}}),r.jsx("div",{style:{marginTop:10},children:r.jsx("button",{onClick:dzDelReg')
+k_txt = BUN.find('r.jsx(DzTexteEditor,{rg:c,upd:function(pt){p(c.id,pt)}}),r.jsx(DzEchantillon,{rg:c,tpl:a,setTpl:l}),r.jsx("div",{style:{marginTop:10},children:r.jsx("button",{onClick:dzDelReg')
+# #75 PR B (03/10) : l echantillon d apercu (DzEchantillon) se place entre la section Texte et « Delete region »
 check("T2 la section est posee dans l'inspecteur, apres le masque et juste avant « Delete region » ; la toile passe par l'apercu du texte AUTOUR de celui du masque",
       0 < k_msk < k_txt and k_txt - k_msk < 200 and BUN.count("r.jsx(DzTexteEditor,") == 1
       and BUN.count("children:[dzTexteApercu(j,dzMasqueApercu(j,dzRegionFace(j))),") == 1)

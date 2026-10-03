@@ -42,7 +42,7 @@ def test_le_miroir_bundle_envoyer_vers():
     assert s.count("__dzToSpriteLab") == 5
     assert s.count("__dzPrint3d") == 3
     # l'amont ne bouge pas
-    assert s.count("__dzLibPicker") == 10
+    assert s.count("__dzLibPicker") == 11  # tache #75 PR B (03/10) : 10 -> 11, l'echantillon d'apercu des gabarits (DzEchantillon, couche montage)
     assert s.count("__dzSrcChips") == 2
 
 

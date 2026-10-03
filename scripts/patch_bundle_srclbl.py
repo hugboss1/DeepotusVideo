@@ -58,7 +58,7 @@ SONDE_AMONT = [
     ("libprov", "__dzSrcChips", 2),
     ("libprov-table", "var __dzSrcLbl={", 1),
     ("libprov-picker", "dzlp-chips", 4),
-    ("libpicker", "__dzLibPicker", 10),
+    ("libpicker", "__dzLibPicker", 11),  # tache #75 PR B (03/10) : 10 -> 11, l'echantillon d'apercu des gabarits (DzEchantillon, couche montage)
     ("dzcout", "__dzCoutBlanc", 7),
 ]
 

@@ -168,7 +168,7 @@ MARKER_ATTENDU = 7      # définition + window x2 + infobulle + total + puce x2
 # de dzcout APRÈS montage (il est en queue de chaîne), qui recrée `.bak_dzcout`
 # et rend la vue à la garde amont.
 STABLE_PROBES = [
-    ("libpicker", "__dzLibPicker", 10),
+    ("libpicker", "__dzLibPicker", 11),  # tache #75 PR B (03/10) : 10 -> 11, l'echantillon d'apercu des gabarits (DzEchantillon, couche montage)
     ("print3d", "__dzPrint3d", 3),
     ("navrail", "dz_nav_collapsed", 2),
     ("dzdesign", "__dzCatBar", 2),

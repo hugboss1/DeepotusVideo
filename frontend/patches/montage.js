@@ -9855,3 +9855,54 @@ function DzTexteEditor({rg,upd}){
       r.jsx("img",{src:ap.url,alt:"Aperçu exact de la case",style:{maxWidth:"100%",maxHeight:220,display:"block",borderRadius:6,border:"1px solid var(--stroke)",background:"#101010"}}),
       r.jsx("div",{style:{fontSize:10.5,color:ap.cle===cle?"var(--ink-soft)":"var(--amber)",marginTop:3},
         children:ap.cle===cle?"Rendu réel de la case (image fixe : sans pulsation).":"Réglages changés depuis cet aperçu : relancez « Aperçu exact »."})]}):null]})}
+/* Tâche #75 PR B (plan-templates T5-T6, 03/10/2026) — IMAGE FIXE et VIGNETTES au contenu réel, à l'écran.
+   Galerie : chaque carte superpose au schéma la VRAIE vignette du gabarit (rendue par le moteur, échantillons ou
+   mire dans les cases), dès qu'elle est chargée ; le schéma reste en attendant ou en cas d'échec. Éditeur : « Exporter
+   l'image » (instant, format) envoie le gabarit TEL QU'IL EST à l'écran, même non enregistré, vers la Bibliothèque ;
+   l'inspecteur des cases image et vidéo choisit l'ÉCHANTILLON d'aperçu (metadata.samples, enregistré avec le gabarit).
+   Décisions de l'utilisateur (03/10) : échantillon sinon mire ; instant réglable, 1 s ; PNG, JPEG, WebP ; Bibliothèque. */
+var __dzTplThumbV=0;
+function dzHache(s){var h=5381;s=String(s);for(var i=0;i<s.length;i++)h=((h*33)^s.charCodeAt(i))>>>0;return h.toString(36)}
+function DzTplVignette({id,regions,canvas,children}){
+  var os=x.useState(""),pret=os[0],setPret=os[1];
+  if(!id)return children;
+  var src="/api/layout-templates/"+encodeURIComponent(id)+"/thumb?v="+dzHache(JSON.stringify([regions||[],canvas||{}]))+"."+__dzTplThumbV;
+  return r.jsxs("div",{className:"dz-vignette",style:{position:"relative",display:"inline-block",lineHeight:0},children:[children,
+    r.jsx("img",{src:src,alt:"",loading:"lazy",title:"Aperçu réel (échantillons ou mire dans les cases)",onLoad:function(){setPret(src)},onError:function(){setPret("")},
+      style:{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",borderRadius:4,opacity:pret===src?1:0,transition:"opacity .2s"}})]})}
+function dzGabaritCourant(tpl,regs){
+  return Object.assign({},tpl,{regions:(regs||[]).map(function(E){var O0=(tpl.regions||[]).find(function(z){return z.id===E.id})||{},EX={};
+    for(var kk in E){if(kk!=="_disp"&&E[kk]!==void 0)EX[kk]=E[kk]}
+    return Object.assign({},O0,EX,{x:Math.round(E.x),y:Math.round(E.y),width:Math.round(E.width),height:Math.round(E.height)})})})}
+function DzExportImage({tpl,regs}){
+  var is_=x.useState("1"),inst=is_[0],setInst=is_[1],fs=x.useState("png"),fmt=fs[0],setFmt=fs[1],ms=x.useState(""),msg=ms[0],setMsg=ms[1],vol=x.useRef(!1);
+  if(!tpl)return null;
+  async function exporter(){if(vol.current)return;var at=parseFloat(String(inst).replace(",","."));
+    if(!isFinite(at)||at<0){setMsg("Instant illisible : un nombre de secondes (ex. 1,5).");return}
+    vol.current=!0;setMsg("Rendu de l’image…");
+    try{var R=await fetch("/api/layout-templates/"+encodeURIComponent(tpl.id||"_editeur")+"/render-image",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({template:dzGabaritCourant(tpl,regs),at_s:at,format:fmt})});
+      var d=await R.json().catch(function(){return{}});
+      if(!R.ok){setMsg(String(d.detail||("Export impossible (HTTP "+R.status+").")));return}
+      setMsg("Ajoutée à la Bibliothèque : "+d.filename)}
+    catch(e){setMsg(String(e&&e.message||e))}finally{vol.current=!1}}
+  return r.jsxs("div",{className:"dz-export-image",style:{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap",marginTop:6},children:[
+    r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)"},children:"Image à"}),
+    r.jsx("div",{style:{width:56},title:"Instant de l’image, en secondes (1 s : un ticker est entré, une pulsation est pleine)",children:r.jsx(le,{mono:!0,value:inst,onChange:function(s){setInst(s)}})}),
+    r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)"},children:"s"}),
+    r.jsx("div",{style:{width:86},title:"Format du fichier exporté",children:r.jsx(re,{value:fmt,onChange:function(v){setFmt(v)},options:[{value:"png",label:"PNG"},{value:"jpeg",label:"JPEG"},{value:"webp",label:"WebP"}]})}),
+    r.jsx(K,{variant:"outline",size:"sm",onClick:exporter,title:"Rendre UNE image du gabarit tel qu’il est à l’écran (même non enregistré) et l’ajouter à la Bibliothèque — local et gratuit",children:"Exporter l’image"}),
+    msg?r.jsx("span",{className:"dz-export-msg",style:{fontSize:10.5,color:"var(--ink-soft)",flexBasis:"100%"},children:msg}):null]})}
+function DzEchantillon({rg,tpl,setTpl}){
+  if(!rg||!rg.slot_name||(rg.type!=="video_slot"&&rg.type!=="image_slot"))return null;
+  var ech=tpl&&tpl.metadata&&tpl.metadata.samples||{},nom=ech[rg.slot_name]||"";
+  function poser(v){__dzTplThumbV++;setTpl(function(A){if(!A)return A;var md=Object.assign({},A.metadata||{}),s=Object.assign({},md.samples||{});
+    if(v)s[rg.slot_name]=v;else delete s[rg.slot_name];if(Object.keys(s).length)md.samples=s;else delete md.samples;return Object.assign({},A,{metadata:md})})}
+  return r.jsxs("div",{className:"dz-echantillon",style:{marginTop:10,paddingTop:10,borderTop:"1px solid var(--stroke)"},children:[
+    r.jsx("div",{style:{fontSize:11.5,fontWeight:600,color:"var(--ink-strong)",marginBottom:4},children:"Échantillon d’aperçu"}),
+    r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-soft)",marginBottom:6},children:"Sert aux vignettes et à l’export d’image ; jamais au rendu vidéo. Sans échantillon : une mire au nom de la case."}),
+    r.jsxs("div",{style:{display:"flex",gap:6,alignItems:"center"},children:[
+      nom?r.jsx("img",{src:"/api/images/"+encodeURIComponent(nom),alt:nom,title:nom,style:{width:48,height:48,objectFit:"cover",borderRadius:4,border:"1px solid var(--stroke)"}}):null,
+      r.jsx(K,{variant:"ghost",size:"sm",title:"Choisir l’image d’échantillon de « "+(rg.slot_label||rg.slot_name)+" » dans la Bibliothèque",
+        onClick:function(){window.__dzLibPicker({titre:"Échantillon d’aperçu — « "+(rg.slot_label||rg.slot_name)+" »"},function(fn){if(fn)poser(String(fn))})},children:nom?"Changer…":"Choisir…"}),
+      nom?r.jsx(K,{variant:"ghost",size:"sm",title:"Retirer l’échantillon : la case montrera une mire",onClick:function(){poser("")},children:"Retirer"}):null]})]})}
