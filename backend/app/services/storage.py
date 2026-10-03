@@ -58,6 +58,9 @@ class JobRecord(Base):
     rating: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     # Plan Quick T2 (tâche #51, 01/10/2026) — le rendu dont ce clip est l'extension (lignée)
     parent_job_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True, index=True)
+    # Bibliothèque #77 (03/10/2026) — favori du rendu, 1 = favori, NULL/0 = non. Il vivait dans le
+    # navigateur (localStorage `dz_fav_renders`) ; INDÉPENDANT de `rating` (décision de l'utilisateur).
+    fav: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
 
 class MeshyTaskRecord(Base):
@@ -323,6 +326,26 @@ class LibraryAsset(Base):
     doc_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
     created: Mapped[datetime] = mapped_column(DateTime,
                                               default=datetime.utcnow)
+    # ── Bibliothèque #77 (03/10/2026, plan-library T0) : le DAM. Colonnes
+    # AJOUTÉES (jamais une table de remplacement), migrées par
+    # LIBRARY_ASSETS_COLUMNS. Posées toutes ici : les tâches suivantes du
+    # plan (lignée, droits, nettoyage, couleur) n'ont plus à retoucher la
+    # migration. `fav` et `note` sont deux notions (décision 03/10).
+    tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON
+    fav: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    note: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    parent_filename: Mapped[Optional[str]] = mapped_column(
+        String(255), nullable=True, index=True)
+    relation: Mapped[Optional[str]] = mapped_column(String(24), nullable=True)
+    licence: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    auteur: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    source_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    sha256: Mapped[Optional[str]] = mapped_column(String(64), nullable=True,
+                                                  index=True)
+    taille_o: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    couleur: Mapped[Optional[str]] = mapped_column(String(7), nullable=True)
+    teinte: Mapped[Optional[str]] = mapped_column(String(12), nullable=True,
+                                                  index=True)
 
 
 class Device(Base):
@@ -542,6 +565,8 @@ V1_2_NEW_COLUMNS = [
     ("rating", "INTEGER"),
     # Plan Quick T2 (tâche #51) — lignée d'extension
     ("parent_job_id", "VARCHAR(36)"),
+    # Bibliothèque #77 (03/10/2026) — favori du rendu, repris du navigateur
+    ("fav", "INTEGER"),
 ]
 
 
@@ -615,6 +640,18 @@ SHOTS_COLUMNS = [
 # Vectorlab — pont cartes (27/08) : l'ancre deck_id sur les bases d'avant
 VECTOR_DOCS_COLUMNS = [
     ("deck_id", "VARCHAR(36)"),
+]
+
+# Bibliothèque #77 (03/10/2026) — colonnes ajoutées à library_assets APRÈS sa
+# livraison du 28/08. `create_all` n'ALTER jamais une table existante : sans
+# cette liste, la base d'un utilisateur qui a déjà ses lignes n'aurait aucune
+# de ces colonnes et toute lecture partirait en OperationalError.
+LIBRARY_ASSETS_COLUMNS = [
+    ("tags", "TEXT"), ("fav", "INTEGER"), ("note", "INTEGER"),
+    ("parent_filename", "VARCHAR(255)"), ("relation", "VARCHAR(24)"),
+    ("licence", "VARCHAR(40)"), ("auteur", "VARCHAR(120)"),
+    ("source_url", "TEXT"), ("sha256", "VARCHAR(64)"), ("taille_o", "INTEGER"),
+    ("couleur", "VARCHAR(7)"), ("teinte", "VARCHAR(12)"),
 ]
 
 
@@ -691,7 +728,8 @@ async def _auto_migrate():
                                ("avatar_presets", AVATAR_PRESETS_COLUMNS),
                                ("bible_entities", BIBLE_ENTITIES_COLUMNS),
                                ("shots", SHOTS_COLUMNS),
-                               ("vector_docs", VECTOR_DOCS_COLUMNS)):
+                               ("vector_docs", VECTOR_DOCS_COLUMNS),
+                               ("library_assets", LIBRARY_ASSETS_COLUMNS)):
             result = await conn.execute(text(f"PRAGMA table_info({table})"))
             existing_cols = {row[1] for row in result.fetchall()}
             if not existing_cols:
