@@ -97,6 +97,9 @@ def _echelle_textes(r: dict, k: float) -> None:
         r["radius"] = max(0, round(r["radius"] * k))
     if isinstance(r.get("text_min_size"), (int, float)):   # tâche #74 : la taille mini et les effets de texte suivent aussi
         r["text_min_size"] = max(6, round(r["text_min_size"] * k))
+    tc = r.get("text_curve")   # tâche #76 : le rayon de l'arc suit l'échelle, comme la taille du texte
+    if isinstance(tc, dict) and isinstance(tc.get("radius"), (int, float)):
+        tc["radius"] = max(20, round(tc["radius"] * k, 2))
     fx = r.get("text_effects")
     if isinstance(fx, dict):
         for nom, champs in (("stroke", ("px",)), ("shadow", ("dx", "dy", "blur")), ("box", ("radius", "pad"))):
