@@ -8129,12 +8129,27 @@ R_P8MSK1 = ('(c.type==="video_slot"||c.type==="image_slot")?r.jsx(DzMaskEditor,{
             # tache #74 PR D (03/10) : la section « Texte » (styles, ajustement, effets, apercu exact) repliee ICI -- meme
             # ancre, meme mise a jour p ; DzTexteEditor ne s'affiche que pour text, text_slot, badge, ticker
             'r.jsx(DzTexteEditor,{rg:c,upd:function(pt){p(c.id,pt)}}),'
+            # tache #75 PR B (03/10) : l'echantillon d'apercu des cases image/video, meme ancre ; ecrit metadata.samples
+            # du gabarit par son setter l (Save envoie deja ...a)
+            'r.jsx(DzEchantillon,{rg:c,tpl:a,setTpl:l}),'
             + A_P8MSK1)
 A_P8MSK2 = 'children:[dzRegionFace(j),'
 R_P8MSK2 = 'children:[dzTexteApercu(j,dzMasqueApercu(j,dzRegionFace(j))),'   # #74 PR D : + les effets de texte en CSS
 P1 += [("P8msk1-section-masque-dans-l-inspecteur", A_P8MSK1, R_P8MSK1),
        ("P8msk2-la-toile-montre-le-masque", A_P8MSK2, R_P8MSK2)]
 assert len(P1) == 115 and all("\n" not in r for _t, _a, r in P1[-2:])
+
+# P8img1..2 (tache #75 PR B, plan-templates T5-T6, 03/10/2026) -- IMAGE FIXE et VIGNETTES reelles. Ancres AMONT (1 sur
+# .bak_montage). P8img1 : la carte de galerie superpose au schema `gm` la vraie vignette (DzTplVignette) -- l'apercu
+# de reagencement (DzReflowBar) reutilise gm SANS elle. P8img2 : « Exporter l'image » apres « Open in Studio »
+# (a = le gabarit, d = les cases de travail). L'echantillon d'apercu est replie dans P8msk1.
+A_P8IMG1 = 'children:r.jsx(gm,{id:f.id,regions:f.regions,canvas:f.canvas})})'
+R_P8IMG1 = 'children:r.jsx(DzTplVignette,{id:f.id,regions:f.regions,canvas:f.canvas,children:r.jsx(gm,{id:f.id,regions:f.regions,canvas:f.canvas})})})'
+A_P8IMG2 = 'r.jsx(K,{variant:"outline",size:"sm",icon:"flow",onClick:_,disabled:!e,children:"Open in Studio"})'
+R_P8IMG2 = A_P8IMG2 + ',r.jsx(DzExportImage,{tpl:a,regs:d})'
+P1 += [("P8img1-vignette-reelle-en-galerie", A_P8IMG1, R_P8IMG1),
+       ("P8img2-exporter-l-image-du-gabarit", A_P8IMG2, R_P8IMG2)]
+assert len(P1) == 117 and all("\n" not in r for _t, _a, r in P1[-2:])
 
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),

@@ -2279,7 +2279,7 @@ def test_les_maillons_voisins_de_la_chaine_Bibliotheque_gardent_leurs_comptes():
     """
     s = _bundle()
     attendus = {
-        "__dzLibPicker": 10, "__dzSrcChips": 2, "__dzSendTo": 2,
+        "__dzLibPicker": 11, "__dzSrcChips": 2,   # __dzLibPicker 10 -> 11 : tache #75 PR B, DzEchantillon (couche montage, aval) "__dzSendTo": 2,
         "__dzPrint3d": 3, "__dzToSpriteLab": 5, "__dzQuickStart": 4,   # 3 -> 4 : tache #48, dzQuickApply (Rouvrir dans Quick)
        
         # __dzMontageAdd : 4 -> 5 le 05/09/2026 (chantier montage, P7) —
@@ -2299,9 +2299,6 @@ def test_les_maillons_voisins_de_la_chaine_Bibliotheque_gardent_leurs_comptes():
         assert s.count(jeton) == combien, jeton
     # et le patcher porte les mêmes comptes, avant comme après
     P = _patcher()
-    for _nom, sonde, combien in P.STABLE_PROBES:
-        if sonde in attendus:
-            assert combien == attendus[sonde], sonde
     # POST_COUNTS est la vérité du patcher À SON APPLICATION ; un maillon aval
     # légitime peut ajouter des occurrences. Chaque dérive est datée ici, et
     # le patcher n'est pas réécrit (01/10/2026).
@@ -2315,9 +2312,14 @@ def test_les_maillons_voisins_de_la_chaine_Bibliotheque_gardent_leurs_comptes():
         "deepotus:select-post": 1,
         # 01/10 (3e41a61, tâche #48) : dzQuickApply « Rouvrir dans Quick ».
         "__dzQuickStart": 1,
+        # 03/10 (tâche #75 PR B) : l'échantillon d'aperçu des gabarits ouvre la Bibliothèque (couche montage).
+        "__dzLibPicker": 1,
     }
     for sonde, combien in P.POST_COUNTS:
         assert s.count(sonde) == combien + derives_aval.get(sonde, 0), sonde
+    for _nom, sonde, combien in P.STABLE_PROBES:
+        if sonde in attendus:   # la sonde est la verite A L'APPLICATION : un maillon aval date s'y ajoute (derives_aval)
+            assert combien + derives_aval.get(sonde, 0) == attendus[sonde], sonde
 
 
 def test_le_patcher_etabli_est_un_assert_garde_en_queue_de_chaine():

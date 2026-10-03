@@ -291,7 +291,7 @@ def test_le_miroir_bundle_chips():
     racine = pathlib.Path(__file__).resolve().parent.parent.parent
     bundle = (racine / "frontend" / "dist" / "assets"
               / "index-BEOJX8L5.js").read_text("utf-8")
-    assert bundle.count("__dzLibPicker") == 10   # inchangé par libprov
+    assert bundle.count("__dzLibPicker") == 11   # inchangé par libprov ; tache #75 PR B (03/10) : 10 -> 11, l'echantillon d'apercu des gabarits (DzEchantillon, couche montage)
     assert bundle.count("dzlp-chips") >= 3       # chips du sélecteur
     assert 'source:S.source||"inconnu"' in bundle  # items vm sourcés
     assert bundle.count("__dzSrcChips") == 2     # rangée de chips de vm
