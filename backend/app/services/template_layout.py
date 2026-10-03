@@ -95,6 +95,14 @@ def _echelle_textes(r: dict, k: float) -> None:
         r["size"] = max(8, round(TAILLE_DEFAUT[r["type"]] * k))
     if isinstance(r.get("radius"), (int, float)):
         r["radius"] = max(0, round(r["radius"] * k))
+    m = r.get("mask")
+    if isinstance(m, dict):   # tâche #74 : les épaisseurs du masque suivent l'échelle ; fenêtres et points sont des fractions
+        for c in ("radius", "feather_px", "border_px"):
+            if isinstance(m.get(c), (int, float)):
+                m[c] = round(m[c] * k, 2)
+        for t in m.get("holes") or []:
+            if isinstance(t, dict) and isinstance(t.get("radius"), (int, float)):
+                t["radius"] = round(t["radius"] * k, 2)
     for it in r.get("items") or []:
         if not isinstance(it, dict):
             continue
