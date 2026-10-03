@@ -55,6 +55,22 @@ _PREFIXES: list[tuple[str, str]] = [
 ]
 
 
+# Tâche #80 (décision 03/10/2026) : la licence PAR DÉFAUT, par source. Ce que
+# l'app PRODUIT est « propriétaire » ; ce qui ENTRE de dehors (imports, URL,
+# news, Figma, téléphone, inconnu) est « inconnue » — l'écran l'alerte ; les
+# particules du catalogue de démarrage (Kenney) sont CC0. Une licence posée
+# n'est JAMAIS écrasée : seules les lignes à NULL reçoivent ce défaut.
+SOURCES_PROPRES = {"generation", "retouche", "matieres", "atelier", "cardforge",
+                   "vectorlab", "sprites", "assets3d", "templates"}
+LICENCE_PROPRE, LICENCE_INCONNUE = "propriétaire", "inconnue"
+
+
+def licence_defaut(filename: str, source: str | None) -> str:
+    if Path(str(filename or "")).name.startswith("particule_"):
+        return "CC0"
+    return LICENCE_PROPRE if source in SOURCES_PROPRES else LICENCE_INCONNUE
+
+
 def heuristique(filename: str) -> str:
     """Source déduite du NOM seul — honnête : `gen_` est ambigu entre
     plusieurs fonctions (générateur, retouche, matières, planches,
@@ -69,7 +85,7 @@ def heuristique(filename: str) -> str:
 async def noter(files, source: str, kind: str = "image",
                 job_id: str | None = None, deck_id: str | None = None,
                 doc_id: str | None = None, parent: str | None = None,
-                relation: str | None = None) -> None:
+                relation: str | None = None, recette: dict | None = None) -> None:
     """Upsert d'index au DÉPÔT (origin=depot). Résilient : une panne
     d'index ne doit jamais faire échouer l'écriture du fichier.
     Tâche #79 (03/10/2026, plan-library T5) : `parent` / `relation` — la
@@ -107,6 +123,10 @@ async def noter(files, source: str, kind: str = "image",
                     row.parent_filename = mere[:255] if mere and mere != nom else None
                 if relation is not None:
                     row.relation = str(relation)[:24] or None
+                if recette is not None:   # tâche #80 : la recette du tir (JSON)
+                    row.recette = json.dumps(recette, ensure_ascii=False)
+                if row.licence is None:   # tâche #80 : le défaut par source, jamais par-dessus une saisie
+                    row.licence = licence_defaut(nom, source)
             await session.commit()
     except Exception as e:  # noqa: BLE001 — l'index est un à-côté
         logger.warning(f"library_index.noter({source}) ignoré: {e}")
@@ -205,15 +225,23 @@ async def reconcilier() -> int:
                         continue
                     if kind == "image" and p.suffix.lower() not in _IMAGE_EXTS:
                         continue
+                    src = heuristique(p.name) if kind == "image" else "inconnu"
                     session.add(LibraryAsset(
-                        filename=p.name, kind=kind,
-                        source=(heuristique(p.name) if kind == "image"
-                                else "inconnu"),
-                        origin="heuristique"))
+                        filename=p.name, kind=kind, source=src,
+                        origin="heuristique"))   # tâche #80 : la licence vient du rétro-remplissage ci-dessous
                     connus.add(p.name)
                     ajout += 1
-            if ajout:
+            # Tâche #80 (décision 03/10) : RÉTRO-REMPLISSAGE de la licence des lignes existantes — NULL seulement,
+            # une licence saisie n'est jamais touchée. Idempotent (à chaque boot, plus rien à faire).
+            res = await session.execute(select(LibraryAsset).where(LibraryAsset.licence.is_(None)))
+            remplies = 0
+            for row in res.scalars().all():
+                row.licence = licence_defaut(row.filename, row.source)
+                remplies += 1
+            if ajout or remplies:
                 await session.commit()
+            if remplies:
+                logger.info(f"library_index: licence par défaut posée sur {remplies} asset(s)")
         if ajout:
             logger.info(f"library_index: {ajout} asset(s) rétro-indexés "
                         "(heuristique)")
@@ -295,9 +323,9 @@ async def editer(filename: str, champs: dict) -> dict:
         row = await session.get(LibraryAsset, nom)
         if row is None:
             kind = du_magasin(nom) or "image"
+            src = heuristique(nom) if kind == "image" else "inconnu"
             row = LibraryAsset(filename=nom, kind=kind, origin="heuristique",
-                               source=(heuristique(nom) if kind == "image"
-                                       else "inconnu"))
+                               source=src, licence=licence_defaut(nom, src))   # tâche #80
             session.add(row)
         if "tags" in champs:
             row.tags = tags_ecrits(champs["tags"])

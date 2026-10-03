@@ -2921,6 +2921,21 @@ async def library_editer_asset(filename: str, request: Request):
     return await LI.editer(safe, champs)
 
 
+@router.get("/library/fiche/{filename}")
+async def library_fiche(filename: str):
+    """Tâche #80 (plan-library T6-T8) : la FICHE complète d'un asset — droits (licence, auteur, lien source ; alerte
+    si inconnue), fichier (dimensions, poids, date), recette (et d'où elle vient), « rejouer » (corps pour
+    /images/generate, recette du générateur seulement), usages. Lecture seule. 404 / 400 comme la lignée."""
+    from app.services import library_fiche as LF
+    safe = Path(filename).name
+    if not safe or safe in (".", "..") or safe != filename:
+        raise HTTPException(400, "Invalid filename")
+    out = await LF.fiche(safe)
+    if out is None:
+        raise HTTPException(404, f"Fichier absent de la Bibliothèque : {safe}")
+    return out
+
+
 @router.get("/library/lignee/{filename}")
 async def library_lignee(filename: str):
     """Tâche #79 (plan-library T5) : la lignée d'un fichier — sa racine, sa
@@ -6896,10 +6911,27 @@ async def generate_image(body: dict, background_tasks: BackgroundTasks):
         if src not in LI.SOURCES:
             src = "generation"
         if isinstance(out, dict) and out.get("images"):
-            await LI.noter(out["images"], src)
+            await LI.noter(out["images"], src, recette=_recette_generation(body, out))
     except Exception as e:  # noqa: BLE001 — l'index ne casse pas le tir
         logger.warning(f"index generation ignoré: {e}")
     return out
+
+
+def _recette_generation(body: dict, out: dict) -> dict:
+    """Tâche #80 (décision 03/10) : la RECETTE d'un tir du générateur, gardée avec chaque image — le prompt TEL QUE
+    SAISI (le style s'y réappliquera au rejeu), le style, le modèle RÉELLEMENT servi, le format, la graine (FLUX la
+    rend), le fond ; le prompt envoyé s'il diffère (style appliqué, noms d'artistes épurés)."""
+    from datetime import timezone as _tz
+    seed = out.get("seed") if isinstance(out.get("seed"), (int, float)) else body.get("seed")
+    r = {"prompt": str(body.get("prompt") or "").strip(), "style": (str(body.get("style") or "").strip().lower() or None),
+         "model": out.get("model") or (str(body.get("model") or "").strip().lower() or None),
+         "size": body.get("size") or "portrait_16_9",
+         "seed": int(seed) if isinstance(seed, (int, float)) and not isinstance(seed, bool) else None,
+         "background": (str(body.get("background") or "").strip().lower() or None),
+         "le": datetime.now(_tz.utc).isoformat(timespec="seconds")}
+    if out.get("prompt") and out.get("prompt") != r["prompt"]:
+        r["prompt_envoye"] = out["prompt"]
+    return {k: v for k, v in r.items() if v is not None}
 
 
 def _erreur_fournisseur(model: str, e: Exception) -> HTTPException:
