@@ -200,23 +200,10 @@ _XFADE.update({n: (n, None) for f in _XFADE_FAMILIES.values() for n in f["noms"]
 _XFADE_LIVE = ("fade", "fadeblack", "fadewhite")
 
 
-def _cut_tau(fps) -> float:
-    """Durée RENDUE de la coupe franche à la cadence `fps` : les 0,04 s de
-    `_XFADE["cut"]` tant qu'elles font au moins une demi-image, sinon UNE
-    image (1/fps arrondie au ms supérieur). MESURÉ 27/09/2026 (9.0.1 =
-    8.1.1) : à 12 i/s (GIF 480), 0,04 s = 0,48 image — tpad arrondit
-    l'amorce de coupe à zéro image et l'offset du xfade (0,96 s = 11,52
-    images → 12) tombe après la dernière image du plan sortant : xfade voit
-    l'EOF de sa première entrée et termine le flux (3 plans de 1 s → 12
-    images au lieu de 36). À ≥ 12,5 i/s : 0,04, commande octet pour octet."""
-    c = _XFADE["cut"][1]
-    try:
-        f = float(fps)
-    except (TypeError, ValueError):
-        return c
-    if f <= 0 or c * f >= 0.5:
-        return c
-    return math.ceil(1000.0 / f) / 1000.0
+# La coupe franche sous la demi-image (MESURÉ 27/09/2026, GIF 12 i/s : xfade
+# termine le flux) — règle partagée avec les gabarits séquentiels, définie
+# dans template_service à côté de sa table _XFADE (même coupe de 0,04 s).
+from app.services.template_service import _cut_tau  # noqa: E402
 
 
 _XFADE_LABELS = {  # libellés français du catalogue ; le nom xfade reste l'id

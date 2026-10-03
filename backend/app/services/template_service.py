@@ -10,6 +10,7 @@ Built-in templates ship inside the codebase at backend/app/templates/*.json
 and are immutable. User-created templates live under assets/user_templates/.
 """
 import json
+import math
 import re
 import shutil
 import subprocess
@@ -1110,6 +1111,25 @@ _XFADE = {
 }
 
 
+def _cut_tau(fps) -> float:
+    """Durée RENDUE de la coupe franche à la cadence `fps` : les 0,04 s de
+    `_XFADE["cut"]` tant qu'elles font au moins une demi-image, sinon UNE
+    image (1/fps arrondie au ms supérieur). MESURÉ 27/09/2026 (9.0.1 =
+    8.1.1) : sous la demi-image, xfade voit l'EOF de sa première entrée et
+    TERMINE le flux — le plan suivant est perdu sans erreur (Montage, GIF
+    12 i/s ; gabarits séquentiels, 03/10 : 4 s + 2 s à 10 i/s → vidéo de
+    4,0 s). À ≥ 12,5 i/s : 0,04, commande octet pour octet. Seule
+    définition : montage_service la reprend."""
+    c = _XFADE["cut"][1]
+    try:
+        f = float(fps)
+    except (TypeError, ValueError):
+        return c
+    if f <= 0 or c * f >= 0.5:
+        return c
+    return math.ceil(1000.0 / f) / 1000.0
+
+
 def build_sequential_command(engine, template, slot_values, output_path, still_at=None):
     """Compile a `render_mode: sequential` montage: 2..N clips chained with
     per-act `transition` ({type,duration_s}) via the xfade filter.
@@ -1207,6 +1227,8 @@ def build_sequential_command(engine, template, slot_values, output_path, still_a
             tr = (acts[k].get("transition") or {})
             ttype = tr.get("type", "crossfade")
             name, fixed = _XFADE.get(ttype, _XFADE["crossfade"])
+            if (name, fixed) == _XFADE["cut"]:
+                fixed = _cut_tau(fps)  # au moins une demi-image (voir _cut_tau)
             tau = fixed if fixed is not None else float(
                 tr.get("duration_s", 0.5))
             tau = max(0.04, min(tau, max(0.1, durs[k] - 0.1),
