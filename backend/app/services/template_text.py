@@ -237,3 +237,40 @@ def rendre_png(lignes: list, chemin_police, taille: int, couleur: str, e: dict, 
         im = Image.alpha_composite(im, couche)
     im.save(chemin)
     return chemin, bw, bh
+
+
+def apercu(engine, region: dict, fond, dossier: Path) -> bytes:
+    """Tache #74 PR D — « Aperçu exact » de l'editeur : la case SEULE, rendue par le VRAI moteur (meme ffmpeg, meme
+    ajustement, memes effets, meme encodage que le rendu final), dans une toile a sa taille ; PNG d'une image. Gratuit
+    (rien de paye) ; image fixe : la pulsation est retiree, le ticker est saisi quand son texte est entre dans la case.
+    ValueError (case illisible, type hors texte, reglage invalide) -> 400 cote route."""
+    import copy
+    import uuid
+    from app.services.composition_service import _run_ffmpeg
+    if not isinstance(region, dict) or region.get("type") not in TYPES:
+        raise ValueError(f"L'aperçu exact vaut pour {', '.join(TYPES)}.")
+    try:
+        w, h = int(region["width"]), int(region["height"])
+    except (KeyError, TypeError, ValueError):
+        raise ValueError("Case illisible (width / height).")
+    if not (8 <= w <= 4096 and 8 <= h <= 4096):
+        raise ValueError("La case doit mesurer entre 8 et 4096 px.")
+    r = copy.deepcopy(region)
+    r.update(x=0, y=0, id=str(r.get("id") or "apercu"))
+    r.pop("effect", None)
+    t = 0.0
+    if r["type"] == "ticker":            # le texte entre par la droite : a la moitie de la case
+        t = round(min(5.0, w * 0.5 / max(1.0, float(r.get("speed", 120) or 120))), 2)
+    fond = fond if isinstance(fond, str) and _COULEUR.match(fond) else "#101010"
+    tpl = {"id": "apercu_texte", "name": "Aperçu", "regions": [r],
+           "canvas": {"width": w + w % 2, "height": h + h % 2, "fps": 10, "duration_s": round(t + 0.3, 2), "background_color": fond}}
+    nom = f"apercu_texte_{uuid.uuid4().hex[:10]}"
+    mp4, png = dossier / f"{nom}.mp4", dossier / f"{nom}.png"
+    try:
+        engine.render(nom, {}, mp4, template=tpl)
+        _run_ffmpeg(["ffmpeg", "-y", "-v", "error", "-ss", f"{t:.2f}", "-i", str(mp4), "-frames:v", "1",
+                     "-vf", f"format=rgb24,crop={w}:{h}:0:0", str(png)], png)   # en RGB : sur du yuv420p, crop arrondit une taille impaire (trouve par le banc)
+        return png.read_bytes()
+    finally:
+        for p in (mp4, png):
+            p.unlink(missing_ok=True)

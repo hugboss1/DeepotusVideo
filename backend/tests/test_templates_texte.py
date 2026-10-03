@@ -240,5 +240,56 @@ if TT:
           and fx["box"] == {"radius": round(12 * s, 2), "pad": round(20 * s, 2)} and fx["gradient"] == {"c0": "#ffffff", "c1": "#000000"}
           and o["regions"][1]["size"] == round(48 * s), str(o["regions"]))
 
+print("\n[P] l'apercu exact (PR D) : la case seule, rendue par le vrai moteur")
+if TT and FF and hasattr(TT, "apercu"):
+    import io
+    DOS = _tmp / "apx"
+    DOS.mkdir(exist_ok=True)
+    def png(region, fond=None):
+        return Image.open(io.BytesIO(TT.apercu(E, region, fond, DOS))).convert("RGB")
+    a1 = png(reg("t", "text", 400, 900, 301, 151, text="Le grand poulpe des profondeurs se leve", size=40, color="#ffffff", text_fit=True,
+                 effect="pulse", text_effects={"stroke": {"px": 3, "color": "#00ff00"}}), "#202020")
+    b1 = boite(a1, blanc)
+    vif = max((sum(a1.getpixel((x, y))) for x in range(a1.size[0]) for y in range(a1.size[1])), default=0)
+    check("P1 une image EXACTEMENT de la taille de la case (meme impaire), sa position ignoree, le texte ajuste DEDANS, sur le fond demande",
+          a1.size == (301, 151) and b1 is not None and b1[2] <= 300 and a1.getpixel((299, 149))[0] in range(28, 37), f"{a1.size} {b1} {a1.getpixel((299, 149))}")
+    check("P2 image FIXE : la pulsation est retiree (le texte est a pleine intensite, pas a moitie)", vif > 700, str(vif))
+    a7 = png(reg("t", "text", 0, 0, 120, 60, text="x", size=20, text_effects={"stroke": {"px": 1}}), "rouge")
+    check("P2b un fond illisible retombe sur le fond par defaut (#101010)", a7.getpixel((115, 55))[0] in range(12, 21), str(a7.getpixel((115, 55))))
+    tk = png(reg("k", "ticker", 0, 0, 400, 60, text="DEFILE", speed=80, color="#ffffff", text_effects={"gradient": {"c0": "#ff0000", "c1": "#0000ff"}}))
+    rouges = boite(tk, lambda p: p[0] > 120 and p[2] < 200 and p[0] > p[1] + 60)
+    check("P3 le ticker est saisi quand son texte est ENTRE dans la case (pas une image vide au depart)", rouges is not None and rouges[0] < 330, str(rouges))
+    def refus(region):
+        try:
+            TT.apercu(E, region, None, DOS); return None
+        except ValueError as e:
+            return str(e)
+    rf = [refus(reg("v", "video_slot", 0, 0, 100, 100, slot_name="v")), refus(reg("t", "text", 0, 0, 5000, 100, text="x")),
+          refus({"type": "text", "width": "large", "height": 10}), refus(reg("t", "text", 0, 0, 100, 100, text="x", text_effects={"lueur": {}})), refus("rien")]
+    check("P4 refus parlants : type hors texte, taille hors 8..4096, case illisible, effet inconnu (la validation du moteur), corps absent",
+          all(rf) and "text, text_slot, badge, ticker" in rf[0] and "4096" in rf[1] and "illisible" in rf[2] and "stroke, shadow, box, gradient" in rf[3]
+          and "text, text_slot" in rf[4], str(rf))
+    check("P5 rien ne reste derriere (ni mp4 ni png d'apercu)", not list(DOS.glob("apercu_texte_*")), str(list(DOS.iterdir())))
+
+    from fastapi.testclient import TestClient                       # noqa: E402
+    from app.main import app                                        # noqa: E402
+    import app.main as _MAIN                                        # noqa: E402
+
+    async def _boucle_coupee():
+        return None
+    _MAIN.schedule_loop = _boucle_coupee
+    corps = {"region": reg("t", "badge", 0, 0, 200, 80, text="LIVE", text_effects={"box": {"color": "#ff0000", "radius": 12}}), "background_color": "#000000"}
+    with TestClient(app, client=("127.0.0.1", 50000), raise_server_exceptions=False) as c:
+        w1 = c.post("/api/layout-templates/apercu-texte", json=corps)
+        w2 = c.post("/api/layout-templates/apercu-texte", json={"region": reg("v", "image_slot", 0, 0, 10, 10, slot_name="i")})
+    with TestClient(app, client=("192.168.1.20", 50000), raise_server_exceptions=False) as c2:
+        w3 = c2.post("/api/layout-templates/apercu-texte", json=corps)
+    im1 = Image.open(io.BytesIO(w1.content)).size if w1.status_code == 200 else None
+    check("W1 la route rend un PNG a la taille de la case, jamais mis en cache ; 400 parlant hors texte ; refus (401/403) hors de la machine",
+          w1.status_code == 200 and w1.headers.get("content-type") == "image/png" and im1 == (200, 80) and w1.headers.get("cache-control") == "no-store"
+          and w2.status_code == 400 and "badge" in w2.json().get("detail", "") and w3.status_code in (401, 403), f"{w1.status_code} {im1} {w2.status_code} {w3.status_code}")
+else:
+    check("P0 l'apercu exact existe (template_text.apercu) et ffmpeg est la", False)
+
 print(f"\n{ok} PASS / {fail} FAIL")
 sys.exit(1 if fail else 0)

@@ -8126,9 +8126,12 @@ assert len(P1) == 113 and "\n" not in R_P8REF1
 # dzMasqueApercu (couche).
 A_P8MSK1 = 'r.jsx("div",{style:{marginTop:10},children:r.jsx("button",{onClick:dzDelReg'
 R_P8MSK1 = ('(c.type==="video_slot"||c.type==="image_slot")?r.jsx(DzMaskEditor,{rg:c,upd:function(pt){p(c.id,pt)}}):null,'
+            # tache #74 PR D (03/10) : la section « Texte » (styles, ajustement, effets, apercu exact) repliee ICI -- meme
+            # ancre, meme mise a jour p ; DzTexteEditor ne s'affiche que pour text, text_slot, badge, ticker
+            'r.jsx(DzTexteEditor,{rg:c,upd:function(pt){p(c.id,pt)}}),'
             + A_P8MSK1)
 A_P8MSK2 = 'children:[dzRegionFace(j),'
-R_P8MSK2 = 'children:[dzMasqueApercu(j,dzRegionFace(j)),'
+R_P8MSK2 = 'children:[dzTexteApercu(j,dzMasqueApercu(j,dzRegionFace(j))),'   # #74 PR D : + les effets de texte en CSS
 P1 += [("P8msk1-section-masque-dans-l-inspecteur", A_P8MSK1, R_P8MSK1),
        ("P8msk2-la-toile-montre-le-masque", A_P8MSK2, R_P8MSK2)]
 assert len(P1) == 115 and all("\n" not in r for _t, _a, r in P1[-2:])
