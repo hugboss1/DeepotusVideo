@@ -276,6 +276,18 @@ async def render_layout_template(
     upload/file slots used as-is, text slots drawn directly. All slots resolve,
     then ffmpeg composites them. Poll GET /api/jobs/{job_id} for progress.
     """
+    # Tâche #72 (plan-templates T1, 03/10/2026) : le kit de marque est FIGÉ À L'ENVOI (décision de l'utilisateur) — un
+    # gabarit qui porte des jetons {{brand.x}} est résolu ICI avec le kit actif et part en ligne ; changer de kit pendant
+    # que le rendu attend dans la file ne le modifie plus. Sans jeton, rien ne change. Jeton inconnu : 400 qui le nomme.
+    try:
+        from app.services import brand_kits as _bk
+        _brut = request.template if request.template is not None else template_engine.get_template(template_id)
+        if _bk.jetons(_brut):
+            request.template = template_engine.resoudre(_brut)
+    except FileNotFoundError:
+        raise HTTPException(404, f"Template not found: {template_id}")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
     # Inline template (unsaved editor edits) renders as-is; otherwise the
     # saved template must exist.
     if request.template is None:
@@ -4924,7 +4936,6 @@ BRAND_DEFAULTS = {
     "brand_color": "#ef4444",
     "accent_color": "#00e5ff",
 }
-_BRAND_COLOR_RE = r"^#[0-9a-fA-F]{6}$"
 
 
 def _branding_dir() -> Path:
@@ -4935,20 +4946,46 @@ def _branding_dir() -> Path:
 
 
 def _read_branding() -> dict:
-    f = _branding_dir() / "branding.json"
-    data = dict(BRAND_DEFAULTS)
-    if f.is_file():
-        try:
-            user = json.loads(f.read_text(encoding="utf-8"))
-            for k in BRAND_DEFAULTS:
-                if isinstance(user.get(k), str) and user[k].strip():
-                    data[k] = user[k].strip()
-        except (ValueError, OSError) as e:
-            logger.warning(f"branding.json unreadable, using defaults: {e}")
-    data["has_custom_logo"] = (_branding_dir() / "logo.png").is_file()
-    data["is_default"] = not (_branding_dir() / "branding.json").is_file() \
-        and not data["has_custom_logo"]
+    """Tâche #72 (plan-templates T1, 03/10/2026) : le kit de marque ACTIF, sous la forme que le shell attend depuis
+    v1.11 (les six champs, has_custom_logo, is_default) + kit_id et kit_name. Les fichiers branding.json / logo.png
+    d'avant ne sont plus lus : ils ont été migrés dans le kit `deepotus` (copie, originaux gardés)."""
+    from app.services import brand_kits as _bk
+    kit = _bk.actif()
+    data = {k: kit[k] for k in BRAND_DEFAULTS}
+    data["has_custom_logo"] = bool(kit["logo"])
+    data["is_default"] = not data["has_custom_logo"] and all(data[k] == v for k, v in BRAND_DEFAULTS.items())
+    data["kit_id"], data["kit_name"] = kit["id"], kit["name"]
     return data
+
+
+def _logo_livre() -> Path:
+    return (Path(__file__).resolve().parents[2].parent / "frontend" / "public" / "deepotus-logo.png")
+
+
+def _servir_logo(kid: str):
+    from app.services import brand_kits as _bk
+    p = _bk.logo_path(kid) or _logo_livre()
+    if not p.is_file():
+        raise HTTPException(404, "No logo available")
+    return FileResponse(str(p), media_type="image/png", headers={"Cache-Control": "no-cache"})
+
+
+async def _poser_logo(kid: str, file) -> None:
+    """Le logo d'un kit : png/jpg/webp, 5 Mo au plus, normalisé en PNG par Pillow (qui vérifie que c'est une image)."""
+    from app.services import brand_kits as _bk
+    suffix = Path(file.filename or "").suffix.lower()
+    if suffix not in (".png", ".jpg", ".jpeg", ".webp"):
+        raise HTTPException(400, "Logo must be .png, .jpg or .webp")
+    data = await file.read()
+    if len(data) > 5 * 1024 * 1024:
+        raise HTTPException(400, "Logo too large (max 5 MB)")
+    try:
+        import io
+        from PIL import Image as PILImg
+        img = PILImg.open(io.BytesIO(data)).convert("RGBA")
+        img.save(_bk.dossier() / "logos" / f"{kid}.png", format="PNG")
+    except Exception as e:
+        raise HTTPException(400, f"Not a valid image: {e}")
 
 
 @router.get("/branding")
@@ -4958,72 +4995,115 @@ async def get_branding():
 
 @router.post("/branding")
 async def set_branding(body: dict, request: Request):
-    """Update brand fields (allowlisted, colors validated). Empty body or
-    {"reset": true} restores deepotus defaults (and removes the custom logo)."""
+    """Update brand fields OF THE ACTIVE KIT (allowlisted, colors validated). Empty body or {"reset": true} restores
+    deepotus defaults on the active kit and removes ITS logo (tâche #72 : les autres kits ne bougent pas)."""
     _require_localhost(request)
-    bdir = _branding_dir()
+    from app.services import brand_kits as _bk
+    kid = _bk.actif()["id"]
     if not body or body.get("reset"):
-        (bdir / "branding.json").unlink(missing_ok=True)
-        (bdir / "logo.png").unlink(missing_ok=True)
-        logger.info("branding reset to deepotus defaults")
+        _bk.reinitialiser(kid)
+        logger.info(f"branding reset to deepotus defaults (kit {kid})")
         return _read_branding()
-    clean = {}
-    for k in BRAND_DEFAULTS:
-        v = body.get(k)
-        if not isinstance(v, str) or not v.strip():
-            continue
-        v = v.strip()
-        if k.endswith("_color") and not re.match(_BRAND_COLOR_RE, v):
-            raise HTTPException(400, f"{k} must be #RRGGBB (got: {v})")
-        clean[k] = v[:60]
-    existing = {}
-    f = bdir / "branding.json"
-    if f.is_file():
-        try:
-            existing = json.loads(f.read_text(encoding="utf-8"))
-        except (ValueError, OSError):
-            existing = {}
-    existing.update(clean)
-    f.write_text(json.dumps(existing, indent=2), encoding="utf-8")
-    logger.info(f"branding updated: {list(clean.keys())}")
+    clean = {k: body[k] for k in BRAND_DEFAULTS if isinstance(body.get(k), str)}
+    try:
+        _bk.enregistrer(dict(clean, id=kid))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    logger.info(f"branding updated (kit {kid}): {list(clean.keys())}")
     return _read_branding()
 
 
 @router.get("/branding/logo")
 async def get_branding_logo():
-    """The brand logo: custom upload if present, else the bundled deepotus
-    mark. Cache disabled so a rebrand shows immediately."""
-    custom = _branding_dir() / "logo.png"
-    if custom.is_file():
-        return FileResponse(str(custom), media_type="image/png",
-                            headers={"Cache-Control": "no-cache"})
-    bundled = (Path(__file__).resolve().parents[2].parent
-               / "frontend" / "public" / "deepotus-logo.png")
-    if bundled.is_file():
-        return FileResponse(str(bundled), media_type="image/png",
-                            headers={"Cache-Control": "no-cache"})
-    raise HTTPException(404, "No logo available")
+    """The ACTIVE kit's logo, else the bundled deepotus mark. Cache disabled so a rebrand shows immediately."""
+    from app.services import brand_kits as _bk
+    return _servir_logo(_bk.actif()["id"])
 
 
 @router.post("/branding/logo")
 async def upload_branding_logo(request: Request, file: UploadFile = File(...)):
     _require_localhost(request)
-    suffix = Path(file.filename or "").suffix.lower()
-    if suffix not in (".png", ".jpg", ".jpeg", ".webp"):
-        raise HTTPException(400, "Logo must be .png, .jpg or .webp")
-    data = await file.read()
-    if len(data) > 5 * 1024 * 1024:
-        raise HTTPException(400, "Logo too large (max 5 MB)")
-    # Normalize to PNG via Pillow (also validates it's a real image).
-    try:
-        import io
-        from PIL import Image as PILImg
-        img = PILImg.open(io.BytesIO(data)).convert("RGBA")
-        img.save(_branding_dir() / "logo.png", format="PNG")
-    except Exception as e:
-        raise HTTPException(400, f"Not a valid image: {e}")
-    logger.info("custom brand logo uploaded")
+    from app.services import brand_kits as _bk
+    await _poser_logo(_bk.actif()["id"], file)
+    logger.info("custom brand logo uploaded (active kit)")
     return _read_branding()
+
+
+# ---- Tâche #72 : les kits de marque (plan-templates T1). Lecture libre ; écritures réservées à la machine locale. ----
+
+def _kit_ou_404(kit_id: str) -> str:
+    from app.services import brand_kits as _bk
+    if kit_id not in _bk.lire()["kits"]:
+        raise HTTPException(404, f"kit inconnu : {kit_id}")
+    return kit_id
+
+
+@router.get("/brand-kits")
+async def list_brand_kits():
+    from app.services import brand_kits as _bk
+    return {"kits": _bk.lister(), "actif": _bk.lire()["actif"]}
+
+
+@router.post("/brand-kits")
+async def save_brand_kit(body: dict, request: Request):
+    """Créer (sans id) ou modifier (id existant) un kit : name + les six champs de marque."""
+    _require_localhost(request)
+    from app.services import brand_kits as _bk
+    body = body if isinstance(body, dict) else {}
+    if body.get("id") and str(body.get("id")) not in _bk.lire()["kits"]:
+        raise HTTPException(404, f"kit inconnu : {body.get('id')}")
+    try:
+        kid = _bk.enregistrer(body)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"kit_id": kid, "kits": _bk.lister()}
+
+
+@router.post("/brand-kits/{kit_id}/dupliquer")
+async def duplicate_brand_kit(kit_id: str, request: Request):
+    _require_localhost(request)
+    from app.services import brand_kits as _bk
+    _kit_ou_404(kit_id)
+    try:
+        kid = _bk.dupliquer(kit_id)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"kit_id": kid, "kits": _bk.lister()}
+
+
+@router.post("/brand-kits/{kit_id}/activate")
+async def activate_brand_kit(kit_id: str, request: Request):
+    _require_localhost(request)
+    from app.services import brand_kits as _bk
+    _bk.activer(_kit_ou_404(kit_id))
+    return {"actif": kit_id, "branding": _read_branding()}
+
+
+@router.delete("/brand-kits/{kit_id}")
+async def delete_brand_kit(kit_id: str, request: Request):
+    _require_localhost(request)
+    from app.services import brand_kits as _bk
+    r = _bk.supprimer(kit_id)
+    if r == "absent":
+        raise HTTPException(404, f"kit inconnu : {kit_id}")
+    if r == "actif":
+        raise HTTPException(400, "Le kit actif ne se supprime pas : activez-en un autre d'abord.")
+    if r == "seul":
+        raise HTTPException(400, "C'est le dernier kit : il en faut au moins un.")
+    return {"deleted": kit_id, "kits": _bk.lister()}
+
+
+@router.get("/brand-kits/{kit_id}/logo")
+async def get_brand_kit_logo(kit_id: str):
+    return _servir_logo(_kit_ou_404(kit_id))
+
+
+@router.post("/brand-kits/{kit_id}/logo")
+async def upload_brand_kit_logo(kit_id: str, request: Request, file: UploadFile = File(...)):
+    _require_localhost(request)
+    from app.services import brand_kits as _bk
+    await _poser_logo(_kit_ou_404(kit_id), file)
+    return {"kit_id": kit_id, "kits": _bk.lister()}
 
 
 # ============ v1.14: editable caption pack (Telegram Premium tags) ============

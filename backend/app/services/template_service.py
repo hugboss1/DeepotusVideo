@@ -352,6 +352,15 @@ class TemplateEngine:
 
     # ----- rendering -----
 
+    def resoudre(self, tpl: dict, kit: dict | None = None) -> dict:
+        """Plan-templates T1 (tache #72, 03/10/2026) : le gabarit TEL QU'IL SERA RENDU, jetons {{brand.x}} remplaces
+        par le kit donne (le kit ACTIF sinon). Sans jeton, le gabarit est rendu tel quel (aucune lecture des kits) ;
+        un jeton inconnu leve ValueError en le nommant. La route de rendu l'appelle DEJA a l'envoi (kit fige)."""
+        from app.services import brand_kits as _bk
+        if not _bk.jetons(tpl):
+            return tpl
+        return _bk.appliquer(tpl, kit)
+
     def render(
         self,
         template_id: str,
@@ -370,6 +379,7 @@ class TemplateEngine:
         """
         tpl = template if template is not None else self.get_template(
             template_id)
+        tpl = self.resoudre(tpl)
         self._validate(tpl)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         work = Path(settings.outputs_path) / "_tmp_render" / output_path.stem
