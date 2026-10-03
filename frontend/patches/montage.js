@@ -9783,3 +9783,75 @@ function DzMaskEditor({rg,upd}){
           style:{background:"transparent",border:0,color:"var(--red)",cursor:"pointer"},children:"✕"})]},"t"+i)}),
       trous.length<16?r.jsx(K,{variant:"ghost",size:"sm",title:"Ajouter une fenêtre au centre de la case (rectangle de 30 %)",
         onClick:function(){maj({holes:trous.concat([{shape:"rect",x:0.35,y:0.35,width:0.3,height:0.3}])})},children:"+ Fenêtre"}):null]}):null]})}
+/* Tâche #74 PR D (plan-templates T4, 03/10/2026) — TEXTE ADAPTATIF et EFFETS dans l'éditeur de gabarit. Section
+   « Texte » de l'inspecteur des textes, sous-titres, badges et tickers : styles prêts à l'emploi (un clic, puis
+   réglables), ajustement à la case (couper puis réduire, taille minimale ; jamais pour le ticker qui défile), contour,
+   ombre (nette ou floue), fond (coins arrondis), dégradé. La toile montre les effets en CSS (approximation) ; le
+   bouton « Aperçu exact » demande au serveur UNE image de la case rendue par le vrai moteur (ffmpeg local, gratuit).
+   Décisions de l'utilisateur (03/10) : toile en CSS + aperçu exact ; styles prêts à l'emploi. */
+var DZ_TEXTE_TYPES=["text","text_slot","badge","ticker"];
+var DZ_TEXTE_DEFAUTS={stroke:{px:4,color:"#000000"},shadow:{dx:3,dy:4,blur:0,color:"#000000",opacity:0.6},
+  box:{color:"#000000",opacity:0.6,radius:0,pad:12},gradient:{c0:"#ffffff",c1:"#00e5ff",direction:"vertical"}};
+var DZ_TEXTE_STYLES=[
+  ["aucun","Aucun effet","Retirer tous les effets (le texte redevient celui d’origine, contour par défaut)",null,null],
+  ["soustitre","Sous-titre réseau","Contour noir épais et ombre nette, ajusté à la case : lisible sur toute image",
+    {stroke:{px:6,color:"#000000"},shadow:{dx:0,dy:4,blur:0,color:"#000000",opacity:0.6}},!0],
+  ["neon","Néon","Fin contour cyan et halo flou de la même couleur",{stroke:{px:2,color:"#00e5ff"},shadow:{dx:0,dy:0,blur:18,color:"#00e5ff",opacity:0.9}},null],
+  ["bandeau","Bandeau","Fond sombre à coins arrondis derrière le texte",{box:{color:"#0b1220",opacity:0.85,radius:18,pad:14}},null],
+  ["degrade","Titre dégradé","Dégradé jaune vers rose et ombre douce",{gradient:{c0:"#ffd400",c1:"#ff2a6d",direction:"vertical"},shadow:{dx:3,dy:5,blur:6,color:"#000000",opacity:0.7}},null]];
+function dzRgba(hex,a){var h=String(hex||"#000000").replace("#","");if(h.length!==6)h="000000";
+  return "rgba("+parseInt(h.slice(0,2),16)+","+parseInt(h.slice(2,4),16)+","+parseInt(h.slice(4,6),16)+","+(a==null?1:a)+")"}
+function dzTexteApercu(j,face){
+  var fx=j&&j.text_effects;if(!fx||typeof fx!=="object"||DZ_TEXTE_TYPES.indexOf(j.type)<0||!face||!face.props)return face;
+  var st=Object.assign({},face.props.style||{}),k=0.25,enfants=face.props.children;
+  if(fx.stroke)st.WebkitTextStroke=Math.max(0,(Number(fx.stroke.px)||0)*k)+"px "+(fx.stroke.color||"#02060d");
+  if(fx.shadow){var s=fx.shadow;st.textShadow=((Number(s.dx)||0)*k)+"px "+((Number(s.dy)||0)*k)+"px "+((Number(s.blur)||0)*k)+"px "+dzRgba(s.color,s.opacity==null?0.6:s.opacity)}
+  if(typeof enfants==="string"&&(fx.box||fx.gradient)){
+    var g=fx.gradient,b=fx.box,txt=g?r.jsx("span",{className:"dz-texte-degrade",style:{backgroundImage:"linear-gradient("+(g.direction==="horizontal"?"90deg":"180deg")+","+(g.c0||"#ffffff")+","+(g.c1||"#00e5ff")+")",
+      WebkitBackgroundClip:"text",backgroundClip:"text",color:"transparent"},children:enfants}):enfants;
+    enfants=b?r.jsx("span",{className:"dz-texte-fond",style:{background:dzRgba(b.color,b.opacity==null?0.6:b.opacity),borderRadius:(Number(b.radius)||0)*k,padding:((Number(b.pad)||0)*k)+"px "+((Number(b.pad)||0)*k*1.5)+"px"},children:txt}):txt}
+  return x.cloneElement(face,{style:st,className:((face.props.className||"")+" dz-texte-apercu").trim()},enfants)}
+function DzTexteEditor({rg,upd}){
+  var as=x.useState(null),ap=as[0],setAp=as[1],ms=x.useState(""),msg=ms[0],setMsg=ms[1],vol=x.useRef(!1);
+  if(!rg||DZ_TEXTE_TYPES.indexOf(rg.type)<0)return null;
+  var fx=rg.text_effects&&typeof rg.text_effects==="object"?rg.text_effects:{},defile=rg.type==="ticker",taille=Number(rg.size)||48;
+  function majFx(nom,pt){var q=Object.assign({},fx);if(pt===null)delete q[nom];else q[nom]=Object.assign({},q[nom]||DZ_TEXTE_DEFAUTS[nom],pt);
+    upd({text_effects:Object.keys(q).length?q:null})}
+  function style(z){var pt={text_effects:z[3]?JSON.parse(JSON.stringify(z[3])):null};if(z[4]&&!defile)pt.text_fit=!0;upd(pt)}
+  var cle=JSON.stringify(rg);
+  async function exact(){if(vol.current)return;vol.current=!0;setMsg("Rendu de l’aperçu…");
+    try{var R=await fetch("/api/layout-templates/apercu-texte",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({region:rg})});
+      if(!R.ok){var d=await R.json().catch(function(){return{}});setMsg(String(d.detail||("Aperçu impossible (HTTP "+R.status+").")));return}
+      var blob=await R.blob();if(ap&&ap.url)URL.revokeObjectURL(ap.url);setAp({url:URL.createObjectURL(blob),cle:cle});setMsg("")}
+    catch(e){setMsg(String(e&&e.message||e))}finally{vol.current=!1}}
+  function bascule(nom,lib){return r.jsx(O,{children:r.jsx(Ze,{checked:!!fx[nom],onChange:function(on){majFx(nom,on?{}:null)},label:lib})})}
+  function curseur(nom,c,lib,min,max,step,unit){var v=fx[nom]&&fx[nom][c]!=null?Number(fx[nom][c]):DZ_TEXTE_DEFAUTS[nom][c];
+    return r.jsx(O,{children:r.jsx(Oe,{label:lib,unit:unit||" px",value:v,min:min,max:max,step:step||1,onChange:function(v2){var pt={};pt[c]=v2;majFx(nom,pt)}})})}
+  function teinte(nom,c,lib){return r.jsx(O,{label:lib,children:r.jsx(DzColorPicker,{value:fx[nom]&&fx[nom][c]||DZ_TEXTE_DEFAUTS[nom][c],onChange:function(v){var pt={};pt[c]=v;majFx(nom,pt)}})})}
+  return r.jsxs("div",{className:"dz-texte",style:{marginTop:10,paddingTop:10,borderTop:"1px solid var(--stroke)"},children:[
+    r.jsx("div",{style:{fontSize:11.5,fontWeight:600,color:"var(--ink-strong)",marginBottom:6},children:"Texte : ajustement et effets"}),
+    r.jsx("div",{className:"dz-texte-styles",style:{display:"flex",gap:4,flexWrap:"wrap",marginBottom:8},children:DZ_TEXTE_STYLES.map(function(z){
+      return r.jsx(K,{variant:"ghost",size:"sm",title:z[2],onClick:function(){style(z)},children:z[1]},z[0])})}),
+    defile?r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)",marginBottom:6},children:"Le ticker défile : il n’est jamais ajusté à la case ; ses effets s’appliquent."})
+      :r.jsx(O,{children:r.jsx(Ze,{checked:!!rg.text_fit,onChange:function(on){upd({text_fit:on})},label:"Ajuster à la case (couper en lignes, puis réduire)"})}),
+    !defile&&rg.text_fit?r.jsx(O,{children:r.jsx(Oe,{label:"Taille minimale",unit:" px",value:Number(rg.text_min_size)||Math.min(12,taille),min:6,max:Math.max(6,Math.min(400,taille)),step:1,
+      onChange:function(v){upd({text_min_size:v})}})}):null,
+    bascule("stroke","Contour"),
+    fx.stroke?r.jsxs(r.Fragment,{children:[curseur("stroke","px","Épaisseur du contour",0,40),teinte("stroke","color","Couleur du contour")]}):null,
+    bascule("shadow","Ombre"),
+    fx.shadow?r.jsxs(r.Fragment,{children:[curseur("shadow","dx","Décalage horizontal",-50,50),curseur("shadow","dy","Décalage vertical",-50,50),
+      curseur("shadow","blur","Flou (0 = ombre nette)",0,60),curseur("shadow","opacity","Opacité",0,1,0.05," "),teinte("shadow","color","Couleur de l’ombre")]}):null,
+    bascule("box","Fond"),
+    fx.box?r.jsxs(r.Fragment,{children:[teinte("box","color","Couleur du fond"),curseur("box","opacity","Opacité du fond",0,1,0.05," "),
+      curseur("box","radius","Coins arrondis",0,100),curseur("box","pad","Marge intérieure",0,80)]}):null,
+    bascule("gradient","Dégradé"),
+    fx.gradient?r.jsxs(r.Fragment,{children:[teinte("gradient","c0","Couleur de départ"),teinte("gradient","c1","Couleur d’arrivée"),
+      r.jsx(O,{label:"Sens",children:r.jsx(re,{value:fx.gradient.direction||"vertical",onChange:function(v){majFx("gradient",{direction:v})},
+        options:[{value:"vertical",label:"De haut en bas"},{value:"horizontal",label:"De gauche à droite"}]})})]}):null,
+    r.jsxs("div",{style:{display:"flex",gap:6,alignItems:"center",marginTop:8},children:[
+      r.jsx(K,{variant:"outline",size:"sm",onClick:exact,title:"Rendre UNE image de cette case avec le vrai moteur (ajustement, effets, encodage) — local et gratuit",children:"Aperçu exact"}),
+      msg?r.jsx("span",{className:"dz-texte-msg",style:{fontSize:10.5,color:"var(--ink-soft)"},children:msg}):null]}),
+    ap&&ap.url?r.jsxs("div",{className:"dz-texte-exact",style:{marginTop:6},children:[
+      r.jsx("img",{src:ap.url,alt:"Aperçu exact de la case",style:{maxWidth:"100%",maxHeight:220,display:"block",borderRadius:6,border:"1px solid var(--stroke)",background:"#101010"}}),
+      r.jsx("div",{style:{fontSize:10.5,color:ap.cle===cle?"var(--ink-soft)":"var(--amber)",marginTop:3},
+        children:ap.cle===cle?"Rendu réel de la case (image fixe : sans pulsation).":"Réglages changés depuis cet aperçu : relancez « Aperçu exact »."})]}):null]})}

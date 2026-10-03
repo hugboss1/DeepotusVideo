@@ -220,6 +220,28 @@ async def save_layout_reflow(template_id: str, body: dict, request: Request):
     return {"template_id": tid, "name": nom, "format": fmt, "warnings": avert}
 
 
+_apercu_texte_verrou = asyncio.Lock()
+
+
+@router.post("/layout-templates/apercu-texte")
+async def apercu_texte(body: dict, request: Request):
+    """Tâche #74 PR D — « Aperçu exact » d'une case de texte (texte, sous-titre, badge, ticker) : PNG rendu par le VRAI
+    moteur (ajustement, effets, encodage). Gratuit ; un aperçu à la fois (ffmpeg local)."""
+    _require_localhost(request)
+    from app.services import template_text as _TT
+    dossier = Path(settings.outputs_path) / "_tmp_render"
+    dossier.mkdir(parents=True, exist_ok=True)
+    async with _apercu_texte_verrou:
+        try:
+            png = await asyncio.to_thread(_TT.apercu, template_engine, (body or {}).get("region"),
+                                          (body or {}).get("background_color"), dossier)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        except RuntimeError as e:
+            raise HTTPException(500, f"Aperçu impossible : {str(e)[-400:]}")
+    return Response(content=png, media_type="image/png", headers={"Cache-Control": "no-store"})
+
+
 @router.delete("/layout-templates/{template_id}")
 async def delete_layout_template(template_id: str):
     result = template_engine.delete_template(template_id)
