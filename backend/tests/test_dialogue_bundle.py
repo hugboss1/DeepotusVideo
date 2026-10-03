@@ -86,8 +86,9 @@ def main():
     # tache #71 PR B (03/10/2026) : + 1, le devis du duel de moteurs (DzDuelPanel, maillon montage).
     # tache #71 PR C (03/10/2026) : + 1, le devis d'une recette lancee depuis la Bibliotheque (dzRecLancerAvec).
     # tache #72 PR B (03/10/2026) : + 1, supprimer un kit de marque (DzKits).
-    check("await __dzDialogue.confirmer ×17 hors couche (11 + 2 de P1es1 + 1 import du Studio + 1 duel + 1 recette + 1 kit ; la couche le cite en commentaire)",
-          hors.count("await window.__dzDialogue.confirmer(") == 17,
+    # tache #80 PR B (03/10/2026) : + 1, le prix de « Rejouer la recette » dans la fiche d'une image (DzFiche).
+    check("await __dzDialogue.confirmer ×18 hors couche (11 + 2 de P1es1 + 1 import du Studio + 1 duel + 1 recette + 1 kit + 1 rejouer ; la couche le cite en commentaire)",
+          hors.count("await window.__dzDialogue.confirmer(") == 18,
           str(hors.count("await window.__dzDialogue.confirmer(")))
     check("la couche remplace window.alert et pose __dzDialogue",
           "window.alert = function" in couche and "window.__dzDialogue = {" in couche)

@@ -23,7 +23,7 @@ BASE = "e39d158f"
 r0 = subprocess.run(["git", "show", f"{BASE}:frontend/dist/assets/index-BEOJX8L5.js"], capture_output=True, cwd=str(RACINE))
 check("T1 temoin : la base a la fiche (DzMetaEditor) mais pas la lignee a l'ecran", r0.returncode == 0 and b"DzMetaEditor" in r0.stdout and b"DzLignee" not in r0.stdout)
 check("T2 la lignee suit la note et les tags dans la fiche d'une image (l = la liste chargee, y = ouvrir une fiche)",
-      BUN.count("y(Object.assign({},m,md))}}),r.jsx(DzLignee,{m:m,liste:l,ouvrir:y}),m.kind===\"sprite2d\"?") == 1
+      BUN.count("y(Object.assign({},m,md))}}),r.jsx(DzLignee,{m:m,liste:l,ouvrir:y}),r.jsx(DzFiche,") == 1   # #80 PR B : la fiche suit
       and BUN.count("[l,d]=x.useState([]),[u,f]=x.useState([]),[m,y]=x.useState(null)") == 1)
 
 

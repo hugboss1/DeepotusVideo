@@ -8204,7 +8204,10 @@ R_P9LIB8 = ('r.jsx(se,{name:"close",onClick:()=>y(null)})]}),r.jsx(DzMetaEditor,
             'd(function(L){return L.map(function(z){return z.name===m.name?Object.assign({},z,md):z})});'
             'y(Object.assign({},m,md))}}),'
             # tache #79 PR B (03/10/2026) : la lignee sous la note et les tags (l = la liste chargee, y = ouvrir une fiche)
-            'r.jsx(DzLignee,{m:m,liste:l,ouvrir:y}),m.kind==="sprite2d"?')
+            'r.jsx(DzLignee,{m:m,liste:l,ouvrir:y}),'
+            # tache #80 PR B (03/10/2026) : la fiche complete sous la lignee ; une image rejouee entre en tete de la liste
+            'r.jsx(DzFiche,{m:m,lister:function(im){d(function(L){return[{name:im,kind:"image",size:"",date:"",'
+            'url:D.imageUrl(im),source:"generation",srcOrigin:"depot",tags:[],note:0,fav:!1}].concat(L)})}}),m.kind==="sprite2d"?')
 # P9lib9 : le renommage ne bascule PLUS le favori deux fois -- le serveur l'emporte (library_index.renommer) ; la double
 # bascule l'aurait ETEINT. On deplace le cache.
 A_P9LIB9 = 'if(__dzFavImgHas(m.name)){__dzFavImgToggle(m.name);__dzFavImgToggle(j.new)}'
@@ -8276,6 +8279,13 @@ A_P9LIN1 = 'q=Lfs(dzSF?dzYf:(Y.length>0?Y:vo[o]))'
 R_P9LIN1 = 'q=dzLigneeEtabli(Lfs(dzSF?dzYf:(Y.length>0?Y:vo[o])))'
 P1 += [("P9lin1-versions-de-l-etabli-en-arbre", A_P9LIN1, R_P9LIN1)]
 assert len(P1) == 135 and "\n" not in R_P9LIN1
+
+# P9fi1 (tache #80 PR B, 03/10/2026) -- la GRILLE affichait une taille vide et « on disk » pour TOUTE image : l'API sert
+# size_kb et mtime (secondes), l'ecran lisait size et modified. Ancre AMONT (1 sur .bak_montage).
+A_P9FI1 = 'size:go(S.size),date:mo(S.modified)||"on disk"'
+R_P9FI1 = 'size:go(S.size_kb!=null?S.size_kb*1024:S.size),date:mo(S.mtime?S.mtime*1e3:S.modified)||"on disk"'
+P1 += [("P9fi1-taille-et-date-de-la-grille", A_P9FI1, R_P9FI1)]
+assert len(P1) == 136 and "\n" not in R_P9FI1
 
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),

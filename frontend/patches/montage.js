@@ -10124,6 +10124,71 @@ function dzLigneeEtabli(L){try{
       out.push(p?Object.assign({},z,{name:new Array(p+1).join("↳ ")+String(z.name||"")}):z)})});
   return out}catch(e){return L}}
 /* ── fin Bibliothèque #79 */
+/* ── Bibliothèque #80 PR B (plan-library T6-T8, 03/10/2026) — la FICHE complète d’une image ou d’un son.
+   Le serveur (PR A) rend GET /api/library/fiche/<nom> : droits (licence + alerte, auteur, lien source), fichier,
+   recette (et d’où elle vient), « rejouer » (corps + prix), usages. Décisions de l’utilisateur (03/10) : une fiche
+   EXPLICITE et éditable — la licence (liste + saisie libre), l’auteur et le lien s’enregistrent par le PATCH de #77 ;
+   alerte ambre si la licence est inconnue ; « Rejouer » relance la recette du générateur (PAYANT : prix annoncé par le
+   dialogue maison, plafond gardé par le serveur) ; pas de garde de licence à la publication. */
+function dzOctets(n){n=Number(n)||0;return n<1024?n+" o":n<1048576?(n/1024).toFixed(1)+" Ko":(n/1048576).toFixed(1)+" Mo"}
+function dzFicheLignes(f){if(!f)return null;var x2=f.fichier||{},rc=f.recette,o={};
+  o.fichier=[x2.largeur&&x2.hauteur?x2.largeur+" × "+x2.hauteur+" px":null,x2.octets!=null?dzOctets(x2.octets):null,
+    x2.format?String(x2.format).toUpperCase():null].filter(Boolean).join(" · ");
+  o.source=f.source_libelle||f.source||"";
+  if(rc){var org={generation:"Générateur",template:"Image fixe de gabarit",mobile:"Téléphone"}[rc.origine]||rc.origine;
+    o.recette=[org,rc.model?"modèle "+rc.model:null,rc.style?"style "+rc.style:null,rc.size?"format "+rc.size:null,
+      rc.seed!=null?"graine "+rc.seed:null,rc.template_name||rc.template_id?"gabarit "+(rc.template_name||rc.template_id):null,
+      rc.at_s!=null?"à "+rc.at_s+" s":null].filter(Boolean).join(" · ");
+    o.prompt=rc.prompt||"";}else{o.recette="";o.prompt=""}
+  var noms={rendu:"Rendu",post:"Post programmé",bible:"Bible",plan:"Plan",scene:"Scène",projet:"Projet"};
+  o.usages=(f.usages||[]).map(function(u){return(noms[u.type]||u.type)+" « "+u.libelle+" »"+(u.role?" ("+u.role+")":"")});
+  return o}
+function DzFiche({m,lister}){var fs=x.useState(null),f=fs[0],setF=fs[1],es=x.useState(null),ed=es[0],setEd=es[1],
+    ms=x.useState(""),msg=ms[0],setMsg=ms[1],vs=x.useState(!1),vol=vs[0],setVol=vs[1];
+  var nom=m&&!m.jobId&&(m.kind==="image"||m.kind==="audio"||m.audioFile)?m.name:null;
+  function charger(){if(!nom)return;fetch("/api/library/fiche/"+encodeURIComponent(nom)).then(function(R){return R.ok?R.json():null})
+    .then(function(d){setF(d);setEd(d?{licence:d.droits.licence||"",auteur:d.droits.auteur||"",source_url:d.droits.source_url||""}:null)})
+    .catch(function(){})}
+  x.useEffect(function(){setF(null);setEd(null);setMsg("");charger()},[nom]);
+  var L=dzFicheLignes(f);if(!nom||!f||!L||!ed)return null;
+  var dr=f.droits||{},change=ed.licence!==(dr.licence||"")||ed.auteur!==(dr.auteur||"")||ed.source_url!==(dr.source_url||"");
+  function enregistrer(){setMsg("");fetch("/api/library/asset/"+encodeURIComponent(nom),{method:"PATCH",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({licence:ed.licence.trim(),auteur:ed.auteur.trim(),source_url:ed.source_url.trim()})})
+    .then(function(R){return R.json().catch(function(){return{}}).then(function(d){if(!R.ok)throw new Error(d.detail||("HTTP "+R.status));return d})})
+    .then(function(){setMsg("Droits enregistrés.");charger()}).catch(function(e){setMsg("Non enregistré : "+String(e&&e.message||e))})}
+  async function rejouer(){if(vol||!f.rejouer)return;setVol(!0);try{
+      var prix=f.rejouer.usd!=null?"≈ "+Number(f.rejouer.usd).toFixed(3)+" $":"prix inconnu";
+      var ok=await window.__dzDialogue.confirmer("Relancer cette recette fait UNE nouvelle image, payante ("+prix+", plafond de dépense appliqué). La graine est gardée : avec le même modèle, l’image devrait être la même.",
+        {titre:"Rejouer la recette",ok:"Rejouer ("+prix+")"});
+      if(!ok)return;setMsg("Génération…");
+      var R=await fetch(f.rejouer.route,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(f.rejouer.corps)});
+      var d=await R.json().catch(function(){return{}});
+      if(!R.ok){setMsg("Refusé : "+String(d.detail||("HTTP "+R.status)));return}
+      var im=(d.images||[])[0];setMsg(im?"Nouvelle image : "+im+" (dans Images).":"Aucune image rendue.");if(im&&lister)lister(im)}
+    finally{setVol(!1)}}
+  function champ(lbl,cle,ph,liste){return r.jsxs("label",{style:{display:"flex",alignItems:"center",gap:6,fontSize:11,color:"var(--ink-muted)"},children:[lbl,
+    r.jsx("input",{value:ed[cle],placeholder:ph,list:liste,onChange:function(e){var n2=Object.assign({},ed);n2[cle]=e.target.value;setEd(n2)},
+      style:{width:cle==="source_url"?220:140,height:24,padding:"0 8px",fontSize:11.5,background:"var(--bg-base)",color:"var(--ink-strong)",
+        border:"1px solid var(--stroke)",borderRadius:6}})]})}
+  function ligne(t,v,titre){return v?r.jsxs("div",{style:{display:"flex",gap:8,fontSize:11.5},title:titre||"",children:[
+    r.jsx("span",{style:{minWidth:64,color:"var(--ink-muted)"},children:t}),r.jsx("span",{style:{color:"var(--ink-soft)",overflow:"hidden",textOverflow:"ellipsis"},children:v})]}):null}
+  return r.jsxs("div",{className:"dz-fiche","data-dz":"fiche",style:{display:"flex",flexDirection:"column",gap:6,marginTop:8,paddingTop:8,borderTop:"1px solid var(--stroke)"},children:[
+    r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"},children:[
+      r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)",minWidth:64},children:"Droits"}),
+      champ("Licence","licence","propriétaire, CC BY…","dz-licences"),
+      r.jsx("datalist",{id:"dz-licences",children:(dr.licences||[]).map(function(z){return r.jsx("option",{value:z},z)})}),
+      champ("Auteur","auteur","nom ou crédit"),champ("Lien","source_url","https://…"),
+      r.jsx(K,{variant:"ghost",size:"sm",onClick:enregistrer,disabled:!change,title:"Enregistrer la licence, l’auteur et le lien de la source",children:"Enregistrer"})]}),
+    dr.alerte?r.jsx("div",{className:"dz-fiche-alerte",style:{fontSize:11,color:"var(--amber)"},title:"Une licence inconnue : à vérifier avant toute diffusion",
+      children:"⚠ Licence inconnue — à vérifier avant diffusion"}):null,
+    ligne("Fichier",L.fichier),ligne("Source",L.source),ligne("Recette",L.recette||"inconnue"),
+    L.prompt?ligne("Prompt",L.prompt.length>140?L.prompt.slice(0,140)+"…":L.prompt,L.prompt):null,
+    L.usages.length?ligne("Usages",L.usages.join(" · ")):ligne("Usages","aucun"),
+    f.rejouer?r.jsx("div",{children:r.jsx(K,{variant:"outline",size:"sm",onClick:rejouer,disabled:vol,
+      title:"Relancer la recette du générateur — PAYANT"+(f.rejouer.usd!=null?" (≈ "+Number(f.rejouer.usd).toFixed(3)+" $)":"")+", prix redemandé avant le tir",
+      children:"Rejouer la recette"})}):null,
+    msg?r.jsx("span",{style:{fontSize:10.5,color:/^(Non|Refus)/.test(msg)?"var(--red)":"var(--ink-soft)"},children:msg}):null]})}
+/* ── fin Bibliothèque #80 */
 /* ── Bibliothèque #78 PR B (plan-library T4, 03/10/2026) — les PROJETS à l'écran.
    Un projet contient des assets de toutes catégories (serveur : library_projects, PR A #144). Ici :
    - la barre « Projet » en tête du contenu : REGARDER un projet filtre TOUS les onglets (dzPF, appliqué dans Lfs) ;
