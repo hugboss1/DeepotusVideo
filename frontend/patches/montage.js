@@ -10107,6 +10107,22 @@ function DzLignee({m,liste,ouvrir}){var gs=x.useState(null),g=gs[0],setG=gs[1];
       style:{fontSize:10.5,color:"var(--amber)"},children:"↺ boucle dans la lignée"}):null,
     v.racine||v.tronque?r.jsx("span",{style:{fontSize:10.5,color:"var(--ink-muted)"},children:(v.racine?"Racine : "+v.racine+" · ":"")+
       v.famille+" descendant"+(v.famille>1?"s":"")+" sous la racine"+(v.tronque?" (liste tronquée)":"")}):null]})}
+/* Tâche #79 PR C (plan-etabli T10, 03/10/2026) — les versions de l’Etabli EN ARBRE dans la Bibliothèque. La route
+   des productions de l’Etabli rend, pour chaque version, `profondeur` (dans l’arbre de son job) et `rang` (l’ordre de la
+   lignée : parcours en profondeur). Ici, appliqué à la liste de TOUT onglet après le filtre : seules les entrées qui
+   portent une profondeur numérique (l’Etabli) sont touchées — regroupées par job (dans l’ordre où les jobs arrivent),
+   remises dans l’ordre de la lignée, et décalées d’un « ↳ » par génération (trois au plus). Toute autre liste
+   ressort INCHANGÉE (même objet). */
+function dzLigneeEtabli(L){try{
+  if(!L||!L.length)return L;
+  for(var i=0;i<L.length;i++)if(!L[i]||typeof L[i].profondeur!=="number")return L;
+  var g={},o=[];
+  L.forEach(function(z){var j=String(z.job||"");if(!g[j]){g[j]=[];o.push(j)}g[j].push(z)});
+  var out=[];
+  o.forEach(function(j){g[j].slice().sort(function(a,b){return(typeof a.rang==="number"?a.rang:0)-(typeof b.rang==="number"?b.rang:0)})
+    .forEach(function(z){var p=Math.max(0,Math.min(3,Math.floor(z.profondeur)));
+      out.push(p?Object.assign({},z,{name:new Array(p+1).join("↳ ")+String(z.name||"")}):z)})});
+  return out}catch(e){return L}}
 /* ── fin Bibliothèque #79 */
 /* ── Bibliothèque #78 PR B (plan-library T4, 03/10/2026) — les PROJETS à l'écran.
    Un projet contient des assets de toutes catégories (serveur : library_projects, PR A #144). Ici :
