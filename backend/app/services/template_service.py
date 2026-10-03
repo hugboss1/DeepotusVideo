@@ -297,6 +297,9 @@ class TemplateEngine:
         # Tâche #75 (plan-templates T6) : les échantillons d'aperçu (metadata.samples) nomment des cases image/vidéo réelles.
         from app.services.template_still import verifier_echantillons
         verifier_echantillons(template)
+        # Tâche #76 (plan-templates T9) : une animation mal formée est refusée en nommant la région et le champ.
+        from app.services.template_anim import verifier_animations
+        verifier_animations(template)
 
     # ----- slot extraction -----
 
@@ -734,10 +737,16 @@ def build_ffmpeg_command(engine, template, slot_values, output_path, work, still
     n = 0
 
     from app.services.template_text import actif as _tt_actif   # tâche #74
+    from app.services import template_anim as _ta                # tâche #76 : animations d'entrée et de sortie
+    _couche = [False]   # vrai pendant qu'une région ANIMÉE se dessine sur sa couche transparente
 
     def _w(filter_str: str, label: str) -> None:
         nonlocal cur
-        if _rgb and "]overlay=" in filter_str:   # tâche #75 : la superposition reste en RGB
+        if _couche[0]:   # tâche #76 : sur la couche, la transparence doit survivre (mesuré sur ffmpeg 9.0.1) : drawbox
+            # n'y écrit l'alpha qu'avec replace=1 ; une superposition, elle, la garde telle quelle (couleur exacte, mesuré)
+            if "]drawbox=" in filter_str:
+                filter_str = filter_str[:filter_str.rindex("[")] + ":replace=1" + filter_str[filter_str.rindex("["):]
+        elif _rgb and "]overlay=" in filter_str:   # tâche #75 : la superposition reste en RGB
             filter_str = filter_str[:filter_str.rindex("[")] + ":format=gbrp" + filter_str[filter_str.rindex("["):]
         parts.append(filter_str)
         cur = label
@@ -809,6 +818,13 @@ def build_ffmpeg_command(engine, template, slot_values, output_path, work, still
         rid = r["id"]
         rx, ry = int(r["x"]), int(r["y"])
         rw, rh = int(r["width"]), int(r["height"])
+        anim = _ta.normaliser(r)
+        if anim:   # tâche #76 : la région se dessine par son code habituel sur une COUCHE transparente, animée ensuite
+            n += 1
+            k_an, sauve = n, cur
+            parts.append(f"color=c=black@0:s={w}x{h}:r={fps}:d={duration},format=rgba[ly{k_an}]")
+            cur = f"ly{k_an}"
+            _couche[0] = True
         if r["type"] in _VIDEO_LIKE:
             i = region_input[rid]
             sf = _scale_filter(r.get("fit", "cover"), rw, rh, bg)
@@ -1019,6 +1035,12 @@ def build_ffmpeg_command(engine, template, slot_values, output_path, work, still
                              textfile_name=_textfile(tk_text),
                              size=size, color=tcol,
                              x=x_expr, y=y_expr, alpha=alpha), f"tt{n}")
+        if anim:   # tâche #76 : la couche reçoit fondus, glissements ou pop, puis se pose sur l'image
+            _couche[0] = False
+            fl, ax, ay = _ta.chaine(anim, cur, f"la{k_an}", (rx, ry, rw, rh), (w, h), duration)
+            parts += fl
+            cur = sauve
+            _w(f"[{cur}][la{k_an}]overlay=x='{ax}':y='{ay}':eof_action=repeat[an{k_an}]", f"an{k_an}")
 
     # Global post-effects (whole render) — the Effects node targeting "all".
     post = template.get("post_effects") or template.get("effects")

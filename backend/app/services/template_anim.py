@@ -1,0 +1,147 @@
+# -*- coding: utf-8 -*-
+"""Plan-templates T9 / D2 (tache #76 du suivi, PR A, 03/10/2026) — ANIMATIONS d'entree et de sortie des regions.
+
+Champ d'une region (facultatif) :
+    "animation": {"in":  {"type": T, "duration": s, "delay": s, "easing": E},
+                  "out": {"type": T, "duration": s, "delay": s, "easing": E}}
+    T : fade | slide_left | slide_right | slide_up | slide_down | pop
+        (le nom dit le SENS DU MOUVEMENT, comme les presets d'animation de l'app : slide_left entre par la droite et
+        sort par la gauche ; slide_up entre par le bas et sort par le haut ; pop grossit depuis son centre / retrecit)
+    E : linear | ease_out | back (rebond, depasse puis revient) — le fondu reste lineaire
+    "in"  : commence a `delay` secondes ; "out" : finit `delay` secondes avant la fin du rendu.
+Decisions de l'utilisateur (03/10) : fondu, glissement, pop + courbes ; TOUTES les regions visibles (cases, textes,
+badges, stickers, separateurs, bandeaux, tickers ; le liseré d'un masque suit sa case) ; SANS animation, la commande
+ffmpeg est celle d'avant a l'octet.
+Technique (mesuree sur ffmpeg 9.0.1) : la region animee est dessinee par son code habituel sur une COUCHE transparente
+(source `color=black@0` creee DANS le graphe — donnee en entree, elle sortait en yuv420p, opaque — puis drawbox avec
+`replace=1`, superpositions en `format=auto`) ; la couche recoit fondus (fade alpha=1), puis pour le pop un recadrage
+sur la case et un `scale` evalue a chaque image ; elle est posee a des x/y fonctions de t.
+Le plan disait le pop impossible (« scale n'accepte pas le temps ») : faux, `scale=...:eval=frame` lit `t`.
+"""
+from __future__ import annotations
+
+TYPES = ("fade", "slide_left", "slide_right", "slide_up", "slide_down", "pop")
+COURBES = ("linear", "ease_out", "back")
+VISIBLES = ("video_slot", "image_slot", "text", "text_slot", "badge", "ticker", "sticker", "separator", "brand_strip")
+DUREE_DEFAUT = 0.6
+
+
+def _n(v) -> bool:
+    return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
+def verifier_animations(tpl: dict) -> None:
+    """ValueError qui nomme la region et le champ (appele par TemplateEngine._validate)."""
+    seq = (tpl or {}).get("render_mode") == "sequential"
+    for r in (tpl or {}).get("regions") or []:
+        if "animation" not in r or r["animation"] is None:
+            continue
+        rid, a = r.get("id"), r["animation"]
+        if seq:
+            raise ValueError(f"Region {rid} : les animations valent pour les gabarits spatiaux (pas séquentiels).")
+        if r.get("type") not in VISIBLES:
+            raise ValueError(f"Region {rid} : une {r.get('type')} ne s'anime pas (régions visibles seulement).")
+        if not isinstance(a, dict) or set(a) - {"in", "out"}:
+            raise ValueError(f"Region {rid} : animation attend {{\"in\": …, \"out\": …}}.")
+        for sens, m in a.items():
+            if m is None:
+                continue
+            if not isinstance(m, dict) or m.get("type") not in TYPES:
+                raise ValueError(f"Region {rid} : animation.{sens}.type parmi {', '.join(TYPES)}.")
+            if "duration" in m and not (_n(m["duration"]) and 0.05 <= m["duration"] <= 10):
+                raise ValueError(f"Region {rid} : animation.{sens}.duration doit être entre 0.05 et 10 s.")
+            if "delay" in m and not (_n(m["delay"]) and 0 <= m["delay"] <= 600):
+                raise ValueError(f"Region {rid} : animation.{sens}.delay doit être entre 0 et 600 s.")
+            if m.get("easing", "ease_out") not in COURBES:
+                raise ValueError(f"Region {rid} : animation.{sens}.easing parmi {', '.join(COURBES)}.")
+
+
+def normaliser(r: dict) -> dict | None:
+    """{"in": {...}|None, "out": {...}|None} complete (durees, delais, courbes par defaut) ; None sans animation."""
+    a = r.get("animation")
+    if not isinstance(a, dict):
+        return None
+    out = {}
+    for sens in ("in", "out"):
+        m = a.get(sens)
+        if isinstance(m, dict) and m.get("type") in TYPES:
+            out[sens] = {"type": m["type"], "d": float(m.get("duration", DUREE_DEFAUT)), "delai": float(m.get("delay", 0)),
+                         "e": m.get("easing", "ease_out")}
+        else:
+            out[sens] = None
+    return out if (out["in"] or out["out"]) else None
+
+
+def _f(v: float) -> str:
+    return f"{round(float(v), 4):g}"
+
+
+def _courbe(p: str, e: str) -> str:
+    """L'expression ffmpeg de la courbe appliquee a p (deja borne a 0..1)."""
+    if e == "linear":
+        return f"({p})"
+    if e == "back":                     # easeOutBack (c1 = 1.70158) : depasse la cible puis revient
+        return f"(1+2.70158*pow(({p})-1,3)+1.70158*pow(({p})-1,2))"
+    return f"(1-pow(1-({p}),3))"         # ease_out cubique
+
+
+def _progres(m: dict, duree: float, sortie: bool) -> str:
+    """p (0..1) de l'animation : entree de delai a delai+d ; sortie de fin-delai-d a fin-delai."""
+    t0 = (duree - m["delai"] - m["d"]) if sortie else m["delai"]
+    return f"clip((t-{_f(t0)})/{_f(m['d'])},0,1)"
+
+
+def chaine(anim: dict, src: str, dst: str, box: tuple, toile: tuple, duree: float) -> tuple:
+    """(filtres, x, y) : la couche `src` (toile entiere, rgba) animee jusqu'a `dst`, a poser a (x, y) — expressions de
+    t pour l'overlay. Fondus par fade alpha ; glissements par decalage ; pop par recadrage sur la case + scale."""
+    rx, ry, rw, rh = box
+    W, H = toile
+    filtres, cur = [], src
+    fx = []
+    ent, sor = anim.get("in"), anim.get("out")
+    if ent and ent["type"] == "fade":
+        fx.append(f"fade=t=in:st={_f(ent['delai'])}:d={_f(ent['d'])}:alpha=1")
+    if sor and sor["type"] == "fade":
+        fx.append(f"fade=t=out:st={_f(max(0.0, duree - sor['delai'] - sor['d']))}:d={_f(sor['d'])}:alpha=1")
+    # glissements : le nom dit le SENS DU MOUVEMENT (convention des presets d'animation de l'app : « slide-left » va de
+    # x 70 a 50) ; entree : part du decalage vers 0 ; sortie : va de 0 vers le decalage — hors de la toile
+    def decal(m, sortie):
+        hors = {"gauche": (-(rx + rw), 0), "droite": (W - rx, 0), "haut": (0, -(ry + rh)), "bas": (0, H - ry)}
+        vers = {"slide_left": "gauche", "slide_right": "droite", "slide_up": "haut", "slide_down": "bas"}[m["type"]]
+        oppose = {"gauche": "droite", "droite": "gauche", "haut": "bas", "bas": "haut"}
+        return hors[vers] if sortie else hors[oppose[vers]]   # on entre par le cote oppose, on sort par le cote vise
+    xs, ys = [], []
+    for m, sortie in ((ent, False), (sor, True)):
+        if m and m["type"].startswith("slide_"):
+            dx, dy = decal(m, sortie)
+            e = _courbe(_progres(m, duree, sortie), m["e"])
+            k = e if sortie else f"(1-{e})"
+            if dx:
+                xs.append(f"{dx}*{k}")
+            if dy:
+                ys.append(f"{dy}*{k}")
+    pop = [(m, s) for m, s in ((ent, False), (sor, True)) if m and m["type"] == "pop"]
+    if pop:
+        marge = int(max(rw, rh) * 0.15) + 8                 # le contour, l'ombre et le rebond depassent un peu la case
+        x0, y0 = max(0, rx - marge), max(0, ry - marge)
+        x1, y1 = min(W, rx + rw + marge), min(H, ry + rh + marge)
+        fx.append(f"crop={x1 - x0}:{y1 - y0}:{x0}:{y0}")
+        s = []
+        for m, sortie in pop:
+            e = _courbe(_progres(m, duree, sortie), m["e"])
+            s.append(f"(1-{e})" if sortie else e)
+        sx = "*".join(s)
+        fx.append(f"scale=w='max(1,trunc(iw*max(0.01,{sx})))':h='max(1,trunc(ih*max(0.01,{sx})))':eval=frame")
+        cx, cy = x0 + (x1 - x0) / 2, y0 + (y1 - y0) / 2
+        bx, by = f"{_f(cx)}-overlay_w/2", f"{_f(cy)}-overlay_h/2"
+    else:
+        bx, by = "0", "0"
+    if fx:
+        filtres.append(f"[{cur}]{','.join(fx)}[{dst}]")
+    else:
+        filtres.append(f"[{cur}]null[{dst}]")
+    # round() : overlay TRONQUE sa position (puis la rend paire en yuv420) ; la courbe « back » vaut 2,2e-16 a p = 0,
+    # soit 239,9999 au lieu de 240 -> 238 : deux lignes du badge depassaient AVANT son entree (vu sur la preuve)
+    x = "round(" + "+".join([bx] + [f"({v})" for v in xs]) + ")" if xs else bx
+    y = "round(" + "+".join([by] + [f"({v})" for v in ys]) + ")" if ys else by
+    return filtres, x, y
