@@ -164,6 +164,7 @@ async def fiche(filename: str) -> dict | None:
         "droits": {"licence": licence, "alerte": alerte_licence(licence), "auteur": row.auteur if row else None,
                    "source_url": row.source_url if row else None, "licences": list(LICENCES)},
         "fichier": _fichier(p, kind),
+        "couleur": {"hex": row.couleur, "teinte": row.teinte} if row and row.couleur else None,   # tâche #81
         "recette": rec,
         "rejouer": rejouer(rec),
         "usages": await _usages(nom),
