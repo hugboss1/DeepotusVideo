@@ -70,8 +70,9 @@ def main():
     # copies de chemin enchainees par .then(done) (13 appels en tout) ; plus AUCUN window.prompt(.
     # tache #53 (01/10/2026) : + 1 saisir enchaine par .then, le nom d'un preset Quick (P5st1, maillon montage) : 13 -> 14.
     # tache #71 PR A (03/10/2026) : + 1 saisir avec await, le nom d'une recette du Studio (DzRecetteBtn, maillon montage).
-    check("await __dzDialogue.saisir ×12 hors couche (2 de ce maillon + 10 du maillon montage), saisir ×15, window.prompt( ×0",
-          hors.count("await window.__dzDialogue.saisir(") == 12 and hors.count("window.__dzDialogue.saisir(") == 15
+    # tache #71 PR C (03/10/2026) : + 1 saisir avec await, garder ou changer un texte d'une recette (dzRecLancerAvec).
+    check("await __dzDialogue.saisir ×13 hors couche (2 de ce maillon + 11 du maillon montage), saisir ×16, window.prompt( ×0",
+          hors.count("await window.__dzDialogue.saisir(") == 13 and hors.count("window.__dzDialogue.saisir(") == 16
           and "window.prompt(" not in hors, str((hors.count("await window.__dzDialogue.saisir("), hors.count("window.prompt("))))
     SRC = RACINE / "frontend" / "shared" / "dialogue.js"
     check("la couche du patcher = frontend/shared/dialogue.js octet pour octet (source unique)",
@@ -79,8 +80,9 @@ def main():
     # t132 (28/09/2026) : + 2, la barre des episodes du maillon montage (P1es1 : modifications perdues, suppression).
     # tache #69 (02/10/2026) : + 1, « Remplacer » le graphe ouvert par un graphe importe (DzImportGraph, maillon montage).
     # tache #71 PR B (03/10/2026) : + 1, le devis du duel de moteurs (DzDuelPanel, maillon montage).
-    check("await __dzDialogue.confirmer ×15 hors couche (11 + 2 de P1es1 + 1 import du Studio + 1 duel ; la couche le cite en commentaire)",
-          hors.count("await window.__dzDialogue.confirmer(") == 15,
+    # tache #71 PR C (03/10/2026) : + 1, le devis d'une recette lancee depuis la Bibliotheque (dzRecLancerAvec).
+    check("await __dzDialogue.confirmer ×16 hors couche (11 + 2 de P1es1 + 1 import du Studio + 1 duel + 1 recette ; la couche le cite en commentaire)",
+          hors.count("await window.__dzDialogue.confirmer(") == 16,
           str(hors.count("await window.__dzDialogue.confirmer(")))
     check("la couche remplace window.alert et pose __dzDialogue",
           "window.alert = function" in couche and "window.__dzDialogue = {" in couche)

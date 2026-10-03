@@ -7837,6 +7837,8 @@ R_P5EX1 = ('function __dzExtendClip(id){var D=window.__dzDialogue;'
 A_P5EX2 = 'if(m.kind==="render"&&m.jobId){items.push({lbl:"\U0001f39e Montage — clip vidéo",'
 R_P5EX2 = ('if(m.kind==="render"&&m.jobId){items.push({lbl:"⚡ Prolonger le clip (+7 s, Veo 3.1 Fast, prix montré avant)",'
            'fn:function(){onClose&&onClose();__dzExtendClip(m.jobId)}});'
+           # repli tache #71 PR C (03/10) : « Studio — nouveau graphe » depuis un rendu (dzSendStudioRendu, couche)
+           'items.push(dzSendStudioRendu(m,nom,onClose));'
            'items.push({lbl:"\U0001f39e Montage — clip vidéo",')
 P1 += [("P5ex1-helper-prolonger-avant-dzsendto", A_P5EX1, R_P5EX1),
        ("P5ex2-entree-prolonger-du-menu-envoyer-vers", A_P5EX2, R_P5EX2)]
@@ -8088,6 +8090,16 @@ A_P7SCR1 = ('r.jsx("video",{src:D.jobVideoUrl(n.id),controls:!0,autoPlay:!0,'
 R_P7SCR1 = 'r.jsx(DzScrub,{jobId:n.id})'
 P1 += [("P7scr1-le-tiroir-de-resultat-se-parcourt", A_P7SCR1, R_P7SCR1)]
 assert len(P1) == 110 and "\n" not in R_P7SCR1
+
+# P7env1 (tache #71 PR C, plan-studio T12, 03/10/2026) -- « Lancer une recette… » dans « Envoyer vers » d'une IMAGE de la
+# Bibliotheque, juste apres « Studio — noeud Image ». Ancre AMONT (item Quick du maillon libsend), mesuree 1 sur
+# .bak_montage et absente de ce patcher. Le parcours (recette, trou image, textes, DEVIS confirme, lancement au montant
+# confirme) est dans la couche : dzSendChoisir, dzRecLancerAvec, dzSendRecette. L'entree « Studio — nouveau graphe »
+# d'un RENDU est un repli de P5ex2 (son ancre est re-emise par ce maillon).
+A_P7ENV1 = 'items.push({lbl:"⚡ Quick — image de départ",'
+R_P7ENV1 = 'items.push(dzSendRecette(nom,onClose));' + A_P7ENV1
+P1 += [("P7env1-lancer-une-recette-depuis-une-image", A_P7ENV1, R_P7ENV1)]
+assert len(P1) == 111 and "\n" not in R_P7ENV1
 
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
