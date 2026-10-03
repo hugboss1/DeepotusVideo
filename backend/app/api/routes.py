@@ -1608,7 +1608,16 @@ async def save_asset3d_shot(job: str, i: int):
         dest = settings.images_path / f"shot_{Path(job).name}_{int(i)}_{n}.png"
         n += 1
     shutil.copy2(src, dest)
-    await LI.noter([dest.name], "assets3d", job_id=Path(job).name)
+    # tâche #79 : la mère est l'image source du job, lue au manifeste (un job antérieur au manifeste n'en a pas) ;
+    # shot_0 EST cette image (une copie), les autres sont des vues.
+    mere = None
+    try:
+        from app.services import asset3d_service as _A3
+        mere = Path(str(_A3.read_manifest(Path(job).name).get("image_filename") or "")).name or None
+    except Exception:  # noqa: BLE001 — sans manifeste, pas de mère
+        mere = None
+    await LI.noter([dest.name], "assets3d", job_id=Path(job).name, parent=mere,
+                   relation=("copie" if int(i) == 0 else "vue_3d") if mere else None)
     return {"filename": dest.name}
 
 
@@ -1923,7 +1932,18 @@ async def save_sprite_sheet(job: str):
         dest = settings.images_path / f"gen_sprite_{Path(job).name}_{n}.png"
         n += 1
     shutil.copy2(src, dest)
-    await LI.noter([dest.name], "sprites", job_id=Path(job).name)
+    # tâche #79 (décision 03/10) : la mère d'une planche est la VIDÉO source quand elle est dans la Bibliothèque,
+    # c'est-à-dire un RENDU (source kind « job ») ; un upload ou un fichier de outputs n'y est pas : pas de mère.
+    mere = None
+    try:
+        import json as _json
+        _m = _json.loads((_sprite_dir(job) / "manifest.json").read_text(encoding="utf-8"))
+        if str((_m.get("source") or {}).get("kind") or "") == "job":
+            mere = Path(str(_m["source"].get("file") or "")).name or None
+    except Exception:  # noqa: BLE001 — sans manifeste, pas de mère
+        mere = None
+    await LI.noter([dest.name], "sprites", job_id=Path(job).name, parent=mere,
+                   relation="sprite" if mere else None)
     return {"filename": dest.name}
 
 
@@ -2899,6 +2919,21 @@ async def library_editer_asset(filename: str, request: Request):
     if LI.du_magasin(safe) is None:
         raise HTTPException(404, f"Fichier absent de la Bibliothèque : {safe}")
     return await LI.editer(safe, champs)
+
+
+@router.get("/library/lignee/{filename}")
+async def library_lignee(filename: str):
+    """Tâche #79 (plan-library T5) : la lignée d'un fichier — sa racine, sa
+    mère (ou la vidéo d'un rendu, hors index), ses filles directes et tout
+    l'arbre sous la racine. Remontée et descente BORNÉES ; `cycle` et
+    `tronque` le disent. 404 si le fichier n'est ni au magasin ni indexé."""
+    safe = Path(filename).name
+    if not safe or safe in (".", "..") or safe != filename:
+        raise HTTPException(400, "Invalid filename")
+    out = await LI.lignee(safe)
+    if out is None:
+        raise HTTPException(404, f"Fichier absent de la Bibliothèque : {safe}")
+    return out
 
 
 @router.get("/library/facettes")
@@ -6996,7 +7031,10 @@ async def process_image(body: dict):
     out = await _process_image_core(body)
     try:
         if isinstance(out, dict) and out.get("images"):
-            await LI.noter(out["images"], "retouche")
+            # tâche #79 : la mère (le fichier retouché) et l'opération qui en tire chaque image
+            await LI.noter(out["images"], "retouche",
+                           parent=Path(str(body.get("filename") or "")).name,
+                           relation=str(body.get("op") or "")[:24])
     except Exception as e:  # noqa: BLE001 — l'index ne casse pas la retouche
         logger.warning(f"index retouche ignoré: {e}")
     return out
@@ -12976,7 +13014,7 @@ async def finition_upscale_measure(body: dict):
     if not nom:
         raise HTTPException(502, "L'agrandissement local n'a rien produit.")
     try:
-        await LI.noter([nom], "retouche")
+        await LI.noter([nom], "retouche", parent=fn, relation="upscale")   # tâche #79
     except Exception:
         pass
     variantes.append(await loop.run_in_executor(
@@ -13005,7 +13043,7 @@ async def finition_upscale_measure(body: dict):
         if not nom2:
             raise HTTPException(502, "esrgan n'a rien produit.")
         try:
-            await LI.noter([nom2], "retouche")
+            await LI.noter([nom2], "retouche", parent=fn, relation="upscale_ai")   # tâche #79
         except Exception:
             pass
         variantes.append(await loop.run_in_executor(
