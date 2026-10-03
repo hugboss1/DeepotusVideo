@@ -9567,3 +9567,54 @@ function DzDuelPanel({node,graph,onUpdate}){
         o.file?r.jsx(K,{variant:"outline",size:"sm",onClick:function(){garder(o)},
           title:"Ce modèle gagne : son image devient celle du nœud ; l’autre reste dans la Bibliothèque",children:"Garder"}):null]},"d"+ix)})}):null,
     r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-muted)",marginTop:6},children:msg||"Coût : estimation des tarifs des Réglages. Durée : mesurée ici."})]})}
+/* Tâche #71 PR C (plan-studio T12, 03/10/2026) — « Envoyer vers… » de la Bibliothèque : (1) sur un RENDU, « Studio —
+   nouveau graphe » ouvre un graphe neuf Existing render → Render, à la DURÉE RÉELLE du rendu (sans elle, le nœud
+   prendrait les 18,4 s du registre) — distinct de « Rouvrir dans Studio » qui recharge le graphe source ; (2) sur une
+   IMAGE, « Lancer une recette… » : choisir la recette, le trou image qu'elle remplace (s'il y en a plusieurs), garder
+   ou changer chaque texte, puis le DEVIS du serveur est montré et confirmé — et seul ce montant confirmé part en
+   `max_usd` : un rendu plus cher est refusé avant toute génération (décisions de l'utilisateur, 03/10). */
+function dzSendChoisir(opts,titre){
+  return new Promise(function(res){var fini=!1;
+    __dzSendMenu(opts.map(function(o){return{lbl:o.lbl,fn:function(){fini=!0;res(o.v)}}}),titre);
+    var t=setInterval(function(){if(fini){clearInterval(t);return}
+      if(!document.getElementById("__dzSendHost")){clearInterval(t);fini=!0;res(null)}},250)})}
+function dzSendStudioRendu(m,nom,onClose){
+  return{lbl:"🎬 Studio — nouveau graphe (Existing render → Render)",fn:function(){onClose&&onClose();
+    fetch("/api/jobs/"+encodeURIComponent(m.jobId)).then(function(R){return R.ok?R.json():null}).catch(function(){return null}).then(function(j){
+      var dur=Number(j&&(j.duration_real_s||j.duration_s))||0,props={jobId:m.jobId};if(dur>0)props.durationS=Math.round(dur*10)/10;
+      window.__dzRenderGraph={name:(nom||"rendu")+".graph",nodes:[{id:"er1",type:"ExistingRender",x:220,y:240,props:props},
+        {id:"rn1",type:"Render",x:580,y:240,props:{}}],edges:[{id:"e1",from:"er1",fromPort:"out",to:"rn1",toPort:"in"}]};
+      __dzSendNav("studio")})}}}
+async function dzRecLancerAvec(image){
+  try{
+    var L=await fetch("/api/studio-graphs").then(function(R){return R.json()});
+    var recs=((L&&L.graphs)||[]).filter(function(g){return g&&g.recette>0});
+    if(!recs.length){await window.__dzDialogue.informer("Aucune recette : dans le Studio, fige un graphe composé avec le bouton « Recette ».",{titre:"Lancer une recette"});return}
+    var rid=recs.length===1?recs[0].id:await dzSendChoisir(recs.map(function(g){return{lbl:"🍳 "+g.name+" — "+g.recette+" source(s)",v:g.id}}),"Lancer quelle recette avec « "+image+" » ?");
+    if(!rid)return;
+    var R=await fetch("/api/studio-graphs/"+encodeURIComponent(rid)+"/recette"),rec=await R.json().catch(function(){return{}});
+    if(!R.ok){await window.__dzDialogue.informer(String(rec.detail||"Recette illisible ("+R.status+")."),{titre:"Lancer une recette"});return}
+    var ts_=rec.trous||[],imgs=ts_.filter(function(t){return t.nature==="image"}),txts=ts_.filter(function(t){return t.nature==="texte"});
+    if(!imgs.length){await window.__dzDialogue.informer("La recette « "+rec.name+" » n’a aucune image à remplacer.",{titre:"Lancer une recette"});return}
+    var cible=imgs.length===1?imgs[0].id:await dzSendChoisir(imgs.map(function(t){return{lbl:t.libelle+" (aujourd’hui : "+t.valeur+")",v:t.id}}),"« "+image+" » remplace quelle image ?");
+    if(!cible)return;
+    var valeurs={};valeurs[cible]=image;
+    for(var i=0;i<txts.length;i++){var t=txts[i];
+      var v=await window.__dzDialogue.saisir(t.libelle+" — garde-le ou change-le :",{titre:"Recette « "+rec.name+" » ("+(i+1)+"/"+txts.length+")",valeur:t.valeur,ok:"Suivant"});
+      if(v==null)return;if(v!==t.valeur)valeurs[t.id]=v}
+    var Dv=await fetch("/api/studio-graphs/"+encodeURIComponent(rid)+"/recette/devis",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({valeurs:valeurs})});
+    var dv=await Dv.json().catch(function(){return{}});
+    if(!Dv.ok||!isFinite(dv.usd)){await window.__dzDialogue.informer(String(dv.detail||"Devis impossible ("+Dv.status+")."),{titre:"Devis impossible"});return}
+    var usd=Number(dv.usd);
+    var ok=await window.__dzDialogue.confirmer("Lancer « "+rec.name+" » avec « "+image+" » : ≈ $"+usd.toFixed(2)+" — "+dv.generations+" génération(s)"
+      +(dv.voix?", "+dv.voix+" voix off":"")+(dv.reemplois?", "+dv.reemplois+" nœud(s) réemployé(s) gratuitement":"")
+      +". Le rendu part dans la file ; plus cher que ce devis, il serait refusé avant toute génération.",{titre:"Lancer la recette",ok:"Lancer ($"+usd.toFixed(2)+")"});
+    if(!ok)return;
+    var Ln=await fetch("/api/studio-graphs/"+encodeURIComponent(rid)+"/recette/lancer",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({valeurs:valeurs,max_usd:usd})});
+    var j=await Ln.json().catch(function(){return{}});
+    if(Ln.ok&&j.job_id){__dzToast("Recette « "+rec.name+" » lancée (≈ $"+usd.toFixed(2)+") — le rendu est dans la file");return}
+    await window.__dzDialogue.informer(String(j.detail||"Lancement refusé ("+Ln.status+")."),{titre:"Lancement refusé"})}
+  catch(e){await window.__dzDialogue.informer("Recette : "+String(e&&e.message||e),{titre:"Lancer une recette"})}}
+function dzSendRecette(nom,onClose){
+  return{lbl:"🍳 Lancer une recette… (devis montré avant)",fn:function(){onClose&&onClose();dzRecLancerAvec(nom)}}}
