@@ -176,6 +176,50 @@ async def save_layout_template(request: TemplateSaveRequest):
     return TemplateSaveResponse(template_id=tid, message="Saved")
 
 
+def _reflow_de(template_id: str, fmt: str) -> tuple:
+    """(source, réagencé, avertissements) — 404 gabarit inconnu, 400 format inconnu ou déjà celui du gabarit."""
+    from app.services import template_layout as _TL
+    try:
+        src = template_engine.get_template(template_id)
+    except FileNotFoundError:
+        raise HTTPException(404, f"Template not found: {template_id}")
+    if fmt not in _TL.FORMATS:
+        raise HTTPException(400, f"Format inconnu : {fmt} — {', '.join(_TL.FORMATS)}.")
+    if _TL.format_de(src) == fmt:
+        raise HTTPException(400, f"Ce gabarit est déjà en {fmt}.")
+    try:
+        out, avert = _TL.reflow(src, fmt)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return src, out, avert + _TL.avertissements_heygen(src, out)
+
+
+@router.get("/layout-templates/{template_id}/reflow")
+async def preview_layout_reflow(template_id: str, format: str):
+    """Tâche #73 (plan-templates T2) — APERÇU d'un réagencement : le gabarit dans `format`, NON enregistré, et ses
+    avertissements (dont un avatar HeyGen qui change de format). Gratuit, rien n'est rendu."""
+    src, out, avert = _reflow_de(template_id, format)
+    return {"source": src.get("id"), "format": format, "template": out, "warnings": avert}
+
+
+@router.post("/layout-templates/{template_id}/reflow")
+async def save_layout_reflow(template_id: str, body: dict, request: Request):
+    """Tâche #73 — ENREGISTRE la copie réagencée (nouveau gabarit utilisateur, le source est intact)."""
+    _require_localhost(request)
+    fmt = str((body or {}).get("format") or "")
+    src, out, avert = _reflow_de(template_id, fmt)
+    nom = str((body or {}).get("name") or "").strip()[:120] or f"{src.get('name') or template_id} ({fmt})"
+    out["name"], out["id"] = nom, ""
+    out.setdefault("metadata", {})
+    if isinstance(out["metadata"], dict):
+        out["metadata"]["reflow_de"] = src.get("id")
+    try:
+        tid = template_engine.save_template(out)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"template_id": tid, "name": nom, "format": fmt, "warnings": avert}
+
+
 @router.delete("/layout-templates/{template_id}")
 async def delete_layout_template(template_id: str):
     result = template_engine.delete_template(template_id)

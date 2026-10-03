@@ -284,6 +284,9 @@ class TemplateEngine:
                 if sn in seen_slot_names:
                     raise ValueError(f"Duplicate slot_name: {sn}")
                 seen_slot_names.add(sn)
+        # Tâche #73 (plan-templates T2) : une contrainte de réagencement inventée est refusée en la nommant.
+        from app.services.template_layout import verifier_contraintes
+        verifier_contraintes(template["regions"])
 
     # ----- slot extraction -----
 
