@@ -99,10 +99,10 @@ async def manifeste(depuis: str | None = None) -> dict:
         st = f.stat()
         if st.st_mtime <= seuil:
             continue
-        connu = prov.get(f.name)
+        connu = prov.get(f.name) or {}  # un dict par fichier depuis la tâche #77 (03/10/2026)
         index.append({"nom": f.name, "taille": st.st_size, "mtime": round(st.st_mtime, 3), "sha256": _sha256(f),
-                      "source": connu[0] if connu else LI.heuristique(f.name),
-                      "origine": connu[1] if connu else "heuristique",
+                      "source": connu.get("source") or LI.heuristique(f.name),
+                      "origine": connu.get("origin") or "heuristique",
                       "url": f"/api/images/{f.name}"})
         poids += st.st_size
     projets = [{"nom": k, "fichiers": v, "entier": True} for k, v in sorted(_lire_projets().items())]

@@ -1548,9 +1548,24 @@ class Pipeline:
             return job
 
     @staticmethod
+    async def set_fav(job_id: str, fav: bool) -> JobRecord | None:
+        """Bibliothèque #77 (03/10/2026) : pose le favori d'un rendu (1 / 0),
+        INDÉPENDANT de la note. La route valide le type ; ici on l'écrit."""
+        async with async_session_factory() as session:
+            res = await session.execute(
+                select(JobRecord).where(JobRecord.id == job_id))
+            job = res.scalar_one_or_none()
+            if not job:
+                return None
+            job.fav = 1 if fav else 0
+            await session.commit()
+            await session.refresh(job)
+            return job
+
+    @staticmethod
     async def list_jobs(limit: int = 50, offset: int = 0, providers=None,
                         q: str | None = None, video_exts=None,
-                        min_rating: int = 0) -> list[JobRecord]:
+                        min_rating: int = 0, fav: int = 0) -> list[JobRecord]:
         """La fenêtre des jobs récents servie par `GET /api/jobs`.
 
         E-2 (23/09/2026) : pagination `offset`, filtre `providers` (liste de
@@ -1624,6 +1639,10 @@ class Pipeline:
             min_rating = 0
         if min_rating > 0:
             stmt = stmt.where(func.coalesce(JobRecord.rating, 0) >= min_rating)
+        # Bibliothèque #77 (03/10/2026) : favoris seulement — même place que
+        # min_rating, avant le `limit` ; NULL (base d'avant la colonne) = non.
+        if fav:
+            stmt = stmt.where(func.coalesce(JobRecord.fav, 0) == 1)
         async with async_session_factory() as session:
             res = await session.execute(
                 stmt.order_by(JobRecord.created_at.desc()).offset(offset).limit(limit)

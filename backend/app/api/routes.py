@@ -2615,14 +2615,19 @@ async def list_images():
             ))
     # provenance (28/08) : l'index dit la fonction productrice ; un fichier
     # jamais indexé est classé par son nom, en le disant (heuristique)
+    # Bibliothèque #77 (03/10/2026) : la carte rend un dict par fichier, et
+    # porte le DAM (tags, favori, note… — jamais None côté liste).
     prov = await LI.carte()
     for it in items:
-        connu = prov.get(it.filename)
-        if connu:
-            it.source, it.source_origin = connu[0], connu[1]
-        else:
-            it.source = LI.heuristique(it.filename)
-            it.source_origin = "heuristique"
+        connu = prov.get(it.filename) or {}
+        it.source = connu.get("source") or LI.heuristique(it.filename)
+        it.source_origin = connu.get("origin") or "heuristique"
+        it.tags = LI.tags_lus(connu.get("tags"))
+        it.fav = bool(connu.get("fav"))
+        it.note = int(connu.get("note") or 0)
+        for c in ("parent_filename", "relation", "licence", "auteur",
+                  "source_url", "couleur", "teinte"):
+            setattr(it, c, connu.get(c))
     # le catalogue slug -> libellé voyage avec la liste : les chips du front
     # le lisent ici (source unique, 02/10/2026 — « mobile » sortait en slug)
     return {"folder": str(folder), "images": [i.model_dump() for i in items],
@@ -2757,6 +2762,86 @@ async def rename_image_file(filename: str, body: dict):
         raise HTTPException(400, str(e))
     await LI.renommer(Path(filename).name, final)
     return {"old": Path(filename).name, "new": final}
+
+
+# ── Bibliothèque #77 (03/10/2026, plan-library T1) : tags, favori, note ──────
+# Le favori (oui/non) et la note (0..5) sont DEUX notions (décision de
+# l'utilisateur) : aucune route n'écrit l'un en posant l'autre.
+
+@router.patch("/library/asset/{filename}")
+async def library_editer_asset(filename: str, request: Request):
+    """Body : tout sous-ensemble de {tags:[str], fav:bool, note:0..5,
+    licence, auteur, source_url, parent_filename, relation}. 404 si le
+    fichier n'est pas au magasin (images ou audio) : l'index ne porte pas
+    de ligne pour un fichier absent. Rend l'état RELU en base."""
+    safe = Path(filename).name
+    if not safe or safe in (".", "..") or safe != filename:
+        raise HTTPException(400, "Invalid filename")
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(400, "Corps JSON attendu")
+    if not isinstance(body, dict):
+        raise HTTPException(400, "Corps JSON attendu : un objet")
+    champs = {k: v for k, v in body.items() if k in LI._CHAMPS_EDITABLES}
+    if not champs:
+        raise HTTPException(400, "Aucun champ éditable dans le corps "
+                                 f"(attendus : {sorted(LI._CHAMPS_EDITABLES)})")
+    # Un ENTIER pour la note, un BOOLÉEN pour le favori (même rigueur que
+    # PUT /jobs/{id}/rating : `True`, "3" ou 3.0 sont refusés).
+    if "note" in champs and (type(champs["note"]) is not int
+                             or not 0 <= champs["note"] <= 5):
+        raise HTTPException(400, "note doit être un entier de 0 à 5")
+    if "fav" in champs and type(champs["fav"]) is not bool:
+        raise HTTPException(400, "fav doit être un booléen")
+    if "tags" in champs and (not isinstance(champs["tags"], list)
+                             or not all(isinstance(t, str) for t in champs["tags"])):
+        raise HTTPException(400, "tags doit être une liste de chaînes")
+    if LI.du_magasin(safe) is None:
+        raise HTTPException(404, f"Fichier absent de la Bibliothèque : {safe}")
+    return await LI.editer(safe, champs)
+
+
+@router.get("/library/facettes")
+async def library_facettes():
+    """Les valeurs de filtre réellement présentes (tags, teintes, notes,
+    nombre de favoris) — la rangée de chips de l'écran se peint là-dessus."""
+    return await LI.facettes()
+
+
+@router.post("/library/favoris/import")
+async def library_import_favoris(request: Request):
+    """Reprise des favoris du NAVIGATEUR (`dz_fav_images` : des noms de
+    fichier ; `dz_fav_renders` : des ids de job). Idempotente ; un nom ou
+    un id inconnu est RENDU dans `ignores`, jamais avalé."""
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(400, "Corps JSON attendu")
+    body = body if isinstance(body, dict) else {}
+    images, renders = body.get("images") or [], body.get("renders") or []
+    if not isinstance(images, list) or not isinstance(renders, list):
+        raise HTTPException(400, "images et renders doivent être des listes")
+    out_i = {"repris": 0, "ignores": []}
+    for brut in images:
+        nom = Path(str(brut)).name
+        if LI.du_magasin(nom) is None:
+            out_i["ignores"].append(nom)
+            continue
+        if not (await LI.editer(nom, {}))["fav"]:
+            await LI.editer(nom, {"fav": True})
+            out_i["repris"] += 1
+    out_r = {"repris": 0, "ignores": []}
+    for brut in renders:
+        jid = str(brut)
+        j = await Pipeline.get_job(jid)
+        if not j:
+            out_r["ignores"].append(jid)
+            continue
+        if not getattr(j, "fav", None):
+            await Pipeline.set_fav(jid, True)
+            out_r["repris"] += 1
+    return {"images": out_i, "renders": out_r}
 
 
 _AUDIO_EXTS = {".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac", ".opus"}
@@ -4619,26 +4704,30 @@ def _job_to_dict(j) -> dict:
         "completed_at": j.completed_at.isoformat() if j.completed_at else None,
         # D-34 (24/09/2026) : note 0..5 ; NULL (base d'avant la colonne) = 0
         "rating": int(getattr(j, "rating", None) or 0),
+        # Bibliothèque #77 (03/10/2026) : favori du rendu, indépendant de la note
+        "fav": bool(getattr(j, "fav", None)),
     }
 
 
 @router.get("/jobs")
 async def list_jobs(limit: int = 50, offset: int = 0, providers: str | None = None,
-                    q: str | None = None, video: int = 0, min_rating: int = 0):
+                    q: str | None = None, video: int = 0, min_rating: int = 0,
+                    fav: int = 0):
     """E-2 (23/09/2026) : `offset` pagine, `providers` est une liste séparée
     par des virgules, `q` cherche dans le titre, `video=1` ne garde que les
     artefacts vidéo selon `montage_service.media_rules()` — le MÊME juge que
     `GET /api/montage/media-rules` lit (import tardif, comme les autres
     emprunts à montage_service dans ce fichier). Bornes ramenées dans
     `Pipeline.list_jobs`. D-34 (24/09/2026) : `min_rating` (0..5, ramené)
-    ne garde que les rendus notés au moins autant — filtre AVANT le limit."""
+    ne garde que les rendus notés au moins autant — filtre AVANT le limit.
+    Bibliothèque #77 (03/10/2026) : `fav=1` ne garde que les favoris, idem."""
     provs = [p.strip() for p in providers.split(",") if p.strip()] if providers else None
     exts = None
     if video:
         from app.services import montage_service as _ms
         exts = tuple(_ms.media_rules().get("video_exts") or ())
     jobs = await Pipeline.list_jobs(limit=limit, offset=offset, providers=provs, q=q, video_exts=exts,
-                                    min_rating=min_rating)
+                                    min_rating=min_rating, fav=fav)
     return [_job_to_dict(j) for j in jobs]
 
 
@@ -4710,6 +4799,24 @@ async def rate_job(job_id: str, request: Request):
     if type(r) is not int or not 0 <= r <= 5:
         raise HTTPException(400, "rating doit être un entier de 0 à 5")
     j = await Pipeline.set_rating(job_id, r)
+    if not j:
+        raise HTTPException(404, "Job not found")
+    return _job_to_dict(j)
+
+
+@router.put("/jobs/{job_id}/fav")
+async def fav_job(job_id: str, request: Request):
+    """Bibliothèque #77 (03/10/2026) : favori d'un rendu. Body: {fav: bool}.
+    Un BOOLÉEN seulement (1, "true", null refusés en 400) ; la note n'est
+    pas touchée — favori et note sont deux notions. 404 si job inconnu."""
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(400, "Corps JSON attendu : {fav: true|false}")
+    f = body.get("fav") if isinstance(body, dict) else None
+    if type(f) is not bool:
+        raise HTTPException(400, "fav doit être un booléen")
+    j = await Pipeline.set_fav(job_id, f)
     if not j:
         raise HTTPException(404, "Job not found")
     return _job_to_dict(j)

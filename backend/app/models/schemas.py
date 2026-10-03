@@ -473,6 +473,18 @@ class ImageItem(BaseModel):
     # depot|heuristique — un fichier jamais indexé est classé au nom
     source: Optional[str] = None
     source_origin: Optional[str] = None
+    # Bibliothèque #77 (03/10/2026, additifs) : le DAM. Jamais None côté
+    # liste — le front ne fait pas de garde sur un tableau.
+    tags: list[str] = []
+    fav: bool = False
+    note: int = 0
+    parent_filename: Optional[str] = None
+    relation: Optional[str] = None
+    licence: Optional[str] = None
+    auteur: Optional[str] = None
+    source_url: Optional[str] = None
+    couleur: Optional[str] = None
+    teinte: Optional[str] = None
 
 
 # ============ Prompt Builder ============

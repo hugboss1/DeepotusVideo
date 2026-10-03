@@ -13,6 +13,7 @@ aucune ancre. Les hooks ne cassent JAMAIS la route qui les appelle.
 from __future__ import annotations
 
 import asyncio
+import json
 from pathlib import Path
 
 from loguru import logger
@@ -138,11 +139,12 @@ async def renommer(ancien: str, nouveau: str) -> None:
             if neuf is None:
                 neuf = LibraryAsset(filename=n)
                 session.add(neuf)
-            neuf.source, neuf.kind = row.source, row.kind
-            neuf.origin = row.origin
-            neuf.job_id, neuf.deck_id, neuf.doc_id = \
-                row.job_id, row.deck_id, row.doc_id
-            neuf.created = row.created
+            # TOUTES les colonnes sauf la clé (03/10/2026) : la liste figée
+            # d'avant aurait perdu tags, favori et note au premier renommage,
+            # et chaque colonne future avec eux.
+            for col in LibraryAsset.__table__.columns.keys():
+                if col != "filename":
+                    setattr(neuf, col, getattr(row, col))
             await session.delete(row)
             await session.commit()
     except Exception as e:  # noqa: BLE001
@@ -192,16 +194,141 @@ async def reconcilier() -> int:
         return 0
 
 
-async def carte() -> dict[str, tuple[str, str]]:
-    """{filename: (source, origin)} en UNE requête — pour list_images."""
+# Bibliothèque #77 (03/10/2026, plan-library T0-T1) — le DAM : tags, favori,
+# note 0..5 (deux notions distinctes, décision de l'utilisateur), et les
+# colonnes que les tâches suivantes du plan rempliront (lignée, droits,
+# empreinte, couleur). `carte()` rend un dict par fichier.
+_CHAMPS = ("source", "origin", "kind", "tags", "fav", "note",
+           "parent_filename", "relation", "licence", "auteur", "source_url",
+           "sha256", "taille_o", "couleur", "teinte",
+           "job_id", "deck_id", "doc_id")
+
+_CHAMPS_EDITABLES = ("tags", "fav", "note", "licence", "auteur",
+                     "source_url", "parent_filename", "relation")
+
+
+def tags_lus(brut) -> list[str]:
+    """`tags` est du JSON en base. Une valeur abîmée rend [] sans lever :
+    l'index est un à-côté, il ne casse jamais la route qui le lit."""
+    if not brut:
+        return []
+    try:
+        v = json.loads(brut) if isinstance(brut, str) else brut
+    except Exception:  # noqa: BLE001
+        return []
+    return [str(t) for t in v if str(t).strip()] if isinstance(v, list) else []
+
+
+def tags_ecrits(tags) -> str:
+    """Normalise : minuscules, espaces réduits, dédoublonné, ordre d'arrivée,
+    32 caractères par tag, 24 tags. UNE seule plume d'écriture, donc une seule
+    forme en base — c'est ce qui rend le filtre exact."""
+    vus, out = set(), []
+    for t in (tags or []):
+        s = " ".join(str(t).split()).strip().lower()[:32]
+        if s and s not in vus:
+            vus.add(s)
+            out.append(s)
+    return json.dumps(out[:24], ensure_ascii=False)
+
+
+def du_magasin(filename: str) -> str | None:
+    """Le `kind` du fichier s'il est VRAIMENT dans le magasin (images ou
+    audio), sinon None — l'index ne porte pas de ligne pour un fichier
+    absent (le plan en créait une : 404 côté route)."""
+    nom = Path(str(filename or "")).name
+    if not nom or nom in (".", ".."):
+        return None
+    if (settings.images_path / nom).is_file():
+        return "image"
+    if (settings.images_path.parent / "audio" / nom).is_file():
+        return "audio"
+    return None
+
+
+def _etat(row) -> dict:
+    return {"filename": row.filename, "tags": tags_lus(row.tags),
+            "fav": bool(row.fav), "note": int(row.note or 0),
+            "licence": row.licence, "auteur": row.auteur,
+            "source_url": row.source_url,
+            "parent_filename": row.parent_filename, "relation": row.relation}
+
+
+async def editer(filename: str, champs: dict) -> dict:
+    """Écrit les champs éditables (déjà validés par la route), en CRÉANT la
+    ligne si le fichier est au magasin mais pas encore indexé —
+    `reconcilier()` ne tourne qu'au boot, et l'on ne fait pas attendre un
+    redémarrage à qui étoile une image. Rend l'état RELU. L'appelant
+    vérifie la présence du fichier (`du_magasin`)."""
+    from app.services.storage import LibraryAsset, async_session_factory
+    nom = Path(str(filename)).name
+    async with async_session_factory() as session:
+        row = await session.get(LibraryAsset, nom)
+        if row is None:
+            kind = du_magasin(nom) or "image"
+            row = LibraryAsset(filename=nom, kind=kind, origin="heuristique",
+                               source=(heuristique(nom) if kind == "image"
+                                       else "inconnu"))
+            session.add(row)
+        if "tags" in champs:
+            row.tags = tags_ecrits(champs["tags"])
+        if "fav" in champs:
+            row.fav = 1 if champs["fav"] else 0
+        if "note" in champs:
+            row.note = int(champs["note"])
+        for c in ("licence", "auteur", "source_url", "parent_filename",
+                  "relation"):
+            if c in champs:
+                v = champs[c]
+                setattr(row, c, (str(v)[:255] if v not in (None, "") else None))
+        await session.commit()
+        await session.refresh(row)
+        return _etat(row)
+
+
+async def facettes() -> dict:
+    """Ce qui existe VRAIMENT dans l'index — le front n'invente aucune valeur
+    de filtre, et une facette vide n'est pas une rangée de chips."""
+    from sqlalchemy import select
+    from app.services.storage import LibraryAsset, async_session_factory
+    tags: dict[str, int] = {}
+    teintes: dict[str, int] = {}
+    notes: dict[str, int] = {}
+    favoris = 0
+    async with async_session_factory() as session:
+        res = await session.execute(select(
+            LibraryAsset.tags, LibraryAsset.teinte, LibraryAsset.note,
+            LibraryAsset.fav))
+        for brut, teinte, note, fav in res.fetchall():
+            for t in tags_lus(brut):
+                tags[t] = tags.get(t, 0) + 1
+            if teinte:
+                teintes[teinte] = teintes.get(teinte, 0) + 1
+            if note:
+                notes[str(int(note))] = notes.get(str(int(note)), 0) + 1
+            if fav:
+                favoris += 1
+
+    def ordonne(d):
+        return [{"valeur": k, "n": v} for k, v in
+                sorted(d.items(), key=lambda kv: (-kv[1], kv[0]))]
+
+    return {"tags": ordonne(tags), "teintes": ordonne(teintes),
+            "notes": notes, "favoris": favoris}
+
+
+async def carte() -> dict[str, dict]:
+    """{filename: {champ: valeur}} en UNE requête — pour list_images. Rendait
+    `(source, origin)` jusqu'au 03/10/2026 ; un dict, parce que l'unique
+    appelant devrait sinon apprendre une position de tuple de plus à chaque
+    colonne neuve."""
     try:
         from sqlalchemy import select
         from app.services.storage import LibraryAsset, async_session_factory
+        cols = [getattr(LibraryAsset, c) for c in _CHAMPS]
         async with async_session_factory() as session:
-            res = await session.execute(
-                select(LibraryAsset.filename, LibraryAsset.source,
-                       LibraryAsset.origin))
-            return {r[0]: (r[1], r[2]) for r in res.fetchall()}
+            res = await session.execute(select(LibraryAsset.filename, *cols))
+            return {r[0]: dict(zip(_CHAMPS, r[1:])) for r in res.fetchall()}
     except Exception as e:  # noqa: BLE001
         logger.warning(f"library_index.carte ignorée: {e}")
         return {}
