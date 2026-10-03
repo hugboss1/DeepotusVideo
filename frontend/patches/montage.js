@@ -10150,3 +10150,91 @@ function DzProjetsBar({f,setF}){
   if(msg)ch.push(r.jsx("span",{style:{fontSize:10.5,color:"var(--red)",flexBasis:"100%"},children:msg}));
   return r.jsx("div",{"data-dz":"projets",style:{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",marginBottom:12},children:ch})}
 /* ── fin Bibliothèque #78 */
+
+/* Tâche #76 PR F (plan-templates T8 / D1, 03/10/2026) — COMPOSANTS dans l’éditeur de gabarit. « + Composant » pose
+   une instance (choisie dans la liste des composants livrés et utilisateur) ; la toile la dessine avec ses
+   sous-régions et ses surcharges ; l’inspecteur change les TEXTES et les COULEURS de l’instance (la forme reste celle
+   du composant) ; « Enregistrer comme composant » ouvre une fenêtre : régions à cocher (la sélectionnée l’est déjà),
+   un nom, et l’option de les remplacer par une instance. Décisions de l’utilisateur (03/10) : textes et couleurs ;
+   enregistrer depuis la sélection (liste à cocher : l’éditeur ne sélectionne qu’une région) ; pas d’imbrication. */
+var DZ_CMP_TYPES=["text","text_slot","badge","ticker","sticker","separator","brand_strip","image_slot"];
+var __dzCmp={liste:null,charge:!1};
+async function dzCmpCharger(force){
+  if(__dzCmp.charge&&!force)return __dzCmp.liste;__dzCmp.charge=!0;
+  try{var R=await fetch("/api/template-components");var d=await R.json();__dzCmp.liste=R.ok&&Array.isArray(d.components)?d.components:[]}
+  catch(e){__dzCmp.liste=[]}
+  try{window.dispatchEvent(new CustomEvent("dz-composants"))}catch(e){}
+  return __dzCmp.liste}
+function dzCmpTrouve(id){return(__dzCmp.liste||[]).find(function(c){return c.id===id})||null}
+function dzComposantFace(j,face){
+  if(!j||j.type!=="component")return face;var c=dzCmpTrouve(j.component);
+  if(!c)return r.jsx("div",{className:"dz-cmp-face",style:{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"6cqw",color:"var(--ink-soft)",border:"1px dashed var(--stroke-strong)"},children:"Composant "+(j.component||"?")});
+  var ov=j.overrides||{},cw=Number(c.width)||1,ch=Number(c.height)||1;
+  return r.jsx("div",{className:"dz-cmp-face",style:{position:"absolute",inset:0,overflow:"hidden",pointerEvents:"none",containerType:"size"},children:(c.regions||[]).map(function(s0){
+    var s=Object.assign({},s0,ov[s0.id]||{}),txt=s.text!=null?s.text:s.default_text,fond=s.type==="separator"?s.color:(s.type==="brand_strip"||s.type==="badge"||s.type==="ticker")?s.background_color:null;
+    return r.jsx("div",{style:{position:"absolute",left:(s.x/cw*100)+"%",top:(s.y/ch*100)+"%",width:(s.width/cw*100)+"%",height:(s.height/ch*100)+"%",background:fond||"transparent",
+      border:fond||txt?"none":"1px dashed var(--stroke-strong)",color:s.type==="separator"?"transparent":(s.color||"#ffffff"),fontSize:Math.max(6,(Number(s.size)||24)/ch*100)+"cqh",lineHeight:1.1,overflow:"hidden",whiteSpace:"nowrap",fontFamily:"Space Grotesk, sans-serif"},
+      children:s.type==="separator"?null:(txt||"")},s0.id)})})}
+function DzComposantEditor({rg,upd}){
+  var vs=x.useState(0),setV=vs[1];
+  x.useEffect(function(){function f(){setV(function(n){return n+1})}window.addEventListener("dz-composants",f);dzCmpCharger();return function(){window.removeEventListener("dz-composants",f)}},[]);
+  if(!rg||rg.type!=="component")return null;var c=dzCmpTrouve(rg.component),ov=rg.overrides||{};
+  function maj(sid,champ,val){var q=JSON.parse(JSON.stringify(ov));q[sid]=Object.assign({},q[sid]||{});q[sid][champ]=val;upd({overrides:q})}
+  return r.jsxs("div",{className:"dz-cmp-editeur",style:{marginTop:10,paddingTop:10,borderTop:"1px solid var(--stroke)"},children:[
+    r.jsx("div",{style:{fontSize:11.5,fontWeight:600,color:"var(--ink-strong)",marginBottom:4},children:"Composant : "+(c?c.name:rg.component)}),
+    r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-soft)",marginBottom:6},children:"Seuls les textes et les couleurs se changent ici ; la forme reste celle du composant."}),
+    c?(c.regions||[]).map(function(s){var o=ov[s.id]||{},champTxt=s.type==="text_slot"?"default_text":(s.type==="text"||s.type==="badge"||s.type==="ticker")?"text":null,
+        couleurs=s.type==="separator"?["color"]:(s.type==="brand_strip"?["background_color"]:(s.type==="badge"||s.type==="ticker")?["color","background_color"]:champTxt?["color"]:[]);
+      if(!champTxt&&!couleurs.length)return null;
+      return r.jsxs("div",{className:"dz-cmp-sous",style:{marginBottom:6},children:[
+        r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-muted)"},children:s.id+" · "+s.type}),
+        champTxt?r.jsx(O,{children:r.jsx(le,{value:o[champTxt]!=null?o[champTxt]:(s[champTxt]||""),onChange:function(v){maj(s.id,champTxt,v)}})}):null,
+        couleurs.map(function(cc){return r.jsx(O,{label:cc==="color"?"Couleur":"Fond",children:r.jsx(DzColorPicker,{value:o[cc]||s[cc]||"#ffffff",onChange:function(v){maj(s.id,cc,v)}})},cc)}),
+        Object.keys(o).length?r.jsx(K,{variant:"ghost",size:"sm",title:"Revenir aux textes et couleurs du composant pour « "+s.id+" »",onClick:function(){var q=JSON.parse(JSON.stringify(ov));delete q[s.id];upd({overrides:q})},children:"↺ Rétablir"}):null]},s.id)})
+     :r.jsx("div",{style:{fontSize:10.5,color:"var(--amber)"},children:"Composant introuvable (supprimé ?) : l’instance ne se rendra pas."})]})}
+function DzComposantBar({W,H,regs,setRegs,select,sel}){
+  var os=x.useState(!1),ouvert=os[0],setOuvert=os[1],ds=x.useState(null),dlg=ds[0],setDlg=ds[1],ms=x.useState(""),msg=ms[0],setMsg=ms[1],vs=x.useState(0),setV=vs[1],vol=x.useRef(!1);
+  x.useEffect(function(){function f(){setV(function(n){return n+1})}window.addEventListener("dz-composants",f);dzCmpCharger();return function(){window.removeEventListener("dz-composants",f)}},[]);
+  var liste=__dzCmp.liste||[],visibles=(regs||[]).filter(function(q){return DZ_CMP_TYPES.indexOf(q.type)>=0});
+  function poser(c){var k=Math.min(1,(W*0.9)/c.width,(H*0.9)/c.height),w=Math.round(c.width*k),h=Math.round(c.height*k),
+      nid="cmp_"+Math.random().toString(36).slice(2,6),zz=(regs.length?Math.max.apply(null,regs.map(function(q){return q.z_index||0})):0)+1;
+    setRegs(function(L){return L.concat([{id:nid,type:"component",component:c.id,x:Math.round((W-w)/2),y:Math.max(0,Math.min(H-h,Math.round(H*0.7))),width:w,height:h,z_index:zz,overrides:{}}])});
+    select(nid);setOuvert(!1)}
+  function ouvrir(){setMsg("");setDlg({coches:sel&&visibles.some(function(q){return q.id===sel})?[sel]:[],nom:"",remplacer:!0})}
+  async function enregistrer(){if(vol.current||!dlg)return;var choisies=visibles.filter(function(q){return dlg.coches.indexOf(q.id)>=0});
+    if(!choisies.length){setMsg("Cochez au moins une région.");return}if(!String(dlg.nom).trim()){setMsg("Donnez un nom au composant.");return}
+    var x0=Math.min.apply(null,choisies.map(function(q){return Math.round(q.x)})),y0=Math.min.apply(null,choisies.map(function(q){return Math.round(q.y)})),
+      x1=Math.max.apply(null,choisies.map(function(q){return Math.round(q.x+q.width)})),y1=Math.max.apply(null,choisies.map(function(q){return Math.round(q.y+q.height)}));
+    var sous=choisies.map(function(q){var o={};for(var k in q){if(k!=="_disp"&&q[k]!==void 0)o[k]=q[k]}o.x=Math.round(q.x)-x0;o.y=Math.round(q.y)-y0;o.width=Math.round(q.width);o.height=Math.round(q.height);return o});
+    vol.current=!0;setMsg("Enregistrement…");
+    try{var R=await fetch("/api/template-components",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:dlg.nom,width:x1-x0,height:y1-y0,regions:sous})});
+      var d=await R.json().catch(function(){return{}});
+      if(!R.ok){setMsg(String(d.detail||("Enregistrement refusé (HTTP "+R.status+").")));return}
+      await dzCmpCharger(!0);
+      if(dlg.remplacer){var nid="cmp_"+Math.random().toString(36).slice(2,6),zz=Math.max.apply(null,choisies.map(function(q){return q.z_index||0}));
+        setRegs(function(L){return L.filter(function(q){return dlg.coches.indexOf(q.id)<0}).concat([{id:nid,type:"component",component:d.id,x:x0,y:y0,width:x1-x0,height:y1-y0,z_index:zz,overrides:{}}])});select(nid)}
+      setDlg(null);setMsg("Composant « "+dlg.nom+" » enregistré.")}
+    catch(e){setMsg(String(e&&e.message||e))}finally{vol.current=!1}}
+  return r.jsxs("span",{className:"dz-cmp-barre",style:{display:"inline-flex",gap:6,alignItems:"center",position:"relative"},children:[
+    r.jsx("button",{type:"button",title:"Poser un composant (groupe de régions réutilisable)",onClick:function(){setOuvert(!ouvert)},
+      style:{fontSize:10.5,fontFamily:"var(--f-mono)",color:"var(--ink-strong)",background:"var(--bg-panel-2)",border:"1px solid var(--stroke-strong)",borderRadius:"var(--r-sm)",padding:"3px 8px",cursor:"pointer"},children:"+ Composant"}),
+    r.jsx("button",{type:"button",title:"Enregistrer des régions de ce gabarit comme un composant réutilisable",onClick:ouvrir,
+      style:{fontSize:10.5,fontFamily:"var(--f-mono)",color:"var(--cyan)",background:"transparent",border:"1px dashed var(--stroke-strong)",borderRadius:"var(--r-sm)",padding:"3px 8px",cursor:"pointer"},children:"⧉ Enregistrer comme composant"}),
+    msg&&!dlg?r.jsx("span",{className:"dz-cmp-msg",style:{fontSize:10.5,color:"var(--ink-soft)"},children:msg}):null,
+    ouvert?r.jsx("div",{className:"dz-cmp-liste",style:{position:"absolute",top:"100%",left:0,zIndex:50,marginTop:4,background:"var(--bg-panel)",border:"1px solid var(--stroke)",borderRadius:8,padding:6,minWidth:220,boxShadow:"0 10px 30px rgba(0,0,0,.45)"},
+      children:liste.length?liste.map(function(c){return r.jsx("button",{type:"button",title:"Poser « "+c.name+" » ("+c.width+"×"+c.height+")"+(c.builtin?" — livré":""),onClick:function(){poser(c)},
+        style:{display:"block",width:"100%",textAlign:"left",fontSize:11,padding:"5px 8px",background:"transparent",border:0,color:"var(--ink)",cursor:"pointer"},children:c.name+(c.builtin?" · livré":"")},c.id)})
+        :r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)",padding:4},children:"Aucun composant."})}):null,
+    dlg?r.jsx("div",{className:"dz-cmp-dialogue",onClick:function(e){if(e.target===e.currentTarget)setDlg(null)},style:{position:"fixed",inset:0,background:"rgba(4,6,10,.6)",zIndex:9400,display:"flex",alignItems:"center",justifyContent:"center"},
+      children:r.jsxs("div",{style:{background:"var(--bg-panel)",border:"1px solid var(--stroke)",borderRadius:12,padding:16,width:380,maxHeight:"80vh",overflow:"auto",boxShadow:"0 18px 60px rgba(0,0,0,.55)"},children:[
+        r.jsx("div",{style:{fontWeight:600,color:"var(--ink-strong)",marginBottom:8},children:"Enregistrer comme composant"}),
+        r.jsx(O,{label:"Nom",children:r.jsx(le,{value:dlg.nom,onChange:function(v){setDlg(Object.assign({},dlg,{nom:v}))}})}),
+        r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)",margin:"6px 0 4px"},children:"Régions (texte, badge, ticker, sticker, séparateur, bandeau, case image) :"}),
+        visibles.length?visibles.map(function(q){var on=dlg.coches.indexOf(q.id)>=0;return r.jsx(O,{children:r.jsx(Ze,{checked:on,label:q.id+" · "+q.type,onChange:function(v){
+          setDlg(Object.assign({},dlg,{coches:v?dlg.coches.concat([q.id]):dlg.coches.filter(function(z){return z!==q.id})}))}})},q.id)})
+          :r.jsx("div",{style:{fontSize:11,color:"var(--amber)"},children:"Aucune région visuelle dans ce gabarit."}),
+        r.jsx(O,{children:r.jsx(Ze,{checked:!!dlg.remplacer,label:"Remplacer ces régions par une instance du composant",onChange:function(v){setDlg(Object.assign({},dlg,{remplacer:v}))}})}),
+        msg?r.jsx("div",{className:"dz-cmp-msg",style:{fontSize:10.5,color:"var(--amber)",marginTop:6},children:msg}):null,
+        r.jsxs("div",{style:{display:"flex",gap:8,justifyContent:"flex-end",marginTop:12},children:[
+          r.jsx(K,{variant:"ghost",size:"sm",title:"Fermer sans rien enregistrer",onClick:function(){setDlg(null)},children:"Annuler"}),
+          r.jsx(K,{variant:"primary",size:"sm",title:"Enregistrer les régions cochées comme un composant réutilisable",onClick:enregistrer,children:"Enregistrer"})]})]})}):null]})}

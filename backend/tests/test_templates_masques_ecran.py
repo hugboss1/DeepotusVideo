@@ -26,7 +26,7 @@ check("T1 temoin : la base a l'inspecteur de region mais pas l'editeur de masque
 k_del = BUN.find('r.jsx("div",{style:{marginTop:10},children:r.jsx("button",{onClick:dzDelReg')
 k_ed = BUN.find('(c.type==="video_slot"||c.type==="image_slot")?r.jsx(DzMaskEditor,{rg:c,upd:function(pt){p(c.id,pt)}}):null,')
 check("T2 la section est posee dans l'inspecteur, juste avant « Delete region », pour les cases video et image seulement ; la toile passe par l'apercu du masque",
-      0 < k_ed < k_del and k_del - k_ed < 330 and BUN.count("r.jsx(DzMaskEditor,") == 1 and BUN.count("dzMasqueApercu(j,dzRegionFace(j))") == 1)   # #74 PR D : l'apercu du texte l'enveloppe (children:[dzTexteApercu(j,...))  # #75 PR B : + DzEchantillon (~45 car.) ; #76 PR B : + DzAnimEditor (~60 car.)
+      0 < k_ed < k_del and k_del - k_ed < 400 and BUN.count("r.jsx(DzMaskEditor,") == 1 and BUN.count("dzMasqueApercu(j,dzComposantFace(j,dzRegionFace(j)))") == 1)   # #74 PR D : l'apercu du texte l'enveloppe (children:[dzTexteApercu(j,...))  # #75 PR B : + DzEchantillon (~45 car.) ; #76 PR B : + DzAnimEditor (~60 car.) ; #76 PR F : + DzComposantEditor (~65 car.), la toile dessine le composant au centre
 
 
 def fonction(nom):
