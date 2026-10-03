@@ -47,7 +47,6 @@
       "transition": { "type": "crossfade", "duration_s": 0.5 }
     }
   ],
-  "transitions": [],
   "audio": {
     "master_track": "silent",
     "loudness_target_lufs": -14

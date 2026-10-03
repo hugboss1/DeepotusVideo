@@ -40,7 +40,6 @@
       "audio_volume": 1.0
     }
   ],
-  "transitions": [],
   "audio": {
     "master_track": "from_slot:avatar",
     "background_music": null,

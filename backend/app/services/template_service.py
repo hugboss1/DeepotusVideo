@@ -85,6 +85,13 @@ def _hex(color: str | None, default: str = "ffffff") -> str:
     return (color or f"#{default}").lstrip("#")
 
 
+def _convertir(tpl):
+    """Tâche #76 (03/10/2026) : le bloc `transitions` d'un gabarit, livré ou personnel, converti À LA LECTURE en ce que le
+    moteur lit (template_anim.convertir_transitions) — le fichier de l'utilisateur n'est pas réécrit."""
+    from app.services.template_anim import convertir_transitions
+    return convertir_transitions(tpl)
+
+
 def _has_audio(path: Path) -> bool:
     """True if `path` has at least one audio stream (via ffprobe)."""
     try:
@@ -147,7 +154,7 @@ class TemplateEngine:
         seen: set[str] = set()
         for f in sorted(self.builtin_dir.glob("*.json")):
             try:
-                tpl = json.loads(f.read_text(encoding="utf-8"))
+                tpl = _convertir(json.loads(f.read_text(encoding="utf-8")))
             except json.JSONDecodeError as e:
                 logger.error(f"Built-in template {f.name} is invalid JSON: {e}")
                 continue
@@ -156,7 +163,7 @@ class TemplateEngine:
             seen.add(tpl.get("id", f.stem))
         for f in sorted(self.templates_dir.glob("*.json")):
             try:
-                tpl = json.loads(f.read_text(encoding="utf-8"))
+                tpl = _convertir(json.loads(f.read_text(encoding="utf-8")))
             except json.JSONDecodeError as e:
                 logger.error(f"User template {f.name} is invalid JSON: {e}")
                 continue
@@ -170,12 +177,12 @@ class TemplateEngine:
         """Built-ins win over user files of the same id (immutability)."""
         builtin_path = self.builtin_dir / f"{template_id}.json"
         if builtin_path.exists():
-            tpl = json.loads(builtin_path.read_text(encoding="utf-8"))
+            tpl = _convertir(json.loads(builtin_path.read_text(encoding="utf-8")))
             tpl["_builtin"] = True
             return tpl
         user_path = self.templates_dir / f"{template_id}.json"
         if user_path.exists():
-            tpl = json.loads(user_path.read_text(encoding="utf-8"))
+            tpl = _convertir(json.loads(user_path.read_text(encoding="utf-8")))
             tpl["_builtin"] = False
             return tpl
         raise FileNotFoundError(f"Template not found: {template_id}")
@@ -298,8 +305,9 @@ class TemplateEngine:
         from app.services.template_still import verifier_echantillons
         verifier_echantillons(template)
         # Tâche #76 (plan-templates T9) : une animation mal formée est refusée en nommant la région et le champ.
-        from app.services.template_anim import verifier_animations
+        from app.services.template_anim import verifier_animations, verifier_transitions
         verifier_animations(template)
+        verifier_transitions(template)   # la couleur d'un flash entre dans le graphe : #rrggbb seulement
         # Tâche #76 (plan-templates T8) : une instance de composant nomme un composant connu ; on n'en change que textes et couleurs.
         from app.services.template_components import verifier_instances
         verifier_instances(template)
@@ -379,7 +387,7 @@ class TemplateEngine:
         un jeton inconnu leve ValueError en le nommant. La route de rendu l'appelle DEJA a l'envoi (kit fige)."""
         from app.services import brand_kits as _bk
         from app.services.template_components import deplier   # tâche #76 : les composants se déplient AVANT les jetons
-        tpl = deplier(tpl)
+        tpl = deplier(_convertir(tpl))   # tâche #76 : un gabarit envoyé en ligne peut porter encore un bloc `transitions`
         if not _bk.jetons(tpl):
             return tpl
         return _bk.appliquer(tpl, kit)
@@ -1140,7 +1148,9 @@ _XFADE = {
     "glitch": ("pixelize", None),
     "slide": ("slideleft", None),
     "flash": ("fadewhite", None),
-    "cyan_flash": ("fadewhite", None),  # legacy default
+    # Tâche #76 (03/10/2026, décision « 1+2 ») : un VRAI flash de couleur — fondu enchaîné sous une couleur pleine
+    # (`color`, cyan de la marque par défaut) qui monte puis redescend ; le flash blanc reste `flash`.
+    "cyan_flash": ("fade", None),
 }
 
 
@@ -1272,6 +1282,19 @@ def build_sequential_command(engine, template, slot_values, output_path, still_a
             parts.append(
                 f"[{cur}][n{k}]xfade=transition={name}:"
                 f"duration={round(tau,3)}:offset={offset}[{out}]")
+            if ttype == "cyan_flash":
+                # MESURÉ (03/10, 9.0.1) : au milieu de la jonction l'image est la couleur pure (0,227,253 pour #00e5ff),
+                # durée totale inchangée ; la couleur naît DANS le graphe en rgba (en entrée elle serait opaque).
+                from app.services.template_anim import COULEUR, FLASH_DEFAUT
+                col = str(tr.get("color") or FLASH_DEFAUT)
+                col = (col if COULEUR.match(col) else FLASH_DEFAUT).lstrip("#")
+                mi = round(tau / 2, 4)
+                parts.append(
+                    f"color=c=0x{col}:s={w}x{h}:r={fps}:d={round(tau,3)},format=rgba,"
+                    f"fade=t=in:st=0:d={mi}:alpha=1,fade=t=out:st={mi}:d={mi}:alpha=1,"
+                    f"setpts=PTS+{offset}/TB[f{k}]")
+                parts.append(f"[{out}][f{k}]overlay=eof_action=pass[{out}c]")
+                out = f"{out}c"
             cur = out
             cumulative = cumulative + durs[k] - tau
         final = cur

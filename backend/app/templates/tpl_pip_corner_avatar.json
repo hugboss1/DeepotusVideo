@@ -28,6 +28,7 @@
     {
       "id": "r_pip",
       "type": "video_slot",
+      "animation": { "in": { "type": "fade", "duration": 0.4, "delay": 0.3 } },
       "x": 790,
       "y": 1590,
       "width": 250,
@@ -39,9 +40,6 @@
       "fit": "cover",
       "audio_volume": 1.0
     }
-  ],
-  "transitions": [
-    { "type": "fade_in", "duration_s": 0.4, "target": "r_pip", "delay_s": 0.3 }
   ],
   "audio": {
     "master_track": "from_slot:avatar_pip",
