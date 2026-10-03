@@ -346,6 +346,10 @@ class LibraryAsset(Base):
     couleur: Mapped[Optional[str]] = mapped_column(String(7), nullable=True)
     teinte: Mapped[Optional[str]] = mapped_column(String(12), nullable=True,
                                                   index=True)
+    # Tâche #80 (03/10/2026) : la RECETTE d'une image générée (JSON : prompt
+    # d'origine, style, modèle, format, graine) — /images/generate l'écrit ;
+    # la fiche la montre et « Rejouer » la renvoie. Les anciennes : NULL.
+    recette: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 
 class LibraryProject(Base):
@@ -684,6 +688,7 @@ LIBRARY_ASSETS_COLUMNS = [
     ("licence", "VARCHAR(40)"), ("auteur", "VARCHAR(120)"),
     ("source_url", "TEXT"), ("sha256", "VARCHAR(64)"), ("taille_o", "INTEGER"),
     ("couleur", "VARCHAR(7)"), ("teinte", "VARCHAR(12)"),
+    ("recette", "TEXT"),   # tâche #80
 ]
 
 
