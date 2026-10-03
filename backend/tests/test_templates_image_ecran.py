@@ -23,7 +23,7 @@ BASE = "ff050214"
 r0 = subprocess.run(["git", "show", f"{BASE}:frontend/dist/assets/index-BEOJX8L5.js"], capture_output=True, cwd=str(RACINE))
 check("T1 temoin : la base a la galerie et l'editeur mais pas l'export d'image", r0.returncode == 0
       and b"children:r.jsx(gm,{id:f.id,regions:f.regions,canvas:f.canvas})})" in r0.stdout and b"DzExportImage" not in r0.stdout)
-k_ech = BUN.find('r.jsx(DzEchantillon,{rg:c,tpl:a,setTpl:l}),r.jsx("div",{style:{marginTop:10},children:r.jsx("button",{onClick:dzDelReg')
+k_ech = BUN.find('r.jsx(DzEchantillon,{rg:c,tpl:a,setTpl:l}),r.jsx(DzAnimEditor,')   # #76 PR B : la section Animation suit l'echantillon
 check("T2 la carte de galerie enveloppe son schema dans la vignette (l'apercu de reagencement NON) ; l'export suit « Open in Studio » ; l'echantillon precede « Delete region »",
       BUN.count('children:r.jsx(DzTplVignette,{id:f.id,regions:f.regions,canvas:f.canvas,children:r.jsx(gm,{id:f.id,regions:f.regions,canvas:f.canvas})})})') == 1
       and BUN.count("r.jsx(DzTplVignette,") == 1 and BUN.count('r.jsx(gm,{id:tp.id||"apercu"') == 1
