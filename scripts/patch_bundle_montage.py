@@ -8110,6 +8110,15 @@ R_P8KIT1 = A_P8KIT1 + 'r.jsx(DzKits,{onChange:function(){n(null);d(Date.now())}}
 P1 += [("P8kit1-kits-de-marque-dans-reglages-branding", A_P8KIT1, R_P8KIT1)]
 assert len(P1) == 112 and "\n" not in R_P8KIT1
 
+# P8ref1 (tache #73 PR B, plan-templates T2, 03/10/2026) -- « Rejouer en … » dans la barre de la galerie Templates,
+# juste apres le groupe « New: ». Ancre AMONT (mesuree 1 sur .bak_montage, absente de ce patcher). `u` est le gabarit
+# selectionne ; une copie enregistree recharge la liste (a) et se selectionne (n). Composant : DzReflowBar (couche).
+A_P8REF1 = '["9:16","16:9","1:1","4:5"].map(A=>r.jsx(K,{variant:"primary",size:"sm",glow:!0,onClick:()=>l(A),children:A},A))]})'
+R_P8REF1 = (A_P8REF1 + ',r.jsx(DzReflowBar,{tpl:u,onSaved:function(id){a(function(w){return w+1});'
+            'setTimeout(function(){n(id)},200)}})')
+P1 += [("P8ref1-rejouer-un-gabarit-dans-un-autre-format", A_P8REF1, R_P8REF1)]
+assert len(P1) == 113 and "\n" not in R_P8REF1
+
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),

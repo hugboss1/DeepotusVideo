@@ -9670,3 +9670,48 @@ function DzKits({onChange}){
         r.jsx(K,{variant:"ghost",size:"sm",disabled:busy||k.actif,onClick:function(){supprimer(k)},
           title:k.actif?"Le kit actif ne se supprime pas : active d’abord un autre kit"+(kits.length<=1?" (c’est aussi le dernier)":""):"Supprimer ce kit et son logo",children:"Supprimer"})]},k.id)})}),
     msg?r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)",marginTop:8},children:msg}):null]})}
+/* Tâche #73 PR B (plan-templates T2, 03/10/2026) — « Rejouer en … » dans la galerie Templates : le gabarit choisi,
+   RÉAGENCÉ par le serveur (GET /api/layout-templates/{id}/reflow, rien n'est enregistré) s'affiche AVANT / APRÈS en
+   schéma (le même dessin que la galerie, gm) avec ses avertissements — dont un avatar HeyGen qui change de format, et
+   donc des rendus épinglés repayés —, puis « Enregistrer la copie » crée un NOUVEAU gabarit (le source ne change pas)
+   et le sélectionne. Décisions de l'utilisateur (03/10) : copie par format depuis la galerie, aperçu et avertissements
+   avant d'enregistrer. Un verrou d'action bloque le second clic. */
+function dzFormatDe(c){var F={"9:16":[1080,1920],"16:9":[1920,1080],"1:1":[1080,1080],"4:5":[1080,1350]},w=c&&c.width,h=c&&c.height;
+  for(var k in F){if(F[k][0]===w&&F[k][1]===h)return k}return null}
+function DzReflowBar({tpl,onSaved}){
+  var ps=x.useState(null),apercu=ps[0],setA=ps[1],bs=x.useState(!1),busy=bs[0],setB=bs[1],ms=x.useState(""),msg=ms[0],setMsg=ms[1],vol=x.useRef(!1);
+  if(!tpl||!tpl.id||!tpl.canvas)return null;
+  var fmt=dzFormatDe(tpl.canvas),nom=tpl.name||tpl.id,cibles=["9:16","16:9","1:1","4:5"].filter(function(f){return f!==fmt});
+  async function agir(fn){if(busy||vol.current)return;vol.current=!0;setB(!0);setMsg("");
+    try{await fn()}catch(e){setMsg(String(e&&e.message||e))}finally{vol.current=!1;setB(!1)}}
+  function voir(f){agir(async function(){
+    var R=await fetch("/api/layout-templates/"+encodeURIComponent(tpl.id)+"/reflow?format="+encodeURIComponent(f));
+    var d=await R.json().catch(function(){return{}});
+    if(!R.ok){setMsg(String(d.detail||("Aperçu impossible (HTTP "+R.status+").")));return}
+    setA({f:f,d:d})})}
+  function garder(){agir(async function(){if(!apercu)return;
+    var R=await fetch("/api/layout-templates/"+encodeURIComponent(tpl.id)+"/reflow",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({format:apercu.f})});
+    var d=await R.json().catch(function(){return{}});
+    if(!R.ok){setMsg(String(d.detail||("Enregistrement refusé (HTTP "+R.status+").")));return}
+    setA(null);setMsg("Copie « "+d.name+" » créée.");onSaved&&onSaved(d.template_id)})}
+  var av=apercu&&apercu.d&&Array.isArray(apercu.d.warnings)?apercu.d.warnings:[],t2=apercu&&apercu.d&&apercu.d.template;
+  function colonne(titre,tp){return r.jsxs("div",{style:{display:"flex",flexDirection:"column",alignItems:"center",gap:6},children:[
+    r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)"},children:titre}),
+    r.jsx("div",{style:{width:256,height:148,display:"flex",alignItems:"center",justifyContent:"center",background:"var(--bg-base)",borderRadius:6},
+      children:r.jsx(gm,{id:tp.id||"apercu",regions:tp.regions||[],canvas:tp.canvas})})]})}
+  return r.jsxs("div",{className:"dz-reflow",style:{display:"flex",gap:4,alignItems:"center"},children:[
+    r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)"},children:"Rejouer en :"}),
+    cibles.map(function(f){return r.jsx(K,{variant:"outline",size:"sm",disabled:busy,onClick:function(){voir(f)},
+      title:"Réagencer « "+nom+" » en "+f+" : aperçu d’abord ; une COPIE est enregistrée, le gabarit d’origine ne change pas",children:f},f)}),
+    msg?r.jsx("span",{style:{fontSize:10.5,color:"var(--ink-soft)",maxWidth:260},children:msg}):null,
+    apercu&&t2?r.jsx("div",{className:"dz-reflow-apercu",onClick:function(e){if(e.target===e.currentTarget)setA(null)},
+      style:{position:"fixed",inset:0,background:"rgba(4,6,10,.6)",zIndex:9400,display:"flex",alignItems:"center",justifyContent:"center"},
+      children:r.jsxs("div",{style:{background:"var(--bg-panel)",border:"1px solid var(--stroke)",borderRadius:12,padding:16,maxWidth:620,boxShadow:"0 18px 60px rgba(0,0,0,.55)"},children:[
+        r.jsx("div",{style:{fontWeight:600,color:"var(--ink-strong)",marginBottom:10},children:"Réagencer « "+nom+" » en "+apercu.f}),
+        r.jsxs("div",{style:{display:"flex",gap:16,justifyContent:"center"},children:[colonne("Avant ("+(fmt||"?")+")",tpl),colonne("Après ("+apercu.f+")",t2)]}),
+        r.jsx("div",{className:"dz-reflow-avert",style:{marginTop:12,fontSize:11.5,lineHeight:1.45,color:av.length?"var(--amber)":"var(--ink-soft)"},
+          children:av.length?av.map(function(w,i){return r.jsx("div",{children:"⚠ "+w},"w"+i)}):"Aucun avertissement : les cases suivent la toile, les éléments gardent leurs proportions."}),
+        r.jsxs("div",{style:{display:"flex",gap:8,justifyContent:"flex-end",marginTop:14},children:[
+          r.jsx(K,{variant:"ghost",size:"sm",disabled:busy,onClick:function(){setA(null)},title:"Fermer l’aperçu sans rien enregistrer",children:"Annuler"}),
+          r.jsx(K,{variant:"primary",size:"sm",disabled:busy,onClick:garder,title:"Enregistrer cette version "+apercu.f+" comme NOUVEAU gabarit (le gabarit d’origine reste tel quel)",children:"Enregistrer la copie"})]})]})}):null]})}
