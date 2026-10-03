@@ -280,6 +280,33 @@ async def export_layout_template_svg(template_id: str):
                     headers={"Content-Disposition": f'attachment; filename="{nom}.svg"'})
 
 
+@router.post("/layout-templates/{template_id}/vers-vectorlab")
+async def layout_template_vers_vectorlab(template_id: str, body: dict, request: Request):
+    """Tâche #76 PR H (plan-templates T10) — OUVRE le gabarit dans le Vectorlab : un document éditable (rôle libre)
+    est créé à partir du gabarit RÉSOLU (celui de l'éditeur s'il est envoyé), ses images d'échantillon versées dans
+    le magasin du document. Rend {id} : l'écran ouvre /vectorlab/?doc=<id>. Gratuit."""
+    _require_localhost(request)
+    from app.services import figma_gabarit as FG
+    from app.services import vector_store as VS
+    from app.services.storage import VectorDoc, async_session_factory
+    tpl = _gabarit_pour_image(template_id, body or {})
+    try:
+        tpl = template_engine.resoudre(tpl)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    doc, images = FG.vers_vectorlab(tpl, settings.images_path)
+    did = VS.creer(doc)
+    noms = {oid: VS.ecrire_image(did, octets) for oid, octets in images}
+    for ob in doc["calques"][0]["objets"]:
+        if ob.get("id") in noms:
+            ob["href"] = noms[ob["id"]]
+    VS._ecrire_atomique(VS._dossier() / f"{did}.json", doc)   # la version 1 reste la seule (pas d'historique)
+    async with async_session_factory() as session:
+        session.add(VectorDoc(id=did, name=f"{doc['nom']} (gabarit)"[:120], role="libre", version=1))
+        await session.commit()
+    return {"id": did, "objets": len(doc["calques"][0]["objets"]), "images": len(noms)}
+
+
 @router.get("/template-components")
 async def list_template_components():
     """Tâche #76 (plan-templates T8) — les COMPOSANTS (groupes de régions réutilisables) : livrés puis utilisateur."""

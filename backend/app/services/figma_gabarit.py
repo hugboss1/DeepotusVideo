@@ -212,6 +212,101 @@ async def importer_gabarit(url: str, jeton: str, engine, dossier_images) -> dict
     return {"template_id": tid, "name": tpl["name"], "warnings": avert, "appels": appels, "images": faits}
 
 
+def vers_vectorlab(tpl: dict, dossier_images) -> tuple:
+    """Tache #76 PR H — le gabarit (RESOLU par l'appelant) en document Vectorlab EDITABLE : (doc, images) ou images =
+    [(id d'objet, octets PNG)] a verser dans le magasin du document (l'objet porte un href provisoire). Un seul calque,
+    dans l'ordre des regions (l'empilement est garde) : cases avec echantillon -> objets image (cadrage « cover » par
+    rognage), cases vides -> cadre en pointilles et leur nom, separateurs / bandeaux / fonds de badge et de ticker ->
+    rectangles, textes -> objets texte ; fond de toile -> fond du document. Gratuit, rien de rendu."""
+    import io
+    from PIL import Image
+    c = tpl.get("canvas") or {}
+    W, H = int(c.get("width") or 1080), int(c.get("height") or 1920)
+    ech = ((tpl.get("metadata") or {}).get("samples") or {}) if isinstance(tpl.get("metadata"), dict) else {}
+    objets, images, n = [], [], [0]
+
+    def oid():
+        n[0] += 1
+        return f"o{n[0]}"
+
+    def image_de(nom):
+        if not nom or not dossier_images:
+            return None
+        p = Path(dossier_images) / Path(str(nom)).name
+        if not p.is_file():
+            return None
+        try:
+            with Image.open(p) as im:
+                im = im.convert("RGBA")
+                b = io.BytesIO()
+                im.save(b, "PNG")
+                return b.getvalue(), im.size
+        except OSError:
+            return None
+
+    for r in sorted(tpl.get("regions") or [], key=lambda q: q.get("z_index") or 0):
+        if r.get("type") == "audio_slot" or not all(isinstance(r.get(k), (int, float)) for k in ("x", "y", "width", "height")):
+            continue
+        x, y, w, h = (float(r[k]) for k in ("x", "y", "width", "height"))
+        t = r.get("type")
+        if t in ("video_slot", "image_slot", "sticker"):
+            src = ech.get(r.get("slot_name")) if t != "sticker" else (r.get("image_src") or r.get("src"))
+            im = image_de(src)
+            if im:
+                octets, (nw, nh) = im
+                k = max(w / nw, h / nh) if t != "sticker" else min(w / nw, h / nh)
+                ob = {"id": oid(), "type": "image", "x": x, "y": y, "w": w, "h": h, "href": "attente.png", "nat": {"w": nw, "h": nh}, "style": {}}
+                if t != "sticker":   # « cover » : on rogne la source au rapport de la case, centree
+                    cw, ch = w / k, h / k
+                    ob["rognage"] = {"x": round((nw - cw) / 2, 2), "y": round((nh - ch) / 2, 2), "w": round(cw, 2), "h": round(ch, 2)}
+                else:                # sticker : contenu dans la boite, centre
+                    ob.update(x=x + (w - nw * k) / 2, y=y + (h - nh * k) / 2, w=nw * k, h=nh * k)
+                objets.append(ob)
+                images.append((ob["id"], octets))
+            else:
+                objets.append({"id": oid(), "type": "rect", "x": x, "y": y, "w": w, "h": h, "style": {"fond": "none", "contour": "#00e5ff", "epaisseur": 3, "pointilles": "12 8"}})
+                objets.append({"id": oid(), "type": "texte", "x": x + w / 2, "y": y + h / 2, "contenu": str(r.get("slot_label") or r.get("slot_name") or "case"),
+                               "style": {"fond": "#00e5ff", "police": "Space Grotesk", "corps": max(12, int(min(w, h) // 10)), "ancre": "middle"}})
+            continue
+        if t in ("separator", "brand_strip", "badge", "ticker"):
+            coul = r.get("color") if t == "separator" else r.get("background_color")
+            if coul or t == "badge":
+                ob = {"id": oid(), "type": "rect", "x": x, "y": y, "w": w, "h": h, "style": {"fond": str(coul or "#0b0f1a")}}
+                if t == "badge":
+                    ob["rx"] = float(r.get("radius", h / 2))
+                objets.append(ob)
+        if t in ("text", "text_slot", "badge", "ticker"):
+            txt = r.get("default_text") if t == "text_slot" else r.get("text")
+            if txt:
+                taille = float(r.get("size") or 48)
+                ctr = r.get("align") == "center" or t == "badge"
+                objets.append({"id": oid(), "type": "texte", "x": x + w / 2 if ctr else x, "y": y + taille, "contenu": str(txt),
+                               "style": {"fond": str(r.get("color") or "#ffffff"), "police": str(r.get("font") or "Space Grotesk"),
+                                         "corps": taille, "ancre": "middle" if ctr else "start"}})
+        for it in _textes_bandeau(r):   # les textes d'un bandeau (« $DEEPOTUS »…) — oubliés, vus à l'écran sur la preuve
+            objets.append({"id": oid(), "type": "texte", "x": it["x"], "y": it["y"], "contenu": it["texte"],
+                           "style": {"fond": it["couleur"], "police": it["police"], "corps": it["taille"], "ancre": "start"}})
+    doc = {"v": 1, "nom": str(tpl.get("name") or "Gabarit")[:120], "taille": {"w": W, "h": H},
+           "fond": str(c.get("background_color") or "#000000"),
+           "calques": [{"id": "c1", "nom": "gabarit", "visible": True, "verrou": False, "objets": objets}]}
+    return doc, images
+
+
+def _textes_bandeau(r: dict) -> list:
+    """Les textes d'un bandeau de marque (items type text, positionnes DANS le bandeau, comme au rendu : la ligne de
+    base est en haut + taille, couleur cyan par defaut)."""
+    if r.get("type") != "brand_strip":
+        return []
+    out = []
+    for it in r.get("items") or []:
+        if isinstance(it, dict) and it.get("type") == "text" and it.get("text"):
+            taille = float(it.get("size") or 32)
+            out.append({"texte": str(it["text"]), "x": float(r.get("x") or 0) + float(it.get("x") or 0),
+                        "y": float(r.get("y") or 0) + float(it.get("y") or 0) + taille, "taille": taille,
+                        "couleur": str(it.get("color") or "#00e5ff"), "police": str(it.get("font") or "Space Grotesk")})
+    return out
+
+
 def _attr(v) -> str:
     """Une valeur d'ATTRIBUT XML : escape() seul laisse passer les guillemets (une fonte « "x" » cassait le SVG,
     trouve par le banc)."""
@@ -255,5 +350,7 @@ def vers_svg(tpl: dict, dossier_images=None) -> str:
                 tx = x + w / 2 if ctr else x
                 out.append(f'<text id="{rid}_texte" x="{tx:g}" y="{y + taille:g}" font-family="{_attr(str(r.get("font") or "Space Grotesk"))}" '
                            f'font-size="{taille}" fill="{_attr(str(r.get("color") or "#ffffff"))}"{" text-anchor=\"middle\"" if ctr else ""}>{escape(str(txt))}</text>')
+        for it in _textes_bandeau(r):
+            out.append(f'<text x="{it["x"]:g}" y="{it["y"]:g}" font-family="{_attr(it["police"])}" font-size="{it["taille"]:g}" fill="{_attr(it["couleur"])}">{escape(it["texte"])}</text>')
     out.append("</svg>")
     return "\n".join(out)

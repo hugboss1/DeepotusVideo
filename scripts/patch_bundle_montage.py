@@ -8115,7 +8115,9 @@ assert len(P1) == 112 and "\n" not in R_P8KIT1
 # selectionne ; une copie enregistree recharge la liste (a) et se selectionne (n). Composant : DzReflowBar (couche).
 A_P8REF1 = '["9:16","16:9","1:1","4:5"].map(A=>r.jsx(K,{variant:"primary",size:"sm",glow:!0,onClick:()=>l(A),children:A},A))]})'
 R_P8REF1 = (A_P8REF1 + ',r.jsx(DzReflowBar,{tpl:u,onSaved:function(id){a(function(w){return w+1});'
-            'setTimeout(function(){n(id)},200)}})')
+            'setTimeout(function(){n(id)},200)}})'
+            # tache #76 PR H (03/10) : « Importer un cadre Figma… » replie ici (meme en-tete, meme recharge + selection)
+            ',r.jsx(DzFigmaImport,{onSaved:function(id){a(function(w){return w+1});setTimeout(function(){n(id)},200)}})')
 P1 += [("P8ref1-rejouer-un-gabarit-dans-un-autre-format", A_P8REF1, R_P8REF1)]
 assert len(P1) == 113 and "\n" not in R_P8REF1
 
@@ -8150,7 +8152,7 @@ assert len(P1) == 115 and all("\n" not in r for _t, _a, r in P1[-2:])
 A_P8IMG1 = 'children:r.jsx(gm,{id:f.id,regions:f.regions,canvas:f.canvas})})'
 R_P8IMG1 = 'children:r.jsx(DzTplVignette,{id:f.id,regions:f.regions,canvas:f.canvas,children:r.jsx(gm,{id:f.id,regions:f.regions,canvas:f.canvas})})})'
 A_P8IMG2 = 'r.jsx(K,{variant:"outline",size:"sm",icon:"flow",onClick:_,disabled:!e,children:"Open in Studio"})'
-R_P8IMG2 = A_P8IMG2 + ',r.jsx(DzExportImage,{tpl:a,regs:d})'
+R_P8IMG2 = A_P8IMG2 + ',r.jsx(DzExportImage,{tpl:a,regs:d})' + ',r.jsx(DzExportFigma,{tpl:a,regs:d})'   # #76 PR H : SVG et Vectorlab
 P1 += [("P8img1-vignette-reelle-en-galerie", A_P8IMG1, R_P8IMG1),
        ("P8img2-exporter-l-image-du-gabarit", A_P8IMG2, R_P8IMG2)]
 assert len(P1) == 117 and all("\n" not in r for _t, _a, r in P1[-2:])

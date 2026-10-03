@@ -25,7 +25,7 @@ r0 = subprocess.run(["git", "show", f"{BASE}:frontend/dist/assets/index-BEOJX8L5
 check("T1 temoin : la base a la galerie et son groupe « New: » mais pas « Rejouer en »", r0.returncode == 0
       and b'children:"New:"' in r0.stdout and b"DzReflowBar" not in r0.stdout)
 APPEL = ('onClick:()=>l(A),children:A},A))]}),r.jsx(DzReflowBar,{tpl:u,onSaved:function(id){a(function(w){return w+1});'
-         'setTimeout(function(){n(id)},200)}})]}),')
+         'setTimeout(function(){n(id)},200)}}),')   # #76 PR H : l'import Figma suit, dans la meme rangee
 k = BUN.find('children:"New:"')
 check("T2 la rangee est posee dans la barre de la galerie, juste apres « New: » ; une copie recharge la liste et se selectionne",
       BUN.count(APPEL) == 1 and 0 <= k < BUN.find(APPEL) < k + 400 and BUN.count("r.jsx(DzReflowBar,") == 1)
