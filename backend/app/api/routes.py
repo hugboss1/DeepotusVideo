@@ -2836,9 +2836,11 @@ async def delete_image_file(filename: str):
         raise
     except Exception:
         raise HTTPException(404, f"Image not found: {filename}")
-    p.unlink()
-    await LI.retirer(safe)
-    return {"deleted": safe}
+    # Tâche #81 (décision 03/10) : à la CORBEILLE (restaurable), plus effacée — la ligne d'index, les projets et
+    # les compagnons partent avec elle.
+    from app.services import library_corbeille as LC
+    e = await LC.jeter_fichier(safe, "image")
+    return {"deleted": safe, "corbeille": e["id"] if e else None}
 
 
 def _safe_rename_image(old_name: str, new_name: str) -> str:
@@ -2919,6 +2921,45 @@ async def library_editer_asset(filename: str, request: Request):
     if LI.du_magasin(safe) is None:
         raise HTTPException(404, f"Fichier absent de la Bibliothèque : {safe}")
     return await LI.editer(safe, champs)
+
+
+@router.get("/library/corbeille")
+async def library_corbeille():
+    """Tâche #81 : le contenu de la corbeille (le plus récent d'abord), son poids, ce qui a plus de 30 jours."""
+    from app.services import library_corbeille as LC
+    return await asyncio.to_thread(LC.lister)
+
+
+@router.post("/library/corbeille/restaurer")
+async def library_corbeille_restaurer(request: Request):
+    """Body {id} : remet l'élément en place ; nom voisin si le sien a été repris (et on le dit)."""
+    from app.services import library_corbeille as LC
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(400, "Corps JSON attendu")
+    eid = str((body or {}).get("id") or "") if isinstance(body, dict) else ""
+    if not eid or Path(eid).name != eid:
+        raise HTTPException(400, "id attendu")
+    try:
+        return await LC.restaurer(eid)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    except FileExistsError as e:
+        raise HTTPException(409, str(e))
+
+
+@router.post("/library/corbeille/vider")
+async def library_corbeille_vider(request: Request):
+    """Body {ids:[…]} ou {tout:true} : efface DÉFINITIVEMENT (l'écran le confirme par le dialogue maison)."""
+    from app.services import library_corbeille as LC
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(400, "Corps JSON attendu")
+    if not isinstance(body, dict) or not (body.get("tout") is True or (isinstance(body.get("ids"), list) and body["ids"])):
+        raise HTTPException(400, "ids (liste non vide) ou tout:true attendu")
+    return await asyncio.to_thread(LC.vider, body.get("ids"), body.get("tout") is True)
 
 
 @router.get("/library/fiche/{filename}")
@@ -3494,10 +3535,12 @@ async def get_audio_file(filename: str):
 async def delete_audio_file(filename: str):
     safe = Path(filename).name
     p = _audio_dir() / safe
-    if not p.is_file():
+    if not safe or safe in (".", "..") or not p.is_file():
         raise HTTPException(404, f"Audio not found: {filename}")
-    p.unlink()
-    return {"deleted": safe}
+    # Tâche #81 : à la CORBEILLE ; la suppression d'avant ne retirait NI la ligne d'index NI les projets du son.
+    from app.services import library_corbeille as LC
+    e = await LC.jeter_fichier(safe, "audio")
+    return {"deleted": safe, "corbeille": e["id"] if e else None}
 
 
 def _clean_vo_error(e: Exception) -> str:
@@ -5096,11 +5139,13 @@ async def fav_job(job_id: str, request: Request):
 
 @router.delete("/jobs/{job_id}")
 async def delete_job(job_id: str):
-    """Delete job DB record + all files (video, audio, caption)."""
-    success = await Pipeline.delete_job(job_id)
-    if not success:
+    """Tâche #81 (décision 03/10) : le rendu part à la CORBEILLE (fichiers, dossier de sortie, ligne du job,
+    projets), restaurable — il n'est plus effacé. Les lots (/batches) gardent leur suppression définitive."""
+    from app.services import library_corbeille as LC
+    e = await LC.jeter_job(job_id)
+    if e is None:
         raise HTTPException(404, "Job not found")
-    return {"deleted": True, "job_id": job_id}
+    return {"deleted": True, "job_id": job_id, "corbeille": e["id"]}
 
 
 # v1.3: Bulk delete entire batch

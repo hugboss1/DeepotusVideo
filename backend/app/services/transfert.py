@@ -80,6 +80,7 @@ JETABLE = (
     "*.db-wal", "*.db-shm",      # journal SQLite : l'instantané le contient
     "*.db.bak", "*.db",          # la base part par l'instantané, pas brute
     "rebut_*/*",                 # corbeilles datées
+    "assets/_corbeille/*",       # tâche #81 : la corbeille de la Bibliothèque
     "assets/outputs/_cache/*",   # cache d'aperçus du montage
     "assets/outputs/_tmp_*/*",   # rendus en cours
     "assets/outputs/fxpreview/*",  # vignettes d'effets, régénérées
@@ -91,7 +92,7 @@ JETABLE = (
 
 # Les lots que l'utilisateur peut COCHER (tous décochés par défaut) : ils
 # retirent leur motif de la liste du jetable, jamais de celle des secrets.
-LOTS = {"journaux": ("logs/*",), "rebuts": ("rebut_*/*",)}
+LOTS = {"journaux": ("logs/*",), "rebuts": ("rebut_*/*", "assets/_corbeille/*")}
 BLOC = 1 << 20
 
 
