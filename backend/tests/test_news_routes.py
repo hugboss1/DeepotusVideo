@@ -7,6 +7,7 @@ depenses relues en base. Le score LLM est PAYANT : par defaut zero appel ; `llm=
 plafonds (402 sans depense au-dessus du plafond, puis un appel et une ligne « news » une fois confirme).
 Run (depuis backend/) : & $PY tests/test_news_routes.py"""
 import asyncio, json, os, pathlib, sys, tempfile
+from datetime import datetime, timedelta, timezone
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 _tmp = pathlib.Path(tempfile.mkdtemp(prefix="dznewsr_"))
 os.environ["DEEPOTUS_DATA_DIR"] = str(_tmp)
@@ -40,18 +41,26 @@ def _espion(p, s, m):
 summarizer._chat_dispatch = _espion
 summarizer.active_provider = lambda: "anthropic"      # une cle « reglee » : le devis n'est pas gratuit
 
+# Dates RELATIVES a l'horloge : en dur (2026-09-03), a2 puis a1 sortaient de la fenetre de 30 jours au fil des
+# jours et [E] tombait en KeyError 'a2' le 03/10/2026 sans changement de code. Ordre garde : a2 < a1 < fetched_at.
+_MAINTENANT = datetime.now(timezone.utc).replace(microsecond=0)
+PUBLIE_A1 = (_MAINTENANT - timedelta(hours=1)).isoformat()
+PUBLIE_A2 = (_MAINTENANT - timedelta(hours=2)).isoformat()
+RAMASSE_LE = (_MAINTENANT - timedelta(minutes=30)).isoformat()
+FRAICHEUR_BANC_H = 24 * 30                            # la fenetre que les sections posent avant de classer
+
 ARTICLES = [
     {"id": "a1", "source_id": "s1", "source_name": "CoinDesk", "title": "Solana network hits record daily transactions",
-     "summary": "", "link": "https://c/1", "published": "2026-09-03T11:00:00+00:00", "doublons": []},
+     "summary": "", "link": "https://c/1", "published": PUBLIE_A1, "doublons": []},
     {"id": "a2", "source_id": "s2", "source_name": "Spammy Feed", "title": "Free giveaway airdrop inside",
-     "summary": "", "link": "https://s/1", "published": "2026-09-03T10:00:00+00:00", "doublons": []},
+     "summary": "", "link": "https://s/1", "published": PUBLIE_A2, "doublons": []},
 ]
 
 
 def _poser_cache(items=None):
     news_service.cache_path.parent.mkdir(parents=True, exist_ok=True)
     news_service.cache_path.write_text(json.dumps(
-        {"fetched_at": "2026-09-03T11:30:00+00:00", "items": ARTICLES if items is None else items,
+        {"fetched_at": RAMASSE_LE, "items": ARTICLES if items is None else items,
          "errors": [], "source_count": 2, "merged_count": 0}, ensure_ascii=False), encoding="utf-8")
 
 
@@ -63,6 +72,13 @@ def _lignes():
 
 
 asyncio.run(init_db())
+print("\n[0] temoin d'horloge : le banc ne depend pas de la date du jour")
+_ages_h = [(datetime.now(timezone.utc) - datetime.fromisoformat(a["published"])).total_seconds() / 3600 for a in ARTICLES]
+check("T1 chaque article du fixture est DANS la fenetre de fraicheur du banc (et date du passe)",
+      all(0 < h < FRAICHEUR_BANC_H for h in _ages_h), str(_ages_h))
+check("T2 l'ordre est garde : a2 plus ancien que a1, ramasse apres les deux",
+      PUBLIE_A2 < PUBLIE_A1 < RAMASSE_LE, f"{PUBLIE_A2} {PUBLIE_A1} {RAMASSE_LE}")
+
 with TestClient(app, client=("127.0.0.1", 50000)) as c:
     print("\n[A] reglages du filtre")
     r = c.get("/api/news/filter")
