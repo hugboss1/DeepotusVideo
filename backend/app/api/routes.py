@@ -242,6 +242,44 @@ async def apercu_texte(body: dict, request: Request):
     return Response(content=png, media_type="image/png", headers={"Cache-Control": "no-store"})
 
 
+@router.post("/layout-templates/import-figma")
+async def import_figma_template(body: dict, request: Request):
+    """Tâche #76 (plan-templates T10) — IMPORT FIGMA ÉDITABLE : le lien d'un CADRE Figma devient un GABARIT
+    (textes, cases image avec leur image en échantillon, rectangles, contraintes). Gratuit mais sur le QUOTA Figma :
+    1 appel, 2 s'il y a des images (rendu dans `appels`). Jeton absent 503, lien ou cadre fautif 400, Figma 502."""
+    _require_localhost(request)
+    from app.services import figma_gabarit as FG
+    jeton = str(getattr(settings, "FIGMA_TOKEN", "") or "").strip()
+    if not jeton:
+        raise HTTPException(503, "FIGMA_TOKEN absent — crée un Personal Access Token Figma (figma.com → Settings → "
+                                 "Security), colle-le dans Réglages → API keys (rangée Figma) puis relance l'application.")
+    try:
+        r = await FG.importer_gabarit(str((body or {}).get("url") or ""), jeton, template_engine, settings.images_path)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except RuntimeError as e:
+        raise HTTPException(502, str(e))
+    if r["images"]:
+        await LI.noter(r["images"], "figma")
+    return r
+
+
+@router.get("/layout-templates/{template_id}/export.svg")
+async def export_layout_template_svg(template_id: str):
+    """Tâche #76 (plan-templates T10) — le gabarit en SVG SCHÉMATIQUE (composants dépliés, kit de marque appliqué,
+    images d'échantillon embarquées), à glisser dans Figma. Gratuit, rien de rendu."""
+    from app.services import figma_gabarit as FG
+    try:
+        tpl = template_engine.resoudre(template_engine.get_template(template_id))
+    except FileNotFoundError:
+        raise HTTPException(404, f"Template not found: {template_id}")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    nom = re.sub(r"[^A-Za-z0-9_-]+", "_", str(tpl.get("name") or template_id))[:60] or "gabarit"
+    return Response(content=FG.vers_svg(tpl, settings.images_path), media_type="image/svg+xml",
+                    headers={"Content-Disposition": f'attachment; filename="{nom}.svg"'})
+
+
 @router.get("/template-components")
 async def list_template_components():
     """Tâche #76 (plan-templates T8) — les COMPOSANTS (groupes de régions réutilisables) : livrés puis utilisateur."""
