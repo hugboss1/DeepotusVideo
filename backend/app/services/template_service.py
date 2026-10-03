@@ -767,7 +767,7 @@ def build_ffmpeg_command(engine, template, slot_values, output_path, work, still
         else:
             lignes = str(txt).split("\n")
         n += 1
-        if _tt.besoin_image(eff):
+        if _tt.besoin_image(eff, r):   # tâche #76 : le texte sur arc passe aussi par l'image
             if mode == "defile":
                 pol = _tt._police(fpath, size)
                 marge = int(abs((eff.get("shadow") or {}).get("dx", 0)) + (eff.get("shadow") or {}).get("blur", 0)
@@ -777,7 +777,8 @@ def build_ffmpeg_command(engine, template, slot_values, output_path, work, still
             else:
                 iw = bw_
                 png, _bw, _bh = _tt.rendre_png(lignes, fpath, size, color, eff, bw_, bh_, "center" if centre else "left",
-                                               "middle" if mode == "centre" else "top", work / f"{tag}{n}.png")
+                                               "middle" if mode == "centre" else "top", work / f"{tag}{n}.png",
+                                               courbe=_tt.courbe(r))
             ii = _add_input(png, still=True)
             chaine = f"[{ii}:v]format=rgba"
             if pulse is not None:

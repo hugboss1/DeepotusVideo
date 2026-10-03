@@ -32,17 +32,38 @@ def _n(v) -> bool:
 
 
 def actif(r: dict) -> bool:
-    return bool(r.get("text_fit")) or bool(r.get("text_effects"))
+    return bool(r.get("text_fit")) or bool(r.get("text_effects")) or bool(r.get("text_curve"))   # #76 : + texte sur arc
+
+
+def courbe(r: dict):
+    """(rayon, sens) du texte sur ARC (tache #76, plan-templates T11 / D4) ; None sans courbe. sens : haut (arche, ∩)
+    ou bas (sourire, ∪)."""
+    c = r.get("text_curve")
+    if not isinstance(c, dict) or not _n(c.get("radius")):
+        return None
+    return float(c["radius"]), (c.get("dir") or "haut")
 
 
 def verifier_textes(regions) -> None:
     """ValueError qui nomme la region et le champ (appele par TemplateEngine._validate)."""
     for r in regions or []:
-        if "text_fit" not in r and "text_effects" not in r and "text_min_size" not in r:
+        if "text_fit" not in r and "text_effects" not in r and "text_min_size" not in r and "text_curve" not in r:
             continue
         rid = r.get("id")
         if r.get("type") not in TYPES:
             raise ValueError(f"Region {rid} : l'ajustement et les effets de texte valent pour {', '.join(TYPES)}.")
+        c = r.get("text_curve")
+        if c is not None:   # tache #76 : texte sur arc — textes et sous-titres, une ligne, jamais ajuste
+            if r.get("type") not in ("text", "text_slot"):
+                raise ValueError(f"Region {rid} : le texte sur arc vaut pour text et text_slot.")
+            if not isinstance(c, dict) or set(c) - {"radius", "dir"}:
+                raise ValueError(f"Region {rid} : text_curve attend {{\"radius\": px, \"dir\": \"haut\"|\"bas\"}}.")
+            if not (_n(c.get("radius")) and 20 <= c["radius"] <= 20000):
+                raise ValueError(f"Region {rid} : text_curve.radius doit être entre 20 et 20000 px.")
+            if c.get("dir", "haut") not in ("haut", "bas"):
+                raise ValueError(f"Region {rid} : text_curve.dir est haut ou bas.")
+            if r.get("text_fit"):
+                raise ValueError(f"Region {rid} : un texte sur arc ne s'ajuste pas (text_fit et text_curve s'excluent).")
         if "text_fit" in r and not isinstance(r["text_fit"], bool):
             raise ValueError(f"Region {rid} : text_fit est vrai ou faux.")
         if "text_min_size" in r and not (_n(r["text_min_size"]) and 6 <= r["text_min_size"] <= 400):
@@ -136,11 +157,12 @@ def effets(r: dict) -> dict:
     return r.get("text_effects") or {}
 
 
-def besoin_image(e: dict) -> bool:
+def besoin_image(e: dict, r: dict | None = None) -> bool:
     """L'ombre floue, le degrade et le fond arrondi passent par une image ; le reste reste en drawtext natif."""
     sh, bx = e.get("shadow") or {}, e.get("box") or {}
     # « gradient » PRESENT suffit (un {} vide veut les couleurs par defaut — un test de verite le ratait, trouve par le banc)
-    return e.get("gradient") is not None or float(sh.get("blur", 0) or 0) > 0 or float(bx.get("radius", 0) or 0) > 0
+    return (e.get("gradient") is not None or float(sh.get("blur", 0) or 0) > 0 or float(bx.get("radius", 0) or 0) > 0
+            or (r is not None and courbe(r) is not None))   # tache #76 : le texte sur arc se dessine lettre par lettre
 
 
 def _hx(c, defaut):
@@ -164,10 +186,35 @@ def drawtext_options(e: dict) -> str:
     return ":".join(o)
 
 
+def _arc(texte: str, pol, rayon: float, sens: str, marge: int) -> tuple:
+    """Les lettres du texte sur un ARC de `rayon` : [(lettre, angle en degres pour rotate, x, y du centre)] autour du
+    centre du cercle, et la boite (x0, y0, x1, y1) qui les contient, lettres tournees et contour compris."""
+    import math
+    total = pol.getlength(texte)
+    a, s, out = pol.getmetrics(), -total / 2, []
+    cote = int(max(a[0] + a[1], pol.size) + 2 * marge + 4)
+    x0 = y0 = float("inf")
+    x1 = y1 = float("-inf")
+    for ch in texte:
+        av = pol.getlength(ch)
+        th = (s + av / 2) / rayon
+        s += av
+        if sens == "bas":      # sourire : sous le centre ; la lettre penche avec la tangente
+            x, y, deg = rayon * math.sin(th), rayon * math.cos(th), math.degrees(th)
+        else:                  # arche : au-dessus du centre
+            x, y, deg = rayon * math.sin(th), -rayon * math.cos(th), -math.degrees(th)
+        demi = cote * (abs(math.cos(th)) + abs(math.sin(th))) / 2 + 1
+        x0, y0, x1, y1 = min(x0, x - demi), min(y0, y - demi), max(x1, x + demi), max(y1, y + demi)
+        out.append((ch, deg, x, y))
+    return out, cote, (x0, y0, x1, y1)
+
+
 def rendre_png(lignes: list, chemin_police, taille: int, couleur: str, e: dict, w: int, h: int,
-               aligne: str, vertical: str, chemin: Path) -> tuple:
+               aligne: str, vertical: str, chemin: Path, courbe: tuple | None = None) -> tuple:
     """Le bloc de texte en image RGBA (w x h) avec ses effets : fond arrondi, ombre (floue), contour, degrade.
-    `aligne` left|center, `vertical` top|middle. Rend (chemin, largeur et hauteur du bloc dessine)."""
+    `aligne` left|center, `vertical` top|middle. Rend (chemin, largeur et hauteur du bloc dessine).
+    Tache #76 : `courbe` = (rayon, sens) — le texte (une ligne) est pose lettre par lettre sur un arc, centre dans la
+    case ; les effets s'appliquent au masque courbe. Sans courbe, rien ne change."""
     from PIL import Image, ImageDraw, ImageFilter, ImageColor
     pol = _police(chemin_police, taille)
     lh = hauteur_ligne(pol)
@@ -179,6 +226,15 @@ def rendre_png(lignes: list, chemin_police, taille: int, couleur: str, e: dict, 
     e_haut, e_bas = hb[0][1], (len(lignes) - 1) * lh + hb[1][3]
     x0 = (w - bw) // 2 if aligne == "center" else 0
     y0 = (h - (e_bas - e_haut)) // 2 - e_haut if vertical == "middle" else 0
+    arc = None
+    if courbe is not None:   # la boite de l'ARC (lettres tournees) devient le bloc : centree dans la case
+        st0 = e.get("stroke") or {}
+        marge = int(round(st0.get("px", 3))) if e.get("stroke") is not None else 3
+        lettres, cote, (ax0, ay0, ax1, ay1) = _arc(" ".join(lignes), pol, courbe[0], courbe[1], marge)
+        bw, bh = int(ax1 - ax0), int(ay1 - ay0)
+        ox, oy = (w - bw) / 2 - ax0, (h - bh) / 2 - ay0
+        arc = (lettres, cote, ox, oy)
+        x0, y0, e_haut, e_bas = int((w - bw) / 2), int((h - bh) / 2), 0, bh
     st = e.get("stroke") or {}
     sw = int(round(st.get("px", 3))) if e.get("stroke") is not None else 3
     scol = ImageColor.getrgb(st.get("color") or "#02060d") + ((255,) if e.get("stroke") is not None else (166,))
@@ -191,6 +247,16 @@ def rendre_png(lignes: list, chemin_police, taille: int, couleur: str, e: dict, 
 
     def masque_texte(dx=0, dy=0, contour=0):
         m = Image.new("L", (w, h), 0)
+        if arc is not None:   # tache #76 : chaque lettre dans sa tuile, tournee selon la tangente, posee sur l'arc
+            lettres, cote, ox, oy = arc
+            for ch, deg, x, y in lettres:
+                if not ch.strip():
+                    continue
+                tuile = Image.new("L", (cote, cote), 0)
+                ImageDraw.Draw(tuile).text((cote / 2, cote / 2), ch, font=pol, fill=255, anchor="mm", stroke_width=contour, stroke_fill=255)
+                tuile = tuile.rotate(deg, resample=Image.BICUBIC, expand=True)
+                m.paste(255, (int(round(ox + x + dx - tuile.width / 2)), int(round(oy + y + dy - tuile.height / 2))), tuile)
+            return m
         d = ImageDraw.Draw(m)
         for i, l in enumerate(lignes):
             lx = x0 + ((bw - larg[i]) // 2 if aligne == "center" else 0)
