@@ -7,7 +7,7 @@ reussi. Aucun reseau : `summarizer.rewrite_script` est un espion, `pipeline.run_
 Temoin positif : a la base (8d9ea97), generate_news_script n'a pas de `polir` et aucune route /news/chain n'existe.
 Run (depuis backend/) : & $PY tests/test_news_chain.py"""
 import asyncio, json, os, pathlib, subprocess, sys, tempfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 _tmp = pathlib.Path(tempfile.mkdtemp(prefix="dznewsc_"))
 os.environ["DEEPOTUS_DATA_DIR"] = str(_tmp)
@@ -49,6 +49,12 @@ async def _faux_rendu(items, **k):
 pipeline.run_news_illustration = _faux_rendu
 
 MAINTENANT = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+# Creneaux de [D] RELATIFS au jour : en dur (2026-10-04/05/06), ils passaient dans le passe au fil des jours.
+# Heures fixes (17:30 UTC, 10:00) pour garder la forme des assertions ; J+1, J+2, J+3 donc toujours dans le futur.
+_JOUR = datetime.now(timezone.utc).date()
+CRENEAU_D1 = f"{_JOUR + timedelta(days=1)}T17:30"
+CRENEAU_D7 = f"{_JOUR + timedelta(days=2)}T10:00"
+CRENEAU_D8 = f"{_JOUR + timedelta(days=3)}T10:00"
 ARTICLES = [
     {"id": "a1", "source_id": "s1", "source_name": "CoinDesk", "title": "Solana network hits record daily transactions",
      "summary": "Solana usage climbs.", "link": "https://www.coindesk.com/a", "published": MAINTENANT, "doublons": []},
@@ -132,13 +138,17 @@ with TestClient(app, client=("127.0.0.1", 50000)) as c:
     check("C4 script vide : 422", c.post("/api/news/chain/polish", json={"script": ""}).status_code == 422)
 
     print("\n[D] valider : un post programme avec son reel cartes")
-    lot2 = dict(lot, creneau="2026-10-04T17:30:00+00:00")
+    _maint = datetime.now(timezone.utc)
+    check("D0 temoin d'horloge : les trois creneaux de [D] sont dans le FUTUR, quelle que soit la date du jour",
+          all(datetime.fromisoformat(f"{x}:00+00:00") > _maint for x in (CRENEAU_D1, CRENEAU_D7, CRENEAU_D8)),
+          f"{CRENEAU_D1} {CRENEAU_D7} {CRENEAU_D8}")
+    lot2 = dict(lot, creneau=f"{CRENEAU_D1}:00+00:00")
     r = c.post("/api/news/chain/commit", json={"lot": lot2, "channels": ["x", "telegram"], "mode": "assisted"})
     j = r.json() if r.status_code == 200 else {}
     posts = [p for p in _posts() if p.id == j.get("post_id")]
     p = posts[0] if posts else None
     check("D1 200 : post programme, canaux, creneau, legende", r.status_code == 200 and p is not None and p.status == "scheduled"
-          and set(p.channels.split(",")) == {"x", "telegram"} and p.run_at.isoformat().startswith("2026-10-04T17:30") and p.caption == lot["caption"],
+          and set(p.channels.split(",")) == {"x", "telegram"} and p.run_at.isoformat().startswith(CRENEAU_D1) and p.caption == lot["caption"],
           f"{r.status_code} {r.text[:200]}")
     check("D2 le post porte le job_id de son reel (il a donc un media pour le Scheduler)", p is not None and p.job_id == j.get("job_id") and p.job_id)
     check("D3 le reel cartes a ete lance avec CE job_id et les articles du lot", rendus and rendus[-1][0] == j.get("job_id")
@@ -152,14 +162,14 @@ with TestClient(app, client=("127.0.0.1", 50000)) as c:
           and len(_posts()) == n_posts and len(M.sujets_couverts()) == n_suj, r.text[:200])
     r = c.post("/api/news/chain/commit", json={"lot": dict(lot, articles=[]), "channels": ["x"]})
     check("D6 lot sans article : 400 motive, rien ecrit", r.status_code == 400 and "aucun article" in r.text and len(_posts()) == n_posts)
-    echec = dict(lot, articles=[dict(lot["articles"][0], title="ECHEC du rendu")], creneau="2026-10-05T10:00:00+00:00")
+    echec = dict(lot, articles=[dict(lot["articles"][0], title="ECHEC du rendu")], creneau=f"{CRENEAU_D7}:00+00:00")
     r = c.post("/api/news/chain/commit", json={"lot": echec, "channels": ["x"]})
     check("D7 rendu en echec : le post existe (job failed lisible), mais AUCUNE couverture notee", r.status_code == 200
           and len(_posts()) == n_posts + 1 and len(M.sujets_couverts()) == n_suj)
-    r = c.post("/api/news/chain/commit", json={"lot": dict(lot, creneau="2026-10-06T10:00:00"), "channels": [""]})
+    r = c.post("/api/news/chain/commit", json={"lot": dict(lot, creneau=f"{CRENEAU_D8}:00"), "channels": [""]})
     p = [x for x in _posts() if x.id == r.json().get("post_id")]
     check("D8 creneau sans fuseau = UTC ; canal vide -> x", r.status_code == 200 and p and p[0].channels == "x"
-          and p[0].run_at.isoformat().startswith("2026-10-06T10:00"), r.text[:200])
+          and p[0].run_at.isoformat().startswith(CRENEAU_D8), r.text[:200])
 
 print("\n[E] le chemin d'avant (/news/script) polit toujours par defaut")
 polis.clear()
