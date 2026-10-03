@@ -8101,6 +8101,15 @@ R_P7ENV1 = 'items.push(dzSendRecette(nom,onClose));' + A_P7ENV1
 P1 += [("P7env1-lancer-une-recette-depuis-une-image", A_P7ENV1, R_P7ENV1)]
 assert len(P1) == 111 and "\n" not in R_P7ENV1
 
+# P8kit1 (tache #72 PR B, plan-templates T1, 03/10/2026) -- les KITS DE MARQUE dans Reglages -> Branding (Sm), entre
+# le paragraphe d'introduction et la carte des champs. Ancre AMONT (mesuree 1 sur .bak_montage, absente de ce patcher).
+# Activer un kit remet a zero les champs en cours (n(null)), rafraichit le logo (d) et le shell (Ji). Composant :
+# DzKits dans la couche montage.js.
+A_P8KIT1 = 'r.jsx("strong",{children:"deepotus"}),"; reset any time."]}),'
+R_P8KIT1 = A_P8KIT1 + 'r.jsx(DzKits,{onChange:function(){n(null);d(Date.now())}}),'
+P1 += [("P8kit1-kits-de-marque-dans-reglages-branding", A_P8KIT1, R_P8KIT1)]
+assert len(P1) == 112 and "\n" not in R_P8KIT1
+
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),

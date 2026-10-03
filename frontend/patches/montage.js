@@ -9618,3 +9618,55 @@ async function dzRecLancerAvec(image){
   catch(e){await window.__dzDialogue.informer("Recette : "+String(e&&e.message||e),{titre:"Lancer une recette"})}}
 function dzSendRecette(nom,onClose){
   return{lbl:"🍳 Lancer une recette… (devis montré avant)",fn:function(){onClose&&onClose();dzRecLancerAvec(nom)}}}
+/* Tâche #72 PR B (plan-templates T1, 03/10/2026) — gérer les KITS DE MARQUE dans Réglages → Branding. Décisions de
+   l'utilisateur (03/10) : les champs de l'écran (nom, accroches, couleurs, logo) modifient le kit ACTIF ; un rendu
+   fige le kit actif à l'envoi ; le kit actif et le dernier ne se suppriment pas (bouton grisé, title qui dit
+   pourquoi) ; tout passe par le dialogue maison. Activer un kit recharge l'écran et le shell (deepotus:brand-refresh). */
+function dzKitErr(R,d){return String((d&&d.detail)||("HTTP "+R.status))}
+function DzKits({onChange}){
+  var ls=x.useState(null),L=ls[0],setL=ls[1],bs=x.useState(!1),busy=bs[0],setB=bs[1],ms=x.useState(""),msg=ms[0],setMsg=ms[1],
+    ts_=x.useState(0),tick=ts_[0],setTick=ts_[1],vol=x.useRef(!1);   /* vol : une action EN COURS bloque la suivante (deux clics = deux copies) */
+  function charger(){return fetch("/api/brand-kits").then(function(R){return R.json()}).then(function(d){setL(d);return d})
+    .catch(function(e){setMsg("Kits illisibles : "+String(e&&e.message||e))})}
+  /* « Save brand », « Reset » et un logo envoyé (écran Sm) signalent deepotus:brand-refresh : la liste se recharge, sinon le kit actif y garde ses anciennes couleurs (vu à l écran, 03/10) */
+  x.useEffect(function(){charger();function rf(){charger();setTick(Date.now())}window.addEventListener("deepotus:brand-refresh",rf);
+    return function(){window.removeEventListener("deepotus:brand-refresh",rf)}},[]);
+  async function agir(fn){if(busy||vol.current)return;vol.current=!0;setB(!0);setMsg("");try{await fn()}catch(e){setMsg(String(e&&e.message||e))}finally{vol.current=!1;setB(!1)}}
+  async function envoyer(url,method,body){
+    var R=await fetch(url,{method:method,headers:body?{"Content-Type":"application/json"}:void 0,body:body?JSON.stringify(body):void 0});
+    var d=await R.json().catch(function(){return{}});if(!R.ok)throw new Error(dzKitErr(R,d));return d}
+  function nouveau(){agir(async function(){
+    var nm=await window.__dzDialogue.saisir("Nom du nouveau kit (il part des couleurs deepotus) :",{titre:"Nouveau kit de marque",valeur:"",ok:"Créer"});
+    if(nm==null||!nm.trim())return;await envoyer("/api/brand-kits","POST",{name:nm.trim()});await charger();
+    setMsg("Kit « "+nm.trim()+" » créé — active-le pour le modifier ci-dessous.")})}
+  function activer(k){agir(async function(){await envoyer("/api/brand-kits/"+encodeURIComponent(k.id)+"/activate","POST");
+    await charger();setTick(Date.now());Ji();onChange&&onChange();setMsg("Kit « "+k.name+" » actif : l’app et les prochains rendus le prennent.")})}
+  function renommer(k){agir(async function(){
+    var nm=await window.__dzDialogue.saisir("Nouveau nom du kit :",{titre:"Renommer le kit",valeur:k.name,ok:"Renommer"});
+    if(nm==null||!nm.trim()||nm.trim()===k.name)return;await envoyer("/api/brand-kits","POST",{id:k.id,name:nm.trim()});await charger()})}
+  function dupliquer(k){agir(async function(){await envoyer("/api/brand-kits/"+encodeURIComponent(k.id)+"/dupliquer","POST");await charger();
+    setMsg("Copie de « "+k.name+" » créée (logo compris).")})}
+  function supprimer(k){agir(async function(){
+    if(!(await window.__dzDialogue.confirmer("Supprimer le kit « "+k.name+" » et son logo ? C’est irréversible.",{titre:"Supprimer le kit"})))return;
+    await envoyer("/api/brand-kits/"+encodeURIComponent(k.id),"DELETE");await charger();setMsg("Kit « "+k.name+" » supprimé.")})}
+  var kits=(L&&L.kits)||[],actif=kits.find(function(k){return k.actif})||null;   /* le dernier kit EST le kit actif : son bouton est grisé par là */
+  function pastille(c){return r.jsx("span",{style:{display:"inline-block",width:12,height:12,borderRadius:3,background:c,border:"1px solid var(--stroke)"}})}
+  return r.jsxs(jt,{className:"dz-kits",style:{padding:14,marginBottom:14},children:[
+    r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:8},children:[
+      r.jsx("div",{style:{fontWeight:600,color:"var(--ink-strong)",flex:1},children:"Kits de marque"+(actif?" — les champs ci-dessous modifient « "+actif.name+" »":"")}),
+      r.jsx(K,{variant:"outline",size:"sm",icon:"plus",disabled:busy,onClick:nouveau,title:"Créer un kit (nom, accroches, couleurs, logo à part) — il ne devient actif que si tu l’actives",children:"Nouveau kit"})]}),
+    L?null:r.jsx("div",{style:{fontSize:11,color:"var(--ink-muted)"},children:"Chargement des kits…"}),
+    r.jsx("div",{style:{display:"flex",flexDirection:"column",gap:6},children:kits.map(function(k){
+      return r.jsxs("div",{className:"dz-kit",style:{display:"flex",alignItems:"center",gap:8,padding:6,borderRadius:"var(--r-sm)",
+        border:"1px solid var(--"+(k.actif?"cyan":"stroke")+")",background:"var(--bg-base)"},children:[
+        r.jsx("img",{src:"/api/brand-kits/"+encodeURIComponent(k.id)+"/logo?t="+tick,alt:"",width:28,height:28,style:{width:28,height:28,objectFit:"contain",borderRadius:"50%"}}),
+        r.jsxs("div",{style:{flex:1,minWidth:0},children:[
+          r.jsx("div",{style:{color:"var(--ink-strong)",fontSize:12},children:k.name}),
+          r.jsxs("div",{style:{fontSize:10.5,color:"var(--ink-muted)",display:"flex",gap:6,alignItems:"center"},children:[k.app_name+" "+k.app_sub,pastille(k.brand_color),pastille(k.accent_color)]})]}),
+        k.actif?r.jsx("span",{className:"mono",style:{color:"var(--cyan)",fontSize:10},children:"actif"}):
+          r.jsx(K,{variant:"outline",size:"sm",disabled:busy,onClick:function(){activer(k)},title:"Rendre ce kit actif : l’app et les prochains rendus le prennent (un rendu déjà parti garde le sien)",children:"Activer"}),
+        r.jsx(K,{variant:"ghost",size:"sm",disabled:busy,onClick:function(){renommer(k)},title:"Renommer ce kit",children:"Renommer"}),
+        r.jsx(K,{variant:"ghost",size:"sm",disabled:busy,onClick:function(){dupliquer(k)},title:"Dupliquer ce kit (couleurs, textes et logo)",children:"Dupliquer"}),
+        r.jsx(K,{variant:"ghost",size:"sm",disabled:busy||k.actif,onClick:function(){supprimer(k)},
+          title:k.actif?"Le kit actif ne se supprime pas : active d’abord un autre kit"+(kits.length<=1?" (c’est aussi le dernier)":""):"Supprimer ce kit et son logo",children:"Supprimer"})]},k.id)})}),
+    msg?r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)",marginTop:8},children:msg}):null]})}
