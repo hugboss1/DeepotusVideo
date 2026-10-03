@@ -287,6 +287,9 @@ class TemplateEngine:
         # Tâche #73 (plan-templates T2) : une contrainte de réagencement inventée est refusée en la nommant.
         from app.services.template_layout import verifier_contraintes
         verifier_contraintes(template["regions"])
+        # Tâche #74 (plan-templates T3) : un masque mal formé est refusé en nommant la région et le champ.
+        from app.services.template_mask import verifier_masques
+        verifier_masques(template["regions"])
 
     # ----- slot extraction -----
 
@@ -726,7 +729,20 @@ def build_ffmpeg_command(engine, template, slot_values, output_path, work):
                                          {"w": rw, "h": rh, "fps": fps,
                                           "dur": duration})
                 slbl = f"s{n}fx"
+            cadre = None
+            if r.get("mask"):     # tâche #74 : masque de région (forme, fenêtres, bord adouci) ; sans lui, rien ne change
+                from app.services import template_mask as _tm
+                mpng, cadre = _tm.ecrire(r, rw, rh, work)
+                mi = _add_input(mpng, still=True)
+                parts.append(f"[{mi}:v]format=gray,scale={rw}:{rh},fps={fps},setsar=1[mk{n}]")
+                parts.append(f"[{slbl}]format=yuva420p[sa{n}]")
+                parts.append(f"[sa{n}][mk{n}]alphamerge[sm{n}]")
+                slbl = f"sm{n}"
             _w(f"[{cur}][{slbl}]overlay={rx}:{ry}:eof_action=repeat[o{n}]", f"o{n}")
+            if cadre is not None:  # le liseré qui suit la forme, posé APRÈS la case
+                fi = _add_input(cadre, still=True)
+                parts.append(f"[{fi}:v]format=rgba,fps={fps}[fr{n}i]")
+                _w(f"[{cur}][fr{n}i]overlay={rx}:{ry}:eof_action=repeat[fr{n}]", f"fr{n}")
         elif r["type"] in ("text", "text_slot"):
             if r["type"] == "text_slot":
                 txt = _slot_text(slot_values, r["slot_name"],
