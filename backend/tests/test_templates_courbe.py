@@ -148,6 +148,23 @@ check("C4 les EFFETS suivent la courbe : contour vert autour des lettres, degrad
 cmd = " ".join(map(str, TSV.build_ffmpeg_command(E, tpl([reg("t", "text", 50, 50, 500, 500, text="ARC", size=48, text_curve={"radius": 250})]), {}, _tmp / "x.mp4", _tmp / "wa")))
 check("C5 un texte sur arc passe par une IMAGE posee (pas par drawtext)", "drawtext" not in cmd and __import__("re").search(r"ta\d+\.png", cmd) is not None, cmd[-200:])
 
+GR = image([reg("t", "text", 100, 200, 400, 150, text="UN TITRE BEAUCOUP TROP LONG POUR SA CASE", size=96, color="#ffffff", text_curve={"radius": 260})])
+gp = encre(GR, 0, 600)
+t_r = TT.taille_arc("UN TITRE BEAUCOUP TROP LONG POUR SA CASE", POLICE, 96, 400, 150, (260.0, "haut"), {})
+check("C8 un arc TROP GRAND est REDUIT jusqu'a tenir dans sa case (decision 03/10) : l'encre reste dans la case, la taille baisse",
+      gp and min(x for x, _ in gp) >= 103 and max(x for x, _ in gp) <= 497 and min(y for _, y in gp) >= 203 and max(y for _, y in gp) <= 347 and t_r < 96,
+      f"{t_r} {min(x for x, _ in gp) if gp else None}-{max(x for x, _ in gp) if gp else None} / {min(y for _, y in gp) if gp else None}-{max(y for _, y in gp) if gp else None}")
+BH = image([reg("t", "text", 0, 250, 600, 90, text="ARCHE SERREE", size=60, color="#ffffff", text_curve={"radius": 90})])
+bh_ = encre(BH, 0, 600)
+check("C8b la HAUTEUR compte aussi : une arche serree dans une case basse est reduite jusqu'a y tenir (l'encre ne TOUCHE pas les bords : rognee, elle les toucherait)",
+      bh_ and min(y for _, y in bh_) >= 253 and max(y for _, y in bh_) <= 337, f"{min(y for _, y in bh_) if bh_ else None}-{max(y for _, y in bh_) if bh_ else None}")
+ML = image([reg("t", "text", 100, 200, 400, 150, text="A\nSECONDE LIGNE BIEN PLUS LONGUE SUR L'ARC", size=80, color="#ffffff", text_curve={"radius": 400})])
+ml = encre(ML, 0, 600)
+check("C8c un texte sur PLUSIEURS lignes se pose en une seule ligne sur l'arc, et c'est TOUT le texte qui doit tenir",
+      ml and min(x for x, _ in ml) >= 103 and max(x for x, _ in ml) <= 497, f"{min(x for x, _ in ml) if ml else None}-{max(x for x, _ in ml) if ml else None}")
+check("C9 un arc qui TIENT garde sa taille ; la reduction s'arrete a la taille minimale", TT.taille_arc("OK", POLICE, 40, 500, 300, (300.0, "haut"), {}) == 40
+      and TT.taille_arc("UN TITRE BEAUCOUP TROP LONG", POLICE, 96, 60, 30, (100.0, "haut"), {}, 30) == 30)
+
 print("\n[L] le reagencement")
 o, _ = TL.reflow(tpl([reg("t", "text", 100, 100, 800, 300, text="ARC", text_curve={"radius": 400, "dir": "bas"})], 1080, 1920), "16:9")
 s = min(1920 / 1080, 1080 / 1920)

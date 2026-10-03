@@ -209,6 +209,20 @@ def _arc(texte: str, pol, rayon: float, sens: str, marge: int) -> tuple:
     return out, cote, (x0, y0, x1, y1)
 
 
+def taille_arc(texte: str, chemin_police, taille: int, w: int, h: int, crb: tuple, e: dict, taille_min: int = MIN_DEFAUT) -> int:
+    """La plus grande taille (<= taille, >= taille_min) dont l'ARC tient dans la case w x h, contour compris.
+    Decision de l'utilisateur (03/10) : sur un arc trop grand, le serveur REDUIT (comme l'ajustement, sans couper)."""
+    st = e.get("stroke") or {}
+    marge = int(round(st.get("px", 3))) if e.get("stroke") is not None else 3
+    taille_min = max(6, min(int(taille_min), int(taille)))
+    t = int(taille)
+    while True:
+        _l, _c, (x0, y0, x1, y1) = _arc(texte, _police(chemin_police, t), crb[0], crb[1], marge)
+        if (x1 - x0) <= w and (y1 - y0) <= h or t <= taille_min:
+            return t
+        t = max(taille_min, int(t * 0.92) if t > 20 else t - 1)
+
+
 def rendre_png(lignes: list, chemin_police, taille: int, couleur: str, e: dict, w: int, h: int,
                aligne: str, vertical: str, chemin: Path, courbe: tuple | None = None) -> tuple:
     """Le bloc de texte en image RGBA (w x h) avec ses effets : fond arrondi, ombre (floue), contour, degrade.

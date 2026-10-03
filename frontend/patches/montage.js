@@ -9811,13 +9811,25 @@ function dzTexteApercu(j,face){
       WebkitBackgroundClip:"text",backgroundClip:"text",color:"transparent"},children:enfants}):enfants;
     enfants=b?r.jsx("span",{className:"dz-texte-fond",style:{background:dzRgba(b.color,b.opacity==null?0.6:b.opacity),borderRadius:(Number(b.radius)||0)*k,padding:((Number(b.pad)||0)*k)+"px "+((Number(b.pad)||0)*k*1.5)+"px"},children:txt}):txt}
   return x.cloneElement(face,{style:st,className:((face.props.className||"")+" dz-texte-apercu").trim()},enfants)}
+/* tâche #76 PR D : le RAYON qui fait tenir l’arc dans sa case. La flèche d’un arc de longueur L vaut ~L²/(8R) ; L est
+   estimé (0,6 × taille par lettre), borné à la largeur de la case puisque le serveur RÉDUIT un arc trop grand
+   (décision de l’utilisateur, 03/10) — la vraie mesure est au serveur (« Aperçu exact »). Trouvé par la preuve à
+   l’écran : 60 % de la largeur faisait une arche plus haute que la case, lettres coupées. */
+function dzArcRayon(rg){
+  var taille=Number(rg&&rg.size)||48,txt=String(rg&&(rg.text||rg.default_text)||"Texte"),L=Math.min(0.6*taille*txt.length,0.9*(Number(rg&&rg.width)||600)),
+    dispo=Math.max(10,(Number(rg&&rg.height)||200)-1.3*taille),R=Math.max(L*L/(8*dispo),L/3.1416,40);
+  return Math.min(3000,Math.ceil(R/10)*10)}
 function DzTexteEditor({rg,upd}){
   var as=x.useState(null),ap=as[0],setAp=as[1],ms=x.useState(""),msg=ms[0],setMsg=ms[1],vol=x.useRef(!1);
   if(!rg||DZ_TEXTE_TYPES.indexOf(rg.type)<0)return null;
   var fx=rg.text_effects&&typeof rg.text_effects==="object"?rg.text_effects:{},defile=rg.type==="ticker",taille=Number(rg.size)||48;
+  /* tâche #76 PR D : texte sur ARC (texte et sous-titre) — exclusif avec l’ajustement, que le serveur refuse avec lui */
+  var arcable=rg.type==="text"||rg.type==="text_slot",arc=arcable&&rg.text_curve&&typeof rg.text_curve==="object"?rg.text_curve:null,
+    rayonMin=dzArcRayon(rg),deborde=arc&&Number(arc.radius)<rayonMin*0.85;
   function majFx(nom,pt){var q=Object.assign({},fx);if(pt===null)delete q[nom];else q[nom]=Object.assign({},q[nom]||DZ_TEXTE_DEFAUTS[nom],pt);
     upd({text_effects:Object.keys(q).length?q:null})}
-  function style(z){var pt={text_effects:z[3]?JSON.parse(JSON.stringify(z[3])):null};if(z[4]&&!defile)pt.text_fit=!0;upd(pt)}
+  function style(z){var pt={text_effects:z[3]?JSON.parse(JSON.stringify(z[3])):null};if(z[4]&&!defile&&!arc)pt.text_fit=!0;upd(pt)}
+  function majArc(pt){upd({text_curve:pt===null?null:Object.assign({},arc||{radius:rayonMin,dir:"haut"},pt)})}
   var cle=JSON.stringify(rg);
   async function exact(){if(vol.current)return;vol.current=!0;setMsg("Rendu de l’aperçu…");
     try{var R=await fetch("/api/layout-templates/apercu-texte",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({region:rg})});
@@ -9833,8 +9845,16 @@ function DzTexteEditor({rg,upd}){
     r.jsx("div",{className:"dz-texte-styles",style:{display:"flex",gap:4,flexWrap:"wrap",marginBottom:8},children:DZ_TEXTE_STYLES.map(function(z){
       return r.jsx(K,{variant:"ghost",size:"sm",title:z[2],onClick:function(){style(z)},children:z[1]},z[0])})}),
     defile?r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)",marginBottom:6},children:"Le ticker défile : il n’est jamais ajusté à la case ; ses effets s’appliquent."})
+      :arc?r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)",marginBottom:6},children:"Sur un arc, le texte tient sur une ligne et se RÉDUIT s’il dépasse la case (pas de coupe en lignes)."})
       :r.jsx(O,{children:r.jsx(Ze,{checked:!!rg.text_fit,onChange:function(on){upd({text_fit:on})},label:"Ajuster à la case (couper en lignes, puis réduire)"})}),
-    !defile&&rg.text_fit?r.jsx(O,{children:r.jsx(Oe,{label:"Taille minimale",unit:" px",value:Number(rg.text_min_size)||Math.min(12,taille),min:6,max:Math.max(6,Math.min(400,taille)),step:1,
+    arcable?r.jsx(O,{children:r.jsx(Ze,{checked:!!arc,onChange:function(on){if(on)upd({text_curve:{radius:rayonMin,dir:"haut"},text_fit:!1});else majArc(null)},
+      label:"Texte sur arc"})}):null,
+    arc?r.jsxs(r.Fragment,{children:[
+      r.jsx(O,{children:r.jsx(Oe,{label:"Rayon de l’arc",unit:" px",value:Number(arc.radius)||300,min:40,max:3000,step:10,onChange:function(v){majArc({radius:v})}})}),
+      r.jsx(O,{label:"Sens",children:r.jsx(re,{value:arc.dir||"haut",onChange:function(v){majArc({dir:v})},options:[{value:"haut",label:"Arche ∩"},{value:"bas",label:"Sourire ∪"}]})}),
+      deborde?r.jsx("div",{className:"dz-arc-deborde",style:{fontSize:10.5,color:"var(--amber)",marginBottom:4},children:"⚠ Avec ce rayon, l’arche est haute : le texte sera réduit pour tenir dans la case (rayon conseillé "+rayonMin+" px)."}):null,
+      r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-soft)",marginBottom:6},children:"La toile montre le texte droit ; « Aperçu exact » montre l’arc. Pour un tracé libre : Vectorlab (texte sur chemin), puis sticker."})]}):null,
+    !defile&&(arc||rg.text_fit)?r.jsx(O,{children:r.jsx(Oe,{label:"Taille minimale",unit:" px",value:Number(rg.text_min_size)||Math.min(12,taille),min:6,max:Math.max(6,Math.min(400,taille)),step:1,
       onChange:function(v){upd({text_min_size:v})}})}):null,
     bascule("stroke","Contour"),
     fx.stroke?r.jsxs(r.Fragment,{children:[curseur("stroke","px","Épaisseur du contour",0,40),teinte("stroke","color","Couleur du contour")]}):null,

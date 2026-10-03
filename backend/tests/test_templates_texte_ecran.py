@@ -51,7 +51,7 @@ def fonction(nom):
 
 
 VARS = [re.search(r"var " + v + r"=.*?;\s*(?=var |function )", BUN, re.S) for v in ("DZ_TEXTE_TYPES", "DZ_TEXTE_DEFAUTS", "DZ_TEXTE_STYLES")]
-NOMS = ("dzRgba", "dzTexteApercu", "DzTexteEditor")
+NOMS = ("dzRgba", "dzTexteApercu", "dzArcRayon", "DzTexteEditor")   # #76 PR D : + dzArcRayon
 COUCHE = "\n".join(m.group(0) for m in VARS if m) + "\n" + "\n".join(fonction(n) for n in NOMS)
 check("T3 la couche livree a les trois tables et les trois fonctions (une fois chacune)", all(VARS) and all(BUN.count("function " + n + "(") == 1 for n in NOMS))
 
@@ -115,7 +115,7 @@ check("E0 sous node : la section s'execute", R is not None)
 if R:
     check("E1 rien pour une case video ou une forme ; pour un texte : cinq styles prets (avec title), quatre effets a cocher, l'ajustement ; aucun curseur tant que rien n'est coche",
           R["video"] is None and R["shape"] is None and R["styles"] == ["Aucun effet", "Sous-titre réseau", "Néon", "Bandeau", "Titre dégradé"] and R["titres"]
-          and R["cases"] == ["Ajuster à la case (couper en lignes, puis réduire)", "Contour", "Ombre", "Fond", "Dégradé"] and R["curseurs0"] == 0, str(R["cases"]))
+          and R["cases"] == ["Ajuster à la case (couper en lignes, puis réduire)", "Texte sur arc", "Contour", "Ombre", "Fond", "Dégradé"] and R["curseurs0"] == 0, str(R["cases"]))   # #76 PR D : + « Texte sur arc »
     s = R["styleMaj"]
     check("E2 un style remplace TOUS les effets d'un coup (copie, pas la table partagee) ; « Sous-titre réseau » ajuste aussi ; « Aucun effet » les retire",
           s[0] == {"text_effects": {"stroke": {"px": 6, "color": "#000000"}, "shadow": {"dx": 0, "dy": 4, "blur": 0, "color": "#000000", "opacity": 0.6}}, "text_fit": True}
@@ -135,6 +135,42 @@ if R:
           and R["vide"] == [{"text_effects": None}], str(R["majs"]))
     check("E7 le degrade : deux sens, le sens change seul", R["sens"] == ["vertical", "horizontal"]
           and R["sensMaj"] == [{"text_effects": {"gradient": {"c0": "#ffffff", "c1": "#00e5ff", "direction": "horizontal"}}}], str(R["sensMaj"]))
+
+print("\n[A] le texte sur arc (tache #76 PR D)")
+R = node("""
+var RG={id:"t1",type:"text",text:"Bonjour",size:48,width:500};var T=ed(RG);
+R.badge=par(ed({id:"b",type:"badge",text:"x"}),"Case").map(function(c){return c.p.label}).indexOf("Texte sur arc");
+R.tk=par(ed({id:"k",type:"ticker",text:"x"}),"Case").map(function(c){return c.p.label}).indexOf("Texte sur arc");
+R.slot=par(ed({id:"s",type:"text_slot",slot_name:"s"}),"Case").map(function(c){return c.p.label}).indexOf("Texte sur arc")>=0;
+par(T,"Case","Texte sur arc")[0].p.onChange(true);R.on=UPD.slice();
+T=ed(Object.assign({},RG,{width:20}));par(T,"Case","Texte sur arc")[0].p.onChange(true);R.petit=UPD.slice();
+var AR=Object.assign({},RG,{text_curve:{radius:333,dir:"bas"}});T=ed(AR);
+R.cases=par(T,"Case").map(function(c){return c.p.label});R.note=texte(T).indexOf("se RÉDUIT")>=0;
+var cu=par(T,"Curseur","Rayon de l’arc")[0];R.rayon=[cu.p.min,cu.p.max,cu.p.value];var L=par(T,"Liste").find(function(l){return l.p.options&&l.p.options[0].value==="haut"});
+R.sens=L.p.options.map(function(o){return o.value});R.mini=par(T,"Curseur","Taille minimale").length;R.deb0=!!trouver(T,function(n){return n.p&&n.p.className==="dz-arc-deborde"}).length;
+cu.p.onChange(450);L.p.onChange("haut");
+bouton(T,"Sous-titre réseau").p.onClick();par(T,"Case","Texte sur arc")[0].p.onChange(false);R.majs=UPD.slice();
+""")
+check("A0 sous node : le reglage d'arc s'execute", R is not None)
+if R:
+    check("A1 « Texte sur arc » pour un texte ou un sous-titre seulement (ni badge ni ticker) ; l'activer pose le rayon CONSEILLE (l'arc tient dans la case, 40 au moins) et COUPE l'ajustement",
+          R["badge"] == -1 and R["tk"] == -1 and R["slot"] and R["on"] == [{"text_curve": {"radius": 70, "dir": "haut"}, "text_fit": False}]
+          and R["petit"] == [{"text_curve": {"radius": 40, "dir": "haut"}, "text_fit": False}], f"{R['on']} {R['petit']}")
+    check("A2 sur un arc : plus de case « Ajuster » (il se REDUIT, c'est dit), la taille minimale reste reglable, un rayon 40..3000 px, un sens arche/sourire",
+          "Ajuster à la case (couper en lignes, puis réduire)" not in R["cases"] and R["note"] and R["mini"] == 1 and R["rayon"] == [40, 3000, 333] and R["sens"] == ["haut", "bas"]
+          and not R["deb0"], str(R["cases"]))
+    check("A3 regler garde le reste de l'arc ; un style ne remet PAS l'ajustement sur un arc ; decocher retire l'arc (null)",
+          R["majs"][0] == {"text_curve": {"radius": 450, "dir": "bas"}} and R["majs"][1] == {"text_curve": {"radius": 333, "dir": "haut"}}
+          and "text_fit" not in R["majs"][2] and R["majs"][3] == {"text_curve": None}, str(R["majs"]))
+
+R = node("""
+var LONG={id:"t1",type:"text",text:"LE POULPE DES PROFONDEURS",size:96,width:864,height:173};
+R.r=dzArcRayon(LONG);R.court=dzArcRayon({type:"text",text:"OK",size:40,width:600,height:300});R.max=dzArcRayon({type:"text",text:"X".repeat(100),size:40,width:20000,height:60});
+var T=ed(Object.assign({},LONG,{text_curve:{radius:200,dir:"haut"}}));R.deb=texte(T).indexOf("sera réduit")>=0;
+T=ed(Object.assign({},LONG,{text_curve:{radius:R.r,dir:"haut"}}));R.deb2=texte(T).indexOf("sera réduit")>=0;
+""")
+check("A4 le rayon conseille fait TENIR l'arche dans la case (fleche L²/8R, L borne a la largeur) : 1570 px pour un long titre (taille 96) dans une case basse (173 px), 40 au moins, 3000 au plus ; un rayon bien plus petit avertit que le texte sera reduit",
+      R is not None and R["r"] == 1570 and R["court"] == 40 and R["max"] == 3000 and R["deb"] and not R["deb2"], str(R))
 
 print("\n[X] l'apercu exact")
 R = node("""
