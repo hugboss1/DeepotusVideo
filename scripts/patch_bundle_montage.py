@@ -8174,7 +8174,7 @@ R_P9LIB1 = ('function __dzFavGet(){return Object.keys(DZ_FAV.r).filter(function(
             'function __dzFavImgToggle(nm){dzFavToggle("i",nm)}')
 # P9lib2 : l'etat du filtre (tag, note minimale) de la Bibliotheque.
 A_P9LIB2 = '[dzSF,dzSFs]=x.useState(""),[dzEta,dzEtas]=x.useState([]),'   # APRES l'etat de l'Etabli : test_etabli_canevas fige ce texte
-R_P9LIB2 = A_P9LIB2 + '[dzMF,dzMFs]=x.useState({tag:"",note:0}),'
+R_P9LIB2 = A_P9LIB2 + '[dzMF,dzMFs]=x.useState({tag:"",note:0}),[dzPF,dzPFs]=x.useState(null),'   # + #78 PR B : le projet regarde (replie ici, meme ancre)
 # P9lib3 : la liste des images porte tags/note/favori ; le cache est seme par les deux listes DEJA chargees (sondage de
 # 8 s), et la reprise unique des favoris du navigateur part de la.
 A_P9LIB3 = 'srcOrigin:S.source_origin||""}));d(W),f(R||[]),'
@@ -8182,7 +8182,7 @@ R_P9LIB3 = ('srcOrigin:S.source_origin||"",tags:S.tags||[],note:S.note||0,fav:!!
             'dzFavSemer("i",ne&&ne.images,"filename"),dzFavSemer("r",R,"job_id"),dzFavMigrer(),d(W),f(R||[]),')
 # P9lib4 : le filtre entre DANS Lfs -- il s'applique donc aussi au repli de demo vo[o] (vide des qu'un filtre est actif).
 A_P9LIB4 = 'const Lfs=(L)=>{'
-R_P9LIB4 = A_P9LIB4 + 'L=(o==="Images"||o==="Favoris")?dzMetaFiltre(L,dzMF):L;'
+R_P9LIB4 = A_P9LIB4 + 'L=(o==="Images"||o==="Favoris")?dzMetaFiltre(L,dzMF):L;L=dzProjFiltre(L,dzPF);'   # + #78 PR B : le projet filtre TOUS les onglets
 # P9lib5 : la recherche de la Bibliotheque lit aussi les tags.
 A_P9LIB5 = '(((I&&I.name||"")+"").toLowerCase().includes(z))'
 R_P9LIB5 = '((((I&&I.name||"")+" "+((I&&I.tags)||[]).join(" "))+"").toLowerCase().includes(z))'
@@ -8221,6 +8221,21 @@ P1 += [("P9lib1-favoris-en-base-par-les-helpers", A_P9LIB1, R_P9LIB1),
        ("P9lib10-selecteur-cherche-les-tags", A_P9LIB10, R_P9LIB10)]
 P1 += [("P9lib10b-selecteur-placeholder", A_P9LIB10B, R_P9LIB10B)]
 assert len(P1) == 128 and all("\n" not in r and "DzTracks" not in r for _t, _a, r in P1[-11:])
+
+# P9lib11..12 (tache #78 PR B, plan-library T4, 03/10/2026) -- les PROJETS a l'ecran. Ancres AMONT (1 sur .bak_montage,
+# aucune prise par une section). L'etat du projet regarde et son filtre sont REPLIES dans P9lib2 et P9lib4 (meme
+# ancre que #77) ; la logique est dans la couche (dzProj*, DzProjetsBar). Le plan voulait un maillon `libproj`, un
+# onglet « Projets » et un window.prompt : ici le projet filtre les onglets existants, et le dialogue maison choisit.
+# P9lib11 : la barre « Projet » ouvre le contenu, avant les chips de provenance.
+A_P9LIB11 = 'r.jsxs("div",{className:"scroll",style:{flex:1,overflowY:"auto",padding:18},children:[__dzSrcChips(o,T,dzSF,dzSFs)'
+R_P9LIB11 = ('r.jsxs("div",{className:"scroll",style:{flex:1,overflowY:"auto",padding:18},children:['
+             'r.jsx(DzProjetsBar,{f:dzPF,setF:dzPFs}),__dzSrcChips(o,T,dzSF,dzSFs)')
+# P9lib12 : « Envoyer vers » propose le projet pour TOUT asset (son aussi), avant le « aucune cible ».
+A_P9LIB12 = 'if(!items.length){__dzToast("Aucune cible pour cet asset");return}'
+R_P9LIB12 = 'items.push({lbl:"📁 Projet de la Bibliothèque…",fn:function(){dzProjMenu(m)}});' + A_P9LIB12
+P1 += [("P9lib11-barre-des-projets", A_P9LIB11, R_P9LIB11),
+       ("P9lib12-envoyer-vers-un-projet", A_P9LIB12, R_P9LIB12)]
+assert len(P1) == 130 and all("\n" not in r and "DzTracks" not in r for _t, _a, r in P1[-2:])
 
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),

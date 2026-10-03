@@ -72,7 +72,7 @@ if NODE:
     check("B10 node --check : le bundle est un module qui PARSE", rc.returncode == 0, rc.stderr[-300:])
 pt = PATCHER.read_text("utf-8")
 check("B11 le patcher porte les sections P9lib (une liste de P1, pas un maillon neuf) et la couche est la source",
-      pt.count('("P9lib') == 11 and "patch_bundle_libmeta" not in pt and COUCHE.read_text("utf-8").count(DEBUT) == 1
+      pt.count('("P9lib') == 13   # 11 de #77 + 2 de #78 PR B (P9lib11, P9lib12) and "patch_bundle_libmeta" not in pt and COUCHE.read_text("utf-8").count(DEBUT) == 1
       and not (RACINE / "scripts" / "patch_bundle_libmeta.py").exists())
 
 print("\n[N] la couche, executee sous node")

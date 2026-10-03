@@ -72,8 +72,10 @@ def main():
     # tache #71 PR A (03/10/2026) : + 1 saisir avec await, le nom d'une recette du Studio (DzRecetteBtn, maillon montage).
     # tache #71 PR C (03/10/2026) : + 1 saisir avec await, garder ou changer un texte d'une recette (dzRecLancerAvec).
     # tache #72 PR B (03/10/2026) : + 2 saisir avec await, le nom d'un nouveau kit et le renommage (DzKits).
-    check("await __dzDialogue.saisir ×15 hors couche (2 de ce maillon + 13 du maillon montage), saisir ×18, window.prompt( ×0",
-          hors.count("await window.__dzDialogue.saisir(") == 15 and hors.count("window.__dzDialogue.saisir(") == 18
+    # tache #78 PR B (03/10/2026) : + 3 saisir enchaines par .then (couche montage, projets de la Bibliotheque) : le nom
+    # d'un nouveau projet (barre et menu « Envoyer vers ») et le renommage d'un projet : 18 -> 21, await inchange.
+    check("await __dzDialogue.saisir ×15 hors couche (2 de ce maillon + 13 du maillon montage), saisir ×21, window.prompt( ×0",
+          hors.count("await window.__dzDialogue.saisir(") == 15 and hors.count("window.__dzDialogue.saisir(") == 21
           and "window.prompt(" not in hors, str((hors.count("await window.__dzDialogue.saisir("), hors.count("window.prompt("))))
     SRC = RACINE / "frontend" / "shared" / "dialogue.js"
     check("la couche du patcher = frontend/shared/dialogue.js octet pour octet (source unique)",
