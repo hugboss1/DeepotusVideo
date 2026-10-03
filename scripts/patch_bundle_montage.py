@@ -8151,6 +8151,75 @@ P1 += [("P8img1-vignette-reelle-en-galerie", A_P8IMG1, R_P8IMG1),
        ("P8img2-exporter-l-image-du-gabarit", A_P8IMG2, R_P8IMG2)]
 assert len(P1) == 117 and all("\n" not in r for _t, _a, r in P1[-2:])
 
+# P9lib1..10 (tache #77 PR B, plan-library T2, 03/10/2026) -- FAVORI, NOTE et TAGS de la Bibliotheque EN BASE. Ancres
+# AMONT (1 sur .bak_montage, aucune prise par une section precedente -- mesure). Le plan ajoutait un maillon `libmeta`
+# en queue de chaine ; le depot range desormais l'ecran dans cette couche. La logique est dans montage.js (DZ_FAV,
+# dzFav*, dzMeta*, DzMetaChips, dzCarteMeta, DzMetaEditor) ; ici, les seules greffes.
+# P9lib1 : les quatre helpers du bundle GARDENT leurs noms (six appelants intacts) et deleguent au cache serveur.
+A_P9LIB1 = ('function __dzFavGet(){try{return JSON.parse(localStorage.getItem("dz_fav_renders")||"[]")}catch(e){return[]}}'
+            'function __dzFavHas(id){return!!id&&__dzFavGet().indexOf(id)>=0}'
+            'function __dzFavToggle(id){if(!id)return;var a=__dzFavGet(),i=a.indexOf(id);i>=0?a.splice(i,1):a.push(id);'
+            'try{localStorage.setItem("dz_fav_renders",JSON.stringify(a))}catch(e){}}'
+            'function __dzFavImgGet(){try{return JSON.parse(localStorage.getItem("dz_fav_images")||"[]")}catch(e){return[]}}'
+            'function __dzFavImgHas(nm){return!!nm&&__dzFavImgGet().indexOf(nm)>=0}'
+            'function __dzFavImgToggle(nm){if(!nm)return;var a=__dzFavImgGet(),i=a.indexOf(nm);i>=0?a.splice(i,1):a.push(nm);'
+            'try{localStorage.setItem("dz_fav_images",JSON.stringify(a))}catch(e){}}')
+R_P9LIB1 = ('function __dzFavGet(){return Object.keys(DZ_FAV.r).filter(function(k){return DZ_FAV.r[k]})}'
+            'function __dzFavHas(id){return dzFavHas("r",id)}'
+            'function __dzFavToggle(id){dzFavToggle("r",id)}'
+            'function __dzFavImgGet(){return Object.keys(DZ_FAV.i).filter(function(k){return DZ_FAV.i[k]})}'
+            'function __dzFavImgHas(nm){return dzFavHas("i",nm)}'
+            'function __dzFavImgToggle(nm){dzFavToggle("i",nm)}')
+# P9lib2 : l'etat du filtre (tag, note minimale) de la Bibliotheque.
+A_P9LIB2 = '[dzSF,dzSFs]=x.useState(""),[dzEta,dzEtas]=x.useState([]),'   # APRES l'etat de l'Etabli : test_etabli_canevas fige ce texte
+R_P9LIB2 = A_P9LIB2 + '[dzMF,dzMFs]=x.useState({tag:"",note:0}),'
+# P9lib3 : la liste des images porte tags/note/favori ; le cache est seme par les deux listes DEJA chargees (sondage de
+# 8 s), et la reprise unique des favoris du navigateur part de la.
+A_P9LIB3 = 'srcOrigin:S.source_origin||""}));d(W),f(R||[]),'
+R_P9LIB3 = ('srcOrigin:S.source_origin||"",tags:S.tags||[],note:S.note||0,fav:!!S.fav}));'
+            'dzFavSemer("i",ne&&ne.images,"filename"),dzFavSemer("r",R,"job_id"),dzFavMigrer(),d(W),f(R||[]),')
+# P9lib4 : le filtre entre DANS Lfs -- il s'applique donc aussi au repli de demo vo[o] (vide des qu'un filtre est actif).
+A_P9LIB4 = 'const Lfs=(L)=>{'
+R_P9LIB4 = A_P9LIB4 + 'L=(o==="Images"||o==="Favoris")?dzMetaFiltre(L,dzMF):L;'
+# P9lib5 : la recherche de la Bibliotheque lit aussi les tags.
+A_P9LIB5 = '(((I&&I.name||"")+"").toLowerCase().includes(z))'
+R_P9LIB5 = '((((I&&I.name||"")+" "+((I&&I.tags)||[]).join(" "))+"").toLowerCase().includes(z))'
+# P9lib6 : la rangee de chips (tags comptes, « ★ 3+ »), sous les chips de provenance.
+A_P9LIB6 = ',o==="Audio"&&r.jsxs("div",{style:{marginBottom:14,display:"grid",gap:10},children:['
+R_P9LIB6 = ',r.jsx(DzMetaChips,{o:o,T:T,f:dzMF,setF:dzMFs})' + A_P9LIB6
+# P9lib7 : la vignette porte l'etoile du FAVORI (cliquable), la note en points et les tags ; une bascule rafraichit
+# l'ecran par une copie de l'etat du filtre (aucun useState de plus).
+A_P9LIB7 = 'C.provider&&r.jsx("div",{style:{fontSize:10,color:"var(--violet)",marginTop:2},children:C.provider})'
+R_P9LIB7 = A_P9LIB7 + ',dzCarteMeta(C,function(){dzMFs(function(v){return Object.assign({},v)})})'
+# P9lib8 : la fiche d'une image -- note et tags, sur une ligne a elle sous l'en-tete (la rangee de boutons ne passe pas
+# a la ligne). Le PATCH rend l'etat relu : il remonte a la liste (d) et a la fiche ouverte (y).
+A_P9LIB8 = 'r.jsx(se,{name:"close",onClick:()=>y(null)})]}),m.kind==="sprite2d"?'
+R_P9LIB8 = ('r.jsx(se,{name:"close",onClick:()=>y(null)})]}),r.jsx(DzMetaEditor,{m:m,maj:function(md){'
+            'd(function(L){return L.map(function(z){return z.name===m.name?Object.assign({},z,md):z})});'
+            'y(Object.assign({},m,md))}}),m.kind==="sprite2d"?')
+# P9lib9 : le renommage ne bascule PLUS le favori deux fois -- le serveur l'emporte (library_index.renommer) ; la double
+# bascule l'aurait ETEINT. On deplace le cache.
+A_P9LIB9 = 'if(__dzFavImgHas(m.name)){__dzFavImgToggle(m.name);__dzFavImgToggle(j.new)}'
+R_P9LIB9 = 'dzFavRenomme(m.name,j.new);'
+# P9lib10 : le selecteur de Bibliotheque cherche aussi dans les tags (son placeholder le dit). Les chips de provenance
+# du selecteur (dzlp-chips, sonde de srclbl) ne sont pas touchees.
+A_P9LIB10 = 'var vus=tout.filter(function(im){return(!q||im.filename.toLowerCase().indexOf(q)>=0)'
+R_P9LIB10 = 'var vus=tout.filter(function(im){return(!q||(im.filename+" "+(im.tags||[]).join(" ")).toLowerCase().indexOf(q)>=0)'
+A_P9LIB10B = 'placeholder="rechercher une image…"'
+R_P9LIB10B = 'placeholder="rechercher une image ou un tag…"'
+P1 += [("P9lib1-favoris-en-base-par-les-helpers", A_P9LIB1, R_P9LIB1),
+       ("P9lib2-etat-du-filtre-meta", A_P9LIB2, R_P9LIB2),
+       ("P9lib3-liste-et-cache-des-favoris", A_P9LIB3, R_P9LIB3),
+       ("P9lib4-filtre-meta-dans-lfs", A_P9LIB4, R_P9LIB4),
+       ("P9lib5-recherche-dans-les-tags", A_P9LIB5, R_P9LIB5),
+       ("P9lib6-chips-tags-et-note", A_P9LIB6, R_P9LIB6),
+       ("P9lib7-vignette-favori-note-tags", A_P9LIB7, R_P9LIB7),
+       ("P9lib8-fiche-note-et-tags", A_P9LIB8, R_P9LIB8),
+       ("P9lib9-renommage-sans-double-bascule", A_P9LIB9, R_P9LIB9),
+       ("P9lib10-selecteur-cherche-les-tags", A_P9LIB10, R_P9LIB10)]
+P1 += [("P9lib10b-selecteur-placeholder", A_P9LIB10B, R_P9LIB10B)]
+assert len(P1) == 128 and all("\n" not in r and "DzTracks" not in r for _t, _a, r in P1[-11:])
+
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),

@@ -143,7 +143,7 @@ _P1 = [t for t, _a, _r in getattr(P, "P1", [])]
 _ES = [t.split("-")[0] for t in _P1]
 check("2.1 P1es1..P1es3 dans le groupe P1 en queue de PATCHES, suivis des seules P1gc (tache #9)",
       "P1es1" in _ES and _ES[_ES.index("P1es1"):_ES.index("P1es1") + 3] == ["P1es1", "P1es2", "P1es3"]
-      and all(t.startswith(("P1gc", "P2dg", "P2pl", "P2cl", "P2rc", "P3", "P5", "P7", "P8")) for t in _ES[_ES.index("P1es1") + 3:])   # + P2dg (#15), + P2rc (#22), + P3sc (#31), + P5qr (#48)
+      and all(t.startswith(("P1gc", "P2dg", "P2pl", "P2cl", "P2rc", "P3", "P5", "P7", "P8", "P9")) for t in _ES[_ES.index("P1es1") + 3:])   # + P9lib (tache #77, 03/10) ; + P2dg (#15), + P2rc (#22), + P3sc (#31), + P5qr (#48)
       and [t for t, _a, _r in P.PATCHES[-len(_P1):]] == _P1, _d(_P1[-12:]))
 _nc = subprocess.run([NODE, "--check", str(BUNDLE)], capture_output=True, text=True) if NODE else None
 check("2.2 le bundle ENTIER passe node --check", _nc is not None and _nc.returncode == 0, _d(_nc.stderr[-300:] if _nc else ""))
