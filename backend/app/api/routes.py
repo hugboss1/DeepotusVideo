@@ -242,6 +242,40 @@ async def apercu_texte(body: dict, request: Request):
     return Response(content=png, media_type="image/png", headers={"Cache-Control": "no-store"})
 
 
+@router.get("/template-components")
+async def list_template_components():
+    """Tâche #76 (plan-templates T8) — les COMPOSANTS (groupes de régions réutilisables) : livrés puis utilisateur."""
+    from app.services import template_components as _TC
+    return {"components": _TC.lister()}
+
+
+@router.post("/template-components")
+async def create_template_component(body: dict, request: Request):
+    """Tâche #76 — enregistre un composant UTILISATEUR (« Enregistrer comme composant » de l'éditeur) : nom, boîte,
+    régions visuelles dans la boîte (pas de composant dans un composant)."""
+    _require_localhost(request)
+    from app.services import template_components as _TC
+    try:
+        cid = _TC.enregistrer(body or {}, template_engine)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"id": cid, "component": _TC.lire(cid)}
+
+
+@router.delete("/template-components/{component_id}")
+async def delete_template_component(component_id: str, request: Request):
+    """Tâche #76 — supprime un composant utilisateur ; 400 livré ou inconnu, 409 encore posé dans des gabarits."""
+    _require_localhost(request)
+    from app.services import template_components as _TC
+    try:
+        _TC.supprimer(component_id, template_engine)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except RuntimeError as e:
+        raise HTTPException(409, str(e))
+    return {"deleted": component_id}
+
+
 _still_verrou = asyncio.Lock()
 
 

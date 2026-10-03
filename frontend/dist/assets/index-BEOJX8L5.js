@@ -23263,7 +23263,7 @@ function DzEchantillon({rg,tpl,setTpl}){
    visibles. Les noms suivent le serveur : le glissement dit le SENS DU MOUVEMENT (« ← » entre par la droite). */
 var DZ_ANIM_TYPES=[["","Aucune"],["fade","Fondu"],["slide_left","Glissement ←"],["slide_right","Glissement →"],["slide_up","Glissement ↑"],["slide_down","Glissement ↓"],["pop","Pop"]];
 var DZ_ANIM_COURBES=[["ease_out","Douce"],["linear","Linéaire"],["back","Rebond"]];
-var DZ_ANIM_VISIBLES=["video_slot","image_slot","text","text_slot","badge","ticker","sticker","separator","brand_strip"];
+var DZ_ANIM_VISIBLES=["video_slot","image_slot","text","text_slot","badge","ticker","sticker","separator","brand_strip","component"];
 var DZ_ANIM_CSS={ease_out:"cubic-bezier(0.33,1,0.68,1)",linear:"linear",back:"cubic-bezier(0.34,1.56,0.64,1)"};
 var __dzAnimJeu={id:null,n:0};
 function dzAnimStyle(){

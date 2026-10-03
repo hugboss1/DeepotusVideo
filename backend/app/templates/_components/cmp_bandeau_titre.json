@@ -1,0 +1,52 @@
+{
+ "id": "cmp_bandeau_titre",
+ "name": "Bandeau titre",
+ "width": 1000,
+ "height": 220,
+ "regions": [
+  {
+   "id": "fond",
+   "type": "separator",
+   "x": 0,
+   "y": 0,
+   "width": 1000,
+   "height": 220,
+   "z_index": 1,
+   "color": "#02060d"
+  },
+  {
+   "id": "barre",
+   "type": "separator",
+   "x": 0,
+   "y": 0,
+   "width": 14,
+   "height": 220,
+   "z_index": 2,
+   "color": "#00e5ff"
+  },
+  {
+   "id": "titre",
+   "type": "text",
+   "x": 44,
+   "y": 28,
+   "width": 920,
+   "height": 96,
+   "z_index": 3,
+   "text": "Titre",
+   "size": 64,
+   "color": "#ffffff"
+  },
+  {
+   "id": "sous_titre",
+   "type": "text",
+   "x": 44,
+   "y": 132,
+   "width": 920,
+   "height": 64,
+   "z_index": 3,
+   "text": "Sous-titre",
+   "size": 36,
+   "color": "#00e5ff"
+  }
+ ]
+}
