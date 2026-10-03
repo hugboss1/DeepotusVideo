@@ -10047,3 +10047,86 @@ function DzMetaEditor({m,maj}){var ss=x.useState(""),saisie=ss[0],setSaisie=ss[1
     r.jsx(K,{variant:"ghost",size:"sm",onClick:ajouter,disabled:!saisie.trim(),title:"Ajouter les tags saisis (séparés par des virgules)",children:"Ajouter"}),
     msg?r.jsx("span",{style:{fontSize:10.5,color:"var(--red)",flexBasis:"100%"},children:msg}):null]})}
 /* ── fin Bibliothèque #77 */
+/* ── Bibliothèque #78 PR B (plan-library T4, 03/10/2026) — les PROJETS à l'écran.
+   Un projet contient des assets de toutes catégories (serveur : library_projects, PR A #144). Ici :
+   - la barre « Projet » en tête du contenu : REGARDER un projet filtre TOUS les onglets (dzPF, appliqué dans Lfs) ;
+     pour le projet regardé : le rendre ACTIF (tout ce qui est produit y est rangé), l'épingler sur le téléphone
+     (décision de l'utilisateur : un seul projet), le renommer, le supprimer ; et en créer un. L'actif est rappelé
+     même quand on en regarde un autre ;
+   - « Envoyer vers → Projet de la Bibliothèque… » : le menu existant (__dzSendMenu) liste les projets, coche ceux
+     qui contiennent déjà l'asset (un clic le retire), et propose d'en créer un — par le dialogue maison, jamais
+     la boîte native du navigateur.
+   Toute écriture prévient l'écran par l'événement « dz-projets » : la barre recharge la liste et le projet regardé. */
+var DZ_PJ_JSON={"Content-Type":"application/json"};
+function dzProjCle(z){return z?String(z.jobId||z.name||""):""}
+function dzProjKind(m){if(!m)return"image";if(m.audioFile||m.kind==="audio")return"audio";
+  if(m.kind==="asset3d"||m.kind==="sprite2d")return m.kind;return m.jobId?"render":"image"}
+function dzProjFiltre(L,f){if(!f||!f.id)return L||[];var refs=f.refs||{};
+  return(L||[]).filter(function(z){return!!refs[dzProjCle(z)]})}
+function dzProjApi(u,o){return fetch(u,o).then(function(R){return R.json().catch(function(){return{}}).then(function(d){
+    if(!R.ok)throw new Error((d&&d.detail)||("HTTP "+R.status));return d})})}
+function dzProjSignal(){try{window.dispatchEvent(new CustomEvent("dz-projets"))}catch(e){}}
+function dzProjMsg(e){return String(e&&e.message||e)}
+function dzProjCharger(id){if(!id)return Promise.resolve(null);
+  return dzProjApi("/api/library/projets/"+encodeURIComponent(id)).then(function(d){var refs={};
+    (d.items||[]).forEach(function(i){refs[i.ref]=1});return{id:d.id,nom:d.nom,epingle:!!d.epingle,refs:refs,n:(d.items||[]).length}})}
+function dzProjItems(pid,ref,kind,methode){return dzProjApi("/api/library/projets/"+encodeURIComponent(pid)+"/items",
+  {method:methode,headers:DZ_PJ_JSON,body:JSON.stringify(methode==="DELETE"?{refs:[ref]}:{items:[{ref:ref,kind:kind}]})})}
+function dzProjMenu(m){var ref=dzProjCle(m),kind=dzProjKind(m),nom=(m&&m.name)||ref;if(!ref)return Promise.resolve();
+  return Promise.all([dzProjApi("/api/library/projets"),dzProjApi("/api/library/projets?ref="+encodeURIComponent(ref))]).then(function(rs){
+    var dedans={};((rs[1]&&rs[1].projets)||[]).forEach(function(p){dedans[p.id]=1});
+    var items=((rs[0]&&rs[0].projets)||[]).map(function(p){var on=!!dedans[p.id];
+      return{lbl:(on?"✓ ":"📁 ")+p.nom+(on?" — retirer":""),fn:function(){
+        dzProjItems(p.id,ref,kind,on?"DELETE":"POST").then(function(){dzToastSur((on?"Retiré de « ":"Rangé dans « ")+p.nom+" »");dzProjSignal()})
+          .catch(function(e){dzToastSur("Projet : "+dzProjMsg(e))})}}});
+    items.push({lbl:"＋ Nouveau projet…",fn:function(){
+      return window.__dzDialogue.saisir("Nom du nouveau projet :",{titre:"Nouveau projet",ok:"Créer et ranger"}).then(function(v){
+        if(!v||!String(v).trim())return;
+        return dzProjApi("/api/library/projets",{method:"POST",headers:DZ_PJ_JSON,body:JSON.stringify({nom:v})}).then(function(p){
+          return dzProjItems(p.id,ref,kind,"POST").then(function(){dzToastSur("Rangé dans le nouveau projet « "+p.nom+" »");dzProjSignal()})})})
+        .catch(function(e){dzToastSur("Projet : "+dzProjMsg(e))})}});
+    __dzSendMenu(items,"Ranger « "+nom+" » dans un projet…")}).catch(function(e){dzToastSur("Projets injoignables : "+dzProjMsg(e))})}
+function DzProjetsBar({f,setF}){
+  var ls=x.useState([]),liste=ls[0],setListe=ls[1],as=x.useState({id:""}),actif=as[0],setActif=as[1],ms=x.useState(""),msg=ms[0],setMsg=ms[1];
+  function recharger(){dzProjApi("/api/library/projets").then(function(d){setListe(d.projets||[])}).catch(function(){});
+    dzProjApi("/api/library/projets/actif").then(function(d){setActif(d||{id:""})}).catch(function(){});
+    if(f&&f.id)dzProjCharger(f.id).then(setF).catch(function(){setF(null)})}
+  x.useEffect(function(){recharger();var h=function(){recharger()};window.addEventListener("dz-projets",h);
+    return function(){window.removeEventListener("dz-projets",h)}},[f&&f.id]);
+  function agir(p){setMsg("");return p.then(function(){dzProjSignal()}).catch(function(e){setMsg(dzProjMsg(e))})}
+  function choisir(id){setMsg("");if(!id){setF(null);return}dzProjCharger(id).then(setF).catch(function(e){setMsg(dzProjMsg(e))})}
+  function creer(){window.__dzDialogue.saisir("Nom du nouveau projet :",{titre:"Nouveau projet",ok:"Créer"}).then(function(v){
+      if(!v||!String(v).trim())return;
+      return dzProjApi("/api/library/projets",{method:"POST",headers:DZ_PJ_JSON,body:JSON.stringify({nom:v})}).then(function(p){dzProjSignal();choisir(p.id)})})
+    .catch(function(e){setMsg(dzProjMsg(e))})}
+  var ici=!!(f&&f.id&&actif.id===f.id);
+  var bouton=function(lbl,titre,fn,on){return r.jsx("button",{type:"button",title:titre,onClick:fn,"aria-pressed":!!on,
+    style:{height:24,padding:"0 9px",fontSize:11,borderRadius:12,cursor:"pointer",border:"1px solid "+(on?"var(--amber,#f0b429)":"var(--stroke)"),
+      background:on?"var(--bg-panel-2)":"transparent",color:on?"var(--ink-strong)":"var(--ink-soft)"},children:lbl})};
+  var options=[r.jsx("option",{value:"",children:"Toute la Bibliothèque"},"")].concat(liste.map(function(p){
+    return r.jsx("option",{value:p.id,children:p.nom+" ("+p.n+")"+(p.epingle?" · 📱":"")+(p.id===actif.id?" · actif":"")},p.id)}));
+  var ch=[r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)"},children:"Projet"}),
+    r.jsx("select",{value:(f&&f.id)||"",onChange:function(e){choisir(e.target.value)},title:"Regarder un projet : tous les onglets ne montrent plus que ses assets",
+      style:{height:26,minWidth:180,maxWidth:280,padding:"0 6px",fontSize:12,background:"var(--bg-base)",color:"var(--ink-strong)",
+        border:"1px solid var(--stroke)",borderRadius:6},children:options})];
+  if(f&&f.id){
+    ch.push(bouton(ici?"● Rangement automatique ici":"○ Ranger ici automatiquement",
+      ici?"Tout ce qui est produit entre dans ce projet. Cliquer pour arrêter.":"Faire de ce projet le projet ACTIF : images, sons, rendus, 3D et sprites produits ensuite y entrent d’eux-mêmes.",
+      function(){agir(dzProjApi("/api/library/projets/actif",{method:"PUT",headers:DZ_PJ_JSON,body:JSON.stringify({id:ici?"":f.id})}))},ici));
+    ch.push(bouton(f.epingle?"📱 Épinglé sur le téléphone":"📱 Épingler sur le téléphone",
+      "Un projet épinglé descend EN ENTIER sur le téléphone appairé (ses images).",
+      function(){agir(dzProjApi("/api/library/projets/"+encodeURIComponent(f.id),{method:"PATCH",headers:DZ_PJ_JSON,body:JSON.stringify({epingle:!f.epingle})}))},f.epingle));
+    ch.push(bouton("✎ Renommer","Renommer ce projet",function(){window.__dzDialogue.saisir("Nouveau nom du projet :",{titre:"Renommer",valeur:f.nom,ok:"Renommer"})
+      .then(function(v){if(v&&String(v).trim()&&v!==f.nom)return agir(dzProjApi("/api/library/projets/"+encodeURIComponent(f.id),
+        {method:"PATCH",headers:DZ_PJ_JSON,body:JSON.stringify({nom:v})}))})}));
+    ch.push(bouton("Supprimer","Supprimer le projet (ses fichiers et rendus restent dans la Bibliothèque)",function(){
+      window.__dzDialogue.confirmer("Supprimer le projet « "+f.nom+" » ? Ses "+f.n+" asset(s) restent dans la Bibliothèque ; seul le classement disparaît.")
+        .then(function(oui){if(oui)return agir(dzProjApi("/api/library/projets/"+encodeURIComponent(f.id),{method:"DELETE"}).then(function(){setF(null)}))})}));}
+  ch.push(bouton("＋ Nouveau projet","Créer un projet (campagne, chapitre, deck…) — il peut contenir images, sons, rendus, 3D et sprites",creer));
+  if(actif.id&&!ici)ch.push(r.jsxs("span",{title:"Projet actif : ce qui est produit y entre",style:{fontSize:11,color:"var(--amber)",
+      display:"inline-flex",alignItems:"center",gap:4},children:["● Rangement auto : « "+actif.nom+" »",
+    r.jsx("button",{type:"button",title:"Arrêter le rangement automatique",onClick:function(){agir(dzProjApi("/api/library/projets/actif",
+      {method:"PUT",headers:DZ_PJ_JSON,body:JSON.stringify({id:""})}))},style:{background:"none",border:0,cursor:"pointer",color:"var(--ink-muted)",fontSize:11},children:"✕"})]}));
+  if(msg)ch.push(r.jsx("span",{style:{fontSize:10.5,color:"var(--red)",flexBasis:"100%"},children:msg}));
+  return r.jsx("div",{"data-dz":"projets",style:{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",marginBottom:12},children:ch})}
+/* ── fin Bibliothèque #78 */
