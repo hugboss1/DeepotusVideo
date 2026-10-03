@@ -8268,6 +8268,15 @@ P1 += [("P8tr1-layout-propose-le-flash-cyan", A_P8TR1, R_P8TR1),
        ("P8tr3-concatenate-propose-le-flash-cyan", A_P8TR3, R_P8TR3)]
 assert len(P1) == 134 and all("\n" not in r for _t, _a, r in P1[-3:])
 
+# P9lin1 (tache #79 PR C, plan-etabli T10, 03/10/2026) -- les versions de l'Etabli EN ARBRE. Ancre AMONT (1 sur
+# .bak_montage) : la liste de TOUT onglet, apres le filtre (Lfs), passe par dzLigneeEtabli, qui ne touche que les
+# entrees portant `profondeur` (la route /api/etabli/productions). Le plan voulait un maillon `lignee` en queue de
+# chaine ; la pratique actuelle replie dans la couche montage.
+A_P9LIN1 = 'q=Lfs(dzSF?dzYf:(Y.length>0?Y:vo[o]))'
+R_P9LIN1 = 'q=dzLigneeEtabli(Lfs(dzSF?dzYf:(Y.length>0?Y:vo[o])))'
+P1 += [("P9lin1-versions-de-l-etabli-en-arbre", A_P9LIN1, R_P9LIN1)]
+assert len(P1) == 135 and "\n" not in R_P9LIN1
+
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),

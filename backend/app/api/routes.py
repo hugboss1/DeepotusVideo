@@ -13176,7 +13176,8 @@ def _etabli_vignette(d: Path, job: str, v: int) -> str | None:
     return None
 
 
-def _etabli_entree(ligne: dict, etape: dict, operation: str, d: Path) -> dict:
+def _etabli_entree(ligne: dict, etape: dict, operation: str, d: Path,
+                   lignee: dict | None = None) -> dict:
     """Une production, à la FORME de la carte 3D de la Bibliothèque.
 
     Le bundle construit son onglet 3D ainsi — `{name, kind, size, date,
@@ -13240,6 +13241,10 @@ def _etabli_entree(ligne: dict, etape: dict, operation: str, d: Path) -> dict:
         "triangles": etape["triangles"],
         "created_at": etape["created_at"],
         "moteur": ligne["moteur"],
+        # Tâche #79 (plan-etabli T10, 03/10/2026) : la LIGNÉE de la version — la version dont elle part (`depuis`,
+        # telle qu'écrite) et l'élément extrait s'il y a lieu ; profondeur et racine sont posées par `_etabli_arbre`.
+        "depuis_version": (lignee or {}).get("depuis"),
+        "element": (lignee or {}).get("element"),
     }
 
 
@@ -13294,8 +13299,12 @@ def _etabli_du_job(ligne: dict) -> list[dict]:
         # mesh_cut.py) — et, pour toute écriture, `depuis` : la version dont
         # elle part. L'entrée n'en remonte que le nom ; qui voudra afficher les
         # capuchons ou la lignée le lira ici.
+        dep = src.get("depuis")
+        pv = dep.get("version") if isinstance(dep, dict) else None
         out.append(_etabli_entree(
-            ligne, etape, str(src.get("operation") or "?"), d))
+            ligne, etape, str(src.get("operation") or "?"), d,
+            {"depuis": pv if isinstance(pv, int) and not isinstance(pv, bool) and pv != v else None,   # pas d'elle-même
+             "element": src.get("element") if isinstance(src.get("element"), dict) else None}))
         vues.add(v)
 
     if ligne["phase"] == "adopte" and 1 not in vues:
@@ -13306,7 +13315,45 @@ def _etabli_du_job(ligne: dict) -> list[dict]:
         prem = next((e for e in ligne["etapes"] if e["version"] == 1), None)
         if prem is not None:
             out.append(_etabli_entree(ligne, prem, "adoption", d))
-    return out
+    return _etabli_arbre(out)
+
+
+def _etabli_arbre(out: list[dict]) -> list[dict]:
+    """Tâche #79 (plan-etabli T10, 03/10/2026) : les productions d'UN job dans l'ordre de leur LIGNÉE — parcours en
+    profondeur, chaque version suivie de ses filles (par numéro), racines par numéro — avec `profondeur` et `mere`.
+    Le parent est `depuis_version` s'il est AFFICHÉ ici : une version tirée du brouillon du moteur (non affiché) est
+    une racine de l'affichage, `depuis_version` le dit encore. `depuis` vient d'un report.json ouvert aux mains de
+    l'utilisateur : une boucle n'a pas de racine, ses versions sont reprises en racines et le parcours ne revisite
+    jamais une version — rien ne tourne sans fin. (Le plan triait par (mere, version) : une petite-fille passait
+    avant une sœur de sa mère, et le décalage ↳ la rangeait sous la mauvaise version.)"""
+    par_v = {e["version"]: e for e in out}
+    parent = {v: (e["depuis_version"] if e["depuis_version"] in par_v and e["depuis_version"] != v else None)
+              for v, e in par_v.items()}
+    filles: dict = {}
+    for v in sorted(par_v):
+        if parent[v] is not None:
+            filles.setdefault(parent[v], []).append(v)
+    rangees: list[dict] = []
+    vus: set = set()
+
+    def poser(v: int, prof: int, racine: int) -> None:
+        pile = [(v, prof, racine)]
+        while pile:
+            w, p, r = pile.pop()
+            if w in vus:
+                continue
+            vus.add(w)
+            rangees.append({**par_v[w], "profondeur": p, "mere": r})
+            for f in reversed(filles.get(w, [])):
+                pile.append((f, p + 1, r))
+
+    for v in sorted(par_v):
+        if parent[v] is None:
+            poser(v, 0, v)
+    for v in sorted(par_v):          # une boucle : aucune racine ne l'a atteinte
+        if v not in vus:
+            poser(v, 0, v)
+    return rangees
 
 
 def _etabli_productions() -> list[dict]:
@@ -13348,9 +13395,16 @@ def _etabli_productions() -> list[dict]:
     # `mesh_report.report()`, qui écrit toujours
     # `datetime.now(timezone.utc).isoformat(timespec="seconds")` — même
     # fuseau `+00:00`, même largeur, donc ordre lexical = ordre du temps.
-    out.sort(key=lambda e: (e["created_at"] or "", e["job"], e["version"]),
-             reverse=True)
-    return out
+    # Tâche #79 (plan-etabli T10) : les JOBS restent classés par leur production la plus récente ; À L'INTÉRIEUR d'un
+    # job, l'ordre est celui de la LIGNÉE posé par `_etabli_arbre`. `rang` le garde pour l'onglet, qui peut retrier.
+    par_job: dict[str, list[dict]] = {}
+    for e in out:
+        par_job.setdefault(e["job"], []).append(e)
+    jobs = sorted(par_job, key=lambda j: (max((e["created_at"] or "") for e in par_job[j]), j), reverse=True)
+    ordonne = [e for j in jobs for e in par_job[j]]
+    for i, e in enumerate(ordonne):
+        e["rang"] = i
+    return ordonne
 
 
 @router.get("/etabli/productions")
