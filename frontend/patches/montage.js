@@ -10275,3 +10275,12 @@ function DzExportFigma({tpl,regs}){
     r.jsx(K,{variant:"outline",size:"sm",onClick:svg,disabled:!tpl.id,title:"Télécharger le gabarit ENREGISTRÉ en SVG (cases, textes, bandeaux, images d’échantillon) — à glisser dans Figma",children:"SVG ↓"}),
     r.jsx(K,{variant:"outline",size:"sm",onClick:vectorlab,title:"Ouvrir le gabarit tel qu’à l’écran dans le Vectorlab, comme document éditable (nouvel onglet) — gratuit",children:"Ouvrir dans le Vectorlab"}),
     msg?r.jsx("span",{className:"dz-export-figma-msg",style:{fontSize:10.5,color:"var(--ink-soft)",flexBasis:"100%"},children:msg}):null]})}
+
+/* Tâche #76 (03/10/2026) — la transition d’un acte de gabarit À L’ÉCRAN du Studio. Depuis la conversion des blocs
+   « transitions » (PR #151), un acte porte sa transition (trois actes : flash cyan) ; le menu « Transition k → k+1 »
+   du nœud Layout affichait « crossfade » tant qu’on n’y touchait pas. Les actes sont les cases vidéo dans l’ordre,
+   comme la compilation du Studio (__trMod) : l’acte k+1 reçoit la transition k. */
+function dzActeTrans(regs,ti){
+  var v=(regs||[]).filter(function(g){return g&&g.type==="video_slot"});
+  var a=v[ti+1];
+  return(a&&a.transition&&a.transition.type)||"crossfade"}

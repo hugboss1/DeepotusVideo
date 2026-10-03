@@ -8250,6 +8250,22 @@ R_P8CMP1 = A_P8CMP1 + ',r.jsx(DzComposantBar,{W:g,H:v,regs:d,setRegs:u,select:m,
 P1 += [("P8cmp1-poser-et-enregistrer-des-composants", A_P8CMP1, R_P8CMP1)]
 assert len(P1) == 131 and "\n" not in R_P8CMP1
 
+# P8tr1..3 (tache #76, 03/10/2026) -- les transitions des gabarits A L'ECRAN du Studio. Ancres AMONT (maillon
+# spatialports, 1 sur .bak_montage). Decision « 1+2 » : le flash cyan s'ajoute, le blanc reste.
+# P8tr1 : le menu du noeud Layout sequentiel propose le flash cyan.
+A_P8TR1 = '{value:"flash",label:"flash"}];return r.jsxs(r.Fragment'
+R_P8TR1 = '{value:"flash",label:"flash"},{value:"cyan_flash",label:"cyan flash"}];return r.jsxs(r.Fragment'
+# P8tr2 : sans choix dans le Studio, il montre la transition DU GABARIT (l = ses regions), plus « crossfade ».
+A_P8TR2 = 'value:(trs[ti]&&trs[ti].type)||"crossfade"'
+R_P8TR2 = 'value:(trs[ti]&&trs[ti].type)||dzActeTrans(l,ti)'
+# P8tr3 : le noeud Concatenate aussi (meme moteur cote serveur).
+A_P8TR3 = 'options:["crossfade","cut","fadeblack","glitch","slide","flash"]'
+R_P8TR3 = 'options:["crossfade","cut","fadeblack","glitch","slide","flash","cyan_flash"]'
+P1 += [("P8tr1-layout-propose-le-flash-cyan", A_P8TR1, R_P8TR1),
+       ("P8tr2-layout-montre-la-transition-du-gabarit", A_P8TR2, R_P8TR2),
+       ("P8tr3-concatenate-propose-le-flash-cyan", A_P8TR3, R_P8TR3)]
+assert len(P1) == 134 and all("\n" not in r for _t, _a, r in P1[-3:])
+
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
