@@ -9715,3 +9715,71 @@ function DzReflowBar({tpl,onSaved}){
         r.jsxs("div",{style:{display:"flex",gap:8,justifyContent:"flex-end",marginTop:14},children:[
           r.jsx(K,{variant:"ghost",size:"sm",disabled:busy,onClick:function(){setA(null)},title:"Fermer l’aperçu sans rien enregistrer",children:"Annuler"}),
           r.jsx(K,{variant:"primary",size:"sm",disabled:busy,onClick:garder,title:"Enregistrer cette version "+apercu.f+" comme NOUVEAU gabarit (le gabarit d’origine reste tel quel)",children:"Enregistrer la copie"})]})]})}):null]})}
+/* Tâche #74 PR B (plan-templates T3, 03/10/2026) — MASQUES dans l'éditeur de gabarit. Section « Masque » de
+   l'inspecteur des cases vidéo et image : forme (coins arrondis, ellipse, polygone), rayon, bord adouci, liseré
+   (épaisseur et couleur), fenêtres ajourées (rectangle ou ellipse, en % de la case), et pour le polygone un ÉDITEUR DE
+   POINTS (glisser un point le déplace, cliquer dans le cadre en ajoute un, double-cliquer un point le retire, modèles
+   triangle, losange, hexagone, étoile). Fenêtres et points sont des FRACTIONS de la case : ils suivent le
+   réagencement. La toile de l'éditeur montre la forme (masque CSS dessiné en SVG) et son liseré. Décisions de
+   l'utilisateur (03/10) : quatre formes, vidéo et image, adoucissement + liseré, section + aperçu sur la toile. */
+var DZ_MASQUE_MODELES={triangle:[[0.5,0],[1,1],[0,1]],losange:[[0.5,0],[1,0.5],[0.5,1],[0,0.5]],
+  hexagone:[[0.25,0],[0.75,0],[1,0.5],[0.75,1],[0.25,1],[0,0.5]],
+  etoile:[[0.5,0],[0.61,0.35],[0.98,0.35],[0.68,0.57],[0.79,0.91],[0.5,0.7],[0.21,0.91],[0.32,0.57],[0.02,0.35],[0.39,0.35]]};
+function dzMasqueSvg(m,w,h,trait){
+  var f=function(v){return Math.round(v*1000)/1000},forme=m.shape||"rounded",o="";
+  var st=trait?' fill="none" stroke="'+(m.border_color||"#ffffff")+'" stroke-width="'+Math.max(1,Number(m.border_px)||0)+'"':' fill="white"';
+  if(forme==="ellipse")o+='<ellipse cx="'+f(w/2)+'" cy="'+f(h/2)+'" rx="'+f(w/2)+'" ry="'+f(h/2)+'"'+st+'/>';
+  else if(forme==="polygon"&&Array.isArray(m.points)&&m.points.length>=3)o+='<polygon points="'+m.points.map(function(p){return f(p[0]*w)+","+f(p[1]*h)}).join(" ")+'"'+st+'/>';
+  else{var rr=Math.max(0,Math.min(Number(m.radius)||0,Math.min(w,h)/2));o+='<rect x="0" y="0" width="'+w+'" height="'+h+'" rx="'+f(rr)+'"'+st+'/>'}
+  (m.holes||[]).forEach(function(t){var x=t.x*w,y=t.y*h,tw=t.width*w,th=t.height*h,sth=trait?st:' fill="black"';
+    if(t.shape==="ellipse")o+='<ellipse cx="'+f(x+tw/2)+'" cy="'+f(y+th/2)+'" rx="'+f(tw/2)+'" ry="'+f(th/2)+'"'+sth+'/>';
+    else o+='<rect x="'+f(x)+'" y="'+f(y)+'" width="'+f(tw)+'" height="'+f(th)+'" rx="'+f(Math.min(Number(t.radius)||0,tw/2,th/2))+'"'+sth+'/>'});
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none">'+o+"</svg>"}
+function dzMasqueUrl(svg){return 'url("data:image/svg+xml,'+encodeURIComponent(svg)+'")'}
+function dzMasqueApercu(j,face){
+  var m=j&&j.mask;if(!m||(j.type!=="video_slot"&&j.type!=="image_slot"))return face;
+  var w=Math.max(1,Number(j.width)||1),h=Math.max(1,Number(j.height)||1),u=dzMasqueUrl(dzMasqueSvg(m,w,h,!1));
+  return r.jsxs(r.Fragment,{children:[r.jsx("div",{className:"dz-masque-apercu",style:{position:"absolute",inset:0,WebkitMaskImage:u,maskImage:u,
+      WebkitMaskSize:"100% 100%",maskSize:"100% 100%",WebkitMaskRepeat:"no-repeat",maskRepeat:"no-repeat"},children:face}),
+    Number(m.border_px)>0?r.jsx("div",{className:"dz-masque-lisere",style:{position:"absolute",inset:0,pointerEvents:"none",
+      backgroundImage:dzMasqueUrl(dzMasqueSvg(m,w,h,!0)),backgroundSize:"100% 100%"}}):null]})}
+function DzPointsEditeur({pts,ratio,onChange}){
+  var W=200,H=Math.max(60,Math.min(260,Math.round(W/Math.max(0.25,ratio||1)))),rf=x.useRef(null),gs=x.useState(-1),glisse=gs[0],setG=gs[1];
+  function pos(ev){var b=rf.current.getBoundingClientRect();return[Math.max(0,Math.min(1,Math.round((ev.clientX-b.left)/b.width*1000)/1000)),
+    Math.max(0,Math.min(1,Math.round((ev.clientY-b.top)/b.height*1000)/1000))]}
+  return r.jsxs("svg",{ref:rf,width:W,height:H,viewBox:"0 0 "+W+" "+H,className:"dz-points",style:{background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:6,touchAction:"none",cursor:"crosshair"},
+    onPointerMove:function(ev){if(glisse<0)return;var q=pts.slice();q[glisse]=pos(ev);onChange(q)},
+    onPointerUp:function(){setG(-1)},onPointerLeave:function(){setG(-1)},
+    onClick:function(ev){if(ev.target!==rf.current||pts.length>=64)return;onChange(pts.concat([pos(ev)]))},
+    children:[r.jsx("polygon",{points:pts.map(function(p){return p[0]*W+","+p[1]*H}).join(" "),fill:"rgba(0,229,255,.18)",stroke:"var(--cyan)",strokeWidth:1.5,pointerEvents:"none"}),
+      pts.map(function(p,i){return r.jsx("circle",{cx:p[0]*W,cy:p[1]*H,r:5,fill:i===glisse?"var(--cyan)":"#fff",stroke:"#02060d",strokeWidth:1,style:{cursor:"grab"},
+        onPointerDown:function(ev){ev.stopPropagation();setG(i)},onClick:function(ev){ev.stopPropagation()},
+        onDoubleClick:function(ev){ev.stopPropagation();if(pts.length>3)onChange(pts.filter(function(_q,k){return k!==i}))}},"p"+i)})]})}
+function DzMaskEditor({rg,upd}){
+  var m=rg&&rg.mask||null;
+  function maj(pt){upd({mask:Object.assign({},m||{shape:"rounded",radius:40},pt)})}
+  function pct(v){return String(Math.round((Number(v)||0)*1000)/10)}
+  function frac(s){var v=parseFloat(String(s).replace(",","."));return isFinite(v)?Math.max(0,Math.min(1,v/100)):0}
+  var trous=m&&Array.isArray(m.holes)?m.holes:[],forme=m&&m.shape||"rounded",bord=Math.max(1,Math.round(Math.min(rg.width||100,rg.height||100)/2));
+  function majTrou(i,pt){var q=trous.map(function(t,k){return k===i?Object.assign({},t,pt):t});maj({holes:q})}
+  return r.jsxs("div",{className:"dz-masque",style:{marginTop:10,paddingTop:10,borderTop:"1px solid var(--stroke)"},children:[
+    r.jsx(O,{children:r.jsx(Ze,{checked:!!m,onChange:function(on){upd({mask:on?{shape:"rounded",radius:Math.min(40,bord)}:null})},label:"Masque (forme de la case)"})}),
+    m?r.jsxs(r.Fragment,{children:[
+      r.jsx(O,{label:"Forme",children:r.jsx(re,{value:forme,onChange:function(v){maj(v==="polygon"&&!(m.points&&m.points.length>=3)?{shape:v,points:DZ_MASQUE_MODELES.hexagone}:{shape:v})},
+        options:[{value:"rounded",label:"Coins arrondis"},{value:"ellipse",label:"Ellipse / cercle"},{value:"polygon",label:"Polygone"}]})}),
+      forme==="rounded"?r.jsx(O,{children:r.jsx(Oe,{label:"Rayon des coins",unit:" px",value:Number(m.radius)||0,min:0,max:bord,step:1,onChange:function(v){maj({radius:v})}})}):null,
+      forme==="polygon"?r.jsxs(O,{label:"Points (glisser · clic : ajouter · double-clic : retirer)",children:[
+        r.jsx(DzPointsEditeur,{pts:m.points||DZ_MASQUE_MODELES.hexagone,ratio:(rg.width||1)/(rg.height||1),onChange:function(q){maj({points:q})}}),
+        r.jsx("div",{style:{display:"flex",gap:4,flexWrap:"wrap",marginTop:4},children:[["triangle","Triangle"],["losange","Losange"],["hexagone","Hexagone"],["etoile","Étoile"]].map(function(z){
+          return r.jsx(K,{variant:"ghost",size:"sm",title:"Remplacer les points par le modèle « "+z[1]+" »",onClick:function(){maj({points:DZ_MASQUE_MODELES[z[0]]})},children:z[1]},z[0])})})]}):null,
+      r.jsx(O,{children:r.jsx(Oe,{label:"Bord adouci",unit:" px",value:Number(m.feather_px)||0,min:0,max:100,step:1,onChange:function(v){maj({feather_px:v})}})}),
+      r.jsx(O,{children:r.jsx(Oe,{label:"Liseré",unit:" px",value:Number(m.border_px)||0,min:0,max:40,step:1,onChange:function(v){maj({border_px:v})}})}),
+      Number(m.border_px)>0?r.jsx(O,{label:"Couleur du liseré",children:r.jsx(DzColorPicker,{value:m.border_color||"#ffffff",onChange:function(c){maj({border_color:c})}})}):null,
+      r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)",margin:"8px 0 4px"},children:"Fenêtres ajourées (en % de la case) — le fond se voit au travers"}),
+      trous.map(function(t,i){return r.jsxs("div",{className:"dz-trou",style:{display:"grid",gridTemplateColumns:"70px repeat(4,minmax(0,1fr)) 24px",gap:4,alignItems:"center",marginBottom:4},children:[
+        r.jsx(re,{value:t.shape||"rect",onChange:function(v){majTrou(i,{shape:v})},options:[{value:"rect",label:"Rect."},{value:"ellipse",label:"Ellipse"}]}),
+        ["x","y","width","height"].map(function(c){return r.jsx(le,{mono:!0,value:pct(t[c]),onChange:function(s){var pt={};pt[c]=frac(s);majTrou(i,pt)}},c)}),
+        r.jsx("button",{type:"button",title:"Retirer cette fenêtre",onClick:function(){maj({holes:trous.filter(function(_t,k){return k!==i})})},
+          style:{background:"transparent",border:0,color:"var(--red)",cursor:"pointer"},children:"✕"})]},"t"+i)}),
+      trous.length<16?r.jsx(K,{variant:"ghost",size:"sm",title:"Ajouter une fenêtre au centre de la case (rectangle de 30 %)",
+        onClick:function(){maj({holes:trous.concat([{shape:"rect",x:0.35,y:0.35,width:0.3,height:0.3}])})},children:"+ Fenêtre"}):null]}):null]})}

@@ -8119,6 +8119,20 @@ R_P8REF1 = (A_P8REF1 + ',r.jsx(DzReflowBar,{tpl:u,onSaved:function(id){a(functio
 P1 += [("P8ref1-rejouer-un-gabarit-dans-un-autre-format", A_P8REF1, R_P8REF1)]
 assert len(P1) == 113 and "\n" not in R_P8REF1
 
+# P8msk1..2 (tache #74 PR B, plan-templates T3, 03/10/2026) -- les MASQUES dans l'editeur de gabarit. Ancres AMONT
+# (mesurees 1 sur .bak_montage, absentes de ce patcher). P8msk1 : la section « Masque » de l'inspecteur des cases video
+# et image, avant « Delete region » (p = la mise a jour de la region, comme les autres champs). P8msk2 : la case
+# dessinee sur la toile prend la forme du masque et son liseré. Composants : DzMaskEditor, DzPointsEditeur,
+# dzMasqueApercu (couche).
+A_P8MSK1 = 'r.jsx("div",{style:{marginTop:10},children:r.jsx("button",{onClick:dzDelReg'
+R_P8MSK1 = ('(c.type==="video_slot"||c.type==="image_slot")?r.jsx(DzMaskEditor,{rg:c,upd:function(pt){p(c.id,pt)}}):null,'
+            + A_P8MSK1)
+A_P8MSK2 = 'children:[dzRegionFace(j),'
+R_P8MSK2 = 'children:[dzMasqueApercu(j,dzRegionFace(j)),'
+P1 += [("P8msk1-section-masque-dans-l-inspecteur", A_P8MSK1, R_P8MSK1),
+       ("P8msk2-la-toile-montre-le-masque", A_P8MSK2, R_P8MSK2)]
+assert len(P1) == 115 and all("\n" not in r for _t, _a, r in P1[-2:])
+
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
