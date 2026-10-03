@@ -136,6 +136,9 @@ async def noter(files, source: str, kind: str = "image",
     from app.services import library_projects as _LP
     await _LP.ranger_dans_actif([Path(str(n)).name for n in files if Path(str(n)).name],
                                 "audio" if kind == "audio" else "image")
+    if kind == "image":   # tâche #81 : la couleur dominante de chaque nouvelle image, en tâche de fond
+        from app.services import library_couleur as _LCOL
+        _LCOL.en_fond([Path(str(n)).name for n in files if Path(str(n)).name])
 
 
 def noter_bg(files, source: str, **kw) -> None:
