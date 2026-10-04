@@ -352,6 +352,20 @@ class LibraryAsset(Base):
     recette: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 
+class LibraryComment(Base):
+    """Tâche #82 (04/10/2026, plan-library T14) — un COMMENTAIRE de revue sur un asset : texte, statut (a_revoir |
+    valide | rejete), instant visé pour un son (`t_s`). `ref` = filename (ou job_id). Table neuve : create_all suffit."""
+    __tablename__ = "library_comments"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    ref: Mapped[str] = mapped_column(String(255), index=True)
+    texte: Mapped[str] = mapped_column(Text)
+    statut: Mapped[str] = mapped_column(String(12), default="a_revoir")
+    t_s: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+
 class LibraryProject(Base):
     """Bibliothèque #78 (03/10/2026, plan-library T3) — un PROJET : campagne,
     chapitre, deck. Il contient des assets de TOUTES les catégories ; la

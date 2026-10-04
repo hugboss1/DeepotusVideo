@@ -8209,7 +8209,9 @@ R_P9LIB8 = ('r.jsx(se,{name:"close",onClick:()=>y(null)})]}),r.jsx(DzMetaEditor,
             'r.jsx(DzLignee,{m:m,liste:l,ouvrir:y}),'
             # tache #80 PR B (03/10/2026) : la fiche complete sous la lignee ; une image rejouee entre en tete de la liste
             'r.jsx(DzFiche,{m:m,lister:function(im){d(function(L){return[{name:im,kind:"image",size:"",date:"",'
-            'url:D.imageUrl(im),source:"generation",srcOrigin:"depot",tags:[],note:0,fav:!1}].concat(L)})}}),m.kind==="sprite2d"?')
+            'url:D.imageUrl(im),source:"generation",srcOrigin:"depot",tags:[],note:0,fav:!1}].concat(L)})}}),'
+            # tache #82 PR A (04/10/2026) : les commentaires de revue sous la fiche
+            'r.jsx(DzCommentaires,{m:m}),m.kind==="sprite2d"?')
 # P9lib9 : le renommage ne bascule PLUS le favori deux fois -- le serveur l'emporte (library_index.renommer) ; la double
 # bascule l'aurait ETEINT. On deplace le cache.
 A_P9LIB9 = 'if(__dzFavImgHas(m.name)){__dzFavImgToggle(m.name);__dzFavImgToggle(j.new)}'

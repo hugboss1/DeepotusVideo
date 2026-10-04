@@ -2923,6 +2923,59 @@ async def library_editer_asset(filename: str, request: Request):
     return await LI.editer(safe, champs)
 
 
+@router.get("/library/commentaires/{ref}")
+async def library_commentaires_lister(ref: str):
+    """Tâche #82 : les commentaires d'un asset (le plus ancien d'abord)."""
+    from app.services import library_commentaires as LCM
+    try:
+        return {"commentaires": await LCM.lister(ref), "statuts": list(LCM.STATUTS)}
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.post("/library/commentaires/{ref}")
+async def library_commentaires_ajouter(ref: str, request: Request):
+    """Body {texte, statut?, t_s?} : un commentaire de plus (statut « a_revoir » par défaut)."""
+    from app.services import library_commentaires as LCM
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(400, "Corps JSON attendu")
+    if not isinstance(body, dict):
+        raise HTTPException(400, "Corps JSON attendu : un objet")
+    try:
+        return await LCM.ajouter(ref, body.get("texte"), body.get("statut"), body.get("t_s"))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.patch("/library/commentaires/c/{cid}")
+async def library_commentaires_modifier(cid: str, request: Request):
+    """Body : sous-ensemble de {texte, statut, t_s}. 404 si le commentaire n'existe pas."""
+    from app.services import library_commentaires as LCM
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(400, "Corps JSON attendu")
+    if not isinstance(body, dict):
+        raise HTTPException(400, "Corps JSON attendu : un objet")
+    try:
+        out = await LCM.modifier(cid, body)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if out is None:
+        raise HTTPException(404, "Commentaire introuvable")
+    return out
+
+
+@router.delete("/library/commentaires/c/{cid}")
+async def library_commentaires_supprimer(cid: str):
+    from app.services import library_commentaires as LCM
+    if not await LCM.supprimer(cid):
+        raise HTTPException(404, "Commentaire introuvable")
+    return {"supprime": cid}
+
+
 @router.get("/library/nettoyage")
 async def library_nettoyage():
     """Tâche #81 : poids par sorte + DOUBLONS EXACTS (sha256, recalculé si le fichier change), chaque fichier avec ses

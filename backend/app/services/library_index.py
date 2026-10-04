@@ -175,6 +175,8 @@ async def renommer(ancien: str, nouveau: str) -> None:
     if a2 and n2 and a2 != n2:
         from app.services import library_projects as _LP
         await _LP.renommer_ref(a2, n2)
+        from app.services import library_commentaires as _LCM   # tâche #82 : les commentaires suivent le fichier
+        await _LCM.renommer_ref(a2, n2)
 
 
 async def _renommer_index(ancien: str, nouveau: str) -> None:
