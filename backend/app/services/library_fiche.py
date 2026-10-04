@@ -166,6 +166,7 @@ async def fiche(filename: str) -> dict | None:
         "fichier": _fichier(p, kind),
         "couleur": {"hex": row.couleur, "teinte": row.teinte} if row and row.couleur else None,   # tâche #81
         "recette": rec,
+        "legende": {"texte": row.legende, "modele": row.legende_modele} if row and row.legende else None,   # tâche #82
         "rejouer": rejouer(rec),
         "usages": await _usages(nom),
     }

@@ -350,6 +350,9 @@ class LibraryAsset(Base):
     # d'origine, style, modèle, format, graine) — /images/generate l'écrit ;
     # la fiche la montre et « Rejouer » la renvoie. Les anciennes : NULL.
     recette: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Tâche #82 PR C (04/10/2026) : la LÉGENDE d'une image par un modèle vision (payant, prix annoncé), et ce modèle
+    legende: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    legende_modele: Mapped[Optional[str]] = mapped_column(String(60), nullable=True)
 
 
 class LibraryComment(Base):
@@ -703,6 +706,7 @@ LIBRARY_ASSETS_COLUMNS = [
     ("source_url", "TEXT"), ("sha256", "VARCHAR(64)"), ("taille_o", "INTEGER"),
     ("couleur", "VARCHAR(7)"), ("teinte", "VARCHAR(12)"),
     ("recette", "TEXT"),   # tâche #80
+    ("legende", "TEXT"), ("legende_modele", "VARCHAR(60)"),   # tâche #82 PR C
 ]
 
 

@@ -96,8 +96,9 @@ def main():
     # tache #80 PR B (03/10/2026) : + 1, le prix de « Rejouer la recette » dans la fiche d'une image (DzFiche).
     # tache #81 PR C (03/10/2026) : + 2, vider la corbeille (DzCorbeille) et mettre des doublons a la corbeille (DzNettoyage).
     # tache #82 PR A (04/10/2026) : + 1, supprimer un commentaire de revue (DzCommentaires).
-    check("await __dzDialogue.confirmer ×21 hors couche (11 + 2 de P1es1 + 1 import du Studio + 1 duel + 1 recette + 1 kit + 1 rejouer + 2 corbeille/nettoyage + 1 commentaire ; la couche le cite en commentaire)",
-          hors.count("await window.__dzDialogue.confirmer(") == 21,
+    # tache #82 PR C (04/10/2026) : + 1, le prix des legendes (DzRecherche).
+    check("await __dzDialogue.confirmer ×22 hors couche (11 + 2 de P1es1 + 1 import du Studio + 1 duel + 1 recette + 1 kit + 1 rejouer + 2 corbeille/nettoyage + 1 commentaire + 1 legendes ; la couche le cite en commentaire)",
+          hors.count("await window.__dzDialogue.confirmer(") == 22,
           str(hors.count("await window.__dzDialogue.confirmer(")))
     check("la couche remplace window.alert et pose __dzDialogue",
           "window.alert = function" in couche and "window.__dzDialogue = {" in couche)

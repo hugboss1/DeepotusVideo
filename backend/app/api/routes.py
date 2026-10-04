@@ -2923,6 +2923,56 @@ async def library_editer_asset(filename: str, request: Request):
     return await LI.editer(safe, champs)
 
 
+@router.get("/library/recherche")
+async def library_recherche(q: str = "", moteur: str = "texte"):
+    """Tâche #82 PR C : la recherche de la Bibliothèque. moteur « texte » (local, gratuit : légendes, tags, prompts,
+    commentaires, noms) ; « clip » (sémantique, local) arrive en PR D — 503 dit d'ici là."""
+    if moteur == "clip":
+        raise HTTPException(503, "La recherche CLIP (locale) n'est pas encore installée.")
+    if moteur != "texte":
+        raise HTTPException(400, "moteur : texte ou clip")
+    from app.services import library_recherche as LR
+    return await LR.chercher(q[:200])
+
+
+@router.get("/library/legendes/devis")
+async def library_legendes_devis():
+    """Tâche #82 PR C : combien d'images n'ont pas de légende, et le PRIX pour les légender (grille locale, aucun appel)."""
+    from app.services import library_legendes as LL
+    noms = await LL.a_legender()
+    return {**LL.devis(len(noms)), "etat": LL.etat()}
+
+
+@router.get("/library/legendes/etat")
+async def library_legendes_etat():
+    from app.services import library_legendes as LL
+    return LL.etat()
+
+
+@router.post("/library/legendes", dependencies=[Depends(_require_local_depense)])
+async def library_legendes_lancer(request: Request):
+    """Body {noms?:[…]} : légende les images nommées, ou TOUTES celles qui n'en ont pas — PAYANT (Gemini) : le plafond
+    « bibliotheque » est vérifié AVANT, le travail part en tâche de fond (suivi : GET /library/legendes/etat)."""
+    from app.services import library_legendes as LL
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    noms = body.get("noms") if isinstance(body, dict) else None
+    if noms is not None and (not isinstance(noms, list) or not all(isinstance(n, str) for n in noms)):
+        raise HTTPException(400, "noms : une liste de noms")
+    if not LL.disponible():
+        raise HTTPException(503, "GEMINI_API_KEY non configurée (Réglages) — rien n'a été lancé.")
+    if LL.etat()["en_cours"]:
+        raise HTTPException(409, "Un légendage est déjà en cours.")
+    a_faire = await LL.a_legender([Path(n).name for n in noms] if noms else None)
+    if not a_faire:
+        return {"lance": 0, **LL.devis(0)}
+    await _plafond({"kind": "legende", "n": len(a_faire), "model": LL.MODELE}, "bibliotheque")
+    LL.lancer(a_faire)
+    return {"lance": len(a_faire), **LL.devis(len(a_faire))}
+
+
 @router.get("/library/commentaires/{ref}")
 async def library_commentaires_lister(ref: str):
     """Tâche #82 : les commentaires d'un asset (le plus ancien d'abord)."""

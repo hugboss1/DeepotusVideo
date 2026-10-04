@@ -28,7 +28,7 @@ check("T1 temoin : la base trie la taille par parseFloat et n'a ni liste ni etat
 check("T2 la grille devient une liste quand la bascule le dit ; les tris taille et recent sont branches ; l'etat de la vue est memorise ; la liste porte le brut",
       BUN.count('dzVue==="liste"?r.jsx(DzListe,{items:q,ouvrir:function(C){C.url&&y(C)}}):r.jsx("div",{style:{display:"grid"') == 1
       and BUN.count('else if(Lsort==="size")a2.sort(dzCmpTaille);else if(Lsort==="recent")a2.sort(dzCmpRecent);return a2;') == 1 and TRI_AVANT not in BUN
-      and BUN.count("[dzVue,dzVues]=x.useState(dzVueLue()),") == 1 and BUN.count("r.jsx(DzOutilsBiblio,{vue:dzVue,setVue:dzVues})") == 1
+      and BUN.count("[dzVue,dzVues]=x.useState(dzVueLue()),") == 1 and BUN.count("r.jsx(DzOutilsBiblio,{vue:dzVue,setVue:dzVues,liste:l,ouvrir:y})") == 1
       and BUN.count('octets:S.size_kb!=null?S.size_kb*1024:null,mtime:S.mtime||0,larg:S.width||null,haut:S.height||null,licence:S.licence||""}));') == 1
       # la barre Projet : le bouton « ▦ État » bascule le panneau d'etat du projet regarde
       and BUN.count('if(f&&f.id&&etatOn)ch.push(r.jsx(DzEtatProjet,{pid:f.id},"etat"));') == 1

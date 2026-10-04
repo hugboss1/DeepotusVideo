@@ -10194,6 +10194,7 @@ function DzFiche({m,lister}){var fs=x.useState(null),f=fs[0],setF=fs[1],es=x.use
       r.jsx("span",{style:{color:"var(--ink-soft)"},children:f.couleur.teinte+" · "+f.couleur.hex})]}):null,
     ligne("Source",L.source),ligne("Recette",L.recette||"inconnue"),
     L.prompt?ligne("Prompt",L.prompt.length>140?L.prompt.slice(0,140)+"…":L.prompt,L.prompt):null,
+    f.legende?ligne("Légende",f.legende.texte,"Légende par "+(f.legende.modele||"un modèle vision")):null,
     L.usages.length?ligne("Usages",L.usages.join(" · ")):ligne("Usages","aucun"),
     f.rejouer?r.jsx("div",{children:r.jsx(K,{variant:"outline",size:"sm",onClick:rejouer,disabled:vol,
       title:"Relancer la recette du générateur — PAYANT"+(f.rejouer.usd!=null?" (≈ "+Number(f.rejouer.usd).toFixed(3)+" $)":"")+", prix redemandé avant le tir",
@@ -10291,13 +10292,15 @@ function DzOutilsBiblio(P){var vs=x.useState(""),vue=vs[0],setVue=vs[1],aff=(P&&
   return r.jsxs("div",{"data-dz":"outils-biblio",style:{display:"flex",flexDirection:"column",gap:8,marginBottom:vue?4:10},children:[
     r.jsxs("div",{style:{display:"flex",gap:6,flexWrap:"wrap"},children:[bouton("corbeille","🗑 Corbeille","Ce qui a été jeté : restaurer, ou effacer définitivement"),
       bouton("nettoyage","🧹 Nettoyage","Poids par sorte et doublons exacts à mettre à la corbeille"),
+      bouton("recherche","🔎 Recherche","Chercher par la légende, les tags, les prompts et les commentaires ; légender les images"),
       /* tâche #82 : la bascule grille / liste (mémorisée dans ce navigateur) */
       P&&P.setVue?r.jsx("span",{style:{width:1,height:18,background:"var(--stroke)",margin:"3px 4px"}}):null,
       ...(P&&P.setVue?[["grille","▦ Grille","Afficher en vignettes"],["liste","☰ Liste","Afficher en liste triable (nom, source, taille, date, dimensions, tags, note, favori, licence, teinte)"]].map(function(b){
         var on=aff===b[0];return r.jsx("button",{type:"button","aria-pressed":on,title:b[2],onClick:function(){P.setVue(b[0]);dzVueEcrite(b[0])},
           style:{height:24,padding:"0 10px",fontSize:11.5,borderRadius:6,cursor:"pointer",border:"1px solid "+(on?"var(--amber,#f0b429)":"var(--stroke)"),
             background:on?"var(--bg-panel-2)":"transparent",color:on?"var(--ink-strong)":"var(--ink-soft)"},children:b[1]},b[0])}):[])]}),
-    vue==="corbeille"?r.jsx(DzCorbeille,{}):vue==="nettoyage"?r.jsx(DzNettoyage,{}):null]})}
+    vue==="corbeille"?r.jsx(DzCorbeille,{}):vue==="nettoyage"?r.jsx(DzNettoyage,{}):
+    vue==="recherche"?r.jsx(DzRecherche,{liste:P&&P.liste,ouvrir:P&&P.ouvrir||function(){}}):null]})}
 /* ── fin Bibliothèque #81 */
 /* ── Bibliothèque #82 PR A (plan-library T14, 04/10/2026) — les COMMENTAIRES de revue, sous la fiche.
    Décision de l’utilisateur (04/10) : commentaires DATÉS avec un STATUT (à revoir / validé / rejeté) ; pour un son,
@@ -10391,6 +10394,54 @@ function DzEtatProjet({pid}){var es=x.useState(null),e=es[0],setE=es[1],ms=x.use
 function dzVueLue(){try{return localStorage.getItem("dz_biblio_vue")==="liste"?"liste":"grille"}catch(e){return"grille"}}
 function dzVueEcrite(v){try{localStorage.setItem("dz_biblio_vue",v)}catch(e){}}
 /* ── fin Bibliothèque #82 B */
+/* ── Bibliothèque #82 PR C (plan-library T12-T13, 04/10/2026) — la RECHERCHE et les LÉGENDES.
+   Décision de l’utilisateur (04/10) : deux moteurs avec un SÉLECTEUR — « texte » (local, gratuit : légendes, tags,
+   prompts, commentaires, noms) et « CLIP » (sémantique, local, PR D : grisé d’ici là) ; les légendes par un modèle
+   vision PAYANT : le prix est ANNONCÉ par le dialogue maison avant tout appel, qui dit aussi que les images partent
+   chez Google ; le plafond « bibliothèque » reste la garde du serveur ; le travail se suit (faits / total). */
+var DZ_MOTEURS=[["texte","Texte — légendes, tags, prompts, commentaires",!1],["clip","CLIP — par le sens (local, à installer)",!0]];
+function dzUsdLeg(v){return v==null?"prix inconnu":"≈ "+(v<0.01?Number(v).toFixed(4):Number(v).toFixed(2))+" $"}
+function DzRecherche({liste,ouvrir}){var qs=x.useState(""),q=qs[0],setQ=qs[1],mo=x.useState("texte"),moteur=mo[0],setMoteur=mo[1],rs=x.useState(null),res=rs[0],setRes=rs[1],
+    ms=x.useState(""),msg=ms[0],setMsg=ms[1],ds=x.useState(null),dv=ds[0],setDv=ds[1],es=x.useState(null),et=es[0],setEt=es[1],verrou=x.useRef(!1);
+  function devis(){return fetch("/api/library/legendes/devis").then(function(R){return R.ok?R.json():null}).then(function(d){setDv(d);if(d&&d.etat)setEt(d.etat)}).catch(function(){})}
+  x.useEffect(function(){devis()},[]);
+  x.useEffect(function(){if(!et||!et.en_cours)return;var h=setInterval(function(){fetch("/api/library/legendes/etat").then(function(R){return R.json()})
+    .then(function(e){setEt(e);if(!e.en_cours)devis()}).catch(function(){})},2000);return function(){clearInterval(h)}},[et&&et.en_cours]);
+  function chercher(){var t=q.trim();if(!t){setRes(null);return}setMsg("");
+    fetch("/api/library/recherche?q="+encodeURIComponent(t)+"&moteur="+encodeURIComponent(moteur)).then(function(R){return R.json().catch(function(){return{}}).then(function(d){
+      if(!R.ok)throw new Error(d.detail||("HTTP "+R.status));return d})}).then(setRes).catch(function(e){setRes(null);setMsg(String(e&&e.message||e))})}
+  async function legender(){if(verrou.current||!dv||!dv.n)return;verrou.current=!0;try{
+      if(!await window.__dzDialogue.confirmer("Légender "+dv.n+" image(s) avec "+dv.modele+" : "+dzUsdLeg(dv.usd)+" (PAYANT, plafond de dépense appliqué). Chaque image est envoyée en vignette à Google pour être décrite ; la légende reste sur ce PC et nourrit la recherche.",
+        {titre:"Légendes",ok:"Légender ("+dzUsdLeg(dv.usd)+")"}))return;
+      var R=await fetch("/api/library/legendes",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});var d=await R.json().catch(function(){return{}});
+      if(!R.ok){setMsg("Refusé : "+String(d.detail&&d.detail.message||d.detail||("HTTP "+R.status)));return}
+      setEt({en_cours:d.lance>0,total:d.lance,faits:0,n_erreurs:0,arret:""});setMsg(d.lance?"":"Rien à légender.")}finally{verrou.current=!1}}
+  var parNom={};(liste||[]).forEach(function(z){if(z&&z.name)parNom[z.name]=z});
+  var champ={height:26,padding:"0 8px",fontSize:12,background:"var(--bg-base)",color:"var(--ink-strong)",border:"1px solid var(--stroke)",borderRadius:6};
+  return r.jsxs("div",{className:"dz-recherche","data-dz":"recherche",style:{display:"flex",flexDirection:"column",gap:8,marginBottom:14},children:[
+    r.jsxs("div",{style:{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"},children:[
+      r.jsx("input",{value:q,placeholder:"Chercher : phare, tempête, bleu…",onChange:function(e){setQ(e.target.value)},onKeyDown:function(e){if(e.key==="Enter"){e.preventDefault();chercher()}},
+        style:Object.assign({flex:1,minWidth:180},champ)}),
+      r.jsx("select",{value:moteur,title:"Le moteur de recherche",onChange:function(e){setMoteur(e.target.value)},style:champ,
+        children:DZ_MOTEURS.map(function(m){return r.jsx("option",{value:m[0],disabled:m[2],children:m[1]},m[0])})}),
+      r.jsx(K,{variant:"outline",size:"sm",onClick:chercher,disabled:!q.trim(),title:"Chercher dans la Bibliothèque (sur ce PC, gratuit)",children:"Chercher"})]}),
+    msg?r.jsx("span",{style:{fontSize:11,color:"var(--red)"},children:msg}):null,
+    res?r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)"},children:res.n?res.n+" image(s)"+(res.n>res.resultats.length?" (les "+res.resultats.length+" premières)":""):"Aucune image ne correspond."}):null,
+    res&&res.resultats.length?r.jsx("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(150px, 1fr))",gap:8},children:res.resultats.map(function(z){
+      var it=parNom[z.filename];return r.jsxs("button",{type:"button",disabled:!it,title:it?"Ouvrir la fiche — trouvé dans : "+z.champs.join(", "):"« "+z.filename+" » n’est pas dans la liste chargée",
+        onClick:function(){if(it)ouvrir(it)},style:{display:"flex",flexDirection:"column",gap:4,padding:6,border:"1px solid var(--stroke)",borderRadius:6,background:"var(--bg-panel)",
+          cursor:it?"pointer":"default",textAlign:"left",color:"var(--ink-soft)"},children:[
+        r.jsx("img",{src:"/api/images/"+encodeURIComponent(z.filename),alt:"",style:{width:"100%",height:90,objectFit:"cover",borderRadius:4}}),
+        r.jsx("span",{style:{fontSize:11,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"},children:z.filename}),
+        z.extrait?r.jsx("span",{style:{fontSize:10.5,color:"var(--ink-muted)"},children:z.extrait}):null]},z.filename)})}):null,
+    dv?r.jsxs("div",{"data-dz":"legendes",style:{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",fontSize:11.5,color:"var(--ink-soft)",paddingTop:6,borderTop:"1px solid var(--stroke)"},children:[
+      r.jsx("span",{children:et&&et.en_cours?"Légendage : "+et.faits+" / "+et.total+(et.n_erreurs?" · "+et.n_erreurs+" erreur(s)":""):
+        dv.n?dv.n+" image(s) sans légende — "+dzUsdLeg(dv.usd)+" avec "+dv.modele+" (les images sont envoyées à Google)":"Toutes les images ont une légende."}),
+      et&&!et.en_cours&&et.arret?r.jsx("span",{style:{color:"var(--red)"},children:"Arrêté : "+et.arret}):null,
+      dv.n&&!(et&&et.en_cours)?r.jsx(K,{variant:"outline",size:"sm",onClick:legender,disabled:!dv.cle,
+        title:dv.cle?"Décrire ces images par "+dv.modele+" — PAYANT, prix redemandé avant":"Clé Gemini absente (Réglages) : rien ne peut être légendé",
+        children:"Légender ("+dzUsdLeg(dv.usd)+")"}):null]}):null]})}
+/* ── fin Bibliothèque #82 C */
 /* ── Bibliothèque #78 PR B (plan-library T4, 03/10/2026) — les PROJETS à l'écran.
    Un projet contient des assets de toutes catégories (serveur : library_projects, PR A #144). Ici :
    - la barre « Projet » en tête du contenu : REGARDER un projet filtre TOUS les onglets (dzPF, appliqué dans Lfs) ;
