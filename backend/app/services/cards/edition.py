@@ -11,9 +11,18 @@ d'aucune voisine ; ce qu'il lui faut d'une autre pièce, elle le RECOPIE.
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+import asyncio
+import json
+import os
+import shutil
+from pathlib import Path
 
-from .contract import is_valid_did
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi.responses import Response
+from loguru import logger
+
+from . import edition_vtt as VTT
+from .contract import deck_dir, is_valid_did
 
 router = APIRouter()
 
@@ -54,3 +63,113 @@ async def get_cibles(did: str):
     """Le catalogue des tables virtuelles servies, avec ce que chacune exige."""
     _deck(did)
     return {"cibles": CIBLES}
+
+
+def _json_form(spec: str) -> dict:
+    try:
+        v = json.loads(spec or "{}")
+    except Exception:
+        raise HTTPException(400, "Le champ `spec` n'est pas du JSON")
+    if not isinstance(v, dict):
+        raise HTTPException(400, "Le champ `spec` doit être un objet JSON")
+    return v
+
+
+def _geom(doc: dict):
+    from . import core as deck_store
+    return deck_store.geom_of(doc)
+
+
+def _dossier_tts(did: str) -> Path:
+    return deck_dir(did) / "edition" / "tts"
+
+
+@router.post("/tts")
+async def post_tts(did: str, spec: str = Form("{}"),
+                   fronts: list[UploadFile] = File(default=[]),
+                   backs: list[UploadFile] = File(default=[])):
+    """TABLETOP SIMULATOR (tâche #84 PR B) : les planches 10 x 7 à la coupe,
+    l'objet sauvegardé qui pointe vers elles (chemins locaux), un ZIP de tout.
+    Les fichiers restent dans le dossier du jeu : l'objet les retrouve."""
+    doc = _deck(did)
+    body = _json_form(spec)
+    if not fronts:
+        raise HTTPException(400, "Aucune carte reçue : le navigateur doit rendre les cartes avant l'export")
+    noms = body.get("noms") if isinstance(body.get("noms"), list) else []
+    rectos = [await f.read() for f in fronts]
+    versos = [await f.read() for f in (backs or [])]
+    g = _geom(doc)
+
+    def work():
+        return VTT.construire(str(doc.get("name") or "Jeu"), g, rectos, versos, noms, _dossier_tts(did))
+    try:
+        out, res = await asyncio.to_thread(work)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        logger.exception("cards/edition: export TTS impossible")
+        raise HTTPException(500, f"Export Tabletop Simulator impossible: {e}")
+    return Response(content=out, media_type="application/zip", headers={
+        "Content-Disposition": f'attachment; filename="{res["jeu"]}_tts.zip"',
+        "X-CF-Cartes": str(res["cartes"]), "X-CF-Planches": str(res["planches"]),
+        "X-CF-Cellule": "%dx%d" % tuple(res["cellule"]),
+        "X-CF-Planche-Px": "%dx%d" % tuple(res["planche_px"]),
+        "X-CF-Unique-Back": "1" if res["unique_back"] else "0",
+    })
+
+
+def _saved_objects() -> Path:
+    """Le dossier « Saved Objects » de Tabletop Simulator : Documents\My Games\
+    Tabletop Simulator\Saves\Saved Objects. « Documents » est lu par le
+    dossier connu de Windows (il peut être redirigé, OneDrive par exemple).
+    DEEPOTUS_TTS_DIR le remplace (bancs)."""
+    env = os.environ.get("DEEPOTUS_TTS_DIR", "").strip()
+    if env:
+        return Path(env)
+    docs = None
+    try:
+        import ctypes
+        from ctypes import wintypes
+        import uuid
+        guid = uuid.UUID("{FDD39AD0-238F-46AF-ADB4-6C85480369C7}")       # FOLDERID_Documents
+
+        class GUID(ctypes.Structure):
+            _fields_ = [("d1", wintypes.DWORD), ("d2", wintypes.WORD), ("d3", wintypes.WORD), ("d4", ctypes.c_ubyte * 8)]
+        g = GUID(guid.fields[0], guid.fields[1], guid.fields[2],
+                 (ctypes.c_ubyte * 8)(*guid.bytes[8:]))
+        p = ctypes.c_wchar_p()
+        if ctypes.windll.shell32.SHGetKnownFolderPath(ctypes.byref(g), 0, None, ctypes.byref(p)) == 0:
+            docs = Path(p.value)
+            ctypes.windll.ole32.CoTaskMemFree(p)
+    except Exception:
+        docs = None
+    docs = docs or Path.home() / "Documents"
+    return docs / "My Games" / "Tabletop Simulator" / "Saves" / "Saved Objects"
+
+
+@router.post("/tts/poser")
+async def post_tts_poser(did: str):
+    """Copie le dernier objet exporté (JSON + vignette) dans les Saved Objects
+    de Tabletop Simulator, sous-dossier « Deepotus » : il apparaît dans le jeu,
+    Objects > Saved Objects. Écrit HORS des données de l'appli — décision de
+    l'utilisateur (04/10), et seulement quand on le demande."""
+    doc = _deck(did)
+    s = VTT.slug(str(doc.get("name") or "Jeu"))
+    src = _dossier_tts(did)
+    js, th = src / f"{s}.json", src / f"{s}.png"
+    if not js.is_file():
+        raise HTTPException(409, "Exportez d'abord pour Tabletop Simulator : aucun objet à poser.")
+    cible = _saved_objects()
+    racine_tts = cible.parent.parent                 # « My Games/Tabletop Simulator »
+    if not racine_tts.is_dir():
+        raise HTTPException(409, f"Tabletop Simulator introuvable sur ce PC ({racine_tts}) : lancez-le une "
+                                 "fois, ou déposez le JSON du ZIP dans ses Saved Objects.")
+    dest = cible / "Deepotus"
+    try:
+        dest.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(js, dest / js.name)
+        if th.is_file():
+            shutil.copyfile(th, dest / th.name)
+    except OSError as e:
+        raise HTTPException(500, f"Copie dans Tabletop Simulator impossible : {e}")
+    return {"chemin": str(dest / js.name), "dossier": str(dest)}

@@ -118,5 +118,197 @@ def test_le_sous_arbre_edition_survit_a_un_enregistrement():
     assert doc["deck"]["edition"]["cible"] == "tabletopia", doc["deck"].get("edition")
 
 
+# ─────────────────────── PR B : Tabletop Simulator ──────────────────────────
+# Relu le 04/10/2026 : planche 4096 px au plus (kb.tabletopsimulator.com/custom-content/asset-creation), grille
+# NumWidth x NumHeight sans maximum publié (10 x 7 = convention : 70 cases, la dernière sert de carte cachée SAUF
+# avec BackIsHidden), objet JSON CustomDeck {FaceURL, BackURL, NumWidth, NumHeight, BackIsHidden, UniqueBack}
+# (save-file-format), CardID = 100 x clé de deck + index (relevé sur des objets sauvegardés, pas publié : DIT).
+# DÉCISION DE L'UTILISATEUR (04/10) : chemins locaux file:/// + ZIP, ET copie dans Saved Objects.
+import io                                                        # noqa: E402
+import json                                                      # noqa: E402
+import zipfile                                                   # noqa: E402
+from PIL import Image                                            # noqa: E402
+
+TTS_DIR = pathlib.Path(_tmp, "Documents", "My Games", "Tabletop Simulator", "Saves", "Saved Objects")
+os.environ["DEEPOTUS_TTS_DIR"] = str(TTS_DIR)
+
+
+def _carte(w, h, rgb, bord=(255, 255, 255), fond_perdu=37):
+    """Une carte dont le FOND PERDU est d'une autre couleur : on voit si la coupe tombe juste."""
+    im = Image.new("RGB", (w, h), bord)
+    im.paste(Image.new("RGB", (w - 2 * fond_perdu, h - 2 * fond_perdu), rgb), (fond_perdu, fond_perdu))
+    b = io.BytesIO()
+    im.save(b, "PNG")
+    return b.getvalue()
+
+
+def _tts(n=3, fmt="poker_us", backs="meme", px=None, noms=None, nom_jeu="Banc TTS", poser=False):
+    async def go():
+        from app.main import app
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://127.0.0.1") as c:
+            r = await c.post("/api/cards/decks", json={"name": nom_jeu})
+            did = r.json()["deck"]["id"]
+            await c.patch(f"/api/cards/{did}", json={"format": {"fmt": fmt, "dpi": 300}})
+            g = CT.geom(fmt, 300)
+            w, h = px or g.canvas_px
+            bo = int(round(g.bleed_off_px[0]))
+            files = [("fronts", (f"f{i}.png", _carte(w, h, (10 + i, 100, 200), fond_perdu=bo), "image/png")) for i in range(n)]
+            if backs == "meme":
+                files += [("backs", (f"b{i}.png", _carte(w, h, (200, 50, 50), fond_perdu=bo), "image/png")) for i in range(n)]
+            elif backs == "un-de-moins":
+                files += [("backs", (f"b{i}.png", _carte(w, h, (200, 50, 50 + i), fond_perdu=bo), "image/png")) for i in range(n - 1)]
+            elif backs == "uniques":
+                files += [("backs", (f"b{i}.png", _carte(w, h, (200, 50 + i, 50), fond_perdu=bo), "image/png")) for i in range(n)]
+            spec = {"noms": noms if noms is not None else [f"Carte {i + 1}" for i in range(n)]}
+            r = await c.post(f"/api/cards/{did}/edition/tts", data={"spec": json.dumps(spec)}, files=files, timeout=300.0)
+            rp = await c.post(f"/api/cards/{did}/edition/tts/poser", json={}) if poser else None
+            return r, rp, did
+    return asyncio.run(go())
+
+
+def _zip(r):
+    z = zipfile.ZipFile(io.BytesIO(r.content))
+    obj = json.loads(z.read([n for n in z.namelist() if n.endswith(".json") and "manifeste" not in n][0]).decode("utf-8"))
+    return z, obj
+
+
+def test_tts_la_planche_est_toujours_10x7_a_la_coupe_sous_4096():
+    r, _, did = _tts(3)
+    assert r.status_code == 200, r.text
+    z, obj = _zip(r)
+    faces = [n for n in z.namelist() if "/faces_" in n]
+    assert len(faces) == 1, z.namelist()
+    im = Image.open(io.BytesIO(z.read(faces[0]))).convert("RGB")
+    # poker US : coupe 750 x 1050 -> cellule 409 x 573 (ratio de COUPE), planche TOUJOURS 10 x 7 (TTS découpe par sa grille)
+    assert im.size == (4090, 4011), im.size
+    # la COUPE : le fond perdu blanc a disparu, la carte 2 (case 1) est bleue jusqu'aux bords de sa case
+    for xy in ((409 + 2, 2), (409 + 406, 570), (2, 2)):
+        assert im.getpixel(xy)[2] > 170 and im.getpixel(xy)[0] < 60, (xy, im.getpixel(xy))
+    assert sum(im.getpixel((409 * 5 + 200, 573 * 3 + 200))) > 700, "case vide"
+    assert r.headers["X-CF-Cellule"] == "409x573" and r.headers["X-CF-Planches"] == "1" and r.headers["X-CF-Cartes"] == "3"
+
+
+def test_tts_l_objet_sauvegarde_est_un_deck_aux_bons_identifiants():
+    r, _, did = _tts(3, noms=["Gobelin", "Elfe", ""])
+    z, obj = _zip(r)
+    deck = obj["ObjectStates"][0]
+    assert deck["Name"] == "Deck" and deck["Nickname"] == "Banc TTS"
+    cd = deck["CustomDeck"]["1"]
+    assert (cd["NumWidth"], cd["NumHeight"], cd["BackIsHidden"], cd["UniqueBack"]) == (10, 7, True, False), cd
+    assert cd["FaceURL"].startswith("file:///") and cd["FaceURL"].endswith(".jpg")
+    assert deck["DeckIDs"] == [100, 101, 102]
+    cartes = deck["ContainedObjects"]
+    assert [c["CardID"] for c in cartes] == [100, 101, 102] and [c["Name"] for c in cartes] == ["Card"] * 3
+    assert [c["Nickname"] for c in cartes] == ["Gobelin", "Elfe", "Carte 3"]      # un nom vide ne part pas vide
+    assert all(c["CustomDeck"]["1"] == cd for c in cartes)
+    # LES CHEMINS MÈNENT À DES FICHIERS QUI EXISTENT SUR CE PC, identiques à ceux du ZIP
+    face = pathlib.Path(cd["FaceURL"][len("file:///"):])
+    assert face.is_file() and face.read_bytes() == z.read([n for n in z.namelist() if "/faces_" in n][0])
+    assert pathlib.Path(cd["BackURL"][len("file:///"):]).is_file()
+
+
+def test_tts_un_dos_commun_est_une_image_des_dos_differents_une_planche():
+    r, _, _ = _tts(3, backs="meme")
+    z, obj = _zip(r)
+    assert not obj["ObjectStates"][0]["CustomDeck"]["1"]["UniqueBack"]
+    dos = [n for n in z.namelist() if "/dos" in n]
+    assert len(dos) == 1 and Image.open(io.BytesIO(z.read(dos[0]))).size == (409, 573), dos
+    r, _, _ = _tts(3, backs="uniques")
+    z, obj = _zip(r)
+    cd = obj["ObjectStates"][0]["CustomDeck"]["1"]
+    assert cd["UniqueBack"] is True
+    dos = [n for n in z.namelist() if "/dos" in n]
+    assert len(dos) == 1 and Image.open(io.BytesIO(z.read(dos[0]))).size == (4090, 4011)
+    im = Image.open(io.BytesIO(z.read(dos[0]))).convert("RGB")
+    assert abs(im.getpixel((409 * 2 + 200, 300))[1] - 52) <= 3, im.getpixel((409 * 2 + 200, 300))   # le dos 3 en case 3
+
+
+def test_tts_sans_verso_un_dos_neutre_et_c_est_dit():
+    r, _, _ = _tts(2, backs=None)
+    assert r.status_code == 200, r.text
+    z, obj = _zip(r)
+    man = json.loads(z.read([n for n in z.namelist() if n.endswith("manifeste.json")][0]))
+    assert "aucun verso" in man["dos"]
+
+
+def test_tts_au_dela_de_70_cartes_une_seconde_planche_et_deux_cles():
+    r, _, _ = _tts(72, backs=None)
+    assert r.status_code == 200, r.text
+    z, obj = _zip(r)
+    deck = obj["ObjectStates"][0]
+    assert sorted(deck["CustomDeck"]) == ["1", "2"]
+    assert deck["DeckIDs"][:2] == [100, 101] and deck["DeckIDs"][69] == 169 and deck["DeckIDs"][70:] == [200, 201]
+    assert r.headers["X-CF-Planches"] == "2"
+    assert len([n for n in z.namelist() if "/faces_" in n]) == 2
+
+
+def test_tts_un_verso_manquant_est_refuse_en_le_disant():
+    r, _, _ = _tts(3, backs="un-de-moins")
+    assert r.status_code == 400 and "2 verso(s) pour 3 recto(s)" in r.text, r.text
+
+
+def test_tts_une_seule_carte_est_un_objet_carte():
+    r, _, _ = _tts(1, backs=None)
+    z, obj = _zip(r)
+    assert obj["ObjectStates"][0]["Name"] == "Card" and obj["ObjectStates"][0]["CardID"] == 100
+
+
+def test_tts_un_format_haut_tient_dans_4096():
+    r, _, _ = _tts(2, fmt="tarot_us", backs=None)
+    assert r.status_code == 200, r.text
+    z, _ = _zip(r)
+    im = Image.open(io.BytesIO(z.read([n for n in z.namelist() if "/faces_" in n][0])))
+    # tarot US : coupe 825 x 1425 -> 409 de large ferait 7 x 706 = 4942 > 4096 : la HAUTEUR décide (585)
+    assert max(im.size) <= 4096 and im.size == (3390, 7 * 585), im.size
+    assert r.headers["X-CF-Cellule"] == "339x585", r.headers["X-CF-Cellule"]
+
+
+def test_tts_un_bitmap_a_la_mauvaise_taille_est_refuse():
+    r, _, _ = _tts(1, px=(822, 1122), backs=None)
+    assert r.status_code == 400 and "822" in r.text and "825" in r.text, r.text
+    r, _, _ = _tts(0, backs=None)
+    assert r.status_code == 400 and "Aucune carte" in r.text, r.text
+
+
+def test_tts_une_reexportation_change_le_nom_des_planches():
+    """TTS garde en CACHE une image par URL : réexporter sous le même nom montrerait l'ancienne. Le nom porte
+    l'empreinte du contenu, et le dossier ne garde que le dernier export."""
+    r1, _, did = _tts(2, backs=None, nom_jeu="Cache")
+    face1 = _zip(r1)[1]["ObjectStates"][0]["CustomDeck"]["1"]["FaceURL"]
+
+    async def go():
+        from app.main import app
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://127.0.0.1") as c:
+            files = [("fronts", (f"f{i}.png", _carte(825, 1125, (250, 250, 0)), "image/png")) for i in range(2)]
+            return await c.post(f"/api/cards/{did}/edition/tts", data={"spec": "{}"}, files=files, timeout=120.0)
+    r2 = asyncio.run(go())
+    assert r2.status_code == 200, r2.text
+    face2 = _zip(r2)[1]["ObjectStates"][0]["CustomDeck"]["1"]["FaceURL"]
+    assert face1 != face2 and not pathlib.Path(face1[8:]).exists() and pathlib.Path(face2[8:]).is_file()
+
+
+def test_tts_poser_dans_saved_objects():
+    import shutil
+    racine_tts = TTS_DIR.parent.parent                    # « My Games/Tabletop Simulator »
+    if racine_tts.exists():
+        shutil.rmtree(racine_tts)
+    r, rp, did = _tts(2, backs=None, nom_jeu="Pose", poser=True)
+    assert rp.status_code == 409 and "Tabletop Simulator" in rp.text, rp.text          # TTS absent : dit
+    racine_tts.mkdir(parents=True)
+    r, rp, did = _tts(2, backs=None, nom_jeu="Pose", poser=True)
+    assert rp.status_code == 200, rp.text
+    js, th = TTS_DIR / "Deepotus" / "pose.json", TTS_DIR / "Deepotus" / "pose.png"
+    assert js.is_file() and th.is_file() and json.loads(js.read_text(encoding="utf-8"))["ObjectStates"][0]["Name"] == "Deck"
+    assert rp.json()["chemin"] == str(js)
+
+    async def sans_export():
+        from app.main import app
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://127.0.0.1") as c:
+            r = await c.post("/api/cards/decks", json={"name": "Rien"})
+            return await c.post(f"/api/cards/{r.json()['deck']['id']}/edition/tts/poser", json={})
+    r0 = asyncio.run(sans_export())
+    assert r0.status_code == 409 and "Exportez" in r0.text, r0.text
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))
