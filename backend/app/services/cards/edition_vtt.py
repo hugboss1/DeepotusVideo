@@ -35,7 +35,8 @@ from PIL import Image
 
 from .contract import CardGeom, R
 
-__all__ = ["COLS", "ROWS", "PAR_PLANCHE", "LARGEUR_MAX", "cellule", "coupe", "construire", "slug"]
+__all__ = ["COLS", "ROWS", "PAR_PLANCHE", "LARGEUR_MAX", "cellule", "coupe", "construire", "slug",
+           "TABLETOPIA_MAX", "tabletopia_px", "tabletopia"]
 
 COLS, ROWS = 10, 7
 PAR_PLANCHE = COLS * ROWS            # BackIsHidden : les 70 cases portent des cartes
@@ -193,3 +194,65 @@ def construire(nom_jeu: str, g: CardGeom, fronts: list[bytes], backs: list[bytes
             z.writestr(zipfile.ZipInfo(f"tts/{nom}", date_time=(2026, 1, 1, 0, 0, 0)), data,
                        compress_type=zipfile.ZIP_DEFLATED if nom.endswith(".json") else zipfile.ZIP_STORED)
     return buf.getvalue(), resume
+
+
+# ── TABLETOPIA (tâche #84 PR C) ─────────────────────────────────────────────
+# Relu le 04/10/2026 (help.tabletopia.com/knowledge-base/how-to-prepare-graphics) :
+# « JPEG and PNG » ; « Try not to exceed the image size of 2000x2000 pixels for
+# each object » ; recto et verso dans des FICHIERS SÉPARÉS (« 52 front images
+# and 1 back ») ; tous les composants d'un même type à la MÊME taille en
+# pixels ; 3 à 10 Mo au maximum, 1 à 2 Mo visés. AUCUNE grille de collage.
+TABLETOPIA_MAX = 2000
+
+
+def tabletopia_px(g: CardGeom) -> tuple[int, int]:
+    """La coupe, ramenée sous 2000 px sur le côté long — JAMAIS agrandie : un
+    agrandissement n'ajoute aucun détail et coûte des mégaoctets."""
+    tw, th = g.trim_px
+    f = min(1.0, TABLETOPIA_MAX / max(tw, th))
+    return max(1, round(tw * f)), max(1, round(th * f))
+
+
+def tabletopia(nom_jeu: str, g: CardGeom, fronts: list[bytes], backs: list[bytes],
+               noms: list[str]) -> tuple[bytes, dict]:
+    """Un JPEG par face, nommés `<jeu>_NN_recto` / `_verso` (ou un seul
+    `<jeu>_dos` quand tous les versos sont identiques), et un manifeste."""
+    n = len(fronts)
+    px = tabletopia_px(g)
+    faces = [coupe(d, g, i, "recto") for i, d in enumerate(fronts)]
+    dos = [coupe(d, g, i, "verso") for i, d in enumerate(backs) if d]
+    if dos and len(dos) != n:
+        raise ValueError(f"{len(dos)} verso(s) pour {n} recto(s) : un verso par carte, ou aucun")
+    uniques = bool(dos) and len({hashlib.sha256(d).digest() for d in backs}) > 1
+    s = slug(nom_jeu)
+    larg = max(2, len(str(n)))
+    fichiers: list[tuple[str, bytes]] = []
+
+    def ajoute(nom: str, im: Image.Image):
+        fichiers.append((nom, _jpeg(im if im.size == px else im.resize(px, Image.LANCZOS))))
+
+    for i, im in enumerate(faces):
+        ajoute(f"{s}_{i + 1:0{larg}d}_recto.jpg", im)
+    if uniques:
+        for i, im in enumerate(dos):
+            ajoute(f"{s}_{i + 1:0{larg}d}_verso.jpg", im)
+        note_dos = "versos différents : un fichier de verso par carte"
+    elif dos:
+        ajoute(f"{s}_dos.jpg", dos[0])
+        note_dos = "commun : un seul fichier de dos"
+    else:
+        note_dos = "aucun verso reçu : aucun fichier de dos (à fournir dans Tabletopia)"
+    man = {"jeu": s, "cartes": [{"carte": i + 1, "nom": str(noms[i] if i < len(noms) else "").strip()
+                                 or f"Carte {i + 1}"} for i in range(n)],
+           "px": list(px), "format": "JPEG", "dos": note_dos,
+           "fichiers": [{"nom": nom, "octets": len(d), "px": list(px), "sha256": hashlib.sha256(d).hexdigest()}
+                        for nom, d in fichiers],
+           "note": "Tabletopia (relu le 04/10/2026) : recto et verso en fichiers séparés, tous à la même taille, "
+                   "2000 x 2000 px au plus par objet (jamais agrandi ici), 1 à 2 Mo visés. Aucune planche."}
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("tabletopia/manifeste.json", json.dumps(man, ensure_ascii=False, indent=1))
+        for nom, data in fichiers:
+            z.writestr(zipfile.ZipInfo(f"tabletopia/{nom}", date_time=(2026, 1, 1, 0, 0, 0)), data,
+                       compress_type=zipfile.ZIP_STORED)
+    return buf.getvalue(), {"jeu": s, "px": px, "fichiers": len(fichiers), "cartes": n}

@@ -22,8 +22,10 @@ def check(label, cond, detail=""):
 BASE = "b6e81497"
 r0 = subprocess.run(["git", "show", f"{BASE}:frontend/cardforge/js/mod-edition.js"], capture_output=True, cwd=str(RACINE))
 check("T1 témoin : la pièce de la base n'exporte rien", r0.returncode == 0 and b"exporterTts" not in r0.stdout and b'data-act="tts"' not in r0.stdout)
-check("T2 deux boutons TITRÉS (exporter, poser), câblés", SRC.count('data-act="tts" title="') == 1 and SRC.count('data-act="tts-poser" title="') == 1
-      and 'else if (t.dataset.act === "tts") exporterTts();' in SRC and 'else if (t.dataset.act === "tts-poser") poserTts();' in SRC)
+check("T2 trois boutons TITRÉS (TTS exporter / poser, Tabletopia), câblés", SRC.count('data-act="tts" title="') == 1
+      and SRC.count('data-act="tts-poser" title="') == 1 and SRC.count('data-act="tabletopia" title="') == 1
+      and 'else if (t.dataset.act === "tts") exporterTts();' in SRC and 'else if (t.dataset.act === "tts-poser") poserTts();' in SRC
+      and 'else if (t.dataset.act === "tabletopia") exporterTabletopia();' in SRC)
 
 
 def fonction(nom):
@@ -53,7 +55,7 @@ def fonction(nom):
     return ""
 
 
-NOMS = ("cardName", "slugJeu", "etat", "paintTts", "exporterTts", "poserTts")
+NOMS = ("cardName", "slugJeu", "etat", "paintTts", "exporterTts", "poserTts", "exporterTabletopia")
 COUCHE = "\n".join(fonction(n) for n in NOMS)
 check("T3 la couche livrée a ses fonctions (une fois chacune)", all(SRC.count("function " + n + "(") == 1 for n in NOMS)
       and all(fonction(n) for n in NOMS))
@@ -97,7 +99,9 @@ APPELS = []; await poserTts(); R.pose = APPELS.slice(); R.etatPose = HOST.queryS
 REP["tts/poser"] = {err: "Tabletop Simulator introuvable sur ce PC"}; await poserTts(); R.etatKo = HOST.querySelector('[data-role="tts-etat"]').textContent;
 R.toastKo = TOASTS[TOASTS.length - 1];
 DOC.edition.cible = "tabletopia"; paintTts(); R.cacheTabletopia = HOST.querySelector('[data-role="tts"]').cls.hidden;
+R.ttVisible = HOST.querySelector('[data-role="tabletopia"]').cls.hidden;
 DOC.edition.cible = "tts"; paintTts(); R.visibleTts = HOST.querySelector('[data-role="tts"]').cls.hidden;
+R.ttCache = HOST.querySelector('[data-role="tabletopia"]').cls.hidden;
 """)
 check("E0 sous node : le panneau s'exécute", R is not None)
 if R:
@@ -113,7 +117,28 @@ if R:
     check("E5 poser : POST tts/poser, et l'état dit OÙ (Objects > Saved Objects > Deepotus) ; un refus est DIT",
           R["pose"] == [["POST", "tts/poser", {}]] and "Saved Objects" in R["etatPose"] and "Deepotus" in R["etatPose"]
           and "introuvable" in R["etatKo"] and R["toastKo"][1] is True, R["etatPose"] + " | " + R["etatKo"])
-    check("E6 les boutons Tabletop Simulator ne paraissent que pour la cible TTS", R["cacheTabletopia"] is True and R["visibleTts"] is False)
+    check("E6 chaque cible montre SES boutons et cache ceux de l'autre", R["cacheTabletopia"] is True and R["visibleTts"] is False
+          and R["ttVisible"] is False and R["ttCache"] is True, str(R))
+
+R = node("""
+BLOBS = []; APPELS = []; DL = [];
+var p1 = exporterTabletopia(), p2 = exporterTabletopia(); await p1; await p2;
+R.n = APPELS.length; R.url = [APPELS[0][0], APPELS[0][1]]; R.spec = JSON.parse(APPELS[0][2].parts[0][1]);
+R.kinds = APPELS[0][2].parts.slice(1).map(function (p) { return p[0]; }); R.blobs = BLOBS.slice(); R.dl = DL.slice();
+R.etat = HOST.querySelector('[data-role="tts-etat"]').textContent; R.verrou = VERROU;
+R.derniereTts = DERNIER;
+ECHEC = "400 Bad Request"; TOASTS = []; await exporterTabletopia(); R.echec = TOASTS[0]; R.verrou2 = VERROU;
+""")
+check("TT0 sous node : Tabletopia s'exécute", R is not None)
+if R:
+    check("TT1 UN export au double clic : POST tabletopia, recto + verso de chaque carte, noms, ZIP au nom du jeu",
+          R["n"] == 1 and R["url"] == ["POST", "tabletopia"] and R["kinds"] == ["fronts", "backs"] * 3
+          and R["blobs"] == [[0, "front"], [0, "back"], [1, "front"], [1, "back"], [2, "front"], [2, "back"]]
+          and R["spec"] == {"noms": ["Gobelin", "Elfe", "carte 3"]} and R["dl"] == ["eclair-d-ete_tabletopia.zip"], str(R))
+    check("TT2 l'état dit quoi faire (éditeur de Tabletopia, recto et verso séparés) ; « Poser » TTS n'est pas armé par Tabletopia ; "
+          "un échec est dit et le verrou rendu",
+          "éditeur de Tabletopia" in R["etat"] and R["verrou"] is False and R["derniereTts"] is None
+          and "Tabletopia impossible : 400" in R["echec"][0] and R["echec"][1] is True and R["verrou2"] is False, str(R))
 
 R = node("""
 CARDS = []; await exporterTts(); R.vide = [APPELS.length, TOASTS[0]];

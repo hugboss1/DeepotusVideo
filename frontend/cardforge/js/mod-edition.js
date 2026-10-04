@@ -36,6 +36,9 @@
       + '<button type="button" class="btn" data-act="tts-poser" title="Copier le dernier objet exporté dans Documents\\My Games\\Tabletop Simulator\\Saves\\Saved Objects\\Deepotus">Poser dans Tabletop Simulator</button>'
       + '</div>'
       + '<p class="cf-edition-etat" data-role="tts-etat"></p>'
+      + '<div class="cf-edition-actions" data-role="tabletopia">'
+      + '<button type="button" class="btn strong" data-act="tabletopia" title="Un JPEG par face à la coupe (2000 px au plus, jamais agrandi), un seul dos s’il est commun, et le manifeste — à charger dans l’éditeur de Tabletopia">Exporter pour Tabletopia (.zip)</button>'
+      + '</div>'
       + '</div></details>';
   }
 
@@ -70,6 +73,8 @@
     const box = HOST && HOST.querySelector('[data-role="tts"]');
     const cur = CF.doc().edition && CF.doc().edition.cible || DEFAULTS.cible;
     if (box) box.classList.toggle("hidden", cur !== "tts");
+    const tt = HOST && HOST.querySelector('[data-role="tabletopia"]');
+    if (tt) tt.classList.toggle("hidden", cur !== "tabletopia");
     const pose = HOST && HOST.querySelector('[data-act="tts-poser"]');
     if (pose) pose.disabled = !DERNIER;
   }
@@ -100,6 +105,31 @@
       CF.toast("Export Tabletop Simulator impossible : " + String((e && e.message) || e), true);
     } finally { CF.busy(false); VERROU = false; paintTts(); }
   }
+  /* TABLETOPIA : meme rendu (recto + verso), un fichier par face cote backend. */
+  async function exporterTabletopia() {
+    if (VERROU) return;
+    const cards = CF.cards();
+    if (!cards.length) { CF.toast("Aucune carte à exporter", true); return; }
+    VERROU = true;
+    try {
+      const fd = new FormData();
+      fd.append("spec", JSON.stringify({ noms: cards.map(cardName) }));
+      for (let i = 0; i < cards.length; i++) {
+        CF.busy(true, "rendu " + (i + 1) + " / " + cards.length + " (recto + verso)…");
+        fd.append("fronts", await CF.cardBlob(i, { face: "front" }), "f" + (i + 1) + ".png");
+        fd.append("backs", await CF.cardBlob(i, { face: "back" }), "b" + (i + 1) + ".png");
+      }
+      CF.busy(true, "images Tabletopia…");
+      const out = await M.api.blob("POST", "tabletopia", fd);
+      const nom = slugJeu() + "_tabletopia.zip";
+      CF.download(out, nom);
+      etat(cards.length + " carte(s) exportée(s) pour Tabletopia (" + nom + ") : un fichier par face, à charger "
+        + "dans l’éditeur de Tabletopia — recto et verso séparés, comme il le demande.");
+      CF.toast("Tabletopia : " + cards.length + " carte(s)");
+    } catch (e) {
+      CF.toast("Export Tabletopia impossible : " + String((e && e.message) || e), true);
+    } finally { CF.busy(false); VERROU = false; }
+  }
   async function poserTts() {
     if (VERROU || !DERNIER) return;
     VERROU = true;
@@ -120,6 +150,7 @@
       if (t.dataset.act === "cible") { M.patch({ cible: String(t.dataset.v) }); paintCibles(); paintTts(); }
       else if (t.dataset.act === "tts") exporterTts();
       else if (t.dataset.act === "tts-poser") poserTts();
+      else if (t.dataset.act === "tabletopia") exporterTabletopia();
     });
   }
 

@@ -310,5 +310,99 @@ def test_tts_poser_dans_saved_objects():
     assert r0.status_code == 409 and "Exportez" in r0.text, r0.text
 
 
+# ─────────────────────── PR C : Tabletopia ──────────────────────────────────
+# Relu le 04/10/2026 (help.tabletopia.com/knowledge-base/how-to-prepare-graphics) : JPEG ou PNG ; « Try not to
+# exceed the image size of 2000x2000 pixels for each object » ; recto et verso dans des FICHIERS SÉPARÉS
+# (« 52 front images and 1 back ») ; tous les composants d'un type à la MÊME taille ; 3-10 Mo au maximum, 1-2 visés.
+def _tabletopia(n=3, fmt="poker_us", dpi=300, backs="meme", noms=None, nom_jeu="Banc Tabletopia"):
+    async def go():
+        from app.main import app
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://127.0.0.1") as c:
+            r = await c.post("/api/cards/decks", json={"name": nom_jeu})
+            did = r.json()["deck"]["id"]
+            await c.patch(f"/api/cards/{did}", json={"format": {"fmt": fmt, "dpi": dpi}})
+            g = CT.geom(fmt, dpi)
+            w, h = g.canvas_px
+            bo = int(round(g.bleed_off_px[0]))
+            files = [("fronts", (f"f{i}.png", _carte(w, h, (10 + i, 100, 200), fond_perdu=bo), "image/png")) for i in range(n)]
+            if backs == "meme":
+                files += [("backs", (f"b{i}.png", _carte(w, h, (200, 50, 50), fond_perdu=bo), "image/png")) for i in range(n)]
+            elif backs == "uniques":
+                files += [("backs", (f"b{i}.png", _carte(w, h, (200, 50 + 20 * i, 50), fond_perdu=bo), "image/png")) for i in range(n)]
+            spec = {"noms": noms if noms is not None else [f"Carte {i + 1}" for i in range(n)]}
+            return await c.post(f"/api/cards/{did}/edition/tabletopia", data={"spec": json.dumps(spec)}, files=files, timeout=300.0)
+    return asyncio.run(go())
+
+
+def test_tabletopia_une_image_par_face_a_la_coupe_sans_agrandir():
+    r = _tabletopia(3)
+    assert r.status_code == 200, r.text
+    z = zipfile.ZipFile(io.BytesIO(r.content))
+    noms = sorted(n for n in z.namelist() if n.endswith(".jpg"))
+    assert noms == ["tabletopia/banc-tabletopia_01_recto.jpg", "tabletopia/banc-tabletopia_02_recto.jpg",
+                    "tabletopia/banc-tabletopia_03_recto.jpg", "tabletopia/banc-tabletopia_dos.jpg"], noms
+    for n in noms:
+        im = Image.open(io.BytesIO(z.read(n))).convert("RGB")
+        assert im.size == (750, 1050), (n, im.size)               # la COUPE, à 300 DPI : jamais agrandie
+        assert im.getpixel((1, 1))[0] < 60 or "dos" in n, (n, im.getpixel((1, 1)))     # plus de fond perdu blanc
+    assert Image.open(io.BytesIO(z.read("tabletopia/banc-tabletopia_02_recto.jpg"))).convert("RGB").getpixel((375, 525))[0] in range(8, 15)
+    assert r.headers["X-CF-Px"] == "750x1050" and r.headers["X-CF-Fichiers"] == "4"
+
+
+def test_tabletopia_le_manifeste_dit_tailles_poids_et_noms():
+    r = _tabletopia(2, noms=["Gobelin", ""])
+    z = zipfile.ZipFile(io.BytesIO(r.content))
+    man = json.loads(z.read("tabletopia/manifeste.json").decode("utf-8"))
+    assert man["px"] == [750, 1050] and man["dos"] == "commun : un seul fichier de dos"
+    assert [c["nom"] for c in man["cartes"]] == ["Gobelin", "Carte 2"]
+    import hashlib
+    for f in man["fichiers"]:
+        assert f["sha256"] == hashlib.sha256(z.read("tabletopia/" + f["nom"])).hexdigest()
+        assert f["octets"] <= 2 * 1024 * 1024 and f["px"] == [750, 1050]
+    assert "2000" in man["note"] and "séparés" in man["note"]
+
+
+def test_tabletopia_des_versos_differents_un_fichier_par_carte():
+    r = _tabletopia(3, backs="uniques")
+    z = zipfile.ZipFile(io.BytesIO(r.content))
+    versos = sorted(n for n in z.namelist() if "_verso" in n)
+    assert versos == [f"tabletopia/banc-tabletopia_0{i}_verso.jpg" for i in (1, 2, 3)], versos
+    assert not any(n.endswith("_dos.jpg") for n in z.namelist())
+    v3 = Image.open(io.BytesIO(z.read(versos[2]))).convert("RGB").getpixel((375, 525))
+    assert abs(v3[1] - 90) <= 4, v3
+
+
+def test_tabletopia_sans_verso_aucun_fichier_de_dos_et_c_est_dit():
+    r = _tabletopia(2, backs=None)
+    z = zipfile.ZipFile(io.BytesIO(r.content))
+    assert not any("dos" in n or "verso" in n for n in z.namelist() if n.endswith(".jpg"))
+    assert "aucun verso" in json.loads(z.read("tabletopia/manifeste.json"))["dos"]
+
+
+def test_tabletopia_a_600_dpi_le_cote_long_est_ramene_a_2000():
+    r = _tabletopia(1, dpi=600, backs=None)
+    assert r.status_code == 200, r.text
+    z = zipfile.ZipFile(io.BytesIO(r.content))
+    im = Image.open(io.BytesIO(z.read("tabletopia/banc-tabletopia_01_recto.jpg")))
+    # coupe 1500 x 2100 à 600 DPI -> 2100 > 2000 : réduite, proportions gardées (1429 x 2000)
+    assert im.size == (1429, 2000), im.size
+
+
+def test_tabletopia_refuse_ce_qui_ne_vient_pas_du_moteur():
+    async def go():
+        from app.main import app
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://127.0.0.1") as c:
+            r = await c.post("/api/cards/decks", json={"name": "Mauvais"})
+            did = r.json()["deck"]["id"]
+            await c.patch(f"/api/cards/{did}", json={"format": {"fmt": "poker_us", "dpi": 300}})
+            r1 = await c.post(f"/api/cards/{did}/edition/tabletopia", data={"spec": "{}"},
+                              files=[("fronts", ("f.png", _carte(822, 1122, (1, 2, 3)), "image/png"))])
+            r2 = await c.post(f"/api/cards/{did}/edition/tabletopia", data={"spec": "{}"})
+            return r1, r2
+    r1, r2 = asyncio.run(go())
+    assert r1.status_code == 400 and "822" in r1.text and "825" in r1.text, r1.text
+    assert r2.status_code == 400 and "Aucune carte" in r2.text, r2.text
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))
