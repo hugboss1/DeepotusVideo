@@ -2923,6 +2923,32 @@ async def library_editer_asset(filename: str, request: Request):
     return await LI.editer(safe, champs)
 
 
+@router.get("/library/nettoyage")
+async def library_nettoyage():
+    """Tâche #81 : poids par sorte + DOUBLONS EXACTS (sha256, recalculé si le fichier change), chaque fichier avec ses
+    usages, favori, projets et `protege`. Lecture (les empreintes sont mémorisées dans l'index)."""
+    from app.services import library_nettoyage as LN
+    return await LN.rapport()
+
+
+@router.post("/library/nettoyage/jeter")
+async def library_nettoyage_jeter(request: Request):
+    """Body {fichiers:[noms]} : ces copies de doublons à la CORBEILLE — refus (409) si l'un n'est pas un doublon, est
+    protégé, ou si un groupe perdait sa dernière copie. Tout ou rien."""
+    from app.services import library_nettoyage as LN
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(400, "Corps JSON attendu")
+    noms = body.get("fichiers") if isinstance(body, dict) else None
+    if not isinstance(noms, list) or not noms or not all(isinstance(n, str) for n in noms):
+        raise HTTPException(400, "fichiers (liste de noms) attendu")
+    try:
+        return await LN.jeter(noms)
+    except ValueError as e:
+        raise HTTPException(409, str(e))
+
+
 @router.get("/library/corbeille")
 async def library_corbeille():
     """Tâche #81 : le contenu de la corbeille (le plus récent d'abord), son poids, ce qui a plus de 30 jours."""

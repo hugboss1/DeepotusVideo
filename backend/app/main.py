@@ -152,6 +152,14 @@ async def lifespan(app: FastAPI):
         await _LI.reconcilier()
     except Exception as e:
         logger.warning(f"library_index.reconcilier au boot ignoré: {e}")
+    # Tâche #81 (décision 03/10) : la couleur dominante des images qui n'en ont pas, EN TÂCHE DE FOND — ≈ 31 s sur la
+    # vraie bibliothèque, le serveur répond pendant ce temps.
+    try:
+        from app.services import library_couleur as _LCOL
+        _LCOL.ACTIF = True
+        _LCOL.en_fond()
+    except Exception as e:
+        logger.warning(f"library_couleur au boot ignorée: {e}")
     # #78 : les épingles du téléphone (projets.json, tâche #58) deviennent des projets épinglés — une fois.
     try:
         await _LP_boot.reprendre_epingles_json()
