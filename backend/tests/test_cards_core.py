@@ -2167,7 +2167,8 @@ def test_la_coquille_des_dix_pieces_est_valide():
     main — le test de parité écran/backend est plus bas."""
     import importlib
     assert CT.MODULE_IDS == ("face", "frame", "type", "data", "solid",
-                             "texture", "print", "gltf", "forge3d", "capture")
+                             "texture", "print", "gltf", "forge3d", "capture",
+                             "edition")      # P11 depuis la tâche #84 (04/10/2026)
     for mid in CT.MODULE_IDS:
         mod = importlib.import_module(f"app.services.cards.{mid}")
         assert hasattr(mod, "router"), mid

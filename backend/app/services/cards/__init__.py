@@ -38,7 +38,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 from . import core
-from . import face, frame, data, solid, texture, gltf, forge3d, capture
+from . import face, frame, data, solid, texture, gltf, forge3d, capture, edition
 from . import models
 from . import type as type_mod
 from . import print as print_mod
@@ -73,6 +73,10 @@ router.include_router(forge3d.router, prefix="/{did}/forge3d",
 # (mot réservé), et la règle 1 du lint exige que le fichier porte l'id.
 router.include_router(capture.router, prefix="/{did}/capture",
                       tags=["cards:capture"])
+# P11 « edition » (tâche #84, 04/10/2026) : ce qui se livre AUTOUR de la carte —
+# table virtuelle, plus tard livret, mockup, fiche produit. Aucun painter.
+router.include_router(edition.router, prefix="/{did}/edition",
+                      tags=["cards:edition"])
 
 
 # ── le filet, EN DERNIER ────────────────────────────────────────────────────

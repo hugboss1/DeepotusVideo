@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """Card Forge — LE CONTRAT backend. Zéro code métier, zéro route.
 
-Ce fichier appartient à CORE et n'est écrit qu'une fois : les dix pièces
-(face, frame, type, data, solid, texture, print, gltf, forge3d, capture) le
+Ce fichier appartient à CORE et n'est écrit qu'une fois : les onze pièces
+(face, frame, type, data, solid, texture, print, gltf, forge3d, capture,
+edition — la onzième depuis la tâche #84, 04/10/2026) le
 LISENT et ne le modifient jamais. Il tient trois choses, et rien d'autre :
 
   1. LA RÈGLE DE GÉOMÉTRIE, unique. Aucun module ne recalcule un pixel à
@@ -82,7 +83,7 @@ __all__ = [
 # du partitionnement était juste ; c'était la liste qui avait du retard.
 # Ajouter une pièce au rail SANS l'ajouter ici ne casse rien : ça efface.
 MODULE_IDS = ("face", "frame", "type", "data", "solid", "texture",
-              "print", "gltf", "forge3d", "capture")
+              "print", "gltf", "forge3d", "capture", "edition")
 
 DID_RE = re.compile(r"^deck_[0-9a-f]{8}$")
 

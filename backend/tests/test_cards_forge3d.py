@@ -374,7 +374,7 @@ def test_le_core_connait_la_piece_forge3d():
     # en dernier). Le compte exact et l'ordre complet des dix sont épinglés
     # chez le CORE (test_cards_core.py, la coquille des dix pièces) ; ici on
     # tient le rang de LA pièce, pas la liste entière une seconde fois.
-    assert ids.index("forge3d") == 8 and len(ids) == 10 and ids[-1] == "capture", ids
+    assert ids.index("forge3d") == 8 and len(ids) == 11 and ids[9] == "capture" and ids[-1] == "edition", ids   # P11 depuis #84
 
 
 CORE = ROOT / "frontend" / "cardforge" / "js" / "core.js"
