@@ -26,9 +26,9 @@ r0 = subprocess.run(["git", "show", f"{BASE}:frontend/dist/assets/index-BEOJX8L5
 check("T1 temoin : la base a la fiche mais ni corbeille ni nettoyage a l'ecran ; ses Delete disent « Delete »",
       r0.returncode == 0 and b"DzFiche" in r0.stdout and b"DzCorbeille" not in r0.stdout and 'confirmer("Delete cette image ?")'.encode() in r0.stdout)
 check("T2 la barre Corbeille / Nettoyage suit la barre des projets ; les trois Delete disent la corbeille ; la grille porte teinte et couleur",
-      BUN.count("r.jsx(DzProjetsBar,{f:dzPF,setF:dzPFs}),r.jsx(DzOutilsBiblio,{}),__dzSrcChips(o,T,dzSF,dzSFs)") == 1
+      BUN.count("r.jsx(DzProjetsBar,{f:dzPF,setF:dzPFs}),r.jsx(DzOutilsBiblio,{vue:dzVue,setVue:dzVues}),__dzSrcChips(o,T,dzSF,dzSFs)") == 1
       and BUN.count("à la corbeille ? (restaurable depuis la Corbeille de la Bibliothèque)") == 3 and "Delete cette image ?" not in BUN and "Delete ce son ?" not in BUN
-      and BUN.count('fav:!!S.fav,teinte:S.teinte||"",couleur:S.couleur||""}));') == 1)
+      and BUN.count('fav:!!S.fav,teinte:S.teinte||"",couleur:S.couleur||"",') == 1)
 
 
 def fonction(nom):
@@ -57,7 +57,8 @@ check("T3 la couche livree a ses fonctions (une fois chacune)", all(BUN.count("f
 
 HARNAIS = r"""
 var H=[],hi=0,EFF=[],FETCH=[],REP={},DIAL=[],DREP=true;
-var x={useState:function(v){var i=hi++;if(!(i in H))H[i]=v;return [H[i],function(n){H[i]=n}]},useEffect:function(f){EFF.push(f)}};
+var x={useState:function(v){var i=hi++;if(!(i in H))H[i]=v;return [H[i],function(n){H[i]=n}]},useEffect:function(f){EFF.push(f)},
+  useRef:function(v){var i=hi++;if(!(i in H))H[i]={current:v};return H[i]}};
 function el(t,p){return {t:t,p:p||{}}}var r={jsx:el,jsxs:el,Fragment:"frag"};var K="K";
 var window={__dzDialogue:{confirmer:async function(m,o){DIAL.push([m,o]);return DREP}}};
 async function fetch(u,o){var m=o&&o.method||"GET";FETCH.push([u,m,o&&o.body?JSON.parse(o.body):null]);var q=REP[m+" "+u];

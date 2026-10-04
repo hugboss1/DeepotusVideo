@@ -8179,12 +8179,15 @@ R_P9LIB1 = ('function __dzFavGet(){return Object.keys(DZ_FAV.r).filter(function(
 # P9lib2 : l'etat du filtre (tag, note minimale) de la Bibliotheque.
 A_P9LIB2 = '[dzSF,dzSFs]=x.useState(""),[dzEta,dzEtas]=x.useState([]),'   # APRES l'etat de l'Etabli : test_etabli_canevas fige ce texte
 R_P9LIB2 = A_P9LIB2 + '[dzMF,dzMFs]=x.useState({tag:"",note:0}),[dzPF,dzPFs]=x.useState(null),'   # + #78 PR B : le projet regarde (replie ici, meme ancre)
+R_P9LIB2 += '[dzVue,dzVues]=x.useState(dzVueLue()),'   # + #82 PR B : grille ou liste (memorisee dans le navigateur)
 # P9lib3 : la liste des images porte tags/note/favori ; le cache est seme par les deux listes DEJA chargees (sondage de
 # 8 s), et la reprise unique des favoris du navigateur part de la.
 A_P9LIB3 = 'srcOrigin:S.source_origin||""}));d(W),f(R||[]),'
 R_P9LIB3 = ('srcOrigin:S.source_origin||"",tags:S.tags||[],note:S.note||0,fav:!!S.fav,'
             # tache #81 PR C : la couleur dominante voyage avec l'image (puce Teinte)
-            'teinte:S.teinte||"",couleur:S.couleur||""}));'
+            'teinte:S.teinte||"",couleur:S.couleur||"",'
+            # tache #82 PR B : le brut pour les tris et la liste (octets, date, dimensions, licence)
+            'octets:S.size_kb!=null?S.size_kb*1024:null,mtime:S.mtime||0,larg:S.width||null,haut:S.height||null,licence:S.licence||""}));'
             'dzFavSemer("i",ne&&ne.images,"filename"),dzFavSemer("r",R,"job_id"),dzFavMigrer(),d(W),f(R||[]),')
 # P9lib4 : le filtre entre DANS Lfs -- il s'applique donc aussi au repli de demo vo[o] (vide des qu'un filtre est actif).
 A_P9LIB4 = 'const Lfs=(L)=>{'
@@ -8244,7 +8247,7 @@ A_P9LIB11 = 'r.jsxs("div",{className:"scroll",style:{flex:1,overflowY:"auto",pad
 R_P9LIB11 = ('r.jsxs("div",{className:"scroll",style:{flex:1,overflowY:"auto",padding:18},children:['
              'r.jsx(DzProjetsBar,{f:dzPF,setF:dzPFs}),'
              # tache #81 PR C : la barre Corbeille / Nettoyage et leurs panneaux
-             'r.jsx(DzOutilsBiblio,{}),'
+             'r.jsx(DzOutilsBiblio,{vue:dzVue,setVue:dzVues}),'
              '__dzSrcChips(o,T,dzSF,dzSFs)')
 # P9lib12 : « Envoyer vers » propose le projet pour TOUT asset (son aussi), avant le « aucune cible ».
 A_P9LIB12 = 'if(!items.length){__dzToast("Aucune cible pour cet asset");return}'
@@ -8308,6 +8311,17 @@ P1 += [("P9cl2-dialogue-rendu-corbeille", A_P9CL2, R_P9CL2),
        ("P9cl3-dialogue-son-corbeille", A_P9CL3, R_P9CL3),
        ("P9cl4-dialogue-image-corbeille", A_P9CL4, R_P9CL4)]
 assert len(P1) == 139 and all("\n" not in r for _t, _a, r in P1[-3:])
+
+# P9li1..2 (tache #82 PR B, 04/10/2026) -- la LISTE triable et les tris REPARES. Ancres AMONT (1 sur .bak_montage).
+# P9li1 : la grille des cartes devient une liste quand la bascule le dit (y = ouvrir la fiche, comme la carte).
+A_P9LI1 = 'r.jsx("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(180px, 1fr))",gap:14},children:q.map('
+R_P9LI1 = 'dzVue==="liste"?r.jsx(DzListe,{items:q,ouvrir:function(C){C.url&&y(C)}}):' + A_P9LI1
+# P9li2 : « Size » comparait des chaines formatees ; « Most recent » ne triait rien.
+A_P9LI2 = 'else if(Lsort==="size")a2.sort((p,q2)=>(parseFloat(q2&&q2.size)||0)-(parseFloat(p&&p.size)||0));return a2;'
+R_P9LI2 = 'else if(Lsort==="size")a2.sort(dzCmpTaille);else if(Lsort==="recent")a2.sort(dzCmpRecent);return a2;'
+P1 += [("P9li1-liste-triable", A_P9LI1, R_P9LI1),
+       ("P9li2-tris-taille-et-recent", A_P9LI2, R_P9LI2)]
+assert len(P1) == 141 and all("\n" not in r for _t, _a, r in P1[-2:])
 
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),

@@ -10150,7 +10150,7 @@ function dzFicheLignes(f){if(!f)return null;var x2=f.fichier||{},rc=f.recette,o=
   o.usages=(f.usages||[]).map(function(u){return(noms[u.type]||u.type)+" « "+u.libelle+" »"+(u.role?" ("+u.role+")":"")});
   return o}
 function DzFiche({m,lister}){var fs=x.useState(null),f=fs[0],setF=fs[1],es=x.useState(null),ed=es[0],setEd=es[1],
-    ms=x.useState(""),msg=ms[0],setMsg=ms[1],vs=x.useState(!1),vol=vs[0],setVol=vs[1];
+    ms=x.useState(""),msg=ms[0],setMsg=ms[1],vs=x.useState(!1),vol=vs[0],setVol=vs[1],verrou=x.useRef(!1);
   var nom=m&&!m.jobId&&(m.kind==="image"||m.kind==="audio"||m.audioFile)?m.name:null;
   function charger(){if(!nom)return;fetch("/api/library/fiche/"+encodeURIComponent(nom)).then(function(R){return R.ok?R.json():null})
     .then(function(d){setF(d);setEd(d?{licence:d.droits.licence||"",auteur:d.droits.auteur||"",source_url:d.droits.source_url||""}:null)})
@@ -10162,7 +10162,7 @@ function DzFiche({m,lister}){var fs=x.useState(null),f=fs[0],setF=fs[1],es=x.use
       body:JSON.stringify({licence:ed.licence.trim(),auteur:ed.auteur.trim(),source_url:ed.source_url.trim()})})
     .then(function(R){return R.json().catch(function(){return{}}).then(function(d){if(!R.ok)throw new Error(d.detail||("HTTP "+R.status));return d})})
     .then(function(){setMsg("Droits enregistrés.");charger()}).catch(function(e){setMsg("Non enregistré : "+String(e&&e.message||e))})}
-  async function rejouer(){if(vol||!f.rejouer)return;setVol(!0);try{
+  async function rejouer(){if(verrou.current||!f.rejouer)return;verrou.current=!0;setVol(!0);try{
       var prix=f.rejouer.usd!=null?"≈ "+Number(f.rejouer.usd).toFixed(3)+" $":"prix inconnu";
       var ok=await window.__dzDialogue.confirmer("Relancer cette recette fait UNE nouvelle image, payante ("+prix+", plafond de dépense appliqué). La graine est gardée : avec le même modèle, l’image devrait être la même.",
         {titre:"Rejouer la recette",ok:"Rejouer ("+prix+")"});
@@ -10171,7 +10171,7 @@ function DzFiche({m,lister}){var fs=x.useState(null),f=fs[0],setF=fs[1],es=x.use
       var d=await R.json().catch(function(){return{}});
       if(!R.ok){setMsg("Refusé : "+String(d.detail||("HTTP "+R.status)));return}
       var im=(d.images||[])[0];setMsg(im?"Nouvelle image : "+im+" (dans Images).":"Aucune image rendue.");if(im&&lister)lister(im)}
-    finally{setVol(!1)}}
+    finally{verrou.current=!1;setVol(!1)}}
   function champ(lbl,cle,ph,liste){return r.jsxs("label",{style:{display:"flex",alignItems:"center",gap:6,fontSize:11,color:"var(--ink-muted)"},children:[lbl,
     r.jsx("input",{value:ed[cle],placeholder:ph,list:liste,onChange:function(e){var n2=Object.assign({},ed);n2[cle]=e.target.value;setEd(n2)},
       style:{width:cle==="source_url"?220:140,height:24,padding:"0 8px",fontSize:11.5,background:"var(--bg-base)",color:"var(--ink-strong)",
@@ -10213,18 +10213,18 @@ function dzCorbVue(d){if(!d)return null;var el=d.elements||[];
   return{n:el.length,octets:d.octets||0,anciens:el.filter(function(e){return e.ancien}).map(function(e){return e.id}),jours:d.jours||30,
     lignes:el.map(function(e){return{id:e.id,type:e.type,nom:e.nom,quand:dzDuree(e.jete_le),octets:e.octets||0,ancien:!!e.ancien,
       restaurable:e.restaurable!==!1}})}}
-function DzCorbeille(){var ds=x.useState(null),d=ds[0],setD=ds[1],ms=x.useState(""),msg=ms[0],setMsg=ms[1],vs=x.useState(!1),vol=vs[0],setVol=vs[1];
+function DzCorbeille(){var ds=x.useState(null),d=ds[0],setD=ds[1],ms=x.useState(""),msg=ms[0],setMsg=ms[1],vs=x.useState(!1),vol=vs[0],setVol=vs[1],verrou=x.useRef(!1);
   function charger(){return fetch("/api/library/corbeille").then(function(R){return R.ok?R.json():null}).then(function(j){setD(j)}).catch(function(){})}
   x.useEffect(function(){charger()},[]);
   async function poster(url,corps){var R=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(corps)});
     var j=await R.json().catch(function(){return{}});if(!R.ok)throw new Error(j.detail||("HTTP "+R.status));return j}
-  async function restaurer(l){if(vol)return;setVol(!0);setMsg("");try{var j=await poster("/api/library/corbeille/restaurer",{id:l.id});
+  async function restaurer(l){if(verrou.current)return;verrou.current=!0;setVol(!0);setMsg("");try{var j=await poster("/api/library/corbeille/restaurer",{id:l.id});
       setMsg("« "+l.nom+" » restauré"+(j.renomme?" sous le nom « "+j.restaure+" » (le sien était repris)":"")+".");await charger()}
-    catch(e){setMsg("Non restauré : "+String(e&&e.message||e))}finally{setVol(!1)}}
-  async function vider(ids,texte){if(vol)return;setVol(!0);setMsg("");try{
+    catch(e){setMsg("Non restauré : "+String(e&&e.message||e))}finally{verrou.current=!1;setVol(!1)}}
+  async function vider(ids,texte){if(verrou.current)return;verrou.current=!0;setVol(!0);setMsg("");try{
       if(!await window.__dzDialogue.confirmer(texte+" C’est DÉFINITIF : rien ne pourra plus être restauré.",{titre:"Vider la corbeille",ok:"Effacer définitivement"}))return;
       var j=await poster("/api/library/corbeille/vider",ids?{ids:ids}:{tout:!0});setMsg(j.vides+" élément"+(j.vides>1?"s":"")+" effacé"+(j.vides>1?"s":"")+" ("+dzOctets(j.octets)+").");await charger()}
-    catch(e){setMsg("Non vidé : "+String(e&&e.message||e))}finally{setVol(!1)}}
+    catch(e){setMsg("Non vidé : "+String(e&&e.message||e))}finally{verrou.current=!1;setVol(!1)}}
   var v=dzCorbVue(d);if(!v)return r.jsx("div",{style:{fontSize:12,color:"var(--ink-muted)"},children:"Corbeille…"});
   var icone={image:"🖼",son:"🔊",rendu:"🎬",illisible:"⚠"};
   return r.jsxs("div",{className:"dz-corbeille","data-dz":"corbeille",style:{display:"flex",flexDirection:"column",gap:8,marginBottom:14},children:[
@@ -10254,15 +10254,15 @@ function dzNettAuto(d){var c={};(d&&d.doublons||[]).forEach(function(g){var fs=g
     var garde=fs.filter(function(f){return f.protege})[0]||fs.filter(function(f){return f.garder})[0]||fs[0];
     fs.forEach(function(f){if(f!==garde&&!f.protege)c[f.filename]=!0})});return c}
 function DzNettoyage(){var ds=x.useState(null),d=ds[0],setD=ds[1],cs=x.useState({}),co=cs[0],setCo=cs[1],ms=x.useState(""),msg=ms[0],setMsg=ms[1],
-    vs=x.useState(!1),vol=vs[0],setVol=vs[1];
+    vs=x.useState(!1),vol=vs[0],setVol=vs[1],verrou=x.useRef(!1);
   function charger(){setMsg("Analyse…");return fetch("/api/library/nettoyage").then(function(R){return R.ok?R.json():null})
     .then(function(j){setD(j);setCo({});setMsg("")}).catch(function(){setMsg("Analyse impossible.")})}
   x.useEffect(function(){charger()},[]);
-  async function jeter(v){if(vol||!v.choisis.length||v.bloque)return;setVol(!0);try{
+  async function jeter(v){if(verrou.current||!v.choisis.length||v.bloque)return;verrou.current=!0;setVol(!0);try{
       if(!await window.__dzDialogue.confirmer("Mettre "+v.choisis.length+" copie(s) à la corbeille ? Elles restent restaurables depuis la Corbeille de la Bibliothèque.",{titre:"Doublons",ok:"Mettre à la corbeille"}))return;
       var R=await fetch("/api/library/nettoyage/jeter",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({fichiers:v.choisis})});
       var j=await R.json().catch(function(){return{}});if(!R.ok){setMsg("Refusé : "+String(j.detail||("HTTP "+R.status)));return}
-      await charger();setMsg((j.jetes||[]).length+" copie(s) à la corbeille.")}finally{setVol(!1)}}
+      await charger();setMsg((j.jetes||[]).length+" copie(s) à la corbeille.")}finally{verrou.current=!1;setVol(!1)}}
   var v=dzNettVue(d,co);if(!v)return r.jsx("div",{style:{fontSize:12,color:"var(--ink-muted)"},children:msg||"Analyse…"});
   var P=v.poids,sortes=[["images","Images"],["sons","Sons"],["rendus","Rendus"],["corbeille","Corbeille"]];
   return r.jsxs("div",{className:"dz-nettoyage","data-dz":"nettoyage",style:{display:"flex",flexDirection:"column",gap:8,marginBottom:14},children:[
@@ -10284,13 +10284,19 @@ function DzNettoyage(){var ds=x.useState(null),d=ds[0],setD=ds[1],cs=x.useState(
         r.jsx("img",{src:"/api/images/"+encodeURIComponent(f.nom),alt:"",style:{width:28,height:28,objectFit:"cover",borderRadius:3}}),
         r.jsx("span",{style:{flex:1},children:f.nom}),
         f.protege?r.jsx("span",{style:{fontSize:10.5},children:"protégée"}):f.garder?r.jsx("span",{style:{fontSize:10.5,color:"var(--green)"},children:"à garder"}):null]},f.nom)})]},g.sha)})]})}
-function DzOutilsBiblio(){var vs=x.useState(""),vue=vs[0],setVue=vs[1];
+function DzOutilsBiblio(P){var vs=x.useState(""),vue=vs[0],setVue=vs[1],aff=(P&&P.vue)||"grille";
   function bouton(cle,lbl,titre){var on=vue===cle;return r.jsx("button",{type:"button","aria-pressed":on,title:titre,onClick:function(){setVue(on?"":cle)},
     style:{height:24,padding:"0 10px",fontSize:11.5,borderRadius:6,cursor:"pointer",border:"1px solid "+(on?"var(--amber,#f0b429)":"var(--stroke)"),
       background:on?"var(--bg-panel-2)":"transparent",color:on?"var(--ink-strong)":"var(--ink-soft)"},children:lbl},cle)}
   return r.jsxs("div",{"data-dz":"outils-biblio",style:{display:"flex",flexDirection:"column",gap:8,marginBottom:vue?4:10},children:[
-    r.jsxs("div",{style:{display:"flex",gap:6},children:[bouton("corbeille","🗑 Corbeille","Ce qui a été jeté : restaurer, ou effacer définitivement"),
-      bouton("nettoyage","🧹 Nettoyage","Poids par sorte et doublons exacts à mettre à la corbeille")]}),
+    r.jsxs("div",{style:{display:"flex",gap:6,flexWrap:"wrap"},children:[bouton("corbeille","🗑 Corbeille","Ce qui a été jeté : restaurer, ou effacer définitivement"),
+      bouton("nettoyage","🧹 Nettoyage","Poids par sorte et doublons exacts à mettre à la corbeille"),
+      /* tâche #82 : la bascule grille / liste (mémorisée dans ce navigateur) */
+      P&&P.setVue?r.jsx("span",{style:{width:1,height:18,background:"var(--stroke)",margin:"3px 4px"}}):null,
+      ...(P&&P.setVue?[["grille","▦ Grille","Afficher en vignettes"],["liste","☰ Liste","Afficher en liste triable (nom, source, taille, date, dimensions, tags, note, favori, licence, teinte)"]].map(function(b){
+        var on=aff===b[0];return r.jsx("button",{type:"button","aria-pressed":on,title:b[2],onClick:function(){P.setVue(b[0]);dzVueEcrite(b[0])},
+          style:{height:24,padding:"0 10px",fontSize:11.5,borderRadius:6,cursor:"pointer",border:"1px solid "+(on?"var(--amber,#f0b429)":"var(--stroke)"),
+            background:on?"var(--bg-panel-2)":"transparent",color:on?"var(--ink-strong)":"var(--ink-soft)"},children:b[1]},b[0])}):[])]}),
     vue==="corbeille"?r.jsx(DzCorbeille,{}):vue==="nettoyage"?r.jsx(DzNettoyage,{}):null]})}
 /* ── fin Bibliothèque #81 */
 /* ── Bibliothèque #82 PR A (plan-library T14, 04/10/2026) — les COMMENTAIRES de revue, sous la fiche.
@@ -10338,6 +10344,53 @@ function DzCommentaires({m}){var ls=x.useState(null),L=ls[0],setL=ls[1],ts=x.use
       r.jsx(K,{variant:"ghost",size:"sm",onClick:ajouter,disabled:vol||!txt.trim(),title:"Ajouter ce commentaire (statut « à revoir »)",children:"Commenter"})]}),
     msg?r.jsx("span",{style:{fontSize:10.5,color:"var(--red)"},children:msg}):null]})}
 /* ── fin Bibliothèque #82 A */
+/* ── Bibliothèque #82 PR B (plan-library T15 + décision du 04/10) — la LISTE triable, les tris RÉPARÉS, l’ÉTAT d’un projet.
+   Décision de l’utilisateur (04/10) : « les deux » — une vue en liste des assets (bascule grille / liste, colonnes
+   triables) ET l’état du projet regardé (monté / publié / imprimé / inutilisé, serveur GET /library/projets/<id>/etat).
+   Trouvés en route : le tri « Most recent » ne triait RIEN, et « Size » comparait des chaînes formatées (« 512.0 KB »
+   passait avant « 2.4 MB ») — la liste porte désormais octets et date bruts (P9lib3). */
+function dzOctetsDe(z){if(z&&typeof z.octets==="number")return z.octets;var m=/^([\d.]+)\s*(B|KB|MB|GB|o|Ko|Mo|Go)$/i.exec(String(z&&z.size||"").trim());
+  if(!m)return 0;var u=m[2].toUpperCase().replace("O","B");return Number(m[1])*(u==="GB"?1073741824:u==="MB"?1048576:u==="KB"?1024:1)}
+function dzCmpTaille(a,b){return dzOctetsDe(b)-dzOctetsDe(a)}
+function dzCmpRecent(a,b){return(Number(b&&b.mtime)||0)-(Number(a&&a.mtime)||0)}
+var DZ_LISTE_COLS=[["nom","Nom"],["source","Source"],["octets","Taille"],["mtime","Date"],["dims","Dimensions"],["tags","Tags"],["note","Note"],["fav","Favori"],["licence","Licence"],["teinte","Teinte"]];
+function dzListeVal(z,c){if(!z)return"";if(c==="nom")return String(z.name||"").toLowerCase();if(c==="octets")return dzOctetsDe(z);if(c==="mtime")return Number(z.mtime)||0;
+  if(c==="dims")return(Number(z.larg)||0)*(Number(z.haut)||0);if(c==="tags")return(z.tags||[]).join(" ");if(c==="note")return Number(z.note)||0;if(c==="fav")return z.fav?1:0;
+  return String(z[c]||"")}
+function dzListeTri(L,t){if(!t||!t.col)return L||[];var s=t.desc?-1:1;return(L||[]).slice().sort(function(a,b){var x2=dzListeVal(a,t.col),y=dzListeVal(b,t.col);
+  return(x2<y?-1:x2>y?1:0)*s})}
+function DzListe({items,ouvrir}){var ts=x.useState({col:"",desc:!1}),tri=ts[0],setTri=ts[1];
+  var L=dzListeTri(items,tri);
+  function entete(c){var on=tri.col===c[0];return r.jsx("th",{title:"Trier par "+c[1].toLowerCase()+(on?(tri.desc?" (décroissant)":" (croissant)"):""),
+    onClick:function(){setTri({col:c[0],desc:on?!tri.desc:c[0]==="octets"||c[0]==="mtime"||c[0]==="note"||c[0]==="fav"})},
+    style:{textAlign:"left",padding:"4px 8px",fontSize:11,fontWeight:500,cursor:"pointer",color:on?"var(--ink-strong)":"var(--ink-muted)",whiteSpace:"nowrap"},
+    children:c[1]+(on?(tri.desc?" ▾":" ▴"):"")},c[0])}
+  function cell(v,k){return r.jsx("td",{style:{padding:"4px 8px",fontSize:11.5,color:"var(--ink-soft)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:220},children:v},k)}
+  return r.jsx("div",{"data-dz":"liste",style:{overflowX:"auto"},children:r.jsxs("table",{style:{width:"100%",borderCollapse:"collapse"},children:[
+    r.jsx("thead",{children:r.jsxs("tr",{children:[r.jsx("th",{style:{width:40}},"apercu"),...DZ_LISTE_COLS.map(entete)]})}),
+    r.jsx("tbody",{children:L.map(function(z,i){return r.jsxs("tr",{onClick:function(){ouvrir(z)},title:"Ouvrir la fiche de « "+z.name+" »",
+      style:{cursor:z.url?"pointer":"default",borderTop:"1px solid var(--stroke)"},children:[
+      r.jsx("td",{style:{padding:"3px 8px"},children:z.kind==="image"&&z.url?r.jsx("img",{src:z.url,alt:"",style:{width:32,height:32,objectFit:"cover",borderRadius:3}}):r.jsx("span",{children:z.kind==="audio"?"🔊":z.kind==="render"?"🎬":"·"})},"a"),
+      cell(z.name,"n"),cell(z.source||z.provider||"","s"),cell(z.octets!=null?dzOctets(z.octets):(z.size||""),"t"),cell(z.date||"","d"),
+      cell(z.larg&&z.haut?z.larg+" × "+z.haut:"","x"),cell((z.tags||[]).map(function(g){return"#"+g}).join(" "),"g"),
+      cell(z.note?"●".repeat(Math.min(5,z.note)):"","o"),cell(z.fav?"★":"","f"),cell(z.licence||"","l"),
+      cell(z.teinte?r.jsxs("span",{children:[r.jsx("span",{style:{display:"inline-block",width:9,height:9,borderRadius:5,marginRight:5,background:z.couleur||"var(--ink-muted)"}}),z.teinte]}):"","e")]},z.name+"_"+i)})})]})})}
+function DzEtatProjet({pid}){var es=x.useState(null),e=es[0],setE=es[1],ms=x.useState(""),msg=ms[0],setMsg=ms[1];
+  x.useEffect(function(){setE(null);setMsg("");if(!pid)return;fetch("/api/library/projets/"+encodeURIComponent(pid)+"/etat")
+    .then(function(R){return R.ok?R.json():Promise.reject(new Error("HTTP "+R.status))}).then(setE).catch(function(err){setMsg("État indisponible : "+String(err&&err.message||err))})},[pid]);
+  if(msg)return r.jsx("span",{style:{fontSize:11,color:"var(--red)",flexBasis:"100%"},children:msg});
+  if(!e)return r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)",flexBasis:"100%"},children:"État…"});
+  var cols=[["monte","Monté","Un rendu terminé l’utilise, ou c’est un rendu terminé"],["publie","Publié","Un post publié l’utilise"],
+    ["imprime","Imprimé","Il a nourri une production 3D de l’atelier (version imprimable)"],["inutilise","Inutilisé","Rien de ce qui précède : à monter, publier ou ranger"]];
+  return r.jsx("div",{"data-dz":"etat-projet",style:{flexBasis:"100%",display:"grid",gridTemplateColumns:"repeat(4, minmax(0, 1fr))",gap:8,marginTop:4},
+    children:cols.map(function(c){var l=e[c[0]]||[];return r.jsxs("div",{title:c[2],style:{border:"1px solid var(--stroke)",borderRadius:6,padding:"6px 8px",minWidth:0},children:[
+      r.jsx("div",{style:{fontSize:11,color:"var(--ink-muted)",marginBottom:4},children:c[1]+" ("+l.length+")"}),
+      ...l.slice(0,12).map(function(z){return r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"},
+        children:(z.kind==="render"?"🎬 ":z.kind==="audio"?"🔊 ":"")+z.ref},z.ref)}),
+      l.length>12?r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-muted)"},children:"… et "+(l.length-12)+" autre(s)"}):null]},c[0])})})}
+function dzVueLue(){try{return localStorage.getItem("dz_biblio_vue")==="liste"?"liste":"grille"}catch(e){return"grille"}}
+function dzVueEcrite(v){try{localStorage.setItem("dz_biblio_vue",v)}catch(e){}}
+/* ── fin Bibliothèque #82 B */
 /* ── Bibliothèque #78 PR B (plan-library T4, 03/10/2026) — les PROJETS à l'écran.
    Un projet contient des assets de toutes catégories (serveur : library_projects, PR A #144). Ici :
    - la barre « Projet » en tête du contenu : REGARDER un projet filtre TOUS les onglets (dzPF, appliqué dans Lfs) ;
@@ -10378,7 +10431,8 @@ function dzProjMenu(m){var ref=dzProjCle(m),kind=dzProjKind(m),nom=(m&&m.name)||
         .catch(function(e){dzToastSur("Projet : "+dzProjMsg(e))})}});
     __dzSendMenu(items,"Ranger « "+nom+" » dans un projet…")}).catch(function(e){dzToastSur("Projets injoignables : "+dzProjMsg(e))})}
 function DzProjetsBar({f,setF}){
-  var ls=x.useState([]),liste=ls[0],setListe=ls[1],as=x.useState({id:""}),actif=as[0],setActif=as[1],ms=x.useState(""),msg=ms[0],setMsg=ms[1];
+  var ls=x.useState([]),liste=ls[0],setListe=ls[1],as=x.useState({id:""}),actif=as[0],setActif=as[1],ms=x.useState(""),msg=ms[0],setMsg=ms[1],
+    es=x.useState(!1),etatOn=es[0],setEtatOn=es[1];
   function recharger(){dzProjApi("/api/library/projets").then(function(d){setListe(d.projets||[])}).catch(function(){});
     dzProjApi("/api/library/projets/actif").then(function(d){setActif(d||{id:""})}).catch(function(){});
     if(f&&f.id)dzProjCharger(f.id).then(setF).catch(function(){setF(null)})}
@@ -10410,6 +10464,7 @@ function DzProjetsBar({f,setF}){
     ch.push(bouton("✎ Renommer","Renommer ce projet",function(){window.__dzDialogue.saisir("Nouveau nom du projet :",{titre:"Renommer",valeur:f.nom,ok:"Renommer"})
       .then(function(v){if(v&&String(v).trim()&&v!==f.nom)return agir(dzProjApi("/api/library/projets/"+encodeURIComponent(f.id),
         {method:"PATCH",headers:DZ_PJ_JSON,body:JSON.stringify({nom:v})}))})}));
+    ch.push(bouton("▦ État","Ce qui, dans ce projet, est monté, publié, imprimé — ou inutilisé",function(){setEtatOn(!etatOn)},etatOn));   /* tâche #82 */
     ch.push(bouton("Supprimer","Supprimer le projet (ses fichiers et rendus restent dans la Bibliothèque)",function(){
       window.__dzDialogue.confirmer("Supprimer le projet « "+f.nom+" » ? Ses "+f.n+" asset(s) restent dans la Bibliothèque ; seul le classement disparaît.")
         .then(function(oui){if(oui)return agir(dzProjApi("/api/library/projets/"+encodeURIComponent(f.id),{method:"DELETE"}).then(function(){setF(null)}))})}));}
@@ -10419,6 +10474,7 @@ function DzProjetsBar({f,setF}){
     r.jsx("button",{type:"button",title:"Arrêter le rangement automatique",onClick:function(){agir(dzProjApi("/api/library/projets/actif",
       {method:"PUT",headers:DZ_PJ_JSON,body:JSON.stringify({id:""})}))},style:{background:"none",border:0,cursor:"pointer",color:"var(--ink-muted)",fontSize:11},children:"✕"})]}));
   if(msg)ch.push(r.jsx("span",{style:{fontSize:10.5,color:"var(--red)",flexBasis:"100%"},children:msg}));
+  if(f&&f.id&&etatOn)ch.push(r.jsx(DzEtatProjet,{pid:f.id},"etat"));
   return r.jsx("div",{"data-dz":"projets",style:{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",marginBottom:12},children:ch})}
 /* ── fin Bibliothèque #78 */
 

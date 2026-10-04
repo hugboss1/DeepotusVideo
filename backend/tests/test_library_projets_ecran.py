@@ -44,7 +44,7 @@ check("B2 l'etat du projet regarde est REPLIE dans P9lib2 (meme ancre, meme sect
 check("B3 le filtre du projet entre DANS Lfs, replie dans P9lib4 : il vaut pour TOUS les onglets (et le repli de demo)",
       s.count('const Lfs=(L)=>{L=(o==="Images"||o==="Favoris")?dzMetaFiltre(L,dzMF):L;L=dzProjFiltre(L,dzPF);') == 1)
 check("B4 la barre « Projet » ouvre le contenu de la Bibliotheque, avant les chips de provenance",
-      s.count('children:[r.jsx(DzProjetsBar,{f:dzPF,setF:dzPFs}),r.jsx(DzOutilsBiblio,{}),__dzSrcChips(o,T,dzSF,dzSFs)') == 1)   # #81 PR C : la barre Corbeille / Nettoyage suit
+      s.count('children:[r.jsx(DzProjetsBar,{f:dzPF,setF:dzPFs}),r.jsx(DzOutilsBiblio,{vue:dzVue,setVue:dzVues}),__dzSrcChips(o,T,dzSF,dzSFs)') == 1)   # #81 PR C : la barre Corbeille / Nettoyage suit
 check("B5 « Envoyer vers » propose le projet pour TOUT asset (avant le « aucune cible »)",
       s.count('items.push({lbl:"📁 Projet de la Bibliothèque…",fn:function(){dzProjMenu(m)}});'
               'if(!items.length){__dzToast("Aucune cible pour cet asset");return}') == 1)

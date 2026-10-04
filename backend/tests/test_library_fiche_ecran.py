@@ -58,7 +58,8 @@ GOMO = fonction("go") + "\n" + fonction("mo")
 
 HARNAIS = r"""
 var H=[],hi=0,EFF=[],FETCH=[],REP={},DIAL=[],DREP=true,LISTE=[];
-var x={useState:function(v){var i=hi++;if(!(i in H))H[i]=v;return [H[i],function(n){H[i]=n}]},useEffect:function(f){EFF.push(f)}};
+var x={useState:function(v){var i=hi++;if(!(i in H))H[i]=v;return [H[i],function(n){H[i]=n}]},useEffect:function(f){EFF.push(f)},
+  useRef:function(v){var i=hi++;if(!(i in H))H[i]={current:v};return H[i]}};
 function el(t,p){return {t:t,p:p||{}}}var r={jsx:el,jsxs:el,Fragment:"frag"};var K="K";
 var window={__dzDialogue:{confirmer:async function(m,o){DIAL.push([m,o]);return DREP}}};
 async function fetch(u,o){FETCH.push([u,o&&o.method||"GET",o&&o.body?JSON.parse(o.body):null]);var q=REP[(o&&o.method||"GET")+" "+u];

@@ -3165,6 +3165,16 @@ async def library_poser_projet_actif(request: Request):
         raise HTTPException(404, f"Projet inconnu : {e.args[0]}")
 
 
+@router.get("/library/projets/{pid}/etat")
+async def library_projet_etat(pid: str):
+    """Tâche #82 (plan-library T15) : monté / publié / imprimé / inutilisé d'un projet (lecture seule). 404 inconnu."""
+    from app.services import library_projects as LP
+    try:
+        return await LP.etat(pid)
+    except KeyError:
+        raise HTTPException(404, "Projet inconnu")
+
+
 @router.get("/library/projets/{pid}")
 async def library_contenu_projet(pid: str):
     from app.services import library_projects as LP
