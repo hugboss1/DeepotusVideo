@@ -26,7 +26,7 @@ r0 = subprocess.run(["git", "show", f"{BASE}:frontend/dist/assets/index-BEOJX8L5
 check("T1 temoin : la base a la fiche mais ni corbeille ni nettoyage a l'ecran ; ses Delete disent « Delete »",
       r0.returncode == 0 and b"DzFiche" in r0.stdout and b"DzCorbeille" not in r0.stdout and 'confirmer("Delete cette image ?")'.encode() in r0.stdout)
 check("T2 la barre Corbeille / Nettoyage suit la barre des projets ; les trois Delete disent la corbeille ; la grille porte teinte et couleur",
-      BUN.count("r.jsx(DzProjetsBar,{f:dzPF,setF:dzPFs}),r.jsx(DzOutilsBiblio,{vue:dzVue,setVue:dzVues}),__dzSrcChips(o,T,dzSF,dzSFs)") == 1
+      BUN.count("r.jsx(DzProjetsBar,{f:dzPF,setF:dzPFs}),r.jsx(DzOutilsBiblio,{vue:dzVue,setVue:dzVues,liste:l,ouvrir:y}),__dzSrcChips(o,T,dzSF,dzSFs)") == 1
       and BUN.count("à la corbeille ? (restaurable depuis la Corbeille de la Bibliothèque)") == 3 and "Delete cette image ?" not in BUN and "Delete ce son ?" not in BUN
       and BUN.count('fav:!!S.fav,teinte:S.teinte||"",couleur:S.couleur||"",') == 1)
 
@@ -179,8 +179,8 @@ R.sansTeinte=DzMetaChips({o:"Images",T:{Images:[{name:"z"}]},f:{tag:"",note:0},s
 """)
 check("O0 sous node : la barre et la teinte s'executent", R is not None)
 if R:
-    check("O1 la barre : deux boutons (title) ; un clic OUVRE le panneau, l'autre bouton bascule, un second clic FERME",
-          [b[0] for b in R["bt"]] == ["🗑 Corbeille", "🧹 Nettoyage"] and all(b[1] for b in R["bt"]) and R["ouvert"] == 1 and R["nett"] == 1 and R["ferme"] == 0, str(R["bt"]))
+    check("O1 la barre : ses boutons (title) ; un clic OUVRE le panneau, l'autre bouton bascule, un second clic FERME",
+          [b[0] for b in R["bt"]] == ["🗑 Corbeille", "🧹 Nettoyage", "🔎 Recherche"] and all(b[1] for b in R["bt"]) and R["ouvert"] == 1 and R["nett"] == 1 and R["ferme"] == 0, str(R["bt"]))
     check("O2 la TEINTE filtre la grille (et un filtre sans teinte ne filtre rien) ; comptes par teinte avec la pastille de la premiere couleur",
           R["filtre"] == ["a", "b"] and R["sans"] == 4 and R["comptes"] == [{"t": "bleu", "n": 2, "c": "#1040e0"}, {"t": "rouge", "n": 1, "c": "#e01010"}], str(R["comptes"]))
     check("O3 la puce pose la teinte en gardant tag et note ; « Effacer » remet tout a zero ; la puce montre la pastille ; pas de puce sans teinte",

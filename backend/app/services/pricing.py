@@ -131,6 +131,12 @@ DEFAULTS = {
         "elevenlabs": 0.0067,   # Scribe v1, ≈ 0,40 $/h
         "openai": 0.006,        # whisper-1
     },
+    # Tâche #82 PR C (04/10/2026) — modèles VISION des légendes de la Bibliothèque, $ / M jetons, relevé du 04/10 sur
+    # ai.google.dev/gemini-api/docs/pricing (palier payant, standard). Une image <= 384 px = 258 jetons.
+    "vision_usd_per_mtok": {
+        "gemini-2.5-flash-lite": {"in": 0.10, "out": 0.40},
+        "gemini-2.5-flash":      {"in": 0.30, "out": 2.50},
+    },
     # LLM $ per 1M tokens (input/output) — used for plan/script estimates
     "llm_usd_per_mtok": {
         "anthropic": {"in": 0.80, "out": 4.00},
@@ -497,6 +503,14 @@ def estimate(op: dict, p: dict | None = None) -> dict:
         # Calage d'un texte connu : ffmpeg + arithmétique locale = 0 $.
         lines.append(_line("local", "Calage sous-titres (local)",
                            float(op.get("duration_s", 0)), "s", 0.0))
+    elif kind == "legende":
+        # tâche #82 PR C : n images légendées par un modèle vision (image 384 px + consigne en entrée, ~40 mots en sortie)
+        n = int(op.get("n", 1))
+        model = str(op.get("model") or "gemini-2.5-flash-lite")
+        tarif = (p.get("vision_usd_per_mtok") or {}).get(model) or DEFAULTS["vision_usd_per_mtok"]["gemini-2.5-flash-lite"]
+        it, ot = n * (258 + 90), n * 70
+        usd = it / 1e6 * float(tarif["in"]) + ot / 1e6 * float(tarif["out"])
+        lines.append(_line("gemini", f"Légendes {model} x{n}", n, "image", usd))
     elif kind == "llm":
         prov = op.get("provider", "openai")
         it = float(op.get("in_tok", 1000)); ot = float(op.get("out_tok", 400))

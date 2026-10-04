@@ -8247,7 +8247,7 @@ A_P9LIB11 = 'r.jsxs("div",{className:"scroll",style:{flex:1,overflowY:"auto",pad
 R_P9LIB11 = ('r.jsxs("div",{className:"scroll",style:{flex:1,overflowY:"auto",padding:18},children:['
              'r.jsx(DzProjetsBar,{f:dzPF,setF:dzPFs}),'
              # tache #81 PR C : la barre Corbeille / Nettoyage et leurs panneaux
-             'r.jsx(DzOutilsBiblio,{vue:dzVue,setVue:dzVues}),'
+             'r.jsx(DzOutilsBiblio,{vue:dzVue,setVue:dzVues,liste:l,ouvrir:y}),'   # + #82 PR C : la recherche ouvre une fiche
              '__dzSrcChips(o,T,dzSF,dzSFs)')
 # P9lib12 : « Envoyer vers » propose le projet pour TOUT asset (son aussi), avant le « aucune cible ».
 A_P9LIB12 = 'if(!items.length){__dzToast("Aucune cible pour cet asset");return}'

@@ -82,7 +82,8 @@ neufs = []
 for f in FICHIERS:
     neufs += [(f, l, c) for l, c in _refus((BACKEND / f).read_text(encoding="utf-8"))]
 check("1.1 les 43 refus sont toujours la, + 1 (tache #51 : /generate/extend, 01/10) + 1 (tache #63 : voix temoin de l'animatique, 02/10)"
-      " + 1 (tache #66 : la reecriture, 02/10) + 1 (tache #76 : l'import Figma editable, 03/10)", len(neufs) == 47, _d(len(neufs)))
+      " + 1 (tache #66 : la reecriture, 02/10) + 1 (tache #76 : l'import Figma editable, 03/10)"
+      " + 1 (tache #82 : les legendes de la Bibliotheque, 04/10)", len(neufs) == 48, _d(len(neufs)))
 check("1.2 et TOUS repondent 503", all(c == 503 for _f, _l, c in neufs), _d([v for v in neufs if v[2] != 503]))
 
 print("\n[2] execute : sans aucune cle, les voies repondent 503 et nomment la cle")
