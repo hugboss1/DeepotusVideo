@@ -50,11 +50,11 @@ def fonction(src, nom):
     return ""
 
 
-COUCHE = "\n".join(fonction(DATA, n) for n in ("checkLangues", "choisirLangue", "paintLangues"))
+COUCHE = "\n".join(fonction(DATA, n) for n in ("checkLangues", "choisirLangue", "paintLangues", "traductionHTML"))
 check("T3 la couche livrée est extraite", COUCHE.count("function ") >= 3)
 
 HARNAIS = r"""
-var LANGS = null, LGSEQ = 0, APPELS = [], PATCH = [], SCHED = 0, TOASTS = [], REP = {};
+var TRAD = [], TRADSEL = {source: "", cible: "", moteur: "auto"}, LANGS = null, LGSEQ = 0, APPELS = [], PATCH = [], SCHED = 0, TOASTS = [], REP = {};
 var T = {columns: ["id", "nom_fr", "nom_en"], rows: [["c1", "Colosse", "Colossus"]], off: [2],
          map: {nom_fr: "titre"}, qty_col: "qty", lang: ""};
 var esc = function (s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;"); };

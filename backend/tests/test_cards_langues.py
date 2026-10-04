@@ -73,6 +73,10 @@ def test_le_mappage_reel_est_reecrit_dans_la_langue_et_jamais_replie():
     assert D.map_pour_langue(COLS, MAP, "de") == {"atk": "atk", "#n": "num"}
     assert D.map_pour_langue(COLS, MAP, "") == MAP                  # aucune langue : le mappage tel quel
     assert D.map_pour_langue(COLS, {"nom_en": "titre"}, "fr") == {"nom_fr": "titre"}   # dans l'autre sens aussi
+    # la base se compare SANS la casse : « Nom_FR » a pour sœur anglaise « nom-en »
+    assert D.map_pour_langue(["Nom_FR", "nom-en"], {"Nom_FR": "titre"}, "en") == {"nom-en": "titre"}
+    r = D.langues_report(["Nom_FR", "nom-en"], [["Golem", ""]], {"Nom_FR": "titre"})
+    assert [l["absentes"] for l in r["langues"]] == [[], []], r
 
 
 def _post(chemin, corps):

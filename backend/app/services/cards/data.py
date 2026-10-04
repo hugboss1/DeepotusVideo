@@ -53,6 +53,7 @@ import base64
 import binascii
 import csv
 import io
+import json
 import math
 import posixpath
 import re
@@ -2355,6 +2356,7 @@ def langues_table(columns: list) -> dict:
             neutres.append(c)
             continue
         base, code = lb
+        base = base.lower()              # « Titre-EN » est la sœur de « titre_fr » : la base se compare sans la casse
         e = langs.setdefault(code, {"code": code, "label": LANG_NOMS[code.split("-")[0]]
                                     + ("" if "-" not in code else " (" + code.split("-")[1].upper() + ")"),
                                     "colonnes": {}})
@@ -2373,7 +2375,7 @@ def map_pour_langue(columns: list, real_map: dict, code: str) -> dict:
     for col, slot in (real_map or {}).items():
         lb = langue_de(col)
         if lb and str(col) in [str(c) for c in (columns or ())]:
-            soeur = cible.get(lb[0])
+            soeur = cible.get(lb[0].lower())
             if soeur:
                 out[soeur] = slot
             # sinon : RETIRÉE, jamais repliée sur la langue d'origine
@@ -2393,7 +2395,7 @@ def langues_report(columns: list, rows: list, real_map: dict, qty_col: Any = Non
             off_set.add(int(v))
         except (TypeError, ValueError):
             pass
-    bases_mappees = sorted({lb[0] for c in (real_map or {}) for lb in [langue_de(c)] if lb and c in cols})
+    bases_mappees = sorted({lb[0].lower() for c in (real_map or {}) for lb in [langue_de(c)] if lb and c in cols})
     out = []
     for l in t["langues"]:
         mp = map_pour_langue(cols, real_map, l["code"])
@@ -2414,7 +2416,7 @@ def langues_report(columns: list, rows: list, real_map: dict, qty_col: Any = Non
                     details.append({"ligne": k + 1, "cartes": q, "colonnes": trous})
         out.append(dict(l, manquants=manquants, cartes_incompletes=cartes, lignes_incompletes=lignes,
                         absentes=absentes, details=details, map=mp))
-    return {"langues": out, "neutres": t["neutres"]}
+    return {"langues": out, "neutres": t["neutres"], "connues": dict(LANG_NOMS)}
 
 
 @router.post("/langues")
@@ -2427,6 +2429,178 @@ async def post_langues(did: str, body: Any = Body(default=None)):
     if mp is not None and not isinstance(mp, dict):
         raise HTTPException(400, "« map » doit être un objet JSON")
     return await asyncio.to_thread(langues_report, cols, rows, mp or {}, b.get("qty_col"), b.get("off"))
+
+
+# ── TRADUCTION (tâche #86 PR B, plan-cartes T13, 04/10/2026) ─────────────────
+# DÉCISIONS DE L'UTILISATEUR (04/10) : le fournisseur des Réglages (répartiteur
+# de l'appli : Anthropic, OpenAI, Gemini — PAYANT, coût annoncé avant, garde
+# « cartes ») ou Ollama LOCAL et gratuit quand il est configuré ; validation
+# carte par carte SEULEMENT : ici on PROPOSE, rien n'est écrit dans la table.
+TRAD_MAX = 200                   # cellules par demande (le reste : « restants »)
+TRAD_LOT = 40                    # cellules par appel au modèle
+TRAD_SYSTEM = ("Tu traduis les textes de cartes d'un jeu, de {src} vers {dst}. Garde les nombres, les "
+               "symboles entre crochets ou accolades, la ponctuation de jeu et une longueur proche de "
+               "l'original. Réponds UNIQUEMENT par un tableau JSON de chaînes, dans le même ordre, "
+               "sans commentaire.")
+
+
+def _soeur(col: str, code: str) -> str:
+    """« regles_fr » -> « regles_en » : même base, même séparateur, la casse du code suivie."""
+    m = LANG_SUFFIXE.match(str(col))
+    if not m:
+        return ""
+    sep = str(col)[len(m.group("base"))]
+    c = code.upper() if m.group("code").isupper() else code
+    return m.group("base") + sep + c
+
+
+def trad_cellules(columns: list, rows: list, real_map: dict, off: Any, source: str, cible: str) -> dict:
+    """Les cellules à traduire : source remplie, cible vide, colonnes MAPPÉES, lignes gardées."""
+    cols = [str(c) for c in (columns or ())]
+    src, dst = str(source or "").lower(), str(cible or "").lower()
+    if dst.split("-")[0] not in LANG_NOMS:
+        raise ValueError(f"Langue cible inconnue : {cible!r}")
+    if src == dst:
+        raise ValueError("La langue cible doit différer de la langue source")
+    par = {l["code"]: l["colonnes"] for l in langues_table(cols)["langues"]}
+    if src not in par:
+        raise ValueError(f"Aucune colonne en « {source} » dans la table")
+    bases = []
+    for col in (real_map or {}):
+        lb = langue_de(col)
+        if lb and col in cols and lb[0].lower() in par[src] and lb[0].lower() not in bases:
+            bases.append(lb[0].lower())
+    off_set = set()
+    for v in (off if isinstance(off, list) else ()):
+        try:
+            off_set.add(int(v))
+        except (TypeError, ValueError):
+            pass
+    a_creer, items = [], []
+    for base in bases:
+        scol = par[src][base]
+        dcol = par.get(dst, {}).get(base) or _soeur(scol, dst)
+        if dcol not in cols and dcol not in a_creer:
+            a_creer.append(dcol)
+    for k, r in enumerate(rows or ()):
+        if k in off_set or not isinstance(r, list):
+            continue
+        for base in bases:
+            scol = par[src][base]
+            dcol = par.get(dst, {}).get(base) or _soeur(scol, dst)
+            si = cols.index(scol)
+            txt = str(r[si]).replace(BLANK, "").strip() if si < len(r) else ""
+            di = cols.index(dcol) if dcol in cols else -1
+            deja = str(r[di]).replace(BLANK, "").strip() if 0 <= di < len(r) else ""
+            if txt and not deja:
+                items.append({"ligne": k + 1, "colonne": dcol, "source": txt})
+    return {"items": items, "a_creer": a_creer}
+
+
+def _trad_moteur(moteur: str) -> dict:
+    from app.config import settings
+    from app.services import summarizer as SZ
+    if moteur not in ("auto", "ollama"):
+        raise ValueError(f"Moteur inconnu : {moteur!r} (auto ou ollama)")
+    dispo = {"auto": bool(SZ._available_providers()), "ollama": bool(settings.has_ollama)}
+    if moteur == "ollama":
+        return {"dispo": dispo, "fournisseur": "ollama", "payant": False, "pret": dispo["ollama"]}
+    return {"dispo": dispo, "fournisseur": (SZ.active_provider() or "") if dispo["auto"] else "",
+            "payant": True, "pret": dispo["auto"]}
+
+
+def _trad_op(items: list, fournisseur: str) -> dict:
+    from app.services import plafonds as _PLAF
+    car = sum(len(i["source"]) for i in items)
+    lots = max(1, -(-len(items) // TRAD_LOT))
+    return _PLAF.op_llm(in_tok=car / 3 + 120 * lots, out_tok=car / 3 * 1.4 + 20 * len(items), fournisseur=fournisseur)
+
+
+def _trad_json(txt: str) -> list:
+    t = str(txt or "").strip()      # un bloc ```json``` est toléré : on lit du premier « [ » au dernier « ] »
+    k0, k1 = t.find("["), t.rfind("]")
+    try:
+        v = json.loads(t[k0:k1 + 1]) if k0 >= 0 and k1 > k0 else None
+    except ValueError:
+        v = None
+    if not isinstance(v, list) or not all(isinstance(x, str) for x in v):
+        raise RuntimeError("le modèle n'a pas rendu un tableau JSON de textes")
+    return v
+
+
+def _trad_corps(b: dict):
+    cols, rows = _table_of(b)
+    mp = b.get("map")
+    if mp is not None and not isinstance(mp, dict):
+        raise HTTPException(400, "« map » doit être un objet JSON")
+    moteur = str(b.get("moteur") or "auto").strip().lower()
+    try:
+        sel = trad_cellules(cols, rows, mp or {}, b.get("off"), str(b.get("source") or ""), str(b.get("cible") or ""))
+        mo = _trad_moteur(moteur)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return sel, mo, moteur
+
+
+@router.post("/traduire/devis")
+async def post_traduire_devis(did: str, body: Any = Body(default=None)):
+    """Ce que la traduction COÛTERAIT — sans rien appeler."""
+    _guard(did)
+    sel, mo, _m = _trad_corps(_obj(body))
+    items = sel["items"][:TRAD_MAX]
+    from app.services import pricing as _pricing
+    usd = _pricing.estimate(_trad_op(items, mo["fournisseur"] or "local"))["total_usd"] if items else 0.0
+    return {"n": len(items), "restants": max(0, len(sel["items"]) - TRAD_MAX),
+            "lots": -(-len(items) // TRAD_LOT) if items else 0, "usd": round(usd, 4),
+            "fournisseur": mo["fournisseur"], "payant": mo["payant"] and usd > 0, "dispo": mo["dispo"],
+            "colonnes_a_creer": sel["a_creer"]}
+
+
+@router.post("/traduire")
+async def post_traduire(did: str, body: Any = Body(default=None)):
+    """Les PROPOSITIONS de traduction (rien n'est écrit : l'écran les accepte une à une)."""
+    _guard(did)
+    b = _obj(body)
+    sel, mo, moteur = _trad_corps(b)
+    items = sel["items"][:TRAD_MAX]
+    if not items:
+        return {"propositions": [], "restants": 0, "fournisseur": mo["fournisseur"], "colonnes_a_creer": sel["a_creer"]}
+    if not mo["pret"]:
+        raise HTTPException(503, ("Ollama n'est pas configuré (OLLAMA_MODEL, Réglages)" if moteur == "ollama" else
+                                  "Aucun fournisseur de texte configuré (clé Anthropic, OpenAI ou Gemini dans les "
+                                  "Réglages)") + " — rien n'a été lancé.")
+    from app.config import settings
+    from app.services import plafonds as _PLAF
+    await _PLAF.verifier(_trad_op(items, mo["fournisseur"]), "cartes")
+    src, dst = str(b.get("source")).lower(), str(b.get("cible")).lower()
+    systeme = TRAD_SYSTEM.format(src=LANG_NOMS.get(src.split("-")[0], src), dst=LANG_NOMS.get(dst.split("-")[0], dst))
+
+    def appeler(lot: list) -> list:
+        prompt = "Textes à traduire (tableau JSON) :\n" + json.dumps([i["source"] for i in lot], ensure_ascii=False)
+        n_tok = 200 + sum(len(i["source"]) for i in lot)
+        if moteur == "ollama":
+            from app.services import vector_illustration as VI
+            txt = VI.tirer("ollama", settings.OLLAMA_MODEL, prompt, systeme, max_tokens=n_tok)
+        else:
+            from app.services import summarizer as SZ
+            txt, _p = SZ._chat_dispatch(prompt, systeme, n_tok)
+            if not txt:
+                raise RuntimeError("le fournisseur de texte n'a rien rendu")
+        sortie = _trad_json(txt)
+        if len(sortie) != len(lot):
+            raise RuntimeError(f"le modèle a rendu {len(sortie)} texte(s) pour {len(lot)} demandé(s)")
+        return sortie
+
+    props = []
+    try:
+        for k in range(0, len(items), TRAD_LOT):
+            lot = items[k:k + TRAD_LOT]
+            for it, tr in zip(lot, await asyncio.to_thread(appeler, lot)):
+                props.append(dict(it, proposition=tr.strip()))
+    except RuntimeError as e:
+        raise HTTPException(502, "Traduction impossible : " + str(e))
+    return {"propositions": props, "restants": max(0, len(sel["items"]) - TRAD_MAX),
+            "fournisseur": mo["fournisseur"], "colonnes_a_creer": sel["a_creer"]}
 
 
 @router.post("/build")

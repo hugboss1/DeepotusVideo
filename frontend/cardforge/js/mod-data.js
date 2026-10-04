@@ -2850,7 +2850,96 @@
     }
     html += '<p class="hint">Un texte traduit peut être plus long : la <b>pièce 03</b> (Typographie) mesure chaque carte '
       + "et dit ce qui déborde — vérifiez-la dans la langue active. Impression et Édition sortent dans la langue active.</p>";
+    html += traductionHTML(ls);
     box.innerHTML = html;
+  }
+
+  /* ══ LA TRADUCTION (tache #86 PR B, plan-cartes T13) ════════════════════
+     Decisions de l'utilisateur (04/10) : le fournisseur des Reglages (payant,
+     cout annonce AVANT par le dialogue, plafond « cartes ») ou Ollama local et
+     gratuit ; validation CARTE PAR CARTE SEULEMENT — le serveur propose, rien
+     n'entre dans la table sans un clic sur « Accepter », et la proposition se
+     corrige dans son champ avant. Aucun « tout accepter ». */
+  let TRAD = [], TRADV = false, TRADSEL = { source: "", cible: "", moteur: "auto" };
+  function traductionHTML(ls) {
+    const connues = (LANGS && LANGS.connues) || {};
+    const src = TRADSEL.source || (ls[0] && ls[0].code) || "";
+    const dst = TRADSEL.cible || (ls.filter((l) => l.code !== src)[0] || {}).code || "";
+    const opt = (v, lab, cur) => '<option value="' + esc(v) + '"' + (v === cur ? " selected" : "") + ">" + esc(lab) + "</option>";
+    let h = '<div class="cf-data-tradbar"><b>Traduire</b> de <select class="cf-data-trsel" data-trad-sel="source" title="Langue des textes à traduire">'
+      + ls.map((l) => opt(l.code, l.label, src)).join("") + "</select> vers "
+      + '<select class="cf-data-trsel" data-trad-sel="cible" title="Langue d’arrivée (une colonne absente sera créée à l’acceptation)">'
+      + Object.keys(connues).filter((c) => c !== src).map((c) => opt(c, connues[c], dst)).join("") + "</select> avec "
+      + '<select class="cf-data-trsel" data-trad-sel="moteur" title="Le fournisseur des Réglages est payant ; Ollama est local et gratuit">'
+      + opt("auto", "le fournisseur des Réglages", TRADSEL.moteur) + opt("ollama", "Ollama (local, gratuit)", TRADSEL.moteur) + "</select> "
+      + '<button type="button" class="btn sm cf-data-b" data-trad-go="1" title="Devis d’abord (nombre de cellules, coût), puis des PROPOSITIONS à accepter une à une — rien n’entre dans la table sans votre clic">Traduire…</button></div>';
+    if (TRAD.length) {
+      h += '<div class="cf-data-trad"><p class="hint">' + TRAD.length + " proposition(s) — acceptez-les une à une (corrigez au besoin dans le champ) ; "
+        + "rien n’entre dans la table sans votre clic.</p>"
+        + TRAD.map((p, i) => '<div class="cf-data-tradrow"><span class="cf-data-tradsrc" title="' + esc(p.source) + '">ligne ' + p.ligne
+          + " · " + esc(p.colonne) + " : « " + esc(p.source) + " »</span>"
+          + '<input class="cf-data-tradin" data-trad-in="' + i + '" value="' + esc(p.proposition) + '">'
+          + '<button type="button" class="btn sm" data-trad-ok="' + i + '" title="Écrire cette traduction dans la table (annulable par Ctrl+Z)">Accepter</button>'
+          + '<button type="button" class="btn sm" data-trad-non="' + i + '" title="Écarter cette proposition">Refuser</button></div>').join("")
+        + "</div>";
+    }
+    return h;
+  }
+  async function traduireLangue() {
+    if (TRADV) return;
+    TRADV = true;
+    try {
+      const ls = (LANGS && LANGS.langues) || [];
+      const src = TRADSEL.source || (ls[0] && ls[0].code) || "";
+      const dst = TRADSEL.cible || (ls.filter((l) => l.code !== src)[0] || {}).code || "";
+      const corps = { columns: T.columns, rows: T.rows, off: T.off, map: T.map,
+                      source: src, cible: dst, moteur: TRADSEL.moteur || "auto" };
+      const d = await M.api.post("traduire/devis", corps);
+      if (!d.n) { M.toast("rien à traduire : toutes les cellules mappées ont déjà leur traduction"); return; }
+      if (!(d.dispo || {})[corps.moteur]) {   // rien de prêt : on le dit ici, pas de dialogue qui finirait en 503
+        M.toast(corps.moteur === "ollama" ? "Ollama n’est pas configuré : renseignez OLLAMA_MODEL dans les Réglages"
+          : "aucun fournisseur de texte : une clé Anthropic, OpenAI ou Gemini dans les Réglages, ou Ollama", true);
+        return;
+      }
+      const connues = (LANGS && LANGS.connues) || {};
+      const cout = d.payant ? ("≈ " + Number(d.usd).toFixed(d.usd < 0.01 ? 4 : 2) + " $ avec " + (d.fournisseur || "le fournisseur des Réglages")
+        + " — PAYANT, plafond « cartes » appliqué") : ((d.fournisseur === "ollama" ? "Ollama, local" : "local") + " — gratuit");
+      const ok = await window.__dzDialogue.confirmer(d.n + " cellule(s) de " + (connues[src] || src) + " vers " + (connues[dst] || dst)
+        + " : " + cout + "."
+        + ((d.colonnes_a_creer || []).length ? " Colonne(s) créée(s) à l’acceptation : " + d.colonnes_a_creer.join(", ") + "." : "")
+        + (d.restants ? " " + d.restants + " autre(s) cellule(s) attendront une seconde demande." : "")
+        + " Le modèle PROPOSE : rien n’entre dans la table sans votre clic, carte par carte.",
+        { titre: "Traduction", ok: d.payant ? "Traduire (" + "≈ " + Number(d.usd).toFixed(d.usd < 0.01 ? 4 : 2) + " $)" : "Traduire" });
+      if (!ok) return;
+      M.busy(true, "traduction de " + d.n + " cellule(s)…");
+      const r = await M.api.post("traduire", corps);
+      TRAD = (r && r.propositions) || [];
+      paintLangues();
+      M.toast(TRAD.length + " proposition(s) à valider");
+    } catch (e) {
+      M.toast("Traduction : " + String((e && e.message) || e), true);
+    } finally { M.busy(false); TRADV = false; }
+  }
+  function tradAccepter(i) {
+    const p = TRAD[i];
+    if (!p) return;
+    const inp = REFS.langues && REFS.langues.querySelector('[data-trad-in="' + i + '"]');
+    const val = String(inp ? inp.value : p.proposition).trim();
+    if (!val) { M.toast("proposition vide : refusez-la ou écrivez la traduction", true); return; }
+    const li = p.ligne - 1;
+    if (!T.rows[li]) { M.toast("la ligne " + p.ligne + " n’existe plus", true); TRAD.splice(i, 1); paintLangues(); return; }
+    pushUndo();
+    let ci = T.columns.indexOf(p.colonne);
+    if (ci < 0) { T.columns.push(p.colonne); T.rows.forEach((r) => r.push("")); ci = T.columns.length - 1; }
+    T.rows[li][ci] = val;
+    TRAD.splice(i, 1);
+    commit(); render(); schedule(0);
+    M.toast("ligne " + p.ligne + " · " + p.colonne + " : traduction acceptée");
+  }
+  function tradRefuser(i) {
+    if (!TRAD[i]) return;
+    TRAD.splice(i, 1);
+    paintLangues();
   }
 
   /* ══ LES STATISTIQUES DU JEU (tache #85 PR B, plan-cartes T9) ═══════════
@@ -3128,7 +3217,17 @@
     REFS.langues = langs;
     on(langs, "click", (ev) => {
       const b = ev.target.closest("[data-lang]");
-      if (b && !b.disabled) choisirLangue(String(b.dataset.lang));
+      if (b && !b.disabled) { choisirLangue(String(b.dataset.lang)); return; }
+      const g = ev.target.closest("[data-trad-go]");
+      if (g) { traduireLangue(); return; }
+      const a = ev.target.closest("[data-trad-ok]");
+      if (a) { tradAccepter(Number(a.dataset.tradOk)); return; }
+      const n = ev.target.closest("[data-trad-non]");
+      if (n) tradRefuser(Number(n.dataset.tradNon));
+    });
+    on(langs, "change", (ev) => {
+      const s = ev.target.closest("[data-trad-sel]");
+      if (s) { TRADSEL[s.dataset.tradSel] = String(s.value); if (s.dataset.tradSel === "source") TRADSEL.cible = ""; paintLangues(); }
     });
     const dosl = h("div", "cf-data-dosline", "");
     f.appendChild(dosl);
