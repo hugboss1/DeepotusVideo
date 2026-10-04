@@ -8182,7 +8182,9 @@ R_P9LIB2 = A_P9LIB2 + '[dzMF,dzMFs]=x.useState({tag:"",note:0}),[dzPF,dzPFs]=x.u
 # P9lib3 : la liste des images porte tags/note/favori ; le cache est seme par les deux listes DEJA chargees (sondage de
 # 8 s), et la reprise unique des favoris du navigateur part de la.
 A_P9LIB3 = 'srcOrigin:S.source_origin||""}));d(W),f(R||[]),'
-R_P9LIB3 = ('srcOrigin:S.source_origin||"",tags:S.tags||[],note:S.note||0,fav:!!S.fav}));'
+R_P9LIB3 = ('srcOrigin:S.source_origin||"",tags:S.tags||[],note:S.note||0,fav:!!S.fav,'
+            # tache #81 PR C : la couleur dominante voyage avec l'image (puce Teinte)
+            'teinte:S.teinte||"",couleur:S.couleur||""}));'
             'dzFavSemer("i",ne&&ne.images,"filename"),dzFavSemer("r",R,"job_id"),dzFavMigrer(),d(W),f(R||[]),')
 # P9lib4 : le filtre entre DANS Lfs -- il s'applique donc aussi au repli de demo vo[o] (vide des qu'un filtre est actif).
 A_P9LIB4 = 'const Lfs=(L)=>{'
@@ -8238,7 +8240,10 @@ assert len(P1) == 128 and all("\n" not in r and "DzTracks" not in r for _t, _a, 
 # P9lib11 : la barre « Projet » ouvre le contenu, avant les chips de provenance.
 A_P9LIB11 = 'r.jsxs("div",{className:"scroll",style:{flex:1,overflowY:"auto",padding:18},children:[__dzSrcChips(o,T,dzSF,dzSFs)'
 R_P9LIB11 = ('r.jsxs("div",{className:"scroll",style:{flex:1,overflowY:"auto",padding:18},children:['
-             'r.jsx(DzProjetsBar,{f:dzPF,setF:dzPFs}),__dzSrcChips(o,T,dzSF,dzSFs)')
+             'r.jsx(DzProjetsBar,{f:dzPF,setF:dzPFs}),'
+             # tache #81 PR C : la barre Corbeille / Nettoyage et leurs panneaux
+             'r.jsx(DzOutilsBiblio,{}),'
+             '__dzSrcChips(o,T,dzSF,dzSFs)')
 # P9lib12 : « Envoyer vers » propose le projet pour TOUT asset (son aussi), avant le « aucune cible ».
 A_P9LIB12 = 'if(!items.length){__dzToast("Aucune cible pour cet asset");return}'
 R_P9LIB12 = 'items.push({lbl:"📁 Projet de la Bibliothèque…",fn:function(){dzProjMenu(m)}});' + A_P9LIB12
@@ -8286,6 +8291,21 @@ A_P9FI1 = 'size:go(S.size),date:mo(S.modified)||"on disk"'
 R_P9FI1 = 'size:go(S.size_kb!=null?S.size_kb*1024:S.size),date:mo(S.mtime?S.mtime*1e3:S.modified)||"on disk"'
 P1 += [("P9fi1-taille-et-date-de-la-grille", A_P9FI1, R_P9FI1)]
 assert len(P1) == 136 and "\n" not in R_P9FI1
+
+# P9cl2..4 (tache #81 PR C, 03/10/2026) -- la CORBEILLE a l'ecran. Ancres AMONT (1 sur .bak_montage). La Corbeille et
+# le Nettoyage sont des PANNEAUX ouverts depuis une barre d'outils (DzOutilsBiblio, repliee dans P9lib11) et non des
+# onglets : le litteral `vo` des onglets est EPINGLE par les bancs de l'Etabli (patch applique exactement une fois).
+# P9cl2..4 : les dialogues des boutons Delete disent la corbeille (restaurable), plus l'effacement.
+A_P9CL2 = 'confirmer("Delete this render and its files?")'
+R_P9CL2 = 'confirmer("Mettre ce rendu à la corbeille ? (restaurable depuis la Corbeille de la Bibliothèque)")'
+A_P9CL3 = 'confirmer("Delete ce son ?")'
+R_P9CL3 = 'confirmer("Mettre ce son à la corbeille ? (restaurable depuis la Corbeille de la Bibliothèque)")'
+A_P9CL4 = 'confirmer("Delete cette image ?")'
+R_P9CL4 = 'confirmer("Mettre cette image à la corbeille ? (restaurable depuis la Corbeille de la Bibliothèque)")'
+P1 += [("P9cl2-dialogue-rendu-corbeille", A_P9CL2, R_P9CL2),
+       ("P9cl3-dialogue-son-corbeille", A_P9CL3, R_P9CL3),
+       ("P9cl4-dialogue-image-corbeille", A_P9CL4, R_P9CL4)]
+assert len(P1) == 139 and all("\n" not in r for _t, _a, r in P1[-3:])
 
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
