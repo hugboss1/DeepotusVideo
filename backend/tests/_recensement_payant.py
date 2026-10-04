@@ -25,6 +25,7 @@ PUITS = {
     # images / fal
     "_flux_generate", "subscribe_async", "_generate_image_core", "_process_image_core", "_tirer_banana_pro",
     "_rembg_fal", "upload_image",
+    "_tirer_lot",   # cards/data : l'art du deck en lot -> image_providers.generate (tâche #87)
     # LLM
     "_chat_dispatch", "generate_script_from_intent", "generate_composition_from_intent", "propose_styles",
     "generate_plan", "plan_from_document", "_ai_scenes", "_ai_shots", "summarize_items", "build_news_script",
