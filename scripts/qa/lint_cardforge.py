@@ -135,7 +135,10 @@ TEST_DIR = pathlib.Path("backend/tests")
 # volontairement VERBATIM : un test compare son empreinte a celle de l'amont,
 # et toute retouche locale — meme un reformatage — ferait diverger la copie de
 # la source qu'elle date.
-EXTRA_PY = {"forge3d": ["forge3d_scene.py", "forge3d_apercu.py"],
+EXTRA_PY = {"forge3d": ["forge3d_scene.py", "forge3d_apercu.py",
+                        # forge3d_jeu.py (tache #87) : jetons, pions, presentoir, patron de boite.
+                        # Aucun router — les routes vivent dans forge3d.py.
+                        "forge3d_jeu.py"],
             "face": ["style_walkuski.py"],
             # print_gabarits.py (tache #83) : noms de fichiers, ZIP et manifeste
             # du paquet imprimeur. Aucun router — la route reste dans print.py.

@@ -562,6 +562,26 @@
       + '<div class="cf-forge3d-view" id="cf-forge3d-view"></div>'
       + '<p class="hint" id="cf-forge3d-freeze-status"></p>'
       + '</section>'
+
+      /* OBJETS DU JEU (tache #87 PR B, plan-cartes T16-T17) : HORS du graphe
+         (decision de l'utilisateur, 04/10). Les objets partent vers
+         l'Imprimante 3D (STL + 3MF, etancheite comptee) ; la boite depliee
+         sort en PDF a imprimer et decouper. */
+      + '<section class="cf-forge3d-card" id="cf-forge3d-sec-jeu">'
+      + '<header class="cf-forge3d-h"><b>Objets du jeu</b></header>'
+      + '<p class="hint">Jetons, pion et présentoir partent vers l’Imprimante 3D (STL + 3MF, solides fermés, posés à z = 0) ; '
+      + 'la boîte dépliée sort en PDF : trait plein = couper, pointillé = plier.</p>'
+      + '<div class="cf-forge3d-jeu" id="cf-forge3d-jeu">'
+      + '<button class="btn sm" type="button" data-jeu="jeton" title="Un jeton rond — diamètre demandé, 3 mm d’épaisseur">Jeton</button>'
+      + '<button class="btn sm" type="button" data-jeu="jeton_relief" title="Un jeton qui porte le RELIEF de la carte courante (clair = haut)">Jeton en relief de la carte</button>'
+      + '<button class="btn sm" type="button" data-jeu="pion" title="Un pion en trois étages, socle large : il tient debout">Pion</button>'
+      + '<button class="btn sm" type="button" data-jeu="presentoir" title="Un socle et deux rails : la carte se glisse debout dans la rainure (largeur et rainure lues du jeu)">Présentoir</button>'
+      + '<select id="cf-forge3d-jeu-feuille" title="Feuille du patron de boîte (le paysage est choisi tout seul si nécessaire)">'
+      + '<option value="a4">A4</option><option value="letter">Letter</option><option value="a3">A3</option></select>'
+      + '<button class="btn sm strong" type="button" data-jeu="boite" title="Le patron de la tuck box en PDF, aux dimensions du jeu plus 1 mm de jeu ; l’épaisseur vient de la pièce 05">Boîte dépliée (PDF)…</button>'
+      + '</div>'
+      + '<p class="hint" id="cf-forge3d-jeu-status"></p>'
+      + '</section>'
       + '</div>';
   }
 
@@ -594,6 +614,13 @@
     const buildSlip = $("#cf-forge3d-build-slip");
     if (buildSlip) buildSlip.addEventListener("click", onSlipClick);
     $("#cf-forge3d-freeze").addEventListener("click", () => freezePreview());
+    const jeu = $("#cf-forge3d-jeu");
+    if (jeu) jeu.addEventListener("click", (e) => {
+      const b = e.target.closest ? e.target.closest("[data-jeu]") : null;
+      if (!b) return;
+      const o = b.getAttribute("data-jeu");
+      if (o === "boite") boiteDepliee(); else objetDuJeu(o);
+    });
     /* ASSURANCE : un changement de deck recharge la page aujourd'hui (donc
        ce module repart de zéro par construction) — mais si ça change un
        jour, un undo ou un seed cross-deck serait un bug sérieux. mod-frame
@@ -910,6 +937,68 @@
     } catch (e) {
       M.toast("impression 3D : " + String((e && e.message) || e), true);
     }
+  }
+
+  /* ══ OBJETS DU JEU (tache #87 PR B) ══════════════════════════════════════
+     Un objet = UN appel a forge3d/jeu (FormData : objet, params, nom, et
+     l'image de la carte pour le relief) ; le serveur ecrit le dossier dans
+     l'Imprimante 3D. Verrou AVANT tout await : un double clic ne fait pas
+     deux dossiers. */
+  let JEUV = false;
+  function jeuStatut(txt) { const s = $("#cf-forge3d-jeu-status"); if (s) s.textContent = txt; }
+  async function objetDuJeu(objet) {
+    if (JEUV) return;
+    JEUV = true;
+    try {
+      const params = {};
+      if (objet === "jeton" || objet === "jeton_relief") {
+        const rep = await window.__dzDialogue.saisir("Diamètre du jeton en mm ? (10 à 300)",
+          { valeur: objet === "jeton" ? "25" : "30", ok: "Fabriquer" });
+        if (rep === null) return;
+        const d = Number(String(rep).replace(",", ".").trim());
+        if (!(d > 0)) { M.toast("diamètre en mm invalide", true); return; }
+        params.diam_mm = d;
+      }
+      const doc = CF.doc() || {};
+      const fd = new FormData();
+      fd.append("objet", objet);
+      fd.append("params", JSON.stringify(params));
+      fd.append("nom", String((doc.name || "jeu") + " " + objet).slice(0, 60));
+      if (objet === "jeton_relief") {
+        jeuStatut("rendu de la carte " + ((CF.current ? CF.current() : 0) + 1) + "…");
+        fd.append("image", await CF.cardBlob(CF.current ? CF.current() : 0, { face: "front" }), "carte.png");
+      }
+      jeuStatut("fabrication…");
+      const d = await M.api.post("jeu", fd);
+      jeuStatut(d.dossier + " · " + d.triangles + " triangles" + (d.avertissement ? " · " + d.avertissement : ""));
+      if (await window.__dzDialogue.confirmer("Objet écrit dans l’Imprimante 3D (" + d.dossier + ")"
+                  + (d.avertissement ? " — " + d.avertissement : "") + ". Ouvrir le .3mf dans le slicer ?", { ok: "Ouvrir le slicer" })) {
+        await CF.print3d.open(d.dossier);
+      }
+    } catch (e) {
+      jeuStatut("");
+      M.toast("objet du jeu : " + String((e && e.message) || e), true);
+    } finally { JEUV = false; }
+  }
+  async function boiteDepliee() {
+    if (JEUV) return;
+    JEUV = true;
+    try {
+      const n = (CF.cards ? CF.cards().length : 0) || 60;
+      const rep = await window.__dzDialogue.saisir("Combien de cartes dans la boîte ? (l’épaisseur du paquet en découle)",
+        { valeur: String(n), ok: "Patron PDF" });
+      if (rep === null) return;
+      const cartes = parseInt(String(rep).trim(), 10);
+      if (!(cartes >= 1 && cartes <= 1000)) { M.toast("nombre de cartes invalide (1 à 1000)", true); return; }
+      const sel = $("#cf-forge3d-jeu-feuille");
+      jeuStatut("patron de la boîte…");
+      const b = await M.api.blob("POST", "boite", { cartes: cartes, feuille: (sel && sel.value) || "a4" });
+      M.download(b, "boite-" + cartes + "-cartes.pdf");
+      jeuStatut("patron de " + cartes + " cartes téléchargé — trait plein = couper, pointillé = plier");
+    } catch (e) {
+      jeuStatut("");
+      M.toast("boîte dépliée : " + String((e && e.message) || e), true);
+    } finally { JEUV = false; }
   }
 
   function onSlipClick(e) {
