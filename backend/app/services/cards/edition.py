@@ -118,6 +118,38 @@ async def post_tts(did: str, spec: str = Form("{}"),
     })
 
 
+@router.post("/tabletopia")
+async def post_tabletopia(did: str, spec: str = Form("{}"),
+                          fronts: list[UploadFile] = File(default=[]),
+                          backs: list[UploadFile] = File(default=[])):
+    """TABLETOPIA (tâche #84 PR C) : un fichier par face, à la coupe, 2000 px au
+    plus sur le côté long, et le manifeste — en ZIP. Rien n'est écrit sur le PC
+    hors du téléchargement : Tabletopia se charge par son éditeur en ligne."""
+    doc = _deck(did)
+    body = _json_form(spec)
+    if not fronts:
+        raise HTTPException(400, "Aucune carte reçue : le navigateur doit rendre les cartes avant l'export")
+    noms = body.get("noms") if isinstance(body.get("noms"), list) else []
+    rectos = [await f.read() for f in fronts]
+    versos = [await f.read() for f in (backs or [])]
+    g = _geom(doc)
+
+    def work():
+        return VTT.tabletopia(str(doc.get("name") or "Jeu"), g, rectos, versos, noms)
+    try:
+        out, res = await asyncio.to_thread(work)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        logger.exception("cards/edition: export Tabletopia impossible")
+        raise HTTPException(500, f"Export Tabletopia impossible: {e}")
+    return Response(content=out, media_type="application/zip", headers={
+        "Content-Disposition": f'attachment; filename="{res["jeu"]}_tabletopia.zip"',
+        "X-CF-Cartes": str(res["cartes"]), "X-CF-Fichiers": str(res["fichiers"]),
+        "X-CF-Px": "%dx%d" % tuple(res["px"]),
+    })
+
+
 def _saved_objects() -> Path:
     """Le dossier « Saved Objects » de Tabletop Simulator : Documents\My Games\
     Tabletop Simulator\Saves\Saved Objects. « Documents » est lu par le
