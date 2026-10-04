@@ -100,6 +100,52 @@ async def contenu(pid: str) -> dict:
         return d
 
 
+async def etat(pid: str) -> dict:
+    """Tâche #82 (04/10/2026, plan-library T15) — ce qui, DANS un projet, est monté, publié, imprimé ou inutilisé.
+    Aucune donnée neuve, aucune écriture : trois jointures et un complément.
+      * monté   : un job TERMINÉ l'a pour image de départ ou de fin — ou c'est lui-même un rendu terminé du projet ;
+      * publié  : un post PUBLIÉ (« posted ») l'a pour image source ou pour rendu ;
+      * imprimé : il a nourri une production de l'Établi (image source du job 3D, ou le job lui-même) ;
+      * inutilisé : le COMPLÉMENT exact (un asset peut être dans plusieurs des trois premiers).
+    KeyError si le projet n'existe pas."""
+    from app.services.storage import JobRecord, ScheduledPost
+    d = await contenu(pid)
+    refs = {i["ref"]: i["kind"] for i in d["items"]}
+    _A, P, I, S = _t()
+    async with S() as s:
+        jobs = (await s.execute(select(JobRecord.id, JobRecord.image_filename, JobRecord.image_filename_end)
+                                .where(JobRecord.status == "done"))).fetchall()
+        posts = (await s.execute(select(ScheduledPost.source_image, ScheduledPost.job_id)
+                                 .where(ScheduledPost.status == "posted"))).fetchall()
+    monte_noms = {x for j in jobs for x in (j[1], j[2]) if x} | {j[0] for j in jobs}
+    publie_noms = {x for p in posts for x in p if x}
+    imprime_noms: set = set()
+    try:
+        from app.api import routes as _R
+        from app.services import asset3d_service as _A3
+        prods = await asyncio.to_thread(_R._etabli_productions)
+        for dossier in {e.get("job") for e in prods if e.get("job")}:
+            imprime_noms.add(dossier)
+            try:
+                src = (_A3.read_manifest(dossier) or {}).get("image_filename")
+                if src:
+                    imprime_noms.add(Path(str(src)).name)
+            except Exception:  # noqa: BLE001 — un job sans manifeste n'a pas de source connue
+                pass
+    except Exception:  # noqa: BLE001 — l'Établi illisible ne vide pas l'état
+        pass
+
+    def _imprime(ref: str) -> bool:
+        return ref in imprime_noms or ref[:8] in imprime_noms   # un job 3D a pour dossier les 8 premiers caractères
+
+    def _l(f):
+        return [{"ref": r, "kind": k} for r, k in refs.items() if f(r)]
+    monte, publie, imprime = _l(lambda r: r in monte_noms), _l(lambda r: r in publie_noms), _l(_imprime)
+    vus = {x["ref"] for x in monte + publie + imprime}
+    return {"id": pid, "nom": d.get("nom"), "n": len(refs), "monte": monte, "publie": publie, "imprime": imprime,
+            "inutilise": [{"ref": r, "kind": k} for r, k in refs.items() if r not in vus]}
+
+
 async def modifier(pid: str, champs: dict) -> dict:
     """Champs déjà validés par la route : nom, couleur, epingle. État RELU."""
     _A, P, _I, S = _t()

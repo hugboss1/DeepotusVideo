@@ -49,7 +49,8 @@ check("B3 plus AUCUNE lecture ni ecriture de favori dans localStorage hors de la
       and s.index('"dz_fav_images"') > s.index(DEBUT), str((s.count('"dz_fav_renders"'), s.count('"dz_fav_images"'))))
 check("B4 la liste des images porte tags, note, favori ; le cache est seme par les listes deja chargees (images, jobs)",
       # tache #81 PR C (03/10/2026) : la couleur dominante voyage aussi (teinte, couleur)
-      s.count('srcOrigin:S.source_origin||"",tags:S.tags||[],note:S.note||0,fav:!!S.fav,teinte:S.teinte||"",couleur:S.couleur||""}));'
+      # tache #82 PR B (04/10/2026) : + le brut des tris et de la liste (octets, date, dimensions, licence)
+      s.count('srcOrigin:S.source_origin||"",tags:S.tags||[],note:S.note||0,fav:!!S.fav,teinte:S.teinte||"",couleur:S.couleur||"",octets:S.size_kb!=null?S.size_kb*1024:null,mtime:S.mtime||0,larg:S.width||null,haut:S.height||null,licence:S.licence||""}));'
               'dzFavSemer("i",ne&&ne.images,"filename"),dzFavSemer("r",R,"job_id"),dzFavMigrer(),d(W),f(R||[]),') == 1)
 check("B5 un etat de filtre dans la Bibliotheque, applique DANS Lfs (donc aussi au repli de demo)",
       s.count('[dzSF,dzSFs]=x.useState(""),[dzEta,dzEtas]=x.useState([]),[dzMF,dzMFs]=x.useState({tag:"",note:0}),') == 1
