@@ -128,6 +128,7 @@
   let ART = null;           /* /artcheck : resolution de la colonne image */
   let ARTSEQ = 0;
   let DOS = null, DOSSEQ = 0;  /* /dos (tache #85) : d'ou vient le dos de chaque carte */
+  let STATS = null, STSEQ = 0; /* /stats (tache #85 PR B) : le jeu, colonne par colonne */
   let TIMING = null;        /* decoupage HONNETE du temps d'import */
   let SHOWPROV = true;      /* le tableau « d'ou vient chaque valeur imprimee » */
   /* LE CONSTRUCTEUR DE CONDITION A LA SOURIS. Reproche des DEUX critiques, mot
@@ -406,6 +407,7 @@
     paintProof();
     checkArt();
     checkDos();
+    checkStats();
     refreshClauses();
   }
 
@@ -568,6 +570,7 @@
     paintProof(); paintClauses();
     checkArt();
     checkDos();
+    checkStats();
   }
 
   /* ── compteur PERMANENT (seuil : « compteur de cartes affiche en
@@ -2739,6 +2742,55 @@
       + (DOS.avertissements || []).map((a) => '<span class="cf-data-dosav">' + esc(a) + '</span>').join("");
   }
 
+  /* ══ LES STATISTIQUES DU JEU (tache #85 PR B, plan-cartes T9) ═══════════
+     Quantites appliquees, lignes ecartees exclues : c'est le JEU qu'on decrit,
+     pas le fichier. Les colonnes d'images, de dos et d'identifiants ne se
+     decrivent pas (le backend les ecarte sur notre demande). Un entier a peu
+     de valeurs a une barre PAR valeur : la courbe de cout se lit d'un coup. */
+  async function checkStats() {
+    if (!T.columns.length) { STATS = null; paintStats(); return; }
+    const seq = ++STSEQ;
+    const skip = Object.keys(T.map).filter((c) => ["art", "back", "id"].indexOf(T.map[c]) >= 0);
+    try {
+      const r = await M.api.post("stats", { columns: T.columns, rows: T.rows, off: T.off,
+                                            qty_col: T.qty_col, skip: skip });
+      if (seq !== STSEQ) return;
+      STATS = r || null;
+    } catch (e) { if (seq !== STSEQ) return; STATS = null; }
+    paintStats();
+  }
+  function nfr(v) { return (Math.round(Number(v) * 100) / 100).toString().replace(".", ","); }
+  function barres(items) {
+    const max = Math.max(1, ...items.map((b) => b.n));
+    return '<div class="cf-data-stbars">' + items.map((b) =>
+      '<div class="cf-data-strow"><span class="cf-data-stlab">' + esc(b.lab) + '</span>'
+      + '<span class="cf-data-stbar"><i style="width:' + Math.round(100 * b.n / max) + '%"></i></span>'
+      + '<span class="cf-data-stn">' + b.n + '</span></div>').join("") + "</div>";
+  }
+  function paintStats() {
+    const box = REFS.stats;
+    if (!box) return;
+    if (!STATS || !(STATS.colonnes || []).length) { box.innerHTML = ""; box.classList.add("hidden"); return; }
+    box.classList.remove("hidden");
+    const tete = '<summary>Statistiques du jeu — ' + STATS.total_cartes + ' carte(s) sur ' + STATS.lignes
+      + ' ligne(s)' + (STATS.qty_col ? ' (quantités de « ' + esc(STATS.qty_col) + ' » appliquées)' : '') + '</summary>';
+    box.innerHTML = tete + (STATS.colonnes || []).map((c) => {
+      let corps;
+      if (c.genre === "numerique") {
+        corps = '<p class="cf-data-stres">' + c.n + ' carte(s) · min ' + nfr(c.min) + ' · max ' + nfr(c.max)
+          + ' · moyenne ' + nfr(c.moyenne) + ' · médiane ' + nfr(c.mediane)
+          + (c.vides ? ' · ' + c.vides + ' vide(s)' : '') + '</p>'
+          + barres((c.classes || []).map((b) => ({ lab: c.discret ? String(b.de) : nfr(b.de) + "–" + nfr(b.a), n: b.n })));
+      } else {
+        corps = '<p class="cf-data-stres">' + c.n + ' carte(s) · ' + c.distinctes + ' valeur(s) distincte(s)'
+          + (c.vides ? ' · ' + c.vides + ' vide(s)' : '') + (c.tronque ? ' · ' + c.tronque + ' autre(s) non montrée(s)' : '') + '</p>'
+          + barres((c.valeurs || []).map((v) => ({ lab: v.valeur, n: v.n })));
+      }
+      return '<div class="cf-data-stcol"><b>' + esc(c.nom) + '</b>'
+        + (c.note ? '<span class="cf-data-stnote">' + esc(c.note) + '</span>' : '') + corps + '</div>';
+    }).join("");
+  }
+
   async function checkArt() {
     const col = artColumn();
     if (!col) { ART = null; paintArt(); return; }
@@ -2963,6 +3015,9 @@
     const dosl = h("div", "cf-data-dosline", "");
     f.appendChild(dosl);
     REFS.dosline = dosl;
+    const stats = h("details", "cf-data-stats", "");
+    f.appendChild(stats);
+    REFS.stats = stats;
     f.appendChild(h("p", "hint cf-data-keys",
       "<b>Ctrl+Z</b> annuler · <b>Ctrl+Maj+Z</b> rétablir · <b>Entrée</b> cellule suivante · "
       + "<b>Alt+N</b> nouvelle ligne · <b>Ctrl+Entrée</b> reconstruire · <b>double-clic</b> sur une ligne = "

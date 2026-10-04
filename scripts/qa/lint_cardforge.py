@@ -142,7 +142,10 @@ EXTRA_PY = {"forge3d": ["forge3d_scene.py", "forge3d_apercu.py"],
             "print": ["print_gabarits.py"],
             # edition_vtt.py (tache #84) : planches et objet Tabletop Simulator.
             # Aucun router — les routes restent dans edition.py.
-            "edition": ["edition_vtt.py"]}
+            "edition": ["edition_vtt.py"],
+            # data_stats.py (tache #85) : histogrammes et resumes de colonne.
+            # Aucun router — la route vit dans data.py.
+            "data": ["data_stats.py"]}
 
 # R13 (octets sains) couvre TOUT le labo frontend, pas seulement les 9
 # fichiers mod-<id>.{js,css} + le harnais .mjs : core.js, cardforge.css,
