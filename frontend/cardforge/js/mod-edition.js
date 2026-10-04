@@ -7,7 +7,7 @@
    CE QUE CETTE PIECE NE FAIT PAS : dessiner une carte. Elle ASSEMBLE des
    cartes rendues par CF.renderCard (via CF.cardBlob) et les televerse. Elle
    livre ce qui entoure le jeu : la table virtuelle (Tabletop Simulator,
-   Tabletopia) ; plus tard le livret, le mockup, la fiche produit.
+   Tabletopia), le livret de regles, le mockup et la fiche produit (tache #87).
    ═══════════════════════════════════════════════════════════════════════════ */
 "use strict";
 
@@ -22,7 +22,11 @@
 
   const DEFAULTS = {
     cible: "tts",      /* tts | tabletopia */
+    /* tache #87 PR C : livret, mockup — les reglages restent avec le jeu */
+    livret_titre: "", livret_texte: "", livret_feuille: "a5", livret_fonte: "", livret_planche: true,
+    mockup_cible: "carre", mockup_titre: "", mockup_sous_titre: "",
   };
+  let POLICES = [], FICHE = null;
 
   function shell() {
     HOST.innerHTML = ''
@@ -39,7 +43,134 @@
       + '<div class="cf-edition-actions" data-role="tabletopia">'
       + '<button type="button" class="btn strong" data-act="tabletopia" title="Un JPEG par face à la coupe (2000 px au plus, jamais agrandi), un seul dos s’il est commun, et le manifeste — à charger dans l’éditeur de Tabletopia">Exporter pour Tabletopia (.zip)</button>'
       + '</div>'
+      + '</div></details>'
+
+      /* LIVRET (tache #87 PR C, plan-cartes T18) : l'ecart est DIT ici, et dans l'en-tete du fichier. */
+      + '<details class="grp"><summary>Livret de règles (PDF)</summary><div class="grp-body">'
+      + '<input class="cf-edition-champ" data-k="livret_titre" placeholder="Titre (par défaut : le nom du jeu)" title="Titre de la première page">'
+      + '<textarea class="cf-edition-texte" data-k="livret_texte" rows="10" placeholder="# But du jeu&#10;Le texte des règles…" title="Le texte du livret ; une ligne qui commence par « # » est un intertitre"></textarea>'
+      + '<div class="cf-edition-actions">'
+      + '<select data-k="livret_feuille" title="Format des pages du livret"><option value="a5">A5</option><option value="a4">A4</option><option value="carre">Carré 210 mm</option></select>'
+      + '<select data-k="livret_fonte" data-role="polices" title="Fonte du livret (les fontes servies par l’application)"></select>'
+      + '<label title="Une planche des cartes en fin de livret (rendues comme le Card Forge les montre)"><input type="checkbox" data-k="livret_planche"> planche des cartes</label>'
+      + '<button type="button" class="btn strong" data-act="livret" title="Composer le livret en PDF (pages à 300 DPI)">Livret PDF</button>'
+      + '</div>'
+      + '<p class="hint">Le livret est composé à <b>300 DPI</b> : le texte n’est pas sélectionnable dans le PDF '
+      + '(aucune police n’est embarquée par ce logiciel). Sans conséquence <b>pour l’impression</b> ; à savoir si le PDF est lu à l’écran.</p>'
+      + '<p class="cf-edition-etat" data-role="livret-etat"></p>'
+      + '</div></details>'
+
+      /* MOCKUP ET FICHE (tache #87 PR C, plan-cartes T19) */
+      + '<details class="grp"><summary>Mockup et fiche produit</summary><div class="grp-body">'
+      + '<div class="cf-edition-actions">'
+      + '<select data-k="mockup_cible" title="Format du visuel : carré, story (9:16) ou paysage (16:9)"><option value="carre">Carré 1080</option>'
+      + '<option value="story">Story 1080 x 1920</option><option value="paysage">Paysage 1600 x 900</option></select>'
+      + '<input class="cf-edition-champ" data-k="mockup_titre" placeholder="Titre (par défaut : le nom du jeu)" title="Titre du visuel">'
+      + '<input class="cf-edition-champ" data-k="mockup_sous_titre" placeholder="Sous-titre" title="Sous-titre du visuel">'
+      + '<button type="button" class="btn strong" data-act="mockup" title="Un éventail des cinq premières cartes, en PNG">Mockup PNG</button>'
+      + '<button type="button" class="btn" data-act="fiche" title="Les chiffres du jeu : format, dimensions, paquet, boîte, langues">Fiche produit</button>'
+      + '</div>'
+      + '<p class="hint">Un éventail 2D des cartes déjà rendues (cinq au plus). La carte qui tourne en 3D, c’est la tournette '
+      + 'de la pièce 05 (Volume) ; le Forge 3D (pièce 09) construit les objets.</p>'
+      + '<p class="cf-edition-etat" data-role="mockup-etat"></p>'
+      + '<div data-role="fiche"></div>'
       + '</div></details>';
+  }
+
+  /* ══ LIVRET, MOCKUP, FICHE (tache #87 PR C) ══════════════════════════════ */
+  function ed() { return Object.assign({}, DEFAULTS, CF.doc().edition || {}); }
+  function etatDe(role, txt) {
+    const p = HOST && HOST.querySelector('[data-role="' + role + '"]');
+    if (p) p.textContent = txt || "";
+  }
+  function paintReglages() {
+    const e = ed();
+    const sel = HOST && HOST.querySelector('[data-role="polices"]');
+    if (sel) sel.innerHTML = '<option value="">fonte par défaut</option>'
+      + POLICES.map((f) => '<option value="' + esc(f) + '"' + (f === e.livret_fonte ? " selected" : "") + ">"
+        + esc(f.replace(/\.(ttf|otf)$/i, "")) + "</option>").join("");
+    (HOST ? HOST.querySelectorAll("[data-k]") : []).forEach((el) => {
+      const k = el.getAttribute("data-k");
+      if (el.type === "checkbox") el.checked = !!e[k];
+      else if (document.activeElement !== el && k !== "livret_fonte") el.value = e[k] == null ? "" : String(e[k]);
+    });
+  }
+  function reglage(el) {
+    const k = el.getAttribute("data-k");
+    if (!Object.prototype.hasOwnProperty.call(DEFAULTS, k)) return;
+    const v = el.type === "checkbox" ? !!el.checked : String(el.value || "");
+    const o = {}; o[k] = v;
+    M.patch(o);
+  }
+  async function livretPdf() {
+    if (VERROU) return;
+    const e = ed();
+    if (!String(e.livret_texte || "").trim()) { CF.toast("Écrivez d’abord le texte des règles", true); return; }
+    VERROU = true;
+    try {
+      const fd = new FormData();
+      fd.append("spec", JSON.stringify({ titre: e.livret_titre || CF.doc().name || "", texte: e.livret_texte,
+                                         feuille: e.livret_feuille, fonte: e.livret_fonte }));
+      const cards = e.livret_planche ? CF.cards().slice(0, 120) : [];
+      for (let i = 0; i < cards.length; i++) {
+        CF.busy(true, "rendu " + (i + 1) + " / " + cards.length + " pour la planche…");
+        fd.append("images", await CF.cardBlob(i, { face: "front" }), "c" + (i + 1) + ".png");
+      }
+      CF.busy(true, "composition du livret…");
+      const out = await M.api.blob("POST", "livret", fd);
+      CF.download(out, slugJeu() + "_livret.pdf");
+      etatDe("livret-etat", "Livret composé (" + slugJeu() + "_livret.pdf)" + (cards.length ? " avec la planche de "
+        + cards.length + " carte(s)" : "") + " — texte en image à 300 DPI.");
+    } catch (er) {
+      CF.toast("Livret impossible : " + String((er && er.message) || er), true);
+    } finally { CF.busy(false); VERROU = false; }
+  }
+  async function mockupPng() {
+    if (VERROU) return;
+    const cards = CF.cards();
+    if (!cards.length) { CF.toast("Aucune carte à montrer", true); return; }
+    VERROU = true;
+    try {
+      const e = ed();
+      const n = Math.min(5, cards.length);
+      const fd = new FormData();
+      fd.append("spec", JSON.stringify({ cible: e.mockup_cible, titre: e.mockup_titre || CF.doc().name || "",
+                                         sous_titre: e.mockup_sous_titre, fonte: e.livret_fonte }));
+      for (let i = 0; i < n; i++) {
+        CF.busy(true, "rendu " + (i + 1) + " / " + n + "…");
+        fd.append("images", await CF.cardBlob(i, { face: "front" }), "c" + (i + 1) + ".png");
+      }
+      CF.busy(true, "mockup…");
+      const out = await M.api.blob("POST", "mockup", fd);
+      CF.download(out, slugJeu() + "_mockup_" + e.mockup_cible + ".png");
+      etatDe("mockup-etat", "Mockup " + e.mockup_cible + " : " + n + " carte(s) en éventail"
+        + (cards.length > n ? " (les " + n + " premières sur " + cards.length + ")" : "") + ".");
+    } catch (er) {
+      CF.toast("Mockup impossible : " + String((er && er.message) || er), true);
+    } finally { CF.busy(false); VERROU = false; }
+  }
+  async function ficheProduit() {
+    if (VERROU) return;
+    VERROU = true;
+    try {
+      FICHE = await M.api.post("fiche", { cartes: CF.cards().length || 1 });
+      paintFiche();
+    } catch (er) {
+      CF.toast("Fiche impossible : " + String((er && er.message) || er), true);
+    } finally { VERROU = false; }
+  }
+  function paintFiche() {
+    const box = HOST && HOST.querySelector('[data-role="fiche"]');
+    if (!box || !FICHE) return;
+    const f = FICHE, mm = (v) => String(v).replace(".", ",");
+    box.innerHTML = '<table class="cf-edition-fiche"><tbody>'
+      + "<tr><th>Cartes</th><td>" + f.cartes + "</td></tr>"
+      + "<tr><th>Format</th><td>" + esc(f.format) + " — " + mm(f.dimensions_mm[0]) + " x " + mm(f.dimensions_mm[1]) + " mm</td></tr>"
+      + "<tr><th>Paquet</th><td>" + mm(f.epaisseur_deck_mm) + " mm (" + mm(f.epaisseur_carte_mm) + " mm par carte, pièce 05)</td></tr>"
+      + "<tr><th>Boîte</th><td>" + (f.boite_mm ? f.boite_mm.map(mm).join(" x ") + " mm" : "—") + "</td></tr>"
+      + "<tr><th>Langues</th><td>" + (f.langues.length ? esc(f.langues.join(", ")) : "non précisées (aucune colonne par langue)") + "</td></tr>"
+      + "</tbody></table>"
+      + '<textarea class="cf-edition-texte" rows="3" readonly title="Le texte de la fiche, à recopier">' + esc(f.texte) + "</textarea>";
   }
 
   function paintCibles() {
@@ -151,6 +282,13 @@
       else if (t.dataset.act === "tts") exporterTts();
       else if (t.dataset.act === "tts-poser") poserTts();
       else if (t.dataset.act === "tabletopia") exporterTabletopia();
+      else if (t.dataset.act === "livret") livretPdf();
+      else if (t.dataset.act === "mockup") mockupPng();
+      else if (t.dataset.act === "fiche") ficheProduit();
+    });
+    HOST.addEventListener("change", (ev) => {
+      const el = ev.target.closest ? ev.target.closest("[data-k]") : null;
+      if (el) reglage(el);
     });
   }
 
@@ -176,9 +314,16 @@
       } catch (e) {
         if (!(e && e.missing)) console.warn("cardforge/edition: cibles", e);
       }
+      try {
+        const r = await M.api.get("polices");
+        if (r && Array.isArray(r.polices)) POLICES = r.polices;
+      } catch (e) {
+        if (!(e && e.missing)) console.warn("cardforge/edition: polices", e);
+      }
       paintCibles();
       paintTts();
-      CF.on("core:doc", (p) => { if (!p || p.id === "edition") { paintCibles(); paintTts(); } });
+      paintReglages();
+      CF.on("core:doc", (p) => { if (!p || p.id === "edition") { paintCibles(); paintTts(); paintReglages(); } });
       M.emit("ready", {});
     },
   });

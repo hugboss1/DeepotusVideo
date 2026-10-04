@@ -145,7 +145,8 @@ EXTRA_PY = {"forge3d": ["forge3d_scene.py", "forge3d_apercu.py",
             "print": ["print_gabarits.py"],
             # edition_vtt.py (tache #84) : planches et objet Tabletop Simulator.
             # Aucun router — les routes restent dans edition.py.
-            "edition": ["edition_vtt.py"],
+            # edition_livret.py (tache #87) : livret, mockup et fiche produit.
+            "edition": ["edition_vtt.py", "edition_livret.py"],
             # data_stats.py (tache #85) : histogrammes et resumes de colonne.
             # Aucun router — la route vit dans data.py.
             # data_lot.py (tache #87) : devis et prompts de l'art en lot.

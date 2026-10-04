@@ -205,3 +205,118 @@ async def post_tts_poser(did: str):
     except OSError as e:
         raise HTTPException(500, f"Copie dans Tabletop Simulator impossible : {e}")
     return {"chemin": str(dest / js.name), "dossier": str(dest)}
+
+
+# ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+# LIVRET, MOCKUP, FICHE PRODUIT (tâche #87 PR C, plan-cartes T18-T19, 04/10/2026)
+# ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+
+async def _images_recues(images: list, quoi: str, maxi: int) -> list:
+    from PIL import Image as PILImage
+    import io as _io
+    if len(images or ()) > maxi:
+        raise HTTPException(400, f"Trop d'images pour {quoi} ({len(images)}, {maxi} au plus)")
+    ims = []
+    for f in images or ():
+        try:
+            im = PILImage.open(_io.BytesIO(await f.read()))
+            im.load()
+        except Exception:
+            raise HTTPException(400, f"Image « {f.filename} » illisible")
+        ims.append(im)
+    return ims
+
+
+def _ep_carte(doc: dict) -> float:
+    """doc.solid.thickness_mm appartient à la pièce 05 : lu, jamais écrit ; absent = le défaut du contrat."""
+    from .contract import THICKNESS_MM_DEFAULT, THICKNESS_MM_MIN, THICKNESS_MM_MAX
+    solid = (doc or {}).get("solid")
+    try:
+        v = float(solid.get("thickness_mm")) if isinstance(solid, dict) else THICKNESS_MM_DEFAULT
+    except (TypeError, ValueError):
+        v = THICKNESS_MM_DEFAULT
+    return v if THICKNESS_MM_MIN <= v <= THICKNESS_MM_MAX else THICKNESS_MM_DEFAULT
+
+
+@router.get("/polices")
+async def get_polices(did: str):
+    """Les fontes servies, pour le livret et le mockup (la même liste que /fonts/)."""
+    _deck(did)
+    from . import edition_livret as LIV
+    return {"polices": LIV.polices(), "defaut": LIV.FONTE_DEFAUT, "feuilles": list(LIV.FEUILLES_MM),
+            "cibles": list(LIV.MOCKUP_CIBLES), "mockup_max": LIV.MOCKUP_MAX}
+
+
+@router.post("/livret")
+async def post_livret(did: str, spec: str = Form("{}"), images: list[UploadFile] = File(default=[])):
+    """Le livret de règles en PDF, pages composées à 300 DPI : le texte n'est PAS sélectionnable, et l'en-tête
+    `X-CF-Texte: raster` le dit avec le fichier qui part."""
+    doc = _deck(did)
+    body = _json_form(spec)
+    from . import edition_livret as LIV
+    ims = await _images_recues(images, "la planche", LIV.IMAGES_MAX)
+    try:
+        cap = int(body.get("cap_px") or LIV.CAP_PX)
+    except (TypeError, ValueError):
+        raise HTTPException(400, "« cap_px » doit être un entier")
+    try:
+        out, n_txt, n_pl = await asyncio.to_thread(
+            LIV.build_livret, str(body.get("titre") or doc.get("name") or ""), str(body.get("texte") or ""), ims,
+            str(body.get("feuille") or "a5"), cap, str(body.get("fonte") or ""))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        logger.exception("cards/edition: livret impossible")
+        raise HTTPException(500, f"Livret impossible : {type(e).__name__}")
+    return Response(content=out, media_type="application/pdf", headers={
+        "Content-Disposition": 'attachment; filename="livret.pdf"',
+        "X-CF-Pages": str(n_txt + n_pl), "X-CF-Pages-Texte": str(n_txt), "X-CF-Images": str(len(ims)),
+        "X-CF-Texte": "raster"})
+
+
+@router.post("/mockup")
+async def post_mockup(did: str, spec: str = Form("{}"), images: list[UploadFile] = File(default=[])):
+    """Le visuel de communication : un éventail 2D de cartes rendues (5 au plus), aux formats des réseaux."""
+    doc = _deck(did)
+    body = _json_form(spec)
+    from . import edition_livret as LIV
+    ims = await _images_recues(images, "le mockup", LIV.MOCKUP_MAX)
+    cible = str(body.get("cible") or "carre").lower()
+    # À LA COUPE : une carte rendue au format du jeu (fond perdu compris) est rognée au trait de coupe et arrondie
+    # au rayon du jeu ; une image d'une autre taille passe telle quelle.
+    g = _geom(doc)
+    ox, oy = (int(round(float(v))) for v in g.bleed_off_px)      # (37.5, 37.5) en poker US : un couple de réels
+    tw, th = (int(v) for v in g.trim_px)
+    rayon = float(g.corner_mm) / 25.4 * float(g.dpi)
+    ims = [LIV.a_la_coupe(im, (ox, oy, ox + tw, oy + th), rayon) if tuple(im.size) == tuple(g.canvas_px)
+           else LIV.a_la_coupe(im, None, rayon) if tuple(im.size) == (tw, th) else im for im in ims]
+
+    def work():
+        import io as _io
+        im = LIV.mockup(ims, cible, str(body.get("titre") if body.get("titre") is not None else doc.get("name") or ""),
+                        str(body.get("sous_titre") or ""), body.get("fond"), str(body.get("fonte") or ""))
+        buf = _io.BytesIO()
+        im.save(buf, "PNG")
+        return buf.getvalue(), im.size
+    try:
+        out, size = await asyncio.to_thread(work)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        logger.exception("cards/edition: mockup impossible")
+        raise HTTPException(500, f"Mockup impossible : {type(e).__name__}")
+    return Response(content=out, media_type="image/png", headers={
+        "Content-Disposition": f'attachment; filename="mockup_{cible}.png"',
+        "X-CF-Px": f"{size[0]}x{size[1]}", "X-CF-Cartes-Montrees": str(min(len(ims), LIV.MOCKUP_MAX))})
+
+
+@router.post("/fiche")
+async def post_fiche(did: str, body: dict | None = None):
+    """La fiche produit : des chiffres (format, dimensions, paquet, boîte, langues) et un texte à recopier."""
+    doc = _deck(did)
+    b = body if isinstance(body, dict) else {}
+    from . import edition_livret as LIV
+    try:
+        return LIV.fiche(doc, int(b.get("cartes") or 0), _ep_carte(doc))
+    except (TypeError, ValueError) as e:
+        raise HTTPException(400, str(e))
