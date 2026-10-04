@@ -316,7 +316,8 @@ def read_workbook(raw: bytes) -> tuple[list, str, str]:
         except ET.ParseError as e:
             raise HTTPException(400, "XML du classeur illisible : " + str(e))
     raise HTTPException(400, "Zip sans feuille de calcul : ni « xl/workbook."
-                             "xml » (.xlsx) ni « content.xml » (.ods).")
+                             "xml » (.xlsx) ni « content.xml » (.ods), ni .csv "
+                             "d'un export Notion.")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -410,12 +411,73 @@ def _dedup(names: list) -> list:
     return out
 
 
+# ── L'EXPORT NOTION (tâche #85 PR C, plan-cartes T11, 04/10/2026) ───────────
+# « Exporter → Markdown & CSV » rend un zip : une base devient « Nom <id>.csv »
+# (les colonnes de la vue) et « Nom <id>_all.csv » (TOUTES les propriétés),
+# plus des pages .md ; un gros export est un zip de zips (« Part-1.zip »).
+# DÉCISION DE L'UTILISATEUR (04/10) : ce zip se lit, sans clé ni réseau, par
+# l'import de fichier EXISTANT. Un classeur (xl/workbook.xml, content.xml)
+# reste un classeur.
+def notion_csv(raw: bytes, _prof: int = 0):
+    """-> (nom, octets du CSV choisi, autres bases ignorées) ou None."""
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(raw))
+    except (zipfile.BadZipFile, OSError):
+        return None
+    csvs: dict[str, bytes] = {}
+    with zf:
+        noms = [n for n in zf.namelist() if not n.startswith("__MACOSX/") and not n.endswith("/")]
+        if "xl/workbook.xml" in noms or "content.xml" in noms:
+            return None
+        total = 0
+        for n in noms:
+            info = zf.getinfo(n)
+            total += info.file_size
+            if total > 4 * MAX_BYTES:
+                break
+            if n.lower().endswith(".csv"):
+                csvs[n] = zf.read(n)
+            elif n.lower().endswith(".zip") and _prof < 2:
+                sous = notion_csv(zf.read(n), _prof + 1)
+                if sous:
+                    csvs[sous[0]] = sous[1]
+                    for autre in sous[2]:
+                        csvs.setdefault(autre, b"")
+    if not csvs:
+        return None
+
+    def base(n: str) -> str:
+        n = n.rsplit("/", 1)[-1]
+        return n[:-8] if n.lower().endswith("_all.csv") else n[:-4]
+    par_base: dict[str, str] = {}
+    for n in csvs:
+        b = base(n)
+        if b not in par_base or n.lower().endswith("_all.csv"):
+            par_base[b] = n                          # la variante « _all » (toutes les propriétés) d'abord
+    choisis = sorted(par_base.values(), key=lambda n: -len(csvs[n]))
+    nom = choisis[0]
+    return nom.rsplit("/", 1)[-1], csvs[nom], [c.rsplit("/", 1)[-1] for c in choisis[1:]]
+
+
 def parse_table(raw: bytes, sep: str = "auto", encoding: str = "auto",
                 header: str = "auto", repair: bool = False) -> dict:
     """Le pipeline complet d'import. Ne lève que des HTTPException 400."""
     t0 = time.perf_counter()
     warn: list = []
     sheet = ""
+    archive = ""
+    notion_warn: list = []
+    if raw.startswith(ZIP_MAGIC):
+        nc = notion_csv(raw)
+        if nc:
+            archive = "notion"
+            raw = nc[1]
+            notion_warn.append("Export Notion : « " + nc[0] + " » lu"
+                               + (" (variante _all : toutes les propriétés)" if nc[0].lower().endswith("_all.csv") else "")
+                               + ".")
+            if nc[2]:
+                notion_warn.append("Autre(s) base(s) de l'export ignorée(s) : " + ", ".join(nc[2][:6])
+                                   + " — la plus grande a été prise.")
     if raw.startswith(ZIP_MAGIC):
         # CLASSEUR. Ni séparateur ni encodage de texte : les deux étiquettes
         # doivent le DIRE. Afficher « séparateur point-virgule · UTF-8 » sur un
@@ -436,6 +498,7 @@ def parse_table(raw: bytes, sep: str = "auto", encoding: str = "auto",
         use_sep, w2 = sniff_sep(text, sep)
         warn.extend(w2)
         rows = _read_rows(text, use_sep)
+    warn = notion_warn + warn
     rows = [r for r in rows if any(str(c).strip() for c in r)]
     if len(rows) > MAX_ROWS + 1:
         warn.append("Fichier tronqué à " + str(MAX_ROWS) + " lignes.")
@@ -500,6 +563,7 @@ def parse_table(raw: bytes, sep: str = "auto", encoding: str = "auto",
         else "sans objet (classeur)",
         "encoding": enc, "encoding_label": enc_label, "sheet": sheet,
         "workbook": bool(sheet or enc in ("xlsx", "ods")),
+        "archive": archive,
         "header": bool(has_head), "mojibake": bool(moji), "repaired": repaired,
         "n_rows": len(body), "n_cols": n, "warnings": warn,
         # lignes mal formées : un compteur À PART de celui du filtre.
@@ -2159,6 +2223,99 @@ async def post_parse(did: str, body: Any = Body(default=None)):
         raise HTTPException(500, "Lecture du fichier impossible : " + str(e))
     table["name"] = str(b.get("name") or "")[:120]
     return {"table": table}
+
+
+# ── GOOGLE SHEETS (tâche #85 PR C) ──────────────────────────────────────────
+# DÉCISION DE L'UTILISATEUR (04/10) : le LIEN d'une feuille partagée « tous les
+# utilisateurs disposant du lien ». Seul https://docs.google.com est accepté ;
+# le lien devient l'export CSV public (gratuit, sans clé). Google répond par une
+# redirection vers *.googleusercontent.com : CHAQUE saut est revérifié (https,
+# hôte autorisé) — un lien ne doit pas pouvoir promener le serveur ailleurs.
+_SHEETS_RE = re.compile(r"^https://docs\.google\.com/spreadsheets/d/(e/)?([A-Za-z0-9_-]{20,})(/[^?#]*)?(\?[^#]*)?(#.*)?$")
+_GID_RE = re.compile(r"[?#&]gid=(\d+)")
+SHEETS_SAUTS = 5
+
+
+def sheets_csv_url(url: str) -> str:
+    u = str(url or "").strip()
+    m = _SHEETS_RE.match(u)
+    if not m:
+        raise ValueError("Lien Google Sheets attendu : https://docs.google.com/spreadsheets/d/…")
+    g = _GID_RE.search(u)
+    gid = g.group(1) if g else "0"
+    if m.group(1):                                   # « publier sur le web » : /d/e/<id>/pub
+        return f"https://docs.google.com/spreadsheets/d/e/{m.group(2)}/pub?output=csv&gid={gid}"
+    return f"https://docs.google.com/spreadsheets/d/{m.group(2)}/export?format=csv&gid={gid}"
+
+
+def _hote_sheets_sur(url: str) -> str:
+    """'' si le saut est permis, sinon la raison."""
+    from urllib.parse import urlsplit
+    p = urlsplit(url)
+    if p.scheme != "https":
+        return "redirection hors https refusée : " + url[:120]
+    h = (p.hostname or "").lower()
+    if p.username or p.password or p.port not in (None, 443):
+        return "redirection refusée : " + url[:120]
+    if h == "accounts.google.com":
+        return ("La feuille n'est pas partagée : Google demande une connexion. Partagez-la en « Tous les "
+                "utilisateurs disposant du lien » (lecteur), ou importez un .csv.")
+    if h == "docs.google.com" or h.endswith(".googleusercontent.com"):
+        return ""
+    return "redirection hors de Google refusée : " + h
+
+
+async def fetch_sheets(url: str) -> dict:
+    import httpx
+    from app.config import SSL_VERIFY
+    source = sheets_csv_url(url)
+    cible = source
+    async with httpx.AsyncClient(verify=SSL_VERIFY, timeout=30.0, follow_redirects=False) as client:
+        for _saut in range(SHEETS_SAUTS + 1):
+            pourquoi = _hote_sheets_sur(cible)
+            if pourquoi:
+                raise ValueError(pourquoi)
+            async with client.stream("GET", cible) as r:
+                if r.status_code in (301, 302, 303, 307, 308):
+                    loc = r.headers.get("location", "")
+                    cible = str(httpx.URL(cible).join(loc))
+                    continue
+                if r.status_code != 200:
+                    raise ValueError(f"Google Sheets a répondu HTTP {r.status_code} : lien ou onglet introuvable.")
+                ct = r.headers.get("content-type", "").lower()
+                if "html" in ct:
+                    raise ValueError("La feuille n'est pas partagée (Google renvoie une page, pas un CSV) : "
+                                     "partagez-la en « Tous les utilisateurs disposant du lien ».")
+                morceaux, n = [], 0
+                async for bloc in r.aiter_bytes(1 << 16):
+                    n += len(bloc)
+                    if n > MAX_BYTES:
+                        raise ValueError("Feuille trop volumineuse (limite "
+                                         + str(MAX_BYTES // (1024 * 1024)) + " Mo)")
+                    morceaux.append(bloc)
+                nom = "Google Sheets.csv"
+                cd = r.headers.get("content-disposition", "")
+                mm = re.search(r'filename="([^"]+)"', cd)
+                if mm:
+                    nom = mm.group(1)[:120]
+                data = b"".join(morceaux)
+                return {"b64": base64.b64encode(data).decode("ascii"), "nom": nom, "octets": len(data), "source": source}
+    raise ValueError(f"Trop de redirections (plus de {SHEETS_SAUTS}) : lien refusé.")
+
+
+@router.post("/import-url")
+async def post_import_url(did: str, body: Any = Body(default=None)):
+    """Rapatrie le CSV d'une feuille Google Sheets PARTAGÉE (tâche #85 PR C).
+    Rend les OCTETS : l'écran les passe à /parse, le lecteur de tables unique."""
+    _guard(did)
+    b = _obj(body)
+    try:
+        return await fetch_sheets(str(b.get("url") or ""))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:                                  # noqa: BLE001
+        logger.warning("cards/data: Google Sheets injoignable: %s", e)
+        raise HTTPException(502, "Google Sheets injoignable : " + str(e)[:200])
 
 
 @router.post("/build")
