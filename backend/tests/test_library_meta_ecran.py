@@ -48,7 +48,8 @@ check("B3 plus AUCUNE lecture ni ecriture de favori dans localStorage hors de la
       and s.count('"dz_fav_renders"') == 1 and s.count('"dz_fav_images"') == 1
       and s.index('"dz_fav_images"') > s.index(DEBUT), str((s.count('"dz_fav_renders"'), s.count('"dz_fav_images"'))))
 check("B4 la liste des images porte tags, note, favori ; le cache est seme par les listes deja chargees (images, jobs)",
-      s.count('srcOrigin:S.source_origin||"",tags:S.tags||[],note:S.note||0,fav:!!S.fav}));'
+      # tache #81 PR C (03/10/2026) : la couleur dominante voyage aussi (teinte, couleur)
+      s.count('srcOrigin:S.source_origin||"",tags:S.tags||[],note:S.note||0,fav:!!S.fav,teinte:S.teinte||"",couleur:S.couleur||""}));'
               'dzFavSemer("i",ne&&ne.images,"filename"),dzFavSemer("r",R,"job_id"),dzFavMigrer(),d(W),f(R||[]),') == 1)
 check("B5 un etat de filtre dans la Bibliotheque, applique DANS Lfs (donc aussi au repli de demo)",
       s.count('[dzSF,dzSFs]=x.useState(""),[dzEta,dzEtas]=x.useState([]),[dzMF,dzMFs]=x.useState({tag:"",note:0}),') == 1
@@ -144,7 +145,7 @@ if R and "erreur" not in R:
     check("N1 dzMetaFiltre : par tag, par note minimale, aucun filtre = tout, liste nulle = []",
           R["filtre"] == [2, 2, 2, 0], str(R["filtre"]))
     check("N2 dzMetaComptes : tags comptes et tries par nombre puis nom ; « 3+ » compte les notes >= 3",
-          R["comptes"] == {"tags": [{"t": "b", "n": 2}, {"t": "a", "n": 1}, {"t": "c", "n": 1}], "note3": 2}, str(R["comptes"]))
+          R["comptes"] == {"tags": [{"t": "b", "n": 2}, {"t": "a", "n": 1}, {"t": "c", "n": 1}], "note3": 2, "teintes": []}, str(R["comptes"]))   # #81 : + teintes
     check("N3 dzTagsDe : une saisie « a, b » donne des tags nets (la normalisation finale est au serveur)",
           R["tagsDe"] == ["Vitrail", "deep sea"], str(R["tagsDe"]))
     check("N4 le cache est SEME par les listes servies (images par filename, rendus par job_id)",

@@ -57,7 +57,14 @@ def main():
     check("bloc = la couche octet pour octet", bloc == couche.strip())
     check("injection juste après l'ancre transfert",
           s.find(P.ANCHOR_INJECT) >= 0 and s.find(P.ANCHOR_INJECT) < i)
+    # tache #81 PR C (03/10/2026) : le maillon montage (en aval) reecrit trois de ces dialogues : jeter range a la
+    # CORBEILLE. La derive est datee ici ; le reste du remplacement du maillon dialogue est inchange.
+    DERIVES_AVAL = {'confirmer("Delete this render and its files?")': 'confirmer("Mettre ce rendu à la corbeille ? (restaurable depuis la Corbeille de la Bibliothèque)")',
+                    'confirmer("Delete ce son ?")': 'confirmer("Mettre ce son à la corbeille ? (restaurable depuis la Corbeille de la Bibliothèque)")',
+                    'confirmer("Delete cette image ?")': 'confirmer("Mettre cette image à la corbeille ? (restaurable depuis la Corbeille de la Bibliothèque)")'}
     for tag, a, r, n in P.PATCHES:
+        for _v, _n in DERIVES_AVAL.items():
+            r = r.replace(_v, _n)
         check(f"{tag} : ancre consommée", s.count(a) == 0, str(s.count(a)))
         check(f"{tag} : remplacement présent ×{n}", s.count(r) == n, str(s.count(r)))
     check(f"{len(P.PATCHES)} sections = 11 sites confirm + 2 sites prompt du relevé", len(P.PATCHES) == 13)
@@ -87,8 +94,9 @@ def main():
     # tache #71 PR C (03/10/2026) : + 1, le devis d'une recette lancee depuis la Bibliotheque (dzRecLancerAvec).
     # tache #72 PR B (03/10/2026) : + 1, supprimer un kit de marque (DzKits).
     # tache #80 PR B (03/10/2026) : + 1, le prix de « Rejouer la recette » dans la fiche d'une image (DzFiche).
-    check("await __dzDialogue.confirmer ×18 hors couche (11 + 2 de P1es1 + 1 import du Studio + 1 duel + 1 recette + 1 kit + 1 rejouer ; la couche le cite en commentaire)",
-          hors.count("await window.__dzDialogue.confirmer(") == 18,
+    # tache #81 PR C (03/10/2026) : + 2, vider la corbeille (DzCorbeille) et mettre des doublons a la corbeille (DzNettoyage).
+    check("await __dzDialogue.confirmer ×20 hors couche (11 + 2 de P1es1 + 1 import du Studio + 1 duel + 1 recette + 1 kit + 1 rejouer + 2 corbeille/nettoyage ; la couche le cite en commentaire)",
+          hors.count("await window.__dzDialogue.confirmer(") == 20,
           str(hors.count("await window.__dzDialogue.confirmer(")))
     check("la couche remplace window.alert et pose __dzDialogue",
           "window.alert = function" in couche and "window.__dzDialogue = {" in couche)

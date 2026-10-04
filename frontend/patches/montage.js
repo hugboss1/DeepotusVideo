@@ -10009,22 +10009,28 @@ function dzFavMigrer(){if(DZ_FAV.migre||DZ_FAV.essais>=3)return Promise.resolve(
       var n=(im.repris||0)+(rd.repris||0);if(n)dzToastSur(n+" favori"+(n>1?"s":"")+" repris du navigateur dans la base");return d})
     .catch(function(){DZ_FAV.migre=!1;return null})}
 // ── note et tags (pur, joué sous node) ──
-function dzMetaFiltre(L,f){if(!f||(!f.tag&&!f.note))return L||[];return(L||[]).filter(function(z){
-  if(f.tag&&((z&&z.tags)||[]).indexOf(f.tag)<0)return!1;if(f.note&&Number((z&&z.note)||0)<f.note)return!1;return!0})}
-function dzMetaComptes(lst){var tg={},nb=0;(lst||[]).forEach(function(z){((z&&z.tags)||[]).forEach(function(t){tg[t]=(tg[t]||0)+1});
-    if(z&&Number(z.note||0)>=3)nb++});
-  return{tags:Object.keys(tg).sort(function(a,b){return tg[b]-tg[a]||(a<b?-1:a>b?1:0)}).map(function(t){return{t:t,n:tg[t]}}),note3:nb}}
+function dzMetaFiltre(L,f){if(!f||(!f.tag&&!f.note&&!f.teinte))return L||[];return(L||[]).filter(function(z){
+  if(f.tag&&((z&&z.tags)||[]).indexOf(f.tag)<0)return!1;if(f.note&&Number((z&&z.note)||0)<f.note)return!1;
+  if(f.teinte&&(z&&z.teinte)!==f.teinte)return!1;return!0})}
+function dzMetaComptes(lst){var tg={},nb=0,te={},ech={};(lst||[]).forEach(function(z){((z&&z.tags)||[]).forEach(function(t){tg[t]=(tg[t]||0)+1});
+    if(z&&Number(z.note||0)>=3)nb++;
+    if(z&&z.teinte){te[z.teinte]=(te[z.teinte]||0)+1;if(!ech[z.teinte]&&z.couleur)ech[z.teinte]=z.couleur}});
+  return{tags:Object.keys(tg).sort(function(a,b){return tg[b]-tg[a]||(a<b?-1:a>b?1:0)}).map(function(t){return{t:t,n:tg[t]}}),note3:nb,
+    teintes:Object.keys(te).sort(function(a,b){return te[b]-te[a]||(a<b?-1:a>b?1:0)}).map(function(t){return{t:t,n:te[t],c:ech[t]||""}})}}
 function dzTagsDe(txt){return String(txt||"").split(",").map(function(s){return s.trim()}).filter(Boolean)}
 // ── l'écran ──
-function DzMetaChips({o,T,f,setF}){if(o!=="Images"&&o!=="Favoris")return null;var c=dzMetaComptes(T&&T[o]),actif=!!(f&&(f.tag||f.note));
-  if(!c.tags.length&&!c.note3&&!actif)return null;
-  function puce(cle,val,lbl,on){return r.jsx("button",{type:"button","aria-pressed":on,onClick:function(){var g={tag:f.tag,note:f.note};
+function DzMetaChips({o,T,f,setF}){if(o!=="Images"&&o!=="Favoris")return null;var c=dzMetaComptes(T&&T[o]),actif=!!(f&&(f.tag||f.note||f.teinte));
+  if(!c.tags.length&&!c.note3&&!c.teintes.length&&!actif)return null;
+  function puce(cle,val,lbl,on){return r.jsx("button",{type:"button","aria-pressed":on,onClick:function(){var g={tag:f.tag,note:f.note,teinte:f.teinte||""};
       g[cle]=on?(cle==="note"?0:""):val;setF(g)},style:{height:22,padding:"0 10px",fontSize:11,borderRadius:11,cursor:"pointer",
       border:"1px solid "+(on?"var(--amber,#f0b429)":"var(--stroke)"),background:on?"var(--bg-panel-2)":"transparent",
       color:on?"var(--ink-strong)":"var(--ink-soft)"},children:lbl},"dzm_"+cle+"_"+val)}
   var ch=c.tags.map(function(z){return puce("tag",z.t,"#"+z.t+" ("+z.n+")",f.tag===z.t)});
   if(c.note3||f.note)ch.push(puce("note",3,"★ 3+ ("+c.note3+")",f.note===3));
-  if(actif)ch.push(r.jsx("button",{type:"button",onClick:function(){setF({tag:"",note:0})},style:{height:22,padding:"0 8px",fontSize:11,
+  /* tâche #81 : une puce par TEINTE (pastille de la couleur rencontrée) */
+  c.teintes.forEach(function(z){ch.push(puce("teinte",z.t,r.jsxs("span",{children:[r.jsx("span",{style:{display:"inline-block",width:9,height:9,borderRadius:5,marginRight:5,
+    background:z.c||"var(--ink-muted)",verticalAlign:"middle"}}),z.t+" ("+z.n+")"]}),f.teinte===z.t))});
+  if(actif)ch.push(r.jsx("button",{type:"button",onClick:function(){setF({tag:"",note:0,teinte:""})},style:{height:22,padding:"0 8px",fontSize:11,
       background:"none",border:0,color:"var(--ink-muted)",cursor:"pointer"},children:"Effacer"},"dzm_effacer"));
   return r.jsx("div",{"data-dz":"metachips",style:{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center",marginBottom:10},children:ch})}
 function dzCarteMeta(C,rafraichir){if(!C||C.kind==="audio"||C.audioFile)return null;
@@ -10181,7 +10187,12 @@ function DzFiche({m,lister}){var fs=x.useState(null),f=fs[0],setF=fs[1],es=x.use
       r.jsx(K,{variant:"ghost",size:"sm",onClick:enregistrer,disabled:!change,title:"Enregistrer la licence, l’auteur et le lien de la source",children:"Enregistrer"})]}),
     dr.alerte?r.jsx("div",{className:"dz-fiche-alerte",style:{fontSize:11,color:"var(--amber)"},title:"Une licence inconnue : à vérifier avant toute diffusion",
       children:"⚠ Licence inconnue — à vérifier avant diffusion"}):null,
-    ligne("Fichier",L.fichier),ligne("Source",L.source),ligne("Recette",L.recette||"inconnue"),
+    ligne("Fichier",L.fichier),
+    f.couleur?r.jsxs("div",{style:{display:"flex",gap:8,fontSize:11.5,alignItems:"center"},title:"Couleur dominante "+f.couleur.hex,children:[
+      r.jsx("span",{style:{minWidth:64,color:"var(--ink-muted)"},children:"Couleur"}),
+      r.jsx("span",{"data-dz":"pastille",style:{width:14,height:14,borderRadius:7,background:f.couleur.hex,border:"1px solid var(--stroke)"}}),
+      r.jsx("span",{style:{color:"var(--ink-soft)"},children:f.couleur.teinte+" · "+f.couleur.hex})]}):null,
+    ligne("Source",L.source),ligne("Recette",L.recette||"inconnue"),
     L.prompt?ligne("Prompt",L.prompt.length>140?L.prompt.slice(0,140)+"…":L.prompt,L.prompt):null,
     L.usages.length?ligne("Usages",L.usages.join(" · ")):ligne("Usages","aucun"),
     f.rejouer?r.jsx("div",{children:r.jsx(K,{variant:"outline",size:"sm",onClick:rejouer,disabled:vol,
@@ -10189,6 +10200,99 @@ function DzFiche({m,lister}){var fs=x.useState(null),f=fs[0],setF=fs[1],es=x.use
       children:"Rejouer la recette"})}):null,
     msg?r.jsx("span",{style:{fontSize:10.5,color:/^(Non|Refus)/.test(msg)?"var(--red)":"var(--ink-soft)"},children:msg}):null]})}
 /* ── fin Bibliothèque #80 */
+/* ── Bibliothèque #81 PR C (plan-library T9-T11, 03/10/2026) — CORBEILLE, NETTOYAGE et TEINTE à l’écran.
+   Décisions de l’utilisateur (03/10) : jeter range à la corbeille (serveur #158) ; la Corbeille restaure, vide
+   à la main (dialogue maison) et SIGNALE ce qui a plus de 30 jours, sans jamais le purger seul ; le Nettoyage
+   montre le poids par sorte et les doublons exacts (serveur #159) : l’utilisateur coche, les copies UTILISÉES sont
+   grisées (protégées), un groupe garde au moins une copie ; la puce « Teinte » filtre la grille ; la fiche montre la
+   pastille. Corbeille et Nettoyage sont des PANNEAUX ouverts par une barre (DzOutilsBiblio) et non des onglets : la liste
+   des onglets est épinglée par les bancs de l’Etabli. La grille se recharge seule (toutes les 8 s) : une restauration
+   y réapparaît sans rien de plus. */
+function dzDuree(iso){if(!iso)return"";var j=Math.floor((Date.now()-new Date(iso).getTime())/864e5);return j<1?"aujourd’hui":j===1?"hier":"il y a "+j+" jours"}
+function dzCorbVue(d){if(!d)return null;var el=d.elements||[];
+  return{n:el.length,octets:d.octets||0,anciens:el.filter(function(e){return e.ancien}).map(function(e){return e.id}),jours:d.jours||30,
+    lignes:el.map(function(e){return{id:e.id,type:e.type,nom:e.nom,quand:dzDuree(e.jete_le),octets:e.octets||0,ancien:!!e.ancien,
+      restaurable:e.restaurable!==!1}})}}
+function DzCorbeille(){var ds=x.useState(null),d=ds[0],setD=ds[1],ms=x.useState(""),msg=ms[0],setMsg=ms[1],vs=x.useState(!1),vol=vs[0],setVol=vs[1];
+  function charger(){return fetch("/api/library/corbeille").then(function(R){return R.ok?R.json():null}).then(function(j){setD(j)}).catch(function(){})}
+  x.useEffect(function(){charger()},[]);
+  async function poster(url,corps){var R=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(corps)});
+    var j=await R.json().catch(function(){return{}});if(!R.ok)throw new Error(j.detail||("HTTP "+R.status));return j}
+  async function restaurer(l){if(vol)return;setVol(!0);setMsg("");try{var j=await poster("/api/library/corbeille/restaurer",{id:l.id});
+      setMsg("« "+l.nom+" » restauré"+(j.renomme?" sous le nom « "+j.restaure+" » (le sien était repris)":"")+".");await charger()}
+    catch(e){setMsg("Non restauré : "+String(e&&e.message||e))}finally{setVol(!1)}}
+  async function vider(ids,texte){if(vol)return;setVol(!0);setMsg("");try{
+      if(!await window.__dzDialogue.confirmer(texte+" C’est DÉFINITIF : rien ne pourra plus être restauré.",{titre:"Vider la corbeille",ok:"Effacer définitivement"}))return;
+      var j=await poster("/api/library/corbeille/vider",ids?{ids:ids}:{tout:!0});setMsg(j.vides+" élément"+(j.vides>1?"s":"")+" effacé"+(j.vides>1?"s":"")+" ("+dzOctets(j.octets)+").");await charger()}
+    catch(e){setMsg("Non vidé : "+String(e&&e.message||e))}finally{setVol(!1)}}
+  var v=dzCorbVue(d);if(!v)return r.jsx("div",{style:{fontSize:12,color:"var(--ink-muted)"},children:"Corbeille…"});
+  var icone={image:"🖼",son:"🔊",rendu:"🎬",illisible:"⚠"};
+  return r.jsxs("div",{className:"dz-corbeille","data-dz":"corbeille",style:{display:"flex",flexDirection:"column",gap:8,marginBottom:14},children:[
+    r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"},children:[
+      r.jsx("span",{style:{fontSize:12,color:"var(--ink-soft)"},children:v.n?v.n+" élément"+(v.n>1?"s":"")+" · "+dzOctets(v.octets)+(v.anciens.length?" · "+v.anciens.length+" de plus de "+v.jours+" jours":""):"La corbeille est vide."}),
+      v.anciens.length?r.jsx(K,{variant:"outline",size:"sm",disabled:vol,onClick:function(){vider(v.anciens,"Effacer les "+v.anciens.length+" élément(s) jetés il y a plus de "+v.jours+" jours ?")},
+        title:"Effacer définitivement ce qui est dans la corbeille depuis plus de "+v.jours+" jours (proposé, jamais fait seul)",children:"Vider les anciens ("+v.anciens.length+")"}):null,
+      v.n?r.jsx(K,{variant:"ghost",size:"sm",disabled:vol,onClick:function(){vider(null,"Effacer TOUT le contenu de la corbeille ("+v.n+" élément(s), "+dzOctets(v.octets)+") ?")},
+        title:"Effacer définitivement tout le contenu de la corbeille",children:"Vider la corbeille"}):null]}),
+    msg?r.jsx("span",{style:{fontSize:11,color:/^Non /.test(msg)?"var(--red)":"var(--ink-soft)"},children:msg}):null,
+    ...v.lignes.map(function(l){return r.jsxs("div",{"data-ancien":l.ancien?"1":"0",style:{display:"flex",alignItems:"center",gap:10,padding:"6px 8px",
+        border:"1px solid "+(l.ancien?"var(--amber)":"var(--stroke)"),borderRadius:6,fontSize:12},children:[
+      r.jsx("span",{children:icone[l.type]||"·"}),r.jsx("span",{style:{flex:1,color:"var(--ink-strong)",overflow:"hidden",textOverflow:"ellipsis"},children:l.nom}),
+      r.jsx("span",{style:{color:"var(--ink-muted)",fontSize:11},children:l.quand+" · "+dzOctets(l.octets)}),
+      l.ancien?r.jsx("span",{title:"Dans la corbeille depuis plus de "+v.jours+" jours : proposé à la purge",style:{color:"var(--amber)",fontSize:11},children:"plus de "+v.jours+" j"}):null,
+      r.jsx(K,{variant:"outline",size:"sm",disabled:vol||!l.restaurable,onClick:function(){restaurer(l)},title:"Remettre « "+l.nom+" » à sa place (index, tags, projets compris)",children:"Restaurer"}),
+      r.jsx(K,{variant:"ghost",size:"sm",disabled:vol,onClick:function(){vider([l.id],"Effacer « "+l.nom+" » ?")},title:"Effacer définitivement cet élément",children:"Effacer"})]},l.id)})]})}
+function dzNettVue(d,coches){if(!d)return null;coches=coches||{};
+  var gs=(d.doublons||[]).map(function(g){var fs=g.fichiers||[],restent=fs.filter(function(f){return!coches[f.filename]}).length;
+    return{sha:g.sha256,octets:g.octets,en_trop:g.en_trop,vide:restent===0,fichiers:fs.map(function(f){
+      var us=(f.usages||[]).map(function(u){return u.libelle+(u.role?" ("+u.role+")":"")});
+      return{nom:f.filename,protege:!!f.protege,garder:!!f.garder,coche:!!coches[f.filename],
+        pourquoi:[f.fav?"favori":null,us.length?"utilisé : "+us.join(", "):null,(f.projets||[]).length?"projet : "+f.projets.join(", "):null].filter(Boolean).join(" · ")}})}});
+  var choisis=Object.keys(coches).filter(function(k){return coches[k]});
+  return{poids:d.poids||{},groupes:gs,choisis:choisis,bloque:gs.some(function(g){return g.vide}),en_trop:d.copies_en_trop||0,recup:d.octets_recuperables||0}}
+function dzNettAuto(d){var c={};(d&&d.doublons||[]).forEach(function(g){var fs=g.fichiers||[];
+    var garde=fs.filter(function(f){return f.protege})[0]||fs.filter(function(f){return f.garder})[0]||fs[0];
+    fs.forEach(function(f){if(f!==garde&&!f.protege)c[f.filename]=!0})});return c}
+function DzNettoyage(){var ds=x.useState(null),d=ds[0],setD=ds[1],cs=x.useState({}),co=cs[0],setCo=cs[1],ms=x.useState(""),msg=ms[0],setMsg=ms[1],
+    vs=x.useState(!1),vol=vs[0],setVol=vs[1];
+  function charger(){setMsg("Analyse…");return fetch("/api/library/nettoyage").then(function(R){return R.ok?R.json():null})
+    .then(function(j){setD(j);setCo({});setMsg("")}).catch(function(){setMsg("Analyse impossible.")})}
+  x.useEffect(function(){charger()},[]);
+  async function jeter(v){if(vol||!v.choisis.length||v.bloque)return;setVol(!0);try{
+      if(!await window.__dzDialogue.confirmer("Mettre "+v.choisis.length+" copie(s) à la corbeille ? Elles restent restaurables depuis la Corbeille de la Bibliothèque.",{titre:"Doublons",ok:"Mettre à la corbeille"}))return;
+      var R=await fetch("/api/library/nettoyage/jeter",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({fichiers:v.choisis})});
+      var j=await R.json().catch(function(){return{}});if(!R.ok){setMsg("Refusé : "+String(j.detail||("HTTP "+R.status)));return}
+      await charger();setMsg((j.jetes||[]).length+" copie(s) à la corbeille.")}finally{setVol(!1)}}
+  var v=dzNettVue(d,co);if(!v)return r.jsx("div",{style:{fontSize:12,color:"var(--ink-muted)"},children:msg||"Analyse…"});
+  var P=v.poids,sortes=[["images","Images"],["sons","Sons"],["rendus","Rendus"],["corbeille","Corbeille"]];
+  return r.jsxs("div",{className:"dz-nettoyage","data-dz":"nettoyage",style:{display:"flex",flexDirection:"column",gap:8,marginBottom:14},children:[
+    r.jsx("div",{style:{display:"flex",gap:14,flexWrap:"wrap",fontSize:12,color:"var(--ink-soft)"},children:sortes.map(function(s){var p=P[s[0]]||{};
+      return r.jsx("span",{children:s[1]+" : "+(p.fichiers||0)+" · "+dzOctets(p.octets||0)},s[0])})}),
+    r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"},children:[
+      r.jsx("span",{style:{fontSize:12,color:"var(--ink-strong)"},children:v.groupes.length?v.groupes.length+" groupe(s) de doublons · "+v.en_trop+" copie(s) en trop · "+dzOctets(v.recup)+" récupérables":"Aucun doublon."}),
+      v.groupes.length?r.jsx(K,{variant:"ghost",size:"sm",onClick:function(){setCo(dzNettAuto(d))},title:"Cocher les copies en trop, en gardant la copie utilisée (ou la plus ancienne) de chaque groupe",children:"Cocher les copies en trop"}):null,
+      v.groupes.length?r.jsx(K,{variant:"outline",size:"sm",disabled:vol||!v.choisis.length||v.bloque,onClick:function(){jeter(v)},
+        title:v.bloque?"Un groupe n’aurait plus aucune copie : gardez-en au moins une":"Mettre les copies cochées à la corbeille (restaurables)",children:"Mettre "+v.choisis.length+" à la corbeille"}):null,
+      r.jsx(K,{variant:"ghost",size:"sm",disabled:vol,onClick:charger,title:"Relancer l’analyse (empreintes recalculées si un fichier a changé)",children:"Analyser"})]}),
+    v.bloque?r.jsx("span",{style:{fontSize:11,color:"var(--amber)"},children:"Un groupe n’aurait plus aucune copie : décochez-en une."}):null,
+    msg?r.jsx("span",{style:{fontSize:11,color:/^(Refus|Analyse imp)/.test(msg)?"var(--red)":"var(--ink-soft)"},children:msg}):null,
+    ...v.groupes.map(function(g){return r.jsxs("div",{style:{border:"1px solid "+(g.vide?"var(--amber)":"var(--stroke)"),borderRadius:6,padding:"6px 8px",display:"flex",flexDirection:"column",gap:4},children:[
+      r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)"},children:g.fichiers.length+" copies identiques · "+dzOctets(g.octets)+" chacune"}),
+      ...g.fichiers.map(function(f){return r.jsxs("label",{title:f.protege?"Protégée — "+f.pourquoi:f.garder?"La plus ancienne : proposée à garder":"Cocher pour la mettre à la corbeille",
+          style:{display:"flex",alignItems:"center",gap:8,fontSize:12,color:f.protege?"var(--ink-muted)":"var(--ink-soft)"},children:[
+        r.jsx("input",{type:"checkbox",checked:f.coche,disabled:f.protege,onChange:function(e){var n=Object.assign({},co);n[f.nom]=e.target.checked;setCo(n)}}),
+        r.jsx("img",{src:"/api/images/"+encodeURIComponent(f.nom),alt:"",style:{width:28,height:28,objectFit:"cover",borderRadius:3}}),
+        r.jsx("span",{style:{flex:1},children:f.nom}),
+        f.protege?r.jsx("span",{style:{fontSize:10.5},children:"protégée"}):f.garder?r.jsx("span",{style:{fontSize:10.5,color:"var(--green)"},children:"à garder"}):null]},f.nom)})]},g.sha)})]})}
+function DzOutilsBiblio(){var vs=x.useState(""),vue=vs[0],setVue=vs[1];
+  function bouton(cle,lbl,titre){var on=vue===cle;return r.jsx("button",{type:"button","aria-pressed":on,title:titre,onClick:function(){setVue(on?"":cle)},
+    style:{height:24,padding:"0 10px",fontSize:11.5,borderRadius:6,cursor:"pointer",border:"1px solid "+(on?"var(--amber,#f0b429)":"var(--stroke)"),
+      background:on?"var(--bg-panel-2)":"transparent",color:on?"var(--ink-strong)":"var(--ink-soft)"},children:lbl},cle)}
+  return r.jsxs("div",{"data-dz":"outils-biblio",style:{display:"flex",flexDirection:"column",gap:8,marginBottom:vue?4:10},children:[
+    r.jsxs("div",{style:{display:"flex",gap:6},children:[bouton("corbeille","🗑 Corbeille","Ce qui a été jeté : restaurer, ou effacer définitivement"),
+      bouton("nettoyage","🧹 Nettoyage","Poids par sorte et doublons exacts à mettre à la corbeille")]}),
+    vue==="corbeille"?r.jsx(DzCorbeille,{}):vue==="nettoyage"?r.jsx(DzNettoyage,{}):null]})}
+/* ── fin Bibliothèque #81 */
 /* ── Bibliothèque #78 PR B (plan-library T4, 03/10/2026) — les PROJETS à l'écran.
    Un projet contient des assets de toutes catégories (serveur : library_projects, PR A #144). Ici :
    - la barre « Projet » en tête du contenu : REGARDER un projet filtre TOUS les onglets (dzPF, appliqué dans Lfs) ;
