@@ -151,7 +151,7 @@ async def post_tabletopia(did: str, spec: str = Form("{}"),
 
 
 def _saved_objects() -> Path:
-    """Le dossier « Saved Objects » de Tabletop Simulator : Documents\My Games\
+    r"""Le dossier « Saved Objects » de Tabletop Simulator : Documents\My Games\
     Tabletop Simulator\Saves\Saved Objects. « Documents » est lu par le
     dossier connu de Windows (il peut être redirigé, OneDrive par exemple).
     DEEPOTUS_TTS_DIR le remplace (bancs)."""
