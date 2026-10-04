@@ -158,6 +158,10 @@ async def lifespan(app: FastAPI):
         from app.services import library_couleur as _LCOL
         _LCOL.ACTIF = True
         _LCOL.en_fond()
+        # Tâche #82 PR D : si CLIP est installé, l'index des images nouvelles ou modifiées se refait en tâche de fond.
+        from app.services import library_clip as _LCLIP
+        if _LCLIP.installe():
+            _LCLIP.lancer_index()
     except Exception as e:
         logger.warning(f"library_couleur au boot ignorée: {e}")
     # #78 : les épingles du téléphone (projets.json, tâche #58) deviennent des projets épinglés — une fois.

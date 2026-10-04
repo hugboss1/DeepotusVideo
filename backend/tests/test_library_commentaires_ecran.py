@@ -21,7 +21,7 @@ def check(label, cond, detail=""):
 BASE = "329aa702"
 r0 = subprocess.run(["git", "show", f"{BASE}:frontend/dist/assets/index-BEOJX8L5.js"], capture_output=True, cwd=str(RACINE))
 check("T1 temoin : la base a la fiche mais pas les commentaires", r0.returncode == 0 and b"DzFiche" in r0.stdout and b"DzCommentaires" not in r0.stdout)
-check("T2 les commentaires suivent la fiche", BUN.count('fav:!1}].concat(L)})}}),r.jsx(DzCommentaires,{m:m}),m.kind==="sprite2d"?') == 1)
+check("T2 les commentaires suivent la fiche", BUN.count('fav:!1}].concat(L)})}}),r.jsx(DzCommentaires,{m:m}),r.jsx(DzSemblables,') == 1)
 
 
 def fonction(nom):

@@ -47,7 +47,7 @@ def fonction(nom):
     return ""
 
 
-NOMS = ("dzUsdLeg", "DzRecherche")
+NOMS = ("dzUsdLeg", "dzMo", "DzClipBloc", "DzRecherche")
 k = BUN.find("var DZ_MOTEURS=")
 MOT = BUN[k:BUN.find("]];", k) + 3] if k >= 0 else ""
 COUCHE = MOT + "\n" + "\n".join(fonction(n) for n in NOMS)
@@ -122,7 +122,7 @@ R.post=FETCH.filter(function(f){return f[1]==="POST"});R.dial2=DIAL.length;var T
 // le suivi : l'effet a intervalle relit l'etat, puis le devis a la fin
 REP["GET /api/library/legendes/etat"]={en_cours:false,total:1009,faits:1009,n_erreurs:2,arret:""};
 REP["GET /api/library/legendes/devis"]={n:0,usd:0,modele:"gemini-2.5-flash-lite",cle:true,etat:{en_cours:false,total:1009,faits:1009,n_erreurs:2,arret:""}};
-hi=0;EFF=[];DzRecherche(P);FETCH=[];var ef=EFF[1]();await new Promise(function(s){setTimeout(s,2150)});if(typeof ef==="function")ef();await attendre();R.poll=FETCH.map(function(f){return f[0]});R.fin=texte(rendu(P));
+hi=0;EFF=[];DzRecherche(P);FETCH=[];var ef=EFF[2]();   /* 0 : etat de CLIP (#82 PR D), 1 : devis, 2 : le suivi */await new Promise(function(s){setTimeout(s,2150)});if(typeof ef==="function")ef();await attendre();R.poll=FETCH.map(function(f){return f[0]});R.fin=texte(rendu(P));
 // refus du plafond
 REP["GET /api/library/legendes/devis"]={n:5,usd:0.0003,modele:"gemini-2.5-flash-lite",cle:true,etat:{en_cours:false,total:0,faits:0,n_erreurs:0,arret:""}};
 H=[];var T4=await monter(P);REP["POST /api/library/legendes"]={__ko:402,detail:{message:"Plafond mensuel atteint (gemini)"}};await boutons(T4,"Légender")[0].p.onClick();R.refus=texte(rendu(P));

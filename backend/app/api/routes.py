@@ -2927,12 +2927,59 @@ async def library_editer_asset(filename: str, request: Request):
 async def library_recherche(q: str = "", moteur: str = "texte"):
     """Tâche #82 PR C : la recherche de la Bibliothèque. moteur « texte » (local, gratuit : légendes, tags, prompts,
     commentaires, noms) ; « clip » (sémantique, local) arrive en PR D — 503 dit d'ici là."""
-    if moteur == "clip":
-        raise HTTPException(503, "La recherche CLIP (locale) n'est pas encore installée.")
+    if moteur == "clip":   # tâche #82 PR D : par le SENS, en local
+        from app.services import library_clip as LCLIP
+        if not LCLIP.installe():
+            raise HTTPException(503, "CLIP n'est pas installé (Recherche → Installer CLIP).")
+        return await asyncio.to_thread(LCLIP.chercher, q[:200])
     if moteur != "texte":
         raise HTTPException(400, "moteur : texte ou clip")
     from app.services import library_recherche as LR
     return await LR.chercher(q[:200])
+
+
+@router.get("/library/clip/etat")
+async def library_clip_etat():
+    """Tâche #82 PR D : CLIP installé ? taille, avancement de l'installation et de l'index."""
+    from app.services import library_clip as LCLIP
+    return await asyncio.to_thread(LCLIP.etat)
+
+
+@router.post("/library/clip/installer")
+async def library_clip_installer(request: Request):
+    """Télécharge et installe CLIP (≈ 186 Mo : roues PyPI et modèles Hugging Face à version FIGÉE, empreintes vérifiées)
+    dans <données>/clip, en tâche de fond. Gratuit ; réservé à la machine locale. 409 si déjà en cours."""
+    _require_localhost(request)
+    from app.services import library_clip as LCLIP
+    if not LCLIP.lancer_installation():
+        raise HTTPException(409, "Une installation de CLIP est déjà en cours.")
+    return {"lance": True, "octets": LCLIP.TOTAL_OCTETS}
+
+
+@router.post("/library/clip/indexer")
+async def library_clip_indexer(request: Request):
+    """Calcule les vecteurs des images nouvelles ou modifiées (local, gratuit), en tâche de fond."""
+    _require_localhost(request)
+    from app.services import library_clip as LCLIP
+    if not LCLIP.installe():
+        raise HTTPException(503, "CLIP n'est pas installé.")
+    if not LCLIP.lancer_index():
+        raise HTTPException(409, "Un index est déjà en cours.")
+    return {"lance": True}
+
+
+@router.get("/library/semblables/{filename}")
+async def library_semblables(filename: str):
+    """Les images les plus proches d'une image, par CLIP (local)."""
+    from app.services import library_clip as LCLIP
+    safe = Path(filename).name
+    if not safe or safe in (".", "..") or safe != filename:
+        raise HTTPException(400, "Invalid filename")
+    if not LCLIP.installe():
+        raise HTTPException(503, "CLIP n'est pas installé.")
+    if not (settings.images_path / safe).is_file():
+        raise HTTPException(404, f"Image absente : {safe}")
+    return {"filename": safe, "semblables": await asyncio.to_thread(LCLIP.semblables, safe)}
 
 
 @router.get("/library/legendes/devis")
