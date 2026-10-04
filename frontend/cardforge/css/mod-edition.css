@@ -15,3 +15,11 @@
 .cf-edition .cf-edition-actions.hidden { display: none; }
 .cf-edition .cf-edition-etat { font-size: 11px; color: var(--ink-muted); line-height: 1.45; margin: 6px 0 0; }
 .cf-edition .cf-edition-cible i { font-style: normal; font-size: 11px; color: var(--ink-muted); line-height: 1.45; }
+
+/* tache #87 PR C : livret, mockup, fiche produit */
+.cf-edition .cf-edition-champ { width: 100%; font-size: 11.5px; margin: 4px 0; }
+.cf-edition .cf-edition-texte { width: 100%; font-size: 11.5px; line-height: 1.45; resize: vertical; }
+.cf-edition .cf-edition-actions label { font-size: 11px; color: var(--ink-soft); display: flex; gap: 4px; align-items: center; }
+.cf-edition .cf-edition-fiche { width: 100%; font-size: 11px; border-collapse: collapse; margin: 6px 0; }
+.cf-edition .cf-edition-fiche th { text-align: left; color: var(--ink-muted); font-weight: 500; padding: 2px 8px 2px 0; }
+.cf-edition .cf-edition-fiche td { color: var(--ink-strong); padding: 2px 0; }
