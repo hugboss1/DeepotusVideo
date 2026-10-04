@@ -496,6 +496,14 @@
 .cf-data .cf-data-dosline.ok b { color: var(--green); }
 .cf-data .cf-data-dosline.bad b { color: var(--red); }
 .cf-data .cf-data-dosline .cf-data-dosav { display: block; color: var(--red); }
+/* tache #86 : la langue active */
+.cf-data .cf-data-langues { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 11px;
+  color: var(--ink-soft); padding: 4px 0; }
+.cf-data .cf-data-langues.hidden { display: none; }
+.cf-data .cf-data-langues .cf-data-langb.on { border-color: var(--accent); color: var(--ink-strong); }
+.cf-data .cf-data-langues > p { flex-basis: 100%; margin: 0; font-size: 10.5px; }
+.cf-data .cf-data-langet.ok { color: var(--green); }
+.cf-data .cf-data-langet.bad { color: var(--red); }
 /* tache #85 PR B : les statistiques du jeu, colonne par colonne */
 .cf-data .cf-data-stats.hidden { display: none; }
 .cf-data .cf-data-stats > summary { cursor: pointer; font-size: 11px; color: var(--ink-soft); padding: 4px 0; }

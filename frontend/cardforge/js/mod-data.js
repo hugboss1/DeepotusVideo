@@ -235,6 +235,7 @@
       sep: typeof d.sep === "string" ? d.sep : "auto",
       enc: typeof d.enc === "string" ? d.enc : "auto",
       src: typeof d.src === "string" ? d.src : "",
+      lang: typeof d.lang === "string" ? d.lang : "",   /* tache #86 : langue active ('' = telle que mappee) */
     };
   }
   function commit() {
@@ -261,6 +262,7 @@
       map: Object.assign({}, T.map),
       qty_col: T.qty_col,
       filter: T.filter, sort: T.sort, sep: T.sep, enc: T.enc, src: T.src,
+      lang: T.lang || "",
     });
   }
   function snap() { return JSON.stringify(T); }
@@ -371,7 +373,7 @@
     const t0 = (typeof performance !== "undefined") ? performance.now() : Date.now();
     try {
       const r = await M.api.post("build", {
-        columns: T.columns, rows: T.rows, off: T.off, map: T.map,
+        columns: T.columns, rows: T.rows, off: T.off, map: T.map, lang: T.lang || "",
         qty_col: T.qty_col, filter: T.filter, sort: T.sort,
         /* les slots REELS partent avec la table : l'audit du mappage
            (« combien de slots la carte remplit avec le texte du gabarit »)
@@ -408,6 +410,7 @@
     checkArt();
     checkDos();
     checkStats();
+    checkLangues();
     refreshClauses();
   }
 
@@ -571,6 +574,7 @@
     checkArt();
     checkDos();
     checkStats();
+    checkLangues();
   }
 
   /* ── compteur PERMANENT (seuil : « compteur de cartes affiche en
@@ -2783,6 +2787,72 @@
       + (DOS.avertissements || []).map((a) => '<span class="cf-data-dosav">' + esc(a) + '</span>').join("");
   }
 
+  /* ══ LES LANGUES (tache #86 PR A, plan-cartes T12) ══════════════════════
+     Une colonne par langue (« nom_fr », « nom_en »). La langue active REECRIT le
+     mappage dans /build : une colonne est remplacee par sa soeur dans la langue
+     choisie, ou retiree si elle n'y existe pas — jamais repliee sur une autre
+     langue. Tout le jeu suit (impression, edition) : on exporte DANS la langue
+     active. Faire TENIR un texte plus long n'est pas ici : la piece 03 mesure
+     chaque carte, on y renvoie. */
+  let LANGS = null, LGSEQ = 0;
+  async function checkLangues() {
+    if (!T.columns.length) { LANGS = null; paintLangues(); return; }
+    const seq = ++LGSEQ;
+    try {
+      const r = await M.api.post("langues", { columns: T.columns, rows: T.rows, off: T.off,
+                                              map: T.map, qty_col: T.qty_col });
+      if (seq !== LGSEQ) return;
+      LANGS = r || null;
+    } catch (e) { if (seq !== LGSEQ) return; LANGS = null; }
+    paintLangues();
+  }
+  function choisirLangue(code) {
+    if ((T.lang || "") === code) return;
+    T.lang = code;
+    M.patch({ lang: code });               /* la langue n'est pas une modification de la TABLE */
+    paintLangues();
+    schedule(0);
+    M.toast(code ? "jeu rendu en " + ((LANGS && (LANGS.langues || []).filter((l) => l.code === code)[0] || {}).label || code)
+      : "jeu rendu tel que mappé");
+  }
+  function paintLangues() {
+    const box = REFS.langues;
+    if (!box) return;
+    const ls = (LANGS && LANGS.langues) || [];
+    if (!ls.length) {
+      box.innerHTML = "";
+      box.className = "cf-data-langues hidden";
+      /* une langue retenue que la table ne porte plus : on revient au mappage tel quel */
+      if (T.lang && LANGS) { T.lang = ""; M.patch({ lang: "" }); schedule(0); }
+      return;
+    }
+    box.className = "cf-data-langues";
+    const cur = T.lang || "";
+    const bouton = (code, label, title) => '<button type="button" class="btn sm cf-data-langb' + (code === cur ? " on" : "")
+      + '" data-lang="' + esc(code) + '" title="' + esc(title) + '">' + esc(label) + "</button>";
+    let html = '<b>Langue active</b> '
+      + bouton("", "telle que mappée", "Les colonnes exactement comme le mappage les désigne");
+    ls.forEach((l) => {
+      html += bouton(l.code, l.label + (l.cartes_incompletes ? " ⚠" : ""), "Rendre tout le jeu en " + l.label
+        + (l.cartes_incompletes ? " — " + l.cartes_incompletes + " carte(s) avec une colonne manquante" : " — complet"));
+    });
+    const l = ls.filter((x) => x.code === cur)[0];
+    if (l) {
+      const trous = (l.details || []).map((d) => "ligne " + d.ligne + " (" + d.cartes + " carte(s)) : "
+        + d.colonnes.map(esc).join(", ")).join(" · ");
+      html += '<p class="cf-data-langet' + (l.cartes_incompletes ? " bad" : " ok") + '">'
+        + (l.cartes_incompletes
+          ? esc(l.label) + " : " + l.cartes_incompletes + " carte(s) avec une colonne manquante — la cellule sort VIDE, "
+            + "jamais dans une autre langue" + (trous ? " · " + trous : "")
+            + ((l.absentes || []).length ? " · aucune colonne « " + l.absentes.map(esc).join(" », « ") + " » en " + esc(l.label) : "")
+          : esc(l.label) + " : toutes les colonnes mappées ont leur traduction")
+        + "</p>";
+    }
+    html += '<p class="hint">Un texte traduit peut être plus long : la <b>pièce 03</b> (Typographie) mesure chaque carte '
+      + "et dit ce qui déborde — vérifiez-la dans la langue active. Impression et Édition sortent dans la langue active.</p>";
+    box.innerHTML = html;
+  }
+
   /* ══ LES STATISTIQUES DU JEU (tache #85 PR B, plan-cartes T9) ═══════════
      Quantites appliquees, lignes ecartees exclues : c'est le JEU qu'on decrit,
      pas le fichier. Les colonnes d'images, de dos et d'identifiants ne se
@@ -3053,6 +3123,13 @@
     const art = h("p", "cf-data-artline", "");
     f.appendChild(art);
     REFS.artline = art;
+    const langs = h("div", "cf-data-langues", "");
+    f.appendChild(langs);
+    REFS.langues = langs;
+    on(langs, "click", (ev) => {
+      const b = ev.target.closest("[data-lang]");
+      if (b && !b.disabled) choisirLangue(String(b.dataset.lang));
+    });
     const dosl = h("div", "cf-data-dosline", "");
     f.appendChild(dosl);
     REFS.dosline = dosl;
@@ -3294,6 +3371,7 @@
       sep: "auto",      /* separateur retenu */
       enc: "auto",      /* encodage retenu */
       src: "",          /* nom du fichier d'origine */
+      lang: "",         /* tache #86 : langue active ('' = telle que mappee) */
     },
 
     async init(host) {
