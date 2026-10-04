@@ -10399,10 +10399,12 @@ function dzVueEcrite(v){try{localStorage.setItem("dz_biblio_vue",v)}catch(e){}}
    prompts, commentaires, noms) et « CLIP » (sémantique, local, PR D : grisé d’ici là) ; les légendes par un modèle
    vision PAYANT : le prix est ANNONCÉ par le dialogue maison avant tout appel, qui dit aussi que les images partent
    chez Google ; le plafond « bibliothèque » reste la garde du serveur ; le travail se suit (faits / total). */
-var DZ_MOTEURS=[["texte","Texte — légendes, tags, prompts, commentaires",!1],["clip","CLIP — par le sens (local, à installer)",!0]];
+var DZ_MOTEURS=[["texte","Texte — légendes, tags, prompts, commentaires"],["clip","CLIP — par le sens (en anglais, sur ce PC)"]];
 function dzUsdLeg(v){return v==null?"prix inconnu":"≈ "+(v<0.01?Number(v).toFixed(4):Number(v).toFixed(2))+" $"}
 function DzRecherche({liste,ouvrir}){var qs=x.useState(""),q=qs[0],setQ=qs[1],mo=x.useState("texte"),moteur=mo[0],setMoteur=mo[1],rs=x.useState(null),res=rs[0],setRes=rs[1],
-    ms=x.useState(""),msg=ms[0],setMsg=ms[1],ds=x.useState(null),dv=ds[0],setDv=ds[1],es=x.useState(null),et=es[0],setEt=es[1],verrou=x.useRef(!1);
+    ms=x.useState(""),msg=ms[0],setMsg=ms[1],ds=x.useState(null),dv=ds[0],setDv=ds[1],es=x.useState(null),et=es[0],setEt=es[1],verrou=x.useRef(!1),
+    cs=x.useState(null),clip=cs[0],setClip=cs[1];
+  x.useEffect(function(){fetch("/api/library/clip/etat").then(function(R){return R.ok?R.json():null}).then(function(e){if(e)setClip(e)}).catch(function(){})},[]);
   function devis(){return fetch("/api/library/legendes/devis").then(function(R){return R.ok?R.json():null}).then(function(d){setDv(d);if(d&&d.etat)setEt(d.etat)}).catch(function(){})}
   x.useEffect(function(){devis()},[]);
   x.useEffect(function(){if(!et||!et.en_cours)return;var h=setInterval(function(){fetch("/api/library/legendes/etat").then(function(R){return R.json()})
@@ -10423,7 +10425,8 @@ function DzRecherche({liste,ouvrir}){var qs=x.useState(""),q=qs[0],setQ=qs[1],mo
       r.jsx("input",{value:q,placeholder:"Chercher : phare, tempête, bleu…",onChange:function(e){setQ(e.target.value)},onKeyDown:function(e){if(e.key==="Enter"){e.preventDefault();chercher()}},
         style:Object.assign({flex:1,minWidth:180},champ)}),
       r.jsx("select",{value:moteur,title:"Le moteur de recherche",onChange:function(e){setMoteur(e.target.value)},style:champ,
-        children:DZ_MOTEURS.map(function(m){return r.jsx("option",{value:m[0],disabled:m[2],children:m[1]},m[0])})}),
+        children:DZ_MOTEURS.map(function(m){var inactif=m[0]==="clip"&&!(clip&&clip.installe&&clip.indexees);
+          return r.jsx("option",{value:m[0],disabled:inactif,children:m[1]+(inactif?(clip&&clip.installe?" — à indexer":" — à installer"):"")},m[0])})}),
       r.jsx(K,{variant:"outline",size:"sm",onClick:chercher,disabled:!q.trim(),title:"Chercher dans la Bibliothèque (sur ce PC, gratuit)",children:"Chercher"})]}),
     msg?r.jsx("span",{style:{fontSize:11,color:"var(--red)"},children:msg}):null,
     res?r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)"},children:res.n?res.n+" image(s)"+(res.n>res.resultats.length?" (les "+res.resultats.length+" premières)":""):"Aucune image ne correspond."}):null,
@@ -10440,8 +10443,52 @@ function DzRecherche({liste,ouvrir}){var qs=x.useState(""),q=qs[0],setQ=qs[1],mo
       et&&!et.en_cours&&et.arret?r.jsx("span",{style:{color:"var(--red)"},children:"Arrêté : "+et.arret}):null,
       dv.n&&!(et&&et.en_cours)?r.jsx(K,{variant:"outline",size:"sm",onClick:legender,disabled:!dv.cle,
         title:dv.cle?"Décrire ces images par "+dv.modele+" — PAYANT, prix redemandé avant":"Clé Gemini absente (Réglages) : rien ne peut être légendé",
-        children:"Légender ("+dzUsdLeg(dv.usd)+")"}):null]}):null]})}
+        children:"Légender ("+dzUsdLeg(dv.usd)+")"}):null]}):null,
+    r.jsx(DzClipBloc,{et:clip,setEt:setClip})]})}
 /* ── fin Bibliothèque #82 C */
+/* ── Bibliothèque #82 PR D (plan-library T12-T13, 04/10/2026) — CLIP en LOCAL : le bloc d’installation et d’index
+   (dans la Recherche) et « ≈ Semblables » (sous la fiche). Décision de l’utilisateur (04/10) : version légère ≈ 186 Mo,
+   installée à part ; rien ne sort du PC pour chercher. CLIP comprend l’ANGLAIS : le sélecteur le dit. */
+function dzMo(o){return(Number(o)/1048576).toFixed(0)+" Mo"}
+function DzClipBloc({et,setEt}){var vr=x.useRef(!1),ms=x.useState(""),msg=ms[0],setMsg=ms[1];
+  function relire(){return fetch("/api/library/clip/etat").then(function(R){return R.ok?R.json():null}).then(function(e){if(e)setEt(e)}).catch(function(){})}
+  var actif=!!(et&&((et.installation&&et.installation.en_cours)||(et.index&&et.index.en_cours)));
+  x.useEffect(function(){if(!actif)return;var h=setInterval(relire,2000);return function(){clearInterval(h)}},[actif]);
+  async function poster(url,txt,ok){if(vr.current)return;vr.current=!0;setMsg("");try{
+      if(txt&&!await window.__dzDialogue.confirmer(txt,{titre:"CLIP",ok:ok}))return;
+      var R=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});var d=await R.json().catch(function(){return{}});
+      if(!R.ok){setMsg("Refusé : "+String(d.detail||("HTTP "+R.status)));return}await relire()}finally{vr.current=!1}}
+  if(!et)return null;var ins=et.installation||{},idx=et.index||{};
+  var lbl=!et.installe?(ins.en_cours?"Installation de CLIP : "+dzMo(ins.fait)+" / "+dzMo(ins.total)+(ins.etape?" — "+ins.etape:""):
+      "CLIP n’est pas installé — "+dzMo(et.octets)+" à télécharger (PyPI et Hugging Face), gratuit, tout reste sur ce PC")
+    :idx.en_cours?"Index CLIP : "+idx.faits+" / "+idx.total:"CLIP : "+et.indexees+" image(s) indexée(s)"+(et.a_indexer?" · "+et.a_indexer+" à indexer":"");
+  return r.jsxs("div",{"data-dz":"clip",style:{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",fontSize:11.5,color:"var(--ink-soft)",paddingTop:6,borderTop:"1px solid var(--stroke)"},children:[
+    r.jsx("span",{children:lbl}),
+    ins.erreur&&!ins.en_cours?r.jsx("span",{style:{color:"var(--red)"},children:"Installation échouée : "+ins.erreur}):null,
+    !et.installe&&!ins.en_cours?r.jsx(K,{variant:"outline",size:"sm",title:"Télécharger et installer CLIP ("+dzMo(et.octets)+") — versions figées, empreintes vérifiées",
+      onClick:function(){poster("/api/library/clip/installer","Installer CLIP : "+dzMo(et.octets)+" à télécharger (onnxruntime, numpy, tokenizers depuis PyPI ; modèle CLIP ViT-B/32 quantifié depuis Hugging Face). Gratuit ; installé à part, dans vos données ; ensuite, la recherche par le sens se fait sans rien envoyer.","Installer ("+dzMo(et.octets)+")")},
+      children:"Installer CLIP ("+dzMo(et.octets)+")"}):null,
+    et.installe&&et.a_indexer&&!idx.en_cours?r.jsx(K,{variant:"outline",size:"sm",title:"Calculer les vecteurs des images nouvelles ou modifiées (sur ce PC, gratuit)",
+      onClick:function(){poster("/api/library/clip/indexer",null,null)},children:"Indexer ("+et.a_indexer+")"}):null,
+    msg?r.jsx("span",{style:{color:"var(--red)"},children:msg}):null]})}
+function DzSemblables({m,liste,ouvrir}){var ls=x.useState(null),L=ls[0],setL=ls[1],ms=x.useState(""),msg=ms[0],setMsg=ms[1],vr=x.useRef(!1);
+  var nom=m&&!m.jobId&&m.kind==="image"?m.name:null;
+  x.useEffect(function(){setL(null);setMsg("")},[nom]);
+  if(!nom)return null;
+  async function voir(){if(vr.current)return;vr.current=!0;setMsg("");try{
+      var R=await fetch("/api/library/semblables/"+encodeURIComponent(nom));var d=await R.json().catch(function(){return{}});
+      if(!R.ok){setMsg(R.status===503?"CLIP n’est pas installé : 🔎 Recherche → Installer CLIP.":String(d.detail||("HTTP "+R.status)));return}
+      setL(d.semblables||[])}finally{vr.current=!1}}
+  var parNom={};(liste||[]).forEach(function(z){if(z&&z.name)parNom[z.name]=z});
+  return r.jsxs("div",{"data-dz":"semblables",style:{display:"flex",flexDirection:"column",gap:6,marginTop:8},children:[
+    r.jsx("div",{children:r.jsx(K,{variant:"ghost",size:"sm",onClick:voir,title:"Les images les plus proches de celle-ci, par CLIP (sur ce PC)",children:"≈ Images semblables"})}),
+    msg?r.jsx("span",{style:{fontSize:11,color:"var(--red)"},children:msg}):null,
+    L&&!L.length?r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)"},children:"Aucune image indexée à comparer (indexez d’abord)."}):null,
+    L&&L.length?r.jsx("div",{style:{display:"flex",gap:6,flexWrap:"wrap"},children:L.slice(0,12).map(function(z){var it=parNom[z.filename];
+      return r.jsx("button",{type:"button",disabled:!it,onClick:function(){if(it)ouvrir(it)},title:z.filename+" — proximité "+Math.round(z.score*100)+" %",
+        style:{padding:0,border:"1px solid var(--stroke)",borderRadius:4,background:"none",cursor:it?"pointer":"default"},
+        children:r.jsx("img",{src:"/api/images/"+encodeURIComponent(z.filename),alt:"",style:{width:56,height:56,objectFit:"cover",display:"block"}})},z.filename)})}):null]})}
+/* ── fin Bibliothèque #82 D */
 /* ── Bibliothèque #78 PR B (plan-library T4, 03/10/2026) — les PROJETS à l'écran.
    Un projet contient des assets de toutes catégories (serveur : library_projects, PR A #144). Ici :
    - la barre « Projet » en tête du contenu : REGARDER un projet filtre TOUS les onglets (dzPF, appliqué dans Lfs) ;

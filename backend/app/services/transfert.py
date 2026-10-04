@@ -81,6 +81,7 @@ JETABLE = (
     "*.db.bak", "*.db",          # la base part par l'instantané, pas brute
     "rebut_*/*",                 # corbeilles datées
     "assets/_corbeille/*",       # tâche #81 : la corbeille de la Bibliothèque
+    "clip/*",                    # tâche #82 : CLIP local (≈ 240 Mo), se réinstalle d'un clic
     "assets/outputs/_cache/*",   # cache d'aperçus du montage
     "assets/outputs/_tmp_*/*",   # rendus en cours
     "assets/outputs/fxpreview/*",  # vignettes d'effets, régénérées
