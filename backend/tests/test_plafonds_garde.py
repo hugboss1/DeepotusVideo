@@ -54,6 +54,7 @@ PAYANTES = {
     ("routes", "POST", "/subtitles/translate"), ("routes", "POST", "/subtitles/transcribe"),
     ("dictation", "POST", "/dictation"), ("montage", "POST", "/autoclips"), ("capture", "POST", "/rembg"),
     ("face", "POST", "/serie/generer"), ("forge3d", "POST", "/mesh3d/{nid}"),
+    ("data", "POST", "/traduire"),   # tâche #86 : la traduction des cartes (LLM des Réglages ou Ollama)
     ("routes", "POST", "/news/rank"),   # tâche #33 : le score LLM sur demande
     ("routes", "POST", "/news/chain/polish"),   # tâche #35 : le polissage LLM d'un script du lot
     ("routes", "POST", "/generate/extend"),   # tâche #51 : l'extension Veo 3.1 (fal)
@@ -79,7 +80,8 @@ check("A3 la liste couvre au moins 48 routes (recensement du 29/09)", len(PAYANT
 # témoin positif : l'ANCIEN code (avant la tâche) doit faire rougir A1 sur presque toutes les routes
 anciens = {"routes": _git_show("api/routes.py"), "dictation": _git_show("services/dictation_service.py"),
            "montage": _git_show("services/montage_service.py"), "face": _git_show("services/cards/face.py"),
-           "capture": _git_show("services/cards/capture.py"), "forge3d": _git_show("services/cards/forge3d.py")}
+           "capture": _git_show("services/cards/capture.py"), "forge3d": _git_show("services/cards/forge3d.py"),
+           "data": _git_show("services/cards/data.py")}   # tâche #86 : le module de la traduction des cartes
 if all(anciens.values()):
     rec0 = RP.recenser(anciens)
     gardees0 = [k for k in PAYANTES if k in rec0 and rec0[k]["garde"]]

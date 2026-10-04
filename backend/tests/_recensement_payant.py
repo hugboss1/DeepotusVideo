@@ -18,6 +18,7 @@ MODULES = {
     "face": RACINE / "services" / "cards" / "face.py",
     "capture": RACINE / "services" / "cards" / "capture.py",
     "forge3d": RACINE / "services" / "cards" / "forge3d.py",
+    "data": RACINE / "services" / "cards" / "data.py",   # tâche #86 : la traduction des cartes (LLM)
 }
 
 PUITS = {
