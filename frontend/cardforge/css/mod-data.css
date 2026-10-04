@@ -511,6 +511,20 @@
 .cf-data .cf-data-tradrow { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(140px, 1.2fr) auto auto; gap: 6px; align-items: center; }
 .cf-data .cf-data-tradsrc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-muted); }
 .cf-data .cf-data-tradin { font-size: 11px; }
+/* tache #87 PR A : l'art du deck en lot */
+.cf-data .cf-data-lot.hidden { display: none; }
+.cf-data .cf-data-lot > summary { cursor: pointer; font-size: 11px; color: var(--ink-soft); padding: 4px 0; }
+.cf-data .cf-data-lotbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 11px; }
+.cf-data .cf-data-lotbar select, .cf-data .cf-data-lotbar input { font-size: 11px; max-width: 100%; }
+.cf-data .cf-data-lotbar input[data-lot-k="gabarit"], .cf-data .cf-data-lotbar input[data-lot-k="style"] { flex: 1 1 160px; }
+.cf-data .cf-data-lotbar input[data-lot-k="mur_usd"] { width: 5em; }
+.cf-data .cf-data-lotdev { margin: 6px 0; font-size: 10.5px; color: var(--ink-soft); line-height: 1.5; }
+.cf-data .cf-data-lotdev.bad b { color: var(--red); }
+.cf-data .cf-data-lotres { display: grid; gap: 4px; }
+.cf-data .cf-data-lotrow { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; font-size: 10.5px; color: var(--ink-muted); }
+.cf-data .cf-data-lotvar { padding: 0; border: 2px solid transparent; background: none; cursor: pointer; line-height: 0; }
+.cf-data .cf-data-lotvar.on { border-color: var(--accent); }
+.cf-data .cf-data-lotvar img { width: 48px; height: 64px; object-fit: cover; }
 /* tache #85 PR B : les statistiques du jeu, colonne par colonne */
 .cf-data .cf-data-stats.hidden { display: none; }
 .cf-data .cf-data-stats > summary { cursor: pointer; font-size: 11px; color: var(--ink-soft); padding: 4px 0; }

@@ -55,6 +55,7 @@ import csv
 import io
 import json
 import math
+import pathlib
 import posixpath
 import re
 import sys
@@ -2601,6 +2602,147 @@ async def post_traduire(did: str, body: Any = Body(default=None)):
         raise HTTPException(502, "Traduction impossible : " + str(e))
     return {"propositions": props, "restants": max(0, len(sel["items"]) - TRAD_MAX),
             "fournisseur": mo["fournisseur"], "colonnes_a_creer": sel["a_creer"]}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 6quater. L'ART DU DECK EN LOT (tâche #87 PR A, plan-cartes T14-T15, 04/10/2026)
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# DÉCISIONS DE L'UTILISATEUR (04/10) : une ROUTE SERVEUR gardée — devis, confirmation explicite, garde mensuelle
+# « cartes » AVANT CHAQUE TIR, route recensée payante — et un MUR DUR par lot (10 $ par défaut, réglable). Le calcul
+# (devis, prompts) est dans `data_lot` ; LE TIR reste ICI : le recensement ne suit que les fonctions de ce module.
+# Un échec au milieu du lot n'arrête pas les autres lignes (elles sont payées) ; un PLAFOND, si.
+
+async def _bible_entites() -> list:
+    """Les entités de la bible (nom, alias, description, planche de référence). Vide si la base ne répond pas :
+    une ligne sans entité garde son prompt, elle perd seulement la description et la référence."""
+    try:
+        from sqlalchemy import select
+        from app.services.storage import BibleEntity, async_session_factory
+        async with async_session_factory() as session:
+            rows = (await session.execute(select(BibleEntity))).scalars().all()
+        out = []
+        for e in rows:
+            try:
+                al = json.loads(e.aliases) if getattr(e, "aliases", None) else []
+            except ValueError:
+                al = []
+            out.append({"name": e.name or "", "aliases": al if isinstance(al, list) else [],
+                        "description": e.description or "", "ref_image": e.ref_image or ""})
+        return out
+    except Exception as e:                                # noqa: BLE001
+        logger.warning(f"cards/data: bible illisible pour le lot ({type(e).__name__})")
+        return []
+
+
+async def _tirer_lot(model: str, prompt: str, size: str, n: int, refs: list) -> list:
+    """LE SEUL point de dépense de l'art en lot : la façade `image_providers.generate`, comme /images/generate.
+    Les références (planche de l'entité) ne sont honorées que par Nano Banana ; ailleurs elles sont ignorées."""
+    from app.config import settings
+    from app.services import image_providers
+    chemins = []
+    if model in ("nano-banana", "nano-banana-pro"):
+        for r in refs or ():
+            c = settings.images_path / pathlib.Path(str(r)).name
+            if c.is_file():
+                chemins.append(c)
+    out = await image_providers.generate(model, prompt, size, int(n), image_paths=chemins or None)
+    return [str(x) for x in ((out or {}).get("images") or [])]
+
+
+async def _lot_corps(b: dict) -> tuple:
+    from . import data_lot as DL
+    try:
+        lot = DL.prompts_lot(b.get("columns") or [], b.get("rows") or [], b.get("map") or {}, b.get("off"),
+                             str(b.get("gabarit") or "{prompt}"), str(b.get("style") or ""), await _bible_entites(),
+                             str(b.get("col_entite") or ""), b.get("qty_col"))
+        d = DL.devis(lot, str(b.get("model") or ""), b.get("n") or 1, b.get("mur_usd"))
+    except (TypeError, ValueError) as e:
+        raise HTTPException(400, str(e))
+    return lot, d
+
+
+@router.get("/lot/modeles")
+async def get_lot_modeles(did: str):
+    """Les modèles du lot (servis par la façade, FLUX exclu), leur tarif et la présence de leur clé."""
+    _guard(did)
+    from . import data_lot as DL
+    return {"models": DL.modeles(), "tailles": list(DL.TAILLES), "mur_usd": DL.LOT_MUR_USD,
+            "mur_max": DL.LOT_MUR_MAX, "n_max": DL.LOT_N_MAX, "lignes_max": DL.LOT_LIGNES_MAX}
+
+
+@router.post("/lot/devis")
+async def post_lot_devis(did: str, body: Any = Body(default=None)):
+    """Ce que le lot COÛTERAIT — lignes à illustrer, images, cartes couvertes, dollars — sans rien appeler."""
+    _guard(did)
+    lot, d = await _lot_corps(_obj(body))
+    d["sans_prompt"] = [p["ligne"] for p in lot["prompts"] if p["manque"]][:50]
+    return d
+
+
+@router.post("/lot/generer")
+async def post_lot_generer(did: str, body: Any = Body(default=None)):
+    """LE LOT. Il DÉPENSE : confirmation explicite (`{"confirmer": true}`, sinon 400 avec le devis), mur du lot
+    (409 au-dessus), garde mensuelle « cartes » avant CHAQUE tir. Rend les fichiers par ligne ; l'écran remplit la
+    colonne d'art (annulable). Les lignes sans texte ne sont PAS tirées — elles sont listées."""
+    _guard(did)
+    b = _obj(body)
+    lot, d = await _lot_corps(b)
+    from . import data_lot as DL
+    from . import face
+    size = str(b.get("size") or DL.TAILLES[0])
+    if size not in DL.TAILLES:
+        raise HTTPException(400, f"Format inconnu : « {size} »")
+    a_tirer = [p for p in lot["prompts"] if not p["manque"]][:DL.LOT_LIGNES_MAX]
+    try:                                                   # AUCUN nom d'artiste : vérifié AVANT le premier tir
+        for p in a_tirer:
+            p["prompt"] = face.sans_nom_d_artiste(p["prompt"])
+    except ValueError as e:
+        raise HTTPException(400, f"Ligne {p['ligne']} : {e}")
+    if not a_tirer:
+        return {"generees": 0, "echecs": 0, "resultats": [], "erreurs": [], "restants": 0, "devis": d, "arret": ""}
+    if b.get("confirmer") is not True:
+        raise HTTPException(400, detail={"erreur": "confirmation requise", "devis": d,
+                                         "message": f"Ce lot DÉPENSE : {d['images']} image(s), {d['total_usd']} $. "
+                                                    "Renvoyez la même requête avec {\"confirmer\": true}."})
+    if not d["sous_le_mur"]:
+        raise HTTPException(409, f"Le lot coûterait {d['total_usd']} $, au-dessus du mur de {d['mur_usd']} $ par lot : "
+                                 "réduisez les lignes ou les variantes, ou relevez le mur — rien n'a été lancé.")
+    m = next((x for x in DL.modeles() if x["id"] == d["model"]), None)
+    if not m or not m["cle"]:
+        raise HTTPException(503, f"La clé de « {d['model']} » n'est pas enregistrée (Réglages) — rien n'a été lancé.")
+    from datetime import datetime, timezone
+    from app.services import library_index as _LI
+    from app.services import plafonds as _PLAF
+    res, err, arret = [], [], ""
+    for p in a_tirer:
+        try:
+            await _PLAF.verifier({"kind": "image", "n": d["n_par_ligne"], "model": d["model"]}, "cartes")
+        except HTTPException as e:
+            if not res and not err:
+                raise                                      # rien n'est parti : le refus passe tel quel
+            det = e.detail if isinstance(e.detail, dict) else {}
+            arret = str(det.get("message") or e.detail)
+            break
+        try:
+            imgs = await _tirer_lot(d["model"], p["prompt"], size, d["n_par_ligne"], p["references"])
+            if not imgs:
+                raise RuntimeError("le fournisseur n'a rendu aucune image")
+        except Exception as e:                            # noqa: BLE001 — une ligne échoue, le lot continue
+            err.append({"ligne": p["ligne"], "message": face._sans_chemin(e, 180)})
+            continue
+        res.append({"ligne": p["ligne"], "fichiers": imgs, "entite": p["entite"], "cartes": p["cartes"],
+                    "prompt": p["prompt"]})
+        ref = (p["references"] or [""])[0]
+        try:
+            await _LI.noter(imgs, "cardforge", deck_id=did, parent=ref or None, relation="carte" if ref else None,
+                            recette={"prompt": p["prompt"], "model": d["model"], "size": size,
+                                     "le": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                                     "lot": {"deck_id": did, "ligne": p["ligne"]}})
+        except Exception:                                  # noqa: BLE001 — l'index ne casse pas le lot
+            pass
+    return {"generees": len(res), "echecs": len(err), "resultats": res, "erreurs": err, "arret": arret,
+            "restants": d["restants"], "devis": d}
 
 
 @router.post("/build")

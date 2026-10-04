@@ -411,6 +411,7 @@
     checkDos();
     checkStats();
     checkLangues();
+    LOTDEV = null; paintLot();
     refreshClauses();
   }
 
@@ -575,6 +576,7 @@
     checkDos();
     checkStats();
     checkLangues();
+    LOTDEV = null; paintLot();
   }
 
   /* ── compteur PERMANENT (seuil : « compteur de cartes affiche en
@@ -2942,6 +2944,149 @@
     paintLangues();
   }
 
+  /* ══ L'ART DU DECK EN LOT (tache #87 PR A, plan-cartes T14-T15) ═════════
+     Decisions de l'utilisateur (04/10) : route SERVEUR gardee — DEVIS d'abord
+     (lignes, images, cartes couvertes, dollars), dialogue de confirmation, garde
+     mensuelle « cartes » avant chaque tir, MUR par lot (10 $ par defaut,
+     reglable). La colonne remplie est celle MAPPEE sur l'illustration ; une
+     ligne sans texte n'est pas tiree. Le resultat entre dans la table en UNE
+     modification annulable ; les variantes se choisissent ligne par ligne. */
+  const LOTDEF = { model: "nano-banana", n: 1, size: "portrait_4_3", gabarit: "", style: "", col_entite: "", mur_usd: 10 };
+  let LOT = Object.assign({}, LOTDEF), LOTMODS = null, LOTDEV = null, LOTRES = [], LOTV = false;
+  function artCol() {
+    return Object.keys(T.map).filter((c) => T.map[c] === "art" && T.columns.indexOf(c) >= 0)[0] || "";
+  }
+  function lotGabarit() {
+    if (LOT.gabarit) return LOT.gabarit;
+    const p = T.columns.filter((c) => /^prompt$/i.test(c))[0];
+    const t = Object.keys(T.map).filter((c) => T.map[c] === "title" && T.columns.indexOf(c) >= 0)[0];
+    return "{" + (p || t || T.columns.filter((c) => c !== artCol())[0] || "prompt") + "}";
+  }
+  function lotCorps() {
+    return { columns: T.columns, rows: T.rows, off: T.off, map: T.map, qty_col: T.qty_col,
+             model: LOT.model, n: LOT.n, size: LOT.size, gabarit: lotGabarit(), style: LOT.style,
+             col_entite: LOT.col_entite, mur_usd: LOT.mur_usd };
+  }
+  function usd(v) { return Number(v || 0).toFixed(Number(v) < 0.1 ? 3 : 2); }
+  function lotHTML() {
+    const ac = artCol();
+    if (!ac) return "<summary>Art du deck en lot</summary><p class=\"hint\">Mappez d’abord une colonne sur « Illustration (card.art) » : "
+      + "c’est elle que le lot remplit.</p>";
+    const opt = (v, lab, cur, dis) => '<option value="' + esc(v) + '"' + (String(v) === String(cur) ? " selected" : "")
+      + (dis ? " disabled" : "") + ">" + esc(lab) + "</option>";
+    const mods = (LOTMODS && LOTMODS.models) || [];
+    let h = "<summary>Art du deck en lot — colonne « " + esc(ac) + " »</summary><div class=\"cf-data-lotbar\">"
+      + '<select data-lot-k="model" title="Modèles servis au lot (FLUX ne passe que par l’écran Images) ; un modèle sans clé est grisé">'
+      + (mods.length ? mods.map((m) => opt(m.id, m.label + " · " + (m.usd_par_image == null ? "tarif ?" : usd(m.usd_par_image) + " $/image")
+        + (m.cle ? "" : " · sans clé"), LOT.model, !m.cle)).join("") : opt(LOT.model, LOT.model, LOT.model)) + "</select>"
+      + '<select data-lot-k="n" title="Variantes par ligne (chacune est payée)">' + [1, 2, 3, 4].map((k) => opt(k, k + " variante(s)", LOT.n)).join("") + "</select>"
+      + '<select data-lot-k="size" title="Cadre demandé au générateur">'
+      + ((LOTMODS && LOTMODS.tailles) || ["portrait_4_3"]).map((s) => opt(s, s, LOT.size)).join("") + "</select>"
+      + '<input data-lot-k="gabarit" value="' + esc(lotGabarit()) + '" title="Le prompt de chaque ligne : {colonne} est remplacé par la cellule">'
+      + '<input data-lot-k="style" value="' + esc(LOT.style) + '" placeholder="style de série (palette, matière…)" title="Ajouté à chaque prompt — jamais un nom d’artiste (refusé)">'
+      + '<select data-lot-k="col_entite" title="Colonne qui nomme une entité de la bible : sa description et sa planche de référence s’ajoutent">'
+      + opt("", "sans entité de la bible", LOT.col_entite) + T.columns.filter((c) => c !== ac).map((c) => opt(c, "entité : " + c, LOT.col_entite)).join("") + "</select>"
+      + '<label title="Au-dessus de ce montant, le lot ne part pas (mur dur, en plus du plafond mensuel « cartes »)">mur <input data-lot-k="mur_usd" type="number" min="0.5" max="100" step="0.5" value="'
+      + esc(String(LOT.mur_usd)) + '"> $</label>'
+      + '<button type="button" class="btn sm cf-data-b" data-lot-devis="1" title="Ce que coûterait le lot — rien n’est appelé">Devis</button>'
+      + '<button type="button" class="btn strong sm cf-data-b" data-lot-go="1" title="Devis, puis confirmation : le lot DÉPENSE (plafond « cartes » et mur du lot appliqués)">Générer…</button></div>';
+    if (LOTDEV) {
+      const d = LOTDEV;
+      h += '<p class="cf-data-lotdev' + (d.sous_le_mur ? "" : " bad") + '"><b>' + d.lignes_a_generer + " ligne(s) à générer</b> · "
+        + d.images + " image(s) pour ce lot · " + d.cartes_couvertes + " cartes couvertes · " + d.deja_illustrees + " déjà illustrée(s)"
+        + " · <b>" + usd(d.total_usd) + " $</b> (" + esc(d.model) + ", mur " + usd(d.mur_usd) + " $)"
+        + (d.incomplets ? " · " + d.incomplets + " ligne(s) sans texte (" + (d.sans_prompt || []).join(", ") + ") ne seront pas tirées" : "")
+        + (d.restants ? " · " + d.restants + " attendront une seconde demande" : "")
+        + " — les images rejoignent la <b>Bibliothèque</b> avec la lignée de ce jeu.</p>";
+    }
+    if (LOTRES.length) {
+      h += '<div class="cf-data-lotres">' + LOTRES.map((x, i) => '<div class="cf-data-lotrow"><span>ligne ' + x.ligne
+        + (x.entite ? " · " + esc(x.entite) : "") + "</span>"
+        + x.fichiers.map((f, k) => '<button type="button" class="cf-data-lotvar' + (f === x.choisi ? " on" : "") + '" data-lot-var="' + i + ":" + k
+          + '" title="Poser cette variante sur la ligne ' + x.ligne + ' (annulable)"><img alt="" src="' + esc(CF.images.url(f)) + '"></button>').join("")
+        + "</div>").join("") + "</div>";
+    }
+    return h;
+  }
+  function paintLot() {
+    const box = REFS.lot;
+    if (!box) return;
+    if (!T.columns.length) { box.className = "cf-data-lot hidden"; return; }
+    box.className = "cf-data-lot";
+    box.innerHTML = lotHTML();
+  }
+  async function lotModeles() {
+    if (LOTMODS) return;
+    try {
+      LOTMODS = await M.api.get("lot/modeles");
+      if (!(LOT.mur_usd > 0)) LOT.mur_usd = LOTMODS.mur_usd;
+    } catch (e) { LOTMODS = { models: [], tailles: ["portrait_4_3"] }; }
+    paintLot();
+  }
+  function lotRegler(k, v) {
+    LOT[k] = (k === "n") ? Math.max(1, Math.min(4, Number(v) || 1)) : (k === "mur_usd" ? (Number(v) || LOTDEF.mur_usd) : String(v));
+    LOTDEV = null;
+    M.patch({ lot: Object.assign({}, LOT) });   /* reglages du lot : pas une modification de la TABLE */
+    paintLot();
+  }
+  async function lotDevis() {
+    try { LOTDEV = await M.api.post("lot/devis", lotCorps()); }
+    catch (e) { LOTDEV = null; M.toast("Devis : " + String((e && e.message) || e), true); }
+    paintLot();
+    return LOTDEV;
+  }
+  async function lotGenerer() {
+    if (LOTV) return;
+    LOTV = true;
+    try {
+      const d = await lotDevis();
+      if (!d) return;
+      if (!d.lignes_de_ce_lot) { M.toast(d.incomplets ? "aucune ligne prête : " + d.incomplets + " ligne(s) sans texte" : "rien à illustrer : toutes les lignes ont leur image", !!d.incomplets); return; }
+      const m = ((LOTMODS && LOTMODS.models) || []).filter((x) => x.id === d.model)[0];
+      if (m && !m.cle) { M.toast("la clé de « " + d.model + " » n’est pas enregistrée (Réglages)", true); return; }
+      if (!d.sous_le_mur) { M.toast("le lot coûterait " + usd(d.total_usd) + " $, au-dessus du mur de " + usd(d.mur_usd) + " $ : réduisez-le ou relevez le mur", true); return; }
+      const ac = artCol();
+      const ok = await window.__dzDialogue.confirmer(d.images + " image(s) avec " + d.model + " pour " + d.lignes_de_ce_lot + " ligne(s) : ≈ "
+        + usd(d.total_usd) + " $ — PAYANT, plafond « cartes » et mur du lot (" + usd(d.mur_usd) + " $) appliqués."
+        + (d.incomplets ? " " + d.incomplets + " ligne(s) sans texte ne seront pas tirées." : "")
+        + (d.restants ? " " + d.restants + " ligne(s) attendront une seconde demande." : "")
+        + " La colonne « " + ac + " » sera remplie (Ctrl+Z annule) ; les images rejoignent la Bibliothèque.",
+        { titre: "Art du deck", ok: "Générer (≈ " + usd(d.total_usd) + " $)" });
+      if (!ok) return;
+      M.busy(true, "génération de " + d.images + " image(s)…");
+      const r = await M.api.post("lot/generer", Object.assign(lotCorps(), { confirmer: true }));
+      const res = (r && r.resultats) || [];
+      const ci = T.columns.indexOf(ac);
+      if (res.length && ci >= 0) {
+        pushUndo();
+        res.forEach((x) => {
+          const row = T.rows[x.ligne - 1];
+          if (row && !String(row[ci] || "").trim()) { row[ci] = x.fichiers[0]; x.choisi = x.fichiers[0]; }
+        });
+        commit(); render(); schedule(0);
+      }
+      LOTRES = res;
+      LOTDEV = null;
+      paintLot();
+      const errs = (r && r.erreurs) || [];
+      M.toast(res.length + " ligne(s) illustrée(s)" + (errs.length ? " · " + errs.length + " échec(s) : " + errs.map((e) => "ligne " + e.ligne + " — " + e.message).join(" ; ") : "")
+        + (r && r.arret ? " · lot arrêté : " + r.arret : ""), !!(errs.length || (r && r.arret)));
+    } catch (e) {
+      M.toast("Art du deck : " + String((e && e.message) || e), true);
+    } finally { M.busy(false); LOTV = false; }
+  }
+  function lotVariante(i, k) {
+    const x = LOTRES[i];
+    const f = x && x.fichiers[k];
+    const ci = T.columns.indexOf(artCol());
+    if (!f || ci < 0 || !T.rows[x.ligne - 1]) { M.toast("cette ligne n’existe plus", true); return; }
+    pushUndo();
+    T.rows[x.ligne - 1][ci] = f;
+    x.choisi = f;
+    commit(); render(); schedule(0);
+    paintLot();
+  }
+
   /* ══ LES STATISTIQUES DU JEU (tache #85 PR B, plan-cartes T9) ═══════════
      Quantites appliquees, lignes ecartees exclues : c'est le JEU qu'on decrit,
      pas le fichier. Les colonnes d'images, de dos et d'identifiants ne se
@@ -3229,6 +3374,20 @@
       const s = ev.target.closest("[data-trad-sel]");
       if (s) { TRADSEL[s.dataset.tradSel] = String(s.value); if (s.dataset.tradSel === "source") TRADSEL.cible = ""; paintLangues(); }
     });
+    const lot = h("details", "cf-data-lot hidden", "");
+    f.appendChild(lot);
+    REFS.lot = lot;
+    on(lot, "toggle", () => { if (lot.open) lotModeles(); });
+    on(lot, "click", (ev) => {
+      if (ev.target.closest("[data-lot-devis]")) { lotDevis(); return; }
+      if (ev.target.closest("[data-lot-go]")) { lotGenerer(); return; }
+      const v = ev.target.closest("[data-lot-var]");
+      if (v) { const ik = String(v.dataset.lotVar).split(":"); lotVariante(Number(ik[0]), Number(ik[1])); }
+    });
+    on(lot, "change", (ev) => {
+      const s = ev.target.closest("[data-lot-k]");
+      if (s) lotRegler(String(s.dataset.lotK), s.value);
+    });
     const dosl = h("div", "cf-data-dosline", "");
     f.appendChild(dosl);
     REFS.dosline = dosl;
@@ -3471,11 +3630,14 @@
       enc: "auto",      /* encodage retenu */
       src: "",          /* nom du fichier d'origine */
       lang: "",         /* tache #86 : langue active ('' = telle que mappee) */
+      lot: {},          /* tache #87 : reglages de l'art en lot (modele, variantes, gabarit, style, mur) */
     },
 
     async init(host) {
       HOST = host;
       T = loadT();
+      const lr = (CF.get("data", {}) || {}).lot;
+      LOT = Object.assign({}, LOTDEF, (lr && typeof lr === "object" && !Array.isArray(lr)) ? lr : {});
 
       try {
         const r = await M.api.get("samples");

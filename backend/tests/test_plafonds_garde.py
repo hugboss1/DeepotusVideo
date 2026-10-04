@@ -55,6 +55,7 @@ PAYANTES = {
     ("dictation", "POST", "/dictation"), ("montage", "POST", "/autoclips"), ("capture", "POST", "/rembg"),
     ("face", "POST", "/serie/generer"), ("forge3d", "POST", "/mesh3d/{nid}"),
     ("data", "POST", "/traduire"),   # tâche #86 : la traduction des cartes (LLM des Réglages ou Ollama)
+    ("data", "POST", "/lot/generer"),   # tâche #87 : l'art du deck en lot (façade image, mur par lot)
     ("routes", "POST", "/news/rank"),   # tâche #33 : le score LLM sur demande
     ("routes", "POST", "/news/chain/polish"),   # tâche #35 : le polissage LLM d'un script du lot
     ("routes", "POST", "/generate/extend"),   # tâche #51 : l'extension Veo 3.1 (fal)
