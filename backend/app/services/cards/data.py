@@ -2453,6 +2453,110 @@ def resolve_art(values: list, root) -> dict:
             "n_files": n_files, "n_names": len(by_name), "folder": str(root)}
 
 
+# ── D'OÙ VIENT LE DOS D'UNE CARTE (tâche #85 PR A, plan-cartes T8, 04/10/2026) ──
+# `card.back` a DEUX lecteurs, dans deux espaces de noms :
+#   * P2 (mod-frame.js `backOf`) y cherche un MOTIF du catalogue (frame.BACKS)
+#     — et SEULEMENT si « dos commun » est décoché dans la pièce 02 ;
+#   * P1 (mod-face.js `resolveArtId`) y cherche une ILLUSTRATION du verso :
+#     `cat:` (catalogue), `local:` (image importée dans CE navigateur),
+#     `img:nom` ou un nom nu de la Bibliothèque.
+# Une valeur qui n'est ni l'un ni l'autre retombait sur le dos commun SANS UN
+# MOT. La fonction ne décide rien : elle DIT ce qui se passera, en CARTES.
+DOS_ORIGINES = ("motif", "motif_ignore", "image", "image_locale", "commun", "introuvable")
+
+
+def dos_report(columns: list, rows: list, back_col: Any, qty_col: Any, off: Any,
+               motifs: set, dos_commun: bool, root) -> dict:
+    cols = [str(c) for c in (columns or ())]
+    bc = str(back_col or "").strip() or next(
+        (c for c in cols if c.strip().lower() in ("dos", "back")), "")
+    if bc and bc not in cols:
+        raise ValueError(f"Colonne de dos inconnue : {bc!r}")
+    ib = cols.index(bc) if bc else -1
+    iq = cols.index(str(qty_col)) if qty_col and str(qty_col) in cols else -1
+    off_set = set()
+    if isinstance(off, list):
+        for v in off:
+            try:
+                off_set.add(int(v))
+            except (TypeError, ValueError):
+                pass
+    par: dict[str, dict] = {}
+    total = 0
+    for i, r in enumerate(rows or ()):
+        if i in off_set or not isinstance(r, list):
+            continue
+        v = str(r[ib]).strip() if 0 <= ib < len(r) and r[ib] is not None else ""
+        q = read_qty(r[iq]) if 0 <= iq < len(r) else 1
+        total += q
+        e = par.setdefault(v, {"valeur": v, "lignes": 0, "cartes": 0, "origine": ""})
+        e["lignes"] += 1
+        e["cartes"] += q
+    # les noms d'images : UNE résolution pour toutes les valeurs (celle de la colonne image)
+    a_chercher = [v for v in par if v and v not in motifs and not v.startswith(("cat:", "local:"))]
+    trouvees = {}
+    if a_chercher and root is not None:
+        noms = [v[4:] if v.startswith("img:") else v for v in a_chercher]
+        res = resolve_art(noms, root)
+        trouvees = {a_chercher[k]: bool(x.get("ok")) for k, x in enumerate(res["art"])}
+    for v, e in par.items():
+        if not v:
+            e["origine"] = "commun"
+        elif v in motifs:
+            e["origine"] = "motif_ignore" if dos_commun else "motif"
+        elif v.startswith("cat:"):
+            e["origine"] = "image"
+        elif v.startswith("local:"):
+            e["origine"] = "image_locale"
+        else:
+            e["origine"] = "image" if trouvees.get(v) else "introuvable"
+    avert = []
+    perdues = [e for e in par.values() if e["origine"] == "introuvable"]
+    if perdues:
+        noms = ", ".join(sorted(e["valeur"] for e in perdues)[:8])
+        n = sum(e["cartes"] for e in perdues)
+        avert.append(f"{n} carte(s) portent un dos qui n'est ni un motif du catalogue ni une illustration connue "
+                     f"({noms}) : elles sortiront avec le DOS COMMUN. Corrigez la colonne, ou importez l'image.")
+    ignores = [e for e in par.values() if e["origine"] == "motif_ignore"]
+    if ignores:
+        noms = ", ".join(sorted(e["valeur"] for e in ignores)[:8])
+        avert.append(f"« Dos commun » est coché dans la pièce 02 : les motifs de la colonne ({noms}) sont "
+                     "IGNORÉS, toutes ces cartes portent le dos commun. Décochez-le pour les voir.")
+    if not bc:
+        avert.append("Aucune colonne « dos » : toutes les cartes partagent le dos commun de la pièce 02.")
+    return {"colonne": bc, "total_cartes": total, "dos_commun": bool(dos_commun),
+            "dos": sorted(par.values(), key=lambda e: (-e["cartes"], e["valeur"])),
+            "avertissements": avert}
+
+
+@router.post("/dos")
+async def post_dos(did: str, body: Any = Body(default=None)):
+    """L'origine du dos, carte par carte — ce qui SERA imprimé. Le catalogue
+    des motifs et l'état « dos commun » sont LUS (jamais écrits) dans la pièce
+    02 ; les images sont confrontées à la Bibliothèque comme la colonne image."""
+    _guard(did)
+    b = _obj(body)
+    cols, rows = _table_of(b)
+    from . import core as deck_store
+    from . import frame as P2                    # lecture du catalogue : règle 8 respectée (aucun routeur)
+    doc = deck_store.read_deck(did)
+    if doc is None:
+        raise HTTPException(404, "Deck introuvable")
+    fr = doc.get("frame") if isinstance(doc.get("frame"), dict) else {}
+    dos_commun = bool(fr.get("back_same", True))
+    motifs = {str(m.get("id")) for m in P2.BACKS}
+    try:
+        from app.config import settings
+        root = settings.images_path
+    except Exception:                                       # noqa: BLE001
+        root = None
+    try:
+        return await asyncio.to_thread(dos_report, cols, rows, b.get("back_col"), b.get("qty_col"),
+                                       b.get("off"), motifs, dos_commun, root)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
 @router.post("/artcheck")
 async def post_artcheck(did: str, body: Any = Body(default=None)):
     """La colonne image, RÉSOLUE vers la bibliothèque (livrable de la spec).

@@ -4626,6 +4626,112 @@ async def post_pdf(did: str, spec: str = Form("{}"),
     })
 
 
+# ── LA MIRE D'ALIGNEMENT RECTO-VERSO (tâche #85 PR A, plan-cartes T8) ────────
+# `mirror_um` mesure le FICHIER (l'imposition est-elle bien miroir ?). La mire
+# mesure la MACHINE : l'imprimante retourne-t-elle la feuille droit ?
+# UN VRAI VERNIER, pas le « demi-pas décalé » du plan (où rien ne se lit) :
+# traits au MILLIMÈTRE au recto, à 0,9 mm au verso. À contre-jour, le zéro du
+# verso tombe entre deux millimètres (la partie entière) et le trait du verso
+# qui COÏNCIDE avec un trait du recto donne les dixièmes. Chaque échelle est
+# SYMÉTRIQUE autour du centre ET posée des DEUX côtés (dessus/dessous,
+# gauche/droite) : retourné par le bord long, le verso passe la droite à
+# gauche ; par le bord court, le haut en bas — une échelle d'un seul côté ne
+# recouvrirait pas la sienne (vu sur l'aperçu de la preuve). TOUT EST VECTORIEL : une mire
+# rééchantillonnée mentirait de l'ordre de grandeur qu'elle mesure.
+MIRE_PRINCIPAL_MM = 1.0
+MIRE_VERNIER_MM = 0.9
+MIRE_N = 10                       # de -10 à +10 traits ; au-delà, c'est un bourrage
+MIRE_DECALAGE_MM = 25.0           # les échelles, à 25 mm du centre (au-dessus et à droite)
+
+
+def mire_pdf(sheet: str, dpi: int = 300) -> bytes:
+    from pypdf import PdfWriter
+    from pypdf.generic import DecodedStreamObject, NameObject
+    if sheet not in SHEETS:
+        raise ValueError(f"Planche inconnue : {sheet!r}. Valeurs admises : " + ", ".join(SHEETS))
+    sw, sh = sheet_px(sheet, dpi)
+    W, H = px2pt(sw, dpi), px2pt(sh, dpi)
+    cx, cy = W / 2.0, H / 2.0
+    off = mm2pt(MIRE_DECALAGE_MM)
+
+    def seg(x0, y0, x1, y1) -> str:
+        return "%s %s m %s %s l S" % (_pdf_num(x0), _pdf_num(y0), _pdf_num(x1), _pdf_num(y1))
+
+    def texte(txt, x, y, cap):
+        out = []
+        for poly in text_paths(slug_chars(txt), x, y, cap, up=True):
+            if len(poly) < 2:
+                continue
+            out.append(" ".join(["%s %s m" % (_pdf_num(poly[0][0]), _pdf_num(poly[0][1]))]
+                                + ["%s %s l" % (_pdf_num(px), _pdf_num(py)) for px, py in poly[1:]]) + " S")
+        return out
+
+    def page_ops(recto: bool) -> bytes:
+        p = mm2pt(MIRE_PRINCIPAL_MM if recto else MIRE_VERNIER_MM)
+        ops = ["0 G", "%s w" % _pdf_num(mm2pt(0.1)), "1 J"]
+        # la croix centrale, identique des deux côtés
+        ops.append(seg(cx - mm2pt(12), cy, cx + mm2pt(12), cy))
+        ops.append(seg(cx, cy - mm2pt(12), cx, cy + mm2pt(12)))
+        # les échelles horizontales (décalage en X) au-dessus ET au-dessous du centre, les verticales (Y) à
+        # droite ET à gauche. Recto : traits qui s'ÉLOIGNENT du centre depuis la ligne de base ; verso : qui
+        # s'en RAPPROCHENT — superposés, ils se touchent sur la ligne de base.
+        for k in range(-MIRE_N, MIRE_N + 1):
+            long_ = mm2pt(4.0 if k == 0 else (3.0 if k % 5 == 0 else 2.0))
+            for sgn in (1, -1):
+                d = long_ if recto else -long_
+                base = cy + sgn * off
+                x = cx + k * p
+                ops.append(seg(x, base, x, base + sgn * d))
+                basex = cx + sgn * off
+                y = cy + k * p
+                ops.append(seg(basex, y, basex + sgn * d, y))
+        cap = mm2pt(3.0)
+        x0, yt = mm2pt(15.0), H - mm2pt(20.0)
+        if recto:
+            lignes = ["MIRE RECTO-VERSO - FACE RECTO",
+                      "IMPRIMEZ CES 2 PAGES EN RECTO-VERSO, TAILLE REELLE, SANS AJUSTER",
+                      "A CONTRE-JOUR : LE ZERO DU VERSO TOMBE ENTRE 2 MM DU RECTO",
+                      "= LES MM ENTIERS ; LE TRAIT DU VERSO QUI COINCIDE = LES 1/10",
+                      "ECHELLES HAUT/BAS : DECALAGE GAUCHE-DROITE ; GAUCHE/DROITE : HAUT-BAS"]
+        else:
+            lignes = ["MIRE RECTO-VERSO - FACE VERSO (VERNIER 0,9 MM)",
+                      "LE TRAIT QUI COINCIDE, COMPTE DEPUIS LE ZERO DU COTE DU DECALAGE,", "DONNE LES 1/10 DE MM (L'AUTRE COTE REPETE LE VERNIER : 10 - N)"]
+        for n, l_ in enumerate(lignes):
+            ops.extend(texte(l_, x0, yt - n * mm2pt(6.0), cap))
+        return "\n".join(ops).encode("ascii")
+
+    w = PdfWriter()
+    w.pdf_header = "%PDF-1.4"
+    for recto in (True, False):
+        page = w.add_blank_page(width=W, height=H)
+        st = DecodedStreamObject()
+        st.set_data(page_ops(recto))
+        page[NameObject("/Contents")] = w._add_object(st)
+    buf = io.BytesIO()
+    w.write(buf)
+    return buf.getvalue()
+
+
+@router.get("/mire")
+async def get_mire(did: str, sheet: str = "a4"):
+    """La mire d'alignement, en PDF (tâche #85). À imprimer EN RECTO-VERSO sur
+    la vraie imprimante, avec le vrai papier : c'est la machine qu'on mesure."""
+    _deck(did)
+    s = str(sheet or "").strip().lower()
+    try:
+        out = await asyncio.to_thread(mire_pdf, s)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        logger.exception("cards/print: mire impossible")
+        raise HTTPException(500, f"Mire impossible: {e}")
+    return Response(content=out, media_type="application/pdf", headers={
+        "Content-Disposition": f'attachment; filename="mire_recto_verso_{s}.pdf"',
+        "X-CF-Mire-Resolution-Mm": _fm(round(MIRE_PRINCIPAL_MM - MIRE_VERNIER_MM, 3), 1),
+        "X-CF-Mire-Etendue-Mm": str(MIRE_N),
+    })
+
+
 @router.get("/foil-mask")
 async def get_foil_mask(did: str, dpi: int = 600):
     """LE MASQUE DE FOIL EN RASTER — le repli de §6.2bis-b quand le portail

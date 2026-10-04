@@ -491,6 +491,11 @@
 .cf-data .cf-data-artline { margin: 0; font-size: 10.5px; color: var(--ink-muted); min-height: 1px; }
 .cf-data .cf-data-artline.ok { color: var(--green); }
 .cf-data .cf-data-artline.bad { color: var(--red); }
+/* tache #85 : d'ou vient le dos de chaque carte */
+.cf-data .cf-data-dosline { margin: 0; font-size: 10.5px; color: var(--ink-muted); line-height: 1.5; }
+.cf-data .cf-data-dosline.ok b { color: var(--green); }
+.cf-data .cf-data-dosline.bad b { color: var(--red); }
+.cf-data .cf-data-dosline .cf-data-dosav { display: block; color: var(--red); }
 .cf-data .cf-data-artline b { color: inherit; }
 .cf-data .cf-data-artline code { font-family: var(--f-mono); color: var(--accent); }
 /* `nowrap` sur les raccourcis : « double-clic » se coupait sur son trait

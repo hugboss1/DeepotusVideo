@@ -841,6 +841,7 @@
       + '<div class="btn-row">'
       + '<button class="btn strong" type="button" data-act="png">Planche PNG <b>(P)</b></button>'
       + '<button class="btn strong" type="button" data-act="pdf">PDF multipage <b>(D)</b></button>'
+      + '<button class="btn" type="button" data-act="mire" title="Deux pages à imprimer en recto-verso sur VOTRE imprimante : un vernier au dixième de millimètre mesure le décalage réel de la machine (le PDF, lui, est déjà miroir)">Mire recto-verso (PDF)</button>'
       + '</div>'
       + '<p class="hint">Le PDF porte les <b>trois</b> cadres emboîtés sur chaque page — '
       + '<b>/BleedBox</b> (fond perdu) &#8835; <b>/TrimBox</b> (coupe) &#8835; <b>/ArtBox</b> '
@@ -2079,6 +2080,24 @@
     } finally { CF.busy(false); }
   }
 
+  /* LA MIRE (tache #85) : mirror_um mesure le FICHIER, la mire la MACHINE. A la
+     taille de la feuille choisie (A4 si « 1 carte / page »). */
+  let MIREV = false;
+  async function exportMire() {
+    if (MIREV) return;
+    MIREV = true;
+    const s = st().sheet === "card" ? "a4" : st().sheet;
+    try {
+      CF.busy(true, "mire recto-verso…");
+      const out = await M.api.blob("GET", "mire?sheet=" + encodeURIComponent(s));
+      const name = "mire_recto_verso_" + s + ".pdf";
+      CF.download(out, name);
+      logLine(name, out.size, "2 pages · vernier 1 / 0,9 mm · lecture au dixième de millimètre");
+      CF.toast("mire " + s.toUpperCase() + " : imprimez-la en recto-verso, à 100 %");
+    } catch (e) { CF.toast("Mire impossible : " + String((e && e.message) || e), true); }
+    finally { CF.busy(false); MIREV = false; }
+  }
+
   async function exportSheet() {
     if (!(await gate("la planche PNG"))) return;
     try {
@@ -2313,6 +2332,7 @@
       else if (a === "iccdel") delIcc();
       else if (a === "foilmask") exportFoilMask();
       else if (a === "audit") runAudit();
+      else if (a === "mire") exportMire();
       else if (a === "profile") choisirGabarit(String(act.dataset.v));
       else if (a === "pack") exportPack();
     });

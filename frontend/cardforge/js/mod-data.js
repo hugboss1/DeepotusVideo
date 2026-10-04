@@ -127,6 +127,7 @@
   let GRAM = null;          /* /grammar : les operateurs, servis par le moteur */
   let ART = null;           /* /artcheck : resolution de la colonne image */
   let ARTSEQ = 0;
+  let DOS = null, DOSSEQ = 0;  /* /dos (tache #85) : d'ou vient le dos de chaque carte */
   let TIMING = null;        /* decoupage HONNETE du temps d'import */
   let SHOWPROV = true;      /* le tableau « d'ou vient chaque valeur imprimee » */
   /* LE CONSTRUCTEUR DE CONDITION A LA SOURIS. Reproche des DEUX critiques, mot
@@ -404,6 +405,7 @@
     paintFilterState();
     paintProof();
     checkArt();
+    checkDos();
     refreshClauses();
   }
 
@@ -565,6 +567,7 @@
     paintMeter(); paintAudit(); paintRowFlags(); paintFilterState();
     paintProof(); paintClauses();
     checkArt();
+    checkDos();
   }
 
   /* ── compteur PERMANENT (seuil : « compteur de cartes affiche en
@@ -2692,6 +2695,50 @@
     }
     return "";
   }
+  /* ══ D'OU VIENT LE DOS DE CHAQUE CARTE (tache #85, plan-cartes T8) ══════
+     `card.back` a DEUX lecteurs : la piece 02 y cherche un motif du catalogue
+     (seulement si « dos commun » est decoche), la piece 01 une illustration du
+     verso. Une valeur qui n'est ni l'un ni l'autre retombait sur le dos commun
+     SANS UN MOT. Le backend juge (catalogue de la piece 02, bibliotheque), on
+     le dit ici, en cartes. */
+  const DOS_MOT = {
+    motif: "motif du catalogue (pièce 02)",
+    motif_ignore: "motif ignoré — « dos commun » coché (pièce 02)",
+    image: "illustration du verso (pièce 01)",
+    image_locale: "image importée dans ce navigateur (pièce 01, non vérifiable ici)",
+    commun: "dos commun",
+    introuvable: "introuvable — sortira avec le dos commun",
+  };
+  function backColumn() {
+    const k = Object.keys(T.map);
+    for (let i = 0; i < k.length; i++) {
+      if (T.map[k[i]] === "back" && T.columns.indexOf(k[i]) >= 0) return k[i];
+    }
+    return "";
+  }
+  async function checkDos() {
+    if (!T.columns.length) { DOS = null; paintDos(); return; }
+    const seq = ++DOSSEQ;
+    try {
+      const r = await M.api.post("dos", { columns: T.columns, rows: T.rows, off: T.off,
+                                          back_col: backColumn(), qty_col: T.qty_col });
+      if (seq !== DOSSEQ) return;
+      DOS = r || null;
+    } catch (e) { if (seq !== DOSSEQ) return; DOS = null; }
+    paintDos();
+  }
+  function paintDos() {
+    const box = REFS.dosline;
+    if (!box) return;
+    if (!DOS || !DOS.colonne) { box.innerHTML = ""; box.className = "cf-data-dosline"; return; }
+    const mauvais = (DOS.dos || []).some((e) => e.origine === "introuvable" || e.origine === "motif_ignore");
+    box.className = "cf-data-dosline" + (mauvais ? " bad" : " ok");
+    box.innerHTML = '<b>Dos (colonne « ' + esc(DOS.colonne) + ' ») — ' + DOS.total_cartes + ' carte(s)</b> : '
+      + (DOS.dos || []).map((e) => esc(e.valeur || "—") + " × " + e.cartes + " → " + esc(DOS_MOT[e.origine] || e.origine))
+        .join(" · ")
+      + (DOS.avertissements || []).map((a) => '<span class="cf-data-dosav">' + esc(a) + '</span>').join("");
+  }
+
   async function checkArt() {
     const col = artColumn();
     if (!col) { ART = null; paintArt(); return; }
@@ -2913,6 +2960,9 @@
     const art = h("p", "cf-data-artline", "");
     f.appendChild(art);
     REFS.artline = art;
+    const dosl = h("div", "cf-data-dosline", "");
+    f.appendChild(dosl);
+    REFS.dosline = dosl;
     f.appendChild(h("p", "hint cf-data-keys",
       "<b>Ctrl+Z</b> annuler · <b>Ctrl+Maj+Z</b> rétablir · <b>Entrée</b> cellule suivante · "
       + "<b>Alt+N</b> nouvelle ligne · <b>Ctrl+Entrée</b> reconstruire · <b>double-clic</b> sur une ligne = "
