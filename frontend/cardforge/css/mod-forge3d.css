@@ -387,3 +387,7 @@
    — meme regle de couleur que .cf-forge3d-insp-ko (le rouge est reserve aux
    pannes ; ceci se corrige d'un clic sur la finition). */
 .cf-forge3d .cf-forge3d-motif-off { color: var(--ink-soft); }
+
+/* tache #87 PR B : objets du jeu et boite depliee */
+.cf-forge3d .cf-forge3d-jeu { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.cf-forge3d .cf-forge3d-jeu select { font-size: 11px; }

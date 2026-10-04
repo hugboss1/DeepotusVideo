@@ -4184,3 +4184,166 @@ async def get_file(did: str, name: str):
     return Response(p.read_bytes(), media_type=kind, headers={
         "Content-Disposition": f'attachment; filename="{p.name}"',
         "Cache-Control": "no-store"})
+
+
+# ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+# OBJETS DU JEU ET BOÎTE DÉPLIÉE (tâche #87 PR B, plan-cartes T16-T17, 04/10/2026)
+# ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+# Décision de l'utilisateur (04/10) : HORS du graphe — les nœuds de Forge 3D ne changent pas. La géométrie est dans
+# `forge3d_jeu` ; ici, la lecture du deck, l'écriture par `print3d` (dans le dossier que l'écran Imprimante liste) et
+# le PDF du patron.
+
+def _jeu_deck(did: str) -> dict:
+    from .core import read_deck
+    from .contract import is_valid_did
+    if not is_valid_did(did):
+        raise HTTPException(400, "Identifiant de deck invalide")
+    doc = read_deck(did)
+    if doc is None:
+        raise HTTPException(404, "Deck introuvable")
+    return doc
+
+
+def _epaisseur_carte(doc: dict) -> float:
+    """doc.solid.thickness_mm appartient à la pièce 05 : LU, jamais écrit, absent = le défaut du contrat."""
+    from .contract import THICKNESS_MM_DEFAULT, THICKNESS_MM_MIN, THICKNESS_MM_MAX
+    solid = (doc or {}).get("solid")
+    try:
+        v = float(solid.get("thickness_mm")) if isinstance(solid, dict) else THICKNESS_MM_DEFAULT
+    except (TypeError, ValueError):
+        v = THICKNESS_MM_DEFAULT
+    return v if THICKNESS_MM_MIN <= v <= THICKNESS_MM_MAX else THICKNESS_MM_DEFAULT
+
+
+@router.post("/jeu")
+async def post_jeu(did: str, objet: str = Form(...), params: str = Form("{}"), nom: str = Form(""),
+                   image: UploadFile | None = File(None)):
+    """Un objet du jeu — jeton, jeton en relief de la carte, pion, présentoir — écrit en STL + 3MF par `print3d`,
+    dans le dossier de l'écran Imprimante. La garde de plateau (256 mm) avertit, elle n'interdit pas."""
+    doc = _jeu_deck(did)
+    from app.config import settings
+    from app.services import print3d as P3
+    from . import forge3d_jeu as JEU
+    try:
+        p = json.loads(params or "{}")
+    except ValueError:
+        raise HTTPException(400, "Paramètres illisibles (objet JSON attendu)")
+    if not isinstance(p, dict):
+        raise HTTPException(400, "Paramètres illisibles (objet JSON attendu)")
+    objet = str(objet or "").strip().lower()
+    if objet == "presentoir" and "largeur_mm" not in p:
+        from .core import geom_of
+        p["largeur_mm"] = round(float(geom_of(doc).trim_mm[0]) + 10.0, 1)       # la carte, et 5 mm de chaque côté
+    if objet == "presentoir" and "rainure_mm" not in p:
+        p["rainure_mm"] = round(_epaisseur_carte(doc) + 0.6, 2)                  # la carte, et le jeu d'impression
+    im = None
+    if objet == "jeton_relief":
+        if image is None:
+            raise HTTPException(400, "Le jeton en relief attend l'image de la carte (champ « image »)")
+        im = _open_png(await image.read(), "image")
+    fabriques = {
+        "jeton": lambda: JEU.jeton(p.get("diam_mm", 25.0), p.get("ep_mm", 3.0), p.get("cotes", 64)),
+        "jeton_relief": lambda: JEU.jeton_relief(im, p.get("diam_mm", 30.0), p.get("ep_mm", 2.0),
+                                                 p.get("relief_mm", 0.8), p.get("grille", 120)),
+        "pion": lambda: JEU.pion(p.get("diam_bas_mm", 22.0), p.get("diam_haut_mm", 16.0), p.get("ep_mm", 3.0),
+                                 p.get("etages", 3), p.get("cotes", 48)),
+        "presentoir": lambda: JEU.presentoir(p.get("largeur_mm"), p.get("profondeur_mm", 30.0), p.get("socle_mm", 3.0),
+                                             p.get("rainure_mm"), p.get("rail_mm", 6.0), p.get("hauteur_rail_mm", 8.0)),
+    }
+    if objet not in fabriques:
+        raise HTTPException(400, f"Objet inconnu : « {objet} » (admis : {', '.join(fabriques)})")
+    try:
+        tris = await asyncio.to_thread(fabriques[objet])
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    base = settings.outputs_path.parent / "print3d"
+    try:
+        out = await asyncio.to_thread(P3.creer_export, base, str(nom or objet)[:60], tris, None,
+                                      f"cardforge/{did}/{objet}", "garantie" if JEU.fermeture(tris) == 0 else "inconnue")
+    except ValueError as e:
+        raise HTTPException(409, str(e))
+    out = dict(out)
+    out["objet"] = objet
+    out["params"] = p
+    return out
+
+
+@router.post("/boite")
+async def post_boite(did: str, body: dict | None = None):
+    """Le patron de la TUCK BOX en PDF vectoriel, aux dimensions du deck plus le jeu : trait plein = couper,
+    pointillé = plier, légende et cotes sur la feuille. L'épaisseur vient de la pièce 05."""
+    doc = _jeu_deck(did)
+    b = body if isinstance(body, dict) else {}
+    from pypdf import PdfWriter
+    from pypdf.generic import DecodedStreamObject, NameObject
+    from .contract import SHEETS
+    from .core import geom_of
+    from . import forge3d_jeu as JEU
+    from .print import _pdf_num, mm2pt, slug_chars, text_paths      # fonctions PURES, rien de la pièce 07 en dehors
+    try:
+        cartes = int(b.get("cartes") or 0)
+    except (TypeError, ValueError):
+        raise HTTPException(400, "« cartes » doit être un entier")
+    if not 1 <= cartes <= 1000:
+        raise HTTPException(400, "« cartes » doit tenir entre 1 et 1000")
+    g = geom_of(doc)
+    ep = _epaisseur_carte(doc)
+    feuilles = {k: tuple(v["size_mm"]) for k, v in SHEETS.items()}
+    try:
+        pat = JEU.patron_boite(g.trim_mm[0], g.trim_mm[1], JEU.epaisseur_deck_mm(cartes, ep),
+                               b.get("jeu_mm", JEU.JEU_MM_DEFAUT), b.get("rabat_mm", JEU.RABAT_MM_DEFAUT),
+                               feuilles, str(b.get("feuille") or "a4"))
+    except (TypeError, ValueError) as e:
+        raise HTTPException(400, str(e))
+
+    def work() -> bytes:
+        fw, fh = feuilles[pat["feuille"]]
+        if pat["paysage"]:
+            fw, fh = fh, fw
+        W, H = mm2pt(fw), mm2pt(fh)
+        dw, dh = pat["developpe_mm"]
+        ox, oy = (fw - dw) / 2.0, (fh - dh) / 2.0
+
+        def pt(x, y):
+            return "%s %s" % (_pdf_num(mm2pt(ox + x)), _pdf_num(mm2pt(oy + y)))
+
+        def texte(txt, x_mm, y_mm, cap_mm):
+            out = []
+            for poly in text_paths(slug_chars(txt), mm2pt(x_mm), mm2pt(y_mm), mm2pt(cap_mm), up=True):
+                if len(poly) >= 2:
+                    out.append(" ".join(["%s %s m" % (_pdf_num(poly[0][0]), _pdf_num(poly[0][1]))]
+                                        + ["%s %s l" % (_pdf_num(a), _pdf_num(c)) for a, c in poly[1:]]) + " S")
+            return out
+        c = pat["contour"]
+        ops = ["0 G", "1 j", "%s w" % _pdf_num(mm2pt(0.3)), "[] 0 d",
+               " ".join([pt(*c[0]) + " m"] + [pt(*q) + " l" for q in c[1:]]) + " h S"]          # COUPER : trait plein
+        ops += ["%s w" % _pdf_num(mm2pt(0.2)), "[%s %s] 0 d" % (_pdf_num(mm2pt(2.0)), _pdf_num(mm2pt(1.5)))]
+        ops += ["%s m %s l S" % (pt(s[0], s[1]), pt(s[2], s[3])) for s in pat["plis"]]          # PLIER : pointillés
+        L_, H_, E_ = pat["boite_mm"]
+        ops += ["[] 0 d", "%s w" % _pdf_num(mm2pt(0.15))]
+        ops += texte("couper : trait plein - plier : pointilles", 8.0, fh - 10.0, 2.6)
+        ops += texte("boite %s x %s x %s mm - %d cartes de %s mm - jeu %s mm" % (
+            _pdf_num(L_), _pdf_num(H_), _pdf_num(E_), cartes, _pdf_num(ep), _pdf_num(pat["jeu_mm"])), 8.0, fh - 15.0, 2.2)
+        ops += texte("dos", ox + L_ / 2.0 - 3.0, oy + dh / 2.0, 2.4)
+        ops += texte("face", ox + L_ + E_ + L_ / 2.0 - 4.0, oy + dh / 2.0, 2.4)
+        w = PdfWriter()
+        w.pdf_header = "%PDF-1.4"
+        page = w.add_blank_page(width=W, height=H)
+        st = DecodedStreamObject()
+        st.set_data("\n".join(ops).encode("ascii"))
+        page[NameObject("/Contents")] = w._add_object(st)
+        buf = io.BytesIO()
+        w.write(buf)
+        return buf.getvalue()
+
+    try:
+        out = await asyncio.to_thread(work)
+    except Exception as e:                                # pragma: no cover
+        logger.exception("cards/forge3d: patron de boîte impossible")
+        raise HTTPException(500, f"Patron impossible : {type(e).__name__}")
+    return Response(content=out, media_type="application/pdf", headers={
+        "Content-Disposition": 'attachment; filename="boite.pdf"',
+        "X-CF-Boite-Mm": "x".join(_pdf_num(v) for v in pat["boite_mm"]),
+        "X-CF-Developpe-Mm": "x".join(_pdf_num(v) for v in pat["developpe_mm"]),
+        "X-CF-Feuille": pat["feuille"] + ("-paysage" if pat["paysage"] else ""),
+        "X-CF-Cartes": str(cartes), "X-CF-Jeu-Mm": _pdf_num(pat["jeu_mm"])})
