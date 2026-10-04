@@ -1003,6 +1003,7 @@ export function dessinerRegles(api, plateau, formater, unite) {
 /* Efface les règles et LIBÈRE tout — géométries, matériaux et les deux
    textures : dix redessins laisseraient sinon vingt canevas sur la carte. */
 export function effacerRegles(api) {
+  _effacerContour(api);              /* le contour du plateau réel vit avec les règles (tâche #88) */
   const e = api && _regles.get(api);
   if (!e) return false;
   e.groupe.traverse((o) => {
@@ -1015,6 +1016,57 @@ export function effacerRegles(api) {
   api.scene.remove(e.groupe);
   _regles.delete(api);
   return true;
+}
+
+/* ── le CONTOUR d'un plateau réel (tâche #88 PR B, plan-etabli T4) ────────────
+   Le plateau de l'imprimante ACTIVE (profil : Centauri Carbon 2, preset d'Orca ou
+   saisi à la main), posé au coin d'origine des règles, en UNITÉS DU MODÈLE — c'est la
+   page qui convertit les millimètres du profil, elle seule sait s'il existe une taille
+   cible ; sans elle, aucun contour (aucun millimètre inventé). `cotes` = { l, p, zones }
+   en unités du modèle ; `zones` : rectangles [u0, v0, u1, v1] EXCLUS du plateau (la zone
+   de purge de la Centauri Carbon 2), tracés dans une autre couleur. `null` efface.
+   Dans la SCÈNE, comme les règles : vider() ne retire que `api.racine`. */
+const _contours = new WeakMap();
+const COULEUR_CONTOUR = 0x62b56a;
+const COULEUR_EXCLUE = 0xd2544e;
+function _effacerContour(api) {
+  const g = api && _contours.get(api);
+  if (!g) return false;
+  g.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
+  api.scene.remove(g);
+  _contours.delete(api);
+  return true;
+}
+export function dessinerContourPlateau(api, plateau, cotes) {
+  _effacerContour(api);
+  const g = plateau;
+  if (!api || !g || !g.coin || !g.sens || !cotes || !(cotes.l > 0) || !(cotes.p > 0)) return null;
+  const niveau = (Number(g.niveau) || 0) + (g.cote > 0 ? g.cote * LEVEE_REGLES * 2 : 0);
+  const pt = (du, dv) => {
+    const p = new THREE.Vector3(g.coin.x, g.coin.y, g.coin.z);
+    p[g.u] = g.coin[g.u] + g.sens.u * du;
+    p[g.v] = g.coin[g.v] + g.sens.v * dv;
+    p[g.axe] = niveau;
+    return p;
+  };
+  const groupe = new THREE.Group();
+  groupe.name = "lib3d-contour-plateau";
+  /* PAR-DESSUS le plateau et ses règles (depthTest coupé, renderOrder haut) : mesuré sur 8799, le contour de
+     256 mm posé sur un plateau gradué de 260 mm se confondait avec son bord et sa surface. */
+  const rect = (u0, v0, u1, v1, couleur) => {
+    const l = new THREE.LineLoop(
+      new THREE.BufferGeometry().setFromPoints([pt(u0, v0), pt(u1, v0), pt(u1, v1), pt(u0, v1)]),
+      new THREE.LineBasicMaterial({ color: couleur, depthWrite: false, depthTest: false }));
+    l.renderOrder = 10;
+    groupe.add(l);
+  };
+  rect(0, 0, cotes.l, cotes.p, COULEUR_CONTOUR);
+  const zones = (cotes.zones || []).filter((z) => Array.isArray(z) && z.length === 4 && z.every(Number.isFinite));
+  for (const z of zones) rect(z[0], z[1], z[2], z[3], COULEUR_EXCLUE);
+  groupe.updateMatrixWorld(true);
+  api.scene.add(groupe);
+  _contours.set(api, groupe);
+  return { zones: zones.length, groupe };
 }
 
 /* Cadre la caméra sur la boîte englobante. Indispensable : un modèle en mètres

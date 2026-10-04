@@ -257,5 +257,163 @@ def test_la_route_ecrit_une_version_avec_son_rapport_et_refuse_les_corps_invalid
         assert c.post("/api/etabli/reparer-maillage", json={"job": "absent", "version": 1}).status_code == 404
 
 
+
+# ══ PR B : PROFILS D'IMPRIMANTE ET GARDE DU PLATEAU (tâche #88, plan-etabli T3-T4) ═══════════════════════════════
+# DÉCISIONS (04/10) : la Centauri Carbon 2 intégrée par défaut ; les presets INSTANCIABLES d'Orca, groupés par marque,
+# Elegoo en tête ; le choix est retenu, le preset actif du slicer seulement proposé ; la garde du profil dans
+# creer_export ET creer_lot (XY triées, hauteur à part). Écarts du plan : presets communs listés (instantiation),
+# `profil` passé en 7e position (= couleur), garde fausse sur un plateau non carré, préfixes d'id incohérents.
+
+def _faux_orca(tmp):
+    """La forme RÉELLE relevée le 04/10 : machine_model, preset instancié qui hérite d'un preset COMMUN (non
+    instanciable mais qui porte un plateau), preset 0.2 sans printable_area, profil utilisateur, .conf + ligne MD5."""
+    m = tmp / "OrcaSlicer" / "system" / "Elegoo" / "machine" / "ECC2"
+    m.mkdir(parents=True)
+    commun = tmp / "OrcaSlicer" / "system" / "Elegoo" / "machine"
+    (commun / "fdm_elegoo_3dp_001_common.json").write_text(json.dumps({
+        "type": "machine", "name": "fdm_elegoo_3dp_001_common", "instantiation": "false",
+        "printable_area": ["0x0", "220x0", "220x220", "0x220"], "printable_height": "250"}), "utf-8")
+    (m / "Elegoo Centauri Carbon 2.json").write_text(json.dumps({"type": "machine_model", "name": "Elegoo Centauri Carbon 2"}), "utf-8")
+    (m / "Elegoo Centauri Carbon 2 0.4 nozzle.json").write_text(json.dumps({
+        "type": "machine", "name": "Elegoo Centauri Carbon 2 0.4 nozzle", "instantiation": "true",
+        "printable_area": ["0x0", "256x0", "256x256", "0x256"], "printable_height": "256",
+        "bed_exclude_area": ["246x0", "256x0", "256x20", "246x20"], "inherits": "fdm_elegoo_3dp_001_common"}), "utf-8")
+    (m / "Elegoo Centauri Carbon 2 0.2 nozzle.json").write_text(json.dumps({
+        "type": "machine", "name": "Elegoo Centauri Carbon 2 0.2 nozzle", "instantiation": "true",
+        "inherits": "Elegoo Centauri Carbon 2 0.4 nozzle", "nozzle_diameter": ["0.2"]}), "utf-8")
+    a = tmp / "OrcaSlicer" / "system" / "Anycubic" / "machine"
+    a.mkdir(parents=True)
+    (a / "Anycubic Kobra 0.4 nozzle.json").write_text(json.dumps({
+        "type": "machine", "name": "Anycubic Kobra 0.4 nozzle", "printable_area": ["0x0", "220x0", "220x220", "0x220"],
+        "printable_height": "250"}), "utf-8")
+    (a / "casse.json").write_text("{ pas du json", "utf-8")
+    (a / "Orphelin.json").write_text(json.dumps({"type": "machine", "name": "Orphelin sans plateau"}), "utf-8")
+    u = tmp / "OrcaSlicer" / "user" / "default" / "machine"
+    u.mkdir(parents=True)
+    (u / "Ma CC2 modifiee.json").write_text(json.dumps({"type": "machine", "name": "Ma CC2 modifiee",
+                                                         "inherits": "Elegoo Centauri Carbon 2 0.4 nozzle",
+                                                         "printable_height": "250"}), "utf-8")
+    (tmp / "OrcaSlicer" / "OrcaSlicer.conf").write_text(
+        '{\n"presets": {"machine": "Elegoo Centauri Carbon 2 0.2 nozzle", "filament": ["x"]},\n'
+        '"autres": [{"machine": "ne pas lire"}]\n}\n# MD5 checksum 338F06710BD1E8116D5507BA509F20E1\n', "utf-8")
+    return tmp
+
+
+def test_temoin_la_base_n_a_pas_de_profils():
+    assert subprocess.run(["git", "cat-file", "-e", "2a42aebd:backend/app/services/print_profiles.py"],
+                          capture_output=True, cwd=str(RACINE)).returncode != 0
+
+
+def test_les_profils_orca_sont_LUS_avec_leur_heritage_filtres_et_jamais_ecrits(tmp_path):
+    from app.services import print_profiles as PP
+    racine = _faux_orca(tmp_path)
+    avant = sorted((str(p), p.stat().st_mtime_ns) for p in racine.rglob("*"))
+    profils = PP.importer(racine / "OrcaSlicer", "orcaslicer")
+    par = {p["nom"]: p for p in profils}
+    assert sorted(par) == ["Anycubic Kobra 0.4 nozzle", "Elegoo Centauri Carbon 2 0.2 nozzle",
+                           "Elegoo Centauri Carbon 2 0.4 nozzle", "Ma CC2 modifiee"], sorted(par)   # ni commun, ni modèle
+    p2 = par["Elegoo Centauri Carbon 2 0.2 nozzle"]
+    assert p2["plateau_mm"] == [256.0, 256.0] and p2["hauteur_mm"] == 256.0          # hérité du 0.4, pas du commun
+    assert p2["exclusions_mm"] == [[246.0, 0.0, 256.0, 20.0]] and p2["id"] == "orcaslicer:Elegoo Centauri Carbon 2 0.2 nozzle"
+    assert par["Ma CC2 modifiee"]["hauteur_mm"] == 250.0 and par["Ma CC2 modifiee"]["marque"] == "Mes profils du slicer"
+    assert [p["marque"] for p in profils][:2] == ["Elegoo", "Elegoo"]                 # Elegoo en tête
+    assert PP.profil_actif_du_slicer(racine / "OrcaSlicer") == "Elegoo Centauri Carbon 2 0.2 nozzle"   # malgré la ligne MD5
+    assert sorted((str(p), p.stat().st_mtime_ns) for p in racine.rglob("*")) == avant  # LECTURE SEULE
+
+
+def test_le_cache_suit_les_fichiers(tmp_path):
+    from app.services import print_profiles as PP
+    racine = _faux_orca(tmp_path) / "OrcaSlicer"
+    n = len(PP.importer(racine, "orcaslicer"))
+    (racine / "system" / "Elegoo" / "machine" / "ECC2" / "Neuve 0.4 nozzle.json").write_text(json.dumps({
+        "type": "machine", "name": "Neuve 0.4 nozzle", "printable_area": ["0x0", "300x0", "300x300", "0x300"]}), "utf-8")
+    assert len(PP.importer(racine, "orcaslicer")) == n + 1
+
+
+def test_l_integre_par_defaut_le_choix_persiste_et_l_actif_du_slicer_est_seulement_propose(tmp_path, monkeypatch):
+    from app.services import print_profiles as PP
+    racine = _faux_orca(tmp_path)
+    monkeypatch.setattr(PP, "_dossiers_slicers", lambda: [(racine / "OrcaSlicer", "orcaslicer")])
+    monkeypatch.setattr(PP, "_fichier", lambda: tmp_path / "profils.json")
+    l = PP.lister()
+    assert l["profils"][0]["nom"] == "Elegoo Centauri Carbon 2" and l["actif"] == "integre:elegoo-centauri-carbon-2"
+    assert l["actif_slicer"] == {"nom": "Elegoo Centauri Carbon 2 0.2 nozzle",
+                                 "id": "orcaslicer:Elegoo Centauri Carbon 2 0.2 nozzle"}     # PROPOSÉ, pas actif
+    assert PP.profil_courant()["plateau_mm"] == [256.0, 256.0] and PP.profil_courant()["hauteur_mm"] == 256.0
+    PP.choisir("orcaslicer:Anycubic Kobra 0.4 nozzle")
+    assert PP.lister()["actif"] == "orcaslicer:Anycubic Kobra 0.4 nozzle" and PP.profil_courant()["plateau_mm"] == [220.0, 220.0]
+    PP.choisir("", {"nom": "Ma résine", "plateau_mm": [143.0, 89.6], "hauteur_mm": 175.0})
+    assert PP.lister()["actif"] == "manuel:ma-resine" and PP.profil_courant()["plateau_mm"] == [143.0, 89.6]
+    with pytest.raises(ValueError, match="inconnu"):
+        PP.choisir("orcaslicer:nexiste-pas")
+    for mauvais in ({"plateau_mm": [0, 10]}, {"plateau_mm": [10]}, {"plateau_mm": ["a", 2]}, {"plateau_mm": [10, 10], "hauteur_mm": -1}):
+        with pytest.raises(ValueError):
+            PP.choisir("", mauvais)
+    # un preset qui disparaît du slicer : on retombe sur l'intégré, sans planter
+    PP.choisir("orcaslicer:Anycubic Kobra 0.4 nozzle")
+    (racine / "OrcaSlicer" / "system" / "Anycubic" / "machine" / "Anycubic Kobra 0.4 nozzle.json").unlink()
+    assert PP.lister()["actif"] == "integre:elegoo-centauri-carbon-2"
+    # le preset actif du slicer qui n'existe plus dans ses dossiers : rien à proposer
+    conf = racine / "OrcaSlicer" / "OrcaSlicer.conf"
+    conf.write_text('{"presets": {"machine": "Imprimante disparue"}}\n# MD5 checksum 0\n', "utf-8")
+    assert PP.lister()["actif_slicer"] is None
+    # un profils.json illisible retombe sur l'intégré
+    (tmp_path / "profils.json").write_text("{cassé", "utf-8")
+    assert PP.lister()["actif"] == "integre:elegoo-centauri-carbon-2"
+
+
+def test_la_garde_est_celle_du_PROFIL_en_dimensions_triees_et_le_message_par_defaut_ne_change_pas(tmp_path):
+    from app.services import print3d as P3
+    from app.services import print_profiles as PP
+    tris = P3.lire_glb_triangles(_cube())
+    grand = P3.creer_export(tmp_path, "g", tris, 300.0)
+    assert grand["avertissement"] == "300 mm dépasse le plateau de la Centauri Carbon 2 (256 mm) — le slicer devra couper ou réduire"
+    resine = {"id": "manuel:r", "nom": "Ma résine", "plateau_mm": [143.0, 89.6], "hauteur_mm": 175.0}
+    petit = P3.creer_export(tmp_path, "p", tris, 140.0, profil=resine)                 # 140 x 140 : la profondeur déborde
+    assert "140 x 140 mm dépasse le plateau de Ma résine (143 x 90 mm)" in petit["avertissement"]
+    meta = json.loads((tmp_path / petit["dossier"] / "impression.json").read_text("utf-8"))
+    assert meta["profil"] == "Ma résine" and json.loads((tmp_path / grand["dossier"] / "impression.json").read_text("utf-8"))["profil"] == "Elegoo Centauri Carbon 2"
+    # 140 x 80 mm TIENT sur 89,6 x 143 en tournant la pièce : dimensions TRIÉES
+    assert PP.garde(((0, 80), (0, 140), (0, 10)), resine) is None
+    assert PP.garde(((0, 80), (0, 140), (0, 180)), resine) == ("180 mm de haut dépasse la hauteur de Ma résine (175 mm) — "
+                                                               "le slicer devra couper ou réduire")
+    assert PP.garde(((0, 100), (0, 100), (0, 300)), None).startswith("300 mm de haut dépasse la hauteur de la Centauri Carbon 2 (256 mm)")
+    assert PP.garde(((0, 256), (0, 256), (0, 256)), None) is None
+    # la couleur garde sa place (7e argument) : le profil passe par MOT-CLÉ
+    c = P3.creer_export(tmp_path, "c", tris, 50.0, "banc", "inconnue", "#ff0000", profil=resine)
+    assert json.loads((tmp_path / c["dossier"] / "impression.json").read_text("utf-8"))["couleur"] == "#ff0000"
+
+
+def test_le_lot_prend_aussi_la_garde_du_profil(tmp_path):
+    from app.services import print3d as P3
+    tris = P3.lire_glb_triangles(_cube())                              # un cube de 2 unités = 2 mm
+    gros = [tuple(tuple(v * 60 for v in p) for p in t) for t in tris]   # 120 mm
+    lot = P3.creer_lot(tmp_path, "l", [("a", gros)], "", "banc", profil={"id": "m", "nom": "Mini", "plateau_mm": [100.0, 100.0]})
+    assert lot["avertissement"] == "120 mm dépasse le plateau de Mini (100 mm) — imprimer les pièces séparément (un STL par tuile)"
+    assert P3.creer_lot(tmp_path, "l2", [("a", gros)], "", "banc").get("avertissement") is None
+
+
+def test_les_routes_profils_listent_choisissent_et_l_impression_prend_le_profil_actif(tmp_path, monkeypatch):
+    from app.services import print_profiles as PP
+    racine = _faux_orca(tmp_path)
+    monkeypatch.setattr(PP, "_dossiers_slicers", lambda: [(racine / "OrcaSlicer", "orcaslicer")])
+    _job("job_prof", _cube())
+    with _client() as c:
+        l = c.get("/api/print3d/profils").json()
+        assert l["actif"] == "integre:elegoo-centauri-carbon-2" and len(l["profils"]) == 5 and l["actif_slicer"]["nom"].endswith("0.2 nozzle")
+        # ce que la page AFFICHE et DESSINE, rédigé ici (elle n'écrit aucune unité)
+        cc2 = l["profils"][0]
+        assert cc2["resume"] == "plateau 256 × 256 mm · hauteur 256 mm · 1 zone(s) exclue(s), en rouge sur la plaque"
+        assert cc2["contour"] == {"l": 256.0, "p": 256.0, "zones": [[246.0, 0.0, 256.0, 20.0]]}
+        r = c.post("/api/print3d/profils/actif", json={"manuel": {"nom": "Mini", "plateau_mm": [100, 100], "hauteur_mm": 100}})
+        assert r.status_code == 200 and r.json()["actif"] == "manuel:mini" and r.json()["profil"]["plateau_mm"] == [100.0, 100.0]
+        e = c.post("/api/print3d/from-assets3d/job_prof", json={"cible_mm": 120}).json()
+        assert "Mini (100 mm)" in e["avertissement"], e
+        r = c.post("/api/print3d/profils/actif", json={"id": "orcaslicer:Elegoo Centauri Carbon 2 0.4 nozzle"})
+        assert r.status_code == 200 and r.json()["profil"]["exclusions_mm"] == [[246.0, 0.0, 256.0, 20.0]]
+        for corps in ({"id": "orcaslicer:rien"}, {}, {"id": 3}, {"manuel": {"plateau_mm": [0, 1]}}, {"manuel": "x"}):
+            assert c.post("/api/print3d/profils/actif", json=corps).status_code == 400, corps
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

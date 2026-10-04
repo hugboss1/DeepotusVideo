@@ -5404,7 +5404,10 @@ def test_la_GRADUATION_vit_dans_le_CANEVAS_PARTAGE_et_pas_dans_la_page():
                 "montrerRepere", "creerCanevas", "vider", "orientationDe",
                 "cadrageDe", "cadreOrtho", "aspectDe", "cadrer", "projeter",
                 "orienter", "charger", "dessinerRegles", "effacerRegles",
-                "sensDesRegles"}
+                "sensDesRegles",
+                # tâche #88 : le contour du plateau réel (profil d'imprimante), même
+                # raison que les règles — un accessoire du regard, dessiné par le canevas
+                "dessinerContourPlateau"}
     assert exportes == attendus, (exportes ^ attendus)
     # la boucle gradue AVANT de rendre : après, la trame reconstruite
     # n'apparaîtrait qu'à l'image suivante.
@@ -5638,7 +5641,12 @@ def test_AUCUN_MILLIMETRE_ne_sort_sans_une_TAILLE_CIBLE_posee():
     ci-dessous rougit.
     """
     code = _code("etabli/etabli.js")
-    assert code.count("REP.echelle") == 3, code.count("REP.echelle")
+    # QUATRE depuis la tâche #88 : la conversion INVERSE versUnites() (mm d'un profil
+    # d'imprimante → unités du modèle, pour le contour du plateau), GARDÉE par
+    # enMillimetres() comme fmtMesure — le banc le vérifie ci-dessous.
+    assert code.count("REP.echelle") == 4, code.count("REP.echelle")
+    inv = _fonction_etabli("versUnites")
+    assert "return enMillimetres() ? v / REP.echelle : null;" in inv
     decision = _fonction_etabli("enMillimetres")
     assert "return REP.echelle !== null;" in decision
     fmt = _fonction_etabli("fmtMesure")
@@ -6461,7 +6469,7 @@ def test_la_LECTURE_de_CHAQUE_selection_est_EXECUTEE():
     Box3 sur les sommets transformés.
     """
     sortie = json.loads(_node_trois(
-        "echelleMm, marquerAuRepere, majRepere, cadrer, dessinerRegles",
+        "echelleMm, marquerAuRepere, majRepere, cadrer, dessinerRegles, dessinerContourPlateau",
         _importer_plaque("etaler, ranger, boiteModele, plateauDe")
         + _faux_rail() + _constantes_etabli("LIGNES_REPERE")
         + _fonction_etabli("enMillimetres") + "\n"
@@ -6475,6 +6483,9 @@ def test_la_LECTURE_de_CHAQUE_selection_est_EXECUTEE():
         # lireRepere() gradue aussi le plateau depuis la plaque slicer : la
         # VRAIE graduerPlateau, sur le vrai dessinerRegles.
         + _fonction_etabli("graduerPlateau") + "\n"
+        + _fonction_etabli("versUnites") + "\n"
+        # tâche #88 : lireRepere() pose aussi le contour du plateau réel
+        + _constantes_etabli("PROFIL") + _fonction_etabli("contourPlateau") + "\n"
         + _fonction_etabli("lireRepere") + "\n" + """
       const api = monter(860, 824);
       const racine = new THREE.Group();
@@ -8811,7 +8822,7 @@ def test_sur_la_plaque_le_rail_annonce_le_PAS_DU_PLATEAU_et_les_regles_portent_l
     rail ET les textes écrits sur les bandes.
     """
     sortie = json.loads(_node_trois(
-        "echelleMm, marquerAuRepere, majRepere, cadrer, dessinerRegles",
+        "echelleMm, marquerAuRepere, majRepere, cadrer, dessinerRegles, dessinerContourPlateau",
         _importer_plaque("etaler, ranger, boiteModele, plateauDe")
         + _faux_rail() + _constantes_etabli("LIGNES_REPERE")
         + _fonction_etabli("enMillimetres") + "\n"
@@ -8823,6 +8834,9 @@ def test_sur_la_plaque_le_rail_annonce_le_PAS_DU_PLATEAU_et_les_regles_portent_l
         + _fonction_etabli("rendreCible") + "\n"
         + _fonction_etabli("poserCible") + "\n"
         + _fonction_etabli("graduerPlateau") + "\n"
+        + _fonction_etabli("versUnites") + "\n"
+        # tâche #88 : lireRepere() pose aussi le contour du plateau réel
+        + _constantes_etabli("PROFIL") + _fonction_etabli("contourPlateau") + "\n"
         + _fonction_etabli("lireRepere") + "\n" + """
       const api = monter(860, 824);
       """ + _scene_enveloppe() + """
@@ -8949,7 +8963,7 @@ def test_la_LECTURE_du_rail_reste_celle_du_MODELE_pour_une_piece_TOURNEE_et_ASYM
     # ── ET LE RAIL, sur le vrai lireRepere : les chiffres écrits sont ceux du
     # modèle, pièce tournée comprise ───────────────────────────────────────
     rail = json.loads(_node_trois(
-        "echelleMm, marquerAuRepere, majRepere, cadrer, dessinerRegles",
+        "echelleMm, marquerAuRepere, majRepere, cadrer, dessinerRegles, dessinerContourPlateau",
         _importer_plaque("etaler, ranger, boiteModele, plateauDe, poserAngle, deplacerPiece")
         + _faux_rail() + _constantes_etabli("LIGNES_REPERE")
         + _fonction_etabli("enMillimetres") + "\n"
@@ -8959,6 +8973,9 @@ def test_la_LECTURE_du_rail_reste_celle_du_MODELE_pour_une_piece_TOURNEE_et_ASYM
         + _fonction_etabli("mesurerRetenus") + "\n"
         + _fonction_etabli("rendreRepere") + "\n"
         + _fonction_etabli("graduerPlateau") + "\n"
+        + _fonction_etabli("versUnites") + "\n"
+        # tâche #88 : lireRepere() pose aussi le contour du plateau réel
+        + _constantes_etabli("PROFIL") + _fonction_etabli("contourPlateau") + "\n"
         + _fonction_etabli("lireRepere") + "\n" + """
       const api = monter(860, 824);
       """ + _scene_enveloppe() + """

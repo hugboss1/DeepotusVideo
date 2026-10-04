@@ -12997,7 +12997,8 @@ async def print3d_from_assets3d(job: str, body: dict):
                 "aucun maillage lisible (model.stl / model.glb) dans ce job")
         export = await asyncio.to_thread(
             P3.creer_export, _print3d_base(), nom, tris, cible,
-            f"assets3d:{Path(job).name}", "inconnue")
+            f"assets3d:{Path(job).name}", "inconnue",
+            profil=await asyncio.to_thread(_print3d_profil))
     except ValueError as e:
         raise HTTPException(409, str(e))
     return export
@@ -13022,7 +13023,8 @@ async def print3d_from_stl(request: Request, nom: str = "objet",
         P3.creer_export, _print3d_base(), str(nom)[:80], tris, cible_mm,
         str(source)[:40],
         "garantie" if etanche == "garantie" else "inconnue",
-        couleur)                        # R12 : hex #RRGGBB, invalide = ignoré
+        couleur,                        # R12 : hex #RRGGBB, invalide = ignoré
+        await asyncio.to_thread(_print3d_profil))
     return export
 
 
@@ -13056,7 +13058,8 @@ async def print3d_lot(nom: str = "plateau", source: str = "vectorlab",
         lues.append((nom_piece, tris, table.get(nom_piece)))
     try:
         return await asyncio.to_thread(P3.creer_lot, _print3d_base(), str(nom)[:80],
-                                       lues, nomenclature, str(source)[:40])
+                                       lues, nomenclature, str(source)[:40],
+                                       await asyncio.to_thread(_print3d_profil))
     except ValueError as e:
         raise HTTPException(400, str(e))
 
@@ -13127,6 +13130,44 @@ async def print3d_open(body: dict):
     except RuntimeError as e:
         raise HTTPException(409, str(e))
     return {"ok": True, "mode": mode, "fichier": mf3[0].name}
+
+
+# ── Profils d'imprimante (tâche #88 PR B, plan-etabli T3-T4, 04/10/2026) ─────
+# La garde du plateau de print3d est celle du profil ACTIF : la Centauri Carbon
+# 2 intégrée par défaut, un preset d'OrcaSlicer (lu, jamais écrit) ou un profil
+# saisi à la main. Le preset actif du slicer est PROPOSÉ, jamais imposé.
+
+def _print3d_profil() -> dict:
+    """Le profil actif pour la garde ; une panne de lecture retombe sur l'intégré (la garde ne casse pas l'export)."""
+    from app.services import print_profiles as PP
+    try:
+        return PP.profil_courant()
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"profil d'imprimante illisible, garde par défaut : {type(e).__name__}")
+        return dict(PP.INTEGRES[0])
+
+
+@router.get("/print3d/profils")
+async def print3d_profils():
+    """Les profils (intégré, saisis, importés des slicers), l'actif, et le preset actif du slicer (proposé)."""
+    from app.services import print_profiles as PP
+    return await asyncio.to_thread(PP.lister)          # parcourt %APPDATA% : E/S synchrone
+
+
+@router.post("/print3d/profils/actif")
+async def print3d_profil_actif(body: dict):
+    """`{"id": …}` retient un profil connu ; `{"manuel": {nom, plateau_mm: [l, p], hauteur_mm, exclusions_mm}}`
+    crée (ou remplace) un profil saisi à la main et le retient."""
+    from app.services import print_profiles as PP
+    pid, manuel = body.get("id"), body.get("manuel")
+    if manuel is None and not isinstance(pid, str):
+        raise HTTPException(400, "profil : `id` (texte) ou `manuel` (objet) attendu")
+    try:
+        etat = await asyncio.to_thread(PP.choisir, str(pid or ""), manuel)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    l = await asyncio.to_thread(PP.lister)
+    return {"ok": True, "actif": etat["actif"], "profil": next((p for p in l["profils"] if p["id"] == etat["actif"]), None)}
 
 
 # ── Bibliothèque unifiée (28/08) : import Figma → Bibliothèque ──────────────

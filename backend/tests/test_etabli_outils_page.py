@@ -159,5 +159,129 @@ R.cases = eval(html);
     assert "trous bouchés" in cases and "sommets confondus" in cases
 
 
+
+# ══ PR B : L'IMPRIMANTE ET LE CONTOUR DU PLATEAU (tâche #88, plan-etabli T4) ═══════════════════════════════════════
+def _fonction_viewer(nom: str) -> str:
+    js = _lire("lib3d/viewer.js")
+    i = js.find("\nfunction " + nom + "(")
+    if i < 0:
+        i = js.find("\nexport function " + nom + "(")
+    assert i >= 0, f"fonction {nom} introuvable dans viewer.js"
+    return js[i:js.index("\n}\n", i) + 2].replace("\nexport function", "\nfunction")
+
+
+FAUX_THREE = r"""
+class Vector3 { constructor(x, y, z) { this.x = x || 0; this.y = y || 0; this.z = z || 0; } }
+class Group { constructor() { this.children = []; this.name = ""; } add(o) { this.children.push(o); }
+  traverse(f) { f(this); this.children.forEach((c) => c.traverse ? c.traverse(f) : f(c)); } updateMatrixWorld() {} }
+class BufferGeometry { setFromPoints(p) { this.points = p.map((q) => [q.x, q.y, q.z]); return this; } dispose() { this.libre = true; } }
+class LineBasicMaterial { constructor(o) { this.color = o.color; } dispose() {} }
+class LineLoop { constructor(g, m) { this.geometry = g; this.material = m; } }
+const THREE = { Vector3, Group, BufferGeometry, LineBasicMaterial, LineLoop };
+const LEVEE_REGLES = 0.0015;
+"""
+
+
+def test_le_contour_du_plateau_est_dessine_au_coin_des_regles_et_efface():
+    src = (FAUX_THREE + "const _contours = new WeakMap();\n"
+           + re.search(r"^const COULEUR_CONTOUR = .*;$", _lire("lib3d/viewer.js"), re.M).group(0) + "\n"
+           + re.search(r"^const COULEUR_EXCLUE = .*;$", _lire("lib3d/viewer.js"), re.M).group(0) + "\n"
+           + _fonction_viewer("_effacerContour") + _fonction_viewer("dessinerContourPlateau"))
+    R = json.loads(_node(src + r"""
+const scene = { objets: [], add(o) { this.objets.push(o); }, remove(o) { this.objets = this.objets.filter((x) => x !== o); } };
+const api = { scene };
+const g = { axe: "y", u: "x", v: "z", cote: 10, niveau: -0.5, coin: { x: -5, y: -0.5, z: 5 }, sens: { u: -1, v: -1 } };
+const r = dessinerContourPlateau(api, g, { l: 4, p: 2, zones: [[3, 0, 4, 1], [1, "x", 2, 3]] });
+const R = { zones: r.zones, n: scene.objets.length, rects: scene.objets[0].children.map((c) => [c.material.color, c.geometry.points]) };
+dessinerContourPlateau(api, g, { l: 4, p: 2 }); R.apres = scene.objets.length;
+R.nul = dessinerContourPlateau(api, g, null); R.vide = scene.objets.length;
+R.sansCote = dessinerContourPlateau(api, g, { l: 0, p: 2 });
+console.log(JSON.stringify(R));
+""").strip().splitlines()[-1])
+    assert R["zones"] == 1 and R["n"] == 1, R                     # la zone illisible est écartée
+    couleur, pts = R["rects"][0]
+    niv = -0.5 + 10 * 0.0015 * 2
+    assert pts == [[-5, niv, 5], [-9, niv, 5], [-9, niv, 3], [-5, niv, 3]], pts      # au coin, DANS le sens des règles
+    assert R["rects"][1][1][0] == [-8, niv, 5] and R["rects"][0][0] != R["rects"][1][0]   # la zone exclue, autre couleur
+    assert R["apres"] == 1, "un redessin REMPLACE, il n'empile pas"
+    assert R["nul"] is None and R["vide"] == 0 and R["sansCote"] is None
+
+
+HARNAIS_IMP = r"""
+let S = { vueA: { id: "vue" } }, PLQ = { active: true };
+const REP = { cibleMm: 80, echelle: 40, pas: null };
+const PROFIL = { liste: [], actif: null, slicer: null, erreur: "" };
+const APPELS = [], AVIS = [], REFUS = [];
+function plateauDe() { return { coin: {} }; }
+function dessinerContourPlateau(api, g, cotes) { APPELS.push(["contour", cotes]); }
+function enMillimetres() { return REP.echelle !== null; }
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const BOX = { innerHTML: "" }, SEL = { ecoute: [] }, BTN = { ecoute: [] };
+const $ = (s) => (s === "#imprimante" ? BOX : s === "#impProfil" ? { addEventListener: (e, f) => SEL.ecoute.push(e) }
+  : s === "#impSlicer" ? { addEventListener: (e, f) => BTN.ecoute.push(e) } : null);
+let REPONSES = {};
+async function jget(p) { APPELS.push(["get", p]); if (REPONSES[p] instanceof Error) throw REPONSES[p]; return REPONSES[p]; }
+async function jpost(p, c) { APPELS.push(["post", p, c]); if (REPONSES[p] instanceof Error) throw REPONSES[p]; return REPONSES[p]; }
+function direAvis(m) { AVIS.push(m); } function direRefus(m) { REFUS.push(m); }
+"""
+
+
+def _imp(corps: str) -> dict:
+    src = (HARNAIS_IMP + _fonction_etabli("versUnites") + _fonction_etabli("contourPlateau")
+           + _fonction_etabli("rendreImprimante") + _fonction_etabli_async("chargerProfils")
+           + _fonction_etabli_async("choisirProfil")
+           + "\n(async () => { const R = {};\n" + corps + "\nconsole.log(JSON.stringify(R)); })();")
+    return json.loads(_node(src).strip().splitlines()[-1])
+
+
+CC2 = {"id": "integre:elegoo-centauri-carbon-2", "nom": "Elegoo Centauri Carbon 2", "marque": "Elegoo",
+       "resume": "plateau 256 × 256 mm · <b>", "contour": {"l": 256, "p": 256, "zones": [[246, 0, 256, 20]]}}
+KOBRA = {"id": "orcaslicer:Kobra", "nom": "Kobra <x>", "marque": "Anycubic", "resume": "plateau 220 × 220 mm",
+         "contour": {"l": 220, "p": 220, "zones": []}}
+
+
+def test_l_imprimante_se_choisit_groupee_par_marque_et_le_preset_du_slicer_est_PROPOSE():
+    R = _imp("""
+REPONSES["/api/print3d/profils"] = { profils: %s, actif: "integre:elegoo-centauri-carbon-2",
+  actif_slicer: { nom: "Kobra <x>", id: "orcaslicer:Kobra" } };
+await chargerProfils(); R.html = BOX.innerHTML; R.contour = APPELS.filter((a) => a[0] === "contour").pop(); R.ecoute = [SEL.ecoute.slice(), BTN.ecoute.slice()];
+REPONSES["/api/print3d/profils/actif"] = { ok: true, actif: "orcaslicer:Kobra", profil: %s };
+APPELS.length = 0; await choisirProfil("orcaslicer:Kobra"); R.post = APPELS[0]; R.avis = AVIS.slice(); R.html2 = BOX.innerHTML;
+R.contour2 = APPELS.filter((a) => a[0] === "contour").pop();
+REP.echelle = null; contourPlateau(); R.sansCible = APPELS.pop();
+PLQ.active = false; REP.echelle = 40; contourPlateau(); R.horsPlaque = APPELS.pop();
+""" % (json.dumps([CC2, KOBRA]), json.dumps(KOBRA)))
+    h = R["html"]
+    assert '<optgroup label="Elegoo"><option value="integre:elegoo-centauri-carbon-2" selected>' in h
+    assert '<optgroup label="Anycubic"><option value="orcaslicer:Kobra">Kobra &lt;x&gt;</option>' in h
+    assert "plateau 256 × 256 mm · &lt;b&gt;" in h, "le résumé du serveur, ÉCHAPPÉ"
+    assert 'id="impSlicer" title="' in h and "Prendre « Kobra &lt;x&gt; » (actif dans le slicer)" in h
+    assert 'id="impProfil" title="' in h and R["ecoute"] == [["change"], ["click"]]
+    # le contour en UNITÉS : 256 mm / 40 mm par unité
+    assert R["contour"][1] == {"l": 6.4, "p": 6.4, "zones": [[6.15, 0, 6.4, 0.5]]}, R["contour"]
+    assert R["post"] == ["post", "/api/print3d/profils/actif", {"id": "orcaslicer:Kobra"}] and R["avis"] == ["imprimante : Kobra <x>"]
+    assert "impSlicer" not in R["html2"], "le preset du slicer EST l'actif : plus rien à proposer"
+    assert R["contour2"][1]["l"] == 5.5
+    assert R["sansCible"] == ["contour", None] and R["horsPlaque"] == ["contour", None]
+
+
+def test_les_refus_de_profil_sont_dits_et_la_page_vit_sans_eux():
+    R = _imp("""
+REPONSES["/api/print3d/profils"] = new Error("/api/print3d/profils → 500");
+await chargerProfils(); R.html = BOX.innerHTML; R.contour = APPELS.filter((a) => a[0] === "contour").pop();
+REPONSES["/api/print3d/profils/actif"] = new Error("→ 400"); await choisirProfil("x"); R.refus = REFUS.slice();
+""")
+    assert "profils d&#39;imprimante illisibles" in R["html"] and "Centauri Carbon 2" in R["html"], R["html"]
+    assert R["contour"] == ["contour", None] and R["refus"] == ["imprimante refusée : → 400"]
+
+
+def test_la_page_n_ecrit_aucune_unite_et_lit_le_contour_du_serveur():
+    code = _code("etabli/etabli.js")
+    assert "_mm" not in _fonction_etabli("contourPlateau") and "_mm" not in _fonction_etabli("rendreImprimante")
+    assert "contourPlateau();" in _fonction_etabli("lireRepere")
+    assert _fonction_etabli("lireRepere").index("graduerPlateau();") < _fonction_etabli("lireRepere").index("contourPlateau();")
+    assert re.search(r"^chargerProfils\(\);$", code, re.M) and '<div class="imprimante" id="imprimante"></div>' in _lire("etabli/index.html")
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

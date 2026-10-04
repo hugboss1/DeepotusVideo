@@ -575,6 +575,13 @@ button { font-family: inherit; }
   color: var(--ink-soft);
 }
 
+/* tâche #88 : le choix d'imprimante, sous le repère */
+.imprimante { padding: 8px 12px; border-top: 1px solid var(--line, rgba(255,255,255,.08)); font-size: 11px; }
+.imprimante label { display: flex; gap: 6px; align-items: center; }
+.imprimante select { flex: 1; min-width: 0; font-size: 11px; }
+.imprimante .note { margin: 4px 0; color: var(--ink-soft); line-height: 1.45; }
+.imprimante button { margin-top: 4px; font-size: 11px; }
+
 /* Sous 1200px les rails mangent le canevas : on les resserre plutôt que de les
    escamoter — la chronologie est la colonne vertébrale de la page. */
 @media (max-width: 1200px) {
