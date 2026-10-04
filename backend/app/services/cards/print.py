@@ -98,6 +98,8 @@ from .contract import (
     CardGeom, DPI_CHOICES, FORMATS, MM_PER_INCH, R, SHEETS, geom as geom_of,
     is_valid_did, native_bleed_mm, rnd, sheet_px,
 )
+from . import contract                       # tâche #83 : les gabarits d'imprimeur
+from . import print_gabarits as PG
 
 router = APIRouter()
 
@@ -155,7 +157,19 @@ COLOR_MODES = ("rgb", "cmyk_device", "cmyk_icc")
 # Ce que la revendication vaut se relit ensuite dans les octets par
 # `pdf_audit()` : c'est cette lecture, et pas le réglage, qui alimente
 # l'affichage.
-PDFX_VERSION = "PDF/X-3:2003"
+PDFX_VERSION = "PDF/X-3:2003"      # le défaut, inchangé
+# ── TÂCHE #83 : DEUX REVENDICATIONS, ET CE QUE LA SECONDE EXIGE EN PLUS ──────
+# PDF/X-1a:2001 (DriveThruCards) est le même appareil, un cran plus strict :
+# DeviceCMYK / DeviceGray / Separation SEULS dans le contenu — donc AUCUN
+# /ICCBased sur les images — et aucun contenu optionnel. DÉCISION DE
+# L'UTILISATEUR (04/10) : X-1a n'est revendiqué qu'avec le PROFIL DE PRESSE de
+# l'imprimeur, séparation littleCMS (`cmyk_icc`) ; les images partent alors
+# /DeviceCMYK nues et le profil vit dans l'intention de sortie. La conversion
+# d'appareil de Pillow (`cmyk_device`), sans retrait des sous-couleurs ni noir
+# squelette, ne suffit pas, même sous une condition du registre ICC : le
+# fichier tient ses dimensions et ne promet rien.
+PDFX_X1A = "PDF/X-1a:2001"
+PDFX_CLAIMS = (PDFX_VERSION, PDFX_X1A)
 PDFX_SUBTYPE = "/GTS_PDFX"
 # Sous-type d'EXTENSION (PDF 32000-1 §14.11.5 admet une clé d'extension) :
 # l'intention est bien décrite, mais rien ne prétend à une conformité PDF/X.
@@ -584,7 +598,7 @@ def resolve_intent(intent: str, icc: bytes | None) -> dict:
     return out
 
 
-def _pdfx_ok(oi: dict) -> bool:
+def _pdfx_ok(oi: dict, claim: str = PDFX_VERSION, color: str = "") -> bool:
     """La revendication PDF/X-3 est-elle TENABLE pour cette intention ?
 
     Vrai seulement si l'intention décrit une CONDITION DE PRESSE : soit une
@@ -593,6 +607,13 @@ def _pdfx_ok(oi: dict) -> bool:
     (« mntr », le cas de sRGB) décrit la source : ISO 15930 ne l'admet pas en
     `/DestOutputProfile`, donc on ne revendique rien."""
     if not oi or not oi.get("press"):
+        return False
+    if claim == PDFX_X1A:
+        # #83 : X-1a exige le profil de presse EMBARQUÉ et la séparation qu'il
+        # caractérise ; un nom du registre seul ne dit pas d'où viennent les encres.
+        return (color == "cmyk_icc" and bool(oi.get("profile"))
+                and oi.get("cls") == "prtr" and oi.get("space") == "CMYK")
+    if claim != PDFX_VERSION:
         return False
     if oi.get("profile"):
         return oi.get("cls") == "prtr" and oi.get("space") == "CMYK"
@@ -878,6 +899,7 @@ class Plan:
     mark_safe: bool = True             # aucun repère à moins du retrait mesuré
     layers: bool = True                # /OCProperties : repères + cartouche
     page_iso: bool = False             # page PDF au format ISO exact
+    pdfx: str = PDFX_VERSION           # #83 : la révision que le gabarit demande
     icc: bytes | None = None
     out_intent: dict = field(default_factory=dict)
     warnings: list = field(default_factory=list)
@@ -929,6 +951,9 @@ def build_plan(body: dict, n_cards: int = 1, icc: bytes | None = None) -> Plan:
     layers = _flag(body, "layers")
     page_iso = _flag(body, "page_iso")
     mark_safe = _flag(body, "mark_safe")
+    pdfx = str(body.get("pdfx") or PDFX_VERSION).strip()
+    if pdfx not in PDFX_CLAIMS:
+        raise ValueError(f"La révision PDF/X inconnue: {pdfx!r}. Valeurs admises: " + ", ".join(PDFX_CLAIMS))
 
     try:
         n = max(0, int(n_cards))
@@ -1073,7 +1098,7 @@ def build_plan(body: dict, n_cards: int = 1, icc: bytes | None = None) -> Plan:
         trimbox=trimbox, lossless=lossless, jpeg_quality=quality,
         margin_mm=margin_mm, gutter_mm=gutter_mm,
         mark_space=mark_space, color=color, intent=intent, artbox=artbox,
-        mark_safe=mark_safe, layers=layers, page_iso=page_iso,
+        mark_safe=mark_safe, layers=layers, page_iso=page_iso, pdfx=pdfx,
         icc=icc, out_intent=out_intent, warnings=warn,
         # `frame` n'est PAS un réglage d'impression : c'est le sous-document
         # de P2, joint à la demande par `_spec_of`. P7 le LIT (état partagé),
@@ -2411,7 +2436,7 @@ def _oc_close(ocg: dict, cle: str) -> bytes:
     return b" EMC" if (ocg and cle in ocg) else b""
 
 
-def _output_intents(writer, oi: dict, claim: bool):
+def _output_intents(writer, oi: dict, claim: bool | str):
     """`/OutputIntents` sur le catalogue. Pour une condition de production
     NORMALISÉE désignée par son nom du registre ICC, le profil embarqué est
     facultatif (PDF 32000-1 §14.11.5) : c'est le chemin qu'attendent les
@@ -2428,7 +2453,8 @@ def _output_intents(writer, oi: dict, claim: bool):
     d[NameObject("/Type")] = NameObject("/OutputIntent")
     d[NameObject("/S")] = NameObject(PDFX_SUBTYPE if claim else SRC_SUBTYPE)
     if claim:
-        d[NameObject("/GTS_PDFXVersion")] = TextStringObject(PDFX_VERSION)
+        d[NameObject("/GTS_PDFXVersion")] = TextStringObject(
+            claim if isinstance(claim, str) else PDFX_VERSION)
     d[NameObject("/OutputConditionIdentifier")] = TextStringObject(oi["id"])
     d[NameObject("/OutputCondition")] = TextStringObject(oi["cond"])
     if oi.get("registry"):
@@ -2453,7 +2479,7 @@ def _xml_esc(s: str) -> str:
             .replace(">", "&gt;").replace('"', "&quot;"))
 
 
-def xmp_packet(fields: dict, title: str, pdfx: bool) -> bytes:
+def xmp_packet(fields: dict, title: str, pdfx: bool | str) -> bytes:
     """Le paquet XMP, écrit à la main (aucune dépendance réseau, aucun
     générateur : ce dépôt ne livre que PIL + pypdf)."""
     when = datetime.now().astimezone().strftime("%Y-%m-%dT%H:%M:%S%z")
@@ -2465,8 +2491,9 @@ def xmp_packet(fields: dict, title: str, pdfx: bool) -> bytes:
     # revendiqué : un fichier qui ne promet pas PDF/X ne doit pas en porter la
     # moindre trace, pas même un attribut xmlns qu'un lecteur pressé prendrait
     # pour une conformité.
-    px = (f'      <pdfxid:GTS_PDFXVersion>{PDFX_VERSION}'
-          f'</pdfxid:GTS_PDFXVersion>\n' if pdfx else "")
+    ver = pdfx if isinstance(pdfx, str) else (PDFX_VERSION if pdfx else "")
+    px = (f'      <pdfxid:GTS_PDFXVersion>{ver}'
+          f'</pdfxid:GTS_PDFXVersion>\n' if ver else "")
     nsx = ('    xmlns:pdfxid="http://www.npes.org/pdfx/ns/id/"\n'
            if pdfx else "")
     return (
@@ -2523,7 +2550,12 @@ def build_pdf(p: Plan, fronts: dict[int, Image.Image],
     #    coexister, et c'est le CALQUE qui l'emporte — parce qu'il est
     #    demandé explicitement, et parce qu'un fichier qui porte les deux
     #    serait refusé par le premier contrôle de conformité venu.
-    claim = bool(p.out_intent and p.out_intent.get("pdfx")) and not p.layers
+    #    #83 : la révision vient du plan (le gabarit) ; X-3 par défaut, et la
+    #    garde pour X-1a est plus stricte (cf. `_pdfx_ok`).
+    ver = p.pdfx if p.pdfx in PDFX_CLAIMS else PDFX_VERSION
+    claim = (bool(p.out_intent) and _pdfx_ok(p.out_intent, ver, p.color)
+             and not p.layers)
+    claim_ver = ver if claim else False
     # `/OutputIntents` est une construction PDF 1.4 ; pypdf écrit 1.3 par
     # défaut. Un fichier qui porte une intention sous un en-tête 1.3 se
     # contredit lui-même dès le premier octet — relevé, corrigé.
@@ -2538,7 +2570,7 @@ def build_pdf(p: Plan, fronts: dict[int, Image.Image],
     foil_cs = _foil_cs(w, str(foil.get("kind") or "")) if foil_on else None
     foil_gs = _foil_gs(w) if foil_on else None
     if p.out_intent:
-        _output_intents(w, p.out_intent, claim)
+        _output_intents(w, p.out_intent, claim_ver)
     # L'espace d'étiquetage des images : le profil de l'intention quand il y
     # en a un, sinon rien (et les images restent en /Device*, ce que le plan
     # signale comme un défaut au lieu de le taire).
@@ -2555,6 +2587,11 @@ def build_pdf(p: Plan, fronts: dict[int, Image.Image],
     if cs_ref is None and p.color == "rgb":
         cs_ref = ArrayObject([NameObject("/ICCBased"),
                               _icc_stream(w, srgb_icc(), 3)])
+    if claim_ver == PDFX_X1A:
+        # X-1a : AUCUN /ICCBased dans le contenu. Les nombres SONT ceux du
+        # profil de presse (séparation littleCMS) ; c'est l'intention de
+        # sortie qui le dit, pas une étiquette par image.
+        cs_ref = None
     reg_cs = _registration_cs(w) if p.mark_space == "registration" else None
     xcache: dict = {}
     order: list[tuple[int, str]] = []
@@ -2849,7 +2886,7 @@ def build_pdf(p: Plan, fronts: dict[int, Image.Image],
         "page_pt": f"{page_w:.4f}x{page_h:.4f}",
         "calques_optionnels": ("repères + cartouche" if p.layers else "aucun"),
         "intention": (oi["id"] if oi else "aucune"),
-        "conformite_pdfx": (PDFX_VERSION if claim else "aucune revendication"),
+        "conformite_pdfx": (ver if claim else "aucune revendication"),
         # ── LE CONTRÔLE AVANT VOL VOYAGE AVEC LE FICHIER ──────────────────
         #    « Rien dans les fichiers livrés ne prouve que les règles par
         #    carte savent nommer une carte et sortir un chiffre. » Elles le
@@ -2859,7 +2896,7 @@ def build_pdf(p: Plan, fronts: dict[int, Image.Image],
         "controle_avant_vol": control or "non fourni par l'appelant",
         "avertissements": " | ".join(str(x.get("message", ""))
                                      for x in p.warnings) or "aucun",
-    }, name or "Jeu", claim))
+    }, name or "Jeu", claim_ver))
     out = io.BytesIO()
     w.write(out)
     return out.getvalue()
@@ -3194,7 +3231,11 @@ def pdf_audit(data: bytes, duplex_order: str = "") -> dict:
             manques.append(f"{devrgb} /DeviceRGB muet")
         if not prof and not str(oi.get("/RegistryName", "") if oi else ""):
             manques.append("ni profil embarqué ni registre")
-    revendique = PDFX_VERSION if (sub == PDFX_SUBTYPE and not manques) else ""
+        if ver not in PDFX_CLAIMS:
+            manques.append(f"révision inconnue {ver!r}")
+        if ver == PDFX_X1A and b"/ICCBased" in data:
+            manques.append("/ICCBased dans le contenu (interdit en PDF/X-1a)")
+    revendique = ver if (sub == PDFX_SUBTYPE and not manques) else ""
     return {
         "header": entete, "pages": len(pages),
         "pages_4_boites": boites, "pages_boites_emboitees": hierarchie,
@@ -3876,6 +3917,60 @@ def _spec_of(doc: dict, body: dict) -> dict:
     return out
 
 
+def _profile_spec(doc: dict, body: dict, icc: bytes | None = None) -> tuple[str, dict]:
+    """La spec d'impression SOUS un gabarit (tâche #83). Le gabarit gagne sur
+    le document : on n'envoie pas à MPC un fichier réglé pour la maison. Les
+    réglages qu'il ne touche pas (qualité, sans perte) restent ceux de
+    l'utilisateur. Un format que le gabarit ne sert pas (pixels non vérifiés
+    chez l'imprimeur) est refusé ICI, avec la liste de ce qu'il accepte."""
+    body = body if isinstance(body, dict) else {}
+    pid = str(body.get("profile") or "maison").strip().lower()
+    try:
+        pr = contract.printer_profile(pid)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    spec = _spec_of(doc, {k: v for k, v in body.items() if k != "profile"})
+    if pid == "maison":
+        return pid, spec
+    try:
+        contract.profile_geom(pid, str(spec.get("fmt") or contract.DEFAULT_FMT))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    spec = dict(spec)
+    spec.update(bleed_mm=pr["bleed_mm"], safe_mm=pr["safe_mm"], dpi=pr["dpi"],
+                sheet=pr["sheet"], marks=pr["marks"], color=pr["color"],
+                pdfx=pr["pdfx"] or PDFX_VERSION)
+    if pr["marks"] == "none":
+        spec["slug"] = False
+    if pr["pdfx"] == PDFX_X1A:
+        spec["layers"] = False
+        # DÉCISION 04/10 : le profil de presse de l'imprimeur, quand il est
+        # chargé, fait la séparation ET l'intention — c'est la seule voie vers
+        # la revendication X-1a. Sinon CMJN d'appareil, sans promesse.
+        try:
+            info = icc_info(icc) if icc else None
+        except Exception:
+            info = None
+        if info and info.get("space") == "CMYK" and info.get("cls") == "prtr":
+            spec.update(color="cmyk_icc", intent="icc")
+    return pid, spec
+
+
+@router.get("/gabarits")
+async def get_gabarits(did: str, fmt: str = ""):
+    """Le catalogue des gabarits d'imprimeur (tâche #83), avec la géométrie
+    que chacun impose au format demandé. `geom: null` = ce gabarit ne sert pas
+    ce format — l'écran grise la ligne au lieu d'inventer des pixels."""
+    doc = _deck(did)
+    f = str(fmt or "").strip().lower() \
+        or str((doc.get("format") or {}).get("fmt") or contract.DEFAULT_FMT)
+    try:
+        table = contract.profile_table(f)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"fmt": f, "gabarits": table}
+
+
 @router.get("/sheets")
 async def get_sheets(did: str):
     """Le catalogue des planches, en pixels pour les trois définitions —
@@ -4150,7 +4245,15 @@ def preflight_safe(body: dict, icc: bytes | None) -> dict | None:
         return None
 
 
-def control_line(out: dict | None, forced: bool = False) -> str:
+def control_line(out: dict | None, forced: bool = False, profile: str = "maison") -> str:
+    """#83 : la ligne commence par le gabarit quand il y en a un — l'imprimeur
+    lit pour qui le fichier a été réglé."""
+    tete = "" if profile == "maison" else \
+        f"[gabarit {profile} — {contract.printer_profile(profile)['label']}] "
+    return (tete + _control_line(out, forced)).strip()
+
+
+def _control_line(out: dict | None, forced: bool = False) -> str:
     """LE VERDICT QUI PART DANS LE FICHIER. Une ligne, des chiffres, et — si
     l'export a été forcé malgré des erreurs — l'aveu nommé carte par carte.
 
@@ -4323,6 +4426,72 @@ async def _load_all(files: list[UploadFile], p: Plan,
         raise HTTPException(400, f"{label}: {e}")
 
 
+@router.post("/pack")
+async def post_pack(did: str, spec: str = Form("{}"),
+                    fronts: list[UploadFile] = File(default=[]),
+                    backs: list[UploadFile] = File(default=[])):
+    """LE PAQUET IMPRIMEUR (tâche #83) — un ZIP de PNG (ou JPEG) nommés recto /
+    verso. C'est ce que MPC et The Game Crafter attendent : pas une planche
+    imposée, un fichier par face, appariés par le nom. La taille est celle du
+    GABARIT, et `open_card` la fait respecter — un bitmap rendu pour la maison
+    n'entre pas dans un paquet MPC, et le message donne les deux chiffres."""
+    doc = _deck(did)
+    body = _json_form(spec)
+    pid, sp = _profile_spec(doc, body)
+    if contract.printer_profile(pid)["delivery"] != "png_zip":
+        raise HTTPException(400, f"Le gabarit {pid} se livre en PDF, pas en paquet "
+                                 "d'images : utiliser l'export PDF.")
+    if not fronts:
+        raise HTTPException(400, "Aucune carte reçue : le navigateur doit "
+                                 "rendre les cartes avant le paquet")
+    n = max(len(fronts or []), len(backs or []))
+    try:
+        p = build_plan(sp, n, icc_of(did))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    fmt = str(body.get("card_fmt") or "png").strip().lower()
+    if fmt not in CARD_FORMATS:
+        raise HTTPException(400, "Format de carte inconnu: " + fmt)
+    try:
+        bits = int(body.get("card_bits") or 8)
+    except (TypeError, ValueError, OverflowError):
+        bits = 8
+    if bits not in CARD_BITS:
+        raise HTTPException(400, "Profondeur inconnue: 8 ou 16 bits")
+    brut = {"front": [await f.read() for f in (fronts or [])],
+            "back": [await f.read() for f in (backs or [])]}
+
+    def work():
+        faces, ext = {}, "png"
+        for side, blobs in brut.items():
+            if not blobs:
+                continue
+            faces[side] = {}
+            for i, data in enumerate(blobs):
+                im = open_card(data, p, i)
+                out, _mime, ext = encode_image(
+                    im, fmt, bits, p.dpi,
+                    bool(body.get("card_alpha", False)), p.jpeg_quality)
+                faces[side][i] = out
+        slug = PG.deck_slug(str(doc.get("name") or "Jeu"))
+        return PG.build_pack(pid, slug, p.geom, faces, ext)
+    try:
+        out = await asyncio.to_thread(work)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        logger.exception("cards/print: paquet impossible")
+        raise HTTPException(500, f"Paquet impossible: {e}")
+    return Response(content=out, media_type="application/zip", headers={
+        "Content-Disposition": f'attachment; filename="paquet_{pid}.zip"',
+        "X-CF-Profile": pid,
+        "X-CF-Pixels": f"{p.geom.canvas_px[0]}x{p.geom.canvas_px[1]}",
+        "X-CF-Bleed-Px": f"{p.geom.bleed_off_px[0]:g}x{p.geom.bleed_off_px[1]:g}",
+        "X-CF-Cards": str(n),
+        "X-CF-Bytes": str(len(out)),
+    })
+
+
 @router.post("/sheet")
 async def post_sheet(did: str, spec: str = Form("{}"),
                      fronts: list[UploadFile] = File(default=[]),
@@ -4376,7 +4545,10 @@ async def post_pdf(did: str, spec: str = Form("{}"),
     if n < 1:
         raise HTTPException(400, "Aucune carte reçue : le navigateur doit "
                                  "rendre les cartes avant l'imposition")
-    spec = _spec_of(doc, body)
+    pid, spec = _profile_spec(doc, body, icc_of(did))      # #83 : le gabarit gagne
+    if contract.printer_profile(pid)["delivery"] != "pdf":
+        raise HTTPException(400, f"Le gabarit {pid} se livre en paquet d'images "
+                                 "(un PNG par face), pas en PDF.")
     try:
         p = build_plan(spec, n, icc_of(did))
     except ValueError as e:
@@ -4386,7 +4558,7 @@ async def post_pdf(did: str, spec: str = Form("{}"),
     # pas dire la même chose de la même demande.
     pf = await asyncio.to_thread(preflight_safe, spec, icc_of(did))
     _gate_or_409(spec, icc_of(did), pf)
-    ctl = control_line(pf, _flag(spec, "force"))
+    ctl = control_line(pf, _flag(spec, "force"), pid)
     f_imgs = await _load_all(fronts, p, "recto")
     b_imgs = await _load_all(backs, p, "verso") if p.duplex else {}
     if p.duplex and not b_imgs:
@@ -4405,6 +4577,7 @@ async def post_pdf(did: str, spec: str = Form("{}"),
     edge, inner = bleed_mm_sides(p)
     return Response(content=out, media_type="application/pdf", headers={
         "Content-Disposition": 'attachment; filename="planches.pdf"',
+        "X-CF-Profile": pid,
         "X-CF-Pages": str(p.out_pages),
         "X-CF-Grid": f"{p.cols}x{p.rows}",
         "X-CF-Gutter-Pt": f"{px2pt(p.gutter_px, p.dpi):.4f}",

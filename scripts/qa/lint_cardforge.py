@@ -135,7 +135,10 @@ TEST_DIR = pathlib.Path("backend/tests")
 # et toute retouche locale — meme un reformatage — ferait diverger la copie de
 # la source qu'elle date.
 EXTRA_PY = {"forge3d": ["forge3d_scene.py", "forge3d_apercu.py"],
-            "face": ["style_walkuski.py"]}
+            "face": ["style_walkuski.py"],
+            # print_gabarits.py (tache #83) : noms de fichiers, ZIP et manifeste
+            # du paquet imprimeur. Aucun router — la route reste dans print.py.
+            "print": ["print_gabarits.py"]}
 
 # R13 (octets sains) couvre TOUT le labo frontend, pas seulement les 9
 # fichiers mod-<id>.{js,css} + le harnais .mjs : core.js, cardforge.css,

@@ -67,6 +67,7 @@ __all__ = [
     "R", "px", "rnd", "RULE_TEXT", "CardGeom", "geom", "sheet_px",
     "format_row", "format_table", "native_bleed_mm", "UV_ISLANDS",
     "is_valid_did", "decks_root", "deck_dir", "card_mesh", "card_mesh_reference",
+    "PRINTER_PROFILES", "printer_profile", "profile_geom", "profile_table",
 ]
 
 # ── identités gelées ────────────────────────────────────────────────────────
@@ -147,6 +148,140 @@ SHEETS: dict[str, dict] = {
     "letter": {"label": "Letter 8,5 x 11 in",     "size_mm": (215.9, 279.4)},
     "a3":     {"label": "A3 297 x 420 mm",        "size_mm": (297.0, 420.0)},
 }
+
+# ── gabarits d'imprimeur (tâche #83, plan-cartes T1, 04/10/2026) ────────────
+# UN GABARIT N'AJOUTE AUCUNE ARITHMÉTIQUE. Il choisit un fond perdu et une zone
+# sûre, et la règle qui existe déjà rend les pixels que l'imprimeur publie :
+#   mpc  bleed 3.048 safe 3.048 -> poker 822 x 1122, fond perdu 36,0 px
+#   tgc  bleed 3.175 safe 3.175 -> poker 825 x 1125, fond perdu 37,5 px
+#   dtc  bleed 3.175 safe 3.175 -> page 825 x 1125 = 2,75 x 3,75 in
+#
+# LE DÉSACCORD DE MPC, ÉCRIT ICI POUR QU'IL NE SE REPERDE PAS : le portail dit
+# « fond perdu 1/8 in » ET « 822 x 1122 px ». 1/8 in vaut 37,5 px à 300 DPI,
+# donc 825 x 1125 — que l'upload REFUSE. C'est le pixel qui fait foi : 36 px,
+# soit 3,048 mm. Une lecture littérale de la phrase casse l'envoi.
+#
+# LES FORMATS SERVIS sont ceux dont les pixels publiés COLLENT à la règle,
+# vérifiés un par un le 04/10/2026 (décision de l'utilisateur : griser le
+# reste plutôt que d'inventer). Écartés, avec la raison :
+#   MPC : mini (1,75 x 2,5 in chez MPC, 44 x 68 mm ici), jumbo (3,5 x 5 chez
+#         MPC, 3,5 x 5,5 ici), carré 70 mm, poker EU (MPC envoie 822 x 1122) ;
+#   TGC : poker EU (TGC impose 825 x 1125 à son Euro Poker, 819 x 1114 ici),
+#         carré 70 mm (900 chez TGC, 902 ici), mini et micro (aucun produit).
+PROFILE_DELIVERY = ("png_zip", "pdf")
+
+PRINTER_PROFILES: dict[str, dict] = {
+    "maison": {
+        "label": "Imposition maison — planches A4 / Letter / A3",
+        "url": "",
+        "delivery": "pdf",
+        "bleed_mm": None,          # None -> fond perdu natif du format
+        "safe_mm": None,           # None -> zone sûre = fond perdu
+        "dpi": 300,
+        "marks": "crop",
+        "pdfx": "PDF/X-3:2003",
+        "color": "rgb",
+        "sheet": "a4",
+        "fmts": tuple(FORMATS),
+        "verifie": "",
+        "note": "Le comportement historique : aucune contrainte de tiers, "
+                "traits de coupe, cartouche, planches imposées.",
+    },
+    "mpc": {
+        "label": "MakePlayingCards — fond perdu 36 px",
+        "url": "https://www.makeplayingcards.com/",
+        "delivery": "png_zip",
+        "bleed_mm": 3.048,
+        "safe_mm": 3.048,
+        "dpi": 300,
+        "marks": "none",
+        "pdfx": None,
+        "color": "rgb",
+        "sheet": "card",
+        "fmts": ("poker_us", "bridge_us", "tarot_us", "domino", "business", "micro"),
+        "verifie": "04/10/2026 — makeplayingcards.com (taille minimale d'image par produit)",
+        "note": "Un fichier par face, appariés PAR LE NOM. Le portail contrôle "
+                "les PIXELS : 822 x 1122 pour un poker US. Le « 1/8 in » "
+                "publié vaudrait 37,5 px et serait refusé.",
+    },
+    "tgc": {
+        "label": "The Game Crafter — coupe 37,5 px, zone sûre 75 px",
+        "url": "https://www.thegamecrafter.com/",
+        "delivery": "png_zip",
+        "bleed_mm": 3.175,
+        "safe_mm": 3.175,
+        "dpi": 300,
+        "marks": "none",
+        "pdfx": None,
+        "color": "rgb",
+        "sheet": "card",
+        "fmts": ("poker_us", "bridge_us", "tarot_us", "domino", "business", "jumbo"),
+        "verifie": "04/10/2026 — thegamecrafter.com/api/tgc/products (pixels par produit)",
+        "note": "La toile 825 x 1125 du dépôt EST le gabarit TGC : coupe à "
+                "37,5 px du bord, zone sûre à 75 px. Un fichier par face.",
+    },
+    "dtc": {
+        "label": "DriveThruCards — PDF 2,75 x 3,75 in, sans traits de coupe",
+        "url": "https://www.drivethrucards.com/",
+        "delivery": "pdf",
+        "bleed_mm": 3.175,
+        "safe_mm": 3.175,
+        "dpi": 300,
+        "marks": "none",
+        "pdfx": "PDF/X-1a:2001",
+        "color": "cmyk_device",
+        "sheet": "card",
+        "fmts": ("poker_us",),
+        "verifie": "04/10/2026 — page 2,75 x 3,75 in (fond perdu 1/8 in compris)",
+        "note": "Une page par face, AUCUN trait de coupe. PDF/X-1a n'est "
+                "revendiqué qu'avec le profil ICC de presse de l'imprimeur "
+                "(séparation littleCMS) ; sans lui, les dimensions sont "
+                "tenues et la conformité N'EST PAS revendiquée.",
+    },
+}
+
+
+def printer_profile(profile: str) -> dict:
+    """Un gabarit, ou `ValueError` en énumérant la liste blanche."""
+    key = str(profile or "").strip().lower()
+    if key not in PRINTER_PROFILES:
+        raise ValueError("Gabarit d'imprimeur inconnu: %r. Gabarits admis: %s"
+                         % (profile, ", ".join(PRINTER_PROFILES)))
+    return PRINTER_PROFILES[key]
+
+
+def profile_geom(profile: str, fmt: str, dpi: int | None = None) -> "CardGeom":
+    """La géométrie d'un format SOUS un gabarit. Zéro arithmétique nouvelle :
+    le gabarit ne fait que choisir les deux longueurs passées à `geom()`."""
+    pr = printer_profile(profile)
+    f = str(fmt or "").strip().lower()
+    if f not in FORMATS:
+        raise ValueError("Format de carte inconnu: %r. Formats admis: %s"
+                         % (fmt, ", ".join(FORMATS)))
+    if f not in pr["fmts"]:
+        raise ValueError(
+            "Le gabarit %s n'accepte pas le format %s. Formats acceptés: %s"
+            % (pr["label"], f, ", ".join(pr["fmts"])))
+    return geom(f, int(dpi or pr["dpi"]), pr["bleed_mm"], pr["safe_mm"])
+
+
+def profile_table(fmt: str = DEFAULT_FMT) -> list[dict]:
+    """Le catalogue des gabarits, chacun avec la géométrie qu'il impose au
+    format demandé — `geom: None` s'il ne le sert pas. On ne devine jamais une
+    géométrie pour un couple refusé : l'écran doit pouvoir griser la ligne."""
+    out = []
+    for pid, pr in PRINTER_PROFILES.items():
+        row = {"id": pid, "label": pr["label"], "url": pr["url"],
+               "delivery": pr["delivery"], "dpi": pr["dpi"],
+               "marks": pr["marks"], "pdfx": pr["pdfx"], "color": pr["color"],
+               "sheet": pr["sheet"], "note": pr["note"], "verifie": pr["verifie"],
+               "fmts": list(pr["fmts"]), "geom": None}
+        try:
+            row["geom"] = profile_geom(pid, fmt).to_dict()
+        except ValueError:
+            row["geom"] = None
+        out.append(row)
+    return out
 
 
 # ── la règle ────────────────────────────────────────────────────────────────
