@@ -11,6 +11,22 @@
 
 .cf-print { gap: 10px; }
 
+/* ── gabarits d'imprimeur (tache #83) : une carte par imprimeur ──────────── */
+.cf-print .cf-print-gabs { display: grid; gap: 6px; }
+.cf-print .cf-print-gab { display: grid; gap: 2px; text-align: left; padding: 8px 10px;
+  border: 1px solid var(--stroke); border-radius: var(--r); background: var(--bg-base);
+  color: var(--ink-soft); cursor: pointer; font-size: 11.5px; }
+.cf-print .cf-print-gab:hover { background: var(--bg-panel-2); color: var(--ink-strong); }
+.cf-print .cf-print-gab.on { border-color: var(--accent); color: var(--ink-strong); }
+.cf-print .cf-print-gab.ko { opacity: .45; cursor: not-allowed; }
+.cf-print .cf-print-gab .px { font-style: normal; font-variant-numeric: tabular-nums; }
+.cf-print .cf-print-gab .note,
+.cf-print .cf-print-ecart { font-style: normal; font-size: 11px; color: var(--ink-muted); line-height: 1.45; }
+.cf-print .cf-print-gab .pdfx { font-style: normal; font-size: 10.5px; letter-spacing: .04em; color: var(--accent); }
+.cf-print .cf-print-ecart { margin: 6px 0 0; }
+.cf-print .cf-print-ecart.hidden,
+.cf-print .btn.hidden { display: none; }
+
 /* ── ligne de tete : ce que l'export va produire, en clair ───────────────── */
 .cf-print .cf-print-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .cf-print .cf-print-free { font-size: 10.5px; color: var(--green);

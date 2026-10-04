@@ -614,6 +614,10 @@
        PDF et planche PNG decrivent alors la MEME feuille. `page_iso` donne la
        page au format nominal exact, imposition centree dedans. */
     page_iso: false,
+    /* GABARIT D'IMPRIMEUR (tache #83) : « maison » = le comportement
+       historique. `profile_avant` retient, en JSON, le format et les reglages
+       d'avant le gabarit pour les rendre au retour a « maison ». */
+    profile: "maison", profile_avant: "",
   };
   /* Le libelle des intentions vient du backend (GET sheets) ; ceci n'est que
      le repli hors ligne, et il porte les MEMES identifiants de registre. */
@@ -704,6 +708,17 @@
       + '<button class="btn sm" type="button" data-act="guides" title="Fond perdu / coupe / zone sûre par-dessus la carte (touche R)">&#9635; Repères</button>'
       + '<button class="btn sm" type="button" data-act="undo" title="Annuler le dernier réglage (Ctrl+Z)">&#8630;</button>'
       + '</div>'
+
+      /* ── GABARIT D'IMPRIMEUR (tache #83) : le choix qui regle tout le reste ── */
+      + '<details class="grp" open><summary>Gabarit d’imprimeur — maison, MakePlayingCards, The Game Crafter, DriveThruCards</summary><div class="grp-body">'
+      + '<div class="cf-print-gabs" data-role="gabs"></div>'
+      + '<p class="cf-print-ecart hidden" data-role="gab-ecart"></p>'
+      + '<div class="btn-row">'
+      + '<button class="btn strong hidden" type="button" data-act="pack" title="Un PNG par face, nommés recto / verso, et le manifeste : ce que le portail de l’imprimeur attend">Paquet imprimeur (.zip)</button>'
+      + '</div>'
+      + '<p class="hint">Choisir un imprimeur règle le <b>format du jeu</b> (fond perdu, zone sûre, DPI) '
+      + 'et l’impression qu’il impose ; revenir à « maison » rétablit ce qu’il y avait avant.</p>'
+      + '</div></details>'
 
       /* ── 0. CONTROLE AVANT VOL — AU-DESSUS DE LA LIGNE DE FLOTTAISON.
             Il etait annonce dans un sous-titre et enterre a 44 % de
@@ -1917,14 +1932,14 @@
       if (ICC && ICC.space === "CMYK" && st().intent !== "icc") set({ intent: "icc" });
     } catch (e) {
       CF.toast(String((e && e.message) || e), true);
-    } finally { CF.busy(false); paintIcc(); refresh(); }
+    } finally { CF.busy(false); paintIcc(); refresh(); paintGabarits(); }
   }
   async function delIcc() {
     try { await M.api.del("icc"); } catch (e) { /* deja absent */ }
     ICC = null;
     if (st().intent === "icc") set({ intent: "srgb" });
-    if (st().color === "cmyk_icc") set({ color: "rgb" });
-    paintIcc(); refresh();
+    if (st().color === "cmyk_icc") set({ color: gabCourant() === "dtc" ? "cmyk_device" : "rgb" });
+    paintIcc(); refresh(); paintGabarits();
   }
 
   /* ══ exports ═════════════════════════════════════════════════════════════ */
@@ -2112,6 +2127,162 @@
     } catch (e) { CF.toast(String((e && e.message) || e), true); }
     finally { CF.busy(false); FORCE = false; }
   }
+  /* ══ GABARITS D'IMPRIMEUR (tache #83, plan-cartes T4, 04/10/2026) ═════════
+     Le catalogue vient du backend (GET gabarits) : cet ecran ne DERIVE aucun
+     pixel. Les chiffres affiches sont ceux de `contract.profile_geom`.
+
+     DECISION DE L'UTILISATEUR (04/10) : choisir MPC / TGC / DTC regle le
+     format du jeu (fond perdu, zone sure, DPI) et les reglages d'impression
+     que le gabarit impose (planche « card », sans traits ni cartouche, CMJN
+     pour DTC) — pour que le moteur rende aux pixels de l'imprimeur. Ce qu'il
+     y avait AVANT est retenu dans `profile_avant` et revient tel quel quand
+     on repasse a « maison ». ══════════════════════════════════════════════ */
+  let GAB = [], GABFMT = "";
+  const GAB_NOTE = {
+    mpc: "Fond perdu 36 px, zone sûre à 72 px du bord. MakePlayingCards publie "
+       + "« 1/8 in » mais le portail contrôle les pixels : 1/8 in vaudrait "
+       + "37,5 px, donc 825 x 1125, et l’envoi serait refusé.",
+    tgc: "Coupe à 37,5 px du bord, zone sûre à 75 px : pour un poker US, c’est "
+       + "exactement la toile 825 x 1125 du Card Forge.",
+    dtc: "Page de 2,75 x 3,75 in (198 x 270 pt), une face par page, AUCUN trait "
+       + "de coupe, PDF/X-1a:2001 quand le profil de presse est chargé.",
+    maison: "Planches imposées A4 / Letter / A3, traits de coupe et cartouche : "
+          + "le comportement historique.",
+  };
+  /* Les reglages d'impression qu'un gabarit impose, et qu'il faut donc
+     pouvoir rendre a l'identique en revenant a « maison ». */
+  const GAB_CLES = ["sheet", "marks", "slug", "color", "layers", "intent"];
+  function gabCourant() { return st().profile || "maison"; }
+  function gabRow(id) { return GAB.filter((x) => x.id === id)[0] || null; }
+  /* L'ECART, DIT A L'ECRAN. Le fichier part quand meme — aux bonnes
+     dimensions — mais il ne promet pas ce qu'il ne tient pas. */
+  function ecartPdfx(g) {
+    if (!g || g.pdfx !== "PDF/X-1a:2001") return "";
+    if (ICC && ICC.space === "CMYK" && ICC.cls === "prtr") {
+      return "Profil de presse chargé (" + (ICC.desc || ICC.name || "profil .icc")
+        + ") : séparation par ce profil, images CMJN nues, conformité PDF/X-1a "
+        + "revendiquée et relue dans les octets du fichier.";
+    }
+    return "Dimensions DriveThruCards tenues, conformité PDF/X-1a non revendiquée : "
+      + "la conversion CMJN est celle de l’appareil, sans retrait des sous-couleurs "
+      + "ni noir squelette. Chargez le profil ICC de l’imprimeur (bloc Couleur et "
+      + "prépresse) pour que la revendication soit écrite.";
+  }
+  function paintGabarits() {
+    const box = q('[data-role="gabs"]');
+    if (!box) return;
+    const cur = gabCourant();
+    box.innerHTML = GAB.map((g) => {
+      const on = g.id === cur, ko = !g.geom;
+      const px = g.geom
+        ? g.geom.canvas_px[0] + " x " + g.geom.canvas_px[1] + " px · fond perdu "
+          + fx(g.geom.bleed_off_px[0], 1).replace(".", ",") + " px · zone sûre à "
+          + fx(g.geom.safe_off_px[0], 1).replace(".", ",") + " px du bord"
+        : "ne sert pas ce format (" + GABFMT + ") — servis : " + g.fmts.join(", ");
+      const titre = ko ? "Ce gabarit ne sert pas le format " + GABFMT
+          + " : ses pixels publiés ne collent pas (vérifié le 04/10/2026)"
+        : "Régler le jeu pour " + g.label + (g.verifie ? " — pixels vérifiés le " + g.verifie : "");
+      return '<button type="button" class="cf-print-gab' + (on ? " on" : "") + (ko ? " ko" : "")
+        + '" data-act="profile" data-v="' + esc(g.id) + '" title="' + esc(titre) + '"'
+        + (ko ? " disabled" : "") + '>'
+        + '<b>' + esc(g.label) + '</b>'
+        + '<i class="px">' + esc(px) + '</i>'
+        + '<i class="note">' + esc(GAB_NOTE[g.id] || g.note) + '</i>'
+        + (g.pdfx && g.id !== "maison" ? '<i class="pdfx">' + esc(g.pdfx) + '</i>' : "")
+        + '</button>';
+    }).join("");
+    const g = gabRow(cur);
+    const w = q('[data-role="gab-ecart"]');
+    if (w) {
+      const txt = (g && !g.geom)
+        ? "Le gabarit choisi ne sert pas le format " + GABFMT + " : choisissez un format servi "
+          + "(" + g.fmts.join(", ") + ") ou revenez à « maison »."
+        : ecartPdfx(g);
+      w.textContent = txt;
+      w.classList.toggle("hidden", !txt);
+    }
+    const zip = !!(g && g.delivery === "png_zip");
+    const bp = q('[data-act="pack"]');
+    if (bp) bp.classList.toggle("hidden", !zip);
+    qa('[data-act="pdf"], [data-act="png"], [data-act="bench"]').forEach((b) => {
+      b.classList.toggle("hidden", zip);
+    });
+  }
+  async function loadGabarits() {
+    const fmt = CF.doc().format.fmt;
+    try {
+      const r = await M.api.get("gabarits?fmt=" + encodeURIComponent(fmt));
+      if (r && Array.isArray(r.gabarits)) { GAB = r.gabarits; GABFMT = r.fmt || fmt; }
+    } catch (e) {
+      if (!(e && e.missing)) console.warn("cardforge/print: gabarits", e);
+    }
+    /* Un format change SOUS un gabarit ramene le fond perdu natif (regle du
+       CORE) : on remet celui du gabarit, sinon le moteur rendrait a cote des
+       pixels de l'imprimeur et le backend refuserait chaque carte. */
+    const g = gabRow(gabCourant()), f = CF.doc().format;
+    if (g && g.id !== "maison" && g.geom
+        && (f.bleed_mm !== g.geom.bleed_mm || f.safe_mm !== g.geom.safe_mm || f.dpi !== g.geom.dpi)) {
+      M.setFormat({ bleed_mm: g.geom.bleed_mm, safe_mm: g.geom.safe_mm, dpi: g.geom.dpi });
+    }
+    paintGabarits();
+  }
+  function choisirGabarit(id) {
+    const g = gabRow(id), cur = gabCourant();
+    if (!g || !g.geom || id === cur) return;
+    const f = CF.doc().format, s = st();
+    if (id === "maison") {
+      let av = null;
+      try { av = s.profile_avant ? JSON.parse(s.profile_avant) : null; } catch (e) { av = null; }
+      const rendu = { profile: "maison", profile_avant: "" };
+      if (av && av.print) GAB_CLES.forEach((k) => { if (k in av.print) rendu[k] = av.print[k]; });
+      set(rendu);
+      if (av && av.format) M.setFormat(av.format);
+      CF.toast("retour à l’imposition maison : format et réglages d’avant rétablis");
+    } else {
+      const o = { profile: id };
+      /* on ne retient l'« avant » qu'en QUITTANT maison : passer de MPC a TGC
+         ne doit pas effacer ce qu'il faudra rendre. */
+      if (cur === "maison") {
+        const pr = {};
+        GAB_CLES.forEach((k) => { pr[k] = s[k]; });
+        o.profile_avant = JSON.stringify({
+          format: { bleed_mm: f.bleed_mm, safe_mm: f.safe_mm, dpi: f.dpi }, print: pr });
+      }
+      o.sheet = g.sheet; o.marks = g.marks; o.slug = false;
+      if (g.pdfx === "PDF/X-1a:2001") {
+        o.layers = false;
+        const presse = !!(ICC && ICC.space === "CMYK" && ICC.cls === "prtr");
+        o.color = presse ? "cmyk_icc" : "cmyk_device";
+        if (presse) o.intent = "icc";
+      } else {
+        o.color = g.color;
+      }
+      set(o);
+      M.setFormat({ bleed_mm: g.geom.bleed_mm, safe_mm: g.geom.safe_mm, dpi: g.geom.dpi });
+      CF.toast("jeu réglé pour " + g.label + " : " + g.geom.canvas_px.join(" x ") + " px");
+    }
+    paintGabarits(); refresh(); schedulePreflight();
+  }
+  /* Le paquet : le navigateur rend, le backend nomme et archive. */
+  async function exportPack() {
+    const g = gabRow(gabCourant());
+    if (!g || g.delivery !== "png_zip") return;
+    if (!CF.cards().length) { CF.toast("Aucune carte à empaqueter", true); return; }
+    if (!(await gate("le paquet " + g.label))) return;
+    try {
+      const r = await renderAll(true);
+      CF.busy(true, "écriture du paquet " + g.id.toUpperCase() + "…");
+      const fd = formData(exportSpec({}), r.fronts, r.backs);
+      const out = await M.api.blob("POST", "pack", fd);
+      const name = deckSlug() + "_paquet_" + g.id + ".zip";
+      CF.download(out, name);
+      logLine(name, out.size, r.fronts.length + " carte(s) recto + verso à "
+        + g.geom.canvas_px.join(" x ") + " px");
+      CF.toast("paquet " + g.id.toUpperCase() + " : " + r.fronts.length + " carte(s) à "
+        + g.geom.canvas_px.join(" x ") + " px");
+    } catch (e) { CF.toast("Paquet impossible : " + String((e && e.message) || e), true); }
+    finally { CF.busy(false); FORCE = false; }
+  }
 
   /* ══ cablage ═════════════════════════════════════════════════════════════ */
   function wire() {
@@ -2142,6 +2313,8 @@
       else if (a === "iccdel") delIcc();
       else if (a === "foilmask") exportFoilMask();
       else if (a === "audit") runAudit();
+      else if (a === "profile") choisirGabarit(String(act.dataset.v));
+      else if (a === "pack") exportPack();
     });
     HOST.addEventListener("change", (ev) => {
       const t = ev.target;
@@ -2296,12 +2469,13 @@
       }
       paintIntents();
       refresh();
-      loadIcc().catch(() => { });
+      loadIcc().then(paintGabarits).catch(() => { });
+      loadGabarits();
       /* LE CONTROLE AVANT VOL SE LANCE TOUT SEUL. Annonce mais jamais montre,
          il ne valait rien : il est maintenant le premier bloc du panneau, et
          il est deja rempli quand on arrive dessus. */
       schedulePreflight();
-      CF.on("core:geom", () => { paintFormats(); sync(); refresh(); schedulePreflight(); });
+      CF.on("core:geom", () => { paintFormats(); sync(); refresh(); schedulePreflight(); loadGabarits(); });
       CF.on("core:cards", () => { PF = null; paintPreflight(); refresh(); schedulePreflight(); });
       CF.on("core:doc", (p) => {
         if (!p || p.id === "print" || p.id === "format") {
