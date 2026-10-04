@@ -13962,6 +13962,27 @@ async def etabli_couper(body: dict):
     return _etabli_ecrire(job, sortie, "couper", {"depuis": depuis, **rapport})
 
 
+@router.post("/etabli/reparer-maillage")
+async def etabli_reparer_maillage(body: dict):
+    """RÉPARER EN UN CLIC (tâche #88 PR A, plan-etabli T2) : `actions` ⊆ mesh_repair.ACTIONS (par défaut
+    mesh_repair.PAR_DEFAUT — sans les trous, décision de l'utilisateur 04/10), `noeuds` facultatif (toutes les pièces
+    de la scène sinon). Écrit une version de plus ; le rapport — pièce par pièce, ce qui a été soudé, retiré, retourné,
+    bouché ou non et pourquoi — devient le `source` de la fiche. Distinct de `/etabli/reparer`, qui répare l'ASSISE."""
+    from app.services import mesh_repair
+    job, data, depuis = _etabli_glb_cible(body.get("job"), body.get("version"), "réparation du maillage")
+    actions = body.get("actions", list(mesh_repair.PAR_DEFAUT))
+    if not isinstance(actions, list) or not actions or any(a not in mesh_repair.ACTIONS for a in actions):
+        raise HTTPException(400, f"réparation : `actions` est une liste non vide parmi {', '.join(mesh_repair.ACTIONS)}")
+    noeuds = body.get("noeuds")
+    if noeuds is not None and (not isinstance(noeuds, list) or any(not _etabli_entier(n) or n < 0 for n in noeuds)):
+        raise HTTPException(400, "réparation : `noeuds` doit être une liste d'index de nœud (entiers ≥ 0)")
+    try:
+        sortie, rapport = await asyncio.to_thread(mesh_repair.reparer, data, noeuds, actions)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return _etabli_ecrire(job, sortie, "reparer_maillage", {"depuis": depuis, **rapport})
+
+
 # ── Plan mobile T4 (tâche #56, 01/10/2026) : appairage d'un appareil ─────────────────────────────────────────────────
 # `_require_localhost` garde ces routes : seul le PC affiche un QR, liste et révoque. `/pair/claim` est l'exception,
 # ouverte au réseau local par main.py (_ROUTES_SANS_JETON pour la garde de jeton, _ECRITURES_OUVERTES pour la garde

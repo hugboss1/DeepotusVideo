@@ -172,8 +172,10 @@ let _ecritEnCours = false;
    ne bouge. `couper` ferme la liste et n'y voisine avec personne : la coupe RENUMÉROTE
    (les nœuds coupés disparaissent, deux naissent) et confirmerCoupe() refuse
    de partir tant que la file n'est pas vide — elle y entre seule, pour la
-   durée de sa propre écriture. */
-const ORDRE_ECRITURE = ["transformer", "assise", "reparer", "extraire", "couper"];
+   durée de sa propre écriture. `reparer_maillage` (tâche #88) écrit SEUL lui aussi,
+   derrière la même garde (ecrireSeule) : sa place dans la liste ne compte pas, elle
+   n'y voisine jamais avec personne. UNE LIGNE : les bancs la lisent ainsi. */
+const ORDRE_ECRITURE = ["transformer", "assise", "reparer", "extraire", "couper", "reparer_maillage"];
 
 /* Les trois plumes de P1, ÉCRITES plutôt que composées. Un
    `/api/etabli/${t.operation}` marcherait aussi bien et rendrait le fichier
@@ -185,6 +187,7 @@ const ROUTES = {
   transformer: "/api/etabli/transformer",
   extraire: "/api/etabli/extraire",
   couper: "/api/etabli/couper",
+  reparer_maillage: "/api/etabli/reparer-maillage",
 };
 
 async function jget(p) {
@@ -2422,7 +2425,53 @@ const LIBELLES_ATTENTE = {
     + (t.charge.recentrer ? ", recentré" : ""),
   assise: (t) => `posé sur une face (normale ${t.charge.normale.map(fmtCoord).join(", ")})`,
   couper: (t) => `coupe de ${t.charge.noeuds.length} pièce(s) — garder ${t.charge.garder}`,
+  reparer_maillage: (t) => `réparer le maillage : ${t.charge.actions.map((a) => LIBELLE_ACTION[a] || a).join(", ")}`,
 };
+
+/* ── RÉPARER EN UN CLIC (tâche #88 PR A, plan-etabli T2) ─────────────────────
+   Ce qui RENUMÉROTE écrit SEUL : la file doit être vide, la ligne y entre pour la
+   durée de sa propre écriture — la garde de confirmerCoupe(), pour toute opération.
+   Rend le bilan d'ecrireVersion(), ou null (refus dit dans la barre). */
+const LIBELLE_OP = { reparer_maillage: "réparer le maillage" };
+const LIBELLE_ACTION = { souder: "sommets confondus", doublons: "faces dupliquées", degeneres: "triangles plats",
+                         normales: "normales unifiées", trous: "trous bouchés" };
+/* Les actions cochées d'office : TOUT sauf les trous — décision de l'utilisateur (04/10) :
+   boucher un trou ajoute de la matière, et la triangulation peut échouer sur une boucle gauche. */
+const ACTIONS_PAR_DEFAUT = ["souder", "doublons", "degeneres", "normales"];
+async function ecrireSeule(operation, charge, source) {
+  if (!S.a) { direRefus("aucun modèle chargé"); return null; }
+  if (_ecritEnCours) { direRefus("une écriture est en cours — attends la fin de la série"); return null; }
+  if (S.enAttente.length) {
+    direRefus(`${S.enAttente.length} modification(s) en attente — écris-les d'abord : « ${LIBELLE_OP[operation] || operation} » `
+      + "renumérote les nœuds et ne se met pas en file derrière elles");
+    return null;
+  }
+  noterAttente(operation, charge, source);
+  const bilan = await ecrireVersion();
+  if (!bilan || !bilan.ecrites.includes(operation)) {
+    const i = S.enAttente.findIndex((x) => x.operation === operation);
+    if (i >= 0) S.enAttente.splice(i, 1);
+    rendreAttente();
+    return null;
+  }
+  return bilan;
+}
+/* Le DÉTAIL, dans la barre : ce qui a été fait, compté sur toutes les pièces ; un trou
+   NON bouché se dit (la raison est dans la fiche de la version). */
+function direBilanReparation(fiche) {
+  const src = fiche && fiche.source;
+  if (!src) return;
+  const p = (src.pieces || []).reduce((s, x) => ({
+    soudes: s.soudes + (x.soudes || 0), doublons: s.doublons + (x.doublons || 0), degeneres: s.degeneres + (x.degeneres || 0),
+    retournes: s.retournes + (x.retournes || 0), bouches: s.bouches + ((x.trous && x.trous.bouches) || 0),
+    non: s.non + ((x.trous && x.trous.non_bouches) || 0) }),
+    { soudes: 0, doublons: 0, degeneres: 0, retournes: 0, bouches: 0, non: 0 });
+  const trous = (src.actions || []).includes("trous")
+    ? `, ${p.bouches} trou(s) bouché(s)${p.non ? `, ${p.non} NON bouché(s) (raisons dans la fiche)` : ""}` : "";
+  direAvis(`maillage réparé (version ${fiche.version}) : ${p.soudes} sommet(s) soudé(s), ${p.doublons} doublon(s), `
+    + `${p.degeneres} triangle(s) plat(s), ${p.retournes} retourné(s)${trous} — `
+    + (src.ferme_apres ? "fermé" : (src.ferme_avant ? "fermé avant, OUVERT après" : "encore ouvert")));
+}
 const libelleAttente = (t) =>
   (LIBELLES_ATTENTE[t.operation] || ((x) => x.operation))(t);
 
@@ -2811,7 +2860,14 @@ function rendreFiche() {
     <button id="fAppliquer">Mettre en attente</button>
     <p class="note">Le recentrage a besoin de la géométrie : sur un GLB
       compressé il refuse, en le disant. L'axe et l'échelle passent quand
-      même.</p>`;
+      même.</p>
+    <div class="dt-label">Réparer le maillage</div>
+    <div class="reparer-actions">${Object.keys(LIBELLE_ACTION).map((a) =>
+      `<label><input type="checkbox" data-action="${a}"${ACTIONS_PAR_DEFAUT.includes(a) ? " checked" : ""}> ${LIBELLE_ACTION[a]}</label>`).join("")}</div>
+    <button id="fReparerMaillage" title="Écrit aussitôt une version de plus : sommets confondus, doublons, triangles plats, normales — et les trous si la case est cochée">Réparer en un clic</button>
+    <p class="note">Écrit AUSSITÔT une version de plus (les nœuds sont renumérotés) ; le
+      détail de ce qui a été fait s'affiche dans la barre du bas, et la version d'avant
+      reste sur le disque. « Trous bouchés » ajoute de la matière : décoché d'office.</p>`;
   $("#fAppliquer").addEventListener("click", () => {
     if (!S.a) { direRefus("aucun modèle chargé — rien à réparer"); return; }
     /* Les trois clés sont celles que la route attend, au caractère près :
@@ -2823,6 +2879,12 @@ function rendreFiche() {
       echelle: Number($("#fEchelle").value) || 1,
       recentrer: $("#fRecentrer").checked,
     });
+  });
+  $("#fReparerMaillage").addEventListener("click", async () => {
+    const actions = [...$("#panFiche").querySelectorAll("[data-action]:checked")].map((c) => c.dataset.action);
+    if (!actions.length) { direRefus("cochez au moins une action de réparation"); return; }
+    const bilan = await ecrireSeule("reparer_maillage", { actions });
+    if (bilan) direBilanReparation(bilan.derniere);
   });
 }
 
