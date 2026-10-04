@@ -10293,6 +10293,51 @@ function DzOutilsBiblio(){var vs=x.useState(""),vue=vs[0],setVue=vs[1];
       bouton("nettoyage","🧹 Nettoyage","Poids par sorte et doublons exacts à mettre à la corbeille")]}),
     vue==="corbeille"?r.jsx(DzCorbeille,{}):vue==="nettoyage"?r.jsx(DzNettoyage,{}):null]})}
 /* ── fin Bibliothèque #81 */
+/* ── Bibliothèque #82 PR A (plan-library T14, 04/10/2026) — les COMMENTAIRES de revue, sous la fiche.
+   Décision de l’utilisateur (04/10) : commentaires DATÉS avec un STATUT (à revoir / validé / rejeté) ; pour un son,
+   l’instant visé (mm:ss) ; « note » désigne déjà la note 0..5, d’où le mot « commentaires ». Le statut se change d’un
+   clic sur sa pastille ; supprimer passe par le dialogue maison. */
+var DZ_CM_STATUTS=[["a_revoir","à revoir","var(--amber)"],["valide","validé","var(--green)"],["rejete","rejeté","var(--red)"]];
+function dzInstant(txt){var s=String(txt==null?"":txt).trim();if(!s)return null;var m=/^(\d+):([0-5]?\d)(?:\.(\d+))?$/.exec(s);
+  if(m)return Number(m[1])*60+Number(m[2])+(m[3]?Number("0."+m[3]):0);var n=Number(s.replace(",","."));return isFinite(n)&&n>=0?n:NaN}
+function dzInstantTxt(t){if(t==null)return"";var m=Math.floor(t/60),s=t-m*60;return m+":"+(s<10?"0":"")+(Math.round(s*10)/10)}
+function DzCommentaires({m}){var ls=x.useState(null),L=ls[0],setL=ls[1],ts=x.useState(""),txt=ts[0],setTxt=ts[1],is=x.useState(""),ins=is[0],setIns=is[1],
+    ms=x.useState(""),msg=ms[0],setMsg=ms[1],vs=x.useState(!1),vol=vs[0],setVol=vs[1],verrou=x.useRef(!1);
+  var ref=m&&!m.jobId&&(m.kind==="image"||m.kind==="audio"||m.audioFile)?m.name:null,son=!!(m&&(m.kind==="audio"||m.audioFile));
+  var U="/api/library/commentaires/";
+  function charger(){if(!ref)return;fetch(U+encodeURIComponent(ref)).then(function(R){return R.ok?R.json():null}).then(function(d){setL(d?d.commentaires||[]:null)}).catch(function(){})}
+  x.useEffect(function(){setL(null);setTxt("");setIns("");setMsg("");charger()},[ref]);
+  if(!ref||!L)return null;
+  async function envoyer(url,meth,corps){var R=await fetch(url,{method:meth,headers:{"Content-Type":"application/json"},body:corps?JSON.stringify(corps):void 0});
+    var d=await R.json().catch(function(){return{}});if(!R.ok)throw new Error(d.detail||("HTTP "+R.status));return d}
+  /* le verrou est une REF posée avant l’envoi : deux clics sur le même rendu ne font qu’un commentaire (l’état seul ne
+     suffit pas, il est lu dans la fermeture du rendu) */
+  async function ajouter(){if(verrou.current||!txt.trim())return;var t=son?dzInstant(ins):null;if(son&&ins.trim()&&!isFinite(t)){setMsg("Instant illisible : mm:ss ou secondes.");return}
+    verrou.current=!0;setVol(!0);setMsg("");try{var c={texte:txt.trim()};if(t!=null)c.t_s=t;await envoyer(U+encodeURIComponent(ref),"POST",c);setTxt("");setIns("");charger()}
+    catch(e){setMsg("Non enregistré : "+String(e&&e.message||e))}finally{verrou.current=!1;setVol(!1)}}
+  async function statut(c,st){if(c.statut===st)return;try{await envoyer(U+"c/"+encodeURIComponent(c.id),"PATCH",{statut:st});charger()}
+    catch(e){setMsg("Non enregistré : "+String(e&&e.message||e))}}
+  async function supprimer(c){if(!await window.__dzDialogue.confirmer("Supprimer ce commentaire ? « "+(c.texte.length>60?c.texte.slice(0,60)+"…":c.texte)+" »",{titre:"Commentaire",ok:"Supprimer"}))return;
+    try{await envoyer(U+"c/"+encodeURIComponent(c.id),"DELETE");charger()}catch(e){setMsg("Non supprimé : "+String(e&&e.message||e))}}
+  var nb={};L.forEach(function(c){nb[c.statut]=(nb[c.statut]||0)+1});
+  return r.jsxs("div",{className:"dz-commentaires","data-dz":"commentaires",style:{display:"flex",flexDirection:"column",gap:6,marginTop:8,paddingTop:8,borderTop:"1px solid var(--stroke)"},children:[
+    r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)"},children:L.length?"Commentaires ("+L.length+") · "+DZ_CM_STATUTS.filter(function(s){return nb[s[0]]}).map(function(s){return nb[s[0]]+" "+s[1]}).join(" · "):"Commentaires"}),
+    ...L.map(function(c){return r.jsxs("div",{"data-statut":c.statut,style:{display:"flex",alignItems:"flex-start",gap:8,fontSize:11.5},children:[
+      r.jsx("span",{style:{display:"flex",gap:3},children:DZ_CM_STATUTS.map(function(s){var on=c.statut===s[0];return r.jsx("button",{type:"button","aria-pressed":on,
+        title:on?"Statut : "+s[1]:"Passer à « "+s[1]+" »",onClick:function(){statut(c,s[0])},style:{height:18,padding:"0 6px",fontSize:10,borderRadius:9,cursor:"pointer",
+        border:"1px solid "+(on?s[2]:"var(--stroke)"),background:"transparent",color:on?s[2]:"var(--ink-muted)"},children:s[1]},s[0])})}),
+      c.t_s!=null?r.jsx("span",{style:{color:"var(--cyan)",fontFamily:"var(--f-mono)"},children:dzInstantTxt(c.t_s)}):null,
+      r.jsx("span",{style:{flex:1,color:"var(--ink-soft)",whiteSpace:"pre-wrap"},children:c.texte}),
+      r.jsx("span",{style:{color:"var(--ink-muted)",fontSize:10},children:dzDuree(c.cree_le)}),
+      r.jsx("button",{type:"button",title:"Supprimer ce commentaire",onClick:function(){supprimer(c)},style:{background:"none",border:0,cursor:"pointer",color:"var(--ink-muted)"},children:"×"})]},c.id)}),
+    r.jsxs("div",{style:{display:"flex",gap:6,alignItems:"center"},children:[
+      son?r.jsx("input",{value:ins,placeholder:"mm:ss",title:"L’instant visé dans le son (facultatif)",onChange:function(e){setIns(e.target.value)},
+        style:{width:56,height:24,padding:"0 6px",fontSize:11.5,background:"var(--bg-base)",color:"var(--ink-strong)",border:"1px solid var(--stroke)",borderRadius:6}}):null,
+      r.jsx("input",{value:txt,placeholder:"Ajouter un commentaire…",onChange:function(e){setTxt(e.target.value)},onKeyDown:function(e){if(e.key==="Enter"){e.preventDefault();ajouter()}},
+        style:{flex:1,height:24,padding:"0 8px",fontSize:11.5,background:"var(--bg-base)",color:"var(--ink-strong)",border:"1px solid var(--stroke)",borderRadius:6}}),
+      r.jsx(K,{variant:"ghost",size:"sm",onClick:ajouter,disabled:vol||!txt.trim(),title:"Ajouter ce commentaire (statut « à revoir »)",children:"Commenter"})]}),
+    msg?r.jsx("span",{style:{fontSize:10.5,color:"var(--red)"},children:msg}):null]})}
+/* ── fin Bibliothèque #82 A */
 /* ── Bibliothèque #78 PR B (plan-library T4, 03/10/2026) — les PROJETS à l'écran.
    Un projet contient des assets de toutes catégories (serveur : library_projects, PR A #144). Ici :
    - la barre « Projet » en tête du contenu : REGARDER un projet filtre TOUS les onglets (dzPF, appliqué dans Lfs) ;

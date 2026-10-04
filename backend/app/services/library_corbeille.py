@@ -144,6 +144,8 @@ async def jeter_fichier(nom: str, kind: str) -> dict | None:
     except Exception:
         shutil.rmtree(d, ignore_errors=True)
         raise
+    from app.services import library_commentaires as LCM   # tâche #82 : les commentaires partent avec l'asset
+    j["commentaires"] = await LCM.emporter(nom)
     _ecrire_journal(d, j)
     await LI.retirer(nom)
     if sfx is not None:
@@ -287,6 +289,9 @@ async def restaurer(eid: str) -> dict:
         from app.services import sfx_service as SFX
         SFX.record_meta(nom, j["sfx_meta"])
     await _reposer_projets(j, nom)
+    if j.get("commentaires"):   # tâche #82 : ils reviennent sous le nom RENDU
+        from app.services import library_commentaires as LCM
+        await LCM.rapporter(nom, j["commentaires"])
     shutil.rmtree(d, ignore_errors=True)
     return {"restaure": nom, "type": j.get("type"), "renomme": nom != j["nom"]}
 
