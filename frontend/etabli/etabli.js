@@ -8,7 +8,7 @@
 import * as THREE from "three";
 import { creerCanevas, charger, cadrer, vider, projeter, orienter, cadreOrtho,
          aspectDe, echelleMm, marquerAuRepere, montrerRepere, dessinerRegles,
-         effacerRegles }
+         effacerRegles, dessinerContourPlateau }
   from "/lib3d/viewer.js";
 import { indexerNoeuds, inventaire, isoler, surligner, designerAuClic,
          TOLERANCE_CLIC }
@@ -108,6 +108,10 @@ const PLQ = { active: false, pieces: [], masquees: new Set(),
    zoomés.
    (Même règle que pour S : toute clé se déclare ICI.) */
 const REP = { cibleMm: null, echelle: null, pas: null };
+/* L'IMPRIMANTE (tâche #88 PR B) : la liste des profils, le profil ACTIF (celui dont le
+   plateau borde la plaque et garde l'export), le preset actif du slicer (PROPOSÉ, jamais
+   imposé — décision de l'utilisateur, 04/10). UNE LIGNE : les bancs la lisent ainsi. */
+const PROFIL = { liste: [], actif: null, slicer: null, erreur: "" };
 
 /* LE PROPRIÉTAIRE DU POINTEUR — un seul, pour quatre modes.
    Le canevas A reçoit les gestes de QUATRE consommateurs : le sélecteur au
@@ -1240,6 +1244,71 @@ function graduerPlateau() {
   if (!S.vueA) return;
   dessinerRegles(S.vueA, PLQ.active ? plateauDe(S.vueA) : null,
                  fmtMesure, uniteCourante());
+}
+
+/* LE PLATEAU RÉEL sur la plaque (tâche #88 PR B, plan-etabli T4) : le contour de
+   l'imprimante active et sa zone exclue, en unités du modèle. SOUS UNE TAILLE CIBLE
+   SEULEMENT : sans elle aucun millimètre n'existe ici, et un contour « à l'échelle »
+   d'un modèle sans échelle serait un chiffre inventé. REP.echelle = mm par unité, donc
+   mm / echelle = unités. */
+function contourPlateau() {
+  if (!S.vueA) return;
+  const c = PROFIL.actif && PROFIL.actif.contour, g = PLQ.active ? plateauDe(S.vueA) : null;
+  dessinerContourPlateau(S.vueA, g, c && g && enMillimetres()
+    ? { l: versUnites(c.l), p: versUnites(c.p), zones: (c.zones || []).map((z) => z.map(versUnites)) }
+    : null);
+}
+
+/* Le choix d'imprimante, sous le repère : groupé par marque, le profil actif décrit en
+   chiffres ; le preset actif d'OrcaSlicer est PROPOSÉ par un bouton, jamais pris seul. */
+function rendreImprimante() {
+  const box = $("#imprimante");
+  if (!box) return;
+  if (PROFIL.erreur) { box.innerHTML = `<div class="dt-label">Imprimante</div><p class="note">${esc(PROFIL.erreur)}</p>`; return; }
+  const a = PROFIL.actif;
+  const groupes = new Map();
+  for (const p of PROFIL.liste) {
+    const m = p.marque || "—";
+    if (!groupes.has(m)) groupes.set(m, []);
+    groupes.get(m).push(p);
+  }
+  const options = [...groupes].map(([m, ps]) => `<optgroup label="${esc(m)}">`
+    + ps.map((p) => `<option value="${esc(p.id)}"${a && p.id === a.id ? " selected" : ""}>${esc(p.nom)}</option>`).join("")
+    + "</optgroup>").join("");
+  /* Le résumé chiffré est RÉDIGÉ par le serveur (print_profiles.resume) : cette page
+     n'écrit pas d'abréviation d'unité hors de uniteCourante(). */
+  const desc = a ? (a.resume || a.nom) : "—";
+  const prop = PROFIL.slicer && (!a || PROFIL.slicer.id !== a.id)
+    ? `<button id="impSlicer" title="Prendre le preset sélectionné dans OrcaSlicer (lu, jamais modifié)">Prendre « ${esc(PROFIL.slicer.nom)} » (actif dans le slicer)</button>` : "";
+  box.innerHTML = `<div class="dt-label">Imprimante</div>
+    <label>profil <select id="impProfil" title="La garde du plateau de l'export et le contour sur la plaque viennent de ce profil">${options}</select></label>
+    <p class="note">${esc(desc)}. Le contour se dessine sur la plaque sous une taille cible ; l'export AVERTIT au-delà du plateau, il n'interdit pas.</p>${prop}`;
+  $("#impProfil").addEventListener("change", (ev) => choisirProfil(ev.target.value));
+  if (prop) $("#impSlicer").addEventListener("click", () => choisirProfil(PROFIL.slicer.id));
+}
+async function chargerProfils() {
+  try {
+    const l = await jget("/api/print3d/profils");
+    PROFIL.liste = l.profils || [];
+    PROFIL.actif = PROFIL.liste.find((p) => p.id === l.actif) || null;
+    PROFIL.slicer = l.actif_slicer || null;
+    PROFIL.erreur = "";
+  } catch (e) {
+    PROFIL.erreur = `profils d'imprimante illisibles (${e.message}) — la garde par défaut (Centauri Carbon 2) s'applique`;
+  }
+  rendreImprimante();
+  contourPlateau();
+}
+async function choisirProfil(id) {
+  try {
+    const r = await jpost("/api/print3d/profils/actif", { id });
+    PROFIL.actif = r.profil || PROFIL.liste.find((p) => p.id === r.actif) || PROFIL.actif;
+    direAvis(`imprimante : ${PROFIL.actif ? PROFIL.actif.nom : id}`);
+  } catch (e) {
+    direRefus(`imprimante refusée : ${e.message}`);
+  }
+  rendreImprimante();
+  contourPlateau();
 }
 
 /* La pièce COURANTE : celle que l'anneau entoure et que le clavier pousse.
@@ -2928,6 +2997,14 @@ function enMillimetres() {
   return REP.echelle !== null;
 }
 
+/* LA CONVERSION INVERSE, et la seule : des millimètres d'un PROFIL d'imprimante (des mm
+   réels, ceux du plateau) vers les unités du modèle, pour poser le contour du plateau sur
+   la plaque (tâche #88). GARDÉE comme l'autre : sans taille cible, `null` — et le contour
+   ne se dessine pas. */
+function versUnites(v) {
+  return enMillimetres() ? v / REP.echelle : null;
+}
+
 /* L'unité COURANTE, écrite en un seul endroit — deux littéraux « mm » sur
    cette page finiraient par se contredire sur une moitié de l'écran. */
 function uniteCourante() {
@@ -3188,6 +3265,7 @@ function lireRepere() {
      elle : c'est ici, après le recalcul de l'échelle, qu'elles se redessinent
      (mémo dans le canevas — gratuit quand rien n'a changé). */
   graduerPlateau();
+  contourPlateau();
 
   const m = mesurerRetenus();
   /* LE COMPTE MARQUÉ EST RENDU, ET ON LE LIT. marquerAuRepere() borne le
@@ -3318,6 +3396,10 @@ rendreParties();
    majBoutonPlaque(), plutôt que d'être écrits dans index.html PUIS réécrits
    ici : deux sources pour un même texte divergent à la première retouche. */
 majBoutonPlaque();
+/* Les profils d'imprimante arrivent du serveur (lecture de %APPDATA% côté Python) :
+   la page vit sans eux — le bloc dit qu'il attend, la garde par défaut tient. */
+rendreImprimante();
+chargerProfils();
 /* Et les outils du lot B, pour la même raison : leurs boutons naissent sans
    texte, majOutils() les écrit ici. */
 majOutils();

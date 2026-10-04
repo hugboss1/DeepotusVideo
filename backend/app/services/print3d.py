@@ -356,7 +356,7 @@ def _slug(nom: str) -> str:
 
 
 def creer_export(base, nom, tris, cible_mm=None, source="",
-                 etancheite="inconnue", couleur=None):
+                 etancheite="inconnue", couleur=None, profil=None):
     """Écrit `<slug>-<date>/` (STL + 3MF aux mm + impression.json) sous
     `base` et rend {dossier, stl, mf3, triangles}."""
     import datetime as _dt
@@ -378,16 +378,14 @@ def creer_export(base, nom, tris, cible_mm=None, source="",
     couleur = couleur_valide(couleur)          # R12 : la couleur voyage dans le 3MF
     (dossier / mf3_nom).write_bytes(
         ecrire_3mf([(str(nom), monde, couleur)] if couleur else monde, nom=nom))
-    # la garde du plateau (Centauri Carbon 2 : 256 mm) — AVERTIT, n'interdit
-    # pas : couper est le métier du slicer
-    bb = bbox(monde)
-    plus_grande = max(b[1] - b[0] for b in bb)
-    avertissement = None
-    if plus_grande > 256.0 + 1e-6:
-        avertissement = (f"{plus_grande:.0f} mm dépasse le plateau de la "
-                         "Centauri Carbon 2 (256 mm) — le slicer devra "
-                         "couper ou réduire")
+    # la garde du plateau — AVERTIT, n'interdit pas : couper est le métier du
+    # slicer. Tâche #88 : elle est celle du PROFIL d'imprimante (print_profiles,
+    # dimensions XY triées, hauteur à part) ; sans profil, la Centauri Carbon 2
+    # (256 mm), message historique inchangé.
+    from app.services import print_profiles as _PP
+    avertissement = _PP.garde(bbox(monde), profil, _PP.SUITE_EXPORT)
     meta = {"nom": str(nom), "source": str(source),
+            "profil": (profil or _PP.INTEGRES[0]).get("nom"),
             "cible_mm": (float(cible_mm) if cible_mm is not None else None),
             "etancheite": etancheite, "stl": stl_nom, "mf3": mf3_nom,
             "triangles": len(monde), "couleur": couleur,
@@ -405,7 +403,7 @@ def creer_export(base, nom, tris, cible_mm=None, source="",
 _NOM_PIECE = re.compile(r"[A-Za-z0-9_-]{1,60}")
 
 
-def creer_lot(base, nom, pieces, nomenclature, source=""):
+def creer_lot(base, nom, pieces, nomenclature, source="", profil=None):
     """Lot D : `<slug>-lot-<date>/` avec UN STL PAR PIÈCE (`<piece>.stl`), le
     plateau assemblé `plateau.3mf` (toutes les pièces réunies), la
     `nomenclature.csv` fournie par le client et `impression.json`
@@ -437,14 +435,10 @@ def creer_lot(base, nom, pieces, nomenclature, source=""):
         tous.extend(tris)
     (dossier / "plateau.3mf").write_bytes(ecrire_3mf(triples, nom=nom))
     (dossier / "nomenclature.csv").write_text(str(nomenclature or ""), "utf-8")
-    bb = bbox(tous)
-    plus_grande = max(b[1] - b[0] for b in bb)
-    avertissement = None
-    if plus_grande > 256.0 + 1e-6:
-        avertissement = (f"{plus_grande:.0f} mm dépasse le plateau de la Centauri "
-                         "Carbon 2 (256 mm) — imprimer les pièces séparément "
-                         "(un STL par tuile)")
+    from app.services import print_profiles as _PP
+    avertissement = _PP.garde(bbox(tous), profil, _PP.SUITE_LOT)   # tâche #88 : la garde du PROFIL
     meta = {"nom": str(nom), "source": str(source), "lot": True,
+            "profil": (profil or _PP.INTEGRES[0]).get("nom"),
             "pieces": len(pieces), "stl": [f"{p[0]}.stl" for p in triples],
             "couleurs": {p[0]: p[2] for p in triples if p[2]},
             "mf3": "plateau.3mf", "nomenclature": "nomenclature.csv",
