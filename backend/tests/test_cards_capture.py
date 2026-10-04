@@ -646,8 +646,8 @@ def test_capture_est_dans_les_dix_ids_du_contrat():
     """Un sous-arbre que le contrat ignore est un sous-arbre effacé à chaque
     autosave (F2 : `doc.forge3d`, deux phases durant). P10 ne recommence pas."""
     assert "capture" in CT.MODULE_IDS
-    assert CT.MODULE_IDS[-1] == "capture", "P10 est la dixième du rail"
-    assert len(CT.MODULE_IDS) == 10
+    assert CT.MODULE_IDS[9] == "capture", "P10 est la dixième du rail"
+    assert len(CT.MODULE_IDS) == 11      # P11 « edition » depuis la tâche #84 (04/10/2026)
 
 
 def test_la_route_est_montee_sous_capture():

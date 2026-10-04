@@ -59,7 +59,7 @@
      10 texture (papier sous l'illustration) · 20 face (illustration)
      30 texture (grain/foil au-dessus) · 40 frame (cadre) · 60 type (tout le
      texte) · 70 frame (ornements de dessus) · 90 CORE (reperes, jamais exporte)
-   data · solid · print · gltf · forge3d · capture n'ont AUCUN painter : ils
+   data · solid · print · gltf · forge3d · capture · edition n'ont AUCUN painter : ils
    ne dessinent pas la carte.
 
    Aucune dependance externe, aucun CDN, aucun build. Le bloc de geometrie est
@@ -79,7 +79,7 @@
      sous-arbre JETE a chaque enregistrement, sans un message. C'est arrive a
      `forge3d` de la phase 2a a la phase 3c. Les deux listes se tiennent la
      main : on ne touche pas l'une sans l'autre. */
-  const MODULES = ["face", "frame", "type", "data", "solid", "texture", "print", "gltf", "forge3d", "capture"];
+  const MODULES = ["face", "frame", "type", "data", "solid", "texture", "print", "gltf", "forge3d", "capture", "edition"];
   const ORDER = {};
   MODULES.forEach((id, i) => { ORDER[id] = i + 1; });
 
@@ -959,6 +959,8 @@
     gltf: SVG_O + '<path d="M3.6 13.4h2.8v4.4h11.2v-4.4h2.8v6.2a1.8 1.8 0 0 1-1.8 1.8H5.4a1.8 1.8 0 0 1-1.8-1.8z" opacity=".32"/><path d="M12 2.6 17.2 8h-3.6v7.6h-3.2V8H6.8z"/></svg>',
     forge3d: SVG_O + '<path d="M10.4 5.2 17.2 9v7.4l-6.8 3.8-6.8-3.8V9z" opacity=".32"/><path d="M10.4 5.2 17.2 9l-6.8 3.9L3.6 9z"/><path d="M19.6 2.2l.9 2.3 2.3.9-2.3.9-.9 2.3-.9-2.3-2.3-.9 2.3-.9z"/></svg>',
     capture: SVG_O + '<path d="M3.6 13.4h2.8v4.4h11.2v-4.4h2.8v6.2a1.8 1.8 0 0 1-1.8 1.8H5.4a1.8 1.8 0 0 1-1.8-1.8z" opacity=".32"/><path d="M12 15.8 6.8 10.4h3.6V2.8h3.2v7.6h3.6z"/></svg>',
+    /* P11 edition (tache #84) : le paquet qui part vers la table — une boite, son couvercle plein */
+    edition: SVG_O + '<path d="M3.6 9.2h16.8v10.2a1.8 1.8 0 0 1-1.8 1.8H5.4a1.8 1.8 0 0 1-1.8-1.8z" opacity=".32"/><path d="M3 5.2a1.6 1.6 0 0 1 1.6-1.6h14.8A1.6 1.6 0 0 1 21 5.2v3.2H3z"/><rect x="9" y="11.6" width="6" height="2.2" rx="1.1"/></svg>',
   };
   /* le chevron UNIQUE (DESIGN.md §15-4.1) : pointe vers la GAUCHE déployé,
      toute orientation par rotation CSS. Une seule icône dans tout le lab ;
