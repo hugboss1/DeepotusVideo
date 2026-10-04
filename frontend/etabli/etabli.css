@@ -488,6 +488,9 @@ button { font-family: inherit; }
   background: transparent; color: var(--ink-soft); font-size: 11px; cursor: pointer;
 }
 #panFiche button:hover { border-color: var(--accent); color: var(--ink-strong); }
+/* tâche #88 : les actions de « Réparer le maillage », une par ligne */
+#panFiche .reparer-actions { display: grid; gap: 2px; margin: 4px 0 6px; }
+#panFiche .reparer-actions label { display: flex; gap: 6px; align-items: center; }
 #panFiche .note {
   margin: 0; font: 10.5px/1.5 var(--f-mono), ui-monospace, monospace;
   color: var(--ink-soft);
