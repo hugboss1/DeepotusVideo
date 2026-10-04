@@ -464,7 +464,7 @@
         name: String(name || ""),
         enc: String(tb.encoding || ""),
         encLabel: String(tb.encoding_label || tb.encoding || ""),
-        wb: !!tb.workbook,
+        wb: !!(tb.workbook || tb.archive),
         lost: Number(tb.n_values_lost || 0),
       };
       SRCDIRTY = false;
@@ -1650,7 +1650,7 @@
     /* Le tableur, parce que c'est la que les auteurs de jeux tiennent leur
        deck. Un .xlsx et un .ods sont des zips de XML : la lecture tient dans
        cards/data.py avec zipfile et ElementTree, sans une dependance. */
-    inp.accept = ".csv,.tsv,.txt,.xlsx,.ods,text/csv,"
+    inp.accept = ".csv,.tsv,.txt,.xlsx,.ods,.zip,application/zip,text/csv,"
       + "text/tab-separated-values,text/plain,"
       + "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,"
       + "application/vnd.oasis.opendocument.spreadsheet";
@@ -1663,7 +1663,7 @@
 
     const drop = full
       ? h("div", "drop cf-data-drop",
-        '<b>Déposez un fichier .csv / .tsv / .xlsx / .ods</b>'
+        '<b>Déposez un fichier .csv / .tsv / .xlsx / .ods, ou un export Notion (.zip)</b>'
         + '<span class="hint">ou cliquez pour choisir · <b>Ctrl+V</b> colle une table · '
         + 'séparateur et encodage devinés sur les octets · un classeur n\'a ni l\'un ni l\'autre</span>')
       : h("div", "cf-data-strip", "");
@@ -1697,6 +1697,7 @@
         on(b, "click", () => reparse({ repair: true }));
         drop.appendChild(b);
       }
+      drop.appendChild(boutonSheets());
       const em = h("button", "btn sm cf-data-b", "Vider");
       em.type = "button";
       em.title = "Repartir de zéro (annulable par Ctrl+Z)";
@@ -1714,6 +1715,7 @@
     }
     box.appendChild(drop);
     box.appendChild(inp);
+    if (full) box.appendChild(boutonSheets());
     if (full) {
       const row = h("div", "cf-data-srow");
       row.appendChild(pick("Séparateur", SEPS, T.sep, (v) => {
@@ -1756,6 +1758,45 @@
   async function reparse(opt) {
     if (!LASTRAW) { noRaw(); return; }
     await importBytes(LASTRAW, T.src, Object.assign({ sep: T.sep, enc: T.enc }, opt || {}));
+  }
+
+  /* ══ GOOGLE SHEETS (tache #85 PR C) ══════════════════════════════════════
+     Le lien d'une feuille PARTAGEE : le backend rapatrie son CSV public
+     (docs.google.com seul, chaque redirection reverifiee) et rend les
+     OCTETS — ils passent par importBytes, le meme chemin qu'un fichier depose :
+     une seule lecture de table, une seule comparaison d'octets. */
+  let SHEETSV = false;
+  function boutonSheets() {
+    const b = h("button", "btn sm cf-data-b", "Lien Google Sheets…");
+    b.type = "button";
+    b.title = "Importer une feuille Google Sheets partagée « tous les utilisateurs disposant du lien » (CSV public, gratuit, sans clé)";
+    on(b, "click", (ev) => { ev.stopPropagation(); importSheets(); });
+    return b;
+  }
+  function b64bytes(s) {
+    const bin = atob(String(s || ""));
+    const u = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+    return u.buffer;
+  }
+  async function importSheets() {
+    /* LE VERROU AVANT LE DIALOGUE : pose apres, un double clic ouvrait deux
+       dialogues et importait deux fois (trouve par le banc). */
+    if (SHEETSV) return;
+    SHEETSV = true;
+    try {
+      const url = await window.__dzDialogue.saisir(
+        "Lien de la feuille Google Sheets (partagée « tous les utilisateurs disposant du lien »). "
+        + "L'onglet du lien (#gid=…) est celui qui sera lu.", { valeur: "", ok: "Importer" });
+      if (url === null || !String(url).trim()) return;
+      M.busy(true, "Google Sheets…");
+      const r = await M.api.post("import-url", { url: String(url).trim() });
+      const buf = b64bytes(r.b64);
+      LASTRAW = buf;
+      await importBytes(buf, r.nom || "Google Sheets.csv", {});
+    } catch (e) {
+      M.toast("Google Sheets : " + String((e && e.message) || e), true);
+    } finally { M.busy(false); SHEETSV = false; }
   }
 
   function readFile(file) {
@@ -3116,7 +3157,7 @@
        les guillemets se comptent, les valeurs perdues aussi. */
     const why = [];
     if (bom) why.push("3 octets de BOM ajoutés en tête (case cochée)");
-    if (SRC.wb) why.push("l'entrée est un classeur (une archive), la sortie un CSV");
+    if (SRC.wb) why.push("l'entrée est une archive (classeur ou export Notion), la sortie un CSV");
     else if (SRC.enc && SRC.enc !== "utf-8") {
       why.push("l'entrée était en " + SRC.encLabel + ", la sortie s'écrit en UTF-8");
     }
