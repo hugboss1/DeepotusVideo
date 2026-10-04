@@ -2557,6 +2557,21 @@ async def post_dos(did: str, body: Any = Body(default=None)):
         raise HTTPException(400, str(e))
 
 
+@router.post("/stats")
+async def post_stats(did: str, body: Any = Body(default=None)):
+    """Les statistiques du jeu (tâche #85 PR B) — quantités appliquées, lignes
+    écartées exclues. C'est le JEU qu'on décrit, pas le fichier."""
+    _guard(did)
+    b = _obj(body)
+    cols, rows = _table_of(b)
+    from . import data_stats
+    try:
+        return await asyncio.to_thread(data_stats.stats_table, cols, rows, b.get("qty_col"),
+                                       b.get("skip"), b.get("off"))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
 @router.post("/artcheck")
 async def post_artcheck(did: str, body: Any = Body(default=None)):
     """La colonne image, RÉSOLUE vers la bibliothèque (livrable de la spec).

@@ -496,6 +496,19 @@
 .cf-data .cf-data-dosline.ok b { color: var(--green); }
 .cf-data .cf-data-dosline.bad b { color: var(--red); }
 .cf-data .cf-data-dosline .cf-data-dosav { display: block; color: var(--red); }
+/* tache #85 PR B : les statistiques du jeu, colonne par colonne */
+.cf-data .cf-data-stats.hidden { display: none; }
+.cf-data .cf-data-stats > summary { cursor: pointer; font-size: 11px; color: var(--ink-soft); padding: 4px 0; }
+.cf-data .cf-data-stcol { margin: 6px 0 10px; font-size: 11px; color: var(--ink-soft); }
+.cf-data .cf-data-stcol > b { color: var(--ink-strong); }
+.cf-data .cf-data-stnote { display: block; color: var(--amber, var(--ink-muted)); font-size: 10.5px; }
+.cf-data .cf-data-stres { margin: 2px 0 4px; color: var(--ink-muted); font-size: 10.5px; }
+.cf-data .cf-data-stbars { display: grid; gap: 2px; }
+.cf-data .cf-data-strow { display: grid; grid-template-columns: minmax(48px, 120px) 1fr 44px; gap: 6px; align-items: center; }
+.cf-data .cf-data-stlab { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cf-data .cf-data-stbar { height: 8px; background: var(--bg-base); border-radius: 2px; overflow: hidden; }
+.cf-data .cf-data-stbar i { display: block; height: 100%; background: var(--accent); }
+.cf-data .cf-data-stn { text-align: right; font-variant-numeric: tabular-nums; }
 .cf-data .cf-data-artline b { color: inherit; }
 .cf-data .cf-data-artline code { font-family: var(--f-mono); color: var(--accent); }
 /* `nowrap` sur les raccourcis : « double-clic » se coupait sur son trait
