@@ -2318,6 +2318,117 @@ async def post_import_url(did: str, body: Any = Body(default=None)):
         raise HTTPException(502, "Google Sheets injoignable : " + str(e)[:200])
 
 
+# ── LOCALISATION (tâche #86 PR A, plan-cartes T12, 04/10/2026) ───────────────
+# UNE COLONNE PAR LANGUE, repérée au suffixe (« nom_fr », « nom-EN », « nom.pt »).
+# Le rendu par langue est GRATUIT : le même /build avec un mappage réécrit.
+# LE DÉFAUT DU PLAN, CORRIGÉ : la table garde un mappage RÉEL (« nom_fr » ->
+# titre). La langue active le réécrit colonne par colonne : une colonne d'une
+# langue est remplacée par sa sœur dans la langue choisie, ou RETIRÉE si elle
+# n'y existe pas — jamais repliée sur une autre langue (imprimer du français
+# sur une carte anglaise sans prévenir est pire qu'un trou). Une colonne sans
+# suffixe et les jetons (#n…) sont NEUTRES : ils servent partout.
+# Faire TENIR un texte plus long n'est pas ici : c'est la mesure de la pièce 03.
+LANG_SUFFIXE = re.compile(r"^(?P<base>.+?)[_\-. ](?P<code>[a-z]{2}(?:[_-][a-z]{2})?)$", re.IGNORECASE)
+LANG_NOMS = {"fr": "français", "en": "anglais", "es": "espagnol", "de": "allemand", "it": "italien",
+             "pt": "portugais", "nl": "néerlandais", "pl": "polonais", "ja": "japonais", "zh": "chinois",
+             "ko": "coréen", "ru": "russe"}
+
+
+def langue_de(col: str):
+    """-> (base, code) si la colonne porte une langue connue, sinon None."""
+    m = LANG_SUFFIXE.match(str(col))
+    if not m:
+        return None
+    code = m.group("code").lower().replace("_", "-")
+    if code.split("-")[0] not in LANG_NOMS:
+        return None
+    return m.group("base"), code
+
+
+def langues_table(columns: list) -> dict:
+    cols = [str(c) for c in (columns or ())]
+    langs: dict[str, dict] = {}
+    neutres: list[str] = []
+    for c in cols:
+        lb = langue_de(c)
+        if not lb:
+            neutres.append(c)
+            continue
+        base, code = lb
+        e = langs.setdefault(code, {"code": code, "label": LANG_NOMS[code.split("-")[0]]
+                                    + ("" if "-" not in code else " (" + code.split("-")[1].upper() + ")"),
+                                    "colonnes": {}})
+        e["colonnes"][base] = c
+    return {"langues": list(langs.values()), "neutres": neutres}
+
+
+def map_pour_langue(columns: list, real_map: dict, code: str) -> dict:
+    """Le mappage RÉEL, réécrit dans la langue `code` ('' = tel quel)."""
+    code = str(code or "").strip().lower()
+    if not code:
+        return dict(real_map or {})
+    par = {l["code"]: l["colonnes"] for l in langues_table(columns)["langues"]}
+    cible = par.get(code, {})
+    out: dict[str, str] = {}
+    for col, slot in (real_map or {}).items():
+        lb = langue_de(col)
+        if lb and str(col) in [str(c) for c in (columns or ())]:
+            soeur = cible.get(lb[0])
+            if soeur:
+                out[soeur] = slot
+            # sinon : RETIRÉE, jamais repliée sur la langue d'origine
+        else:
+            out[str(col)] = slot
+    return out
+
+
+def langues_report(columns: list, rows: list, real_map: dict, qty_col: Any = None, off: Any = None) -> dict:
+    """Ce qui manque, PAR LANGUE et EN CARTES, avant le rendu."""
+    t = langues_table(columns)
+    cols = [str(c) for c in (columns or ())]
+    iq = cols.index(str(qty_col)) if qty_col and str(qty_col) in cols else -1
+    off_set = set()
+    for v in (off if isinstance(off, list) else ()):
+        try:
+            off_set.add(int(v))
+        except (TypeError, ValueError):
+            pass
+    bases_mappees = sorted({lb[0] for c in (real_map or {}) for lb in [langue_de(c)] if lb and c in cols})
+    out = []
+    for l in t["langues"]:
+        mp = map_pour_langue(cols, real_map, l["code"])
+        idx = {c: cols.index(c) for c in mp if c in cols and langue_de(c)}
+        absentes = [b for b in bases_mappees if b not in l["colonnes"]]
+        manquants = cartes = lignes = 0
+        details = []
+        for k, r in enumerate(rows or ()):
+            if k in off_set or not isinstance(r, list):
+                continue
+            q = read_qty(r[iq]) if 0 <= iq < len(r) else 1
+            trous = [c for c, i in idx.items() if not (str(r[i]).replace(BLANK, "").strip() if i < len(r) else "")]
+            if trous or absentes:
+                lignes += 1
+                cartes += q
+                manquants += len(trous) * q
+                if len(details) < 20 and trous:
+                    details.append({"ligne": k + 1, "cartes": q, "colonnes": trous})
+        out.append(dict(l, manquants=manquants, cartes_incompletes=cartes, lignes_incompletes=lignes,
+                        absentes=absentes, details=details, map=mp))
+    return {"langues": out, "neutres": t["neutres"]}
+
+
+@router.post("/langues")
+async def post_langues(did: str, body: Any = Body(default=None)):
+    """Les langues de la table, et ce qui manque dans chacune (tâche #86)."""
+    _guard(did)
+    b = _obj(body)
+    cols, rows = _table_of(b)
+    mp = b.get("map")
+    if mp is not None and not isinstance(mp, dict):
+        raise HTTPException(400, "« map » doit être un objet JSON")
+    return await asyncio.to_thread(langues_report, cols, rows, mp or {}, b.get("qty_col"), b.get("off"))
+
+
 @router.post("/build")
 async def post_build(did: str, body: Any = Body(default=None)):
     """Table + filtre/tri/quantité/mappage -> cartes."""
@@ -2325,6 +2436,12 @@ async def post_build(did: str, body: Any = Body(default=None)):
     b = _obj(body)
     cols, rows = _table_of(b)
     mapping = b.get("map") if isinstance(b.get("map"), dict) else {}
+    lang = str(b.get("lang") or "").strip().lower()
+    if lang:
+        # #86 : la langue active réécrit le mappage réel (jamais de repli sur une autre langue)
+        if lang not in {l["code"] for l in langues_table(cols)["langues"]}:
+            raise HTTPException(400, f"Langue « {lang} » absente de la table (colonnes suffixées _fr, _en…)")
+        mapping = map_pour_langue(cols, mapping, lang)
     blank = b.get("blank_unfed")
     blank = True if blank is None else bool(blank)
     try:
