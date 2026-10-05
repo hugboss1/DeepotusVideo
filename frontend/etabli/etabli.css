@@ -317,6 +317,8 @@ button { font-family: inherit; }
    serveur QUI ÉCRIT UN GLB. L'avertissement ne doit donc pas se lire comme le
    reste de la barre : sans cette règle il est écrit et invisible. */
 .attente-doute { flex: 0 1 auto; margin-left: 8px; color: var(--red); }
+/* la contradiction assise / recentrer (T090) : la MÊME couleur que le doute, jamais un second rouge */
+.attente-refus { flex: 0 1 auto; margin-left: 8px; color: var(--red); }
 
 /* ── rail droit : les onglets ─────────────────────────────────────────────── */
 .rail-right {
@@ -400,6 +402,13 @@ button { font-family: inherit; }
 .plaque-tete {
   font: 600 10.5px var(--f-mono), ui-monospace, monospace;
   color: var(--ink-strong); letter-spacing: .04em;
+}
+/* La lecture chiffrée de la pièce courante (T090) : `min-height` parce que la ligne naît vide et se remplit
+   au premier clic — sans hauteur réservée la liste sauterait d'un cran sous le pointeur ; `tabular-nums` fige
+   la largeur des chiffres, sans quoi la cote danse pendant le glissement. */
+.plaque-lecture {
+  font: 10.5px var(--f-mono), ui-monospace, monospace; color: var(--ink-soft);
+  margin: 4px 0 6px; font-variant-numeric: tabular-nums; min-height: 13px;
 }
 .plaque-liste {
   max-height: 30vh; overflow-y: auto;

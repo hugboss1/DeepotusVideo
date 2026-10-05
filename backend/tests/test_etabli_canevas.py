@@ -998,7 +998,7 @@ def test_rien_n_est_ecrit_sans_le_bouton():
     # au milieu de la serie, le clic se solde par le `return` muet ci-dessus,
     # et ce fichier ne se tait nulle part ailleurs. Verifie par mutation :
     # retirer l'interpolation laissait tout vert.
-    assert '<button id="btnEcrire"${_ecritEnCours ? " disabled" : ""}>' in js
+    assert '<button id="btnEcrire"${_ecritEnCours || contra ? " disabled" : ""}>' in js
     corps = js.split("async function ecrireVersion", 1)[1].split("\n}\n", 1)[0]
     assert corps.index("} finally {") < corps.index("_ecritEnCours = false;")
 
@@ -4182,6 +4182,10 @@ def _table_js(rel: str, nom: str) -> str:
     return js[i:js.index("};", i) + 2]
 
 
+# La lecture chiffrée de la pièce courante (T090) est EXÉCUTÉE dans test_etabli_outils_page.py ; les harnais
+# d'ici, sans `document`, en reçoivent une version neutre pour que leurs sites d'appel restent exécutables.
+_LECTURE_NEUTRE = "function lirePieceCourante() {}\n"
+
 def _fonction_etabli(nom: str) -> str:
     """Une fonction d'etabli.js, VERBATIM, pour le harnais node.
 
@@ -6494,7 +6498,7 @@ def test_la_LECTURE_de_CHAQUE_selection_est_EXECUTEE():
         + _constantes_etabli("PROFIL") + _fonction_etabli("contourPlateau") + "\n"
         # tâche #89 : lireRepere() refait aussi la lecture de la mesure
         + _mesure_js() + _constantes_etabli("MESURE") + _fonction_etabli("rendreMesure") + "\n"
-        + _fonction_etabli("lireRepere") + "\n" + """
+        + _LECTURE_NEUTRE + _fonction_etabli("lireRepere") + "\n" + """
       const api = monter(860, 824);
       const racine = new THREE.Group();
       const cube = (l, h, p, tx, ty, tz) => new THREE.Mesh(
@@ -8144,7 +8148,7 @@ def _harnais_glisser() -> str:
       const px = (p) => { const q = p.clone().project(api.camera);
         return { clientX: ((q.x + 1) / 2) * 860, clientY: ((1 - q.y) / 2) * 824 }; };
       const pointMonde = (u, v) => { const w = new THREE.Vector3(); w[g.u] = u; w[g.v] = v; return w; };
-    """ + _fonction_etabli("glisserSurPlaque") + """
+    """ + _LECTURE_NEUTRE + _fonction_etabli("glisserSurPlaque") + """
       glisserSurPlaque(api, canvas);
     """)
 
@@ -8426,7 +8430,7 @@ def test_les_FLECHES_avancent_d_un_pas_de_PLATEAU_suivent_l_ECRAN_et_ne_volent_p
       const S = { vueA: api };
       let notes = 0, empeches = 0;
       const noterPlan = () => { notes++; };
-    """ + _fonction_etabli("toucheClavierPlaque") + """
+    """ + _LECTURE_NEUTRE + _fonction_etabli("toucheClavierPlaque") + """
       const ev = (key, cible, mods) => ({ key, target: cible, altKey: false, ctrlKey: false,
         ...(mods || {}), preventDefault() { empeches++; } });
       const centre = () => { const e = empreinteDe(api, 1); const w = new THREE.Vector3();
@@ -8851,7 +8855,7 @@ def test_sur_la_plaque_le_rail_annonce_le_PAS_DU_PLATEAU_et_les_regles_portent_l
         + _constantes_etabli("PROFIL") + _fonction_etabli("contourPlateau") + "\n"
         # tâche #89 : lireRepere() refait aussi la lecture de la mesure
         + _mesure_js() + _constantes_etabli("MESURE") + _fonction_etabli("rendreMesure") + "\n"
-        + _fonction_etabli("lireRepere") + "\n" + """
+        + _LECTURE_NEUTRE + _fonction_etabli("lireRepere") + "\n" + """
       const api = monter(860, 824);
       """ + _scene_enveloppe() + """
       S.vueA = api;
@@ -8992,7 +8996,7 @@ def test_la_LECTURE_du_rail_reste_celle_du_MODELE_pour_une_piece_TOURNEE_et_ASYM
         + _constantes_etabli("PROFIL") + _fonction_etabli("contourPlateau") + "\n"
         # tâche #89 : lireRepere() refait aussi la lecture de la mesure
         + _mesure_js() + _constantes_etabli("MESURE") + _fonction_etabli("rendreMesure") + "\n"
-        + _fonction_etabli("lireRepere") + "\n" + """
+        + _LECTURE_NEUTRE + _fonction_etabli("lireRepere") + "\n" + """
       const api = monter(860, 824);
       """ + _scene_enveloppe() + """
       S.vueA = api;
@@ -9479,7 +9483,7 @@ def test_le_couteau_REFUSE_sans_piece_retenue_et_tant_que_la_file_n_est_pas_vide
       const ecrireVersion = () => {};
       const ouvrirPrincipale = () => {};
       zones["#barreAttente"] = nouvelle();
-    """ + _fonction_etabli("rendreAttente") + """
+    """ + _fonction_etabli("contradictionDeLaFile") + _fonction_etabli("rendreAttente") + """
       S.enAttente = [{ operation: "couper", charge: { noeuds: [3], garder: "deux" }, heuristique: false }];
       rendreAttente();
       const libre = $("#barreAttente").innerHTML;

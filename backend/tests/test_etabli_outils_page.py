@@ -489,7 +489,7 @@ const noeudsRetenus = () => ({ noeuds: [4, 7], source: "nom" });
 def _entonnoir(corps: str) -> dict:
     src = (_objet_etabli("ORDRE_ECRITURE") + _objet_etabli("ROUTES") + _objet_etabli("LIBELLES_ATTENTE") + ENTONNOIR
            + _fonction_etabli("fileOrdonnee") + _fonction_etabli("separerSelection")
-           + _fonction_etabli_async("ecrireVersion")
+           + _fonction_etabli("contradictionDeLaFile") + _fonction_etabli_async("ecrireVersion")
            + "\n(async () => { const R = {};\n" + corps + "\nconsole.log(JSON.stringify(R)); })();")
     return json.loads(_node(src).strip().splitlines()[-1])
 
@@ -626,7 +626,7 @@ R.avis = AVIS.slice();
 def test_creuser_passe_par_l_entonnoir_SEUL_et_se_libelle_dans_l_unite_courante():
     src = (_objet_etabli("ORDRE_ECRITURE") + _objet_etabli("ROUTES") + _objet_etabli("LIBELLES_ATTENTE") + ENTONNOIR
            + "let REP = { echelle: 4 };\n" + _fonction_etabli("enMillimetres") + _fonction_etabli("uniteCourante")
-           + _fonction_etabli("fmtMesure") + _fonction_etabli("fileOrdonnee") + _fonction_etabli_async("ecrireVersion")
+           + _fonction_etabli("fmtMesure") + _fonction_etabli("fileOrdonnee") + _fonction_etabli("contradictionDeLaFile") + _fonction_etabli_async("ecrireVersion")
            + """
 (async () => { const R = {};
 S.enAttente.push({ operation: "creuser", charge: { paroi: 0.5, paroi_millimetres: 2, noeuds: null } });
@@ -644,6 +644,118 @@ console.log(JSON.stringify(R)); })();""")
     h = _gestionnaire_creuser()
     assert h.index("versUnites(saisie)") < h.index('ecrireSeule("creuser"'), "la garde AVANT l'écriture"
     assert "REP.echelle" not in h, "la conversion passe par versUnites, jamais par un cinquième site"
+
+
+# ── T090 / plan T11 : la lecture chiffrée de la pièce que l'on glisse ──────────
+def test_la_lecture_du_glisser_est_relative_au_COIN_du_plateau_EXECUTEE():
+    """La cote qu'un préparateur lit sur un plateau part du COIN du plateau, pas de l'origine du monde : c'est le
+    zéro des règles (voir geometriePlateau). Une lecture en coordonnées monde afficherait −3 pour une pièce posée
+    à 2 du bord — deux nombres pour un seul geste."""
+    src = """
+      const REP = { echelle: 10, cibleMm: 100, pas: null };
+      const uniteCourante = () => "mm";
+      const fmtMesure = (v) => (v * REP.echelle).toFixed(2);
+      const PLQ = { active: true, courante: 7, pieces: [{ cle: 7, nom: "cadre" }] };
+      const S = { vueA: {} };
+      const plateauDe = () => ({ u: "x", v: "z", axe: "y", coin: { x: -5, z: -5 } });
+      const empreinteDe = () => ({ u: -3, v: -1, l: 2, p: 4 });
+      const rotationDe = () => 90;
+      const box = { textContent: "x" };
+      const document = { querySelector: (q) => (q === "#plaqueLecture" ? box : null) };
+    """ + _fonction_etabli("nomDePiece") + _fonction_etabli("lirePieceCourante") + """
+      const r = [];
+      lirePieceCourante(); r.push(box.textContent);
+      PLQ.courante = null; lirePieceCourante(); r.push(box.textContent);
+      PLQ.courante = 9; lirePieceCourante(); r.push(box.textContent);
+      PLQ.active = false; PLQ.courante = 7; lirePieceCourante(); r.push(box.textContent);
+      console.log(JSON.stringify(r));
+    """
+    r = json.loads(_node(src))
+    # coin relatif : (−3 − (−5)) = 2 u → 20,00 mm ; (−1 − (−5)) = 4 u → 40,00 mm
+    assert "cadre" in r[0] and "20.00 ; 40.00" in r[0], r[0]
+    assert "20.00 × 40.00 mm" in r[0] and "90°" in r[0], r[0]
+    assert r[1] == "", "aucune pièce courante : la ligne se VIDE (elle ne garde pas la pièce d'avant)"
+    assert r[2].startswith("pièce 9"), "une clé sans nom se dit par sa clé"
+    assert r[3] == "", "hors plaque, la ligne se vide"
+
+
+def test_la_lecture_du_glisser_ne_redessine_PAS_le_rail_a_chaque_image():
+    """lireRepere() coûte 2,057 ms à douze sélections HORS navigateur — 12 % d'une trame à 60 Hz. Un `pointermove`
+    ne peut donc pas l'appeler ; il écrit un textContent sur UNE pièce."""
+    f = _fonction_etabli("lirePieceCourante")
+    assert "textContent" in f and "innerHTML" not in f
+    assert "lireRepere" not in f and "rendreParties" not in f
+    glisse = _fonction_etabli("glisserSurPlaque")
+    assert "lirePieceCourante()" in glisse and "lireRepere()" not in glisse
+    assert glisse.index("rendreRotation();") < glisse.index("lirePieceCourante()")
+    # les autres sites : le clavier, le panneau (qui recrée la ligne), les règles, le repère (l'unité change)
+    assert "lirePieceCourante()" in _fonction_etabli("toucheClavierPlaque")
+    parties = _fonction_etabli("rendreParties")
+    # le panneau RECRÉE la ligne vide, puis la refait par lireRepere() — sa dernière instruction
+    assert 'id="plaqueLecture"' in parties and parties.rstrip()[:-1].rstrip().endswith("lireRepere();")
+    assert "lirePieceCourante()" in _fonction_etabli("graduerPlateau")
+    assert "lirePieceCourante()" in _fonction_etabli("lireRepere")
+    css = _lire("etabli/etabli.css")
+    assert ".plaque-lecture" in css and "tabular-nums" in css and "min-height: 13px" in css
+
+
+# ── T090 / plan T13 : la contradiction assise / recentrer, DITE et refusée ─────
+def test_assise_et_recentrer_dans_la_MEME_file_sont_refuses_en_le_disant():
+    src = """
+      const S = { enAttente: [] };
+    """ + _fonction_etabli("contradictionDeLaFile") + """
+      const cas = [];
+      const poser = (l) => { S.enAttente = l; return contradictionDeLaFile(); };
+      cas.push(poser([{ operation: "assise", charge: {} }]));
+      cas.push(poser([{ operation: "reparer", charge: { recentrer: false } }]));
+      cas.push(poser([{ operation: "assise", charge: {} },
+                      { operation: "reparer", charge: { recentrer: false } }]));
+      cas.push(poser([{ operation: "assise", charge: {} },
+                      { operation: "reparer", charge: { recentrer: true } }]));
+      cas.push(poser([{ operation: "reparer", charge: { recentrer: true } }]));
+      console.log(JSON.stringify(cas));
+    """
+    r = json.loads(_node(src))
+    assert r[0] is None and r[1] is None and r[2] is None and r[4] is None
+    assert isinstance(r[3], str)
+    assert "recentr" in r[3] and "face" in r[3]
+
+
+def test_la_barre_dit_la_contradiction_et_le_bouton_d_ecriture_se_grise():
+    barre = _fonction_etabli("rendreAttente")
+    assert "contradictionDeLaFile()" in barre
+    assert 'class="attente-refus"' in barre
+    # le bouton est grisé par la MÊME expression que le verrou d'écriture ; « annuler » ne l'est PAS
+    assert '<button id="btnEcrire"${_ecritEnCours || contra ? " disabled" : ""}>' in barre
+    assert '<button id="btnAnnuler"${_ecritEnCours ? " disabled" : ""}>' in barre
+    # le texte entre en textContent, jamais dans le gabarit
+    assert ".attente-refus\").textContent = contra" in barre
+    ecrit = _fonction_etabli_async("ecrireVersion")
+    assert ecrit.index("contradictionDeLaFile()") < ecrit.index("_ecritEnCours = true")
+    assert ".attente-refus" in _lire("etabli/etabli.css")
+
+
+def test_ecrireVersion_REFUSE_une_file_contradictoire_sans_prendre_le_verrou_EXECUTEE():
+    corps = _fonction_etabli_async("ecrireVersion")
+    debut = corps[:corps.index("_ecritEnCours = true")] + "_ecritEnCours = true; return 'ECRIT'; }\n"
+    src = """
+      let _ecritEnCours = false;
+      const REFUS = [];
+      const direRefus = (m) => REFUS.push(m);
+      const S = { a: { job: "j" }, enAttente: [{ operation: "assise", charge: {} },
+                                              { operation: "reparer", charge: { recentrer: true } }] };
+    """ + _fonction_etabli("contradictionDeLaFile") + debut + """
+      (async () => {
+        const a = await ecrireVersion();
+        const verrou = _ecritEnCours;
+        S.enAttente[1].charge.recentrer = false;
+        const b = await ecrireVersion();
+        console.log(JSON.stringify({ a, verrou, b, refus: REFUS }));
+      })();
+    """
+    r = json.loads(_node(src))
+    assert r["a"] is None and r["verrou"] is False and len(r["refus"]) == 1 and "recentr" in r["refus"][0]
+    assert r["b"] == "ECRIT"
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))
