@@ -1123,5 +1123,34 @@ def test_la_route_tranches_ne_touche_pas_au_disque_et_juge_son_corps():
                           json={"job": "job_tr", "version": 1, **corps}).status_code == 400, corps
         assert c.post("/api/etabli/tranches", json={"job": "job_tr", "version": 7}).status_code == 404
 
+
+# ── T091 : l'impression lit enfin une VERSION de l'Établi ───────────────────────
+def test_l_export_d_impression_lit_la_VERSION_demandee_et_jamais_le_STL_du_moteur_pour_elle():
+    """Décision de l'utilisateur (05/10) : brancher l'export. Sans `version`, la route garde son contrat (le STL du
+    moteur, sinon model.glb). Avec `version` ≥ 2, elle lit model.v<n>.glb — et JAMAIS model.stl, qui est le maillage
+    du MOTEUR, donc du brouillon : c'est précisément l'objet faux que ce branchement existe pour ne plus imprimer."""
+    from app.services import hollow, mesh_edit, print3d
+    d = _job("job_impv", _cube())
+    (d / "model.stl").write_bytes(print3d.ecrire_stl(print3d.lire_glb_triangles(_cube())))
+    creux, _r = hollow.creuser(_cube(), None, 0.25)
+    v = mesh_edit.ecrire_version("job_impv", creux, operation="creuser", detail={})
+    assert v["version"] == 2
+    with _client() as c:
+        sans = c.post("/api/print3d/from-assets3d/job_impv", json={"cible_mm": 40})
+        assert sans.status_code == 200 and sans.json()["triangles"] == 12, "sans version : le contrat d'avant"
+        v1 = c.post("/api/print3d/from-assets3d/job_impv", json={"cible_mm": 40, "version": 1})
+        assert v1.status_code == 200 and v1.json()["triangles"] == 12
+        # le champ en toutes lettres, celui que l'Établi envoie
+        v2 = c.post("/api/print3d/from-assets3d/job_impv", json={"cible_millimetres": 40, "version": 2})
+        assert v2.status_code == 200, v2.text
+        assert v2.json()["triangles"] == 24, "la version creusée (deux peaux), pas le STL du moteur"
+        from app.config import settings
+        meta = (settings.outputs_path.parent / "print3d" / v2.json()["dossier"] / "impression.json").read_text("utf-8")
+        assert "assets3d:job_impv:v2" in meta, "la fiche d'export dit de quelle version elle part"
+        assert json.loads(meta)["cible_mm"] == 40.0, "la taille cible en toutes lettres est APPLIQUÉE, pas seulement reçue"
+        assert c.post("/api/print3d/from-assets3d/job_impv", json={"version": 7}).status_code == 404
+        for mauvais in (0, -1, "2", True, 2.5):
+            assert c.post("/api/print3d/from-assets3d/job_impv", json={"version": mauvais}).status_code == 400, mauvais
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

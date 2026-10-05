@@ -145,6 +145,10 @@ const TRANCHES = { actives: false };
    slicer, on montre ce qui est SOUS la plus prudente. */
 const SEUIL_SURPLOMB = 45;
 const NB_TRANCHES = 20;
+/* Le DOSSIER du dernier export d'impression (sous assets/print3d), que « Ouvrir
+   dans le slicer » ouvre. Remis à null à chaque chargement : il appartient à
+   la version qui l'a produit. */
+let IMPRESSION = null;
 const MODES_GESTE = ["selection", "glisser", "assise", "couteau", "mesure"];
 
 /* La clé interne d'une granularité et son LIBELLÉ ne sont pas la même chose.
@@ -437,6 +441,7 @@ async function _ouvrirPrincipale(cible, numero) {
   /* Et les APERÇUS s'éteignent : un calque ou des sections du modèle sortant
      resteraient dans la scène, que vider() ne touche pas. */
   eteindreApercus();
+  IMPRESSION = null;
   /* Et l'OUTIL armé se range — le couteau tient un plan dans la scène et des
      clones des maillages sortants, que vider() ne connaît pas. */
   armerGeste("selection");
@@ -1729,6 +1734,45 @@ async function basculerTranches() {
     + `(${fmtMesure(plus.perimetre)} ${uniteCourante()} de contour). Aperçu seulement : le slicer tranche pour de vrai.`);
 }
 
+/* ── « → IMPRESSION 3D » : la version AFFICHÉE, au slicer (tâche T091) ──────
+   Décision de l'utilisateur (05/10) : sans ce bouton, réparer, poser ou
+   creuser ici n'arrivait jamais à l'imprimante — l'export de Game Assets lit
+   le maillage du moteur. La route lit maintenant `model.v<n>.glb`.
+   Trois refus, chacun pour un objet faux qu'il évite : une tâche Meshy non
+   adoptée n'a pas de version, une file non écrite n'est pas dans le fichier,
+   et sans taille cible aucun millimètre n'existe (la doctrine de la page). */
+async function imprimerVersion() {
+  if (!S.a) { direRefus("aucun modèle chargé"); return; }
+  if (!S.a.job || !S.a.version) {
+    direRefus("écris d'abord une version : une tâche Meshy s'imprime une fois adoptée par l'Établi");
+    return;
+  }
+  if (!enMillimetres()) {
+    direRefus("pose une taille cible (rail de droite) — un fichier 3D ne porte aucun millimètre");
+    return;
+  }
+  if (S.enAttente.length) {
+    direRefus(`${S.enAttente.length} modification(s) en attente — écris-les d'abord : l'impression lit le fichier`);
+    return;
+  }
+  let r;
+  try {
+    r = await jpost(`/api/print3d/from-assets3d/${encodeURIComponent(S.a.job)}`,
+      { version: S.a.version, cible_millimetres: REP.cibleMm, nom: `${S.a.job}-v${S.a.version}` });
+  } catch (e) { direRefus(`impression refusée : ${e.message}`); return; }
+  IMPRESSION = r.dossier;
+  direAvis(`version ${S.a.version} exportée pour l'impression : ${r.triangles} triangles, STL + 3MF dans `
+    + `${r.dossier}` + (r.avertissement ? ` — ${r.avertissement}` : "") + " — « Ouvrir dans le slicer » ensuite");
+}
+
+async function ouvrirDansSlicer() {
+  if (!IMPRESSION) { direRefus("exporte d'abord la version (→ Impression 3D)"); return; }
+  try {
+    const r = await jpost("/api/print3d/open", { dossier: IMPRESSION });
+    direAvis(`${r.fichier} ouvert dans le slicer`);
+  } catch (e) { direRefus(`slicer : ${e.message}`); }
+}
+
 
 /* ── le propriétaire du pointeur, et les deux outils qui ÉCRIVENT ───────────
    Lot B de la plaque façon slicer : « poser sur une face » et le couteau. Les
@@ -2204,6 +2248,8 @@ $("#btnMesure").addEventListener("click", () => armerGeste(GESTE.mode === "mesur
 $("#btnArranger").addEventListener("click", arrangerPlaque);
 $("#btnSurplombs").addEventListener("click", basculerSurplombs);
 $("#btnTranches").addEventListener("click", basculerTranches);
+$("#btnImprimer").addEventListener("click", imprimerVersion);
+$("#btnSlicer").addEventListener("click", ouvrirDansSlicer);
 $("#btnCouteauManip").addEventListener("click", () => {
   COUTEAU.manip = COUTEAU.manip === "translate" ? "rotate" : "translate";
   if (GIZMO && GESTE.mode === "couteau") {

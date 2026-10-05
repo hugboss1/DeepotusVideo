@@ -1952,6 +1952,12 @@ def test_une_version_ne_se_donne_pas_pour_imprimable():
     faux sur une version écrite et vrai sur une adoption, dont la v1 EST le
     maillage que la route servirait. Le jour où `print3d_from_assets3d`
     apprendra les versions, c'est ce banc qu'il faudra rouvrir.
+
+    ROUVERT LE 05/10 (T091) : la route accepte désormais `version` et lit
+    `model.v<n>.glb` — l'Établi s'en sert (« → Impression 3D », onglet Export).
+    Le MENU « Envoyer vers », lui, n'envoie toujours aucun numéro : ce qu'il
+    imprimerait reste le brouillon, et `imprimable` reste donc juste. La mesure
+    ci-dessous (sans `version`) tient toujours.
     """
     from app.services import mesh_edit
     _job("prod_impr")                                  # model.glb : 12 tris
