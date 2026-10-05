@@ -553,5 +553,195 @@ def test_la_route_ranger_calcule_sans_rien_ecrire_et_juge_son_corps():
             assert c.post("/api/etabli/ranger", json=corps).status_code == 400, corps
 
 
+# ── tâche #89 PR D : extraire une par une, décimer dans la lignée ─────────────────────────────────────────────────
+BASE_D = "2de62acc"
+
+
+def test_temoin_la_base_d_n_a_ni_separement_ni_decimer():
+    r = subprocess.run(["git", "show", f"{BASE_D}:backend/app/api/routes.py"], capture_output=True, cwd=str(RACINE)).stdout
+    assert r and b"separement" not in r and b"/etabli/decimer" not in r
+    m = subprocess.run(["git", "show", f"{BASE_D}:backend/app/services/mesh_optimize.py"], capture_output=True,
+                       cwd=str(RACINE)).stdout
+    assert m and b"decimer_octets" not in m
+
+
+def _png1x1() -> bytes:
+    import struct
+    import zlib
+
+    def ch(tag: bytes, d: bytes) -> bytes:
+        c = tag + d
+        return struct.pack(">I", len(d)) + c + struct.pack(">I", zlib.crc32(c) & 0xFFFFFFFF)
+    return (b"\x89PNG\r\n\x1a\n" + ch(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 6, 0, 0, 0))
+            + ch(b"IDAT", zlib.compress(b"\x00\xff\xff\xff\xff")) + ch(b"IEND", b""))
+
+
+def _cube_et_sol() -> bytes:
+    """Recopié de test_etabli_socle.py : le quad de sol de gltf_builder donne un GLB à DEUX nœuds."""
+    from app.services import gltf_builder
+    return gltf_builder.build_glb({}, None, "cube", "banc", stage_png=_png1x1())
+
+
+def _fiche(d, v):
+    reg = json.loads((d / "report.json").read_text("utf-8"))
+    return next(e for e in reg["entries"] if e["file"] == f"model.v{v}.glb")["source"]
+
+
+def test_extraire_une_par_une_ecrit_UN_FICHIER_PAR_ELEMENT_toutes_nees_du_MEME_parent():
+    from app.services import mesh_edit
+    d = _job("job_sep", _cube_et_sol())
+    assert len(mesh_edit.lire_glb(_cube_et_sol())[0]["nodes"]) == 2
+    with _client() as c:
+        r = c.post("/api/etabli/extraire", json={"job": "job_sep", "version": 1, "noeuds": [0, 1], "separement": True})
+        assert r.status_code == 200, r.text
+        corps = r.json()
+    assert [v["version"] for v in corps["versions"]] == [2, 3]
+    assert corps["version"] == 3, "la fiche rendue est la DERNIÈRE"
+    noms = {}
+    for v, noeud in ((2, 0), (3, 1)):
+        fiche = _fiche(d, v)
+        assert fiche["depuis"] == {"version": 1, "fichier": "model.glb"}, "des SŒURS, pas une chaîne"
+        assert fiche["element"] == {"noeud": noeud, "rang": v - 2, "sur": 2} and fiche["noeuds"] == [noeud]
+        assert fiche["operation"] == "extraire"
+        doc, _ = mesh_edit.lire_glb((d / f"model.v{v}.glb").read_bytes())
+        assert len(doc["nodes"]) == 1, "chaque fichier ne contient QUE son élément"
+        noms[v] = doc["nodes"][0].get("name")
+    src = mesh_edit.lire_glb(_cube_et_sol())[0]["nodes"]
+    assert noms == {2: src[0].get("name"), 3: src[1].get("name")} and noms[2] != noms[3]
+
+
+def test_extraire_ensemble_reste_ce_qu_elle_etait_et_separement_juge_son_corps():
+    d = _job("job_sep2", _cube_et_sol())
+    with _client() as c:
+        r = c.post("/api/etabli/extraire", json={"job": "job_sep2", "version": 1, "noeuds": [0, 1]})
+        assert r.status_code == 200 and r.json()["version"] == 2 and "versions" not in r.json()
+        assert "element" not in _fiche(d, 2) and _fiche(d, 2)["noeuds"] == [0, 1]
+        assert (d / "model.v2.glb").is_file() and not (d / "model.v3.glb").exists()
+        for corps in ({"noeuds": [], "separement": True}, {"noeuds": [0], "separement": "oui"},
+                      {"noeuds": [0], "separement": 1}, {"separement": True},
+                      {"noeuds": [0, 0], "separement": True}, {"noeuds": [True], "separement": True},
+                      {"noeuds": [-1], "separement": True}, {"noeuds": "0", "separement": True}):
+            assert c.post("/api/etabli/extraire", json={"job": "job_sep2", "version": 1, **corps}).status_code == 400, corps
+        # un élément refusé AU MILIEU : rien n'est écrit — pas une moitié de sœurs sur le disque
+        r = c.post("/api/etabli/extraire", json={"job": "job_sep2", "version": 1, "noeuds": [0, 9], "separement": True})
+        assert r.status_code == 400 and "élément par élément" in r.json()["detail"]
+    assert not (d / "model.v3.glb").exists()
+
+
+def _gltfpack_ou_skip():
+    from app.services import mesh_optimize
+    try:
+        mesh_optimize._gltfpack()
+    except RuntimeError:
+        pytest.skip("gltfpack absent : la décimation ne peut pas être MESURÉE ici")
+
+
+def _deux_tores(seg=60) -> bytes:
+    """Deux tores NOMMÉS dans deux nœuds — de quoi voir si gltfpack les fond en un seul maillage anonyme."""
+    import math
+    import struct
+    bin_ = b""
+    vues, acc, meshes, nodes = [], [], [], []
+    for k, nom in enumerate(("socle", "tour")):
+        n = seg + 1
+        pos = []
+        for i in range(n):
+            u = 2 * math.pi * i / seg
+            for j in range(n):
+                v = 2 * math.pi * j / seg
+                R, r = 2.0 - 0.5 * k, 0.7 - 0.2 * k              # deux formes : gltfpack fond deux maillages IDENTIQUES en un
+                pos += [(R + r * math.cos(v)) * math.cos(u), r * math.sin(v), (R + r * math.cos(v)) * math.sin(u)]
+        idx = []
+        for i in range(seg):
+            for j in range(seg):
+                a, b = i * n + j, (i + 1) * n + j
+                idx += [a, b, a + 1, b, b + 1, a + 1]
+        pb, ib = struct.pack(f"<{len(pos)}f", *pos), struct.pack(f"<{len(idx)}I", *idx)
+        vues += [{"buffer": 0, "byteOffset": len(bin_), "byteLength": len(pb)},
+                 {"buffer": 0, "byteOffset": len(bin_) + len(pb), "byteLength": len(ib)}]
+        bin_ += pb + ib
+        acc += [{"bufferView": 2 * k, "componentType": 5126, "count": len(pos) // 3, "type": "VEC3",
+                 "min": [min(pos[0::3]), min(pos[1::3]), min(pos[2::3])],
+                 "max": [max(pos[0::3]), max(pos[1::3]), max(pos[2::3])]},
+                {"bufferView": 2 * k + 1, "componentType": 5125, "count": len(idx), "type": "SCALAR"}]
+        meshes.append({"name": nom, "primitives": [{"attributes": {"POSITION": 2 * k}, "indices": 2 * k + 1}]})
+        nodes.append({"name": nom, "mesh": k, "translation": [0.0, 3.0 * k, 0.0]})
+    doc = {"asset": {"version": "2.0"}, "buffers": [{"byteLength": len(bin_)}], "bufferViews": vues,
+           "accessors": acc, "meshes": meshes, "nodes": nodes, "scenes": [{"nodes": [0, 1]}], "scene": 0}
+    from app.services import mesh_edit
+    return mesh_edit.ecrire_glb(doc, bin_)
+
+
+def test_decimer_rend_des_octets_GARDE_les_pieces_nommees_et_ne_touche_pas_au_job():
+    _gltfpack_ou_skip()
+    from app.services import mesh_edit, mesh_optimize as MO, print3d
+    data = _deux_tores()                                   # 2 × 7 200 triangles
+    octets, info = MO.decimer_octets(data, target_tris=1000)
+    assert octets[:4] == b"glTF" and info["before"]["tris"] == 14400
+    assert info["after"]["tris"] <= 1150 and info["target_tris"] == 1000 and info["preset"] is None
+    assert info["reduction_pct"] == round(100.0 * (1 - info["after"]["tris"] / 14400), 1) and info["ratio"] == round(1000 / 14400, 6)
+    doc, _ = mesh_edit.lire_glb(octets)
+    # `-kn` : les DEUX pièces restent des nœuds NOMMÉS — sans lui gltfpack les fond en un maillage anonyme
+    assert sorted(n.get("name") for n in doc["nodes"] if "mesh" in n) == ["socle", "tour"]
+    assert "KHR_mesh_quantization" not in doc.get("extensionsUsed", []), "-noq : lisible par print3d et mesh_edit"
+    assert len(print3d.lire_glb_triangles(octets)) == info["after"]["tris"]
+    assert info["aggressive"] is False and info["cible_atteinte"] is True
+    # la PASSE AGRESSIVE : à 500, la première passe reste au-dessus de 575 (mesuré 05/10)
+    _o, ia = MO.decimer_octets(data, target_tris=500)
+    assert ia["aggressive"] is True and ia["after"]["tris"] <= 575 and ia["cible_atteinte"] is True
+    # et ce que gltfpack ne sait pas faire se DIT : à 100, il s'arrête bien au-dessus
+    _o, ib = MO.decimer_octets(data, target_tris=100)
+    assert ib["aggressive"] is True and ib["after"]["tris"] > 115 and ib["cible_atteinte"] is False
+    # preset : la cible est celle de PRESETS
+    _o, i2 = MO.decimer_octets(data, preset="game")
+    assert i2["target_tris"] == 10000 and i2["preset"] == "game" and i2["after"]["tris"] < 14400
+
+
+def test_decimer_juge_la_cible_AVANT_de_chercher_gltfpack_et_refuse_un_modele_deja_sous_la_cible(monkeypatch):
+    from app.services import mesh_optimize as MO
+
+    def absent():
+        raise RuntimeError("gltfpack absent")
+    monkeypatch.setattr(MO, "_gltfpack", absent)
+    with pytest.raises(ValueError, match="preset inconnu"):
+        MO.decimer_octets(_cube(), preset="inconnu")
+    with pytest.raises(RuntimeError, match="absent"):
+        MO.decimer_octets(_cube(), preset="game")
+    monkeypatch.setattr(MO, "_gltfpack", lambda: "gltfpack-qui-ne-doit-pas-tourner")
+    with pytest.raises(ValueError, match="rien à décimer"):
+        MO.decimer_octets(_cube(), target_tris=100)        # 12 triangles, cible plancher 100
+
+
+def test_la_route_decimer_ecrit_une_VERSION_dans_la_lignee_et_juge_son_corps(monkeypatch):
+    d = _job("job_dec", _deux_tores())
+    with _client() as c:
+        for corps, code in (({"version": 1, "preset": "inconnu"}, 400), ({"version": "1"}, 400),
+                            ({"version": 1, "target_tris": "beaucoup"}, 400)):
+            assert c.post("/api/etabli/decimer", json={"job": "job_dec", **corps}).status_code == code, corps
+        assert c.post("/api/etabli/decimer", json={"job": "..", "version": 1}).status_code == 400
+        assert c.post("/api/etabli/decimer", json={"job": "job_dec", "version": 5}).status_code == 404
+        _job("job_dec_cube", _cube())
+        r = c.post("/api/etabli/decimer", json={"job": "job_dec_cube", "version": 1})
+        assert r.status_code == 400 and "rien à décimer" in r.json()["detail"]
+        assert not list((d.parent / "job_dec_cube").glob("model.v*.glb"))
+        from app.services import mesh_optimize as MO
+
+        def absent():
+            raise RuntimeError("gltfpack absent")
+        monkeypatch.setattr(MO, "_gltfpack", absent)
+        r = c.post("/api/etabli/decimer", json={"job": "job_dec", "version": 1})
+        assert r.status_code == 502 and "absent" in r.json()["detail"], "l'outil manquant se DIT, sans rien écrire"
+        assert not (d / "model.v2.glb").exists()
+        monkeypatch.undo()
+        _gltfpack_ou_skip()
+        r = c.post("/api/etabli/decimer", json={"job": "job_dec", "version": 1, "target_tris": 2000})
+        assert r.status_code == 200, r.text
+        j = r.json()
+    assert j["version"] == 2 and (d / "model.v2.glb").is_file()
+    src = _fiche(d, 2)
+    assert src["operation"] == "decimer" and src["depuis"] == {"version": 1, "fichier": "model.glb"}
+    assert src["before"]["tris"] == 14400 and src["after"]["tris"] <= 2300 and src["target_tris"] == 2000
+    assert not (d / "model.opt.glb").exists() and not (d / "optimize.json").exists(), "AUCUN fichier à part"
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

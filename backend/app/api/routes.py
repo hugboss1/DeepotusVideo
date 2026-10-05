@@ -13853,16 +13853,45 @@ async def etabli_adopter(body: dict):
 
 @router.post("/etabli/extraire")
 async def etabli_extraire(body: dict):
+    """Extrait la sélection. `separement: true` (tâche #89 PR D, plan-etabli T9)
+    écrit UNE VERSION PAR ÉLÉMENT au lieu d'un seul fichier qui les contient tous.
+
+    LES N VERSIONS SONT DES SŒURS, PAS UNE CHAÎNE : chacune part des MÊMES
+    octets — ceux de `version` — et sa fiche porte le même `depuis`. Chaîner
+    serait faux deux fois : la deuxième partirait d'un fichier qui ne contient
+    plus que le premier élément, et `extraire` renumérote (`_carte`), si bien
+    que les index cochés ne désigneraient plus rien. La fiche RENDUE est la
+    DERNIÈRE — celle que `ecrireVersion` chaîne et que la page ouvre — et
+    `versions` les porte toutes."""
     from app.services import mesh_edit
     job, data, depuis = _etabli_glb_cible(body.get("job"), body.get("version"),
                                           "extraction")
     noeuds = body.get("noeuds")
+    separement = body.get("separement", False)
+    if not isinstance(separement, bool):
+        raise HTTPException(400, "extraction : `separement` attend un booléen")
+    if not separement:
+        try:
+            sortie = mesh_edit.extraire(data, noeuds or [])
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        return _etabli_ecrire(job, sortie, "extraire",
+                              {"depuis": depuis, "noeuds": list(noeuds or [])})
+    if (not isinstance(noeuds, list) or not noeuds or any(not _etabli_entier(n) or n < 0 for n in noeuds)
+            or len(set(noeuds)) != len(noeuds)):
+        raise HTTPException(400, "extraction élément par élément : `noeuds` doit "
+                                 "être une liste non vide d'index de nœud, sans doublon")
+    # TOUTES les extractions d'abord, les écritures ensuite : un élément refusé
+    # au milieu ne laisse pas une moitié de sœurs sur le disque.
     try:
-        sortie = mesh_edit.extraire(data, noeuds or [])
+        sorties = [mesh_edit.extraire(data, [n]) for n in noeuds]
     except ValueError as e:
-        raise HTTPException(400, str(e))
-    return _etabli_ecrire(job, sortie, "extraire",
-                          {"depuis": depuis, "noeuds": list(noeuds or [])})
+        raise HTTPException(400, f"extraction élément par élément : {e}")
+    fiches = [_etabli_ecrire(job, s, "extraire",
+                             {"depuis": depuis, "noeuds": [n],
+                              "element": {"noeud": n, "rang": rang, "sur": len(noeuds)}})
+              for rang, (n, s) in enumerate(zip(noeuds, sorties))]
+    return {**fiches[-1], "versions": fiches}
 
 
 @router.post("/etabli/transformer")
@@ -14022,6 +14051,23 @@ async def etabli_reparer_maillage(body: dict):
     except ValueError as e:
         raise HTTPException(400, str(e))
     return _etabli_ecrire(job, sortie, "reparer_maillage", {"depuis": depuis, **rapport})
+
+
+@router.post("/etabli/decimer")
+async def etabli_decimer(body: dict):
+    """DÉCIMER DANS LA LIGNÉE (tâche #89 PR D, plan-etabli T7) : `preset` (clé de mesh_optimize.PRESETS) ou
+    `target_tris`, jeu par défaut. Écrit une version de plus — au lieu du `model.opt.glb` à part que l'Établi ne
+    charge pas. gltfpack garde les nœuds nommés (`-kn`) ; la fiche porte avant/après et le taux."""
+    from app.services import mesh_optimize
+    job, data, depuis = _etabli_glb_cible(body.get("job"), body.get("version"), "décimation")
+    try:
+        octets, info = await asyncio.to_thread(
+            mesh_optimize.decimer_octets, data, body.get("target_tris"), body.get("preset"))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except RuntimeError as e:
+        raise HTTPException(502, str(e))
+    return _etabli_ecrire(job, octets, "decimer", {"depuis": depuis, **info})
 
 
 @router.post("/etabli/ranger")

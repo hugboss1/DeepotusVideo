@@ -592,3 +592,6 @@ button { font-family: inherit; }
   .etabli { grid-template-columns: 210px 1fr 250px; }
   .head-chip { max-width: 24ch; }
 }
+
+/* tâche #89 PR D : « une par une », à côté de Séparer */
+.sep-mode { font-size: 11px; color: var(--ink-soft); margin-left: 8px; }

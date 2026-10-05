@@ -179,8 +179,8 @@ let _ecritEnCours = false;
    de partir tant que la file n'est pas vide — elle y entre seule, pour la
    durée de sa propre écriture. `reparer_maillage` (tâche #88) écrit SEUL lui aussi,
    derrière la même garde (ecrireSeule) : sa place dans la liste ne compte pas, elle
-   n'y voisine jamais avec personne. UNE LIGNE : les bancs la lisent ainsi. */
-const ORDRE_ECRITURE = ["transformer", "assise", "reparer", "extraire", "couper", "reparer_maillage"];
+   n'y voisine jamais avec personne. `decimer` (tâche #89 PR D) de même. UNE LIGNE : les bancs la lisent ainsi. */
+const ORDRE_ECRITURE = ["transformer", "assise", "reparer", "extraire", "couper", "reparer_maillage", "decimer"];
 
 /* Les trois plumes de P1, ÉCRITES plutôt que composées. Un
    `/api/etabli/${t.operation}` marcherait aussi bien et rendrait le fichier
@@ -193,6 +193,7 @@ const ROUTES = {
   extraire: "/api/etabli/extraire",
   couper: "/api/etabli/couper",
   reparer_maillage: "/api/etabli/reparer-maillage",
+  decimer: "/api/etabli/decimer",
 };
 
 async function jget(p) {
@@ -2368,6 +2369,8 @@ function rendreParties() {
       <button id="btnIsoler">Isoler la sélection</button>
       <button id="btnToutVoir">Tout revoir</button>
       <button id="btnSeparer">Séparer la sélection en une version</button>
+      <label class="sep-mode" title="Une version PAR élément coché, toutes nées de la version courante (des sœurs, pas une chaîne)">
+        <input type="checkbox" id="pSeparement"> une par une</label>
     </div>`;
 
   box.querySelectorAll("[data-g]").forEach((b) =>
@@ -2612,19 +2615,21 @@ function fileOrdonnee() {
 const fmtCoord = (v) => Number(v).toFixed(2);
 const LIBELLES_ATTENTE = {
   transformer: (t) => `${Object.keys(t.charge).length} nœud(s) déplacé(s)`,
-  extraire: (t) => `${t.charge.length} nœud(s) à séparer`,
+  extraire: (t) => `${t.charge.noeuds.length} nœud(s) à séparer`
+    + (t.charge.separement ? " — un fichier par élément" : ""),
   reparer: (t) => `réparer l'assise : axe ${t.charge.axe_haut}, échelle ${t.charge.echelle}`
     + (t.charge.recentrer ? ", recentré" : ""),
   assise: (t) => `posé sur une face (normale ${t.charge.normale.map(fmtCoord).join(", ")})`,
   couper: (t) => `coupe de ${t.charge.noeuds.length} pièce(s) — garder ${t.charge.garder}`,
   reparer_maillage: (t) => `réparer le maillage : ${t.charge.actions.map((a) => LIBELLE_ACTION[a] || a).join(", ")}`,
+  decimer: (t) => `décimer vers ${t.charge.preset || t.charge.target_tris} triangles`,
 };
 
 /* ── RÉPARER EN UN CLIC (tâche #88 PR A, plan-etabli T2) ─────────────────────
    Ce qui RENUMÉROTE écrit SEUL : la file doit être vide, la ligne y entre pour la
    durée de sa propre écriture — la garde de confirmerCoupe(), pour toute opération.
    Rend le bilan d'ecrireVersion(), ou null (refus dit dans la barre). */
-const LIBELLE_OP = { reparer_maillage: "réparer le maillage" };
+const LIBELLE_OP = { reparer_maillage: "réparer le maillage", decimer: "décimer" };
 const LIBELLE_ACTION = { souder: "sommets confondus", doublons: "faces dupliquées", degeneres: "triangles plats",
                          normales: "normales unifiées", trous: "trous bouchés" };
 /* Les actions cochées d'office : TOUT sauf les trous — décision de l'utilisateur (04/10) :
@@ -2663,6 +2668,14 @@ function direBilanReparation(fiche) {
   direAvis(`maillage réparé (version ${fiche.version}) : ${p.soudes} sommet(s) soudé(s), ${p.doublons} doublon(s), `
     + `${p.degeneres} triangle(s) plat(s), ${p.retournes} retourné(s)${trous} — `
     + (src.ferme_apres ? "fermé" : (src.ferme_avant ? "fermé avant, OUVERT après" : "encore ouvert")));
+}
+/* La décimation se dit avec ses vrais comptes — ceux que gltfpack a rendus, pas la cible. */
+function direBilanDecimation(fiche) {
+  const src = fiche && fiche.source;
+  if (!src || !src.before || !src.after) return;
+  direAvis(`décimé (version ${fiche.version}) : ${src.before.tris} → ${src.after.tris} triangles `
+    + `(−${src.reduction_pct} %)${src.aggressive ? ", passe agressive" : ""}`
+    + (src.cible_atteinte === false ? ` — cible de ${src.target_tris} NON atteinte, le maillage ne se simplifie pas plus` : ""));
 }
 const libelleAttente = (t) =>
   (LIBELLES_ATTENTE[t.operation] || ((x) => x.operation))(t);
@@ -2759,7 +2772,7 @@ async function ecrireVersion() {
         const corps = t.operation === "transformer"
           ? { ...base, transforms: t.charge }
           : t.operation === "extraire"
-            ? { ...base, noeuds: t.charge }
+            ? { ...base, noeuds: t.charge.noeuds, separement: t.charge.separement }
             : { ...base, ...t.charge };
         derniere = await jpost(ROUTES[t.operation], corps);
         ecrites.push(t.operation);
@@ -3031,7 +3044,11 @@ function separerSelection() {
       + "primitive de maillage, n'a pas d'index à envoyer");
     return;
   }
-  noterAttente("extraire", idx, source);
+  /* LA CHARGE EST UN OBJET depuis la tâche #89 PR D : « ensemble » et « une par une » se
+     choisissent AVANT d'écrire, et une liste nue n'avait nulle part où porter ce choix.
+     LIBELLES_ATTENTE et ecrireVersion lisent tous deux `charge.noeuds`. */
+  const separement = !!($("#pSeparement") && $("#pSeparement").checked);
+  noterAttente("extraire", { noeuds: idx, separement }, source);
   /* Le geste a réussi : un refus rouge laissé par le clic d'avant ne doit pas
      lui rester accroché. */
   direGeometrie();
@@ -3059,7 +3076,16 @@ function rendreFiche() {
     <button id="fReparerMaillage" title="Écrit aussitôt une version de plus : sommets confondus, doublons, triangles plats, normales — et les trous si la case est cochée">Réparer en un clic</button>
     <p class="note">Écrit AUSSITÔT une version de plus (les nœuds sont renumérotés) ; le
       détail de ce qui a été fait s'affiche dans la barre du bas, et la version d'avant
-      reste sur le disque. « Trous bouchés » ajoute de la matière : décoché d'office.</p>`;
+      reste sur le disque. « Trous bouchés » ajoute de la matière : décoché d'office.</p>
+    <div class="dt-label">Décimer</div>
+    <label>cible <select id="fDecPreset" title="Le nombre de triangles visé ; les noms de pièces sont gardés">
+      <option value="ultra">ultra — 100 000 triangles</option>
+      <option value="high">élevé — 50 000</option>
+      <option value="game" selected>jeu — 10 000</option>
+      <option value="detailed">détaillé — 5 000</option></select></label>
+    <button id="fDecimer" title="Écrit aussitôt une version décimée — elle entre dans la lignée, la version d'avant reste sur le disque">Décimer</button>
+    <p class="note">La décimation écrit une VERSION de plus, au lieu du fichier « décimé » à
+      part que l'Établi ne sait pas charger. Un modèle déjà sous la cible est refusé.</p>`;
   $("#fAppliquer").addEventListener("click", () => {
     if (!S.a) { direRefus("aucun modèle chargé — rien à réparer"); return; }
     /* Les trois clés sont celles que la route attend, au caractère près :
@@ -3077,6 +3103,10 @@ function rendreFiche() {
     if (!actions.length) { direRefus("cochez au moins une action de réparation"); return; }
     const bilan = await ecrireSeule("reparer_maillage", { actions });
     if (bilan) direBilanReparation(bilan.derniere);
+  });
+  $("#fDecimer").addEventListener("click", async () => {
+    const bilan = await ecrireSeule("decimer", { preset: $("#fDecPreset").value });
+    if (bilan) direBilanDecimation(bilan.derniere);
   });
 }
 
