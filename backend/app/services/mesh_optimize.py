@@ -162,3 +162,64 @@ def optimize_glb(job: str, target_tris=None, preset: str | None = None) -> dict:
     (d / "optimize.json").write_text(
         json.dumps(info, indent=1), encoding="utf-8")
     return info
+
+
+def decimer_octets(data: bytes, target_tris=None,
+                   preset: str | None = None) -> tuple[bytes, dict]:
+    """Décime les octets d'une version et rend (octets, info) — SANS rien
+    écrire dans le job (tâche #89 PR D, plan-etabli T7).
+
+    POURQUOI PAS `optimize_glb` : celle-là écrit `model.opt.glb`, un fichier À
+    PART que `mesh_sources` marque `version: null` et que l'Établi refuse de
+    charger. Décimer depuis l'Établi doit entrer dans la LIGNÉE : la route
+    écrit le résultat par `mesh_edit.ecrire_version`, comme toute version.
+    gltfpack décime dans un dossier temporaire ; les octets reçus sont ceux
+    que la route a déjà lus derrière ses gardes de chemin.
+
+    La cible est jugée AVANT de chercher gltfpack : un preset inconnu se dit
+    en 400 même là où le binaire manque. `-kn` garde les nœuds nommés (et
+    leurs noms) — décision de l'utilisateur, 05/10 : sans lui, gltfpack fond
+    les pièces en un seul maillage et la page n'a plus rien à sélectionner.
+    Un modèle déjà sous la cible est REFUSÉ : une version identique de plus
+    ne serait que du bruit dans la lignée."""
+    import tempfile
+
+    target, preset = resolve_target(target_tris, preset)
+    exe = _gltfpack()
+    with tempfile.TemporaryDirectory() as tmp:
+        src, out = Path(tmp) / "source.glb", Path(tmp) / "decime.glb"
+        src.write_bytes(data)
+        before = glb_stats(src)
+        if before["tris"] <= target:
+            raise ValueError(
+                f"décimation : le modèle a {before['tris']} triangles, pas "
+                f"plus que la cible ({target}) — rien à décimer")
+        ratio = max(0.001, target / before["tris"])
+
+        def run(extra):
+            r = subprocess.run(
+                [exe, "-i", str(src), "-o", str(out),
+                 "-si", f"{ratio:.6f}", "-noq", "-kn"] + extra,
+                capture_output=True, text=True, timeout=300)
+            if r.returncode != 0 or not out.is_file():
+                raise RuntimeError(
+                    f"gltfpack a échoué ({r.returncode}): "
+                    f"{(r.stderr or r.stdout or '').strip()[:300]}")
+
+        run([])
+        after = glb_stats(out)
+        aggressive = False
+        if after["tris"] > target * 1.15:
+            run(["-sa"])                  # passe 2 : atteint la cible
+            after = glb_stats(out)
+            aggressive = True
+        octets = out.read_bytes()
+    return octets, {
+        "before": before, "after": after,
+        "target_tris": target, "preset": preset,
+        "ratio": round(ratio, 6), "aggressive": aggressive,
+        # gltfpack s'arrête où la topologie l'arrête, même en passe agressive :
+        # mesuré 05/10, deux tores de 14 400 triangles visés à 100 → 463.
+        "cible_atteinte": after["tris"] <= target * 1.15,
+        "reduction_pct": round(
+            100.0 * (1 - after["tris"] / max(1, before["tris"])), 1)}

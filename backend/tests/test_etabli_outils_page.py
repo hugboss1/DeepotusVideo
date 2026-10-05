@@ -73,7 +73,7 @@ def test_la_surface_route_ordre_bouton_et_cablage():
     assert 'reparer_maillage: "/api/etabli/reparer-maillage"' in js
     # l'ordre tient sur UNE ligne (les bancs le lisent ainsi), reparer_maillage la ferme
     assert ('const ORDRE_ECRITURE = ["transformer", "assise", "reparer", "extraire", "couper", '
-            '"reparer_maillage"];') in js
+            '"reparer_maillage", "decimer"];') in js
     assert 'const ACTIONS_PAR_DEFAUT = ["souder", "doublons", "degeneres", "normales"];' in js
     fiche = _fonction_etabli("rendreFiche")
     assert '<button id="fReparerMaillage" title="' in fiche and "Réparer en un clic" in fiche
@@ -458,6 +458,110 @@ def test_la_mesure_est_un_MODE_range_en_le_quittant_et_lue_par_lireRepere():
     f = _fonction_etabli("rendreMesure")
     assert "fmtMesure(" in f and "uniteCourante()" in f and "esc(" in f
 
+
+# ── tâche #89 PR D : extraire une par une, décimer dans la lignée ─────────────────────────────────────────────────
+BASE_D = "2de62acc"
+
+
+def test_temoin_la_base_d_n_a_ni_une_par_une_ni_decimer():
+    b = subprocess.run(["git", "show", f"{BASE_D}:frontend/etabli/etabli.js"], capture_output=True, cwd=str(RACINE)).stdout
+    assert b and b"pSeparement" not in b and b'decimer: "/api/etabli/decimer"' not in b
+    assert b'noterAttente("extraire", idx, source);' in b, "la base mettait une LISTE nue en file"
+
+
+ENTONNOIR = r"""
+let S = { a: { job: "j", version: 1 }, enAttente: [] }, _ecritEnCours = false;
+const CORPS = [], REFUS = [], NOTES = [];
+let PROCHAINE = 2;
+async function jpost(route, corps) { CORPS.push([route, JSON.parse(JSON.stringify(corps))]); return { version: PROCHAINE++ }; }
+async function jget() { return {}; }
+function rendreAttente() {} function rendreChrono() {}
+async function ouvrirPrincipale() { return false; }
+async function capturerVignette() {}
+function direRefus(m) { REFUS.push(m); } function direGeometrie() {}
+function noterAttente(op, charge, source) { NOTES.push([op, charge, source]); S.enAttente.push({ operation: op, charge, source }); }
+let COCHE = null;
+const $ = (q) => (q === "#pSeparement" ? COCHE : null);
+const noeudsRetenus = () => ({ noeuds: [4, 7], source: "nom" });
+"""
+
+
+def _entonnoir(corps: str) -> dict:
+    src = (_objet_etabli("ORDRE_ECRITURE") + _objet_etabli("ROUTES") + _objet_etabli("LIBELLES_ATTENTE") + ENTONNOIR
+           + _fonction_etabli("fileOrdonnee") + _fonction_etabli("separerSelection")
+           + _fonction_etabli_async("ecrireVersion")
+           + "\n(async () => { const R = {};\n" + corps + "\nconsole.log(JSON.stringify(R)); })();")
+    return json.loads(_node(src).strip().splitlines()[-1])
+
+
+def test_separer_porte_le_choix_une_par_une_et_les_TROIS_sites_lisent_la_meme_charge():
+    R = _entonnoir("""
+separerSelection(); R.sans = NOTES.slice(); R.lib0 = LIBELLES_ATTENTE.extraire(S.enAttente[0]);
+COCHE = { checked: false }; S.enAttente.length = 0; NOTES.length = 0; separerSelection(); R.decoche = NOTES[0][1];
+COCHE = { checked: true }; S.enAttente.length = 0; NOTES.length = 0; separerSelection(); R.coche = NOTES[0];
+R.lib1 = LIBELLES_ATTENTE.extraire(S.enAttente[0]);
+S.enAttente.push({ operation: "transformer", charge: { 2: { t: [1, 0, 0] } } });
+await ecrireVersion(); R.corps = CORPS.slice(); R.refus = REFUS.slice();
+""")
+    assert R["sans"] == [["extraire", {"noeuds": [4, 7], "separement": False}, "nom"]], "sans case : ensemble"
+    assert R["decoche"] == {"noeuds": [4, 7], "separement": False}
+    assert R["coche"] == ["extraire", {"noeuds": [4, 7], "separement": True}, "nom"]
+    assert R["lib0"] == "2 nœud(s) à séparer" and R["lib1"] == "2 nœud(s) à séparer — un fichier par élément"
+    # l'ordre de la page (transformer d'abord), puis l'extraction CHAÎNÉE sur la version que transformer a rendue
+    assert R["corps"] == [["/api/etabli/transformer", {"job": "j", "version": 1, "transforms": {"2": {"t": [1, 0, 0]}}}],
+                          ["/api/etabli/extraire", {"job": "j", "version": 2, "noeuds": [4, 7], "separement": True}]]
+    assert R["refus"] == []
+    code = _code("etabli/etabli.js")
+    assert "t.charge.length" not in code, "la charge d'extraire n'est plus une liste NULLE PART"
+    assert 'id="pSeparement"' in _fonction_etabli("rendreParties") and ".sep-mode" in _lire("etabli/etabli.css")
+    assert '<label class="sep-mode" title="' in _fonction_etabli("rendreParties")
+
+
+def test_decimer_passe_par_l_entonnoir_SEUL_avec_le_preset_choisi():
+    R = _entonnoir("""
+S.enAttente.push({ operation: "decimer", charge: { preset: "game" } });
+R.lib = LIBELLES_ATTENTE.decimer(S.enAttente[0]);
+R.lib2 = LIBELLES_ATTENTE.decimer({ charge: { target_tris: 1234 } });
+await ecrireVersion(); R.corps = CORPS.slice();
+""")
+    assert R["corps"] == [["/api/etabli/decimer", {"job": "j", "version": 1, "preset": "game"}]]
+    assert R["lib"] == "décimer vers game triangles" and R["lib2"] == "décimer vers 1234 triangles"
+    js, code = _lire("etabli/etabli.js"), _code("etabli/etabli.js")
+    assert 'decimer: "/api/etabli/decimer",' in js and 'decimer: "décimer"' in _objet_etabli("LIBELLE_OP")
+    assert 'ecrireSeule("decimer", { preset: $("#fDecPreset").value })' in code
+    assert "direBilanDecimation(bilan.derniere)" in code
+    fiche = _fonction_etabli("rendreFiche")
+    assert '<button id="fDecimer" title="' in fiche and '<select id="fDecPreset" title="' in fiche
+
+
+def test_chaque_option_de_decimation_est_une_CLE_du_service_et_dit_son_vrai_compte():
+    """Le `<select>` ne recopie pas des chiffres : chaque `value` existe dans `mesh_optimize.PRESETS` et le libellé porte
+    le compte que le service applique VRAIMENT ; « jeu » est choisi d'office (décision de l'utilisateur, 05/10)."""
+    src = (RACINE / "backend/app/services/mesh_optimize.py").read_text(encoding="utf-8")
+    presets = {k: int(v) for k, v in re.findall(r'^\s+"([a-z]+)": (\d+),', src.split("PRESETS = {", 1)[1].split("}", 1)[0], re.M)}
+    fiche = _fonction_etabli("rendreFiche")
+    bloc = fiche.split('id="fDecPreset"', 1)[1].split("</select>", 1)[0]
+    options = re.findall(r'<option value="([a-z]+)"( selected)?>([^<]+)</option>', bloc)
+    assert [o[0] for o in options] == ["ultra", "high", "game", "detailed"]
+    for cle, _sel, libelle in options:
+        assert int(re.sub(r"[^0-9]", "", libelle)) == presets[cle], (cle, libelle)
+    assert [o[0] for o in options if o[1]] == ["game"]
+
+
+def test_le_bilan_de_la_decimation_dit_les_VRAIS_comptes():
+    src = ("const AVIS = []; function direAvis(m) { AVIS.push(m); }\n" + _fonction_etabli("direBilanDecimation") + """
+direBilanDecimation({ version: 6, source: { before: { tris: 7200 }, after: { tris: 1003 }, reduction_pct: 86.1, aggressive: false } });
+direBilanDecimation({ version: 7, source: { before: { tris: 900 }, after: { tris: 101 }, reduction_pct: 88.8, aggressive: true } });
+direBilanDecimation({ version: 9, source: { before: { tris: 14400 }, after: { tris: 463 }, reduction_pct: 96.8, aggressive: true,
+  cible_atteinte: false, target_tris: 100 } });
+direBilanDecimation({ version: 8, source: {} }); direBilanDecimation(null);
+console.log(JSON.stringify(AVIS));
+""")
+    assert json.loads(_node(src).strip().splitlines()[-1]) == [
+        "décimé (version 6) : 7200 → 1003 triangles (−86.1 %)",
+        "décimé (version 7) : 900 → 101 triangles (−88.8 %), passe agressive",
+        "décimé (version 9) : 14400 → 463 triangles (−96.8 %), passe agressive — cible de 100 NON atteinte, "
+        "le maillage ne se simplifie pas plus"]
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

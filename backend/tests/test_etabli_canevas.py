@@ -1105,9 +1105,9 @@ def test_l_extraction_est_ecrite_en_DERNIER_car_elle_renumerote():
     # min Y à +0,508) ; `assise` avant `reparer`, qui change ce monde (axe Z) ;
     # `couper` en DERNIER — et seule, par la garde de confirmerCoupe(),
     # puisqu'elle renumérote. La section S EXÉCUTE ces raisons.
-    # tâche #88 : `reparer_maillage` ferme la liste — il écrit SEUL lui aussi (ecrireSeule)
+    # tâche #88 : `reparer_maillage` — il écrit SEUL lui aussi (ecrireSeule) ; tâche #89 : `decimer` ferme la liste
     assert ('const ORDRE_ECRITURE = ["transformer", "assise", "reparer", '
-            '"extraire", "couper", "reparer_maillage"];') in js
+            '"extraire", "couper", "reparer_maillage", "decimer"];') in js
     # LE TRI LUI-MEME. Mesure : remplacer le corps de fileOrdonnee() par
     # `return [...S.enAttente];` remet la file dans l'ordre des CLICS et ne
     # faisait rougir personne — la table pouvait rester declaree et inerte,
@@ -3143,8 +3143,9 @@ def test_LA_PLAQUE_N_ECRIT_RIEN___ni_le_disque_ni_la_file():
     # CINQ PLUMES DEPUIS LE LOT B : `assise` (mise en file comme `reparer`)
     # et `couper` (qui traverse l'entonnoir SEULE, voir confirmerCoupe). Le
     # plan de plaque, lui, n'en est toujours pas une. SIX depuis la tâche #88 :
-    # `reparer_maillage`, qui traverse l'entonnoir SEULE elle aussi (ecrireSeule).
-    assert routes.count("/api/etabli/") == 6, routes
+    # `reparer_maillage`, qui traverse l'entonnoir SEULE elle aussi (ecrireSeule). SEPT depuis la
+    # tâche #89 : `decimer`, seule elle aussi.
+    assert routes.count("/api/etabli/") == 7, routes
     assert 'const ROUTE_PLAQUE = "/api/etabli/plaque";' in _code("etabli/etabli.js")
     assert "ROUTE_PLAQUE" not in bloc
 
