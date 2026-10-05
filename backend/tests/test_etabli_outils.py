@@ -1152,5 +1152,105 @@ def test_l_export_d_impression_lit_la_VERSION_demandee_et_jamais_le_STL_du_moteu
         for mauvais in (0, -1, "2", True, 2.5):
             assert c.post("/api/print3d/from-assets3d/job_impv", json={"version": mauvais}).status_code == 400, mauvais
 
+
+# ── T092 / plan T19 : l'orientation automatique PROPOSE, l'assise applique ─────
+def _dalle() -> bytes:
+    """Une dalle 4 x 0,5 x 4 : le cube du dépôt (arête 2) mis à l'échelle par mesh_edit.transformer."""
+    from app.services import mesh_edit
+    doc, _b = mesh_edit.lire_glb(_cube())
+    i = next(k for k, n in enumerate(doc["nodes"]) if "mesh" in n)
+    return mesh_edit.transformer(_cube(), {str(i): {"scale": [2.0, 0.25, 2.0]}})
+
+
+def _contact_apres_assise(data, normale):
+    """L'aire des triangles qui touchent y = min APRÈS l'assise réelle — le juge de bout en bout."""
+    from app.services import mesh_edit, print3d
+    tris = print3d.lire_glb_triangles(mesh_edit.assise(data, normale=normale))
+    ymin = min(p[1] for t in tris for p in t)
+    aire = 0.0
+    for a, b, c in tris:
+        if all(abs(p[1] - ymin) < 1e-6 for p in (a, b, c)):
+            u = [b[i] - a[i] for i in range(3)]
+            v = [c[i] - a[i] for i in range(3)]
+            n = (u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0])
+            aire += (n[0] ** 2 + n[1] ** 2 + n[2] ** 2) ** 0.5 / 2
+    return aire
+
+
+def test_orienter_un_cube_propose_ses_faces_et_les_classe():
+    from app.services import orient
+    r = orient.candidats(_cube(), None)
+    assert 1 <= len(r["candidats"]) <= 3
+    c0 = r["candidats"][0]
+    assert set(c0) == {"bas", "contact", "surplomb", "part_contact", "part_surplomb", "compacite", "hauteur", "score",
+                       "rotation"}
+    assert abs(c0["part_contact"] - 4.0 / 24.0) < 1e-6, "la part de la surface totale (6 faces de 4)"
+    assert abs(c0["surplomb"]) < 1e-9 and abs(c0["contact"] - 4.0) < 1e-6      # une face 2 x 2 à plat
+    assert abs(c0["compacite"] - 4.0 / 3.141592653589793) < 1e-6                # carré : 16 / 4π
+    assert abs(sum(abs(x) for x in c0["bas"]) - 1.0) < 1e-6                     # un axe
+    scores = [c["score"] for c in r["candidats"]]
+    assert scores == sorted(scores), "le meilleur d'abord"
+    assert r["seuil_surplomb"] == 45.0 and set(r["poids"]) == {"surplomb", "contact", "compacite", "hauteur"}
+
+
+def test_orienter_prefere_la_face_LARGE_sur_une_dalle_et_l_ASSISE_la_pose_vraiment():
+    """Dalle 4 x 0,5 x 4 : à plat 16 d'appui, sur la tranche 2. Et le bout de la chaîne : `rotation` envoyée à
+    mesh_edit.assise pose la dalle SUR CETTE FACE — le plan envoyait −bas, qui l'aurait posée sur la face opposée
+    (même aire ici, mais la tranche d'en face sur un objet asymétrique)."""
+    from app.services import orient
+    d = _dalle()
+    r = orient.candidats(d, None)
+    m = r["candidats"][0]
+    assert abs(m["contact"] - 16.0) < 1e-6 and abs(m["bas"][1]) > 0.999
+    assert abs(_contact_apres_assise(d, m["rotation"]) - 16.0) < 1e-6
+    tranche = [c for c in orient.candidats(d, None, garder=64)["candidats"] if abs(c["bas"][0]) > 0.999][0]
+    assert abs(tranche["contact"] - 2.0) < 1e-6 and tranche["score"] > m["score"]
+
+
+def test_orienter_evite_le_SURPLOMB_et_la_rotation_pose_la_BONNE_face():
+    """Un champignon : une tige 0,5 x 2,2 x 0,5 qui ENTRE dans un chapeau 3 x 0,5 x 3. Deux solides séparés, donc
+    deux faces internes : le dessus de la tige (0,25, dans le chapeau) et le dessous du chapeau (9, entier). Posé sur
+    la tige, le dessous du chapeau pend : 9 de surplomb. Posé sur le chapeau, seul le dessus INTERNE de la tige
+    regarde le bas : 0,25. Les deux bases n'ont PAS la même aire : une rotation inversée se verrait à l'aire posée."""
+    from app.services import gltf_builder, mesh_edit, orient, print3d
+    tige = mesh_edit.transformer(_cube(), {"0": {"scale": [0.25, 1.1, 0.25], "translation": [0.0, 0.1, 0.0]}})
+    chapeau = mesh_edit.transformer(_cube(), {"0": {"scale": [1.5, 0.25, 1.5], "translation": [0.0, 1.25, 0.0]}})
+    tris = print3d.lire_glb_triangles(tige) + print3d.lire_glb_triangles(chapeau)
+    data = print3d.glb_de_triangles(tris, "champignon")
+    r = orient.candidats(data, None, garder=64)
+    scores = [c["score"] for c in r["candidats"]]
+    assert len(scores) >= 6 and scores == sorted(scores), "TOUTES les poses classées, la meilleure d'abord"
+    m = r["candidats"][0]
+    assert abs(m["surplomb"] - 0.25) < 1e-6 and abs(m["contact"] - 9.0) < 1e-6, m   # sur le dessus du chapeau
+    sur_tige = [c for c in r["candidats"] if c["bas"][1] < -0.999][0]
+    assert abs(sur_tige["surplomb"] - 9.0) < 1e-6 and abs(sur_tige["contact"] - 0.25) < 1e-6
+    assert sur_tige["score"] > m["score"]
+    assert abs(_contact_apres_assise(data, m["rotation"]) - 9.0) < 1e-6
+
+
+def test_orienter_refuse_ce_qu_il_ne_sait_pas_lire_et_borne_ses_poses():
+    from app.services import mesh_edit, orient
+    doc, binc = mesh_edit.lire_glb(_cube())
+    doc["extensionsRequired"] = ["KHR_draco_mesh_compression"]
+    with pytest.raises(ValueError, match="draco"):
+        orient.candidats(mesh_edit.ecrire_glb(doc, binc), None)
+    with pytest.raises(ValueError, match="aucun triangle"):
+        orient.candidats(_cube(), [999])
+    assert len(orient.candidats(_cube(), None, garder=999)["candidats"]) <= orient.MAX_POSES
+
+
+def test_la_route_orienter_PROPOSE_sans_ecrire_et_repete_l_avertissement():
+    d = _job("job_or", _cube())
+    with _client() as c:
+        r = c.get("/api/etabli/orienter?job=job_or&version=1")
+        assert r.status_code == 200, r.text
+        corps = r.json()
+        assert len(corps["candidats"]) == 3 or len(corps["candidats"]) >= 1
+        assert "pas toujours" in corps["avertissement"]
+        assert sorted(p.name for p in d.iterdir()) == ["model.glb"], "AUCUNE écriture : c'est une proposition"
+        assert c.get("/api/etabli/orienter?job=..&version=1").status_code == 400
+        assert c.get("/api/etabli/orienter?job=job_or&version=0").status_code in (400, 422)
+        assert c.get("/api/etabli/orienter?job=job_or&version=4").status_code == 404
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

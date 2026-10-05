@@ -1766,6 +1766,51 @@ async function imprimerVersion() {
     + `${r.dossier}` + (r.avertissement ? ` — ${r.avertissement}` : "") + " — « Ouvrir dans le slicer » ensuite");
 }
 
+/* ── L'ORIENTATION AUTOMATIQUE (tâche T092, plan-etabli T19) ───────────────
+   On PROPOSE, l'assise applique. Le bouton n'écrit jamais rien lui-même :
+   c'est `ecrireSeule("assise", …)`, éprouvé depuis le lot B, qui le fait
+   quand l'utilisateur a CHOISI — avec la `rotation` rendue telle quelle (la
+   normale que l'assise amène vers le bas). Trois propositions et pas une :
+   une seule aurait l'air d'une réponse. Les surfaces se disent en PART de la
+   surface du modèle : une aire en millimètres carrés demanderait une seconde
+   conversion par l'échelle, et la page n'en a qu'une. */
+const pourCent = (x) => `${Math.round(100 * x)} %`;
+async function proposerOrientation() {
+  if (!S.a || !S.a.job || !S.a.version) {
+    direRefus("aucune version chargée — l'orientation se calcule sur une version écrite");
+    return;
+  }
+  let d;
+  try {
+    d = await jget(`/api/etabli/orienter?job=${encodeURIComponent(S.a.job)}&version=${S.a.version}`);
+  } catch (e) { direRefus(`orientation refusée : ${e.message}`); return; }
+  const lignes = d.candidats.map((c, k) => `
+    <button class="orient-choix" data-orient="${k}">pose ${k + 1} — appui ${pourCent(c.part_contact)} · `
+    + `surplomb ${pourCent(c.part_surplomb)} · hauteur ${esc(fmtMesure(c.hauteur))} ${esc(uniteCourante())}</button>`)
+    .join("");
+  const zone = document.createElement("div");
+  zone.className = "orient";
+  zone.innerHTML = `<div class="dt-label">Orientations proposées</div>${lignes}<p class="note"></p>`;
+  zone.querySelector(".note").textContent = d.avertissement;
+  const box = $("#panFiche");
+  const vieux = box.querySelector(".orient");
+  if (vieux) vieux.remove();
+  box.appendChild(zone);
+  montrerOnglet("fiche");
+  zone.querySelectorAll("[data-orient]").forEach((b) => {
+    b.addEventListener("click", async () => {
+      const k = Number(b.dataset.orient);
+      const c = d.candidats[k];
+      const bilan = await ecrireSeule("assise", { normale: c.rotation, point: null });
+      if (bilan) {
+        direAvis(`posé sur la pose ${k + 1} (version ${bilan.derniere.version}) — appui `
+          + `${pourCent(c.part_contact)}, surplomb ${pourCent(c.part_surplomb)}`);
+      }
+    });
+  });
+  direAvis(`${d.candidats.length} pose(s) proposée(s), la meilleure d'abord — ${d.avertissement}`);
+}
+
 async function ouvrirDansSlicer() {
   if (!IMPRESSION) { direRefus("exporte d'abord la version (→ Impression 3D)"); return; }
   try {
@@ -1838,6 +1883,10 @@ function majOutils() {
   tr.title = `Aperçu de tranchage INDICATIF : ${NB_TRANCHES} sections du modèle assemblé, tracées en bleu — `
     + "pas de G-code, pas de support ; le slicer tranche pour de vrai";
   tr.classList.toggle("actif", TRANCHES.actives);
+  const o = $("#btnOrienter");
+  o.textContent = "Orienter";
+  o.title = "Propose trois poses classées (appui, surplomb, hauteur) dans l'onglet Fiche — rien n'est écrit tant "
+    + "que tu n'en choisis pas une, et c'est l'assise qui l'applique";
   const r = $("#btnArranger");
   r.textContent = "Ranger sur le plateau";
   r.title = "Sur la plaque, sous une taille cible : range les pièces sur le plateau de l'imprimante active — "
@@ -2259,6 +2308,7 @@ function basculerAide() {
 }
 $("#btnAide").addEventListener("click", basculerAide);
 $("#btnImprimer").addEventListener("click", imprimerVersion);
+$("#btnOrienter").addEventListener("click", proposerOrientation);
 $("#btnSlicer").addEventListener("click", ouvrirDansSlicer);
 $("#btnCouteauManip").addEventListener("click", () => {
   COUTEAU.manip = COUTEAU.manip === "translate" ? "rotate" : "translate";
@@ -3883,6 +3933,12 @@ $("#vueA canvas").addEventListener("lib3d:graduation", (ev) => {
 const PANNEAUX = { parties: "#panParties", rig: "#panRig",
                    fiche: "#panFiche", export: "#panExport" };
 const ONGLETS = [...document.querySelectorAll(".onglets .on")];
+/* Ouvre un onglet par sa clé, comme le clic : pour qu'une proposition écrite
+   dans un panneau caché ne soit pas lue par personne (T092). */
+function montrerOnglet(cle) {
+  const b = ONGLETS.find((o) => o.dataset.onglet === cle);
+  if (b) b.click();
+}
 ONGLETS.forEach((b) => b.addEventListener("click", () => {
   for (const [cle, sel] of Object.entries(PANNEAUX)) {
     $(sel).classList.toggle("hidden", cle !== b.dataset.onglet);

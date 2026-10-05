@@ -51,6 +51,17 @@ if __name__ == "__main__":
                   r["ferme_apres"])
         else:
             print("modele reel absent : saute")
+    elif quoi == "orienter":
+        from app.services import orient
+        data = tore()
+        r = chrono("orienter tore 100k", lambda: orient.candidats(data, None))
+        print(f"   -> meilleure pose {r['candidats'][0]['bas']}, score {r['candidats'][0]['score']}")
+        if REEL.is_file():
+            brut = REEL.read_bytes()
+            r = chrono("orienter reel", lambda: orient.candidats(brut, None))
+            print(f"   -> meilleure pose {r['candidats'][0]['bas']}, appui {r['candidats'][0]['part_contact']:.1%}")
+        else:
+            print("modele reel absent : saute")
     elif quoi == "tranches":
         from app.services import mesh_slice
         data = tore()

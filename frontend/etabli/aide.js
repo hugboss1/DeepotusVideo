@@ -56,7 +56,7 @@ export function ouvrirAide(hote, esc) {
       <li>Pose une taille cible (rail de droite) : sans elle, aucun millimètre.</li>
       <li>Choisis l'imprimante : le contour vert est son plateau, le rouge la zone exclue.</li>
       <li>Répare en un clic (onglet Fiche), lis le détail dans la barre du bas.</li>
-      <li>Pose sur une face (F), puis « écrire la version ».</li>
+      <li>Pose sur une face (F), puis « écrire la version » — ou laisse « Orienter » proposer, et REGARDE la proposition.</li>
       <li>Regarde les Surplombs (orange) et les Tranches : tourne jusqu'à ce que l'orange recule.</li>
       <li>Creuse si c'est utile (surtout en résine), paroi de 2 mm pour commencer.</li>
       <li>Range sur le plateau (Sur la plaque) : une vue, le modèle ne bouge pas.</li>

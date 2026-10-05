@@ -14147,6 +14147,21 @@ async def etabli_ranger(body: dict):
         raise HTTPException(400, str(e))
 
 
+@router.get("/etabli/orienter")
+async def etabli_orienter(job: str, version: int = 1):
+    """L'ORIENTATION AUTOMATIQUE (tâche T092, plan-etabli T19) : PROPOSE trois poses classées. AUCUNE ÉCRITURE — c'est
+    un avis, et le wiki d'OrcaSlicer dit du sien qu'il ne trouve pas toujours la meilleure pose. La pose choisie
+    s'applique par `POST /etabli/assise`, avec la `rotation` rendue telle quelle."""
+    from app.services import orient
+    _j, data, _d = _etabli_glb_cible(job, version, "orientation")
+    try:
+        r = await asyncio.to_thread(orient.candidats, data, None)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {**r, "avertissement": "Une orientation calculée ne trouve pas toujours la meilleure pose : regarde la "
+                                  "proposition avant de l'appliquer — aucun score ne sait quelle face tu veux voir belle."}
+
+
 @router.post("/etabli/tranches")
 async def etabli_tranches(body: dict):
     """L'APERÇU DE TRANCHAGE INDICATIF (tâche T091, plan-etabli T16) : les sections d'une version à `nombre` hauteurs
