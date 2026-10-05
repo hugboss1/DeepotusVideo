@@ -8,7 +8,7 @@
 import * as THREE from "three";
 import { creerCanevas, charger, cadrer, vider, projeter, orienter, cadreOrtho,
          aspectDe, echelleMm, marquerAuRepere, montrerRepere, dessinerRegles,
-         effacerRegles, dessinerContourPlateau }
+         effacerRegles, dessinerContourPlateau, dessinerTranches }
   from "/lib3d/viewer.js";
 import { indexerNoeuds, inventaire, isoler, surligner, designerAuClic,
          TOLERANCE_CLIC }
@@ -20,6 +20,7 @@ import { etaler, ranger, estEtalee, montrerPiece, boiteModele, plateauDe,
   from "/lib3d/plaque.js";
 import { TransformControls } from "three/addons/controls/TransformControls.js";
 import { angleDeFaces, composantes } from "/lib3d/mesure.js";
+import { peindreSurplombs } from "/lib3d/surplomb.js";
 
 const $ = (s) => document.querySelector(s);
 
@@ -134,6 +135,16 @@ const PROFIL = { liste: [], actif: null, slicer: null, erreur: "" };
    l'épingle par comptage des écouteurs. (Même règle que pour S : toute clé
    se déclare ICI.) */
 const GESTE = { mode: "selection", enCours: null };
+/* Les deux APERÇUS (tâche T091, plan-etabli T16) : des regards, jamais des
+   écritures. Ils s'éteignent à chaque chargement (eteindreApercus) — un calque
+   peint sur le modèle sortant serait un mensonge sur le modèle entrant. */
+const SURPLOMB = { actif: false };
+const TRANCHES = { actives: false };
+/* 45° depuis l'horizontale : la borne « imprimable sans support » courante
+   (Prusa la place entre 45 et 60°) ; on ne prétend pas choisir à la place du
+   slicer, on montre ce qui est SOUS la plus prudente. */
+const SEUIL_SURPLOMB = 45;
+const NB_TRANCHES = 20;
 const MODES_GESTE = ["selection", "glisser", "assise", "couteau", "mesure"];
 
 /* La clé interne d'une granularité et son LIBELLÉ ne sont pas la même chose.
@@ -423,6 +434,9 @@ async function _ouvrirPrincipale(cible, numero) {
      qu'il est sur le disque. Une plaque est la vue D'UN modèle ; l'autre
      modèle demande un clic. */
   oublierPlaque();
+  /* Et les APERÇUS s'éteignent : un calque ou des sections du modèle sortant
+     resteraient dans la scène, que vider() ne touche pas. */
+  eteindreApercus();
   /* Et l'OUTIL armé se range — le couteau tient un plan dans la scène et des
      clones des maillages sortants, que vider() ne connaît pas. */
   armerGeste("selection");
@@ -1249,6 +1263,7 @@ function graduerPlateau() {
   dessinerRegles(S.vueA, PLQ.active ? plateauDe(S.vueA) : null,
                  fmtMesure, uniteCourante());
   lirePieceCourante();
+  apercusSurLaPlaque();
 }
 
 /* LE PLATEAU RÉEL sur la plaque (tâche #88 PR B, plan-etabli T4) : le contour de
@@ -1630,6 +1645,90 @@ function toucheClavierPlaque(ev) {
 }
 document.addEventListener("keydown", toucheClavierPlaque);
 
+/* ── LES DEUX APERÇUS (tâche T091, plan-etabli T16) ─────────────────────────
+   HORS de la section plaque, et c'est voulu : celle-ci ne cite jamais la file
+   d'écriture (un banc l'épingle), alors que les tranches la consultent pour
+   refuser une lecture du fichier quand la file n'est pas encore écrite. */
+
+/* Appelée par graduerPlateau(), donc à chaque entrée et sortie de la plaque. */
+function apercusSurLaPlaque() {
+  /* Entrer sur la plaque ou en sortir change l'axe haut (le calque se repeint)
+     et déplace les pièces : les sections, lues sur le fichier ASSEMBLÉ,
+     tomberaient à côté — elles s'éteignent plutôt que de mentir. */
+  if (SURPLOMB.actif) peindreSurplombs(S.vueA, SEUIL_SURPLOMB, axeHautImpression());
+  if (TRANCHES.actives && PLQ.active) {
+    TRANCHES.actives = false;
+    dessinerTranches(S.vueA, null);
+    majOutils();
+  }
+}
+
+/* L'AXE HAUT DE L'IMPRESSION, et il n'est pas toujours +Y. Sur la plaque, c'est
+   l'axe d'empilement que plaque.js a choisi et qui porte le plateau ; hors
+   plaque, glTF pose +Y vers le ciel et l'export STL fait de même. Deviner
+   autrement peindrait tout un modèle en orange sur un simple changement de vue. */
+function axeHautImpression() {
+  const g = PLQ.active ? plateauDe(S.vueA) : null;
+  if (!g) return { x: 0, y: 1, z: 0 };
+  return { x: g.axe === "x" ? 1 : 0, y: g.axe === "y" ? 1 : 0, z: g.axe === "z" ? 1 : 0 };
+}
+
+/* Les deux aperçus s'éteignent ensemble, d'UN site : au chargement d'un modèle. */
+function eteindreApercus() {
+  SURPLOMB.actif = false;
+  TRANCHES.actives = false;
+  peindreSurplombs(S.vueA, 0, null);
+  dessinerTranches(S.vueA, null);
+  majOutils();
+}
+
+/* LES SURPLOMBS, peints sur ce qui est AFFICHÉ (la plaque comprise) : le calcul
+   est dans la page, sur les triangles à l'écran, dans l'axe du plateau. */
+function basculerSurplombs() {
+  if (!S.vueA || !S.a) { direRefus("aucun modèle à l'écran"); return; }
+  SURPLOMB.actif = !SURPLOMB.actif;
+  const r = peindreSurplombs(S.vueA, SURPLOMB.actif ? SEUIL_SURPLOMB : 0, axeHautImpression());
+  majOutils();
+  if (!SURPLOMB.actif) { direAvis("surplombs éteints"); return; }
+  if (!r) { SURPLOMB.actif = false; majOutils(); direRefus("aucun modèle à l'écran"); return; }
+  direAvis(`${r.triangles} triangle(s) sous ${SEUIL_SURPLOMB}° sur ${r.vus} — `
+    + (r.triangles
+      ? "tourne la pièce jusqu'à ce que l'orange recule, ou laisse le slicer poser des supports"
+      : "rien à supporter dans cette pose"));
+}
+
+/* LES TRANCHES : lues par le serveur sur la VERSION écrite, donc dans le monde
+   du modèle ASSEMBLÉ — d'où les deux refus : sur la plaque les pièces sont
+   ailleurs, et une file non écrite n'est pas encore dans le fichier. */
+async function basculerTranches() {
+  if (TRANCHES.actives) {
+    TRANCHES.actives = false;
+    dessinerTranches(S.vueA, null);
+    majOutils();
+    direAvis("aperçu de tranchage éteint");
+    return;
+  }
+  if (!S.a || !S.a.job || !S.a.version) { direRefus("aucune version chargée — l'aperçu lit une version écrite"); return; }
+  if (PLQ.active) { direRefus("repasse en « Assemblé » — les tranches se lisent sur le modèle tel qu'il est écrit"); return; }
+  if (S.enAttente.length) {
+    direRefus(`${S.enAttente.length} modification(s) en attente — écris-les d'abord : l'aperçu lit le fichier`);
+    return;
+  }
+  const axe = axeHautImpression();
+  let d;
+  try {
+    d = await jpost("/api/etabli/tranches", { job: S.a.job, version: S.a.version,
+      axe: axe.x ? "x" : axe.z ? "z" : "y", nombre: NB_TRANCHES });
+  } catch (e) { direRefus(`aperçu de tranchage refusé : ${e.message}`); return; }
+  TRANCHES.actives = true;
+  const r = dessinerTranches(S.vueA, d.couches);
+  majOutils();
+  const plus = d.couches.reduce((m, c) => (c.perimetre > m.perimetre ? c : m), d.couches[0]);
+  direAvis(`${NB_TRANCHES} couches indicatives, ${r ? r.segments : 0} segments — `
+    + `la plus longue à ${fmtMesure(plus.z - d.z_min)} ${uniteCourante()} du bas `
+    + `(${fmtMesure(plus.perimetre)} ${uniteCourante()} de contour). Aperçu seulement : le slicer tranche pour de vrai.`);
+}
+
 
 /* ── le propriétaire du pointeur, et les deux outils qui ÉCRIVENT ───────────
    Lot B de la plaque façon slicer : « poser sur une face » et le couteau. Les
@@ -1684,6 +1783,16 @@ function majOutils() {
   m.textContent = GESTE.mode === "mesure" ? "Mesurer : deux clics (Échap)" : "Mesurer";
   m.title = "Deux clics sur le modèle : distance, composantes x/y/z et angle des deux faces";
   m.classList.toggle("actif", GESTE.mode === "mesure");
+  const sp = $("#btnSurplombs");
+  sp.textContent = SURPLOMB.actif ? "Surplombs ✓" : "Surplombs";
+  sp.title = `Peint en orange les faces sous ${SEUIL_SURPLOMB}° depuis l'horizontale (dans l'axe du plateau `
+    + "sur la plaque) — là où le slicer devra poser un support. Un regard : rien n'est écrit";
+  sp.classList.toggle("actif", SURPLOMB.actif);
+  const tr = $("#btnTranches");
+  tr.textContent = TRANCHES.actives ? "Tranches ✓" : "Tranches";
+  tr.title = `Aperçu de tranchage INDICATIF : ${NB_TRANCHES} sections du modèle assemblé, tracées en bleu — `
+    + "pas de G-code, pas de support ; le slicer tranche pour de vrai";
+  tr.classList.toggle("actif", TRANCHES.actives);
   const r = $("#btnArranger");
   r.textContent = "Ranger sur le plateau";
   r.title = "Sur la plaque, sous une taille cible : range les pièces sur le plateau de l'imprimante active — "
@@ -2093,6 +2202,8 @@ $("#btnAssise").addEventListener("click", armerAssise);
 $("#btnCouteau").addEventListener("click", armerCouteau);
 $("#btnMesure").addEventListener("click", () => armerGeste(GESTE.mode === "mesure" ? "selection" : "mesure"));
 $("#btnArranger").addEventListener("click", arrangerPlaque);
+$("#btnSurplombs").addEventListener("click", basculerSurplombs);
+$("#btnTranches").addEventListener("click", basculerTranches);
 $("#btnCouteauManip").addEventListener("click", () => {
   COUTEAU.manip = COUTEAU.manip === "translate" ? "rotate" : "translate";
   if (GIZMO && GESTE.mode === "couteau") {

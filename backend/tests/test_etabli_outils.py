@@ -1064,5 +1064,64 @@ def test_il_n_y_a_plus_qu_UN_lecteur_d_accesseur_dans_le_depot():
     porteurs = sorted(p.name for p in services.glob("*.py") if "byteStride" in p.read_text("utf-8"))
     assert porteurs == ["mesh_edit.py"], porteurs
 
+
+# ── T091 / plan T16 : l'aperçu de tranchage INDICATIF ──────────────────────────
+def test_trancher_un_cube_donne_des_sections_carrees_et_un_perimetre_juste():
+    from app.services import mesh_slice
+    r = mesh_slice.trancher(_cube(), None, "y", nombre=4)
+    assert len(r["couches"]) == 4
+    assert r["axe"] == "y" and abs(r["hauteur"] - 2.0) < 1e-9 and abs(r["z_min"] + 1.0) < 1e-9
+    for c in r["couches"]:
+        # le cube du dépôt a une arête de 2 : chaque section est un carré 2x2
+        assert abs(c["perimetre"] - 8.0) < 1e-6, c
+        assert len(c["segments"]) >= 4
+        for (a, b) in c["segments"]:
+            assert abs(a[1] - c["z"]) < 1e-9 and abs(b[1] - c["z"]) < 1e-9
+    # les couches montent, au MILIEU de chaque tranche, et aucune ne touche les faces extrêmes
+    zs = [c["z"] for c in r["couches"]]
+    assert zs == [-0.75, -0.25, 0.25, 0.75]
+
+
+def test_trancher_suit_l_AXE_demande_et_la_matrice_MONDE_du_noeud():
+    """Le cube posé par un nœud translaté de +10 en x : sur l'axe x, les couches vivent entre 9 et 11."""
+    from app.services import mesh_edit, mesh_slice
+    doc, binc = mesh_edit.lire_glb(_cube())
+    for nd in doc["nodes"]:
+        if "mesh" in nd:
+            nd["translation"] = [10.0, 0.0, 0.0]
+    r = mesh_slice.trancher(mesh_edit.ecrire_glb(doc, binc), None, "x", nombre=2)
+    assert abs(r["z_min"] - 9.0) < 1e-9 and [c["z"] for c in r["couches"]] == [9.5, 10.5]
+    assert all(abs(c["perimetre"] - 8.0) < 1e-6 for c in r["couches"])
+
+
+def test_trancher_refuse_ce_qu_il_ne_sait_pas_lire_et_borne_son_travail():
+    from app.services import mesh_edit, mesh_slice
+    with pytest.raises(ValueError, match="axe"):
+        mesh_slice.trancher(_cube(), None, "w", nombre=4)
+    for n in (0, -3, 501, 2.5, True):
+        with pytest.raises(ValueError, match="couches"):
+            mesh_slice.trancher(_cube(), None, "y", nombre=n)
+    doc, binc = mesh_edit.lire_glb(_cube())
+    doc["extensionsRequired"] = ["KHR_draco_mesh_compression"]
+    with pytest.raises(ValueError, match="draco"):
+        mesh_slice.trancher(mesh_edit.ecrire_glb(doc, binc), None, "y", nombre=4)
+    with pytest.raises(ValueError, match="aucun triangle"):
+        mesh_slice.trancher(_cube(), [999], "y", nombre=4)
+
+
+def test_la_route_tranches_ne_touche_pas_au_disque_et_juge_son_corps():
+    d = _job("job_tr", _cube())
+    with _client() as c:
+        r = c.post("/api/etabli/tranches", json={"job": "job_tr", "version": 1, "axe": "y", "nombre": 6})
+        assert r.status_code == 200, r.text
+        assert len(r.json()["couches"]) == 6
+        assert sorted(p.name for p in d.iterdir()) == ["model.glb"], "AUCUNE version, aucune fiche écrite"
+        for corps in ({"axe": "w", "nombre": 6}, {"axe": "y", "nombre": 0}, {"axe": "y", "nombre": 5000},
+                      {"axe": "y", "nombre": "6"}, {"axe": "y", "nombre": True}, {"axe": "y", "noeuds": [-1]},
+                      {"axe": "y", "noeuds": "0"}):
+            assert c.post("/api/etabli/tranches",
+                          json={"job": "job_tr", "version": 1, **corps}).status_code == 400, corps
+        assert c.post("/api/etabli/tranches", json={"job": "job_tr", "version": 7}).status_code == 404
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))
