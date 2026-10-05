@@ -313,7 +313,7 @@ function rotationDe(api, cle) { return PIECES[cle].rot; }
 function poserAngle(api, cle, d) { const p = PIECES[cle]; if (Math.round((d - p.rot) / 90) % 2) { const t = p.l; p.l = p.p; p.p = t; }
   p.rot = d; APPELS.push(["angle", cle, d]); return true; }
 function poserCoin(api, cle, u, v) { PIECES[cle].u = u; PIECES[cle].v = v; APPELS.push(["coin", cle, +u.toFixed(6), +v.toFixed(6)]); return true; }
-function marquerPiece() {} function rendreRotation() {} function noterPlan() { APPELS.push(["plan"]); }
+function marquerPiece() {} function rendreRotation() {} function lirePieceCourante() {} function noterPlan() { APPELS.push(["plan"]); }
 function contourPlateau() { APPELS.push(["contour", PLQ.plateaux]); return { decalages: Array.from({ length: PLQ.plateaux }, (_, k) => k * 12.5) }; }
 let REPONSE = null;
 async function jpost(p, c) { APPELS.push(["post", p, JSON.parse(JSON.stringify(c))]); if (REPONSE instanceof Error) throw REPONSE; return REPONSE; }
@@ -657,7 +657,8 @@ def test_la_lecture_du_glisser_est_relative_au_COIN_du_plateau_EXECUTEE():
       const fmtMesure = (v) => (v * REP.echelle).toFixed(2);
       const PLQ = { active: true, courante: 7, pieces: [{ cle: 7, nom: "cadre" }] };
       const S = { vueA: {} };
-      const plateauDe = () => ({ u: "x", v: "z", axe: "y", coin: { x: -5, z: -5 } });
+      let SENS = { u: 1, v: 1 };
+      const plateauDe = () => ({ u: "x", v: "z", axe: "y", coin: { x: -5, z: SENS.v > 0 ? -5 : 5 }, sens: SENS });
       const empreinteDe = () => ({ u: -3, v: -1, l: 2, p: 4 });
       const rotationDe = () => 90;
       const box = { textContent: "x" };
@@ -668,6 +669,9 @@ def test_la_lecture_du_glisser_est_relative_au_COIN_du_plateau_EXECUTEE():
       PLQ.courante = null; lirePieceCourante(); r.push(box.textContent);
       PLQ.courante = 9; lirePieceCourante(); r.push(box.textContent);
       PLQ.active = false; PLQ.courante = 7; lirePieceCourante(); r.push(box.textContent);
+      // l'axe v des règles DÉCROÎT depuis le coin (z = +5) : la lecture est sens·(p − coin), et le point de la
+      // pièce le plus proche du zéro des règles est son bord HAUT (v + p = 3) → 5 − 3 = 2 u → 20,00 mm
+      PLQ.active = true; SENS = { u: 1, v: -1 }; lirePieceCourante(); r.push(box.textContent);
       console.log(JSON.stringify(r));
     """
     r = json.loads(_node(src))
@@ -677,6 +681,8 @@ def test_la_lecture_du_glisser_est_relative_au_COIN_du_plateau_EXECUTEE():
     assert r[1] == "", "aucune pièce courante : la ligne se VIDE (elle ne garde pas la pièce d'avant)"
     assert r[2].startswith("pièce 9"), "une clé sans nom se dit par sa clé"
     assert r[3] == "", "hors plaque, la ligne se vide"
+    assert "coin 20.00 ; 20.00" in r[4], ("le SENS des règles compte (preuve 8799 : −0,630 lu sur un axe "
+                                          "décroissant)", r[4])
 
 
 def test_la_lecture_du_glisser_ne_redessine_PAS_le_rail_a_chaque_image():
@@ -690,6 +696,10 @@ def test_la_lecture_du_glisser_ne_redessine_PAS_le_rail_a_chaque_image():
     assert glisse.index("rendreRotation();") < glisse.index("lirePieceCourante()")
     # les autres sites : le clavier, le panneau (qui recrée la ligne), les règles, le repère (l'unité change)
     assert "lirePieceCourante()" in _fonction_etabli("toucheClavierPlaque")
+    # TOUT geste qui pose une pièce relit la ligne — le plan ne listait ni le rangement ni la saisie en degrés,
+    # et la preuve 8799 a montré une cote figée après « Ranger sur le plateau »
+    for f in (_fonction_etabli_async("arrangerPlaque"), _fonction_etabli("poserRotation")):
+        assert f.index("rendreRotation();") < f.index("lirePieceCourante();")
     parties = _fonction_etabli("rendreParties")
     # le panneau RECRÉE la ligne vide, puis la refait par lireRepere() — sa dernière instruction
     assert 'id="plaqueLecture"' in parties and parties.rstrip()[:-1].rstrip().endswith("lireRepere();")
@@ -719,6 +729,7 @@ def test_assise_et_recentrer_dans_la_MEME_file_sont_refuses_en_le_disant():
     assert r[0] is None and r[1] is None and r[2] is None and r[4] is None
     assert isinstance(r[3], str)
     assert "recentr" in r[3] and "face" in r[3]
+    assert r[3].startswith("« recentrer » défait"), "le geste d'abord : la barre coupe la fin de la phrase"
 
 
 def test_la_barre_dit_la_contradiction_et_le_bouton_d_ecriture_se_grise():
@@ -729,7 +740,7 @@ def test_la_barre_dit_la_contradiction_et_le_bouton_d_ecriture_se_grise():
     assert '<button id="btnEcrire"${_ecritEnCours || contra ? " disabled" : ""}>' in barre
     assert '<button id="btnAnnuler"${_ecritEnCours ? " disabled" : ""}>' in barre
     # le texte entre en textContent, jamais dans le gabarit
-    assert ".attente-refus\").textContent = contra" in barre
+    assert "r.textContent = contra;" in barre and "r.title = contra;" in barre
     ecrit = _fonction_etabli_async("ecrireVersion")
     assert ecrit.index("contradictionDeLaFile()") < ecrit.index("_ecritEnCours = true")
     assert ".attente-refus" in _lire("etabli/etabli.css")

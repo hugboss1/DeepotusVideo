@@ -1341,6 +1341,7 @@ async function arrangerPlaque() {
   });
   marquerPiece(S.vueA, PLQ.courante);
   rendreRotation();
+  lirePieceCourante();
   noterPlan();
   direAvis(`rangé : ${d.plateaux.length} plateau(x), occupation `
     + d.taux.map((t) => `${Math.round(t * 100)} %`).join(" · ")
@@ -1463,8 +1464,11 @@ function lirePieceCourante() {
   const g = !PLQ.active || cle === null ? null : plateauDe(S.vueA);
   const emp = g ? empreinteDe(S.vueA, cle) : null;
   if (!emp) { box.textContent = ""; return; }
-  const u = emp.u - g.coin[g.u];
-  const v = emp.v - g.coin[g.v];
+  /* La règle lit sens·(p − coin) (geometriePlateau) : sur un axe qui DÉCROÎT
+     depuis le coin, le bord de la pièce le plus proche du zéro est son bord
+     haut — la même pose que celle d'arrangerPlaque, lue à l'envers. */
+  const u = g.sens.u > 0 ? emp.u - g.coin[g.u] : g.coin[g.u] - emp.u - emp.l;
+  const v = g.sens.v > 0 ? emp.v - g.coin[g.v] : g.coin[g.v] - emp.v - emp.p;
   box.textContent = `${nomDePiece(cle)} · coin ${fmtMesure(u)} ; ${fmtMesure(v)}`
     + ` · ${fmtMesure(emp.l)} × ${fmtMesure(emp.p)} ${uniteCourante()}`
     + ` · ${Number(rotationDe(S.vueA, cle) || 0).toFixed(0)}°`;
@@ -1495,6 +1499,7 @@ function poserRotation(brut) {
   marquerPiece(S.vueA, PLQ.courante);
   noterPlan();
   rendreRotation();
+  lirePieceCourante();
   direGeometrie();
   return true;
 }
@@ -2664,9 +2669,10 @@ function contradictionDeLaFile() {
   const r = S.enAttente.some((t) => t.operation === "reparer"
     && t.charge && t.charge.recentrer);
   if (!a || !r) return null;
-  return "« posé sur une face » et « recentrer sur l'origine » se contredisent :"
-    + " le recentrage est écrit APRÈS l'assise et la défait. Décoche"
-    + " « recentrer », ou annule l'assise.";
+  /* LE GESTE D'ABORD : la barre coupe à sa largeur (preuve 8799 : « « posé … »
+     seul restait lisible) ; la phrase entière vit dans le `title`. */
+  return "« recentrer » défait « posé sur une face » : décoche « recentrer »"
+    + " ou annule l'assise — le recentrage est écrit APRÈS l'assise.";
 }
 
 /* La barre ÉNUMÈRE, elle ne se contente pas de compter : c'est ce détail qui
@@ -2784,7 +2790,11 @@ function rendreAttente() {
     <span class="attente-liste" title="ordre d'écriture imposé : déplacer, puis poser sur une face, puis réparer, puis séparer — le déplacement rend au fichier le monde affiché, l'assise y est mesurée, l'extraction renumérote les nœuds">${esc(liste)}</span>${doute}${refus}
     <button id="btnEcrire"${_ecritEnCours || contra ? " disabled" : ""}>écrire la version</button>
     <button id="btnAnnuler"${_ecritEnCours ? " disabled" : ""}>annuler</button>`;
-  if (contra) $("#barreAttente .attente-refus").textContent = contra;
+  if (contra) {
+    const r = $("#barreAttente .attente-refus");
+    r.textContent = contra;
+    r.title = contra;
+  }
   $("#btnEcrire").addEventListener("click", ecrireVersion);
   $("#btnAnnuler").addEventListener("click", () => {
     S.enAttente.length = 0;
