@@ -872,5 +872,53 @@ def test_les_libelles_des_deux_apercus_disent_leur_ETAT():
     assert 'SURPLOMB.actif ? "Surplombs ✓" : "Surplombs"' in m
     assert 'TRANCHES.actives ? "Tranches ✓" : "Tranches"' in m
 
+
+# ── T091 : « → Impression 3D » dans l'Établi, sur la version AFFICHÉE ──────────
+def test_l_etabli_imprime_la_version_AFFICHEE_sous_une_taille_cible_EXECUTEE():
+    corps = _fonction_etabli_async("imprimerVersion")
+    src = """
+      const REFUS = [], AVIS = [], POSTS = [];
+      const direRefus = (m) => REFUS.push(m);
+      const direAvis = (m) => AVIS.push(m);
+      let REPONSE = { dossier: "cube-20261005", triangles: 24, avertissement: null };
+      const jpost = async (u, b) => { POSTS.push([u, b]); return REPONSE; };
+      const REP = { cibleMm: null };
+      const enMillimetres = () => REP.cibleMm !== null;
+      const S = { a: null, enAttente: [] };
+      let IMPRESSION = null;
+    """ + corps + """
+      (async () => {
+        const r = [];
+        await imprimerVersion(); r.push(REFUS.length);                                  // rien de chargé
+        S.a = { job: null, meshy: "t1", version: null };
+        await imprimerVersion(); r.push(REFUS.length);                                  // une tâche Meshy non adoptée
+        S.a = { job: "job_x", version: 3 };
+        await imprimerVersion(); r.push(REFUS.length);                                  // pas de taille cible
+        REP.cibleMm = 80; S.enAttente = [{ operation: "assise" }];
+        await imprimerVersion(); r.push(REFUS.length);                                  // file non écrite
+        S.enAttente = [];
+        await imprimerVersion();
+        console.log(JSON.stringify({ r, refus: REFUS, posts: POSTS, avis: AVIS, imp: IMPRESSION }));
+      })();
+    """
+    o = json.loads(_node(src))
+    assert o["r"] == [1, 2, 3, 4]
+    assert "taille cible" in o["refus"][2] and "attente" in o["refus"][3]
+    assert o["posts"] == [["/api/print3d/from-assets3d/job_x", {"version": 3, "cible_millimetres": 80, "nom": "job_x-v3"}]]
+    assert "version 3" in o["avis"][0] and "24 triangles" in o["avis"][0]
+    assert o["imp"] == "cube-20261005", "le DOSSIER retenu pour « Ouvrir dans le slicer »"
+
+
+def test_le_bouton_d_impression_et_l_ouverture_dans_le_slicer_sont_branches():
+    html = _lire("etabli/index.html")
+    assert '<button id="btnImprimer"' in html and '<button id="btnSlicer"' in html
+    js = _lire("etabli/etabli.js")
+    assert '$("#btnImprimer").addEventListener("click", imprimerVersion);' in js
+    assert '$("#btnSlicer").addEventListener("click", ouvrirDansSlicer);' in js
+    o = _fonction_etabli_async("ouvrirDansSlicer")
+    assert '"/api/print3d/open"' in o and "{ dossier: IMPRESSION }" in o
+    # l'export n'écrit AUCUNE version : il n'entre pas dans la table des écritures
+    assert "print3d" not in _objet_etabli("ROUTES")
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

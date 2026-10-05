@@ -12971,19 +12971,37 @@ def _print3d_base() -> Path:
 
 @router.post("/print3d/from-assets3d/{job}")
 async def print3d_from_assets3d(job: str, body: dict):
-    """Body: {cible_mm?, nom?} — convertit le maillage d'un job Game
+    """Body: {cible_mm?, nom?, version?} — convertit le maillage d'un job Game
     Assets 3D en dossier d'impression (STL + 3MF aux mm). Préfère le
     `model.stl` du moteur quand il existe (zéro conversion = zéro risque),
-    sinon lit `model.glb` ; `model.opt.glb` SEUL → 409 parlant (meshopt)."""
+    sinon lit `model.glb` ; `model.opt.glb` SEUL → 409 parlant (meshopt).
+
+    `version` ≥ 2 (tâche T091, décision de l'utilisateur du 05/10) : lit la
+    version écrite par l'Établi, `model.v<n>.glb` — et JAMAIS `model.stl`, qui
+    est le maillage du MOTEUR, donc du brouillon. Sans ce branchement, réparer,
+    poser ou creuser dans l'Établi n'arrivait pas au slicer. Absent ou 1 : le
+    contrat d'avant, inchangé (le menu « Envoyer vers » n'envoie pas de version
+    et masque l'impression des versions — voir `imprimable`)."""
     from app.services import print3d as P3
     d = settings.outputs_path / "assets3d" / Path(job).name
     if not d.is_dir():
         raise HTTPException(404, f"Job 3D introuvable: {job}")
-    cible = body.get("cible_mm")
+    # `cible_millimetres` : le même champ en toutes lettres, pour l'Établi, dont
+    # un banc interdit l'abréviation hors de uniteCourante() (cf. paroi_millimetres)
+    cible = body.get("cible_mm", body.get("cible_millimetres"))
     cible = float(cible) if cible not in (None, "") else None
     nom = str(body.get("nom") or Path(job).name).strip()[:80]
+    version = body.get("version", 1)
+    if not _etabli_entier(version) or version < 1:
+        raise HTTPException(400, f"impression : version « {version} » — un entier à partir de 1")
+    source = f"assets3d:{Path(job).name}" + (f":v{version}" if version > 1 else "")
     try:
-        if (d / "model.stl").is_file():
+        if version > 1:
+            fichier = d / f"model.v{version}.glb"
+            if not fichier.is_file():
+                raise HTTPException(404, f"impression : {d.name}/{fichier.name} introuvable")
+            tris = P3.lire_glb_triangles(fichier.read_bytes())
+        elif (d / "model.stl").is_file():
             tris = P3.lire_stl((d / "model.stl").read_bytes())
         elif (d / "model.glb").is_file():
             tris = P3.lire_glb_triangles((d / "model.glb").read_bytes())
@@ -12997,7 +13015,7 @@ async def print3d_from_assets3d(job: str, body: dict):
                 "aucun maillage lisible (model.stl / model.glb) dans ce job")
         export = await asyncio.to_thread(
             P3.creer_export, _print3d_base(), nom, tris, cible,
-            f"assets3d:{Path(job).name}", "inconnue",
+            source, "inconnue",
             profil=await asyncio.to_thread(_print3d_profil))
     except ValueError as e:
         raise HTTPException(409, str(e))
