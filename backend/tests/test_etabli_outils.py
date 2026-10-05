@@ -1252,5 +1252,124 @@ def test_la_route_orienter_PROPOSE_sans_ecrire_et_repete_l_avertissement():
         assert c.get("/api/etabli/orienter?job=job_or&version=0").status_code in (400, 422)
         assert c.get("/api/etabli/orienter?job=job_or&version=4").status_code == 404
 
+
+# ── T092 / plan T18 : les booléens — exacts, coplanaires compris, budget mesuré ──
+def _boite_tris(x0, y0, z0, x1, y1, z1):
+    """Une boîte en triangles monde, normales SORTANTES : les booléens travaillent sur des triangles, pas un GLB."""
+    s = [(x0, y0, z0), (x1, y0, z0), (x1, y1, z0), (x0, y1, z0), (x0, y0, z1), (x1, y0, z1), (x1, y1, z1), (x0, y1, z1)]
+    f = [(0, 2, 1), (0, 3, 2), (4, 5, 6), (4, 6, 7), (0, 1, 5), (0, 5, 4),
+         (1, 2, 6), (1, 6, 5), (2, 3, 7), (2, 7, 6), (3, 0, 4), (3, 4, 7)]
+    return [(s[a], s[b], s[c]) for (a, b, c) in f]
+
+
+def _cube_tris(cx=0.0, cote=2.0):
+    h = cote / 2
+    return _boite_tris(cx - h, -h, -h, cx + h, h, h)
+
+
+def _vol(tris):
+    return sum((a[0] * (b[1] * c[2] - b[2] * c[1]) - a[1] * (b[0] * c[2] - b[2] * c[0])
+                + a[2] * (b[0] * c[1] - b[1] * c[0])) / 6.0 for a, b, c in tris)
+
+
+def _ferme_geometriquement(tris):
+    """Chaque arête, découpée aux sommets qui la touchent, est couverte des deux côtés : on le juge par le flux —
+    la somme des normales pondérées d'une surface fermée est NULLE (et un trou la rend non nulle)."""
+    s = [0.0, 0.0, 0.0]
+    for a, b, c in tris:
+        u = [b[i] - a[i] for i in range(3)]
+        v = [c[i] - a[i] for i in range(3)]
+        n = (u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0])
+        for i in range(3):
+            s[i] += n[i]
+    return max(abs(x) for x in s) < 1e-9
+
+
+def test_les_trois_booleens_donnent_le_VOLUME_attendu_sur_deux_cubes_a_faces_COPLANAIRES():
+    """Deux cubes d'arête 2 décalés de 1 sur x : quatre faces coplanaires qui se recouvrent (y = ±1, z = ±1). Le
+    dessin du plan y gardait les DEUX copies des faces communes : l'union aurait compté leur volume deux fois.
+    Intersection 1 x 2 x 2 = 4, union 12, différence 4 — et une surface fermée."""
+    from app.services import mesh_boolean as MB
+    a, b = _cube_tris(0.0), _cube_tris(1.0)
+    for op, attendu in (("intersection", 4.0), ("union", 12.0), ("difference", 4.0)):
+        r = MB.operer(a, b, op)
+        assert abs(_vol(r) - attendu) < 1e-9, (op, _vol(r))
+        assert _ferme_geometriquement(r), op
+    # la différence n'est PAS commutative : B − A est la moitié de DROITE
+    ba = MB.operer(b, a, "difference")
+    assert abs(_vol(ba) - 4.0) < 1e-9 and min(p[0] for t in ba for p in t) > 0.999
+
+
+def test_un_cube_qui_PERCE_l_autre_et_un_cube_ENFERME():
+    from app.services import mesh_boolean as MB
+    grand = _cube_tris(0.0, 4.0)                                   # volume 64
+    barre = _boite_tris(-3.0, -0.5, -0.5, 3.0, 0.5, 0.5)           # traverse de part en part : 6 x 1 x 1
+    assert abs(_vol(MB.operer(grand, barre, "difference")) - (64 - 4)) < 1e-9     # un tunnel de 4 x 1 x 1
+    assert abs(_vol(MB.operer(grand, barre, "union")) - (64 + 2)) < 1e-9          # dépasse de 1 de chaque côté
+    assert abs(_vol(MB.operer(grand, barre, "intersection")) - 4.0) < 1e-9
+    petit = _cube_tris(0.0, 1.0)                                   # entièrement dedans
+    assert abs(_vol(MB.operer(grand, petit, "difference")) - 63.0) < 1e-9          # une cavité
+    assert abs(_vol(MB.operer(grand, petit, "union")) - 64.0) < 1e-9
+    assert MB.operer(petit, grand, "difference") == []
+
+
+def test_deux_solides_disjoints_ou_qui_se_TOUCHENT_ne_font_pas_semblant():
+    from app.services import mesh_boolean as MB
+    a, loin = _cube_tris(0.0), _cube_tris(10.0)
+    assert abs(_vol(MB.operer(a, loin, "union")) - 16.0) < 1e-9
+    assert MB.operer(a, loin, "intersection") == []
+    assert abs(_vol(MB.operer(a, loin, "difference")) - 8.0) < 1e-9
+    colle = _cube_tris(2.0)                                         # face contre face en x = 1, normales OPPOSÉES
+    assert abs(_vol(MB.operer(a, colle, "union")) - 16.0) < 1e-9
+    assert abs(_vol(MB.operer(a, colle, "difference")) - 8.0) < 1e-9
+    assert abs(_vol(MB.operer(a, colle, "intersection"))) < 1e-9
+
+
+def test_un_operande_RETOURNE_est_remis_a_l_endroit_avant_l_operation():
+    """Mesuré le 06/10 : le tore de test_mesh_optimize a ses normales VERS L'INTÉRIEUR (volume négatif). La parité
+    ne s'en soucie pas, mais le résultat sortirait retourné — et un slicer le lirait à l'envers."""
+    from app.services import mesh_boolean as MB
+    envers = [(t[0], t[2], t[1]) for t in _cube_tris(0.0)]
+    assert _vol(envers) < 0
+    for op, attendu in (("union", 12.0), ("intersection", 4.0), ("difference", 4.0)):
+        assert abs(_vol(MB.operer(envers, _cube_tris(1.0), op)) - attendu) < 1e-9, op
+        assert abs(_vol(MB.operer(_cube_tris(1.0), envers, op)) - attendu) < 1e-9, op
+
+
+def test_le_booleen_refuse_au_dela_de_son_budget_MESURE_et_le_dit():
+    from app.services import mesh_boolean as MB
+    gros = _cube_tris() * (MB.MAX_TRIS // 12 + 2)
+    with pytest.raises(ValueError, match="budget"):
+        MB.operer(gros, _cube_tris(1.0), "union")
+    with pytest.raises(ValueError, match="operation"):
+        MB.operer(_cube_tris(), _cube_tris(1.0), "xor")
+
+
+def _deux_cubes_glb() -> bytes:
+    from app.services import print3d
+    return print3d.glb_de_pieces([("a", _cube_tris(0.0)), ("b", _cube_tris(1.0)), ("socle", _cube_tris(0.0, 0.5))])
+
+
+def test_la_route_booleen_ecrit_une_version_GARDE_les_autres_pieces_et_juge_son_corps():
+    from app.services import print3d
+    d = _job("job_bool", _deux_cubes_glb())
+    with _client() as c:
+        r = c.post("/api/etabli/booleen", json={"job": "job_bool", "version": 1, "a": [0], "b": [1],
+                                                "operation": "union"})
+        assert r.status_code == 200, r.text
+        src = r.json()["source"]
+        assert src["operation"] == "booleen" and src["booleen"] == "union" and src["a"] == [0] and src["b"] == [1]
+        assert src["triangles_a"] == 12 and src["triangles_b"] == 12 and src["triangles"] > 0
+        assert "Réparer en un clic" in src["couture"]
+        sortie = (d / "model.v2.glb").read_bytes()
+        doc = print3d._chunks(sortie)[0]
+        assert [n["name"] for n in doc["nodes"]] == ["union", "socle"], "le résultat, puis les pièces NON touchées"
+        assert abs(_vol(print3d.lire_glb_triangles(sortie, [0])) - 12.0) < 1e-6
+        assert abs(_vol(print3d.lire_glb_triangles(sortie, [1])) - 0.125) < 1e-9
+        for corps in ({"a": [0], "b": [0], "operation": "union"}, {"a": [], "b": [1], "operation": "union"},
+                      {"a": [0], "b": [1], "operation": "xor"}, {"a": [0], "b": "1", "operation": "union"},
+                      {"a": [0], "b": [7], "operation": "union"}):
+            assert c.post("/api/etabli/booleen", json={"job": "job_bool", "version": 1, **corps}).status_code == 400, corps
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))
