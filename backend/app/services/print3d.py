@@ -107,30 +107,16 @@ def _chunks(data: bytes):
     return doc, binc
 
 
-_TAILLE_COMPOSANT = {5120: 1, 5121: 1, 5122: 2, 5123: 2, 5125: 4, 5126: 4}
-_NB_COMPOSANTS = {"SCALAR": 1, "VEC2": 2, "VEC3": 3, "VEC4": 4}
 _FMT = {5123: "H", 5125: "I", 5126: "f"}
 
 
 def _accessor(doc, binc, i):
-    a = doc["accessors"][i]
-    ct, ty = a["componentType"], a["type"]
-    if ct not in _FMT:
-        raise ValueError(f"accessor: componentType {ct} hors périmètre")
-    bv = doc["bufferViews"][a["bufferView"]]
-    buf = doc["buffers"][bv.get("buffer", 0)]
-    if "uri" in buf:
-        raise ValueError("buffer externe (uri) — nos GLB sont monolithiques, "
-                         "hors périmètre")
-    base = bv.get("byteOffset", 0) + a.get("byteOffset", 0)
-    n = _NB_COMPOSANTS[ty]
-    taille = _TAILLE_COMPOSANT[ct] * n
-    stride = bv.get("byteStride") or taille
-    fmt = "<" + _FMT[ct] * n
-    out = []
-    for k in range(a["count"]):
-        out.append(struct.unpack_from(fmt, binc, base + k * stride))
-    return out
+    """Le lecteur du socle, BORNÉ au périmètre que print3d sait écrire :
+    float32, u16, u32. `sparse` était ignoré en silence ici — un STL faux,
+    imprimé — et il est désormais appliqué."""
+    from app.services.mesh_edit import lire_accesseur
+    return lire_accesseur(doc, binc, i, composants=tuple(_FMT),
+                          quoi="l'export d'impression")
 
 
 def lire_glb_triangles(data: bytes):

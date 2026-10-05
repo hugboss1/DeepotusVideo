@@ -28,7 +28,8 @@ ouvert : des bords qui ne se referment pas seuls — le rapport le dit).
 """
 from __future__ import annotations
 
-from app.services.mesh_cut import _ajouter_indices, _base_du_plan, _lire_accesseur, _trianguler
+from app.services.mesh_cut import _ajouter_indices, _base_du_plan, _trianguler
+from app.services.mesh_edit import lire_accesseur
 from app.services.mesh_edit import (_extraire_doc, _l, _mat_locale, _mat_mul, _monde_des_ancetres, ecrire_glb,
                                     lire_glb)
 
@@ -243,9 +244,9 @@ def reparer(data: bytes, noeuds=None, actions=None):
             attrs = pr.get("attributes") or {}
             if "POSITION" not in attrs:
                 raise ValueError(f"noeud {i} : primitive sans POSITION")
-            pos = _lire_accesseur(doc, binc, attrs["POSITION"])
-            autres = [_lire_accesseur(doc, binc, attrs[k]) for k in sorted(attrs) if k != "POSITION"]
-            idx = ([t[0] for t in _lire_accesseur(doc, binc, pr["indices"])] if pr.get("indices") is not None
+            pos = lire_accesseur(doc, binc, attrs["POSITION"])
+            autres = [lire_accesseur(doc, binc, attrs[k]) for k in sorted(attrs) if k != "POSITION"]
+            idx = ([t[0] for t in lire_accesseur(doc, binc, pr["indices"])] if pr.get("indices") is not None
                    else list(range(len(pos))))
             if not pos:
                 continue

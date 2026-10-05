@@ -42,7 +42,8 @@ from __future__ import annotations
 
 import math
 
-from app.services.mesh_cut import _ajouter_flottants, _ajouter_indices, _lire_accesseur
+from app.services.mesh_cut import _ajouter_flottants, _ajouter_indices
+from app.services.mesh_edit import lire_accesseur
 from app.services.mesh_edit import _extraire_doc, _l, _mat_locale, _mat_mul, _monde_des_ancetres, ecrire_glb, lire_glb
 
 MAX_TRIS = 200_000          # borne du budget mesuré (voir tests/mesure_etabli_outils.py creuser)
@@ -220,8 +221,8 @@ def creuser(data: bytes, noeuds, paroi):
                 raise ValueError(f"{nom} : primitive non TRIANGLES ou sans POSITION — hors périmètre")
             if pr.get("targets"):
                 raise ValueError(f"{nom} : morph targets — la forme change à l'animation, hors périmètre")
-            p = _lire_accesseur(doc, binc, attrs["POSITION"])
-            idx = ([t[0] for t in _lire_accesseur(doc, binc, pr["indices"])] if pr.get("indices") is not None
+            p = lire_accesseur(doc, binc, attrs["POSITION"])
+            idx = ([t[0] for t in lire_accesseur(doc, binc, pr["indices"])] if pr.get("indices") is not None
                    else list(range(len(p))))
             base = len(pos)
             pos += [tuple(float(c) for c in v) for v in p]

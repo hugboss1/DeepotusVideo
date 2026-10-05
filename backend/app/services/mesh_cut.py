@@ -17,55 +17,18 @@ from __future__ import annotations
 
 import struct
 
-from app.services.mesh_edit import (_extraire_doc, _l, _mat_locale, _mat_mul,
-                                    _monde_des_ancetres, _parents, _unitaire,
-                                    _vecteur3, ecrire_glb, lire_glb)
+from app.services.mesh_edit import (_NB_COMPOSANTS, _extraire_doc, _l,
+                                    _mat_locale, _mat_mul, _monde_des_ancetres,
+                                    _parents, _unitaire, _vecteur3, ecrire_glb,
+                                    lire_accesseur, lire_glb)
 
 
-# ── lecture d'accesseurs : le chemin rapide du couteau ───────────────────────
-# `print3d._accessor` déballe élément par élément et suffit à lire des
-# triangles ; le couteau relit CHAQUE attribut de la pièce et la réécrit.
-# `struct.iter_unpack` sur une vue serrée va UN PEU plus vite — mesuré par la
-# revue sur les 72 128 sommets du cadre : 12,4 ms contre 18,1 ms (×1,46, soit
-# 6 ms sur les 530 de la coupe), pas « bien plus ». Ce qui justifie un second
-# lecteur n'est donc pas la vitesse mais la POLITIQUE : print3d ignore un
-# accesseur `sparse` en silence, ici il est refusé en le disant, et le u8 des
-# index (5121) est lu. L'unification des deux lecteurs attend le lot qui
-# touchera print3d. Le pas explicite (`byteStride`) reste lu élément par
-# élément.
-
-_COMPOSANTS = {5120: ("b", 1), 5121: ("B", 1), 5122: ("h", 2), 5123: ("H", 2),
-               5125: ("I", 4), 5126: ("f", 4)}
-_NB_COMPOSANTS = {"SCALAR": 1, "VEC2": 2, "VEC3": 3, "VEC4": 4,
-                  "MAT2": 4, "MAT3": 9, "MAT4": 16}
-
-
+# ── lecture d'accesseurs : le lecteur du socle ───────────────────────────────
 def _lire_accesseur(doc: dict, binc: bytes, i: int) -> list[tuple]:
-    a = _l(doc, "accessors")[i]
-    if a.get("sparse"):
-        raise ValueError(f"accesseur {i} « sparse » — hors périmètre du couteau")
-    if a.get("bufferView") is None:
-        raise ValueError(f"accesseur {i} sans bufferView — hors périmètre du "
-                         "couteau")
-    ct, ty = a["componentType"], a["type"]
-    if ct not in _COMPOSANTS or ty not in _NB_COMPOSANTS:
-        raise ValueError(f"accesseur {i} : composant {ct} / type {ty} hors "
-                         "périmètre")
-    fmt, taille = _COMPOSANTS[ct]
-    n = _NB_COMPOSANTS[ty]
-    bv = _l(doc, "bufferViews")[a["bufferView"]]
-    if "uri" in _l(doc, "buffers")[bv.get("buffer", 0)]:
-        raise ValueError("buffer externe (uri) — nos GLB sont monolithiques, "
-                         "hors périmètre")
-    base = bv.get("byteOffset", 0) + a.get("byteOffset", 0)
-    serre = taille * n
-    pas = bv.get("byteStride") or serre
-    count = int(a["count"])
-    if pas == serre:
-        return list(struct.iter_unpack("<" + fmt * n,
-                                       binc[base:base + count * serre]))
-    f = "<" + fmt * n
-    return [struct.unpack_from(f, binc, base + k * pas) for k in range(count)]
+    """Le lecteur du socle, sans restriction de composant — le couteau lit tout
+    ce que glTF sait écrire. `sparse` n'est plus refusé : il est APPLIQUÉ (voir
+    `mesh_edit.lire_accesseur`, qui garde le chemin rapide `iter_unpack`)."""
+    return lire_accesseur(doc, binc, i, quoi="le couteau")
 
 
 # ── le couteau : couper des pièces par un plan, et les REFERMER ──────────────
