@@ -1330,7 +1330,7 @@ def test_l_etabli_ramene_au_3D_studio_et_le_bouton_est_a_gauche():
     # ligne suivante le rend AUTO-PORTANT : on compare le nombre de boutons
     # DE L'EN-TÊTE à ceux qui portent la classe. Un quatrième bouton posé
     # sans elle rougira sans qu'il faille avoir pensé à monter le compte.
-    assert html.count('class="head-btn"') == 3
+    assert html.count('class="head-btn"') == 4  # T091 : + « Aide »
     entete = html.split('<header class="head">', 1)[1].split("</header>", 1)[0]
     entete = re.sub(r"<!--.*?-->", "", entete, flags=re.S)
     assert entete.count("<button") == entete.count('class="head-btn"')
@@ -9705,7 +9705,7 @@ def test_les_outils_vivent_DANS_le_canevas_naissent_sans_texte_et_repondent_a_F_
     outils = vue_a.split('<div class="vue-outils"', 1)[1]
     assert outils.count("<button") == outils.count('class="outil-btn')
     assert "head-btn" not in vue_a and html.count('class="cam-btn"') == 4
-    assert html.count('class="head-btn"') == 3
+    assert html.count('class="head-btn"') == 4  # T091 : + « Aide »
     reg = css.split(".vue-outils {", 1)[1].split("}", 1)[0]
     assert "z-index: 2" in reg and "pointer-events: none" in reg and "bottom" in reg
     assert "flex-wrap: wrap" in reg and "right: 10px" in reg, "la rangée ne déborde pas du canevas"
