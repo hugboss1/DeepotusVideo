@@ -128,8 +128,8 @@ M = [
     # ── etabli.js : l'assise ────────────────────────────────────────────────
     # 22. l'assise passe AVANT le déplacement : elle lirait une géométrie que
     #     transformer va déplacer (revue : min Y = +0,508)
-    (JS, "const ORDRE_ECRITURE = [\"transformer\", \"assise\", \"reparer\", \"extraire\", \"couper\", \"reparer_maillage\", \"decimer\"];",
-     "const ORDRE_ECRITURE = [\"assise\", \"transformer\", \"reparer\", \"extraire\", \"couper\", \"reparer_maillage\", \"decimer\"];",
+    (JS, "const ORDRE_ECRITURE = [\"transformer\", \"assise\", \"reparer\", \"extraire\", \"couper\", \"reparer_maillage\", \"creuser\", \"decimer\"];",
+     "const ORDRE_ECRITURE = [\"assise\", \"transformer\", \"reparer\", \"extraire\", \"couper\", \"reparer_maillage\", \"creuser\", \"decimer\"];",
      CANEVAS, ["MET_EN_ATTENTE", "AU_SOL"]),
     # 23. le mode ne retombe pas après la face cliquée
     (JS, "  noterAttente(\"assise\", { normale: [n.x, n.y, n.z], point: [p.x, p.y, p.z] });\n  armerGeste(\"selection\");\n",

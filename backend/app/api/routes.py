@@ -14053,6 +14053,35 @@ async def etabli_reparer_maillage(body: dict):
     return _etabli_ecrire(job, sortie, "reparer_maillage", {"depuis": depuis, **rapport})
 
 
+@router.post("/etabli/creuser")
+async def etabli_creuser(body: dict):
+    """CREUSER (tâche #89 PR E, plan-etabli T6 corrigé) : `paroi` en UNITÉS DU MODÈLE (> 0), `noeuds` facultatif
+    (toutes les pièces de la scène sinon), `paroi_millimetres` facultatif — la saisie de l'utilisateur, GARDÉE dans
+    la fiche pour qu'une version se relise sans deviner. AUCUNE CONVERSION ICI : un GLB ne porte aucun millimètre, et
+    la page seule connaît l'échelle (taille cible) — elle convertit par sa garde unique, comme pour le rangement. Le
+    rapport — pièce par pièce, effondrés, paroi qui tient, sommets plafonnés, la limite du procédé — devient le
+    `source` de la fiche."""
+    from app.services import hollow
+    job, data, depuis = _etabli_glb_cible(body.get("job"), body.get("version"), "creusage")
+    paroi = body.get("paroi")
+    if not _etabli_nombre(paroi) or paroi <= 0:
+        raise HTTPException(400, "creusage : `paroi` (unités du modèle) attend un nombre > 0")
+    saisie = body.get("paroi_millimetres")
+    if saisie is not None and (not _etabli_nombre(saisie) or saisie <= 0):
+        raise HTTPException(400, "creusage : `paroi_millimetres` attend un nombre > 0")
+    noeuds = body.get("noeuds")
+    if noeuds is not None and (not isinstance(noeuds, list) or any(not _etabli_entier(n) or n < 0 for n in noeuds)):
+        raise HTTPException(400, "creusage : `noeuds` doit être une liste d'index de nœud (entiers ≥ 0)")
+    try:
+        sortie, rapport = await asyncio.to_thread(hollow.creuser, data, noeuds, float(paroi))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    detail = {"depuis": depuis, **rapport}
+    if saisie is not None:
+        detail["paroi_millimetres"] = float(saisie)
+    return _etabli_ecrire(job, sortie, "creuser", detail)
+
+
 @router.post("/etabli/decimer")
 async def etabli_decimer(body: dict):
     """DÉCIMER DANS LA LIGNÉE (tâche #89 PR D, plan-etabli T7) : `preset` (clé de mesh_optimize.PRESETS) ou
