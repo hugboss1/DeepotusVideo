@@ -51,6 +51,21 @@ if __name__ == "__main__":
                   r["ferme_apres"])
         else:
             print("modele reel absent : saute")
+    elif quoi == "creuser":
+        from app.services import hollow
+        data = tore()
+        _g, r = chrono("creuser tore 100k paroi 0,05", lambda: hollow.creuser(data, None, 0.05))
+        print("   ->", r["avertissement"], "paroi_max", r["paroi_max"])
+        _g, r = chrono("creuser tore 100k paroi 0,9 > rayon du tube 0,7 (dichotomie)", lambda: hollow.creuser(data, None, 0.9))
+        print("   ->", r["pieces"][0]["effondres"], "effondres, paroi_max", r["paroi_max"])
+        if REEL.is_file():
+            brut = REEL.read_bytes()
+            try:
+                chrono("creuser reel 144k paroi 0,001", lambda: hollow.creuser(brut, None, 0.001))
+            except ValueError as e:
+                print("reel refuse :", e)
+        else:
+            print("modele reel absent : saute")
     elif quoi == "nesting":
         import random
         from app.services import nesting

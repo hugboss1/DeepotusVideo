@@ -73,7 +73,7 @@ def test_la_surface_route_ordre_bouton_et_cablage():
     assert 'reparer_maillage: "/api/etabli/reparer-maillage"' in js
     # l'ordre tient sur UNE ligne (les bancs le lisent ainsi), reparer_maillage la ferme
     assert ('const ORDRE_ECRITURE = ["transformer", "assise", "reparer", "extraire", "couper", '
-            '"reparer_maillage", "decimer"];') in js
+            '"reparer_maillage", "creuser", "decimer"];') in js
     assert 'const ACTIONS_PAR_DEFAUT = ["souder", "doublons", "degeneres", "normales"];' in js
     fiche = _fonction_etabli("rendreFiche")
     assert '<button id="fReparerMaillage" title="' in fiche and "Réparer en un clic" in fiche
@@ -562,6 +562,88 @@ console.log(JSON.stringify(AVIS));
         "décimé (version 7) : 900 → 101 triangles (−88.8 %), passe agressive",
         "décimé (version 9) : 14400 → 463 triangles (−96.8 %), passe agressive — cible de 100 NON atteinte, "
         "le maillage ne se simplifie pas plus"]
+
+# ── tâche #89 PR E : creuser ───────────────────────────────────────────────────────────────────────────────────────
+BASE_E = "df8cce69"
+
+
+def test_temoin_la_base_e_n_a_pas_de_creusage():
+    b = subprocess.run(["git", "show", f"{BASE_E}:frontend/etabli/etabli.js"], capture_output=True, cwd=str(RACINE)).stdout
+    assert b and b"fCreuser" not in b and b'creuser: "/api/etabli/creuser"' not in b
+
+
+def _gestionnaire_creuser() -> str:
+    fiche = _fonction_etabli("rendreFiche")
+    debut = '$("#fCreuser").addEventListener("click", async () => {'
+    corps = fiche.split(debut, 1)[1].split("\n  });", 1)[0]
+    return "async function cliquerCreuser() {" + corps + "\n}\n"
+
+
+
+def _creuser(corps: str) -> dict:
+    src = ("let REP = { echelle: null };\nconst REFUS = [], AVIS = [], ECRIT = [];\nlet SAISIE = \"2\", RETENUS = { noeuds: [], source: undefined };\n"
+           "const $ = (q) => (q === \"#fParoi\" ? { value: SAISIE } : null);\n"
+           "function direRefus(m) { REFUS.push(m); } function direAvis(m) { AVIS.push(m); }\n"
+           "const noeudsRetenus = () => RETENUS;\n"
+           "async function ecrireSeule(op, charge, source) { ECRIT.push([op, charge, source === undefined ? null : source]);\n"
+           "  return { derniere: { version: 5, source: { paroi: charge.paroi, pieces: [{}, {}], avertissement: null, limite: \"L\" } } }; }\n"
+           + _fonction_etabli("enMillimetres") + _fonction_etabli("versUnites") + _fonction_etabli("uniteCourante")
+           + _fonction_etabli("fmtMesure") + _fonction_etabli("direBilanCreusage") + _gestionnaire_creuser()
+           + "\n(async () => { const R = {};\n" + corps + "\nconsole.log(JSON.stringify(R)); })();")
+    return json.loads(_node(src).strip().splitlines()[-1])
+
+
+def test_creuser_EXIGE_une_taille_cible_convertit_par_la_garde_et_dit_le_bilan():
+    R = _creuser("""
+await cliquerCreuser(); R.sansCible = [REFUS.slice(), ECRIT.length];
+REP.echelle = 8; REFUS.length = 0;
+SAISIE = "0"; await cliquerCreuser(); SAISIE = "abc"; await cliquerCreuser(); R.absurde = [REFUS.slice(), ECRIT.length];
+SAISIE = "2"; await cliquerCreuser(); R.tout = ECRIT[0]; R.avis = AVIS.slice();
+RETENUS = { noeuds: [3, 1], source: "nom" }; await cliquerCreuser(); R.sel = ECRIT[1];
+""")
+    assert R["sansCible"] == [["pose une taille cible : une paroi en millimètres n'a de sens qu'avec une échelle"], 0]
+    assert R["absurde"] == [["paroi : un nombre de millimètres > 0"] * 2, 0]
+    # 2 millimètres ÷ 8 millimètres par unité = 0,25 unité ; rien de retenu = tout le modèle (null)
+    assert R["tout"] == ["creuser", {"paroi": 0.25, "paroi_millimetres": 2, "noeuds": None}, None]
+    assert R["sel"] == ["creuser", {"paroi": 0.25, "paroi_millimetres": 2, "noeuds": [3, 1]}, "nom"]
+    assert R["avis"] == ["creusé (version 5) : paroi 2,00 mm sur 2 pièce(s) — limite : L"]
+
+
+def test_le_bilan_du_creusage_dit_ce_qui_ne_tient_pas_DANS_l_unite_courante():
+    R = _creuser("""
+REP.echelle = 10;
+direBilanCreusage({ version: 7, source: { paroi: 0.3, paroi_max: 0.125, pieces: [{}], avertissement: "12 triangle(s) effondré(s)", limite: "L" } });
+REP.echelle = null;
+direBilanCreusage({ version: 8, source: { paroi: 0.3, paroi_max: 0.125, pieces: [{}], avertissement: "A", limite: "L" } });
+direBilanCreusage({ version: 9, source: {} }); direBilanCreusage(null);
+R.avis = AVIS.slice();
+""")
+    assert R["avis"] == [
+        "creusé (version 7) : paroi 3,00 mm sur 1 pièce(s) — paroi qui tient : 1,25 mm — 12 triangle(s) effondré(s) — limite : L",
+        "creusé (version 8) : paroi 0,300 u. glTF sur 1 pièce(s) — paroi qui tient : 0,125 u. glTF — A — limite : L"]
+
+
+def test_creuser_passe_par_l_entonnoir_SEUL_et_se_libelle_dans_l_unite_courante():
+    src = (_objet_etabli("ORDRE_ECRITURE") + _objet_etabli("ROUTES") + _objet_etabli("LIBELLES_ATTENTE") + ENTONNOIR
+           + "let REP = { echelle: 4 };\n" + _fonction_etabli("enMillimetres") + _fonction_etabli("uniteCourante")
+           + _fonction_etabli("fmtMesure") + _fonction_etabli("fileOrdonnee") + _fonction_etabli_async("ecrireVersion")
+           + """
+(async () => { const R = {};
+S.enAttente.push({ operation: "creuser", charge: { paroi: 0.5, paroi_millimetres: 2, noeuds: null } });
+R.lib = LIBELLES_ATTENTE.creuser(S.enAttente[0]);
+await ecrireVersion(); R.corps = CORPS.slice();
+console.log(JSON.stringify(R)); })();""")
+    R = json.loads(_node(src).strip().splitlines()[-1])
+    assert R["corps"] == [["/api/etabli/creuser", {"job": "j", "version": 1, "paroi": 0.5, "paroi_millimetres": 2,
+                                                   "noeuds": None}]]
+    assert R["lib"] == "creuser : paroi 2,00 mm"
+    js, code = _lire("etabli/etabli.js"), _code("etabli/etabli.js")
+    assert 'creuser: "/api/etabli/creuser",' in js and 'creuser: "creuser"' in _objet_etabli("LIBELLE_OP")
+    fiche = _fonction_etabli("rendreFiche")
+    assert '<button id="fCreuser" title="' in fiche and 'id="fParoi"' in fiche and "paroi (millimètres)" in fiche
+    h = _gestionnaire_creuser()
+    assert h.index("versUnites(saisie)") < h.index('ecrireSeule("creuser"'), "la garde AVANT l'écriture"
+    assert "REP.echelle" not in h, "la conversion passe par versUnites, jamais par un cinquième site"
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

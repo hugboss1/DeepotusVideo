@@ -179,8 +179,8 @@ let _ecritEnCours = false;
    de partir tant que la file n'est pas vide — elle y entre seule, pour la
    durée de sa propre écriture. `reparer_maillage` (tâche #88) écrit SEUL lui aussi,
    derrière la même garde (ecrireSeule) : sa place dans la liste ne compte pas, elle
-   n'y voisine jamais avec personne. `decimer` (tâche #89 PR D) de même. UNE LIGNE : les bancs la lisent ainsi. */
-const ORDRE_ECRITURE = ["transformer", "assise", "reparer", "extraire", "couper", "reparer_maillage", "decimer"];
+   n'y voisine jamais avec personne. `decimer` (tâche #89 PR D) et `creuser` (PR E) de même. UNE LIGNE : les bancs la lisent ainsi. */
+const ORDRE_ECRITURE = ["transformer", "assise", "reparer", "extraire", "couper", "reparer_maillage", "creuser", "decimer"];
 
 /* Les trois plumes de P1, ÉCRITES plutôt que composées. Un
    `/api/etabli/${t.operation}` marcherait aussi bien et rendrait le fichier
@@ -194,6 +194,7 @@ const ROUTES = {
   couper: "/api/etabli/couper",
   reparer_maillage: "/api/etabli/reparer-maillage",
   decimer: "/api/etabli/decimer",
+  creuser: "/api/etabli/creuser",
 };
 
 async function jget(p) {
@@ -2623,13 +2624,14 @@ const LIBELLES_ATTENTE = {
   couper: (t) => `coupe de ${t.charge.noeuds.length} pièce(s) — garder ${t.charge.garder}`,
   reparer_maillage: (t) => `réparer le maillage : ${t.charge.actions.map((a) => LIBELLE_ACTION[a] || a).join(", ")}`,
   decimer: (t) => `décimer vers ${t.charge.preset || t.charge.target_tris} triangles`,
+  creuser: (t) => `creuser : paroi ${fmtMesure(t.charge.paroi)} ${uniteCourante()}`,
 };
 
 /* ── RÉPARER EN UN CLIC (tâche #88 PR A, plan-etabli T2) ─────────────────────
    Ce qui RENUMÉROTE écrit SEUL : la file doit être vide, la ligne y entre pour la
    durée de sa propre écriture — la garde de confirmerCoupe(), pour toute opération.
    Rend le bilan d'ecrireVersion(), ou null (refus dit dans la barre). */
-const LIBELLE_OP = { reparer_maillage: "réparer le maillage", decimer: "décimer" };
+const LIBELLE_OP = { reparer_maillage: "réparer le maillage", decimer: "décimer", creuser: "creuser" };
 const LIBELLE_ACTION = { souder: "sommets confondus", doublons: "faces dupliquées", degeneres: "triangles plats",
                          normales: "normales unifiées", trous: "trous bouchés" };
 /* Les actions cochées d'office : TOUT sauf les trous — décision de l'utilisateur (04/10) :
@@ -2668,6 +2670,16 @@ function direBilanReparation(fiche) {
   direAvis(`maillage réparé (version ${fiche.version}) : ${p.soudes} sommet(s) soudé(s), ${p.doublons} doublon(s), `
     + `${p.degeneres} triangle(s) plat(s), ${p.retournes} retourné(s)${trous} — `
     + (src.ferme_apres ? "fermé" : (src.ferme_avant ? "fermé avant, OUVERT après" : "encore ouvert")));
+}
+/* Le creusage se dit : la paroi, les pièces, puis — si elle ne tient pas — la paroi qui tient, dans l'unité
+   courante, AVANT l'explication : la barre coupe à LARGEUR_REFUS (le texte entier reste au survol), et la
+   preuve du 05/10 montrait le chiffre utile tombé derrière la coupure. Toujours la limite du procédé, en fin. */
+function direBilanCreusage(fiche) {
+  const src = fiche && fiche.source;
+  if (!src || !src.pieces) return;
+  direAvis(`creusé (version ${fiche.version}) : paroi ${fmtMesure(src.paroi)} ${uniteCourante()} sur ${src.pieces.length} pièce(s)`
+    + (src.avertissement ? ` — paroi qui tient : ${fmtMesure(src.paroi_max)} ${uniteCourante()} — ${src.avertissement}` : "")
+    + (src.limite ? ` — limite : ${src.limite}` : ""));
 }
 /* La décimation se dit avec ses vrais comptes — ceux que gltfpack a rendus, pas la cible. */
 function direBilanDecimation(fiche) {
@@ -3077,6 +3089,13 @@ function rendreFiche() {
     <p class="note">Écrit AUSSITÔT une version de plus (les nœuds sont renumérotés) ; le
       détail de ce qui a été fait s'affiche dans la barre du bas, et la version d'avant
       reste sur le disque. « Trous bouchés » ajoute de la matière : décoché d'office.</p>
+    <div class="dt-label">Creuser</div>
+    <label>paroi (millimètres) <input id="fParoi" type="number" step="0.1" min="0.1" value="2"
+      title="L'épaisseur de la paroi, en millimètres réels — exige une taille cible"></label>
+    <button id="fCreuser" title="Écrit aussitôt une version creusée : la peau doublée vers l'intérieur, sur la sélection ou tout le modèle">Creuser</button>
+    <p class="note">Double la peau vers l'intérieur, à épaisseur constante. Exige une taille cible
+      (une paroi est une cote physique) et un maillage FERMÉ — sinon « Réparer le maillage », trous
+      cochés. Ce que la paroi ne peut pas tenir est compté et dit, avec l'épaisseur qui tient.</p>
     <div class="dt-label">Décimer</div>
     <label>cible <select id="fDecPreset" title="Le nombre de triangles visé ; les noms de pièces sont gardés">
       <option value="ultra">ultra — 100 000 triangles</option>
@@ -3103,6 +3122,21 @@ function rendreFiche() {
     if (!actions.length) { direRefus("cochez au moins une action de réparation"); return; }
     const bilan = await ecrireSeule("reparer_maillage", { actions });
     if (bilan) direBilanReparation(bilan.derniere);
+  });
+  $("#fCreuser").addEventListener("click", async () => {
+    const saisie = Number($("#fParoi").value);
+    if (!(saisie > 0)) { direRefus("paroi : un nombre de millimètres > 0"); return; }
+    /* LA CONVERSION PASSE PAR LA GARDE UNIQUE (versUnites) : sans taille cible, `null`, et on refuse. */
+    const paroi = versUnites(saisie);
+    if (paroi === null) {
+      direRefus("pose une taille cible : une paroi en millimètres n'a de sens qu'avec une échelle");
+      return;
+    }
+    /* Rien de retenu = tout le modèle (le serveur prend toutes les pièces de la scène). */
+    const { noeuds, source } = noeudsRetenus();
+    const bilan = await ecrireSeule("creuser",
+      { paroi, paroi_millimetres: saisie, noeuds: noeuds.length ? noeuds : null }, source);
+    if (bilan) direBilanCreusage(bilan.derniere);
   });
   $("#fDecimer").addEventListener("click", async () => {
     const bilan = await ecrireSeule("decimer", { preset: $("#fDecPreset").value });

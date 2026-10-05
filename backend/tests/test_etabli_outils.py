@@ -743,5 +743,234 @@ def test_la_route_decimer_ecrit_une_VERSION_dans_la_lignee_et_juge_son_corps(mon
     assert src["before"]["tris"] == 14400 and src["after"]["tris"] <= 2300 and src["target_tris"] == 2000
     assert not (d / "model.opt.glb").exists() and not (d / "optimize.json").exists(), "AUCUN fichier à part"
 
+# ── tâche #89 PR E : creuser (plan-etabli T6 corrigé) ──────────────────────────────────────────────────────────────
+BASE_E = "df8cce69"
+
+
+def test_temoin_la_base_e_n_a_ni_module_ni_route_de_creusage():
+    r = subprocess.run(["git", "show", f"{BASE_E}:backend/app/api/routes.py"], capture_output=True, cwd=str(RACINE)).stdout
+    assert r and b"/etabli/creuser" not in r
+    assert subprocess.run(["git", "cat-file", "-e", f"{BASE_E}:backend/app/services/hollow.py"],
+                          capture_output=True, cwd=str(RACINE)).returncode != 0
+
+
+def _boite(l, p, h) -> bytes:
+    """Une boîte FERMÉE et soudée (8 sommets partagés, 12 triangles sortants), centrée sur l'origine."""
+    import struct
+    from app.services import mesh_edit
+    x, y, z = l / 2, p / 2, h / 2
+    pos = [(-x, -y, -z), (x, -y, -z), (x, y, -z), (-x, y, -z), (-x, -y, z), (x, -y, z), (x, y, z), (-x, y, z)]
+    tris = [(0, 2, 1), (0, 3, 2), (4, 5, 6), (4, 6, 7), (0, 1, 5), (0, 5, 4),
+            (1, 2, 6), (1, 6, 5), (2, 3, 7), (2, 7, 6), (3, 0, 4), (3, 4, 7)]
+    pb = struct.pack("<24f", *[c for q in pos for c in q])
+    ib = struct.pack("<36H", *[i for q in tris for i in q])
+    doc = {"asset": {"version": "2.0"}, "buffers": [{"byteLength": len(pb) + len(ib)}],
+           "bufferViews": [{"buffer": 0, "byteOffset": 0, "byteLength": len(pb)},
+                           {"buffer": 0, "byteOffset": len(pb), "byteLength": len(ib)}],
+           "accessors": [{"bufferView": 0, "componentType": 5126, "count": 8, "type": "VEC3",
+                          "min": [-x, -y, -z], "max": [x, y, z]},
+                         {"bufferView": 1, "componentType": 5123, "count": 36, "type": "SCALAR"}],
+           "meshes": [{"primitives": [{"attributes": {"POSITION": 0}, "indices": 1}]}],
+           "nodes": [{"name": "boite", "mesh": 0}], "scenes": [{"nodes": [0]}], "scene": 0}
+    return mesh_edit.ecrire_glb(doc, pb + ib)
+
+
+def test_creuser_le_cube_du_depot_SOUDE_puis_tient_la_paroi_de_CHAQUE_face_et_garde_le_dehors_intact():
+    """Le cube de gltf_builder a 24 sommets — une copie par face. Sans soudure, chaque copie suivrait SA face et la
+    peau intérieure se déchirerait ; avec, la coque est fermée, et l'intérieur est à `paroi` de chaque face (coins à
+    √3 × paroi) : volume 2³ − 1,5³ exactement."""
+    from app.services import hollow, mesh_edit, print3d
+    sortie, r = hollow.creuser(_cube(), None, 0.25)
+    tris = _tris(sortie)
+    assert len(tris) == 24 and abs(_volume(tris) - (8.0 - 1.5 ** 3)) < 1e-9
+    assert _ferme(sortie), "soudée, la peau intérieure ne se déchire pas"
+    p = r["pieces"][0]
+    assert (p["effondres"], p["plafonnes"], p["paroi"], p["paroi_max"]) == (0, 0, 0.25, 0.25)
+    assert p["triangles_avant"] == 12 and p["normales_rentrantes"] is False and r["avertissement"] is None
+    assert "plus mince que deux parois" in r["limite"]
+    # le DEHORS est intact : même primitive, mêmes attributs (UV, normales), même matériau ; le dedans est une
+    # primitive DE PLUS, POSITION seule, même matériau
+    avant, _ = mesh_edit.lire_glb(_cube())
+    doc, _ = mesh_edit.lire_glb(sortie)
+    prims = doc["meshes"][0]["primitives"]
+    assert len(prims) == 2 and set(prims[0]["attributes"]) == set(avant["meshes"][0]["primitives"][0]["attributes"])
+    assert list(prims[1]["attributes"]) == ["POSITION"] and prims[1].get("material") == prims[0].get("material")
+    dedans = doc["accessors"][prims[1]["attributes"]["POSITION"]]
+    assert dedans["min"] == [-0.75] * 3 and dedans["max"] == [0.75] * 3, "l'épaisseur est CONSTANTE"
+    assert print3d.bbox(tris) == ((-1.0, 1.0), (-1.0, 1.0), (-1.0, 1.0))
+
+
+def test_creuser_COMPTE_l_effondrement_et_cherche_la_paroi_qui_tient():
+    from app.services import hollow
+    _s, r = hollow.creuser(_cube(), None, 1.5)               # plus que la demi-arête : retournée en entier
+    p = r["pieces"][0]
+    assert p["effondres"] == 12 and 1.0 - 1.5 / 4096 <= p["paroi_max"] <= 1.0 and r["paroi_max"] == p["paroi_max"]
+    assert "effondré" in r["avertissement"] and "auto-intersecte" in r["avertissement"]
+    # une PLAQUE plus mince que deux parois : les deux faces se croisent par translation, AUCUNE normale ne bascule ;
+    # c'est le volume intérieur, retourné, qui le dit
+    _s, r = hollow.creuser(_boite(4.0, 4.0, 0.2), None, 0.15)
+    assert r["pieces"][0]["effondres"] == 12 and 0.1 - 0.15 / 4096 <= r["paroi_max"] <= 0.1
+    _s, r = hollow.creuser(_boite(4.0, 4.0, 0.2), None, 0.05)
+    assert r["pieces"][0]["effondres"] == 0 and r["avertissement"] is None
+
+
+def _prisme_en_T() -> bytes:
+    """Un socle 4 × 2 surmonté d'une AILETTE de 0,2 de large, extrudé sur 2 : fermé, soudé, sans jonction en T."""
+    import struct
+    from app.services import mesh_edit
+    profil = [(-2, 0), (2, 0), (2, 2), (0.1, 2), (0.1, 4), (-0.1, 4), (-0.1, 2), (-2, 2)]
+    n = len(profil)
+    pos = [(x, y, -1.0) for x, y in profil] + [(x, y, 1.0) for x, y in profil]
+    cap = [(0, 1, 2), (0, 2, 3), (0, 3, 6), (0, 6, 7), (3, 4, 5), (3, 5, 6)]      # socle en éventail + ailette
+    tris = [(a, c, b) for a, b, c in cap] + [(a + n, b + n, c + n) for a, b, c in cap]
+    for i in range(n):
+        j = (i + 1) % n
+        tris += [(i, j, j + n), (i, j + n, i + n)]
+    pb = struct.pack(f"<{3 * len(pos)}f", *[c for q in pos for c in q])
+    ib = struct.pack(f"<{3 * len(tris)}H", *[i for q in tris for i in q])
+    doc = {"asset": {"version": "2.0"}, "buffers": [{"byteLength": len(pb) + len(ib)}],
+           "bufferViews": [{"buffer": 0, "byteOffset": 0, "byteLength": len(pb)},
+                           {"buffer": 0, "byteOffset": len(pb), "byteLength": len(ib)}],
+           "accessors": [{"bufferView": 0, "componentType": 5126, "count": len(pos), "type": "VEC3",
+                          "min": [-2, 0, -1], "max": [2, 4, 1]},
+                         {"bufferView": 1, "componentType": 5123, "count": 3 * len(tris), "type": "SCALAR"}],
+           "meshes": [{"primitives": [{"attributes": {"POSITION": 0}, "indices": 1}]}],
+           "nodes": [{"name": "T", "mesh": 0}], "scenes": [{"nodes": [0]}], "scene": 0}
+    return mesh_edit.ecrire_glb(doc, pb + ib)
+
+
+def test_une_AILETTE_plus_mince_que_deux_parois_sur_un_socle_epais_est_COMPTEE():
+    """Le volume intérieur reste positif (le socle domine) : seul le retournement des triangles de l'ailette le voit."""
+    from app.services import hollow
+    data = _prisme_en_T()
+    assert _ferme(data) and _volume(_tris(data)) > 0
+    _s, r = hollow.creuser(data, None, 0.15)
+    p = r["pieces"][0]
+    assert 0 < p["effondres"] < p["triangles_avant"], p
+    assert 0.0 < p["paroi_max"] < 0.15 and "effondré" in r["avertissement"]
+    _s, r = hollow.creuser(data, None, 0.05)
+    assert r["pieces"][0]["effondres"] == 0
+
+
+def test_creuser_PLAFONNE_l_arete_vive_et_le_dit():
+    """Un coin très aigu : 1 / min(n_sommet · n_face) y explose. Le décalage est plafonné à PLAFOND parois, et les
+    sommets plafonnés sont comptés — la paroi y est plus mince que demandé."""
+    import struct
+    from app.services import hollow, mesh_edit
+    # un tétraèdre très effilé : trois sommets en triangle plat, le quatrième loin au-dessus
+    pos = [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.5, 0.866, 0.0), (0.5, 0.289, 20.0)]
+    tris = [(0, 2, 1), (0, 1, 3), (1, 2, 3), (2, 0, 3)]
+    pb = struct.pack("<12f", *[c for q in pos for c in q])
+    ib = struct.pack("<12H", *[i for q in tris for i in q])
+    doc = {"asset": {"version": "2.0"}, "buffers": [{"byteLength": len(pb) + len(ib)}],
+           "bufferViews": [{"buffer": 0, "byteOffset": 0, "byteLength": len(pb)},
+                           {"buffer": 0, "byteOffset": len(pb), "byteLength": len(ib)}],
+           "accessors": [{"bufferView": 0, "componentType": 5126, "count": 4, "type": "VEC3",
+                          "min": [0, 0, 0], "max": [1, 0.866, 20]},
+                         {"bufferView": 1, "componentType": 5123, "count": 12, "type": "SCALAR"}],
+           "meshes": [{"primitives": [{"attributes": {"POSITION": 0}, "indices": 1}]}],
+           "nodes": [{"mesh": 0}], "scenes": [{"nodes": [0]}], "scene": 0}
+    s, r = hollow.creuser(mesh_edit.ecrire_glb(doc, pb + ib), None, 0.01)
+    assert r["pieces"][0]["plafonnes"] >= 1 and "arête vive" in r["avertissement"] and "plafonné à 3" in r["avertissement"]
+    # le PLAFOND lui-même : aucun sommet ne s'enfonce de plus de 3 parois, et la pointe s'y arrête exactement
+    d2, b2 = mesh_edit.lire_glb(s)
+    from app.services import mesh_cut
+    dedans = mesh_cut._lire_accesseur(d2, b2, d2["meshes"][0]["primitives"][1]["attributes"]["POSITION"])
+    ecarts = [sum((a - b) ** 2 for a, b in zip(p0, p1)) ** 0.5 for p0, p1 in zip(pos, dedans)]
+    assert max(ecarts) <= 3 * 0.01 + 1e-6 and abs(max(ecarts) - 3 * 0.01) < 1e-6, ecarts
+
+
+def test_creuser_suit_l_echelle_MONDE_et_l_orientation_LOCALE():
+    from app.services import hollow, mesh_edit
+    # échelle uniforme 2 : 0,5 dans le monde = 0,25 dans le repère du nœud
+    deux = _refaire(_cube(), lambda t: t, lambda d: d["nodes"][0].update({"scale": [2.0, 2.0, 2.0]}))
+    s, r = hollow.creuser(deux, None, 0.5)
+    doc, _ = mesh_edit.lire_glb(s)
+    acc = doc["accessors"][doc["meshes"][0]["primitives"][1]["attributes"]["POSITION"]]
+    assert r["pieces"][0]["echelle_monde"] == 2.0 and acc["max"] == [0.75] * 3 and r["pieces"][0]["paroi"] == 0.5
+    # la paroi qui tient se dit dans le MONDE : demi-arête 2 (et non 1, celle du repère du nœud)
+    _s, r = hollow.creuser(deux, None, 3.0)
+    assert 2.0 - 3.0 / 4096 <= r["paroi_max"] <= 2.0
+    # une échelle NON uniforme : une même paroi n'aurait pas la même épaisseur selon l'axe — refus dit
+    plat = _refaire(_cube(), lambda t: t, lambda d: d["nodes"][0].update({"scale": [2.0, 2.0, 0.5]}))
+    with pytest.raises(ValueError, match="non uniforme"):
+        hollow.creuser(plat, None, 0.1)
+    # normales RENTRANTES : on creuse quand même vers le dedans, et la coque reste cohérente avec le dehors
+    s, r = hollow.creuser(_cube_casse("envers"), None, 0.25)
+    doc, _ = mesh_edit.lire_glb(s)
+    acc = doc["accessors"][doc["meshes"][0]["primitives"][1]["attributes"]["POSITION"]]
+    assert r["pieces"][0]["normales_rentrantes"] is True and acc["max"] == [0.75] * 3
+    assert abs(_volume(_tris(s)) + (8.0 - 1.5 ** 3)) < 1e-9
+
+
+def test_creuser_EXIGE_un_maillage_ferme_et_refuse_ce_qu_il_ne_sait_pas_lire():
+    from app.services import hollow, mesh_edit
+    with pytest.raises(ValueError, match="non fermé"):
+        hollow.creuser(_cube_casse("trou"), None, 0.1)
+    for paroi in (0.0, -1.0, "2", True, float("nan"), float("inf")):
+        with pytest.raises(ValueError, match="paroi"):
+            hollow.creuser(_cube(), None, paroi)
+    doc, binc = mesh_edit.lire_glb(_cube())
+    doc["extensionsRequired"] = ["KHR_draco_mesh_compression"]
+    with pytest.raises(ValueError, match="draco"):
+        hollow.creuser(mesh_edit.ecrire_glb(doc, binc), None, 0.1)
+    with pytest.raises(ValueError, match="sans maillage"):
+        hollow.creuser(_cube(), [999], 0.1)
+    anime = _refaire(_cube(), lambda t: t, lambda d: (d["nodes"][0].update({"skin": 0}), d.update({"skins": [{"joints": [0]}]})))
+    with pytest.raises(ValueError, match="skin"):
+        hollow.creuser(anime, None, 0.1)
+
+
+def test_creuser_au_dela_du_budget_refuse_et_propose_de_decimer(monkeypatch):
+    from app.services import hollow
+    monkeypatch.setattr(hollow, "MAX_TRIS", 11)
+    with pytest.raises(ValueError, match="Décime d'abord"):
+        hollow.creuser(_cube(), None, 0.1)
+    monkeypatch.setattr(hollow, "MAX_TRIS", 12)
+    hollow.creuser(_cube(), None, 0.1)
+
+
+def test_un_maillage_PARTAGE_est_clone_creuser_l_un_ne_creuse_pas_l_autre():
+    from app.services import hollow, mesh_edit
+
+    def jumeau(d):
+        d["nodes"].append({"name": "jumeau", "mesh": 0, "translation": [5.0, 0.0, 0.0]})
+        d["scenes"][0]["nodes"].append(len(d["nodes"]) - 1)
+    data = _refaire(_cube(), lambda t: t, jumeau)
+    doc0, _ = mesh_edit.lire_glb(data)
+    j = next(i for i, n in enumerate(doc0["nodes"]) if n.get("name") == "jumeau")
+    s, r = hollow.creuser(data, [0], 0.25)
+    doc, _ = mesh_edit.lire_glb(s)
+    p = r["pieces"][0]
+    assert p["partage_avec"] == [j]
+    creuse = doc["nodes"][p["noeud_apres"]]
+    autre = next(n for n in doc["nodes"] if n.get("name") == "jumeau")
+    assert creuse["mesh"] != autre["mesh"]
+    assert len(doc["meshes"][creuse["mesh"]]["primitives"]) == 2 and len(doc["meshes"][autre["mesh"]]["primitives"]) == 1
+
+
+def test_la_route_creuser_ecrit_une_version_GARDE_la_saisie_et_juge_son_corps():
+    d = _job("job_creux", _cube())
+    with _client() as c:
+        r = c.post("/api/etabli/creuser", json={"job": "job_creux", "version": 1, "paroi": 0.25,
+                                                "paroi_millimetres": 2.0})
+        assert r.status_code == 200, r.text
+        j = r.json()
+        assert j["version"] == 2 and (d / "model.v2.glb").is_file()
+        src = j["source"]
+        assert src["operation"] == "creuser" and src["depuis"] == {"version": 1, "fichier": "model.glb"}
+        assert src["paroi_millimetres"] == 2.0 and src["pieces"][0]["paroi"] == 0.25, "AUCUNE conversion à la route"
+        assert src["avertissement"] is None and src["limite"]
+        r = c.post("/api/etabli/creuser", json={"job": "job_creux", "version": 1, "paroi": 0.25, "noeuds": [0]})
+        assert r.status_code == 200 and "paroi_millimetres" not in r.json()["source"]
+        for corps in ({"paroi": 0}, {"paroi": "0.25"}, {"paroi": True}, {}, {"paroi": 0.25, "paroi_millimetres": -2},
+                      {"paroi": 0.25, "paroi_millimetres": "2"}, {"paroi": 0.25, "noeuds": ["a"]},
+                      {"paroi": 0.25, "noeuds": [-1]}, {"paroi": 0.25, "noeuds": 0}):
+            assert c.post("/api/etabli/creuser", json={"job": "job_creux", "version": 1, **corps}).status_code == 400, corps
+        _job("job_creux_ouvert", _cube_casse("trou"))
+        r = c.post("/api/etabli/creuser", json={"job": "job_creux_ouvert", "version": 1, "paroi": 0.1})
+        assert r.status_code == 400 and "non fermé" in r.json()["detail"] and "Réparer le maillage" in r.json()["detail"]
+    assert not list((d.parent / "job_creux_ouvert").glob("model.v*.glb"))
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))
