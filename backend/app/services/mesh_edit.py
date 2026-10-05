@@ -93,6 +93,89 @@ def _l(doc: dict, cle: str) -> list:
     return doc.get(cle) or []
 
 
+# ── UN SEUL LECTEUR D'ACCESSEUR pour tout le dépôt ───────────────────────────
+_COMPOSANTS = {5120: ("b", 1), 5121: ("B", 1), 5122: ("h", 2), 5123: ("H", 2),
+               5125: ("I", 4), 5126: ("f", 4)}
+_NB_COMPOSANTS = {"SCALAR": 1, "VEC2": 2, "VEC3": 3, "VEC4": 4,
+                  "MAT2": 4, "MAT3": 9, "MAT4": 16}
+
+
+def _lire_vue(doc: dict, binc: bytes, bv_index: int, decalage: int,
+              combien: int, fmt: str, serre: int, pas: int) -> list[tuple]:
+    bv = _l(doc, "bufferViews")[bv_index]
+    if "uri" in _l(doc, "buffers")[bv.get("buffer", 0)]:
+        raise ValueError("buffer externe (uri) — nos GLB sont monolithiques, "
+                         "hors périmètre")
+    base = bv.get("byteOffset", 0) + decalage
+    if pas == serre:
+        # le chemin rapide du couteau : `iter_unpack` sur une vue serrée
+        # (12,4 ms contre 18,1 ms sur les 72 128 sommets du cadre)
+        return list(struct.iter_unpack(fmt, binc[base:base + combien * serre]))
+    return [struct.unpack_from(fmt, binc, base + k * pas)
+            for k in range(combien)]
+
+
+def lire_accesseur(doc: dict, binc: bytes, i: int, *,
+                   composants=None, quoi: str = "la lecture") -> list[tuple]:
+    """UN SEUL LECTEUR D'ACCESSEUR pour tout le dépôt, et il APPLIQUE `sparse`.
+
+    Il y en avait DEUX, et ils se contredisaient : `print3d._accessor` ignorait
+    `sparse` EN SILENCE — il rendait donc la géométrie d'avant la substitution,
+    un STL faux et imprimé sans que rien ne grince — tandis que
+    `mesh_cut._lire_accesseur` le REFUSAIT. Un même fichier passait chez l'un
+    et rebondissait chez l'autre. Ici il est lu comme glTF 2.0 le décrit
+    (§3.6.2.3) : des valeurs de base (nulles quand `bufferView` est absent),
+    puis `count` substitutions désignées par des index.
+
+    `composants` GARDE LE PÉRIMÈTRE DE L'APPELANT : `print3d` n'écrit que
+    float32 / u16 / u32 et doit continuer de refuser le reste avec son propre
+    mot ; le couteau lit tout. Unifier le code ne veut pas dire élargir les
+    promesses.
+    """
+    a = _l(doc, "accessors")[i]
+    ty = a["type"]
+    ct = a["componentType"]
+    permis = _COMPOSANTS if composants is None else {
+        c: _COMPOSANTS[c] for c in composants}
+    if ct not in permis or ty not in _NB_COMPOSANTS:
+        raise ValueError(f"accesseur {i} : composant {ct} / type {ty} hors "
+                         f"périmètre de {quoi}")
+    fmt, taille = _COMPOSANTS[ct]
+    n = _NB_COMPOSANTS[ty]
+    count = int(a["count"])
+    serre = taille * n
+    f = "<" + fmt * n
+
+    if a.get("bufferView") is None:
+        # glTF : sans bufferView, les valeurs de base sont NULLES
+        zero = 0.0 if ct == 5126 else 0
+        out = [tuple([zero] * n) for _ in range(count)]
+    else:
+        bv = _l(doc, "bufferViews")[a["bufferView"]]
+        out = _lire_vue(doc, binc, a["bufferView"], a.get("byteOffset", 0),
+                        count, f, serre, bv.get("byteStride") or serre)
+
+    sp = a.get("sparse")
+    if sp:
+        nb = int(sp["count"])
+        ic = sp["indices"]["componentType"]
+        if ic not in (5121, 5123, 5125):
+            raise ValueError(f"accesseur {i} : composant d'index sparse {ic} "
+                             f"hors périmètre de {quoi}")
+        ifmt, itaille = _COMPOSANTS[ic]
+        idx = _lire_vue(doc, binc, sp["indices"]["bufferView"],
+                        sp["indices"].get("byteOffset", 0), nb, "<" + ifmt,
+                        itaille, itaille)
+        vals = _lire_vue(doc, binc, sp["values"]["bufferView"],
+                         sp["values"].get("byteOffset", 0), nb, f, serre, serre)
+        for (k,), v in zip(idx, vals):
+            if not 0 <= k < count:
+                raise ValueError(f"accesseur {i} : index sparse {k} hors de "
+                                 f"0..{count - 1}")
+            out[k] = v
+    return out
+
+
 def rig_inventory(data: bytes) -> dict:
     """Os, hiérarchie, skins et clips — chunk JSON seulement.
 

@@ -1248,6 +1248,7 @@ function graduerPlateau() {
   if (!S.vueA) return;
   dessinerRegles(S.vueA, PLQ.active ? plateauDe(S.vueA) : null,
                  fmtMesure, uniteCourante());
+  lirePieceCourante();
 }
 
 /* LE PLATEAU RÉEL sur la plaque (tâche #88 PR B, plan-etabli T4) : le contour de
@@ -1340,6 +1341,7 @@ async function arrangerPlaque() {
   });
   marquerPiece(S.vueA, PLQ.courante);
   rendreRotation();
+  lirePieceCourante();
   noterPlan();
   direAvis(`rangé : ${d.plateaux.length} plateau(x), occupation `
     + d.taux.map((t) => `${Math.round(t * 100)} %`).join(" · ")
@@ -1433,6 +1435,45 @@ function pieceCourante(cle) {
   rendreParties();
 }
 
+/* Le NOM d'une pièce de la plaque. `PLQ.pieces` porte {cle, nom, couleur,
+   uuid} : le nom vient d'`etaler()`, jamais du graphe three.js — sur la plaque
+   la pièce vit dans un berceau, et remonter au maillage donnerait le nom du
+   maillage, pas celui de la pièce. */
+function nomDePiece(cle) {
+  const p = PLQ.pieces.find((x) => x.cle === cle);
+  return (p && p.nom) || `pièce ${cle}`;
+}
+
+/* LA LECTURE CHIFFRÉE DE LA PIÈCE COURANTE (tâche T090, plan-etabli T11) —
+   la dette nommée du lot B : coin, cotes et angle de la pièce qu'on glisse.
+
+   RELATIVE AU COIN DU PLATEAU, et c'est la décision : le zéro des règles est
+   ce coin (geometriePlateau), et c'est là que le préparateur lit ses cotes. Le
+   plan de plaque, lui, reste écrit en coordonnées MONDE — deux repères, un
+   seul écrit sur le disque.
+
+   BORNÉE À UNE PIÈCE, et c'est le prix qui l'exige : `lireRepere()` coûte
+   2,057 ms à douze sélections hors navigateur (12 % d'une trame à 60 Hz), et
+   un glissement l'appellerait à chaque `pointermove`. Ici : un textContent,
+   aucune analyse de balisage, aucune remise en page du rail. */
+function lirePieceCourante() {
+  /* la ligne n'existe que sur la plaque : querySelector, comme #plqRot */
+  const box = document.querySelector("#plaqueLecture");
+  if (!box) return;
+  const cle = PLQ.courante;
+  const g = !PLQ.active || cle === null ? null : plateauDe(S.vueA);
+  const emp = g ? empreinteDe(S.vueA, cle) : null;
+  if (!emp) { box.textContent = ""; return; }
+  /* La règle lit sens·(p − coin) (geometriePlateau) : sur un axe qui DÉCROÎT
+     depuis le coin, le bord de la pièce le plus proche du zéro est son bord
+     haut — la même pose que celle d'arrangerPlaque, lue à l'envers. */
+  const u = g.sens.u > 0 ? emp.u - g.coin[g.u] : g.coin[g.u] - emp.u - emp.l;
+  const v = g.sens.v > 0 ? emp.v - g.coin[g.v] : g.coin[g.v] - emp.v - emp.p;
+  box.textContent = `${nomDePiece(cle)} · coin ${fmtMesure(u)} ; ${fmtMesure(v)}`
+    + ` · ${fmtMesure(emp.l)} × ${fmtMesure(emp.p)} ${uniteCourante()}`
+    + ` · ${Number(rotationDe(S.vueA, cle) || 0).toFixed(0)}°`;
+}
+
 function rendreRotation() {
   const zone = document.querySelector("#plqRot");
   if (!zone) return;
@@ -1458,6 +1499,7 @@ function poserRotation(brut) {
   marquerPiece(S.vueA, PLQ.courante);
   noterPlan();
   rendreRotation();
+  lirePieceCourante();
   direGeometrie();
   return true;
 }
@@ -1544,6 +1586,7 @@ function glisserSurPlaque(api, canvas) {
     }
     marquerPiece(api, geste.cle);
     rendreRotation();
+    lirePieceCourante();
     noterPlan();
   });
   const finir = (ev) => {
@@ -1580,6 +1623,7 @@ function toucheClavierPlaque(ev) {
   const dv = dir.axe === g.v ? dir.signe * f[1] * pas : 0;
   if (!deplacerPiece(S.vueA, PLQ.courante, du, dv)) return false;
   marquerPiece(S.vueA, PLQ.courante);
+  lirePieceCourante();
   noterPlan();
   if (ev.preventDefault) ev.preventDefault();
   return true;
@@ -2326,6 +2370,7 @@ function rendreParties() {
   const courante = PLQ.pieces.find((x) => x.cle === PLQ.courante) || null;
   const plaqueBloc = !PLQ.active ? "" : `
     <div class="plaque-tete">Sur la plaque · ${PLQ.pieces.length} pièce(s)</div>
+    <div class="plaque-lecture" id="plaqueLecture"></div>
     <div class="plaque-liste">${PLQ.pieces.map((x) => `
       <div class="plaque-rang${PLQ.masquees.has(x.cle) ? " masquee" : ""}${
           x.cle === PLQ.courante ? " courante" : ""}" data-cle="${esc(x.cle)}">
@@ -2610,6 +2655,26 @@ function fileOrdonnee() {
     ORDRE_ECRITURE.indexOf(a.operation) - ORDRE_ECRITURE.indexOf(b.operation));
 }
 
+/* LA CONTRADICTION NOMMÉE (dette du lot B ; tâche T090, plan-etabli T13).
+   « Poser sur une face » tourne le modèle et le met AU CONTACT du sol ;
+   « réparer l'assise » avec « recentrer sur l'origine » ramène le centre de la
+   boîte englobante sur (0, 0, 0) — donc soulève ou enfonce exactement ce que
+   l'assise vient de poser. Et ORDRE_ECRITURE écrit `assise` AVANT `reparer` :
+   le recentrage gagnerait TOUJOURS, silencieusement, et l'utilisateur verrait
+   une version qui flotte sans savoir laquelle des deux cases l'a produite.
+   PURE, et rendue plutôt qu'affichée : c'est ce qui la rend exécutable au banc
+   dans node. */
+function contradictionDeLaFile() {
+  const a = S.enAttente.some((t) => t.operation === "assise");
+  const r = S.enAttente.some((t) => t.operation === "reparer"
+    && t.charge && t.charge.recentrer);
+  if (!a || !r) return null;
+  /* LE GESTE D'ABORD : la barre coupe à sa largeur (preuve 8799 : « « posé … »
+     seul restait lisible) ; la phrase entière vit dans le `title`. */
+  return "« recentrer » défait « posé sur une face » : décoche « recentrer »"
+    + " ou annule l'assise — le recentrage est écrit APRÈS l'assise.";
+}
+
 /* La barre ÉNUMÈRE, elle ne se contente pas de compter : c'est ce détail qui
    rend la fusion visible — « 2 nœud(s) déplacé(s) » et non deux fois
    « 1 modification », qui aurait laissé passer l'écrasement en silence. */
@@ -2714,11 +2779,22 @@ function rendreAttente() {
      pendant que le serveur écrit N+1 — constaté sur la coupe, qui traverse
      l'entonnoir seule et s'y lisait « 1 modification(s) en attente » avec un
      « annuler » opérant. */
+  /* La contradiction se dit à la MÊME place que le doute d'index. Le `<span>`
+     naît VIDE et son texte est posé plus bas en textContent : tout texte qui
+     ne compose pas de balisage y va. « annuler » reste actif : annuler une
+     file contradictoire est exactement ce qu'il faut pouvoir faire. */
+  const contra = contradictionDeLaFile();
+  const refus = contra ? `<span class="attente-refus"></span>` : "";
   const etat = _ecritEnCours ? "en cours d'écriture" : "en attente";
   box.innerHTML = `<b>${S.enAttente.length} modification(s) ${etat}</b>
-    <span class="attente-liste" title="ordre d'écriture imposé : déplacer, puis poser sur une face, puis réparer, puis séparer — le déplacement rend au fichier le monde affiché, l'assise y est mesurée, l'extraction renumérote les nœuds">${esc(liste)}</span>${doute}
-    <button id="btnEcrire"${_ecritEnCours ? " disabled" : ""}>écrire la version</button>
+    <span class="attente-liste" title="ordre d'écriture imposé : déplacer, puis poser sur une face, puis réparer, puis séparer — le déplacement rend au fichier le monde affiché, l'assise y est mesurée, l'extraction renumérote les nœuds">${esc(liste)}</span>${doute}${refus}
+    <button id="btnEcrire"${_ecritEnCours || contra ? " disabled" : ""}>écrire la version</button>
     <button id="btnAnnuler"${_ecritEnCours ? " disabled" : ""}>annuler</button>`;
+  if (contra) {
+    const r = $("#barreAttente .attente-refus");
+    r.textContent = contra;
+    r.title = contra;
+  }
   $("#btnEcrire").addEventListener("click", ecrireVersion);
   $("#btnAnnuler").addEventListener("click", () => {
     S.enAttente.length = 0;
@@ -2747,6 +2823,10 @@ async function ecrireVersion() {
      est rendu grisé tant que le verrou tient (voir rendreAttente), et la
      barre est refaite des DEUX côtés de la série. */
   if (_ecritEnCours) return;
+  /* La contradiction assise / recentrer est refusée AVANT le verrou : le
+     bouton est déjà grisé (rendreAttente), ceci garde les autres appelants. */
+  const contra = contradictionDeLaFile();
+  if (contra) { direRefus(contra); return null; }
   _ecritEnCours = true;
   rendreAttente();                  /* la barre relit le verrou : le bouton grise */
   const ecrites = [];
@@ -3493,6 +3573,9 @@ function lireRepere() {
         marque rien — sa croix tomberait à côté des pièces étalées.${m.etale
           ? " † cette lecture-là n'a pas pu être corrigée." : ""}</div>` : "");
   $("#repereLecture").innerHTML = corps + pied;
+  /* poser une taille cible change l'UNITÉ : une lecture restée en unités glTF
+     sous un rail en millimètres serait fausse à l'écran */
+  lirePieceCourante();
 }
 
 document.addEventListener("etabli:charge", () => {

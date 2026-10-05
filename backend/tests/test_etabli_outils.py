@@ -972,5 +972,97 @@ def test_la_route_creuser_ecrit_une_version_GARDE_la_saisie_et_juge_son_corps():
         assert r.status_code == 400 and "non fermé" in r.json()["detail"] and "Réparer le maillage" in r.json()["detail"]
     assert not list((d.parent / "job_creux_ouvert").glob("model.v*.glb"))
 
+
+# ── T090 / plan T12 : UN SEUL lecteur d'accesseur, et il APPLIQUE `sparse` ─────
+def _cube_sparse() -> bytes:
+    """Le cube du dépôt, dont UN sommet est déplacé par un accesseur `sparse`.
+
+    glTF 2.0 §3.6.2.3 : `sparse` remplace `count` valeurs de l'accesseur de base, désignées par des index. Un
+    lecteur qui l'ignore rend la géométrie d'AVANT la substitution."""
+    import struct as _s
+    from app.services import mesh_edit
+    doc, binc = mesh_edit.lire_glb(_cube())
+    acc = doc["accessors"][doc["meshes"][0]["primitives"][0]["attributes"]["POSITION"]]
+    tampon = bytearray(binc)
+    while len(tampon) % 4:
+        tampon.append(0)
+    off_i = len(tampon); tampon += _s.pack("<H", 0)
+    while len(tampon) % 4:
+        tampon.append(0)
+    off_v = len(tampon); tampon += _s.pack("<3f", -3.0, -3.0, -3.0)
+    n = len(doc["bufferViews"])
+    doc["bufferViews"] += [{"buffer": 0, "byteOffset": off_i, "byteLength": 2},
+                           {"buffer": 0, "byteOffset": off_v, "byteLength": 12}]
+    acc["sparse"] = {"count": 1,
+                     "indices": {"bufferView": n, "byteOffset": 0, "componentType": 5123},
+                     "values": {"bufferView": n + 1, "byteOffset": 0}}
+    acc["min"] = [-3.0, -3.0, -3.0]
+    doc["buffers"] = [{"byteLength": len(tampon)}]
+    return mesh_edit.ecrire_glb(doc, bytes(tampon))
+
+
+def test_UN_SEUL_lecteur_et_il_APPLIQUE_sparse_pour_les_deux_appelants():
+    from app.services import mesh_cut, mesh_edit, print3d
+    data = _cube_sparse()
+    doc, binc = mesh_edit.lire_glb(data)
+    i = doc["meshes"][0]["primitives"][0]["attributes"]["POSITION"]
+    pos = mesh_edit.lire_accesseur(doc, binc, i)
+    assert pos[0] == (-3.0, -3.0, -3.0)              # la substitution est APPLIQUÉE
+    assert sum(1 for p in pos if p == (-3.0, -3.0, -3.0)) == 1
+    # les deux anciens lecteurs délèguent : même réponse, plus de refus, plus de silence
+    assert mesh_cut._lire_accesseur(doc, binc, i)[0] == (-3.0, -3.0, -3.0)
+    assert print3d._accessor(doc, binc, i)[0] == (-3.0, -3.0, -3.0)
+    b = print3d.bbox(print3d.lire_glb_triangles(data))
+    assert abs(b[0][0] - (-3.0)) < 1e-6              # le lecteur de print3d aussi
+
+
+def test_le_lecteur_unique_garde_les_PERIMETRES_de_chaque_appelant():
+    """`print3d` ne sait écrire que float32 / u16 / u32 ; `mesh_cut` lit tous les composants de glTF. Unifier ne
+    doit pas ÉLARGIR print3d en douce : le périmètre reste un argument de l'appelant, et le refus garde son mot."""
+    from app.services import mesh_edit, print3d
+    doc, binc = mesh_edit.lire_glb(_cube())
+    i = doc["meshes"][0]["primitives"][0]["attributes"]["POSITION"]
+    doc["accessors"][i]["componentType"] = 5121      # u8 : hors périmètre print3d
+    with pytest.raises(ValueError, match="hors périmètre"):
+        print3d._accessor(doc, binc, i)
+    assert len(mesh_edit.lire_accesseur(doc, binc, i)) > 0   # le lecteur générique, lui, sait le lire
+
+
+def test_un_accesseur_sans_bufferView_part_de_ZERO_comme_le_dit_glTF():
+    """glTF 2.0 : quand `bufferView` est absent, les valeurs de base sont NULLES et `sparse` les remplace.
+    `mesh_cut` le refusait ; il ne le refuse plus, il l'applique."""
+    import struct as _s
+    from app.services import mesh_edit
+    doc, binc = mesh_edit.lire_glb(_cube())
+    tampon = bytearray(binc)
+    while len(tampon) % 4:
+        tampon.append(0)
+    oi = len(tampon); tampon += _s.pack("<H", 1)
+    while len(tampon) % 4:
+        tampon.append(0)
+    ov = len(tampon); tampon += _s.pack("<3f", 7.0, 8.0, 9.0)
+    n = len(doc["bufferViews"])
+    doc["bufferViews"] += [{"buffer": 0, "byteOffset": oi, "byteLength": 2},
+                           {"buffer": 0, "byteOffset": ov, "byteLength": 12}]
+    doc["accessors"].append({"componentType": 5126, "type": "VEC3", "count": 3,
+                             "sparse": {"count": 1,
+                                        "indices": {"bufferView": n, "byteOffset": 0, "componentType": 5123},
+                                        "values": {"bufferView": n + 1, "byteOffset": 0}}})
+    doc["buffers"] = [{"byteLength": len(tampon)}]
+    vals = mesh_edit.lire_accesseur(doc, bytes(tampon), len(doc["accessors"]) - 1)
+    assert vals == [(0.0, 0.0, 0.0), (7.0, 8.0, 9.0), (0.0, 0.0, 0.0)]
+
+
+def test_il_n_y_a_plus_qu_UN_lecteur_d_accesseur_dans_le_depot():
+    """La dette se referme par une assertion, pas par une intention : deux lecteurs d'un `bufferView` dans deux
+    modules, et le silence revient au premier fichier `sparse`.
+
+    Le périmètre est `app/services/*.py`, SANS les sous-dossiers : `cards/gltf.py` relit le tampon que
+    `gltf_builder` vient d'écrire pour reposer des bornes min/max (jamais de `sparse` là), et `cards/forge3d_scene`
+    ne fait que recopier la clé `byteStride` d'une vue — ni l'un ni l'autre ne lit une pièce de l'Établi."""
+    services = pathlib.Path(__file__).resolve().parent.parent / "app" / "services"
+    porteurs = sorted(p.name for p in services.glob("*.py") if "byteStride" in p.read_text("utf-8"))
+    assert porteurs == ["mesh_edit.py"], porteurs
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))
