@@ -200,7 +200,7 @@ let _ecritEnCours = false;
    durée de sa propre écriture. `reparer_maillage` (tâche #88) écrit SEUL lui aussi,
    derrière la même garde (ecrireSeule) : sa place dans la liste ne compte pas, elle
    n'y voisine jamais avec personne. `decimer` (tâche #89 PR D) et `creuser` (PR E) de même. UNE LIGNE : les bancs la lisent ainsi. */
-const ORDRE_ECRITURE = ["transformer", "assise", "reparer", "extraire", "couper", "reparer_maillage", "creuser", "decimer", "booleen"];
+const ORDRE_ECRITURE = ["transformer", "assise", "reparer", "extraire", "couper", "reparer_maillage", "creuser", "decimer", "booleen", "connecteur"];
 
 /* Les trois plumes de P1, ÉCRITES plutôt que composées. Un
    `/api/etabli/${t.operation}` marcherait aussi bien et rendrait le fichier
@@ -216,6 +216,7 @@ const ROUTES = {
   decimer: "/api/etabli/decimer",
   creuser: "/api/etabli/creuser",
   booleen: "/api/etabli/booleen",
+  connecteur: "/api/etabli/connecteur",
 };
 
 async function jget(p) {
@@ -1971,7 +1972,7 @@ function poserSurFace(obj, touche) {
    rangement doit défaire ; `planA`/`planB` les deux plans de découpe de
    three.js (a : le demi-espace vers lequel pointe la normale, comme au
    serveur). (Même règle que pour S : toute clé se déclare ICI.) */
-const COUTEAU = { manip: "translate", garder: "deux", noeuds: [], source: undefined,
+const COUTEAU = { manip: "translate", garder: "deux", noeuds: [], source: undefined, connecteur: "",
                   plan: null, apercu: null, clones: [], originaux: [],
                   planA: new THREE.Plane(), planB: new THREE.Plane(),
                   rayon: 0, ecart: 0 };
@@ -2244,7 +2245,57 @@ async function confirmerCoupe() {
      ce que le compte rendu porte — un capuchon non posé n'est pas un échec
      d'écriture, mais l'utilisateur doit le savoir avant d'envoyer au slicer. */
   direBilanCoupe(bilan.derniere);
+  /* LE CONNECTEUR VIENT APRÈS, sur la version que la coupe vient d'écrire, et
+     il lit SON plan dans la fiche : la page n'a rien à renvoyer. Deux versions
+     donc, pas une — couper et connecter sont deux gestes, et la lignée doit
+     pouvoir revenir entre les deux. */
+  await poserConnecteurApresCoupe(bilan.derniere);
   return true;
+}
+
+/* Les cotes du connecteur, en millimètres. Pas de champ à l'écran, et c'est
+   délibéré : trois nombres de plus dans la barre du couteau, que personne ne
+   sait choisir au premier essai. Le JEU est celui qui compte : 0,2 est un
+   ajustement serré (collé) ; Prusa donne 0,3 pour des pièces mobiles. La
+   cheville traverse les deux moitiés : deux fois la hauteur du téton. */
+const RAYON_CONNECTEUR = 3;
+const HAUTEUR_CONNECTEUR = 4;
+const HAUTEUR_CONNECTEUR_CHEVILLE = 8;
+const JEU_CONNECTEUR = 0.2;
+function cotesDuConnecteur(type) {
+  const h = type === "cheville" ? HAUTEUR_CONNECTEUR_CHEVILLE : HAUTEUR_CONNECTEUR;
+  return { rayon: versUnites(RAYON_CONNECTEUR), hauteur: versUnites(h), jeu: versUnites(JEU_CONNECTEUR),
+           rayon_millimetres: RAYON_CONNECTEUR, hauteur_millimetres: h, jeu_millimetres: JEU_CONNECTEUR };
+}
+
+/* Le connecteur choisi dans la barre du couteau, posé sur les deux moitiés
+   que la coupe vient d'écrire — leurs index NEUFS, lus dans la fiche. Trois
+   refus, chacun dit : sans taille cible aucun millimètre n'existe, un côté
+   écarté ne laisse rien à relier, et plusieurs pièces traversées ne disent
+   pas quelles moitiés relier. */
+async function poserConnecteurApresCoupe(fiche) {
+  if (!COUTEAU.connecteur) return;
+  const type = COUTEAU.connecteur;
+  if (!enMillimetres()) {
+    direRefus("connecteur non posé : pose une taille cible — un connecteur se donne en millimètres");
+    return;
+  }
+  const src = (fiche && fiche.source) || {};
+  if (src.garder !== "deux") {
+    direRefus("connecteur non posé : la coupe n'a gardé qu'un côté — il faut les deux moitiés à relier");
+    return;
+  }
+  const traversees = (src.pieces || []).filter((p) => p.traversee && p.cotes && p.cotes.a && p.cotes.b);
+  if (traversees.length !== 1) {
+    direRefus("connecteur non posé : la coupe a traversé plusieurs pièces — coupe-en une seule à la fois");
+    return;
+  }
+  const { a, b } = traversees[0].cotes;
+  const bilan = await ecrireSeule("connecteur", { a: a.noeud_apres, b: b.noeud_apres, type, ...cotesDuConnecteur(type) });
+  if (!bilan) return;
+  const roles = (bilan.derniere.source.pieces || []).map((p) => `${p.role === "male" ? "mâle" : p.role} « ${p.nom} »`);
+  direAvis(`${type} posé (version ${bilan.derniere.version}) : ${roles.join(", ")} — jeu ${JEU_CONNECTEUR.toLocaleString("fr-FR")} millimètre(s) `
+    + "porté par la femelle ; passe « Réparer en un clic » pour souder la couture");
 }
 
 /* Le compte rendu du couteau (`source` de la fiche, format en tête de la
@@ -2326,6 +2377,9 @@ $("#btnCouteauManip").addEventListener("click", () => {
 $("#couteauGarder").addEventListener("change", () => {
   COUTEAU.garder = $("#couteauGarder").value;
   majApercuCoupe();
+});
+$("#couteauConnecteur").addEventListener("change", () => {
+  COUTEAU.connecteur = $("#couteauConnecteur").value;
 });
 $("#btnCouper").addEventListener("click", confirmerCoupe);
 
@@ -2927,6 +2981,7 @@ const LIBELLES_ATTENTE = {
   decimer: (t) => `décimer vers ${t.charge.preset || t.charge.target_tris} triangles`,
   creuser: (t) => `creuser : paroi ${fmtMesure(t.charge.paroi)} ${uniteCourante()}`,
   booleen: (t) => `${t.charge.operation} de ${t.charge.a.length} et ${t.charge.b.length} pièce(s)`,
+  connecteur: (t) => `connecteur ${t.charge.type} : rayon ${fmtMesure(t.charge.rayon)} ${uniteCourante()}`,
 };
 
 /* ── RÉPARER EN UN CLIC (tâche #88 PR A, plan-etabli T2) ─────────────────────
@@ -2934,7 +2989,7 @@ const LIBELLES_ATTENTE = {
    durée de sa propre écriture — la garde de confirmerCoupe(), pour toute opération.
    Rend le bilan d'ecrireVersion(), ou null (refus dit dans la barre). */
 const LIBELLE_OP = { reparer_maillage: "réparer le maillage", decimer: "décimer", creuser: "creuser",
-                     booleen: "le booléen" };
+                     booleen: "le booléen", connecteur: "le connecteur" };
 const LIBELLE_ACTION = { souder: "sommets confondus", doublons: "faces dupliquées", degeneres: "triangles plats",
                          normales: "normales unifiées", trous: "trous bouchés" };
 /* Les actions cochées d'office : TOUT sauf les trous — décision de l'utilisateur (04/10) :

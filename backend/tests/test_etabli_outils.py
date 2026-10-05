@@ -1272,7 +1272,7 @@ def _vol(tris):
                 + a[2] * (b[0] * c[1] - b[1] * c[0])) / 6.0 for a, b, c in tris)
 
 
-def _ferme_geometriquement(tris):
+def _ferme_geometriquement(tris, tol=1e-9):
     """Chaque arête, découpée aux sommets qui la touchent, est couverte des deux côtés : on le juge par le flux —
     la somme des normales pondérées d'une surface fermée est NULLE (et un trou la rend non nulle)."""
     s = [0.0, 0.0, 0.0]
@@ -1282,7 +1282,7 @@ def _ferme_geometriquement(tris):
         n = (u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0])
         for i in range(3):
             s[i] += n[i]
-    return max(abs(x) for x in s) < 1e-9
+    return max(abs(x) for x in s) < tol
 
 
 def test_les_trois_booleens_donnent_le_VOLUME_attendu_sur_deux_cubes_a_faces_COPLANAIRES():
@@ -1370,6 +1370,150 @@ def test_la_route_booleen_ecrit_une_version_GARDE_les_autres_pieces_et_juge_son_
                       {"a": [0], "b": [1], "operation": "xor"}, {"a": [0], "b": "1", "operation": "union"},
                       {"a": [0], "b": [7], "operation": "union"}):
             assert c.post("/api/etabli/booleen", json={"job": "job_bool", "version": 1, **corps}).status_code == 400, corps
+
+
+# ── T092 / plan T17 : les connecteurs du couteau, posés par BOOLÉENS après la coupe ─────
+import math as _m
+
+
+def _cube_coupe():
+    """Le cube du dépôt (arête 2) coupé par y = 0 : nœud 0 = cube_a (y > 0, la normale +y y pointe), nœud 1 = cube_b."""
+    from app.services import mesh_cut
+    return mesh_cut.couper(_cube(), [0], [0.0, 0.0, 0.0], [0.0, 1.0, 0.0], "deux")
+
+
+def _aire_polygone(r, cotes=24):
+    return 0.5 * cotes * r * r * _m.sin(2 * _m.pi / cotes)
+
+
+def _pieces(glb):
+    from app.services import print3d
+    doc = print3d._chunks(glb)[0]
+    return {n["name"]: print3d.lire_glb_triangles(glb, [i]) for i, n in enumerate(doc["nodes"])}
+
+
+def test_le_TETON_sort_de_A_DANS_B_et_le_trou_de_B_porte_le_jeu():
+    """Le mâle gagne exactement le cylindre qui dépasse de sa face de coupe ; la femelle perd un trou plus large ET
+    plus profond du jeu. Et le téton sort VERS B (−n) : le plan le faisait pousser dans le sens de la normale, donc
+    dans sa propre moitié."""
+    from app.services import mesh_connect as MC
+    coupe, _r = _cube_coupe()
+    sortie, rap = MC.poser(coupe, 0, 1, [0.0, 0.0, 0.0], [0.0, 1.0, 0.0], "teton", rayon=0.3, hauteur=0.4, jeu=0.05)
+    p = _pieces(sortie)
+    assert set(p) == {"cube_a", "cube_b"}
+    assert abs(_vol(p["cube_a"]) - (4.0 + _aire_polygone(0.3) * 0.4)) < 1e-6
+    assert abs(_vol(p["cube_b"]) - (4.0 - _aire_polygone(0.35) * 0.45)) < 1e-6
+    assert min(pt[1] for t in p["cube_a"] for pt in t) < -0.39, "le téton descend DANS l'espace de B"
+    # relues d'un GLB : float32, d'où la tolérance de 1e-6
+    assert _ferme_geometriquement(p["cube_a"], 1e-6) and _ferme_geometriquement(p["cube_b"], 1e-6)
+    assert [x["role"] for x in rap["pieces"]] == ["male", "femelle"] and rap["type"] == "teton"
+    assert rap["centre"] == [0.0, 0.0, 0.0] and rap["jeu"] == 0.05
+
+
+def test_la_CHEVILLE_perce_les_DEUX_moities_et_ajoute_une_goupille():
+    from app.services import mesh_connect as MC
+    coupe, _r = _cube_coupe()
+    sortie, rap = MC.poser(coupe, 0, 1, [0.0, 0.0, 0.0], [0.0, 1.0, 0.0], "cheville", rayon=0.3, hauteur=0.8, jeu=0.05)
+    p = _pieces(sortie)
+    assert set(p) == {"cube_a", "cube_b", "cheville"}
+    trou = _aire_polygone(0.35) * (0.4 + 0.05)
+    assert abs(_vol(p["cube_a"]) - (4.0 - trou)) < 1e-6 and abs(_vol(p["cube_b"]) - (4.0 - trou)) < 1e-6
+    assert abs(_vol(p["cheville"]) - _aire_polygone(0.3) * 0.8) < 1e-6           # relu en float32
+    assert [x["role"] for x in rap["pieces"]] == ["femelle", "femelle", "goupille"]
+
+
+def test_la_QUEUE_D_ARONDE_coulisse_dans_le_plan_et_RETIENT_selon_la_normale():
+    """Une queue d'aronde retient parce qu'elle s'ÉLARGIT EN PROFONDEUR : le profil (v, profondeur) est un trapèze
+    étroit à la face de coupe, large au fond, extrudé DANS le plan de coupe (u) à travers toute la pièce — on
+    l'assemble en la faisant coulisser. Le prisme du plan, enfoncé selon la normale, ressortait comme il était entré."""
+    from app.services import mesh_connect as MC
+    coupe, _r = _cube_coupe()
+    sortie, rap = MC.poser(coupe, 0, 1, [0.0, 0.0, 0.0], [0.0, 1.0, 0.0], "aronde", rayon=0.4, hauteur=0.5, jeu=0.05)
+    p = _pieces(sortie)
+    w0, w1 = rap["demi_largeur_entree"], rap["demi_largeur_fond"]
+    assert w1 > w0 + rap["jeu"], "le fond du tenon est plus large que l'entrée de la rainure : il ne ressort pas"
+    # et la GÉOMÉTRIE le dit, pas seulement le rapport : au fond du tenon (y = −0,5) le mâle s'étend jusqu'à w1, à la
+    # face de coupe (y juste sous 0) jusqu'à w0 seulement — un profil inversé a le même volume et ne retient rien
+    largeur = lambda y0: max(abs(pt[2]) for t in p["cube_a"] for pt in t if abs(pt[1] - y0) < 1e-6)
+    assert abs(largeur(-0.5) - w1) < 1e-6 and largeur(-0.5) > w0 + rap["jeu"]
+    L = 2.0                                                   # la pièce traverse x ∈ [−1, 1] (u = x ou z)
+    tenon = (w0 + w1) * 0.5                                  # (demi + demi) × hauteur 0,5
+    assert abs(_vol(p["cube_a"]) - (4.0 + tenon * L)) < 1e-6
+    rainure = ((w0 + rap["jeu"]) + (w1 + rap["jeu"])) * (0.5 + rap["jeu"])     # trapèze : (demi + demi) × profondeur
+    assert abs(_vol(p["cube_b"]) - (4.0 - rainure * L)) < 1e-6
+    assert _ferme_geometriquement(p["cube_a"], 1e-6) and _ferme_geometriquement(p["cube_b"], 1e-6)
+
+
+def test_un_solide_qui_EFFLEURE_une_face_par_ses_aretes_la_decoupe_quand_meme():
+    """Un prisme au profil de queue d'aronde (col vertical au-dessus de y = 0, trapèze en dessous) creuse une boîte
+    dont le dessus est en y = 0 : AUCUNE de ses faces ne traverse ce plan, toutes en partent par une arête. Le
+    dessus doit pourtant être découpé le long de ces arêtes — sinon il reste entier sur la rainure (06/10)."""
+    from app.services import mesh_boolean as MB, mesh_connect as MC
+    profil = [(-0.2, 0.1), (0.2, 0.1), (0.2, 0.0), (0.3, -0.4), (-0.3, -0.4), (-0.2, 0.0)]
+    P = MC._extrusion(profil, (0.0, 0.0, 0.0), (0.0, 0.0, -1.0), (0.0, 1.0, 0.0), (1.0, 0.0, 0.0), -4.0, 4.0)
+    r = MB.operer(_boite_tris(-1, -1, -1, 1, 0, 1), P, "difference")
+    assert abs(_vol(r) - (4.0 - (0.4 + 0.6) / 2 * 0.4 * 2.0)) < 1e-9 and _ferme_geometriquement(r)
+
+
+def test_le_profil_NON_CONVEXE_de_l_aronde_s_extrude_en_solide_FERME():
+    """Le col de l'aronde rejoint son trapèze par deux sommets rentrants : une triangulation en éventail débordait du
+    profil (volume juste, surface fausse) et la rainure sortait ouverte — flux 2,32 mesuré le 06/10."""
+    from app.services import mesh_boolean as MB, mesh_connect as MC
+    profil = [(-0.29, 0.125), (0.29, 0.125), (0.29, 0.0), (0.45, -0.55), (-0.45, -0.55), (-0.29, 0.0)]
+    P = MC._extrusion(profil, (0.0, 0.0, 0.0), (0.0, 0.0, -1.0), (0.0, 1.0, 0.0), (1.0, 0.0, 0.0), -4.0, 4.0)
+    R = MB.operer(_boite_tris(-1, -1, -1, 1, 0, 1), P, "difference")
+    assert _ferme_geometriquement(R)
+    aire = 2 * 0.29 * 0.125 + (0.58 + 0.9) / 2 * 0.55
+    assert abs(_vol(P) - aire * 8) < 1e-9
+
+
+def test_poser_refuse_ce_qui_ne_tient_pas_en_le_disant():
+    from app.services import mesh_connect as MC
+    coupe, _r = _cube_coupe()
+    plan = ([0.0, 0.0, 0.0], [0.0, 1.0, 0.0])
+    with pytest.raises(ValueError, match="type"):
+        MC.poser(coupe, 0, 1, *plan, "vis", 0.3, 0.4, 0.05)
+    with pytest.raises(ValueError, match="section"):
+        MC.poser(coupe, 0, 1, *plan, "teton", 1.2, 0.4, 0.05)            # ⌀ 2,5 dans une section de 2
+    with pytest.raises(ValueError, match="mince"):
+        MC.poser(coupe, 0, 1, *plan, "teton", 0.3, 1.5, 0.05)            # B n'a que 1 de profondeur
+    with pytest.raises(ValueError, match="jeu"):
+        MC.poser(coupe, 0, 1, *plan, "aronde", 0.4, 0.5, 0.5)            # le jeu mange la contre-dépouille
+    with pytest.raises(ValueError, match="rayon"):
+        MC.poser(coupe, 0, 1, *plan, "teton", 0.0, 0.4, 0.05)
+    with pytest.raises(ValueError, match="direction"):
+        MC.poser(coupe, 0, 1, [0, 0, 0], [0, 0, 0], "teton", 0.3, 0.4, 0.05)
+    with pytest.raises(ValueError, match="capuchon"):
+        MC.poser(coupe, 0, 1, [0.0, 0.5, 0.0], [0.0, 1.0, 0.0], "teton", 0.3, 0.4, 0.05)   # ce plan-là n'a rien coupé
+    with pytest.raises(ValueError, match="deux"):
+        MC.poser(coupe, 0, 0, *plan, "teton", 0.3, 0.4, 0.05)
+
+
+def test_la_route_connecteur_relit_le_plan_de_la_FICHE_et_ecrit_une_version():
+    from app.services import mesh_edit
+    coupe, rapport = _cube_coupe()
+    d = _job("job_conn", _cube())
+    mesh_edit.ecrire_version("job_conn", coupe, operation="couper",
+                             detail={"depuis": {"version": 1, "fichier": "model.glb"}, **rapport})
+    corps = {"job": "job_conn", "version": 2, "a": 0, "b": 1, "type": "teton", "rayon": 0.3, "hauteur": 0.4,
+             "jeu": 0.05, "rayon_millimetres": 3.0, "hauteur_millimetres": 4.0, "jeu_millimetres": 0.5}
+    with _client() as c:
+        r = c.post("/api/etabli/connecteur", json=corps)
+        assert r.status_code == 200, r.text
+        assert (d / "model.v3.glb").is_file()
+        src = r.json()["source"]
+        assert src["operation"] == "connecteur" and src["type"] == "teton"
+        assert src["plan"]["normale"] == [0.0, 1.0, 0.0], "le plan vient de la FICHE, pas du corps"
+        assert src["depuis"] == {"version": 2, "fichier": "model.v2.glb"}
+        assert src["rayon"] == 0.3 and src["rayon_millimetres"] == 3.0, "AUCUNE conversion à la route"
+        for mauvais in ({"a": 0, "b": 0}, {"type": "vis"}, {"rayon": 0}, {"hauteur": "0.4"}, {"jeu": -0.1},
+                        {"a": "0"}, {"jeu_millimetres": -1}):
+            assert c.post("/api/etabli/connecteur", json={**corps, **mauvais}).status_code == 400, mauvais
+        # une version qui n'est PAS née d'une coupe : refus nommé, pas un 500 — le brouillon, et surtout la version
+        # CONNECTEUR elle-même, dont la fiche porte aussi un `plan` (poser deux fois de suite)
+        for v in (1, 3):
+            r = c.post("/api/etabli/connecteur", json={**corps, "version": v})
+            assert r.status_code == 400 and "n'est pas née d'une coupe" in r.json()["detail"], (v, r.text)
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

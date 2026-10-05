@@ -14191,6 +14191,54 @@ async def etabli_booleen(body: dict):
         "matieres": "le booléen écrit de la géométrie : matériaux, textures et UV ne suivent pas"})
 
 
+@router.post("/etabli/connecteur")
+async def etabli_connecteur(body: dict):
+    """LES CONNECTEURS DU COUTEAU (tâche T092, plan-etabli T17) : téton, cheville ou queue d'aronde entre les deux
+    moitiés `a` (côté de la normale) et `b` d'une coupe, posés par booléens.
+
+    LE PLAN N'EST PAS DANS LE CORPS, ET C'EST LE POINT : il est relu dans la FICHE de la version visée (`source.plan`,
+    écrite par `/etabli/couper`). Le redemander à la page inviterait un plan légèrement différent de celui qui a
+    coupé — un connecteur de travers, sans que rien ne grince. Les cotes `rayon`, `hauteur`, `jeu` arrivent en UNITÉS
+    DU MODÈLE — la page les convertit par versUnites, comme la paroi du creusage — et la saisie en millimètres est
+    gardée telle quelle dans la fiche (`*_millimetres`, facultatifs) : AUCUNE conversion à la route."""
+    from app.services import mesh_connect, mesh_report
+    job, data, depuis = _etabli_glb_cible(body.get("job"), body.get("version"), "connecteur")
+    nom = depuis["fichier"]
+    fiches = {str(f.get("file")): f for f in (mesh_report.read_registry(job).get("entries") or [])
+              if isinstance(f, dict)}
+    src = (fiches.get(nom) or {}).get("source") or {}
+    plan = src.get("plan") if isinstance(src, dict) and src.get("operation") == "couper" else None
+    if not isinstance(plan, dict) or "point" not in plan or "normale" not in plan:
+        raise HTTPException(400, f"connecteur : la version {depuis['version']} n'est pas née d'une coupe (aucun plan "
+                                 "dans sa fiche) — pose un connecteur sur la version que le couteau vient d'écrire")
+    a, b = body.get("a"), body.get("b")
+    if not _etabli_entier(a) or not _etabli_entier(b) or a < 0 or b < 0 or a == b:
+        raise HTTPException(400, "connecteur : `a` et `b` attendent les index de nœud des DEUX moitiés, distincts")
+    type_ = body.get("type", "teton")
+    if type_ not in mesh_connect.TYPES:
+        raise HTTPException(400, f"connecteur : type « {type_} » — {', '.join(mesh_connect.TYPES)}")
+    cotes = {}
+    for cle in ("rayon", "hauteur", "jeu"):
+        val = body.get(cle)
+        if not _etabli_nombre(val) or val < 0 or (val == 0 and cle != "jeu"):
+            raise HTTPException(400, f"connecteur : `{cle}` attend un nombre {'≥ 0' if cle == 'jeu' else '> 0'} "
+                                     "(en unités du modèle)")
+        cotes[cle] = float(val)
+    saisie = {}
+    for cle in ("rayon_millimetres", "hauteur_millimetres", "jeu_millimetres"):
+        if cle in body:
+            if not _etabli_nombre(body[cle]) or body[cle] < 0:
+                raise HTTPException(400, f"connecteur : `{cle}` attend un nombre ≥ 0")
+            saisie[cle] = float(body[cle])
+    try:
+        sortie, rapport = await asyncio.to_thread(
+            mesh_connect.poser, data, int(a), int(b), plan["point"], plan["normale"], type_,
+            cotes["rayon"], cotes["hauteur"], cotes["jeu"])
+    except ValueError as ex:
+        raise HTTPException(400, str(ex))
+    return _etabli_ecrire(job, sortie, "connecteur", {"depuis": depuis, **saisie, **rapport})
+
+
 @router.get("/etabli/orienter")
 async def etabli_orienter(job: str, version: int = 1):
     """L'ORIENTATION AUTOMATIQUE (tâche T092, plan-etabli T19) : PROPOSE trois poses classées. AUCUNE ÉCRITURE — c'est
