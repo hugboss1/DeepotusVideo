@@ -6273,6 +6273,11 @@ def _importer_plaque(quoi: str) -> str:
     return f"import {{ {quoi} }} from {json.dumps(chemin)};\n"
 
 
+def _mesure_js() -> str:
+    """lib3d/mesure.js ENTIER, sans ses `export`, prêt pour un harnais node (tâche #89)."""
+    return _lire("lib3d/mesure.js").replace('"use strict";', "").replace("export function", "function") + "\n"
+
+
 def _constantes_etabli(*noms: str) -> str:
     """Les constantes d'etabli.js, VERBATIM, pour le harnais node.
 
@@ -6486,6 +6491,8 @@ def test_la_LECTURE_de_CHAQUE_selection_est_EXECUTEE():
         + _fonction_etabli("versUnites") + "\n"
         # tâche #88 : lireRepere() pose aussi le contour du plateau réel
         + _constantes_etabli("PROFIL") + _fonction_etabli("contourPlateau") + "\n"
+        # tâche #89 : lireRepere() refait aussi la lecture de la mesure
+        + _mesure_js() + _constantes_etabli("MESURE") + _fonction_etabli("rendreMesure") + "\n"
         + _fonction_etabli("lireRepere") + "\n" + """
       const api = monter(860, 824);
       const racine = new THREE.Group();
@@ -6620,9 +6627,10 @@ def test_la_LECTURE_de_CHAQUE_selection_est_EXECUTEE():
     # LES ZONES QUE LE GABARIT A VRAIMENT ÉCRITES. La doublure ne fabrique
     # rien : ces quatre-là existent parce que rendreRepere() les a posées dans
     # un `innerHTML`, et le fait que lireRepere() les atteigne sans lever est
-    # la preuve que les sélecteurs et le balisage parlent des mêmes ids.
+    # la preuve que les sélecteurs et le balisage parlent des mêmes ids. CINQ
+    # depuis la tâche #89 : `#repereMesure`, que rendreMesure() atteint de même.
     assert sortie["zones"] == ["#rCible", "#repere", "#repereEchelle",
-                              "#repereLecture"], sortie["zones"]
+                              "#repereLecture", "#repereMesure"], sortie["zones"]
     assert sortie["vide"]["rangees"] == 0, sortie["vide"]
     assert "aucune sélection" in sortie["vide"]["html"], sortie["vide"]
 
@@ -8671,8 +8679,11 @@ def test_le_plan_part_a_la_PREMIERE_RETOUCHE_jamais_a_l_etalement_et_n_entre_pas
     une minuterie factice et un jpost qui enregistre.
     """
     js, code = _lire("etabli/etabli.js"), _code("etabli/etabli.js")
-    # LES TROIS SITES DE RETOUCHE, et aucun autre : le compte est rigide
-    assert code.count("noterPlan();") == 3, code.count("noterPlan();")
+    # LES TROIS SITES DE RETOUCHE, et aucun autre : le compte est rigide. QUATRE depuis la
+    # tâche #89 : « Ranger sur le plateau » (arrangerPlaque) est une retouche VOULUE — un
+    # clic de l'utilisateur —, pas un étalement automatique.
+    assert code.count("noterPlan();") == 4, code.count("noterPlan();")
+    assert "noterPlan();" in _fonction_etabli_async("arrangerPlaque")
     for fn in ("glisserSurPlaque", "toucheClavierPlaque", "poserRotation"):
         assert "noterPlan();" in _fonction_etabli(fn), fn
     assert "noterPlan(" not in _plaque_bloc()
@@ -8837,6 +8848,8 @@ def test_sur_la_plaque_le_rail_annonce_le_PAS_DU_PLATEAU_et_les_regles_portent_l
         + _fonction_etabli("versUnites") + "\n"
         # tâche #88 : lireRepere() pose aussi le contour du plateau réel
         + _constantes_etabli("PROFIL") + _fonction_etabli("contourPlateau") + "\n"
+        # tâche #89 : lireRepere() refait aussi la lecture de la mesure
+        + _mesure_js() + _constantes_etabli("MESURE") + _fonction_etabli("rendreMesure") + "\n"
         + _fonction_etabli("lireRepere") + "\n" + """
       const api = monter(860, 824);
       """ + _scene_enveloppe() + """
@@ -8976,6 +8989,8 @@ def test_la_LECTURE_du_rail_reste_celle_du_MODELE_pour_une_piece_TOURNEE_et_ASYM
         + _fonction_etabli("versUnites") + "\n"
         # tâche #88 : lireRepere() pose aussi le contour du plateau réel
         + _constantes_etabli("PROFIL") + _fonction_etabli("contourPlateau") + "\n"
+        # tâche #89 : lireRepere() refait aussi la lecture de la mesure
+        + _mesure_js() + _constantes_etabli("MESURE") + _fonction_etabli("rendreMesure") + "\n"
         + _fonction_etabli("lireRepere") + "\n" + """
       const api = monter(860, 824);
       """ + _scene_enveloppe() + """
@@ -9089,7 +9104,8 @@ def test_le_POINTEUR_a_UN_SEUL_proprietaire_consulte_par_tout_ecouteur_et_ecrit_
     js, code = _lire("etabli/etabli.js"), _code("etabli/etabli.js")
     # LA DÉCLARATION, avec les autres états de la page, et la liste des modes
     assert 'const GESTE = { mode: "selection", enCours: null };' in js
-    assert 'const MODES_GESTE = ["selection", "glisser", "assise", "couteau"];' in js
+    # tâche #89 : le mode « mesure » (deux clics), rangé par armerGeste en le quittant
+    assert 'const MODES_GESTE = ["selection", "glisser", "assise", "couteau", "mesure"];' in js
     assert js.index("const REP = {") < js.index("const GESTE = {") < js.index("let GIZMO")
     # UN SEUL SITE D'ÉCRITURE du propriétaire, et c'est armerGeste
     ecritures = re.findall(r"GESTE\.mode = (?!=)", code)

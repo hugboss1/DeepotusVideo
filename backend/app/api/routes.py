@@ -14024,6 +14024,36 @@ async def etabli_reparer_maillage(body: dict):
     return _etabli_ecrire(job, sortie, "reparer_maillage", {"depuis": depuis, **rapport})
 
 
+@router.post("/etabli/ranger")
+async def etabli_ranger(body: dict):
+    """RANGER SUR LE PLATEAU (tâche #89 PR C, plan-etabli T5) : des empreintes {cle, l, p} sur des plateaux (L, P),
+    rotation à plat et marge, plusieurs plateaux au besoin. AUCUNE ÉCRITURE : la page applique le résultat sur la plaque
+    et l'enregistre par le plan de plaque déjà en place — un rangement est un point de vue, pas une correction. Les
+    longueurs sont dans l'unité de l'appelant (la page envoie des unités du modèle)."""
+    from app.services import nesting
+    pieces = body.get("pieces")
+    if not isinstance(pieces, list) or not pieces:
+        raise HTTPException(400, "rangement : `pieces` doit être une liste non vide de {cle, l, p}")
+    plateau = body.get("plateau")
+    if not isinstance(plateau, list) or len(plateau) != 2 or not all(_etabli_nombre(v) and v > 0 for v in plateau):
+        raise HTTPException(400, "rangement : `plateau` attend deux nombres > 0")
+    marge = body.get("marge", 0.0)
+    if not _etabli_nombre(marge) or marge < 0:
+        raise HTTPException(400, "rangement : `marge` attend un nombre ≥ 0")
+    excl = body.get("exclusions", [])
+    if not isinstance(excl, list) or any(not isinstance(z, list) or len(z) != 4 or not all(_etabli_nombre(c) for c in z)
+                                         for z in excl):
+        raise HTTPException(400, "rangement : `exclusions` attend des rectangles [u0, v0, u1, v1]")
+    n = body.get("plateaux_max", nesting.MAX_PLATEAUX)
+    if not _etabli_entier(n) or not 1 <= n <= nesting.MAX_PLATEAUX:
+        raise HTTPException(400, f"rangement : `plateaux_max` entre 1 et {nesting.MAX_PLATEAUX}")
+    try:
+        return await asyncio.to_thread(nesting.ranger, pieces, (float(plateau[0]), float(plateau[1])), float(marge),
+                                       body.get("rotation", True) is not False, n, excl)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
 # ── Plan mobile T4 (tâche #56, 01/10/2026) : appairage d'un appareil ─────────────────────────────────────────────────
 # `_require_localhost` garde ces routes : seul le PC affiche un QR, liste et révoque. `/pair/claim` est l'exception,
 # ouverte au réseau local par main.py (_ROUTES_SANS_JETON pour la garde de jeton, _ECRITURES_OUVERTES pour la garde

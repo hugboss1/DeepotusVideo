@@ -51,3 +51,12 @@ if __name__ == "__main__":
                   r["ferme_apres"])
         else:
             print("modele reel absent : saute")
+    elif quoi == "nesting":
+        import random
+        from app.services import nesting
+        random.seed(7)
+        for n in (12, 120, 500):
+            pieces = [{"cle": i, "l": random.uniform(5, 60), "p": random.uniform(5, 60)} for i in range(n)]
+            r = chrono(f"ranger {n} pieces", lambda: nesting.ranger(pieces, (256.0, 256.0), 2.0))
+            print(f"   -> {len(r['plateaux'])} plateau(x), taux {['%.2f' % t for t in r['taux']]}, "
+                  f"{len(r['debordent'])} debordent")

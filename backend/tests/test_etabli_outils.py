@@ -415,5 +415,143 @@ def test_les_routes_profils_listent_choisissent_et_l_impression_prend_le_profil_
             assert c.post("/api/print3d/profils/actif", json=corps).status_code == 400, corps
 
 
+
+# ══ PR C : RANGER SUR LE PLATEAU (tâche #89, plan-etabli T5) ═══════════════════════════════════════════════════════
+# DÉCISIONS (05/10) : N plateaux dessinés ; refus sans taille cible. Écarts du plan corrigés : entrées malformées en 400
+# (et non 500), calcul en unités du modèle (la page n'écrit aucune unité), rotation relative, pose dans le sens des règles.
+
+def test_temoin_la_base_n_a_pas_de_rangement():
+    assert subprocess.run(["git", "cat-file", "-e", "931dccaf:backend/app/services/nesting.py"],
+                          capture_output=True, cwd=str(RACINE)).returncode != 0
+
+
+def test_le_nesting_range_sans_chevauchement_et_TOURNE_quand_cela_fait_gagner():
+    """96x40 et 40x96 sur 100x100, marge 2. À plat la seconde ne rentre pas ; tournée, elle se pose à v = 42. Sans
+    rotation, la même paire prend DEUX plateaux."""
+    from app.services import nesting
+    pieces = [{"cle": "A", "l": 96.0, "p": 40.0}, {"cle": "B", "l": 40.0, "p": 96.0}]
+    r = nesting.ranger(pieces, (100.0, 100.0), 2.0)
+    assert len(r["plateaux"]) == 1 and not r["debordent"]
+    poses = {q["cle"]: q for q in r["plateaux"][0]}
+    assert poses["A"] == {"cle": "A", "u": 0.0, "v": 0.0, "rot": 0, "l": 96.0, "p": 40.0}
+    assert poses["B"] == {"cle": "B", "u": 0.0, "v": 42.0, "rot": 90, "l": 40.0, "p": 96.0}
+    assert r["taux"] == [0.768]
+    boites = []
+    for q in r["plateaux"][0]:
+        l, prof = (q["p"], q["l"]) if q["rot"] == 90 else (q["l"], q["p"])
+        assert q["u"] + l <= 100.0 + 1e-9 and q["v"] + prof <= 100.0 + 1e-9
+        boites.append((q["u"], q["v"], q["u"] + l, q["v"] + prof))
+    a, b = boites
+    assert a[3] <= b[1] + 1e-9 or b[3] <= a[1] + 1e-9 or a[2] <= b[0] + 1e-9 or b[2] <= a[0] + 1e-9
+    assert abs(poses["B"]["v"] - poses["A"]["p"] - 2.0) < 1e-9          # la marge, ENTRE les pièces
+    assert len(nesting.ranger(pieces, (100.0, 100.0), 2.0, rotation=False)["plateaux"]) == 2
+
+
+def test_aucun_chevauchement_sur_un_lot_aleatoire_et_les_plateaux_sont_bornes():
+    import random
+    from app.services import nesting
+    random.seed(3)
+    pieces = [{"cle": i, "l": random.uniform(5, 60), "p": random.uniform(5, 60)} for i in range(300)]
+    r = nesting.ranger(pieces, (256.0, 256.0), 2.0, True, 3)
+    assert len(r["plateaux"]) == 3 and r["debordent"]                     # borné à 3 : le reste DÉBORDE, dit
+    assert sum(len(p) for p in r["plateaux"]) + len(r["debordent"]) == 300
+    for pl in r["plateaux"]:
+        bx = []
+        for q in pl:
+            l, prof = (q["p"], q["l"]) if q["rot"] == 90 else (q["l"], q["p"])
+            assert q["u"] >= -1e-9 and q["v"] >= -1e-9 and q["u"] + l <= 256 + 1e-9 and q["v"] + prof <= 256 + 1e-9
+            bx.append((q["u"], q["v"], q["u"] + l + 2.0, q["v"] + prof + 2.0))      # avec la marge
+        for i in range(len(bx)):
+            for j in range(i + 1, len(bx)):
+                a, b = bx[i], bx[j]
+                assert a[2] <= b[0] + 1e-6 or b[2] <= a[0] + 1e-6 or a[3] <= b[1] + 1e-6 or b[3] <= a[1] + 1e-6, (a, b)
+
+
+def test_le_nesting_choisit_la_pose_la_plus_BASSE_range_le_plus_grand_d_abord_et_remplit_le_plateau_jusqu_au_bord():
+    from app.services import nesting
+    # A (60x50) en (0,0) ; B (40x10) à droite en (60,0) ; C (30x30) : à gauche il monterait à 50, à droite à 10 → (60, 10)
+    r = nesting.ranger([{"cle": "A", "l": 60, "p": 50}, {"cle": "B", "l": 40, "p": 10}, {"cle": "C", "l": 30, "p": 30}],
+                       (100.0, 100.0), 0.0, rotation=False)
+    poses = {q["cle"]: (q["u"], q["v"]) for q in r["plateaux"][0]}
+    assert poses == {"A": (0.0, 0.0), "B": (60.0, 0.0), "C": (60.0, 10.0)}, poses
+    # le plus grand d'abord, quel que soit l'ordre reçu
+    r = nesting.ranger([{"cle": "petit", "l": 5, "p": 5}, {"cle": "grand", "l": 50, "p": 40}], (100.0, 100.0), 2.0)
+    assert r["plateaux"][0][0]["cle"] == "grand"
+    # une pièce EXACTEMENT de la largeur du plateau tient (la marge gonfle la pièce ET le plateau)
+    r = nesting.ranger([{"cle": "pleine", "l": 100, "p": 10}], (100.0, 100.0), 2.0, rotation=False)
+    assert r["plateaux"][0][0]["u"] == 0.0 and r["plateaux"][0][0]["rot"] == 0 and not r["debordent"]
+
+
+def test_la_zone_exclue_au_bord_avant_est_EVITEE_et_les_autres_sont_DITES():
+    """Mesuré sur 8799 le 05/10 : sans zone, une pièce se posait dans la purge de la Centauri Carbon 2."""
+    from app.services import nesting
+    zone = [246.0, 0.0, 256.0, 20.0]
+    pieces = [{"cle": i, "l": 40.0, "p": 30.0} for i in range(30)]
+    r = nesting.ranger(pieces, (256.0, 256.0), 2.0, True, 1, [zone])
+    assert r["exclusions_ignorees"] == 0
+    for q in r["plateaux"][0]:
+        l, prof = (q["p"], q["l"]) if q["rot"] == 90 else (q["l"], q["p"])
+        hors = q["u"] + l <= zone[0] - 2.0 + 1e-9 or q["v"] >= zone[3] + 2.0 - 1e-9
+        assert hors, (q, "dans la zone exclue, ou sans sa marge")
+    # sans la zone, ce même rangement entrait dedans (le témoin)
+    r0 = nesting.ranger(pieces, (256.0, 256.0), 2.0, True, 1)
+    assert any(q["u"] + (q["p"] if q["rot"] else q["l"]) > 246 and q["v"] < 20 for q in r0["plateaux"][0])
+    # une zone au MILIEU du plateau ne se représente pas dans un squelette : COMPTÉE, pas évitée en silence
+    r = nesting.ranger([{"cle": 0, "l": 5, "p": 5}], (100.0, 100.0), 0.0, False, 8, [[0, 0, 50, 10], [10, 50, 20, 60]])
+    assert r["exclusions_ignorees"] == 1 and (r["plateaux"][0][0]["u"], r["plateaux"][0][0]["v"]) == (50.0, 0.0)
+    with pytest.raises(ValueError):
+        nesting.ranger([{"cle": 0, "l": 5, "p": 5}], (100.0, 100.0), 0.0, False, 8, [["a", 0, 1, 1]])
+    # une zone au MILIEU du bord avant : la marge vaut des DEUX côtés — la pièce posée à droite commence à 60 + 2
+    r = nesting.ranger([{"cle": i, "l": 30, "p": 30} for i in range(2)], (100.0, 100.0), 2.0, False, 1, [[40, 0, 60, 20]])
+    assert sorted((q["u"], q["v"]) for q in r["plateaux"][0]) == [(0.0, 0.0), (62.0, 0.0)], r
+
+
+def test_le_nesting_dit_ce_qui_ne_rentre_sur_AUCUN_plateau_au_lieu_de_le_poser_dehors():
+    from app.services import nesting
+    r = nesting.ranger([{"cle": "trop", "l": 300.0, "p": 10.0}, {"cle": "ok", "l": 10.0, "p": 10.0}], (256.0, 256.0), 2.0)
+    assert r["debordent"] == ["trop"] and [p["cle"] for p in r["plateaux"][0]] == ["ok"] and len(r["plateaux"]) == 1
+    assert 0.0 < r["taux"][0] < 1.0
+
+
+def test_le_nesting_refuse_les_entrees_qui_ne_sont_pas_des_cotes():
+    from app.services import nesting
+    for mauvais in ([], [{"cle": 1, "l": 0.0, "p": 5.0}], [{"cle": 1, "l": 5.0}], ["x"], [{"l": 1, "p": 1}],
+                    [{"cle": 1, "l": float("inf"), "p": 1}]):
+        with pytest.raises(ValueError):
+            nesting.ranger(mauvais, (100.0, 100.0), 2.0)
+    with pytest.raises(ValueError):
+        nesting.ranger([{"cle": 1, "l": 5.0, "p": 5.0}], (0.0, 100.0), 2.0)
+    with pytest.raises(ValueError):
+        nesting.ranger([{"cle": 1, "l": 5.0, "p": 5.0}], (10.0, 100.0), -1)
+    with pytest.raises(ValueError, match="budget"):
+        nesting.ranger([{"cle": i, "l": 1.0, "p": 1.0} for i in range(1001)], (100.0, 100.0), 2.0)
+
+
+def test_la_route_ranger_calcule_sans_rien_ecrire_et_juge_son_corps():
+    with _client() as c:
+        r = c.post("/api/etabli/ranger", json={"pieces": [{"cle": 0, "l": 60, "p": 10}, {"cle": 1, "l": 60, "p": 10}],
+                                               "plateau": [100, 100], "marge": 2})
+        d = r.json()
+        assert r.status_code == 200 and len(d["plateaux"]) == 1 and len(d["plateaux"][0]) == 2
+        un = c.post("/api/etabli/ranger", json={"pieces": [{"cle": i, "l": 90, "p": 90} for i in range(3)],
+                                                "plateau": [100, 100], "plateaux_max": 2}).json()
+        assert len(un["plateaux"]) == 2 and un["debordent"] == [2]
+        paire = [{"cle": "A", "l": 96, "p": 40}, {"cle": "B", "l": 40, "p": 96}]
+        assert len(c.post("/api/etabli/ranger", json={"pieces": paire, "plateau": [100, 100], "marge": 2}).json()["plateaux"]) == 1
+        assert len(c.post("/api/etabli/ranger", json={"pieces": paire, "plateau": [100, 100], "marge": 2,
+                                                      "rotation": False}).json()["plateaux"]) == 2
+        z = c.post("/api/etabli/ranger", json={"pieces": [{"cle": 0, "l": 5, "p": 5}], "plateau": [100, 100], "marge": 0,
+                                               "rotation": False, "exclusions": [[0, 0, 50, 10]]}).json()
+        assert z["plateaux"][0][0]["u"] == 50.0 and z["exclusions_ignorees"] == 0, "la route TRANSMET les zones"
+        for corps in ({"pieces": [], "plateau": [100, 100]}, {"pieces": [{"cle": 0, "l": 1, "p": 1}], "plateau": [100]},
+                      {"pieces": [{"cle": 0, "l": 1, "p": 1}], "plateau": [100, 100], "marge": -1},
+                      {"pieces": [{"cle": 0, "l": 1, "p": 1}], "plateau": [100, True]},
+                      {"pieces": ["x"], "plateau": [100, 100]}, {"pieces": [{"l": 1, "p": 1}], "plateau": [100, 100]},
+                      {"pieces": [{"cle": 0, "l": 1, "p": 1}], "plateau": [100, 100], "plateaux_max": 9},
+                      {"pieces": [{"cle": 0, "l": 1, "p": 1}], "plateau": [100, 100], "exclusions": [[1, 2, 3]]},
+                      {"pieces": [{"cle": 0, "l": 1, "p": 1}], "plateau": [100, 100], "exclusions": "zone"}):
+            assert c.post("/api/etabli/ranger", json=corps).status_code == 400, corps
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

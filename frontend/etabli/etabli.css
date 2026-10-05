@@ -575,6 +575,10 @@ button { font-family: inherit; }
   color: var(--ink-soft);
 }
 
+/* tâche #89 : la lecture de la mesure, sous la lecture x/y/z */
+.repere-mesure { font-size: 11px; color: var(--ink-soft); margin-top: 6px; line-height: 1.45; }
+.repere-mesure:empty { display: none; }
+
 /* tâche #88 : le choix d'imprimante, sous le repère */
 .imprimante { padding: 8px 12px; border-top: 1px solid var(--line, rgba(255,255,255,.08)); font-size: 11px; }
 .imprimante label { display: flex; gap: 6px; align-items: center; }

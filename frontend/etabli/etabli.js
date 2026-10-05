@@ -19,6 +19,7 @@ import { etaler, ranger, estEtalee, montrerPiece, boiteModele, plateauDe,
          aimanter, axesEcran }
   from "/lib3d/plaque.js";
 import { TransformControls } from "three/addons/controls/TransformControls.js";
+import { angleDeFaces, composantes } from "/lib3d/mesure.js";
 
 const $ = (s) => document.querySelector(s);
 
@@ -87,7 +88,7 @@ const PLQ = { active: false, pieces: [], masquees: new Set(),
               teintes: new Map(), partages: 0, vides: 0, axe: null,
               pas: null, courante: null, repereAvant: null,
               planApplique: false, planFichier: null, enCours: false,
-              aEnvoyer: null, sauvegarde: null };
+              aEnvoyer: null, sauvegarde: null, plateaux: 1 };
 
 /* L'état du REPÈRE, à côté de SEL et de PLQ pour la même raison qu'eux : il ne
    décrit pas le modèle, il décrit la RÈGLE avec laquelle on le lit.
@@ -133,7 +134,7 @@ const PROFIL = { liste: [], actif: null, slicer: null, erreur: "" };
    l'épingle par comptage des écouteurs. (Même règle que pour S : toute clé
    se déclare ICI.) */
 const GESTE = { mode: "selection", enCours: null };
-const MODES_GESTE = ["selection", "glisser", "assise", "couteau"];
+const MODES_GESTE = ["selection", "glisser", "assise", "couteau", "mesure"];
 
 /* La clé interne d'une granularité et son LIBELLÉ ne sont pas la même chose.
    Les clés (« noeud », « materiau ») sont des identifiants sans accents, qui
@@ -996,6 +997,7 @@ async function basculerPlaque() {
     return;
   }
   PLQ.active = true;
+  PLQ.plateaux = 1;                  /* un étalement neuf n'est rangé sur aucun plateau supplémentaire */
   /* LE POINTEUR PASSE À LA PLAQUE : le poser saisit, le clic relâche. */
   armerGeste("glisser");
   PLQ.pieces = etalement.pieces;
@@ -1254,8 +1256,9 @@ function graduerPlateau() {
 function contourPlateau() {
   if (!S.vueA) return;
   const c = PROFIL.actif && PROFIL.actif.contour, g = PLQ.active ? plateauDe(S.vueA) : null;
-  dessinerContourPlateau(S.vueA, g, c && g && enMillimetres()
-    ? { l: versUnites(c.l), p: versUnites(c.p), zones: (c.zones || []).map((z) => z.map(versUnites)) }
+  return dessinerContourPlateau(S.vueA, g, c && g && enMillimetres()
+    ? { l: versUnites(c.l), p: versUnites(c.p), zones: (c.zones || []).map((z) => z.map(versUnites)),
+        plateaux: PLQ.plateaux || 1 }
     : null);
 }
 
@@ -1286,6 +1289,115 @@ function rendreImprimante() {
   $("#impProfil").addEventListener("change", (ev) => choisirProfil(ev.target.value));
   if (prop) $("#impSlicer").addEventListener("click", () => choisirProfil(PROFIL.slicer.id));
 }
+/* ── RANGER SUR LE PLATEAU (tâche #89 PR C, plan-etabli T5) ─────────────────────
+   « ranger » est déjà pris par plaque.js (« remettre le modèle assemblé ») : ici c'est
+   ARRANGER. Le calcul est fait par le serveur (nesting) EN UNITÉS DU MODÈLE : le plateau du
+   profil et la marge y sont convertis par versUnites(), aucune échelle n'est relue ici.
+   REFUSE HORS MILLIMÈTRES (décision de l'utilisateur, 05/10) : un plateau est une cote
+   physique, ranger des unités glTF dessus inventerait l'échelle.
+   LA ROTATION EST RELATIVE : l'empreinte est mesurée à l'angle COURANT, et « 90 » veut dire
+   « un quart de tour de plus » — tourner d'un quart de tour échange exactement les deux côtés
+   d'une boîte englobante, quel que soit l'angle de départ.
+   LA POSE SUIT LE SENS DES RÈGLES : (u, v) du rangement partent du coin du plateau le long
+   de `sens`, comme le contour que viewer.js dessine — et l'écart entre plateaux est RELU dans
+   ce que dessinerContourPlateau rend (decalages), jamais réécrit ici. */
+const MARGE_PLATEAU = 2;             /* en millimètres : l'espacement entre pièces que proposent les slicers */
+async function arrangerPlaque() {
+  if (!PLQ.active) { direRefus("passe d'abord sur la plaque — le rangement range les pièces étalées"); return; }
+  const c = PROFIL.actif && PROFIL.actif.contour;
+  if (!enMillimetres() || !c) {
+    direRefus("pose une taille cible et choisis une imprimante — un plateau est une cote physique, "
+      + "il ne se range pas en unités glTF");
+    return;
+  }
+  const g = plateauDe(S.vueA);
+  if (!g) { direRefus("plateau introuvable"); return; }
+  const pieces = PLQ.pieces.filter((p) => !PLQ.masquees.has(p.cle))
+    .map((p) => ({ cle: p.cle, e: empreinteDe(S.vueA, p.cle) })).filter((x) => x.e);
+  if (!pieces.length) { direRefus("aucune pièce visible à ranger"); return; }
+  let d;
+  try {
+    d = await jpost("/api/etabli/ranger", {
+      pieces: pieces.map((x) => ({ cle: x.cle, l: x.e.l, p: x.e.p })),
+      plateau: [versUnites(c.l), versUnites(c.p)], marge: versUnites(MARGE_PLATEAU), rotation: true,
+      exclusions: (c.zones || []).map((z) => z.map(versUnites)) });
+  } catch (e) { direRefus(`rangement refusé : ${e.message}`); return; }
+  PLQ.plateaux = Math.max(1, d.plateaux.length);
+  const contour = contourPlateau();
+  const decalages = (contour && contour.decalages) || [0];
+  d.plateaux.forEach((poses, k) => {
+    for (const q of poses) {
+      if (q.rot) poserAngle(S.vueA, q.cle, (rotationDe(S.vueA, q.cle) || 0) + q.rot);
+      const e = empreinteDe(S.vueA, q.cle);
+      if (!e) continue;
+      const du = (decalages[k] || 0) + q.u, dv = q.v;
+      poserCoin(S.vueA, q.cle,
+                g.sens.u > 0 ? g.coin[g.u] + du : g.coin[g.u] - du - e.l,
+                g.sens.v > 0 ? g.coin[g.v] + dv : g.coin[g.v] - dv - e.p);
+    }
+  });
+  marquerPiece(S.vueA, PLQ.courante);
+  rendreRotation();
+  noterPlan();
+  direAvis(`rangé : ${d.plateaux.length} plateau(x), occupation `
+    + d.taux.map((t) => `${Math.round(t * 100)} %`).join(" · ")
+    + (d.debordent.length ? ` — ${d.debordent.length} pièce(s) plus grande(s) que le plateau, laissée(s) où elle(s) sont` : "")
+    + (d.exclusions_ignorees ? ` — ${d.exclusions_ignorees} zone(s) exclue(s) loin du bord avant NON évitée(s)` : ""));
+}
+
+/* ── MESURER (tâche #89 PR C, plan-etabli T8) ──────────────────────────────────
+   Deux clics : distance, composantes x/y/z et angle DIÈDRE des deux faces (lib3d/mesure.js,
+   exécuté au banc). Le SEGMENT est tracé dans la scène par cette page, pas par les marques du
+   repère — que lireRepere() réécrit à chaque lecture. La lecture vit dans le rail du repère et
+   passe par fmtMesure() / uniteCourante() : aucun millimètre inventé. Un troisième clic
+   recommence ; quitter le mode range tout. */
+const MESURE = { points: [], trace: null };
+function tracerMesure() {
+  if (MESURE.trace && S.vueA) {
+    S.vueA.scene.remove(MESURE.trace);
+    MESURE.trace.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
+  }
+  MESURE.trace = null;
+  if (!S.vueA || !MESURE.points.length) return;
+  const pts = MESURE.points.map((m) => new THREE.Vector3(m.p.x, m.p.y, m.p.z));
+  const groupe = new THREE.Group();
+  groupe.name = "etabli-mesure";
+  const mat = (couleur) => ({ color: couleur, depthTest: false, depthWrite: false });
+  groupe.add(new THREE.Points(new THREE.BufferGeometry().setFromPoints(pts),
+    new THREE.PointsMaterial({ ...mat(0xf2c14e), size: 8, sizeAttenuation: false })));
+  if (pts.length === 2) {
+    groupe.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial(mat(0xf2c14e))));
+  }
+  groupe.renderOrder = 11;
+  groupe.traverse((o) => { o.renderOrder = 11; });
+  S.vueA.scene.add(groupe);
+  MESURE.trace = groupe;
+}
+function mesurerAuClic(objet, touche) {
+  if (!objet || !touche || !touche.point) { direRefus("mesure : clique sur le modèle"); return; }
+  if (MESURE.points.length >= 2) MESURE.points.length = 0;
+  const n = touche.normale;
+  MESURE.points.push({ p: { x: touche.point.x, y: touche.point.y, z: touche.point.z },
+                       n: n ? { x: n.x, y: n.y, z: n.z } : null, nom: objet.name || "sans nom" });
+  tracerMesure();
+  rendreMesure();
+}
+function rangerMesure() {
+  MESURE.points.length = 0;
+  tracerMesure();
+  rendreMesure();
+}
+function rendreMesure() {
+  const box = $("#repereMesure");
+  if (!MESURE.points.length) { box.innerHTML = ""; return; }
+  if (MESURE.points.length < 2) { box.innerHTML = "<b>mesure</b> : clique un second point"; return; }
+  const [a, b] = MESURE.points;
+  const c = composantes(a.p, b.p), ang = angleDeFaces(a.n, b.n), u = uniteCourante();
+  box.innerHTML = `<b>mesure</b> ${esc(a.nom)} → ${esc(b.nom)}<br>`
+    + `d = ${esc(fmtMesure(c.norme))} ${esc(u)} (x ${esc(fmtMesure(c.dx))} · y ${esc(fmtMesure(c.dy))} · `
+    + `z ${esc(fmtMesure(c.dz))})<br>angle des faces : ${ang === null ? "—" : `${ang.toFixed(1)}°`}`;
+}
+
 async function chargerProfils() {
   try {
     const l = await jget("/api/print3d/profils");
@@ -1490,6 +1602,7 @@ document.addEventListener("keydown", toucheClavierPlaque);
 function armerGeste(mode) {
   if (!MODES_GESTE.includes(mode)) throw new Error(`mode de geste inconnu : ${mode}`);
   if (GESTE.mode === "couteau" && mode !== "couteau") rangerCouteau();
+  if (GESTE.mode === "mesure" && mode !== "mesure") rangerMesure();
   GESTE.mode = mode;
   GESTE.enCours = null;
   majOutils();
@@ -1521,6 +1634,14 @@ function majOutils() {
   $("#btnCouteauManip").textContent =
     COUTEAU.manip === "translate" ? "tourner le plan" : "déplacer le plan";
   $("#couteauGarder").value = COUTEAU.garder;
+  const m = $("#btnMesure");
+  m.textContent = GESTE.mode === "mesure" ? "Mesurer : deux clics (Échap)" : "Mesurer";
+  m.title = "Deux clics sur le modèle : distance, composantes x/y/z et angle des deux faces";
+  m.classList.toggle("actif", GESTE.mode === "mesure");
+  const r = $("#btnArranger");
+  r.textContent = "Ranger sur le plateau";
+  r.title = "Sur la plaque, sous une taille cible : range les pièces sur le plateau de l'imprimante active — "
+    + "rotation à plat, espacement, plusieurs plateaux au besoin (vue seulement, enregistrée comme la plaque)";
 }
 
 /* Les matériaux d'un objet, qu'il en porte un ou un tableau, jamais de trou.
@@ -1905,7 +2026,7 @@ function toucheClavierOutils(ev) {
   if (k !== "Escape" && t && (t.isContentEditable
             || /^(INPUT|TEXTAREA|SELECT)$/i.test(t.tagName || ""))) return false;
   if (k === "Escape") {
-    if (GESTE.mode !== "assise" && GESTE.mode !== "couteau") return false;
+    if (GESTE.mode !== "assise" && GESTE.mode !== "couteau" && GESTE.mode !== "mesure") return false;
     armerGeste("selection");
     direGeometrie();
   } else if (k === "f" || k === "F") {
@@ -1924,6 +2045,8 @@ document.addEventListener("keydown", toucheClavierOutils);
    ne s'exécutent qu'à l'import, et ne s'empilent donc pas. */
 $("#btnAssise").addEventListener("click", armerAssise);
 $("#btnCouteau").addEventListener("click", armerCouteau);
+$("#btnMesure").addEventListener("click", () => armerGeste(GESTE.mode === "mesure" ? "selection" : "mesure"));
+$("#btnArranger").addEventListener("click", arrangerPlaque);
 $("#btnCouteauManip").addEventListener("click", () => {
   COUTEAU.manip = COUTEAU.manip === "translate" ? "rotate" : "translate";
   if (GIZMO && GESTE.mode === "couteau") {
@@ -2518,8 +2641,8 @@ async function ecrireSeule(operation, charge, source) {
   noterAttente(operation, charge, source);
   const bilan = await ecrireVersion();
   if (!bilan || !bilan.ecrites.includes(operation)) {
-    const i = S.enAttente.findIndex((x) => x.operation === operation);
-    if (i >= 0) S.enAttente.splice(i, 1);
+    const j = S.enAttente.findIndex((x) => x.operation === operation);
+    if (j >= 0) S.enAttente.splice(j, 1);
     rendreAttente();
     return null;
   }
@@ -3119,6 +3242,7 @@ function rendreRepere() {
       <input id="rCible" type="number" step="any" min="0" placeholder="mm">
     </label>
     <div class="repere-lecture" id="repereLecture"></div>
+    <div class="repere-mesure" id="repereMesure"></div>
     <p class="repere-note">Tout se lit en unités glTF tant qu'aucune taille
       cible n'est posée : un GLB n'en porte AUCUNE, et c'est le serveur qui en
       fabrique une pour écrire un STL — la plus grande dimension du modèle
@@ -3266,6 +3390,7 @@ function lireRepere() {
      (mémo dans le canevas — gratuit quand rien n'a changé). */
   graduerPlateau();
   contourPlateau();
+  rendreMesure();
 
   const m = mesurerRetenus();
   /* LE COMPTE MARQUÉ EST RENDU, ET ON LE LIT. marquerAuRepere() borne le
@@ -3332,6 +3457,7 @@ document.addEventListener("etabli:charge", () => {
        entier, point et normale compris. */
     if (GESTE.mode === "couteau") return;
     if (GESTE.mode === "assise") { poserSurFace(obj, touche); return; }
+    if (GESTE.mode === "mesure") { mesurerAuClic(obj, touche); return; }
     /* Sur la plaque, cliquer le VIDE relâche la pièce courante — le geste des
        slicers ; cliquer une pièce l'a déjà désignée au poser (glisserSurPlaque).
        L'ANNEAU n'est pas le vide : il vit hors d'`api.racine`, ce rayon ne le
