@@ -21,6 +21,7 @@ import { etaler, ranger, estEtalee, montrerPiece, boiteModele, plateauDe,
 import { TransformControls } from "three/addons/controls/TransformControls.js";
 import { angleDeFaces, composantes } from "/lib3d/mesure.js";
 import { peindreSurplombs } from "/lib3d/surplomb.js";
+import { ouvrirAide } from "./aide.js";
 
 const $ = (s) => document.querySelector(s);
 
@@ -2248,6 +2249,15 @@ $("#btnMesure").addEventListener("click", () => armerGeste(GESTE.mode === "mesur
 $("#btnArranger").addEventListener("click", arrangerPlaque);
 $("#btnSurplombs").addEventListener("click", basculerSurplombs);
 $("#btnTranches").addEventListener("click", basculerTranches);
+/* L'AIDE (T091, plan-etabli T15) : le bouton bascule le panneau ; ouvert, il
+   vient sous les yeux — il vit dans le rail, sous le repère. */
+function basculerAide() {
+  const p = $("#panAide");
+  if (!p.classList.contains("hidden")) { p.classList.add("hidden"); return; }
+  ouvrirAide(p, esc);
+  p.scrollIntoView({ block: "start", behavior: "smooth" });
+}
+$("#btnAide").addEventListener("click", basculerAide);
 $("#btnImprimer").addEventListener("click", imprimerVersion);
 $("#btnSlicer").addEventListener("click", ouvrirDansSlicer);
 $("#btnCouteauManip").addEventListener("click", () => {

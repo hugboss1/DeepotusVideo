@@ -587,6 +587,15 @@ button { font-family: inherit; }
   color: var(--ink-soft);
 }
 
+/* l'aide contextuelle (T091) : les tailles et les variables du repère, aucune couleur neuve */
+.aide { margin-top: 10px; font-size: 11px; line-height: 1.45; color: var(--ink-soft); }
+.aide-pas { margin: 6px 0 8px; padding-left: 18px; }
+.aide-pas li { margin: 2px 0; }
+.aide-lex { max-height: 30vh; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.aide-mot b { color: var(--ink-strong); }
+.aide-mot a, .aide-tout { color: var(--ink); }
+.aide-tout { display: block; margin-top: 8px; }
+
 /* tâche #89 : la lecture de la mesure, sous la lecture x/y/z */
 .repere-mesure { font-size: 11px; color: var(--ink-soft); margin-top: 6px; line-height: 1.45; }
 .repere-mesure:empty { display: none; }

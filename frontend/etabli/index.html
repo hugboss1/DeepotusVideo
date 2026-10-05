@@ -42,7 +42,7 @@
            contrôles de la VUE — « Sur la plaque » et « A/B ✕ » ; y poser une
            navigation ferait du bouton qui QUITTE la page le voisin de celui
            qui ferme un panneau.
-           `head-btn` sur les TROIS boutons de l'en-tête : c'est la classe qui
+           `head-btn` sur les QUATRE boutons de l'en-tête : c'est la classe qui
            les rend identiques, jamais leur `id` — voir etabli.css. Un banc
            compare le nombre de `<button>` de l'en-tête à celui des porteurs
            de la classe, pour qu'un quatrième ne naisse pas nu. -->
@@ -61,6 +61,7 @@
              dès l'import du module — comme #panParties naît vide et se
              remplit au même moment. Les écrire ICI aussi ferait deux sources
              pour un seul texte, qui divergeraient à la première retouche. -->
+        <button class="head-btn" id="btnAide" title="Le pas à pas et le lexique, sans quitter l'écran — et le chapitre 21 du guide">Aide</button>
         <button class="head-btn" id="btnPlaque"></button>
         <button class="head-btn" id="btnCompare" title="Fermer la comparaison">A/B ✕</button>
       </div>
@@ -163,6 +164,8 @@
          l'écrit dès l'import du module, deux sources pour un même balisage
          divergeant à la première retouche. -->
     <div class="repere" id="repere"></div>
+    <!-- l'aide contextuelle (T091) : née cachée, écrite par ouvrirAide() à l'ouverture -->
+    <div class="aide hidden" id="panAide"></div>
     <!-- l'imprimante active (tâche #88) : rendue par rendreImprimante(), née vide -->
     <div class="imprimante" id="imprimante"></div>
   </aside>

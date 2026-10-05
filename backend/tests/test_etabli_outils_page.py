@@ -920,5 +920,124 @@ def test_le_bouton_d_impression_et_l_ouverture_dans_le_slicer_sont_branches():
     # l'export n'écrit AUCUNE version : il n'entre pas dans la table des écritures
     assert "print3d" not in _objet_etabli("ROUTES")
 
+
+# ── T091 / plan T14 : le chapitre 21 du guide, FR et EN ────────────────────────
+GUIDE = RACINE / "docs" / "guide"
+TERMES_LEXIQUE = ["assise", "surplomb", "support", "brim", "raft", "jupe", "remplissage", "couture", "retraction",
+                  "couche", "perimetre", "pont", "warping", "etancheite", "manifold", "decimation", "creusage",
+                  "drainage"]
+
+
+def test_le_chapitre_21_existe_dans_les_DEUX_langues_avec_son_entree_de_sommaire():
+    for nom, titre in (("fr.html", "Préparer avant le slicer"), ("en.html", "Prepare before slicing")):
+        h = (GUIDE / nom).read_text("utf-8")
+        assert '<h2 id="c21">' in h and titre in h
+        assert '<a href="#c21">' in h
+        # le chapitre 21 vient APRÈS le 20 dans le sommaire ET dans le corps, et AVANT le pied de page
+        assert h.index('<a href="#c20"') < h.index('<a href="#c21"')
+        assert h.index('<h2 id="c20"') < h.index('<h2 id="c21"') < h.index('<div class="footer">')
+
+
+def test_le_lexique_a_ses_DIX_HUIT_termes_ancres_dans_les_deux_langues():
+    for nom in ("fr.html", "en.html"):
+        h = (GUIDE / nom).read_text("utf-8")
+        for t in TERMES_LEXIQUE:
+            assert h.count(f'id="lex-{t}"') == 1, (nom, t)
+        assert h.count('id="lex-') == 18
+
+
+def test_chaque_ressource_du_guide_est_DATEE_et_pointe_un_domaine_verifie():
+    domaines = {"help.prusa3d.com", "github.com", "www.simplify3d.com", "wiki.elegoo.com"}
+    jeux = []
+    for nom in ("fr.html", "en.html"):
+        h = (GUIDE / nom).read_text("utf-8")
+        bloc = h.split('<h2 id="c21"', 1)[1].split('<div class="footer">', 1)[0]
+        liens = re.findall(r'<a href="(https?://[^"]+)"[^>]*>', bloc)
+        assert len(liens) >= 12, (nom, len(liens))
+        for u in liens:
+            assert u.split("/")[2] in domaines, u
+        # une date de vérification par ligne de ressource
+        rows = re.findall(r"<tr>.*?</tr>", bloc, re.S)
+        for r in [r for r in rows if '<a href="http' in r]:
+            assert "05/10/2026" in r, r[:120]
+        jeux.append(liens)
+    assert jeux[0] == jeux[1], "MÊME table de ressources dans les deux langues"
+    # l'adresse morte relevée le 05/10 (redirection 302) ne revient pas
+    assert all("help.prusa3d.com/materials" not in u for u in jeux[0])
+
+
+def test_le_guide_ne_cite_QUE_des_libelles_qui_existent_dans_l_ecran():
+    """Le guide dit « cliquez X » : X doit exister. Un libellé renommé dans l'écran et resté dans le guide
+    enverrait le débutant chercher un bouton fantôme — et c'est en écrivant ce chapitre qu'on a découvert que
+    l'export n'imprimait pas la version affichée."""
+    ecran = (_lire("etabli/etabli.js") + _lire("etabli/index.html") + _lire("studio3d/index.html"))
+    for libelle in ("Réparer en un clic", "Poser sur une face", "Surplombs", "Tranches", "Creuser", "Décimer",
+                    "Ranger sur le plateau", "Mesurer", "→ Impression 3D", "Ouvrir dans le slicer",
+                    "07 · Établi 3D →", "écrire la version", "taille cible", "Sur la plaque"):
+        # comme TEXTE d'un contrôle — balisage `>libellé<` ou chaîne exacte écrite par le JS —, pas n'importe où :
+        # « → Impression 3D » vit aussi dans un message de refus, qui survivait au renommage du bouton
+        assert re.search(r">\s*" + re.escape(libelle) + r"\s*<", ecran) or f'"{libelle}"' in ecran, libelle
+        for nom in ("fr.html", "en.html"):
+            h = (GUIDE / nom).read_text("utf-8").split('<h2 id="c21"', 1)[1]
+            assert libelle in h or libelle in ("Sur la plaque",) or nom == "en.html" and libelle in (
+                "taille cible", "écrire la version"), (nom, libelle)
+
+
+def test_le_guide_ne_promet_pas_ce_que_l_etabli_ne_fait_pas_encore():
+    for nom, absent in (("fr.html", "pas encore d'orientation automatique"), ("en.html", "no auto-orientation")):
+        h = (GUIDE / nom).read_text("utf-8")
+        assert absent in h, nom
+    fr = (GUIDE / "fr.html").read_text("utf-8")
+    assert "Le trou de drainage n'est pas encore dans l'Établi" in fr
+
+
+def test_les_PDF_sont_plus_recents_que_leur_source_HTML():
+    """Le PDF est REGÉNÉRÉ, pas oublié : c'est lui que l'utilisateur imprime."""
+    for html, pdf in (("fr.html", "Deepotus-Guide-FR.pdf"), ("en.html", "Deepotus-Guide-EN.pdf")):
+        assert (GUIDE / pdf).stat().st_mtime >= (GUIDE / html).stat().st_mtime
+
+
+# ── T091 / plan T15 : l'aide contextuelle, alignée sur le guide ─────────────────
+def test_l_aide_de_l_etabli_ne_definit_QUE_des_termes_qui_existent_dans_LE_GUIDE():
+    """DEUX NIVEAUX, UNE SEULE VÉRITÉ : l'écran donne une phrase, le guide donne le chapitre. Un terme défini à
+    l'écran et absent du guide enverrait sur une ancre morte."""
+    aide = _lire("etabli/aide.js")
+    cles = re.findall(r"^\s{2}([a-z]+): \{", aide, re.M)
+    assert sorted(cles) == sorted(TERMES_LEXIQUE)
+    for lang in ("fr.html", "en.html"):
+        h = (GUIDE / lang).read_text("utf-8")
+        for c in cles:
+            assert f'id="lex-{c}"' in h, (lang, c)
+
+
+def test_l_aide_pointe_le_guide_dans_la_langue_de_la_page_et_par_ancre_EXECUTEE():
+    aide = _lire("etabli/aide.js")
+    m = re.search(r"^export function lienGuide\(", aide, re.M)
+    corps = aide[m.start():aide.index("\n}\n", m.start()) + 2].replace("export function", "function", 1)
+    r = json.loads(_node("const document = { documentElement: { lang: 'fr' } };\n" + corps + """
+      const a = [lienGuide("surplomb"), lienGuide(null)];
+      document.documentElement.lang = "en-GB"; a.push(lienGuide("brim"));
+      console.log(JSON.stringify(a));
+    """))
+    assert r == ["/guide/fr.html#lex-surplomb", "/guide/fr.html#c21", "/guide/en.html#lex-brim"]
+
+
+def test_l_aide_est_branchee_dans_l_en_tete_sans_casser_l_invariant():
+    js, html = _lire("etabli/etabli.js"), _lire("etabli/index.html")
+    assert 'import { ouvrirAide } from "./aide.js";' in js
+    assert '$("#btnAide").addEventListener("click", basculerAide);' in js
+    assert '<button class="head-btn" id="btnAide"' in html and 'id="panAide"' in html
+    entete = re.sub(r"<!--.*?-->", "", html.split("<header", 1)[1].split("</header>", 1)[0], flags=re.S)
+    assert entete.count("<button") == entete.count('class="head-btn"') == 4
+    # le pas à pas de l'aide est celui du guide : mêmes gestes, même ordre
+    aide = _lire("etabli/aide.js")
+    pas = re.findall(r"<li>(.*?)</li>", aide.split('<ol class="aide-pas">', 1)[1].split("</ol>", 1)[0], re.S)
+    assert len(pas) == 8
+    for mot, k in (("taille cible", 0), ("imprimante", 1), ("Répare", 2), ("Pose", 3), ("Surplombs", 4),
+                   ("Creuse", 5), ("Range", 6), ("Impression 3D", 7)):
+        assert mot in pas[k], (k, mot, pas[k])
+    # le texte des définitions est échappé à l'écriture : jamais de balisage venu du lexique
+    assert "esc(" in aide
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))
