@@ -1022,13 +1022,17 @@ export function effacerRegles(api) {
    Le plateau de l'imprimante ACTIVE (profil : Centauri Carbon 2, preset d'Orca ou
    saisi à la main), posé au coin d'origine des règles, en UNITÉS DU MODÈLE — c'est la
    page qui convertit les millimètres du profil, elle seule sait s'il existe une taille
-   cible ; sans elle, aucun contour (aucun millimètre inventé). `cotes` = { l, p, zones }
-   en unités du modèle ; `zones` : rectangles [u0, v0, u1, v1] EXCLUS du plateau (la zone
-   de purge de la Centauri Carbon 2), tracés dans une autre couleur. `null` efface.
+   cible ; sans elle, aucun contour (aucun millimètre inventé). `cotes` = { l, p, zones,
+   plateaux } en unités du modèle ; `zones` : rectangles [u0, v0, u1, v1] EXCLUS du plateau
+   (la zone de purge de la Centauri Carbon 2), tracés dans une autre couleur ; `plateaux`
+   (1 à 8, tâche #89) : autant de plateaux côte à côte le long des règles, au pas
+   ECART_PLATEAUX × l. Rend `decalages` — le départ de chaque plateau le long des règles —,
+   que la page RELIT pour y poser les pièces : un seul site pour l'écart. `null` efface.
    Dans la SCÈNE, comme les règles : vider() ne retire que `api.racine`. */
 const _contours = new WeakMap();
 const COULEUR_CONTOUR = 0x62b56a;
 const COULEUR_EXCLUE = 0xd2544e;
+const ECART_PLATEAUX = 1.25;          // le pas entre deux plateaux, en largeurs de plateau
 function _effacerContour(api) {
   const g = api && _contours.get(api);
   if (!g) return false;
@@ -1060,13 +1064,17 @@ export function dessinerContourPlateau(api, plateau, cotes) {
     l.renderOrder = 10;
     groupe.add(l);
   };
-  rect(0, 0, cotes.l, cotes.p, COULEUR_CONTOUR);
+  const n = Math.max(1, Math.min(8, Math.floor(Number(cotes.plateaux) || 1)));
+  const decalages = Array.from({ length: n }, (_, k) => k * cotes.l * ECART_PLATEAUX);
   const zones = (cotes.zones || []).filter((z) => Array.isArray(z) && z.length === 4 && z.every(Number.isFinite));
-  for (const z of zones) rect(z[0], z[1], z[2], z[3], COULEUR_EXCLUE);
+  for (const d of decalages) {
+    rect(d, 0, d + cotes.l, cotes.p, COULEUR_CONTOUR);
+    for (const z of zones) rect(d + z[0], z[1], d + z[2], z[3], COULEUR_EXCLUE);
+  }
   groupe.updateMatrixWorld(true);
   api.scene.add(groupe);
   _contours.set(api, groupe);
-  return { zones: zones.length, groupe };
+  return { zones: zones.length, plateaux: n, decalages, groupe };
 }
 
 /* Cadre la caméra sur la boîte englobante. Indispensable : un modèle en mètres

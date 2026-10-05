@@ -186,6 +186,7 @@ def test_le_contour_du_plateau_est_dessine_au_coin_des_regles_et_efface():
     src = (FAUX_THREE + "const _contours = new WeakMap();\n"
            + re.search(r"^const COULEUR_CONTOUR = .*;$", _lire("lib3d/viewer.js"), re.M).group(0) + "\n"
            + re.search(r"^const COULEUR_EXCLUE = .*;$", _lire("lib3d/viewer.js"), re.M).group(0) + "\n"
+           + re.search(r"^const ECART_PLATEAUX = [^;]*;", _lire("lib3d/viewer.js"), re.M).group(0) + "\n"
            + _fonction_viewer("_effacerContour") + _fonction_viewer("dessinerContourPlateau"))
     R = json.loads(_node(src + r"""
 const scene = { objets: [], add(o) { this.objets.push(o); }, remove(o) { this.objets = this.objets.filter((x) => x !== o); } };
@@ -196,6 +197,10 @@ const R = { zones: r.zones, n: scene.objets.length, rects: scene.objets[0].child
 dessinerContourPlateau(api, g, { l: 4, p: 2 }); R.apres = scene.objets.length;
 R.nul = dessinerContourPlateau(api, g, null); R.vide = scene.objets.length;
 R.sansCote = dessinerContourPlateau(api, g, { l: 0, p: 2 });
+const trois = dessinerContourPlateau(api, g, { l: 4, p: 2, zones: [[3, 0, 4, 1]], plateaux: 3 });
+R.trois = { dec: trois.decalages, n: trois.plateaux, rects: scene.objets[0].children.length,
+            debut3: scene.objets[0].children[4].geometry.points[0], zone3: scene.objets[0].children[5].geometry.points[0] };
+R.borne = dessinerContourPlateau(api, g, { l: 4, p: 2, plateaux: 40 }).plateaux;
 console.log(JSON.stringify(R));
 """).strip().splitlines()[-1])
     assert R["zones"] == 1 and R["n"] == 1, R                     # la zone illisible est écartée
@@ -205,6 +210,11 @@ console.log(JSON.stringify(R));
     assert R["rects"][1][1][0] == [-8, niv, 5] and R["rects"][0][0] != R["rects"][1][0]   # la zone exclue, autre couleur
     assert R["apres"] == 1, "un redessin REMPLACE, il n'empile pas"
     assert R["nul"] is None and R["vide"] == 0 and R["sansCote"] is None
+    # PLUSIEURS PLATEAUX (tâche #89) : côte à côte au pas 1,25 l, chacun avec sa zone exclue, décalages RENDUS
+    assert R["trois"]["dec"] == [0, 5, 10] and R["trois"]["n"] == 3 and R["trois"]["rects"] == 6, R["trois"]
+    assert R["trois"]["debut3"] == [-5 - 10, niv, 5], "le 3e plateau commence à 10 unités, dans le SENS des règles"
+    assert R["trois"]["zone3"] == [-5 - 13, niv, 5], "la zone exclue suit SON plateau"
+    assert R["borne"] == 8
 
 
 HARNAIS_IMP = r"""
@@ -248,7 +258,8 @@ await chargerProfils(); R.html = BOX.innerHTML; R.contour = APPELS.filter((a) =>
 REPONSES["/api/print3d/profils/actif"] = { ok: true, actif: "orcaslicer:Kobra", profil: %s };
 APPELS.length = 0; await choisirProfil("orcaslicer:Kobra"); R.post = APPELS[0]; R.avis = AVIS.slice(); R.html2 = BOX.innerHTML;
 R.contour2 = APPELS.filter((a) => a[0] === "contour").pop();
-REP.echelle = null; contourPlateau(); R.sansCible = APPELS.pop();
+REP.echelle = null; contourPlateau(); R.sansCible = APPELS.pop(); REP.echelle = 40;
+PLQ.plateaux = 3; contourPlateau(); R.trois = APPELS.pop()[1].plateaux; delete PLQ.plateaux;
 PLQ.active = false; REP.echelle = 40; contourPlateau(); R.horsPlaque = APPELS.pop();
 """ % (json.dumps([CC2, KOBRA]), json.dumps(KOBRA)))
     h = R["html"]
@@ -258,11 +269,12 @@ PLQ.active = false; REP.echelle = 40; contourPlateau(); R.horsPlaque = APPELS.po
     assert 'id="impSlicer" title="' in h and "Prendre « Kobra &lt;x&gt; » (actif dans le slicer)" in h
     assert 'id="impProfil" title="' in h and R["ecoute"] == [["change"], ["click"]]
     # le contour en UNITÉS : 256 mm / 40 mm par unité
-    assert R["contour"][1] == {"l": 6.4, "p": 6.4, "zones": [[6.15, 0, 6.4, 0.5]]}, R["contour"]
+    assert R["contour"][1] == {"l": 6.4, "p": 6.4, "zones": [[6.15, 0, 6.4, 0.5]], "plateaux": 1}, R["contour"]
     assert R["post"] == ["post", "/api/print3d/profils/actif", {"id": "orcaslicer:Kobra"}] and R["avis"] == ["imprimante : Kobra <x>"]
     assert "impSlicer" not in R["html2"], "le preset du slicer EST l'actif : plus rien à proposer"
     assert R["contour2"][1]["l"] == 5.5
     assert R["sansCible"] == ["contour", None] and R["horsPlaque"] == ["contour", None]
+    assert R["trois"] == 3, "le contour dessine autant de plateaux que le rangement en a ouverts"
 
 
 def test_les_refus_de_profil_sont_dits_et_la_page_vit_sans_eux():
@@ -281,6 +293,170 @@ def test_la_page_n_ecrit_aucune_unite_et_lit_le_contour_du_serveur():
     assert "contourPlateau();" in _fonction_etabli("lireRepere")
     assert _fonction_etabli("lireRepere").index("graduerPlateau();") < _fonction_etabli("lireRepere").index("contourPlateau();")
     assert re.search(r"^chargerProfils\(\);$", code, re.M) and '<div class="imprimante" id="imprimante"></div>' in _lire("etabli/index.html")
+
+
+
+# ══ PR C : RANGER ET MESURER, côté page (tâche #89, plan-etabli T5 et T8) ════════════════════════════════════════════
+HARNAIS_RANGER = r"""
+const PLQ = { active: true, pieces: [{ cle: "A" }, { cle: "B" }, { cle: "C" }], masquees: new Set(["C"]), courante: null, plateaux: 1 };
+const REP = { cibleMm: 100, echelle: 10, pas: null };
+const PROFIL = { actif: { contour: { l: 100, p: 100, zones: [[90, 0, 100, 20]] } } };
+let S = { vueA: { id: "vue" } };
+const APPELS = [], AVIS = [], REFUS = [];
+const PIECES = { A: { u: 3, v: 4, l: 9.6, p: 4, rot: 0 }, B: { u: 0, v: 0, l: 4, p: 9.6, rot: 37 } };
+let G = { axe: "y", u: "x", v: "z", coin: { x: -5, y: 0, z: 5 }, sens: { u: -1, v: -1 } };
+function enMillimetres() { return REP.echelle !== null; }
+function versUnites(v) { return enMillimetres() ? v / REP.echelle : null; }
+function plateauDe() { return G; }
+function empreinteDe(api, cle) { const p = PIECES[cle]; return p ? { u: p.u, v: p.v, l: p.l, p: p.p } : null; }
+function rotationDe(api, cle) { return PIECES[cle].rot; }
+function poserAngle(api, cle, d) { const p = PIECES[cle]; if (Math.round((d - p.rot) / 90) % 2) { const t = p.l; p.l = p.p; p.p = t; }
+  p.rot = d; APPELS.push(["angle", cle, d]); return true; }
+function poserCoin(api, cle, u, v) { PIECES[cle].u = u; PIECES[cle].v = v; APPELS.push(["coin", cle, +u.toFixed(6), +v.toFixed(6)]); return true; }
+function marquerPiece() {} function rendreRotation() {} function noterPlan() { APPELS.push(["plan"]); }
+function contourPlateau() { APPELS.push(["contour", PLQ.plateaux]); return { decalages: Array.from({ length: PLQ.plateaux }, (_, k) => k * 12.5) }; }
+let REPONSE = null;
+async function jpost(p, c) { APPELS.push(["post", p, JSON.parse(JSON.stringify(c))]); if (REPONSE instanceof Error) throw REPONSE; return REPONSE; }
+function direAvis(m) { AVIS.push(m); } function direRefus(m) { REFUS.push(m); }
+"""
+
+
+def _ranger(corps: str) -> dict:
+    js = _lire("etabli/etabli.js")
+    marge = re.search(r"^const MARGE_PLATEAU = [^;]*;", js, re.M).group(0)
+    src = (HARNAIS_RANGER + marge + "\n" + _fonction_etabli_async("arrangerPlaque")
+           + "\n(async () => { const R = {};\n" + corps + "\nconsole.log(JSON.stringify(R)); })();")
+    return json.loads(_node(src).strip().splitlines()[-1])
+
+
+def test_ranger_envoie_des_UNITES_tourne_en_RELATIF_et_pose_dans_le_SENS_des_regles():
+    R = _ranger("""
+REPONSE = { plateaux: [[{ cle: "A", u: 0, v: 0, rot: 0, l: 9.6, p: 4 }], [{ cle: "B", u: 1, v: 2, rot: 90, l: 4, p: 9.6 }]],
+            debordent: ["Z"], taux: [0.384, 0.1], marge: 0.2, exclusions_ignorees: 1 };
+await arrangerPlaque();
+R.appels = APPELS.slice(); R.avis = AVIS.slice(); R.plateaux = PLQ.plateaux; R.B = PIECES.B;
+""")
+    post = R["appels"][0]
+    assert post == ["post", "/api/etabli/ranger", {"pieces": [{"cle": "A", "l": 9.6, "p": 4}, {"cle": "B", "l": 4, "p": 9.6}],
+                                                   "plateau": [10, 10], "marge": 0.2, "rotation": True,
+                                                   "exclusions": [[9, 0, 10, 2]]}], post
+    assert R["plateaux"] == 2 and ["contour", 2] in R["appels"]
+    # A, plateau 0 : sens u = -1 → u = -5 - 0 - 9.6 ; sens v = -1 → v = 5 - 0 - 4
+    assert ["coin", "A", -14.6, 1] in R["appels"], R["appels"]
+    # B : un quart de tour DE PLUS que ses 37°, puis ses côtés échangés (9.6 x 4) ; plateau 1 décalé de 12.5
+    assert ["angle", "B", 127] in R["appels"] and R["B"]["l"] == 9.6 and R["B"]["p"] == 4
+    assert ["coin", "B", -5 - (12.5 + 1) - 9.6, 5 - 2 - 4] in R["appels"], R["appels"]
+    assert R["appels"][-1] == ["plan"], "la disposition s'enregistre comme une retouche"
+    assert "rangé : 2 plateau(x), occupation 38 % · 10 %" in R["avis"][0] and "1 pièce(s) plus grande(s)" in R["avis"][0]
+    assert "1 zone(s) exclue(s) loin du bord avant NON évitée(s)" in R["avis"][0]
+
+
+def test_ranger_refuse_hors_plaque_hors_millimetres_et_sans_piece_visible():
+    R = _ranger("""
+PLQ.active = false; await arrangerPlaque(); R.a = REFUS.slice(); PLQ.active = true;
+REP.echelle = null; await arrangerPlaque(); R.b = REFUS.slice(); REP.echelle = 10;
+PROFIL.actif = null; await arrangerPlaque(); R.c = REFUS.slice(); PROFIL.actif = { contour: { l: 100, p: 100 } };
+PLQ.masquees = new Set(["A", "B", "C"]); await arrangerPlaque(); R.d = REFUS.slice(); PLQ.masquees = new Set();
+REPONSE = new Error("→ 400"); await arrangerPlaque(); R.e = REFUS.slice(); R.posts = APPELS.filter((a) => a[0] === "post").length;
+R.poses = APPELS.filter((a) => a[0] === "coin").length;
+""")
+    assert "passe d'abord sur la plaque" in R["a"][0]
+    assert "pose une taille cible" in R["b"][1] and "pose une taille cible" in R["c"][2]
+    assert "aucune pièce visible" in R["d"][3] and "rangement refusé : → 400" in R["e"][4]
+    assert R["posts"] == 1 and R["poses"] == 0, "un seul appel (le refus serveur), rien posé"
+
+
+def test_ranger_sans_rien_lire_de_REP_echelle():
+    f = _fonction_etabli_async("arrangerPlaque")
+    assert "REP.echelle" not in f and "versUnites(c.l)" in f and "decalages" in f
+    assert '<button class="outil-btn" id="btnArranger"></button>' in _lire("etabli/index.html")
+    assert '$("#btnArranger").addEventListener("click", arrangerPlaque);' in _lire("etabli/etabli.js")
+
+
+def _mesure(nom: str) -> str:
+    js = _lire("lib3d/mesure.js")
+    m = re.search(r"^export function " + nom + r"\(", js, re.M)
+    assert m, nom
+    return js[m.start():js.index("\n}\n", m.start()) + 2].replace("export function", "function", 1) + "\n"
+
+
+def test_la_mesure_rend_une_distance_des_composantes_et_l_angle_DIEDRE_EXECUTES():
+    src = _mesure("distance") + _mesure("composantes") + _mesure("angleDeFaces") + """
+console.log(JSON.stringify({ d: distance({x:0,y:0,z:0},{x:3,y:4,z:0}),
+  c: composantes({x:1,y:2,z:3},{x:4,y:6,z:3}),
+  plat: angleDeFaces({x:0,y:1,z:0},{x:0,y:2,z:0}), droit: angleDeFaces({x:0,y:1,z:0},{x:1,y:0,z:0}),
+  rentrant: angleDeFaces({x:0,y:1,z:0},{x:0,y:-1,z:0}), nul: angleDeFaces({x:0,y:0,z:0},{x:0,y:1,z:0}) === null,
+  absent: angleDeFaces(null, {x:0,y:1,z:0}) === null,
+  /* (1, 2, 3) avec lui-même : le cosinus calculé vaut 1.0000000000000002 — sans la borne, acos rend NaN */
+  memes: angleDeFaces({x:1,y:2,z:3},{x:1,y:2,z:3}), c3: composantes({x:0,y:0,z:0},{x:2,y:3,z:6}).norme }));
+"""
+    r = json.loads(_node(src))
+    assert r["d"] == 5 and r["c"] == {"dx": 3, "dy": 4, "dz": 0, "norme": 5}
+    assert r["plat"] == 180 and r["droit"] == 90 and r["rentrant"] == 0 and r["nul"] is True and r["absent"] is True
+    assert r["memes"] == 180 and r["c3"] == 7
+
+
+HARNAIS_MESURE = r"""
+const THREE = { Vector3: class { constructor(x, y, z) { this.x = x; this.y = y; this.z = z; } },
+  Group: class { constructor() { this.children = []; } add(o) { this.children.push(o); } traverse(f) { f(this); this.children.forEach(f); } },
+  BufferGeometry: class { setFromPoints(p) { this.n = p.length; return this; } dispose() {} },
+  PointsMaterial: class { constructor(o) { this.o = o; } dispose() {} }, LineBasicMaterial: class { constructor(o) { this.o = o; } dispose() {} },
+  Points: class { constructor(g, m) { this.geometry = g; this.material = m; this.type = "Points"; } },
+  Line: class { constructor(g, m) { this.geometry = g; this.material = m; this.type = "Line"; } } };
+const scene = { objets: [], add(o) { this.objets.push(o); }, remove(o) { this.objets = this.objets.filter((x) => x !== o); } };
+let S = { vueA: { scene } };
+const BOX = { innerHTML: "" };
+const $ = (s) => { if (s !== "#repereMesure") throw new TypeError(s); return BOX; };
+const REFUS = [];
+function direRefus(m) { REFUS.push(m); }
+let ECHELLE = null;
+function uniteCourante() { return ECHELLE ? "mm" : "u. glTF"; }
+function fmtMesure(v) { return (ECHELLE ? v * ECHELLE : v).toFixed(2); }
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+"""
+
+
+def test_la_mesure_se_lit_dans_le_rail_se_trace_et_se_range():
+    js = _lire("etabli/etabli.js")
+    mes = re.search(r"^const MESURE = [^;]*;", js, re.M).group(0)
+    src = (HARNAIS_MESURE + _mesure("composantes") + _mesure("angleDeFaces") + mes + "\n"
+           + _fonction_etabli("tracerMesure") + _fonction_etabli("mesurerAuClic") + _fonction_etabli("rangerMesure")
+           + _fonction_etabli("rendreMesure") + r"""
+const R = {};
+const pt = (x, y, z) => ({ x, y, z });
+mesurerAuClic({ name: "socle<x>" }, { point: pt(0, 0, 0), normale: pt(0, 1, 0) }); R.un = [BOX.innerHTML, scene.objets.length, scene.objets[0].children.length];
+mesurerAuClic({ name: "pied" }, { point: pt(3, 4, 0), normale: pt(1, 0, 0) }); R.deux = [BOX.innerHTML, scene.objets.length, scene.objets[0].children.map((c) => c.type)];
+ECHELLE = 10; rendreMesure(); R.mm = BOX.innerHTML;
+mesurerAuClic({ name: "x" }, { point: pt(9, 9, 9), normale: null }); R.trois = [BOX.innerHTML, scene.objets.length];
+mesurerAuClic(null, null); R.vide = REFUS.slice();
+rangerMesure(); R.range = [BOX.innerHTML, scene.objets.length];
+console.log(JSON.stringify(R));
+""")
+    R = json.loads(_node(src).strip().splitlines()[-1])
+    assert R["un"] == ["<b>mesure</b> : clique un second point", 1, 1]
+    html, n, types = R["deux"]
+    assert n == 1 and types == ["Points", "Line"], "un seul tracé, remplacé"
+    assert "socle&lt;x&gt; → pied" in html and "d = 5.00 u. glTF (x 3.00 · y 4.00 · z 0.00)" in html and "angle des faces : 90.0°" in html
+    assert "d = 50.00 mm (x 30.00" in R["mm"], "la lecture suit l'unité (fmtMesure / uniteCourante)"
+    assert R["trois"] == ["<b>mesure</b> : clique un second point", 1], "un troisième clic recommence"
+    assert R["vide"] == ["mesure : clique sur le modèle"]
+    assert R["range"] == ["", 0]
+
+
+def test_la_mesure_est_un_MODE_range_en_le_quittant_et_lue_par_lireRepere():
+    js, code = _lire("etabli/etabli.js"), _code("etabli/etabli.js")
+    assert 'const MODES_GESTE = ["selection", "glisser", "assise", "couteau", "mesure"];' in js
+    assert 'import { angleDeFaces, composantes } from "/lib3d/mesure.js";' in js
+    assert 'if (GESTE.mode === "mesure" && mode !== "mesure") rangerMesure();' in _fonction_etabli("armerGeste")
+    assert 'if (GESTE.mode === "mesure") { mesurerAuClic(obj, touche); return; }' in code
+    assert code.index('if (GESTE.mode === "assise") { poserSurFace(obj, touche); return; }') \
+        < code.index('if (GESTE.mode === "mesure") { mesurerAuClic(obj, touche); return; }')
+    assert "rendreMesure();" in _fonction_etabli("lireRepere") and 'id="repereMesure"' in _fonction_etabli("rendreRepere")
+    assert 'GESTE.mode !== "mesure") return false;' in _fonction_etabli("toucheClavierOutils")
+    assert '<button class="outil-btn" id="btnMesure"></button>' in _lire("etabli/index.html")
+    assert ".repere-mesure" in _lire("etabli/etabli.css")
+    f = _fonction_etabli("rendreMesure")
+    assert "fmtMesure(" in f and "uniteCourante()" in f and "esc(" in f
 
 
 if __name__ == "__main__":
