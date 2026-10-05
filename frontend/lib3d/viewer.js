@@ -1041,6 +1041,35 @@ function _effacerContour(api) {
   _contours.delete(api);
   return true;
 }
+/* Les SECTIONS de l'aperçu de tranchage (tâche T091), en segments — `null`
+   efface. Rien n'est chaîné ni coloré par couche : une couleur pour toutes, et
+   c'est l'empilement qui informe. `depthTest: false` : une section vit DANS le
+   modèle, on la voit à travers sa peau. */
+const _tranches = new WeakMap();
+export function dessinerTranches(api, couches) {
+  if (!api) return null;
+  const ancien = _tranches.get(api);
+  if (ancien) {
+    api.scene.remove(ancien);
+    ancien.geometry.dispose();
+    ancien.material.dispose();
+    _tranches.delete(api);
+  }
+  if (!couches || !couches.length) return null;
+  const pts = [];
+  for (const c of couches) for (const [a, b] of c.segments) pts.push(...a, ...b);
+  if (!pts.length) return { segments: 0 };
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
+  const l = new THREE.LineSegments(g, new THREE.LineBasicMaterial({
+    color: 0x4d7fd0, transparent: true, opacity: 0.9, depthTest: false }));
+  l.name = "tranches";
+  l.renderOrder = 10;
+  api.scene.add(l);
+  _tranches.set(api, l);
+  return { segments: pts.length / 6 };
+}
+
 export function dessinerContourPlateau(api, plateau, cotes) {
   _effacerContour(api);
   const g = plateau;

@@ -768,5 +768,109 @@ def test_ecrireVersion_REFUSE_une_file_contradictoire_sans_prendre_le_verrou_EXE
     assert r["a"] is None and r["verrou"] is False and len(r["refus"]) == 1 and "recentr" in r["refus"][0]
     assert r["b"] == "ECRIT"
 
+
+# ── T091 / plan T16 : l'aperçu de tranchage INDICATIF ──────────────────────────
+def _fonction_surplomb(nom: str) -> str:
+    js = _lire("lib3d/surplomb.js")
+    m = re.search(r"^export function " + nom + r"\(", js, re.M)
+    assert m, f"fonction {nom} introuvable dans surplomb.js"
+    return js[m.start():js.index("\n}\n", m.start()) + 2].replace("export function", "function", 1) + "\n"
+
+
+def test_la_pente_du_surplomb_suit_la_convention_des_slicers_EXECUTEE():
+    """Convention de Prusa : la pente se mesure DEPUIS L'HORIZONTALE, 90 = mur vertical (rien à faire), 0 = plafond
+    plat (le pire). Une face qui regarde vers le HAUT n'est jamais un surplomb, quelle que soit sa pente."""
+    src = _fonction_surplomb("penteDepuisHorizontale") + _fonction_surplomb("estSurplomb") + """
+const H = { x: 0, y: 1, z: 0 };
+const bas = { x: 0, y: -1, z: 0 };
+const mur = { x: 1, y: 0, z: 0 };
+const biais = { x: 0.7071067811865476, y: -0.7071067811865475, z: 0 };
+const haut = { x: 0, y: 1, z: 0 };
+const pente30 = { x: 0.5, y: -0.8660254037844386, z: 0 };   // 30° depuis l'horizontale
+console.log(JSON.stringify({
+  p_bas: penteDepuisHorizontale(bas, H), p_mur: penteDepuisHorizontale(mur, H),
+  p_biais: penteDepuisHorizontale(biais, H), p_haut: penteDepuisHorizontale(haut, H),
+  p_30: penteDepuisHorizontale(pente30, H),
+  p_long: penteDepuisHorizontale({ x: 0, y: -7, z: 0 }, { x: 0, y: 3, z: 0 }),
+  p_30_long: penteDepuisHorizontale({ x: 1, y: -1.7320508075688772, z: 0 }, { x: 0, y: 2, z: 0 }),
+  s_bas: estSurplomb(bas, H, 45), s_mur: estSurplomb(mur, H, 45),
+  s_biais45: estSurplomb(biais, H, 45), s_biais50: estSurplomb(biais, H, 50),
+  s_haut: estSurplomb(haut, H, 45), s_nul: estSurplomb({ x: 0, y: 0, z: 0 }, H, 45),
+  s_axeZ: estSurplomb({ x: 0, y: 0, z: -1 }, { x: 0, y: 0, z: 1 }, 45),
+}));
+"""
+    r = json.loads(_node(src))
+    assert r["p_bas"] == 0 and r["p_mur"] == 90 and r["p_long"] == 0, r
+    assert abs(r["p_biais"] - 45) < 1e-6 and abs(r["p_30"] - 30) < 1e-6
+    assert abs(r["p_30_long"] - 30) < 1e-6, "ni la normale ni l'axe haut ne sont supposés unitaires"
+    assert r["p_haut"] is None                    # une face vers le ciel n'a pas de pente
+    assert r["s_bas"] is True and r["s_mur"] is False
+    assert r["s_biais45"] is False                # 45 n'est pas SOUS le seuil 45
+    assert r["s_biais50"] is True
+    assert r["s_haut"] is False and r["s_nul"] is False
+    assert r["s_axeZ"] is True, "l'axe haut est un ARGUMENT : sur la plaque il peut être z"
+
+
+def test_les_surplombs_suivent_l_axe_de_la_plaque_et_s_eteignent_au_chargement():
+    js = _lire("etabli/etabli.js")
+    assert 'import { peindreSurplombs } from "/lib3d/surplomb.js";' in js
+    assert "const SEUIL_SURPLOMB = 45;" in js
+    assert "const SURPLOMB = { actif: false };" in js
+    axe = _fonction_etabli("axeHautImpression")
+    assert "plateauDe(S.vueA)" in axe and "g.axe ===" in axe
+    b = _fonction_etabli("basculerSurplombs")
+    assert "axeHautImpression()" in b and "SEUIL_SURPLOMB" in b
+    assert "apercusSurLaPlaque();" in _fonction_etabli("graduerPlateau")
+    ap = _fonction_etabli("apercusSurLaPlaque")
+    assert "peindreSurplombs(S.vueA, SEUIL_SURPLOMB, axeHautImpression())" in ap
+    assert "TRANCHES.actives && PLQ.active" in ap and "dessinerTranches(S.vueA, null)" in ap
+    o = _fonction_etabli_async("_ouvrirPrincipale")
+    assert "eteindreApercus()" in o
+    e = _fonction_etabli("eteindreApercus")
+    assert "peindreSurplombs(S.vueA, 0" in e and "dessinerTranches(S.vueA, null)" in e
+    assert "SURPLOMB.actif = false" in e and "TRANCHES.actives = false" in e
+    assert '<button class="outil-btn" id="btnSurplombs"></button>' in _lire("etabli/index.html")
+    # le calque ne touche AUCUN matériau du modèle (leçon des teintes partagées)
+    s = _code("lib3d/surplomb.js")
+    assert ".material.color" not in s and "o.material =" not in s
+
+
+def test_l_axe_haut_de_l_impression_est_celui_du_PLATEAU_sur_la_plaque_EXECUTEE():
+    src = """
+      const S = { vueA: {} };
+      const PLQ = { active: false };
+      let AXE = "z";
+      const plateauDe = () => ({ axe: AXE });
+    """ + _fonction_etabli("axeHautImpression") + """
+      const r = [axeHautImpression()];
+      PLQ.active = true; r.push(axeHautImpression());
+      AXE = "x"; r.push(axeHautImpression());
+      console.log(JSON.stringify(r));
+    """
+    r = json.loads(_node(src))
+    assert r == [{"x": 0, "y": 1, "z": 0}, {"x": 0, "y": 0, "z": 1}, {"x": 1, "y": 0, "z": 0}]
+
+
+def test_l_apercu_de_tranchage_ne_promet_QUE_l_indicatif_et_n_ecrit_rien():
+    js = _lire("etabli/etabli.js")
+    assert "dessinerTranches" in js.split('from "/lib3d/viewer.js"', 1)[0]
+    assert "const TRANCHES = { actives: false };" in js and "const NB_TRANCHES = 20;" in js
+    f = _fonction_etabli_async("basculerTranches")
+    assert '"/api/etabli/tranches"' in f and "ecrireSeule" not in f and "ecrireVersion" not in f
+    assert "Aperçu seulement" in f and "le slicer tranche pour de vrai" in f
+    assert "fmtMesure(" in f and "uniteCourante()" in f and "axeHautImpression()" in f
+    assert '<button class="outil-btn" id="btnTranches"></button>' in _lire("etabli/index.html")
+    # aucune des deux routes de REGARD n'entre dans la table des écritures
+    routes = _objet_etabli("ROUTES")
+    assert "tranches" not in routes and "ranger" not in routes
+    v = _lire("lib3d/viewer.js")
+    assert "export function dessinerTranches(api, couches)" in v
+
+
+def test_les_libelles_des_deux_apercus_disent_leur_ETAT():
+    m = _fonction_etabli("majOutils")
+    assert 'SURPLOMB.actif ? "Surplombs ✓" : "Surplombs"' in m
+    assert 'TRANCHES.actives ? "Tranches ✓" : "Tranches"' in m
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

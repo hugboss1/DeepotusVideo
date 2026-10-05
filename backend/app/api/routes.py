@@ -14129,6 +14129,25 @@ async def etabli_ranger(body: dict):
         raise HTTPException(400, str(e))
 
 
+@router.post("/etabli/tranches")
+async def etabli_tranches(body: dict):
+    """L'APERÇU DE TRANCHAGE INDICATIF (tâche T091, plan-etabli T16) : les sections d'une version à `nombre` hauteurs
+    sur `axe`, en segments bruts. AUCUNE ÉCRITURE : c'est un regard, pas une correction — même doctrine que
+    `/etabli/ranger`. Pas de G-code, pas de support : le slicer tranche pour de vrai."""
+    from app.services import mesh_slice
+    _job, data, _depuis = _etabli_glb_cible(body.get("job"), body.get("version"), "aperçu de tranchage")
+    nombre = body.get("nombre", 20)
+    if not _etabli_entier(nombre):
+        raise HTTPException(400, "tranches : `nombre` attend un entier")
+    noeuds = body.get("noeuds")
+    if noeuds is not None and (not isinstance(noeuds, list) or any(not _etabli_entier(n) or n < 0 for n in noeuds)):
+        raise HTTPException(400, "tranches : `noeuds` doit être une liste d'index de nœud")
+    try:
+        return await asyncio.to_thread(mesh_slice.trancher, data, noeuds, str(body.get("axe", "y")), int(nombre))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
 # ── Plan mobile T4 (tâche #56, 01/10/2026) : appairage d'un appareil ─────────────────────────────────────────────────
 # `_require_localhost` garde ces routes : seul le PC affiche un QR, liste et révoque. `/pair/claim` est l'exception,
 # ouverte au réseau local par main.py (_ROUTES_SANS_JETON pour la garde de jeton, _ECRITURES_OUVERTES pour la garde

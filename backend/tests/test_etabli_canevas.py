@@ -4184,7 +4184,10 @@ def _table_js(rel: str, nom: str) -> str:
 
 # La lecture chiffrée de la pièce courante (T090) est EXÉCUTÉE dans test_etabli_outils_page.py ; les harnais
 # d'ici, sans `document`, en reçoivent une version neutre pour que leurs sites d'appel restent exécutables.
-_LECTURE_NEUTRE = "function lirePieceCourante() {}\n"
+_LECTURE_NEUTRE = "function lirePieceCourante() {}\nfunction apercusSurLaPlaque() {}\n"
+# Et l'état des deux aperçus (T091), que majOutils() lit pour écrire « Surplombs » / « Tranches ».
+_APERCUS_ETAT = ("const SURPLOMB = { actif: false }; const TRANCHES = { actives: false };\n"
+                 "const SEUIL_SURPLOMB = 45; const NB_TRANCHES = 20;\n")
 
 def _fonction_etabli(nom: str) -> str:
     """Une fonction d'etabli.js, VERBATIM, pour le harnais node.
@@ -5412,7 +5415,9 @@ def test_la_GRADUATION_vit_dans_le_CANEVAS_PARTAGE_et_pas_dans_la_page():
                 "sensDesRegles",
                 # tâche #88 : le contour du plateau réel (profil d'imprimante), même
                 # raison que les règles — un accessoire du regard, dessiné par le canevas
-                "dessinerContourPlateau"}
+                "dessinerContourPlateau",
+                # tâche T091 : les sections de l'aperçu de tranchage, même raison
+                "dessinerTranches"}
     assert exportes == attendus, (exportes ^ attendus)
     # la boucle gradue AVANT de rendre : après, la trame reconstruite
     # n'apparaîtrait qu'à l'image suivante.
@@ -9536,7 +9541,7 @@ def test_l_apercu_du_couteau_NE_TOUCHE_PAS_la_geometrie_et_decoupe_de_part_et_d_
           detach() { this.object = null; journal.push("detach"); } };
         return GIZMO;
       };
-    """ + "".join(_fonction_etabli(f) + "\n" for f in (
+    """ + _APERCUS_ETAT + "".join(_fonction_etabli(f) + "\n" for f in (
             "armerGeste", "majOutils", "objetsDesNoeuds", "majAxesGizmo", "monterCouteau",
             "monterApercuCoupe", "majApercuCoupe", "demonterApercuCoupe", "rangerCouteau",
             "armerCouteau", "reconstruireApercuCoupe"))
@@ -9697,6 +9702,7 @@ def test_les_outils_vivent_DANS_le_canevas_naissent_sans_texte_et_repondent_a_F_
     assert html.count('class="head-btn"') == 3
     reg = css.split(".vue-outils {", 1)[1].split("}", 1)[0]
     assert "z-index: 2" in reg and "pointer-events: none" in reg and "bottom" in reg
+    assert "flex-wrap: wrap" in reg and "right: 10px" in reg, "la rangée ne déborde pas du canevas"
     assert "pointer-events: auto" in css.split(".outil-btn, .outil-sel {", 1)[1].split("}", 1)[0]
     assert "background" in css.split(".outil-btn.actif {", 1)[1].split("}", 1)[0]
     # branchés au PREMIER NIVEAU, une fois, et écrits à l'import
@@ -9746,7 +9752,7 @@ def test_les_outils_vivent_DANS_le_canevas_naissent_sans_texte_et_repondent_a_F_
     ecrit = json.loads(_node(_faux_outils() + """
       const GESTE = { mode: "selection", enCours: null };
       const COUTEAU = { manip: "translate", garder: "b" };
-    """ + _fonction_etabli("majOutils") + """
+    """ + _APERCUS_ETAT + _fonction_etabli("majOutils") + """
       majOutils();
       const r = { repos: { a: $("#btnAssise").textContent, c: $("#btnCouteau").textContent,
                            barre: $("#couteauBarre").classes.has("hidden"), garder: $("#couteauGarder").value,

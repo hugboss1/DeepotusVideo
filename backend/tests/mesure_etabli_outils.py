@@ -51,6 +51,17 @@ if __name__ == "__main__":
                   r["ferme_apres"])
         else:
             print("modele reel absent : saute")
+    elif quoi == "tranches":
+        from app.services import mesh_slice
+        data = tore()
+        r = chrono("trancher tore 100k en 20 couches", lambda: mesh_slice.trancher(data, None, "y", nombre=20))
+        print(f"   -> {sum(len(c['segments']) for c in r['couches'])} segments, "
+              f"perimetre max {max(c['perimetre'] for c in r['couches']):.3f}")
+        if REEL.is_file():
+            brut = REEL.read_bytes()
+            chrono("trancher reel en 20 couches", lambda: mesh_slice.trancher(brut, None, "y", nombre=20))
+        else:
+            print("modele reel absent : saute")
     elif quoi == "creuser":
         from app.services import hollow
         data = tore()
