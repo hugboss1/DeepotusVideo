@@ -346,3 +346,8 @@ select option:disabled { color: var(--ink-muted); }
 .vue-actions button:disabled { opacity: .4; cursor: not-allowed; }
 .fal-import { display: block; cursor: pointer; }
 .engine-note a { color: var(--accent); }
+/* ── T107 : banc de référence ── */
+.fal-banc { margin-top: 6px; font-family: var(--f-mono); font-size: 10px; color: var(--ink); line-height: 1.45; }
+.fal-banc .banc-ligne { padding: 3px 0; border-bottom: 1px solid var(--stroke); }
+.fal-banc .banc-ligne b { font-weight: 500; color: var(--ink-strong); }
+.fal-banc .jamais { color: var(--ink-soft); font-style: italic; }

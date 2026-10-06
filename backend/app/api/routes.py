@@ -918,8 +918,33 @@ async def list_asset3d_engines():
                     "usd_texture": devis["total_usd"],
                     "usd_brouillon": brouillon["total_usd"]})
     out.sort(key=lambda m: m["id"])
+    # T107 (plan-moteurs-3d T8) : la matrice cite le banc de référence — `banc: None` = jamais mesuré chez nous,
+    # dit tel quel plutôt que remplacé par la note du fournisseur
+    from app.services import asset3d_banc
+    banc = await asyncio.to_thread(asset3d_banc.resume_par_moteur)
+    for m in out:
+        m["banc"] = banc.get(m["id"])
     return {"engines": out, "default": "tripo",
-            "besoins": [{"id": k, **v} for k, v in BESOINS_3D.items()]}
+            "besoins": [{"id": k, **v} for k, v in BESOINS_3D.items()],
+            "sujets_banc": asset3d_banc.sujets()}
+
+
+@router.post("/assets3d/banc")
+async def post_asset3d_banc(body: dict = None):
+    """Range un job DÉJÀ produit au banc de référence (T107, plan-moteurs-3d T8). Body {job, sujet, moteur?}. Local et
+    gratuit : lit la fiche de maillage et le manifeste du job, n'appelle aucun fournisseur. Le moteur est celui du
+    manifeste ; un `moteur` qui le contredit est refusé."""
+    from app.services import asset3d_banc
+    body = body or {}
+    job = Path(str(body.get("job") or "")).name
+    if not job or not body.get("sujet"):
+        raise HTTPException(400, "job et sujet requis")
+    try:
+        return await asyncio.to_thread(asset3d_banc.mesurer, job, str(body["sujet"]), body.get("moteur"))
+    except FileNotFoundError as e:
+        raise HTTPException(404, f"{job} : {e} — calcule d'abord sa fiche de maillage")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
 
 @router.get("/assets/3d/{job}/report")
