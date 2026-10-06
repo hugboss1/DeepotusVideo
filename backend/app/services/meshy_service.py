@@ -135,6 +135,10 @@ def credits_retexture(texture_resolution: str = "2k") -> int:
 CREDITS_FLAT = {"remesh": 5, "convert": 1, "resize": 1, "uv-unwrap": 1,
                 "rigging": 5, "animations": 3}
 
+# Bibliothèque d'animations Meshy (docs.meshy.ai/en/api/animation-library, relue le 03/09/2026) : les actions
+# proposées au rig d'un job fal (T104). Un id hors de cette table reste accepté par Meshy et s'affiche par son numéro.
+ACTIONS_RIG = {0: "Idle", 1: "Walking_Woman", 4: "Attack", 8: "Dead", 11: "Idle_02"}
+
 # formats émis sans surcoût par les tâches ; seule la conversion 3MF facture.
 NATIVE_FORMATS = {"glb", "fbx", "obj", "usdz", "stl"}
 
@@ -214,6 +218,49 @@ def tiny_glb() -> bytes:
             + struct.pack("<II", len(binc), 0x004E4942) + binc)
 
 
+def tiny_rigged_glb() -> bytes:
+    """GLB v2 minimal RIGGÉ : un triangle, un os, un skin, un clip de deux clés. C'est ce que le simulateur sert pour
+    rig.glb et anim_*.glb (T104), et ce que `mesh_edit.rig_inventory` doit relire avec a_squelette=True."""
+    pos = struct.pack("<9f", 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.5, 1.0, 0.0)
+    joints = struct.pack("<12H", *([0, 0, 0, 0] * 3))
+    weights = struct.pack("<12f", *([1.0, 0.0, 0.0, 0.0] * 3))
+    ibm = struct.pack("<16f", 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)
+    times = struct.pack("<2f", 0.0, 1.0)
+    quats = struct.pack("<8f", 0, 0, 0, 1, 0, 0.7071068, 0, 0.7071068)
+    parts, views, off = [], [], 0
+    for blob in (pos, joints, weights, ibm, times, quats):
+        pad = b"\x00" * (-len(blob) % 4)
+        views.append({"buffer": 0, "byteOffset": off, "byteLength": len(blob)})
+        parts.append(blob + pad)
+        off += len(blob) + len(pad)
+    binc = b"".join(parts)
+    gltf = {
+        "asset": {"version": "2.0", "generator": "deepotus-meshy-mock-rig"},
+        "scene": 0, "scenes": [{"nodes": [0, 1]}],
+        "nodes": [{"mesh": 0, "skin": 0, "name": "corps"},
+                  {"name": "os_racine", "rotation": [0, 0, 0, 1]}],
+        "meshes": [{"primitives": [{"attributes": {"POSITION": 0, "JOINTS_0": 1, "WEIGHTS_0": 2}}]}],
+        "skins": [{"joints": [1], "inverseBindMatrices": 3, "skeleton": 1}],
+        "animations": [{"name": "walking",
+                        "samplers": [{"input": 4, "output": 5, "interpolation": "LINEAR"}],
+                        "channels": [{"sampler": 0, "target": {"node": 1, "path": "rotation"}}]}],
+        "accessors": [
+            {"bufferView": 0, "componentType": 5126, "count": 3, "type": "VEC3", "min": [0, 0, 0], "max": [1, 1, 0]},
+            {"bufferView": 1, "componentType": 5123, "count": 3, "type": "VEC4"},
+            {"bufferView": 2, "componentType": 5126, "count": 3, "type": "VEC4"},
+            {"bufferView": 3, "componentType": 5126, "count": 1, "type": "MAT4"},
+            {"bufferView": 4, "componentType": 5126, "count": 2, "type": "SCALAR", "min": [0.0], "max": [1.0]},
+            {"bufferView": 5, "componentType": 5126, "count": 2, "type": "VEC4"}],
+        "bufferViews": views, "buffers": [{"byteLength": len(binc)}],
+    }
+    js = json.dumps(gltf, separators=(",", ":")).encode()
+    js += b" " * (-len(js) % 4)
+    total = 12 + 8 + len(js) + 8 + len(binc)
+    return (struct.pack("<III", 0x46546C67, 2, total)
+            + struct.pack("<II", len(js), 0x4E4F534A) + js
+            + struct.pack("<II", len(binc), 0x004E4942) + binc)
+
+
 def tiny_png() -> bytes:
     """PNG 1×1 gris valide (aperçu mock)."""
     def chunk(tag: bytes, data: bytes) -> bytes:
@@ -231,6 +278,8 @@ MOCK_FILE_PREFIX = "/api/meshy3d/mockfile/"
 def mock_file_bytes(fname: str) -> tuple[bytes, str]:
     """Contenu servi par /api/meshy3d/mockfile/<task>/<fname>."""
     ext = fname.rsplit(".", 1)[-1].lower()
+    if ext == "glb" and (fname.startswith("rig") or fname.startswith("anim_")):
+        return tiny_rigged_glb(), "model/gltf-binary"      # T104 : un rig et ses clips ont un squelette
     if ext == "glb":
         return tiny_glb(), "model/gltf-binary"
     if ext == "png":
@@ -338,10 +387,20 @@ class MeshyMock:
             out["consumed_credits"] = t["credits"]
             out["expires_at"] = now_ms + 3 * 24 * 3600 * 1000
             if t["kind"] == "rigging":
-                out["result"] = {"rigged_model_url": f"{pre}model.glb"}
+                # docs.meshy.ai/en/api/rigging relue le 06/10/2026 (T104) ; la clé historique du mock reste pour
+                # meshy.client.js (out.rigged)
+                out["result"] = {
+                    "rigged_model_url": f"{pre}rig.glb",
+                    "rigged_character_glb_url": f"{pre}rig.glb",
+                    "rigged_character_fbx_url": f"{pre}rig.fbx",
+                    "basic_animations": {
+                        f"{n}_{k}_url": f"{pre}anim_{n}{'_armature' if k == 'armature_glb' else ''}"
+                                        f".{'glb' if k != 'fbx' else 'fbx'}"
+                        for n in ("walking", "running") for k in ("glb", "fbx", "armature_glb")}}
             if t["kind"] == "animations":
-                out["result"] = {"animation_glb_url": f"{pre}model.glb",
-                                 "animation_fbx_url": f"{pre}model.fbx"}
+                aid = t["payload"].get("action_id")
+                out["result"] = {"animation_glb_url": f"{pre}anim_action_{aid}.glb",
+                                 "animation_fbx_url": f"{pre}anim_action_{aid}.fbx"}
         else:
             out["consumed_credits"] = 0
         return 200, out

@@ -7,6 +7,7 @@
 "use strict";
 import { MeshyClient, MeshyPipeline, estimatePipeline }
   from "/meshy/meshy.client.js";
+import * as FAL from "./fal.js";   // T104 : l'Atelier fal (rig + animations Meshy d'un job Game Assets 3D)
 
 const $ = (s) => document.querySelector(s);
 
@@ -944,7 +945,13 @@ function gotoSubtab(tab) {
   $("#modalCancel").addEventListener("click", () => $("#modal").classList.add("hidden"));
   $("#goSprite").addEventListener("click", () => gotoSubtab("sprites"));
   $("#goEtabli").addEventListener("click", ouvrirEtabli);
-  $("#engineGoto").addEventListener("click", () => gotoSubtab("3d"));
+  /* T104 : un moteur fal choisi ouvre l'Atelier fal (rig d'un job déjà généré) ; le hub reste à un clic dedans */
+  $("#engineGoto").addEventListener("click", () => {
+    $("#falPanel").classList.remove("hidden");
+    FAL.chargerJobs().catch((e) => toast(String(e.message || e)));
+  });
+  $("#falHub").addEventListener("click", () => gotoSubtab("3d"));
+  FAL.brancher({ confirmer: (m, o) => window.__dzDialogue.confirmer(m, o), toast });
 
   /* Le filet des départs qui ne passent pas par ouvrirEtabli() : rechargement,
      fermeture de l'onglet, retour arrière, gotoSubtab. `pagehide` et non
