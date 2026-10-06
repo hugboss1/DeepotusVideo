@@ -299,3 +299,53 @@ async def fichier(tid: str, nom: str):
     if not p.is_file():
         raise HTTPException(404, f"fichier absent: {nom}")
     return FileResponse(str(p))
+
+
+# ── style d'un lieu de la bible (D2, tâche t116 / plan T10-T12) ────────────────────────────────────────────────────
+#: gabarit du prompt : la surface d'abord, la contrainte de tuile ensuite, le style du lieu et sa palette en dernier —
+#: l'ordre où les modèles d'image pèsent le plus les premiers mots
+GABARIT_LIEU = (
+    "{surface}, texture de tuile pour {lieu}. {description}{style}"
+    "Vue top-down, orthographique, seamless tileable, éclairage diffus uniforme, aucune ombre portée, aucun objet "
+    "reconnaissable, aucun texte. {palette}.")
+
+
+@router.post("/prompt-lieu")
+async def prompt_lieu(body: dict | None = None):
+    """D2 : un prompt de tuile contraint par la planche et la palette d'un LIEU de la bible. Cette route ne génère
+    RIEN — elle formate, gratuitement ; l'image se fait ensuite dans le générateur (POST /api/images/generate, gardé
+    par les plafonds). La palette est LUE sur la planche (`board_service._palette_colors`, celle de l'Atelier) : les
+    couleurs distinctes trouvées, six au plus — une planche presque unie en donne moins, et c'est vrai."""
+    from sqlalchemy import select
+    from app.services.board_service import _palette_colors
+    from app.services.storage import BibleEntity, async_session_factory
+    body = body if isinstance(body, dict) else {}
+    eid = str(body.get("entity_id") or "").strip()
+    if not eid:
+        raise HTTPException(400, "entity_id attendu")
+    async with async_session_factory() as session:
+        e = (await session.execute(select(BibleEntity).where(BibleEntity.id == eid))).scalar_one_or_none()
+    if e is None:
+        raise HTTPException(404, f"entité de bible inconnue : {eid}")
+    if e.kind != "place":
+        raise HTTPException(400, f"« {e.name} » est de sorte {e.kind!r} : seul un lieu contraint un jeu de tuiles")
+    palette: list[str] = []
+    planche = (e.ref_image or "").strip()
+    p = settings.images_path / planche if planche else None
+    if p is not None and p.name == planche and p.is_file():
+        try:
+            couleurs = await asyncio.to_thread(_palette_colors, settings.images_path, [planche], 6)
+            palette = ["#%02x%02x%02x" % tuple(c[:3]) for c in couleurs]
+        except Exception as err:               # noqa: BLE001 — une planche illisible n'empêche pas le prompt
+            logger.warning(f"tuiles/prompt-lieu {eid} : palette illisible ({err})")
+            planche = ""
+    else:
+        planche = ""
+    surface = (str(body.get("surface") or "sol").strip() or "sol")[:80]
+    prompt = GABARIT_LIEU.format(
+        surface=surface, lieu=e.name,
+        description=(e.description.strip().rstrip(".") + ". ") if (e.description or "").strip() else "",
+        style=(e.style_notes.strip().rstrip(".") + ". ") if (e.style_notes or "").strip() else "",
+        palette=("Palette imposée : " + ", ".join(palette)) if palette else "Palette libre")
+    return {"entity_id": eid, "lieu": e.name, "planche": planche, "palette": palette, "surface": surface,
+            "prompt": prompt}

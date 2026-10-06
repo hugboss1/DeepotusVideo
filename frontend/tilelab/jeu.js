@@ -216,6 +216,33 @@
     x.restore();
   }
 
+  /* ── style d'un lieu de la bible (t116, plan T11) : un PROMPT, rien n'est généré ici ────────────────────────────── */
+  async function chargerLieux() {
+    const d = await api.get("/bible/entities?kind=place").catch(() => ({ entities: [] }));
+    const lieux = d.entities || [];
+    $("#lieuSel").innerHTML = lieux.length
+      ? lieux.map((e) => `<option value="${esc(e.id)}">${esc(e.name)}${e.ref_image ? "" : " (sans planche)"}</option>`).join("")
+      : `<option value="">aucun lieu dans la bible</option>`;
+    $("#lieuRun").disabled = !lieux.length;
+  }
+  async function promptLieu() {
+    const st = $("#jeuStatus");
+    const eid = $("#lieuSel").value;
+    if (!eid) return statut(st, "Aucun lieu dans la bible.", true);
+    try {
+      const d = await api.post("/tiles/prompt-lieu", { entity_id: eid, surface: $("#lieuSurface").value });
+      $("#lieuPrompt").value = d.prompt;
+      $("#lieuPalette").innerHTML = d.palette.map((c) => `<span style="background:${esc(c)}" title="${esc(c)}"></span>`).join("")
+        || `<span class="hint">${d.planche ? "" : "lieu sans planche : palette libre"}</span>`;
+      $("#lieuCopier").disabled = false;
+      vider(st);
+    } catch (e) { statut(st, "Échec : " + e.message, true); }
+  }
+  async function copierLieu() {
+    try { await navigator.clipboard.writeText($("#lieuPrompt").value); statut($("#jeuStatus"), "Prompt copié — colle-le dans le générateur d'images."); }
+    catch (e) { $("#lieuPrompt").select(); statut($("#jeuStatus"), "Copie refusée par le navigateur : le prompt est sélectionné, Ctrl+C.", true); }
+  }
+
   /* ── branchements ─────────────────────────────────────────────────────────────────────────────────────────── */
   $("#jeuSlotA").onclick = () => slotActif("a");
   $("#jeuSlotB").onclick = () => slotActif("b");
@@ -233,12 +260,15 @@
   $("#expLdtk").onclick = () => exporter(etat.tid, "ldtk", $("#jeuStatus"));
   $("#expGodot").onclick = () => exporter(etat.tid, "godot", $("#jeuStatus"));
   $("#formeRun").onclick = fabriquerForme;
+  $("#lieuRun").onclick = promptLieu;
+  $("#lieuCopier").onclick = copierLieu;
   $("#expFormeAtlas").onclick = () => atlas(etat.forme);
   $("#expFormeTiled").onclick = () => exporter(etat.forme, "tiled", $("#formeStatus"));
   $("#expFormeGodot").onclick = () => exporter(etat.forme, "godot", $("#formeStatus"));
   // la Library n'est lue qu'à la première entrée dans un des deux modes
   document.addEventListener("tl-mode", (e) => {
     if ((e.detail === "jeu" || e.detail === "formes") && !etat.charge) {
+      chargerLieux();
       charger().catch((err) => statut($(e.detail === "jeu" ? "#jeuStatus" : "#formeStatus"), "Library : " + err.message, true));
     }
   });

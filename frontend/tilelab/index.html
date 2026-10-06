@@ -46,6 +46,16 @@
       <div class="tl-src" title="D'où viennent les matières"><button id="jeuSrcLib" class="tl-srcb on" data-src="lib">🖼 Bibliothèque</button><button id="jeuSrcForge" class="tl-srcb" data-src="forge" title="Les matières du Material Forge — leur couleur de base">🧪 Material Forge</button></div>
       <input id="jeuSearch" class="search" placeholder="🔎 Filtrer les matières…">
       <div id="jeuGrid" class="img-grid tall"><div class="empty-note">Chargement de la Library…</div></div>
+      <!-- t116 (T11) : le style d'un lieu de la bible — un PROMPT, rien n'est généré ici -->
+      <fieldset class="tl-lieu">
+        <legend>Style d'un lieu de la bible</legend>
+        <label class="fld">Lieu <select id="lieuSel" title="Les lieux de la bible"></select></label>
+        <label class="fld">Surface <input id="lieuSurface" type="text" value="sol de pierre" maxlength="80" title="Ce que la tuile représente"></label>
+        <button id="lieuRun" class="btn" title="Un prompt de tuile contraint par la planche et la palette du lieu — gratuit, rien n'est généré">🎨 Prompt du lieu</button>
+        <div id="lieuPalette" class="tl-pal"></div>
+        <textarea id="lieuPrompt" rows="4" placeholder="Le prompt contraint par la planche et la palette du lieu apparaît ici — à coller dans le générateur d'images."></textarea>
+        <button id="lieuCopier" class="btn ghost" disabled title="Copier le prompt">📋 Copier le prompt</button>
+      </fieldset>
     </div>
     <!-- t115 : Formes — une matière -->
     <div id="tlFormesSrc" class="src-body hidden">

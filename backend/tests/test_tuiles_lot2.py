@@ -135,6 +135,74 @@ def test_ecran_le_jeu_et_les_formes_prennent_aussi_une_matiere_du_forge():
     assert "matiere_a: specDe(etat.matiere)" in js
 
 
+# ═════════════════════════════════ T11 (D2) ══════════════════════════════════
+# La route RÉPOND un prompt contraint par la planche et la palette d'un LIEU de la bible : elle ne génère rien, le
+# banc ne paie rien. ÉCART AU PLAN : sa planche de banc était UNIE — `_palette_colors` rend les couleurs DISTINCTES
+# trouvées (Pillow 12 : 1 couleur), et l'assertion « 6 couleurs » échouait ; la planche est ici en six bandes.
+
+def _planche_six():
+    couleurs = [(200, 40, 30), (30, 160, 170), (20, 30, 60), (230, 220, 200), (90, 140, 40), (120, 60, 140)]
+    im = Image.new("RGB", (96, 64))
+    for i, c in enumerate(couleurs):
+        im.paste(Image.new("RGB", (16, 64), c), (16 * i, 0))
+    return im
+
+
+def test_prompt_lieu_porte_la_palette_de_la_planche():
+    from app.services.storage import BibleEntity, async_session_factory, init_db
+
+    async def sc():
+        await init_db()
+        planche = _image("lieu_planche.png", _planche_six())
+        async with async_session_factory() as s:
+            s.add(BibleEntity(id="lieu-banc", kind="place", name="la crypte turquoise",
+                              description="une crypte engloutie", style_notes="pierre humide, lueur cyan",
+                              ref_image=planche))
+            s.add(BibleEntity(id="perso-banc", kind="character", name="le pilote"))
+            s.add(BibleEntity(id="lieu-nu", kind="place", name="le vide"))
+            s.add(BibleEntity(id="lieu-casse", kind="place", name="la ruine", ref_image="absente.png"))
+            await s.commit()
+        async with _client() as c:
+            r = await c.post("/api/tiles/prompt-lieu", json={"entity_id": "lieu-banc", "surface": "sol de pierre"})
+            assert r.status_code == 200, r.text
+            d = r.json()
+            assert d["lieu"] == "la crypte turquoise" and d["planche"] == planche, d
+            assert 1 <= len(d["palette"]) <= 6 and all(re.fullmatch(r"#[0-9a-f]{6}", x) for x in d["palette"]), d
+            # LUES sur la planche, pas inventées : chaque bande a sa couleur dans la palette, à la quantification près
+            # (Pillow rend #c12928 pour une bande #c8281e)
+            pal = [tuple(int(x[i:i + 2], 16) for i in (1, 3, 5)) for x in d["palette"]]
+            for bande in ((200, 40, 30), (30, 160, 170), (20, 30, 60), (230, 220, 200), (90, 140, 40), (120, 60, 140)):
+                assert any(max(abs(u - v) for u, v in zip(bande, c)) <= 16 for c in pal), (bande, d["palette"])
+            for morceau in ("sol de pierre", "la crypte turquoise", "une crypte engloutie",
+                            "pierre humide, lueur cyan", "seamless", "top-down", *d["palette"]):
+                assert morceau in d["prompt"], morceau
+            assert set(d) == {"entity_id", "lieu", "planche", "palette", "surface", "prompt"}, "un formateur"
+            r = await c.post("/api/tiles/prompt-lieu", json={"entity_id": "inconnu"})
+            assert r.status_code == 404 and "inconnu" in r.text, r.text
+            r = await c.post("/api/tiles/prompt-lieu", json={"entity_id": "perso-banc"})
+            assert r.status_code == 400 and "lieu" in r.text.lower(), r.text
+            r = await c.post("/api/tiles/prompt-lieu", json={})
+            assert r.status_code == 400, r.text
+            for eid in ("lieu-nu", "lieu-casse"):           # sans planche lisible : un prompt quand même, sans palette
+                r = await c.post("/api/tiles/prompt-lieu", json={"entity_id": eid})
+                assert r.status_code == 200 and r.json()["palette"] == [] and r.json()["planche"] == "", r.text
+            assert "palette libre" in r.json()["prompt"].lower(), r.json()["prompt"]
+            long = await c.post("/api/tiles/prompt-lieu", json={"entity_id": "lieu-nu", "surface": "x" * 500})
+            assert len(long.json()["surface"]) == 80, "la surface est bornée"
+    asyncio.run(sc())
+
+
+def test_ecran_offre_le_style_d_un_lieu():
+    js = (FRONT / "jeu.js").read_text(encoding="utf-8")
+    html = (FRONT / "index.html").read_text(encoding="utf-8")
+    assert '"/tiles/prompt-lieu"' in js and '"/bible/entities?kind=place"' in js
+    for ident in ("lieuSel", "lieuSurface", "lieuRun", "lieuPrompt", "lieuCopier", "lieuPalette"):
+        assert html.count(f'id="{ident}"') == 1, ident
+    i = html.index('id="tlJeuSrc"')
+    assert i < html.index('id="lieuSel"') < html.index('id="tlFormesSrc"'), "dans la colonne source du mode Jeu"
+    assert "/images/generate" not in js, "la route formate, elle ne génère pas : aucun tir payant depuis ici"
+
+
 def _main():
     rouges = []
     for nom, fn in sorted(globals().items()):
