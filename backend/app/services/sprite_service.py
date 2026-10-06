@@ -697,6 +697,8 @@ async def generate_sprites(payload: dict, job_id: str, on_step=None) -> dict:
                    "file": src_name, "duration_s": round(duration, 2),
                    "fps_sample": opts["fps"], "sampled": sampled,
                    "remove_bg": method}
+    # t111 (T9) : la planche découpée et la limite « 4/8 », posées par /assets/sprite/from-board
+    source_info.update(payload.get("_board_meta") or {})
 
     # 9c: filmstrip probe — publish the sampled frames as-is (no remove-bg /
     # pixel / sheet) so the UI can show them and let the user tick them off.
