@@ -281,6 +281,7 @@ const state = {
      et quarante cartes réclameraient chacune un modèle de 40 Mo habillé. */
   modele3d: null,
   vpModele: false,
+  essai: null,        // préréglage ESSAYÉ dans l'aperçu, pas encore posé (T098)
   compare: null,      // id de la seconde matière comparée (T096), ou null
 };
 
@@ -974,9 +975,10 @@ function glbUrl(m, res, mesh, stage) {
       + "&model=" + encodeURIComponent(state.modele3d.job)
       + "&mversion=" + (state.modele3d.version || 1) + "&v=" + (m._v || 0);
   }
+  const fin = state.essai && m.id === state.sel ? "&finish=" + encodeURIComponent(state.essai) : "";
   return "/api/materials/" + encodeURIComponent(srcId(m)) + "/preview.glb?mesh=" +
     encodeURIComponent(mesh || state.mesh) + "&res=" + (res || 1024) +
-    "&scale=1&stage=" + (stage ? 1 : 0) + "&v=" + (m._v || 0);
+    "&scale=1&stage=" + (stage ? 1 : 0) + "&v=" + (m._v || 0) + fin;
 }
 
 /* ───────────────────────── cadrage du viewport ─────────────────────────
@@ -2736,6 +2738,46 @@ async function captureThumb() {
   } catch (e) { toast("Vignette de la carte impossible : " + e.message, true); }
 }
 
+/* ── ESSAYER UN PRÉRÉGLAGE AVANT DE LE POSER (T098 / plan-matieres T16) ──────
+   Choisir un préréglage ne l'ÉCRIT plus : l'aperçu se reconstruit avec
+   `finish=<id>` (la matière sur disque n'en sait rien), et seul « Poser »
+   fait le PATCH. L'émissif animé PULSE dans l'aperçu — et seulement là :
+   glTF cœur n'anime aucune propriété de matériau, le GLB exporté porte un
+   émissif fixe (la recette le dit). Sous prefers-reduced-motion, pas de
+   pulsation. */
+let essaiAnim = 0;
+function arreterPulsation() {
+  if (essaiAnim) cancelAnimationFrame(essaiAnim);
+  essaiAnim = 0;
+}
+function essayerPreset(pid) {
+  const m = matById(state.sel);
+  if (!m) return;
+  state.essai = pid || null;
+  $("#presetEssai").classList.toggle("hidden", !state.essai);
+  arreterPulsation();
+  if (state.view === "editor") setViewportSrc(m);
+  const p = state.presets.find((x) => x.id === pid);
+  const reduit = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (p && p.anime && !reduit) {
+    const mv = $("#mv");
+    const t0 = performance.now();
+    const pas = () => {
+      const mat = mv.model && mv.model.materials && mv.model.materials[0];
+      if (mat && mat.setEmissiveStrength) {
+        const k = 1 + p.anime.amplitude * Math.sin(2 * Math.PI * p.anime.hz * (performance.now() - t0) / 1000);
+        mat.setEmissiveStrength(p.props.emissive_strength * k);
+      }
+      essaiAnim = requestAnimationFrame(pas);
+    };
+    essaiAnim = requestAnimationFrame(pas);
+  }
+}
+function annulerEssai() {
+  $("#presetSel").value = "";
+  essayerPreset(null);
+}
+
 async function applyPreset() {
   const id = state.sel, pid = $("#presetSel").value;
   if (!id || !pid) return;
@@ -2747,8 +2789,12 @@ async function applyPreset() {
     m._v = ((matById(id) || {})._v || 0) + 1;
     upsert(m);
     fillInspector(m);
+    state.essai = null;
+    $("#presetEssai").classList.add("hidden");
+    arreterPulsation();
+    $("#presetSel").value = "";
     if (state.view === "editor") setViewportSrc(m);
-    toast("Préréglage appliqué : " + (p.label || p.id));
+    toast("Préréglage posé : " + (p.label || p.id));
   } catch (e) { toast("Préréglage impossible : " + e.message, true); }
 }
 
@@ -3896,7 +3942,9 @@ function wire() {
       ? "Masquer l'aide de toutes les propriétés"
       : "Afficher l'aide de toutes les propriétés d'un coup";
   };
-  $("#presetSel").onchange = () => { if ($("#presetSel").value) applyPreset(); };
+  $("#presetSel").onchange = () => essayerPreset($("#presetSel").value);
+  $("#presetPoser").addEventListener("click", applyPreset);
+  $("#presetAnnuler").addEventListener("click", annulerEssai);
   $("#btnExport").onclick = () => doExport(state.sel);
   wireExport();
 

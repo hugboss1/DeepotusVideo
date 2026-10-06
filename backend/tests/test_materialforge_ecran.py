@@ -223,4 +223,17 @@ assert 'if (e.missing) apiFail(e, "génération de motif"); else toast(' in JS_C
     "un refus de génération n'éteint pas l'API"
 assert "openMaterial(d.material.id)" in JS_CODE
 
+# ══ 14 · un préréglage s'ESSAIE avant d'être posé (T098 / T16) ══════════════
+ch = JS_CODE.split('$("#presetSel").onchange', 1)[1].split("\n", 1)[0]
+assert "essayerPreset(" in ch and "applyPreset" not in ch, "choisir n'écrit plus"
+gu = JS_CODE.split("function glbUrl(", 1)[1].split("\n}\n", 1)[0]
+assert '"&finish=" + encodeURIComponent(state.essai)' in gu, gu
+assert '"&v=" + (m._v || 0) + fin;' in gu, "la finition est construite mais jamais AJOUTÉE à l'URL"
+ess = JS_CODE.split("function essayerPreset(", 1)[1].split("\n}\n", 1)[0]
+assert "prefers-reduced-motion: reduce" in ess and "setEmissiveStrength" in ess, ess
+assert 'id="presetPoser"' in HTML and 'id="presetAnnuler"' in HTML
+assert 'capture="environment"' in HTML
+ok("préréglage essayé dans l'aperçu (finish=), posé seulement par « Poser » ; pulsation sous garde "
+   "reduced-motion ; le champ photo ouvre l'appareil arrière sur mobile")
+
 print(f"\nOK — {PASS} assertions groupées vertes (écran Material Forge)")
