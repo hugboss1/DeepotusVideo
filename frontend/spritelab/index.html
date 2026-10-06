@@ -23,6 +23,8 @@
         <button class="tab" data-src="render" title="Partir d'un render vidéo existant">🎬 Render</button>
         <button class="tab" data-src="upload" title="Importer une vidéo de ton PC">📤 Vidéo</button>
         <button class="tab" data-src="feuille" title="Ouvrir une planche existante (Library ou fichier) : grille, sélection, alignement, sections, JSON — tout en local">🗂 Feuille</button>
+        <button class="tab" data-src="bible" title="Les directions d'un personnage de la bible : 4 découpées dans sa planche, ou 8 rendues depuis son modèle 3D — gratuit, l'identité vient de la bible">🧬 Bible</button>
+        <button class="tab" data-src="prompt" title="Décrire un sprite, générer les images (payant), puis les pixeliser en local">✍ Prompt</button>
       </nav>
     </div>
 
@@ -90,6 +92,50 @@
       </div>
       <input id="feuilleSearch" class="search" placeholder="🔎 Filtrer les planches de la Library…">
       <div id="feuilleGrid" class="img-grid"><div class="empty-note">Chargement de la Library…</div></div>
+    </div>
+
+    <!-- t111 (plan-sprites T9-T10) : les directions d'un personnage de la bible — directions.js (module pur) -->
+    <div id="srcBible" class="src-body hidden">
+      <input id="entSearch" class="search" placeholder="🔎 Filtrer les personnages…">
+      <div id="entList" class="render-list"><div class="empty-note">Chargement de la bible…</div></div>
+      <div class="animer-box">
+        <div class="hint">Les 4 vues (sud, ouest, est, nord) sont <b>découpées</b> dans la planche du personnage : gratuit,
+          et l'identité est celle de la bible. Les 4 diagonales viennent du <b>modèle 3D</b>, rendu sous 8 angles, quand
+          l'entité en a un. Les réglages de la colonne du milieu (cellule, pixel-art, post-traitement) s'appliquent.</div>
+        <div class="bible-row">
+          <button id="bibleCut" class="btn primary" disabled title="Découpe la planche en 4 directions et assemble la feuille (local, gratuit)">🧬 4 directions (planche)</button>
+          <button id="bible3d" class="btn" disabled title="Rend le modèle 3D sous 8 angles et en fait une feuille de 8 directions (local, gratuit)">🧊 8 directions (modèle 3D)</button>
+        </div>
+        <div class="mv-hold"><model-viewer id="mv3d" interaction-prompt="none" disable-zoom disable-pan shadow-intensity="0" exposure="1"></model-viewer></div>
+        <div id="bibleStatus" class="status hidden"></div>
+      </div>
+    </div>
+
+    <!-- t111 (plan-sprites T11) : prompt → image → pipeline pixel local -->
+    <div id="srcPrompt" class="src-body hidden">
+      <div class="animer-box">
+        <label class="fld">Sujet du sprite
+          <textarea id="pmPrompt" rows="3" placeholder="Ex : a small deep-sea octopus mascot walking, side view, full body"></textarea>
+        </label>
+        <div class="hint">Mots-clés et couleurs de la persona — clic pour les ajouter au prompt :</div>
+        <div id="pmChips" class="chips"></div>
+        <div class="animer-row">
+          <label class="fld">Images
+            <select id="pmN"><option>1</option><option selected>2</option><option>3</option><option>4</option></select>
+          </label>
+          <label class="fld">Cadre
+            <select id="pmSize"><option value="square_hd" selected>Carré</option><option value="portrait_4_3">Portrait</option><option value="landscape_4_3">Paysage</option></select>
+          </label>
+        </div>
+        <div class="hint">Le style est porté par des <b>descripteurs</b> (pixels, palette, contour, fond vert uni), jamais par
+          un nom d'artiste. Les images rendues deviennent la source : choisis tes frames, coche « Pixel-art », génère
+          le sheet — le détourage passe en clé chroma locale (gratuite).</div>
+        <div class="bible-row">
+          <button id="pmGen" class="btn primary" title="Génère les images avec le générateur par défaut des Réglages (payant), puis les charge comme source">✍ Générer les images</button>
+          <span id="pmCost" class="cost" title="Coût estimé : images × tarif du générateur par défaut"></span>
+        </div>
+        <div id="pmStatus" class="status hidden"></div>
+      </div>
     </div>
   </section>
 
@@ -319,6 +365,8 @@
 <div id="toast" class="toast hidden"></div>
 <script type="module">import * as SLF from "./feuille.js"; window.SLF = SLF; document.dispatchEvent(new Event("slf-pret"));</script>
 <script type="module">import * as SLH from "./hitbox.js"; window.SLH = SLH; document.dispatchEvent(new Event("slh-pret"));</script>
+<script type="module">import * as SLD from "./directions.js"; window.SLD = SLD; document.dispatchEvent(new Event("sld-pret"));</script>
+<script type="module" src="/assets/model-viewer.min.js"></script>
 <script type="module">import * as P from "/spritelab/palettes.js"; window.DZ_PALETTES = P; document.dispatchEvent(new Event("dz-palettes"));</script>
 <script src="/shared/dz-plafonds.js"></script>
 <script src="/shared/dialogue.js"></script>
