@@ -1962,6 +1962,18 @@ function DzMontage(props){
     if(h.u.length>60)h.u.shift();
     h.r.length=0;
     setHistTick(function(t){return t+1})},[]);
+  /* T103 (plan-son-vfx T10, D2b) : le rack VFX pose (ou retire) le SUJET
+     DÉTOURÉ d'un plan par l'évènement `dz-matte` {id, matte} — un geste
+     annulable comme les autres ; le rendu compose alors les effets derrière lui. */
+  x.useEffect(function(){
+    function onMatte(ev){var d=(ev&&ev.detail)||{};
+      if(!d.id)return;
+      pushHistory();
+      setClips(clipsRef.current.map(function(k){return k.id===d.id?Object.assign({},k,{matte:d.matte||void 0}):k}));
+      setDirty(!0);
+      fireNote(d.matte?"Sujet détouré posé — les effets « derrière » passent sous lui au rendu.":"Sujet détouré retiré du plan.")}
+    window.addEventListener("dz-matte",onMatte);
+    return function(){window.removeEventListener("dz-matte",onMatte)}},[]);
   var undo=x.useCallback(function(){
     var h=histRef.current;if(!h.u.length)return;
     var s=h.u.pop();
@@ -4589,6 +4601,8 @@ function DzMontage(props){
             var _fx=(c.effects||[]).filter(function(_f){return !_f.off});
             return _fx.length?_fx:void 0})(),
           opacity:c.opacity};
+        /* T103 (D2b) : le sujet détouré -- joint seulement s'il existe, sur un vrai plan V1 (payload d'avant sinon) */
+        if(c.tr==="v1"&&c.matte&&c.src&&c.src.job_id)o.matte=c.matte;
         /* vitesse V1 (C) — jointe seulement hors 100 % et pour un VRAI plan
            vidéo (une image n'a pas de défilement) : payload d'avant sinon */
         if(c.tr==="v1"&&c.src&&c.src.job_id&&typeof c.speed==="number"&&c.speed>0&&

@@ -523,6 +523,14 @@ def estimate(op: dict, p: dict | None = None) -> dict:
         dur = float(op.get("duration_s", 0))
         lines.append(_line("fal", "Séparation en stems (Demucs)", dur, "s",
                            dur * float(p.get("demucs_usd_per_s", DEFAULTS["demucs_usd_per_s"]))))
+    elif kind == "matte":
+        # T103 (plan son-vfx T9) : BiRefNet vidéo. Le taux reste 0 tant qu'un premier tir n'a pas été lu sur le
+        # tableau de bord fal (la page n'affiche que « $0 per compute second ») — et la LIGNE le dit : un zéro
+        # qui se lit « à mesurer » n'est pas un zéro qui se lit « gratuit ».
+        dur = float(op.get("duration_s", 0))
+        taux = float(p.get("birefnet_video_usd_per_s", DEFAULTS["birefnet_video_usd_per_s"]))
+        lines.append(_line("fal", "Détourage vidéo (BiRefNet)" + (" — prix à mesurer" if not taux else ""),
+                           dur, "s", dur * taux))
     elif kind == "isolate":
         mins = float(op.get("duration_s", 0)) / 60.0
         chars = mins * float(p.get("elevenlabs_isolation_chars_per_min",

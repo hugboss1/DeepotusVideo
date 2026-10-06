@@ -299,3 +299,13 @@
 .vfx-hints{font-size:9.5px; color:var(--vfx-ink4)}
 .vfx-src{margin-left:auto; font-family:var(--vfx-mono); font-size:9px;
   color:var(--vfx-ink4)}
+
+/* T103 (plan-son-vfx T10, D2b) : le sujet détouré — rangée « Sujet » et bascule derrière / devant */
+.vfx-matte{display:flex; gap:6px; align-items:center; flex-wrap:wrap; padding:6px 0;
+  border-bottom:1px solid var(--vfx-stroke)}
+.vfx-mlbl{font-size:11.5px; color:var(--vfx-ink2); flex:1 1 100%}
+.vfx-matte .vfx-sel{flex:0 1 auto}
+.vfx-btn[data-off]{opacity:.5; pointer-events:none}
+.vfx-tog{padding:2px 7px; border-radius:5px; border:1px solid var(--vfx-stroke); background:transparent;
+  color:var(--vfx-ink3); font-size:10px; font-family:inherit; cursor:pointer; flex:none}
+.vfx-tog[data-on]{border-color:var(--vfx-acc); color:var(--vfx-acc)}
