@@ -11512,6 +11512,9 @@ async def patch_material(mid: str, body: dict):
     if "name" in body:
         mat["name"] = MS.clean_name(body.get("name"), fallback=mat["name"])
     before = mat["props"]
+    if "height_mm" in body:
+        # la hauteur physique (T097) : bornée par normalize_material, jamais un 500
+        mat["height_mm"] = MS.normalize_material({"height_mm": body.get("height_mm")}, mid)["height_mm"]
     if "props" in body:
         mat["props"] = MS.merge_props(mat["props"], body.get("props"))
     if "derive" in body:

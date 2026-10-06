@@ -173,5 +173,16 @@ assert ".vp-stage.split { display: grid; grid-template-columns: 1fr 1fr;" in CSS
 ok("comparaison : deux viewers, ambiance par le parcours général, caméra lue "
    "par getCameraOrbit, un seul chemin de GLB qui suit « Mon modèle »")
 
-print(f"\nOK — {PASS} assertions groupées vertes (écran Material Forge, "
-      f"panneau Photo)")
+# ══ 11 · la hauteur physique : une ligne `top` (T097) ══════════════════════
+groups = JS_CODE.split("const GROUPS = [", 1)[1].split("\n];\n", 1)[0]
+assert 'k: "height_mm"' in groups and "top: 1" in groups, groups[:300]
+ins = JS_CODE.split("row.top\n", 1)
+assert len(ins) == 2 and "setTop(row, v, livePass)" in ins[1][:200] and "Number(m[row.k])" in ins[1][:200]
+st = JS_CODE.split("function setTop(", 1)[1].split("\n}\n", 1)[0]
+assert "queuePatch({ top: { [row.k]: v } })" in st and "m[row.k] = v" in st, st
+fl = JS_CODE.split("async function flushPatch()", 1)[1].split("\n}\n", 1)[0]
+assert "Object.assign(body, patchPending.top)" in fl, "les lignes top vont à la RACINE du PATCH"
+assert "props: { [row.k]" not in st
+ok("hauteur physique : ligne `top` lue sur la matière, PATCH à la racine du corps (pas dans props)")
+
+print(f"\nOK — {PASS} assertions groupées vertes (écran Material Forge)")

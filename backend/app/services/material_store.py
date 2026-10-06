@@ -931,6 +931,13 @@ def normalize_material(raw: dict | None, mid: str | None = None) -> dict:
         "source": {"kind": kind, "model": model, "filename": filename,
                    "prep": clean_prep(src.get("prep"))},
         "res": clean_res(raw.get("res")),
+        # ── hauteur PHYSIQUE de la carte height (R10c P5, T097) ─────────────
+        # En millimètres, et SEULEMENT pour l'impression (le relief du Forge
+        # 3D) : aucun moteur de jeu ne la reçoit, ils ne s'accordent pas sur ce
+        # que veut dire un déplacement. 0 = non renseigné (une matière fraîche
+        # n'a jamais été mesurée, ce n'est pas la même chose que plate).
+        # Plafond 20 mm : au-delà, ce n'est plus un relief mais une pièce.
+        "height_mm": _coerce_float(raw.get("height_mm"), 0.0, 0.0, 20.0),
         "seamless": bool(raw.get("seamless", True)),
         "seam": seam_out,
         "maps": maps,
@@ -1454,6 +1461,10 @@ def _readme(mat: dict, files: dict, bits: int, naming: str, res: int) -> str:
         f"Générée par Deepotus Material Forge le {mat.get('created')}",
         "",
         f"Résolution : {res}x{res}",
+        (f"Hauteur physique de height.png : {mat.get('height_mm')} mm "
+         f"(relief d'impression ; aucun moteur de jeu ne la reçoit)"
+         if mat.get("height_mm") else
+         "Hauteur physique de height.png : non renseignée"),
         f"Convention de nommage : {naming} — "
         f"{NAMING_LABELS.get(naming, naming)}",
         f"Profondeur : 8 bits (height et normal en {bits} bits)",
@@ -1829,6 +1840,7 @@ def export_manifest(mat: dict, fmt: str = "zip", naming: str = "standard",
                       and all(e.get("exact") for e in extras)),
         # LA RÈGLE, publiée avec le bordereau qui l'applique.
         "weigh_rule": WEIGH_RULE,
+        "height_mm": mat.get("height_mm", 0.0),
     }
 
 

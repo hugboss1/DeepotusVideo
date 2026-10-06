@@ -36,7 +36,8 @@ from pathlib import Path
 
 from fastapi import HTTPException
 
-from .forge3d_scene import quad_mesh, relief_mesh, trs_de_face
+from .forge3d_scene import (RELIEF_DEPTH_MM_DEFAUT, RELIEF_DEPTH_MM_MAX,
+                            quad_mesh, relief_mesh, trs_de_face)
 
 _PROC_KINDS = ("plane", "relief", "mesh3d")
 _CHAIN_MAX = 4        # material + transform + assemble, et une marge : la
@@ -252,6 +253,38 @@ def _geom_element(g) -> tuple:
     return w_mm, h_mm, bleed_px, g.canvas_px, (u0, v0, 1.0 - u0, 1.0 - v0)
 
 
+def profondeur_relief(proc: dict, mat_n: dict | None) -> dict:
+    """La profondeur d'un relief, et D'OÙ elle vient (T097 / R10c P5).
+
+    Le 0,6 mm historique était AVEUGLE : la même valeur pour un vitrail de
+    2,4 mm et pour une gravure de 0,2, donc un relief faux dans les deux cas.
+    Ordre : la saisie du graphe (dernier mot), puis la hauteur physique de la
+    matière CHAÎNÉE (le nœud `material` de la même chaîne — un relief ne porte
+    pas de matière lui-même), puis le défaut. L'écrêtage aux bornes du nœud est
+    DIT (`clamped`) plutôt que subi."""
+    from app.services import material_store      # import local : la maison du module
+    voulu, source = RELIEF_DEPTH_MM_DEFAUT, "defaut"
+    mid = str((mat_n or {}).get("mat") or "")
+    if material_store.is_valid_mid(mid):
+        try:
+            h = float((material_store.read_material(mid) or {}).get("height_mm") or 0.0)
+        except Exception:
+            h = 0.0
+        if h > 0.0:
+            voulu, source = h, "matiere"
+    if (proc or {}).get("depth_mm") is not None:
+        voulu, source = proc["depth_mm"], "graphe"
+    try:
+        d = float(voulu)
+    except (TypeError, ValueError):
+        d = RELIEF_DEPTH_MM_DEFAUT
+    if d != d:                                   # NaN
+        d = RELIEF_DEPTH_MM_DEFAUT
+    d = min(RELIEF_DEPTH_MM_MAX, max(0.05, d))
+    return {"depth_mm": d, "source": source,
+            "clamped": isinstance(voulu, (int, float)) and abs(float(voulu) - d) > 1e-9}
+
+
 def element_local(out: Path, proc: dict, layer: dict, nom_el: str,
                   mat_n, trs_n, card_label: str, g, ignores: list, *,
                   ouvre_png, habille) -> dict:
@@ -297,7 +330,10 @@ def element_local(out: Path, proc: dict, layer: dict, nom_el: str,
         cx1 = canvas_px[0] - cx0
         cy1 = canvas_px[1] - cy0
         alpha_img = im.getchannel("A").crop((cx0, cy0, cx1, cy1))
-        mesh = relief_mesh(alpha_img, w_mm, h_mm, proc["depth_mm"],
+        # la profondeur RÉSOLUE (T097) : saisie du graphe, sinon hauteur
+        # physique de la matière chaînée, sinon le défaut publié
+        prof = profondeur_relief(proc, mat_n)
+        mesh = relief_mesh(alpha_img, w_mm, h_mm, prof["depth_mm"],
                            proc["base_mm"], proc["grid"], uv_window=uv_window)
         el = {"name": nom_el, "mesh": mesh, "png": raw,
               "alpha": False, "z_mm": 0.0}

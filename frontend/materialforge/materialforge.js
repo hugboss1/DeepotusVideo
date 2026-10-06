@@ -176,6 +176,10 @@ const GROUPS = [
       h: "Sous 1, la matière passe en mélange alpha. Pour du verre physique (réfraction, épaisseur), utilise plutôt la Transmission." },
   ] },
   { id: "surface", label: "Détail de surface", rows: [
+    /* `top` (T097) : la valeur vit SUR la matière (m.height_mm), pas dans
+       props — le PATCH la pose à la racine du corps */
+    { k: "height_mm", t: "range", min: 0, max: 20, step: 0.1, l: "Hauteur physique (mm)", top: 1, dec: 1,
+      h: "Ce que représentent, en millimètres, les 255 niveaux de la map Height. Sert UNIQUEMENT au relief imprimé du Forge 3D : aucun moteur de jeu ne la reçoit. 0 = non mesurée (le relief prend alors 0,6 mm)." },
     { k: "normal_scale", t: "range", min: 0, max: 3, step: 0.05, l: "Échelle du relief",
       h: "Amplifie la map Normal. Au-delà de 2, le relief devient caricatural et scintille en mouvement." },
     { k: "ao_strength", t: "range", min: 0, max: 2, step: 0.05, l: "Occlusion ambiante",
@@ -283,7 +287,7 @@ const state = {
 let envUrl = null;           // blob URL de l’environnement composé (éclairage)
 let skyUrl = null;           // le même, assombri, pour le décor visible
 let patchTimer = null;
-let patchPending = { props: {}, derive: {}, name: undefined };
+let patchPending = { props: {}, derive: {}, name: undefined, top: {} };
 let reloadNeeded = false;
 
 /* ───────────────────────── environnement + lumière ─────────────────────────
@@ -2316,8 +2320,10 @@ function fillInspector(m) {
     const body = document.createElement("div");
     body.className = "grp-body";
     g.rows.forEach((row) => {
-      body.appendChild(propRow(row, props[row.k], DEFAULT_PROPS[row.k],
-        (v, livePass) => setProp(row, v, livePass)));
+      body.appendChild(row.top
+        ? propRow(row, Number(m[row.k]) || 0, 0, (v, livePass) => setTop(row, v, livePass))
+        : propRow(row, props[row.k], DEFAULT_PROPS[row.k],
+          (v, livePass) => setProp(row, v, livePass)));
     });
     d.appendChild(body);
     host.appendChild(d);
@@ -2521,6 +2527,12 @@ function setProp(row, v, livePass) {
   refreshGroupHeads();
   if (!livePass) queuePatch({ props: { [row.k]: v } });
 }
+function setTop(row, v, livePass) {
+  const m = matById(state.sel);
+  if (!m) return;
+  m[row.k] = v;
+  if (!livePass) queuePatch({ top: { [row.k]: v } });
+}
 function setDerive(row, v) {
   const m = matById(state.sel);
   if (!m) return;
@@ -2533,6 +2545,7 @@ function queuePatch(part) {
   if (part.props) Object.assign(patchPending.props, part.props);
   if (part.derive) Object.assign(patchPending.derive, part.derive);
   if (part.name !== undefined) patchPending.name = part.name;
+  if (part.top) Object.assign(patchPending.top, part.top);
   clearTimeout(patchTimer);
   patchTimer = setTimeout(flushPatch, 420);
 }
@@ -2544,7 +2557,8 @@ async function flushPatch() {
   if (Object.keys(patchPending.props).length) body.props = patchPending.props;
   if (Object.keys(patchPending.derive).length) body.derive = patchPending.derive;
   if (patchPending.name !== undefined) body.name = patchPending.name;
-  patchPending = { props: {}, derive: {}, name: undefined };
+  Object.assign(body, patchPending.top);        // les lignes `top` : à la RACINE
+  patchPending = { props: {}, derive: {}, name: undefined, top: {} };
   if (!Object.keys(body).length) return;
   try {
     const d = await api.patch("/materials/" + encodeURIComponent(id), body);
