@@ -78,6 +78,18 @@ def test_la_chaine_ecrit_quatre_glb_nommes_pour_unity():
         noeuds = [q.get("name") or "" for q in doc["nodes"] if "mesh" in q]
         assert noeuds and all(x.endswith(f"_LOD{n['niveau']}") for x in noeuds), (n, noeuds)
     assert info["niveaux"][0]["tris"] == src, "le LOD0 EST la source"
+    assert all(n["cible_tenue"] is True for n in info["niveaux"][1:]), info["niveaux"]
+
+
+def test_une_cible_hors_d_atteinte_est_dite_non_tenue():
+    """Mesuré sur 8799 : gltfpack protège la topologie et s'arrête au-dessus d'une cible trop basse, même en -sa."""
+    d = _job("lod_plancher")
+    info = mesh_lod.chaine("lod_plancher", niveaux=[100])
+    n1 = info["niveaux"][1]
+    assert n1["tris"] > 115 and n1["cible_tenue"] is False and n1["aggressive"] is True, n1
+    nom, octets = mesh_lod.archive("lod_plancher")
+    with zipfile.ZipFile(io.BytesIO(octets)) as z:
+        assert "cible non tenue" in z.read("LISEZMOI.txt").decode("utf-8")
 
 
 def test_une_source_deja_suffixee_ne_double_jamais_le_suffixe():
