@@ -1371,6 +1371,50 @@ async def post_asset3d_views(background_tasks: BackgroundTasks, body: dict = Non
     return {"job_id": job_id, "status": "queued", "job": job, "usd_estime": devis["total_usd"]}
 
 
+@router.post("/assets/3d/views/photos")
+async def post_asset3d_views_photos(background_tasks: BackgroundTasks, body: dict = None):
+    """Un jeu de vues depuis des PHOTOS réelles de la Bibliothèque (T107, plan-moteurs-3d T11). Body {vues: {front,
+    back?, left?, right?: filename}, engine?, detourer?: bool}. Le téléphone dépose ses photos par la synchro
+    existante (/sync/depot) — décision de l'utilisateur : cette route n'est PAS ouverte au réseau. Aucune
+    génération, aucune dépense : les photos sont redressées (EXIF), bornées, détourées en local si demandé, puis le
+    jeu se tire comme les autres (POST /assets/3d/{job}/tirer, gardé)."""
+    from app.services import asset3d_service as A3, asset3d_views as AV
+    body = dict(body or {})
+    vues = body.get("vues")
+    if not isinstance(vues, dict) or not vues:
+        raise HTTPException(400, "vues : {front: fichier, back?, left?, right?} — la face est exigée")
+    inconnues = sorted(set(vues) - set(A3.VUES_CLES))
+    if inconnues:
+        raise HTTPException(400, f"clé(s) inconnue(s) : {', '.join(inconnues)} (attendu : {', '.join(A3.VUES_CLES)})")
+    if not vues.get("front"):
+        raise HTTPException(400, "pas de vue de face (front) : un moteur image→3D en a besoin")
+    vues = {k: Path(str(f)).name for k, f in vues.items() if f}
+    absentes = [f for f in vues.values() if not (settings.images_path / f).is_file()]
+    if absentes:
+        raise HTTPException(400, f"absente(s) de la Bibliothèque : {', '.join(absentes)}")
+    engine = str(body.get("engine") or "tripo-h3.1").lower()
+    if engine not in A3.ENGINES:
+        raise HTTPException(400, f"Moteur inconnu : {engine}")
+    if not A3.ENGINES[engine].get("local"):
+        _cle_fal_ou_400()            # les vues partent au stockage fal (gratuit) pour un moteur fal
+
+    job = uuid4().hex[:8]
+    detourer = bool(body.get("detourer"))
+
+    async def travail(on_step):
+        r = await AV.preparer_depuis_images(job, vues, {"engine": engine, "source": "photos"}, on_step, role="photo")
+        if detourer:
+            r["detourees"] = (await AV.detourer_toutes(job, on_step))["detourees"]
+        return r
+
+    job_id, run = await _job_asset3d_vues(
+        job, f"3D · vues depuis {len(vues)} photo(s)", "Vues depuis des photos", travail,
+        lambda r: {"kind": "asset3d_views", "job": job, "views": 0, "source": "photos"})
+    background_tasks.add_task(run)
+    return {"job_id": job_id, "status": "queued", "job": job, "engine": engine,
+            "vues": [k for k in A3.VUES_CLES if k in vues], "usd_estime": 0.0}
+
+
 @router.get("/assets/3d/{job}/views")
 async def get_asset3d_views(job: str):
     from app.services import asset3d_views as AV
@@ -7501,7 +7545,8 @@ def _job_to_cost(job, p):
             # planche, qui n'ont rien coûté
             n = int(meta.get("views") or 0)
             return (_pricing.estimate({"kind": "asset3d_views", "views": n}, p) if n
-                    else _pricing.no_spend("Vues reprises d'une planche (aucune génération)", "fal"))
+                    else _pricing.no_spend("Vues reprises de photos (aucune génération)" if meta.get("source") == "photos"
+                                           else "Vues reprises d'une planche (aucune génération)", "fal"))
         if meta.get("rig"):
             # rig Meshy (T104) : son cost_meta ne porte pas `engine` — il tombait sur le maillage Tripo par défaut
             # (0,30 USD chez fal). Les ids d'actions viennent de la clé `actions` ; un rig d'avant cette clé les
