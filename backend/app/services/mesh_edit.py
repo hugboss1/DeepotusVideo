@@ -963,6 +963,92 @@ def assise(data: bytes, *, normale, point=None) -> bytes:
     return ecrire_glb(doc, binc)
 
 
+# ── LES FACTEURS DE MATÉRIAU (tâche T094, phases ultérieures U4a) ───────────
+# Du JSON pur, comme `transformer` : le tampon binaire ressort identique octet
+# pour octet. LE PIÈGE NOMMÉ PAR LA SPEC : glTF veut des facteurs de couleur
+# LINÉAIRES, l'interface donne du sRGB — la conversion est celle de
+# gltf_builder, réutilisée, jamais réécrite. L'alpha, lui, n'est pas une couleur :
+# il passe tel quel.
+_MODES_ALPHA = ("OPAQUE", "MASK", "BLEND")
+_CHAMPS_MATERIAU = ("couleur", "opacite", "metal", "rugosite", "emission", "mode_alpha", "double_face")
+
+
+def _hex_lin(valeur, champ: str) -> list[float]:
+    import re as _re
+    from app.services.gltf_builder import _srgb_to_linear
+    if not isinstance(valeur, str) or not _re.fullmatch(r"#[0-9a-fA-F]{6}", valeur):
+        raise ValueError(f"{champ} : une couleur #rrggbb est attendue (« {valeur} »)")
+    return [round(_srgb_to_linear(int(valeur[i:i + 2], 16) / 255), 6) for i in (1, 3, 5)]
+
+
+def _lin_hex(lin) -> str:
+    from app.services.gltf_builder import _linear_to_srgb
+    return "#" + "".join(f"{round(_linear_to_srgb(c) * 255):02x}" for c in list(lin)[:3])
+
+
+def _lire_materiau(m: dict, i: int) -> dict:
+    pbr = m.get("pbrMetallicRoughness") or {}
+    bc = pbr.get("baseColorFactor") or [1.0, 1.0, 1.0, 1.0]
+    return {"index": i, "nom": m.get("name") or f"matériau {i}", "couleur": _lin_hex(bc),
+            "opacite": float(bc[3]) if len(bc) > 3 else 1.0,
+            "metal": float(pbr.get("metallicFactor", 1.0)), "rugosite": float(pbr.get("roughnessFactor", 1.0)),
+            "emission": _lin_hex(m.get("emissiveFactor") or [0.0, 0.0, 0.0]),
+            "mode_alpha": m.get("alphaMode", "OPAQUE"), "double_face": bool(m.get("doubleSided", False)),
+            "texture": "baseColorTexture" in pbr}
+
+
+def materiaux(data: bytes) -> list[dict]:
+    """Les matériaux du document, relus dans le vocabulaire de l'interface (couleurs sRGB #rrggbb). Les valeurs par
+    défaut sont celles de glTF (métal 1, rugosité 1, couleur blanche) quand le fichier ne les écrit pas."""
+    doc, _ = lire_glb(data)
+    return [_lire_materiau(m, i) for i, m in enumerate(_l(doc, "materials"))]
+
+
+def materiau(data: bytes, index: int, champs: dict) -> tuple[bytes, dict]:
+    """Change les facteurs du matériau `index`. `champs` ⊂ couleur (#rrggbb sRGB), opacite (0-1), metal (0-1),
+    rugosite (0-1), emission (#rrggbb sRGB), mode_alpha (OPAQUE|MASK|BLEND), double_face (bool) ; un champ absent
+    n'est pas touché. Rend (GLB, rapport {materiau, avant, apres}) — le tampon binaire est celui d'entrée."""
+    doc, binc = lire_glb(data)
+    mats = _l(doc, "materials")
+    if not isinstance(index, int) or isinstance(index, bool) or not 0 <= index < len(mats):
+        raise ValueError(f"matériau {index} : le document en a {len(mats)}")
+    inconnus = sorted(set(champs) - set(_CHAMPS_MATERIAU))
+    if inconnus:
+        raise ValueError(f"champ inconnu : {', '.join(inconnus)} — attendus : {', '.join(_CHAMPS_MATERIAU)}")
+    if not champs:
+        raise ValueError("aucun champ à changer")
+    m = mats[index]
+    avant = _lire_materiau(m, index)
+    pbr = m.setdefault("pbrMetallicRoughness", {})
+    for cle in ("opacite", "metal", "rugosite"):
+        if cle in champs:
+            v = champs[cle]
+            if not isinstance(v, (int, float)) or isinstance(v, bool) or not 0.0 <= float(v) <= 1.0:
+                raise ValueError(f"{cle} : un nombre entre 0 et 1 est attendu (« {v} »)")
+    if "couleur" in champs or "opacite" in champs:
+        bc = list(pbr.get("baseColorFactor") or [1.0, 1.0, 1.0, 1.0])
+        if "couleur" in champs:
+            bc[:3] = _hex_lin(champs["couleur"], "couleur")
+        if "opacite" in champs:
+            bc[3] = float(champs["opacite"])
+        pbr["baseColorFactor"] = bc
+    if "metal" in champs:
+        pbr["metallicFactor"] = float(champs["metal"])
+    if "rugosite" in champs:
+        pbr["roughnessFactor"] = float(champs["rugosite"])
+    if "emission" in champs:
+        m["emissiveFactor"] = _hex_lin(champs["emission"], "emission")
+    if "mode_alpha" in champs:
+        if champs["mode_alpha"] not in _MODES_ALPHA:
+            raise ValueError(f"mode_alpha « {champs['mode_alpha']} » — {', '.join(_MODES_ALPHA)}")
+        m["alphaMode"] = champs["mode_alpha"]
+    if "double_face" in champs:
+        if not isinstance(champs["double_face"], bool):
+            raise ValueError("double_face : vrai ou faux est attendu")
+        m["doubleSided"] = champs["double_face"]
+    return ecrire_glb(doc, binc), {"materiau": index, "avant": avant, "apres": _lire_materiau(m, index)}
+
+
 def ecrire_version(job: str, data: bytes, *, operation: str,
                    detail: dict | None = None) -> dict:
     """Dépose un GLB corrigé comme NOUVELLE version d'un job, avec sa fiche.

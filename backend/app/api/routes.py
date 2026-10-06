@@ -14333,6 +14333,33 @@ async def assets3d_export_fichier(job: str, fname: str):
     return FileResponse(str(p), filename=nom)
 
 
+@router.get("/etabli/materiaux")
+async def etabli_materiaux(job: str, version: int = 1):
+    """Les matériaux d'une version, en sRGB (tâche T094) — une lecture."""
+    from app.services import mesh_edit
+    try:
+        return {"materiaux": mesh_edit.materiaux(_etabli_glb(job, version))}
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.post("/etabli/materiau")
+async def etabli_materiau(body: dict):
+    """LES FACTEURS D'UN MATÉRIAU (tâche T094, phases ultérieures U4a) : du JSON pur, une version de plus. Les
+    couleurs arrivent en sRGB #rrggbb et sont LINÉARISÉES par mesh_edit — jamais ici."""
+    from app.services import mesh_edit
+    job, data, depuis = _etabli_glb_cible(body.get("job"), body.get("version"), "matériau")
+    index = body.get("materiau")
+    if not _etabli_entier(index) or index < 0:
+        raise HTTPException(400, "matériau : `materiau` attend l'index d'un matériau du document")
+    champs = {k: body[k] for k in mesh_edit._CHAMPS_MATERIAU if k in body}
+    try:
+        sortie, rapport = mesh_edit.materiau(data, int(index), champs)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return _etabli_ecrire(job, sortie, "materiau", {"depuis": depuis, **rapport})
+
+
 @router.post("/etabli/tranches")
 async def etabli_tranches(body: dict):
     """L'APERÇU DE TRANCHAGE INDICATIF (tâche T091, plan-etabli T16) : les sections d'une version à `nombre` hauteurs

@@ -73,7 +73,7 @@ def test_la_surface_route_ordre_bouton_et_cablage():
     assert 'reparer_maillage: "/api/etabli/reparer-maillage"' in js
     # l'ordre tient sur UNE ligne (les bancs le lisent ainsi), reparer_maillage la ferme
     assert ('const ORDRE_ECRITURE = ["transformer", "assise", "reparer", "extraire", "couper", '
-            '"reparer_maillage", "creuser", "decimer", "booleen", "connecteur"];') in js
+            '"reparer_maillage", "creuser", "decimer", "booleen", "connecteur", "materiau"];') in js
     assert 'const ACTIONS_PAR_DEFAUT = ["souder", "doublons", "degeneres", "normales"];' in js
     fiche = _fonction_etabli("rendreFiche")
     assert '<button id="fReparerMaillage" title="' in fiche and "Réparer en un clic" in fiche
@@ -1233,6 +1233,39 @@ def test_le_connecteur_se_choisit_dans_la_barre_du_couteau_et_suit_la_coupe():
     assert 'connecteur: "/api/etabli/connecteur"' in _objet_etabli("ROUTES")
     assert "connecteur" in _objet_etabli("LIBELLES_ATTENTE") and "connecteur" in _objet_etabli("LIBELLE_OP")
     assert '$("#couteauConnecteur").addEventListener("change"' in js
+
+
+# ── T094 / U4a : le panneau des matériaux n'envoie que ce qui a CHANGÉ ─────────
+def test_seuls_les_champs_CHANGES_partent_EXECUTEE():
+    js = _lire("etabli/etabli.js")
+    src = re.search(r"^const CHAMPS_MATERIAU = .*$", js, re.M).group(0) + "\n" + _fonction_etabli("champsChanges") + """
+const avant = { couleur: "#336699", opacite: 1, metal: 0, rugosite: 1, emission: "#000000", mode_alpha: "OPAQUE",
+                double_face: true, nom: "x", texture: false };
+console.log(JSON.stringify([
+  champsChanges(avant, { couleur: "#336699", opacite: 1, metal: 0, rugosite: 1, emission: "#000000",
+                         mode_alpha: "OPAQUE", double_face: true }),
+  champsChanges(avant, { couleur: "#336699".toUpperCase(), opacite: 0.5, metal: 0.0000001, rugosite: 1,
+                         emission: "#ff0000", mode_alpha: "BLEND", double_face: false }),
+  // le curseur de rugosité ARRONDIT 0,9036 à 0,9 (pas de 0,01) : non touché, il ne part pas (preuve 8799, 06/10)
+  champsChanges({ ...avant, rugosite: 0.9036 }, { ...avant, rugosite: 0.9, couleur: "#ff0000" }, new Set(["couleur"])),
+]));"""
+    o = json.loads(_node(src))
+    assert o[0] == {}, "rien de changé : rien ne part"
+    assert o[1] == {"opacite": 0.5, "emission": "#ff0000", "mode_alpha": "BLEND", "double_face": False}
+    assert o[2] == {"couleur": "#ff0000"}, o[2]
+
+
+def test_le_panneau_des_materiaux_ecrit_par_ecrireSeule_et_l_apercu_suit_les_associations():
+    js = _lire("etabli/etabli.js")
+    f = _fonction_etabli_async("rendreMateriaux")
+    assert 'ecrireSeule("materiau", { materiau: index, ...champs })' in f
+    assert "${esc(m.nom)}" in f and "numero !== MATERIAUX.rendu" in f
+    assert "MULTIPLIE" in f, "une couleur sur une texture la multiplie : la page le dit"
+    a = _fonction_etabli("apercuMateriau")
+    assert "parser.associations" in a and "a.materials !== index" in a
+    assert "_srgb_to_linear" not in js and "Math.pow" not in a, "la page ne linéarise rien : le serveur le fait"
+    assert 'materiau: "/api/etabli/materiau"' in _objet_etabli("ROUTES")
+    assert "  rendreFiche();\n  rendreMateriaux();" in js.replace("\r\n", "\n")
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

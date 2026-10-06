@@ -229,6 +229,13 @@ def _srgb_to_linear(c: float) -> float:
     return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
 
 
+def _linear_to_srgb(c: float) -> float:
+    """L'inverse, pour RELIRE un facteur glTF dans le vocabulaire de l'interface (tâche T094) — à côté de l'aller,
+    pour que les deux ne divergent jamais."""
+    c = min(max(float(c), 0.0), 1.0)
+    return c * 12.92 if c <= 0.0031308 else 1.055 * c ** (1 / 2.4) - 0.055
+
+
 def _lin_rgb(value, default="#ffffff") -> list[float]:
     return [round(_srgb_to_linear(c), 6) for c in _hex_rgb(value, default)]
 
