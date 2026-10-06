@@ -1681,6 +1681,21 @@ def _adjust_bounded(aj, total) -> list:
         # mesuré : `[n0]vignette=angle=0.600[aj0]` sans sendcmd). Rien.
         if e2["t1"] - e2["t0"] < 0.05:
             continue
+        # t117 : FONDUS DU CLIP d'ajustement (sa « transition ») — le fondu d'entrée du clip s'applique aux effets
+        # qui COMMENCENT avec lui, celui de sortie à ceux qui FINISSENT avec lui ; un effet qui porte déjà son propre
+        # fondu (étagère d'effets) garde le plus long. `_timed` borne ensuite à la moitié de l'intervalle. Champs
+        # absents : rien ne change (octet pour octet).
+        for cle, bord in (("fade_in", "t0"), ("fade_out", "t1")):
+            try:
+                fc = float(aj.get(cle) or 0)
+            except (TypeError, ValueError):
+                fc = 0.0
+            if fc > 0 and math.isfinite(fc) and abs(e2[bord] - (a0 if bord == "t0" else round(a1, 3))) < 1e-6:
+                try:
+                    propre = float(e.get(cle) or 0)
+                except (TypeError, ValueError):
+                    propre = 0.0
+                e2[cle] = round(max(propre, fc), 3)
         bounded.append(e2)
     return bounded
 
@@ -3475,6 +3490,80 @@ def _ov_fx_dims(dims, ow: int, oh: int, mode: str) -> tuple:
     return min(ow, _rescale(oh, iw, ih)), min(oh, _rescale(ow, ih, iw))
 
 
+def _jonctions(segs, seg_durs, fps, cut, tau_for):
+    """t117 — LA loi des jonctions d'une séquence, EXTRAITE de V1 (octet pour octet, ses bancs d'identité le
+    tiennent) pour être partagée avec les pistes vidéo hautes séquencées. `segs` : plans et trous ({"gap": True}),
+    `seg_durs` : leurs durées timeline, `tau_for(plan)` : la durée demandée de sa transition. Rend
+    (amorce, debord, jonction, vrai) — voir le commentaire de `_build_montage_command` au point d'appel."""
+    amorce = [0.0] * len(segs)          # τ/2 (vrai fondu) ou `cut`, en tête du segment k
+    debord = [0.0] * len(segs)          # τ/2 après la sortie du segment k
+    jonction = [None] * len(segs)       # k → (nom xfade, durée)
+    vrai = [False] * len(segs)          # la coupe est AUSSI un « fade » (0,04 s) : le nom ne suffit pas
+    try:                                # comme `_cut_tau` : une cadence illisible ne casse pas le graphe
+        _fpsf = float(fps) if float(fps) > 0 else 30.0
+    except (TypeError, ValueError):
+        _fpsf = 30.0
+    for k in range(1, len(segs)):
+        s, p = segs[k], segs[k - 1]
+        nm, _fx0 = _XFADE.get(str(s.get("transition") or "cut").split()[0].lower(),
+                              _XFADE["cut"])
+        if not s.get("gap") and not p.get("gap") and (nm, _fx0) != _XFADE["cut"]:
+            tau = max(cut, min(tau_for(s), seg_durs[k - 1], seg_durs[k]))
+            # En IMAGES ENTIÈRES (au moins une de chaque côté) : une moitié
+            # sous la demi-image a le défaut que `_cut_tau` corrige pour la
+            # coupe (MESURÉ 28/09 : fondu plancher à 12 i/s = 23 images / 24).
+            _ni = max(2, int(round(tau * _fpsf)))
+            amorce[k] = round((_ni // 2) / _fpsf, 6)
+            debord[k - 1] = round((_ni - _ni // 2) / _fpsf, 6)
+            tau = round(amorce[k] + debord[k - 1], 6)
+            jonction[k] = (nm, tau)
+            vrai[k] = True
+        else:
+            amorce[k] = cut
+            jonction[k] = (_XFADE["cut"][0], cut)
+    return amorce, debord, jonction, vrai
+
+
+def _sequences_hautes(v2, fps, cut, tau_for, total):
+    """t117 — PLUSIEURS SÉQUENCES. Une piste vidéo haute (overlay plein cadre OU incrustation, décision du 06/10) est
+    SÉQUENCÉE quand une de ses jonctions est un VRAI fondu (plans en contact, transition ≠ cut — loi de V1) ou qu'un de
+    ses plans a une vitesse. Rend {id(plan): {tr, k, pre, post, d}} et {("piste", tr): {segs, durs, amorce, debord,
+    jonction, st0, dernier}} ; une piste sans ces champs n'y figure pas (chemin historique, octet pour octet).
+    `d` = durée TIMELINE du segment (le plan garde sa place : une source trop courte est prolongée par son image
+    figée, comme les poignées absentes de V1). Les plans sans `tr` (appelants directs historiques) ne sont jamais
+    séquencés."""
+    pistes = {}
+    for o in v2:
+        if o.get("tr"):
+            pistes.setdefault(o["tr"], []).append(o)
+    out = {}
+    for tr, cl in pistes.items():
+        cl = sorted(cl, key=lambda o: o["start"])
+        segs, prev_end = [], None
+        for o in cl:
+            if prev_end is not None and o["start"] - prev_end > 0.1:       # même seuil que les trous de V1
+                segs.append({"gap": True, "dur": round(o["start"] - prev_end, 3)})
+            segs.append(o)
+            prev_end = o["end"]
+        durs = []
+        for s in segs:
+            if s.get("gap"):
+                durs.append(s["dur"])
+            elif s.get("is_image"):
+                durs.append(round(min(max(0.1, s["end"] - s["start"]), max(0.1, total - s["start"])), 3))
+            else:
+                durs.append(round(max(0.1, s["end"] - s["start"]), 3))
+        amorce, debord, jonction, vrai = _jonctions(segs, durs, fps, cut, tau_for)
+        if not (any(vrai) or any(float(o.get("speed") or 0.0) for o in cl)):
+            continue
+        for k, s in enumerate(segs):
+            if not s.get("gap"):
+                out[id(s)] = {"tr": tr, "k": k, "pre": amorce[k], "post": debord[k], "d": durs[k]}
+        out[("piste", tr)] = {"segs": segs, "durs": durs, "amorce": amorce, "debord": debord, "jonction": jonction,
+                              "st0": round(max(0.0, cl[0]["start"]), 3), "dernier": id(cl[-1])}
+    return out
+
+
 def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
                            ducking, duration_master, preview, out,
                            audio_only=False, subs_ass=None, titles_ass=None,
@@ -3714,32 +3803,7 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     # MESURÉ 28/09 avant correctif (25 i/s, 9.0.1) : un fondu de 0,8 s
     # avançait B et tout le reste de 0,8 s (rendu 5,2 s pour 6,0) ; après un
     # trou, la 1re image du plan fondait dans le noir.
-    amorce = [0.0] * len(segs)          # τ/2 (vrai fondu) ou `cut`, en tête du segment k
-    debord = [0.0] * len(segs)          # τ/2 après la sortie du segment k
-    jonction = [None] * len(segs)       # k → (nom xfade, durée)
-    vrai = [False] * len(segs)          # la coupe est AUSSI un « fade » (0,04 s) : le nom ne suffit pas
-    try:                                # comme `_cut_tau` : une cadence illisible ne casse pas le graphe
-        _fpsf = float(fps) if float(fps) > 0 else 30.0
-    except (TypeError, ValueError):
-        _fpsf = 30.0
-    for k in range(1, len(segs)):
-        s, p = segs[k], segs[k - 1]
-        nm, _fx0 = _XFADE.get(str(s.get("transition") or "cut").split()[0].lower(),
-                              _XFADE["cut"])
-        if not s.get("gap") and not p.get("gap") and (nm, _fx0) != _XFADE["cut"]:
-            tau = max(cut, min(_tau_for(s), seg_durs[k - 1], seg_durs[k]))
-            # En IMAGES ENTIÈRES (au moins une de chaque côté) : une moitié
-            # sous la demi-image a le défaut que `_cut_tau` corrige pour la
-            # coupe (MESURÉ 28/09 : fondu plancher à 12 i/s = 23 images / 24).
-            _ni = max(2, int(round(tau * _fpsf)))
-            amorce[k] = round((_ni // 2) / _fpsf, 6)
-            debord[k - 1] = round((_ni - _ni // 2) / _fpsf, 6)
-            tau = round(amorce[k] + debord[k - 1], 6)
-            jonction[k] = (nm, tau)
-            vrai[k] = True
-        else:
-            amorce[k] = cut
-            jonction[k] = (_XFADE["cut"][0], cut)
+    amorce, debord, jonction, vrai = _jonctions(segs, seg_durs, fps, cut, _tau_for)
     # Poignées RÉELLES : une entrée de plus par côté, lue dans la source
     # (-ss/-t), à la vitesse du plan ; None = image figée (source trop courte).
     poignee_av, poignee_ap = {}, {}
@@ -4077,19 +4141,48 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     # 0 = juste au-dessus de V1), `start` ensuite. Sans le champ — payload
     # historique — tous les overlays retombent à 0 et le tri est celui
     # d'avant, argument pour argument.
+    seq_plan = _sequences_hautes(v2, fps, cut, _tau_for, total) if v2 else {}   # t117
+    seq_lbl = {}                        # (piste, k) → label de la toile prémultipliée du segment k
     for j, o in enumerate(sorted(v2, key=lambda k2: (int(k2.get("layer") or 0),
                                                      k2["start"]))):
         want = max(0.1, o["end"] - o["start"])
-        if o["is_image"]:
+        sq = seq_plan.get(id(o))
+        frz_pre = frz_post = pre_real = 0.0
+        spd = 0.0
+        if sq is None and o["is_image"]:
             d = round(min(want, max(0.1, total - o["start"])), 3)
             inputs.extend(["-loop", "1", "-t", str(d), "-i", str(o["path"])])
-        else:
+        elif sq is None:
             avail = max(0.1, o["src_dur"] - o["src_in"])
             d = round(min(want, avail), 3)
             if o["src_in"] > 0:
                 inputs.extend(["-ss", str(o["src_in"])])
             inputs.extend(["-t", str(d), "-i", str(o["path"])])
-        st = round(max(0.0, o["start"]), 3)
+        elif o["is_image"]:
+            # t117 : une image tient toute sa toile (poignées comprises) — rien à figer
+            d = round(sq["pre"] + sq["d"] + sq["post"], 3)
+            pre_real = sq["pre"]
+            inputs.extend(["-loop", "1", "-t", str(d), "-i", str(o["path"])])
+        else:
+            # t117 : POIGNÉES RÉELLES lues dans la source à la vitesse du plan (loi de V1), image figée pour ce que
+            # la source n'a pas — avant son point d'entrée, après sa fin, et si elle est plus courte que le plan
+            # (le plan garde sa place timeline). Vitesse : lecture d·spd, setpts=PTS/spd AVANT fps (règle C4).
+            spd = float(o.get("speed") or 0.0)
+            k_spd = spd or 1.0
+            avail_s = max(0.0, o["src_dur"] - o["src_in"])
+            pre_real = round(min(sq["pre"], o["src_in"] / k_spd), 6)
+            coeur = min(sq["d"], avail_s / k_spd)
+            post_real = (round(min(sq["post"], max(0.0, avail_s - coeur * k_spd) / k_spd), 6)
+                         if coeur >= sq["d"] - 1e-6 else 0.0)
+            frz_pre = round(sq["pre"] - pre_real, 6)
+            frz_post = round(sq["d"] - coeur + sq["post"] - post_real, 6)
+            d = round(pre_real + coeur + post_real, 3)
+            ss = math.floor(max(0.0, o["src_in"] - pre_real * k_spd) * 1000) / 1000   # -ss au ms INFÉRIEUR (V1)
+            if ss > 0:
+                inputs.extend(["-ss", str(ss)])
+            inputs.extend(["-t", str(math.ceil(round(d * k_spd * 1000, 6)) / 1000), "-i", str(o["path"])])
+        st = round(max(0.0, o["start"]), 3) if sq is None else 0.0
+        st_mp = st if sq is None else frz_pre   # t117 : décalage des points x/y sur la TOILE (horloge du segment)
         en = round(st + d, 3)
         op = o.get("opacity")
         try:
@@ -4108,6 +4201,12 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
         # inclusif, la montrait à t = en (MESURÉ : 31 images pour 1 s).
         ofps = (f"fps={fps}" if o["is_image"]
                 else f"fps={fps}:start_time=0,trim=duration={d}")
+        if spd:                                 # t117 : vitesse d'un plan haut (règle C4 de V1)
+            ofps = f"setpts=PTS/{sfx_service.fnum(spd)}," + ofps
+        if sq is not None and mp and pre_real:
+            # t117 : le flux commence `pre_real` AVANT le plan (poignée réelle) — les horloges LOCALES des points
+            # (sendcmd, zoompan `it`, rotate) sont décalées d'autant ; x/y suivent par `st_mp`
+            mp = [(round(q[0] + pre_real, 3),) + tuple(q[1:]) for q in mp]
         if mp and tf is None:
             # R4b : keyframes sans champ statique — défauts de _ov_transform
             # (centre, échelle 1). Jamais le cas d'un payload historique :
@@ -4258,8 +4357,8 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
                 # (celui de enable=between) : chaque point local t devient
                 # st + t ; expressions quotées (virgules de if sans
                 # ambiguïté), évaluées par frame (défaut eval de overlay).
-                xpts = [(round(st + q[0], 3), round(w * q[1], 2)) for q in mp]
-                ypts = [(round(st + q[0], 3), round(h * q[2], 2)) for q in mp]
+                xpts = [(round(st_mp + q[0], 3), round(w * q[1], 2)) for q in mp]
+                ypts = [(round(st_mp + q[0], 3), round(h * q[2], 2)) for q in mp]
                 pos = (f"x='({_mp_lerp_expr(xpts)})-w/2'"
                        f":y='({_mp_lerp_expr(ypts)})-h/2':")
             else:
@@ -4278,6 +4377,17 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
         # l'impriment). Sans effet : osrc/och historiques, octet pour octet.
         osrc = f"[{idx}:v]"
         oeff = o.get("effects")
+        if sq is not None and oeff and pre_real:
+            # t117 : les bornes t0/t1 d'un effet sont en horloge LOCALE du flux (`_timed`), qui commence pre_real avant
+            # le plan — décalées d'autant ; sans bornes, l'effet couvre le flux entier, poignées comprises
+            def _decale(e):
+                if not isinstance(e, dict) or "t0" not in e or "t1" not in e:
+                    return e
+                try:
+                    return {**e, "t0": float(e["t0"]) + pre_real, "t1": float(e["t1"]) + pre_real}
+                except (TypeError, ValueError):
+                    return e
+            oeff = [_decale(e) for e in oeff]
         if oeff and tf is not None:
             # Chaîne transformée sans dimensions lisibles (ffprobe en échec) :
             # la taille réelle de l'overlay est inconnue, et 16 effets du
@@ -4362,6 +4472,56 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
             parts.append(f"[osp{j}][op{j}]overlay=0:0:format=auto[ov{j}]")
         else:
             parts.append(f"{osrc}{och}[ov{j}]")
+        if sq is not None:
+            # t117 : le plan, figé là où la source manque, est posé à sa place sur une TOILE TRANSPARENTE w×h de la
+            # durée de son segment (poignées comprises), puis PRÉMULTIPLIÉ : xfade fond en prémultiplié contre le
+            # transparent (MESURÉ 06/10, 8.1.1 : rouge à mi-fondu (151,0,0,153), composé ≈ (192,102,102) au lieu de
+            # (255,102,102) — halo sombre) ; prémultiplier chaque toile AVANT et dé-prémultiplier UNE fois après la
+            # chaîne rend (253,102,102), ≤ 2 niveaux sur deux fondus enchaînés. `overlay=…:format=auto` garde le rgba
+            # de la toile (mesuré D-19).
+            lbl = f"ov{j}"
+            tp = []
+            if frz_pre:
+                tp.append(f"start_mode=clone:start_duration={frz_pre}")
+            if frz_post:
+                tp.append(f"stop_mode=clone:stop_duration={frz_post}")
+            if tp:
+                parts.append(f"[ov{j}]tpad={':'.join(tp)}[ovz{j}]")
+                lbl = f"ovz{j}"
+            D = round(sq["pre"] + sq["d"] + sq["post"], 6)
+            parts.append(f"color=c=black@0:s={w}x{h}:r={fps}:d={D},format=rgba[cv{j}]")
+            parts.append(f"[cv{j}][{lbl}]overlay={pos}eof_action=pass:format=auto,"
+                         f"format=rgba,premultiply=inplace=1[sq{j}]")
+            seq_lbl[(sq["tr"], sq["k"])] = f"sq{j}"
+            pl = seq_plan[("piste", sq["tr"])]
+            if id(o) == pl["dernier"]:
+                # la piste est complète : trous TRANSPARENTS (amorce comprise, comme le noir de V1), chaîne xfade
+                # de V1 (offset T_k − amorce, durée amorce + débord du précédent), dé-prémultipliée, posée à st0
+                segs_l = []
+                for k, s in enumerate(pl["segs"]):
+                    if s.get("gap"):
+                        g = round(pl["amorce"][k] + pl["durs"][k], 6)
+                        parts.append(f"color=c=black@0:s={w}x{h}:r={fps}:d={g},format=rgba,"
+                                     f"premultiply=inplace=1[sg{j}x{k}]")
+                        segs_l.append(f"sg{j}x{k}")
+                    else:
+                        segs_l.append(seq_lbl[(sq["tr"], k)])
+                c_lbl, T = segs_l[0], 0.0
+                for k in range(1, len(segs_l)):
+                    T = round(T + pl["durs"][k - 1], 3)
+                    name, _tau = pl["jonction"][k]
+                    offset = max(0.0, round(T - pl["amorce"][k], 6))
+                    duree = round(pl["amorce"][k] + pl["debord"][k - 1], 6)
+                    parts.append(f"[{c_lbl}][{segs_l[k]}]xfade=transition={name}:"
+                                 f"duration={duree}:offset={offset}[sx{j}x{k}]")
+                    c_lbl = f"sx{j}x{k}"
+                tot = round(sum(pl["durs"]), 3)
+                parts.append(f"[{c_lbl}]unpremultiply=inplace=1,setpts=PTS-STARTPTS+{pl['st0']}/TB[sqt{j}]")
+                parts.append(f"[{cur}][sqt{j}]overlay=0:0:eof_action=pass:"
+                             f"enable='between(t,{pl['st0']},{round(pl['st0'] + tot, 3)})'[ob{j}]")
+                cur = f"ob{j}"
+            idx += 1
+            continue
         parts.append(f"[{cur}][ov{j}]overlay={pos}eof_action=pass:"
                      f"enable='between(t,{st},{en})'[ob{j}]")
         cur = f"ob{j}"
@@ -5439,7 +5599,15 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                            "opacity": c.get("opacity"),
                            "tf": _ov_transform(c),
                            "mp": _motion_points(c),
-                           "layer": m["layer"]})
+                           "layer": m["layer"],
+                           "tr": str(c.get("tr"))})
+                # t117 (plusieurs séquences) : la transition et la vitesse d'un plan de piste haute — clés ABSENTES
+                # sans elles (dict historique) ; la vitesse est bornée par la MÊME règle que V1 (`_v1_speed`).
+                if c.get("transition") not in (None, "", "cut"):
+                    v2[-1]["transition"] = c.get("transition")
+                    v2[-1]["transition_s"] = c.get("transition_s")
+                if not is_img and _v1_speed(c):
+                    v2[-1]["speed"] = _v1_speed(c)
                 # L5 : pile d'effets et masque D-30 des overlays — clés
                 # ABSENTES sans pile / masque valides (dict historique). La
                 # taille de la source est sondée pour le contexte des effets
@@ -5472,7 +5640,10 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
             adjust = [{"start": float(c.get("start") or 0),
                        "end": float(c.get("end") or 0),
                        "effects": (c.get("effects")
-                                   if isinstance(c.get("effects"), list) else [])}
+                                   if isinstance(c.get("effects"), list) else []),
+                       # t117 : fondus du clip d'ajustement — clés ABSENTES sans eux (dict historique)
+                       **{k: c.get(k) for k in ("fade_in", "fade_out")
+                          if isinstance(c.get(k), (int, float)) and not isinstance(c.get(k), bool) and c.get(k) > 0}}
                       for c in clips
                       if (meta.get(str(c.get("tr"))) or {}).get("kind") == "adjust"]
             a_clips, music = [], None
