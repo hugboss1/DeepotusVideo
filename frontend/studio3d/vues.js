@@ -9,7 +9,7 @@ import { jget, jpost } from "./fal.js";
 
 const $ = (s) => document.querySelector(s);
 
-export const V = { images: [], moteurs: [], jeux: [], jeu: null, info: null, poll: null, occupe: false };
+export const V = { images: [], moteurs: [], jeux: [], entites: [], jeu: null, info: null, poll: null, occupe: false };
 
 function esc(s) {
   return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -30,11 +30,20 @@ export function refusTir(info, occupe) {
 }
 
 export async function charger() {
-  const [im, en, je] = await Promise.all([
+  const [im, en, je, bi] = await Promise.all([
     jget("/api/images").catch(() => ({ images: [] })),
     jget("/api/assets3d/engines").catch(() => ({ engines: [] })),
     jget("/api/assets/3d/views").catch(() => ({ jeux: [] })),
+    jget("/api/bible/entities").catch(() => ({ entities: [] })),
   ]);
+  /* T7 : seules les entités dont la planche porte une vue de face — personnage (front, left, right, back) et objet
+     (front, back) — et qui ONT une planche ou une recette */
+  V.entites = (bi.entities || []).filter((e) => (e.kind === "character" || e.kind === "object") && (e.ref_image || e.has_recipe));
+  const ent = $("#vuesEntite").value;
+  $("#vuesEntite").innerHTML = V.entites.length
+    ? V.entites.map((e) => `<option value="${esc(e.id)}"${e.id === ent ? " selected" : ""}>${esc(e.name)} · ${e.kind === "character" ? "personnage" : "objet"}${e.model3d_job ? " · a déjà un maillage" : ""}</option>`).join("")
+    : `<option value="">aucune entité avec planche</option>`;
+  $("#btnVuesBible").disabled = !V.entites.length;
   V.images = im.images || [];
   V.moteurs = en.engines || [];
   V.jeux = je.jeux || [];
@@ -86,6 +95,20 @@ export async function preparer(confirmer, toast) {
   });
 }
 
+/* T7 : les vues viennent de la planche de la bible — aucune génération, donc aucun dialogue de paiement */
+export async function depuisBible(confirmer, toast) {
+  const id = $("#vuesEntite").value;
+  if (!id) { toast("aucune entité de la bible avec planche"); return; }
+  const r = await jpost(`/api/bible/entities/${encodeURIComponent(id)}/model3d`,
+    { from_board: true, engine: $("#vuesMoteur").value || "tripo-h3.1" });
+  V.jeu = r.job;
+  toast(`vues reprises de la planche (${r.source === "recette" ? "panneaux d'origine" : "découpe"}) — gratuit`);
+  suivre(r.job_id, "vues de la planche…", async (j) => {
+    await charger();
+    if (j.status !== "done") $("#vuesEtat").textContent = `échec : ${j.error || "?"}`;
+  });
+}
+
 export async function ouvrirJeu(job) {
   V.jeu = job || null;
   if (!V.jeu) { montrer(null); return; }
@@ -103,9 +126,9 @@ export function montrer(info) {
   grille.innerHTML = info.vues.map((v) => `
     <figure class="vue${v.file ? "" : " vide"}" data-i="${v.index}">
       ${v.file ? `<a href="/api/assets/3d/${encodeURIComponent(info.job)}/shot/${v.index}?t=${t}" target="_blank" rel="noopener" title="Ouvrir la vue en grand"><img src="/api/assets/3d/${encodeURIComponent(info.job)}/shot/${v.index}?t=${t}" alt="vue ${v.index}" loading="lazy"></a>` : `<div class="vue-trou">vue absente</div>`}
-      <figcaption>${v.role === "source" ? "source" : esc(v.cle || `vue ${v.index}`)}${v.rejeux ? ` · ${v.rejeux}↻` : ""}${v.detoure ? ` · ✂ ${esc(v.detoure)}` : ""}${v.erreur ? ` · <b class="fal-refus" title="${esc(v.erreur)}">ratée</b>` : ""}</figcaption>
+      <figcaption title="${esc(v.origine || "")}">${v.role === "source" ? "source" : esc(v.cle || `vue ${v.index}`)}${v.role === "planche" ? " · planche" : ""}${v.rejeux ? ` · ${v.rejeux}↻` : ""}${v.detoure ? ` · ✂ ${esc(v.detoure)}` : ""}${v.erreur ? ` · <b class="fal-refus" title="${esc(v.erreur)}">ratée</b>` : ""}</figcaption>
       ${v.role === "source" || fige ? "" : `<div class="vue-actions">
-        <button class="v-rej" data-i="${v.index}" title="Régénérer CETTE vue seulement, avec un prompt corrigé">↻</button>
+        ${v.role === "planche" ? "" : `<button class="v-rej" data-i="${v.index}" title="Régénérer CETTE vue seulement, avec un prompt corrigé">↻</button>`}
         <button class="v-det" data-i="${v.index}" ${v.file ? "" : "disabled"} title="Retirer le fond — local, gratuit">✂</button></div>`}
     </figure>`).join("");
   const non = refusTir(info, V.occupe);
@@ -150,7 +173,11 @@ export async function tirer(confirmer, toast) {
   const part = max && max < gardees ? `${max} des ${gardees} images validées (${info.engine} en prend au plus ${max})`
     : `${gardees} image(s) validée(s)`;
   if (!await confirmer(`Tirer ${info.engine} sur ${part} : ${usd(d.total_usd)}.\n`
-    + `Les vues sont déjà payées : seul le moteur est facturé.`, { titre: "Tirer le maillage", ok: `Payer ${usd(d.total_usd)}` })) return;
+    + (info.vues.every((v) => v.role === "planche")
+      ? "Les vues viennent de la planche (aucune génération) : seul le moteur est facturé."
+      : "Les vues sont déjà payées : seul le moteur est facturé.")
+    + (info.entity_id ? `
+Le maillage rejoindra la fiche de l'entité de la bible.` : ""), { titre: "Tirer le maillage", ok: `Payer ${usd(d.total_usd)}` })) return;
   const r = await jpost(`/api/assets/3d/${encodeURIComponent(V.jeu)}/tirer`, {});
   suivre(r.job_id, "moteur en cours…", async (j) => {
     await charger();
@@ -182,6 +209,7 @@ export function brancher({ confirmer, saisir, toast, onTire }) {
   const garde = (f) => () => f().catch((e) => toast(String(e.message || e)));
   $("#btnVues").addEventListener("click", garde(() => preparer(confirmer, toast)));
   $("#btnTirer").addEventListener("click", garde(() => tirer(confirmer, toast)));
+  $("#btnVuesBible").addEventListener("click", garde(() => depuisBible(confirmer, toast)));
   $("#vuesN").addEventListener("change", garde(prixPreparer));
   $("#vuesImg").addEventListener("change", garde(prixPreparer));
   $("#vuesJeu").addEventListener("change", (ev) => ouvrirJeu(ev.target.value).catch((e) => toast(String(e.message || e))));

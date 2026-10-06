@@ -1339,14 +1339,7 @@ async def post_asset3d_view_rejouer(job: str, index: int, background_tasks: Back
     """UNE vue régénérée (Seedream), avec `prompt` corrigé si donné. Rend un job_id à poller."""
     from app.services import asset3d_views as AV, pricing as _pricing
     body = body or {}
-    info = _vues_ou_http(AV.lire_vues, job)
-    _vues_ou_http(AV._ouvert, info)
-    v = _vues_ou_http(AV._vue, info, index)
-    if v["role"] == "source":
-        raise HTTPException(400, "la vue 0 est ta source : elle ne se régénère pas — change d'image dans la "
-                                 "Bibliothèque.")
-    if not str(body.get("prompt") or v.get("prompt") or "").strip():
-        raise HTTPException(400, "cette vue n'a pas de prompt : donnes-en un")
+    _vues_ou_http(AV.verifier_rejeu, job, index, body.get("prompt"))
     _cle_fal_ou_400()
     if await _asset3d_occupe(job):
         raise HTTPException(409, "Une opération est déjà en cours sur ce jeu de vues — attends qu'elle finisse.")
@@ -1396,9 +1389,24 @@ async def post_asset3d_tirer(job: str, background_tasks: BackgroundTasks):
           "geometry_detaillee": p.get("geometry_detaillee"), "quad": p.get("quad")}
     devis = _pricing.estimate(op)
     await _plafond(op, "moteurs3d")
+    async def _tirer_et_rattacher(on_step):
+        """Le tir, puis — si les vues viennent d'une entité de la bible (T7) — le maillage rejoint SA fiche. Le
+        service reste sans base de données : c'est la route qui connaît la bible."""
+        from datetime import datetime as _dtu
+        from app.services.storage import BibleEntity, async_session_factory
+        r = await AV.tirer_vues(job, on_step)
+        if info.get("entity_id"):
+            async with async_session_factory() as s:
+                ent = await s.get(BibleEntity, info["entity_id"])
+                if ent is not None:
+                    ent.model3d_job, ent.model3d_file = Path(job).name, "model.glb"
+                    ent.updated_at = _dtu.utcnow()
+                    await s.commit()
+        return r
+
     job_id, run = await _job_asset3d_vues(
         job, f"3D · {info['engine']} · vues validées · {Path(job).name}", f"Running {info['engine']}",
-        lambda on_step: AV.tirer_vues(job, on_step),
+        _tirer_et_rattacher,
         lambda r: {"engine": r["engine"], "files": r["files"], "shots": r["shots"], "job": Path(job).name,
                    "skipped_formats": r.get("skipped_formats") or [], "vues_validees": True})
     background_tasks.add_task(run)
@@ -8565,7 +8573,7 @@ async def generate_bible_model3d(entity_id: str, background_tasks: BackgroundTas
     from app.services.storage import BibleEntity, JobRecord, async_session_factory
 
     body = body or {}
-    if not settings.FAL_KEY:
+    if not (settings.FAL_KEY or "").strip():   # une clé d'espaces passait la porte puis la garde
         raise HTTPException(503, "FAL_KEY not configured. Add it in Settings.")
 
     async with async_session_factory() as session:
@@ -8574,6 +8582,37 @@ async def generate_bible_model3d(entity_id: str, background_tasks: BackgroundTas
             raise HTTPException(404, "Entity not found")
         nom, kind = e.name, e.kind
         ref = e.ref_image
+
+    # T106 (plan-moteurs-3d T7, D1) — les vues viennent de la PLANCHE, pas d'un prompt neuf : l'identité tenue par la
+    # bible est ce qu'on ne veut pas régénérer. Panneaux de la recette v3, sinon découpe VÉRIFIÉE de la planche
+    # (`_entity_ref_views`, tâche #62). Aucune génération, aucune dépense : un jeu de vues « en attente », qui se
+    # regarde et se détoure dans /studio3d, puis se tire (POST /assets/3d/{job}/tirer, gardé) — le maillage rejoint
+    # alors la fiche. Placée AVANT le refus de la planche composite, qui garde son sens pour les autres appels.
+    if body.get("from_board"):
+        from app.services import asset3d_views as AV
+        source, par_cle = await _entity_ref_views(e)
+        if source == "aucune":
+            raise HTTPException(400, f"« {nom} » n'a pas de planche : génère-la d'abord dans la bible (🎨 Planche).")
+        if source == "planche":
+            raise HTTPException(400, f"La planche de « {nom} » est une mosaïque d'une autre géométrie : ses vues ne "
+                                     "se découpent pas sans risque. Choisis les vues une à une (Vues d'abord).")
+        vues = {k: f for k, f in par_cle.items() if k in A3.VUES_CLES}
+        if "front" not in vues:
+            raise HTTPException(400, f"La planche de « {nom} » ({kind}) n'a pas de vue de face (front) : un moteur "
+                                     "image→3D en a besoin.")
+        engine = str(body.get("engine") or "tripo-h3.1").lower()
+        if engine not in A3.ENGINES:
+            raise HTTPException(400, f"Moteur inconnu : {engine}")
+        job = uuid4().hex[:8]
+        opts = {k: body[k] for k in ("textures", "quality", "formats", "geometry_detaillee", "quad") if k in body}
+        job_id, run = await _job_asset3d_vues(
+            job, f"3D · vues de la planche · {nom}"[:120], "Vues de la planche",
+            lambda on_step: AV.preparer_depuis_images(
+                job, vues, {**opts, "engine": engine, "entity_id": entity_id, "source": source}, on_step),
+            lambda r: {"kind": "asset3d_views", "job": job, "views": 0, "entity_id": entity_id, "source": source})
+        background_tasks.add_task(run)
+        return {"job_id": job_id, "status": "queued", "job": job, "source": source, "engine": engine,
+                "vues": [k for k in A3.VUES_CLES if k in vues], "usd_estime": 0.0}
 
     # 1. quelle image nourrit le moteur ?
     demande = Path(str(body.get("image_filename") or "")).name

@@ -52,6 +52,11 @@
         <input type="text" id="vuesSujet" placeholder="(facultatif) ce que montrent les vues"
                title="Décrit le sujet dans le prompt de chaque vue — vide : « le même personnage/objet »"></label>
       <button id="btnVues" class="btn-run" disabled>Préparer les vues · —</button>
+      <div class="fal-sub">ou reprendre la planche d'une entité de la bible (gratuit)</div>
+      <select id="vuesEntite" class="fal-sel" title="Personnages et objets de la bible qui ont une planche"></select>
+      <button id="btnVuesBible" class="engine-goto" disabled
+              title="Les vues de la planche — panneaux d'origine ou découpe vérifiée — sans aucune génération">
+        → vues de la planche · gratuit</button>
       <select id="vuesJeu" class="fal-sel" title="Les jeux de vues préparés, le plus récent d'abord"></select>
       <div class="vues-grille" id="vuesGrille"></div>
       <button id="btnTirer" class="btn-run" disabled>Tirer · —</button>
