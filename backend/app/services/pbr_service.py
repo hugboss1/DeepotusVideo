@@ -31,6 +31,7 @@ __all__ = [
     "stats", "natural_level", "correlation", "report_channel",
     "FLAT_SPAN", "DEPENDENT_R", "effective_levels",
     "map_report", "seam_report", "SEAM_SCALES", "SEAM_GRADES", "seam_grade",
+    "cyclic", "wrap", "clamp8",
 ]
 
 
@@ -158,6 +159,19 @@ def _cyclic(img: Image.Image, flt, reach: float) -> Image.Image:
 
 def _c8(v: float) -> int:
     return 0 if v < 0 else 255 if v > 255 else int(round(v))
+
+
+# Réexports PUBLICS — un seul propriétaire du bordage.
+#
+# `photo_prep` (delighting) et `pattern_service` (générateurs) doivent border
+# EXACTEMENT comme nous : sinon leur sortie cesse d'être raccordable, et le
+# seul argument mesurable du Material Forge tombe. Deux voies s'offraient :
+# importer `_cyclic` chez le voisin — un nom souligné qui traverse un module —
+# ou recopier la fonction — deux bordages qui dérivent au premier correctif.
+# Un alias public, donc : le code reste ici, il n'en existe qu'une version.
+cyclic = _cyclic
+wrap = _wrap
+clamp8 = _c8
 
 
 def _ramp_lut(lo: float, hi: float, invert: bool = False) -> list[int]:

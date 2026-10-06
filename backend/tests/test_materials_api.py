@@ -546,7 +546,8 @@ async def main():
         assert st["status"] == "done", st
         libmat = st["material"]
         assert libmat["source"] == {"kind": "library", "model": None,
-                                    "filename": lib}, libmat["source"]
+                                    "filename": lib, "prep": None}, \
+            libmat["source"]
         assert libmat["seamless"] is True
         assert libmat["name"] == "Depuis la Library"
         # methode miroir : raccord nul, tres en dessous du seuil de 2.0
