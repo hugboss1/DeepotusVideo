@@ -2651,6 +2651,107 @@ async def reassemble_sprite(job: str, body: dict):
     return {"ok": True, "frames": r["frames"], "grid": r["grid"]}
 
 
+_EXT_PLANCHE = (".png", ".jpg", ".jpeg", ".webp")
+
+
+@router.post("/assets/sprite/from-board")
+async def sprite_from_board(body: dict, background_tasks: BackgroundTasks):
+    """t111 (plan-sprites T9, partie serveur) — 4 directions DÉCOUPÉES dans la planche d'un personnage de la bible.
+
+    Deux entrées, une sortie : `entity_id` (on lit `ref_image` et `kind`) ou `board` (un nom NU d'image de la
+    Library, lu comme un personnage). Les vues viennent du découpeur de #62 (`board_service.decouper_planche`, via
+    `sprite_directions`), puis le job passe par `assets_sprite` — LA même porte que le reste du Sprite Lab, avec la
+    source `images` de T0 : une seule machinerie de job. Gratuit : fond papier uni, clé chroma locale par défaut.
+
+    Les vues restent indexées « atelier » : ce sont celles que #62 partage avec les générateurs multi-références, et
+    LI.noter ÉCRASE la provenance — le plan les notait « sprites », ce qui les aurait reclassées."""
+    from app.services import sprite_directions as SD
+    from app.services.storage import BibleEntity, async_session_factory
+
+    eid = str(body.get("entity_id") or "").strip()
+    nom_entite = None
+    if eid:
+        async with async_session_factory() as s:
+            e = await s.get(BibleEntity, eid)
+            if e is None:
+                raise HTTPException(404, "Entity not found")
+            planche, kind, nom_entite = e.ref_image, e.kind, e.name
+        if not planche:
+            raise HTTPException(400, f"« {nom_entite} » n'a pas de planche : génère-la d'abord (Atelier, Planche).")
+        planche = Path(str(planche)).name
+    else:
+        brut, kind = body.get("board"), "character"
+        planche = Path(brut).name if isinstance(brut, str) else ""
+        if not planche or planche != brut or Path(planche).suffix.lower() not in _EXT_PLANCHE:
+            raise HTTPException(400, f"board : un nom NU d'image de la Library est attendu, reçu {brut!r}")
+    if not (settings.images_path / planche).is_file():
+        raise HTTPException(400, f"Planche introuvable dans la Library : {planche!r}")
+    try:
+        noms = await asyncio.to_thread(SD.vues_de_planche, settings.images_path, planche, kind)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    await LI.noter(noms, "atelier")
+
+    directions = SD.directions()
+    corps = {k: v for k, v in body.items() if k not in ("entity_id", "board")}
+    corps["source"] = {"kind": "images", "filenames": noms}
+    corps.setdefault("remove_bg", "chroma")
+    corps.setdefault("columns", len(noms))
+    corps["anim"] = {"tags": SD.tags_directions(directions)}
+    corps.setdefault("title", "Sprites · directions · " + (nom_entite or planche))
+    # clé INTERNE (soulignée) : posée par cette route, lue par generate_sprites dans `source` ; normalize_opts l'ignore
+    corps["_board_meta"] = {"board": planche, "directions": f"{len(directions)}/{len(SD.HUIT)}"}
+    return await assets_sprite(corps, background_tasks)
+
+
+# 5 Mio : une capture `<model-viewer>` couvre le viewport, pas une case de 128 px — une borne trop serrée se
+# contourne en dégradant l'image, ce qui est pire.
+_SPRITE_CAPTURE_MAX = 5 * 1024 * 1024
+_PREFIXE_HEX = re.compile(r"^[0-9a-f]{8}$")
+
+
+@router.post("/assets/sprite/capture")
+async def sprite_capture(request: Request, dir: str, prefix: str):
+    """t111 (plan-sprites T10, partie serveur) — dépose UNE vue capturée depuis `<model-viewer>` dans la Library.
+
+    LE NAVIGATEUR VOIT ET MANIPULE, PYTHON ÉCRIT : l'écran (livré avec T12) posera la caméra sur l'un des 8 azimuts
+    et appellera `mv.toBlob()` ; le fichier, lui, naît ICI, puis les huit vues passent par `/assets/sprite` (source
+    `images`, un tag par direction).
+
+    LES GARDES : `dir` est une ALLOWLIST des 8 noms (un nom libre choisirait le nom d'un fichier de la Library) ;
+    `prefix` vaut 8 hexadécimaux ; la TAILLE est bornée avant tout examen du contenu (413) ; la SIGNATURE PNG est
+    vérifiée et l'image décodée (400) — `Content-Type` ne prouve rien. Rien n'est écrit avant que tout soit jugé.
+
+    LA MESURE QUI COMPTE : `alpha` est vrai quand l'image reçue a des pixels réellement transparents. L'écran s'en
+    servira pour choisir le détourage — la transparence de `toBlob()` se MESURE sur l'octet, elle ne se suppose pas."""
+    import io
+    from PIL import Image as _I
+    from app.services import sprite_directions as SD
+
+    if dir not in SD.HUIT:
+        raise HTTPException(400, f"dir : {dir!r} — l'une de {', '.join(SD.HUIT)}")
+    if not _PREFIXE_HEX.match(prefix or ""):
+        raise HTTPException(400, "prefix : 8 chiffres hexadécimaux minuscules attendus")
+    octets = await request.body()
+    if len(octets) > _SPRITE_CAPTURE_MAX:
+        raise HTTPException(413, f"capture : {len(octets)} octets, la borne est à "
+                                 f"{_SPRITE_CAPTURE_MAX // 1024 // 1024} Mio")
+    if not octets.startswith(_PNG_MAGIC):
+        raise HTTPException(400, "capture : un PNG est attendu (signature absente — l'en-tête ne prouve rien)")
+    try:
+        with _I.open(io.BytesIO(octets)) as im:
+            mini, _maxi = im.convert("RGBA").getchannel("A").getextrema()
+    except Exception:  # noqa: BLE001 — un PNG illisible est un refus, pas une erreur serveur
+        raise HTTPException(400, "capture : PNG illisible")
+    nom = f"gen_dir3d_{prefix}_{dir}.png"
+    dest = settings.images_path / nom
+    tmp = dest.parent / f"{dest.name}.tmp"
+    await asyncio.to_thread(tmp.write_bytes, octets)
+    await asyncio.to_thread(tmp.replace, dest)
+    await LI.noter([nom], "sprites")
+    return {"filename": nom, "alpha": mini == 0, "octets": len(octets)}
+
+
 @router.post("/assets/sprite/{job}/save")
 async def save_sprite_sheet(job: str):
     """Copy sheet.png into the Library images folder so it can be reused as an

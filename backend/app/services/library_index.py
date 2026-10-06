@@ -32,6 +32,7 @@ SOURCES: dict[str, str] = {
     "figma": "Figma",
     "news": "News",
     "sprites": "Sprite Lab",
+    "tuiles": "Tile Lab",           # t113 (plan-tuiles T2) : les atlas des jeux de tuiles
     "assets3d": "Game Assets 3D",
     "templates": "Templates",       # plan-templates T5 (tâche #75) : images fixes exportées d'un gabarit
     "import": "Imports",
@@ -52,6 +53,7 @@ _PREFIXES: list[tuple[str, str]] = [
     ("board_", "atelier"),
     ("shot_", "assets3d"),
     ("tpl_still_", "templates"),
+    ("tile_", "tuiles"),            # t113 : tile_<id>_atlas.png
     ("gen_", "generation"),
 ]
 
@@ -62,7 +64,7 @@ _PREFIXES: list[tuple[str, str]] = [
 # particules du catalogue de démarrage (Kenney) sont CC0. Une licence posée
 # n'est JAMAIS écrasée : seules les lignes à NULL reçoivent ce défaut.
 SOURCES_PROPRES = {"generation", "retouche", "matieres", "atelier", "cardforge",
-                   "vectorlab", "sprites", "assets3d", "templates"}
+                   "vectorlab", "sprites", "assets3d", "templates", "tuiles"}
 LICENCE_PROPRE, LICENCE_INCONNUE = "propriétaire", "inconnue"
 
 
