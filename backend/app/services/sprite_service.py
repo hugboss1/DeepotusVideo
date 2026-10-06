@@ -411,8 +411,9 @@ def build_zip_bytes(out_dir: Path) -> bytes:
     import zipfile
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        from app.services.sprite_export import EXPORTS   # T109 : Godot, atlas, Aseprite, Paper2D
         for name in ("sheet.png", "preview.gif", "manifest.json",
-                     "sheet.unity.json", "SpriteSheetImporter.cs"):
+                     "sheet.unity.json", "SpriteSheetImporter.cs") + EXPORTS:
             p = out_dir / name
             if p.is_file():
                 z.write(p, name)
@@ -518,6 +519,10 @@ def _assemble(frame_files: list[tuple[Path, bool]], opts: dict, out_dir: Path,
         json.dumps(unity, indent=2), encoding="utf-8")
     (out_dir / "SpriteSheetImporter.cs").write_text(
         UNITY_IMPORTER_CS, encoding="utf-8")
+    # T109 (plan-sprites T3-T5) : les quatre exports moteur, écrits ICI pour que particules et séquences Kenney (qui
+    # passent par _assemble) les aient aussi
+    from app.services import sprite_export as SE
+    SE.write_all(manifest, out_dir, sheet.width, sheet.height)
 
     return {"sheet": str(out_dir / "sheet.png"),
             "preview": str(out_dir / "preview.gif"),

@@ -93,6 +93,15 @@ class Settings(BaseSettings):
     # Service GPU local (optionnel, T107) — Hunyuan3D 2.1 lancé à côté ; vide = http://127.0.0.1:8081
     LOCAL3D_URL: str = ""
 
+    # Clapbox (optional, T103 / plan son-vfx D3) — service local d'embeddings
+    # CLAP (texte ↔ audio) ; vide = http://127.0.0.1:17494. Voir tools/clapbox/.
+    CLAPBOX_URL: str = ""
+    # Repli distant : une URL qui parle le MÊME contrat (/health, /embed/text,
+    # /embed/audio), facturée par l'hébergeur. Lues dans le .env : pas encore
+    # dans Réglages → Clés (la clé est un secret, sa place serait le coffre).
+    CLAP_REMOTE_URL: str = ""
+    CLAP_REMOTE_KEY: str = ""
+
     # HeyGen (optional, v1.4) - required for avatar/composition features
     HEYGEN_API_KEY: str = ""
     MESHY_API_KEY: str = ""
