@@ -259,6 +259,21 @@ def test_generate_garde_la_cle_de_chaque_vue_quand_une_rate():
     assert A3.read_manifest("gen_ord")["shots"] == ["shot_0.png", "shot_1.png", "shot_3.png", "shot_4.png"]
 
 
+def test_la_comptabilite_des_jobs_chiffre_les_vues_comme_des_vues():
+    """`_job_to_cost` ne regardait que le moteur : un job « vues » (ou un rejeu d'UNE vue) était compté comme un
+    maillage Tripo — 0,30 $ au lieu de 0,03 $ par vue."""
+    from types import SimpleNamespace
+    from app.api.routes import _job_to_cost
+    from app.services import pricing
+    p = pricing.load()
+    job = lambda meta: SimpleNamespace(provider="asset3d", duration_s=None, cost_meta=json.dumps(meta))
+    vues = _job_to_cost(job({"kind": "asset3d_views", "job": "x", "views": 4}), p)
+    une = _job_to_cost(job({"kind": "asset3d_views", "job": "x", "views": 1, "index": 2}), p)
+    moteur = _job_to_cost(job({"engine": "tripo", "files": {}, "shots": [], "job": "x", "vues_validees": True}), p)
+    assert abs(vues["total_usd"] - 0.12) < 1e-6 and abs(une["total_usd"] - 0.03) < 1e-6, (vues, une)
+    assert abs(moteur["total_usd"] - 0.30) < 1e-6, moteur
+
+
 # ── routes ───────────────────────────────────────────────────────────────────
 
 def test_routes_refusent_avant_la_garde_puis_gardent():

@@ -7166,6 +7166,12 @@ def _job_to_cost(job, p):
             # texturage d'un maillage DÉJÀ généré : facturé en crédits Meshy,
             # jamais chez fal (chaîne Tripo → Meshy).
             return _pricing.estimate({"kind": "asset3d_texture"}, p)
+        if meta.get("kind") == "asset3d_views":
+            # T106 : des vues Seedream (préparées ou rejouées), pas un maillage — 0 vue = des vues reprises d'une
+            # planche, qui n'ont rien coûté
+            n = int(meta.get("views") or 0)
+            return (_pricing.estimate({"kind": "asset3d_views", "views": n}, p) if n
+                    else _pricing.no_spend("Vues reprises d'une planche (aucune génération)", "fal"))
         return _pricing.estimate({"kind": "asset3d",
                                   "engine": meta.get("engine") or "tripo"}, p)
     if prov == "heygen":
