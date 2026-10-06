@@ -2541,6 +2541,22 @@ async def get_sprite_paper2d(job: str):
                          lambda m, w, h, img: _json.dumps(SE.paper2d_json(m, w, h, img), indent=2))
 
 
+@router.post("/assets/sprite/{job}/reassemble")
+async def reassemble_sprite(job: str, body: dict):
+    """T110 (plan-sprites T7) — refabrique la feuille depuis ses propres cases : `order` porte à la fois le
+    réordonnancement, la duplication (un index deux fois) et la suppression (un index absent). Local et gratuit. En
+    PLACE : le dossier du job ne change pas, donc toutes les URL de téléchargement restent valides."""
+    from app.services.sprite_service import reassemble
+    d = _sprite_dir(job)
+    if not (d / "manifest.json").is_file():
+        raise HTTPException(404, "Not found")
+    try:
+        r = await asyncio.to_thread(reassemble, d, body.get("order"), body.get("columns"), body.get("anim"))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"ok": True, "frames": r["frames"], "grid": r["grid"]}
+
+
 @router.post("/assets/sprite/{job}/save")
 async def save_sprite_sheet(job: str):
     """Copy sheet.png into the Library images folder so it can be reused as an

@@ -168,6 +168,44 @@
         </div>
       </fieldset>
 
+      <fieldset class="animset">
+        <legend>Animation (P2)</legend>
+        <div class="grid2">
+          <label class="fld">Durée par image <span class="unit">ms</span>
+            <input id="animMs" type="number" min="10" max="10000" value="125" title="Durée de chaque image de la feuille (aperçu GIF, manifeste et exports moteur)">
+          </label>
+          <label class="fld">Tags
+            <button id="tagAdd" class="btn ghost" type="button" title="Ajoute une animation nommée (idle, run, jump…) sur une plage d'images">➕ Tag</button>
+          </label>
+        </div>
+        <div id="tagRows" class="tagrows"></div>
+        <div class="hint">Les numéros sont ceux des frames <b>gardées</b> (0 = la première gardée). Sans tag, la feuille
+          porte une seule animation <code>default</code>. Les tags sont écrits dans le manifeste, le <code>.tres</code>
+          Godot, l'atlas et le <code>.ase</code>.</div>
+      </fieldset>
+
+      <fieldset class="postset">
+        <legend><label><input type="checkbox" id="postOn"> Post-traitement (P4)</label></legend>
+        <div class="grid2" id="postFields">
+          <label class="fld">Contour <span class="unit">px</span>
+            <select id="poWidth" title="Épaisseur du contour, en pixels natifs (0 = aucun)"><option value="0" selected>aucun</option><option>1</option><option>2</option><option>3</option><option>4</option></select>
+          </label>
+          <label class="fld">Couleur du contour
+            <input id="poColor" type="color" value="#000000" title="Couleur du contour">
+          </label>
+          <label class="fld">Ombre X / Y <span class="unit">px</span>
+            <span class="pair"><input id="poDx" type="number" min="-32" max="32" value="0" title="Décalage horizontal de l'ombre (négatif = vers la gauche)"><input id="poDy" type="number" min="-32" max="32" value="0" title="Décalage vertical de l'ombre (négatif = vers le haut)"></span>
+          </label>
+          <label class="fld">Opacité de l'ombre <span class="unit">0-255</span>
+            <input id="poOpacity" type="number" min="0" max="255" value="110" title="Opacité de l'ombre portée">
+          </label>
+          <label class="fld"><span class="chk" title="Retire les pixels isolés (seuls ou par deux) et bouche les trous d'un pixel"><input type="checkbox" id="poOrphans"> Nettoyer les pixels orphelins</span></label>
+          <label class="fld"><span class="chk" title="Vote majoritaire 3×3 sur la silhouette : les dents d'un pixel disparaissent"><input type="checkbox" id="poSmooth"> Lisser les bords</span></label>
+        </div>
+        <div class="hint">Appliqué à chaque image <b>après</b> le pixel-art et <b>avant</b> la feuille : le contour fait
+          1 px <i>natif</i>, pas 1 px agrandi. La toile grandit d'autant. Local et gratuit.</div>
+      </fieldset>
+
       <div class="genrow">
         <button id="genBtn" class="btn primary big" disabled title="Assemble le sprite sheet avec les frames gardées et les réglages ci-dessus">🧩 Générer le sheet</button>
         <span id="costHint" class="cost" title="Coût estimé (détourage API × frames gardées)"></span>
@@ -211,6 +249,19 @@
       <a id="dlP2d" class="btn hidden" download title="Feuille Unreal Paper2D — l'importateur crée texture, sprites et flipbook">⬇ Paper2D</a>
       <button id="saveLib" class="btn primary" title="Copie le sheet dans la Library (réutilisable dans le Studio comme nœud Image)">💾 Save to Library</button>
       <button id="toStudio" class="btn hidden" title="Ouvre le Studio avec ce sheet comme nœud Image">🎛 → Studio</button>
+    </div>
+
+    <div id="editor" class="editor hidden">
+      <div class="editor-head">
+        <b>Éditeur</b>
+        <span id="editInfo" class="counter">—</span>
+        <button id="editApply" class="btn primary" title="Réassemble la feuille avec cet ordre, ses tags et sa durée par image (local, gratuit — rien n'est re-détouré)">✔ Appliquer</button>
+        <button id="editReset" class="btn ghost" title="Revenir à l'ordre de la feuille actuelle">↺ Annuler</button>
+      </div>
+      <div class="hint">Réordonne (◀ ▶), duplique (⧉) ou supprime (✕) des images, puis Appliquer. Les tags du panneau
+        Animation suivent la nouvelle numérotation.</div>
+      <div id="editStrip" class="editstrip"></div>
+      <div id="editStatus" class="status hidden"></div>
     </div>
 
     <div id="feuilleOut" class="feuille-out hidden">

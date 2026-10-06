@@ -170,3 +170,32 @@ select option:disabled{color:var(--ink-muted)}
 .stage.sc-donjon{background:linear-gradient(#2a2a30,#17171b 60%,#3a3a44)}
 .stage.sc-cave{background:linear-gradient(#1d1410,#0b0806 70%,#2a1c14)}
 .stage canvas{transition:transform .05s linear}
+/* ── T110 (P2) : tags d'animation — règles additives, /tilelab charge aussi cette feuille ── */
+.animset{border:1px solid var(--stroke);border-radius:var(--r);padding:8px 10px 10px;margin:0}
+.animset legend{font-size:12px;color:var(--ink);padding:0 6px}
+.tagrows{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.tagrow{display:grid;grid-template-columns:minmax(0,1fr) 52px 52px minmax(0,1fr) 28px;gap:6px;align-items:center}
+.tagrow input,.tagrow select{background:var(--bg-base);border:1px solid var(--stroke-strong);border-radius:6px;color:var(--ink-strong);padding:4px 6px;font-size:12px;width:100%;min-width:0}
+.tagrow .del{border:none;background:none;color:var(--ink-muted);cursor:pointer;font-size:14px}
+.tagrow .del:hover{color:var(--red)}
+/* ── T110 (P4) : post-traitement ── */
+.postset{border:1px solid var(--stroke);border-radius:var(--r);padding:8px 10px 10px;margin:0}
+.postset legend{font-size:12px;color:var(--ink);padding:0 6px}
+.postset legend input{vertical-align:-2px;margin-right:5px}
+.postset.off #postFields{opacity:.4;pointer-events:none}
+.pair{display:flex;gap:6px}
+.pair input{width:100%;min-width:0}
+/* ── T110 (P5a) : éditeur d'ordre ── */
+.editor{border-top:1px solid var(--stroke);padding:10px 12px}
+.editor-head{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap}
+.editstrip{display:flex;gap:8px;overflow-x:auto;padding:6px 0}
+.editcell{flex:0 0 auto;width:76px;border:1px solid var(--stroke-strong);border-radius:8px;background:var(--bg-panel-2);padding:4px;text-align:center}
+.editcell img{width:64px;height:64px;object-fit:contain;image-rendering:pixelated;background:var(--bg-base);display:block;margin:0 auto}
+.editcell .no{font-size:10.5px;color:var(--ink-muted);font-family:var(--f-mono)}
+.editcell .ops{display:flex;justify-content:center;gap:2px;margin-top:2px}
+.editcell .ops button{border:none;background:none;color:var(--ink-soft);cursor:pointer;font-size:12px;padding:0 2px}
+.editcell .ops button:hover{color:var(--cyan)}
+.editcell .ops button:disabled{opacity:.3;cursor:default}
+.postset .fld .chk{display:flex;align-items:center;gap:6px;cursor:pointer}
+.postset .fld .chk input{width:auto;padding:0;margin:0}
+.postset input[type=color]{height:30px;padding:2px 4px}

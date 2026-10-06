@@ -34,6 +34,7 @@ let stripState = [];       // true = frame gardée
 let lastClicked = 0;       // ancre du shift-clic
 let busyExtract = false, busyGen = false, busyAnim = false;
 let sheet = null;          // {short, manifest} du dernier sheet
+let sheetRev = 0;          // T110 : le réassemblage réécrit frames/NNN.png sous la MÊME URL — la révision casse le cache
 let savedSheet = null;     // {short, filename} du dernier Save to Library
 let prefsTimer = null, extractTimer = null;
 
@@ -69,17 +70,24 @@ async function pollJob(uuid, cb, timeoutMs) {
 /* ───────── préférences (atelier_settings.spritelab_prefs) ───────── */
 const PREF_IDS = ["fps", "maxFrames", "removeBg", "trim", "cellSize", "cellAlign",
   "columns", "pixTarget", "pixPalette", "pixColors", "pixDither",
-  "animDur", "animRatio", "pfps", "pzoom", "pbg"];
+  "animDur", "animRatio", "pfps", "pzoom", "pbg", "animMs",
+  "poWidth", "poColor", "poDx", "poDy", "poOpacity"];
 function collectPrefs() {
-  const p = { pixelOn: $("#pixelOn").checked };
+  const p = { pixelOn: $("#pixelOn").checked,
+              postOn: $("#postOn").checked, poOrphans: $("#poOrphans").checked, poSmooth: $("#poSmooth").checked };
   for (const id of PREF_IDS) p[id] = $("#" + id).value;
+  p.tagRows = JSON.stringify(tagRows);
   return p;
 }
 function applyPrefs(p) {
   if (!p || typeof p !== "object") return;
   for (const id of PREF_IDS) if (p[id] != null && $("#" + id)) $("#" + id).value = p[id];
   if (p.pixelOn != null) $("#pixelOn").checked = !!p.pixelOn;
-  syncPixelSet(); $("#pfpsVal").textContent = $("#pfps").value;
+  for (const k of ["postOn", "poOrphans", "poSmooth"]) if (p[k] != null) $("#" + k).checked = !!p[k];
+  if (p.tagRows) { try { tagRows = JSON.parse(p.tagRows) || []; } catch (e) { tagRows = []; } }
+  if (!Array.isArray(tagRows)) tagRows = [];
+  renderTags();
+  syncPixelSet(); syncPostSet(); $("#pfpsVal").textContent = $("#pfps").value;
 }
 function savePrefs() {
   clearTimeout(prefsTimer);
@@ -310,6 +318,41 @@ function pixelOpts() {
   return o;
 }
 
+/* T110 (plan-sprites T2) — tags d'animation. Les lignes sont l'état ; le corps de la requête est construit à la
+   volée, jamais mémorisé en double. Les numéros sont ceux des frames GARDÉES (le serveur renumérote après `keep`). */
+let tagRows = [];
+const escA = (s) => esc(String(s == null ? "" : s)).replace(/"/g, "&quot;");
+function renderTags() {
+  const box = $("#tagRows");
+  if (!box) return;
+  const DIRS = ["forward", "reverse", "pingpong", "pingpong_reverse"];
+  box.innerHTML = tagRows.map((t, i) => `
+    <div class="tagrow" data-i="${i}">
+      <input class="tname" value="${escA(t.name)}" placeholder="idle" maxlength="32" title="Nom de l'animation (lettres, chiffres, espace, _ ou -)">
+      <input class="tfrom" type="number" min="0" max="63" value="${parseInt(t.from, 10) || 0}" title="Première frame gardée">
+      <input class="tto" type="number" min="0" max="63" value="${parseInt(t.to, 10) || 0}" title="Dernière frame gardée">
+      <select class="tdir" title="Sens de lecture">
+        ${DIRS.map(d => `<option value="${d}"${d === t.direction ? " selected" : ""}>${d}</option>`).join("")}
+      </select>
+      <button class="del" type="button" title="Retirer ce tag">✕</button>
+    </div>`).join("");
+  box.querySelectorAll(".tagrow").forEach(row => {
+    const i = parseInt(row.dataset.i, 10);
+    row.querySelector(".tname").oninput = (e) => { tagRows[i].name = e.target.value; savePrefs(); };
+    row.querySelector(".tfrom").onchange = (e) => { tagRows[i].from = parseInt(e.target.value, 10) || 0; savePrefs(); };
+    row.querySelector(".tto").onchange = (e) => { tagRows[i].to = parseInt(e.target.value, 10) || 0; savePrefs(); };
+    row.querySelector(".tdir").onchange = (e) => { tagRows[i].direction = e.target.value; savePrefs(); };
+    row.querySelector(".del").onclick = () => { tagRows.splice(i, 1); renderTags(); savePrefs(); };
+  });
+}
+function animOpts(nFrames) {
+  const ms = Math.max(10, Math.min(10000, parseInt($("#animMs").value, 10) || 125));
+  const tags = tagRows
+    .filter(t => (t.name || "").trim())
+    .map(t => ({ name: t.name.trim(), from: t.from, to: t.to, direction: t.direction || "forward" }));
+  return { tags, durations: new Array(nFrames).fill(ms) };
+}
+
 async function generate() {
   if (busyGen || !source || !extractShort) return;
   if (stripStale()) {
@@ -333,7 +376,9 @@ async function generate() {
       title: "Sprites · " + (source.label || ""),
     };
     if (kept.length < stripN) body.keep = kept;
+    body.anim = animOpts(kept.length);
     const px = pixelOpts(); if (px) body.pixel = px;
+    const po = postOpts(); if (po) body.post = po;
 
     setStatus(st, "Job lancé…", false, 3);
     const d = await api.send("POST", "/assets/sprite", body);
@@ -357,6 +402,7 @@ const player = { imgs: [], n: 0, playing: true, raf: 0, last: 0, acc: 0, i: 0, d
 
 function showResult(short, m) {
   sheet = { short, manifest: m };
+  sheetRev++;
   $("#outEmpty").classList.add("hidden");
   $("#player").classList.remove("hidden");
   $("#exports").classList.remove("hidden");
@@ -388,6 +434,62 @@ function showResult(short, m) {
   $("#sheetImg").src = `/api/assets/sprite/${short}/sheet?t=${Date.now()}`;
   updateStudioBtn();                    // masque « → Studio » si sheet non sauvé
   buildPlayer(short, m);
+  editOrder = m.frames.map(f => f.index);
+  $("#editor").classList.toggle("hidden", !m.grid);
+  $("#editStatus").classList.add("hidden");
+  renderEditor();
+}
+
+/* ───────── T110 (plan-sprites T7) : ordre des images ─────────
+   `editOrder` est un tableau d'INDEX de la feuille actuelle : dupliquer, c'est répéter un index ; supprimer, c'est
+   l'ôter. Le serveur refait la feuille depuis ses propres cases — la page ne fabrique aucun PNG, rien n'est repayé. */
+let editOrder = [];
+
+function renderEditor() {
+  if (!sheet) return;
+  const short = sheet.short, n = editOrder.length;
+  $("#editInfo").textContent = n + " image(s)";
+  $("#editStrip").innerHTML = editOrder.map((src, k) => `
+    <div class="editcell" data-k="${k}">
+      <img src="/api/assets/sprite/${short}/frame/${src}?r=${sheetRev}" alt="">
+      <div class="no">${k} ← #${src}</div>
+      <div class="ops">
+        <button data-op="left" title="Vers la gauche"${k === 0 ? " disabled" : ""}>◀</button>
+        <button data-op="dup" title="Dupliquer"${n >= 64 ? " disabled" : ""}>⧉</button>
+        <button data-op="del" title="Supprimer"${n <= 1 ? " disabled" : ""}>✕</button>
+        <button data-op="right" title="Vers la droite"${k === n - 1 ? " disabled" : ""}>▶</button>
+      </div>
+    </div>`).join("");
+  $("#editStrip").querySelectorAll(".ops button").forEach(b => b.onclick = () => {
+    const k = parseInt(b.closest(".editcell").dataset.k, 10);
+    const op = b.dataset.op;
+    if (op === "left" && k > 0) editOrder.splice(k - 1, 0, editOrder.splice(k, 1)[0]);
+    else if (op === "right" && k < editOrder.length - 1) editOrder.splice(k + 1, 0, editOrder.splice(k, 1)[0]);
+    else if (op === "dup" && editOrder.length < 64) editOrder.splice(k, 0, editOrder[k]);
+    else if (op === "del" && editOrder.length > 1) editOrder.splice(k, 1);
+    renderEditor();
+  });
+}
+
+async function applyEditor() {
+  if (!sheet || !editOrder.length) return;
+  const st = $("#editStatus");
+  const btn = $("#editApply");
+  btn.disabled = true;
+  try {
+    setStatus(st, "Réassemblage…", false, 20);
+    await api.send("POST", `/assets/sprite/${sheet.short}/reassemble`,
+      { order: editOrder,
+        columns: $("#columns").value === "auto" ? "auto" : parseInt($("#columns").value, 10),
+        anim: animOpts(editOrder.length) });
+    const m = await api.get("/assets/sprite/" + sheet.short + "/manifest");
+    showResult(sheet.short, m);
+    toast("Feuille réassemblée ✓ — local, gratuit");
+  } catch (e) {
+    setStatus(st, "Échec : " + e.message, true);
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 function buildPlayer(short, m) {
@@ -396,7 +498,7 @@ function buildPlayer(short, m) {
   cv.width = g.cell_w; cv.height = g.cell_h;
   player.imgs = m.frames.map(f => {
     const im = new Image();
-    im.src = `/api/assets/sprite/${short}/frame/${f.index}`;
+    im.src = `/api/assets/sprite/${short}/frame/${f.index}?r=${sheetRev}`;
     return im;
   });
   player.n = m.frames.length; player.i = 0; player.acc = 0; player.last = 0;
@@ -596,6 +698,24 @@ async function runStarter(kind, id, btn) {
 function syncPixelSet() {
   $(".pixelset").classList.toggle("off", !$("#pixelOn").checked);
 }
+/* T110 (plan-sprites T6) — post-traitement : rien n'est envoyé quand rien n'est demandé (le serveur sauterait la passe
+   de toute façon, mais le manifeste dirait alors `post: null`, ce qui est la vérité) */
+function syncPostSet() {
+  $(".postset").classList.toggle("off", !$("#postOn").checked);
+}
+function postOpts() {
+  if (!$("#postOn").checked) return undefined;
+  const o = {};
+  const w = parseInt($("#poWidth").value, 10) || 0;
+  if (w > 0) o.outline = { width: w, color: $("#poColor").value };
+  const dx = parseInt($("#poDx").value, 10) || 0;
+  const dy = parseInt($("#poDy").value, 10) || 0;
+  const op = parseInt($("#poOpacity").value, 10);
+  if (dx || dy) o.shadow = { dx, dy, opacity: Number.isFinite(op) ? Math.max(0, Math.min(255, op)) : 110 };
+  if ($("#poOrphans").checked || $("#poSmooth").checked)
+    o.clean = { orphans: $("#poOrphans").checked, smooth: $("#poSmooth").checked };
+  return Object.keys(o).length ? o : undefined;
+}
 
 function wire() {
   $$("#srcTabs .tab").forEach(t => t.onclick = () => switchSrcTab(t.dataset.src));
@@ -610,6 +730,16 @@ function wire() {
     renderStrip();
   };
   $("#genBtn").onclick = generate;
+  $("#tagAdd").onclick = () => {
+    const n = Math.max(0, keptIndices().length - 1);
+    tagRows.push({ name: "anim" + (tagRows.length + 1), from: 0, to: n, direction: "forward" });
+    renderTags(); savePrefs();
+  };
+  $("#animMs").onchange = savePrefs;
+  $("#editApply").onclick = applyEditor;
+  $("#editReset").onclick = () => {
+    if (sheet) { editOrder = sheet.manifest.frames.map(f => f.index); renderEditor(); }
+  };
 
   /* fps/max : la sonde est locale et gratuite -> ré-extraction auto (debounce) */
   for (const id of ["fps", "maxFrames"]) $("#" + id).onchange = () => {
@@ -622,6 +752,9 @@ function wire() {
                     "animDur", "animRatio"])
     $("#" + id).onchange = () => { savePrefs(); updateCost(); };
   $("#pixelOn").onchange = () => { syncPixelSet(); savePrefs(); };
+  $("#postOn").onchange = () => { syncPostSet(); savePrefs(); };
+  for (const id of ["poWidth", "poColor", "poDx", "poDy", "poOpacity", "poOrphans", "poSmooth"])
+    $("#" + id).onchange = savePrefs;
 
   $("#playBtn").onclick = () => {
     player.playing = !player.playing;
@@ -816,6 +949,7 @@ window.__sl = {
   switchSrcTab("starter");
   await loadPrefs();
   syncPixelSet();
+  syncPostSet();
   loadImages(); loadRenders();
   restoreLast();               // préviz : survit au remontage de l'iframe
 })();
