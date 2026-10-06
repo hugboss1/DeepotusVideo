@@ -734,7 +734,15 @@ async def assets_3d(body: dict, background_tasks: BackgroundTasks):
                                  "Use a fal engine here.")
     if engine not in ENGINES:
         raise HTTPException(400, f"Unknown engine: {engine}")
-    if not settings.FAL_KEY:
+    if ENGINES[engine].get("local"):
+        # T107 : le moteur local ne passe pas par fal (ni clé, ni stockage) ; s'il dort, refus AVANT tout job
+        from app.services import local3d_service
+        if not await asyncio.to_thread(local3d_service.joignable):
+            raise HTTPException(503, local3d_service.message_absent())
+        if body.get("multiview"):
+            raise HTTPException(400, f"{ENGINES[engine]['label']} ne lit qu'une image : désactive multiview "
+                                     "(les vues Seedream passent par fal).")
+    elif not settings.FAL_KEY:
         raise HTTPException(503, "FAL_KEY not configured. Add it in Settings.")
     # fail fast on bad input instead of accepting a job that dies in background
     fn = Path(str(body.get("image_filename") or "")).name
@@ -901,8 +909,10 @@ async def list_asset3d_engines():
     (FAL_KEY présente) et son coût unitaire, pour que l'UI montre-mais-grise
     au lieu de laisser choisir un moteur inutilisable."""
     from app.services.asset3d_service import ENGINES, BESOINS_3D
-    from app.services import pricing as _pricing
+    from app.services import local3d_service, pricing as _pricing
     dispo = bool(settings.FAL_KEY)
+    # T107 : un moteur local est disponible quand SON service répond — listé et grisé sinon, comme un fal sans clé
+    local_ok = await asyncio.to_thread(local3d_service.joignable) if any(e.get("local") for e in ENGINES.values())         else False
     out = []
     for eid, e in ENGINES.items():
         devis = _pricing.estimate({"kind": "asset3d", "engine": eid,
@@ -914,12 +924,45 @@ async def list_asset3d_engines():
         # passé à travers un filtre qui ne connaissait que `endpoint`.
         out.append({**{k: v for k, v in e.items()
                        if not k.startswith("endpoint")},
-                    "id": eid, "available": dispo,
+                    "id": eid, "available": local_ok if e.get("local") else dispo,
                     "usd_texture": devis["total_usd"],
                     "usd_brouillon": brouillon["total_usd"]})
     out.sort(key=lambda m: m["id"])
+    # T107 (plan-moteurs-3d T8) : la matrice cite le banc de référence — `banc: None` = jamais mesuré chez nous,
+    # dit tel quel plutôt que remplacé par la note du fournisseur
+    from app.services import asset3d_banc
+    banc = await asyncio.to_thread(asset3d_banc.resume_par_moteur)
+    for m in out:
+        m["banc"] = banc.get(m["id"])
     return {"engines": out, "default": "tripo",
-            "besoins": [{"id": k, **v} for k, v in BESOINS_3D.items()]}
+            "besoins": [{"id": k, **v} for k, v in BESOINS_3D.items()],
+            "sujets_banc": asset3d_banc.sujets()}
+
+
+@router.get("/assets3d/local")
+async def get_asset3d_local():
+    """L'état du service GPU local (T107, plan-moteurs-3d T10) : joignable ou non, la carte MESURÉE, ce que sa VRAM
+    permet, et l'URL réglée (LOCAL3D_URL). Miroir de ce que fait Voicebox pour les voix."""
+    from app.services import local3d_service
+    return {"providers": await asyncio.to_thread(local3d_service.disponible), "url": local3d_service.url()}
+
+
+@router.post("/assets3d/banc")
+async def post_asset3d_banc(body: dict = None):
+    """Range un job DÉJÀ produit au banc de référence (T107, plan-moteurs-3d T8). Body {job, sujet, moteur?}. Local et
+    gratuit : lit la fiche de maillage et le manifeste du job, n'appelle aucun fournisseur. Le moteur est celui du
+    manifeste ; un `moteur` qui le contredit est refusé."""
+    from app.services import asset3d_banc
+    body = body or {}
+    job = Path(str(body.get("job") or "")).name
+    if not job or not body.get("sujet"):
+        raise HTTPException(400, "job et sujet requis")
+    try:
+        return await asyncio.to_thread(asset3d_banc.mesurer, job, str(body["sujet"]), body.get("moteur"))
+    except FileNotFoundError as e:
+        raise HTTPException(404, f"{job} : {e} — calcule d'abord sa fiche de maillage")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
 
 @router.get("/assets/3d/{job}/report")
@@ -1328,6 +1371,50 @@ async def post_asset3d_views(background_tasks: BackgroundTasks, body: dict = Non
     return {"job_id": job_id, "status": "queued", "job": job, "usd_estime": devis["total_usd"]}
 
 
+@router.post("/assets/3d/views/photos")
+async def post_asset3d_views_photos(background_tasks: BackgroundTasks, body: dict = None):
+    """Un jeu de vues depuis des PHOTOS réelles de la Bibliothèque (T107, plan-moteurs-3d T11). Body {vues: {front,
+    back?, left?, right?: filename}, engine?, detourer?: bool}. Le téléphone dépose ses photos par la synchro
+    existante (/sync/depot) — décision de l'utilisateur : cette route n'est PAS ouverte au réseau. Aucune
+    génération, aucune dépense : les photos sont redressées (EXIF), bornées, détourées en local si demandé, puis le
+    jeu se tire comme les autres (POST /assets/3d/{job}/tirer, gardé)."""
+    from app.services import asset3d_service as A3, asset3d_views as AV
+    body = dict(body or {})
+    vues = body.get("vues")
+    if not isinstance(vues, dict) or not vues:
+        raise HTTPException(400, "vues : {front: fichier, back?, left?, right?} — la face est exigée")
+    inconnues = sorted(set(vues) - set(A3.VUES_CLES))
+    if inconnues:
+        raise HTTPException(400, f"clé(s) inconnue(s) : {', '.join(inconnues)} (attendu : {', '.join(A3.VUES_CLES)})")
+    if not vues.get("front"):
+        raise HTTPException(400, "pas de vue de face (front) : un moteur image→3D en a besoin")
+    vues = {k: Path(str(f)).name for k, f in vues.items() if f}
+    absentes = [f for f in vues.values() if not (settings.images_path / f).is_file()]
+    if absentes:
+        raise HTTPException(400, f"absente(s) de la Bibliothèque : {', '.join(absentes)}")
+    engine = str(body.get("engine") or "tripo-h3.1").lower()
+    if engine not in A3.ENGINES:
+        raise HTTPException(400, f"Moteur inconnu : {engine}")
+    if not A3.ENGINES[engine].get("local"):
+        _cle_fal_ou_400()            # les vues partent au stockage fal (gratuit) pour un moteur fal
+
+    job = uuid4().hex[:8]
+    detourer = bool(body.get("detourer"))
+
+    async def travail(on_step):
+        r = await AV.preparer_depuis_images(job, vues, {"engine": engine, "source": "photos"}, on_step, role="photo")
+        if detourer:
+            r["detourees"] = (await AV.detourer_toutes(job, on_step))["detourees"]
+        return r
+
+    job_id, run = await _job_asset3d_vues(
+        job, f"3D · vues depuis {len(vues)} photo(s)", "Vues depuis des photos", travail,
+        lambda r: {"kind": "asset3d_views", "job": job, "views": 0, "source": "photos"})
+    background_tasks.add_task(run)
+    return {"job_id": job_id, "status": "queued", "job": job, "engine": engine,
+            "vues": [k for k in A3.VUES_CLES if k in vues], "usd_estime": 0.0}
+
+
 @router.get("/assets/3d/{job}/views")
 async def get_asset3d_views(job: str):
     from app.services import asset3d_views as AV
@@ -1379,7 +1466,14 @@ async def post_asset3d_tirer(job: str, background_tasks: BackgroundTasks):
     aux rejeux. Rend un job_id à poller."""
     from app.services import asset3d_views as AV, pricing as _pricing
     info = _vues_ou_http(AV.verifier_tir, job)
-    _cle_fal_ou_400()
+    from app.services import asset3d_service as _A3v
+    if (_A3v.ENGINES.get(info["engine"]) or {}).get("local"):
+        # T107 : le moteur local n'a pas besoin de la clé fal, mais de SON service — refus avant la garde
+        from app.services import local3d_service
+        if not await asyncio.to_thread(local3d_service.joignable):
+            raise HTTPException(503, local3d_service.message_absent())
+    else:
+        _cle_fal_ou_400()
     if await _asset3d_occupe(job):
         raise HTTPException(409, "Une opération est déjà en cours sur ce jeu de vues — attends qu'elle finisse.")
 
@@ -7574,7 +7668,8 @@ def _job_to_cost(job, p):
             # planche, qui n'ont rien coûté
             n = int(meta.get("views") or 0)
             return (_pricing.estimate({"kind": "asset3d_views", "views": n}, p) if n
-                    else _pricing.no_spend("Vues reprises d'une planche (aucune génération)", "fal"))
+                    else _pricing.no_spend("Vues reprises de photos (aucune génération)" if meta.get("source") == "photos"
+                                           else "Vues reprises d'une planche (aucune génération)", "fal"))
         if meta.get("rig"):
             # rig Meshy (T104) : son cost_meta ne porte pas `engine` — il tombait sur le maillage Tripo par défaut
             # (0,30 USD chez fal). Les ids d'actions viennent de la clé `actions` ; un rig d'avant cette clé les
@@ -8812,6 +8907,18 @@ async def put_atelier_settings(body: dict):
     return await get_atelier_settings()
 
 
+def _entity_style(raw) -> dict:
+    """T103 (D4) — le tempérament d'un personnage, TOUJOURS servi clampé et complet
+    ({tags, stability}) : l'Atelier n'a jamais à deviner une forme, et une colonne
+    illisible se lit « aucun tempérament », jamais une erreur."""
+    import json as _json
+    from app.services import voice_direction as VD
+    try:
+        return VD.clamp_style(_json.loads(raw) if isinstance(raw, str) and raw else raw)
+    except Exception:  # noqa: BLE001
+        return VD.clamp_style(None)
+
+
 def _entity_dict(e) -> dict:
     import json as _json
 
@@ -8832,6 +8939,7 @@ def _entity_dict(e) -> dict:
             "voice_id": getattr(e, "voice_id", None),
             "voice_name": getattr(e, "voice_name", None),
             "voice_prev": getattr(e, "voice_prev", None),
+            "voice_style": _entity_style(getattr(e, "voice_style", None)),   # T103 (D4)
             "model3d_job": getattr(e, "model3d_job", None),
             "model3d_file": getattr(e, "model3d_file", None),
             "created_at": e.created_at.isoformat() if e.created_at else None,
@@ -8936,6 +9044,12 @@ async def update_bible_entity(entity_id: str, body: dict):
             e.inspiration_images = _json.dumps(body["inspiration_images"] or [])
         if "aliases" in body:
             e.aliases = _json.dumps(body["aliases"] or [])
+        # T103 (D4) — le tempérament passe par le MÊME clamp que la voix off : une
+        # balise que le modèle ne lit pas ne s'écrit jamais. None l'efface.
+        if "voice_style" in body:
+            from app.services import voice_direction as VD
+            e.voice_style = (_json.dumps(VD.clamp_style(body["voice_style"]), ensure_ascii=False)
+                             if body["voice_style"] else None)
         # v1.21 — casting voix (choix manuel ou application d'une suggestion)
         for vk in ("voice_id", "voice_name", "voice_prev",
                    "model3d_job", "model3d_file"):
@@ -8953,6 +9067,33 @@ async def update_bible_entity(entity_id: str, body: dict):
         await session.commit()
         await session.refresh(e)
         return _entity_dict(e)
+
+
+@router.post("/bible/entities/{entity_id}/voice-clone")
+async def clone_bible_voice(entity_id: str, body: dict = None):
+    """T103 (plan-son-vfx T14, D4a) — clone instantané ElevenLabs à partir de prises du dossier audio, rattaché à
+    CETTE entité. Body {files: [nom, …], description?}. La voix obtenue est écrite sur l'entité (l'ancienne
+    pré-écoute, qui était celle d'une autre voix, est effacée) : le storyboard la reprend seul. Un refus
+    d'ElevenLabs laisse la voix d'avant en place."""
+    from app.services.storage import BibleEntity, async_session_factory
+    from app.services import voice_clone as VCL
+    body = body if isinstance(body, dict) else {}
+    async with async_session_factory() as session:
+        e = await session.get(BibleEntity, entity_id)
+        if e is None:
+            raise HTTPException(404, "Entité introuvable")
+        nom, desc = e.name, str(body.get("description") or e.description or "")
+        files = body.get("files") if isinstance(body.get("files"), list) else []
+        try:
+            d = await asyncio.get_running_loop().run_in_executor(
+                None, lambda: VCL.clone_for_entity(entity_id, nom, files, desc))
+        except VCL.SfxError as ex:
+            raise HTTPException(ex.status, ex.message)
+        e.voice_id, e.voice_name, e.voice_prev = d["voice_id"], d["voice_name"], None
+        e.updated_at = datetime.utcnow()
+        await session.commit()
+        await session.refresh(e)
+        return dict(d, entity=_entity_dict(e))
 
 
 @router.post("/bible/entities/{entity_id}/model3d")
@@ -10968,7 +11109,7 @@ async def _anim_shots(chapter_id: str) -> tuple[list, dict | None]:
         if not await session.get(Chapter, chapter_id):
             raise HTTPException(404, "Chapter not found")
         shots = [_shot_dict(s) for s in await _list_shots(session, chapter_id)]
-        narrateur, _cues = await _voice_cast(session)
+        narrateur, _cues, _sans_voix = await _voice_cast(session)
     return shots, narrateur
 
 
@@ -11178,7 +11319,7 @@ async def sortie_episode(chapter_id: str, body: dict | None = None):
         if not ch:
             raise HTTPException(404, "Chapter not found")
         shots = [_shot_dict(s) for s in await _list_shots(session, chapter_id)]
-        narrateur, _cues = await _voice_cast(session)
+        narrateur, _cues, _sans_voix = await _voice_cast(session)
     if not shots:
         raise HTTPException(400, "Pas de storyboard — découpe le chapitre en plans (🎬 ou ¶) d'abord.")
     scenes = []
@@ -11625,19 +11766,23 @@ def _fold_name(s: str) -> str:
 
 
 async def _voice_cast(session) -> tuple:
-    """(narrateur {voice_id,name} | None, map nom/alias replié → voix perso)."""
+    """(narrateur {voice_id,name,style} | None, map nom/alias replié → rôle {voice_id,name,style}, noms des
+    personnages SANS voix). T103 (D4b) : le style (tempérament) est déjà CLAMPÉ — les segments n'ont plus qu'à
+    l'appliquer. Trois valeurs : chaque site d'appel les déballe (banc test_scene_voice_cast, lu dans le source)."""
     from app.services.storage import BibleEntity
     from sqlalchemy import select
     import json as _json
     rows = (await session.execute(
         select(BibleEntity).where(BibleEntity.kind == "character"))).scalars().all()
-    narrator, cues = None, {}
+    narrator, cues, uncast = None, {}, []
     for e in rows:
-        v = {"voice_id": e.voice_id, "name": e.name}
+        v = {"voice_id": e.voice_id, "name": e.name,
+             "style": _entity_style(getattr(e, "voice_style", None))}
         if _fold_name(e.name) in ("narrateur", "narrator"):
             narrator = v if e.voice_id else None
             continue
         if not e.voice_id:
+            uncast.append(e.name)
             continue
         cues[_fold_name(e.name)] = v
         try:
@@ -11645,7 +11790,17 @@ async def _voice_cast(session) -> tuple:
                 cues.setdefault(_fold_name(a), v)
         except Exception:
             pass
-    return narrator, cues
+    return narrator, cues, uncast
+
+
+@router.get("/voice-cast")
+async def voice_cast():
+    """T103 (D4b) — qui parle avec quelle voix et quel tempérament : la carte plan de l'Atelier montre le
+    casting AVANT de générer, et nomme ceux qui n'ont pas de voix."""
+    from app.services.storage import async_session_factory
+    async with async_session_factory() as session:
+        narrator, cues, uncast = await _voice_cast(session)
+    return {"narrator": narrator, "cast": cues, "uncast": uncast}
 
 
 async def _generate_scene_vo(session, scene, lang: str) -> dict:
@@ -11657,7 +11812,7 @@ async def _generate_scene_vo(session, scene, lang: str) -> dict:
     segments = [s for s in segments if len(s["text"].strip()) >= 2]
     if not segments:
         raise HTTPException(400, "La scène n'a pas de texte à lire.")
-    narrator, cues = await _voice_cast(session)
+    narrator, cues, _uncast = await _voice_cast(session)
     if any(s["kind"] == "narration" for s in segments) and not narrator:
         raise HTTPException(
             400, "Crée un personnage « Narrateur » dans la bible et caste sa "
@@ -11667,25 +11822,44 @@ async def _generate_scene_vo(session, scene, lang: str) -> dict:
     if not await loop.run_in_executor(None, VoiceoverService.is_enabled):
         raise HTTPException(503, "Aucune voix disponible : configure la clé "
                                  "ElevenLabs ou lance Voicebox (Réglages).")
-    await _plafond(_op_tts(" ".join(sg["text"] for sg in segments)), "chapitres")   # tâche #16
+    # T103 (plan-son-vfx T15, D4b) — CHAQUE segment est préparé AVANT la garde : voix du personnage (ou du
+    # Narrateur), tempérament posé devant, Eleven v3 s'il y a des balises et qu'ElevenLabs est le fournisseur.
+    # Ailleurs les balises sont RETIRÉES (sinon « crochet whispers crochet » serait prononcé) et la note le dit
+    # une fois. La garde chiffre ensuite CE QUI PART, segment par segment (texte balisé, tarif v3).
+    from app.services import voice_direction as VD, voice_providers as VP
+    prov = await loop.run_in_executor(None, VP.resolve_provider)
+    notes: list[str] = []
+    prepares = []
+    for seg in segments:
+        if seg["kind"] == "dialogue":
+            v = cues.get(_fold_name(seg["character"] or "")) or narrator or {}
+        else:
+            v = narrator or {}
+        style = v.get("style") or {"tags": [], "stability": 0.5}
+        text = VD.apply_style(seg["text"], style)
+        if style["tags"] and prov == "elevenlabs":
+            mid = "eleven_v3"
+        else:
+            mid = None
+            if VD.find_tags(text):
+                text = VD.strip_tags(text)
+                if not notes:
+                    notes.append("Tempéraments retirés : " + (
+                        "Voicebox n'interprète pas les balises Eleven v3." if prov == "voicebox"
+                        else "aucun fournisseur Eleven v3 actif."))
+        prepares.append((seg, v.get("voice_id"), v.get("name"), style, text, mid))
+    await _plafond([o for p in prepares for o in _op_tts(p[4], p[5])], "chapitres")   # tâche #16
     tmp = Path(_tf.mkdtemp(prefix="dz_vo_"))
     parts, plan = [], []
     l11 = "FR" if lang.startswith("fr") else "EN"
-    for i, seg in enumerate(segments):
-        if seg["kind"] == "dialogue":
-            v = cues.get(_fold_name(seg["character"] or ""))
-            vid = (v or narrator or {}).get("voice_id")
-            speaker = (v or narrator or {}).get("name")
-        else:
-            vid = narrator["voice_id"]
-            speaker = narrator["name"]
+    for i, (seg, vid, speaker, style, text, mid) in enumerate(prepares):
         dest = tmp / f"part_{i:03d}.mp3"
         await loop.run_in_executor(
-            None, lambda s=seg, d=dest, vv=vid: voice.generate_long(
-                text=s["text"], output_path=d, language=l11, voice_id=vv))
+            None, lambda s=text, d=dest, vv=vid, mm=mid: voice.generate_long(
+                text=s, output_path=d, language=l11, voice_id=vv, model_id=mm))
         parts.append(dest)
         plan.append({"kind": seg["kind"], "speaker": speaker,
-                     "chars": len(seg["text"])})
+                     "chars": len(seg["text"]), "tags": style["tags"]})
     fname = f"vo_{scene.id[:8]}_{uuid4().hex[:6]}.mp3"
     out = _vo_audio_dir() / fname
     _concat_audio(parts, out)
@@ -11695,7 +11869,7 @@ async def _generate_scene_vo(session, scene, lang: str) -> dict:
     scene.updated_at = datetime.utcnow()
     await session.commit()
     await session.refresh(scene)
-    return {"scene": _scene_dict(scene), "segments": plan, "duration_s": dur}
+    return {"scene": _scene_dict(scene), "segments": plan, "duration_s": dur, "notes": notes}
 
 
 @router.post("/scenes/{scene_id}/voiceover")
@@ -15519,6 +15693,37 @@ async def etabli_creuser(body: dict):
     if saisie is not None:
         detail["paroi_millimetres"] = float(saisie)
     return _etabli_ecrire(job, sortie, "creuser", detail)
+
+
+@router.post("/etabli/percer")
+async def etabli_percer(body: dict):
+    """PERCER (t133, plan-etabli T7 partie percer, corrigé) : un trou de drainage dans la paroi sous `point`, le long
+    de `normale` — la direction du FORET, qui entre dans la matière (la page envoie l'opposé de la normale de la face
+    cliquée). `point` et `normale` en MONDE, `rayon` en UNITÉS DU MODÈLE (> 0), `rayon_millimetres` facultatif — la
+    saisie, GARDÉE dans la fiche. AUCUNE CONVERSION ICI, la règle de /etabli/creuser : la page seule connaît la
+    taille cible, elle convertit par sa garde unique. Le rapport (peaux retirées, bords, tube, paroi traversée)
+    devient le `source` de la fiche."""
+    from app.services import hollow
+    job, data, depuis = _etabli_glb_cible(body.get("job"), body.get("version"), "perçage")
+    point = _etabli_vecteur(body.get("point"), "perçage : point")
+    normale = _etabli_vecteur(body.get("normale"), "perçage : normale", direction=True)
+    rayon = body.get("rayon")
+    if not _etabli_nombre(rayon) or rayon <= 0:
+        raise HTTPException(400, "perçage : `rayon` (unités du modèle) attend un nombre > 0")
+    saisie = body.get("rayon_millimetres")
+    if saisie is not None and (not _etabli_nombre(saisie) or saisie <= 0):
+        raise HTTPException(400, "perçage : `rayon_millimetres` attend un nombre > 0")
+    noeuds = body.get("noeuds")
+    if noeuds is not None and (not isinstance(noeuds, list) or any(not _etabli_entier(n) or n < 0 for n in noeuds)):
+        raise HTTPException(400, "perçage : `noeuds` doit être une liste d'index de nœud (entiers ≥ 0)")
+    try:
+        sortie, rapport = await asyncio.to_thread(hollow.percer, data, noeuds, point, normale, float(rayon))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    detail = {"depuis": depuis, **rapport}
+    if saisie is not None:
+        detail["rayon_millimetres"] = float(saisie)
+    return _etabli_ecrire(job, sortie, "percer", detail)
 
 
 @router.post("/etabli/decimer")

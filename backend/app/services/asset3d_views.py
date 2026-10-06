@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 MAX_VUES = 4                 # le quatuor orthographique d'asset3d_service
+PHOTO_MAX_PX = 2048          # T107 (T11) : au-delà, une photo coûte du temps d'envoi pour rien
 
 
 def _dir(job) -> Path:
@@ -151,6 +152,8 @@ def verifier_rejeu(job, index: int, prompt: str | None = None) -> tuple[dict, di
     if v["role"] == "planche":
         raise ValueError("cette vue est reprise de la planche de la bible : elle ne se régénère pas ici — refais la "
                          "planche dans la bible, ou détoure la vue.")
+    if v["role"] == "photo":
+        raise ValueError("cette vue est une photo : elle ne se régénère pas — reprends la photo, ou détoure-la.")
     pr = str(prompt or v.get("prompt") or "").strip()
     if not pr:
         raise ValueError("cette vue n'a pas de prompt : donnes-en un")
@@ -245,14 +248,21 @@ async def tirer_vues(job, on_step=None) -> dict:
     info = verifier_tir(job)
     d = _dir(job)
     gardees = [v for v in info["vues"] if v.get("file") and (d / v["file"]).is_file()]
-    for v in gardees:
-        if v.get("a_renvoyer") or not v.get("url"):
-            v["url"] = await A3._upload(d / v["file"])
-            v.pop("a_renvoyer", None)
-    _ecrire(job, info)                      # les URL fraîches survivent à un échec du moteur
+    if (A3.ENGINES.get(info["engine"]) or {}).get("local"):
+        # T107 : le moteur local lit les octets — rien ne part au stockage fal ; la vue telle qu'elle est SUR LE DISQUE
+        import base64
+        urls = ["data:image/png;base64," + base64.b64encode((d / v["file"]).read_bytes()).decode("ascii")
+                for v in gardees]
+    else:
+        for v in gardees:
+            if v.get("a_renvoyer") or not v.get("url"):
+                v["url"] = await A3._upload(d / v["file"])
+                v.pop("a_renvoyer", None)
+        _ecrire(job, info)                  # les URL fraîches survivent à un échec du moteur
+        urls = [v["url"] for v in gardees]
     payload = dict(info.get("payload") or {})
     payload.update(image_filename=info["image_filename"], engine=info["engine"], multiview=True)
-    r = await A3.tirer_moteur(Path(str(job)).name, [v["url"] for v in gardees], payload,
+    r = await A3.tirer_moteur(Path(str(job)).name, urls, payload,
                               [v["file"] for v in gardees], on_step, cles=[v["cle"] for v in gardees])
     info["etat"] = "tire"
     info["tire_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -260,13 +270,19 @@ async def tirer_vues(job, on_step=None) -> dict:
     return r
 
 
-async def preparer_depuis_images(job: str, vues: dict, payload: dict, on_step=None) -> dict:
+async def preparer_depuis_images(job: str, vues: dict, payload: dict, on_step=None, *, role: str = "planche") -> dict:
     """Un jeu de vues bâti sur des images qui EXISTENT DÉJÀ dans la Bibliothèque — les panneaux d'une planche de la
     bible (T106, plan-moteurs-3d T7, D1). `vues` = {clé: fichier}, clés parmi front/back/left/right, la face exigée.
     Aucun appel Seedream : l'identité tenue par la bible est ce qu'on ne veut pas régénérer (les envois au stockage
     fal ne sont pas facturés). Les vues sont rangées dans l'ordre d'auteur (front, back, left, right) ; l'ordre imposé
     par un moteur est appliqué au tir par `ordonner_vues`, sur les CLÉS. Rôle « planche » : pas de rejeu, détourage
-    permis."""
+    permis.
+
+    `role="photo"` (T107, T11 : photos réelles, déposées par le téléphone via /sync/depot ou téléversées) : la vue
+    est REDRESSÉE selon l'EXIF (le téléphone tourne, pas nous) et bornée à PHOTO_MAX_PX sans changer de rapport ;
+    l'original de la Bibliothèque n'est pas touché. Avec un moteur LOCAL, rien ne part au stockage fal : la vue
+    partira en data: URI au tir."""
+    import asyncio
     import shutil
     from app.config import settings
     from app.services import asset3d_service as A3
@@ -290,6 +306,18 @@ async def preparer_depuis_images(job: str, vues: dict, payload: dict, on_step=No
     if engine not in A3.ENGINES:
         raise ValueError(f"Unknown engine: {engine}")
 
+    if role not in ("planche", "photo"):
+        raise ValueError(f"rôle de vue inconnu : {role!r}")
+    local = bool(A3.ENGINES[engine].get("local"))
+
+    def _photo(src, dest):
+        from PIL import Image, ImageOps
+        with Image.open(src) as im:
+            im = ImageOps.exif_transpose(im).convert("RGB")
+            if max(im.size) > PHOTO_MAX_PX:
+                im.thumbnail((PHOTO_MAX_PX, PHOTO_MAX_PX), Image.LANCZOS)
+            im.save(dest, "PNG")
+
     d = _dir(job)
     d.mkdir(parents=True, exist_ok=True)
     ordre = [k for k in A3.VUES_CLES if k in chemins]
@@ -297,10 +325,14 @@ async def preparer_depuis_images(job: str, vues: dict, payload: dict, on_step=No
     for i, k in enumerate(ordre):
         if on_step:
             await on_step(f"Vue {k}", 10 + int(80 * (i + 1) / len(ordre)))
-        shutil.copy2(chemins[k], d / f"shot_{i}.png")
-        sortie.append({"index": i, "cle": k, "role": "planche", "file": f"shot_{i}.png",
-                       "url": await A3._upload(chemins[k]), "prompt": None, "rejeux": 0, "detoure": None,
-                       "origine": chemins[k].name})
+        shot = d / f"shot_{i}.png"
+        if role == "photo":
+            await asyncio.to_thread(_photo, chemins[k], shot)
+        else:
+            shutil.copy2(chemins[k], shot)
+        sortie.append({"index": i, "cle": k, "role": role, "file": shot.name,
+                       "url": None if local else await A3._upload(shot if role == "photo" else chemins[k]),
+                       "prompt": None, "rejeux": 0, "detoure": None, "origine": chemins[k].name})
     info = _ecrire(job, {
         "job": Path(str(job)).name, "etat": "en_attente", "engine": engine,
         "source": str(payload.get("source") or "planche"), "entity_id": payload.get("entity_id"),
@@ -311,3 +343,18 @@ async def preparer_depuis_images(job: str, vues: dict, payload: dict, on_step=No
     if on_step:
         await on_step("Vues prêtes — à toi de juger", 100)
     return {"job": info["job"], "etat": info["etat"], "vues": len(sortie), "ratees": 0}
+
+
+async def detourer_toutes(job, on_step=None) -> dict:
+    """Le détourage LOCAL (gratuit, hors ligne) de toutes les vues du jeu qui ont un fichier — sauf une source de
+    l'utilisateur, qui reste telle quelle (T107, T11 : photos sur un fond de pièce)."""
+    info = lire_vues(job)
+    _ouvert(info)
+    n = 0
+    for v in info["vues"]:
+        if v["role"] != "source" and v.get("file"):
+            await detourer_vue(job, v["index"], via="local")
+            n += 1
+            if on_step:
+                await on_step(f"Détourage {n}", 90)
+    return {"detourees": n, "usd": 0.0}

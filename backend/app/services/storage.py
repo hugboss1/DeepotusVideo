@@ -257,6 +257,12 @@ class BibleEntity(Base):
     voice_id: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
     voice_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     voice_prev: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # T103 (plan son-vfx D4, 06/10/2026) — tempérament de jeu du personnage, JSON
+    # {"tags": ["[whispers]", …], "stability": 0.0 | 0.5 | 1.0}, TOUJOURS passé
+    # par voice_direction.clamp_style avant écriture ET à la lecture. Déclarée ICI
+    # (base neuve, attribut ORM) ET dans BIBLE_ENTITIES_COLUMNS (auto-ALTER des
+    # bases existantes) : l'un sans l'autre casse un des deux cas.
+    voice_style: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     # v2.7 (phase D — spec Magnific §9.1 « verrouiller un produit, accessoire,
     # véhicule, élément de décor ou personnage stylisé ») : l'ancrage 3D de
     # l'entité. `model3d_job` = le dossier outputs/assets3d/<job> qui porte le
@@ -674,6 +680,7 @@ BIBLE_ENTITIES_COLUMNS = [
     ("voice_id", "VARCHAR(80)"),
     ("voice_name", "VARCHAR(200)"),
     ("voice_prev", "TEXT"),
+    ("voice_style", "TEXT"),          # T103 — tempérament de jeu (JSON clampé)
     # v2.7 (phase D) — ancrage 3D de l'entité
     ("model3d_job", "VARCHAR(36)"),
     ("model3d_file", "VARCHAR(64)"),

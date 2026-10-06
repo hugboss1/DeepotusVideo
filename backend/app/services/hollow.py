@@ -20,7 +20,9 @@ QUATRE CORRECTIONS DU PLAN, décidées par l'utilisateur le 05/10 (« évider co
   * LA LIMITE EST DITE : dans un creux plus serré que la paroi, la peau intérieure se retourne et le solide
     s'auto-intersecte. On COMPTE les triangles dont la normale s'inverse (`effondres`) et on cherche par dichotomie
     la paroi la plus épaisse qui n'en produit aucun (`paroi_max`) ; une peau intérieure retournée EN ENTIER (volume
-    de signe opposé) compte tous ses triangles. Ce n'est pas un décalage exact (il faudrait un champ de distance
+    de signe opposé) compte tous ses triangles. Les triangles intérieurs d'AIRE NULLE (`degeneres`, ajouté le
+    06/10/2026 : à paroi égale au pas d'une grille, les sommets voisins d'une arête tombent au même point et la coque
+    n'est plus fermée, sans qu'aucune normale ne bascule) sont comptés à part et ne tiennent pas non plus. Ce n'est pas un décalage exact (il faudrait un champ de distance
     signée, donc des voxels, donc numpy) : une partie plus mince que deux parois, sur un corps par ailleurs épais, peut
     se traverser sans retourner ni triangle ni volume — `LIMITE` le dit dans chaque rapport.
 
@@ -36,7 +38,8 @@ Un maillage PARTAGÉ par un autre nœud est CLONÉ pour la pièce creusée : sin
 
 BUDGET (plan : 100 352 triangles en moins de 20 s), MESURÉ le 05/10/2026 par tests/mesure_etabli_outils.py creuser :
 tore de 100 352 triangles, paroi 0,05 : 1,9 s ; paroi 0,9 > rayon du tube 0,7, tout effondré, dichotomie complète :
-5,2 s (paroi qui tient trouvée : 0,6996). Le modèle réel de 144 274 triangles est REFUSÉ — non fermé, 4 arêtes.
+5,2 s (paroi qui tient trouvée : 0,6996). Re-mesuré le 06/10/2026 avec `juger` (aire nulle comprise, mesures du
+dehors calculées une fois) contre l'ancien `effondres` sur la même machine : 1,9 → 2,1 s et 5,2 → 6,2 s, même paroi. Le modèle réel de 144 274 triangles est REFUSÉ — non fermé, 4 arêtes.
 """
 from __future__ import annotations
 
@@ -50,6 +53,7 @@ MAX_TRIS = 200_000          # borne du budget mesuré (voir tests/mesure_etabli_
 PLAFOND = 3.0               # décalage maximal d'un sommet, en parois (arête vive)
 _PAS_DICHOTOMIE = 12
 _TOL_SOUDURE = 1e-6         # fraction de la diagonale de la pièce
+_TOL_DEGENERE = 1e-6        # intérieur / extérieur (forme, plus long côté) sous lequel un triangle est dit d'aire nulle
 LIMITE = ("une partie plus mince que deux parois, sur une pièce par ailleurs épaisse, peut se traverser sans être "
           "comptée : vérifie les zones fines dans le slicer")
 
@@ -146,21 +150,59 @@ def _interieur(pos, dec, paroi):
     return [(p[0] - o[0] * paroi, p[1] - o[1] * paroi, p[2] - o[2] * paroi) for p, o in zip(pos, dec)]
 
 
-def effondres(pos, dec, tris, paroi, signe=1.0) -> int:
-    """Combien de triangles retournent leur normale sous ce décalage — ou TOUS si la peau intérieure entière s'est
-    retournée : volume intérieur de signe opposé à l'extérieur. C'est le cas d'une plaque plus mince que deux parois
-    (les deux faces se croisent par translation, aucune normale ne bascule) et du cube creusé au-delà de sa
-    demi-arête (symétrie centrale : les normales restent les mêmes vecteurs)."""
+def _mesures(pos, tris):
+    """Par triangle : (normale non normée a×b, forme, plus long côté²). La forme |a×b| / (plus long côté)² est nulle
+    pour un triangle aplati et INVARIANTE par homothétie ; côtés nuls (tout au même point) : forme 0."""
+    out = []
+    for i, j, k in tris:
+        a, b, c = pos[i], pos[j], pos[k]
+        ux, uy, uz = b[0] - a[0], b[1] - a[1], b[2] - a[2]
+        vx, vy, vz = c[0] - a[0], c[1] - a[1], c[2] - a[2]
+        wx, wy, wz = c[0] - b[0], c[1] - b[1], c[2] - b[2]
+        n = (uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx)
+        l2 = max(ux * ux + uy * uy + uz * uz, vx * vx + vy * vy + vz * vz, wx * wx + wy * wy + wz * wz)
+        out.append((n, 0.0 if l2 <= 0.0 else math.sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]) / l2, l2))
+    return out
+
+
+def juger(pos, dec, tris, paroi, signe=1.0, dehors=None):
+    """-> (effondrés, dégénérés) sous ce décalage.
+    EFFONDRÉS : les triangles qui retournent leur normale — ou TOUS si la peau intérieure entière s'est retournée :
+    volume intérieur de signe opposé à l'extérieur. C'est le cas d'une plaque plus mince que deux parois (les deux
+    faces se croisent par translation, aucune normale ne bascule) et du cube creusé au-delà de sa demi-arête
+    (symétrie centrale : les normales restent les mêmes vecteurs).
+    DÉGÉNÉRÉS : les triangles intérieurs APLATIS ou PINCÉS EN UN POINT, sous `_TOL_DEGENERE` du dehors :
+      * aplatis — leur FORME (`_mesures`, aire sur carré du plus long côté) ; et non l'aire seule : un cube creusé près
+        de sa demi-arête rétrécit sans se déformer, son aire chute au carré et l'aire seule abaissait sa paroi qui
+        tient (mesuré : 0,99866 au lieu de 1) ;
+      * pincés — leur plus long côté : un triangle dont les TROIS sommets tombent au même point garde une forme
+        honnête à l'échelle du flottant (mesuré : 48 des 336 ci-dessous, les quadrangles de coin, échappaient à la
+        seule forme). Le cube près de sa demi-arête ne s'y prend qu'à 1e-6 de la limite, sous le pas de la dichotomie.
+    Mesuré le 06/10/2026 sur un cube 2 × 2 × 2 en grille 8 × 8 (pas 0,25), paroi 0,25 : le sommet d'arête descend de
+    √2 × 0,25 le long de sa normale diagonale et son voisin de face de 0,25 le long de la sienne — ils tombent au MÊME
+    point, la bande qui longe chaque arête (336 triangles) n'a plus d'aire et la coque n'est plus fermée (140 arêtes).
+    À 0,25 exact le produit vectoriel valait zéro et `n · n' <= 0` les comptait en effondrés (faux motif : rien ne
+    s'auto-intersecte) ; à 0,25 × (1 − 1e-9) l'aire restait positive : ni retournés ni dits. Testée AVANT le
+    retournement, l'aire nulle a son propre compte. `dehors` : les `_mesures` de la peau extérieure, calculées une
+    fois pour toute la dichotomie."""
     dedans = _interieur(pos, dec, paroi)
     if _volume(dedans, tris) * signe <= 0.0:
-        return len(tris)
-    n = 0
-    for a, b, c in tris:
-        av = _croix(pos[a], pos[b], pos[c])
-        ap = _croix(dedans[a], dedans[b], dedans[c])
-        if av[0] * ap[0] + av[1] * ap[1] + av[2] * ap[2] <= 0.0:
-            n += 1
-    return n
+        return len(tris), 0
+    if dehors is None:
+        dehors = _mesures(pos, tris)
+    t2 = _TOL_DEGENERE * _TOL_DEGENERE
+    eff = deg = 0
+    for (av, fv, lv), (ap, fp, lp) in zip(dehors, _mesures(dedans, tris)):
+        if fp <= _TOL_DEGENERE * fv or lp <= t2 * lv:                   # aplati, ou pincé (côtés au carré)
+            deg += 1
+        elif av[0] * ap[0] + av[1] * ap[1] + av[2] * ap[2] <= 0.0:
+            eff += 1
+    return eff, deg
+
+
+def effondres(pos, dec, tris, paroi, signe=1.0) -> int:
+    """Les triangles retournés seuls (voir `juger`)."""
+    return juger(pos, dec, tris, paroi, signe)[0]
 
 
 def _echelle_uniforme(m: list):
@@ -251,13 +293,14 @@ def creuser(data: bytes, noeuds, paroi):
         nd, locale = nodes[i], paroi / s
         signe = 1.0 if _volume(uniques, st) >= 0 else -1.0
         dec, plafonnes = decalages(uniques, st, signe)
-        eff = effondres(uniques, dec, st, locale, signe)
+        dehors = _mesures(uniques, st)
+        eff, deg = juger(uniques, dec, st, locale, signe, dehors)
         bas = locale
-        if eff:
+        if eff or deg:                                 # une aire nulle ne tient pas plus qu'un retournement
             bas, haut = 0.0, locale
             for _ in range(_PAS_DICHOTOMIE):
                 mid = (bas + haut) / 2
-                if effondres(uniques, dec, st, mid, signe):
+                if any(juger(uniques, dec, st, mid, signe, dehors)):
                     haut = mid
                 else:
                     bas = mid
@@ -277,18 +320,22 @@ def creuser(data: bytes, noeuds, paroi):
             interieure["material"] = mesh["primitives"][0]["material"]
         mesh["primitives"].append(interieure)
         pieces.append({"noeud_avant": i, "nom": nom, "triangles_avant": len(st), "triangles_interieurs": len(st),
-                       "paroi": paroi, "echelle_monde": s, "effondres": eff, "paroi_max": round(bas * s, 12),
-                       "plafonnes": plafonnes, "normales_rentrantes": signe < 0, "partage_avec": partage})
+                       "paroi": paroi, "echelle_monde": s, "effondres": eff, "degeneres": deg,
+                       "paroi_max": round(bas * s, 12), "plafonnes": plafonnes, "normales_rentrantes": signe < 0, "partage_avec": partage})
     doc["buffers"] = [{"byteLength": len(tampon)}]
     out, neuf, m_node = _extraire_doc(doc, bytes(tampon), racines)
     for p in pieces:
         p["noeud_apres"] = m_node.get(p["noeud_avant"])
     total_eff = sum(p["effondres"] for p in pieces)
+    total_deg = sum(p["degeneres"] for p in pieces)
     total_plaf = sum(p["plafonnes"] for p in pieces)
     dits = []
     if total_eff:
         dits.append(f"{total_eff} triangle(s) effondré(s) : la paroi est plus épaisse que le creux le plus serré, le "
                     "solide s'auto-intersecte")
+    if total_deg:
+        dits.append(f"{total_deg} triangle(s) intérieur(s) d'aire nulle : la paroi égale l'écart entre sommets voisins, "
+                    "la peau intérieure se pince et la coque n'est plus fermée")
     if total_plaf:
         dits.append(f"{total_plaf} sommet(s) sur arête vive : décalage plafonné à {PLAFOND:g} parois, la paroi y est "
                     "plus mince que demandé")
@@ -296,3 +343,332 @@ def creuser(data: bytes, noeuds, paroi):
                "paroi_max": min(p["paroi_max"] for p in pieces),
                "avertissement": " ; ".join(dits) or None, "limite": LIMITE}
     return ecrire_glb(out, neuf), rapport
+
+
+# ── PERCER : le trou de drainage (t133, plan-etabli T7 partie percer, CORRIGÉ le 06/10/2026) ──────────────────────────
+# DEUX DÉFAUTS DU PLAN, mesurés avant d'écrire une ligne :
+#   * SON FORET ÉTAIT UNE DROITE INFINIE. « Retirer les triangles à moins de `rayon` de l'axe » perce, sur une pièce
+#     creusée, QUATRE peaux : la paroi visée (dehors, dedans) et la paroi OPPOSÉE (dedans, dehors). Le plan attendait
+#     deux boucles et refusait donc toujours. Ici le foret est un SEGMENT : on lance un rayon depuis le point cliqué,
+#     on lit les peaux traversées (entrée dehors, sortie dedans, rentrée dans la paroi opposée) et l'on ne prend que
+#     les sommets entre −paroi et la moitié du vide — la paroi opposée n'est jamais touchée.
+#   * SA COUTURE ÉTAIT UN ZIP. Coudre `k % na` sur `k % nb` dans une seule primitive : creuser range la peau
+#     intérieure dans une primitive À PART (deux jeux de sommets), et avec na ≠ nb le zip donne des triangles
+#     croisés, pas une variété. Ici les deux peaux sont SOUDÉES par position (comme creuser), le trou est fait dans
+#     le maillage soudé, et le tube suit le SENS des bords : chaque arête de bord reçoit sa jumelle, les deux bords
+#     sont parcourus par angle autour de l'axe (fusion de deux suites croissantes) — fermé par construction, et
+#     vérifié (`aretes_fautives`) avant d'écrire.
+# Les deux peaux gardent leurs primitives (UV, normales, matériau) moins les triangles retirés ; le tube est une
+# primitive DE PLUS, POSITION seule, même matériau — la forme de la peau intérieure de creuser.
+
+_TOL_RAYON = 1e-9           # fraction de la diagonale : deux impacts plus proches sont le même (arête, sommet)
+_TOL_POINT = 1e-3           # fraction de la diagonale : le point cliqué est SUR la peau (flottants de la page)
+
+
+def _inverse3(m: list):
+    """L'inverse de la partie linéaire 3×3 d'une matrice glTF colonne-majeure, en lignes (None si singulière)."""
+    a = [[m[c * 4 + r] for c in range(3)] for r in range(3)]
+    co = [[a[(r + 1) % 3][(c + 1) % 3] * a[(r + 2) % 3][(c + 2) % 3]
+           - a[(r + 1) % 3][(c + 2) % 3] * a[(r + 2) % 3][(c + 1) % 3] for c in range(3)] for r in range(3)]
+    det = sum(a[0][c] * co[0][c] for c in range(3))
+    if abs(det) < 1e-300:
+        return None
+    return [[co[c][r] / det for c in range(3)] for r in range(3)]
+
+
+def _impacts(pos, tris, o, d, eps):
+    """Les impacts du rayon o + t·d (t ≥ −eps) sur les triangles : [(t, index du triangle)], triés. Möller-Trumbore,
+    bords INCLUS — un axe qui passe par une arête ou un sommet touche plusieurs triangles au même t, regroupés par
+    l'appelant."""
+    out = []
+    for k, (a, b, c) in enumerate(tris):
+        pa, pb, pc = pos[a], pos[b], pos[c]
+        e1 = (pb[0] - pa[0], pb[1] - pa[1], pb[2] - pa[2])
+        e2 = (pc[0] - pa[0], pc[1] - pa[1], pc[2] - pa[2])
+        p = (d[1] * e2[2] - d[2] * e2[1], d[2] * e2[0] - d[0] * e2[2], d[0] * e2[1] - d[1] * e2[0])
+        det = e1[0] * p[0] + e1[1] * p[1] + e1[2] * p[2]
+        if abs(det) < 1e-18:
+            continue
+        s = (o[0] - pa[0], o[1] - pa[1], o[2] - pa[2])
+        u = (s[0] * p[0] + s[1] * p[1] + s[2] * p[2]) / det
+        if u < -1e-9 or u > 1 + 1e-9:
+            continue
+        q = (s[1] * e1[2] - s[2] * e1[1], s[2] * e1[0] - s[0] * e1[2], s[0] * e1[1] - s[1] * e1[0])
+        v = (d[0] * q[0] + d[1] * q[1] + d[2] * q[2]) / det
+        if v < -1e-9 or u + v > 1 + 1e-9:
+            continue
+        t = (e2[0] * q[0] + e2[1] * q[1] + e2[2] * q[2]) / det
+        if t >= -eps:
+            out.append((t, k))
+    out.sort()
+    return out
+
+
+def _composantes(n, tris):
+    """La composante connexe (par sommets partagés) de chaque triangle — union-find."""
+    parent = list(range(n))
+
+    def racine(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    for a, b, c in tris:
+        ra, rb, rc = racine(a), racine(b), racine(c)
+        parent[rb] = ra
+        parent[rc] = ra
+    return [racine(t[0]) for t in tris]
+
+
+def _boucles_de_bord(tris):
+    """Les arêtes DIRIGÉES sans jumelle, chaînées en boucles, dans le SENS du maillage. Un sommet d'où partent deux
+    arêtes de bord (le bord du trou se pince) rend None : la boucle n'est pas un cercle simple, on ne coud pas."""
+    aretes = {(a, b) for t in tris for a, b in ((t[0], t[1]), (t[1], t[2]), (t[2], t[0]))}
+    suivant = {}
+    for a, b in aretes:
+        if (b, a) not in aretes:
+            if a in suivant:
+                return None
+            suivant[a] = b
+    boucles, vus = [], set()
+    for depart in suivant:
+        if depart in vus:
+            continue
+        boucle, s = [], depart
+        while s not in vus:
+            vus.add(s)
+            boucle.append(s)
+            s = suivant.get(s)
+            if s is None:
+                return None
+        boucles.append(boucle)
+    return boucles
+
+
+def _enrouler(x):
+    """Un écart d'angle ramené dans [−π, π[."""
+    return (x + math.pi) % (2 * math.pi) - math.pi
+
+
+def _tube(a, b, angle):
+    """Coud le bord `a` (peau d'entrée, sens du maillage) au bord `b` (peau de sortie). Les deux bords tournent en
+    sens CONTRAIRES autour de l'axe (leurs peaux se regardent) : `b` est parcouru à rebours, si bien que les deux
+    suites d'angles croissent ensemble, et l'on avance à chaque pas sur celle dont le sommet suivant vient le
+    premier. Chaque triangle porte la JUMELLE d'une arête de bord, et deux triangles consécutifs partagent leur
+    rayon en sens opposés : la couture est fermée par construction. None si un bord ne fait pas le tour de l'axe
+    ou si les deux tournent dans le même sens."""
+    def tour(bord):
+        return [_enrouler(angle(bord[(k + 1) % len(bord)]) - angle(bord[k])) for k in range(len(bord))]
+
+    da, db = tour(a), tour(b)
+    ta, tb = sum(da), sum(db)
+    if abs(ta) < math.pi or abs(tb) < math.pi or (ta > 0) == (tb > 0):
+        return None
+    sens = 1.0 if ta > 0 else -1.0
+    alpha = [0.0]
+    for x in da:
+        alpha.append(alpha[-1] + sens * x)
+    b = b[::-1]
+    a0 = angle(a[0])
+    j0 = min(range(len(b)), key=lambda j: abs(_enrouler(angle(b[j]) - a0)))
+    b = b[j0:] + b[:j0]
+    beta = [sens * _enrouler(angle(b[0]) - a0)]
+    for k in range(len(b)):
+        beta.append(beta[-1] + sens * _enrouler(angle(b[(k + 1) % len(b)]) - angle(b[k])))
+    na, nb = len(a), len(b)
+    i = j = 0
+    out = []
+    while i < na or j < nb:
+        if j == nb or (i < na and alpha[i + 1] <= beta[j + 1]):
+            out.append((a[(i + 1) % na], a[i], b[j % nb]))
+            i += 1
+        else:
+            out.append((b[j], b[(j + 1) % nb], a[i % na]))
+            j += 1
+    return out
+
+
+def percer(data: bytes, noeuds, point, normale, rayon):
+    """(glb, rapport). Perce un trou de drainage cylindrique dans LA paroi sous `point`, le long de `normale` — la
+    direction du FORET, qui ENTRE dans la matière (la page envoie l'opposé de la normale de la face cliquée).
+    `point`, `normale` et `rayon` sont en unités du MONDE ; `noeuds` None = toutes les pièces de la scène active, et
+    seules celles dont la peau est sous le point sont percées.
+
+    LES REFUS SE DISENT : rayon ou direction invalides ; le foret qui ne touche aucune pièce ; une direction qui
+    sort de la matière ; une pièce PLEINE (la sortie de la paroi n'est pas une autre peau — creuse d'abord) ; un
+    rayon plus fin qu'une facette ; un bord qui n'est pas un cercle simple autour de l'axe (relief, pincement)."""
+    from app.services import print3d
+    if not isinstance(rayon, (int, float)) or isinstance(rayon, bool) or not math.isfinite(rayon) or rayon <= 0:
+        raise ValueError("rayon : un nombre fini > 0 est attendu (en unités du modèle)")
+    dw = [float(c) for c in normale]
+    ln = math.sqrt(sum(c * c for c in dw))
+    if not math.isfinite(ln) or ln < 1e-12:
+        raise ValueError("direction : la direction du foret ne peut pas être nulle")
+    dw = [c / ln for c in dw]
+    ow = [float(c) for c in point]
+    rayon = float(rayon)
+    doc, binc = lire_glb(data)
+    for ext in doc.get("extensionsRequired") or []:
+        if ext in print3d._REFUS_EXTENSIONS:
+            raise ValueError(print3d._REFUS_EXTENSIONS[ext])
+    nodes = _l(doc, "nodes")
+    scenes = doc.get("scenes") or [{"nodes": list(range(len(nodes)))}]
+    racines = list(scenes[int(doc.get("scene", 0) or 0)].get("nodes") or [])
+    dans, pile = [], list(racines)
+    while pile:
+        i = pile.pop()
+        if i in dans or not (0 <= i < len(nodes)):
+            continue
+        dans.append(i)
+        pile.extend(_l(nodes[i], "children"))
+    if noeuds is None:
+        cibles = sorted(i for i in dans if nodes[i].get("mesh") is not None)
+    else:
+        cibles = sorted({int(x) for x in noeuds})
+        for i in cibles:
+            if not (0 <= i < len(nodes)) or nodes[i].get("mesh") is None:
+                raise ValueError(f"noeud {i} sans maillage — aucune pièce à percer")
+    if not cibles:
+        raise ValueError("aucune pièce à percer dans la scène active")
+
+    # ── jugement de TOUTES les pièces sous le point, avant la moindre écriture ────────────────────────────────────
+    plans, total = [], 0
+    for i in cibles:
+        nd = nodes[i]
+        nom = nd.get("name") or f"noeud_{i}"
+        m = _mat_mul(_monde_des_ancetres(doc, i), _mat_locale(nd))
+        inv = _inverse3(m)
+        if inv is None:
+            continue
+        rel = [ow[k] - m[12 + k] for k in range(3)]
+        o = tuple(sum(inv[r][c] * rel[c] for c in range(3)) for r in range(3))
+        dl = [sum(inv[r][c] * dw[c] for c in range(3)) for r in range(3)]
+        n_dl = math.sqrt(sum(c * c for c in dl))
+        d = tuple(c / n_dl for c in dl)
+        prims = _l(_l(doc, "meshes")[nd["mesh"]], "primitives")
+        pos, tris, parts = [], [], []
+        for pr in prims:
+            attrs = pr.get("attributes") or {}
+            if pr.get("mode", 4) != 4 or "POSITION" not in attrs:
+                raise ValueError(f"{nom} : primitive non TRIANGLES ou sans POSITION — hors périmètre")
+            p = lire_accesseur(doc, binc, attrs["POSITION"])
+            idx = ([t[0] for t in lire_accesseur(doc, binc, pr["indices"])] if pr.get("indices") is not None
+                   else list(range(len(p))))
+            base, t0 = len(pos), len(tris)
+            pos += [tuple(float(c) for c in v) for v in p]
+            tris += [(base + idx[k], base + idx[k + 1], base + idx[k + 2]) for k in range(0, len(idx) - 2, 3)]
+            parts.append((base, t0, len(tris)))
+        total += len(tris)
+        if total > MAX_TRIS:
+            raise ValueError(f"plus de {MAX_TRIS} triangles — le perçage dépasse son budget de temps mesuré. "
+                             "Décime d'abord (bouton « Décimer »).")
+        if not tris:
+            continue
+        xs, ys, zs = [q[0] for q in pos], [q[1] for q in pos], [q[2] for q in pos]
+        diag = math.sqrt((max(xs) - min(xs)) ** 2 + (max(ys) - min(ys)) ** 2 + (max(zs) - min(zs)) ** 2) or 1.0
+        uniques, carte = souder_positions(pos, _TOL_SOUDURE * diag)
+        st_all = [(carte[a], carte[b], carte[c]) for a, b, c in tris]
+        vivants = [k for k, t in enumerate(st_all) if len(set(t)) == 3]
+        st = [st_all[k] for k in vivants]
+        brut = _impacts(uniques, st, o, d, _TOL_POINT * diag)
+        if not brut or abs(brut[0][0]) > _TOL_POINT * diag:
+            continue                                   # le point n'est pas sur la peau de cette pièce
+        s = _echelle_uniforme(m)
+        if s is None:
+            raise ValueError(f"{nom} : échelle non uniforme — un trou rond y deviendrait ovale. Applique d'abord une "
+                             "échelle uniforme")
+        fautives = aretes_fautives(st)
+        if fautives:
+            raise ValueError(f"{nom} : maillage non fermé ({fautives} arête(s) de bord ou partagée(s) par plus de "
+                             "deux faces) — « Réparer le maillage », trous cochés, puis creuse et perce")
+        signe = 1.0 if _volume(uniques, st) >= 0 else -1.0
+        compo = _composantes(len(uniques), st)
+        # les impacts regroupés : un axe sur une arête ou un sommet touche plusieurs triangles au même t
+        impacts = []
+        for t, k in brut:
+            if impacts and t - impacts[-1][0] <= _TOL_RAYON * diag:
+                continue
+            nf = _croix(*(uniques[x] for x in st[k]))
+            impacts.append((t, k, signe * (nf[0] * d[0] + nf[1] * d[1] + nf[2] * d[2]) < 0))
+        if not impacts[0][2]:
+            raise ValueError(f"{nom} : le foret doit entrer dans la matière — sa direction sort de la pièce (la page "
+                             "envoie l'opposé de la normale de la face cliquée)")
+        if len(impacts) < 2 or impacts[1][2] or compo[impacts[1][1]] == compo[impacts[0][1]]:
+            raise ValueError(f"{nom} : pas de creux sous le foret — le perçage traverse deux peaux (dehors, puis "
+                             "dedans) et cette paroi n'en a qu'une. Creuse d'abord, puis perce")
+        t1 = impacts[1][0]
+        fond = (t1 + impacts[2][0]) / 2 if len(impacts) > 2 else 2 * t1
+        local = rayon / s
+        ax = (0.0, 0.0, 1.0) if abs(d[0]) > 0.9 else (1.0, 0.0, 0.0)
+        u = (d[1] * ax[2] - d[2] * ax[1], d[2] * ax[0] - d[0] * ax[2], d[0] * ax[1] - d[1] * ax[0])
+        lu = math.sqrt(sum(c * c for c in u))
+        u = tuple(c / lu for c in u)
+        v = (d[1] * u[2] - d[2] * u[1], d[2] * u[0] - d[0] * u[2], d[0] * u[1] - d[1] * u[0])
+        axe = []
+        for q in uniques:
+            w = (q[0] - o[0], q[1] - o[1], q[2] - o[2])
+            axe.append((w[0] * d[0] + w[1] * d[1] + w[2] * d[2], w[0] * u[0] + w[1] * u[1] + w[2] * u[2],
+                        w[0] * v[0] + w[1] * v[1] + w[2] * v[2]))
+        peaux = (compo[impacts[0][1]], compo[impacts[1][1]])
+        sous = {x for x, (t, du, dv) in enumerate(axe) if -t1 <= t <= fond and math.hypot(du, dv) <= local}
+        retire = {k for k, t in enumerate(st) if compo[k] in peaux and all(x in sous for x in t)}
+        par_peau = [sum(1 for k in retire if compo[k] == c) for c in peaux]
+        if not all(par_peau):
+            raise ValueError(f"{nom} : aucun triangle sous le foret sur la peau "
+                             f"{'extérieure' if not par_peau[0] else 'intérieure'} — le rayon est plus fin qu'une "
+                             "facette. Augmente le rayon, ou décime moins")
+        restes = [t for k, t in enumerate(st) if k not in retire]
+        boucles = _boucles_de_bord(restes)
+        if boucles is None or len(boucles) != 2:
+            raise ValueError(f"{nom} : le bord du trou n'est pas deux cercles simples "
+                             f"({'pincé' if boucles is None else f'{len(boucles)} bord(s)'}) — le foret rase un relief "
+                             "ou une arête. Vise une zone plane, ou change le rayon")
+        peau_du = {x: compo[k] for k, t in enumerate(st) for x in t}
+        dehors = [b for b in boucles if peau_du[b[0]] == peaux[0]]
+        dedans = [b for b in boucles if peau_du[b[0]] == peaux[1]]
+        tube = None
+        if len(dehors) == 1 and len(dedans) == 1:
+            tube = _tube(dehors[0], dedans[0], lambda x: math.atan2(axe[x][2], axe[x][1]))
+        if tube is None or aretes_fautives(restes + tube):
+            raise ValueError(f"{nom} : les deux bords du trou ne font pas chacun le tour du foret — vise une zone "
+                             "plane, loin des arêtes")
+        enleves = {vivants[k] for k in retire}            # index dans `tris` (non soudés), primitive par primitive
+        plans.append((i, uniques, tris, parts, enleves, tube,
+                      {"noeud_avant": i, "nom": nom, "retires_dehors": par_peau[0], "retires_dedans": par_peau[1],
+                       "bord_dehors": len(dehors[0]), "bord_dedans": len(dedans[0]), "tube": len(tube),
+                       "paroi_traversee": round(t1 * s, 12), "echelle_monde": s}))
+    if not plans:
+        raise ValueError("le foret ne touche aucune pièce — clique sur la peau de la pièce à percer")
+
+    # ── l'écriture : chaque peau perd ses triangles, le tube devient une primitive de plus ────────────────────────
+    tampon, pieces = bytearray(binc), []
+    for i, uniques, tris, parts, enleves, tube, rapport in plans:
+        nd = nodes[i]
+        partage = sorted(j for j in range(len(nodes)) if j != i and nodes[j].get("mesh") == nd["mesh"])
+        if partage:                                    # cloné : percer l'une ne perce pas l'autre
+            src = _l(doc, "meshes")[nd["mesh"]]
+            doc["meshes"].append({**src, "primitives": [dict(p) for p in _l(src, "primitives")]})
+            nd["mesh"] = len(doc["meshes"]) - 1
+        mesh = doc["meshes"][nd["mesh"]]
+        nouvelles = []
+        for (base, t0, t1_), pr in zip(parts, mesh["primitives"]):
+            if any(k in enleves for k in range(t0, t1_)):
+                pr = dict(pr)
+                pr["indices"] = _ajouter_indices(doc, tampon, [tuple(x - base for x in tris[k])
+                                                               for k in range(t0, t1_) if k not in enleves])
+            nouvelles.append(pr)
+        sommets = sorted({x for t in tube for x in t})
+        rang = {x: n for n, x in enumerate(sommets)}
+        prim_tube = {"attributes": {"POSITION": _ajouter_flottants(doc, tampon, [uniques[x] for x in sommets], 3,
+                                                                   True)},
+                     "indices": _ajouter_indices(doc, tampon, [tuple(rang[x] for x in t) for t in tube])}
+        if "material" in nouvelles[0]:
+            prim_tube["material"] = nouvelles[0]["material"]
+        mesh["primitives"] = nouvelles + [prim_tube]
+        pieces.append({**rapport, "partage_avec": partage})
+    doc["buffers"] = [{"byteLength": len(tampon)}]
+    out, neuf, m_node = _extraire_doc(doc, bytes(tampon), racines)
+    for p in pieces:
+        p["noeud_apres"] = m_node.get(p["noeud_avant"])
+    return ecrire_glb(out, neuf), {"point": ow, "normale": dw, "rayon": rayon, "repere": "monde", "pieces": pieces}

@@ -1630,5 +1630,231 @@ def test_la_route_importer_ecrit_une_VERSION_dit_les_pertes_et_borne_la_taille(m
         assert r.status_code == 413 and "Mo" in r.json()["detail"]
     assert not (d / "model.v3.glb").exists(), "aucun refus n'écrit de version"
 
+
+# ── t133 / plan-etabli T7 (partie percer) CORRIGÉ : le trou de drainage ─────────────────────────────────────────────
+# Deux défauts du plan, mesurés le 06/10 : (1) son foret était une DROITE INFINIE — sur une pièce creusée elle
+# traverse quatre peaux (paroi d'entrée dehors et dedans, paroi opposée dedans et dehors) et le plan, qui attendait
+# deux boucles, refusait TOUJOURS ; (2) il cousait `k % na` sur `k % nb` dans une seule primitive, alors que
+# creuser range la peau intérieure dans une primitive À PART, et qu'avec na ≠ nb ce zip n'est pas une variété.
+BASE_P = "111ad79c"
+
+
+def test_temoin_la_base_p_n_a_ni_percer_ni_route():
+    h = subprocess.run(["git", "show", f"{BASE_P}:backend/app/services/hollow.py"], capture_output=True,
+                       cwd=str(RACINE)).stdout
+    r = subprocess.run(["git", "show", f"{BASE_P}:backend/app/api/routes.py"], capture_output=True,
+                       cwd=str(RACINE)).stdout
+    assert h and b"def percer" not in h
+    assert r and b"/etabli/percer" not in r
+
+
+def _grille(n, cote, rentrant=False):
+    """La peau d'un cube FERMÉ et soudé, centré sur l'origine, chaque face en grille n × n : de quoi donner au
+    foret des facettes plus petites que son rayon (le cube du dépôt n'a que deux triangles par face). Sortante,
+    ou rentrante (la peau intérieure d'une coque)."""
+    h = cote / 2
+    ids, pos, tris = {}, [], []
+
+    def s(g):
+        if g not in ids:
+            ids[g] = len(pos)
+            pos.append(tuple(-h + cote * c / n for c in g))
+        return ids[g]
+
+    for a in range(3):
+        b, c = (a + 1) % 3, (a + 2) % 3
+        for cote_a in (0, n):
+            for i in range(n):
+                for j in range(n):
+                    q = []
+                    for di, dj in ((0, 0), (1, 0), (1, 1), (0, 1)):
+                        g = [0, 0, 0]
+                        g[a], g[b], g[c] = cote_a, i + di, j + dj
+                        q.append(s(tuple(g)))
+                    t1, t2 = (q[0], q[1], q[2]), (q[0], q[2], q[3])
+                    if (cote_a == 0) != rentrant:        # face -a sortante, ou face +a rentrante : on retourne
+                        t1, t2 = (t1[0], t1[2], t1[1]), (t2[0], t2[2], t2[1])
+                    tris += [t1, t2]
+    return pos, tris
+
+
+def _glb(peaux, noeud=None) -> bytes:
+    """Un GLB d'UN nœud dont chaque peau est une PRIMITIVE, avec ses propres accesseurs — la forme que creuser
+    écrit (la peau intérieure ajoutée comme une primitive de plus)."""
+    import struct
+    from app.services import mesh_edit
+    binc, vues, accs, prims = b"", [], [], []
+    for pos, tris in peaux:
+        pb = struct.pack(f"<{3 * len(pos)}f", *[c for q in pos for c in q])
+        ib = struct.pack(f"<{3 * len(tris)}H", *[i for q in tris for i in q])
+        for octets in (pb, ib):
+            while len(binc) % 4:
+                binc += b"\0"
+            vues.append({"buffer": 0, "byteOffset": len(binc), "byteLength": len(octets)})
+            binc += octets
+        accs.append({"bufferView": len(vues) - 2, "componentType": 5126, "count": len(pos), "type": "VEC3",
+                     "min": [min(q[k] for q in pos) for k in range(3)],
+                     "max": [max(q[k] for q in pos) for k in range(3)]})
+        accs.append({"bufferView": len(vues) - 1, "componentType": 5123, "count": 3 * len(tris), "type": "SCALAR"})
+        prims.append({"attributes": {"POSITION": len(accs) - 2}, "indices": len(accs) - 1, "material": 0})
+    doc = {"asset": {"version": "2.0"}, "buffers": [{"byteLength": len(binc)}], "bufferViews": vues,
+           "accessors": accs, "materials": [{"name": "pla"}], "meshes": [{"primitives": prims}],
+           "nodes": [{"name": "boite", "mesh": 0, **(noeud or {})}], "scenes": [{"nodes": [0]}], "scene": 0}
+    return mesh_edit.ecrire_glb(doc, binc)
+
+
+def _boite_maillee(n=8, noeud=None) -> bytes:
+    return _glb([_grille(n, 2.0)], noeud)
+
+
+def _coque(noeud=None) -> bytes:
+    """Une coque faite main : dehors 2 × 2 × 2 en grille 8 × 8, dedans 1,5 × 1,5 × 1,5 en grille 5 × 5,
+    rentrante — paroi 0,25, et des facettes de tailles DIFFÉRENTES sur les deux peaux, si bien que les deux bords
+    d'un trou n'ont pas le même nombre de sommets (le témoin du zip `k % na` du plan)."""
+    return _glb([_grille(8, 2.0), _grille(5, 1.5, rentrant=True)], noeud)
+
+
+def _creux(noeud=None) -> bytes:
+    """La boîte maillée creusée par creuser, paroi 0,1 — plus mince qu'une facette (0,25). Mesuré le 06/10 : à
+    paroi ÉGALE au pas de la grille, creuser pose les sommets voisins d'une arête sur l'image de l'arête, la peau
+    intérieure a des triangles d'aire nulle et n'est plus fermée (hors de t133)."""
+    from app.services import hollow
+    return hollow.creuser(_boite_maillee(8, noeud), None, 0.1)[0]
+
+
+def _sur_plan(tris, axe, val):
+    return sum(1 for t in tris if all(abs(p[axe] - val) < 1e-6 for p in t))
+
+
+def test_les_pieces_du_banc_sont_saines():
+    assert len(_tris(_boite_maillee())) == 768 and _ferme(_boite_maillee())
+    assert abs(_volume(_tris(_boite_maillee())) - 8.0) < 1e-9
+    assert _ferme(_coque()) and abs(_volume(_tris(_coque())) - (8.0 - 1.5 ** 3)) < 1e-9
+    # 0,9 n'est pas exact en float32 (le GLB) : écart mesuré 4,6e-7
+    assert _ferme(_creux()) and abs(_volume(_tris(_creux())) - (8.0 - 1.8 ** 3)) < 1e-5
+
+
+def test_creuser_DIT_les_triangles_interieurs_d_aire_nulle_a_paroi_egale_au_pas_de_la_grille():
+    """Mesuré le 06/10 : boîte maillée 8 × 8 (pas 0,25), paroi 0,25. Le sommet d'arête descend de √2 × 0,25 le long
+    de sa normale diagonale, le sommet de face voisin de 0,25 le long de la sienne : les deux tombent au MÊME point.
+    Les triangles de la bande qui longe chaque arête n'ont plus d'aire — ni retournés (`effondres` restait 0) ni
+    dits, et la sortie n'est plus fermée (140 arêtes fautives). Bande : 4 × 8 − 4 quadrangles par face (les coins
+    comptent pour deux arêtes), 2 triangles chacun, 6 faces = 336.
+    Mesuré aussi : à 0,25 EXACT le produit vectoriel vaut zéro et `n · n' <= 0` les rangeait en « effondrés » (faux
+    motif : rien ne s'auto-intersecte) ; un cheveu en dessous (0,25 × (1 − 1e-9)) l'aire est 1e-9 du dehors, positive :
+    effondres 0, avertissement None — le cas muet."""
+    from app.services import hollow
+    for paroi in (0.25, 0.25 * (1 - 1e-9)):
+        sortie, r = hollow.creuser(_boite_maillee(), None, paroi)
+        assert not _ferme(sortie), "le témoin : à paroi = pas, la peau intérieure se pince"
+        p = r["pieces"][0]
+        assert p["effondres"] == 0 and p["degeneres"] == 336, (paroi, p)
+        assert "aire nulle" in r["avertissement"] and "336" in r["avertissement"], r["avertissement"]
+        assert "effondré" not in r["avertissement"], "une aire nulle n'est pas un retournement"
+        # la paroi qui tient est JUSTE sous le pas : la dichotomie traite l'aire nulle comme une paroi qui ne tient pas
+        assert 0.25 - 0.25 / 2048 <= p["paroi_max"] < paroi and r["paroi_max"] == p["paroi_max"], p
+    # plus mince que le pas : rien à dire ; plus épaisse : les triangles se RETOURNENT (déjà comptés)
+    _s, r = hollow.creuser(_boite_maillee(), None, 0.1)
+    assert (r["pieces"][0]["degeneres"], r["pieces"][0]["effondres"], r["avertissement"]) == (0, 0, None)
+    _s, r = hollow.creuser(_boite_maillee(), None, 0.3)
+    assert r["pieces"][0]["effondres"] > 0 and r["paroi_max"] < 0.25
+
+
+def test_percer_ouvre_LA_paroi_visee_recoud_les_deux_peaux_et_laisse_la_paroi_opposee_intacte():
+    import math as _m
+    from app.services import hollow, mesh_edit
+    coque = _coque()
+    sortie, r = hollow.percer(coque, None, [0.0, 0.0, -1.0], [0.0, 0.0, 1.0], 0.4)
+    avant, apres = _tris(coque), _tris(sortie)
+    assert _ferme(sortie), "le tube recoud les deux bords : le solide reste FERMÉ"
+    dv = _volume(avant) - _volume(apres)
+    assert 0 < dv <= _m.pi * 0.4 ** 2 * 0.25 + 1e-9, "on retire au plus le cylindre du foret dans la paroi"
+    # LE DÉFAUT DU PLAN : la droite infinie perçait aussi la paroi du HAUT, dehors (z = 1) et dedans (z = 0,75)
+    assert _sur_plan(apres, 2, 1.0) == _sur_plan(avant, 2, 1.0) == 128
+    assert _sur_plan(apres, 2, 0.75) == _sur_plan(avant, 2, 0.75) == 50
+    assert _sur_plan(apres, 2, -1.0) < 128 and _sur_plan(apres, 2, -0.75) < 50
+    p = r["pieces"][0]
+    assert p["retires_dehors"] > 0 and p["retires_dedans"] > 0
+    assert p["bord_dehors"] != p["bord_dedans"], "le témoin du zip k % na : deux bords de tailles différentes"
+    assert p["tube"] == p["bord_dehors"] + p["bord_dedans"]
+    assert abs(p["paroi_traversee"] - 0.25) < 1e-9 and p["nom"] == "boite"
+    assert r["rayon"] == 0.4 and r["normale"] == [0.0, 0.0, 1.0] and r["repere"] == "monde"
+    # les deux peaux gardent leurs primitives ; le tube est une primitive DE PLUS, même matériau
+    doc, _ = mesh_edit.lire_glb(sortie)
+    prims = doc["meshes"][0]["primitives"]
+    assert len(prims) == 3 and list(prims[2]["attributes"]) == ["POSITION"]
+    assert prims[2].get("material") == prims[0].get("material") == 0
+
+
+def test_percer_suit_le_repere_MONDE_de_la_piece():
+    """La page envoie le point et la direction du clic EN MONDE ; la pièce a sa matrice. Échelle 2 et translation :
+    le même trou, deux fois plus grand en monde."""
+    from app.services import hollow
+    coque = _coque(noeud={"translation": [10.0, 0.0, 0.0], "scale": [2.0, 2.0, 2.0]})
+    sortie, r = hollow.percer(coque, None, [10.0, 0.0, -2.0], [0.0, 0.0, 1.0], 0.8)
+    assert _ferme(sortie) and abs(r["pieces"][0]["paroi_traversee"] - 0.5) < 1e-9
+    assert _sur_plan(_tris(sortie), 2, 2.0) == 128, "la paroi opposée, en monde, est intacte"
+    etire = _coque(noeud={"scale": [1.0, 1.0, 2.0]})
+    with pytest.raises(ValueError, match="échelle non uniforme"):
+        hollow.percer(etire, None, [0.0, 0.0, -2.0], [0.0, 0.0, 1.0], 0.4)
+
+
+def test_creuser_puis_percer_le_chemin_de_la_page():
+    """Le geste réel : la boîte creusée par creuser (peau intérieure SOUDÉE, primitive à part), puis percée."""
+    from app.services import hollow
+    creux = _creux()
+    sortie, r = hollow.percer(creux, None, [0.0, 0.0, -1.0], [0.0, 0.0, 1.0], 0.4)
+    assert _ferme(sortie) and abs(r["pieces"][0]["paroi_traversee"] - 0.1) < 1e-6   # 0,9 en float32
+    assert _sur_plan(_tris(sortie), 2, 1.0) == _sur_plan(_tris(sortie), 2, 0.9) == 128
+    assert 0 < _volume(_tris(creux)) - _volume(_tris(sortie))
+
+
+def test_percer_REFUSE_en_le_disant():
+    from app.services import hollow
+    creux = _coque()
+    ok = ([0.0, 0.0, -1.0], [0.0, 0.0, 1.0])
+    for rayon in (0, -1, float("nan"), True, "0.4"):
+        with pytest.raises(ValueError, match="rayon"):
+            hollow.percer(creux, None, *ok, rayon)
+    with pytest.raises(ValueError, match="direction"):
+        hollow.percer(creux, None, ok[0], [0.0, 0.0, 0.0], 0.4)
+    with pytest.raises(ValueError, match="aucun triangle"):          # plus fin qu'une facette
+        hollow.percer(creux, None, *ok, 0.01)
+    with pytest.raises(ValueError, match="deux peaux"):              # une pièce PLEINE : rien à drainer
+        hollow.percer(_boite_maillee(), None, *ok, 0.4)
+    with pytest.raises(ValueError, match="entrer dans la matière"):  # la normale de la face, qui SORT
+        hollow.percer(creux, None, ok[0], [0.0, 0.0, -1.0], 0.4)
+    with pytest.raises(ValueError, match="ne touche"):               # le foret passe à côté
+        hollow.percer(creux, None, [5.0, 5.0, -1.0], [0.0, 0.0, 1.0], 0.4)
+    with pytest.raises(ValueError, match="ne touche"):               # point en l'air devant la pièce
+        hollow.percer(creux, None, [0.0, 0.0, -3.0], [0.0, 0.0, 1.0], 0.4)
+    with pytest.raises(ValueError, match="noeud 9"):
+        hollow.percer(creux, [9], *ok, 0.4)
+
+
+def test_la_route_percer_ecrit_une_version_GARDE_la_saisie_et_juge_son_corps():
+    d = _job("job_perce", _coque())
+    ok = {"point": [0, 0, -1], "normale": [0, 0, 1], "rayon": 0.4}
+    with _client() as c:
+        r = c.post("/api/etabli/percer", json={"job": "job_perce", "version": 1, **ok, "rayon_millimetres": 4.0})
+        assert r.status_code == 200, r.text
+        j = r.json()
+        assert j["version"] == 2 and (d / "model.v2.glb").is_file() and _ferme((d / "model.v2.glb").read_bytes())
+        src = j["source"]
+        assert src["operation"] == "percer" and src["depuis"] == {"version": 1, "fichier": "model.glb"}
+        assert src["rayon_millimetres"] == 4.0 and src["rayon"] == 0.4, "AUCUNE conversion à la route"
+        r = c.post("/api/etabli/percer", json={"job": "job_perce", "version": 1, **ok, "noeuds": [0]})
+        assert r.status_code == 200 and "rayon_millimetres" not in r.json()["source"]
+        for corps in ({**ok, "rayon": 0}, {**ok, "rayon": "0.4"}, {**ok, "rayon": True}, {"point": [0, 0, -1],
+                      "normale": [0, 0, 1]}, {**ok, "normale": [0, 0, 0]}, {**ok, "point": "x"},
+                      {**ok, "point": [0, 0]}, {**ok, "rayon_millimetres": -4}, {**ok, "rayon_millimetres": "4"},
+                      {**ok, "noeuds": ["a"]}, {**ok, "noeuds": [-1]}, {**ok, "noeuds": 0}):
+            assert c.post("/api/etabli/percer", json={"job": "job_perce", "version": 1, **corps}).status_code == 400, corps
+        _job("job_perce_plein", _boite_maillee())
+        r = c.post("/api/etabli/percer", json={"job": "job_perce_plein", "version": 1, **ok})
+        assert r.status_code == 400 and "deux peaux" in r.json()["detail"] and "Creuse" in r.json()["detail"]
+    assert not list((d.parent / "job_perce_plein").glob("model.v*.glb")), "aucun refus n'écrit de version"
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

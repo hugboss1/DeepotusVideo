@@ -90,6 +90,8 @@ class Settings(BaseSettings):
 
     # Voicebox (optional) — serveur TTS local; vide = http://127.0.0.1:17493
     VOICEBOX_URL: str = ""
+    # Service GPU local (optionnel, T107) — Hunyuan3D 2.1 lancé à côté ; vide = http://127.0.0.1:8081
+    LOCAL3D_URL: str = ""
 
     # Clapbox (optional, T103 / plan son-vfx D3) — service local d'embeddings
     # CLAP (texte ↔ audio) ; vide = http://127.0.0.1:17494. Voir tools/clapbox/.

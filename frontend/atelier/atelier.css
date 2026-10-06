@@ -408,3 +408,12 @@ textarea#script[readonly] { opacity: .72; cursor: not-allowed; }
 
 /* Tâche #66 — les sorties de l'animatique vers le Montage */
 .anim-sorties{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+/* T103 (plan-son-vfx T14-T15, D4) : tempérament du personnage, casting du plan */
+.voice-temper{display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:4px}
+.voice-temper .temper-note{font-size:11px;color:var(--ink-soft)}
+.voice-temper .btn{font-size:10.5px;padding:1px 6px}
+.voice-temper .btn.on{color:var(--cyan);border-color:var(--cyan)}
+.shot-cast{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px}
+.cast-chip{font-size:10.5px;line-height:16px;padding:0 6px;border-radius:8px;color:var(--ink-soft);border:1px solid var(--ink-muted)}
+.cast-chip.cast-none{border-style:dashed;color:var(--amber)}
