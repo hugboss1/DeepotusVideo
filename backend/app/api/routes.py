@@ -11180,6 +11180,75 @@ async def material_catalog_import(body: dict):
     return {"materials": faits}
 
 
+@router.get("/materials/patterns")
+async def list_material_patterns():
+    """Les générateurs paramétriques locaux, avec leurs réglages et leurs
+    bornes. L'écran ne recopie AUCUN chiffre : il lit cette liste."""
+    from app.services import pattern_service as PS
+    return {"patterns": [
+        {"id": g["id"], "label": g["label"], "sombre": g["sombre"],
+         "clair": g["clair"],
+         "params": [{**c, "choix": list(c.get("choix", []))}
+                    for c in g["params"]]}
+        for g in PS.GENERATEURS],
+        "budget_s": PS.BUDGET_MOTIF_1024}
+
+
+@router.post("/materials/patterns/{gid}")
+async def generate_material_pattern(gid: str, body: dict = None):
+    """Fabrique une matière depuis un générateur. LOCAL ET GRATUIT : aucune
+    clé, aucun réseau, aucun crédit — et c'est l'argument de ce bac."""
+    from app.services import material_store as MS
+    from app.services import pattern_service as PS
+    body = body if isinstance(body, dict) else {}
+    res = MS.clean_res(body.get("res"), 1024)
+    params = PS.clean_params(gid, body.get("params"))
+    if not params and gid not in {g["id"] for g in PS.GENERATEURS}:
+        raise HTTPException(400, f"générateur « {gid} » inconnu")
+    graine = 0
+    try:
+        graine = int(body.get("seed") or 0)
+    except (TypeError, ValueError):
+        graine = 0
+
+    def _travail():
+        from app.services import pbr_service as PBR
+        deux = PS.generer(gid, res, params, graine,
+                          str(body.get("sombre") or ""),
+                          str(body.get("clair") or ""))
+        mat = MS.create_material(
+            name=MS.clean_name(body.get("name")
+                               or next(g["label"] for g in PS.GENERATEURS
+                                       if g["id"] == gid)),
+            prompt="", full_prompt="", res=res, seamless=True,
+            seam={"before": None, "after": None},
+            source={"kind": "pattern", "model": gid, "filename": None,
+                    "prep": None})
+        maps = PBR.derive_maps(deux["basecolor"], mat["derive"],
+                               list(MS.SECONDARY_MAPS))
+        # la hauteur du GÉNÉRATEUR l'emporte sur celle dérivée de la couleur :
+        # il la connaît exactement, la dérivation ne fait que l'estimer
+        maps["height"] = deux["height"]
+        maps["normal"] = PBR.derive_maps(
+            deux["height"].convert("RGB"), mat["derive"], ["normal"])["normal"]
+        maps["basecolor"] = deux["basecolor"]
+        maps["orm"] = PILImage.merge("RGB", (maps["ao"].convert("L"),
+                                          maps["roughness"].convert("L"),
+                                          maps["metallic"].convert("L")))
+        MS.save_maps(mat["id"], maps)
+        m = MS.read_material(mat["id"])
+        m["props"] = MS.merge_props(m["props"], MS.natural_levels(maps))
+        m["pattern"] = {"id": gid, "params": params, "seed": graine}
+        m = MS.refresh_report(m, maps)
+        MS.write_material(m)
+        return MS.read_material(mat["id"])
+
+    try:
+        return {"material": await asyncio.to_thread(_travail)}
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
 @router.get("/materials/namings")
 async def list_material_namings():
     """Les conventions d'export, avec l'emplacement de destination de chaque
