@@ -763,3 +763,75 @@ def parse_ebur128(stderr: str) -> dict:
             return None
     return {"lufs_i": _last(_EBUR_I), "tp": _last(_EBUR_PEAK),
             "lra": _last(_EBUR_LRA)}
+
+
+
+# ─────────────── mix voix + musique ducké, sans timeline (T102) ────────────
+
+def mix_duck(voice: str, music: str, music_db=-14.0, ducking=True) -> dict:
+    """T102 (plan-son-vfx T8, D1) — le mix voix + musique de Son & VFX, sans
+    passer par le Montage : la voix pilote le compresseur de la musique (LA
+    chaîne partagée, `ducking_filter`), le mix dure LA VOIX (`amix
+    duration=first`), et sort en `mix_<voix>_<musique>.mp3` dans la
+    Bibliothèque (sidecar kind « mix » + parents). Gratuit : ffmpeg local.
+
+    Bloquante (à lancer en exécuteur) ; rend {filename, url, dur, parent,
+    relation, usd} — la ROUTE note l'index (noter_bg est muet en thread)."""
+    d = _audio_dir()
+    v = d / Path(str(voice or "")).name
+    m = d / Path(str(music or "")).name
+    if not v.is_file():
+        raise SfxError(404, f"voix introuvable : {voice}")
+    if not m.is_file():
+        raise SfxError(404, f"musique introuvable : {music}")
+    if v.name == m.name:
+        raise SfxError(400, "la voix et la musique sont le même fichier.")
+    try:
+        mdb = max(-40.0, min(0.0, float(music_db)))
+    except (TypeError, ValueError):
+        mdb = -14.0
+    if mdb != mdb:
+        mdb = -14.0
+    duck = parse_ducking(ducking)
+    out = d / f"mix_{v.stem[:24]}_{m.stem[:24]}.mp3"
+    i = 2
+    while out.exists():
+        out = d / f"mix_{v.stem[:24]}_{m.stem[:24]}_{i}.mp3"
+        i += 1
+    # format commun AVANT le sidechain : ses deux entrées doivent s'accorder
+    fmt = "aresample=async=1,aformat=sample_rates=44100:channel_layouts=stereo"
+    # PAS d'`apad` sur le détecteur ici, à la différence de la Quick et du
+    # Montage : la voix y est AUSSI l'horloge (`amix duration=first`), donc la
+    # fin du détecteur et la fin du mix coïncident — le prolonger ne changeait
+    # rien de mesurable (mutant équivalent de la campagne T102). La musique,
+    # bouclée sans fin, ne termine jamais la première — d'où aussi l'égalité
+    # `duration=first` / `shortest` (second équivalent) : `first` est gardé
+    # parce qu'il DIT l'intention, la voix fait la durée.
+    # Sans ducking, pas de détecteur du tout (une copie envoyée à `anullsink`
+    # est une branche de plus pour rien).
+    music = f"[1:a]{fmt},volume={_g(10 ** (mdb / 20))}[m];"
+    chain = ((f"[0:a]{fmt},asplit=2[vsc][vmix];{music}"
+              f"[m][vsc]{ducking_filter(duck)}[md];") if duck
+             else f"[0:a]{fmt}[vmix];{music}[m]anull[md];") \
+        + "[vmix][md]amix=inputs=2:duration=first:normalize=0[outa]"
+    tmp = out.with_name(out.name + ".part")
+    cmd = ["ffmpeg", "-y", "-hide_banner", "-v", "error", "-i", str(v),
+           "-stream_loop", "-1", "-i", str(m), "-filter_complex", chain,
+           "-map", "[outa]", "-c:a", "libmp3lame", "-b:a", "192k", "-f", "mp3",
+           str(tmp)]
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        tmp.unlink(missing_ok=True)
+        raise SfxError(502, f"mix impossible : {e}") from e
+    if r.returncode != 0 or not tmp.is_file():
+        tmp.unlink(missing_ok=True)
+        raise SfxError(502, f"mix impossible : {(r.stderr or '')[-300:]}")
+    os.replace(tmp, out)
+    dur = _probe_duration(out)
+    record_meta(out.name, {"kind": "mix", "parents": [v.name, m.name],
+                           "music_db": mdb, "ducking": bool(duck), "dur": dur,
+                           "created": datetime.now().isoformat(timespec="seconds")})
+    return {"ok": True, "filename": out.name, "url": f"/api/audio/{out.name}",
+            "dur": round(dur, 2), "parent": v.name, "relation": "mix",
+            "usd": 0.0}

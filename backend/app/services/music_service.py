@@ -76,7 +76,38 @@ MUSIC_MODELS: dict = {
         "lyrics": False, "instrumental": False, "seed": False,
         "usd": 0.04,
     },
+    # ── T102 (plan-son-vfx T6, P4) : la chanson chantée ─────────────────────
+    # Schémas relus le 06/10/2026 sur l'openapi « queue » de fal :
+    # ace-step `duration` 5-240 (défaut 60), `tags` REQUIS, pas de `prompt` ;
+    # minimax-music/v2 `prompt` 10-2000 (le plan du 03/09 disait 300) et
+    # `lyrics_prompt` 10-3000, TOUS DEUX requis. « MiniMax Music 3 » :
+    # minimax-music/v3 rend 404 à l'openapi — il n'entre pas au registre (on
+    # n'invente pas un identifiant).
+    "ace-step": {
+        "label": "ACE-Step (paroles)", "provider": "fal",
+        "endpoint": "fal-ai/ace-step",
+        "desc": "Le moins cher : chanson complète avec paroles structurées "
+                "[verse]/[chorus]/[bridge]. Genres en balises, graine "
+                "reproductible.",
+        "duration": (5, 240), "fixed_duration": None,
+        "lyrics": True, "instrumental": True, "seed": True,
+        # « $0.0002 per second of generated audio » (page modèle, 06/10)
+        "usd": 0.0002, "usd_unit": "s", "lyrics_style": "ace",
+    },
+    "minimax-music-20": {
+        "label": "MiniMax Music 2.0", "provider": "fal",
+        "endpoint": "fal-ai/minimax-music/v2",
+        "desc": "Chanson chantée à partir de paroles OBLIGATOIRES "
+                "(10 à 3000 caractères) et d'une description.",
+        "duration": None, "fixed_duration": None,
+        "lyrics": True, "instrumental": False, "seed": False,
+        # « $0.03 per generation » (page modèle, 06/10)
+        "usd": 0.03, "usd_unit": "gen", "lyrics_style": "minimax",
+        "lyrics_required": True, "prompt_max": 2000,
+    },
 }
+# la convention de balises de 2.6 est celle de Music 2.0 ([Verse]/[Chorus])
+MUSIC_MODELS["minimax-music-26"]["lyrics_style"] = "minimax"
 
 # Ambiances proposées dans l'UI : un libellé + le fragment de prompt qu'il
 # injecte. Elles existent parce qu'un prompt de musique vide donne toujours le
@@ -134,7 +165,9 @@ def catalog() -> dict:
              "duration": list(v["duration"]) if v["duration"] else None,
              "fixed_duration": v["fixed_duration"], "lyrics": v["lyrics"],
              "instrumental": v["instrumental"], "seed": v["seed"],
-             "usd": v["usd"]}
+             "usd": v["usd"], "usd_unit": v.get("usd_unit", "gen"),
+             "lyrics_style": v.get("lyrics_style"),
+             "lyrics_required": bool(v.get("lyrics_required"))}
             for k, v in MUSIC_MODELS.items()],
         "moods": MOODS,
     }
@@ -157,6 +190,70 @@ def build_prompt(prompt: str, mood: str = "") -> str:
     return out[:_MAX_PROMPT]
 
 
+# ── paroles structurées (T102) ─────────────────────────────────────────────
+# Les deux familles ne lisent pas les mêmes balises : ACE-Step veut des
+# minuscules ([verse]/[chorus]/[bridge], « [inst] » = instrumental), MiniMax
+# des capitalisées ([Verse]/[Chorus], doc 2.6). L'utilisateur écrit dans la
+# langue qu'il veut (couplet/refrain/pont) ; on traduit à l'envoi.
+_TAG_MAP = {"verse": "verse", "couplet": "verse", "chorus": "chorus",
+            "refrain": "chorus", "bridge": "bridge", "pont": "bridge",
+            "intro": "intro", "outro": "outro"}
+_TAG_RX = re.compile(r"\[([^\[\]\n]{1,24})\]")
+
+
+def normalize_lyrics(text: str, style: str | None,
+                     instrumental: bool = False) -> str:
+    """Paroles balisées -> convention du modèle. Un tag inconnu ([Solo]) est
+    laissé tel quel : le modèle le lit ou l'ignore, on ne l'efface pas."""
+    if style == "ace" and instrumental:
+        return "[inst]"
+
+    def sub(m):
+        k = _TAG_MAP.get(m.group(1).strip().lower())
+        if not k:
+            return m.group(0)
+        return f"[{k}]" if style == "ace" else f"[{k.capitalize()}]"
+    return _TAG_RX.sub(sub, str(text or "").strip())[:_MAX_LYRICS]
+
+
+def lyrics_skeleton(persona_id: str = "deepotus", theme: str = "") -> str:
+    """Squelette [Verse]/[Chorus]/[Verse]/[Bridge]/[Chorus] nourri par la
+    persona (nom, mots-clés d'univers) — un point de départ, jamais des
+    paroles finies. Persona illisible : le squelette sort quand même."""
+    import json
+    from app.services.elevenlabs_service import PERSONAS_DIR
+    pid = re.sub(r"[^a-z0-9_-]", "", str(persona_id or "").lower()) or "deepotus"
+    try:
+        d = json.loads((PERSONAS_DIR / f"{pid}.json").read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        d = {}
+    name = str(d.get("display_name") or pid).split(" — ")[0]
+    kws = ", ".join(str(k) for k in (d.get("vibe_keywords") or [])[:4])
+    t = str(theme or "").strip()[:120] or "from the deep"
+    return (f"[Verse]\n{name} — {t}\n{kws}\n\n[Chorus]\n{name}, {t}\n\n"
+            f"[Verse]\n…\n\n[Bridge]\n…\n\n[Chorus]\n{name}, {t}")
+
+
+def default_seconds(model: dict) -> int | None:
+    """La durée envoyée quand l'utilisateur n'en donne pas — UNE fonction,
+    lue par `_payload` ET par l'estimation (pricing) : un modèle facturé à la
+    seconde doit être chiffré sur la durée qui partira vraiment."""
+    return model["duration"][1] // 2 if model.get("duration") else None
+
+
+def billed_seconds(model: dict, duration_s=None) -> int | None:
+    """Durée facturée d'un modèle à la seconde (bornée à sa plage), sinon None."""
+    if not model.get("duration"):
+        return None
+    lo, hi = model["duration"]
+    try:
+        d = (int(round(float(duration_s))) if duration_s not in (None, "", 0)
+             else default_seconds(model))
+    except (TypeError, ValueError):
+        d = default_seconds(model)
+    return max(lo, min(hi, d))
+
+
 def _payload(model: dict, prompt: str, body: dict) -> tuple[dict, list[str]]:
     """Charge utile fal + liste des réglages ignorés faute de support."""
     args: dict = {"prompt": prompt}
@@ -166,7 +263,8 @@ def _payload(model: dict, prompt: str, body: dict) -> tuple[dict, list[str]]:
     if model["duration"]:
         lo, hi = model["duration"]
         try:
-            d = int(round(float(dur))) if dur not in (None, "", 0) else hi // 2
+            d = (int(round(float(dur))) if dur not in (None, "", 0)
+                 else default_seconds(model))
         except (TypeError, ValueError):
             raise MusicError(400, f"duration_s invalide ({lo}-{hi} s).")
         if not lo <= d <= hi:
@@ -183,9 +281,32 @@ def _payload(model: dict, prompt: str, body: dict) -> tuple[dict, list[str]]:
 
     lyrics = str(body.get("lyrics") or "").strip()
     instrumental = bool(body.get("instrumental", True))
-    if model["lyrics"]:
+    style = model.get("lyrics_style")
+    if style == "ace":
+        # ACE-Step n'a PAS de `prompt` : la description part en `tags`
+        # (genres séparés par des virgules, seul champ requis). Sans paroles,
+        # c'est un instrumental — « [inst] », sa convention. La graine est
+        # posée plus bas par la branche commune.
+        body_args, args = args, {"tags": prompt[:_MAX_PROMPT]}
+        if "duration" in body_args:
+            args["duration"] = body_args["duration"]
+        args["lyrics"] = normalize_lyrics(
+            lyrics, "ace", instrumental=instrumental or not lyrics)
+    elif model.get("lyrics_required"):
+        # Music 2.0 : paroles ET description obligatoires (schéma : 10 car.
+        # minimum chacune) — un refus nommé vaut mieux qu'une 422 de fal. Les
+        # BALISES ne comptent pas : « [Verse]\n[Chorus]\nla » fait 16
+        # caractères pour fal mais ne chante que deux lettres (mesuré au banc
+        # d'écran : l'éditeur sérialise ses sections, et une section vide
+        # passait la borne de fal à elle seule).
+        if len(_TAG_RX.sub("", lyrics).strip()) < 10:
+            raise MusicError(400, f"{model['label']} exige des paroles "
+                                  f"(10 à 3000 caractères).")
+        args["prompt"] = prompt[:model.get("prompt_max", _MAX_PROMPT)]
+        args["lyrics_prompt"] = normalize_lyrics(lyrics, "minimax")[:3000]
+    elif model["lyrics"]:
         if lyrics:
-            args["lyrics"] = lyrics[:_MAX_LYRICS]
+            args["lyrics"] = normalize_lyrics(lyrics, style)
             args["is_instrumental"] = False
         elif instrumental:
             args["is_instrumental"] = True
@@ -264,7 +385,8 @@ async def generate_music(body: dict) -> dict:
     args, notes = _payload(model, prompt, body)
 
     logger.info("music [{}] -> {} · args={}", model_id, model["endpoint"],
-                {k: v for k, v in args.items() if k != "lyrics"})
+                {k: v for k, v in args.items()
+                 if k not in ("lyrics", "lyrics_prompt")})
     try:
         result = await fal_client.subscribe_async(
             model["endpoint"], arguments=args, with_logs=False)
@@ -302,5 +424,8 @@ async def generate_music(body: dict) -> dict:
                  "size_kb": dest.stat().st_size // 1024},
         "model": model_id, "model_label": model["label"],
         "prompt": prompt, "notes": notes,
-        "usd": model["usd"],
+        # un modèle à la seconde coûte usd x la durée DEMANDÉE (celle envoyée)
+        "usd": (round(model["usd"] * args["duration"], 6)
+                if model.get("usd_unit") == "s" and "duration" in args
+                else model["usd"]),
     }

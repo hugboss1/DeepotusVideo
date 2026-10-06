@@ -364,6 +364,49 @@ function SvmParticles(props){
         r.jsx("div",{className:"svm-note",children:
           "Un clic relance le preset « "+(cur?cur.name:"—")+" » avec cette texture : c'est ainsi qu'on obtient une variante en une seconde."})]})]})]})}
 
+/* ── T102 (plan-son-vfx T6) : éditeur de paroles structurées ────────────────
+   Sections [Verse]/[Chorus]/[Bridge] éditées une par une, sérialisées en texte
+   balisé : le BACKEND normalise par modèle (ACE-Step : minuscules, MiniMax :
+   capitalisées), l'écran n'écrit qu'une convention. Le thème du squelette se
+   demande par le dialogue maison (jamais window.prompt). */
+function svmLyricsParse(t){var out=[],cur=null;
+  String(t||"").split(/\r?\n/).forEach(function(l){var mt=/^\[([^\]]+)\]\s*$/.exec(l.trim());
+    if(mt){cur={tag:mt[1],text:""};out.push(cur)}
+    else if(cur)cur.text+=(cur.text?"\n":"")+l;
+    else if(l.trim()){cur={tag:"Verse",text:l};out.push(cur)}});
+  return out}
+function svmLyricsJoin(secs){return secs.map(function(s){return "["+s.tag+"]\n"+String(s.text||"").trim()}).join("\n\n")}
+var SVM_LYR_ADD=[["Verse","+ couplet"],["Chorus","+ refrain"],["Bridge","+ pont"]];
+function SvmLyricsEditor(props){
+  var secs=svmLyricsParse(props.value);
+  function set(next){props.onChange(svmLyricsJoin(next))}
+  async function skeleton(){
+    var th=window.__dzDialogue?await window.__dzDialogue.saisir("Thème de la chanson (laisser vide : « from the deep ») :",
+      {titre:"Squelette de paroles",ok:"Poser"}):"";
+    if(th==null)return;
+    fetch("/api/music/lyrics-skeleton?theme="+encodeURIComponent(th))
+      .then(function(r2){return r2.json()}).then(function(d){if(d&&d.lyrics)props.onChange(d.lyrics)}).catch(function(){})}
+  return r.jsxs("div",{className:"svm-lyrics",children:[
+    r.jsxs("div",{className:"svm-toolrow",style:{flexWrap:"wrap"},children:[
+      SVM_LYR_ADD.map(function(a){return r.jsx("button",{className:"svm-minibtn",
+        onClick:function(){set(secs.concat([{tag:a[0],text:""}]))},children:a[1]},a[0])}),
+      r.jsx("button",{className:"svm-minibtn",title:"Squelette nourri par la persona deepotus (gratuit)",
+        onClick:skeleton,children:"squelette persona"}),
+      props.required?r.jsx("span",{className:"svm-note",style:{marginTop:0},
+        children:"paroles obligatoires pour ce modèle (10 caractères au moins)"}):null]}),
+    secs.length?null:r.jsx("div",{className:"svm-note",
+      children:props.required?"aucune section — ajoute un couplet, ou pose le squelette persona":(props.style==="ace"?"vide : le modèle joue un instrumental ([inst])":"vide : le modèle écrit lui-même les paroles depuis l'ambiance")}),
+    secs.map(function(s,i){return r.jsxs("div",{className:"svm-lyrsec",children:[
+      r.jsx("input",{className:"svm-lyrtag",value:s.tag,"aria-label":"Balise de la section "+(i+1),
+        onChange:function(e){var n=secs.slice();n[i]=Object.assign({},s,{tag:e.target.value.replace(/[\[\]\n]/g,"")||"Verse"});set(n)}}),
+      r.jsx("textarea",{className:"svm-musicprompt",rows:2,value:s.text,"aria-label":"Paroles de la section "+(i+1),
+        onChange:function(e){var n=secs.slice();n[i]=Object.assign({},s,{text:e.target.value});set(n)}}),
+      r.jsx("button",{className:"svm-minibtn",title:"Retirer la section","aria-label":"Retirer la section "+(i+1),
+        onClick:function(){set(secs.filter(function(_s,j){return j!==i}))},children:"✕"})]},i)})]})}
+/* le prix affiché d'un modèle de musique : par génération, ou à la seconde (ACE-Step) sur la durée choisie */
+function svmMusicPrice(v,dur){
+  return v.usd_unit==="s"?"~$"+(v.usd*dur).toFixed(3)+" · "+dur+" s":"~$"+v.usd.toFixed(2)}
+
 /* ── Musique : génération fal.ai sur la clé déjà configurée ─────────────── */
 function SvmMusic(props){
   var s1=x.useState(null),cat=s1[0],setCat=s1[1];
@@ -376,24 +419,35 @@ function SvmMusic(props){
   var s8=x.useState(!1),busy=s8[0],setBusy=s8[1];
   var s9=x.useState(null),res=s9[0],setRes=s9[1];
   var sA=x.useState(""),err=sA[0],setErr=sA[1];
+  var sB=x.useState(""),seed=sB[0],setSeed=sB[1];
   x.useEffect(function(){var alive=!0;
     fetch("/api/music-models").then(function(r2){return r2.json()})
       .then(function(d){if(!alive)return;setCat(d);setModel(d.default||"")})
       .catch(function(){if(alive)setCat({enabled:!1,models:[],moods:[]})});
     return function(){alive=!1}},[]);
   var m=cat&&cat.models.filter(function(v){return v.id===model})[0];
+  /* T102 : les paroles se montrent quand le modèle les prend ET que la voix est
+     demandée — ou TOUJOURS si le modèle n'a pas d'interrupteur instrumental
+     (Music 2.0 : paroles obligatoires ; avant, l'état « instrumental » par
+     défaut les cachait à jamais) */
+  var showLyr=!!(m&&m.lyrics&&(!m.instrumental||!inst));
+  var durNow=m&&m.duration?Math.min(m.duration[1],Math.max(m.duration[0],dur)):dur;
   function go(){
     if(busy||!m)return;
     if(!prompt.trim()&&!mood){setErr("Choisis une ambiance ou décris la musique.");return}
+    /* les BALISES ne comptent pas (même règle que le serveur) : une section vide passait la borne à elle seule */
+    if(m.lyrics_required&&lyrics.replace(/\[[^\[\]\n]{1,24}\]/g,"").trim().length<10){setErr(m.label+" exige des paroles (10 caractères au moins).");return}
     setBusy(!0);setErr("");setRes(null);
     fetch("/api/audio/music",{method:"POST",
       headers:{"Content-Type":"application/json"},
       body:JSON.stringify({model:model,prompt:prompt,mood:mood,
-        duration_s:m.duration?dur:null,instrumental:inst,
-        lyrics:m.lyrics&&!inst?lyrics:""})})
+        duration_s:m.duration?durNow:null,instrumental:m.instrumental?inst:!1,
+        lyrics:showLyr?lyrics:"",
+        seed:m.seed&&String(seed).trim()!==""&&isFinite(Number(seed))?Math.round(Number(seed)):void 0})})
       .then(function(r2){return r2.json().then(function(d){
         if(!r2.ok)throw new Error(d.detail||"génération refusée");return d})})
       .then(function(d){setBusy(!1);setRes(d);
+        if(props.onGenerated&&d.item)props.onGenerated(d.item);
         props.onNote("Piste ajoutée à la Bibliothèque (sons) — disponible en musique de fond du Montage.")})
       .catch(function(e){setBusy(!1);setErr(e.message||String(e))})}
 
@@ -431,7 +485,7 @@ function SvmMusic(props){
           onClick:function(){setModel(v.id)},children:[
           r.jsxs("div",{className:"svm-genrow",children:[
             r.jsx("span",{className:"svm-genname",children:v.label}),
-            r.jsx("span",{className:"svm-genprice",children:"~$"+v.usd.toFixed(2)})]}),
+            r.jsx("span",{className:"svm-genprice",children:svmMusicPrice(v,v.duration?Math.min(v.duration[1],Math.max(v.duration[0],dur)):dur)})]}),
           r.jsx("div",{className:"svm-gendesc",children:v.desc}),
           r.jsxs("div",{className:"svm-modelcaps",children:[
             r.jsx("span",{className:"svm-cap","data-on":v.duration?"":void 0,
@@ -455,13 +509,15 @@ function SvmMusic(props){
           r.jsx("input",{type:"checkbox",checked:inst,
             onChange:function(e){setInst(e.target.checked)}}),
           r.jsx("span",{children:"instrumental"})]}):null,
+        m.seed?r.jsx("input",{className:"svm-transdur",type:"number",step:1,value:seed,placeholder:"graine",
+          title:"Graine (facultative) : la même graine et les mêmes réglages redonnent la même piste",
+          "aria-label":"Graine de génération",
+          onChange:function(e){setSeed(e.target.value)}}):null,
         r.jsx("button",{className:"svm-nbgold","data-off":busy?"":void 0,
           title:"Génère la piste et la dépose dans la Bibliothèque (sons)",
           onClick:go,children:busy?"génération…":"Générer la musique"})]}):null,
-      m&&m.lyrics&&!inst?r.jsx("textarea",{className:"svm-musicprompt",rows:3,
-        maxLength:3500,value:lyrics,"aria-label":"Paroles",
-        placeholder:"[Verse]\nÉcris les paroles, ou laisse vide : le modèle les écrira depuis l'ambiance.\n[Chorus]",
-        onChange:function(e){setLyrics(e.target.value)}}):null,
+      showLyr?r.jsx(SvmLyricsEditor,{value:lyrics,onChange:function(v){setLyrics(v);if(err)setErr("")},
+        required:!!m.lyrics_required,style:m.lyrics_style}):null,
       err?r.jsx("div",{className:"svm-note",style:{color:"var(--red)"},children:"Échec : "+err}):null]}),
 
     res?r.jsxs("div",{className:"svm-card",children:[
@@ -482,6 +538,25 @@ function SvmMusic(props){
         r.jsx("button",{className:"svm-primarybtn",
           onClick:function(){props.go&&props.go("montage")},
           children:"Ouvrir le Montage →"})]})]}):null]})}
+
+/* T102 : le devis d'une action payante — LE chiffre du backend (le même que la
+   garde des plafonds), jamais un tarif recopié ici. null = devis indisponible. */
+function svmEstimate(op){
+  return fetch("/api/cost/estimate",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(op)})
+    .then(function(r2){return r2.ok?r2.json():null})
+    .then(function(d){return d&&typeof d.total_usd==="number"?d.total_usd:null})
+    .catch(function(){return null})}
+/* T102 (plan-son-vfx T7) : ce qui part au modèle — le MIROIR de
+   voice_direction.apply_style : les balises du style en tête, sauf si le texte
+   commence déjà par une balise (l'auteur a dirigé lui-même) */
+var SVM_TAG_HEAD=/^\[[^\[\]\n]{1,40}\]/;
+function svmVoText(tags,script){var t=String(script||"").trim();
+  return !tags.length||SVM_TAG_HEAD.test(t)?t:(tags.join(" ")+" "+t)}
+/* T102 (plan-son-vfx T8) : trois réglages de ducking nommés — paramètres de
+   parse_ducking (bornés côté serveur), du plus discret au plus marqué */
+var SVM_DUCK={leger:{label:"léger",ratio:3,threshold:.08},moyen:{label:"moyen",ratio:6,threshold:.05},
+  fort:{label:"fort",ratio:12,threshold:.03}};
 
 /* ═════════════════════ Écran 06 · Son & VFX ═════════════════════ */
 function DzSonVfx(props){
@@ -512,7 +587,24 @@ function DzSonVfx(props){
   var stF1=x.useState("impacts"),sfxFam=stF1[0],setSfxFam=stF1[1];
   var stF2=x.useState("fire"),partFam=stF2[0],setPartFam=stF2[1];
   var stPl=x.useState(""),playId=stPl[0],setPlayId=stPl[1]; /* url en écoute */
+  /* T102 (T7) : voix off dirigée — texte, balises v3 posées, palette servie, devis armé */
+  var stV1=x.useState(""),voScript=stV1[0],setVoScript=stV1[1];
+  var stV2=x.useState([]),voTags=stV2[0],setVoTags=stV2[1];
+  var stV3=x.useState(null),tagCat=stV3[0],setTagCat=stV3[1];
+  var stV4=x.useState(!1),voBusy=stV4[0],setVoBusy=stV4[1];
+  var stV5=x.useState(null),voArm=stV5[0],setVoArm=stV5[1]; /* {usd} : devis lu, le 2e clic tire */
+  /* T102 (T8) : mix voix + musique ducké, sans timeline */
+  var stM1=x.useState(""),mixVoice=stM1[0],setMixVoice=stM1[1];
+  var stM2=x.useState(""),mixMusic=stM2[0],setMixMusic=stM2[1];
+  var stM3=x.useState("moyen"),mixPreset=stM3[0],setMixPreset=stM3[1];
+  var stM4=x.useState(!1),mixBusy=stM4[0],setMixBusy=stM4[1];
+  var stM5=x.useState(null),mixRes=stM5[0],setMixRes=stM5[1];
   var nt=svmUseNote(),note=nt[0],fireNote=nt[1];
+  x.useEffect(function(){var alive=!0;
+    fetch("/api/voice-tags").then(function(r2){return r2.json()})
+      .then(function(d){if(alive)setTagCat(d&&d.groups?d:{groups:{},providers:{},experimental:[]})})
+      .catch(function(){if(alive)setTagCat({groups:{},providers:{},experimental:[]})});
+    return function(){alive=!1}},[]);
   var audioRef=x.useRef(null),rafRef=x.useRef(0),simRef=x.useRef(0);
 
   x.useEffect(function(){var alive=!0;
@@ -703,6 +795,92 @@ function DzSonVfx(props){
       r.jsx("button",{className:"svm-primarybtn",
         onClick:function(){props.go&&props.go("montage")},children:"Envoyer au montage →"})]})]});
 
+  /* ── T102 (T7) : la voix off DIRIGÉE — une vraie génération ──────────────
+     Palette des balises Eleven v3 servie par /api/voice-tags (registre relu
+     côté serveur) ; l'aperçu montre EXACTEMENT ce qui part ; payante, donc
+     armée : 1er clic = devis du backend, 2e clic = tir. Sous Voicebox, pas de
+     palette (les balises seraient retirées) et un seul clic (local, gratuit). */
+  var voText=svmVoText(voTags,voScript);
+  var voEleven=!!(tagCat&&tagCat.providers&&tagCat.providers.elevenlabs);
+  function voFire(){setVoBusy(!0);setVoArm(null);
+    fetch("/api/audio/voiceover",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({script:voScript,language:"fr",name:"sonvfx_vo",
+        voice_id:voices&&voices.enabled?selVoice:void 0,
+        model:voTags.length?"eleven_v3":void 0,style:{tags:voTags}})})
+      .then(function(r2){return r2.json().then(function(d){if(!r2.ok)throw new Error(d.detail||"échec");return d})})
+      .then(function(d){setVoBusy(!1);setMixVoice(d.filename);
+        setCur({file:d.filename,dur:0,pos:0,peaks:cur.peaks,pill:"générée",url:d.url});
+        fireNote("Voix générée : "+d.filename+((d.notes||[]).length?" — "+d.notes.join(" · "):""))})
+      .catch(function(e){setVoBusy(!1);fireNote("Voix : "+String(e&&e.message||e))})}
+  function voGo(){
+    if(voBusy||!voScript.trim())return;
+    if(!voEleven){voFire();return}
+    if(voArm){voFire();return}
+    svmEstimate({kind:"elevenlabs",chars:voText.length,model:voTags.length?"eleven_v3":void 0})
+      .then(function(usd){setVoArm({usd:usd})})}
+  var voCard=r.jsxs("div",{className:"svm-card svm-vodir",children:[
+    r.jsxs("div",{className:"svm-cardhead",children:[
+      r.jsx(SvmLabel,{children:"Voix off dirigée"}),
+      r.jsx("span",{className:"svm-note",style:{marginTop:0},
+        children:"clique une balise pour la poser en tête (4 au plus) — Eleven v3 les joue"})]}),
+    r.jsx("textarea",{className:"svm-musicprompt",rows:3,value:voScript,maxLength:5000,
+      "aria-label":"Texte de la voix off",
+      placeholder:"Texte de la voix off — « Sous la surface, quelque chose remonte… »",
+      onChange:function(e){setVoScript(e.target.value);setVoArm(null)}}),
+    tagCat===null?r.jsx("div",{className:"svm-note",children:"chargement des balises…"}):
+    voEleven?r.jsx("div",{className:"svm-tagpal",children:Object.keys(tagCat.groups).map(function(g){
+      return r.jsxs("div",{className:"svm-taggrp",children:[
+        r.jsx("span",{className:"svm-note",style:{marginTop:0,minWidth:64},children:g}),
+        tagCat.groups[g].map(function(t){var on=voTags.indexOf(t)>=0;
+          return r.jsx("button",{className:"svm-minibtn","data-on":on?"":void 0,"aria-pressed":on,
+            title:(tagCat.experimental||[]).indexOf(t)>=0?"spécial — à manier en connaissance de cause":"balise Eleven v3",
+            onClick:function(){setVoArm(null);
+              setVoTags(on?voTags.filter(function(x2){return x2!==t}):voTags.concat([t]).slice(-(tagCat.max_tags||4)))},
+            children:t},t)})]},g)})}):
+    r.jsx("div",{className:"svm-note",children:tagCat.providers&&tagCat.providers.voicebox
+      ?"Voicebox n'interprète pas les balises v3 — elles seraient retirées du texte (la réponse le dira)."
+      :"Balises v3 : il faut une clé ElevenLabs (Réglages → clés API)."}),
+    r.jsxs("div",{className:"svm-note",title:"ce qui part au modèle, au caractère près",children:[
+      "part au modèle : ",r.jsx("b",{className:"svm-voapercu",children:voText||"—"})]}),
+    r.jsxs("div",{className:"svm-toolrow",style:{marginTop:8},children:[
+      voArm?r.jsx("span",{className:"svm-note",style:{marginTop:0,flex:"1 1 auto"},
+        children:voArm.usd==null?"devis indisponible — un second clic génère quand même"
+          :"devis : ~$"+voArm.usd.toFixed(3)+" — un second clic génère"}):null,
+      r.jsx("button",{className:"svm-nbgold","data-off":voBusy||!voScript.trim()?"":void 0,
+        onClick:voGo,
+        children:voBusy?"synthèse…":voArm?"Confirmer et générer":"Générer la voix"})]})]});
+
+  /* ── T102 (T8) : le mix voix + musique ducké, SANS timeline ─────────────
+     La dernière voix et la dernière musique générées ici ; POST /api/audio/duck
+     (ffmpeg local, gratuit) rend un mix à la durée de la voix, posé en
+     Bibliothèque. */
+  function mixGo(){
+    if(mixBusy||!mixVoice||!mixMusic)return;
+    setMixBusy(!0);setMixRes(null);
+    var pr=SVM_DUCK[mixPreset]||SVM_DUCK.moyen;
+    fetch("/api/audio/duck",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({voice:mixVoice,music:mixMusic,ducking:{ratio:pr.ratio,threshold:pr.threshold}})})
+      .then(function(r2){return r2.json().then(function(d){if(!r2.ok)throw new Error(d.detail||"échec");return d})})
+      .then(function(d){setMixBusy(!1);setMixRes(d);playUrl(d.url);
+        fireNote("Mix posé en Bibliothèque (Musique) : "+d.filename)})
+      .catch(function(e){setMixBusy(!1);fireNote("Mix : "+String(e&&e.message||e))})}
+  var mixCard=(mixVoice||mixMusic)?r.jsxs("div",{className:"svm-card svm-mix",children:[
+    r.jsxs("div",{className:"svm-cardhead",children:[
+      r.jsx(SvmLabel,{children:"Mix voix + musique"}),
+      r.jsx("span",{className:"svm-genprice",title:"ffmpeg local",children:"gratuit"})]}),
+    r.jsxs("div",{className:"svm-note",children:["voix : ",r.jsx("b",{children:mixVoice||"— génère une voix off"}),
+      " · musique : ",r.jsx("b",{children:mixMusic||"— génère une musique"})]}),
+    r.jsxs("div",{className:"svm-toolrow",style:{marginTop:8,flexWrap:"wrap"},children:[
+      r.jsx("span",{className:"svm-dur",children:"ducking"}),
+      Object.keys(SVM_DUCK).map(function(k){return r.jsx("button",{className:"svm-minibtn",
+        "data-on":mixPreset===k?"":void 0,"aria-pressed":mixPreset===k,
+        title:"ratio "+SVM_DUCK[k].ratio+", seuil "+SVM_DUCK[k].threshold,
+        onClick:function(){setMixPreset(k)},children:SVM_DUCK[k].label},k)}),
+      r.jsx("button",{className:"svm-nbgold","data-off":mixBusy||!mixVoice||!mixMusic?"":void 0,
+        onClick:mixGo,children:mixBusy?"mixage…":"Écouter le mix ducké"})]}),
+    mixRes?r.jsx("div",{className:"svm-note",children:"dans la Bibliothèque (Musique) : "+mixRes.filename
+      +(mixRes.dur?" · "+svmShort(mixRes.dur):"")}):null]}):null;
+
   /* panneau cible-produit pour les générateurs sans backend */
   function targetPanel(title,body){
     return r.jsxs("div",{className:"svm-target",children:[
@@ -787,10 +965,13 @@ function DzSonVfx(props){
     selGen==="sfx"?r.jsxs(r.Fragment,{children:[
       r.jsx(SvmSfxBrowser,{family:sfxFam,onNote:fireNote,play:playUrl,playId:playId}),
       sfxCard]}):
-    selGen==="music"?r.jsx(SvmMusic,{onNote:fireNote,play:playUrl,playId:playId,go:props.go}):
+    selGen==="music"?r.jsxs(r.Fragment,{children:[
+      r.jsx(SvmMusic,{onNote:fireNote,play:playUrl,playId:playId,go:props.go,
+        onGenerated:function(it){setMixMusic(it.filename)}}),
+      mixCard]}):
     selGen==="vfx"?r.jsx(SvmParticles,{family:partFam,onNote:fireNote,go:props.go}):
     selGen==="post"?r.jsxs(r.Fragment,{children:[postPanel,postCard]}):
-    r.jsxs(r.Fragment,{children:[editorCard,
+    r.jsxs(r.Fragment,{children:[voCard,mixCard,editorCard,
       r.jsxs("div",{className:"svm-grid2",children:[sfxCard,postCard]})]});
 
   return r.jsxs("div",{className:"dzsvm","data-svm-theme":theme==="light"?"light":void 0,children:[

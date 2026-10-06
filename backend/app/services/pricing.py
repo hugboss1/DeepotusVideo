@@ -649,7 +649,14 @@ def estimate(op: dict, p: dict | None = None) -> dict:
         mid = str(op.get("model") or "").strip() or _mu.DEFAULT_MUSIC_MODEL
         m = _mu.MUSIC_MODELS.get(mid) or _mu.MUSIC_MODELS[_mu.DEFAULT_MUSIC_MODEL]
         n = max(1, int(op.get("n", 1)))
-        lines.append(_line("fal", f"Musique ({m['label']}) x{n}", n, "piste", n * float(m["usd"])))
+        if m.get("usd_unit") == "s":
+            # T102 : ACE-Step est facturé À LA SECONDE — la durée chiffrée est celle que `_payload`
+            # enverra (même fonction, même défaut), sinon le devis et la garde mentiraient.
+            sec = _mu.billed_seconds(m, op.get("duration_s"))
+            lines.append(_line("fal", f"Musique ({m['label']}) {sec} s x{n}", n * sec, "s",
+                               n * sec * float(m["usd"])))
+        else:
+            lines.append(_line("fal", f"Musique ({m['label']}) x{n}", n, "piste", n * float(m["usd"])))
     elif kind == "sfx":
         n = max(1, min(4, int(op.get("n", op.get("variations", 1)) or 1)))
         d = op.get("duration_s")
