@@ -22,6 +22,9 @@ import { TransformControls } from "three/addons/controls/TransformControls.js";
 import { angleDeFaces, composantes } from "/lib3d/mesure.js";
 import { peindreSurplombs } from "/lib3d/surplomb.js";
 import { ouvrirAide } from "./aide.js";
+import { arbreDesOs, poserSquelette, surlignerChaine, peindrePoids, retirerPoids, memoriserRepos,
+         remettreRepos, tournerOs, lecteurClips, jouerClip, vitesseClip, arreterClip, rangerRig }
+  from "/lib3d/rig.js";
 
 const $ = (s) => document.querySelector(s);
 
@@ -144,6 +147,10 @@ const BOOL = { a: [], b: [], source: undefined };
    écritures. Ils s'éteignent à chaque chargement (eteindreApercus) — un calque
    peint sur le modèle sortant serait un mensonge sur le modèle entrant. */
 const SURPLOMB = { actif: false };
+/* LE RIG REGARDÉ (tâche T093) : l'os choisi dans l'arbre, et le numéro du
+   rendu en cours — l'inventaire arrive du serveur APRÈS le chargement, et une
+   réponse tardive ne doit pas peindre le panneau du modèle suivant. */
+const RIG = { os: null, rendu: 0 };
 const TRANCHES = { actives: false };
 /* 45° depuis l'horizontale : la borne « imprimable sans support » courante
    (Prusa la place entre 45 et 60°) ; on ne prétend pas choisir à la place du
@@ -449,6 +456,10 @@ async function _ouvrirPrincipale(cible, numero) {
      resteraient dans la scène, que vider() ne touche pas. */
   eteindreApercus();
   IMPRESSION = null;
+  /* Le RIG aussi : ses aides vivent dans la scène et son mixeur tient le
+     modèle sortant. */
+  rangerRig(S.vueA);
+  RIG.os = null;
   /* Et l'OUTIL armé se range — le couteau tient un plan dans la scène et des
      clones des maillages sortants, que vider() ne connaît pas. */
   armerGeste("selection");
@@ -1815,6 +1826,87 @@ async function proposerOrientation() {
     });
   });
   direAvis(`${d.candidats.length} pose(s) proposée(s), la meilleure d'abord — ${d.avertissement}`);
+}
+
+/* ── LE PANNEAU RIG (tâche T093, plan etabli-p4-p5 tâches 1 à 3) ──────────
+   Un instrument de LECTURE : rien n'est écrit, aucune route d'écriture n'est
+   appelée. L'arbre vient des os que three.js a liés (ce sont eux qu'on tourne
+   et qu'on peint) ; l'inventaire du serveur ne sert qu'à DIRE un squelette que
+   le fichier déclare et que la page n'a pas lié. Les NOMS viennent du fichier :
+   esc() partout. */
+async function rendreRig() {
+  const box = $("#panRig");
+  if (!box) return;
+  const numero = ++RIG.rendu;
+  const vu = poserSquelette(S.vueA);
+  let inv = null;
+  if (S.a && S.a.job && S.a.version) {
+    try {
+      inv = await jget(`/api/etabli/rig?job=${encodeURIComponent(S.a.job)}&version=${S.a.version}`);
+    } catch { inv = null; }
+  }
+  if (numero !== RIG.rendu) return;
+  if (!vu.aSquelette) {
+    box.innerHTML = inv && inv.a_squelette
+      ? `<div class="vide">le fichier déclare un squelette de ${esc(inv.nb_os)} os, mais aucune peau n'y est liée — `
+        + "rien à déformer ici</div>"
+      : "<div class=\"vide\">ce maillage n'a pas de squelette — l'étape <b>04 · squelette</b> du 3D Studio en pose un</div>";
+    return;
+  }
+  const os = [];
+  const peau = vu.peaux[0];
+  peau.skeleton.bones.forEach((b, i) => {
+    const p = b.parent && b.parent.isBone ? peau.skeleton.bones.indexOf(b.parent) : -1;
+    os.push({ index: i, nom: b.name || `os_${i}`, parent: p >= 0 ? p : null });
+  });
+  const arbre = arbreDesOs(os);
+  memoriserRepos(S.vueA);
+  const clips = lecteurClips(S.vueA);
+  box.innerHTML = `
+    <div class="dt-label">${esc(arbre.length)} os${vu.peaux.length > 1 ? ` · ${esc(vu.peaux.length)} peaux` : ""}</div>
+    <div class="os-arbre">${arbre.map((o) => `<button class="os" data-os="${esc(o.nom)}"
+      style="padding-left:${6 + 10 * o.profondeur}px">${esc(o.nom)}</button>`).join("")}</div>
+    <div class="dt-label spaced">Poids d'influence</div>
+    <label class="rig-case"><input type="checkbox" id="rigPoids"> colorer l'os choisi (bleu 0 → rouge 1)</label>
+    <div class="dt-label spaced">Pose d'essai — rien n'est écrit</div>
+    <div class="rig-pose" id="rigPose">${["x", "y", "z"].map((a) => `<label>${a}
+      <input type="range" min="-180" max="180" step="1" value="0" data-axe="${a}" disabled></label>`).join("")}</div>
+    <button id="rigRepos">remettre la pose de repos</button>
+    <div class="dt-label spaced">Clips</div>
+    <div class="rig-clips" id="rigClips">${clips.length
+      ? clips.map((c) => `<button class="clip" data-i="${esc(c.i)}">${esc(c.nom)} <span>${esc(c.duree)} s</span></button>`)
+        .join("") + `<label>vitesse <input id="rigVitesse" type="range" min="0.1" max="2" step="0.1" value="1"></label>
+        <button id="rigStop">arrêter</button>`
+      : "<div class=\"vide\">aucun clip — l'étape <b>05 · animation</b> du 3D Studio en produit</div>"}</div>`;
+  const choisir = (nom) => {
+    RIG.os = nom;
+    box.querySelectorAll(".os").forEach((b) => b.classList.toggle("actif", b.dataset.os === nom));
+    surlignerChaine(S.vueA, nom);
+    box.querySelectorAll("#rigPose input").forEach((r) => { r.disabled = false; r.value = 0; });
+    if ($("#rigPoids").checked) direAvis(`${peindrePoids(S.vueA, nom)} sommet(s) sous l'influence de « ${nom} »`);
+  };
+  box.querySelectorAll(".os").forEach((b) => b.addEventListener("click", () => choisir(b.dataset.os)));
+  $("#rigPoids").addEventListener("change", (e) => {
+    if (e.target.checked && RIG.os) direAvis(`${peindrePoids(S.vueA, RIG.os)} sommet(s) sous l'influence de « ${RIG.os} »`);
+    else retirerPoids(S.vueA);
+  });
+  const lirePose = () => {
+    if (!RIG.os) return;
+    const v = {};
+    box.querySelectorAll("#rigPose input").forEach((r) => { v[r.dataset.axe] = Number(r.value); });
+    tournerOs(S.vueA, RIG.os, v.x, v.y, v.z);
+  };
+  box.querySelectorAll("#rigPose input").forEach((r) => r.addEventListener("input", lirePose));
+  $("#rigRepos").addEventListener("click", () => {
+    remettreRepos(S.vueA);
+    box.querySelectorAll("#rigPose input").forEach((r) => { r.value = 0; });
+  });
+  box.querySelectorAll(".clip").forEach((b) => b.addEventListener("click", () =>
+    jouerClip(S.vueA, Number(b.dataset.i), Number(($("#rigVitesse") || {}).value || 1))));
+  const vit = $("#rigVitesse");
+  if (vit) vit.addEventListener("input", () => vitesseClip(S.vueA, Number(vit.value)));
+  const stop = $("#rigStop");
+  if (stop) stop.addEventListener("click", () => arreterClip(S.vueA));
 }
 
 async function ouvrirDansSlicer() {
@@ -3917,6 +4009,7 @@ document.addEventListener("etabli:charge", () => {
      d'un modèle à l'autre décriraient une correction que personne n'a
      demandée pour CE maillage-ci. */
   rendreFiche();
+  rendreRig();
   /* PIÈGE : cet évènement est émis à chaque chargement RÉUSSI. Brancher
      l'écouteur de clic ici sans garde en empilerait un par modèle — au
      troisième GLB, un seul clic tirerait trois rayons et redessinerait trois
