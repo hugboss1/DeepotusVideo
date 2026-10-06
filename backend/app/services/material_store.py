@@ -1966,7 +1966,11 @@ def env_list() -> list[dict]:
         from app.services import env_service as ES
         rows = ES.env_list()
         if isinstance(rows, list) and rows:
-            return [{"name": r["name"], "label": r["label"]} for r in rows]
+            # `perso` VOYAGE : sans lui, l'écran ne saurait pas quelles
+            # ambiances se suppriment (le plan l'ajoutait dans env_service et
+            # le perdait ici, à la recopie)
+            return [{"name": r["name"], "label": r["label"],
+                     "perso": bool(r.get("perso"))} for r in rows]
     except Exception as e:
         logger.warning(f"materials: env_service.env_list indisponible ({e})")
     return list(ENVS)
@@ -1980,6 +1984,17 @@ def env_jpeg(name: str) -> bytes:
     Le nom passe d'abord par la liste blanche : ``env_service`` retomberait
     silencieusement sur « studio » pour un nom inconnu, on préfère un 404.
     """
+    # Les ambiances IMPORTÉES ont leur propre espace de noms (`u_<hex>`) et
+    # leur fichier sur disque : `env_service` en est le seul juge, et la liste
+    # blanche des sept générées reste intacte — deux espaces de noms, aucune
+    # liste recopiée.
+    try:
+        from app.services import env_service as ES
+        p = ES.perso_path(name)
+        if p is not None:
+            return p.read_bytes()
+    except Exception as e:
+        logger.warning(f"materials: ambiances personnelles indisponibles ({e})")
     n = _coerce_enum(name, "", ENV_NAMES)
     if not n:
         raise ValueError(f"Environnement inconnu: {name!r}")

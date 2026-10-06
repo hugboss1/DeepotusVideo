@@ -133,5 +133,18 @@ for cle in ('model: str = ""', "mversion: int = 1"):
 ok("Mon modèle : hors de la galerie, URL model+mversion sans mesh, sélecteur "
    "nourri par /etabli/sources, cadrage rendu à <model-viewer>")
 
+# ══ 9 · les ambiances importées (T7) ═══════════════════════════════════════
+for ident in ("envFile", "envDel"):
+    assert f'id="{ident}"' in HTML, ident
+assert 'accept=".hdr,.jpg,.jpeg,.png"' in HTML
+le = JS_CODE.split("async function loadEnvs()", 1)[1].split("\n}\n", 1)[0]
+assert "perso: !!e.perso" in le, le
+assert '"perso": bool(r.get("perso"))' in (RACINE / "backend" / "app" / "services" /
+                                            "material_store.py").read_text(encoding="utf-8")
+assert "if (err.missing) apiFail(err, \"import d'ambiance\")" in JS_CODE
+assert '@router.post("/materials/envs")' in PY and '@router.delete("/materials/envs/{name}")' in PY
+ok("ambiances importées : bouton et suppression, drapeau `perso` porté du "
+   "serveur à la puce, un refus de fichier n'éteint pas l'API")
+
 print(f"\nOK — {PASS} assertions groupées vertes (écran Material Forge, "
       f"panneau Photo)")

@@ -965,3 +965,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
   border: 1px solid var(--line, #222831); border-radius: 6px;
 }
 #grpPhoto .row { display: flex; gap: 8px; align-items: center; }
+
+/* ── ambiances importées (T096) : un liseré, ce sont les seules qui se suppriment ── */
+#envChips .chip.perso { border-style: dashed; }
+

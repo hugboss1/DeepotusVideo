@@ -519,7 +519,8 @@ async function loadEnvs() {
       // on garde les couleurs de repli pour les noms connus (rendu local)
       state.envs = list.map((e) => {
         const f = ENV_FALLBACK.find((x) => x.name === e.name);
-        return Object.assign({}, f || {}, { name: e.name, label: e.label || (f && f.label) || e.name });
+        return Object.assign({}, f || {}, { name: e.name, label: e.label || (f && f.label) || e.name,
+                                            perso: !!e.perso });
       });
     }
   } catch (e) { /* repli déjà en place */ }
@@ -3315,7 +3316,16 @@ function setMesh(id) {
    rendu de tenir sur UNE rangée au lieu de deux empilées par-dessus l'image. */
 function renderEnvChips() {
   const el = $("#envChips");
-  if (el) { el.innerHTML = chipsHtml(state.envs, "name", state.env); wireChips("#envChips", setEnv); }
+  if (el) {
+    el.innerHTML = chipsHtml(state.envs, "name", state.env);
+    wireChips("#envChips", setEnv);
+    /* les ambiances IMPORTÉES se distinguent : ce sont les seules qui se
+       suppriment (🗑), les sept du studio se regénèrent */
+    state.envs.filter((e) => e.perso).forEach((e) => {
+      const c = el.querySelector(`.chip[data-v="${CSS.escape(e.name)}"]`);
+      if (c) { c.classList.add("perso"); c.title = "Ambiance importée"; }
+    });
+  }
   const sel = $("#vpEnv");
   if (sel) {
     sel.innerHTML = state.envs.map((e) =>
@@ -3511,6 +3521,38 @@ function wire() {
     updateEstimate();
   };
   $("#genBtn").onclick = generate;
+  $("#envFile").addEventListener("change", async (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    const fd = new FormData();
+    fd.append("file", f);
+    fd.append("label", f.name.replace(/\.[^.]+$/, ""));
+    try {
+      /* `api.json` sait déjà envoyer un FormData tel quel (voir sa branche
+         `body instanceof FormData`) : pas de second chemin d'envoi. */
+      const d = await api.json("POST", "/materials/envs", fd);
+      await loadEnvs();
+      setEnv(d.env.name);
+      toast(`Ambiance « ${d.env.label} » importée.`);
+    } catch (err) {
+      /* un .exr, un fichier carré : refus du FICHIER, pas API absente */
+      if (err.missing) apiFail(err, "import d'ambiance");
+      else toast("Import refusé : " + err.message, true);
+    }
+    e.target.value = "";
+  });
+  $("#envDel").addEventListener("click", async () => {
+    const n = state.env;
+    if (!n || !n.startsWith("u_")) {
+      toast("Les sept ambiances du studio ne se suppriment pas.", true);
+      return;
+    }
+    try {
+      await api.del(`/materials/envs/${encodeURIComponent(n)}`);
+    } catch (err) { toast("Suppression impossible : " + err.message, true); return; }
+    await loadEnvs();
+    setEnv("studio");
+  });
   $("#modelPick").addEventListener("change", (e) => choisirModele(e.target.value));
   $("#phCanvas").addEventListener("click", photoClick);
   $("#phReset").addEventListener("click", () => { photo.quad = []; photoDraw(); });
