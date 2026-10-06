@@ -53,6 +53,25 @@
         → ouvrir Game Assets 3D (fal)</button>
     </section>
 
+    <!-- T106 (plan-moteurs-3d T6) : les vues se regardent, se rejouent et se détourent AVANT le moteur — vues.js -->
+    <section id="vuesPanel" class="hidden">
+      <div class="dt-label">Vues d'abord · avant le moteur</div>
+      <select id="vuesImg" class="fal-sel" title="L'image source, prise dans la Bibliothèque"></select>
+      <select id="vuesMoteur" class="fal-sel" title="Le moteur qui tirera le maillage — prix texturé, payé au tir seulement"></select>
+      <label class="fld fal-fld"><span>vues</span>
+        <input type="number" id="vuesN" value="4" min="1" max="4" step="1"
+               title="Face, dos, profil gauche, profil droit — dans cet ordre"></label>
+      <label class="fld fal-fld"><span>sujet</span>
+        <input type="text" id="vuesSujet" placeholder="(facultatif) ce que montrent les vues"
+               title="Décrit le sujet dans le prompt de chaque vue — vide : « le même personnage/objet »"></label>
+      <button id="btnVues" class="btn-run" disabled>Préparer les vues · —</button>
+      <select id="vuesJeu" class="fal-sel" title="Les jeux de vues préparés, le plus récent d'abord"></select>
+      <div class="vues-grille" id="vuesGrille"></div>
+      <button id="btnTirer" class="btn-run" disabled>Tirer · —</button>
+      <div class="engine-note fal-refus" id="tirRefus"></div>
+      <div class="engine-note" id="vuesEtat"></div>
+    </section>
+
     <section>
       <div class="dt-label">Coût de la série</div>
       <div class="costs">

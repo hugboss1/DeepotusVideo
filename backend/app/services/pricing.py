@@ -601,8 +601,9 @@ def estimate(op: dict, p: dict | None = None) -> dict:
             lines.append(_line("meshy", f"Animation {int(aid)} · {nom}", cr, "credits", cr * usd_cr))
     elif kind == "asset3d_views":
         v = int(op.get("views", 4))
-        lines.append(_line("fal", "Vues quasi-orthographiques (Seedream)", v, "img",
-                           v * float(p.get("seedream_edit_usd", DEFAULTS["seedream_edit_usd"]))))
+        if v:   # un détourage fal seul (T106) n'a aucune vue à facturer
+            lines.append(_line("fal", "Vues quasi-orthographiques (Seedream)", v, "img",
+                               v * float(p.get("seedream_edit_usd", DEFAULTS["seedream_edit_usd"]))))
         n = int(op.get("rembg", 0) or 0)
         if n:
             lines.append(_line("fal", f"Détourage fal x{n}", n, "img",
