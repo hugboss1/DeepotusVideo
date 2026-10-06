@@ -235,6 +235,38 @@ async def main():
         ok("entrée pourrie : jamais de 500 — le bloc prep tombe à ce qu'il "
            "sait lire, et un bloc vide vaut None")
 
+        # ══ 8 · une photo brute -> une matière, en une requête ═══════════════
+        with open(settings.images_path / lib, "rb") as f:
+            octets = f.read()
+        r = await c.post(
+            "/api/materials/from-photo",
+            files={"file": ("photo.png", octets, "image/png")},
+            data={"prep": json.dumps({"quad": QUAD, "delight": 1.0}),
+                  "res": "512", "name": "Depuis le telephone"})
+        assert r.status_code == 200, r.text
+        m = r.json()["material"]
+        assert m["name"] == "Depuis le telephone"
+        assert m["source"]["kind"] == "library", m["source"]
+        assert m["source"]["prep"]["quad"] == QUAD, m["source"]
+        assert m["maps"] == list(MS.MAP_KINDS), m["maps"]
+        assert (settings.images_path / m["source"]["filename"]).is_file(), \
+            "la photo n'a pas été rangée dans la Bibliothèque"
+        ok(f"POST /materials/from-photo : {m['id']} en une requête, photo "
+           f"rangée dans la Bibliothèque, préparation gardée")
+
+        r = await c.post("/api/materials/from-photo",
+                         files={"file": ("t.txt", b"pas une image", "text/plain")},
+                         data={"res": "512"})
+        assert r.status_code == 415 and "image" in r.json()["detail"].lower(), r.text
+        # l'extension vient des OCTETS : un PNG nommé .html est rangé en .png
+        r = await c.post("/api/materials/from-photo",
+                         files={"file": ("piege.html", octets, "text/html")},
+                         data={"res": "512", "name": "Piege"})
+        assert r.status_code == 200, r.text
+        rangee = r.json()["material"]["source"]["filename"]
+        assert rangee.endswith(".png") and ".html" not in rangee, rangee
+        ok(f"pas une image : 415 parlant ; un PNG nommé .html est rangé en {rangee}")
+
     print(f"\nOK — {PASS} assertions groupées vertes (préparation de photo, "
           f"bout en bout)")
 

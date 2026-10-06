@@ -11458,6 +11458,59 @@ async def material_prep_preview(body: dict):
     }
 
 
+@router.post("/materials/from-photo")
+async def material_from_photo(file: UploadFile = File(...), prep: str = Form(""),
+                              res: int = Form(2048), name: str = Form("")):
+    """Une photo brute -> une matière, en UNE requête.
+
+    LA PORTE D'ENTRÉE DE R10c D4. Elle range d'abord la photo dans la
+    Bibliothèque — l'aval du produit (lignée, provenance, « Rouvrir dans »)
+    lit la Bibliothèque, et une photo qui resterait à part serait un cas
+    particulier à porter partout —, puis passe exactement par le job de
+    génération existant. Aucun second chemin de dérivation.
+
+    LE TRANSPORT N'EST PAS ICI. L'appairage, le jeton d'appareil et l'écoute
+    LAN sont R12 P1 : tant que le backend écoute sur 127.0.0.1, cette route
+    n'est atteignable que depuis le PC (ou depuis /materialforge/ ouvert sur
+    la machine). Elle est déjà la bonne cible pour le jour où R12 P1 arrive,
+    et n'anticipe rien d'autre."""
+    import io
+    from app.services import material_store as MS
+    data = await file.read()
+    # LE FORMAT VIENT DES OCTETS, JAMAIS DU NOM (T098) : le plan rangeait la
+    # photo sous l'extension que le CLIENT annonçait — une image nommée
+    # « .html » aurait été servie comme telle par /api/images. Même règle que
+    # /images/upload : Pillow décide, hors liste = 415, rien n'est écrit avant.
+    fmt = await asyncio.to_thread(_format_image, data)
+    if fmt not in _UPLOAD_IMAGE_FORMATS:
+        raise HTTPException(415, f"Ce fichier n'est pas une image lisible "
+                                 f"({'format ' + fmt if fmt else 'contenu non décodable'}) — formats "
+                                 "acceptés : PNG, JPEG, WebP, GIF, BMP, AVIF")
+    nom = Path(file.filename or "photo.png").name
+    ext = {"JPEG": ".jpg"}.get(fmt, "." + fmt.lower())
+    cible = settings.images_path / f"photo_{uuid4().hex[:8]}{ext}"
+    await asyncio.to_thread(cible.write_bytes, data)
+    await LI.noter([cible.name], "matieres")
+    try:
+        bloc = json.loads(prep) if prep else {}
+    except ValueError:
+        bloc = {}
+    corps = {"filename": cible.name, "res": res, "seamless": True,
+             "name": name or Path(nom).stem, "prep": bloc}
+    tasks = BackgroundTasks()
+    reponse = await generate_material(corps, tasks)
+    await tasks()
+    st = _MAT_JOBS.get(reponse["job_id"]) or {}
+    for _ in range(1200):
+        if st.get("status") in ("done", "failed"):
+            break
+        await asyncio.sleep(0.05)
+        st = _MAT_JOBS.get(reponse["job_id"]) or {}
+    if st.get("status") != "done":
+        raise HTTPException(500, st.get("error") or "préparation impossible")
+    return {"material": st["material"]}
+
+
 @router.post("/materials/generate")
 async def generate_material(body: dict, background_tasks: BackgroundTasks):
     """Lance une génération de matière. Corps :
@@ -11822,7 +11875,8 @@ async def get_material_map(mid: str, kind: str, res: int = 0):
 async def material_preview_glb(request: Request, mid: str,
                                mesh: str = "sphere", res: int = 1024,
                                stage: int = 0, scale: int = 1,
-                               model: str = "", mversion: int = 1):
+                               model: str = "", mversion: int = 1,
+                               finish: str = ""):
     """GLB d'aperçu (maillage + matériau + textures embarquées).
 
     La galerie demande un GLB par carte : sans cache, chaque scroll relance une
@@ -11836,6 +11890,17 @@ async def material_preview_glb(request: Request, mid: str,
         raise HTTPException(400, f"mesh doit être l'un de: "
                                  f"{', '.join(MS.MESHES)}")
     res = MS.clean_preview_res(res, 1024)
+    # UNE FINITION EST UN HABIT, PAS UNE ÉCRITURE. Elle est fusionnée sur les
+    # props le temps de construire CE GLB, et la matière sur disque n'en sait
+    # rien — c'est ce qui permet d'essayer avant de poser.
+    fin = str(finish or "").strip().lower()
+    if fin:
+        preset = next((p for p in MS.PRESETS if p["id"] == fin), None)
+        if preset is None:
+            raise HTTPException(400, f"finition « {fin} » inconnue — connues : "
+                                     f"{', '.join(p['id'] for p in MS.PRESETS)}")
+        mat = dict(mat)
+        mat["props"] = MS.merge_props(mat["props"], preset["props"])
     # « mon modèle » : la cinquième forme d'aperçu de R10c P2. Le nom de job
     # vient du réseau, donc il passe la MÊME porte que les routes d'écriture
     # de l'Établi (`_etabli_glb_cible` : entier >= 1, deux gardes de chemin,
@@ -11880,7 +11945,7 @@ async def material_preview_glb(request: Request, mid: str,
     # partageraient un GLB en cache et l'écran servirait l'ancien sans un mot.
     key = hashlib.sha1(
         f"{key}-s{stage}v{_SV}u{scale}-{_uv}-m{_MV}"
-        f"-M{modele}:{mversion}:{len(donnees or b'')}".encode("utf-8")
+        f"-M{modele}:{mversion}:{len(donnees or b'')}-F{fin}".encode("utf-8")
     ).hexdigest()[:24]
     etag = f'W/"{key}"'
     head = {"Content-Disposition": f'inline; filename="{mat["id"]}.glb"',

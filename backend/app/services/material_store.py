@@ -300,35 +300,61 @@ def prep_note(prep: dict | None) -> str:
 # Préréglages de matière (bouton « Appliquer un préréglage »). Ne touchent que
 # `props` — la dérivation reste celle de la matière.
 PRESETS = [
-    {"id": "brushed_metal", "label": "Métal brossé",
+    {"id": "brushed_metal", "label": "Métal brossé", "famille": "metal",
      "props": {"color": "#c8ccd2", "metallic": 1.0, "roughness": 0.35,
                "clearcoat": 0.1, "normal_scale": 1.2}},
-    {"id": "polished_gold", "label": "Or poli",
+    {"id": "polished_gold", "label": "Or poli", "famille": "metal",
      "props": {"color": "#ffd257", "metallic": 1.0, "roughness": 0.12,
                "clearcoat": 0.3}},
-    {"id": "plastic", "label": "Plastique",
+    {"id": "plastic", "label": "Plastique", "famille": "surface",
      "props": {"color": "#e8e8ec", "metallic": 0.0, "roughness": 0.45,
                "clearcoat": 0.6, "clearcoat_roughness": 0.15}},
-    {"id": "varnished_wood", "label": "Bois verni",
+    {"id": "varnished_wood", "label": "Bois verni", "famille": "surface",
      "props": {"color": "#8a6a43", "metallic": 0.0, "roughness": 0.4,
                "clearcoat": 0.5, "clearcoat_roughness": 0.2,
                "normal_scale": 1.1}},
-    {"id": "glass", "label": "Verre",
+    {"id": "glass", "label": "Verre", "famille": "verre",
      "props": {"color": "#ffffff", "metallic": 0.0, "roughness": 0.05,
                "opacity": 0.25, "transmission": 0.95, "ior": 1.5,
                "thickness": 0.5}},
-    {"id": "fabric", "label": "Tissu",
+    {"id": "fabric", "label": "Tissu", "famille": "organique",
      "props": {"color": "#8d94a8", "metallic": 0.0, "roughness": 0.95,
                "sheen": 0.7, "sheen_color": "#dfe4f0", "normal_scale": 1.4}},
-    {"id": "stone", "label": "Pierre",
+    {"id": "stone", "label": "Pierre", "famille": "surface",
      "props": {"color": "#9a9a95", "metallic": 0.0, "roughness": 0.9,
                "normal_scale": 1.5, "ao_strength": 1.2, "displacement": 0.3}},
-    {"id": "emissive_panel", "label": "Panneau lumineux",
+    {"id": "emissive_panel", "label": "Panneau lumineux", "famille": "lumiere",
      "props": {"color": "#101014", "metallic": 0.0, "roughness": 0.5,
                "emissive": "#ff8a1f", "emissive_strength": 2.5}},
-    {"id": "rubber", "label": "Caoutchouc",
+    {"id": "rubber", "label": "Caoutchouc", "famille": "surface",
      "props": {"color": "#232326", "metallic": 0.0, "roughness": 1.0,
                "normal_scale": 0.8}},
+    # ── les quatre finitions de R10c D3 ────────────────────────────────────
+    # Elles ne sont PAS des matières : ce sont des habits qu'on essaie sur une
+    # matière existante, et l'aperçu les montre AVANT qu'elles soient posées.
+    {"id": "metal_brosse_aniso", "label": "Métal brossé (fin)",
+     "famille": "metal",
+     "props": {"color": "#c2c7cf", "metallic": 1.0, "roughness": 0.28,
+               "clearcoat": 0.05, "normal_scale": 1.6, "tiling": 1.0}},
+    {"id": "laque", "label": "Laque", "famille": "surface",
+     "props": {"metallic": 0.0, "roughness": 0.08, "clearcoat": 1.0,
+               "clearcoat_roughness": 0.03, "normal_scale": 0.5}},
+    {"id": "cuir", "label": "Cuir", "famille": "organique",
+     "props": {"metallic": 0.0, "roughness": 0.62, "sheen": 0.25,
+               "sheen_color": "#d8c9b4", "normal_scale": 1.5,
+               "clearcoat": 0.08}},
+    # L'ANIMATION VIT DANS L'APERÇU, PAS DANS LE FICHIER, et il faut le dire :
+    # glTF cœur n'anime aucune propriété de matériau (les animations y portent
+    # sur les nœuds et les poids de morph). Le GLB exporté porte donc un
+    # émissif FIXE à cette intensité ; c'est l'écran qui pulse.
+    {"id": "emissif_anime", "label": "Émissif animé", "famille": "lumiere",
+     "props": {"emissive": "#ff8a1f", "emissive_strength": 3.0,
+               "roughness": 0.4, "metallic": 0.0},
+     "anime": {"propriete": "emissive_strength", "hz": 0.6,
+               "amplitude": 0.45,
+               "note": "L'animation est un effet d'aperçu : glTF cœur n'anime "
+                       "pas les propriétés de matériau, et le GLB exporté "
+                       "porte l'émissif fixe."}},
 ]
 
 # ── Unity : le MaskMap n'est PAS l'ORM ───────────────────────────────────────

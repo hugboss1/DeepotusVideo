@@ -63,7 +63,11 @@
           </div>
           <button class="btn sm" id="libToggle" title="Choisir une image déjà présente dans la Library">📚 Library</button>
         </div>
-        <input type="file" id="fileInput" accept="image/*" class="hidden">
+        <!-- `capture="environment"` : sur un mobile, le champ ouvre l'appareil
+             photo arrière au lieu du sélecteur de fichiers. Ignoré sur
+             desktop, donc aucun coût pour le poste principal. -->
+        <input type="file" id="fileInput" accept="image/*"
+               capture="environment" class="hidden">
         <div class="ref-picked hidden" id="refPicked">
           <img id="refThumb" alt="référence">
           <span id="refName">—</span>
@@ -289,6 +293,11 @@
         </div>
         <div class="insp-tools">
           <select id="presetSel" title="Préréglage de matière"><option value="">Appliquer un préréglage…</option></select>
+          <!-- T098 : un préréglage s'ESSAIE dans l'aperçu avant d'être posé -->
+          <span class="preset-essai hidden" id="presetEssai">
+            <button class="btn sm" id="presetPoser" type="button" title="Écrire ce préréglage dans la matière">Poser</button>
+            <button class="btn ghost sm" id="presetAnnuler" type="button">Annuler</button>
+          </span>
           <button class="btn sm tool" id="allHelp" title="Afficher l'aide de toutes les propriétés d'un coup">? Aide</button>
         </div>
         <!-- « Filtrer » collé au menu des préréglages laissait croire qu'il
