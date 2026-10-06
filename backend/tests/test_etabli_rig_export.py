@@ -228,5 +228,223 @@ def test_la_route_rig_dit_le_squelette_du_fichier_fabrique():
     assert r["os"][0]["parent"] == 1 and [c["nom"] for c in r["clips"]] == ["plier", "tourner"]
 
 
+
+# ── D. les cibles moteur, et l'export ────────────────────────────────────────
+def _cube() -> bytes:
+    from app.services import gltf_builder
+    return gltf_builder.build_glb({}, None, "cube", "banc")
+
+
+def _job(nom: str, data: bytes = None) -> pathlib.Path:
+    from app.config import settings
+    d = settings.outputs_path / "assets3d" / nom
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "model.glb").write_bytes(data or _cube())
+    return d
+
+
+def test_les_quatre_cibles_livrent_du_GLTF_standard_sans_rotation_precuite():
+    """Blender, Unreal, Godot et glTFast convertissent EUX-MÊMES : pré-cuire l'axe tournerait le modèle deux fois."""
+    from app.services import mesh_export
+    assert set(mesh_export.CIBLES) == {"blender", "godot", "unreal", "unity"}
+    for nom, c in mesh_export.CIBLES.items():
+        assert c["format"] == "glb" and c["axe_haut"] == "Y" and c["echelle"] == 1.0, nom
+    assert "glTFast" in mesh_export.CIBLES["unity"]["note"]
+
+
+def test_exporter_ecrit_le_fichier_ET_sa_fiche_par_cible_et_laisse_la_source_intacte():
+    from app.services import mesh_export
+    d = _job("job_exp")
+    avant = (d / "model.glb").read_bytes()
+    g = mesh_export.exporter("job_exp", 1, "godot")
+    u = mesh_export.exporter("job_exp", 1, "unity")
+    for r, mot in ((g, "Godot"), (u, "Unity")):
+        sortie = pathlib.Path(r["chemin"])
+        assert sortie.is_file() and sortie.suffix == ".glb" and sortie.parent == d / "exports"
+        assert mot in pathlib.Path(r["fiche"]).read_text("utf-8")
+    assert g["fiche"] != u["fiche"], "une fiche PAR cible : la seconde n'écrase pas la première"
+    assert (d / "model.glb").read_bytes() == avant
+    assert mesh_export.chemin_export("job_exp", 1, "godot") == pathlib.Path(g["chemin"])
+
+
+def test_une_surcharge_d_axe_et_d_echelle_passe_par_mesh_edit_reparer_et_se_dit():
+    from app.services import mesh_export, print3d
+    _job("job_axe")
+    r = mesh_export.exporter("job_axe", 1, "unreal", axe_haut="Z", echelle=100.0)
+    (x0, x1), _y, _z = print3d.bbox(print3d.lire_glb_triangles(pathlib.Path(r["chemin"]).read_bytes()))
+    assert abs(x1 - 100.0) < 1e-3 and abs(x0 + 100.0) < 1e-3       # le cube d'arête 2 fait 200 au facteur 100
+    assert "Surcharge" in pathlib.Path(r["fiche"]).read_text("utf-8")
+
+
+def test_exporter_refuse_ce_qui_n_a_pas_de_sens():
+    from app.services import mesh_export
+    _job("job_ko")
+    for args, mot in ((("job_ko", 1, "cryengine"), "cible inconnue"), (("job_ko", 1, "godot", "W"), "axe"),
+                      (("job_ko", 1, "godot", None, 0.0), "échelle"), (("job_ko", 1, "godot", None, -2.0), "échelle")):
+        with pytest.raises(ValueError, match=mot):
+            mesh_export.exporter(*args[:3], axe_haut=args[3] if len(args) > 3 else None,
+                                 echelle=args[4] if len(args) > 4 else None)
+    with pytest.raises(FileNotFoundError):
+        mesh_export.exporter("job_ko", 5, "godot")
+
+
+def test_le_fbx_n_est_propose_que_s_il_existe_deja():
+    from app.services import mesh_export
+    d = _job("job_fbx")
+    assert mesh_export.fbx_disponible("job_fbx") is False
+    (d / "model.fbx").write_bytes(b"faux fbx du banc")
+    assert mesh_export.fbx_disponible("job_fbx") is True
+
+
+# ── E. ouvrir et déposer : le CHEMIN est celui du serveur, jamais celui de la page ──
+def test_blender_s_ouvre_sur_le_fichier_EXPORTE_avec_un_chemin_qui_ne_peut_pas_s_echapper(monkeypatch):
+    """Le plan prenait le chemin du CORPS et le collait dans du Python (`--python-expr`) : une apostrophe dans le
+    chemin et la page faisait exécuter ce qu'elle voulait à Blender. Le chemin est recalculé ici, et passé par
+    repr() — qui échappe tout."""
+    from app.services import mesh_export
+    _job("job_o'ouvrir")
+    mesh_export.exporter("job_o'ouvrir", 1, "blender")
+    vus = {}
+    monkeypatch.setattr(mesh_export, "_lancer", lambda argv: vus.setdefault("argv", argv))
+    monkeypatch.setenv("BLENDER_PATH", "C:/faux/blender.exe")
+    r = mesh_export.ouvrir("job_o'ouvrir", 1, "blender")
+    argv = vus["argv"]
+    assert argv[0] == "C:/faux/blender.exe" and argv[1] == "--python-expr" and r["geste"] == "fichier"
+    attendu = str(mesh_export.chemin_export("job_o'ouvrir", 1, "blender"))
+    assert f"bpy.ops.import_scene.gltf(filepath={attendu!r})" in argv[2]
+    compile(argv[2], "<python-expr>", "exec")                     # du Python valide, apostrophe comprise
+
+
+def test_les_trois_autres_ouvrent_le_PROJET_avec_la_ligne_de_commande_de_leur_editeur(monkeypatch, tmp_path):
+    from app.services import mesh_export
+    _job("job_proj")
+    vus = []
+    monkeypatch.setattr(mesh_export, "_lancer", lambda argv: vus.append(argv))
+    (tmp_path / "u" / "Assets").mkdir(parents=True)
+    (tmp_path / "g").mkdir()
+    (tmp_path / "g" / "project.godot").write_text("", "utf-8")
+    (tmp_path / "e").mkdir()
+    (tmp_path / "e" / "Jeu.uproject").write_text("{}", "utf-8")
+    for c, exe, projet in (("unity", "U.exe", "u"), ("godot", "G.exe", "g"), ("unreal", "E.exe", "e")):
+        monkeypatch.setenv(mesh_export.EXE_ENV[c], exe)
+        monkeypatch.setenv(mesh_export.PROJET_ENV[c], str(tmp_path / projet))
+        assert mesh_export.geste_ouvrir(c) == "projet"
+        assert mesh_export.ouvrir("job_proj", 1, c)["geste"] == "projet"
+    assert vus[0] == ["U.exe", "-projectPath", str(tmp_path / "u")]
+    assert vus[1] == ["G.exe", "--editor", "--path", str(tmp_path / "g")]
+    assert vus[2] == ["E.exe", str(tmp_path / "e" / "Jeu.uproject")]
+
+
+def test_ouvrir_et_deposer_refusent_en_NOMMANT_la_variable(monkeypatch, tmp_path):
+    from app.services import mesh_export
+    _job("job_var")
+    monkeypatch.setattr(mesh_export, "_lancer", lambda argv: None)
+    monkeypatch.delenv("BLENDER_PATH", raising=False)
+    with pytest.raises(RuntimeError, match="BLENDER_PATH"):
+        mesh_export.ouvrir("job_var", 1, "blender")
+    monkeypatch.setenv("BLENDER_PATH", "B.exe")
+    with pytest.raises(RuntimeError, match="Préparer"):
+        mesh_export.ouvrir("job_var", 1, "blender")               # rien d'exporté pour cette cible
+    monkeypatch.delenv("GODOT_PROJECT_DIR", raising=False)
+    mesh_export.exporter("job_var", 1, "godot")
+    with pytest.raises(RuntimeError, match="GODOT_PROJECT_DIR"):
+        mesh_export.deposer("job_var", 1, "godot")
+    monkeypatch.setenv("GODOT_PROJECT_DIR", str(tmp_path))              # pas de project.godot : pas un projet
+    with pytest.raises(RuntimeError, match="project.godot"):
+        mesh_export.deposer("job_var", 1, "godot")
+
+
+def test_deposer_va_dans_le_BON_sous_dossier_du_projet_et_sonde_la_visibilite(monkeypatch, tmp_path):
+    """L'incident MSIX : une écriture peut sembler réussir en partant dans un overlay invisible."""
+    from app.services import mesh_export
+    _job("job_dep")
+    mesh_export.exporter("job_dep", 1, "unity")
+    (tmp_path / "Assets").mkdir()
+    monkeypatch.setenv("UNITY_PROJECT_DIR", str(tmp_path))
+    monkeypatch.setattr(mesh_export, "_sonder", lambda d: False)
+    with pytest.raises(RuntimeError, match="invisible"):
+        mesh_export.deposer("job_dep", 1, "unity")
+    monkeypatch.setattr(mesh_export, "_sonder", lambda d: True)
+    out = mesh_export.deposer("job_dep", 1, "unity")
+    p = pathlib.Path(out["chemin"])
+    assert p.is_file() and p.parent == tmp_path / "Assets" / "Deepotus"
+    assert (p.parent / p.name.replace(".glb", ".import.md")).is_file()
+    # sans glTFast, Unity laisse le .glb inerte : le dépôt le DIT ; avec le paquet au manifeste, il se tait
+    assert "com.unity.cloud.gltfast" in out["avertissement"]
+    (tmp_path / "Packages").mkdir()
+    (tmp_path / "Packages" / "manifest.json").write_text('{"dependencies": {"com.unity.cloud.gltfast": "6.0.0"}}', "utf-8")
+    assert mesh_export.deposer("job_dep", 1, "unity")["avertissement"] is None
+
+
+# ── F. les routes et le panneau ──────────────────────────────────────────────
+def _client():
+    from fastapi.testclient import TestClient
+    from app.main import app
+    return TestClient(app)
+
+
+def test_les_routes_export_cibles_fichier_et_leurs_refus(monkeypatch):
+    from app.services import mesh_export
+    _job("job_route")
+    with _client() as c:
+        cib = c.get("/api/etabli/cibles").json()["cibles"]
+        assert cib["blender"]["geste_ouvrir"] == "fichier" and cib["godot"]["geste_ouvrir"] == "projet"
+        assert cib["blender"]["variable_exe"] == "BLENDER_PATH" and cib["unity"]["variable_projet"] == "UNITY_PROJECT_DIR"
+        r = c.post("/api/etabli/export", json={"job": "job_route", "version": 1, "cible": "godot"})
+        assert r.status_code == 200, r.text
+        j = r.json()
+        assert "chemin" not in j or pathlib.Path(j["chemin"]).is_file()
+        f = c.get(j["url"])
+        assert f.status_code == 200 and f.content[:4] == b"glTF"
+        # `..%2F` : décodé, il tombe sur la page d'accueil de l'application (le piège connu du catch-all) — ce qui
+        # compte est qu'AUCUN fichier du job ne sorte par là
+        t = c.get("/api/assets/3d/job_route/export/..%2Fmodel.glb")
+        assert t.content[:4] != b"glTF" and "glb" not in t.headers.get("content-type", "")
+        assert c.get("/api/assets/3d/job_route/export/absent.glb").status_code == 404
+        for corps in ({"cible": "cryengine"}, {"cible": "godot", "version": "1"}, {"cible": "godot", "echelle": 0},
+                      {"cible": "godot", "axe_haut": "W"}):
+            assert c.post("/api/etabli/export", json={"job": "job_route", "version": 1, **corps}).status_code == 400, corps
+        assert c.post("/api/etabli/export", json={"job": "..", "version": 1, "cible": "godot"}).status_code == 400
+        for route in ("ouvrir", "deposer"):          # une cible inconnue est un 400 nommé, jamais un 500
+            r = c.post(f"/api/etabli/{route}", json={"job": "job_route", "version": 1, "cible": "cryengine"})
+            assert r.status_code == 400 and "cryengine" in r.json()["detail"], (route, r.status_code)
+        monkeypatch.setattr(mesh_export, "_lancer", lambda argv: None)
+        monkeypatch.delenv("UNITY_PATH", raising=False)
+        r = c.post("/api/etabli/ouvrir", json={"job": "job_route", "version": 1, "cible": "unity"})
+        assert r.status_code == 409 and "UNITY_PATH" in r.json()["detail"]
+        # le corps ne transporte AUCUN chemin : un `chemin` envoyé est ignoré, jamais lu
+        monkeypatch.setenv("GODOT_PATH", "G.exe")
+        vus = []
+        monkeypatch.setattr(mesh_export, "_lancer", lambda argv: vus.append(argv))
+        r = c.post("/api/etabli/ouvrir", json={"job": "job_route", "version": 1, "cible": "godot",
+                                              "chemin": "C:/Windows/System32/calc.exe"})
+        assert all("calc" not in str(a) for a in (vus[0] if vus else []))
+
+
+def test_un_refus_du_serveur_se_lit_en_PHRASE_et_non_en_JSON_EXECUTEE():
+    """Vu en preuve 8799 le 06/10 : la barre affichait {"detail":"BLENDER_PATH n'est pas renseigné…"} — et c'était
+    vrai de tous les refus de l'Établi."""
+    js = _lire("etabli/etabli.js")
+    i = js.index("\nfunction refusDe(")
+    corps = js[i:js.index("\n}\n", i) + 2]
+    src = corps + """
+console.log(JSON.stringify([refusDe('{"detail":"BLENDER_PATH absent"}'), refusDe("pas du json"),
+                            refusDe('{"detail":[{"loc":["body"],"msg":"x"}]}')]));"""
+    r = subprocess.run(["node", "-e", src], capture_output=True, timeout=30)
+    assert r.returncode == 0, r.stderr.decode("utf-8", "replace")
+    o = json.loads(r.stdout.decode("utf-8"))
+    assert o[0] == "BLENDER_PATH absent" and o[1] == "pas du json" and o[2].startswith('{"detail"')
+    assert "throw new Error(refusDe(t) ||" in js
+
+
+def test_le_panneau_export_montre_les_quatre_cibles_et_dit_la_verite_sur_le_fbx():
+    f = _fonction_etabli_async("rendreExportMoteurs")
+    assert '"/api/etabli/cibles"' in f and '"/api/etabli/export"' in f
+    assert "chemin" not in f.split('"/api/etabli/ouvrir"', 1)[1].split(")", 1)[0] if '"/api/etabli/ouvrir"' in f else True
+    assert "esc(c.nom)" in f and "esc(c.note)" in f
+    js = _lire("etabli/etabli.js")
+    assert "FBX" in js and "crédit" in js
+    assert "rendreExportMoteurs();" in js
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

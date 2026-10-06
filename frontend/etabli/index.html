@@ -159,7 +159,8 @@
       <div class="dt-label">Impression 3D</div>
       <button id="btnImprimer" title="Exporte la version AFFICHÉE en STL + 3MF aux millimètres de la taille cible (dossier sous assets/print3d)">→ Impression 3D</button>
       <button id="btnSlicer" title="Ouvre le .3mf du dernier export dans le slicer (ElegooSlicer ou OrcaSlicer)">Ouvrir dans le slicer</button>
-      <div class="vide">l'export par moteur de jeu arrive en P5</div>
+      <!-- les moteurs de jeu (T093) : rendus par rendreExportMoteurs(), nés vides -->
+      <div class="moteurs" id="panMoteurs"></div>
     </div>
 
     <!-- ══ le repère : HORS des onglets, et c'est la décision ══

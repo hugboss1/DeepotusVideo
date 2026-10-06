@@ -14254,6 +14254,85 @@ async def etabli_orienter(job: str, version: int = 1):
                                   "proposition avant de l'appliquer — aucun score ne sait quelle face tu veux voir belle."}
 
 
+# ── L'EXPORT VERS LES MOTEURS (tâche T093, plan etabli-p4-p5 tâches 4 à 6) ─────────────────────────────────────────
+# LE CORPS NE PORTE JAMAIS DE CHEMIN : (job, version, cible) suffisent, et le service recalcule le fichier. Le plan
+# prenait `chemin` dans le corps de « ouvrir » et « déposer » — collé dans du Python exécuté par Blender, ou copié
+# tel quel dans un projet.
+def _etabli_export_corps(body: dict, quoi: str) -> tuple[str, int, str]:
+    from app.services import mesh_export
+    job, version = body.get("job"), body.get("version")
+    if not isinstance(job, str):
+        raise HTTPException(400, f"{quoi} : job « {job} » — le nom du dossier de job est attendu")
+    if not _etabli_entier(version) or version < 1:
+        raise HTTPException(400, f"{quoi} : version « {version} » — un entier à partir de 1")
+    _etabli_cible_sous_jobs(job, lambda j: mesh_export.dossier_exports(j), quoi)
+    cible = body.get("cible")
+    if cible not in mesh_export.CIBLES:
+        raise HTTPException(400, f"{quoi} : cible « {cible} » — {', '.join(sorted(mesh_export.CIBLES))}")
+    return Path(job).name, int(version), cible
+
+
+@router.get("/etabli/cibles")
+async def etabli_cibles():
+    """Les cibles moteur, avec le GESTE que chacune supporte vraiment et les variables du .env qui la règlent."""
+    from app.services import mesh_export
+    return {"cibles": {k: {**v, "geste_ouvrir": mesh_export.geste_ouvrir(k),
+                           "variable_exe": mesh_export.EXE_ENV[k], "variable_projet": mesh_export.PROJET_ENV[k]}
+                       for k, v in mesh_export.CIBLES.items()}}
+
+
+@router.post("/etabli/export")
+async def etabli_export(body: dict):
+    from app.services import mesh_export
+    job, version, cible = _etabli_export_corps(body, "export")
+    axe, echelle = body.get("axe_haut"), body.get("echelle")
+    if axe is not None and not isinstance(axe, str):
+        raise HTTPException(400, "export : `axe_haut` attend X, Y ou Z")
+    if echelle is not None and not _etabli_nombre(echelle):
+        raise HTTPException(400, "export : `echelle` attend un nombre")
+    try:
+        r = await asyncio.to_thread(mesh_export.exporter, job, version, cible, axe_haut=axe, echelle=echelle)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+    return r
+
+
+@router.post("/etabli/ouvrir")
+async def etabli_ouvrir(body: dict):
+    from app.services import mesh_export
+    job, version, cible = _etabli_export_corps(body, "ouvrir")
+    try:
+        return mesh_export.ouvrir(job, version, cible)
+    except RuntimeError as e:
+        raise HTTPException(409, str(e))
+
+
+@router.post("/etabli/deposer")
+async def etabli_deposer(body: dict):
+    from app.services import mesh_export
+    job, version, cible = _etabli_export_corps(body, "déposer")
+    try:
+        return await asyncio.to_thread(mesh_export.deposer, job, version, cible)
+    except RuntimeError as e:
+        # non configuré, pas un projet, rien de préparé, ou ÉCRITURE INVISIBLE : le message dit lequel
+        raise HTTPException(409, str(e))
+
+
+@router.get("/assets/3d/{job}/export/{fname}")
+async def assets3d_export_fichier(job: str, fname: str):
+    from app.services import mesh_export
+    nom = Path(fname).name
+    if nom != fname or nom in ("", ".", ".."):
+        raise HTTPException(400, "export : nom de fichier invalide")
+    d = _etabli_cible_sous_jobs(job, lambda j: mesh_export.dossier_exports(j), "export")
+    p = d / nom
+    if not p.is_file():
+        raise HTTPException(404, "export introuvable")
+    return FileResponse(str(p), filename=nom)
+
+
 @router.post("/etabli/tranches")
 async def etabli_tranches(body: dict):
     """L'APERÇU DE TRANCHAGE INDICATIF (tâche T091, plan-etabli T16) : les sections d'une version à `nombre` hauteurs
