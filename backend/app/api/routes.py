@@ -2435,6 +2435,11 @@ async def get_sprite_manifest(job: str):
         "preview": (d / "preview.gif").is_file(),
         "unity_json": (d / "sheet.unity.json").is_file(),
         "unity_importer": (d / "SpriteSheetImporter.cs").is_file(),
+        # T109 : les exports moteur
+        "godot": (d / "sheet.tres").is_file(),
+        "atlas": (d / "sheet.atlas.json").is_file(),
+        "aseprite": (d / "sheet.ase").is_file(),
+        "paper2d": (d / "sheet.paper2dsprites").is_file(),
         "frames": len(list(fdir.glob("*.png"))) if fdir.is_dir() else 0,
     }
     return data
@@ -2476,6 +2481,64 @@ async def get_sprite_zip(job: str):
         content=data, media_type="application/zip",
         headers={"Content-Disposition":
                  f'attachment; filename="sprites_{Path(job).name}.zip"'})
+
+
+# T109 (plan-sprites T3-T5) — une porte par export : un `?fmt=` unique économiserait quelques lignes et coûterait une
+# allowlist à maintenir dans deux langages. Chaque route nomme SON fichier, et 404 dit lequel manque.
+def _sprite_export(job: str, nom: str, media: str):
+    p = _sprite_dir(job) / nom
+    if not p.is_file():
+        raise HTTPException(404, f"{nom} absent pour ce job — régénère la feuille")
+    return FileResponse(p, media_type=media, filename=f"sprites_{Path(job).name}{nom[len('sheet'):]}")
+
+
+def _sprite_texte(job: str, nom: str, media: str, ecrire):
+    """Un export TEXTE téléchargé seul nomme la texture comme le bouton « Sheet PNG » la télécharge
+    (`sprites_<job>.png`) — mesuré sur 8799 : le .tres disait `res://sheet.png` à côté d'un `sprites_<job>.png`,
+    texture introuvable dans Godot. Dans le ZIP, tout reste `sheet.*`, cohérent."""
+    import json as _json
+    from PIL import Image as _I
+    d = _sprite_dir(job)
+    if not (d / nom).is_file() or not (d / "manifest.json").is_file() or not (d / "sheet.png").is_file():
+        raise HTTPException(404, f"{nom} absent pour ce job — régénère la feuille")
+    m = _json.loads((d / "manifest.json").read_text(encoding="utf-8"))
+    with _I.open(d / "sheet.png") as sh:
+        w, h = sh.size
+    image = f"sprites_{Path(job).name}.png"
+    return Response(content=ecrire(m, w, h, image), media_type=media,
+                    headers={"Content-Disposition":
+                             f'attachment; filename="sprites_{Path(job).name}{nom[len("sheet"):]}"'})
+
+
+@router.get("/assets/sprite/{job}/godot")
+async def get_sprite_godot(job: str):
+    """Ressource SpriteFrames Godot 4 (.tres, texte) — une AtlasTexture par case, une animation par tag."""
+    from app.services import sprite_export as SE
+    return _sprite_texte(job, "sheet.tres", "text/plain", lambda m, w, h, img: SE.godot_tres(m, img))
+
+
+@router.get("/assets/sprite/{job}/atlas")
+async def get_sprite_atlas(job: str):
+    """Atlas JSON Hash façon TexturePacker (Phaser, PixiJS)."""
+    import json as _json
+    from app.services import sprite_export as SE
+    return _sprite_texte(job, "sheet.atlas.json", "application/json",
+                         lambda m, w, h, img: _json.dumps(SE.atlas_json_hash(m, w, h, img), indent=2))
+
+
+@router.get("/assets/sprite/{job}/aseprite")
+async def get_sprite_aseprite(job: str):
+    """Le .ase (32 bpp, un calque, une image par case, les tags) — s'ouvre dans Aseprite."""
+    return _sprite_export(job, "sheet.ase", "application/octet-stream")
+
+
+@router.get("/assets/sprite/{job}/paper2d")
+async def get_sprite_paper2d(job: str):
+    """Feuille Unreal Paper2D (.paper2dsprites, JSON Array TexturePacker)."""
+    import json as _json
+    from app.services import sprite_export as SE
+    return _sprite_texte(job, "sheet.paper2dsprites", "application/json",
+                         lambda m, w, h, img: _json.dumps(SE.paper2d_json(m, w, h, img), indent=2))
 
 
 @router.post("/assets/sprite/{job}/save")
@@ -4318,6 +4381,107 @@ async def audio_duck(request: Request):
         raise HTTPException(e.status, e.message)
     await LI.noter([r["filename"]], "sonvfx", kind="audio", parent=r["parent"], relation="mix")
     return r
+
+
+@router.post("/matte")
+async def matte_start(request: Request):
+    """T103 (plan-son-vfx T9, D2a) — détoure le sujet du rendu d'un job (BiRefNet vidéo, fal) en ProRes 4444.
+    Body {job_id, model?: general|matting|portrait} → {matte_id, usd_note}. PAYANT, prix non affiché par fal :
+    la garde des plafonds passe AVANT tout appel (avec la durée de la source), la note « à mesurer » suit."""
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    payload = payload if isinstance(payload, dict) else {}
+    from app.services import matte_service as MT, sfx_service
+    from app.services.montage_service import _resolve_src
+    src = await _resolve_src({"job_id": str(payload.get("job_id") or "")})
+    if src is None:
+        raise HTTPException(404, "rendu introuvable pour ce job_id")
+    model = str(payload.get("model") or "general")
+    if model not in MT.MATTE_MODELS:
+        raise HTTPException(400, f"modèle de détourage inconnu : {model!r} (connus : {', '.join(MT.MATTE_MODELS)})")
+    dur = await asyncio.get_running_loop().run_in_executor(None, sfx_service._probe_duration, src)
+    await _plafond({"kind": "matte", "duration_s": dur}, "son", src.name)
+    try:
+        mid = MT.detourer(src, model, label=src.stem[:16])
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"ok": True, "matte_id": mid, "usd_note": MT.USD_NOTE}
+
+
+@router.get("/matte-models")
+async def matte_models():
+    """T103 (D2b) — le registre de détourage, SERVI : le rack ne recopie aucun libellé."""
+    from app.services import matte_service as MT
+    return {"models": [{"id": k, "label": v["label"]} for k, v in MT.MATTE_MODELS.items()],
+            "default": "general", "usd_note": MT.USD_NOTE}
+
+
+@router.get("/matte/file/{name}")
+async def matte_file(name: str):
+    """Le .mov d'un matte — nom CONFINÉ au dossier des mattes (déclarée AVANT /matte/{matte_id})."""
+    from app.services import matte_service as MT
+    try:
+        p = MT.matte_path(name)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    if not p.is_file():
+        raise HTTPException(404, "matte absent")
+    return FileResponse(p, media_type="video/quicktime")
+
+
+@router.get("/matte/{matte_id}")
+async def matte_status(matte_id: str):
+    from app.services import matte_service as MT
+    st = MT.status(matte_id)
+    if st["status"] == "unknown":
+        raise HTTPException(404, "matte inconnu")
+    return st
+
+
+# ── T103 (plan-son-vfx T12, D3b) : la recherche de sons — déclarée AVANT /audio/{filename}, sans quoi
+# « search » serait lu comme un nom de fichier (même piège que /audio/meta). Aucune n'appelle un fournisseur
+# payant : le service d'embeddings est local (Clapbox) ou fourni par l'utilisateur (CLAP_REMOTE_URL).
+@router.get("/audio/search/status")
+async def audio_search_status():
+    """L'état de la recherche par description : prête ou non, et POURQUOI non."""
+    from app.services import sound_search as SS
+    return await asyncio.get_running_loop().run_in_executor(None, SS.status)
+
+
+@router.post("/audio/search/index")
+async def audio_search_index(request: Request):
+    """(Ré)indexe le dossier audio. Body {force?: bool} — force repart d'un index vide (changement de modèle)."""
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    from app.services import sound_search as SS
+    try:
+        return await SS.reindex(force=bool((payload or {}).get("force")))
+    except SS.SearchUnavailable as e:
+        raise HTTPException(503, str(e))
+
+
+@router.get("/audio/search")
+async def audio_search(q: str = "", k: int = 12):
+    """Recherche par DESCRIPTION. 503 lisible si aucun service d'embeddings."""
+    from app.services import sound_search as SS
+    try:
+        return {"query": q, "items": await SS.search(q, k=max(1, min(int(k), 50)))}
+    except SS.SearchUnavailable as e:
+        raise HTTPException(503, str(e))
+
+
+@router.get("/audio/similar/{filename}")
+async def audio_similar(filename: str, k: int = 8):
+    """« Comme celui-ci ». Purement local : jamais de 503, jamais un sou."""
+    from app.services import sound_search as SS
+    safe = Path(filename).name
+    if safe != filename:   # sous Windows Path().name coupe aussi à l'antislash ; ailleurs le nom n'est qu'une clé d'index
+        raise HTTPException(400, "nom de fichier refusé")
+    return {"name": safe, "items": await SS.similar(safe, k=max(1, min(int(k), 50)))}
 
 
 @router.post("/audio/audition")
@@ -12978,6 +13142,7 @@ async def effects_preview(request: Request):
     source = q.pop("source", "") or ""
     t = q.pop("t", FXP.T_DEFAULT)
     width = q.pop("w", FXP.W_DEFAULT)
+    matte = q.pop("matte", "") or None   # T103 (D2b) : l'effet passe derrière le sujet détouré
 
     job_video = None
     if str(source).startswith("job:"):
@@ -12993,7 +13158,7 @@ async def effects_preview(request: Request):
     try:
         p = await asyncio.to_thread(
             FXP.render_preview, etype, q, source=source, t=t, width=width,
-            job_video=job_video)
+            job_video=job_video, matte=matte)
     except ValueError as e:
         raise HTTPException(400, str(e))
     except RuntimeError as e:

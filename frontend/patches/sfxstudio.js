@@ -350,6 +350,17 @@ const SvxDrawer=(props)=>{
   var s14=x.useState(null),tagEdit=s14[0],setTagEdit=s14[1];         /* {name,val} */
   var s15=x.useState(""),busyAct=s15[0],setBusyAct=s15[1];           /* "stems:<fn>" … */
   var s16=x.useState(null),armAct=s16[0],setArmAct=s16[1];           /* {name,act,usd} : coût à confirmer */
+  /* T103 (plan-son-vfx T13, D3c) : recherche par DESCRIPTION et « comme celui-ci » (index CLAP) */
+  var s17=x.useState(null),ssStatus=s17[0],setSsStatus=s17[1];       /* {ready,hint,indexed,provider} */
+  var s18=x.useState(!1),semantic=s18[0],setSemantic=s18[1];         /* mode « décrire » */
+  var s19=x.useState(null),semRes=s19[0],setSemRes=s19[1];           /* [{name,score,…}] | null */
+  var s20=x.useState(""),semBusy=s20[0],setSemBusy=s20[1];           /* "" | "q" | "ix" */
+  var s21=x.useState(null),nearOf=s21[0],setNearOf=s21[1];           /* {name,items} */
+  x.useEffect(function(){if(!open)return;var alive=!0;
+    fetch("/api/audio/search/status").then(function(r2){return r2.json()})
+      .then(function(d){if(alive)setSsStatus(d&&typeof d==="object"?d:{ready:!1,indexed:0,hint:"statut indisponible"})})
+      .catch(function(){if(alive)setSsStatus({ready:!1,indexed:0,hint:"statut de la recherche indisponible"})});
+    return function(){alive=!1}},[open]);
   var hoverTimer=x.useRef(0);
   /* onglet Générer — l'état vit ici : changer d'onglet ne perd rien */
   var g1=x.useState(""),gPrompt=g1[0],setGPrompt=g1[1];
@@ -408,7 +419,9 @@ const SvxDrawer=(props)=>{
         tags:m&&Array.isArray(m.tags)?m.tags.map(String):[],mtime:svxN(a.mtime,0),
         starter:!!(m&&m.starter_id),parent:m&&m.parent?String(m.parent):""}})},
     [lib,meta,durTick]);
-  var qn=query.trim().toLowerCase();
+  /* T103 : en mode « décrire », le champ porte une PHRASE pour l'index, pas un filtre de nom — la filtrer par nom
+     vidait la liste au retour (mesuré au banc d'écran) */
+  var qn=semantic?"":query.trim().toLowerCase();
   var searched=x.useMemo(function(){
     return all.filter(function(it){
       if(srcFilter!=="tous"&&(srcFilter==="catalogue")!==it.starter)return !1;
@@ -553,6 +566,8 @@ const SvxDrawer=(props)=>{
       if(props.onClose){props.onClose();e.preventDefault()}
       return}
     if(inField){
+      /* T103 : en mode « décrire », Entrée LANCE la recherche par description */
+      if(t===searchRef.current&&e.key==="Enter"&&semantic){e.preventDefault();semSearch();return}
       if(t===searchRef.current&&e.key==="Enter"){
         var first=rootRef.current&&rootRef.current.querySelector("[data-svx-item]");
         if(first){first.focus();e.preventDefault()}}
@@ -693,6 +708,51 @@ const SvxDrawer=(props)=>{
   function hoverOut(){clearTimeout(hoverTimer.current)}
 
   /* ── rendus ── */
+  /* ── T103 (D3c) : recherche par description, indexation, voisins ──────────
+     Tout passe par les routes de T12 ; aucune n'appelle un fournisseur payant
+     (le service d'embeddings est local, ou fourni par l'utilisateur). */
+  function svxJsonOk(r2){return r2.json().then(function(d){if(!r2.ok)throw new Error((d&&d.detail)||"échec");return d})}
+  function semSearch(){
+    var q=query.trim();if(!q||semBusy)return;
+    setSemBusy("q");setNearOf(null);
+    fetch("/api/audio/search?k=24&q="+encodeURIComponent(q)).then(svxJsonOk)
+      .then(function(d){setSemBusy("");setSemRes(d.items||[])})
+      .catch(function(e){setSemBusy("");setSemRes([]);fireNote(String(e&&e.message||e))})}
+  function semIndex(force){
+    if(semBusy)return;setSemBusy("ix");
+    fetch("/api/audio/search/index",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(force?{force:!0}:{})}).then(svxJsonOk)
+      .then(function(d){setSemBusy("");
+        setSsStatus(function(p){return Object.assign({},p,{indexed:d.total})});
+        fireNote(d.indexed+" son(s) indexé(s), "+d.skipped+" inchangé(s)"
+          +((d.dropped||[]).length?", "+d.dropped.length+" retiré(s)":""))})
+      .catch(function(e){setSemBusy("");fireNote("Indexation : "+String(e&&e.message||e))})}
+  function nearGo(it){
+    fetch("/api/audio/similar/"+encodeURIComponent(it.name)+"?k=8").then(svxJsonOk)
+      .then(function(d){setSemRes(null);setNearOf({name:it.name,items:d.items||[]});
+        if(!(d.items||[]).length)fireNote("« "+it.name+" » n'est pas encore indexé — ✧ puis « indexer ».")})
+      .catch(function(){fireNote("Voisins indisponibles.")})}
+  /* résultat d'une recherche par description ou d'un « voisins » : les MÊMES
+     rangées que la liste, plus le score, plus une sortie explicite */
+  function semanticPanel(){
+    var rows=nearOf?nearOf.items:(semRes||[]);
+    var byName={};all.forEach(function(it){byName[it.name]=it});
+    return r.jsxs("div",{className:"svx-sem",children:[
+      r.jsxs("div",{className:"svx-semhead",children:[
+        r.jsx("span",{children:nearOf?"Proches de « "+nearOf.name+" »":"Décrit : « "+query.trim()+" »"}),
+        r.jsx("button",{className:"svx-minix",onClick:function(){setSemRes(null);setNearOf(null)},children:"retour à la liste"})]}),
+      semBusy==="q"?r.jsx("div",{className:"svx-note",children:"recherche…"})
+      :rows.length?rows.map(function(row){
+        var it=byName[row.name];
+        /* un son indexé mais absent de la liste (effacé depuis) : on le DIT plutôt qu'une rangée fantôme */
+        if(!it)return r.jsx("div",{className:"svx-note",children:"« "+row.name+" » n'est plus dans la bibliothèque — relance « indexer »."},row.name);
+        return r.jsxs("div",{className:"svx-semrow",children:[
+          r.jsx("span",{className:"svx-semscore svm-mono",title:"cosinus (CLAP)",children:Number(row.score).toFixed(2)}),
+          itemRow(it)]},row.name)})
+      :r.jsx("div",{className:"svx-note",children:nearOf
+        ?"Aucun voisin — ce son n'est pas dans l'index."
+        :"Rien trouvé. Vérifie que les sons sont indexés (bouton « indexer »)."})]})}
+
   function itemRow(it){
     var playing=prev&&prev.name===it.name;
     if(confirmDel===it.name)
@@ -757,6 +817,9 @@ const SvxDrawer=(props)=>{
         it.kind==="voix"||it.kind==="import"?actBtn(it,"isolate","◌","Isoler la voix (ElevenLabs)"):null,
         it.kind==="voix"||it.kind==="import"?actBtn(it,"enhance","✦",
           "Améliorer : égaliseur → débruitage → compresseur → −16 LUFS (local, gratuit)"):null,
+        ssStatus&&ssStatus.indexed?r.jsx("button",{className:"svx-abtn",tabIndex:-1,
+          title:"Sons proches de celui-ci (index local, gratuit)","aria-label":"Sons proches de "+it.name,
+          onClick:function(e){e.stopPropagation();nearGo(it)},children:"≈"}):null,
         r.jsx("button",{className:"svx-abtn svx-danger",tabIndex:-1,
           title:"Supprimer de la bibliothèque",
           onClick:function(e){e.stopPropagation();setConfirmDel(it.name)},
@@ -961,10 +1024,24 @@ const SvxDrawer=(props)=>{
     tab!=="gen"?r.jsxs("div",{className:"svx-filters",children:[
       r.jsxs("div",{className:"svx-search",children:[
         r.jsx("input",{className:"svx-searchin",ref:searchRef,type:"text",
-          value:query,placeholder:"Rechercher (nom, prompt)…",
+          value:query,placeholder:semantic?"Décrire le son cherché, puis Entrée — « une porte lourde qui grince »":"Rechercher (nom, prompt)…",
           "aria-label":"Rechercher un son",
           onChange:function(e){setQuery(e.target.value)}}),
         r.jsx("kbd",{className:"svx-kbd","aria-hidden":!0,children:"/"})]}),
+      /* T103 (D3c) : le mode « décrire » — désactivé avec sa RAISON en infobulle quand aucun service n'est là */
+      r.jsx("button",{className:"svx-iconbtn svx-sembtn","data-on":semantic?"":void 0,
+        title:ssStatus&&ssStatus.ready
+          ?"Chercher par DESCRIPTION ("+(ssStatus.indexed||0)+" sons indexés)"
+          :((ssStatus&&ssStatus.hint)||"recherche par description indisponible"),
+        "aria-pressed":semantic,"aria-label":"Recherche par description",
+        disabled:!(ssStatus&&ssStatus.ready),
+        onClick:function(){setSemantic(!semantic);setSemRes(null);setNearOf(null)},children:"✧"}),
+      semantic?r.jsx("button",{className:"svx-abtn","data-busy":semBusy==="ix"?"":void 0,
+        title:"Indexer les sons nouveaux ou modifiés (service local, gratuit)",
+        onClick:function(){semIndex(!1)},children:semBusy==="ix"?"…":"indexer"}):null,
+      semantic?r.jsx("button",{className:"svx-abtn",
+        title:"Tout réindexer depuis zéro — après un changement de modèle du service",
+        onClick:function(){semIndex(!0)},children:"tout réindexer"}):null,
       r.jsxs("select",{className:"svx-select",value:sort,
         "aria-label":"Trier la bibliothèque",title:"Tri",
         onChange:function(e){setSort(e.target.value)},children:[
@@ -984,7 +1061,9 @@ const SvxDrawer=(props)=>{
         "aria-pressed":hoverPrev,"aria-label":"Pré-écoute au survol",
         onClick:function(){setHoverPrev(!hoverPrev)},children:"👂"})]}):null,
     r.jsx("div",{className:"svx-list",children:
-      tab==="gen"?genPanel():(shown.length?shown.map(itemRow):emptyState())}),
+      tab==="gen"?genPanel()
+      :(semRes||nearOf)?semanticPanel()
+      :(shown.length?shown.map(itemRow):emptyState())}),
     note?r.jsx("div",{className:"svx-note",role:"status","aria-live":"polite",
       children:note}):null,
     r.jsxs("div",{className:"svx-hints","aria-hidden":!0,children:[

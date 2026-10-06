@@ -2299,6 +2299,18 @@ function DzMontage(props){
     if(h.u.length>60)h.u.shift();
     h.r.length=0;
     setHistTick(function(t){return t+1})},[]);
+  /* T103 (plan-son-vfx T10, D2b) : le rack VFX pose (ou retire) le SUJET
+     DÉTOURÉ d'un plan par l'évènement `dz-matte` {id, matte} — un geste
+     annulable comme les autres ; le rendu compose alors les effets derrière lui. */
+  x.useEffect(function(){
+    function onMatte(ev){var d=(ev&&ev.detail)||{};
+      if(!d.id)return;
+      pushHistory();
+      setClips(clipsRef.current.map(function(k){return k.id===d.id?Object.assign({},k,{matte:d.matte||void 0}):k}));
+      setDirty(!0);
+      fireNote(d.matte?"Sujet détouré posé — les effets « derrière » passent sous lui au rendu.":"Sujet détouré retiré du plan.")}
+    window.addEventListener("dz-matte",onMatte);
+    return function(){window.removeEventListener("dz-matte",onMatte)}},[]);
   var undo=x.useCallback(function(){
     var h=histRef.current;if(!h.u.length)return;
     var s=h.u.pop();
@@ -4926,6 +4938,8 @@ function DzMontage(props){
             var _fx=(c.effects||[]).filter(function(_f){return !_f.off});
             return _fx.length?_fx:void 0})(),
           opacity:c.opacity};
+        /* T103 (D2b) : le sujet détouré -- joint seulement s'il existe, sur un vrai plan V1 (payload d'avant sinon) */
+        if(c.tr==="v1"&&c.matte&&c.src&&c.src.job_id)o.matte=c.matte;
         /* vitesse V1 (C) — jointe seulement hors 100 % et pour un VRAI plan
            vidéo (une image n'a pas de défilement) : payload d'avant sinon */
         if(c.tr==="v1"&&c.src&&c.src.job_id&&typeof c.speed==="number"&&c.speed>0&&
@@ -7425,6 +7439,17 @@ const SvxDrawer=(props)=>{
   var s14=x.useState(null),tagEdit=s14[0],setTagEdit=s14[1];         /* {name,val} */
   var s15=x.useState(""),busyAct=s15[0],setBusyAct=s15[1];           /* "stems:<fn>" … */
   var s16=x.useState(null),armAct=s16[0],setArmAct=s16[1];           /* {name,act,usd} : coût à confirmer */
+  /* T103 (plan-son-vfx T13, D3c) : recherche par DESCRIPTION et « comme celui-ci » (index CLAP) */
+  var s17=x.useState(null),ssStatus=s17[0],setSsStatus=s17[1];       /* {ready,hint,indexed,provider} */
+  var s18=x.useState(!1),semantic=s18[0],setSemantic=s18[1];         /* mode « décrire » */
+  var s19=x.useState(null),semRes=s19[0],setSemRes=s19[1];           /* [{name,score,…}] | null */
+  var s20=x.useState(""),semBusy=s20[0],setSemBusy=s20[1];           /* "" | "q" | "ix" */
+  var s21=x.useState(null),nearOf=s21[0],setNearOf=s21[1];           /* {name,items} */
+  x.useEffect(function(){if(!open)return;var alive=!0;
+    fetch("/api/audio/search/status").then(function(r2){return r2.json()})
+      .then(function(d){if(alive)setSsStatus(d&&typeof d==="object"?d:{ready:!1,indexed:0,hint:"statut indisponible"})})
+      .catch(function(){if(alive)setSsStatus({ready:!1,indexed:0,hint:"statut de la recherche indisponible"})});
+    return function(){alive=!1}},[open]);
   var hoverTimer=x.useRef(0);
   /* onglet Générer — l'état vit ici : changer d'onglet ne perd rien */
   var g1=x.useState(""),gPrompt=g1[0],setGPrompt=g1[1];
@@ -7483,7 +7508,9 @@ const SvxDrawer=(props)=>{
         tags:m&&Array.isArray(m.tags)?m.tags.map(String):[],mtime:svxN(a.mtime,0),
         starter:!!(m&&m.starter_id),parent:m&&m.parent?String(m.parent):""}})},
     [lib,meta,durTick]);
-  var qn=query.trim().toLowerCase();
+  /* T103 : en mode « décrire », le champ porte une PHRASE pour l'index, pas un filtre de nom — la filtrer par nom
+     vidait la liste au retour (mesuré au banc d'écran) */
+  var qn=semantic?"":query.trim().toLowerCase();
   var searched=x.useMemo(function(){
     return all.filter(function(it){
       if(srcFilter!=="tous"&&(srcFilter==="catalogue")!==it.starter)return !1;
@@ -7628,6 +7655,8 @@ const SvxDrawer=(props)=>{
       if(props.onClose){props.onClose();e.preventDefault()}
       return}
     if(inField){
+      /* T103 : en mode « décrire », Entrée LANCE la recherche par description */
+      if(t===searchRef.current&&e.key==="Enter"&&semantic){e.preventDefault();semSearch();return}
       if(t===searchRef.current&&e.key==="Enter"){
         var first=rootRef.current&&rootRef.current.querySelector("[data-svx-item]");
         if(first){first.focus();e.preventDefault()}}
@@ -7768,6 +7797,51 @@ const SvxDrawer=(props)=>{
   function hoverOut(){clearTimeout(hoverTimer.current)}
 
   /* ── rendus ── */
+  /* ── T103 (D3c) : recherche par description, indexation, voisins ──────────
+     Tout passe par les routes de T12 ; aucune n'appelle un fournisseur payant
+     (le service d'embeddings est local, ou fourni par l'utilisateur). */
+  function svxJsonOk(r2){return r2.json().then(function(d){if(!r2.ok)throw new Error((d&&d.detail)||"échec");return d})}
+  function semSearch(){
+    var q=query.trim();if(!q||semBusy)return;
+    setSemBusy("q");setNearOf(null);
+    fetch("/api/audio/search?k=24&q="+encodeURIComponent(q)).then(svxJsonOk)
+      .then(function(d){setSemBusy("");setSemRes(d.items||[])})
+      .catch(function(e){setSemBusy("");setSemRes([]);fireNote(String(e&&e.message||e))})}
+  function semIndex(force){
+    if(semBusy)return;setSemBusy("ix");
+    fetch("/api/audio/search/index",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(force?{force:!0}:{})}).then(svxJsonOk)
+      .then(function(d){setSemBusy("");
+        setSsStatus(function(p){return Object.assign({},p,{indexed:d.total})});
+        fireNote(d.indexed+" son(s) indexé(s), "+d.skipped+" inchangé(s)"
+          +((d.dropped||[]).length?", "+d.dropped.length+" retiré(s)":""))})
+      .catch(function(e){setSemBusy("");fireNote("Indexation : "+String(e&&e.message||e))})}
+  function nearGo(it){
+    fetch("/api/audio/similar/"+encodeURIComponent(it.name)+"?k=8").then(svxJsonOk)
+      .then(function(d){setSemRes(null);setNearOf({name:it.name,items:d.items||[]});
+        if(!(d.items||[]).length)fireNote("« "+it.name+" » n'est pas encore indexé — ✧ puis « indexer ».")})
+      .catch(function(){fireNote("Voisins indisponibles.")})}
+  /* résultat d'une recherche par description ou d'un « voisins » : les MÊMES
+     rangées que la liste, plus le score, plus une sortie explicite */
+  function semanticPanel(){
+    var rows=nearOf?nearOf.items:(semRes||[]);
+    var byName={};all.forEach(function(it){byName[it.name]=it});
+    return r.jsxs("div",{className:"svx-sem",children:[
+      r.jsxs("div",{className:"svx-semhead",children:[
+        r.jsx("span",{children:nearOf?"Proches de « "+nearOf.name+" »":"Décrit : « "+query.trim()+" »"}),
+        r.jsx("button",{className:"svx-minix",onClick:function(){setSemRes(null);setNearOf(null)},children:"retour à la liste"})]}),
+      semBusy==="q"?r.jsx("div",{className:"svx-note",children:"recherche…"})
+      :rows.length?rows.map(function(row){
+        var it=byName[row.name];
+        /* un son indexé mais absent de la liste (effacé depuis) : on le DIT plutôt qu'une rangée fantôme */
+        if(!it)return r.jsx("div",{className:"svx-note",children:"« "+row.name+" » n'est plus dans la bibliothèque — relance « indexer »."},row.name);
+        return r.jsxs("div",{className:"svx-semrow",children:[
+          r.jsx("span",{className:"svx-semscore svm-mono",title:"cosinus (CLAP)",children:Number(row.score).toFixed(2)}),
+          itemRow(it)]},row.name)})
+      :r.jsx("div",{className:"svx-note",children:nearOf
+        ?"Aucun voisin — ce son n'est pas dans l'index."
+        :"Rien trouvé. Vérifie que les sons sont indexés (bouton « indexer »)."})]})}
+
   function itemRow(it){
     var playing=prev&&prev.name===it.name;
     if(confirmDel===it.name)
@@ -7832,6 +7906,9 @@ const SvxDrawer=(props)=>{
         it.kind==="voix"||it.kind==="import"?actBtn(it,"isolate","◌","Isoler la voix (ElevenLabs)"):null,
         it.kind==="voix"||it.kind==="import"?actBtn(it,"enhance","✦",
           "Améliorer : égaliseur → débruitage → compresseur → −16 LUFS (local, gratuit)"):null,
+        ssStatus&&ssStatus.indexed?r.jsx("button",{className:"svx-abtn",tabIndex:-1,
+          title:"Sons proches de celui-ci (index local, gratuit)","aria-label":"Sons proches de "+it.name,
+          onClick:function(e){e.stopPropagation();nearGo(it)},children:"≈"}):null,
         r.jsx("button",{className:"svx-abtn svx-danger",tabIndex:-1,
           title:"Supprimer de la bibliothèque",
           onClick:function(e){e.stopPropagation();setConfirmDel(it.name)},
@@ -8036,10 +8113,24 @@ const SvxDrawer=(props)=>{
     tab!=="gen"?r.jsxs("div",{className:"svx-filters",children:[
       r.jsxs("div",{className:"svx-search",children:[
         r.jsx("input",{className:"svx-searchin",ref:searchRef,type:"text",
-          value:query,placeholder:"Rechercher (nom, prompt)…",
+          value:query,placeholder:semantic?"Décrire le son cherché, puis Entrée — « une porte lourde qui grince »":"Rechercher (nom, prompt)…",
           "aria-label":"Rechercher un son",
           onChange:function(e){setQuery(e.target.value)}}),
         r.jsx("kbd",{className:"svx-kbd","aria-hidden":!0,children:"/"})]}),
+      /* T103 (D3c) : le mode « décrire » — désactivé avec sa RAISON en infobulle quand aucun service n'est là */
+      r.jsx("button",{className:"svx-iconbtn svx-sembtn","data-on":semantic?"":void 0,
+        title:ssStatus&&ssStatus.ready
+          ?"Chercher par DESCRIPTION ("+(ssStatus.indexed||0)+" sons indexés)"
+          :((ssStatus&&ssStatus.hint)||"recherche par description indisponible"),
+        "aria-pressed":semantic,"aria-label":"Recherche par description",
+        disabled:!(ssStatus&&ssStatus.ready),
+        onClick:function(){setSemantic(!semantic);setSemRes(null);setNearOf(null)},children:"✧"}),
+      semantic?r.jsx("button",{className:"svx-abtn","data-busy":semBusy==="ix"?"":void 0,
+        title:"Indexer les sons nouveaux ou modifiés (service local, gratuit)",
+        onClick:function(){semIndex(!1)},children:semBusy==="ix"?"…":"indexer"}):null,
+      semantic?r.jsx("button",{className:"svx-abtn",
+        title:"Tout réindexer depuis zéro — après un changement de modèle du service",
+        onClick:function(){semIndex(!0)},children:"tout réindexer"}):null,
       r.jsxs("select",{className:"svx-select",value:sort,
         "aria-label":"Trier la bibliothèque",title:"Tri",
         onChange:function(e){setSort(e.target.value)},children:[
@@ -8059,7 +8150,9 @@ const SvxDrawer=(props)=>{
         "aria-pressed":hoverPrev,"aria-label":"Pré-écoute au survol",
         onClick:function(){setHoverPrev(!hoverPrev)},children:"👂"})]}):null,
     r.jsx("div",{className:"svx-list",children:
-      tab==="gen"?genPanel():(shown.length?shown.map(itemRow):emptyState())}),
+      tab==="gen"?genPanel()
+      :(semRes||nearOf)?semanticPanel()
+      :(shown.length?shown.map(itemRow):emptyState())}),
     note?r.jsx("div",{className:"svx-note",role:"status","aria-live":"polite",
       children:note}):null,
     r.jsxs("div",{className:"svx-hints","aria-hidden":!0,children:[
@@ -8617,6 +8710,24 @@ function vfxJson(url){
     if(!res.ok||ct.indexOf("json")<0)throw new Error("réponse non JSON");
     return res.json()})}
 
+/* T103 (D2b) : POST JSON, même garde que vfxJson (le repli SPA répond 200 +
+   text/html) ; le `detail` du backend remonte tel quel dans l'erreur */
+function vfxPost(url,body){
+  return fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body||{})})
+    .then(function(res){
+      var ct=(res.headers.get("content-type")||"").toLowerCase();
+      if(ct.indexOf("json")<0)throw new Error("réponse non JSON");
+      return res.json().then(function(d){if(!res.ok)throw new Error((d&&d.detail)||("HTTP "+res.status));return d})})}
+/* T103 (D2b) : le détourage d'un plan — un seul à la fois, le modèle retenu
+   d'un plan à l'autre ; les libellés sont ceux de matte_service.MATTE_MODELS */
+var VFX_MATTE={busy:!1,model:"general",arm:null,models:null};
+/* le registre vient du BACKEND (GET /api/matte-models) — jamais recopié ici */
+function vfxMatteModels(){
+  if(VFX_MATTE.models)return Promise.resolve(VFX_MATTE.models);
+  return vfxJson("/api/matte-models").then(function(d){
+    VFX_MATTE.models=(d&&d.models)||[];return VFX_MATTE.models})
+    .catch(function(){return []})}
+
 /* ── favoris — localStorage dz_fav_vfx (même patron que dz_fav_avatars) ───── */
 function vfxFavsLoad(){
   try{
@@ -8914,7 +9025,7 @@ function vfxSummary(eff,ce){
 
 /* clés d'état d'un effet qui ne sont PAS des paramètres de rendu d'image */
 var VFX_PRV_SKIP={type:1,off:1,label:1,t0:1,t1:1,fade_in:1,fade_out:1,
-  ease_in:1,ease_out:1};
+  ease_in:1,ease_out:1,behind:1};
 /* source du plan, au format attendu par /api/effects/preview :
    « job:<id> », « image:<nom> », sinon rien (le backend rend sa mire). */
 function vfxSourceOf(clip){
@@ -8933,6 +9044,9 @@ function vfxPreviewUrl(clip,eff,w){
     if(v!=null&&v!=="")q.push(encodeURIComponent(k)+"="+encodeURIComponent(String(v)))});
   var so=vfxSourceOf(clip);
   if(so)q.push("source="+encodeURIComponent(so));
+  /* T103 (D2b) : un effet « derrière » se prévisualise SOUS le sujet détouré,
+     comme au rendu ; « devant » le couvre, la vignette d'avant suffit */
+  if(clip&&clip.matte&&eff.behind!==!1)q.push("matte="+encodeURIComponent(clip.matte));
   /* 40 % du plan : ni le noir du début, ni la fin — une image représentative
      (le backend borne à 30 s, on n'envoie donc rien au-delà) */
   var len=clip&&clip.end>clip.start?clip.end-clip.start:0;
@@ -9467,6 +9581,52 @@ const VfxStack=(props)=>{
       r.jsx("span",{className:"vfx-pval",
         children:(step<1?vfxRound(v,2):Math.round(v))+(b.unit?" "+b.unit:"")})]},k)}
 
+  /* ── T103 (D2b) : la rangée « Sujet » — détourer le plan (BiRefNet, fal) ──
+     PAYANT et au prix NON AFFICHÉ par fal : 1er clic = devis du backend (la
+     ligne dit « à mesurer »), 2e clic = tir. Le résultat part au Montage par
+     `dz-matte` {id, matte} : l'hôte le pose sur le plan, annulable. */
+  var sM=x.useState(0),mtick=sM[1];
+  x.useEffect(function(){vfxMatteModels().then(function(){mtick(function(n){return n+1})})},[]);
+  function emitMatte(name){
+    window.dispatchEvent(new CustomEvent("dz-matte",{detail:{id:clip&&clip.id,matte:name||null}}))}
+  function matteGo(){
+    if(VFX_MATTE.busy||!clip||!clip.src||!clip.src.job_id)return;
+    if(!VFX_MATTE.arm){
+      fetch("/api/cost/estimate",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({kind:"matte",duration_s:vfxN(clip.end,0)-vfxN(clip.start,0)})})
+        .then(function(res){return res.ok?res.json():null})
+        .then(function(e){VFX_MATTE.arm={id:clip.id,label:((e&&e.breakdown&&e.breakdown[0])||{}).label||"devis indisponible",
+          usd:e&&typeof e.total_usd==="number"?e.total_usd:null};mtick(function(n){return n+1})})
+        .catch(function(){VFX_MATTE.arm={id:clip.id,label:"devis indisponible",usd:null};mtick(function(n){return n+1})});
+      return}
+    VFX_MATTE.arm=null;VFX_MATTE.busy=!0;mtick(function(n){return n+1});
+    var id=clip.id;
+    vfxPost("/api/matte",{job_id:clip.src.job_id,model:VFX_MATTE.model}).then(function(d){
+      (function poll(){vfxJson("/api/matte/"+d.matte_id).then(function(st){
+        if(st.status==="done"){VFX_MATTE.busy=!1;mtick(function(n){return n+1});
+          window.dispatchEvent(new CustomEvent("dz-matte",{detail:{id:id,matte:st.file}}));
+          fireNote("Sujet détouré : "+st.file+" — "+(st.usd_note||""))}
+        else if(st.status==="failed"){VFX_MATTE.busy=!1;mtick(function(n){return n+1});fireNote("Détourage : "+st.error)}
+        else setTimeout(poll,1200)}).catch(function(e){VFX_MATTE.busy=!1;mtick(function(n){return n+1});
+          fireNote("Détourage : "+e.message)})})()})
+      .catch(function(e){VFX_MATTE.busy=!1;mtick(function(n){return n+1});fireNote("Détourage : "+e.message)})}
+  function matteRow(){
+    if(!clip||!clip.src||!clip.src.job_id)return null;
+    var arme=VFX_MATTE.arm&&VFX_MATTE.arm.id===clip.id?VFX_MATTE.arm:null;
+    var mods=VFX_MATTE.models||[];
+    return r.jsxs("div",{className:"vfx-matte",children:[
+      r.jsx("span",{className:"vfx-mlbl",children:clip.matte?"Sujet détouré : "+clip.matte:"Sujet non détouré"}),
+      mods.length?r.jsx("select",{className:"vfx-sel",value:VFX_MATTE.model,"aria-label":"Modèle de détourage",
+        onChange:function(e){VFX_MATTE.model=e.target.value;VFX_MATTE.arm=null;mtick(function(n){return n+1})},
+        children:mods.map(function(o){return r.jsx("option",{value:o.id,children:o.label},o.id)})}):null,
+      r.jsx("button",{className:"vfx-btn","data-off":VFX_MATTE.busy||!mods.length?"":void 0,
+        title:"BiRefNet vidéo via fal — prix non affiché par fal : à lire sur le tableau de bord après le tir",
+        onClick:matteGo,
+        children:VFX_MATTE.busy?"détourage…":arme?"Confirmer le détourage":(clip.matte?"Redétourer":"Détourer (fal)")}),
+      clip.matte?r.jsx("button",{className:"vfx-btn",onClick:function(){emitMatte(null)},children:"retirer"}):null,
+      arme?r.jsx("div",{className:"vfx-mhint",children:"devis : "+(arme.usd==null?"":"~$"+arme.usd.toFixed(2)+" — ")+arme.label
+        +" · un second clic lance le détourage"}):null]})}
+
   function row(f,i){
     var d=ce(f.type);
     var open=!!exp[i];
@@ -9499,6 +9659,14 @@ const VfxStack=(props)=>{
         r.jsx("button",{className:"vfx-iconbtn",disabled:i===list.length-1,
           title:"Descendre dans la pile","aria-label":"Descendre « "+d.label+" »",
           onClick:function(){moveAt(i,1)},children:"▼"}),
+        /* T103 (D2b) : sur un plan détouré, chaque effet passe derrière le
+           sujet (défaut) ou devant lui */
+        clip&&clip.matte?r.jsx("button",{className:"vfx-tog","data-on":f.behind!==!1?"":void 0,
+          role:"switch","aria-checked":f.behind!==!1,
+          title:f.behind!==!1?"Derrière le sujet détouré — clic : devant":"Devant le sujet — clic : derrière",
+          "aria-label":(f.behind!==!1?"Passer devant le sujet : ":"Passer derrière le sujet : ")+d.label,
+          onClick:function(){patchAt(i,{behind:f.behind!==!1?!1:void 0},!0)},
+          children:f.behind!==!1?"derrière":"devant"}):null,
         r.jsx("button",{className:"vfx-iconbtn vfx-bypass","data-on":off?"":void 0,
           role:"switch","aria-checked":off,
           title:off?"Réactiver — l'effet repart au rendu"
@@ -9539,6 +9707,7 @@ const VfxStack=(props)=>{
         title:"Ouvrir le panneau d'effets",
         onClick:function(){props.onOpenPanel()},children:"+ effet"}):null]}),
     r.jsx(VfxAlert,{}),
+    matteRow(),
     list.length?r.jsx("div",{className:"vfx-mods",children:list.map(row)})
     :r.jsxs("div",{className:"vfx-empty",children:[
       r.jsx("div",{className:"vfx-emptytxt",children:"Aucun effet sur ce plan."}),

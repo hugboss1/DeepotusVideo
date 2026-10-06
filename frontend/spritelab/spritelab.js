@@ -371,6 +371,20 @@ function showResult(short, m) {
   $("#dlZip").setAttribute("download", `sprites_${short}.zip`);
   $("#dlGif").href = `/api/assets/sprite/${short}/preview`;
   $("#dlGif").setAttribute("download", `sprites_${short}.gif`);
+  /* T109 : les quatre exports moteur — masqués quand le manifeste dit qu'ils manquent (feuille d'avant T109) */
+  $("#dlGodot").href = `/api/assets/sprite/${short}/godot`;
+  $("#dlGodot").setAttribute("download", `sprites_${short}.tres`);
+  $("#dlAtlas").href = `/api/assets/sprite/${short}/atlas`;
+  $("#dlAtlas").setAttribute("download", `sprites_${short}.atlas.json`);
+  $("#dlAse").href = `/api/assets/sprite/${short}/aseprite`;
+  $("#dlAse").setAttribute("download", `sprites_${short}.ase`);
+  $("#dlP2d").href = `/api/assets/sprite/${short}/paper2d`;
+  $("#dlP2d").setAttribute("download", `sprites_${short}.paper2dsprites`);
+  for (const [id, ok] of [["dlGodot", m.files && m.files.godot],
+                          ["dlAtlas", m.files && m.files.atlas],
+                          ["dlAse", m.files && m.files.aseprite],
+                          ["dlP2d", m.files && m.files.paper2d]])
+    $("#" + id).classList.toggle("hidden", !ok);
   $("#sheetImg").src = `/api/assets/sprite/${short}/sheet?t=${Date.now()}`;
   updateStudioBtn();                    // masque « → Studio » si sheet non sauvé
   buildPlayer(short, m);
