@@ -424,7 +424,11 @@ def test_bake_never_raises_on_junk_props():
 
 
 if __name__ == "__main__":       # execution directe (harnais run-tests.ps1)
-    import sys
+    # 06/10 : lu par un tuyau, le lanceur heritait du cp1252 de la locale et
+    # « échecs » sortait en octet 0xE9, illisible en UTF-8. Force ici, jamais
+    # au niveau module (pytest garde ses propres flux).
+    for _flux in (sys.stdout, sys.stderr):
+        _flux.reconfigure(encoding="utf-8", errors="backslashreplace")
     fails = 0
     for name, fn in sorted(list(globals().items())):
         if name.startswith("test_") and callable(fn):
