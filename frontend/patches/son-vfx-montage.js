@@ -36,6 +36,8 @@ function svmUsd(v){
   if(v<.00005)return "<$0.0001";
   return "$"+v.toFixed(v>=.095?2:v>=.0095?3:4)}
 /* vitesse numérique d'un clip (facteur > 0 posé sur le clip, défaut ×1) */
+/* t117 : horodatage de la dernière rafale de réglage d'un fondu J1 (une entrée d'historique par 600 ms) */
+var SVM_AJ_FADE_T=0;
 function svmSpeedOf(c){return c&&typeof c.speed==="number"&&c.speed>0?c.speed:1}
 function svmGetTheme(){try{return localStorage.getItem("dz_svm_theme")==="light"?"light":"dark"}catch(e){return "dark"}}
 function svmUseTheme(){var st=x.useState(svmGetTheme()),theme=st[0],setT=st[1];function set(t){setT(t);try{localStorage.setItem("dz_svm_theme",t)}catch(e){}}return [theme,set]}
@@ -1068,9 +1070,12 @@ function svmTransBase(t){return String(t||"cut").split(/\s+/)[0]||"cut"}
 function svmTransLabel(t){var b=svmTransBase(t);
   return DzTracks.transLabel(b,SVM_TRANS,window.__dzTransCat||null)}
 function svmTransS(c){return Math.min(1,Math.max(.1,Number(c&&c.transition_s)||.4))}
-/* jonctions V1 : deux clips consécutifs dont l'écart ≤ 0,1 s (au-delà : trou) */
-function svmV1Junctions(cs){
-  var vs=cs.filter(function(c){return c.tr==="v1"}).slice()
+/* jonctions d'une piste vidéo (V1 par défaut) : deux clips consécutifs dont l'écart ≤ 0,1 s (au-delà : trou).
+   t117 (plusieurs séquences) : toute piste vidéo — plein cadre ou incrustation — a ses jonctions ; le rendu les fond
+   par la même loi que V1 (montage_service._jonctions). */
+function svmV1Junctions(cs,tid){
+  tid=tid||"v1";
+  var vs=cs.filter(function(c){return c.tr===tid}).slice()
     .sort(function(a,b){return a.start-b.start});
   var out=[];
   for(var i=0;i<vs.length-1;i++){
@@ -1080,7 +1085,7 @@ function svmV1Junctions(cs){
 function svmLeftNeighbor(cs,c){
   var best=null;
   cs.forEach(function(k){
-    if(k.tr!=="v1"||k.id===c.id||k.start>=c.start)return;
+    if(k.tr!==c.tr||k.id===c.id||k.start>=c.start)return;   /* t117 : le voisin de gauche sur la MÊME piste */
     if(Math.abs(c.start-k.end)<=.1&&(!best||k.end>best.end))best=k});
   return best}
 /* clip V1 réel (src vidéo ou image) actif sous t — fin exclusive, dernier départ gagne */
@@ -2097,7 +2102,7 @@ function DzMontage(props){
         {lbl:"Ancrer la barre d'outils",combo:dzTbDock?"✓":"",run:function(){dzTbDockToggle()}}]);
       return Object.assign(base,{rubs:rubs})}
     if(kind==="clip"){var c=cs.find(function(k){return k.id===id});if(!c)return null;
-      var v1=c.tr==="v1",sp=svmSpeedOf(c),g=DzTracks.voisins(cs,c).g;
+      var vid=trackKind(c.tr)==="video",sp=svmSpeedOf(c),g=DzTracks.voisins(cs,c).g;   /* t117 : toute piste vidéo */
       return Object.assign(base,{items:[
         {lbl:"Couper à la tête",combo:svmKeyLabel("blade"),off:!(ph>c.start+.05&&ph<c.end-.05),run:function(){dzFire("blade")}},
         {lbl:"Découper aux changements de plan",off:!(c.src&&c.src.job_id)||trackKind(c.tr)!=="video",run:function(){dzSceneCut(id)}},
@@ -2106,7 +2111,7 @@ function DzMontage(props){
         {lbl:"Effets…",off:trackKind(c.tr)==="audio",run:function(){setFxPick(!0)}},
         {lbl:"Copier le grade",combo:svmKeyLabel("grade_copy"),off:!DzTracks.gradeTake(c),run:function(){dzGradeCopy(id)}},
         {lbl:"Coller le grade",combo:svmKeyLabel("grade_paste"),off:!!proj.demo||trackKind(c.tr)!=="video"||!DzTracks.gradeRead(),run:function(){dzGradePaste(id)}},{sep:!0}]
-        .concat([.25,.5,.75,1,1.5,2].map(function(v){return {lbl:"Vitesse "+Math.round(v*100)+" %",combo:Math.abs(sp-v)<1e-6?"✓":"",off:!v1||!c.src||!c.src.job_id,run:function(){svmSetV1Speed(id,v)}}}))
+        .concat([.25,.5,.75,1,1.5,2].map(function(v){return {lbl:"Vitesse "+Math.round(v*100)+" %",combo:Math.abs(sp-v)<1e-6?"✓":"",off:!vid||!c.src||!c.src.job_id,run:function(){svmSetV1Speed(id,v)}}}))
         .concat([{sep:!0},{lbl:"Transition…",off:!g,run:function(){openTransPopAt(id,o.x)}}])})}
     if(kind==="track"){var ts=svmTracksOf(proj),t=ts.find(function(k){return k.id===id});if(!t)return null;
       var bus=SVM_TRACK_BUS[id],lk=!!(trackSt[id]&&trackSt[id].l),bs=id==="v1"||id==="s1",n=cs.filter(function(k){return k.tr===id}).length;
@@ -2197,12 +2202,12 @@ function DzMontage(props){
         nk.id=c.id||("c"+i);nk.label=c.label||"clip";
         nk.start=Number(c.start)||0;nk.end=Number(c.end)||0;
         nk.srcIn=Number(c.srcIn)||0;
-        if(c.tr==="v1"){nk.transition=c.transition||"cut";
+        if(String(c.tr||"").charAt(0)==="v"){nk.transition=c.transition||"cut";   /* t117 : toute piste vidéo */
           nk.transition_s=Number(c.transition_s)||0}
         return nk}
       return {tr:c.tr,id:c.id||("c"+i),label:c.label||"clip",start:Number(c.start)||0,
         end:Number(c.end)||0,src:c.src||null,srcIn:Number(c.srcIn)||0,
-        transition:c.transition||(c.tr==="v1"?"cut":void 0),
+        transition:c.transition||(String(c.tr||"").charAt(0)==="v"?"cut":void 0),
         transition_s:Number(c.transition_s)||0}});
     /* P12 — DES IDENTIFIANTS UNIQUES. `ovSeq` repart de zéro à chaque
        chargement et la sauvegarde reprend `c.id` tel quel : deux clips
@@ -2423,9 +2428,9 @@ function DzMontage(props){
      narration. */
   var v1SpeedJobs={};
   clips.forEach(function(c){
-    if(c.tr==="v1"&&c.src&&c.src.job_id&&typeof c.speed==="number"&&
+    if(trackKind(c.tr)==="video"&&c.src&&c.src.job_id&&typeof c.speed==="number"&&
        c.speed>0&&Math.abs(c.speed-1)>1e-6)
-      v1SpeedJobs[c.src.job_id]=Math.round(c.speed*100)});
+      v1SpeedJobs[c.src.job_id]=Math.round(c.speed*100)});   /* t117 : pistes hautes comme V1 */
 
   /* boucle de lecture — l'horloge suit le mode. Aperçu rendu (previewUrl) :
      le fichier composite reste maître. Projet réel sans aperçu : le <video>
@@ -2697,9 +2702,10 @@ function DzMontage(props){
       if(el._svmTfSig!==tsig){el._svmTfSig=tsig;svmApplyTf(el,ktf)}
       if(el.tagName==="VIDEO"){
         el.muted=!0; /* un overlay ne porte jamais le son */
-        var wt2=(k.srcIn||0)+(t-k.start);
+        var kSpd=svmSpeedOf(k);   /* t117 : la vitesse d'un plan haut, comme V1 */
+        var wt2=(k.srcIn||0)+(t-k.start)*kSpd;
         if(run){
-          if(el.playbackRate!==s)el.playbackRate=s;
+          if(el.playbackRate!==s*kSpd)el.playbackRate=s*kSpd;
           if(Math.abs(el.currentTime-wt2)>.35){try{el.currentTime=wt2}catch(_e){}}
           if(el.paused&&!el.ended)livePlay(el)}
         else{if(!el.paused)el.pause();liveSeek(el,wt2)}}});
@@ -3422,7 +3428,7 @@ function DzMontage(props){
       if(id==="swap_left"||id==="swap_right"){var dzC=(clipsRef.current||[]).filter(function(k){return k&&k.id===selRef.current})[0];if(!dzC){fireNote("Échanger : sélectionnez d'abord un plan.");return}if(trackStRef.current[dzC.tr]&&trackStRef.current[dzC.tr].l){fireNote("Piste "+dzC.tr.toUpperCase()+" verrouillée.");return}var dzSw=DzTracks.swap(clipsRef.current,dzC.id,id==="swap_left"?-1:1);if(dzSw.every(function(k,i){return k===clipsRef.current[i]})){fireNote("Aucun plan voisin de ce côté.");return}pushHistory();setClips(dzSw);setDirty(!0);fireNote("« "+(dzC.label||dzC.id)+" » échangé avec le plan "+(id==="swap_left"?"précédent":"suivant")+".");return}
       if(id==="title_add"){dzTtAdd();return}
       if(id==="adjust_add"){dzAjAdd();return}
-      if(id==="trans_add"){var dzTc=(clipsRef.current||[]).filter(function(k){return k&&k.id===selRef.current&&k.tr==="v1"})[0];if(!dzTc){fireNote("Transition : sélectionnez d'abord un plan de V1.");return}if(trackStRef.current.v1&&trackStRef.current.v1.l){fireNote("Piste V1 verrouillée.");return}if(!DzTracks.voisins(clipsRef.current,dzTc).g){fireNote("Transition : « "+(dzTc.label||dzTc.id)+" » n'a pas de coupe à sa gauche.");return}svmSetTransType(dzTc.id,"fade");fireNote("Fondu de "+svmTransS(dzTc).toFixed(1)+" s posé à la coupe de « "+(dzTc.label||dzTc.id)+" » — le losange en règle la durée.");return}
+      if(id==="trans_add"){var dzTc=(clipsRef.current||[]).filter(function(k){return k&&k.id===selRef.current&&trackKind(k.tr)==="video"})[0];if(!dzTc){fireNote("Transition : sélectionnez d'abord un plan vidéo.");return}if(trackStRef.current[dzTc.tr]&&trackStRef.current[dzTc.tr].l){fireNote("Piste "+String(dzTc.tr).toUpperCase()+" verrouillée.");return}if(!DzTracks.voisins(clipsRef.current,dzTc).g){fireNote("Transition : « "+(dzTc.label||dzTc.id)+" » n'a pas de coupe à sa gauche.");return}svmSetTransType(dzTc.id,"fade");fireNote("Fondu de "+svmTransS(dzTc).toFixed(1)+" s posé à la coupe de « "+(dzTc.label||dzTc.id)+" » — le losange en règle la durée.");return}
       if(id==="copy"){var dzCp=(clipsRef.current||[]).filter(function(k){return k&&k.id===selRef.current})[0];if(!dzCp){fireNote("Copier : sélectionnez d'abord un clip.");return}try{localStorage.setItem("dz_montage_clipboard",JSON.stringify({v:1,at:new Date().toISOString(),clip:DzTracks.clipCopy(dzCp)}))}catch(e){fireNote("Presse-papiers indisponible dans ce navigateur (stockage refusé).");return}fireNote("« "+(dzCp.label||dzCp.id)+" » copié — "+(svmKeyLabelNow("paste")||"Coller")+" le colle à la tête de lecture, dans ce projet ou dans un autre.");return}
       if(id==="paste"){if(dzProjRef.current&&dzProjRef.current.demo){fireNote("Coller : disponible sur un projet réel — la démo est une maquette.");return}var dzPs=null;try{dzPs=JSON.parse(localStorage.getItem("dz_montage_clipboard")||"null")}catch(e){dzPs=null}var dzPq=ovSeq.current+1,dzPr=DzTracks.clipPaste(clipsRef.current||[],dzPs,{head:phRef.current,tracks:dzTracksRef.current||svmTracksOf(dzProjRef.current),mode:dzModeRef.current,seq:dzPq,range:dzProjRef.current&&dzProjRef.current.range,locked:(function(){var o={},k;for(k in trackStRef.current)if(trackStRef.current[k]&&trackStRef.current[k].l)o[k]=!0;return o})()});if(dzPr.id==null){fireNote(dzPr.note||"Rien n'a été collé.");return}ovSeq.current=dzPq;pushHistory();setClips(dzPr.clips);setSelId(dzPr.id);setDirty(!0);fireNote("« "+(dzPs.clip.label||dzPr.id)+" » collé sur "+String(dzPr.track).toUpperCase()+" à "+svmShort(Number(dzPr.start)||0)+(dzPr.mode!=="ecraser"?" (mode « "+DzTracks.modeLabel(dzPr.mode)+" »)":"")+(dzPr.note?" — "+dzPr.note:"")+".");return}
       if(id==="grade_copy"){dzGradeCopy(selRef.current);return}
@@ -3614,11 +3620,11 @@ function DzMontage(props){
     if(!isFinite(v)||v<=0)return;
     v=Math.min(4,Math.max(.25,Math.round(v*100)/100));
     var c=clipsRef.current.find(function(k){return k.id===id});
-    if(!c||c.tr!=="v1"||!c.src||!c.src.job_id)return;
+    if(!c||trackKind(c.tr)!=="video"||!c.src||!c.src.job_id)return;   /* t117 : toute piste vidéo */
     var cur=svmSpeedOf(c);
     if(Math.abs(v-cur)<1e-6)return;
-    if(trackStRef.current.v1&&trackStRef.current.v1.l){
-      fireNote("Piste V1 verrouillée — vitesse bloquée.");return}
+    if(trackStRef.current[c.tr]&&trackStRef.current[c.tr].l){
+      fireNote("Piste "+String(c.tr).toUpperCase()+" verrouillée — vitesse bloquée.");return}
     pushHistory();
     setClips(clipsRef.current.map(function(k){
       if(k.id!==id)return k;
@@ -4610,8 +4616,10 @@ function DzMontage(props){
         if(c.tr==="v1"&&c.matte&&c.src&&c.src.job_id)o.matte=c.matte;
         /* vitesse V1 (C) — jointe seulement hors 100 % et pour un VRAI plan
            vidéo (une image n'a pas de défilement) : payload d'avant sinon */
-        if(c.tr==="v1"&&c.src&&c.src.job_id&&typeof c.speed==="number"&&c.speed>0&&
-           Math.abs(c.speed-1)>1e-6)o.speed=Math.round(c.speed*100)/100;
+        if(trackKind(c.tr)==="video"&&c.src&&c.src.job_id&&typeof c.speed==="number"&&c.speed>0&&
+           Math.abs(c.speed-1)>1e-6)o.speed=Math.round(c.speed*100)/100;   /* t117 : pistes hautes comme V1 */
+        /* t117 : fondus d'un clip d'ajustement — joints seulement s'ils existent (payload d'avant sinon) */
+        if(c.kind==="adjust"){if(c.fade_in)o.fade_in=c.fade_in;if(c.fade_out)o.fade_out=c.fade_out}
         /* D-13 : le zoom dynamique -- joint seulement s'il existe (payload d'avant sinon) */
         var dzD=c.tr==="v1"&&DzTracks.dzOf(c);if(dzD)o.dz=dzD;
         /* D-15 : l'interpolation du retime -- jointe seulement avec une vitesse */
@@ -5010,6 +5018,7 @@ function DzMontage(props){
     var d=vfxLayer();
     if(d&&d.Stack&&sel&&((sel.src&&trackKind(sel.tr)==="video")||sel.kind==="adjust"))
       return r.jsxs(r.Fragment,{children:[sel.kind==="adjust"?r.jsx(SvmLabel,{style:{margin:"20px 0 10px"},children:"Ajustement — ses effets s'appliquent à tout ce qui est dessous, visibles après Preview"}):null,
+      sel.kind==="adjust"?dzAjFadeRow(sel):null,
       r.jsx(d.Stack,{effects:sel.effects||[],clip:sel,
         dur:Math.max(.1,sel.end-sel.start),
         onOpenPanel:function(){setFxPick(!fxPick)},
@@ -5023,6 +5032,38 @@ function DzMontage(props){
             return k.id===id?Object.assign({},k,{effects:next}):k}));
           setDirty(!0)}})]});
     return vfxLegacySection()}
+  /* t117 — FONDUS D'UN CLIP D'AJUSTEMENT (sa « transition ») : le fondu d'entrée fait monter les effets qui
+     COMMENCENT avec le clip, celui de sortie fait descendre ceux qui FINISSENT avec lui (montage_service.
+     _adjust_bounded ; le plus long gagne si un effet porte déjà le sien dans le rack). 0 = aucun : le champ est
+     RETIRÉ (payload d'avant). Borné à la moitié du clip, comme l'enveloppe des effets. Une entrée d'historique par
+     rafale de 600 ms, la règle du rack. */
+  function dzAjFade(which,v){
+    var id=selRef.current,c=clipsRef.current.find(function(k){return k.id===id});
+    if(!c||c.kind!=="adjust")return;
+    var half=Math.max(0,(c.end-c.start)/2);
+    v=Math.round(Math.min(half,Math.max(0,Number(v)||0))*10)/10;
+    var key=which==="out"?"fade_out":"fade_in";
+    if((c[key]||0)===v)return;
+    var now=Date.now();
+    if(now-SVM_AJ_FADE_T>600)pushHistory();
+    SVM_AJ_FADE_T=now;
+    setClips(clipsRef.current.map(function(k){
+      if(k.id!==id)return k;
+      var nk=Object.assign({},k);
+      if(v>0)nk[key]=v;else delete nk[key];
+      return nk}));
+    setDirty(!0)}
+  function dzAjFadeRow(c){
+    var half=Math.max(0,(c.end-c.start)/2);
+    function champ(which,lbl){var key=which==="out"?"fade_out":"fade_in";
+      return r.jsxs("div",{className:"svm-prop",children:[
+        r.jsx("div",{className:"svm-propk",children:lbl}),
+        r.jsx("input",{className:"svm-transdur",type:"number",min:0,max:Math.round(half*10)/10,step:.1,value:c[key]||0,
+          "aria-label":lbl+" du clip d'ajustement (s)",
+          title:(which==="out"?"Les effets qui finissent avec le clip s'éteignent":"Les effets qui commencent avec le clip s'allument")+
+            " en douceur sur cette durée (0 à "+(Math.round(half*10)/10)+" s, la moitié du clip) — visible après Preview",
+          onChange:function(e){dzAjFade(which,e.target.value)}})]},key)}
+    return r.jsx("div",{className:"svm-props",children:[champ("in","Fondu d'entrée"),champ("out","Fondu de sortie")]})}
   function vfxLegacySection(){
     return r.jsxs(r.Fragment,{children:[
       r.jsx(SvmLabel,{style:{margin:"20px 0 10px"},children:"Effets sur ce clip"}),
@@ -5298,7 +5339,7 @@ function DzMontage(props){
   /* inspecteur — transition d'entrée du clip V1 sélectionné ; le backend
      ignore celle du premier clip et des jonctions avec trou */
   function transInspector(){
-    if(!sel||sel.tr!=="v1")return null;
+    if(!sel||trackKind(sel.tr)!=="video")return null;   /* t117 : toute piste vidéo */
     var left=svmLeftNeighbor(clips,sel);
     var base=svmTransBase(sel.transition),isCut=base==="cut",s2=svmTransS(sel);
     var known=DzTracks.transList(SVM_TRANS,dzTransCat).some(function(f){
@@ -6046,7 +6087,7 @@ function DzMontage(props){
           /* vitesse ÉDITABLE (C) : clips V1 réels (rendu vidéo) seulement —
              partout ailleurs la valeur reste une lecture (facteur atempo des
              clips audio, chaîne de la maquette démo) */
-          var v1spd=!!(sel&&sel.tr==="v1"&&sel.src&&sel.src.job_id);
+          var v1spd=!!(sel&&trackKind(sel.tr)==="video"&&sel.src&&sel.src.job_id);   /* t117 : toute piste vidéo */
           if(!v1spd)rows.push({k:"Vitesse",
             v:sel&&sel.speed?(typeof sel.speed==="number"?Math.round(sel.speed*100)+" %":sel.speed):"100 %",t:null});
           var kids=rows.map(function(p2){return r.jsxs("div",{className:"svm-prop",
@@ -6715,7 +6756,7 @@ function DzMontage(props){
                           onPointerDown:function(ev){ev.stopPropagation()},
                           onClick:function(ev){ev.stopPropagation();seekTo(c.start+p.t)}},"mp"+pi)}):null]},c.id)}),
                 /* jonctions V1 : étendue de la transition + losange de réglage */
-                tr.id==="v1"?svmV1Junctions(clips).map(function(j2){
+                trackKind(tr.id)==="video"?svmV1Junctions(clips,tr.id).map(function(j2){   /* t117 : toute piste vidéo */
                   var on=svmTransBase(j2.right.transition)!=="cut";
                   var s2=on?svmTransS(j2.right):0;
                   return r.jsxs(r.Fragment,{children:[
