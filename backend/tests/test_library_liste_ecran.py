@@ -131,7 +131,7 @@ var T=await monteur(DzEtatProjet).monter({pid:"pj 1"});R.txt=texte(T);R.fetch=FE
 R.cols=trouver(T,function(n){return n.p&&n.p.title&&n.t==="div"}).map(function(d){return d.p.title});
 var gros={id:"g",n:15,monte:[],publie:[],imprime:[],inutilise:Array.from({length:15},function(_,i){return{ref:"f"+i,kind:"image"}})};
 REP["GET /api/library/projets/g/etat"]=gros;var TG=await monteur(DzEtatProjet).monter({pid:"g"});R.gros=texte(TG);
-R.lignes=trouver(TG,function(n){return n.t==="div"&&/^f\d+$/.test(String(n.p.children))}).length;
+R.lignes=trouver(TG,function(n){return n.t==="div"&&/^f\\d+$/.test(String(n.p.children))}).length;
 R.panne=texte(await monteur(DzEtatProjet).monter({pid:"absent"}));
 """)
 check("P0 sous node : l'etat du projet s'execute", R is not None)

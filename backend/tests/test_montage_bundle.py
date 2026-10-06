@@ -252,7 +252,7 @@ le direct sans catalogue, et la liste blanche des @keyframes sortie dans
 une ligne propre. DEUX lignes existantes reecrites : celle des deux apercus
 historiques (l'exclusion a quitte la feuille pour la couche) et
 `tb8_aucun_mouvement...`, qui itere desormais par REGLES
-(`([^{}]*)\{([^{}]*)\}` sur la feuille SANS ses commentaires) au lieu de
+(`([^{}]*)\\{([^{}]*)\\}` sur la feuille SANS ses commentaires) au lieu de
 `split("}")` -- une `animation:` posee sous un `@media` y passait.
 
 COMPTE PRECEDENT, 21/09/2026 (D-20, tache 2 — la galerie des transitions,

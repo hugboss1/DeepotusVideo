@@ -38,7 +38,7 @@ print("\n[1] Expression d'opacité : bornes et monotonie")
 e = _opacity_cmds("blend@u", 1.0, 3.0, 0.5, 0.5, "smooth", "smooth")
 check("commandes produites", e.count("all_opacity") > 10)
 check("part de 0", e.startswith("0.000 blend@u all_opacity 0.0000"))
-check("separateur echappe", "\;" in e)
+check("separateur echappe", "\\;" in e)
 # Le plein regime ne doit PAS s'ecrire « all_opacity 1.0000 » : blend ignore
 # une valeur >= 1 (vf_blend.c, config_params n'applique all_opacity que si elle
 # est < 1), la commande est acceptee mais l'opacite ne bouge pas et l'effet ne
