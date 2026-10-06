@@ -31,11 +31,42 @@ def _maintenant() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+def _spec(spec) -> dict | None:
+    """La source TELLE QUE REÇUE, réduite à sa seule clé utile — c'est elle que le meta garde, et que `_refaire_jeu`
+    rejoue (T116 : le meta écrivait toujours `{"image": …}`, une matière du Forge y devenait `{"image": None}`)."""
+    if not isinstance(spec, dict):
+        return None
+    if spec.get("materiau"):
+        return {"materiau": str(spec["materiau"])}
+    return {"image": spec.get("image")}
+
+
 def _charger_matiere(spec, quoi: str) -> Image.Image:
-    """Une matière = une image de la Bibliothèque, désignée par son NOM (un
-    chemin est refusé). La T10 du plan ajoutera la clé `materiau`."""
+    """Une matière = une image de la Bibliothèque, désignée par son NOM (un chemin est refusé), OU une matière du
+    Material Forge, désignée par son id `mat_xxxxxxxx` (T116, plan T10) : sa couleur de base, `basecolor.png` — celle
+    que le Forge affiche, `bake_levels` ne touchant que métal, rugosité et ORM. Une seule des deux clés."""
     if not isinstance(spec, dict):
         raise HTTPException(400, f"{quoi}: objet attendu")
+    if spec.get("materiau") is not None:
+        if spec.get("image"):
+            raise HTTPException(400, f"{quoi}: une seule source — 'image' OU 'materiau'")
+        from app.services import material_store as MS
+        mid = str(spec.get("materiau") or "").strip()
+        if not MS.is_valid_mid(mid):
+            raise HTTPException(400, f"{quoi}: identifiant de matiere invalide: {mid!r}")
+        try:
+            if not MS.material_dir(mid).is_dir():
+                raise ValueError(mid)
+            p = MS.map_path(mid, "basecolor")
+        except ValueError:
+            raise HTTPException(400, f"{quoi}: matiere introuvable: {mid}")
+        if not p.is_file():
+            raise HTTPException(400, f"{quoi}: la matiere {mid} n'a pas de couleur de base (basecolor)")
+        try:
+            with Image.open(p) as im:
+                return im.convert("RGB").copy()
+        except (UnidentifiedImageError, OSError) as e:
+            raise HTTPException(400, f"{quoi}: couleur de base illisible: {mid} ({e})")
     nom = str(spec.get("image") or "").strip()
     if not nom:
         raise HTTPException(400, f"{quoi}: cle 'image' attendue")
@@ -103,8 +134,8 @@ async def creer_jeu(body: dict):
             "largeur": jeu.get("largeur", jeu["cote"]), "hauteur": jeu.get("hauteur", jeu["cote"]),
             "tuiles": len(jeu["tuiles"]), "vide": jeu["vide"],
             "colonnes": colonnes, "rangees": rangees,
-            "source_a": {"image": (body.get("matiere_a") or {}).get("image")},
-            "source_b": None if b is None else {"image": (body.get("matiere_b") or {}).get("image")},
+            "source_a": _spec(body.get("matiere_a")),
+            "source_b": None if b is None else _spec(body.get("matiere_b")),
             "raccord": raccord, "cree_le": _maintenant()}
     TS.write_meta(tid, meta)
     # LA PROVENANCE : l'atlas est COPIÉ dans la Bibliothèque sous `tile_<id>_atlas.png` (préfixe → source

@@ -25,7 +25,8 @@
   const esc = (s) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   const vignette = (fn) => `/api/images/${encodeURIComponent(fn)}`;
   const etat = {
-    images: [], charge: false,
+    images: [], materiaux: [], charge: false,
+    src: { jeu: "lib", forme: "lib" },     // t116 : d'où viennent les matières de chaque mode
     a: null, b: null, slot: "a",            // les deux matières du jeu, et la case qui reçoit le prochain clic
     tid: null, jeu: null, graineApercu: null, apercu: null,
     matiere: null, forme: null, formeMeta: null,
@@ -38,26 +39,42 @@
     a.href = url; a.download = nom; document.body.appendChild(a); a.click(); a.remove();
   }
 
-  /* ── les matières = les images de la Library ─────────────────────────────────────────────────────────────────── */
+  /* ── les matières : images de la Library OU matières du Material Forge (t116, plan T10) ──────────────────────
+     Une matière choisie est un objet { source, id, nom, vignette } ; `specDe` en fait LE corps envoyé au backend,
+     image OU materiau — jamais les deux. Côté Forge, seules les matières qui ONT une couleur de base sont proposées
+     (le backend refuserait les autres). */
   async function charger() {
-    const d = await api.get("/images");
-    etat.images = (d.images || []).map((i) => i.filename);
+    const [d, f] = await Promise.all([api.get("/images"), api.get("/materials").catch(() => ({ materials: [] }))]);
+    etat.images = (d.images || []).map((i) => ({ source: "image", id: i.filename, nom: i.filename, vignette: vignette(i.filename) }));
+    etat.materiaux = (f.materials || []).filter((m) => (m.maps || []).includes("basecolor")).map((m) => ({
+      source: "materiau", id: m.id, nom: m.name || m.id,
+      vignette: `/api/materials/${encodeURIComponent(m.id)}/map/basecolor.png` }));
     etat.charge = true;
-    grille("#jeuGrid", "#jeuSearch", choisirJeu);
-    grille("#formeGrid", "#formeSearch", choisirForme);
+    grilleJeu(); grilleForme();
   }
-  function grille(sel, rech, choisir) {
+  const grilleJeu = () => grille("#jeuGrid", "#jeuSearch", choisirJeu, etat.src.jeu);
+  const grilleForme = () => grille("#formeGrid", "#formeSearch", choisirForme, etat.src.forme);
+  function grille(sel, rech, choisir, src) {
     const q = ($(rech).value || "").toLowerCase();
-    const liste = etat.images.filter((f) => !q || f.toLowerCase().includes(q)).slice(0, 160);
+    const tout = src === "forge" ? etat.materiaux : etat.images;
+    const liste = tout.filter((m) => !q || m.nom.toLowerCase().includes(q)).slice(0, 160);
     const g = $(sel);
-    g.innerHTML = liste.map((f) => `<img loading="lazy" data-fn="${esc(f)}" title="${esc(f)}" src="${vignette(f)}">`).join("")
-      || `<div class="empty-note">Aucune image dans la Library.</div>`;
-    g.querySelectorAll("img").forEach((el) => { el.onclick = () => choisir(el.dataset.fn); });
+    g.innerHTML = liste.map((m, k) => `<img loading="lazy" data-k="${k}" title="${esc(m.nom)}" src="${m.vignette}">`).join("")
+      || `<div class="empty-note">${src === "forge" ? "Aucune matière du Material Forge avec une couleur de base." : "Aucune image dans la Library."}</div>`;
+    g.querySelectorAll("img").forEach((el) => { el.onclick = () => choisir(liste[+el.dataset.k]); });
   }
-  function poserSlot(el, fn) {
-    el.querySelector("img").src = fn ? vignette(fn) : "";
-    el.querySelector(".tl-slot-n").textContent = fn || "—";
-    el.classList.toggle("plein", !!fn);
+  function poserSlot(el, m) {
+    el.querySelector("img").src = m ? m.vignette : "";
+    el.querySelector(".tl-slot-n").textContent = m ? (m.source === "materiau" ? "🧪 " : "") + m.nom : "—";
+    el.classList.toggle("plein", !!m);
+  }
+  function specDe(s) { return s.source === "materiau" ? { materiau: s.id } : { image: s.id }; }
+  function basculer(mode, src) {
+    etat.src[mode] = src;
+    const p = mode === "jeu" ? "#jeuSrc" : "#formeSrc";
+    $(p + "Lib").classList.toggle("on", src === "lib");
+    $(p + "Forge").classList.toggle("on", src === "forge");
+    if (mode === "jeu") grilleJeu(); else grilleForme();
   }
 
   /* ── mode Jeu ─────────────────────────────────────────────────────────────────────────────────────────────── */
@@ -66,9 +83,9 @@
     $("#jeuSlotA").classList.toggle("on", s === "a");
     $("#jeuSlotB").classList.toggle("on", s === "b");
   }
-  function choisirJeu(fn) {
-    etat[etat.slot] = fn;
-    poserSlot($(etat.slot === "a" ? "#jeuSlotA" : "#jeuSlotB"), fn);
+  function choisirJeu(m) {
+    etat[etat.slot] = m;
+    poserSlot($(etat.slot === "a" ? "#jeuSlotA" : "#jeuSlotB"), m);
     if (etat.slot === "a" && !etat.b) slotActif("b");     // A posée : le prochain clic remplit B
     $("#jeuRun").disabled = !(etat.a && etat.b);
   }
@@ -80,10 +97,10 @@
       $("#jeuRun").disabled = true;
       statut(st, "Fabrication du jeu…");
       const d = await api.post("/tiles/jeu", {
-        matiere_a: { image: etat.a }, matiere_b: { image: etat.b },
+        matiere_a: specDe(etat.a), matiere_b: specDe(etat.b),
         jeu: $("#jeuKind").value, cote: parseInt($("#jeuCote").value, 10),
         variantes: parseInt($("#jeuVariantes").value, 10) || 1, graine: parseInt($("#jeuGraine").value, 10) || 1,
-        nom: etat.a.replace(/\.[a-z0-9]+$/i, ""),
+        nom: etat.a.nom.replace(/\.[a-z0-9]+$/i, ""),
       });
       etat.tid = d.tid; etat.jeu = d;
       $("#jeuAtlas").src = `/api/tiles/${d.tid}/fichier/atlas.png?t=${Date.now()}`;
@@ -147,10 +164,10 @@
   const atlas = (tid) => tid && telecharger(`/api/tiles/${tid}/fichier/atlas.png`, "atlas.png");
 
   /* ── mode Formes ──────────────────────────────────────────────────────────────────────────────────────────── */
-  function choisirForme(fn) {
-    etat.matiere = fn;
-    poserSlot($("#formeSlot"), fn);
-    $("#formeRun").disabled = !fn;
+  function choisirForme(m) {
+    etat.matiere = m;
+    poserSlot($("#formeSlot"), m);
+    $("#formeRun").disabled = !m;
   }
 
   async function fabriquerForme() {
@@ -160,7 +177,7 @@
       $("#formeRun").disabled = true;
       statut(st, "Fabrication…");
       const d = await api.post("/tiles/jeu", {
-        matiere_a: { image: etat.matiere }, forme: $("#formeKind").value,
+        matiere_a: specDe(etat.matiere), forme: $("#formeKind").value,
         cote: parseInt($("#formeCote").value, 10), nom: $("#formeKind").value,
       });
       etat.forme = d.tid; etat.formeMeta = d;
@@ -202,8 +219,12 @@
   /* ── branchements ─────────────────────────────────────────────────────────────────────────────────────────── */
   $("#jeuSlotA").onclick = () => slotActif("a");
   $("#jeuSlotB").onclick = () => slotActif("b");
-  $("#jeuSearch").oninput = () => grille("#jeuGrid", "#jeuSearch", choisirJeu);
-  $("#formeSearch").oninput = () => grille("#formeGrid", "#formeSearch", choisirForme);
+  $("#jeuSearch").oninput = grilleJeu;
+  $("#formeSearch").oninput = grilleForme;
+  $("#jeuSrcLib").onclick = () => basculer("jeu", "lib");
+  $("#jeuSrcForge").onclick = () => basculer("jeu", "forge");
+  $("#formeSrcLib").onclick = () => basculer("forme", "lib");
+  $("#formeSrcForge").onclick = () => basculer("forme", "forge");
   $("#jeuRun").onclick = fabriquer;
   $("#jeuApercuBtn").onclick = () => apercu();
   $("#jeuMesuresBtn").onclick = mesurer;
