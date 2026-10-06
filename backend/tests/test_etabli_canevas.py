@@ -1108,7 +1108,7 @@ def test_l_extraction_est_ecrite_en_DERNIER_car_elle_renumerote():
     # tâche #88 : `reparer_maillage` — il écrit SEUL lui aussi (ecrireSeule) ; tâche #89 : `decimer` ; T092 : `booleen`
     # ferme la liste (seul lui aussi : il renumérote)
     assert ('const ORDRE_ECRITURE = ["transformer", "assise", "reparer", '
-            '"extraire", "couper", "reparer_maillage", "creuser", "decimer", "booleen", "connecteur", "materiau", "habiller"];') in js
+            '"extraire", "couper", "reparer_maillage", "creuser", "percer", "decimer", "booleen", "connecteur", "materiau", "habiller"];') in js
     # LE TRI LUI-MEME. Mesure : remplacer le corps de fileOrdonnee() par
     # `return [...S.enAttente];` remet la file dans l'ordre des CLICS et ne
     # faisait rougir personne — la table pouvait rester declaree et inerte,
@@ -3152,8 +3152,8 @@ def test_LA_PLAQUE_N_ECRIT_RIEN___ni_le_disque_ni_la_file():
     # plan de plaque, lui, n'en est toujours pas une. SIX depuis la tâche #88 :
     # `reparer_maillage`, qui traverse l'entonnoir SEULE elle aussi (ecrireSeule). SEPT depuis la
     # tâche #89 : `decimer`, seule elle aussi ; HUIT avec `creuser` (PR E), seule elle aussi ; NEUF avec `booleen`
-    # (T092), seule elle aussi ; DIX avec `connecteur` (T092), seule elle aussi ; ONZE avec `materiau` (T094) ; DOUZE avec `habiller` (T098).
-    assert routes.count("/api/etabli/") == 12, routes
+    # (T092), seule elle aussi ; DIX avec `connecteur` (T092), seule elle aussi ; ONZE avec `materiau` (T094) ; DOUZE avec `habiller` (T098) ; TREIZE avec `percer` (t133), seule elle aussi.
+    assert routes.count("/api/etabli/") == 13, routes
     assert 'const ROUTE_PLAQUE = "/api/etabli/plaque";' in _code("etabli/etabli.js")
     assert "ROUTE_PLAQUE" not in bloc
 
@@ -9122,8 +9122,9 @@ def test_le_POINTEUR_a_UN_SEUL_proprietaire_consulte_par_tout_ecouteur_et_ecrit_
     js, code = _lire("etabli/etabli.js"), _code("etabli/etabli.js")
     # LA DÉCLARATION, avec les autres états de la page, et la liste des modes
     assert 'const GESTE = { mode: "selection", enCours: null };' in js
-    # tâche #89 : le mode « mesure » (deux clics), rangé par armerGeste en le quittant
-    assert 'const MODES_GESTE = ["selection", "glisser", "assise", "couteau", "mesure"];' in js
+    # tâche #89 : le mode « mesure » (deux clics), rangé par armerGeste en le quittant ; t133 : « foret » (un clic,
+    # rien à ranger : aucun objet posé dans la scène)
+    assert 'const MODES_GESTE = ["selection", "glisser", "assise", "couteau", "mesure", "foret"];' in js
     assert js.index("const REP = {") < js.index("const GESTE = {") < js.index("let GIZMO")
     # UN SEUL SITE D'ÉCRITURE du propriétaire, et c'est armerGeste
     ecritures = re.findall(r"GESTE\.mode = (?!=)", code)

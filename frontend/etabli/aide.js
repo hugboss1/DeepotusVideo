@@ -31,7 +31,7 @@ export const LEXIQUE = {
   manifold: { titre: "Manifold", texte: "Chaque arête appartient à exactement deux faces. Un maillage peut être fermé ET non-manifold." },
   decimation: { titre: "Décimation", texte: "Réduire le nombre de triangles. 500 000 ne s'impriment pas mieux que 100 000, mais ralentissent tout." },
   creusage: { titre: "Creusage", texte: "Remplacer l'intérieur plein par une coque. Surtout utile en résine ; 2 mm pour commencer." },
-  drainage: { titre: "Drainage", texte: "Le trou qui laisse sortir la résine (et l'air) d'une pièce creusée. Pas encore dans l'Établi." },
+  drainage: { titre: "Drainage", texte: "Le trou qui laisse sortir la résine (et l'air) d'une pièce creusée. Fiche → « Percer (drainage) », puis un clic sur la face." },
 };
 
 /* Le chapitre du guide, dans la langue du document. `lang` est posé une seule

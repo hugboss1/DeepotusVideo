@@ -15340,6 +15340,37 @@ async def etabli_creuser(body: dict):
     return _etabli_ecrire(job, sortie, "creuser", detail)
 
 
+@router.post("/etabli/percer")
+async def etabli_percer(body: dict):
+    """PERCER (t133, plan-etabli T7 partie percer, corrigé) : un trou de drainage dans la paroi sous `point`, le long
+    de `normale` — la direction du FORET, qui entre dans la matière (la page envoie l'opposé de la normale de la face
+    cliquée). `point` et `normale` en MONDE, `rayon` en UNITÉS DU MODÈLE (> 0), `rayon_millimetres` facultatif — la
+    saisie, GARDÉE dans la fiche. AUCUNE CONVERSION ICI, la règle de /etabli/creuser : la page seule connaît la
+    taille cible, elle convertit par sa garde unique. Le rapport (peaux retirées, bords, tube, paroi traversée)
+    devient le `source` de la fiche."""
+    from app.services import hollow
+    job, data, depuis = _etabli_glb_cible(body.get("job"), body.get("version"), "perçage")
+    point = _etabli_vecteur(body.get("point"), "perçage : point")
+    normale = _etabli_vecteur(body.get("normale"), "perçage : normale", direction=True)
+    rayon = body.get("rayon")
+    if not _etabli_nombre(rayon) or rayon <= 0:
+        raise HTTPException(400, "perçage : `rayon` (unités du modèle) attend un nombre > 0")
+    saisie = body.get("rayon_millimetres")
+    if saisie is not None and (not _etabli_nombre(saisie) or saisie <= 0):
+        raise HTTPException(400, "perçage : `rayon_millimetres` attend un nombre > 0")
+    noeuds = body.get("noeuds")
+    if noeuds is not None and (not isinstance(noeuds, list) or any(not _etabli_entier(n) or n < 0 for n in noeuds)):
+        raise HTTPException(400, "perçage : `noeuds` doit être une liste d'index de nœud (entiers ≥ 0)")
+    try:
+        sortie, rapport = await asyncio.to_thread(hollow.percer, data, noeuds, point, normale, float(rayon))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    detail = {"depuis": depuis, **rapport}
+    if saisie is not None:
+        detail["rayon_millimetres"] = float(saisie)
+    return _etabli_ecrire(job, sortie, "percer", detail)
+
+
 @router.post("/etabli/decimer")
 async def etabli_decimer(body: dict):
     """DÉCIMER DANS LA LIGNÉE (tâche #89 PR D, plan-etabli T7) : `preset` (clé de mesh_optimize.PRESETS) ou
