@@ -435,6 +435,13 @@ def build_zip_bytes(out_dir: Path) -> bytes:
         if fdir.is_dir():
             for f in sorted(fdir.glob("*.png")):
                 z.write(f, f"frames/{f.name}")
+        sdir = out_dir / "spine"
+        if sdir.is_dir():
+            # t111 (T12) : rglob — le dossier porte skeleton.json ET images/<pièce>.png ; un rig sans ses images ne
+            # s'ouvre pas dans Spine
+            for f in sorted(sdir.rglob("*")):
+                if f.is_file():
+                    z.write(f, f"spine/{f.relative_to(sdir).as_posix()}")
     return buf.getvalue()
 
 
