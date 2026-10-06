@@ -166,38 +166,50 @@ def lire_glb_triangles(data: bytes, noeuds=None):
 
 def glb_de_triangles(tris, nom: str = "piece") -> bytes:
     """Le chemin inverse de `lire_glb_triangles` (tâche T092) : un GLB minimal
-    — un nœud, un maillage, des sommets PARTAGÉS (dédoublonnés à l'identique,
-    ce qui garde fermé un solide fermé) — à partir de triangles MONDE."""
+    à UN nœud à partir de triangles MONDE. Voir `glb_de_pieces`."""
+    return glb_de_pieces([(nom, tris)])
+
+
+def glb_de_pieces(pieces) -> bytes:
+    """Un GLB minimal à un nœud par pièce — `pieces` = [(nom, triangles MONDE)] —
+    sommets PARTAGÉS dans chaque pièce (dédoublonnés à l'identique, ce qui garde
+    fermé un solide fermé). De la GÉOMÉTRIE seulement : ni matériau, ni UV."""
     from app.services.mesh_edit import ecrire_glb
-    if not tris:
+    pieces = [(str(n), t) for n, t in pieces if t]
+    if not pieces:
         raise ValueError("aucun triangle à écrire")
-    index, pts, idx = {}, [], []
-    for t in tris:
-        for p in t:
-            q = (float(p[0]), float(p[1]), float(p[2]))
-            k = index.get(q)
-            if k is None:
-                k = index[q] = len(pts)
-                pts.append(q)
-            idx.append(k)
-    pos = struct.pack("<%df" % (3 * len(pts)), *[c for p in pts for c in p])
-    court = len(pts) < 65536
-    ind = struct.pack(("<%dH" if court else "<%dI") % len(idx), *idx)
-    pad = (-len(pos)) % 4
-    binc = pos + b"\x00" * pad + ind
-    doc = {"asset": {"version": "2.0", "generator": "Deepotus print3d"},
-           "scene": 0, "scenes": [{"nodes": [0]}],
-           "nodes": [{"mesh": 0, "name": str(nom)}],
-           "meshes": [{"name": str(nom), "primitives": [{"attributes": {"POSITION": 0}, "indices": 1, "mode": 4}]}],
-           "buffers": [{"byteLength": len(binc) + ((-len(binc)) % 4)}],
-           "bufferViews": [{"buffer": 0, "byteOffset": 0, "byteLength": len(pos), "target": 34962},
-                           {"buffer": 0, "byteOffset": len(pos) + pad, "byteLength": len(ind), "target": 34963}],
-           "accessors": [{"bufferView": 0, "componentType": 5126, "count": len(pts), "type": "VEC3",
-                          "min": [min(p[c] for p in pts) for c in range(3)],
-                          "max": [max(p[c] for p in pts) for c in range(3)]},
-                         {"bufferView": 1, "componentType": 5123 if court else 5125, "count": len(idx),
-                          "type": "SCALAR"}]}
-    return ecrire_glb(doc, binc)
+    binc, vues, acces, meshes, nodes = bytearray(), [], [], [], []
+    for k, (nom, tris) in enumerate(pieces):
+        index, pts, idx = {}, [], []
+        for t in tris:
+            for p in t:
+                q = (float(p[0]), float(p[1]), float(p[2]))
+                j = index.get(q)
+                if j is None:
+                    j = index[q] = len(pts)
+                    pts.append(q)
+                idx.append(j)
+        court = len(pts) < 65536
+        for octets, cible in ((struct.pack("<%df" % (3 * len(pts)), *[c for p in pts for c in p]), 34962),
+                              (struct.pack(("<%dH" if court else "<%dI") % len(idx), *idx), 34963)):
+            while len(binc) % 4:
+                binc.append(0)
+            vues.append({"buffer": 0, "byteOffset": len(binc), "byteLength": len(octets), "target": cible})
+            binc += octets
+        acces.append({"bufferView": len(vues) - 2, "componentType": 5126, "count": len(pts), "type": "VEC3",
+                      "min": [min(p[c] for p in pts) for c in range(3)],
+                      "max": [max(p[c] for p in pts) for c in range(3)]})
+        acces.append({"bufferView": len(vues) - 1, "componentType": 5123 if court else 5125, "count": len(idx),
+                      "type": "SCALAR"})
+        meshes.append({"name": nom, "primitives": [{"attributes": {"POSITION": len(acces) - 2},
+                                                    "indices": len(acces) - 1, "mode": 4}]})
+        nodes.append({"mesh": k, "name": nom})
+    while len(binc) % 4:
+        binc.append(0)
+    doc = {"asset": {"version": "2.0", "generator": "Deepotus print3d"}, "scene": 0,
+           "scenes": [{"nodes": list(range(len(nodes)))}], "nodes": nodes, "meshes": meshes,
+           "buffers": [{"byteLength": len(binc)}], "bufferViews": vues, "accessors": acces}
+    return ecrire_glb(doc, bytes(binc))
 
 
 # ── bbox, échelle mm, pose au sol ────────────────────────────────────────────

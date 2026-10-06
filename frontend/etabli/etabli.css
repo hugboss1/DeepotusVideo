@@ -380,11 +380,11 @@ button { font-family: inherit; }
 /* La rangée s'ENROULE depuis la porte d'écriture — voir #btnSeparer, deux
    règles plus bas, qui est la raison de cet enroulement. */
 .parties-actions { display: flex; flex-wrap: wrap; gap: 6px; }
-.parties-actions button {
+.parties-actions button, .bool-barre button {
   flex: 1; padding: 6px 4px; border: 1px solid var(--stroke); border-radius: var(--r-sm);
   background: transparent; color: var(--ink-soft); font-size: 11px; cursor: pointer;
 }
-.parties-actions button:hover { border-color: var(--accent); color: var(--ink-strong); }
+.parties-actions button:hover, .bool-barre button:hover { border-color: var(--accent); color: var(--ink-strong); }
 /* Le troisième bouton de la rangée, venu avec la porte d'écriture, porte une
    phrase et non un verbe : sur la même ligne que ses deux voisins il tombait
    sous huit caractères visibles. La rangée s'enroule (ci-dessus), il prend
@@ -589,6 +589,15 @@ button { font-family: inherit; }
 
 /* l'aide contextuelle (T091) : les tailles et les variables du repère, aucune couleur neuve */
 /* l'orientation automatique (T092) : les propositions, dans la famille des boutons du panneau */
+/* la barre des booléens (T092) : sous les actions de Parties, mêmes contrôles */
+.bool-barre { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+/* le sélecteur prend la ligne, les trois boutons la suivante : vu en preuve 8799, nus ils tombaient en blanc système */
+.bool-barre select {
+  flex-basis: 100%; padding: 5px 4px; border: 1px solid var(--stroke); border-radius: var(--r-sm);
+  background: transparent; color: var(--ink-soft); font-size: 11px;
+}
+.bool-etat { flex-basis: 100%; }
+.bool-etat { font: 10px var(--f-mono), ui-monospace, monospace; color: var(--ink-soft); }
 .orient { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; }
 .orient-choix { text-align: left; font-size: 11px; }
 .orient .note { margin: 4px 0 0; font: 10px/1.45 var(--f-mono), ui-monospace, monospace; color: var(--ink-soft); }

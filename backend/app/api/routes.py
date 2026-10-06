@@ -14147,6 +14147,50 @@ async def etabli_ranger(body: dict):
         raise HTTPException(400, str(e))
 
 
+@router.post("/etabli/booleen")
+async def etabli_booleen(body: dict):
+    """LES BOOLÉENS (tâche T092, plan-etabli T18) : union / différence (A − B) / intersection entre deux groupes de
+    nœuds de la MÊME version. Le résultat devient UN nœud, nommé par l'opération ; les autres pièces suivent, chacune
+    son nœud. LE COMPTE RENDU DIT LES DEUX LIMITES : la couture (sommets en T, refermée par « Réparer en un clic ») et
+    les matières (le booléen écrit de la géométrie : matériaux et UV ne suivent pas)."""
+    from app.services import mesh_boolean, mesh_edit, print3d
+    job, data, depuis = _etabli_glb_cible(body.get("job"), body.get("version"), "booléen")
+    a, b = body.get("a"), body.get("b")
+    for nom, v in (("a", a), ("b", b)):
+        if not isinstance(v, list) or not v or any(not _etabli_entier(x) or x < 0 for x in v):
+            raise HTTPException(400, f"booléen : `{nom}` attend une liste non vide d'index de nœud")
+    if set(a) & set(b):
+        raise HTTPException(400, "booléen : un même nœud ne peut pas être des deux côtés de l'opération")
+    op = body.get("operation", "union")
+    if op not in mesh_boolean.OPERATIONS:
+        raise HTTPException(400, f"booléen : operation « {op} » — {', '.join(mesh_boolean.OPERATIONS)}")
+    doc, _binc = mesh_edit.lire_glb(data)
+    nodes = doc.get("nodes") or []
+    for i in list(a) + list(b):
+        if i >= len(nodes) or "mesh" not in nodes[i]:
+            raise HTTPException(400, f"booléen : le nœud {i} ne porte aucun maillage")
+
+    def calculer():
+        ta, tb = print3d.lire_glb_triangles(data, a), print3d.lire_glb_triangles(data, b)
+        tris = mesh_boolean.operer(ta, tb, op)
+        autres = [(nodes[i].get("name") or f"nœud {i}", print3d.lire_glb_triangles(data, [i]))
+                  for i in range(len(nodes)) if "mesh" in nodes[i] and i not in a and i not in b]
+        return ta, tb, tris, autres
+    try:
+        ta, tb, tris, autres = await asyncio.to_thread(calculer)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if not tris:
+        raise HTTPException(400, f"booléen : « {op} » ne laisse aucune matière — les deux pièces ne se touchent "
+                                 "peut-être pas")
+    sortie = await asyncio.to_thread(print3d.glb_de_pieces, [(op, tris)] + autres)
+    return _etabli_ecrire(job, sortie, "booleen", {
+        "depuis": depuis, "booleen": op, "a": list(a), "b": list(b), "triangles_a": len(ta),
+        "triangles_b": len(tb), "triangles": len(tris),
+        "couture": "sommets non soudés le long de la couture — passe « Réparer en un clic » pour les refermer",
+        "matieres": "le booléen écrit de la géométrie : matériaux, textures et UV ne suivent pas"})
+
+
 @router.get("/etabli/orienter")
 async def etabli_orienter(job: str, version: int = 1):
     """L'ORIENTATION AUTOMATIQUE (tâche T092, plan-etabli T19) : PROPOSE trois poses classées. AUCUNE ÉCRITURE — c'est

@@ -73,7 +73,7 @@ def test_la_surface_route_ordre_bouton_et_cablage():
     assert 'reparer_maillage: "/api/etabli/reparer-maillage"' in js
     # l'ordre tient sur UNE ligne (les bancs le lisent ainsi), reparer_maillage la ferme
     assert ('const ORDRE_ECRITURE = ["transformer", "assise", "reparer", "extraire", "couper", '
-            '"reparer_maillage", "creuser", "decimer"];') in js
+            '"reparer_maillage", "creuser", "decimer", "booleen"];') in js
     assert 'const ACTIONS_PAR_DEFAUT = ["souder", "doublons", "degeneres", "normales"];' in js
     fiche = _fonction_etabli("rendreFiche")
     assert '<button id="fReparerMaillage" title="' in fiche and "Réparer en un clic" in fiche
@@ -1114,6 +1114,71 @@ def test_les_poses_proposees_se_disent_dans_l_UNITE_courante_EXECUTEE():
     assert "surplomb 1 %" in o["html"], "arrondi au pour-cent"
     assert o["note"] == "ne trouve pas toujours la meilleure pose"
     assert any("version 3" in a for a in o["avis"]) and len(o["refus"]) == 1
+
+
+# ── T092 / plan T18 : le booléen, deux opérandes NOMMÉS, et ses deux limites dites ──
+def test_le_booleen_a_DEUX_operandes_nommes_et_dit_ses_limites_EXECUTEE():
+    corps = _fonction_etabli_async("appliquerBooleen")
+    src = """
+      const REFUS = [], AVIS = [], ECRITS = [];
+      const direRefus = (m) => REFUS.push(m), direAvis = (m) => AVIS.push(m);
+      const BOOL = { a: [], b: [], source: undefined };
+      let rendus = 0; const rendreParties = () => { rendus++; };
+      const sel = { value: "difference" };
+      const $ = (q) => (q === "#pBoolOp" ? sel : null);
+      const ecrireSeule = async (op, charge, source) => { ECRITS.push([op, charge, source]);
+        return { derniere: { version: 5, source: { booleen: charge.operation, triangles_a: 12, triangles_b: 12,
+          triangles: 24, couture: "COUTURE", matieres: "MATIERES" } } }; };
+    """ + corps + """
+      (async () => {
+        await appliquerBooleen();
+        BOOL.a = [0]; await appliquerBooleen();
+        BOOL.b = [1]; BOOL.source = "noms"; await appliquerBooleen();
+        console.log(JSON.stringify({ refus: REFUS, ecrits: ECRITS, avis: AVIS, bool: BOOL, rendus }));
+      })();
+    """
+    o = json.loads(_node(src))
+    assert len(o["refus"]) == 2 and all("A" in r and "B" in r for r in o["refus"])
+    assert o["ecrits"] == [["booleen", {"a": [0], "b": [1], "operation": "difference"}, "noms"]]
+    assert "COUTURE" in o["avis"][0] and "MATIERES" in o["avis"][0] and "version 5" in o["avis"][0]
+    assert o["bool"]["a"] == [] and o["bool"]["b"] == [] and o["rendus"] == 1, "les opérandes se vident APRÈS l'écriture"
+
+
+def test_la_barre_du_booleen_vit_dans_Parties_et_ses_operations_sont_celles_du_service():
+    from app.services import mesh_boolean
+    js = _lire("etabli/etabli.js")
+    assert 'booleen: "/api/etabli/booleen"' in _objet_etabli("ROUTES")
+    assert "const BOOL = { a: [], b: [], source: undefined };" in js
+    p = _fonction_etabli("rendreParties")
+    assert 'id="pBoolOp"' in p and 'id="btnBoolA"' in p and 'id="btnBoolB"' in p and 'id="btnBooleen"' in p
+    assert [m for m in re.findall(r'<option value="(\w+)"', p.split('id="pBoolOp"', 1)[1].split("</select>", 1)[0])] \
+        == list(mesh_boolean.OPERATIONS)
+    assert '$("#btnBooleen").addEventListener("click", appliquerBooleen);' in p
+    assert "prendreOperande(\"a\")" in p and "prendreOperande(\"b\")" in p
+    assert "booleen" in _objet_etabli("LIBELLES_ATTENTE") and "booleen" in _objet_etabli("LIBELLE_OP")
+    # habillée comme ses voisines (preuve 8799 : nue, elle tombait en contrôles système blancs)
+    css = _lire("etabli/etabli.css")
+    assert ".parties-actions button, .bool-barre button {" in css and ".bool-barre select {" in css
+
+
+def test_prendre_un_operande_refuse_une_selection_VIDE_et_dit_A_et_B_EXECUTEE():
+    corps = _fonction_etabli("prendreOperande")
+    src = """
+      const REFUS = [], AVIS = [];
+      const direRefus = (m) => REFUS.push(m), direAvis = (m) => AVIS.push(m);
+      const BOOL = { a: [], b: [], source: undefined };
+      let RET = { noeuds: [], source: undefined };
+      const noeudsRetenus = () => RET;
+      let rendus = 0; const rendreParties = () => { rendus++; };
+    """ + corps + """
+      prendreOperande("a");
+      RET = { noeuds: [3, 4], source: undefined }; prendreOperande("a");
+      RET = { noeuds: [4, 7], source: "noms" }; prendreOperande("b");
+      console.log(JSON.stringify({ refus: REFUS, avis: AVIS, bool: BOOL, rendus }));
+    """
+    o = json.loads(_node(src))
+    assert len(o["refus"]) == 2, o["refus"]          # vide, puis 4 des deux côtés
+    assert o["bool"]["a"] == [3, 4] and o["bool"]["b"] == [] and o["rendus"] == 1
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

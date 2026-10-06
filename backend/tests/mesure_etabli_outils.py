@@ -51,6 +51,23 @@ if __name__ == "__main__":
                   r["ferme_apres"])
         else:
             print("modele reel absent : saute")
+    elif quoi == "booleen":
+        # deux tores de 158 x 158 x 2 = 49 928 triangles, décalés de 1,4 sur x : ils s'intersectent sur une large
+        # couronne — la géométrie la plus dure de la famille (courbure partout, aucune face plane)
+        from app.services import mesh_boolean, print3d
+        sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+        from test_mesh_optimize import build_torus_glb
+        n = int(sys.argv[2]) if len(sys.argv) > 2 else 158
+        pa, pb = pathlib.Path(_tmp, "a.glb"), pathlib.Path(_tmp, "b.glb")
+        build_torus_glb(pa, n, n)
+        build_torus_glb(pb, n, n)
+        ta = print3d.lire_glb_triangles(pa.read_bytes())
+        tb = [tuple((p[0] + 1.4, p[1], p[2]) for p in t) for t in print3d.lire_glb_triangles(pb.read_bytes())]
+        print(f"A : {len(ta)} tris, B : {len(tb)} tris")
+        mesh_boolean.MAX_TRIS = max(mesh_boolean.MAX_TRIS, len(ta), len(tb))
+        for op in ("difference", "union", "intersection"):
+            r = chrono(f"{op} {len(ta)} x {len(tb)}", lambda o=op: mesh_boolean.operer(ta, tb, o))
+            print(f"   -> {len(r)} triangles")
     elif quoi == "orienter":
         from app.services import orient
         data = tore()

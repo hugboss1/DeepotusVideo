@@ -136,6 +136,10 @@ const PROFIL = { liste: [], actif: null, slicer: null, erreur: "" };
    l'épingle par comptage des écouteurs. (Même règle que pour S : toute clé
    se déclare ICI.) */
 const GESTE = { mode: "selection", enCours: null };
+/* Les deux OPÉRANDES du booléen (tâche T092, plan-etabli T18) : des index de
+   nœud, pris dans la sélection de Parties par « A = sélection » / « B =
+   sélection », et la provenance de ces index (repli heuristique compris). */
+const BOOL = { a: [], b: [], source: undefined };
 /* Les deux APERÇUS (tâche T091, plan-etabli T16) : des regards, jamais des
    écritures. Ils s'éteignent à chaque chargement (eteindreApercus) — un calque
    peint sur le modèle sortant serait un mensonge sur le modèle entrant. */
@@ -196,7 +200,7 @@ let _ecritEnCours = false;
    durée de sa propre écriture. `reparer_maillage` (tâche #88) écrit SEUL lui aussi,
    derrière la même garde (ecrireSeule) : sa place dans la liste ne compte pas, elle
    n'y voisine jamais avec personne. `decimer` (tâche #89 PR D) et `creuser` (PR E) de même. UNE LIGNE : les bancs la lisent ainsi. */
-const ORDRE_ECRITURE = ["transformer", "assise", "reparer", "extraire", "couper", "reparer_maillage", "creuser", "decimer"];
+const ORDRE_ECRITURE = ["transformer", "assise", "reparer", "extraire", "couper", "reparer_maillage", "creuser", "decimer", "booleen"];
 
 /* Les trois plumes de P1, ÉCRITES plutôt que composées. Un
    `/api/etabli/${t.operation}` marcherait aussi bien et rendrait le fichier
@@ -211,6 +215,7 @@ const ROUTES = {
   reparer_maillage: "/api/etabli/reparer-maillage",
   decimer: "/api/etabli/decimer",
   creuser: "/api/etabli/creuser",
+  booleen: "/api/etabli/booleen",
 };
 
 async function jget(p) {
@@ -2634,6 +2639,17 @@ function rendreParties() {
       <button id="btnSeparer">Séparer la sélection en une version</button>
       <label class="sep-mode" title="Une version PAR élément coché, toutes nées de la version courante (des sœurs, pas une chaîne)">
         <input type="checkbox" id="pSeparement"> une par une</label>
+    </div>
+    <div class="bool-barre" title="Union, différence ou intersection de deux groupes de pièces — écrit une version">
+      <select id="pBoolOp">
+        <option value="union">union</option>
+        <option value="difference">différence (A − B)</option>
+        <option value="intersection">intersection</option>
+      </select>
+      <button id="btnBoolA">A = sélection</button>
+      <button id="btnBoolB">B = sélection</button>
+      <button id="btnBooleen">Appliquer</button>
+      <span class="bool-etat">A : ${BOOL.a.length} · B : ${BOOL.b.length}</span>
     </div>`;
 
   box.querySelectorAll("[data-g]").forEach((b) =>
@@ -2701,6 +2717,9 @@ function rendreParties() {
      conversion uuid → index, elle, reste dans separerSelection(), avec la
      porte d'écriture à qui elle appartient. */
   $("#btnSeparer").addEventListener("click", separerSelection);
+  $("#btnBoolA").addEventListener("click", () => prendreOperande("a"));
+  $("#btnBoolB").addEventListener("click", () => prendreOperande("b"));
+  $("#btnBooleen").addEventListener("click", appliquerBooleen);
   /* ET LE REPÈRE SE RELIT, en queue de panneau. Tout ce qui change la
      sélection ou le modèle passe par ici — le chargement, le clic dans le
      canevas, le changement de granularité, les deux sens de la plaque — sauf
@@ -2907,13 +2926,15 @@ const LIBELLES_ATTENTE = {
   reparer_maillage: (t) => `réparer le maillage : ${t.charge.actions.map((a) => LIBELLE_ACTION[a] || a).join(", ")}`,
   decimer: (t) => `décimer vers ${t.charge.preset || t.charge.target_tris} triangles`,
   creuser: (t) => `creuser : paroi ${fmtMesure(t.charge.paroi)} ${uniteCourante()}`,
+  booleen: (t) => `${t.charge.operation} de ${t.charge.a.length} et ${t.charge.b.length} pièce(s)`,
 };
 
 /* ── RÉPARER EN UN CLIC (tâche #88 PR A, plan-etabli T2) ─────────────────────
    Ce qui RENUMÉROTE écrit SEUL : la file doit être vide, la ligne y entre pour la
    durée de sa propre écriture — la garde de confirmerCoupe(), pour toute opération.
    Rend le bilan d'ecrireVersion(), ou null (refus dit dans la barre). */
-const LIBELLE_OP = { reparer_maillage: "réparer le maillage", decimer: "décimer", creuser: "creuser" };
+const LIBELLE_OP = { reparer_maillage: "réparer le maillage", decimer: "décimer", creuser: "creuser",
+                     booleen: "le booléen" };
 const LIBELLE_ACTION = { souder: "sommets confondus", doublons: "faces dupliquées", degeneres: "triangles plats",
                          normales: "normales unifiées", trous: "trous bouchés" };
 /* Les actions cochées d'office : TOUT sauf les trous — décision de l'utilisateur (04/10) :
@@ -3361,6 +3382,43 @@ function separerSelection() {
   /* Le geste a réussi : un refus rouge laissé par le clic d'avant ne doit pas
      lui rester accroché. */
   direGeometrie();
+}
+
+/* ── LES BOOLÉENS (tâche T092, plan-etabli T18) ─────────────────────────────
+   Deux opérandes NOMMÉS, pris dans la sélection, et un nœud ne peut pas être
+   des deux côtés. L'écriture passe par ecrireSeule : le résultat renumérote
+   les nœuds (un seul pour A et B, les autres pièces à la suite). Les deux
+   limites du service — couture non soudée, matières perdues — sont RÉPÉTÉES
+   dans la barre : réparables ou attendues, elles ne sont pas des secrets. */
+function prendreOperande(cote) {
+  const { noeuds, source } = noeudsRetenus();
+  if (!noeuds.length) {
+    direRefus(`${cote.toUpperCase()} : coche d'abord des pièces dans la liste — A et B sont des groupes de nœuds`);
+    return;
+  }
+  const autre = BOOL[cote === "a" ? "b" : "a"];
+  if (noeuds.some((n) => autre.includes(n))) {
+    direRefus("un même nœud ne peut pas être à la fois dans A et dans B");
+    return;
+  }
+  BOOL[cote] = noeuds;
+  if (source !== undefined) BOOL.source = source;
+  rendreParties();
+}
+
+async function appliquerBooleen() {
+  if (!BOOL.a.length || !BOOL.b.length) {
+    direRefus("choisis A puis B (« A = sélection », « B = sélection ») : un booléen a deux opérandes");
+    return;
+  }
+  const op = $("#pBoolOp").value;
+  const bilan = await ecrireSeule("booleen", { a: BOOL.a, b: BOOL.b, operation: op }, BOOL.source);
+  if (!bilan) return;
+  BOOL.a = []; BOOL.b = []; BOOL.source = undefined;
+  rendreParties();
+  const src = bilan.derniere.source;
+  direAvis(`${src.booleen} écrite (version ${bilan.derniere.version}) : ${src.triangles_a} + ${src.triangles_b} → `
+    + `${src.triangles} triangles — ${src.couture} ; ${src.matieres}`);
 }
 
 /* ── le panneau Fiche : réparer l'assise ────────────────────────────────────
