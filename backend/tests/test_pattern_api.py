@@ -90,6 +90,20 @@ async def main():
             assert pm["params"]["rangs"] == 32 and pm["params"]["joint"] == 0.1 and pm["seed"] == 7, pm
             ok("réglages bornés jusque dans la fiche (rangs 999 -> 32, joint pourri -> défaut), graine gardée")
 
+            # l'APERÇU (T13) : un PNG, rien de créé, les réglages en p_<nom> pèsent
+            import io
+            avant = len(MS.list_materials())
+            a = await c.get("/api/materials/patterns/briques/preview.png?res=256&seed=0&p_rangs=4")
+            b = await c.get("/api/materials/patterns/briques/preview.png?res=256&seed=0&p_rangs=12")
+            assert a.status_code == 200 and a.headers["content-type"] == "image/png", a.text[:200]
+            with Image.open(io.BytesIO(a.content)) as im:
+                assert im.size == (256, 256), im.size
+            assert a.content != b.content, "p_rangs n'a rien changé"
+            assert (await c.get("/api/materials/patterns/nexistepas/preview.png")).status_code == 404
+            assert (await c.get("/api/materials/patterns/briques/preview.png?res=9999")).status_code == 200
+            assert len(MS.list_materials()) == avant, "un aperçu a créé une matière"
+            ok("aperçu GET : PNG 256², p_rangs change l'image, inconnu 404, rien de créé")
+
             r = await c.post("/api/materials/patterns/nexistepas", json={})
             assert r.status_code == 400 and "nexistepas" in r.json()["detail"]
             ok("générateur inconnu : 400 nommé")

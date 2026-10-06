@@ -31,7 +31,12 @@
   <!-- ══════════════ 1. rail gauche — génération ══════════════ -->
   <aside class="rail-left" id="railLeft">
     <div class="rail-head"><h2>Génération</h2></div>
-    <div class="rail-body">
+    <!-- deux onglets (T098) : forger par l'IA ou une photo, ou générer un motif local -->
+    <div class="seg sm" id="railTabs">
+      <button class="seg-b active" id="tabForge" type="button">⚒ Forger</button>
+      <button class="seg-b" id="tabGen" type="button">◈ Générateurs</button>
+    </div>
+    <div class="rail-body" id="paneForge">
 
       <div class="fld">
         <span class="lbl">Source de l'image de base</span>
@@ -114,7 +119,16 @@
       </div>
     </div>
 
-    <div class="rail-foot">
+    <div class="rail-body hidden" id="paneGen">
+      <p class="hint">Motifs paramétriques, calculés en local : aucune clé, aucun crédit, aucun réseau.
+        Le raccord est exact par construction.</p>
+      <div class="chips" id="genList"></div>
+      <div id="genParams"></div>
+      <img id="genPreview" alt="aperçu du générateur" class="hidden">
+      <button class="btn primary big wide" id="genGo" type="button">◈ Créer la matière</button>
+    </div>
+
+    <div class="rail-foot" id="footForge">
       <ol class="steps" id="steps"></ol>
       <button class="btn primary big wide" id="genBtn">
         <span id="genLabel">⚒ Forger la matière</span>

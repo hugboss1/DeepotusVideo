@@ -11249,6 +11249,33 @@ async def generate_material_pattern(gid: str, body: dict = None):
         raise HTTPException(400, str(e))
 
 
+@router.get("/materials/patterns/{gid}/preview.png")
+async def preview_material_pattern(gid: str, request: Request,
+                                   res: int = 256, seed: int = 0):
+    """L'aperçu d'un générateur : une base color, rien d'écrit, rien de créé.
+
+    Les réglages arrivent en `p_<nom>` dans la requête plutôt qu'en corps
+    JSON : c'est un GET, donc le navigateur le met en cache tout seul et un
+    curseur qui repasse par une valeur déjà vue ne recalcule rien."""
+    from app.services import pattern_service as PS
+    if gid not in {g["id"] for g in PS.GENERATEURS}:
+        raise HTTPException(404, f"générateur « {gid} » inconnu")
+    params = {k[2:]: v for k, v in request.query_params.items()
+              if k.startswith("p_")}
+    cote = 128 if int(res or 256) < 192 else min(512, int(res))
+
+    def _travail():
+        import io as _io
+        out = PS.generer(gid, cote, PS.clean_params(gid, params), int(seed))
+        buf = _io.BytesIO()
+        out["basecolor"].save(buf, format="PNG", optimize=False)
+        return buf.getvalue()
+
+    return Response(content=await asyncio.to_thread(_travail),
+                    media_type="image/png",
+                    headers={"Cache-Control": "private, max-age=600"})
+
+
 @router.get("/materials/namings")
 async def list_material_namings():
     """Les conventions d'export, avec l'emplacement de destination de chaque

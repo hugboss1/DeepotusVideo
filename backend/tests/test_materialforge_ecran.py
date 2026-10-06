@@ -196,4 +196,31 @@ assert ".cat-cell {" in CSS and "height: 132px" in CSS.split(".cat-cell {", 1)[1
 ok("catalogue : bouton permanent + galerie vide, dialogue partagé gardé (titre et corps seulement), "
    "un POST pour tout l'import, cases à hauteur explicite")
 
+# ══ 13 · l'onglet Générateurs (T098) ═══════════════════════════════════════════════
+for ident in ("tabForge", "tabGen", "paneGen", "genList", "genParams",
+              "genGo", "genPreview"):
+    assert f'id="{ident}"' in HTML, ident
+assert "/materials/patterns" in JS_CODE
+ok("index.html : deux onglets de rail (Forger / Générateurs), liste, "
+   "réglages, aperçu et bouton de création")
+
+# Les bornes ne sont PAS recopiées dans le JS : elles viennent de la route.
+corps_gen = JS_CODE.split("function renderGenParams(", 1)[1].split("\n}\n", 1)[0]
+assert "p.min" in corps_gen and "p.max" in corps_gen, corps_gen[:400]
+for interdit in ("min=\"2\"", "max=\"32\"", "briques", "hexagones"):
+    assert interdit not in corps_gen, interdit
+ok("les bornes et les identifiants de générateurs viennent de l'API : aucun "
+   "chiffre ni aucun nom recopié dans l'écran")
+# l'aperçu ne CRÉE rien : c'est un GET, réglages en p_<nom>
+assert '@router.get("/materials/patterns/{gid}/preview.png")' in PY
+pv = JS_CODE.split("function genPreviewSoon()", 1)[1].split("\n}\n", 1)[0]
+assert '"p_" + k' in pv and "/preview.png?" in pv and "setTimeout" in pv, pv
+st = JS_CODE.split("function setRailTab(", 1)[1].split("\n}\n", 1)[0]
+assert '"#footForge"' in st and "loadPatterns()" in st, "le pied du rail Forger se cache avec son onglet"
+ok("aperçu par GET sans écriture, retardé ; l'onglet cache le corps ET le pied du rail Forger, "
+   "et ne charge la liste qu'à sa première ouverture")
+assert 'if (e.missing) apiFail(e, "génération de motif"); else toast(' in JS_CODE, \
+    "un refus de génération n'éteint pas l'API"
+assert "openMaterial(d.material.id)" in JS_CODE
+
 print(f"\nOK — {PASS} assertions groupées vertes (écran Material Forge)")
