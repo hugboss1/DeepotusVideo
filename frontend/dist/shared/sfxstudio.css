@@ -418,3 +418,23 @@
 .dzsvm[data-svm-theme="light"] .svx-skelrow{
   background:linear-gradient(100deg,var(--panel2) 40%,var(--panel3) 50%,var(--panel2) 60%);
   background-size:200% 100%}
+
+/* ── T101 (plan-son-vfx T4-T5) : tags, origine, survol, actions par son, montage inline ── */
+.dzsvm .svx-itags{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px}
+.dzsvm .svx-itag{font-size:10.5px;line-height:16px;padding:0 6px;border-radius:8px;background:var(--panel2);color:var(--ink3);border:1px solid var(--stroke)}
+.dzsvm .svx-itag-cat{color:var(--ink4);border-style:dashed}
+.dzsvm .svx-itag-add{cursor:pointer;font-family:inherit}
+.dzsvm .svx-itag-add:hover{color:var(--ink);border-color:var(--stroke2)}
+.dzsvm .svx-tagin{font:inherit;font-size:11px;background:var(--panel3);color:var(--ink);border:1px solid var(--stroke2);border-radius:6px;padding:1px 6px;min-width:160px}
+.dzsvm .svx-seg{display:inline-flex;flex:none;border:1px solid var(--stroke);border-radius:6px;overflow:hidden}
+.dzsvm .svx-segbtn{font-size:11px;padding:2px 7px;background:transparent;color:var(--ink3);border:0;cursor:pointer}
+.dzsvm .svx-segbtn+.svx-segbtn{border-left:1px solid var(--stroke)}
+.dzsvm .svx-segbtn[data-on]{background:var(--panel2);color:var(--ink)}
+.dzsvm .svx-hoverbtn[data-on]{color:var(--accent);border-color:var(--accent)}
+.dzsvm .svx-abtn.svx-armed{color:var(--amber);border-color:var(--amber)}
+.dzsvm .svx-abtn[data-busy]{opacity:.5;pointer-events:none}
+.dzsvm .svx-abtn:disabled{opacity:.35;cursor:default}
+.dzsvm .svx-filters{flex-wrap:wrap}
+.dzsvm .svx-drawer.svx-inline{width:100%;height:100%;border:1px solid var(--stroke);border-radius:8px}
+/* hôte de la Bibliothèque : la racine .dzsvm est absolue (inset:0) — ici elle redevient un bloc de la page */
+.dzsvm.dz-libsons{position:relative;inset:auto;height:min(70vh,560px);min-height:320px;border-radius:8px}

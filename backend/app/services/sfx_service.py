@@ -132,6 +132,23 @@ def classify_kind(filename: str) -> str:
     return "musique" if any(h in low for h in _MUSIC_HINT) else "import"
 
 
+def sanitize_tags(raw) -> list[str]:
+    """Tags éditables du tiroir Sons (T101) : ≤ 12, ≤ 24 caractères, espaces réduits, dédoublonnés sans casse,
+    chaînes seules ; une non-liste rend []."""
+    out, seen = [], set()
+    for t in (raw if isinstance(raw, list) else []):
+        if not isinstance(t, str):
+            continue
+        t = " ".join(t.split())[:24]
+        if not t or t.lower() in seen:
+            continue
+        seen.add(t.lower())
+        out.append(t)
+        if len(out) == 12:
+            break
+    return out
+
+
 # ─────────────────────── génération ElevenLabs SFX ─────────────────────────
 
 def _slug(prompt: str) -> str:

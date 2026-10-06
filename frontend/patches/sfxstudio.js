@@ -55,7 +55,9 @@ function svxKindOf(name,metaMap){
     if(k==="sfx")return "sfx";
     if(k==="voix"||k==="voice"||k==="voiceover"||k==="vo")return "voix";
     if(k==="musique"||k==="music"||k==="bgm")return "musique";
-    if(k==="import"||k==="imported")return "import"}
+    if(k==="import"||k==="imported")return "import";
+    /* T101 : les stems de T100 (sidecar kind « stem ») — la voix séparée est une voix, le reste de la musique */
+    if(k==="stem")return String(m.stem||"").toLowerCase()==="vocals"?"voix":"musique"}
   var n=String(name||"").toLowerCase();
   if(/^sfx[_-]/.test(n))return "sfx";
   if(/^vo_|_narr-|^narration|voice|voix/.test(n))return "voix";
@@ -72,6 +74,17 @@ function svxFavsLoad(){
   catch(_e){return {}}}
 function svxFavsSave(m){
   try{localStorage.setItem("dz_sfx_favs",JSON.stringify(Object.keys(m)))}catch(_e){}}
+/* T101 : pré-écoute au survol — préférence locale dz_sfx_hover ("1" = active), coupée par défaut */
+function svxHoverLoad(){try{return localStorage.getItem("dz_sfx_hover")==="1"}catch(_e){return !1}}
+function svxHoverSave(on){try{localStorage.setItem("dz_sfx_hover",on?"1":"0")}catch(_e){}}
+/* T101 : prix d'une action payante — LE devis du backend (le même que la garde des plafonds), jamais un tarif recopié */
+var SVX_ACT_KIND={stems:"stems",isolate:"isolate"};
+function svxActEstimate(act,dur){
+  return fetch("/api/cost/estimate",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({kind:SVX_ACT_KIND[act],duration_s:svxN(dur,0)})})
+    .then(function(res){return res.ok?res.json():null})
+    .then(function(d){return d&&typeof d.total_usd==="number"?d.total_usd:null})
+    .catch(function(){return null})}
 
 /* ── bus de lecture partagé : une seule source audible à la fois ─────────── */
 var SVX_PLAY={cur:null};
@@ -331,6 +344,13 @@ const SvxDrawer=(props)=>{
   var s9=x.useState(0),durTick=s9[0],setDurTick=s9[1];
   var s10=x.useState(!1),fileOver=s10[0],setFileOver=s10[1];
   var s11=x.useState(svxFavsLoad),favs=s11[0],setFavs=s11[1];  /* {filename:1} */
+  /* T101 (plan-son-vfx T4) : pré-écoute au survol, origine, tags, actions par son */
+  var s12=x.useState(svxHoverLoad),hoverPrev=s12[0],setHoverPrev=s12[1];
+  var s13=x.useState("tous"),srcFilter=s13[0],setSrcFilter=s13[1];   /* tous | miens | catalogue */
+  var s14=x.useState(null),tagEdit=s14[0],setTagEdit=s14[1];         /* {name,val} */
+  var s15=x.useState(""),busyAct=s15[0],setBusyAct=s15[1];           /* "stems:<fn>" … */
+  var s16=x.useState(null),armAct=s16[0],setArmAct=s16[1];           /* {name,act,usd} : coût à confirmer */
+  var hoverTimer=x.useRef(0);
   /* onglet Générer — l'état vit ici : changer d'onglet ne perd rien */
   var g1=x.useState(""),gPrompt=g1[0],setGPrompt=g1[1];
   var g2=x.useState(!0),gAuto=g2[0],setGAuto=g2[1];
@@ -363,7 +383,7 @@ const SvxDrawer=(props)=>{
   x.useEffect(function(){if(open)refresh()},[open]);
   x.useEffect(function(){if(open&&props.defaultTab)setTabSel(null)},[open]);
   x.useEffect(function(){
-    if(open&&rootRef.current)try{rootRef.current.focus({preventScroll:!0})}catch(_e){}},[open]);
+    if(open&&!props.inline&&rootRef.current)try{rootRef.current.focus({preventScroll:!0})}catch(_e){}},[open]);
   x.useEffect(function(){if(!open){stopRef.current();svxRelease(stopRef.current)}},[open]);
   x.useEffect(function(){return function(){
     stopRef.current();svxRelease(stopRef.current);
@@ -371,6 +391,8 @@ const SvxDrawer=(props)=>{
     if(g&&g.parentNode)g.parentNode.removeChild(g)}},[]);
   /* persistance des favoris — point d'écriture unique (updaters purs) */
   x.useEffect(function(){svxFavsSave(favs)},[favs]);
+  x.useEffect(function(){svxHoverSave(hoverPrev)},[hoverPrev]);
+  x.useEffect(function(){return function(){clearTimeout(hoverTimer.current)}},[]);
 
   var waveTick=x.useCallback(function(){setDurTick(function(t){return t+1})},[]);
 
@@ -381,14 +403,18 @@ const SvxDrawer=(props)=>{
       return {name:a.name,url:a.url,kind:svxKindOf(a.name,meta),
         dur:e?e.dur:0,size_kb:a.size_kb,
         prompt:m&&m.prompt?String(m.prompt):void 0,
-        created:m&&m.created?String(m.created):"",idx:i}})},
+        created:m&&m.created?String(m.created):"",idx:i,
+        /* T101 : tags du sidecar, date du fichier, catalogue de démarrage, mère */
+        tags:m&&Array.isArray(m.tags)?m.tags.map(String):[],mtime:svxN(a.mtime,0),
+        starter:!!(m&&m.starter_id),parent:m&&m.parent?String(m.parent):""}})},
     [lib,meta,durTick]);
   var qn=query.trim().toLowerCase();
   var searched=x.useMemo(function(){
-    if(!qn)return all;
     return all.filter(function(it){
-      return it.name.toLowerCase().indexOf(qn)>=0||
-        (it.prompt&&it.prompt.toLowerCase().indexOf(qn)>=0)})},[all,qn]);
+      if(srcFilter!=="tous"&&(srcFilter==="catalogue")!==it.starter)return !1;
+      return !qn||it.name.toLowerCase().indexOf(qn)>=0||
+        (it.prompt&&it.prompt.toLowerCase().indexOf(qn)>=0)||
+        it.tags.some(function(t){return t.toLowerCase().indexOf(qn)>=0})})},[all,qn,srcFilter]);
   var counts=x.useMemo(function(){
     var c={tous:searched.length,fav:0,sfx:0,voix:0,musique:0,import:0};
     searched.forEach(function(it){c[it.kind]++;if(favs[it.name])c.fav++});
@@ -402,6 +428,8 @@ const SvxDrawer=(props)=>{
       return (a.dur||1e9)-(b.dur||1e9)||a.idx-b.idx});
     else if(sort==="fav")rows.sort(function(a,b){
       return (favs[b.name]?1:0)-(favs[a.name]?1:0)||a.idx-b.idx});
+    /* « Récents » est déjà l'ordre servi (mtime décroissant) : T101 ajoute l'inverse */
+    else if(sort==="ancien")rows.sort(function(a,b){return a.mtime-b.mtime||b.idx-a.idx});
     return rows},[searched,tab,sort,favs]);
   var history=x.useMemo(function(){
     return all.filter(function(it){return it.kind==="sfx"&&it.prompt})
@@ -518,6 +546,7 @@ const SvxDrawer=(props)=>{
     var t=e.target,tag=(t&&t.tagName||"").toLowerCase();
     var inField=tag==="input"||tag==="textarea"||tag==="select";
     if(e.key==="Escape"){
+      if(armAct){setArmAct(null);e.preventDefault();return}
       if(confirmDel){setConfirmDel(null);e.preventDefault();return}
       if(renaming){setRenaming(null);e.preventDefault();return}
       if(inField&&t===searchRef.current&&query){setQuery("");e.preventDefault();return}
@@ -615,6 +644,54 @@ const SvxDrawer=(props)=>{
         setRenaming(null);refresh();fireNote("Renommé en « "+nn+" ».")})
       .catch(function(e){fireNote("Renommage : "+String(e&&e.message||e))})}
 
+  /* T101 : tags éditables — écrits dans le sidecar (PUT /api/audio/meta/<fn>, fusion côté serveur) */
+  function tagSave(item,val){
+    var tags=String(val||"").split(/[,;]/).map(function(t){return t.trim()}).filter(Boolean);
+    fetch("/api/audio/meta/"+encodeURIComponent(item.name),{method:"PUT",
+      headers:{"Content-Type":"application/json"},body:JSON.stringify({tags:tags})})
+      .then(function(res){return res.json().catch(function(){return {}})
+        .then(function(d){if(!res.ok)throw new Error(d.detail||"tags refusés");return d})})
+      .then(function(){setTagEdit(null);refresh()})
+      .catch(function(e){fireNote("Tags : "+String(e&&e.message||e))})}
+  /* T101 : actions par son. Payantes (stems, isolate) : le PREMIER clic arme avec le devis du backend, le second
+     tire ; gratuite (enhance) : un clic. Une seule action à la fois. */
+  var SVX_ACT_ROUTE={stems:"/api/audio/stems",isolate:"/api/audio/isolate",enhance:"/api/audio/enhance"};
+  function actFire(item,act){
+    setArmAct(null);setBusyAct(act+":"+item.name);
+    fetch(SVX_ACT_ROUTE[act],{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({filename:item.name})})
+      .then(function(res){return res.json().catch(function(){return {}})
+        .then(function(d){if(!res.ok)throw new Error(d.detail&&d.detail.message||d.detail||"échec ("+res.status+")");return d})})
+      .then(function(d){setBusyAct("");refresh();
+        fireNote(act==="stems"
+          ?((d.items||[]).length+" stem"+((d.items||[]).length>1?"s":"")+" posé"+((d.items||[]).length>1?"s":"")+" en Bibliothèque"
+            +((d.missing||[]).length?" — manquants : "+d.missing.join(", "):"")+" · ~$"+svxN(d.usd,0).toFixed(3))
+          :act==="isolate"?"Voix isolée : "+d.filename+" · ~$"+svxN(d.usd,0).toFixed(3)
+          :"Voix améliorée : "+d.filename+" (gratuit)")})
+      .catch(function(e){setBusyAct("");fireNote(String(e&&e.message||e))})}
+  function actGo(item,act){
+    if(busyAct)return;
+    if(act==="enhance"){actFire(item,act);return}
+    if(armAct&&armAct.name===item.name&&armAct.act===act){actFire(item,act);return}
+    setArmAct({name:item.name,act:act,usd:null});
+    svxActEstimate(act,item.dur).then(function(usd){
+      setArmAct(function(a){return a&&a.name===item.name&&a.act===act?{name:item.name,act:act,usd:usd}:a})})}
+  function actBtn(it,act,lbl,tt){
+    var armed=armAct&&armAct.name===it.name&&armAct.act===act;
+    var prix=armed?(armAct.usd==null?"prix…":"~$"+armAct.usd.toFixed(armAct.usd<0.1?3:2)):"";
+    return r.jsx("button",{className:"svx-abtn"+(armed?" svx-armed":""),tabIndex:-1,
+      "data-act":act,"data-busy":busyAct===act+":"+it.name?"":void 0,
+      disabled:!!busyAct&&busyAct!==act+":"+it.name,
+      title:armed?prix+" — cliquer encore pour lancer, Échap pour annuler":tt,
+      "aria-label":tt+" : "+it.name,
+      onClick:function(e){e.stopPropagation();actGo(it,act)},
+      children:armed?prix+" ✓":lbl},act)}
+  function hoverIn(it){
+    if(!hoverPrev)return;
+    clearTimeout(hoverTimer.current);
+    hoverTimer.current=setTimeout(function(){if(!(prev&&prev.name===it.name))prevToggle(it)},350)}
+  function hoverOut(){clearTimeout(hoverTimer.current)}
+
   /* ── rendus ── */
   function itemRow(it){
     var playing=prev&&prev.name===it.name;
@@ -631,6 +708,7 @@ const SvxDrawer=(props)=>{
       draggable:!0,
       onDragStart:function(e){dragStart(e,it)},onDragEnd:dragEnd,
       onClick:function(e){if(!e.defaultPrevented)prevToggle(it)},
+      onMouseEnter:function(){hoverIn(it)},onMouseLeave:hoverOut,
       title:"Clic / Espace : préécoute · glisser vers une piste A · Entrée : insérer",
       "aria-label":SVX_KINDS[it.kind].label+" "+it.name,
       children:[
@@ -650,13 +728,35 @@ const SvxDrawer=(props)=>{
         r.jsx(SvxWave,{src:{audio:it.name},color:SVX_KINDS[it.kind].c,
           prog:playing&&prev.dur?prev.pos/prev.dur:null,onReady:waveTick,k:it.name}),
         it.prompt?r.jsx("div",{className:"svx-iprompt",title:it.prompt,
-          children:it.prompt}):null]}),
+          children:it.prompt}):null,
+        r.jsxs("div",{className:"svx-itags",children:[
+          it.tags.map(function(t){return r.jsx("span",{className:"svx-itag",children:t},t)}),
+          it.starter?r.jsx("span",{className:"svx-itag svx-itag-cat",title:"Catalogue de démarrage (CC0)",
+            children:"catalogue"},"::cat"):null,
+          it.parent?r.jsx("span",{className:"svx-itag svx-itag-cat",title:"Dérivé de « "+it.parent+" »",
+            children:"← "+(it.parent.length>20?it.parent.slice(0,19)+"…":it.parent)},"::mere"):null,
+          tagEdit&&tagEdit.name===it.name?r.jsx("input",{className:"svx-tagin",autoFocus:!0,value:tagEdit.val,
+            placeholder:"tags, séparés par des virgules","aria-label":"Tags de "+it.name,
+            onClick:function(e){e.stopPropagation()},
+            onChange:function(e){setTagEdit({name:it.name,val:e.target.value})},
+            onKeyDown:function(e){
+              if(e.key==="Enter"){e.preventDefault();tagSave(it,tagEdit.val)}
+              else if(e.key==="Escape"){e.preventDefault();setTagEdit(null)}
+              e.stopPropagation()}},"::in")
+          :r.jsx("button",{className:"svx-itag svx-itag-add",tabIndex:-1,title:"Éditer les tags",
+            "aria-label":"Éditer les tags de "+it.name,
+            onClick:function(e){e.stopPropagation();setTagEdit({name:it.name,val:it.tags.join(", ")})},
+            children:"+ tag"},"::add")]})]}),
       r.jsxs("div",{className:"svx-iact",children:[
         props.onInsert?r.jsx("button",{className:"svx-abtn",tabIndex:-1,
           title:"Insérer au playhead ("+svmShort(svxN(props.playheadSec,0))+
             ") — piste "+svxTrackOf(it.kind).toUpperCase(),
           onClick:function(e){e.stopPropagation();doInsert(it,"playhead")},
           children:"⤵"}):null,
+        it.kind==="musique"?actBtn(it,"stems","≡","Séparer en stems (Demucs, fal)"):null,
+        it.kind==="voix"||it.kind==="import"?actBtn(it,"isolate","◌","Isoler la voix (ElevenLabs)"):null,
+        it.kind==="voix"||it.kind==="import"?actBtn(it,"enhance","✦",
+          "Améliorer : égaliseur → débruitage → compresseur → −16 LUFS (local, gratuit)"):null,
         r.jsx("button",{className:"svx-abtn svx-danger",tabIndex:-1,
           title:"Supprimer de la bibliothèque",
           onClick:function(e){e.stopPropagation();setConfirmDel(it.name)},
@@ -817,8 +917,9 @@ const SvxDrawer=(props)=>{
             r.jsx("span",{className:"svx-idur svm-mono",
               children:h.dur?svmShort(h.dur):""})]},h.name)})})]}):null]})}
 
-  if(!open)return null;
-  return r.jsxs("aside",{className:"svx-drawer",ref:rootRef,tabIndex:-1,
+  /* T101 (plan-son-vfx T5) : `inline` = monté dans la page (Bibliothèque → Audio), toujours ouvert, sans « Fermer » */
+  if(!open&&!props.inline)return null;
+  return r.jsxs("aside",{className:"svx-drawer"+(props.inline?" svx-inline":""),ref:rootRef,tabIndex:-1,
     onKeyDown:onKey,"aria-label":"Tiroir Sons",
     "data-fileover":fileOver?"":void 0,
     onDragOver:function(e){
@@ -841,7 +942,7 @@ const SvxDrawer=(props)=>{
         "aria-label":"Importer un son",
         onClick:function(){if(fileRef.current)fileRef.current.click()},
         children:upBusy?r.jsx("span",{className:"svx-spin","aria-hidden":!0}):"⤒"}),
-      r.jsx("button",{className:"svx-iconbtn svx-dclose",title:"Fermer (B)",
+      props.inline?null:r.jsx("button",{className:"svx-iconbtn svx-dclose",title:"Fermer (B)",
         "aria-label":"Fermer le tiroir Sons",
         onClick:function(){if(props.onClose)props.onClose()},children:"✕"})]}),
     r.jsxs("div",{className:"svx-tabs",role:"tablist",children:[
@@ -870,7 +971,18 @@ const SvxDrawer=(props)=>{
         r.jsx("option",{value:"recent",children:"Récents"}),
         r.jsx("option",{value:"nom",children:"Nom"}),
         r.jsx("option",{value:"duree",children:"Durée"}),
-        r.jsx("option",{value:"fav",children:"Favoris d'abord"})]})]}):null,
+        r.jsx("option",{value:"fav",children:"Favoris d'abord"}),
+        r.jsx("option",{value:"ancien",children:"Plus anciens"})]}),
+      r.jsx("div",{className:"svx-seg",role:"group","aria-label":"Origine",children:
+        [["tous","Tous"],["miens","Mes sons"],["catalogue","Catalogue"]].map(function(o){
+          return r.jsx("button",{className:"svx-segbtn","data-on":srcFilter===o[0]?"":void 0,
+            "aria-pressed":srcFilter===o[0],
+            title:o[0]==="catalogue"?"Les sons du catalogue de démarrage (CC0)":o[0]==="miens"?"Vos sons : générés, importés, dérivés":void 0,
+            onClick:function(){setSrcFilter(o[0])},children:o[1]},o[0])})}),
+      r.jsx("button",{className:"svx-iconbtn svx-hoverbtn","data-on":hoverPrev?"":void 0,
+        title:hoverPrev?"Pré-écoute au survol : active (350 ms)":"Pré-écoute au survol : coupée",
+        "aria-pressed":hoverPrev,"aria-label":"Pré-écoute au survol",
+        onClick:function(){setHoverPrev(!hoverPrev)},children:"👂"})]}):null,
     r.jsx("div",{className:"svx-list",children:
       tab==="gen"?genPanel():(shown.length?shown.map(itemRow):emptyState())}),
     note?r.jsx("div",{className:"svx-note",role:"status","aria-live":"polite",
@@ -882,7 +994,7 @@ const SvxDrawer=(props)=>{
       r.jsxs("span",{children:[r.jsx("kbd",{children:"F"})," favori"]}),
       r.jsxs("span",{children:[r.jsx("kbd",{children:"Suppr"})," supprimer"]}),
       r.jsxs("span",{children:[r.jsx("kbd",{children:"/"})," recherche"]}),
-      r.jsxs("span",{children:[r.jsx("kbd",{children:"B"})," fermer"]})]}),
+      props.inline?null:r.jsxs("span",{children:[r.jsx("kbd",{children:"B"})," fermer"]})]}),
     r.jsx("input",{className:"svx-file",ref:fileRef,type:"file",
       accept:"audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac,.opus",multiple:!0,
       "aria-hidden":!0,tabIndex:-1,
