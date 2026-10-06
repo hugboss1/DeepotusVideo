@@ -344,3 +344,5 @@ select option:disabled { color: var(--ink-muted); }
   background: var(--bg-panel-2); color: var(--ink); font-size: 12px; cursor: pointer; }
 .vue-actions button:hover:not(:disabled) { border-color: var(--accent); }
 .vue-actions button:disabled { opacity: .4; cursor: not-allowed; }
+.fal-import { display: block; cursor: pointer; }
+.engine-note a { color: var(--accent); }

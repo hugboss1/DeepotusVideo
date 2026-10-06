@@ -1914,6 +1914,219 @@ async def asset3d_animation(job: str, nom: str):
     raise HTTPException(404, "animation inconnue pour ce job")
 
 
+# ── T105 (plan-moteurs-3d T3, R10e P2) : chaîne de LOD. Locale et gratuite (gltfpack). Déclarées AVANT le
+#    fourre-tout GET /assets/3d/{job}/{fmt}, qui avalerait /lod et /lod-zip. ──────────────────────────────────────
+@router.get("/assets/3d/{job}/lod")
+async def get_asset3d_lod(job: str):
+    """La chaîne écrite, plus les budgets proposés. 200 avec `chaine: null` tant qu'aucune chaîne n'existe —
+    l'écran a besoin des budgets AVANT de pouvoir en lancer une."""
+    from app.services import mesh_lod
+    try:
+        info = mesh_lod.lire(job)
+    except FileNotFoundError:
+        info = None
+    return {"chaine": info, "budgets": mesh_lod.budgets()}
+
+
+@router.post("/assets/3d/{job}/lod")
+async def post_asset3d_lod(job: str, body: dict = None):
+    """Construit la chaîne depuis le GLB courant. Body {usage?: mobile|pc|impression, niveaux?: [int décroissants]}.
+    Local et gratuit, mais long : exécuté dans un thread."""
+    from app.services import mesh_lod
+    body = body or {}
+    niveaux = body.get("niveaux")
+    if niveaux is not None and not isinstance(niveaux, list):
+        raise HTTPException(400, "niveaux doit être une liste d'entiers.")
+    try:
+        return await asyncio.to_thread(mesh_lod.chaine, job, usage=str(body.get("usage") or "pc"), niveaux=niveaux)
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except RuntimeError as e:
+        raise HTTPException(500, str(e))
+
+
+@router.get("/assets/3d/{job}/lod/{niveau}")
+async def get_asset3d_lod_file(job: str, niveau: int):
+    """Un niveau de la chaîne, par son NUMÉRO."""
+    p = settings.outputs_path / "assets3d" / Path(job).name / "lod" / f"lod{int(niveau)}.glb"
+    if not p.is_file():
+        raise HTTPException(404, f"LOD{int(niveau)} absent — lance la chaîne.")
+    return FileResponse(p, media_type="model/gltf-binary", filename=p.name)
+
+
+@router.get("/assets/3d/{job}/lod-zip")
+async def get_asset3d_lod_zip(job: str):
+    """L'archive de la chaîne. Le segment est `lod-zip` et non `lod.zip` : le fourre-tout `{fmt}` juste en dessous
+    sert `model.<fmt>`, un point brouillerait la lecture."""
+    from app.services import mesh_lod
+    try:
+        nom, octets = await asyncio.to_thread(mesh_lod.archive, job)
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+    return Response(content=octets, media_type="application/zip",
+                    headers={"Content-Disposition": f'attachment; filename="{nom}"'})
+
+
+# ── T105 (plan-moteurs-3d T4, R10e P3) : textures du maillage aux conventions moteur. Locales et gratuites. ──────
+@router.get("/assets/3d/{job}/textures")
+async def get_asset3d_textures(job: str, version: int = None):
+    """Ce que le maillage porte en textures, et ce qui manque — avant de choisir une convention et une résolution."""
+    from app.services import mesh_textures
+    try:
+        return await asyncio.to_thread(mesh_textures.inventaire, job, version=version)
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.post("/assets/3d/{job}/textures")
+async def post_asset3d_textures(job: str, body: dict = None):
+    """L'archive PBR aux conventions moteur. Body {naming?, resolution?, version?, cuire?: true}."""
+    from app.services import mesh_textures
+    body = body or {}
+    try:
+        nom, octets = await asyncio.to_thread(
+            mesh_textures.exporter, job, naming=str(body.get("naming") or "standard"),
+            resolution=body.get("resolution") or 2048, version=body.get("version"),
+            cuire=bool(body.get("cuire", True)))
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+    except (ValueError, TypeError) as e:
+        raise HTTPException(400, str(e))
+    return Response(content=octets, media_type="application/zip",
+                    headers={"Content-Disposition": f'attachment; filename="{nom}"'})
+
+
+# ── T105 (plan-moteurs-3d T5, R10e P4) : conversion de formats. Locale et gratuite (obj, stl, 3mf, gltf) ou PAYANTE
+#    par Meshy convert (fbx, usdz, blend — 1 crédit par tâche), sous la garde des plafonds. ─────────────────────────
+@router.get("/assets/3d/{job}/convert")
+async def get_asset3d_convert(job: str):
+    """Ce qui est convertible localement, ce qui passe par Meshy et pourquoi, et les fichiers déjà convertis."""
+    from app.services import mesh_convert
+    return {**mesh_convert.capacites(), "convertis": mesh_convert.fichiers_convertis(job)}
+
+
+@router.post("/assets/3d/{job}/convert")
+async def post_asset3d_convert(job: str, background_tasks: BackgroundTasks, body: dict = None):
+    """Body {format} pour un format local -> le fichier tout de suite ; {format: fbx|usdz|blend} ou {formats: […]}
+    -> une tâche Meshy en fond (job à poller), refus AVANT la garde (clé Meshy, clé fal, job, formats)."""
+    from app.services import mesh_convert
+    body = body or {}
+    fmt = str(body.get("format") or "").lower().lstrip(".")
+    if fmt in mesh_convert.MESHY_EXPORT or body.get("formats"):
+        return await _convertir_par_meshy(job, background_tasks, body.get("formats") or [fmt], body.get("version"))
+    try:
+        nom, octets = await asyncio.to_thread(mesh_convert.exporter, job, fmt, version=body.get("version"),
+                                              cible_mm=body.get("cible_mm"))
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+    except (ValueError, TypeError) as e:
+        raise HTTPException(400, str(e))
+    except RuntimeError as e:
+        raise HTTPException(500, str(e))
+    media = ("application/zip" if nom.endswith(".zip") else "model/3mf" if nom.endswith(".3mf")
+             else "model/gltf+json" if nom.endswith(".gltf") else "model/stl")
+    return Response(content=octets, media_type=media,
+                    headers={"Content-Disposition": f'attachment; filename="{nom}"'})
+
+
+async def _convertir_par_meshy(job: str, background_tasks, formats, version):
+    from datetime import datetime as _dtu
+    import json as _json
+    from app.services import meshy_service as MS, mesh_convert, mesh_textures
+    from app.services.storage import JobRecord, async_session_factory
+    if not MS.mock_enabled() and not settings.MESHY_API_KEY.strip():
+        raise HTTPException(400, "MESHY_API_KEY absente — Réglages : la conversion fbx/usdz/blend passe par Meshy.")
+    if not (settings.FAL_KEY or "").strip():
+        raise HTTPException(400, "Clé fal absente — Réglages : le maillage passe par le stockage fal pour que "
+                                 "Meshy puisse le lire.")
+    try:
+        devis = mesh_convert.devis_meshy(formats)
+        mesh_textures.glb_cible(job, version)
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    async with async_session_factory() as s:
+        res = await s.execute(_select(JobRecord).where(
+            JobRecord.provider == "asset3d", JobRecord.image_filename == f"asset3d_{Path(job).name}",
+            JobRecord.status.notin_(["done", "failed"])))
+        if res.scalars().first() is not None:
+            raise HTTPException(409, "Une opération est déjà en cours sur ce maillage — attends qu'elle finisse.")
+    _plaf = await _plafond({"kind": "asset3d_convert", "via": "meshy"}, "moteurs3d")
+    job_id = str(uuid4())
+    async with async_session_factory() as s:
+        s.add(JobRecord(id=job_id, status=JobStatus.GENERATING_VIDEO.value, progress=5,
+                        title=f"3D · conversion Meshy {', '.join(devis['formats'])} (1 cr)",
+                        image_filename=f"asset3d_{Path(job).name}", provider="asset3d",
+                        current_step="Conversion Meshy"))
+        await s.commit()
+
+    async def on_step(label, pct):
+        async with async_session_factory() as s2:
+            jr2 = await s2.get(JobRecord, job_id)
+            if jr2 is not None:
+                jr2.current_step, jr2.progress = label, int(pct)
+                await s2.commit()
+
+    async def _run():
+        try:
+            r = await mesh_convert.convertir_par_meshy(job, devis["formats"], version=version, on_step=on_step)
+            try:
+                from app.services import plafonds as _PLAF
+                await _PLAF.rattacher_meshy(_plaf["lignes"], r.get("task_id"))
+            except Exception as _e:  # noqa: BLE001
+                logger.warning(f"plafonds : réel Meshy de la conversion non rattaché ({_e})")
+            async with async_session_factory() as s:
+                jr = await s.get(JobRecord, job_id)
+                if jr is not None:
+                    jr.status, jr.progress = JobStatus.DONE.value, 100
+                    jr.current_step, jr.completed_at = "Complete", _dtu.utcnow()
+                    jr.cost_meta = _json.dumps({"job": Path(job).name, "convert": r["files"],
+                                                "manquants": r["manquants"], "meshy_task": r["task_id"]},
+                                               ensure_ascii=False)
+                    await s.commit()
+        except Exception as e:
+            logger.exception(f"asset3d convert {job_id} failed: {e}")
+            async with async_session_factory() as s:
+                jr = await s.get(JobRecord, job_id)
+                if jr is not None:
+                    jr.status, jr.error, jr.current_step = JobStatus.FAILED.value, str(e), "Failed"
+                    await s.commit()
+
+    background_tasks.add_task(_run)
+    return {"job_id": job_id, "status": "queued", "source_job": Path(job).name, "devis": devis}
+
+
+@router.get("/assets/3d/{job}/convert/{fname}")
+async def get_asset3d_converti(job: str, fname: str):
+    """Un fichier rendu par Meshy convert — seuls les `model.<format>` du dossier convert/."""
+    from app.services import mesh_convert
+    if fname not in mesh_convert.fichiers_convertis(job):
+        raise HTTPException(404, "fichier converti inconnu pour ce job")
+    p = settings.outputs_path / "assets3d" / Path(job).name / "convert" / fname
+    return FileResponse(p, filename=f"{Path(job).name}{Path(fname).suffix}")
+
+
+@router.post("/assets/3d/importer")
+async def post_asset3d_importer(file: UploadFile = File(...)):
+    """Un modèle OBJ, STL, glTF ou GLB venu du dehors devient un job `import_…` (Atelier fal, Établi, Bibliothèque).
+    Local et gratuit."""
+    from app.services import mesh_convert, mesh_optimize
+    data = await file.read()
+    try:
+        job = await asyncio.to_thread(mesh_convert.importer_job, data, file.filename or "modele")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except RuntimeError as e:
+        raise HTTPException(500, str(e))
+    st = mesh_optimize.glb_stats(settings.outputs_path / "assets3d" / job / "model.glb")
+    return {"ok": True, "job": job, "triangles": st["tris"]}
+
+
 @router.get("/assets/3d/{job}/{fmt}")
 async def get_asset3d_file(job: str, fmt: str):
     """Stream a generated mesh file (glb|fbx|obj|stl|usdz)."""
