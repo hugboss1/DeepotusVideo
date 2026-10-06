@@ -102,5 +102,15 @@ for regle in ("#phCanvas", "#phOut"):
     assert regle in CSS, regle
 ok("materialforge.css : le canevas et l'aperçu ont leur règle")
 
+# ══ 7 · chaque convention PUBLIÉE par le serveur a son bouton ══════════════
+# (T096 : le plan ajoutait « blender » à NAMINGS sans bouton dans l'export —
+# la convention aurait existé sans qu'aucun clic n'y mène)
+MS_PY = (RACINE / "backend" / "app" / "services" / "material_store.py").read_text(encoding="utf-8")
+noms = re.findall(r'"(\w+)"', re.search(r"^NAMINGS = \((.*?)\)", MS_PY, re.M).group(1))
+seg = HTML.split('id="exNaming"', 1)[1].split("</div>", 1)[0]
+boutons = re.findall(r'data-v="(\w+)"', seg)
+assert "blender" in noms and boutons == noms, (noms, boutons)
+ok(f"export : un bouton par convention publiée, dans le même ordre ({len(noms)})")
+
 print(f"\nOK — {PASS} assertions groupées vertes (écran Material Forge, "
       f"panneau Photo)")

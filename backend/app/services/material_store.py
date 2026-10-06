@@ -103,7 +103,7 @@ MESHES = ("sphere", "cube", "torus", "cylinder", "plane", "tiled")
 # l'archive décochait justement Occlusion, Roughness et Metallic — elle ne
 # remplissait plus aucun emplacement d'URP. Deux cibles séparées, chacune
 # livrant exactement ce que SON moteur branche.
-NAMINGS = ("standard", "unity_urp", "unity_hdrp", "unreal", "godot")
+NAMINGS = ("standard", "blender", "unity_urp", "unity_hdrp", "unreal", "godot")
 # `unity` reste accepté (liens et réglages enregistrés) et pointe sur URP, le
 # pipeline par défaut d'Unity depuis 2021.
 NAMING_ALIASES = {"unity": "unity_urp", "urp": "unity_urp",
@@ -111,7 +111,8 @@ NAMING_ALIASES = {"unity": "unity_urp", "urp": "unity_urp",
 UNITY_NAMINGS = ("unity_urp", "unity_hdrp")
 
 NAMING_LABELS = {
-    "standard": "Standard (Blender, Substance, Marmoset)",
+    "standard": "Standard (Substance, Marmoset, archive d'équipe)",
+    "blender": "Blender — Principled BSDF",
     "unity_urp": "Unity URP — Lit",
     "unity_hdrp": "Unity HDRP — Lit",
     "unreal": "Unreal Engine",
@@ -120,7 +121,19 @@ NAMING_LABELS = {
 
 NAMING_NOTES = {
     "standard": "Suffixes explicites (_basecolor, _normal, _orm…). Le choix "
-                "neutre : Blender, Substance, Marmoset, archive d'équipe.",
+                "neutre : Substance, Marmoset, archive d'équipe. Blender a "
+                "désormais sa propre cible, qui nomme ses emplacements.",
+    "blender": "Le Principled BSDF n'a NI entrée Occlusion NI entrée ORM : "
+               "l'occlusion se multiplie sur la Base Color (nœud Mix, mode "
+               "Multiply), et l'ORM demanderait un Separate Color — les "
+               "fichiers séparés partent donc cochés. Toutes les cartes de "
+               "données (normale, rugosité, métal, hauteur) se règlent en "
+               "Color Space Non-Color ; laissées en sRGB, elles sont "
+               "silencieusement fausses. La normale est OpenGL (+Y vers le "
+               "haut) : la Convention du nœud Normal Map doit rester sur "
+               "OpenGL, son réglage par défaut — le nom du fichier le "
+               "rappelle. L'émissive ne rend rien tant que l'Emission "
+               "Strength (panneau Emission > Strength) vaut 0.",
     "unity_urp": "URP Lit n'a pas de Mask Map : il a un Metallic Map "
                  "(R=métal, A=smoothness) et un Occlusion Map (V) séparés. "
                  "L'archive livre UNE texture packée à déposer dans les deux "
@@ -343,6 +356,17 @@ _NAMING_PATTERNS: dict[str, dict[str, str]] = {
                  "roughness": "{n}_roughness.png", "metallic": "{n}_metallic.png",
                  "ao": "{n}_ao.png", "height": "{n}_height.png",
                  "emissive": "{n}_emissive.png", "orm": "{n}_orm.png"},
+    # Blender ne branche RIEN par le nom de fichier (aucun importeur ne le
+    # fait pour un dossier de PNG) : ces noms servent l'humain qui glisse les
+    # images dans le graphe. Un seul y ajoute une INFORMATION que le format ne
+    # porte pas — `_normal_gl` — parce que se tromper de convention de normale
+    # est le seul défaut de ce lot qui ne se voie pas tout de suite.
+    "blender": {"basecolor": "{n}_base_color.png",
+                "normal": "{n}_normal_gl.png",
+                "roughness": "{n}_roughness.png",
+                "metallic": "{n}_metallic.png",
+                "ao": "{n}_ao.png", "height": "{n}_height.png",
+                "emissive": "{n}_emission.png", "orm": "{n}_orm.png"},
     # URP : les noms sont ceux des emplacements réels du Lit URP. Le fichier
     # packé s'appelle _MetallicOcclusion parce que c'est LÀ qu'il va — dans les
     # deux emplacements — et surtout pas « MaskMap », qui n'existe pas ici.
@@ -380,6 +404,11 @@ _NAMING_PATTERNS: dict[str, dict[str, str]] = {
 # moteur ; tout le reste reste décochable-recochable à la main.
 DEFAULT_EXPORT_MAPS: dict[str, tuple] = {
     "standard": MAP_KINDS,                       # archive complète, neutre
+    # Blender lit des fichiers SÉPARÉS : l'ORM ne se branche que par un
+    # Separate Color, trois nœuds de plus pour zéro gain. Il reste décochable
+    # -recochable comme tout le reste.
+    "blender": ("basecolor", "normal", "roughness", "metallic", "ao",
+                "height", "emissive"),
     # URP : la texture packée VA dans Metallic Map ET Occlusion Map. Ce seul
     # fichier remplit donc les deux emplacements — l'archive Unity précédente
     # les laissait tous les deux vides.
@@ -396,6 +425,37 @@ DEFAULT_EXPORT_MAPS: dict[str, tuple] = {
 # l'emplacement de destination, moteur par moteur. C'est vérifiable, et c'est
 # ce que la barre de référence ne dit nulle part (« Download GLB », point).
 _ENGINE_SLOTS: dict[str, dict[str, str]] = {
+    # Relu le 06/10/2026 sur le manuel 5.2 LTS (la page répond désormais ; le
+    # 03/09 elle refusait la lecture automatique, HTTP 403) :
+    #   Base Color « Overall color of the material used for diffuse,
+    #               subsurface, metal and transmission »
+    #   Metallic   « Blends between a dielectric and metallic material model »
+    #   Roughness  « Specifies microfacet roughness of the surface for
+    #               specular reflection and transmission »
+    #   Normal     « Controls the normals of the base layers »
+    # aucune entrée Occlusion ; l'émission est un panneau « Emission » à deux
+    # entrées, Color et Strength. Pour le nœud Normal Map : « the image
+    # texture should be set to Non-Color mode », et une propriété Convention
+    # — « Blender uses the OpenGL convention by default », DirectX au choix.
+    # (Le plan du 03/09 disait « aucun commutateur DirectX » : c'est faux en 5.x.)
+    "blender": {
+        "basecolor": "Principled BSDF > Base Color (Image Texture, "
+                     "Color Space sRGB)",
+        "normal": "Image Texture (Non-Color) > Normal Map (espace Tangent, "
+                  "Convention OpenGL — le défaut) > Principled BSDF > Normal",
+        "roughness": "Principled BSDF > Roughness (Image Texture, Non-Color)",
+        "metallic": "Principled BSDF > Metallic (Image Texture, Non-Color)",
+        "height": "Material Output > Displacement, via un nœud Displacement "
+                  "(ou un Bump) — Image Texture en Non-Color",
+        "emissive": "Principled BSDF > Emission > Color, et monter Emission "
+                    "Strength (Emission > Strength) au-dessus de 0 : à 0, la "
+                    "carte ne rend rien",
+        "ao": "aucune entrée du Principled BSDF : multiplier la Base Color "
+              "par cette carte (nœud Mix Color, mode Multiply)",
+        "orm": "aucune entrée : séparer les canaux avec un nœud Separate "
+               "Color (R -> occlusion, V -> Roughness, B -> Metallic) — les "
+               "fichiers séparés sont plus directs, et partent cochés",
+    },
     "unity_urp": {
         "basecolor": "Base Map (sRGB coché)",
         MASKMAP: "Metallic Map ET Occlusion Map — la même image dans les deux "
@@ -473,6 +533,13 @@ _ROLE_COMMON = {
     MASKMAP: "Packée Unity : R=métal V=occlusion B=détail A=smoothness",
 }
 _ROLE_BY_NAMING = {
+    "blender": {
+        "normal": "Normale tangente OpenGL (+Y vers le haut) — laisser la "
+                  "Convention du nœud Normal Map sur OpenGL, son défaut",
+        "ao": "Occlusion — à multiplier sur la Base Color : le Principled "
+              "BSDF n'a pas d'entrée d'occlusion",
+        "orm": "Packée R=AO V=rugosité B=métal — lisible par un Separate "
+               "Color, mais les fichiers séparés sont plus directs ici"},
     "unity_urp": {
         "normal": "Normal Map Unity (OpenGL ; cocher « Fix now » à l'import "
                   "si Unity le propose)",
