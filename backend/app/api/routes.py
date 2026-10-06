@@ -3624,6 +3624,84 @@ async def generate_music_audio(request: Request):
         raise HTTPException(502, f"fal.ai: {str(e)[:300]}")
 
 
+@router.get("/audio/stems-models")
+async def stems_models():
+    """T100 (plan-son-vfx T2) : le registre Demucs et son tarif, pour afficher le prix AVANT le tir."""
+    from app.services import stems_service as ST, pricing
+    return {"enabled": bool((settings.FAL_KEY or "").strip()), "default": ST.DEFAULT_MODEL,
+            "models": [{"id": k, "label": v["label"], "stems": list(v["stems"])} for k, v in ST.STEMS_MODELS.items()],
+            "usd_per_s": float(pricing.load().get("demucs_usd_per_s", 0.0007))}
+
+
+@router.post("/audio/stems")
+async def audio_stems(request: Request):
+    """T100 (plan-son-vfx T2, P1) — Body {filename, stems?: [..], model?}. Demucs via fal ; chaque stem rejoint la
+    Bibliothèque (kind « stem », mère = la piste) → {ok, parent, items, missing, usd}. Les refus (clé, modèle, stem,
+    fichier) passent AVANT la garde des plafonds, la garde AVANT le moindre envoi à fal."""
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    from app.services import stems_service as ST, sfx_service
+    fn = str((payload or {}).get("filename") or "").strip()
+    if not fn:
+        raise HTTPException(400, "filename requis.")
+    model = str(payload.get("model") or ST.DEFAULT_MODEL)
+    try:
+        if not (settings.FAL_KEY or "").strip():
+            raise ST.SfxError(400, "fal.ai: aucune clé configurée (Réglages → clés API) — les stems passent par fal.")
+        ST.valider(payload.get("stems") or None, model)
+        src = ST.source(fn)
+        dur = await asyncio.get_running_loop().run_in_executor(None, sfx_service._probe_duration, src)
+        await _plafond({"kind": "stems", "duration_s": dur}, "son", src.name)
+        return await ST.separer_stems(fn, stems=payload.get("stems") or None, model=model)
+    except ST.SfxError as e:
+        raise HTTPException(e.status, e.message)
+
+
+@router.post("/audio/enhance")
+async def audio_enhance(request: Request):
+    """T100 (plan-son-vfx T3, P2) — chaîne « améliorer » locale, 0 $ : eq3 → débruitage → compresseur → −16 LUFS
+    (ordre imposé par _FX_ORDER). Body {filename} → clean_<nom>.mp3, mère = la prise."""
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    from app.services import voice_clean as VC, library_index as LI
+    fn = str((payload or {}).get("filename") or "").strip()
+    if not fn:
+        raise HTTPException(400, "filename requis.")
+    try:
+        r = await asyncio.get_running_loop().run_in_executor(None, VC.enhance, fn)
+    except VC.SfxError as e:
+        raise HTTPException(e.status, e.message)
+    await LI.noter([r["filename"]], "sonvfx", kind="audio", parent=r["parent"], relation=r["relation"])
+    return r
+
+
+@router.post("/audio/isolate")
+async def audio_isolate(request: Request):
+    """T100 (plan-son-vfx T3, P2) — isolation de voix ElevenLabs. Body {filename} → iso_<nom>.mp3, mère = la prise.
+    Coût affiché AVANT par POST /api/cost/estimate {kind: isolate, duration_s} ; garde des plafonds avant le POST."""
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    from app.services import voice_clean as VC, library_index as LI
+    fn = str((payload or {}).get("filename") or "").strip()
+    if not fn:
+        raise HTTPException(400, "filename requis.")
+    loop = asyncio.get_running_loop()
+    try:
+        src, dur = await loop.run_in_executor(None, VC.verifier_isolation, fn)
+        await _plafond({"kind": "isolate", "duration_s": dur}, "son", src.name)
+        r = await loop.run_in_executor(None, VC.isoler_voix, fn)
+    except VC.SfxError as e:
+        raise HTTPException(e.status, e.message)
+    await LI.noter([r["filename"]], "sonvfx", kind="audio", parent=r["parent"], relation=r["relation"])
+    return r
+
+
 @router.post("/audio/audition")
 async def audition_audio(request: Request):
     """Aperçu « rendu » d'un extrait audio traité — parité ffmpeg du Rack.

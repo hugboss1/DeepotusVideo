@@ -35,6 +35,7 @@ PUITS = {
     "run_extend",   # pipeline.run_extend -> fal Veo 3.1 extend (tâche #51)
     # voix / son
     "generate_music", "generate_sfx", "_generate_scene_vo", "generate_long", "generate_sprites",
+    "separer_stems", "isoler_voix",   # T100 : Demucs (fal) et l'isolation de voix (ElevenLabs)
     # transcription
     "transcribe",
     # vidéo / HeyGen (`pipeline.run` en nom pointé : `run` seul attraperait subprocess.run)
