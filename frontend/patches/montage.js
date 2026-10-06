@@ -8715,6 +8715,23 @@ function dzmVoCount(clips){
 function dzmVoLabel(n){
   var k=Math.floor(Number(n));
   return "Voix off "+(k>=1?k:1)}
+/* t120 (06/10/2026) — L'IDENTITÉ D'UN PROJET POUR UNE PRISE DE VOIX OFF. Avant : « project_id, sinon le nom » (écart daté
+   25/09) — deux projets SANS id du même nom (« montage », le défaut) étaient confondus, et un projet sans id ENREGISTRÉ
+   pendant la prise (il reçoit alors un id) faisait refuser la pose. Désormais : avec un id, l'id ; sans id, un JETON posé
+   UNE fois sur l'objet du projet (`dzVo`). Les copies `Object.assign({},p,…)` de l'hôte le gardent (même projet, même
+   après « Enregistrer sous »), un projet chargé (`svmApplyProject` bâtit un objet NEUF) ne l'a pas ; le payload choisit ses
+   champs un à un, le jeton ne part jamais au serveur. dzmVoIdent(p) -> chaîne ; dzmVoMeme(pj, p) -> la prise vise-t-elle
+   CE projet ? (son id, ou son jeton). */
+var dzmVoSeq=0;
+function dzmVoIdent(p){
+  if(!p||typeof p!=="object")return "";
+  if(p.project_id)return String(p.project_id);
+  if(typeof p.dzVo!=="string"||!p.dzVo)p.dzVo="vo"+Date.now().toString(36)+"_"+(++dzmVoSeq);
+  return "~"+p.dzVo}
+function dzmVoMeme(pj,p){
+  if(typeof pj!=="string"||!pj||!p||typeof p!=="object")return !1;
+  if(p.project_id&&pj===String(p.project_id))return !0;
+  return typeof p.dzVo==="string"&&!!p.dzVo&&pj==="~"+p.dzVo}
 function dzmRecMime(ok){
   if(typeof ok!=="function")return "";
   for(var i=0;i<DZM_VO_MIMES.length;i++){try{if(ok(DZM_VO_MIMES[i]))return DZM_VO_MIMES[i]}catch(e){}}
@@ -8829,7 +8846,8 @@ function dzmVoErr(e){
    l'arrêt de la puce) : le flux est coupé, l'hôte arrête la lecture, la puce passe à « envoi… » et la prise part quand
    même. Bascule pendant « micro… » ou « envoi… » : une note courte, jamais le silence. Démontage pendant l'accord ou la
    prise : enregistreur arrêté, flux coupé, rien n'est envoyé ni dit ; pendant l'envoi : la prise arrive dans la
-   Bibliothèque, rien n'est posé ni dit (écart daté 25/09). */
+   Bibliothèque, rien n'est posé, et c'est DIT par le toast global (`dzToastSur`) avec le nom de la prise — ou l'échec
+   de l'envoi (t120, 06/10 : l'écart daté 25/09 disait « ni dit »). */
 function DzmVoiceRec(o){
   if(!o)return null;
   var s1=x.useState("repos"),st=s1[0],setSt=s1[1];
@@ -8863,14 +8881,18 @@ function DzmVoiceRec(o){
         var dt=j&&j.detail!=null?(typeof j.detail==="string"?j.detail:JSON.stringify(j.detail)):"";
         if(!res.ok)throw new Error(dt||("HTTP "+res.status));return j})})
     .then(function(d){
-      if(!M.vivant)return;
+      /* t120 — démonté PENDANT l'envoi (écran quitté) : la prise est arrivée, rien ne sera posé ; c'est DIT par le toast
+         global (la note de l'hôte est partie avec lui), et la prise est NOMMÉE pour la retrouver dans la Bibliothèque */
+      if(!M.vivant){dzToastSur(d&&typeof d.filename==="string"&&d.filename
+        ?"Voix off : la prise « "+d.filename+" » est dans la Bibliothèque — le Montage a été quitté pendant l'envoi, elle n'a pas été posée."
+        :"Voix off : réponse illisible du serveur après la sortie du Montage — prise non enregistrée.");return}
       pose("repos");
       var du=d?Number(d.dur):NaN;
       if(!d||typeof d.filename!=="string"||!d.filename||!(du>0)){
         note("Voix off : réponse illisible du serveur — "+(d&&d.filename?"la prise « "+d.filename+" » est dans la Bibliothèque, non posée":"prise non enregistrée"));return}
       hote("onDone",d.filename,du,t0,pj)},
     function(e){
-      if(!M.vivant)return;
+      if(!M.vivant){dzToastSur("Voix off : envoi de la prise impossible ("+dzmVoErr(e)+") — prise non enregistrée.");return}
       pose("repos");
       note("Envoi de la prise impossible : "+dzmVoErr(e)+" — prise non enregistrée")})}
   function demarre(){
@@ -9233,7 +9255,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   /* L5 revue T5 (24/09/2026) : le geste du panneau (banc en exécution : retrait, pointerId, pointercancel) */
   gpDrag:dzmGpDrag,
   /* L6 D-25 D-26 (25/09/2026, tache 4) : le coeur pur audio -- plage de bruit en temps de source, debruiteur appris, prises, type d'enregistrement */
-  learnRange:dzmLearnRange,denoiseLearn:dzmDenoiseLearn,denoiseForget:dzmDenoiseForget,voCount:dzmVoCount,voLabel:dzmVoLabel,recMime:dzmRecMime,VO_MIMES:DZM_VO_MIMES,
+  learnRange:dzmLearnRange,denoiseLearn:dzmDenoiseLearn,denoiseForget:dzmDenoiseForget,voCount:dzmVoCount,voLabel:dzmVoLabel,voIdent:dzmVoIdent,voMeme:dzmVoMeme,recMime:dzmRecMime,VO_MIMES:DZM_VO_MIMES,
   nlAppris:dzmNlAppris,NoiseLearn:DzmNoiseLearn,nfEffectif:dzmNfEffectif,
   /* L6 D-26 (25/09/2026, tache 6) : l'enregistreur de voix off -- aides pures et la puce */
   voExt:dzmVoExt,voChrono:dzmVoChrono,voErr:dzmVoErr,VoiceRec:DzmVoiceRec,

@@ -158,8 +158,8 @@ G = node("""var S={size_kb:12,mtime:Date.now()/1e3-120,modified:"x"};var o=eval(
 var S2={size:2048,modified:null};var S=S2;var o2=eval("({"+""" + json.dumps(GRILLE) + """+"})");R.g=[o.size,o.date,o2.size,o2.date];""", extra=GOMO)
 check("G1 la GRILLE : 12 Ko et « 2m ago » depuis size_kb / mtime ; repli sur size / modified (ancienne forme) intact",
       G is not None and G["g"] == ["12.0 KB", "2m ago", "2.0 KB", "on disk"], str(G and G["g"]))
-check("T4 aucun prompt/alert/confirm natif ; la chaine tient (DzTracks 178, __dzCoutBlanc 7, __dzSrcLbl x2, dzRunMaxTake() x3)",
-      "window.prompt(" not in COUCHE and "alert(" not in COUCHE and "window.confirm(" not in COUCHE and BUN.count("DzTracks") == 178
+check("T4 aucun prompt/alert/confirm natif ; la chaine tient (DzTracks 180, __dzCoutBlanc 7, __dzSrcLbl x2, dzRunMaxTake() x3)",
+      "window.prompt(" not in COUCHE and "alert(" not in COUCHE and "window.confirm(" not in COUCHE and BUN.count("DzTracks") == 180
       and BUN.count("__dzCoutBlanc") == 7 and BUN.count("Object.assign(__dzSrcLbl,") == 2 and BUN.count("dzRunMaxTake()") == 3)
 
 print(f"\n{ok} PASS / {fail} FAIL")

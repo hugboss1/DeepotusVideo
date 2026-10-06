@@ -154,8 +154,8 @@ check("U2 il ouvre un champ fichier CACHE, limite au JSON", R is not None and R[
       and R["i"] == {"type": "file", "accept": "application/json,.json", "disp": "none"}, str(R))
 check("U3 aucun prompt/alert/confirm natif dans le composant", "window.confirm(" not in COMP and "alert(" not in COMP.replace("__dzDialogue", "")
       and "prompt(" not in COMP)
-check("U4 la chaine tient : sondes aval inchangees (DzTracks 178, __dzCoutBlanc 7, __dzSrcLbl x2, dzRunMaxTake() x3)",
-      BUN.count("DzTracks") == 178 and BUN.count("__dzCoutBlanc") == 7 and BUN.count("Object.assign(__dzSrcLbl,") == 2
+check("U4 la chaine tient : sondes aval inchangees (DzTracks 180, __dzCoutBlanc 7, __dzSrcLbl x2, dzRunMaxTake() x3)",
+      BUN.count("DzTracks") == 180 and BUN.count("__dzCoutBlanc") == 7 and BUN.count("Object.assign(__dzSrcLbl,") == 2
       and BUN.count("dzRunMaxTake()") == 3)
 
 print(f"\n{ok} PASS / {fail} FAIL")

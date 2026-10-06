@@ -14256,22 +14256,31 @@ def _subs_shift_words(words: list, clip: dict | None) -> list:
     `group_words` coupe une réplique à chaque changement de `clip`, donc deux
     sources ne fusionnent jamais dans une même réplique. Sans clip porteur :
     copie telle quelle (décalage 0 — le comportement d'avant P13).
-    DETTE DITE (revue du 06/09) : la vitesse C4 d'un clip V1 (`speed`,
-    montage_service `_v1_speed`) n'est PAS appliquée — un plan V1 à ×2
-    transcrit par `src` explicite SANS jumeau A1 verrait ses mots à
-    `start + (t − srcIn)` et non `/speed`. Mesuré : le tiroir n'envoie pas
-    `speed` (`subsSrcClips` écrit id/tr/src/name/srcIn/start/end, 0
-    occurrence de `speed`), et le jumeau A1 — le porteur préféré — garde sa
-    vitesse (l'audio d'un V1 n'entre jamais dans le graphe du rendu)."""
+    VITESSE (t120, 06/10/2026 — la dette dite à la revue du 06/09) : un plan
+    joué à ×v occupe la timeline `start + (t − srcIn) / v`. La loi est CELLE
+    DU RENDU, piste par piste : V1 = `montage_service._v1_speed` (0,25..4,
+    setpts), toute autre piste = `sfx_service.clamp_speed` (0,5..2, atempo) —
+    le jumeau A1 « son du plan » garde SA vitesse, pas celle du V1 (l'audio
+    d'un V1 n'entre jamais dans le graphe). Vitesse absente, 1 ou illisible :
+    le comportement d'avant, octet pour octet. Le tiroir l'envoie depuis
+    t120 (`subsSrcClips` écrit `speed` quand le clip en porte une)."""
     if clip is None:
         return [dict(w) for w in words or []]
     start, end, src_in = _subs_bornes(clip)
-    off = start - src_in
+    if str(clip.get("tr") or "") == "v1":
+        from app.services.montage_service import _v1_speed
+        v = _v1_speed(clip) or 1.0
+    else:
+        from app.services.sfx_service import clamp_speed
+        v = clamp_speed(clip.get("speed")) or 1.0
+
+    def _tl(t):
+        return start + (t - src_in) / v
     out = []
     for w in words or []:
         try:
-            s = float(w["start"]) + off
-            e = float(w["end"]) + off
+            s = _tl(float(w["start"]))
+            e = _tl(float(w["end"]))
         except (KeyError, TypeError, ValueError):
             continue
         if e <= start or s >= end:
@@ -14280,7 +14289,7 @@ def _subs_shift_words(words: list, clip: dict | None) -> list:
         w2["start"] = round(max(s, start), 3)
         w2["end"] = round(min(e, end), 3)
         try:
-            se = float(w.get("speech_end", w["end"])) + off
+            se = _tl(float(w.get("speech_end", w["end"])))
         except (TypeError, ValueError):
             se = e
         w2["speech_end"] = round(min(max(se, w2["start"]), end), 3)

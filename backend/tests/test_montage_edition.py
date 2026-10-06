@@ -4504,9 +4504,20 @@ check("l6_au_six_fonctions_pures_ni_r_ni_x_ni_reseau_ni_dom_ni_stockage_ni_api_n
                             r"getUserMedia|isTypeSupported|fetch\(|setClips|pushHistory|style\.|URL\.", c) for c in _L6A.values())
       and _L6A["dzmRecMime"].count("ok(DZM_VO_MIMES[i])") == 1 and _L6A["dzmLearnRange"].count("dzmCoR(") == 2,
       {n: len(c) for n, c in _L6A.items()})
+# t120 (06/10/2026) : l'identite du projet d'une prise -- dzmVoIdent pose un JETON sur l'objet (seule ecriture, voulue),
+# dzmVoMeme compare ; ni r / x, ni reseau, ni DOM, ni stockage
+_T120 = {n: _corps(n) for n in ("dzmVoIdent", "dzmVoMeme")}
+check("t120_identite_de_prise_deux_fonctions_pures_le_jeton_seule_ecriture_sur_l_objet",
+      all(len(c) > 40 for c in _T120.values())
+      and not any(re.search(r"\br\.jsx|\bx\.use|localStorage|sessionStorage|\bwindow\b|\bdocument\b|fetch\(|setProj|"
+                            r"pushHistory", c) for c in _T120.values())
+      # une AFFECTATION (`p.dzVo=` non suivi de `=`) : `p.dzVo===` est une comparaison
+      and len(re.findall(r"p\.dzVo=(?!=)", _T120["dzmVoIdent"])) == 1 and len(re.findall(r"p\.dzVo=(?!=)", _T120["dzmVoMeme"])) == 0
+      and _T120["dzmVoIdent"].count("return String(p.project_id)") == 1,
+      {n: len(c) for n, c in _T120.items()})
 check("l6_au_exports_au_contrat_une_fois_mimes_declares_une_fois_avant_la_zone_des_composants_l5",
       _DT.count("learnRange:dzmLearnRange,denoiseLearn:dzmDenoiseLearn,denoiseForget:dzmDenoiseForget,"
-                "voCount:dzmVoCount,voLabel:dzmVoLabel,recMime:dzmRecMime,VO_MIMES:DZM_VO_MIMES,") == 1
+                "voCount:dzmVoCount,voLabel:dzmVoLabel,voIdent:dzmVoIdent,voMeme:dzmVoMeme,recMime:dzmRecMime,VO_MIMES:DZM_VO_MIMES,") == 1
       and _SRCb.count("var DZM_VO_MIMES=") == 1
       and 0 <= _SRCb.find("function dzmRecMime(") < _SRCb.find("function DzmScopes(o){")
       and 0 <= _SRCb.find("function dzmLearnRange(") < _SRCb.find("function DzmScopes(o){"),
@@ -4740,6 +4751,14 @@ function props(extra){var ctl={current:null};return Object.assign({demo:!1,ctl:c
   /* 14 : un refus 422 dont le détail est une LISTE -> détail sérialisé, jamais « [object Object] » */
   bts(M.H.out)[0].p.onClick();await settle();M.flush();RC[RC.length-1].crash();await settle();M.flush();
   vrep(FV.length-1,!1,422,{detail:[{loc:["body","file"],msg:"field required"}]});await settle();M.flush();R.d422=NT.slice(-1);M.unmount();
+  /* 16 (t120, 06/10) : DÉMONTAGE PENDANT L'ENVOI -> la prise arrive, rien n'est posé ni noté (l'hôte est parti) : le TOAST
+     global le DIT avec le nom de la prise ; un échec d'envoi après démontage est dit de même (avant : silence) */
+  var TO=[];G.__dzToast=function(m){TO.push(m)};var dn1=DN.length,nn1=NT.length;
+  P=props();M=mini(T.VoiceRec);M.render(P);bts(M.H.out)[0].p.onClick();await settle();M.flush();bts(M.H.out)[0].p.onClick();await settle();M.flush();
+  var iE=FV.length-1;M.unmount();vrep(iE,!0,200,{ok:!0,filename:"voix-off-d.wav",dur:2});await settle();
+  P=props();M=mini(T.VoiceRec);M.render(P);bts(M.H.out)[0].p.onClick();await settle();M.flush();bts(M.H.out)[0].p.onClick();await settle();M.flush();
+  var iF=FV.length-1;M.unmount();vrep(iF,!1,500,{detail:"disque plein"});await settle();
+  R.demonte_envoi=[DN.length-dn1,NT.length-nn1,TO.slice(),iE!==iF];delete G.__dzToast;
   /* 15 (reste de la tâche 5) : le plancher AFFICHÉ par « Apprendre le bruit » est celui du RENDU (dzmNfEffectif) */
   R.nfe=[T.nfEffectif(-5),T.nfEffectif(-0.3),T.nfEffectif(-0.5),T.nfEffectif(-90),T.nfEffectif(-31),T.nfEffectif("x"),T.nfEffectif(0),T.nfEffectif(null)];
   function nlst(nf){var AP={tr:"a1",id:"k",start:10,end:20,srcIn:5,src:{audio:"a.wav"},fx:[{type:"denoise",params:{amount:30,nf:nf,learn_in:7,learn_out:8}}]};
@@ -4847,6 +4866,12 @@ check("l6v_arret_spontane_onDone_recoit_l_identite_du_projet_rendue_par_onStart"
 check("l6v_refus_422_detail_liste_serialise_jamais_object_Object",
       _R7.get("d422") == ['Envoi de la prise impossible : [{"loc":["body","file"],"msg":"field required"}] — prise non enregistrée'],
       _R7.get("d422"))
+check("l6v_t120_demontage_pendant_l_envoi_rien_de_pose_ni_note_le_toast_global_le_dit_avec_le_nom_et_l_echec_aussi",
+      _R7.get("demonte_envoi") == [0, 0, [
+          "Voix off : la prise « voix-off-d.wav » est dans la Bibliothèque — le Montage a été quitté pendant l'envoi, "
+          "elle n'a pas été posée.",
+          "Voix off : envoi de la prise impossible (disque plein) — prise non enregistrée."], True],
+      _R7.get("demonte_envoi"))
 check("l6v_nfEffectif_regle_du_rendu_auto_au_dessus_de_moins_0_5_sinon_borne_80_20",
       _R7.get("nfe") == [-20, None, -20, -80, -31, None, None, None], _R7.get("nfe"))
 _NLS = _R7.get("nlst") if isinstance(_R7.get("nlst"), list) and len(_R7.get("nlst")) == 3 else [[None, None]] * 3

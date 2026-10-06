@@ -6066,17 +6066,19 @@ R_L6NL1 = ('          onAudition:sfxAudition},sel.id),\n'
 #              que le temps de l'appel. Puis, SEULEMENT si la prise est reellement posee (ovSeq.current a avance : addAsset
 #              ne le consomme qu'une fois l'insertion acceptee ; chacun de ses refus le dit deja par sa note), la tete va
 #              a t0 + d (seekTo) : les prises successives s'enchainent.
-# Quatre references a la couche (sonde +4) : VoiceRec, dialogueTrack, voLabel, voCount.
+# Quatre references a la couche (sonde +4) : VoiceRec, dialogueTrack, voLabel, voCount -- SIX depuis t120 (06/10/2026) :
+# voIdent et voMeme, l identite du projet (son id, sinon un JETON pose sur l objet du projet ; « id, sinon le nom »
+# confondait deux projets sans id du meme nom et refusait la pose d un projet enregistre pendant la prise).
 A_L6VO1 = '          onClick:narrToggle,children:"narration"}),'
 R_L6VO1 = (A_L6VO1 + '\n'
            '        /* L6 D-26 : la puce ● voix off — enregistre au micro pendant la lecture ; la prise est posée sur la piste de\n'
            '           dialogue à l\'instant où elle a commencé, en mode « écraser » forcé, puis la tête va à sa fin */\n'
            '        r.jsx(DzTracks.VoiceRec,{demo:!!proj.demo,ctl:dzVoRef,combo:svmKeyLabel("vo_record"),onNote:fireNote,\n'
            '          onStart:function(){var t=Math.max(0,Number(phRef.current)||0),p=dzProjRef.current;setSpd(1);setPlaying(!0);\n'
-           '            return {t0:t,pj:String(p&&(p.project_id||p.name)||"")}},\n'
+           '            return {t0:t,pj:DzTracks.voIdent(p)}},\n'
            '          onStop:function(){setPlaying(!1)},\n'
            '          onDone:function(f,d,t0,pj){var pc=dzProjRef.current;\n'
-           '            if(pj!==String(pc&&(pc.project_id||pc.name)||"")){fireNote("Prise « "+f+" » enregistrée dans la Bibliothèque ; le projet a changé pendant la prise, elle n\'a pas été posée.");return}\n'
+           '            if(!DzTracks.voMeme(pj,pc)){fireNote("Prise « "+f+" » enregistrée dans la Bibliothèque ; le projet a changé pendant la prise, elle n\'a pas été posée.");return}\n'
            '            var ts=dzTracksRef.current||svmTracksOf(proj),tr=DzTracks.dialogueTrack(ts);\n'
            '            if(!tr){fireNote("Prise « "+f+" » enregistrée dans la Bibliothèque, mais ce projet n\'a pas de piste de dialogue : ajoutez une piste audio, puis posez-la depuis le tiroir Sons.");return}\n'
            '            if(trackStRef.current[tr]&&trackStRef.current[tr].l){fireNote("Piste "+tr.toUpperCase()+" verrouillée — déverrouillez-la pour ajouter. La prise « "+f+" » reste dans la Bibliothèque.");return}\n'
@@ -6094,7 +6096,7 @@ L6 = [("L6fx1-catalogue-ordre-de-chaine-et-anti-ronflement", A_L6FX1, R_L6FX1),
       ("L6nl1-apprendre-le-bruit-sous-le-rack", A_L6NL1, R_L6NL1),
       ("L6vo1-puce-voix-off-apres-narration", A_L6VO1, R_L6VO1)]
 for _n, _a, _r in L6:
-    assert _a != _r and _r.count("DzTracks") == (1 if _n.startswith("L6nl1") else 4 if _n.startswith("L6vo1") else 0), _n
+    assert _a != _r and _r.count("DzTracks") == (1 if _n.startswith("L6nl1") else 6 if _n.startswith("L6vo1") else 0), _n
 assert R_L6VO1.startswith(A_L6VO1 + "\n") and R_L6VO1.endswith("if(ovSeq.current!==q0)seekTo(t0+d)}}),") and R_L6VO1.count('dzModeRef.current="ecraser"') == 1
 assert R_L6VO1.find('dzModeRef.current="ecraser"') < R_L6VO1.find("try{addAsset(") < R_L6VO1.find("finally{dzModeRef.current=m0;dzmReplaceRef.current=rp}") < R_L6VO1.find("seekTo(t0+d)")
 assert R_L6FX1.endswith(A_L6FX1.split("\n")[-1]) and R_L6FX1.count('{type:"dehum",') == 1 and R_L6FX1.find('type:"dehum"') < R_L6FX1.find('type:"eq3"')

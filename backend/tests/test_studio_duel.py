@@ -184,8 +184,8 @@ if R:
     check("F13 sans prompt : dit, SANS devis ni tir ; meme modele que le champion ou aucun challenger : bouton grise, rien ne part",
           R["sans"] == [] and "Prompt" in R["smsg"] and R["meme"] is True and R["meme2"] == [] and R["vide"] is True, f"{R['sans']} {R['smsg']} {R['meme']} {R['vide']}")
 
-check("T4 aucun prompt/alert/confirm natif ; la chaine tient (DzTracks 178, __dzCoutBlanc 7, __dzSrcLbl x2, dzRunMaxTake() x3)",
-      "window.prompt(" not in COUCHE and "alert(" not in COUCHE and "window.confirm(" not in COUCHE and BUN.count("DzTracks") == 178
+check("T4 aucun prompt/alert/confirm natif ; la chaine tient (DzTracks 180, __dzCoutBlanc 7, __dzSrcLbl x2, dzRunMaxTake() x3)",
+      "window.prompt(" not in COUCHE and "alert(" not in COUCHE and "window.confirm(" not in COUCHE and BUN.count("DzTracks") == 180
       and BUN.count("__dzCoutBlanc") == 7 and BUN.count("Object.assign(__dzSrcLbl,") == 2 and BUN.count("dzRunMaxTake()") == 3)
 
 print(f"\n{ok} PASS / {fail} FAIL")

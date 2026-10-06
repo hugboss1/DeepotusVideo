@@ -171,8 +171,8 @@ if R:
     check("P3 double-clic : retire un point (pas en dessous de 3) ; un clic sur un point n'en ajoute pas ; 64 points au plus",
           R["retire3"] == 0 and R["retire4"] == [[[0, 0], [1, 0], [0, 1]]] and R["surPoint"] == 0 and R["max"] == 0, f"{R['retire3']} {R['retire4']}")
 
-check("T4 aucun prompt/alert/confirm natif ; la chaine tient (DzTracks 178, __dzCoutBlanc 7, __dzSrcLbl x2, dzRunMaxTake() x3)",
-      "window.prompt(" not in COUCHE and "alert(" not in COUCHE and "window.confirm(" not in COUCHE and BUN.count("DzTracks") == 178
+check("T4 aucun prompt/alert/confirm natif ; la chaine tient (DzTracks 180, __dzCoutBlanc 7, __dzSrcLbl x2, dzRunMaxTake() x3)",
+      "window.prompt(" not in COUCHE and "alert(" not in COUCHE and "window.confirm(" not in COUCHE and BUN.count("DzTracks") == 180
       and BUN.count("__dzCoutBlanc") == 7 and BUN.count("Object.assign(__dzSrcLbl,") == 2 and BUN.count("dzRunMaxTake()") == 3)
 
 print(f"\n{ok} PASS / {fail} FAIL")
