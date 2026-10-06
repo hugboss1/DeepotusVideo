@@ -270,6 +270,13 @@ const state = {
   propQ: "",          // filtre de l'inspecteur (libellés + textes d'aide)
   helpAll: false,     // aide de toutes les propriétés dépliée d'un coup
   seamScale: null,    // barème du raccord publié par l'API (/materials/seam-scale)
+  /* « Mon modèle » (T096) : un job de l'Établi {job, version, nom}, et le
+     drapeau qui le met dans le viewport. `modele3d` et NON `model` : ce
+     dernier porte déjà le modèle d'IMAGE (#model, mf_model). Et un drapeau à
+     part plutôt qu'un `state.mesh = "model"` : la galerie suit `state.mesh`,
+     et quarante cartes réclameraient chacune un modèle de 40 Mo habillé. */
+  modele3d: null,
+  vpModele: false,
 };
 
 let envUrl = null;           // blob URL de l’environnement composé (éclairage)
@@ -953,6 +960,14 @@ function srcId(m) { return m._src || m.id; }
    `scale` = l'échelle de matière par maillage (une tuile ~ une unité monde) :
    partout, une sphère habillée d'un seul enroulement se lit comme un globe. */
 function glbUrl(m, res, mesh, stage) {
+  /* « Mon modèle » n'est pas un maillage généré : c'est un job de l'Établi,
+     et `mesh` n'est alors pas envoyé — il ne pèse pas sur le résultat. */
+  if (mesh === "model") {
+    if (!state.modele3d || !state.modele3d.job) return null;
+    return "/api/materials/" + encodeURIComponent(srcId(m)) + "/preview.glb?res=" + (res || 1024)
+      + "&model=" + encodeURIComponent(state.modele3d.job)
+      + "&mversion=" + (state.modele3d.version || 1) + "&v=" + (m._v || 0);
+  }
   return "/api/materials/" + encodeURIComponent(srcId(m)) + "/preview.glb?mesh=" +
     encodeURIComponent(mesh || state.mesh) + "&res=" + (res || 1024) +
     "&scale=1&stage=" + (stage ? 1 : 0) + "&v=" + (m._v || 0);
@@ -1006,6 +1021,10 @@ const MESH_INFO = {
 function updateVpTag() {
   const t = $("#vpTag");
   if (!t) return;
+  if (state.vpModele && state.modele3d) {
+    t.textContent = "modèle de l'Établi · " + state.modele3d.nom + " · v" + state.modele3d.version;
+    return;
+  }
   const inf = MESH_INFO[state.mesh] || MESH_INFO.sphere;
   t.textContent = inf[0].toLocaleString("fr-FR") + " tris · UV du maillage " +
     inf[1] + "×" + inf[2];
@@ -1014,6 +1033,17 @@ function updateVpTag() {
 function frameViewport(mesh, animate) {
   const mv = $("#mv");
   if (!mv) return;
+  if (state.vpModele) {
+    /* un modèle de l'Établi a SA taille et son origine : les orbites fixes de
+       FRAME (pensées pour des maillages de 2 m centrés) le couperaient ou le
+       perdraient. On rend la main au cadrage automatique de <model-viewer>. */
+    mv.setAttribute("camera-target", "auto auto auto");
+    mv.setAttribute("camera-orbit", "30deg 70deg auto");
+    mv.removeAttribute("min-camera-orbit");
+    mv.removeAttribute("max-camera-orbit");
+    updateVpTag();
+    return;
+  }
   const f = FRAME[mesh || state.mesh] || FRAME.sphere;
   if (!animate) mv.setAttribute("interpolation-decay", "0");
   mv.setAttribute("field-of-view", FOV + "deg");
@@ -1059,13 +1089,28 @@ function setViewportSrc(m) {
     ld.classList.add("hidden");
     frameViewport(state.mesh, false);
   }, { once: true });
-  mv.addEventListener("error", () => {
+  const url = glbUrl(m, 1024, state.vpModele ? "model" : state.mesh, true);
+  mv.addEventListener("error", async () => {
     ld.classList.remove("hidden");
     ld.classList.add("err");
     ld.textContent = "aperçu 3D indisponible (GET /api/materials/" + m.id + "/preview.glb)";
+    /* sur un modèle de l'Établi, le refus a un SENS (pas d'uv, Draco…) :
+       on va chercher la phrase du serveur plutôt que de taire la cause */
+    if (state.vpModele && url) {
+      try {
+        const r = await fetch(url);
+        if (!r.ok) {
+          const d = await r.json().catch(() => null);
+          if (d && d.detail) ld.textContent = "Mon modèle : " + d.detail;
+        }
+      } catch (e) { /* la phrase générique reste */ }
+    }
   }, { once: true });
   frameViewport(state.mesh, false);
-  mv.src = glbUrl(m, 1024, state.mesh, true);
+  /* la MÊME url ne redéclenche pas `load` : sans ce cas, le voile
+     « chargement… » restait posé sur un modèle déjà affiché (preuve 8799) */
+  if (url && mv.src && mv.src.endsWith(url) && mv.loaded) ld.classList.add("hidden");
+  else if (url) mv.src = url;
 }
 
 /* source lisible d'une carte : le modèle payant, ou l'origine locale */
@@ -3163,9 +3208,16 @@ function wireChips(sel, fn) {
    à l'écran, et il est toujours vrai. */
 const VARIED = "__varied";
 
+/* La puce « Mon modèle » n'existe QUE dans le viewport (voir state.vpModele). */
+const MODELE_PUCE = { id: "model", label: "Mon modèle" };
 function renderMeshChips() {
   const vp = $("#vpMeshChips");
-  if (vp) { vp.innerHTML = chipsHtml(MESHES, "id", state.mesh); wireChips("#vpMeshChips", setMesh); }
+  if (vp) {
+    vp.innerHTML = chipsHtml(MESHES.concat(MODELE_PUCE), "id", state.vpModele ? "model" : state.mesh);
+    wireChips("#vpMeshChips", setVpMesh);
+    const p = vp.querySelector('.chip[data-v="model"]');
+    if (p) p.title = "Un modèle de l'Établi, habillé de la matière (aperçu seulement : rien n'est écrit)";
+  }
   const gl = $("#meshChips");
   if (gl) {
     const list = [{ id: VARIED, label: "Variés" }].concat(MESHES);
@@ -3196,6 +3248,54 @@ function pickCardMesh(v) {
   state.varied = false;
   localStorage.setItem("mf_varied", "0");
   setMesh(v);                       // re-rend les puces ET la galerie
+}
+
+/* La barre du viewport : une forme générée, ou « Mon modèle ». */
+async function setVpMesh(id) {
+  if (id !== "model") {
+    state.vpModele = false;
+    $("#modelPick").classList.add("hidden");
+    setMesh(id);
+    return;
+  }
+  let jobs = [];
+  try {
+    const d = await api.get("/etabli/sources?limit=60");
+    /* seuls les jobs de l'Établi ont un dossier où la route sait lire une
+       version ; une tâche Meshy non adoptée n'en a pas */
+    /* une étape SANS numéro (la variante décimée model.opt.glb) n'est pas
+       une version : la route ne sait pas la lire (vu en preuve 8799 : l'oiseau
+       proposé en « v » vide, puis servi en v1 au lieu de v5) */
+    jobs = (d.jobs || []).filter((j) => j.source === "assets3d")
+      .map((j) => Object.assign({}, j, { versions: (j.etapes || [])
+        .map((e) => Number(e.version)).filter((v) => Number.isInteger(v) && v >= 1) }))
+      .filter((j) => j.versions.length);
+  } catch (e) { apiFail(e, "liste des modèles de l'Établi"); return; }
+  if (!jobs.length) { toast("Aucun modèle dans l'Établi : génère ou importe d'abord un modèle 3D.", true); return; }
+  const sel = $("#modelPick");
+  sel.innerHTML = jobs.map((j) => {
+    const v = Math.max(...j.versions);
+    return `<option value="${esc(j.id)}|${v}">${esc(j.nom || j.id)} · v${v}</option>`;
+  }).join("");
+  const garde = state.modele3d && `${state.modele3d.job}|${state.modele3d.version}`;
+  if (garde && [...sel.options].some((o) => o.value === garde)) sel.value = garde;
+  sel.classList.remove("hidden");
+  choisirModele(sel.value);
+}
+
+function choisirModele(valeur) {
+  const [job, version] = String(valeur || "").split("|");
+  if (!job) return;
+  const opt = [...$("#modelPick").options].find((o) => o.value === valeur);
+  state.modele3d = { job, version: Number(version) || 1,
+                     nom: opt ? opt.textContent.split(" · ")[0] : job };
+  state.vpModele = true;
+  renderMeshChips();
+  updateVpTag();
+  if (state.view === "editor" && state.sel) {
+    const m = matById(state.sel);
+    if (m) setViewportSrc(m);
+  }
 }
 
 function setMesh(id) {
@@ -3411,6 +3511,7 @@ function wire() {
     updateEstimate();
   };
   $("#genBtn").onclick = generate;
+  $("#modelPick").addEventListener("change", (e) => choisirModele(e.target.value));
   $("#phCanvas").addEventListener("click", photoClick);
   $("#phReset").addEventListener("click", () => { photo.quad = []; photoDraw(); });
   $("#phPreview").addEventListener("click", photoPreview);
