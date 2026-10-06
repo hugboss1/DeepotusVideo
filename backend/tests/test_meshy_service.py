@@ -467,9 +467,9 @@ async def main():
     # Magnific, publiée sous h3.1 sur fal). Le pin reste EXACT à dessein —
     # c'est lui qui force à passer par ici pour tout ajout de moteur.
     assert set(ENGINES) == {"tripo", "tripo-h3.1", "hunyuan", "trellis",
-                            "rodin", "triposr"}
+                            "rodin", "triposr", "hunyuan-local"}   # T107 : + le moteur local
     assert "meshy" not in ENGINES
-    ok("ENGINES fal — 6 moteurs, meshy ne s'y invite pas")
+    ok("ENGINES fal — 6 moteurs + 1 local, meshy ne s'y invite pas")
 
 
 asyncio.run(main())

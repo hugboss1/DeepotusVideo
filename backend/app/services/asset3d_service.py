@@ -166,6 +166,21 @@ ENGINES = {
         "face_limit": False, "quad": False, "seed": False,
         "note": "le moins cher — itération de concept, pas de livrable final.",
     },
+    # T107 (plan-moteurs-3d T10, D4) — moteur LOCAL. `endpoint` porte le préfixe « local: » : ce n'est pas une URL
+    # fal, et le filtre de /assets3d/engines (qui coupe toute clé commençant par « endpoint ») l'écarte déjà.
+    "hunyuan-local": {
+        "endpoint": "local:hunyuan3d-2.1",
+        "formats": ["glb"],
+        "label": "Hunyuan3D 2.1 (local)",
+        "multiview": False, "max_images": 1,
+        "texture_modes": ["no"],
+        "draft": True, "detailed": False, "pbr": False, "tpose": False,
+        "quality_passthrough": False,
+        "face_limit": True, "quad": False, "seed": True,
+        "local": True,
+        "note": "gratuit et hors ligne, si le service GPU tourne à côté (LOCAL3D_URL). Forme seulement au-dessus de "
+                "10 Go de VRAM ; la texture demande 21 Go (README Hunyuan3D-2.1).",
+    },
 }
 
 # Besoins de plan → moteur, avec la capacité QUI justifie le choix (§13 phase D
@@ -360,6 +375,11 @@ def build_engine_args(engine: str, image_urls: list[str], opts: dict) -> dict:
         if len(image_urls) > 1:
             a["multiview_images"] = image_urls
         return a
+    if engine == "hunyuan-local":
+        # le service local ne lit qu'UNE image et ne connaît ni palier de texture ni quad : ce que l'adaptateur
+        # n'envoie pas, le drapeau le dit
+        return {"image_url": primary, "texture": bool(opts.get("textures", True)),
+                "face_limit": opts.get("face_limit"), "seed": opts.get("seed")}
     if engine == "hunyuan":
         return {"input_image_url": primary, "textured_mesh": bool(opts.get("textures", True)),
                 "output_format": fmt}
@@ -421,6 +441,10 @@ async def _upload(path):
 
 
 async def _run_engine(engine, args, endpoint=None):
+    # T107 — un moteur `local` ne passe pas par fal : le test est AVANT `import fal_client`, sans clé fal il marche
+    if ENGINES.get(engine, {}).get("local"):
+        from app.services import local3d_service
+        return await local3d_service.run_engine(engine, args)
     import fal_client
     # H3.1 a un endpoint multi-vues DISTINCT. Le nombre d'images est déjà
     # dans `args` (image_url seule, ou une liste image_urls/multiview_images
@@ -482,7 +506,12 @@ async def generate_asset3d(payload: dict, job_id: str, on_step=None):
     if not fn or not src.is_file() \
             or not str(src.resolve()).startswith(str(settings.images_path.resolve())):
         raise ValueError(f"Image not found in Library: {payload.get('image_filename')!r}")
-    src_url = await _upload(src)
+    if ENGINES[engine].get("local"):
+        # T107 : la source part en octets au service local — aucun envoi au stockage fal, aucune clé fal
+        import base64 as _b64
+        src_url = "data:image/png;base64," + _b64.b64encode(src.read_bytes()).decode("ascii")
+    else:
+        src_url = await _upload(src)
 
     # shots: shot_0 = source, shot_1..N = multi-view boost
     shutil.copy2(src, out_dir / "shot_0.png")

@@ -90,6 +90,8 @@ class Settings(BaseSettings):
 
     # Voicebox (optional) — serveur TTS local; vide = http://127.0.0.1:17493
     VOICEBOX_URL: str = ""
+    # Service GPU local (optionnel, T107) — Hunyuan3D 2.1 lancé à côté ; vide = http://127.0.0.1:8081
+    LOCAL3D_URL: str = ""
 
     # HeyGen (optional, v1.4) - required for avatar/composition features
     HEYGEN_API_KEY: str = ""
