@@ -239,8 +239,21 @@ async function jpost(p, corps) {
     body: JSON.stringify(corps),
   });
   const t = await r.text();
-  if (!r.ok) throw new Error(t || `${p} → ${r.status}`);
+  if (!r.ok) throw new Error(refusDe(t) || `${p} → ${r.status}`);
   return t ? JSON.parse(t) : {};
+}
+
+/* LE REFUS DU SERVEUR, en PHRASE : FastAPI répond {"detail": "…"}, et la page
+   affichait ce JSON brut dans la barre — « {"detail":"BLENDER_PATH n'est pas
+   renseigné…"} » (vu en preuve 8799 le 06/10, et vrai de TOUS les refus de
+   l'Établi depuis toujours). Un `detail` qui n'est pas une phrase (la liste
+   d'une erreur de validation) garde le texte entier. */
+function refusDe(texte) {
+  try {
+    const j = JSON.parse(texte);
+    if (j && typeof j.detail === "string") return j.detail;
+  } catch { /* pas du JSON : le texte tel quel */ }
+  return texte;
 }
 
 const fmtOctets = (n) => !n ? "—"
@@ -1907,6 +1920,67 @@ async function rendreRig() {
   if (vit) vit.addEventListener("input", () => vitesseClip(S.vueA, Number(vit.value)));
   const stop = $("#rigStop");
   if (stop) stop.addEventListener("click", () => arreterClip(S.vueA));
+}
+
+/* ── L'EXPORT VERS LES MOTEURS (tâche T093, plan etabli-p4-p5 tâches 4 à 6) ──
+   Quatre cibles, chacune son geste VRAI : « Préparer » écrit le .glb et sa
+   fiche d'import ; « Ouvrir » lance Blender SUR le fichier, ou l'éditeur des
+   trois autres SUR le projet ; « Déposer » copie dans le projet après une
+   sonde de visibilité. LE CORPS NE PORTE JAMAIS DE CHEMIN : (job, version,
+   cible) — le serveur recalcule le fichier. Notes et noms viennent du serveur :
+   esc() partout, et les retours en textContent. */
+let _cibles = null;
+async function rendreExportMoteurs() {
+  const box = $("#panMoteurs");
+  if (!box) return;
+  if (!_cibles) {
+    try { _cibles = (await jget("/api/etabli/cibles")).cibles; } catch (e) {
+      box.textContent = `cibles moteur illisibles : ${e.message}`;
+      return;
+    }
+  }
+  box.innerHTML = `<div class="dt-label spaced">Moteurs de jeu</div>`
+    + Object.entries(_cibles).map(([id, c]) => `
+    <section class="cible" data-cible="${esc(id)}">
+      <div class="cible-tete"><b>${esc(c.nom)}</b><span>${esc(c.format)} · ${esc(c.axe_haut)} en haut</span></div>
+      <p class="cible-note">${esc(c.note)}</p>
+      <div class="cible-actions">
+        <button data-a="export">Préparer</button>
+        <button data-a="ouvrir" title="${esc(c.variable_exe)} dans le .env">${c.geste_ouvrir === "fichier"
+          ? "Ouvrir dans l'application" : "Ouvrir le projet"}</button>
+        ${c.geste_ouvrir === "fichier" ? "" : `<button data-a="deposer"
+          title="${esc(c.variable_projet)} dans le .env : la racine du projet">Déposer dans le projet</button>`}
+        <button data-a="url">Copier l'URL</button>
+      </div>
+      <div class="cible-etat"></div>
+    </section>`).join("")
+    + `<p class="cible-note">Le <b>FBX</b> n'est jamais écrit ici : format fermé d'Autodesk. Il n'existe que si le
+       fournisseur en a livré un avec le job. Cet onglet ne dépense aucun crédit.</p>`;
+  box.querySelectorAll(".cible").forEach((sec) => {
+    const id = sec.dataset.cible, etat = sec.querySelector(".cible-etat");
+    sec.querySelectorAll("[data-a]").forEach((b) => b.addEventListener("click", async () => {
+      if (!S.a || !S.a.job || !S.a.version) {
+        etat.textContent = "aucune version chargée — une tâche Meshy s'exporte une fois adoptée par l'Établi";
+        return;
+      }
+      const corps = { job: S.a.job, version: S.a.version, cible: id };
+      try {
+        if (b.dataset.a === "url") {
+          const r = await jpost("/api/etabli/export", corps);
+          await navigator.clipboard.writeText(location.origin + r.url);
+          etat.textContent = `URL copiée : ${r.fichier}`;
+          return;
+        }
+        const r = await jpost(`/api/etabli/${b.dataset.a}`, corps);
+        etat.textContent = b.dataset.a === "export"
+          ? `écrit : ${r.fichier} et sa fiche d'import${r.fbx_disponible ? " — un FBX du fournisseur est aussi dans le job" : ""}`
+          : b.dataset.a === "deposer" ? `déposé et vérifié : ${r.chemin}${r.avertissement ? ` — ${r.avertissement}` : ""}`
+            : `lancé (${r.geste === "fichier" ? `import de ${r.fichier}` : `projet ${r.projet}`})`;
+      } catch (e) {
+        etat.textContent = String(e.message || e);
+      }
+    }));
+  });
 }
 
 async function ouvrirDansSlicer() {
@@ -4010,6 +4084,7 @@ document.addEventListener("etabli:charge", () => {
      demandée pour CE maillage-ci. */
   rendreFiche();
   rendreRig();
+  rendreExportMoteurs();
   /* PIÈGE : cet évènement est émis à chaque chargement RÉUSSI. Brancher
      l'écouteur de clic ici sans garde en empilerait un par modèle — au
      troisième GLB, un seul clic tirerait trois rayons et redessinerait trois

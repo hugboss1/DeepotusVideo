@@ -340,6 +340,18 @@ button { font-family: inherit; }
 }
 .panneau { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
 /* le panneau Rig (T093) : l'arbre des os indenté par la profondeur, mêmes contrôles que Parties */
+/* les moteurs de jeu (T093) : une carte par cible, mêmes contrôles que Parties */
+.cible { border: 1px solid var(--stroke); border-radius: var(--r-sm); padding: 6px 8px; margin-top: 6px; }
+.cible-tete { display: flex; justify-content: space-between; font-size: 11px; color: var(--ink-strong); }
+.cible-tete span { color: var(--ink-muted); font-family: var(--f-mono), ui-monospace, monospace; }
+.cible-note { font-size: 10.5px; line-height: 1.45; color: var(--ink-soft); margin: 4px 0; }
+.cible-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+.cible-actions button {
+  flex: 1; padding: 4px; border: 1px solid var(--stroke); border-radius: var(--r-sm);
+  background: transparent; color: var(--ink-soft); font-size: 11px; cursor: pointer;
+}
+.cible-actions button:hover { border-color: var(--accent); color: var(--ink-strong); }
+.cible-etat { font: 10px var(--f-mono), ui-monospace, monospace; color: var(--ink-soft); margin-top: 4px; min-height: 12px; }
 .os-arbre { max-height: 30vh; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
 .os-arbre .os, .rig-clips .clip, #rigRepos, #rigStop {
   text-align: left; padding: 4px 6px; border: 1px solid var(--stroke); border-radius: var(--r-sm);
