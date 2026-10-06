@@ -205,6 +205,32 @@ async def apercu(tid: str, body: dict):
             "url": f"/api/tiles/{tid}/fichier/apercu.png"}
 
 
+@router.post("/{tid}/mesures")
+async def mesures(tid: str, body: dict):
+    """Les TROIS chiffres du jeu (raccord, répétition, éclairage), l'éclairage tuile par tuile, un verdict par
+    mesure et les seuils. La répétition se lit sur la MÊME carte que l'aperçu à graine égale.
+    Body: {graine, cases, densite}. Les mesures sont écrites dans le meta : elles survivent."""
+    from app.services import tile_metrics as TM
+
+    meta = _lire_meta(tid)
+    cases, densite, graine = _bornes_apercu(body, int(meta["cote"]))
+
+    def _faire():
+        jeu = _refaire_jeu(meta)
+        img, _plan = TO.composer_carte(TO.carte_aleatoire(cases, densite, graine), jeu, graine=graine, boucle=True)
+        ecl_max, ecart, par_tuile = TM.eclairage_jeu(jeu)
+        return {"raccord": TM.raccord_jeu(jeu), "repetition": TM.repetition_score(img, cases),
+                "eclairage_max": ecl_max, "ecart_eclairage": ecart}, par_tuile
+
+    m, par_tuile = await asyncio.get_running_loop().run_in_executor(None, _faire)
+    meta["mesures"] = m
+    TS.write_meta(tid, meta)
+    logger.info(f"tuiles/mesures {tid}: raccord={m['raccord']} repetition={m['repetition']} "
+                f"eclairage={m['eclairage_max']}")
+    return dict(m, tid=tid, par_tuile=par_tuile, verdict=TM.verdict(m), seuils=dict(TM.SEUILS),
+                graine=graine, cases=cases, densite=densite)
+
+
 @router.get("/{tid}/fichier/{nom}")
 async def fichier(tid: str, nom: str):
     try:

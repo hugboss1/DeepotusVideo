@@ -575,6 +575,122 @@ def test_apercu_borne_la_taille_en_pixels():
     asyncio.run(scenario())
 
 
+# ═════════════════════════════════ T7 (t115) ═════════════════════════════════
+def test_eclairage_lit_un_gradient_et_ignore_un_uni():
+    from app.services import tile_metrics as TM
+    assert TM.eclairage_score(_uni()) == 0.0
+    assert TM.eclairage_score(_bruit(64, 1)) == 0.0
+    h = TM.eclairage_score(_rampe())
+    assert h == 50.78, h                           # mesuré le 03/09 et le 06/10
+    v = TM.eclairage_score(_rampe().transpose(Image.ROTATE_90))
+    assert v == h, (h, v)                          # la norme ne prend pas parti
+    # une rampe DIAGONALE : les deux composantes s'ajoutent en norme, pas en somme
+    diag = Image.blend(_rampe(), _rampe().transpose(Image.ROTATE_90), 0.5)
+    d = TM.eclairage_score(diag)
+    assert abs(d - math.hypot(h / 2, h / 2)) < 0.5, d
+    assert TM.SEUILS["eclairage"] == 8.0
+    assert TM.SEUILS["ecart_eclairage"] == 5.0
+
+
+def test_eclairage_jeu_rend_max_ecart_et_detail():
+    from app.services import tile_metrics as TM
+    jeu = TO.assembler_jeu(_bruit(64, 1), _bruit(64, 2), "blob47", 64, 3, 5)
+    mx, ecart, par = TM.eclairage_jeu(jeu)
+    assert (mx, ecart) == (0.87, 0.87), (mx, ecart)   # mesuré
+    assert [p["index"] for p in par] == list(range(len(jeu["tuiles"])))
+    # une tuile éclairée cuite dans le jeu se voit au max ET à l'écart
+    jeu["tuiles"][5] = _rampe()
+    mx2, ecart2, _ = TM.eclairage_jeu(jeu)
+    assert mx2 == 50.78 and ecart2 == 50.78, (mx2, ecart2)
+
+
+def test_repetition_voit_un_damier_et_pas_un_tirage():
+    from app.services import tile_metrics as TM
+    A, B = _bruit(64, 1), _bruit(64, 2)
+    damier = [[(x + y) % 2 for x in range(8)] for y in range(8)]
+    j1 = TO.assembler_jeu(A, B, "blob47", 64, 1, 5)
+    img_d, _ = TO.composer_carte(damier, j1, graine=1, boucle=True)
+    assert TM.repetition_score(img_d) == 100.0     # période exacte
+    assert TM.repetition_score(_uni(256)) == 100.0  # tout est périodique
+    # ÉCART AU PLAN : à 3 variantes, le même damier ne rend pas 100 mais 80.31 (mesuré le 06/10) — les variantes
+    # cassent la période exacte. Il reste au-dessus du seuil : un damier se voit encore.
+    jeu = TO.assembler_jeu(A, B, "blob47", 64, 3, 5)
+    img_d3, _ = TO.composer_carte(damier, jeu, graine=1, boucle=True)
+    r3 = TM.repetition_score(img_d3)
+    assert TM.SEUILS["repetition"] < r3 < 100.0, r3
+    for g in (1, 2, 3):
+        grille = TO.carte_aleatoire(8, 0.55, g)
+        img, _ = TO.composer_carte(grille, jeu, graine=g, boucle=True)
+        r = TM.repetition_score(img)
+        assert r < TM.SEUILS["repetition"], (g, r)  # mesuré : 19.08 / 20.53 / 21.95
+        assert 0.0 <= r <= 100.0
+    assert TM.SEUILS["repetition"] == 70.0
+
+
+def test_verdict_nomme_chaque_mesure():
+    from app.services import tile_metrics as TM
+    bon = TM.verdict({"raccord": 0.0, "repetition": 21.9,
+                      "eclairage_max": 0.87, "ecart_eclairage": 0.87})
+    assert bon == {"raccord": "ok", "repetition": "ok", "eclairage": "ok",
+                   "ecart_eclairage": "ok"}
+    mauvais = TM.verdict({"raccord": 4.2, "repetition": 98.0,
+                          "eclairage_max": 30.0, "ecart_eclairage": 12.0})
+    assert set(mauvais.values()) == {"attention"}, mauvais
+    # les bornes : le seuil lui-même est accepté pour raccord et éclairage, refusé pour la répétition (« < 70 »)
+    pile = TM.verdict({"raccord": 1.0, "repetition": 70.0, "eclairage_max": 8.0, "ecart_eclairage": 5.0})
+    assert pile == {"raccord": "ok", "repetition": "attention", "eclairage": "ok",
+                    "ecart_eclairage": "ok"}, pile
+    # chaque mesure a SA porte : une seule en défaut n'en entraîne pas d'autre
+    for cle, mot in (("raccord", "raccord"), ("repetition", "repetition"),
+                     ("eclairage_max", "eclairage"), ("ecart_eclairage", "ecart_eclairage")):
+        m = {"raccord": 0.0, "repetition": 0.0, "eclairage_max": 0.0, "ecart_eclairage": 0.0}
+        m[cle] = 99.0
+        v = TM.verdict(m)
+        assert [k for k, x in v.items() if x == "attention"] == [mot], (cle, v)
+
+
+def test_route_mesures_rend_trois_chiffres_par_jeu_et_par_tuile():
+    from app.services.storage import init_db
+
+    async def scenario():
+        await init_db()
+        a = _poser_image("me_a.png", _bruit(128, 6))
+        b = _poser_image("me_b.png", _bruit(128, 7))
+        async with _client() as c:
+            r = await c.post("/api/tiles/jeu", json={
+                "matiere_a": {"image": a}, "matiere_b": {"image": b},
+                "jeu": "blob47", "cote": 32, "variantes": 2, "nom": "me"})
+            tid = r.json()["tid"]
+            r = await c.post(f"/api/tiles/{tid}/mesures", json={"graine": 3})
+            assert r.status_code == 200, r.text
+            d = r.json()
+            assert d["raccord"] == 0.0
+            assert 0.0 <= d["repetition"] < 70.0, d["repetition"]
+            assert d["eclairage_max"] < 8.0, d["eclairage_max"]
+            assert len(d["par_tuile"]) == 47 * 2 + 1
+            assert all(set(t) == {"index", "eclairage"} for t in d["par_tuile"])
+            assert d["verdict"] == {"raccord": "ok", "repetition": "ok",
+                                    "eclairage": "ok", "ecart_eclairage": "ok"}
+            assert d["seuils"]["repetition"] == 70.0
+            # la répétition est mesurée sur la MÊME carte que l'aperçu à graine égale
+            from app.services import tile_metrics as TM
+            ap = await c.post(f"/api/tiles/{tid}/apercu", json={"graine": 3})
+            with Image.open(TS.tileset_dir(tid) / "apercu.png") as im:
+                assert TM.repetition_score(im) == d["repetition"], (TM.repetition_score(im), d["repetition"])
+            assert ap.status_code == 200
+            # les mesures sont ÉCRITES dans le meta : elles survivent, et la lecture du jeu les rend
+            meta = json.loads(
+                (TS.tileset_dir(tid) / "meta.json").read_text("utf-8"))
+            assert meta["mesures"]["repetition"] == d["repetition"]
+            assert (await c.get(f"/api/tiles/{tid}")).json()["mesures"]["raccord"] == 0.0
+            rr = await c.post(f"/api/tiles/{tid}/mesures", json={"cases": 2})
+            assert rr.status_code == 400 and "cases" in rr.text, rr.text
+            r4 = await c.post("/api/tiles/tile_00000000/mesures", json={})
+            assert r4.status_code == 404, r4.text
+
+    asyncio.run(scenario())
+
+
 def _main():
     rouges = 0
     for nom, fn in sorted(globals().items()):
