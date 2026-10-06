@@ -112,5 +112,26 @@ boutons = re.findall(r'data-v="(\w+)"', seg)
 assert "blender" in noms and boutons == noms, (noms, boutons)
 ok(f"export : un bouton par convention publiée, dans le même ordre ({len(noms)})")
 
+# ══ 8 · « Mon modèle » : le viewport SEUL, un sélecteur, un cadrage libre ══
+mesh_js = re.search(r"^const MESHES = \[(.*?)\];", JS_CODE, re.M | re.S).group(1)
+assert '"model"' not in mesh_js, "la galerie suit MESHES : un modèle par carte"
+gu = JS_CODE.split("function glbUrl(", 1)[1].split("\n}\n", 1)[0]
+assert 'if (mesh === "model")' in gu and "&model=" in gu and "&mversion=" in gu, gu
+assert "&mesh=" not in gu.split('if (mesh === "model")', 1)[1].split("return \"/api", 1)[0]
+assert "modele3d" in JS_CODE and "state.model.job" not in JS_CODE
+fv = JS_CODE.split("function frameViewport(", 1)[1].split("\n}\n", 1)[0]
+assert "if (state.vpModele)" in fv and 'camera-target", "auto auto auto"' in fv, fv[:500]
+sv = JS_CODE.split("async function setVpMesh(", 1)[1].split("\n}\n", 1)[0]
+assert '"/etabli/sources' in sv and 'j.source === "assets3d"' in sv, sv
+# une étape sans numéro (model.opt.glb) n'est pas une version : on prend le
+# plus grand ENTIER, jamais « la dernière étape » (preuve 8799 : « v » vide)
+assert "Number.isInteger(v) && v >= 1" in sv and "Math.max(...j.versions)" in sv, sv
+assert "j.etapes[j.etapes.length - 1]" not in JS_CODE
+assert 'id="modelPick"' in HTML
+for cle in ('model: str = ""', "mversion: int = 1"):
+    assert cle in PY, cle
+ok("Mon modèle : hors de la galerie, URL model+mversion sans mesh, sélecteur "
+   "nourri par /etabli/sources, cadrage rendu à <model-viewer>")
+
 print(f"\nOK — {PASS} assertions groupées vertes (écran Material Forge, "
       f"panneau Photo)")

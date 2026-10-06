@@ -11625,7 +11625,8 @@ async def get_material_map(mid: str, kind: str, res: int = 0):
 @router.get("/materials/{mid}/preview.glb")
 async def material_preview_glb(request: Request, mid: str,
                                mesh: str = "sphere", res: int = 1024,
-                               stage: int = 0, scale: int = 1):
+                               stage: int = 0, scale: int = 1,
+                               model: str = "", mversion: int = 1):
     """GLB d'aperçu (maillage + matériau + textures embarquées).
 
     La galerie demande un GLB par carte : sans cache, chaque scroll relance une
@@ -11639,6 +11640,16 @@ async def material_preview_glb(request: Request, mid: str,
         raise HTTPException(400, f"mesh doit être l'un de: "
                                  f"{', '.join(MS.MESHES)}")
     res = MS.clean_preview_res(res, 1024)
+    # « mon modèle » : la cinquième forme d'aperçu de R10c P2. Le nom de job
+    # vient du réseau, donc il passe la MÊME porte que les routes d'écriture
+    # de l'Établi (`_etabli_glb_cible` : entier >= 1, deux gardes de chemin,
+    # 404 franc) — une forme d'aperçu n'est pas une raison d'ouvrir une
+    # seconde porte moins gardée sur le même dossier.
+    modele = str(model or "").strip()
+    donnees = None
+    if modele:
+        _job, donnees, _depuis = _etabli_glb_cible(modele, mversion,
+                                                   "aperçu de matière")
     stage = 1 if str(stage) not in ("0", "false", "") else 0
     scale = 0 if str(scale) in ("0", "false") else 1
     key = await asyncio.to_thread(MS.preview_cache_key, mat, mesh, res)
@@ -11669,8 +11680,11 @@ async def material_preview_glb(request: Request, mid: str,
         from app.services.gltf_builder import MESH_VERSION as _MV
     except Exception:
         _MV = 0
+    # Le modèle entre dans l'empreinte : sans lui, deux modèles différents
+    # partageraient un GLB en cache et l'écran servirait l'ancien sans un mot.
     key = hashlib.sha1(
-        f"{key}-s{stage}v{_SV}u{scale}-{_uv}-m{_MV}".encode("utf-8")
+        f"{key}-s{stage}v{_SV}u{scale}-{_uv}-m{_MV}"
+        f"-M{modele}:{mversion}:{len(donnees or b'')}".encode("utf-8")
     ).hexdigest()[:24]
     etag = f'W/"{key}"'
     head = {"Content-Disposition": f'inline; filename="{mat["id"]}.glb"',
@@ -11679,8 +11693,12 @@ async def material_preview_glb(request: Request, mid: str,
         return Response(status_code=304, headers=head)
     data = await asyncio.to_thread(MS.preview_cache_get, mat["id"], key)
     if data is None:
-        data = await asyncio.to_thread(_mat_glb, mat, mesh, res, None,
-                                       bool(stage), bool(scale))
+        if donnees is not None:
+            data = await asyncio.to_thread(_mat_model_glb, mat, donnees, res,
+                                           None)
+        else:
+            data = await asyncio.to_thread(_mat_glb, mat, mesh, res, None,
+                                           bool(stage), bool(scale))
         await asyncio.to_thread(MS.preview_cache_put, mat["id"], key, data)
     return Response(content=data, media_type="model/gltf-binary", headers=head)
 
@@ -11728,6 +11746,27 @@ def _mat_glb(mat: dict, mesh: str, res: int, kinds, stage: bool = False,
     except Exception as e:
         logger.exception(f"GLB {mat['id']} échec: {e}")
         raise HTTPException(500, f"Construction GLB impossible: {e}")
+
+
+def _mat_model_glb(mat: dict, data: bytes, res: int, kinds) -> bytes:
+    """Le GLB d'un MODÈLE, habillé de la matière — pour l'APERÇU seulement.
+
+    Aucune version n'est écrite : c'est une lecture. Le jour où l'utilisateur
+    veut GARDER l'habillage, c'est `POST /etabli/habiller` qui passe, et lui
+    seul, par `mesh_edit.ecrire_version`."""
+    from app.services import material_store as MS
+    from app.services import mesh_paint as MP
+    maps = MS.load_maps(mat["id"], kinds)
+    if not maps:
+        raise HTTPException(409, "Cette matière n'a aucune map sur disque")
+    maps = MS.bake_levels(MS.resize_maps(maps, res), mat["props"])
+    payload = {k: MS.png_bytes(v, k, 8) for k, v in maps.items()
+               if k in MS.GLB_SLOTS}
+    try:
+        return MP.habiller(data, [{"cible": "tout", "mid": mat["id"],
+                                   "nom": mat["name"], "maps": payload}])
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
 
 @router.get("/materials/{mid}/export/manifest")
