@@ -1515,5 +1515,71 @@ def test_la_route_connecteur_relit_le_plan_de_la_FICHE_et_ecrit_une_version():
             r = c.post("/api/etabli/connecteur", json={**corps, "version": v})
             assert r.status_code == 400 and "n'est pas née d'une coupe" in r.json()["detail"], (v, r.text)
 
+
+# ── T094 / U4a : les facteurs de matériau — du JSON pur, des couleurs LINÉAIRES ──
+def test_changer_une_teinte_laisse_le_TAMPON_identique_et_ecrit_la_valeur_LINEARISEE():
+    """Le piège nommé par la spec : glTF veut des facteurs LINÉAIRES, l'interface donne du sRGB. Une conversion
+    oubliée donne des couleurs délavées que personne ne soupçonne d'être un bug d'unité."""
+    from app.services import gltf_builder, mesh_edit
+    data = _cube()
+    doc0, bin0 = mesh_edit.lire_glb(data)
+    sortie, rapport = mesh_edit.materiau(data, 0, {"couleur": "#808080", "opacite": 0.5, "metal": 0.25,
+                                                   "rugosite": 0.75, "emission": "#ff0000", "mode_alpha": "BLEND",
+                                                   "double_face": True})
+    doc, binc = mesh_edit.lire_glb(sortie)
+    assert binc == bin0, "le tampon binaire ressort identique octet pour octet"
+    m = doc["materials"][0]
+    lin = gltf_builder._srgb_to_linear(128 / 255)
+    assert m["pbrMetallicRoughness"]["baseColorFactor"] == [round(lin, 6)] * 3 + [0.5]
+    assert abs(m["pbrMetallicRoughness"]["baseColorFactor"][0] - 0.215861) < 1e-6, "PAS 0,502 : linéarisé"
+    assert m["pbrMetallicRoughness"]["metallicFactor"] == 0.25 and m["pbrMetallicRoughness"]["roughnessFactor"] == 0.75
+    assert m["emissiveFactor"] == [1.0, 0.0, 0.0] and m["alphaMode"] == "BLEND" and m["doubleSided"] is True
+    assert rapport["materiau"] == 0 and rapport["avant"]["couleur"] != rapport["apres"]["couleur"]
+    assert rapport["apres"]["couleur"] == "#808080", "relu en sRGB : l'aller-retour tombe juste"
+    # rien d'autre du document n'a bougé
+    doc0["materials"] = doc["materials"]
+    assert doc0 == doc
+
+
+def test_un_champ_absent_ne_touche_pas_le_reste_et_les_refus_sont_dits():
+    from app.services import mesh_edit
+    s1, _r = mesh_edit.materiau(_cube(), 0, {"metal": 1.0})
+    m = mesh_edit.lire_glb(s1)[0]["materials"][0]
+    m0 = mesh_edit.lire_glb(_cube())[0]["materials"][0]
+    assert m["pbrMetallicRoughness"]["metallicFactor"] == 1.0
+    assert m["pbrMetallicRoughness"].get("baseColorFactor") == m0["pbrMetallicRoughness"].get("baseColorFactor")
+    for champs, mot in (({"couleur": "rouge"}, "couleur"), ({"metal": 1.5}, "metal"), ({"rugosite": -0.1}, "rugosite"),
+                        ({"opacite": 2}, "opacite"), ({"mode_alpha": "FLOU"}, "mode_alpha"),
+                        ({"double_face": "oui"}, "double_face"), ({}, "aucun"), ({"teinte": "#fff"}, "inconnu")):
+        with pytest.raises(ValueError, match=mot):
+            mesh_edit.materiau(_cube(), 0, champs)
+    with pytest.raises(ValueError, match="matériau 7"):
+        mesh_edit.materiau(_cube(), 7, {"metal": 0.5})
+
+
+def test_l_inventaire_des_materiaux_se_lit_en_sRGB():
+    from app.services import mesh_edit
+    s, _r = mesh_edit.materiau(_cube(), 0, {"couleur": "#336699", "emission": "#000000"})
+    inv = mesh_edit.materiaux(s)
+    assert inv[0]["index"] == 0 and inv[0]["couleur"] == "#336699" and inv[0]["emission"] == "#000000"
+    assert set(inv[0]) >= {"nom", "couleur", "opacite", "metal", "rugosite", "emission", "mode_alpha", "double_face",
+                           "texture"}
+
+
+def test_la_route_materiau_ecrit_une_version_et_juge_son_corps():
+    d = _job("job_mat", _cube())
+    with _client() as c:
+        inv = c.get("/api/etabli/materiaux?job=job_mat&version=1").json()["materiaux"]
+        assert inv[0]["index"] == 0
+        r = c.post("/api/etabli/materiau", json={"job": "job_mat", "version": 1, "materiau": 0, "couleur": "#ff8800"})
+        assert r.status_code == 200, r.text
+        src = r.json()["source"]
+        assert src["operation"] == "materiau" and src["apres"]["couleur"] == "#ff8800" and (d / "model.v2.glb").is_file()
+        # chaque corps n'a qu'UNE faute (un index en chaîne avec une couleur valide : c'est l'INDEX qui est jugé)
+        for corps in ({"materiau": "0", "couleur": "#ffffff"}, {"materiau": True, "couleur": "#ffffff"},
+                      {"materiau": -1, "couleur": "#ffffff"}, {"materiau": 0, "couleur": "nope"}, {"materiau": 0},
+                      {"materiau": 9, "metal": 0.1}):
+            assert c.post("/api/etabli/materiau", json={"job": "job_mat", "version": 1, **corps}).status_code == 400, corps
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

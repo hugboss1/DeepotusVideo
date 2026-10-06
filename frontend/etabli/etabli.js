@@ -207,7 +207,7 @@ let _ecritEnCours = false;
    durée de sa propre écriture. `reparer_maillage` (tâche #88) écrit SEUL lui aussi,
    derrière la même garde (ecrireSeule) : sa place dans la liste ne compte pas, elle
    n'y voisine jamais avec personne. `decimer` (tâche #89 PR D) et `creuser` (PR E) de même. UNE LIGNE : les bancs la lisent ainsi. */
-const ORDRE_ECRITURE = ["transformer", "assise", "reparer", "extraire", "couper", "reparer_maillage", "creuser", "decimer", "booleen", "connecteur"];
+const ORDRE_ECRITURE = ["transformer", "assise", "reparer", "extraire", "couper", "reparer_maillage", "creuser", "decimer", "booleen", "connecteur", "materiau"];
 
 /* Les trois plumes de P1, ÉCRITES plutôt que composées. Un
    `/api/etabli/${t.operation}` marcherait aussi bien et rendrait le fichier
@@ -224,6 +224,7 @@ const ROUTES = {
   creuser: "/api/etabli/creuser",
   booleen: "/api/etabli/booleen",
   connecteur: "/api/etabli/connecteur",
+  materiau: "/api/etabli/materiau",
 };
 
 async function jget(p) {
@@ -1983,6 +1984,116 @@ async function rendreExportMoteurs() {
   });
 }
 
+/* ── LES FACTEURS DE MATÉRIAU (tâche T094, phases ultérieures U4a) ────────────
+   Couleur, opacité, métal, rugosité, émission, mode alpha, double face : du
+   JSON pur, une version de plus (ecrireSeule). Les couleurs s'écrivent en sRGB
+   (#rrggbb, ce que montre un sélecteur de couleur) et le SERVEUR les linéarise
+   — la page ne convertit rien. L'aperçu est en direct sur le modèle affiché :
+   three.js interprète lui aussi « #rrggbb » comme du sRGB. Seuls les champs
+   CHANGÉS partent : un champ réécrit à l'identique ne doit pas faire une
+   version qui dit « couleur » sans que la couleur ait bougé. */
+const MATERIAUX = { liste: [], rendu: 0 };
+const CHAMPS_MATERIAU = ["couleur", "opacite", "metal", "rugosite", "emission", "mode_alpha", "double_face"];
+function champsChanges(avant, saisie, touches) {
+  const sortie = {};
+  for (const k of CHAMPS_MATERIAU) {
+    if (!(k in saisie)) continue;
+    /* un curseur ARRONDIT ce qu'il affiche (0,9036 devient 0,9) : un champ que
+       l'utilisateur n'a pas touché ne part jamais, même « différent » */
+    if (touches && !touches.has(k)) continue;
+    const a = avant[k], b = saisie[k];
+    const egal = typeof a === "number" ? Math.abs(a - b) < 1e-6
+      : typeof a === "string" ? String(a).toLowerCase() === String(b).toLowerCase() : a === b;
+    if (!egal) sortie[k] = b;
+  }
+  return sortie;
+}
+
+/* L'aperçu : chaque matériau three.js du modèle dont l'index glTF est `index`
+   (associations du chargeur) reçoit la saisie. Rien n'est écrit. */
+function apercuMateriau(index, s) {
+  const assoc = S.vueA && S.vueA.gltf && S.vueA.gltf.parser && S.vueA.gltf.parser.associations;
+  if (!assoc || !S.vueA.racine) return 0;
+  const vus = new Set();
+  S.vueA.racine.traverse((o) => {
+    for (const m of (Array.isArray(o.material) ? o.material : [o.material]).filter(Boolean)) {
+      const a = assoc.get(m);
+      if (!a || a.materials !== index || vus.has(m)) continue;
+      vus.add(m);
+      if (m.color) m.color.set(s.couleur);
+      if (m.emissive) m.emissive.set(s.emission);
+      if ("metalness" in m) m.metalness = s.metal;
+      if ("roughness" in m) m.roughness = s.rugosite;
+      m.opacity = s.opacite;
+      m.transparent = s.mode_alpha === "BLEND" || s.opacite < 1;
+      m.side = s.double_face ? THREE.DoubleSide : THREE.FrontSide;
+      m.needsUpdate = true;
+    }
+  });
+  return vus.size;
+}
+
+async function rendreMateriaux() {
+  const box = $("#ficheMateriaux");
+  if (!box) return;
+  const numero = ++MATERIAUX.rendu;
+  box.innerHTML = "";
+  if (!S.a || !S.a.job || !S.a.version) return;
+  let liste;
+  try {
+    liste = (await jget(`/api/etabli/materiaux?job=${encodeURIComponent(S.a.job)}&version=${S.a.version}`)).materiaux;
+  } catch { return; }
+  if (numero !== MATERIAUX.rendu) return;
+  MATERIAUX.liste = liste;
+  if (!liste.length) {
+    box.innerHTML = `<div class="dt-label">Matériaux</div><p class="note">ce document n'a aucun matériau</p>`;
+    return;
+  }
+  box.innerHTML = `<div class="dt-label">Matériaux</div>
+    <label>matériau <select id="mIndex">${liste.map((m) =>
+      `<option value="${esc(m.index)}">${esc(m.nom)}</option>`).join("")}</select></label>
+    <label>couleur <input id="mCouleur" data-champ="couleur" type="color"></label>
+    <label>opacité <input id="mOpacite" data-champ="opacite" type="range" min="0" max="1" step="0.01"></label>
+    <label>métal <input id="mMetal" data-champ="metal" type="range" min="0" max="1" step="0.01"></label>
+    <label>rugosité <input id="mRugosite" data-champ="rugosite" type="range" min="0" max="1" step="0.01"></label>
+    <label>émission <input id="mEmission" data-champ="emission" type="color"></label>
+    <label>mode alpha <select id="mAlpha" data-champ="mode_alpha"><option value="OPAQUE">opaque</option>
+      <option value="MASK">masque</option><option value="BLEND">transparent</option></select></label>
+    <label><input id="mDouble" data-champ="double_face" type="checkbox"> double face</label>
+    <p class="note" id="mNote"></p>
+    <button id="mAppliquer" title="Écrit AUSSITÔT une version de plus : seuls les champs changés partent">Appliquer au matériau</button>`;
+  const lire = () => ({ couleur: $("#mCouleur").value, opacite: Number($("#mOpacite").value),
+                        metal: Number($("#mMetal").value), rugosite: Number($("#mRugosite").value),
+                        emission: $("#mEmission").value, mode_alpha: $("#mAlpha").value,
+                        double_face: $("#mDouble").checked });
+  const touches = new Set();
+  const remplir = () => {
+    touches.clear();
+    const m = MATERIAUX.liste[Number($("#mIndex").value)];
+    $("#mCouleur").value = m.couleur; $("#mOpacite").value = m.opacite; $("#mMetal").value = m.metal;
+    $("#mRugosite").value = m.rugosite; $("#mEmission").value = m.emission; $("#mAlpha").value = m.mode_alpha;
+    $("#mDouble").checked = m.double_face;
+    $("#mNote").textContent = m.texture
+      ? "ce matériau a une texture : la couleur la MULTIPLIE (blanc = texture telle quelle)" : "";
+  };
+  remplir();
+  $("#mIndex").addEventListener("change", remplir);
+  box.querySelectorAll("[data-champ]").forEach((e) => e.addEventListener("input", () => {
+    touches.add(e.dataset.champ);
+    apercuMateriau(Number($("#mIndex").value), lire());
+  }));
+  $("#mAppliquer").addEventListener("click", async () => {
+    const index = Number($("#mIndex").value);
+    const champs = champsChanges(MATERIAUX.liste[index], lire(), touches);
+    if (!Object.keys(champs).length) { direRefus("rien n'a changé sur ce matériau"); return; }
+    const bilan = await ecrireSeule("materiau", { materiau: index, ...champs });
+    if (bilan) {
+      direAvis(`matériau « ${MATERIAUX.liste[index].nom} » écrit (version ${bilan.derniere.version}) : `
+        + Object.keys(champs).join(", "));
+    }
+  });
+}
+
 async function ouvrirDansSlicer() {
   if (!IMPRESSION) { direRefus("exporte d'abord la version (→ Impression 3D)"); return; }
   try {
@@ -3148,6 +3259,7 @@ const LIBELLES_ATTENTE = {
   creuser: (t) => `creuser : paroi ${fmtMesure(t.charge.paroi)} ${uniteCourante()}`,
   booleen: (t) => `${t.charge.operation} de ${t.charge.a.length} et ${t.charge.b.length} pièce(s)`,
   connecteur: (t) => `connecteur ${t.charge.type} : rayon ${fmtMesure(t.charge.rayon)} ${uniteCourante()}`,
+  materiau: (t) => `matériau ${t.charge.materiau} : ${Object.keys(t.charge).filter((k) => k !== "materiau").join(", ")}`,
 };
 
 /* ── RÉPARER EN UN CLIC (tâche #88 PR A, plan-etabli T2) ─────────────────────
@@ -3155,7 +3267,8 @@ const LIBELLES_ATTENTE = {
    durée de sa propre écriture — la garde de confirmerCoupe(), pour toute opération.
    Rend le bilan d'ecrireVersion(), ou null (refus dit dans la barre). */
 const LIBELLE_OP = { reparer_maillage: "réparer le maillage", decimer: "décimer", creuser: "creuser",
-                     booleen: "le booléen", connecteur: "le connecteur" };
+                     booleen: "le booléen", connecteur: "le connecteur",
+                     materiau: "le matériau" };
 const LIBELLE_ACTION = { souder: "sommets confondus", doublons: "faces dupliquées", degeneres: "triangles plats",
                          normales: "normales unifiées", trous: "trous bouchés" };
 /* Les actions cochées d'office : TOUT sauf les trous — décision de l'utilisateur (04/10) :
@@ -3680,7 +3793,8 @@ function rendreFiche() {
       <option value="detailed">détaillé — 5 000</option></select></label>
     <button id="fDecimer" title="Écrit aussitôt une version décimée — elle entre dans la lignée, la version d'avant reste sur le disque">Décimer</button>
     <p class="note">La décimation écrit une VERSION de plus, au lieu du fichier « décimé » à
-      part que l'Établi ne sait pas charger. Un modèle déjà sous la cible est refusé.</p>`;
+      part que l'Établi ne sait pas charger. Un modèle déjà sous la cible est refusé.</p>
+    <div class="fiche-materiaux" id="ficheMateriaux"></div>`;
   $("#fAppliquer").addEventListener("click", () => {
     if (!S.a) { direRefus("aucun modèle chargé — rien à réparer"); return; }
     /* Les trois clés sont celles que la route attend, au caractère près :
@@ -4083,6 +4197,7 @@ document.addEventListener("etabli:charge", () => {
      d'un modèle à l'autre décriraient une correction que personne n'a
      demandée pour CE maillage-ci. */
   rendreFiche();
+  rendreMateriaux();
   rendreRig();
   rendreExportMoteurs();
   /* PIÈGE : cet évènement est émis à chaque chargement RÉUSSI. Brancher
