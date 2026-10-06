@@ -68,6 +68,29 @@
           <input class="search sm" id="libSearch" placeholder="🔎 Filtrer les images…">
           <div class="img-grid" id="libGrid"><div class="empty-note sm">Chargement…</div></div>
         </div>
+      <details class="grp" id="grpPhoto">
+        <summary><i class="chev"></i><span class="grp-t">Photo</span>
+          <b class="mono" id="phMeasure">—</b></summary>
+        <div class="grp-body">
+          <p class="hint">Une photo de surface n'est pas une texture : elle est
+            prise de biais et l'éclairage y est cuit. Clique les quatre coins
+            de la surface, puis retire l'éclairage. Les deux corrections sont
+            locales et gratuites.</p>
+          <canvas id="phCanvas" width="320" height="320"></canvas>
+          <div class="row">
+            <button class="btn ghost sm" id="phReset" type="button"
+                    title="Effacer les quatre coins">↺ Coins</button>
+            <label class="check"><input type="checkbox" id="phDelight" checked>
+              Retirer l'éclairage</label>
+          </div>
+          <label class="mini">Intensité
+            <input type="range" id="phStrength" min="0" max="1" step="0.05"
+                   value="1"></label>
+          <button class="btn sm wide" id="phPreview" type="button">
+            👁 Aperçu de la préparation</button>
+          <img id="phOut" alt="aperçu de la préparation" class="hidden">
+        </div>
+      </details>
       </div>
 
       <div class="fld">

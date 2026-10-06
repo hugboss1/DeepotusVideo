@@ -581,6 +581,19 @@ function setRef(fn) {
     $("#refThumb").src = "/api/images/" + encodeURIComponent(fn);
     $("#refName").textContent = fn;
   }
+  /* Nouvelle référence : les coins de l'ancienne n'ont plus de sens. */
+  photo.quad = [];
+  photo.out = null;
+  $("#phOut").classList.add("hidden");
+  $("#phMeasure").textContent = "—";
+  if (fn) {
+    photo.img = new Image();
+    photo.img.onload = photoDraw;
+    photo.img.src = `/api/images/${encodeURIComponent(fn)}`;
+  } else {
+    photo.img = null;
+    photoDraw();
+  }
   renderLibrary();
   updateEstimate();
 }
@@ -722,7 +735,12 @@ async function generate() {
       seamless: $("#seamless").checked, seam_method: $("#seamMethod").value,
       enhance: $("#enhance").checked,
     };
-    if (state.ref) body.filename = state.ref;
+    if (state.ref) {
+      body.filename = state.ref;
+      /* la préparation ne vaut QUE pour une photo de référence : des coins
+         cliqués n'ont aucun sens sur une image que le modèle va générer */
+      body.prep = photoPrep();
+    }
     const d = await api.post("/materials/generate", body);
     const jid = d && d.job_id;
     if (!jid) throw new Error("réponse sans job_id");
@@ -3275,6 +3293,111 @@ async function uploadFile(file) {
   } catch (e) { toast("Téléversement impossible : " + e.message, true); }
 }
 
+/* ── le panneau Photo (P1) ──────────────────────────────────────────────────
+   Quatre coins cliqués sur la référence, l'éclairage retiré, et LES DEUX
+   CHIFFRES. Le canevas est en pixels d'AFFICHAGE, la route en pixels
+   d'IMAGE : la conversion se fait ici, une fois, avec le rapport naturel de
+   l'image chargée — un clic converti côté serveur obligerait à lui envoyer la
+   taille du canevas, c'est-à-dire à lui faire confiance sur un chiffre qu'il
+   n'a aucun moyen de vérifier. */
+const photo = { img: null, quad: [], out: null };
+
+function photoDraw() {
+  const cv = $("#phCanvas");
+  const ctx = cv.getContext("2d");
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  if (!photo.img) {
+    ctx.fillStyle = "#12151a";
+    ctx.fillRect(0, 0, cv.width, cv.height);
+    return;
+  }
+  const s = Math.min(cv.width / photo.img.naturalWidth,
+                     cv.height / photo.img.naturalHeight);
+  const w = photo.img.naturalWidth * s;
+  const h = photo.img.naturalHeight * s;
+  photo.fit = { s, ox: (cv.width - w) / 2, oy: (cv.height - h) / 2 };
+  ctx.drawImage(photo.img, photo.fit.ox, photo.fit.oy, w, h);
+  ctx.strokeStyle = "#4cc9f0";
+  ctx.fillStyle = "#4cc9f0";
+  ctx.lineWidth = 1.5;
+  photo.quad.forEach((p, i) => {
+    const x = photo.fit.ox + p[0] * s;
+    const y = photo.fit.oy + p[1] * s;
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillText(String(i + 1), x + 7, y - 7);
+  });
+  if (photo.quad.length === 4) {
+    ctx.beginPath();
+    photo.quad.forEach((p, i) => {
+      const x = photo.fit.ox + p[0] * s;
+      const y = photo.fit.oy + p[1] * s;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.closePath();
+    ctx.stroke();
+  }
+}
+
+function photoClick(ev) {
+  if (!photo.img || !photo.fit) return;
+  const r = $("#phCanvas").getBoundingClientRect();
+  const cv = $("#phCanvas");
+  const x = ((ev.clientX - r.left) * (cv.width / r.width) - photo.fit.ox)
+    / photo.fit.s;
+  const y = ((ev.clientY - r.top) * (cv.height / r.height) - photo.fit.oy)
+    / photo.fit.s;
+  if (x < 0 || y < 0 || x > photo.img.naturalWidth
+      || y > photo.img.naturalHeight) return;
+  if (photo.quad.length >= 4) photo.quad = [];
+  photo.quad.push([Math.round(x * 100) / 100, Math.round(y * 100) / 100]);
+  photoDraw();
+}
+
+function photoPrep() {
+  /* Le bloc envoyé au serveur. `null` quand il n'y a rien à faire : la route
+     et la fiche disent alors « aucune préparation », ce qui est vrai. */
+  const d = $("#phDelight").checked ? num($("#phStrength").value, 1) : 0;
+  const q = photo.quad.length === 4 ? photo.quad : null;
+  if (!d && !q) return null;
+  const out = {};
+  if (d) out.delight = d;
+  if (q) out.quad = q;
+  return out;
+}
+
+async function photoPreview() {
+  const fn = state.ref;                  /* le NOM du fichier : state.ref est une chaîne */
+  if (!fn) { toast("Choisis d'abord une image de référence.", true); return; }
+  const prep = photoPrep();
+  if (!prep) { toast("Rien à préparer : coche « Retirer l'éclairage » ou "
+                     + "clique les quatre coins.", true); return; }
+  $("#phPreview").disabled = true;
+  try {
+    const d = await api.post("/materials/prep/preview",
+                             { filename: fn, prep });
+    $("#phOut").src = d.apercu.png;
+    $("#phOut").classList.remove("hidden");
+    const m = d.mesure || {};
+    $("#phMeasure").textContent = (m.lowfreq_sd_before == null)
+      ? "redressée"
+      /* une décimale : à trois, le badge écrasait le titre « Photo » en
+         « P. » dans la colonne (vu en preuve 8799 le 06/10) — le détail
+         entier reste au survol, dans la note */
+      : `${m.lowfreq_sd_before.toFixed(1)} → ${m.lowfreq_sd_after.toFixed(1)} (−${
+          Math.round(m.baisse_pct)} %)`;
+    $("#phMeasure").title = d.note || "";
+  } catch (e) {
+    /* Un 400 (coins alignés, confondus) est un refus du GESTE, pas une API
+       absente : apiFail() peindrait toute l'API Matières « indisponible ». */
+    if (e.missing) apiFail(e, "préparation de la photo");
+    else toast("Préparation refusée : " + e.message, true);
+  } finally {
+    $("#phPreview").disabled = false;
+  }
+}
+
 function wire() {
   $("#model").onchange = () => {
     state.model = $("#model").value;
@@ -3288,6 +3411,12 @@ function wire() {
     updateEstimate();
   };
   $("#genBtn").onclick = generate;
+  $("#phCanvas").addEventListener("click", photoClick);
+  $("#phReset").addEventListener("click", () => { photo.quad = []; photoDraw(); });
+  $("#phPreview").addEventListener("click", photoPreview);
+  $("#phDelight").addEventListener("change", () => {
+    $("#phStrength").disabled = !$("#phDelight").checked;
+  });
   $("#prompt").onkeydown = (e) => {
     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) generate();
   };
