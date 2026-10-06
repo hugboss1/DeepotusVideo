@@ -1734,6 +1734,32 @@ def test_les_pieces_du_banc_sont_saines():
     assert _ferme(_creux()) and abs(_volume(_tris(_creux())) - (8.0 - 1.8 ** 3)) < 1e-5
 
 
+def test_creuser_DIT_les_triangles_interieurs_d_aire_nulle_a_paroi_egale_au_pas_de_la_grille():
+    """Mesuré le 06/10 : boîte maillée 8 × 8 (pas 0,25), paroi 0,25. Le sommet d'arête descend de √2 × 0,25 le long
+    de sa normale diagonale, le sommet de face voisin de 0,25 le long de la sienne : les deux tombent au MÊME point.
+    Les triangles de la bande qui longe chaque arête n'ont plus d'aire — ni retournés (`effondres` restait 0) ni
+    dits, et la sortie n'est plus fermée (140 arêtes fautives). Bande : 4 × 8 − 4 quadrangles par face (les coins
+    comptent pour deux arêtes), 2 triangles chacun, 6 faces = 336.
+    Mesuré aussi : à 0,25 EXACT le produit vectoriel vaut zéro et `n · n' <= 0` les rangeait en « effondrés » (faux
+    motif : rien ne s'auto-intersecte) ; un cheveu en dessous (0,25 × (1 − 1e-9)) l'aire est 1e-9 du dehors, positive :
+    effondres 0, avertissement None — le cas muet."""
+    from app.services import hollow
+    for paroi in (0.25, 0.25 * (1 - 1e-9)):
+        sortie, r = hollow.creuser(_boite_maillee(), None, paroi)
+        assert not _ferme(sortie), "le témoin : à paroi = pas, la peau intérieure se pince"
+        p = r["pieces"][0]
+        assert p["effondres"] == 0 and p["degeneres"] == 336, (paroi, p)
+        assert "aire nulle" in r["avertissement"] and "336" in r["avertissement"], r["avertissement"]
+        assert "effondré" not in r["avertissement"], "une aire nulle n'est pas un retournement"
+        # la paroi qui tient est JUSTE sous le pas : la dichotomie traite l'aire nulle comme une paroi qui ne tient pas
+        assert 0.25 - 0.25 / 2048 <= p["paroi_max"] < paroi and r["paroi_max"] == p["paroi_max"], p
+    # plus mince que le pas : rien à dire ; plus épaisse : les triangles se RETOURNENT (déjà comptés)
+    _s, r = hollow.creuser(_boite_maillee(), None, 0.1)
+    assert (r["pieces"][0]["degeneres"], r["pieces"][0]["effondres"], r["avertissement"]) == (0, 0, None)
+    _s, r = hollow.creuser(_boite_maillee(), None, 0.3)
+    assert r["pieces"][0]["effondres"] > 0 and r["paroi_max"] < 0.25
+
+
 def test_percer_ouvre_LA_paroi_visee_recoud_les_deux_peaux_et_laisse_la_paroi_opposee_intacte():
     import math as _m
     from app.services import hollow, mesh_edit

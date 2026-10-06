@@ -20,7 +20,9 @@ QUATRE CORRECTIONS DU PLAN, décidées par l'utilisateur le 05/10 (« évider co
   * LA LIMITE EST DITE : dans un creux plus serré que la paroi, la peau intérieure se retourne et le solide
     s'auto-intersecte. On COMPTE les triangles dont la normale s'inverse (`effondres`) et on cherche par dichotomie
     la paroi la plus épaisse qui n'en produit aucun (`paroi_max`) ; une peau intérieure retournée EN ENTIER (volume
-    de signe opposé) compte tous ses triangles. Ce n'est pas un décalage exact (il faudrait un champ de distance
+    de signe opposé) compte tous ses triangles. Les triangles intérieurs d'AIRE NULLE (`degeneres`, ajouté le
+    06/10/2026 : à paroi égale au pas d'une grille, les sommets voisins d'une arête tombent au même point et la coque
+    n'est plus fermée, sans qu'aucune normale ne bascule) sont comptés à part et ne tiennent pas non plus. Ce n'est pas un décalage exact (il faudrait un champ de distance
     signée, donc des voxels, donc numpy) : une partie plus mince que deux parois, sur un corps par ailleurs épais, peut
     se traverser sans retourner ni triangle ni volume — `LIMITE` le dit dans chaque rapport.
 
@@ -36,7 +38,8 @@ Un maillage PARTAGÉ par un autre nœud est CLONÉ pour la pièce creusée : sin
 
 BUDGET (plan : 100 352 triangles en moins de 20 s), MESURÉ le 05/10/2026 par tests/mesure_etabli_outils.py creuser :
 tore de 100 352 triangles, paroi 0,05 : 1,9 s ; paroi 0,9 > rayon du tube 0,7, tout effondré, dichotomie complète :
-5,2 s (paroi qui tient trouvée : 0,6996). Le modèle réel de 144 274 triangles est REFUSÉ — non fermé, 4 arêtes.
+5,2 s (paroi qui tient trouvée : 0,6996). Re-mesuré le 06/10/2026 avec `juger` (aire nulle comprise, mesures du
+dehors calculées une fois) contre l'ancien `effondres` sur la même machine : 1,9 → 2,1 s et 5,2 → 6,2 s, même paroi. Le modèle réel de 144 274 triangles est REFUSÉ — non fermé, 4 arêtes.
 """
 from __future__ import annotations
 
@@ -50,6 +53,7 @@ MAX_TRIS = 200_000          # borne du budget mesuré (voir tests/mesure_etabli_
 PLAFOND = 3.0               # décalage maximal d'un sommet, en parois (arête vive)
 _PAS_DICHOTOMIE = 12
 _TOL_SOUDURE = 1e-6         # fraction de la diagonale de la pièce
+_TOL_DEGENERE = 1e-6        # intérieur / extérieur (forme, plus long côté) sous lequel un triangle est dit d'aire nulle
 LIMITE = ("une partie plus mince que deux parois, sur une pièce par ailleurs épaisse, peut se traverser sans être "
           "comptée : vérifie les zones fines dans le slicer")
 
@@ -146,21 +150,59 @@ def _interieur(pos, dec, paroi):
     return [(p[0] - o[0] * paroi, p[1] - o[1] * paroi, p[2] - o[2] * paroi) for p, o in zip(pos, dec)]
 
 
-def effondres(pos, dec, tris, paroi, signe=1.0) -> int:
-    """Combien de triangles retournent leur normale sous ce décalage — ou TOUS si la peau intérieure entière s'est
-    retournée : volume intérieur de signe opposé à l'extérieur. C'est le cas d'une plaque plus mince que deux parois
-    (les deux faces se croisent par translation, aucune normale ne bascule) et du cube creusé au-delà de sa
-    demi-arête (symétrie centrale : les normales restent les mêmes vecteurs)."""
+def _mesures(pos, tris):
+    """Par triangle : (normale non normée a×b, forme, plus long côté²). La forme |a×b| / (plus long côté)² est nulle
+    pour un triangle aplati et INVARIANTE par homothétie ; côtés nuls (tout au même point) : forme 0."""
+    out = []
+    for i, j, k in tris:
+        a, b, c = pos[i], pos[j], pos[k]
+        ux, uy, uz = b[0] - a[0], b[1] - a[1], b[2] - a[2]
+        vx, vy, vz = c[0] - a[0], c[1] - a[1], c[2] - a[2]
+        wx, wy, wz = c[0] - b[0], c[1] - b[1], c[2] - b[2]
+        n = (uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx)
+        l2 = max(ux * ux + uy * uy + uz * uz, vx * vx + vy * vy + vz * vz, wx * wx + wy * wy + wz * wz)
+        out.append((n, 0.0 if l2 <= 0.0 else math.sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]) / l2, l2))
+    return out
+
+
+def juger(pos, dec, tris, paroi, signe=1.0, dehors=None):
+    """-> (effondrés, dégénérés) sous ce décalage.
+    EFFONDRÉS : les triangles qui retournent leur normale — ou TOUS si la peau intérieure entière s'est retournée :
+    volume intérieur de signe opposé à l'extérieur. C'est le cas d'une plaque plus mince que deux parois (les deux
+    faces se croisent par translation, aucune normale ne bascule) et du cube creusé au-delà de sa demi-arête
+    (symétrie centrale : les normales restent les mêmes vecteurs).
+    DÉGÉNÉRÉS : les triangles intérieurs APLATIS ou PINCÉS EN UN POINT, sous `_TOL_DEGENERE` du dehors :
+      * aplatis — leur FORME (`_mesures`, aire sur carré du plus long côté) ; et non l'aire seule : un cube creusé près
+        de sa demi-arête rétrécit sans se déformer, son aire chute au carré et l'aire seule abaissait sa paroi qui
+        tient (mesuré : 0,99866 au lieu de 1) ;
+      * pincés — leur plus long côté : un triangle dont les TROIS sommets tombent au même point garde une forme
+        honnête à l'échelle du flottant (mesuré : 48 des 336 ci-dessous, les quadrangles de coin, échappaient à la
+        seule forme). Le cube près de sa demi-arête ne s'y prend qu'à 1e-6 de la limite, sous le pas de la dichotomie.
+    Mesuré le 06/10/2026 sur un cube 2 × 2 × 2 en grille 8 × 8 (pas 0,25), paroi 0,25 : le sommet d'arête descend de
+    √2 × 0,25 le long de sa normale diagonale et son voisin de face de 0,25 le long de la sienne — ils tombent au MÊME
+    point, la bande qui longe chaque arête (336 triangles) n'a plus d'aire et la coque n'est plus fermée (140 arêtes).
+    À 0,25 exact le produit vectoriel valait zéro et `n · n' <= 0` les comptait en effondrés (faux motif : rien ne
+    s'auto-intersecte) ; à 0,25 × (1 − 1e-9) l'aire restait positive : ni retournés ni dits. Testée AVANT le
+    retournement, l'aire nulle a son propre compte. `dehors` : les `_mesures` de la peau extérieure, calculées une
+    fois pour toute la dichotomie."""
     dedans = _interieur(pos, dec, paroi)
     if _volume(dedans, tris) * signe <= 0.0:
-        return len(tris)
-    n = 0
-    for a, b, c in tris:
-        av = _croix(pos[a], pos[b], pos[c])
-        ap = _croix(dedans[a], dedans[b], dedans[c])
-        if av[0] * ap[0] + av[1] * ap[1] + av[2] * ap[2] <= 0.0:
-            n += 1
-    return n
+        return len(tris), 0
+    if dehors is None:
+        dehors = _mesures(pos, tris)
+    t2 = _TOL_DEGENERE * _TOL_DEGENERE
+    eff = deg = 0
+    for (av, fv, lv), (ap, fp, lp) in zip(dehors, _mesures(dedans, tris)):
+        if fp <= _TOL_DEGENERE * fv or lp <= t2 * lv:                   # aplati, ou pincé (côtés au carré)
+            deg += 1
+        elif av[0] * ap[0] + av[1] * ap[1] + av[2] * ap[2] <= 0.0:
+            eff += 1
+    return eff, deg
+
+
+def effondres(pos, dec, tris, paroi, signe=1.0) -> int:
+    """Les triangles retournés seuls (voir `juger`)."""
+    return juger(pos, dec, tris, paroi, signe)[0]
 
 
 def _echelle_uniforme(m: list):
@@ -251,13 +293,14 @@ def creuser(data: bytes, noeuds, paroi):
         nd, locale = nodes[i], paroi / s
         signe = 1.0 if _volume(uniques, st) >= 0 else -1.0
         dec, plafonnes = decalages(uniques, st, signe)
-        eff = effondres(uniques, dec, st, locale, signe)
+        dehors = _mesures(uniques, st)
+        eff, deg = juger(uniques, dec, st, locale, signe, dehors)
         bas = locale
-        if eff:
+        if eff or deg:                                 # une aire nulle ne tient pas plus qu'un retournement
             bas, haut = 0.0, locale
             for _ in range(_PAS_DICHOTOMIE):
                 mid = (bas + haut) / 2
-                if effondres(uniques, dec, st, mid, signe):
+                if any(juger(uniques, dec, st, mid, signe, dehors)):
                     haut = mid
                 else:
                     bas = mid
@@ -277,18 +320,22 @@ def creuser(data: bytes, noeuds, paroi):
             interieure["material"] = mesh["primitives"][0]["material"]
         mesh["primitives"].append(interieure)
         pieces.append({"noeud_avant": i, "nom": nom, "triangles_avant": len(st), "triangles_interieurs": len(st),
-                       "paroi": paroi, "echelle_monde": s, "effondres": eff, "paroi_max": round(bas * s, 12),
-                       "plafonnes": plafonnes, "normales_rentrantes": signe < 0, "partage_avec": partage})
+                       "paroi": paroi, "echelle_monde": s, "effondres": eff, "degeneres": deg,
+                       "paroi_max": round(bas * s, 12), "plafonnes": plafonnes, "normales_rentrantes": signe < 0, "partage_avec": partage})
     doc["buffers"] = [{"byteLength": len(tampon)}]
     out, neuf, m_node = _extraire_doc(doc, bytes(tampon), racines)
     for p in pieces:
         p["noeud_apres"] = m_node.get(p["noeud_avant"])
     total_eff = sum(p["effondres"] for p in pieces)
+    total_deg = sum(p["degeneres"] for p in pieces)
     total_plaf = sum(p["plafonnes"] for p in pieces)
     dits = []
     if total_eff:
         dits.append(f"{total_eff} triangle(s) effondré(s) : la paroi est plus épaisse que le creux le plus serré, le "
                     "solide s'auto-intersecte")
+    if total_deg:
+        dits.append(f"{total_deg} triangle(s) intérieur(s) d'aire nulle : la paroi égale l'écart entre sommets voisins, "
+                    "la peau intérieure se pince et la coque n'est plus fermée")
     if total_plaf:
         dits.append(f"{total_plaf} sommet(s) sur arête vive : décalage plafonné à {PLAFOND:g} parois, la paroi y est "
                     "plus mince que demandé")
