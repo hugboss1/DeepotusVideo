@@ -145,7 +145,10 @@ def _rencontre(t, u: _Tri, eps):
     nt = (nt[0] / lt, nt[1] / lt, nt[2] / lt)
     dt = _point(nt, t[0])
     r = [_point(nt, p) - dt for p in u.t]
-    if all(x >= -eps for x in r) or all(x <= eps for x in r):
+    # STRICT ici : un triangle de l'autre qui ne fait qu'EFFLEURER le plan de t — une arête posée dessus — le
+    # découpe quand même le long de cette arête. Le tester « franchit-il ? » laissait entier le dessus d'une pièce
+    # sous la rainure d'une queue d'aronde, dont les faces partent toutes du plan de coupe (mesuré le 06/10).
+    if all(x > eps for x in r) or all(x < -eps for x in r):
         return None
     return "croise"
 
@@ -245,7 +248,9 @@ def operer(a, b, operation: str):
         return a + b if operation == "union" else ([] if operation == "intersection" else a)
     tous = [p for t in a for p in t] + [p for t in b for p in t]
     etendue = max(max(p[i] for p in tous) - min(p[i] for p in tous) for i in range(3)) or 1.0
-    eps = 1e-9 * etendue
+    # 1e-7 de l'étendue : un GLB stocke ses sommets en FLOAT32 (un ulp relatif ≈ 6e-8) — une face commune relue
+    # d'un fichier n'est coplanaire qu'à cette précision-là, et une tolérance plus fine ne la reconnaîtrait plus
+    eps = 1e-7 * etendue
     decal = (1.2345678912e-7 * etendue, 2.7182818284e-7 * etendue)
 
     def preparer(tris):

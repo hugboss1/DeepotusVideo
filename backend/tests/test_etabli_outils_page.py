@@ -73,7 +73,7 @@ def test_la_surface_route_ordre_bouton_et_cablage():
     assert 'reparer_maillage: "/api/etabli/reparer-maillage"' in js
     # l'ordre tient sur UNE ligne (les bancs le lisent ainsi), reparer_maillage la ferme
     assert ('const ORDRE_ECRITURE = ["transformer", "assise", "reparer", "extraire", "couper", '
-            '"reparer_maillage", "creuser", "decimer", "booleen"];') in js
+            '"reparer_maillage", "creuser", "decimer", "booleen", "connecteur"];') in js
     assert 'const ACTIONS_PAR_DEFAUT = ["souder", "doublons", "degeneres", "normales"];' in js
     fiche = _fonction_etabli("rendreFiche")
     assert '<button id="fReparerMaillage" title="' in fiche and "Réparer en un clic" in fiche
@@ -1179,6 +1179,60 @@ def test_prendre_un_operande_refuse_une_selection_VIDE_et_dit_A_et_B_EXECUTEE():
     o = json.loads(_node(src))
     assert len(o["refus"]) == 2, o["refus"]          # vide, puis 4 des deux côtés
     assert o["bool"]["a"] == [3, 4] and o["bool"]["b"] == [] and o["rendus"] == 1
+
+
+# ── T092 / plan T17 : le connecteur vient APRÈS la coupe, et lit SA fiche ───────
+def test_le_connecteur_vient_APRES_la_coupe_et_lit_les_noeuds_de_la_fiche_EXECUTEE():
+    corps = _fonction_etabli_async("poserConnecteurApresCoupe")
+    src = """
+      const REFUS = [], AVIS = [], ECRITS = [];
+      const direRefus = (m) => REFUS.push(m), direAvis = (m) => AVIS.push(m);
+      let MM = true;
+      const enMillimetres = () => MM, versUnites = (v) => (MM ? v / 10 : null);
+      const COUTEAU = { connecteur: "teton" };
+    """ + "\n".join(re.findall(r"^const (?:RAYON|HAUTEUR|JEU)_CONNECTEUR\w* = .*$", _lire("etabli/etabli.js"), re.M)) \
+        + "\n" + _fonction_etabli("cotesDuConnecteur") + """
+      const ecrireSeule = async (op, charge) => { ECRITS.push([op, charge]);
+        return { derniere: { version: 4, source: { pieces: [{ nom: "cube_a", role: "male" },
+                                                             { nom: "cube_b", role: "femelle" }] } } }; };
+      const fiche = (garder, pieces) => ({ version: 3, source: { garder, pieces } });
+      const deux = { traversee: true, cotes: { a: { noeud_apres: 0, capuchon: { pose: true } },
+                                               b: { noeud_apres: 1, capuchon: { pose: true } } } };
+    """ + corps + """
+      (async () => {
+        await poserConnecteurApresCoupe(fiche("deux", [deux]));
+        MM = false; await poserConnecteurApresCoupe(fiche("deux", [deux])); MM = true;
+        await poserConnecteurApresCoupe(fiche("a", [deux]));
+        await poserConnecteurApresCoupe(fiche("deux", [deux, deux]));
+        COUTEAU.connecteur = "cheville"; await poserConnecteurApresCoupe(fiche("deux", [deux]));
+        COUTEAU.connecteur = ""; await poserConnecteurApresCoupe(fiche("deux", [deux]));
+        console.log(JSON.stringify({ refus: REFUS, ecrits: ECRITS, avis: AVIS }));
+      })();
+    """
+    o = json.loads(_node(src))
+    op, charge = o["ecrits"][0]
+    assert op == "connecteur" and charge["a"] == 0 and charge["b"] == 1 and charge["type"] == "teton"
+    assert charge["rayon"] == 0.3 and charge["hauteur"] == 0.4 and abs(charge["jeu"] - 0.02) < 1e-12, charge
+    assert charge["rayon_millimetres"] == 3 and charge["jeu_millimetres"] == 0.2
+    assert "point" not in charge and "normale" not in charge, "le plan vient de la FICHE, pas de la page"
+    assert len(o["refus"]) == 3 and "taille cible" in o["refus"][0] and "deux" in o["refus"][1]
+    assert "une" in o["refus"][2]
+    assert o["ecrits"][1][1]["type"] == "cheville" and o["ecrits"][1][1]["hauteur"] == 0.8
+    assert len(o["ecrits"]) == 2, "sans connecteur choisi, rien n'est écrit"
+    assert "mâle" in o["avis"][0] and "cube_a" in o["avis"][0]
+
+
+def test_le_connecteur_se_choisit_dans_la_barre_du_couteau_et_suit_la_coupe():
+    html, js = _lire("etabli/index.html"), _lire("etabli/etabli.js")
+    assert 'id="couteauConnecteur"' in html
+    sel = html.split('id="couteauConnecteur"', 1)[1].split("</select>", 1)[0]
+    assert re.findall(r'<option value="(\w*)"', sel) == ["", "teton", "cheville", "aronde"]
+    assert 'connecteur: ""' in js.split("const COUTEAU = {", 1)[1].split("};", 1)[0]
+    conf = _fonction_etabli_async("confirmerCoupe")
+    assert conf.index("direBilanCoupe(bilan.derniere);") < conf.index("await poserConnecteurApresCoupe(bilan.derniere);")
+    assert 'connecteur: "/api/etabli/connecteur"' in _objet_etabli("ROUTES")
+    assert "connecteur" in _objet_etabli("LIBELLES_ATTENTE") and "connecteur" in _objet_etabli("LIBELLE_OP")
+    assert '$("#couteauConnecteur").addEventListener("change"' in js
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))
