@@ -36,7 +36,7 @@ check("H3 hitbox.js exposé en window.SLH, et le panneau rechargé à son arriv�
       'import * as SLH from "./hitbox.js"; window.SLH = SLH; document.dispatchEvent(new Event("slh-pret"));' in HTML
       and 'document.addEventListener("slh-pret", () => { if (sheet) hbCharger(sheet.short, sheet.manifest); });' in JS)
 check("W1 chaque feuille affichée recharge les hitboxes de SON manifeste (après un réassemblage aussi)",
-      re.search(r"renderEditor\(\);\n  hbCharger\(short, m\);\n\}", JS) is not None)
+      re.search(r"renderEditor\(\);\n  hbCharger\(short, m\);\n", JS) is not None)   # t111 (T12) : skCharger suit
 check("W2 l'enregistrement part sur la route du backend, avec le corps du module pur",
       "api.send(\"POST\", `/assets/sprite/${short}/hitboxes`, window.SLH.corps(hb))" in bloc)
 check("W3 raccourcis : jamais dans un champ, seulement après un geste sur le panneau",

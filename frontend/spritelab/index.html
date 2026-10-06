@@ -341,6 +341,27 @@
       <div id="hbStatus" class="status hidden"></div>
     </div>
 
+    <!-- t111 (plan-sprites T12) : découpe en pièces, os, export Spine JSON — skeleton.js (état pur) + spritelab.js -->
+    <div id="squelette" class="editor hidden">
+      <div class="editor-head">
+        <b>Squelette Spine</b>
+        <span id="skInfo" class="counter">—</span>
+        <select id="skFrame" title="La frame découpée en pièces"></select>
+        <button id="skOutilOs" class="btn ghost sk-outil on" data-outil="os" title="Os : glisser de la base vers le bout ; il s'accroche à l'os choisi">🦴 Os</button>
+        <button id="skOutilPiece" class="btn ghost sk-outil" data-outil="piece" title="Pièce : glisser pour tracer une boîte ; elle suit l'os choisi">▭ Pièce</button>
+        <button id="skSave" class="btn primary" disabled title="Découpe les pièces et écrit le rig Spine 3.8 côté serveur (local, gratuit)">✔ Écrire le rig</button>
+        <a id="dlSpine" class="btn hidden" download title="Le squelette Spine JSON — les PNG des pièces sont dans le ZIP (dossier spine/)">⬇ Spine JSON</a>
+      </div>
+      <div class="hint">Pose les os au glisser (chaque nouvel os s'accroche au précédent ; choisis-en un dans la liste pour
+        brancher ailleurs), puis trace les pièces : chacune suit l'os choisi. Les noms se changent dans la liste. Un rig,
+        pas d'animation : les tags deviennent des animations vides, nommées. Un nouveau rig remplace l'ancien.</div>
+      <div class="hb-corps">
+        <canvas id="skCanvas" class="hb-canvas bg-checker" width="128" height="128"></canvas>
+        <div id="skList" class="sklist"></div>
+      </div>
+      <div id="skStatus" class="status hidden"></div>
+    </div>
+
     <div id="feuilleOut" class="feuille-out hidden">
       <div class="settings">
         <div class="settings-sec">Alignement <span class="hint">sur la première frame sélectionnée</span></div>
@@ -365,6 +386,7 @@
 <div id="toast" class="toast hidden"></div>
 <script type="module">import * as SLF from "./feuille.js"; window.SLF = SLF; document.dispatchEvent(new Event("slf-pret"));</script>
 <script type="module">import * as SLH from "./hitbox.js"; window.SLH = SLH; document.dispatchEvent(new Event("slh-pret"));</script>
+<script type="module">import * as SLK from "./skeleton.js"; window.SLK = SLK; document.dispatchEvent(new Event("slk-pret"));</script>
 <script type="module">import * as SLD from "./directions.js"; window.SLD = SLD; document.dispatchEvent(new Event("sld-pret"));</script>
 <script type="module" src="/assets/model-viewer.min.js"></script>
 <script type="module">import * as P from "/spritelab/palettes.js"; window.DZ_PALETTES = P; document.dispatchEvent(new Event("dz-palettes"));</script>
