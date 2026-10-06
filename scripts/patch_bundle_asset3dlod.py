@@ -79,16 +79,58 @@ DZ_LOD = (
     'n.niveau?" · IoU "+DzLodNum(p.iou_min)+" · Δn "+DzLodNum(p.ecart_normales):" · source",'
     'n.aggressive?" · agressif":""]},"n"+n.niveau)})},"st"):null]},"lod")}')
 
-GREFFE = 'r.jsx(DzLod,{sh:sh},"lod"+sh),'
+# T105 B (plan-moteurs-3d T4) : l'export des textures aux conventions moteur, dans la MÊME zone. Les conventions et
+# les résolutions viennent du SERVEUR (inventaire) ; un refus (GLB compressé, maillage nu) est DIT, jamais avalé.
+DZ_TEX = (
+    'function DzTex({sh}){'
+    'var IS=x.useState(null),inv=IS[0],setInv=IS[1],'
+    'NS=x.useState("standard"),nm=NS[0],setNm=NS[1],'
+    'RS=x.useState(2048),rs=RS[0],setRs=RS[1],'
+    'BS=x.useState(!1),busy=BS[0],setBusy=BS[1],'
+    'ES=x.useState(""),err=ES[0],setErr=ES[1];'
+    'x.useEffect(function(){var on=!0;'
+    'fetch("/api/assets/3d/"+sh+"/textures")'
+    '.then(function(r2){return r2.json().then(function(j){return{ok:r2.ok,j:j}})})'
+    '.then(function(z){if(!on)return;if(z.ok)setInv(z.j);else setErr(String((z.j&&z.j.detail)||""))})'
+    '.catch(function(){});return function(){on=!1}},[sh]);'
+    'function dl(){if(busy)return;setBusy(!0);setErr("");'
+    'fetch("/api/assets/3d/"+sh+"/textures",{method:"POST",headers:{"Content-Type":"application/json"},'
+    'body:JSON.stringify({naming:nm,resolution:rs})})'
+    '.then(function(r2){if(r2.ok)return r2.blob();'
+    'return r2.json().catch(function(){return{}}).then(function(j){throw new Error(j.detail||"échec de l’export")})})'
+    '.then(function(b){setBusy(!1);var u=URL.createObjectURL(b),a=document.createElement("a");'
+    'a.href=u;a.download=sh+"_"+nm+".zip";a.click();setTimeout(function(){URL.revokeObjectURL(u)},4e3)})'
+    '.catch(function(e2){setBusy(!1);setErr(String(e2&&e2.message||e2))})}'
+    'if(!inv)return err?r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)",marginTop:4},'
+    'children:"Textures : "+err},"tex"):null;'
+    'var nus=!inv.materiaux.some(function(m){return Object.keys(m.canaux).length});'
+    'return r.jsxs("div",{style:{display:"flex",flexDirection:"column",gap:4,marginTop:4},children:['
+    'r.jsxs("div",{style:{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"},children:['
+    'r.jsx("span",{style:{fontSize:11,color:"var(--ink-soft)"},children:"Textures"},"lb"),'
+    'r.jsx("select",{value:nm,title:"Convention de nommage du moteur visé",'
+    'onChange:function(e2){setNm(e2.target.value)},' + BTN + ',children:inv.conventions.map(function(c){'
+    'return r.jsx("option",{value:c,children:c},c)})},"cv"),'
+    'r.jsx("select",{value:String(rs),onChange:function(e2){setRs(Number(e2.target.value))},' + BTN + ','
+    'children:inv.resolutions.map(function(v){return r.jsx("option",{value:String(v),children:String(v)+" px"},'
+    'String(v))})},"rs"),'
+    'r.jsx("button",{onClick:dl,disabled:busy||nus,title:nus?"Ce maillage ne porte aucune texture : texture-le '
+    'd’abord":"Archive des textures de "+inv.file+" renommées pour le moteur, avec le bordereau",' + BTN + ','
+    'children:busy?"Export…":"↓ Textures"},"go"),'
+    'inv.manquants.length&&!nus?r.jsx("span",{title:"Dérivées de la basecolor : cartes de MOTIF, pas un bake '
+    'de maillage — le bordereau le dit",style:{fontSize:10,color:"var(--ink-soft)"},'
+    'children:"cuites : "+inv.manquants.join(", ")},"mq"):null]},"row"),'
+    'err?r.jsx("div",{style:{fontSize:11,color:"var(--red)"},children:err},"er"):null]},"tex")}')
+
+GREFFE = 'r.jsx(DzLod,{sh:sh},"lod"+sh),r.jsx(DzTex,{sh:sh},"tex"+sh),'
 
 # (tag, ancre, remplacement, occurrences attendues)
 PATCHES = [
-    ("D1-def", ANCRE_DEF, DZ_LOD + ANCRE_DEF, 1),
+    ("D1-def", ANCRE_DEF, DZ_LOD + DZ_TEX + ANCRE_DEF, 1),
     ("D2-zone", ANCRE_ZONE, ANCRE_ZONE + GREFFE, 1),
 ]
 
-SPEC_CHAR_DELTA = 3055
-SPEC_BYTE_DELTA = 3076
+SPEC_CHAR_DELTA = 6173
+SPEC_BYTE_DELTA = 6209
 
 # les voisins de l'ancre et les maillons de queue
 SONDE_AMONT = [
@@ -154,7 +196,7 @@ def main():
     s, bom = lire(src)
 
     if "--check" in args:
-        if s.count(MARKER):
+        if s.count(MARKER) or s.count("function DzTex("):
             raise SystemExit(f"[{TAG}] marqueur deja present x{s.count(MARKER)} dans {src.name} : double application "
                              "refusee.")
         sonder(s)
@@ -177,7 +219,7 @@ def main():
         print("restore <-", BAK.name)
     avant = BUNDLE.read_bytes()
     sonder(s)
-    if MARKER in s:
+    if MARKER in s or "function DzTex(" in s:
         raise SystemExit(f"[{TAG}] backup empoisonne (marqueur present). Aborting.")
     for tag, a, rp, n in PATCHES:
         s = apply(s, a, rp, tag, n)
@@ -189,8 +231,9 @@ def main():
         problemes.append(f"taille {len(apres)} o, attendu {len(avant) + db}")
     if apres.count(b"\r\n") != avant.count(b"\r\n") or apres.count(b"\n") != apres.count(b"\r\n"):
         problemes.append("fins de ligne changees")
-    if s.count(MARKER) != MARKER_ATTENDU or s.count("r.jsx(DzLod,") != 1:
-        problemes.append(f"marqueur x{s.count(MARKER)} / greffe x{s.count('r.jsx(DzLod,')} (want 1/1)")
+    for jeton in (MARKER, "r.jsx(DzLod,", "function DzTex(", "r.jsx(DzTex,"):
+        if s.count(jeton) != 1:
+            problemes.append(f"{jeton} x{s.count(jeton)} (want 1)")
     if problemes:
         shutil.copy2(BAK, BUNDLE)
         raise SystemExit(f"[{TAG}] VERIFICATION ECHOUEE, bundle restaure :\n  " + "\n  ".join(problemes))

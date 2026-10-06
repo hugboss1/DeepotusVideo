@@ -1776,6 +1776,37 @@ async def get_asset3d_lod_zip(job: str):
                     headers={"Content-Disposition": f'attachment; filename="{nom}"'})
 
 
+# ── T105 (plan-moteurs-3d T4, R10e P3) : textures du maillage aux conventions moteur. Locales et gratuites. ──────
+@router.get("/assets/3d/{job}/textures")
+async def get_asset3d_textures(job: str, version: int = None):
+    """Ce que le maillage porte en textures, et ce qui manque — avant de choisir une convention et une résolution."""
+    from app.services import mesh_textures
+    try:
+        return await asyncio.to_thread(mesh_textures.inventaire, job, version=version)
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.post("/assets/3d/{job}/textures")
+async def post_asset3d_textures(job: str, body: dict = None):
+    """L'archive PBR aux conventions moteur. Body {naming?, resolution?, version?, cuire?: true}."""
+    from app.services import mesh_textures
+    body = body or {}
+    try:
+        nom, octets = await asyncio.to_thread(
+            mesh_textures.exporter, job, naming=str(body.get("naming") or "standard"),
+            resolution=body.get("resolution") or 2048, version=body.get("version"),
+            cuire=bool(body.get("cuire", True)))
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+    except (ValueError, TypeError) as e:
+        raise HTTPException(400, str(e))
+    return Response(content=octets, media_type="application/zip",
+                    headers={"Content-Disposition": f'attachment; filename="{nom}"'})
+
+
 @router.get("/assets/3d/{job}/{fmt}")
 async def get_asset3d_file(job: str, fmt: str):
     """Stream a generated mesh file (glb|fbx|obj|stl|usdz)."""
