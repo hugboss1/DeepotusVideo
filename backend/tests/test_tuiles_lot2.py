@@ -312,6 +312,51 @@ def test_ecran_porte_le_peintre():
         assert r.returncode == 0, r.stderr
 
 
+def test_un_glisser_rapide_peint_toutes_les_cases_traversees():
+    """Vu à l'écran le 06/10 : un glisser rapide sur une rangée n'avait peint que les colonnes 2, 5 et 8 — le
+    navigateur n'envoie que quelques `pointermove`, et le peintre ne posait que la case sous chacun. Les cases
+    TRAVERSÉES entre deux positions sont désormais reliées (ligne de cases). peintre.js tourne ici sous node."""
+    import json as _json
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        print("  (node absent : saute)")
+        return
+    harnais = r"""
+const EL = {};
+function el(id){ if(!EL[id]) EL[id] = {id, value:"12", textContent:"", innerHTML:"", href:"", src:"", width:480, height:320,
+  classList:{add(){},remove(){},toggle(){}}, addEventListener(t,f){ (EL[id]._ev = EL[id]._ev || {})[t] = f; },
+  setPointerCapture(){}, getBoundingClientRect(){ return {left:0, top:0, width:480, height:320}; },
+  getContext(){ return {fillRect(){}, beginPath(){}, moveTo(){}, lineTo(){}, stroke(){}, set fillStyle(v){}, set strokeStyle(v){}}; } };
+  return EL[id]; }
+globalThis.document = { querySelector(s){ return el(s.replace(/^#/, "")); }, addEventListener(){} };
+globalThis.window = globalThis; globalThis.setTimeout = () => 0; globalThis.clearTimeout = () => {};
+el("peHauteur").value = "8";
+await import(process.argv[2]);
+const P = window.__tlpeintre;
+P.nouvelleGrille();
+const cv = EL.peCanvas._ev, k = 40;                   // 480 px / 12 cases
+const ev = (i, j) => ({clientX: i * k + 20, clientY: j * k + 20, pointerId: 1});
+cv.pointerdown(ev(2, 3)); cv.pointermove(ev(5, 3)); cv.pointermove(ev(8, 3)); cv.pointerup(ev(8, 3));
+cv.pointerdown(ev(2, 4)); cv.pointermove(ev(2, 7)); cv.pointerup(ev(2, 7));          // une colonne d'un seul saut
+cv.pointerdown(ev(10, 0)); cv.pointermove(ev(11, 7)); cv.pointerup(ev(11, 7));       // une diagonale raide
+console.log(JSON.stringify({g: P.etat.grille.map((l) => l.join("")), lc: P.ligneCases([0, 0], [3, 1])}));
+"""
+    import tempfile
+    f = pathlib.Path(tempfile.mkdtemp()) / "h.mjs"
+    f.write_text(harnais, encoding="utf-8")
+    r = subprocess.run([node, str(f), (FRONT / "peintre.js").as_uri()], capture_output=True, text=True, encoding="utf-8",
+                       timeout=60)
+    assert r.returncode == 0, r.stderr[-800:]
+    o = _json.loads(r.stdout.strip().splitlines()[-1])
+    g = o["g"]
+    assert g[3][2:9] == "1111111", g                       # la rangée : 2 à 8 SANS trou
+    assert all(g[j][2] == "1" for j in range(3, 8)), g      # la colonne : 3 à 7, d'un seul saut
+    assert all("1" in g[j][10:12] for j in range(8)), g     # la diagonale : une case par rangée
+    assert o["lc"][0] == [0, 0] and o["lc"][-1] == [3, 1] and len(o["lc"]) == 4, o["lc"]
+
+
 def _main():
     rouges = []
     for nom, fn in sorted(globals().items()):

@@ -8,7 +8,7 @@
 
 (function () {
   const $ = (s) => document.querySelector(s);
-  const P = { grille: [], larg: 12, haut: 8, pose: 1, glisse: false, minuteur: 0, tid: null, envoi: 0 };
+  const P = { grille: [], larg: 12, haut: 8, pose: 1, glisse: false, dernier: null, minuteur: 0, tid: null, envoi: 0 };
 
   function statut(msg, err) {
     const el = $("#peStatus");
@@ -48,10 +48,30 @@
     const i = Math.floor((ev.clientX - b.left) / b.width * P.larg), j = Math.floor((ev.clientY - b.top) / b.height * P.haut);
     return i >= 0 && j >= 0 && i < P.larg && j < P.haut ? [i, j] : null;
   }
+  /* les cases traversées entre deux positions du pointeur (ligne de Bresenham, extrémités comprises) : un glisser
+     rapide n'envoie que quelques pointermove — vu à l'écran le 06/10, une rangée glissée n'avait que 3 cases sur 7 */
+  function ligneCases(a, b) {
+    const out = [];
+    let [x, y] = a;
+    const dx = Math.abs(b[0] - x), dy = -Math.abs(b[1] - y), sx = x < b[0] ? 1 : -1, sy = y < b[1] ? 1 : -1;
+    let err = dx + dy;
+    for (;;) {
+      out.push([x, y]);
+      if (x === b[0] && y === b[1]) return out;
+      const e2 = 2 * err;
+      if (e2 >= dy) { err += dy; x += sx; }
+      if (e2 <= dx) { err += dx; y += sy; }
+    }
+  }
   function peindre(ev) {
     const c = caseSous(ev);
-    if (!c || P.grille[c[1]][c[0]] === P.pose) return;
-    P.grille[c[1]][c[0]] = P.pose;
+    if (!c) return;
+    let change = false;
+    for (const [i, j] of ligneCases(P.dernier || c, c)) {
+      if (P.grille[j][i] !== P.pose) { P.grille[j][i] = P.pose; change = true; }
+    }
+    P.dernier = c;
+    if (!change) return;
     dessiner();
     clearTimeout(P.minuteur);
     P.minuteur = setTimeout(composer, 350);
@@ -90,15 +110,15 @@
     const c = caseSous(ev);
     if (!c) return;
     P.pose = P.grille[c[1]][c[0]] ? 0 : 1;     // le premier geste décide : poser ou gommer
-    P.glisse = true; cv.setPointerCapture(ev.pointerId); peindre(ev);
+    P.glisse = true; P.dernier = null; cv.setPointerCapture(ev.pointerId); peindre(ev);
   });
   cv.addEventListener("pointermove", (ev) => { if (P.glisse) peindre(ev); });
-  cv.addEventListener("pointerup", () => { P.glisse = false; });
+  cv.addEventListener("pointerup", () => { P.glisse = false; P.dernier = null; });
   $("#peEffacer").onclick = () => { nouvelleGrille(); clearTimeout(P.minuteur); P.minuteur = setTimeout(composer, 50); };
   $("#peLargeur").onchange = nouvelleGrille;
   $("#peHauteur").onchange = nouvelleGrille;
   $("#peGraine").onchange = composer;
   document.addEventListener("tl-mode", (e) => { if (e.detail === "peintre") entrer(); });
 
-  window.__tlpeintre = { get etat() { return P; }, composer, nouvelleGrille };
+  window.__tlpeintre = { get etat() { return P; }, composer, nouvelleGrille, ligneCases };
 })();
