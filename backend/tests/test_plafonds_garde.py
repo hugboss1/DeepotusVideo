@@ -60,6 +60,9 @@ PAYANTES = {
     ("routes", "POST", "/news/chain/polish"),   # tâche #35 : le polissage LLM d'un script du lot
     ("routes", "POST", "/generate/extend"),   # tâche #51 : l'extension Veo 3.1 (fal)
     ("routes", "POST", "/studio-graphs/{graph_id}/recette/lancer"),   # tâche #71 : une recette du Studio (gardée PAR la route de rendu)
+    # T098 (oubliée là, rattrapée en T099) : la photo du téléphone passe par generate_material — branche library,
+    # gratuite en pratique, mais le chemin atteint le puits FLUX et la garde de generate_material est sur sa route
+    ("routes", "POST", "/materials/from-photo"),
 }
 
 

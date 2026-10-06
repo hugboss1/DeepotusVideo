@@ -96,20 +96,46 @@ function svxBuf(url,cb){
   return e}
 
 /* ── vocabulaire FX (contrat backend/frontend — noms et bornes EXACTS) ────
-   Ordre de chaîne fixe : filter → eq3 → denoise → deesser → compressor →
-   distortion → echo → reverb → stereo → normalize. live:1 = audible dans
+   Ordre de chaîne fixe : filter → dehum → eq3 → denoise → eq6 → deesser →
+   compressor → distortion → echo → reverb → stereo → normalize (L6, 25/09/2026 :
+   dehum et eq6 insérés, ordre relatif des dix d'avant inchangé). live:1 = audible dans
    l'audition Web Audio du rack ; live:0 = « Écouter (rendu) » (ffmpeg). */
 var SVX_FX_DEFS=[
  {type:"filter",label:"Filtre",live:1,params:[
    {k:"mode",kind:"seg",opts:[["low","grave"],["high","aigu"],["band","bande"]],d:"low"},
    {k:"freq",label:"Fréq",min:20,max:20000,d:1000,step:1,unit:"Hz",log:1},
    {k:"q",label:"Q",min:0.1,max:10,d:1,step:0.1,unit:""}]},
+ {type:"dehum",label:"Anti-ronflement",live:0,params:[
+   {k:"base",label:"Secteur",min:50,max:60,d:50,step:10,unit:"Hz"},
+   {k:"harmonics",label:"Harmon.",min:1,max:6,d:4,step:1,unit:""},
+   {k:"amount",label:"Dosage",min:0,max:100,d:100,step:1,unit:"%"}]},
  {type:"eq3",label:"Égaliseur",live:1,params:[
    {k:"bass_db",label:"Graves",min:-12,max:12,d:0,step:0.5,unit:"dB"},
    {k:"mid_db",label:"Médiums",min:-12,max:12,d:0,step:0.5,unit:"dB"},
    {k:"treble_db",label:"Aigus",min:-12,max:12,d:0,step:0.5,unit:"dB"}]},
  {type:"denoise",label:"Débruiteur",live:0,params:[
-   {k:"amount",label:"Réduction",min:0,max:97,d:12,step:1,unit:"dB"}]},
+   {k:"amount",label:"Réduction",min:0,max:97,d:12,step:1,unit:"dB"},
+   {k:"nf",label:"Plancher 0=auto",min:-80,max:0,d:0,step:1,unit:"dB",tip:"Plancher du débruiteur : 0 = auto, −20 au plus (le rendu ramène −19…−1 à −20)"},
+   {k:"learn_in",label:"Appris de",min:0,max:86400,d:0,step:0.001,dec:3,unit:"s",hide:1},
+   {k:"learn_out",label:"Appris à",min:0,max:86400,d:0,step:0.001,dec:3,unit:"s",hide:1}]},
+ {type:"eq6",label:"Égaliseur 6 bandes",live:0,params:[
+   {k:"hp_hz",label:"Passe-haut",min:0,max:300,d:0,step:1,unit:"Hz"},
+   {k:"ls_f",label:"Grave Hz",min:30,max:500,d:100,step:1,unit:"Hz",log:1},
+   {k:"ls_g",label:"Grave dB",min:-12,max:12,d:0,step:0.5,unit:"dB"},
+   {k:"p1_f",label:"Cloche 1 Hz",min:40,max:16000,d:250,step:1,unit:"Hz",log:1},
+   {k:"p1_g",label:"Cloche 1 dB",min:-12,max:12,d:0,step:0.5,unit:"dB"},
+   {k:"p1_q",label:"Q1",min:0.3,max:8,d:1,step:0.1,unit:""},
+   {k:"p2_f",label:"Cloche 2 Hz",min:40,max:16000,d:800,step:1,unit:"Hz",log:1},
+   {k:"p2_g",label:"Cloche 2 dB",min:-12,max:12,d:0,step:0.5,unit:"dB"},
+   {k:"p2_q",label:"Q2",min:0.3,max:8,d:1,step:0.1,unit:""},
+   {k:"p3_f",label:"Cloche 3 Hz",min:40,max:16000,d:2500,step:1,unit:"Hz",log:1},
+   {k:"p3_g",label:"Cloche 3 dB",min:-12,max:12,d:0,step:0.5,unit:"dB"},
+   {k:"p3_q",label:"Q3",min:0.3,max:8,d:1,step:0.1,unit:""},
+   {k:"p4_f",label:"Cloche 4 Hz",min:40,max:16000,d:6000,step:1,unit:"Hz",log:1},
+   {k:"p4_g",label:"Cloche 4 dB",min:-12,max:12,d:0,step:0.5,unit:"dB"},
+   {k:"p4_q",label:"Q4",min:0.3,max:8,d:1,step:0.1,unit:""},
+   {k:"hs_f",label:"Aigu Hz",min:1000,max:16000,d:8000,step:1,unit:"Hz",log:1},
+   {k:"hs_g",label:"Aigu dB",min:-12,max:12,d:0,step:0.5,unit:"dB"}]},
  {type:"deesser",label:"Dé-esseur",live:0,params:[
    {k:"intensity",label:"Intensité",min:0,max:100,d:50,step:1,unit:"%"}]},
  {type:"compressor",label:"Compresseur",live:1,params:[
@@ -150,7 +176,7 @@ function svxCleanParams(type,raw){
       p[pd.k]=ok?v:pd.d}
     else{
       var n=svxClamp(svxN(raw[pd.k],pd.d),pd.min,pd.max);
-      p[pd.k]=svxRound(n,pd.step<1?1:0)}});
+      p[pd.k]=svxRound(n,pd.dec!=null?pd.dec:(pd.step<1?1:0))}});
   return p}
 function svxNormFx(list){
   var on={},unknown=[];
@@ -173,7 +199,10 @@ function svxModSummary(def,p){
     case "filter":{var mm={low:"grave",high:"aigu",band:"bande"};
       return (mm[p.mode]||p.mode)+" "+Math.round(p.freq)+" Hz"}
     case "eq3":return svxDb1(p.bass_db).replace(".0","")+" / "+svxDb1(p.mid_db).replace(".0","")+" / "+svxDb1(p.treble_db).replace(".0","");
-    case "denoise":return p.amount+" dB";
+    case "denoise":return p.amount+" dB"+(Number(p.nf)<=-.5?" · plancher "+Math.max(-80,Math.min(-20,Number(p.nf)))+" dB":"")+((Number(p.learn_out)||0)-(Number(p.learn_in)||0)>=.2-1e-9?" · appris":"");
+    case "eq6":{var nb=["ls","p1","p2","p3","p4","hs"].filter(function(b){return Math.abs(Number(p[b+"_g"])||0)>=.05}).length;
+      return (p.hp_hz>0?"PH "+Math.round(p.hp_hz)+" Hz · ":"")+(nb?nb+" bande"+(nb>1?"s":""):"neutre")}
+    case "dehum":return (p.base>=55?60:50)+" Hz ×"+p.harmonics+" · "+p.amount+" %";
     case "deesser":return p.intensity+" %";
     case "compressor":return svxDb1(p.threshold_db).replace(".0","")+" dB · "+p.ratio+":1";
     case "distortion":return p.drive+" %";
@@ -1102,6 +1131,7 @@ const SvxRack=(props)=>{
     svxRelease(wrapRef.current)}},[]);
 
   function paramRow(def,pd,p,on){
+    if(pd.hide)return null;
     var v=p[pd.k];
     if(pd.kind==="seg")
       return r.jsxs("div",{className:"svx-prow",children:[
@@ -1117,7 +1147,7 @@ const SvxRack=(props)=>{
     else{smin=pd.min;smax=pd.max;sstep=pd.step;sv=v}
     var disp=pd.step<1?svxRound(v,1):Math.round(v);
     return r.jsxs("div",{className:"svx-prow","data-dim":on?void 0:"",children:[
-      r.jsx("span",{className:"svx-plabel",children:pd.label}),
+      r.jsx("span",{className:"svx-plabel",title:pd.tip||void 0,children:pd.label}),
       r.jsx("input",{className:"svx-prange",type:"range",min:smin,max:smax,step:sstep,
         value:sv,"aria-label":def.label+" — "+pd.label,
         onChange:function(e){

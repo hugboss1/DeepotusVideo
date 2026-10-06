@@ -634,6 +634,17 @@ def parse_ducking(v):
     return out
 
 
+def ducking_filter(ducking) -> str:
+    """`sidechaincompress=…` — LA chaîne du ducking, partagée par le Montage, la Quick (FFmpegMerger) et
+    l'aperçu (T099, plan son-vfx T1). Bool = la ligne historique en dur ; dict (`parse_ducking`) = ses
+    paramètres. Octet pour octet avec ce que le Montage écrivait : test_son_vfx_socle."""
+    if isinstance(ducking, dict):
+        return (f"sidechaincompress=threshold={_g(ducking['threshold'])}:"
+                f"ratio={_g(ducking['ratio'])}:attack={_g(ducking['attack'])}:"
+                f"release={_g(ducking['release'])}")
+    return "sidechaincompress=threshold=0.05:ratio=6:attack=50:release=400"
+
+
 # ─────────────────────────── audition & mesure ─────────────────────────────
 
 def build_audition_command(src: Path, out: Path, *, src_in: float = 0.0,

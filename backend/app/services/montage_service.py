@@ -4457,19 +4457,10 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
             # tests/test_montage_pistes_rendu.py.
             parts.append("[vall]asplit=2[vsc0][vmix]")
             parts.append(f"[vsc0]apad=whole_dur={round(total, 3)}[vsc]")
-            if isinstance(ducking, dict):
-                # R1 : ducking paramétré {threshold, ratio, attack, release}
-                # (sfx_service.parse_ducking). Le bool True historique garde
-                # la ligne en dur ci-dessous, octet pour octet.
-                parts.append(
-                    f"{music_lbl}[vsc]sidechaincompress="
-                    f"threshold={sfx_service.fnum(ducking['threshold'])}:"
-                    f"ratio={sfx_service.fnum(ducking['ratio'])}:"
-                    f"attack={sfx_service.fnum(ducking['attack'])}:"
-                    f"release={sfx_service.fnum(ducking['release'])}[mduck]")
-            else:
-                parts.append(f"{music_lbl}[vsc]sidechaincompress="
-                             "threshold=0.05:ratio=6:attack=50:release=400[mduck]")
+            # R1 : ducking paramétré {threshold, ratio, attack, release} ou bool
+            # historique — UNE chaîne, partagée avec la Quick et l'aperçu (T099),
+            # octet pour octet avec ce qui s'écrivait ici (test_son_vfx_socle).
+            parts.append(f"{music_lbl}[vsc]{sfx_service.ducking_filter(ducking)}[mduck]")
             labels = ["[vmix]", "[mduck]"] + sfx_lbl
             music_lbl = None
         else:
