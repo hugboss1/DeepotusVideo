@@ -36,6 +36,7 @@ SOURCES: dict[str, str] = {
     "templates": "Templates",       # plan-templates T5 (tâche #75) : images fixes exportées d'un gabarit
     "import": "Imports",
     "import_url": "Import URL",
+    "sonvfx": "Son & VFX",                 # T099 : ce que la catégorie Son & VFX écrit (stems, isolations…)
     "mobile": "Compagnon mobile",   # plan mobile T12 (tâche #58) : images déposées par le téléphone
     "inconnu": "Inconnu",
 }

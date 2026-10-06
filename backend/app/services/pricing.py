@@ -127,6 +127,13 @@ DEFAULTS = {
     },
     # Plan Quick T5 (tâche #52) — lip-sync Kling : $/s de VIDÉO d'entrée, au palier de 5 s (relevé fal.ai le 01/10).
     "lipsync_usd_per_s": {"kling-lipsync": 0.014},
+    # Son & VFX (plan 03/09, T099 le 06/10). Demucs : page fal relue le 03/09, « $0.0007 per second ». BiRefNet
+    # vidéo : la page affiche « $0 per compute second » — chiffre non crédible, gardé à 0 et LIBELLÉ « à mesurer »
+    # tant qu'un premier tir n'a pas été lu sur le tableau de bord fal. Isolation ElevenLabs : 1 000 caractères
+    # par minute d'audio. (ACE-Step et MiniMax Music 2.0 entreront au registre MUSIC_MODELS avec leur tâche.)
+    "demucs_usd_per_s": 0.0007,
+    "birefnet_video_usd_per_s": 0.0,
+    "elevenlabs_isolation_chars_per_min": 1000.0,
     "stt_usd_per_min": {
         "elevenlabs": 0.0067,   # Scribe v1, ≈ 0,40 $/h
         "openai": 0.006,        # whisper-1
@@ -511,6 +518,20 @@ def estimate(op: dict, p: dict | None = None) -> dict:
         it, ot = n * (258 + 90), n * 70
         usd = it / 1e6 * float(tarif["in"]) + ot / 1e6 * float(tarif["out"])
         lines.append(_line("gemini", f"Légendes {model} x{n}", n, "image", usd))
+    elif kind == "stems":
+        dur = float(op.get("duration_s", 0))
+        lines.append(_line("fal", "Séparation en stems (Demucs)", dur, "s",
+                           dur * float(p.get("demucs_usd_per_s", DEFAULTS["demucs_usd_per_s"]))))
+    elif kind == "isolate":
+        mins = float(op.get("duration_s", 0)) / 60.0
+        chars = mins * float(p.get("elevenlabs_isolation_chars_per_min",
+                                   DEFAULTS["elevenlabs_isolation_chars_per_min"]))
+        lines.append(_line("elevenlabs", "Isolation de voix", chars, "chars", chars * elevenlabs_rate(None, p)))
+    elif kind == "matte":
+        dur = float(op.get("duration_s", 0))
+        rate = float(p.get("birefnet_video_usd_per_s", DEFAULTS["birefnet_video_usd_per_s"]))
+        lines.append(_line("fal", "Détourage vidéo (BiRefNet) — prix à mesurer au premier tir"
+                           if rate == 0.0 else "Détourage vidéo (BiRefNet)", dur, "s", dur * rate))
     elif kind == "llm":
         prov = op.get("provider", "openai")
         it = float(op.get("in_tok", 1000)); ot = float(op.get("out_tok", 400))
