@@ -23,9 +23,10 @@ la valeur, et c'est la carte.
 """
 from __future__ import annotations
 
-from app.services import mesh_edit
+from app.services import mesh_edit, pbr_service as PBR
 
-__all__ = ["CIBLES", "cibles", "materiau", "habiller"]
+__all__ = ["CIBLES", "cibles", "materiau", "habiller", "BUDGET_MASQUES_100K",
+           "masques", "masques_glb"]
 
 CIBLES = ("tout", "noeud", "maillage", "materiau")
 
@@ -190,11 +191,17 @@ def habiller(data: bytes, lots) -> bytes:
 
     tampon = _Tampon(binc)
     connus: dict = {}
+    # LES CIBLES SE RÉSOLVENT TOUTES SUR LE DOCUMENT D'ORIGINE, avant la
+    # moindre affectation (mesuré le 06/10 : résolues au fil de l'eau, un lot
+    # « matériau 0 » placé après un lot « nœud 0 » ne trouvait plus aucune
+    # primitive — le premier venait de les réaffecter — et le résultat
+    # dépendait de l'ordre des lots).
     for lot in lots:
         if not isinstance(lot, dict):
             raise ValueError("habillage : chaque lot est un objet "
                              "{cible, index, mid, nom, maps}")
-        vises = cibles(doc, lot.get("cible"), lot.get("index"))
+    resolus = [cibles(doc, lot.get("cible"), lot.get("index")) for lot in lots]
+    for lot, vises in zip(lots, resolus):
         if not vises:
             raise ValueError(
                 f"habillage : la cible « {lot.get('cible')} » "
@@ -217,6 +224,211 @@ def habiller(data: bytes, lots) -> bytes:
         for (m, p) in vises:
             doc["meshes"][m]["primitives"][p]["material"] = connus[cle]
 
+    octets = tampon.octets()
+    doc["buffers"] = [{"byteLength": len(octets)}]
+    return mesh_edit.ecrire_glb(doc, octets)
+
+
+# ── masques de cavités et d'arêtes (R10c D2) ────────────────────────────────
+#
+# CE QU'ON MESURE, ET CE QU'ON NE PROMET PAS. Une occlusion ambiante VRAIE se
+# calcule par lancer de rayons ; en Python pur, sur 100 000 triangles, ce
+# serait des minutes. On mesure donc la COURBURE, à trois échelles, et on
+# l'appelle par son nom : « cavité » là où la surface se creuse, « arête » là
+# où elle se casse. C'est ce dont l'usure a besoin — la crasse s'accumule dans
+# les creux, la peinture s'écaille sur les arêtes — et c'est exactement le même
+# raisonnement que `pbr_service._cavity`, qui mesure `flou(H) - H` plutôt que
+# de lancer des rayons dans une image.
+#
+# L'ESTIMATEUR. Pour un sommet v de normale n(v), la moyenne sur ses voisins u
+# de `dot(normalize(u - v), n(v))` est positive quand le voisinage remonte le
+# long de la normale — donc quand v est au FOND de quelque chose — et négative
+# quand il redescend, donc sur une saillie. Trois échelles (1, 2 et 3 anneaux)
+# comme les trois octaves de l'AO de `pbr_service` : une seule échelle ne voit
+# que les creux de sa propre taille.
+#
+# LE BUDGET EST MESURÉ, PAS ESPÉRÉ. Le banc chronomètre et rapporte à
+# 100 000 triangles ; au-delà de la borne, il échoue.
+BUDGET_MASQUES_100K = 12.0
+
+_MASQUE_OCTAVES = ((1, 0.5), (2, 0.3), (3, 0.2))
+_MASQUE_GAIN = 6.0          # même esprit que `pbr_service._AO_GAIN` : sans
+                            # gain, la courbure d'un maillage dense est un
+                            # centième et la carte sort blanche
+
+
+def _souder(pos, idx):
+    """Sommets soudés par position arrondie, et l'adjacence 1-anneau.
+
+    SOUDER N'EST PAS FACULTATIF : un cube exporté a 24 sommets pour 8 coins
+    (chaque face porte les siens, pour ses normales). Sans soudure, aucun
+    sommet n'aurait de voisin d'une autre face, et une arête — qui EST la
+    rencontre de deux faces — serait rigoureusement invisible."""
+    cle_de, rep = {}, []
+    for p in pos:
+        k = (round(p[0], 6), round(p[1], 6), round(p[2], 6))
+        j = cle_de.get(k)
+        if j is None:
+            j = len(cle_de)
+            cle_de[k] = j
+        rep.append(j)
+    n = len(cle_de)
+    points = [None] * n
+    for i, p in enumerate(pos):
+        points[rep[i]] = (p[0], p[1], p[2])
+    voisins = [set() for _ in range(n)]
+    normales = [[0.0, 0.0, 0.0] for _ in range(n)]
+    for t in range(0, len(idx) - 2, 3):
+        a, b, c = rep[idx[t]], rep[idx[t + 1]], rep[idx[t + 2]]
+        voisins[a].update((b, c))
+        voisins[b].update((a, c))
+        voisins[c].update((a, b))
+        pa, pb, pc = points[a], points[b], points[c]
+        u = (pb[0] - pa[0], pb[1] - pa[1], pb[2] - pa[2])
+        v = (pc[0] - pa[0], pc[1] - pa[1], pc[2] - pa[2])
+        # produit vectoriel NON normalisé : sa longueur est deux fois l'aire,
+        # donc la somme pondère naturellement par l'aire des faces
+        nx = u[1] * v[2] - u[2] * v[1]
+        ny = u[2] * v[0] - u[0] * v[2]
+        nz = u[0] * v[1] - u[1] * v[0]
+        for s in (a, b, c):
+            normales[s][0] += nx
+            normales[s][1] += ny
+            normales[s][2] += nz
+    return rep, points, voisins, normales
+
+
+def _courbure(points, voisins, normales) -> list:
+    """Courbure signée par sommet : > 0 dans un creux, < 0 sur une saillie."""
+    import math
+    out = [0.0] * len(points)
+    for i, p in enumerate(points):
+        n = normales[i]
+        ln = math.sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2])
+        if ln < 1e-12 or not voisins[i]:
+            continue
+        nx, ny, nz = n[0] / ln, n[1] / ln, n[2] / ln
+        s = 0.0
+        for j in voisins[i]:
+            q = points[j]
+            dx, dy, dz = q[0] - p[0], q[1] - p[1], q[2] - p[2]
+            d = math.sqrt(dx * dx + dy * dy + dz * dz)
+            if d < 1e-12:
+                continue
+            s += (dx * nx + dy * ny + dz * nz) / d
+        out[i] = s / len(voisins[i])
+    return out
+
+
+def _lisser_anneau(valeurs, voisins, tours: int) -> list:
+    """Moyenne sur le 1-anneau, répétée — l'équivalent discret du flou de
+    `pbr_service`, et c'est ainsi qu'on obtient les échelles supérieures sans
+    parcourir un k-anneau explicite (quadratique)."""
+    cur = valeurs
+    for _ in range(max(0, tours)):
+        suiv = list(cur)
+        for i, vs in enumerate(voisins):
+            if vs:
+                suiv[i] = (cur[i] + sum(cur[j] for j in vs)) / (len(vs) + 1.0)
+        cur = suiv
+    return cur
+
+
+def _octets_masques(courbure, voisins) -> tuple:
+    """(cavités, arêtes) en octets 0-255, cumulées sur trois échelles."""
+    cav = [0.0] * len(courbure)
+    are = [0.0] * len(courbure)
+    for tours, poids in _MASQUE_OCTAVES:
+        c = _lisser_anneau(courbure, voisins, tours - 1)
+        for i, v in enumerate(c):
+            if v > 0:
+                cav[i] += poids * v
+            else:
+                are[i] -= poids * v
+    def _o(x):
+        return PBR.clamp8(255.0 * x * _MASQUE_GAIN)
+    return [_o(v) for v in cav], [_o(v) for v in are]
+
+
+def _primitives_lues(data: bytes):
+    """(doc, binc, [(m, p, positions, indices)]) — par LE lecteur
+    d'accesseurs du dépôt, `mesh_edit.lire_accesseur` (sparse compris). Le plan
+    passait par deux alias de `print3d` : `print3d._accessor` délègue déjà à
+    mesh_edit depuis T090, et le banc « un seul lecteur » voyait l'alias."""
+    doc, binc = mesh_edit.lire_glb(data)
+    lots = []
+    for m, mesh in enumerate(doc.get("meshes") or []):
+        for p, prim in enumerate(mesh.get("primitives") or []):
+            if prim.get("mode", 4) != 4:
+                continue
+            pos = mesh_edit.lire_accesseur(doc, binc, prim["attributes"]["POSITION"],
+                                           quoi="les masques")
+            if "indices" in prim:
+                idx = [v[0] for v in mesh_edit.lire_accesseur(doc, binc, prim["indices"],
+                                                              quoi="les masques")]
+            else:
+                idx = list(range(len(pos)))
+            lots.append((m, p, pos, idx))
+    return doc, binc, lots
+
+
+def masques(data: bytes) -> dict:
+    """Statistiques de cavité et d'arête, primitive par primitive."""
+    _doc, _binc, lots = _primitives_lues(data)
+    if not lots:
+        raise ValueError("masques : ce GLB ne contient aucune primitive "
+                         "triangulaire")
+    out, total = [], 0
+    for (m, p, pos, idx) in lots:
+        rep, points, voisins, normales = _souder(pos, idx)
+        cav, are = _octets_masques(_courbure(points, voisins, normales),
+                                   voisins)
+        n = max(1, len(points))
+        total += n
+        out.append({"maillage": m, "primitive": p, "sommets": len(pos),
+                    "soudes": len(points),
+                    "cavite_moy": round(sum(cav) / n, 1),
+                    "arete_moy": round(sum(are) / n, 1)})
+    return {"primitives": out, "sommets": total}
+
+
+def masques_glb(data: bytes) -> bytes:
+    """Le même maillage avec un COLOR_0 par sommet : R = cavité, V = arête.
+
+    APERÇU SEULEMENT, et jamais une version : c'est une lecture. Les couleurs
+    de sommet sont le seul canal qui n'exige AUCUN dépliage UV — et un modèle
+    généré par un moteur image → 3D n'en a pas toujours."""
+    doc, binc, lots = _primitives_lues(data)
+    if not lots:
+        raise ValueError("masques : ce GLB ne contient aucune primitive "
+                         "triangulaire")
+    tampon = _Tampon(binc)
+    # UN MATÉRIAU NEUTRE pour toutes les primitives (preuve 8799 du 06/10) : la
+    # couleur de sommet se MULTIPLIE à la texture du matériau en place, et sur
+    # un modèle déjà habillé le rouge et le vert se lisaient dans la rouille.
+    # Blanc, mat, sans texture : R = cavité, V = arête, rien d'autre.
+    mats = doc.setdefault("materials", [])
+    mats.append({"name": "masques", "doubleSided": True,
+                 "pbrMetallicRoughness": {"baseColorFactor": [1.0, 1.0, 1.0, 1.0],
+                                          "metallicFactor": 0.0, "roughnessFactor": 1.0}})
+    neutre = len(mats) - 1
+    for (m, p, pos, idx) in lots:
+        doc["meshes"][m]["primitives"][p]["material"] = neutre
+        rep, points, voisins, normales = _souder(pos, idx)
+        cav, are = _octets_masques(_courbure(points, voisins, normales),
+                                   voisins)
+        octets = bytearray()
+        for i in range(len(pos)):
+            j = rep[i]
+            octets += bytes((cav[j], are[j], 0, 255))
+        debut, n = tampon.ajouter(bytes(octets))
+        views = doc.setdefault("bufferViews", [])
+        views.append({"buffer": 0, "byteOffset": debut, "byteLength": n})
+        accs = doc.setdefault("accessors", [])
+        accs.append({"bufferView": len(views) - 1, "componentType": 5121,
+                     "normalized": True, "count": len(pos), "type": "VEC4"})
+        doc["meshes"][m]["primitives"][p]["attributes"]["COLOR_0"] = \
+            len(accs) - 1
     octets = tampon.octets()
     doc["buffers"] = [{"byteLength": len(octets)}]
     return mesh_edit.ecrire_glb(doc, octets)

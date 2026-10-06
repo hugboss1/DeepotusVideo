@@ -207,7 +207,7 @@ let _ecritEnCours = false;
    durée de sa propre écriture. `reparer_maillage` (tâche #88) écrit SEUL lui aussi,
    derrière la même garde (ecrireSeule) : sa place dans la liste ne compte pas, elle
    n'y voisine jamais avec personne. `decimer` (tâche #89 PR D) et `creuser` (PR E) de même. UNE LIGNE : les bancs la lisent ainsi. */
-const ORDRE_ECRITURE = ["transformer", "assise", "reparer", "extraire", "couper", "reparer_maillage", "creuser", "decimer", "booleen", "connecteur", "materiau"];
+const ORDRE_ECRITURE = ["transformer", "assise", "reparer", "extraire", "couper", "reparer_maillage", "creuser", "decimer", "booleen", "connecteur", "materiau", "habiller"];
 
 /* Les trois plumes de P1, ÉCRITES plutôt que composées. Un
    `/api/etabli/${t.operation}` marcherait aussi bien et rendrait le fichier
@@ -225,6 +225,7 @@ const ROUTES = {
   booleen: "/api/etabli/booleen",
   connecteur: "/api/etabli/connecteur",
   materiau: "/api/etabli/materiau",
+  habiller: "/api/etabli/habiller",
 };
 
 async function jget(p) {
@@ -2126,6 +2127,64 @@ async function importerRetour(fichier) {
   else direAvis(`version ${version} importée depuis ${fichier.name} : rien de perdu en route`);
 }
 
+/* ── UNE MATIÈRE PAR PARTIE (tâche T098, plan-matieres T15) ─────────────────
+   Le panneau Parties n'écrit toujours RIEN : « Habiller » met une opération
+   dans la file d'écriture (ecrireSeule), et c'est la ROUTE qui pose la matière
+   par mesh_paint et dépose la version par mesh_edit.
+
+   LES INDEX ENVOYÉS SONT DES INDEX DE NŒUD, et c'est l'écart au plan : la
+   sélection se convertit par noeudsRetenus(), LA porte de « Séparer » et du
+   couteau. Le plan envoyait `cible: "maillage"` avec ces mêmes nombres — des
+   index de nœud lus comme des index de maillage, donc les mauvaises pièces
+   habillées sans un mot. Un MATÉRIAU coché n'a pas d'index de nœud : il se
+   convertit par les associations du chargeur (comme l'aperçu de matériau). */
+function lotsHabillage(mid) {
+  if (SEL.granularite === "materiau") {
+    const assoc = S.vueA && S.vueA.gltf && S.vueA.gltf.parser && S.vueA.gltf.parser.associations;
+    const index = new Set();
+    if (assoc && S.vueA.racine) {
+      S.vueA.racine.traverse((o) => {
+        for (const m of (Array.isArray(o.material) ? o.material : [o.material]).filter(Boolean)) {
+          const a = assoc.get(m);
+          if (SEL.retenus.has(m.uuid) && a && Number.isInteger(a.materials)) index.add(a.materials);
+        }
+      });
+    }
+    return [...index].map((i) => ({ cible: "materiau", index: i, mid }));
+  }
+  return noeudsRetenus().noeuds.map((i) => ({ cible: "noeud", index: i, mid }));
+}
+
+async function remplirMatieres() {
+  /* La liste vient du Material Forge, jamais d'une copie : une matière
+     effacée là-bas disparaît ici au prochain rendu. */
+  const sel = $("#matiereSel");
+  if (!sel) return;
+  try {
+    const d = await jget("/api/materials");
+    sel.innerHTML = '<option value="">— matière —</option>'
+      + (d.materials || []).map((m) => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join("");
+  } catch { /* le Forge ne répond pas : le sélecteur reste vide, le bouton grisé */ }
+}
+
+async function habillerSelection() {
+  const mid = $("#matiereSel").value;
+  if (!mid) { direRefus("choisis d'abord une matière du Material Forge"); return; }
+  const lots = lotsHabillage(mid);
+  if (!lots.length) { direRefus("aucune pièce cochée ne se rattache au document"); return; }
+  const bilan = await ecrireSeule("habiller", { lots });
+  if (bilan) direAvis(`matière posée sur ${lots.length} partie(s) — version ${bilan.derniere.version}`);
+}
+
+function voirMasques() {
+  /* LECTURE, en vue B : la version courante (A) ne bouge pas, et la caméra
+     des deux vues est la même — on lit les creux et les arêtes sur le modèle
+     qu'on regarde. R = cavité, V = arête, en couleurs de sommet. */
+  if (!S.a || !S.a.job) { direRefus("aucun modèle chargé"); return; }
+  ouvrirComparaison({ ...S.a, libelle: `masques v${S.a.version}`,
+    url: `/api/etabli/masques?job=${encodeURIComponent(S.a.job)}&version=${S.a.version}` });
+}
+
 async function ouvrirDansSlicer() {
   if (!IMPRESSION) { direRefus("exporte d'abord la version (→ Impression 3D)"); return; }
   try {
@@ -3009,6 +3068,11 @@ function rendreParties() {
       <label class="sep-mode" title="Une version PAR élément coché, toutes nées de la version courante (des sœurs, pas une chaîne)">
         <input type="checkbox" id="pSeparement"> une par une</label>
     </div>
+    <div class="habiller-barre" title="Pose une matière du Material Forge sur les pièces cochées — écrit une version">
+      <select id="matiereSel"><option value="">— matière —</option></select>
+      <button id="btnHabiller">Habiller</button>
+      <button id="btnMasques" title="Cavités (rouge) et arêtes (vert) calculées depuis la géométrie, en vue B — rien n'est écrit">Masques</button>
+    </div>
     <div class="bool-barre" title="Union, différence ou intersection de deux groupes de pièces — écrit une version">
       <select id="pBoolOp">
         <option value="union">union</option>
@@ -3075,6 +3139,9 @@ function rendreParties() {
   const rot = box.querySelector("#plqRot");
   if (rot) rot.addEventListener("change", () => poserRotation(rot.value));
   $("#btnIsoler").addEventListener("click", () => isoler(S.vueA, [...SEL.retenus]));
+  $("#btnHabiller").addEventListener("click", habillerSelection);
+  $("#btnMasques").addEventListener("click", voirMasques);
+  remplirMatieres();
   /* « Tout revoir » n'est pas un second chemin : isoler SUR RIEN restaure, par
      la ligne de code même qui isole. Les deux ne peuvent donc pas diverger. */
   $("#btnToutVoir").addEventListener("click", () => isoler(S.vueA, []));
@@ -3298,6 +3365,7 @@ const LIBELLES_ATTENTE = {
   booleen: (t) => `${t.charge.operation} de ${t.charge.a.length} et ${t.charge.b.length} pièce(s)`,
   connecteur: (t) => `connecteur ${t.charge.type} : rayon ${fmtMesure(t.charge.rayon)} ${uniteCourante()}`,
   materiau: (t) => `matériau ${t.charge.materiau} : ${Object.keys(t.charge).filter((k) => k !== "materiau").join(", ")}`,
+  habiller: (t) => `habiller ${t.charge.lots.length} partie(s)`,
 };
 
 /* ── RÉPARER EN UN CLIC (tâche #88 PR A, plan-etabli T2) ─────────────────────
@@ -3306,7 +3374,7 @@ const LIBELLES_ATTENTE = {
    Rend le bilan d'ecrireVersion(), ou null (refus dit dans la barre). */
 const LIBELLE_OP = { reparer_maillage: "réparer le maillage", decimer: "décimer", creuser: "creuser",
                      booleen: "le booléen", connecteur: "le connecteur",
-                     materiau: "le matériau" };
+                     materiau: "le matériau", habiller: "l'habillage" };
 const LIBELLE_ACTION = { souder: "sommets confondus", doublons: "faces dupliquées", degeneres: "triangles plats",
                          normales: "normales unifiées", trous: "trous bouchés" };
 /* Les actions cochées d'office : TOUT sauf les trous — décision de l'utilisateur (04/10) :

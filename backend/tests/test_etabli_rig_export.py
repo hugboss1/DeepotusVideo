@@ -211,7 +211,8 @@ def test_le_panneau_rig_echappe_les_NOMS_du_fichier_et_se_range_au_chargement():
     js = _lire("etabli/etabli.js")
     assert "const RIG = { os: null, rendu: 0 };" in js
     assert "  rangerRig(S.vueA);\n  RIG.os = null;" in js.replace("\r\n", "\n")
-    assert "  rendreFiche();\n  rendreRig();" in js.replace("\r\n", "\n")
+    # T094 a inséré les matériaux entre les deux, sans relancer ce banc : épingle réparée en T098
+    assert "  rendreFiche();\n  rendreMateriaux();\n  rendreRig();" in js.replace("\r\n", "\n")
 
 
 def test_la_route_rig_dit_le_squelette_du_fichier_fabrique():

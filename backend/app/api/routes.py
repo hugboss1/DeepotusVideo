@@ -14371,6 +14371,72 @@ async def etabli_couper(body: dict):
     return _etabli_ecrire(job, sortie, "couper", {"depuis": depuis, **rapport})
 
 
+@router.get("/etabli/masques")
+async def etabli_masques(job: str, version: int = 1):
+    """Les masques de cavités et d'arêtes d'une version, en couleurs de
+    sommet. LECTURE : aucun fichier n'est écrit, aucune version créée."""
+    from app.services import mesh_paint as MP
+    data = await asyncio.to_thread(_etabli_glb, job, version)
+    try:
+        glb = await asyncio.to_thread(MP.masques_glb, data)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return Response(content=glb, media_type="model/gltf-binary",
+                    headers={"Content-Disposition":
+                             f'inline; filename="{Path(str(job)).name}'
+                             f'.masques.glb"'})
+
+
+@router.post("/etabli/habiller")
+async def etabli_habiller(body: dict):
+    """Pose une matière du Forge sur des parties d'un maillage.
+
+    SEPTIÈME ÉCRITURE, MÊME PORTE : `_etabli_glb_cible` juge `job` et
+    `version`, `mesh_edit.ecrire_version` dépose la nouvelle version avec sa
+    fiche. Aucune raison d'ouvrir une porte de plus pour la même opération —
+    écrire un GLB dans le dossier d'un job."""
+    from app.services import material_store as MS
+    from app.services import mesh_paint as MP
+    job, data, depuis = _etabli_glb_cible(body.get("job"), body.get("version"),
+                                          "habillage")
+    lots_in = body.get("lots")
+    if not isinstance(lots_in, list) or not lots_in:
+        raise HTTPException(400, "habillage : `lots` — au moins un "
+                                 "{cible, index, mid} est attendu")
+    if len(lots_in) > 64:
+        raise HTTPException(400, "habillage : 64 parties au maximum")
+    res = MS.clean_res(body.get("res"), 1024)
+    lots, vus = [], {}
+    for lot in lots_in:
+        if not isinstance(lot, dict):
+            raise HTTPException(400, "habillage : chaque lot est un objet "
+                                     "{cible, index, mid}")
+        mid = lot.get("mid")
+        if mid not in vus:
+            mat = MS.read_material(mid) if MS.is_valid_mid(mid) else None
+            if mat is None:
+                raise HTTPException(404, f"habillage : matière « {mid} » "
+                                         "introuvable")
+            maps = MS.bake_levels(
+                MS.resize_maps(MS.load_maps(mid), res), mat["props"])
+            if not maps:
+                raise HTTPException(409, f"habillage : la matière « {mid} » "
+                                         "n'a aucune map sur disque")
+            vus[mid] = (mat, {k: MS.png_bytes(v, k, 8)
+                              for k, v in maps.items() if k in MS.GLB_SLOTS})
+        mat, payload = vus[mid]
+        lots.append({"cible": lot.get("cible"), "index": lot.get("index"),
+                     "mid": mid, "nom": mat["name"], "maps": payload})
+    try:
+        sortie = await asyncio.to_thread(MP.habiller, data, lots)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return _etabli_ecrire(job, sortie, "habiller",
+                          {"depuis": depuis, "res": res,
+                           "lots": [{k: l[k] for k in ("cible", "index", "mid")}
+                                    for l in lots]})
+
+
 @router.post("/etabli/reparer-maillage")
 async def etabli_reparer_maillage(body: dict):
     """RÉPARER EN UN CLIC (tâche #88 PR A, plan-etabli T2) : `actions` ⊆ mesh_repair.ACTIONS (par défaut
