@@ -7,7 +7,8 @@ import { grille_normaliser, hex_centre, hex_d, hex_depuis_point, grille_cellules
   from "./mod-grille.js";
 import { zoom_pour, echantillon_moyen, paliers_bornes, palier } from "./mod-geo.js";
 import { forme_d, forme_params_valider } from "./mod-formes.js";
-import { effets_valider, filtre_svg, MODES_FUSION, motif_valider, motif_svg, conique_svg } from "./mod-effets.js";
+import { effets_valider, filtre_svg, MODES_FUSION, motif_valider, motif_svg, conique_svg,
+         MOTIFS, motif_defaut, couleur_interpoler } from "./mod-effets.js";
 import { couper_lignes, cadre_tspans, mesure_approx } from "./mod-texteplus.js";
 
 const escAttr = (v) => String(v)
@@ -31,6 +32,29 @@ function _validerTerrain(k, f) {
   if (f.hauteur_mm !== undefined && !(+f.hauteur_mm >= 0)) {
     throw new Error(`terrain ${k}: hauteur_mm ≥ 0`);
   }
+  // t122 : le motif est l'un des motifs de l'Apparence (lot F), ou "" — aucun
+  if (f.motif !== undefined && f.motif !== "" && !MOTIFS.some((m) => m.id === f.motif)) {
+    throw new Error(`terrain ${k}: motif (aucun, ${MOTIFS.map((m) => m.id).join(", ")})`);
+  }
+}
+
+/* t122 : le <pattern> d'un terrain à motif. Posé SUR la couleur du terrain (fond du motif), tracé dans cette
+   couleur assombrie de moitié vers le brun du contour des tuiles — lisible sur un terrain clair comme sombre, et
+   jamais une couleur étrangère à la fiche. Le pas suit l'hexagone (un quart de son rayon, 3 px au moins) : un
+   motif de 8 px fixes disparaît sur un plateau de petites cases et grêle un grand. */
+export const TERRAIN_TRAIT = "#1F1512";
+export function terrain_motif_id(cle) { return `ter_${cle}`; }
+export function terrain_motif_svg(cle, fiche, pasHex) {
+  const pas = Math.max(3, Math.round((+pasHex || 32) / 4));
+  // la fiche admet #RGB à #RRGGBBAA, les motifs #RRGGBB seulement : une fiche « #D33 » ferait lever la compilation
+  const c = _hex6(fiche.couleur);
+  return motif_svg(terrain_motif_id(cle), { ...motif_defaut(fiche.motif), pas,
+    couleur: couleur_interpoler(c, TERRAIN_TRAIT, 0.5), fond: c });
+}
+function _hex6(c) {
+  const h = String(c || "#888888").slice(1);
+  if (h.length === 3 || h.length === 4) return "#" + [0, 1, 2].map((i) => h[i] + h[i]).join("").toUpperCase();
+  return "#" + h.slice(0, 6).toUpperCase();      // 6 chiffres, ou 8 dont l'alpha ne vaut pas pour un motif
 }
 export function terrains_de(doc) {
   const out = {};
@@ -369,7 +393,9 @@ function compilerObjet(o, ctx = {}) {
       const g = ctx.grille || _GRILLE_TUILE_DEFAUT;
       const [cx, cy] = hex_centre(o.q, o.r, g);
       const fiche = (ctx.terrains || {})[o.terrain];
-      const fond = fiche ? fiche.couleur : "#888888";
+      // t122 : un terrain à motif se remplit de son <pattern> (émis par _defs) ; un fond surchargé sur la tuile
+      // (o.style.fond) l'emporte toujours, motif ou non
+      const fond = !fiche ? "#888888" : fiche.motif ? `url(#${terrain_motif_id(o.terrain)})` : fiche.couleur;
       const inconnu = fiche ? "" : ` data-terrain-inconnu="1"`;
       const s = { fond, contour: "#1F1512", epaisseur: 1, ...(o.style || {}) };
       return `<path${t} data-q="${+o.q}" data-r="${+o.r}" data-terrain="${escAttr(o.terrain)}"${inconnu}`
@@ -2056,8 +2082,8 @@ export function formule(valeur, texte) {
 
 
 function _defs(doc, ctx = {}) {
-  const refs = [], motifs = [], masques = [], filtres = [], clips = [], symboles = [];
-  const vus = new Set(), vusM = new Set(), vusK = new Set(), vusS = new Set();
+  const refs = [], motifs = [], masques = [], filtres = [], clips = [], symboles = [], terrains = [];
+  const vus = new Set(), vusM = new Set(), vusK = new Set(), vusS = new Set(), vusT = new Set();
   const visiter = (objs) => {
     for (const o of objs) {
       const s = o.style || {};
@@ -2069,6 +2095,11 @@ function _defs(doc, ctx = {}) {
       if (typeof f === "string" && f.startsWith("motif:")) {
         const mid = f.slice(6);
         if (!vusM.has(mid)) { vusM.add(mid); motifs.push(mid); }
+      }
+      // t122 : le motif d'un terrain n'est émis que si une tuile de ce terrain le PEINT (pas de fond surchargé)
+      if (o.type === "tuile" && f === undefined && !vusT.has(o.terrain)) {
+        const fiche = (ctx.terrains || {})[o.terrain];
+        if (fiche && fiche.motif) { vusT.add(o.terrain); terrains.push(terrain_motif_svg(o.terrain, fiche, (ctx.grille || {}).pas)); }
       }
       if (typeof s.masque === "string") {
         const gid = s.masque.slice(5);
@@ -2118,7 +2149,7 @@ function _defs(doc, ctx = {}) {
     morceaux.push(`<mask id="m_${escAttr(id)}"><rect x="0" y="0" width="${+w}" height="${+h}" fill="url(#${escAttr(id)})"/></mask>`);
   }
   for (const id of motifs) if (mots[id]) morceaux.push(motif_svg(id, { ...mots[id], couleur: _couleur(mots[id].couleur, ctx), fond: mots[id].fond ? _couleur(mots[id].fond, ctx) : undefined }));
-  morceaux.push(...symboles, ...filtres, ...clips);
+  morceaux.push(...terrains, ...symboles, ...filtres, ...clips);
   return morceaux.length ? `<defs>${morceaux.join("")}</defs>` : "";
 }
 

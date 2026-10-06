@@ -1,6 +1,6 @@
 // plateau_ui.test.mjs — la logique PURE des panneaux du lot C : lignes des
 // terrains (échappement, actif, hauteur), libellé de grille, lignes des planches.
-import { terrainLigne, grilleLibelle } from "../js/mod-plateau.js";
+import { terrainLigne, grilleLibelle, motifDepuisSaisie, motifLibelle } from "../js/mod-plateau.js";
 import { plancheLigne } from "../js/mod-planches.js";
 
 const echecs = [];
@@ -11,6 +11,16 @@ const ok = (nom, cond, detail = "") => {
   const h = terrainLigne("foret", { nom: "For<êt>", couleur: "#3F7D3A", hauteur_mm: 3 }, true);
   ok("terrainLigne : échappe, pastille couleur, hauteur mm, actif", h.includes("For&lt;êt&gt;") && h.includes("background:#3F7D3A") && h.includes("3 mm") && h.includes('class="terrain actif"') && h.includes('data-terrain="foret"'), h);
   ok("terrainLigne inactif", !terrainLigne("mer", { nom: "Mer", couleur: "#2B5F9E", hauteur_mm: 0 }, false).includes("actif"));
+  // t122 : le motif se LIT dans la ligne (libellé) ; sans motif, la ligne d'avant à l'octet
+  const sans = terrainLigne("mer", { nom: "Mer", couleur: "#2B5F9E", hauteur_mm: 0, motif: "" }, false);
+  ok("terrainLigne sans motif : inchangée", sans === terrainLigne("mer", { nom: "Mer", couleur: "#2B5F9E", hauteur_mm: 0 }, false) && !sans.includes("motif"), sans);
+  const avec = terrainLigne("foret", { nom: "Forêt", couleur: "#3F7D3A", hauteur_mm: 3, motif: "hachures" }, false);
+  ok("terrainLigne avec motif : son libellé", avec.includes("Hachures") && avec.includes('data-motif="hachures"'), avec);
+  // la saisie du motif : libellé ou identifiant, sans casse ni accent ; « aucun » ou vide retire ; inconnu = null
+  ok("motifDepuisSaisie : libellés et identifiants", motifDepuisSaisie("Hachures") === "hachures" && motifDepuisSaisie("  DAMIER ") === "damier" && motifDepuisSaisie("points") === "points");
+  ok("motifDepuisSaisie : aucun / vide → \"\"", motifDepuisSaisie("aucun") === "" && motifDepuisSaisie("Aucun") === "" && motifDepuisSaisie("") === "" && motifDepuisSaisie(null) === "");
+  ok("motifDepuisSaisie : inconnu → null (redemandé, jamais avalé)", motifDepuisSaisie("rayures") === null && motifDepuisSaisie("motif:m1") === null);
+  ok("motifLibelle", motifLibelle("grille") === "Grille" && motifLibelle("") === "" && motifLibelle("zz") === "");
 }
 {
   ok("grilleLibelle sans grille", grilleLibelle(null, 8) === "⊞ 8");
