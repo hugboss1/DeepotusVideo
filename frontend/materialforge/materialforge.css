@@ -990,3 +990,11 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .cat-cell span { display: block; font-size: 11px; padding: 3px 4px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cat-cell.on { outline: 2px solid var(--accent, #4cc9f0); outline-offset: -2px; }
+
+/* ── onglets du rail et générateurs (T098) ─────────────────────────────── */
+#railTabs { margin: 0 12px 8px; }
+#genPreview { width: 100%; height: auto; display: block; margin: 8px 0;
+  border: 1px solid var(--stroke, #222831); border-radius: 6px; }
+#genParams .mini { display: block; margin: 6px 0; }
+#genParams input[type=range] { width: 100%; }
+

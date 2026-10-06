@@ -3640,6 +3640,85 @@ function ouvrirCompare() {
   setCompare(sel.value);
 }
 
+/* ── l'onglet Générateurs (D1) ──────────────────────────────────────────────
+   AUCUNE borne, AUCUN identifiant de générateur n'est écrit ici : tout vient
+   de GET /materials/patterns. Recopier un min/max dans l'écran, c'est signer
+   pour qu'il dérive du serveur au premier réglage ajouté — et le banc
+   interdit littéralement ces recopies. */
+const gen = { liste: [], choisi: null, params: {}, seed: 0, apercu: null };
+
+async function loadPatterns() {
+  let d;
+  try { d = await api.get("/materials/patterns"); }
+  catch (e) { if (e.missing) apiFail(e, "générateurs"); else toast("Générateurs : " + e.message, true); return; }
+  gen.liste = d.patterns || [];
+  gen.choisi = gen.liste[0] ? gen.liste[0].id : null;
+  $("#genList").innerHTML = gen.liste.map((g) =>
+    `<button class="chip${g.id === gen.choisi ? " active" : ""}" type="button" `
+    + `data-gen="${esc(g.id)}">${esc(g.label)}</button>`).join("");
+  $$("#genList .chip").forEach((c) => c.addEventListener("click", () => {
+    gen.choisi = c.dataset.gen;
+    gen.params = {};
+    $$("#genList .chip").forEach((x) => x.classList.toggle(
+      "active", x.dataset.gen === gen.choisi));
+    renderGenParams();
+  }));
+  renderGenParams();
+}
+
+function renderGenParams() {
+  const g = gen.liste.find((x) => x.id === gen.choisi);
+  const box = $("#genParams");
+  if (!g) { box.innerHTML = ""; return; }
+  box.innerHTML = g.params.map((p) => {
+    const v = gen.params[p.k] !== undefined ? gen.params[p.k] : p.def;
+    if (p.type === "e") {
+      return `<label class="mini">${esc(p.k)}<select data-p="${esc(p.k)}">${
+        p.choix.map((c) => `<option value="${c}"${c === v ? " selected" : ""}>`
+          + `${c}</option>`).join("")}</select></label>`;
+    }
+    const pas = p.type === "i" ? 1 : 0.01;
+    return `<label class="mini">${esc(p.k)} <b>${v}</b>`
+      + `<input type="range" data-p="${esc(p.k)}" min="${p.min}" `
+      + `max="${p.max}" step="${pas}" value="${v}"></label>`;
+  }).join("");
+  box.querySelectorAll("[data-p]").forEach((el) => {
+    el.addEventListener("input", () => {
+      gen.params[el.dataset.p] = Number(el.value);
+      const b = el.parentElement.querySelector("b");
+      if (b) b.textContent = el.value;
+      genPreviewSoon();
+    });
+  });
+  genPreviewSoon();
+}
+
+let genTimer = null;
+function genPreviewSoon() {
+  /* 220 ms d'attente : un curseur qui glisse envoie trente valeurs, et
+     trente motifs de 256 px coûteraient sept secondes de serveur pour un
+     seul geste. On ne montre que la dernière. */
+  clearTimeout(genTimer);
+  genTimer = setTimeout(async () => {
+    if (!gen.choisi) return;
+    const q = new URLSearchParams({ res: "256", seed: String(gen.seed) });
+    Object.entries(gen.params).forEach(([k, v]) => q.set("p_" + k, String(v)));
+    const img = $("#genPreview");
+    img.src = `/api/materials/patterns/${encodeURIComponent(gen.choisi)}`
+      + `/preview.png?${q.toString()}`;
+    img.classList.remove("hidden");
+  }, 220);
+}
+
+function setRailTab(quel) {
+  $("#paneForge").classList.toggle("hidden", quel !== "forge");
+  $("#footForge").classList.toggle("hidden", quel !== "forge");
+  $("#paneGen").classList.toggle("hidden", quel !== "gen");
+  $("#tabForge").classList.toggle("active", quel === "forge");
+  $("#tabGen").classList.toggle("active", quel === "gen");
+  if (quel === "gen" && !gen.liste.length) loadPatterns();
+}
+
 function wire() {
   $("#model").onchange = () => {
     state.model = $("#model").value;
@@ -3653,6 +3732,21 @@ function wire() {
     updateEstimate();
   };
   $("#genBtn").onclick = generate;
+  $("#tabForge").addEventListener("click", () => setRailTab("forge"));
+  $("#tabGen").addEventListener("click", () => setRailTab("gen"));
+  $("#genGo").addEventListener("click", async () => {
+    if (!gen.choisi) return;
+    $("#genGo").disabled = true;
+    try {
+      const d = await api.post(`/materials/patterns/${encodeURIComponent(gen.choisi)}`,
+                               { res: state.res, params: gen.params, seed: gen.seed });
+      await loadMaterials();
+      openMaterial(d.material.id);
+      toast(`Matière « ${d.material.name} » créée en local, sans crédit.`);
+    } catch (e) {
+      if (e.missing) apiFail(e, "génération de motif"); else toast("Génération refusée : " + e.message, true);
+    } finally { $("#genGo").disabled = false; }
+  });
   $("#catBtnHead").addEventListener("click", () => ouvrirCatalogue(""));
   $("#envFile").addEventListener("change", async (e) => {
     const f = e.target.files && e.target.files[0];
