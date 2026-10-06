@@ -2340,7 +2340,7 @@ async def assets_sprite(body: dict, background_tasks: BackgroundTasks):
     """Game Assets 2D: video render -> frames -> sprite sheet + pack Unity.
     Mirrors /assets/3d: pre-register a sprite2d JobRecord, run in the
     background, record what was produced in cost_meta. Poll GET /api/jobs/{id}.
-    Body: {source: {kind: job|upload|video, ...}, fps_sample, max_frames,
+    Body: {source: {kind: job|upload|video|images, ...} (images : {filenames: [...]}, T108), fps_sample, max_frames,
     remove_bg: none|api|local, trim: animation|tight, cell: {size, align},
     columns: "auto"|int, pixel?: {target_px, colors|palette, dither} (9b),
     extract_only?: bool (9c: frames-only probe for the filmstrip),
@@ -2374,7 +2374,7 @@ async def assets_sprite(body: dict, background_tasks: BackgroundTasks):
     async with async_session_factory() as s:
         s.add(JobRecord(
             id=job_id, status=JobStatus.GENERATING_VIDEO.value, progress=5,
-            title=(body.get("title") or f"Sprites · {src.stem}"),
+            title=(body.get("title") or f"Sprites · {(src[0] if isinstance(src, list) else src).stem}"),
             image_filename=f"sprite_{short}",
             provider="sprite2d", current_step="Extracting frames"))
         await s.commit()

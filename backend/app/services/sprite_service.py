@@ -25,6 +25,10 @@ logger = logging.getLogger(__name__)
 
 _VIDEO_EXTS = {".mp4", ".mov", ".webm", ".m4v", ".avi", ".mkv", ".gif"}
 _CELL_SIZES = (128, 256, 512)
+_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp"}
+# T108 (plan-sprites T1) : en cellule « native », la cellule est la plus grande dimension MESURÉE des frames. Une frame
+# vidéo brute (1920 px) ferait une feuille démesurée : au-delà, refus parlant (pixeliser, ou choisir 128/256/512).
+NATIVE_MAX = 1024
 
 
 # ── request normalization (shared by the route's fail-fast and the job) ──────
@@ -61,12 +65,18 @@ def normalize_opts(body: dict) -> dict:
     cell = body.get("cell") or {}
     if not isinstance(cell, dict):
         raise ValueError("cell must be an object {size, align}")
-    try:
-        size = int(cell.get("size") or 256)
-    except (TypeError, ValueError):
-        raise ValueError(f"cell.size must be one of {_CELL_SIZES}")
-    if size not in _CELL_SIZES:
-        raise ValueError(f"cell.size must be one of {_CELL_SIZES}")
+    raw_size = cell.get("size")
+    if raw_size in (None, ""):
+        size = 256
+    elif str(raw_size).strip().lower() == "native":
+        size = 0                       # T108 / P1 : sentinelle « pas d'agrandissement »
+    else:
+        try:
+            size = int(raw_size)
+        except (TypeError, ValueError):
+            raise ValueError(f"cell.size must be 'native' or one of {_CELL_SIZES}")
+        if size not in _CELL_SIZES:
+            raise ValueError(f"cell.size must be 'native' or one of {_CELL_SIZES}")
     align = str(cell.get("align") or "center").lower()
     if align not in ("feet", "center"):
         raise ValueError("cell.align must be 'feet' or 'center'")
@@ -117,8 +127,29 @@ def _inside(p: Path, root: Path) -> bool:
     return rp == rr or rp.startswith(rr + os.sep)
 
 
-async def resolve_source(source: dict) -> Path:
-    """Resolve {kind: job|upload|video, ...} to an existing video file.
+def resolve_images(source: dict) -> list[Path]:
+    """T108 (plan-sprites T0) — kind 'images' : {filenames: [...]} — 1 à 64 noms NUS d'images de la Library
+    (images_path). ValueError lisible sinon ; un nom avec un chemin est REFUSÉ tel quel, jamais « nettoyé » (un nom est
+    un identifiant)."""
+    from app.config import settings
+    names = (source or {}).get("filenames")
+    if not isinstance(names, (list, tuple)) or not names:
+        raise ValueError("source.filenames must be a non-empty list (1-64)")
+    if len(names) > 64:
+        raise ValueError("source.filenames: 64 images at most")
+    out = []
+    for raw in names:
+        fn = Path(str(raw or "")).name
+        p = settings.images_path / fn
+        if not raw or fn != str(raw) or p.suffix.lower() not in _IMAGE_EXTS or not p.is_file():
+            raise ValueError(f"Image not found in the Library: {raw!r}")
+        out.append(p)
+    return out
+
+
+async def resolve_source(source: dict) -> Path | list[Path]:
+    """Resolve {kind: job|upload|video, ...} to an existing video file — or {kind: images} to a list of Library
+    images (T108).
     Raises ValueError on anything missing or escaping the outputs folder
     (path-traversal guard: user-supplied paths must never leave outputs)."""
     from app.config import settings
@@ -126,6 +157,9 @@ async def resolve_source(source: dict) -> Path:
     source = source or {}
     kind = str(source.get("kind") or "").lower()
     outputs = settings.outputs_path
+
+    if kind == "images":
+        return resolve_images(source)
 
     if kind == "job":
         job_id = str(source.get("job_id") or "").strip()
@@ -163,7 +197,7 @@ async def resolve_source(source: dict) -> Path:
             raise ValueError(f"Video not found in outputs: {raw!r}")
         return p
 
-    raise ValueError(f"Unknown source kind: {kind!r} (expected job|upload|video)")
+    raise ValueError(f"Unknown source kind: {kind!r} (expected job|upload|video|images)")
 
 
 # ── seams (patched in tests; real impls shell out / call fal) ────────────────
@@ -258,6 +292,18 @@ def _fit_into_cell(img, size: int, align: str, resample=None):
     x = (size - nw) // 2
     y = (size - nh) if align == "feet" else (size - nh) // 2
     cell.paste(im2, (x, y), im2)
+    return cell
+
+
+def _place_into_cell(img, size: int, align: str):
+    """T108 / P1 native : pose SANS redimensionner dans une cellule size×size — centré en x ; 'feet' colle le bas,
+    'center' centre. L'image tient dans la cellule (size = plus grande dimension mesurée)."""
+    from PIL import Image
+    cell = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    w, h = img.size
+    x = (size - w) // 2
+    y = (size - h) if align == "feet" else (size - h) // 2
+    cell.paste(img, (x, y), img)
     return cell
 
 
@@ -400,6 +446,23 @@ def _assemble(frame_files: list[tuple[Path, bool]], opts: dict, out_dir: Path,
                     max(union[2], bb[2]), max(union[3], bb[3]))
     offset = (union[0], union[1]) if union else (0, 0)
 
+    native = size == 0
+    if native:
+        # T108 / P1 : la cellule est la plus grande dimension des frames (recadrées si tight), MESURÉE — jamais un
+        # agrandissement
+        mx = 1
+        for path, _ in frame_files:
+            if union:
+                w, h = union[2] - union[0], union[3] - union[1]
+            else:
+                with Image.open(path) as im:
+                    w, h = im.size
+            mx = max(mx, w, h)
+        if mx > NATIVE_MAX:
+            raise RuntimeError(f"cellule native : une frame mesure {mx} px (> {NATIVE_MAX}) — pixelise-la (pixel) ou "
+                               f"choisis une cellule {', '.join(map(str, _CELL_SIZES))}")
+        size = mx
+
     n = len(frame_files)
     cols, rows = compute_grid(n, opts["columns"])
     sheet = Image.new("RGBA", (cols * size, rows * size), (0, 0, 0, 0))
@@ -413,7 +476,7 @@ def _assemble(frame_files: list[tuple[Path, bool]], opts: dict, out_dir: Path,
             im = im.convert("RGBA")
             if union:
                 im = im.crop(union)
-            cell = _fit_into_cell(im, size, align, resample)
+            cell = _place_into_cell(im, size, align) if native else _fit_into_cell(im, size, align, resample)
         fname = f"{i:03d}.png"
         cell.save(frames_dir / fname, format="PNG")
         x, y = (i % cols) * size, (i // cols) * size
@@ -441,6 +504,7 @@ def _assemble(frame_files: list[tuple[Path, bool]], opts: dict, out_dir: Path,
         "fps": fps,
         "trim": trim,
         "align": align,
+        "native": native,
         "pixel": opts.get("pixel"),
         "created_at": datetime.now(timezone.utc)
                               .isoformat(timespec="seconds")
@@ -480,10 +544,29 @@ async def generate_sprites(payload: dict, job_id: str, on_step=None) -> dict:
 
     await _step("Resolving source", 5)
     src = await resolve_source(payload.get("source") or {})
-    duration = await asyncio.to_thread(_ffprobe_duration, src)
+    if isinstance(src, list):
+        # T108 / T0 : images de la Library -> copies RGBA numérotées, même contrat que l'extraction ffmpeg
+        # (raw_0001.png…), donc keep / échantillonnage inchangés ; ffmpeg n'est jamais appelé
+        duration = 0.0
+        await _step("Copying images", 15)
 
-    await _step("Extracting frames", 15)
-    raw = await asyncio.to_thread(_extract_frames, src, opts["fps"], raw_dir)
+        def _copy_png(p: Path, dest: Path):
+            from PIL import Image as _I
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            with _I.open(p) as im:
+                im.convert("RGBA").save(dest, format="PNG")
+
+        raw = []
+        for i, p in enumerate(src):
+            dest = raw_dir / f"raw_{i + 1:04d}.png"
+            await asyncio.to_thread(_copy_png, p, dest)
+            raw.append(dest)
+        src_name = src[0].name
+    else:
+        duration = await asyncio.to_thread(_ffprobe_duration, src)
+        await _step("Extracting frames", 15)
+        raw = await asyncio.to_thread(_extract_frames, src, opts["fps"], raw_dir)
+        src_name = src.name
     if not raw:
         raise RuntimeError("ffmpeg extracted no frames from the source video")
 
@@ -496,7 +579,7 @@ async def generate_sprites(payload: dict, job_id: str, on_step=None) -> dict:
 
     method = opts["remove_bg"]
     source_info = {"kind": str((payload.get("source") or {}).get("kind") or ""),
-                   "file": src.name, "duration_s": round(duration, 2),
+                   "file": src_name, "duration_s": round(duration, 2),
                    "fps_sample": opts["fps"], "sampled": sampled,
                    "remove_bg": method}
 
