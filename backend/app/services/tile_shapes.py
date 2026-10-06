@@ -18,19 +18,20 @@ CE QUE LE PLAN (03/09) NE MESURAIT PAS, MESURÉ LE 06/10 SUR SON PROPRE CODE :
     opposée) : posé sur le réseau, il couvre chaque pixel exactement une fois (banc, plusieurs tailles).
   * `3 * w // 4` tronquait le vecteur hexagonal pour une largeur non multiple de 4 (R = 55 → 82 au lieu de 82,5) :
     la largeur est ici toujours un multiple de 4.
-
-PIL pur : `Image.transform(…, Image.AFFINE, …)` sur une matière pavée 5 x 5 (les coordonnées de la boîte englobante
-débordent d'un demi-motif de chaque côté ; 5 x 5 couvre largement, pour 25 collages).
+  * il échantillonnait par `Image.transform(…, AFFINE, NEAREST)`, que Pillow calcule en VIRGULE FIXE par additions
+    successives : l'erreur s'accumule le long de la ligne, et la tuile (origine 0) divergeait du champ (origine
+    décalée) — 1 632 pixels sur un hexagone de 112 x 96, pire en grandissant ; seul le losange, aux coefficients
+    entiers, y échappait. L'échantillonnage est ici EXACT (`texture_forme`) : coefficients rationnels, numérateurs
+    entiers, plancher par division entière, modulo la matière. La texture d'un point ne dépend que du point.
 """
 from __future__ import annotations
 
 import math
+from fractions import Fraction
 
 from PIL import Image
 
 FORMES = ("carre", "iso", "hex")
-#: taille du pavage de la matière source, en motifs
-PAVAGE = 5
 
 
 def dims_iso(cote: int = 64) -> tuple[int, int]:
@@ -120,48 +121,60 @@ def masque_forme(forme: str, cote: int = 64) -> Image.Image:
 
 
 def matiere_carree(mat: Image.Image, forme: str, cote: int = 64) -> Image.Image:
-    """La matière ramenée au carré de la LARGEUR de la tuile : le pavage et la transformation lisent un seul côté."""
+    """La matière ramenée au carré de la LARGEUR de la tuile : l'échantillonnage lit un seul côté."""
     w, _h = dims(forme, cote)
     return mat.convert("RGB").resize((w, w), Image.LANCZOS)
 
 
-def _pave(mat: Image.Image, k: int = PAVAGE) -> Image.Image:
-    s = mat.width
-    g = Image.new("RGB", (k * s, k * s))
-    for gy in range(k):
-        for gx in range(k):
-            g.paste(mat, (gx * s, gy * s))
-    return g
-
-
-def _coeffs(forme: str, s: int, w: int, h: int, ox: int, oy: int):
-    """Coefficients AFFINE de PIL : le pixel (x, y) de la SORTIE lit la source en (a·x + b·y + c, d·x + e·y + f).
-    `ox, oy` = position, dans la sortie, du coin haut-gauche de la tuile centrale.
+def _coeffs(forme: str, s: int, w: int, h: int):
+    """Coefficients EXACTS (fractions) : le point (x, y) de la tuile, coin haut-gauche à l'origine, lit la matière
+    de côté s en (A·x + B·y + C, D·x + E·y + F), modulo s.
 
     Iso : le carré unité (u, v) est envoyé sur le losange par (x, y) = ((u+v)·w/2, (v−u)·h/2 + h/2), d'où
     u = x/w − y/h + ½ et v = x/w + y/h − ½.
     Hex : le réseau est engendré par (3R/2, h/2) et (0, h) ; relativement au centre, u = (x − R)/(3R/2) et
-    v = (y − h/2)/h − u/2."""
-    demi = PAVAGE // 2 * s
+    v = (y − h/2)/h − u/2.
+    Chaque vecteur du réseau déplace (u, v) d'un multiple entier de s : banc des tuiles posées."""
+    S = Fraction(s)
     if forme == "iso":
-        a, b, c = s / w, -s / h, 0.5 * s
-        d, e, f = s / w, s / h, -0.5 * s
-    elif forme == "hex":
-        r = w / 2
-        a, b, c = 2 * s / (3 * r), 0.0, -2 * s / 3
-        d, e, f = -s / (3 * r), s / h, -s / 6
-    else:
-        raise ValueError(f"forme sans reseau propre: {forme!r}")
-    return (a, b, c + demi - a * ox - b * oy,
-            d, e, f + demi - d * ox - e * oy)
+        return S / w, -S / h, S / 2, S / w, S / h, -S / 2
+    if forme == "hex":
+        r = Fraction(w, 2)
+        return 2 * S / (3 * r), Fraction(0), -2 * S / 3, -S / (3 * r), S / h, -S / 6
+    raise ValueError(f"forme sans reseau propre: {forme!r}")
 
 
 def texture_forme(mat: Image.Image, forme: str, cote: int = 64, taille=None, origine=(0, 0)) -> Image.Image:
-    """La matière envoyée sur le réseau de la forme, en RGB (le CHAMP continu, sans découpe)."""
+    """La matière envoyée sur le réseau de la forme, en RGB (le CHAMP continu, sans découpe). `origine` = position,
+    dans la sortie, du coin haut-gauche de la tuile de référence.
+
+    Échantillonnage EXACT au centre de chaque pixel : u·2Q et v·2Q sont des ENTIERS (Q = dénominateur commun des
+    coefficients), le pixel source est leur plancher par division entière, modulo la matière — ni flottant, ni
+    virgule fixe, ni pavage. Coût mesuré : tuile hexagonale de 1024 x 886 px, masque compris, 2,2 s."""
     w, h = dims(forme, cote)
     m = matiere_carree(mat, forme, cote)
-    return _pave(m).transform(taille or (w, h), Image.AFFINE,
-                              _coeffs(forme, m.width, w, h, origine[0], origine[1]), Image.NEAREST)
+    s = m.width
+    A, B, C, D, E, F = _coeffs(forme, s, w, h)
+    Q = math.lcm(*(c.denominator for c in (A, B, C, D, E, F)))
+    a, b, c2 = int(A * Q), int(B * Q), int(2 * C * Q)
+    d, e, f2 = int(D * Q), int(E * Q), int(2 * F * Q)
+    q2 = 2 * Q
+    W, H = taille or (w, h)
+    ox, oy = origine
+    src = m.tobytes()
+    out = bytearray(W * H * 3)
+    xs = [2 * (x - ox) + 1 for x in range(W)]          # 2 x (x − ox + ½) : le centre du pixel, en demi-pixels
+    ua = [a * xx for xx in xs]
+    va = [d * xx for xx in xs]
+    j = 0
+    for y in range(H):
+        yy = 2 * (y - oy) + 1
+        ub, vb = b * yy + c2, e * yy + f2
+        for x in range(W):
+            k = (((va[x] + vb) // q2) % s * s + ((ua[x] + ub) // q2) % s) * 3
+            out[j:j + 3] = src[k:k + 3]
+            j += 3
+    return Image.frombytes("RGB", (W, H), bytes(out))
 
 
 def tuile_forme(mat: Image.Image, forme: str, cote: int = 64) -> Image.Image:

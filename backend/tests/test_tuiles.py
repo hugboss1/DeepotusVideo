@@ -602,6 +602,12 @@ def test_eclairage_jeu_rend_max_ecart_et_detail():
     jeu["tuiles"][5] = _rampe()
     mx2, ecart2, _ = TM.eclairage_jeu(jeu)
     assert mx2 == 50.78 and ecart2 == 50.78, (mx2, ecart2)
+    # l'écart est max − min, pas le max : un jeu dont la tuile la MOINS éclairée ne vaut pas 0 le distingue
+    demi = Image.blend(_rampe(), _uni(64, (127, 127, 127)), 0.5)
+    tout = {"tuiles": [_rampe()] * 3 + [demi]}
+    mx3, ecart3, _ = TM.eclairage_jeu(tout)
+    assert mx3 == 50.78 and 0 < ecart3 < 30, (mx3, ecart3)
+    assert ecart3 == round(50.78 - TM.eclairage_score(demi), 2)
 
 
 def test_repetition_voit_un_damier_et_pas_un_tirage():
@@ -640,6 +646,9 @@ def test_verdict_nomme_chaque_mesure():
     pile = TM.verdict({"raccord": 1.0, "repetition": 70.0, "eclairage_max": 8.0, "ecart_eclairage": 5.0})
     assert pile == {"raccord": "ok", "repetition": "attention", "eclairage": "ok",
                     "ecart_eclairage": "ok"}, pile
+    # entre les deux seuils d'éclairage (5 < 6 < 8) : l'écart se juge contre SON seuil, pas celui de la tuile
+    entre = TM.verdict({"raccord": 0.0, "repetition": 0.0, "eclairage_max": 6.0, "ecart_eclairage": 6.0})
+    assert entre["eclairage"] == "ok" and entre["ecart_eclairage"] == "attention", entre
     # chaque mesure a SA porte : une seule en défaut n'en entraîne pas d'autre
     for cle, mot in (("raccord", "raccord"), ("repetition", "repetition"),
                      ("eclairage_max", "eclairage"), ("ecart_eclairage", "ecart_eclairage")):
@@ -683,6 +692,12 @@ def test_route_mesures_rend_trois_chiffres_par_jeu_et_par_tuile():
                 (TS.tileset_dir(tid) / "meta.json").read_text("utf-8"))
             assert meta["mesures"]["repetition"] == d["repetition"]
             assert (await c.get(f"/api/tiles/{tid}")).json()["mesures"]["raccord"] == 0.0
+            # à 4 cases, la répétition se mesure à 4 cases (décalages de 4 x 4, pas de 8 x 8)
+            r4c = await c.post(f"/api/tiles/{tid}/mesures", json={"graine": 3, "cases": 4})
+            await c.post(f"/api/tiles/{tid}/apercu", json={"graine": 3, "cases": 4})
+            with Image.open(TS.tileset_dir(tid) / "apercu.png") as im:
+                assert r4c.json()["repetition"] == TM.repetition_score(im, 4), r4c.json()["repetition"]
+                assert TM.repetition_score(im, 4) != TM.repetition_score(im, 8)
             rr = await c.post(f"/api/tiles/{tid}/mesures", json={"cases": 2})
             assert rr.status_code == 400 and "cases" in rr.text, rr.text
             r4 = await c.post("/api/tiles/tile_00000000/mesures", json={})
@@ -751,6 +766,13 @@ def test_masque_losange_et_hexagone():
     assert mh.getpixel((0, 0)) == 0
     assert mh.getpixel((2, 28)) == 255               # la pointe gauche
     assert set(mh.tobytes()) == {0, 255}             # binaire : pas de demi-pixel qui laisserait voir le fond
+    # le test porte sur le CENTRE du pixel : un losange 2:1 n'a aucun centre sur une arête (en demi-pixels, l'arête
+    # impose un x pair, un centre l'a impair), donc son masque est symétrique dans les deux sens — échantillonner le
+    # coin du pixel le décalerait d'un demi-pixel
+    for c in (16, 32, 64):
+        m = TF.masque_forme("iso", c)
+        assert m.tobytes() == m.transpose(Image.FLIP_TOP_BOTTOM).tobytes(), c
+        assert m.tobytes() == m.transpose(Image.FLIP_LEFT_RIGHT).tobytes(), c
     try:
         TF.masque_forme("triangle", 32)
     except ValueError:
@@ -780,8 +802,11 @@ def test_les_tuiles_posees_sur_le_reseau_reproduisent_le_champ():
         w, h = TF.dims(forme, cote)
         tuile = TF.tuile_forme(mat, forme, cote)
         assert tuile.mode == "RGBA" and tuile.size == (w, h)
-        champ = TF.texture_forme(mat, forme, cote, taille=(3 * w, 3 * h), origine=(w, h))
-        toile = Image.new("RGBA", (3 * w, 3 * h), (0, 0, 0, 0))
+        # origine HORS réseau : (w, h) est lui-même un vecteur du réseau (losange et hexagone), et un champ qui
+        # ignorerait son origine verticale tombait juste par coïncidence (mutant M32 du 06/10, survivant)
+        x0, y0 = w + 3, h + 5
+        champ = TF.texture_forme(mat, forme, cote, taille=(3 * w + 8, 3 * h + 8), origine=(x0, y0))
+        toile = Image.new("RGBA", (3 * w + 8, 3 * h + 8), (0, 0, 0, 0))
         vecs = list(TF.decalages(forme, w, h).values())
         pts = {(0, 0)}
         for _ in range(3):
@@ -789,11 +814,13 @@ def test_les_tuiles_posees_sur_le_reseau_reproduisent_le_champ():
         for ox, oy in pts:
             # toute tuile qui touche la boîte centrale a |ox| <= w et |oy| <= h : elle tient dans la toile 3 x 3
             if abs(ox) <= w and abs(oy) <= h:
-                toile.alpha_composite(tuile, (w + ox, h + oy))
-        boite = (w, h, 2 * w, 2 * h)
-        t, c = toile.crop(boite), champ.crop(boite).convert("RGBA")
+                toile.alpha_composite(tuile, (x0 + ox, y0 + oy))
+        boite = (x0, y0, x0 + w, y0 + h)
+        t, c = toile.crop(boite), champ.crop(boite)
         assert t.getchannel("A").getextrema() == (255, 255), (forme, cote, "trou dans la tuile centrale")
-        assert ImageChops.difference(t, c).getbbox() is None, (forme, cote)
+        # en RGB : `getbbox()` d'une image RGBA ne lit QUE l'alpha (Pillow) — la différence RGBA de deux images
+        # opaques rendait None même sur une texture fausse (mutant M30 du 06/10, coefficient iso faux, survivant)
+        assert ImageChops.difference(t.convert("RGB"), c).getbbox() is None, (forme, cote)
 
 
 def test_le_raccord_d_une_forme_est_celui_de_la_matiere():
@@ -902,7 +929,8 @@ def test_ecran_tilelab_porte_les_modes_jeu_et_formes():
         assert html.count(f'id="{ident}"') == 1, ident
 
     js = _front("jeu.js")
-    for route in ('"/tiles/jeu"', "/apercu", "/mesures", "/export", "/fichier/atlas.png"):
+    for route in ('"/tiles/jeu"', "`/tiles/${etat.tid}/apercu`", "`/tiles/${etat.tid}/mesures`",
+                  "`/tiles/${tid}/export`", "/fichier/atlas.png"):
         assert route in js, route
     # les exports passent par le backend, jamais par une construction client
     for interdit in ("wangid", "<tileset", "gd_resource", "autoRuleGroups"):
@@ -911,7 +939,7 @@ def test_ecran_tilelab_porte_les_modes_jeu_et_formes():
     for mot in ("raccord", "repetition", "eclairage_max", "ecart_eclairage", "verdict", "seuils"):
         assert mot in js, mot
     # la répétition se lit sur l'aperçu MONTRÉ : les mesures reprennent sa graine
-    assert "graineApercu" in js
+    assert "{ graine: etat.graineApercu || 1, cases: ap.cases, densite: ap.densite }" in js
     tl = _front("tilelab.js")
     assert '"jeu"' in tl and '"formes"' in tl, "tlMode connait les deux modes"
     css = _front("tilelab.css")
