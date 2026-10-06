@@ -1696,7 +1696,8 @@ async def asset3d_rig(job: str, background_tasks: BackgroundTasks, body: dict = 
                     jr.final_video_path = str(settings.outputs_path / "assets3d" / Path(job).name / r["file"])
                     jr.cost_meta = _json.dumps({"job": Path(job).name, "rig": True, "version": r["version"],
                                                 "meshy_task": r["meshy_task"], "remesh": r["remesh"],
-                                                "animations": r["animations"]}, ensure_ascii=False)
+                                                "actions": acts, "animations": r["animations"]},
+                                               ensure_ascii=False)
                     await s.commit()
         except Exception as e:
             logger.exception(f"asset3d rig {job_id} failed: {e}")
@@ -7192,8 +7193,22 @@ def _job_to_cost(job, p):
             # texturage d'un maillage DÉJÀ généré : facturé en crédits Meshy,
             # jamais chez fal (chaîne Tripo → Meshy).
             return _pricing.estimate({"kind": "asset3d_texture"}, p)
-        return _pricing.estimate({"kind": "asset3d",
-                                  "engine": meta.get("engine") or "tripo"}, p)
+        if meta.get("rig"):
+            # rig Meshy (T104) : son cost_meta ne porte pas `engine` — il tombait sur le maillage Tripo par défaut
+            # (0,30 USD chez fal). Les ids d'actions viennent de la clé `actions` ; un rig d'avant cette clé les
+            # relit sur ses clips `action_<id>` (une action payée qui n'a rendu aucun GLB y manque).
+            acts = meta.get("actions")
+            if not isinstance(acts, list):
+                acts = [int(k[7:]) for k in (meta.get("animations") or {})
+                        if str(k).startswith("action_") and str(k)[7:].isdigit()]
+            return _pricing.estimate({"kind": "asset3d_rig", "remesh_requis": bool(meta.get("remesh")),
+                                      "actions": acts}, p)
+        op = {"kind": "asset3d", "engine": meta.get("engine") or "tripo"}
+        if meta.get("texture_mode"):
+            # le palier OBTENU (le raffinement l'écrit) : HD chez Tripo H3.1 = 0,40 USD, pas 0,30
+            op["textures"] = meta["texture_mode"] != "no"
+            op["quality"] = "hd" if meta["texture_mode"] == "HD" else "standard"
+        return _pricing.estimate(op, p)
     if prov == "heygen":
         return _pricing.estimate({"kind": "heygen", "minutes": max(0.2, dur / 60.0)}, p)
     if prov == "episode":
