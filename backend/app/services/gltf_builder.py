@@ -28,7 +28,8 @@ de Gram-Schmidt), ce qui donne aussi la main (w = +/-1) correcte pour les
 capuchons de cylindre dont l'UV est en miroir.
 
 Extensions émises : KHR_materials_clearcoat, KHR_materials_sheen,
-KHR_materials_transmission, KHR_materials_ior, KHR_texture_transform.
+KHR_materials_transmission, KHR_materials_ior, KHR_materials_emissive_strength,
+KHR_texture_transform.
 
 Conventions retenues (figées ici, l'UI s'y aligne) :
   - props["rotation"] est en DEGRÉS, la rotation se fait autour du centre UV ;
@@ -690,8 +691,23 @@ def build_glb(maps: dict, props: dict | None = None, mesh: str = "sphere",
     if mr_slot:
         pbr["metallicRoughnessTexture"] = tex_ref(mr_slot)
 
-    emissive = [round(_clamp(c * p["emissive_strength"]), 6)
-                for c in _lin_rgb(p["emissive"], "#000000")]
+    # L'INTENSITÉ NE DOIT PAS TOUCHER LA TEINTE. glTF borne emissiveFactor à
+    # [0,1] : multiplier puis borner écrêtait chaque canal à part. Mesuré le
+    # 06/10 sur emissif_anime (#ff8a1f x 3.0) : linéaire [1, 0.254, 0.014]
+    # devenait [1, 0.76, 0.041] — l'orange virait au jaune. Au-delà de 1,
+    # la couleur va TELLE QUELLE dans le facteur et l'intensité dans
+    # KHR_materials_emissive_strength (utilisée, jamais requise : un lecteur
+    # qui l'ignore garde la bonne teinte, moins lumineuse). Jusqu'à 1, le
+    # produit tient dans [0,1] sans borne : il reste replié dans le facteur,
+    # exact partout — et 0.0 (le défaut) donne un facteur noir, aucune
+    # émission même chez un lecteur sans l'extension. Les cartes (intensité
+    # 0..1) restent ainsi octet pour octet.
+    e_s = p["emissive_strength"]
+    e_lin = _lin_rgb(p["emissive"], "#000000")
+    if e_s > 1.0:
+        emissive = [round(c, 6) for c in e_lin]
+    else:
+        emissive = [round(c * e_s, 6) for c in e_lin]
 
     # `extras` : la composition scalaire x texture, écrite DANS le fichier.
     # Les deux niveaux sont cuits ensemble ou pas du tout — ils partagent
@@ -745,6 +761,9 @@ def build_glb(maps: dict, props: dict | None = None, mesh: str = "sphere",
             "transmissionFactor": round(p["transmission"], 6)}
     if abs(p["ior"] - 1.5) > 1e-6:
         ext["KHR_materials_ior"] = {"ior": round(p["ior"], 6)}
+    if e_s > 1.0:
+        ext["KHR_materials_emissive_strength"] = {
+            "emissiveStrength": round(e_s, 6)}
     if ext:
         material["extensions"] = ext
 

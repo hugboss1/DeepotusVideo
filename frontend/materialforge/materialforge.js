@@ -2666,8 +2666,15 @@ function applyLive(m) {
     mat.pbrMetallicRoughness.setBaseColorFactor([c[0], c[1], c[2], clamp(num(p.opacity, 1), 0, 1)]);
     mat.pbrMetallicRoughness.setMetallicFactor(clamp(num(p.metallic, 0), 0, 1));
     mat.pbrMetallicRoughness.setRoughnessFactor(clamp(num(p.roughness, 1), 0, 1));
+    // Même règle que gltf_builder : au-delà de 1, la couleur seule dans le
+    // facteur et l'intensité dans KHR_materials_emissive_strength — le GLB
+    // chargé porte déjà cette extension, la multiplier aussi dans le facteur
+    // donnerait s² (9x pour emissif_anime). Jusqu'à 1, repliée dans le facteur
+    // et l'extension remise à 1.
     const e = hexRgb(p.emissive), s = clamp(num(p.emissive_strength, 0), 0, 5);
-    mat.setEmissiveFactor([e[0] * s, e[1] * s, e[2] * s]);
+    const k = s > 1 ? 1 : s;
+    mat.setEmissiveFactor([e[0] * k, e[1] * k, e[2] * k]);
+    if (typeof mat.setEmissiveStrength === "function") mat.setEmissiveStrength(s > 1 ? s : 1);
     if (typeof mat.setAlphaMode === "function") {
       mat.setAlphaMode(num(p.opacity, 1) < 0.999 ? "BLEND" : "OPAQUE");
     }
