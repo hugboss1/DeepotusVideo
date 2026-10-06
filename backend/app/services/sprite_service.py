@@ -637,7 +637,13 @@ def reassemble(out_dir: Path, order, columns=None, anim_spec=None) -> dict:
     for f, i in zip(m["frames"], idx):
         if "offset" in vieilles[i]:
             f["offset"] = vieilles[i]["offset"]
+        if vieilles[i].get("hitboxes"):
+            f["hitboxes"] = vieilles[i]["hitboxes"]     # T112 : les hitboxes suivent LEUR frame
     mf.write_text(json.dumps(m, indent=2), encoding="utf-8")
+    if any(f.get("hitboxes") for f in m["frames"]):
+        # _assemble a écrit les exports AVANT ce remappage : ceux du disque (ZIP) doivent les porter
+        from app.services import sprite_hitbox
+        sprite_hitbox.reecrire_exports(m, out_dir)
     return r
 
 
