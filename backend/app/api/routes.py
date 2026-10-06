@@ -11771,7 +11771,7 @@ async def export_material(mid: str, format: str = "zip",
                           bits: int = 8, maps: str = "",
                           mesh: str = "sphere"):
     """Export : ZIP complet (maps + material.json + LISEZMOI), GLB, ou glTF
-    autonome. `naming` ∈ standard|unity_urp|unity_hdrp|unreal|godot, `bits` ∈ 8|16 (honoré
+    autonome. `naming` ∈ standard|blender|unity_urp|unity_hdrp|unreal|godot, `bits` ∈ 8|16 (honoré
     pour height et normal), `maps` = liste blanche séparée par des virgules."""
     from app.services import material_store as MS
     mat = _mat_or_404(mid)

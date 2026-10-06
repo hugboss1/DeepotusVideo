@@ -288,6 +288,9 @@
               <span class="lbl">Convention de nommage</span>
               <div class="seg sm" id="exNaming">
                 <button class="seg-b active" data-v="standard" type="button">Standard</button>
+                <!-- Blender (T096) : le Principled BSDF n'a ni Occlusion ni ORM —
+                     sa convention livre des fichiers séparés et les nomme -->
+                <button class="seg-b" data-v="blender" type="button">Blender</button>
                 <!-- URP et HDRP ne lisent PAS les memes emplacements : URP Lit
                      n'a aucune propriete Mask Map (Metallic Map + Occlusion Map
                      separes), HDRP Lit range l'occlusion dans le canal V de son
