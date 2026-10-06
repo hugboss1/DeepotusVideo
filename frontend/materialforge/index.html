@@ -172,6 +172,10 @@
         <label class="vp-envwrap"><span class="vp-lbl">Environnement</span>
           <select id="vpEnv" title="Environnement d'éclairage de l'aperçu"></select>
         </label>
+        <button class="chip" id="cmpBtn" type="button"
+                title="Comparer deux matières côte à côte, sous la même ambiance et la même caméra">⇔ Comparer</button>
+        <select id="cmpPick" class="sortsel hidden"
+                title="Seconde matière de la comparaison"></select>
         <button class="chip lightchip" id="vpLight" type="button"
                 title="Ajoute une source déplaçable : glisse le disque ☀ dans le rendu">☀ Lumière</button>
       </div>
@@ -182,6 +186,12 @@
                       field-of-view="32deg" min-field-of-view="12deg" max-field-of-view="48deg"
                       min-camera-orbit="auto 12deg 2.2m" max-camera-orbit="auto 91deg 14m"
                       interpolation-decay="120" ar-status="not-presenting"></model-viewer>
+        <!-- le jumeau de la comparaison (T096) : même ambiance (applyEnvToViewers
+             parcourt TOUS les model-viewer), caméra recopiée de #mv -->
+        <model-viewer id="mvB" class="hidden" camera-controls touch-action="pan-y"
+                      shadow-intensity="0" exposure="1" tone-mapping="neutral"
+                      interaction-prompt="none" interpolation-decay="40"
+                      field-of-view="32deg"></model-viewer>
         <div class="vp-vignette" aria-hidden="true"></div>
         <div class="light-puck hidden" id="puck" title="Glisse pour déplacer la lumière">☀</div>
         <div class="vp-load" id="vpLoad">chargement de l’aperçu 3D…</div>

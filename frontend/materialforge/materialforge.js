@@ -277,6 +277,7 @@ const state = {
      et quarante cartes réclameraient chacune un modèle de 40 Mo habillé. */
   modele3d: null,
   vpModele: false,
+  compare: null,      // id de la seconde matière comparée (T096), ou null
 };
 
 let envUrl = null;           // blob URL de l’environnement composé (éclairage)
@@ -1112,6 +1113,7 @@ function setViewportSrc(m) {
      « chargement… » restait posé sur un modèle déjà affiché (preuve 8799) */
   if (url && mv.src && mv.src.endsWith(url) && mv.loaded) ld.classList.add("hidden");
   else if (url) mv.src = url;
+  if (state.compare) setCompare(state.compare === m.id ? null : state.compare);
 }
 
 /* source lisible d'une carte : le modèle payant, ou l'origine locale */
@@ -3508,6 +3510,55 @@ async function photoPreview() {
   }
 }
 
+/* ── comparaison côte à côte (T096 / plan-matieres T8) ──────────────────────
+   DEUX viewers, UNE ambiance, UNE caméra. Le point d'une comparaison est que
+   la seule variable soit la matière :
+   - l'ambiance : applyEnvToViewers parcourt déjà TOUS les <model-viewer> de
+     la page, #mvB compris — rien à dupliquer ;
+   - la caméra : recopiée de #mv par getCameraOrbit()/getCameraTarget()/
+     getFieldOfView(). PAS par la propriété `cameraOrbit` (ce que proposait le
+     plan) : elle reflète l'ATTRIBUT, et l'attribut ne suit pas la souris —
+     la seconde vue serait restée figée au premier cadrage ;
+   - la forme : la même que le viewport, « Mon modèle » compris. */
+function compareSync() {
+  const a = $("#mv"), b = $("#mvB");
+  if (!state.compare || !a || !b || !a.getCameraOrbit) return;
+  /* les BORNES d'abord : sans elles, #mvB garde ses bornes par défaut et
+     écrête la distance (preuve 8799 : 6 m demandés, 2,2 m tenus) */
+  for (const k of ["min-camera-orbit", "max-camera-orbit", "min-field-of-view", "max-field-of-view"]) {
+    if (a.hasAttribute(k)) b.setAttribute(k, a.getAttribute(k)); else b.removeAttribute(k);
+  }
+  b.setAttribute("camera-orbit", a.getCameraOrbit().toString());
+  b.setAttribute("camera-target", a.getCameraTarget().toString());
+  b.setAttribute("field-of-view", a.getFieldOfView() + "deg");
+}
+
+function setCompare(id) {
+  state.compare = id || null;
+  const b = $("#mvB");
+  $("#vpStage").classList.toggle("split", !!state.compare);
+  b.classList.toggle("hidden", !state.compare);
+  $("#cmpPick").classList.toggle("hidden", !state.compare);
+  $("#cmpBtn").classList.toggle("active", !!state.compare);
+  if (!state.compare) return;
+  const m = matById(state.compare);
+  if (!m) { setCompare(null); return; }
+  const url = glbUrl(m, 1024, state.vpModele ? "model" : state.mesh, true);
+  if (url && !(b.src && b.src.endsWith(url))) b.src = url;
+  b.addEventListener("load", compareSync, { once: true });
+  compareSync();
+  applyEnvToViewers();
+}
+
+function ouvrirCompare() {
+  if (state.compare) { setCompare(null); return; }
+  const autres = state.materials.filter((m) => m.id !== state.sel);
+  if (!autres.length) { toast("Il faut au moins deux matières pour comparer.", true); return; }
+  const sel = $("#cmpPick");
+  sel.innerHTML = autres.map((m) => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join("");
+  setCompare(sel.value);
+}
+
 function wire() {
   $("#model").onchange = () => {
     state.model = $("#model").value;
@@ -3554,6 +3605,9 @@ function wire() {
     setEnv("studio");
   });
   $("#modelPick").addEventListener("change", (e) => choisirModele(e.target.value));
+  $("#cmpBtn").addEventListener("click", ouvrirCompare);
+  $("#cmpPick").addEventListener("change", (e) => setCompare(e.target.value));
+  $("#mv").addEventListener("camera-change", compareSync);
   $("#phCanvas").addEventListener("click", photoClick);
   $("#phReset").addEventListener("click", () => { photo.quad = []; photoDraw(); });
   $("#phPreview").addEventListener("click", photoPreview);

@@ -146,5 +146,32 @@ assert '@router.post("/materials/envs")' in PY and '@router.delete("/materials/e
 ok("ambiances importées : bouton et suppression, drapeau `perso` porté du "
    "serveur à la puce, un refus de fichier n'éteint pas l'API")
 
+# ══ 10 · la comparaison côte à côte (T8) ═══════════════════════════════════
+for ident in ("mv", "mvB", "cmpBtn", "cmpPick"):
+    assert f'id="{ident}"' in HTML, ident
+assert HTML.count("<model-viewer") == 2, HTML.count("<model-viewer")
+# La MÊME ambiance des deux côtés : applyEnvToViewers parcourt TOUS les
+# <model-viewer> (le plan voulait y ajouter #mvB — c'était déjà le cas ; on
+# épingle le parcours général, qui couvre aussi tout futur viewer).
+env = JS_CODE.split("function applyEnvToViewers()", 1)[1].split("\n}\n", 1)[0]
+assert '$$("model-viewer").forEach' in env, env[:300]
+# La caméra se LIT, elle ne se recopie pas par l'attribut.
+sync = JS_CODE.split("function compareSync()", 1)[1].split("\n}\n", 1)[0]
+assert "getCameraOrbit()" in sync and "getCameraTarget()" in sync and "getFieldOfView()" in sync, sync
+assert '"min-camera-orbit", "max-camera-orbit"' in sync, "les bornes de #mv doivent suivre (2,2 m tenus pour 6 m)"
+assert "b.cameraOrbit = a.cameraOrbit" not in JS_CODE and "$(\"#mv\").cameraOrbit" not in JS_CODE
+# Un seul chemin de GLB, et la même forme que le viewport (« Mon modèle » compris)
+cmp = JS_CODE.split("function setCompare(", 1)[1].split("\n}\n", 1)[0]
+assert 'glbUrl(m, 1024, state.vpModele ? "model" : state.mesh, true)' in cmp, cmp
+assert "state.open" not in JS_CODE, "le dépôt dit state.sel"
+assert '"camera-change", compareSync' in JS_CODE
+# la vue principale change (matière, forme, modèle) : la seconde SUIT
+vs = JS_CODE.split("function setViewportSrc(m)", 1)[1].split("\n}\n", 1)[0]
+assert "if (state.compare) setCompare(" in vs, vs[-400:]
+assert ".vp-stage.split { display: grid; grid-template-columns: 1fr 1fr;" in CSS, \
+    "la GRILLE à deux colonnes (le sélecteur seul existe aussi dans ::after)"
+ok("comparaison : deux viewers, ambiance par le parcours général, caméra lue "
+   "par getCameraOrbit, un seul chemin de GLB qui suit « Mon modèle »")
+
 print(f"\nOK — {PASS} assertions groupées vertes (écran Material Forge, "
       f"panneau Photo)")
