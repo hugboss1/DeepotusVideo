@@ -67,18 +67,18 @@ seulement ensuite les comparer.
   evenement. Le second rend toute route `/api/…` en 503.
   MESURE, PREMIER LEVIER — avant : 54/65 vertes, dont CINQ qui lisaient un
   ASS de zero octet. Apres : 49/65. Les cinq :
-    * sans_wordAnim_ass_inchange — exige le repli karaoke (`\k`) d'abord ;
+    * sans_wordAnim_ass_inchange — exige le repli karaoke (`\\k`) d'abord ;
     * glow_ne_rebondit_pas — exige la balise du glow, mesuree par la ligne
       qui la precede et REPRISE plutot que supposee ;
-    * longue_replique_sans_pos — exige le `\k` du repli ;
+    * longue_replique_sans_pos — exige le `\\k` du repli ;
     * fondu_absent_des_evenements_de_mots — elle NOMME les evenements de
-      mots : on exige qu'il y en ait (`\pos(`) ;
+      mots : on exige qu'il y en ait (`\\pos(`) ;
     * couleur_sans_karaoke_ne_fait_rien — DEUX negations et aucune autre
       ligne ne lit `tK` : on exige l'unique evenement ET le texte de la
-      replique avant de nier `\k` et `\pos(`.
+      replique avant de nier `\\k` et `\\pos(`.
   Les quatre autres lignes de la meme famille (couleur_ne_pose_aucun_mot,
   trop_large_sans_pos, calage_casse_retombe_en_karaoke,
-  sans_mesure_retombe_en_karaoke) portaient DEJA leur `"\k" in t` : elles
+  sans_mesure_retombe_en_karaoke) portaient DEJA leur `"\\k" in t` : elles
   rougissent seules, et c'est la forme qui a servi de modele aux cinq autres.
   MESURE, SECOND LEVIER — une seule ligne restait verte : route_ne_modifie
   _rien, dont les deux negations etaient vraies du `{}` de repli. Elle exige

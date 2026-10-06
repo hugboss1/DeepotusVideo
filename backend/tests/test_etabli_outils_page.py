@@ -1086,7 +1086,7 @@ def test_les_poses_proposees_se_disent_dans_l_UNITE_courante_EXECUTEE():
       const ecrireSeule = async (op, charge) => { ECRITS.push([op, charge]); return { derniere: { version: 3 } }; };
       class El { constructor() { this.enfants = []; this.ecoute = {}; this.className = ""; this._html = "";
                  this.dataset = {}; this.boutons = []; this.noteEl = { textContent: "" }; }
-        set innerHTML(h) { this._html = h; this.boutons = [...h.matchAll(/data-orient="(\d+)"/g)].map((m) => {
+        set innerHTML(h) { this._html = h; this.boutons = [...h.matchAll(/data-orient="(\\d+)"/g)].map((m) => {
           const b = { dataset: { orient: m[1] }, ecoute: {}, addEventListener(t, f) { this.ecoute[t] = f; } }; return b; }); }
         get innerHTML() { return this._html; }
         querySelector(q) { return q === ".note" ? this.noteEl : (q === ".orient" ? null : null); }
