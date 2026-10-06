@@ -78,6 +78,15 @@
       <button id="btnVuesBible" class="engine-goto" disabled
               title="Les vues de la planche — panneaux d'origine ou découpe vérifiée — sans aucune génération">
         → vues de la planche · gratuit</button>
+      <div class="fal-sub">ou depuis des photos de la Bibliothèque (📱 = déposées par le téléphone) — gratuit</div>
+      <select id="photoFront" class="fal-sel" title="Photo de FACE — exigée"></select>
+      <select id="photoBack" class="fal-sel" title="Photo de dos (facultative)"></select>
+      <select id="photoLeft" class="fal-sel" title="Profil gauche (facultatif)"></select>
+      <select id="photoRight" class="fal-sel" title="Profil droit (facultatif)"></select>
+      <label class="rig-act" title="Retire le fond de chaque photo — local, gratuit"><input type="checkbox" id="photoDetourer" checked>
+        détourer (local, gratuit)</label>
+      <button id="btnVuesPhotos" class="engine-goto" title="Redressées, bornées à 2048 px, sans aucune génération">
+        → jeu de vues depuis les photos · gratuit</button>
       <select id="vuesJeu" class="fal-sel" title="Les jeux de vues préparés, le plus récent d'abord"></select>
       <div class="vues-grille" id="vuesGrille"></div>
       <button id="btnTirer" class="btn-run" disabled>Tirer · —</button>
