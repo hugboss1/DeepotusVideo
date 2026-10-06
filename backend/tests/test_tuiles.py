@@ -415,6 +415,166 @@ def test_provenance_des_tuiles_est_declaree():
     assert LI.licence_defaut("tile_0123abcd_atlas.png", "tuiles") == LI.LICENCE_PROPRE
 
 
+# ═════════════════════════════════ T6 (t115) ═════════════════════════════════
+def test_les_variantes_ne_touchent_pas_le_bord():
+    """Le masque de cœur est 0 DUR sur l'anneau : la variante ne peut pas déplacer un pixel de bord, donc le
+    raccord reste 0.00 (mesuré sur les 10404 paires E légales d'un jeu à 3 variantes)."""
+    coeur = TO.masque_coeur(64)
+    b = 8
+    bords = (coeur.crop((0, 0, 64, b)), coeur.crop((0, 64 - b, 64, 64)),
+             coeur.crop((0, 0, b, 64)), coeur.crop((64 - b, 0, 64, 64)))
+    assert max(max(im.getextrema()) for im in bords) == 0
+    assert coeur.getpixel((32, 32)) == 255
+
+    A, B = _bruit(64, 1), _bruit(64, 2)
+    jeu = TO.assembler_jeu(A, B, "blob47", 64, variantes=3, graine=5)
+    assert len(jeu["tuiles"]) == 47 * 3 + 1
+    # les 3 variantes d'une même tuile diffèrent VRAIMENT...
+    i = jeu["cles"].index(255) * 3
+    assert len({jeu["tuiles"][i + k].tobytes() for k in range(3)}) == 3
+    # ... et ont exactement le même bord
+    for k in (1, 2):
+        assert jeu["tuiles"][i + k].crop((63, 0, 64, 64)).tobytes() == \
+            jeu["tuiles"][i].crop((63, 0, 64, 64)).tobytes()
+
+
+def test_raccord_du_jeu_a_variantes_reste_nul():
+    from app.services import tile_metrics as TM
+    jeu = TO.assembler_jeu(_bruit(64, 1), _bruit(64, 2), "blob47", 64, 3, 5)
+    n = sum(1 for _ in TM.paires_legales(jeu, "E"))
+    assert n == 10404, n                     # 1156 voisinages x 3 x 3
+    assert TM.raccord_jeu(jeu) == 0.0
+
+
+def test_masque_voisins_lit_les_huit_directions():
+    g = [[0] * 3 for _ in range(3)]
+    g[1][1] = 1
+    assert TO.masque_voisins(g, 1, 1, boucle=False) == 0
+    g[0][1] = 1                              # la case AU-DESSUS
+    assert TO.masque_voisins(g, 1, 1, boucle=False) == TO.N
+    g[1][2] = 1                              # la case À DROITE
+    assert TO.masque_voisins(g, 1, 1, boucle=False) == TO.N | TO.E
+    g[0][2] = 1                              # la diagonale NE, désormais légale
+    assert TO.masque_voisins(g, 1, 1, boucle=False) == TO.N | TO.E | TO.NE
+    # une diagonale SANS ses deux arêtes est effacée : le voisinage rendu est CANONIQUE
+    g2 = [[0, 0, 1], [0, 1, 0], [0, 0, 0]]
+    assert TO.masque_voisins(g2, 1, 1, boucle=False) == 0
+    # hors carte = vide quand boucle=False, et la carte boucle sinon
+    plein = [[1] * 3 for _ in range(3)]
+    assert TO.masque_voisins(plein, 0, 0, boucle=False) == \
+        TO.canon(TO.E | TO.S | TO.SE)
+    assert TO.masque_voisins(plein, 0, 0, boucle=True) == 255
+    # une carte NON carrée (une rangée qui boucle sur elle-même) : x lit la largeur, y la hauteur — un échange des
+    # deux ramènerait E sur la case elle-même et poserait le bit E
+    large = [[1, 0, 0, 0, 1]]
+    assert TO.masque_voisins(large, 0, 0, boucle=True) == TO.N | TO.S | TO.W | TO.NW | TO.SW
+
+
+def test_composer_carte_pose_les_bonnes_tuiles():
+    A, B = _bruit(64, 1), _bruit(64, 2)
+    jeu = TO.assembler_jeu(A, B, "blob47", 32, variantes=2, graine=3)
+    g = TO.carte_aleatoire(8, densite=0.55, graine=1)
+    assert len(g) == 8 and all(len(l) == 8 for l in g)
+    assert set(v for l in g for v in l) == {0, 1}
+    # la même graine rend la même carte : la recette est rejouable ; une autre graine, une autre carte
+    assert TO.carte_aleatoire(8, 0.55, 1) == g
+    assert TO.carte_aleatoire(8, 0.55, 2) != g
+    assert TO.carte_aleatoire(8, 0.0, 1) == [[0] * 8 for _ in range(8)]
+    assert TO.carte_aleatoire(8, 1.0, 1) == [[1] * 8 for _ in range(8)]
+
+    img, plan = TO.composer_carte(g, jeu, graine=1, boucle=True)
+    assert img.size == (8 * 32, 8 * 32)
+    assert len(plan) == 8 and len(plan[0]) == 8
+    variantes_vues = set()
+    for y in range(8):
+        for x in range(8):
+            t = plan[y][x]
+            if not g[y][x]:
+                assert t == jeu["vide"], (x, y)
+            else:
+                m = TO.masque_voisins(g, x, y, boucle=True)
+                base = jeu["cles"].index(m) * jeu["variantes"]
+                assert base <= t < base + jeu["variantes"], (x, y, m, t)
+                variantes_vues.add(t - base)
+            # le pixel posé est bien celui de la tuile du plan
+            assert img.crop((x * 32, y * 32, x * 32 + 32, y * 32 + 32)).tobytes() == \
+                jeu["tuiles"][t].convert("RGB").tobytes(), (x, y)
+    assert variantes_vues == {0, 1}, "les variantes sont tirées, pas seulement la première"
+
+
+def test_composer_carte_blob16_lit_les_aretes_seules():
+    """Un jeu d'ARÊTES n'a pas de clé pour un voisinage à coins : la carte doit chercher le voisinage réduit aux
+    quatre arêtes, sinon le premier coin posé lève une KeyError."""
+    jeu = TO.assembler_jeu(_bruit(64, 1), _bruit(64, 2), "blob16", 16, 1, 1)
+    plein = [[1] * 4 for _ in range(4)]
+    _img, plan = TO.composer_carte(plein, jeu, graine=1, boucle=True)
+    assert {t for l in plan for t in l} == {jeu["cles"].index(TO.N | TO.E | TO.S | TO.W)}
+
+
+def test_route_apercu_ecrit_le_png_et_le_plan():
+    from app.services.storage import init_db
+
+    async def scenario():
+        await init_db()
+        a = _poser_image("ap_a.png", _bruit(128, 4))
+        b = _poser_image("ap_b.png", _bruit(128, 5))
+        async with _client() as c:
+            r = await c.post("/api/tiles/jeu", json={
+                "matiere_a": {"image": a}, "matiere_b": {"image": b},
+                "jeu": "blob47", "cote": 32, "variantes": 3, "nom": "ap"})
+            tid = r.json()["tid"]
+            r = await c.post(f"/api/tiles/{tid}/apercu",
+                             json={"cases": 8, "densite": 0.55, "graine": 7})
+            assert r.status_code == 200, r.text
+            d = r.json()
+            assert d["cases"] == 8 and d["graine"] == 7
+            assert len(d["plan"]) == 8 and len(d["plan"][0]) == 8
+            assert d["url"] == f"/api/tiles/{tid}/fichier/apercu.png"
+            # le PNG ÉCRIT, relu par PIL, et identique à la composition refaite hors de la route
+            with Image.open(TS.tileset_dir(tid) / "apercu.png") as im:
+                assert im.size == (256, 256), im.size
+                jeu = TO.assembler_jeu(_bruit(128, 4), _bruit(128, 5), "blob47", 32, 3, 1)
+                attendu, plan = TO.composer_carte(TO.carte_aleatoire(8, 0.55, 7), jeu, graine=7)
+                assert plan == d["plan"] and im.convert("RGB").tobytes() == attendu.tobytes()
+            # la même graine redonne le même plan
+            r2 = await c.post(f"/api/tiles/{tid}/apercu",
+                              json={"cases": 8, "densite": 0.55, "graine": 7})
+            assert r2.json()["plan"] == d["plan"]
+            # densité 0 est une valeur, pas un oubli : carte toute vide
+            r0 = await c.post(f"/api/tiles/{tid}/apercu", json={"cases": 4, "densite": 0})
+            assert r0.status_code == 200 and r0.json()["densite"] == 0.0, r0.text
+            assert {t for l in r0.json()["plan"] for t in l} == {47 * 3}
+            for corps, mot in (({"cases": 999}, "cases"), ({"cases": 3}, "cases"),
+                               ({"densite": 1.5}, "densite"), ({"graine": "x"}, "entiers")):
+                rr = await c.post(f"/api/tiles/{tid}/apercu", json=corps)
+                assert rr.status_code == 400 and mot in rr.text, (corps, rr.status_code, rr.text)
+            r4 = await c.post("/api/tiles/tile_00000000/apercu", json={})
+            assert r4.status_code == 404, r4.text
+
+    asyncio.run(scenario())
+
+
+def test_apercu_borne_la_taille_en_pixels():
+    """16 cases de 512 px feraient une image de 8192 px de côté (≈ 200 Mo en RGB) : la route borne le côté de
+    l'aperçu en PIXELS, pas seulement en cases, et le dit."""
+    from app.services.storage import init_db
+
+    async def scenario():
+        await init_db()
+        a = _poser_image("big_a.png", _bruit(128, 4))
+        async with _client() as c:
+            r = await c.post("/api/tiles/jeu", json={"matiere_a": {"image": a}, "matiere_b": {"image": a},
+                                                     "jeu": "blob16", "cote": 512})
+            assert r.status_code == 200, r.text
+            tid = r.json()["tid"]
+            rr = await c.post(f"/api/tiles/{tid}/apercu", json={"cases": 16})
+            assert rr.status_code == 400 and "4096" in rr.text, rr.text
+            ok = await c.post(f"/api/tiles/{tid}/apercu", json={"cases": 8})
+            assert ok.status_code == 200, ok.text
+
+    asyncio.run(scenario())
+
+
 def _main():
     rouges = 0
     for nom, fn in sorted(globals().items()):

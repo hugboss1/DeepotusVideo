@@ -140,6 +140,71 @@ async def exporter(tid: str, body: dict):
             "url": f"/api/tiles/{tid}/fichier/{p.name}"}
 
 
+# ── aperçu auto-tuilé (P3, tâche t115) ───────────────────────────────────────────────────────────────────────────────
+#: côté maximal de l'aperçu, en PIXELS : 16 cases de 512 px feraient 8192 px de côté, soit ≈ 200 Mo en RGB pour une
+#: image qu'on ne regarde qu'en vignette ; à 4096, un jeu de 512 px garde ses 8 x 8 cases
+APERCU_PX_MAX = 4096
+
+
+def _refaire_jeu(meta: dict) -> dict:
+    """Refabrique le jeu à l'identique depuis son meta — mêmes sources, même graine, donc mêmes octets. Le jeu n'est
+    pas gardé en mémoire : c'est la recette qui fait foi, pas un cache. Bloquant (PIL) : à appeler hors de la boucle
+    d'évènements."""
+    a = _charger_matiere(meta.get("source_a") or {}, "matiere_a")
+    b = _charger_matiere(meta.get("source_b") or {}, "matiere_b")
+    return TO.assembler_jeu(a, b, meta["jeu"], int(meta["cote"]),
+                            int(meta["variantes"]), int(meta["graine"]))
+
+
+def _bornes_apercu(body: dict, cote: int) -> tuple[int, float, int]:
+    """(cases, densite, graine) validés. UNE seule porte pour l'aperçu (P3) et pour les mesures (P4), qui tirent la
+    même carte. `densite: 0` est une valeur (carte vide), pas un oubli."""
+    body = body if isinstance(body, dict) else {}
+    try:
+        cases = int(body.get("cases") or 8)
+        graine = int(body.get("graine") or 1)
+        densite = float(body["densite"]) if body.get("densite") is not None else 0.55
+    except (TypeError, ValueError):
+        raise HTTPException(400, "cases et graine entiers, densite reelle")
+    if not 4 <= cases <= 16:
+        raise HTTPException(400, "cases doit tenir entre 4 et 16")
+    if not 0.0 <= densite <= 1.0:
+        raise HTTPException(400, "densite doit tenir entre 0 et 1")
+    if cases * cote > APERCU_PX_MAX:
+        raise HTTPException(400, f"{cases} cases de {cote} px depassent {APERCU_PX_MAX} px de cote : "
+                                 f"{APERCU_PX_MAX // cote} cases au plus pour ce jeu")
+    return cases, densite, graine
+
+
+def _lire_meta(tid: str) -> dict:
+    meta = TS.read_meta(tid)
+    if meta is None:
+        raise HTTPException(404, f"jeu de tuiles inconnu: {tid}")
+    return meta
+
+
+@router.post("/{tid}/apercu")
+async def apercu(tid: str, body: dict):
+    """Aperçu auto-tuilé : une grille de terrain tirée au hasard (rejouable), chaque case reçoit la tuile de son
+    voisinage et une variante tirée. Écrit `apercu.png` dans le dossier du jeu.
+    Body: {cases 4..16, densite 0..1, graine}."""
+    meta = _lire_meta(tid)
+    cases, densite, graine = _bornes_apercu(body, int(meta["cote"]))
+
+    def _faire():
+        jeu = _refaire_jeu(meta)
+        grille = TO.carte_aleatoire(cases, densite, graine)
+        img, plan = TO.composer_carte(grille, jeu, graine=graine, boucle=True)
+        img.save(TS.tileset_dir(tid, create=True) / "apercu.png", format="PNG")
+        return grille, plan
+
+    grille, plan = await asyncio.get_running_loop().run_in_executor(None, _faire)
+    logger.info(f"tuiles/apercu {cases}x{cases} d={densite} g={graine}: {tid}")
+    return {"tid": tid, "cases": cases, "densite": densite, "graine": graine,
+            "plan": plan, "grille": grille,
+            "url": f"/api/tiles/{tid}/fichier/apercu.png"}
+
+
 @router.get("/{tid}/fichier/{nom}")
 async def fichier(tid: str, nom: str):
     try:

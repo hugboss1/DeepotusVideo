@@ -177,3 +177,61 @@ def atlas(jeu: dict, colonnes: int = 0):
         img.paste(t.convert("RGB"), ((i % colonnes) * cote,
                                      (i // colonnes) * cote))
     return img, colonnes, rangees
+
+
+# ── auto-tuilage (P3, tâche t115) : UN moteur pour l'aperçu et, plus tard, le peintre (T12) ──────────────────────────
+def carte_aleatoire(cases: int = 8, densite: float = 0.55,
+                    graine: int = 1) -> list[list[int]]:
+    """Grille booléenne de terrain (1 = matière A), rejouable à graine égale."""
+    import random as _random
+
+    rng = _random.Random(int(graine))
+    d = min(1.0, max(0.0, float(densite)))
+    return [[1 if rng.random() < d else 0 for _ in range(cases)]
+            for _ in range(cases)]
+
+
+def masque_voisins(grille, x: int, y: int, boucle: bool = True) -> int:
+    """Le voisinage CANONIQUE de la case (x, y). `boucle=True` : la carte est un tore (l'aperçu) ;
+    `boucle=False` : hors carte = vide (le peintre)."""
+    h = len(grille)
+    w = len(grille[0]) if h else 0
+    m = 0
+    for _, dx, dy, bit in DIRS:
+        nx, ny = x + dx, y + dy
+        if boucle:
+            nx, ny = nx % w, ny % h
+        elif not (0 <= nx < w and 0 <= ny < h):
+            continue
+        if grille[ny][nx]:
+            m |= bit
+    return canon(m)
+
+
+def composer_carte(grille, jeu: dict, graine: int = 1, boucle: bool = True):
+    """(image RGB de la carte, plan [[index de tuile]]).
+
+    C'est Python qui compose, le navigateur ne fait que voir. La tuile d'une case de terrain est celle de son
+    voisinage, plus une variante TIRÉE ; une case vide reçoit la VIDE. Le voisinage passe par `index_de`, qui le
+    réduit aux quatre arêtes pour un blob16 — chercher le voisinage canonique brut dans `cles` lèverait une
+    KeyError au premier coin posé (banc test_composer_carte_blob16_lit_les_aretes_seules)."""
+    import random as _random
+
+    v = jeu["variantes"]
+    rng = _random.Random(int(graine))
+    cote = jeu["cote"]
+    h = len(grille)
+    w = len(grille[0]) if h else 0
+    img = Image.new("RGB", (w * cote, h * cote), (0, 0, 0))
+    plan = []
+    for y in range(h):
+        ligne = []
+        for x in range(w):
+            if grille[y][x]:
+                t = index_de(masque_voisins(grille, x, y, boucle), jeu["jeu"]) * v + rng.randrange(v)
+            else:
+                t = jeu["vide"]
+            img.paste(jeu["tuiles"][t].convert("RGB"), (x * cote, y * cote))
+            ligne.append(t)
+        plan.append(ligne)
+    return img, plan
