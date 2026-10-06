@@ -993,7 +993,7 @@ async def refine_asset3d_route(job: str, background_tasks: BackgroundTasks,
 
     body = body or {}
     quality = str(body.get("quality") or "hd")
-    if not settings.FAL_KEY:
+    if not (settings.FAL_KEY or "").strip():   # une clé d'espaces passait la porte puis la garde
         raise HTTPException(503, "FAL_KEY not configured. Add it in Settings.")
 
     # TOUT ce qui peut refuser refuse MAINTENANT — y compris les deux refus
@@ -1115,6 +1115,12 @@ async def texturer_asset3d_route(job: str, background_tasks: BackgroundTasks,
         raise HTTPException(
             400, "MESHY_API_KEY absente — ajoute-la dans les Réglages : le "
                  "texturage passe par ton compte Meshy, pas par fal.")
+    if not (settings.FAL_KEY or "").strip():
+        # même trou que le rig (T104, mesuré sur 8799) : sans clé fal, le job
+        # échouait APRÈS la garde, dépense estimée inscrite sans coût réel
+        raise HTTPException(
+            400, "Clé fal absente — Réglages : le maillage passe par le "
+                 "stockage fal pour que Meshy puisse le lire.")
 
     # tout ce qui peut refuser refuse AVANT d'ouvrir un job payant
     try:
