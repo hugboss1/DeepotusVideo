@@ -3770,6 +3770,15 @@ async def list_music_models():
     return music_service.catalog()
 
 
+@router.get("/music/lyrics-skeleton")
+async def music_lyrics_skeleton(theme: str = ""):
+    """T102 (plan-son-vfx T6) : un squelette [Verse]/[Chorus]/[Bridge] nourri
+    par la persona deepotus — un point de départ gratuit (aucun appel), que
+    l'éditeur de paroles de Son & VFX pose dans ses sections."""
+    from app.services import music_service
+    return {"lyrics": music_service.lyrics_skeleton("deepotus", theme=theme)}
+
+
 @router.post("/audio/music")
 async def generate_music_audio(request: Request):
     """Génération de musique via fal.ai (même clé que la vidéo).
@@ -3784,7 +3793,9 @@ async def generate_music_audio(request: Request):
     except Exception:
         payload = {}
     if settings.FAL_KEY:   # tâche #16
-        await _plafond({"kind": "music", "model": (payload or {}).get("model") or ""}, "son")
+        # la DURÉE descend aussi (T102) : ACE-Step est facturé à la seconde
+        await _plafond({"kind": "music", "model": (payload or {}).get("model") or "",
+                        "duration_s": (payload or {}).get("duration_s")}, "son")
     from app.services import music_service
     try:
         return await music_service.generate_music(payload or {})
@@ -3869,6 +3880,27 @@ async def audio_isolate(request: Request):
     except VC.SfxError as e:
         raise HTTPException(e.status, e.message)
     await LI.noter([r["filename"]], "sonvfx", kind="audio", parent=r["parent"], relation=r["relation"])
+    return r
+
+
+@router.post("/audio/duck")
+async def audio_duck(request: Request):
+    """T102 (plan-son-vfx T8, D1) — mix voix + musique DUCKÉ, sans timeline. Body {voice, music, music_db=-14,
+    ducking?: bool|{ratio,attack_ms,release_ms,threshold}} → mix_<voix>_<musique>.mp3, durée = la voix, mère = la
+    voix. Gratuit (ffmpeg local) : aucune garde de plafond."""
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    payload = payload if isinstance(payload, dict) else {}
+    from app.services import sfx_service
+    try:
+        r = await asyncio.get_running_loop().run_in_executor(
+            None, lambda: sfx_service.mix_duck(payload.get("voice"), payload.get("music"),
+                                               payload.get("music_db", -14), payload.get("ducking", True)))
+    except sfx_service.SfxError as e:
+        raise HTTPException(e.status, e.message)
+    await LI.noter([r["filename"]], "sonvfx", kind="audio", parent=r["parent"], relation="mix")
     return r
 
 
@@ -4029,14 +4061,42 @@ async def create_voiceover(request: Request):
     lang = str(payload.get("language") or "en").lower()
     if lang not in ("en", "fr"):
         lang = "en"
-    await _plafond(_op_tts(script, model), "son")   # tâche #16 (Voicebox : rien)
+    # T102 (plan-son-vfx T7) — LA DIRECTION D'INTERPRÉTATION. Le style préfixe
+    # ses balises v3 ; seul Eleven v3 les lit. Le modèle qui compte est le
+    # modèle EFFECTIF (demandé, sinon ELEVENLABS_MODEL) : regarder seulement
+    # le champ `model` retirait les balises d'un utilisateur dont le défaut
+    # d'app EST v3. Ailleurs (v2, flash, Voicebox) on retire et on le dit.
+    from app.services import voice_direction as VD, voice_providers as VP
+    from app.services.elevenlabs_service import resolve_model
+    notes: list[str] = []
+    prov = await loop.run_in_executor(None, VP.resolve_provider)
+    style = VD.clamp_style(payload.get("style"))
+    text = VD.apply_style(script, style)
+    try:
+        eff = resolve_model(model) if prov == "elevenlabs" else None
+    except ValueError as e:                       # modèle inconnu → 400 propre
+        raise HTTPException(400, str(e))
+    if eff == "eleven_v3":
+        bad = VD.unknown_tags(text)
+        if bad:
+            notes.append("balises absentes de la doc Eleven v3, laissées telles "
+                         "quelles : " + ", ".join(bad))
+        if style["tags"]:
+            v_settings = dict(v_settings or {}, stability=style["stability"])
+    elif VD.find_tags(text):
+        text = VD.strip_tags(text)
+        notes.append("balises retirées : " + (
+            "Voicebox ne les interprète pas" if prov == "voicebox"
+            else f"seul Eleven v3 les interprète (modèle : {eff or 'défaut'})"))
+    # la garde chiffre CE QUI PART (balises comprises : ElevenLabs les facture)
+    await _plafond(_op_tts(text, model), "son")   # tâche #16 (Voicebox : rien)
     base = re.sub(r"[^A-Za-z0-9_-]+", "_", str(payload.get("name") or "narration")).strip("_")[:40]
     fn = f"{base or 'narration'}-{random.randint(100000, 999999)}.mp3"
     dest = _audio_dir() / fn
     try:
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(
-            None, lambda: voice.generate_long(text=script, output_path=dest,
+            None, lambda: voice.generate_long(text=text, output_path=dest,
                                               language=lang, voice_id=voice_id,
                                               model_id=model,
                                               settings_override=v_settings))
@@ -4053,7 +4113,20 @@ async def create_voiceover(request: Request):
             "kind": "voix", "prompt": script[:200],
             "created": datetime.now().isoformat(timespec="seconds")}))
     return {"ok": True, "filename": fn, "url": f"/api/audio/{fn}",
-            "size_kb": dest.stat().st_size // 1024}
+            "size_kb": dest.stat().st_size // 1024, "notes": notes}
+
+
+@router.get("/voice-tags")
+async def voice_tags():
+    """T102 (plan-son-vfx T7) : la palette des balises Eleven v3 (registre relu
+    le 06/10/2026) et le fournisseur actif — l'écran ne propose la palette que
+    si ElevenLabs est là, et DIT pourquoi sinon."""
+    from app.services import voice_direction as VD, voice_providers as VP
+    prov = await asyncio.get_running_loop().run_in_executor(None, VP.resolve_provider)
+    return {"groups": VD.V3_TAGS, "experimental": sorted(VD.EXPERIMENTAL),
+            "max_tags": VD.MAX_TAGS, "model": "eleven_v3",
+            "providers": {"elevenlabs": prov == "elevenlabs",
+                          "voicebox": prov == "voicebox"}}
 
 
 @router.get("/voice-models")

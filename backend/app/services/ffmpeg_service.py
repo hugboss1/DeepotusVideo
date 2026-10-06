@@ -76,8 +76,14 @@ class FFmpegMerger:
         music_path: Optional[Path] = None,
         music_volume_db: float = -14.0,
         keep_video_audio: bool = False,
+        ducking: bool = True,
     ) -> Path:
         """Merge a video with an optional voiceover and/or looped background music.
+
+        - ducking (T102, plan-son-vfx T8) : with a voiceover AND music, the
+          voice drives a sidechain compressor on the music — the SAME chain
+          as the Montage (`sfx_service.ducking_filter`). Default on: the Quick
+          is ducked from this commit (measured ≥ 4 dB under the voice).
 
         - audio_path: a voiceover track streamed over the video.
         - music_path: a BGM track, looped (`-stream_loop -1`) to fill and mixed
@@ -131,8 +137,30 @@ class FFmpegMerger:
                 idx += 1
             if has_bgm:
                 inputs += ["-stream_loop", "-1", "-i", str(music_path)]
-                fc.append(f"[{idx}:a]volume={music_volume_db}dB,"
-                          f"aresample=async=1[abg]")
+                if has_vo and ducking:
+                    # D1 — la voix pilote le compresseur de la musique. La voix
+                    # est DÉDOUBLÉE : [avo] part au mix, [avosc] ne sert que de
+                    # signal de commande (il ne sort pas). Les deux entrées du
+                    # sidechaincompress doivent partager format et fréquence,
+                    # d'où l'aformat commun (une voix mono 24 kHz d'ElevenLabs
+                    # contre une musique stéréo 44,1 kHz fait échouer le graphe).
+                    # LE DÉTECTEUR EST PROLONGÉ (`apad`) : `sidechaincompress`
+                    # s'arrête à la fin de sa PLUS COURTE entrée — mesuré ici
+                    # même, une voix de 2 s coupait la musique d'une vidéo de
+                    # 6 s à 2 s (même piège que le Montage, montage_service
+                    # « P0 — la chaîne latérale doit durer… »). `-shortest`
+                    # borne ensuite la sortie à la vidéo.
+                    from app.services import sfx_service
+                    fmt = "aformat=sample_rates=44100:channel_layouts=stereo"
+                    fc[fc.index("[1:a]aresample=async=1[avo]")] = (
+                        f"[1:a]aresample=async=1,{fmt},asplit=2[avosc0][avo];"
+                        f"[avosc0]apad[avosc]")
+                    fc.append(f"[{idx}:a]volume={music_volume_db}dB,"
+                              f"aresample=async=1,{fmt}[abg0]")
+                    fc.append(f"[abg0][avosc]{sfx_service.ducking_filter(True)}[abg]")
+                else:
+                    fc.append(f"[{idx}:a]volume={music_volume_db}dB,"
+                              f"aresample=async=1[abg]")
                 alabels.append("[abg]")
                 idx += 1
             if not alabels:

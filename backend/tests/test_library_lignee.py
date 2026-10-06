@@ -180,10 +180,11 @@ async def main():
     AJOUTS = {
         "T098 /materials/from-photo": '"matieres")',
         "T100 /audio/enhance + /audio/isolate": '"sonvfx", kind="audio", parent=r["parent"], relation=r["relation"])',
+        "T102 /audio/duck": '"sonvfx", kind="audio", parent=r["parent"], relation="mix")',
     }
     texte = (RACINE / "backend/app/api/routes.py").read_text(encoding="utf-8")
     sites = texte.count("LI.noter(")
-    attendus = r_ro.decode("utf-8").count("LI.noter(") + 1 + 2
+    attendus = r_ro.decode("utf-8").count("LI.noter(") + 1 + 2 + 1
     check(f"I1 producteurs dans routes.py : les 19 de la base + ceux de {', '.join(AJOUTS)} = {attendus}",
           r_ro.decode("utf-8").count("LI.noter(") == 19 and sites == attendus
           and all(m in texte for m in AJOUTS.values()), str(sites))

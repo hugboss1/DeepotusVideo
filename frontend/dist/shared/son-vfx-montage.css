@@ -1125,3 +1125,17 @@
 .svm-switchrow{display:flex; align-items:center; gap:6px; font-size:12px;
   color:var(--ink2); cursor:pointer; user-select:none}
 .svm-switchrow input{accent-color:var(--accent); cursor:pointer}
+
+/* T102 (plan-son-vfx T6-T8) : paroles structurées, voix off dirigée, mix ducké */
+.svm-lyrics{display:grid; gap:6px; margin-top:10px}
+.svm-lyrsec{display:grid; grid-template-columns:96px 1fr auto; gap:6px; align-items:start}
+.svm-lyrsec .svm-musicprompt{margin-top:0}
+.svm-lyrtag{padding:6px 8px; border-radius:6px; border:1px solid var(--stroke);
+  background:transparent; color:var(--ink2); font-family:var(--f-mono); font-size:11px; min-width:0}
+.svm-lyrtag:focus{outline:none; border-color:var(--accent)}
+.svm-tagpal{display:flex; flex-direction:column; gap:4px; margin:8px 0}
+.svm-taggrp{display:flex; flex-wrap:wrap; gap:4px; align-items:center}
+.svm-minibtn[data-on]{border-color:var(--accent); color:var(--accent)}
+.svm-minibtn[data-on]:hover{border-color:var(--accent); color:var(--accent)}
+.svm-voapercu{font-family:var(--f-mono); font-weight:500; color:var(--ink2); word-break:break-word}
+.svm-mix .svm-note b{color:var(--ink2); font-weight:600}
