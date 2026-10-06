@@ -36,7 +36,7 @@ export function refus(d) {
   return "";
 }
 
-export async function chargerJobs() {
+export async function chargerJobs(choix) {
   const s = await jget("/api/etabli/sources");
   F.jobs = (s.jobs || []).filter((j) => j.source === "assets3d" && j.etapes && j.etapes.length)
     .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
@@ -44,9 +44,76 @@ export async function chargerJobs() {
   sel.innerHTML = F.jobs.length
     ? F.jobs.map((j) => `<option value="${esc(j.id)}">${esc(j.nom)} · ${esc(j.moteur || "?")} · v${esc(j.etapes[j.etapes.length - 1].version || "?")}</option>`).join("")
     : `<option value="">aucun job Game Assets 3D</option>`;
-  F.job = F.jobs[0] ? F.jobs[0].id : null;
+  F.job = choix && F.jobs.some((j) => j.id === choix) ? choix : (F.jobs[0] ? F.jobs[0].id : null);
+  if (F.job) sel.value = F.job;
   await rafraichirDevis();
   await montrerAnimations();
+  await rafraichirConversion();
+}
+
+/* ── T105 C : conversion et import ──────────────────────────────────────────
+   Le serveur est la SEULE source de la liste des formats : coder « fbx » en dur ici promettrait un format le jour
+   où gltfpack change. Local = téléchargement immédiat ; Meshy = confirmé (1 crédit), suivi dans la file. */
+export async function rafraichirConversion() {
+  const fmt = $("#cvFmt"), go = $("#cvGo");
+  if (!F.job) { go.disabled = true; $("#cvConvertis").textContent = ""; return; }
+  const c = await jget(`/api/assets/3d/${encodeURIComponent(F.job)}/convert`).catch(() => null);
+  if (!c) { go.disabled = true; return; }
+  F.caps = c;
+  if (!fmt.dataset.pret) {
+    fmt.dataset.pret = "1";
+    fmt.innerHTML = c.local_export.map((f) => `<option value="${esc(f)}">${esc(f)} · local, gratuit</option>`).join("")
+      + c.meshy.map((f) => `<option value="${esc(f)}">${esc(f)} · Meshy, ${esc(c.credits_meshy)} cr</option>`).join("");
+    $("#cvNote").textContent = c.pourquoi_pas_local;
+  }
+  go.disabled = false;
+  $("#cvConvertis").innerHTML = (c.convertis || []).length
+    ? "déjà convertis : " + c.convertis.map((f) => `<a href="/api/assets/3d/${encodeURIComponent(F.job)}/convert/${encodeURIComponent(f)}" download>${esc(f)}</a>`).join(" · ")
+    : "";
+}
+
+function telecharger(blob, nom) {
+  const u = URL.createObjectURL(blob), a = document.createElement("a");
+  a.href = u; a.download = nom; a.click();
+  setTimeout(() => URL.revokeObjectURL(u), 4000);
+}
+
+export async function convertir(confirmer, toast) {
+  const fmt = $("#cvFmt").value, c = F.caps;
+  if (!F.job || !c || !fmt) return;
+  if (c.meshy.includes(fmt)) {
+    if (!await confirmer(`Convertir « ${F.job} » en ${fmt} chez Meshy : ${c.credits_meshy} crédit pour la tâche.\n${c.pourquoi_pas_local}`,
+      { titre: "Conversion Meshy", ok: `Payer ${c.credits_meshy} cr` })) return;
+    const r = await jpost(`/api/assets/3d/${encodeURIComponent(F.job)}/convert`, { format: fmt });
+    $("#cvEtat").textContent = "en file…";
+    suivre(r.job_id, async (j) => {
+      $("#cvEtat").textContent = j.status === "done" ? `${fmt} prêt` : `échec : ${j.error || "?"}`;
+      await rafraichirConversion();
+    }, "#cvEtat");
+    return;
+  }
+  const mm = Number($("#cvMm").value) || null;
+  const r = await fetch(`/api/assets/3d/${encodeURIComponent(F.job)}/convert`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ format: fmt, cible_mm: (fmt === "stl" || fmt === "3mf") ? mm : null }) });
+  if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.detail || `conversion ${fmt} → ${r.status}`); }
+  const cd = r.headers.get("content-disposition") || "";
+  const m = /filename="([^"]+)"/.exec(cd);
+  telecharger(await r.blob(), m ? m[1] : `${F.job}.${fmt}`);
+  $("#cvEtat").textContent = `${fmt} téléchargé`;
+}
+
+export async function importer(fichier, toast) {
+  if (!fichier) return;
+  const fd = new FormData();
+  fd.append("file", fichier);
+  $("#cvEtat").textContent = `import de ${fichier.name}…`;
+  const r = await fetch("/api/assets/3d/importer", { method: "POST", body: fd });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.detail || `import → ${r.status}`);
+  $("#cvEtat").textContent = `${fichier.name} → job ${j.job} (${Number(j.triangles).toLocaleString("fr-FR")} tris)`;
+  await chargerJobs(j.job);
+  toast(`Modèle importé : ${j.job}`);
 }
 
 export function dessinerActions(connues) {
@@ -111,12 +178,12 @@ export async function montrerAnimations() {
   if (anims[0]) montrerGlb(anims[0].url, true);
 }
 
-export function suivre(jobId, onDone) {
+export function suivre(jobId, onDone, cible = "#rigEtat") {
   clearInterval(F.poll);
   F.poll = setInterval(async () => {
     const j = await jget(`/api/jobs/${jobId}`).catch(() => null);
     if (!j) return;
-    $("#rigEtat").textContent = `${j.current_step || ""} ${j.progress || 0} %`;
+    $(cible).textContent = `${j.current_step || ""} ${j.progress || 0} %`;
     if (j.status === "done" || j.status === "failed") { clearInterval(F.poll); onDone(j); }
   }, 2500);
 }
@@ -146,6 +213,14 @@ export function brancher({ confirmer, toast }) {
   $("#btnRig").addEventListener("click", () => lancerRig(confirmer, toast).catch((e) => {
     $("#btnRig").disabled = false; toast(String(e.message || e));
   }));
-  $("#falJob").addEventListener("change", (ev) => { F.job = ev.target.value || null; rafraichirDevis(); montrerAnimations(); });
+  $("#falJob").addEventListener("change", (ev) => {
+    F.job = ev.target.value || null; rafraichirDevis(); montrerAnimations(); rafraichirConversion();
+  });
   $("#animPick").addEventListener("change", (ev) => montrerGlb(ev.target.value, true));
+  $("#cvGo").addEventListener("click", () => convertir(confirmer, toast).catch((e) => toast(String(e.message || e))));
+  $("#cvImport").addEventListener("change", (ev) => {
+    const f = ev.target.files && ev.target.files[0];
+    ev.target.value = "";
+    importer(f, toast).catch((e) => { $("#cvEtat").textContent = ""; toast(String(e.message || e)); });
+  });
 }

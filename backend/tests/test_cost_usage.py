@@ -274,6 +274,45 @@ check("cout_asset3d_texturage_est_facture_en_credits_meshy",
       _tx > 0 and _d.get("total_usd") == round(_tx, 2)
       and (_d.get("by_provider") or {}) == {"meshy": round(_tx, 4)},
       f"{_d} vs devis retexture {_tx}")
+# Le RIG Meshy (T104) : son cost_meta ne porte pas `engine` — il tombait sur
+# le maillage Tripo par defaut (0,30 USD chez fal) au lieu des credits Meshy.
+# Les cost_meta ci-dessous sont ceux qu'ecrit `POST /assets/3d/{job}/rig`.
+_rg = _devis({"kind": "asset3d_rig", "remesh_requis": False, "actions": []})
+_d = _cout("asset3d", cost_meta='{"job": "abcd1234", "rig": true, "version": 3,'
+                                ' "meshy_task": "t1", "remesh": false, "animations":'
+                                ' {"walking": "anim_walking.v3.glb",'
+                                ' "running": "anim_running.v3.glb"}}')
+check("cout_asset3d_rig_est_facture_en_credits_meshy",
+      _rg > 0 and _d.get("total_usd") == round(_rg, 2)
+      and (_d.get("by_provider") or {}) == {"meshy": round(_rg, 4)},
+      f"{_d} vs devis rig {_rg}")
+# remesh exige + actions nommees par la route (cle `actions`) : une ligne par
+# tache Meshy, comme le devis montre avant le tir.
+_rg = _devis({"kind": "asset3d_rig", "remesh_requis": True, "actions": [0, 4]})
+_d = _cout("asset3d", cost_meta='{"job": "abcd1234", "rig": true, "version": 3,'
+                                ' "meshy_task": "t1", "remesh": true, "actions": [0, 4],'
+                                ' "animations": {"walking": "w.glb", "action_0": "a0.glb"}}')
+check("cout_asset3d_rig_compte_remesh_et_actions_demandees",
+      _rg > 0 and _d.get("total_usd") == round(_rg, 2)
+      and (_d.get("by_provider") or {}) == {"meshy": round(_rg, 4)},
+      f"{_d} vs devis rig+remesh+2 actions {_rg}")
+# un rig d'AVANT la cle `actions` : les ids se relisent sur les clips rapatries
+_rg = _devis({"kind": "asset3d_rig", "remesh_requis": False, "actions": [4]})
+_d = _cout("asset3d", cost_meta='{"job": "abcd1234", "rig": true, "version": 3,'
+                                ' "meshy_task": "t1", "remesh": false, "animations":'
+                                ' {"walking": "w.glb", "action_4": "a4.glb"}}')
+check("cout_asset3d_rig_ancien_relit_les_actions_sur_les_clips",
+      _rg > 0 and _d.get("total_usd") == round(_rg, 2),
+      f"{_d} vs devis rig+1 action {_rg}")
+# Le RAFFINEMENT : au palier de texture qu'il a obtenu (HD chez Tripo H3.1 =
+# 0,40 USD, pas 0,30) — `texture_mode` est dans son cost_meta.
+_rf = _devis({"kind": "asset3d", "engine": "tripo-h3.1", "textures": True, "quality": "hd"})
+_d = _cout("asset3d", cost_meta='{"engine": "tripo-h3.1", "job": "abcd1234",'
+                                ' "refine": true, "version": 2, "texture_mode": "HD"}')
+check("cout_asset3d_raffinement_hd_est_facture_au_palier_hd",
+      _rf > 0 and _d.get("total_usd") == round(_rf, 2)
+      and (_d.get("by_provider") or {}) == {"fal": round(_rf, 4)},
+      f"{_d} vs devis raffinement HD {_rf}")
 
 
 # ── [4] l'INCONNU : zero, et il se nomme ────────────────────────────────────
