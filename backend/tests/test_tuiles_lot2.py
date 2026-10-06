@@ -203,6 +203,115 @@ def test_ecran_offre_le_style_d_un_lieu():
     assert "/images/generate" not in js, "la route formate, elle ne génère pas : aucun tir payant depuis ici"
 
 
+# ═════════════════════════════════ T12 (D3) ══════════════════════════════════
+# Le peintre envoie une GRILLE, Python compose (masque_voisins + composer_carte, borné : hors grille = vide). ÉCARTS
+# AU PLAN : une borne en PIXELS comme l'aperçu (128 cases de 512 px = 65 536 px de côté), le travail PIL hors de la
+# boucle d'évènements, la poignée `__tljeu.etat` (le plan lisait `.state`, toujours vide), et un MODE « peintre »
+# dans #tlTabs (les onglets tabPeintre/panPeintre du plan n'existent pas).
+
+def _jeu_carre(c, a, b, cote=32, jeu="blob47", variantes=2):
+    async def f():
+        r = await c.post("/api/tiles/jeu", json={"matiere_a": {"image": a}, "matiere_b": {"image": b}, "jeu": jeu,
+                                                 "cote": cote, "variantes": variantes, "nom": "pe"})
+        assert r.status_code == 200, r.text
+        return r.json()["tid"]
+    return f()
+
+
+def test_route_carte_compose_ce_que_le_peintre_a_pose():
+    import json as _json
+    from app.services import tile_ops as TO, tile_store as TS
+    from app.services.storage import init_db
+
+    async def sc():
+        await init_db()
+        a = _image("pe_a.png", _bruit(128, 21)); b = _image("pe_b.png", _bruit(128, 22, (60, 30, 0)))
+        async with _client() as c:
+            tid = await _jeu_carre(c, a, b)
+            g = [[0] * 5 for _ in range(5)]                # une croix de 5x5
+            for x in range(5):
+                g[2][x] = 1
+            for y in range(5):
+                g[y][2] = 1
+            r = await c.post(f"/api/tiles/{tid}/carte", json={"grille": g, "graine": 1})
+            assert r.status_code == 200, r.text
+            d = r.json()
+            plan = d["plan"]
+            assert len(plan) == 5 and len(plan[0]) == 5
+            base = TO.BLOB47.index(TO.N | TO.E | TO.S | TO.W) * 2
+            assert base <= plan[2][2] < base + 2, plan[2][2]           # le centre : les quatre arêtes
+            assert plan[0][0] == d["vide"], plan[0][0]                  # coin non peint
+            bout = TO.BLOB47.index(TO.E) * 2                            # BORNÉ : hors grille = vide, pas de tore
+            assert bout <= plan[2][0] < bout + 2, plan[2][0]
+            dossier = TS.tileset_dir(tid)
+            with Image.open(dossier / "carte.png") as im:
+                assert im.size == (5 * 32, 5 * 32), im.size
+            doc = _json.loads((dossier / "carte.json").read_text("utf-8"))
+            assert doc["plan"] == plan and doc["grille"] == g and doc["cote"] == 32 and doc["tid"] == tid
+            assert doc["colonnes"] == 8 and doc["jeu"] == "blob47"       # de quoi relire l'atlas
+            assert d["url"].endswith("/fichier/carte.png") and d["json"].endswith("/fichier/carte.json")
+            # même graine, même grille : mêmes octets (le peintre recompose à chaque coup de pinceau)
+            avant = (dossier / "carte.png").read_bytes()
+            await c.post(f"/api/tiles/{tid}/carte", json={"grille": g, "graine": 1})
+            assert (dossier / "carte.png").read_bytes() == avant
+            # une grille de valeurs « vraies » quelconques se lit en 0/1
+            r = await c.post(f"/api/tiles/{tid}/carte", json={"grille": [[True, 0], [2, None]]})
+            assert r.status_code == 200 and r.json()["grille"] == [[1, 0], [1, 0]], r.text
+            # un blob16 aussi (index_de réduit aux arêtes)
+            t16 = await _jeu_carre(c, a, b, jeu="blob16", variantes=1)
+            r = await c.post(f"/api/tiles/{t16}/carte", json={"grille": [[1, 1], [1, 0]]})
+            assert r.status_code == 200, r.text
+    asyncio.run(sc())
+
+
+def test_les_refus_de_la_carte():
+    from app.services.storage import init_db
+
+    async def sc():
+        await init_db()
+        a = _image("pr_a.png", _bruit(64, 31)); b = _image("pr_b.png", _bruit(64, 32))
+        async with _client() as c:
+            tid = await _jeu_carre(c, a, b)
+            big = await _jeu_carre(c, a, b, cote=512, variantes=1)
+            r = await c.post("/api/tiles/jeu", json={"matiere_a": {"image": a}, "forme": "iso", "cote": 32})
+            forme = r.json()["tid"]
+            cas = [(tid, {"grille": []}, 400, "grille"), (tid, {}, 400, "grille"),
+                   (tid, {"grille": [[1, 0], [1]]}, 400, "rectangulaire"),
+                   (tid, {"grille": [[1] * 200] * 200}, 400, "128"),
+                   (tid, {"grille": ["abc"]}, 400, "grille"),
+                   (big, {"grille": [[1] * 10] * 10}, 400, "px"),              # 10 cases x 512 px = 5120 px
+                   (forme, {"grille": [[1]]}, 400, "carre"),
+                   ("tile_00000000", {"grille": [[1]]}, 404, "")]
+            for t, corps, code, mot in cas:
+                r = await c.post(f"/api/tiles/{t}/carte", json=corps)
+                assert r.status_code == code and mot in r.text, (corps if len(str(corps)) < 80 else "…", r.status_code, r.text[:200])
+            r = await c.post(f"/api/tiles/{big}/carte", json={"grille": [[1] * 8] * 8})   # 4096 px : la borne passe
+            assert r.status_code == 200, r.text
+    asyncio.run(sc())
+
+
+def test_ecran_porte_le_peintre():
+    import shutil
+    import subprocess
+    html = (FRONT / "index.html").read_text(encoding="utf-8")
+    tl = (FRONT / "tilelab.js").read_text(encoding="utf-8")
+    js = (FRONT / "peintre.js").read_text(encoding="utf-8")
+    assert 'data-m="peintre"' in html and 'src="peintre.js"' in html
+    assert html.index('src="jeu.js"') < html.index('src="peintre.js"'), "le peintre lit le jeu de jeu.js"
+    for ident in ("tlPeintreSrc", "peintreOut", "peCanvas", "peLargeur", "peHauteur", "peEffacer", "peCarte",
+                  "peStatus", "peJson", "pePng", "peGraine"):
+        assert html.count(f'id="{ident}"') == 1, ident
+    assert '"peintre"' in tl and "tlPeintreSrc" in tl and "peintreOut" in tl, "tlMode connaît le peintre"
+    assert "window.__tljeu.etat" in js and ".state" not in js, "la poignée de jeu.js s'appelle etat"
+    assert "/api/tiles/${" in js and "/carte`" in js
+    for interdit in ("canon", "masque_voisins", "BLOB47", "index_de"):
+        assert interdit not in js, f"{interdit} : le tuilage vit côté Python"
+    node = shutil.which("node")
+    if node:
+        r = subprocess.run([node, "--check", str(FRONT / "peintre.js")], capture_output=True, text=True)
+        assert r.returncode == 0, r.stderr
+
+
 def _main():
     rouges = []
     for nom, fn in sorted(globals().items()):

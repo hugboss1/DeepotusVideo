@@ -220,12 +220,13 @@ function tlMode(m) {
   const seul = m === "seamless";
   $("#tlSeamlessSrc").classList.toggle("hidden", !seul); $("#tlFeuilleSrc").classList.toggle("hidden", m !== "feuille");
   $("#tlJeuSrc").classList.toggle("hidden", m !== "jeu"); $("#tlFormesSrc").classList.toggle("hidden", m !== "formes");
+  $("#tlPeintreSrc").classList.toggle("hidden", m !== "peintre"); $("#peintreOut").classList.toggle("hidden", m !== "peintre");   // t116
   document.querySelector(".out-pane .settings").classList.toggle("hidden", !seul);
   $("#result").classList.toggle("hidden", !seul || !result); $("#outEmpty").classList.toggle("hidden", !seul || !!result);
   $("#feuilleOut").classList.toggle("hidden", m !== "feuille");
   $("#jeuOut").classList.toggle("hidden", m !== "jeu"); $("#formesOut").classList.toggle("hidden", m !== "formes");
   document.querySelector(".out-pane .pane-head h2").textContent =
-    { seamless: "Tuile seamless", feuille: "Feuille de tuiles", jeu: "Jeu de tuiles", formes: "Tuile de forme" }[m] || "Tile Lab";
+    { seamless: "Tuile seamless", feuille: "Feuille de tuiles", jeu: "Jeu de tuiles", formes: "Tuile de forme", peintre: "Peintre" }[m] || "Tile Lab";
   document.dispatchEvent(new CustomEvent("tl-mode", { detail: m }));
 }
 const tlTampon = (im) => { const c = document.createElement("canvas"); c.width = im.naturalWidth; c.height = im.naturalHeight; const x = c.getContext("2d"); x.drawImage(im, 0, 0); const d = x.getImageData(0, 0, c.width, c.height); return { w: c.width, h: c.height, data: d.data }; };

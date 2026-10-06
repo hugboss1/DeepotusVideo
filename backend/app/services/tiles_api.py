@@ -349,3 +349,56 @@ async def prompt_lieu(body: dict | None = None):
         palette=("Palette imposée : " + ", ".join(palette)) if palette else "Palette libre")
     return {"entity_id": eid, "lieu": e.name, "planche": planche, "palette": palette, "surface": surface,
             "prompt": prompt}
+
+
+# ── le peintre minimal (D3, tâche t116 / plan T12) ─────────────────────────────────────────────────────────────────
+#: côté maximal d'une grille du peintre, en CASES
+CASES_MAX = 128
+#: et de la carte composée, en PIXELS — la même borne que l'aperçu : 128 cases de 512 px feraient 65 536 px de côté
+CARTE_PX_MAX = APERCU_PX_MAX
+
+
+@router.post("/{tid}/carte")
+async def carte(tid: str, body: dict | None = None):
+    """D3 : la carte du peintre. Body {grille [[0|1]], graine}. Le peintre envoie une grille booléenne ; Python lit
+    les voisinages, choisit les tuiles (`composer_carte`) et écrit carte.png + carte.json dans le dossier du jeu. La
+    grille du peintre est BORNÉE (hors grille = vide) là où l'aperçu est torique. Local et gratuit."""
+    import json as _json
+
+    meta = _lire_meta(tid)
+    _carre_seulement(meta, "le peintre")
+    body = body if isinstance(body, dict) else {}
+    grille = body.get("grille")
+    if not isinstance(grille, list) or not grille or not all(isinstance(l, list) for l in grille):
+        raise HTTPException(400, "grille : une liste de lignes (listes de 0/1) non vide attendue")
+    largeur = len(grille[0])
+    if largeur == 0 or any(len(l) != largeur for l in grille):
+        raise HTTPException(400, "grille : toutes les lignes doivent avoir la même longueur (grille rectangulaire)")
+    if len(grille) > CASES_MAX or largeur > CASES_MAX:
+        raise HTTPException(400, f"grille : au plus {CASES_MAX} cases de côté")
+    cote = int(meta["cote"])
+    if max(len(grille), largeur) * cote > CARTE_PX_MAX:
+        raise HTTPException(400, f"carte trop grande : {max(len(grille), largeur)} cases de {cote} px dépassent "
+                                 f"{CARTE_PX_MAX} px de côté — réduis la grille ou le côté des tuiles")
+    grille = [[1 if v else 0 for v in ligne] for ligne in grille]
+    try:
+        graine = int(body.get("graine") or 1)
+    except (TypeError, ValueError):
+        raise HTTPException(400, "graine : un entier")
+
+    def _faire():
+        jeu = _refaire_jeu(meta)
+        img, plan = TO.composer_carte(grille, jeu, graine=graine, boucle=False)
+        d = TS.tileset_dir(tid, create=True)
+        img.save(d / "carte.png", format="PNG")
+        doc = {"tid": tid, "jeu": meta["jeu"], "cote": cote, "colonnes": meta["colonnes"], "vide": jeu["vide"],
+               "graine": graine, "grille": grille, "plan": plan}
+        tmp = d / "carte.json.tmp"
+        tmp.write_text(_json.dumps(doc, ensure_ascii=False), encoding="utf-8")
+        tmp.replace(d / "carte.json")
+        return plan, jeu["vide"]
+
+    plan, vide = await asyncio.get_running_loop().run_in_executor(None, _faire)
+    logger.info(f"tuiles/carte {len(grille)}x{largeur}: {tid}")
+    return {"tid": tid, "plan": plan, "grille": grille, "vide": vide,
+            "url": f"/api/tiles/{tid}/fichier/carte.png", "json": f"/api/tiles/{tid}/fichier/carte.json"}
