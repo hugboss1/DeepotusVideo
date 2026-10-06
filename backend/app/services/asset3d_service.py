@@ -488,6 +488,7 @@ async def generate_asset3d(payload: dict, job_id: str, on_step=None):
     shutil.copy2(src, out_dir / "shot_0.png")
     shots = ["shot_0.png"]
     image_urls = [src_url]
+    cles = ["source"]
     if payload.get("multiview"):
         try:
             _nv = max(1, min(4, int(payload.get("views", 3))))
@@ -506,6 +507,44 @@ async def generate_asset3d(payload: dict, job_id: str, on_step=None):
                 await asyncio.to_thread(_download, u, out_dir / f"shot_{i}.png")
                 shots.append(f"shot_{i}.png")
                 image_urls.append(u)
+                # la CLÉ de la vue, pas sa position : une vue ratée décalait
+                # l'étiquetage (le profil gauche passait pour le dos chez H3.1)
+                cles.append(VUES_CLES[i - 1])
+
+    return await tirer_moteur(job_id, image_urls, payload, shots, on_step,
+                              cles=cles)
+
+
+async def tirer_moteur(job_id: str, image_urls: list, payload: dict,
+                       shots: list, on_step=None, cles: list | None = None):
+    """Le moteur, les téléchargements, le manifeste et la fiche — la MOITIÉ
+    AVAL de `generate_asset3d`, extraite telle quelle (T106, plan-moteurs-3d
+    T6) pour que les vues puissent être regardées, rejouées et détourées
+    AVANT le tir (`asset3d_views`).
+
+    `image_urls` et `shots` sont parallèles (source d'abord) ; `cles` aussi :
+    'source', 'front', 'back', 'left', 'right' — sans elles, l'étiquetage est
+    positionnel, comme avant. Les coutures des bancs (`_run_engine`,
+    `_download`) ne bougent pas."""
+    import asyncio
+    from pathlib import Path
+    from app.config import settings
+
+    async def _step(label, pct):
+        if on_step:
+            await on_step(label, pct)
+
+    engine = str(payload.get("engine") or "tripo").lower()
+    if engine not in ENGINES:
+        raise ValueError(f"Unknown engine: {engine}")
+    formats = [f.lower() for f in (payload.get("formats") or ["glb"])]
+    if "glb" not in formats:
+        formats = ["glb"] + formats
+    out_dir = settings.outputs_path / "assets3d" / job_id
+    out_dir.mkdir(parents=True, exist_ok=True)
+    fn = Path(str(payload.get("image_filename") or "")).name
+    if not cles or len(cles) != len(image_urls):
+        cles = cles_des_vues(len(image_urls))
 
     await _step(f"Running {engine}", 60)
     base_opts = {"format": "glb", "textures": payload.get("textures", True),
@@ -521,7 +560,7 @@ async def generate_asset3d(payload: dict, job_id: str, on_step=None):
     # views=4 la liste vaut source + 4 vues = 5 images alors que `max_images`
     # en déclare 4 (§8 : un drapeau qui ment est pire que pas de drapeau), et
     # H3.1 exige [front, left, back, right].
-    vues = ordonner_vues(engine, image_urls, cles_des_vues(len(image_urls)))
+    vues = ordonner_vues(engine, image_urls, cles)
     if len(vues) != len(image_urls):
         logger.info(f"{engine}: {len(image_urls)} vues → {len(vues)} envoyées "
                     f"(max_images {ENGINES[engine]['max_images']}"

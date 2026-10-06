@@ -8,6 +8,7 @@
 import { MeshyClient, MeshyPipeline, estimatePipeline }
   from "/meshy/meshy.client.js";
 import * as FAL from "./fal.js";   // T104 : l'Atelier fal (rig + animations Meshy d'un job Game Assets 3D)
+import * as VUES from "./vues.js";   // T106 : les vues avant le moteur (préparer, rejouer, détourer, tirer)
 
 const $ = (s) => document.querySelector(s);
 
@@ -949,9 +950,15 @@ function gotoSubtab(tab) {
   $("#engineGoto").addEventListener("click", () => {
     $("#falPanel").classList.remove("hidden");
     FAL.chargerJobs().catch((e) => toast(String(e.message || e)));
+    $("#vuesPanel").classList.remove("hidden");
+    VUES.charger().catch((e) => toast(String(e.message || e)));
   });
   $("#falHub").addEventListener("click", () => gotoSubtab("3d"));
   FAL.brancher({ confirmer: (m, o) => window.__dzDialogue.confirmer(m, o), toast });
+  /* T106 : un maillage tiré depuis des vues validées rejoint la liste des jobs de l'atelier */
+  VUES.brancher({ confirmer: (m, o) => window.__dzDialogue.confirmer(m, o),
+    saisir: (m, o) => window.__dzDialogue.saisir(m, o), toast,
+    onTire: () => FAL.chargerJobs().catch((e) => toast(String(e.message || e))) });
 
   /* Le filet des départs qui ne passent pas par ouvrirEtabli() : rechargement,
      fermeture de l'onglet, retour arrière, gotoSubtab. `pagehide` et non

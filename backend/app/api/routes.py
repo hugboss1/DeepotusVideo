@@ -1217,6 +1217,193 @@ async def texturer_asset3d_route(job: str, background_tasks: BackgroundTasks,
             "texturier": "meshy", "resolution": resolution,
             "credits": devis.get("credits"), "usd_estime": devis["total_usd"]}
 
+# ── T106 (plan-moteurs-3d T6, R10e P5) : les vues AVANT le tir ───────────────
+# Préparer (vues Seedream, AUCUN moteur) → regarder → rejouer une vue / la
+# détourer → tirer. Chaque route refuse TOUT ce qui peut l'être avant la garde
+# des plafonds (clé fal comprise : sans elle, le job échouait APRÈS la garde,
+# mesuré sur le rig en T104), puis garde, puis ouvre le job.
+
+async def _asset3d_occupe(job: str) -> bool:
+    """Un job vivant sur ce dossier : deux clics rapides paieraient deux fois."""
+    from app.services.storage import JobRecord, async_session_factory
+    async with async_session_factory() as s:
+        res = await s.execute(
+            _select(JobRecord).where(JobRecord.provider == "asset3d",
+                                     JobRecord.image_filename == f"asset3d_{Path(job).name}",
+                                     JobRecord.status.notin_(["done", "failed"])))
+        return res.scalars().first() is not None
+
+
+def _cle_fal_ou_400():
+    if not (settings.FAL_KEY or "").strip():
+        raise HTTPException(400, "Clé fal absente — Réglages : les vues et le moteur 3D passent par fal.")
+
+
+async def _job_asset3d_vues(job: str, titre: str, etape: str, travail, cost_meta):
+    """Ouvre le JobRecord de la file ; rend (job_id, la tâche de fond qui lance `travail(on_step)`)."""
+    from datetime import datetime as _dtu
+    import json as _json
+    from app.services.storage import JobRecord, async_session_factory
+    job_id = str(uuid4())
+    async with async_session_factory() as s:
+        s.add(JobRecord(id=job_id, status=JobStatus.GENERATING_VIDEO.value, progress=5, title=titre,
+                        image_filename=f"asset3d_{Path(job).name}", provider="asset3d", current_step=etape))
+        await s.commit()
+
+    async def on_step(label, pct):
+        async with async_session_factory() as s2:
+            jr2 = await s2.get(JobRecord, job_id)
+            if jr2 is not None:
+                jr2.current_step, jr2.progress = label, int(pct)
+                await s2.commit()
+
+    async def _run():
+        try:
+            r = await travail(on_step)
+            async with async_session_factory() as s:
+                jr = await s.get(JobRecord, job_id)
+                if jr is not None:
+                    jr.status, jr.progress = JobStatus.DONE.value, 100
+                    jr.current_step, jr.completed_at = "Complete", _dtu.utcnow()
+                    if isinstance(r, dict) and r.get("glb"):
+                        jr.final_video_path = r["glb"]
+                    jr.cost_meta = _json.dumps(cost_meta(r), ensure_ascii=False)
+                    await s.commit()
+        except Exception as e:
+            logger.exception(f"asset3d vues {job_id} failed: {e}")
+            async with async_session_factory() as s:
+                jr = await s.get(JobRecord, job_id)
+                if jr is not None:
+                    jr.status, jr.error, jr.current_step = JobStatus.FAILED.value, str(e), "Failed"
+                    await s.commit()
+    return job_id, _run
+
+
+def _vues_ou_http(fn, *a):
+    """Les refus du service en codes HTTP : absent → 404, « déjà tiré » → 409, le reste → 400."""
+    try:
+        return fn(*a)
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+    except ValueError as e:
+        raise HTTPException(409 if "déjà" in str(e) else 400, str(e))
+
+
+@router.get("/assets/3d/views")
+async def list_asset3d_views():
+    """Les jeux de vues du disque, le plus récent d'abord."""
+    from app.services import asset3d_views as AV
+    return {"jeux": await asyncio.to_thread(AV.lister_vues)}
+
+
+@router.post("/assets/3d/views")
+async def post_asset3d_views(background_tasks: BackgroundTasks, body: dict = None):
+    """Prépare un jeu de vues SANS lancer de moteur. Body {image_filename, engine?, views?=4, subject?, textures?,
+    quality?, formats?, geometry_detaillee?, quad?} — les options du moteur sont gardées pour le tir. Payant
+    (Seedream) : un job de la file. Rend {job_id (à poller), job (le dossier)}."""
+    from app.services import asset3d_service as A3, asset3d_views as AV, pricing as _pricing
+    body = dict(body or {})
+    engine = str(body.get("engine") or "tripo").lower()
+    if engine not in A3.ENGINES:
+        raise HTTPException(400, f"Moteur inconnu : {engine}")
+    fn = Path(str(body.get("image_filename") or "")).name
+    if not fn or not (settings.images_path / fn).is_file():
+        raise HTTPException(400, f"image_filename absente de la Bibliothèque : {body.get('image_filename')!r}")
+    n = _vues_ou_http(AV.nombre_de_vues, body)
+    fmts = body.get("formats") or ["glb"]
+    if not isinstance(fmts, list) or not all(isinstance(f, str) for f in fmts):
+        raise HTTPException(400, "formats : une liste de chaînes")
+    _cle_fal_ou_400()
+
+    op = {"kind": "asset3d_views", "views": n}
+    devis = _pricing.estimate(op)
+    await _plafond(op, "moteurs3d")
+    job = uuid4().hex[:8]
+    body.update(engine=engine, image_filename=fn, views=n)
+    job_id, run = await _job_asset3d_vues(
+        job, f"3D · vues · {body.get('subject') or fn}"[:120], "Vues",
+        lambda on_step: AV.preparer_vues(body, job, on_step),
+        lambda r: {"kind": "asset3d_views", "job": job, "views": n, "ratees": r.get("ratees")})
+    background_tasks.add_task(run)
+    return {"job_id": job_id, "status": "queued", "job": job, "usd_estime": devis["total_usd"]}
+
+
+@router.get("/assets/3d/{job}/views")
+async def get_asset3d_views(job: str):
+    from app.services import asset3d_views as AV
+    return _vues_ou_http(AV.lire_vues, job)
+
+
+@router.post("/assets/3d/{job}/views/{index}/rejouer")
+async def post_asset3d_view_rejouer(job: str, index: int, background_tasks: BackgroundTasks, body: dict = None):
+    """UNE vue régénérée (Seedream), avec `prompt` corrigé si donné. Rend un job_id à poller."""
+    from app.services import asset3d_views as AV, pricing as _pricing
+    body = body or {}
+    info = _vues_ou_http(AV.lire_vues, job)
+    _vues_ou_http(AV._ouvert, info)
+    v = _vues_ou_http(AV._vue, info, index)
+    if v["role"] == "source":
+        raise HTTPException(400, "la vue 0 est ta source : elle ne se régénère pas — change d'image dans la "
+                                 "Bibliothèque.")
+    if not str(body.get("prompt") or v.get("prompt") or "").strip():
+        raise HTTPException(400, "cette vue n'a pas de prompt : donnes-en un")
+    _cle_fal_ou_400()
+    if await _asset3d_occupe(job):
+        raise HTTPException(409, "Une opération est déjà en cours sur ce jeu de vues — attends qu'elle finisse.")
+
+    op = {"kind": "asset3d_views", "views": 1}
+    devis = _pricing.estimate(op)
+    await _plafond(op, "moteurs3d")
+    job_id, run = await _job_asset3d_vues(
+        job, f"3D · vue {int(index)} · {Path(job).name}", f"Vue {int(index)}",
+        lambda on_step: AV.rejouer_vue(job, index, prompt=body.get("prompt"), on_step=on_step),
+        lambda r: {"kind": "asset3d_views", "job": Path(job).name, "views": 1, "index": int(index)})
+    background_tasks.add_task(run)
+    return {"job_id": job_id, "status": "queued", "index": int(index), "usd_estime": devis["total_usd"]}
+
+
+@router.post("/assets/3d/{job}/views/{index}/detourer")
+async def post_asset3d_view_detourer(job: str, index: int, body: dict = None):
+    """Body {via?: "local"|"fal"}. Le local est gratuit et rapide : réponse directe. fal (rembg) est gardé."""
+    from app.services import asset3d_views as AV
+    body = body or {}
+    via = "fal" if str(body.get("via") or "local") == "fal" else "local"
+    _vues_ou_http(AV.verifier_detourage, job, index)
+    if await _asset3d_occupe(job):
+        raise HTTPException(409, "Une opération est déjà en cours sur ce jeu de vues — attends qu'elle finisse.")
+    if via == "fal":
+        _cle_fal_ou_400()
+        await _plafond({"kind": "asset3d_views", "views": 0, "rembg": 1}, "moteurs3d")
+    try:
+        return await AV.detourer_vue(job, index, via=via)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.post("/assets/3d/{job}/tirer")
+async def post_asset3d_tirer(job: str, background_tasks: BackgroundTasks):
+    """Le moteur, enfin — sur des vues regardées. Chiffré SANS les vues : elles ont été payées à la préparation et
+    aux rejeux. Rend un job_id à poller."""
+    from app.services import asset3d_views as AV, pricing as _pricing
+    info = _vues_ou_http(AV.verifier_tir, job)
+    _cle_fal_ou_400()
+    if await _asset3d_occupe(job):
+        raise HTTPException(409, "Une opération est déjà en cours sur ce jeu de vues — attends qu'elle finisse.")
+
+    p = info.get("payload") or {}
+    op = {"kind": "asset3d", "engine": info["engine"], "textures": p.get("textures", True),
+          "quality": p.get("quality") or "", "formats": p.get("formats") or ["glb"],
+          "geometry_detaillee": p.get("geometry_detaillee"), "quad": p.get("quad")}
+    devis = _pricing.estimate(op)
+    await _plafond(op, "moteurs3d")
+    job_id, run = await _job_asset3d_vues(
+        job, f"3D · {info['engine']} · vues validées · {Path(job).name}", f"Running {info['engine']}",
+        lambda on_step: AV.tirer_vues(job, on_step),
+        lambda r: {"engine": r["engine"], "files": r["files"], "shots": r["shots"], "job": Path(job).name,
+                   "skipped_formats": r.get("skipped_formats") or [], "vues_validees": True})
+    background_tasks.add_task(run)
+    return {"job_id": job_id, "status": "queued", "job": Path(job).name, "usd_estime": devis["total_usd"]}
+
 
 @router.post("/assets/3d/{job}/qc")
 async def qc_asset3d(job: str, body: dict = None):

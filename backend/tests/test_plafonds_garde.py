@@ -33,6 +33,8 @@ PAYANTES = {
     ("routes", "POST", "/shots/{shot_id}/image"),        # tâche #62 : l'image de production d'un plan (Nano Banana)
     ("routes", "POST", "/layout-templates/{template_id}/render"), ("routes", "POST", "/assets/3d"),
     ("routes", "POST", "/assets/3d/{job}/refine"), ("routes", "POST", "/assets/3d/{job}/texturer"),
+    ("routes", "POST", "/assets/3d/views"), ("routes", "POST", "/assets/3d/{job}/views/{index}/rejouer"),   # T106
+    ("routes", "POST", "/assets/3d/{job}/views/{index}/detourer"), ("routes", "POST", "/assets/3d/{job}/tirer"),
     ("routes", "POST", "/assets/3d/{job}/qc"), ("routes", "ROUTE", "/meshy/{meshy_path:path}"),
     ("routes", "POST", "/assets/sprite"), ("routes", "POST", "/news/script"), ("routes", "POST", "/audio/sfx"),
     ("routes", "POST", "/audio/music"), ("routes", "POST", "/audio/voiceover"), ("routes", "POST", "/episodes/scenes"),
