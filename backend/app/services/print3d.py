@@ -119,12 +119,16 @@ def _accessor(doc, binc, i):
                           quoi="l'export d'impression")
 
 
-def lire_glb_triangles(data: bytes):
+def lire_glb_triangles(data: bytes, noeuds=None):
     """GLB v2 → liste de triangles ((x,y,z)×3) en coordonnées MONDE.
+
+    `noeuds` (facultatif, tâche T092) : ne lit que les maillages portés par ces
+    index de nœud — les transformations des ancêtres s'appliquent toujours.
 
     Refus parlants (ValueError) : compressions requises, buffers externes,
     primitives non TRIANGLES, composants hors float32/u16/u32.
     """
+    garder = None if noeuds is None else {int(n) for n in noeuds}
     doc, binc = _chunks(data)
     for ext in doc.get("extensionsRequired") or []:
         if ext in _REFUS_EXTENSIONS:
@@ -148,7 +152,7 @@ def lire_glb_triangles(data: bytes):
     def _noeud(i, parent):
         node = doc["nodes"][i]
         monde = _mat_mul(parent, _mat_locale(node))
-        if "mesh" in node:
+        if "mesh" in node and (garder is None or i in garder):
             _mesh(node["mesh"], monde)
         for enfant in node.get("children", []):
             _noeud(enfant, monde)
@@ -158,6 +162,42 @@ def lire_glb_triangles(data: bytes):
     for i in racines:
         _noeud(i, _IDENTITE)
     return tris
+
+
+def glb_de_triangles(tris, nom: str = "piece") -> bytes:
+    """Le chemin inverse de `lire_glb_triangles` (tâche T092) : un GLB minimal
+    — un nœud, un maillage, des sommets PARTAGÉS (dédoublonnés à l'identique,
+    ce qui garde fermé un solide fermé) — à partir de triangles MONDE."""
+    from app.services.mesh_edit import ecrire_glb
+    if not tris:
+        raise ValueError("aucun triangle à écrire")
+    index, pts, idx = {}, [], []
+    for t in tris:
+        for p in t:
+            q = (float(p[0]), float(p[1]), float(p[2]))
+            k = index.get(q)
+            if k is None:
+                k = index[q] = len(pts)
+                pts.append(q)
+            idx.append(k)
+    pos = struct.pack("<%df" % (3 * len(pts)), *[c for p in pts for c in p])
+    court = len(pts) < 65536
+    ind = struct.pack(("<%dH" if court else "<%dI") % len(idx), *idx)
+    pad = (-len(pos)) % 4
+    binc = pos + b"\x00" * pad + ind
+    doc = {"asset": {"version": "2.0", "generator": "Deepotus print3d"},
+           "scene": 0, "scenes": [{"nodes": [0]}],
+           "nodes": [{"mesh": 0, "name": str(nom)}],
+           "meshes": [{"name": str(nom), "primitives": [{"attributes": {"POSITION": 0}, "indices": 1, "mode": 4}]}],
+           "buffers": [{"byteLength": len(binc) + ((-len(binc)) % 4)}],
+           "bufferViews": [{"buffer": 0, "byteOffset": 0, "byteLength": len(pos), "target": 34962},
+                           {"buffer": 0, "byteOffset": len(pos) + pad, "byteLength": len(ind), "target": 34963}],
+           "accessors": [{"bufferView": 0, "componentType": 5126, "count": len(pts), "type": "VEC3",
+                          "min": [min(p[c] for p in pts) for c in range(3)],
+                          "max": [max(p[c] for p in pts) for c in range(3)]},
+                         {"bufferView": 1, "componentType": 5123 if court else 5125, "count": len(idx),
+                          "type": "SCALAR"}]}
+    return ecrire_glb(doc, binc)
 
 
 # ── bbox, échelle mm, pose au sol ────────────────────────────────────────────

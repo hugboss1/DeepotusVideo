@@ -973,7 +973,7 @@ def test_le_guide_ne_cite_QUE_des_libelles_qui_existent_dans_l_ecran():
     ecran = (_lire("etabli/etabli.js") + _lire("etabli/index.html") + _lire("studio3d/index.html"))
     for libelle in ("Réparer en un clic", "Poser sur une face", "Surplombs", "Tranches", "Creuser", "Décimer",
                     "Ranger sur le plateau", "Mesurer", "→ Impression 3D", "Ouvrir dans le slicer",
-                    "07 · Établi 3D →", "écrire la version", "taille cible", "Sur la plaque"):
+                    "07 · Établi 3D →", "écrire la version", "taille cible", "Sur la plaque", "Orienter"):
         # comme TEXTE d'un contrôle — balisage `>libellé<` ou chaîne exacte écrite par le JS —, pas n'importe où :
         # « → Impression 3D » vit aussi dans un message de refus, qui survivait au renommage du bouton
         assert re.search(r">\s*" + re.escape(libelle) + r"\s*<", ecran) or f'"{libelle}"' in ecran, libelle
@@ -984,17 +984,31 @@ def test_le_guide_ne_cite_QUE_des_libelles_qui_existent_dans_l_ecran():
 
 
 def test_le_guide_ne_promet_pas_ce_que_l_etabli_ne_fait_pas_encore():
-    for nom, absent in (("fr.html", "pas encore d'orientation automatique"), ("en.html", "no auto-orientation")):
+    # T092 : l'orientation automatique EXISTE — le guide la décrit, avec l'avertissement du wiki OrcaSlicer
+    for nom, phrase in (("fr.html", "ne trouve pas toujours la meilleure pose"),
+                        ("en.html", "does not always find the best pose")):
         h = (GUIDE / nom).read_text("utf-8")
-        assert absent in h, nom
+        assert phrase in h and "<em>Orienter</em>" in h, nom
+        assert "pas encore d'orientation" not in h and "no auto-orientation" not in h, nom
     fr = (GUIDE / "fr.html").read_text("utf-8")
     assert "Le trou de drainage n'est pas encore dans l'Établi" in fr
 
 
 def test_les_PDF_sont_plus_recents_que_leur_source_HTML():
-    """Le PDF est REGÉNÉRÉ, pas oublié : c'est lui que l'utilisateur imprime."""
+    """Le PDF est REGÉNÉRÉ, pas oublié : c'est lui que l'utilisateur imprime.
+
+    PAR LES DATES DE COMMIT, et c'est la correction du 06/10 : dans un worktree neuf, git écrit les fichiers dans un
+    ordre quelconque et leurs dates de modification ne disent plus rien (le banc rougissait sur une extraction
+    propre). Un HTML MODIFIÉ et non commité, lui, se juge à la date du fichier : c'est le cas d'un guide qu'on édite."""
+    def git(*a):
+        return subprocess.run(["git", *a], capture_output=True, text=True, cwd=str(RACINE)).stdout.strip()
     for html, pdf in (("fr.html", "Deepotus-Guide-FR.pdf"), ("en.html", "Deepotus-Guide-EN.pdf")):
-        assert (GUIDE / pdf).stat().st_mtime >= (GUIDE / html).stat().st_mtime
+        h, f = f"docs/guide/{html}", f"docs/guide/{pdf}"
+        if git("status", "--porcelain", "--", h):
+            assert (GUIDE / pdf).stat().st_mtime >= (GUIDE / html).stat().st_mtime, (html, "modifié sans PDF")
+        else:
+            th, tf = git("log", "-1", "--format=%ct", "--", h), git("log", "-1", "--format=%ct", "--", f)
+            assert th and tf and int(tf) >= int(th), (html, pdf, th, tf)
 
 
 # ── T091 / plan T15 : l'aide contextuelle, alignée sur le guide ─────────────────
@@ -1038,6 +1052,68 @@ def test_l_aide_est_branchee_dans_l_en_tete_sans_casser_l_invariant():
         assert mot in pas[k], (k, mot, pas[k])
     # le texte des définitions est échappé à l'écriture : jamais de balisage venu du lexique
     assert "esc(" in aide
+
+
+# ── T092 / plan T19 : l'auto-orient PROPOSE, et c'est l'assise qui écrit ──────
+def test_l_auto_orient_PROPOSE_et_c_est_l_assise_qui_ecrit():
+    f = _fonction_etabli_async("proposerOrientation")
+    assert "/api/etabli/orienter?job=" in f
+    assert 'ecrireSeule("assise", { normale: c.rotation, point: null })' in f
+    assert 'ecrireSeule("orienter"' not in f
+    # l'avertissement vient du serveur : textContent, et il est RÉPÉTÉ dans la barre
+    assert 'zone.querySelector(".note").textContent = d.avertissement;' in f
+    assert f.count("d.avertissement") >= 2
+    assert "innerHTML" not in f.split("zone.innerHTML", 1)[1].split(";", 1)[1] if "zone.innerHTML" in f else True
+    assert '<button class="outil-btn" id="btnOrienter"></button>' in _lire("etabli/index.html")
+    assert "orienter" not in _objet_etabli("ROUTES")
+    m = _fonction_etabli("majOutils")
+    assert '$("#btnOrienter")' in m
+    assert '$("#btnOrienter").addEventListener("click", proposerOrientation);' in _lire("etabli/etabli.js")
+
+
+def test_les_poses_proposees_se_disent_dans_l_UNITE_courante_EXECUTEE():
+    corps = _fonction_etabli_async("proposerOrientation")
+    src = """
+      const REFUS = [], AVIS = [], ECRITS = [];
+      const direRefus = (m) => REFUS.push(m), direAvis = (m) => AVIS.push(m);
+      const fmtMesure = (v) => (v * 10).toFixed(2), uniteCourante = () => "mm";
+      const esc = (v) => String(v);
+      const S = { a: { job: "j", version: 2 }, enAttente: [] };
+      const D = { seuil_surplomb: 45, avertissement: "ne trouve pas toujours la meilleure pose",
+                  candidats: [{ part_contact: 0.1666, part_surplomb: 0, hauteur: 0.05, score: -0.5, rotation: [0, -1, 0] },
+                              { part_contact: 0.02, part_surplomb: 0.013, hauteur: 0.4, score: 0.1, rotation: [1, 0, 0] }] };
+      const jget = async (u) => { ECRITS.push(u); return D; };
+      const ecrireSeule = async (op, charge) => { ECRITS.push([op, charge]); return { derniere: { version: 3 } }; };
+      class El { constructor() { this.enfants = []; this.ecoute = {}; this.className = ""; this._html = "";
+                 this.dataset = {}; this.boutons = []; this.noteEl = { textContent: "" }; }
+        set innerHTML(h) { this._html = h; this.boutons = [...h.matchAll(/data-orient="(\d+)"/g)].map((m) => {
+          const b = { dataset: { orient: m[1] }, ecoute: {}, addEventListener(t, f) { this.ecoute[t] = f; } }; return b; }); }
+        get innerHTML() { return this._html; }
+        querySelector(q) { return q === ".note" ? this.noteEl : (q === ".orient" ? null : null); }
+        querySelectorAll() { return this.boutons; }
+        appendChild(e) { this.enfants.push(e); } remove() {} }
+      const panneau = new El();
+      const ONGLETS_VUS = []; const montrerOnglet = (k) => ONGLETS_VUS.push(k);
+    """ + re.search(r"^const pourCent = .*$", _lire("etabli/etabli.js"), re.M).group(0) + """
+      const $ = (q) => (q === "#panFiche" ? panneau : null);
+      const document = { createElement: () => new El() };
+    """ + corps + """
+      (async () => {
+        await proposerOrientation();
+        const zone = panneau.enfants[0];
+        await zone.boutons[0].ecoute.click();
+        S.a = { job: null, version: null }; await proposerOrientation();
+        console.log(JSON.stringify({ html: zone.innerHTML, note: zone.noteEl.textContent, ecrits: ECRITS,
+                                     avis: AVIS, refus: REFUS }));
+      })();
+    """
+    o = json.loads(_node(src))
+    assert o["ecrits"][0] == "/api/etabli/orienter?job=j&version=2"
+    assert o["ecrits"][1] == ["assise", {"normale": [0, -1, 0], "point": None}]
+    assert "appui 17 %" in o["html"] and "surplomb 0 %" in o["html"] and "hauteur 0.50 mm" in o["html"], o["html"]
+    assert "surplomb 1 %" in o["html"], "arrondi au pour-cent"
+    assert o["note"] == "ne trouve pas toujours la meilleure pose"
+    assert any("version 3" in a for a in o["avis"]) and len(o["refus"]) == 1
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))
