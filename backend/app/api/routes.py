@@ -734,7 +734,15 @@ async def assets_3d(body: dict, background_tasks: BackgroundTasks):
                                  "Use a fal engine here.")
     if engine not in ENGINES:
         raise HTTPException(400, f"Unknown engine: {engine}")
-    if not settings.FAL_KEY:
+    if ENGINES[engine].get("local"):
+        # T107 : le moteur local ne passe pas par fal (ni clé, ni stockage) ; s'il dort, refus AVANT tout job
+        from app.services import local3d_service
+        if not await asyncio.to_thread(local3d_service.joignable):
+            raise HTTPException(503, local3d_service.message_absent())
+        if body.get("multiview"):
+            raise HTTPException(400, f"{ENGINES[engine]['label']} ne lit qu'une image : désactive multiview "
+                                     "(les vues Seedream passent par fal).")
+    elif not settings.FAL_KEY:
         raise HTTPException(503, "FAL_KEY not configured. Add it in Settings.")
     # fail fast on bad input instead of accepting a job that dies in background
     fn = Path(str(body.get("image_filename") or "")).name
@@ -901,8 +909,10 @@ async def list_asset3d_engines():
     (FAL_KEY présente) et son coût unitaire, pour que l'UI montre-mais-grise
     au lieu de laisser choisir un moteur inutilisable."""
     from app.services.asset3d_service import ENGINES, BESOINS_3D
-    from app.services import pricing as _pricing
+    from app.services import local3d_service, pricing as _pricing
     dispo = bool(settings.FAL_KEY)
+    # T107 : un moteur local est disponible quand SON service répond — listé et grisé sinon, comme un fal sans clé
+    local_ok = await asyncio.to_thread(local3d_service.joignable) if any(e.get("local") for e in ENGINES.values())         else False
     out = []
     for eid, e in ENGINES.items():
         devis = _pricing.estimate({"kind": "asset3d", "engine": eid,
@@ -914,7 +924,7 @@ async def list_asset3d_engines():
         # passé à travers un filtre qui ne connaissait que `endpoint`.
         out.append({**{k: v for k, v in e.items()
                        if not k.startswith("endpoint")},
-                    "id": eid, "available": dispo,
+                    "id": eid, "available": local_ok if e.get("local") else dispo,
                     "usd_texture": devis["total_usd"],
                     "usd_brouillon": brouillon["total_usd"]})
     out.sort(key=lambda m: m["id"])
@@ -927,6 +937,14 @@ async def list_asset3d_engines():
     return {"engines": out, "default": "tripo",
             "besoins": [{"id": k, **v} for k, v in BESOINS_3D.items()],
             "sujets_banc": asset3d_banc.sujets()}
+
+
+@router.get("/assets3d/local")
+async def get_asset3d_local():
+    """L'état du service GPU local (T107, plan-moteurs-3d T10) : joignable ou non, la carte MESURÉE, ce que sa VRAM
+    permet, et l'URL réglée (LOCAL3D_URL). Miroir de ce que fait Voicebox pour les voix."""
+    from app.services import local3d_service
+    return {"providers": await asyncio.to_thread(local3d_service.disponible), "url": local3d_service.url()}
 
 
 @router.post("/assets3d/banc")
@@ -1404,7 +1422,14 @@ async def post_asset3d_tirer(job: str, background_tasks: BackgroundTasks):
     aux rejeux. Rend un job_id à poller."""
     from app.services import asset3d_views as AV, pricing as _pricing
     info = _vues_ou_http(AV.verifier_tir, job)
-    _cle_fal_ou_400()
+    from app.services import asset3d_service as _A3v
+    if (_A3v.ENGINES.get(info["engine"]) or {}).get("local"):
+        # T107 : le moteur local n'a pas besoin de la clé fal, mais de SON service — refus avant la garde
+        from app.services import local3d_service
+        if not await asyncio.to_thread(local3d_service.joignable):
+            raise HTTPException(503, local3d_service.message_absent())
+    else:
+        _cle_fal_ou_400()
     if await _asset3d_occupe(job):
         raise HTTPException(409, "Une opération est déjà en cours sur ce jeu de vues — attends qu'elle finisse.")
 

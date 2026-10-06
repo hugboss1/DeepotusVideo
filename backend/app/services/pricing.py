@@ -573,8 +573,10 @@ def estimate(op: dict, p: dict | None = None) -> dict:
                  # textures), plus an additional $0.20 for detailed geometry
                  # and $0.05 for quad mesh if selected. »
                  "tripo-h3.1": (0.40 if hd else 0.30) if tex else 0.20}
-        unit = rates.get(engine, 0.30)
-        lines.append(_line("fal", f"3D mesh ({engine})", 1, "gen", unit))
+        unit = 0.0 if engine == "hunyuan-local" else rates.get(engine, 0.30)
+        # T107 : le service GPU local est gratuit — c'est l'argument, et une ligne « fal » le ferait mentir
+        lines.append(_line("local", "3D mesh local (Hunyuan3D, GPU)", 1, "gen", 0.0) if engine == "hunyuan-local"
+                     else _line("fal", f"3D mesh ({engine})", 1, "gen", unit))
         if engine == "tripo-h3.1":
             # suppléments FACTURÉS, donc affichés : les taire ferait mentir la
             # pastille de coût au moment précis où l'utilisateur décide

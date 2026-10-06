@@ -181,7 +181,7 @@ def _job(nom: str, glb: bytes | None = None, avec_ref=True) -> str:
 def test_le_registre_garde_ses_moteurs_et_gagne_ses_capacites():
     # non-régression : d'autres bancs épinglent l'ensemble des clés
     assert set(A3.ENGINES) == {"tripo", "tripo-h3.1", "hunyuan", "trellis",
-                               "rodin", "triposr"}
+                               "rodin", "triposr", "hunyuan-local"}   # T107 : + le moteur local
     for eid, e in A3.ENGINES.items():
         for flag in ("multiview", "max_images", "texture_modes", "draft",
                      "detailed", "pbr", "tpose", "quality_passthrough",
@@ -552,7 +552,7 @@ def test_routes_phase_d():
             r = await c.get("/api/assets3d/engines")
             assert r.status_code == 200, r.text
             d = r.json()
-            assert len(d["engines"]) == 6 and d["default"] == "tripo"
+            assert len(d["engines"]) == 7 and d["default"] == "tripo"   # 6 fal + le local (T107)
             e0 = d["engines"][0]
             assert "endpoint" not in e0            # pas d'URL fournisseur en clair
             assert "multiview" in e0 and "available" in e0
@@ -1145,7 +1145,8 @@ def test_h31_est_au_registre_avec_ses_capacites_relues():
     # les DEUX capacités que personne d'autre n'a
     assert caps["face_limit"] is True and caps["quad"] is True
     assert caps["seed"] is True
-    autres = [e for k, e in A3.ENGINES.items() if k != "tripo-h3.1"]
+    # parmi les moteurs FAL : le moteur local (T107) transmet vraiment face_limit et seed à son service
+    autres = [e for k, e in A3.ENGINES.items() if k != "tripo-h3.1" and not e.get("local")]
     assert not any(e["face_limit"] or e["quad"] or e["seed"] for e in autres)
 
 
@@ -1301,7 +1302,7 @@ def test_route_engines_expose_h31_et_ses_deux_paliers():
         async with httpx.AsyncClient(transport=ASGITransport(app=app),
                                      base_url="http://t") as c:
             d = (await c.get("/api/assets3d/engines")).json()
-            assert len(d["engines"]) == 6
+            assert len(d["engines"]) == 7   # 6 fal + le local (T107)
             h = [e for e in d["engines"] if e["id"] == "tripo-h3.1"][0]
             assert h["label"] == "Tripo H3.1"
             assert h["usd_brouillon"] == 0.20 and h["usd_texture"] == 0.30

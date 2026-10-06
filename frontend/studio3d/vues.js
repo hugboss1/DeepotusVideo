@@ -52,8 +52,13 @@ export async function charger() {
   $("#vuesImg").innerHTML = V.images.length
     ? V.images.map((x) => `<option value="${esc(x.filename)}"${x.filename === img ? " selected" : ""}>${esc(x.filename)}</option>`).join("")
     : `<option value="">Bibliothèque vide</option>`;
+  /* T107 : un moteur indisponible est grisé avec SA raison (service local absent / clé fal absente), et jamais
+     présélectionné : le choix retombe sur le premier disponible */
+  const dispo = (m) => m.available !== false;
+  const choisi = (V.moteurs.find((m) => m.id === mot && dispo(m)) || V.moteurs.find(dispo) || {}).id;
   $("#vuesMoteur").innerHTML = V.moteurs.map((m) =>
-    `<option value="${esc(m.id)}"${m.id === mot ? " selected" : ""}>${esc(m.label || m.id)} · ${usd(m.usd_texture)}</option>`).join("");
+    `<option value="${esc(m.id)}"${m.id === choisi ? " selected" : ""}${dispo(m) ? "" : " disabled"}>${esc(m.label || m.id)} · `
+    + `${dispo(m) ? usd(m.usd_texture) : (m.local ? "service local absent" : "clé fal absente")}</option>`).join("");
   dessinerJeux();
   await prixPreparer();
   if (V.jeu || V.jeux[0]) await ouvrirJeu(V.jeu || V.jeux[0].job);
