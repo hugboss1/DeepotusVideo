@@ -221,3 +221,12 @@ select option:disabled{color:var(--ink-muted)}
 .chip.on{border-color:var(--cyan);color:var(--cyan)}
 .chip.col{font-family:var(--f-mono)}
 .chip i{width:10px;height:10px;border-radius:50%;border:1px solid var(--stroke-strong);display:inline-block}
+/* t111 (plan-sprites T12) : squelette Spine */
+.sk-outil.on{border-color:var(--cyan);color:var(--cyan)}
+.sklist{display:flex;flex-direction:column;gap:3px;min-width:220px;max-height:256px;overflow:auto;font-size:11.5px}
+.sk-row{display:flex;align-items:center;gap:6px;border:1px solid var(--stroke);border-radius:6px;padding:2px 6px;background:var(--bg-panel-2)}
+.sk-row.on{border-color:var(--amber)}
+.sk-row .sk-ico{cursor:pointer}
+.sk-row .sk-nom{width:92px;background:var(--bg-base);border:1px solid var(--stroke-strong);border-radius:4px;color:var(--ink-strong);padding:1px 4px;font-family:var(--f-mono);font-size:11px}
+.sk-row .sk-del{border:none;background:none;color:var(--ink-muted);cursor:pointer;margin-left:auto}
+.sk-row .sk-del:hover{color:var(--red)}

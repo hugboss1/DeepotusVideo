@@ -447,6 +447,7 @@ function showResult(short, m) {
   $("#editStatus").classList.add("hidden");
   renderEditor();
   hbCharger(short, m);
+  skCharger(short, m);
 }
 
 /* ───────── T110 (plan-sprites T7) : ordre des images ─────────
@@ -597,6 +598,142 @@ function hbWire() {
     else return;
     ev.preventDefault();
   });
+}
+
+/* ───────── t111 (plan-sprites T12) : squelette Spine ─────────
+   L'état et ses gestes vivent dans skeleton.js (pur, banc qa/skeleton.test.mjs) ; ici, le dessin et le câblage. La
+   page DESSINE os et boîtes en pixels de case ; Python découpe les pièces et écrit skeleton.json (repères locaux de
+   Spine). Aucun PNG ni JSON n'est fabriqué ici. Les noms se saisissent dans la liste : aucun dialogue natif. */
+let sk = null, skShort = null, skImg = null, skGlisse = null;
+
+function skCharger(short, m) {
+  if (!window.SLK || !m.grid || !(m.frames || []).length) { $("#squelette").classList.add("hidden"); sk = null; return; }
+  sk = window.SLK.charger(m);
+  skShort = short;
+  const cv = $("#skCanvas");
+  cv.width = sk.cw; cv.height = sk.ch;
+  $("#skFrame").innerHTML = m.frames.map((f, i) => `<option value="${i}">frame ${i}</option>`).join("");
+  $("#dlSpine").href = `/api/assets/sprite/${short}/skeleton`;
+  $("#dlSpine").setAttribute("download", `sprites_${short}.spine.json`);
+  $("#dlSpine").classList.toggle("hidden", !(m.files && m.files.spine));
+  $("#squelette").classList.remove("hidden");
+  $("#skStatus").classList.add("hidden");
+  skFrame(0);
+}
+
+function skFrame(i) {
+  if (!sk) return;
+  window.SLK.allerA(sk, i);
+  $("#skFrame").value = String(sk.frame);
+  skImg = new Image();
+  skImg.onload = () => skDessiner();
+  skImg.src = `/api/assets/sprite/${skShort}/frame/${sk.frame}?r=${sheetRev}`;
+  skDessiner();
+}
+
+function skDessiner(apercu) {
+  if (!sk) return;
+  const cv = $("#skCanvas"), x = cv.getContext("2d");
+  x.clearRect(0, 0, cv.width, cv.height);
+  if (skImg && skImg.complete && skImg.naturalWidth) { x.imageSmoothingEnabled = false; x.drawImage(skImg, 0, 0, cv.width, cv.height); }
+  x.lineWidth = 1;
+  for (const p of sk.pieces) {
+    x.strokeStyle = p.bone === sk.sel ? "rgba(77,216,230,1)" : "rgba(77,216,230,.55)";
+    x.strokeRect(p.x + 0.5, p.y + 0.5, p.w - 1, p.h - 1);
+  }
+  for (const b of sk.bones) {
+    const a = b.rotation * Math.PI / 180, l = Math.max(b.length, 4);
+    x.strokeStyle = x.fillStyle = b.name === sk.sel ? "#f0b429" : "rgba(240,180,41,.6)";
+    x.lineWidth = b.name === sk.sel ? 2 : 1;
+    x.beginPath(); x.moveTo(b.x, b.y); x.lineTo(b.x + Math.cos(a) * l, b.y - Math.sin(a) * l); x.stroke();
+    x.fillRect(b.x - 1.5, b.y - 1.5, 3, 3);
+  }
+  if (apercu) {
+    x.strokeStyle = "#ffffff"; x.lineWidth = 1; x.setLineDash([3, 2]);
+    if (sk.outil === "os") { x.beginPath(); x.moveTo(apercu.a.x, apercu.a.y); x.lineTo(apercu.b.x, apercu.b.y); x.stroke(); }
+    else x.strokeRect(Math.min(apercu.a.x, apercu.b.x) + 0.5, Math.min(apercu.a.y, apercu.b.y) + 0.5,
+                      Math.abs(apercu.b.x - apercu.a.x), Math.abs(apercu.b.y - apercu.a.y));
+    x.setLineDash([]);
+  }
+  $("#skInfo").textContent = `${sk.bones.length} os · ${sk.pieces.length} pièce(s)`;
+  $("#skSave").disabled = !window.SLK.pret(sk);
+  skListe();
+}
+
+function skListe() {
+  const ligneOs = (b) => `<div class="sk-row${b.name === sk.sel ? " on" : ""}" data-os="${escA(b.name)}">
+      <span class="sk-ico" title="Choisir cet os : les prochains os et pièces s'y accrochent">🦴</span>
+      <input class="sk-nom" value="${escA(b.name)}" maxlength="32" title="Nom de l'os (lettres, chiffres, _ ou -)">
+      <span class="unit">← ${esc(b.parent)} · ${Math.round(b.rotation)}°</span>
+      <button class="sk-del" title="Supprimer cet os, ses enfants et leurs pièces">✕</button></div>`;
+  const lignePiece = (p) => `<div class="sk-row" data-piece="${escA(p.name)}">
+      <span class="sk-ico">▭</span>
+      <input class="sk-nom" value="${escA(p.name)}" maxlength="32" title="Nom de la pièce — c'est aussi le nom de son PNG">
+      <span class="unit">→ ${esc(p.bone)} · ${p.w}×${p.h}</span>
+      <button class="sk-del" title="Supprimer cette pièce">✕</button></div>`;
+  $("#skList").innerHTML = (sk.bones.map(ligneOs).join("") + sk.pieces.map(lignePiece).join(""))
+    || `<div class="hint">aucun os — glisse sur la case avec l'outil 🦴 Os</div>`;
+  $$("#skList .sk-row").forEach((row) => {
+    const os = row.dataset.os, piece = row.dataset.piece;
+    const champ = row.querySelector(".sk-nom");
+    champ.onchange = () => {
+      const fait = os ? window.SLK.renommerOs(sk, os, champ.value) : window.SLK.renommerPiece(sk, piece, champ.value);
+      if (!fait) toast("Nom refusé : 1 à 32 caractères (lettres, chiffres, _ ou -), unique" + (os ? ", et pas « root »" : ""), true);
+      skDessiner();
+    };
+    row.querySelector(".sk-del").onclick = () => {
+      if (os) {
+        const r = window.SLK.supprimerOs(sk, os);
+        if (r.os > 1 || r.pieces) toast(`${r.os} os et ${r.pieces} pièce(s) retirés`);
+      } else window.SLK.supprimerPiece(sk, piece);
+      skDessiner();
+    };
+    if (os) row.querySelector(".sk-ico").onclick = () => { sk.sel = sk.sel === os ? "" : os; skDessiner(); };
+  });
+}
+
+function skOutil(o) {
+  if (!sk) return;
+  sk.outil = o;
+  $$("#squelette .sk-outil").forEach((b) => b.classList.toggle("on", b.dataset.outil === o));
+}
+
+async function skEcrire() {
+  if (!sk || !window.SLK.pret(sk)) return;
+  const st = $("#skStatus"), short = skShort;
+  $("#skSave").disabled = true;
+  try {
+    setStatus(st, "Découpe des pièces et écriture du rig…", false, 30);
+    const d = await api.send("POST", `/assets/sprite/${short}/skeleton`, window.SLK.corps(sk));
+    const m = await api.get("/assets/sprite/" + short + "/manifest");
+    if (sheet && sheet.short === short) sheet.manifest = m;
+    $("#dlSpine").classList.toggle("hidden", !(m.files && m.files.spine));
+    setStatus(st, `rig écrit · ${d.bones} os (racine comprise) · ${d.slots} pièce(s) · hash ${d.hash} — le ZIP emporte spine/`);
+  } catch (e) {
+    setStatus(st, "Échec : " + e.message, true);
+  } finally {
+    if (sk) $("#skSave").disabled = !window.SLK.pret(sk);
+  }
+}
+
+function skWire() {
+  const cv = $("#skCanvas");
+  const point = (ev) => { const b = cv.getBoundingClientRect(); return { x: (ev.clientX - b.left) * cv.width / b.width, y: (ev.clientY - b.top) * cv.height / b.height }; };
+  cv.addEventListener("pointerdown", (ev) => { if (!sk) return; skGlisse = point(ev); try { cv.setPointerCapture(ev.pointerId); } catch (e) { /* synthétique */ } });
+  cv.addEventListener("pointermove", (ev) => { if (sk && skGlisse) skDessiner({ a: skGlisse, b: point(ev) }); });
+  cv.addEventListener("pointerup", (ev) => {
+    if (!sk || !skGlisse) return;
+    const a = skGlisse, b = point(ev);
+    skGlisse = null;
+    try {
+      if (sk.outil === "os") window.SLK.ajouterOs(sk, a, b);
+      else if (!window.SLK.ajouterPiece(sk, a, b)) toast("Boîte trop petite : glisse sur au moins 2 px", true);
+    } catch (e) { toast(e.message, true); }
+    skDessiner();
+  });
+  $("#skFrame").onchange = () => skFrame(parseInt($("#skFrame").value, 10) || 0);
+  $$("#squelette .sk-outil").forEach((b) => b.onclick = () => skOutil(b.dataset.outil));
+  $("#skSave").onclick = skEcrire;
 }
 
 async function applyEditor() {
@@ -1078,6 +1215,8 @@ function wire() {
   playgroundWire();   // lot 5
   hbWire();           // T112 : hitboxes par frame
   bibleWire();        // t111 : onglets Bible et Prompt
+  skWire();           // t111 (T12) : squelette Spine
+  document.addEventListener("slk-pret", () => { if (sheet) skCharger(sheet.short, sheet.manifest); });   // skeleton.js arrive APRÈS ce script
   document.addEventListener("slh-pret", () => { if (sheet) hbCharger(sheet.short, sheet.manifest); });   // hitbox.js (module) arrive APRÈS ce script
   // lot 1 : l'onglet Feuille se câble quand le module pur est chargé
   if (window.SLF) feuilleWire(); else document.addEventListener("slf-pret", feuilleWire, { once: true });
