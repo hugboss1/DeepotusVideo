@@ -11220,6 +11220,63 @@ async def get_material_env(name: str):
                     headers={"Cache-Control": "public, max-age=86400"})
 
 
+@router.post("/materials/envs")
+async def add_material_env(file: UploadFile = File(...), label: str = Form("")):
+    """Importe un HDRI personnel (.hdr) comme ambiance du viewport.
+
+    `.exr` est refusé PAR SON NOM, et le message dit quoi faire : OpenEXR
+    admet une dizaine de schémas de compression dont deux seulement
+    retomberaient sur zlib. Un décodeur partiel qui échouerait un fichier sur
+    deux APRÈS le téléversement serait une promesse fausse — mieux vaut le
+    dire avant."""
+    import io
+    from app.services import env_service as ES
+    from app.services import hdr_reader as HR
+    nom = Path(file.filename or "").name
+    bas = nom.lower()
+    if bas.endswith(".exr"):
+        raise HTTPException(400, "Les .exr ne sont pas lus : le format admet "
+                                 "une dizaine de compressions différentes et "
+                                 "aucune bibliothèque n'est embarquée. "
+                                 "Réexportez en .hdr (Radiance).")
+    data = await file.read()
+    if bas.endswith((".jpg", ".jpeg", ".png")):
+        # une équirectangulaire LDR toute faite : Pillow la lit, rien à décoder
+        try:
+            img = PILImage.open(io.BytesIO(data)).convert("RGB")
+        except Exception as e:
+            raise HTTPException(400, f"Image illisible : {e}")
+    elif bas.endswith(".hdr"):
+        try:
+            img = await asyncio.to_thread(HR.equirect_ldr, data)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+    else:
+        raise HTTPException(400, "Formats acceptés : .hdr (Radiance), .jpg, "
+                                 ".png — une image équirectangulaire 2:1.")
+    if img.size[0] < 2 * img.size[1] * 0.9 or img.size[0] > 2 * img.size[1] * 1.1:
+        raise HTTPException(400, f"Une équirectangulaire fait deux fois plus "
+                                 f"large que haute ; celle-ci fait "
+                                 f"{img.size[0]}x{img.size[1]}.")
+    env = await asyncio.to_thread(ES.perso_ajouter,
+                                  (label or Path(nom).stem or "Ambiance"),
+                                  img, nom)
+    return {"env": env}
+
+
+@router.delete("/materials/envs/{name}")
+async def delete_material_env(name: str):
+    """Supprime une ambiance IMPORTÉE. Les sept générées ne se suppriment
+    pas : elles se regénèrent, il n'y a rien à perdre."""
+    from app.services import env_service as ES
+    if not ES.est_perso(name):
+        raise HTTPException(400, "Seules les ambiances importées se "
+                                 "suppriment.")
+    if not await asyncio.to_thread(ES.perso_supprimer, name):
+        raise HTTPException(404, "Ambiance introuvable")
+    return {"ok": True}
+
+
 @router.post("/materials/prep/preview")
 async def material_prep_preview(body: dict):
     """Prépare une photo SANS rien créer, et rend les deux chiffres.

@@ -32,6 +32,8 @@ from pathlib import Path
 from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 __all__ = ["ENVS", "ENV_W", "ENV_H", "ENV_VERSION", "env_list", "env_names",
+           "PERSO_PREFIX", "est_perso", "perso_list", "perso_path", "perso_ajouter",
+           "perso_supprimer",
            "build_env", "env_bytes", "env_path", "clear_env_cache"]
 
 ENV_W, ENV_H = 1024, 512
@@ -242,8 +244,10 @@ def env_names() -> list[str]:
 
 
 def env_list() -> list[dict]:
-    """Liste pour GET /api/materials/envs."""
-    return [{"name": e["name"], "label": e["label"]} for e in ENVS]
+    """Liste pour GET /api/materials/envs : les sept générées, puis les
+    ambiances importées."""
+    return ([{"name": e["name"], "label": e["label"], "perso": False}
+             for e in ENVS] + perso_list())
 
 
 def env_path(name: str) -> Path:
@@ -274,3 +278,94 @@ def clear_env_cache() -> int:
         except OSError:
             pass
     return n
+
+
+# ── ambiances PERSONNELLES (R10c P2) ────────────────────────────────────────
+#
+# Elles vivent dans le MÊME dossier de cache que les sept générées, sous un
+# préfixe réservé. Deux espaces de noms, un seul dossier : `env_path` reste le
+# seul endroit qui compose un chemin d'ambiance, et la liste blanche des sept
+# n'est pas touchée — c'est le PRÉFIXE qui autorise, pas une seconde liste qui
+# dériverait de la première.
+PERSO_PREFIX = "u_"
+PERSO_INDEX = "personnelles.json"
+
+
+def est_perso(nom) -> bool:
+    n = str(nom or "")
+    return n.startswith(PERSO_PREFIX) and n[len(PERSO_PREFIX):].isalnum()
+
+
+def _perso_index() -> dict:
+    import json
+    p = _cache_dir() / PERSO_INDEX
+    if not p.is_file():
+        return {}
+    try:
+        d = json.loads(p.read_text(encoding="utf-8"))
+        return d if isinstance(d, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def perso_list() -> list[dict]:
+    """[{name,label,perso:True}] des ambiances importées, plus récente
+    d'abord — le disque fait foi : une entrée d'index sans JPEG n'est pas
+    listée."""
+    out = []
+    for nom, meta in _perso_index().items():
+        if est_perso(nom) and (_cache_dir() / f"{nom}.jpg").is_file():
+            out.append({"name": nom, "label": str(meta.get("label") or nom),
+                        "perso": True, "source": str(meta.get("source") or ""),
+                        "created": str(meta.get("created") or "")})
+    out.sort(key=lambda e: e["created"], reverse=True)
+    return out
+
+
+def perso_path(nom: str):
+    """Le JPEG d'une ambiance personnelle, ou None."""
+    if not est_perso(nom):
+        return None
+    p = _cache_dir() / f"{nom}.jpg"
+    return p if p.is_file() else None
+
+
+def perso_ajouter(label: str, image, source: str = "") -> dict:
+    """Range une image équirectangulaire comme ambiance personnelle."""
+    import json
+    import uuid
+    from datetime import datetime, timezone
+    nom = PERSO_PREFIX + uuid.uuid4().hex[:10]
+    d = _cache_dir()
+    tmp = d / f"{nom}.tmp"
+    image.convert("RGB").resize((ENV_W, ENV_H), Image.BICUBIC).save(
+        tmp, "JPEG", quality=90, optimize=True, subsampling=1)
+    tmp.replace(d / f"{nom}.jpg")
+    idx = _perso_index()
+    idx[nom] = {"label": str(label or "Ambiance")[:60],
+                "source": str(source or "")[:120],
+                "created": datetime.now(timezone.utc)
+                                   .strftime("%Y-%m-%dT%H:%M:%SZ")}
+    (d / PERSO_INDEX).write_text(json.dumps(idx, ensure_ascii=False, indent=1),
+                                 encoding="utf-8")
+    return {"name": nom, "label": idx[nom]["label"], "perso": True,
+            "source": idx[nom]["source"], "created": idx[nom]["created"]}
+
+
+def perso_supprimer(nom: str) -> bool:
+    import json
+    if not est_perso(nom):
+        return False
+    d = _cache_dir()
+    p = d / f"{nom}.jpg"
+    existait = p.is_file()
+    try:
+        p.unlink()
+    except OSError:
+        pass
+    idx = _perso_index()
+    if idx.pop(nom, None) is not None or existait:
+        (d / PERSO_INDEX).write_text(
+            json.dumps(idx, ensure_ascii=False, indent=1), encoding="utf-8")
+        return True
+    return False

@@ -216,6 +216,14 @@
         <div class="fld">
           <span class="lbl">Environnement</span>
           <div class="chips" id="envChips"></div>
+        <div class="row">
+          <label class="btn ghost sm" for="envFile" title="Importer un HDRI
+            équirectangulaire (.hdr) ou une image 2:1">＋ HDRI…</label>
+          <input type="file" id="envFile" accept=".hdr,.jpg,.jpeg,.png"
+                 class="hidden">
+          <button class="btn ghost sm" id="envDel"
+                  title="Supprimer l'ambiance importée sélectionnée">🗑</button>
+        </div>
         </div>
         <label class="check"><input type="checkbox" id="pointLight"> Lumière ponctuelle déplaçable</label>
         <div class="fld sub hidden" id="lightBox">
