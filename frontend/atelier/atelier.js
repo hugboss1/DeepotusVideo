@@ -254,9 +254,48 @@ function setTab(kind) {
 
 async function loadEntities() {
   entities = (await api.get("/bible/entities")).entities;
+  await loadVoiceCast();
+}
+
+// T103 (plan-son-vfx T14-T15, D4) — le casting VOIX + TEMPÉRAMENT, servi par le backend : qui parlera avec quelle
+// voix (GET /voice-cast, rechargé avec la bible), et la palette des balises Eleven v3 (GET /voice-tags, registre
+// relu côté serveur — jamais recopié ici : une balise que le modèle ne lit pas ne doit pas être proposée).
+let voiceCast = { narrator: null, cast: {}, uncast: [] };
+let voiceTags = null;
+async function loadVoiceCast() {
+  try { voiceCast = await api.get("/voice-cast"); } catch (_e) { /* casting muet : les puces le diront */ }
+}
+async function loadVoiceTags() {
+  if (voiceTags) return voiceTags;
+  try { voiceTags = await api.get("/voice-tags"); } catch (_e) { voiceTags = { groups: {}, providers: {} }; }
+  return voiceTags;
+}
+function foldName(s) {
+  return String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
+function castChip(name) {
+  const v = voiceCast.cast[foldName(name)];
+  if (!v) return `<span class="cast-chip cast-none" title="Pas de voix castée — 🎙 Suggérer ou 🧬 Cloner sur sa fiche de bible">${esc(name)} · sans voix</span>`;
+  const t = ((v.style && v.style.tags) || []).join(" ");
+  return `<span class="cast-chip" title="Voix ${esc(v.voice_id)}${t ? " · tempérament " + esc(t) : ""}">${esc(name)} · ${esc(v.name)}${t ? " " + esc(t) : ""}</span>`;
+}
+function temperRow(e) {
+  const vt = voiceTags || { groups: {}, providers: {} };
+  const on = (e.voice_style && e.voice_style.tags) || [];
+  if (!vt.providers || !vt.providers.elevenlabs) {
+    return `<div class="voice-temper"><span class="temper-note">Tempérament : ${vt.providers && vt.providers.voicebox
+      ? "Voicebox ne lit pas les balises Eleven v3" : "clé ElevenLabs requise"}${on.length ? " — gardé : " + on.map(esc).join(" ") : ""}</span></div>`;
+  }
+  // l'émotion et la voix seulement : les bruitages (« sons ») n'ont rien à faire sur une fiche de personnage
+  const tags = [].concat(vt.groups.emotion || [], vt.groups.voix || []);
+  return `<div class="voice-temper" title="Tempérament : ces balises Eleven v3 sont posées devant chaque réplique de ce personnage (4 au plus)">
+    <span class="temper-note">Tempérament :</span>
+    ${tags.map(t => `<button class="btn ghost act-temper${on.includes(t) ? " on" : ""}" data-t="${esc(t)}" aria-pressed="${on.includes(t)}">${esc(t)}</button>`).join("")}
+  </div>`;
 }
 
 async function renderBible() {
+  if (curKind === "character") await loadVoiceTags();
   const list = $("#entityList");
   const items = entities.filter(e => e.kind === curKind);
   if (!items.length) {
@@ -306,7 +345,9 @@ async function renderBible() {
         ${e.voice_prev ? `<button class="btn ghost act-voice-play" title="Pré-écouter la voix">▶</button>` : ""}
         <button class="btn act-voice-suggest" title="L'agent croise la fiche du personnage (genre, âge, ton) avec les voix ElevenLabs de ton compte et propose la meilleure + des alternatives du même profil">🎙 Suggérer</button>
         <button class="btn ghost act-voice-all" title="Choisir manuellement parmi toutes les voix du compte">⌄ Toutes</button>
+        <button class="btn ghost act-voice-clone" title="Cloner une voix pour CE personnage à partir de prises du dossier audio (1 à 2 min d'audio propre) — ElevenLabs, occupe un emplacement de voix du compte">🧬 Cloner</button>
       </div>
+      ${temperRow(e)}
       <div class="voice-alts hidden"></div>` : ""}
       ${(e.aliases && e.aliases.length)
         ? `<div class="entity-aliases">alias : ${e.aliases.map(esc).join(" · ")}</div>` : ""}
@@ -366,6 +407,38 @@ async function renderBible() {
     if (vsug) vsug.addEventListener("click", () => suggestVoice(id, card));
     const vall = card.querySelector(".act-voice-all");
     if (vall) vall.addEventListener("click", () => showAllVoices(id, card));
+    // T103 (D4a) — cloner une voix pour CE personnage : prises du dossier audio, confirmation (un clone occupe
+    // un emplacement de voix du compte ElevenLabs), puis la voix est écrite sur l'entité par le serveur.
+    const vclone = card.querySelector(".act-voice-clone");
+    if (vclone) vclone.addEventListener("click", async () => {
+      const raw = await window.__dzDialogue.saisir("Prises du dossier audio, séparées par des virgules "
+        + "(1 à 2 min d'audio propre de ce personnage) :", { titre: "Cloner une voix", ok: "Suivant" });
+      const files = String(raw || "").split(",").map(s => s.trim()).filter(Boolean);
+      if (!files.length) return;
+      if (!await window.__dzDialogue.confirmer(`Cloner la voix de « ${ent().name} » depuis ${files.length} prise(s) ? `
+        + "ElevenLabs crée une voix dans ton compte (un emplacement de voix, selon ton plan).", { ok: "Cloner" })) return;
+      try {
+        const d = await api.send("POST", `/bible/entities/${id}/voice-clone`, { files });
+        Object.assign(ent(), d.entity);
+        toast(`Voix clonée : ${d.voice_id}` + (d.requires_verification ? " — vérification demandée par ElevenLabs" : ""));
+        await loadVoiceCast();
+        await renderBible();
+      } catch (e) { toast("Clonage échoué : " + e.message, true); }
+    });
+    // T103 (D4a) — le tempérament : une balise s'allume ou s'éteint ; le SERVEUR clampe (≤ 4, connues seulement)
+    card.querySelectorAll(".act-temper").forEach(b => b.addEventListener("click", async () => {
+      const t = b.dataset.t;
+      const cur = (ent().voice_style && ent().voice_style.tags) || [];
+      const next = cur.includes(t) ? cur.filter(x => x !== t) : cur.concat([t]).slice(-4);
+      try {
+        const up = await api.send("PUT", "/bible/entities/" + id, {
+          voice_style: { tags: next, stability: (ent().voice_style || {}).stability },
+        });
+        Object.assign(ent(), up);
+        await loadVoiceCast();
+        await renderBible();
+      } catch (e) { toast("Tempérament : " + e.message, true); }
+    }));
     card.querySelector(".act-add-insp").addEventListener("click", () => openLibrary(id));
     card.querySelectorAll(".act-rm-insp").forEach(img => img.addEventListener("click", async () => {
       const f = img.dataset.f;
@@ -775,6 +848,10 @@ function renderBoard() {
         <select class="shot-energy" title="Énergie du plan (1 calme → 5 pic) — la courbe doit respirer">${energyOptions(s.energy)}</select>
       </div>
       <div class="shot-ents">${entChips(s.entities) || "<span style='opacity:.5'>aucune entité détectée</span>"}</div>
+      <div class="shot-cast" title="Qui parlera, avec quelle voix et quel tempérament (T103)">${(s.entities || []).map(eid => {
+        const en = entities.find(x => x.id === eid);
+        return en && en.kind === "character" ? castChip(en.name) : "";
+      }).join("") || "<span style='opacity:.5'>aucun personnage dans ce plan</span>"}</div>
       ${entPicker(s.entities)}
       ${s.source_text ? `<details class="shot-src"><summary>texte source</summary><blockquote>${esc(s.source_text)}</blockquote></details>` : ""}
     </div>

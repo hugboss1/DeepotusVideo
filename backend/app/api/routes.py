@@ -2485,6 +2485,11 @@ async def get_sprite_manifest(job: str):
         "preview": (d / "preview.gif").is_file(),
         "unity_json": (d / "sheet.unity.json").is_file(),
         "unity_importer": (d / "SpriteSheetImporter.cs").is_file(),
+        # T109 : les exports moteur
+        "godot": (d / "sheet.tres").is_file(),
+        "atlas": (d / "sheet.atlas.json").is_file(),
+        "aseprite": (d / "sheet.ase").is_file(),
+        "paper2d": (d / "sheet.paper2dsprites").is_file(),
         "frames": len(list(fdir.glob("*.png"))) if fdir.is_dir() else 0,
     }
     return data
@@ -2526,6 +2531,64 @@ async def get_sprite_zip(job: str):
         content=data, media_type="application/zip",
         headers={"Content-Disposition":
                  f'attachment; filename="sprites_{Path(job).name}.zip"'})
+
+
+# T109 (plan-sprites T3-T5) — une porte par export : un `?fmt=` unique économiserait quelques lignes et coûterait une
+# allowlist à maintenir dans deux langages. Chaque route nomme SON fichier, et 404 dit lequel manque.
+def _sprite_export(job: str, nom: str, media: str):
+    p = _sprite_dir(job) / nom
+    if not p.is_file():
+        raise HTTPException(404, f"{nom} absent pour ce job — régénère la feuille")
+    return FileResponse(p, media_type=media, filename=f"sprites_{Path(job).name}{nom[len('sheet'):]}")
+
+
+def _sprite_texte(job: str, nom: str, media: str, ecrire):
+    """Un export TEXTE téléchargé seul nomme la texture comme le bouton « Sheet PNG » la télécharge
+    (`sprites_<job>.png`) — mesuré sur 8799 : le .tres disait `res://sheet.png` à côté d'un `sprites_<job>.png`,
+    texture introuvable dans Godot. Dans le ZIP, tout reste `sheet.*`, cohérent."""
+    import json as _json
+    from PIL import Image as _I
+    d = _sprite_dir(job)
+    if not (d / nom).is_file() or not (d / "manifest.json").is_file() or not (d / "sheet.png").is_file():
+        raise HTTPException(404, f"{nom} absent pour ce job — régénère la feuille")
+    m = _json.loads((d / "manifest.json").read_text(encoding="utf-8"))
+    with _I.open(d / "sheet.png") as sh:
+        w, h = sh.size
+    image = f"sprites_{Path(job).name}.png"
+    return Response(content=ecrire(m, w, h, image), media_type=media,
+                    headers={"Content-Disposition":
+                             f'attachment; filename="sprites_{Path(job).name}{nom[len("sheet"):]}"'})
+
+
+@router.get("/assets/sprite/{job}/godot")
+async def get_sprite_godot(job: str):
+    """Ressource SpriteFrames Godot 4 (.tres, texte) — une AtlasTexture par case, une animation par tag."""
+    from app.services import sprite_export as SE
+    return _sprite_texte(job, "sheet.tres", "text/plain", lambda m, w, h, img: SE.godot_tres(m, img))
+
+
+@router.get("/assets/sprite/{job}/atlas")
+async def get_sprite_atlas(job: str):
+    """Atlas JSON Hash façon TexturePacker (Phaser, PixiJS)."""
+    import json as _json
+    from app.services import sprite_export as SE
+    return _sprite_texte(job, "sheet.atlas.json", "application/json",
+                         lambda m, w, h, img: _json.dumps(SE.atlas_json_hash(m, w, h, img), indent=2))
+
+
+@router.get("/assets/sprite/{job}/aseprite")
+async def get_sprite_aseprite(job: str):
+    """Le .ase (32 bpp, un calque, une image par case, les tags) — s'ouvre dans Aseprite."""
+    return _sprite_export(job, "sheet.ase", "application/octet-stream")
+
+
+@router.get("/assets/sprite/{job}/paper2d")
+async def get_sprite_paper2d(job: str):
+    """Feuille Unreal Paper2D (.paper2dsprites, JSON Array TexturePacker)."""
+    import json as _json
+    from app.services import sprite_export as SE
+    return _sprite_texte(job, "sheet.paper2dsprites", "application/json",
+                         lambda m, w, h, img: _json.dumps(SE.paper2d_json(m, w, h, img), indent=2))
 
 
 @router.post("/assets/sprite/{job}/save")
@@ -4425,6 +4488,50 @@ async def matte_status(matte_id: str):
     if st["status"] == "unknown":
         raise HTTPException(404, "matte inconnu")
     return st
+
+
+# ── T103 (plan-son-vfx T12, D3b) : la recherche de sons — déclarée AVANT /audio/{filename}, sans quoi
+# « search » serait lu comme un nom de fichier (même piège que /audio/meta). Aucune n'appelle un fournisseur
+# payant : le service d'embeddings est local (Clapbox) ou fourni par l'utilisateur (CLAP_REMOTE_URL).
+@router.get("/audio/search/status")
+async def audio_search_status():
+    """L'état de la recherche par description : prête ou non, et POURQUOI non."""
+    from app.services import sound_search as SS
+    return await asyncio.get_running_loop().run_in_executor(None, SS.status)
+
+
+@router.post("/audio/search/index")
+async def audio_search_index(request: Request):
+    """(Ré)indexe le dossier audio. Body {force?: bool} — force repart d'un index vide (changement de modèle)."""
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    from app.services import sound_search as SS
+    try:
+        return await SS.reindex(force=bool((payload or {}).get("force")))
+    except SS.SearchUnavailable as e:
+        raise HTTPException(503, str(e))
+
+
+@router.get("/audio/search")
+async def audio_search(q: str = "", k: int = 12):
+    """Recherche par DESCRIPTION. 503 lisible si aucun service d'embeddings."""
+    from app.services import sound_search as SS
+    try:
+        return {"query": q, "items": await SS.search(q, k=max(1, min(int(k), 50)))}
+    except SS.SearchUnavailable as e:
+        raise HTTPException(503, str(e))
+
+
+@router.get("/audio/similar/{filename}")
+async def audio_similar(filename: str, k: int = 8):
+    """« Comme celui-ci ». Purement local : jamais de 503, jamais un sou."""
+    from app.services import sound_search as SS
+    safe = Path(filename).name
+    if safe != filename:   # sous Windows Path().name coupe aussi à l'antislash ; ailleurs le nom n'est qu'une clé d'index
+        raise HTTPException(400, "nom de fichier refusé")
+    return {"name": safe, "items": await SS.similar(safe, k=max(1, min(int(k), 50)))}
 
 
 @router.post("/audio/audition")
@@ -8739,6 +8846,18 @@ async def put_atelier_settings(body: dict):
     return await get_atelier_settings()
 
 
+def _entity_style(raw) -> dict:
+    """T103 (D4) — le tempérament d'un personnage, TOUJOURS servi clampé et complet
+    ({tags, stability}) : l'Atelier n'a jamais à deviner une forme, et une colonne
+    illisible se lit « aucun tempérament », jamais une erreur."""
+    import json as _json
+    from app.services import voice_direction as VD
+    try:
+        return VD.clamp_style(_json.loads(raw) if isinstance(raw, str) and raw else raw)
+    except Exception:  # noqa: BLE001
+        return VD.clamp_style(None)
+
+
 def _entity_dict(e) -> dict:
     import json as _json
 
@@ -8759,6 +8878,7 @@ def _entity_dict(e) -> dict:
             "voice_id": getattr(e, "voice_id", None),
             "voice_name": getattr(e, "voice_name", None),
             "voice_prev": getattr(e, "voice_prev", None),
+            "voice_style": _entity_style(getattr(e, "voice_style", None)),   # T103 (D4)
             "model3d_job": getattr(e, "model3d_job", None),
             "model3d_file": getattr(e, "model3d_file", None),
             "created_at": e.created_at.isoformat() if e.created_at else None,
@@ -8863,6 +8983,12 @@ async def update_bible_entity(entity_id: str, body: dict):
             e.inspiration_images = _json.dumps(body["inspiration_images"] or [])
         if "aliases" in body:
             e.aliases = _json.dumps(body["aliases"] or [])
+        # T103 (D4) — le tempérament passe par le MÊME clamp que la voix off : une
+        # balise que le modèle ne lit pas ne s'écrit jamais. None l'efface.
+        if "voice_style" in body:
+            from app.services import voice_direction as VD
+            e.voice_style = (_json.dumps(VD.clamp_style(body["voice_style"]), ensure_ascii=False)
+                             if body["voice_style"] else None)
         # v1.21 — casting voix (choix manuel ou application d'une suggestion)
         for vk in ("voice_id", "voice_name", "voice_prev",
                    "model3d_job", "model3d_file"):
@@ -8880,6 +9006,33 @@ async def update_bible_entity(entity_id: str, body: dict):
         await session.commit()
         await session.refresh(e)
         return _entity_dict(e)
+
+
+@router.post("/bible/entities/{entity_id}/voice-clone")
+async def clone_bible_voice(entity_id: str, body: dict = None):
+    """T103 (plan-son-vfx T14, D4a) — clone instantané ElevenLabs à partir de prises du dossier audio, rattaché à
+    CETTE entité. Body {files: [nom, …], description?}. La voix obtenue est écrite sur l'entité (l'ancienne
+    pré-écoute, qui était celle d'une autre voix, est effacée) : le storyboard la reprend seul. Un refus
+    d'ElevenLabs laisse la voix d'avant en place."""
+    from app.services.storage import BibleEntity, async_session_factory
+    from app.services import voice_clone as VCL
+    body = body if isinstance(body, dict) else {}
+    async with async_session_factory() as session:
+        e = await session.get(BibleEntity, entity_id)
+        if e is None:
+            raise HTTPException(404, "Entité introuvable")
+        nom, desc = e.name, str(body.get("description") or e.description or "")
+        files = body.get("files") if isinstance(body.get("files"), list) else []
+        try:
+            d = await asyncio.get_running_loop().run_in_executor(
+                None, lambda: VCL.clone_for_entity(entity_id, nom, files, desc))
+        except VCL.SfxError as ex:
+            raise HTTPException(ex.status, ex.message)
+        e.voice_id, e.voice_name, e.voice_prev = d["voice_id"], d["voice_name"], None
+        e.updated_at = datetime.utcnow()
+        await session.commit()
+        await session.refresh(e)
+        return dict(d, entity=_entity_dict(e))
 
 
 @router.post("/bible/entities/{entity_id}/model3d")
@@ -10895,7 +11048,7 @@ async def _anim_shots(chapter_id: str) -> tuple[list, dict | None]:
         if not await session.get(Chapter, chapter_id):
             raise HTTPException(404, "Chapter not found")
         shots = [_shot_dict(s) for s in await _list_shots(session, chapter_id)]
-        narrateur, _cues = await _voice_cast(session)
+        narrateur, _cues, _sans_voix = await _voice_cast(session)
     return shots, narrateur
 
 
@@ -11105,7 +11258,7 @@ async def sortie_episode(chapter_id: str, body: dict | None = None):
         if not ch:
             raise HTTPException(404, "Chapter not found")
         shots = [_shot_dict(s) for s in await _list_shots(session, chapter_id)]
-        narrateur, _cues = await _voice_cast(session)
+        narrateur, _cues, _sans_voix = await _voice_cast(session)
     if not shots:
         raise HTTPException(400, "Pas de storyboard — découpe le chapitre en plans (🎬 ou ¶) d'abord.")
     scenes = []
@@ -11552,19 +11705,23 @@ def _fold_name(s: str) -> str:
 
 
 async def _voice_cast(session) -> tuple:
-    """(narrateur {voice_id,name} | None, map nom/alias replié → voix perso)."""
+    """(narrateur {voice_id,name,style} | None, map nom/alias replié → rôle {voice_id,name,style}, noms des
+    personnages SANS voix). T103 (D4b) : le style (tempérament) est déjà CLAMPÉ — les segments n'ont plus qu'à
+    l'appliquer. Trois valeurs : chaque site d'appel les déballe (banc test_scene_voice_cast, lu dans le source)."""
     from app.services.storage import BibleEntity
     from sqlalchemy import select
     import json as _json
     rows = (await session.execute(
         select(BibleEntity).where(BibleEntity.kind == "character"))).scalars().all()
-    narrator, cues = None, {}
+    narrator, cues, uncast = None, {}, []
     for e in rows:
-        v = {"voice_id": e.voice_id, "name": e.name}
+        v = {"voice_id": e.voice_id, "name": e.name,
+             "style": _entity_style(getattr(e, "voice_style", None))}
         if _fold_name(e.name) in ("narrateur", "narrator"):
             narrator = v if e.voice_id else None
             continue
         if not e.voice_id:
+            uncast.append(e.name)
             continue
         cues[_fold_name(e.name)] = v
         try:
@@ -11572,7 +11729,17 @@ async def _voice_cast(session) -> tuple:
                 cues.setdefault(_fold_name(a), v)
         except Exception:
             pass
-    return narrator, cues
+    return narrator, cues, uncast
+
+
+@router.get("/voice-cast")
+async def voice_cast():
+    """T103 (D4b) — qui parle avec quelle voix et quel tempérament : la carte plan de l'Atelier montre le
+    casting AVANT de générer, et nomme ceux qui n'ont pas de voix."""
+    from app.services.storage import async_session_factory
+    async with async_session_factory() as session:
+        narrator, cues, uncast = await _voice_cast(session)
+    return {"narrator": narrator, "cast": cues, "uncast": uncast}
 
 
 async def _generate_scene_vo(session, scene, lang: str) -> dict:
@@ -11584,7 +11751,7 @@ async def _generate_scene_vo(session, scene, lang: str) -> dict:
     segments = [s for s in segments if len(s["text"].strip()) >= 2]
     if not segments:
         raise HTTPException(400, "La scène n'a pas de texte à lire.")
-    narrator, cues = await _voice_cast(session)
+    narrator, cues, _uncast = await _voice_cast(session)
     if any(s["kind"] == "narration" for s in segments) and not narrator:
         raise HTTPException(
             400, "Crée un personnage « Narrateur » dans la bible et caste sa "
@@ -11594,25 +11761,44 @@ async def _generate_scene_vo(session, scene, lang: str) -> dict:
     if not await loop.run_in_executor(None, VoiceoverService.is_enabled):
         raise HTTPException(503, "Aucune voix disponible : configure la clé "
                                  "ElevenLabs ou lance Voicebox (Réglages).")
-    await _plafond(_op_tts(" ".join(sg["text"] for sg in segments)), "chapitres")   # tâche #16
+    # T103 (plan-son-vfx T15, D4b) — CHAQUE segment est préparé AVANT la garde : voix du personnage (ou du
+    # Narrateur), tempérament posé devant, Eleven v3 s'il y a des balises et qu'ElevenLabs est le fournisseur.
+    # Ailleurs les balises sont RETIRÉES (sinon « crochet whispers crochet » serait prononcé) et la note le dit
+    # une fois. La garde chiffre ensuite CE QUI PART, segment par segment (texte balisé, tarif v3).
+    from app.services import voice_direction as VD, voice_providers as VP
+    prov = await loop.run_in_executor(None, VP.resolve_provider)
+    notes: list[str] = []
+    prepares = []
+    for seg in segments:
+        if seg["kind"] == "dialogue":
+            v = cues.get(_fold_name(seg["character"] or "")) or narrator or {}
+        else:
+            v = narrator or {}
+        style = v.get("style") or {"tags": [], "stability": 0.5}
+        text = VD.apply_style(seg["text"], style)
+        if style["tags"] and prov == "elevenlabs":
+            mid = "eleven_v3"
+        else:
+            mid = None
+            if VD.find_tags(text):
+                text = VD.strip_tags(text)
+                if not notes:
+                    notes.append("Tempéraments retirés : " + (
+                        "Voicebox n'interprète pas les balises Eleven v3." if prov == "voicebox"
+                        else "aucun fournisseur Eleven v3 actif."))
+        prepares.append((seg, v.get("voice_id"), v.get("name"), style, text, mid))
+    await _plafond([o for p in prepares for o in _op_tts(p[4], p[5])], "chapitres")   # tâche #16
     tmp = Path(_tf.mkdtemp(prefix="dz_vo_"))
     parts, plan = [], []
     l11 = "FR" if lang.startswith("fr") else "EN"
-    for i, seg in enumerate(segments):
-        if seg["kind"] == "dialogue":
-            v = cues.get(_fold_name(seg["character"] or ""))
-            vid = (v or narrator or {}).get("voice_id")
-            speaker = (v or narrator or {}).get("name")
-        else:
-            vid = narrator["voice_id"]
-            speaker = narrator["name"]
+    for i, (seg, vid, speaker, style, text, mid) in enumerate(prepares):
         dest = tmp / f"part_{i:03d}.mp3"
         await loop.run_in_executor(
-            None, lambda s=seg, d=dest, vv=vid: voice.generate_long(
-                text=s["text"], output_path=d, language=l11, voice_id=vv))
+            None, lambda s=text, d=dest, vv=vid, mm=mid: voice.generate_long(
+                text=s, output_path=d, language=l11, voice_id=vv, model_id=mm))
         parts.append(dest)
         plan.append({"kind": seg["kind"], "speaker": speaker,
-                     "chars": len(seg["text"])})
+                     "chars": len(seg["text"]), "tags": style["tags"]})
     fname = f"vo_{scene.id[:8]}_{uuid4().hex[:6]}.mp3"
     out = _vo_audio_dir() / fname
     _concat_audio(parts, out)
@@ -11622,7 +11808,7 @@ async def _generate_scene_vo(session, scene, lang: str) -> dict:
     scene.updated_at = datetime.utcnow()
     await session.commit()
     await session.refresh(scene)
-    return {"scene": _scene_dict(scene), "segments": plan, "duration_s": dur}
+    return {"scene": _scene_dict(scene), "segments": plan, "duration_s": dur, "notes": notes}
 
 
 @router.post("/scenes/{scene_id}/voiceover")
