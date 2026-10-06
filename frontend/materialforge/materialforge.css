@@ -977,3 +977,16 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
   background: var(--stroke, #222831); pointer-events: none;
 }
 
+/* ── catalogue CC0 (T097) ──────────────────────────────────────────────────
+   HAUTEUR EXPLICITE des cases : une case de grille en overflow:hidden peut
+   contribuer ~0 à la hauteur de sa rangée, et la grille s'effondre en lignes
+   de 2 px sans qu'aucune sonde DOM ne le voie (piège mesuré le 28/08). */
+.cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px;
+  margin: 10px 0; }
+.cat-cell { display: block; padding: 0; border: 1px solid var(--stroke, #222831);
+  border-radius: 6px; background: transparent; cursor: pointer; overflow: hidden; height: 132px;
+  color: var(--ink); }
+.cat-cell img { width: 100%; height: 100px; object-fit: cover; display: block; }
+.cat-cell span { display: block; font-size: 11px; padding: 3px 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cat-cell.on { outline: 2px solid var(--accent, #4cc9f0); outline-offset: -2px; }

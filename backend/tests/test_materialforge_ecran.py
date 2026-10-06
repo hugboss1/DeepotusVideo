@@ -185,4 +185,15 @@ assert "Object.assign(body, patchPending.top)" in fl, "les lignes top vont à la
 assert "props: { [row.k]" not in st
 ok("hauteur physique : ligne `top` lue sur la matière, PATCH à la racine du corps (pas dans props)")
 
+# ══ 12 · le catalogue CC0 (T10) ════════════════════════════════════════════
+oc = JS_CODE.split("async function ouvrirCatalogue(", 1)[1].split("\nfunction emptyHtml(", 1)[0]
+assert '$("#proofTitle").textContent' in oc and '$("#proofBody").innerHTML' in oc, oc[:300]
+assert '$("#proof").innerHTML' not in oc and "box.innerHTML" not in oc, "le dialogue PARTAGÉ garde son cadre"
+assert '"/materials/catalog/import"' in oc and "if (e.missing) apiFail(" in oc
+assert 'id="catBtnHead"' in HTML and 'data-empty="catalog"' in JS_CODE
+assert '@router.post("/materials/catalog/import")' in PY and '@router.get("/materials/catalog")' in PY
+assert ".cat-cell {" in CSS and "height: 132px" in CSS.split(".cat-cell {", 1)[1].split("}", 1)[0]
+ok("catalogue : bouton permanent + galerie vide, dialogue partagé gardé (titre et corps seulement), "
+   "un POST pour tout l'import, cases à hauteur explicite")
+
 print(f"\nOK — {PASS} assertions groupées vertes (écran Material Forge)")

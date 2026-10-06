@@ -1,0 +1,950 @@
+{
+ "version": 1,
+ "generated_at": "2026-10-06T09:01:20Z",
+ "source": {
+  "name": "Poly Haven",
+  "url": "https://polyhaven.com",
+  "license": "CC0-1.0",
+  "license_url": "https://polyhaven.com/license"
+ },
+ "families": [
+  {
+   "id": "sols",
+   "name": "Sols",
+   "count": 5
+  },
+  {
+   "id": "murs",
+   "name": "Murs & briques",
+   "count": 5
+  },
+  {
+   "id": "metaux",
+   "name": "Métaux",
+   "count": 5
+  },
+  {
+   "id": "bois",
+   "name": "Bois",
+   "count": 5
+  },
+  {
+   "id": "tissus",
+   "name": "Tissus & cuirs",
+   "count": 5
+  },
+  {
+   "id": "beton_terrain",
+   "name": "Béton & terrains",
+   "count": 5
+  }
+ ],
+ "materials": [
+  {
+   "id": "brick_floor_003",
+   "name": "Sol de briques",
+   "family": "sols",
+   "polyhaven_name": "Brick Floor 003",
+   "tags": [
+    "brown",
+    "floor",
+    "pavement"
+   ],
+   "authors": {
+    "Rob Tuytel": "Processing",
+    "Dimitrios Savva": "Photography"
+   },
+   "scale": "2x2 M",
+   "dimensions": [
+    2000,
+    2000
+   ],
+   "url": "https://polyhaven.com/a/brick_floor_003",
+   "maps": {
+    "basecolor": "brick_floor_003/basecolor.jpg",
+    "normal": "brick_floor_003/normal.jpg",
+    "roughness": "brick_floor_003/roughness.jpg"
+   },
+   "bytes": 607825
+  },
+  {
+   "id": "brown_floor_tiles",
+   "name": "Carrelage brun",
+   "family": "sols",
+   "polyhaven_name": "Brown Floor Tilles",
+   "tags": [
+    "tiles",
+    "ceramic",
+    "square",
+    "outdoor flooring",
+    "flat",
+    "continuous",
+    "consistent",
+    "brown"
+   ],
+   "authors": {
+    "Rob Tuytel": "All"
+   },
+   "scale": null,
+   "dimensions": [
+    1700.0000476837158,
+    1700.0000476837158
+   ],
+   "url": "https://polyhaven.com/a/brown_floor_tiles",
+   "maps": {
+    "basecolor": "brown_floor_tiles/basecolor.jpg",
+    "normal": "brown_floor_tiles/normal.jpg",
+    "roughness": "brown_floor_tiles/roughness.jpg"
+   },
+   "bytes": 433406
+  },
+  {
+   "id": "anti_skid_tiles",
+   "name": "Dalles antidérapantes",
+   "family": "sols",
+   "polyhaven_name": "Anti Skid Tiles",
+   "tags": [
+    "antislip",
+    "antiskid",
+    "tiles",
+    "patio",
+    "nonslip",
+    "grip",
+    "slipresistant",
+    "durable"
+   ],
+   "authors": {
+    "Amal Kumar": "All"
+   },
+   "scale": null,
+   "dimensions": [
+    1800.0000715255737,
+    1800.0000715255737
+   ],
+   "url": "https://polyhaven.com/a/anti_skid_tiles",
+   "maps": {
+    "basecolor": "anti_skid_tiles/basecolor.jpg",
+    "normal": "anti_skid_tiles/normal.jpg",
+    "roughness": "anti_skid_tiles/roughness.jpg"
+   },
+   "bytes": 406935
+  },
+  {
+   "id": "asphalt_04",
+   "name": "Asphalte",
+   "family": "sols",
+   "polyhaven_name": "Asphalt 04",
+   "tags": [
+    "rough",
+    "weathered",
+    "dry",
+    "cracked",
+    "discolored",
+    "asphalt",
+    "road",
+    "street"
+   ],
+   "authors": {
+    "Jenelle van Heerden": "Processing",
+    "Sergej Majboroda": "Photography"
+   },
+   "scale": null,
+   "dimensions": [
+    4039.9999618530273,
+    4039.9999618530273
+   ],
+   "url": "https://polyhaven.com/a/asphalt_04",
+   "maps": {
+    "basecolor": "asphalt_04/basecolor.jpg",
+    "normal": "asphalt_04/normal.jpg",
+    "roughness": "asphalt_04/roughness.jpg"
+   },
+   "bytes": 571790
+  },
+  {
+   "id": "bicolour_gravel",
+   "name": "Gravier bicolore",
+   "family": "sols",
+   "polyhaven_name": "Bicolour Gravel",
+   "tags": [
+    "gravel",
+    "gravelly",
+    "driveway gravel",
+    "driveway stones",
+    "driveway",
+    "garden walkway",
+    "stones",
+    "garden path gravel"
+   ],
+   "authors": {
+    "Dimitrios Savva": "All"
+   },
+   "scale": null,
+   "dimensions": [
+    1899.9998569488525,
+    1899.9998569488525
+   ],
+   "url": "https://polyhaven.com/a/bicolour_gravel",
+   "maps": {
+    "basecolor": "bicolour_gravel/basecolor.jpg",
+    "normal": "bicolour_gravel/normal.jpg",
+    "roughness": "bicolour_gravel/roughness.jpg"
+   },
+   "bytes": 1164173
+  },
+  {
+   "id": "brick_wall_001",
+   "name": "Mur de briques rouges",
+   "family": "murs",
+   "polyhaven_name": "Brick Wall 001",
+   "tags": [
+    "red",
+    "rough",
+    "industrial",
+    "plain",
+    "baked"
+   ],
+   "authors": {
+    "Rob Tuytel": "Processing",
+    "Dimitrios Savva": "Photography"
+   },
+   "scale": "1.5x1.5",
+   "dimensions": [
+    3000,
+    3000
+   ],
+   "url": "https://polyhaven.com/a/brick_wall_001",
+   "maps": {
+    "basecolor": "brick_wall_001/basecolor.jpg",
+    "normal": "brick_wall_001/normal.jpg",
+    "roughness": "brick_wall_001/roughness.jpg"
+   },
+   "bytes": 633853
+  },
+  {
+   "id": "brick_wall_003",
+   "name": "Mur de briques clair",
+   "family": "murs",
+   "polyhaven_name": "Brick Wall 003",
+   "tags": [
+    "wall",
+    "modern",
+    "pavement"
+   ],
+   "authors": {
+    "Rob Tuytel": "Processing",
+    "Dimitrios Savva": "Photography"
+   },
+   "scale": "2x2 M",
+   "dimensions": [
+    4000,
+    4000
+   ],
+   "url": "https://polyhaven.com/a/brick_wall_003",
+   "maps": {
+    "basecolor": "brick_wall_003/basecolor.jpg",
+    "normal": "brick_wall_003/normal.jpg",
+    "roughness": "brick_wall_003/roughness.jpg"
+   },
+   "bytes": 886426
+  },
+  {
+   "id": "castle_brick_02_red",
+   "name": "Brique de château, rouge",
+   "family": "murs",
+   "polyhaven_name": "Castle Brick 02 Red",
+   "tags": [
+    "rough",
+    "red",
+    "sewer",
+    "damp",
+    "old",
+    "uneven"
+   ],
+   "authors": {
+    "Rob Tuytel": "All"
+   },
+   "scale": "2M x 2M",
+   "dimensions": [
+    1500,
+    1500
+   ],
+   "url": "https://polyhaven.com/a/castle_brick_02_red",
+   "maps": {
+    "basecolor": "castle_brick_02_red/basecolor.jpg",
+    "normal": "castle_brick_02_red/normal.jpg",
+    "roughness": "castle_brick_02_red/roughness.jpg"
+   },
+   "bytes": 829999
+  },
+  {
+   "id": "beige_wall_001",
+   "name": "Enduit beige",
+   "family": "murs",
+   "polyhaven_name": "Beige Wall 001",
+   "tags": [
+    "beige",
+    "painted",
+    "smooth",
+    "suburb",
+    "house",
+    "home"
+   ],
+   "authors": {
+    "Dimitrios Savva": "Photography",
+    "Rico Cilliers": "Processing"
+   },
+   "scale": null,
+   "dimensions": [
+    3000,
+    3000.000238418579
+   ],
+   "url": "https://polyhaven.com/a/beige_wall_001",
+   "maps": {
+    "basecolor": "beige_wall_001/basecolor.jpg",
+    "normal": "beige_wall_001/normal.jpg",
+    "roughness": "beige_wall_001/roughness.jpg"
+   },
+   "bytes": 293418
+  },
+  {
+   "id": "blue_plaster_wall",
+   "name": "Enduit bleu",
+   "family": "murs",
+   "polyhaven_name": "Blue Plaster Wall",
+   "tags": [
+    "rough",
+    "painted",
+    "cracking paint",
+    "cracks",
+    "bumpy",
+    "cracking",
+    "plaster",
+    "blue"
+   ],
+   "authors": {
+    "Dimitrios Savva": "All"
+   },
+   "scale": null,
+   "dimensions": [
+    2000,
+    2000
+   ],
+   "url": "https://polyhaven.com/a/blue_plaster_wall",
+   "maps": {
+    "basecolor": "blue_plaster_wall/basecolor.jpg",
+    "normal": "blue_plaster_wall/normal.jpg",
+    "roughness": "blue_plaster_wall/roughness.jpg"
+   },
+   "bytes": 228264
+  },
+  {
+   "id": "metal_plate",
+   "name": "Tôle striée",
+   "family": "metaux",
+   "polyhaven_name": "Metal Plate",
+   "tags": [
+    "bare",
+    "painted",
+    "rusty",
+    "pattern",
+    "iron",
+    "factory",
+    "industrial",
+    "steel"
+   ],
+   "authors": {
+    "Rob Tuytel": "All"
+   },
+   "scale": null,
+   "dimensions": [
+    500,
+    500
+   ],
+   "url": "https://polyhaven.com/a/metal_plate",
+   "maps": {
+    "basecolor": "metal_plate/basecolor.jpg",
+    "normal": "metal_plate/normal.jpg",
+    "roughness": "metal_plate/roughness.jpg"
+   },
+   "bytes": 592489
+  },
+  {
+   "id": "corrugated_iron_02",
+   "name": "Tôle ondulée",
+   "family": "metaux",
+   "polyhaven_name": "Corrugated Iron 02",
+   "tags": [
+    "metal",
+    "metallic",
+    "metal sheet",
+    "steel sheeting",
+    "corrugation",
+    "galvanized",
+    "sheet",
+    "roofing"
+   ],
+   "authors": {
+    "Jenelle van Heerden": "Processing",
+    "Sergej Majboroda": "Photography"
+   },
+   "scale": null,
+   "dimensions": [
+    2700.000047683716,
+    2700.000047683716
+   ],
+   "url": "https://polyhaven.com/a/corrugated_iron_02",
+   "maps": {
+    "basecolor": "corrugated_iron_02/basecolor.jpg",
+    "normal": "corrugated_iron_02/normal.jpg",
+    "roughness": "corrugated_iron_02/roughness.jpg"
+   },
+   "bytes": 479642
+  },
+  {
+   "id": "rusty_metal_02",
+   "name": "Métal rouillé",
+   "family": "metaux",
+   "polyhaven_name": "Rusty Metal 02",
+   "tags": [
+    "rust",
+    "old",
+    "weathered",
+    "painted"
+   ],
+   "authors": {
+    "Rob Tuytel": "All"
+   },
+   "scale": null,
+   "dimensions": [
+    1000,
+    1000
+   ],
+   "url": "https://polyhaven.com/a/rusty_metal_02",
+   "maps": {
+    "basecolor": "rusty_metal_02/basecolor.jpg",
+    "normal": "rusty_metal_02/normal.jpg",
+    "roughness": "rusty_metal_02/roughness.jpg"
+   },
+   "bytes": 411728
+  },
+  {
+   "id": "green_metal_rust",
+   "name": "Métal peint rouillé",
+   "family": "metaux",
+   "polyhaven_name": "Green Metal Rust",
+   "tags": [
+    "painted",
+    "ship",
+    "tank",
+    "industrial",
+    "canister"
+   ],
+   "authors": {
+    "Rob Tuytel": "All"
+   },
+   "scale": null,
+   "dimensions": [
+    1000,
+    1000
+   ],
+   "url": "https://polyhaven.com/a/green_metal_rust",
+   "maps": {
+    "basecolor": "green_metal_rust/basecolor.jpg",
+    "normal": "green_metal_rust/normal.jpg",
+    "roughness": "green_metal_rust/roughness.jpg"
+   },
+   "bytes": 138549
+  },
+  {
+   "id": "blue_metal_plate",
+   "name": "Plaque de métal bleue",
+   "family": "metaux",
+   "polyhaven_name": "Blue Metal Plate",
+   "tags": [
+    "scratched",
+    "metal sheet",
+    "metal",
+    "painted",
+    "industrial",
+    "scratches",
+    "scuffed",
+    "steel panel"
+   ],
+   "authors": {
+    "Rob Tuytel": "All"
+   },
+   "scale": null,
+   "dimensions": [
+    2500,
+    2500
+   ],
+   "url": "https://polyhaven.com/a/blue_metal_plate",
+   "maps": {
+    "basecolor": "blue_metal_plate/basecolor.jpg",
+    "normal": "blue_metal_plate/normal.jpg",
+    "roughness": "blue_metal_plate/roughness.jpg"
+   },
+   "bytes": 170290
+  },
+  {
+   "id": "brown_planks_03",
+   "name": "Planches brunes",
+   "family": "bois",
+   "polyhaven_name": "Brown Planks 03",
+   "tags": [
+    "planks",
+    "untreated",
+    "boat",
+    "costal",
+    "dry",
+    "old",
+    "withered"
+   ],
+   "authors": {
+    "Rob Tuytel": "All"
+   },
+   "scale": null,
+   "dimensions": [
+    1000,
+    1000
+   ],
+   "url": "https://polyhaven.com/a/brown_planks_03",
+   "maps": {
+    "basecolor": "brown_planks_03/basecolor.jpg",
+    "normal": "brown_planks_03/normal.jpg",
+    "roughness": "brown_planks_03/roughness.jpg"
+   },
+   "bytes": 496312
+  },
+  {
+   "id": "black_walnut_veneer_01",
+   "name": "Placage de noyer",
+   "family": "bois",
+   "polyhaven_name": "Black Walnut Veneer 01",
+   "tags": [
+    "natural grain",
+    "grain",
+    "natural wood grain",
+    "wood grain",
+    "natural wood",
+    "fine grain",
+    "natural veneer",
+    "natural"
+   ],
+   "authors": {
+    "Jenelle van Heerden": "All"
+   },
+   "scale": null,
+   "dimensions": [
+    1000,
+    1000
+   ],
+   "url": "https://polyhaven.com/a/black_walnut_veneer_01",
+   "maps": {
+    "basecolor": "black_walnut_veneer_01/basecolor.jpg",
+    "normal": "black_walnut_veneer_01/normal.jpg",
+    "roughness": "black_walnut_veneer_01/roughness.jpg"
+   },
+   "bytes": 400869
+  },
+  {
+   "id": "bamboo_wall",
+   "name": "Bambou",
+   "family": "bois",
+   "polyhaven_name": "Bamboo Wall",
+   "tags": [
+    "wood",
+    "raw",
+    "bamboo",
+    "wood wall",
+    "wooden",
+    "culm",
+    "bamboo culm",
+    "bamboo pole"
+   ],
+   "authors": {
+    "Amal Kumar": "All"
+   },
+   "scale": null,
+   "dimensions": [
+    2000,
+    2000
+   ],
+   "url": "https://polyhaven.com/a/bamboo_wall",
+   "maps": {
+    "basecolor": "bamboo_wall/basecolor.jpg",
+    "normal": "bamboo_wall/normal.jpg",
+    "roughness": "bamboo_wall/roughness.jpg"
+   },
+   "bytes": 524329
+  },
+  {
+   "id": "black_painted_planks",
+   "name": "Planches peintes en noir",
+   "family": "bois",
+   "polyhaven_name": "Black Painted Planks",
+   "tags": [
+    "painted",
+    "painted wood",
+    "wood",
+    "wooden planks",
+    "weathered",
+    "scratched",
+    "worn",
+    "grain"
+   ],
+   "authors": {
+    "Dimitrios Savva": "All"
+   },
+   "scale": null,
+   "dimensions": [
+    1599.9999046325684,
+    1599.9999046325684
+   ],
+   "url": "https://polyhaven.com/a/black_painted_planks",
+   "maps": {
+    "basecolor": "black_painted_planks/basecolor.jpg",
+    "normal": "black_painted_planks/normal.jpg",
+    "roughness": "black_painted_planks/roughness.jpg"
+   },
+   "bytes": 325842
+  },
+  {
+   "id": "ash_veneer",
+   "name": "Placage de frêne",
+   "family": "bois",
+   "polyhaven_name": "Ash Veneer",
+   "tags": [
+    "ash wood",
+    "ash",
+    "wood",
+    "hardwood",
+    "veneer",
+    "veneer wood",
+    "natural grain",
+    "natural veneer"
+   ],
+   "authors": {
+    "Jenelle van Heerden": "All"
+   },
+   "scale": null,
+   "dimensions": [
+    1000,
+    1000
+   ],
+   "url": "https://polyhaven.com/a/ash_veneer",
+   "maps": {
+    "basecolor": "ash_veneer/basecolor.jpg",
+    "normal": "ash_veneer/normal.jpg",
+    "roughness": "ash_veneer/roughness.jpg"
+   },
+   "bytes": 439062
+  },
+  {
+   "id": "denim_fabric",
+   "name": "Denim",
+   "family": "tissus",
+   "polyhaven_name": "Denim Fabric",
+   "tags": [
+    "jeans",
+    "pants",
+    "cloth",
+    "clothing",
+    "denim",
+    "stitching",
+    "textile",
+    "fashion"
+   ],
+   "authors": {
+    "Rob Tuytel": "All"
+   },
+   "scale": null,
+   "dimensions": [
+    100.00000149011612,
+    99.99999403953552
+   ],
+   "url": "https://polyhaven.com/a/denim_fabric",
+   "maps": {
+    "basecolor": "denim_fabric/basecolor.jpg",
+    "normal": "denim_fabric/normal.jpg",
+    "roughness": "denim_fabric/roughness.jpg"
+   },
+   "bytes": 790970
+  },
+  {
+   "id": "rough_linen",
+   "name": "Lin brut",
+   "family": "tissus",
+   "polyhaven_name": "Rough Linen",
+   "tags": [
+    "blue",
+    "fine",
+    "textile ",
+    "fabric",
+    "woven",
+    "linen",
+    "weave",
+    "crosshatch"
+   ],
+   "authors": {
+    "colormass": "Photography",
+    "Rico Cilliers": "Processing"
+   },
+   "scale": null,
+   "dimensions": [
+    270.7081392676629,
+    271.29998803138733
+   ],
+   "url": "https://polyhaven.com/a/rough_linen",
+   "maps": {
+    "basecolor": "rough_linen/basecolor.jpg",
+    "normal": "rough_linen/normal.jpg",
+    "roughness": "rough_linen/roughness.jpg"
+   },
+   "bytes": 825354
+  },
+  {
+   "id": "brown_leather",
+   "name": "Cuir brun",
+   "family": "tissus",
+   "polyhaven_name": "Brown Leather",
+   "tags": [
+    "leather",
+    "brown",
+    "chair",
+    "seat",
+    "upholstery",
+    "vintage",
+    "matte",
+    "wrinkled"
+   ],
+   "authors": {
+    "Rob Tuytel": "All"
+   },
+   "scale": "40CM X 40CM",
+   "dimensions": [
+    400.0000059604645,
+    400.00003576278687
+   ],
+   "url": "https://polyhaven.com/a/brown_leather",
+   "maps": {
+    "basecolor": "brown_leather/basecolor.jpg",
+    "normal": "brown_leather/normal.jpg",
+    "roughness": "brown_leather/roughness.jpg"
+   },
+   "bytes": 874583
+  },
+  {
+   "id": "ribbed_corduroy",
+   "name": "Velours côtelé",
+   "family": "tissus",
+   "polyhaven_name": "Ribbed Corduroy",
+   "tags": [
+    "green",
+    "striped",
+    "fabric",
+    "textile ",
+    "corduroy",
+    "woven",
+    "corded velveteen",
+    "wales"
+   ],
+   "authors": {
+    "colormass": "Photography",
+    "Rico Cilliers": "Processing"
+   },
+   "scale": null,
+   "dimensions": [
+    266.40417517521894,
+    266.69999957084656
+   ],
+   "url": "https://polyhaven.com/a/ribbed_corduroy",
+   "maps": {
+    "basecolor": "ribbed_corduroy/basecolor.jpg",
+    "normal": "ribbed_corduroy/normal.jpg",
+    "roughness": "ribbed_corduroy/roughness.jpg"
+   },
+   "bytes": 863390
+  },
+  {
+   "id": "wool_boucle",
+   "name": "Laine bouclée",
+   "family": "tissus",
+   "polyhaven_name": "Wool Boucle",
+   "tags": [
+    "checker",
+    "blanket",
+    "boucle",
+    "wool",
+    "textile ",
+    "woven",
+    "upholstery",
+    "wool boucle"
+   ],
+   "authors": {
+    "colormass": "Photography",
+    "Rico Cilliers": "Processing"
+   },
+   "scale": null,
+   "dimensions": [
+    314.78237097288206,
+    390.10000228881836
+   ],
+   "url": "https://polyhaven.com/a/wool_boucle",
+   "maps": {
+    "basecolor": "wool_boucle/basecolor.jpg",
+    "normal": "wool_boucle/normal.jpg",
+    "roughness": "wool_boucle/roughness.jpg"
+   },
+   "bytes": 1008481
+  },
+  {
+   "id": "brushed_concrete",
+   "name": "Béton brossé",
+   "family": "beton_terrain",
+   "polyhaven_name": "Brushed Concrete ",
+   "tags": [
+    "rough",
+    "weathered",
+    "dirty",
+    "floor",
+    "ground",
+    "discolored",
+    "stained"
+   ],
+   "authors": {
+    "Dario Barresi": "Processing",
+    "Dimitrios Savva": "Photography"
+   },
+   "scale": null,
+   "dimensions": [
+    2500,
+    2500
+   ],
+   "url": "https://polyhaven.com/a/brushed_concrete",
+   "maps": {
+    "basecolor": "brushed_concrete/basecolor.jpg",
+    "normal": "brushed_concrete/normal.jpg",
+    "roughness": "brushed_concrete/roughness.jpg"
+   },
+   "bytes": 584955
+  },
+  {
+   "id": "anti_slip_concrete",
+   "name": "Béton antidérapant",
+   "family": "beton_terrain",
+   "polyhaven_name": "Anti Slip Concrete",
+   "tags": [
+    "rough",
+    "concrete",
+    "antislip",
+    "outdoor",
+    "weathered",
+    "exterior",
+    "scuffed",
+    "chipped"
+   ],
+   "authors": {
+    "Charlotte Baglioni": "All"
+   },
+   "scale": null,
+   "dimensions": [
+    2500,
+    2500
+   ],
+   "url": "https://polyhaven.com/a/anti_slip_concrete",
+   "maps": {
+    "basecolor": "anti_slip_concrete/basecolor.jpg",
+    "normal": "anti_slip_concrete/normal.jpg",
+    "roughness": "anti_slip_concrete/roughness.jpg"
+   },
+   "bytes": 572326
+  },
+  {
+   "id": "aerial_rocks_02",
+   "name": "Rochers",
+   "family": "beton_terrain",
+   "polyhaven_name": "Aerial Rocks 02",
+   "tags": [
+    "rocks",
+    "rough",
+    "moss",
+    "cliff",
+    "rock face",
+    "cave"
+   ],
+   "authors": {
+    "Rob Tuytel": "All"
+   },
+   "scale": "50x50M",
+   "dimensions": [
+    50000,
+    50000
+   ],
+   "url": "https://polyhaven.com/a/aerial_rocks_02",
+   "maps": {
+    "basecolor": "aerial_rocks_02/basecolor.jpg",
+    "normal": "aerial_rocks_02/normal.jpg",
+    "roughness": "aerial_rocks_02/roughness.jpg"
+   },
+   "bytes": 947393
+  },
+  {
+   "id": "brown_mud_dry",
+   "name": "Terre sèche",
+   "family": "beton_terrain",
+   "polyhaven_name": "Brown Mud Dry",
+   "tags": [
+    "mud",
+    "dirt",
+    "stones",
+    "dry",
+    "ground"
+   ],
+   "authors": {
+    "Rob Tuytel": "All"
+   },
+   "scale": null,
+   "dimensions": [
+    1299.996018409729,
+    1299.996018409729
+   ],
+   "url": "https://polyhaven.com/a/brown_mud_dry",
+   "maps": {
+    "basecolor": "brown_mud_dry/basecolor.jpg",
+    "normal": "brown_mud_dry/normal.jpg",
+    "roughness": "brown_mud_dry/roughness.jpg"
+   },
+   "bytes": 1224393
+  },
+  {
+   "id": "aerial_sand",
+   "name": "Sable",
+   "family": "beton_terrain",
+   "polyhaven_name": "Aerial Sand",
+   "tags": [
+    "sand",
+    "costal",
+    "seaside",
+    "ocean",
+    "sea"
+   ],
+   "authors": {
+    "Rob Tuytel": "All"
+   },
+   "scale": "15M x 15M",
+   "dimensions": [
+    15000,
+    15000
+   ],
+   "url": "https://polyhaven.com/a/aerial_sand",
+   "maps": {
+    "basecolor": "aerial_sand/basecolor.jpg",
+    "normal": "aerial_sand/normal.jpg",
+    "roughness": "aerial_sand/roughness.jpg"
+   },
+   "bytes": 564711
+  }
+ ]
+}
