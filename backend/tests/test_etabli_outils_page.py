@@ -73,7 +73,7 @@ def test_la_surface_route_ordre_bouton_et_cablage():
     assert 'reparer_maillage: "/api/etabli/reparer-maillage"' in js
     # l'ordre tient sur UNE ligne (les bancs le lisent ainsi), reparer_maillage la ferme
     assert ('const ORDRE_ECRITURE = ["transformer", "assise", "reparer", "extraire", "couper", '
-            '"reparer_maillage", "creuser", "decimer", "booleen", "connecteur", "materiau", "habiller"];') in js
+            '"reparer_maillage", "creuser", "percer", "decimer", "booleen", "connecteur", "materiau", "habiller"];') in js
     assert 'const ACTIONS_PAR_DEFAUT = ["souder", "doublons", "degeneres", "normales"];' in js
     fiche = _fonction_etabli("rendreFiche")
     assert '<button id="fReparerMaillage" title="' in fiche and "Réparer en un clic" in fiche
@@ -445,14 +445,15 @@ console.log(JSON.stringify(R));
 
 def test_la_mesure_est_un_MODE_range_en_le_quittant_et_lue_par_lireRepere():
     js, code = _lire("etabli/etabli.js"), _code("etabli/etabli.js")
-    assert 'const MODES_GESTE = ["selection", "glisser", "assise", "couteau", "mesure"];' in js
+    assert 'const MODES_GESTE = ["selection", "glisser", "assise", "couteau", "mesure", "foret"];' in js
     assert 'import { angleDeFaces, composantes } from "/lib3d/mesure.js";' in js
     assert 'if (GESTE.mode === "mesure" && mode !== "mesure") rangerMesure();' in _fonction_etabli("armerGeste")
     assert 'if (GESTE.mode === "mesure") { mesurerAuClic(obj, touche); return; }' in code
     assert code.index('if (GESTE.mode === "assise") { poserSurFace(obj, touche); return; }') \
         < code.index('if (GESTE.mode === "mesure") { mesurerAuClic(obj, touche); return; }')
     assert "rendreMesure();" in _fonction_etabli("lireRepere") and 'id="repereMesure"' in _fonction_etabli("rendreRepere")
-    assert 'GESTE.mode !== "mesure") return false;' in _fonction_etabli("toucheClavierOutils")
+    # t133 : Échap range aussi le foret, dernier de la condition
+    assert 'GESTE.mode !== "mesure" && GESTE.mode !== "foret") return false;' in _fonction_etabli("toucheClavierOutils")
     assert '<button class="outil-btn" id="btnMesure"></button>' in _lire("etabli/index.html")
     assert ".repere-mesure" in _lire("etabli/etabli.css")
     f = _fonction_etabli("rendreMesure")
@@ -990,8 +991,15 @@ def test_le_guide_ne_promet_pas_ce_que_l_etabli_ne_fait_pas_encore():
         h = (GUIDE / nom).read_text("utf-8")
         assert phrase in h and "<em>Orienter</em>" in h, nom
         assert "pas encore d'orientation" not in h and "no auto-orientation" not in h, nom
-    fr = (GUIDE / "fr.html").read_text("utf-8")
-    assert "Le trou de drainage n'est pas encore dans l'Établi" in fr
+    # t133 : le trou de drainage EXISTE — le guide, le lexique et l'aide le disent, et ne disent plus « pas encore »
+    for nom, vieux in (("fr.html", "Le trou de drainage n'est pas encore dans l'Établi"),
+                       ("en.html", "Drain holes are not in the Workbench yet")):
+        h = (GUIDE / nom).read_text("utf-8")
+        assert vieux not in h and "<em>Percer (drainage)</em>" in h, nom
+        lex = h.split('id="lex-drainage"', 1)[1].split("</tr>", 1)[0]
+        assert "Pas encore" not in lex and "Not in the Workbench yet" not in lex and "Percer" in lex, nom
+    aide = re.search(r"^\s{2}drainage: \{.*\},$", _lire("etabli/aide.js"), re.M).group(0)
+    assert "Pas encore" not in aide and "Percer" in aide
 
 
 def test_les_PDF_sont_plus_recents_que_leur_source_HTML():
@@ -1296,6 +1304,84 @@ def test_habiller_envoie_des_index_de_NOEUD_par_la_file_d_ecriture():
     assert "ouvrirComparaison(" in m and "/api/etabli/masques?job=" in m, "les masques s'ouvrent en vue B, A intacte"
     r = _fonction_etabli_async("remplirMatieres")
     assert 'jget("/api/materials")' in r and "esc(m.name)" in r
+
+
+# ── t133 : le foret (percer un trou de drainage) ────────────────────────────────────────────────────────────────────
+BASE_P = "111ad79c"
+
+
+def test_temoin_la_base_p_n_a_pas_de_foret():
+    b = subprocess.run(["git", "show", f"{BASE_P}:frontend/etabli/etabli.js"], capture_output=True, cwd=str(RACINE)).stdout
+    assert b and b"fForet" not in b and b'percer: "/api/etabli/percer"' not in b and b'"foret"' not in b
+
+
+def _percer(corps: str) -> dict:
+    src = ("let REP = { echelle: null };\nconst REFUS = [], AVIS = [], ECRIT = [], GESTES = [];\nlet DIAM = \"4\";\n"
+           "const $ = (q) => (q === \"#fForetDiam\" ? { value: DIAM } : null);\n"
+           "function direRefus(m) { REFUS.push(m); } function direAvis(m) { AVIS.push(m); }\n"
+           "function armerGeste(m) { GESTES.push([m, ECRIT.length]); }\n"
+           "async function ecrireSeule(op, charge) { ECRIT.push([op, charge]);\n"
+           "  return { derniere: { version: 6, source: { rayon: charge.rayon, pieces: [{ paroi_traversee: 0.25,\n"
+           "    retires_dehors: 8, retires_dedans: 12, tube: 20 }] } } }; }\n"
+           + _fonction_etabli("enMillimetres") + _fonction_etabli("versUnites") + _fonction_etabli("uniteCourante")
+           + _fonction_etabli("fmtMesure") + _fonction_etabli("direBilanPercage") + _fonction_etabli_async("percerAuClic")
+           + "\nconst OBJ = {}, TOUCHE = { point: { x: 0, y: 0, z: -1 }, normale: { x: 0, y: 0, z: -1 } };\n"
+           + "\n(async () => { const R = {};\n" + corps + "\nconsole.log(JSON.stringify(R)); })();")
+    return json.loads(_node(src).strip().splitlines()[-1])
+
+
+def test_le_foret_desarme_d_abord_EXIGE_une_taille_cible_et_envoie_l_OPPOSE_de_la_normale():
+    R = _percer("""
+await percerAuClic(null, null); R.vide = [REFUS.slice(), ECRIT.length];
+REFUS.length = 0; await percerAuClic(OBJ, TOUCHE); R.sansCible = [REFUS.slice(), ECRIT.length];
+REP.echelle = 8; REFUS.length = 0;
+DIAM = "0"; await percerAuClic(OBJ, TOUCHE); DIAM = "abc"; await percerAuClic(OBJ, TOUCHE);
+R.absurde = [REFUS.slice(), ECRIT.length];
+DIAM = "4"; await percerAuClic(OBJ, TOUCHE); R.ecrit = ECRIT[0]; R.avis = AVIS.slice();
+R.gestes = GESTES.slice();
+""")
+    assert R["vide"] == [["perçage : clique sur la peau de la pièce à percer"], 0]
+    assert R["sansCible"] == [["pose une taille cible : un trou de drainage en millimètres n'a de sens qu'avec une "
+                               "échelle"], 0]
+    assert R["absurde"] == [["perçage : un diamètre en millimètres > 0"] * 2, 0]
+    # ⌀ 4 mm → rayon 2 mm ÷ 8 mm par unité = 0,25 unité ; la face SORT (z −1), le foret ENTRE (z +1)
+    assert R["ecrit"] == ["percer", {"point": [0, 0, -1], "normale": [0, 0, 1], "rayon": 0.25,
+                                     "rayon_millimetres": 2}]
+    assert R["avis"] == ["percé (version 6) : ⌀ 4,00 mm, paroi traversée 2,00 mm — 8 + 12 triangle(s) retirés "
+                         "(dehors + dedans), tube de 20 triangle(s)"]
+    # un clic = un trou : le mode retombe AVANT toute écriture, à chaque clic, refusé ou non
+    assert all(g == ["selection", n] for g, n in zip(R["gestes"], [0, 0, 0, 0, 0])) and len(R["gestes"]) == 5
+
+
+def test_percer_passe_par_l_entonnoir_SEUL_se_libelle_et_se_cable():
+    src = (_objet_etabli("ORDRE_ECRITURE") + _objet_etabli("ROUTES") + _objet_etabli("LIBELLES_ATTENTE") + ENTONNOIR
+           + "let REP = { echelle: 4 };\n" + _fonction_etabli("enMillimetres") + _fonction_etabli("uniteCourante")
+           + _fonction_etabli("fmtMesure") + _fonction_etabli("fileOrdonnee") + _fonction_etabli("contradictionDeLaFile")
+           + _fonction_etabli_async("ecrireVersion")
+           + """
+(async () => { const R = {};
+S.enAttente.push({ operation: "percer", charge: { point: [0, 0, -1], normale: [0, 0, 1], rayon: 0.5, rayon_millimetres: 2 } });
+R.lib = LIBELLES_ATTENTE.percer(S.enAttente[0]);
+await ecrireVersion(); R.corps = CORPS.slice();
+console.log(JSON.stringify(R)); })();""")
+    R = json.loads(_node(src).strip().splitlines()[-1])
+    assert R["corps"] == [["/api/etabli/percer", {"job": "j", "version": 1, "point": [0, 0, -1], "normale": [0, 0, 1],
+                                                  "rayon": 0.5, "rayon_millimetres": 2}]]
+    assert R["lib"] == "percer : ⌀ 4,00 mm"
+    js, code = _lire("etabli/etabli.js"), _code("etabli/etabli.js")
+    assert 'percer: "/api/etabli/percer",' in js and 'percer: "percer"' in _objet_etabli("LIBELLE_OP")
+    # le multiplexeur des clics : le foret consomme le clic entier, comme « poser sur une face »
+    assert 'if (GESTE.mode === "foret") { percerAuClic(obj, touche); return; }' in code
+    fiche = _fonction_etabli("rendreFiche")
+    assert '<button id="fForet" title="' in fiche and 'id="fForetDiam"' in fiche and "trou ⌀ (millimètres)" in fiche
+    h = fiche.split('$("#fForet").addEventListener("click", () => {', 1)[1].split("\n  });", 1)[0]
+    assert h.index("enMillimetres()") < h.index('armerGeste("foret")'), "la taille cible AVANT d'armer"
+    assert 'if (GESTE.mode === "foret") { armerGeste("selection");' in h, "un second clic range le foret"
+    f = _fonction_etabli_async("percerAuClic")
+    assert f.index('armerGeste("selection")') < f.index("versUnites(") < f.index('ecrireSeule("percer"')
+    assert "REP.echelle" not in f and "noeuds" not in f.split("ecrireSeule", 1)[1], \
+        "la garde unique convertit ; le serveur choisit la pièce SOUS le point"
+
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

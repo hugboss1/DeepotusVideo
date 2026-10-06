@@ -161,7 +161,7 @@ const NB_TRANCHES = 20;
    dans le slicer » ouvre. Remis à null à chaque chargement : il appartient à
    la version qui l'a produit. */
 let IMPRESSION = null;
-const MODES_GESTE = ["selection", "glisser", "assise", "couteau", "mesure"];
+const MODES_GESTE = ["selection", "glisser", "assise", "couteau", "mesure", "foret"];
 
 /* La clé interne d'une granularité et son LIBELLÉ ne sont pas la même chose.
    Les clés (« noeud », « materiau ») sont des identifiants sans accents, qui
@@ -206,8 +206,8 @@ let _ecritEnCours = false;
    de partir tant que la file n'est pas vide — elle y entre seule, pour la
    durée de sa propre écriture. `reparer_maillage` (tâche #88) écrit SEUL lui aussi,
    derrière la même garde (ecrireSeule) : sa place dans la liste ne compte pas, elle
-   n'y voisine jamais avec personne. `decimer` (tâche #89 PR D) et `creuser` (PR E) de même. UNE LIGNE : les bancs la lisent ainsi. */
-const ORDRE_ECRITURE = ["transformer", "assise", "reparer", "extraire", "couper", "reparer_maillage", "creuser", "decimer", "booleen", "connecteur", "materiau", "habiller"];
+   n'y voisine jamais avec personne. `decimer` (tâche #89 PR D), `creuser` (PR E) et `percer` (t133) de même. UNE LIGNE : les bancs la lisent ainsi. */
+const ORDRE_ECRITURE = ["transformer", "assise", "reparer", "extraire", "couper", "reparer_maillage", "creuser", "percer", "decimer", "booleen", "connecteur", "materiau", "habiller"];
 
 /* Les trois plumes de P1, ÉCRITES plutôt que composées. Un
    `/api/etabli/${t.operation}` marcherait aussi bien et rendrait le fichier
@@ -222,6 +222,7 @@ const ROUTES = {
   reparer_maillage: "/api/etabli/reparer-maillage",
   decimer: "/api/etabli/decimer",
   creuser: "/api/etabli/creuser",
+  percer: "/api/etabli/percer",
   booleen: "/api/etabli/booleen",
   connecteur: "/api/etabli/connecteur",
   materiau: "/api/etabli/materiau",
@@ -2699,7 +2700,7 @@ function toucheClavierOutils(ev) {
   if (k !== "Escape" && t && (t.isContentEditable
             || /^(INPUT|TEXTAREA|SELECT)$/i.test(t.tagName || ""))) return false;
   if (k === "Escape") {
-    if (GESTE.mode !== "assise" && GESTE.mode !== "couteau" && GESTE.mode !== "mesure") return false;
+    if (GESTE.mode !== "assise" && GESTE.mode !== "couteau" && GESTE.mode !== "mesure" && GESTE.mode !== "foret") return false;
     armerGeste("selection");
     direGeometrie();
   } else if (k === "f" || k === "F") {
@@ -3362,6 +3363,7 @@ const LIBELLES_ATTENTE = {
   reparer_maillage: (t) => `réparer le maillage : ${t.charge.actions.map((a) => LIBELLE_ACTION[a] || a).join(", ")}`,
   decimer: (t) => `décimer vers ${t.charge.preset || t.charge.target_tris} triangles`,
   creuser: (t) => `creuser : paroi ${fmtMesure(t.charge.paroi)} ${uniteCourante()}`,
+  percer: (t) => `percer : ⌀ ${fmtMesure(2 * t.charge.rayon)} ${uniteCourante()}`,
   booleen: (t) => `${t.charge.operation} de ${t.charge.a.length} et ${t.charge.b.length} pièce(s)`,
   connecteur: (t) => `connecteur ${t.charge.type} : rayon ${fmtMesure(t.charge.rayon)} ${uniteCourante()}`,
   materiau: (t) => `matériau ${t.charge.materiau} : ${Object.keys(t.charge).filter((k) => k !== "materiau").join(", ")}`,
@@ -3372,7 +3374,7 @@ const LIBELLES_ATTENTE = {
    Ce qui RENUMÉROTE écrit SEUL : la file doit être vide, la ligne y entre pour la
    durée de sa propre écriture — la garde de confirmerCoupe(), pour toute opération.
    Rend le bilan d'ecrireVersion(), ou null (refus dit dans la barre). */
-const LIBELLE_OP = { reparer_maillage: "réparer le maillage", decimer: "décimer", creuser: "creuser",
+const LIBELLE_OP = { reparer_maillage: "réparer le maillage", decimer: "décimer", creuser: "creuser", percer: "percer",
                      booleen: "le booléen", connecteur: "le connecteur",
                      materiau: "le matériau", habiller: "l'habillage" };
 const LIBELLE_ACTION = { souder: "sommets confondus", doublons: "faces dupliquées", degeneres: "triangles plats",
@@ -3423,6 +3425,40 @@ function direBilanCreusage(fiche) {
   direAvis(`creusé (version ${fiche.version}) : paroi ${fmtMesure(src.paroi)} ${uniteCourante()} sur ${src.pieces.length} pièce(s)`
     + (src.avertissement ? ` — paroi qui tient : ${fmtMesure(src.paroi_max)} ${uniteCourante()} — ${src.avertissement}` : "")
     + (src.limite ? ` — limite : ${src.limite}` : ""));
+}
+/* Le perçage se dit : le diamètre et la paroi traversée D'ABORD (la barre coupe à LARGEUR_REFUS), puis ce qui a
+   été retiré de chaque peau et la taille du tube recousu — les vrais comptes de hollow.percer. */
+function direBilanPercage(fiche) {
+  const src = fiche && fiche.source;
+  if (!src || !src.pieces || !src.pieces.length) return;
+  const q = src.pieces[0];
+  direAvis(`percé (version ${fiche.version}) : ⌀ ${fmtMesure(2 * src.rayon)} ${uniteCourante()}, paroi traversée `
+    + `${fmtMesure(q.paroi_traversee)} ${uniteCourante()} — ${q.retires_dehors} + ${q.retires_dedans} triangle(s) `
+    + `retirés (dehors + dedans), tube de ${q.tube} triangle(s)`
+    + (src.pieces.length > 1 ? ` — ${src.pieces.length} pièces percées` : ""));
+}
+/* LE FORET (t133). Un clic sur la peau extérieure d'une pièce CREUSÉE, et Python perce un trou de drainage le long
+   de la normale de la face touchée — la MÊME normale monde que « poser sur une face » (selection.js la passe par la
+   matrice normale). La normale de la face SORT ; le foret ENTRE : la route reçoit donc son opposé, tel quel. Le
+   diamètre est en millimètres, converti par la garde unique (versUnites) — sans taille cible, refus dit. Aucun
+   `noeuds` : le serveur perce la pièce dont la peau est SOUS le point, et dit s'il n'y en a aucune. */
+async function percerAuClic(objet, touche) {
+  armerGeste("selection");
+  if (!objet || !touche || !touche.point || !touche.normale) {
+    direRefus("perçage : clique sur la peau de la pièce à percer");
+    return;
+  }
+  const diametre = Number($("#fForetDiam") && $("#fForetDiam").value);
+  if (!(diametre > 0)) { direRefus("perçage : un diamètre en millimètres > 0"); return; }
+  const rayon = versUnites(diametre / 2);
+  if (rayon === null) {
+    direRefus("pose une taille cible : un trou de drainage en millimètres n'a de sens qu'avec une échelle");
+    return;
+  }
+  const n = touche.normale, p = touche.point;
+  const bilan = await ecrireSeule("percer", { point: [p.x, p.y, p.z], normale: [-n.x, -n.y, -n.z],
+                                              rayon, rayon_millimetres: diametre / 2 });
+  if (bilan) direBilanPercage(bilan.derniere);
 }
 /* La décimation se dit avec ses vrais comptes — ceux que gltfpack a rendus, pas la cible. */
 function direBilanDecimation(fiche) {
@@ -3891,6 +3927,13 @@ function rendreFiche() {
     <p class="note">Double la peau vers l'intérieur, à épaisseur constante. Exige une taille cible
       (une paroi est une cote physique) et un maillage FERMÉ — sinon « Réparer le maillage », trous
       cochés. Ce que la paroi ne peut pas tenir est compté et dit, avec l'épaisseur qui tient.</p>
+    <div class="dt-label">Percer (drainage)</div>
+    <label>trou ⌀ (millimètres) <input id="fForetDiam" type="number" step="0.5" min="0.5" value="4"
+      title="Le diamètre du trou de drainage, en millimètres réels — exige une taille cible"></label>
+    <button id="fForet" title="Arme le foret : clique ensuite la face à percer, le trou suit sa normale (Échap renonce)">Percer (clic sur la pièce)</button>
+    <p class="note">Sur une pièce CREUSÉE : le foret traverse la paroi sous le clic (dehors puis dedans) et recoud le
+      tube entre les deux peaux — la paroi opposée n'est pas touchée. Écrit aussitôt une version de plus. Une pièce
+      pleine, un rayon plus fin qu'une facette ou un bord qui rase une arête sont refusés, en le disant.</p>
     <div class="dt-label">Décimer</div>
     <label>cible <select id="fDecPreset" title="Le nombre de triangles visé ; les noms de pièces sont gardés">
       <option value="ultra">ultra — 100 000 triangles</option>
@@ -3933,6 +3976,18 @@ function rendreFiche() {
     const bilan = await ecrireSeule("creuser",
       { paroi, paroi_millimetres: saisie, noeuds: noeuds.length ? noeuds : null }, source);
     if (bilan) direBilanCreusage(bilan.derniere);
+  });
+  $("#fForet").addEventListener("click", () => {
+    if (GESTE.mode === "foret") { armerGeste("selection"); direAvis("foret rangé"); return; }
+    if (!S.a) { direRefus("aucun modèle chargé — rien à percer"); return; }
+    if (!enMillimetres()) {
+      direRefus("pose une taille cible : un trou de drainage en millimètres n'a de sens qu'avec une échelle");
+      return;
+    }
+    if (PLQ.active) { direRefus("la plaque est une VUE : revenez à « Assemblé » pour percer"); return; }
+    if (GIZMO) GIZMO.detach();               /* le clic sur la face ne doit pas aussi saisir son nœud */
+    armerGeste("foret");
+    direAvis("foret armé : clique la face à percer — le trou suit sa normale (Échap renonce)");
   });
   $("#fDecimer").addEventListener("click", async () => {
     const bilan = await ecrireSeule("decimer", { preset: $("#fDecPreset").value });
@@ -4324,6 +4379,7 @@ document.addEventListener("etabli:charge", () => {
     if (GESTE.mode === "couteau") return;
     if (GESTE.mode === "assise") { poserSurFace(obj, touche); return; }
     if (GESTE.mode === "mesure") { mesurerAuClic(obj, touche); return; }
+    if (GESTE.mode === "foret") { percerAuClic(obj, touche); return; }
     /* Sur la plaque, cliquer le VIDE relâche la pièce courante — le geste des
        slicers ; cliquer une pièce l'a déjà désignée au poser (glisserSurPlaque).
        L'ANNEAU n'est pas le vide : il vit hors d'`api.racine`, ce rayon ne le
