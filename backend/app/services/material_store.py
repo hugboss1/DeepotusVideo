@@ -162,7 +162,7 @@ RESOLUTIONS = (512, 1024, 2048, 4096)
 # resolutions servies uniquement (apercus de galerie) : 128/256 en plus
 PREVIEW_RESOLUTIONS = (128, 256, 512, 1024, 2048, 4096)
 SEAM_METHODS = ("offset", "mirror")
-SOURCE_KINDS = ("prompt", "library", "upload")
+SOURCE_KINDS = ("prompt", "library", "upload", "catalog")
 
 # Générateurs autorisés pour la génération depuis un prompt. La route mappe
 # ces ids sur le routage FLUX / OpenAI déjà en place (image_providers.py).
@@ -952,6 +952,12 @@ def normalize_material(raw: dict | None, mid: str | None = None) -> dict:
         "derive": merge_derive(raw.get("derive"), None),
         "created": created,
         "thumb": bool(raw.get("thumb")),
+        # D'où vient cette matière et sous quelle licence — pour une matière
+        # du catalogue CC0, ou une matière importée un jour d'ailleurs. Vide
+        # pour une matière forgée par l'utilisateur : elle est à lui.
+        "credit": ({k: str(v)[:200] for k, v in raw["credit"].items()
+                    if k in ("source", "author", "license", "url")}
+                   if isinstance(raw.get("credit"), dict) else {}),
     }
 
 
@@ -1515,6 +1521,11 @@ def _readme(mat: dict, files: dict, bits: int, naming: str, res: int) -> str:
         "",
         "Prompt : " + (mat.get("prompt") or "-"),
     ]
+    cr = mat.get("credit") or {}
+    if cr:
+        lines += ["", f"Source : {cr.get('source', '')} — "
+                      f"{cr.get('author', '')} — {cr.get('license', '')}",
+                  f"  {cr.get('url', '')}"]
     return "\r\n".join(lines) + "\r\n"
 
 

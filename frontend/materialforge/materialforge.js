@@ -1386,6 +1386,70 @@ function renderGallery() {
 const SEED_PROMPTS = ["fer rouillé", "verre givré", "cristal alien",
   "écorce de bouleau", "or martelé", "béton usé"];
 
+/* ── le catalogue CC0 (T097 / plan-matieres T10) ────────────────────────────
+   Une grille de vignettes servies par /materials/catalog/<id>/basecolor.jpg,
+   sélection multiple, puis UN SEUL POST : trente imports en trente requêtes
+   feraient trente barres de progression pour un seul geste.
+   Le dialogue est celui de la preuve des maps (#proof), PARTAGÉ : on n'écrit
+   que son titre et son corps — le plan remplaçait tout le cadre, et la preuve
+   des maps aurait perdu son titre, son bouton Fermer et son corps. */
+async function ouvrirCatalogue(famille) {
+  let d;
+  try {
+    d = await api.get("/materials/catalog" + (famille ? "?family=" + encodeURIComponent(famille) : ""));
+  } catch (e) { if (e.missing) apiFail(e, "catalogue"); else toast("Catalogue : " + e.message, true); return; }
+  if (!d.available) {
+    toast("Le catalogue n'est pas dans cette installation (scripts/build_materials_catalog.py --fetch).", true);
+    return;
+  }
+  proofSeq++;
+  proofId = null;
+  const choisis = new Set();
+  const src = d.source || {};
+  $("#proofTitle").textContent = `Catalogue CC0 — ${d.materials.length} matière${d.materials.length > 1 ? "s" : ""}`;
+  $("#proofBody").innerHTML = `
+    <p class="proof-lead">Source : <b>${esc(src.name || "")}</b> — licence ${esc(src.license || "")}.
+      Trois cartes sont embarquées (couleur, normale mesurée, rugosité) ; les cinq autres sont
+      dérivées à l'import, localement et gratuitement.</p>
+    <div class="chips" id="catFams">${["", ...(d.families || []).map((f) => f.id)].map((f) => {
+      const fam = (d.families || []).find((x) => x.id === f);
+      const lab = f ? `${fam.name} (${fam.count})` : "Toutes";
+      return `<button class="chip${f === (famille || "") ? " active" : ""}" data-fam="${esc(f)}">${esc(lab)}</button>`;
+    }).join("")}</div>
+    <div class="cat-grid" id="catGrid">${d.materials.map((m) => `
+      <button class="cat-cell" data-id="${esc(m.id)}" title="${esc(m.id)}">
+        <img loading="lazy" alt="" src="/api/materials/catalog/${encodeURIComponent(m.id)}/basecolor.jpg">
+        <span>${esc(m.name)}</span>
+      </button>`).join("")}</div>
+    <button class="btn wide" id="catGo" disabled>Importer</button>`;
+  $("#proofBack").classList.remove("hidden");
+  $("#proof").classList.remove("hidden");
+  const go = $("#catGo");
+  const maj = () => {
+    go.disabled = choisis.size === 0;
+    go.textContent = choisis.size ? `Importer ${choisis.size} matière${choisis.size > 1 ? "s" : ""}` : "Importer";
+  };
+  $$("#catGrid .cat-cell").forEach((b) => b.addEventListener("click", () => {
+    const id = b.dataset.id;
+    if (choisis.has(id)) { choisis.delete(id); b.classList.remove("on"); } else { choisis.add(id); b.classList.add("on"); }
+    maj();
+  }));
+  $$("#catFams .chip").forEach((c) => c.addEventListener("click", () => ouvrirCatalogue(c.dataset.fam)));
+  go.addEventListener("click", async () => {
+    go.disabled = true;
+    go.textContent = `Import de ${choisis.size} matière${choisis.size > 1 ? "s" : ""} — dérivation locale…`;
+    try {
+      const r = await api.post("/materials/catalog/import", { ids: Array.from(choisis) });
+      closeProof();
+      await loadMaterials();
+      toast(`${r.materials.length} matière${r.materials.length > 1 ? "s" : ""} importée${r.materials.length > 1 ? "s" : ""}.`);
+    } catch (e) {
+      if (e.missing) apiFail(e, "import du catalogue"); else toast("Import refusé : " + e.message, true);
+      maj();
+    }
+  });
+}
+
 function emptyHtml(q) {
   if (state.apiOk === false) {
     return `<div class="empty-card">
@@ -1412,6 +1476,8 @@ function emptyHtml(q) {
     <div class="empty-chips">
       ${SEED_PROMPTS.map((p) => `<button class="chip" data-empty="seed" data-p="${esc(p)}">${esc(p)}</button>`).join("")}
     </div>
+    <p>Ou pars d'une matière du catalogue :
+      <button class="btn sm" data-empty="catalog">📚 Catalogue CC0 (30 matières)</button></p>
     <p class="empty-foot">Rouvrir une matière plus tard : un clic sur sa carte la rouvre
       dans l’éditeur, propriétés et maps intactes.</p>
   </div>`;
@@ -1423,6 +1489,7 @@ function wireEmpty() {
       const a = b.dataset.empty;
       if (a === "retry") boot(true);
       else if (a === "clear") { state.filter = ""; $("#galSearch").value = ""; renderGallery(); }
+      else if (a === "catalog") ouvrirCatalogue("");
       else if (a === "seed") {
         $("#prompt").value = b.dataset.p || "";
         updateEstimate();
@@ -3586,6 +3653,7 @@ function wire() {
     updateEstimate();
   };
   $("#genBtn").onclick = generate;
+  $("#catBtnHead").addEventListener("click", () => ouvrirCatalogue(""));
   $("#envFile").addEventListener("change", async (e) => {
     const f = e.target.files && e.target.files[0];
     if (!f) return;

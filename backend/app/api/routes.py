@@ -11140,6 +11140,46 @@ async def list_material_presets():
     return {"presets": MS.PRESETS}
 
 
+@router.get("/materials/catalog")
+async def material_catalog(family: str = "", q: str = ""):
+    """Le catalogue CC0 embarqué. Absent (dépôt sans build), il se déclare
+    vide — l'écran le dit, personne ne tombe."""
+    from app.services import starter_materials as SM
+    cat = await asyncio.to_thread(SM.load)
+    return {"available": cat.get("available", False),
+            "source": cat.get("source", {}),
+            "families": cat.get("families", []),
+            "materials": await asyncio.to_thread(SM.browse, family, q)}
+
+
+@router.get("/materials/catalog/{item_id}/{carte}.jpg")
+async def material_catalog_map(item_id: str, carte: str):
+    from app.services import starter_materials as SM
+    try:
+        p = await asyncio.to_thread(SM.carte_path, item_id, carte)
+    except SM.StarterError as e:
+        raise HTTPException(e.status, e.message)
+    return FileResponse(p, media_type="image/jpeg",
+                        headers={"Cache-Control": "public, max-age=86400"})
+
+
+@router.post("/materials/catalog/import")
+async def material_catalog_import(body: dict):
+    """Recopie des matières du catalogue en matières ordinaires."""
+    from app.services import starter_materials as SM
+    ids = (body or {}).get("ids")
+    if not isinstance(ids, list) or not ids:
+        raise HTTPException(400, "ids : une liste d'identifiants du catalogue "
+                                 "est attendue")
+    if len(ids) > 30:
+        raise HTTPException(400, "30 matières au maximum par import")
+    try:
+        faits = await asyncio.to_thread(SM.importer, [str(i) for i in ids])
+    except SM.StarterError as e:
+        raise HTTPException(e.status, e.message)
+    return {"materials": faits}
+
+
 @router.get("/materials/namings")
 async def list_material_namings():
     """Les conventions d'export, avec l'emplacement de destination de chaque
