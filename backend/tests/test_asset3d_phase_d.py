@@ -1631,6 +1631,56 @@ def test_route_texturer_refuse_sans_cle_meshy(monkeypatch):
     asyncio.run(scenario())
 
 
+def test_sans_cle_fal_texturer_et_refine_refusent_AVANT_la_garde(monkeypatch):
+    """Mesuré sur le rig (T104) : sans clé fal, le job échouait APRÈS la garde
+    des plafonds — des lignes Depense estimées sans aucun coût réel. Le
+    maillage part chez Meshy par une URL du stockage fal : le texturage a la
+    même dépendance, le raffinement aussi (le moteur lui-même est sur fal).
+    Une clé faite d'espaces compte comme absente."""
+    import asyncio
+    import httpx
+    from httpx import ASGITransport
+    from sqlalchemy import func, select
+    from app.config import settings as _s
+    from app.main import app
+    from app.services.storage import (Depense, JobRecord, async_session_factory,
+                                      init_db)
+    _mock_meshy(monkeypatch)
+
+    async def compter():
+        async with async_session_factory() as s:
+            dep = (await s.execute(select(func.count()).select_from(Depense))).scalar()
+            jobs = (await s.execute(select(func.count()).select_from(JobRecord))).scalar()
+        return dep, jobs
+
+    async def scenario():
+        await init_db()
+        raz_calls()
+        j, d = _job_texturable("sans_fal", monkeypatch)
+        A3.write_manifest(d, {"engine": "tripo", "texture_mode": "no",
+                              "version": 1, "shots": ["shot_0.png"]})
+        avant = await compter()
+        o = {}
+        async with httpx.AsyncClient(transport=ASGITransport(app=app),
+                                     base_url="http://t") as c:
+            for cle in ("", "   "):
+                monkeypatch.setattr(_s, "FAL_KEY", cle, raising=False)
+                o[("texturer", cle)] = await c.post(f"/api/assets/3d/{j}/texturer")
+                o[("refine", cle)] = await c.post(f"/api/assets/3d/{j}/refine")
+        return avant, await compter(), o
+
+    avant, apres, o = asyncio.run(scenario())
+    for cle in ("", "   "):
+        r = o[("texturer", cle)]
+        assert r.status_code == 400, (repr(cle), r.status_code, r.text)
+        assert "fal" in r.text and "Meshy" in r.text, r.text
+        r = o[("refine", cle)]
+        assert r.status_code == 503 and "FAL_KEY" in r.text, (repr(cle), r.status_code, r.text)
+    # ni dépense estimée, ni job ouvert, ni contact avec fal
+    assert apres == avant, (avant, apres)
+    assert not CALLS, CALLS
+
+
 if __name__ == "__main__":
     # Lanceur (01/10/2026) : sans lui, `python tests/<ce fichier>` sortait 0
     # sans executer un seul test, et la serie par fichier le voyait vert.
