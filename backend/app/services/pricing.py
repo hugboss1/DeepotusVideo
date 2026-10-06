@@ -89,6 +89,7 @@ DEFAULTS = {
         "veo-3.1-lite-google": {"*": 0.10},
     },
     "rembg_api_usd": 0.003,           # fal.ai imageutils/rembg, per image (sprite frames)
+    "seedream_edit_usd": 0.03,        # fal.ai bytedance/seedream/v4/edit, par vue (T104, plan-moteurs-3d T1)
     "meshy_credit_usd": 0.02,         # valeur $ directionnelle d'un crédit Meshy
                                       # (~plan Pro 1000 cr/mois) ; éditable comme
                                       # le reste — Meshy facture en crédits, la
@@ -580,7 +581,45 @@ def estimate(op: dict, p: dict | None = None) -> dict:
             lines.append(_line("fal", "Extra format re-exports", extra, "gen", extra * unit))
         if op.get("multiview"):
             v = int(op.get("views", 3))
-            lines.append(_line("fal", "Multi-view edits", v, "img", v * 0.03))
+            lines.append(_line("fal", "Multi-view edits", v, "img",
+                               v * float(p.get("seedream_edit_usd", DEFAULTS["seedream_edit_usd"]))))
+    elif kind == "asset3d_rig":
+        # Rig Meshy d'un job fal (T104, plan-moteurs-3d T2). docs.meshy.ai/en/api/rigging et /animation relues le
+        # 06/10/2026 : rig 5 cr (marche + course INCLUSES, basic_animations) ; > 300 000 faces → remesh d'abord ;
+        # chaque action de la bibliothèque : 3 cr. UNE LIGNE PAR TÂCHE Meshy, dans l'ordre du tir : la garde des
+        # plafonds écrit une dépense par ligne, et la route rattache chacune au coût réel de SA tâche.
+        from app.services import meshy_service as _MS
+        usd_cr = float(p.get("meshy_credit_usd", DEFAULTS["meshy_credit_usd"]))
+        if op.get("remesh_requis"):
+            cr = _MS.CREDITS_FLAT["remesh"]
+            lines.append(_line("meshy", "Remesh (> 300 000 faces, exigé par le rig)", cr, "credits", cr * usd_cr))
+        cr = _MS.CREDITS_FLAT["rigging"]
+        lines.append(_line("meshy", "Auto-rig humanoïde (marche + course incluses)", cr, "credits", cr * usd_cr))
+        for aid in op.get("actions") or []:
+            cr = _MS.CREDITS_FLAT["animations"]
+            nom = _MS.ACTIONS_RIG.get(int(aid), f"action {int(aid)}")
+            lines.append(_line("meshy", f"Animation {int(aid)} · {nom}", cr, "credits", cr * usd_cr))
+    elif kind == "asset3d_views":
+        v = int(op.get("views", 4))
+        lines.append(_line("fal", "Vues quasi-orthographiques (Seedream)", v, "img",
+                           v * float(p.get("seedream_edit_usd", DEFAULTS["seedream_edit_usd"]))))
+        n = int(op.get("rembg", 0) or 0)
+        if n:
+            lines.append(_line("fal", f"Détourage fal x{n}", n, "img",
+                               n * float(p.get("rembg_api_usd", DEFAULTS["rembg_api_usd"]))))
+    elif kind == "asset3d_convert":
+        if str(op.get("via") or "local") == "meshy":
+            from app.services import meshy_service as _MS
+            cr = _MS.CREDITS_FLAT["convert"]
+            lines.append(_line("meshy", "Conversion Meshy (fbx/usdz/blend)", cr, "credits",
+                               cr * float(p.get("meshy_credit_usd", DEFAULTS["meshy_credit_usd"]))))
+        else:
+            lines.append(_line("local", "Conversion locale (obj/stl/3mf)", 1, "fichier", 0.0))
+    elif kind in ("asset3d_lod", "asset3d_textures", "asset3d_local"):
+        libelle = {"asset3d_lod": "Chaîne LOD (gltfpack)",
+                   "asset3d_textures": "Export textures (PIL)",
+                   "asset3d_local": "Hunyuan3D local (GPU)"}[kind]
+        lines.append(_line("local", libelle, 1, "op", 0.0))
     elif kind == "asset3d_texture":
         # Texturage Meshy d'un maillage DÉJÀ généré (chaîne Tripo → Meshy).
         # Facturé en CRÉDITS Meshy, jamais en $ chez fal : la grille partagée

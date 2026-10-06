@@ -17,7 +17,26 @@
       <div class="engines" id="engines"></div>
       <div class="engine-note" id="engineNote">…</div>
       <button class="engine-goto hidden" id="engineGoto"
-              title="Les moteurs fal (une passe image → mesh) vivent dans Game Assets 3D">
+              title="Rigger et animer un modèle déjà généré par un moteur fal (Game Assets 3D)">
+        → Atelier fal (rig d'un job)</button>
+    </section>
+
+    <!-- T104 (plan-moteurs-3d T2) : rig + animations Meshy d'un job Game Assets 3D (fal) — fal.js -->
+    <section id="falPanel" class="hidden">
+      <div class="dt-label">Atelier fal · job</div>
+      <select id="falJob" class="fal-sel" title="Jobs Game Assets 3D (fal), le plus récent d'abord"></select>
+      <div class="engine-note" id="falJobNote">—</div>
+      <label class="fld fal-fld"><span>taille (m)</span>
+        <input type="number" id="rigH" value="1.7" step="0.05" min="0.2" max="20"
+               title="Taille approximative du personnage — Meshy en déduit l'échelle du squelette"></label>
+      <div class="fal-sub">actions (3 cr chacune — marche et course incluses)</div>
+      <div class="rig-acts" id="rigActions"></div>
+      <button id="btnRig" class="btn-run" disabled>Rig Meshy · —</button>
+      <div class="engine-note fal-refus" id="rigRefus"></div>
+      <div class="engine-note" id="rigEtat"></div>
+      <select id="animPick" class="fal-sel hidden" title="Clips rapatriés — lus dans l'aperçu ci-dessous"></select>
+      <div class="fal-preview hidden" id="falPreview"></div>
+      <button class="engine-goto" id="falHub" title="Générer un modèle, valider sa géométrie, le texturer">
         → ouvrir Game Assets 3D (fal)</button>
     </section>
 

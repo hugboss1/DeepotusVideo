@@ -63,6 +63,7 @@ PAYANTES = {
     # T098 (oubliée là, rattrapée en T099) : la photo du téléphone passe par generate_material — branche library,
     # gratuite en pratique, mais le chemin atteint le puits FLUX et la garde de generate_material est sur sa route
     ("routes", "POST", "/materials/from-photo"),
+    ("routes", "POST", "/assets/3d/{job}/rig"),   # T104 : rig + animations Meshy d'un job fal (crédits)
     ("routes", "POST", "/audio/stems"), ("routes", "POST", "/audio/isolate"),   # T100 : Demucs (fal), isolation ElevenLabs
 }
 

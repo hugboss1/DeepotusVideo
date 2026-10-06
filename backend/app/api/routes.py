@@ -1577,6 +1577,150 @@ async def get_asset3d_vignette(job: str, v: int = 1):
     return FileResponse(p, media_type="image/png")
 
 
+# ── T104 (plan-moteurs-3d T2, R10e P1) : rig et animations Meshy d'un job fal. Déclarées AVANT le fourre-tout
+#    GET /assets/3d/{job}/{fmt}, qui avalerait /animations. ─────────────────────────────────────────────────────
+def _rig_actions(body: dict) -> list[int]:
+    try:
+        acts = [int(a) for a in (body.get("actions") or [])]
+    except (TypeError, ValueError):
+        raise HTTPException(400, "actions : une liste d'identifiants entiers de la bibliothèque Meshy.")
+    if any(a < 0 for a in acts) or len(acts) > 8:
+        raise HTTPException(400, "actions : 8 au plus, identifiants positifs.")
+    return acts
+
+
+@router.get("/assets/3d/{job}/rig/devis")
+async def asset3d_rig_devis(job: str, actions: str = ""):
+    """Le coût du rig AVANT : faces lues sur le GLB courant, remesh annoncé au-delà de 300 000, une ligne par
+    tâche Meshy. `actions` = « 0,4 »."""
+    from app.services import asset3d_rig as RIG, asset3d_service as A3, meshy_service as MS
+    acts = [int(a) for a in actions.split(",") if a.strip().isdigit()]
+    try:
+        d = RIG.devis(job, acts)
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+    # les deux portes de la route, dites AVANT : l'écran grise le bouton et dit pourquoi au lieu d'essuyer un refus
+    return {**d, "actions_connues": {str(k): v for k, v in MS.ACTIONS_RIG.items()},
+            "approuve": bool(A3.approval(job).get("approved")),
+            "texture": RIG.texturee(A3._job_dir(job) / d["fichier"]),
+            "meshy": MS.mock_enabled() or bool(settings.MESHY_API_KEY.strip()),
+            # le maillage part chez Meshy par une URL du stockage fal (A3._upload) : sans clé fal, rien ne part
+            "fal": bool((settings.FAL_KEY or "").strip())}
+
+
+@router.post("/assets/3d/{job}/rig")
+async def asset3d_rig(job: str, background_tasks: BackgroundTasks, body: dict = None):
+    """Rig Meshy du GLB courant d'un job fal. Body {height_m?: 1.7, actions?: [0, 4]}. Tout ce qui peut refuser
+    refuse AVANT d'ouvrir un job payant (clé, job, approbation, texture, actions, double clic), puis la garde des
+    plafonds ; le coût réel de chaque tâche Meshy est rattaché à SA ligne de dépense. Rend un job_id à poller."""
+    from datetime import datetime as _dtu
+    import json as _json
+    from app.services import asset3d_rig as RIG, asset3d_service as A3, meshy_service as MS
+    from app.services.storage import JobRecord, async_session_factory
+
+    body = body or {}
+    if not MS.mock_enabled() and not settings.MESHY_API_KEY.strip():
+        raise HTTPException(400, "MESHY_API_KEY absente — ajoute-la dans les Réglages : le rig passe par ton "
+                                 "compte Meshy, pas par fal.")
+    if not (settings.FAL_KEY or "").strip():
+        # mesuré sur 8799 le 06/10 : sans clé fal, le job échouait APRÈS la garde (dépense estimée inscrite) — le
+        # maillage est confié à Meshy par une URL du stockage fal
+        raise HTTPException(400, "Clé fal absente — Réglages : le maillage passe par le stockage fal pour que "
+                                 "Meshy puisse le lire.")
+    acts = _rig_actions(body)
+    try:
+        h = float(body.get("height_m") or 1.7)
+    except (TypeError, ValueError):
+        raise HTTPException(400, "height_m : un nombre de mètres.")
+    if not 0.2 <= h <= 20:
+        raise HTTPException(400, "height_m : entre 0,2 et 20 m.")
+    try:
+        devis = RIG.devis(job, acts)
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+    if not A3.approval(job).get("approved"):
+        raise HTTPException(409, "Géométrie non approuvée : valide le volume (POST .../approve) avant de payer "
+                                 "un rig.")
+    if not RIG.texturee(A3._job_dir(job) / devis["fichier"]):
+        raise HTTPException(400, "Maillage sans texture : Meshy refuse le rig — texture-le d'abord "
+                                 "(POST …/texturer).")
+    async with async_session_factory() as s:
+        res = await s.execute(
+            _select(JobRecord).where(
+                JobRecord.provider == "asset3d",
+                JobRecord.image_filename == f"asset3d_{Path(job).name}",
+                JobRecord.status.notin_(["done", "failed"])))
+        if res.scalars().first() is not None:
+            raise HTTPException(409, "Une opération est déjà en cours sur ce maillage — attends qu'elle finisse "
+                                     "(file des rendus).")
+
+    _plaf = await _plafond({"kind": "asset3d_rig", "remesh_requis": devis["remesh_requis"], "actions": acts},
+                           "moteurs3d")
+    job_id = str(uuid4())
+    async with async_session_factory() as s:
+        s.add(JobRecord(
+            id=job_id, status=JobStatus.GENERATING_VIDEO.value, progress=5,
+            title=f"3D · rig Meshy ({devis['credits'].get('meshy', 0):.0f} cr)",
+            image_filename=f"asset3d_{Path(job).name}", provider="asset3d", current_step="Rig Meshy"))
+        await s.commit()
+
+    async def on_step(label, pct):
+        async with async_session_factory() as s2:
+            jr2 = await s2.get(JobRecord, job_id)
+            if jr2 is not None:
+                jr2.current_step, jr2.progress = label, int(pct)
+                await s2.commit()
+
+    async def _run():
+        try:
+            r = await RIG.rigger_asset3d(job, height_m=h, actions=acts, on_step=on_step)
+            # le coût RÉEL de chaque tâche, sur SA ligne (même ordre : remesh?, rig, actions) ; la comptabilité ne
+            # fait jamais échouer un rig réussi
+            try:
+                from app.services import plafonds as _PLAF
+                for ligne, tache in zip(_plaf.get("lignes") or [], r.get("taches") or []):
+                    await _PLAF.rattacher_meshy([ligne], tache)
+            except Exception as _e:  # noqa: BLE001
+                logger.warning(f"plafonds : réel Meshy du rig non rattaché ({_e})")
+            async with async_session_factory() as s:
+                jr = await s.get(JobRecord, job_id)
+                if jr is not None:
+                    jr.status, jr.progress = JobStatus.DONE.value, 100
+                    jr.current_step, jr.completed_at = "Complete", _dtu.utcnow()
+                    jr.final_video_path = str(settings.outputs_path / "assets3d" / Path(job).name / r["file"])
+                    jr.cost_meta = _json.dumps({"job": Path(job).name, "rig": True, "version": r["version"],
+                                                "meshy_task": r["meshy_task"], "remesh": r["remesh"],
+                                                "animations": r["animations"]}, ensure_ascii=False)
+                    await s.commit()
+        except Exception as e:
+            logger.exception(f"asset3d rig {job_id} failed: {e}")
+            async with async_session_factory() as s:
+                jr = await s.get(JobRecord, job_id)
+                if jr is not None:
+                    jr.status, jr.error, jr.current_step = JobStatus.FAILED.value, str(e), "Failed"
+                    await s.commit()
+
+    background_tasks.add_task(_run)
+    return {"job_id": job_id, "status": "queued", "source_job": Path(job).name, "devis": devis}
+
+
+@router.get("/assets/3d/{job}/animations")
+async def asset3d_animations(job: str):
+    from app.services import asset3d_rig as RIG
+    return {"animations": RIG.animations_du_job(job)}
+
+
+@router.get("/assets/3d/{job}/animation/{nom}")
+async def asset3d_animation(job: str, nom: str):
+    """Un clip rapatrié par le rig — par son NOM (walking, running, action_4), jamais par un chemin."""
+    from app.services import asset3d_rig as RIG
+    for a in RIG.animations_du_job(job):
+        if a["nom"] == nom:
+            p = settings.outputs_path / "assets3d" / Path(job).name / Path(a["file"]).name
+            return FileResponse(p, media_type="model/gltf-binary", filename=Path(a["file"]).name)
+    raise HTTPException(404, "animation inconnue pour ce job")
+
+
 @router.get("/assets/3d/{job}/{fmt}")
 async def get_asset3d_file(job: str, fmt: str):
     """Stream a generated mesh file (glb|fbx|obj|stl|usdz)."""
