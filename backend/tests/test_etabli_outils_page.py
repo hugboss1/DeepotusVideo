@@ -73,7 +73,7 @@ def test_la_surface_route_ordre_bouton_et_cablage():
     assert 'reparer_maillage: "/api/etabli/reparer-maillage"' in js
     # l'ordre tient sur UNE ligne (les bancs le lisent ainsi), reparer_maillage la ferme
     assert ('const ORDRE_ECRITURE = ["transformer", "assise", "reparer", "extraire", "couper", '
-            '"reparer_maillage", "creuser", "decimer", "booleen", "connecteur", "materiau"];') in js
+            '"reparer_maillage", "creuser", "decimer", "booleen", "connecteur", "materiau", "habiller"];') in js
     assert 'const ACTIONS_PAR_DEFAUT = ["souder", "doublons", "degeneres", "normales"];' in js
     fiche = _fonction_etabli("rendreFiche")
     assert '<button id="fReparerMaillage" title="' in fiche and "Réparer en un clic" in fiche
@@ -1280,6 +1280,22 @@ def test_le_retour_de_Blender_envoie_le_FICHIER_brut_et_rouvre_la_version_neuve(
     assert "ouvrirPrincipale(" in f and "S.sources = await jget(\"/api/etabli/sources\")" in f
     html = _lire("etabli/index.html")
     assert 'id="retourFichier"' in html and 'accept=".glb' in html and 'id="btnRetourBlender"' in html
+
+
+# ── T098 / plan-matieres T15 : une matière par partie ──────────────────────────
+def test_habiller_envoie_des_index_de_NOEUD_par_la_file_d_ecriture():
+    f = _fonction_etabli("lotsHabillage")
+    # le plan envoyait cible « maillage » avec ces index — ce sont des index de NŒUD
+    assert 'noeudsRetenus().noeuds.map((i) => ({ cible: "noeud", index: i, mid }))' in f, f
+    assert '"maillage"' not in f
+    assert "parser.associations" in f and 'cible: "materiau"' in f, "un matériau coché passe par les associations"
+    h = _fonction_etabli_async("habillerSelection")
+    assert 'ecrireSeule("habiller", { lots })' in h, h
+    assert 'habiller: "/api/etabli/habiller"' in _objet_etabli("ROUTES")
+    m = _fonction_etabli("voirMasques")
+    assert "ouvrirComparaison(" in m and "/api/etabli/masques?job=" in m, "les masques s'ouvrent en vue B, A intacte"
+    r = _fonction_etabli_async("remplirMatieres")
+    assert 'jget("/api/materials")' in r and "esc(m.name)" in r
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

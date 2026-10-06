@@ -126,6 +126,25 @@ deux = MP.habiller(CUBE, [{"cible": "maillage", "index": 0, "mid": "mat_a", "map
 dd, _ = mesh_edit.lire_glb(deux)
 assert len(dd["materials"]) == len(avant.get("materials") or []) + 1, dd["materials"]
 assert len(dd["images"]) == len(doc["images"]), (len(dd["images"]), len(doc["images"]))
+# (d) l'ORDRE des lots ne change rien : les cibles se résolvent sur le document
+#     d'origine (résolues au fil de l'eau, « matériau 0 » après « nœud 0 » ne
+#     trouvait plus rien — mesuré le 06/10)
+def _affect(sortie):
+    dd_, _ = mesh_edit.lire_glb(sortie)
+    return [(p.get("material"), dd_["materials"][p["material"]]["name"])
+            for m in dd_["meshes"] for p in m["primitives"]]
+
+
+ordre1 = MP.habiller(CUBE, [{"cible": "noeud", "index": noeud, "mid": "mat_a", "nom": "A", "maps": PAYLOAD},
+                            {"cible": "materiau", "index": 0, "mid": "mat_b", "nom": "B", "maps": PAYLOAD}])
+ordre2 = MP.habiller(CUBE, [{"cible": "materiau", "index": 0, "mid": "mat_b", "nom": "B", "maps": PAYLOAD},
+                            {"cible": "noeud", "index": noeud, "mid": "mat_a", "nom": "A", "maps": PAYLOAD}])
+# les deux lots visent la MÊME primitive : le DERNIER l'emporte, comme des
+# calques — et surtout le second TROUVE encore sa cible
+assert {n for _i, n in _affect(ordre1)} == {"B"} and {n for _i, n in _affect(ordre2)} == {"A"}, \
+    (_affect(ordre1), _affect(ordre2))
+MP.habiller(CUBE, [{"cible": "noeud", "index": noeud, "mid": "mat_a", "maps": PAYLOAD},
+                   {"cible": "materiau", "index": 0, "mid": "mat_b", "maps": PAYLOAD}])   # ne lève plus
 ok("vues alignées sur 4 octets ; un nœud parent vise ses enfants ; deux lots "
    "d'une même matière font UN matériau et un seul jeu d'images")
 
@@ -227,5 +246,71 @@ e1, e2 = asyncio.run(_route())
 ok(f"route : le cube de l'Établi ressort habillé de la matière, géométrie intacte ; "
    f"un autre modèle a sa propre empreinte ({e1[3:11]} ≠ {e2[3:11]}) ; "
    f"job « .. » 400, version absente 404, version 0 400")
+
+# ══ 6 · cavités et arêtes, lues sur la GÉOMÉTRIE ═══════════════════════════
+import time                                                     # noqa: E402
+
+rap = MP.masques(CUBE)
+assert rap["primitives"] and rap["sommets"] > 0, rap
+p0 = rap["primitives"][0]
+for cle in ("maillage", "primitive", "sommets", "cavite_moy", "arete_moy"):
+    assert cle in p0, (cle, p0)
+# Un CUBE n'a que des arêtes convexes : l'arête moyenne domine largement la
+# cavité moyenne. C'est le témoin le moins discutable qui soit.
+assert p0["arete_moy"] > 3.0 * max(1.0, p0["cavite_moy"]), p0
+ok(f"cube : arête moyenne {p0['arete_moy']} contre cavité {p0['cavite_moy']} "
+   f"— un cube n'a que des arêtes saillantes")
+
+# LE PLAN SE TROMPAIT DE GÉOMÉTRIE : il prenait un TORE pour témoin de cavité
+# (« la gorge intérieure est concave »). En courbure MOYENNE, un tore à tube
+# mince est convexe partout — mesuré : cavité 0,0. Le vrai témoin est une
+# arête RENTRANTE : deux cubes décalés, unis par le booléen de T092, font une
+# marche dont le pied est un creux. Le tore reste, comme témoin convexe.
+from app.services import mesh_boolean                          # noqa: E402
+_c = print3d.lire_glb_triangles(CUBE)
+MARCHE = print3d.glb_de_triangles(mesh_boolean.operer(
+    _c, [tuple((x + 1.0, y + 1.0, z) for (x, y, z) in t) for t in _c], "union"))
+rt = MP.masques(MARCHE)["primitives"][0]
+assert rt["cavite_moy"] > 5.0, rt
+assert rt["arete_moy"] > 5.0, rt
+TORE = gltf_builder.build_glb({}, None, "torus", "banc")
+rto = MP.masques(TORE)["primitives"][0]
+assert rto["cavite_moy"] < 1.0 < rto["arete_moy"], rto
+ok(f"marche (deux cubes unis) : cavité {rt['cavite_moy']} ET arête {rt['arete_moy']} — le pied de la marche "
+   f"est un creux ; le tore, convexe en courbure moyenne, n'a pas de cavité ({rto['cavite_moy']})")
+
+# ══ 7 · le GLB de masques porte un COLOR_0 lisible ═════════════════════════
+vu = MP.masques_glb(MARCHE)          # le témoin à creux (le plan disait TORE)
+dv, bv = mesh_edit.lire_glb(vu)
+prim = dv["meshes"][0]["primitives"][0]
+assert "COLOR_0" in prim["attributes"], prim["attributes"]
+acc = dv["accessors"][prim["attributes"]["COLOR_0"]]
+assert acc["type"] == "VEC4" and acc["componentType"] == 5121
+assert acc.get("normalized") is True, acc
+pos = dv["accessors"][prim["attributes"]["POSITION"]]
+assert acc["count"] == pos["count"], (acc["count"], pos["count"])
+couleurs = mesh_edit.lire_accesseur(dv, bv, prim["attributes"]["COLOR_0"])   # print3d.accesseur ne lit que les flottants d impression (le plan l appelait ici)
+assert max(c[0] for c in couleurs) > 40, "aucune cavité écrite"
+assert max(c[1] for c in couleurs) > 40, "aucune arête écrite"
+assert all(c[3] == 255 for c in couleurs)
+assert print3d.lire_glb_triangles(vu), "le GLB de masques n'est plus lisible"
+# matériau NEUTRE : la couleur de sommet ne se multiplie à aucune texture
+mneutre = dv["materials"][prim["material"]]
+assert mneutre["name"] == "masques" and "baseColorTexture" not in mneutre["pbrMetallicRoughness"], mneutre
+assert mneutre["pbrMetallicRoughness"]["baseColorFactor"] == [1.0, 1.0, 1.0, 1.0]
+ok(f"GLB de masques : COLOR_0 VEC4 normalisé sur {acc['count']} sommets, "
+   f"R = cavité, V = arête, A = 255")
+
+# ══ 8 · budget sur 100 000 triangles ═══════════════════════════════════════
+gros = gltf_builder.build_glb({}, None, "sphere", "banc")
+n_tris = len(print3d.lire_glb_triangles(gros))
+t0 = time.perf_counter()
+MP.masques(gros)
+dt = time.perf_counter() - t0
+par_100k = dt * 100000.0 / max(1, n_tris)
+assert par_100k < MP.BUDGET_MASQUES_100K, (n_tris, dt, par_100k)
+print(f"\n  masques : {n_tris} triangles en {dt:.2f} s, soit "
+      f"{par_100k:.1f} s pour 100 000 (budget "
+      f"{MP.BUDGET_MASQUES_100K:.0f} s)")
 
 print(f"\nOK — {PASS} assertions groupées vertes (mesh_paint, habillage)")
