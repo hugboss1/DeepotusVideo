@@ -354,8 +354,12 @@ def _prune_cache(keep: int = 800, motifs=_CACHE_MOTIFS):
 
 def render_preview(effect_type: str, raw_params: dict, *, source=None,
                    t: float = T_DEFAULT, width: int = W_DEFAULT,
-                   job_video: Path | None = None) -> Path:
+                   job_video: Path | None = None, matte: str | None = None) -> Path:
     """Rend (ou retrouve en cache) la vignette d'un effet. Renvoie le JPEG.
+
+    T103 (plan-son-vfx T10) : `matte` = nom d'un sujet détouré (dossier des
+    mattes, nom confiné) — l'effet passe DERRIÈRE lui, comme au rendu du
+    Montage ; l'image du matte est prise au même instant `t`.
 
     ValueError = requête refusée (type inconnu, source hors dossier).
     RuntimeError = ffmpeg n'a pas produit d'image.
@@ -380,6 +384,28 @@ def render_preview(effect_type: str, raw_params: dict, *, source=None,
     width = max(W_MIN, min(W_MAX, width)) // 2 * 2
 
     still, sig = source_still(source, t, job_video)
+    matte_png = None
+    if matte:
+        from app.services import matte_service as MT
+        mp = MT.matte_path(str(matte))              # ValueError si hostile
+        if not mp.is_file():
+            raise ValueError("matte absent")
+        mslug = f"m{hashlib.sha1(mp.name.encode('utf-8')).hexdigest()[:10]}"
+        # préfixe `tt_` VOULU : c'est un motif que `_prune_cache` borne déjà
+        # (`_CACHE_MOTIFS`) — une image de matte par instant ne grossit pas sans fin
+        matte_png = cache_dir() / f"tt_{mslug}_{int(mp.stat().st_mtime)}_{t:.2f}.png"
+        if not matte_png.is_file() or not matte_png.stat().st_size:
+            r = subprocess.run([ffmpeg_bin(), "-y", "-v", "error", "-ss", f"{t:.3f}", "-i", str(mp),
+                                "-frames:v", "1", "-pix_fmt", "rgba", "-update", "1", str(matte_png)],
+                               capture_output=True, text=True, timeout=60)
+            if r.returncode != 0 or not matte_png.is_file():
+                # un matte plus court que `t` : on prend sa PREMIÈRE image plutôt que rien
+                subprocess.run([ffmpeg_bin(), "-y", "-v", "error", "-i", str(mp), "-frames:v", "1",
+                                "-pix_fmt", "rgba", "-update", "1", str(matte_png)],
+                               capture_output=True, text=True, timeout=60)
+            if not matte_png.is_file():
+                raise RuntimeError("image du matte illisible")
+        sig += f":matte:{mp.name}:{int(mp.stat().st_mtime)}"
 
     key = hashlib.sha1(json.dumps(
         [etype, params, sig, round(t, 3), width, 3],   # 3 = version du rendu
@@ -396,16 +422,25 @@ def render_preview(effect_type: str, raw_params: dict, *, source=None,
     eff = dict(params, type=etype)
     ctx = {"w": w, "h": h, "dur": t + 0.4, "fps": 25}
     chain = fx.build_chain([eff], "fxin", "fxout", "p0", ctx)
-    graph = ";".join(
-        [f"[0:v]scale={w}:{h}:flags=bicubic,setsar=1[fxin]"] + chain +
-        ["[fxout]format=yuv420p[fxjpg]"])
+    if matte_png is None:
+        graph = ";".join(
+            [f"[0:v]scale={w}:{h}:flags=bicubic,setsar=1[fxin]"] + chain +
+            ["[fxout]format=yuv420p[fxjpg]"])
+    else:
+        graph = ";".join(
+            [f"[0:v]scale={w}:{h}:flags=bicubic,setsar=1[fxin]"] + chain +
+            [f"[1:v]scale={w}:{h}:flags=bicubic,format=rgba[mt]",
+             "[fxout][mt]overlay=0:0:format=auto,format=yuv420p[fxjpg]"])
 
     # Même combinaison demandée deux fois en parallèle (deux panneaux, un
     # re-rendu) : un seul ffmpeg, l'autre lit le cache. Temporaire unique.
     tmp = out.with_name(f"{out.stem}.{os.getpid()}-{threading.get_ident()}.tmp.jpg")
     cmd = [ffmpeg_bin(), "-y", "-v", "error",
            "-loop", "1", "-framerate", "25", "-t", f"{t + 0.4:.2f}",
-           "-i", str(still), "-filter_complex", graph, "-map", "[fxjpg]",
+           "-i", str(still),
+           *(["-loop", "1", "-framerate", "25", "-t", f"{t + 0.4:.2f}", "-i", str(matte_png)]
+             if matte_png is not None else []),
+           "-filter_complex", graph, "-map", "[fxjpg]",
            "-ss", f"{t:.3f}", "-frames:v", "1", "-update", "1",
            "-q:v", "3", str(tmp)]
     with _frame_lock(out.name):

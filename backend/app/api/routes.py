@@ -3910,6 +3910,63 @@ async def audio_duck(request: Request):
     return r
 
 
+@router.post("/matte")
+async def matte_start(request: Request):
+    """T103 (plan-son-vfx T9, D2a) — détoure le sujet du rendu d'un job (BiRefNet vidéo, fal) en ProRes 4444.
+    Body {job_id, model?: general|matting|portrait} → {matte_id, usd_note}. PAYANT, prix non affiché par fal :
+    la garde des plafonds passe AVANT tout appel (avec la durée de la source), la note « à mesurer » suit."""
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    payload = payload if isinstance(payload, dict) else {}
+    from app.services import matte_service as MT, sfx_service
+    from app.services.montage_service import _resolve_src
+    src = await _resolve_src({"job_id": str(payload.get("job_id") or "")})
+    if src is None:
+        raise HTTPException(404, "rendu introuvable pour ce job_id")
+    model = str(payload.get("model") or "general")
+    if model not in MT.MATTE_MODELS:
+        raise HTTPException(400, f"modèle de détourage inconnu : {model!r} (connus : {', '.join(MT.MATTE_MODELS)})")
+    dur = await asyncio.get_running_loop().run_in_executor(None, sfx_service._probe_duration, src)
+    await _plafond({"kind": "matte", "duration_s": dur}, "son", src.name)
+    try:
+        mid = MT.detourer(src, model, label=src.stem[:16])
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"ok": True, "matte_id": mid, "usd_note": MT.USD_NOTE}
+
+
+@router.get("/matte-models")
+async def matte_models():
+    """T103 (D2b) — le registre de détourage, SERVI : le rack ne recopie aucun libellé."""
+    from app.services import matte_service as MT
+    return {"models": [{"id": k, "label": v["label"]} for k, v in MT.MATTE_MODELS.items()],
+            "default": "general", "usd_note": MT.USD_NOTE}
+
+
+@router.get("/matte/file/{name}")
+async def matte_file(name: str):
+    """Le .mov d'un matte — nom CONFINÉ au dossier des mattes (déclarée AVANT /matte/{matte_id})."""
+    from app.services import matte_service as MT
+    try:
+        p = MT.matte_path(name)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    if not p.is_file():
+        raise HTTPException(404, "matte absent")
+    return FileResponse(p, media_type="video/quicktime")
+
+
+@router.get("/matte/{matte_id}")
+async def matte_status(matte_id: str):
+    from app.services import matte_service as MT
+    st = MT.status(matte_id)
+    if st["status"] == "unknown":
+        raise HTTPException(404, "matte inconnu")
+    return st
+
+
 @router.post("/audio/audition")
 async def audition_audio(request: Request):
     """Aperçu « rendu » d'un extrait audio traité — parité ffmpeg du Rack.
@@ -12517,6 +12574,7 @@ async def effects_preview(request: Request):
     source = q.pop("source", "") or ""
     t = q.pop("t", FXP.T_DEFAULT)
     width = q.pop("w", FXP.W_DEFAULT)
+    matte = q.pop("matte", "") or None   # T103 (D2b) : l'effet passe derrière le sujet détouré
 
     job_video = None
     if str(source).startswith("job:"):
@@ -12532,7 +12590,7 @@ async def effects_preview(request: Request):
     try:
         p = await asyncio.to_thread(
             FXP.render_preview, etype, q, source=source, t=t, width=width,
-            job_video=job_video)
+            job_video=job_video, matte=matte)
     except ValueError as e:
         raise HTTPException(400, str(e))
     except RuntimeError as e:

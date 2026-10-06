@@ -2949,6 +2949,16 @@ async def _resolve_src(src: dict | None) -> Path | None:
     {file_path} absolu accepté s'il existe."""
     if not isinstance(src, dict):
         return None
+    mt = src.get("matte")
+    if mt:
+        # T103 (plan-son-vfx T9) — un sujet détouré : un nom CONFINÉ au dossier
+        # des mattes (matte_service.matte_path), sinon rien.
+        from app.services import matte_service as _MT
+        try:
+            q = _MT.matte_path(str(mt))
+        except ValueError:
+            return None
+        return q if q.is_file() else None
     jid = src.get("job_id")
     if jid:
         async with async_session_factory() as session:
@@ -3626,6 +3636,7 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
 
     seg_durs, seg_idx, seg_stab = [], [], {}   # seg_stab : k → (trf, d_src)
     seg_dsrc = {}                              # k → secondes de SOURCE lues (poignée de sortie)
+    seg_matte = {}                             # k → index d'entrée du sujet détouré (T103)
     for s in segs:
         if s.get("gap"):
             if not audio_only:
@@ -3668,6 +3679,23 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
         if not audio_only:
             seg_idx.append(idx)
             idx += 1
+            # T103 (plan-son-vfx T10, D2b) — LE SUJET DÉTOURÉ, une entrée de
+            # plus lue sur la MÊME fenêtre de source que le plan (-ss/-t) ; sa
+            # chaîne reprendra plus bas celle du plan (vitesse, recadrage,
+            # zoom) pour rester calé image pour image. Il S'EFFACE sur un plan
+            # stabilisé (le .trf déforme la plaque, pas le matte : le sujet
+            # glisserait) et sur un plan masqué (D-30 : le masque décide déjà
+            # où vont les effets ; deux règles de découpe ne se composent pas).
+            # Indexé à part (`seg_matte`) : les dicts du segment appartiennent
+            # à l'appelant et ne sont pas écrits.
+            if (not s.get("gap") and s.get("matte")
+                    and len(seg_durs) - 1 not in seg_stab
+                    and not _mr.mask_of(s.get("mask"))):
+                if s["src_in"] > 0:
+                    inputs.extend(["-ss", str(s["src_in"])])
+                inputs.extend(["-t", str(seg_dsrc[len(seg_durs) - 1]), "-i", str(s["matte"])])
+                seg_matte[len(seg_durs) - 1] = idx
+                idx += 1
     # P1 #7 (28/09/2026) — POIGNÉES DE PLAN. Chaque jonction k (segment k-1
     # → k, placée à T_k = somme des durées timeline d'avant) est :
     #   - un VRAI fondu, entre deux plans en contact dont le k porte une
@@ -3804,7 +3832,34 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
             # D-30 : masque statique — limite la pile d'effets du clip ; sans
             # effet (ou masque invalide) il est ignoré, chaîne historique.
             rmk = _mr.mask_of(s.get("mask")) if reff else None
-            if reff and rmk:
+            if k in seg_matte:
+                # T103 (D2b) — fond → effets « derrière » → sujet par-dessus →
+                # effets « devant ». `behind` absent = derrière : c'est la
+                # raison d'être du matte. Le sujet passe par la MÊME chaîne
+                # que le plan, au format près (yuva420p : l'alpha survit au
+                # recadrage, au zoom et au retiming) — MESURÉ au pixel dans
+                # test_matte_compose (src_in et ×2 : le sujet change de côté au
+                # bon instant). eof_action=pass : un matte plus court que le
+                # plan laisse voir le fond, il ne fige pas le sujet.
+                lst = reff or []
+                behind = [e for e in lst if e.get("behind", True) is not False]
+                front = [e for e in lst if e.get("behind", True) is False]
+                ctx = {"w": w, "h": h, "dur": seg_durs[k], "fps": fps}
+                parts.append(f"[{seg_idx[k]}:v]{chain}[n{k}pre]")
+                cur_lbl = f"n{k}pre"
+                if behind:
+                    parts += _fx.build_chain(behind, cur_lbl, f"n{k}bg", f"cfx{k}b", ctx)
+                    cur_lbl = f"n{k}bg"
+                ia = chain.rfind("format=yuv420p")
+                mchain = chain[:ia] + "format=yuva420p" + chain[ia + len("format=yuv420p"):]
+                parts.append(f"[{seg_matte[k]}:v]{mchain}[m{k}]")
+                parts.append(f"[{cur_lbl}][m{k}]overlay=0:0:eof_action=pass:format=auto,"
+                             f"format=yuv420p[n{k}ov]")
+                if front:
+                    parts += _fx.build_chain(front, f"n{k}ov", f"n{k}", f"cfx{k}f", ctx)
+                else:
+                    parts.append(f"[n{k}ov]null[n{k}]")
+            elif reff and rmk:
                 # split → effets → alphamerge du masque (calculé UNE fois,
                 # bouclé) → overlay sur l'original. `shortest=1` : MESURÉ
                 # 24/09/2026 (9.0.1 = 8.1.1), sans lui le graphe ne finit
@@ -5352,6 +5407,13 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                 rmk = _mr.mask_of(c.get("mask"))   # D-30 — absent = historique
                 if rmk:
                     v1[-1]["mask"] = rmk
+                if c.get("matte"):                 # T103 (D2b) — absent = historique
+                    mp = await _resolve_src({"matte": c.get("matte")})
+                    if mp is None:
+                        logger.warning(f"montage: sujet détouré introuvable ({c.get('matte')!r}), "
+                                       f"plan rendu sans lui — {c.get('label') or c.get('src')}")
+                    else:
+                        v1[-1]["matte"] = mp
             v2 = []
             for c in clips:
                 # P1 : TOUTE piste vidéo autre que v1 est un overlay — son

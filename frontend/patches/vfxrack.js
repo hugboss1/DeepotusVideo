@@ -71,6 +71,24 @@ function vfxJson(url){
     if(!res.ok||ct.indexOf("json")<0)throw new Error("réponse non JSON");
     return res.json()})}
 
+/* T103 (D2b) : POST JSON, même garde que vfxJson (le repli SPA répond 200 +
+   text/html) ; le `detail` du backend remonte tel quel dans l'erreur */
+function vfxPost(url,body){
+  return fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body||{})})
+    .then(function(res){
+      var ct=(res.headers.get("content-type")||"").toLowerCase();
+      if(ct.indexOf("json")<0)throw new Error("réponse non JSON");
+      return res.json().then(function(d){if(!res.ok)throw new Error((d&&d.detail)||("HTTP "+res.status));return d})})}
+/* T103 (D2b) : le détourage d'un plan — un seul à la fois, le modèle retenu
+   d'un plan à l'autre ; les libellés sont ceux de matte_service.MATTE_MODELS */
+var VFX_MATTE={busy:!1,model:"general",arm:null,models:null};
+/* le registre vient du BACKEND (GET /api/matte-models) — jamais recopié ici */
+function vfxMatteModels(){
+  if(VFX_MATTE.models)return Promise.resolve(VFX_MATTE.models);
+  return vfxJson("/api/matte-models").then(function(d){
+    VFX_MATTE.models=(d&&d.models)||[];return VFX_MATTE.models})
+    .catch(function(){return []})}
+
 /* ── favoris — localStorage dz_fav_vfx (même patron que dz_fav_avatars) ───── */
 function vfxFavsLoad(){
   try{
@@ -368,7 +386,7 @@ function vfxSummary(eff,ce){
 
 /* clés d'état d'un effet qui ne sont PAS des paramètres de rendu d'image */
 var VFX_PRV_SKIP={type:1,off:1,label:1,t0:1,t1:1,fade_in:1,fade_out:1,
-  ease_in:1,ease_out:1};
+  ease_in:1,ease_out:1,behind:1};
 /* source du plan, au format attendu par /api/effects/preview :
    « job:<id> », « image:<nom> », sinon rien (le backend rend sa mire). */
 function vfxSourceOf(clip){
@@ -387,6 +405,9 @@ function vfxPreviewUrl(clip,eff,w){
     if(v!=null&&v!=="")q.push(encodeURIComponent(k)+"="+encodeURIComponent(String(v)))});
   var so=vfxSourceOf(clip);
   if(so)q.push("source="+encodeURIComponent(so));
+  /* T103 (D2b) : un effet « derrière » se prévisualise SOUS le sujet détouré,
+     comme au rendu ; « devant » le couvre, la vignette d'avant suffit */
+  if(clip&&clip.matte&&eff.behind!==!1)q.push("matte="+encodeURIComponent(clip.matte));
   /* 40 % du plan : ni le noir du début, ni la fin — une image représentative
      (le backend borne à 30 s, on n'envoie donc rien au-delà) */
   var len=clip&&clip.end>clip.start?clip.end-clip.start:0;
@@ -921,6 +942,52 @@ const VfxStack=(props)=>{
       r.jsx("span",{className:"vfx-pval",
         children:(step<1?vfxRound(v,2):Math.round(v))+(b.unit?" "+b.unit:"")})]},k)}
 
+  /* ── T103 (D2b) : la rangée « Sujet » — détourer le plan (BiRefNet, fal) ──
+     PAYANT et au prix NON AFFICHÉ par fal : 1er clic = devis du backend (la
+     ligne dit « à mesurer »), 2e clic = tir. Le résultat part au Montage par
+     `dz-matte` {id, matte} : l'hôte le pose sur le plan, annulable. */
+  var sM=x.useState(0),mtick=sM[1];
+  x.useEffect(function(){vfxMatteModels().then(function(){mtick(function(n){return n+1})})},[]);
+  function emitMatte(name){
+    window.dispatchEvent(new CustomEvent("dz-matte",{detail:{id:clip&&clip.id,matte:name||null}}))}
+  function matteGo(){
+    if(VFX_MATTE.busy||!clip||!clip.src||!clip.src.job_id)return;
+    if(!VFX_MATTE.arm){
+      fetch("/api/cost/estimate",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({kind:"matte",duration_s:vfxN(clip.end,0)-vfxN(clip.start,0)})})
+        .then(function(res){return res.ok?res.json():null})
+        .then(function(e){VFX_MATTE.arm={id:clip.id,label:((e&&e.breakdown&&e.breakdown[0])||{}).label||"devis indisponible",
+          usd:e&&typeof e.total_usd==="number"?e.total_usd:null};mtick(function(n){return n+1})})
+        .catch(function(){VFX_MATTE.arm={id:clip.id,label:"devis indisponible",usd:null};mtick(function(n){return n+1})});
+      return}
+    VFX_MATTE.arm=null;VFX_MATTE.busy=!0;mtick(function(n){return n+1});
+    var id=clip.id;
+    vfxPost("/api/matte",{job_id:clip.src.job_id,model:VFX_MATTE.model}).then(function(d){
+      (function poll(){vfxJson("/api/matte/"+d.matte_id).then(function(st){
+        if(st.status==="done"){VFX_MATTE.busy=!1;mtick(function(n){return n+1});
+          window.dispatchEvent(new CustomEvent("dz-matte",{detail:{id:id,matte:st.file}}));
+          fireNote("Sujet détouré : "+st.file+" — "+(st.usd_note||""))}
+        else if(st.status==="failed"){VFX_MATTE.busy=!1;mtick(function(n){return n+1});fireNote("Détourage : "+st.error)}
+        else setTimeout(poll,1200)}).catch(function(e){VFX_MATTE.busy=!1;mtick(function(n){return n+1});
+          fireNote("Détourage : "+e.message)})})()})
+      .catch(function(e){VFX_MATTE.busy=!1;mtick(function(n){return n+1});fireNote("Détourage : "+e.message)})}
+  function matteRow(){
+    if(!clip||!clip.src||!clip.src.job_id)return null;
+    var arme=VFX_MATTE.arm&&VFX_MATTE.arm.id===clip.id?VFX_MATTE.arm:null;
+    var mods=VFX_MATTE.models||[];
+    return r.jsxs("div",{className:"vfx-matte",children:[
+      r.jsx("span",{className:"vfx-mlbl",children:clip.matte?"Sujet détouré : "+clip.matte:"Sujet non détouré"}),
+      mods.length?r.jsx("select",{className:"vfx-sel",value:VFX_MATTE.model,"aria-label":"Modèle de détourage",
+        onChange:function(e){VFX_MATTE.model=e.target.value;VFX_MATTE.arm=null;mtick(function(n){return n+1})},
+        children:mods.map(function(o){return r.jsx("option",{value:o.id,children:o.label},o.id)})}):null,
+      r.jsx("button",{className:"vfx-btn","data-off":VFX_MATTE.busy||!mods.length?"":void 0,
+        title:"BiRefNet vidéo via fal — prix non affiché par fal : à lire sur le tableau de bord après le tir",
+        onClick:matteGo,
+        children:VFX_MATTE.busy?"détourage…":arme?"Confirmer le détourage":(clip.matte?"Redétourer":"Détourer (fal)")}),
+      clip.matte?r.jsx("button",{className:"vfx-btn",onClick:function(){emitMatte(null)},children:"retirer"}):null,
+      arme?r.jsx("div",{className:"vfx-mhint",children:"devis : "+(arme.usd==null?"":"~$"+arme.usd.toFixed(2)+" — ")+arme.label
+        +" · un second clic lance le détourage"}):null]})}
+
   function row(f,i){
     var d=ce(f.type);
     var open=!!exp[i];
@@ -953,6 +1020,14 @@ const VfxStack=(props)=>{
         r.jsx("button",{className:"vfx-iconbtn",disabled:i===list.length-1,
           title:"Descendre dans la pile","aria-label":"Descendre « "+d.label+" »",
           onClick:function(){moveAt(i,1)},children:"▼"}),
+        /* T103 (D2b) : sur un plan détouré, chaque effet passe derrière le
+           sujet (défaut) ou devant lui */
+        clip&&clip.matte?r.jsx("button",{className:"vfx-tog","data-on":f.behind!==!1?"":void 0,
+          role:"switch","aria-checked":f.behind!==!1,
+          title:f.behind!==!1?"Derrière le sujet détouré — clic : devant":"Devant le sujet — clic : derrière",
+          "aria-label":(f.behind!==!1?"Passer devant le sujet : ":"Passer derrière le sujet : ")+d.label,
+          onClick:function(){patchAt(i,{behind:f.behind!==!1?!1:void 0},!0)},
+          children:f.behind!==!1?"derrière":"devant"}):null,
         r.jsx("button",{className:"vfx-iconbtn vfx-bypass","data-on":off?"":void 0,
           role:"switch","aria-checked":off,
           title:off?"Réactiver — l'effet repart au rendu"
@@ -993,6 +1068,7 @@ const VfxStack=(props)=>{
         title:"Ouvrir le panneau d'effets",
         onClick:function(){props.onOpenPanel()},children:"+ effet"}):null]}),
     r.jsx(VfxAlert,{}),
+    matteRow(),
     list.length?r.jsx("div",{className:"vfx-mods",children:list.map(row)})
     :r.jsxs("div",{className:"vfx-empty",children:[
       r.jsx("div",{className:"vfx-emptytxt",children:"Aucun effet sur ce plan."}),
