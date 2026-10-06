@@ -122,6 +122,24 @@ async def lire(tid: str):
     return meta
 
 
+@router.post("/{tid}/export")
+async def exporter(tid: str, body: dict):
+    """Body: {format: 'tiled'|'ldtk'|'godot'} (t114, plan T3-T5). Écrit `tileset.tsx`, `projet.ldtk` ou
+    `tileset.tres` dans le dossier du jeu, à côté de son `atlas.png`, et rend son nom — le fichier fait foi, et la
+    route de fichier le sert (les trois noms sont dans la liste blanche de `tile_store`)."""
+    from app.services import tile_export as TE
+    meta = TS.read_meta(tid)
+    if meta is None:
+        raise HTTPException(404, f"jeu de tuiles inconnu: {tid}")
+    fmt = str((body or {}).get("format") or "").strip().lower()
+    if fmt not in TE.FORMATS:
+        raise HTTPException(400, f"format inconnu: {fmt or '(vide)'} (attendu {', '.join(sorted(TE.FORMATS))})")
+    p = await asyncio.to_thread(TE.FORMATS[fmt], TS.tileset_dir(tid), meta)
+    logger.info(f"tuiles/export {fmt}: {tid} -> {p.name} ({p.stat().st_size} o)")
+    return {"tid": tid, "format": fmt, "fichier": p.name, "octets": p.stat().st_size,
+            "url": f"/api/tiles/{tid}/fichier/{p.name}"}
+
+
 @router.get("/{tid}/fichier/{nom}")
 async def fichier(tid: str, nom: str):
     try:
