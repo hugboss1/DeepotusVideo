@@ -41,6 +41,7 @@ from .forge3d_scene import (RELIEF_DEPTH_MM_MAX, RELIEF_DEPTH_MM_DEFAUT,
                             read_glb, glb_scene_mesh, glb_triangle_estimate,
                             material_pngs, holo_finish, apply_fit_inplace,
                             glass_finish, GLASS_KINDS, _GLASS_RECIPES,
+                            surface_finish, SURFACE_KINDS,
                             trs_de_face, HOLO_KINDS, HOLO_PX,
                             MOTIF_MAX, MOTIF_GAIN, MOTIF_GAIN_DEFAULT,
                             motif_probe)
@@ -278,7 +279,13 @@ MATERIAL_TILE_MM = (10.0, 200.0)
 # canal (/info, `material_limits`), séparément listés : l'écran doit savoir
 # LAQUELLE des deux il montre (le canal d'épaisseur des motifs n'existe que
 # côté holo), et il ne peut pas le deviner d'un simple « pas aucune ».
-MATERIAL_FINISHES = ("aucune",) + HOLO_KINDS + GLASS_KINDS
+#
+# TROIS FAMILLES DEPUIS R10c D3 : les finitions de SURFACE (laque, cuir,
+# métal brossé, émissif — les préréglages de la boutique, mêmes noms). Avant
+# elles, ces noms tombaient dans la branche holo de `_habille`, levaient, et
+# finissaient en « finition ignoree » : acceptés, sans effet. Toujours UN
+# champ, donc toujours exclusives.
+MATERIAL_FINISHES = ("aucune",) + HOLO_KINDS + GLASS_KINDS + SURFACE_KINDS
 # LES CINQ MAPS QU'UNE MATIÈRE PEUT DESCENDRE DANS LE GLB. Écrites une fois,
 # ici, parce que `_habille` en RETIRE l'occlusion quand le nœud la débraye —
 # deux listes qui dérivent, et la carte cuite ne serait plus celle qui est
@@ -360,6 +367,18 @@ _VERRE_SANS_FOND = ("verre a transmission pleine sur un element SANS IMAGE : "
                     "objet passe derriere la vitre")
 _VERRE_PLEINE_TRANSMISSION = tuple(
     k for k in GLASS_KINDS if _GLASS_RECIPES[k]["transmission"] >= 1.0)
+# R10c D3 — L'ÉMISSIF « ANIMÉ » NE L'EST PAS DANS LE FICHIER, et c'est le nom
+# qui le promet. glTF cœur n'anime AUCUNE propriété de matériau (ses
+# animations portent sur les nœuds et les poids de morph) : la pulsation est
+# un effet d'APERÇU du lab Matières. Le GLB de la carte porte donc la lueur
+# FIXE — le dire, sinon le réglage semble avoir pris à moitié sans un mot.
+_EMISSIF_FIXE = ("emissif FIXE dans le fichier : glTF n'anime pas les "
+                 "proprietes de materiau, la pulsation de « emissif_anime » "
+                 "n'existe que dans l'apercu du lab Matieres - la carte "
+                 "porte la lueur a sa puissance nominale")
+# les recettes qui portent une émission « animée » — une seule aujourd'hui,
+# nommée par son id de boutique (le mot qui PROMET l'animation)
+_SURFACE_ANIMEES = tuple(k for k in SURFACE_KINDS if k.endswith("_anime"))
 TRANSFORM_XY_MM = (-100.0, 100.0)
 TRANSFORM_Z_MM = (0.0, 10.0)
 TRANSFORM_ROT_DEG = (-180.0, 180.0)
@@ -532,6 +551,10 @@ async def get_info(did: str):
                                 # avait qu'une famille ; ça ne l'est plus.
                                 "finishes_holo": list(HOLO_KINDS),
                                 "finishes_glass": list(GLASS_KINDS),
+                                # la TROISIÈME (R10c D3) : ni motifs ni
+                                # anisotropie non plus — l'écran doit le
+                                # savoir sans recopier un seul nom.
+                                "finishes_surface": list(SURFACE_KINDS),
                                 "motif_max": MOTIF_MAX,
                                 "motif_gain": list(MOTIF_GAIN),
                                 # le DÉFAUT, pas seulement les bornes :
@@ -1801,6 +1824,20 @@ def _habille(el: dict, mat_n, w_mm: float, h_mm: float,
                     and mat_n["finish"] in _VERRE_PLEINE_TRANSMISSION:
                 ignores.append({"node": mat_n["id"],
                                 "why": _VERRE_SANS_FOND})
+        if mat_n.get("motifs"):
+            ignores.append({"node": mat_n["id"],
+                            "why": f"{len(mat_n['motifs'])} {_SANS_HOLO}"})
+    elif mat_n.get("finish") in SURFACE_KINDS:
+        # LA SURFACE (R10c D3) — sa PROPRE branche, AVANT le `elif` holo qui
+        # attrape tout ce qui n'est pas « aucune ». Sans elle, « laque »
+        # tombait dans `holo_finish`, levait, et sortait en « finition
+        # ignoree » : un nom accepté par `clean_graph` et sans effet.
+        # Pas d'anisotropie (la recette ne la porte pas, voir
+        # `_SURFACE_RECIPES`) ni de motifs (pas de canal d'épaisseur) : les
+        # calques posés sont AVOUÉS, comme sous le verre.
+        el["finish"] = surface_finish(mat_n["finish"])
+        if mat_n["finish"] in _SURFACE_ANIMEES:
+            ignores.append({"node": mat_n["id"], "why": _EMISSIF_FIXE})
         if mat_n.get("motifs"):
             ignores.append({"node": mat_n["id"],
                             "why": f"{len(mat_n['motifs'])} {_SANS_HOLO}"})

@@ -1104,7 +1104,9 @@ def test_info_publie_moteurs_prix_matieres_et_bornes(monkeypatch):
         assert info["material_limits"]["tile_mm"] == [10.0, 200.0]
         assert info["material_limits"]["finishes"] == [
             "aucune", "argent", "dorure", "verre", "verre-depoli",
-            "translucide"]
+            "translucide",
+            # R10c D3 : la troisième famille, les ids de la boutique
+            "metal_brosse_aniso", "laque", "cuir", "emissif_anime"]
         assert info["transform_limits"]["xy_mm"] == [-100.0, 100.0]
         assert info["transform_limits"]["z_mm"] == [0.0, 10.0]
         assert info["transform_limits"]["rot_deg"] == [-180.0, 180.0]
@@ -8900,9 +8902,11 @@ function bancT4() {
                          color: "#8a6a43" }],
            material_limits: {
              tile_mm: [10, 200],
-             finishes: ["aucune", "argent", "verre", "translucide"],
+             finishes: ["aucune", "argent", "verre", "translucide",
+                        "laque", "emissif_anime"],
              finishes_holo: ["argent"],
              finishes_glass: ["verre", "translucide"],
+             finishes_surface: ["laque", "emissif_anime"],
              motif_max: 4, motif_gain: [0.1, 1], motif_gain_default: 0.5 },
            transform_limits: INFO0.transform_limits, mesh3d: INFO0.mesh3d };
   MOTIFS = { images: [{ src: "img:img_1.png", label: "img 1" }],
@@ -8911,12 +8915,29 @@ function bancT4() {
     { mat: { id: "m", kind: "material", mat: "aaa", finish: f } },
     false, null);
   const holo = bloc("argent"), vitre = bloc("verre");
+  const laque = bloc("laque");
   dit("T4 une finition HOLO ouvre le bloc des motifs",
       holo.indexOf("motifs dans l'hologramme") >= 0);
   dit("T4 une finition VERRE ne l'ouvre PAS (aucun canal d'epaisseur)",
       vitre.indexOf("motifs dans l'hologramme") < 0);
   dit("T4 ... et le bloc verre DIT ce que la recette remplace",
       vitre.indexOf("remplace la micro-surface") >= 0);
+  /* R10c D3 — LA TROISIEME FAMILLE : ni motifs ni anisotropie (le canal
+     d'epaisseur et le peigne n'existent que dans une recette holo), le
+     libelle se derive (soulignes -> espaces), et le bloc DIT que la
+     micro-surface est remplacee et que l'emission animee est FIXE. */
+  dit("T4/D3 une finition de SURFACE n'ouvre PAS le bloc des motifs",
+      laque.indexOf("motifs dans l'hologramme") < 0);
+  dit("T4/D3 ... l'anisotropie y est GRISEE",
+      /data-field="aniso"[^>]*disabled/.test(laque));
+  dit("T4/D3 ... le libelle se derive de la famille surface",
+      laque.indexOf(">emissif anime<") >= 0
+      && laque.indexOf("laque holographique") < 0);
+  dit("T4/D3 ... et le bloc DIT la micro-surface remplacee et l'emission fixe",
+      laque.indexOf("finition de surface <b>remplace la") >= 0
+      && laque.indexOf("<b>fixe</b>") >= 0
+      && vitre.indexOf("finition de surface") < 0
+      && holo.indexOf("finition de surface") < 0);
   dit("T4 le libelle se DERIVE de la famille (jamais un adjectif faux)",
       holo.indexOf("argent holographique") >= 0
       && vitre.indexOf("verre holographique") < 0);
@@ -9341,6 +9362,8 @@ def _banc_palette(tmp_path, glb_b64: str) -> list:
                 # phase 5 T4 : les DEUX familles de finition, servies par
                 # /info — `matHtml` s'en sert pour décider ce qu'il montre.
                 "finishFamille", "estHolo", "estVerre",
+                # R10c D3 : la troisième famille (surface)
+                "estSurface",
                 # ... et le BLOC DES MOTIFS lui-meme : c'est ce qu'il MONTRE
                 # (ou pas) qui distingue une famille de l'autre a l'ecran.
                 "motifLimits", "motifSources", "motifOptions", "motifsHtml",
@@ -11064,7 +11087,10 @@ def test_les_deux_familles_de_finition_sont_EXCLUSIVES():
     from app.services.cards import forge3d_scene as SC
     from app.services.cards import forge3d as F9
     assert not (set(SC.HOLO_KINDS) & set(SC.GLASS_KINDS))
-    assert F9.MATERIAL_FINISHES == ("aucune",) + SC.HOLO_KINDS + SC.GLASS_KINDS
+    # (la troisième famille, la surface, a son propre banc d'exclusivité :
+    # `test_les_TROIS_familles_de_finition_sont_EXCLUSIVES`)
+    assert F9.MATERIAL_FINISHES == (("aucune",) + SC.HOLO_KINDS
+                                    + SC.GLASS_KINDS + SC.SURFACE_KINDS)
     h = SC.holo_finish("argent", aniso=False, out_px=64)
     for k in ("transmission", "ior", "specular", "volume"):
         assert h.get(k) is None, k
@@ -11232,6 +11258,253 @@ def test_le_noeud_material_habille_EN_VERRE_par_la_route_et_teinte():
         assert vol["attenuationDistance"] == 0.003
     finally:
         MSTORE.delete_material(mat["id"])
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# LES FINITIONS DE SURFACE (R10c D3, troisième famille) — PESÉES DANS LE GLB
+# ════════════════════════════════════════════════════════════════════════════
+# LE DÉFAUT QUE CE BLOC FERME. T098 a livré quatre finitions dans la boutique
+# de matières (`material_store.PRESETS`) mais PAS dans le Forge 3D : un nœud
+# `material` portant « laque » serait tombé dans la branche holographique de
+# `_habille`, `holo_finish` aurait levé, et le bordereau aurait dit « finition
+# ignoree » — accepté par `clean_graph`, sans le moindre effet sur le fichier.
+# Même barre que le verre : une recette n'est PROUVÉE que relue dans le JSON du
+# GLB livré, aux valeurs exactes, `extensionsUsed` EXACT par recette.
+_SURFACE_EXTS = {
+    "metal_brosse_aniso": {"KHR_materials_clearcoat"},
+    "laque": {"KHR_materials_clearcoat"},
+    "cuir": {"KHR_materials_clearcoat", "KHR_materials_sheen"},
+    "emissif_anime": {"KHR_materials_emissive_strength"},
+}
+
+
+def _surface_glb(SC, kind: str, **kw):
+    return _read_glb(SC.write_scene_glb(
+        [_quad_el(SC, kind, finish=SC.surface_finish(kind), **kw)],
+        name="s", extras={}))
+
+
+def test_les_quatre_finitions_de_surface_sont_PESEES_dans_le_glb():
+    from app.services.cards import forge3d_scene as SC
+    assert SC.SURFACE_KINDS == tuple(_SURFACE_EXTS)
+    mat_de = {}
+    for kind, exts in _SURFACE_EXTS.items():
+        doc, _ = _surface_glb(SC, kind)
+        assert set(doc["extensionsUsed"]) == exts, (kind,
+                                                    doc.get("extensionsUsed"))
+        # des ENJOLIVURES, jamais des exigences : un lecteur qui les ignore
+        # montre la carte sans la finition, il ne refuse pas le fichier
+        assert "extensionsRequired" not in doc, kind
+        m = mat_de[kind] = doc["materials"][0]
+        assert set(m["extensions"]) == exts, kind
+    pbr = {k: m["pbrMetallicRoughness"] for k, m in mat_de.items()}
+    ext = {k: m["extensions"] for k, m in mat_de.items()}
+    # MÉTAL BROSSÉ : la teinte acier du préréglage MULTIPLIE l'image de la
+    # couche (comme la dorure), conducteur plein, voile de vernis à 0,05
+    p = pbr["metal_brosse_aniso"]
+    assert p["baseColorFactor"] == [_lin(0xc2), _lin(0xc7), _lin(0xcf), 1.0], p
+    assert (p["metallicFactor"], p["roughnessFactor"]) == (1.0, 0.28), p
+    assert ext["metal_brosse_aniso"]["KHR_materials_clearcoat"] == {
+        "clearcoatFactor": 0.05, "clearcoatRoughnessFactor": 0.0}
+    # LAQUE : AUCUNE couleur — un vernis POSÉ SUR l'image, pas une peinture
+    # qui la recouvre. Un baseColorFactor ici teinterait l'art de la carte.
+    p = pbr["laque"]
+    assert "baseColorFactor" not in p, p
+    assert (p["metallicFactor"], p["roughnessFactor"]) == (0.0, 0.08), p
+    assert ext["laque"]["KHR_materials_clearcoat"] == {
+        "clearcoatFactor": 1.0, "clearcoatRoughnessFactor": 0.03}
+    # CUIR : le velours (sheen) à 0,25 de la couleur du préréglage, en
+    # LINÉAIRE ; la rugosité du lobe velours = celle de la surface (parité
+    # avec `gltf_builder` du lab Matières)
+    p = pbr["cuir"]
+    assert "baseColorFactor" not in p, p
+    assert (p["metallicFactor"], p["roughnessFactor"]) == (0.0, 0.62), p
+    assert ext["cuir"]["KHR_materials_sheen"] == {
+        "sheenColorFactor": [round(_lin(c) * 0.25, 6)
+                             for c in (0xd8, 0xc9, 0xb4)],
+        "sheenRoughnessFactor": 0.62}, ext["cuir"]
+    assert ext["cuir"]["KHR_materials_clearcoat"] == {
+        "clearcoatFactor": 0.08, "clearcoatRoughnessFactor": 0.0}
+    # ÉMISSIF : la COULEUR dans emissiveFactor (bornée à 1 par la spec), la
+    # PUISSANCE dans KHR_materials_emissive_strength. Multiplier la couleur
+    # par 3 puis écrêter à 1 jaunirait l'orange (le vert 0,254 monte à 0,76
+    # quand le rouge plafonne) : la teinte changerait sans qu'on l'ait dit.
+    m = mat_de["emissif_anime"]
+    assert m["emissiveFactor"] == [_lin(0xff), _lin(0x8a), _lin(0x1f)], m
+    assert ext["emissif_anime"]["KHR_materials_emissive_strength"] == {
+        "emissiveStrength": 3.0}
+    assert (pbr["emissif_anime"]["metallicFactor"],
+            pbr["emissif_anime"]["roughnessFactor"]) == (0.0, 0.4)
+    # et AUCUN émissif là où la recette n'en a pas : le writer n'écrit pas un
+    # défaut ([0,0,0])
+    for kind in ("metal_brosse_aniso", "laque", "cuir"):
+        assert "emissiveFactor" not in mat_de[kind], kind
+    # une recette inconnue LÈVE, NOMMÉMENT — même contrat que les deux autres
+    with pytest.raises(ValueError) as e:
+        SC.surface_finish("velours")
+    assert "velours" in str(e.value) and "connues" in str(e.value)
+
+
+def test_les_recettes_de_surface_sont_le_MIROIR_des_prereglages_de_la_boutique():
+    """Règle 8 : le module scène n'importe pas `material_store` — la recette
+    est RECOPIÉE, donc sa parité se teste. Un préréglage retouché dans la
+    boutique sans que la carte suive ferait deux vérités pour un même nom."""
+    from app.services import material_store as MS
+    from app.services.cards import forge3d_scene as SC
+    pre = {p["id"]: p["props"] for p in MS.PRESETS}
+    for kind in SC.SURFACE_KINDS:
+        assert kind in pre, kind
+        r = SC._SURFACE_RECIPES[kind]
+        pp = pre[kind]
+        assert r["metallic"] == pp.get("metallic", 0.0), kind
+        assert r["rough"] == pp["roughness"], kind
+        assert r.get("color") == pp.get("color"), kind
+        assert r.get("coat", 0.0) == pp.get("clearcoat", 0.0), kind
+        assert r.get("coat_rough", 0.0) == pp.get("clearcoat_roughness",
+                                                  0.0), kind
+        assert r.get("sheen", 0.0) == pp.get("sheen", 0.0), kind
+        assert r.get("sheen_color") == pp.get("sheen_color"), kind
+        assert r.get("emissive") == pp.get("emissive"), kind
+        assert r.get("emissive_strength", 0.0) == \
+            pp.get("emissive_strength", 0.0), kind
+
+
+def test_les_TROIS_familles_de_finition_sont_EXCLUSIVES():
+    """Surface contre verre contre holo : vocabulaires disjoints, chaque
+    fabrique ne rend QUE sa famille, et le writer refuse NOMMÉMENT les
+    chimères nouvelles (un velours sur une vitre, une émission sous un film
+    irisé)."""
+    from app.services.cards import forge3d_scene as SC
+    from app.services.cards import forge3d as F9
+    s, h, g = set(SC.SURFACE_KINDS), set(SC.HOLO_KINDS), set(SC.GLASS_KINDS)
+    assert not (s & h) and not (s & g)
+    assert F9.MATERIAL_FINISHES == (("aucune",) + SC.HOLO_KINDS
+                                    + SC.GLASS_KINDS + SC.SURFACE_KINDS)
+    for kind in SC.SURFACE_KINDS:
+        f = SC.surface_finish(kind)
+        for k in ("transmission", "ior", "specular", "volume", "iridescence",
+                  "anisotropy", "normal", "base_nu"):
+            assert f.get(k) is None, (kind, k)
+    cuir = SC.surface_finish("cuir")
+    emi = SC.surface_finish("emissif_anime")
+    verre = SC.glass_finish("verre")
+    argent = SC.holo_finish("argent", aniso=False, out_px=64,
+                            ondulation=False)
+    chimeres = {
+        "emission+verre": dict(emi, transmission=verre["transmission"]),
+        "velours+verre": dict(cuir, ior=verre["ior"],
+                              transmission=verre["transmission"]),
+        "velours+holo": dict(cuir, iridescence=argent["iridescence"]),
+        "emission+holo": dict(emi, iridescence=argent["iridescence"]),
+    }
+    for nom, ch in chimeres.items():
+        with pytest.raises(ValueError) as e:
+            SC.write_scene_glb([_quad_el(SC, "chimere", finish=ch)],
+                               name="v", extras={})
+        assert "exclusi" in str(e.value).lower(), (nom, str(e.value))
+
+
+def test_le_pack_MR_est_SAUTE_sous_une_finition_de_surface_et_l_emission_garde_sa_carte():
+    """La doctrine 2b vaut pour la troisième famille : la finition REMPLACE la
+    micro-surface (MR) de la matière, laisse parler le relief et l'occlusion.
+    L'émission : la CARTE de la matière dit OÙ ça brille, la recette dit
+    QUELLE couleur et QUELLE puissance (glTF multiplie l'une par l'autre)."""
+    from app.services.cards import forge3d_scene as SC
+    maps = SC.material_pngs({
+        "normal": Image.new("RGB", (16, 16), (128, 128, 255)),
+        "roughness": Image.new("L", (16, 16), 90),
+        "metallic": Image.new("L", (16, 16), 30),
+        "ao": Image.new("L", (16, 16), 170),
+        "emissive": Image.new("RGB", (16, 16), (200, 200, 200))})
+    doc, _ = _surface_glb(SC, "laque", mat_maps=maps)
+    m = doc["materials"][0]
+    assert "metallicRoughnessTexture" not in m["pbrMetallicRoughness"]
+    assert m["pbrMetallicRoughness"]["roughnessFactor"] == 0.08
+    assert "normalTexture" in m and "occlusionTexture" in m
+    # SANS recette émissive, la carte de la matière garde son facteur neutre
+    assert m["emissiveFactor"] == [1.0, 1.0, 1.0]
+    doc, _ = _surface_glb(SC, "emissif_anime", mat_maps=maps)
+    m = doc["materials"][0]
+    assert "emissiveTexture" in m
+    assert m["emissiveFactor"] == [_lin(0xff), _lin(0x8a), _lin(0x1f)]
+
+
+def test_le_noeud_material_HABILLE_en_surface_au_lieu_d_ignorer():
+    """LE DÉFAUT D'ORIGINE, MESURÉ AU POINT D'ENTRÉE : `_habille` route une
+    finition de surface vers SA fabrique — plus de « finition ignoree ». Les
+    motifs sont avoués (pas de canal d'épaisseur hors holo), et l'émissif
+    « animé » avoue qu'il est FIXE dans le fichier."""
+    from app.services.cards import forge3d as F9
+    from app.services.cards import forge3d_scene as SC
+    for kind in SC.SURFACE_KINDS:
+        ig: list = []
+        el = {"mesh": SC.quad_mesh(63.0, 88.0)}
+        F9._habille(el, {"id": "m", "finish": kind, "tile_mm": 63.0,
+                         "mat": None}, 63.0, 88.0, ig)
+        assert el.get("finish") == SC.surface_finish(kind), (kind, ig)
+        attendu = [F9._EMISSIF_FIXE] if kind == "emissif_anime" else []
+        assert [x["why"] for x in ig] == attendu, (kind, ig)
+    ig = []
+    F9._habille({"mesh": SC.quad_mesh(63.0, 88.0)},
+                {"id": "m", "finish": "laque", "tile_mm": 63.0, "mat": None,
+                 "motifs": [{"src": "paper", "part": 1}]}, 63.0, 88.0, ig)
+    assert [x["why"] for x in ig] == [f"1 {F9._SANS_HOLO}"], ig
+
+
+def test_clean_graph_accepte_les_finitions_de_surface():
+    from app.services.cards import forge3d as F9
+    from app.services.cards import forge3d_scene as SC
+    for k in SC.SURFACE_KINDS:
+        g = F9.clean_graph({"nodes": [{"id": "m", "kind": "material",
+                                       "finish": k}], "edges": []})
+        assert g["nodes"][0]["finish"] == k, k
+
+
+def test_le_vocabulaire_de_surface_est_SERVI_par_info_et_lu_par_l_ecran():
+    from app.services.cards import forge3d_scene as SC
+    did = _deck("Surface info")
+    r = _api("GET", f"/api/cards/{did}/forge3d/info")
+    assert r.status_code == 200, r.text
+    lim = r.json()["material_limits"]
+    assert lim["finishes_surface"] == list(SC.SURFACE_KINDS)
+    assert set(SC.SURFACE_KINDS) <= set(lim["finishes"])
+    src = JS.read_text(encoding="utf-8")
+    rendu = re.sub(r"/\*.*?\*/", " ", src, flags=re.S)
+    corps = rendu.split("function estSurface(")[1].split("\n  }")[0]
+    assert "finishes_surface" in corps, corps
+    lits = {a or b for a, b in re.findall(
+        r"'((?:\\.|[^'\\])*)'|\"((?:\\.|[^\"\\])*)\"", corps)}
+    for k in SC.SURFACE_KINDS:
+        assert k not in lits, k
+    fl = rendu.split("function finishLabel(")[1].split("\n  }")[0]
+    assert "estSurface(" in fl, fl
+
+
+def test_une_finition_de_surface_traverse_la_ROUTE_jusqu_au_glb_livre():
+    """Bout en bout, sans matière : graphe -> clean_graph -> _habille ->
+    writer -> fichier servi. C'est CE chemin qui disait « finition ignoree »
+    avant : le GLB livré doit porter le velours du cuir."""
+    did = _deck("Surface bout")
+    _exporter_couches(did)
+    g = {"nodes": [
+        {"id": "s", "kind": "layer", "role": "cadre", "side": "front"},
+        {"id": "p", "kind": "plane", "depth_mm": 1.0},
+        {"id": "m", "kind": "material", "finish": "cuir"},
+        {"id": "asm", "kind": "assemble"},
+        {"id": "art", "kind": "artifact", "name": "cuir"}],
+        "edges": [{"from": "s", "to": "p"}, {"from": "p", "to": "m"},
+                  {"from": "m", "to": "asm"}, {"from": "asm", "to": "art"}]}
+    r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+             json={"graph": g, "card": 0})
+    assert r.status_code == 200, r.text
+    b = r.json()["artifact"]
+    assert not [x for x in b["ignored"] if "ignoree" in x["why"]], b["ignored"]
+    doc, _ = _read_glb(_api(
+        "GET", f"/api/cards/{did}/forge3d/file/{b['glb']['name']}").content)
+    assert set(doc["extensionsUsed"]) == _SURFACE_EXTS["cuir"], \
+        doc["extensionsUsed"]
+    sh = doc["materials"][0]["extensions"]["KHR_materials_sheen"]
+    assert sh["sheenRoughnessFactor"] == 0.62, sh
 
 
 def test_les_CINQ_maps_de_la_matiere_DESCENDENT_dans_le_glb():
