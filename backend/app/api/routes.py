@@ -1721,6 +1721,61 @@ async def asset3d_animation(job: str, nom: str):
     raise HTTPException(404, "animation inconnue pour ce job")
 
 
+# ── T105 (plan-moteurs-3d T3, R10e P2) : chaîne de LOD. Locale et gratuite (gltfpack). Déclarées AVANT le
+#    fourre-tout GET /assets/3d/{job}/{fmt}, qui avalerait /lod et /lod-zip. ──────────────────────────────────────
+@router.get("/assets/3d/{job}/lod")
+async def get_asset3d_lod(job: str):
+    """La chaîne écrite, plus les budgets proposés. 200 avec `chaine: null` tant qu'aucune chaîne n'existe —
+    l'écran a besoin des budgets AVANT de pouvoir en lancer une."""
+    from app.services import mesh_lod
+    try:
+        info = mesh_lod.lire(job)
+    except FileNotFoundError:
+        info = None
+    return {"chaine": info, "budgets": mesh_lod.budgets()}
+
+
+@router.post("/assets/3d/{job}/lod")
+async def post_asset3d_lod(job: str, body: dict = None):
+    """Construit la chaîne depuis le GLB courant. Body {usage?: mobile|pc|impression, niveaux?: [int décroissants]}.
+    Local et gratuit, mais long : exécuté dans un thread."""
+    from app.services import mesh_lod
+    body = body or {}
+    niveaux = body.get("niveaux")
+    if niveaux is not None and not isinstance(niveaux, list):
+        raise HTTPException(400, "niveaux doit être une liste d'entiers.")
+    try:
+        return await asyncio.to_thread(mesh_lod.chaine, job, usage=str(body.get("usage") or "pc"), niveaux=niveaux)
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except RuntimeError as e:
+        raise HTTPException(500, str(e))
+
+
+@router.get("/assets/3d/{job}/lod/{niveau}")
+async def get_asset3d_lod_file(job: str, niveau: int):
+    """Un niveau de la chaîne, par son NUMÉRO."""
+    p = settings.outputs_path / "assets3d" / Path(job).name / "lod" / f"lod{int(niveau)}.glb"
+    if not p.is_file():
+        raise HTTPException(404, f"LOD{int(niveau)} absent — lance la chaîne.")
+    return FileResponse(p, media_type="model/gltf-binary", filename=p.name)
+
+
+@router.get("/assets/3d/{job}/lod-zip")
+async def get_asset3d_lod_zip(job: str):
+    """L'archive de la chaîne. Le segment est `lod-zip` et non `lod.zip` : le fourre-tout `{fmt}` juste en dessous
+    sert `model.<fmt>`, un point brouillerait la lecture."""
+    from app.services import mesh_lod
+    try:
+        nom, octets = await asyncio.to_thread(mesh_lod.archive, job)
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+    return Response(content=octets, media_type="application/zip",
+                    headers={"Content-Disposition": f'attachment; filename="{nom}"'})
+
+
 @router.get("/assets/3d/{job}/{fmt}")
 async def get_asset3d_file(job: str, fmt: str):
     """Stream a generated mesh file (glb|fbx|obj|stl|usdz)."""
