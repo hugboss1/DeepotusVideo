@@ -103,7 +103,7 @@ def test_les_refus_d_une_matiere():
     sans = _matiere("sans couleur", _bruit(32, 4), avec_basecolor=False)
     img = _image("t10_ok.png", _bruit(32, 5))
     cas = [({"materiau": "mat_00000000"}, "introuvable"), ({"materiau": "../mat_x"}, "matiere"),
-           ({"materiau": sans}, "couleur"), ({"materiau": sans, "image": img}, "une seule"),
+           ({"materiau": sans}, "pas de couleur de base"), ({"materiau": sans, "image": img}, "une seule"),
            ({}, "image"), ("x", "objet"),
            ({"image": "..\\dehors.png"}, "introuvable")]                       # la garde de l'antislash reste
     for spec, mot in cas:
