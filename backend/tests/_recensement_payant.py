@@ -44,6 +44,7 @@ PUITS = {
     # 3D
     "proxy_request", "texturer_asset3d", "generate_asset3d", "refine_asset3d", "_run_mesh3d",
     "rigger_asset3d",   # T104 : rig + animations Meshy d'un job fal
+    "convertir_par_meshy",   # T105 : fbx/usdz/blend par Meshy convert (1 crédit par tâche)
     "_run_manuscript_job", "_run_adapt_job", "_run_bible_model3d",
 }
 GARDES = {"_plafond", "_PLAF.verifier"}   # `verifier` nu est ambigu (cards/face : `sw.verifier` de la fiche de style)

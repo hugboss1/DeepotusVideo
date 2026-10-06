@@ -77,7 +77,8 @@ DZ_LOD = (
     'return r.jsxs("div",{title:p.mesure===!1?String(p.raison||""):"IoU : silhouettes contre le LOD0 · Δn : '
     'part de l\'aire dont la normale a changé",children:["LOD",String(n.niveau)," · ",DzOptFmt(n.tris)," tris",'
     'n.niveau?" · IoU "+DzLodNum(p.iou_min)+" · Δn "+DzLodNum(p.ecart_normales):" · source",'
-    'n.aggressive?" · agressif":""]},"n"+n.niveau)})},"st"):null]},"lod")}')
+    'n.aggressive?" · agressif":"",n.cible_tenue===!1?" · cible "+DzOptFmt(n.cible)+" non tenue":""]},"n"+n.niveau)})},'
+    '"st"):null]},"lod")}')
 
 # T105 B (plan-moteurs-3d T4) : l'export des textures aux conventions moteur, dans la MÊME zone. Les conventions et
 # les résolutions viennent du SERVEUR (inventaire) ; un refus (GLB compressé, maillage nu) est DIT, jamais avalé.
@@ -129,8 +130,8 @@ PATCHES = [
     ("D2-zone", ANCRE_ZONE, ANCRE_ZONE + GREFFE, 1),
 ]
 
-SPEC_CHAR_DELTA = 6173
-SPEC_BYTE_DELTA = 6209
+SPEC_CHAR_DELTA = 6238
+SPEC_BYTE_DELTA = 6275
 
 # les voisins de l'ancre et les maillons de queue
 SONDE_AMONT = [

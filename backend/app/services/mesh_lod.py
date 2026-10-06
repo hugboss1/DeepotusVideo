@@ -247,6 +247,9 @@ def chaine(job, *, usage: str = "pc", niveaux=None) -> dict:
         out.write_bytes(_renommer(out.read_bytes(), i, bases))
         st = {"niveau": i, "file": out.name, "cible": cible, "aggressive": agressif,
               **mesh_optimize.glb_stats(out)}
+        # mesuré sur 8799 le 06/10 : une sphère de 6 240 triangles visée à 200 sort à 334 MÊME après -sa — gltfpack
+        # protège la topologie ; la chaîne le DIT au lieu de laisser croire la cible tenue
+        st["cible_tenue"] = st["tris"] <= cible * 1.15
         try:
             st["gltfpack"] = json.loads(rapport.read_text(encoding="utf-8"))
         except Exception as e:            # rapport absent ou illisible : le dire
@@ -285,7 +288,9 @@ def _lisezmoi(info: dict) -> str:
         cible = str(n["cible"]) if n["cible"] is not None else "—"
         s_iou = f"{iou:.4f}" if iou is not None else "non mesuré"
         s_ec = f"{ec:.4f}" if ec is not None else "non mesuré"
-        L.append(f"LOD{n['niveau']}    {n['file']:<12} {n['tris']:>9}  {cible:>8}  {s_iou:>9}   {s_ec}")
+        L.append(f"LOD{n['niveau']}    {n['file']:<12} {n['tris']:>9}  {cible:>8}  {s_iou:>9}   {s_ec}"
+                 + ("   (cible non tenue : gltfpack n'a pas pu descendre plus bas sans casser la topologie)"
+                    if n.get("cible_tenue") is False else ""))
     L += [
         "",
         f"IoU : intersection sur union des silhouettes face/profil/dessus ({SIL_PX} px) contre le LOD0. "

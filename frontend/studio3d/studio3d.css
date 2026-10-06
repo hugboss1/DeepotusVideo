@@ -330,3 +330,5 @@ select option:disabled { color: var(--ink-muted); }
 .fal-preview { height: 180px; margin-top: 9px; border-radius: 8px; border: 1px solid var(--stroke); overflow: hidden;
   background: var(--bg-panel-3); }
 .fal-preview model-viewer { width: 100%; height: 100%; }
+.fal-import { display: block; cursor: pointer; }
+.engine-note a { color: var(--accent); }

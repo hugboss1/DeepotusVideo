@@ -331,7 +331,9 @@ class MeshyMock:
         if kind == "retexture":
             return credits_retexture(payload.get("texture_resolution", "2k"))
         if kind == "convert":
-            return len(payload.get("target_formats") or ["glb"]) * CREDITS_FLAT["convert"]
+            # docs.meshy.ai/en/api/convert relue le 06/10/2026 (T105) : « 1 credit per conversion task », quel que
+            # soit le nombre de formats — le simulateur facturait par format
+            return CREDITS_FLAT["convert"]
         return CREDITS_FLAT.get(kind.split(":")[0], 0)
 
     def create(self, base: str, payload: dict) -> tuple[int, dict]:
@@ -364,7 +366,7 @@ class MeshyMock:
 
     def _formats(self, t: dict) -> list[str]:
         fmts = [str(f).lower() for f in (t["payload"].get("target_formats") or [])]
-        fmts = [f for f in fmts if f in NATIVE_FORMATS or f == "3mf"]
+        fmts = [f for f in fmts if f in NATIVE_FORMATS or f in ("3mf", "blend")]   # target_formats documentés
         return fmts or ["glb", "fbx"]
 
     def get(self, task_id: str) -> tuple[int, dict]:

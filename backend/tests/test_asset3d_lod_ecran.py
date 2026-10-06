@@ -71,7 +71,7 @@ var BUD=[{id:"mobile",label:"Mobile / WebGL",niveaux:[10000,4000,1500],pourquoi:
          {id:"pc",label:"PC / console",niveaux:[60000,20000,6000],pourquoi:"gros plan"}];
 var CH={niveaux:[{niveau:0,file:"lod0.glb",tris:120000,cible:null,perte:{mesure:true,iou_min:1,ecart_normales:0}},
   {niveau:1,file:"lod1.glb",tris:60000,cible:60000,aggressive:false,perte:{mesure:true,iou_min:0.9871,ecart_normales:0.0123}},
-  {niveau:2,file:"lod2.glb",tris:6000,cible:6000,aggressive:true,perte:{mesure:false,raison:"glb compressé"}}]};
+  {niveau:2,file:"lod2.glb",tris:9000,cible:6000,aggressive:true,cible_tenue:false,perte:{mesure:false,raison:"glb compressé"}}]};
 var OUT={};
 (async function(){
   REP["GET /api/assets/3d/job1/lod"]={st:200,js:{chaine:null,budgets:BUD}};
@@ -114,8 +114,10 @@ if "options" in o:
     check("U7 trois lignes : LOD0 « source », LOD1 avec IoU et Δn", set(lg) == {"LOD0", "LOD1", "LOD2"}
           and lg["LOD0"][0] == "LOD0 · 120.0k tris · source"
           and lg["LOD1"][0] == "LOD1 · 60.0k tris · IoU 0.987 · Δn 0.012", str(o["lignes"]))
-    check("U8 LOD2 non mesuré : DIT dans la ligne, la raison en infobulle ; « agressif » quand gltfpack a forcé",
-          "IoU non mesuré · Δn non mesuré · agressif" in lg["LOD2"][0] and lg["LOD2"][1] == "glb compressé", str(lg["LOD2"]))
+    check("U8 LOD2 non mesuré : DIT dans la ligne, la raison en infobulle ; « agressif » quand gltfpack a forcé ; la cible "
+          "manquée est DITE", "IoU non mesuré · Δn non mesuré · agressif · cible 6.0k non tenue" in lg["LOD2"][0]
+          and lg["LOD2"][1] == "glb compressé", str(lg["LOD2"]))
+    check("U8b une cible tenue ne dit rien de plus", "non tenue" not in lg["LOD1"][0], str(lg["LOD1"]))
     check("U9 l'archive apparaît avec la chaîne, vers /lod-zip", o["archive"] == ["/api/assets/3d/job1/lod-zip", "↓ Archive LOD"], str(o["archive"]))
 
 print(f"\n=== {ok} passed, {fail} failed ===")
