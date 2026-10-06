@@ -2435,6 +2435,11 @@ async def get_sprite_manifest(job: str):
         "preview": (d / "preview.gif").is_file(),
         "unity_json": (d / "sheet.unity.json").is_file(),
         "unity_importer": (d / "SpriteSheetImporter.cs").is_file(),
+        # T109 : les exports moteur
+        "godot": (d / "sheet.tres").is_file(),
+        "atlas": (d / "sheet.atlas.json").is_file(),
+        "aseprite": (d / "sheet.ase").is_file(),
+        "paper2d": (d / "sheet.paper2dsprites").is_file(),
         "frames": len(list(fdir.glob("*.png"))) if fdir.is_dir() else 0,
     }
     return data
@@ -2476,6 +2481,64 @@ async def get_sprite_zip(job: str):
         content=data, media_type="application/zip",
         headers={"Content-Disposition":
                  f'attachment; filename="sprites_{Path(job).name}.zip"'})
+
+
+# T109 (plan-sprites T3-T5) — une porte par export : un `?fmt=` unique économiserait quelques lignes et coûterait une
+# allowlist à maintenir dans deux langages. Chaque route nomme SON fichier, et 404 dit lequel manque.
+def _sprite_export(job: str, nom: str, media: str):
+    p = _sprite_dir(job) / nom
+    if not p.is_file():
+        raise HTTPException(404, f"{nom} absent pour ce job — régénère la feuille")
+    return FileResponse(p, media_type=media, filename=f"sprites_{Path(job).name}{nom[len('sheet'):]}")
+
+
+def _sprite_texte(job: str, nom: str, media: str, ecrire):
+    """Un export TEXTE téléchargé seul nomme la texture comme le bouton « Sheet PNG » la télécharge
+    (`sprites_<job>.png`) — mesuré sur 8799 : le .tres disait `res://sheet.png` à côté d'un `sprites_<job>.png`,
+    texture introuvable dans Godot. Dans le ZIP, tout reste `sheet.*`, cohérent."""
+    import json as _json
+    from PIL import Image as _I
+    d = _sprite_dir(job)
+    if not (d / nom).is_file() or not (d / "manifest.json").is_file() or not (d / "sheet.png").is_file():
+        raise HTTPException(404, f"{nom} absent pour ce job — régénère la feuille")
+    m = _json.loads((d / "manifest.json").read_text(encoding="utf-8"))
+    with _I.open(d / "sheet.png") as sh:
+        w, h = sh.size
+    image = f"sprites_{Path(job).name}.png"
+    return Response(content=ecrire(m, w, h, image), media_type=media,
+                    headers={"Content-Disposition":
+                             f'attachment; filename="sprites_{Path(job).name}{nom[len("sheet"):]}"'})
+
+
+@router.get("/assets/sprite/{job}/godot")
+async def get_sprite_godot(job: str):
+    """Ressource SpriteFrames Godot 4 (.tres, texte) — une AtlasTexture par case, une animation par tag."""
+    from app.services import sprite_export as SE
+    return _sprite_texte(job, "sheet.tres", "text/plain", lambda m, w, h, img: SE.godot_tres(m, img))
+
+
+@router.get("/assets/sprite/{job}/atlas")
+async def get_sprite_atlas(job: str):
+    """Atlas JSON Hash façon TexturePacker (Phaser, PixiJS)."""
+    import json as _json
+    from app.services import sprite_export as SE
+    return _sprite_texte(job, "sheet.atlas.json", "application/json",
+                         lambda m, w, h, img: _json.dumps(SE.atlas_json_hash(m, w, h, img), indent=2))
+
+
+@router.get("/assets/sprite/{job}/aseprite")
+async def get_sprite_aseprite(job: str):
+    """Le .ase (32 bpp, un calque, une image par case, les tags) — s'ouvre dans Aseprite."""
+    return _sprite_export(job, "sheet.ase", "application/octet-stream")
+
+
+@router.get("/assets/sprite/{job}/paper2d")
+async def get_sprite_paper2d(job: str):
+    """Feuille Unreal Paper2D (.paper2dsprites, JSON Array TexturePacker)."""
+    import json as _json
+    from app.services import sprite_export as SE
+    return _sprite_texte(job, "sheet.paper2dsprites", "application/json",
+                         lambda m, w, h, img: _json.dumps(SE.paper2d_json(m, w, h, img), indent=2))
 
 
 @router.post("/assets/sprite/{job}/save")
