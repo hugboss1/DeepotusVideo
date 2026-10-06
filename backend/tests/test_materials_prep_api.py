@@ -31,7 +31,7 @@ pathlib.Path(_tmp, "images").mkdir(exist_ok=True)
 pathlib.Path(_tmp, "outputs").mkdir(exist_ok=True)
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from PIL import Image, ImageChops                              # noqa: E402
+from PIL import Image, ImageChops, ImageStat                   # noqa: E402
 from httpx import ASGITransport, AsyncClient                   # noqa: E402
 
 _stub = types.ModuleType("fal_client")
@@ -90,6 +90,7 @@ def photo_de_biais(nom="mur.png"):
                               [tuple(p) for p in QUAD]), Image.BICUBIC)
     p = settings.images_path / nom
     biais.save(p, format="PNG")
+    lit.save(settings.images_path / ("plat_" + nom), format="PNG")
     return nom
 
 
@@ -146,6 +147,30 @@ async def main():
             assert r.status_code == 400, (r.status_code, r.text)
         ok("quadrilatère dégénéré : 400 parlant sur l'aperçu ET sur la "
            "génération — refusé AVANT de lancer le job")
+
+        # ══ 2b · le redressement a LIEU : l'aperçu ressemble à la surface à plat ═
+        # Sans ce témoin, un job qui sauterait le redressement restait vert : les
+        # autres sections ne lisent que l'éclairage et la fiche.
+        def png_de(rep):
+            brut = base64.b64decode(rep.json()["apercu"]["png"].split(",", 1)[1])
+            with Image.open(io.BytesIO(brut)) as im:
+                return im.convert("RGB")
+
+        def ecart(a, b):
+            st = ImageStat.Stat(ImageChops.difference(a, b)).mean
+            return sum(st) / 3.0
+
+        droit = png_de(await c.post("/api/materials/prep/preview", json={
+            "filename": lib, "prep": {"quad": QUAD, "delight": 0}}))
+        brut_carre = png_de(await c.post("/api/materials/prep/preview", json={
+            "filename": lib, "prep": {"delight": 1.0}}))
+        with Image.open(settings.images_path / ("plat_" + lib)) as im:
+            plat = im.convert("RGB").resize(droit.size, Image.LANCZOS)
+        e_droit = ecart(droit, plat)
+        e_brut = ecart(brut_carre.resize(droit.size), plat)
+        assert e_droit < 8.0 and e_brut > 2.5 * e_droit, (e_droit, e_brut)
+        ok(f"redressement : l'aperçu est à {e_droit:.2f} niveau de la surface à "
+           f"plat (non redressé : {e_brut:.2f})")
 
         # ══ 3 · le job applique la préparation, la fiche la garde ═══════════
         r = await c.post("/api/materials/generate",

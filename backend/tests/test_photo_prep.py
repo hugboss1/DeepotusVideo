@@ -259,6 +259,13 @@ for k in range(4):
     assert PP.order_quad(QUAD[k:] + QUAD[:k]) == attendu, k
 assert PP.order_quad(list(reversed(QUAD))) == attendu
 assert attendu[0] == min(QUAD, key=lambda p: p[0] + p[1])
+# Un quadrilatère PENCHÉ dont le coin haut-gauche (plus petit x + y) passe SOUS
+# le barycentre : son angle vaut ~ +176°, il sort DERNIER du tri par angle.
+# Sans ce cas, « commencer au haut-gauche » n'était jamais exercé (mutant
+# `debut = 0` resté vert le 06/10).
+PENCHE = [(90.0, 0.0), (130.0, 60.0), (40.0, 130.0), (0.0, 70.0)]
+for k in range(4):
+    assert PP.order_quad(PENCHE[k:] + PENCHE[:k])[0] == (0.0, 70.0), k
 octets = [PP.straighten(photo, QUAD[k:] + QUAD[:k], 128).tobytes()
           for k in range(4)]
 assert len(set(octets)) == 1
