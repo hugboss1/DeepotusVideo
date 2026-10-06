@@ -327,7 +327,7 @@ async function generate() {
       fps_sample: s.fps, max_frames: s.max,
       remove_bg: $("#removeBg").value,
       trim: $("#trim").value,
-      cell: { size: parseInt($("#cellSize").value, 10),
+      cell: { size: $("#cellSize").value === "native" ? "native" : parseInt($("#cellSize").value, 10),
               align: $("#cellAlign").value },
       columns: $("#columns").value === "auto" ? "auto" : parseInt($("#columns").value, 10),
       title: "Sprites · " + (source.label || ""),
@@ -559,7 +559,7 @@ async function runStarter(kind, id, btn) {
   $$("#srcStarter .starter-tile").forEach(b => b.classList.toggle("busy", b === btn));
   const st = $("#starterStatus");
   try {
-    const cell = parseInt($("#cellSize").value, 10) || 512;
+    const cell = parseInt($("#cellSize").value, 10) || 512;   // T108 : « native » -> NaN -> 512, les particules gardent leur canevas
     const body = kind === "anim" ? { anim: id, cell } : { preset: id };
     setStatus(st, "Job lancé…", false, 3);
     const path = kind === "anim" ? "/assets/starter-anim" : "/assets/particles";
