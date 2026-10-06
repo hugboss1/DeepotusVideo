@@ -879,6 +879,65 @@ def test_route_jeu_accepte_iso_et_hex():
     asyncio.run(scenario())
 
 
+# ═════════════════════════════════ T9 (t115) ═════════════════════════════════
+# ÉCART AU PLAN : la page a gagné depuis le 03/09 sa propre barre de modes (#tlTabs : Seamless · Feuille de tuiles,
+# lot 4 du 19/09). Jeu et Formes y deviennent deux MODES de plus, plutôt qu'une seconde barre d'onglets par-dessus.
+def _front(rel):
+    return (FRONT / "tilelab" / rel).read_text(encoding="utf-8")
+
+
+def test_ecran_tilelab_porte_les_modes_jeu_et_formes():
+    """Banc-miroir de front vanilla : on épingle des marqueurs dans le texte des fichiers. Mesure FAIBLE (elle ne
+    prouve pas le rendu, la preuve navigateur le fait) — elle garde les points de contact avec l'API."""
+    html = _front("index.html")
+    for m in ("seamless", "feuille", "jeu", "formes"):        # les deux modes existants survivent
+        assert f'data-m="{m}"' in html, m
+    assert 'src="tilelab.js"' in html and 'src="jeu.js"' in html
+    assert html.index('src="tilelab.js"') < html.index('src="jeu.js"'), "jeu.js s'appuie sur tlMode"
+    for ident in ("tlJeuSrc", "tlFormesSrc", "jeuOut", "formesOut", "jeuSlotA", "jeuSlotB", "jeuGrid",
+                  "jeuKind", "jeuCote", "jeuVariantes", "jeuGraine", "jeuRun", "jeuAtlas", "jeuApercu",
+                  "jeuApercuBtn", "jeuMesuresBtn", "jeuMesures", "expTiled", "expLdtk", "expGodot", "expAtlas",
+                  "formeSlot", "formeKind", "formeCote", "formeRun", "formeImg", "formePavage",
+                  "expFormeTiled", "expFormeGodot", "expFormeAtlas"):
+        assert html.count(f'id="{ident}"') == 1, ident
+
+    js = _front("jeu.js")
+    for route in ('"/tiles/jeu"', "/apercu", "/mesures", "/export", "/fichier/atlas.png"):
+        assert route in js, route
+    # les exports passent par le backend, jamais par une construction client
+    for interdit in ("wangid", "<tileset", "gd_resource", "autoRuleGroups"):
+        assert interdit not in js, f"{interdit} : le fichier est ecrit par Python, pas par le navigateur"
+    # les trois mesures sont AFFICHÉES, chacune avec son verdict et son seuil
+    for mot in ("raccord", "repetition", "eclairage_max", "ecart_eclairage", "verdict", "seuils"):
+        assert mot in js, mot
+    # la répétition se lit sur l'aperçu MONTRÉ : les mesures reprennent sa graine
+    assert "graineApercu" in js
+    tl = _front("tilelab.js")
+    assert '"jeu"' in tl and '"formes"' in tl, "tlMode connait les deux modes"
+    css = _front("tilelab.css")
+    assert ".tl-slot" in css and ".tl-damier" in css
+
+
+def test_jeu_js_passe_node_check():
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        print("  (node absent : verification de syntaxe sautee)")
+        return
+    for f in ("jeu.js", "tilelab.js"):
+        r = subprocess.run([node, "--check", str(FRONT / "tilelab" / f)], capture_output=True, text=True)
+        assert r.returncode == 0, (f, r.stderr)
+
+
+def test_le_hub_du_bundle_pointe_toujours_sur_tilelab():
+    """Coût de patch : AUCUNE tâche de ce plan ne touche frontend/dist. On vérifie seulement que l'ancre posée par
+    patch_bundle_tilelab tient."""
+    patch = (RACINE / "scripts" / "patch_bundle_tilelab.py").read_text("utf-8")
+    assert 'src:"/tilelab/"' in patch
+    assert 'tb("tiles","🧱 Tuiles")' in patch
+
+
 def _main():
     rouges = 0
     for nom, fn in sorted(globals().items()):

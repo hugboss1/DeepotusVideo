@@ -216,10 +216,17 @@ if (window.DZ_PALETTES) remplirPalettes(); else document.addEventListener("dz-pa
 const F = { img: null, tampon: null, filename: null, tuiles: [], sel: -1, placements: [], grille: { type: "carree", cols: 4, rows: 3, cell_w: 16, cell_h: 16 }, zoom: 1 };
 function tlMode(m) {
   document.querySelectorAll("#tlTabs .tab").forEach((t) => t.classList.toggle("active", t.dataset.m === m));
-  $("#tlSeamlessSrc").classList.toggle("hidden", m !== "seamless"); $("#tlFeuilleSrc").classList.toggle("hidden", m !== "feuille");
-  document.querySelector(".out-pane .settings").classList.toggle("hidden", m === "feuille");
-  $("#result").classList.toggle("hidden", m === "feuille" || !result); $("#outEmpty").classList.toggle("hidden", m === "feuille" || !!result);
+  // t115 : deux modes de plus, « jeu » et « formes » (jeu.js) ; les réglages et le résultat seamless ne vivent qu'en seamless
+  const seul = m === "seamless";
+  $("#tlSeamlessSrc").classList.toggle("hidden", !seul); $("#tlFeuilleSrc").classList.toggle("hidden", m !== "feuille");
+  $("#tlJeuSrc").classList.toggle("hidden", m !== "jeu"); $("#tlFormesSrc").classList.toggle("hidden", m !== "formes");
+  document.querySelector(".out-pane .settings").classList.toggle("hidden", !seul);
+  $("#result").classList.toggle("hidden", !seul || !result); $("#outEmpty").classList.toggle("hidden", !seul || !!result);
   $("#feuilleOut").classList.toggle("hidden", m !== "feuille");
+  $("#jeuOut").classList.toggle("hidden", m !== "jeu"); $("#formesOut").classList.toggle("hidden", m !== "formes");
+  document.querySelector(".out-pane .pane-head h2").textContent =
+    { seamless: "Tuile seamless", feuille: "Feuille de tuiles", jeu: "Jeu de tuiles", formes: "Tuile de forme" }[m] || "Tile Lab";
+  document.dispatchEvent(new CustomEvent("tl-mode", { detail: m }));
 }
 const tlTampon = (im) => { const c = document.createElement("canvas"); c.width = im.naturalWidth; c.height = im.naturalHeight; const x = c.getContext("2d"); x.drawImage(im, 0, 0); const d = x.getImageData(0, 0, c.width, c.height); return { w: c.width, h: c.height, data: d.data }; };
 const tlCanvasDe = (t) => { const c = document.createElement("canvas"); c.width = t.w; c.height = t.h; c.getContext("2d").putImageData(new ImageData(new Uint8ClampedArray(t.data), t.w, t.h), 0, 0); return c; };

@@ -31,3 +31,20 @@
 .tl-place-wrap { overflow: auto; background: var(--bg-base); border: 1px solid var(--stroke); border-radius: 8px; padding: 6px; }
 .tl-placement { image-rendering: pixelated; cursor: crosshair; background: repeating-conic-gradient(#2a2a2a 0 25%, #1c1c1c 0 50%) 0 0 / 8px 8px; }
 .tl-seam { image-rendering: pixelated; border: 1px solid var(--stroke); border-radius: 6px; max-width: 100%; }
+
+/* ── t115 : modes Jeu et Formes ── */
+.tl-slots { display: flex; gap: 8px; padding: 10px 10px 0; }
+.tl-slot { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px;
+           background: var(--bg-base); border: 1px dashed var(--stroke-strong); border-radius: 8px; color: var(--ink-soft);
+           cursor: pointer; font: inherit; font-size: 11px; }
+.tl-slot.on { border-style: solid; border-color: var(--cyan); color: var(--ink-strong); }
+.tl-slot img { width: 64px; height: 64px; object-fit: cover; border-radius: 6px; image-rendering: pixelated; }
+.tl-slot:not(.plein) img { visibility: hidden; }
+.tl-slot-k { font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; }
+.tl-slot-n { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tl-slot:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.tl-damier { max-width: 100%; height: auto; image-rendering: pixelated; border: 1px solid var(--stroke); border-radius: 6px;
+             background: repeating-conic-gradient(#2a2a2a 0 25%, #1c1c1c 0 50%) 0 0 / 16px 16px; align-self: flex-start; }
+.tl-mesures { flex-wrap: wrap; }
+.tl-chip.warn { border-color: var(--red); color: var(--red); }   /* --amber vaut --cyan dans ce thème : « attention » se confondrait avec « ok » */
+.tl-chip i { color: var(--ink-muted); font-style: normal; }
