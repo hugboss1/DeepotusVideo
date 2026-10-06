@@ -389,6 +389,11 @@ app.include_router(montage_router, prefix="/api/montage")
 from app.services.cards import router as cards_router
 app.include_router(cards_router, prefix="/api/cards")
 # __DZ_CARDS_ROUTER_END__
+# __DZ_TILES_ROUTER_BEGIN__
+# t113 (plan-tuiles T2) : les jeux de tuiles du Tile Lab — UNE porte, /api/tiles
+from app.services.tiles_api import router as tiles_router
+app.include_router(tiles_router, prefix="/api/tiles")
+# __DZ_TILES_ROUTER_END__
 # __DZ_REGLAGES_ROUTER_BEGIN__
 # Réglages (plan Settings, tâche #15 du suivi, 29/09/2026) : /api/reglages/diagnostic et /diagnostic/cle
 from app.api.settings_routes import router as reglages_router

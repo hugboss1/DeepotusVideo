@@ -89,6 +89,9 @@ def atlas_json_hash(manifest: dict, sheet_w: int, sheet_h: int, sheet_name: str 
             "sourceSize": {"w": r["w"], "h": r["h"]},
             "pivot": {"x": px, "y": py},
         }
+        if f.get("hitboxes"):
+            # T112 : extension assumée, comme `pivot` — rectangles en pixels de case, posée seulement s'il y en a
+            out[frame_name(f["index"])]["hitboxes"] = f["hitboxes"]
     tags = [{"name": t["name"], "from": t["from"], "to": t["to"], "direction": t["direction"]}
             for t in ((manifest.get("anim") or {}).get("tags") or [])]
     return {"frames": out,
@@ -206,6 +209,8 @@ def paper2d_json(manifest: dict, sheet_w: int, sheet_h: int, sheet_name: str = "
                        "spriteSourceSize": {"x": 0, "y": 0, "w": r["w"], "h": r["h"]},
                        "sourceSize": {"w": r["w"], "h": r["h"]},
                        "pivot": {"x": px, "y": py}})
+        if f.get("hitboxes"):
+            frames[-1]["hitboxes"] = f["hitboxes"]      # T112 : extension, seulement s'il y en a
     return {"frames": frames,
             "meta": {"app": _APP, "version": "1.0", "image": sheet_name, "format": "RGBA8888",
                      "size": {"w": sheet_w, "h": sheet_h}, "scale": "1"}}

@@ -637,7 +637,13 @@ def reassemble(out_dir: Path, order, columns=None, anim_spec=None) -> dict:
     for f, i in zip(m["frames"], idx):
         if "offset" in vieilles[i]:
             f["offset"] = vieilles[i]["offset"]
+        if vieilles[i].get("hitboxes"):
+            f["hitboxes"] = vieilles[i]["hitboxes"]     # T112 : les hitboxes suivent LEUR frame
     mf.write_text(json.dumps(m, indent=2), encoding="utf-8")
+    if any(f.get("hitboxes") for f in m["frames"]):
+        # _assemble a écrit les exports AVANT ce remappage : ceux du disque (ZIP) doivent les porter
+        from app.services import sprite_hitbox
+        sprite_hitbox.reecrire_exports(m, out_dir)
     return r
 
 
@@ -697,6 +703,8 @@ async def generate_sprites(payload: dict, job_id: str, on_step=None) -> dict:
                    "file": src_name, "duration_s": round(duration, 2),
                    "fps_sample": opts["fps"], "sampled": sampled,
                    "remove_bg": method}
+    # t111 (T9) : la planche découpée et la limite « 4/8 », posées par /assets/sprite/from-board
+    source_info.update(payload.get("_board_meta") or {})
 
     # 9c: filmstrip probe — publish the sampled frames as-is (no remove-bg /
     # pixel / sheet) so the UI can show them and let the user tick them off.
