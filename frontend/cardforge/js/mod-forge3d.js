@@ -1684,12 +1684,23 @@
     return !!f && finishFamille("finishes_glass").indexOf(String(f)) >= 0;
   }
 
+  /* LA TROISIÈME FAMILLE (R10c D3) : laque, cuir, métal brossé, émissif —
+     les ids de la boutique de matières, servis par /info comme les deux
+     autres. Ni motifs ni anisotropie : `estHolo` reste la seule clé qui
+     ouvre ces deux réglages, donc rien d'autre à changer dans `matHtml`. */
+  function estSurface(f) {
+    return !!f && finishFamille("finishes_surface").indexOf(String(f)) >= 0;
+  }
+
   function finishLabel(f) {
     /* le libellé se DÉRIVE de la famille servie, il ne recopie aucune table.
        Un mot d'une famille future (ou « aucune ») s'affiche tel quel plutôt
-       que d'être décoré d'un adjectif faux. */
+       que d'être décoré d'un adjectif faux. Les ids de surface sont des ids
+       de boutique (`metal_brosse_aniso`) : leurs soulignés deviennent des
+       espaces, sans plus. */
     if (estHolo(f)) return f + " holographique";
     if (estVerre(f)) return String(f).replace(/-/g, " ");
+    if (estSurface(f)) return String(f).replace(/_/g, " ");
     return String(f);
   }
 
@@ -1849,6 +1860,7 @@
     /* la FAMILLE, servie : plus de « pas aucune » (voir `estHolo`). */
     const holo = estHolo(mat && mat.finish);
     const verre = estVerre(mat && mat.finish);
+    const surface = estSurface(mat && mat.finish);
     const matSel = mats.length
       ? ('<label class="cf-forge3d-sel">matière<select data-field="mat">'
         + '<option value=""' + (mat && mat.mat ? "" : " selected") + '>aucune</option>'
@@ -1926,6 +1938,17 @@
            + 'l\'<b>ondulation</b> de la feuille ne sera pas posée (un '
            + 'matériau glTF n\'accepte qu\'un relief, et c\'est le vôtre qui '
            + 'gagne). La construction le dira aussi.</p>'
+         : "")
+      /* LA SURFACE (R10c D3) : même règle que le verre côté micro-surface
+         (le writer saute le pack MR sous toute finition), et l'aveu de
+         l'émission « animée » dit AVANT de construire — glTF n'anime aucune
+         propriété de matériau, le bordereau le dira aussi. */
+      + (surface
+         ? '<p class="hint">la finition de surface <b>remplace la '
+           + 'micro-surface</b> de la matière (rugosité et métal viennent de '
+           + 'la recette) ; son relief et son occlusion parlent encore. Une '
+           + 'émission « animée » ne pulse que dans l\'aperçu du lab Matières '
+           + ': le fichier la porte <b>fixe</b>.</p>'
          : "")
       + (verre
          ? '<p class="hint">le verre <b>remplace la micro-surface</b> de la '

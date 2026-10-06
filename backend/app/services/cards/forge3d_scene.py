@@ -1249,6 +1249,98 @@ def glass_finish(kind: str, color=None, closed=None) -> dict:
     return fin
 
 
+# ── LES FINITIONS DE SURFACE (R10c D3) — LA TROISIÈME FAMILLE ───────────────
+# À côté des feuilles estampées (`_HOLO_RECIPES`) et des verres
+# (`_GLASS_RECIPES`). Celles-ci ne cuisent AUCUNE texture : ce sont des
+# facteurs et des extensions de matériau, donc pas un octet d'image de plus
+# dans le GLB.
+#
+# POURQUOI ELLES EXISTENT ICI (T098 les avait laissées à la boutique) : sans
+# elles, un nœud `material` portant « laque » tombait dans la branche
+# holographique de `_habille`, `holo_finish` levait, et le bordereau disait
+# « finition ignoree » — un nom accepté nulle part et refusé sans effet.
+#
+# LE MIROIR DES PRÉRÉGLAGES DE LA BOUTIQUE (`material_store.PRESETS`, mêmes
+# ids, mêmes chiffres) — RECOPIÉ et non importé (règle 8 : ce module
+# n'importe le module d'aucune voisine), d'où un banc de PARITÉ qui relit les
+# deux tables. Les absents valent le défaut de `gltf_builder.DEFAULT_PROPS`
+# (vernis lisse 0,0, aucun velours, aucune émission).
+#
+# CE QUE `metal_brosse_aniso` N'ÉCRIT PAS : KHR_materials_anisotropy. Le
+# préréglage de la boutique ne porte aucune anisotropie (« aniso » est dans
+# son nom, pas dans ses props : `gltf_builder` n'émet pas l'extension), et
+# l'écrire ici ferait deux choses fausses — diverger du lab pour un même nom,
+# et faire LEVER le writer sur tout maillage aux UV dépaquetées (la garde de
+# la Task 6 : la tangente constante n'est vraie que sur nos plans). Le peigne
+# reste la propriété de la feuille holographique, case cochée comprise.
+_SURFACE_RECIPES = {
+    # conducteur plein, teinte acier : elle MULTIPLIE l'image de la couche,
+    # exactement comme le `base` d'une dorure. Le voile de vernis (0,05) est
+    # celui du préréglage — un métal brossé verni, pas nu.
+    "metal_brosse_aniso": {"metallic": 1.0, "rough": 0.28,
+                           "color": "#c2c7cf", "coat": 0.05},
+    # AUCUNE couleur : une laque est un vernis POSÉ SUR l'image ; une
+    # `baseColorFactor` ici repeindrait l'art de la carte.
+    "laque": {"metallic": 0.0, "rough": 0.08, "coat": 1.0,
+              "coat_rough": 0.03},
+    "cuir": {"metallic": 0.0, "rough": 0.62, "coat": 0.08, "sheen": 0.25,
+             "sheen_color": "#d8c9b4"},
+    "emissif_anime": {"metallic": 0.0, "rough": 0.4, "emissive": "#ff8a1f",
+                      "emissive_strength": 3.0},
+}
+SURFACE_KINDS = tuple(_SURFACE_RECIPES)
+
+
+def surface_finish(kind: str) -> dict:
+    """UNE finition de surface, prête pour le writer — MÊME FORME que les
+    paquets de `holo_finish` et `glass_finish` : un bloc `pbr` de facteurs,
+    puis un sous-bloc par extension, et SEULEMENT ceux que la recette porte
+    (le writer n'écrit pas un défaut).
+
+    `kind` hors `SURFACE_KINDS` lève une ValueError NOMMÉE — même contrat que
+    les deux autres familles : substituer une laque en douce livrerait une
+    carte fausse sans un mot.
+
+    EXCLUSIVE des deux autres : ni transmission/ior/specular/volume (verre),
+    ni iridescence/anisotropie/ondulation (holo). Le clearcoat, lui, est
+    PARTAGÉ avec l'holo — c'est le même vernis physique ; le writer ne range
+    donc dans « surface » que ce qui n'appartient qu'à elle (velours,
+    émission)."""
+    r = _SURFACE_RECIPES.get(str(kind))
+    if r is None:
+        raise ValueError(f"finition de surface inconnue : {kind!r} "
+                         f"(connues : {', '.join(SURFACE_KINDS)})")
+    pbr = {"metallicFactor": r["metallic"], "roughnessFactor": r["rough"]}
+    base = _hex_lin(r.get("color"))
+    if base is not None:
+        pbr["baseColorFactor"] = base + [1.0]
+    fin: dict = {"pbr": pbr}
+    if r.get("coat"):
+        # `rough` EXPLICITE même à 0,0 : le défaut du writer est 0,03, et un
+        # 0,0 omis hériterait d'un voile que le préréglage ne porte pas.
+        fin["clearcoat"] = {"factor": r["coat"],
+                            "rough": r.get("coat_rough", 0.0)}
+    if r.get("sheen"):
+        # PARITÉ `gltf_builder` (le lab Matières) : la couleur du velours est
+        # la teinte LINÉAIRE multipliée par l'intensité, et la rugosité du
+        # lobe velours est celle de la surface — un seul réglage de grain.
+        teinte = _hex_lin(r.get("sheen_color")) or [1.0, 1.0, 1.0]
+        fin["sheen"] = {"color": [round(c * r["sheen"], 6) for c in teinte],
+                        "rough": r["rough"]}
+    if r.get("emissive_strength"):
+        # LA COULEUR ET LA PUISSANCE SÉPARÉES, ET C'EST MESURÉ. glTF borne
+        # `emissiveFactor` à [0,1] ; `gltf_builder` multiplie la couleur par
+        # l'intensité PUIS écrête — sur cet orange (#ff8a1f, linéaire
+        # [1, 0.254, 0.014]) le rouge plafonne à 1 quand le vert monte à
+        # 0,76 : la lueur vire au JAUNE. Ici la teinte reste la teinte, et
+        # KHR_materials_emissive_strength (présente dans le viewer embarqué)
+        # porte le ×3.
+        fin["emissive"] = {"color": _hex_lin(r.get("emissive")) or
+                           [1.0, 1.0, 1.0],
+                           "strength": r["emissive_strength"]}
+    return fin
+
+
 def _quat_z(deg) -> list:
     """Le quaternion d'une rotation autour de +z — le SEUL axe qui ait un sens
     sur une pile de couches planes. Rend l'identité pour 0°."""
@@ -1952,6 +2044,11 @@ def write_scene_glb(elements: list, name: str, extras: dict,
         spe = spe if isinstance(spe, dict) else None
         vol = (fin or {}).get("volume")
         vol = vol if isinstance(vol, dict) else None
+        # LA SURFACE (R10c D3) — mêmes sous-blocs TYPÉS, mêmes raisons.
+        she = (fin or {}).get("sheen")
+        she = she if isinstance(she, dict) else None
+        emi = (fin or {}).get("emissive")
+        emi = emi if isinstance(emi, dict) else None
         # LES DEUX FAMILLES SONT EXCLUSIVES, ET C'EST MESURÉ ICI plutôt que
         # promis à l'appelant. Un film irisé POSÉ SUR une vitre n'est pas une
         # matière de ce catalogue : `holo_finish` et `glass_finish` sont
@@ -1966,6 +2063,24 @@ def write_scene_glb(elements: list, name: str, extras: dict,
                 f"holographique (iridescence/clearcoat/anisotropie) et une "
                 f"recette de verre (transmission/volume/specular) ne "
                 f"s'habillent pas l'une l'autre — une seule a la fois")
+        # LA TROISIÈME FAMILLE, MÊME GARDE (R10c D3). Ce qui n'appartient QU'À
+        # la surface — le velours et l'émission — ne se pose ni sur une vitre
+        # ni sous un film irisé. Le clearcoat n'y figure pas : c'est le même
+        # vernis dans la recette holo et dans la laque, donc il ne désigne
+        # aucune famille à lui seul (la ligne au-dessus le range déjà côté
+        # « pas du verre »).
+        if (she or emi) and (tra or vol or spe or ior):
+            raise ValueError(
+                f"finitions exclusives sur « {nom} » : une recette de "
+                f"surface (velours/emission) et une recette de verre "
+                f"(transmission/ior/volume/specular) ne s'habillent pas "
+                f"l'une l'autre — une seule a la fois")
+        if (she or emi) and (iri or ani):
+            raise ValueError(
+                f"finitions exclusives sur « {nom} » : une recette de "
+                f"surface (velours/emission) et une recette holographique "
+                f"(iridescence/anisotropie) ne s'habillent pas l'une "
+                f"l'autre — une seule a la fois")
         # LA FINITION EST-ELLE ACTIVE ? (résidu de re-revue Task 5) — c'est la
         # présence d'une RECETTE (le bloc `pbr`) qui compte, pas la simple
         # vérité du dictionnaire. Le saut de la map MR plus bas repose sur
@@ -2172,6 +2287,32 @@ def write_scene_glb(elements: list, name: str, extras: dict,
                     bloc["attenuationDistance"] = _f(
                         vol.get("distance"), GLASS_ATTENUATION_MM * MM_TO_M)
                 ext["KHR_materials_volume"] = bloc
+            # ── LA SURFACE (R10c D3) ─────────────────────────────────────
+            # Hors de `extensionsRequired`, comme le reste : sans le velours
+            # un lecteur montre un cuir mat, sans la puissance une lueur à
+            # ×1 — la carte, jamais un fichier refusé.
+            if she:
+                col = she.get("color")
+                col = (col if isinstance(col, (list, tuple)) and len(col) == 3
+                       else [0.0, 0.0, 0.0])
+                ext["KHR_materials_sheen"] = {
+                    "sheenColorFactor": [_f(v) for v in col],
+                    "sheenRoughnessFactor": _f(she.get("rough"), 0.0)}
+            if emi:
+                col = emi.get("color")
+                if isinstance(col, (list, tuple)) and len(col) == 3:
+                    # REMPLACE le [1,1,1] neutre posé pour une carte
+                    # d'émission de matière : glTF MULTIPLIE facteur et
+                    # texture — la carte dit OÙ ça brille, la recette dit
+                    # QUELLE couleur. Borné à [0,1] comme l'exige la spec.
+                    mat["emissiveFactor"] = [min(1.0, max(0.0, _f(v)))
+                                             for v in col]
+                    force = _f(emi.get("strength"), 1.0)
+                    # 1,0 est le défaut de l'extension : ne pas l'écrire
+                    # (doctrine du writer, jamais un défaut)
+                    if force != 1.0:
+                        ext["KHR_materials_emissive_strength"] = {
+                            "emissiveStrength": force}
             if ext:
                 mat["extensions"] = ext
                 exts_used.update(ext)
