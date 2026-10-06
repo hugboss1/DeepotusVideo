@@ -264,6 +264,37 @@
       <div id="editStatus" class="status hidden"></div>
     </div>
 
+    <!-- T112 (spec sorceress, lot « Combat ») : hitboxes par frame — hitbox.js (état pur) + spritelab.js (dessin) -->
+    <div id="hitboxes" class="editor hidden">
+      <div class="editor-head">
+        <b>Hitboxes</b>
+        <span id="hbInfo" class="counter">—</span>
+        <button id="hbPrev" class="btn ghost" title="Frame précédente">◀</button>
+        <select id="hbFrame" title="La frame dont on dessine les hitboxes"></select>
+        <button id="hbNext" class="btn ghost" title="Frame suivante">▶</button>
+        <select id="hbType" title="Type des prochains rectangles dessinés">
+          <option value="hit" selected>hit — frappe</option><option value="hurt">hurt — peut être touché</option>
+        </select>
+        <button id="hbCopy" class="btn ghost" title="Copier les rectangles de cette frame (Ctrl+C)">⧉ Copier</button>
+        <button id="hbPaste" class="btn ghost" title="Coller sur cette frame (Ctrl+V)">📋 Coller</button>
+      </div>
+      <div class="hint">Glisse sur la case pour dessiner un rectangle, clique pour le choisir, Suppr pour l'effacer.
+        Ctrl+C / Ctrl+V copient d'une frame à l'autre. Enregistré tout seul ; l'atlas JSON et Paper2D les emportent.</div>
+      <div class="hb-corps">
+        <canvas id="hbCanvas" class="hb-canvas bg-checker" width="128" height="128"></canvas>
+        <div class="hb-insp">
+          <div class="settings-sec">Rectangle choisi</div>
+          <label class="fld inline">x <input id="hbX" type="number" min="0" step="1"></label>
+          <label class="fld inline">y <input id="hbY" type="number" min="0" step="1"></label>
+          <label class="fld inline">w <input id="hbW" type="number" min="1" step="1"></label>
+          <label class="fld inline">h <input id="hbH" type="number" min="1" step="1"></label>
+          <select id="hbSelType" title="Type du rectangle choisi"><option value="hit">hit</option><option value="hurt">hurt</option></select>
+          <button id="hbDel" class="btn ghost" title="Effacer le rectangle choisi (Suppr)">✕ Effacer</button>
+        </div>
+      </div>
+      <div id="hbStatus" class="status hidden"></div>
+    </div>
+
     <div id="feuilleOut" class="feuille-out hidden">
       <div class="settings">
         <div class="settings-sec">Alignement <span class="hint">sur la première frame sélectionnée</span></div>
@@ -287,6 +318,7 @@
 
 <div id="toast" class="toast hidden"></div>
 <script type="module">import * as SLF from "./feuille.js"; window.SLF = SLF; document.dispatchEvent(new Event("slf-pret"));</script>
+<script type="module">import * as SLH from "./hitbox.js"; window.SLH = SLH; document.dispatchEvent(new Event("slh-pret"));</script>
 <script type="module">import * as P from "/spritelab/palettes.js"; window.DZ_PALETTES = P; document.dispatchEvent(new Event("dz-palettes"));</script>
 <script src="/shared/dz-plafonds.js"></script>
 <script src="/shared/dialogue.js"></script>

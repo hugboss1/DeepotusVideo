@@ -438,6 +438,7 @@ function showResult(short, m) {
   $("#editor").classList.toggle("hidden", !m.grid);
   $("#editStatus").classList.add("hidden");
   renderEditor();
+  hbCharger(short, m);
 }
 
 /* ───────── T110 (plan-sprites T7) : ordre des images ─────────
@@ -468,6 +469,125 @@ function renderEditor() {
     else if (op === "dup" && editOrder.length < 64) editOrder.splice(k, 0, editOrder[k]);
     else if (op === "del" && editOrder.length > 1) editOrder.splice(k, 1);
     renderEditor();
+  });
+}
+
+/* ───────── T112 (spec sorceress, lot « Combat ») : hitboxes par frame ─────────
+   L'état et ses gestes vivent dans hitbox.js (pur, banc qa/hitbox.test.mjs) ; ici, le dessin et le câblage. Chaque
+   geste s'enregistre tout seul (POST …/hitboxes, local et gratuit) une demi-seconde après : rien ne se perd avant un
+   réassemblage, qui les fait suivre leur frame côté serveur. */
+let hb = null, hbShort = null, hbImg = null, hbTimer = 0, hbGlisse = null, hbActif = false;
+
+function hbCharger(short, m) {
+  if (!window.SLH || !m.grid || !(m.frames || []).length) { $("#hitboxes").classList.add("hidden"); hb = null; return; }
+  hb = window.SLH.charger(m);
+  hbShort = short;
+  const cv = $("#hbCanvas");
+  cv.width = hb.cw; cv.height = hb.ch;
+  $("#hbFrame").innerHTML = m.frames.map((f, i) => `<option value="${i}">frame ${i}</option>`).join("");
+  $("#hitboxes").classList.remove("hidden");
+  hbFrame(0);
+}
+
+function hbFrame(i) {
+  if (!hb) return;
+  window.SLH.allerA(hb, i);
+  $("#hbFrame").value = String(hb.frame);
+  hbImg = new Image();
+  hbImg.onload = () => hbDessiner();
+  hbImg.src = `/api/assets/sprite/${hbShort}/frame/${hb.frame}?r=${sheetRev}`;
+  hbDessiner();
+}
+
+function hbDessiner(apercu) {
+  if (!hb) return;
+  const cv = $("#hbCanvas"), x = cv.getContext("2d");
+  x.clearRect(0, 0, cv.width, cv.height);
+  if (hbImg && hbImg.complete && hbImg.naturalWidth) x.drawImage(hbImg, 0, 0, cv.width, cv.height);
+  const liste = hb.rects[hb.frame].concat(apercu ? [apercu] : []);
+  liste.forEach((r, k) => {
+    const choisi = k === hb.sel && r !== apercu;
+    const coul = r.type === "hurt" ? "rgba(70,170,255," : "rgba(255,70,70,";
+    x.fillStyle = coul + "0.25)"; x.fillRect(r.x, r.y, r.w, r.h);
+    x.strokeStyle = coul + (choisi ? "1)" : "0.85)");
+    x.lineWidth = choisi ? 2 : 1;
+    x.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+  });
+  const n = hb.rects.reduce((a, l) => a + l.length, 0);
+  $("#hbInfo").textContent = `frame ${hb.frame} · ${hb.rects[hb.frame].length} rect. · ${n} au total`;
+  hbInspecteur();
+}
+
+function hbInspecteur() {
+  const r = hb && hb.sel >= 0 ? hb.rects[hb.frame][hb.sel] : null;
+  for (const [id, k] of [["hbX", "x"], ["hbY", "y"], ["hbW", "w"], ["hbH", "h"]]) {
+    $("#" + id).value = r ? r[k] : ""; $("#" + id).disabled = !r;
+  }
+  $("#hbSelType").value = r ? r.type : "hit"; $("#hbSelType").disabled = !r; $("#hbDel").disabled = !r;
+}
+
+function hbPoint(ev) {
+  const cv = $("#hbCanvas"), b = cv.getBoundingClientRect();
+  return { x: (ev.clientX - b.left) * cv.width / b.width, y: (ev.clientY - b.top) * cv.height / b.height };
+}
+
+function hbChange() {
+  hbDessiner();
+  clearTimeout(hbTimer);
+  hbTimer = setTimeout(hbEnregistrer, 500);
+}
+
+async function hbEnregistrer() {
+  if (!hb || !hb.sale || !hbShort) return;
+  const short = hbShort;
+  try {
+    const r = await api.send("POST", `/assets/sprite/${short}/hitboxes`, window.SLH.corps(hb));
+    if (hbShort === short) hb.sale = false;
+    setStatus($("#hbStatus"), `enregistré · ${r.rectangles} rectangle(s)`);
+  } catch (e) { setStatus($("#hbStatus"), e.message, true); }
+}
+
+function hbWire() {
+  const cv = $("#hbCanvas");
+  cv.addEventListener("pointerdown", (ev) => {
+    if (!hb) return;
+    hbActif = true;
+    const p = hbPoint(ev);
+    if (window.SLH.selectionnerSous(hb, p.x, p.y) >= 0) { hbGlisse = null; hbDessiner(); return; }
+    hbGlisse = p; cv.setPointerCapture(ev.pointerId);
+  });
+  cv.addEventListener("pointermove", (ev) => {
+    if (!hb || !hbGlisse) return;
+    hbDessiner(window.SLH.rectDepuisGlisser(hbGlisse, hbPoint(ev), hb.cw, hb.ch, $("#hbType").value));
+  });
+  cv.addEventListener("pointerup", (ev) => {
+    if (!hb || !hbGlisse) return;
+    const r = window.SLH.rectDepuisGlisser(hbGlisse, hbPoint(ev), hb.cw, hb.ch, $("#hbType").value);
+    hbGlisse = null;
+    if (r && window.SLH.ajouter(hb, r) < 0) toast(`${window.SLH.MAX_PAR_FRAME} rectangles au plus par frame`, true);
+    hbChange();
+  });
+  $("#hbFrame").onchange = () => hbFrame(parseInt($("#hbFrame").value, 10) || 0);
+  $("#hbPrev").onclick = () => hb && hbFrame(hb.frame - 1);
+  $("#hbNext").onclick = () => hb && hbFrame(hb.frame + 1);
+  $("#hbCopy").onclick = () => { if (hb) toast(`${window.SLH.copier(hb)} rectangle(s) copié(s)`); };
+  $("#hbPaste").onclick = () => { if (hb && window.SLH.coller(hb)) hbChange(); };
+  $("#hbDel").onclick = () => { if (hb && window.SLH.supprimer(hb)) hbChange(); };
+  for (const [id, k] of [["hbX", "x"], ["hbY", "y"], ["hbW", "w"], ["hbH", "h"]])
+    $("#" + id).onchange = () => { if (hb && window.SLH.modifier(hb, { [k]: Number($("#" + id).value) })) hbChange(); };
+  $("#hbSelType").onchange = () => { if (hb && window.SLH.modifier(hb, { type: $("#hbSelType").value })) hbChange(); };
+  /* Ctrl+C / Ctrl+V / Suppr : seulement quand on vient de travailler sur la case, jamais dans un champ — le
+     Playground (WASD, flèches, Espace) n'écoute pas ces touches */
+  document.addEventListener("pointerdown", (ev) => { if (!ev.target.closest || !ev.target.closest("#hitboxes")) hbActif = false; });
+  document.addEventListener("keydown", (ev) => {
+    if (!hb || !hbActif || $("#hitboxes").classList.contains("hidden")) return;
+    if (/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || "")) return;
+    const k = ev.key.toLowerCase();
+    if ((ev.ctrlKey || ev.metaKey) && k === "c") toast(`${window.SLH.copier(hb)} rectangle(s) copié(s)`);
+    else if ((ev.ctrlKey || ev.metaKey) && k === "v") { if (window.SLH.coller(hb)) hbChange(); }
+    else if (k === "delete" || k === "backspace") { if (window.SLH.supprimer(hb)) hbChange(); }
+    else return;
+    ev.preventDefault();
   });
 }
 
@@ -766,6 +886,8 @@ function wire() {
   $("#saveLib").onclick = saveToLibrary;
   $("#toStudio").onclick = toStudio;
   playgroundWire();   // lot 5
+  hbWire();           // T112 : hitboxes par frame
+  document.addEventListener("slh-pret", () => { if (sheet) hbCharger(sheet.short, sheet.manifest); });   // hitbox.js (module) arrive APRÈS ce script
   // lot 1 : l'onglet Feuille se câble quand le module pur est chargé
   if (window.SLF) feuilleWire(); else document.addEventListener("slf-pret", feuilleWire, { once: true });
 }

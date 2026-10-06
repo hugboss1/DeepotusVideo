@@ -2680,6 +2680,21 @@ async def save_sprite_sheet(job: str):
     return {"filename": dest.name}
 
 
+@router.post("/assets/sprite/{job}/hitboxes")
+async def post_sprite_hitboxes(job: str, body: dict = None):
+    """Hitboxes par frame (T112, spec sorceress lot « Combat »). Body {hitboxes: [[{x, y, w, h, type?}, …] par frame]},
+    pixels de CELLULE, type hit|hurt. Ne touche QUE ce champ du manifeste, rogne à la cellule, puis réécrit les
+    exports du disque (atlas JSON Hash et Paper2D les portent). Local et gratuit."""
+    from app.services import sprite_hitbox as SH
+    d = _sprite_dir(Path(job).name)
+    try:
+        return await asyncio.to_thread(SH.ecrire, d, (body or {}).get("hitboxes"))
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # Catalogue de démarrage (CC0) + génération locale de particules
 #

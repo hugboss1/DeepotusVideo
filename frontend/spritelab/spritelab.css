@@ -62,6 +62,9 @@ select option:disabled{color:var(--ink-muted)}
 .panes{display:grid;grid-template-columns:minmax(240px,340px) minmax(280px,1fr) minmax(280px,420px);height:calc(100vh - 47px)}
 .pane{display:flex;flex-direction:column;min-width:0;overflow:hidden}
 .src-pane,.strip-pane{border-right:1px solid var(--stroke)}
+/* T112 : le volet Préviz empile préviz, exports, éditeur, hitboxes et sheet — il DÉFILE (vu à l'écran le 06/10 : 1 485 px de contenu
+   dans 953, le panneau Hitboxes était inatteignable sous overflow:hidden) */
+.out-pane{overflow-y:auto}
 /* 11d : flex-wrap — sur pane étroite, le bouton « Ré-extraire » passe à la
    ligne au lieu de déborder de l'encart. */
 .pane-head{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--stroke);flex-wrap:wrap}
@@ -199,3 +202,8 @@ select option:disabled{color:var(--ink-muted)}
 .postset .fld .chk{display:flex;align-items:center;gap:6px;cursor:pointer}
 .postset .fld .chk input{width:auto;padding:0;margin:0}
 .postset input[type=color]{height:30px;padding:2px 4px}
+/* T112 : hitboxes par frame */
+.hb-corps{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-top:6px}
+.hb-canvas{width:256px;height:256px;image-rendering:pixelated;border:1px solid var(--stroke-strong);border-radius:8px;cursor:crosshair;touch-action:none}
+.hb-insp{display:flex;flex-direction:column;gap:6px;min-width:150px}
+.hb-insp input{width:70px}
