@@ -53,6 +53,15 @@ def quad_mesh(w_mm: float, h_mm: float,
     }
 
 
+# Les bornes de PROFONDEUR d'un relief (T097) : ici, à côté du maillage
+# qu'elles bornent, parce que forge3d (clean_graph, /info) ET le sidecar
+# forge3d_apercu (la résolution par la matière) les lisent, et que le sidecar
+# ne doit pas importer forge3d. Le défaut de 0,6 mm est HISTORIQUE : gardé
+# pour un relief dont ni le graphe ni la matière chaînée ne disent la hauteur.
+RELIEF_DEPTH_MM_MAX = 3.0            # relief au-dessus de la base
+RELIEF_DEPTH_MM_DEFAUT = 0.6
+
+
 def relief_mesh(alpha_img, w_mm: float, h_mm: float, depth_mm: float,
                 base_mm: float, grid: int,
                 uv_window: tuple[float, float, float, float] = (0.0, 0.0, 1.0, 1.0)

@@ -1355,7 +1355,7 @@
   }
 
   /* un champ numérique borné PAR /info — jamais des bornes écrites ici */
-  function numHtml(label, field, value, bornes, step, unite, off) {
+  function numHtml(label, field, value, bornes, step, unite, off, indice) {
     /* les bornes viennent de /info : ABSENTES, on n'en invente pas (un
        min=0/max=0 de repli verrouillerait le champ en prétendant que c'est
        la règle du domaine). */
@@ -1366,6 +1366,7 @@
       + esc(value != null ? value : "") + '"'
       + (b ? ' min="' + Number(b[0]) + '" max="' + Number(b[1]) + '"' : "")
       + ' step="' + esc(step) + '"' + (off ? " disabled" : "")
+      + (indice ? ' placeholder="' + esc(indice) + '" title="' + esc(indice) + '"' : "")
       + '>' + (unite ? "<i>" + esc(unite) + "</i>" : "") + '</label>';
   }
 
@@ -1395,8 +1396,13 @@
     const rdMax = lim ? lim.relief_depth_mm_max : 0;
     const rb = (lim && lim.relief_base_mm) || [0, 0];
     const rg = (lim && lim.relief_grid) || [0, 0];
+    /* relief laissé VIDE = « auto » (T097) : la hauteur physique de la
+       matière chaînée, sinon le défaut que /info publie */
+    const auto = isRelief && lim && lim.relief_depth_mm_default != null
+      ? "auto : hauteur de la matière, sinon " + lim.relief_depth_mm_default : "";
     return numHtml("profondeur", "depth_mm", proc.depth_mm,
-                   [isRelief ? 0 : pd[0], isRelief ? rdMax : pd[1]], "0.05", "mm")
+                   [isRelief ? 0 : pd[0], isRelief ? rdMax : pd[1]], "0.05", "mm",
+                   false, auto)
       + (isRelief
         ? (numHtml("base", "base_mm", proc.base_mm, rb, "0.05", "mm")
           + numHtml("grille", "grid", proc.grid, rg, "1", ""))
@@ -4101,7 +4107,8 @@
      l'esquisse ne dirait rien de plus. */
   function thumbRelief(ctx, enc, n, l) {
     const d = Math.max(0, Math.min(6,
-      Number(valeurVue(n.id, "depth_mm", n.depth_mm)) || 0));
+      Number(valeurVue(n.id, "depth_mm", n.depth_mm))
+        || Number(INFO && INFO.graph_limits && INFO.graph_limits.relief_depth_mm_default) || 0));
     const b = thumbCouche(ctx, enc, l, 1, Math.round(d * 2.2));
     if (!b) return;
     texteCentre(ctx, enc, d.toFixed(2) + " mm", THUMB_H - 10, 10, enc.accent);

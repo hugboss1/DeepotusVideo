@@ -34,7 +34,8 @@ from .contract import deck_dir
 # forge3d_scene.py (zéro FastAPI) — RÉEXPORTÉE ici pour que tests et route
 # n'aient pas à changer d'orthographe. Ce fichier garde le contrat HTTP
 # (routes, bornes, blocs miroir).
-from .forge3d_scene import (quad_mesh, relief_mesh, mesh_measures,
+from .forge3d_scene import (RELIEF_DEPTH_MM_MAX, RELIEF_DEPTH_MM_DEFAUT,
+                            quad_mesh, relief_mesh, mesh_measures,
                             extrude_ring_mesh, ring_area_mm2,
                             write_scene_glb, _write_stl_binary,
                             read_glb, glb_scene_mesh, glb_triangle_estimate,
@@ -63,7 +64,8 @@ from . import forge3d_apercu as _APERCU
 # à travers ce module (`_resolve_graph_elements`, `_PREVIEW_ASM_ID`) — ces
 # deux-là sont ÉPINGLÉS comme réexports, sinon le prochain élagage les
 # emporterait aussi.
-from .forge3d_apercu import (_resolve_graph_elements, _layer_filename,
+from .forge3d_apercu import (profondeur_relief,                 # T097, lu par les bancs
+                             _resolve_graph_elements, _layer_filename,
                              _PREVIEW_ASM_ID, _borne_apercu_glb,
                              _sous_graphe_apercu, nom_element,
                              # T5 : DEUX NOMS REVIENNENT, parce qu'ils sont
@@ -172,13 +174,16 @@ NODE_KINDS = [
 
 # Bornes des paramètres (publiées par /info, jamais recopiées à l'écran).
 PLANE_DEPTH_MM = (0.0, 5.0)          # écart z entre plans empilés
-RELIEF_DEPTH_MM_MAX = 3.0            # relief au-dessus de la base
+# RELIEF_DEPTH_MM_MAX (3,0 mm au-dessus de la base) et RELIEF_DEPTH_MM_DEFAUT
+# vivent dans forge3d_scene depuis T097 : le sidecar forge3d_apercu, qui résout
+# la profondeur d'un relief, les lit sans importer ce module (la couture).
 RELIEF_BASE_MM = (0.1, 2.0)          # épaisseur de la dalle
 RELIEF_GRID = (48, 256)              # subdivisions de la grille — axe X (gx)
                                       # SEUL ; gy suit le ratio h_mm/w_mm de
                                       # la carte (un tarot portrait à 256
                                       # donne gy=439, ~452k triangles)
 RELIEF_GRID_DEFAULT = 160
+
 
 # ── extrude (T5, D8) : la couronne de contour ──────────────────────────────
 # LE PLANCHER PARTAGÉ AVEC LE SCEAU. `frame.py:SEAL_MIN_MM` (:519) vaut 0,2 mm
@@ -482,6 +487,7 @@ async def get_info(did: str):
             "graph_limits": {
                "plane_depth_mm": list(PLANE_DEPTH_MM),
                "relief_depth_mm_max": RELIEF_DEPTH_MM_MAX,
+               "relief_depth_mm_default": RELIEF_DEPTH_MM_DEFAUT,
                "relief_base_mm": list(RELIEF_BASE_MM),
                "relief_grid": list(RELIEF_GRID),
                "relief_grid_default": RELIEF_GRID_DEFAULT,
@@ -815,7 +821,14 @@ def clean_graph(raw) -> dict:
         elif n["kind"] == "plane":
             node["depth_mm"] = _num(n.get("depth_mm"), 0.0, *PLANE_DEPTH_MM)
         elif n["kind"] == "relief":
-            node["depth_mm"] = _num(n.get("depth_mm"), 0.6, 0.05, RELIEF_DEPTH_MM_MAX)
+            # « AUTO » QUAND RIEN N'EST SAISI (T097) : la profondeur reste None
+            # dans le graphe stocké, et se résout à la construction par la
+            # matière chaînée (`profondeur_relief`). Écrire 0,6 ici, comme
+            # avant, figeait le défaut dans le graphe — la hauteur déclarée par
+            # la matière n'aurait jamais gagné.
+            node["depth_mm"] = (None if n.get("depth_mm") is None else
+                                _num(n.get("depth_mm"), RELIEF_DEPTH_MM_DEFAUT, 0.05,
+                                     RELIEF_DEPTH_MM_MAX))
             node["base_mm"] = _num(n.get("base_mm"), 0.3, *RELIEF_BASE_MM)
             node["grid"] = int(_num(n.get("grid"), RELIEF_GRID_DEFAULT, *RELIEF_GRID))
         elif n["kind"] == "mesh3d":
