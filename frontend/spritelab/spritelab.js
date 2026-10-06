@@ -17,6 +17,9 @@ const api = {
   },
 };
 
+/* t111 : directions.js (module pur, sourceBody compris) arrive APRÈS ce script — ce qui lit la source l'attend */
+const SLD_PRET = window.SLD ? Promise.resolve() : new Promise((r) => document.addEventListener("sld-pret", r, { once: true }));
+
 /* Preset sprite (spec 9c) : caméra fixe + fond uni -> détourage propre. */
 const SPRITE_SUFFIX = "static camera, character animation loop, plain solid green background, full body visible";
 const VIDEO_RE = /\.(mp4|mov|webm|m4v|avi|mkv|gif)$/i;
@@ -244,8 +247,9 @@ async function extract() {
   $("#strip").innerHTML = `<div class="empty-note">Extraction des frames… (locale, gratuite)</div>`;
   $("#stripCount").textContent = "…";
   try {
+    await SLD_PRET;
     const d = await api.send("POST", "/assets/sprite", {
-      source: { kind: source.kind, job_id: source.job_id },
+      source: window.SLD.sourceBody(source),
       fps_sample: fps, max_frames: max,
       remove_bg: "none", extract_only: true,
       title: "Sprites · extraction " + (source.label || ""),
@@ -308,6 +312,11 @@ function updateGenEnabled() {
   $("#genBtn").disabled = !(source && extractShort && !busyGen && !busyExtract);
 }
 
+function cellOpts() {
+  return { size: $("#cellSize").value === "native" ? "native" : parseInt($("#cellSize").value, 10),
+           align: $("#cellAlign").value };
+}
+
 function pixelOpts() {
   if (!$("#pixelOn").checked) return undefined;
   const palette = $("#pixPalette").value;
@@ -366,12 +375,11 @@ async function generate() {
   try {
     const s = stripSettings();
     const body = {
-      source: { kind: source.kind, job_id: source.job_id },
+      source: window.SLD.sourceBody(source),
       fps_sample: s.fps, max_frames: s.max,
       remove_bg: $("#removeBg").value,
       trim: $("#trim").value,
-      cell: { size: $("#cellSize").value === "native" ? "native" : parseInt($("#cellSize").value, 10),
-              align: $("#cellAlign").value },
+      cell: cellOpts(),
       columns: $("#columns").value === "auto" ? "auto" : parseInt($("#columns").value, 10),
       title: "Sprites · " + (source.label || ""),
     };
@@ -439,6 +447,7 @@ function showResult(short, m) {
   $("#editStatus").classList.add("hidden");
   renderEditor();
   hbCharger(short, m);
+  skCharger(short, m);
 }
 
 /* ───────── T110 (plan-sprites T7) : ordre des images ─────────
@@ -591,6 +600,142 @@ function hbWire() {
   });
 }
 
+/* ───────── t111 (plan-sprites T12) : squelette Spine ─────────
+   L'état et ses gestes vivent dans skeleton.js (pur, banc qa/skeleton.test.mjs) ; ici, le dessin et le câblage. La
+   page DESSINE os et boîtes en pixels de case ; Python découpe les pièces et écrit skeleton.json (repères locaux de
+   Spine). Aucun PNG ni JSON n'est fabriqué ici. Les noms se saisissent dans la liste : aucun dialogue natif. */
+let sk = null, skShort = null, skImg = null, skGlisse = null;
+
+function skCharger(short, m) {
+  if (!window.SLK || !m.grid || !(m.frames || []).length) { $("#squelette").classList.add("hidden"); sk = null; return; }
+  sk = window.SLK.charger(m);
+  skShort = short;
+  const cv = $("#skCanvas");
+  cv.width = sk.cw; cv.height = sk.ch;
+  $("#skFrame").innerHTML = m.frames.map((f, i) => `<option value="${i}">frame ${i}</option>`).join("");
+  $("#dlSpine").href = `/api/assets/sprite/${short}/skeleton`;
+  $("#dlSpine").setAttribute("download", `sprites_${short}.spine.json`);
+  $("#dlSpine").classList.toggle("hidden", !(m.files && m.files.spine));
+  $("#squelette").classList.remove("hidden");
+  $("#skStatus").classList.add("hidden");
+  skFrame(0);
+}
+
+function skFrame(i) {
+  if (!sk) return;
+  window.SLK.allerA(sk, i);
+  $("#skFrame").value = String(sk.frame);
+  skImg = new Image();
+  skImg.onload = () => skDessiner();
+  skImg.src = `/api/assets/sprite/${skShort}/frame/${sk.frame}?r=${sheetRev}`;
+  skDessiner();
+}
+
+function skDessiner(apercu) {
+  if (!sk) return;
+  const cv = $("#skCanvas"), x = cv.getContext("2d");
+  x.clearRect(0, 0, cv.width, cv.height);
+  if (skImg && skImg.complete && skImg.naturalWidth) { x.imageSmoothingEnabled = false; x.drawImage(skImg, 0, 0, cv.width, cv.height); }
+  x.lineWidth = 1;
+  for (const p of sk.pieces) {
+    x.strokeStyle = p.bone === sk.sel ? "rgba(77,216,230,1)" : "rgba(77,216,230,.55)";
+    x.strokeRect(p.x + 0.5, p.y + 0.5, p.w - 1, p.h - 1);
+  }
+  for (const b of sk.bones) {
+    const a = b.rotation * Math.PI / 180, l = Math.max(b.length, 4);
+    x.strokeStyle = x.fillStyle = b.name === sk.sel ? "#f0b429" : "rgba(240,180,41,.6)";
+    x.lineWidth = b.name === sk.sel ? 2 : 1;
+    x.beginPath(); x.moveTo(b.x, b.y); x.lineTo(b.x + Math.cos(a) * l, b.y - Math.sin(a) * l); x.stroke();
+    x.fillRect(b.x - 1.5, b.y - 1.5, 3, 3);
+  }
+  if (apercu) {
+    x.strokeStyle = "#ffffff"; x.lineWidth = 1; x.setLineDash([3, 2]);
+    if (sk.outil === "os") { x.beginPath(); x.moveTo(apercu.a.x, apercu.a.y); x.lineTo(apercu.b.x, apercu.b.y); x.stroke(); }
+    else x.strokeRect(Math.min(apercu.a.x, apercu.b.x) + 0.5, Math.min(apercu.a.y, apercu.b.y) + 0.5,
+                      Math.abs(apercu.b.x - apercu.a.x), Math.abs(apercu.b.y - apercu.a.y));
+    x.setLineDash([]);
+  }
+  $("#skInfo").textContent = `${sk.bones.length} os · ${sk.pieces.length} pièce(s)`;
+  $("#skSave").disabled = !window.SLK.pret(sk);
+  skListe();
+}
+
+function skListe() {
+  const ligneOs = (b) => `<div class="sk-row${b.name === sk.sel ? " on" : ""}" data-os="${escA(b.name)}">
+      <span class="sk-ico" title="Choisir cet os : les prochains os et pièces s'y accrochent">🦴</span>
+      <input class="sk-nom" value="${escA(b.name)}" maxlength="32" title="Nom de l'os (lettres, chiffres, _ ou -)">
+      <span class="unit">← ${esc(b.parent)} · ${Math.round(b.rotation)}°</span>
+      <button class="sk-del" title="Supprimer cet os, ses enfants et leurs pièces">✕</button></div>`;
+  const lignePiece = (p) => `<div class="sk-row" data-piece="${escA(p.name)}">
+      <span class="sk-ico">▭</span>
+      <input class="sk-nom" value="${escA(p.name)}" maxlength="32" title="Nom de la pièce — c'est aussi le nom de son PNG">
+      <span class="unit">→ ${esc(p.bone)} · ${p.w}×${p.h}</span>
+      <button class="sk-del" title="Supprimer cette pièce">✕</button></div>`;
+  $("#skList").innerHTML = (sk.bones.map(ligneOs).join("") + sk.pieces.map(lignePiece).join(""))
+    || `<div class="hint">aucun os — glisse sur la case avec l'outil 🦴 Os</div>`;
+  $$("#skList .sk-row").forEach((row) => {
+    const os = row.dataset.os, piece = row.dataset.piece;
+    const champ = row.querySelector(".sk-nom");
+    champ.onchange = () => {
+      const fait = os ? window.SLK.renommerOs(sk, os, champ.value) : window.SLK.renommerPiece(sk, piece, champ.value);
+      if (!fait) toast("Nom refusé : 1 à 32 caractères (lettres, chiffres, _ ou -), unique" + (os ? ", et pas « root »" : ""), true);
+      skDessiner();
+    };
+    row.querySelector(".sk-del").onclick = () => {
+      if (os) {
+        const r = window.SLK.supprimerOs(sk, os);
+        if (r.os > 1 || r.pieces) toast(`${r.os} os et ${r.pieces} pièce(s) retirés`);
+      } else window.SLK.supprimerPiece(sk, piece);
+      skDessiner();
+    };
+    if (os) row.querySelector(".sk-ico").onclick = () => { sk.sel = sk.sel === os ? "" : os; skDessiner(); };
+  });
+}
+
+function skOutil(o) {
+  if (!sk) return;
+  sk.outil = o;
+  $$("#squelette .sk-outil").forEach((b) => b.classList.toggle("on", b.dataset.outil === o));
+}
+
+async function skEcrire() {
+  if (!sk || !window.SLK.pret(sk)) return;
+  const st = $("#skStatus"), short = skShort;
+  $("#skSave").disabled = true;
+  try {
+    setStatus(st, "Découpe des pièces et écriture du rig…", false, 30);
+    const d = await api.send("POST", `/assets/sprite/${short}/skeleton`, window.SLK.corps(sk));
+    const m = await api.get("/assets/sprite/" + short + "/manifest");
+    if (sheet && sheet.short === short) sheet.manifest = m;
+    $("#dlSpine").classList.toggle("hidden", !(m.files && m.files.spine));
+    setStatus(st, `rig écrit · ${d.bones} os (racine comprise) · ${d.slots} pièce(s) · hash ${d.hash} — le ZIP emporte spine/`);
+  } catch (e) {
+    setStatus(st, "Échec : " + e.message, true);
+  } finally {
+    if (sk) $("#skSave").disabled = !window.SLK.pret(sk);
+  }
+}
+
+function skWire() {
+  const cv = $("#skCanvas");
+  const point = (ev) => { const b = cv.getBoundingClientRect(); return { x: (ev.clientX - b.left) * cv.width / b.width, y: (ev.clientY - b.top) * cv.height / b.height }; };
+  cv.addEventListener("pointerdown", (ev) => { if (!sk) return; skGlisse = point(ev); try { cv.setPointerCapture(ev.pointerId); } catch (e) { /* synthétique */ } });
+  cv.addEventListener("pointermove", (ev) => { if (sk && skGlisse) skDessiner({ a: skGlisse, b: point(ev) }); });
+  cv.addEventListener("pointerup", (ev) => {
+    if (!sk || !skGlisse) return;
+    const a = skGlisse, b = point(ev);
+    skGlisse = null;
+    try {
+      if (sk.outil === "os") window.SLK.ajouterOs(sk, a, b);
+      else if (!window.SLK.ajouterPiece(sk, a, b)) toast("Boîte trop petite : glisse sur au moins 2 px", true);
+    } catch (e) { toast(e.message, true); }
+    skDessiner();
+  });
+  $("#skFrame").onchange = () => skFrame(parseInt($("#skFrame").value, 10) || 0);
+  $$("#squelette .sk-outil").forEach((b) => b.onclick = () => skOutil(b.dataset.outil));
+  $("#skSave").onclick = skEcrire;
+}
+
 async function applyEditor() {
   if (!sheet || !editOrder.length) return;
   const st = $("#editStatus");
@@ -730,6 +875,184 @@ window.addEventListener("message", (ev) => {
   }
 });
 
+/* ───────── t111 (plan-sprites T9-T11) : onglets Bible et Prompt ─────────
+   Le module pur directions.js porte les tables et les corps ; ici, le DOM, `<model-viewer>` et les appels. Les routes
+   sont celles de #237 (from-board : la planche découpée ; capture : une vue déposée, alpha MESURÉ) et
+   /images/generate pour le prompt. Le navigateur voit et capture, Python écrit : aucune feuille n'est faite ici. */
+let entities = null, selEntity = null, busyBible = false;
+let persona = null, busyPrompt = false, imageModel = "";
+const pucesOn = new Set();
+
+const selEnt = () => (entities || []).find((e) => e.id === selEntity) || null;
+
+async function loadEntities() {
+  await SLD_PRET;
+  if (!entities) {
+    try { entities = (await api.get("/bible/entities")).entities || []; }
+    catch (e) { $("#entList").innerHTML = `<div class="empty-note">Bible indisponible : ${esc(e.message)}</div>`; return; }
+  }
+  renderEntities();
+}
+function renderEntities() {
+  if (!entities) return;
+  const l = window.SLD.entitesDecoupables(entities, $("#entSearch").value);
+  $("#entList").innerHTML = l.map((e) => `
+    <div class="render-item${e.id === selEntity ? " sel" : ""}" data-id="${escA(e.id)}">
+      <div class="rt">${esc(e.name)}</div>
+      <div class="rm">planche${e.model3d_job ? ' · <span class="ent-3d">modèle 3D</span>' : ""}</div>
+    </div>`).join("")
+    || `<div class="empty-note">Aucun personnage avec une planche — génère-la dans l'Atelier (Planche).</div>`;
+  $$("#entList .render-item").forEach((el) => el.onclick = () => { selEntity = el.dataset.id; renderEntities(); });
+  majBible();
+}
+function majBible() {
+  const e = selEnt();
+  $("#bibleCut").disabled = !e || busyBible;
+  $("#bible3d").disabled = !e || !e.model3d_job || busyBible;
+  $("#bible3d").title = e && !e.model3d_job
+    ? "Ce personnage n'a pas de modèle 3D — génère-le dans Assets 3D, ou découpe la planche (4 directions)"
+    : "Rend le modèle 3D sous 8 angles et en fait une feuille de 8 directions (local, gratuit)";
+}
+
+/* la feuille d'un job lancé : suivi, manifeste, préviz — commun à la planche et aux orbites */
+async function finirFeuille(jobId, st, msg) {
+  const j = await pollJob(jobId, (jj) => setStatus(st, `${jj.current_step || jj.status}…`, false, jj.progress || 5));
+  if (j.status !== "done") throw new Error(j.error || "assemblage échoué");
+  const short = jobId.slice(0, 8);
+  const m = await api.get("/assets/sprite/" + short + "/manifest");
+  clearStatus(st);
+  showResult(short, m);
+  toast(msg);
+}
+
+async function cutFromBible() {
+  const e = selEnt();
+  if (!e || busyBible) return;
+  busyBible = true; majBible();
+  const st = $("#bibleStatus");
+  try {
+    setStatus(st, "Découpe de la planche…", false, 5);
+    const body = { entity_id: e.id, cell: cellOpts(), trim: $("#trim").value };
+    const px = pixelOpts(); if (px) body.pixel = px;
+    const po = postOpts(); if (po) body.post = po;
+    const d = await api.send("POST", "/assets/sprite/from-board", body);
+    await finirFeuille(d.job_id, st, "4 directions depuis la planche ✓ — gratuit, local");
+  } catch (err) {
+    setStatus(st, "Échec : " + err.message, true);
+  }
+  busyBible = false; majBible();
+}
+
+/* charge le GLB dans le viewport (une fois par modèle) — `load` ou `error`, borné à une minute */
+function chargerModele(mv, url) {
+  if (mv.getAttribute("src") === url && mv.loaded) return Promise.resolve();
+  return new Promise((ok, ko) => {
+    const fin = (f) => (ev) => { clearTimeout(t); mv.removeEventListener("load", bon); mv.removeEventListener("error", mal); f(ev); };
+    const bon = fin(() => ok()), mal = fin(() => ko(new Error("modèle 3D illisible")));
+    const t = setTimeout(fin(() => ko(new Error("délai dépassé au chargement du modèle 3D"))), 60000);
+    mv.addEventListener("load", bon); mv.addEventListener("error", mal);
+    mv.setAttribute("src", url);
+  });
+}
+/* deux images d'affichage après un déplacement de caméra ; repli par minuterie (requestAnimationFrame dort quand
+   l'onglet est caché) */
+const deuxImages = () => new Promise((r) => {
+  let fait = false; const f = () => { if (!fait) { fait = true; r(); } };
+  requestAnimationFrame(() => requestAnimationFrame(f)); setTimeout(f, 250);
+});
+
+async function captureOrbites() {
+  const e = selEnt();
+  if (!e || !e.model3d_job || busyBible) return;
+  busyBible = true; majBible();
+  const st = $("#bibleStatus"), mv = $("#mv3d"), prefix = window.SLD.hex8();
+  try {
+    if (!window.customElements || !customElements.get("model-viewer")) throw new Error("model-viewer n'est pas chargé");
+    setStatus(st, "Chargement du modèle 3D…", false, 3);
+    await chargerModele(mv, `/api/assets/3d/${encodeURIComponent(e.model3d_job)}/glb`);
+    const noms = [], sansAlpha = [];
+    for (let k = 0; k < window.SLD.ORBITES.length; k++) {
+      const [nom, theta] = window.SLD.ORBITES[k];
+      mv.setAttribute("camera-orbit", window.SLD.orbite(theta));
+      if (mv.jumpCameraToGoal) mv.jumpCameraToGoal();
+      await deuxImages();
+      const blob = await mv.toBlob({ idealAspect: false });
+      const r = await fetch(`/api/assets/sprite/capture?dir=${nom}&prefix=${prefix}`,
+        { method: "POST", headers: { "Content-Type": "image/png" }, body: blob });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.detail || `vue ${nom} refusée (${r.status})`);
+      noms.push(d.filename);
+      if (!d.alpha) sansAlpha.push(nom);
+      setStatus(st, `Capture ${k + 1}/8 (${nom})…`, false, 8 + k * 10);
+    }
+    const body = window.SLD.corpsOrbites(noms, sansAlpha, { cell: cellOpts(), pixel: pixelOpts(), post: postOpts(), titre: e.name });
+    setStatus(st, "Assemblage de la feuille…", false, 90);
+    const d = await api.send("POST", "/assets/sprite", body);
+    await finirFeuille(d.job_id, st, sansAlpha.length
+      ? "8 directions ✓ — rendu opaque, clé chroma locale appliquée" : "8 directions ✓ — rendu déjà détouré");
+  } catch (err) {
+    setStatus(st, "Échec : " + err.message, true);
+  }
+  busyBible = false; majBible();
+}
+
+/* — Prompt : les puces de la persona, le devis, le tir — */
+async function loadPersona() {
+  await SLD_PRET;
+  if (persona) return majDevisPrompt();
+  try { persona = await api.get("/persona"); } catch (e) { persona = {}; }
+  try { imageModel = ((await api.get("/atelier/settings")).settings || {}).image_model_default || ""; } catch (e) { imageModel = ""; }
+  const coul = (c) => /^#[0-9a-f]{3,8}$/i.test(c) ? `<i style="background:${c}"></i>` : "";
+  $("#pmChips").innerHTML = window.SLD.puces(persona).map((p) =>
+    `<button type="button" class="chip${p.couleur ? " col" : ""}" data-v="${escA(p.v)}" title="Ajouter « ${escA(p.v)} » au prompt">${p.couleur ? coul(p.libelle) : ""}${esc(p.libelle)}</button>`).join("")
+    || `<span class="hint">aucun mot-clé dans la persona</span>`;
+  $$("#pmChips .chip").forEach((el) => el.onclick = () => {
+    const v = el.dataset.v;
+    if (pucesOn.has(v)) pucesOn.delete(v); else pucesOn.add(v);
+    el.classList.toggle("on", pucesOn.has(v));
+  });
+  majDevisPrompt();
+}
+async function majDevisPrompt() {
+  const el = $("#pmCost");
+  try {
+    const d = await api.send("POST", "/cost/estimate",
+      { kind: "image", n: parseInt($("#pmN").value, 10) || 1, model: imageModel || "flux" });
+    el.textContent = d && d.total_usd != null ? `≈ $${(+d.total_usd).toFixed(3)}` : "";
+  } catch (e) { el.textContent = ""; }
+}
+
+async function generateFromPrompt() {
+  if (busyPrompt) return;
+  const sujet = ($("#pmPrompt").value || "").trim();
+  if (!sujet) return toast("Décris d'abord le sprite.", true);
+  busyPrompt = true; $("#pmGen").disabled = true;
+  const st = $("#pmStatus");
+  try {
+    setStatus(st, "Génération des images…", false, 10);
+    const d = await api.send("POST", "/images/generate", window.SLD.corpsPrompt(sujet, [...pucesOn], $("#pmN").value, $("#pmSize").value));
+    const noms = (d && d.images) || [];
+    if (!noms.length) throw new Error("aucune image rendue");
+    clearStatus(st);
+    loadImages();                                   // la Library a changé
+    // le suffixe demande un fond vert uni : la clé chroma locale (gratuite) le retire — jamais l'API payante par défaut
+    if ($("#removeBg").value === "api") { $("#removeBg").value = "chroma"; savePrefs(); updateCost(); }
+    setSource({ kind: "images", filenames: noms, label: `${noms.length} image(s) du prompt` });
+    toast(`${noms.length} image(s) générée(s) ✓ — détourage en clé chroma (local) ; choisis tes frames puis génère le sheet`);
+  } catch (e) {
+    setStatus(st, "Échec : " + e.message, true);
+  }
+  busyPrompt = false; $("#pmGen").disabled = false;
+}
+
+function bibleWire() {
+  $("#entSearch").oninput = renderEntities;
+  $("#bibleCut").onclick = cutFromBible;
+  $("#bible3d").onclick = captureOrbites;
+  $("#pmGen").onclick = generateFromPrompt;
+  $("#pmN").onchange = majDevisPrompt;
+}
+
 /* ───────── wiring ───────── */
 function switchSrcTab(which) {
   $$("#srcTabs .tab").forEach(t => t.classList.toggle("active", t.dataset.src === which));
@@ -738,12 +1061,16 @@ function switchSrcTab(which) {
   $("#srcRender").classList.toggle("hidden", which !== "render");
   $("#srcUpload").classList.toggle("hidden", which !== "upload");
   $("#srcFeuille").classList.toggle("hidden", which !== "feuille");
+  $("#srcBible").classList.toggle("hidden", which !== "bible");
+  $("#srcPrompt").classList.toggle("hidden", which !== "prompt");
   // lot 1 : en mode Feuille la colonne du milieu montre la planche, pas le filmstrip
   const feuille = which === "feuille" && !!F.tampon;
   $("#feuillePane").classList.toggle("hidden", !feuille);
   $("#strip").classList.toggle("hidden", feuille);
   $("#feuilleOut").classList.toggle("hidden", !feuille);
   if (which === "starter") loadStarter();
+  if (which === "bible") loadEntities();
+  if (which === "prompt") loadPersona();
 }
 
 /* ───────── packs de démarrage CC0 ─────────
@@ -887,6 +1214,9 @@ function wire() {
   $("#toStudio").onclick = toStudio;
   playgroundWire();   // lot 5
   hbWire();           // T112 : hitboxes par frame
+  bibleWire();        // t111 : onglets Bible et Prompt
+  skWire();           // t111 (T12) : squelette Spine
+  document.addEventListener("slk-pret", () => { if (sheet) skCharger(sheet.short, sheet.manifest); });   // skeleton.js arrive APRÈS ce script
   document.addEventListener("slh-pret", () => { if (sheet) hbCharger(sheet.short, sheet.manifest); });   // hitbox.js (module) arrive APRÈS ce script
   // lot 1 : l'onglet Feuille se câble quand le module pur est chargé
   if (window.SLF) feuilleWire(); else document.addEventListener("slf-pret", feuilleWire, { once: true });

@@ -2534,6 +2534,7 @@ async def get_sprite_manifest(job: str):
         "atlas": (d / "sheet.atlas.json").is_file(),
         "aseprite": (d / "sheet.ase").is_file(),
         "paper2d": (d / "sheet.paper2dsprites").is_file(),
+        "spine": (d / "spine" / "skeleton.json").is_file(),           # t111 (T12) : le rig, quand il est posé
         "frames": len(list(fdir.glob("*.png"))) if fdir.is_dir() else 0,
     }
     return data
@@ -2794,6 +2795,42 @@ async def post_sprite_hitboxes(job: str, body: dict = None):
         raise HTTPException(404, str(e))
     except ValueError as e:
         raise HTTPException(400, str(e))
+
+
+@router.post("/assets/sprite/{job}/skeleton")
+async def post_sprite_skeleton(job: str, body: dict = None):
+    """t111 (plan-sprites T12) — découpe UNE case en pièces, pose les os, écrit le rig Spine 3.8 (spine/skeleton.json
+    + spine/images/<pièce>.png). Body {frame, bones: [{name, parent?, x, y, length?, rotation?}], pieces: [{name,
+    bone, x, y, w, h}]} en pixels de CASE (y vers le bas) et angles visuels — sprite_skeleton convertit vers les
+    repères locaux de Spine. La page dessine, Python découpe et écrit. Local et gratuit."""
+    from app.services import sprite_skeleton as SK
+    body = body or {}
+    d = _sprite_dir(Path(job).name)
+    mf = d / "manifest.json"
+    if not mf.is_file():
+        raise HTTPException(404, "Not found")
+    brut = body.get("frame", 0)
+    if isinstance(brut, bool) or not isinstance(brut, int) or brut < 0:
+        raise HTTPException(400, "frame : un entier ≥ 0 est attendu")
+    case = d / "frames" / f"{brut:03d}.png"
+    if not case.is_file():
+        raise HTTPException(400, f"frame {brut} : aucune case à ce numéro")
+    m = json.loads(mf.read_text(encoding="utf-8"))
+    try:
+        sq = await asyncio.to_thread(SK.ecrire, case, body, d / "spine",
+                                     (m.get("anim") or {}).get("tags") or [], float(m.get("fps") or 8))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"ok": True, "bones": len(sq["bones"]), "slots": len(sq["slots"]), "hash": sq["skeleton"]["hash"]}
+
+
+@router.get("/assets/sprite/{job}/skeleton")
+async def get_sprite_skeleton(job: str):
+    """Le squelette Spine JSON (404 tant qu'aucun rig n'a été posé). Les PNG des pièces sont dans le ZIP."""
+    p = _sprite_dir(Path(job).name) / "spine" / "skeleton.json"
+    if not p.is_file():
+        raise HTTPException(404, "Not found")
+    return FileResponse(p, media_type="application/json")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
