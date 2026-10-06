@@ -61,6 +61,7 @@ __all__ = [
     "UNITY_NAMINGS", "clean_naming", "naming_catalog", "engine_slot",
     "render_block", "RENDER_NOTE", "public_material",
     "export_filename", "naming_map", "env_jpeg",
+    "clean_prep", "prep_note",
 ]
 
 # ── constantes de contrat ────────────────────────────────────────────────────
@@ -220,6 +221,68 @@ _DERIVE_SPEC: dict[str, tuple] = {
     "emissive_threshold": ("f", 0.85, 0.0, 1.0),
     "height_detail":      ("f", 0.5, 0.0, 1.0),
 }
+
+# ── ce qu'on a FAIT à la photo avant de la dériver (R10c P1) ────────────────
+#
+# Ce bloc voyage avec la matière : meta.json, material.json de l'archive,
+# LISEZMOI. Sans lui, une base color délightée serait indiscernable d'une base
+# color naturellement plate — et personne, six mois plus tard, ne saurait si
+# l'ombre a été retirée une fois, zéro fois, ou deux.
+#
+# Règle 2 du module (« aucune entrée invalide ne casse quoi que ce soit ») :
+# rien ne lève ici. Un `quad` mal formé est simplement ABSENT du bloc rendu, et
+# l'écran le voit — c'est un refus visible, pas une exception.
+
+
+def clean_prep(raw) -> dict | None:
+    """Bloc `prep` normalisé, ou `None` s'il n'y a rien à dire."""
+    if not isinstance(raw, dict):
+        return None
+    out: dict = {}
+    d = _coerce_float(raw.get("delight"), 0.0, 0.0, 1.0)
+    if d > 0.0:
+        out["delight"] = round(d, 3)
+        out["delight_radius"] = round(
+            _coerce_float(raw.get("delight_radius"), 0.125, 0.02, 0.40), 3)
+    quad = raw.get("quad")
+    if isinstance(quad, (list, tuple)) and len(quad) == 4:
+        pts = []
+        for p in quad:
+            try:
+                pts.append([round(float(p[0]), 2), round(float(p[1]), 2)])
+            except (TypeError, ValueError, IndexError, KeyError):
+                pts = []
+                break
+        if len(pts) == 4:
+            out["quad"] = pts
+    for k in ("lowfreq_sd_before", "lowfreq_sd_after"):
+        try:
+            out[k] = round(float(raw[k]), 3)
+        except (KeyError, TypeError, ValueError):
+            pass
+    return out or None
+
+
+def prep_note(prep: dict | None) -> str:
+    """Une phrase française qui dit ce qui a été fait à la photo — vide si
+    rien ne l'a été. C'est elle que porte le LISEZMOI de l'archive."""
+    if not isinstance(prep, dict) or not prep:
+        return ""
+    faits = []
+    if prep.get("quad"):
+        faits.append("redressée par quatre coins (transformation perspective)")
+    if prep.get("delight"):
+        faits.append(f"éclairage retiré à {prep['delight']:.2f}")
+    if not faits:
+        return ""
+    note = "Photo préparée : " + ", ".join(faits) + "."
+    av, ap = prep.get("lowfreq_sd_before"), prep.get("lowfreq_sd_after")
+    if av is not None and ap is not None:
+        baisse = (100.0 * (1.0 - ap / av)) if av > 1e-6 else 0.0
+        note += (f" Écart-type de la luminance basse fréquence : {av} -> {ap} "
+                 f"niveaux ({baisse:.0f} % de moins).")
+    return note
+
 
 # Préréglages de matière (bouton « Appliquer un préréglage »). Ne touchent que
 # `props` — la dérivation reste celle de la matière.
@@ -798,7 +861,8 @@ def normalize_material(raw: dict | None, mid: str | None = None) -> dict:
         "name": clean_name(raw.get("name"), fallback="Matière"),
         "prompt": str(raw.get("prompt") or "")[:2000],
         "full_prompt": str(raw.get("full_prompt") or "")[:4000],
-        "source": {"kind": kind, "model": model, "filename": filename},
+        "source": {"kind": kind, "model": model, "filename": filename,
+                   "prep": clean_prep(src.get("prep"))},
         "res": clean_res(raw.get("res")),
         "seamless": bool(raw.get("seamless", True)),
         "seam": seam_out,
@@ -1344,6 +1408,11 @@ def _readme(mat: dict, files: dict, bits: int, naming: str, res: int) -> str:
         f"  roughnessFactor = {render.get('roughnessFactor', 1.0)}"
         f"   (rugosité effective mesurée : {eff.get('roughness')})",
         "  " + RENDER_NOTE.replace(". ", ".\r\n  "),
+    ]
+    note_photo = prep_note((mat.get("source") or {}).get("prep"))
+    if note_photo:
+        lines += ["", note_photo]
+    lines += [
         "",
         "Maps incluses :",
     ]

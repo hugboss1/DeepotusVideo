@@ -11085,6 +11085,34 @@ def _mat_square(img: "PILImage.Image", res: int) -> "PILImage.Image":
     return rgb
 
 
+def _mat_prepare(img: "PILImage.Image", res: int, prep: dict | None):
+    """Redressement, PUIS delighting, PUIS carré — et le bloc `prep` complété
+    par la mesure avant/après.
+
+    L'ORDRE N'EST PAS LIBRE, et c'est la seule chose à retenir ici. Redresser
+    d'abord : la perspective étire aussi le dégradé d'éclairage, donc estimer
+    l'éclairage avant le redressement revient à l'estimer dans un espace qui
+    n'est pas celui de la surface — le flou serait anisotrope là où la photo
+    fuit. Le carré ensuite : `straighten` rend déjà un carré, `_mat_square`
+    n'a donc plus rien à recadrer et se contente de la mise à la résolution.
+
+    Lève `ValueError` sur un quadrilatère dégénéré ; les deux appelants la
+    traduisent en 400 — et le font AVANT de lancer quoi que ce soit."""
+    from app.services import material_store as MS
+    from app.services import photo_prep as PP
+    p = MS.clean_prep(prep)
+    rgb = img.convert("RGB")
+    if p and p.get("quad"):
+        rgb = PP.straighten(rgb, p["quad"], res)
+    fait = dict(p or {})
+    if p and p.get("delight"):
+        rayon = p.get("delight_radius")
+        fait["lowfreq_sd_before"] = PP.lowfreq_sd(rgb, rayon)
+        rgb = PP.delight(rgb, p["delight"], rayon)
+        fait["lowfreq_sd_after"] = PP.lowfreq_sd(rgb, rayon)
+    return _mat_square(rgb, res), MS.clean_prep(fait)
+
+
 def _mat_build_maps(base: "PILImage.Image", derive: dict) -> dict:
     """basecolor + les 7 maps dérivées (pbr_service). Synchrone : appelé
     dans un thread par les routes."""
@@ -11192,6 +11220,51 @@ async def get_material_env(name: str):
                     headers={"Cache-Control": "public, max-age=86400"})
 
 
+@router.post("/materials/prep/preview")
+async def material_prep_preview(body: dict):
+    """Prépare une photo SANS rien créer, et rend les deux chiffres.
+
+    Route de LECTURE malgré son verbe : aucun fichier écrit, aucune matière
+    créée, aucun crédit dépensé. C'est ce qui permet à l'écran de montrer
+    l'avant et l'après — et surtout de REFUSER un quadrilatère dégénéré —
+    avant qu'une génération soit lancée. `prep` suit `material_store.clean_prep`
+    (une entrée illisible retombe sur « rien à faire », jamais sur une 500) ;
+    seul un quadrilatère bien FORMÉ mais dégénéré fait un 400, parce que là
+    c'est le geste de l'utilisateur qui est en cause et qu'il doit le savoir.
+    """
+    import base64
+    import io
+    from app.services import material_store as MS
+    body = body if isinstance(body, dict) else {}
+    src = _mat_library_path(body.get("filename"))
+    res = MS.clean_preview_res(body.get("res"), 512)
+    prep = MS.clean_prep(body.get("prep"))
+
+    def _travail():
+        with PILImage.open(src) as im:
+            img, fait = _mat_prepare(im.copy(), res, prep)
+        buf = io.BytesIO()
+        img.save(buf, format="PNG", optimize=False)
+        return img, fait, buf.getvalue()
+
+    try:
+        img, fait, png = await asyncio.to_thread(_travail)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    av = (fait or {}).get("lowfreq_sd_before")
+    ap = (fait or {}).get("lowfreq_sd_after")
+    baisse = (100.0 * (1.0 - ap / av)) if (av and ap and av > 1e-6) else 0.0
+    return {
+        "prep": fait,
+        "mesure": {"lowfreq_sd_before": av, "lowfreq_sd_after": ap,
+                   "baisse_pct": round(baisse, 1)},
+        "apercu": {"w": img.size[0], "h": img.size[1],
+                   "png": "data:image/png;base64,"
+                          + base64.b64encode(png).decode("ascii")},
+        "note": MS.prep_note(fait),
+    }
+
+
 @router.post("/materials/generate")
 async def generate_material(body: dict, background_tasks: BackgroundTasks):
     """Lance une génération de matière. Corps :
@@ -11209,9 +11282,19 @@ async def generate_material(body: dict, background_tasks: BackgroundTasks):
     if method not in MS.SEAM_METHODS:
         raise HTTPException(400, "seam_method doit valoir 'offset' ou 'mirror'")
     enhance = bool(body.get("enhance"))
+    prep = MS.clean_prep(body.get("prep"))
+    if prep and prep.get("quad"):
+        # fail fast, comme `_mat_library_path` juste en dessous : un
+        # quadrilatère dégénéré doit dire non MAINTENANT, pas au fond d'un job
+        # dont l'utilisateur regarde la barre avancer.
+        from app.services import photo_prep as PP
+        try:
+            PP.order_quad(prep["quad"])
+        except ValueError as e:
+            raise HTTPException(400, str(e))
 
     spec = {"res": res, "seamless": seamless, "seam_method": method,
-            "enhance": enhance, "name": MS.clean_name(
+            "enhance": enhance, "prep": prep, "name": MS.clean_name(
                 body.get("name") or prompt or Path(filename).stem or "Matière")}
 
     if filename:
@@ -11296,7 +11379,9 @@ async def _run_material_job(jid: str, spec: dict):
 
         upd(step="Préparation", pct=40)
         with PILImage.open(src) as im:
-            base = await asyncio.to_thread(_mat_square, im.copy(), res)
+            base, fait = await asyncio.to_thread(_mat_prepare, im.copy(), res,
+                                                 spec.get("prep"))
+        spec["prep"] = fait
 
         # 2. raccord + scores (un chiffre, pas une promesse)
         upd(step="Raccord de tuile", pct=55)
@@ -11319,7 +11404,8 @@ async def _run_material_job(jid: str, spec: dict):
             seamless=spec["seamless"],
             seam={"before": seam_before, "after": seam_after},
             source={"kind": spec["kind"], "model": spec.get("model"),
-                    "filename": spec.get("filename")})
+                    "filename": spec.get("filename"),
+                    "prep": spec.get("prep")})
         mid = mat["id"]
         await asyncio.to_thread(MS.write_source, mid, source_img)
 
