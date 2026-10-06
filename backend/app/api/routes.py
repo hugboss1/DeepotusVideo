@@ -4440,6 +4440,50 @@ async def matte_status(matte_id: str):
     return st
 
 
+# ── T103 (plan-son-vfx T12, D3b) : la recherche de sons — déclarée AVANT /audio/{filename}, sans quoi
+# « search » serait lu comme un nom de fichier (même piège que /audio/meta). Aucune n'appelle un fournisseur
+# payant : le service d'embeddings est local (Clapbox) ou fourni par l'utilisateur (CLAP_REMOTE_URL).
+@router.get("/audio/search/status")
+async def audio_search_status():
+    """L'état de la recherche par description : prête ou non, et POURQUOI non."""
+    from app.services import sound_search as SS
+    return await asyncio.get_running_loop().run_in_executor(None, SS.status)
+
+
+@router.post("/audio/search/index")
+async def audio_search_index(request: Request):
+    """(Ré)indexe le dossier audio. Body {force?: bool} — force repart d'un index vide (changement de modèle)."""
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    from app.services import sound_search as SS
+    try:
+        return await SS.reindex(force=bool((payload or {}).get("force")))
+    except SS.SearchUnavailable as e:
+        raise HTTPException(503, str(e))
+
+
+@router.get("/audio/search")
+async def audio_search(q: str = "", k: int = 12):
+    """Recherche par DESCRIPTION. 503 lisible si aucun service d'embeddings."""
+    from app.services import sound_search as SS
+    try:
+        return {"query": q, "items": await SS.search(q, k=max(1, min(int(k), 50)))}
+    except SS.SearchUnavailable as e:
+        raise HTTPException(503, str(e))
+
+
+@router.get("/audio/similar/{filename}")
+async def audio_similar(filename: str, k: int = 8):
+    """« Comme celui-ci ». Purement local : jamais de 503, jamais un sou."""
+    from app.services import sound_search as SS
+    safe = Path(filename).name
+    if safe != filename:   # sous Windows Path().name coupe aussi à l'antislash ; ailleurs le nom n'est qu'une clé d'index
+        raise HTTPException(400, "nom de fichier refusé")
+    return {"name": safe, "items": await SS.similar(safe, k=max(1, min(int(k), 50)))}
+
+
 @router.post("/audio/audition")
 async def audition_audio(request: Request):
     """Aperçu « rendu » d'un extrait audio traité — parité ffmpeg du Rack.

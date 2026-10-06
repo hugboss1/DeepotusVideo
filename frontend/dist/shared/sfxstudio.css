@@ -438,3 +438,12 @@
 .dzsvm .svx-drawer.svx-inline{width:100%;height:100%;border:1px solid var(--stroke);border-radius:8px}
 /* hôte de la Bibliothèque : la racine .dzsvm est absolue (inset:0) — ici elle redevient un bloc de la page */
 .dzsvm.dz-libsons{position:relative;inset:auto;height:min(70vh,560px);min-height:320px;border-radius:8px}
+
+/* T103 (plan-son-vfx T13, D3c) : recherche par description, voisins */
+.dzsvm .svx-sem{display:flex;flex-direction:column;gap:4px}
+.dzsvm .svx-semhead{display:flex;justify-content:space-between;align-items:center;font-size:11.5px;color:var(--ink3);padding:2px 4px}
+.dzsvm .svx-minix{font-size:11px;background:transparent;border:0;color:var(--cyan);cursor:pointer}
+.dzsvm .svx-semrow{display:flex;align-items:center;gap:6px;min-height:44px}
+.dzsvm .svx-semrow>.svx-item{flex:1;min-width:0}
+.dzsvm .svx-semscore{font-size:10.5px;color:var(--ink4);width:30px;text-align:right;flex:none}
+.dzsvm .svx-sembtn[disabled]{opacity:.4;cursor:help}
