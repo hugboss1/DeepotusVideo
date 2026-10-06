@@ -141,22 +141,32 @@ async def preparer_vues(payload: dict, job: str, on_step=None) -> dict:
             "ratees": sum(1 for v in vues if not v["file"])}
 
 
-async def rejouer_vue(job, index: int, *, prompt: str | None = None, on_step=None) -> dict:
-    """UNE vue régénérée depuis la source, avec le prompt corrigé si on en donne un. La vue 0 est la source de
-    l'utilisateur : elle ne se rejoue pas."""
-    import asyncio
-    from app.services import asset3d_service as A3
+def verifier_rejeu(job, index: int, prompt: str | None = None) -> tuple[dict, dict, str]:
+    """Les refus du rejeu, sans rien faire : la route les appelle AVANT la garde. Rend (info, vue, prompt)."""
     info = lire_vues(job)
     _ouvert(info)
     v = _vue(info, index)
     if v["role"] == "source":
         raise ValueError("la vue 0 est ta source : elle ne se régénère pas — change d'image dans la Bibliothèque.")
+    if v["role"] == "planche":
+        raise ValueError("cette vue est reprise de la planche de la bible : elle ne se régénère pas ici — refais la "
+                         "planche dans la bible, ou détoure la vue.")
     pr = str(prompt or v.get("prompt") or "").strip()
     if not pr:
         raise ValueError("cette vue n'a pas de prompt : donnes-en un")
+    return info, v, pr
+
+
+async def rejouer_vue(job, index: int, *, prompt: str | None = None, on_step=None) -> dict:
+    """UNE vue régénérée depuis la source, avec le prompt corrigé si on en donne un. La source de l'utilisateur et
+    les vues reprises d'une planche ne se rejouent pas."""
+    import asyncio
+    from app.services import asset3d_service as A3
+    info, v, pr = verifier_rejeu(job, index, prompt)
     if on_step:
         await on_step(f"Vue {v['index']}", 30)
-    u = await A3._seedream_edit(info["vues"][0]["url"], pr)
+    source = next((x for x in info["vues"] if x["role"] == "source"), info["vues"][0])
+    u = await A3._seedream_edit(source["url"], pr)
     if not u:
         raise RuntimeError("aucune image rendue")
     await asyncio.to_thread(A3._download, u, _dir(job) / f"shot_{v['index']}.png")
@@ -248,3 +258,56 @@ async def tirer_vues(job, on_step=None) -> dict:
     info["tire_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
     _ecrire(job, info)
     return r
+
+
+async def preparer_depuis_images(job: str, vues: dict, payload: dict, on_step=None) -> dict:
+    """Un jeu de vues bâti sur des images qui EXISTENT DÉJÀ dans la Bibliothèque — les panneaux d'une planche de la
+    bible (T106, plan-moteurs-3d T7, D1). `vues` = {clé: fichier}, clés parmi front/back/left/right, la face exigée.
+    Aucun appel Seedream : l'identité tenue par la bible est ce qu'on ne veut pas régénérer (les envois au stockage
+    fal ne sont pas facturés). Les vues sont rangées dans l'ordre d'auteur (front, back, left, right) ; l'ordre imposé
+    par un moteur est appliqué au tir par `ordonner_vues`, sur les CLÉS. Rôle « planche » : pas de rejeu, détourage
+    permis."""
+    import shutil
+    from app.config import settings
+    from app.services import asset3d_service as A3
+
+    vues = dict(vues or {})
+    inconnues = sorted(set(vues) - set(A3.VUES_CLES))
+    if inconnues:
+        raise ValueError(f"clé(s) de vue inconnue(s) : {', '.join(inconnues)} (attendu : {', '.join(A3.VUES_CLES)})")
+    if not (1 <= len(vues) <= MAX_VUES):
+        raise ValueError(f"il faut de 1 à 4 vues ; {len(vues)} donnée(s)")
+    if "front" not in vues:
+        raise ValueError("pas de vue de face (front) : un moteur image→3D en a besoin")
+    racine = settings.images_path.resolve()
+    chemins = {}
+    for k, f in vues.items():
+        p = settings.images_path / Path(str(f)).name
+        if not p.is_file() or not str(p.resolve()).startswith(str(racine)):
+            raise ValueError(f"Image not found in Library: {f!r}")
+        chemins[k] = p
+    engine = str(payload.get("engine") or "tripo").lower()
+    if engine not in A3.ENGINES:
+        raise ValueError(f"Unknown engine: {engine}")
+
+    d = _dir(job)
+    d.mkdir(parents=True, exist_ok=True)
+    ordre = [k for k in A3.VUES_CLES if k in chemins]
+    sortie = []
+    for i, k in enumerate(ordre):
+        if on_step:
+            await on_step(f"Vue {k}", 10 + int(80 * (i + 1) / len(ordre)))
+        shutil.copy2(chemins[k], d / f"shot_{i}.png")
+        sortie.append({"index": i, "cle": k, "role": "planche", "file": f"shot_{i}.png",
+                       "url": await A3._upload(chemins[k]), "prompt": None, "rejeux": 0, "detoure": None,
+                       "origine": chemins[k].name})
+    info = _ecrire(job, {
+        "job": Path(str(job)).name, "etat": "en_attente", "engine": engine,
+        "source": str(payload.get("source") or "planche"), "entity_id": payload.get("entity_id"),
+        "image_filename": chemins["front"].name,
+        "payload": {k: v for k, v in payload.items() if k not in ("image_filename", "entity_id", "source", "job")},
+        "vues": sortie, "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    })
+    if on_step:
+        await on_step("Vues prêtes — à toi de juger", 100)
+    return {"job": info["job"], "etat": info["etat"], "vues": len(sortie), "ratees": 0}

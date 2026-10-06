@@ -61,6 +61,12 @@ globalThis.fetch = async (u, o) => { o = o || {}; const b = o.body ? JSON.parse(
   if (u.endsWith("/rejouer")) return rep(200, {job_id:"jr", status:"queued"});
   if (u.endsWith("/detourer")) return rep(200, {via:"local", usd:0, methode:"coins"});
   if (u.endsWith("/tirer")) return rep(200, {job_id:"jt", status:"queued"});
+  if (u === "/api/bible/entities") return rep(200, {entities: [
+    {id:"e1", kind:"character", name:"Le Prophète", ref_image:"board_1.png", has_recipe:true},
+    {id:"e2", kind:"place", name:"La Crypte", ref_image:"board_2.png", has_recipe:true},
+    {id:"e3", kind:"object", name:"Le Calice", ref_image:null, has_recipe:true},
+    {id:"e4", kind:"character", name:"Sans planche", ref_image:null, has_recipe:false}]});
+  if (u === "/api/bible/entities/e1/model3d") return rep(200, {job_id:"jb", job:"bib1", status:"queued", source:"decoupe", vues:["front","back"]});
   return rep(404, {detail: "inconnu " + u}); };
 globalThis.setInterval = () => 1; globalThis.clearInterval = () => {};
 const M = await import(process.argv[2]);
@@ -104,6 +110,19 @@ OUT.tire = {dis: EL.btnTirer.disabled, txt: EL.btnTirer.textContent, grille: EL.
 CALLS.length = 0; t = null;
 await M.tirer(async () => true, (m) => { t = m; });
 OUT.tireTir = {posts: CALLS.filter(c => c.u.endsWith("/tirer")).length, toast: t};
+OUT.entites = EL.vuesEntite.innerHTML;
+el("vuesEntite").value = "e1"; el("vuesMoteur").value = "tripo-h3.1";
+CALLS.length = 0; let dlg = 0;
+await M.depuisBible(async () => { dlg++; return true; }, () => {});
+OUT.bible = {posts: CALLS.filter(c => c.m === "POST").map(c => c.u + " " + JSON.stringify(c.b)), dlg};
+M.V.occupe = false; INFO = ouvert({source:"decoupe", entity_id:"e1", vues:[
+  {index:0, cle:"front", role:"planche", file:"shot_0.png", url:"u0", prompt:null, rejeux:0, detoure:null, origine:"board_1_front.png"},
+  {index:1, cle:"back", role:"planche", file:"shot_1.png", url:"u1", prompt:null, rejeux:0, detoure:null, origine:"board_1_back.png"}]});
+await M.ouvrirJeu("ab12cd34");
+OUT.planche = EL.vuesGrille.innerHTML;
+CALLS.length = 0; msg = null;
+await M.tirer(async (m) => { msg = m; return false; }, () => {});
+OUT.tirBible = msg;
 console.log(JSON.stringify(OUT));
 """
 
@@ -165,6 +184,20 @@ if "refus" in o:
           and "v-rej" not in te["grille"] and "v-det" not in te["grille"], str(te)[:300])
     check("U15 un clic sur un jeu tiré : aucun POST, la raison en toast",
           o["tireTir"]["posts"] == 0 and "déjà tiré" in (o["tireTir"]["toast"] or ""), str(o["tireTir"]))
+
+    e = o["entites"]
+    check("U16 la bible : seules les entités personnage/objet AVEC planche ou recette sont proposées",
+          "Le Prophète" in e and "Le Calice" in e and "La Crypte" not in e and "Sans planche" not in e, e)
+    b = o["bible"]
+    check("U17 reprendre les vues de la planche : gratuit, donc AUCUN dialogue, un POST from_board avec le moteur choisi",
+          b["dlg"] == 0 and b["posts"] == ['/api/bible/entities/e1/model3d {"from_board":true,"engine":"tripo-h3.1"}'], str(b))
+    pl = o["planche"]
+    check("U18 une vue de planche : pas de bouton « rejouer » (rien à régénérer), le détourage reste, l'origine est dite",
+          "v-rej" not in pl and pl.count('class="v-det"') == 2 and "planche" in pl, pl[:500])
+    check("U19 le tir d'un jeu de la bible annonce que le maillage rejoint la fiche de l'entité",
+          "fiche" in (o["tirBible"] or ""), str(o["tirBible"]))
+    check("U20 des vues de planche ne sont pas dites « déjà payées » : elles n'ont rien coûté (vu à l'écran le 06/10)",
+          "déjà payées" not in (o["tirBible"] or "") and "aucune génération" in (o["tirBible"] or ""), str(o["tirBible"]))
 
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)
