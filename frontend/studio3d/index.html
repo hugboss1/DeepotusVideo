@@ -49,6 +49,12 @@
       <label class="engine-goto fal-import" title="Un modèle venu d'ailleurs devient un job : Atelier fal, Établi, Bibliothèque">
         ⤒ Importer un modèle (OBJ, STL, glTF, GLB)
         <input type="file" id="cvImport" accept=".obj,.stl,.gltf,.glb" hidden></label>
+      <!-- T107 (plan-moteurs-3d T8) : le banc de référence — ce que chaque moteur a rendu CHEZ NOUS — banc.js -->
+      <div class="fal-sub">banc de référence · médianes mesurées chez nous</div>
+      <div class="fal-banc" id="falBanc"></div>
+      <select id="bancSujet" class="fal-sel" title="Le sujet type que représente le job choisi"></select>
+      <button id="btnBanc" class="engine-goto" title="Lit la fiche de maillage du job choisi et la range au banc — gratuit">
+        → ranger ce job au banc · gratuit</button>
       <button class="engine-goto" id="falHub" title="Générer un modèle, valider sa géométrie, le texturer">
         → ouvrir Game Assets 3D (fal)</button>
     </section>
