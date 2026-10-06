@@ -365,8 +365,14 @@ def test_sept_environnements():
     assert len(E.ENVS) == 7
     assert E.env_names() == ["unlit", "daylight", "studio", "sunset",
                              "overcast", "night", "dramatic"]
-    for e in E.env_list():
-        assert set(e) == {"name", "label"} and e["label"].strip()
+    # 06/10 : depuis les HDRI personnels (T096, cdef16e9), chaque entree porte
+    # `perso` et env_list() ajoute les ciels importes APRES les sept : on ne
+    # fige que les sept generees, sans dependre du dossier de donnees.
+    sept = E.env_list()[:7]
+    assert [e["name"] for e in sept] == E.env_names()
+    for e in sept:
+        assert set(e) == {"name", "label", "perso"} and e["label"].strip()
+        assert e["perso"] is False
 
 
 @pytest.mark.parametrize("name", ["unlit", "daylight", "studio", "sunset",
