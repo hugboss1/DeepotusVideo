@@ -56,8 +56,8 @@ if R:
           R["meme"] is True and R["mix"] is True and R["vide"] == 0 and R["nul"] is None)
     check("N3 aucune entree d'origine n'est modifiee (copie) ; une racine est rendue telle quelle", R["intact"] == "a v4" and R["racine"] is True)
     check("N4 sans rang (route d'avant), l'ordre recu est garde dans le job", R["sansrang"] == ["↳ p", "q"], str(R["sansrang"]))
-check("T4 la chaine tient (DzTracks 178, __dzCoutBlanc 7, __dzSrcLbl x2, dzRunMaxTake() x3, __dzEtabli x2)",
-      BUN.count("DzTracks") == 178 and BUN.count("__dzCoutBlanc") == 7 and BUN.count("Object.assign(__dzSrcLbl,") == 2
+check("T4 la chaine tient (DzTracks 180, __dzCoutBlanc 7, __dzSrcLbl x2, dzRunMaxTake() x3, __dzEtabli x2)",
+      BUN.count("DzTracks") == 180 and BUN.count("__dzCoutBlanc") == 7 and BUN.count("Object.assign(__dzSrcLbl,") == 2
       and BUN.count("dzRunMaxTake()") == 3 and BUN.count("__dzEtabli") == 2)
 
 print(f"\n{ok} PASS / {fail} FAIL")

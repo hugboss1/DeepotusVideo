@@ -214,8 +214,8 @@ if R:
           R["b"] == {"fondCls": "dz-texte-fond", "fond": "rgba(0,0,255,1)", "rayon": 5, "degCls": "dz-texte-degrade", "img": "linear-gradient(90deg,#ffff00,#ff0000)",
                      "clip": "text", "coul": "transparent", "texte": "Titre"} and R["c"] == "linear-gradient(180deg,#ffffff,#00e5ff)" and R["d"], str(R["b"]))
 
-check("T4 aucun prompt/alert/confirm natif ; la chaine tient (DzTracks 178, __dzCoutBlanc 7, __dzSrcLbl x2, dzRunMaxTake() x3)",
-      "window.prompt(" not in COUCHE and "alert(" not in COUCHE and "window.confirm(" not in COUCHE and BUN.count("DzTracks") == 178
+check("T4 aucun prompt/alert/confirm natif ; la chaine tient (DzTracks 180, __dzCoutBlanc 7, __dzSrcLbl x2, dzRunMaxTake() x3)",
+      "window.prompt(" not in COUCHE and "alert(" not in COUCHE and "window.confirm(" not in COUCHE and BUN.count("DzTracks") == 180
       and BUN.count("__dzCoutBlanc") == 7 and BUN.count("Object.assign(__dzSrcLbl,") == 2 and BUN.count("dzRunMaxTake()") == 3)
 
 print(f"\n{ok} PASS / {fail} FAIL")

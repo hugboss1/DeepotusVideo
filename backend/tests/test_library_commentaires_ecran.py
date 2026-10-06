@@ -133,8 +133,8 @@ if R:
     check("A2 un instant illisible est DIT et rien ne part", R["illisible"][0] == 0 and "Instant illisible" in R["illisible"][1], str(R["illisible"]))
     check("A3 un rendu : rien et AUCUNE requete ; une panne (404) : rien", R["job"] is None and R["jobFetch"] == 0 and R["panne"] is None)
     check("A4 dzInstant / dzInstantTxt : mm:ss, secondes, virgule, vide, illisible ; et l'affichage", R["inst"] == [65, 83.5, 12.5, None, True, "1:23.5", "0:05", ""], str(R["inst"]))
-check("T4 aucun prompt/alert/confirm natif ; la chaine tient (DzTracks 178, __dzCoutBlanc 7, __dzSrcLbl x2, dzRunMaxTake() x3)",
-      "window.prompt(" not in COUCHE and "alert(" not in COUCHE and "window.confirm(" not in COUCHE and BUN.count("DzTracks") == 178
+check("T4 aucun prompt/alert/confirm natif ; la chaine tient (DzTracks 180, __dzCoutBlanc 7, __dzSrcLbl x2, dzRunMaxTake() x3)",
+      "window.prompt(" not in COUCHE and "alert(" not in COUCHE and "window.confirm(" not in COUCHE and BUN.count("DzTracks") == 180
       and BUN.count("__dzCoutBlanc") == 7 and BUN.count("Object.assign(__dzSrcLbl,") == 2 and BUN.count("dzRunMaxTake()") == 3)
 
 print(f"\n{ok} PASS / {fail} FAIL")

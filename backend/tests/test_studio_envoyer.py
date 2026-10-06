@@ -191,8 +191,8 @@ if R:
     check("L13 serveur injoignable : dit ; l'entree du menu ferme le menu puis lance le parcours",
           R["panne"] and "hors ligne" in R["panne"][0][1] and R["item"] == {"lbl": "🍳 Lancer une recette… (devis montré avant)", "ferme": 1, "inf": 1}, f"{R['panne']} {R['item']}")
 
-check("T3 aucun prompt/alert/confirm natif dans la couche neuve ; la chaine tient (DzTracks 178, __dzCoutBlanc 7, __dzSrcLbl x2, dzRunMaxTake() x3)",
-      all(x not in "\n".join(fonction(n) for n in NOMS[:4]) for x in ("window.prompt(", "window.confirm(", "alert(")) and BUN.count("DzTracks") == 178
+check("T3 aucun prompt/alert/confirm natif dans la couche neuve ; la chaine tient (DzTracks 180, __dzCoutBlanc 7, __dzSrcLbl x2, dzRunMaxTake() x3)",
+      all(x not in "\n".join(fonction(n) for n in NOMS[:4]) for x in ("window.prompt(", "window.confirm(", "alert(")) and BUN.count("DzTracks") == 180
       and BUN.count("__dzCoutBlanc") == 7 and BUN.count("Object.assign(__dzSrcLbl,") == 2 and BUN.count("dzRunMaxTake()") == 3)
 
 print(f"\n{ok} PASS / {fail} FAIL")

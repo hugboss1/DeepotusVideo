@@ -19,7 +19,7 @@ lignes qui seraient perdues. `--force` passe outre ; `--adopter` est la remise �
 
 LE BUNDLE SE LIT EN OCTETS : le mode texte de Python aplatit les 17 204 CRLF en silence.
 
-    python scripts/refresh_layer.py --layer sfxstudio|vfxrack|sonvfx [--check] [--force] [--adopter] [--root CHEMIN]
+    python scripts/refresh_layer.py --layer sfxstudio|vfxrack|sonvfx|montage [--check] [--force] [--adopter] [--root CHEMIN]
 
 `--adopter` : la source est réécrite depuis le bloc du bundle, et seulement si le rafraîchissement depuis elle
 reconstruit alors le bundle À L'OCTET.
@@ -42,7 +42,11 @@ REPO = pathlib.Path(__file__).resolve().parent.parent
 REL_BUNDLE = pathlib.Path("frontend/dist/assets/index-BEOJX8L5.js")
 LAYERS = {"sfxstudio": ("SFXSTUDIO", "sfxstudio.js"),
           "vfxrack": ("VFXRACK", "vfxrack.js"),
-          "sonvfx": ("SONVFX", "son-vfx-montage.js")}
+          "sonvfx": ("SONVFX", "son-vfx-montage.js"),
+          # t120 (06/10/2026) : la couche du Montage (DzTracks), injectée par patch_bundle_montage M1 — le patcher ne se
+          # rejoue plus (son .bak est une reconstruction gardée), et le bloc du bundle EST la source à l octet (mesuré par
+          # scripts/restaurer_bak_montage.py, qui l exige) : la rafraîchir = la remplacer, comme les trois autres
+          "montage": ("MONTAGE", "montage.js")}
 CRLF, LF = b"\r\n", b"\n"
 
 

@@ -665,6 +665,58 @@ check("aide_porteur_dialogue_puis_v1_puis_le_reste_au_plus_tot",
       and R._subs_carrier([], {"job_id": "j"}, {"a1"}) is None,
       repr([(R._subs_carrier(_cs, {"job_id": "j"}, {"a1"}) or {}).get("id")]))
 
+print("\n[8b] LA VITESSE DU CLIP PORTEUR (t120, 06/10/2026) — temps timeline = start + (t − srcIn) / vitesse")
+# La dette dite dans `_subs_shift_words` depuis la revue du 06/09 : un plan à ×2 posait ses mots à
+# `start + (t − srcIn)`, deux fois trop loin. La loi de vitesse est CELLE DU RENDU, piste par piste :
+# V1 = `_v1_speed` (0,25..4, setpts), toute autre piste = `sfx_service.clamp_speed` (0,5..2, atempo).
+# Mots de `_mots(3)` : 0–0,9 / 1–1,9 / 2–2,9 ; clip à 10 s, srcIn 0,5, fin 12,5. Valeurs calculées à la main.
+def _sh(tr, speed, end=12.5):
+    c = {"id": "k", "tr": tr, "start": 10.0, "end": end, "srcIn": 0.5}
+    if speed is not None:
+        c["speed"] = speed
+    return [(x["start"], x["end"]) for x in R._subs_shift_words(_mots(3), c)]
+_X2 = [(10.0, 10.2), (10.25, 10.7), (10.75, 11.2)]
+check("vitesse_v1_x2_les_mots_deux_fois_plus_serres",
+      _sh("v1", 2) == _X2, repr(_sh("v1", 2)))
+check("vitesse_a1_x0_5_les_mots_etires_et_coupes_au_clip",
+      _sh("a1", 0.5) == [(10.0, 10.8), (11.0, 12.5)], repr(_sh("a1", 0.5)))
+check("vitesse_bornes_du_rendu_v1_4_et_audio_2",
+      _sh("v1", 8) == [(10.0, 10.1), (10.125, 10.35), (10.375, 10.6)]   # V1 bornée à 4
+      and _sh("a1", 8) == _X2                                            # audio bornée à 2
+      and _sh("a1", 0.3) == _sh("a1", 0.5)                              # audio : plancher 0,5
+      and _sh("v1", 0.3) != _sh("v1", 0.5),                             # V1 : 0,3 est permise (≥ 0,25)
+      repr((_sh("v1", 8), _sh("a1", 8), _sh("v1", 0.3))))
+_SANS = _sh("v1", None)
+check("vitesse_absente_un_ou_illisible_rend_le_comportement_d_avant",
+      _SANS == [(10.0, 10.4), (10.5, 11.4), (11.5, 12.4)]
+      and _sh("v1", 1) == _SANS and _sh("a1", "x") == _SANS and _sh("v1", -2) == _SANS
+      and _sh("a1", None) == _SANS, repr((_SANS, _sh("v1", "x"))))
+_se = R._subs_shift_words([{"start": 1.0, "end": 1.5, "speech_end": 1.4}],
+                          {"id": "k", "tr": "v1", "start": 10.0, "end": 20.0, "srcIn": 0.0, "speed": 2})
+check("vitesse_speech_end_suit_la_meme_loi",
+      [(x["start"], x["end"], x["speech_end"]) for x in _se] == [(10.5, 10.75, 10.7)], repr(_se))
+# par la ROUTE : un V1 seul à ×2 (repli « première V1 »), le bouchon rend 3 mots à 0..2,9 s
+r, j = lance({"clips": [dict(A1(SRC_V, 10.0, 30.0, 0, tr="v1", cid="v1x2"), speed=2)], "lang": "fr"})
+sg = segs(j)
+check("vitesse_par_la_route_un_v1_x2_finit_a_10_plus_2_9_sur_2",
+      j.get("status") == "done" and sg and sg[0][0] == 10.0 and abs(max(e for _s0, e in sg) - 11.45) < 1e-6,
+      f"status={j.get('status')!r} segs={sg}")
+
+# L'ECRAN l'envoie : `subsSrcClips` ecrit `speed` quand le clip en porte une -- dans la SOURCE de la couche ET dans le
+# bundle servi (refresh_layer), une fois, DANS le corps de la fonction (pas ailleurs)
+_RAC = pathlib.Path(__file__).resolve().parent.parent.parent
+_LIGNE = "if(c.speed!=null&&isFinite(Number(c.speed))&&Number(c.speed)>0)o.speed=Number(c.speed);"
+def _corps_ssc(txt):
+    i = txt.find("function subsSrcClips(cs){")
+    j = txt.find("function subsNum(v){", i)
+    return txt[i:j] if 0 <= i < j else ""
+_src_l = (_RAC / "frontend" / "patches" / "son-vfx-montage.js").read_text(encoding="utf-8")
+_bun_l = (_RAC / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js").read_bytes().decode("utf-8")
+check("vitesse_l_ecran_envoie_speed_dans_subsSrcClips_source_et_bundle",
+      _corps_ssc(_src_l).count(_LIGNE) == 1 and _src_l.count(_LIGNE) == 1
+      and _corps_ssc(_bun_l).count(_LIGNE) == 1 and _bun_l.count(_LIGNE) == 1,
+      (_corps_ssc(_src_l).count(_LIGNE), _corps_ssc(_bun_l).count(_LIGNE)))
+
 print("\n[9] AUCUN RESEAU N'EST PARTI, et le banc a bien joue ses appels")
 check("reseau_zero_appel_httpx_et_des_appels_au_bouchon",
       RESEAU == [] and N_APPELS[0] >= 25 and T.transcribe is faux_transcribe,

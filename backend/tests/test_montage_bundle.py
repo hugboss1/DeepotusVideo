@@ -3575,7 +3575,8 @@ check("P13_la_route_lit_les_pistes_decale_et_enveloppe",
       _rt.count("def _subs_dialogue_ids(tracks)") == 1
       and _rt.count("from app.services.montage_service import _tracks_meta") >= 1
       and _rt.count("def _subs_shift_words(words: list, clip: dict | None)") == 1
-      and _rt.count("off = start - src_in") == 1
+      # t120 (06/10) : le decalage `start − srcIn` divise desormais par la vitesse du porteur (loi du rendu)
+      and _rt.count("return start + (t - src_in) / v") == 1
       and _rt.count("pid = T.resolve_provider(provider)") == 1
       and _rt.count("except ValueError as e:\n            raise HTTPException(400, str(e))") >= 1
       and _rt.count('lang_stt = None if lang_raw in ("", "auto") else lang_raw') == 1
@@ -15468,7 +15469,7 @@ check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB8b_puis_
       # L6 (25/09/2026, tache 5) : 172 -> 173, NoiseLearn (L6nl1, seul site de code des sept sections L6)
       # L6 (25/09/2026, tache 6) : 173 -> 177, VoiceRec + dialogueTrack + voLabel + voCount (L6vo1, la puce voix off)
       # retours L6 (26/09/2026, tache 4) : 177 -> 178, GradeLive (R6gl1, l'image etalonnee dans le lecteur)
-      and _sonde.get("montage") == 178 and s.count("DzTracks") == 178
+      and _sonde.get("montage") == 180 and s.count("DzTracks") == 180
       if _bak else False,
       f"queue={_DZ_TAGS[_DZ_I + 1:]} sonde={_sonde.get('montage')} bundle={s.count('DzTracks')}")
 
@@ -16806,7 +16807,7 @@ check("EC_la_sonde_dzcout_compte_DzTracks_166",
       # 25/09/2026 (L6, T5) : 172 -> 173, NoiseLearn (L6nl1)
       # 25/09/2026 (L6, T6) : 173 -> 177, VoiceRec / dialogueTrack / voLabel / voCount (L6vo1)
       # 26/09/2026 (retours L6, T4) : 177 -> 178, GradeLive (R6gl1)
-      _EC_SONDE.count('("montage", "DzTracks", 178),') == 1 and _EC_SONDE.count('("montage", "DzTracks", 177),') == 0
+      _EC_SONDE.count('("montage", "DzTracks", 180),') == 1 and _EC_SONDE.count('("montage", "DzTracks", 178),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 173),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 172),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 163),') == 0
@@ -16820,7 +16821,7 @@ check("EC_la_sonde_dzcout_compte_DzTracks_166",
       and _EC_SONDE.count('("montage", "DzTracks", 142),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 139),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 135),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 132),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 129),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 128),') == 0
-      and _EC_SONDE.count('("montage", "DzTracks", 123),') == 0 and s.count("DzTracks") == 178,  # L6 (T5, 25/09) : 172 -> 173 ; L6 (T6, 25/09) : 177 ; retours L6 (T4, 26/09) : 177 -> 178 (GradeLive, section R6gl1)
+      and _EC_SONDE.count('("montage", "DzTracks", 123),') == 0 and s.count("DzTracks") == 180,  # L6 (T5, 25/09) : 172 -> 173 ; L6 (T6, 25/09) : 177 ; t120 (06/10) : 178 -> 180 (voIdent + voMeme dans L6vo1) ; retours L6 (T4, 26/09) : 177 -> 178 (GradeLive, section R6gl1)
       f"sonde={_EC_SONDE.count(chr(40) + chr(34) + 'montage')} bundle={s.count('DzTracks')}")
 
 print("\n[EC] E-7 : les trois vues Medias · Montage · Livraison (lot E-C, tache 3)")
@@ -18053,7 +18054,7 @@ check("L7Ba_le_geste_sauvegarde_PUIS_export_nom_du_serveur_subsDownload_refus_pa
       and _L7B_F.find("if(proj.demo)") < _L7B_F.find('fetch("/api/montage/save"') < _L7B_F.find('fetch("/api/montage/export')
       and _L7B_F.count("subsDownload(o.nom,o.t,") == 1 and _L7B_F.count('res.headers.get("Content-Disposition")') == 1
       and _L7B_F.count("fireNote(") == 5 and _L7B_F.count(".catch(") == 1
-      and _L7B_F.count("DzTracks") == 0 and s.count("DzTracks") == 178 and _sonde.get("montage") == 178  # D-40 (T4) : 161 -> 163 ; L5 (T5) : 166 ; L5 (T6) : 172 ; L6 (T5, 25/09) : 173 (NoiseLearn) ; L6 (T6, 25/09) : 177 (L6vo1) ; retours L6 (T4, 26/09) : 177 -> 178 (GradeLive, section R6gl1)
+      and _L7B_F.count("DzTracks") == 0 and s.count("DzTracks") == 180 and _sonde.get("montage") == 180  # D-40 (T4) : 161 -> 163 ; L5 (T5) : 166 ; L5 (T6) : 172 ; L6 (T5, 25/09) : 173 (NoiseLearn) ; L6 (T6, 25/09) : 177 (L6vo1) ; retours L6 (T4, 26/09) : 177 -> 178 (GradeLive, section R6gl1)
       and s.count("function subsDownload(name,text,mime){") == 1 and s.count("function svmSavePayload(){") == 1,
       f"f={len(_L7B_F)} fireNote={_L7B_F.count('fireNote(')} dz={s.count('DzTracks')} sonde={_sonde.get('montage')}")
 # le client appelle la route que le backend declare, avec les deux formats qu'il accepte
@@ -18127,7 +18128,7 @@ check("L7Bb_le_geste_garde_video_et_verrou_AVANT_l_appel_decoupe_par_la_couche_h
       and _L7BB_F.count("JSON.stringify({src:c.src,srcIn:Number(c.srcIn)||0,dur:du})") == 1
       and _L7BB_F.count("DzTracks.cutOpts(proj,trackStRef.current)") == 1 and _L7BB_F.count("DzTracks") == 2
       and _L7BB_F.count("pushHistory()") == 1 and _L7BB_F.count("setClips(") == 1 and _L7BB_F.count(".catch(") == 2
-      and s.count("DzTracks") == 178 and _sonde.get("montage") == 178,  # D-40 (T4) : 161 -> 163 ; L5 (T5) : 166 ; L5 (T6) : 172 ; L6 (T5, 25/09) : 173 (NoiseLearn) ; L6 (T6, 25/09) : 177 (L6vo1) ; retours L6 (T4, 26/09) : 177 -> 178 (GradeLive, section R6gl1)
+      and s.count("DzTracks") == 180 and _sonde.get("montage") == 180,  # D-40 (T4) : 161 -> 163 ; L5 (T5) : 166 ; L5 (T6) : 172 ; L6 (T5, 25/09) : 173 (NoiseLearn) ; L6 (T6, 25/09) : 177 (L6vo1) ; retours L6 (T4, 26/09) : 177 -> 178 (GradeLive, section R6gl1)
       f"f={len(_L7BB_F)} dz={_L7BB_F.count('DzTracks')} bundle={s.count('DzTracks')} sonde={_sonde.get('montage')}")
 check("L7Bb_la_route_POST_scenes_existe_cote_backend_et_le_client_l_appelle_une_fois",
       _L7B_MS.count('@router.post("/scenes")') == 1 and _L7B_MS.count("_scenes.detect, p, src_in, dur, threshold=th") == 1
@@ -18240,7 +18241,7 @@ check("L7Bn_morceaux_x1_couche_et_bundle_x0_bak_aucune_section_L7B_sonde_161",
       all(src.count(t) == 1 and s.count(t) == 1 for t in _L7BN_P)
       and (all(_bak.count(t) == 0 for t in _L7BN_P) and _bak.count("svm-medstar") == 0 if _bak else False)
       and [t[0] for t in P.PATCHES if t[0].startswith("L7B")] == ["L7Brf1-apercu-du-cadrage-video-ou-image"]
-      and s.count("DzTracks") == 178 and _sonde.get("montage") == 178,  # D-40 (T4) : 161 -> 163 ; L5 (T5) : 166 ; L5 (T6) : 172 ; L6 (T5, 25/09) : 173 (NoiseLearn) ; L6 (T6, 25/09) : 177 (L6vo1) ; retours L6 (T4, 26/09) : 177 -> 178 (GradeLive, section R6gl1)
+      and s.count("DzTracks") == 180 and _sonde.get("montage") == 180,  # D-40 (T4) : 161 -> 163 ; L5 (T5) : 166 ; L5 (T6) : 172 ; L6 (T5, 25/09) : 173 (NoiseLearn) ; L6 (T6, 25/09) : 177 (L6vo1) ; retours L6 (T4, 26/09) : 177 -> 178 (GradeLive, section R6gl1)
       {t[:30]: (src.count(t), s.count(t)) for t in _L7BN_P})
 check("L7Bn_css_etoiles_et_message_de_note_x1_dans_la_feuille",
       _EB_CSS.count(".dzsvm .svm-medstars{") == 1 and _EB_CSS.count(".dzsvm .svm-medstar{") == 1
@@ -18440,7 +18441,7 @@ check("L7Bac_morceaux_x1_couche_et_bundle_hote_x1_bundle_x0_bak_aucune_section_n
       and (all(_bak.count(t) == 0 for t in _L7BAC_L + _L7BAC_H) and _bak.count("dzAcOpen") == 0 if _bak else False)
       and [t[0] for t in P.PATCHES if t[0].startswith("L7B")] == ["L7Brf1-apercu-du-cadrage-video-ou-image"]
       and len(P.PATCHES) == 213 + len(_R8Q)  # retours L6 (revue T2, 26/09) : 201 -> 207, R6mu1..R6mu6 (le --check annonce 208 ancres) ; L5 (T6, 24/09) : 191 -> 192, la section L5sc1 ; L6 (T5, 25/09) : -> 199, sept sections L6 ; L6 (T6, 25/09) : -> 200, L6vo1 ; retours L6 (T4, 26/09) : -> 201, R6gl1
-      and s.count("DzTracks") == 178 and _sonde.get("montage") == 178,  # retours L6 (T4, 26/09) : 177 -> 178 (GradeLive)
+      and s.count("DzTracks") == 180 and _sonde.get("montage") == 180,  # retours L6 (T4, 26/09) : 177 -> 178 (GradeLive)
       ({t[:30]: (src.count(t), s.count(t)) for t in _L7BAC_L + _L7BAC_H}, len(P.PATCHES), s.count("DzTracks")))
 # les trois replis sont dans LEURS remplacements (le patcher) : l'etat avant dzTbDock, openProj apres openReq, le relai du tiroir
 check("L7Bac_replis_dans_R_M11_R_M14_R_EB3",
@@ -18710,7 +18711,7 @@ check("L7Brf_replis_x1_dans_R_DZ1_R_DZ3_R_DZ4_bundle_x1_bak_x0_une_section_L7Brf
       and s.count("o.reframe=") == 1 and s.count("DzTracks.reframePayload(") == 1 and s.count("DzTracks.reframeOf(") == 0
       and s.count("DzTracks.reframeCss(") == 1 and _RF_P[7] in P.R_DZ1
       and s.count('"/api/montage/reframe"') == 1
-      and s.count("DzTracks") == 178 and _sonde.get("montage") == 178,  # L5 (T6, 24/09) : 166 -> 172 ; L6 (T5, 25/09) : -> 173 (NoiseLearn) ; L6 (T6, 25/09) : -> 177 (L6vo1) ; retours L6 (T4, 26/09) : -> 178 (GradeLive)
+      and s.count("DzTracks") == 180 and _sonde.get("montage") == 180,  # L5 (T6, 24/09) : 166 -> 172 ; L6 (T5, 25/09) : -> 173 (NoiseLearn) ; L6 (T6, 25/09) : -> 177 (L6vo1) ; retours L6 (T4, 26/09) : -> 178 (GradeLive)
       {t[:40]: s.count(t) for t in _RF_P})
 check("L7Brf_la_route_POST_reframe_existe_cote_backend_et_le_client_l_appelle_une_fois",
       _L7B_MS.count('@router.post("/reframe")') == 1 and _L7B_MS.count("_reframe.motion_track, p, src_in, dur") == 1
@@ -19002,7 +19003,7 @@ check("L5gp_masque_au_payload_dans_R_DZ4_meme_map_que_les_overlays_V2_apres_le_c
       and 0 < _iRP < s.find("var rfD=", _iRP) < s.find(_GP_MK) < s.find('        if(trackKind(c.tr)==="audio"){', _iRP)
       < s.find("if(DzTracks.isOverlayTrack(c.tr,dzTracksRef.current)){", _iRP)
       and (_bak.count("o.mask=") == 0 if _bak else False)
-      and len(P.PATCHES) == 213 + len(_R8Q) and s.count("DzTracks") == 178 and _sonde.get("montage") == 178,  # retours L6 (revue T2, 26/09) : 201 -> 207 (R6mu1..6, sonde inchangee) ; L5 (T6, 24/09) : L5sc1 ; sonde 166 -> 172 ; L6 (T5, 25/09) : 199 sections, sonde 173 ; L6 (T6, 25/09) : 200 sections, sonde 177 ; retours L6 (T4, 26/09) : 201 sections, sonde 178
+      and len(P.PATCHES) == 213 + len(_R8Q) and s.count("DzTracks") == 180 and _sonde.get("montage") == 180,  # retours L6 (revue T2, 26/09) : 201 -> 207 (R6mu1..6, sonde inchangee) ; L5 (T6, 24/09) : L5sc1 ; sonde 166 -> 172 ; L6 (T5, 25/09) : 199 sections, sonde 173 ; L6 (T6, 25/09) : 200 sections, sonde 177 ; retours L6 (T4, 26/09) : 201 sections, sonde 178
       (s.count(_GP_MK), len(P.PATCHES), s.count("DzTracks"), _sonde.get("montage")))
 check("L5gp_couche_du_bundle_porte_le_panneau_la_boite_et_les_aides_exports_x1",
       len(_L7BN_LAYER) > 100000 and _L7BN_LAYER.count("function DzmGradePanel(o){") == 1 and _L7BN_LAYER.count("function DzmMaskBox(o){") == 1
@@ -19489,7 +19490,7 @@ def _vo_fn(k, fin):
     i = s.find(k, _iVo)
     j = s.find(fin, i) if i >= 0 else -1
     return s[i + len(k.split(":")[0]) + 1:j + len(fin)] if 0 <= _iVo < i < j < _iVo + 2600 else ""
-_VO_ST = _vo_fn("onStart:function(){", "return {t0:t,pj:String(p&&(p.project_id||p.name)||\"\")}}")
+_VO_ST = _vo_fn("onStart:function(){", "return {t0:t,pj:DzTracks.voIdent(p)}}")
 _VO_SP = _vo_fn("onStop:function(){", "setPlaying(!1)}")
 _VO_DN = _vo_fn("onDone:function(f,d,t0,pj){", "if(ovSeq.current!==q0)seekTo(t0+d)}")
 _VO_JS = r"""
@@ -19509,7 +19510,13 @@ function addAsset(a,l,k,d,tr,t0){LOG.push(["add",a,l,k,d,tr,t0,dzModeRef.current
 var onStart=__ST__,onStop=__SP__,onDone=__DN__;
 var out={};
 out.start=[onStart(),LOG.splice(0)];phRef.current=-3;out.start_neg=onStart();LOG.splice(0);
-dzProjRef.current={demo:!1,name:"sans-id"};out.start_nom=onStart().pj;LOG.splice(0);dzProjRef.current={demo:!1,project_id:"P1",name:"un"};
+dzProjRef.current={demo:!1,name:"sans-id"};out.start_nom=onStart().pj;out.start_nom2=onStart().pj;LOG.splice(0);dzProjRef.current={demo:!1,project_id:"P1",name:"un"};
+/* t120 : deux projets SANS id du MEME nom ne sont plus confondus ; un projet sans id ENREGISTRE pendant la prise (il
+   recoit un id, l'hote le recopie par Object.assign) garde la pose */
+var pA={demo:!1,name:"montage"},pB={demo:!1,name:"montage"};
+dzProjRef.current=pA;var pjA=onStart().pj;LOG.splice(0);dzProjRef.current=pB;onDone("voix-off-n.wav",1,2,pjA);out.meme_nom=LOG.splice(0);
+dzProjRef.current=Object.assign({},pA,{project_id:"P9",name:"sauve"});onDone("voix-off-s.wav",1,2,pjA);out.enregistre=LOG.splice(0).map(function(q){return q[0]});
+dzProjRef.current={demo:!1,project_id:"P1",name:"un"};
 onStop();out.stop=LOG.splice(0);
 /* projet change pendant la prise (svmApplyProject garde la puce) : rien de pose, la tete ne bouge pas, la note le dit */
 dzProjRef.current={demo:!1,project_id:"P2",name:"deux"};onDone("voix-off-x.wav",2,3,"P1");out.autre=LOG.splice(0);
@@ -19542,8 +19549,17 @@ else:
 _VOs = _VOD.get("start") if isinstance(_VOD.get("start"), list) and len(_VOD.get("start")) == 2 else [None, None]
 check("L6vo_onStart_rend_la_tete_bornee_a_0_et_l_identite_du_projet_id_sinon_nom_et_lance_la_lecture_onStop_l_arrete",
       _VOs == [{"t0": 7.2, "pj": "P1"}, [["spd", 1], ["play", True]]] and _VOD.get("start_neg") == {"t0": 0, "pj": "P1"}
-      and _VOD.get("start_nom") == "sans-id" and _VOD.get("stop") == [["play", False]],
-      [_VOs, _VOD.get("start_neg"), _VOD.get("start_nom"), _VOD.get("stop")])
+      # t120 : sans id, un JETON (`~vo…`) pose une fois sur l'objet -- le meme a la prise suivante -- et plus le nom
+      and str(_VOD.get("start_nom") or "").startswith("~vo") and _VOD.get("start_nom2") == _VOD.get("start_nom")
+      and _VOD.get("stop") == [["play", False]],
+      [_VOs, _VOD.get("start_neg"), _VOD.get("start_nom"), _VOD.get("start_nom2"), _VOD.get("stop")])
+_VOm = _VOD.get("meme_nom") if isinstance(_VOD.get("meme_nom"), list) else []
+check("L6vo_t120_deux_projets_sans_id_du_meme_nom_ne_sont_pas_confondus_un_projet_enregistre_pendant_la_prise_garde_la_pose",
+      len(_VOm) == 1 and _VOm[0][0] == "note" and "le projet a changé pendant la prise" in _VOm[0][1]
+      and _VOD.get("enregistre") == ["add", "seek"]
+      and s.count("pj:DzTracks.voIdent(p)") == 1 and s.count("if(!DzTracks.voMeme(pj,pc)){") == 1
+      and s.count("p.project_id||p.name") == 0 and s.count("pc.project_id||pc.name") == 0,
+      [_VOm, _VOD.get("enregistre")])
 _VOa = _VOD.get("autre") if isinstance(_VOD.get("autre"), list) else []
 check("L6vo_projet_change_pendant_la_prise_rien_de_pose_tete_immobile_la_note_le_dit_temoin_meme_projet_pose",
       len(_VOa) == 1 and _VOa[0] == ["note", "Prise « voix-off-x.wav » enregistrée dans la Bibliothèque ; le projet a changé pendant "
@@ -19655,7 +19671,7 @@ _R6S_HOTE = "r.jsx(DzTracks.Scopes,{clips:clips,head:ph,playing:playing,ratio:pr
 check("R6s_puce_des_scopes_recoit_le_ratio_du_projet_x1_declare_avant_aucune_section_neuve",
       s.count(_R6S_HOTE) == 1 and P.R_L5SC1.count(_R6S_HOTE) == 1 and len(P.PATCHES) == 213 + len(_R8Q)  # revue T2 : 201 -> 207 (R6mu)
       and 0 < s.find('style:{aspectRatio:String(proj.ratio||"9:16").replace(":","/"),') < s.find(_R6S_HOTE)
-      and s.count("DzTracks.Scopes") == 1 and s.count("DzTracks") == 178 and _sonde.get("montage") == 178,
+      and s.count("DzTracks.Scopes") == 1 and s.count("DzTracks") == 180 and _sonde.get("montage") == 180,
       [s.count(_R6S_HOTE), len(P.PATCHES), s.count("DzTracks")])
 def _r6s_regle(sel):
     i = _EB_CSS.find(sel + "{")

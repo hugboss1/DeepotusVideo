@@ -78,7 +78,7 @@ def main():
     check("source sonvfx connue de la Bibliothèque", LI.SOURCES.get("sonvfx") == "Son & VFX")
 
     # ── 4 · refresh_layer à sec, sur le dépôt ───────────────────────────────
-    for couche in ("sfxstudio", "vfxrack", "sonvfx"):
+    for couche in ("sfxstudio", "vfxrack", "sonvfx", "montage"):
         r = subprocess.run([sys.executable, str(OUTIL), "--layer", couche, "--check"],
                            capture_output=True, text=True, encoding="utf-8", timeout=60)
         check(f"refresh_layer --check {couche} : 1 bloc, rien d'écrit",
@@ -128,7 +128,7 @@ def main():
 
     # ── 6 · les trois SOURCES reproduisent leur bloc : rafraîchir sans changement = 0 octet de différence ──
     # (adoption du 06/10 : sfxstudio.js manquait les 36 lignes L6 et son-vfx-montage.js les 1 462 du Montage L1→L7)
-    for couche in ("sfxstudio", "vfxrack", "sonvfx"):
+    for couche in ("sfxstudio", "vfxrack", "sonvfx", "montage"):
         t = pathlib.Path(tempfile.mkdtemp(prefix="dzrefresh_"))
         try:
             (t / BUNDLE_REL).parent.mkdir(parents=True)

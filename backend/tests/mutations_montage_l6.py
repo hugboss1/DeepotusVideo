@@ -292,7 +292,8 @@ M = [
     # 22 -- onDone ne compare plus le projet : une prise commencee dans un
     #       projet se pose dans le suivant.
     (B_BUND, PAT,
-     'if(pj!==String(pc&&(pc.project_id||pc.name)||"")){fireNote(',
+     # t120 (06/10/2026) : la comparaison passe par DzTracks.voMeme (id, sinon le jeton du projet)
+     'if(!DzTracks.voMeme(pj,pc)){fireNote(',
      'if(!1){fireNote(',
      ['L6vo_projet_change_pendant_la_prise_rien_de_pose']),
     # -- banc croise -----------------------------------------------------------------

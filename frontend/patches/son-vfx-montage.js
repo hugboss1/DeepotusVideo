@@ -4154,6 +4154,11 @@ function DzMontage(props){
            sauvegarde et s'annule avec le reste du montage. Le ranger dans le
            style des sous-titres l'aurait fait voyager d'un projet à l'autre. */
         if(c.noSub)o.noSub=!0;
+        /* t120 — la VITESSE du plan : la route pose les mots à
+           start + (t − srcIn) / vitesse, avec la loi du rendu (V1 0,25..4,
+           audio 0,5..2). Sans elle, un plan à ×2 voyait ses mots deux fois
+           trop loin. Envoyée seulement quand le clip en porte une. */
+        if(c.speed!=null&&isFinite(Number(c.speed))&&Number(c.speed)>0)o.speed=Number(c.speed);
         return o})}
   function subsNum(v){var n=Number(v);return isFinite(n)?n:0}
   /* marquer / démarquer un plan « sans parole » — une entrée d'historique,
@@ -5851,10 +5856,10 @@ function DzMontage(props){
            dialogue à l'instant où elle a commencé, en mode « écraser » forcé, puis la tête va à sa fin */
         r.jsx(DzTracks.VoiceRec,{demo:!!proj.demo,ctl:dzVoRef,combo:svmKeyLabel("vo_record"),onNote:fireNote,
           onStart:function(){var t=Math.max(0,Number(phRef.current)||0),p=dzProjRef.current;setSpd(1);setPlaying(!0);
-            return {t0:t,pj:String(p&&(p.project_id||p.name)||"")}},
+            return {t0:t,pj:DzTracks.voIdent(p)}},
           onStop:function(){setPlaying(!1)},
           onDone:function(f,d,t0,pj){var pc=dzProjRef.current;
-            if(pj!==String(pc&&(pc.project_id||pc.name)||"")){fireNote("Prise « "+f+" » enregistrée dans la Bibliothèque ; le projet a changé pendant la prise, elle n'a pas été posée.");return}
+            if(!DzTracks.voMeme(pj,pc)){fireNote("Prise « "+f+" » enregistrée dans la Bibliothèque ; le projet a changé pendant la prise, elle n'a pas été posée.");return}
             var ts=dzTracksRef.current||svmTracksOf(proj),tr=DzTracks.dialogueTrack(ts);
             if(!tr){fireNote("Prise « "+f+" » enregistrée dans la Bibliothèque, mais ce projet n'a pas de piste de dialogue : ajoutez une piste audio, puis posez-la depuis le tiroir Sons.");return}
             if(trackStRef.current[tr]&&trackStRef.current[tr].l){fireNote("Piste "+tr.toUpperCase()+" verrouillée — déverrouillez-la pour ajouter. La prise « "+f+" » reste dans la Bibliothèque.");return}

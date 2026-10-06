@@ -454,7 +454,10 @@ STABLE_PROBES = [
     # Retours L6 (26/09/2026, tache 4, image etalonnee dans le lecteur) : 177 -> 178 -- UN site de CODE, dans la section
     # neuve R6gl1 (`DzTracks.GradeLive`, entre la couche V1 et les overlays V2 du cadre) ; la couche n'ecrit le nom nulle
     # part (l'export est `GradeLive:DzmGradeLive`) et le commentaire de la section ne le nomme pas.
-    ("montage", "DzTracks", 178),
+    # t120 (06/10/2026, identite du projet d'une prise de voix off) : 178 -> 180 -- DEUX sites de CODE, dans L6vo1 :
+    # `DzTracks.voIdent(` (onStart) et `DzTracks.voMeme(` (onDone) remplacent « project_id, sinon le nom » ; la couche
+    # exporte `voIdent:dzmVoIdent,voMeme:dzmVoMeme` sans ecrire le nom `DzTracks`. MESURE : bundle 180, sonde 178.
+    ("montage", "DzTracks", 180),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

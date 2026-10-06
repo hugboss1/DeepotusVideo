@@ -195,8 +195,8 @@ var T=await monteur(DzFiche).monter({m:{name:"a.png",kind:"image"}});R.txt=texte
 R.p=trouver(T,function(n){return n.p&&n.p["data-dz"]==="pastille"}).map(function(n){return n.p.style.background});
 """)
 check("F1 la fiche montre la PASTILLE de la couleur dominante (teinte · hex)", R is not None and R["p"] == ["#1040e0"] and "bleu · #1040e0" in R["txt"], str(R))
-check("T4 aucun prompt/alert/confirm natif ; la chaine tient (DzTracks 178, __dzCoutBlanc 7, __dzSrcLbl x2, dzRunMaxTake() x3)",
-      "window.prompt(" not in COUCHE and "alert(" not in COUCHE and "window.confirm(" not in COUCHE and BUN.count("DzTracks") == 178
+check("T4 aucun prompt/alert/confirm natif ; la chaine tient (DzTracks 180, __dzCoutBlanc 7, __dzSrcLbl x2, dzRunMaxTake() x3)",
+      "window.prompt(" not in COUCHE and "alert(" not in COUCHE and "window.confirm(" not in COUCHE and BUN.count("DzTracks") == 180
       and BUN.count("__dzCoutBlanc") == 7 and BUN.count("Object.assign(__dzSrcLbl,") == 2 and BUN.count("dzRunMaxTake()") == 3)
 
 print(f"\n{ok} PASS / {fail} FAIL")

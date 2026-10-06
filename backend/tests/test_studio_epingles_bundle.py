@@ -194,8 +194,8 @@ check("W4 le panneau dans l'inspecteur des Seedance et HeyGen ; son bouton « Re
       BUN.count('(e.type==="Seedance"||e.type==="HeyGenAvatar")&&r.jsx(DzPinPanel,{node:e,graph:t,onUpdate:o})') == 1
       and 'title:"Retirer l\'épingle' in BUN and "Pas d'épingle ici : un Seedance seul (ou un HeyGen seul) part directement par /generate" in BUN and "onUpdate({pin:null,pinPerime:null})" in BUN)
 check("W5 le « ≈ $ » dit les noeuds reemployes", BUN.count('dzPinNb(graph)?" · "+dzPinNb(graph)+" nœud(s) réutilisé(s)":""') == 1)
-check("W6 la chaine tient : sondes aval inchangees (DzTracks 178, __dzCoutBlanc 7, __dzSrcLbl x2)",
-      BUN.count("DzTracks") == 178 and BUN.count("__dzCoutBlanc") == 7 and BUN.count("Object.assign(__dzSrcLbl,") == 2)
+check("W6 la chaine tient : sondes aval inchangees (DzTracks 180, __dzCoutBlanc 7, __dzSrcLbl x2)",
+      BUN.count("DzTracks") == 180 and BUN.count("__dzCoutBlanc") == 7 and BUN.count("Object.assign(__dzSrcLbl,") == 2)
 
 print(f"\n{ok} PASS / {fail} FAIL")
 sys.exit(1 if fail else 0)

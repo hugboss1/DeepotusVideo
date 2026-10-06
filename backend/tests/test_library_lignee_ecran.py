@@ -116,8 +116,8 @@ if R:
     check("N7 la racine elle-meme : ses filles, mais ni ligne « Racine » ni famille (rien a dire)", "Filles (1)" in R["rac"] and "Racine" not in R["rac"] and "descendant" not in R["rac"], R["rac"])
     # (mutant equivalent documente : sans le test R.ok, un corps d'erreur n'a ni mere ni filles -> rien n'est affiche non plus)
 
-check("T4 aucun prompt/alert/confirm natif ; la chaine tient (DzTracks 178, __dzCoutBlanc 7, __dzSrcLbl x2, dzRunMaxTake() x3)",
-      "window.prompt(" not in COUCHE and "alert(" not in COUCHE and BUN.count("DzTracks") == 178
+check("T4 aucun prompt/alert/confirm natif ; la chaine tient (DzTracks 180, __dzCoutBlanc 7, __dzSrcLbl x2, dzRunMaxTake() x3)",
+      "window.prompt(" not in COUCHE and "alert(" not in COUCHE and BUN.count("DzTracks") == 180
       and BUN.count("__dzCoutBlanc") == 7 and BUN.count("Object.assign(__dzSrcLbl,") == 2 and BUN.count("dzRunMaxTake()") == 3)
 
 print(f"\n{ok} PASS / {fail} FAIL")
