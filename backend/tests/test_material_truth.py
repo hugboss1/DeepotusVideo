@@ -35,10 +35,18 @@ que le code produit vraiment, jamais ce qu'il promet.
 import io
 import json
 import math
+import os
 import random
+import sys
 import zipfile
 
 from PIL import Image, ImageDraw, ImageFilter
+
+# 06/10 : en autonome (`python tests/test_material_truth.py`), le python
+# embarque ignore PYTHONPATH et son ._pth n'ajoute pas backend/ : l'import
+# `app` ci-dessous mourait sur ModuleNotFoundError avant le lanceur (pytest,
+# lui, passe par backend/conftest.py). Meme insertion que les bancs voisins.
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import app.services.gltf_builder as GB
 import app.services.material_store as MS
