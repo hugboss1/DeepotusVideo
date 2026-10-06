@@ -175,8 +175,18 @@ async def main():
         r404, r400 = await cl.get("/api/library/lignee/absent.png"), await cl.get("/api/library/lignee/x%5Cy.png")
         check("L8 404 pour un fichier ni au magasin ni indexe ; 400 pour un nom qui n'est pas un nom", r404.status_code == 404 and r400.status_code == 400, f"{r404.status_code} {r400.status_code}")
 
-    sites = (RACINE / "backend/app/api/routes.py").read_text(encoding="utf-8").count("LI.noter(")
-    check("I1 aucun autre producteur n'a change de forme : 19 sites dans routes.py, comme dans la base", sites == r_ro.decode("utf-8").count("LI.noter(") == 19, str(sites))
+    # Les producteurs AJOUTÉS depuis la base, chacun nommé : le compte figé à 19 rougissait sur main depuis T098
+    # (from-photo) sans dire lequel ; un site de plus non listé ici rougit encore, un site retiré aussi.
+    AJOUTS = {
+        "T098 /materials/from-photo": '"matieres")',
+        "T100 /audio/enhance + /audio/isolate": '"sonvfx", kind="audio", parent=r["parent"], relation=r["relation"])',
+    }
+    texte = (RACINE / "backend/app/api/routes.py").read_text(encoding="utf-8")
+    sites = texte.count("LI.noter(")
+    attendus = r_ro.decode("utf-8").count("LI.noter(") + 1 + 2
+    check(f"I1 producteurs dans routes.py : les 19 de la base + ceux de {', '.join(AJOUTS)} = {attendus}",
+          r_ro.decode("utf-8").count("LI.noter(") == 19 and sites == attendus
+          and all(m in texte for m in AJOUTS.values()), str(sites))
 
 
 asyncio.run(main())
