@@ -179,6 +179,20 @@ def atlas(jeu: dict, colonnes: int = 0):
     return img, colonnes, rangees
 
 
+def assembler_forme(mat: Image.Image, forme: str, cote: int = 64) -> dict:
+    """Un jeu d'UNE tuile de forme (losange ou hexagone), prêt à exporter (P5, tâche t115).
+
+    P5 demande les masques et le raccord des bords correspondants, pas un blob hexagonal : la tuile de base suffit à
+    prouver que le réseau boucle, et c'est elle que Tiled et Godot savent poser. Pas de tuile VIDE (`vide` = None) :
+    un index 1 sortirait d'un atlas d'une seule case."""
+    from app.services import tile_shapes as TF
+
+    largeur, hauteur = TF.dims(forme, cote)
+    return {"jeu": "forme", "forme": forme, "cles": [255], "cote": int(cote),
+            "largeur": largeur, "hauteur": hauteur, "variantes": 1,
+            "graine": 1, "tuiles": [TF.tuile_forme(mat, forme, cote)], "vide": None}
+
+
 # ── auto-tuilage (P3, tâche t115) : UN moteur pour l'aperçu et, plus tard, le peintre (T12) ──────────────────────────
 def carte_aleatoire(cases: int = 8, densite: float = 0.55,
                     graine: int = 1) -> list[list[int]]:

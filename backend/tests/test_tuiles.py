@@ -691,6 +691,194 @@ def test_route_mesures_rend_trois_chiffres_par_jeu_et_par_tuile():
     asyncio.run(scenario())
 
 
+# ═════════════════════════════════ T8 (t115) ═════════════════════════════════
+# ÉCARTS AU PLAN, MESURÉS LE 06/10 sur son propre code :
+#  * sa mesure `seam_forme` comparait le champ de texture à LUI-MÊME décalé d'un vecteur du réseau — périodique par
+#    construction, quelle que soit la matière : un bruit BRUT, non raccordable, y rendait 0.0. Mesure aveugle.
+#  * son masque losange (polygone PIL jusqu'à w-1, h-1) laissait 80 px de TROUS par tuile 128 x 64 sur le réseau :
+#    des lignes de fond entre les tuiles dans le moteur ; son hexagone se chevauchait (110 px à R = 32).
+#  * à R = 55 (le 110 px de Godot), `3 * w // 4` tronquait le vecteur du réseau (82 au lieu de 82,5).
+#  * son atlas était converti en RGB : les coins hors losange devenaient NOIRS au lieu de transparents.
+def _couverture(forme, cote):
+    """(trous, doublons, aire) de la tuile centrale quand le masque est posé sur TOUT le réseau autour d'elle."""
+    from app.services import tile_shapes as TF
+    w, h = TF.dims(forme, cote)
+    vecs = list(TF.decalages(forme, w, h).values())
+    pts = {(0, 0)}
+    for _ in range(3):
+        pts |= {(x + a, y + b) for x, y in pts for a, b in vecs}
+    toile = Image.new("L", (5 * w, 5 * h), 0)
+    un = Image.new("L", (w, h), 1)
+    mq = TF.masque_forme(forme, cote).point(lambda v: 255 if v else 0)
+    for ox, oy in pts:
+        if abs(ox) <= 2 * w and abs(oy) <= 2 * h:
+            pose = Image.new("L", toile.size, 0)
+            pose.paste(un, (2 * w + ox, 2 * h + oy), mq)
+            toile = ImageChops.add(toile, pose)
+    centre = list(toile.crop((2 * w, 2 * h, 3 * w, 3 * h)).tobytes())
+    aire = sum(1 for v in mq.tobytes() if v)
+    return centre.count(0), sum(1 for v in centre if v >= 2), aire
+
+
+def test_dimensions_des_formes():
+    from app.services import tile_shapes as TF
+    assert TF.dims_iso(64) == (128, 64)              # le 2:1 des .tres Godot
+    assert TF.dims_iso(32) == (64, 32)
+    assert TF.dims_hex(32) == (64, 56)               # hauteur PAIRE, forcée
+    for r in range(8, 70):
+        w, h = TF.dims_hex(r)
+        # largeur multiple de 4 : le vecteur du réseau (3w/4, h/2) reste ENTIER ; hauteur paire pour h/2
+        assert w % 4 == 0 and h % 2 == 0, (r, w, h)
+        assert abs(h / w - math.sqrt(3) / 2) < 0.05, (r, w, h)   # un hexagone presque régulier
+    assert TF.dims_hex(55) == (112, 96), TF.dims_hex(55)
+    assert set(TF.DEC_ISO(128, 64)) == {"NE", "SE", "SW", "NW"}
+    assert set(TF.DEC_HEX(64, 56)) == {"N", "NE", "SE", "S", "SW", "NW"}
+    assert TF.DEC_HEX(64, 56)["NE"] == (48, -28)
+    for d in list(TF.DEC_ISO(128, 64).values()) + list(TF.DEC_HEX(64, 56).values()):
+        assert all(isinstance(v, int) for v in d), d
+
+
+def test_masque_losange_et_hexagone():
+    from app.services import tile_shapes as TF
+    mi = TF.masque_forme("iso", 64)
+    assert mi.size == (128, 64)
+    assert mi.getpixel((64, 32)) == 255              # le centre
+    assert mi.getpixel((0, 0)) == 0                  # le coin, hors losange
+    assert mi.getpixel((2, 32)) == 255               # la pointe gauche
+    mh = TF.masque_forme("hex", 32)
+    assert mh.size == (64, 56)
+    assert mh.getpixel((32, 28)) == 255
+    assert mh.getpixel((0, 0)) == 0
+    assert mh.getpixel((2, 28)) == 255               # la pointe gauche
+    assert set(mh.tobytes()) == {0, 255}             # binaire : pas de demi-pixel qui laisserait voir le fond
+    try:
+        TF.masque_forme("triangle", 32)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("masque_forme a accepte une forme inconnue")
+
+
+def test_les_masques_pavent_le_reseau_sans_trou_ni_doublon():
+    """LA mesure de forme : posé sur tout le réseau, le masque couvre chaque pixel UNE fois. Un trou = une ligne de
+    fond entre deux tuiles dans le moteur. L'aire vaut celle de la maille du réseau."""
+    from app.services import tile_shapes as TF
+    for cote in (16, 32, 48, 64, 128):
+        w, h = TF.dims("iso", cote)
+        assert _couverture("iso", cote) == (0, 0, w * h // 2), (cote, _couverture("iso", cote))
+    for r in (8, 16, 21, 32, 55, 64):
+        w, h = TF.dims("hex", r)
+        assert _couverture("hex", r) == (0, 0, 3 * w // 4 * h), (r, _couverture("hex", r))
+
+
+def test_les_tuiles_posees_sur_le_reseau_reproduisent_le_champ():
+    """Les VRAIES tuiles RGBA, posées sur le réseau, montrent exactement la texture continue : les bords
+    correspondants raccordent, au pixel (0 écart sur toute la tuile centrale et autour)."""
+    from app.services import tile_shapes as TF
+    mat = _bruit(64, 3)
+    for forme, cote in (("iso", 64), ("hex", 32), ("iso", 32), ("hex", 55)):
+        w, h = TF.dims(forme, cote)
+        tuile = TF.tuile_forme(mat, forme, cote)
+        assert tuile.mode == "RGBA" and tuile.size == (w, h)
+        champ = TF.texture_forme(mat, forme, cote, taille=(3 * w, 3 * h), origine=(w, h))
+        toile = Image.new("RGBA", (3 * w, 3 * h), (0, 0, 0, 0))
+        vecs = list(TF.decalages(forme, w, h).values())
+        pts = {(0, 0)}
+        for _ in range(3):
+            pts |= {(x + a, y + b) for x, y in pts for a, b in vecs}
+        for ox, oy in pts:
+            # toute tuile qui touche la boîte centrale a |ox| <= w et |oy| <= h : elle tient dans la toile 3 x 3
+            if abs(ox) <= w and abs(oy) <= h:
+                toile.alpha_composite(tuile, (w + ox, h + oy))
+        boite = (w, h, 2 * w, 2 * h)
+        t, c = toile.crop(boite), champ.crop(boite).convert("RGBA")
+        assert t.getchannel("A").getextrema() == (255, 255), (forme, cote, "trou dans la tuile centrale")
+        assert ImageChops.difference(t, c).getbbox() is None, (forme, cote)
+
+
+def test_le_raccord_d_une_forme_est_celui_de_la_matiere():
+    """Le réseau est périodique PAR CONSTRUCTION : la seule couture possible est celle de la matière avec elle-même.
+    Témoin : un bruit miroir rend 0.0, un bruit BRUT rend son propre raccord — non nul, celui du jeu carré."""
+    from app.services import tile_shapes as TF
+    from app.services import tile_metrics as TM
+    rng = random.Random(5)
+    brut = Image.frombytes("RGB", (64, 64), bytes(rng.randrange(256) for _ in range(64 * 64 * 3)))
+    for forme, cote in (("iso", 64), ("hex", 32)):
+        assert TF.raccord_forme(_bruit(64, 3), forme, cote) == 0.0
+        r = TF.raccord_forme(brut, forme, cote)
+        m = TF.matiere_carree(brut, forme, cote)
+        assert m.size[0] == m.size[1] == TF.dims(forme, cote)[0]
+        assert r == max(TM.seam_pair(m, m, "E"), TM.seam_pair(m, m, "S")) and r > 10, (forme, r)
+
+
+def test_assembler_forme_rend_un_jeu_exportable():
+    A = _bruit(64, 1)
+    jeu = TO.assembler_forme(A, "iso", 64)
+    assert jeu["forme"] == "iso" and jeu["jeu"] == "forme"
+    assert jeu["largeur"] == 128 and jeu["hauteur"] == 64
+    assert len(jeu["tuiles"]) == 1 and jeu["tuiles"][0].size == (128, 64)
+    assert jeu["tuiles"][0].mode == "RGBA"           # hors forme = transparent
+    assert jeu["tuiles"][0].getpixel((0, 0))[3] == 0
+    assert jeu["tuiles"][0].getpixel((64, 32))[3] == 255
+    assert jeu["vide"] is None, "une forme n'a pas de tuile VIDE : un index 1 sortirait de l'atlas d'une case"
+    jh = TO.assembler_forme(A, "hex", 32)
+    assert (jh["largeur"], jh["hauteur"]) == (64, 56)
+    # une matière non carrée est ramenée au carré : le pavage lit sa largeur des deux côtés
+    jr = TO.assembler_forme(A.resize((96, 40)), "hex", 32)
+    assert jr["tuiles"][0].size == (64, 56)
+
+
+def test_route_jeu_accepte_iso_et_hex():
+    from app.services.storage import init_db
+
+    async def scenario():
+        await init_db()
+        a = _poser_image("fo_a.png", _bruit(128, 8))
+        async with _client() as c:
+            for forme, taille in (("iso", (128, 64)), ("hex", (64, 56))):
+                r = await c.post("/api/tiles/jeu", json={
+                    "matiere_a": {"image": a}, "forme": forme,
+                    "cote": 64 if forme == "iso" else 32, "nom": forme})
+                assert r.status_code == 200, r.text
+                d = r.json()
+                assert d["forme"] == forme
+                assert (d["largeur"], d["hauteur"]) == taille, d
+                assert d["raccord"] == 0.0, d["raccord"]
+                with Image.open(TS.tileset_dir(d["tid"]) / "atlas.png") as im:
+                    assert im.size == taille, im.size
+                    # l'atlas GARDE son alpha : hors forme transparent, pas noir
+                    assert im.mode == "RGBA" and im.getpixel((0, 0))[3] == 0, (im.mode, im.getpixel((0, 0)))
+                # LDtk refuse une forme non orthogonale, EN LE DISANT
+                r2 = await c.post(f"/api/tiles/{d['tid']}/export", json={"format": "ldtk"})
+                assert r2.status_code == 400, r2.text
+                assert "orthogonal" in r2.text.lower(), r2.text
+                for fmt in ("tiled", "godot"):
+                    r3 = await c.post(f"/api/tiles/{d['tid']}/export", json={"format": fmt})
+                    assert r3.status_code == 200, r3.text
+                # l'auto-tuilage et les mesures sont refusés sur une forme, en le disant
+                for route in ("apercu", "mesures"):
+                    r4 = await c.post(f"/api/tiles/{d['tid']}/{route}", json={"cases": 8})
+                    assert r4.status_code == 400 and "carre" in r4.text, r4.text
+                # le meta décrit le jeu PRODUIT : une forme, une tuile, sans VIDE
+                meta = json.loads((TS.tileset_dir(d["tid"]) / "meta.json").read_text("utf-8"))
+                assert meta["jeu"] == "forme" and meta["variantes"] == 1 and meta["tuiles"] == 1
+                assert meta["cles"] == [255] and meta["vide"] is None, meta
+                assert meta["source_b"] is None, "une forme n'a qu'une matiere"
+            # le raccord d'une forme sur une matière brute est MESURÉ, non nul
+            rng = random.Random(5)
+            brut = _poser_image("fo_brut.png", Image.frombytes(
+                "RGB", (64, 64), bytes(rng.randrange(256) for _ in range(64 * 64 * 3))))
+            r = await c.post("/api/tiles/jeu", json={"matiere_a": {"image": brut}, "forme": "iso", "cote": 32})
+            assert r.status_code == 200 and r.json()["raccord"] > 10, r.text
+            r = await c.post("/api/tiles/jeu", json={"matiere_a": {"image": a}, "forme": "triangle"})
+            assert r.status_code == 400 and "forme" in r.text, r.text
+            # un jeu CARRÉ exige toujours sa matière B
+            r = await c.post("/api/tiles/jeu", json={"matiere_a": {"image": a}})
+            assert r.status_code == 400 and "matiere_b" in r.text, r.text
+
+    asyncio.run(scenario())
+
+
 def _main():
     rouges = 0
     for nom, fn in sorted(globals().items()):

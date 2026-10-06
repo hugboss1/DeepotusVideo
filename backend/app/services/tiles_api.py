@@ -49,8 +49,14 @@ def _charger_matiere(spec, quoi: str) -> Image.Image:
         raise HTTPException(400, f"{quoi}: image illisible: {nom} ({e})")
 
 
-def _fabriquer(a, b, jeu_nom, cote, variantes, graine):
-    """Bloquant : le jeu, son atlas, et le pire raccord des paires légales."""
+def _fabriquer(a, b, jeu_nom, cote, variantes, graine, forme="carre"):
+    """Bloquant : le jeu, son atlas, et son raccord — le pire des paires légales pour un jeu carré ; pour une forme,
+    celui de la matière avec elle-même (le réseau n'en ajoute aucun, voir tile_shapes). L'atlas d'une forme GARDE
+    son alpha : converti en RGB (comme le plan l'écrivait), ses coins hors losange deviendraient noirs."""
+    if forme != "carre":
+        from app.services import tile_shapes as TF
+        jeu = TO.assembler_forme(a, forme, cote)
+        return jeu, jeu["tuiles"][0], 1, 1, TF.raccord_forme(a, forme, cote)
     from app.services import tile_metrics as TM
     jeu = TO.assembler_jeu(a, b, jeu_nom, cote, variantes, graine)
     img, colonnes, rangees = TO.atlas(jeu)
@@ -60,8 +66,9 @@ def _fabriquer(a, b, jeu_nom, cote, variantes, graine):
 @router.post("/jeu")
 async def creer_jeu(body: dict):
     """Fabrique un jeu de tuiles depuis DEUX matières et le range.
-    Body: {matiere_a:{image}, matiere_b:{image}, jeu, cote, variantes, graine, nom}.
-    → la méta du jeu, dont `raccord` = le PIRE raccord des paires légales."""
+    Body: {matiere_a:{image}, matiere_b:{image}, jeu, cote, variantes, graine, nom, forme}.
+    `forme` : carre (défaut, le blob depuis deux matières) | iso | hex (une tuile de forme, une seule matière).
+    → la méta du jeu PRODUIT, dont `raccord` = le PIRE raccord mesuré."""
     body = body if isinstance(body, dict) else {}
     jeu_nom = str(body.get("jeu") or "blob47")
     if jeu_nom not in TO.JEUX:
@@ -76,22 +83,28 @@ async def creer_jeu(body: dict):
         raise HTTPException(400, "cote doit tenir entre 16 et 512")
     if not 1 <= variantes <= 5:
         raise HTTPException(400, "variantes doit tenir entre 1 et 5")
+    forme = str(body.get("forme") or "carre")
+    if forme not in ("carre", "iso", "hex"):
+        raise HTTPException(400, f"forme inconnue: {forme} (attendu carre, iso, hex)")
     a = _charger_matiere(body.get("matiere_a") or {}, "matiere_a")
-    b = _charger_matiere(body.get("matiere_b") or {}, "matiere_b")
+    # une forme n'a qu'une matière ; un jeu carré exige toujours la seconde (le fond)
+    b = None if forme != "carre" else _charger_matiere(body.get("matiere_b") or {}, "matiere_b")
 
     jeu, img, colonnes, rangees, raccord = await asyncio.get_running_loop().run_in_executor(
-        None, _fabriquer, a, b, jeu_nom, cote, variantes, graine)
+        None, _fabriquer, a, b, jeu_nom, cote, variantes, graine, forme)
 
     tid = TS.new_tid()
     d = TS.tileset_dir(tid, create=True)
     img.save(d / "atlas.png", format="PNG")
     meta = {"tid": tid, "nom": str(body.get("nom") or "jeu de tuiles")[:80],
-            "jeu": jeu_nom, "cles": jeu["cles"], "cote": cote,
-            "variantes": variantes, "graine": graine,
+            # le meta décrit le jeu PRODUIT, pas le corps reçu : `_refaire_jeu` le rejoue tel quel
+            "jeu": jeu["jeu"], "cles": jeu["cles"], "cote": jeu["cote"],
+            "variantes": jeu["variantes"], "graine": jeu["graine"], "forme": forme,
+            "largeur": jeu.get("largeur", jeu["cote"]), "hauteur": jeu.get("hauteur", jeu["cote"]),
             "tuiles": len(jeu["tuiles"]), "vide": jeu["vide"],
             "colonnes": colonnes, "rangees": rangees,
             "source_a": {"image": (body.get("matiere_a") or {}).get("image")},
-            "source_b": {"image": (body.get("matiere_b") or {}).get("image")},
+            "source_b": None if b is None else {"image": (body.get("matiere_b") or {}).get("image")},
             "raccord": raccord, "cree_le": _maintenant()}
     TS.write_meta(tid, meta)
     # LA PROVENANCE : l'atlas est COPIÉ dans la Bibliothèque sous `tile_<id>_atlas.png` (préfixe → source
@@ -134,7 +147,10 @@ async def exporter(tid: str, body: dict):
     fmt = str((body or {}).get("format") or "").strip().lower()
     if fmt not in TE.FORMATS:
         raise HTTPException(400, f"format inconnu: {fmt or '(vide)'} (attendu {', '.join(sorted(TE.FORMATS))})")
-    p = await asyncio.to_thread(TE.FORMATS[fmt], TS.tileset_dir(tid), meta)
+    try:
+        p = await asyncio.to_thread(TE.FORMATS[fmt], TS.tileset_dir(tid), meta)
+    except ValueError as e:              # refus MOTIVÉ d'un format (LDtk et les formes non orthogonales)
+        raise HTTPException(400, str(e))
     logger.info(f"tuiles/export {fmt}: {tid} -> {p.name} ({p.stat().st_size} o)")
     return {"tid": tid, "format": fmt, "fichier": p.name, "octets": p.stat().st_size,
             "url": f"/api/tiles/{tid}/fichier/{p.name}"}
@@ -151,6 +167,8 @@ def _refaire_jeu(meta: dict) -> dict:
     pas gardé en mémoire : c'est la recette qui fait foi, pas un cache. Bloquant (PIL) : à appeler hors de la boucle
     d'évènements."""
     a = _charger_matiere(meta.get("source_a") or {}, "matiere_a")
+    if meta.get("forme", "carre") != "carre":
+        return TO.assembler_forme(a, meta["forme"], int(meta["cote"]))
     b = _charger_matiere(meta.get("source_b") or {}, "matiere_b")
     return TO.assembler_jeu(a, b, meta["jeu"], int(meta["cote"]),
                             int(meta["variantes"]), int(meta["graine"]))
@@ -183,12 +201,21 @@ def _lire_meta(tid: str) -> dict:
     return meta
 
 
+def _carre_seulement(meta: dict, quoi: str) -> None:
+    """L'auto-tuilage ne vaut que pour un jeu carré : une forme n'a qu'une tuile, et `composer_carte` y chercherait
+    un voisinage absent de `cles`."""
+    if meta.get("forme", "carre") != "carre":
+        raise HTTPException(400, f"{quoi} ne vaut que pour un jeu carre : une forme {meta['forme']} n a qu une "
+                                 f"tuile, sans voisinage")
+
+
 @router.post("/{tid}/apercu")
 async def apercu(tid: str, body: dict):
     """Aperçu auto-tuilé : une grille de terrain tirée au hasard (rejouable), chaque case reçoit la tuile de son
     voisinage et une variante tirée. Écrit `apercu.png` dans le dossier du jeu.
     Body: {cases 4..16, densite 0..1, graine}."""
     meta = _lire_meta(tid)
+    _carre_seulement(meta, "l apercu auto-tuile")
     cases, densite, graine = _bornes_apercu(body, int(meta["cote"]))
 
     def _faire():
@@ -213,6 +240,7 @@ async def mesures(tid: str, body: dict):
     from app.services import tile_metrics as TM
 
     meta = _lire_meta(tid)
+    _carre_seulement(meta, "la mesure de repetition")
     cases, densite, graine = _bornes_apercu(body, int(meta["cote"]))
 
     def _faire():

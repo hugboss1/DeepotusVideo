@@ -16,6 +16,11 @@ CHAQUE FORMAT A ÉTÉ RELU LE 06/10/2026, ET QUATRE ÉCARTS AU PLAN (03/09) EN S
   * LDtk 1.5.3 exige sur chaque règle `tileRandomX/YMin/Max` et `tileX/YOffset`, et ne requiert plus `tileIds`
     (déprécié, « no longer exported since 1.5.0 ») : le banc valide contre le SCHÉMA officiel, pas une liste.
   * blob16 : 16 règles LDtk aux coins ignorés, et `MATCH_SIDES` (2) chez Godot — le plan figeait 47 et le mode 0.
+
+LES FORMES (losange, hexagone — tâche t115, plan T8) : UNE tuile, sans jeu Wang ni terrain ni VIDE. Chaque format dit
+ce qu'il porte : Tiled reçoit <grid orientation="isometric"> pour le losange seulement — l'orientation hexagonale
+(`hexsidelength`, `staggeraxis`) est un attribut de <map>, pas de <tileset> ; Godot reçoit `tile_shape` et
+`tile_layout` (iso) ou `tile_offset_axis` (hex) ; LDtk 1.5.3, orthogonal, refuse en le disant.
 """
 from __future__ import annotations
 
@@ -38,6 +43,10 @@ def _taille_tuile(meta: dict) -> tuple[int, int]:
     return int(meta.get("largeur") or meta["cote"]), int(meta.get("hauteur") or meta["cote"])
 
 
+def _forme(meta: dict) -> str:
+    return str(meta.get("forme") or "carre")
+
+
 def _d_aretes(meta: dict) -> bool:
     return meta.get("jeu") == "blob16"
 
@@ -54,14 +63,20 @@ def ecrire_tsx(dossier: Path, meta: dict) -> Path:
     de terrain portant sa `probability` (les variantes d'un voisinage se partagent le tirage), et le jeu Wang."""
     largeur, hauteur = _taille_tuile(meta)
     colonnes, rangees, variantes = int(meta["colonnes"]), int(meta["rangees"]), int(meta["variantes"])
-    aretes = _d_aretes(meta)
-    tuiles, vide = _index(meta)
     ts = ET.Element("tileset", {
         "version": VERSION_TMX, "tiledversion": VERSION_TILED, "name": str(meta.get("nom") or "tuiles")[:60],
         "tilewidth": str(largeur), "tileheight": str(hauteur), "tilecount": str(int(meta["tuiles"])),
         "columns": str(colonnes), "spacing": "0", "margin": "0"})
     ET.SubElement(ts, "image", {"source": "atlas.png", "width": str(colonnes * largeur),
                                 "height": str(rangees * hauteur)})
+    if _forme(meta) != "carre":
+        # une tuile de forme : pas de jeu Wang. <grid> ne vaut, selon la doc TMX, que pour l'isométrique
+        if _forme(meta) == "iso":
+            ET.SubElement(ts, "grid", {"orientation": "isometric", "width": str(largeur), "height": str(hauteur)})
+        ET.SubElement(ts, "tile", {"id": "0", "probability": "1"})
+        return _ecrire_xml(ts, dossier)
+    aretes = _d_aretes(meta)
+    tuiles, vide = _index(meta)
     proba = "1" if variantes == 1 else f"{1 / variantes:.6f}".rstrip("0")
     for _m, ids in tuiles:                  # la VIDE n'entre pas en concurrence : pas de <tile> pour elle
         for i in ids:
@@ -77,6 +92,10 @@ def ecrire_tsx(dossier: Path, meta: dict) -> Path:
             ET.SubElement(ws, "wangtile", {"tileid": str(i), "wangid": wangid})
     vide_id = ",".join("0" if aretes and b not in ARETES else "2" for b in TO.BITS)
     ET.SubElement(ws, "wangtile", {"tileid": str(vide), "wangid": vide_id})
+    return _ecrire_xml(ts, dossier)
+
+
+def _ecrire_xml(ts, dossier: Path) -> Path:
     ET.indent(ts, space=" ")
     p = Path(dossier) / "tileset.tsx"
     ET.ElementTree(ts).write(p, encoding="utf-8", xml_declaration=True)
@@ -116,6 +135,10 @@ def motif(m: int, aretes: bool = False) -> list[int]:
 def ecrire_ldtk(dossier: Path, meta: dict) -> Path:
     """Un projet `.ldtk` minimal mais complet au sens du schéma 1.5.3 : le tileset, une couche IntGrid portant un
     groupe de règles d'auto-layer — une par voisinage canonique, ses variantes tirées au hasard (`tileRectsIds`)."""
+    if _forme(meta) != "carre":
+        raise ValueError(
+            "LDtk 1.5.3 est orthogonal : son schema (relu le 06/10/2026) ne porte aucune orientation isometrique ni "
+            f"hexagonale. Exporte cette forme ({_forme(meta)}) vers Tiled ou Godot.")
     cote = int(meta["cote"])
     largeur, hauteur = _taille_tuile(meta)
     colonnes, rangees = int(meta["colonnes"]), int(meta["rangees"])
@@ -188,12 +211,21 @@ def ecrire_tres(dossier: Path, meta: dict) -> Path:
     `res://atlas.png` : on pose les deux fichiers à la racine du projet."""
     largeur, hauteur = _taille_tuile(meta)
     colonnes = int(meta["colonnes"])
-    aretes = _d_aretes(meta)
-    tuiles, vide = _index(meta)
     L = ['[gd_resource type="TileSet" format=3]', "",
          '[ext_resource type="Texture2D" path="res://atlas.png" id="1"]', "",
          f'[sub_resource type="TileSetAtlasSource" id="{ID_SOURCE}"]', 'texture = ExtResource("1")',
          f"texture_region_size = Vector2i({largeur}, {hauteur})"]
+    forme = _forme(meta)
+    if forme != "carre":
+        # une tuile de forme : pas de terrain. TileShape ISOMETRIC = 1, HEXAGON = 3 ; TileLayout DIAMOND_DOWN = 5 (le
+        # losange des .tres réels) ; TileOffsetAxis VERTICAL = 1 pour l'hexagone à sommet plat (colonnes décalées
+        # d'une demi-hauteur : le réseau (3w/4, h/2) de tile_shapes)
+        L += ["0:0/0 = 0", "", "[resource]"]
+        L += ["tile_shape = 1", "tile_layout = 5"] if forme == "iso" else ["tile_shape = 3", "tile_offset_axis = 1"]
+        L += [f"tile_size = Vector2i({largeur}, {hauteur})", f'sources/0 = SubResource("{ID_SOURCE}")', ""]
+        return _ecrire_tres(L, dossier)
+    aretes = _d_aretes(meta)
+    tuiles, vide = _index(meta)
     for m, ids in tuiles:
         for i in ids:
             x, y = i % colonnes, i // colonnes
@@ -205,6 +237,10 @@ def ecrire_tres(dossier: Path, meta: dict) -> Path:
           f"terrain_set_0/mode = {MODE_BLOB16 if aretes else MODE_BLOB47}",
           'terrain_set_0/terrain_0/name = "terrain"', "terrain_set_0/terrain_0/color = Color(0.878, 0.651, 0.251, 1)",
           f'sources/0 = SubResource("{ID_SOURCE}")', ""]
+    return _ecrire_tres(L, dossier)
+
+
+def _ecrire_tres(L: list[str], dossier: Path) -> Path:
     p = Path(dossier) / "tileset.tres"
     p.write_text("\n".join(L), encoding="utf-8")
     return p
