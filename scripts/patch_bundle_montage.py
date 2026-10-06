@@ -231,6 +231,7 @@ Run :
 
 Compatible scripts/repatch_all.py : `--force-unchained` est accepté et ignoré.
 """
+import hashlib
 import pathlib
 import shutil
 import sys
@@ -240,6 +241,9 @@ REL_BUNDLE = pathlib.Path("frontend/dist/assets/index-BEOJX8L5.js")
 REL_HTML = pathlib.Path("frontend/dist/index.html")
 PATCH_SRC = REPO / "frontend" / "patches" / "montage.js"
 TAG = "montage"
+# empreinte du .bak_montage que scripts/restaurer_bak_montage.py reconstruit (inverse de CE maillon sur le bundle de
+# bcb9ecfe, 04/10/2026) — déterministe : main() refuse d'appliquer ou de retirer depuis lui (voir la garde)
+BAK_RECONSTRUIT_SHA256 = "907aba6307b8fb7769ef33548942c965353f48605dd7d9555dcbd7e63d4cfa2f"
 
 BEGIN = "/*__DZ_MONTAGE_BEGIN__*/"
 END = "/*__DZ_MONTAGE_END__*/"
@@ -8713,6 +8717,18 @@ def main():
     if not PATCH_SRC.is_file():
         raise SystemExit(f"[{TAG}] source introuvable : {PATCH_SRC}")
     bak = bundle.with_name(bundle.name + ".bak_" + TAG)
+
+    # 06/10/2026 : un .bak_montage RECONSTRUIT (scripts/restaurer_bak_montage.py, état du 04/10) est un TÉMOIN pour
+    # les bancs, pas une base de rejeu : le restaurer puis réappliquer effacerait sans un mot ce que refresh_layer
+    # et les maillons aval ont écrit depuis (mesuré : le bundle retombait à 2 446 160 o, celui du 04/10). Appliquer
+    # et retirer sont refusés quand le .bak EST la reconstruction (reconnue à son empreinte : elle est
+    # déterministe), même avec --force-unchained ; --check reste permis. Pas de fichier marqueur : tout nom en
+    # `.bak_*` serait pris pour un maillon par guard_downstream et repatch_all.
+    if not check and bak.is_file() and hashlib.sha256(bak.read_bytes()).hexdigest() == BAK_RECONSTRUIT_SHA256:
+        raise SystemExit(
+            f"[{TAG}] {bak.name} est la reconstruction de scripts/restaurer_bak_montage.py : c'est un témoin pour "
+            "les bancs, pas une base de rejeu — appliquer ou retirer depuis lui effacerait tout ce qui a été écrit "
+            "depuis le 04/10. Refus.")
 
     if "--force-unchained" not in args:
         guard_downstream(bak)
