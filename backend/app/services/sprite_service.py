@@ -98,6 +98,11 @@ def normalize_opts(body: dict) -> dict:
         from app.services.pixel_ops import normalize_pixel_opts
         pixel = dict(normalize_pixel_opts(pixel), scale=1)
 
+    # T110 (plan-sprites T6) : post-traitement local (contour, ombre, nettoyage) — PIL pur, par image, après pixel et
+    # avant l'assemblage
+    from app.services.sprite_post import normalize_post
+    post = normalize_post(body.get("post"))
+
     # chantier 9c (UI Sprite Lab): `extract_only` publishes the sampled frames
     # then stops (free local probe feeding the filmstrip); `keep` = indices of
     # the filmstrip frames to keep on the real run (sampling order, so a probe
@@ -114,11 +119,17 @@ def normalize_opts(body: dict) -> dict:
         if keep[0] < 0 or keep[-1] >= 64:
             raise ValueError("keep indices must be within 0..63")
 
+    # T110 (plan-sprites T2) : refus rapide sur la FORME des tags — le nombre d'images n'est pas encore connu ici (le
+    # filmstrip peut en retirer), d'où n=None. La vraie borne est reposée dans _assemble, seul endroit qui connaisse n.
+    from app.services.sprite_anim import normalize_anim
+    anim = body.get("anim")
+    normalize_anim(anim, None, fps)
+
     return {"fps": fps, "max_frames": max_frames, "remove_bg": method,
             "chroma_tolerance": chroma_tol,
             "trim": trim, "cell_size": size, "align": align,
-            "columns": columns, "pixel": pixel,
-            "extract_only": extract_only, "keep": keep}
+            "columns": columns, "pixel": pixel, "post": post,
+            "extract_only": extract_only, "keep": keep, "anim": anim}
 
 
 # ── source resolution (job render / user upload / on-disk video) ─────────────
@@ -303,7 +314,10 @@ def _place_into_cell(img, size: int, align: str):
     w, h = img.size
     x = (size - w) // 2
     y = (size - h) if align == "feet" else (size - h) // 2
-    cell.paste(img, (x, y), img)
+    # SANS masque : la cellule est vide et l'image y tient, la copie est exacte. Avec `img` en masque, l'alpha était
+    # appliqué DEUX fois (un bord à 128 retombait à 64) — mesuré par test_sprite_editor (T110), dont le réassemblage
+    # repasse chaque case par ici
+    cell.paste(img, (x, y))
     return cell
 
 
@@ -465,6 +479,10 @@ def _assemble(frame_files: list[tuple[Path, bool]], opts: dict, out_dir: Path,
         size = mx
 
     n = len(frame_files)
+    # T110 : second appel, avec le VRAI n (après la sélection du filmstrip) — AVANT toute écriture. `opts.get` : les
+    # particules et les séquences Kenney construisent leurs opts à la main, sans `anim`
+    from app.services.sprite_anim import normalize_anim
+    anim = normalize_anim(opts.get("anim"), n, opts["fps"])
     cols, rows = compute_grid(n, opts["columns"])
     sheet = Image.new("RGBA", (cols * size, rows * size), (0, 0, 0, 0))
     frames_dir = out_dir / "frames"
@@ -488,17 +506,19 @@ def _assemble(frame_files: list[tuple[Path, bool]], opts: dict, out_dir: Path,
             "rect": {"x": x, "y": y, "w": size, "h": size},
             "offset": {"x": offset[0], "y": offset[1]},
             "bg_removed": bool(bg_removed),
+            "duration_ms": anim["durations"][i],
         })
 
     sheet.save(out_dir / "sheet.png", format="PNG")
 
     fps = opts["fps"]
+    # une durée PAR IMAGE ; sous 20 ms les navigateurs imposent leur propre plancher — le manifeste, lui, garde la vraie
     gif_frames[0].save(
         out_dir / "preview.gif", save_all=True, append_images=gif_frames[1:],
-        duration=max(20, int(1000 / fps)), loop=0, disposal=2, transparency=255)
+        duration=[max(20, d) for d in anim["durations"]], loop=0, disposal=2, transparency=255)
 
     manifest = {
-        "version": 1,
+        "version": 2,
         "source": source_info,
         "grid": {"cols": cols, "rows": rows, "cell_w": size, "cell_h": size},
         "frames": manifest_frames,
@@ -507,6 +527,8 @@ def _assemble(frame_files: list[tuple[Path, bool]], opts: dict, out_dir: Path,
         "align": align,
         "native": native,
         "pixel": opts.get("pixel"),
+        "post": opts.get("post"),
+        "anim": anim,
         "created_at": datetime.now(timezone.utc)
                               .isoformat(timespec="seconds")
                               .replace("+00:00", "Z"),
@@ -529,6 +551,94 @@ def _assemble(frame_files: list[tuple[Path, bool]], opts: dict, out_dir: Path,
             "manifest": str(out_dir / "manifest.json"),
             "frames": n,
             "grid": manifest["grid"]}
+
+
+def reassemble(out_dir: Path, order, columns=None, anim_spec=None) -> dict:
+    """T110 (plan-sprites T7) — refabrique la feuille d'un job À PARTIR DE SES PROPRES CASES.
+
+    Gratuit et local : les cases sont déjà sur le disque (`frames/000.png`…, écrites par `_assemble`), donc
+    réordonner, dupliquer ou supprimer ne repaie ni le détourage API ni l'extraction. `order` porte les trois gestes :
+    un index répété duplique, un index absent supprime.
+
+    LE PIÈGE : `_assemble` ÉCRIT `frames/{i:03d}.png` pendant qu'il LIT ses entrées. Avec l'ordre [3, 0, 0],
+    l'itération 0 écrit `frames/000.png` et l'itération 1 le relit — déjà écrasé. Les cases choisies sont donc copiées
+    dans `_edit/` d'abord, et ce dossier est effacé à la fin. Tout refus tombe AVANT la première écriture.
+    """
+    from app.services.sprite_anim import normalize_anim
+
+    mf = out_dir / "manifest.json"
+    if not mf.is_file():
+        raise FileNotFoundError("manifest.json")
+    ancien = json.loads(mf.read_text(encoding="utf-8"))
+    if not ancien.get("grid"):
+        raise ValueError("this job has no grid (frames-only probe) — generate a sheet before editing it")
+    vieilles = ancien.get("frames") or []
+    n_old = len(vieilles)
+
+    if not isinstance(order, (list, tuple)) or not order:
+        raise ValueError("order must be a non-empty list of frame indices")
+    if len(order) > 64:
+        raise ValueError("order: 64 frames at most")
+    idx = []
+    for v in order:
+        if isinstance(v, bool) or not isinstance(v, int):
+            raise ValueError("order: frame indices are integers")
+        if not 0 <= v < n_old:
+            raise ValueError(f"order: index {v} outside 0..{n_old - 1}")
+        idx.append(v)
+
+    cols = ancien["grid"]["cols"] if columns in (None, "") else columns
+    if cols != "auto":
+        try:
+            cols = int(cols)
+        except (TypeError, ValueError):
+            raise ValueError("columns must be 'auto' or an integer (1-32)")
+        if not 1 <= cols <= 32:
+            raise ValueError("columns must be 'auto' or an integer (1-32)")
+
+    fps = ancien.get("fps") or 8
+    if anim_spec in (None, ""):
+        # sans `anim` : chaque image emporte SA durée, les tags restent tels quels (et sont refusés s'ils débordent)
+        from app.services.sprite_anim import duree_ms
+        anim = {"tags": (ancien.get("anim") or {}).get("tags") or [],
+                "durations": [duree_ms(vieilles[i], fps) for i in idx]}
+    else:
+        anim = anim_spec
+    normalize_anim(anim, len(idx), fps)      # refus AVANT toute écriture
+
+    edit = out_dir / "_edit"
+    shutil.rmtree(edit, ignore_errors=True)
+    edit.mkdir(parents=True)
+    try:
+        fichiers = []
+        for k, i in enumerate(idx):
+            dest = edit / f"src_{k:04d}.png"
+            shutil.copy2(out_dir / vieilles[i]["file"], dest)
+            fichiers.append((dest, bool(vieilles[i].get("bg_removed"))))
+        # cell_size 0 = « native » (T108) : les cases FONT déjà la cellule, donc `_place_into_cell` les POSE sans
+        # resize — les octets d'une case survivent au réassemblage. trim « animation » : recadrer des cases déjà
+        # cadrées changerait leur taille.
+        opts = {"cell_size": 0, "align": ancien.get("align") or "center", "trim": "animation", "columns": cols,
+                "fps": fps, "pixel": ancien.get("pixel"), "post": ancien.get("post"), "anim": anim}
+        info = dict(ancien.get("source") or {}, reassembled=True)
+        r = _assemble(fichiers, opts, out_dir, info)
+    finally:
+        shutil.rmtree(edit, ignore_errors=True)
+
+    # les cases au-delà du nouveau compte sont orphelines : elles partiraient dans le ZIP
+    for p in (out_dir / "frames").glob("*.png"):
+        if p.stem.isdigit() and int(p.stem) >= len(idx):
+            p.unlink()
+    # le manifeste dit la feuille d'ORIGINE (trim, natif, décalage de recadrage de chaque case), pas les réglages
+    # techniques du réassemblage ; aucun export ne lit ces trois champs
+    m = json.loads(mf.read_text(encoding="utf-8"))
+    m["trim"] = ancien.get("trim", m["trim"])
+    m["native"] = ancien.get("native", m["native"])
+    for f, i in zip(m["frames"], idx):
+        if "offset" in vieilles[i]:
+            f["offset"] = vieilles[i]["offset"]
+    mf.write_text(json.dumps(m, indent=2), encoding="utf-8")
+    return r
 
 
 # ── orchestrator ─────────────────────────────────────────────────────────────
@@ -715,6 +825,25 @@ async def generate_sprites(payload: dict, job_id: str, on_step=None) -> dict:
             raw[i] = dest
             await _step(f"Pixel-art {i + 1}/{len(raw)}",
                         60 + int(10 * (i + 1) / len(raw)))
+
+    # T110 (plan-sprites T6) — post-traitement par image, APRÈS pixel (contour d'1 px natif) et AVANT _assemble (le
+    # post agrandit la toile ; la cellule native se mesure sur le résultat). Même patron que la passe pixel : un
+    # fichier par image dans _raw, jamais toutes en mémoire.
+    if opts.get("post"):
+        from PIL import Image as _Ip
+        from app.services.sprite_post import apply_post
+
+        def _post_file(src_path: Path, dest: Path):
+            with _Ip.open(src_path) as im:
+                out = apply_post(im, opts["post"])
+            out.save(dest, format="PNG")
+
+        for i, path in enumerate(raw):
+            dest = raw_dir / f"post_{i:04d}.png"
+            await asyncio.to_thread(_post_file, path, dest)
+            raw[i] = dest
+            await _step(f"Post-traitement {i + 1}/{len(raw)}",
+                        70 + int(5 * (i + 1) / len(raw)))
 
     await _step("Assembling sheet", 75)
     frame_files = list(zip(raw, [bool(f) for f in flags]))

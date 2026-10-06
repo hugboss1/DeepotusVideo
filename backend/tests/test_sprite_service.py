@@ -124,7 +124,7 @@ def test_normalize_defaults():
                  "chroma_tolerance": 28,
                  "trim": "animation", "cell_size": 256, "align": "center",
                  "columns": "auto", "pixel": None,
-                 "extract_only": False, "keep": None}
+                 "extract_only": False, "keep": None, "anim": None, "post": None}
 
 
 def test_normalize_rejects_out_of_range():
