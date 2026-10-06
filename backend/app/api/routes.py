@@ -3360,8 +3360,9 @@ async def list_audio():
     out = []
     for p in sorted(d.glob("*"), key=lambda f: f.stat().st_mtime, reverse=True):
         if p.is_file() and p.suffix.lower() in _AUDIO_EXTS:
+            st = p.stat()
             out.append({"name": p.name, "url": f"/api/audio/{p.name}",
-                        "size_kb": p.stat().st_size // 1024})
+                        "size_kb": st.st_size // 1024, "mtime": int(st.st_mtime)})   # T101 : tri par date du tiroir
     return {"audio": out}
 
 
@@ -3536,6 +3537,31 @@ async def get_audio_meta():
     meta = await asyncio.get_running_loop().run_in_executor(
         None, sfx_service.known_meta)
     return {"meta": meta}
+
+
+@router.put("/audio/meta/{filename}")
+async def put_audio_meta(filename: str, request: Request):
+    """T101 (plan-son-vfx T4, P3) — tags éditables du tiroir Sons. Body {tags: [..]} ; FUSIONNÉS dans l'entrée du
+    sidecar (prompt, starter_id, parent… gardés), nettoyés par sanitize_tags. Un son du dossier audio seulement."""
+    from app.services import sfx_service
+    safe = Path(filename).name
+    p = _audio_dir() / safe
+    if safe != filename or p.suffix.lower() not in _AUDIO_EXTS or not p.is_file():
+        raise HTTPException(404, f"Audio introuvable : {filename}")
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(400, "Corps JSON invalide.")
+    if not isinstance(body, dict) or not isinstance(body.get("tags"), list):
+        raise HTTPException(400, "tags : une liste de chaînes est attendue.")
+
+    def _ecrire():
+        entry = dict(sfx_service.load_meta().get(safe) or {"kind": sfx_service.classify_kind(safe)})
+        entry["tags"] = sfx_service.sanitize_tags(body["tags"])
+        sfx_service.record_meta(safe, entry)
+        return entry
+    entry = await asyncio.get_running_loop().run_in_executor(None, _ecrire)
+    return {"ok": True, "filename": safe, "meta": entry}
 
 
 @router.post("/audio/sfx")
