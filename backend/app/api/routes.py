@@ -14360,6 +14360,25 @@ async def etabli_materiau(body: dict):
     return _etabli_ecrire(job, sortie, "materiau", {"depuis": depuis, **rapport})
 
 
+@router.post("/etabli/importer")
+async def etabli_importer(request: Request, job: str, depuis: int):
+    """LE RETOUR DE BLENDER (tâche T094, phases ultérieures U3) : le corps est le GLB BRUT, écrit comme une version
+    de plus du job. La version `depuis` sert de témoin : ce qui s'est perdu en route (squelette, clips, matériaux)
+    est DIT dans la fiche, rien n'est refusé pour autant. Taille bornée après lecture (même faiblesse assumée que la
+    vignette : `request.body()` bufferise), contenu jugé par le magic, jamais par l'en-tête."""
+    from app.services import mesh_edit
+    job, avant, origine = _etabli_glb_cible(job, depuis, "import")
+    data = await request.body()
+    if len(data) > mesh_edit.TAILLE_MAX_IMPORT:
+        raise HTTPException(413, f"import : {len(data) / 1024 / 1024:.1f} Mo, la borne est à "
+                                 f"{mesh_edit.TAILLE_MAX_IMPORT / 1024 / 1024:.0f} Mo")
+    try:
+        rapport = await asyncio.to_thread(mesh_edit.comparer_import, avant, data)
+    except ValueError as e:
+        raise HTTPException(400, f"import : {e}")
+    return _etabli_ecrire(job, data, "import", {"depuis": origine, **rapport})
+
+
 @router.post("/etabli/tranches")
 async def etabli_tranches(body: dict):
     """L'APERÇU DE TRANCHAGE INDICATIF (tâche T091, plan-etabli T16) : les sections d'une version à `nombre` hauteurs

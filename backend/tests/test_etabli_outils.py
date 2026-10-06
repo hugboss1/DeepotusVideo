@@ -1581,5 +1581,54 @@ def test_la_route_materiau_ecrit_une_version_et_juge_son_corps():
                       {"materiau": 9, "metal": 0.1}):
             assert c.post("/api/etabli/materiau", json={"job": "job_mat", "version": 1, **corps}).status_code == 400, corps
 
+
+# ── T094 / U3 : l'aller-retour Blender — une version de plus, et ce qui s'est PERDU se dit ──
+def test_comparer_un_retour_de_Blender_dit_le_squelette_les_clips_et_les_materiaux_perdus():
+    """Le piège nommé par la spec : un GLB revenu de Blender a probablement perdu le `skin` si l'utilisateur n'a pas
+    exporté les armatures — un rig PAYÉ qui disparaît en silence."""
+    from app.services import mesh_edit
+    from fabrique_rig import glb_rigge
+    r = mesh_edit.comparer_import(glb_rigge(), _cube())
+    assert r["avant"] == {"os": 3, "clips": ["plier", "tourner"], "materiaux": 0, "noeuds": 5}
+    assert r["apres"]["os"] == 0 and r["apres"]["clips"] == []
+    a = " | ".join(r["avertissements"])
+    assert "squelette" in a and "3 os" in a and "plier" in a and "tourner" in a, a
+    r2 = mesh_edit.comparer_import(_cube(), glb_rigge())
+    assert any("matériau" in x for x in r2["avertissements"]), r2
+    assert mesh_edit.comparer_import(glb_rigge(), glb_rigge())["avertissements"] == []
+    doc, binc = mesh_edit.lire_glb(glb_rigge())
+    doc["skins"][0]["joints"] = doc["skins"][0]["joints"][:2]
+    r3 = mesh_edit.comparer_import(glb_rigge(), mesh_edit.ecrire_glb(doc, binc))
+    assert r3["avertissements"] == ["le squelette a perdu des os : 3 avant, 2 après"], r3
+
+
+def test_comparer_refuse_ce_qui_n_est_pas_un_GLB():
+    from app.services import mesh_edit
+    for faux in (b"", b"pas un glb", b"glTF" + b"\x01\x00\x00\x00" + b"\x00" * 12):
+        with pytest.raises(ValueError):
+            mesh_edit.comparer_import(_cube(), faux)
+
+
+def test_la_route_importer_ecrit_une_VERSION_dit_les_pertes_et_borne_la_taille(monkeypatch):
+    from app.services import mesh_edit
+    from fabrique_rig import glb_rigge
+    d = _job("job_retour", glb_rigge())
+    with _client() as c:
+        r = c.post("/api/etabli/importer?job=job_retour&depuis=1", content=_cube(),
+                   headers={"Content-Type": "model/gltf-binary"})
+        assert r.status_code == 200, r.text
+        j = r.json()
+        assert j["version"] == 2 and (d / "model.v2.glb").read_bytes() == _cube()
+        src = j["source"]
+        assert src["operation"] == "import" and src["depuis"] == {"version": 1, "fichier": "model.glb"}
+        assert any("squelette" in a for a in src["avertissements"])
+        assert c.post("/api/etabli/importer?job=job_retour&depuis=1", content=b"pas un glb").status_code == 400
+        assert c.post("/api/etabli/importer?job=job_retour&depuis=9", content=_cube()).status_code == 404
+        assert c.post("/api/etabli/importer?job=..&depuis=1", content=_cube()).status_code == 400
+        monkeypatch.setattr(mesh_edit, "TAILLE_MAX_IMPORT", 100)
+        r = c.post("/api/etabli/importer?job=job_retour&depuis=1", content=_cube())
+        assert r.status_code == 413 and "Mo" in r.json()["detail"]
+    assert not (d / "model.v3.glb").exists(), "aucun refus n'écrit de version"
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))
