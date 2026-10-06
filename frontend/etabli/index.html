@@ -161,6 +161,10 @@
       <button id="btnSlicer" title="Ouvre le .3mf du dernier export dans le slicer (ElegooSlicer ou OrcaSlicer)">Ouvrir dans le slicer</button>
       <!-- les moteurs de jeu (T093) : rendus par rendreExportMoteurs(), nés vides -->
       <div class="moteurs" id="panMoteurs"></div>
+      <!-- l'aller-retour Blender (T094) : le GLB corrigé revient comme une version DE PLUS -->
+      <div class="dt-label">Retour de Blender</div>
+      <input id="retourFichier" type="file" accept=".glb,model/gltf-binary" hidden>
+      <button id="btnRetourBlender" title="Importe un GLB corrigé (dans Blender ou ailleurs) comme une version de PLUS du job affiché : rien n'est écrasé, et ce qui s'est perdu en route (squelette, clips, matériaux) est dit">Importer une version corrigée…</button>
     </div>
 
     <!-- ══ le repère : HORS des onglets, et c'est la décision ══

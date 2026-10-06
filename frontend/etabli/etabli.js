@@ -302,6 +302,9 @@ function direRefus(message) {
   zone.textContent = ligne.length > LARGEUR_REFUS
     ? `${ligne.slice(0, LARGEUR_REFUS)}…` : ligne;
   zone.title = texte;                 /* le refus entier, au survol */
+  /* un refus qui suit un AVIS le remplace : sans ce retrait, la barre portait
+     « avis erreur » (vu en preuve 8799 le 06/10, T094) */
+  zone.classList.remove("avis");
   zone.classList.add("erreur");
 }
 
@@ -2094,6 +2097,35 @@ async function rendreMateriaux() {
   });
 }
 
+/* ── LE RETOUR DE BLENDER (tâche T094, phases ultérieures U3) ──────────────
+   Le GLB corrigé part BRUT (corps = le fichier, pas de multipart) et revient
+   comme une version de PLUS du job affiché. Le serveur compare avec la
+   version de départ : un squelette, des clips ou des matériaux perdus à
+   l'export sont DITS en avis — l'import n'est pas refusé pour autant, un
+   maillage nettoyé sans rig peut être exactement ce qu'on voulait. */
+async function importerRetour(fichier) {
+  if (!S.a || !S.a.job) { direRefus("ouvrez d'abord une version d'un job : le retour s'y ajoute"); return; }
+  const depuis = S.a.version || 1;
+  let src, version;
+  try {
+    const r = await fetch(`/api/etabli/importer?job=${encodeURIComponent(S.a.job)}&depuis=${depuis}`,
+                          { method: "POST", headers: { "Content-Type": "model/gltf-binary" }, body: fichier });
+    if (!r.ok) { direRefus(refusDe(await r.text())); return; }   /* le serveur préfixe déjà « import : » */
+    const fiche = await r.json();
+    src = fiche.source || {};
+    version = fiche.version;
+  } catch (e) { direRefus(`import : ${e.message}`); return; }
+  try {
+    S.sources = await jget("/api/etabli/sources");
+    rendreChrono();
+  } catch { /* la version est sur le disque : la chronologie suivra */ }
+  await ouvrirPrincipale({ ...S.a, version, url: `/api/assets/3d/${S.a.job}/version/${version}`,
+                           libelle: `version ${version}` });
+  const pertes = src.avertissements || [];
+  if (pertes.length) direAvis(`version ${version} importée — ATTENTION : ${pertes.join(" ; ")}`);
+  else direAvis(`version ${version} importée depuis ${fichier.name} : rien de perdu en route`);
+}
+
 async function ouvrirDansSlicer() {
   if (!IMPRESSION) { direRefus("exporte d'abord la version (→ Impression 3D)"); return; }
   try {
@@ -2643,6 +2675,12 @@ $("#btnAide").addEventListener("click", basculerAide);
 $("#btnImprimer").addEventListener("click", imprimerVersion);
 $("#btnOrienter").addEventListener("click", proposerOrientation);
 $("#btnSlicer").addEventListener("click", ouvrirDansSlicer);
+$("#btnRetourBlender").addEventListener("click", () => $("#retourFichier").click());
+$("#retourFichier").addEventListener("change", (ev) => {
+  const f = ev.target.files && ev.target.files[0];
+  ev.target.value = "";              /* le même fichier, re-choisi, doit relancer */
+  if (f) importerRetour(f);
+});
 $("#btnCouteauManip").addEventListener("click", () => {
   COUTEAU.manip = COUTEAU.manip === "translate" ? "rotate" : "translate";
   if (GIZMO && GESTE.mode === "couteau") {

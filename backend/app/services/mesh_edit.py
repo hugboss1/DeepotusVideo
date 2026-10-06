@@ -1049,6 +1049,43 @@ def materiau(data: bytes, index: int, champs: dict) -> tuple[bytes, dict]:
     return ecrire_glb(doc, binc), {"materiau": index, "avant": avant, "apres": _lire_materiau(m, index)}
 
 
+# ── L'ALLER-RETOUR BLENDER (tâche T094, phases ultérieures U3) ────────────────
+# Un GLB revenu de Blender entre comme une version de PLUS — jamais un
+# écrasement. Le piège nommé par la spec : l'exportateur glTF de Blender ne
+# garde le `skin` que si l'armature est cochée, ni les clips sans « Animation ».
+# Un rig PAYÉ qui disparaît en silence ne se voit qu'à l'usage, des jours plus
+# tard : la comparaison le DIT au moment de l'import, sans rien refuser — un
+# maillage nettoyé sans squelette peut être exactement ce qu'on voulait.
+TAILLE_MAX_IMPORT = 512 * 1024 * 1024
+
+
+def _resume_import(data: bytes) -> dict:
+    doc, _ = lire_glb(data)
+    rig = rig_inventory(data)
+    return {"os": rig["nb_os"], "clips": [c["nom"] for c in rig["clips"]],
+            "materiaux": len(_l(doc, "materials")), "noeuds": len(_l(doc, "nodes"))}
+
+
+def comparer_import(avant: bytes, apres: bytes) -> dict:
+    """Ce que la version de départ avait et que le retour n'a plus. Lève
+    ValueError si `apres` n'est pas un GLB v2 lisible."""
+    a, b = _resume_import(avant), _resume_import(apres)
+    dits: list[str] = []
+    if a["os"] and not b["os"]:
+        dits.append(f"le squelette a disparu : {a['os']} os avant, aucun après — dans Blender, "
+                    "l'export glTF ne garde le skinning que si l'armature est exportée avec le maillage")
+    elif b["os"] < a["os"]:
+        dits.append(f"le squelette a perdu des os : {a['os']} avant, {b['os']} après")
+    perdus = [c for c in a["clips"] if c not in b["clips"]]
+    if perdus:
+        dits.append(f"clips disparus : {', '.join(perdus)} — l'export glTF de Blender ne les garde "
+                    "qu'avec « Animation » cochée")
+    if b["materiaux"] < a["materiaux"]:
+        dits.append(f"matériaux : {a['materiaux']} avant, {b['materiaux']} après — "
+                    "un matériau non Principled BSDF ne passe pas l'export glTF")
+    return {"avant": a, "apres": b, "avertissements": dits}
+
+
 def ecrire_version(job: str, data: bytes, *, operation: str,
                    detail: dict | None = None) -> dict:
     """Dépose un GLB corrigé comme NOUVELLE version d'un job, avec sa fiche.

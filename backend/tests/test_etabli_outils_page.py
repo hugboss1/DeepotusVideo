@@ -1267,5 +1267,19 @@ def test_le_panneau_des_materiaux_ecrit_par_ecrireSeule_et_l_apercu_suit_les_ass
     assert 'materiau: "/api/etabli/materiau"' in _objet_etabli("ROUTES")
     assert "  rendreFiche();\n  rendreMateriaux();" in js.replace("\r\n", "\n")
 
+
+# ── T094 / U3 : le bouton de retour de Blender ─────────────────────────────────
+def test_le_retour_de_Blender_envoie_le_FICHIER_brut_et_rouvre_la_version_neuve():
+    f = _fonction_etabli_async("importerRetour")
+    assert '"/api/etabli/importer?job=' in f.replace("`", '"') or "/api/etabli/importer?job=" in f
+    assert 'method: "POST"' in f and "body: fichier" in f
+    assert "direRefus(refusDe(await r.text()))" in f, "un refus du serveur se lit en phrase, préfixé UNE fois (par le serveur)"
+    assert 'zone.classList.remove("avis")' in _fonction_etabli("direRefus"), "un refus après un avis ne porte pas les deux classes"
+    assert "src.avertissements" in f, "les pertes (squelette, clips, matériaux) sont DITES"
+    assert "version = fiche.version" in f, "le numéro est au PREMIER niveau de la fiche, pas dans `source`"
+    assert "ouvrirPrincipale(" in f and "S.sources = await jget(\"/api/etabli/sources\")" in f
+    html = _lire("etabli/index.html")
+    assert 'id="retourFichier"' in html and 'accept=".glb' in html and 'id="btnRetourBlender"' in html
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))
