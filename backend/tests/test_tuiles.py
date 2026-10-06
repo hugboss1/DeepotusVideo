@@ -415,6 +415,557 @@ def test_provenance_des_tuiles_est_declaree():
     assert LI.licence_defaut("tile_0123abcd_atlas.png", "tuiles") == LI.LICENCE_PROPRE
 
 
+# ═════════════════════════════════ T6 (t115) ═════════════════════════════════
+def test_les_variantes_ne_touchent_pas_le_bord():
+    """Le masque de cœur est 0 DUR sur l'anneau : la variante ne peut pas déplacer un pixel de bord, donc le
+    raccord reste 0.00 (mesuré sur les 10404 paires E légales d'un jeu à 3 variantes)."""
+    coeur = TO.masque_coeur(64)
+    b = 8
+    bords = (coeur.crop((0, 0, 64, b)), coeur.crop((0, 64 - b, 64, 64)),
+             coeur.crop((0, 0, b, 64)), coeur.crop((64 - b, 0, 64, 64)))
+    assert max(max(im.getextrema()) for im in bords) == 0
+    assert coeur.getpixel((32, 32)) == 255
+
+    A, B = _bruit(64, 1), _bruit(64, 2)
+    jeu = TO.assembler_jeu(A, B, "blob47", 64, variantes=3, graine=5)
+    assert len(jeu["tuiles"]) == 47 * 3 + 1
+    # les 3 variantes d'une même tuile diffèrent VRAIMENT...
+    i = jeu["cles"].index(255) * 3
+    assert len({jeu["tuiles"][i + k].tobytes() for k in range(3)}) == 3
+    # ... et ont exactement le même bord
+    for k in (1, 2):
+        assert jeu["tuiles"][i + k].crop((63, 0, 64, 64)).tobytes() == \
+            jeu["tuiles"][i].crop((63, 0, 64, 64)).tobytes()
+
+
+def test_raccord_du_jeu_a_variantes_reste_nul():
+    from app.services import tile_metrics as TM
+    jeu = TO.assembler_jeu(_bruit(64, 1), _bruit(64, 2), "blob47", 64, 3, 5)
+    n = sum(1 for _ in TM.paires_legales(jeu, "E"))
+    assert n == 10404, n                     # 1156 voisinages x 3 x 3
+    assert TM.raccord_jeu(jeu) == 0.0
+
+
+def test_masque_voisins_lit_les_huit_directions():
+    g = [[0] * 3 for _ in range(3)]
+    g[1][1] = 1
+    assert TO.masque_voisins(g, 1, 1, boucle=False) == 0
+    g[0][1] = 1                              # la case AU-DESSUS
+    assert TO.masque_voisins(g, 1, 1, boucle=False) == TO.N
+    g[1][2] = 1                              # la case À DROITE
+    assert TO.masque_voisins(g, 1, 1, boucle=False) == TO.N | TO.E
+    g[0][2] = 1                              # la diagonale NE, désormais légale
+    assert TO.masque_voisins(g, 1, 1, boucle=False) == TO.N | TO.E | TO.NE
+    # une diagonale SANS ses deux arêtes est effacée : le voisinage rendu est CANONIQUE
+    g2 = [[0, 0, 1], [0, 1, 0], [0, 0, 0]]
+    assert TO.masque_voisins(g2, 1, 1, boucle=False) == 0
+    # hors carte = vide quand boucle=False, et la carte boucle sinon
+    plein = [[1] * 3 for _ in range(3)]
+    assert TO.masque_voisins(plein, 0, 0, boucle=False) == \
+        TO.canon(TO.E | TO.S | TO.SE)
+    assert TO.masque_voisins(plein, 0, 0, boucle=True) == 255
+    # une carte NON carrée (une rangée qui boucle sur elle-même) : x lit la largeur, y la hauteur — un échange des
+    # deux ramènerait E sur la case elle-même et poserait le bit E
+    large = [[1, 0, 0, 0, 1]]
+    assert TO.masque_voisins(large, 0, 0, boucle=True) == TO.N | TO.S | TO.W | TO.NW | TO.SW
+
+
+def test_composer_carte_pose_les_bonnes_tuiles():
+    A, B = _bruit(64, 1), _bruit(64, 2)
+    jeu = TO.assembler_jeu(A, B, "blob47", 32, variantes=2, graine=3)
+    g = TO.carte_aleatoire(8, densite=0.55, graine=1)
+    assert len(g) == 8 and all(len(l) == 8 for l in g)
+    assert set(v for l in g for v in l) == {0, 1}
+    # la même graine rend la même carte : la recette est rejouable ; une autre graine, une autre carte
+    assert TO.carte_aleatoire(8, 0.55, 1) == g
+    assert TO.carte_aleatoire(8, 0.55, 2) != g
+    assert TO.carte_aleatoire(8, 0.0, 1) == [[0] * 8 for _ in range(8)]
+    assert TO.carte_aleatoire(8, 1.0, 1) == [[1] * 8 for _ in range(8)]
+
+    img, plan = TO.composer_carte(g, jeu, graine=1, boucle=True)
+    assert img.size == (8 * 32, 8 * 32)
+    assert len(plan) == 8 and len(plan[0]) == 8
+    variantes_vues = set()
+    for y in range(8):
+        for x in range(8):
+            t = plan[y][x]
+            if not g[y][x]:
+                assert t == jeu["vide"], (x, y)
+            else:
+                m = TO.masque_voisins(g, x, y, boucle=True)
+                base = jeu["cles"].index(m) * jeu["variantes"]
+                assert base <= t < base + jeu["variantes"], (x, y, m, t)
+                variantes_vues.add(t - base)
+            # le pixel posé est bien celui de la tuile du plan
+            assert img.crop((x * 32, y * 32, x * 32 + 32, y * 32 + 32)).tobytes() == \
+                jeu["tuiles"][t].convert("RGB").tobytes(), (x, y)
+    assert variantes_vues == {0, 1}, "les variantes sont tirées, pas seulement la première"
+
+
+def test_composer_carte_blob16_lit_les_aretes_seules():
+    """Un jeu d'ARÊTES n'a pas de clé pour un voisinage à coins : la carte doit chercher le voisinage réduit aux
+    quatre arêtes, sinon le premier coin posé lève une KeyError."""
+    jeu = TO.assembler_jeu(_bruit(64, 1), _bruit(64, 2), "blob16", 16, 1, 1)
+    plein = [[1] * 4 for _ in range(4)]
+    _img, plan = TO.composer_carte(plein, jeu, graine=1, boucle=True)
+    assert {t for l in plan for t in l} == {jeu["cles"].index(TO.N | TO.E | TO.S | TO.W)}
+
+
+def test_route_apercu_ecrit_le_png_et_le_plan():
+    from app.services.storage import init_db
+
+    async def scenario():
+        await init_db()
+        a = _poser_image("ap_a.png", _bruit(128, 4))
+        b = _poser_image("ap_b.png", _bruit(128, 5))
+        async with _client() as c:
+            r = await c.post("/api/tiles/jeu", json={
+                "matiere_a": {"image": a}, "matiere_b": {"image": b},
+                "jeu": "blob47", "cote": 32, "variantes": 3, "nom": "ap"})
+            tid = r.json()["tid"]
+            r = await c.post(f"/api/tiles/{tid}/apercu",
+                             json={"cases": 8, "densite": 0.55, "graine": 7})
+            assert r.status_code == 200, r.text
+            d = r.json()
+            assert d["cases"] == 8 and d["graine"] == 7
+            assert len(d["plan"]) == 8 and len(d["plan"][0]) == 8
+            assert d["url"] == f"/api/tiles/{tid}/fichier/apercu.png"
+            # le PNG ÉCRIT, relu par PIL, et identique à la composition refaite hors de la route
+            with Image.open(TS.tileset_dir(tid) / "apercu.png") as im:
+                assert im.size == (256, 256), im.size
+                jeu = TO.assembler_jeu(_bruit(128, 4), _bruit(128, 5), "blob47", 32, 3, 1)
+                attendu, plan = TO.composer_carte(TO.carte_aleatoire(8, 0.55, 7), jeu, graine=7)
+                assert plan == d["plan"] and im.convert("RGB").tobytes() == attendu.tobytes()
+            # la même graine redonne le même plan
+            r2 = await c.post(f"/api/tiles/{tid}/apercu",
+                              json={"cases": 8, "densite": 0.55, "graine": 7})
+            assert r2.json()["plan"] == d["plan"]
+            # densité 0 est une valeur, pas un oubli : carte toute vide
+            r0 = await c.post(f"/api/tiles/{tid}/apercu", json={"cases": 4, "densite": 0})
+            assert r0.status_code == 200 and r0.json()["densite"] == 0.0, r0.text
+            assert {t for l in r0.json()["plan"] for t in l} == {47 * 3}
+            for corps, mot in (({"cases": 999}, "cases"), ({"cases": 3}, "cases"),
+                               ({"densite": 1.5}, "densite"), ({"graine": "x"}, "entiers")):
+                rr = await c.post(f"/api/tiles/{tid}/apercu", json=corps)
+                assert rr.status_code == 400 and mot in rr.text, (corps, rr.status_code, rr.text)
+            r4 = await c.post("/api/tiles/tile_00000000/apercu", json={})
+            assert r4.status_code == 404, r4.text
+
+    asyncio.run(scenario())
+
+
+def test_apercu_borne_la_taille_en_pixels():
+    """16 cases de 512 px feraient une image de 8192 px de côté (≈ 200 Mo en RGB) : la route borne le côté de
+    l'aperçu en PIXELS, pas seulement en cases, et le dit."""
+    from app.services.storage import init_db
+
+    async def scenario():
+        await init_db()
+        a = _poser_image("big_a.png", _bruit(128, 4))
+        async with _client() as c:
+            r = await c.post("/api/tiles/jeu", json={"matiere_a": {"image": a}, "matiere_b": {"image": a},
+                                                     "jeu": "blob16", "cote": 512})
+            assert r.status_code == 200, r.text
+            tid = r.json()["tid"]
+            rr = await c.post(f"/api/tiles/{tid}/apercu", json={"cases": 16})
+            assert rr.status_code == 400 and "4096" in rr.text, rr.text
+            ok = await c.post(f"/api/tiles/{tid}/apercu", json={"cases": 8})
+            assert ok.status_code == 200, ok.text
+
+    asyncio.run(scenario())
+
+
+# ═════════════════════════════════ T7 (t115) ═════════════════════════════════
+def test_eclairage_lit_un_gradient_et_ignore_un_uni():
+    from app.services import tile_metrics as TM
+    assert TM.eclairage_score(_uni()) == 0.0
+    assert TM.eclairage_score(_bruit(64, 1)) == 0.0
+    h = TM.eclairage_score(_rampe())
+    assert h == 50.78, h                           # mesuré le 03/09 et le 06/10
+    v = TM.eclairage_score(_rampe().transpose(Image.ROTATE_90))
+    assert v == h, (h, v)                          # la norme ne prend pas parti
+    # une rampe DIAGONALE : les deux composantes s'ajoutent en norme, pas en somme
+    diag = Image.blend(_rampe(), _rampe().transpose(Image.ROTATE_90), 0.5)
+    d = TM.eclairage_score(diag)
+    assert abs(d - math.hypot(h / 2, h / 2)) < 0.5, d
+    assert TM.SEUILS["eclairage"] == 8.0
+    assert TM.SEUILS["ecart_eclairage"] == 5.0
+
+
+def test_eclairage_jeu_rend_max_ecart_et_detail():
+    from app.services import tile_metrics as TM
+    jeu = TO.assembler_jeu(_bruit(64, 1), _bruit(64, 2), "blob47", 64, 3, 5)
+    mx, ecart, par = TM.eclairage_jeu(jeu)
+    assert (mx, ecart) == (0.87, 0.87), (mx, ecart)   # mesuré
+    assert [p["index"] for p in par] == list(range(len(jeu["tuiles"])))
+    # une tuile éclairée cuite dans le jeu se voit au max ET à l'écart
+    jeu["tuiles"][5] = _rampe()
+    mx2, ecart2, _ = TM.eclairage_jeu(jeu)
+    assert mx2 == 50.78 and ecart2 == 50.78, (mx2, ecart2)
+    # l'écart est max − min, pas le max : un jeu dont la tuile la MOINS éclairée ne vaut pas 0 le distingue
+    demi = Image.blend(_rampe(), _uni(64, (127, 127, 127)), 0.5)
+    tout = {"tuiles": [_rampe()] * 3 + [demi]}
+    mx3, ecart3, _ = TM.eclairage_jeu(tout)
+    assert mx3 == 50.78 and 0 < ecart3 < 30, (mx3, ecart3)
+    assert ecart3 == round(50.78 - TM.eclairage_score(demi), 2)
+
+
+def test_repetition_voit_un_damier_et_pas_un_tirage():
+    from app.services import tile_metrics as TM
+    A, B = _bruit(64, 1), _bruit(64, 2)
+    damier = [[(x + y) % 2 for x in range(8)] for y in range(8)]
+    j1 = TO.assembler_jeu(A, B, "blob47", 64, 1, 5)
+    img_d, _ = TO.composer_carte(damier, j1, graine=1, boucle=True)
+    assert TM.repetition_score(img_d) == 100.0     # période exacte
+    assert TM.repetition_score(_uni(256)) == 100.0  # tout est périodique
+    # ÉCART AU PLAN : à 3 variantes, le même damier ne rend pas 100 mais 80.31 (mesuré le 06/10) — les variantes
+    # cassent la période exacte. Il reste au-dessus du seuil : un damier se voit encore.
+    jeu = TO.assembler_jeu(A, B, "blob47", 64, 3, 5)
+    img_d3, _ = TO.composer_carte(damier, jeu, graine=1, boucle=True)
+    r3 = TM.repetition_score(img_d3)
+    assert TM.SEUILS["repetition"] < r3 < 100.0, r3
+    for g in (1, 2, 3):
+        grille = TO.carte_aleatoire(8, 0.55, g)
+        img, _ = TO.composer_carte(grille, jeu, graine=g, boucle=True)
+        r = TM.repetition_score(img)
+        assert r < TM.SEUILS["repetition"], (g, r)  # mesuré : 19.08 / 20.53 / 21.95
+        assert 0.0 <= r <= 100.0
+    assert TM.SEUILS["repetition"] == 70.0
+
+
+def test_verdict_nomme_chaque_mesure():
+    from app.services import tile_metrics as TM
+    bon = TM.verdict({"raccord": 0.0, "repetition": 21.9,
+                      "eclairage_max": 0.87, "ecart_eclairage": 0.87})
+    assert bon == {"raccord": "ok", "repetition": "ok", "eclairage": "ok",
+                   "ecart_eclairage": "ok"}
+    mauvais = TM.verdict({"raccord": 4.2, "repetition": 98.0,
+                          "eclairage_max": 30.0, "ecart_eclairage": 12.0})
+    assert set(mauvais.values()) == {"attention"}, mauvais
+    # les bornes : le seuil lui-même est accepté pour raccord et éclairage, refusé pour la répétition (« < 70 »)
+    pile = TM.verdict({"raccord": 1.0, "repetition": 70.0, "eclairage_max": 8.0, "ecart_eclairage": 5.0})
+    assert pile == {"raccord": "ok", "repetition": "attention", "eclairage": "ok",
+                    "ecart_eclairage": "ok"}, pile
+    # entre les deux seuils d'éclairage (5 < 6 < 8) : l'écart se juge contre SON seuil, pas celui de la tuile
+    entre = TM.verdict({"raccord": 0.0, "repetition": 0.0, "eclairage_max": 6.0, "ecart_eclairage": 6.0})
+    assert entre["eclairage"] == "ok" and entre["ecart_eclairage"] == "attention", entre
+    # chaque mesure a SA porte : une seule en défaut n'en entraîne pas d'autre
+    for cle, mot in (("raccord", "raccord"), ("repetition", "repetition"),
+                     ("eclairage_max", "eclairage"), ("ecart_eclairage", "ecart_eclairage")):
+        m = {"raccord": 0.0, "repetition": 0.0, "eclairage_max": 0.0, "ecart_eclairage": 0.0}
+        m[cle] = 99.0
+        v = TM.verdict(m)
+        assert [k for k, x in v.items() if x == "attention"] == [mot], (cle, v)
+
+
+def test_route_mesures_rend_trois_chiffres_par_jeu_et_par_tuile():
+    from app.services.storage import init_db
+
+    async def scenario():
+        await init_db()
+        a = _poser_image("me_a.png", _bruit(128, 6))
+        b = _poser_image("me_b.png", _bruit(128, 7))
+        async with _client() as c:
+            r = await c.post("/api/tiles/jeu", json={
+                "matiere_a": {"image": a}, "matiere_b": {"image": b},
+                "jeu": "blob47", "cote": 32, "variantes": 2, "nom": "me"})
+            tid = r.json()["tid"]
+            r = await c.post(f"/api/tiles/{tid}/mesures", json={"graine": 3})
+            assert r.status_code == 200, r.text
+            d = r.json()
+            assert d["raccord"] == 0.0
+            assert 0.0 <= d["repetition"] < 70.0, d["repetition"]
+            assert d["eclairage_max"] < 8.0, d["eclairage_max"]
+            assert len(d["par_tuile"]) == 47 * 2 + 1
+            assert all(set(t) == {"index", "eclairage"} for t in d["par_tuile"])
+            assert d["verdict"] == {"raccord": "ok", "repetition": "ok",
+                                    "eclairage": "ok", "ecart_eclairage": "ok"}
+            assert d["seuils"]["repetition"] == 70.0
+            # la répétition est mesurée sur la MÊME carte que l'aperçu à graine égale
+            from app.services import tile_metrics as TM
+            ap = await c.post(f"/api/tiles/{tid}/apercu", json={"graine": 3})
+            with Image.open(TS.tileset_dir(tid) / "apercu.png") as im:
+                assert TM.repetition_score(im) == d["repetition"], (TM.repetition_score(im), d["repetition"])
+            assert ap.status_code == 200
+            # les mesures sont ÉCRITES dans le meta : elles survivent, et la lecture du jeu les rend
+            meta = json.loads(
+                (TS.tileset_dir(tid) / "meta.json").read_text("utf-8"))
+            assert meta["mesures"]["repetition"] == d["repetition"]
+            assert (await c.get(f"/api/tiles/{tid}")).json()["mesures"]["raccord"] == 0.0
+            # à 4 cases, la répétition se mesure à 4 cases (décalages de 4 x 4, pas de 8 x 8)
+            r4c = await c.post(f"/api/tiles/{tid}/mesures", json={"graine": 3, "cases": 4})
+            await c.post(f"/api/tiles/{tid}/apercu", json={"graine": 3, "cases": 4})
+            with Image.open(TS.tileset_dir(tid) / "apercu.png") as im:
+                assert r4c.json()["repetition"] == TM.repetition_score(im, 4), r4c.json()["repetition"]
+                assert TM.repetition_score(im, 4) != TM.repetition_score(im, 8)
+            rr = await c.post(f"/api/tiles/{tid}/mesures", json={"cases": 2})
+            assert rr.status_code == 400 and "cases" in rr.text, rr.text
+            r4 = await c.post("/api/tiles/tile_00000000/mesures", json={})
+            assert r4.status_code == 404, r4.text
+
+    asyncio.run(scenario())
+
+
+# ═════════════════════════════════ T8 (t115) ═════════════════════════════════
+# ÉCARTS AU PLAN, MESURÉS LE 06/10 sur son propre code :
+#  * sa mesure `seam_forme` comparait le champ de texture à LUI-MÊME décalé d'un vecteur du réseau — périodique par
+#    construction, quelle que soit la matière : un bruit BRUT, non raccordable, y rendait 0.0. Mesure aveugle.
+#  * son masque losange (polygone PIL jusqu'à w-1, h-1) laissait 80 px de TROUS par tuile 128 x 64 sur le réseau :
+#    des lignes de fond entre les tuiles dans le moteur ; son hexagone se chevauchait (110 px à R = 32).
+#  * à R = 55 (le 110 px de Godot), `3 * w // 4` tronquait le vecteur du réseau (82 au lieu de 82,5).
+#  * son atlas était converti en RGB : les coins hors losange devenaient NOIRS au lieu de transparents.
+def _couverture(forme, cote):
+    """(trous, doublons, aire) de la tuile centrale quand le masque est posé sur TOUT le réseau autour d'elle."""
+    from app.services import tile_shapes as TF
+    w, h = TF.dims(forme, cote)
+    vecs = list(TF.decalages(forme, w, h).values())
+    pts = {(0, 0)}
+    for _ in range(3):
+        pts |= {(x + a, y + b) for x, y in pts for a, b in vecs}
+    toile = Image.new("L", (5 * w, 5 * h), 0)
+    un = Image.new("L", (w, h), 1)
+    mq = TF.masque_forme(forme, cote).point(lambda v: 255 if v else 0)
+    for ox, oy in pts:
+        if abs(ox) <= 2 * w and abs(oy) <= 2 * h:
+            pose = Image.new("L", toile.size, 0)
+            pose.paste(un, (2 * w + ox, 2 * h + oy), mq)
+            toile = ImageChops.add(toile, pose)
+    centre = list(toile.crop((2 * w, 2 * h, 3 * w, 3 * h)).tobytes())
+    aire = sum(1 for v in mq.tobytes() if v)
+    return centre.count(0), sum(1 for v in centre if v >= 2), aire
+
+
+def test_dimensions_des_formes():
+    from app.services import tile_shapes as TF
+    assert TF.dims_iso(64) == (128, 64)              # le 2:1 des .tres Godot
+    assert TF.dims_iso(32) == (64, 32)
+    assert TF.dims_hex(32) == (64, 56)               # hauteur PAIRE, forcée
+    for r in range(8, 70):
+        w, h = TF.dims_hex(r)
+        # largeur multiple de 4 : le vecteur du réseau (3w/4, h/2) reste ENTIER ; hauteur paire pour h/2
+        assert w % 4 == 0 and h % 2 == 0, (r, w, h)
+        assert abs(h / w - math.sqrt(3) / 2) < 0.05, (r, w, h)   # un hexagone presque régulier
+    assert TF.dims_hex(55) == (112, 96), TF.dims_hex(55)
+    assert set(TF.DEC_ISO(128, 64)) == {"NE", "SE", "SW", "NW"}
+    assert set(TF.DEC_HEX(64, 56)) == {"N", "NE", "SE", "S", "SW", "NW"}
+    assert TF.DEC_HEX(64, 56)["NE"] == (48, -28)
+    for d in list(TF.DEC_ISO(128, 64).values()) + list(TF.DEC_HEX(64, 56).values()):
+        assert all(isinstance(v, int) for v in d), d
+
+
+def test_masque_losange_et_hexagone():
+    from app.services import tile_shapes as TF
+    mi = TF.masque_forme("iso", 64)
+    assert mi.size == (128, 64)
+    assert mi.getpixel((64, 32)) == 255              # le centre
+    assert mi.getpixel((0, 0)) == 0                  # le coin, hors losange
+    assert mi.getpixel((2, 32)) == 255               # la pointe gauche
+    mh = TF.masque_forme("hex", 32)
+    assert mh.size == (64, 56)
+    assert mh.getpixel((32, 28)) == 255
+    assert mh.getpixel((0, 0)) == 0
+    assert mh.getpixel((2, 28)) == 255               # la pointe gauche
+    assert set(mh.tobytes()) == {0, 255}             # binaire : pas de demi-pixel qui laisserait voir le fond
+    # le test porte sur le CENTRE du pixel : un losange 2:1 n'a aucun centre sur une arête (en demi-pixels, l'arête
+    # impose un x pair, un centre l'a impair), donc son masque est symétrique dans les deux sens — échantillonner le
+    # coin du pixel le décalerait d'un demi-pixel
+    for c in (16, 32, 64):
+        m = TF.masque_forme("iso", c)
+        assert m.tobytes() == m.transpose(Image.FLIP_TOP_BOTTOM).tobytes(), c
+        assert m.tobytes() == m.transpose(Image.FLIP_LEFT_RIGHT).tobytes(), c
+    try:
+        TF.masque_forme("triangle", 32)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("masque_forme a accepte une forme inconnue")
+
+
+def test_les_masques_pavent_le_reseau_sans_trou_ni_doublon():
+    """LA mesure de forme : posé sur tout le réseau, le masque couvre chaque pixel UNE fois. Un trou = une ligne de
+    fond entre deux tuiles dans le moteur. L'aire vaut celle de la maille du réseau."""
+    from app.services import tile_shapes as TF
+    for cote in (16, 32, 48, 64, 128):
+        w, h = TF.dims("iso", cote)
+        assert _couverture("iso", cote) == (0, 0, w * h // 2), (cote, _couverture("iso", cote))
+    for r in (8, 16, 21, 32, 55, 64):
+        w, h = TF.dims("hex", r)
+        assert _couverture("hex", r) == (0, 0, 3 * w // 4 * h), (r, _couverture("hex", r))
+
+
+def test_les_tuiles_posees_sur_le_reseau_reproduisent_le_champ():
+    """Les VRAIES tuiles RGBA, posées sur le réseau, montrent exactement la texture continue : les bords
+    correspondants raccordent, au pixel (0 écart sur toute la tuile centrale et autour)."""
+    from app.services import tile_shapes as TF
+    mat = _bruit(64, 3)
+    for forme, cote in (("iso", 64), ("hex", 32), ("iso", 32), ("hex", 55)):
+        w, h = TF.dims(forme, cote)
+        tuile = TF.tuile_forme(mat, forme, cote)
+        assert tuile.mode == "RGBA" and tuile.size == (w, h)
+        # origine HORS réseau : (w, h) est lui-même un vecteur du réseau (losange et hexagone), et un champ qui
+        # ignorerait son origine verticale tombait juste par coïncidence (mutant M32 du 06/10, survivant)
+        x0, y0 = w + 3, h + 5
+        champ = TF.texture_forme(mat, forme, cote, taille=(3 * w + 8, 3 * h + 8), origine=(x0, y0))
+        toile = Image.new("RGBA", (3 * w + 8, 3 * h + 8), (0, 0, 0, 0))
+        vecs = list(TF.decalages(forme, w, h).values())
+        pts = {(0, 0)}
+        for _ in range(3):
+            pts |= {(x + a, y + b) for x, y in pts for a, b in vecs}
+        for ox, oy in pts:
+            # toute tuile qui touche la boîte centrale a |ox| <= w et |oy| <= h : elle tient dans la toile 3 x 3
+            if abs(ox) <= w and abs(oy) <= h:
+                toile.alpha_composite(tuile, (x0 + ox, y0 + oy))
+        boite = (x0, y0, x0 + w, y0 + h)
+        t, c = toile.crop(boite), champ.crop(boite)
+        assert t.getchannel("A").getextrema() == (255, 255), (forme, cote, "trou dans la tuile centrale")
+        # en RGB : `getbbox()` d'une image RGBA ne lit QUE l'alpha (Pillow) — la différence RGBA de deux images
+        # opaques rendait None même sur une texture fausse (mutant M30 du 06/10, coefficient iso faux, survivant)
+        assert ImageChops.difference(t.convert("RGB"), c).getbbox() is None, (forme, cote)
+
+
+def test_le_raccord_d_une_forme_est_celui_de_la_matiere():
+    """Le réseau est périodique PAR CONSTRUCTION : la seule couture possible est celle de la matière avec elle-même.
+    Témoin : un bruit miroir rend 0.0, un bruit BRUT rend son propre raccord — non nul, celui du jeu carré."""
+    from app.services import tile_shapes as TF
+    from app.services import tile_metrics as TM
+    rng = random.Random(5)
+    brut = Image.frombytes("RGB", (64, 64), bytes(rng.randrange(256) for _ in range(64 * 64 * 3)))
+    for forme, cote in (("iso", 64), ("hex", 32)):
+        assert TF.raccord_forme(_bruit(64, 3), forme, cote) == 0.0
+        r = TF.raccord_forme(brut, forme, cote)
+        m = TF.matiere_carree(brut, forme, cote)
+        assert m.size[0] == m.size[1] == TF.dims(forme, cote)[0]
+        assert r == max(TM.seam_pair(m, m, "E"), TM.seam_pair(m, m, "S")) and r > 10, (forme, r)
+
+
+def test_assembler_forme_rend_un_jeu_exportable():
+    A = _bruit(64, 1)
+    jeu = TO.assembler_forme(A, "iso", 64)
+    assert jeu["forme"] == "iso" and jeu["jeu"] == "forme"
+    assert jeu["largeur"] == 128 and jeu["hauteur"] == 64
+    assert len(jeu["tuiles"]) == 1 and jeu["tuiles"][0].size == (128, 64)
+    assert jeu["tuiles"][0].mode == "RGBA"           # hors forme = transparent
+    assert jeu["tuiles"][0].getpixel((0, 0))[3] == 0
+    assert jeu["tuiles"][0].getpixel((64, 32))[3] == 255
+    assert jeu["vide"] is None, "une forme n'a pas de tuile VIDE : un index 1 sortirait de l'atlas d'une case"
+    jh = TO.assembler_forme(A, "hex", 32)
+    assert (jh["largeur"], jh["hauteur"]) == (64, 56)
+    # une matière non carrée est ramenée au carré : le pavage lit sa largeur des deux côtés
+    jr = TO.assembler_forme(A.resize((96, 40)), "hex", 32)
+    assert jr["tuiles"][0].size == (64, 56)
+
+
+def test_route_jeu_accepte_iso_et_hex():
+    from app.services.storage import init_db
+
+    async def scenario():
+        await init_db()
+        a = _poser_image("fo_a.png", _bruit(128, 8))
+        async with _client() as c:
+            for forme, taille in (("iso", (128, 64)), ("hex", (64, 56))):
+                r = await c.post("/api/tiles/jeu", json={
+                    "matiere_a": {"image": a}, "forme": forme,
+                    "cote": 64 if forme == "iso" else 32, "nom": forme})
+                assert r.status_code == 200, r.text
+                d = r.json()
+                assert d["forme"] == forme
+                assert (d["largeur"], d["hauteur"]) == taille, d
+                assert d["raccord"] == 0.0, d["raccord"]
+                with Image.open(TS.tileset_dir(d["tid"]) / "atlas.png") as im:
+                    assert im.size == taille, im.size
+                    # l'atlas GARDE son alpha : hors forme transparent, pas noir
+                    assert im.mode == "RGBA" and im.getpixel((0, 0))[3] == 0, (im.mode, im.getpixel((0, 0)))
+                # LDtk refuse une forme non orthogonale, EN LE DISANT
+                r2 = await c.post(f"/api/tiles/{d['tid']}/export", json={"format": "ldtk"})
+                assert r2.status_code == 400, r2.text
+                assert "orthogonal" in r2.text.lower(), r2.text
+                for fmt in ("tiled", "godot"):
+                    r3 = await c.post(f"/api/tiles/{d['tid']}/export", json={"format": fmt})
+                    assert r3.status_code == 200, r3.text
+                # l'auto-tuilage et les mesures sont refusés sur une forme, en le disant
+                for route in ("apercu", "mesures"):
+                    r4 = await c.post(f"/api/tiles/{d['tid']}/{route}", json={"cases": 8})
+                    assert r4.status_code == 400 and "carre" in r4.text, r4.text
+                # le meta décrit le jeu PRODUIT : une forme, une tuile, sans VIDE
+                meta = json.loads((TS.tileset_dir(d["tid"]) / "meta.json").read_text("utf-8"))
+                assert meta["jeu"] == "forme" and meta["variantes"] == 1 and meta["tuiles"] == 1
+                assert meta["cles"] == [255] and meta["vide"] is None, meta
+                assert meta["source_b"] is None, "une forme n'a qu'une matiere"
+            # le raccord d'une forme sur une matière brute est MESURÉ, non nul
+            rng = random.Random(5)
+            brut = _poser_image("fo_brut.png", Image.frombytes(
+                "RGB", (64, 64), bytes(rng.randrange(256) for _ in range(64 * 64 * 3))))
+            r = await c.post("/api/tiles/jeu", json={"matiere_a": {"image": brut}, "forme": "iso", "cote": 32})
+            assert r.status_code == 200 and r.json()["raccord"] > 10, r.text
+            r = await c.post("/api/tiles/jeu", json={"matiere_a": {"image": a}, "forme": "triangle"})
+            assert r.status_code == 400 and "forme" in r.text, r.text
+            # un jeu CARRÉ exige toujours sa matière B
+            r = await c.post("/api/tiles/jeu", json={"matiere_a": {"image": a}})
+            assert r.status_code == 400 and "matiere_b" in r.text, r.text
+
+    asyncio.run(scenario())
+
+
+# ═════════════════════════════════ T9 (t115) ═════════════════════════════════
+# ÉCART AU PLAN : la page a gagné depuis le 03/09 sa propre barre de modes (#tlTabs : Seamless · Feuille de tuiles,
+# lot 4 du 19/09). Jeu et Formes y deviennent deux MODES de plus, plutôt qu'une seconde barre d'onglets par-dessus.
+def _front(rel):
+    return (FRONT / "tilelab" / rel).read_text(encoding="utf-8")
+
+
+def test_ecran_tilelab_porte_les_modes_jeu_et_formes():
+    """Banc-miroir de front vanilla : on épingle des marqueurs dans le texte des fichiers. Mesure FAIBLE (elle ne
+    prouve pas le rendu, la preuve navigateur le fait) — elle garde les points de contact avec l'API."""
+    html = _front("index.html")
+    for m in ("seamless", "feuille", "jeu", "formes"):        # les deux modes existants survivent
+        assert f'data-m="{m}"' in html, m
+    assert 'src="tilelab.js"' in html and 'src="jeu.js"' in html
+    assert html.index('src="tilelab.js"') < html.index('src="jeu.js"'), "jeu.js s'appuie sur tlMode"
+    for ident in ("tlJeuSrc", "tlFormesSrc", "jeuOut", "formesOut", "jeuSlotA", "jeuSlotB", "jeuGrid",
+                  "jeuKind", "jeuCote", "jeuVariantes", "jeuGraine", "jeuRun", "jeuAtlas", "jeuApercu",
+                  "jeuApercuBtn", "jeuMesuresBtn", "jeuMesures", "expTiled", "expLdtk", "expGodot", "expAtlas",
+                  "formeSlot", "formeKind", "formeCote", "formeRun", "formeImg", "formePavage",
+                  "expFormeTiled", "expFormeGodot", "expFormeAtlas"):
+        assert html.count(f'id="{ident}"') == 1, ident
+
+    js = _front("jeu.js")
+    for route in ('"/tiles/jeu"', "`/tiles/${etat.tid}/apercu`", "`/tiles/${etat.tid}/mesures`",
+                  "`/tiles/${tid}/export`", "/fichier/atlas.png"):
+        assert route in js, route
+    # les exports passent par le backend, jamais par une construction client
+    for interdit in ("wangid", "<tileset", "gd_resource", "autoRuleGroups"):
+        assert interdit not in js, f"{interdit} : le fichier est ecrit par Python, pas par le navigateur"
+    # les trois mesures sont AFFICHÉES, chacune avec son verdict et son seuil
+    for mot in ("raccord", "repetition", "eclairage_max", "ecart_eclairage", "verdict", "seuils"):
+        assert mot in js, mot
+    # la répétition se lit sur l'aperçu MONTRÉ : les mesures reprennent sa graine
+    assert "{ graine: etat.graineApercu || 1, cases: ap.cases, densite: ap.densite }" in js
+    tl = _front("tilelab.js")
+    assert '"jeu"' in tl and '"formes"' in tl, "tlMode connait les deux modes"
+    css = _front("tilelab.css")
+    assert ".tl-slot" in css and ".tl-damier" in css
+
+
+def test_jeu_js_passe_node_check():
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        print("  (node absent : verification de syntaxe sautee)")
+        return
+    for f in ("jeu.js", "tilelab.js"):
+        r = subprocess.run([node, "--check", str(FRONT / "tilelab" / f)], capture_output=True, text=True)
+        assert r.returncode == 0, (f, r.stderr)
+
+
+def test_le_hub_du_bundle_pointe_toujours_sur_tilelab():
+    """Coût de patch : AUCUNE tâche de ce plan ne touche frontend/dist. On vérifie seulement que l'ancre posée par
+    patch_bundle_tilelab tient."""
+    patch = (RACINE / "scripts" / "patch_bundle_tilelab.py").read_text("utf-8")
+    assert 'src:"/tilelab/"' in patch
+    assert 'tb("tiles","🧱 Tuiles")' in patch
+
+
 def _main():
     rouges = 0
     for nom, fn in sorted(globals().items()):

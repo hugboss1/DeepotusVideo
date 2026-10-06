@@ -252,6 +252,59 @@ def test_tres_blob16_assortit_les_COTES_seulement():
     assert len([l for l in L if l.endswith("/0 = 0")]) == 17
 
 
+# ── FORMES (t115, plan T8) ───────────────────────────────────────────────────────────────────────────────────────────
+def _meta_forme(forme):
+    from app.services import tile_ops as TO
+    jeu = TO.assembler_forme(_matiere(1), forme, 64 if forme == "iso" else 32)
+    return {"nom": forme, "jeu": "forme", "forme": forme, "cles": [255], "cote": jeu["cote"],
+            "largeur": jeu["largeur"], "hauteur": jeu["hauteur"], "variantes": 1, "tuiles": 1, "vide": None,
+            "colonnes": 1, "rangees": 1}
+
+
+def test_exports_de_forme_disent_ce_qu_ils_portent():
+    from app.services import tile_export as TE
+    meta_iso = _meta_forme("iso")
+    r = ET.parse(TE.ecrire_tsx(_dossier(), meta_iso)).getroot()
+    g = r.find("grid")
+    assert g is not None and g.get("orientation") == "isometric"
+    assert g.get("width") == "128" and g.get("height") == "64"
+    assert r.get("tilewidth") == "128" and r.get("tileheight") == "64" and r.get("tilecount") == "1"
+    assert r.find("image").get("width") == "128" and r.find("image").get("height") == "64"
+    # UNE tuile, sans jeu Wang : aucun identifiant ne sort de l'atlas d'une case
+    assert r.find("wangsets") is None
+    assert all(t.get("id") == "0" for t in r.iter("tile"))
+    L = _lignes(TE.ecrire_tres(_dossier(), meta_iso))
+    assert "tile_shape = 1" in L and "tile_layout = 5" in L
+    assert "tile_size = Vector2i(128, 64)" in L and "texture_region_size = Vector2i(128, 64)" in L
+    assert [l for l in L if l.endswith("/0 = 0")] == ["0:0/0 = 0"], "une seule tuile, dans l'atlas"
+    assert not [l for l in L if "terrain" in l], "pas de terrain pour une tuile seule"
+
+    meta_hex = _meta_forme("hex")
+    r2 = ET.parse(TE.ecrire_tsx(_dossier(), meta_hex)).getroot()
+    # l'orientation hexagonale est un attribut de <map>, PAS de <tileset>
+    assert r2.find("grid") is None
+    assert r2.get("tilewidth") == "64" and r2.get("tileheight") == "56"
+    L2 = _lignes(TE.ecrire_tres(_dossier(), meta_hex))
+    assert "tile_shape = 3" in L2 and "tile_offset_axis = 1" in L2
+    assert "tile_size = Vector2i(64, 56)" in L2
+    assert not [l for l in L2 if l.startswith("tile_layout")]
+    assert [l for l in L2 if l.endswith("/0 = 0")] == ["0:0/0 = 0"]
+
+    for meta in (meta_iso, meta_hex):
+        with pytest.raises(ValueError, match="(?i)orthogonal"):
+            TE.ecrire_ldtk(_dossier(), meta)
+
+
+def test_un_jeu_carre_ne_porte_toujours_ni_grid_ni_tile_shape():
+    """Témoin de non-régression : la branche de forme ne déborde pas sur le carré."""
+    from app.services import tile_export as TE
+    meta = _meta("blob47")
+    r = ET.parse(TE.ecrire_tsx(_dossier(), meta)).getroot()
+    assert r.find("grid") is None and r.find("wangsets") is not None
+    L = _lignes(TE.ecrire_tres(_dossier(), meta))
+    assert not [l for l in L if l.startswith(("tile_shape", "tile_layout", "tile_offset_axis"))]
+
+
 # ── LA ROUTE ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 def _appels(requetes):
     from httpx import ASGITransport, AsyncClient

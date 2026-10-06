@@ -19,7 +19,9 @@
   <section class="pane src-pane">
     <div class="pane-head"><nav class="tabs" id="tlTabs">
       <button class="tab active" data-m="seamless" title="Une image devient une tuile seamless (existant)">🧱 Seamless</button>
-      <button class="tab" data-m="feuille" title="Une planche de tuiles existante : détection, grille de placement, raccords, exports — tout en local">🗂 Feuille de tuiles</button></nav></div>
+      <button class="tab" data-m="feuille" title="Une planche de tuiles existante : détection, grille de placement, raccords, exports — tout en local">🗂 Feuille de tuiles</button>
+      <button class="tab" data-m="jeu" title="Deux matières deviennent un jeu blob 47 / 16 auto-tuilable, mesuré, exporté vers Tiled, LDtk, Godot">🧩 Jeu</button>
+      <button class="tab" data-m="formes" title="Une matière devient une tuile losange 2:1 ou hexagonale qui pave sans couture">🔷 Formes</button></nav></div>
     <div id="tlSeamlessSrc" class="src-body">
     <input id="imgSearch" class="search" placeholder="🔎 Filtrer les images…">
     <div id="imgGrid" class="img-grid tall"><div class="empty-note">Chargement de la Library…</div></div>
@@ -34,6 +36,23 @@
       </div>
       <input id="feuilleSearch" class="search" placeholder="🔎 Filtrer les planches de la Library…">
       <div id="feuilleGrid" class="img-grid tall"><div class="empty-note">Chargement de la Library…</div></div>
+    </div>
+    <!-- t115 : Jeu (blob) — deux matières de la Library -->
+    <div id="tlJeuSrc" class="src-body hidden">
+      <div class="tl-slots">
+        <button id="jeuSlotA" class="tl-slot on" data-slot="a" title="Le TERRAIN : la matière posée là où la case est pleine"><span class="tl-slot-k">A · terrain</span><img alt=""><span class="tl-slot-n">clique une image ↓</span></button>
+        <button id="jeuSlotB" class="tl-slot" data-slot="b" title="Le FOND : la matière autour du terrain"><span class="tl-slot-k">B · fond</span><img alt=""><span class="tl-slot-n">puis une seconde</span></button>
+      </div>
+      <input id="jeuSearch" class="search" placeholder="🔎 Filtrer les matières…">
+      <div id="jeuGrid" class="img-grid tall"><div class="empty-note">Chargement de la Library…</div></div>
+    </div>
+    <!-- t115 : Formes — une matière -->
+    <div id="tlFormesSrc" class="src-body hidden">
+      <div class="tl-slots">
+        <button id="formeSlot" class="tl-slot on" title="La matière envoyée sur le réseau de la forme"><span class="tl-slot-k">Matière</span><img alt=""><span class="tl-slot-n">clique une image ↓</span></button>
+      </div>
+      <input id="formeSearch" class="search" placeholder="🔎 Filtrer les matières…">
+      <div id="formeGrid" class="img-grid tall"><div class="empty-note">Chargement de la Library…</div></div>
     </div>
     <div class="hint">Textures sol/mur, motifs, feuillages… La tuile générée rejoint la Library (<i>gen_*.png</i>) et sert partout (Studio, Seedance, Sprite Lab).</div>
   </section>
@@ -125,6 +144,83 @@
       </div>
     </div>
 
+    <!-- t115 : le jeu blob — atlas, aperçu auto-tuilé, trois mesures, exports (tout fichier est écrit par Python) -->
+    <div id="jeuOut" class="tl-feuille hidden">
+      <div class="grid2">
+        <label class="fld">Jeu
+          <select id="jeuKind" title="47 : les 8 voisins (coins compris) · 16 : les 4 arêtes seules">
+            <option value="blob47" selected>Blob 47 (8 voisins)</option>
+            <option value="blob16">Blob 16 (4 arêtes)</option>
+          </select></label>
+        <label class="fld">Côté <span class="unit">px</span>
+          <select id="jeuCote"><option>16</option><option>32</option><option selected>64</option><option>128</option><option>256</option></select></label>
+        <label class="fld">Variantes <span class="unit">1 à 5</span>
+          <input id="jeuVariantes" type="number" min="1" max="5" value="3" title="Les variantes ne touchent que le cœur de la tuile : le bord, donc le raccord, ne bouge pas"></label>
+        <label class="fld">Graine
+          <input id="jeuGraine" type="number" min="1" value="1" title="Même graine = mêmes variantes"></label>
+      </div>
+      <div class="genrow">
+        <button id="jeuRun" class="btn primary big" disabled title="Local et gratuit (PIL) — l'atlas rejoint la Library (tile_…_atlas.png)">🧩 Fabriquer le jeu</button>
+        <span class="cost">gratuit · local</span>
+        <span id="jeuInfo" class="counter">—</span>
+      </div>
+      <div id="jeuStatus" class="status hidden"></div>
+      <div id="jeuVide" class="empty-note">Choisis deux matières à gauche (A le terrain, B le fond), puis fabrique : l'atlas, un aperçu auto-tuilé et les trois mesures s'affichent ici.</div>
+      <div id="jeuCorps" class="hidden">
+        <div class="tl-sec">Atlas</div>
+        <img id="jeuAtlas" class="tl-damier" alt="atlas du jeu de tuiles">
+        <div class="tl-sec">Aperçu auto-tuilé <span class="hint">une carte tirée au hasard ; chaque case reçoit la tuile de ses voisins</span></div>
+        <div class="row">
+          <label class="fld inline">cases <select id="jeuCases"><option>4</option><option selected>8</option><option>12</option><option>16</option></select></label>
+          <label class="fld inline">densité <input id="jeuDensite" type="number" min="0" max="1" step="0.05" value="0.55" style="width:64px"></label>
+          <button id="jeuApercuBtn" class="btn" title="Tire une nouvelle carte (nouvelle graine)">🎲 Nouvel aperçu</button>
+          <span id="jeuApercuInfo" class="hint"></span>
+        </div>
+        <img id="jeuApercu" class="tl-damier" alt="aperçu auto-tuilé">
+        <div class="tl-sec">Mesures <button id="jeuMesuresBtn" class="btn ghost" title="Raccord, répétition (sur l'aperçu montré), éclairage — chacun contre son seuil">📏 Mesurer</button></div>
+        <div id="jeuMesures" class="tl-scores tl-mesures"><span class="hint">Pas encore mesuré.</span></div>
+        <div class="tl-sec">Export <span class="hint">pose le fichier À CÔTÉ de atlas.png : il le désigne par un chemin relatif</span></div>
+        <div class="row">
+          <button id="expAtlas" class="btn" title="L'atlas PNG, que chaque format désigne">⬇ atlas.png</button>
+          <button id="expTiled" class="btn" title="Tiled : tileset externe + jeu Wang (mixed / edge)">⬇ Tiled .tsx</button>
+          <button id="expLdtk" class="btn" title="LDtk 1.5.3 : projet avec couche IntGrid et règles d'auto-layer">⬇ LDtk .ldtk</button>
+          <button id="expGodot" class="btn" title="Godot 4 : TileSet avec terrain set">⬇ Godot .tres</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- t115 : une tuile de forme -->
+    <div id="formesOut" class="tl-feuille hidden">
+      <div class="grid2">
+        <label class="fld">Forme
+          <select id="formeKind">
+            <option value="iso" selected>Losange isométrique 2:1</option>
+            <option value="hex">Hexagone à sommet plat</option>
+          </select></label>
+        <label class="fld">Taille <span class="unit">px (hauteur iso · rayon hex)</span>
+          <select id="formeCote"><option>16</option><option selected>32</option><option>64</option><option>128</option></select></label>
+      </div>
+      <div class="genrow">
+        <button id="formeRun" class="btn primary big" disabled title="Local et gratuit (PIL)">🔷 Fabriquer la tuile</button>
+        <span class="cost">gratuit · local</span>
+        <span id="formeInfo" class="counter">—</span>
+      </div>
+      <div id="formeStatus" class="status hidden"></div>
+      <div id="formeVide" class="empty-note">Choisis une matière à gauche : elle est envoyée sur le réseau de la forme, et la tuile pave sans trou ni couture.</div>
+      <div id="formeCorps" class="hidden">
+        <div class="tl-imgs">
+          <figure><figcaption>Tuile</figcaption><img id="formeImg" class="tl-damier" alt="tuile de forme"></figure>
+          <figure><figcaption>Pavage sur le réseau</figcaption><canvas id="formePavage" class="tl-damier" width="480" height="320"></canvas></figure>
+        </div>
+        <div class="tl-sec">Export <span class="hint">LDtk est orthogonal : il ne porte ni losange ni hexagone</span></div>
+        <div class="row">
+          <button id="expFormeAtlas" class="btn">⬇ atlas.png</button>
+          <button id="expFormeTiled" class="btn">⬇ Tiled .tsx</button>
+          <button id="expFormeGodot" class="btn">⬇ Godot .tres</button>
+        </div>
+      </div>
+    </div>
+
     <div id="result" class="tl-result hidden">
       <div class="tl-scores">
         <span class="tl-chip">Raccord avant : <b id="scoreBefore">—</b></span>
@@ -149,5 +245,6 @@
 <script src="/shared/dz-plafonds.js"></script>
 <script src="/shared/dialogue.js"></script>
 <script src="tilelab.js"></script>
+<script src="jeu.js"></script>
 </body>
 </html>
