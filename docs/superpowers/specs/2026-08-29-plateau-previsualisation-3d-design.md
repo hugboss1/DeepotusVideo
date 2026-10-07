@@ -2,6 +2,23 @@
 
 **Date :** 2026-08-29
 **Statut :** design proposé — rien n'est codé, la demande était « réfléchis à »
+
+> **Livré le 07/10/2026 (t127, P1 à P4)** — plan `docs/superpowers/plans/2026-10-07-plan-plateau-3d.md`. Écarts
+> DÉCIDÉS ou MESURÉS par rapport à ce texte :
+> - **visualiseur** : le canevas three.js partagé `frontend/lib3d/viewer.js` (décision de l'utilisateur, 07/10), et
+>   non `<model-viewer>` (§3) : la scène se monte objet par objet dans la page ; le **GLB de scène composé reste une
+>   SORTIE** versionnée (`scene.v<n>.glb`, fiche `mesh_report`), plus le moyen d'affichage. La convention d'orbite
+>   [θ, φ, r] de `<model-viewer>` est gardée pour les keyframes ;
+> - **§5.3, grue** : jugée sur la HAUTEUR réelle de la caméra — « φ ↓ (caméra descend) » contredit la convention de
+>   φ (compté depuis +Y) ; le dolly zoom est reconnu dans les deux sens ; une grue montante ou une orbite partielle
+>   n'ont pas de mot dans le vocabulaire : plan fixe + avertissement qui le dit ;
+> - **§6, images de bornes** : nouvelles colonnes `shots.keyframe_image` / `keyframe_end` (+ `motion_prompt`) — le
+>   croquis et l'image de production (#62) ne sont pas touchés ; captures rendues à 1 280 px de grand côté au ratio
+>   du cadre, provenance Bibliothèque « Plateau 3D » ;
+> - **type de plan proposé au plan** : mesuré au PREMIER keyframe (le cadrage d'ouverture), pas sur la caméra
+>   courante — mesuré à l'écran : après une capture, la caméra est au cadre de FIN ;
+> - **sujet hors du cadre pendant le mouvement** : jugé sur le CENTRE du sujet (un gros plan qui déborde n'est pas
+>   une sortie) ; `dans_cadre` de la mesure ponctuelle reste « boîte entière dans le cadre ».
 **Demande (verbatim) :** « réfléchis à un visualisateur 3d avec cadrage camera et
 toutes les fonctionalités qui s'y préterait pour préparer une scene avant tir 3d
 réel (un émulateur d'environement 3d incorporant des versions simplifiés des

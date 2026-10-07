@@ -1,0 +1,133 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Le Plateau 3D (t127) — même famille visuelle que l'Établi : tout vient de
+   /shared/deepotus.tokens.css, aucune couleur en dur, le thème clair suit.
+   Le canevas lib3d pose un CONTRAT D'HÔTE (setSize sans toucher au style) :
+   la chaîne de hauteurs est posée explicitement, comme dans etabli.css —
+   html,body 100 % → .plateau 100vh, rangée minmax(0, 1fr) → .centre min-height:0
+   → .scene flex:1 → .cadre (taille calculée au ratio en JS) → canvas inset:0.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@import url("/shared/deepotus.tokens.css");
+
+html, body { height: 100%; overflow: hidden; margin: 0; background: var(--bg-base); color: var(--ink); }
+button, input, select { font-family: inherit; }
+.plateau {
+  display: grid; grid-template-columns: 270px 1fr 300px; grid-template-rows: minmax(0, 1fr);
+  height: 100vh; overflow: hidden; background: var(--bg-base);
+}
+.rail {
+  min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
+  padding: 12px; border-right: 1px solid var(--stroke); background: var(--bg-panel);
+}
+.rail.droite { border-right: 0; border-left: 1px solid var(--stroke); }
+.dt-label {
+  font-family: var(--f-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--ink-soft); margin-top: 6px;
+}
+.ligne { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12px; }
+.ligne > span { color: var(--ink-soft); font-size: 11px; }
+.sous { font-family: var(--f-mono); font-size: 10px; color: var(--ink-soft); }
+.champ {
+  flex: 1; min-width: 0; height: 26px; padding: 0 7px; border-radius: var(--r-sm);
+  border: 1px solid var(--stroke-strong); background: var(--bg-panel-2); color: var(--ink); font-size: 12px;
+}
+.champ.num { flex: 0 0 64px; font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.champ:focus { outline: none; border-color: var(--accent); }
+.btn {
+  height: 26px; padding: 0 9px; border-radius: var(--r-sm); border: 1px solid var(--stroke-strong);
+  background: var(--bg-panel-2); color: var(--ink); font-size: 11px; cursor: pointer; white-space: nowrap;
+  display: inline-flex; align-items: center; text-decoration: none;
+}
+.btn:hover:not(:disabled):not([aria-disabled="true"]) { border-color: var(--accent); color: var(--ink-strong); }
+.btn:disabled, .btn[aria-disabled="true"] { opacity: .45; cursor: not-allowed; }
+.btn.primaire { border-color: var(--accent); color: var(--accent); }
+.ajouts { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+
+.instances { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.instances li {
+  display: flex; align-items: center; gap: 6px; padding: 5px 7px; border-radius: var(--r-sm);
+  border: 1px solid var(--stroke); background: var(--bg-panel-2); font-size: 12px; cursor: pointer;
+}
+.instances li[aria-selected="true"] { border-color: var(--accent); }
+.instances li .pastille { width: 10px; height: 10px; border-radius: 2px; flex: none; }
+.instances li .role { margin-left: auto; font-family: var(--f-mono); font-size: 9.5px; color: var(--ink-soft); }
+.instances li .role.sujet { color: var(--accent); }
+.fiche { display: flex; flex-direction: column; gap: 5px; border-top: 1px solid var(--stroke); padding-top: 8px; }
+.fiche:empty { display: none; }
+.fiche .xyz { display: grid; grid-template-columns: 44px repeat(3, 1fr); gap: 3px; align-items: center; font-size: 11px; }
+.fiche .xyz span { color: var(--ink-soft); }
+.fiche .xyz input { width: 100%; box-sizing: border-box; }
+.tris { font-family: var(--f-mono); font-size: 10px; color: var(--ink-soft); margin-top: auto; }
+
+.centre { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.head {
+  height: 48px; flex: none; display: flex; align-items: center; gap: 10px;
+  padding: 0 14px; border-bottom: 1px solid var(--stroke); background: var(--bg-panel);
+}
+.head-btn {
+  padding: 6px 10px; border-radius: var(--r-sm); border: 1px solid var(--stroke-strong);
+  background: var(--bg-panel-2); color: var(--ink); font-family: var(--f-mono); font-size: 10.5px;
+  cursor: pointer; text-decoration: none; flex: none;
+}
+.head-btn:hover { border-color: var(--accent); color: var(--ink-strong); }
+.head-title { font-family: var(--f-display); font-size: 14px; font-weight: 600; color: var(--ink-strong); }
+.head-chip {
+  font-family: var(--f-mono); font-size: 10px; padding: 3px 8px; border-radius: 999px;
+  border: 1px solid var(--accent); color: var(--accent); max-width: 46ch;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.head-etat { margin-left: auto; font-family: var(--f-mono); font-size: 10px; color: var(--ink-soft); }
+.head-etat.erreur { color: var(--red); }
+
+/* la zone et le CADRE : le cadre est l'élément lui-même, au ratio cible (spec §3.1) — le noir autour est la
+   letterbox ; la taille du cadre est posée en px par plateau.js (cadreDans) */
+.scene {
+  flex: 1; min-height: 0; position: relative; overflow: hidden; background: #050607;
+  display: flex; align-items: center; justify-content: center;
+}
+.cadre { position: relative; flex: none; outline: 1px solid var(--stroke-strong); }
+.cadre canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.guides { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.guides line, .guides rect { stroke: rgba(255, 255, 255, .55); stroke-width: .25; fill: none; vector-effect: non-scaling-stroke; }
+.guides .horizon { stroke: var(--accent); stroke-dasharray: 2 1.5; }
+.guides .titre { stroke: rgba(255, 255, 255, .35); stroke-dasharray: 1 1; }
+
+.lecture {
+  flex: none; display: flex; gap: 16px; padding: 6px 14px; border-top: 1px solid var(--stroke);
+  background: var(--bg-panel); font-family: var(--f-mono); font-size: 11px; color: var(--ink);
+  font-variant-numeric: tabular-nums; min-height: 18px;
+}
+.lecture b { color: var(--accent); font-weight: 600; }
+.lecture .ko { color: var(--red); }
+.timeline {
+  flex: none; display: grid; grid-template-columns: auto 1fr auto; grid-template-rows: auto 16px;
+  gap: 4px 10px; align-items: center; padding: 8px 14px 10px; border-top: 1px solid var(--stroke);
+  background: var(--bg-panel);
+}
+.timeline input[type=range] { width: 100%; accent-color: var(--accent); }
+.tc { font-family: var(--f-mono); font-size: 11px; font-variant-numeric: tabular-nums; min-width: 6ch; text-align: right; }
+.kfs { grid-column: 2; position: relative; height: 16px; }
+.kfs .losange {
+  position: absolute; top: 2px; width: 10px; height: 10px; margin-left: -5px; transform: rotate(45deg);
+  background: var(--accent); border: 0; padding: 0; cursor: pointer;
+}
+
+.mesure, .mouvement, .vers-plan, .captures {
+  font-size: 11.5px; line-height: 1.5; display: flex; flex-direction: column; gap: 3px;
+}
+.mesure:empty, .mouvement:empty, .vers-plan:empty, .captures:empty { display: none; }
+.mesure .k, .mouvement .k { font-family: var(--f-mono); font-size: 10px; color: var(--ink-soft); }
+.ecart { color: var(--amber); }
+.avert { color: var(--amber); font-size: 11px; }
+.prompt {
+  font-family: var(--f-mono); font-size: 10.5px; padding: 6px; border-radius: var(--r-sm);
+  background: var(--bg-panel-2); border: 1px solid var(--stroke); color: var(--ink-strong); word-break: break-word;
+}
+.liste-kf { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; font-size: 11px; }
+.liste-kf li { display: flex; align-items: center; gap: 5px; }
+.liste-kf li .t { font-family: var(--f-mono); min-width: 5ch; }
+.liste-kf select { height: 22px; font-size: 10.5px; }
+.captures img { width: 100%; border-radius: var(--r-sm); border: 1px solid var(--stroke); }
+.vers-plan table { border-collapse: collapse; font-size: 11px; width: 100%; }
+.vers-plan td { border-top: 1px solid var(--stroke); padding: 3px 4px; vertical-align: top; word-break: break-word; }
+.vers-plan td:first-child { font-family: var(--f-mono); color: var(--ink-soft); white-space: nowrap; }
+.vers-plan tr.change td:last-child { color: var(--accent); }

@@ -490,6 +490,34 @@ class Shot(Base):
     # against the installed skill's catalog) + 1-5 energy level of the beat.
     motion_recipe: Mapped[Optional[str]] = mapped_column(String(60), nullable=True)
     energy: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # t127 (Plateau 3D, P4) — le pont depuis le Plateau : le prompt de MOUVEMENT écrit depuis les mesures, et les deux
+    # images de BORNES (cadres de début et de fin capturés au Plateau). Colonnes À PART : ni le croquis
+    # (`sketch_image`) ni l'image de production (`image`, #62) ne sont touchés.
+    motion_prompt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    keyframe_image: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    keyframe_end: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class Scene3D(Base):
+    """t127 (Plateau 3D) — une scène de prévisualisation : format, focale, instances (proxys ou maillages de jobs
+    assets3d), caméra courante et keyframes ; le GLB de scène composé est une SORTIE versionnée sur disque
+    (outputs/scenes3d/<id>/scene.v<n>.glb). Spec docs/superpowers/specs/2026-08-29-plateau-previsualisation-3d-design.md."""
+    __tablename__ = "scenes3d"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    chapter_id: Mapped[Optional[str]] = mapped_column(String(36), index=True, nullable=True)
+    shot_id: Mapped[Optional[str]] = mapped_column(String(36), index=True, nullable=True)
+    nom: Mapped[str] = mapped_column(String(120), default="scène")
+    aspect: Mapped[str] = mapped_column(String(8), default="16:9")
+    focale_mm: Mapped[float] = mapped_column(Float, default=35.0)
+    capteur_mm: Mapped[float] = mapped_column(Float, default=14.2)
+    instances: Mapped[Optional[str]] = mapped_column(Text, nullable=True)   # JSON
+    camera: Mapped[Optional[str]] = mapped_column(Text, nullable=True)      # JSON
+    keyframes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)   # JSON
+    glb_file: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    glb_version: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -695,6 +723,10 @@ SHOTS_COLUMNS = [
     # tâche #62 : image de production + nombre de références
     ("image", "VARCHAR(255)"),
     ("image_refs", "INTEGER"),
+    # t127 (Plateau 3D, P4) : prompt de mouvement mesuré + images de bornes
+    ("motion_prompt", "TEXT"),
+    ("keyframe_image", "VARCHAR(255)"),
+    ("keyframe_end", "VARCHAR(255)"),
 ]
 
 # Vectorlab — pont cartes (27/08) : l'ancre deck_id sur les bases d'avant
