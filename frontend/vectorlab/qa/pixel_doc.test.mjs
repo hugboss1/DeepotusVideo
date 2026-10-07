@@ -105,8 +105,23 @@ const base = () => ({
   op_pixelart(d, { paires: null });
   ok("paires retirées par null", d.pixelart === undefined || d.pixelart.paires === undefined);
 }
+/* ── t124 : l'empreinte des pixels suit l'objet (le Ctrl+Z du document la rend) ── */
+{
+  const d = base(), E = "0123456789abcdef";
+  op_image_rev(d, "i1", 3, E);
+  ok("op_image_rev pose rev ET px", d.calques[0].objets[0].rev === 3 && d.calques[0].objets[0].px === E);
+  const svg = compilerSVG(d, { image: (h, rev, px) => image_url("D", h, rev, px) });
+  ok("avec px : l'URL désigne le CONTENU (?px=), pas le compteur", svg.includes(`href="/api/vector/docs/D/images/img1.png?px=${E}"`), svg);
+  op_image_rev(d, "i1", 4);
+  ok("sans empreinte (serveur ancien) : px retiré, ?v= revient", d.calques[0].objets[0].px === undefined && d.calques[0].objets[0].rev === 4);
+  let refus = 0;
+  try { op_image_rev(d, "i1", 1, "../x"); } catch { refus++; }
+  const b = base(); b.calques[0].objets[0].px = "XYZ"; try { parserDoc(b); } catch { refus++; }
+  ok("px hors patron refusé (op et parserDoc)", refus === 2 && d.calques[0].objets[0].rev === 4);
+  ok("parserDoc accepte un px valide", (() => { const a = base(); a.calques[0].objets[0].px = E; try { parserDoc(a); return true; } catch { return false; } })());
+}
 if (echecs.length) {
   console.error("ECHECS pixel_doc :\n- " + echecs.join("\n- "));
   process.exit(1);
 }
-console.log("QA pixel_doc : PASS (26 controles)");
+console.log("QA pixel_doc : PASS (31 controles)");

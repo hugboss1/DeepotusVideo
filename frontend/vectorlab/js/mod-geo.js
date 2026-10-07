@@ -47,6 +47,45 @@ export function gpx_parser(xml) {
   return { traces, points, emprise, n: tous.length };
 }
 
+/* ── t124 : le profil altimétrique — l'altitude ENREGISTRÉE (<ele>) contre la distance parcourue ──
+   La distance est un grand cercle (haversine, rayon R_TERRE) cumulé sur TOUS les points : un point sans
+   altitude compte dans le chemin mais pas dans le profil. `i` dit quels points sont gardés (le ruban
+   reprend leurs positions). D+ / D− : somme brute des écarts, sans lissage — c'est ce que le fichier dit. */
+function _haversine(a, b) {
+  const p1 = a.lat * RAD, p2 = b.lat * RAD, dp = p2 - p1, dl = (b.lon - a.lon) * RAD;
+  const h = Math.sin(dp / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) ** 2;
+  return 2 * R_TERRE * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+export function profil_trace(points) {
+  const i = [], d = [], ele = [];
+  let cumul = 0;
+  (points || []).forEach((p, k) => {
+    if (k > 0) cumul += _haversine(points[k - 1], p);
+    if (Number.isFinite(p.ele)) { i.push(k); d.push(cumul); ele.push(p.ele); }
+  });
+  return ele.length >= 2 ? { i, d, ele } : null;
+}
+export function profil_stats(p) {
+  let dplus = 0, dmoins = 0;
+  for (let k = 1; k < p.ele.length; k++) { const e = p.ele[k] - p.ele[k - 1]; if (e > 0) dplus += e; else dmoins -= e; }
+  return { longueur_m: p.d[p.d.length - 1] - p.d[0], min: Math.min(...p.ele), max: Math.max(...p.ele),
+           dplus: Math.round(dplus * 10) / 10, dmoins: Math.round(dmoins * 10) / 10 };
+}
+// le graphe : distance en abscisse, altitude en ordonnée (haut = haut), bornes écrites ; SVG autonome
+export function profil_svg(p, w = 300, h = 100) {
+  const st = profil_stats(p), m = { g: 34, d: 6, h: 8, b: 16 };
+  const L = Math.max(1e-9, p.d[p.d.length - 1] - p.d[0]), H = Math.max(1e-9, st.max - st.min);
+  const X = (d) => m.g + (d - p.d[0]) / L * (w - m.g - m.d), Y = (e) => m.h + (st.max - e) / H * (h - m.h - m.b);
+  const r = (v) => Math.round(v * 10) / 10;
+  const d = p.d.map((v, k) => `${k ? "L" : "M"}${r(X(v))} ${r(Y(p.ele[k]))}`).join(" ");
+  const km = st.longueur_m >= 1000 ? `${r(st.longueur_m / 1000)} km` : `${Math.round(st.longueur_m)} m`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" class="profil-alti" role="img" aria-label="profil altimétrique">`
+    + `<path class="profil-ligne" d="${d}" fill="none" stroke="currentColor" stroke-width="1.5"/>`
+    + `<text x="${m.g - 3}" y="${m.h + 4}" text-anchor="end" font-size="9">${Math.round(st.max)}</text>`
+    + `<text x="${m.g - 3}" y="${h - m.b}" text-anchor="end" font-size="9">${Math.round(st.min)}</text>`
+    + `<text x="${w - m.d}" y="${h - 3}" text-anchor="end" font-size="9">${km}</text></svg>`;
+}
+
 /* ── Mercator local, à l'échelle vraie au centre ── */
 const _lnTan = (lat) => Math.log(Math.tan(Math.PI / 4 + lat * RAD / 2));
 export function mercator_m(lat, lon, lat0, lon0) {

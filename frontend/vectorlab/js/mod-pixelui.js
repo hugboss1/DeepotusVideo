@@ -3,8 +3,9 @@
 // Chaque geste = lecture du PNG en tampon {w, h, data} (une fois, à
 // « Éditer les pixels »), opération PURE (mod-pixel / mod-pixelart), PUT du
 // PNG au journal du serveur (`.pix<k>.png` ×10), puis `op_image_rev` : le
-// JSON ne porte qu'un entier, l'href gagne `?v=rev`. Le Ctrl+Z du document
-// ne rend pas les pixels : « Annuler pixels » dépile le journal (D1). Les
+// JSON porte la révision et (t124) l'EMPREINTE du contenu, que l'URL désigne
+// (`?px=`). « Annuler pixels » dépile le journal (D1) ; le Ctrl+Z du document
+// remet, lui, le contenu que l'étape nomme (pixels_a_restaurer). Les
 // sélections (masques en px natifs) vivent dans la session.
 import { op_ajouter, op_calque_ajouter, op_image_rev, op_pixelart, op_supprimer, op_image_verrou, op_style } from "./mod-doc.js";
 import { pinceau, gomme, seau, sel_rect, sel_lasso, sel_baguette, sel_couleur, sel_croitre, sel_contracter,
@@ -14,6 +15,7 @@ import { ligne_pixel, rect_pixel, symetrie, palette_extraire, quantifier, pixeli
          feuille_tuiles, bande, pelure, pelure_double, pixel_parfait, masque_losange, masque_losanges, pavage_iso, rasteriser, DITHERS,
          cellule_et_cible, echantillon_cellule, remplir_depuis_modele, couleurs_utilisees,
          contour_sombre, accentuer, agrandir } from "./mod-pixelart.js";
+import { matrice_de, matrice_inverse, matrice_mul } from "./mod-pdf.js";
 import { PALETTES } from "../../spritelab/palettes.js";   // lot 4 : les palettes nommées partagées avec Spritelab / Tilelab
 
 const SNS = "http://www.w3.org/2000/svg";
@@ -45,14 +47,54 @@ export const HINTS_PIXEL = {
 /* ── pures ── */
 // point du document → pixel natif de l'objet image (la fenêtre de rognage
 // est étirée sur le rectangle de l'objet ; la rotation est ignorée)
+// t124 : une image tournée ou mise à l'échelle porte son transform (rendu par le groupe qui l'enveloppe) ;
+// le point du document repasse par la transformation INVERSE avant le rognage — sans quoi le pinceau
+// peignait à l'endroit où l'image aurait été sans rotation
+const _ap = (m, x, y) => [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]];
 export function pixel_de_doc(o, dx, dy) {
   const r = o.rognage || { x: 0, y: 0, w: o.nat.w, h: o.nat.h };
+  if (o.transform) [dx, dy] = _ap(matrice_inverse(matrice_de(o.transform)), dx, dy);
   return [r.x + (dx - o.x) / o.w * r.w, r.y + (dy - o.y) / o.h * r.h];
 }
 export function doc_de_pixel(o, px, py) {
+  const p = local_de_pixel(o, px, py);
+  return o.transform ? _ap(matrice_de(o.transform), ...p) : p;
+}
+// le point AVANT le transform de l'image : les aides de l'overlay se dessinent droites dans ce repère,
+// sous un groupe qui porte ecran_transform
+export function local_de_pixel(o, px, py) {
   const r = o.rognage || { x: 0, y: 0, w: o.nat.w, h: o.nat.h };
   return [o.x + (px - r.x) / r.w * o.w, o.y + (py - r.y) / r.h * o.h];
 }
+// le transform de l'image ramené à l'écran (zoom z, décalage tx,ty) : E·M·E⁻¹, "" sans transform
+export function ecran_transform(o, z, tx, ty) {
+  if (!o.transform) return "";
+  const m = matrice_de(o.transform);
+  const e = [z, 0, 0, z, tx, ty], ei = [1 / z, 0, 0, 1 / z, -tx / z, -ty / z];
+  const n = matrice_mul(matrice_mul(e, m), ei);
+  return `matrix(${n.map((v) => Math.round(v * 1e6) / 1e6).join(" ")})`;
+}
+// t124 : après un Ctrl+Z / Ctrl+Y du document, les images dont le contenu voulu (px de l'objet, ou l'origine
+// connue s'il n'en porte pas) n'est plus celui du serveur. Seules les images retouchées dans la session sont
+// connues (serveur : href → empreinte courante) ; un href partagé ne compte qu'une fois.
+export function pixels_a_restaurer(doc, serveur, origine) {
+  const out = [], vus = new Set();
+  const visiter = (objs) => {
+    for (const o of objs || []) {
+      if (o.type === "groupe") { visiter(o.enfants); continue; }
+      if (o.type !== "image" || vus.has(o.href)) continue;
+      vus.add(o.href);
+      const voulu = o.px || origine.get(o.href), actuel = serveur.get(o.href);
+      if (voulu && actuel && voulu !== actuel) out.push({ href: o.href, empreinte: voulu });
+    }
+  };
+  for (const c of doc.calques || []) visiter(c.objets);
+  return out;
+}
+// l'empreinte qui désigne le contenu affiché : celle de l'objet, sinon celle de l'origine connue. Mesuré en
+// preuve : revenue à l'origine (plus de px), l'image reprenait l'URL nue, relue par le rendu AVANT que la
+// restauration n'aboutisse — le navigateur gardait les pixels retouchés sous cette URL
+export const empreinte_affichee = (href, px, origine) => px || origine.get(href);
 // le nom du dépôt en Bibliothèque : `vector_` = provenance vectorlab (dit
 // dans la route /images/upload), le reste assaini
 export function nom_depot(docId, href, role) {
@@ -109,8 +151,8 @@ export function initPixelUI(VL) {
   /* ── tampon ↔ PNG ── */
   const objetImage = (id) => { const t = id && VL.objetDe(id); return t && t.objet.type === "image" ? t.objet : null; };
   const courant = () => objetImage(etat.px.id);
-  async function lireTampon(href, rev) {
-    const r = await fetch(VL.imageUrl(href, rev), { cache: "no-store" });
+  async function lireTampon(href, rev, px) {
+    const r = await fetch(VL.imageUrl(href, rev, px), { cache: "no-store" });
     if (!r.ok) throw new Error(`image ${href} introuvable (${r.status})`);
     const bm = await createImageBitmap(await r.blob());
     const cv = document.createElement("canvas");
@@ -131,7 +173,7 @@ export function initPixelUI(VL) {
     if (!o) { VL.toast("sélectionner un calque image", true); return; }
     etat.px.occupe = true;
     try {
-      const t = await lireTampon(o.href, o.rev);
+      const t = await lireTampon(o.href, o.rev, o.px);
       etat.px.id = o.id; etat.px.href = o.href; etat.px.tampon = t; etat.px.masque = null;
       cache.set(o.href, t);
       VL.toast(`pixels de ${o.href} chargés (${t.w}×${t.h})`);
@@ -150,12 +192,39 @@ export function initPixelUI(VL) {
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.detail || r.statusText);
     cache.set(o.href, t);
+    // t124 : l'objet sans px montrait l'origine — elle est retenue pour qu'un Ctrl+Z jusqu'à lui la remette
+    if (!o.px && d.avant && !origine.has(o.href)) origine.set(o.href, d.avant);
+    if (d.empreinte) serveurPx.set(o.href, d.empreinte);
     VL.executer((doc) => {
       if (nat) op_image_nat(doc, o.id, nat);
-      op_image_rev(doc, o.id, d.rev);
+      op_image_rev(doc, o.id, d.rev, d.empreinte);
     });
     rendrePanneau();
   }
+  // t124 : le Ctrl+Z du document rend les pixels — chaque image dont l'étape nomme un autre contenu que celui
+  // du serveur est restaurée (journalisée : « Annuler pixels » reste cohérent), puis le tampon édité recharge
+  const serveurPx = new Map(), origine = new Map();
+  const imageUrlBase = VL.imageUrl;
+  VL.imageUrl = (href, rev, px) => imageUrlBase(href, rev, empreinte_affichee(href, px, origine));
+  let restauration = Promise.resolve();
+  const suivantHisto = VL.surHistorique;
+  VL.surHistorique = () => {
+    suivantHisto();
+    restauration = restauration.then(async () => {
+      for (const { href, empreinte } of pixels_a_restaurer(etat.doc, serveurPx, origine)) {
+        const r = await fetch(`/api/vector/docs/${encodeURIComponent(etat.docId)}/images/${encodeURIComponent(href)}/restaurer`,
+          { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ empreinte }) });
+        if (!r.ok) { VL.toast(`pixels de ${href} : étape trop ancienne, contenu laissé tel quel`, true); serveurPx.delete(href); continue; }
+        serveurPx.set(href, empreinte);
+        cache.delete(href);
+        if (etat.px.href === href && etat.px.id) {
+          const o = courant();
+          if (o) { etat.px.tampon = await lireTampon(href, o.rev, o.px); cache.set(href, etat.px.tampon); etat.px.masque = null; losange = null; }
+        }
+      }
+      rendrePanneau(); VL.rendreOverlay();
+    }).catch((e) => VL.toast(e.message, true));
+  };
   let losange = null;                        // lot 2 : le masque iso pavé, mémorisé par taille
   const garde = (fn) => async (...a) => {
     if (etat.px.occupe) return;
@@ -169,10 +238,11 @@ export function initPixelUI(VL) {
     const r = await fetch(`/api/vector/docs/${encodeURIComponent(etat.docId)}/images/${encodeURIComponent(o.href)}/annuler`, { method: "POST" });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.detail || r.statusText);
-    const t = await lireTampon(o.href, d.rev || 0);
+    const t = await lireTampon(o.href, d.rev || 0, d.empreinte);
     etat.px.tampon = t; cache.set(o.href, t); losange = null;
+    if (d.empreinte) serveurPx.set(o.href, d.empreinte);
     // lot 2 : la taille native SUIT l'image revenue (une rastérisation annulée rendait un nat faux → clics décalés, mesuré)
-    VL.executer((doc) => { if (o.nat.w !== t.w || o.nat.h !== t.h) op_image_nat(doc, o.id, { w: t.w, h: t.h }); op_image_rev(doc, o.id, d.rev); });
+    VL.executer((doc) => { if (o.nat.w !== t.w || o.nat.h !== t.h) op_image_nat(doc, o.id, { w: t.w, h: t.h }); op_image_rev(doc, o.id, d.rev, d.empreinte); });
     VL.toast(`pixels annulés (révision ${d.rev})`);
     rendrePanneau();
   }
@@ -393,7 +463,8 @@ export function initPixelUI(VL) {
     if (!tmp || !o || !geste) return;
     tmp.innerHTML = "";
     const pts = geste.type === "px-lasso" ? geste.points : [geste.points[0], geste.points[geste.points.length - 1]];
-    const ecr = pts.map(([px, py]) => VL.ecranPt(...doc_de_pixel(o, px, py)));
+    const ecr = pts.map(([px, py]) => VL.ecranPt(...local_de_pixel(o, px, py)));
+    const te = ecran_transform(o, etat.zoom, etat.tx, etat.ty);
     const el = document.createElementNS(SNS, geste.type === "px-lasso" ? "polyline" : "rect");
     if (geste.type === "px-lasso") el.setAttribute("points", ecr.map((p) => p.join(",")).join(" "));
     else {
@@ -402,6 +473,7 @@ export function initPixelUI(VL) {
       el.setAttribute("width", Math.abs(b[0] - a[0])); el.setAttribute("height", Math.abs(b[1] - a[1]));
     }
     el.setAttribute("fill", "none"); el.setAttribute("stroke", "#ffd166"); el.setAttribute("stroke-dasharray", "4 3");
+    if (te) el.setAttribute("transform", te);       // t124 : le tracé tourne avec l'image
     tmp.appendChild(el);
   }
 
@@ -415,7 +487,10 @@ export function initPixelUI(VL) {
     const t = etat.px.tampon;
     const [sx, sy] = VL.ecranPt(o.x, o.y), sw = o.w * etat.zoom, sh = o.h * etat.zoom;
     const r = o.rognage || { x: 0, y: 0, w: o.nat.w, h: o.nat.h };
-    const el = (nom, attrs, hote = ov) => { const e = document.createElementNS(SNS, nom); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); hote.appendChild(e); return e; };
+    // t124 : tout ce qui suit se dessine droit puis tourne avec l'image (son transform ramené à l'écran)
+    const te = ecran_transform(o, etat.zoom, etat.tx, etat.ty);
+    const hoteImg = te ? (() => { const g = document.createElementNS(SNS, "g"); g.setAttribute("transform", te); g.setAttribute("class", "px-tourne"); ov.appendChild(g); return g; })() : ov;
+    const el = (nom, attrs, hote = hoteImg) => { const e = document.createElementNS(SNS, nom); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); hote.appendChild(e); return e; };
     const fenetre = (id, cv, opacite) => {
       const s = el("svg", { x: sx, y: sy, width: sw, height: sh, viewBox: `${r.x} ${r.y} ${r.w} ${r.h}`, preserveAspectRatio: "none", class: "px-couche" });
       el("image", { id, x: 0, y: 0, width: t.w, height: t.h, href: cv ? cv.toDataURL() : "", opacity: opacite, preserveAspectRatio: "none", style: "image-rendering:pixelated" }, s);
@@ -453,7 +528,7 @@ export function initPixelUI(VL) {
       fenetre("pxMasque", cv, 1);
       const b = sel_bbox(m, t.w, t.h);
       if (b) {
-        const [ax, ay] = VL.ecranPt(...doc_de_pixel(o, b.x, b.y)), [bx, by] = VL.ecranPt(...doc_de_pixel(o, b.x + b.w, b.y + b.h));
+        const [ax, ay] = VL.ecranPt(...local_de_pixel(o, b.x, b.y)), [bx, by] = VL.ecranPt(...local_de_pixel(o, b.x + b.w, b.y + b.h));
         el("rect", { x: ax, y: ay, width: bx - ax, height: by - ay, fill: "none", stroke: "#ffd166", "stroke-dasharray": "5 3", class: "px-selbbox" });
       }
     }
@@ -663,8 +738,10 @@ export function initPixelUI(VL) {
   async function versVecteur() {
     const o = courant(), t = etat.px.tampon;
     const e = extraire(t, etat.px.masque);
-    const [x0, y0] = doc_de_pixel(o, e.x, e.y), [x1, y1] = doc_de_pixel(o, e.x + e.w, e.y + e.h);
+    // t124 : l'extrait garde le transform de l'image — posé droit dans son repère, il tourne avec elle
+    const [x0, y0] = local_de_pixel(o, e.x, e.y), [x1, y1] = local_de_pixel(o, e.x + e.w, e.y + e.h);
     const n = await deposerNouvelleImage(e, { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }, etat.calqueActif);
+    if (o.transform) n.objet.transform = o.transform;
     const id = VL.executer(op_ajouter, n.calqueId, n.objet);
     if (id && VL.vectoriser) { VL.setSelection([id]); VL.vectoriser(id); }
   }
@@ -915,7 +992,7 @@ export function initPixelUI(VL) {
   const suivantPersona = VL.surPersona;
   VL.surPersona = () => { suivantPersona(); rendrePanneau(); };
   const suivantCharge = VL.surCharge;
-  VL.surCharge = () => { suivantCharge(); etat.px.id = null; etat.px.tampon = null; etat.px.masque = null; cache.clear(); };
+  VL.surCharge = () => { suivantCharge(); etat.px.id = null; etat.px.tampon = null; etat.px.masque = null; cache.clear(); serveurPx.clear(); origine.clear(); };   // t124 : un href (img1.png) se répète d'un document à l'autre
   // les ACTIONS de sélection raster — appelées par les menus des outils de sélection
   const masqueAction = (fn) => () => { const t = etat.px.tampon; if (!t) { VL.toast("éditer d'abord les pixels d'une image", true); return; }
     let m = fn(t); if (m && !sel_bbox(m, t.w, t.h)) m = null; etat.px.masque = m; VL.rendreOverlay(); rendrePanneau(); };

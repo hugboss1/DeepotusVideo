@@ -1221,17 +1221,101 @@ def test_les_routes_du_journal_raster():
             # remplacer → rev 1, l'image servie est la nouvelle
             r = await c.put(f"/api/vector/docs/{did}/images/img1.png", content=_PNG_1PX + b"B",
                             headers={"Content-Type": "image/png"})
-            assert r.status_code == 200 and r.json() == {"name": "img1.png", "rev": 1}
+            assert r.status_code == 200 and {k: r.json()[k] for k in ("name", "rev")} == {"name": "img1.png", "rev": 1}
             r = await c.get(f"/api/vector/docs/{did}/images/img1.png")
             assert r.content == _PNG_1PX + b"B"
             # annuler → rev 0, l'image d'origine revient
             r = await c.post(f"/api/vector/docs/{did}/images/img1.png/annuler")
-            assert r.status_code == 200 and r.json() == {"name": "img1.png", "rev": 0}
+            assert r.status_code == 200 and {k: r.json()[k] for k in ("name", "rev")} == {"name": "img1.png", "rev": 0}
             r = await c.get(f"/api/vector/docs/{did}/images/img1.png")
             assert r.content == _PNG_1PX
             # le chemin de journal n'est PAS servi comme image
             r = await c.get(f"/api/vector/docs/{did}/images/img1.pix1.png")
             assert r.status_code == 404
+
+    asyncio.run(scenario())
+
+
+# ── V bis. t124 : le Ctrl+Z du document rend les pixels — instantanés par EMPREINTE ──
+
+def test_les_instantanes_par_empreinte():
+    import hashlib
+    import pytest
+    from app.services import vector_store as VS
+    did = VS.creer(_doc("Instantanes"))
+    dossier = pathlib.Path(os.environ["VECTOR_FOLDER"])
+    emp = lambda b: hashlib.sha256(b).hexdigest()[:16]
+    VS.ecrire_image(did, _PNG_1PX)
+    assert VS.empreinte_image(did, "img1.png") == emp(_PNG_1PX)
+    assert VS.empreinte_image(did, "img9.png") is None
+    # remplacer garde l'AVANT et l'APRÈS en instantanés ; le journal .pix ne change pas de sens
+    assert VS.remplacer_image(did, "img1.png", _PNG_1PX + b"A") == 1
+    assert VS.lire_instantane(did, "img1.png", emp(_PNG_1PX)) == _PNG_1PX
+    assert VS.lire_instantane(did, "img1.png", emp(_PNG_1PX + b"A")) == _PNG_1PX + b"A"
+    assert VS.lire_instantane(did, "img1.png", "0" * 16) is None
+    assert VS.lire_instantane(did, "img1.png", "../../x") is None          # hors patron
+    # Windows normalise « .. » sans vérifier que le dossier existe : une empreinte forgée sortirait du magasin
+    fuite = dossier.parent / "fuite_t124.png"
+    fuite.write_bytes(_PNG_1PX)
+    try:
+        assert VS.lire_instantane(did, "img1.png", "/../../fuite_t124") is None
+    finally:
+        fuite.unlink()
+    # restaurer l'origine : passe par le journal (« Annuler pixels » peut revenir), rend la révision
+    assert VS.restaurer_image(did, "img1.png", emp(_PNG_1PX)) == 2
+    assert VS.lire_image(did, "img1.png") == _PNG_1PX
+    # déjà là : rien n'est journalisé
+    assert VS.restaurer_image(did, "img1.png", emp(_PNG_1PX)) == 2
+    with pytest.raises(FileNotFoundError):
+        VS.restaurer_image(did, "img1.png", "f" * 16)
+    # les instantanés ne sont ni des images listées ni copiés
+    assert VS.lister_images(did) == ["img1.png"]
+    dst = VS.creer(_doc("copie"))
+    VS.copier_images(did, dst)
+    assert not list(dossier.glob(f"{dst}.img1.s*.png"))
+    # bornés : au-delà de INSTANTANES_MAX, les plus anciens tombent, jamais le contenu courant
+    for k in range(VS.INSTANTANES_MAX + 5):
+        VS.remplacer_image(did, "img1.png", _PNG_1PX + b"B" + bytes([k]))
+    restes = list(dossier.glob(f"{did}.img1.s*.png"))
+    assert len(restes) == VS.INSTANTANES_MAX
+    assert VS.lire_instantane(did, "img1.png", VS.empreinte_image(did, "img1.png")) is not None
+
+
+def test_les_routes_des_instantanes():
+    import asyncio
+    import hashlib
+    from httpx import AsyncClient, ASGITransport
+    emp = lambda b: hashlib.sha256(b).hexdigest()[:16]
+
+    async def scenario():
+        from app.main import app
+        from app.services.storage import init_db
+        await init_db()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://t") as c:
+            r = await c.post("/api/vector/docs", json={"name": "Inst", "role": "libre", "doc": _doc()})
+            did = r.json()["id"]
+            await c.post(f"/api/vector/docs/{did}/images", content=_PNG_1PX, headers={"Content-Type": "image/png"})
+            # PUT dit l'empreinte du nouveau contenu ET celle d'avant (l'origine, que l'objet ne portait pas)
+            r = await c.put(f"/api/vector/docs/{did}/images/img1.png", content=_PNG_1PX + b"C", headers={"Content-Type": "image/png"})
+            assert r.json() == {"name": "img1.png", "rev": 1, "empreinte": emp(_PNG_1PX + b"C"), "avant": emp(_PNG_1PX)}
+            # GET ?px= sert l'instantané (adresse = contenu), sans regarder le fichier courant
+            r = await c.get(f"/api/vector/docs/{did}/images/img1.png", params={"px": emp(_PNG_1PX)})
+            assert r.status_code == 200 and r.content == _PNG_1PX and "immutable" in r.headers.get("cache-control", "")
+            r = await c.get(f"/api/vector/docs/{did}/images/img1.png", params={"px": "0" * 16})
+            assert r.status_code == 404
+            # restaurer : le courant redevient l'origine
+            r = await c.post(f"/api/vector/docs/{did}/images/img1.png/restaurer", json={"empreinte": emp(_PNG_1PX)})
+            assert r.status_code == 200 and r.json() == {"name": "img1.png", "rev": 2, "empreinte": emp(_PNG_1PX)}
+            r = await c.get(f"/api/vector/docs/{did}/images/img1.png")
+            assert r.content == _PNG_1PX
+            r = await c.post(f"/api/vector/docs/{did}/images/img1.png/restaurer", json={"empreinte": "f" * 16})
+            assert r.status_code == 404
+            r = await c.post(f"/api/vector/docs/{did}/images/img1.png/restaurer", json={"empreinte": "../x"})
+            assert r.status_code == 404
+            # « Annuler pixels » dit aussi l'empreinte revenue
+            r = await c.post(f"/api/vector/docs/{did}/images/img1.png/annuler")
+            assert r.json() == {"name": "img1.png", "rev": 1, "empreinte": emp(_PNG_1PX + b"C")}
 
     asyncio.run(scenario())
 
