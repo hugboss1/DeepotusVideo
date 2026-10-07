@@ -8333,6 +8333,23 @@ P1 += [("P9li1-liste-triable", A_P9LI1, R_P9LI1),
        ("P9li2-tris-taille-et-recent", A_P9LI2, R_P9LI2)]
 assert len(P1) == 141 and all("\n" not in r for _t, _a, r in P1[-2:])
 
+# t130 (W-d, 07/10/2026) -- MODELES PAR DEFAUT DES NOUVEAUX NOEUDS. P10md1 : les deux rangees (DzModelDefaults, couche
+# montage.js) dans Settings -> Provider defaults, juste apres le fournisseur de voix (ancre posee par imagegen).
+# P10md2 : la fabrique `Y` du Studio fait NAITRE un noeud par dzPropsNaissance (modele video pour Seedance, TTS pour
+# Voiceover) ; Me (le registre) et ts (la normalisation des graphes charges) ne sont PAS touches : un noeud existant
+# ou un graphe charge garde ses props. Le patcher ne se rejoue plus (son .bak est une reconstruction) : ces paires
+# sont appliquees au bundle par les memes substitutions et consignees ici -- HORS de P1 / PATCHES : la queue de PATCHES
+# est figee par cinq bancs (test_montage_bundle DZ, test_p1_episodes_store_bundle 2.1, test_p2_cles_ecran 1.1,
+# test_p2_diagnostic_bundle 1.1, test_p2_plafonds_ecran 3.1) et le patcher ne se rejoue plus ; test_defauts_modeles
+# verifie que le bundle porte bien ces deux substitutions, une fois chacune.
+A_P10MD1 = 'r.jsx(DzVoiceProvider,{},"voiceprov"),'
+R_P10MD1 = A_P10MD1 + 'r.jsx(DzModelDefaults,{},"modeldefaults"),'
+A_P10MD2 = 'props:{...L.props||{}}'
+R_P10MD2 = 'props:dzPropsNaissance(R,{...L.props||{}})'
+T130_NATIF = [("P10md1-modeles-par-defaut-dans-provider-defaults", A_P10MD1, R_P10MD1),
+              ("P10md2-la-fabrique-fait-naitre-avec-les-defauts", A_P10MD2, R_P10MD2)]
+assert len(P1) == 141 and all("\n" not in r for _t, _a, r in T130_NATIF)
+
 
 # t117 (06/10/2026) — PLUSIEURS SÉQUENCES : LES REMPLACEMENTS SUIVENT LE BUNDLE. Le patcher ne se rejoue plus (son
 # .bak est une reconstruction gardée) : la couche sonvfx a été modifiée À LA SOURCE puis réinjectée par
