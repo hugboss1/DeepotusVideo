@@ -87,6 +87,8 @@ const _GRILLE_TUILE_DEFAUT = Object.freeze({ type: "hex", pas: 32, sous: 1, orie
 function _grilleHex(doc) {
   return (doc.grille && doc.grille.type === "hex") ? doc.grille : _GRILLE_TUILE_DEFAUT;
 }
+// t121 : la grille où se posent les tuiles, lue par le PDF vectoriel (même règle que la compilation SVG)
+export function grille_tuiles(doc) { return _grilleHex(doc); }
 
 /* ── lot A (D1/D2) : l'objet `image` — href RELATIF (nom du PNG stocké à
    côté du JSON du document, jamais de base64) ou URL absolue ; `nat` =
