@@ -232,6 +232,12 @@ async def lifespan(app: FastAPI):
             from app.services.heygen_service import annuler_en_vol
             annuler_en_vol()
         await _arreter_taches([t for t in (news_task, sched_task, maj_task, warm_task) if t])
+        # t136 : le moteur du Photolab s'arrête avec le backend (fin de stdin = fin propre de photocraft-cli serve)
+        try:
+            from app.services import photolab_moteur
+            photolab_moteur.fermer()
+        except Exception as e:
+            logger.warning(f"Photolab : arrêt du moteur ignoré ({e!r})")
         logger.info("Shutting down")
 
 
@@ -407,6 +413,11 @@ app.include_router(scenes3d_router, prefix="/api/scenes3d")
 from app.services.dictation_service import router as dictation_router
 app.include_router(dictation_router, prefix="/api")
 # __DZ_DICTATION_ROUTER_END__
+# __DZ_PHOTOLAB_ROUTER_BEGIN__
+# Photolab (t136, 07/10/2026) : /api/photolab — pont vers le moteur photocraft-cli 0.3.0 (décision D1)
+from app.api.photolab_routes import router as photolab_router
+app.include_router(photolab_router, prefix="/api/photolab")
+# __DZ_PHOTOLAB_ROUTER_END__
 
 # ── Guide: serve the illustrated getting-started guide (FR/EN HTML + PDF +
 # screenshots) at /guide. Linked from the sidebar footer.

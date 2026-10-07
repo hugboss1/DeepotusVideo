@@ -1,0 +1,7076 @@
+{
+ "source": "storytold/photocraft v0.3.0 crates/ui-egui/src/menu_catalog.rs",
+ "source_fr": "storytold/photocraft@3d23a708c2 crates/ui-egui/src/i18n/fr.tsv (blob 453fa2ad, postérieur au tag v0.3.0 : le français est arrivé après la release)",
+ "licence": "MIT OR Apache-2.0",
+ "menus_fr": {
+  "File": "Fichier",
+  "Export": "Exporter",
+  "Generate": "Générer",
+  "Automate": "Automatisation",
+  "Scripts": "Scripts",
+  "Import": "Importer",
+  "Edit": "Édition",
+  "Paste Special": "Collage spécial",
+  "Transform": "Transformation",
+  "Purge": "Purger",
+  "Presets": "Préréglages",
+  "Preferences": "Préférences",
+  "Image": "Image",
+  "Mode": "Mode",
+  "Adjustments": "Ajustements",
+  "Image Rotation": "Rotation de l'image",
+  "Variables": "Variables",
+  "Analysis": "Analyse",
+  "Layer": "Calque",
+  "New": "Nouveau",
+  "Delete": "Supprimer",
+  "Layer Style": "Style de calque",
+  "Smart Filter": "Filtre intelligent",
+  "New Fill Layer": "Nouveau calque de remplissage",
+  "New Adjustment Layer": "Nouveau calque de réglage",
+  "Layer Mask": "Masque de calque",
+  "Vector Mask": "Masque vectoriel",
+  "Smart Objects": "Objets intelligents",
+  "Stack Mode": "Mode de pile",
+  "Video Layers": "Calques vidéo",
+  "Rasterize": "Rastériser",
+  "Arrange": "Organiser",
+  "Combine Shapes": "Combiner les formes",
+  "Align": "Aligner",
+  "Distribute": "Répartir",
+  "Matting": "Détourage",
+  "Type": "Texte",
+  "Panels": "Panneaux",
+  "Anti-Alias": "Lissage",
+  "Orientation": "Orientation",
+  "OpenType": "OpenType",
+  "Font Preview Size": "Taille de l'aperçu des polices",
+  "Language Options": "Options de langue",
+  "Select": "Sélection",
+  "Modify": "Modifier",
+  "Filter": "Filtre",
+  "Blur": "Flou",
+  "Blur Gallery": "Galerie de flous",
+  "Distort": "Déformation",
+  "Noise": "Bruit",
+  "Pixelate": "Pixeliser",
+  "Render": "Rendu",
+  "Sharpen": "Netteté",
+  "Stylize": "Styliser",
+  "Video": "Vidéo",
+  "Other…": "Autre…",
+  "View": "Affichage",
+  "Proof Setup": "Configuration d'épreuve",
+  "Pixel Aspect Ratio": "Format des pixels",
+  "Screen Mode": "Mode d'écran",
+  "Show": "Afficher",
+  "Snap To": "Aimanter à",
+  "Window": "Fenêtre",
+  "Workspace": "Espace de travail"
+ },
+ "remplacements": [],
+ "entrees": [
+  {
+   "chemin": [
+    "File"
+   ],
+   "id": "file.new",
+   "libelle_en": "New…",
+   "libelle_fr": "Nouveau…",
+   "raccourci": "Cmd+N"
+  },
+  {
+   "chemin": [
+    "File"
+   ],
+   "id": "file.open",
+   "libelle_en": "Open…",
+   "libelle_fr": "Ouvrir…",
+   "raccourci": "Cmd+O"
+  },
+  {
+   "chemin": [
+    "File"
+   ],
+   "id": "file.openAs",
+   "libelle_en": "Open As…",
+   "libelle_fr": "Ouvrir en tant que…",
+   "raccourci": "Cmd+Alt+Shift+O"
+  },
+  {
+   "chemin": [
+    "File"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "File"
+   ],
+   "id": "file.close",
+   "libelle_en": "Close",
+   "libelle_fr": "Fermer",
+   "raccourci": "Cmd+W"
+  },
+  {
+   "chemin": [
+    "File"
+   ],
+   "id": "file.closeAll",
+   "libelle_en": "Close All",
+   "libelle_fr": "Tout fermer",
+   "raccourci": "Cmd+Alt+W"
+  },
+  {
+   "chemin": [
+    "File"
+   ],
+   "id": "file.closeOthers",
+   "libelle_en": "Close Others",
+   "libelle_fr": "Fermer les autres",
+   "raccourci": "Cmd+Alt+P"
+  },
+  {
+   "chemin": [
+    "File"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "File"
+   ],
+   "id": "file.save",
+   "libelle_en": "Save",
+   "libelle_fr": "Enregistrer",
+   "raccourci": "Cmd+S"
+  },
+  {
+   "chemin": [
+    "File"
+   ],
+   "id": "file.saveAs",
+   "libelle_en": "Save As…",
+   "libelle_fr": "Enregistrer sous…",
+   "raccourci": "Cmd+Shift+S"
+  },
+  {
+   "chemin": [
+    "File"
+   ],
+   "id": "file.saveACopy",
+   "libelle_en": "Save a Copy…",
+   "libelle_fr": "Enregistrer une copie…",
+   "raccourci": "Cmd+Alt+S"
+  },
+  {
+   "chemin": [
+    "File"
+   ],
+   "id": "file.revert",
+   "libelle_en": "Revert",
+   "libelle_fr": "Revenir à la version enregistrée",
+   "raccourci": "F12"
+  },
+  {
+   "chemin": [
+    "File"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "File",
+    "Export"
+   ],
+   "id": "file.export.quickExportAsPng",
+   "libelle_en": "Quick Export as PNG",
+   "libelle_fr": "Exportation rapide au format PNG",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "File",
+    "Export"
+   ],
+   "id": "file.export.exportAs",
+   "libelle_en": "Export As…",
+   "libelle_fr": "Exporter sous…",
+   "raccourci": "Cmd+Alt+Shift+W"
+  },
+  {
+   "chemin": [
+    "File",
+    "Export"
+   ],
+   "id": "file.export.exportPreferences",
+   "libelle_en": "Export Preferences…",
+   "libelle_fr": "Préférences d'exportation…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "File",
+    "Export"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "File",
+    "Export"
+   ],
+   "id": "file.export.saveForWebLegacy",
+   "libelle_en": "Save for Web (Legacy)…",
+   "libelle_fr": "Enregistrer pour le Web (ancien)…",
+   "raccourci": "Cmd+Alt+Shift+S"
+  },
+  {
+   "chemin": [
+    "File",
+    "Export"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "File",
+    "Export"
+   ],
+   "id": "file.export.artboardsToFiles",
+   "libelle_en": "Artboards to Files…",
+   "libelle_fr": "Plans de travail en fichiers…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "File",
+    "Export"
+   ],
+   "id": "file.export.artboardsToPdf",
+   "libelle_en": "Artboards to PDF…",
+   "libelle_fr": "Plans de travail en PDF…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "File",
+    "Export"
+   ],
+   "id": "file.export.layersToFiles",
+   "libelle_en": "Layers to Files…",
+   "libelle_fr": "Calques en fichiers…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "File",
+    "Export"
+   ],
+   "id": "file.export.layerCompsToFiles",
+   "libelle_en": "Layer Comps to Files…",
+   "libelle_fr": "Compositions de calques en fichiers…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "File",
+    "Export"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "File",
+    "Export"
+   ],
+   "id": "file.export.colorLookupTables",
+   "libelle_en": "Color Lookup Tables…",
+   "libelle_fr": "Tables de correspondance des couleurs…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "File",
+    "Export"
+   ],
+   "id": "file.export.dataSetsAsFiles",
+   "libelle_en": "Data Sets as Files…",
+   "libelle_fr": "Jeux de données en fichiers…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "File",
+    "Export"
+   ],
+   "id": "file.export.pathsToIllustrator",
+   "libelle_en": "Paths to Illustrator…",
+   "libelle_fr": "Tracés vers Illustrator…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "File",
+    "Export"
+   ],
+   "id": "file.export.renderVideo",
+   "libelle_en": "Render Video…",
+   "libelle_fr": "Rendu vidéo…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "File",
+    "Generate"
+   ],
+   "id": "file.generate.imageAssets",
+   "libelle_en": "Image Assets",
+   "libelle_fr": "Ressources d'image",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "File"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "File"
+   ],
+   "id": "file.placeEmbedded",
+   "libelle_en": "Place Embedded…",
+   "libelle_fr": "Placer incorporé…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "File"
+   ],
+   "id": "file.placeLinked",
+   "libelle_en": "Place Linked…",
+   "libelle_fr": "Placer lié…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "File"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "File"
+   ],
+   "id": "file.package",
+   "libelle_en": "Package…",
+   "libelle_fr": "Rassembler…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "File"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "File",
+    "Automate"
+   ],
+   "id": "file.automate.batch",
+   "libelle_en": "Batch…",
+   "libelle_fr": "Traitement par lots…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "File",
+    "Automate"
+   ],
+   "id": "file.automate.createDroplet",
+   "libelle_en": "Create Droplet…",
+   "libelle_fr": "Créer un droplet…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "File",
+    "Automate"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "File",
+    "Automate"
+   ],
+   "id": "file.automate.cropAndStraightenPhotos",
+   "libelle_en": "Crop and Straighten Photos",
+   "libelle_fr": "Recadrer et redresser les photos",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "File",
+    "Automate"
+   ],
+   "id": "file.automate.contactSheetII",
+   "libelle_en": "Contact Sheet II…",
+   "libelle_fr": "Planche contact II…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "File",
+    "Automate"
+   ],
+   "id": "file.automate.conditionalModeChange",
+   "libelle_en": "Conditional Mode Change…",
+   "libelle_fr": "Changement de mode conditionnel…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "File",
+    "Automate"
+   ],
+   "id": "file.automate.fitImage",
+   "libelle_en": "Fit Image…",
+   "libelle_fr": "Adapter l'image…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "File",
+    "Automate"
+   ],
+   "id": "file.automate.lensCorrection",
+   "libelle_en": "Lens Correction…",
+   "libelle_fr": "Correction de l'objectif…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "File",
+    "Automate"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "File",
+    "Automate"
+   ],
+   "id": "file.automate.mergeToHdrPro",
+   "libelle_en": "Merge to HDR Pro…",
+   "libelle_fr": "Fusionner en HDR Pro…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "File",
+    "Automate"
+   ],
+   "id": "file.automate.photomerge",
+   "libelle_en": "Photomerge…",
+   "libelle_fr": "Photomerge…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "File",
+    "Scripts"
+   ],
+   "id": "file.scripts.imageProcessor",
+   "libelle_en": "Image Processor…",
+   "libelle_fr": "Processeur d'images…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "File",
+    "Scripts"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "File",
+    "Scripts"
+   ],
+   "id": "file.scripts.deleteAllEmptyLayers",
+   "libelle_en": "Delete All Empty Layers",
+   "libelle_fr": "Supprimer tous les calques vides",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "File",
+    "Scripts"
+   ],
+   "id": "file.scripts.flattenAllLayerEffects",
+   "libelle_en": "Flatten All Layer Effects",
+   "libelle_fr": "Aplatir tous les effets de calque",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "File",
+    "Scripts"
+   ],
+   "id": "file.scripts.flattenAllMasks",
+   "libelle_en": "Flatten All Masks",
+   "libelle_fr": "Aplatir tous les masques",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "File",
+    "Scripts"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "File",
+    "Scripts"
+   ],
+   "id": "file.scripts.scriptEventsManager",
+   "libelle_en": "Script Events Manager…",
+   "libelle_fr": "Gestionnaire d'événements de script…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "File",
+    "Scripts"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "File",
+    "Scripts"
+   ],
+   "id": "file.scripts.loadFilesIntoStack",
+   "libelle_en": "Load Files into Stack…",
+   "libelle_fr": "Charger des fichiers dans une pile…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "File",
+    "Scripts"
+   ],
+   "id": "file.scripts.statistics",
+   "libelle_en": "Statistics…",
+   "libelle_fr": "Statistiques…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "File",
+    "Scripts"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "File",
+    "Scripts"
+   ],
+   "id": "file.scripts.browse",
+   "libelle_en": "Browse…",
+   "libelle_fr": "Parcourir…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "File",
+    "Import"
+   ],
+   "id": "file.import.variableDataSets",
+   "libelle_en": "Variable Data Sets…",
+   "libelle_fr": "Jeux de données variables…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "File",
+    "Import"
+   ],
+   "id": "file.import.videoFramesToLayers",
+   "libelle_en": "Video Frames to Layers…",
+   "libelle_fr": "Images vidéo dans des calques…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "File",
+    "Import"
+   ],
+   "id": "file.import.notes",
+   "libelle_en": "Notes…",
+   "libelle_fr": "Notes…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "File",
+    "Import"
+   ],
+   "id": "file.import.wiaSupport",
+   "libelle_en": "WIA Support…",
+   "libelle_fr": "Prise en charge de WIA…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "File"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "File"
+   ],
+   "id": "file.fileInfo",
+   "libelle_en": "File Info…",
+   "libelle_fr": "Informations sur le fichier…",
+   "raccourci": "Cmd+Alt+Shift+I"
+  },
+  {
+   "chemin": [
+    "File"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "File"
+   ],
+   "id": "file.print",
+   "libelle_en": "Print…",
+   "libelle_fr": "Imprimer…",
+   "raccourci": "Cmd+P"
+  },
+  {
+   "chemin": [
+    "File"
+   ],
+   "id": "file.printOneCopy",
+   "libelle_en": "Print One Copy",
+   "libelle_fr": "Imprimer un exemplaire",
+   "raccourci": "Cmd+Alt+Shift+P"
+  },
+  {
+   "chemin": [
+    "File"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "File"
+   ],
+   "id": "file.exit",
+   "libelle_en": "Exit",
+   "libelle_fr": "Quitter",
+   "raccourci": "Cmd+Q"
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "id": "edit.undo",
+   "libelle_en": "Undo",
+   "libelle_fr": "Annuler",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "id": "edit.redo",
+   "libelle_en": "Redo",
+   "libelle_fr": "Rétablir",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "id": "edit.toggleLastState",
+   "libelle_en": "Toggle Last State",
+   "libelle_fr": "Basculer sur le dernier état",
+   "raccourci": "Cmd+Alt+Z"
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "id": "edit.fade",
+   "libelle_en": "Fade…",
+   "libelle_fr": "Estomper…",
+   "raccourci": "Cmd+Shift+F"
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "id": "edit.cut",
+   "libelle_en": "Cut",
+   "libelle_fr": "Couper",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "id": "edit.copy",
+   "libelle_en": "Copy",
+   "libelle_fr": "Copier",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "id": "edit.copyMerged",
+   "libelle_en": "Copy Merged",
+   "libelle_fr": "Copier les calques fusionnés",
+   "raccourci": "Cmd+Shift+C"
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "id": "edit.paste",
+   "libelle_en": "Paste",
+   "libelle_fr": "Coller",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Paste Special"
+   ],
+   "id": "edit.pasteSpecial.pasteInPlace",
+   "libelle_en": "Paste in Place",
+   "libelle_fr": "Coller sur place",
+   "raccourci": "Cmd+Shift+V"
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Paste Special"
+   ],
+   "id": "edit.pasteSpecial.pasteInto",
+   "libelle_en": "Paste Into",
+   "libelle_fr": "Coller dans la sélection",
+   "raccourci": "Cmd+Alt+Shift+V"
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Paste Special"
+   ],
+   "id": "edit.pasteSpecial.pasteOutside",
+   "libelle_en": "Paste Outside",
+   "libelle_fr": "Coller hors de la sélection",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "id": "edit.clear",
+   "libelle_en": "Clear",
+   "libelle_fr": "Effacer",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "id": "edit.search",
+   "libelle_en": "Search…",
+   "libelle_fr": "Rechercher…",
+   "raccourci": "Cmd+K"
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "id": "edit.checkSpelling",
+   "libelle_en": "Check Spelling…",
+   "libelle_fr": "Vérifier l'orthographe…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "id": "edit.findAndReplaceText",
+   "libelle_en": "Find and Replace Text…",
+   "libelle_fr": "Rechercher et remplacer du texte…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "id": "edit.fill",
+   "libelle_en": "Fill…",
+   "libelle_fr": "Remplir…",
+   "raccourci": "Shift+F5"
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "id": "edit.stroke",
+   "libelle_en": "Stroke…",
+   "libelle_fr": "Contourner…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "id": "edit.contentAwareFill",
+   "libelle_en": "Content-Aware Fill…",
+   "libelle_fr": "Remplissage d'après le contenu…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "id": "edit.contentAwareScale",
+   "libelle_en": "Content-Aware Scale",
+   "libelle_fr": "Mise à l'échelle d'après le contenu",
+   "raccourci": "Cmd+Alt+Shift+C"
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "id": "edit.puppetWarp",
+   "libelle_en": "Puppet Warp",
+   "libelle_fr": "Déformation par épingles",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "id": "edit.perspectiveWarp",
+   "libelle_en": "Perspective Warp",
+   "libelle_fr": "Déformation de la perspective",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "id": "edit.freeTransform",
+   "libelle_en": "Free Transform",
+   "libelle_fr": "Transformation libre",
+   "raccourci": "Cmd+T"
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Transform"
+   ],
+   "id": "edit.transform.again",
+   "libelle_en": "Again",
+   "libelle_fr": "Répéter",
+   "raccourci": "Cmd+Shift+T"
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Transform"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Transform"
+   ],
+   "id": "edit.transform.scale",
+   "libelle_en": "Scale",
+   "libelle_fr": "Mise à l'échelle",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Transform"
+   ],
+   "id": "edit.transform.rotate",
+   "libelle_en": "Rotate",
+   "libelle_fr": "Rotation",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Transform"
+   ],
+   "id": "edit.transform.skew",
+   "libelle_en": "Skew",
+   "libelle_fr": "Inclinaison",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Transform"
+   ],
+   "id": "edit.transform.distort",
+   "libelle_en": "Distort",
+   "libelle_fr": "Déformation",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Transform"
+   ],
+   "id": "edit.transform.perspective",
+   "libelle_en": "Perspective",
+   "libelle_fr": "Perspective",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Transform"
+   ],
+   "id": "edit.transform.warp",
+   "libelle_en": "Warp",
+   "libelle_fr": "Déformer",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Transform"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Transform"
+   ],
+   "id": "edit.transform.splitWarpHorizontally",
+   "libelle_en": "Split Warp Horizontally",
+   "libelle_fr": "Diviser la déformation horizontalement",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Transform"
+   ],
+   "id": "edit.transform.splitWarpVertically",
+   "libelle_en": "Split Warp Vertically",
+   "libelle_fr": "Diviser la déformation verticalement",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Transform"
+   ],
+   "id": "edit.transform.splitWarpCrosswise",
+   "libelle_en": "Split Warp Crosswise",
+   "libelle_fr": "Diviser la déformation en croix",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Transform"
+   ],
+   "id": "edit.transform.removeWarpSplit",
+   "libelle_en": "Remove Warp Split",
+   "libelle_fr": "Supprimer la division de la déformation",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Transform"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Transform"
+   ],
+   "id": "edit.transform.rotate180",
+   "libelle_en": "Rotate 180°",
+   "libelle_fr": "Rotation de 180°",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Transform"
+   ],
+   "id": "edit.transform.rotate90Cw",
+   "libelle_en": "Rotate 90° Clockwise",
+   "libelle_fr": "Rotation de 90° horaire",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Transform"
+   ],
+   "id": "edit.transform.rotate90Ccw",
+   "libelle_en": "Rotate 90° Counter Clockwise",
+   "libelle_fr": "Rotation de 90° antihoraire",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Transform"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Transform"
+   ],
+   "id": "edit.transform.flipHorizontal",
+   "libelle_en": "Flip Horizontal",
+   "libelle_fr": "Symétrie horizontale",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Transform"
+   ],
+   "id": "edit.transform.flipVertical",
+   "libelle_en": "Flip Vertical",
+   "libelle_fr": "Symétrie verticale",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "id": "edit.autoAlignLayers",
+   "libelle_en": "Auto-Align Layers…",
+   "libelle_fr": "Alignement automatique des calques…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "id": "edit.autoBlendLayers",
+   "libelle_en": "Auto-Blend Layers…",
+   "libelle_fr": "Fusion automatique des calques…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "id": "edit.defineBrushPreset",
+   "libelle_en": "Define Brush Preset…",
+   "libelle_fr": "Définir un préréglage de pinceau…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "id": "edit.definePattern",
+   "libelle_en": "Define Pattern…",
+   "libelle_fr": "Définir un motif…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "id": "edit.defineCustomShape",
+   "libelle_en": "Define Custom Shape…",
+   "libelle_fr": "Définir une forme personnalisée…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Purge"
+   ],
+   "id": "edit.purge.undo",
+   "libelle_en": "Undo",
+   "libelle_fr": "Historique d'annulation",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Purge"
+   ],
+   "id": "edit.purge.clipboard",
+   "libelle_en": "Clipboard",
+   "libelle_fr": "Presse-papiers",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Purge"
+   ],
+   "id": "edit.purge.histories",
+   "libelle_en": "Histories",
+   "libelle_fr": "Historiques",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Purge"
+   ],
+   "id": "edit.purge.videoCache",
+   "libelle_en": "Video Cache",
+   "libelle_fr": "Cache vidéo",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Purge"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Purge"
+   ],
+   "id": "edit.purge.all",
+   "libelle_en": "All",
+   "libelle_fr": "Tout",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Presets"
+   ],
+   "id": "edit.presets.presetManager",
+   "libelle_en": "Preset Manager…",
+   "libelle_fr": "Gestionnaire de préréglages…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Presets"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Presets"
+   ],
+   "id": "edit.presets.migratePresets",
+   "libelle_en": "Migrate Presets",
+   "libelle_fr": "Migrer les préréglages",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Presets"
+   ],
+   "id": "edit.presets.exportImportPresets",
+   "libelle_en": "Export/Import Presets…",
+   "libelle_fr": "Exporter/importer des préréglages…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "id": "edit.colorSettings",
+   "libelle_en": "Color Settings…",
+   "libelle_fr": "Paramètres de couleur…",
+   "raccourci": "Cmd+Shift+K"
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "id": "edit.assignProfile",
+   "libelle_en": "Assign Profile…",
+   "libelle_fr": "Attribuer un profil…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "id": "edit.convertToProfile",
+   "libelle_en": "Convert to Profile…",
+   "libelle_fr": "Convertir en profil…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "id": "edit.keyboardShortcuts",
+   "libelle_en": "Keyboard Shortcuts…",
+   "libelle_fr": "Raccourcis clavier…",
+   "raccourci": "Cmd+Alt+Shift+K"
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "id": "edit.menus",
+   "libelle_en": "Menus…",
+   "libelle_fr": "Menus…",
+   "raccourci": "Cmd+Alt+Shift+M"
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "id": "edit.toolbar",
+   "libelle_en": "Toolbar…",
+   "libelle_fr": "Barre d'outils…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Preferences"
+   ],
+   "id": "edit.preferences.general",
+   "libelle_en": "Settings…",
+   "libelle_fr": "Paramètres…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Preferences"
+   ],
+   "id": "edit.preferences.integrations",
+   "libelle_en": "AI Integrations…",
+   "libelle_fr": "Intégrations d'IA…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Preferences"
+   ],
+   "id": "edit.preferences.interface",
+   "libelle_en": "Interface…",
+   "libelle_fr": "Interface…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Preferences"
+   ],
+   "id": "edit.preferences.workspace",
+   "libelle_en": "Workspace…",
+   "libelle_fr": "Espace de travail…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Preferences"
+   ],
+   "id": "edit.preferences.tools",
+   "libelle_en": "Tools…",
+   "libelle_fr": "Outils…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Preferences"
+   ],
+   "id": "edit.preferences.historyLog",
+   "libelle_en": "History Log…",
+   "libelle_fr": "Journal de l'historique…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Preferences"
+   ],
+   "id": "edit.preferences.fileHandling",
+   "libelle_en": "File Handling…",
+   "libelle_fr": "Gestion des fichiers…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Preferences"
+   ],
+   "id": "edit.preferences.export",
+   "libelle_en": "Export…",
+   "libelle_fr": "Exportation…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Preferences"
+   ],
+   "id": "edit.preferences.performance",
+   "libelle_en": "Performance…",
+   "libelle_fr": "Performances…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Preferences"
+   ],
+   "id": "edit.preferences.scratchDisks",
+   "libelle_en": "Scratch Disks…",
+   "libelle_fr": "Disques de travail…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Preferences"
+   ],
+   "id": "edit.preferences.cursors",
+   "libelle_en": "Cursors…",
+   "libelle_fr": "Curseurs…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Preferences"
+   ],
+   "id": "edit.preferences.transparencyAndGamut",
+   "libelle_en": "Transparency & Gamut…",
+   "libelle_fr": "Transparence et gamut…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Preferences"
+   ],
+   "id": "edit.preferences.unitsAndRulers",
+   "libelle_en": "Units & Rulers…",
+   "libelle_fr": "Unités et règles…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Preferences"
+   ],
+   "id": "edit.preferences.guidesGridAndSlices",
+   "libelle_en": "Guides, Grid & Slices…",
+   "libelle_fr": "Repères, grille et tranches…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Preferences"
+   ],
+   "id": "edit.preferences.plugIns",
+   "libelle_en": "Plug-ins…",
+   "libelle_fr": "Extensions…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Preferences"
+   ],
+   "id": "edit.preferences.type",
+   "libelle_en": "Type…",
+   "libelle_fr": "Texte…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Preferences"
+   ],
+   "id": "edit.preferences.enhancedControls",
+   "libelle_en": "Enhanced Controls…",
+   "libelle_fr": "Commandes avancées…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Edit",
+    "Preferences"
+   ],
+   "id": "edit.preferences.rawDefaults",
+   "libelle_en": "Raw Defaults…",
+   "libelle_fr": "Valeurs Raw par défaut…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image",
+    "Mode"
+   ],
+   "id": "image.mode.bitmap",
+   "libelle_en": "Bitmap",
+   "libelle_fr": "Bitmap",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image",
+    "Mode"
+   ],
+   "id": "image.mode.grayscale",
+   "libelle_en": "Grayscale",
+   "libelle_fr": "Niveaux de gris",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image",
+    "Mode"
+   ],
+   "id": "image.mode.duotone",
+   "libelle_en": "Duotone",
+   "libelle_fr": "Duotone",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image",
+    "Mode"
+   ],
+   "id": "image.mode.indexedColor",
+   "libelle_en": "Indexed Color",
+   "libelle_fr": "Couleurs indexées",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image",
+    "Mode"
+   ],
+   "id": "image.mode.rgb",
+   "libelle_en": "RGB Color",
+   "libelle_fr": "Couleurs RVB",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image",
+    "Mode"
+   ],
+   "id": "image.mode.cmyk",
+   "libelle_en": "CMYK Color",
+   "libelle_fr": "Couleurs CMJN",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image",
+    "Mode"
+   ],
+   "id": "image.mode.lab",
+   "libelle_en": "Lab Color",
+   "libelle_fr": "Couleurs Lab",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image",
+    "Mode"
+   ],
+   "id": "image.mode.multichannel",
+   "libelle_en": "Multichannel",
+   "libelle_fr": "Multicanal",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image",
+    "Mode"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Image",
+    "Mode"
+   ],
+   "id": "image.mode.bits8",
+   "libelle_en": "8 Bits/Channel",
+   "libelle_fr": "8 bits/canal",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image",
+    "Mode"
+   ],
+   "id": "image.mode.bits16",
+   "libelle_en": "16 Bits/Channel",
+   "libelle_fr": "16 bits/canal",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image",
+    "Mode"
+   ],
+   "id": "image.mode.bits32",
+   "libelle_en": "32 Bits/Channel",
+   "libelle_fr": "32 bits/canal",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image",
+    "Mode"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Image",
+    "Mode"
+   ],
+   "id": "image.mode.colorTable",
+   "libelle_en": "Color Table…",
+   "libelle_fr": "Table des couleurs…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Image",
+    "Adjustments"
+   ],
+   "id": "image.adjustments.brightnessContrast",
+   "libelle_en": "Brightness/Contrast…",
+   "libelle_fr": "Luminosité/Contraste…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image",
+    "Adjustments"
+   ],
+   "id": "image.adjustments.levels",
+   "libelle_en": "Levels…",
+   "libelle_fr": "Niveaux…",
+   "raccourci": "Cmd+L"
+  },
+  {
+   "chemin": [
+    "Image",
+    "Adjustments"
+   ],
+   "id": "image.adjustments.curves",
+   "libelle_en": "Curves…",
+   "libelle_fr": "Courbes…",
+   "raccourci": "Cmd+M"
+  },
+  {
+   "chemin": [
+    "Image",
+    "Adjustments"
+   ],
+   "id": "image.adjustments.exposure",
+   "libelle_en": "Exposure…",
+   "libelle_fr": "Exposition…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image",
+    "Adjustments"
+   ],
+   "id": "image.adjustments.vibrance",
+   "libelle_en": "Vibrance…",
+   "libelle_fr": "Vibrance…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image",
+    "Adjustments"
+   ],
+   "id": "image.adjustments.hueSaturation",
+   "libelle_en": "Hue/Saturation…",
+   "libelle_fr": "Teinte/Saturation…",
+   "raccourci": "Cmd+U"
+  },
+  {
+   "chemin": [
+    "Image",
+    "Adjustments"
+   ],
+   "id": "image.adjustments.colorBalance",
+   "libelle_en": "Color Balance…",
+   "libelle_fr": "Balance des couleurs…",
+   "raccourci": "Cmd+B"
+  },
+  {
+   "chemin": [
+    "Image",
+    "Adjustments"
+   ],
+   "id": "image.adjustments.blackWhite",
+   "libelle_en": "Black & White…",
+   "libelle_fr": "Noir et blanc…",
+   "raccourci": "Cmd+Alt+Shift+B"
+  },
+  {
+   "chemin": [
+    "Image",
+    "Adjustments"
+   ],
+   "id": "image.adjustments.photoFilter",
+   "libelle_en": "Photo Filter…",
+   "libelle_fr": "Filtre photo…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image",
+    "Adjustments"
+   ],
+   "id": "image.adjustments.channelMixer",
+   "libelle_en": "Channel Mixer…",
+   "libelle_fr": "Mélangeur de canaux…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image",
+    "Adjustments"
+   ],
+   "id": "image.adjustments.colorLookup",
+   "libelle_en": "Color Lookup…",
+   "libelle_fr": "Table de correspondance des couleurs…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image",
+    "Adjustments"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Image",
+    "Adjustments"
+   ],
+   "id": "image.adjustments.invert",
+   "libelle_en": "Invert",
+   "libelle_fr": "Inverser",
+   "raccourci": "Cmd+I"
+  },
+  {
+   "chemin": [
+    "Image",
+    "Adjustments"
+   ],
+   "id": "image.adjustments.posterize",
+   "libelle_en": "Posterize…",
+   "libelle_fr": "Postériser…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image",
+    "Adjustments"
+   ],
+   "id": "image.adjustments.threshold",
+   "libelle_en": "Threshold…",
+   "libelle_fr": "Seuil…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image",
+    "Adjustments"
+   ],
+   "id": "image.adjustments.gradientMap",
+   "libelle_en": "Gradient Map…",
+   "libelle_fr": "Mappage de dégradé…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image",
+    "Adjustments"
+   ],
+   "id": "image.adjustments.selectiveColor",
+   "libelle_en": "Selective Color…",
+   "libelle_fr": "Couleur sélective…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image",
+    "Adjustments"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Image",
+    "Adjustments"
+   ],
+   "id": "image.adjustments.shadowsHighlights",
+   "libelle_en": "Shadows/Highlights…",
+   "libelle_fr": "Ombres/Hautes lumières…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image",
+    "Adjustments"
+   ],
+   "id": "image.adjustments.hdrToning",
+   "libelle_en": "HDR Toning…",
+   "libelle_fr": "Tonalité HDR…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image",
+    "Adjustments"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Image",
+    "Adjustments"
+   ],
+   "id": "image.adjustments.desaturate",
+   "libelle_en": "Desaturate",
+   "libelle_fr": "Désaturer",
+   "raccourci": "Cmd+Shift+U"
+  },
+  {
+   "chemin": [
+    "Image",
+    "Adjustments"
+   ],
+   "id": "image.adjustments.matchColor",
+   "libelle_en": "Match Color…",
+   "libelle_fr": "Faire correspondre la couleur…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image",
+    "Adjustments"
+   ],
+   "id": "image.adjustments.replaceColor",
+   "libelle_en": "Replace Color…",
+   "libelle_fr": "Remplacer la couleur…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image",
+    "Adjustments"
+   ],
+   "id": "image.adjustments.equalize",
+   "libelle_en": "Equalize",
+   "libelle_fr": "Égaliser",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Image"
+   ],
+   "id": "image.autoTone",
+   "libelle_en": "Auto Tone",
+   "libelle_fr": "Tonalité automatique",
+   "raccourci": "Cmd+Shift+L"
+  },
+  {
+   "chemin": [
+    "Image"
+   ],
+   "id": "image.autoContrast",
+   "libelle_en": "Auto Contrast",
+   "libelle_fr": "Contraste automatique",
+   "raccourci": "Cmd+Alt+Shift+L"
+  },
+  {
+   "chemin": [
+    "Image"
+   ],
+   "id": "image.autoColor",
+   "libelle_en": "Auto Color",
+   "libelle_fr": "Couleur automatique",
+   "raccourci": "Cmd+Shift+B"
+  },
+  {
+   "chemin": [
+    "Image"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Image"
+   ],
+   "id": "image.imageSize",
+   "libelle_en": "Image Size…",
+   "libelle_fr": "Taille de l'image…",
+   "raccourci": "Cmd+Alt+I"
+  },
+  {
+   "chemin": [
+    "Image"
+   ],
+   "id": "image.canvasSize",
+   "libelle_en": "Canvas Size…",
+   "libelle_fr": "Taille du canevas…",
+   "raccourci": "Cmd+Alt+C"
+  },
+  {
+   "chemin": [
+    "Image",
+    "Image Rotation"
+   ],
+   "id": "image.imageRotation.180",
+   "libelle_en": "180°",
+   "libelle_fr": "180°",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image",
+    "Image Rotation"
+   ],
+   "id": "image.imageRotation.90cw",
+   "libelle_en": "90° Clockwise",
+   "libelle_fr": "90° horaire",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image",
+    "Image Rotation"
+   ],
+   "id": "image.imageRotation.90ccw",
+   "libelle_en": "90° Counter Clockwise",
+   "libelle_fr": "90° antihoraire",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image",
+    "Image Rotation"
+   ],
+   "id": "image.rotation.arbitrary",
+   "libelle_en": "Arbitrary…",
+   "libelle_fr": "Angle personnalisé…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image",
+    "Image Rotation"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Image",
+    "Image Rotation"
+   ],
+   "id": "image.imageRotation.flipCanvasHorizontal",
+   "libelle_en": "Flip Canvas Horizontal",
+   "libelle_fr": "Retourner le canevas horizontalement",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image",
+    "Image Rotation"
+   ],
+   "id": "image.imageRotation.flipCanvasVertical",
+   "libelle_en": "Flip Canvas Vertical",
+   "libelle_fr": "Retourner le canevas verticalement",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image"
+   ],
+   "id": "image.crop",
+   "libelle_en": "Crop",
+   "libelle_fr": "Recadrer",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image"
+   ],
+   "id": "image.trim",
+   "libelle_en": "Trim…",
+   "libelle_fr": "Rogner les bords…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image"
+   ],
+   "id": "image.revealAll",
+   "libelle_en": "Reveal All",
+   "libelle_fr": "Tout afficher",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Image"
+   ],
+   "id": "image.duplicate",
+   "libelle_en": "Duplicate…",
+   "libelle_fr": "Dupliquer…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image"
+   ],
+   "id": "image.applyImage",
+   "libelle_en": "Apply Image…",
+   "libelle_fr": "Appliquer une image…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image"
+   ],
+   "id": "image.calculations",
+   "libelle_en": "Calculations…",
+   "libelle_fr": "Calculs…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Image",
+    "Variables"
+   ],
+   "id": "image.variables.define",
+   "libelle_en": "Define…",
+   "libelle_fr": "Définir…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image",
+    "Variables"
+   ],
+   "id": "image.variables.dataSets",
+   "libelle_en": "Data Sets…",
+   "libelle_fr": "Jeux de données…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image"
+   ],
+   "id": "image.applyDataSet",
+   "libelle_en": "Apply Data Set…",
+   "libelle_fr": "Appliquer un jeu de données…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Image"
+   ],
+   "id": "image.trap",
+   "libelle_en": "Trap…",
+   "libelle_fr": "Recouvrement…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Image",
+    "Analysis"
+   ],
+   "id": "image.analysis.setMeasurementScale",
+   "libelle_en": "Set Measurement Scale…",
+   "libelle_fr": "Définir l'échelle de mesure…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image",
+    "Analysis"
+   ],
+   "id": "image.analysis.selectDataPoints",
+   "libelle_en": "Select Data Points…",
+   "libelle_fr": "Sélectionner les points de données…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image",
+    "Analysis"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Image",
+    "Analysis"
+   ],
+   "id": "image.analysis.recordMeasurements",
+   "libelle_en": "Record Measurements",
+   "libelle_fr": "Enregistrer les mesures",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image",
+    "Analysis"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Image",
+    "Analysis"
+   ],
+   "id": "image.analysis.rulerTool",
+   "libelle_en": "Ruler Tool",
+   "libelle_fr": "Outil Règle",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image",
+    "Analysis"
+   ],
+   "id": "image.analysis.countTool",
+   "libelle_en": "Count Tool",
+   "libelle_fr": "Outil Compteur",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Image",
+    "Analysis"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Image",
+    "Analysis"
+   ],
+   "id": "image.analysis.placeScaleMarker",
+   "libelle_en": "Place Scale Marker…",
+   "libelle_fr": "Placer un repère d'échelle…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "New"
+   ],
+   "id": "layer.new.layer",
+   "libelle_en": "Layer…",
+   "libelle_fr": "Calque…",
+   "raccourci": "Cmd+Shift+N"
+  },
+  {
+   "chemin": [
+    "Layer",
+    "New"
+   ],
+   "id": "layer.new.layerFromBackground",
+   "libelle_en": "Layer from Background…",
+   "libelle_fr": "Calque d'après l'arrière-plan…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "New"
+   ],
+   "id": "layer.new.group",
+   "libelle_en": "Group…",
+   "libelle_fr": "Groupe…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "New"
+   ],
+   "id": "layer.new.groupFromLayers",
+   "libelle_en": "Group from Layers…",
+   "libelle_fr": "Groupe d'après des calques…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "New"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer",
+    "New"
+   ],
+   "id": "layer.new.artboard",
+   "libelle_en": "Artboard…",
+   "libelle_fr": "Plan de travail…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "New"
+   ],
+   "id": "layer.new.artboardFromGroup",
+   "libelle_en": "Artboard from Group…",
+   "libelle_fr": "Plan de travail d'après un groupe…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "New"
+   ],
+   "id": "layer.new.artboardFromLayers",
+   "libelle_en": "Artboard from Layers…",
+   "libelle_fr": "Plan de travail d'après des calques…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "New"
+   ],
+   "id": "layer.new.frameFromLayers",
+   "libelle_en": "Frame from Layers",
+   "libelle_fr": "Image d'après les calques",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "New"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer",
+    "New"
+   ],
+   "id": "layer.new.layerViaCopy",
+   "libelle_en": "Layer via Copy",
+   "libelle_fr": "Calque par copie",
+   "raccourci": "Cmd+J"
+  },
+  {
+   "chemin": [
+    "Layer",
+    "New"
+   ],
+   "id": "layer.new.layerViaCut",
+   "libelle_en": "Layer via Cut",
+   "libelle_fr": "Calque par coupe",
+   "raccourci": "Cmd+Shift+J"
+  },
+  {
+   "chemin": [
+    "Layer"
+   ],
+   "id": "layer.duplicate",
+   "libelle_en": "Duplicate Layer…",
+   "libelle_fr": "Dupliquer le calque…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Delete"
+   ],
+   "id": "layer.delete",
+   "libelle_en": "Layer",
+   "libelle_fr": "Calque",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Delete"
+   ],
+   "id": "layer.delete.hiddenLayers",
+   "libelle_en": "Hidden Layers",
+   "libelle_fr": "Calques masqués",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer"
+   ],
+   "id": "layer.quickExportAsPng",
+   "libelle_en": "Quick Export as PNG",
+   "libelle_fr": "Exportation rapide au format PNG",
+   "raccourci": "Cmd+Shift+'"
+  },
+  {
+   "chemin": [
+    "Layer"
+   ],
+   "id": "layer.exportAs",
+   "libelle_en": "Export As…",
+   "libelle_fr": "Exporter sous…",
+   "raccourci": "Cmd+Alt+Shift+'"
+  },
+  {
+   "chemin": [
+    "Layer"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer"
+   ],
+   "id": "layer.renameLayer",
+   "libelle_en": "Rename Layer",
+   "libelle_fr": "Renommer le calque",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Layer Style"
+   ],
+   "id": "layer.layerStyle.blendingOptions",
+   "libelle_en": "Blending Options…",
+   "libelle_fr": "Options de fusion…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Layer Style"
+   ],
+   "id": "layer.layerStyle.bevelEmboss",
+   "libelle_en": "Bevel & Emboss…",
+   "libelle_fr": "Biseau et relief…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Layer Style"
+   ],
+   "id": "layer.layerStyle.stroke",
+   "libelle_en": "Stroke…",
+   "libelle_fr": "Contourner…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Layer Style"
+   ],
+   "id": "layer.layerStyle.innerShadow",
+   "libelle_en": "Inner Shadow…",
+   "libelle_fr": "Ombre intérieure…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Layer Style"
+   ],
+   "id": "layer.layerStyle.innerGlow",
+   "libelle_en": "Inner Glow…",
+   "libelle_fr": "Lueur intérieure…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Layer Style"
+   ],
+   "id": "layer.layerStyle.satin",
+   "libelle_en": "Satin…",
+   "libelle_fr": "Satin…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Layer Style"
+   ],
+   "id": "layer.layerStyle.colorOverlay",
+   "libelle_en": "Color Overlay…",
+   "libelle_fr": "Superposition de couleur…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Layer Style"
+   ],
+   "id": "layer.layerStyle.gradientOverlay",
+   "libelle_en": "Gradient Overlay…",
+   "libelle_fr": "Superposition de dégradé…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Layer Style"
+   ],
+   "id": "layer.layerStyle.patternOverlay",
+   "libelle_en": "Pattern Overlay…",
+   "libelle_fr": "Superposition de motif…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Layer Style"
+   ],
+   "id": "layer.layerStyle.outerGlow",
+   "libelle_en": "Outer Glow…",
+   "libelle_fr": "Lueur extérieure…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Layer Style"
+   ],
+   "id": "layer.layerStyle.dropShadow",
+   "libelle_en": "Drop Shadow…",
+   "libelle_fr": "Ombre portée…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Layer Style"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Layer Style"
+   ],
+   "id": "layer.layerStyle.copyLayerStyle",
+   "libelle_en": "Copy Layer Style",
+   "libelle_fr": "Copier le style de calque",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Layer Style"
+   ],
+   "id": "layer.layerStyle.pasteLayerStyle",
+   "libelle_en": "Paste Layer Style",
+   "libelle_fr": "Coller le style de calque",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Layer Style"
+   ],
+   "id": "layer.layerStyle.clear",
+   "libelle_en": "Clear Layer Style",
+   "libelle_fr": "Effacer le style de calque",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Layer Style"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Layer Style"
+   ],
+   "id": "layer.layerStyle.globalLight",
+   "libelle_en": "Global Light…",
+   "libelle_fr": "Lumière globale…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Layer Style"
+   ],
+   "id": "layer.layerStyle.createLayer",
+   "libelle_en": "Create Layer",
+   "libelle_fr": "Créer un calque",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Layer Style"
+   ],
+   "id": "layer.layerStyle.hideAllEffects",
+   "libelle_en": "Hide All Effects",
+   "libelle_fr": "Masquer tous les effets",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Layer Style"
+   ],
+   "id": "layer.layerStyle.scaleEffects",
+   "libelle_en": "Scale Effects…",
+   "libelle_fr": "Mettre les effets à l'échelle…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Filter"
+   ],
+   "id": "layer.smartFilter.disableSmartFilters",
+   "libelle_en": "Disable Smart Filters",
+   "libelle_fr": "Désactiver les filtres intelligents",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Filter"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Filter"
+   ],
+   "id": "layer.smartFilter.deleteFilterMask",
+   "libelle_en": "Delete Filter Mask",
+   "libelle_fr": "Supprimer le masque de filtre",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Filter"
+   ],
+   "id": "layer.smartFilter.disableFilterMask",
+   "libelle_en": "Disable Filter Mask",
+   "libelle_fr": "Désactiver le masque de filtre",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Filter"
+   ],
+   "id": "layer.smartFilter.blendingOptions",
+   "libelle_en": "Blending Options…",
+   "libelle_fr": "Options de fusion…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Filter"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Filter"
+   ],
+   "id": "layer.smartFilter.clearSmartFilters",
+   "libelle_en": "Clear Smart Filters",
+   "libelle_fr": "Effacer les filtres intelligents",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer",
+    "New Fill Layer"
+   ],
+   "id": "layer.newFillLayer.solidColor",
+   "libelle_en": "Solid Color…",
+   "libelle_fr": "Couleur unie…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "New Fill Layer"
+   ],
+   "id": "layer.newFillLayer.gradient",
+   "libelle_en": "Gradient…",
+   "libelle_fr": "Dégradé…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "New Fill Layer"
+   ],
+   "id": "layer.newFillLayer.pattern",
+   "libelle_en": "Pattern…",
+   "libelle_fr": "Motif…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "New Adjustment Layer"
+   ],
+   "id": "layer.newAdjustmentLayer.brightnessContrast",
+   "libelle_en": "Brightness/Contrast…",
+   "libelle_fr": "Luminosité/Contraste…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "New Adjustment Layer"
+   ],
+   "id": "layer.newAdjustmentLayer.levels",
+   "libelle_en": "Levels…",
+   "libelle_fr": "Niveaux…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "New Adjustment Layer"
+   ],
+   "id": "layer.newAdjustmentLayer.curves",
+   "libelle_en": "Curves…",
+   "libelle_fr": "Courbes…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "New Adjustment Layer"
+   ],
+   "id": "layer.newAdjustmentLayer.exposure",
+   "libelle_en": "Exposure…",
+   "libelle_fr": "Exposition…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "New Adjustment Layer"
+   ],
+   "id": "layer.newAdjustmentLayer.vibrance",
+   "libelle_en": "Vibrance…",
+   "libelle_fr": "Vibrance…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "New Adjustment Layer"
+   ],
+   "id": "layer.newAdjustmentLayer.hueSaturation",
+   "libelle_en": "Hue/Saturation…",
+   "libelle_fr": "Teinte/Saturation…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "New Adjustment Layer"
+   ],
+   "id": "layer.newAdjustmentLayer.colorBalance",
+   "libelle_en": "Color Balance…",
+   "libelle_fr": "Balance des couleurs…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "New Adjustment Layer"
+   ],
+   "id": "layer.newAdjustmentLayer.blackWhite",
+   "libelle_en": "Black & White…",
+   "libelle_fr": "Noir et blanc…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "New Adjustment Layer"
+   ],
+   "id": "layer.newAdjustmentLayer.photoFilter",
+   "libelle_en": "Photo Filter…",
+   "libelle_fr": "Filtre photo…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "New Adjustment Layer"
+   ],
+   "id": "layer.newAdjustmentLayer.channelMixer",
+   "libelle_en": "Channel Mixer…",
+   "libelle_fr": "Mélangeur de canaux…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "New Adjustment Layer"
+   ],
+   "id": "layer.newAdjustmentLayer.colorLookup",
+   "libelle_en": "Color Lookup…",
+   "libelle_fr": "Table de correspondance des couleurs…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "New Adjustment Layer"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer",
+    "New Adjustment Layer"
+   ],
+   "id": "layer.newAdjustmentLayer.invert",
+   "libelle_en": "Invert…",
+   "libelle_fr": "Inverser…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "New Adjustment Layer"
+   ],
+   "id": "layer.newAdjustmentLayer.posterize",
+   "libelle_en": "Posterize…",
+   "libelle_fr": "Postériser…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "New Adjustment Layer"
+   ],
+   "id": "layer.newAdjustmentLayer.threshold",
+   "libelle_en": "Threshold…",
+   "libelle_fr": "Seuil…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "New Adjustment Layer"
+   ],
+   "id": "layer.newAdjustmentLayer.gradientMap",
+   "libelle_en": "Gradient Map…",
+   "libelle_fr": "Mappage de dégradé…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "New Adjustment Layer"
+   ],
+   "id": "layer.newAdjustmentLayer.selectiveColor",
+   "libelle_en": "Selective Color…",
+   "libelle_fr": "Couleur sélective…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer"
+   ],
+   "id": "layer.layerContentOptions",
+   "libelle_en": "Layer Content Options…",
+   "libelle_fr": "Options de contenu du calque…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Layer Mask"
+   ],
+   "id": "layer.layerMask.revealAll",
+   "libelle_en": "Reveal All",
+   "libelle_fr": "Tout afficher",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Layer Mask"
+   ],
+   "id": "layer.layerMask.hideAll",
+   "libelle_en": "Hide All",
+   "libelle_fr": "Tout masquer",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Layer Mask"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Layer Mask"
+   ],
+   "id": "layer.layerMask.revealSelection",
+   "libelle_en": "Reveal Selection",
+   "libelle_fr": "Afficher la sélection",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Layer Mask"
+   ],
+   "id": "layer.layerMask.hideSelection",
+   "libelle_en": "Hide Selection",
+   "libelle_fr": "Masquer la sélection",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Layer Mask"
+   ],
+   "id": "layer.layerMask.fromTransparency",
+   "libelle_en": "From Transparency",
+   "libelle_fr": "D'après la transparence",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Layer Mask"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Layer Mask"
+   ],
+   "id": "layer.layerMask.delete",
+   "libelle_en": "Delete",
+   "libelle_fr": "Supprimer",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Layer Mask"
+   ],
+   "id": "layer.layerMask.apply",
+   "libelle_en": "Apply",
+   "libelle_fr": "Appliquer",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Layer Mask"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Layer Mask"
+   ],
+   "id": "layer.layerMask.enabled",
+   "libelle_en": "Enable Layer Mask",
+   "libelle_fr": "Activer le masque de calque",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Layer Mask"
+   ],
+   "id": "layer.layerMask.linked",
+   "libelle_en": "Link Layer Mask",
+   "libelle_fr": "Lier le masque de calque",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer"
+   ],
+   "id": "layer.maskAllObjects",
+   "libelle_en": "Mask All Objects",
+   "libelle_fr": "Masquer tous les objets",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Vector Mask"
+   ],
+   "id": "layer.vectorMask.revealAll",
+   "libelle_en": "Reveal All",
+   "libelle_fr": "Tout afficher",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Vector Mask"
+   ],
+   "id": "layer.vectorMask.hideAll",
+   "libelle_en": "Hide All",
+   "libelle_fr": "Tout masquer",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Vector Mask"
+   ],
+   "id": "layer.vectorMask.currentPath",
+   "libelle_en": "Current Path",
+   "libelle_fr": "Tracé actif",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Vector Mask"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Vector Mask"
+   ],
+   "id": "layer.vectorMask.delete",
+   "libelle_en": "Delete",
+   "libelle_fr": "Supprimer",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Vector Mask"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Vector Mask"
+   ],
+   "id": "layer.vectorMask.enabled",
+   "libelle_en": "Enable Vector Mask",
+   "libelle_fr": "Activer le masque vectoriel",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Vector Mask"
+   ],
+   "id": "layer.vectorMask.linked",
+   "libelle_en": "Link Vector Mask",
+   "libelle_fr": "Lier le masque vectoriel",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer"
+   ],
+   "id": "layer.createClippingMask",
+   "libelle_en": "Create Clipping Mask",
+   "libelle_fr": "Créer un masque de découpe",
+   "raccourci": "Cmd+Alt+G"
+  },
+  {
+   "chemin": [
+    "Layer"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Objects"
+   ],
+   "id": "layer.smartObjects.convertToSmartObject",
+   "libelle_en": "Convert to Smart Object",
+   "libelle_fr": "Convertir en objet intelligent",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Objects"
+   ],
+   "id": "layer.smartObjects.newSmartObjectViaCopy",
+   "libelle_en": "New Smart Object via Copy",
+   "libelle_fr": "Nouvel objet intelligent par copie",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Objects"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Objects"
+   ],
+   "id": "layer.smartObjects.revealInFinder",
+   "libelle_en": "Reveal in Finder",
+   "libelle_fr": "Afficher dans le Finder",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Objects"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Objects"
+   ],
+   "id": "layer.smartObjects.updateModifiedContent",
+   "libelle_en": "Update Modified Content",
+   "libelle_fr": "Mettre à jour le contenu modifié",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Objects"
+   ],
+   "id": "layer.smartObjects.updateAllModifiedContent",
+   "libelle_en": "Update All Modified Content",
+   "libelle_fr": "Mettre à jour tout le contenu modifié",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Objects"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Objects"
+   ],
+   "id": "layer.smartObjects.editContents",
+   "libelle_en": "Edit Contents",
+   "libelle_fr": "Modifier le contenu",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Objects"
+   ],
+   "id": "layer.smartObjects.relinkToFile",
+   "libelle_en": "Relink to File…",
+   "libelle_fr": "Lier de nouveau au fichier…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Objects"
+   ],
+   "id": "layer.smartObjects.replaceContents",
+   "libelle_en": "Replace Contents…",
+   "libelle_fr": "Remplacer le contenu…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Objects"
+   ],
+   "id": "layer.smartObjects.exportContents",
+   "libelle_en": "Export Contents…",
+   "libelle_fr": "Exporter le contenu…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Objects"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Objects"
+   ],
+   "id": "layer.smartObjects.convertToLinked",
+   "libelle_en": "Convert to Linked…",
+   "libelle_fr": "Convertir en objet lié…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Objects"
+   ],
+   "id": "layer.smartObjects.convertToEmbedded",
+   "libelle_en": "Convert to Embedded",
+   "libelle_fr": "Convertir en objet incorporé",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Objects"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Objects",
+    "Stack Mode"
+   ],
+   "id": "layer.smartObjects.stackMode.entropy",
+   "libelle_en": "Entropy",
+   "libelle_fr": "Entropie",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Objects",
+    "Stack Mode"
+   ],
+   "id": "layer.smartObjects.stackMode.kurtosis",
+   "libelle_en": "Kurtosis",
+   "libelle_fr": "Kurtosis",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Objects",
+    "Stack Mode"
+   ],
+   "id": "layer.smartObjects.stackMode.maximum",
+   "libelle_en": "Maximum",
+   "libelle_fr": "Maximum",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Objects",
+    "Stack Mode"
+   ],
+   "id": "layer.smartObjects.stackMode.mean",
+   "libelle_en": "Mean",
+   "libelle_fr": "Moyenne",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Objects",
+    "Stack Mode"
+   ],
+   "id": "layer.smartObjects.stackMode.median",
+   "libelle_en": "Median",
+   "libelle_fr": "Médiane",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Objects",
+    "Stack Mode"
+   ],
+   "id": "layer.smartObjects.stackMode.minimum",
+   "libelle_en": "Minimum",
+   "libelle_fr": "Minimum",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Objects",
+    "Stack Mode"
+   ],
+   "id": "layer.smartObjects.stackMode.range",
+   "libelle_en": "Range",
+   "libelle_fr": "Plage",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Objects",
+    "Stack Mode"
+   ],
+   "id": "layer.smartObjects.stackMode.skewness",
+   "libelle_en": "Skewness",
+   "libelle_fr": "Asymétrie",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Objects",
+    "Stack Mode"
+   ],
+   "id": "layer.smartObjects.stackMode.standardDeviation",
+   "libelle_en": "Standard Deviation",
+   "libelle_fr": "Écart type",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Objects",
+    "Stack Mode"
+   ],
+   "id": "layer.smartObjects.stackMode.summation",
+   "libelle_en": "Summation",
+   "libelle_fr": "Somme",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Objects",
+    "Stack Mode"
+   ],
+   "id": "layer.smartObjects.stackMode.variance",
+   "libelle_en": "Variance",
+   "libelle_fr": "Variance",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Objects"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Objects"
+   ],
+   "id": "layer.smartObjects.rasterize",
+   "libelle_en": "Rasterize",
+   "libelle_fr": "Rastériser",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Objects"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Objects"
+   ],
+   "id": "layer.smartObjects.warp",
+   "libelle_en": "Warp",
+   "libelle_fr": "Déformer",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Objects"
+   ],
+   "id": "layer.smartObjects.perspectiveWarp",
+   "libelle_en": "Perspective Warp",
+   "libelle_fr": "Déformation de la perspective",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Smart Objects"
+   ],
+   "id": "layer.smartObjects.puppetWarp",
+   "libelle_en": "Puppet Warp",
+   "libelle_fr": "Déformation par épingles",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Video Layers"
+   ],
+   "id": "layer.videoLayers.newBlankVideoLayer",
+   "libelle_en": "New Blank Video Layer",
+   "libelle_fr": "Nouveau calque vidéo vide",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Video Layers"
+   ],
+   "id": "layer.videoLayers.newVideoLayerFromFile",
+   "libelle_en": "New Video Layer from File…",
+   "libelle_fr": "Nouveau calque vidéo à partir d'un fichier…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Video Layers"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Video Layers"
+   ],
+   "id": "layer.videoLayers.insertBlankFrame",
+   "libelle_en": "Insert Blank Frame",
+   "libelle_fr": "Insérer une image vide",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Video Layers"
+   ],
+   "id": "layer.videoLayers.duplicateFrame",
+   "libelle_en": "Duplicate Frame",
+   "libelle_fr": "Dupliquer l'image",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Video Layers"
+   ],
+   "id": "layer.videoLayers.deleteFrame",
+   "libelle_en": "Delete Frame",
+   "libelle_fr": "Supprimer l'image",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Video Layers"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Video Layers"
+   ],
+   "id": "layer.videoLayers.replaceFootage",
+   "libelle_en": "Replace Footage…",
+   "libelle_fr": "Remplacer le métrage…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Video Layers"
+   ],
+   "id": "layer.videoLayers.interpretFootage",
+   "libelle_en": "Interpret Footage…",
+   "libelle_fr": "Interpréter le métrage…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Video Layers"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Video Layers"
+   ],
+   "id": "layer.videoLayers.showAlteredVideo",
+   "libelle_en": "Show Altered Video",
+   "libelle_fr": "Afficher la vidéo modifiée",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Video Layers"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Video Layers"
+   ],
+   "id": "layer.videoLayers.restoreFrame",
+   "libelle_en": "Restore Frame",
+   "libelle_fr": "Restaurer l'image",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Video Layers"
+   ],
+   "id": "layer.videoLayers.restoreAllFrames",
+   "libelle_en": "Restore All Frames",
+   "libelle_fr": "Restaurer toutes les images",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Video Layers"
+   ],
+   "id": "layer.videoLayers.reloadFrame",
+   "libelle_en": "Reload Frame",
+   "libelle_fr": "Recharger l'image",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Video Layers"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Video Layers"
+   ],
+   "id": "layer.videoLayers.rasterize",
+   "libelle_en": "Rasterize",
+   "libelle_fr": "Rastériser",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Rasterize"
+   ],
+   "id": "layer.rasterize.type",
+   "libelle_en": "Type",
+   "libelle_fr": "Texte",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Rasterize"
+   ],
+   "id": "layer.rasterize.shape",
+   "libelle_en": "Shape",
+   "libelle_fr": "Forme",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Rasterize"
+   ],
+   "id": "layer.rasterize.fillContent",
+   "libelle_en": "Fill Content",
+   "libelle_fr": "Contenu du remplissage",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Rasterize"
+   ],
+   "id": "layer.rasterize.vectorMask",
+   "libelle_en": "Vector Mask",
+   "libelle_fr": "Masque vectoriel",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Rasterize"
+   ],
+   "id": "layer.rasterize.smartObject",
+   "libelle_en": "Smart Object",
+   "libelle_fr": "Objet intelligent",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Rasterize"
+   ],
+   "id": "layer.rasterize.video",
+   "libelle_en": "Video",
+   "libelle_fr": "Vidéo",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Rasterize"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Rasterize"
+   ],
+   "id": "layer.rasterize.layer",
+   "libelle_en": "Layer",
+   "libelle_fr": "Calque",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Rasterize"
+   ],
+   "id": "layer.rasterize.allLayers",
+   "libelle_en": "All Layers",
+   "libelle_fr": "Tous les calques",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer"
+   ],
+   "id": "layer.newLayerBasedSlice",
+   "libelle_en": "New Layer Based Slice",
+   "libelle_fr": "Nouvelle tranche d'après un calque",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer"
+   ],
+   "id": "layer.groupLayers",
+   "libelle_en": "Group Layers",
+   "libelle_fr": "Grouper les calques",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer"
+   ],
+   "id": "layer.ungroupLayers",
+   "libelle_en": "Ungroup Layers",
+   "libelle_fr": "Dissocier les calques",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer"
+   ],
+   "id": "layer.hideLayers",
+   "libelle_en": "Hide Layers",
+   "libelle_fr": "Masquer les calques",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Arrange"
+   ],
+   "id": "layer.arrange.bringToFront",
+   "libelle_en": "Bring to Front",
+   "libelle_fr": "Mettre au premier plan",
+   "raccourci": "Cmd+Shift+]"
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Arrange"
+   ],
+   "id": "layer.arrange.bringForward",
+   "libelle_en": "Bring Forward",
+   "libelle_fr": "Avancer d'un niveau",
+   "raccourci": "Cmd+]"
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Arrange"
+   ],
+   "id": "layer.arrange.sendBackward",
+   "libelle_en": "Send Backward",
+   "libelle_fr": "Reculer d'un niveau",
+   "raccourci": "Cmd+["
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Arrange"
+   ],
+   "id": "layer.arrange.sendToBack",
+   "libelle_en": "Send to Back",
+   "libelle_fr": "Mettre à l'arrière-plan",
+   "raccourci": "Cmd+Shift+["
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Arrange"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Arrange"
+   ],
+   "id": "layer.arrange.reverse",
+   "libelle_en": "Reverse",
+   "libelle_fr": "Inverser l'ordre",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Combine Shapes"
+   ],
+   "id": "layer.combineShapes.unite",
+   "libelle_en": "Unite Shapes",
+   "libelle_fr": "Réunir les formes",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Combine Shapes"
+   ],
+   "id": "layer.combineShapes.subtractFrontShape",
+   "libelle_en": "Subtract Front Shape",
+   "libelle_fr": "Soustraire la forme de premier plan",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Combine Shapes"
+   ],
+   "id": "layer.combineShapes.intersectShapeAreas",
+   "libelle_en": "Intersect Shape Areas",
+   "libelle_fr": "Intersection des zones de formes",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Combine Shapes"
+   ],
+   "id": "layer.combineShapes.excludeOverlappingShapes",
+   "libelle_en": "Exclude Overlapping Shapes",
+   "libelle_fr": "Exclure les formes superposées",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Combine Shapes"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Combine Shapes"
+   ],
+   "id": "layer.combineShapes.mergeShapeComponents",
+   "libelle_en": "Merge Shape Components",
+   "libelle_fr": "Fusionner les composants de forme",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Align"
+   ],
+   "id": "layer.align.topEdges",
+   "libelle_en": "Top Edges",
+   "libelle_fr": "Bords supérieurs",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Align"
+   ],
+   "id": "layer.align.verticalCenters",
+   "libelle_en": "Vertical Centers",
+   "libelle_fr": "Centres verticaux",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Align"
+   ],
+   "id": "layer.align.bottomEdges",
+   "libelle_en": "Bottom Edges",
+   "libelle_fr": "Bords inférieurs",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Align"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Align"
+   ],
+   "id": "layer.align.leftEdges",
+   "libelle_en": "Left Edges",
+   "libelle_fr": "Bords gauches",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Align"
+   ],
+   "id": "layer.align.horizontalCenters",
+   "libelle_en": "Horizontal Centers",
+   "libelle_fr": "Centres horizontaux",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Align"
+   ],
+   "id": "layer.align.rightEdges",
+   "libelle_en": "Right Edges",
+   "libelle_fr": "Bords droits",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Distribute"
+   ],
+   "id": "layer.distribute.topEdges",
+   "libelle_en": "Top Edges",
+   "libelle_fr": "Bords supérieurs",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Distribute"
+   ],
+   "id": "layer.distribute.verticalCenters",
+   "libelle_en": "Vertical Centers",
+   "libelle_fr": "Centres verticaux",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Distribute"
+   ],
+   "id": "layer.distribute.bottomEdges",
+   "libelle_en": "Bottom Edges",
+   "libelle_fr": "Bords inférieurs",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Distribute"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Distribute"
+   ],
+   "id": "layer.distribute.leftEdges",
+   "libelle_en": "Left Edges",
+   "libelle_fr": "Bords gauches",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Distribute"
+   ],
+   "id": "layer.distribute.horizontalCenters",
+   "libelle_en": "Horizontal Centers",
+   "libelle_fr": "Centres horizontaux",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Distribute"
+   ],
+   "id": "layer.distribute.rightEdges",
+   "libelle_en": "Right Edges",
+   "libelle_fr": "Bords droits",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Distribute"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Distribute"
+   ],
+   "id": "layer.distribute.horizontally",
+   "libelle_en": "Horizontally",
+   "libelle_fr": "Horizontalement",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Distribute"
+   ],
+   "id": "layer.distribute.vertically",
+   "libelle_en": "Vertically",
+   "libelle_fr": "Verticalement",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer"
+   ],
+   "id": "layer.lockLayers",
+   "libelle_en": "Lock Layers…",
+   "libelle_fr": "Verrouiller les calques…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer"
+   ],
+   "id": "layer.linkLayers",
+   "libelle_en": "Link Layers",
+   "libelle_fr": "Lier les calques",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer"
+   ],
+   "id": "layer.selectLinkedLayers",
+   "libelle_en": "Select Linked Layers",
+   "libelle_fr": "Sélectionner les calques liés",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer"
+   ],
+   "id": "layer.mergeLayers",
+   "libelle_en": "Merge Layers",
+   "libelle_fr": "Fusionner les calques",
+   "raccourci": "Cmd+E"
+  },
+  {
+   "chemin": [
+    "Layer"
+   ],
+   "id": "layer.mergeVisible",
+   "libelle_en": "Merge Visible",
+   "libelle_fr": "Fusionner les calques visibles",
+   "raccourci": "Cmd+Shift+E"
+  },
+  {
+   "chemin": [
+    "Layer"
+   ],
+   "id": "layer.flattenImage",
+   "libelle_en": "Flatten Image",
+   "libelle_fr": "Aplatir l'image",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Matting"
+   ],
+   "id": "layer.matting.colorDecontaminate",
+   "libelle_en": "Color Decontaminate…",
+   "libelle_fr": "Décontaminer les couleurs…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Matting"
+   ],
+   "id": "layer.matting.defringe",
+   "libelle_en": "Defringe…",
+   "libelle_fr": "Supprimer les franges…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Matting"
+   ],
+   "id": "layer.matting.removeBlackMatte",
+   "libelle_en": "Remove Black Matte",
+   "libelle_fr": "Supprimer le fond noir",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Layer",
+    "Matting"
+   ],
+   "id": "layer.matting.removeWhiteMatte",
+   "libelle_en": "Remove White Matte",
+   "libelle_fr": "Supprimer le fond blanc",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type",
+    "Panels"
+   ],
+   "id": "type.panels.character",
+   "libelle_en": "Character Panel",
+   "libelle_fr": "Panneau Caractère",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type",
+    "Panels"
+   ],
+   "id": "type.panels.paragraph",
+   "libelle_en": "Paragraph Panel",
+   "libelle_fr": "Panneau Paragraphe",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type",
+    "Panels"
+   ],
+   "id": "type.panels.glyphs",
+   "libelle_en": "Glyphs Panel",
+   "libelle_fr": "Panneau Glyphes",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type",
+    "Panels"
+   ],
+   "id": "type.panels.characterStyles",
+   "libelle_en": "Character Styles Panel",
+   "libelle_fr": "Panneau Styles de caractère",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type",
+    "Panels"
+   ],
+   "id": "type.panels.paragraphStyles",
+   "libelle_en": "Paragraph Styles Panel",
+   "libelle_fr": "Panneau Styles de paragraphe",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Type",
+    "Anti-Alias"
+   ],
+   "id": "type.antiAlias.sharp",
+   "libelle_en": "Sharp",
+   "libelle_fr": "Net",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type",
+    "Anti-Alias"
+   ],
+   "id": "type.antiAlias.crisp",
+   "libelle_en": "Crisp",
+   "libelle_fr": "Vif",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type",
+    "Anti-Alias"
+   ],
+   "id": "type.antiAlias.strong",
+   "libelle_en": "Strong",
+   "libelle_fr": "Fort",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type",
+    "Anti-Alias"
+   ],
+   "id": "type.antiAlias.smooth",
+   "libelle_en": "Smooth",
+   "libelle_fr": "Doux",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type",
+    "Anti-Alias"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Type",
+    "Anti-Alias"
+   ],
+   "id": "type.antiAlias.windowsLcd",
+   "libelle_en": "Windows LCD",
+   "libelle_fr": "LCD Windows",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type",
+    "Anti-Alias"
+   ],
+   "id": "type.antiAlias.windows",
+   "libelle_en": "Windows",
+   "libelle_fr": "Windows",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type",
+    "Orientation"
+   ],
+   "id": "type.orientation.horizontal",
+   "libelle_en": "Horizontal",
+   "libelle_fr": "Horizontal",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type",
+    "Orientation"
+   ],
+   "id": "type.orientation.vertical",
+   "libelle_en": "Vertical",
+   "libelle_fr": "Vertical",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type",
+    "OpenType"
+   ],
+   "id": "type.openType.standardLigatures",
+   "libelle_en": "Standard Ligatures",
+   "libelle_fr": "Ligatures standard",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type",
+    "OpenType"
+   ],
+   "id": "type.openType.contextualAlternates",
+   "libelle_en": "Contextual Alternates",
+   "libelle_fr": "Variantes contextuelles",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type",
+    "OpenType"
+   ],
+   "id": "type.openType.discretionaryLigatures",
+   "libelle_en": "Discretionary Ligatures",
+   "libelle_fr": "Ligatures conditionnelles",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type",
+    "OpenType"
+   ],
+   "id": "type.openType.swash",
+   "libelle_en": "Swash",
+   "libelle_fr": "Lettres ornées",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type",
+    "OpenType"
+   ],
+   "id": "type.openType.oldstyle",
+   "libelle_en": "Oldstyle",
+   "libelle_fr": "Chiffres anciens",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type",
+    "OpenType"
+   ],
+   "id": "type.openType.stylisticAlternates",
+   "libelle_en": "Stylistic Alternates",
+   "libelle_fr": "Variantes stylistiques",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type",
+    "OpenType"
+   ],
+   "id": "type.openType.titlingAlternates",
+   "libelle_en": "Titling Alternates",
+   "libelle_fr": "Variantes de titrage",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type",
+    "OpenType"
+   ],
+   "id": "type.openType.ornaments",
+   "libelle_en": "Ornaments",
+   "libelle_fr": "Ornements",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type",
+    "OpenType"
+   ],
+   "id": "type.openType.ordinals",
+   "libelle_en": "Ordinals",
+   "libelle_fr": "Ordinaux",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type",
+    "OpenType"
+   ],
+   "id": "type.openType.fractions",
+   "libelle_en": "Fractions",
+   "libelle_fr": "Fractions",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Type"
+   ],
+   "id": "type.createWorkPath",
+   "libelle_en": "Create Work Path",
+   "libelle_fr": "Créer un tracé de travail",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type"
+   ],
+   "id": "type.convertToShape",
+   "libelle_en": "Convert to Shape",
+   "libelle_fr": "Convertir en forme",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Type"
+   ],
+   "id": "type.rasterizeTypeLayer",
+   "libelle_en": "Rasterize Type Layer",
+   "libelle_fr": "Rastériser le calque de texte",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Type"
+   ],
+   "id": "type.convertToParagraphText",
+   "libelle_en": "Convert to Paragraph Text",
+   "libelle_fr": "Convertir en texte de paragraphe",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type"
+   ],
+   "id": "type.convertToPointText",
+   "libelle_en": "Convert to Point Text",
+   "libelle_fr": "Convertir en texte de point",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type"
+   ],
+   "id": "type.warpText",
+   "libelle_en": "Warp Text…",
+   "libelle_fr": "Déformer le texte…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Type",
+    "Font Preview Size"
+   ],
+   "id": "type.fontPreviewSize.small",
+   "libelle_en": "Small",
+   "libelle_fr": "Petite",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type",
+    "Font Preview Size"
+   ],
+   "id": "type.fontPreviewSize.medium",
+   "libelle_en": "Medium",
+   "libelle_fr": "Moyenne",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type",
+    "Font Preview Size"
+   ],
+   "id": "type.fontPreviewSize.large",
+   "libelle_en": "Large",
+   "libelle_fr": "Grande",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type",
+    "Font Preview Size"
+   ],
+   "id": "type.fontPreviewSize.extraLarge",
+   "libelle_en": "Extra Large",
+   "libelle_fr": "Très grande",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type",
+    "Font Preview Size"
+   ],
+   "id": "type.fontPreviewSize.huge",
+   "libelle_en": "Huge",
+   "libelle_fr": "Énorme",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type",
+    "Language Options"
+   ],
+   "id": "type.languageOptions.defaultFeatures",
+   "libelle_en": "Default Features",
+   "libelle_fr": "Fonctionnalités par défaut",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type",
+    "Language Options"
+   ],
+   "id": "type.languageOptions.eastAsianFeatures",
+   "libelle_en": "East Asian Features",
+   "libelle_fr": "Fonctionnalités d'Asie orientale",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type",
+    "Language Options"
+   ],
+   "id": "type.languageOptions.middleEasternFeatures",
+   "libelle_en": "Middle Eastern Features",
+   "libelle_fr": "Fonctionnalités du Moyen-Orient",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type",
+    "Language Options"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Type",
+    "Language Options"
+   ],
+   "id": "type.languageOptions.middleEasternAndSouthAsianComposer",
+   "libelle_en": "Middle Eastern & South Asian Composer",
+   "libelle_fr": "Composeur pour le Moyen-Orient et l'Asie du Sud",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Type"
+   ],
+   "id": "type.updateAllTextLayers",
+   "libelle_en": "Update All Text Layers",
+   "libelle_fr": "Mettre à jour tous les calques de texte",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type"
+   ],
+   "id": "type.replaceAllMissingFonts",
+   "libelle_en": "Replace All Missing Fonts",
+   "libelle_fr": "Remplacer toutes les polices manquantes",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type"
+   ],
+   "id": "type.resolveMissingFonts",
+   "libelle_en": "Resolve Missing Fonts…",
+   "libelle_fr": "Résoudre les polices manquantes…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Type"
+   ],
+   "id": "type.pasteLoremIpsum",
+   "libelle_en": "Paste Lorem Ipsum",
+   "libelle_fr": "Coller du Lorem Ipsum",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Type"
+   ],
+   "id": "type.loadDefaultTypeStyles",
+   "libelle_en": "Load Default Type Styles",
+   "libelle_fr": "Charger les styles de texte par défaut",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Type"
+   ],
+   "id": "type.saveDefaultTypeStyles",
+   "libelle_en": "Save Default Type Styles",
+   "libelle_fr": "Enregistrer les styles de texte par défaut",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Select"
+   ],
+   "id": "select.all",
+   "libelle_en": "All",
+   "libelle_fr": "Tout sélectionner",
+   "raccourci": "Cmd+A"
+  },
+  {
+   "chemin": [
+    "Select"
+   ],
+   "id": "select.deselect",
+   "libelle_en": "Deselect",
+   "libelle_fr": "Désélectionner",
+   "raccourci": "Cmd+D"
+  },
+  {
+   "chemin": [
+    "Select"
+   ],
+   "id": "select.reselect",
+   "libelle_en": "Reselect",
+   "libelle_fr": "Resélectionner",
+   "raccourci": "Cmd+Shift+D"
+  },
+  {
+   "chemin": [
+    "Select"
+   ],
+   "id": "select.inverse",
+   "libelle_en": "Inverse Selection",
+   "libelle_fr": "Inverser la sélection",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Select"
+   ],
+   "id": "select.convertToShape",
+   "libelle_en": "Convert to Shape",
+   "libelle_fr": "Convertir en forme",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Select"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Select"
+   ],
+   "id": "select.allLayers",
+   "libelle_en": "All Layers",
+   "libelle_fr": "Tous les calques",
+   "raccourci": "Cmd+Alt+A"
+  },
+  {
+   "chemin": [
+    "Select"
+   ],
+   "id": "select.deselectLayers",
+   "libelle_en": "Deselect Layers",
+   "libelle_fr": "Désélectionner les calques",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Select"
+   ],
+   "id": "select.findLayers",
+   "libelle_en": "Find Layers",
+   "libelle_fr": "Rechercher des calques",
+   "raccourci": "Cmd+Alt+Shift+F"
+  },
+  {
+   "chemin": [
+    "Select"
+   ],
+   "id": "select.isolateLayers",
+   "libelle_en": "Isolate Layers",
+   "libelle_fr": "Isoler les calques",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Select"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Select"
+   ],
+   "id": "select.colorRange",
+   "libelle_en": "Color Range…",
+   "libelle_fr": "Plage de couleurs…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Select"
+   ],
+   "id": "select.focusArea",
+   "libelle_en": "Focus Area…",
+   "libelle_fr": "Zone de mise au point…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Select"
+   ],
+   "id": "select.subject",
+   "libelle_en": "Subject",
+   "libelle_fr": "Sujet",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Select"
+   ],
+   "id": "select.sky",
+   "libelle_en": "Sky",
+   "libelle_fr": "Ciel",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Select"
+   ],
+   "id": "select.selectAndMask",
+   "libelle_en": "Select and Mask…",
+   "libelle_fr": "Sélectionner et masquer…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Select"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Select",
+    "Modify"
+   ],
+   "id": "select.modify.border",
+   "libelle_en": "Border…",
+   "libelle_fr": "Bordure…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Select",
+    "Modify"
+   ],
+   "id": "select.modify.smooth",
+   "libelle_en": "Smooth…",
+   "libelle_fr": "Lisser…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Select",
+    "Modify"
+   ],
+   "id": "select.modify.expand",
+   "libelle_en": "Expand…",
+   "libelle_fr": "Étendre…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Select",
+    "Modify"
+   ],
+   "id": "select.modify.contract",
+   "libelle_en": "Contract…",
+   "libelle_fr": "Contracter…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Select",
+    "Modify"
+   ],
+   "id": "select.modify.feather",
+   "libelle_en": "Feather…",
+   "libelle_fr": "Adoucir…",
+   "raccourci": "Shift+F6"
+  },
+  {
+   "chemin": [
+    "Select"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Select"
+   ],
+   "id": "select.grow",
+   "libelle_en": "Grow",
+   "libelle_fr": "Agrandir",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Select"
+   ],
+   "id": "select.similar",
+   "libelle_en": "Similar",
+   "libelle_fr": "Similaire",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Select"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Select"
+   ],
+   "id": "select.transformSelection",
+   "libelle_en": "Transform Selection",
+   "libelle_fr": "Transformer la sélection",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Select"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Select"
+   ],
+   "id": "select.editInQuickMaskMode",
+   "libelle_en": "Edit in Quick Mask Mode",
+   "libelle_fr": "Modifier en mode masque rapide",
+   "raccourci": "Q"
+  },
+  {
+   "chemin": [
+    "Select"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Select"
+   ],
+   "id": "select.loadSelection",
+   "libelle_en": "Load Selection…",
+   "libelle_fr": "Charger la sélection…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Select"
+   ],
+   "id": "select.saveSelection",
+   "libelle_en": "Save Selection…",
+   "libelle_fr": "Enregistrer la sélection…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter"
+   ],
+   "id": "filter.lastFilter",
+   "libelle_en": "Last Filter",
+   "libelle_fr": "Dernier filtre",
+   "raccourci": "Cmd+Alt+F"
+  },
+  {
+   "chemin": [
+    "Filter"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Filter"
+   ],
+   "id": "filter.convertForSmartFilters",
+   "libelle_en": "Convert for Smart Filters",
+   "libelle_fr": "Convertir pour les filtres intelligents",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Filter"
+   ],
+   "id": "filter.filterGallery",
+   "libelle_en": "Filter Gallery…",
+   "libelle_fr": "Galerie de filtres…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter"
+   ],
+   "id": "filter.cameraRaw",
+   "libelle_en": "Camera Raw Filter…",
+   "libelle_fr": "Filtre Camera Raw…",
+   "raccourci": "Cmd+Shift+A"
+  },
+  {
+   "chemin": [
+    "Filter"
+   ],
+   "id": "filter.adaptiveWideAngle",
+   "libelle_en": "Adaptive Wide Angle…",
+   "libelle_fr": "Grand angle adaptatif…",
+   "raccourci": "Cmd+Alt+Shift+A"
+  },
+  {
+   "chemin": [
+    "Filter"
+   ],
+   "id": "filter.lensCorrection",
+   "libelle_en": "Lens Correction…",
+   "libelle_fr": "Correction de l'objectif…",
+   "raccourci": "Cmd+Shift+R"
+  },
+  {
+   "chemin": [
+    "Filter"
+   ],
+   "id": "filter.liquify",
+   "libelle_en": "Liquify…",
+   "libelle_fr": "Liquéfier…",
+   "raccourci": "Cmd+Shift+X"
+  },
+  {
+   "chemin": [
+    "Filter"
+   ],
+   "id": "filter.vanishingPoint",
+   "libelle_en": "Vanishing Point…",
+   "libelle_fr": "Point de fuite…",
+   "raccourci": "Cmd+Alt+V"
+  },
+  {
+   "chemin": [
+    "Filter"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Blur"
+   ],
+   "id": "filter.blur.average",
+   "libelle_en": "Average",
+   "libelle_fr": "Moyenne",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Blur"
+   ],
+   "id": "filter.blur.blur",
+   "libelle_en": "Blur",
+   "libelle_fr": "Flou",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Blur"
+   ],
+   "id": "filter.blur.blurMore",
+   "libelle_en": "Blur More",
+   "libelle_fr": "Flou accentué",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Blur"
+   ],
+   "id": "filter.blur.boxBlur",
+   "libelle_en": "Box Blur…",
+   "libelle_fr": "Flou par boîte…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Blur"
+   ],
+   "id": "filter.blur.gaussianBlur",
+   "libelle_en": "Gaussian Blur…",
+   "libelle_fr": "Flou gaussien…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Blur"
+   ],
+   "id": "filter.blur.lensBlur",
+   "libelle_en": "Lens Blur…",
+   "libelle_fr": "Flou d'objectif…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Blur"
+   ],
+   "id": "filter.blur.motionBlur",
+   "libelle_en": "Motion Blur…",
+   "libelle_fr": "Flou de mouvement…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Blur"
+   ],
+   "id": "filter.blur.radialBlur",
+   "libelle_en": "Radial Blur…",
+   "libelle_fr": "Flou radial…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Blur"
+   ],
+   "id": "filter.blur.shapeBlur",
+   "libelle_en": "Shape Blur…",
+   "libelle_fr": "Flou selon une forme…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Blur"
+   ],
+   "id": "filter.blur.smartBlur",
+   "libelle_en": "Smart Blur…",
+   "libelle_fr": "Flou intelligent…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Blur"
+   ],
+   "id": "filter.blur.surfaceBlur",
+   "libelle_en": "Surface Blur…",
+   "libelle_fr": "Flou de surface…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Blur Gallery"
+   ],
+   "id": "filter.blurGallery.fieldBlur",
+   "libelle_en": "Field Blur…",
+   "libelle_fr": "Flou de champ…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Blur Gallery"
+   ],
+   "id": "filter.blurGallery.irisBlur",
+   "libelle_en": "Iris Blur…",
+   "libelle_fr": "Flou d'iris…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Blur Gallery"
+   ],
+   "id": "filter.blurGallery.tiltShift",
+   "libelle_en": "Tilt-Shift…",
+   "libelle_fr": "Inclinaison-décalage…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Blur Gallery"
+   ],
+   "id": "filter.blurGallery.pathBlur",
+   "libelle_en": "Path Blur…",
+   "libelle_fr": "Flou de tracé…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Blur Gallery"
+   ],
+   "id": "filter.blurGallery.spinBlur",
+   "libelle_en": "Spin Blur…",
+   "libelle_fr": "Flou de rotation…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Distort"
+   ],
+   "id": "filter.distort.displace",
+   "libelle_en": "Displace…",
+   "libelle_fr": "Déplacement…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Distort"
+   ],
+   "id": "filter.distort.pinch",
+   "libelle_en": "Pinch…",
+   "libelle_fr": "Pincement…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Distort"
+   ],
+   "id": "filter.distort.polarCoordinates",
+   "libelle_en": "Polar Coordinates…",
+   "libelle_fr": "Coordonnées polaires…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Distort"
+   ],
+   "id": "filter.distort.ripple",
+   "libelle_en": "Ripple…",
+   "libelle_fr": "Ondulation…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Distort"
+   ],
+   "id": "filter.distort.shear",
+   "libelle_en": "Shear…",
+   "libelle_fr": "Cisaillement…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Distort"
+   ],
+   "id": "filter.distort.spherize",
+   "libelle_en": "Spherize…",
+   "libelle_fr": "Sphérisation…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Distort"
+   ],
+   "id": "filter.distort.twirl",
+   "libelle_en": "Twirl…",
+   "libelle_fr": "Tourbillon…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Distort"
+   ],
+   "id": "filter.distort.wave",
+   "libelle_en": "Wave…",
+   "libelle_fr": "Onde…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Distort"
+   ],
+   "id": "filter.distort.zigZag",
+   "libelle_en": "ZigZag…",
+   "libelle_fr": "Zigzag…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Noise"
+   ],
+   "id": "filter.noise.addNoise",
+   "libelle_en": "Add Noise…",
+   "libelle_fr": "Ajout de bruit…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Noise"
+   ],
+   "id": "filter.noise.despeckle",
+   "libelle_en": "Despeckle",
+   "libelle_fr": "Supprimer les mouchetures",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Noise"
+   ],
+   "id": "filter.noise.dustAndScratches",
+   "libelle_en": "Dust & Scratches…",
+   "libelle_fr": "Poussière et rayures…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Noise"
+   ],
+   "id": "filter.noise.median",
+   "libelle_en": "Median…",
+   "libelle_fr": "Médiane…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Noise"
+   ],
+   "id": "filter.noise.reduceNoise",
+   "libelle_en": "Reduce Noise…",
+   "libelle_fr": "Réduction du bruit…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Pixelate"
+   ],
+   "id": "filter.pixelate.colorHalftone",
+   "libelle_en": "Color Halftone…",
+   "libelle_fr": "Trame de demi-teintes couleur…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Pixelate"
+   ],
+   "id": "filter.pixelate.crystallize",
+   "libelle_en": "Crystallize…",
+   "libelle_fr": "Cristallisation…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Pixelate"
+   ],
+   "id": "filter.pixelate.facet",
+   "libelle_en": "Facet",
+   "libelle_fr": "Facettes",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Pixelate"
+   ],
+   "id": "filter.pixelate.fragment",
+   "libelle_en": "Fragment",
+   "libelle_fr": "Fragmentation",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Pixelate"
+   ],
+   "id": "filter.pixelate.mezzotint",
+   "libelle_en": "Mezzotint…",
+   "libelle_fr": "Manière noire…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Pixelate"
+   ],
+   "id": "filter.pixelate.mosaic",
+   "libelle_en": "Mosaic…",
+   "libelle_fr": "Mosaïque…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Pixelate"
+   ],
+   "id": "filter.pixelate.pointillize",
+   "libelle_en": "Pointillize…",
+   "libelle_fr": "Pointillisme…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Render"
+   ],
+   "id": "filter.render.flame",
+   "libelle_en": "Flame…",
+   "libelle_fr": "Flamme…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Render"
+   ],
+   "id": "filter.render.pictureFrame",
+   "libelle_en": "Picture Frame…",
+   "libelle_fr": "Cadre d'image…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Render"
+   ],
+   "id": "filter.render.tree",
+   "libelle_en": "Tree…",
+   "libelle_fr": "Arbre…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Render"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Render"
+   ],
+   "id": "filter.render.clouds",
+   "libelle_en": "Clouds",
+   "libelle_fr": "Nuages",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Render"
+   ],
+   "id": "filter.render.differenceClouds",
+   "libelle_en": "Difference Clouds",
+   "libelle_fr": "Nuages par différence",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Render"
+   ],
+   "id": "filter.render.fibers",
+   "libelle_en": "Fibers…",
+   "libelle_fr": "Fibres…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Render"
+   ],
+   "id": "filter.render.lensFlare",
+   "libelle_en": "Lens Flare…",
+   "libelle_fr": "Reflet d'objectif…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Render"
+   ],
+   "id": "filter.render.lightingEffects",
+   "libelle_en": "Lighting Effects…",
+   "libelle_fr": "Effets d'éclairage…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Sharpen"
+   ],
+   "id": "filter.sharpen.sharpen",
+   "libelle_en": "Sharpen",
+   "libelle_fr": "Netteté",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Sharpen"
+   ],
+   "id": "filter.sharpen.sharpenEdges",
+   "libelle_en": "Sharpen Edges",
+   "libelle_fr": "Netteté des contours",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Sharpen"
+   ],
+   "id": "filter.sharpen.sharpenMore",
+   "libelle_en": "Sharpen More",
+   "libelle_fr": "Netteté accentuée",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Sharpen"
+   ],
+   "id": "filter.sharpen.smartSharpen",
+   "libelle_en": "Smart Sharpen…",
+   "libelle_fr": "Netteté intelligente…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Sharpen"
+   ],
+   "id": "filter.sharpen.unsharpMask",
+   "libelle_en": "Unsharp Mask…",
+   "libelle_fr": "Masque flou…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Stylize"
+   ],
+   "id": "filter.stylize.diffuse",
+   "libelle_en": "Diffuse…",
+   "libelle_fr": "Diffuser…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Stylize"
+   ],
+   "id": "filter.stylize.emboss",
+   "libelle_en": "Emboss…",
+   "libelle_fr": "Relief…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Stylize"
+   ],
+   "id": "filter.stylize.extrude",
+   "libelle_en": "Extrude…",
+   "libelle_fr": "Extruder…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Stylize"
+   ],
+   "id": "filter.stylize.findEdges",
+   "libelle_en": "Find Edges",
+   "libelle_fr": "Détecter les contours",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Stylize"
+   ],
+   "id": "filter.stylize.oilPaint",
+   "libelle_en": "Oil Paint…",
+   "libelle_fr": "Peinture à l'huile…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Stylize"
+   ],
+   "id": "filter.stylize.solarize",
+   "libelle_en": "Solarize",
+   "libelle_fr": "Solariser",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Stylize"
+   ],
+   "id": "filter.stylize.tiles",
+   "libelle_en": "Tiles…",
+   "libelle_fr": "Carreaux…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Stylize"
+   ],
+   "id": "filter.stylize.traceContour",
+   "libelle_en": "Trace Contour…",
+   "libelle_fr": "Tracer les contours…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Stylize"
+   ],
+   "id": "filter.stylize.wind",
+   "libelle_en": "Wind…",
+   "libelle_fr": "Vent…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Video"
+   ],
+   "id": "filter.video.deInterlace",
+   "libelle_en": "De-Interlace…",
+   "libelle_fr": "Désentrelacer…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Video"
+   ],
+   "id": "filter.video.ntscColors",
+   "libelle_en": "NTSC Colors",
+   "libelle_fr": "Couleurs NTSC",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Other…"
+   ],
+   "id": "filter.other.custom",
+   "libelle_en": "Custom…",
+   "libelle_fr": "Personnalisé…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Other…"
+   ],
+   "id": "filter.other.hsbHsl",
+   "libelle_en": "HSB/HSL",
+   "libelle_fr": "TSL/TSI",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Other…"
+   ],
+   "id": "filter.other.highPass",
+   "libelle_en": "High Pass…",
+   "libelle_fr": "Passe-haut…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Other…"
+   ],
+   "id": "filter.other.maximum",
+   "libelle_en": "Maximum…",
+   "libelle_fr": "Maximum…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Other…"
+   ],
+   "id": "filter.other.minimum",
+   "libelle_en": "Minimum…",
+   "libelle_fr": "Minimum…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Filter",
+    "Other…"
+   ],
+   "id": "filter.other.offset",
+   "libelle_en": "Offset…",
+   "libelle_fr": "Décalage…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Proof Setup"
+   ],
+   "id": "view.proofSetup.custom",
+   "libelle_en": "Custom…",
+   "libelle_fr": "Personnalisé…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Proof Setup"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "View",
+    "Proof Setup"
+   ],
+   "id": "view.proofSetup.workingCmyk",
+   "libelle_en": "Working CMYK",
+   "libelle_fr": "CMJN de travail",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Proof Setup"
+   ],
+   "id": "view.proofSetup.workingCyanPlate",
+   "libelle_en": "Working Cyan Plate",
+   "libelle_fr": "Plaque cyan de travail",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Proof Setup"
+   ],
+   "id": "view.proofSetup.workingMagentaPlate",
+   "libelle_en": "Working Magenta Plate",
+   "libelle_fr": "Plaque magenta de travail",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Proof Setup"
+   ],
+   "id": "view.proofSetup.workingYellowPlate",
+   "libelle_en": "Working Yellow Plate",
+   "libelle_fr": "Plaque jaune de travail",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Proof Setup"
+   ],
+   "id": "view.proofSetup.workingBlackPlate",
+   "libelle_en": "Working Black Plate",
+   "libelle_fr": "Plaque noire de travail",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Proof Setup"
+   ],
+   "id": "view.proofSetup.workingCmyPlate",
+   "libelle_en": "Working CMY Plate",
+   "libelle_fr": "Plaque CMJ de travail",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Proof Setup"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "View",
+    "Proof Setup"
+   ],
+   "id": "view.proofSetup.legacyMacintoshRgb",
+   "libelle_en": "Legacy Macintosh RGB",
+   "libelle_fr": "RVB Macintosh (ancien)",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Proof Setup"
+   ],
+   "id": "view.proofSetup.internetStandardRgb",
+   "libelle_en": "Internet Standard RGB",
+   "libelle_fr": "RVB standard d'Internet",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Proof Setup"
+   ],
+   "id": "view.proofSetup.monitorRgb",
+   "libelle_en": "Monitor RGB",
+   "libelle_fr": "RVB du moniteur",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Proof Setup"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "View",
+    "Proof Setup"
+   ],
+   "id": "view.proofSetup.colorBlindnessProtanopia",
+   "libelle_en": "Color Blindness — Protanopia-type",
+   "libelle_fr": "Daltonisme — type protanopie",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Proof Setup"
+   ],
+   "id": "view.proofSetup.colorBlindnessDeuteranopia",
+   "libelle_en": "Color Blindness — Deuteranopia-type",
+   "libelle_fr": "Daltonisme — type deutéranopie",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View"
+   ],
+   "id": "view.proofColors",
+   "libelle_en": "Proof Colors",
+   "libelle_fr": "Couleurs d'épreuve",
+   "raccourci": "Cmd+Y"
+  },
+  {
+   "chemin": [
+    "View"
+   ],
+   "id": "view.gamutWarning",
+   "libelle_en": "Gamut Warning",
+   "libelle_fr": "Alerte de gamut",
+   "raccourci": "Cmd+Shift+Y"
+  },
+  {
+   "chemin": [
+    "View"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "View",
+    "Pixel Aspect Ratio"
+   ],
+   "id": "view.pixelAspectRatio.custom",
+   "libelle_en": "Custom Pixel Aspect Ratio…",
+   "libelle_fr": "Format des pixels personnalisé…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Pixel Aspect Ratio"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "View",
+    "Pixel Aspect Ratio"
+   ],
+   "id": "view.pixelAspectRatio.square",
+   "libelle_en": "Square",
+   "libelle_fr": "Carré",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Pixel Aspect Ratio"
+   ],
+   "id": "view.pixelAspectRatio.d1DvNtsc",
+   "libelle_en": "D1/DV NTSC (0.91)",
+   "libelle_fr": "D1/DV NTSC (0,91)",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Pixel Aspect Ratio"
+   ],
+   "id": "view.pixelAspectRatio.d1DvPal",
+   "libelle_en": "D1/DV PAL (1.09)",
+   "libelle_fr": "D1/DV PAL (1,09)",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Pixel Aspect Ratio"
+   ],
+   "id": "view.pixelAspectRatio.d1DvNtscWidescreen",
+   "libelle_en": "D1/DV NTSC Widescreen (1.21)",
+   "libelle_fr": "D1/DV NTSC grand écran (1,21)",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Pixel Aspect Ratio"
+   ],
+   "id": "view.pixelAspectRatio.hdv1080",
+   "libelle_en": "HDV 1080/DVCPRO HD 720 (1.33)",
+   "libelle_fr": "HDV 1080/DVCPRO HD 720 (1,33)",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Pixel Aspect Ratio"
+   ],
+   "id": "view.pixelAspectRatio.d1DvPalWidescreen",
+   "libelle_en": "D1/DV PAL Widescreen (1.46)",
+   "libelle_fr": "D1/DV PAL grand écran (1,46)",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Pixel Aspect Ratio"
+   ],
+   "id": "view.pixelAspectRatio.dvcproHd1080",
+   "libelle_en": "DVCPRO HD 1080/HDV 1080 (1.5)",
+   "libelle_fr": "DVCPRO HD 1080/HDV 1080 (1,5)",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Pixel Aspect Ratio"
+   ],
+   "id": "view.pixelAspectRatio.anamorphic2To1",
+   "libelle_en": "Anamorphic 2:1 (2)",
+   "libelle_fr": "Anamorphique 2:1 (2)",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View"
+   ],
+   "id": "view.pixelAspectRatioCorrection",
+   "libelle_en": "Pixel Aspect Ratio Correction",
+   "libelle_fr": "Correction du format des pixels",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "View"
+   ],
+   "id": "view.thirtyTwoBitPreviewOptions",
+   "libelle_en": "32-bit Preview Options…",
+   "libelle_fr": "Options d'aperçu 32 bits…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "View"
+   ],
+   "id": "view.zoomIn",
+   "libelle_en": "Zoom In",
+   "libelle_fr": "Zoom avant",
+   "raccourci": "Cmd+="
+  },
+  {
+   "chemin": [
+    "View"
+   ],
+   "id": "view.zoomOut",
+   "libelle_en": "Zoom Out",
+   "libelle_fr": "Zoom arrière",
+   "raccourci": "Cmd+-"
+  },
+  {
+   "chemin": [
+    "View"
+   ],
+   "id": "view.fitOnScreen",
+   "libelle_en": "Fit on Screen",
+   "libelle_fr": "Adapter à l'écran",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View"
+   ],
+   "id": "view.fitLayersOnScreen",
+   "libelle_en": "Fit Layer(s) on Screen",
+   "libelle_fr": "Adapter le(s) calque(s) à l'écran",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View"
+   ],
+   "id": "view.fitArtboardOnScreen",
+   "libelle_en": "Fit Artboard on Screen",
+   "libelle_fr": "Adapter le plan de travail à l'écran",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View"
+   ],
+   "id": "view.actualPixels",
+   "libelle_en": "100%",
+   "libelle_fr": "100 %",
+   "raccourci": "Cmd+1"
+  },
+  {
+   "chemin": [
+    "View"
+   ],
+   "id": "view.twoHundredPercent",
+   "libelle_en": "200%",
+   "libelle_fr": "200 %",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View"
+   ],
+   "id": "view.printSize",
+   "libelle_en": "Print Size",
+   "libelle_fr": "Taille d'impression",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "View"
+   ],
+   "id": "view.flipHorizontal",
+   "libelle_en": "Flip Horizontal",
+   "libelle_fr": "Symétrie horizontale",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Screen Mode"
+   ],
+   "id": "view.screenMode.standard",
+   "libelle_en": "Standard Screen Mode",
+   "libelle_fr": "Mode d'écran standard",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Screen Mode"
+   ],
+   "id": "view.screenMode.fullScreenWithMenuBar",
+   "libelle_en": "Full Screen Mode With Menu Bar",
+   "libelle_fr": "Mode plein écran avec barre de menus",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Screen Mode"
+   ],
+   "id": "view.screenMode.fullScreen",
+   "libelle_en": "Full Screen Mode",
+   "libelle_fr": "Mode plein écran",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "View"
+   ],
+   "id": "view.extras",
+   "libelle_en": "Extras",
+   "libelle_fr": "Extras",
+   "raccourci": "Cmd+H"
+  },
+  {
+   "chemin": [
+    "View",
+    "Show"
+   ],
+   "id": "view.show.layerEdges",
+   "libelle_en": "Layer Edges",
+   "libelle_fr": "Contours du calque",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Show"
+   ],
+   "id": "view.show.selectionEdges",
+   "libelle_en": "Selection Edges",
+   "libelle_fr": "Contours de la sélection",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Show"
+   ],
+   "id": "view.show.targetPath",
+   "libelle_en": "Target Path",
+   "libelle_fr": "Tracé cible",
+   "raccourci": "Cmd+Shift+H"
+  },
+  {
+   "chemin": [
+    "View",
+    "Show"
+   ],
+   "id": "view.show.grid",
+   "libelle_en": "Grid",
+   "libelle_fr": "Grille",
+   "raccourci": "Cmd+'"
+  },
+  {
+   "chemin": [
+    "View",
+    "Show"
+   ],
+   "id": "view.show.guides",
+   "libelle_en": "Guides",
+   "libelle_fr": "Repères",
+   "raccourci": "Cmd+;"
+  },
+  {
+   "chemin": [
+    "View",
+    "Show"
+   ],
+   "id": "view.show.canvasGuides",
+   "libelle_en": "Canvas Guides",
+   "libelle_fr": "Repères du canevas",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Show"
+   ],
+   "id": "view.show.artboardGuides",
+   "libelle_en": "Artboard Guides",
+   "libelle_fr": "Repères du plan de travail",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Show"
+   ],
+   "id": "view.show.count",
+   "libelle_en": "Count",
+   "libelle_fr": "Compteur",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Show"
+   ],
+   "id": "view.show.smartGuides",
+   "libelle_en": "Smart Guides",
+   "libelle_fr": "Repères intelligents",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Show"
+   ],
+   "id": "view.show.slices",
+   "libelle_en": "Slices",
+   "libelle_fr": "Tranches",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Show"
+   ],
+   "id": "view.show.notes",
+   "libelle_en": "Notes",
+   "libelle_fr": "Notes",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Show"
+   ],
+   "id": "view.show.pixelGrid",
+   "libelle_en": "Pixel Grid",
+   "libelle_fr": "Grille de pixels",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Show"
+   ],
+   "id": "view.show.brushPreview",
+   "libelle_en": "Brush Preview",
+   "libelle_fr": "Aperçu du pinceau",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Show"
+   ],
+   "id": "view.show.mesh",
+   "libelle_en": "Mesh",
+   "libelle_fr": "Maillage",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Show"
+   ],
+   "id": "view.show.editPins",
+   "libelle_en": "Edit Pins",
+   "libelle_fr": "Modifier les épingles",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Show"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "View",
+    "Show"
+   ],
+   "id": "view.show.all",
+   "libelle_en": "All",
+   "libelle_fr": "Tout",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Show"
+   ],
+   "id": "view.show.showExtrasOptions",
+   "libelle_en": "Show Extras Options…",
+   "libelle_fr": "Options d'affichage des extras…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "View"
+   ],
+   "id": "view.rulers",
+   "libelle_en": "Rulers",
+   "libelle_fr": "Règles",
+   "raccourci": "Cmd+R"
+  },
+  {
+   "chemin": [
+    "View"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "View"
+   ],
+   "id": "view.snap",
+   "libelle_en": "Snap",
+   "libelle_fr": "Aimanter",
+   "raccourci": "Cmd+Shift+;"
+  },
+  {
+   "chemin": [
+    "View",
+    "Snap To"
+   ],
+   "id": "view.snapTo.guides",
+   "libelle_en": "Guides",
+   "libelle_fr": "Repères",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Snap To"
+   ],
+   "id": "view.snapTo.grid",
+   "libelle_en": "Grid",
+   "libelle_fr": "Grille",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Snap To"
+   ],
+   "id": "view.snapTo.layers",
+   "libelle_en": "Layers",
+   "libelle_fr": "Calques",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Snap To"
+   ],
+   "id": "view.snapTo.slices",
+   "libelle_en": "Slices",
+   "libelle_fr": "Tranches",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Snap To"
+   ],
+   "id": "view.snapTo.documentBounds",
+   "libelle_en": "Document Bounds",
+   "libelle_fr": "Limites du document",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View",
+    "Snap To"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "View",
+    "Snap To"
+   ],
+   "id": "view.snapTo.all",
+   "libelle_en": "All",
+   "libelle_fr": "Tout",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "View"
+   ],
+   "id": "view.lockGuides",
+   "libelle_en": "Lock Guides",
+   "libelle_fr": "Verrouiller les repères",
+   "raccourci": "Cmd+Alt+;"
+  },
+  {
+   "chemin": [
+    "View"
+   ],
+   "id": "view.clearGuides",
+   "libelle_en": "Clear Guides",
+   "libelle_fr": "Effacer les repères",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View"
+   ],
+   "id": "view.clearSelectedArtboardGuides",
+   "libelle_en": "Clear Selected Artboard Guides",
+   "libelle_fr": "Effacer les repères du plan de travail sélectionné",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View"
+   ],
+   "id": "view.clearCanvasGuides",
+   "libelle_en": "Clear Canvas Guides",
+   "libelle_fr": "Effacer les repères du canevas",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View"
+   ],
+   "id": "view.newGuide",
+   "libelle_en": "New Guide…",
+   "libelle_fr": "Nouveau repère…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View"
+   ],
+   "id": "view.newGuideLayout",
+   "libelle_en": "New Guide Layout…",
+   "libelle_fr": "Nouvelle disposition de repères…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View"
+   ],
+   "id": "view.newGuidesFromShape",
+   "libelle_en": "New Guides From Shape",
+   "libelle_fr": "Nouveaux repères d'après la forme",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "View"
+   ],
+   "id": "view.lockSlices",
+   "libelle_en": "Lock Slices",
+   "libelle_fr": "Verrouiller les tranches",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View"
+   ],
+   "id": "view.clearSlices",
+   "libelle_en": "Clear Slices",
+   "libelle_fr": "Effacer les tranches",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "View"
+   ],
+   "id": "view.patternPreview",
+   "libelle_en": "Pattern Preview",
+   "libelle_fr": "Aperçu du motif",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "View"
+   ],
+   "id": "view.pixelArtPreview",
+   "libelle_en": "Pixel Art Preview",
+   "libelle_fr": "Aperçu pixel art",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window",
+    "Arrange"
+   ],
+   "id": "window.arrange.tileAllVertically",
+   "libelle_en": "Tile All Vertically",
+   "libelle_fr": "Tout en mosaïque verticale",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window",
+    "Arrange"
+   ],
+   "id": "window.arrange.tileAllHorizontally",
+   "libelle_en": "Tile All Horizontally",
+   "libelle_fr": "Tout en mosaïque horizontale",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window",
+    "Arrange"
+   ],
+   "id": "window.arrange.twoUpVertical",
+   "libelle_en": "2-up Vertical",
+   "libelle_fr": "2 vignettes verticales",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window",
+    "Arrange"
+   ],
+   "id": "window.arrange.twoUpHorizontal",
+   "libelle_en": "2-up Horizontal",
+   "libelle_fr": "2 vignettes horizontales",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window",
+    "Arrange"
+   ],
+   "id": "window.arrange.threeUpVertical",
+   "libelle_en": "3-up Vertical",
+   "libelle_fr": "3 vignettes verticales",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window",
+    "Arrange"
+   ],
+   "id": "window.arrange.threeUpHorizontal",
+   "libelle_en": "3-up Horizontal",
+   "libelle_fr": "3 vignettes horizontales",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window",
+    "Arrange"
+   ],
+   "id": "window.arrange.threeUpStacked",
+   "libelle_en": "3-up Stacked",
+   "libelle_fr": "3 vignettes empilées",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window",
+    "Arrange"
+   ],
+   "id": "window.arrange.fourUp",
+   "libelle_en": "4-up",
+   "libelle_fr": "4 vignettes",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window",
+    "Arrange"
+   ],
+   "id": "window.arrange.sixUp",
+   "libelle_en": "6-up",
+   "libelle_fr": "6 vignettes",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window",
+    "Arrange"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Window",
+    "Arrange"
+   ],
+   "id": "window.arrange.consolidateAllToTabs",
+   "libelle_en": "Consolidate All to Tabs",
+   "libelle_fr": "Tout regrouper dans des onglets",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window",
+    "Arrange"
+   ],
+   "id": "window.arrange.cascade",
+   "libelle_en": "Cascade",
+   "libelle_fr": "Cascade",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window",
+    "Arrange"
+   ],
+   "id": "window.arrange.tile",
+   "libelle_en": "Tile",
+   "libelle_fr": "Mosaïque",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window",
+    "Arrange"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Window",
+    "Arrange"
+   ],
+   "id": "window.arrange.floatInWindow",
+   "libelle_en": "Float in Window",
+   "libelle_fr": "Flottante dans une fenêtre",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window",
+    "Arrange"
+   ],
+   "id": "window.arrange.floatAllInWindows",
+   "libelle_en": "Float All in Windows",
+   "libelle_fr": "Toutes flottantes dans des fenêtres",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window",
+    "Arrange"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Window",
+    "Arrange"
+   ],
+   "id": "window.arrange.newWindowForDocument",
+   "libelle_en": "New Window for Document",
+   "libelle_fr": "Nouvelle fenêtre pour le document",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window",
+    "Arrange"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Window",
+    "Arrange"
+   ],
+   "id": "window.arrange.matchZoom",
+   "libelle_en": "Match Zoom",
+   "libelle_fr": "Faire correspondre le zoom",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window",
+    "Arrange"
+   ],
+   "id": "window.arrange.matchLocation",
+   "libelle_en": "Match Location",
+   "libelle_fr": "Faire correspondre la position",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window",
+    "Arrange"
+   ],
+   "id": "window.arrange.matchRotation",
+   "libelle_en": "Match Rotation",
+   "libelle_fr": "Faire correspondre la rotation",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window",
+    "Arrange"
+   ],
+   "id": "window.arrange.matchAll",
+   "libelle_en": "Match All",
+   "libelle_fr": "Tout faire correspondre",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window",
+    "Workspace"
+   ],
+   "id": "window.workspace.essentials",
+   "libelle_en": "Essentials",
+   "libelle_fr": "Essentiel",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window",
+    "Workspace"
+   ],
+   "id": "window.workspace.photography",
+   "libelle_en": "Photography",
+   "libelle_fr": "Photographie",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window",
+    "Workspace"
+   ],
+   "id": "window.workspace.painting",
+   "libelle_en": "Painting",
+   "libelle_fr": "Peinture",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window",
+    "Workspace"
+   ],
+   "id": "window.workspace.pixelArt",
+   "libelle_en": "Pixel Art",
+   "libelle_fr": "Pixel art",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window",
+    "Workspace"
+   ],
+   "id": "window.workspace.graphicAndWeb",
+   "libelle_en": "Graphic and Web",
+   "libelle_fr": "Graphisme et Web",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window",
+    "Workspace"
+   ],
+   "id": "window.workspace.motion",
+   "libelle_en": "Motion",
+   "libelle_fr": "Mouvement",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window",
+    "Workspace"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Window",
+    "Workspace"
+   ],
+   "id": "window.workspace.resetWorkspace",
+   "libelle_en": "Reset Workspace",
+   "libelle_fr": "Réinitialiser l'espace de travail",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window",
+    "Workspace"
+   ],
+   "id": "window.workspace.newWorkspace",
+   "libelle_en": "New Workspace…",
+   "libelle_fr": "Nouvel espace de travail…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window",
+    "Workspace"
+   ],
+   "id": "window.workspace.deleteWorkspace",
+   "libelle_en": "Delete Workspace…",
+   "libelle_fr": "Supprimer l'espace de travail…",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window",
+    "Workspace"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Window",
+    "Workspace"
+   ],
+   "id": "edit.keyboardShortcuts",
+   "libelle_en": "Keyboard Shortcuts…",
+   "libelle_fr": "Raccourcis clavier…",
+   "raccourci": "Cmd+Alt+Shift+K"
+  },
+  {
+   "chemin": [
+    "Window",
+    "Workspace"
+   ],
+   "id": "window.workspace.lockWorkspace",
+   "libelle_en": "Lock Workspace",
+   "libelle_fr": "Verrouiller l'espace de travail",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Window"
+   ],
+   "id": "window.panel.actions",
+   "libelle_en": "Actions",
+   "libelle_fr": "Actions",
+   "raccourci": "Alt+F9"
+  },
+  {
+   "chemin": [
+    "Window"
+   ],
+   "id": "window.panel.adjustments",
+   "libelle_en": "Adjustments",
+   "libelle_fr": "Ajustements",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window"
+   ],
+   "id": "window.panel.brushSettings",
+   "libelle_en": "Brush Settings",
+   "libelle_fr": "Paramètres du pinceau",
+   "raccourci": "F5"
+  },
+  {
+   "chemin": [
+    "Window"
+   ],
+   "id": "window.panel.brushes",
+   "libelle_en": "Brushes",
+   "libelle_fr": "Pinceaux",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window"
+   ],
+   "id": "window.panel.channels",
+   "libelle_en": "Channels",
+   "libelle_fr": "Canaux",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window"
+   ],
+   "id": "window.panel.character",
+   "libelle_en": "Character",
+   "libelle_fr": "Caractère",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window"
+   ],
+   "id": "window.panel.characterStyles",
+   "libelle_en": "Character Styles",
+   "libelle_fr": "Styles de caractère",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window"
+   ],
+   "id": "window.panel.cloneSource",
+   "libelle_en": "Clone Source",
+   "libelle_fr": "Source de clonage",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window"
+   ],
+   "id": "window.panel.color",
+   "libelle_en": "Color",
+   "libelle_fr": "Couleur",
+   "raccourci": "F6"
+  },
+  {
+   "chemin": [
+    "Window"
+   ],
+   "id": "window.panel.glyphs",
+   "libelle_en": "Glyphs",
+   "libelle_fr": "Glyphes",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window"
+   ],
+   "id": "window.panel.gradients",
+   "libelle_en": "Gradients",
+   "libelle_fr": "Dégradés",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window"
+   ],
+   "id": "window.panel.histogram",
+   "libelle_en": "Histogram",
+   "libelle_fr": "Histogramme",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window"
+   ],
+   "id": "window.panel.history",
+   "libelle_en": "History",
+   "libelle_fr": "Historique",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window"
+   ],
+   "id": "window.panel.info",
+   "libelle_en": "Info",
+   "libelle_fr": "Infos",
+   "raccourci": "F8"
+  },
+  {
+   "chemin": [
+    "Window"
+   ],
+   "id": "window.panel.layerComps",
+   "libelle_en": "Layer Comps",
+   "libelle_fr": "Compositions de calques",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window"
+   ],
+   "id": "window.panel.layers",
+   "libelle_en": "Layers",
+   "libelle_fr": "Calques",
+   "raccourci": "F7"
+  },
+  {
+   "chemin": [
+    "Window"
+   ],
+   "id": "window.panel.measurementLog",
+   "libelle_en": "Measurement Log",
+   "libelle_fr": "Journal des mesures",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window"
+   ],
+   "id": "window.panel.modifierKeys",
+   "libelle_en": "Modifier Keys",
+   "libelle_fr": "Touches de modification",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window"
+   ],
+   "id": "window.panel.navigator",
+   "libelle_en": "Navigator",
+   "libelle_fr": "Navigation",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window"
+   ],
+   "id": "window.panel.notes",
+   "libelle_en": "Notes",
+   "libelle_fr": "Notes",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window"
+   ],
+   "id": "window.panel.paragraph",
+   "libelle_en": "Paragraph",
+   "libelle_fr": "Paragraphe",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window"
+   ],
+   "id": "window.panel.paragraphStyles",
+   "libelle_en": "Paragraph Styles",
+   "libelle_fr": "Styles de paragraphe",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window"
+   ],
+   "id": "window.panel.paths",
+   "libelle_en": "Paths",
+   "libelle_fr": "Tracés",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window"
+   ],
+   "id": "window.panel.patterns",
+   "libelle_en": "Patterns",
+   "libelle_fr": "Motifs",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window"
+   ],
+   "id": "window.panel.properties",
+   "libelle_en": "Properties",
+   "libelle_fr": "Propriétés",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window"
+   ],
+   "id": "window.panel.shapes",
+   "libelle_en": "Shapes",
+   "libelle_fr": "Formes",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window"
+   ],
+   "id": "window.panel.styles",
+   "libelle_en": "Styles",
+   "libelle_fr": "Styles",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window"
+   ],
+   "id": "window.panel.swatches",
+   "libelle_en": "Swatches",
+   "libelle_fr": "Nuancier",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window"
+   ],
+   "id": "window.panel.timeline",
+   "libelle_en": "Timeline",
+   "libelle_fr": "Montage",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window"
+   ],
+   "id": "window.panel.toolPresets",
+   "libelle_en": "Tool Presets",
+   "libelle_fr": "Préréglages d'outils",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window"
+   ],
+   "separateur": true
+  },
+  {
+   "chemin": [
+    "Window"
+   ],
+   "id": "window.panel.options",
+   "libelle_en": "Options",
+   "libelle_fr": "Options",
+   "raccourci": null
+  },
+  {
+   "chemin": [
+    "Window"
+   ],
+   "id": "window.panel.tools",
+   "libelle_en": "Tools",
+   "libelle_fr": "Outils",
+   "raccourci": null
+  }
+ ]
+}
