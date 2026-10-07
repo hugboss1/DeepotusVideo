@@ -332,6 +332,8 @@ function _corps(o, ctx) {
     return L.join("\n");
   }
   if (o.type === "instance") {
+    // t123 : l'instance en cours d'édition en place est masquée — son calque d'édition la montre déjà
+    if (ctx.doc.edition && ctx.doc.edition.instance === o.id) return "";
     const sym = (ctx.doc.symboles || {})[o.symbole];
     return sym ? (sym.objets || []).map((e) => _objet(e, ctx)).filter(Boolean).join("\n") : "";
   }

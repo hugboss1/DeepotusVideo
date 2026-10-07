@@ -7,9 +7,11 @@
 import { op_style, op_degrade_creer, op_degrade_transparence, op_motif_creer, op_ecreter, op_desecreter,
          op_couleur_globale_definir, op_couleur_globale_supprimer, op_style_definir, op_style_appliquer,
          op_style_supprimer, op_symbole_creer, op_instance_poser, op_symbole_detacher, op_symbole_supprimer,
-         op_texte_en_cadre, op_texte_sur_chemin, op_textechemin_decalage, op_ajouter, op_supprimer } from "./mod-doc.js";
+         op_texte_en_cadre, op_texte_sur_chemin, op_textechemin_decalage, op_ajouter, op_supprimer,
+         op_symbole_ouvrir, op_symbole_fermer, op_symbole_abandonner } from "./mod-doc.js";
 import { EFFETS, effet_defaut, MODES_FUSION, MOTIFS, motif_defaut } from "./mod-effets.js";
 import { palette_harmonique, HARMONIES, op_palette_ajouter } from "./mod-couleur.js";
+import { op_derive_detacher } from "./mod-vivants.js";
 import { PROFILS, trait_profil } from "./mod-pinceauvec.js";
 import { simplifier } from "./mod-crayon.js";
 
@@ -133,7 +135,10 @@ export function initApparence2(VL) {
     const o1 = sel ? ((VL.objetDe(etat.selection[0]) || {}).objet || null) : null;
     const texteSel = o1 && ["texte", "cadre", "textechemin"].includes(o1.type);
     const nInst = (sid) => { let n = 0; const v = (objs) => { for (const x of objs || []) { if (x.type === "instance" && x.symbole === sid) n++; if (x.type === "groupe") v(x.enfants); } }; d.calques.forEach((c) => v(c.objets)); return n; };
+    const ed = d.edition;
     hote.innerHTML = `
+      ${ed ? `<div class="ap-ligne a2-edition" title="Édition du symbole en place : ses objets sont dans le calque « ${esc((d.calques.find((c) => c.id === ed.calque) || {}).nom || "")} ». Terminer réécrit le symbole — toutes ses instances suivent."><b style="flex:1">✎ Symbole « ${esc((symboles[ed.sid] || {}).nom || ed.sid)} »</b>
+        <button id="a2SymFin" class="primaire" title="Réécrit le symbole depuis le calque d'édition (Échap, sélection vide)">Terminer</button><button id="a2SymAnnule" title="Jette les modifications du calque d'édition">Abandonner</button></div>` : ""}
       <details open><summary class="px-tete">Effets${effets.length ? ` · ${effets.length}` : ""}</summary>
         ${effets.map((e, i) => `<div class="a2-effet" data-i="${i}"><div class="ap-ligne"><b style="flex:1">${esc(libelle_effet(e))}</b><button data-fx-x="${i}" title="Retirer">✕</button></div>
           <div class="a2-champs">${EFFET_CHAMPS[e.type].map(({ cle, lib }) => cle === "couleur"
@@ -172,8 +177,12 @@ export function initApparence2(VL) {
         ${o1.type === "texte" && sel === 1 ? `<div class="ap-ligne"><span>Cadre</span><input type="number" id="a2CadreW" min="1" value="200" title="Largeur"/><input type="number" id="a2CadreH" min="1" value="100" title="Hauteur"/><button id="a2EnCadre" title="Le texte devient un cadre à paragraphes">→ cadre</button></div>` : ""}
         ${o1.type === "cadre" && sel === 1 ? `<div class="ap-ligne"><span>Aligner</span><select id="a2Aligner">${["gauche", "centre", "droite", "justifie"].map((a) => `<option${(s.aligner || "gauche") === a ? " selected" : ""}>${a}</option>`).join("")}</select></div>
         <div class="ap-ligne"><span>Interl.</span><input type="number" id="a2Interligne" step="0.05" min="0.5" value="${s.interligne || 1.25}" title="Interligne (× corps)"/><input type="number" id="a2Retrait" min="0" value="${s.retrait || 0}" title="Retrait de première ligne (px)"/></div>` : ""}
-        ${o1.type !== "textechemin" ? `<div class="ap-ligne"><button id="a2SurChemin" ${sel === 2 ? "" : "disabled"} title="Sélectionner le texte PUIS un chemin : le texte suit le chemin (le d est copié)">→ sur le chemin</button></div>` : ""}
+        ${o1.type !== "textechemin" ? `<div class="ap-ligne"><button id="a2SurChemin" ${sel === 2 ? "" : "disabled"} title="Sélectionner le texte PUIS un chemin : le texte se pose sur le chemin et le SUIT quand il change">→ sur le chemin</button></div>` : ""}
+        ${o1.type === "textechemin" && sel === 1 && o1.chemin ? `<div class="ap-ligne"><i class="px-note" style="flex:1">suit le chemin ${esc(o1.chemin)}</i><button id="a2Detacher" title="Le texte ne suit plus son chemin : son tracé actuel est figé">détacher</button></div>` : ""}
         ${o1.type === "textechemin" && sel === 1 ? `<div class="ap-ligne"><span>Décalage</span><vl-curseur id="a2Decalage" min="0" max="100" step="1" value="${o1.decalage || 0}"></vl-curseur><b id="a2DecalageVal">${o1.decalage || 0} %</b></div>` : ""}
+      </details>` : ""}
+      ${o1 && o1.derive && sel === 1 ? `<details open><summary class="px-tete">Contour vivant</summary>
+        <div class="ap-ligne"><i class="px-note" style="flex:1">${o1.derive.decalage > 0 ? "+" : ""}${esc(o1.derive.decalage)} px autour de ${esc(o1.derive.source)} — se recalcule quand la source change</i><button id="a2Detacher" title="Le contour ne suit plus sa source : il devient un chemin ordinaire">détacher</button></div>
       </details>` : ""}
       <details ${etat.outil === "pinceauv" ? "open" : ""}><summary class="px-tete">Pinceau vectoriel (J)</summary>
         <div class="ap-ligne"><span>Largeur</span><input type="number" id="a2PvL" min="0.5" step="0.5" value="${etat.pinceauv.largeur}"/><select id="a2PvP">${PROFILS.map((p) => `<option value="${p.id}"${etat.pinceauv.profil === p.id ? " selected" : ""}>${p.libelle}</option>`).join("")}</select></div>
@@ -250,6 +259,9 @@ export function initApparence2(VL) {
     on("a2SurChemin", "click", () => { const [t, c] = etat.selection; VL.executer(op_texte_sur_chemin, t, c); VL.setSelection([t]); });
     on("a2Decalage", "input", (ev) => { $("#a2DecalageVal").textContent = ev.target.value + " %"; });
     on("a2Decalage", "change", (ev) => VL.executer(op_textechemin_decalage, etat.selection[0], +ev.target.value));
+    on("a2Detacher", "click", () => VL.executer(op_derive_detacher, etat.selection[0]));
+    on("a2SymFin", "click", () => VL.actions.symboles.terminer());
+    on("a2SymAnnule", "click", () => VL.actions.symboles.abandonner());
     // pinceau vectoriel
     on("a2PvL", "change", (ev) => { etat.pinceauv.largeur = Math.max(0.5, _num(ev.target.value, 8)); });
     on("a2PvP", "change", (ev) => { etat.pinceauv.profil = ev.target.value; });
@@ -263,6 +275,42 @@ export function initApparence2(VL) {
     detacher: () => { const ids = VL.executer(op_symbole_detacher, etat.selection[0]); if (ids) VL.setSelection(ids); },
     supprimer: (sid) => VL.executer(op_symbole_supprimer, sid),
     instanceSel: () => { const t = etat.selection.length === 1 && VL.objetDe(etat.selection[0]); return !!(t && t.objet.type === "instance"); },
+    // t123 : l'édition EN PLACE — ouvrir (double-clic sur une instance, ou le menu), terminer (Échap à sélection
+    // vide, le bandeau, le menu), abandonner
+    edition: () => (etat.doc && etat.doc.edition) || null,
+    ouvrir: (id) => {
+      const avant = etat.calqueActif;
+      const cid = VL.executer(op_symbole_ouvrir, id || etat.selection[0]);
+      if (!cid) return;
+      etat.calqueAvantEdition = avant;      // rendu à la sortie : le calque d'édition, lui, disparaît
+      etat.calqueActif = cid;
+      const c = etat.doc.calques.find((x) => x.id === cid);
+      VL.setSelection(c ? c.objets.map((o) => o.id) : []);
+      VL.toast("édition du symbole en place — modifier ses objets, puis Échap (sélection vide) ou « Terminer »");
+    },
+    terminer: () => {
+      const ed = etat.doc && etat.doc.edition;
+      if (!ed) return;
+      const n = VL.executer(op_symbole_fermer);
+      if (n === undefined) return;
+      sortieEdition();
+      VL.setSelection(ed.instance ? [ed.instance] : []);
+      VL.toast(`symbole réécrit (${n} objet(s)) — toutes ses instances suivent`);
+    },
+    abandonner: () => { if (VL.executer(op_symbole_abandonner) !== undefined) { sortieEdition(); VL.setSelection([]); } },
+  };
+  // mesuré en preuve : après « Terminer », le calque ACTIF restait le calque d'édition supprimé — le prochain objet
+  // posé se perdait sans un mot. On rend le calque d'avant (ou le premier qui existe).
+  function sortieEdition() {
+    const ids = etat.doc.calques.map((c) => c.id);
+    etat.calqueActif = ids.includes(etat.calqueAvantEdition) ? etat.calqueAvantEdition : ids[0];
+    delete etat.calqueAvantEdition;
+  }
+  const suivantTouche = VL.surTouche;
+  VL.surTouche = (ev) => {
+    // Échap à sélection VIDE termine l'édition en place (le premier Échap déselectionne, comme partout)
+    if (ev.key === "Escape" && etat.doc && etat.doc.edition && !etat.selection.length) { VL.actions.symboles.terminer(); return; }
+    suivantTouche(ev);
   };
   const suivantRendu = VL.surRendu;
   VL.surRendu = () => { suivantRendu(); rendre(); };

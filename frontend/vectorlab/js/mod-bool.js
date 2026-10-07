@@ -487,34 +487,46 @@ function _retraitB(mz, mp, d) {
   }
   return out;
 }
-export function op_contour(doc, ids, decalage) {
+// t123 : le multipolygone du contour d'un objet — UNE fonction, lue par op_contour (la création) et par
+// mod-vivants (le recalcul quand la source change) ; lève si le retrait vide la forme
+function _contourMulti(objet, d) {
   const mz = _martinez();
+  if (!d) throw new Error("contour : décalage non nul requis (+ dehors, − dedans)");
+  const mp = _multiObjet(objet);
+  let r;
+  if (d > 0) {
+    // dehors = complément du RETRAIT du complément : les différences
+    // progressives sont robustes là où les unions successives de
+    // quadrilatères et de disques perdaient des morceaux (mesuré : 11846,
+    // 11616 au lieu de 12078 sur un carré de 100 gonflé de 5)
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const poly of mp) for (const ring of poly) for (const [x, y] of ring) {
+      x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y);
+    }
+    const m = 3 * d;
+    const boite = [[[[x0 - m, y0 - m], [x1 + m, y0 - m], [x1 + m, y1 + m], [x0 - m, y1 + m], [x0 - m, y0 - m]]]];
+    const boiteInt = [[[[x0 - m + d, y0 - m + d], [x1 + m - d, y0 - m + d], [x1 + m - d, y1 + m - d], [x0 - m + d, y1 + m - d], [x0 - m + d, y0 - m + d]]]];
+    const complement = _propreB(mz.diff(boite, mp));
+    const retire = _retraitB(mz, complement, d);
+    r = _propreB(retire.length ? mz.diff(boiteInt, retire) : boiteInt);
+  } else {
+    r = _retraitB(mz, mp, -d);
+    if (!r.length) throw new Error("contour : le retrait vide la forme");
+  }
+  return r;
+}
+export function contour_d(objet, decalage) {
+  return _dDeMulti(_contourMulti(objet, +decalage));
+}
+export function op_contour(doc, ids, decalage) {
   const d = +decalage;
   if (!d) throw new Error("contour : décalage non nul requis (+ dehors, − dedans)");
   const out = [];
   for (const c of _ciblesB(doc, ids)) {
-    const mp = _multiObjet(c.objet);
-    let r;
-    if (d > 0) {
-      // dehors = complément du RETRAIT du complément : les différences
-      // progressives sont robustes là où les unions successives de
-      // quadrilatères et de disques perdaient des morceaux (mesuré : 11846,
-      // 11616 au lieu de 12078 sur un carré de 100 gonflé de 5)
-      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-      for (const poly of mp) for (const ring of poly) for (const [x, y] of ring) {
-        x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y);
-      }
-      const m = 3 * d;
-      const boite = [[[[x0 - m, y0 - m], [x1 + m, y0 - m], [x1 + m, y1 + m], [x0 - m, y1 + m], [x0 - m, y0 - m]]]];
-      const boiteInt = [[[[x0 - m + d, y0 - m + d], [x1 + m - d, y0 - m + d], [x1 + m - d, y1 + m - d], [x0 - m + d, y1 + m - d], [x0 - m + d, y0 - m + d]]]];
-      const complement = _propreB(mz.diff(boite, mp));
-      const retire = _retraitB(mz, complement, d);
-      r = _propreB(retire.length ? mz.diff(boiteInt, retire) : boiteInt);
-    } else {
-      r = _retraitB(mz, mp, -d);
-      if (!r.length) throw new Error("contour : le retrait vide la forme");
-    }
-    const neuf = _cheminDe(doc, r, c.objet.style);
+    const neuf = _cheminDe(doc, _contourMulti(c.objet, d), c.objet.style);
+    // t123 : le contour est VIVANT — il garde sa source, son décalage et l'empreinte de la géométrie qu'il a
+    // lue ; mod-vivants le recalcule quand cette empreinte change (op_derive_detacher le fige)
+    neuf.derive = { source: c.objet.id, decalage: d, empreinte: JSON.stringify(c.objet) };
     c.calque.objets.splice(c.calque.objets.indexOf(c.objet) + 1, 0, neuf);
     out.push(neuf.id);
   }

@@ -46,6 +46,7 @@ import { initCouleur } from "./mod-couleur.js";
 import { initImage } from "./mod-image.js";
 import { initTrace } from "./mod-trace.js";
 import { initBrouillon } from "./mod-brouillon.js";
+import { derives_rafraichir } from "./mod-vivants.js";
 import { initDialogue } from "./mod-dialogue.js";
 import { initControles } from "./mod-controles.js";
 import { initDidact } from "./mod-didact.js";
@@ -119,6 +120,8 @@ function aimantePt(x, y) {
    au DOM (contour compris), les voisins d'une sélection en mouvement
    (objets visibles non sélectionnés, planches, la page) ── */
 function bboxDocDe(id) {
+  const c = cadreEcran(id);
+  if (c) return { x: (c.left - etat.tx) / etat.zoom, y: (c.top - etat.ty) / etat.zoom, w: (c.right - c.left) / etat.zoom, h: (c.bottom - c.top) / etat.zoom };
   const el = document.querySelector(`#canvasHost [data-objet="${id}"]`);
   if (!el) return null;
   const r = el.getBoundingClientRect(), r0 = stageRect();
@@ -154,6 +157,8 @@ function executer(fn, ...args) {
   const essai = JSON.parse(JSON.stringify(etat.doc));
   try {
     const out = fn(essai, ...args);
+    // t123 : les dérivés (texte sur chemin, contour vivant) suivent leur source DANS la même étape d'historique
+    derives_rafraichir(essai);
     etat.histo.capturer(etat.doc);
     etat.doc = essai;
     etat.sale = true;
@@ -206,15 +211,29 @@ function selectionElems() {
     .map((id) => document.querySelector(`#canvasHost [data-objet="${id}"]`))
     .filter(Boolean);
 }
+// t123 : la boîte d'un CADRE de texte est son cadre (x, y, w, h du modèle), pas l'étendue des lignes rendues —
+// mesuré en preuve : un cadre de 160 px aux lignes de 140 px, « largeur 320 » donnait 364,7 (l'échelle portait
+// sur la boîte du texte). Seul un cadre de premier niveau sans transform : ailleurs, le rendu reste la référence.
+function cadreEcran(id) {
+  const t = objetDe(id);
+  if (!t || t.objet.type !== "cadre" || t.objet.transform || !t.calque.objets.includes(t.objet)) return null;
+  const o = t.objet, z = etat.zoom;
+  return { left: o.x * z + etat.tx, top: o.y * z + etat.ty, right: (o.x + o.w) * z + etat.tx, bottom: (o.y + o.h) * z + etat.ty };
+}
 function bboxSelectionEcran() {
-  const els = selectionElems();
-  if (!els.length) return null;
+  if (!selectionElems().length) return null;
   let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
   const r0 = stageRect();
-  for (const el of els) {
-    const r = el.getBoundingClientRect();
-    x0 = Math.min(x0, r.left - r0.left); y0 = Math.min(y0, r.top - r0.top);
-    x1 = Math.max(x1, r.right - r0.left); y1 = Math.max(y1, r.bottom - r0.top);
+  for (const id of etat.selection) {
+    let r = cadreEcran(id);
+    if (!r) {
+      const el = document.querySelector(`#canvasHost [data-objet="${id}"]`);
+      if (!el) continue;
+      const b = el.getBoundingClientRect();
+      r = { left: b.left - r0.left, top: b.top - r0.top, right: b.right - r0.left, bottom: b.bottom - r0.top };
+    }
+    x0 = Math.min(x0, r.left); y0 = Math.min(y0, r.top);
+    x1 = Math.max(x1, r.right); y1 = Math.max(y1, r.bottom);
   }
   return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
 }

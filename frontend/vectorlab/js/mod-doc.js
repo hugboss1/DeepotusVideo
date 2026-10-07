@@ -376,7 +376,9 @@ function compilerObjet(o, ctx = {}) {
     }
     case "instance": {
       // lot F : une instance est un <use> du symbole (défini une fois dans les defs)
-      const sx = o.sx === undefined ? 1 : +o.sx, sy = o.sy === undefined ? 1 : +o.sy;
+      // t123 : l'instance en cours d'édition en place est masquée — son calque d'édition la montre
+      if (ctx.edition && ctx.edition.instance === o.id) return "";
+      const sx =o.sx === undefined ? 1 : +o.sx, sy = o.sy === undefined ? 1 : +o.sy;
       const ech = (sx !== 1 || sy !== 1) ? ` scale(${nbc(sx)} ${nbc(sy)})` : "";
       const trI = ` transform="translate(${nbc(o.x)} ${nbc(o.y)})${ech}${o.transform ? " " + escAttr(o.transform) : ""}"`;
       return `<use${t} href="#sym_${escAttr(o.symbole)}"${trI}/>`;
@@ -411,7 +413,11 @@ function compilerObjet(o, ctx = {}) {
       const nat = o.nat;
       const r = o.rognage || { x: 0, y: 0, w: nat.w, h: nat.h };
       const verrou = o.verrou ? ` data-verrou="1"` : "";
-      return `<g${t}${verrou}${st}${tr}>`
+      // t123 : les effets valent aussi pour une image — le <filter> était émis dans les defs (_defs visite tous
+      // les objets) mais jamais posé : le groupe de l'image le porte, comme celui d'un objet habillé
+      const s0 = o.style || {};
+      const fx = s0.effets && s0.effets.length ? ` filter="url(#fx_${escAttr(o.id)})"` : "";
+      return `<g${t}${verrou}${st}${fx}${tr}>`
         + `<svg x="${+o.x}" y="${+o.y}" width="${+o.w}" height="${+o.h}"`
         + ` viewBox="${+r.x} ${+r.y} ${+r.w} ${+r.h}" preserveAspectRatio="none">`
         + `<image x="0" y="0" width="${+nat.w}" height="${+nat.h}"`
@@ -1148,6 +1154,10 @@ export function op_texte_sur_chemin(doc, idTexte, idChemin) {
   const c = _trouverType(doc, idChemin, ["path", "forme"]);
   o.type = "textechemin"; o.d = c.type === "forme" ? forme_d(c) : c.d; o.decalage = 0;
   delete o.x; delete o.y; delete o.w; delete o.h;
+  // t123 : le texte SUIT son chemin — le lien et l'empreinte de la géométrie lue ; mod-vivants recopie le
+  // tracé (et le transform) quand l'empreinte change. Le d reste une copie : sans la source, le texte tient.
+  o.chemin = c.id; o.empreinte = JSON.stringify(c);
+  if (c.transform) o.transform = c.transform;
 }
 export function op_textechemin_decalage(doc, id, pct) {
   if (!(pct >= 0 && pct <= 100)) throw new Error("décalage : 0 à 100 %");
@@ -1229,6 +1239,58 @@ export function op_symbole_detacher(doc, idInstance) {
     return copies.map((o) => o.id);
   }
   throw new Error(`instance introuvable: ${idInstance}`);
+}
+/* ── t123 : un symbole s'édite EN PLACE. « Ouvrir » copie ses objets, à la place et à l'échelle de l'instance,
+   dans un calque d'édition (l'instance éditée est masquée au rendu) ; on les modifie comme des objets ordinaires ;
+   « terminer » les ramène dans l'espace du symbole par la transformation INVERSE et recalcule sa boîte — toutes
+   les instances suivent, leur placement {x, y, sx, sy} ne bouge pas. « Abandonner » jette le calque. ── */
+function _cadreInstance(inst, sym) {
+  const sx = inst.sx === undefined ? 1 : +inst.sx, sy = inst.sy === undefined ? 1 : +inst.sy, b = sym.bbox;
+  return { x: +inst.x + sx * b.x, y: +inst.y + sy * b.y, w: sx * b.w, h: sy * b.h };
+}
+export function op_symbole_ouvrir(doc, idInstance) {
+  if (doc.edition) throw new Error(`un symbole est déjà en édition (${doc.edition.sid}) : le terminer d'abord`);
+  for (let ic = 0; ic < doc.calques.length; ic++) {
+    const inst = doc.calques[ic].objets.find((o) => o.id === idInstance);
+    if (!inst) continue;
+    if (inst.type !== "instance") throw new Error(`${idInstance}: pas une instance`);
+    const sym = doc.symboles && doc.symboles[inst.symbole];
+    if (!sym) throw new Error(`symbole inconnu: ${inst.symbole}`);
+    if (inst.transform) throw new Error("instance tournée ou inclinée : l'éditer en place la déformerait — la remettre droite, ou la détacher");
+    const cadre = _cadreInstance(inst, sym), cid = `__symbole_${inst.symbole}`;
+    const cal = { id: cid, nom: `Symbole : ${sym.nom || inst.symbole}`, visible: true, verrou: false, objets: [] };
+    doc.calques.splice(ic + 1, 0, cal);
+    // copies à ids NEUFS, posées une à une (_idLibre voit chaque id posé)
+    for (const o of _clone(sym.objets)) { o.id = _idLibre(doc); _mapperObjet(o, sym.bbox, cadre, doc); cal.objets.push(o); }
+    doc.edition = { sid: inst.symbole, instance: idInstance, calque: cid, cadre, bbox: { ...sym.bbox } };
+    return cid;
+  }
+  throw new Error(`instance introuvable: ${idInstance}`);
+}
+export function op_symbole_fermer(doc) {
+  const ed = doc.edition;
+  if (!ed) throw new Error("aucune édition de symbole en cours");
+  const i = doc.calques.findIndex((c) => c.id === ed.calque);
+  const sym = doc.symboles && doc.symboles[ed.sid];
+  if (i < 0 || !sym) { delete doc.edition; return 0; }    // calque ou symbole disparu : on sort, sans rien écrire
+  const objets = _clone(doc.calques[i].objets);
+  if (!objets.length) throw new Error("un symbole ne peut pas être vide — Abandonner, ou supprimer le symbole");
+  for (const o of objets) _mapperObjet(o, ed.cadre, ed.bbox, doc);
+  _validerObjets(objets, `symbole ${ed.sid}`);
+  const bs = objets.map((o) => _bboxObjet(o, doc)).filter(Boolean);
+  const x0 = Math.min(...bs.map((b) => b.x)), y0 = Math.min(...bs.map((b) => b.y));
+  sym.objets = objets;
+  sym.bbox = { x: x0, y: y0, w: Math.max(0.01, Math.max(...bs.map((b) => b.x + b.w)) - x0), h: Math.max(0.01, Math.max(...bs.map((b) => b.y + b.h)) - y0) };
+  doc.calques.splice(i, 1);
+  delete doc.edition;
+  return objets.length;
+}
+export function op_symbole_abandonner(doc) {
+  const ed = doc.edition;
+  if (!ed) throw new Error("aucune édition de symbole en cours");
+  const i = doc.calques.findIndex((c) => c.id === ed.calque);
+  if (i >= 0) doc.calques.splice(i, 1);
+  delete doc.edition;
 }
 export function op_symbole_supprimer(doc, sid) {
   if (!doc.symboles || !doc.symboles[sid]) throw new Error(`symbole inconnu: ${sid}`);
@@ -2160,7 +2222,7 @@ function _defs(doc, ctx = {}) {
 
 export function compilerSVG(doc, opts = {}) {
   parserDoc(doc);
-  const ctx = { degrades: doc.degrades || {}, image: opts.image, motifs: doc.motifs || {},
+  const ctx = { degrades: doc.degrades || {}, image: opts.image, motifs: doc.motifs || {}, edition: doc.edition,
                 globales: doc.couleursGlobales || {}, mesure: opts.mesure,
                 grille: _grilleHex(doc), terrains: terrains_de(doc) };
   const w = +doc.taille.w, h = +doc.taille.h;

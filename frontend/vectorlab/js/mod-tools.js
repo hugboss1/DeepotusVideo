@@ -548,10 +548,15 @@ export function initOutils(VL) {
   stage.addEventListener("dblclick", (ev) => {
     if (etat.outil === "select" || etat.outil === "texte") {
       // rééditer un texte en place
-      const el = ev.target.closest && ev.target.closest("[data-objet]");
+      // t123 : le PREMIER clic sélectionne et redessine la scène — l'élément cliqué est remplacé, et le dblclick
+      // arrive sur #stage (mesuré en preuve : cible MAIN). L'objet se retrouve alors SOUS le pointeur.
+      const el = (ev.target.closest && ev.target.closest("[data-objet]"))
+        || document.elementsFromPoint(ev.clientX, ev.clientY).map((x) => x.closest && x.closest("[data-objet]")).find(Boolean);
       if (el) {
         const o = _objetProfond(etat.doc, el.dataset.objet);
         if (o && (o.type === "texte" || o.type === "cadre") && VL.editerTexte) { VL.editerTexte(o.id); return; }
+        // t123 : double-clic sur une instance = éditer son symbole EN PLACE
+        if (o && o.type === "instance" && VL.actions && VL.actions.symboles && VL.actions.symboles.ouvrir) { VL.actions.symboles.ouvrir(o.id); return; }
         if (o && o.type === "texte") {
           VL.dialogue.saisir("Texte :", { valeur: o.contenu || "", titre: "Texte" }).then((contenu) => {
           if (contenu !== null) {
