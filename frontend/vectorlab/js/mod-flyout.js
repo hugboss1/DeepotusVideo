@@ -65,6 +65,9 @@ export const MENUS = {
     const S = (c.actions && c.actions.symboles) || {}, symboles = (c.etat.doc && c.etat.doc.symboles) || {};
     return { titre: "Symboles", entrees: [...flyout_symboles(symboles),
       { id: "detacher", libelle: "⇣ Détacher l'instance sélectionnée", action: "detacher", desactive: !(S.instanceSel && S.instanceSel()) },
+      ...(S.edition && S.edition()
+        ? [{ id: "terminer", libelle: "✓ Terminer l'édition du symbole", action: "terminer" }, { id: "abandonner", libelle: "↺ Abandonner l'édition", action: "abandonner" }]
+        : [{ id: "ouvrir", libelle: "✎ Modifier en place (double-clic sur une instance)", action: "ouvrir", desactive: !(S.instanceSel && S.instanceSel()) }]),
       ...Object.entries(symboles).map(([sid, sy]) => ({ id: sid, libelle: `✕ Supprimer « ${sy.nom || sid} »`, action: "supprimer" }))], choisir: (e) => {
       if (e.action === "poser") { const id = c.executer(op_instance_poser, c.etat.calqueActif, e.id, 24, 24); if (id) { c.setOutil("select"); c.selectionner([id]); } }
       else if (e.action === "creer") {
@@ -72,6 +75,9 @@ export const MENUS = {
         const sid = c.executer(op_symbole_creer, c.etat.selection.slice(), undefined);
         if (sid) c.toast(`symbole ${sid} créé — le menu Symboles le pose`);
       } else if (e.action === "detacher") S.detacher && S.detacher();
+      else if (e.action === "ouvrir") S.ouvrir && S.ouvrir();
+      else if (e.action === "terminer") S.terminer && S.terminer();
+      else if (e.action === "abandonner") S.abandonner && S.abandonner();
       else if (e.action === "supprimer") S.supprimer && S.supprimer(e.id);
     } };
   },
