@@ -7,6 +7,7 @@
 import { op_grille, terrains_de, op_terrain_definir, op_terrain_supprimer,
          op_plateau_generer } from "./mod-doc.js";
 import { GRILLE_TYPES } from "./mod-grille.js";
+import { MOTIFS } from "./mod-effets.js";
 
 const esc = (s) => String(s == null ? "" : s)
   .replace(/&/g, "&amp;").replace(/</g, "&lt;")
@@ -17,7 +18,21 @@ export function terrainLigne(cle, f, actif) {
   return `<div class="terrain${actif ? " actif" : ""}" data-terrain="${esc(cle)}"`
     + ` title="Clic : terrain courant du pinceau · double-clic : retoucher">`
     + `<i style="background:${esc(f.couleur)}"></i><span class="nom">${esc(f.nom)}</span>`
+    + (f.motif ? `<small class="motif" data-motif="${esc(f.motif)}">${esc(motifLibelle(f.motif))}</small>` : "")
     + `<small>${+f.hauteur_mm} mm</small></div>`;
+}
+/* t122 : le motif d'un terrain, par son libellé ; la saisie accepte le libellé ou l'identifiant, sans casse
+   ni accent, et « aucun » / vide pour retirer le motif. null = saisie inconnue (le dialogue le dit). */
+export function motifLibelle(id) {
+  const m = MOTIFS.find((x) => x.id === id);
+  return m ? m.libelle : "";
+}
+export function motifDepuisSaisie(s) {
+  const n = (v) => String(v || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+  const v = n(s);
+  if (v === "" || v === "aucun") return "";
+  const m = MOTIFS.find((x) => n(x.id) === v || n(x.libelle) === v);
+  return m ? m.id : null;
 }
 export function grilleLibelle(g, pasAffichage) {
   if (!g) return "⊞ " + pasAffichage;
@@ -93,8 +108,16 @@ export function initPlateau(VL) {
     const nom = await VL.dialogue.saisir("Nom :", { valeur: f.nom, titre: "Terrain " + cle }); if (nom === null) return;
     const couleur = await VL.dialogue.saisir("Couleur hex :", { valeur: f.couleur, titre: "Terrain " + cle }); if (couleur === null) return;
     const h = await VL.dialogue.saisir("Hauteur d'extrusion (mm) :", { valeur: String(f.hauteur_mm), titre: "Terrain " + cle }); if (h === null) return;
+    // t122 : le motif, dit par son libellé ; une saisie inconnue est redemandée en le disant, jamais avalée
+    const choix = "aucun, " + MOTIFS.map((m) => m.libelle.toLowerCase()).join(", ");
+    let motif = null, question = `Motif (${choix}) :`, valeur = motifLibelle(f.motif) || "aucun";
+    while (motif === null) {
+      const s = await VL.dialogue.saisir(question, { valeur, titre: "Terrain " + cle }); if (s === null) return;
+      motif = motifDepuisSaisie(s);
+      if (motif === null) { question = `« ${s} » n'est pas un motif. Motif (${choix}) :`; valeur = s; }
+    }
     const avant = JSON.stringify(etat.doc.terrains || {});
-    VL.executer(op_terrain_definir, cle, { nom, couleur: couleur.trim(), hauteur_mm: Math.max(0, +h || 0) });
+    VL.executer(op_terrain_definir, cle, { nom, couleur: couleur.trim(), hauteur_mm: Math.max(0, +h || 0), motif });
     if (JSON.stringify(etat.doc.terrains || {}) !== avant || neuf) {
       etat.terrainCourant = cle;
       rendreTerrains();

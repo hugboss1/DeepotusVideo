@@ -8,7 +8,9 @@ import { parserDoc, compilerSVG, op_grille, terrains_de, op_terrain_definir,
 import { hex_centre } from "../js/mod-grille.js";
 
 const echecs = [];
+let nControles = 0;   // compté à l'exécution : le nombre écrit en dur avait cessé de suivre
 const ok = (nom, cond, detail = "") => {
+  nControles++;
   if (!cond) echecs.push(nom + (detail ? " — " + String(detail).slice(0, 160) : ""));
 };
 const base = () => ({ v: 1, nom: "P", taille: { w: 800, h: 600 },
@@ -118,8 +120,68 @@ const nbc = (x) => Math.round(x * 100) / 100;
   ok("générer refuse terrain inconnu et rect vide", refus === 2, String(refus));
 }
 
+/* ── t122 : le MOTIF de la fiche de terrains, enfin rendu ── */
+{
+  const avecTuiles = () => {
+    const d = base(); op_grille(d, { type: "hex", pas: 40 });
+    d.calques[0].objets.push({ id: "t1", type: "tuile", q: 0, r: 0, terrain: "foret" },
+                             { id: "t2", type: "tuile", q: 1, r: 0, terrain: "foret" },
+                             { id: "t3", type: "tuile", q: 0, r: 1, terrain: "mer" });
+    return d;
+  };
+  // état vide : aucun motif, aucun <pattern>, la couleur seule — le SVG d'avant, inchangé
+  const d0 = avecTuiles();
+  const svg0 = compilerSVG(d0);
+  ok("sans motif : aucun <pattern>, fond = couleur", !svg0.includes("<pattern") && svg0.includes(`fill="${TERRAINS_DEFAUT.foret.couleur}"`), svg0);
+  op_terrain_definir(d0, "foret", { motif: "" });
+  ok("motif vide = aucun motif (le SVG ne bouge pas)", compilerSVG(d0) === svg0);
+
+  // un motif posé : la tuile se remplit du <pattern> du terrain, sur la couleur du terrain
+  const d = avecTuiles();
+  op_terrain_definir(d, "foret", { motif: "hachures" });
+  const svg = compilerSVG(d);
+  ok("motif : fill=url(#ter_foret) sur les deux tuiles de forêt", (svg.match(/fill="url\(#ter_foret\)"/g) || []).length === 2, svg);
+  ok("motif : le <pattern id=ter_foret> est émis UNE fois", (svg.match(/<pattern id="ter_foret"/g) || []).length === 1);
+  const pat = (svg.match(/<pattern id="ter_foret"[\s\S]*?<\/pattern>/) || [""])[0];
+  ok("motif : posé sur la couleur du terrain (fond du motif)", pat.includes(`fill="${TERRAINS_DEFAUT.foret.couleur}"`), pat);
+  ok("motif : trait plus sombre que le terrain, jamais la même couleur", /stroke="#([0-9A-F]{6})"/.test(pat) && !pat.includes(`stroke="${TERRAINS_DEFAUT.foret.couleur}"`), pat);
+  ok("motif : pas proportionnel à l'hexagone (pas 40 → 10)", pat.includes('width="10" height="10"'), pat);
+  ok("la mer, sans motif, garde sa couleur", svg.includes(`fill="${TERRAINS_DEFAUT.mer.couleur}"`) && !svg.includes("ter_mer"));
+  // un terrain à motif que NUL n'utilise ne pèse rien dans les defs
+  op_terrain_definir(d, "montagne", { motif: "points" });
+  ok("motif inutilisé : pas de <pattern> émis", !compilerSVG(d).includes("ter_montagne"));
+  // un fond SURCHARGÉ sur la tuile l'emporte sur le motif du terrain
+  d.calques[0].objets[0].style = { fond: "#FF00FF" };
+  const svg2 = compilerSVG(d);
+  ok("fond surchargé : la tuile garde sa surcharge", /data-objet="t1"[^>]*fill="#FF00FF"/.test(svg2), svg2);
+  ok("… et l'autre tuile de forêt garde le motif", /data-objet="t2"[^>]*fill="url\(#ter_foret\)"/.test(svg2), svg2);
+  // toutes les tuiles de forêt surchargées : plus personne ne peint le motif, il n'est plus émis
+  d.calques[0].objets[1].style = { fond: "#00FFFF" };
+  ok("toutes surchargées : pas de <pattern> du terrain", !compilerSVG(d).includes("ter_foret"));
+  // une surcharge sans FOND (contour seul) laisse le motif peindre
+  d.calques[0].objets[1].style = { contour: "#FFFFFF" };
+  ok("surcharge de contour seul : le motif peint toujours", /data-objet="t2"[^>]*fill="url\(#ter_foret\)"/.test(compilerSVG(d)) && compilerSVG(d).includes('<pattern id="ter_foret"'));
+  // les quatre motifs de l'Apparence sont acceptés, et eux seuls
+  for (const m of ["hachures", "points", "damier", "grille"]) {
+    const e = avecTuiles(); op_terrain_definir(e, "foret", { motif: m });
+    ok(`motif ${m} rendu`, compilerSVG(e).includes('<pattern id="ter_foret"'));
+  }
+  let refus = 0;
+  for (const m of ["zz", "motif:m1", 3, null]) { try { op_terrain_definir(base(), "foret", { motif: m }); } catch { refus++; } }
+  ok("définir refuse un motif inconnu (4 cas)", refus === 4, String(refus));
+  // la fiche admet #RGB et #RRGGBBAA, les motifs #RRGGBB : la compilation ne doit pas lever
+  for (const [couleur, attendu] of [["#D33", "#DD3333"], ["#D338", "#DD3333"], ["#3F7D3A80", "#3F7D3A"]]) {
+    const e = avecTuiles(); op_terrain_definir(e, "foret", { couleur, motif: "points" });
+    let svgC = ""; try { svgC = compilerSVG(e); } catch (err) { svgC = "LEVE " + err.message; }
+    ok(`couleur ${couleur} + motif : compilé, fond du motif ${attendu}`, svgC.includes(`<pattern id="ter_foret"`) && svgC.includes(`fill="${attendu}"`), svgC.slice(0, 200));
+  }
+  const mal = avecTuiles(); mal.terrains = { foret: { motif: "zz" } };
+  let refusDoc = false; try { parserDoc(mal); } catch { refusDoc = true; }
+  ok("parserDoc refuse une fiche au motif inconnu", refusDoc);
+}
+
 if (echecs.length) {
   console.error("ECHECS tuiles :\n- " + echecs.join("\n- "));
   process.exit(1);
 }
-console.log("QA tuiles : PASS (30 controles)");
+console.log(`QA tuiles : PASS (${nControles} controles)`);
