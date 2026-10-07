@@ -129,6 +129,17 @@ Les trois écrans restants qui portent du vrai travail :
 - **News** : articles sélectionnés, requête, script généré.
 - **Épisodes** : titre, script, langue, voix, scènes, illustrations.
 
+> **Livré le 07/10/2026 (t129)** — maillon de queue `scripts/patch_bundle_keepsaisie.py`, banc
+> `backend/tests/test_keepsaisie.py`, même conservateur `__dzKeep` (+ helper `__dzK(clé, défaut)` : une valeur
+> conservée fausse l'emporte sur le défaut). **Quick** : la saisie était déjà une recette (`dzQuickRecipe` /
+> `dzQuickApply`) — rangée au démontage, rejouée au montage APRÈS une recette extérieure (« Rejouer » prime).
+> Écart : `dzQuickApply` ignore un prompt VIDE (le défaut revient), comme pour les presets. **News** : articles
+> cochés, requête, tri, voix, longueur, lecture des articles, script généré (le classement se recalcule). **Épisodes** :
+> le mode de Chapitres (flux d'origine / Atelier) et, dans le flux d'origine, titre, script, langue, voix, résultat,
+> étape, scènes, méthode et style, compteurs, job (son suivi reprend), épisode enregistré. Piège neutralisé : la liste
+> des voix remettait la voix par défaut par-dessus la voix conservée — elle ne remplit plus qu'une voix vide. Prouvé
+> à l'écran : saisie → Bibliothèque → retour, sur les trois écrans.
+
 ## Hors périmètre
 
 - **Bibliothèque, Scheduler, Réglages** : leur état est une position de

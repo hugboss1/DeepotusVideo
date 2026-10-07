@@ -46,7 +46,7 @@ check("A5 le bouton « Classer avec l'IA » appelle rankIA, porte un title qui d
       'onClick:rankIA' in pm and 'title:"Classer avec l’IA : payant, sous le plafond de dépense.' in pm)
 check("A6 « Score du jour » remplace « By relevance » et devient le tri par defaut",
       '{value:"relevance",label:"Score du jour"}' in pm and 'label:"By relevance"' not in s
-      and 'const[sort,setSort]=x.useState("relevance");' in pm and 'useState("recent")' not in pm)
+      and 'const[sort,setSort]=x.useState(__dzK("news.sort","relevance"));' in pm and 'useState("recent")' not in pm)   # t129 : le defaut passe par le conservateur
 check("A7 le select de style mort est retire DES DEUX COTES (etat et JSX)", "sty" not in pm.replace("style", "").replace("Sty", "")
       and "setSty" not in pm and '["deep-sea","cinematic","glitch","documentary"]' not in pm)
 check("A8 les items gardent published et doublons ; payload emporte id et published",
@@ -144,7 +144,7 @@ check("C2 le panneau est defini une fois, le bouton « Chaine du jour » l'ouvre
       s.count("function __dzNewsChaine(") == 1 and 'title:"Préparer le lot du jour (gratuit), le polir si besoin, le programmer avec son reel cartes",onClick:function(){__dzNewsChaine(brief)},children:"Chaîne du jour"})' in pm)
 check("C3 « Send to Studio » reste", 'children:"Send to Studio"})' in pm)
 check("C4 voix : « Auto » en tete du selecteur et par defaut ; auto n'envoie pas de voice_mode",
-      '{value:"auto",label:"Auto (selon le sujet)"},{value:"oracle"' in pm and 'const[voice,setVoice]=x.useState("auto");' in pm
+      '{value:"auto",label:"Auto (selon le sujet)"},{value:"oracle"' in pm and 'const[voice,setVoice]=x.useState(__dzK("news.voice","auto"));' in pm   # t129 : le defaut passe par le conservateur
       and 'voice_mode:voice==="auto"?void 0:voice,language:"EN"' in pm and 'useState("oracle")' not in pm)
 check("C5 le motif de la voix s'affiche sous le script", ',script.voice_mode_auto?r.jsx("div",{style:{marginTop:6,fontSize:10.5,color:"var(--ink-soft)"},children:"Voix : "+script.voice_mode_auto+" — "+(script.voice_mode_reason||"")' in pm)
 check("C6 la tendance est recopiee du classement et montree en vert sur la carte",
