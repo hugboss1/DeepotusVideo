@@ -17,7 +17,7 @@
 //
 // REPÈRE. Le document est en px, y vers le bas ; la page en points, y vers le haut. Une seule matrice de base
 // `k 0 0 -k −x·k (y+h)·k` (k = 72 / dpi du document) : tout le reste s'écrit en coordonnées du document.
-import { chemin_parser, terrains_de, grille_tuiles } from "./mod-doc.js";
+import { chemin_parser, terrains_de, grille_tuiles, terrain_motif_spec } from "./mod-doc.js";
 import { forme_d } from "./mod-formes.js";
 import { hex_centre, hex_d } from "./mod-grille.js";
 
@@ -125,25 +125,39 @@ function _rect(x, y, w, h, rx) {
 
 /* ── la raison de rasteriser un objet (null = vectoriel) ── */
 const _A_RASTER = { image: "image", cadre: "cadre de texte", textechemin: "texte sur chemin" };
-function _raisonPeinture(v, ctx) {
+// le FOND : couleur, dégradé (shading), motif (pavage) — ou ce qu'un shading ne porte pas
+function _raisonFond(v, ctx) {
   if (v === undefined || v === "none") return null;
-  if (typeof v === "string" && v.startsWith("grad:")) return "dégradé";
-  if (typeof v === "string" && v.startsWith("motif:")) return "motif";
+  if (typeof v === "string" && v.startsWith("grad:")) {
+    const g = (ctx.doc.degrades || {})[v.slice(5)];
+    if (!g) return null;                                  // dégradé orphelin : none, comme le SVG
+    if (g.type === "conique") return "dégradé conique";
+    for (const st of g.stops || []) {
+      const c = couleur_rgba(st.couleur, ctx.globales);
+      if (!c) return `dégradé (arrêt ${st.couleur})`;
+      // un shading PDF interpole des couleurs, pas une transparence : un arrêt translucide se rasterise
+      if (c[3] < 1 || (st.opacite !== undefined && +st.opacite < 1)) return "dégradé translucide";
+    }
+    return null;
+  }
+  if (typeof v === "string" && v.startsWith("motif:")) return null;   // existant → pavage ; orphelin → none
   return couleur_rgba(v, ctx.globales) === undefined ? `couleur ${v}` : null;
+}
+// le CONTOUR : une couleur seulement ; un dégradé ou un motif de trait n'a pas d'équivalent simple
+function _raisonContour(v, ctx) {
+  if (typeof v === "string" && v.startsWith("grad:")) return (ctx.doc.degrades || {})[v.slice(5)] ? "dégradé sur un contour" : null;
+  if (typeof v === "string" && v.startsWith("motif:")) return (ctx.doc.motifs || {})[v.slice(6)] ? "motif sur un contour" : null;
+  return v === undefined || v === "none" || couleur_rgba(v, ctx.globales) !== undefined ? null : `couleur ${v}`;
 }
 function _raison(o, ctx) {
   const s = o.style || {};
   if (_A_RASTER[o.type]) return _A_RASTER[o.type];
   if (s.effets && s.effets.length) return "effet";
   if (s.masque) return "masque de transparence";
-  const r = _raisonPeinture(s.fond, ctx) || _raisonPeinture(s.contour, ctx)
-    || (s.contours || []).map((c) => _raisonPeinture(c.couleur, ctx)).find(Boolean);
+  const r = _raisonFond(s.fond, ctx) || _raisonContour(s.contour, ctx)
+    || (s.contours || []).map((c) => _raisonContour(c.couleur, ctx)).find(Boolean);
   if (r) return r;
   if (o.type === "texte" && !(ctx.glyphes && ctx.glyphes(o))) return "texte (police non chargée)";
-  if (o.type === "tuile") {
-    const f = ctx.terrains[o.terrain];
-    if (f && f.motif && !(s.fond !== undefined)) return "motif de terrain";
-  }
   if (o.type === "groupe") for (const e of o.enfants || []) { const x = _raison(e, ctx); if (x) return x; }
   if (o.type === "instance") {
     const sym = (ctx.doc.symboles || {})[o.symbole];
@@ -174,23 +188,113 @@ function _forme(ctx, contenu) {
   return nom;
 }
 
-/* ── peinture d'un chemin : réglages de trait, couleurs, opérateur ── */
+/* ── matrices : l'inverse (l'espace par défaut d'un Form → celui de la page) ── */
+export function matrice_inverse(m) {
+  const det = m[0] * m[3] - m[1] * m[2];
+  if (!det) throw new Error("matrice non inversible");
+  return [m[3] / det, -m[1] / det, -m[2] / det, m[0] / det, (m[2] * m[5] - m[3] * m[4]) / det, (m[1] * m[4] - m[0] * m[5]) / det];
+}
+
+/* ── dégradés : un SHADING (type 2 linéaire, 3 radial), fonction de couture entre les arrêts. Les arrêts
+   bornent comme en SVG : avant le premier, sa couleur TIENT ; après le dernier, aussi. Les coordonnées sont
+   celles de l'objet (userSpaceOnUse) : `sh` peint dans le repère courant, rien à recalculer. ── */
+function _fonction(stops, ctx) {
+  const pts = stops.slice().sort((a, b) => a.t - b.t)
+    .map((s) => ({ t: Math.min(1, Math.max(0, +s.t)), c: couleur_rgba(s.couleur, ctx.globales) }));
+  if (pts[0].t > 0) pts.unshift({ t: 0, c: pts[0].c });
+  if (pts[pts.length - 1].t < 1) pts.push({ t: 1, c: pts[pts.length - 1].c });
+  const f2 = (a, b) => `<< /FunctionType 2 /Domain [0 1] /C0 [${_rgb(a)}] /C1 [${_rgb(b)}] /N 1 >>`;
+  if (pts.length === 2) return f2(pts[0].c, pts[1].c);
+  const fs = [], bornes = [], enc = [];
+  for (let i = 0; i + 1 < pts.length; i++) {
+    fs.push(f2(pts[i].c, pts[i + 1].c)); enc.push("0 1");
+    if (i + 1 < pts.length - 1) bornes.push(nb(pts[i + 1].t));
+  }
+  return `<< /FunctionType 3 /Domain [0 1] /Functions [${fs.join(" ")}] /Bounds [${bornes.join(" ")}] /Encode [${enc.join(" ")}] >>`;
+}
+function _shading(ctx, g) {
+  const cle = JSON.stringify(g);
+  if (!ctx.shCles.has(cle)) {
+    const nom = `Sh${ctx.shCles.size + 1}`;
+    ctx.shCles.set(cle, nom);
+    const coords = g.type === "radial" ? [g.cx, g.cy, 0, g.cx, g.cy, g.r] : [g.x1, g.y1, g.x2, g.y2];
+    ctx.shadings[nom] = `<< /ShadingType ${g.type === "radial" ? 3 : 2} /ColorSpace /DeviceRGB /Coords [${coords.map(nb).join(" ")}] `
+      + `/Function ${_fonction(g.stops || [], ctx)} /Extend [true true] >>`;
+  }
+  return ctx.shCles.get(cle);
+}
+
+/* ── motifs (lot F, et ceux des terrains — t122) : un motif de PAVAGE PDF (PatternType 1). Sa matrice va de
+   l'espace du motif vers l'espace PAR DÉFAUT de là où il est peint — la page, ou le Form d'un groupe de
+   transparence (PDF 1.7 §8.7.3.1) : inverse(espace) · CTM courante · rotate(angle). Un motif par (spec, matrice). ── */
+const MOTIF_DEFAUT = { pas: 8, angle: 45, epaisseur: 1, couleur: "#1F1512" };   // celui de motif_svg (mod-effets)
+function _motif(ctx, spec) {
+  const m = { ...MOTIF_DEFAUT, ...spec };
+  const p = +m.pas, e = +m.epaisseur;
+  const rot = +m.angle ? matrice_de(`rotate(${+m.angle})`) : ID;
+  const mat = matrice_mul(matrice_inverse(ctx.espace), matrice_mul(ctx.ctm, rot));
+  const cle = JSON.stringify([m, mat.map(nb)]);
+  if (!ctx.patCles.has(cle)) {
+    const nom = `P${ctx.patCles.size + 1}`;
+    ctx.patCles.set(cle, nom);
+    const c = couleur_rgba(m.couleur, ctx.globales) || [0, 0, 0, 1];
+    const f = m.fond && m.fond !== "none" ? couleur_rgba(m.fond, ctx.globales) : null;
+    const L = [];
+    if (f) L.push(`${_rgb(f)} rg\n${_rect(0, 0, p, p)}\nf`);
+    const trait = `${_rgb(c)} RG\n${nb(e)} w\n0 J`;          // <line> SVG : bouts carrés coupés (butt)
+    switch (m.type) {
+      case "hachures": L.push(`${trait}\n0 ${nb(p / 2)} m ${nb(p)} ${nb(p / 2)} l\nS`); break;
+      case "points": L.push(`${_rgb(c)} rg\n${_ellipse(p / 2, p / 2, Math.max(0.2, e), Math.max(0.2, e))}\nf`); break;
+      case "damier": L.push(`${_rgb(c)} rg\n${_rect(0, 0, p / 2, p / 2)}\nf\n${_rect(p / 2, p / 2, p / 2, p / 2)}\nf`); break;
+      case "grille": L.push(`${trait}\n0 0 m ${nb(p)} 0 l\nS\n0 0 m 0 ${nb(p)} l\nS`); break;
+    }
+    ctx.patterns[nom] = { contenu: L.join("\n"), bbox: [0, 0, p, p], pas: p, matrice: mat };
+  }
+  return ctx.patCles.get(cle);
+}
+
+/* ── le fond d'un objet, résolu : {couleur} | {degrade} | {motif} | null ── */
+function _fondDe(v, ctx) {
+  if (v && typeof v === "object" && v.__motif) return { type: "motif", spec: v.__motif };
+  if (v === undefined || v === "none") return null;
+  if (typeof v === "string" && v.startsWith("grad:")) {
+    const g = (ctx.doc.degrades || {})[v.slice(5)];
+    return g ? { type: "degrade", g } : null;
+  }
+  if (typeof v === "string" && v.startsWith("motif:")) {
+    const m = (ctx.doc.motifs || {})[v.slice(6)];
+    return m ? { type: "motif", spec: m } : null;
+  }
+  const c = couleur_rgba(v, ctx.globales);
+  return c ? { type: "couleur", c } : null;
+}
+const _peintureDe = (v, ctx) => !!_fondDe(v, ctx);
+
+/* ── peinture d'un chemin : réglages de trait, fond (couleur, shading, pavage), opérateur ── */
 const JOINT = { miter: 0, round: 1, bevel: 2 };
 function _peindre(chemin, s, ctx, { sansOpacite = false } = {}) {
-  const fond = couleur_rgba(s.fond, ctx.globales), contour = couleur_rgba(s.contour, ctx.globales);
-  if (!fond && !contour) return "";
-  const op = Number(s.opacite === undefined ? 1 : s.opacite);
+  const F = _fondDe(s.fond, ctx), contour = couleur_rgba(s.contour, ctx.globales) || null;
+  if (!F && !contour) return "";
+  const op = sansOpacite ? 1 : Number(s.opacite === undefined ? 1 : s.opacite);
   const L = [];
-  const g = _gs(ctx, { ca: (fond ? fond[3] : 1) * (sansOpacite ? 1 : op), CA: (contour ? contour[3] : 1) * (sansOpacite ? 1 : op) });
+  const g = _gs(ctx, { ca: (F && F.type === "couleur" ? F.c[3] : 1) * op, CA: (contour ? contour[3] : 1) * op });
   if (g) L.push(g);
-  if (fond) L.push(`${_rgb(fond)} rg`);
-  if (contour) {
-    L.push(`${_rgb(contour)} RG`, `${nb(Number(s.epaisseur || 1))} w`, `${JOINT[s.joint || "round"] ?? 1} j`, "1 J");
-    const tirets = String(s.pointilles || "").trim().split(/[\s,]+/).filter(Boolean).map(Number);
-    L.push(tirets.length && tirets.every((v) => v >= 0) ? `[${tirets.map(nb).join(" ")}] 0 d` : "[] 0 d");
-  }
   const eo = s.regle === "evenodd" ? "*" : "";
-  L.push(chemin, fond && contour ? `B${eo}` : fond ? `f${eo}` : "S");
+  const trait = () => {
+    const tirets = String(s.pointilles || "").trim().split(/[\s,]+/).filter(Boolean).map(Number);
+    return [`${_rgb(contour)} RG`, `${nb(Number(s.epaisseur || 1))} w`, `${JOINT[s.joint || "round"] ?? 1} j`, "1 J",
+      tirets.length && tirets.every((v) => v >= 0) ? `[${tirets.map(nb).join(" ")}] 0 d` : "[] 0 d"];
+  };
+  if (F && F.type === "degrade") {
+    // le dégradé remplit le chemin par écrêtage ; le contour, s'il y en a un, se trace PAR-DESSUS
+    L.push(`q\n${chemin}\nW${eo} n\n/${_shading(ctx, F.g)} sh\nQ`);
+    if (contour) L.push(...trait(), chemin, "S");
+  } else {
+    if (F && F.type === "couleur") L.push(`${_rgb(F.c)} rg`);
+    if (F && F.type === "motif") L.push(`/Pattern cs /${_motif(ctx, F.spec)} scn`);
+    if (contour) L.push(...trait());
+    L.push(chemin, F && contour ? `B${eo}` : F ? `f${eo}` : "S");
+  }
   // un ExtGState posé ici ne doit pas FUIR sur les objets suivants : q … Q autour
   return g ? `q\n${L.join("\n")}\nQ` : L.join("\n");
 }
@@ -235,8 +339,11 @@ function _corps(o, ctx) {
   }
   let s = s0;
   if (o.type === "tuile") {
+    // la tuile : la couleur de son terrain, ou son MOTIF (t122, même spécification que le SVG) ; un fond
+    // surchargé sur la tuile l'emporte (…s0)
     const f = ctx.terrains[o.terrain];
-    s = { fond: f ? f.couleur : "#888888", contour: "#1F1512", epaisseur: 1, ...s0 };
+    const fond = !f ? "#888888" : f.motif ? { __motif: terrain_motif_spec(f, ctx.grille.pas) } : f.couleur;
+    s = { fond, contour: "#1F1512", epaisseur: 1, ...s0 };
   }
   const ch = _chemin(o, ctx);
   if (!ch) return "";
@@ -254,19 +361,22 @@ function _objet(o, ctx) {
   const s = o.style || {};
   const op = Number(s.opacite === undefined ? 1 : s.opacite);
   const peint = o.type === "groupe" || o.type === "instance" || (s.contours && s.contours.length)
-    || (couleur_rgba(s.fond, ctx.globales) && couleur_rgba(s.contour, ctx.globales));
+    || (_peintureDe(s.fond, ctx) && couleur_rgba(s.contour, ctx.globales));
   let m = matrice_de(o.transform);
   if (o.type === "instance") m = matrice_mul(m, [o.sx === undefined ? 1 : +o.sx, 0, 0, o.sy === undefined ? 1 : +o.sy, +o.x, +o.y]);
+  // la CTM suivie à la main : la matrice d'un motif en dépend
+  const enf = { ...ctx, ctm: matrice_mul(ctx.ctm, m) };
   let corps, etat = false;                // etat : le corps pose un gs ou un écrêtage → q … Q obligatoire
   if (op !== 1 && peint) {
-    // groupe de transparence : le corps sans son opacité, dessiné d'un bloc sous ca/CA
-    const interieur = _corps(o, { ...ctx, sansOpacite: true });
+    // groupe de transparence : le corps sans son opacité, dessiné d'un bloc sous ca/CA ; son espace par
+    // défaut est la CTM au moment du Do
+    const interieur = _corps(o, { ...enf, espace: enf.ctm, sansOpacite: true });
     if (!interieur.trim()) return "";
     corps = `${_gs(ctx, { ca: op, CA: op, fusion: s.fusion })}\n/${_forme(ctx, interieur)} Do`;
     etat = true;
   } else {
     const fu = _gs(ctx, { fusion: s.fusion });
-    const interieur = _corps(o, ctx);
+    const interieur = _corps(o, enf);
     if (!interieur.trim()) return "";
     corps = (fu ? fu + "\n" : "") + interieur;
     etat = !!fu || (o.type === "groupe" && !!o.clip);
@@ -278,19 +388,25 @@ function _objet(o, ctx) {
 /* ── LA PAGE : une tranche (cadre en px du document) → flux + ressources + rasters à fournir ── */
 export function pdf_page(doc, cadre, opts = {}) {
   const dpi = +opts.dpi || 300, k = 72 / dpi;
+  const base = [k, 0, 0, -k, -cadre.x * k, (cadre.y + cadre.h) * k];
   const ctx = { doc, globales: doc.couleursGlobales || {}, terrains: terrains_de(doc), grille: grille_tuiles(doc),
     glyphes: opts.glyphes || (() => null), gs: {}, gsCles: new Map(), formes: {}, rasters: [],
-    stats: { vectoriels: 0, rasterises: 0 } };
-  const L = [_cm([k, 0, 0, -k, -cadre.x * k, (cadre.y + cadre.h) * k])];
+    shadings: {}, shCles: new Map(), patterns: {}, patCles: new Map(),
+    ctm: base, espace: ID, stats: { vectoriels: 0, rasterises: 0 } };
+  const L = [_cm(base)];
   if (doc.fond && !opts.transparent) {
     const c = couleur_rgba(doc.fond, ctx.globales);
     if (c) L.push(`${_rgb(c)} rg\n${_rect(0, 0, +doc.taille.w, +doc.taille.h)}\nf`);
   }
   for (const c of doc.calques) {
     if (c.visible === false) continue;
+    const op = c.opacite === undefined ? 1 : Number(c.opacite);
+    const enForme = op !== 1 || (c.fusion && c.fusion !== "normal");
+    // décidé AVANT les objets : dans le Form du calque, l'espace par défaut est la CTM du Do (la base)
+    const cctx = enForme ? { ...ctx, espace: ctx.ctm } : ctx;
     const morceaux = [];
     for (const o of c.objets) {
-      const r = _raison(o, ctx);
+      const r = _raison(o, cctx);
       if (r) {
         const nom = `I${ctx.rasters.length + 1}`;
         ctx.rasters.push({ id: o.id, nom, raison: r, calque: c.id });
@@ -298,19 +414,18 @@ export function pdf_page(doc, cadre, opts = {}) {
         morceaux.push(`%%RASTER ${nom}%%`);
         continue;
       }
-      const x = _objet(o, ctx);
+      const x = _objet(o, cctx);
       if (x) { morceaux.push(x); ctx.stats.vectoriels++; }
     }
     if (!morceaux.length) continue;
-    const op = c.opacite === undefined ? 1 : Number(c.opacite);
-    if (op !== 1 || (c.fusion && c.fusion !== "normal")) {
+    if (enForme) {
       // le calque translucide : UN groupe de transparence pour tous ses objets
       const nom = _forme(ctx, morceaux.join("\n"));
       L.push(`q\n${_gs(ctx, { ca: op, CA: op, fusion: c.fusion })}\n/${nom} Do\nQ`);
     } else L.push(...morceaux);
   }
   return { w_pt: cadre.w * k, h_pt: cadre.h * k, contenu: L.join("\n"), formes: ctx.formes, gs: ctx.gs,
-           rasters: ctx.rasters, stats: ctx.stats, cadre, k };
+           shadings: ctx.shadings, patterns: ctx.patterns, rasters: ctx.rasters, stats: ctx.stats, cadre, k };
 }
 
 /* ── L'ASSEMBLAGE : pages → octets PDF 1.4 (xref exacte). Les rasters de chaque page sont fournis par
@@ -361,7 +476,16 @@ export async function pdf_assembler(pages, { compresser = true } = {}) {
       xobj.push(`/${nom} ${f} 0 R`);
     }
     const gs = Object.entries(p.gs || {}).map(([nom, g]) => `/${nom} << /Type /ExtGState /ca ${nb(g.ca)} /CA ${nb(g.CA)}${g.BM ? ` /BM /${g.BM}` : ""} >>`).join(" ");
-    objets[ressources - 1] = _latin(`<< /ProcSet [/PDF /ImageC] /ExtGState << ${gs} >> /XObject << ${xobj.join(" ")} >> >>`);
+    const sh = Object.entries(p.shadings || {}).map(([nom, d]) => `/${nom} ${d}`).join(" ");
+    const pats = [];
+    for (const [nom, P] of Object.entries(p.patterns || {})) {
+      const b = P.bbox.map(nb).join(" ");
+      const o = ajouter(await flux(`/Type /Pattern /PatternType 1 /PaintType 1 /TilingType 1 /BBox [${b}] /XStep ${nb(P.pas)} `
+        + `/YStep ${nb(P.pas)} /Resources << /ProcSet [/PDF] >> /Matrix [${P.matrice.map((v) => nb(v)).join(" ")}]`, P.contenu));
+      pats.push(`/${nom} ${o} 0 R`);
+    }
+    objets[ressources - 1] = _latin(`<< /ProcSet [/PDF /ImageC] /ExtGState << ${gs} >> /XObject << ${xobj.join(" ")} >> `
+      + `/Shading << ${sh} >> /Pattern << ${pats.join(" ")} >> >>`);
     const c = ajouter(await flux("", contenu));
     kids.push(ajouter(_latin(`<< /Type /Page /Parent ${racine} 0 R /MediaBox [0 0 ${nb(p.w_pt)} ${nb(p.h_pt)}] /Resources ${ressources} 0 R /Contents ${c} 0 R >>`)));
   }

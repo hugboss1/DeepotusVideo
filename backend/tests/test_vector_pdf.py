@@ -58,6 +58,22 @@ for (let i = 0; i < 12; i++) rgba.set([i * 20, 255 - i * 20, 7, i * 21], 4 * i);
 writeFileSync(out + "/raster.pdf", await pdf_assembler([{ ...p, images: { I1: { x: 60, y: 60, w: 40, h: 30, largeur: 4, hauteur: 3, rgba } } }]));
 writeFileSync(out + "/raster.json", JSON.stringify({ rasters: p.rasters, stats: p.stats, rgba: [...rgba] }));
 
+// 4. dégradés et motifs, VECTORIELS : linéaire, radial à trois arrêts, motif de document, tuiles à motif de terrain
+const gm = base([
+  { id: "a", type: "rect", x: 0, y: 0, w: 100, h: 50, style: { fond: "grad:g1", contour: "#000000" } },
+  { id: "b", type: "ellipse", cx: 150, cy: 50, rx: 40, ry: 40, style: { fond: "grad:g2" } },
+  { id: "c", type: "rect", x: 0, y: 100, w: 100, h: 80, transform: "translate(5 5)", style: { fond: "motif:m1" } },
+  { id: "t1", type: "tuile", q: 4, r: 3, terrain: "foret" }, { id: "t2", type: "tuile", q: 5, r: 3, terrain: "foret" },
+]);
+gm.degrades = { g1: { type: "lineaire", x1: 0, y1: 0, x2: 100, y2: 0, stops: [{ t: 0, couleur: "#FF0000" }, { t: 1, couleur: "#0000FF" }] },
+                g2: { type: "radial", cx: 150, cy: 50, r: 40, stops: [{ t: 0, couleur: "#FFFFFF" }, { t: 0.5, couleur: "#FFFF00" }, { t: 1, couleur: "#000000" }] } };
+gm.motifs = { m1: { type: "hachures", pas: 6, angle: 30, epaisseur: 1, couleur: "#112233" } };
+gm.grille = { type: "hex", pas: 20, sous: 1, orientation: "pointe", origine: [0, 0], echelle: [1, 1] };
+gm.terrains = { foret: { motif: "damier" } };
+const pg = pdf_page(gm, C, { dpi: 72 });
+writeFileSync(out + "/degrades.pdf", await pdf_assembler([pg]));
+writeFileSync(out + "/degrades.json", JSON.stringify({ rasters: pg.rasters, stats: pg.stats }));
+
 // 3. deux pages, dpi 300 : 300 x 200 px → 72 x 48 pt
 writeFileSync(out + "/pages.pdf", await pdf_assembler([pdf_page(vec, C, { dpi: 300, glyphes: () => null,
   }), pdf_page(base([]), { x: 0, y: 0, w: 150, h: 100 }, { dpi: 300 })].map((x) => ({ ...x, images: Object.fromEntries(
@@ -118,6 +134,30 @@ def test_le_raster_relu_au_pixel_avec_son_alpha(pdfs):
     assert "Do" in _ops(ff) and b"/I1 Do" in f.get_data(), f.get_data()[:300]
     assert b"%%RASTER" not in f.get_data() and b"%%RASTER" not in pg.get_contents().get_data()
     assert any(abs(float(g.get_object()["/ca"]) - 0.6) < 1e-9 for g in pg["/Resources"]["/ExtGState"].values())
+
+
+def test_degrades_et_motifs_en_vrai_vectoriel(pdfs):
+    info = json.loads((pdfs / "degrades.json").read_text("utf-8"))
+    assert info["rasters"] == [] and info["stats"] == {"vectoriels": 5, "rasterises": 0}, info
+    lu = pypdf.PdfReader(str(pdfs / "degrades.pdf"))
+    pg = lu.pages[0]
+    res = pg["/Resources"]
+    sh = {k: v.get_object() for k, v in res["/Shading"].items()}
+    assert sorted(int(v["/ShadingType"]) for v in sh.values()) == [2, 3], sh
+    radial = next(v for v in sh.values() if int(v["/ShadingType"]) == 3)
+    f = radial["/Function"].get_object()
+    assert int(f["/FunctionType"]) == 3 and [float(b) for b in f["/Bounds"]] == [0.5], f
+    pats = {k: v.get_object() for k, v in res["/Pattern"].items()}
+    # deux motifs : celui du document (hachures, cellule 6) et celui du terrain (damier, cellule 20/4 = 5)
+    assert sorted(float(p["/XStep"]) for p in pats.values()) == [5, 6], pats
+    assert all(int(p["/PatternType"]) == 1 and int(p["/PaintType"]) == 1 for p in pats.values())
+    assert all(p.get_data() for p in pats.values()), "chaque cellule a un contenu"
+    ops = _ops(pg.get_contents())
+    for op in ("sh", "cs", "scn", "W", "S", "B"):
+        assert op in ops, (op, sorted(set(ops)))
+    assert ops.count("q") == ops.count("Q")
+    xobj = res.get("/XObject", {})
+    assert not [k for k, v in xobj.items() if v.get_object().get("/Subtype") == "/Image"], "aucune image"
 
 
 def test_deux_pages_au_dpi_du_document(pdfs):

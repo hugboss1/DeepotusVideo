@@ -145,6 +145,81 @@ const page = (doc, opts = {}) => pdf_page(doc, CADRE, { dpi: 72, ...opts });
     { dpi: 72, glyphes: (o) => o.id === "t" ? [{ car: "H", d: "M 0 0 L 5 0 L 5 5 Z" }] : null });
   ok("texte avec glyphes : vectoriel, contours pleins en evenodd", gl.rasters.length === 0 && /0.067 0.133 0.2 rg/.test(gl.contenu) && /\nf\*/.test(gl.contenu), gl.contenu);
 }
+/* ── étape 2 : dégradés en SHADING, motifs en motif de PAVAGE — vectoriels, plus de repli ── */
+{
+  const avecGrad = (g, style = {}) => {
+    const d = base([{ id: "r", type: "rect", x: 0, y: 0, w: 100, h: 50, style: { fond: "grad:g1", ...style } }]);
+    d.degrades = { g1: g };
+    return page(d);
+  };
+  const lin = avecGrad({ type: "lineaire", x1: 0, y1: 0, x2: 100, y2: 0, stops: [{ t: 0, couleur: "#FF0000" }, { t: 1, couleur: "#0000FF" }] });
+  ok("linéaire : vectoriel, aucun raster", lin.rasters.length === 0 && lin.stats.vectoriels === 1, JSON.stringify(lin.rasters));
+  ok("linéaire : chemin, W n, /Sh1 sh dans un q … Q", /q\n0 0 m 100 0 l 100 50 l 0 50 l h\nW n\n\/Sh1 sh\nQ/.test(lin.contenu), lin.contenu);
+  const sh = lin.shadings.Sh1 || "";
+  ok("linéaire : ShadingType 2, Coords, Extend", /\/ShadingType 2/.test(sh) && /\/Coords \[0 0 100 0\]/.test(sh) && /\/Extend \[true true\]/.test(sh), sh);
+  ok("linéaire : fonction rouge → bleu", /\/FunctionType 2 \/Domain \[0 1\] \/C0 \[1 0 0\] \/C1 \[0 0 1\] \/N 1/.test(sh), sh);
+  const rad = avecGrad({ type: "radial", cx: 50, cy: 25, r: 20, stops: [{ t: 0, couleur: "#FFFFFF" }, { t: 1, couleur: "#000000" }] });
+  ok("radial : ShadingType 3, Coords [cx cy 0 cx cy r]", /\/ShadingType 3/.test(rad.shadings.Sh1) && /\/Coords \[50 25 0 50 25 20\]/.test(rad.shadings.Sh1), rad.shadings.Sh1);
+  const trois = avecGrad({ type: "lineaire", x1: 0, y1: 0, x2: 1, y2: 0, stops: [{ t: 0, couleur: "#FF0000" }, { t: 0.5, couleur: "#00FF00" }, { t: 1, couleur: "#0000FF" }] });
+  ok("trois arrêts : fonction de couture (type 3), Bounds [0.5], deux sous-fonctions", /\/FunctionType 3/.test(trois.shadings.Sh1) && /\/Bounds \[0.5\]/.test(trois.shadings.Sh1) && (trois.shadings.Sh1.match(/\/FunctionType 2/g) || []).length === 2, trois.shadings.Sh1);
+  // un premier arrêt à 0,2 : la couleur du premier arrêt TIENT de 0 à 0,2 (comme SVG), pas un fondu depuis 0
+  const tard = avecGrad({ type: "lineaire", x1: 0, y1: 0, x2: 1, y2: 0, stops: [{ t: 0.2, couleur: "#FF0000" }, { t: 1, couleur: "#0000FF" }] });
+  ok("premier arrêt à 0,2 : rouge constant avant", /\/Bounds \[0.2\]/.test(tard.shadings.Sh1) && /\/C0 \[1 0 0\] \/C1 \[1 0 0\]/.test(tard.shadings.Sh1), tard.shadings.Sh1);
+  const desordre = avecGrad({ type: "lineaire", x1: 0, y1: 0, x2: 1, y2: 0, stops: [{ t: 1, couleur: "#0000FF" }, { t: 0, couleur: "#FF0000" }] });
+  ok("arrêts dans le désordre : triés", /\/C0 \[1 0 0\] \/C1 \[0 0 1\]/.test(desordre.shadings.Sh1), desordre.shadings.Sh1);
+  const glob = base([{ id: "r", type: "rect", x: 0, y: 0, w: 10, h: 10, style: { fond: "grad:g1" } }], { couleursGlobales: { m: "#00FF00" } });
+  glob.degrades = { g1: { type: "lineaire", x1: 0, y1: 0, x2: 1, y2: 0, stops: [{ t: 0, couleur: "glob:m" }, { t: 1, couleur: "#000000" }] } };
+  ok("arrêt en couleur globale : résolu", /\/C0 \[0 1 0\]/.test(page(glob).shadings.Sh1));
+  const avecContour = avecGrad({ type: "lineaire", x1: 0, y1: 0, x2: 1, y2: 0, stops: [{ t: 0, couleur: "#FF0000" }, { t: 1, couleur: "#0000FF" }] }, { contour: "#000000", epaisseur: 2 });
+  ok("dégradé + contour : sh puis trait S", /\/Sh1 sh\nQ\n[\s\S]*0 0 0 RG[\s\S]*\nS/.test(avecContour.contenu), avecContour.contenu);
+  const eo = avecGrad({ type: "lineaire", x1: 0, y1: 0, x2: 1, y2: 0, stops: [{ t: 0, couleur: "#FF0000" }, { t: 1, couleur: "#0000FF" }] }, { regle: "evenodd" });
+  ok("dégradé evenodd : W* n", /W\* n\n\/Sh1 sh/.test(eo.contenu), eo.contenu);
+  const op = avecGrad({ type: "lineaire", x1: 0, y1: 0, x2: 1, y2: 0, stops: [{ t: 0, couleur: "#FF0000" }, { t: 1, couleur: "#0000FF" }] }, { opacite: 0.5 });
+  ok("dégradé à opacité 0,5 : ca sous le sh", /\/G\d+ gs[\s\S]*\/Sh1 sh/.test(op.contenu) && Object.values(op.gs).some((g) => g.ca === 0.5), op.contenu);
+  // ce que le shading ne porte pas : arrêt translucide, conique — repli, dit
+  const trans = avecGrad({ type: "lineaire", x1: 0, y1: 0, x2: 1, y2: 0, stops: [{ t: 0, couleur: "#FF0000", opacite: 0.5 }, { t: 1, couleur: "#0000FF" }] });
+  ok("arrêt translucide : raster (dégradé translucide)", trans.rasters.length === 1 && /translucide/.test(trans.rasters[0].raison), JSON.stringify(trans.rasters));
+  const con = avecGrad({ type: "conique", cx: 0, cy: 0, r: 5, angle: 0, stops: [{ t: 0, couleur: "#FF0000" }, { t: 1, couleur: "#0000FF" }] });
+  ok("conique : raster (dégradé conique)", con.rasters.length === 1 && /conique/.test(con.rasters[0].raison));
+  const orphelin = base([{ id: "r", type: "rect", x: 0, y: 0, w: 10, h: 10, style: { fond: "grad:zz" } }]);
+  ok("dégradé inconnu : fond none comme au SVG (rien, pas de raster)", page(orphelin).rasters.length === 0 && !/sh|rg/.test(page(orphelin).contenu.split("\n").slice(1).join("\n")));
+}
+{
+  // motif hachures (lot F) sur un rect non transformé
+  const d = base([{ id: "r", type: "rect", x: 0, y: 0, w: 100, h: 50, style: { fond: "motif:m1" } }]);
+  d.motifs = { m1: { type: "hachures", pas: 8, angle: 45, epaisseur: 1, couleur: "#112233" } };
+  const p = page(d);
+  ok("motif : vectoriel, /Pattern cs /P1 scn puis f", p.rasters.length === 0 && /\/Pattern cs \/P1 scn\n0 0 m 100 0 l 100 50 l 0 50 l h\nf/.test(p.contenu), p.contenu);
+  const P = p.patterns.P1 || {};
+  ok("motif : cellule 8 x 8 (BBox, XStep, YStep)", JSON.stringify(P.bbox) === "[0,0,8,8]" && P.pas === 8, JSON.stringify(P));
+  ok("motif : hachure = un trait horizontal au milieu, couleur et épaisseur", /0.067 0.133 0.2 RG/.test(P.contenu) && /1 w/.test(P.contenu) && /0 4 m 8 4 l\nS/.test(P.contenu), P.contenu);
+  // la matrice du motif : de l'espace du motif vers l'espace PAR DÉFAUT de la page = base · rotate(45)
+  const c = Math.SQRT1_2;
+  ok("motif : matrice = base de page · rotate(45)", proche(P.matrice, [c, -c, -c, -c, 0, 200], 1e-9), JSON.stringify(P.matrice));
+  // sous un objet transformé, la matrice suit
+  d.calques[0].objets[0].transform = "translate(10 20)";
+  ok("motif sous translate(10 20) : la matrice suit", proche(page(d).patterns.P1.matrice, [c, -c, -c, -c, 10, 180], 1e-9), JSON.stringify(page(d).patterns.P1.matrice));
+  // dans le Form d'un calque translucide, l'espace par défaut EST celui du Do (la base) : base⁻¹ · base · rot
+  delete d.calques[0].objets[0].transform; d.calques[0].opacite = 0.5;
+  ok("motif dans un calque translucide : matrice relative à l'espace du Form", proche(page(d).patterns.P1.matrice, [c, c, -c, c, 0, 0], 1e-9), JSON.stringify(page(d).patterns.P1.matrice));
+  for (const [type, re] of [["points", /re\b|c\n|\d c\b/], ["damier", /f/], ["grille", /0 0 m 8 0 l/]]) {
+    const e = base([{ id: "r", type: "rect", x: 0, y: 0, w: 10, h: 10, style: { fond: "motif:m1" } }]);
+    e.motifs = { m1: { type, pas: 8, angle: 0, epaisseur: 1, couleur: "#000000", fond: "#FFFFFF" } };
+    const pe = page(e);
+    ok(`motif ${type} : cellule dessinée, fond blanc dessous`, re.test(pe.patterns.P1.contenu) && /^1 1 1 rg\n0 0 m 8 0 l 8 8 l 0 8 l h\nf/.test(pe.patterns.P1.contenu), pe.patterns.P1.contenu);
+  }
+  // le motif d'un TERRAIN (t122) : un seul motif pour toutes les tuiles du terrain
+  const t = base([{ id: "t1", type: "tuile", q: 0, r: 0, terrain: "foret" }, { id: "t2", type: "tuile", q: 1, r: 0, terrain: "foret" }]);
+  t.grille = { type: "hex", pas: 40, sous: 1, orientation: "pointe", origine: [0, 0], echelle: [1, 1] };
+  t.terrains = { foret: { motif: "points" } };
+  const pt = page(t);
+  ok("terrain à motif : vectoriel, un seul motif pour les deux tuiles", pt.rasters.length === 0 && Object.keys(pt.patterns).length === 1 && (pt.contenu.match(/\/P1 scn/g) || []).length === 2, JSON.stringify(Object.keys(pt.patterns)));
+  ok("terrain à motif : cellule au quart du rayon (10), fond = la couleur du terrain", pt.patterns.P1.pas === 10 && /^0.247 0.49 0.227 rg/.test(pt.patterns.P1.contenu), pt.patterns.P1.contenu);
+  ok("terrain à motif : le contour brun des tuiles est gardé", /0.122 0.082 0.071 RG/.test(pt.contenu), pt.contenu);
+  const orph = base([{ id: "r", type: "rect", x: 0, y: 0, w: 10, h: 10, style: { fond: "motif:zz" } }]);
+  ok("motif inconnu : none, rien", page(orph).rasters.length === 0 && !Object.keys(page(orph).patterns).length);
+}
+
 /* ── l'assemblage : un PDF lisible, xref exacte, images avec SMask ── */
 {
   const dec = new TextDecoder("latin1");

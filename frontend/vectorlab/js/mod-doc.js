@@ -44,12 +44,15 @@ function _validerTerrain(k, f) {
    motif de 8 px fixes disparaît sur un plateau de petites cases et grêle un grand. */
 export const TERRAIN_TRAIT = "#1F1512";
 export function terrain_motif_id(cle) { return `ter_${cle}`; }
-export function terrain_motif_svg(cle, fiche, pasHex) {
+// la spécification du motif d'un terrain — UNE règle, lue par le SVG (terrain_motif_svg) et par le PDF (t121)
+export function terrain_motif_spec(fiche, pasHex) {
   const pas = Math.max(3, Math.round((+pasHex || 32) / 4));
   // la fiche admet #RGB à #RRGGBBAA, les motifs #RRGGBB seulement : une fiche « #D33 » ferait lever la compilation
   const c = _hex6(fiche.couleur);
-  return motif_svg(terrain_motif_id(cle), { ...motif_defaut(fiche.motif), pas,
-    couleur: couleur_interpoler(c, TERRAIN_TRAIT, 0.5), fond: c });
+  return { ...motif_defaut(fiche.motif), pas, couleur: couleur_interpoler(c, TERRAIN_TRAIT, 0.5), fond: c };
+}
+export function terrain_motif_svg(cle, fiche, pasHex) {
+  return motif_svg(terrain_motif_id(cle), terrain_motif_spec(fiche, pasHex));
 }
 function _hex6(c) {
   const h = String(c || "#888888").slice(1);
