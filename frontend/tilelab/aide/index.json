@@ -1,0 +1,44 @@
+[
+  {
+    "id": "formeKind",
+    "titre": "Forme",
+    "phrase": "Ta tuile change de forme : un losange pour un jeu vu de biais, ou un hexagone à six côtés.",
+    "fichier": "tilelab.formeKind.webp",
+    "version": 1
+  },
+  {
+    "id": "jeuApercuBtn",
+    "titre": "Nouvel aperçu",
+    "phrase": "Une nouvelle carte se dessine au hasard avec tes tuiles, pour voir si elles vont bien ensemble.",
+    "fichier": "tilelab.jeuApercuBtn.webp",
+    "version": 1
+  },
+  {
+    "id": "jeuKind",
+    "titre": "Jeu",
+    "phrase": "Tu choisis combien de morceaux faire : beaucoup pour des coins bien ronds, ou seize pour aller vite.",
+    "fichier": "tilelab.jeuKind.webp",
+    "version": 1
+  },
+  {
+    "id": "method",
+    "titre": "Méthode",
+    "phrase": "Miroir plie ta texture comme une feuille pliée en quatre : les bords se touchent toujours parfaitement.",
+    "fichier": "tilelab.method.webp",
+    "version": 1
+  },
+  {
+    "id": "runBtn",
+    "titre": "Rendre seamless",
+    "phrase": "Ta texture se raccorde : posée plein de fois côte à côte, on ne voit plus où chaque morceau finit.",
+    "fichier": "tilelab.runBtn.webp",
+    "version": 1
+  },
+  {
+    "id": "tlGrilleType",
+    "titre": "Grille de placement",
+    "phrase": "Tes cases deviennent des losanges, rangés en quinconce comme les dalles d'un jeu vu de biais.",
+    "fichier": "tilelab.tlGrilleType.webp",
+    "version": 1
+  }
+]

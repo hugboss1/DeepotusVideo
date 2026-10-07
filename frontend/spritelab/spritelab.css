@@ -230,3 +230,15 @@ select option:disabled{color:var(--ink-muted)}
 .sk-row .sk-nom{width:92px;background:var(--bg-base);border:1px solid var(--stroke-strong);border-radius:4px;color:var(--ink-strong);padding:1px 4px;font-family:var(--f-mono);font-size:11px}
 .sk-row .sk-del{border:none;background:none;color:var(--ink-muted);cursor:pointer;margin-left:auto}
 .sk-row .sk-del:hover{color:var(--red)}
+
+/* t126 : l'encart des fiches didactiques (mod-didact du Vectorlab, importé par Spritelab et Tilelab — Tilelab
+   charge cette feuille) : mêmes mesures que .vl-didact du Vectorlab, couleurs de la page */
+.vl-didact { position: fixed; z-index: 70; width: 320px; box-sizing: border-box; background: var(--bg-panel); color: var(--ink-strong); border: 1px solid var(--stroke-strong); border-radius: 6px; box-shadow: 0 12px 34px rgba(0, 0, 0, .55); overflow: hidden; }
+.vl-didact.hidden { display: none; }
+.vl-didact-anim { display: block; width: 320px; height: 200px; background: var(--bg-base); }
+.vl-didact-titre { font-weight: 700; font-size: 13px; padding: 8px 12px 2px; }
+.vl-didact-phrase { font-size: 13px; line-height: 1.45; color: var(--ink); padding: 0 12px 10px; }
+.vl-didact-q { flex: 0 0 18px; width: 18px; height: 18px; min-width: 18px; max-width: 18px; padding: 0; border-radius: 50%; border: 1px solid var(--stroke-strong); background: transparent; color: var(--ink-soft); font-size: 11px; line-height: 16px; cursor: help; margin-left: 4px; vertical-align: middle; }
+.vl-didact-q:hover { color: var(--ink-strong); border-color: var(--ink-soft); }
+/* t126 : la légende d'un champ en colonne, qui porte le « ? » sur sa ligne */
+.vl-didact-legende { display: inline-flex; align-items: center; gap: 4px; }

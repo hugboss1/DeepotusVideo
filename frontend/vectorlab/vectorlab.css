@@ -891,6 +891,8 @@ vl-bascule[disabled] { opacity: .5; pointer-events: none; }
 .vl-didact-phrase { font-size: 13px; line-height: 1.45; color: var(--aff-texte); padding: 0 12px 10px; }
 .vl-didact-q { flex: 0 0 18px; width: 18px; height: 18px; min-width: 18px; max-width: 18px; padding: 0; border-radius: 50%; border: 1px solid var(--aff-bord); background: transparent; color: var(--aff-muet); font-size: 11px; line-height: 16px; cursor: help; margin-left: 2px; }
 .vl-didact-q:hover { color: var(--aff-texte); border-color: var(--aff-muet); }
+/* t126 : la légende d'un champ en colonne, qui porte le « ? » sur sa ligne */
+.vl-didact-legende { display: inline-flex; align-items: center; gap: 4px; }
 
 /* ── 21/09 : barre contextuelle en icônes, arbre des calques, loupe de la pipette ── */
 .cb-bouton.cb-icone { width: 28px; min-width: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; color: var(--aff-texte); }
