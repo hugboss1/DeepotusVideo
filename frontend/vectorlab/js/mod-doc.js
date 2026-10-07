@@ -411,7 +411,11 @@ function compilerObjet(o, ctx = {}) {
       const nat = o.nat;
       const r = o.rognage || { x: 0, y: 0, w: nat.w, h: nat.h };
       const verrou = o.verrou ? ` data-verrou="1"` : "";
-      return `<g${t}${verrou}${st}${tr}>`
+      // t123 : les effets valent aussi pour une image — le <filter> était émis dans les defs (_defs visite tous
+      // les objets) mais jamais posé : le groupe de l'image le porte, comme celui d'un objet habillé
+      const s0 = o.style || {};
+      const fx = s0.effets && s0.effets.length ? ` filter="url(#fx_${escAttr(o.id)})"` : "";
+      return `<g${t}${verrou}${st}${fx}${tr}>`
         + `<svg x="${+o.x}" y="${+o.y}" width="${+o.w}" height="${+o.h}"`
         + ` viewBox="${+r.x} ${+r.y} ${+r.w} ${+r.h}" preserveAspectRatio="none">`
         + `<image x="0" y="0" width="${+nat.w}" height="${+nat.h}"`
@@ -1148,6 +1152,10 @@ export function op_texte_sur_chemin(doc, idTexte, idChemin) {
   const c = _trouverType(doc, idChemin, ["path", "forme"]);
   o.type = "textechemin"; o.d = c.type === "forme" ? forme_d(c) : c.d; o.decalage = 0;
   delete o.x; delete o.y; delete o.w; delete o.h;
+  // t123 : le texte SUIT son chemin — le lien et l'empreinte de la géométrie lue ; mod-vivants recopie le
+  // tracé (et le transform) quand l'empreinte change. Le d reste une copie : sans la source, le texte tient.
+  o.chemin = c.id; o.empreinte = JSON.stringify(c);
+  if (c.transform) o.transform = c.transform;
 }
 export function op_textechemin_decalage(doc, id, pct) {
   if (!(pct >= 0 && pct <= 100)) throw new Error("décalage : 0 à 100 %");

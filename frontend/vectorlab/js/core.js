@@ -46,6 +46,7 @@ import { initCouleur } from "./mod-couleur.js";
 import { initImage } from "./mod-image.js";
 import { initTrace } from "./mod-trace.js";
 import { initBrouillon } from "./mod-brouillon.js";
+import { derives_rafraichir } from "./mod-vivants.js";
 import { initDialogue } from "./mod-dialogue.js";
 import { initControles } from "./mod-controles.js";
 import { initDidact } from "./mod-didact.js";
@@ -154,6 +155,8 @@ function executer(fn, ...args) {
   const essai = JSON.parse(JSON.stringify(etat.doc));
   try {
     const out = fn(essai, ...args);
+    // t123 : les dérivés (texte sur chemin, contour vivant) suivent leur source DANS la même étape d'historique
+    derives_rafraichir(essai);
     etat.histo.capturer(etat.doc);
     etat.doc = essai;
     etat.sale = true;
