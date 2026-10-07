@@ -22,6 +22,9 @@ sys.stdout.reconfigure(encoding="utf-8")
 HERE = pathlib.Path(__file__).resolve().parent
 RACINE = HERE.parent.parent
 BASE = "c75e276b"                      # main juste avant t125 (bundle sans le lanceur)
+# t128 : le bundle COMMIS par t125 — le rejeu se compare à lui, pas au bundle du poste, que chaque couche suivante
+# (vfxrack t128, …) fait légitimement bouger : comparé au poste, ce contrôle rougissait au premier changement d'après
+T125 = "3fff9376"
 REL = "frontend/dist/assets/index-BEOJX8L5.js"
 NODE = shutil.which("node")
 ok = fail = 0
@@ -62,14 +65,11 @@ try:
     r1 = subprocess.run([PY, str(RACINE / "scripts/patch_bundle_assets2d.py")], cwd=str(TMP), capture_output=True,
                         text=True, encoding="utf-8", errors="replace")
     rejoue = (TMP / REL).read_bytes()
-    # t129 (07/10/2026) : la référence est FIGÉE — l'empreinte git (blob, forme LF) du bundle à la fusion de #255
-    # (34d05288). Comparer au bundle COURANT rougissait au premier maillon posé après celui-ci.
-    import hashlib
-    lf = rejoue.replace(b"\r\n", b"\n")
-    check("1c_rejeu_sur_le_bundle_de_main_rend_le_bundle_de_la_fusion_octet_pour_octet",
-          len(base) > 1_000_000 and r1.returncode == 0
-          and hashlib.sha1(b"blob %d\x00" % len(lf) + lf).hexdigest() == "870a5bcd6bf399285c6fcc58485b50f35f61f019",
-          (r1.returncode, (r1.stdout + r1.stderr)[-300:], len(rejoue)))
+    commis = subprocess.run(["git", "show", f"{T125}:{REL}"], cwd=str(RACINE), capture_output=True).stdout
+    commis = commis.replace(b"\r\n", b"\n").replace(b"\n", eol)
+    check("1c_rejeu_sur_le_bundle_de_main_rend_le_bundle_commis_octet_pour_octet",
+          len(base) > 1_000_000 and len(commis) > 1_000_000 and r1.returncode == 0 and rejoue == commis,
+          (r1.returncode, (r1.stdout + r1.stderr)[-300:], len(rejoue), len(commis)))
     (TMP / (REL + ".bak_assets2d")).unlink(missing_ok=True)
     r2 = subprocess.run([PY, str(RACINE / "scripts/patch_bundle_assets2d.py")], cwd=str(TMP), capture_output=True,
                         text=True, encoding="utf-8", errors="replace")
