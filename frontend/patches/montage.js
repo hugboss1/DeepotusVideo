@@ -9715,6 +9715,52 @@ async function dzRecLancerAvec(image){
   catch(e){await window.__dzDialogue.informer("Recette : "+String(e&&e.message||e),{titre:"Lancer une recette"})}}
 function dzSendRecette(nom,onClose){
   return{lbl:"🍳 Lancer une recette… (devis montré avant)",fn:function(){onClose&&onClose();dzRecLancerAvec(nom)}}}
+/* t130 (W-d du plan 2026-07-22-modeles-generation-onthefly, 07/10/2026) — MODÈLES PAR DÉFAUT DES NOUVEAUX NŒUDS.
+   Settings → Provider defaults gagne deux rangées : le modèle vidéo et le modèle TTS avec lesquels NAISSENT les
+   nouveaux nœuds Seedance et Voiceover (la fabrique `Y` du Studio passe par dzPropsNaissance) ; chaque nœud dévie
+   ensuite par son propre panneau. Les nœuds existants ne bougent pas : un graphe chargé passe par `ts`, que rien ne
+   touche. Stockage : `deepotus.provider_defaults`, dont les clés de RÔLE (video, voice, avatar…) portent des NOMS DE
+   CLÉ — les nôtres ont donc des noms à part (video_model, tts_model) et l'écriture garde tout le reste. */
+/*__T130_DEBUT__*/
+var DZ_DEFAUTS_CLE="deepotus.provider_defaults",DZ_DEFAUTS_ID=/^[A-Za-z0-9._-]{1,64}$/,DZ_DEFAUTS_CHAMPS=["video_model","tts_model"];
+function dzDefautsBrut(){
+  try{var o=JSON.parse(localStorage.getItem(DZ_DEFAUTS_CLE)||"{}");return o&&typeof o==="object"&&!Array.isArray(o)?o:{}}
+  catch(e){return{}}}
+/* les deux défauts lus ; une valeur absente, non chaîne ou hors patron d'id vaut "" (= le défaut du serveur) */
+function dzDefautsLire(){
+  var o=dzDefautsBrut(),v=function(z){return typeof z==="string"&&DZ_DEFAUTS_ID.test(z)?z:""};
+  return{video_model:v(o.video_model),tts_model:v(o.tts_model)}}
+/* écrit UN défaut (video_model | tts_model) sans toucher aux clés de rôle ; "" le retire */
+function dzDefautsEcrire(champ,valeur){
+  if(DZ_DEFAUTS_CHAMPS.indexOf(champ)<0)throw new Error("défaut inconnu : "+champ);
+  var o=dzDefautsBrut();
+  if(!valeur)delete o[champ];
+  else{if(!DZ_DEFAUTS_ID.test(String(valeur)))throw new Error("modèle illisible : "+valeur);o[champ]=String(valeur)}
+  localStorage.setItem(DZ_DEFAUTS_CLE,JSON.stringify(o));return o}
+/* les props d'un nœud QUI NAÎT : celles du registre, plus le modèle par défaut pour Seedance (vidéo) et Voiceover
+   (TTS) quand il est réglé ; jamais l'objet reçu muté, aucun autre type touché */
+function dzPropsNaissance(type,props){
+  var p=Object.assign({},props||{}),d=dzDefautsLire();
+  if(type==="Seedance"&&d.video_model)p.model=d.video_model;
+  if(type==="Voiceover"&&d.tts_model)p.model=d.tts_model;
+  return p}
+/*__T130_FIN__*/
+/* les deux rangées de Provider defaults (même grille que les rangées d'origine) ; les sélecteurs sont ceux des
+   panneaux de nœud (DzVideoModelSel, DzVoModelSel : catalogues servis, option "" = le défaut du serveur). Pas
+   d'état x.useState : un compteur de rendu (useReducer) suffit, la valeur vit dans le stockage. */
+function DzModelDefaults(){
+  var rf=x.useReducer(function(n){return n+1},0),relire=rf[1],d=dzDefautsLire();
+  function poser(champ,v){try{dzDefautsEcrire(champ,v)}catch(e){__dzToast(String(e&&e.message||e))}relire()}
+  function ligne(titre,aide,sel){
+    return r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"260px 1fr auto",gap:14,alignItems:"center",padding:"14px 18px",borderTop:"1px solid var(--stroke)"},children:[
+      r.jsxs("div",{children:[r.jsx("div",{style:{fontSize:12.5,color:"var(--ink-strong)"},children:titre}),
+        r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-soft)"},children:aide})]}),
+      sel,r.jsx("span",{style:{fontSize:10.5,color:"var(--ink-muted)"},children:"nouveaux nœuds"})]})}
+  return r.jsxs(r.Fragment,{children:[
+    ligne("Modèle vidéo par défaut","Les nouveaux nœuds Seedance naissent avec ce modèle ; chacun peut en changer.",
+      r.jsx(DzVideoModelSel,{value:d.video_model,onChange:function(v){poser("video_model",v)}})),
+    ligne("Modèle de voix (TTS) par défaut","Les nouveaux nœuds Voiceover naissent avec ce modèle ElevenLabs ; chacun peut en changer.",
+      r.jsx(DzVoModelSel,{value:d.tts_model,onChange:function(v){poser("tts_model",v)}}))]})}
 /* Tâche #72 PR B (plan-templates T1, 03/10/2026) — gérer les KITS DE MARQUE dans Réglages → Branding. Décisions de
    l'utilisateur (03/10) : les champs de l'écran (nom, accroches, couleurs, logo) modifient le kit ACTIF ; un rendu
    fige le kit actif à l'envoi ; le kit actif et le dernier ne se suppriment pas (bouton grisé, title qui dit
