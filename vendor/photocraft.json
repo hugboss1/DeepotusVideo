@@ -1,0 +1,20 @@
+{
+  "nom": "photocraft",
+  "version": "0.3.0",
+  "depot": "storytold/photocraft",
+  "tag": "v0.3.0",
+  "licence": "MIT OR Apache-2.0",
+  "binaire": {
+    "archive": "photocraft-0.3.0-windows-x64-portable.zip",
+    "url": "https://github.com/storytold/photocraft/releases/download/v0.3.0/photocraft-0.3.0-windows-x64-portable.zip",
+    "taille": 65251740,
+    "sha256": "9997f7df3a6f0717b46bb0f503b3d920c3beedeb9e9c4e1ff2ef3b8671acd47e",
+    "cli": "photocraft-cli.exe",
+    "app": "photocraft.exe",
+    "dossier": "vendor/photocraft-0.3.0"
+  },
+  "sources": {
+    "archive": "photocraft-0.3.0-sources.tar.gz",
+    "url": "https://github.com/storytold/photocraft/archive/refs/tags/v0.3.0.tar.gz"
+  }
+}

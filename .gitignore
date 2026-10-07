@@ -65,3 +65,5 @@ graphify-out/
 
 # sessions du compagnon visuel de brainstorming
 .superpowers/
+# t136 : moteur du Photolab, fourni par scripts/vendor_photocraft.py (epingle dans vendor/photocraft.json)
+vendor/photocraft-*/
