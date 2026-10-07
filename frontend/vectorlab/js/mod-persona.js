@@ -20,6 +20,16 @@ export function persona_de_outil(outil) {
   return "vecteur";
 }
 
+/* t125 (07/10/2026) : le persona DEMANDÉ à l'ouverture — `?persona=` dans
+   l'URL, sinon la demande à usage unique `dz_vl_persona` posée par le lanceur
+   « Assets 2D » du hub Game Assets (l'iframe du Vectorlab a une URL fixe : la
+   demande passe par le stockage, même origine). Inconnu ou illisible → rien. */
+export function persona_demandee(search, lire) {
+  const ok = (v) => (PERSONAS.some((p) => p.id === v) ? v : null);
+  try { const u = new URLSearchParams(search || "").get("persona"); if (u) return ok(u); } catch { /* URL illisible */ }
+  try { return ok(lire("dz_vl_persona")); } catch { return null; }
+}
+
 export function initPersona(VL) {
   const { $, etat } = VL;
   etat.persona = "vecteur";
@@ -44,6 +54,10 @@ export function initPersona(VL) {
   document.querySelectorAll("#personas button").forEach((b) =>
     b.addEventListener("click", () => setPersona(b.dataset.persona)));
   setPersona("vecteur");
+  // t125 : la demande du lanceur est CONSOMMÉE (un rechargement repart en Vecteur)
+  const demande = persona_demandee(location.search, (k) => localStorage.getItem(k));
+  try { localStorage.removeItem("dz_vl_persona"); } catch { /* stockage bloqué */ }
+  if (demande && demande !== "vecteur") setPersona(demande);
 
   /* ── le panneau Export : les exports existants, un bouton chacun ── */
   const hote = $("#panneauExport");

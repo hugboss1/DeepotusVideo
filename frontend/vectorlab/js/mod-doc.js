@@ -1706,7 +1706,7 @@ export function op_pixelart(doc, patch) {
     else if (k === "modele") p.modele = { id: v && v.id !== undefined ? String(v.id) : "", cellule: v ? Math.round(+v.cellule) : 0 };
     else if (k === "calque") p.calque = v;
     else if (k === "paires") p.paires = Array.isArray(v) ? v.map((q) => ({ modele: q && q.modele !== undefined ? String(q.modele) : "", cellule: q ? Math.round(+q.cellule) : 0, calque: q && q.calque !== undefined && q.calque !== null ? q.calque : null })) : v;   // la validation refuse un calque non-chaîne
-    else p.symetrie = { h: !!(v && v.h), v: !!(v && v.v) };
+    else p.symetrie = { h: !!(v && v.h), v: !!(v && v.v), ...(v && v.d1 ? { d1: true } : {}), ...(v && v.d2 ? { d2: true } : {}) };   // t125 : diagonales iso, clés absentes si fausses (documents d'avant inchangés)
   }
   _validerPixelart(p);
   if (Object.keys(p).length) doc.pixelart = p; else delete doc.pixelart;
