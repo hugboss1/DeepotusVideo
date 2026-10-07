@@ -44,12 +44,15 @@ function _validerTerrain(k, f) {
    motif de 8 px fixes disparaît sur un plateau de petites cases et grêle un grand. */
 export const TERRAIN_TRAIT = "#1F1512";
 export function terrain_motif_id(cle) { return `ter_${cle}`; }
-export function terrain_motif_svg(cle, fiche, pasHex) {
+// la spécification du motif d'un terrain — UNE règle, lue par le SVG (terrain_motif_svg) et par le PDF (t121)
+export function terrain_motif_spec(fiche, pasHex) {
   const pas = Math.max(3, Math.round((+pasHex || 32) / 4));
   // la fiche admet #RGB à #RRGGBBAA, les motifs #RRGGBB seulement : une fiche « #D33 » ferait lever la compilation
   const c = _hex6(fiche.couleur);
-  return motif_svg(terrain_motif_id(cle), { ...motif_defaut(fiche.motif), pas,
-    couleur: couleur_interpoler(c, TERRAIN_TRAIT, 0.5), fond: c });
+  return { ...motif_defaut(fiche.motif), pas, couleur: couleur_interpoler(c, TERRAIN_TRAIT, 0.5), fond: c };
+}
+export function terrain_motif_svg(cle, fiche, pasHex) {
+  return motif_svg(terrain_motif_id(cle), terrain_motif_spec(fiche, pasHex));
 }
 function _hex6(c) {
   const h = String(c || "#888888").slice(1);
@@ -87,6 +90,8 @@ const _GRILLE_TUILE_DEFAUT = Object.freeze({ type: "hex", pas: 32, sous: 1, orie
 function _grilleHex(doc) {
   return (doc.grille && doc.grille.type === "hex") ? doc.grille : _GRILLE_TUILE_DEFAUT;
 }
+// t121 : la grille où se posent les tuiles, lue par le PDF vectoriel (même règle que la compilation SVG)
+export function grille_tuiles(doc) { return _grilleHex(doc); }
 
 /* ── lot A (D1/D2) : l'objet `image` — href RELATIF (nom du PNG stocké à
    côté du JSON du document, jamais de base64) ou URL absolue ; `nat` =

@@ -5,10 +5,11 @@
 // tranche, PDF par la route stdlib du backend, DXF par aplatir_objet.
 // Les rasters partent dans la Bibliothèque (route d'import existante, nom
 // `vector_…` = provenance vectorlab) ; SVG, PDF et DXF se téléchargent.
-import { MODES, FORMATS, tranches_de, resolutions_lire, plan_export, mm_px, cadre_saignee, marques_svg } from "./mod-tranches.js";
+import { MODES, FORMATS, tranches_de, resolutions_lire, plan_export, mm_px, cadre_saignee, marques_svg, marques_objets } from "./mod-tranches.js";
 import { dxf_de, polylignes_mm } from "./mod-dxf.js";
 import { bbox_objet } from "./mod-doc.js";
 import { aplatir_objet } from "./mod-bool.js";
+import { pdf_page, pdf_assembler } from "./mod-pdf.js";
 
 const SNS = "http://www.w3.org/2000/svg";
 export const HINTS4 = { tranche: "glisser un rectangle : une tranche à exporter · Échap efface les tranches dessinées" };
@@ -25,7 +26,44 @@ export function reglages_lire(c = {}) {
     coupe: !!c.coupe, reperage: !!c.reperage,
     dpi: Math.max(36, Math.min(1200, Math.round(_num(c.dpi, 300)))),
     qualite: Math.max(0.1, Math.min(1, _num(c.qualite, 0.92))),
+    // t121 : le PDF est VECTORIEL par défaut ; « image » garde l'ancien PDF du lot G (une image par page)
+    pdf: c.pdf === "image" ? "image" : "vectoriel",
   };
+}
+
+/* ── t121 : le PDF vectoriel, logique pure ── */
+// la boîte des pixels visibles d'un rendu RGBA, et ses pixels — un raster ne pèse que ce qu'il montre
+export function recadrer_alpha(rgba, w, h) {
+  let x0 = w, y0 = h, x1 = -1, y1 = -1;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (rgba[4 * (y * w + x) + 3]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  }
+  if (x1 < 0) return null;
+  const largeur = x1 - x0 + 1, hauteur = y1 - y0 + 1, out = new Uint8Array(4 * largeur * hauteur);
+  for (let y = 0; y < hauteur; y++) out.set(rgba.subarray(4 * ((y0 + y) * w + x0), 4 * ((y0 + y) * w + x1 + 1)), 4 * y * largeur);
+  return { x0, y0, largeur, hauteur, rgba: out };
+}
+// le document réduit à UN objet de premier niveau : sans fond, opacité et fusion de calque neutres — dans le
+// PDF, le Form du calque les applique déjà ; les appliquer deux fois assombrirait le raster
+export function doc_seul(doc, calqueId, id) {
+  const d = JSON.parse(JSON.stringify(doc));
+  delete d.fond;
+  for (const c of d.calques) {
+    c.objets = c.id === calqueId ? c.objets.filter((o) => o.id === id) : [];
+    c.opacite = 1; c.fusion = "normal";
+  }
+  return d;
+}
+export function textes_de(doc) {
+  const out = [];
+  const visiter = (objs) => { for (const o of objs || []) { if (o.type === "texte") out.push(o); if (o.type === "groupe") visiter(o.enfants); } };
+  for (const c of doc.calques || []) visiter(c.objets);
+  for (const s of Object.values(doc.symboles || {})) visiter(s.objets);
+  return out;
+}
+export function resume_pdf(st) {
+  const r = Object.entries(st.raisons || {}).map(([k, n]) => (n > 1 ? `${k} ×${n}` : k)).join(", ");
+  return `PDF vectoriel : ${st.vectoriels} objet(s) en vecteurs, ${st.rasterises ? `${st.rasterises} rasterisé(s) (${r})` : "aucun rasterisé"}`;
 }
 export function resume_plan(plan) {
   if (!plan || !plan.length) return "rien à exporter (aucune tranche ou aucun format)";
@@ -51,7 +89,7 @@ export function initExportPlus(VL) {
   const { $, etat } = VL;
   const hote = $("#panneauExportPlus"), stage = $("#stage");
   etat.tranches = [];
-  etat.exportPlus = { mode: "document", resolutions: "1", formats: ["png"], transparent: false, saignee: 0, coupe: false, reperage: false, dpi: 300, qualite: 0.92 };
+  etat.exportPlus = { mode: "document", resolutions: "1", formats: ["png"], transparent: false, saignee: 0, coupe: false, reperage: false, dpi: 300, qualite: 0.92, pdf: "vectoriel" };
   let geste = null;
 
   // l'outil tranche dans la barre (persona Export)
@@ -146,6 +184,61 @@ export function initExportPlus(VL) {
       img.src = url;
     });
   }
+  /* ── t121 : le PDF VECTORIEL — mod-pdf écrit les vecteurs, l'écran ne fournit que les glyphes et les rasters ── */
+  // un raster : l'objet SEUL rendu sur la page (au dpi d'export), recadré sur ses pixels visibles
+  function rgbaDe(svg, cadre, k) {
+    return new Promise((res, rej) => {
+      const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" })), img = new Image();
+      img.onload = () => {
+        const cv = document.createElement("canvas");
+        cv.width = Math.max(1, Math.round(cadre.w * k)); cv.height = Math.max(1, Math.round(cadre.h * k));
+        const cx = cv.getContext("2d");
+        cx.drawImage(img, 0, 0, cv.width, cv.height);
+        URL.revokeObjectURL(url);
+        res({ data: cx.getImageData(0, 0, cv.width, cv.height).data, w: cv.width, h: cv.height });
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("SVG non décodable")); };
+      img.src = url;
+    });
+  }
+  async function rasterObjet(doc, cadre, ra, k) {
+    const svg = await VL.svgCourant(true, cadre, doc_seul(doc, ra.calque, ra.id));
+    const { data, w, h } = await rgbaDe(svg, cadre, k);
+    const c = recadrer_alpha(data, w, h);
+    // un objet qui ne montre rien (hors tranche, transparent) : un pixel transparent, jamais un trou d'image
+    if (!c) return { x: cadre.x, y: cadre.y, w: 1 / k, h: 1 / k, largeur: 1, hauteur: 1, rgba: new Uint8Array(4) };
+    return { x: cadre.x + c.x0 / k, y: cadre.y + c.y0 / k, w: c.largeur / k, h: c.hauteur / k, largeur: c.largeur, hauteur: c.hauteur, rgba: c.rgba };
+  }
+  async function pdfVectoriel(e, r) {
+    const pages = [], st = { vectoriels: 0, rasterises: 0, raisons: {} };
+    const k = r.dpi / dpiDoc();
+    for (const t of e.tranches) {
+      const s = mm_px(r.saignee, dpiDoc());
+      let cadre = cadre_saignee(t.cadre, s);
+      const doc = docPour(t);
+      if (r.coupe || r.reperage) {
+        // les marques, en VECTEURS aussi : la même géométrie que le SVG, hors du cadre élargi d'autant
+        const L = Math.max(6, s || 8);
+        doc.calques.push({ id: "__marques", nom: "marques", visible: true, verrou: true, objets: marques_objets(t.cadre, s, { coupe: r.coupe, reperage: r.reperage }, L) });
+        cadre = cadre_saignee(cadre, L + 2);
+      }
+      const glyphes = new Map();
+      for (const o of textes_de(doc)) {
+        try { glyphes.set(o.id, VL.glyphesTexte ? await VL.glyphesTexte(o) : null); } catch (err) { glyphes.set(o.id, { raison: `texte (${err.message})` }); }
+      }
+      const p = pdf_page(doc, cadre, { dpi: dpiDoc(), transparent: r.transparent, glyphes: (o) => glyphes.get(o.id) || null });
+      p.images = {};
+      for (const ra of p.rasters) {
+        p.images[ra.nom] = await rasterObjet(doc, cadre, ra, k);
+        st.raisons[ra.raison] = (st.raisons[ra.raison] || 0) + 1;
+      }
+      st.vectoriels += p.stats.vectoriels; st.rasterises += p.stats.rasterises;
+      pages.push(p);
+    }
+    return { blob: new Blob([await pdf_assembler(pages)], { type: "application/pdf" }), st };
+  }
+  VL.pdfVectoriel = pdfVectoriel;          // poignée de preuve
+
   const telecharger = (blob, nom) => { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nom; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); };
   async function deposer(blob, nom) {
     const fd = new FormData();
@@ -181,7 +274,13 @@ export function initExportPlus(VL) {
     const r = reglages_lire(etat.exportPlus), p = plan();
     if (!p.length) throw new Error("rien à exporter");
     const faits = [], sautes = [];
+    let bilanPdf = "";
     for (const e of p) {
+      if (e.format === "pdf" && r.pdf === "vectoriel") {
+        const { blob, st } = await pdfVectoriel(e, r);
+        telecharger(blob, e.nom); faits.push(e.nom); bilanPdf = resume_pdf(st);
+        continue;
+      }
       if (e.format === "pdf") {
         const k = r.dpi / dpiDoc(), specs = pages_pdf(e.tranches, dpiDoc(), r.saignee, k), fd = new FormData();
         for (let i = 0; i < e.tranches.length; i++) {
@@ -204,7 +303,7 @@ export function initExportPlus(VL) {
       if (e.format === "svg") { telecharger(new Blob([svg], { type: "image/svg+xml" }), e.nom); faits.push(e.nom); continue; }
       faits.push(await deposer(await rasteriser(svg, cadre, e.k, e.format, r), e.nom));
     }
-    VL.toast(`export lot : ${faits.length} fichier(s) — ${faits.slice(0, 3).join(", ")}${faits.length > 3 ? "…" : ""}${sautes.length ? ` · ${sautes.length} DXF vide(s) sauté(s)` : ""}`);
+    VL.toast(`export lot : ${faits.length} fichier(s) — ${faits.slice(0, 3).join(", ")}${faits.length > 3 ? "…" : ""}${sautes.length ? ` · ${sautes.length} DXF vide(s) sauté(s)` : ""}${bilanPdf ? ` · ${bilanPdf}` : ""}`);
     return faits;
   }
 
@@ -223,7 +322,9 @@ export function initExportPlus(VL) {
       <div class="a2-champs">${FORMATS.map((f) => `<label><input type="checkbox" data-format="${f.id}"${r.formats.includes(f.id) ? " checked" : ""}/> ${f.libelle}</label>`).join("")}</div>
       <details ${r.saignee || r.coupe || r.reperage ? "open" : ""}><summary class="px-tete">Impression</summary>
         <div class="ap-ligne"><span>Saignée</span><input type="number" id="exSaignee" step="0.5" min="0" value="${r.saignee}" title="Fond perdu (mm) ajouté de chaque côté"/><span style="width:auto">mm</span>
-          <input type="number" id="exDpi" min="36" max="1200" value="${r.dpi}" title="dpi du PDF"/><span style="width:auto">dpi</span></div>
+          <input type="number" id="exDpi" min="36" max="1200" value="${r.dpi}" title="dpi des rasters du PDF (et du PDF image)"/><span style="width:auto">dpi</span></div>
+        <div class="ap-ligne"><span>PDF</span><select id="exPdf" title="Vectoriel : les chemins, formes, textes (en contours), dégradés et motifs restent des vecteurs — seuls les effets, masques, images et textes sur chemin sont rasterisés, et le toast les compte. Image : une image par page (l'ancien PDF).">
+          <option value="vectoriel"${r.pdf === "vectoriel" ? " selected" : ""}>vectoriel</option><option value="image"${r.pdf === "image" ? " selected" : ""}>image</option></select></div>
         <div class="ap-ligne"><label><input type="checkbox" id="exCoupe"${r.coupe ? " checked" : ""}/> traits de coupe</label><label><input type="checkbox" id="exRep"${r.reperage ? " checked" : ""}/> repérage</label></div>
         <div class="ap-ligne"><span>Qualité</span><input type="range" id="exQual" min="0.3" max="1" step="0.01" value="${r.qualite}" title="JPEG / WebP"/><b id="exQualVal">${Math.round(r.qualite * 100)}</b></div>
       </details>
@@ -238,6 +339,7 @@ export function initExportPlus(VL) {
     hote.querySelectorAll("[data-format]").forEach((c) => c.addEventListener("change", () => maj({ formats: [...hote.querySelectorAll("[data-format]:checked")].map((x) => x.dataset.format) })));
     on("exSaignee", "change", (ev) => maj({ saignee: ev.target.value }));
     on("exDpi", "change", (ev) => maj({ dpi: ev.target.value }));
+    on("exPdf", "change", (ev) => maj({ pdf: ev.target.value }));
     on("exCoupe", "change", (ev) => maj({ coupe: ev.target.checked }));
     on("exRep", "change", (ev) => maj({ reperage: ev.target.checked }));
     on("exQual", "input", (ev) => { etat.exportPlus.qualite = +ev.target.value; $("#exQualVal").textContent = Math.round(ev.target.value * 100); });
