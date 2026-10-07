@@ -150,7 +150,7 @@ def test_generate_long_forwards_model():
     orig = VoiceoverService.generate
 
     def spy(self, text, output_path, language="EN", voice_id=None,
-            model_id=None, settings_override=None):
+            model_id=None, settings_override=None, provider=None):   # t131 : le fournisseur suit la génération
         calls.append({"model": model_id, "chars": len(text),
                       "set": settings_override})
         pathlib.Path(output_path).parent.mkdir(parents=True, exist_ok=True)

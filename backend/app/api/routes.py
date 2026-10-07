@@ -4893,6 +4893,11 @@ async def create_voiceover(request: Request):
     from app.services.elevenlabs_service import VoiceoverService
     voice = VoiceoverService()
     loop = asyncio.get_running_loop()
+    # t131 : le FOURNISSEUR peut venir de la génération (Quick, nœud Voiceover) ; absent = le réglage atelier.
+    # Demandé mais indisponible -> 409 : on ne bascule jamais en silence sur l'autre voix (ni sur l'autre facture).
+    requested = str(payload.get("provider") or "").strip().lower() or None
+    if requested is not None and requested not in _VOIX_FOURNISSEURS:
+        raise HTTPException(400, f"Fournisseur de voix inconnu : {requested}")
     if not await loop.run_in_executor(None, VoiceoverService.is_enabled):
         raise HTTPException(503, "Aucune voix disponible — configure la clé "
                                  "ElevenLabs ou lance Voicebox (Réglages).")
@@ -4912,7 +4917,11 @@ async def create_voiceover(request: Request):
     from app.services import voice_direction as VD, voice_providers as VP
     from app.services.elevenlabs_service import resolve_model
     notes: list[str] = []
-    prov = await loop.run_in_executor(None, VP.resolve_provider)
+    prov = await loop.run_in_executor(None, lambda: VP.resolve_provider(requested))
+    if requested and prov != requested:
+        raise HTTPException(409, ("Voicebox injoignable — lance voicebox-server ou choisis ElevenLabs."
+                                  if requested == "voicebox" else
+                                  "ElevenLabs indisponible (clé manquante) — ajoute-la ou choisis Voicebox."))
     style = VD.clamp_style(payload.get("style"))
     text = VD.apply_style(script, style)
     try:
@@ -4932,7 +4941,7 @@ async def create_voiceover(request: Request):
             "Voicebox ne les interprète pas" if prov == "voicebox"
             else f"seul Eleven v3 les interprète (modèle : {eff or 'défaut'})"))
     # la garde chiffre CE QUI PART (balises comprises : ElevenLabs les facture)
-    await _plafond(_op_tts(text, model), "son")   # tâche #16 (Voicebox : rien)
+    await _plafond(_op_tts(text, model, prov), "son")   # tâche #16 (Voicebox : rien)
     base = re.sub(r"[^A-Za-z0-9_-]+", "_", str(payload.get("name") or "narration")).strip("_")[:40]
     fn = f"{base or 'narration'}-{random.randint(100000, 999999)}.mp3"
     dest = _audio_dir() / fn
@@ -4942,7 +4951,8 @@ async def create_voiceover(request: Request):
             None, lambda: voice.generate_long(text=text, output_path=dest,
                                               language=lang, voice_id=voice_id,
                                               model_id=model,
-                                              settings_override=v_settings))
+                                              settings_override=v_settings,
+                                              provider=prov))
     except ValueError as e:                       # modèle inconnu → 400 propre
         raise HTTPException(400, str(e))
     except Exception as e:
@@ -4998,13 +5008,27 @@ async def list_voice_models():
     return {"models": out, "default": default_model_id()}
 
 
+_VOIX_FOURNISSEURS = ("elevenlabs", "voicebox")
+
+
 @router.get("/voices")
-async def list_voices():
+async def list_voices(provider: str | None = None):
     """Voice picker (Episodes / VO) — catalogue du provider de voix actif
     (ElevenLabs ou Voicebox local, v1.26 étape 3). Même forme qu'avant :
-    {voice_id, name, category, language, labels, preview_url}."""
+    {voice_id, name, category, language, labels, preview_url}.
+    t131 : `?provider=` choisit le catalogue (le sélecteur de Quick / du nœud)."""
+    req = (provider or "").strip().lower() or None
+    if req is not None and req not in _VOIX_FOURNISSEURS:
+        raise HTTPException(400, f"Fournisseur de voix inconnu : {req}")
+    if req is not None:
+        # un fournisseur NOMMÉ mais pas prêt : catalogue vide, jamais celui de l'autre (resolve_provider se replie ;
+        # mesuré au 8799 : ElevenLabs choisi sans clé listait les profils Voicebox)
+        from app.services import voice_providers as VP
+        loop = asyncio.get_running_loop()
+        if await loop.run_in_executor(None, lambda: VP.resolve_provider(req)) != req:
+            return {"voices": [], "enabled": False, "provider": req}
     try:
-        provider, voices = await _fetch_casting_voices()
+        provider, voices = await _fetch_casting_voices(req)
     except HTTPException:                  # aucun provider utilisable
         return {"voices": [], "enabled": False}
     except Exception as e:
@@ -5506,15 +5530,15 @@ async def _plafond(op, categorie: str, ref: str | None = None) -> dict:
     return await _PLAF.verifier(op, categorie, ref)
 
 
-def _op_tts(texte, model=None) -> list:
+def _op_tts(texte, model=None, provider=None) -> list:
     """[op ElevenLabs] pour un texte lu, SEULEMENT si le fournisseur de voix résolu est ElevenLabs (Voicebox est
-    local et gratuit) ; texte vide -> []."""
+    local et gratuit) ; texte vide -> []. t131 : `provider` = celui que la génération demande (sinon le réglage)."""
     t = (texte or "").strip()
     if not t:
         return []
     try:
         from app.services.voice_providers import resolve_provider
-        if resolve_provider() != "elevenlabs":
+        if resolve_provider(provider) != "elevenlabs":
             return []
     except Exception:  # noqa: BLE001
         return []
@@ -9748,14 +9772,15 @@ async def _fetch_11l_voices() -> list[dict]:
     return [v for v in out if v["voice_id"]]
 
 
-async def _fetch_casting_voices() -> tuple[str, list[dict]]:
+async def _fetch_casting_voices(requested: str | None = None) -> tuple[str, list[dict]]:
     """Catalogue de voix du provider actif (spec voicebox, étape 3) :
     ElevenLabs (labels riches) ou Voicebox (/profiles mappés au même format).
-    Retourne (provider, voices) ; 400 si aucun provider utilisable."""
+    Retourne (provider, voices) ; 400 si aucun provider utilisable.
+    t131 : `requested` (le sélecteur de Quick / du nœud) passe avant le réglage atelier."""
     from app.services import voice_providers as VP
     from app.services.storage import async_session_factory
     async with async_session_factory() as session:
-        configured = await _atelier_setting(session, "voice_provider")
+        configured = requested or await _atelier_setting(session, "voice_provider")
     loop = asyncio.get_running_loop()
     provider = await loop.run_in_executor(
         None, lambda: VP.resolve_provider(configured))
@@ -9766,6 +9791,41 @@ async def _fetch_casting_voices() -> tuple[str, list[dict]]:
         return "elevenlabs", await _fetch_11l_voices()
     raise HTTPException(400, "Aucun fournisseur de voix disponible — "
                              "configure la clé ElevenLabs ou lance Voicebox.")
+
+
+# t131 (spec voiceover §9.1) — la PRÉÉCOUTE d'un profil Voicebox : une courte phrase générée à la demande (local,
+# gratuit, quelques secondes la première fois), gardée dans audio/_previews/ et servie ensuite telle quelle — même
+# Voicebox éteint. Un verrou par profil+langue : deux clics rapprochés ne lancent pas deux générations.
+_PREECOUTE_PHRASES = {"fr": "Bonjour, voici un aperçu de ma voix pour vos vidéos.",
+                      "en": "Hello, this is a preview of my voice for your videos."}
+_PREECOUTE_ID = re.compile(r"^[A-Za-z0-9._-]{1,80}$")
+_PREECOUTE_VERROUS: dict = {}
+
+
+@router.get("/voice/preview")
+async def voice_preview(voice_id: str, language: str = "fr"):
+    from app.services import voice_providers as VP
+    if not _PREECOUTE_ID.fullmatch(voice_id or ""):
+        raise HTTPException(400, "Profil de voix illisible")
+    lang = "fr" if str(language or "").lower().startswith("fr") else "en"
+    dossier = _audio_dir() / "_previews"
+    dest = dossier / f"voicebox-{voice_id}-{lang}.mp3"
+    verrou = _PREECOUTE_VERROUS.setdefault(dest.name, asyncio.Lock())
+    async with verrou:
+        if not dest.is_file():
+            loop = asyncio.get_running_loop()
+            if not await loop.run_in_executor(None, VP.voicebox_reachable):
+                raise HTTPException(503, "Voicebox injoignable — lance voicebox-server pour écouter ce profil.")
+            dossier.mkdir(parents=True, exist_ok=True)
+            tmp = dossier / (dest.stem + ".part.mp3")
+            try:
+                await loop.run_in_executor(None, lambda: VP.voicebox_tts(
+                    text=_PREECOUTE_PHRASES[lang], output_path=tmp, language=lang, voice_id=voice_id))
+                tmp.replace(dest)
+            except Exception as e:  # noqa: BLE001
+                tmp.unlink(missing_ok=True)
+                raise HTTPException(502, f"Préécoute Voicebox impossible : {e}")
+    return FileResponse(str(dest), media_type="audio/mpeg")
 
 
 @router.post("/bible/entities/{entity_id}/suggest-voice")

@@ -196,6 +196,7 @@ class VoiceoverService:
         voice_id: Optional[str] = None,
         model_id: Optional[str] = None,
         settings_override: Optional[dict] = None,
+        provider: Optional[str] = None,
     ) -> Path:
         """Synthesize voiceover audio from text and save to disk.
 
@@ -208,7 +209,8 @@ class VoiceoverService:
         .part → rename pour ne jamais laisser de fichier partiel en Library.
         """
         from app.services import voice_providers as VP
-        provider = VP.resolve_provider()
+        # t131 : le fournisseur DEMANDÉ par la génération (Quick, nœud Voiceover), sinon le réglage atelier
+        provider = VP.resolve_provider(provider)
         if not provider:
             raise RuntimeError(
                 "Aucune voix disponible : configure une clé ElevenLabs "
@@ -265,6 +267,7 @@ class VoiceoverService:
         max_chars: Optional[int] = None,
         model_id: Optional[str] = None,
         settings_override: Optional[dict] = None,
+        provider: Optional[str] = None,
     ) -> Path:
         """Synthesize possibly-long narration: chunk on sentence boundaries,
         TTS each chunk, then concat into a single mp3. Falls back to one
@@ -281,7 +284,8 @@ class VoiceoverService:
             return self.generate(text=chunks[0], output_path=output_path,
                                   language=language, voice_id=voice_id,
                                   model_id=mid,
-                                  settings_override=settings_override)
+                                  settings_override=settings_override,
+                                  provider=provider)
         tmpdir = Path(tempfile.mkdtemp(prefix="dz_vo_"))
         tmp_out = output_path.with_name(output_path.name + ".part")
         try:
@@ -290,7 +294,8 @@ class VoiceoverService:
                 part = tmpdir / f"part_{i:03d}.mp3"
                 self.generate(text=ch, output_path=part,
                               language=language, voice_id=voice_id,
-                              model_id=mid, settings_override=settings_override)
+                              model_id=mid, settings_override=settings_override,
+                              provider=provider)
                 parts.append(part)
             listfile = tmpdir / "concat.txt"
             listfile.write_text(
