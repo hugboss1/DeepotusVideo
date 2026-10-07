@@ -8864,7 +8864,80 @@ var VFX_BLENDS=["screen","overlay","multiply","softlight","addition","normal"];
 var VFX_EASES=[["smooth","douce"],["linear","linéaire"],["easeIn","accélérée"],
   ["easeOut","freinée"],["easeInOut","douce (2 sens)"],["easeInOutSine","sinus"],
   ["anticipate","anticipation"],["overshoot","dépassement"],
-  ["easeOutBack","retour"],["easeOutBounce","rebond"]];
+  ["easeOutBack","retour"],["easeOutBounce","rebond"],
+  /* t128 : la courbe dessinée à la main — la valeur stockée est « cubic-bezier(a,b,c,d) », que
+     animation_service.ease() lit déjà ; « bezier » n'est que l'entrée du menu, jamais écrite */
+  ["bezier","courbe à la main…"]];
+
+/* ── t128 : éditeur de courbe de Bézier (deux poignées, aperçu SVG) ─────────────────────────────────
+   Les poignées des presets Bézier du backend, à l'IDENTIQUE (animation_service._BEZIER, banc
+   test_vfxrack_bezier) : choisir « courbe à la main » part de la forme du preset courant. */
+var VFX_BEZ_PRESETS={smooth:[0.4,0,0.2,1],easeInOutSine:[0.45,0.05,0.55,0.95],
+  anticipate:[0.36,0,0.66,-0.56],overshoot:[0.34,1.56,0.64,1],linear:[0,0,1,1]};
+/* géométrie du dessin : un carré de c px pour [0,1]², une marge de m px autour — y visible de
+   -m/c à 1+m/c (les dépassements « anticipation » / « rebond » restent sous le doigt) */
+var VFX_BEZ_GEO={c:100,m:30};
+function vfxBezNb(v){return Number((+v).toFixed(2))}
+function vfxBezLire(v){
+  var m=/^cubic-bezier\(([^,]+),([^,]+),([^,]+),([^,)]+)\)$/.exec(String(v==null?"":v).trim());
+  if(!m)return null;
+  var p=[m[1],m[2],m[3],m[4]].map(function(z){return z.trim()===""?NaN:Number(z)});
+  if(p.some(function(z){return !isFinite(z)})||p[0]<0||p[0]>1||p[2]<0||p[2]>1)return null;
+  return p}
+function vfxBezEcrire(p){
+  var q=[vfxClamp(p[0],0,1),vfxClamp(p[1],-1,2),vfxClamp(p[2],0,1),vfxClamp(p[3],-1,2)].map(vfxBezNb);
+  return "cubic-bezier("+q.join(",")+")"}
+function vfxBezDepart(nom){
+  var p=vfxBezLire(nom)||VFX_BEZ_PRESETS[nom]||[0.42,0,0.58,1];
+  return p.slice()}
+/* point du SVG (px, dans le repère du dessin) -> point de la courbe, borné à la zone visible */
+function vfxBezPoint(px,py){
+  var G=VFX_BEZ_GEO;
+  return [vfxBezNb(vfxClamp((px-G.m)/G.c,0,1)),vfxBezNb(vfxClamp(1-(py-G.m)/G.c,-G.m/G.c,1+G.m/G.c))]}
+function vfxBezChemin(p){
+  var G=VFX_BEZ_GEO,X=function(v){return vfxBezNb(G.m+v*G.c)},Y=function(v){return vfxBezNb(G.m+(1-v)*G.c)};
+  return "M"+X(0)+" "+Y(0)+" C"+X(p[0])+" "+Y(p[1])+" "+X(p[2])+" "+Y(p[3])+" "+X(1)+" "+Y(1)}
+
+/* l'éditeur : la courbe, ses deux poignées à glisser (capture du pointeur), quatre champs pour la
+   précision. `value` = « cubic-bezier(…) », `onChange(nouvelle valeur)`. */
+const VfxBezier=(props)=>{
+  var p=vfxBezLire(props.value)||[0.42,0,0.58,1];
+  var G=VFX_BEZ_GEO,T=G.c+2*G.m;
+  /* la poignée tenue vit dans une RÉFÉRENCE : rien à redessiner quand on la saisit (chaque pas du glisser
+     redessine déjà par onChange) — et pas d'état de plus dans le bundle, dont le compte est épinglé */
+  var svgRef=x.useRef(null),prise=x.useRef(-1);
+  function pose(i,pt){var q=p.slice();q[2*i]=pt[0];q[2*i+1]=pt[1];props.onChange(vfxBezEcrire(q))}
+  function local(e){
+    var b=svgRef.current.getBoundingClientRect();
+    return vfxBezPoint((e.clientX-b.left)*T/b.width,(e.clientY-b.top)*T/b.height)}
+  function poignee(i){
+    var cx=vfxBezNb(G.m+p[2*i]*G.c),cy=vfxBezNb(G.m+(1-p[2*i+1])*G.c);
+    return r.jsx("circle",{className:"vfx-bezh",cx:cx,cy:cy,r:6,
+      "aria-label":"Poignée "+(i+1),
+      onPointerDown:function(e){e.preventDefault();e.stopPropagation();
+        try{e.currentTarget.setPointerCapture(e.pointerId)}catch(_e){}prise.current=i},
+      onPointerMove:function(e){if(prise.current===i)pose(i,local(e))},
+      onPointerUp:function(e){try{e.currentTarget.releasePointerCapture(e.pointerId)}catch(_e){}prise.current=-1},
+      onPointerCancel:function(){prise.current=-1}})}
+  function champ(k,lab){
+    var bx=k%2===0;
+    return r.jsx("input",{className:"vfx-num vfx-bezn",type:"number",step:.05,min:bx?0:-1,max:bx?1:2,
+      value:p[k],"aria-label":lab,title:lab,
+      onChange:function(e){var q=p.slice();q[k]=vfxN(e.target.value,p[k]);props.onChange(vfxBezEcrire(q))}})}
+  var X=function(v){return vfxBezNb(G.m+v*G.c)},Y=function(v){return vfxBezNb(G.m+(1-v)*G.c)};
+  return r.jsxs("div",{className:"vfx-bez",children:[
+    r.jsxs("svg",{ref:svgRef,className:"vfx-bezsvg",viewBox:"0 0 "+T+" "+T,width:T,height:T,
+      role:"img","aria-label":props.label||"Courbe de la rampe",children:[
+      r.jsx("rect",{className:"vfx-bezcadre",x:G.m,y:G.m,width:G.c,height:G.c}),
+      r.jsx("line",{className:"vfx-bezdiag",x1:X(0),y1:Y(0),x2:X(1),y2:Y(1)}),
+      r.jsx("line",{className:"vfx-bezbras",x1:X(0),y1:Y(0),x2:X(p[0]),y2:Y(p[1])}),
+      r.jsx("line",{className:"vfx-bezbras",x1:X(1),y1:Y(1),x2:X(p[2]),y2:Y(p[3])}),
+      r.jsx("path",{className:"vfx-bezcourbe",d:vfxBezChemin(p)}),
+      poignee(0),poignee(1)]}),
+    r.jsxs("div",{className:"vfx-bezchamps",children:[
+      champ(0,"Poignée 1 — temps"),champ(1,"Poignée 1 — intensité"),
+      champ(2,"Poignée 2 — temps"),champ(3,"Poignée 2 — intensité")]}),
+    r.jsx("code",{className:"vfx-bezval",children:vfxBezEcrire(p)})]})};
 
 /* catégories de repli — la liste FAIT AUTORITÉ côté backend dès que
    /api/effects/catalog répond (clé `categories`), celle-ci ne sert qu'au
@@ -9506,11 +9579,14 @@ const VfxBounds=(props)=>{
           onChange:function(e){
             set({fade_in:vfxRound(vfxClamp(vfxN(e.target.value,0),0,span/2),2)})}}),
         r.jsx("span",{className:"vfx-punit",children:"s"}),
-        r.jsx("select",{className:"vfx-sel",value:eff.ease_in||"smooth",
+        r.jsx("select",{className:"vfx-sel",value:vfxBezLire(eff.ease_in)?"bezier":(eff.ease_in||"smooth"),
           "aria-label":"Courbe de la rampe d'entrée",disabled:!(fi>0),
-          onChange:function(e){set({ease_in:e.target.value})},
+          onChange:function(e){set({ease_in:e.target.value==="bezier"
+            ?vfxBezEcrire(vfxBezDepart(eff.ease_in||"smooth")):e.target.value})},
           children:VFX_EASES.map(function(o){
             return r.jsx("option",{value:o[0],children:o[1]},o[0])})})]}),
+      fi>0&&vfxBezLire(eff.ease_in)?r.jsx(VfxBezier,{value:eff.ease_in,label:"Courbe de la rampe d'entrée",
+        onChange:function(v){set({ease_in:v})}}):null,
       r.jsxs("div",{className:"vfx-prow",children:[
         r.jsx("span",{className:"vfx-plabel",children:"Rampe sortie"}),
         num({min:0,max:vfxRound(span/2,2),step:.05,value:vfxRound(fo,2),
@@ -9518,14 +9594,20 @@ const VfxBounds=(props)=>{
           onChange:function(e){
             set({fade_out:vfxRound(vfxClamp(vfxN(e.target.value,0),0,span/2),2)})}}),
         r.jsx("span",{className:"vfx-punit",children:"s"}),
-        r.jsx("select",{className:"vfx-sel",value:eff.ease_out||"smooth",
+        r.jsx("select",{className:"vfx-sel",value:vfxBezLire(eff.ease_out)?"bezier":(eff.ease_out||"smooth"),
           "aria-label":"Courbe de la rampe de sortie",disabled:!(fo>0),
-          onChange:function(e){set({ease_out:e.target.value})},
+          onChange:function(e){set({ease_out:e.target.value==="bezier"
+            ?vfxBezEcrire(vfxBezDepart(eff.ease_out||"smooth")):e.target.value})},
           children:VFX_EASES.map(function(o){
             return r.jsx("option",{value:o[0],children:o[1]},o[0])})})]}),
+      fo>0&&vfxBezLire(eff.ease_out)?r.jsx(VfxBezier,{value:eff.ease_out,label:"Courbe de la rampe de sortie",
+        onChange:function(v){set({ease_out:v})}}):null,
+      /* t128 : le shake ne se fond pas (l'image secouée mélangée à l'image fixe se dédoublerait) — sa
+         rampe module l'AMPLITUDE de la secousse ; la secousse + zoom garde une entrée et une sortie franches */
       eff.type==="shake"?r.jsx("div",{className:"vfx-bnote",
-        children:"Camera shake : entrée et sortie franches — mélanger une image "+
-          "secouée avec l'image fixe la dédoublerait."}):null,
+        children:"Camera shake : la rampe règle la FORCE de la secousse, de 0 au réglage choisi."}):null,
+      eff.type==="shakezoom"?r.jsx("div",{className:"vfx-bnote",
+        children:"Secousse + zoom : entrée et sortie franches — le zoom sauterait s'il rampait."}):null,
       r.jsx("div",{className:"vfx-bnote",
         children:"Hors de l'intervalle, le plan reste intact."})]}):null]})};
 

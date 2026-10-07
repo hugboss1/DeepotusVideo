@@ -255,6 +255,18 @@
   color:var(--vfx-ink4); font-variant-numeric:tabular-nums}
 .vfx-bbody{display:flex; flex-direction:column; gap:6px}
 .vfx-bnote{font-size:10px; color:var(--vfx-ink4); line-height:1.45}
+/* t128 : éditeur de courbe de Bézier des rampes */
+.vfx-bez{display:flex; flex-wrap:wrap; align-items:flex-start; gap:8px; padding:2px 0 2px 62px}
+.vfx-bezsvg{flex:none; width:120px; height:120px; touch-action:none; background:var(--vfx-well); border-radius:6px}
+.vfx-bezcadre{fill:none; stroke:var(--vfx-stroke2); stroke-width:1}
+.vfx-bezdiag{stroke:var(--vfx-stroke2); stroke-width:1; stroke-dasharray:3 3}
+.vfx-bezbras{stroke:var(--vfx-ink4); stroke-width:1.2}
+.vfx-bezcourbe{fill:none; stroke:var(--vfx-acc); stroke-width:2.4}
+.vfx-bezh{fill:var(--vfx-ink); stroke:var(--vfx-acc); stroke-width:2; cursor:grab}
+.vfx-bezh:active{cursor:grabbing; fill:var(--vfx-acc)}
+.vfx-bezchamps{display:grid; grid-template-columns:repeat(2, 54px); gap:4px}
+.vfx-bezn{width:54px}
+.vfx-bezval{flex-basis:100%; font-family:var(--vfx-mono); font-size:9.5px; color:var(--vfx-ink4)}
 .vfx-sw{flex:none; width:24px; height:13px; border-radius:7px;
   border:1px solid var(--vfx-stroke2); background:var(--vfx-well);
   position:relative; display:inline-block;
