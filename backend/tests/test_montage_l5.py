@@ -122,9 +122,10 @@ check("t1_categorie_correction_trois_effets",
       and all((CAT.get(t) or {}).get("cat") == "correction" for t in ("denoise", "deflicker", "deband")),
       str((_cor, [(CAT.get(t) or {}).get("cat") for t in ("denoise", "deflicker", "deband")])))
 check("t1_etalonnage_onze",
-      (CATS.get("etalonnage") or {}).get("count") == 11
+      # t118 (07/10/2026) : + lumsat et satsat (D-29) -> 13
+      (CATS.get("etalonnage") or {}).get("count") == 13
       and all((CAT.get(t) or {}).get("cat") == "etalonnage"
-              for t in ("wheels", "curves", "colormatch", "huesat", "monochrome")),
+              for t in ("wheels", "curves", "colormatch", "huesat", "monochrome", "lumsat", "satsat")),
       str((CATS.get("etalonnage"), [(CAT.get(t) or {}).get("cat") for t in
                                      ("wheels", "curves", "colormatch", "huesat", "monochrome")])))
 check("t1_chromakey_cadrage_tmix_mouvement",
