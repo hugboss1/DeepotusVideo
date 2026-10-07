@@ -10908,3 +10908,19 @@ function DzVoFournisseur({prov:prov,choix:choix,onChange:onChange}){
     :vp.etat==="indisponible"?(vp.id==="voicebox"?bandeau("amber","voicebox-off","Voicebox injoignable"," — lance voicebox-server ou choisis ElevenLabs."):bandeau("amber","elevenlabs-off","Clé ElevenLabs manquante"," — ajoute-la dans Réglages → Clés, ou choisis Voicebox."))
     :bandeau("red","none","Aucune voix disponible"," — ajoute la clé ElevenLabs (Réglages → Clés) ou lance voicebox-server.");
   return r.jsxs("div",{"data-dzvofourn":vp.etat,children:[r.jsx(re,{value:DZ_VO_FOURNISSEURS.indexOf(choix)>=0?choix:"",onChange:onChange,options:dzVoFournisseurOptions(prov)}),etat]})}
+/* t134 (traduction, lot 0, 07/10/2026) — la rangée « Langue de l'interface » des Réglages, sous les modèles par
+   défaut. Premier écran écrit par dzT (runtime /shared/dz-i18n.js) : le français est la langue de référence. Choisir
+   une langue l'enregistre côté serveur (UI_LANG, pour l'app mobile et un autre navigateur) PUIS dans ce navigateur
+   (dzSetLang), qui recharge la page : aucun état React, aucun x.useState de plus. Les noms des langues restent dans
+   leur propre langue (Français, English), comme partout. */
+function DzLangueUI(){
+  var l=typeof dzLang==="function"?dzLang():"fr";
+  function choisir(v){
+    if(v===l)return;
+    fetch(Te+"/reglages/langue",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({lang:v})})
+      .catch(function(){}).then(function(){dzSetLang(v)})}
+  return r.jsxs("div",{"data-dzlangueui":l,style:{display:"grid",gridTemplateColumns:"260px 1fr auto",gap:14,alignItems:"center",padding:"14px 18px",borderTop:"1px solid var(--stroke)"},children:[
+    r.jsxs("div",{children:[r.jsx("div",{style:{fontSize:12.5,color:"var(--ink-strong)"},children:dzT("reglages.langue.titre")}),
+      r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-soft)"},children:dzT("reglages.langue.aide")})]}),
+    r.jsx("div",{"data-dz-brut":"1",children:r.jsx(re,{value:l,onChange:choisir,options:[{value:"fr",label:"Français"},{value:"en",label:"English"}]})}),
+    r.jsx("span",{style:{fontSize:10.5,color:"var(--ink-muted)"},children:dzT("reglages.langue.portee")})]})}

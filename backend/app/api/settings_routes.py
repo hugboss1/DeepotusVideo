@@ -361,3 +361,43 @@ async def index_reglages(request: Request):
             entrees.append({"section": s, "rubrique": _RUBRIQUES[s], "libelle": g.get("nom") or k, "cle": k,
                             "mots": mots})
     return {"entrees": entrees}
+
+
+# ── t134 (traduction, lot 0, 07/10/2026) : la LANGUE DE L'INTERFACE ──
+# Écrite par l'installeur (UI_LANG dans le .env du dossier de données), changée ici par la rangée « Langue de
+# l'interface » des Réglages. Pas dans la liste des clés modifiables (_ALLOWED_ENV_KEYS) : elle s'afficherait parmi les
+# clés d'API. Appliquée à chaud (settings.UI_LANG) : /api/health la redit tout de suite, aucune relance.
+@router.get("/langue")
+async def langue_lire():
+    from app import i18n as I
+    return {"lang": I.langue_ui(), "langues": [{"id": "fr", "label": "Français"}, {"id": "en", "label": "English"}]}
+
+
+@router.post("/langue")
+async def langue_poser(body: dict, request: Request):
+    _local(request)
+    from app import i18n as I
+    from app.api.routes import _env_path
+    from app.config import settings
+    demandee = (body or {}).get("lang") if isinstance(body, dict) else None
+    lang = I.borne(demandee)
+    if not lang:
+        raise HTTPException(400, I.msg("i18n.langue.inconnue", I.langue_requete(request), lang_demandee=demandee))
+    p = _env_path()
+    try:
+        lignes = p.read_text(encoding="utf-8").splitlines() if p.exists() else []
+        sortie, vu = [], False
+        for ligne in lignes:
+            if ligne.strip().partition("=")[0].strip() == "UI_LANG" and not ligne.strip().startswith("#"):
+                if not vu:
+                    sortie.append(f"UI_LANG={lang}")
+                vu = True
+            else:
+                sortie.append(ligne)
+        if not vu:
+            sortie.append(f"UI_LANG={lang}")
+        p.write_text("\n".join(sortie) + "\n", encoding="utf-8")
+    except OSError as e:
+        raise HTTPException(500, I.msg("i18n.langue.ecriture", I.langue_requete(request), erreur=e))
+    settings.UI_LANG = lang
+    return {"ok": True, "lang": lang}

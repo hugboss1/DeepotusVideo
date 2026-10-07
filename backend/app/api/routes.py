@@ -6561,6 +6561,7 @@ async def job_media_info(job_id: str):
 
 @router.get("/health")
 async def health():
+    from app import i18n as _i18n
     from app.services.elevenlabs_service import VoiceoverService
     # provider-aware (v1.26 étape 4) : clé 11L OU Voicebox local joignable
     # (détection cachée 5 s dans voice_providers — pas un ping par poll)
@@ -6594,6 +6595,8 @@ async def health():
         # True = backend conteneurisé (MSIX) : ses écritures partent dans un
         # overlay invisible → relancer hors conteneur (voir fs_guard).
         "fs_virtualized": fs_is_virtualized(),
+        # t134 : la langue de l'interface choisie à l'installation (ou dans Réglages) — lue par /shared/dz-i18n.js
+        "ui_lang": _i18n.langue_ui(),
     }
 
 

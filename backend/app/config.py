@@ -133,6 +133,10 @@ class Settings(BaseSettings):
     DEFAULT_ASPECT_RATIO: str = "9:16"
     DEFAULT_RESOLUTION: str = "1080p"
     DEFAULT_LANGUAGE: str = "EN"
+    # t134 (traduction, lot 0) : la langue de l'INTERFACE (fr | en), écrite par l'installeur dans le .env du dossier de
+    # données, changée par Réglages (/api/reglages/langue). Rien à voir avec DEFAULT_LANGUAGE (langue du contenu
+    # généré) : un utilisateur anglophone peut produire des vidéos en français, et inversement.
+    UI_LANG: str = "fr"
 
     # News scraper (v1.7.x): third-party reader proxy fallback (r.jina.ai)
     # for Google-News-wrapped / hard-blocked articles. ON by default — when
