@@ -8448,6 +8448,14 @@ T131_NATIF = [
 assert all("\n" not in r for _t, _a, r in T131_NATIF)
 
 
+# t134 (07/10/2026) — LA LANGUE DE L'INTERFACE : la rangée DzLangueUI (couche montage) suit les modèles par défaut
+# dans Réglages. Mêmes règles que T130_NATIF : appliquée au bundle par substitution, consignée ici HORS de P1 /
+# PATCHES ; test_i18n_l0 6.1 vérifie le remplacement une fois au bundle.
+A_T134 = 'r.jsx(DzModelDefaults,{},"modeldefaults"),'
+R_T134 = A_T134 + 'r.jsx(DzLangueUI,{},"langueui"),'
+T134_NATIF = [("T134-langue-de-l-interface-dans-les-reglages", A_T134, R_T134)]
+
+
 # t117 (06/10/2026) — PLUSIEURS SÉQUENCES : LES REMPLACEMENTS SUIVENT LE BUNDLE. Le patcher ne se rejoue plus (son
 # .bak est une reconstruction gardée) : la couche sonvfx a été modifiée À LA SOURCE puis réinjectée par
 # scripts/refresh_layer.py, et ces cinq remplacements, qui portaient le texte changé, sont ramenés au bundle par les

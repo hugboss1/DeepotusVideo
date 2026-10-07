@@ -1,0 +1,4 @@
+{
+  "i18n.langue.inconnue": {"fr": "Langue inconnue : {lang_demandee} (fr ou en).", "en": "Unknown language: {lang_demandee} (fr or en)."},
+  "i18n.langue.ecriture": {"fr": "Impossible d'enregistrer la langue dans le fichier .env : {erreur}", "en": "Could not save the language to the .env file: {erreur}"}
+}
