@@ -399,10 +399,16 @@ def _shake(eff, i, o, u, ctx):
     m = int(6 + 26 * t)
     sp = float(eff.get("speed", 50)) / 100.0
     f = 2 + 5 * sp
+    # t128 : un shake ne se FOND pas (cf. _NO_CROSSFADE) — sa rampe module l'AMPLITUDE du recadrage, A(t) dans
+    # [0, 1] suivant la courbe dessinée ; sans rampe, la chaîne d'avant, octet pour octet
+    b = _bornes(eff, ctx)
+    amp = ""
+    if b and (b[2] > 0 or b[3] > 0):
+        amp = f"*({_rampe_expr(*b, eff.get('ease_in'), eff.get('ease_out'))})"
     return _one(i, o,
                 f"pad=iw+{2 * m}:ih+{2 * m}:{m}:{m}:color=black,"
                 f"crop=iw-{2 * m}:ih-{2 * m}:"
-                f"'{m}+{m}*sin(2*PI*t*{f:.2f})':'{m}+{m}*cos(2*PI*t*{f * 0.8:.2f})'")
+                f"'{m}+{m}{amp}*sin(2*PI*t*{f:.2f})':'{m}+{m}{amp}*cos(2*PI*t*{f * 0.8:.2f})'")
 
 
 def _mirror(eff, i, o, u, ctx):
@@ -1155,6 +1161,49 @@ def _opacity_cmds(target, t0, t1, fade_in, fade_out, ease_in, ease_out):
     return "\\;".join(cmds)
 
 
+def _bornes(eff, ctx):
+    """(t0, t1, fade_in, fade_out) d'un effet borné — t1 ramené à la durée du clip, rampes au plus à la moitié de
+    l'intervalle — ou None sans bornes (ou intervalle < 50 ms). Partagé par l'enveloppe dry/wet et par le shake,
+    qui rampe dans son expression."""
+    try:
+        t0 = float(eff.get("t0"))
+        t1 = float(eff.get("t1"))
+    except (TypeError, ValueError):
+        return None
+    dur = float((ctx or {}).get("dur") or 0) or None
+    t0 = max(0.0, t0)
+    t1 = min(t1, dur) if dur else t1
+    if t1 - t0 < 0.05:
+        return None
+    span = t1 - t0
+    fi = max(0.0, min(float(eff.get("fade_in", 0) or 0), span / 2))
+    fo = max(0.0, min(float(eff.get("fade_out", 0) or 0), span / 2))
+    return t0, t1, fi, fo
+
+
+def _rampe_expr(t0, t1, fade_in, fade_out, ease_in, ease_out):
+    """A(t) dans [0, 1] en expression ffmpeg : la courbe échantillonnée au pas des rampes, en ESCALIER — exacte aux
+    instants d'échantillonnage, comme les commandes d'opacité. Une somme de marches gte(t,a)*lt(t,b)*v disjointes :
+    0 hors de [t0, t1], la rampe d'entrée, 1 au plateau, la rampe de sortie. ffmpeg n'a pas de boucle : la courbe ne
+    peut pas y être résolue, on l'y écrit."""
+    marches = []
+
+    def marche(a, b, v):                          # une marche de largeur nulle vaut 0 partout : sans effet
+        marches.append(f"gte(t,{a:.4f})*lt(t,{b:.4f})*{v:.4f}")
+
+    debut, fin = t0 + fade_in, t1 - fade_out
+    if fade_in > 0:
+        n = max(1, int(round(fade_in / _RAMP_STEP)))
+        for k in range(n):
+            marche(t0 + k * fade_in / n, t0 + (k + 1) * fade_in / n, _ease_at(ease_in, k / n))
+    marche(debut, fin, 1.0)
+    if fade_out > 0:
+        n = max(1, int(round(fade_out / _RAMP_STEP)))
+        for k in range(n):
+            marche(fin + k * fade_out / n, fin + (k + 1) * fade_out / n, 1.0 - _ease_at(ease_out, k / n))
+    return "+".join(marches) or "0"
+
+
 def _timed(eff, stmts, in_lbl, out_lbl, uid, ctx):
     """Enveloppe une chaîne d'effet dans son intervalle et sa rampe.
 
@@ -1163,22 +1212,15 @@ def _timed(eff, stmts, in_lbl, out_lbl, uid, ctx):
     dans le temps. `enable=` n'est PAS utilisé — pixelate, mirror, vhs et
     shake le refusent (leur chaîne contient scale, crop, pad ou hstack).
     """
-    try:
-        t0 = float(eff.get("t0"))
-        t1 = float(eff.get("t1"))
-    except (TypeError, ValueError):
+    b = _bornes(eff, ctx)
+    if b is None:
         return stmts                      # pas de bornes -> effet plein clip
-    dur = float((ctx or {}).get("dur") or 0) or None
-    t0 = max(0.0, t0)
-    t1 = min(t1, dur) if dur else t1
-    if t1 - t0 < 0.05:
-        return stmts
-    span = t1 - t0
-    fi = max(0.0, min(float(eff.get("fade_in", 0) or 0), span / 2))
-    fo = max(0.0, min(float(eff.get("fade_out", 0) or 0), span / 2))
+    t0, t1, fi, fo = b
     if eff.get("type") in _NO_CROSSFADE:
         # Mélanger une image secouée avec une image fixe la dédouble au lieu
-        # de l'atténuer : pour ceux-là, entrée et sortie franches.
+        # de l'atténuer : pour ceux-là, porte franche — le shake rampe son
+        # amplitude dans sa propre expression (t128, _rampe_expr) ; shakezoom
+        # garde une entrée et une sortie franches (son zoom sauterait).
         fi = fo = 0.0
 
     # Libellés de l'enveloppe : préfixe DÉDIÉ. build_chain passe le même uid à
