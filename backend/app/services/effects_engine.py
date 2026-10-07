@@ -481,14 +481,47 @@ def _lensdistort(eff, i, o, u, ctx):
     t = _inten(eff, 55)
     w, h = _even(ctx["w"]), _even(ctx["h"])
     k1 = 0.05 + 0.35 * t
-    if str(eff.get("preset", "barillet")) == "coussinet":
-        k1 = -k1
-        fill = ""
-    else:
-        z = 1.0 + 1.25 * k1
-        fill = f",scale={_even(w * z)}:{_even(h * z)},crop={w}:{h}"
+    preset = str(eff.get("preset", "barillet"))
+    if preset == "coussinet":
+        # t118 (D-17, MESURÉ 07/10 sur une grille) : avec k2 < 0, r·(1 + k1·r² + k2·r⁴) cessait de croître vers
+        # r ≈ 0,99 (r = 1 au coin, demi-diagonale de lenscorrection) — l'image se REPLIAIT dans les coins dès
+        # l'intensité par défaut. Plus de k2, et k1 ≥ −0,30 : 1 + 3·k1·r² > 0 jusqu'au coin.
+        return _one(i, o, f"lenscorrection=k1={-(0.05 + 0.25 * t):.3f}:k2=0.000:i=bilinear")
+    if preset == "corriger":
+        # t118 (D-17) : redresser un grand-angle — l'INVERSE CALCULÉ du barillet de même intensité (sans son
+        # recadrage, qui n'appartient qu'à l'effet). lenscorrection lit la source en r·(1 + a·r² + b·r⁴) : on
+        # ajuste (a, b) pour que cette correspondance défasse celle du barillet. Elle reste < r : chaque pixel
+        # est lu DANS l'image, aucun bord noir, aucun recadrage.
+        a, b = _lens_inverse(k1, k1 * 0.25)
+        return _one(i, o, f"lenscorrection=k1={a:.4f}:k2={b:.4f}:i=bilinear")
+    z = 1.0 + 1.25 * k1
+    fill = f",scale={_even(w * z)}:{_even(h * z)},crop={w}:{h}"
     return _one(i, o,
                 f"lenscorrection=k1={k1:.3f}:k2={k1 * 0.25:.3f}:i=bilinear{fill}")
+
+
+def _lens_inverse(k1, k2):
+    """(a, b) tels que r·(1 + a·r² + b·r⁴) ≈ D⁻¹(r) sur [0, 1], avec D(r) = r·(1 + k1·r² + k2·r⁴) croissante
+    (barillet). D⁻¹ échantillonnée par dichotomie, puis moindres carrés LINÉAIRES sur C(r)/r − 1 = a·r² + b·r⁴
+    (deux inconnues, résolution directe). Si la correspondance obtenue ne croît pas jusqu'au coin, b est ramené à 0
+    — redresser un peu moins plutôt que replier l'image."""
+    def d(r):
+        return r * (1 + k1 * r * r + k2 * r ** 4)
+    s11 = s12 = s22 = t1 = t2 = 0.0
+    for n in range(1, 101):
+        r = n / 100
+        lo, hi = 0.0, 1.0
+        for _ in range(50):
+            m = (lo + hi) / 2
+            lo, hi = (m, hi) if d(m) < r else (lo, m)
+        y = (lo + hi) / 2 / r - 1          # C(r)/r − 1
+        x1, x2 = r * r, r ** 4
+        s11 += x1 * x1; s12 += x1 * x2; s22 += x2 * x2; t1 += x1 * y; t2 += x2 * y
+    det = s11 * s22 - s12 * s12
+    a, b = (t1 * s22 - t2 * s12) / det, (s11 * t2 - s12 * t1) / det
+    if not all(1 + 3 * a * (n / 100) ** 2 + 5 * b * (n / 100) ** 4 > 0 for n in range(101)):
+        b = 0.0
+    return a, b
 
 
 def _zoomblur(eff, i, o, u, ctx):
@@ -919,6 +952,42 @@ def _huesat(eff, i, o, u, ctx):
                       f"strength={st:.1f}:colors={cols}")
 
 
+def _courbe3(v, a, b, c, n1, n2, n3):
+    """Expression geq d'une courbe à TROIS paliers sur la variable `v` : a jusqu'à n1, b à n2, c dès n3, rampes
+    linéaires entre — chaque réglage gouverne vraiment sa zone (une droite par trois points donnait 26 % de la
+    valeur « moyennes » à un rose pâle que « faibles » devait éteindre, calcul du 07/10)."""
+    return (f"({a:.4f}+({b - a:.4f})*clip(({v}-{n1})/{n2 - n1},0,1)"
+            f"+({c - b:.4f})*clip(({v}-{n2})/{n3 - n2},0,1))")
+
+
+def _chroma_gain(i, o, gain):
+    """La chrominance (cb, cr) multipliée autour du neutre par l'expression `gain`, en yuv444p (geq lit lum(X,Y)
+    aux MÊMES coordonnées que cb/cr ; en 4:2:0 les plans n'ont pas la même taille). Coût MESURÉ le 07/10 :
+    3,0 s pour 60 images 1080p (0,2 s sans geq) — 50 ms/image, l'ordre du masque à coins arrondis (L7)."""
+    return _one(i, o, f"format=yuv444p,geq=lum='lum(X,Y)':"
+                      f"cb='clip(128+(cb(X,Y)-128)*{gain},0,255)':cr='clip(128+(cr(X,Y)-128)*{gain},0,255)'")
+
+
+def _lumsat(eff, i, o, u, ctx):
+    """t118 (D-29) — courbe Lum vs Sat : la saturation selon la LUMINANCE, en trois paliers (ombres ≤ 64, milieux
+    à 128, lumières ≥ 192 sur Y 0..255), chacun de 0 à 200 % (100 = inchangé). Tout à 100 → `null`."""
+    a, b, c = (_num(eff, k, 100, 0, 200) / 100 for k in ("ombres", "milieux", "lumieres"))
+    if a == b == c == 1:
+        return _one(i, o, "null")
+    return _chroma_gain(i, o, _courbe3("lum(X,Y)", a, b, c, 64, 128, 192))
+
+
+def _satsat(eff, i, o, u, ctx):
+    """t118 (D-29) — courbe Sat vs Sat : la saturation selon la SATURATION elle-même, en trois paliers (faibles
+    ≤ 0,15, moyennes à 0,4, fortes ≥ 0,7 — s = rayon de chrominance / 128), chacun de 0 à 200 %. Tout à 100 →
+    `null`."""
+    a, b, c = (_num(eff, k, 100, 0, 200) / 100 for k in ("faibles", "moyennes", "fortes"))
+    if a == b == c == 1:
+        return _one(i, o, "null")
+    s = "hypot(cb(X,Y)-128,cr(X,Y)-128)/128"
+    return _chroma_gain(i, o, _courbe3(s, a, b, c, 0.15, 0.4, 0.7))
+
+
 def _monochrome(eff, i, o, u, ctx):
     """Monochrome teinté : `cb`/`cr` placent la teinte du filtre coloré. Pas
     d'identité (un monochrome est toujours gris)."""
@@ -982,7 +1051,7 @@ EFFECTS = {
     "grade": _grade, "lut": _grade, "grade_basic": _grade_basic,
     # --- L5 : couleur et correction ---
     "wheels": _wheels, "curves": _curves, "colormatch": _colormatch,
-    "huesat": _huesat, "monochrome": _monochrome, "denoise": _denoise,
+    "huesat": _huesat, "lumsat": _lumsat, "satsat": _satsat, "monochrome": _monochrome, "denoise": _denoise,
     "deflicker": _deflicker, "deband": _deband, "chromakey": _chromakey,
     "tmix": _tmix,
     "colorize": _colorize, "vhs": _vhs,
@@ -1312,6 +1381,17 @@ _CATALOG = {
                    ["colors", "hue", "sat", "strength"],
                    "Teinte ou saturation d'une gamme de couleurs ; force 10 = désaturation complète.",
                    {}),
+    # t118 (D-29) : les deux courbes que L5 avait écartées. Hue vs Hue, lui, est la teinte par bande de « huesat ».
+    "lumsat":     ("etalonnage", "Saturation selon la luminance",
+                   ["ombres", "milieux", "lumieres"],
+                   "Courbe Lum vs Sat : saturation des ombres, des tons moyens et des hautes lumières (100 % = inchangé).",
+                   {"ombres": {"type": "range", "min": 0, "max": 200, "step": 1, "default": 100, "label": "Ombres (%)"}, "milieux": {"type": "range", "min": 0, "max": 200, "step": 1, "default": 100, "label": "Tons moyens (%)"},
+                    "lumieres": {"type": "range", "min": 0, "max": 200, "step": 1, "default": 100, "label": "Hautes lumières (%)"}}),
+    "satsat":     ("etalonnage", "Saturation selon la saturation",
+                   ["faibles", "moyennes", "fortes"],
+                   "Courbe Sat vs Sat : couleurs ternes, moyennes ou vives, chacune de 0 à 200 % (100 % = inchangé).",
+                   {"faibles": {"type": "range", "min": 0, "max": 200, "step": 1, "default": 100, "label": "Couleurs ternes (%)"}, "moyennes": {"type": "range", "min": 0, "max": 200, "step": 1, "default": 100, "label": "Couleurs moyennes (%)"},
+                    "fortes": {"type": "range", "min": 0, "max": 200, "step": 1, "default": 100, "label": "Couleurs vives (%)"}}),
     "colormatch": ("etalonnage", "Accord de couleur",
                    ["y_gain", "y_off", "u_gain", "u_off", "v_gain", "v_off"],
                    "Aligne ce plan sur les statistiques d'un autre (panneau Étalonnage).",
@@ -1387,7 +1467,7 @@ _CATALOG = {
                    "Rotation qui s'amortit du centre vers les bords.",
                    {"intensity": {"default": 55}}),
     "lensdistort": ("distorsion", "Distorsion d'objectif", ["intensity", "preset"],
-                    "Barillet (fisheye) ou coussinet.",
+                    "Barillet (fisheye), coussinet, ou corriger : redresse un grand-angle (l'inverse du barillet).",
                     {"intensity": {"default": 55}}),
     # --- Mouvement ---
     "blur":       ("mouvement", "Flou", ["intensity"], "Flou gaussien.", {}),
@@ -1458,7 +1538,7 @@ def param_spec(name, effect_type=None):
         elif effect_type == "colorize":
             base["choices"] = list(COLORIZE)
         elif effect_type == "lensdistort":
-            base["choices"] = ["barillet", "coussinet"]
+            base["choices"] = ["barillet", "coussinet", "corriger"]   # t118 (D-17)
         if base["choices"]:
             base["default"] = base["choices"][0]
     return base
