@@ -42,7 +42,7 @@ print("\n[0] temoins et presence")
 check("0.1 .bak present, node present ; temoin : aucune barre ni episode_id dans le .bak",
       bool(bak) and bool(NODE) and "DzEpBar" not in bak and "episode_id:" not in bak.split("function DzEpisodes(")[1][:40000], "")
 check("0.2 bundle : DzEpBar pose sous l'en-tete x1, etat dzE x1, assemblage qui enregistre puis envoie episode_id",
-      s.count("r.jsx(DzEpBar,{st:{title:title") == 1 and s.count(",_dzE=x.useState({id:\"\",sig:\"\",msg:\"\",list:null,open:!1})") == 1
+      s.count("r.jsx(DzEpBar,{st:{title:title") == 1 and s.count(",_dzE=x.useState(__dzK(\"episodes.dzE\",{id:\"\",sig:\"\",msg:\"\",list:null,open:!1}))") == 1   # t129 : conservateur
       and s.count("var dzEid=window.__dzEpSave?await window.__dzEpSave():\"\";") == 1
       and s.count("max_usd:dzMx,episode_id:dzEid||void 0})") == 1, "")
 

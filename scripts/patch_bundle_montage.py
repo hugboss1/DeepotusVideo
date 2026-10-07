@@ -8418,6 +8418,33 @@ _R_EA1_T119 = (
     '  function defaultLen(kind,srcDur){')
 R_EA1 = _t117_suit(R_EA1, [(R_EA1, _R_EA1_T119)], 'R_EA1')
 
+# t129 (07/10/2026) : le maillon de queue patch_bundle_keepsaisie (Quick, News et Épisodes gardent leur saisie) réécrit
+# quatre régions que ce patcher avait posées — ses remplacements SUIVENT LE BUNDLE, fragment par fragment, comme t117 :
+# l'état dzE de l'épisode enregistré (+ le miroir), le tri « Score du jour » et la voix « Auto » de News (lus dans le
+# conservateur), la recette de Quick (rangée au démontage, reprise au montage après une recette extérieure).
+R_P1ES2 = _t117_suit(R_P1ES2, [
+    ('_dzE=x.useState({id:"",sig:"",msg:"",list:null,open:!1}),dzE=_dzE[0],setDzE=_dzE[1];',
+     '_dzE=x.useState(__dzK("episodes.dzE",{id:"",sig:"",msg:"",list:null,open:!1})),dzE=_dzE[0],setDzE=_dzE[1];'
+     'Object.assign(__dzKeep,{"episodes.title":title,"episodes.script":script,"episodes.lang":lang,"episodes.vid":vid,'
+     '"episodes.res":res,"episodes.step":step,"episodes.scenes":scenes,"episodes.sceneMethod":sceneMethod,'
+     '"episodes.sceneStyle":sceneStyle,"episodes.counts":counts,"episodes.epJob":epJob,'
+     '"episodes.dzE":Object.assign({},dzE,{open:!1})});'),
+], 'R_P1ES2')
+R_P3NR5 = _t117_suit(R_P3NR5, [('x.useState("relevance")', 'x.useState(__dzK("news.sort","relevance"))')], 'R_P3NR5')
+R_P3NC3 = _t117_suit(R_P3NC3, [('x.useState("auto")', 'x.useState(__dzK("news.voice","auto"))')], 'R_P3NC3')
+R_P5QR2 = _t117_suit(R_P5QR2, [
+    ("dzApplyRef.current=dzQuickApply;",
+     "dzApplyRef.current=dzQuickApply;var dzKeepQ=x.useRef(null);dzKeepQ.current=dzQuickRecipe;"
+     "x.useEffect(function(){return function(){try{__dzKeep[\"quick.recette\"]=dzKeepQ.current()}catch(_e){}}},[]);"),
+    ("if(r0)dzApplyRef.current(r0);",
+     "if(r0)dzApplyRef.current(r0);else if(__dzKeep[\"quick.recette\"])dzApplyRef.current(__dzKeep[\"quick.recette\"]);"),
+], 'R_P5QR2')
+# la file P1 a été bâtie PLUS HAUT avec les anciennes valeurs : ses quatre tuples sont rebranchés ici
+_T129 = {"P1es2-etat-dze-de-l-episode-enregistre": R_P1ES2, "P3nr5-score-du-jour-par-defaut": R_P3NR5,
+         "P3nc3-voix-auto-par-defaut": R_P3NC3, "P5qr2-recette-et-application-dans-um": R_P5QR2}
+P1 = [(t, a, _T129.get(t, r)) for t, a, r in P1]
+assert sum(t in _T129 for t, _a, _r in P1) == 4
+
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
            ("M5-payload", A_M5, R_M5), ("M6-save", A_M6, R_M6),
