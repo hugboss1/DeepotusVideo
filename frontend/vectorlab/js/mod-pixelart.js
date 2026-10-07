@@ -227,6 +227,94 @@ export function masque_losanges(w, h, tw, th) {
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) m[y * w + x] = u[(y % th) * tw + (x % tw)];
   return m;
 }
+/* ── t125 (07/10/2026) : les DIAGONALES de la tuile iso — les bords du losange,
+   pente ±1/2 en 2:1. Les axes H et V du losange sont la symétrie H/V qui
+   existe déjà ; ce qui manquait, c'est le miroir le long des axes iso. Pour une
+   tuile tw × th (k = tw/th), « ⟋ » envoie le centre de pixel (cx+dx, cy+dy) sur
+   (cx + k·dy, cy + dx/k), « ⟍ » sur (cx − k·dy, cy − dx/k) ; les deux ensemble
+   ajoutent le symétrique central. En 2:1, la colonne image tombe sur une
+   frontière de pixels : on peint les DEUX voisins — le pixel (x, y) donne la
+   paire (2y, ⌊x/2⌋) + (2y+1, ⌊x/2⌋), l'empreinte naturelle d'un pixel iso, et
+   l'application est une involution exacte sur ces paires (banc pixel_iso). Le
+   miroir se fait dans la tuile du pixel (le losange de CHAQUE tuile, comme
+   `masque_losanges`) ; sans tuile, l'image entière en tient lieu ; une image
+   qui sort de l'image (tuile tronquée au bord) est écartée. */
+const _EPS_ISO = 1e-9;
+function _cols_iso(v) {                       // les colonnes couvertes par l'abscisse image v
+  const r = Math.round(v);
+  return Math.abs(v - r) < _EPS_ISO ? [r - 1, r] : [Math.floor(v)];
+}
+export function symetrie_iso(points, w, h, tw, th, { d1 = false, d2 = false } = {}) {
+  const TW = tw >= 1 ? tw : w, TH = th >= 1 ? th : h, k = TW / TH, cx = TW / 2, cy = TH / 2;
+  const vus = new Set(), out = [];
+  const add = (x, y) => {
+    if (x < 0 || y < 0 || x >= w || y >= h) return;
+    const c = x + "," + y; if (!vus.has(c)) { vus.add(c); out.push([x, y]); }
+  };
+  for (const [x, y] of points) {
+    add(x, y);
+    if (!d1 && !d2) continue;
+    const ox = Math.floor(x / TW) * TW, oy = Math.floor(y / TH) * TH, dx = x - ox + 0.5 - cx, dy = y - oy + 0.5 - cy;
+    const img = (sx, sy) => {                  // centre image → pixels couverts, dans la tuile d'origine
+      const ry = Math.floor(oy + cy + sy + _EPS_ISO);   // centre de la ligne r = r + 0,5 : la ligne qui le contient
+      for (const c of _cols_iso(ox + cx + sx)) add(c, ry);
+    };
+    if (d1) img(k * dy, dx / k);
+    if (d2) img(-k * dy, -dx / k);
+    if (d1 && d2) add(ox + TW - 1 - (x - ox), oy + TH - 1 - (y - oy));
+  }
+  return out;
+}
+/* les miroirs d'une suite de points, REGROUPÉS PAR IMAGE : [points, H, V, HV, ⟋,
+   ⟍, ⟋⟍] chacun contigu et dans l'ordre des points — le pinceau trace une
+   polyligne par image en coupant par paquets de n. (Avant t125, l'appelant
+   entrelaçait H, V, HV point par point : H + V cochés ensemble mêlaient les
+   traits.) `entier` : pixels (crayon, seau) via `symetrie` / `symetrie_iso` ;
+   sinon coordonnées continues (pinceau, gomme). Les diagonales n'existent
+   qu'avec `iso` = la tuile iso { w, h } (w ou h nuls = l'image entière). */
+export function miroirs(pts, entier, w, h, sym = {}, iso = null) {
+  const s = sym || {}, di = !!iso && (s.d1 || s.d2);
+  if (entier) {
+    const a = symetrie(pts, w, h, { h: !!s.h, v: !!s.v });
+    return di ? symetrie_iso(a, w, h, iso.w, iso.h, { d1: !!s.d1, d2: !!s.d2 }) : a;
+  }
+  const groupes = [pts.slice()];
+  if (s.h) groupes.push(pts.map(([x, y]) => [w - x, y]));
+  if (s.v) groupes.push(pts.map(([x, y]) => [x, h - y]));
+  if (s.h && s.v) groupes.push(pts.map(([x, y]) => [w - x, h - y]));
+  if (di) {
+    // coordonnées continues : le centre de la tuile est (TW/2, TH/2), comme `w - x` pour H
+    const TW = iso.w >= 1 ? iso.w : w, TH = iso.h >= 1 ? iso.h : h, k = TW / TH, base = groupes.slice();
+    const diag = (f) => base.forEach((g) => groupes.push(g.map(([x, y]) => {
+      const ox = Math.floor(x / TW) * TW, oy = Math.floor(y / TH) * TH;
+      const [sx, sy] = f(x - ox - TW / 2, y - oy - TH / 2);
+      return [ox + TW / 2 + sx, oy + TH / 2 + sy];
+    })));
+    if (s.d1) diag((dx, dy) => [k * dy, dx / k]);
+    if (s.d2) diag((dx, dy) => [-k * dy, -dx / k]);
+    if (s.d1 && s.d2) diag((dx, dy) => [-dx, -dy]);
+  }
+  return [].concat(...groupes);
+}
+/* la tuile tw × th qui contient (x, y) — le raccord iso (et 3×3) se mesure sur
+   la tuile SOUS LE CURSEUR, pas sur l'image entière comme une seule tuile (reste
+   assumé du lot 2). Survol absent → la tuile (0,0) ; survol hors image → ramené
+   au bord ; pas de grille (tw ou th < 1) ou image pas plus grande qu'une tuile
+   → l'image entière, `tx`/`ty` nuls. Rend { img, tx, ty } (img = copie). */
+export function tuile_sous(img, x, y, tw, th) {
+  if (!(tw >= 1) || !(th >= 1) || (img.w <= tw && img.h <= th))
+    return { img: { w: img.w, h: img.h, data: new Uint8ClampedArray(img.data) }, tx: null, ty: null };
+  const nx = Math.max(1, Math.ceil(img.w / tw)), ny = Math.max(1, Math.ceil(img.h / th));
+  const fx = Number.isFinite(x) ? x : 0, fy = Number.isFinite(y) ? y : 0;
+  const tx = Math.min(nx - 1, Math.max(0, Math.floor(fx / tw))), ty = Math.min(ny - 1, Math.max(0, Math.floor(fy / th)));
+  const out = _tampon(tw, th);
+  for (let j = 0; j < th; j++) for (let i = 0; i < tw; i++) {
+    const sx = tx * tw + i, sy = ty * th + j; if (sx >= img.w || sy >= img.h) continue;
+    const a = (sy * img.w + sx) * 4, b = (j * tw + i) * 4;
+    out.data[b] = img.data[a]; out.data[b + 1] = img.data[a + 1]; out.data[b + 2] = img.data[a + 2]; out.data[b + 3] = img.data[a + 3];
+  }
+  return { img: out, tx, ty };
+}
 /* ── lot 3 : le calque modèle — cellule ↔ cible, pipette SUR LE MODÈLE (exacte,
    moyenne, dominante), remplissage depuis le modèle, couleurs utilisées ── */
 export function cellule_et_cible(nat, { cellule, cible } = {}) {

@@ -79,7 +79,11 @@
 > **Reste (assumé)** : pas de sélection de plage libre dans la ligne de temps
 > (un cadre à la fois) ; la lecture se fait dans le panneau, pas sur le
 > canevas ; le raccord iso mesure l'image ENTIÈRE comme une tuile (à faire :
-> par tuile sous le curseur) ; pas de symétrie diagonale iso ; la palette
+> par tuile sous le curseur) ; pas de symétrie diagonale iso [**les deux levés
+> le 07/10/2026 (t125)** : `tuile_sous` mesure la tuile du dernier pixel survolé,
+> en iso comme en 3×3 ; `symetrie_iso` / `miroirs` ajoutent ⟋ ⟍ le long des bords
+> du losange, un pixel → une paire en 2:1, involution exacte ; au passage, le
+> pinceau H + V ne mêle plus ses traits miroirs] ; la palette
 > unifiée entre Spritelab / Tilelab / Pixel reste au lot 3.
 
 **Goal :** le persona Pixel gagne les gestes du Sprite Editor (couleur
