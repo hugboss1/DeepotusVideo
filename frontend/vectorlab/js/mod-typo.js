@@ -186,6 +186,27 @@ export function initTypo(VL) {
     return r;
   }
   VL.vectoriserTexte = (id, _policeId, parGlyphe = false) => vectoriser(id, parGlyphe);
+  // t121 (PDF vectoriel) : les glyphes d'un texte, dans SA police et au même placement que « Vectoriser »
+  // (un chemin par glyphe : un chemin unique en evenodd creuserait les lettres qui se chevauchent). Pas de
+  // repli sur une autre police — ce serait un autre dessin — ni de gras / italique / souligné, que le
+  // navigateur SYNTHÉTISE à l'écran : le PDF rasterise alors ce texte et dit pourquoi.
+  VL.glyphesTexte = async (o) => {
+    const s = o.style || {};
+    if ((+s.graisse || 400) >= 600 || s.graisse === "bold" || s.italique === true || s.souligne === true) {
+      return { raison: "texte gras, italique ou souligné (synthétisé à l'écran)" };
+    }
+    const p = policeParFamille(s.police);
+    if (!p) return { raison: `texte (police ${s.police || "par défaut"} non chargée)` };
+    const font = await fontDe(p);
+    const corps = +s.corps || 16, inter = +s.interlettrage || 0, gl = [];
+    lignes_de(o.contenu).forEach((l, i) => {
+      if (!l) return;
+      const w = font.getAdvanceWidth(l, corps, { kerning: true, letterSpacing: inter / corps });
+      const x0 = s.ancre === "middle" ? o.x - w / 2 : s.ancre === "end" ? o.x - w : o.x;
+      gl.push(...glyphes_separes(font, l, corps, x0, o.y + i * corps * (+s.interligne || 1.2), inter));
+    });
+    return gl;
+  };
   async function logo3D() {
     const id = etat.selection[0];
     const t = id && VL.objetDe(id);

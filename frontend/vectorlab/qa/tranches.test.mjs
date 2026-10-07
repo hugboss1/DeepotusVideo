@@ -2,7 +2,7 @@
 // injectée), résolutions lues et bornées, nommage @2x, plan d'export,
 // saignée et marques de coupe / repérage. Module feuille, états vides.
 import { MODES, tranches_de, resolutions_lire, FORMATS, nom_export, plan_export, mm_px, cadre_saignee,
-         marques_svg } from "../js/mod-tranches.js";
+         marques_svg, marques_objets } from "../js/mod-tranches.js";
 
 const echecs = [];
 const ok = (nom, cond, detail = "") => {
@@ -55,6 +55,15 @@ const bboxDe = (o) => o.type === "rect" ? { x: o.x, y: o.y, w: o.w, h: o.h } : {
   ok("marques : un groupe, 8 traits de coupe (deux par coin) hors saignée, 4 repères (cercle + croix)", m.startsWith("<g") && compte(m, /<line/g) === 8 + 8 && compte(m, /<circle/g) === 4 && m.includes('x1="10"') && !m.includes("NaN"), m.slice(0, 300));
   ok("les traits de coupe restent dehors : un trait vertical du coin haut-gauche va de y = 10 − 5 − 8 à y = 10 − 5", /x1="10" y1="-3" x2="10" y2="5"/.test(marques_svg({ x: 10, y: 10, w: 100, h: 50 }, 5, { coupe: true }, 8)), marques_svg({ x: 10, y: 10, w: 100, h: 50 }, 5, { coupe: true }, 8));
   ok("état vide : sans coupe ni repérage → chaîne vide", marques_svg({ x: 0, y: 0, w: 1, h: 1 }, 0, {}, 8) === "");
+  // t121 : les MÊMES marques en objets du document, pour le PDF vectoriel — une seule géométrie pour les deux
+  const ob = marques_objets({ x: 10, y: 10, w: 100, h: 50 }, 5, { coupe: true, reperage: true }, 8);
+  ok("marques en objets : 16 traits + 4 cercles, trait noir 0,5", ob.filter((o) => o.type === "path").length === 16 && ob.filter((o) => o.type === "ellipse").length === 4
+     && ob.every((o) => o.style.contour === "#000000" && o.style.epaisseur === 0.5 && o.style.fond === "none"), JSON.stringify(ob[0]));
+  ok("marques en objets : le même trait que le SVG (coin haut-gauche)", ob.some((o) => o.d === "M 10 -3 L 10 5"), JSON.stringify(ob.slice(0, 2)));
+  ok("marques en objets : ids uniques", new Set(ob.map((o) => o.id)).size === ob.length);
+  ok("repères : cercle de rayon 0,7 · L/2 (2,8 pour L = 8), au SVG comme en objets", ob.filter((o) => o.type === "ellipse").every((o) => o.rx === 2.8 && o.ry === 2.8)
+     && marques_svg({ x: 10, y: 10, w: 100, h: 50 }, 5, { reperage: true }, 8).includes('r="2.8"'));
+  ok("marques en objets : état vide → []", marques_objets({ x: 0, y: 0, w: 1, h: 1 }, 0, {}, 8).length === 0);
 }
 if (echecs.length) {
   console.error("ECHECS tranches :\n- " + echecs.join("\n- "));

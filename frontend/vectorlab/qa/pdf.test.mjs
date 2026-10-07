@@ -40,6 +40,8 @@ const page = (doc, opts = {}) => pdf_page(doc, CADRE, { dpi: 72, ...opts });
   ok("C → c", chemin_ops("M 0 0 C 1 2 3 4 5 6") === "0 0 m 1 2 3 4 5 6 c");
   // Q (quadratique) → cubique EXACTE : P0 + 2/3 (Q − P0) et P2 + 2/3 (Q − P2)
   ok("Q → c exacte", chemin_ops("M 0 0 Q 3 3 6 0") === "0 0 m 2 2 4 2 6 0 c", chemin_ops("M 0 0 Q 3 3 6 0"));
+  // après Z, le point courant revient au DÉBUT du sous-chemin : une quadratique qui suit part de là (0, 0)
+  ok("Q après Z : part du début du sous-chemin", chemin_ops("M 0 0 L 9 0 L 9 9 Z Q 3 3 6 0") === "0 0 m 9 0 l 9 9 l h 2 2 4 2 6 0 c", chemin_ops("M 0 0 L 9 0 L 9 9 Z Q 3 3 6 0"));
   ok("nombres courts, sans -0", chemin_ops("M -0 0.12345 L 1.0006 2") === "0 0.123 m 1.001 2 l", chemin_ops("M -0 0.12345 L 1.0006 2"));
 }
 /* ── couleurs ── */
@@ -97,6 +99,10 @@ const page = (doc, opts = {}) => pdf_page(doc, CADRE, { dpi: 72, ...opts });
   // fond + contour à demi-opacité : un GROUPE (sinon la zone de recouvrement serait deux fois plus sombre)
   const g = page(base([{ id: "r1", type: "rect", x: 0, y: 0, w: 10, h: 10, style: { fond: "#000000", contour: "#FF0000", epaisseur: 4, opacite: 0.5 } }]));
   ok("opacité fond + contour : groupe de transparence (Form) dessiné à ca .5", Object.keys(g.formes).length === 1 && /\/F\d+ Do/.test(g.contenu) && Object.values(g.gs).some((x) => x.ca === 0.5 && x.CA === 0.5), g.contenu);
+  // un ExtGState ne FUIT pas : l'objet translucide est enfermé dans q … Q, l'objet suivant est peint hors de lui
+  const fuite = page(base([{ id: "r1", type: "rect", x: 0, y: 0, w: 10, h: 10, style: { fond: "#000000", opacite: 0.5 } },
+                          { id: "r2", type: "rect", x: 20, y: 0, w: 10, h: 10, style: { fond: "#FF0000" } }]));
+  ok("un gs ne fuit pas sur l'objet suivant", /q\n\/G1 gs\n0 0 0 rg\n[^\n]*\nf\nQ\n1 0 0 rg/.test(fuite.contenu), fuite.contenu);
   const m = page(base([{ id: "r1", type: "rect", x: 0, y: 0, w: 10, h: 10, style: { fond: "#000000", fusion: "multiply" } }]));
   ok("fusion multiply → BM /Multiply", Object.values(m.gs).some((x) => x.BM === "Multiply"));
   const cd = page(base([{ id: "r1", type: "rect", x: 0, y: 0, w: 10, h: 10, style: { fond: "#000000", fusion: "color-dodge" } }]));
@@ -118,6 +124,12 @@ const page = (doc, opts = {}) => pdf_page(doc, CADRE, { dpi: 72, ...opts });
     { id: "c", type: "ellipse", cx: 10, cy: 10, rx: 5, ry: 5, style: {} },
     { id: "a", type: "rect", x: 0, y: 0, w: 20, h: 20, style: { fond: "#000000" } }] }]));
   ok("groupe écrêté : chemin du conteneur puis W n, avant les enfants", /c h\nW n\n[\s\S]*0 0 0 rg\n0 0 m 20 0 l/.test(cl.contenu), cl.contenu);
+  // l'écrêtage ne FUIT pas : un objet posé APRÈS le groupe est hors du q … Q du groupe
+  const apres = page(base([{ id: "g", type: "groupe", clip: "c", style: {}, enfants: [
+    { id: "c", type: "ellipse", cx: 10, cy: 10, rx: 5, ry: 5, style: {} },
+    { id: "a", type: "rect", x: 0, y: 0, w: 20, h: 20, style: { fond: "#000000" } }] },
+    { id: "z", type: "rect", x: 50, y: 50, w: 5, h: 5, style: { fond: "#FF0000" } }]));
+  ok("l'écrêtage d'un groupe ne fuit pas sur l'objet suivant", /^[^\n]*cm\nq\n[\s\S]*W n[\s\S]*\nQ\n1 0 0 rg\n50 50 m/.test(apres.contenu), apres.contenu);
   const sy = base([{ id: "i1", type: "instance", symbole: "s1", x: 100, y: 50, sx: 2, sy: 2 }]);
   sy.symboles = { s1: { nom: "S", objets: [{ id: "x", type: "rect", x: 0, y: 0, w: 4, h: 4, style: { fond: "#00FF00" } }] } };
   const ps = page(sy);
@@ -143,6 +155,9 @@ const page = (doc, opts = {}) => pdf_page(doc, CADRE, { dpi: 72, ...opts });
   ok("texte sans glyphes fournis : rasterisé (raison texte)", tx.rasters.length === 1 && /texte/.test(tx.rasters[0].raison), JSON.stringify(tx.rasters));
   const gl = pdf_page(base([{ id: "t", type: "texte", x: 10, y: 20, contenu: "H", style: { fond: "#112233", corps: 12 } }]), CADRE,
     { dpi: 72, glyphes: (o) => o.id === "t" ? [{ car: "H", d: "M 0 0 L 5 0 L 5 5 Z" }] : null });
+  const gr = pdf_page(base([{ id: "t", type: "texte", x: 10, y: 20, contenu: "H", style: { fond: "#112233", graisse: "bold" } }]), CADRE,
+    { dpi: 72, glyphes: () => ({ raison: "texte gras, italique ou souligné (synthétisé à l'écran)" }) });
+  ok("le fournisseur peut REFUSER en disant pourquoi : la raison remonte", gr.rasters.length === 1 && /gras/.test(gr.rasters[0].raison), JSON.stringify(gr.rasters));
   ok("texte avec glyphes : vectoriel, contours pleins en evenodd", gl.rasters.length === 0 && /0.067 0.133 0.2 rg/.test(gl.contenu) && /\nf\*/.test(gl.contenu), gl.contenu);
 }
 /* ── étape 2 : dégradés en SHADING, motifs en motif de PAVAGE — vectoriels, plus de repli ── */

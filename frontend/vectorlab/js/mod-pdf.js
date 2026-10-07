@@ -23,8 +23,7 @@ import { hex_centre, hex_d } from "./mod-grille.js";
 
 /* ── nombres ── */
 export function nb(x) {
-  const v = Math.round(+x * 1000) / 1000;
-  return v === 0 ? "0" : String(v);
+  return String(Math.round(+x * 1000) / 1000);       // String(-0) vaut déjà "0"
 }
 
 /* ── matrices [a b c d e f] (convention SVG/PDF : x' = a·x + c·y + e, y' = b·x + d·y + f) ── */
@@ -157,7 +156,12 @@ function _raison(o, ctx) {
   const r = _raisonFond(s.fond, ctx) || _raisonContour(s.contour, ctx)
     || (s.contours || []).map((c) => _raisonContour(c.couleur, ctx)).find(Boolean);
   if (r) return r;
-  if (o.type === "texte" && !(ctx.glyphes && ctx.glyphes(o))) return "texte (police non chargée)";
+  if (o.type === "texte") {
+    // les glyphes viennent de l'écran (opentype) ; il peut refuser en disant pourquoi ({raison})
+    const g = ctx.glyphes && ctx.glyphes(o);
+    if (!g) return "texte (police non chargée)";
+    if (g.raison) return g.raison;
+  }
   if (o.type === "groupe") for (const e of o.enfants || []) { const x = _raison(e, ctx); if (x) return x; }
   if (o.type === "instance") {
     const sym = (ctx.doc.symboles || {})[o.symbole];

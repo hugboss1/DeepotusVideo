@@ -89,22 +89,35 @@ export function cadre_saignee(cadre, s) {
 const _n = (v) => String(Math.round(v * 100) / 100);
 // traits de coupe : deux par coin, HORS de la saignée, longueur L ;
 // repères : cercle + croix au milieu de chaque côté, sur la saignée
-export function marques_svg(cadre, s, { coupe = false, reperage = false } = {}, L = 8) {
-  if (!coupe && !reperage) return "";
+// t121 : UNE géométrie des marques — {traits: [[x1, y1, x2, y2]], cercles: [[cx, cy, r]]} dans l'ordre de
+// dessin — lue par le SVG (marques_svg) et par le PDF vectoriel (marques_objets)
+function _marques(cadre, s, coupe, reperage, L) {
   const x0 = cadre.x, y0 = cadre.y, x1 = cadre.x + cadre.w, y1 = cadre.y + cadre.h;
-  const l = (a, b, c, d) => `<line x1="${_n(a)}" y1="${_n(b)}" x2="${_n(c)}" y2="${_n(d)}"/>`;
-  const parts = [];
+  const out = [];
   if (coupe) {
     for (const [x, sx] of [[x0, -1], [x1, 1]]) for (const [y, sy] of [[y0, -1], [y1, 1]]) {
-      parts.push(l(x, y + sy * (s + L), x, y + sy * s));       // vertical, du dehors vers la saignée
-      parts.push(l(x + sx * (s + L), y, x + sx * s, y));       // horizontal
+      out.push(["l", x, y + sy * (s + L), x, y + sy * s]);       // vertical, du dehors vers la saignée
+      out.push(["l", x + sx * (s + L), y, x + sx * s, y]);       // horizontal
     }
   }
   if (reperage) {
     const r = L / 2;
     for (const [cx, cy] of [[(x0 + x1) / 2, y0 - s - r], [(x0 + x1) / 2, y1 + s + r], [x0 - s - r, (y0 + y1) / 2], [x1 + s + r, (y0 + y1) / 2]]) {
-      parts.push(`<circle cx="${_n(cx)}" cy="${_n(cy)}" r="${_n(r * 0.7)}"/>`, l(cx - r, cy, cx + r, cy), l(cx, cy - r, cx, cy + r));
+      out.push(["c", cx, cy, r * 0.7], ["l", cx - r, cy, cx + r, cy], ["l", cx, cy - r, cx, cy + r]);
     }
   }
+  return out;
+}
+export function marques_svg(cadre, s, { coupe = false, reperage = false } = {}, L = 8) {
+  if (!coupe && !reperage) return "";
+  const parts = _marques(cadre, s, coupe, reperage, L).map(([t, a, b, c, d]) => t === "c"
+    ? `<circle cx="${_n(a)}" cy="${_n(b)}" r="${_n(c)}"/>`
+    : `<line x1="${_n(a)}" y1="${_n(b)}" x2="${_n(c)}" y2="${_n(d)}"/>`);
   return `<g data-marques="1" fill="none" stroke="#000000" stroke-width="0.5">${parts.join("")}</g>`;
+}
+export function marques_objets(cadre, s, { coupe = false, reperage = false } = {}, L = 8) {
+  const style = { fond: "none", contour: "#000000", epaisseur: 0.5 };
+  return _marques(cadre, s, coupe, reperage, L).map(([t, a, b, c, d], i) => t === "c"
+    ? { id: `__marque${i}`, type: "ellipse", cx: +_n(a), cy: +_n(b), rx: +_n(c), ry: +_n(c), style: { ...style } }
+    : { id: `__marque${i}`, type: "path", d: `M ${_n(a)} ${_n(b)} L ${_n(c)} ${_n(d)}`, style: { ...style } });
 }

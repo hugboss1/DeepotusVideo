@@ -167,6 +167,24 @@ def test_deux_pages_au_dpi_du_document(pdfs):
     assert [round(float(v), 3) for v in lu.pages[1].mediabox] == [0, 0, 36, 24]
 
 
+def test_le_panneau_export_est_atteignable():
+    """Depuis le 18/09 (0dd470f6, « l'export devient un onglet »), le persona Export n'existe plus — mais la règle
+    `body:not(.persona-export) .seulement-export { display: none !important }` était restée : les panneaux Export et
+    Export + (tranches, PDF, DXF, export lot) étaient masqués EN PERMANENCE, onglet « Exporter » compris. Une règle
+    qui cache derrière un persona doit nommer un persona qui existe."""
+    import re
+    personas = (VL / "js" / "mod-persona.js").read_text("utf-8")
+    ids = set(re.findall(r'\{\s*id:\s*"(\w+)"', personas.split("export const PERSONAS", 1)[1].split("];", 1)[0]))
+    assert ids == {"vecteur", "pixel"}, ids
+    css = (VL / "vectorlab.css").read_text("utf-8")
+    for regle in re.findall(r"body:not\(\.persona-(\w+)\)[^{]*\{[^}]*display:\s*none", css):
+        assert regle in ids, f"une règle cache des panneaux hors du persona « {regle} », qui n'existe plus"
+    html = (VL / "index.html").read_text("utf-8")
+    assert 'id="exportPlusDetails"' in html
+    onglets = (VL / "js" / "mod-onglets.js").read_text("utf-8")
+    assert '"exportDetails", "exportPlusDetails"' in onglets, "l'onglet Exporter montre les deux panneaux"
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.exit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

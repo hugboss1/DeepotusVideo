@@ -1,7 +1,7 @@
 // exportplus_ui.test.mjs — lot G : la logique PURE du panneau « Export + »
 // (lecture bornée des réglages, résumé du plan, pages PDF depuis les
 // tranches, mm d'une tranche au dpi) et de l'outil tranche.
-import { reglages_lire, resume_plan, pages_pdf, HINTS4, tranche_normaliser } from "../js/mod-exportplus.js";
+import { reglages_lire, resume_plan, pages_pdf, HINTS4, tranche_normaliser, recadrer_alpha, doc_seul, textes_de, resume_pdf } from "../js/mod-exportplus.js";
 
 const echecs = [];
 const ok = (nom, cond, detail = "") => {
@@ -22,6 +22,35 @@ const ok = (nom, cond, detail = "") => {
   ok("pages PDF : mm depuis les px au dpi du document (750 px @300 = 63,5 mm) + saignée de chaque côté, w_px au dpi d'export", pages.length === 1 && Math.abs(pages[0].w_mm - 69.5) < 1e-9 && Math.abs(pages[0].h_mm - 94.9) < 1e-9 && pages[0].w_px === Math.round((750 + 2 * 300 * 3 / 25.4)) , JSON.stringify(pages));
   ok("tranche_normaliser : coins dans l'ordre, taille minimale 1, nom tN", JSON.stringify(tranche_normaliser(50, 60, 10, 20, 3)) === JSON.stringify({ nom: "t3", x: 10, y: 20, w: 40, h: 40 }) && tranche_normaliser(5, 5, 5, 5, 1).w === 1);
   ok("indice de l'outil tranche", typeof HINTS4.tranche === "string");
+}
+/* ── t121 : le PDF vectoriel — réglage, recadrage d'un raster sur son alpha, objet isolé, textes recensés ── */
+{
+  ok("réglage pdf : vectoriel par défaut, image sur demande, valeur folle → vectoriel",
+     reglages_lire({}).pdf === "vectoriel" && reglages_lire({ pdf: "image" }).pdf === "image" && reglages_lire({ pdf: "zz" }).pdf === "vectoriel");
+  // une image 4 x 3 dont seuls les pixels (1,1) et (2,1) sont visibles
+  const rgba = new Uint8ClampedArray(4 * 4 * 3);
+  rgba.set([10, 20, 30, 255], 4 * (1 * 4 + 1)); rgba.set([40, 50, 60, 128], 4 * (1 * 4 + 2));
+  const c = recadrer_alpha(rgba, 4, 3);
+  ok("recadrer_alpha : la boîte des pixels visibles", c && c.x0 === 1 && c.y0 === 1 && c.largeur === 2 && c.hauteur === 1, JSON.stringify(c && { ...c, rgba: undefined }));
+  ok("recadrer_alpha : les pixels gardés, dans l'ordre", c && JSON.stringify([...c.rgba]) === JSON.stringify([10, 20, 30, 255, 40, 50, 60, 128]));
+  ok("recadrer_alpha : tout transparent → null (rien à poser)", recadrer_alpha(new Uint8ClampedArray(16), 2, 2) === null);
+  // c'est l'ALPHA qui décide : un noir opaque est visible, un rouge transparent ne l'est pas
+  const nr = new Uint8ClampedArray(4 * 3);
+  nr.set([255, 0, 0, 0], 0); nr.set([0, 0, 0, 255], 8);
+  const cn = recadrer_alpha(nr, 3, 1);
+  ok("recadrer_alpha : décidé par l'alpha (noir opaque gardé, rouge transparent écarté)", cn && cn.x0 === 2 && cn.largeur === 1, JSON.stringify(cn && { ...cn, rgba: undefined }));
+  const doc = { v: 1, taille: { w: 10, h: 10 }, fond: "#FFFFFF", calques: [
+    { id: "c1", nom: "a", visible: true, opacite: 0.5, fusion: "multiply", objets: [{ id: "x" }, { id: "y" }] },
+    { id: "c2", nom: "b", visible: true, objets: [{ id: "z" }] }] };
+  const seul = doc_seul(doc, "c1", "y");
+  ok("doc_seul : l'objet seul, dans son calque, sans fond ni opacité ni fusion de calque (le Form les applique)",
+     JSON.stringify(seul.calques.map((k) => k.objets.map((o) => o.id))) === '[["y"],[]]' && !seul.fond && seul.calques[0].opacite === 1 && seul.calques[0].fusion === "normal", JSON.stringify(seul));
+  ok("doc_seul : le document d'origine n'est pas touché", doc.calques[0].objets.length === 2 && doc.fond === "#FFFFFF" && doc.calques[0].opacite === 0.5);
+  const tx = textes_de({ calques: [{ objets: [{ id: "t1", type: "texte" }, { id: "g", type: "groupe", enfants: [{ id: "t2", type: "texte" }] }] }],
+                        symboles: { s: { objets: [{ id: "t3", type: "texte" }] } } });
+  ok("textes_de : calques, groupes et symboles", JSON.stringify(tx.map((o) => o.id)) === '["t1","t2","t3"]', JSON.stringify(tx));
+  ok("résumé PDF : vectoriels, rasterisés, raisons regroupées", resume_pdf({ vectoriels: 12, rasterises: 3, raisons: { effet: 2, image: 1 } }) === "PDF vectoriel : 12 objet(s) en vecteurs, 3 rasterisé(s) (effet ×2, image)");
+  ok("résumé PDF : rien de rasterisé", resume_pdf({ vectoriels: 4, rasterises: 0, raisons: {} }) === "PDF vectoriel : 4 objet(s) en vecteurs, aucun rasterisé");
 }
 if (echecs.length) {
   console.error("ECHECS exportplus_ui :\n- " + echecs.join("\n- "));
