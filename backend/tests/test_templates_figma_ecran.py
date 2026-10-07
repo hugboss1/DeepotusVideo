@@ -123,8 +123,8 @@ if R:
           and R["ouv"] == [["/vectorlab/?doc=abc%201", "_blank"]] and "7 objets, 2 images" in R["msg"], f"{R['post']} {R['ouv']}")
     check("X3 un refus est affiche et RIEN ne s'ouvre", "Jeton de marque inconnu" in R["refus"][0] and R["refus"][1] == 0, str(R["refus"]))
 
-check("T4 aucun prompt/alert/confirm natif (le lien passe par le dialogue maison) ; la chaine tient (DzTracks 180, __dzCoutBlanc 7, __dzSrcLbl x2, dzRunMaxTake() x3)",
-      "window.prompt(" not in COUCHE and "alert(" not in COUCHE and "window.confirm(" not in COUCHE and BUN.count("DzTracks") == 180
+check("T4 aucun prompt/alert/confirm natif (le lien passe par le dialogue maison) ; la chaine tient (DzTracks 181, __dzCoutBlanc 7, __dzSrcLbl x2, dzRunMaxTake() x3)",
+      "window.prompt(" not in COUCHE and "alert(" not in COUCHE and "window.confirm(" not in COUCHE and BUN.count("DzTracks") == 181
       and BUN.count("__dzCoutBlanc") == 7 and BUN.count("Object.assign(__dzSrcLbl,") == 2 and BUN.count("dzRunMaxTake()") == 3)
 
 print(f"\n{ok} PASS / {fail} FAIL")

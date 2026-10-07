@@ -155,8 +155,8 @@ if R:
     check("A6 refus du serveur : SA phrase s'affiche", R["refus"] == "Le kit actif ne se supprime pas : activez-en un autre d'abord.", str(R["refus"]))
     check("A7 deux clics pendant une action (avant que l'ecran ne se redessine) : une seule part — deux clics = deux copies", R["double"] == 1, str(R["double"]))
 
-check("T4 aucun prompt/alert/confirm natif ; la chaine tient (DzTracks 180, __dzCoutBlanc 7, __dzSrcLbl x2, dzRunMaxTake() x3)",
-      "window.prompt(" not in COUCHE and "alert(" not in COUCHE and "window.confirm(" not in COUCHE and BUN.count("DzTracks") == 180
+check("T4 aucun prompt/alert/confirm natif ; la chaine tient (DzTracks 181, __dzCoutBlanc 7, __dzSrcLbl x2, dzRunMaxTake() x3)",
+      "window.prompt(" not in COUCHE and "alert(" not in COUCHE and "window.confirm(" not in COUCHE and BUN.count("DzTracks") == 181
       and BUN.count("__dzCoutBlanc") == 7 and BUN.count("Object.assign(__dzSrcLbl,") == 2 and BUN.count("dzRunMaxTake()") == 3)
 
 print(f"\n{ok} PASS / {fail} FAIL")

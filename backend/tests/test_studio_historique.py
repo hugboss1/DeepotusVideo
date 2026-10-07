@@ -86,8 +86,8 @@ check("U3 « Utiliser » (avec title) en fait l'epingle, avec SON empreinte — 
       and "onUpdate({pin:{job_id:String(x.job_id),empreinte:x.empreinte||\"\",le:x.le||null,choisi:!0},pinPerime:null})" in H)
 check("U4 une prise faite avec d'AUTRES reglages que l'epingle active est signalee", '" · autres réglages"' in H
       and "x.empreinte!==pin.empreinte" in H)
-check("U5 la chaine tient : sondes aval inchangees (DzTracks 180, __dzCoutBlanc 7, __dzSrcLbl x2)",
-      BUN.count("DzTracks") == 180 and BUN.count("__dzCoutBlanc") == 7 and BUN.count("Object.assign(__dzSrcLbl,") == 2)
+check("U5 la chaine tient : sondes aval inchangees (DzTracks 181, __dzCoutBlanc 7, __dzSrcLbl x2)",
+      BUN.count("DzTracks") == 181 and BUN.count("__dzCoutBlanc") == 7 and BUN.count("Object.assign(__dzSrcLbl,") == 2)
 
 print(f"\n{ok} PASS / {fail} FAIL")
 sys.exit(1 if fail else 0)

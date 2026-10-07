@@ -62,7 +62,13 @@ Câblage « timeline → rendu » du handoff son_vfx_montage :
                               l'extrait, en secondes relatives à srcIn ;
                               `scenes.detect`, cache dans montage_cache/.
                               400 paramètres, 404 source, 415 non vidéo.
-  POST /api/montage/reframe   D-40 — {src, srcIn, dur} → {ok, mode, points,
+  GET  /api/montage/episode-scenes/{job_id}
+                              t119 — {ok, job_id, scenes:[{start, end,
+                              texte}]} : les bornes MESURÉES au rendu d'un
+                              épisode (un plan par scène) ; [] pour un
+                              épisode d'avant le 07/10 ou un autre rendu ;
+                              404 job inconnu.
+  POST /api/montage/reframe  D-40 — {src, srcIn, dur} → {ok, mode, points,
                               fps, x?, motion} : le suivi horizontal du
                               mouvement de l'extrait (`reframe.motion_track`,
                               cache dans montage_cache/) pour le champ V1
@@ -2027,7 +2033,39 @@ def _project_meta(d: dict, fallback_id: str = "") -> dict:
             "duration": d.get("duration")}
     if d.get("vide") is True:                     # E-1 — clé absente sinon
         meta["vide"] = True
+    th = _project_thumb(d.get("clips"))
+    if th:                                        # t119 — clé absente sinon
+        meta["thumb"] = th
     return meta
+
+
+def _project_thumb(clips) -> dict | None:
+    """t119 (07/10/2026, E-1) : la source de la VIGNETTE d'une carte de
+    projet — `{job_id}` du plan vidéo de V1 qui commence le plus tôt (une
+    image fixe ou un son n'en donnent pas : `/strip` ne sert que la vidéo).
+    L'écran en demande une planche d'UNE image (`/strip?n=1`) : MESURÉ à
+    l'écran (preuve t119, épisode rouge/vert/bleu de 6,6 s), le filtre
+    `fps=n/durée` de `strip` rend l'image du MILIEU de la source (la scène
+    verte), pas l'image 0 ni celle du point d'entrée du plan — écart assumé,
+    la planche n'a pas d'instant de départ et une vignette sert à
+    reconnaître (le milieu y est d'ailleurs plus parlant qu'un fondu au noir)."""
+    best = None
+    for c in clips or []:
+        if not isinstance(c, dict) or c.get("tr") != "v1":
+            continue
+        src = c.get("src")
+        jid = src.get("job_id") if isinstance(src, dict) else None
+        if not isinstance(jid, str) or not jid:
+            continue
+        try:
+            st = float(c.get("start") or 0)
+        except (TypeError, ValueError):
+            continue
+        if not math.isfinite(st):
+            continue
+        if best is None or st < best[0]:
+            best = (st, jid)
+    return {"job_id": best[1]} if best else None
 
 
 _NOM_TETE = " ./\\"      # tabulations et sauts de ligne : déjà mangés comme
@@ -3077,6 +3115,47 @@ async def montage_scenes(request: Request):
     except Exception as e:
         raise _media_http(e)
     return {"ok": True, "times": times}
+
+
+# t119 (07/10/2026, E-3) — LES SCÈNES D'UN ÉPISODE, telles que le rendu les a
+# mesurées (`pipeline.run_episode` → cost_meta.scenes, `episode_video.
+# bornes_scenes`). « Ouvrir dans le Montage » les demande pour poser un plan
+# par scène. Un épisode rendu AVANT le 07/10, un `cost_meta` illisible ou un
+# job qui n'est pas un épisode rendent une liste VIDE (l'écran pose alors un
+# seul plan, comme avant) ; seul un job inconnu est un 404. Chaque scène est
+# revérifiée (bornes finies, 0 ≤ start < end) : une ligne fausse est
+# écartée, pas les autres.
+def _episode_scenes_of(provider, cost_meta) -> list[dict]:
+    if provider != "episode":
+        return []
+    try:
+        meta = json.loads(cost_meta or "{}")
+    except (TypeError, ValueError):
+        return []
+    out = []
+    for s in (meta.get("scenes") if isinstance(meta, dict) else None) or []:
+        if not isinstance(s, dict):
+            continue
+        try:
+            a, b = float(s.get("start")), float(s.get("end"))
+        except (TypeError, ValueError):
+            continue
+        if not (math.isfinite(a) and math.isfinite(b) and 0 <= a < b):
+            continue
+        tx = s.get("texte")
+        out.append({"start": round(a, 3), "end": round(b, 3),
+                    "texte": tx[:80] if isinstance(tx, str) else ""})
+    return out
+
+
+@router.get("/episode-scenes/{job_id}")
+async def montage_episode_scenes(job_id: str):
+    async with async_session_factory() as session:
+        job = await session.get(JobRecord, job_id)
+    if job is None:
+        raise HTTPException(404, "Rendu introuvable.")
+    return {"ok": True, "job_id": job_id,
+            "scenes": _episode_scenes_of(job.provider, job.cost_meta)}
 
 
 # D-25 (L6, 25/09/2026) — « APPRENDRE LE BRUIT » : le RMS d'une plage de

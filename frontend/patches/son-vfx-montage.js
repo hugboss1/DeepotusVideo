@@ -4280,7 +4280,30 @@ function DzMontage(props){
   }
   /* durée par défaut d'un asset posé : une image n'en a pas, une vidéo et un
      son sont bornés pour rester manipulables à la souris. */
-  x.useEffect(function(){var p=null;try{p=window.__dzMontageAdd;delete window.__dzMontageAdd}catch(_e){}if(!p)return;setTimeout(function(){try{if(p.image)addAsset({image:p.image},p.image,"image",0,"v2");else if(p.job_id)addAsset({job_id:p.job_id},p.title||p.job_id,"video",p.dur||0,"v1")}catch(_e2){}},450)},[]);function defaultLen(kind,srcDur){
+  /* t119 (07/10/2026, E-3) : UN PLAN PAR SCÈNE. Un rendu reçu par la boîte
+     aux lettres demande d'abord ses scènes (GET /api/montage/episode-scenes/ :
+     [] pour tout ce qui n'est pas un épisode mesuré, ou en cas d'échec — la
+     pose se fait alors comme avant). Deux scènes ou plus : `dzScenesRef`
+     retient le numéro de pose courant (`ovSeq`, qu'`addAsset` n'avance que
+     sur une pose ACCEPTÉE) ; l'effet qui suit attend la pose suivante, dans
+     les 30 s, et découpe le clip qu'elle a sélectionné s'il lit CE job
+     (`scenesPose` de la couche : le plan, son jumeau son, un marqueur par
+     scène) en un SECOND pas d'historique — « Annuler » rend l'épisode en un
+     seul plan, la seconde fois le retire. `addAsset` n'en sait rien (le banc
+     bundle l'exécute seul sous node). Ce qui était déjà sur la timeline
+     n'est jamais touché : seul le clip de la pose est découpé. */
+  var dzScenesRef=x.useRef(null);
+  x.useEffect(function(){var p=null;try{p=window.__dzMontageAdd;delete window.__dzMontageAdd}catch(_e){}if(!p)return;var dzT0=Date.now();function dzPose(){try{if(p.image)addAsset({image:p.image},p.image,"image",0,"v2");else if(p.job_id)addAsset({job_id:p.job_id},p.title||p.job_id,"video",p.dur||0,"v1")}catch(_e2){}}if(p.image||!p.job_id){setTimeout(dzPose,450);return}fetch("/api/montage/episode-scenes/"+encodeURIComponent(p.job_id)).then(function(rp){return rp.ok?rp.json():null}).catch(function(){return null}).then(function(d){var sc=(d&&Array.isArray(d.scenes))?d.scenes:[];if(sc.length>1)dzScenesRef.current={job_id:p.job_id,scenes:sc,seq:ovSeq.current,until:Date.now()+30000};setTimeout(dzPose,Math.max(0,450-(Date.now()-dzT0)))})},[]);
+  x.useEffect(function(){var q=dzScenesRef.current;if(!q)return;
+    if(Date.now()>q.until){dzScenesRef.current=null;return}
+    if(ovSeq.current<=q.seq)return;dzScenesRef.current=null;
+    var c=(clips||[]).find(function(k){return k&&k.id===selRef.current});
+    if(!c||!c.src||c.src.job_id!==q.job_id)return;
+    var lk={},k;for(k in trackStRef.current)if(trackStRef.current[k]&&trackStRef.current[k].l)lk[k]=!0;
+    var rs=DzTracks.scenesPose(clips,c.id,q.scenes,(dzProjRef.current&&dzProjRef.current.markers)||[],{locked:lk});
+    if(!rs.n){if(rs.note)fireNote(rs.note);return}
+    pushHistory();setClips(rs.clips);setProj(function(pp){return Object.assign({},pp,{markers:rs.markers})});setDirty(!0);fireNote(rs.note)},[clips]);
+  function defaultLen(kind,srcDur){
     /* P11 — plus de plafond : la longueur d'un clip est celle de
        sa source quand on la connaît. Les trois replis restent, et
        ils sont PASSÉS à la couche au lieu d'y être recopiés ; un

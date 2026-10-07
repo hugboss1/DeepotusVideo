@@ -163,8 +163,8 @@ check("V0 sous node : les verrous s'executent", R is not None)
 if R:
     check("V1 un double clic sur un MEME rendu ne passe qu'UNE fois : Restaurer, Vider (un seul dialogue), Jeter des doublons, Rejouer la recette",
           R["rest"] == 1 and R["vid"] == [1, 1] and R["jet"] == [1, 1] and R["rej"] == [1, 1], str(R))
-check("T4 aucun prompt/alert/confirm natif ; la chaine tient (DzTracks 180, __dzCoutBlanc 7, __dzSrcLbl x2, dzRunMaxTake() x3)",
-      "window.prompt(" not in COUCHE and "alert(" not in COUCHE and "window.confirm(" not in COUCHE and BUN.count("DzTracks") == 180
+check("T4 aucun prompt/alert/confirm natif ; la chaine tient (DzTracks 181, __dzCoutBlanc 7, __dzSrcLbl x2, dzRunMaxTake() x3)",
+      "window.prompt(" not in COUCHE and "alert(" not in COUCHE and "window.confirm(" not in COUCHE and BUN.count("DzTracks") == 181
       and BUN.count("__dzCoutBlanc") == 7 and BUN.count("Object.assign(__dzSrcLbl,") == 2 and BUN.count("dzRunMaxTake()") == 3)
 
 print(f"\n{ok} PASS / {fail} FAIL")

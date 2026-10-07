@@ -978,6 +978,11 @@ class Pipeline:
                     clips.append(clip_i)
                 await self._update(session, job, status=JobStatus.MERGING.value,
                                    current_step="Assemblage de l'épisode", progress=90)
+                # t119 (07/10/2026) : la durée RÉELLE de chaque morceau, AVANT la
+                # concaténation — ce sont les bornes des scènes dans le .mp4, que
+                # « Ouvrir dans le Montage » découpe en un plan par scène.
+                mesures = await loop.run_in_executor(
+                    None, lambda: [self.merger.probe_dur(c) for c in clips])
                 final = settings.outputs_path / "final" / f"{job_id}.mp4"
                 await loop.run_in_executor(
                     None, lambda: self.merger.concat_clips(clips, final))
@@ -987,7 +992,9 @@ class Pipeline:
                            + ", ".join(str(r["scene"]) for r in replis))[:80]
                 meta = _json.loads(job.cost_meta or "{}")
                 meta.update({"videos": videos_ok, "replis": replis,
-                             "chars": chars_payes})
+                             "chars": chars_payes,
+                             "scenes": _ev.bornes_scenes(
+                                 mesures, [s.get("text") for s in scenes])})
                 await self._update(
                     session, job, status=JobStatus.DONE.value,
                     current_step=fin, final_video_path=str(final),

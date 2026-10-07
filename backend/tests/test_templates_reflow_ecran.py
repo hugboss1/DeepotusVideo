@@ -151,8 +151,8 @@ if R:
     check("E13 deux clics d'affilee : un seul apercu demande ; un clic sur le FOND ferme l'apercu, un clic DEDANS non",
           R["double"] == 1 and R["fond"] is None and R["dedans"] is True, f"{R['double']} {R['fond']} {R['dedans']}")
 
-check("T4 aucun prompt/alert/confirm natif ; la chaine tient (DzTracks 180, __dzCoutBlanc 7, __dzSrcLbl x2, dzRunMaxTake() x3)",
-      "window.prompt(" not in COUCHE and "alert(" not in COUCHE and "window.confirm(" not in COUCHE and BUN.count("DzTracks") == 180
+check("T4 aucun prompt/alert/confirm natif ; la chaine tient (DzTracks 181, __dzCoutBlanc 7, __dzSrcLbl x2, dzRunMaxTake() x3)",
+      "window.prompt(" not in COUCHE and "alert(" not in COUCHE and "window.confirm(" not in COUCHE and BUN.count("DzTracks") == 181
       and BUN.count("__dzCoutBlanc") == 7 and BUN.count("Object.assign(__dzSrcLbl,") == 2 and BUN.count("dzRunMaxTake()") == 3)
 
 print(f"\n{ok} PASS / {fail} FAIL")

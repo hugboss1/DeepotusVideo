@@ -457,7 +457,10 @@ STABLE_PROBES = [
     # t120 (06/10/2026, identite du projet d'une prise de voix off) : 178 -> 180 -- DEUX sites de CODE, dans L6vo1 :
     # `DzTracks.voIdent(` (onStart) et `DzTracks.voMeme(` (onDone) remplacent « project_id, sinon le nom » ; la couche
     # exporte `voIdent:dzmVoIdent,voMeme:dzmVoMeme` sans ecrire le nom `DzTracks`. MESURE : bundle 180, sonde 178.
-    ("montage", "DzTracks", 180),
+    # t119 (07/10/2026, un plan par scene d'episode) : 180 -> 181 -- UN site de CODE, dans le repli R_EA1 (l'effet qui
+    # decoupe la pose de la boite aux lettres : `DzTracks.scenesPose(`) ; son commentaire ne nomme pas le contrat, la
+    # grille des projets (couche) n'ecrit pas le nom. MESURE : bundle 181, sonde 180.
+    ("montage", "DzTracks", 181),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

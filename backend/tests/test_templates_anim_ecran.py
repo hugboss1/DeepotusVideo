@@ -132,8 +132,8 @@ if R:
           R["autre"] and R["sans"] and R["a"] == {"cls": "dz-anim-apercu", "anim": "dzIn_fade 1s linear 0s both", "pos": "absolute", "face": True, "key": "dzan4"}
           and R["k2"] == "dzan5", str(R["a"]))
 
-check("T4 aucun prompt/alert/confirm natif ; la chaine tient (DzTracks 180, __dzCoutBlanc 7, __dzSrcLbl x2, dzRunMaxTake() x3, __dzLibPicker x11)",
-      "window.prompt(" not in COUCHE and "alert(" not in COUCHE and "window.confirm(" not in COUCHE and BUN.count("DzTracks") == 180
+check("T4 aucun prompt/alert/confirm natif ; la chaine tient (DzTracks 181, __dzCoutBlanc 7, __dzSrcLbl x2, dzRunMaxTake() x3, __dzLibPicker x11)",
+      "window.prompt(" not in COUCHE and "alert(" not in COUCHE and "window.confirm(" not in COUCHE and BUN.count("DzTracks") == 181
       and BUN.count("__dzCoutBlanc") == 7 and BUN.count("Object.assign(__dzSrcLbl,") == 2 and BUN.count("dzRunMaxTake()") == 3 and BUN.count("__dzLibPicker") == 11)
 
 print(f"\n{ok} PASS / {fail} FAIL")

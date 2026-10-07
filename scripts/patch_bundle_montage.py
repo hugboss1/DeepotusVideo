@@ -4226,7 +4226,9 @@ assert A_EA1 != R_EA1
 # mécanisme portable : `__dzSendNav` est enfermé dans le bloc libsend).
 # `K` étale ses props (`...l`) : `title` passe. `epJob` et `title` sont les
 # locales du composant (le bouton voisin les lit déjà). Le job `episode` ne
-# stocke AUCUNE durée de scène : UN plan, pas un par scène (écart daté).
+# stockait AUCUNE durée de scène : UN plan, pas un par scène (écart daté) —
+# levé le 07/10/2026 (t119) côté Montage : la boîte aux lettres (R_EA1)
+# demande les bornes mesurées au rendu et découpe ; ce bouton n'a pas changé.
 _EA_NAV = ('window.dispatchEvent(new CustomEvent("deepotus:navigate",'
            '{detail:{view:"montage"}}))')
 # E-4 : Chapitres pose « cet épisode », Studio « ce rendu » (revue du 22/09).
@@ -8366,6 +8368,38 @@ R_EC1 = _t117_suit(R_EC1, [
     ('off:!v1||!c.src||!c.src.job_id,run:function(){svmSetV1Speed(id,v)}',
      'off:!vid||!c.src||!c.src.job_id,run:function(){svmSetV1Speed(id,v)}'),
 ], 'R_EC1')
+
+# t119 (07/10/2026, E-3) : la boîte aux lettres demande les scènes d'un épisode
+# (GET /api/montage/episode-scenes/) et l'effet qui suit découpe le plan posé
+# (DzTracks.scenesPose) — R_EA1 SUIT LE BUNDLE, comme les remplacements de t117.
+# Le bloc entier (commentaire, `dzScenesRef`, les deux effets) remplace R_EA1 :
+# retirer EA1 rend donc l'ancre amont sans rien laisser derrière.
+_R_EA1_T119 = (
+    '  /* t119 (07/10/2026, E-3) : UN PLAN PAR SCÈNE. Un rendu reçu par la boîte\n'
+    "     aux lettres demande d'abord ses scènes (GET /api/montage/episode-scenes/ :\n"
+    "     [] pour tout ce qui n'est pas un épisode mesuré, ou en cas d'échec — la\n"
+    '     pose se fait alors comme avant). Deux scènes ou plus : `dzScenesRef`\n'
+    "     retient le numéro de pose courant (`ovSeq`, qu'`addAsset` n'avance que\n"
+    "     sur une pose ACCEPTÉE) ; l'effet qui suit attend la pose suivante, dans\n"
+    "     les 30 s, et découpe le clip qu'elle a sélectionné s'il lit CE job\n"
+    '     (`scenesPose` de la couche : le plan, son jumeau son, un marqueur par\n'
+    "     scène) en un SECOND pas d'historique — « Annuler » rend l'épisode en un\n"
+    "     seul plan, la seconde fois le retire. `addAsset` n'en sait rien (le banc\n"
+    "     bundle l'exécute seul sous node). Ce qui était déjà sur la timeline\n"
+    "     n'est jamais touché : seul le clip de la pose est découpé. */\n"
+    '  var dzScenesRef=x.useRef(null);\n'
+    '  x.useEffect(function(){var p=null;try{p=window.__dzMontageAdd;delete window.__dzMontageAdd}catch(_e){}if(!p)return;var dzT0=Date.now();function dzPose(){try{if(p.image)addAsset({image:p.image},p.image,"image",0,"v2");else if(p.job_id)addAsset({job_id:p.job_id},p.title||p.job_id,"video",p.dur||0,"v1")}catch(_e2){}}if(p.image||!p.job_id){setTimeout(dzPose,450);return}fetch("/api/montage/episode-scenes/"+encodeURIComponent(p.job_id)).then(function(rp){return rp.ok?rp.json():null}).catch(function(){return null}).then(function(d){var sc=(d&&Array.isArray(d.scenes))?d.scenes:[];if(sc.length>1)dzScenesRef.current={job_id:p.job_id,scenes:sc,seq:ovSeq.current,until:Date.now()+30000};setTimeout(dzPose,Math.max(0,450-(Date.now()-dzT0)))})},[]);\n'
+    '  x.useEffect(function(){var q=dzScenesRef.current;if(!q)return;\n'
+    '    if(Date.now()>q.until){dzScenesRef.current=null;return}\n'
+    '    if(ovSeq.current<=q.seq)return;dzScenesRef.current=null;\n'
+    '    var c=(clips||[]).find(function(k){return k&&k.id===selRef.current});\n'
+    '    if(!c||!c.src||c.src.job_id!==q.job_id)return;\n'
+    '    var lk={},k;for(k in trackStRef.current)if(trackStRef.current[k]&&trackStRef.current[k].l)lk[k]=!0;\n'
+    '    var rs=DzTracks.scenesPose(clips,c.id,q.scenes,(dzProjRef.current&&dzProjRef.current.markers)||[],{locked:lk});\n'
+    '    if(!rs.n){if(rs.note)fireNote(rs.note);return}\n'
+    '    pushHistory();setClips(rs.clips);setProj(function(pp){return Object.assign({},pp,{markers:rs.markers})});setDirty(!0);fireNote(rs.note)},[clips]);\n'
+    '  function defaultLen(kind,srcDur){')
+R_EA1 = _t117_suit(R_EA1, [(R_EA1, _R_EA1_T119)], 'R_EA1')
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
