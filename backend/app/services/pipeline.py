@@ -5,6 +5,8 @@
 # rendu fal paye et telecharge (trois seedance perdus le 27/08).
 import asyncio
 import math
+import os
+import subprocess
 from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
@@ -197,15 +199,49 @@ def _resolve_voiceover(voiceover) -> Path | None:
     return vp
 
 
-def _apply_voiceover_post(final_path: Path, vo_path: Path | None) -> Path:
+# t131 (spec voiceover §9.3) — le DUCKING au Render du Studio, piloté par le nœud AudioMix : son `duckDb` (−8 par
+# défaut) choisit un preset, les mêmes que le Montage (SVM_DUCK : léger 3/0,08, moyen 6/0,05, fort 12/0,03). Sans
+# AudioMix (pas de duck_db), le mixage reste à plat comme avant.
+def _ducking_de(voiceover):
+    """{'file', 'duck_db'} -> paramètres de sidechaincompress (forme de sfx_service.parse_ducking), ou None."""
+    if not isinstance(voiceover, dict) or "duck_db" not in voiceover:
+        return None
+    try:
+        db = float(voiceover["duck_db"])
+    except (TypeError, ValueError):
+        return None
+    if db != db or db >= 0:
+        return None
+    ratio, seuil = (3.0, 0.08) if db > -5 else (6.0, 0.05) if db >= -10 else (12.0, 0.03)
+    return {"threshold": seuil, "ratio": ratio, "attack": 50.0, "release": 400.0}
+
+
+def _apply_voiceover_post(final_path: Path, vo_path: Path | None, ducking=None) -> Path:
     """Mix a pre-generated voice-over over an already-composited render
     (template path: the composite's own audio — BGM/master track — is kept
     under the VO). No VO -> the input path is returned untouched; otherwise
-    a sibling `<stem>_vo.mp4` is written and returned."""
+    a sibling `<stem>_vo.mp4` is written and returned.
+    t131 : `ducking` (preset de _ducking_de) -> le son du composite (la musique) est comprimé par la voix
+    (sidechaincompress), puis mélangé à elle ; la vidéo est recopiée telle quelle."""
     if vo_path is None:
         return final_path
     out = final_path.with_name(final_path.stem + "_vo.mp4")
-    FFmpegMerger.merge(final_path, vo_path, out, keep_video_audio=True)
+    if not ducking:
+        FFmpegMerger.merge(final_path, vo_path, out, keep_video_audio=True)
+        return out
+    from app.services.sfx_service import ducking_filter
+    # pas de disposition de canaux imposée : forcer la stéréo étalerait une piste mono à −3 dB (mesuré : la musique
+    # perdait 3 dB HORS de la voix) ; amix et sidechaincompress négocient eux-mêmes
+    fmt = "aresample=44100,aformat=sample_fmts=fltp:sample_rates=44100"
+    graphe = (f"[1:a]{fmt},asplit=2[vosc0][vo];[vosc0]apad[vosc];"
+              f"[0:a]{fmt}[bg];[bg][vosc]{ducking_filter(ducking)}[bgd];"
+              f"[bgd][vo]amix=inputs=2:duration=first:normalize=0[a]")
+    tmp = out.with_name(out.stem + ".part.mp4")
+    subprocess.run(["ffmpeg", "-y", "-v", "error",
+                    "-i", str(final_path), "-i", str(vo_path), "-filter_complex", graphe,
+                    "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", str(tmp)],
+                   check=True, capture_output=True)
+    os.replace(tmp, out)
     return out
 
 
@@ -1421,7 +1457,7 @@ class Pipeline:
                     p.progress = 90
                     await session.commit()
                 final_out = await asyncio.get_event_loop().run_in_executor(
-                    None, lambda: _apply_voiceover_post(out_path, vo_path))
+                    None, lambda: _apply_voiceover_post(out_path, vo_path, _ducking_de(voiceover)))
 
             # Phase 4: finalize parent
             async with async_session_factory() as session:

@@ -10852,3 +10852,59 @@ function dzActeTrans(regs,ti){
   var v=(regs||[]).filter(function(g){return g&&g.type==="video_slot"});
   var a=v[ti+1];
   return(a&&a.transition&&a.transition.type)||"crossfade"}
+
+/* t131 (07/10/2026) — LE FOURNISSEUR DE VOIX SE CHOISIT PAR GÉNÉRATION. Quick et le nœud Voiceover portaient « v1
+   gère ElevenLabs seul » : avec Voicebox réglé dans Réglages, rien ne se générait. Désormais chaque écran a son
+   choix — Auto (le fournisseur que le serveur résout : réglage atelier, sinon la spec) ou un fournisseur nommé — et
+   la requête le porte (/audio/voiceover provider) ; le serveur répond 409 si le fournisseur NOMMÉ n'est pas prêt,
+   jamais de bascule silencieuse vers l'autre (une voix Voicebox facturée par ElevenLabs serait une surprise). Quick
+   mémorise son choix (localStorage dz_voice_provider) ; le nœud le garde dans sa prop `vo_provider` — PAS dans
+   `provider`, qui vaut "elevenlabs" dans tous les nœuds existants sans que personne l'ait choisi.
+   Le ducking : l'AudioMix traversé entre le Render et la voix donne son duckDb au Render (duck_db), le serveur en
+   tire un préréglage du Montage (léger / moyen / fort) ; sans AudioMix ou à 0 dB, mixage à plat comme avant. */
+/*__T131_DEBUT__*/
+var DZ_VO_FOURNISSEURS=["elevenlabs","voicebox"],DZ_VO_LOCAL="dz_voice_provider";
+/* le fournisseur effectif d'un écran : {id, ok, etat} ; etat = chargement | auto | choisi | indisponible | aucun.
+   Un choix NOMMÉ indisponible le reste (ok faux) : on ne le remplace jamais en silence par l'autre. */
+function dzVoFournisseurEffectif(prov,choix){
+  if(prov===void 0)return{id:"",ok:!1,etat:"chargement"};
+  var liste=(prov&&prov.providers)||[];
+  if(DZ_VO_FOURNISSEURS.indexOf(choix)>=0){
+    var f=liste.filter(function(p){return p&&p.id===choix})[0];
+    return f&&f.ready?{id:choix,ok:!0,etat:"choisi"}:{id:choix,ok:!1,etat:"indisponible"}}
+  var res=(prov&&prov.resolved)||"";
+  return res?{id:res,ok:!0,etat:"auto"}:{id:"",ok:!1,etat:"aucun"}}
+/* les options du sélecteur : Auto (avec le fournisseur qu'il donnerait), puis chaque fournisseur et son état */
+function dzVoFournisseurOptions(prov){
+  var liste=(prov&&prov.providers)||[],res=(prov&&prov.resolved)||"";
+  var lb=function(id){var f=liste.filter(function(p){return p&&p.id===id})[0];return(f&&f.label)||id};
+  return[{value:"",label:"Auto ("+(res?lb(res):"aucun")+")"}].concat(liste.map(function(p){
+    return{value:p.id,label:p.label+(p.ready?"":" — indisponible")}}))}
+/* le choix mémorisé de Quick ; tout ce qui n'est pas un fournisseur connu vaut Auto ("") */
+function dzVoLocalLire(){
+  try{var v=localStorage.getItem(DZ_VO_LOCAL)||"";return DZ_VO_FOURNISSEURS.indexOf(v)>=0?v:""}catch(e){return""}}
+function dzVoLocalPoser(v){
+  try{localStorage.setItem(DZ_VO_LOCAL,DZ_VO_FOURNISSEURS.indexOf(v)>=0?v:"")}catch(e){}}
+/* la voix du graphe enrichie du ducking de l'AudioMix traversé (duckDb absent = -8, le défaut du registre) */
+function dzVoDuck(vo,mix){
+  if(!vo)return null;
+  var o={file:vo.file};
+  if(mix){var p=mix.props||{},d=p.duckDb==null?-8:Number(p.duckDb);if(isFinite(d)&&d<0)o.duck_db=d}
+  return o}
+/*__T131_FIN__*/
+/* les catalogues de voix, un par fournisseur ("" = celui du serveur) : changer de fournisseur ne remontre jamais
+   les voix de l'autre */
+var DzVoCatalogues={};
+function dzVoCache(pv){return DzVoCatalogues[pv||""]||null}
+function dzVoListe(pv){
+  return Ge("/voices"+(pv?"?provider="+encodeURIComponent(pv):""),{voices:[]}).then(function(d){
+    var v=(d&&d.voices)||[];DzVoCatalogues[pv||""]=v;return v})}
+/* le sélecteur de fournisseur et son état, commun à Quick et au nœud Voiceover */
+function DzVoFournisseur({prov:prov,choix:choix,onChange:onChange}){
+  if(prov===void 0)return r.jsx("div",{style:{fontSize:11,color:"var(--ink-muted)"},children:"Fournisseur de voix…"});
+  var vp=dzVoFournisseurEffectif(prov,choix);
+  var bandeau=function(ton,etat,fort,suite){return r.jsxs("div",{"data-dzprov":etat,style:{marginTop:6,padding:8,background:"var(--"+ton+"-soft)",border:"1px solid var(--"+ton+")",borderRadius:"var(--r-sm)",fontSize:11,color:"var(--ink)"},children:[r.jsx("strong",{style:{color:"var(--"+ton+")"},children:fort}),suite]})};
+  var etat=vp.ok?r.jsxs("div",{"data-dzprov":vp.id,style:{display:"inline-flex",alignItems:"center",gap:6,marginTop:6,padding:"3px 9px",background:"var(--bg-panel-2)",border:"1px solid var(--stroke)",borderRadius:999,fontSize:10.5,color:"var(--ink-soft)"},children:[r.jsx("span",{style:{width:7,height:7,borderRadius:99,background:"var(--green)",display:"inline-block"}}),vp.id==="voicebox"?"Voicebox · local, gratuit":"ElevenLabs"]})
+    :vp.etat==="indisponible"?(vp.id==="voicebox"?bandeau("amber","voicebox-off","Voicebox injoignable"," — lance voicebox-server ou choisis ElevenLabs."):bandeau("amber","elevenlabs-off","Clé ElevenLabs manquante"," — ajoute-la dans Réglages → Clés, ou choisis Voicebox."))
+    :bandeau("red","none","Aucune voix disponible"," — ajoute la clé ElevenLabs (Réglages → Clés) ou lance voicebox-server.");
+  return r.jsxs("div",{"data-dzvofourn":vp.etat,children:[r.jsx(re,{value:DZ_VO_FOURNISSEURS.indexOf(choix)>=0?choix:"",onChange:onChange,options:dzVoFournisseurOptions(prov)}),etat]})}

@@ -91,7 +91,9 @@ process.stdout.write(JSON.stringify(res));
         check("1k_un_id_stocke_hors_patron_est_ignore", R["seed_sale"] == {"model": "seedance-2.5"}, R["seed_sale"])
 
 B = (RACINE / REL).read_bytes().decode("utf-8")
-H = subprocess.run(["git", "show", f"origin/main:{REL}"], cwd=str(RACINE), capture_output=True).stdout.decode("utf-8")
+# t131 : le témoin est main AVANT t130 (e58280c9) — origin/main contient t130 depuis sa fusion, son ancre
+# props:{...L.props||{}} n'y figure plus et 2g rougissait sur main même.
+H = subprocess.run(["git", "show", f"e58280c9:{REL}"], cwd=str(RACINE), capture_output=True).stdout.decode("utf-8")
 
 
 def entre(s, a, z):

@@ -132,10 +132,14 @@ def map_voicebox_profiles(profiles: list[dict]) -> list[dict]:
             "personality": p.get("personality") or "",
             "description": p.get("description") or "",
         }
+        # t131 : la préécoute d'un profil = une courte phrase générée À LA DEMANDE par Voicebox et gardée en cache
+        # (route /api/voice/preview) ; la langue du profil choisit la phrase
+        lang = "fr" if labels["language"].startswith("fr") else "en"
         out.append({"voice_id": p.get("id"), "name": p.get("name"),
                     "category": "voicebox",
                     "labels": {k: v for k, v in labels.items() if v},
-                    "preview_url": None})
+                    "preview_url": (f"/api/voice/preview?voice_id={p.get('id')}&language={lang}"
+                                    if p.get("id") else None)})
     return [v for v in out if v["voice_id"]]
 
 
