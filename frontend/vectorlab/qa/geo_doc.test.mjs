@@ -81,8 +81,26 @@ let docImporte;
   ok("tuiles sans relief → refus", refusT === 1);
 }
 
+/* ── t124 : les altitudes enregistrées suivent la trace dans doc.geo.parcours ── */
+{
+  const P = docImporte.geo.parcours;
+  const trace = docImporte.calques.find((c) => c.nom === "trace").objets[0];
+  ok("parcours : une entrée par trace à altitudes, xy = les ancres de son path", Array.isArray(P) && P.length === 1 && P[0].xy.length === 3
+     && JSON.stringify(P[0].ele) === "[1500,1620,1580]" && P[0].objet === trace.id
+     && trace.d.startsWith(`M ${P[0].xy[0][0]} ${P[0].xy[0][1]}`), JSON.stringify(P).slice(0, 200));
+  ok("parcours : distances croissantes, la première à 0", P[0].d[0] === 0 && P[0].d[1] > 0 && P[0].d[2] > P[0].d[1], JSON.stringify(P[0].d));
+  const sans = base(), g = gpx_parser('<gpx><trk><trkseg><trkpt lat="45" lon="6"/><trkpt lat="45.01" lon="6.01"/></trkseg></trk></gpx>');
+  op_geo_importer(sans, g, cadrage(g.emprise, sans.taille, 40));
+  ok("GPX sans <ele> : pas de parcours", sans.geo.parcours === undefined);
+  let refus = 0;
+  for (const mauvais of [{ xy: [[0, 0]], d: [0], ele: [1] }, { xy: [[0, 0], [1, 1]], d: [0, 1], ele: [1] }, { xy: [[0, 0], [1, 1]], d: [0, 1], ele: [1, "a"] }]) {
+    const d = JSON.parse(JSON.stringify(docImporte)); d.geo.parcours = [mauvais];
+    try { parserDoc(d); } catch { refus++; }
+  }
+  ok("parserDoc refuse un parcours bancal (un point, longueurs, altitude non numérique)", refus === 3, refus);
+}
 if (echecs.length) {
   console.error("ECHECS geo_doc :\n- " + echecs.join("\n- "));
   process.exit(1);
 }
-console.log("QA geo_doc : PASS (16 controles)");
+console.log("QA geo_doc : PASS (20 controles)");

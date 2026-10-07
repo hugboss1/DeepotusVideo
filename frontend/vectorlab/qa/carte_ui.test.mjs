@@ -1,7 +1,7 @@
 // carte_ui.test.mjs — lot H : la logique PURE du panneau « Carte réelle » :
 // libellé d'échelle (1 : N, km, mm imprimés), conversion grille de relief →
 // px de page, lignes de niveau → px, niveaux d'un pas, image ombrée (RGBA).
-import { libelle_carte, grille_vers_px, lignes_vers_px, niveaux, ombrage_rgba } from "../js/mod-carte.js";
+import { libelle_carte, grille_vers_px, lignes_vers_px, niveaux, ombrage_rgba, profil_html } from "../js/mod-carte.js";
 
 const echecs = [];
 const ok = (nom, cond, detail = "") => {
@@ -29,5 +29,15 @@ const ok = (nom, cond, detail = "") => {
   const rgba = ombrage_rgba(new Uint8ClampedArray([0, 128, 255]), 3, 1);
   ok("RGBA : gris posé sur R, G, B, alpha 255", rgba.length === 12 && rgba[0] === 0 && rgba[4] === 128 && rgba[5] === 128 && rgba[8] === 255 && rgba[3] === 255 && rgba[11] === 255);
 }
+/* ── t124 : le profil altimétrique du panneau ── */
+{
+  ok("profil : rien sans parcours", profil_html({ m_par_px: 1 }) === "" && profil_html(null) === "");
+  const geo = { parcours: [{ objet: "o1", xy: [[0, 0], [1, 1], [2, 2]], d: [0, 1500, 2600], ele: [1500, 1620, 1580] }] };
+  const h = profil_html(geo);
+  ok("profil : longueur en km, D+ et D−, bornes, et le graphe", h.includes("2,6 km") && h.includes("D+ 120 m") && h.includes("D− 40 m")
+     && h.includes("1500 → 1620 m") && h.includes("<svg") && h.includes('class="carte-profil"'), h.slice(0, 300));
+  const deux = profil_html({ parcours: [geo.parcours[0], { ...geo.parcours[0], objet: "o2" }] });
+  ok("profil : un bloc par trace, numérotées", (deux.match(/<svg/g) || []).length === 2 && deux.includes("trace 2"), deux.slice(0, 200));
+}
 if (echecs.length) { console.error("ECHECS carte_ui :\n- " + echecs.join("\n- ")); process.exit(1); }
-console.log("QA carte_ui : PASS (9 controles)");
+console.log("QA carte_ui : PASS (12 controles)");

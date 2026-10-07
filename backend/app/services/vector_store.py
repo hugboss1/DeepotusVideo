@@ -13,6 +13,7 @@ Dossier : env `VECTOR_FOLDER` (les bancs), sinon
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import re
 import uuid
@@ -238,10 +239,12 @@ def remplacer_image(did: str, nom: str, octets: bytes) -> int:
                 os.replace(d / f"{did}.{base}.pix{k}.png", d / f"{did}.{base}.pix{i}.png")
         nums = list(range(1, len(nums) + 1))
     k = (nums[-1] + 1) if nums else 1
+    _instantane(did, nom, cible.read_bytes(), d)          # t124 : l'avant, que l'objet ne nomme peut-être pas
     os.replace(cible, d / f"{did}.{base}.pix{k}.png")
     tmp = d / f"{did}.{nom}.tmp"
     tmp.write_bytes(octets)
     os.replace(tmp, cible)
+    _instantane(did, nom, octets, d)
     return k
 
 
@@ -257,6 +260,63 @@ def annuler_image(did: str, nom: str):
     k = nums[-1]
     os.replace(d / f"{did}.{nom[:-4]}.pix{k}.png", d / f"{did}.{nom}")
     return len(nums) - 1
+
+
+# ── t124 : le Ctrl+Z du DOCUMENT rend les pixels. Le journal `.pix` est une pile (« Annuler pixels ») et sa
+# révision un compteur qui se réutilise : il ne peut pas dire QUEL contenu une étape d'historique montrait.
+# Chaque contenu écrit (et celui qu'il remplace) est donc gardé sous son EMPREINTE — `<did>.img<n>.s<16 hex
+# du sha256>.png` — que l'objet image porte en `px`. L'URL `?px=` sert l'instantané (adresse = contenu :
+# immuable, le cache du navigateur ne ment plus) ; « restaurer » remet un instantané en image courante.
+# Bornés à INSTANTANES_MAX par image (les plus anciens tombent).
+INSTANTANES_MAX = 40
+_EMPREINTE = re.compile(r"[0-9a-f]{16}")
+
+
+def _emp(octets: bytes) -> str:
+    return hashlib.sha256(octets).hexdigest()[:16]
+
+
+def _instantane(did: str, nom: str, octets: bytes, d: Path) -> str:
+    e = _emp(octets)
+    base = nom[:-4]
+    p = d / f"{did}.{base}.s{e}.png"
+    if p.is_file():
+        os.utime(p)                                       # revu : il redevient récent
+    else:
+        tmp = d / f"{did}.{base}.s{e}.png.tmp"
+        tmp.write_bytes(octets)
+        os.replace(tmp, p)
+    tous = sorted(d.glob(f"{did}.{base}.s*.png"), key=lambda q: q.stat().st_mtime_ns)
+    # le contenu courant vient toujours d'être écrit ou rafraîchi ici (remplacer_image passe l'avant puis
+    # l'après) : il est parmi les plus récents, l'élagage ne le touche pas
+    for q in tous[: max(0, len(tous) - INSTANTANES_MAX)]:
+        if q != p:
+            q.unlink()
+    return e
+
+
+def empreinte_image(did: str, nom: str):
+    octets = lire_image(did, nom)
+    return _emp(octets) if octets is not None else None
+
+
+def lire_instantane(did: str, nom: str, empreinte: str):
+    if not _NOM_IMAGE.fullmatch(nom or "") or not _EMPREINTE.fullmatch(empreinte or ""):
+        return None
+    p = _dossier() / f"{did}.{nom[:-4]}.s{empreinte}.png"
+    return p.read_bytes() if p.is_file() else None
+
+
+def restaurer_image(did: str, nom: str, empreinte: str) -> int:
+    """Remet l'instantané `empreinte` en image courante — par remplacer_image, donc journalisé (« Annuler
+    pixels » peut revenir) ; rien si c'est déjà le contenu courant. Rend la révision. FileNotFoundError si
+    l'instantané n'existe pas (ou plus)."""
+    octets = lire_instantane(did, nom, empreinte)
+    if octets is None:
+        raise FileNotFoundError(empreinte)
+    if empreinte_image(did, nom) == empreinte:
+        return journal_images(did, nom)
+    return remplacer_image(did, nom, octets)
 
 
 def copier_images(src: str, dst: str) -> None:

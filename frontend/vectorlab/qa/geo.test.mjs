@@ -3,7 +3,7 @@
 // marching squares, échantillonnage, paliers, ombrage. Module feuille.
 import { R_TERRE, gpx_parser, mercator_m, cadrage, echelle_libelle, tuile_xyz,
          tuiles_couvrant, zoom_pour, latlon_de_tuile, courbes_niveau,
-         echantillon_moyen, paliers_bornes, palier, ombrage } from "../js/mod-geo.js";
+         echantillon_moyen, paliers_bornes, palier, ombrage, profil_trace, profil_stats, profil_svg } from "../js/mod-geo.js";
 
 const echecs = [];
 const ok = (nom, cond, detail = "") => {
@@ -101,8 +101,26 @@ const GPX = `<?xml version="1.0"?><gpx version="1.1" creator="banc">
      [ombrage(hautSudEst, 3, 3, 10)[4], ombrage(hautNordOuest, 3, 3, 10)[4]].join(","));
 }
 
+/* ── t124 : le profil altimétrique d'une trace (distance cumulée, altitude enregistrée) ── */
+{
+  const pts = [{ lat: 45, lon: 6, ele: 1500 }, { lat: 45.01, lon: 6, ele: 1620 }, { lat: 45.01, lon: 6.01, ele: null }, { lat: 45.02, lon: 6.01, ele: 1580 }];
+  const p = profil_trace(pts);
+  const dLat = R_TERRE * 0.01 * Math.PI / 180, dLon = R_TERRE * Math.cos(45.01 * Math.PI / 180) * 0.01 * Math.PI / 180;
+  ok("profil : seuls les points à <ele> sont gardés, leurs indices dits", JSON.stringify(p.i) === "[0,1,3]" && JSON.stringify(p.ele) === "[1500,1620,1580]", JSON.stringify(p));
+  ok("profil : la distance court sur TOUTE la trace (le point sans altitude compte)", Math.abs(p.d[1] - dLat) < 0.5 && Math.abs(p.d[2] - (2 * dLat + dLon)) < 1, JSON.stringify(p.d));
+  ok("profil : moins de deux altitudes → null", profil_trace([{ lat: 1, lon: 1, ele: null }, { lat: 1.1, lon: 1, ele: 3 }]) === null);
+  const st = profil_stats(p);
+  ok("stats : longueur, min, max, D+ 120, D− 40", Math.abs(st.longueur_m - p.d[2]) < 1e-9 && st.min === 1500 && st.max === 1620 && st.dplus === 120 && st.dmoins === 40, JSON.stringify(st));
+  const svg = profil_svg(p, 300, 100);
+  const m = /<path[^>]* d="([^"]*)"/.exec(svg);
+  const sommets = m ? m[1].match(/[ML]/g).length : 0;
+  ok("svg : un tracé par point gardé, les bornes d'altitude écrites", sommets === 3 && svg.includes("1620") && svg.includes("1500") && /viewBox="0 0 300 100"/.test(svg), svg.slice(0, 200));
+  // le plus haut point est en haut (y petit), le plus bas en bas
+  const ys = m[1].trim().split(/[ML]/).filter(Boolean).map((c) => +c.trim().split(/[ ,]+/)[1]);
+  ok("svg : altitude haute = y petit", ys[1] < ys[2] && ys[2] < ys[0], JSON.stringify(ys));
+}
 if (echecs.length) {
   console.error("ECHECS geo :\n- " + echecs.join("\n- "));
   process.exit(1);
 }
-console.log("QA geo : PASS (28 controles)");
+console.log("QA geo : PASS (34 controles)");

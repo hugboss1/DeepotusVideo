@@ -5,7 +5,7 @@
 
 import { grille_normaliser, hex_centre, hex_d, hex_depuis_point, grille_cellules }
   from "./mod-grille.js";
-import { zoom_pour, echantillon_moyen, paliers_bornes, palier } from "./mod-geo.js";
+import { zoom_pour, echantillon_moyen, paliers_bornes, palier, profil_trace } from "./mod-geo.js";
 import { forme_d, forme_params_valider } from "./mod-formes.js";
 import { effets_valider, filtre_svg, MODES_FUSION, motif_valider, motif_svg, conique_svg,
          MOTIFS, motif_defaut, couleur_interpoler } from "./mod-effets.js";
@@ -105,6 +105,7 @@ function _validerRognage(r, nat, ou) {
     throw new Error(`${ou}: rognage hors de l'image native`);
   }
 }
+const _PX = /^[0-9a-f]{16}$/;                 // t124 : l'empreinte des pixels (sha256 tronqué, serveur)
 function _validerObjets(objs, ou) {
   for (const o of objs) {
     if (o.type === "image") {
@@ -113,6 +114,7 @@ function _validerObjets(objs, ou) {
       if (!(o.w > 0) || !(o.h > 0)) throw new Error(`image ${o.id}: taille positive requise`);
       if (o.rognage !== undefined) _validerRognage(o.rognage, o.nat, `image ${o.id}`);
       if (o.rev !== undefined && !(Number.isInteger(o.rev) && o.rev >= 0)) throw new Error(`image ${o.id}: rev entier ≥ 0`);
+      if (o.px !== undefined && !_PX.test(o.px)) throw new Error(`image ${o.id}: px = empreinte (16 hex)`);
     }
     if (o.type === "forme") {
       if (!(o.r > 0)) throw new Error(`forme ${o.id}: rayon > 0 requis`);
@@ -409,7 +411,7 @@ function compilerObjet(o, ctx = {}) {
         + ` d="${hex_d(cx, cy, g.pas, g.orientation, g.echelle)}"${styleAttrs(s, ctx)}${tr}/>`;
     }
     case "image": {
-      const url = (ctx.image || ((h) => h))(o.href, o.rev);
+      const url = (ctx.image || ((h) => h))(o.href, o.rev, o.px);
       const nat = o.nat;
       const r = o.rognage || { x: 0, y: 0, w: nat.w, h: nat.h };
       const verrou = o.verrou ? ` data-verrou="1"` : "";
@@ -1643,10 +1645,14 @@ export function op_image_verrou(doc, id, verrou) {
 /* ── lot E (D1) : la RÉVISION raster d'un calque image — les pixels vivent
    dans le PNG (journal `.pix<k>.png` côté serveur), le JSON ne porte qu'un
    entier que le résolveur d'href ajoute en `?v=rev` pour casser le cache. */
-export function op_image_rev(doc, id, rev) {
+// t124 : `px` = l'empreinte du contenu que l'étape montre ; elle fait partie de l'instantané d'historique,
+// si bien qu'un Ctrl+Z sait quels pixels remettre (mod-pixelui, pixels_a_restaurer)
+export function op_image_rev(doc, id, rev, px) {
   const o = _trouverImage(doc, id);
   if (!(Number.isInteger(rev) && rev >= 0)) throw new Error(`image ${id}: rev entier ≥ 0`);
+  if (px !== undefined && !_PX.test(px)) throw new Error(`image ${id}: px = empreinte (16 hex)`);
   if (rev > 0) o.rev = rev; else delete o.rev;
+  if (px) o.px = px; else delete o.px;
 }
 
 /* ── lot E : doc.pixelart = {tuile {w,h} entiers ≥ 1, palette [hex],
@@ -1904,6 +1910,17 @@ function _validerGeo(g) {
   if (g.emprise !== undefined) _validerEmprise(g.emprise, "geo");
   if (g.emprise_px !== undefined) _validerCadre(g.emprise_px, "geo.emprise_px");
   if (g.relief !== undefined) _validerRelief(g.relief);
+  if (g.parcours !== undefined) {
+    if (!Array.isArray(g.parcours)) throw new Error("geo.parcours: liste");
+    for (const p of g.parcours) {
+      const n = p && Array.isArray(p.xy) ? p.xy.length : 0;
+      if (n < 2 || !Array.isArray(p.d) || !Array.isArray(p.ele) || p.d.length !== n || p.ele.length !== n) {
+        throw new Error("geo.parcours: xy, d, ele de même longueur ≥ 2");
+      }
+      if (!p.xy.every((q) => Array.isArray(q) && q.length === 2 && q.every(Number.isFinite))
+          || !p.d.every(Number.isFinite) || !p.ele.every(Number.isFinite)) throw new Error("geo.parcours: nombres");
+    }
+  }
 }
 
 const _STYLE_TRACE = { fond: "none", contour: "#d0553a", epaisseur: 3 };
@@ -1924,11 +1941,18 @@ export function op_geo_importer(doc, gpx, cadre) {
     style: { fond: "none", contour: "#39b3d0", epaisseur: 1, pointilles: "6 4" } });
   op_calque_verrou(doc, cEmp, true);
   const cTrace = op_calque_ajouter(doc, "trace");
+  // t124 : l'altitude ENREGISTRÉE (<ele>) suit sa trace dans doc.geo.parcours — positions (celles des
+  // ancres du path, arrondies pareil), distance cumulée (m), altitude (m) ; profil et ruban la lisent
+  const parcours = [];
   for (const t of gpx.traces) {
     if (t.length < 2) continue;
-    op_ajouter(doc, cTrace, { type: "path", d: _dDe(t.map((p) => cadre.vers_px(p.lat, p.lon))),
-                              style: { ..._STYLE_TRACE } });
+    const px = t.map((p) => cadre.vers_px(p.lat, p.lon));
+    const objet = op_ajouter(doc, cTrace, { type: "path", d: _dDe(px), style: { ..._STYLE_TRACE } });
+    const pr = profil_trace(t);
+    if (pr) parcours.push({ objet, xy: pr.i.map((k) => px[k].map((v) => Number(nbc(v)))),
+                            d: pr.d.map((v) => Math.round(v * 10) / 10), ele: pr.ele });
   }
+  if (parcours.length) doc.geo.parcours = parcours;
   const cPts = op_calque_ajouter(doc, "points");
   for (const p of gpx.points) {
     const [x, y] = cadre.vers_px(p.lat, p.lon);

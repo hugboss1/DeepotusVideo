@@ -175,6 +175,7 @@ function annuler() {
   etat.sale = true;
   purgerSelection();
   rendre();
+  VL.surHistorique();          // t124 : les pixels suivent (mod-pixelui)
 }
 function refaire() {
   if (!etat.histo.peutRefaire()) return;
@@ -182,6 +183,7 @@ function refaire() {
   etat.sale = true;
   purgerSelection();
   rendre();
+  VL.surHistorique();
 }
 function purgerSelection() {
   const vivants = new Set();
@@ -774,7 +776,7 @@ const VL = {
   rendre, rendreOverlay, appliquerVue, setOutil, toast,
   surRendu: () => {}, surOutil: () => {}, surTouche: () => {},
   surSelection: () => {}, surCharge: () => {}, surSauve: () => {},
-  surOverlay: () => {}, surVue: () => {},
+  surOverlay: () => {}, surVue: () => {}, surHistorique: () => {},
 };
 initCalques(VL);
 initCouleur(VL);

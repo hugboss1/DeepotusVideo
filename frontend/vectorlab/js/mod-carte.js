@@ -4,7 +4,7 @@
 // Terrarium (grille de hauteurs dans doc.geo + image ombrée dans le
 // magasin), vectoriser les courbes de niveau, découper en tuiles par palier
 // et ouvrir l'impression 3D en mode relief. Logique PURE en tête (banc).
-import { gpx_parser, cadrage, echelle_libelle, courbes_niveau, ombrage } from "./mod-geo.js";
+import { gpx_parser, cadrage, echelle_libelle, courbes_niveau, ombrage, profil_stats, profil_svg } from "./mod-geo.js";
 import { op_geo_importer, op_geo_relief, op_geo_courbes, op_geo_tuiles, op_calque_ajouter,
          op_calque_reordonner, op_calque_opacite } from "./mod-doc.js";
 
@@ -39,6 +39,18 @@ export function ombrage_rgba(gris, w, h) {
   return out;
 }
 
+// t124 : le profil altimétrique de chaque trace (doc.geo.parcours) — longueur, D+ / D−, bornes, graphe
+export function profil_html(geo) {
+  const P = (geo && geo.parcours) || [];
+  return P.map((p, k) => {
+    const st = profil_stats(p);
+    const lg = st.longueur_m >= 1000 ? `${(st.longueur_m / 1000).toFixed(1).replace(".", ",")} km` : `${Math.round(st.longueur_m)} m`;
+    const titre = P.length > 1 ? `trace ${k + 1} · ` : "";
+    return `<div class="carte-profil"><p class="carte-attribution">${titre}${lg} · D+ ${Math.round(st.dplus)} m · D− ${Math.round(st.dmoins)} m`
+      + ` · ${Math.round(st.min)} → ${Math.round(st.max)} m (altitude enregistrée)</p>${profil_svg(p, 260, 90)}</div>`;
+  }).join("");
+}
+
 /* ── DOM ── */
 export function initCarte(VL) {
   const { $, etat } = VL;
@@ -60,6 +72,7 @@ export function initCarte(VL) {
         <input type="number" id="carteReliefMm" value="10" min="1" step="0.5" title="Relief total du plateau (mm)"/>
         <button id="carteTuiles" ${R ? "" : "disabled"} title="Quadrillage hexagonal sur l'emprise : chaque tuile prend le terrain de son palier d'altitude et une hauteur en mm">⬡ Découper</button></div>
       <div class="ap-ligne"><button id="carteImprimer" ${R ? "" : "disabled"} title="Aperçu 3D de la plaque en relief (exagération, socle, gravure du tracé) puis STL / dalles">🖨 Aperçu 3D / Imprimer</button></div>
+      ${profil_html(g)}
       ${g && g.attribution ? `<p class="carte-attribution">${g.attribution}</p>` : ""}
       ${R ? `<p class="carte-attribution">relief ${R.w} × ${R.h} · ${Math.round(R.min)} → ${Math.round(R.max)} m · ${R.pasM} m/cellule · zoom ${R.zoom ?? g.zoom}</p>` : ""}`;
     $("#carteImporter").addEventListener("click", () => $("#carteGpxInput").click());

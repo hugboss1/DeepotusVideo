@@ -15,7 +15,7 @@ import { couleurs_utilisees } from "./mod-pixelart.js";
 import { terrains_de, op_texte_vectoriser } from "./mod-doc.js";
 import { hex_centre, hex_sommets } from "./mod-grille.js";
 import { POLICES, texte_vers_d } from "./mod-texte3d.js";
-import { plaque, graver, dalles, sous_grille } from "./mod-relief.js";
+import { plaque, graver, dalles, sous_grille, ruban, tenons, cle } from "./mod-relief.js";
 import { chemin_parser } from "./mod-doc.js";
 
 /* ── pur ── */
@@ -40,7 +40,22 @@ export function reglages_lire(f) {
   const cellule_mm = Math.max(0.2, num(f.cellule, 2));
   const hmin = Math.max(0.2, num(f.hmin, 1));
   const hmax = Math.max(hmin + 0.2, num(f.hmax, 5));
-  return { mode, hauteur, socle, biseau, evide: !!f.evide, mur, plancher, pas: 0.2, exageration, largeur, gravure, depouille, cellule_mm, hmin, hmax };
+  // t124 : relief — tenons entre dalles et ruban à l'altitude GPX, cochés par défaut ; ruban ≥ 0,8 mm (deux
+  // passes de buse de 0,4)
+  const tenons = f.tenons === undefined ? true : !!f.tenons;
+  const ruban = f.ruban === undefined ? true : !!f.ruban;
+  const ruban_mm = Math.max(0.8, num(f.ruban_mm, 1.6));
+  return { mode, hauteur, socle, biseau, evide: !!f.evide, mur, plancher, pas: 0.2, exageration, largeur, gravure, depouille, cellule_mm, hmin, hmax,
+           tenons, ruban, ruban_mm };
+}
+// t124 : un parcours GPX (doc.geo.parcours : xy en px du document, altitude enregistrée) ramené au repère
+// de la plaque — x vers l'est, y vers le nord (le nord de l'emprise = le haut de la plaque), z = la même
+// règle que le terrain (socle + (ele − min) × mm/m × exagération), jamais sous le socle
+export function ruban_points(p, E, R, { cell_mm, socle_mm, mm_par_m, exageration }) {
+  return p.xy.map(([x, y], k) => [
+    (x - E.x) / E.w * (R.w - 1) * cell_mm,
+    (R.h - 1 - (y - E.y) / E.h * (R.h - 1)) * cell_mm,
+    socle_mm + Math.max(0, p.ele[k] - R.min) * mm_par_m * exageration]);
 }
 // lot 3 : la table des hauteurs par couleur du dialogue → {hex: mm}, défaut sur valeur folle
 export function hauteurs_lire(lignes, defaut) {
@@ -135,7 +150,7 @@ export function initImpression(VL) {
   }
 
   function construire(r) {
-    const doc = etat.doc, compte = { ignores: 0 };
+    const doc = etat.doc, compte = { ignores: 0, notes: [] };
     const pieces = [];
     if (r.mode === "relief") {
       // lot H : la plaque du terrain — mm/m horizontal = largeur / largeur au sol,
@@ -168,13 +183,35 @@ export function initImpression(VL) {
       const hauteur_mm = cell_mm * (R.h - 1);
       const maxCellules = Math.floor(256 / cell_mm);
       const parts = (r.largeur > 256 || hauteur_mm > 256) ? dalles(R.w, R.h, Math.max(2, maxCellules)) : [{ nom: "relief", x0: 0, y0: 0, w: R.w, h: R.h }];
+      // t124 : des dalles s'alignent par des tenons — logements sous le socle, clés imprimées à part
+      const T = parts.length > 1 && r.tenons ? tenons(parts, cell_mm, socle) : null;
+      if (T && T.raison) compte.notes.push(T.raison);
       for (const d of parts) {
         const sg = sous_grille(grid, R.w, R.h, d);
-        const tris = plaque(sg.grid, sg.w, sg.h, { largeur_mm: cell_mm * (sg.w - 1), socle_mm: socle, mm_par_m, exageration: r.exageration, z_min: R.min });
+        const loge = T && T.par_dalle[d.nom] && T.par_dalle[d.nom].length ? { logements: T.par_dalle[d.nom], prof_logement: T.prof } : {};
+        const tris = plaque(sg.grid, sg.w, sg.h, { largeur_mm: cell_mm * (sg.w - 1), socle_mm: socle, mm_par_m, exageration: r.exageration, z_min: R.min, ...loge });
         // chaque dalle à sa place sur le plateau (x vers l'est, y vers le nord)
         const dx = d.x0 * cell_mm, dy = (R.h - 1 - (d.y0 + d.h - 1)) * cell_mm;
         pieces.push({ nom: d.nom, tris: tris.map((t) => t.map(([x, y, z]) => [x + dx, y + dy, z])), hauteur_mm: socle, couleur: "#D8C9A3" });
       }
+      if (T && T.cles.length) {
+        // les clés en rang sous le bord sud, 3 mm d'écart : à plat, prêtes à imprimer
+        const tris = [];
+        let x = 0;
+        for (const c of T.cles) { tris.push(...cle(c.lx, c.ly, c.h, x, -3 - c.ly)); x += c.lx + 3; }
+        pieces.push({ nom: "cles", tris, hauteur_mm: T.cles[0].h, couleur: "#B08D57" });
+        compte.notes.push(`${T.cles.length} clé(s) de tenon, jeu 0,2 mm`);
+      }
+      // t124 : le ruban — le parcours à l'altitude ENREGISTRÉE, mur à base plate posé sur sa trace ; là où il
+      // dépasse du terrain, le GPS voyait plus haut que le relief
+      if (r.ruban && geo.parcours && geo.parcours.length) {
+        geo.parcours.forEach((p, k) => {
+          try {
+            const tris = ruban(ruban_points(p, geo.emprise_px, R, { cell_mm, socle_mm: socle, mm_par_m, exageration: r.exageration }), r.ruban_mm);
+            pieces.push({ nom: geo.parcours.length > 1 ? `ruban_${k + 1}` : "ruban", tris, hauteur_mm: socle, couleur: "#D0553A" });
+          } catch (e) { compte.notes.push(`ruban ${k + 1} : ${e.message}`); }
+        });
+      } else if (r.ruban) compte.notes.push("ruban : le GPX n'a pas d'altitude (<ele>)");
     } else if (r.mode === "tuiles") {
       const g = VL.grilleDoc();
       if (!g || g.type !== "hex") throw new Error("tuiles : le document n'a pas de grille hexagonale");
@@ -213,14 +250,15 @@ export function initImpression(VL) {
       if (!pieces.length) throw new Error("rien d'extrudable (calques visibles vides ?)");
     }
     const tous = pieces.flatMap((p) => p.tris);
-    return { pieces, ignores: compte.ignores, tous, bbox: bboxDe(tous) };
+    return { pieces, ignores: compte.ignores, notes: compte.notes, tous, bbox: bboxDe(tous) };
   }
 
   function lire() {
     return reglages_lire({ mode: $("#impMode").value, hauteur: $("#impHauteur").value, cellule: $("#impCellule").value, hmin: $("#impHmin").value, hmax: $("#impHmax").value,
       socle: $("#impSocle").value, biseau: $("#impBiseau").value, evide: $("#impEvide").checked,
       mur: $("#impMur").value, plancher: $("#impPlancher").value, depouille: $("#impDepouille").value,
-      exageration: $("#impExag").value, largeur: $("#impLargeur").value, gravure: $("#impGravure").value });
+      exageration: $("#impExag").value, largeur: $("#impLargeur").value, gravure: $("#impGravure").value,
+      tenons: $("#impTenons").checked, ruban: $("#impRuban").checked, ruban_mm: $("#impRubanMm").value });
   }
   function apercu() {
     const r = lire();
@@ -230,7 +268,8 @@ export function initImpression(VL) {
                                                                { type: "model/gltf-binary" })) };
     $("#impViewer").setAttribute("src", courant.glbUrl);
     $("#impResume").textContent = resume_impression({ triangles: c.tous.length, bbox_mm: c.bbox,
-      pieces: c.pieces.length, ignores: c.ignores }) + ` · volume ${Math.round(volume_de(c.tous) / 1000)} cm³`;
+      pieces: c.pieces.length, ignores: c.ignores }) + ` · volume ${Math.round(volume_de(c.tous) / 1000)} cm³`
+      + (c.notes && c.notes.length ? ` · ${c.notes.join(" · ")}` : "");
     const large = Math.max(...c.bbox.map(([a, b]) => b - a));
     $("#impGarde").textContent = large > 256
       ? `⚠ ${Math.round(large)} mm dépasse le plateau de 256 mm — le lot par tuile imprime pièce à pièce` : "";
@@ -316,6 +355,9 @@ export function initImpression(VL) {
           <label class="imp-relief">Largeur de la plaque (mm) <input id="impLargeur" type="number" step="1" min="10" value="${largeurDefaut}"/></label>
           <label class="imp-relief">Exagération verticale <input id="impExag" type="number" step="0.1" min="0.1" max="10" value="1.5"/></label>
           <label class="imp-relief">Gravure du tracé (mm, 0 = aucune) <input id="impGravure" type="number" step="0.1" min="0" value="0.6"/></label>
+          <label class="imp-relief imp-ligne" title="Plaque découpée en dalles : logements creusés sous le socle, moitié dans chaque dalle, et clés imprimées à part (jeu 0,2 mm)"><input type="checkbox" id="impTenons" checked/> tenons entre dalles (clés + logements)</label>
+          <label class="imp-relief imp-ligne" title="Le parcours GPX à l'altitude enregistrée (&lt;ele&gt;) : un mur à base plate, pièce séparée"><input type="checkbox" id="impRuban" checked/> ruban à l'altitude GPX</label>
+          <label class="imp-relief">Épaisseur du ruban (mm) <input id="impRubanMm" type="number" step="0.1" min="0.8" value="1.6"/></label>
           <label class="imp-calques">Hauteurs (mm, « nom=mm ») <input id="impHauteurs" type="text" value="3"/></label>
           <label class="imp-logo">Hauteur (mm) <input id="impHauteur" type="number" step="0.1" min="0.2" value="5"/></label>
           <label class="imp-tuiles imp-relief imp-pixelart">Socle (mm) <input id="impSocle" type="number" step="0.1" min="0" value="2"/></label>
