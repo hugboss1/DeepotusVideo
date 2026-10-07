@@ -9969,7 +9969,11 @@ def _shot_dict(s) -> dict:
             "sketch_image": s.sketch_image, "sketch_seed": s.sketch_seed,
             "prompt": s.prompt or "",
             "image": getattr(s, "image", None), "image_refs": getattr(s, "image_refs", None),
-            "motion_recipe": s.motion_recipe, "energy": s.energy}
+            "motion_recipe": s.motion_recipe, "energy": s.energy,
+            # t127 (Plateau 3D, P4) : le pont depuis le Plateau
+            "motion_prompt": getattr(s, "motion_prompt", None) or "",
+            "keyframe_image": getattr(s, "keyframe_image", None),
+            "keyframe_end": getattr(s, "keyframe_end", None)}
 
 
 async def _list_shots(session, chapter_id: str):
@@ -10192,7 +10196,7 @@ async def update_shot(shot_id: str, body: dict):
         s = await session.get(Shot, shot_id)
         if not s:
             raise HTTPException(404, "Shot not found")
-        for k in ("source_text", "action", "prompt"):
+        for k in ("source_text", "action", "prompt", "motion_prompt"):   # t127 : motion_prompt éditable à la main aussi
             if k in body:
                 setattr(s, k, body[k] or "")
         if "shot_type" in body and body["shot_type"] in _SHOT_TYPES:

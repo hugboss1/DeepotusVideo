@@ -817,6 +817,7 @@ function renderBoard() {
         <button class="btn primary act-sketch" title="Générer le croquis (même seed si déjà généré)">🎨</button>
         <button class="btn act-resketch" title="Nouveau croquis (seed aléatoire)">🎲</button>
         <button class="btn ghost act-prod" title="Image de production : Nano Banana avec les vues des entités du plan en référence — coût affiché et confirmé avant">🖼</button>
+        <button class="btn ghost act-plateau" title="Plateau 3D : composer ce plan en 3D (gratuit), mesurer son cadre et son mouvement, capturer ses images de début et de fin">🎥</button>
       </div>
       ${s.image ? `<div class="shot-prod"><img src="/api/images/${encodeURIComponent(s.image)}" alt="image de production"
         title="Image de production — ${s.image_refs || 0} vue(s) en référence"><span>🖼 ${s.image_refs || 0} réf.</span>
@@ -886,6 +887,8 @@ function renderBoard() {
     });
     card.querySelector(".act-sketch").addEventListener("click", () => sketchShot(id, sh().sketch_seed));
     card.querySelector(".act-prod").addEventListener("click", () => imageProduction(id));
+    // t127 : le Plateau 3D du plan (la scène du plan est retrouvée, ou créée, par la page ; « ← Atelier » y ramène)
+    card.querySelector(".act-plateau").addEventListener("click", () => { location.href = "/plateau/?shot=" + encodeURIComponent(id); });
     card.querySelector(".act-derive")?.addEventListener("click", () => deriveProduction(id, card));
     card.querySelector(".act-resketch").addEventListener("click", () => sketchShot(id, null));
     card.querySelector(".act-insert").addEventListener("click", async () => {
@@ -1948,7 +1951,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   try {
     await loadGlobalStyle();
     await loadEntities();
-    await loadChapters();
+    // t127 : `?chapter=<id>` rouvre ce chapitre (le retour du Plateau 3D) ; inconnu → le premier, comme avant
+    await loadChapters(new URLSearchParams(location.search).get("chapter") || undefined);
     await renderBible();
   } catch (e) { toast("Chargement initial échoué : " + e.message, true); }
 });

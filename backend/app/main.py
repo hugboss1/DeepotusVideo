@@ -399,6 +399,9 @@ app.include_router(tiles_router, prefix="/api/tiles")
 from app.api.settings_routes import router as reglages_router
 app.include_router(reglages_router, prefix="/api/reglages")
 # __DZ_REGLAGES_ROUTER_END__
+# Plateau 3D (t127, 07/10/2026) : /api/scenes3d — scènes, GLB de scène, mesures, mouvement, captures, pont vers le plan
+from app.services.scene3d_routes import router as scenes3d_router
+app.include_router(scenes3d_router, prefix="/api/scenes3d")
 # __DZ_DICTATION_ROUTER_BEGIN__
 # Dictée des champs IA (27/09/2026) : /api/dictation/estimate et /api/dictation
 from app.services.dictation_service import router as dictation_router
@@ -642,6 +645,29 @@ if _etabli.is_dir():
     async def _etabli_no_slash():
         from fastapi.responses import RedirectResponse
         return RedirectResponse(url="/etabli/", status_code=307)
+
+# ── /plateau : le Plateau 3D (t127, 07/10/2026) — composer un plan en 3D avant tout tir payant ──────────────────
+# Même patron standalone que /etabli, HORS du bundle (spec §8) ; three.js depuis /assets/three, canevas /lib3d.
+_PLATEAU_DIR = Path(__file__).resolve().parent.parent.parent / "frontend" / "plateau"
+if _PLATEAU_DIR.is_dir():
+    from fastapi.staticfiles import StaticFiles as _SFPl
+
+    class _PlateauStatic(_SFPl):
+        """no-cache comme /etabli : plateau.js et calc.js gardent un nom stable."""
+        async def get_response(self, path, scope):
+            resp = await super().get_response(path, scope)
+            try:
+                resp.headers["Cache-Control"] = "no-cache, must-revalidate"
+            except Exception:
+                pass
+            return resp
+
+    app.mount("/plateau", _PlateauStatic(directory=str(_PLATEAU_DIR), html=True), name="plateau")
+
+    @app.get("/plateau", include_in_schema=False)
+    async def _plateau_no_slash():
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/plateau/", status_code=307)
 
     logger.info(f"Serving etabli from {_etabli}")
 

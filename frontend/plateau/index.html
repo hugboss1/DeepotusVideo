@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deepotus — Plateau</title>
+<link rel="stylesheet" href="plateau.css">
+<!-- Carte EN LIGNE (une import map externe n'est supportée par aucun navigateur — mesuré pour l'Établi) ; elle doit
+     rester identique à /assets/three/importmap.json : test_plateau_ecran.py le vérifie. -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "/assets/three/three.module.min.js",
+    "three/addons/": "/assets/three/addons/"
+  }
+}
+</script>
+</head>
+<body>
+<div class="plateau" id="plateau">
+
+  <!-- ══════════ gauche : la scène ══════════ -->
+  <aside class="rail">
+    <div class="dt-label">Scène</div>
+    <div class="ligne"><input id="nomScene" class="champ" placeholder="nom de la scène" aria-label="Nom de la scène"></div>
+    <div class="ajouts">
+      <button class="btn" data-forme="boite" title="Une boîte — mur, table, caisse">＋ Boîte</button>
+      <button class="btn" data-forme="capsule" title="Une capsule — un personnage debout">＋ Capsule</button>
+      <button class="btn" data-forme="cylindre" title="Un cylindre — colonne, tronc">＋ Cylindre</button>
+      <button class="btn" data-forme="sphere" title="Une sphère">＋ Sphère</button>
+    </div>
+    <div class="ligne">
+      <select id="selMaillage" class="champ" aria-label="Maillage à poser" title="Un maillage d'un job Game Assets 3D ou d'une entité de la bible"><option value="">maillage…</option></select>
+      <button class="btn" id="btnMaillage" title="Poser ce maillage (niveau allégé : 2 500 triangles)">＋</button>
+    </div>
+    <ul class="instances" id="instances"></ul>
+    <div class="fiche" id="fiche"></div>
+    <div class="tris" id="tris" title="Total de triangles de la scène, avant composition"></div>
+  </aside>
+
+  <!-- ══════════ centre : le cadre ══════════ -->
+  <main class="centre">
+    <header class="head">
+      <a class="head-btn" id="lienRetour" href="/atelier/" title="Revenir au storyboard de l'Atelier">← Atelier</a>
+      <span class="head-title">Plateau</span>
+      <span class="head-chip" id="chipPlan">aucun plan lié</span>
+      <span class="head-etat" id="etat" role="status"></span>
+    </header>
+    <div class="scene" id="zone">
+      <div class="cadre" id="cadre">
+        <canvas id="canevas"></canvas>
+        <svg class="guides" id="guides" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+      </div>
+    </div>
+    <div class="lecture" id="lecture" aria-live="polite"></div>
+    <div class="timeline">
+      <button class="btn" id="btnPlay" title="Lire le mouvement en boucle (Espace)">▶</button>
+      <input type="range" id="tete" min="0" max="4" step="0.01" value="0" aria-label="Tête de lecture">
+      <span class="tc" id="tc">0,00 s</span>
+      <div class="kfs" id="kfs" aria-label="Keyframes"></div>
+    </div>
+  </main>
+
+  <!-- ══════════ droite : cadre, mouvement, sorties ══════════ -->
+  <aside class="rail droite">
+    <div class="dt-label">Cadre</div>
+    <div class="ligne"><span>Format</span>
+      <select id="aspect" class="champ"><option>16:9</option><option>9:16</option><option>1:1</option><option>2.39:1</option></select></div>
+    <div class="ligne"><span>Focale</span><input id="focale" class="champ num" type="number" min="14" max="200" step="1"> <span>mm</span>
+      <span class="sous" id="fov"></span></div>
+    <div class="ligne guides-bascules">
+      <label><input type="checkbox" id="gTiers" checked> tiers</label>
+      <label><input type="checkbox" id="gCroix" checked> croix</label>
+      <label><input type="checkbox" id="gTitre"> zone-titre</label>
+      <label><input type="checkbox" id="gHorizon" checked> horizon</label>
+    </div>
+    <div class="mesure" id="mesure"></div>
+
+    <div class="dt-label">Mouvement</div>
+    <div class="ligne">
+      <button class="btn" id="btnKf" title="Poser un keyframe à la tête de lecture avec la caméra courante (K)">◆ Keyframe</button>
+      <select id="preset" class="champ" aria-label="Preset de mouvement">
+        <option value="">preset…</option><option value="travelling">travelling avant</option>
+        <option value="orbite90">orbite 90°</option><option value="grue">grue descendante</option><option value="fixe">plan fixe</option>
+      </select>
+    </div>
+    <ol class="liste-kf" id="listeKf"></ol>
+    <div class="mouvement" id="mouvement"></div>
+
+    <div class="dt-label">Sorties</div>
+    <div class="ligne">
+      <button class="btn" id="btnCompose" title="Composer le GLB de scène (versionné, avec sa fiche)">Composer le GLB</button>
+      <a class="btn lien" id="lienGlb" href="#" download aria-disabled="true">↓ GLB</a>
+    </div>
+    <div class="ligne">
+      <button class="btn" id="btnCapture" title="Capturer le cadre du premier et du dernier keyframe vers la Bibliothèque">Capturer début / fin</button>
+    </div>
+    <div class="captures" id="captures"></div>
+    <div class="ligne"><button class="btn primaire" id="btnPlan" title="Proposer au plan lié : type de plan, mouvement, prompt de mouvement, images de bornes">Appliquer au plan…</button></div>
+    <div class="vers-plan" id="versPlan"></div>
+  </aside>
+</div>
+<script type="module" src="plateau.js"></script>
+</body>
+</html>
