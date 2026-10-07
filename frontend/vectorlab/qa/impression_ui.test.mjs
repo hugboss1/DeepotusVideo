@@ -1,6 +1,6 @@
 // impression_ui.test.mjs — lot D : la logique pure du dialogue d'impression
 // (lecture des réglages bornés, hauteurs par calque, libellé de résumé).
-import { reglages_lire, hauteurs_par_calque, resume_impression } from "../js/mod-impression.js";
+import { reglages_lire, hauteurs_par_calque, resume_impression, ruban_points } from "../js/mod-impression.js";
 const echecs = [];
 const ok = (nom, cond, detail = "") => {
   if (!cond) echecs.push(nom + (detail ? " — " + String(detail).slice(0, 160) : ""));
@@ -42,5 +42,19 @@ const ok = (nom, cond, detail = "") => {
   ok("lot 3 — bornes : cellule ≥ 0,2, hmax ≥ hmin + 0,2", b.cellule_mm === 0.2 && b.hmax === 4.2, JSON.stringify(b));
   ok("lot 3 — hauteurs_lire : mm par couleur, défaut sur valeur folle", JSON.stringify(hauteurs_lire([{ couleur: "#FF0000", mm: "3" }, { couleur: "#00FF00", mm: "abc" }], 2)) === JSON.stringify({ "#FF0000": 3, "#00FF00": 2 }));
 }
+/* ── t124 : tenons et ruban — réglages, et le parcours GPX ramené aux mm de la plaque ── */
+{
+  const d = reglages_lire({ mode: "relief" });
+  ok("t124 — défauts : tenons et ruban cochés, ruban 1,6 mm", d.tenons === true && d.ruban === true && d.ruban_mm === 1.6, JSON.stringify(d));
+  const n = reglages_lire({ mode: "relief", tenons: false, ruban: false, ruban_mm: "0.1" });
+  ok("t124 — décochés, épaisseur bornée à 0,8 mm", n.tenons === false && n.ruban === false && n.ruban_mm === 0.8, JSON.stringify(n));
+  // emprise 100 × 50 px ; relief 11 × 6 cellules → 10 × 5 intervalles de 2 mm ; nord en haut (y px petit = y mm grand)
+  const E = { x: 0, y: 0, w: 100, h: 50 }, R = { w: 11, h: 6, min: 1000 };
+  const pts = ruban_points({ xy: [[0, 0], [100, 50], [50, 25]], ele: [1000, 1100, 900] }, E, R, { cell_mm: 2, socle_mm: 2, mm_par_m: 0.01, exageration: 2 });
+  const r3 = (v) => v.map((q) => q.map((x) => Math.round(x * 1000) / 1000));
+  ok("t124 — x, y en mm de la plaque (coin NO = (0, 10)), z = socle + (ele − min) × mm/m × exagération",
+     JSON.stringify(r3(pts.slice(0, 2))) === "[[0,10,2],[20,0,4]]", JSON.stringify(r3(pts)));
+  ok("t124 — sous le minimum du relief : le ruban garde le socle", pts[2][2] === 2, JSON.stringify(pts[2]));
+}
 if (echecs.length) { console.error("ECHECS impression_ui :\n- " + echecs.join("\n- ")); process.exit(1); }
-console.log("QA impression_ui : PASS (14 controles)");
+console.log("QA impression_ui : PASS (18 controles)");

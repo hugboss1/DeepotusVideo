@@ -441,6 +441,9 @@ details > summary.panneau-tete { cursor: pointer; list-style: none; }
 /* ── lot H : carte réelle ── */
 .carte-libelle { font-size: 12px; color: var(--aff-muet); margin: 4px 0; }
 .carte-attribution { font-size: 10px; color: var(--aff-muet); margin: 2px 0; }
+/* t124 : le profil altimétrique — trait couleur de la trace, légendes en muet */
+.carte-profil svg { display: block; width: 100%; height: auto; color: #d0553a; }
+.carte-profil svg text { fill: var(--aff-muet); }
 #panneauCarte input[type="number"] { width: 56px; }
 
 /* ── lot B : poignées de forme, pivot, instantanés ── */

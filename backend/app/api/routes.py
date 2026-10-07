@@ -10814,10 +10814,12 @@ async def replace_vector_image(doc_id: str, name: str, request: Request):
     if len(octets) > _VECTOR_IMAGE_MAX:
         raise HTTPException(413, "image: 40 Mo au plus")
     try:
+        avant = VS.empreinte_image(doc_id, name)
         rev = VS.remplacer_image(doc_id, name, octets)
     except (ValueError, FileNotFoundError):
         raise HTTPException(404, "Image du document introuvable")
-    return {"name": name, "rev": rev}
+    # t124 : l'empreinte du contenu écrit (l'objet la porte en `px`) et celle qu'il remplace (l'origine)
+    return {"name": name, "rev": rev, "empreinte": VS.empreinte_image(doc_id, name), "avant": avant}
 
 
 @router.post("/vector/docs/{doc_id}/images/{name}/annuler")
@@ -10826,12 +10828,31 @@ async def undo_vector_image(doc_id: str, name: str):
     rev = VS.annuler_image(doc_id, name)
     if rev is None:
         raise HTTPException(409, "Rien à annuler pour cette image")
-    return {"name": name, "rev": rev}
+    return {"name": name, "rev": rev, "empreinte": VS.empreinte_image(doc_id, name)}
+
+
+@router.post("/vector/docs/{doc_id}/images/{name}/restaurer")
+async def restore_vector_image(doc_id: str, name: str, body: dict):
+    """t124 : le Ctrl+Z du document remet le contenu que l'étape montrait — {empreinte} → {name, rev,
+    empreinte} ; 404 si l'instantané n'existe pas (ou plus : INSTANTANES_MAX)."""
+    from app.services import vector_store as VS
+    e = str((body or {}).get("empreinte") or "")
+    try:
+        rev = VS.restaurer_image(doc_id, name, e)
+    except FileNotFoundError:
+        raise HTTPException(404, "Instantané introuvable (trop ancien ?)")
+    return {"name": name, "rev": rev, "empreinte": e}
 
 
 @router.get("/vector/docs/{doc_id}/images/{name}")
-async def get_vector_image(doc_id: str, name: str):
+async def get_vector_image(doc_id: str, name: str, px: str | None = None):
     from app.services import vector_store as VS
+    if px:
+        # t124 : l'instantané par empreinte — adresse = contenu, donc immuable
+        octets = VS.lire_instantane(doc_id, name, px)
+        if octets is None:
+            raise HTTPException(404, "Instantané introuvable")
+        return Response(content=octets, media_type="image/png", headers={"Cache-Control": "private, max-age=31536000, immutable"})
     octets = VS.lire_image(doc_id, name)
     if octets is None:
         raise HTTPException(404, "Image du document introuvable")

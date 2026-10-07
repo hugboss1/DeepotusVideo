@@ -336,7 +336,7 @@ export function initOutils2(VL) {
       try { etat.histo.instantane(nom, etat.doc); VL.toast(`instantané « ${nom} » pris`); rendreInstantanes(); } catch (e) { VL.toast(e.message, true); }
     });
     hI.querySelectorAll("[data-ins]").forEach((b) => b.addEventListener("click", () => {
-      VL.executer((doc) => { const r = etat.histo.restaurer(b.dataset.ins); for (const k of Object.keys(doc)) delete doc[k]; Object.assign(doc, r); });
+      VL.executer((doc) => { const r = etat.histo.restaurer(b.dataset.ins); for (const k of Object.keys(doc)) delete doc[k]; Object.assign(doc, r); }); VL.surHistorique();   // t124 : les pixels de l'instantané reviennent aussi
       VL.setSelection([]);
     }));
   }

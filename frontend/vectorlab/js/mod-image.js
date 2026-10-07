@@ -17,9 +17,10 @@ export function href_est_absolu(h) {
   return /^(data:|blob:|https?:|\/)/.test(String(h || ""));
 }
 
-export function image_url(docId, href, rev) {
+export function image_url(docId, href, rev, px) {
   if (href_est_absolu(href)) return href;
-  const v = Number.isInteger(rev) && rev > 0 ? `?v=${rev}` : "";      // lot E : révision raster
+  // t124 : l'empreinte désigne le CONTENU (instantané immuable côté serveur) ; à défaut, la révision raster
+  const v = /^[0-9a-f]{16}$/.test(px || "") ? `?px=${px}` : Number.isInteger(rev) && rev > 0 ? `?v=${rev}` : "";      // lot E : révision raster
   return `/api/vector/docs/${encodeURIComponent(docId)}/images/${encodeURIComponent(href)}${v}`;
 }
 
@@ -84,7 +85,7 @@ export function libListeHTML(images, q) {
 export function initImage(VL) {
   const { $, etat } = VL;
 
-  VL.imageUrl = (href, rev) => image_url(etat.docId, href, rev);
+  VL.imageUrl = (href, rev, px) => image_url(etat.docId, href, rev, px);
 
   async function deposer(png) {
     const r = await fetch(`/api/vector/docs/${encodeURIComponent(etat.docId)}/images`,

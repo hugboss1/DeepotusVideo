@@ -9,7 +9,7 @@ import { MODES, FORMATS, tranches_de, resolutions_lire, plan_export, mm_px, cadr
 import { dxf_de, polylignes_mm } from "./mod-dxf.js";
 import { bbox_objet } from "./mod-doc.js";
 import { aplatir_objet } from "./mod-bool.js";
-import { pdf_page, pdf_assembler } from "./mod-pdf.js";
+import { pdf_page, pdf_assembler, matrice_de, matrice_mul } from "./mod-pdf.js";
 
 const SNS = "http://www.w3.org/2000/svg";
 export const HINTS4 = { tranche: "glisser un rectangle : une tranche à exporter · Échap efface les tranches dessinées" };
@@ -60,6 +60,47 @@ export function textes_de(doc) {
   for (const c of doc.calques || []) visiter(c.objets);
   for (const s of Object.values(doc.symboles || {})) visiter(s.objets);
   return out;
+}
+// t124 : ce que la découpe reçoit, en anneaux du document. Le transform des groupes se compose (il se
+// perdait : la visite descendait dans les enfants sans lui) ; une instance découpe les objets de son
+// symbole à sa place (même ordre que le PDF : transform · placement) ; un texte découpe les contours de
+// ses glyphes, fournis par l'écran (opentype), le trou d'un O compris. Le reste est sauté ET compté par
+// raison : image (pas de contour à découper), cadre et texte sur chemin (pas de glyphes posés), texte
+// refusé (gras/italique synthétisés) ou police non chargée, symbole absent.
+export function anneaux_dxf(doc, glyphes = () => null) {
+  const anneaux = [], sautes = {};
+  const saute = (r) => { sautes[r] = (sautes[r] || 0) + 1; };
+  // aplatir_objet (mod-bool) ne lit que rotate() dans un transform : on l'aplatit nu, puis la matrice
+  // complète (mod-pdf) s'applique aux points
+  const aplatir = (o, m) => {
+    let an;
+    try { an = aplatir_objet({ ...o, transform: undefined }); } catch (e) { saute(o.type); return; }
+    for (const a of an) anneaux.push(a.map(([x, y]) => [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]]));
+  };
+  const SANS = { image: "image", cadre: "cadre de texte", textechemin: "texte sur chemin" };
+  const visiter = (objs, mParent) => {
+    for (const o of objs || []) {
+      if (SANS[o.type]) { saute(SANS[o.type]); continue; }
+      const m = matrice_mul(mParent, matrice_de(o.transform));
+      if (o.type === "groupe") { visiter(o.enfants, m); continue; }
+      if (o.type === "instance") {
+        if (doc.edition && doc.edition.instance === o.id) continue;      // t123 : son calque d'édition la montre
+        const sym = (doc.symboles || {})[o.symbole];
+        if (!sym) { saute("symbole absent"); continue; }
+        visiter(sym.objets, matrice_mul(m, [o.sx === undefined ? 1 : +o.sx, 0, 0, o.sy === undefined ? 1 : +o.sy, +o.x || 0, +o.y || 0]));
+        continue;
+      }
+      if (o.type === "texte") {
+        const g = glyphes(o);
+        if (!g || g.raison) { saute((g && g.raison) || "texte (police non chargée)"); continue; }
+        for (const gl of g) aplatir({ type: "path", d: gl.d }, m);
+        continue;
+      }
+      aplatir(o, m);
+    }
+  };
+  for (const c of doc.calques || []) if (c.visible !== false) visiter(c.objets, [1, 0, 0, 1, 0, 0]);
+  return { anneaux, sautes };
 }
 export function resume_pdf(st) {
   const r = Object.entries(st.raisons || {}).map(([k, n]) => (n > 1 ? `${k} ×${n}` : k)).join(", ");
@@ -248,11 +289,16 @@ export function initExportPlus(VL) {
     if (!rp.ok) throw new Error(d.detail || rp.statusText);
     return d.filename;
   }
-  function dxfTranche(t, r) {
+  // t124 : textes (glyphes de l'écran, comme le PDF) et instances découpés ; ce qui est sauté s'additionne
+  // dans `ignores` pour le toast
+  async function dxfTranche(t, r, ignores = {}) {
     const doc = docPour(t);
-    const anneaux = [];
-    const visiter = (objs) => { for (const o of objs || []) { if (o.type === "groupe") { visiter(o.enfants); continue; } if (["texte", "cadre", "textechemin", "image", "instance"].includes(o.type)) continue; try { anneaux.push(...aplatir_objet(o)); } catch (e) { /* objet non aplatissable */ } } };
-    for (const c of doc.calques) if (c.visible !== false) visiter(c.objets);
+    const glyphes = new Map();
+    for (const o of textes_de(doc)) {
+      try { glyphes.set(o.id, VL.glyphesTexte ? await VL.glyphesTexte(o) : null); } catch (err) { glyphes.set(o.id, { raison: `texte (${err.message})` }); }
+    }
+    const { anneaux, sautes } = anneaux_dxf(doc, (o) => glyphes.get(o.id) || null);
+    for (const [k, n] of Object.entries(sautes)) ignores[k] = (ignores[k] || 0) + n;
     // un anneau compte s'il CHEVAUCHE la tranche (bbox), pas seulement s'il y a un sommet dedans
     const c = t.cadre;
     const dedans = anneaux.filter((a) => {
@@ -273,7 +319,7 @@ export function initExportPlus(VL) {
   async function exporterLot() {
     const r = reglages_lire(etat.exportPlus), p = plan();
     if (!p.length) throw new Error("rien à exporter");
-    const faits = [], sautes = [];
+    const faits = [], sautes = [], ignores = {};
     let bilanPdf = "";
     for (const e of p) {
       if (e.format === "pdf" && r.pdf === "vectoriel") {
@@ -295,7 +341,7 @@ export function initExportPlus(VL) {
         telecharger(await rp.blob(), e.nom); faits.push(e.nom); continue;
       }
       if (e.format === "dxf") {
-        const dxf = dxfTranche(e.tranche, r);
+        const dxf = await dxfTranche(e.tranche, r, ignores);
         if (!dxf) { sautes.push(e.nom); continue; }
         telecharger(new Blob([dxf], { type: "application/dxf" }), e.nom); faits.push(e.nom); continue;
       }
@@ -303,7 +349,7 @@ export function initExportPlus(VL) {
       if (e.format === "svg") { telecharger(new Blob([svg], { type: "image/svg+xml" }), e.nom); faits.push(e.nom); continue; }
       faits.push(await deposer(await rasteriser(svg, cadre, e.k, e.format, r), e.nom));
     }
-    VL.toast(`export lot : ${faits.length} fichier(s) — ${faits.slice(0, 3).join(", ")}${faits.length > 3 ? "…" : ""}${sautes.length ? ` · ${sautes.length} DXF vide(s) sauté(s)` : ""}${bilanPdf ? ` · ${bilanPdf}` : ""}`);
+    VL.toast(`export lot : ${faits.length} fichier(s) — ${faits.slice(0, 3).join(", ")}${faits.length > 3 ? "…" : ""}${sautes.length ? ` · ${sautes.length} DXF vide(s) sauté(s)` : ""}${Object.keys(ignores).length ? ` · hors découpe : ${Object.entries(ignores).map(([k, n]) => (n > 1 ? `${k} ×${n}` : k)).join(", ")}` : ""}${bilanPdf ? ` · ${bilanPdf}` : ""}`);
     return faits;
   }
 
