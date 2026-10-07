@@ -3796,8 +3796,9 @@ _lc_bak = _bak_s.count("trackStRef.current[c.tr]&&trackStRef.current[c.tr].l")
 check("P14_le_verrou_suit_la_piste_du_clip",
       # L7-B D-42 (24/09/2026) : + 1 -> + 2, la garde de verrou du geste dzSceneCut (R_EC1) lit `c.tr`
       # L5 (24/09/2026, tache 6) : + 2 -> + 3, la garde de verrou du geste dzGradePaste (R_EC1) lit `c.tr`
-      _lk == 3 and _lc == _lc_bak + 3 and _v2[2] == 0 and _v2_bak[2] == 8,
-      f"[k.tr]={_lk} (veut 3) [c.tr]={_lc} (veut bak {_lc_bak} + 3) "
+      # t117 (06/10/2026) : + 3 -> + 4, svmSetV1Speed (vitesse de TOUTE piste vidéo) lit le verrou de la piste du clip
+      _lk == 3 and _lc == _lc_bak + 4 and _v2[2] == 0 and _v2_bak[2] == 8,
+      f"[k.tr]={_lk} (veut 3) [c.tr]={_lc} (veut bak {_lc_bak} + 4) "
       f"verrou v2 bundle={_v2[2]} bak={_v2_bak[2]}")
 # DEUX FACES pour chaque identifiant de la couche que les sections appellent
 # (un appel dans le bundle, un export et une declaration dans la couche).
@@ -7450,21 +7451,20 @@ check("js_bouton_suit_la_piste_du_plan",
 # un motif sur la seule première phrase, supprimer la seconde laissait le banc
 # à 139/0. `endswith` épingle aussi sa PLACE : l'avertissement finit le texte,
 # il ne s'insère pas au milieu de la phrase qui décrit le lot.
-_AV = (" ATTENTION — mesuré : le rendu n'emporte pas les effets des pistes "
-       "d'overlay. Sur V2, cet étalonnage se verra dans l'inspecteur et dans "
-       "l'aperçu, pas dans la vidéo exportée.")
-check("js_bouton_hors_v1_avertit_du_rendu",
-      (d.get("bv_titre") or "").endswith(_AV)
-      and "ATTENTION" not in (d.get("b_titre") or ""),
-      f'V2:{d.get("bv_titre")!r} | V1 porte ATTENTION : '
-      f'{"ATTENTION" in (d.get("b_titre") or "")}')
+# t117 (06/10/2026) : cette mesure datait d'AVANT le lot L5, qui rend la pile d'effets des pistes hautes (dict v2
+# « effects »). MESURÉ sur un rendu réel : un plan rouge de V2 sort gris avec grade_basic désaturé, cyan avec invert.
+# L'avertissement disait donc FAUX ; il est retiré, et c'est son ABSENCE qui est épinglée — après le témoin positif
+# que le titre V2 est bien celui du lot (« sur 1 autre plan V2. »).
+check("js_bouton_hors_v1_ne_porte_plus_l_avertissement_faux",
+      "sur 1 autre plan V2." in (d.get("bv_titre") or "")
+      and "ATTENTION" not in (d.get("bv_titre") or "") and "ATTENTION" not in (d.get("b_titre") or ""),
+      f'V2:{d.get("bv_titre")!r}')
 # ET DANS LA NOTE, pas seulement dans le titre. P4 revendiquait « hors V1, le
 # titre ET la note portent l'avertissement » : sous banc ce n'était vrai qu'à
 # moitié — retirer `+hors` de la note laissait ce banc à 139/0, parce que rien
 # ne CLIQUAIT le bouton V2 et que la note V1, elle, vaut la chaîne vide.
-check("js_bouton_hors_v1_avertit_aussi_dans_la_note",
-      (d.get("bv_note") or "").endswith(_AV)
-      and "ATTENTION" not in (d.get("b_note") or ""),
+check("js_bouton_hors_v1_ni_dans_la_note",
+      bool(d.get("bv_note")) and "ATTENTION" not in (d.get("bv_note") or ""),
       f'note V2 : {d.get("bv_note")!r}')
 
 # ── P4 : le CORPS du bouton, exécuté (stub `r` du shim) ─────────────────────
@@ -8459,14 +8459,16 @@ check("js_P14_le_cablage_notifie_la_nature_de_la_piste_creee",
       and _cn[2].startswith("Piste A4 ajoutée — audio")
       and d.get("p14_cab_sans_note") == 2,
       f'{[c[:44] for c in _cn]} sans_note={d.get("p14_cab_sans_note")}')
-# LES TITRES, MOT POUR MOT (le plan de la tache 20), suivis de la phrase
-# d'annulation du genre « piste » (tb7 le tient) ; celui de « vidéo » porte
-# l'ECART ASSUME : V1 seule a durée, transitions, vitesse, effets.
+# LES TITRES, MOT POUR MOT, suivis de la phrase d'annulation du genre « piste » (tb7 le tient). t117 (06/10/2026) :
+# l'ÉCART ASSUMÉ de la tâche 20 est LEVÉ — les plans des pistes hautes ont transitions, vitesse et effets ; V1 garde
+# la durée.
 _T_VID = ("Ajouter une piste vidéo plein cadre — ses plans RECOUVRENT V1 "
           "pendant leur durée et leur son est extrait sur la piste de dialogue ; "
-          "V1 reste la séquence maîtresse (durée, transitions, vitesse, effets).")
+          "ses plans ont leurs transitions, leur vitesse et leurs effets, comme V1 "
+          "(fondus visibles dans l'aperçu rendu) ; V1 reste la séquence maîtresse (durée).")
 _T_INC = ("Ajouter une piste d'incrustation — image dans l'image, réglable "
-          "(position, échelle, rotation, opacité), muette.")
+          "(position, échelle, rotation, opacité), muette ; ses plans ont aussi "
+          "transitions, vitesse et effets.")
 _ct = d.get("p14_cab_titres") if isinstance(d.get("p14_cab_titres"), list) else ["", ""]
 check("js_P14_les_titres_des_deux_boutons_sont_ceux_du_plan_mot_pour_mot",
       len(_ct) == 2 and _ct[0].startswith(_T_VID) and _ct[1].startswith(_T_INC)
@@ -14404,8 +14406,11 @@ check("D21_les_seize_appels_de_trackKind_sont_des_egalites",
       # vidéo (`==="video"`, repli de R_DZ4 : V1 et overlays V2) : une EGALITE, pas une lecture nue.
       # L5 (24/09/2026, tache 6) : 38 -> 40, 36 -> 38 -- DEUX comparaisons `!=="video"` (R_EC1) : l'entree « Coller le
       # grade » du menu de clip est grisee hors d'une piste video, et le geste dzGradePaste le refuse et le dit.
-      and s.count(nl("trackKind(")) == 40
-      and len(_TKAPP) == 38 and all(k in ("===", "!==") for k in _TKAPP)
+      # t117 (06/10/2026) : 40 -> 48, 38 -> 46. HUIT de plus, toutes des COMPARAISONS (six `===`, deux `!==`) — les
+      # portes V1 levées pour toute piste vidéo : menu de clip, puce de désynchro, Alt+T, svmSetV1Speed (`!==`),
+      # vitesse de la charge utile, inspecteur de vitesse, inspecteur de transition (`!==`), losanges de jonction.
+      and s.count(nl("trackKind(")) == 48
+      and len(_TKAPP) == 46 and all(k in ("===", "!==") for k in _TKAPP)
       and s.count(nl("var rkd=trackKind(rk.tr);")) == 1
       and s.count(nl("if(rkd!==akd){")) == 1,
       f'bak={_bak.count(_nlb("trackKind(")) if _bak else "?"} '
@@ -15203,7 +15208,8 @@ check("DZ3_le_zoom_en_direct_ecrit_la_video_active_hors_R_V3",
 # `o.dz=` n'existe qu'une fois et nulle part dans le .bak (payload d'avant
 # octet pour octet sans zoom).
 check("DZ4_le_payload_joint_dz_seulement_s_il_existe",
-      s.count(nl(P.A_DZ4 + "\n")) == 1
+      # t117 (06/10/2026) : l'arrondi de vitesse est suivi du commentaire « pistes hautes comme V1 » (porte levée)
+      s.count(nl(P.A_DZ4 + "   /* t117 : pistes hautes comme V1 */\n")) == 1
       and s.count('var dzD=c.tr==="v1"&&DzTracks.dzOf(c);if(dzD)o.dz=dzD;') == 1
       and s.count("o.dz=") == 1
       and (_bak.count(P.A_DZ4) == 1 and _bak.count("o.dz=") == 0 if _bak else False),
@@ -16693,14 +16699,14 @@ check("EC1_main_ni_Raccourcis_double_ni_Guide_keys_panel_vient_du_modele_ecart_d
 # tolerance que blade : .05), off hors du clip ; Supprimer = delClipById ;
 # Remplacer = dzReplaceArm (off sans src -- ECART date : le geste R_M16 accepte
 # les pistes audio, le plan disait « ou pas V1 ») ; Effets off sur l'audio ;
-# six vitesses (svmSetV1Speed, off hors V1/sans source) avec ✓ sur la courante ;
+# six vitesses (svmSetV1Speed, off hors piste VIDÉO/sans source — t117 : toute piste vidéo) avec ✓ sur la courante ;
 # Transition = openTransPopAt(id, clientX), off sans voisin gauche (DzTracks.voisins).
 check("EC1_clip_les_items_Couper_Supprimer_Remplacer_Effets_six_vitesses_Transition_avec_leurs_gardes",
       _EC1.count('{lbl:"Couper à la tête",combo:svmKeyLabel("blade"),off:!(ph>c.start+.05&&ph<c.end-.05),run:function(){dzFire("blade")}}') == 1
       and _EC1.count('{lbl:"Supprimer",combo:svmKeyLabel("delete"),run:function(){delClipById(id)}}') == 1
       and _EC1.count('{lbl:"Remplacer la source…",off:!c.src,run:function(){dzReplaceArm(c)}}') == 1
       and _EC1.count('{lbl:"Effets…",off:trackKind(c.tr)==="audio",run:function(){setFxPick(!0)}}') == 1
-      and _EC1.count('[.25,.5,.75,1,1.5,2].map(function(v){return {lbl:"Vitesse "+Math.round(v*100)+" %",combo:Math.abs(sp-v)<1e-6?"✓":"",off:!v1||!c.src||!c.src.job_id,run:function(){svmSetV1Speed(id,v)}}})') == 1
+      and _EC1.count('[.25,.5,.75,1,1.5,2].map(function(v){return {lbl:"Vitesse "+Math.round(v*100)+" %",combo:Math.abs(sp-v)<1e-6?"✓":"",off:!vid||!c.src||!c.src.job_id,run:function(){svmSetV1Speed(id,v)}}})') == 1
       and _EC1.count('{lbl:"Transition…",off:!g,run:function(){openTransPopAt(id,o.x)}}') == 1
       # L7 D-22 (T6, 24/09/2026) : un quatrieme separateur, entre les entrees de sous-titres et « Supprimer la piste »
       and _EC1.count("{sep:!0}") == 4 and s.count("DzTracks.voisins(cs,c).g") == 1
@@ -17327,9 +17333,10 @@ print("\n[L7] D-10 tache 1 : preset Resolve, export / import du mappage, action 
 # .bak, non reservee) ; (3) le premier clip de V1 n'a pas de coupe a sa gauche (le backend y
 # force « cut », MS:1888) -> la branche refuse sans voisin gauche (DzTracks.voisins).
 _L7A1 = ' {id:"trans_add",sec:"Montage",lbl:"transition : fondu à la coupe du plan sélectionné",combo:"Alt+T"},'
-_L7A2 = ('      if(id==="trans_add"){var dzTc=(clipsRef.current||[]).filter(function(k){return k&&k.id===selRef.current&&k.tr==="v1"})[0];'
-         'if(!dzTc){fireNote("Transition : sélectionnez d\'abord un plan de V1.");return}'
-         'if(trackStRef.current.v1&&trackStRef.current.v1.l){fireNote("Piste V1 verrouillée.");return}'
+# t117 (06/10/2026) : Alt+T vaut pour un plan de TOUTE piste vidéo, et lit le verrou de SA piste
+_L7A2 = ('      if(id==="trans_add"){var dzTc=(clipsRef.current||[]).filter(function(k){return k&&k.id===selRef.current&&trackKind(k.tr)==="video"})[0];'
+         'if(!dzTc){fireNote("Transition : sélectionnez d\'abord un plan vidéo.");return}'
+         'if(trackStRef.current[dzTc.tr]&&trackStRef.current[dzTc.tr].l){fireNote("Piste "+String(dzTc.tr).toUpperCase()+" verrouillée.");return}'
          'if(!DzTracks.voisins(clipsRef.current,dzTc).g){fireNote("Transition : « "+(dzTc.label||dzTc.id)+" » n\'a pas de coupe à sa gauche.");return}'
          'svmSetTransType(dzTc.id,"fade");fireNote("Fondu de "+svmTransS(dzTc).toFixed(1)+" s posé à la coupe de « "+(dzTc.label||dzTc.id)+" » — le losange en règle la durée.");return}')
 _iL7a1 = s.find(nl(_L7A1)); _iL7adj = s.find(nl(' {id:"adjust_add",sec:"Montage",lbl:"ajustement : poser un clip a la tete",combo:"Maj+J"},'))
@@ -17346,7 +17353,7 @@ check("L7a2_dispatch_trans_add_replie_dans_R_R2_apres_adjust_add_sel_V1_verrou_v
       # DzTracks.voisins( x3 : E-6 (le menu contextuel, B:2182) l'appelait deja, cette branche est la seconde,
       # L7 D-3b (T4-bis) la troisieme (la jonction en edition, L7g1)
       and s.count("DzTracks.voisins(") == 3 and _L7A2.count("DzTracks.voisins(") == 1 and s.count("function svmTransS(c)") == 1
-      and _L7A2.find('fireNote("Transition : sélectionnez') < _L7A2.find("Piste V1 verrouillée") < _L7A2.find("DzTracks.voisins(") < _L7A2.find('svmSetTransType(dzTc.id,"fade")')
+      and _L7A2.find('fireNote("Transition : sélectionnez') < _L7A2.find('" verrouillée."') < _L7A2.find("DzTracks.voisins(") < _L7A2.find('svmSetTransType(dzTc.id,"fade")')
       and (_bak.count("DzTracks.voisins(") == 0 and _bak.count('svmSetTransType(dzTc.id') == 0 and _bak.count("function svmSetTransType(id,t){") == 1 if _bak else False),
       f"dis={s.count(nl(_L7A2))} dansR2={_L7A2 in P.R_R2} ordre={(_iL7dis, _iL7a2)} voisins={s.count('DzTracks.voisins(')}")
 # L7a3 : la section, ancre LIBRE (le commentaire « Réinitialiser tout » du panneau, 1/0/1), trois boutons AVANT le

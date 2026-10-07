@@ -386,12 +386,12 @@ function dzmAddDit(ts,kind){
     "sous les pistes audio existantes.";
   else if(ty==="vidéo")note="Piste "+nom+" ajoutée — vidéo plein cadre : "+
     "ses plans recouvrent V1 pendant leur durée et leur son est extrait sur "+
-    "la piste de dialogue ; V1 reste la séquence maîtresse (durée, "+
-    "transitions, vitesse, effets).";
+    "la piste de dialogue ; ses plans ont leurs transitions, leur vitesse et "+
+    "leurs effets, comme V1 ; V1 reste la séquence maîtresse (durée).";
   else note="Piste "+nom+" ajoutée — incrustation"+
     (ty==="overlay/VFX"?" (overlay/VFX, la piste historique)":"")+
     " : image dans l'image, réglable (position, échelle, rotation, "+
-    "opacité), muette.";
+    "opacité), muette ; ses plans ont aussi transitions, vitesse et effets.";
   return {tracks:out,id:neuf.id,type:ty,note:note}}
 /* Le rang de la PREMIÈRE piste qui n'est pas une piste de titres, c'est-à-
    dire le haut du groupe des incrustations. `0` quand il n'y a aucun titre :
@@ -1323,12 +1323,11 @@ function dzmGradeAllBtn(sel,clips,setClips,pushHistory,setDirty,note){
   var tr=(sel&&sel.tr)||"v1",TR=String(tr).toUpperCase();
   var pv=dzmGradeAll(clips,sel&&sel.id,tr);
   var dead=!pv.applied;
-  /* Hors V1 : mesuré côté backend, le rendu n'emporte pas les effets des
-     overlays. Le dire dans le titre ET dans la note — un lot appliqué en
-     silence sur vingt plans qui ne rendront rien est pire qu'un lot refusé. */
-  var hors=tr==="v1"?"":(" ATTENTION — mesuré : le rendu n'emporte pas les "+
-    "effets des pistes d'overlay. Sur "+TR+", cet étalonnage se verra dans "+
-    "l'inspecteur et dans l'aperçu, pas dans la vidéo exportée.");
+  /* t117 (06/10/2026) : l'avertissement « le rendu n'emporte pas les effets des pistes d'overlay » est RETIRÉ — il
+     datait d'avant le lot L5, qui rend la pile d'effets des pistes hautes (montage_service, v2 « effects »). MESURÉ
+     sur un rendu réel : un plan rouge de V2 sort gris avec grade_basic désaturé (127,129,126), cyan avec invert
+     (1,254,255). Il décourageait à tort d'étalonner une piste haute. */
+  var hors="";
   var t=pv.targets
     ?(pv.applied
       ?("Recopier l'exposition, le contraste, la saturation et la "+
@@ -3528,10 +3527,10 @@ function dzmTbCablage(p){
      setter du projet, qui pousse l'historique et marque le projet modifié.
      Rien de neuf n'est écrit ici, c'est une autre porte sur la même action.
      P14 — DEUX SORTES DE PISTES VIDÉO, et la note qui redit la nature de la
-     piste créée (`p.note`, le fireNote de l'écran, comme les emoji). Le
-     titre de « vidéo » dit l'ÉCART ASSUMÉ : une piste vidéo plein cadre n'a
-     ni fondu enchaîné, ni vitesse, ni effets — V1 seule les porte, et les
-     fournir est le chantier « plusieurs séquences », non entrepris. */
+     piste créée (`p.note`, le fireNote de l'écran, comme les emoji).
+     t117 (06/10/2026) — L'ÉCART EST LEVÉ : le chantier « plusieurs séquences » donne aux plans des pistes hautes
+     (plein cadre ET incrustation) leurs transitions et leur vitesse ; les effets, eux, étaient rendus depuis L5.
+     V1 reste la séquence maîtresse pour la DURÉE du montage. */
   function poseTrack(k){
     var r=dzmAddDit(ts,k);
     p.onTracks(r.tracks);
@@ -3540,13 +3539,15 @@ function dzmTbCablage(p){
     act:poseTr?function(){poseTrack("video")}:null,
     title:poseTr?("Ajouter une piste vidéo plein cadre — ses plans "+
       "RECOUVRENT V1 pendant leur durée et leur son est extrait sur la "+
-      "piste de dialogue ; V1 reste la séquence maîtresse (durée, "+
-      "transitions, vitesse, effets)."+
+      "piste de dialogue ; ses plans ont leurs transitions, leur vitesse et "+
+      "leurs effets, comme V1 (fondus visibles dans l'aperçu rendu) ; V1 reste "+
+      "la séquence maîtresse (durée)."+
       dzmTbUndo("piste-video")):DZM_TB_SANS_HOTE};
   m["piste-incrust"]={disabled:!poseTr,
     act:poseTr?function(){poseTrack("overlay")}:null,
     title:poseTr?("Ajouter une piste d'incrustation — image dans l'image, "+
-      "réglable (position, échelle, rotation, opacité), muette."+
+      "réglable (position, échelle, rotation, opacité), muette ; ses plans "+
+      "ont aussi transitions, vitesse et effets."+
       dzmTbUndo("piste-incrust")):DZM_TB_SANS_HOTE};
   m["piste-audio"]={disabled:!poseTr,
     act:poseTr?function(){poseTrack("audio")}:null,

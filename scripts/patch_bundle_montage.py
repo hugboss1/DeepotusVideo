@@ -8332,6 +8332,41 @@ P1 += [("P9li1-liste-triable", A_P9LI1, R_P9LI1),
 assert len(P1) == 141 and all("\n" not in r for _t, _a, r in P1[-2:])
 
 
+# t117 (06/10/2026) — PLUSIEURS SÉQUENCES : LES REMPLACEMENTS SUIVENT LE BUNDLE. Le patcher ne se rejoue plus (son
+# .bak est une reconstruction gardée) : la couche sonvfx a été modifiée À LA SOURCE puis réinjectée par
+# scripts/refresh_layer.py, et ces cinq remplacements, qui portaient le texte changé, sont ramenés au bundle par les
+# MÊMES substitutions (chaque fragment ancien doit y figurer exactement une fois — sinon le patcher refuse de se
+# charger plutôt que de mentir). Portes levées : Alt+T (R2), vitesse dans la charge utile (TT10) et fondus J1
+# (DZ4), champs de fondu de l'inspecteur d'ajustement (AJ2A), vitesse du menu de clip (EC1).
+def _t117_suit(v, paires, nom):
+    for a, b in paires:
+        assert v.count(a) == 1, f"t117 : {nom} ne porte pas le fragment attendu ({v.count(a)}x) : {a[:60]!r}"
+        v = v.replace(a, b)
+    return v
+
+R_R2 = _t117_suit(R_R2, [
+    ('k.tr==="v1"})[0];if(!dzTc){fireNote("Transition : sélectionnez d\'abord un plan de V1.");return}if(trackStRef.current.v1&&trackStRef.current.v1.l){fireNote("Piste V1 verrouillée.");return}',
+     'trackKind(k.tr)==="video"})[0];if(!dzTc){fireNote("Transition : sélectionnez d\'abord un plan vidéo.");return}if(trackStRef.current[dzTc.tr]&&trackStRef.current[dzTc.tr].l){fireNote("Piste "+String(dzTc.tr).toUpperCase()+" verrouillée.");return}'),
+], 'R_R2')
+R_TT10 = _t117_suit(R_TT10, [
+    ('if(c.tr==="v1"&&c.src&&c.src.job_id&&',
+     'if(trackKind(c.tr)==="video"&&c.src&&c.src.job_id&&'),
+], 'R_TT10')
+R_DZ4 = _t117_suit(R_DZ4, [
+    ('Math.abs(c.speed-1)>1e-6)o.speed=Math.round(c.speed*100)/100;',
+     'Math.abs(c.speed-1)>1e-6)o.speed=Math.round(c.speed*100)/100;   /* t117 : pistes hautes comme V1 */\n        /* t117 : fondus d\'un clip d\'ajustement — joints seulement s\'ils existent (payload d\'avant sinon) */\n        if(c.kind==="adjust"){if(c.fade_in)o.fade_in=c.fade_in;if(c.fade_out)o.fade_out=c.fade_out}'),
+], 'R_DZ4')
+R_AJ2A = _t117_suit(R_AJ2A, [
+    ('visibles après Preview"}):null,\n',
+     'visibles après Preview"}):null,\n      sel.kind==="adjust"?dzAjFadeRow(sel):null,\n'),
+], 'R_AJ2A')
+R_EC1 = _t117_suit(R_EC1, [
+    ('var v1=c.tr==="v1",sp=svmSpeedOf(c),g=DzTracks.voisins(cs,c).g;',
+     'var vid=trackKind(c.tr)==="video",sp=svmSpeedOf(c),g=DzTracks.voisins(cs,c).g;   /* t117 : toute piste vidéo */'),
+    ('off:!v1||!c.src||!c.src.job_id,run:function(){svmSetV1Speed(id,v)}',
+     'off:!vid||!c.src||!c.src.job_id,run:function(){svmSetV1Speed(id,v)}'),
+], 'R_EC1')
+
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
            ("M5-payload", A_M5, R_M5), ("M6-save", A_M6, R_M6),
