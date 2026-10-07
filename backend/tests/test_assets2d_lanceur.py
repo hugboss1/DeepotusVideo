@@ -62,9 +62,14 @@ try:
     r1 = subprocess.run([PY, str(RACINE / "scripts/patch_bundle_assets2d.py")], cwd=str(TMP), capture_output=True,
                         text=True, encoding="utf-8", errors="replace")
     rejoue = (TMP / REL).read_bytes()
-    check("1c_rejeu_sur_le_bundle_de_main_rend_le_bundle_commis_octet_pour_octet",
-          len(base) > 1_000_000 and r1.returncode == 0 and rejoue == BUNB,
-          (r1.returncode, (r1.stdout + r1.stderr)[-300:], len(rejoue), len(BUNB)))
+    # t129 (07/10/2026) : la référence est FIGÉE — l'empreinte git (blob, forme LF) du bundle à la fusion de #255
+    # (34d05288). Comparer au bundle COURANT rougissait au premier maillon posé après celui-ci.
+    import hashlib
+    lf = rejoue.replace(b"\r\n", b"\n")
+    check("1c_rejeu_sur_le_bundle_de_main_rend_le_bundle_de_la_fusion_octet_pour_octet",
+          len(base) > 1_000_000 and r1.returncode == 0
+          and hashlib.sha1(b"blob %d\x00" % len(lf) + lf).hexdigest() == "870a5bcd6bf399285c6fcc58485b50f35f61f019",
+          (r1.returncode, (r1.stdout + r1.stderr)[-300:], len(rejoue)))
     (TMP / (REL + ".bak_assets2d")).unlink(missing_ok=True)
     r2 = subprocess.run([PY, str(RACINE / "scripts/patch_bundle_assets2d.py")], cwd=str(TMP), capture_output=True,
                         text=True, encoding="utf-8", errors="replace")
