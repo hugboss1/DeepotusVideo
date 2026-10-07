@@ -7,6 +7,48 @@
     "version": 1
   },
   {
+    "id": "a2EnCadre",
+    "titre": "En cadre",
+    "phrase": "Ta longue ligne de texte rentre dans une boîte et passe à la ligne toute seule, comme dans un livre.",
+    "fichier": "apparence2.a2EnCadre.webp",
+    "version": 1
+  },
+  {
+    "id": "a2Motif",
+    "titre": "Motif",
+    "phrase": "Ta forme se remplit de petits traits répétés, comme un tissu rayé.",
+    "fichier": "apparence2.a2Motif.webp",
+    "version": 1
+  },
+  {
+    "id": "a2SurChemin",
+    "titre": "Sur chemin",
+    "phrase": "Tes mots se couchent sur la ligne que tu as tracée et la suivent partout où elle va.",
+    "fichier": "apparence2.a2SurChemin.webp",
+    "version": 1
+  },
+  {
+    "id": "a2Transp",
+    "titre": "Transparence",
+    "phrase": "Ta forme s’efface doucement d’un côté à l’autre, comme si elle disparaissait dans le brouillard.",
+    "fichier": "apparence2.a2Transp.webp",
+    "version": 1
+  },
+  {
+    "id": "carteCourbes",
+    "titre": "Courbes",
+    "phrase": "Des lignes relient les endroits de même hauteur sur ta carte, comme les marches d’une montagne.",
+    "fichier": "carte.carteCourbes.webp",
+    "version": 1
+  },
+  {
+    "id": "carteTuiles",
+    "titre": "Découper",
+    "phrase": "Ta carte se change en cases à six côtés, colorées selon la hauteur : eau, prairie, forêt, montagne.",
+    "fichier": "carte.carteTuiles.webp",
+    "version": 1
+  },
+  {
     "id": "impDepouilleR",
     "titre": "Dépouille des flancs",
     "phrase": "Les côtés de ta pièce penchent : plus tu tournes, plus le bas devient large et le haut petit.",

@@ -389,6 +389,7 @@
 <script type="module">import * as SLK from "./skeleton.js"; window.SLK = SLK; document.dispatchEvent(new Event("slk-pret"));</script>
 <script type="module">import * as SLD from "./directions.js"; window.SLD = SLD; document.dispatchEvent(new Event("sld-pret"));</script>
 <script type="module" src="/assets/model-viewer.min.js"></script>
+<script type="module">import { initDidact } from "/vectorlab/js/mod-didact.js"; initDidact({}, { aide: "aide/", racine: "body" });   /* t126 : fiches didactiques (aide/index.json), survol long ou « ? » */</script>
 <script type="module">import * as P from "/spritelab/palettes.js"; window.DZ_PALETTES = P; document.dispatchEvent(new Event("dz-palettes"));</script>
 <script src="/shared/dz-plafonds.js"></script>
 <script src="/shared/dialogue.js"></script>

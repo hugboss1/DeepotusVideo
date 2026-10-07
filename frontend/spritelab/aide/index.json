@@ -1,0 +1,44 @@
+[
+  {
+    "id": "fAlPieds",
+    "titre": "Pieds",
+    "phrase": "Tous tes personnages posent les pieds à la même hauteur, comme s'ils étaient debout sur le même sol.",
+    "fichier": "spritelab.fAlPieds.webp",
+    "version": 1
+  },
+  {
+    "id": "fDetect",
+    "titre": "Auto-détecter",
+    "phrase": "L'outil compte tout seul les images de ta planche et dessine une case autour de chacune.",
+    "fichier": "spritelab.fDetect.webp",
+    "version": 1
+  },
+  {
+    "id": "pflip",
+    "titre": "Miroir",
+    "phrase": "Ton personnage se retourne et regarde de l'autre côté, comme dans un miroir.",
+    "fichier": "spritelab.pflip.webp",
+    "version": 1
+  },
+  {
+    "id": "pixelOn",
+    "titre": "Pixel-art (9b)",
+    "phrase": "Ton dessin devient fait de gros carrés et de quelques couleurs seulement, comme dans un vieux jeu vidéo.",
+    "fichier": "spritelab.pixelOn.webp",
+    "version": 1
+  },
+  {
+    "id": "poDx",
+    "titre": "Ombre X / Y",
+    "phrase": "Une ombre se pose derrière ton personnage, un peu décalée, comme si une lampe l'éclairait.",
+    "fichier": "spritelab.poDx.webp",
+    "version": 1
+  },
+  {
+    "id": "poWidth",
+    "titre": "Contour",
+    "phrase": "Un trait entoure ton personnage pour qu'il se voie bien sur n'importe quel fond.",
+    "fichier": "spritelab.poWidth.webp",
+    "version": 1
+  }
+]

@@ -1,7 +1,7 @@
 // didact.test.mjs — mod-didact : la fiche didactique d'une option (index →
 // fiche par id DOM), le compte de mots de la phrase « pour un enfant de cinq
 // ans », la validation d'une fiche et le HTML de l'encart.
-import { fiche_pour, compter_mots, valider_fiche, didact_html, DIDACT_DELAI_MS, DIDACT_LARGEUR } from "../js/mod-didact.js";
+import { fiche_pour, compter_mots, valider_fiche, didact_html, didact_reglages, DIDACT_DELAI_MS, DIDACT_LARGEUR } from "../js/mod-didact.js";
 const echecs = [];
 const ok = (nom, cond, detail = "") => { if (!cond) echecs.push(nom + (detail ? " — " + String(detail).slice(0, 200) : "")); };
 {
@@ -19,6 +19,13 @@ const ok = (nom, cond, detail = "") => { if (!cond) echecs.push(nom + (detail ? 
   ok("valider_fiche : id, titre, fichier .webp/.png, version entier", valider_fiche({ id: "", titre: "", phrase: "a", fichier: "m.x.gif", version: "1" }).length === 4, valider_fiche({ id: "", titre: "", phrase: "a", fichier: "m.x.gif", version: "1" }).join(","));
   const h = didact_html({ id: "pxContour", titre: "Contour <b>", phrase: "a & b", fichier: "pixelui.pxContour.webp", version: 1 });
   ok("didact_html : image aide/<fichier> versionnée, titre et phrase échappés", h.includes('src="aide/pixelui.pxContour.webp?v=1"') && h.includes("Contour &lt;b&gt;") && h.includes("a &amp; b") && h.includes('class="vl-didact-titre"'));
+  // t126 : Spritelab et Tilelab montrent leurs propres fiches — le dossier d'aide est un réglage
+  const hs = didact_html({ id: "pflip", titre: "Miroir", phrase: "a", fichier: "spritelab.pflip.webp", version: 2 }, "/spritelab/aide/");
+  ok("didact_html : dossier d'aide au choix", hs.includes('src="/spritelab/aide/spritelab.pflip.webp?v=2"'), hs);
+  const d0 = didact_reglages();
+  ok("réglages par défaut : aide/ et le panneau des calques du Vectorlab", d0.aide === "aide/" && d0.racine === "#panneauCalques" && d0.index === "aide/index.json");
+  const d1 = didact_reglages({ aide: "/spritelab/aide", racine: "body" });
+  ok("réglages : un dossier sans / final en reçoit un, l'index le suit", d1.aide === "/spritelab/aide/" && d1.index === "/spritelab/aide/index.json" && d1.racine === "body");
 }
 if (echecs.length) { console.error("ECHECS didact :\n- " + echecs.join("\n- ")); process.exit(1); }
-console.log("QA didact : PASS (8 controles)");
+console.log("QA didact : PASS (11 controles)");
