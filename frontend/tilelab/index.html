@@ -21,7 +21,8 @@
       <button class="tab active" data-m="seamless" title="Une image devient une tuile seamless (existant)">🧱 Seamless</button>
       <button class="tab" data-m="feuille" title="Une planche de tuiles existante : détection, grille de placement, raccords, exports — tout en local">🗂 Feuille de tuiles</button>
       <button class="tab" data-m="jeu" title="Deux matières deviennent un jeu blob 47 / 16 auto-tuilable, mesuré, exporté vers Tiled, LDtk, Godot">🧩 Jeu</button>
-      <button class="tab" data-m="formes" title="Une matière devient une tuile losange 2:1 ou hexagonale qui pave sans couture">🔷 Formes</button></nav></div>
+      <button class="tab" data-m="formes" title="Une matière devient une tuile losange 2:1 ou hexagonale qui pave sans couture">🔷 Formes</button>
+      <button class="tab" data-m="peintre" title="Peins une petite carte avec le jeu fabriqué : Python pose la bonne tuile à chaque case (auto-tiling)">🖌 Peintre</button></nav></div>
     <div id="tlSeamlessSrc" class="src-body">
     <input id="imgSearch" class="search" placeholder="🔎 Filtrer les images…">
     <div id="imgGrid" class="img-grid tall"><div class="empty-note">Chargement de la Library…</div></div>
@@ -43,16 +44,41 @@
         <button id="jeuSlotA" class="tl-slot on" data-slot="a" title="Le TERRAIN : la matière posée là où la case est pleine"><span class="tl-slot-k">A · terrain</span><img alt=""><span class="tl-slot-n">clique une image ↓</span></button>
         <button id="jeuSlotB" class="tl-slot" data-slot="b" title="Le FOND : la matière autour du terrain"><span class="tl-slot-k">B · fond</span><img alt=""><span class="tl-slot-n">puis une seconde</span></button>
       </div>
+      <div class="tl-src" title="D'où viennent les matières"><button id="jeuSrcLib" class="tl-srcb on" data-src="lib">🖼 Bibliothèque</button><button id="jeuSrcForge" class="tl-srcb" data-src="forge" title="Les matières du Material Forge — leur couleur de base">🧪 Material Forge</button></div>
       <input id="jeuSearch" class="search" placeholder="🔎 Filtrer les matières…">
       <div id="jeuGrid" class="img-grid tall"><div class="empty-note">Chargement de la Library…</div></div>
+      <!-- t116 (T11) : le style d'un lieu de la bible — un PROMPT, rien n'est généré ici -->
+      <fieldset class="tl-lieu">
+        <legend>Style d'un lieu de la bible</legend>
+        <label class="fld">Lieu <select id="lieuSel" title="Les lieux de la bible"></select></label>
+        <label class="fld">Surface <input id="lieuSurface" type="text" value="sol de pierre" maxlength="80" title="Ce que la tuile représente"></label>
+        <button id="lieuRun" class="btn" title="Un prompt de tuile contraint par la planche et la palette du lieu — gratuit, rien n'est généré">🎨 Prompt du lieu</button>
+        <div id="lieuPalette" class="tl-pal"></div>
+        <textarea id="lieuPrompt" rows="4" placeholder="Le prompt contraint par la planche et la palette du lieu apparaît ici — à coller dans le générateur d'images."></textarea>
+        <button id="lieuCopier" class="btn ghost" disabled title="Copier le prompt">📋 Copier le prompt</button>
+      </fieldset>
     </div>
     <!-- t115 : Formes — une matière -->
     <div id="tlFormesSrc" class="src-body hidden">
       <div class="tl-slots">
         <button id="formeSlot" class="tl-slot on" title="La matière envoyée sur le réseau de la forme"><span class="tl-slot-k">Matière</span><img alt=""><span class="tl-slot-n">clique une image ↓</span></button>
       </div>
+      <div class="tl-src" title="D'où vient la matière"><button id="formeSrcLib" class="tl-srcb on" data-src="lib">🖼 Bibliothèque</button><button id="formeSrcForge" class="tl-srcb" data-src="forge" title="Les matières du Material Forge — leur couleur de base">🧪 Material Forge</button></div>
       <input id="formeSearch" class="search" placeholder="🔎 Filtrer les matières…">
       <div id="formeGrid" class="img-grid tall"><div class="empty-note">Chargement de la Library…</div></div>
+    </div>
+    <!-- t116 (T12) : le peintre — une grille, Python compose -->
+    <div id="tlPeintreSrc" class="src-body hidden">
+      <div class="upload-box">
+        <p class="hint">Le peintre pose des cases de TERRAIN sur une grille ; à chaque coup de pinceau, Python choisit la tuile de chaque case d'après ses voisines, avec le jeu fabriqué dans le mode 🧩 Jeu. Clique-glisse pour peindre, repasse pour gommer.</p>
+        <div id="peJeu" class="counter">—</div>
+        <div class="grid2">
+          <label class="fld">Largeur <span class="unit">cases</span><input id="peLargeur" type="number" min="2" max="32" value="12"></label>
+          <label class="fld">Hauteur <span class="unit">cases</span><input id="peHauteur" type="number" min="2" max="32" value="8"></label>
+          <label class="fld">Graine <input id="peGraine" type="number" min="1" value="1" title="Même graine = mêmes variantes"></label>
+        </div>
+        <button id="peEffacer" class="btn ghost" title="Une grille vide (garde la taille)">🧽 Tout effacer</button>
+      </div>
     </div>
     <div class="hint">Textures sol/mur, motifs, feuillages… La tuile générée rejoint la Library (<i>gen_*.png</i>) et sert partout (Studio, Seedance, Sprite Lab).</div>
   </section>
@@ -145,6 +171,17 @@
     </div>
 
     <!-- t115 : le jeu blob — atlas, aperçu auto-tuilé, trois mesures, exports (tout fichier est écrit par Python) -->
+    <!-- t116 (T12) : le peintre — la grille peinte, et la carte que Python a composée -->
+    <div id="peintreOut" class="tl-feuille hidden">
+      <div class="tl-sec">Grille <span class="hint">vert = terrain (matière A) · sombre = fond (matière B)</span></div>
+      <canvas id="peCanvas" class="pe-canvas" width="480" height="320"></canvas>
+      <div id="peStatus" class="status hidden"></div>
+      <div id="peResultat" class="hidden">
+        <div class="tl-sec">Carte composée par Python <span class="hint">carte.png + carte.json dans le dossier du jeu</span></div>
+        <img id="peCarte" class="tl-damier pe-carte" alt="carte auto-tuilée">
+        <div class="row"><a id="pePng" class="btn" target="_blank" download="carte.png">⬇ carte.png</a><a id="peJson" class="btn" target="_blank" download="carte.json">⬇ carte.json</a></div>
+      </div>
+    </div>
     <div id="jeuOut" class="tl-feuille hidden">
       <div class="grid2">
         <label class="fld">Jeu
@@ -246,5 +283,6 @@
 <script src="/shared/dialogue.js"></script>
 <script src="tilelab.js"></script>
 <script src="jeu.js"></script>
+<script src="peintre.js"></script>
 </body>
 </html>

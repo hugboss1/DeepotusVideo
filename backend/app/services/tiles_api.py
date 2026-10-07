@@ -31,11 +31,42 @@ def _maintenant() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+def _spec(spec) -> dict | None:
+    """La source TELLE QUE REÇUE, réduite à sa seule clé utile — c'est elle que le meta garde, et que `_refaire_jeu`
+    rejoue (T116 : le meta écrivait toujours `{"image": …}`, une matière du Forge y devenait `{"image": None}`)."""
+    if not isinstance(spec, dict):
+        return None
+    if spec.get("materiau"):
+        return {"materiau": str(spec["materiau"])}
+    return {"image": spec.get("image")}
+
+
 def _charger_matiere(spec, quoi: str) -> Image.Image:
-    """Une matière = une image de la Bibliothèque, désignée par son NOM (un
-    chemin est refusé). La T10 du plan ajoutera la clé `materiau`."""
+    """Une matière = une image de la Bibliothèque, désignée par son NOM (un chemin est refusé), OU une matière du
+    Material Forge, désignée par son id `mat_xxxxxxxx` (T116, plan T10) : sa couleur de base, `basecolor.png` — celle
+    que le Forge affiche, `bake_levels` ne touchant que métal, rugosité et ORM. Une seule des deux clés."""
     if not isinstance(spec, dict):
         raise HTTPException(400, f"{quoi}: objet attendu")
+    if spec.get("materiau") is not None:
+        if spec.get("image"):
+            raise HTTPException(400, f"{quoi}: une seule source — 'image' OU 'materiau'")
+        from app.services import material_store as MS
+        mid = str(spec.get("materiau") or "").strip()
+        if not MS.is_valid_mid(mid):
+            raise HTTPException(400, f"{quoi}: identifiant de matiere invalide: {mid!r}")
+        try:
+            if not MS.material_dir(mid).is_dir():
+                raise ValueError(mid)
+            p = MS.map_path(mid, "basecolor")
+        except ValueError:
+            raise HTTPException(400, f"{quoi}: matiere introuvable: {mid}")
+        if not p.is_file():
+            raise HTTPException(400, f"{quoi}: la matiere {mid} n'a pas de couleur de base (basecolor)")
+        try:
+            with Image.open(p) as im:
+                return im.convert("RGB").copy()
+        except (UnidentifiedImageError, OSError) as e:
+            raise HTTPException(400, f"{quoi}: couleur de base illisible: {mid} ({e})")
     nom = str(spec.get("image") or "").strip()
     if not nom:
         raise HTTPException(400, f"{quoi}: cle 'image' attendue")
@@ -103,8 +134,8 @@ async def creer_jeu(body: dict):
             "largeur": jeu.get("largeur", jeu["cote"]), "hauteur": jeu.get("hauteur", jeu["cote"]),
             "tuiles": len(jeu["tuiles"]), "vide": jeu["vide"],
             "colonnes": colonnes, "rangees": rangees,
-            "source_a": {"image": (body.get("matiere_a") or {}).get("image")},
-            "source_b": None if b is None else {"image": (body.get("matiere_b") or {}).get("image")},
+            "source_a": _spec(body.get("matiere_a")),
+            "source_b": None if b is None else _spec(body.get("matiere_b")),
             "raccord": raccord, "cree_le": _maintenant()}
     TS.write_meta(tid, meta)
     # LA PROVENANCE : l'atlas est COPIÉ dans la Bibliothèque sous `tile_<id>_atlas.png` (préfixe → source
@@ -268,3 +299,106 @@ async def fichier(tid: str, nom: str):
     if not p.is_file():
         raise HTTPException(404, f"fichier absent: {nom}")
     return FileResponse(str(p))
+
+
+# ── style d'un lieu de la bible (D2, tâche t116 / plan T10-T12) ────────────────────────────────────────────────────
+#: gabarit du prompt : la surface d'abord, la contrainte de tuile ensuite, le style du lieu et sa palette en dernier —
+#: l'ordre où les modèles d'image pèsent le plus les premiers mots
+GABARIT_LIEU = (
+    "{surface}, texture de tuile pour {lieu}. {description}{style}"
+    "Vue top-down, orthographique, seamless tileable, éclairage diffus uniforme, aucune ombre portée, aucun objet "
+    "reconnaissable, aucun texte. {palette}.")
+
+
+@router.post("/prompt-lieu")
+async def prompt_lieu(body: dict | None = None):
+    """D2 : un prompt de tuile contraint par la planche et la palette d'un LIEU de la bible. Cette route ne génère
+    RIEN — elle formate, gratuitement ; l'image se fait ensuite dans le générateur (POST /api/images/generate, gardé
+    par les plafonds). La palette est LUE sur la planche (`board_service._palette_colors`, celle de l'Atelier) : les
+    couleurs distinctes trouvées, six au plus — une planche presque unie en donne moins, et c'est vrai."""
+    from sqlalchemy import select
+    from app.services.board_service import _palette_colors
+    from app.services.storage import BibleEntity, async_session_factory
+    body = body if isinstance(body, dict) else {}
+    eid = str(body.get("entity_id") or "").strip()
+    if not eid:
+        raise HTTPException(400, "entity_id attendu")
+    async with async_session_factory() as session:
+        e = (await session.execute(select(BibleEntity).where(BibleEntity.id == eid))).scalar_one_or_none()
+    if e is None:
+        raise HTTPException(404, f"entité de bible inconnue : {eid}")
+    if e.kind != "place":
+        raise HTTPException(400, f"« {e.name} » est de sorte {e.kind!r} : seul un lieu contraint un jeu de tuiles")
+    palette: list[str] = []
+    planche = (e.ref_image or "").strip()
+    p = settings.images_path / planche if planche else None
+    if p is not None and p.name == planche and p.is_file():
+        try:
+            couleurs = await asyncio.to_thread(_palette_colors, settings.images_path, [planche], 6)
+            palette = ["#%02x%02x%02x" % tuple(c[:3]) for c in couleurs]
+        except Exception as err:               # noqa: BLE001 — une planche illisible n'empêche pas le prompt
+            logger.warning(f"tuiles/prompt-lieu {eid} : palette illisible ({err})")
+            planche = ""
+    else:
+        planche = ""
+    surface = (str(body.get("surface") or "sol").strip() or "sol")[:80]
+    prompt = GABARIT_LIEU.format(
+        surface=surface, lieu=e.name,
+        description=(e.description.strip().rstrip(".") + ". ") if (e.description or "").strip() else "",
+        style=(e.style_notes.strip().rstrip(".") + ". ") if (e.style_notes or "").strip() else "",
+        palette=("Palette imposée : " + ", ".join(palette)) if palette else "Palette libre")
+    return {"entity_id": eid, "lieu": e.name, "planche": planche, "palette": palette, "surface": surface,
+            "prompt": prompt}
+
+
+# ── le peintre minimal (D3, tâche t116 / plan T12) ─────────────────────────────────────────────────────────────────
+#: côté maximal d'une grille du peintre, en CASES
+CASES_MAX = 128
+#: et de la carte composée, en PIXELS — la même borne que l'aperçu : 128 cases de 512 px feraient 65 536 px de côté
+CARTE_PX_MAX = APERCU_PX_MAX
+
+
+@router.post("/{tid}/carte")
+async def carte(tid: str, body: dict | None = None):
+    """D3 : la carte du peintre. Body {grille [[0|1]], graine}. Le peintre envoie une grille booléenne ; Python lit
+    les voisinages, choisit les tuiles (`composer_carte`) et écrit carte.png + carte.json dans le dossier du jeu. La
+    grille du peintre est BORNÉE (hors grille = vide) là où l'aperçu est torique. Local et gratuit."""
+    import json as _json
+
+    meta = _lire_meta(tid)
+    _carre_seulement(meta, "le peintre")
+    body = body if isinstance(body, dict) else {}
+    grille = body.get("grille")
+    if not isinstance(grille, list) or not grille or not all(isinstance(l, list) for l in grille):
+        raise HTTPException(400, "grille : une liste de lignes (listes de 0/1) non vide attendue")
+    largeur = len(grille[0])
+    if largeur == 0 or any(len(l) != largeur for l in grille):
+        raise HTTPException(400, "grille : toutes les lignes doivent avoir la même longueur (grille rectangulaire)")
+    if len(grille) > CASES_MAX or largeur > CASES_MAX:
+        raise HTTPException(400, f"grille : au plus {CASES_MAX} cases de côté")
+    cote = int(meta["cote"])
+    if max(len(grille), largeur) * cote > CARTE_PX_MAX:
+        raise HTTPException(400, f"carte trop grande : {max(len(grille), largeur)} cases de {cote} px dépassent "
+                                 f"{CARTE_PX_MAX} px de côté — réduis la grille ou le côté des tuiles")
+    grille = [[1 if v else 0 for v in ligne] for ligne in grille]
+    try:
+        graine = int(body.get("graine") or 1)
+    except (TypeError, ValueError):
+        raise HTTPException(400, "graine : un entier")
+
+    def _faire():
+        jeu = _refaire_jeu(meta)
+        img, plan = TO.composer_carte(grille, jeu, graine=graine, boucle=False)
+        d = TS.tileset_dir(tid, create=True)
+        img.save(d / "carte.png", format="PNG")
+        doc = {"tid": tid, "jeu": meta["jeu"], "cote": cote, "colonnes": meta["colonnes"], "vide": jeu["vide"],
+               "graine": graine, "grille": grille, "plan": plan}
+        tmp = d / "carte.json.tmp"
+        tmp.write_text(_json.dumps(doc, ensure_ascii=False), encoding="utf-8")
+        tmp.replace(d / "carte.json")
+        return plan, jeu["vide"]
+
+    plan, vide = await asyncio.get_running_loop().run_in_executor(None, _faire)
+    logger.info(f"tuiles/carte {len(grille)}x{largeur}: {tid}")
+    return {"tid": tid, "plan": plan, "grille": grille, "vide": vide,
+            "url": f"/api/tiles/{tid}/fichier/carte.png", "json": f"/api/tiles/{tid}/fichier/carte.json"}
