@@ -144,8 +144,8 @@ if R:
     check("G5 un refus du PLAFOND (402) est dit avec son message ; sans cle le bouton est inactif et le dit ; un ARRET (cle refusee) est dit",
           "Refusé : Plafond mensuel atteint (gemini)" in R["refus"] and R["sansCle"][0] is True and "Clé Gemini absente" in R["sansCle"][1]
           and "Arrêté : Gemini HTTP 401 : cle" in R["arret"] and R["rien"] == 0, R["refus"] + str(R["sansCle"]) + R["arret"])
-check("T4 aucun prompt/alert/confirm natif ; la chaine tient (DzTracks 180, __dzCoutBlanc 7, __dzSrcLbl x2, dzRunMaxTake() x3)",
-      "window.prompt(" not in COUCHE and "alert(" not in COUCHE and "window.confirm(" not in COUCHE and BUN.count("DzTracks") == 180
+check("T4 aucun prompt/alert/confirm natif ; la chaine tient (DzTracks 181, __dzCoutBlanc 7, __dzSrcLbl x2, dzRunMaxTake() x3)",
+      "window.prompt(" not in COUCHE and "alert(" not in COUCHE and "window.confirm(" not in COUCHE and BUN.count("DzTracks") == 181
       and BUN.count("__dzCoutBlanc") == 7 and BUN.count("Object.assign(__dzSrcLbl,") == 2 and BUN.count("dzRunMaxTake()") == 3)
 
 print(f"\n{ok} PASS / {fail} FAIL")

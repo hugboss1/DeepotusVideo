@@ -14,6 +14,8 @@ Décisions de l'utilisateur (28/09) :
     la plus basse, jamais sur la plus chère) ;
   - un échec de génération replie la scène en Ken Burns (pipeline).
 """
+import math
+
 from app.services import pricing as _pricing
 from app.services.fal_service import resolve_video_model
 
@@ -50,6 +52,32 @@ def plan_videos(scenes: list) -> list[dict]:
         out.append({"index": i, "model": m["id"],
                     "resolution": resolution_de(m, (sc.get("resolution") or "").strip() or None),
                     "duration_s": dur, "prompt": prompt})
+    return out
+
+
+def bornes_scenes(durees, textes=None) -> list[dict]:
+    """t119 (07/10/2026) — les bornes de chaque scène DANS le `.mp4` final :
+    [{start, end, texte}] en secondes, au millième. `durees` = la durée
+    MESURÉE de chaque morceau avant `concat_clips` : le démultiplexeur concat
+    décale chaque fichier de la durée du précédent (sa durée de conteneur),
+    c'est donc elle, et non la durée demandée, qui fait la borne (banc
+    test_montage_t119 [1], couleurs lues de part et d'autre de chaque borne).
+    Une durée illisible ou négative vaut 0 : la scène reste comptée, la
+    suite n'est pas décalée. `texte` = les 80 premiers caractères de la
+    narration, pour le marqueur que le Montage pose sur chaque scène."""
+    out, t = [], 0.0
+    textes = list(textes or [])
+    for i, d in enumerate(durees or []):
+        try:
+            d = float(d)
+        except (TypeError, ValueError):
+            d = 0.0
+        if not math.isfinite(d) or d < 0:
+            d = 0.0
+        tx = textes[i] if i < len(textes) and isinstance(textes[i], str) else ""
+        out.append({"start": round(t, 3), "end": round(t + d, 3),
+                    "texte": " ".join(tx.split())[:80]})
+        t += d
     return out
 
 

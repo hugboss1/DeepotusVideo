@@ -1716,8 +1716,18 @@ var DzmProjects=function(props){
        d'une ouverture tombaient précisément là. `.dzm-projbtn:disabled` (opacité
        .45, curseur normal) existe déjà dans la feuille depuis P5. */
     var off=!!busy;
-    return r.jsxs("div",{className:"dzm-projrow","data-mine":mine?"":void 0,
+    /* t119 (07/10/2026, E-1) : une CARTE — la vignette d'abord (une image
+       de la source du premier plan vidéo de V1, `dzmProjVignette`),
+       puis le nom, la ligne (plans, format, durée, date) et les gestes, tous
+       gardés. Pas de vignette (aucun plan vidéo sur V1, ou `/strip` en
+       échec) : l'aplat de `.dzm-projthumb` reste, l'image est masquée. */
+    var vg=dzmProjVignette(p);
+    return r.jsxs("div",{className:"dzm-projcard","data-mine":mine?"":void 0,
       children:[
+      r.jsx("div",{className:"dzm-projthumb",title:p.name||"",children:vg
+        ?r.jsx("img",{src:vg,alt:"",draggable:!1,
+            onError:function(e){if(e&&e.target)e.target.style.visibility="hidden"}})
+        :null},"v"),
       r.jsxs("div",{className:"dzm-projid",children:[
         edit
           ?r.jsx("input",{className:"dzm-projin",value:ren.v,autoFocus:!0,
@@ -1820,7 +1830,7 @@ var DzmProjects=function(props){
           onClick:saveAs,children:"enregistrer sous…"},"s")]},"s"),
       err?r.jsx("div",{className:"dzm-projerr",children:err},"e"):null,
       rows.length
-        ?r.jsx("div",{className:"dzm-projl",children:rows.map(row)},"l")
+        ?r.jsx("div",{className:"dzm-projgrid",children:rows.map(row)},"l")
         :r.jsx("div",{className:"dzm-projvide",children:
           busy?"…":"Aucun projet enregistré. « Enregistrer sous… » crée le "+
             "premier ; jusque-là, le montage affiché est le seul, et ouvrir "+
@@ -7771,6 +7781,70 @@ function dzmCutAt(clips,id,times,opts){
   cs.forEach(function(k){if(k===c)out.push.apply(out,morceaux);else out.push(k)});
   return {clips:out,n:ps.length,refus:"",
     note:ps.length+" coupe"+(ps.length>1?"s":"")+" aux changements de plan"}}
+
+/* ── t119 (07/10/2026, E-3) : UN PLAN PAR SCÈNE D'ÉPISODE ─────────────────
+   `scenes` = ce que rend GET /api/montage/episode-scenes/{job_id} :
+   [{start, end, texte}] en secondes de SOURCE (les bornes mesurées au rendu
+   de l'épisode). Le plan `id` est coupé au début de chaque scène par
+   `dzmCutAt` (la loi de la lame : vitesse, srcIn, jonctions « cut », ids
+   uniques), et son JUMEAU SON avec lui — le clip d'une autre piste qui lit la
+   même source aux mêmes bornes (`dzmTwinClip` le pose ainsi) ; un jumeau
+   d'une autre vitesse ou d'un autre srcIn n'est pas touché, une piste du son
+   verrouillée non plus, et la note le dit. Un marqueur par scène qui touche le
+   plan (`dzmMarkerAdd`, force : un marqueur voisin n'est jamais retiré), au
+   début de la scène ou au début du plan si la scène commence avant lui :
+   « Scène i », la narration en note. PURE : entrées jamais mutées.
+   Refus (clips et marqueurs rendus intacts, n = 0) : "clip", "verrou" (piste
+   du PLAN verrouillée), "une_scene" (moins de deux scènes lisibles),
+   "aucune_coupe" (aucune borne dans le plan rogné). */
+function dzmScenesPose(clips,id,scenes,markers,opts){
+  var cs=Array.isArray(clips)?clips:[],ms=Array.isArray(markers)?markers.slice():[];
+  var locked=(opts&&opts.locked)||{},c=null,i;
+  for(i=0;i<cs.length;i++)if(cs[i]&&id!=null&&cs[i].id===id){c=cs[i];break}
+  function refus(r,n){return {clips:cs.slice(),markers:ms,n:0,refus:r,note:n}}
+  if(!c)return refus("clip","Plan introuvable — l'épisode n'a pas été découpé.");
+  var sc=(Array.isArray(scenes)?scenes:[]).filter(function(s){
+    return s&&isFinite(Number(s.start))&&isFinite(Number(s.end))&&Number(s.start)<Number(s.end)})
+    .sort(function(a,b){return Number(a.start)-Number(b.start)});
+  if(sc.length<2)return refus("une_scene","");
+  if(locked[c.tr])return refus("verrou","Piste "+String(c.tr).toUpperCase()+
+    " verrouillée — l'épisode reste en un seul plan.");
+  var c0=Number(c.start)||0,c1=Number(c.end)||0,si=Number(c.srcIn)||0;
+  var sp=(typeof c.speed==="number"&&c.speed>0)?c.speed:1;
+  var ts=sc.slice(1).map(function(s){return Number(s.start)-si});
+  var r=dzmCutAt(cs,c.id,ts,{locked:locked});
+  if(!r.n)return refus("aucune_coupe","Aucune borne de scène dans ce plan — il reste entier.");
+  var tw=null,k0=dzmSrcKey(c.src);
+  for(i=0;i<cs.length;i++){var k=cs[i];
+    if(!k||k===c||k.tr===c.tr||!k.src||dzmSrcKey(k.src)!==k0)continue;
+    if(Math.abs((Number(k.start)||0)-c0)<.01&&Math.abs((Number(k.end)||0)-c1)<.01){tw=k;break}}
+  var out=r.clips,son="";
+  if(tw){
+    var tsp=(typeof tw.speed==="number"&&tw.speed>0)?tw.speed:1;
+    if(Math.abs(tsp-sp)>1e-9||Math.abs((Number(tw.srcIn)||0)-si)>1e-6)
+      son=" Le son du plan ("+String(tw.tr).toUpperCase()+") n'a pas la même vitesse ou le même point d'entrée : il reste entier.";
+    else{var rt=dzmCutAt(out,tw.id,ts,{locked:locked});
+      if(rt.refus==="verrou")son=" Piste "+String(tw.tr).toUpperCase()+" verrouillée : le son du plan reste entier.";
+      else out=rt.clips}}
+  sc.forEach(function(s,j){
+    if(Number(s.end)<=si+1e-6)return;
+    var p=c0+(Number(s.start)-si)/sp;
+    if(p>=c1-DZM_CUT_BORD)return;
+    ms=dzmMarkerAdd(ms,Math.max(c0,p),{title:"Scène "+(j+1),note:String(s.texte||""),force:!0})});
+  return {clips:out,markers:ms,n:r.n,refus:"",
+    note:"Épisode découpé en "+(r.n+1)+" plans, un par scène, avec un marqueur par scène — « Annuler » le rend en un seul plan."+son}}
+
+/* t119 (E-1) : l'URL de la vignette d'une carte de projet — une planche
+   d'UNE image (`/strip?n=1` : l'image du MILIEU, mesuré) de la source
+   `thumb` que rend la liste des projets
+   (`_project_thumb` : le premier plan vidéo de V1), à la forme du projet ;
+   "" quand il n'y a rien à montrer (la carte garde alors son aplat). */
+function dzmProjVignette(p){
+  var t=p&&p.thumb;
+  if(!t||typeof t!=="object"||typeof t.job_id!=="string"||!t.job_id)return "";
+  var wh={"16:9":[160,90],"1:1":[96,96],"4:5":[77,96]}[String(p.ratio||"")]||[54,96];
+  return "/api/montage/strip?src="+encodeURIComponent(JSON.stringify({job_id:t.job_id}))+
+    "&n=1&w="+wh[0]+"&h="+wh[1]}
 var DZM_COLOR_TYPES=Object.freeze(["grade","lut","grade_basic","wheels","curves","colormatch","huesat","monochrome"]);
 /* ── L5 (24/09/2026, tâche 4) : le cœur PUR de la couleur, décisions 1, 2, 4 et 8 du plan
    docs/superpowers/plans/2026-09-24-plan-montage-resolve-L5.md. Aucune de ces fonctions ne touche au rendu,
@@ -9235,7 +9309,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   /* L7 D-22 (24/09/2026, tache 6) : pistes de sous-titres par langue, une seule gravee */
   subsTracks:dzmSubsTracks,subsNew:dzmSubsNew,subsBurn:dzmSubsBurn,subsBurnId:dzmSubsBurnId,subsCopy:dzmSubsCopy,
   /* L7-B D-42 (24/09/2026, tache 2) : decouper un clip aux changements de plan */
-  cutAt:dzmCutAt,
+  cutAt:dzmCutAt,scenesPose:dzmScenesPose,projVignette:dzmProjVignette,
   /* L7-B D-34 (24/09/2026, tache 7) : la note etoile d'un rendu (tiroir Medias) */
   ratingNorm:dzmRatingNorm,ratingNext:dzmRatingNext,
   /* L7-B D-40 (24/09/2026, tache 4) : le cadrage d'un clip V1 (regle du backend, apercu vivant) */

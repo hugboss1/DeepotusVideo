@@ -104,8 +104,8 @@ if R:
 check("C1 le noeud Concatenate propose aussi le flash cyan (meme moteur cote serveur), apres le flash blanc",
       BUN.count('options:["crossfade","cut","fadeblack","glitch","slide","flash","cyan_flash"]') == 1
       and 'options:["crossfade","cut","fadeblack","glitch","slide","flash"]' not in BUN)
-check("T4 aucun prompt/alert/confirm natif ; la chaine tient (DzTracks 180, __dzCoutBlanc 7, __dzSrcLbl x2, dzRunMaxTake() x3)",
-      "window.prompt(" not in COUCHE and "alert(" not in COUCHE and BUN.count("DzTracks") == 180
+check("T4 aucun prompt/alert/confirm natif ; la chaine tient (DzTracks 181, __dzCoutBlanc 7, __dzSrcLbl x2, dzRunMaxTake() x3)",
+      "window.prompt(" not in COUCHE and "alert(" not in COUCHE and BUN.count("DzTracks") == 181
       and BUN.count("__dzCoutBlanc") == 7 and BUN.count("Object.assign(__dzSrcLbl,") == 2 and BUN.count("dzRunMaxTake()") == 3)
 
 print(f"\n{ok} PASS / {fail} FAIL")

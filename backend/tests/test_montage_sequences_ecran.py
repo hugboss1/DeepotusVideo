@@ -78,7 +78,9 @@ check("J1_le_setter_borne_a_la_moitie_du_clip_retire_le_champ_a_zero_et_pousse_l
       and "if(v>0)nk[key]=v;else delete nk[key];" in _fn and "pushHistory();" in _fn and "setDirty(!0)" in _fn
       and 'if(!c||c.kind!=="adjust")return;' in _fn, _fn[:120])
 check("J1_aucun_hook_ajoute_aucun_dialogue_natif",
-      len(re.findall(r"x\.use(State|Ref|Effect|Memo|Callback)\(", sv)) == len(re.findall(r"x\.use(State|Ref|Effect|Memo|Callback)\(", sv0))
+      # t119 (07/10/2026) : + 2 hooks hors t117 — `dzScenesRef` et l'effet qui découpe un épisode posé
+      len(re.findall(r"x\.use(State|Ref|Effect|Memo|Callback)\(", sv)) == len(re.findall(r"x\.use(State|Ref|Effect|Memo|Callback)\(", sv0)) + 2
+      and sv.count("var dzScenesRef=x.useRef(null);") == 1
       and not re.search(r"\b(alert|confirm|prompt)\(", _fn + sv[sv.find("  function dzAjFadeRow(c){"):sv.find("  function vfxLegacySection(){")]))
 
 # les titres disent la vérité : l'écart est levé, et l'avertissement faux sur les effets des pistes hautes est retiré

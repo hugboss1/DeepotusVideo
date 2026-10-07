@@ -401,8 +401,8 @@ if R2:
     check("B14 refus du serveur : SA phrase dans un dialogue « Recette refusée » ; compilation impossible : « Recette impossible »",
           R2["refus"][-1] == ["informer", "La recette n'a pas de template.", "Recette refusée"]
           and R2["err"] == [["informer", "Add a Render node", "Recette impossible"]], f"{R2['refus']} {R2['err']}")
-check("B15 aucun prompt/alert/confirm natif ; la chaine tient (DzTracks 180, __dzCoutBlanc 7, __dzSrcLbl x2, dzRunMaxTake() x3)",
-      "window.prompt(" not in COUCHE and "confirm(" not in COUCHE and BUN.count("DzTracks") == 180 and BUN.count("__dzCoutBlanc") == 7
+check("B15 aucun prompt/alert/confirm natif ; la chaine tient (DzTracks 181, __dzCoutBlanc 7, __dzSrcLbl x2, dzRunMaxTake() x3)",
+      "window.prompt(" not in COUCHE and "confirm(" not in COUCHE and BUN.count("DzTracks") == 181 and BUN.count("__dzCoutBlanc") == 7
       and BUN.count("Object.assign(__dzSrcLbl,") == 2 and BUN.count("dzRunMaxTake()") == 3)
 
 print(f"\n{ok} PASS / {fail} FAIL")

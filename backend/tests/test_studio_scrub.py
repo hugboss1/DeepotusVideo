@@ -243,8 +243,8 @@ await attendre();T=rendre();for(var i=0;i<60;i++){cle(".");T=rendre()}R.t=V.curr
 """)
 check("B16 durees pas encore connues (metadonnees en route) : 60 « . » butent sur l'image 48, sans viser au-dela de la fin",
       R3 is not None and abs(R3["t"] - 47.5 / 24) < 1e-6 and R3["c"] == "f 48 / 48", str(R3))
-check("B15 aucun prompt/alert/confirm natif ; la chaine tient (DzTracks 180, __dzCoutBlanc 7, __dzSrcLbl x2, dzRunMaxTake() x3)",
-      "confirm(" not in COUCHE and "alert(" not in COUCHE and BUN.count("DzTracks") == 180 and BUN.count("__dzCoutBlanc") == 7
+check("B15 aucun prompt/alert/confirm natif ; la chaine tient (DzTracks 181, __dzCoutBlanc 7, __dzSrcLbl x2, dzRunMaxTake() x3)",
+      "confirm(" not in COUCHE and "alert(" not in COUCHE and BUN.count("DzTracks") == 181 and BUN.count("__dzCoutBlanc") == 7
       and BUN.count("Object.assign(__dzSrcLbl,") == 2 and BUN.count("dzRunMaxTake()") == 3)
 
 print(f"\n{ok} PASS / {fail} FAIL")
