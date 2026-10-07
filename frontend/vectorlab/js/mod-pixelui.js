@@ -14,7 +14,7 @@ import { pinceau, gomme, seau, sel_rect, sel_lasso, sel_baguette, sel_couleur, s
 import { ligne_pixel, rect_pixel, symetrie, palette_extraire, quantifier, pixeliser, raccord_3x3,
          feuille_tuiles, bande, pelure, pelure_double, pixel_parfait, masque_losange, masque_losanges, pavage_iso, rasteriser, DITHERS,
          cellule_et_cible, echantillon_cellule, remplir_depuis_modele, couleurs_utilisees,
-         contour_sombre, accentuer, agrandir } from "./mod-pixelart.js";
+         contour_sombre, accentuer, agrandir, miroirs, tuile_sous } from "./mod-pixelart.js";
 import { matrice_de, matrice_inverse, matrice_mul } from "./mod-pdf.js";
 import { PALETTES } from "../../spritelab/palettes.js";   // lot 4 : les palettes nommées partagées avec Spritelab / Tilelab
 
@@ -251,16 +251,10 @@ export function initPixelUI(VL) {
   const estPixel = () => etat.persona === "pixel" && String(etat.outil).startsWith("px-");
   const pixelDe = (o, ev) => { const [dx, dy] = VL.docPt(ev.clientX, ev.clientY); return pixel_de_doc(o, dx, dy); };
   const sym = () => (etat.doc.pixelart && etat.doc.pixelart.symetrie) || { h: false, v: false };
+  // t125 : `miroirs` (pur) — H/V sur l'image, diagonales ⟋ ⟍ sur la tuile iso, images REGROUPÉES
   const miroir = (pts, entier) => {
-    const s = sym(), t = etat.px.tampon;
-    if (entier) return symetrie(pts, t.w, t.h, s);
-    const out = pts.slice();
-    for (const [x, y] of pts) {
-      if (s.h) out.push([t.w - x, y]);
-      if (s.v) out.push([x, t.h - y]);
-      if (s.h && s.v) out.push([t.w - x, t.h - y]);
-    }
-    return out;
+    const t = etat.px.tampon, pa = etat.doc.pixelart || {};
+    return miroirs(pts, entier, t.w, t.h, sym(), pa.iso ? (pa.tuile || { w: 0, h: 0 }) : null);
   };
   // lot 2 : en tuile iso, la peinture est BORNÉE au losange quand aucune sélection n'est posée
   const masqueEffectif = () => {
@@ -408,7 +402,10 @@ export function initPixelUI(VL) {
     }
   }, true);
   stage.addEventListener("pointermove", (ev) => {
-    if (!geste) return;
+    if (!geste) {                                  // t125 : le pixel SURVOLÉ — le raccord mesure la tuile sous le curseur
+      if (etat.doc && etat.persona === "pixel") { const o = courant(); if (o) etat.px.survol = pixelDe(o, ev).map(Math.floor); }
+      return;
+    }
     ev.stopPropagation();
     const o = courant();
     if (!o) return;
@@ -608,7 +605,9 @@ export function initPixelUI(VL) {
         <div class="ap-ligne"><label><vl-bascule id="pxGrille"${p.grille ? " checked" : ""}></vl-bascule> grille pixel</label>
           <label title="Tuile isométrique 2:1 : grille en losange, peinture bornée au losange, raccord en pavage iso"><vl-bascule id="pxIso"${pa.iso ? " checked" : ""}></vl-bascule> iso 2:1</label>
           <label title="Les gestes se répètent en miroir"><vl-bascule id="pxSymH"${s.h ? " checked" : ""}></vl-bascule> sym. H</label>
-          <label><vl-bascule id="pxSymV"${s.v ? " checked" : ""}></vl-bascule> V</label></div>
+          <label><vl-bascule id="pxSymV"${s.v ? " checked" : ""}></vl-bascule> V</label>
+          <label title="${pa.iso ? "Miroir le long du bord ⟋ du losange (pente 1/2), dans chaque tuile : un pixel devient une paire de pixels" : "Diagonales du losange : activez « iso 2:1 »"}"><vl-bascule id="pxSymD1"${s.d1 ? " checked" : ""}${pa.iso ? "" : " disabled"}></vl-bascule> ⟋</label>
+          <label title="${pa.iso ? "Miroir le long du bord ⟍ du losange (pente −1/2), dans chaque tuile" : "Diagonales du losange : activez « iso 2:1 »"}"><vl-bascule id="pxSymD2"${s.d2 ? " checked" : ""}${pa.iso ? "" : " disabled"}></vl-bascule> ⟍</label></div>
         <div class="ap-ligne"><span>Palette</span>${num("pxPalN", (pa.palette || []).length || 8, 'min="2" max="64" title="Nombre de couleurs à extraire"')}<span style="width:auto">couleurs</span></div>
         <div class="vl-rangee"><button id="pxPalExtraire" ${t ? "" : "disabled"} title="Palette indexée par median cut, sauvée avec le document">Extraire</button>
           <button id="pxQuantifier" ${t && pa.palette ? "" : "disabled"} title="Ramène chaque pixel à la couleur de palette la plus proche">Quantifier</button></div>
@@ -675,8 +674,9 @@ export function initPixelUI(VL) {
     on("pxExpPng", "click", garde(async () => { const k = Math.round(val("pxExpK")) || 1, im = agrandir(etat.px.tampon, k); const o2 = courant(); telecharger(await pngDe(im), `vector_${etat.docId}_${String(o2.href).replace(/\.png$/i, "")}_x${k}.png`); VL.toast(`PNG ×${k} : ${im.w}×${im.h}`); }));
     on("pxVersVecteur", "click", garde(versVecteur));
     on("pxTuileOK", "click", () => VL.executer(op_pixelart, { tuile: { w: Math.round(val("pxTuileW")), h: Math.round(val("pxTuileH")) } }));
-    const symChange = () => VL.executer(op_pixelart, { symetrie: { h: $("#pxSymH").checked, v: $("#pxSymV").checked } });
-    on("pxSymH", "change", symChange); on("pxSymV", "change", symChange);
+    const symChange = () => VL.executer(op_pixelart, { symetrie: { h: $("#pxSymH").checked, v: $("#pxSymV").checked,
+      d1: !!($("#pxSymD1") && $("#pxSymD1").checked), d2: !!($("#pxSymD2") && $("#pxSymD2").checked) } });
+    on("pxSymH", "change", symChange); on("pxSymV", "change", symChange); on("pxSymD1", "change", symChange); on("pxSymD2", "change", symChange);
     on("pxPalExtraire", "click", () => VL.executer(op_pixelart, { palette: palette_extraire(t, Math.round(val("pxPalN"))) }));
     on("pxQuantifier", "click", ajuster((im) => quantifier(im, etat.doc.pixelart.palette)));
     hote.querySelectorAll(".px-pastille").forEach((b) => {
@@ -707,10 +707,13 @@ export function initPixelUI(VL) {
     on("pxIso", "change", (ev) => { losange = null; VL.executer(op_pixelart, { iso: ev.target.checked ? true : null }); VL.rendreOverlay(); });
     on("pxRasteriser", "click", garde(rasteriserImage));
     on("pxRaccord", "click", () => {
-      const r = (etat.doc.pixelart && etat.doc.pixelart.iso) ? pavage_iso(t) : raccord_3x3(t), cv = $("#pxRaccordCv");
+      // t125 : la tuile SOUS LE CURSEUR (dernier pixel survolé), plus l'image entière comme une seule tuile
+      const pa = etat.doc.pixelart || {}, tu = pa.tuile || { w: 0, h: 0 }, sv = etat.px.survol || [];
+      const ts = tuile_sous(t, sv[0], sv[1], tu.w, tu.h);
+      const r = pa.iso ? pavage_iso(ts.img) : raccord_3x3(ts.img), cv = $("#pxRaccordCv");
       cv.hidden = false; cv.width = r.img.w; cv.height = r.img.h;
       cv.getContext("2d").putImageData(new ImageData(new Uint8ClampedArray(r.img.data), r.img.w, r.img.h), 0, 0);
-      $("#pxScore").textContent = `score ${r.score}`;
+      $("#pxScore").textContent = `score ${r.score}` + (ts.tx === null ? "" : ` · tuile ${ts.tx + 1},${ts.ty + 1}`);
     });
     on("pxFeuille", "click", garde(feuille));
     on("pxCadreNouveau", "click", garde(() => nouveauCadre(false)));
