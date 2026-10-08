@@ -807,5 +807,13 @@
   "photolab.espace.supprimer_titre": {"fr": "Supprimer l'espace de travail", "en": "Delete Workspace"},
   "photolab.espace.espace": {"fr": "Espace", "en": "Workspace to delete"},
   "photolab.espace.supprimer": {"fr": "Supprimer l'espace", "en": "Delete Workspace"},
-  "photolab.espace.supprime": {"fr": "Espace « {nom} » supprimé.", "en": "Workspace “{nom}” deleted."}
+  "photolab.espace.supprime": {"fr": "Espace « {nom} » supprimé.", "en": "Workspace “{nom}” deleted."},
+  "photolab.affichage.options_titre": {"fr": "Options d'affichage des extras", "en": "Show Extras Options"},
+  "photolab.affichage.contours_calque": {"fr": "Contours du calque", "en": "Layer Edges"},
+  "photolab.affichage.contours_selection": {"fr": "Contours de la sélection", "en": "Selection Edges"},
+  "photolab.affichage.grille": {"fr": "Grille", "en": "Grid"},
+  "photolab.affichage.reperes": {"fr": "Repères", "en": "Guides"},
+  "photolab.affichage.reperes_canevas": {"fr": "Repères du canevas", "en": "Canvas Guides"},
+  "photolab.affichage.grille_pixels": {"fr": "Grille de pixels", "en": "Pixel Grid"},
+  "photolab.affichage.apercu_pinceau": {"fr": "Aperçu du pinceau", "en": "Brush Preview"}
 }

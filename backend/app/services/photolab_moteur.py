@@ -17,6 +17,7 @@ import subprocess
 import sys
 import threading
 import time
+import zipfile
 from pathlib import Path
 
 from app.services import photolab_registre as PR
@@ -145,6 +146,76 @@ def commandes(s):
     reg = _structure(s, gen, brut)
     liste = brut if isinstance(brut, list) else (brut or {}).get("commands") or []
     return [{**c, "champs": reg.get(c.get("id"), {}).get("champs", [])} for c in liste], gen
+
+
+# t152 : repères du document. doc.inspect ne les rend pas (Document.guides) ; le .pcraft les enregistre dans
+# manifest.json (document.guides {horizontal, vertical}). Cache par (génération, document actif, révision).
+_CACHE_REPERES = {"base": None, "reperes": None}
+_VERROU_CACHE_REPERES = threading.Lock()
+_NOM_REPERES = "reperes-lecture.pcraft"
+
+
+def _guides(manifeste) -> dict:
+    g = ((manifeste or {}).get("document") or {}).get("guides") or {}
+    lire = lambda k: [float(x) for x in (g.get(k) or []) if isinstance(x, (int, float)) and not isinstance(x, bool)]
+    return {"horizontal": lire("horizontal"), "vertical": lire("vertical")}
+
+
+def reperes(s: "SessionMoteur"):
+    """({"horizontal": [...], "vertical": [...]} du document actif, génération) — None à la place du dict sans
+    document. Le document de l'utilisateur n'est jamais touché : on COPIE (image.duplicate), on enregistre la COPIE
+    en .pcraft sous rendus/ (doc.save rattache la copie, pas l'original), on la referme, on rend l'original actif,
+    puis on lit le zip et on l'efface. Tout dans UNE séquence sous le verrou (personne ne voit la copie). Coût mesuré :
+    ~130 ms en 1920 × 1080 ; l'écran ne relit qu'après une opération qui peut déplacer les repères."""
+    d = dossier_travail() / "rendus"
+    f = d / _NOM_REPERES
+
+    def fn(appel, gen):
+        sl = appel("session.list") or {}
+        actif = sl.get("active")
+        if actif is None:
+            return None
+        rev = appel("doc.inspect")["revision"]
+        base = (gen, actif, rev)
+        with _VERROU_CACHE_REPERES:
+            if _CACHE_REPERES["base"] == base:
+                return dict(_CACHE_REPERES["reperes"])
+        n_avant = len(sl.get("documents") or [])
+        copie, reussi, lus = None, False, None
+        try:
+            res = appel("engine.execute", {"command": "image.duplicate", "params": {"name": "dz-reperes"}})
+            apres = appel("session.list") or {}
+            if len(apres.get("documents") or []) == n_avant + 1 and isinstance(apres.get("active"), int):
+                copie = apres["active"]
+            idx = res.get("document") if isinstance(res, dict) else None
+            if copie is None and isinstance(idx, int) and not isinstance(idx, bool):
+                copie = idx
+            if copie is None:
+                raise MoteurErreur("repères : image.duplicate n'a pas rendu l'index du document copié")
+            appel("doc.save", {"path": relatif(f"rendus/{_NOM_REPERES}")})
+            reussi = True
+        finally:
+            try:
+                if copie is not None:
+                    appel("doc.close", {"index": copie})
+                    appel("doc.select", {"index": actif})
+            except (MoteurErreur, MoteurDelai):
+                if reussi:
+                    raise
+        try:
+            with zipfile.ZipFile(f) as z:
+                lus = _guides(json.loads(z.read("manifest.json")))
+        except (OSError, KeyError, ValueError, zipfile.BadZipFile) as e:
+            raise MoteurErreur(f"repères : lecture du fichier de travail impossible ({e})")
+        finally:
+            try:
+                f.unlink()
+            except OSError:
+                pass
+        with _VERROU_CACHE_REPERES:
+            _CACHE_REPERES["base"], _CACHE_REPERES["reperes"] = base, lus
+        return dict(lus)
+    return s.sequence(fn)
 
 
 def elaguer_inspect(doc):

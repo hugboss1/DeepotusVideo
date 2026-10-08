@@ -369,6 +369,17 @@ async def vignettes(maxSide: int = 48):
     return _json({"vignettes": {k: f"/api/photolab/rendus/{n}" for k, n in noms.items()}}, gen)
 
 
+@router.get("/reperes")
+async def reperes():
+    """t152 : les repères du document actif {"horizontal": [...], "vertical": [...], "revision"} — lus dans une COPIE
+    enregistrée en .pcraft (doc.inspect ne les rend pas) ; listes vides et révision nulle sans document."""
+    lus, gen = await _pool(lambda s: functools.partial(PM.reperes, s))
+    if lus is None:
+        return _json({"horizontal": [], "vertical": [], "revision": None}, gen)
+    rev = (PM._CACHE_REPERES.get("base") or (None, None, None))[2]
+    return _json({**lus, "revision": rev}, gen)
+
+
 _VERROU_BIBLIO = asyncio.Lock()          # choisir un nom libre ET copier d'un seul tenant (deux enregistrements la même seconde)
 
 

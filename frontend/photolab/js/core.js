@@ -23,6 +23,7 @@ import { initPipette } from "./mod-pipette.js";
 import { initPeinture } from "./mod-peinture.js";
 import { initPinceaux } from "./mod-pinceaux.js";
 import { initEspaces } from "./mod-espaces.js";
+import { initAffichage } from "./mod-affichage.js";
 import { initRaccourcis } from "./mod-raccourcis.js";
 import { initApropos } from "./mod-apropos.js";
 
@@ -117,6 +118,7 @@ initRecadrer(PL);
 initPipette(PL);
 initPeinture(PL);     // t155 : après la pipette (Alt-clic des pinceaux la réutilise) et le répartiteur des gestes
 initPinceaux(PL);     // t155 : après la peinture (PL.optionsPeintureDe) ; branche Fenêtre › Pinceaux… dans PL.actions
+initAffichage(PL);    // t152 : après le Déplacement (il enveloppe PL.gestes.move pour les repères) et la vue
 
 // Onglets du groupe Calques | Historique | Navigateur, et rail d'icônes : calques/historique/navigateur montrent leur
 // onglet ; couleur et réglages (Propriétés) replient ou déplient leur groupe.

@@ -29,8 +29,10 @@ export function pasFleche(touche, maj) {
 
 // Delta du glisser en pixels document, mesuré en coordonnées CLIENT depuis l'appui. Surtout pas depuis le rectangle
 // de #toile : l'aperçu le translate, la mesure suivrait l'aperçu et le geste dériverait.
-export function deltaGlisser(appui, ev, z) {
-  return { dx: (ev.clientX - appui.clientX) / z, dy: (ev.clientY - appui.clientY) / z };
+// t152 : vue en miroir -> le glisser horizontal à l'écran est l'inverse du déplacement dans le document.
+export function deltaGlisser(appui, ev, z, miroir = false) {
+  const dx = (ev.clientX - appui.clientX) / z;
+  return { dx: miroir ? -dx : dx, dy: (ev.clientY - appui.clientY) / z };
 }
 
 export function cumulerPas(a, b) { return { dx: a.dx + b.dx, dy: a.dy + b.dy }; }
@@ -41,7 +43,8 @@ export function initDeplacer(PL) {
   const toile = PL.$("#toile");
   let g = null;
   const doc = () => PL.etat.doc;
-  const apercu = (dx, dy) => { toile.style.transform = dx || dy ? `translate(${dx * PL.vue.v.z}px, ${dy * PL.vue.v.z}px)` : ""; };
+  // t152 : en miroir, un déplacement document vers la droite se voit vers la gauche.
+  const apercu = (dx, dy) => { const sx = PL.vue.v.miroir ? -dx : dx; toile.style.transform = dx || dy ? `translate(${sx * PL.vue.v.z}px, ${dy * PL.vue.v.z}px)` : ""; };
 
   // -> true si une commande est partie et a réussi (le rendu qui suit effacera l'aperçu, PL.surRendu).
   async function deplacer(dx, dy) {
@@ -74,8 +77,10 @@ export function initDeplacer(PL) {
     },
     bouger(p, ev) {
       if (!g || g.annule) return;
-      let { dx, dy } = deltaGlisser(g.appui, ev, g.z);
+      let { dx, dy } = deltaGlisser(g.appui, ev, g.z, !!PL.vue.v.miroir);
       if (ev.shiftKey) ({ dx, dy } = contrainteAxe(dx, dy));
+      // t152 : Affichage › Aimanter (Ctrl tenu pendant le glisser l'interrompt, comme dans la référence)
+      if (PL.affichage && !ev.ctrlKey) ({ dx, dy } = PL.affichage.aimanterDeplacement(dx, dy));
       g.dx = dx; g.dy = dy;
       apercu(Math.round(dx), Math.round(dy));
     },

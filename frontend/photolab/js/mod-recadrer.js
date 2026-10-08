@@ -3,6 +3,7 @@
 // sans cadre mais avec une sélection, Entrée recadre à la sélection (image.crop {}).
 // Fonctions PURES exportées (qa/gestes.test.mjs).
 import { rectDepuisGlisser } from "./mod-selection.js";
+import { rectVersEcran } from "./mod-vue.js";
 
 // Rectangle du glisser, intersecté avec le document {width, height}.
 export function rectRecadrage(x0, y0, x1, y1, opts, doc) {
@@ -15,8 +16,9 @@ export function rectRecadrage(x0, y0, x1, y1, opts, doc) {
 // Poignée du cadre sous le point ÉCRAN (sx, sy) : "nw" | "ne" | "sw" | "se" | null.
 export function poigneeSous(cadre, sx, sy, v, tol = 8) {
   if (!cadre) return null;
-  const x0 = cadre.x * v.z + v.ox, y0 = cadre.y * v.z + v.oy;
-  const x1 = (cadre.x + cadre.width) * v.z + v.ox, y1 = (cadre.y + cadre.height) * v.z + v.oy;
+  // t152 : par la conversion commune (vue en miroir comprise)
+  const r = rectVersEcran(v, cadre.x, cadre.y, cadre.width, cadre.height);
+  const x0 = r.x, y0 = r.y, x1 = r.x + r.w, y1 = r.y + r.h;
   for (const [nom, x, y] of [["nw", x0, y0], ["ne", x1, y0], ["sw", x0, y1], ["se", x1, y1]]) {
     if (Math.abs(sx - x) <= tol && Math.abs(sy - y) <= tol) return nom;
   }

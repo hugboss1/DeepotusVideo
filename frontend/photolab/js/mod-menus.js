@@ -25,9 +25,19 @@ export const TRAITES_PAR_ECRAN = new Set(["file.new", "file.open", "file.close",
   "window.workspace.graphicAndWeb", "window.workspace.motion", "window.workspace.resetWorkspace", "window.workspace.newWorkspace",
   "window.workspace.deleteWorkspace", "window.workspace.lockWorkspace",
   "window.panel.color", "window.panel.properties", "window.panel.adjustments", "window.panel.layers", "window.panel.history",
-  "window.panel.navigator", "window.panel.options", "window.panel.tools"]);
+  "window.panel.navigator", "window.panel.options", "window.panel.tools",
+  // t152 : menu Affichage (mod-affichage : IDS_AFFICHAGE — banc affichage 7.4) ; les commandes moteur des repères
+  // (Nouveau repère…, Effacer les repères…) restent au moteur
+  "view.zoomIn", "view.zoomOut", "view.fitOnScreen", "view.fitLayersOnScreen", "view.actualPixels", "view.twoHundredPercent",
+  "view.printSize", "view.flipHorizontal", "view.screenMode.standard", "view.screenMode.fullScreenWithMenuBar", "view.screenMode.fullScreen",
+  "view.extras", "view.show.layerEdges", "view.show.selectionEdges", "view.show.grid", "view.show.guides", "view.show.canvasGuides",
+  "view.show.pixelGrid", "view.show.brushPreview", "view.show.all", "view.show.showExtrasOptions", "view.rulers", "view.snap",
+  "view.snapTo.guides", "view.snapTo.grid", "view.snapTo.layers", "view.snapTo.documentBounds", "view.snapTo.all", "view.lockGuides",
+  "view.pixelArtPreview"]);
 // … dont celles qui n'ont de sens qu'avec un document ouvert (grisées sur l'écran d'accueil).
-export const NECESSITE_DOC = new Set(["file.close", "file.save", "file.saveAs", "file.export.exportAs", "pl.envoyer", "pl.natif.ouvrir"]);
+export const NECESSITE_DOC = new Set(["file.close", "file.save", "file.saveAs", "file.export.exportAs", "pl.envoyer", "pl.natif.ouvrir",
+  // t152 : les zooms d'Affichage
+  "view.zoomIn", "view.zoomOut", "view.fitOnScreen", "view.fitLayersOnScreen", "view.actualPixels", "view.twoHundredPercent", "view.printSize"]);
 
 // Le registre arrive en tableau ; on tolère {commands:[…]}.
 export function indexRegistre(registre) {
@@ -256,6 +266,7 @@ export function initMenus(PL) {
     if (ouvert >= 0) { aReconstruire = true; return; }      // jamais sous les doigts de l'utilisateur
     menus = construireMenus(catalogue, registre, REFUSES, lang(), T);
     if (PL.espaces) menus = PL.espaces.decorer(menus);      // t151 : sous-menu Espace de travail, coches de Fenêtre
+    if (PL.affichage) menus = PL.affichage.decorer(menus);  // t152 : menu Affichage (états et coches)
     barre.textContent = "";
     menus.forEach((m, i) => {
       const b = document.createElement("button");

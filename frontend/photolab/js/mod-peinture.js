@@ -249,7 +249,9 @@ export function initPeinture(PL) {
   };
   const pointe = (id, p) => {
     const o = opts(id);
-    PL.apercu = o.taille ? { type: "pointe", x: p.x, y: p.y, taille: o.taille } : null;
+    // t152 : Affichage › Afficher › Aperçu du pinceau (et Extras)
+    const montre = !PL.affichage || PL.affichage.voir("apercuPinceau");
+    PL.apercu = o.taille && montre ? { type: "pointe", x: p.x, y: p.y, taille: o.taille } : null;
     PL.dessinerFourmis();
   };
 

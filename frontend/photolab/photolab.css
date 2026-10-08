@@ -553,3 +553,26 @@ input[type=range]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 3px var(--
 .menu-ligne.cochable .menu-coche { width: 14px; flex: none; color: var(--accent); }
 .menu-ligne .menu-coche { order: -1; }
 .menu-panneau:has(.cochable) .menu-ligne:not(.cochable) .menu-lib { padding-left: 14px; }
+
+/* ---- t152 : menu Affichage (surcouche, règles, modes d'écran) ---- */
+#affichage { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+/* couleurs de photocraft (repères, grille) posées en attribut par mod-affichage : la feuille n'a aucune couleur en dur */
+#affichage .grille line { stroke-width: 1; }
+#affichage .grille line.mineure { stroke-opacity: .35; }
+#affichage .grille line.majeure { stroke-opacity: .7; }
+#affichage .grille-pixels line { stroke: var(--ink-strong); stroke-opacity: .18; stroke-width: 1; }
+#affichage .reperes line, #affichage .repere-glisse { stroke-width: 1; }
+#affichage .repere-glisse { stroke-dasharray: 4 3; }
+#affichage .contour-calque { fill: none; stroke: var(--accent); stroke-width: 1; stroke-dasharray: 3 3; }
+#regles { position: absolute; inset: 0; pointer-events: none; }
+#regles[hidden] { display: none; }
+#regleH, #regleV, .regle-coin { position: absolute; pointer-events: auto; }
+#regleH { top: 0; left: 18px; height: 18px; width: calc(100% - 18px); cursor: ns-resize; border-bottom: 1px solid var(--stroke); }
+#regleV { top: 18px; left: 0; width: 18px; height: calc(100% - 18px); cursor: ew-resize; border-right: 1px solid var(--stroke); }
+.regle-coin { top: 0; left: 0; width: 18px; height: 18px; background: var(--bg-panel); border-right: 1px solid var(--stroke); border-bottom: 1px solid var(--stroke); }
+body.ecran-menus #onglets { display: none; }
+body.ecran-plein #menubar, body.ecran-plein #options, body.ecran-plein #onglets, body.ecran-plein #outils, body.ecran-plein #rail,
+body.ecran-plein #panneaux, body.ecran-plein #statut, body.ecran-plein .espace-boite { display: none; }
+/* t152 : dans une fenêtre étroite, le sélecteur d'espace (t151) recouvrait la fin de la barre de menus : il s'efface,
+   le choix reste dans Fenêtre › Espace de travail */
+@media (max-width: 900px) { .espace-boite { display: none; } }
