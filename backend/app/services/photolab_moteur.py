@@ -783,3 +783,117 @@ def etat_session() -> dict:
     with _VERROU_SESSION:
         s = _SESSION
     return {"generation": s.generation if s else 0, "vivant": bool(s and s.vivant())}
+
+
+# ── t153 : vignettes des motifs et contenu des couches alpha (aucune commande du moteur ne les rend) ────────────────
+_ID_MOTIF = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+_CACHE_MOTIFS: dict = {}                                   # (génération, id) -> octets PNG
+_VERROU_CACHE_MOTIFS = threading.Lock()
+_COTE_MOTIF = 64
+
+
+def vignette_motif(s: "SessionMoteur", ident: str):
+    """(octets PNG 64×64 du motif `ident` répété, génération). Le moteur n'a pas de rendu de motif : un document
+    temporaire (doc.new, calque de motif, doc.render) refermé dans un `finally`, l'original resélectionné ; le
+    document de l'utilisateur n'est jamais touché (ni historique ni révision). Cache par (génération, id) : le
+    contenu d'un motif ne change pas (renommer garde l'id, Définir un motif en crée un nouveau)."""
+    if not isinstance(ident, str) or not _ID_MOTIF.fullmatch(ident):
+        raise ValueError(f"motif : identifiant mal formé : {ident!r}")
+    n = next(_COMPTEUR_APV)
+    fichier = dossier_travail() / "rendus" / f"mtf-{n}.png"
+
+    def fn(appel, gen):
+        with _VERROU_CACHE_MOTIFS:
+            if (gen, ident) in _CACHE_MOTIFS:
+                return _CACHE_MOTIFS[(gen, ident)]
+        sl = appel("session.list") or {}
+        actif, n_avant = sl.get("active"), len(sl.get("documents") or [])
+        temp, reussi = None, False
+        try:
+            appel("doc.new", {"width": _COTE_MOTIF, "height": _COTE_MOTIF, "background": "transparent",
+                              "name": "dz-motif"})
+            apres = appel("session.list") or {}
+            if len(apres.get("documents") or []) == n_avant + 1 and isinstance(apres.get("active"), int):
+                temp = apres["active"]
+            if temp is None:
+                raise MoteurErreur("motif : le document temporaire n'a pas été créé")
+            appel("engine.execute", {"command": "layer.newFillLayer.pattern", "params": {"pattern": ident}})
+            appel("doc.render", {"path": relatif(f"rendus/{fichier.name}"), "maxSide": _COTE_MOTIF})
+            octets = fichier.read_bytes()
+            reussi = True
+        finally:
+            try:
+                if temp is not None:
+                    appel("doc.close", {"index": temp})
+                    if isinstance(actif, int) and not isinstance(actif, bool):
+                        appel("doc.select", {"index": actif})
+            except (MoteurErreur, MoteurDelai):
+                if reussi:
+                    raise
+            try:
+                fichier.unlink()
+            except OSError:
+                pass
+        with _VERROU_CACHE_MOTIFS:
+            if len(_CACHE_MOTIFS) > 256:
+                _CACHE_MOTIFS.clear()
+            _CACHE_MOTIFS[(gen, ident)] = octets
+        return octets
+    return s.sequence(fn)
+
+
+def couches_alpha(s: "SessionMoteur", max_side: int, index=None):
+    """([{"index", "png": data-URL en niveaux de gris}], génération) — le contenu des couches alpha du document actif
+    (blanc = sélectionné). doc.render ne rend que le composite : sur une COPIE (_sur_copie), pour chaque alpha, un
+    calque uni noir couvre tout, un calque uni blanc le couvre, la couche est chargée comme sélection et devient le
+    masque du calque blanc (layerMask.revealSelection ; un calque uni créé sur une sélection N'EST PAS masqué), rendu. L'original n'est pas touché ; les rendus temporaires sont effacés. `index` : une seule couche."""
+    import base64
+    import io
+    from PIL import Image
+    if index is not None and (not isinstance(index, int) or isinstance(index, bool) or index < 0):
+        raise ValueError(f"index : entier positif attendu : {index!r}")
+    n = next(_COMPTEUR_APV)
+    chemins = []
+
+    def fn(appel, gen):
+        actif, n_avant, insp = _ouvrir_original(appel)
+        alphas = [a.get("index") for a in ((insp.get("channels") or {}).get("alpha") or []) if isinstance(a, dict)]
+        if index is not None:
+            if index not in alphas:
+                raise ValueError(f"index : couche alpha inconnue : {index}")
+            alphas = [index]
+        if not alphas:
+            return []
+
+        def travail(_cible):
+            sorties = []
+            for i in alphas:
+                f = f"cha-{gen}-{n}-{i}.png"
+                chemins.append(dossier_travail() / "rendus" / f)
+                ex = lambda c, p=None: appel("engine.execute", {"command": c, "params": p or {}})
+                if (appel("doc.inspect") or {}).get("hasSelection"):
+                    ex("select.deselect")                  # refusé sans sélection (« no selection »)
+                ex("layer.newFillLayer.solidColor", {"color": "#000000"})
+                ex("layer.newFillLayer.solidColor", {"color": "#ffffff"})
+                ex("select.loadSelection", {"channel": i, "operation": "new"})
+                ex("layer.layerMask.revealSelection")      # le calque blanc ne garde que la sélection
+                appel("doc.render", {"path": relatif(f"rendus/{f}"), "maxSide": max_side})
+                sorties.append((i, f))
+            return sorties
+        return _sur_copie(appel, insp, actif, n_avant, "dz-couches", travail)
+    try:
+        sorties, gen = s.sequence(fn)
+        out = []
+        for i, f in sorties:
+            with Image.open(dossier_travail() / "rendus" / f) as im:
+                gris = im.convert("L")
+            tampon = io.BytesIO()
+            gris.save(tampon, format="PNG")
+            out.append({"index": i, "png": "data:image/png;base64," + base64.b64encode(tampon.getvalue()).decode()})
+        return out, gen
+    finally:
+        for chemin in chemins:
+            try:
+                chemin.unlink()
+            except OSError:
+                pass

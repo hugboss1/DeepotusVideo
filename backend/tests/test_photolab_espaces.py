@@ -53,8 +53,10 @@ def service():
           d == {"version": 1, "actif": "essentiel", "verrouille": False, "modifs": {}, "perso": []}, d)
     check("1b sept espaces fournis, dans l'ordre de la décision Q1",
           E.FOURNIS == ("essentiel", "base", "graphisme", "mouvement", "peinture", "photo", "pixel"), E.FOURNIS)
-    check("1c groupes et onglets", E.GROUPES == {"couleur": ("couleur",), "proprietes": ("proprietes", "ajustements"),
-          "pinceaux": ("pinceaux", "parametres", "source", "predefinis"), "calques": ("calques", "historique", "navigateur")}, E.GROUPES)
+    check("1c groupes et onglets (t153 : Nuancier, Dégradés, Motifs, Compositions, Couches, groupe Infos)",
+          E.GROUPES == {"couleur": ("couleur", "nuancier", "degrades", "motifs"), "proprietes": ("proprietes", "ajustements", "compositions"),
+          "pinceaux": ("pinceaux", "parametres", "source", "predefinis"), "calques": ("calques", "couches", "historique", "navigateur"),
+          "infos": ("histogramme", "infos")}, E.GROUPES)
     check("1d un état complet est admis tel quel", E.valider(copy.deepcopy(ETAT)) == ETAT)
     mauvais = []
     def m(chemin, f):

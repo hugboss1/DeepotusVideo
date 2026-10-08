@@ -150,9 +150,10 @@ check("11.1 deux onglets dans #grpProprietes : Propriétés puis Ajustements",
   && grp.indexOf('data-onglet-pr="proprietes"') < grp.indexOf('data-onglet-pr="ajustements"'), grp);
 check("11.2 deux corps : Propriétés visible, Ajustements caché", /id="corpsProprietes" data-vue-pr="proprietes">/.test(grp)
   && /id="corpsAjustements" data-vue-pr="ajustements" hidden>/.test(grp));
-check("11.3 quatre sections (t155 : + #grpPinceaux, replié) et six boutons de rail (+ pinceaux)", (html.match(/<section\b/g) || []).length === 4
-  && ((html.match(/id="rail"[\s\S]*?<\/nav>/) || [""])[0].match(/<button\b/g) || []).length === 6
-  && /<section id="grpPinceaux" class="groupe" hidden>/.test(html) && /data-panneau="pinceaux"/.test(html));
+check("11.3 cinq sections (t155 : + #grpPinceaux ; t153 : + #grpInfos, repliés) et sept boutons de rail (+ pinceaux, infos)", (html.match(/<section\b/g) || []).length === 5
+  && ((html.match(/id="rail"[\s\S]*?<\/nav>/) || [""])[0].match(/<button\b/g) || []).length === 7
+  && /<section id="grpPinceaux" class="groupe" hidden>/.test(html) && /data-panneau="pinceaux"/.test(html)
+  && /<section id="grpInfos" class="groupe" hidden>/.test(html) && /data-panneau="infos"/.test(html));
 const regle = (css.match(/#grpProprietes\s*\{[^}]*\}/) || [""])[0];
 check("11.4 #grpProprietes : hauteur souple bornée (plus de 170 px fixes)", !/height\s*:\s*170px/.test(regle) && /max-height\s*:/.test(regle) && /flex\s*:\s*0 1 auto/.test(regle), regle);
 check("11.5 son corps défile (overflow des .groupe-corps) et suit son contenu", /\.groupe-corps\s*\{[^}]*overflow\s*:\s*auto/.test(css) && /#grpProprietes \.groupe-corps\s*\{[^}]*flex\s*:\s*0 1 auto/.test(css));

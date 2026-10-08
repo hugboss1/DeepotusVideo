@@ -33,8 +33,8 @@ for (const id of ["menubar", "options", "onglets", "outils", "scene", "toile", "
 }
 check("2.1 canvas#toile", /<canvas[^>]*id="toile"/.test(html));
 check("2.2 #fourmis est un svg", /<svg[^>]*id="fourmis"/.test(html));
-check("2.3 quatre groupes de panneaux (t155 : + Pinceaux)", (html.match(/<section\b/g) || []).length === 4);
-check("2.4 rail à 6 boutons (t155 : + Pinceaux)", ((html.match(/id="rail"[\s\S]*?<\/nav>/) || [""])[0].match(/<button\b/g) || []).length === 6);
+check("2.3 cinq groupes de panneaux (t155 : + Pinceaux ; t153 : + Infos)", (html.match(/<section\b/g) || []).length === 5);
+check("2.4 rail à 7 boutons (t155 : + Pinceaux ; t153 : + Infos)", ((html.match(/id="rail"[\s\S]*?<\/nav>/) || [""])[0].match(/<button\b/g) || []).length === 7);
 check("2.5 accueil : boutons Nouveau et Ouvrir", /id="btnNouveau"/.test(html) && /id="btnOuvrir"/.test(html));
 
 // 3. cotes de photocraft (A1)

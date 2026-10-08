@@ -191,14 +191,16 @@ export function initVue(PL) {
     const x = v.ox, y = v.oy, W = d.w * v.z, H = d.h * v.z;
     damier(x, y, W, H, d, taille);
     if (vue.rendu && vue.rendu.image) {
+      // t153 : vue d'une ou plusieurs couches (doc.render rend toujours le composite) — composée par mod-couches
+      const image = vue.filtre ? vue.filtre(vue.rendu.image) : vue.rendu.image;
       // pixels francs au-delà de 100 %, lissé en réduction ; t152 : Aperçu pixel art = pixels francs à tout zoom
       ctx.imageSmoothingEnabled = v.z < 1 && !vue.pixelArt;
       if (v.miroir) {
         // t152 : Symétrie horizontale = la VUE retournée (le document du moteur ne change pas)
         ctx.save(); ctx.translate(x + W, y); ctx.scale(-1, 1);
-        ctx.drawImage(vue.rendu.image, 0, 0, W, H);
+        ctx.drawImage(image, 0, 0, W, H);
         ctx.restore();
-      } else ctx.drawImage(vue.rendu.image, x, y, W, H);
+      } else ctx.drawImage(image, x, y, W, H);
     }
     ctx.strokeStyle = jetons.trait;
     ctx.lineWidth = 1;

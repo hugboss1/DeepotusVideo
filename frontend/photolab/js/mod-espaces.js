@@ -8,7 +8,10 @@
 import { EMPLACEMENTS } from "./mod-outils.js";
 import { ouvrirDialogue } from "./mod-fichier.js";
 
-export const GROUPES = { couleur: ["couleur"], proprietes: ["proprietes", "ajustements"], pinceaux: ["pinceaux", "parametres", "source", "predefinis"], calques: ["calques", "historique", "navigateur"] };
+// t153 : Nuancier, Dégradés, Motifs (groupe Couleur), Compositions (Propriétés), Couches (Calques), et le groupe Infos.
+export const GROUPES = { couleur: ["couleur", "nuancier", "degrades", "motifs"], proprietes: ["proprietes", "ajustements", "compositions"],
+  pinceaux: ["pinceaux", "parametres", "source", "predefinis"], calques: ["calques", "couches", "historique", "navigateur"],
+  infos: ["histogramme", "infos"] };
 export const FOURNIS = ["essentiel", "base", "graphisme", "mouvement", "peinture", "photo", "pixel"];
 export const MAX_PERSO = 20;
 const MAX_NOM = 64;
@@ -49,6 +52,13 @@ export const PANNEAUX = {
   "window.panel.layers": { groupe: "calques", onglet: "calques" },
   "window.panel.history": { groupe: "calques", onglet: "historique" },
   "window.panel.navigator": { groupe: "calques", onglet: "navigateur" },
+  "window.panel.swatches": { groupe: "couleur", onglet: "nuancier" },
+  "window.panel.gradients": { groupe: "couleur", onglet: "degrades" },
+  "window.panel.patterns": { groupe: "couleur", onglet: "motifs" },
+  "window.panel.layerComps": { groupe: "proprietes", onglet: "compositions" },
+  "window.panel.channels": { groupe: "calques", onglet: "couches" },
+  "window.panel.histogram": { groupe: "infos", onglet: "histogramme" },
+  "window.panel.info": { groupe: "infos", onglet: "infos" },
 };
 export const BARRES = { "window.panel.options": "options", "window.panel.tools": "barreOutils" };
 // Jeu « base » (référence « Outils de base », ≈ 16 emplacements) : ces emplacements (outil principal) sont cachés.
@@ -57,14 +67,16 @@ export const HORS_BASE = ["lasso", "historyBrush", "eraser", "blur", "pathSelect
 const g = (id, etat, onglet = GROUPES[id][0]) => ({ id, etat, onglet });
 const dispo = (colonnes, outils, groupes) => ({ colonnes, outils, options: true, barreOutils: true, groupes });
 // Adaptation de la référence (spec §2.2) : Essentiel = l'écran d'avant t151, inchangé.
+// t153 : le groupe Infos (Histogramme | Infos) ouvert là où la référence le montre (Mouvement, Photographie) ;
+// Peinture et Pixel art ouvrent le Couleur sur le Nuancier (référence Peinture : Nuancier devant).
 export const DISPOSITIONS = {
-  essentiel: dispo(2, "tous", [g("couleur", "ouvert"), g("proprietes", "ouvert"), g("pinceaux", "replie"), g("calques", "ouvert")]),
-  base: dispo(1, "base", [g("proprietes", "ouvert"), g("calques", "ouvert"), g("couleur", "replie"), g("pinceaux", "masque")]),
-  graphisme: dispo(1, "tous", [g("couleur", "replie"), g("proprietes", "ouvert"), g("calques", "ouvert"), g("pinceaux", "masque")]),
-  mouvement: dispo(1, "tous", [g("proprietes", "ouvert", "ajustements"), g("calques", "ouvert"), g("couleur", "replie"), g("pinceaux", "replie", "parametres")]),
-  peinture: dispo(1, "tous", [g("couleur", "ouvert"), g("pinceaux", "ouvert"), g("calques", "ouvert"), g("proprietes", "replie")]),
-  photo: dispo(1, "tous", [g("proprietes", "ouvert", "ajustements"), g("calques", "ouvert"), g("couleur", "replie"), g("pinceaux", "replie", "source")]),
-  pixel: dispo(2, "tous", [g("couleur", "ouvert"), g("calques", "ouvert"), g("proprietes", "replie"), g("pinceaux", "replie")]),
+  essentiel: dispo(2, "tous", [g("couleur", "ouvert"), g("proprietes", "ouvert"), g("pinceaux", "replie"), g("calques", "ouvert"), g("infos", "replie")]),
+  base: dispo(1, "base", [g("proprietes", "ouvert"), g("calques", "ouvert"), g("couleur", "replie"), g("pinceaux", "masque"), g("infos", "masque")]),
+  graphisme: dispo(1, "tous", [g("couleur", "replie"), g("proprietes", "ouvert"), g("calques", "ouvert"), g("pinceaux", "masque"), g("infos", "masque")]),
+  mouvement: dispo(1, "tous", [g("infos", "ouvert"), g("proprietes", "ouvert", "ajustements"), g("calques", "ouvert"), g("couleur", "replie"), g("pinceaux", "replie", "parametres")]),
+  peinture: dispo(1, "tous", [g("couleur", "ouvert", "nuancier"), g("pinceaux", "ouvert"), g("calques", "ouvert"), g("proprietes", "replie"), g("infos", "masque")]),
+  photo: dispo(1, "tous", [g("infos", "ouvert"), g("proprietes", "ouvert", "ajustements"), g("calques", "ouvert"), g("couleur", "replie"), g("pinceaux", "replie", "source")]),
+  pixel: dispo(2, "tous", [g("couleur", "ouvert", "nuancier"), g("calques", "ouvert"), g("proprietes", "replie"), g("pinceaux", "replie"), g("infos", "replie")]),
 };
 
 const copie = (o) => JSON.parse(JSON.stringify(o));
@@ -175,9 +187,10 @@ export function decorerMenus(menus, etat, d, t) {
 
 /* ───────────── côté DOM ───────────── */
 
-const SECTIONS = { couleur: "#grpCouleur", proprietes: "#grpProprietes", pinceaux: "#grpPinceaux", calques: "#grpCalques" };
-const ONGLET = { proprietes: "data-onglet-pr", pinceaux: "data-onglet-pi", calques: "data-onglet" };
-const RAIL = { reglages: "proprietes", couleur: "couleur", pinceaux: "pinceaux", calques: "calques", historique: "calques", navigateur: "calques" };
+const SECTIONS = { couleur: "#grpCouleur", proprietes: "#grpProprietes", pinceaux: "#grpPinceaux", calques: "#grpCalques", infos: "#grpInfos" };
+const ONGLET = { couleur: "data-onglet-co", proprietes: "data-onglet-pr", pinceaux: "data-onglet-pi", calques: "data-onglet", infos: "data-onglet-in" };
+const RAIL = { reglages: "proprietes", couleur: "couleur", pinceaux: "pinceaux", calques: "calques", historique: "calques", navigateur: "calques",
+  infos: "infos" };
 
 export function initEspaces(PL) {
   const T = (cle, vars) => (window.dzT ? window.dzT(cle, vars) : cle);
@@ -216,6 +229,8 @@ export function initEspaces(PL) {
       PL.$("#options").hidden = !courante.options;
       if (PL.majRail) PL.majRail();
       if (PL.dessinerNavigateur) PL.dessinerNavigateur();
+      // t153 : un groupe ouvert sur un onglet déjà devant (aucun clic rejoué) relit quand même ce qu'il montre.
+      if (PL.surOngletMontre) for (const x of courante.groupes) if (x.etat === "ouvert") PL.surOngletMontre(x.id, x.onglet);
     } finally { application = false; }
     dessinerChoix();
     if (PL.menus && PL.menus.redessiner) PL.menus.redessiner();

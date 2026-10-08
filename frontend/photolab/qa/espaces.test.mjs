@@ -22,17 +22,23 @@ globalThis.DZ_I18N = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.m
 
 // 1. données
 check("1.1 sept espaces fournis, dans l'ordre Q1", eq(FOURNIS, ["essentiel", "base", "graphisme", "mouvement", "peinture", "photo", "pixel"]));
-check("1.2 quatre groupes et leurs onglets", eq(Object.keys(GROUPES), ["couleur", "proprietes", "pinceaux", "calques"]) && GROUPES.calques.includes("historique"));
+check("1.2 cinq groupes et leurs onglets (t153 : groupe Infos, Nuancier/Dégradés/Motifs, Compositions, Couches)",
+  eq(Object.keys(GROUPES), ["couleur", "proprietes", "pinceaux", "calques", "infos"]) && GROUPES.calques.includes("historique")
+  && eq(GROUPES.couleur, ["couleur", "nuancier", "degrades", "motifs"]) && eq(GROUPES.infos, ["histogramme", "infos"])
+  && eq(GROUPES.calques, ["calques", "couches", "historique", "navigateur"]) && eq(GROUPES.proprietes, ["proprietes", "ajustements", "compositions"]));
 check("1.3 chaque espace fourni a une disposition complète et valide", FOURNIS.every((f) => {
   const d = DISPOSITIONS[f];
   return d && [1, 2].includes(d.colonnes) && ["tous", "base"].includes(d.outils) && d.options === true && d.barreOutils === true
-    && d.groupes.length === 4 && new Set(d.groupes.map((g) => g.id)).size === 4
+    && d.groupes.length === 5 && new Set(d.groupes.map((g) => g.id)).size === 5
     && d.groupes.every((g) => ["ouvert", "replie", "masque"].includes(g.etat) && GROUPES[g.id].includes(g.onglet));
 }));
 const ess = DISPOSITIONS.essentiel;
-check("1.4 Essentiel = l'écran d'avant t151 (deux colonnes, Couleur, Propriétés, Calques ouverts, Pinceaux replié)",
+check("1.4 Essentiel = l'écran d'avant t151 (deux colonnes, Couleur, Propriétés, Calques ouverts, Pinceaux replié) + Infos replié (t153)",
   ess.colonnes === 2 && ess.outils === "tous" && eq(ess.groupes.map((g) => g.id + ":" + g.etat + ":" + g.onglet),
-    ["couleur:ouvert:couleur", "proprietes:ouvert:proprietes", "pinceaux:replie:pinceaux", "calques:ouvert:calques"]));
+    ["couleur:ouvert:couleur", "proprietes:ouvert:proprietes", "pinceaux:replie:pinceaux", "calques:ouvert:calques", "infos:replie:histogramme"]));
+check("1.4b t153 : Photographie et Mouvement ouvrent l'Histogramme, Peinture le Nuancier",
+  ["photo", "mouvement"].every((f) => { const x = DISPOSITIONS[f].groupes.find((g) => g.id === "infos"); return x.etat === "ouvert" && x.onglet === "histogramme"; })
+  && DISPOSITIONS.peinture.groupes.find((g) => g.id === "couleur").onglet === "nuancier");
 check("1.5 Base : jeu d'outils réduit, une colonne", DISPOSITIONS.base.outils === "base" && DISPOSITIONS.base.colonnes === 1);
 check("1.6 Peinture : Pinceaux ouvert", DISPOSITIONS.peinture.groupes.find((g) => g.id === "pinceaux").etat === "ouvert");
 check("1.7 Photo : Ajustements devant", DISPOSITIONS.photo.groupes.find((g) => g.id === "proprietes").onglet === "ajustements");
@@ -40,7 +46,7 @@ check("1.8 les espaces ne se ressemblent pas deux à deux", new Set(FOURNIS.map(
 const premiers = EMPLACEMENTS.map((e) => e[0].id);
 check("1.9 HORS_BASE : 5 emplacements de la barre (15 restent)", HORS_BASE.length === 5 && HORS_BASE.every((id) => premiers.includes(id))
   && premiers.filter((id) => !HORS_BASE.includes(id)).length === 15, HORS_BASE);
-check("1.10 Fenêtre › <panneau> : 10 panneaux + 2 barres", Object.keys(PANNEAUX).length === 10 && eq(BARRES, { "window.panel.options": "options", "window.panel.tools": "barreOutils" })
+check("1.10 Fenêtre › <panneau> : 17 panneaux (t153 : +7) + 2 barres", Object.keys(PANNEAUX).length === 17 && eq(BARRES, { "window.panel.options": "options", "window.panel.tools": "barreOutils" })
   && Object.values(PANNEAUX).every((p) => GROUPES[p.groupe].includes(p.onglet)));
 check("1.11 sept entrées de menu pour les sept espaces (Base : entrée de l'écran)", eq(Object.keys(ID_MENU), FOURNIS) && ID_MENU.base === "pl.espace.base"
   && ID_MENU.essentiel === "window.workspace.essentials" && FOURNIS.every((f) => espaceDuMenu(ID_MENU[f]) === f));
@@ -54,7 +60,7 @@ check("2.3 dispositionDe : la fournie, en COPIE", eq(dispositionDe(e0, "peinture
 check("2.4 espace inconnu -> Essentiel", eq(dispositionDe(e0, "zorg"), DISPOSITIONS.essentiel));
 const incomplete = { ...ess, groupes: [{ id: "calques", etat: "ouvert", onglet: "calques" }] };
 const c = completer(incomplete);
-check("2.5 completer : les groupes manquants s'ajoutent repliés à la fin (lot futur)", c.groupes.length === 4 && c.groupes[0].id === "calques"
+check("2.5 completer : les groupes manquants s'ajoutent repliés à la fin (lot futur)", c.groupes.length === 5 && c.groupes[0].id === "calques"
   && c.groupes.slice(1).every((g) => g.etat === "replie" && g.onglet === GROUPES[g.id][0]));
 let e = choisir(e0, "photo");
 check("2.6 choisir un espace connu", e.actif === "photo" && e0.actif === "essentiel");
@@ -107,7 +113,7 @@ b = basculerPanneau(d, "window.panel.brushSettings");
 check("4.6 Paramètres du pinceau : groupe Pinceaux ouvert sur Paramètres", eq(b.groupes.find((g) => g.id === "pinceaux"), { id: "pinceaux", etat: "ouvert", onglet: "parametres" }));
 check("4.7 Outils : la barre se masque puis revient", basculerPanneau(d, "window.panel.tools").barreOutils === false && basculerPanneau(basculerPanneau(d, "window.panel.tools"), "window.panel.tools").barreOutils === true);
 check("4.8 basculer ne modifie pas l'original", d.groupes.find((g) => g.id === "calques").onglet === "calques" && d.barreOutils === true);
-check("4.9 panneau inconnu : copie inchangée", eq(basculerPanneau(d, "window.panel.swatches"), d) && panneauCoche(d, "window.panel.swatches") === undefined);
+check("4.9 panneau inconnu : copie inchangée", eq(basculerPanneau(d, "window.panel.actions"), d) && panneauCoche(d, "window.panel.actions") === undefined);
 
 // 5. menus : sous-menu Espace de travail et coches
 const ici = dirname(fileURLToPath(import.meta.url));
@@ -136,10 +142,10 @@ check("5.3 sans espace personnel : Supprimer inactif ; verrou coché quand verro
 const plat = []; const voir = (l) => { for (const x of l) { if (x.type === "sous-menu") voir(x.entrees); else if (x.type === "commande") plat.push(x); } };
 voir(fen.entrees);
 const panneauxMenu = plat.filter((x) => x.id in PANNEAUX || x.id in BARRES);
-check("5.4 les 12 entrées Fenêtre › <panneau> servies : actives et cochables", panneauxMenu.length === 12 && panneauxMenu.every((x) => x.etat === "actif" && typeof x.coche === "boolean"),
+check("5.4 les 19 entrées Fenêtre › <panneau> servies (t153 : +7) : actives et cochables", panneauxMenu.length === 19 && panneauxMenu.every((x) => x.etat === "actif" && typeof x.coche === "boolean"),
   panneauxMenu.map((x) => x.id + ":" + x.etat));
 check("5.5 coches de Fenêtre suivent la disposition", plat.find((x) => x.id === "window.panel.layers").coche === true && plat.find((x) => x.id === "window.panel.history").coche === false);
-check("5.6 les autres panneaux restent « bientôt »", plat.find((x) => x.id === "window.panel.swatches").etat === "bientot" && plat.find((x) => x.id === "window.arrange.cascade").etat === "bientot");
+check("5.6 les autres panneaux restent « bientôt »", plat.find((x) => x.id === "window.panel.actions").etat === "bientot" && plat.find((x) => x.id === "window.arrange.cascade").etat === "bientot");
 check("5.7 decorerMenus ne modifie pas l'arbre reçu", !JSON.stringify(arbre).includes("pl.espace.base"));
 check("5.8 entrées d'espace et de panneau traitées par l'écran (jamais envoyées au moteur)",
   [...plat.filter((x) => /^(window\.workspace|pl\.espace|window\.panel)/.test(x.id) && x.etat !== "bientot")].every((x) => actionEntree(x) === "ecran"),

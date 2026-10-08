@@ -576,3 +576,70 @@ body.ecran-plein #panneaux, body.ecran-plein #statut, body.ecran-plein .espace-b
 /* t152 : dans une fenêtre étroite, le sélecteur d'espace (t151) recouvrait la fin de la barre de menus : il s'efface,
    le choix reste dans Fenêtre › Espace de travail */
 @media (max-width: 900px) { .espace-boite { display: none; } }
+/* ---- t153 : Nuancier, Dégradés, Motifs (groupe Couleur), Compositions, Couches, Histogramme et Infos ---- */
+#grpCouleur .groupe-tete, #grpCalques .groupe-tete, #grpProprietes .groupe-tete, #grpInfos .groupe-tete { overflow-x: auto; }
+#grpInfos { flex: 0 1 auto; min-height: 120px; max-height: 40%; }
+#grpInfos .groupe-corps { flex: 0 1 auto; }
+.pr-recherche { width: 100%; height: 24px; margin-bottom: 6px; padding: 0 6px; background: var(--bg-panel-2); color: var(--ink-strong); border: 1px solid var(--stroke); border-radius: 3px; }
+.pr-courant { height: 14px; margin-bottom: 6px; border: 1px solid var(--stroke); border-radius: 3px; }
+.pr-liste { display: flex; flex-direction: column; gap: 2px; }
+.pr-groupe { display: flex; align-items: center; gap: 4px; height: 22px; padding: 0 2px; border-radius: 3px; color: var(--ink-soft); }
+.pr-groupe.choisi { background: var(--accent-soft); color: var(--accent); }
+.pr-fleche { width: 16px; height: 18px; padding: 0; background: transparent; border: 0; color: var(--ink-muted); }
+.pr-nom { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: default; }
+.pr-grille { display: flex; flex-wrap: wrap; gap: 4px; padding: 2px 0 6px 18px; }
+.pr-item { width: 40px; height: 40px; padding: 0; background: var(--bg-panel-2); border: 1px solid var(--stroke); border-radius: 3px; overflow: hidden; }
+.pr-item:hover { border-color: var(--stroke-strong); }
+.pr-item.courant { border-color: var(--accent); }
+.pr-item.choisi { outline: 2px solid var(--accent); outline-offset: 1px; }
+.pr-vignette { display: block; width: 100%; height: 100%; }
+.pr-vignette img { display: block; width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
+.pr-pied { display: flex; justify-content: flex-end; gap: 2px; margin-top: 6px; padding-top: 4px; border-top: 1px solid var(--stroke); }
+.pr-pied .pr-btn.gauche + .pr-btn:not(.gauche) { margin-left: auto; }
+.pr-btn { width: 24px; height: 22px; padding: 2px; background: transparent; border: 0; border-radius: 3px; color: var(--ink-soft); }
+.pr-btn:hover:not(:disabled) { background: var(--bg-panel-3); color: var(--ink-strong); }
+.pr-btn:disabled { opacity: .4; }
+.pr-btn svg, .cou-oeil svg, .cmp-opt svg { width: 16px; height: 16px; }
+.nu-recentes { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid var(--stroke); }
+.nu-recentes[hidden] { display: none; }
+.nu-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(16px, 1fr)); gap: 3px; padding: 2px 0 6px 18px; }
+.nu-pastille { width: 100%; min-width: 16px; aspect-ratio: 1; height: auto; padding: 0; border: 1px solid var(--stroke); border-radius: 3px; }
+.nu-recentes .nu-pastille { width: 16px; }
+.nu-pastille:hover { border-color: var(--ink-strong); }
+.nu-pastille.choisie { outline: 2px solid var(--accent); outline-offset: 1px; }
+.hi-tete { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.hi-lib { display: flex; align-items: center; gap: 6px; color: var(--ink-soft); }
+.hi-canal { height: 22px; background: var(--bg-panel-2); color: var(--ink-strong); border: 1px solid var(--stroke); border-radius: 3px; }
+.hi-alerte { color: var(--accent); }
+.hi-alerte[hidden] { display: none; }
+.hi-graphe { display: block; width: 100%; height: 100px; background: var(--bg-base); border: 1px solid var(--stroke); border-radius: 3px; }
+.hi-stats, .in-bloc { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; margin: 6px 0 0; font: 11px var(--f-mono); }
+.hi-stats dt, .in-bloc dt { color: var(--ink-muted); }
+.hi-stats dd, .in-bloc dd { margin: 0; color: var(--ink-strong); }
+.in-ligne { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding-bottom: 6px; margin-bottom: 6px; border-bottom: 1px solid var(--stroke); }
+.in-doc { margin: 0; color: var(--ink-soft); font: 11px var(--f-mono); }
+.cou-liste, .cmp-liste { display: flex; flex-direction: column; gap: 1px; }
+.cou-ligne, .cmp-ligne { display: flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 4px; border-radius: 3px; color: var(--ink-soft); cursor: default; }
+.cou-ligne:hover, .cmp-ligne:hover { background: var(--bg-panel-2); }
+.cou-ligne.cible, .cmp-ligne.choisie { background: var(--accent-soft); color: var(--ink-strong); }
+.cou-oeil, .cmp-opt { flex: none; width: 22px; height: 22px; padding: 2px; background: transparent; border: 0; border-radius: 3px; color: var(--ink-soft); }
+.cmp-opt { opacity: .35; }
+.cmp-opt.actif { opacity: 1; }
+.cou-vignette { flex: none; width: 40px; height: 30px; background: var(--bg-base); border: 1px solid var(--stroke); }
+.cou-nom, .cmp-nom { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cou-racc { flex: none; color: var(--ink-muted); font: 10px var(--f-mono); }
+.cmp-dernier .cmp-nom { font-style: italic; }
+.cmp-case-app { flex: none; width: 16px; height: 16px; padding: 0; background: transparent; border: 1px solid var(--stroke-strong); border-radius: 3px; }
+.cmp-case-app.coche { background: var(--accent); border-color: var(--accent); }
+.cmp-alerte { flex: none; padding: 0 2px; background: transparent; border: 0; color: var(--accent); }
+.cmp-alerte[hidden] { display: none; }
+.cmp-options { display: flex; gap: 1px; }
+.cmp-vide { margin: 8px 4px; color: var(--ink-muted); font-size: 11px; }
+.cmp-champ { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.cmp-champ input, .cmp-champ textarea, .pl-nom { width: 100%; padding: 4px 6px; background: var(--bg-panel-2); color: var(--ink-strong); border: 1px solid var(--stroke); border-radius: 3px; }
+.cmp-sous { margin: 4px 0; color: var(--ink-soft); }
+.cmp-case { display: block; margin: 2px 0; color: var(--ink-strong); }
+/* t153 : champs et graphe à 100 % de largeur, bordure comprise (sinon le corps du groupe défile à l'horizontale) */
+.pr-recherche, .pr-courant, .hi-graphe, .pl-nom, .cmp-champ input, .cmp-champ textarea { box-sizing: border-box; }
+/* t153 : quatre onglets (Calques | Couches | Historique | Navigateur) dans 278 px : marges resserrées */
+#grpCalques .groupe-tete .onglet { padding: 0 5px; }

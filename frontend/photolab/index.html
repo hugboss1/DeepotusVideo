@@ -42,21 +42,33 @@
       <button type="button" data-panneau="calques" data-icone="layers" title="Calques" aria-label="Calques"></button>
       <button type="button" data-panneau="historique" data-icone="history" title="Historique" aria-label="Historique"></button>
       <button type="button" data-panneau="pinceaux" data-icone="brush" title="Pinceaux" aria-label="Pinceaux"></button>
+      <button type="button" data-panneau="infos" data-icone="info" title="Histogramme et infos" aria-label="Histogramme et infos"></button>
     </nav>
 
     <aside id="panneaux" aria-label="Panneaux">
+      <!-- t153 : Couleur | Nuancier | Dégradés | Motifs dans le MÊME groupe (référence « Les indispensables », amont dock.rs). -->
       <section id="grpCouleur" class="groupe">
-        <header class="groupe-tete"><span class="groupe-titre">Couleur</span></header>
-        <div class="groupe-corps" id="corpsCouleur"></div>
+        <header class="groupe-tete" role="tablist">
+          <button type="button" class="onglet actif" role="tab" data-onglet-co="couleur" aria-selected="true">Couleur</button>
+          <button type="button" class="onglet" role="tab" data-onglet-co="nuancier" aria-selected="false">Nuancier</button>
+          <button type="button" class="onglet" role="tab" data-onglet-co="degrades" aria-selected="false">Dégradés</button>
+          <button type="button" class="onglet" role="tab" data-onglet-co="motifs" aria-selected="false">Motifs</button>
+        </header>
+        <div class="groupe-corps" id="corpsCouleur" data-vue-co="couleur"></div>
+        <div class="groupe-corps" id="corpsNuancier" data-vue-co="nuancier" hidden></div>
+        <div class="groupe-corps" id="corpsDegrades" data-vue-co="degrades" hidden></div>
+        <div class="groupe-corps" id="corpsMotifs" data-vue-co="motifs" hidden></div>
       </section>
       <!-- t138 B5 : Propriétés | Ajustements dans le MÊME groupe (photocraft : onglet Adjustments à côté de Properties). -->
       <section id="grpProprietes" class="groupe">
         <header class="groupe-tete" role="tablist">
           <button type="button" class="onglet actif" role="tab" data-onglet-pr="proprietes" aria-selected="true">Propriétés</button>
           <button type="button" class="onglet" role="tab" data-onglet-pr="ajustements" aria-selected="false">Ajustements</button>
+          <button type="button" class="onglet" role="tab" data-onglet-pr="compositions" aria-selected="false">Compositions</button>
         </header>
         <div class="groupe-corps" id="corpsProprietes" data-vue-pr="proprietes"></div>
         <div class="groupe-corps" id="corpsAjustements" data-vue-pr="ajustements" hidden></div>
+        <div class="groupe-corps" id="corpsCompositions" data-vue-pr="compositions" hidden></div>
       </section>
       <!-- t155 : outils de peinture (Fenêtre › Pinceaux, Paramètres du pinceau F5, Source de duplication, Outils prédéfinis) ;
            replié tant qu'on ne l'ouvre pas (rail ou menu). -->
@@ -75,12 +87,23 @@
       <section id="grpCalques" class="groupe grand">
         <header class="groupe-tete" role="tablist">
           <button type="button" class="onglet actif" role="tab" data-onglet="calques">Calques</button>
+          <button type="button" class="onglet" role="tab" data-onglet="couches">Couches</button>
           <button type="button" class="onglet" role="tab" data-onglet="historique">Historique</button>
           <button type="button" class="onglet" role="tab" data-onglet="navigateur">Navigateur</button>
         </header>
         <div class="groupe-corps" id="corpsCalques" data-vue="calques"></div>
+        <div class="groupe-corps" id="corpsCouches" data-vue="couches" hidden></div>
         <div class="groupe-corps" id="corpsHistorique" data-vue="historique" hidden></div>
         <div class="groupe-corps" id="corpsNavigateur" data-vue="navigateur" hidden></div>
+      </section>
+      <!-- t153 : Histogramme | Infos (référence « Photographie », amont : carte Navigateur) ; replié tant qu'on ne l'ouvre pas. -->
+      <section id="grpInfos" class="groupe" hidden>
+        <header class="groupe-tete" role="tablist">
+          <button type="button" class="onglet actif" role="tab" data-onglet-in="histogramme" aria-selected="true">Histogramme</button>
+          <button type="button" class="onglet" role="tab" data-onglet-in="infos" aria-selected="false">Infos</button>
+        </header>
+        <div class="groupe-corps" id="corpsHistogramme" data-vue-in="histogramme"></div>
+        <div class="groupe-corps" id="corpsInfos" data-vue-in="infos" hidden></div>
       </section>
     </aside>
   </div>
