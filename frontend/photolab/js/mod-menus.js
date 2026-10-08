@@ -17,9 +17,9 @@ export const REFUSES = ["file.", "app.", "automate.", "plugin.", "script", "wind
 // enregistrer, exporter) : actives même si le pont refuserait la commande moteur de ce nom.
 // t139 : `pl.envoyer` (« Envoyer vers… ») n'est pas du catalogue amont — l'écran l'insère après « Revenir ».
 export const TRAITES_PAR_ECRAN = new Set(["file.new", "file.open", "file.close", "file.save", "file.saveAs", "file.export.exportAs",
-  "pl.envoyer"]);
+  "pl.envoyer", "pl.natif.ouvrir", "pl.natif.reprendre"]);
 // … dont celles qui n'ont de sens qu'avec un document ouvert (grisées sur l'écran d'accueil).
-export const NECESSITE_DOC = new Set(["file.close", "file.save", "file.saveAs", "file.export.exportAs", "pl.envoyer"]);
+export const NECESSITE_DOC = new Set(["file.close", "file.save", "file.saveAs", "file.export.exportAs", "pl.envoyer", "pl.natif.ouvrir"]);
 
 // Le registre arrive en tableau ; on tolère {commands:[…]}.
 export function indexRegistre(registre) {
@@ -154,7 +154,10 @@ export function construireMenus(catalogue, registre, refuses, lang, t = (c) => c
   if (fichier) {
     const k = fichier.entrees.findIndex((e) => e.id === "file.revert");
     const pos = k >= 0 ? k + 1 : fichier.entrees.length;
-    fichier.entrees.splice(pos, 0, { type: "commande", id: "pl.envoyer", libelle: t("photolab.menu.envoyer"), raccourci: "", etat: "actif", champs: [] });
+    fichier.entrees.splice(pos, 0, { type: "commande", id: "pl.envoyer", libelle: t("photolab.menu.envoyer"), raccourci: "", etat: "actif", champs: [] },
+      // t140 (D10) : le repli « app native » (photocraft.exe), pour ce que l'écran ne fait pas encore
+      { type: "commande", id: "pl.natif.ouvrir", libelle: t("photolab.menu.natif_ouvrir"), raccourci: "", etat: "actif", champs: [] },
+      { type: "commande", id: "pl.natif.reprendre", libelle: t("photolab.menu.natif_reprendre"), raccourci: "", etat: "actif", champs: [] });
   }
   menus.push({
     nom: "Aide", nom_affiche: t("photolab.menu.aide"),
@@ -337,7 +340,7 @@ export function initMenus(PL) {
         if (f) f(); else PL.signaler(T("photolab.menu.bientot"));
         break;
       }
-      case "apropos": apropos(); break;
+      case "apropos": PL.apropos(); break;
       case "executer": {
         // Par la file FIFO de mod-cycle : l'ordre des gestes reste l'ordre d'exécution, et le cycle qui suit relit
         // l'état (le cycle rafraîchit aussi les menus). Échec : déjà signalé par mod-api.

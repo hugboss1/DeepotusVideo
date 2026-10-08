@@ -1,0 +1,31 @@
+Deepotus Video Gen — Photolab : composants tiers
+================================================
+
+Le Photolab calcule ses images avec le moteur photocraft, livré tel que publié et vérifié fichier par fichier
+(vendor/photocraft.json) :
+
+  photocraft 0.3.0 (photocraft-cli.exe, photocraft.exe)
+  https://github.com/storytold/photocraft — tag v0.3.0
+  Copyright (c) 2026 ArtCraft Team and the PhotoCraft contributors.
+  Double licence, au choix : MIT ou Apache 2.0
+    photocraft-0.3.0/photocraft-0.3.0-windows-x64-portable/LICENSE-MIT
+    photocraft-0.3.0/photocraft-0.3.0-windows-x64-portable/LICENSE-APACHE
+  Mentions requises par l'amont, reproduites telles quelles : licences-photocraft/NOTICE
+
+Matériel tiers intégré au moteur, sous ses propres licences :
+
+  Polices BIZ UDMincho, BIZ UDPGothic, Shippori Mincho — SIL Open Font License 1.1
+    photocraft-0.3.0/photocraft-0.3.0-windows-x64-portable/OFL-biz-ud-mincho.txt
+    photocraft-0.3.0/photocraft-0.3.0-windows-x64-portable/OFL-biz-ud-pgothic.txt
+    photocraft-0.3.0/photocraft-0.3.0-windows-x64-portable/OFL-shippori-mincho.txt
+  Police Inter — SIL Open Font License 1.1 : licences-photocraft/OFL-Inter.txt
+  Police JetBrains Mono — SIL Open Font License 1.1 : licences-photocraft/OFL-JetBrainsMono.txt
+  Liste de mots anglaise SCOWL (vérification orthographique) — licence SCOWL : licences-photocraft/LICENSE-SCOWL.txt
+  Icônes Lucide — ISC (icônes dérivées de Feather : MIT aussi) : licences-photocraft/LICENSE-lucide.txt
+
+Repris par l'écran du Photolab (frontend/photolab/, voir ATTRIBUTION.md) : les icônes Lucide (même licence ISC,
+frontend/photolab/icones/LICENSE-lucide.txt), le catalogue des menus et les libellés français des commandes de
+photocraft (MIT ou Apache 2.0).
+
+Les noms, logos et marques ArtCraft ne sont pas couverts par ces licences et ne sont pas utilisés par Deepotus.
+Les textes des licences de licences-photocraft/ viennent des sources du tag v0.3.0 (commit 60224d3).

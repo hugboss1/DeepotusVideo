@@ -1,0 +1,14 @@
+[
+  { "id": "pl-aj-blackWhite", "titre": "Noir et blanc",
+    "phrase": "Un clic pose un calque qui enlève les couleurs : ton image devient grise, et tu peux le retirer quand tu veux.",
+    "fichier": "photolab.pl-aj-blackWhite.webp", "version": 1 },
+  { "id": "pl-outil-crop", "titre": "Recadrage (C)",
+    "phrase": "Trace un cadre sur l'image puis appuie sur Entrée : tout ce qui est hors du cadre disparaît.",
+    "fichier": "photolab.pl-outil-crop.webp", "version": 1 },
+  { "id": "pl-outil-magicWand", "titre": "Baguette magique (W)",
+    "phrase": "Clique sur une couleur : toute la tache de cette couleur est choisie d'un coup.",
+    "fichier": "photolab.pl-outil-magicWand.webp", "version": 1 },
+  { "id": "pl-outil-rectMarquee", "titre": "Sélection rectangulaire (M)",
+    "phrase": "Fais glisser sur l'image : un rectangle en pointillés entoure la partie que tu vas modifier.",
+    "fichier": "photolab.pl-outil-rectMarquee.webp", "version": 1 }
+]

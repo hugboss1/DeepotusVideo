@@ -226,6 +226,33 @@ if ($gpZip -and (Test-Path $gpZip)) {
     }
 }
 
+# ---- 4c. photocraft : le moteur du Photolab (t140) --------------------------
+# Epingle dans vendor\photocraft.json (version, archive officielle, sha256, et chaque fichier extrait). Absent du poste
+# de build : vendor_photocraft.py le telecharge depuis la release officielle et verifie l'archive. Puis l'arbre
+# PREPARE est verifie fichier par fichier (rien d'altere, de manquant ni d'ajoute) et le moteur ne doit dependre
+# d'aucun runtime Visual C++ (la 0.3.0 n'en a pas besoin : aucun redistribuable n'est pose). Ecart = build arrete.
+$pcSrc = Join-Path $AppDir "vendor\photocraft-0.3.0"
+$pcStage = Join-Path $stageApp "vendor\photocraft-0.3.0"
+if (-not (Test-Path $pcSrc)) {
+    Write-Host "photocraft absent du poste : release officielle (vendor_photocraft.py)" -ForegroundColor Cyan
+    & $buildPy (Join-Path $AppDir "scripts\vendor_photocraft.py")
+    if ($LASTEXITCODE -ne 0) { throw "vendor_photocraft.py a echoue ($LASTEXITCODE)" }
+}
+if (-not (Test-Path $pcStage)) {
+    robocopy $pcSrc $pcStage /E /NFL /NDL /NJH /NJS | Out-Null
+    if ($LASTEXITCODE -ge 8) { throw "robocopy photocraft failed ($LASTEXITCODE)" }
+}
+# Les preferences de l'app native du poste de build (mode portable) ne partent pas chez l'acheteur.
+Get-ChildItem $pcStage -Recurse -Directory -Filter "PhotoCraftData" -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
+foreach ($n in @("photocraft.json", "NOTICE-photocraft.txt")) {
+    Copy-Item (Join-Path $AppDir "vendor\$n") (Join-Path $stageApp "vendor\$n") -Force
+}
+robocopy (Join-Path $AppDir "vendor\licences-photocraft") (Join-Path $stageApp "vendor\licences-photocraft") /E /NFL /NDL /NJH /NJS | Out-Null
+if ($LASTEXITCODE -ge 8) { throw "robocopy licences-photocraft failed ($LASTEXITCODE)" }
+& $buildPy (Join-Path $AppDir "scripts\verifier_vendor.py") $pcStage
+if ($LASTEXITCODE -ne 0) { throw "photocraft : l'arbre prepare n'est pas conforme au manifeste (voir ECART ci-dessus)" }
+Write-Host "  photocraft 0.3.0 verifie dans app\vendor (+ NOTICE et licences)" -ForegroundColor Green
+
 # ---- 5. Compile with Inno Setup ---------------------------------------------
 $iscc = @(
     "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe",

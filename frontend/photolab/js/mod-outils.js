@@ -31,6 +31,8 @@ export const EMPLACEMENTS = [
   [{ id: "hand", lettre: "H", icone: "hand", p2: true }],
   [{ id: "zoom", lettre: "Z", icone: "search", p2: true }],
 ];
+// t140 : l'id DOM d'un emplacement, d'après son outil PRINCIPAL (le premier) : stable quand le flyout change l'outil montré.
+export function idEmplacement(i) { return "pl-outil-" + EMPLACEMENTS[i][0].id; }
 export const SECTIONS = [6, 8, 4, 2];          // nombre d'emplacements par section (somme 20)
 
 const TOUS = EMPLACEMENTS.flat();
@@ -128,6 +130,7 @@ export function initOutils(PL) {
       const i = idx;
       const b = document.createElement("button");
       b.type = "button"; b.dataset.emplacement = String(i);
+      b.id = idEmplacement(i);                                 // t140 : id stable (fiches didactiques), d'après l'outil principal
       if (EMPLACEMENTS[i].length > 1) b.classList.add("groupe-outils");     // marque d'angle (CSS) : un flyout existe
       b.innerHTML = '<span class="ico"></span>';
       zone.appendChild(b);

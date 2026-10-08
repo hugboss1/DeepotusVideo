@@ -59,7 +59,10 @@ check("4.2 libellés fr / en", fichier[i] && fichier[i].libelle === "Envoyer ver
 check("4.3 traitée par l'écran, document requis", TRAITES_PAR_ECRAN.has("pl.envoyer") && NECESSITE_DOC.has("pl.envoyer")
   && fichier[i].etat === "actif" && actionEntree(fichier[i]) === "ecran");
 check("4.4 une seule fois dans le menu", fichier.filter((e) => e.id === "pl.envoyer").length === 1);
-check("4.5 suivie du séparateur qui précède Exporter", fichier[i + 1] && fichier[i + 1].type === "separateur");
+// t140 : les deux entrées du repli natif (pl.natif.*) s'intercalent, le groupe se clôt toujours par le séparateur
+const fin = fichier.findIndex((e, k) => k > i && !String(e.id || "").startsWith("pl."));
+check("4.5 le groupe (Envoyer vers…, repli natif) est suivi du séparateur qui précède Exporter", fin > i && fichier[fin].type === "separateur",
+  fichier.slice(i, fin + 1).map((e) => e.id || e.type));
 
 // 5. nom affiché : empreinte, extension, préfixe d'enregistrement et suffixe du fichier de travail retirés
 check("5.1 image enregistrée par le Photolab", nomDocument("e99baeb8-photolab_20261008-154030_herbe.png") === "herbe");

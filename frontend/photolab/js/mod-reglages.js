@@ -40,6 +40,8 @@ export const KINDS = Object.freeze([
 const PAR_KIND = new Map(KINDS.map((x) => [x.kind, x]));
 const PAR_VARIANTE = new Map(KINDS.map((x) => [x.variante, x.kind]));
 export function infoKind(kind) { return PAR_KIND.get(kind) || null; }
+// t140 : l'id DOM du bouton d'un réglage (onglet Ajustements), pour les fiches didactiques.
+export function idReglage(kind) { return "pl-aj-" + kind; }
 
 // Le kind d'un calque de doc.inspect : la variante de `adjustment` (objet à une clé, ou la chaîne "Invert") ; null pour
 // tout autre calque, ou une variante qu'un moteur plus récent aurait ajoutée (l'écran ne saurait pas l'éditer).
@@ -381,6 +383,7 @@ export function initReglages(PL) {
   grille.setAttribute("role", "toolbar"); grille.setAttribute("aria-label", T("photolab.reglages.onglet_reglages"));
   const boutons = KINDS.map((x) => {
     const b = el("button", "rg-kind"); b.type = "button"; b.dataset.kind = x.kind; b.dataset.icone = x.icone;
+    b.id = idReglage(x.kind);                                  // t140 : id stable (fiches didactiques)
     b.title = T(x.cle); b.setAttribute("aria-label", b.title); b.disabled = true;
     b.addEventListener("click", () => PL.creerReglage(x.kind));
     grille.appendChild(b);

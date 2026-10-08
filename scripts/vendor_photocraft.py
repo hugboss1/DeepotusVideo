@@ -75,6 +75,14 @@ def main(args) -> int:
             shutil.rmtree(tmp)
         try:
             extraire(archive, tmp)
+            # t140 : l'extraction est revérifiée fichier par fichier contre le manifeste (`fichiers`), le même
+            # contrôle que le build de l'installeur fait sur l'arbre préparé.
+            if m.get("fichiers"):
+                sys.path.insert(0, str(RACINE / "scripts"))
+                from verifier_vendor import comparer
+                ecarts = comparer(m["fichiers"], tmp)
+                if ecarts:
+                    raise EmpreinteFausse("extraction non conforme au manifeste : " + " ; ".join(ecarts))
         except BaseException:
             shutil.rmtree(tmp, ignore_errors=True)
             raise

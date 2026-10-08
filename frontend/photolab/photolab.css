@@ -221,6 +221,30 @@ button:disabled { opacity: .4; cursor: default; }
   color: var(--ink-strong); font-weight: 600; font-size: 13px; }
 .pl-dlg-corps { flex: 1; min-height: 0; overflow: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
 .pl-dlg-pied { flex: none; display: flex; justify-content: flex-end; gap: 8px; padding: 10px 16px; border-top: 1px solid var(--stroke); }
+/* t140 : l'encart des fiches didactiques (mod-didact du Vectorlab) — mêmes mesures que .vl-didact des autres labs.
+   Dans les barres d'ICÔNES (outils, ajustements) le « ? » n'a pas de place : la fiche s'y ouvre au survol long. */
+.vl-didact { position: fixed; z-index: 95; width: 320px; box-sizing: border-box; background: var(--bg-panel); color: var(--ink-strong);
+  border: 1px solid var(--stroke-strong); border-radius: 6px; box-shadow: 0 12px 34px var(--bg-base); overflow: hidden; }
+.vl-didact.hidden { display: none; }
+.vl-didact-anim { display: block; width: 320px; height: 200px; background: var(--bg-base); }
+.vl-didact-titre { font-weight: 700; font-size: 13px; padding: 8px 12px 2px; }
+.vl-didact-phrase { font-size: 13px; line-height: 1.45; color: var(--ink); padding: 0 12px 10px; }
+.vl-didact-q { width: 18px; height: 18px; padding: 0; border-radius: 50%; border: 1px solid var(--stroke-strong); background: transparent;
+  color: var(--ink-soft); font-size: 11px; line-height: 16px; cursor: help; margin-left: 4px; }
+#outils .vl-didact-q, .rg-grille .vl-didact-q { display: none; }
+/* t140 : À propos — crédits en tête, licences à gauche, texte de la licence choisie à droite */
+.pl-dlg.apropos .pl-dlg-corps { overflow: hidden; }
+.ap-tete p { margin: 0 0 4px; color: var(--ink-soft); }
+.ap-tete p:first-child { color: var(--ink-strong); font-weight: 600; }
+.ap-tete a { color: var(--accent); font: 12px var(--f-mono); }
+.ap-bas { flex: 1; min-height: 0; display: grid; grid-template-columns: 260px 1fr; gap: 10px; }
+.ap-liste { overflow: auto; display: flex; flex-direction: column; gap: 2px; border-right: 1px solid var(--stroke); padding-right: 8px; }
+.ap-lic { text-align: left; padding: 6px 8px; background: transparent; border: 0; border-radius: 3px; color: var(--ink-soft); }
+.ap-lic:hover { background: var(--bg-panel-2); color: var(--ink-strong); }
+.ap-lic.actif { background: var(--accent-soft); color: var(--accent); }
+.ap-texte { margin: 0; overflow: auto; padding: 8px 10px; background: var(--bg-base); border: 1px solid var(--stroke); border-radius: 3px;
+  color: var(--ink); font: 11px/1.5 var(--f-mono); white-space: pre-wrap; }
+@media (max-width: 700px) { .ap-bas { grid-template-columns: 1fr; grid-template-rows: auto 1fr; } .ap-liste { border-right: 0; max-height: 140px; } }
 .pl-bouton { height: 30px; min-width: 90px; padding: 0 14px; background: transparent; border: 1px solid var(--stroke-strong); border-radius: 4px; color: var(--ink-strong); }
 .pl-bouton:hover { background: var(--bg-panel-2); }
 .pl-bouton.principal { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }

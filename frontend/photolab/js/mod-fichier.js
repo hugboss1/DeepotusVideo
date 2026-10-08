@@ -355,6 +355,20 @@ export function initFichier(PL) {
     else PL.signaler(T("photolab.envoi.hors_app", { nom: r.filename }));
   }
 
+  /* ── t140 (D10) : repli « app native » — le document part dans photocraft.exe avec ses calques, et en revient ── */
+  async function natifOuvrir() {
+    if (!PL.etat.doc) return;
+    let r;
+    try { r = await PL.post("/natif/ouvrir", {}); } catch (e) { return; }          // signalé par mod-api
+    PL.signaler(T("photolab.natif.ouvert", { nom: String(r.fichier || "").split("/").pop() }));
+  }
+  async function natifReprendre() {
+    let r;
+    try { r = await PL.post("/natif/reprendre", {}); } catch (e) { return; }
+    await apresOuverture();
+    PL.signaler(T("photolab.natif.repris", { nom: String(r.fichier || "").split("/").pop() }));
+  }
+
   /* ── Exporter… : format, qualité, nom -> /enregistrer puis téléchargement ── */
   async function exporter() {
     const doc = PL.etat.doc;
@@ -434,6 +448,8 @@ export function initFichier(PL) {
   PL.actions["file.saveAs"] = exporter;
   PL.actions["file.export.exportAs"] = exporter;
   PL.actions["pl.envoyer"] = envoyer;
+  PL.actions["pl.natif.ouvrir"] = natifOuvrir;
+  PL.actions["pl.natif.reprendre"] = natifReprendre;
   PL.$("#btnNouveau").addEventListener("click", nouveau);
   PL.$("#btnOuvrir").addEventListener("click", ouvrir);
 
