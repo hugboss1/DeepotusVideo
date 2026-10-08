@@ -25,7 +25,7 @@ RACINE = HERE.parent.parent
 BASE = "85b93a00"                      # main juste avant t139 (fusion #265, t138)
 # le bundle de référence : tant que t139 n'est pas commis, le bundle du poste ; une fois commis, épingler ici le
 # commit de t139 (comme T137 dans test_photolab_lanceur) — sinon la couche suivante qui bouge le bundle rougit [1c]
-T139 = ""
+T139 = "eeee9ed1"   # commit t139 : le bundle de reference (comme T137 pour photolab)
 REL = "frontend/dist/assets/index-BEOJX8L5.js"
 NODE = shutil.which("node")
 ok = fail = 0
