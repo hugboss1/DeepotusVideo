@@ -38,6 +38,9 @@ export function initProprietes(PL) {
   const lang = () => (window.dzLang ? window.dzLang() : "fr");
   const corps = PL.$("#corpsProprietes");
   function dessiner(doc) {
+    // Calque de réglage actif (t138 B5) : son éditeur prend le panneau, et il n'est PAS reconstruit à chaque cycle
+    // (focus et canal choisi restent en place) — mod-reglages.js le met à jour lui-même.
+    if (PL.reglages && PL.reglages.proprietes(corps, doc)) return;
     corps.textContent = "";
     if (!doc) {
       const p = document.createElement("p"); p.className = "pr-vide"; p.textContent = T("photolab.proprietes.aucun"); corps.appendChild(p);

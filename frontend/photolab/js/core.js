@@ -6,6 +6,10 @@ import { initOutils } from "./mod-outils.js";
 import { initMenus } from "./mod-menus.js";
 import { initCycle } from "./mod-cycle.js";
 import { initFichier } from "./mod-fichier.js";
+import { initDialogueReglage } from "./mod-dialogue-reglage.js";
+import { initCourbes } from "./mod-courbes.js";
+import { initReglages } from "./mod-reglages.js";
+import { initStyles } from "./mod-styles.js";
 import { initCalques } from "./mod-calques.js";
 import { initProprietes } from "./mod-proprietes.js";
 import { initCouleur } from "./mod-couleur.js";
@@ -96,6 +100,10 @@ initCouleur(PL);
 initHistorique(PL);
 initNavigateur(PL);
 initFichier(PL);
+initDialogueReglage(PL);   // t138 B2 : après le cycle (PL.surDoc, PL.cycle, PL.executer) ; les menus l'appellent par PL.ouvrirReglage
+initCourbes(PL);           // t138 B4 : après le dialogue générique (coquille, PL.prendreReglage) ; Ctrl+M / Ctrl+L y mènent
+initReglages(PL);          // t138 B5 : après les Courbes (éditeur réutilisé) ; donne PL.creerReglage aux menus et PL.reglages aux panneaux
+initStyles(PL);            // t138 B6 : après le dialogue générique (coquille, PL.prendreReglage) ; donne PL.ouvrirStyles aux menus et au bouton fx
 initRaccourcis(PL);
 initGestes(PL);       // répartiteur des gestes + aperçu #fourmis, AVANT les outils qui s'y inscrivent
 initSelection(PL);
@@ -122,6 +130,7 @@ function majRail() {
     b.classList.toggle("actif", !!oui); b.setAttribute("aria-pressed", oui ? "true" : "false");
   });
 }
+PL.majRail = majRail;      // t138 B5 : créer un calque de réglage rouvre #grpProprietes s'il était replié
 PL.$$("#grpCalques .onglet").forEach((o) => o.addEventListener("click", () => PL.montrerOnglet(o.dataset.onglet)));
 PL.$$("#rail button[data-panneau]").forEach((b) => b.addEventListener("click", () => {
   const p = b.dataset.panneau;

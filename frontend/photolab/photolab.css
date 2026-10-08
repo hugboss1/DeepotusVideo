@@ -78,7 +78,10 @@ button:disabled { opacity: .4; cursor: default; }
 }
 .groupe { display: flex; flex-direction: column; min-height: 0; border-bottom: 1px solid var(--stroke); }
 #grpCouleur { flex: none; height: 150px; }
-#grpProprietes { flex: none; height: 170px; }
+/* t138 B5 : hauteur SOUPLE bornée (un éditeur de Courbes ne tient pas dans 170 px), le corps défile au-delà ; le corps
+   suit son contenu (flex-basis auto) pour que le groupe ne réserve pas de place vide sous les lignes du document. */
+#grpProprietes { flex: 0 1 auto; min-height: 120px; max-height: 58%; }
+#grpProprietes .groupe-corps { flex: 0 1 auto; }
 .groupe.grand { flex: 1; border-bottom: 0; }
 .groupe-tete {
   height: 26px; flex: none; display: flex; align-items: stretch; gap: 2px; padding: 0 6px;
@@ -350,3 +353,132 @@ button:disabled { opacity: .4; cursor: default; }
 #fourmis .voile-recadrage { fill: color-mix(in srgb, var(--bg-base) 55%, transparent); }
 #fourmis .cadre-recadrage { fill: none; stroke: var(--ink-strong); stroke-width: 1; }
 #statut .st-selection { color: var(--ink-muted); }
+
+/* ---- t138 B2 : dialogue de réglage NON modal (look du « Flou gaussien » de photocraft, inventaire A6) ----
+   libellé à gauche et champ numérique + unité à droite, curseur pleine largeur dessous ; « Aperçu » à gauche du pied. */
+.pl-reglage {
+  position: fixed; z-index: 65; width: 320px; max-height: calc(100vh - 24px);
+  background: var(--bg-panel); border-color: var(--stroke-strong); box-shadow: 0 10px 32px var(--bg-base);
+}
+.pl-reglage-tete { height: 34px; padding: 0 12px; gap: 8px; cursor: move; touch-action: none; }
+.pl-reglage-titre { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-reglage-calcul { flex: none; color: var(--ink-muted); font-weight: 400; font-size: 11px; }
+.pl-reglage-calcul[hidden] { display: none; }
+.pl-reglage-corps { padding: 12px; gap: 12px; }
+.pl-rg-champ { display: flex; flex-direction: column; gap: 6px; color: var(--ink-soft); }
+.pl-rg-champ.sorte-liste, .pl-rg-champ.sorte-couleur, .pl-rg-champ.sorte-texte { flex-direction: row; align-items: center; justify-content: space-between; gap: 10px; }
+.pl-rg-champ.sorte-case { flex-direction: row; align-items: center; gap: 6px; }
+.pl-rg-haut { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.pl-rg-lib { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-rg-valeur { display: inline-flex; align-items: center; gap: 4px; flex: none; }
+.pl-rg-nombre, .pl-rg-choix, .pl-rg-saisie {
+  height: 24px; min-width: 0; padding: 0 6px; background: var(--bg-base); border: 1px solid var(--stroke); border-radius: 3px;
+  color: var(--ink); font: 11px var(--f-mono);
+}
+.pl-rg-nombre { width: 72px; text-align: right; }
+.pl-rg-choix { flex: 0 1 170px; font-family: var(--f-ui); }
+.pl-rg-saisie { flex: 0 1 170px; }
+.pl-rg-teinte { width: 40px; height: 24px; padding: 0; border: 1px solid var(--stroke); background: transparent; }
+.pl-rg-champ input:focus-visible, .pl-rg-champ select:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; }
+.pl-reglage-pied { justify-content: space-between; align-items: center; padding: 10px 12px; }
+.pl-rg-apercu { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-soft); }
+.pl-reglage-boutons { display: flex; gap: 8px; margin-left: auto; }
+.pl-reglage .pl-bouton { min-width: 76px; height: 28px; border-radius: 14px; }
+.pl-reglage .pl-erreur[hidden] { display: none; }
+.pl-reglage input[type=checkbox] { accent-color: var(--accent); margin: 0; }
+
+/* curseurs : piste fine aux jetons, pouce d'accent (photocraft : pastille ronde sur un trait) */
+input[type=range] {
+  -webkit-appearance: none; appearance: none; width: 100%; height: 16px; margin: 0; padding: 0;
+  background: transparent; cursor: pointer;
+}
+input[type=range]::-webkit-slider-runnable-track { height: 3px; border-radius: 2px; background: var(--stroke-strong); }
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 12px; height: 12px; margin-top: -4.5px; border-radius: 50%;
+  background: var(--accent); border: 1px solid var(--accent-ink);
+}
+input[type=range]::-moz-range-track { height: 3px; border-radius: 2px; background: var(--stroke-strong); }
+input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); border: 1px solid var(--accent-ink); }
+input[type=range]:focus-visible { outline: none; }
+input[type=range]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px var(--accent-soft); }
+input[type=range]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 3px var(--accent-soft); }
+
+/* ---- t138 B4 : Courbes et Niveaux (grille SVG 256 × 256, histogramme en fond, curseurs triangulaires de photocraft).
+   Teintes des canaux : alias des jetons partagés (--red, --green, --blue), rien en dur. ---- */
+:root { --pl-canal-rouge: var(--red); --pl-canal-vert: var(--green); --pl-canal-bleu: var(--blue); }
+.pl-reglage.pl-reglage-ton { width: 316px; }
+.pl-ton { display: flex; flex-direction: column; gap: 8px; color: var(--ink-soft); }
+.pl-ton-canal { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.pl-ton-sous { color: var(--ink-soft); }
+.pl-ton-grille { display: block; width: 100%; aspect-ratio: 1; border: 1px solid var(--stroke); cursor: crosshair; touch-action: none; }
+.pl-ton-grille:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+.pl-ton-fond { fill: var(--bg-base); }
+.pl-ton-histo { fill: var(--stroke-strong); opacity: 0.7; }
+.pl-ton-histo.canal-rouge { fill: var(--pl-canal-rouge); opacity: 0.35; }
+.pl-ton-histo.canal-vert { fill: var(--pl-canal-vert); opacity: 0.35; }
+.pl-ton-histo.canal-bleu { fill: var(--pl-canal-bleu); opacity: 0.35; }
+.pl-ton-quadrillage line { stroke: var(--stroke); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.pl-ton-diagonale { stroke: var(--stroke-strong); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.pl-ton-courbe, .pl-ton-courbe-autre { fill: none; stroke: var(--ink-strong); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.pl-ton-courbe-autre { stroke-width: 1; opacity: 0.8; }
+.pl-ton-courbe.canal-rouge, .pl-ton-courbe-autre.canal-rouge { stroke: var(--pl-canal-rouge); }
+.pl-ton-courbe.canal-vert, .pl-ton-courbe-autre.canal-vert { stroke: var(--pl-canal-vert); }
+.pl-ton-courbe.canal-bleu, .pl-ton-courbe-autre.canal-bleu { stroke: var(--pl-canal-bleu); }
+.pl-ton-point { fill: var(--bg-panel); stroke: var(--ink-strong); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.pl-ton-point.actif { fill: var(--accent); stroke: var(--accent-ink); }
+.pl-ton-nums { display: flex; flex-wrap: wrap; gap: 8px 12px; }
+.pl-ton-num { display: inline-flex; align-items: center; gap: 6px; }
+.pl-ton-num .pl-rg-nombre { width: 58px; }
+.pl-ton-histo-niv { display: block; width: 100%; height: 90px; border: 1px solid var(--stroke); }
+.pl-ton-glissiere { display: block; width: 100%; height: 14px; cursor: ew-resize; touch-action: none; }
+.pl-ton-piste { stroke: var(--stroke-strong); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.pl-ton-poignee { stroke: var(--ink-muted); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.pl-ton-poignee.noir { fill: var(--bg-base); }
+.pl-ton-poignee.gris { fill: var(--ink-muted); }
+.pl-ton-poignee.blanc { fill: var(--ink-strong); }
+
+/* ---- t138 B5 : calques de réglage (onglet Ajustements, éditeur dans Propriétés, icône dans la liste des calques) ---- */
+.rg-grille { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+.rg-kind {
+  height: 32px; display: flex; align-items: center; justify-content: center; padding: 0;
+  background: transparent; border: 1px solid var(--stroke); border-radius: 4px; color: var(--ink-soft);
+}
+.rg-kind:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--stroke-strong); color: var(--accent); }
+.rg-kind svg { width: 16px; height: 16px; }
+.rg-editeur { display: flex; flex-direction: column; gap: 10px; color: var(--ink-soft); }
+.rg-tete { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.rg-icone { display: inline-flex; color: var(--accent); flex: none; }
+.rg-icone svg { width: 16px; height: 16px; }
+.rg-titre { color: var(--ink-strong); font-weight: 600; white-space: nowrap; }
+.rg-nom { flex: 1; min-width: 0; color: var(--ink-muted); font-size: 11px; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rg-zone { display: flex; flex-direction: column; gap: 10px; }
+.rg-zone .pl-rg-nombre { width: 64px; }
+.rg-editeur input[type=checkbox] { accent-color: var(--accent); margin: 0; }
+.cq-vignette.reglage { color: var(--accent); }
+.rg-menu { max-height: calc(100vh - 16px); overflow-y: auto; }
+
+/* ---- t138 B6 : Style de calque — dialogue LARGE non modal de photocraft (layer_style.rs) : liste de 190 px à gauche
+   (Options de fusion, puis les 10 effets avec leur case), filet, paramètres de l'effet choisi à droite. ---- */
+.pl-reglage.pl-styles { width: min(580px, calc(100vw - 24px)); }
+.st-cols { display: flex; gap: 12px; min-height: 0; }
+.st-liste { flex: none; width: 190px; display: flex; flex-direction: column; gap: 2px; padding-right: 10px; border-right: 1px solid var(--stroke); }
+.st-item { height: 26px; display: flex; align-items: center; gap: 8px; padding: 0 6px; border-radius: 3px; color: var(--ink-muted); }
+.st-item:hover { background: var(--bg-panel-2); }
+.st-item.choisi { background: var(--accent-soft); color: var(--ink-strong); }
+.st-item.actif { color: var(--ink); }
+.st-item.st-options { margin-bottom: 4px; }
+.st-nom { flex: 1; min-width: 0; height: 100%; padding: 0; background: none; border: 0; color: inherit; font: inherit; text-align: left;
+  cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-nom:focus-visible, .st-case:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+.st-page { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.st-titre { margin: 0; color: var(--ink-strong); font-size: 13px; font-weight: 600; }
+.st-note { margin: 0; color: var(--ink-muted); font-size: 11px; }
+.st-note[hidden] { display: none; }
+.st-champs { display: flex; flex-direction: column; gap: 12px; }
+@media (max-width: 560px) {
+  .st-cols { flex-direction: column; }
+  .st-liste { width: auto; padding: 0 0 10px; border-right: 0; border-bottom: 1px solid var(--stroke); }
+}
+/* badge « fx » d'un calque qui a des effets (double-clic : le dialogue) */
+.cq-fx { flex: none; padding: 0 3px; border: 1px solid var(--stroke); border-radius: 2px; color: var(--ink-muted); font: italic 10px var(--f-mono); cursor: pointer; }
+.cq-fx:hover { color: var(--accent); border-color: var(--accent); }

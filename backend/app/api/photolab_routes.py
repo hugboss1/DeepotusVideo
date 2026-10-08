@@ -102,7 +102,8 @@ async def etat():
 
 @router.get("/commandes")
 async def commandes():
-    return _json(*await _appeler("engine.commands"))
+    """Le registre du moteur ; chaque entrée gagne ses `champs` (parsés une fois par génération) pour les dialogues."""
+    return _json(*await _pool(lambda s: functools.partial(PM.commandes, s)))
 
 
 @router.post("/nouveau")
@@ -140,8 +141,28 @@ async def ouvrir(body: dict):
 @router.post("/executer")
 async def executer(body: dict):
     cid, params = (body or {}).get("command"), (body or {}).get("params") or {}
+    # Syntaxe d'abord : une commande illisible ne démarre pas le moteur pour lire son registre.
+    if not isinstance(cid, str) or not PM._ID_COMMANDE.fullmatch(cid):
+        raise HTTPException(400, f"commande illisible : {cid!r}")
+    reg = await _pool(lambda s: functools.partial(PM.registre, s))
+    kind = etat = None
+    if cid == "layer.setAdjustment" and isinstance(params, dict):
+        # Les clés admises dépendent du kind du calque VISÉ : lu dans le document, jamais déclaré par l'écran (sinon
+        # le moteur ignorerait en silence les clés d'un autre kind).
+        insp, _ = await _appeler("doc.inspect")
+        cible = params.get("layer", (insp or {}).get("activeLayer"))
+        calque = next((c for c in PM._a_plat((insp or {}).get("layers")) if c.get("id") == cible), None)
+        if calque is None:
+            raise HTTPException(400, f"layer.setAdjustment : calque introuvable : {cible!r}")
+        kind = PM.PR.kind_de(calque)
+        if kind is None:
+            raise HTTPException(400, f"layer.setAdjustment : le calque {cible} n'est pas un calque de réglage")
+        etat = calque.get("adjustment")                    # colorisation actuelle : bornes de hue/saturation
+        # La cible est FIGÉE : sans `layer`, le moteur prendrait le calque actif AU MOMENT de l'exécution ; s'il a
+        # changé depuis la lecture, des clés vérifiées pour ce kind iraient à un réglage d'un autre kind.
+        params = {**params, "layer": cible}
     try:
-        PM.commande_autorisee(cid, params)
+        PM.commande_autorisee(cid, params, reg, kind, etat)
     except ValueError as e:
         raise HTTPException(400, str(e))
     return _json(*await _appeler("engine.execute", {"command": cid, "params": params}))
@@ -149,7 +170,8 @@ async def executer(body: dict):
 
 @router.get("/inspecter")
 async def inspecter():
-    return _json(*await _appeler("doc.inspect"))
+    insp, gen = await _appeler("doc.inspect")
+    return _json(PM.elaguer_inspect(insp), gen)
 
 
 def _ranger_apercu(tmp: Path, final: Path):
@@ -180,6 +202,29 @@ async def rendu(body: dict | None = None):
     except OSError as e:
         raise HTTPException(500, f"aperçu introuvable après le rendu : {e}")
     return _json({"url": f"/api/photolab/rendus/{nom}", "ms": round((time.perf_counter() - t0) * 1000)}, gen)
+
+
+@router.post("/apercu")
+async def apercu(body: dict):
+    """t138 : {"etapes": [{command, params}] (1..12), "maxSide": 64..2048 = 1024} -> {"url", "ms", "resultats"}.
+    Les étapes sont jouées par le moteur sur une COPIE du document (l'original, son historique et sa pile de
+    rétablissement restent intacts) ; filtres, réglages, styles, setAdjustment, setProps seulement. Refus de la liste
+    blanche -> 400 sans appel ; refus du moteur sur une étape -> 422, la copie étant refermée quand même."""
+    corps = body if isinstance(body, dict) else {}
+    m = _entier(corps.get("maxSide", 1024), 64, 2048, "maxSide")
+    t0 = time.perf_counter()
+    sortie, gen = await _pool(lambda s: functools.partial(PM.apercu, s), corps.get("etapes"), m)
+    return _json({"url": f"/api/photolab/rendus/{sortie['fichier']}", "ms": round((time.perf_counter() - t0) * 1000),
+                  "resultats": sortie["resultats"]}, gen)
+
+
+@router.get("/histogramme")
+async def histogramme(maxSide: int = 256, sans: int | None = None):
+    """t138 : {"r","g","b","l"} (256 comptes chacun) du document actif rendu à maxSide (64..1024) ; `sans` = id d'un
+    calque de l'ORIGINAL à masquer (le réglage en cours d'édition : Courbes et Niveaux montrent l'histogramme
+    d'AVANT eux). Calculé sur une copie, l'original n'est pas touché."""
+    m = _entier(maxSide, 64, 1024, "maxSide")
+    return _json(*await _pool(lambda s: functools.partial(PM.histogramme, s), sans, m))
 
 
 def _base_sure(nom, defaut="photolab") -> str:

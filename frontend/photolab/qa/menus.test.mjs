@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { construireMenus, raccourciAffiche, indexRegistre, REFUSES, TRAITES_PAR_ECRAN, actionEntree, parametresRequis, rechercherEntree, placerPanneau } from "../js/mod-menus.js";
+import { construireMenus, raccourciAffiche, indexRegistre, REFUSES, TRAITES_PAR_ECRAN, actionEntree, aiguillage, cibleDialogue, rechercherEntree, placerPanneau } from "../js/mod-menus.js";
 
 let ok = 0, ko = 0;
 function check(label, cond, detail = "") { if (cond) ok++; else { ko++; console.error("ECHEC :", label, detail); } }
@@ -10,11 +10,33 @@ const racine = join(dirname(fileURLToPath(import.meta.url)), "..");
 const catalogue = JSON.parse(readFileSync(join(racine, "donnees/menus.json"), "utf8"));
 const src = readFileSync(join(racine, "js/mod-menus.js"), "utf8");
 
+// t138 : chaque entrée porte ses `champs` (GET /commandes, structurés par photolab_registre) — recopiés du registre réel.
+const RAYON = { cle: "radius", type: "number", min: 0.1, max: 1000, entier: false, optionnel: false, defaut: 1 };
 const registre = [
-  { id: "filter.blur.gaussianBlur", label: "Gaussian Blur…", menu: ["Filter", "Blur"], shortcut: null, params: "{radius}", enabled: true },
-  { id: "edit.undo", label: "Undo", menu: ["Edit"], shortcut: "Cmd+Z", params: "{}", enabled: false },
-  { id: "image.adjustments.invert", label: "Invert", menu: ["Image", "Adjustments"], shortcut: "Cmd+I", params: "{}", enabled: true },
-  { id: "select.all", label: "All", menu: ["Select"], shortcut: "Cmd+A", params: "", enabled: true },
+  { id: "filter.blur.gaussianBlur", label: "Gaussian Blur…", menu: ["Filter", "Blur"], shortcut: null, params: "{\"radius\":0.1..1000=1}", enabled: true, champs: [RAYON] },
+  { id: "edit.undo", label: "Undo", menu: ["Edit"], shortcut: "Cmd+Z", params: "{}", enabled: false, champs: [] },
+  { id: "image.adjustments.invert", label: "Invert", menu: ["Image", "Adjustments"], shortcut: "Cmd+I", params: "{}", enabled: true, champs: [] },
+  { id: "select.all", label: "All", menu: ["Select"], shortcut: "Cmd+A", params: "", enabled: true, champs: [] },
+  { id: "layer.layerMask.revealAll", label: "Reveal All", menu: ["Layer", "Layer Mask"], shortcut: null, params: "{\"layer\":id?}", enabled: true,
+    champs: [{ cle: "layer", type: "layerId", optionnel: true }] },
+  { id: "filter.filterGallery", label: "Filter Gallery…", menu: ["Filter"], shortcut: null, params: "{…}", enabled: true,
+    champs: [{ cle: "effects", type: "json", optionnel: false }, { cle: "list", type: "bool", optionnel: false }] },
+  { id: "filter.liquify", label: "Liquify…", menu: ["Filter"], shortcut: null, params: "{…}", enabled: true,
+    champs: [{ cle: "strokes", type: "struct", optionnel: false }, { cle: "meshSize", type: "number", unite: "px", optionnel: true }] },
+  { id: "image.adjustments.curves", label: "Curves…", menu: ["Image", "Adjustments"], shortcut: "Cmd+M", params: "{…}", enabled: true,
+    champs: [{ cle: "points", type: "json", optionnel: false }, { cle: "red", type: "json", optionnel: false }] },
+  { id: "layer.newAdjustmentLayer.invert", label: "Invert…", menu: ["Layer", "New Adjustment Layer"], shortcut: null, params: "{}", enabled: true, champs: [] },
+  { id: "layer.newAdjustmentLayer.levels", label: "Levels…", menu: ["Layer", "New Adjustment Layer"], shortcut: null, params: "{…}", enabled: true,
+    champs: [{ cle: "gamma", type: "number", min: 0.01, max: 9.99, entier: false, optionnel: false, defaut: 1 }, { cle: "red", type: "json", optionnel: false }] },
+  { id: "layer.layerStyle.dropShadow", label: "Drop Shadow…", menu: ["Layer", "Layer Style"], shortcut: null, params: "{…}", enabled: true,
+    champs: [{ cle: "opacity", type: "number", min: 0, max: 100, entier: true, optionnel: false, defaut: 75 }, { cle: "layer", type: "layerId", optionnel: false }] },
+  { id: "layer.layerStyle.clear", label: "Clear Layer Style", menu: ["Layer", "Layer Style"], shortcut: null, params: "{\"layer\":id}", enabled: true,
+    champs: [{ cle: "layer", type: "layerId", optionnel: false }] },
+  // SANS_EDITEUR (mod-champs) : {layer?} seul s'exécuterait directement ; l'écran ne montre pas les filtres dynamiques
+  { id: "filter.convertForSmartFilters", label: "Convert for Smart Filters", menu: ["Filter"], shortcut: null, params: "{\"layer\":id?}", enabled: true,
+    champs: [{ cle: "layer", type: "layerId", optionnel: true }] },
+  // pont ancien (sans `champs`) : on ne devine pas -> dialogue si la description n'est pas vide
+  { id: "filter.blur.boxBlur", label: "Box Blur…", menu: ["Filter", "Blur"], shortcut: null, params: "{\"radius\":1..2000=10}", enabled: true },
 ];
 const t = (lang) => (c) => ({
   fr: { "photolab.menu.aide": "Aide", "photolab.menu.apropos": "À propos du Photolab" },
@@ -54,7 +76,7 @@ const flou = filtre.find((e) => e.type === "sous-menu" && e.nom === "Blur");
 check("3.3 Filtre › Flou", !!flou && flou.nom_affiche === "Flou");
 const gauss = flou.entrees.find((e) => e.id === "filter.blur.gaussianBlur");
 check("3.4 Flou gaussien…", gauss && gauss.libelle === "Flou gaussien…", gauss && gauss.libelle);
-check("3.5 flou gaussien actif et à paramètres", gauss.etat === "actif" && gauss.parametres === true);
+check("3.5 flou gaussien actif, ses champs transportés", gauss.etat === "actif" && Array.isArray(gauss.champs) && gauss.champs[0].cle === "radius" && !("parametres" in gauss));
 check("3.6 en : Gaussian Blur…", en[6].entrees.find((e) => e.nom === "Blur").entrees.find((e) => e.id === "filter.blur.gaussianBlur").libelle === "Gaussian Blur…");
 check("3.7 flou « moyenne » absent du registre -> bientot", flou.entrees.find((e) => e.id === "filter.blur.average").etat === "bientot");
 const profond = fr[3].entrees.find((e) => e.nom === "Smart Objects");
@@ -63,8 +85,13 @@ check("3.8 sous-menu de sous-menu (Calque › Objets intelligents › Mode de pi
 // 4. états
 check("4.1 enabled:false -> inactif", trouver(fr[1].entrees, "edit.undo").etat === "inactif");
 const neg = trouver(fr[2].entrees, "image.adjustments.invert");
-check("4.2 négatif : actif, sans paramètres", neg.etat === "actif" && neg.parametres === false);
-check("4.3 select.all (params vide) : actif sans paramètres", trouver(fr[5].entrees, "select.all").parametres === false);
+check("4.2 négatif : actif, sans champs", neg.etat === "actif" && Array.isArray(neg.champs) && neg.champs.length === 0);
+check("4.3 select.all (params vide) : actif sans champs", trouver(fr[5].entrees, "select.all").champs.length === 0);
+check("4.5 D9 (Fluidité) -> bientot malgré le registre", trouver(fr[6].entrees, "filter.liquify").etat === "bientot");
+check("4.6 galerie de filtres (effects json requis, rien d'éditable) -> bientot", trouver(fr[6].entrees, "filter.filterGallery").etat === "bientot");
+check("4.9 Convertir pour les filtres dynamiques (SANS_EDITEUR) -> bientot malgré le registre", trouver(fr[6].entrees, "filter.convertForSmartFilters").etat === "bientot");
+check("4.7 courbes : famille sur mesure, jamais « bientôt » par ses opaques", trouver(fr[2].entrees, "image.adjustments.curves").etat === "actif");
+check("4.8 entrée absente du registre : champs null", trouver(fr[6].entrees, "filter.blur.average").champs === null);
 check("4.4 raccourci converti", neg.raccourci === "Ctrl+I" && trouver(fichier, "file.save").raccourci === "Ctrl+S" && trouver(fr[1].entrees, "edit.undo").raccourci === "");
 
 // 5. séparateurs
@@ -106,13 +133,70 @@ check("7.2 REFUSES en minuscules", REFUSES.every((x) => x === x.toLowerCase()));
 
 // 8. actions
 const idx = indexRegistre(registre);
-check("8.1 indexRegistre (tableau)", idx.get("edit.undo").enabled === false && indexRegistre({ commands: registre }).size === 4 && indexRegistre(null).size === 0);
-check("8.2 parametresRequis", parametresRequis("{radius}") === true && parametresRequis("{}") === false && parametresRequis("") === false && parametresRequis(null) === false && parametresRequis(" { } ") === false);
+check("8.1 indexRegistre (tableau)", idx.get("edit.undo").enabled === false && indexRegistre({ commands: registre }).size === registre.length && indexRegistre(null).size === 0);
+check("8.2 parametresRequis supprimé (remplacé par les champs)", !/parametresRequis/.test(src));
 check("8.3 action écran", actionEntree(trouver(fichier, "file.new")) === "ecran");
 check("8.4 action à propos", actionEntree(fr[9].entrees[0]) === "apropos");
 check("8.5 action exécuter", actionEntree(neg) === "executer");
-check("8.6 action dialogue P3 pour paramètres", actionEntree(gauss) === "dialogue");
+check("8.6 Flou gaussien -> dialogue par ses champs", actionEntree(gauss) === "dialogue");
 check("8.7 bientôt / inactif -> rien", actionEntree(trouver(fichier, "file.placeEmbedded")) === "rien" && actionEntree(trouver(fr[1].entrees, "edit.undo")) === "rien");
+const reveler = trouver(fr[3].entrees, "layer.layerMask.revealAll");
+check("8.8 Révéler tout (layer caché seul) -> exécuter", reveler && actionEntree(reveler) === "executer");
+const courbes = trouver(fr[2].entrees, "image.adjustments.curves");
+check("8.9 Courbes (que des opaques, famille sur mesure) -> dialogue", actionEntree(courbes) === "dialogue");
+const calqueNeg = trouver(fr[3].entrees, "layer.newAdjustmentLayer.invert");
+check("8.10 calque de réglage Négatif (aucun champ) -> exécuter", calqueNeg && actionEntree(calqueNeg) === "executer");
+const effacer = trouver(fr[3].entrees, "layer.layerStyle.clear");
+check("8.11 Effacer le style (layer seul, hors familles de style) -> exécuter", effacer && actionEntree(effacer) === "executer");
+const boite = trouver(fr[6].entrees, "filter.blur.boxBlur");
+check("8.12 pont sans champs : description non vide -> dialogue (jamais d'exécution à l'aveugle)", boite && boite.champs === null && actionEntree(boite) === "dialogue");
+check("8.13 actionEntree sans champs : vide -> exécuter", actionEntree({ type: "commande", id: "x.y", etat: "actif", champs: [] }) === "executer"
+  && actionEntree({ type: "commande", id: "x.y", etat: "actif" }) === "dialogue");
+
+// 12. aiguillage des familles sur mesure (PUR)
+check("12.1 courbes / niveaux destructifs", aiguillage("image.adjustments.curves") === "courbes" && aiguillage("image.adjustments.levels") === "niveaux");
+check("12.2 calques de réglage (courbes et niveaux compris)", aiguillage("layer.newAdjustmentLayer.levels") === "reglage" && aiguillage("layer.newAdjustmentLayer.curves") === "reglage"
+  && aiguillage("layer.newAdjustmentLayer.invert") === "reglage");
+check("12.3 les 10 styles et blendingOptions", ["dropShadow", "innerShadow", "outerGlow", "innerGlow", "stroke", "colorOverlay", "gradientOverlay",
+  "patternOverlay", "bevelEmboss", "satin", "blendingOptions"].every((k) => aiguillage("layer.layerStyle." + k) === "style"));
+check("12.4 autres layerStyle -> générique", ["clear", "copyLayerStyle", "pasteLayerStyle", "globalLight", "scaleEffects", "createLayer", "hideAllEffects"]
+  .every((k) => aiguillage("layer.layerStyle." + k) === "generique"));
+check("12.5 le reste -> générique", aiguillage("filter.blur.gaussianBlur") === "generique" && aiguillage("image.adjustments.hueSaturation") === "generique"
+  && aiguillage("layer.newAdjustmentLayer") === "generique" && aiguillage("") === "generique" && aiguillage(null) === "generique");
+// cibleDialogue : où va un « dialogue » selon les fonctions que l'écran possède déjà (B2-B6 les ajoutent une à une).
+const tout = { ouvrirReglage: 1, ouvrirCourbes: 1, ouvrirNiveaux: 1, creerReglage: 1, ouvrirStyles: 1 };
+const lev = trouver(fr[3].entrees, "layer.newAdjustmentLayer.levels"), ombre = trouver(fr[3].entrees, "layer.layerStyle.dropShadow");
+check("12.6 tout présent : famille sur mesure d'abord", cibleDialogue(courbes, tout) === "courbes" && cibleDialogue(lev, tout) === "reglage"
+  && cibleDialogue(ombre, tout) === "style" && cibleDialogue(gauss, tout) === "generique");
+check("12.7 rien de présent : bientot", [courbes, lev, ombre, gauss].every((e) => cibleDialogue(e, {}) === "bientot"));
+check("12.8 générique seul : repli pour une famille qui a des champs visibles, bientot sinon",
+  cibleDialogue(lev, { ouvrirReglage: 1 }) === "generique" && cibleDialogue(ombre, { ouvrirReglage: 1 }) === "generique"
+  && cibleDialogue(courbes, { ouvrirReglage: 1 }) === "bientot" && cibleDialogue(gauss, { ouvrirReglage: 1 }) === "generique");
+check("12.9 sur mesure sans générique", cibleDialogue(courbes, { ouvrirCourbes: 1 }) === "courbes" && cibleDialogue(gauss, { ouvrirCourbes: 1 }) === "bientot");
+// P3 livrée : plus de message « arrive en P3 » ; un dialogue introuvable dit « bientôt » comme le reste du menu.
+const dico = JSON.parse(readFileSync(join(racine, "../shared/i18n/photolab.json"), "utf8"));
+check("12.11 photolab.menu.p3 retirée (source et dictionnaire), photolab.menu.bientot présente",
+  !/photolab\.menu\.p3/.test(src) && !("photolab.menu.p3" in dico) && !!dico["photolab.menu.bientot"]);
+// activer : l'exécution directe passe par la file FIFO (PL.executer), plus jamais PL.post("/executer") en direct.
+check("12.10 activer : exécuter par PL.executer, pas de post direct", /PL\.executer\(e\.id, \{\}\)/.test(src) && !/PL\.post\("\/executer"/.test(src));
+
+// 13. styles de calque : le menu prend le vocabulaire du dictionnaire (photolab.styles.<k>) quand il existe, comme le
+// dialogue (libelleStyle) — « Contour… » et non « Contourner… » du catalogue ; ponctuation du catalogue gardée.
+const DICO_STYLES = {
+  fr: { "photolab.styles.bevelemboss": "Biseautage et estampage", "photolab.styles.stroke": "Contour", "photolab.styles.options_fusion": "Options de fusion" },
+  en: { "photolab.styles.bevelemboss": "Bevel & Emboss", "photolab.styles.stroke": "Stroke", "photolab.styles.options_fusion": "Blending options" },
+};
+const tS = (lang) => (c) => DICO_STYLES[lang][c] || t(lang)(c);
+const frS = construireMenus(catalogue, registre, REFUSES, "fr", tS("fr")), enS = construireMenus(catalogue, registre, REFUSES, "en", tS("en"));
+const lib = (menus, k) => trouver(menus[3].entrees, "layer.layerStyle." + k).libelle;
+check("13.1 fr : Contour…, Biseautage et estampage…, Options de fusion…", lib(frS, "stroke") === "Contour…" && lib(frS, "bevelEmboss") === "Biseautage et estampage…"
+  && lib(frS, "blendingOptions") === "Options de fusion…", [lib(frS, "stroke"), lib(frS, "bevelEmboss"), lib(frS, "blendingOptions")]);
+check("13.2 en : Stroke…, Bevel & Emboss…, Blending options…", lib(enS, "stroke") === "Stroke…" && lib(enS, "bevelEmboss") === "Bevel & Emboss…"
+  && lib(enS, "blendingOptions") === "Blending options…", [lib(enS, "stroke"), lib(enS, "bevelEmboss"), lib(enS, "blendingOptions")]);
+check("13.3 sans clé au dictionnaire : libellé du catalogue (Ombre portée…, Effacer le style de calque)", lib(frS, "dropShadow") === "Ombre portée…"
+  && lib(frS, "clear") === "Effacer le style de calque" && lib(enS, "dropShadow") === "Drop Shadow…");
+check("13.4 traducteur par défaut : le catalogue tel quel", lib(fr, "stroke") === "Contourner…" && lib(en, "bevelEmboss") === "Bevel & Emboss…");
+check("13.5 menus.json intact (Contourner… au catalogue)", catalogue.entrees.find((e) => e.id === "layer.layerStyle.stroke").libelle_fr === "Contourner…");
 
 // 9. recherche d'une entrée par raccourci (Ctrl+Z, etc. : le moteur seul dit si la commande existe)
 check("9.1 rechercherEntree par id", rechercherEntree(fr, "image.adjustments.invert").id === "image.adjustments.invert" && rechercherEntree(fr, "nimporte") === null);

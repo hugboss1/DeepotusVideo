@@ -48,9 +48,14 @@
         <header class="groupe-tete"><span class="groupe-titre">Couleur</span></header>
         <div class="groupe-corps" id="corpsCouleur"></div>
       </section>
+      <!-- t138 B5 : Propriétés | Ajustements dans le MÊME groupe (photocraft : onglet Adjustments à côté de Properties). -->
       <section id="grpProprietes" class="groupe">
-        <header class="groupe-tete"><span class="groupe-titre">Propriétés</span></header>
-        <div class="groupe-corps" id="corpsProprietes"></div>
+        <header class="groupe-tete" role="tablist">
+          <button type="button" class="onglet actif" role="tab" data-onglet-pr="proprietes" aria-selected="true">Propriétés</button>
+          <button type="button" class="onglet" role="tab" data-onglet-pr="ajustements" aria-selected="false">Ajustements</button>
+        </header>
+        <div class="groupe-corps" id="corpsProprietes" data-vue-pr="proprietes"></div>
+        <div class="groupe-corps" id="corpsAjustements" data-vue-pr="ajustements" hidden></div>
       </section>
       <section id="grpCalques" class="groupe grand">
         <header class="groupe-tete" role="tablist">

@@ -225,6 +225,14 @@ export function initVue(PL) {
   // Rendu : le dernier rendu est dessiné tel quel. poserRendu accepte aussi un faux rendu (banc, ou avant la phase C
   // qui branche les documents) : {image: CanvasImageSource, maxSide}.
   vue.poserRendu = function poserRendu(rendu) { vue.rendu = rendu; vue.dessiner(); };
+  // Aperçu d'un dialogue de réglage (t138 B2) : l'image calculée par le moteur sur une COPIE du document prend la place
+  // du rendu, sans rien changer à PL.etat.doc (l'original n'a pas bougé). maxSide = taille demandée, pour que le
+  // rendu suivant (zoom) se compare juste ; à défaut, celle du rendu en place. Le prochain cycle reposera le rendu réel.
+  vue.poserApercu = function poserApercu(image, maxSide) {
+    const m = maxSide != null ? maxSide : (vue.rendu ? vue.rendu.maxSide : 0);
+    vue.rendu = { image, maxSide: m, apercu: true };
+    vue.dessiner();
+  };
   let minuterie = null;
   function planifierRendu() {
     const d = dims();

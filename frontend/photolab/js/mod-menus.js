@@ -4,11 +4,14 @@
 // Une entrée que le moteur ne connaît pas, ou que le pont refuse, reste affichée mais « bientôt » : la barre ressemble
 // à celle de photocraft sans promettre ce qui n'est pas là. Toute la construction est PURE (qa/menus.test.mjs).
 
+import { champsVisibles, sansEcran, D9, SANS_EDITEUR, OPAQUES, CLES_CACHEES } from "./mod-champs.js";
+
 // Copie, en minuscules, de PREFIXES_REFUSES (backend/app/services/photolab_moteur.py) : le pont refuse ces commandes
 // (fichiers, scripts, préférences…), l'écran les traite lui-même ou les marque « bientôt ». Un banc relit le source
 // Python et compare : toute dérive rougit.
 export const REFUSES = ["file.", "app.", "automate.", "plugin.", "script", "window.", "help.", "edit.preferences",
-  "edit.presets", "edit.keyboardshortcuts", "edit.menus"];
+  "edit.presets", "edit.keyboardshortcuts", "edit.menus", "image.mode.", "brush.presets.import",
+  "gradient.presets.import", "prefs.", "measurementlog.export"];
 
 // Entrées de fichier que l'écran exécute LUI-MÊME par ses routes (nouveau, ouvrir depuis la Bibliothèque, fermer,
 // enregistrer, exporter) : actives même si le pont refuserait la commande moteur de ce nom.
@@ -24,10 +27,47 @@ export function indexRegistre(registre) {
   return m;
 }
 
-// « {} », vide ou absent = aucun paramètre ; « {radius} » = des paramètres à saisir (dialogues générés en P3).
-export function parametresRequis(texte) {
-  const s = String(texte == null ? "" : texte).replace(/\s+/g, "");
-  return s !== "" && s !== "{}";
+// Champs d'une entrée du registre (t138 : GET /commandes les structure). Un pont plus ancien ne les envoie pas : une
+// description vide ou « {} » vaut alors « aucun champ », toute autre vaut null (inconnu -> dialogue, jamais une
+// exécution à l'aveugle avec les défauts du moteur).
+function champsDe(r) {
+  if (!r) return null;
+  if (Array.isArray(r.champs)) return r.champs;
+  const s = String(r.params == null ? "" : r.params).replace(/\s+/g, "");
+  return s === "" || s === "{}" ? [] : null;
+}
+
+// Styles de calque à dialogue sur mesure (B6) : les 10 effets et les options de fusion. Les autres layer.layerStyle.*
+// (effacer, copier, coller, lumière globale…) restent des commandes ordinaires.
+export const STYLES = new Set(["dropShadow", "innerShadow", "outerGlow", "innerGlow", "stroke", "colorOverlay", "gradientOverlay",
+  "patternOverlay", "bevelEmboss", "satin", "blendingOptions"]);
+const PREFIXE_REGLAGE = "layer.newAdjustmentLayer.";
+const PREFIXE_STYLE = "layer.layerStyle.";
+
+// Familles à éditeur sur mesure, aiguillées AVANT le dialogue générique : courbes | niveaux | reglage | style | generique.
+export function aiguillage(id) {
+  const s = typeof id === "string" ? id : "";
+  if (s === "image.adjustments.curves") return "courbes";
+  if (s === "image.adjustments.levels") return "niveaux";
+  if (s.startsWith(PREFIXE_REGLAGE) && s.length > PREFIXE_REGLAGE.length) return "reglage";
+  if (s.startsWith(PREFIXE_STYLE) && STYLES.has(s.slice(PREFIXE_STYLE.length))) return "style";
+  return "generique";
+}
+
+// Fonction de l'écran qui ouvre chaque famille (définies par B2-B6, absentes avant).
+const OUVREURS = { courbes: "ouvrirCourbes", niveaux: "ouvrirNiveaux", reglage: "creerReglage", style: "ouvrirStyles", generique: "ouvrirReglage" };
+
+// Où va une entrée « dialogue », selon les fonctions que l'écran possède (dispo = PL) : la famille sur mesure si son
+// éditeur existe ; sinon le dialogue générique s'il existe et qu'il y a quelque chose à y montrer ; sinon « bientot »
+// (le même message que les entrées grisées).
+export function cibleDialogue(entree, dispo) {
+  const d = dispo || {};
+  const a = aiguillage(entree && entree.id);
+  if (a !== "generique" && d[OUVREURS[a]]) return a;
+  const champs = entree && entree.champs;
+  // champs inconnus (pont ancien) : le générique ne saurait quoi montrer
+  if (d.ouvrirReglage && Array.isArray(champs) && champsVisibles(champs).length) return "generique";
+  return "bientot";
 }
 
 // "Cmd+Shift+N" -> "Ctrl+Maj+N" (fr) / "Ctrl+Shift+N" (en). L'ordre des touches de photocraft est conservé.
@@ -42,6 +82,12 @@ function etatDe(id, idx, refuses) {
   if (refuses.some((p) => bas.startsWith(p))) return "bientot";
   const r = idx.get(id);
   if (!r) return "bientot";
+  // Rien que l'écran sache éditer (D9, autre document requis, que des opaques) -> « bientôt ». Les familles sur mesure
+  // en sont exemptées : leurs éditeurs (Courbes, Niveaux, Réglages, Styles) écrivent eux-mêmes les champs opaques.
+  // D9 est testé À PART, hors de cette exemption (sansEcran le teste aussi, mais seulement pour le générique) : une
+  // interface lourde écartée reste grisée même si une famille sur mesure venait à couvrir son id. SANS_EDITEUR de même :
+  // ces commandes sont nommées une à une, aucune exemption ne doit les rouvrir.
+  if (D9.has(id) || SANS_EDITEUR.has(id) || (aiguillage(id) === "generique" && sansEcran(id, champsDe(r)))) return "bientot";
   return r.enabled === false ? "inactif" : "actif";
 }
 
@@ -57,8 +103,23 @@ function nettoyer(entrees) {
   return sortie;
 }
 
+// Libellé d'une entrée Calque › Style de calque : le catalogue amont s'écarte par endroits du vocabulaire usuel des
+// retoucheurs en français (« Contourner… », « Biseau et relief… ») ; le dialogue Style de calque (mod-styles.js libelleStyle) dit
+// déjà « Contour », « Biseautage et estampage ». Le menu prend la MÊME clé photolab.styles.<k minuscule>
+// (photolab.styles.options_fusion pour blendingOptions) quand le dictionnaire l'a, et garde la ponctuation du
+// catalogue (« … » : l'entrée ouvre un dialogue). Sans clé : le catalogue tel quel. menus.json n'est jamais touché.
+function libelleCatalogue(e, lang, t) {
+  const lib = (lang === "fr" ? e.libelle_fr || e.libelle_en : e.libelle_en || e.libelle_fr) || e.id;
+  if (typeof e.id !== "string" || !e.id.startsWith(PREFIXE_STYLE) || typeof t !== "function") return lib;
+  const k = e.id.slice(PREFIXE_STYLE.length);
+  const cle = k === "blendingOptions" ? "photolab.styles.options_fusion" : "photolab.styles." + k.toLowerCase();
+  const r = t(cle);
+  if (typeof r !== "string" || r === "" || r === cle) return lib;          // dzT rend la clé elle-même quand elle manque
+  return /…$/.test(lib) ? r + "…" : r;
+}
+
 // catalogue = donnees/menus.json ; registre = GET /api/photolab/commandes ; refuses = REFUSES ; lang = "fr"|"en" ;
-// t = traducteur (dzT) pour le menu « Aide » ajouté en dernier (le catalogue s'arrête à Window).
+// t = traducteur (dzT) pour le menu « Aide » ajouté en dernier (le catalogue s'arrête à Window) et les styles de calque.
 export function construireMenus(catalogue, registre, refuses, lang, t = (c) => c) {
   const idx = indexRegistre(registre);
   const noms = (catalogue && catalogue.menus_fr) || {};
@@ -79,27 +140,33 @@ export function construireMenus(catalogue, registre, refuses, lang, t = (c) => c
     const r = idx.get(e.id);
     liste.push({
       type: "commande", id: e.id,
-      libelle: (lang === "fr" ? e.libelle_fr || e.libelle_en : e.libelle_en || e.libelle_fr) || e.id,
+      libelle: libelleCatalogue(e, lang, t),
       raccourci: raccourciAffiche(e.raccourci, lang),
       etat: etatDe(e.id, idx, refuses),
-      parametres: r ? parametresRequis(r.params) : false,
+      champs: champsDe(r),               // null : commande absente du registre, ou pont sans `champs`
     });
   }
   for (const m of menus) m.entrees = nettoyer(m.entrees);
   menus.push({
     nom: "Aide", nom_affiche: t("photolab.menu.aide"),
-    entrees: [{ type: "commande", id: "pl.apropos", libelle: t("photolab.menu.apropos"), raccourci: "", etat: "actif", parametres: false }],
+    entrees: [{ type: "commande", id: "pl.apropos", libelle: t("photolab.menu.apropos"), raccourci: "", etat: "actif", champs: [] }],
   });
   return menus.filter((m) => m.entrees.length);
 }
 
 // Que fait un clic sur cette entrée ? ecran | apropos | executer | dialogue | rien
+// « dialogue » : un champ visible, ou une famille sur mesure qui a des champs opaques à éditer (Courbes) ; une commande
+// dont tous les champs sont cachés (layer.layerMask.revealAll {layer?}) ou qui n'en a aucun s'exécute directement.
 export function actionEntree(entree) {
   if (!entree || entree.type === "separateur") return "rien";
   if (entree.id === "pl.apropos") return "apropos";
   if (entree.etat !== "actif") return "rien";
   if (TRAITES_PAR_ECRAN.has(entree.id)) return "ecran";
-  return entree.parametres ? "dialogue" : "executer";
+  const champs = entree.champs;
+  if (!Array.isArray(champs)) return "dialogue";
+  if (champsVisibles(champs).length) return "dialogue";
+  if (aiguillage(entree.id) !== "generique" && champs.some((c) => c && OPAQUES.has(c.type) && !CLES_CACHEES.has(c.cle))) return "dialogue";
+  return "executer";
 }
 
 export function rechercherEntree(menus, id) {
@@ -149,6 +216,8 @@ export function initMenus(PL) {
 
   PL.menus = {
     get arbre() { return menus; },
+    // Dernier registre lu (t138 B5 : champs de layer.newAdjustmentLayer.<kind> pour l'éditeur du calque de réglage).
+    get registre() { return registre; },
     // Relit le registre (l'état « actif » des commandes dépend du document ouvert) puis reconstruit l'arbre.
     async rafraichir() {
       // Silencieux : un rafraîchissement d'arrière-plan n'a pas à ouvrir un toast (moteur absent = menus « bientôt »).
@@ -260,13 +329,24 @@ export function initMenus(PL) {
         break;
       }
       case "apropos": apropos(); break;
-      case "executer":
-        try { await PL.post("/executer", { command: e.id, params: {} }); } catch (err) { return; }     // signalé par mod-api
-        if (PL.cycle) PL.cycle(); else PL.menus.rafraichir();
+      case "executer": {
+        // Par la file FIFO de mod-cycle : l'ordre des gestes reste l'ordre d'exécution, et le cycle qui suit relit
+        // l'état (le cycle rafraîchit aussi les menus). Échec : déjà signalé par mod-api.
+        const r = await PL.executer(e.id, {});
+        if (r && r.ok && !PL.cycle) PL.menus.rafraichir();
         break;
-      case "dialogue":
-        informer(T("photolab.menu.p3", { nom: e.libelle.replace(/…$/, "") }));
+      }
+      case "dialogue": {
+        const cible = cibleDialogue(e, PL);
+        const suffixe = e.id.slice(e.id.lastIndexOf(".") + 1);
+        if (cible === "courbes") PL.ouvrirCourbes(e);
+        else if (cible === "niveaux") PL.ouvrirNiveaux(e);
+        else if (cible === "reglage") PL.creerReglage(suffixe);
+        else if (cible === "style") PL.ouvrirStyles(suffixe);
+        else if (cible === "generique") PL.ouvrirReglage(e);
+        else PL.signaler(T("photolab.menu.bientot"));       // éditeur absent (pont ancien sans champs, module non chargé)
         break;
+      }
       default:
         if (e.etat === "bientot") PL.signaler(T("photolab.menu.bientot"));
     }

@@ -173,39 +173,65 @@ check("2p binaire introuvable au lancement -> MoteurAbsent (vendor_photocraft.py
 # Réponse {"id":null,"ok":false} (ligne illisible) : une seule requête à la fois, donc elle est la nôtre -> MoteurErreur
 # tout de suite plutôt que d'attendre le délai. Non testée : notre propre écriture est toujours du JSON valide.
 
-print("\n[3] les commandes refusées")
-for bon in ("filter.blur.gaussianBlur", "image.adjustments.levels", "layer.new.layer", "edit.fill", "select.all"):
-    check(f"3a commande acceptée {bon}", PM.commande_autorisee(bon, {"radius": 3}) == bon)
+print("\n[3] les commandes refusées (t138 A2 : liste blanche sur le registre du moteur épinglé)")
+# Depuis t138 le pont n'admet que ce que le registre décrit (clés, types, bornes) : les cas sont relus contre la copie
+# du registre réel. Les refus de fichiers t136 restent tous des refus, pour une raison au moins aussi forte.
+from app.services import photolab_registre as PR             # noqa: E402
+REG = PR.structurer(_json.loads((BACKEND / "tests" / "photocraft_commandes_0.3.0.json").read_text(encoding="utf-8")))
+
+
+def _refusee(cid, params, reg=REG):
+    try:
+        PM.commande_autorisee(cid, params, reg)
+        return False
+    except ValueError:
+        return True
+
+
+for bon, params in (("filter.blur.gaussianBlur", {"radius": 3}), ("image.adjustments.levels", {"gamma": 1.5}),
+                    ("layer.new.layer", {"name": "Calque"}), ("edit.fill", {"contents": "white"}), ("select.all", {})):
+    check(f"3a commande acceptée {bon} {params}", PM.commande_autorisee(bon, params, REG) == bon)
+check("3a0 sans registre : refusée (« registre du moteur indisponible »), même une commande anodine",
+      _refusee("select.all", {}, None))
 for mauvais, params in (("file.saveAs", {}), ("file.open", {}), ("file.place.embedded", {}), ("file.scripts.browse", {}),
                         ("automate.droplet", {}), ("plugin.install", {}), ("app.quit", {}), ("FILTER.blur", {}),
                         ("filter..blur", {}), ("filter.blur.gaussianBlur", {"path": "C:/x.png"}),
                         ("image.adjustments.colorLookup", {"lut": {"file": "../x.cube"}}),
-                        ("layer.new.layer", {"steps": [{"folder": "x"}]})):
-    try:
-        PM.commande_autorisee(mauvais, params)
-        passe = True
-    except ValueError:
-        passe = False
-    check(f"3b refusée {mauvais} {params}", not passe)
-for mauvais, params in (("image.adjustments.colorLookup", {"lut": "../x.cube"}), ("edit.fill", {"Path": "C:/x"}),
+                        ("layer.new.layer", {"steps": [{"folder": "x"}]}),
+                        ("image.mode.rgb", {"profile": "C:/x.icc"}), ("plugin.reload", {"path": "x"}),
+                        ("brush.presets.importAbr", {"path": "../a.abr"}), ("gradient.presets.importGrd", {"path": "a"}),
+                        ("prefs.set", {"path": "a.b", "value": 1}), ("prefs.reset", {}),
+                        ("measurementLog.export", {"path": "a.csv"})):
+    check(f"3b refusée {mauvais} {params}", _refusee(mauvais, params))
+for mauvais, params in (("image.adjustments.colorLookup", {"lut": "../x.cube"}),
+                        ("image.adjustments.colorLookup", {"file": "../x.cube"}),
+                        ("image.adjustments.colorLookup", {"data": {"text": "LUT_3D_SIZE 2"}}),
+                        ("edit.fill", {"Path": "C:/x"}),
                         ("edit.fill", {"filePath": "a"}), ("edit.fill", {"outputPath": "a"}),
                         ("edit.fill", {"src": "/etc/x"}), ("edit.fill", "C:/x.png"), ("edit.fill", ["C:/x.png"]),
                         ("fiLe.open", {}), ("filE.saveAs", {}), ("edit.fill", {"a": {"b": ["x/y.png"]}}),
                         ("edit.fill", {"a": "x\\y"}), ("edit.fill", {"a": "C:x"}), ("edit.fill", {"a": "MOI.PSD"}),
                         ("edit.fill", {"a": "t.cube"}), ("edit.fill", {"out": "a"}), ("edit.fill", {"profile": 1}),
                         ("edit.fill", {"Preset": 1}), ("edit.fill", {"dir": "a"}),
-                        # mutation t136 : une clé « path » à valeur anodine doit tomber par la CLÉ seule
-                        ("edit.fill", {"path": "abc"})):
-    try:
-        PM.commande_autorisee(mauvais, params)
-        passe = True
-    except ValueError:
-        passe = False
-    check(f"3c refusée (contournement) {mauvais} {params!r}", not passe)
-for bon, params in (("filter.blur.gaussianBlur", {"radius": 3}), ("image.adjustments.levels", {"lightness": {"outBlack": 60}}),
-                    ("edit.fill", {"color": "#336699"}), ("image.crop", {"ratio": "16:9"}), ("select.all", None),
-                    ("image.resize", {"resolution": 72, "direction": "h", "mode": "normal"})):
-    check(f"3d acceptée {bon} {params!r}", PM.commande_autorisee(bon, params) == bon)
+                        # mutation t136 : une clé « path » à valeur anodine doit tomber (clé inconnue du registre)
+                        ("edit.fill", {"path": "abc"}),
+                        ("layer.renameLayer", {"name": "C:/x.png"}), ("layer.renameLayer", {"name": "a\\b"}),
+                        ("filter.distort.displace", {"mapPath": "m.psd"}),
+                        # t136 l'acceptait (lightness ignoré en silence par le moteur sur un document RVB) : la clé
+                        # n'est pas dans le registre de image.adjustments.levels -> refusée depuis t138
+                        ("image.adjustments.levels", {"lightness": {"outBlack": 60}}),
+                        # t136 l'acceptait aussi : image.crop n'a pas de clé ratio, et image.resize n'existe pas au
+                        # registre (c'est image.imageSize)
+                        ("image.crop", {"ratio": "16:9"}),
+                        ("image.resize", {"resolution": 72, "direction": "h", "mode": "normal"}),
+                        ("layer.setProps", {"blend": 3})):
+    check(f"3c refusée (contournement) {mauvais} {params!r}", _refusee(mauvais, params))
+for bon, params in (("filter.blur.gaussianBlur", {"radius": 3}), ("image.adjustments.levels", {"red": {"outBlack": 60}}),
+                    ("edit.fill", {"color": "#336699"}), ("edit.fill", {"color": [51, 102, 153, 255]}),
+                    ("image.crop", {"x": 0, "y": 0, "width": 8, "height": 8}), ("select.all", None),
+                    ("image.imageSize", {"width": 72, "resolution": 72, "resample": "bicubic"}),
+                    ("layer.layerStyle.innerGlow", {"source": "center"}), ("filter.lensCorrection", {"profile": "auto"})):
+    check(f"3d acceptée {bon} {params!r}", PM.commande_autorisee(bon, params, REG) == bon)
 
 if __name__ == "__main__":
     print(f"\n=== {ok} passed, {fail} failed ===")

@@ -15,8 +15,11 @@ docs = []                        # les paramètres d'ouverture (forme historique
 etats = []                       # un état par document : nom, calques, révision, historique
 actif = None
 journal = []                     # « méthode » ou « engine.execute:commande », dans l'ordre d'arrivée
-compte = {"duplicate": 0, "batches": []}
-casse = {"rendu": False, "sans_index": False}
+compte = {"duplicate": 0, "batches": [], "selections": []}
+# t138 : `etape` = la prochaine commande d'aperçu (filtre, réglage, style) répond ok:false, pour éprouver la fermeture
+# de la copie quand le MOTEUR refuse une étape que le pont avait admise.
+casse = {"rendu": False, "sans_index": False, "etape": False}
+FAMILLES_ETAPE = ("filter.", "image.adjustments.", "layer.layerStyle.", "layer.setAdjustment")
 _ids = [100]
 
 
@@ -30,8 +33,15 @@ def calques_neufs():
     return [{"id": 1, "name": "Fond", "kind": "Pixel", "visible": True},
             {"id": 2, "name": "Calque 1", "kind": "Pixel", "visible": True},
             {"id": 3, "name": "Groupe", "kind": "Group", "visible": True, "expanded": True,
-             "children": [{"id": 4, "name": "Dans le groupe", "kind": "Pixel", "visible": True}]},
-            {"id": 5, "name": "Réglage", "kind": "Adjustment", "visible": True}]   # pas de vignette : rien à montrer seul
+             "children": [{"id": 4, "name": "Dans le groupe", "kind": "Pixel", "visible": True},
+                          # t138 : un réglage Niveaux DANS le groupe (le kind se trouve en descendant dans children)
+                          {"id": 6, "name": "Levels 1", "kind": "Adjustment", "visible": True,
+                           "adjustment": {"Levels": {"master": {"gamma": 1.0}, "space": "Rgb"}}}]},
+            # pas de vignette : rien à montrer seul. t138 : un Color Lookup avec sa LUT (élaguée par le pont) et son
+            # kind, pour layer.setAdjustment
+            {"id": 5, "name": "Réglage", "kind": "Adjustment", "visible": True,
+             "adjustment": {"ColorLookup": {"lut": [0.5] * 300, "name": "Warm Filter", "size": 10, "tetrahedral": False,
+                                            "dither": True}}}]
 
 
 def a_plat(calques):
@@ -60,11 +70,25 @@ def nouveau_doc(p, nom):
     return len(docs) - 1
 
 
+def registre():
+    """t138 : le VRAI registre de photocraft-cli 0.3.0 (copie tests/photocraft_commandes_0.3.0.json), pour que la
+    liste blanche du pont soit éprouvée sur ce qu'elle verra, plus les commandes de banc dz.* (sans paramètres) :
+    sans elles le pont refuserait « commande inconnue du moteur »."""
+    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "photocraft_commandes_0.3.0.json"),
+              encoding="utf-8") as f:
+        reel = json.load(f)
+    return reel + [{"id": d, "label": d, "menu": [], "shortcut": None, "params": "{}", "enabled": True} for d in BANC]
+
+
+BANC = ("dz.dormir", "dz.mourir", "dz.erreur", "dz.bruit", "dz.desordre", "dz.pid", "dz.compte", "dz.modifier",
+        "dz.casseRendu", "dz.dupliquerSansIndex", "dz.actif", "dz.echecEtape", "dz.reglage")
+
+
 def inspecter():
     e = etats[actif]
     return {"documents": docs, "name": e["name"], "revision": e["revision"], "layers": e["calques"],
             "history": e["history"], "canUndo": len(e["history"]) > 1, "canRedo": bool(e["rejouer"]),
-            "width": 64, "height": 32}
+            "width": 64, "height": 32, "activeLayer": e.get("actif", 1)}
 
 
 for ligne in sys.stdin:
@@ -96,17 +120,45 @@ for ligne in sys.stdin:
         elif c == "dz.pid":
             repondre(i, True, {"pid": os.getpid()})
         elif c == "dz.compte":
-            repondre(i, True, {"duplicate": compte["duplicate"], "batches": compte["batches"], "journal": journal})
+            repondre(i, True, {"duplicate": compte["duplicate"], "batches": compte["batches"], "journal": journal,
+                               "selections": compte["selections"]})
         elif c == "dz.modifier":
             etats[actif]["revision"] += 1
             etats[actif]["history"].append("Modifier")
             repondre(i, True, {"revision": etats[actif]["revision"]})
+        elif c == "dz.actif":                             # banc : change le calque actif (appel direct, hors pont)
+            etats[actif]["actif"] = (p.get("params") or {}).get("layer")
+            repondre(i, True, {})
+        elif c == "dz.reglage":                           # banc : pose l'`adjustment` d'un calque (le crée au sommet s'il manque)
+            q = p.get("params") or {}
+            cal = reperer(etats[actif]["calques"], q.get("layer"))
+            if cal is None:
+                cal = {"id": q.get("layer"), "name": f"Réglage {q.get('layer')}", "kind": "Adjustment", "visible": True}
+                etats[actif]["calques"].append(cal)
+            cal["adjustment"] = q.get("adjustment")
+            repondre(i, True, {})
         elif c == "dz.casseRendu":
             casse["rendu"] = True
             repondre(i, True, {})
         elif c == "dz.dupliquerSansIndex":
             casse["sans_index"] = True
             repondre(i, True, {})
+        elif c == "dz.echecEtape":
+            casse["etape"] = True
+            repondre(i, True, {})
+        elif casse["etape"] and str(c).startswith(FAMILLES_ETAPE):
+            casse["etape"] = False
+            repondre(i, False, "filtre refusé (banc)")
+        elif c == "layer.select":
+            # t138 : le calque actif suit, et le banc lit le NOM choisi (preuve de l'appariement par position, les
+            # ids de la copie étant renumérotés)
+            cal = reperer(etats[actif]["calques"], p.get("params", {}).get("layer"))
+            if cal is None:
+                repondre(i, False, "no such layer")
+            else:
+                etats[actif]["actif"] = cal["id"]
+                compte["selections"].append(cal["name"])
+                repondre(i, True, {})
         elif c == "image.duplicate":
             compte["duplicate"] += 1
             src = etats[actif]
@@ -129,9 +181,15 @@ for ligne in sys.stdin:
             else:
                 if "visible" in p["params"]:
                     cal["visible"] = bool(p["params"]["visible"])
-                repondre(i, True, None)
+                repondre(i, True, {"nomCalque": cal["name"]})        # t138 : le banc de l'aperçu lit le calque visé
         else:
-            repondre(i, True, {"command": c, "params": p.get("params")})
+            r = {"command": c, "params": p.get("params")}
+            cible = (p.get("params") or {}).get("layer")
+            if isinstance(cible, int) and actif is not None:
+                # t138 : le nom du calque visé dans le document ACTIF, pour vérifier la traduction des ids vers la copie
+                cal = reperer(etats[actif]["calques"], cible)
+                r["nomCalque"] = cal["name"] if cal else None
+            repondre(i, True, r)
     elif m == "doc.new":
         repondre(i, True, {"document": nouveau_doc(p, p.get("name") or "Untitled")})
     elif m == "doc.open":
@@ -184,7 +242,6 @@ for ligne in sys.stdin:
             f.write(b"\x89PNG\r\n\x1a\nFAUX")
         repondre(i, True, {"path": chemin, "bytes": 12})
     elif m == "engine.commands":
-        repondre(i, True, [{"id": "filter.blur.gaussianBlur", "label": "Gaussian Blur…", "menu": ["Filter", "Blur"],
-                            "shortcut": None, "params": "{radius}", "enabled": bool(docs)}])
+        repondre(i, True, registre())
     else:
         repondre(i, False, f"unknown method `{m}` (try `methods`)")

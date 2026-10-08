@@ -139,17 +139,122 @@ async def scenario():
                    and (r.content == index or b'<div id="root">' in r.content))
             check(f"14 {chemin} : 400/404, ou l'index.html de l'application sans octet de la cible",
                   propre and (r.status_code in (400, 404) or spa), (r.status_code, r.content[:60]))
-        r = await c.get("/api/photolab/commandes")
-        check("15 /commandes rend le registre du moteur", r.status_code == 200
-              and r.json()[0]["id"] == "filter.blur.gaussianBlur", r.text)
-        r = await c.post("/api/photolab/executer", json={"command": "dz.mourir"})
-        e = (await c.get("/api/photolab/etat")).json()
-        r2 = await c.post("/api/photolab/executer", json={"command": "dz.pid"})
-        e2 = (await c.get("/api/photolab/etat")).json()
+        # t138 A2 : le faux moteur sert la copie du registre réel (776 entrées + les commandes dz.* du banc) ; chaque
+        # entrée de /commandes gagne ses « champs » structurés, calculés UNE fois par génération du moteur.
+        from app.services import photolab_registre as PR
+        appels = []
+        _structurer0 = PR.structurer
+        PR.structurer = lambda cmds: (appels.append(1), _structurer0(cmds))[1]
+        try:
+            PM._CACHE_REGISTRE.update({"session": None, "gen": None, "registre": None})
+            r = await c.get("/api/photolab/commandes")
+            j = r.json() if r.status_code == 200 else []
+            g = next((x for x in j if x.get("id") == "filter.blur.gaussianBlur"), {})
+            check("15 /commandes rend le registre du moteur (776 entrées réelles + dz.*)", r.status_code == 200
+                  and len([x for x in j if not x["id"].startswith("dz.")]) == 776 and g.get("params") == '{"radius":0.1..1000=1}',
+                  r.text[:200])
+            check("15b chaque entrée porte ses champs (gaussianBlur : radius number 0.1..1000)",
+                  all("champs" in x for x in j) and [(f["cle"], f["type"], f.get("min"), f.get("max")) for f in g.get("champs", [])]
+                  == [("radius", "number", 0.1, 1000)], g)
+            await c.get("/api/photolab/commandes")
+            await c.post("/api/photolab/executer", json={"command": "filter.blur.gaussianBlur", "params": {"radius": 2}})
+            await c.post("/api/photolab/executer", json={"command": "select.all"})
+            await c.get("/api/photolab/commandes")
+            check("15c registre structuré UNE seule fois pour 3 /commandes + 2 /executer (même génération)", len(appels) == 1, len(appels))
+        finally:
+            PR.structurer = _structurer0
+        for corps, motif in (({"command": "filter.blur.gaussianBlur", "params": {"radius": 4, "zorglub": 1}}, "paramètre inconnu : zorglub"),
+                             ({"command": "filter.blur.gaussianBlur", "params": {"radius": 5000}}, "0.1..1000"),
+                             ({"command": "filter.zorg", "params": {}}, "inconnue du moteur"),
+                             ({"command": "image.mode.rgb", "params": {"profile": "C:/x.icc"}}, "réservée"),
+                             ({"command": "layer.setProps", "params": {"blend": "zorg"}}, "mode de fusion")):
+            r = await c.post("/api/photolab/executer", json=corps)
+            check(f"15d /executer refuse {corps['command']} {corps['params']} (400, « {motif} »)",
+                  r.status_code == 400 and motif in r.json().get("detail", ""), (r.status_code, r.text))
+        # une commande illisible ne démarre pas le moteur : refusée AVANT la lecture du registre (session qui lève)
+        class Interdite:
+            def appeler_g(self, *a, **k):
+                raise AssertionError("le moteur ne doit pas être sollicité")
+        vraie, PM._SESSION = PM._SESSION, Interdite()
+        try:
+            r = await c.post("/api/photolab/executer", json={"command": "../x"})
+        finally:
+            PM._SESSION = vraie
+        check("15o commande illisible : 400 sans aucun appel au moteur", r.status_code == 400 and "illisible" in r.text,
+              (r.status_code, r.text))
+        # layer.setAdjustment : le kind vient du calque visé (doc.inspect), jamais de l'écran
+        r = await c.post("/api/photolab/executer", json={"command": "layer.setAdjustment", "params": {"layer": 5, "lut": "warm"}})
+        check("15e setAdjustment sur le calque Color Lookup (5) : clé de colorLookup admise", r.status_code == 200
+              and r.json().get("command") == "layer.setAdjustment", (r.status_code, r.text))
+        r = await c.post("/api/photolab/executer", json={"command": "layer.setAdjustment", "params": {"layer": 5, "gamma": 1.2}})
+        check("15f setAdjustment : une clé d'un AUTRE kind (gamma des niveaux) -> 400", r.status_code == 400
+              and "gamma" in r.text, (r.status_code, r.text))
+        for p in ({"layer": 1, "lut": "warm"}, {"lut": "warm"}):
+            r = await c.post("/api/photolab/executer", json={"command": "layer.setAdjustment", "params": p})
+            check(f"15g setAdjustment {p} sur un calque de pixels (1 ; ou l'actif) -> 400 « pas un calque de réglage »",
+                  r.status_code == 400 and "pas un calque de réglage" in r.text, (r.status_code, r.text))
+        r = await c.post("/api/photolab/executer", json={"command": "layer.setAdjustment", "params": {"layer": 999, "lut": "warm"}})
+        check("15h setAdjustment sur un calque absent -> 400", r.status_code == 400 and "999" in r.text, (r.status_code, r.text))
+        # réglage Niveaux (6) DANS le groupe 3 : le kind est trouvé en descendant dans children
+        r = await c.post("/api/photolab/executer", json={"command": "layer.setAdjustment", "params": {"layer": 6, "gamma": 1.4}})
+        check("15k setAdjustment sur le Levels imbriqué (6) : gamma admis (kind levels trouvé dans le groupe)",
+              r.status_code == 200 and r.json().get("params") == {"layer": 6, "gamma": 1.4}, (r.status_code, r.text))
+        r = await c.post("/api/photolab/executer", json={"command": "layer.setAdjustment", "params": {"layer": 6, "lut": "warm"}})
+        check("15l setAdjustment sur le Levels imbriqué : clé de colorLookup -> 400", r.status_code == 400 and "lut" in r.text,
+              (r.status_code, r.text))
+        # sans `layer` : la cible lue dans doc.inspect (calque actif) est FIGÉE dans les paramètres envoyés
+        PM.session().appeler("engine.execute", {"command": "dz.actif", "params": {"layer": 5}})
+        r = await c.post("/api/photolab/executer", json={"command": "layer.setAdjustment", "params": {"lut": "warm"}})
+        check("15m setAdjustment sans layer, actif = Color Lookup (5) : envoyé avec layer 5 figé",
+              r.status_code == 200 and r.json().get("params") == {"lut": "warm", "layer": 5}, (r.status_code, r.text))
+        # hueSaturation : bornes de colorisation lues dans l'ÉTAT du calque visé (doc.inspect), pas déclarées par l'écran
+        HS = {"HueSaturation": {"colorize": True, "hue": 200.0, "saturation": 40.0, "lightness": 0.0, "ranges": []}}
+        PM.session().appeler("engine.execute", {"command": "dz.reglage", "params": {"layer": 20, "adjustment": HS}})
+        PM.session().appeler("engine.execute", {"command": "dz.reglage", "params": {"layer": 21, "adjustment": {
+            "HueSaturation": {**HS["HueSaturation"], "colorize": False, "hue": 0.0, "saturation": 0.0}}}})
+        r = await c.post("/api/photolab/executer", json={"command": "layer.setAdjustment", "params": {"layer": 20, "hue": 200}})
+        check("15p setAdjustment hue 200 sur un calque DÉJÀ colorisé (20) : admis", r.status_code == 200, (r.status_code, r.text))
+        r = await c.post("/api/photolab/executer", json={"command": "layer.setAdjustment", "params": {"layer": 21, "hue": 200}})
+        check("15q setAdjustment hue 200 sur un calque NON colorisé (21) : 400 hors bornes", r.status_code == 400
+              and "hue" in r.text, (r.status_code, r.text))
+        r = await c.post("/api/photolab/executer", json={"command": "layer.setAdjustment",
+                                                         "params": {"layer": 21, "colorize": True, "hue": 200}})
+        check("15r setAdjustment colorize:true dans les paramètres PRIME sur l'état non colorisé", r.status_code == 200,
+              (r.status_code, r.text))
+        r = await c.post("/api/photolab/executer", json={"command": "layer.newAdjustmentLayer.hueSaturation",
+                                                         "params": {"colorize": True, "hue": 200, "saturation": 40}})
+        check("15s création colorize hue 200 : admise", r.status_code == 200, (r.status_code, r.text))
+        PM.session().appeler("engine.execute", {"command": "dz.actif", "params": {"layer": 1}})
+        for corps in ({"command": "FILTER.blur"}, {"command": None}, {"command": "a..b"}):
+            r = await c.post("/api/photolab/executer", json=corps)
+            check(f"15n commande illisible {corps['command']!r} -> 400 « illisible »", r.status_code == 400
+                  and "illisible" in r.text, (r.status_code, r.text))
+        r = await c.get("/api/photolab/inspecter")
+        cl = next((L for L in r.json().get("layers", []) if L.get("id") == 5), {}).get("adjustment", {}).get("ColorLookup", {})
+        check("15i /inspecter élague la LUT du Color Lookup (lut None, lutElague)", cl.get("lut") is None and cl.get("lutElague") is True
+              and cl.get("name") == "Warm Filter", cl)
+        await c.post("/api/photolab/executer", json={"command": "dz.modifier"})
+        r = await c.post("/api/photolab/historique", json={"annuler": 1})
+        cl = next((L for L in r.json().get("inspect", {}).get("layers", []) if L.get("id") == 5), {}).get("adjustment", {}).get("ColorLookup", {})
+        check("15j /historique élague aussi l'inspect qu'il rend", r.status_code == 200 and cl.get("lut") is None
+              and cl.get("lutElague") is True, (r.status_code, cl))
+        appels = []
+        PR.structurer = lambda cmds: (appels.append(1), _structurer0(cmds))[1]
+        try:
+            r = await c.post("/api/photolab/executer", json={"command": "dz.mourir"})
+            e = (await c.get("/api/photolab/etat")).json()
+            r2 = await c.post("/api/photolab/executer", json={"command": "dz.pid"})
+            e2 = (await c.get("/api/photolab/etat")).json()
+            await c.post("/api/photolab/executer", json={"command": "select.all"})
+            await c.get("/api/photolab/commandes")
+        finally:
+            PR.structurer = _structurer0
         check("16 moteur mort : 422 dit, puis relancé ; /etat montre la nouvelle generation",
               r.status_code == 422 and r2.status_code == 200 and e2["generation"] == e["generation"] + 1, (r.text, e, e2))
         check("16b l'en-tête de génération passe de 1 à 2 après le redémarrage",
               r2.headers.get(GEN) == str(e2["generation"]) == "2", (dict(r2.headers), e2))
+        check("16c moteur mort puis relancé : le registre est relu et structuré UNE fois de plus (puis vient du cache)",
+              len(appels) == 1, len(appels))
         # 19 : délai dépassé -> 504 (session de remplacement, comme pour le 409)
         class Lente:
             def appeler_g(self, *a, **k):
