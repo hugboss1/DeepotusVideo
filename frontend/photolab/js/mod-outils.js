@@ -1,6 +1,8 @@
 // mod-outils.js — la barre d'outils de gauche (B3) : 20 emplacements en 4 sections (ordre de `Tool::ALL` de photocraft,
 // inventaire B §2), flyouts des emplacements groupés, lettres au clavier, pastilles de couleur et barre d'options.
 // Données et règles PURES exportées (qa/outils.test.mjs) ; initOutils(PL) les branche sur le DOM.
+import { optionsPeinture } from "./mod-peinture.js";
+import { MODES_FUSION } from "./mod-calques.js";
 
 // Chaque outil : {id, lettre, icone (fichier de icones/), p2 (actif dans cet écran ; sinon visible, grisé, « bientôt »)}.
 // Les noms d'icônes sont ceux des fichiers de icones/ (copiés de photocraft, avec les substitutions de B1 :
@@ -14,14 +16,14 @@ export const EMPLACEMENTS = [
   [{ id: "crop", lettre: "C", icone: "crop", p2: true }, { id: "slice", lettre: "C", icone: "scissors", p2: false }, { id: "sliceSelect", lettre: "C", icone: "mouse-pointer-2", p2: false }],
   [{ id: "eyedropper", lettre: "I", icone: "pipette", p2: true }, { id: "ruler", lettre: "I", icone: "ruler", p2: false }, { id: "note", lettre: "I", icone: "message-square", p2: false }, { id: "count", lettre: "I", icone: "hash", p2: false }],
   // section 2 : peinture et retouche (P3b)
-  [{ id: "spotHealing", lettre: "J", icone: "bandage", p2: false }, { id: "healing", lettre: "J", icone: "bandage", p2: false }, { id: "patch", lettre: "J", icone: "bandage", p2: false }],
-  [{ id: "brush", lettre: "B", icone: "brush", p2: false }, { id: "pencil", lettre: "B", icone: "pencil", p2: false }, { id: "mixerBrush", lettre: "B", icone: "brush", p2: false }],
-  [{ id: "cloneStamp", lettre: "S", icone: "stamp", p2: false }],
-  [{ id: "historyBrush", lettre: "Y", icone: "history", p2: false }],
-  [{ id: "eraser", lettre: "E", icone: "eraser", p2: false }, { id: "backgroundEraser", lettre: "E", icone: "eraser-background", p2: false }, { id: "magicEraser", lettre: "E", icone: "eraser-magic", p2: false }],
-  [{ id: "gradient", lettre: "G", icone: "blend", p2: false }, { id: "paintBucket", lettre: "G", icone: "paint-bucket", p2: false }],
-  [{ id: "blur", lettre: "", icone: "droplet", p2: false }, { id: "sharpen", lettre: "", icone: "triangle", p2: false }, { id: "smudge", lettre: "", icone: "pointer", p2: false }],
-  [{ id: "dodge", lettre: "O", icone: "sun", p2: false }, { id: "burn", lettre: "O", icone: "flame", p2: false }, { id: "sponge", lettre: "O", icone: "cloud", p2: false }],
+  [{ id: "spotHealing", lettre: "J", icone: "bandage", p2: true }, { id: "healing", lettre: "J", icone: "bandage", p2: true }, { id: "patch", lettre: "J", icone: "bandage", p2: false }],
+  [{ id: "brush", lettre: "B", icone: "brush", p2: true }, { id: "pencil", lettre: "B", icone: "pencil", p2: true }, { id: "mixerBrush", lettre: "B", icone: "brush", p2: true }],
+  [{ id: "cloneStamp", lettre: "S", icone: "stamp", p2: true }],
+  [{ id: "historyBrush", lettre: "Y", icone: "history", p2: true }],
+  [{ id: "eraser", lettre: "E", icone: "eraser", p2: true }, { id: "backgroundEraser", lettre: "E", icone: "eraser-background", p2: true }, { id: "magicEraser", lettre: "E", icone: "eraser-magic", p2: true }],
+  [{ id: "gradient", lettre: "G", icone: "blend", p2: true }, { id: "paintBucket", lettre: "G", icone: "paint-bucket", p2: true }],
+  [{ id: "blur", lettre: "", icone: "droplet", p2: true }, { id: "sharpen", lettre: "", icone: "triangle", p2: true }, { id: "smudge", lettre: "", icone: "pointer", p2: true }],
+  [{ id: "dodge", lettre: "O", icone: "sun", p2: true }, { id: "burn", lettre: "O", icone: "flame", p2: true }, { id: "sponge", lettre: "O", icone: "cloud", p2: true }],
   // section 3 : tracés, texte, formes
   [{ id: "pen", lettre: "P", icone: "pen-tool", p2: false }],
   [{ id: "type", lettre: "T", icone: "type", p2: false }],
@@ -294,42 +296,63 @@ export function initOutils(PL) {
   choix.addEventListener("change", () => commande("tools.setColors", { [cible]: choix.value }));
 
   /* barre d'options selon l'outil */
+  // t155 : un outil de peinture a SES réglages (PL.optionsPeintureDe, mod-peinture), comme dans l'application de
+  // référence où chaque outil garde sa taille ; les autres partagent PL.etat.options.
   function construireOptions() {
     barre.textContent = "";
     const nom = document.createElement("span");
     nom.className = "opt-nom"; nom.textContent = T(cleNom(PL.etat.outil));
     barre.appendChild(nom);
-    for (const o of optionsPour(PL.etat.outil)) barre.appendChild(champ(o));
+    const peint = optionsPeinture(PL.etat.outil);
+    if (peint.length && PL.optionsPeintureDe) {
+      const store = PL.optionsPeintureDe(PL.etat.outil);
+      for (const o of peint) barre.appendChild(champ(o, store));
+      return;
+    }
+    for (const o of optionsPour(PL.etat.outil)) barre.appendChild(champ(o, PL.etat.options));
   }
-  function champ(o) {
-    // M3 : <label> seulement pour un contrôle unique (case, nombre) ; un groupe de boutons n'est pas « étiqueté » par un clic.
-    const w = document.createElement(o.type === "case" || o.type === "nombre" ? "label" : "div");
+  PL.reconstruireOptions = construireOptions;
+  function champ(o, store) {
+    // M3 : <label> seulement pour un contrôle unique (case, nombre, liste) ; un groupe de boutons n'est pas « étiqueté » par un clic.
+    const w = document.createElement(o.type === "case" || o.type === "nombre" || o.type === "liste" ? "label" : "div");
     w.className = "opt opt-" + o.type;
+    w.dataset.cle = o.cle;
     const lib = document.createElement("span");
     lib.textContent = T(o.libelle);
-    const val = PL.etat.options[o.cle];
+    const val = store[o.cle];
     if (o.type === "case") {
       const c = document.createElement("input"); c.type = "checkbox"; c.checked = !!val;
-      c.addEventListener("change", () => { PL.etat.options[o.cle] = c.checked; });
+      c.addEventListener("change", () => { store[o.cle] = c.checked; });
       w.append(c, lib);
     } else if (o.type === "nombre") {
       const n = document.createElement("input"); n.type = "number";
       n.min = o.min; n.max = o.max; n.step = o.pas; n.value = val;
       n.addEventListener("change", () => {
         const x = Math.min(o.max, Math.max(o.min, Math.round(Number(n.value)) || 0));
-        n.value = x; PL.etat.options[o.cle] = x;
+        n.value = x; store[o.cle] = x;
       });
       w.append(lib, n);
       if (o.unite) { const u = document.createElement("span"); u.className = "opt-unite"; u.textContent = o.unite; w.append(u); }
+    } else if (o.type === "liste") {
+      // t155 : sélecteur (mode de fusion, échantillon, gamme…) ; la fusion reprend les libellés du panneau Calques.
+      const s = document.createElement("select");
+      for (const v of o.valeurs) {
+        const op = document.createElement("option"); op.value = v;
+        op.textContent = o.fusion ? T(MODES_FUSION.find((m) => m.id === v).cle) : T(o.libelle + "." + snake(v));
+        s.appendChild(op);
+      }
+      s.value = val;
+      s.addEventListener("change", () => { store[o.cle] = s.value; });
+      w.append(lib, s);
     } else {
       // mode (4 boutons exclusifs) ou choix (liste)
       const g = document.createElement("span"); g.className = "opt-groupe";
       for (const v of o.valeurs) {
         const b = document.createElement("button"); b.type = "button";
-        b.textContent = T(o.libelle + "." + v);
+        b.textContent = T(o.libelle + "." + snake(v));
         b.classList.toggle("actif", val === v);
         b.addEventListener("click", () => {
-          PL.etat.options[o.cle] = v;
+          store[o.cle] = v;
           PL.$$("button", g).forEach((x) => x.classList.toggle("actif", x === b));
         });
         g.appendChild(b);

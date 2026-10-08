@@ -41,6 +41,7 @@
       <button type="button" data-panneau="couleur" data-icone="palette" title="Couleur" aria-label="Couleur"></button>
       <button type="button" data-panneau="calques" data-icone="layers" title="Calques" aria-label="Calques"></button>
       <button type="button" data-panneau="historique" data-icone="history" title="Historique" aria-label="Historique"></button>
+      <button type="button" data-panneau="pinceaux" data-icone="brush" title="Pinceaux" aria-label="Pinceaux"></button>
     </nav>
 
     <aside id="panneaux" aria-label="Panneaux">
@@ -56,6 +57,20 @@
         </header>
         <div class="groupe-corps" id="corpsProprietes" data-vue-pr="proprietes"></div>
         <div class="groupe-corps" id="corpsAjustements" data-vue-pr="ajustements" hidden></div>
+      </section>
+      <!-- t155 : outils de peinture (Fenêtre › Pinceaux, Paramètres du pinceau F5, Source de duplication, Outils prédéfinis) ;
+           replié tant qu'on ne l'ouvre pas (rail ou menu). -->
+      <section id="grpPinceaux" class="groupe" hidden>
+        <header class="groupe-tete" role="tablist">
+          <button type="button" class="onglet actif" role="tab" data-onglet-pi="pinceaux" aria-selected="true">Pinceaux</button>
+          <button type="button" class="onglet" role="tab" data-onglet-pi="parametres" aria-selected="false">Paramètres de pinceau</button>
+          <button type="button" class="onglet" role="tab" data-onglet-pi="source" aria-selected="false">Source de duplication</button>
+          <button type="button" class="onglet" role="tab" data-onglet-pi="predefinis" aria-selected="false">Outils prédéfinis</button>
+        </header>
+        <div class="groupe-corps" id="corpsPinceaux" data-vue-pi="pinceaux"></div>
+        <div class="groupe-corps" id="corpsParametresPinceau" data-vue-pi="parametres" hidden></div>
+        <div class="groupe-corps" id="corpsSourceDuplication" data-vue-pi="source" hidden></div>
+        <div class="groupe-corps" id="corpsOutilsPredefinis" data-vue-pi="predefinis" hidden></div>
       </section>
       <section id="grpCalques" class="groupe grand">
         <header class="groupe-tete" role="tablist">

@@ -74,6 +74,25 @@ export const ETATS_MOTEUR = {
   "Fill": "photolab.histo.fill",
   "Clear": "photolab.histo.clear",
   "Brush Tool": "photolab.outil.brush",
+  // t155 : peinture et retouche (noms relevés sur le vrai moteur, banc test_photolab_peinture [2]). Un trait avec
+  // `erase` (Gomme en mode pinceau) s'appelle « Eraser ».
+  "Eraser": "photolab.outil.eraser",
+  "Pencil": "photolab.outil.pencil",
+  "Mixer Brush": "photolab.outil.mixer_brush",
+  "Clone Stamp": "photolab.outil.clone_stamp",
+  "Healing Brush": "photolab.outil.healing",
+  "Spot Healing Brush": "photolab.outil.spot_healing",
+  "History Brush": "photolab.outil.history_brush",
+  "Background Eraser": "photolab.outil.background_eraser",
+  "Magic Eraser": "photolab.outil.magic_eraser",
+  "Paint Bucket": "photolab.outil.paint_bucket",
+  "Gradient": "photolab.outil.gradient",
+  "Dodge Tool": "photolab.outil.dodge",
+  "Burn Tool": "photolab.outil.burn",
+  "Sponge Tool": "photolab.outil.sponge",
+  "Blur Tool": "photolab.outil.blur",
+  "Sharpen Tool": "photolab.outil.sharpen",
+  "Smudge Tool": "photolab.outil.smudge",
 };
 
 // Ordre : carte ci-dessus (fr et en, par le dictionnaire) -> libellé du catalogue des menus (fr) -> nom du moteur.
