@@ -30,7 +30,9 @@ export function initGestes(PL) {
     if (PL.affichage) d = PL.affichage.aimanterPointDoc(d, ev);
     return { x: d.x, y: d.y, sx: s.x, sy: s.y };
   };
-  const outil = () => (PL.etat.doc && !PL.vue.mainActive() ? PL.gestes[PL.etat.outil] || null : null);
+  // t154 : une session de transformation (mod-transformer) passe avant l'outil courant.
+  const outil = () => (PL.etat.doc && !PL.vue.mainActive()
+    ? (PL.gestesPrioritaires && PL.gestesPrioritaires()) || PL.gestes[PL.etat.outil] || null : null);
 
   toile.addEventListener("pointerdown", (ev) => {
     if (ev.button !== 0) return;
@@ -104,6 +106,7 @@ export function initGestes(PL) {
       st.textContent = b ? T("photolab.selection.bornes", { w: b[2], h: b[3] }) : "";
       st.title = b ? T("photolab.selection.approx") : "";
     }
+    if (PL.dessinerTransformation) PL.dessinerTransformation(svg, el, ecran);      // t154 : cadre de la transformation
     const a = PL.apercu;
     if (!a) return;
     if (a.type === "rect" || a.type === "ellipse") {

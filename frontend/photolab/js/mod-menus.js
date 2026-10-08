@@ -29,6 +29,9 @@ export const TRAITES_PAR_ECRAN = new Set(["file.new", "file.open", "file.close",
   // t153 : panneaux Nuancier, Dégradés, Motifs, Compositions, Couches, Histogramme, Infos (mod-espaces : PANNEAUX)
   "window.panel.swatches", "window.panel.gradients", "window.panel.patterns", "window.panel.layerComps", "window.panel.channels",
   "window.panel.histogram", "window.panel.info",
+  // t154 : transformation manuelle et ses sous-modes (mod-transformer : MODES) ; la validation passe par edit.transform
+  "edit.freeTransform", "edit.transform.scale", "edit.transform.rotate", "edit.transform.skew", "edit.transform.distort",
+  "edit.transform.perspective",
   // t152 : menu Affichage (mod-affichage : IDS_AFFICHAGE — banc affichage 7.4) ; les commandes moteur des repères
   // (Nouveau repère…, Effacer les repères…) restent au moteur
   "view.zoomIn", "view.zoomOut", "view.fitOnScreen", "view.fitLayersOnScreen", "view.actualPixels", "view.twoHundredPercent",
@@ -40,7 +43,10 @@ export const TRAITES_PAR_ECRAN = new Set(["file.new", "file.open", "file.close",
 // … dont celles qui n'ont de sens qu'avec un document ouvert (grisées sur l'écran d'accueil).
 export const NECESSITE_DOC = new Set(["file.close", "file.save", "file.saveAs", "file.export.exportAs", "pl.envoyer", "pl.natif.ouvrir",
   // t152 : les zooms d'Affichage
-  "view.zoomIn", "view.zoomOut", "view.fitOnScreen", "view.fitLayersOnScreen", "view.actualPixels", "view.twoHundredPercent", "view.printSize"]);
+  "view.zoomIn", "view.zoomOut", "view.fitOnScreen", "view.fitLayersOnScreen", "view.actualPixels", "view.twoHundredPercent", "view.printSize",
+  // t154 : la transformation manuelle vise le calque actif
+  "edit.freeTransform", "edit.transform.scale", "edit.transform.rotate", "edit.transform.skew", "edit.transform.distort",
+  "edit.transform.perspective"]);
 
 // Le registre arrive en tableau ; on tolère {commands:[…]}.
 export function indexRegistre(registre) {

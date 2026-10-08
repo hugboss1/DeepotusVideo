@@ -551,7 +551,7 @@ REGLAGES_HORS_APERCU = frozenset({"image.adjustments.colorLookup.list"})   # une
 STYLES_APERCU = frozenset(f"layer.layerStyle.{k}" for k in (
     "dropShadow", "innerShadow", "outerGlow", "innerGlow", "stroke", "colorOverlay", "gradientOverlay",
     "patternOverlay", "bevelEmboss", "satin", "blendingOptions", "clear"))
-COMMANDES_APERCU = frozenset({"layer.setAdjustment", "layer.setProps"})
+COMMANDES_APERCU = frozenset({"layer.setAdjustment", "layer.setProps", "edit.transform"})      # t154 : transformation manuelle
 MAX_ETAPES_APERCU = 12
 GARDES_APV = 3
 _APV = re.compile(r"apv-\d+-\d+\.png")
