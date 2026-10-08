@@ -49,6 +49,9 @@ BAK = BUNDLE.with_name(BUNDLE.name + ".bak_montage")
 PATCHER = ROOT / "scripts" / "patch_bundle_montage.py"
 NODE = shutil.which("node")
 TMP = tempfile.mkdtemp(prefix="dzr7_")
+# t141 (08/10/2026) : la traduction L1 pose dzT par-dessus R7vm3 (libelle « Défaut (…) » du selecteur).
+sys.path.insert(0, str(HERE))
+import _i18n_l1_aide as AIDE
 
 ok = fail = 0
 
@@ -166,14 +169,18 @@ _ATT = {"R7up1": (A_UP1, R_UP1),
         "R7vm3": (A_VM3, A_VM3.replace("seedance-v1-pro", "seedance-2.5")),
         "R7er1": (A_ER1, R_ER1),
         "R7er2": (A_ER2, R_ER2)}
+SA = AIDE.avant_i18n(S)
 for _t, _a, _r in R7:
     _k = _t.split("-")[0]
     _ea, _er = _ATT.get(_k, ("", ""))
     check(f"{_k}_ancre_et_remplacement_du_patcher_sont_ceux_du_plan", _a == _ea and _r == _er, (_a[:60], _r[:60]))
     # 1/0/1 : x1 dans .bak_montage, consommee dans le bundle livre, remplacement x1
+    # t141 (08/10/2026) : LIVRAISON lue sur AIDE.avant_i18n(S) -- le bundle tel que le patcher montage l'a pose ;
+    # la traduction L1 recouvre R7vm3 de dzT("reglages.modeles.defaut", {nom: ...}) (test_i18n_l1 garantit
+    # qu'elle est exactement reversible). Le comportement (libelle sous node) reste lu sur le bundle LIVRE.
     check(f"{_k}_ancre_x1_dans_bak_x0_livre_remplacement_x1_livre",
-          B.count(_a) == 1 and S.count(nl(_a)) == 0 and S.count(nl(_r)) == 1,
-          (B.count(_a), S.count(nl(_a)), S.count(nl(_r))))
+          B.count(_a) == 1 and SA.count(nl(_a)) == 0 and SA.count(nl(_r)) == 1,
+          (B.count(_a), SA.count(nl(_a)), SA.count(nl(_r))))
     # aucune autre section ne touche l'ancre (elle serait comptee deux fois)
     check(f"{_k}_ancre_touchee_par_aucune_autre_section",
           sum(1 for t2, a2, r2 in P.PATCHES if t2 != _t and (_a in a2 or a2 in _a)) == 0)
@@ -313,11 +320,15 @@ __SEL__
 function lab(mm){MM=mm;var o=DzVideoModelSel({value:"",onChange:null});return o&&o.p.children.p.options[0].label}
 console.log(JSON.stringify({sans:lab({models:[]}),avec:lab({models:[],default:"kling-v3-pro"}),attente:lab(null)}));
 """
-_d, _why = node_json("sel_neuf.js", _JS_SEL.replace("__SEL__", _SEL))
+# t141 (08/10/2026) : le libelle passe par dzT -> prelude (dictionnaire + dzT en francais) ; attentes inchangees
+_d, _why = node_json("sel_neuf.js", AIDE.PRELUDE_DZT + _JS_SEL.replace("__SEL__", _SEL))
+check("vm_libelle_defaut_cle_dzT_et_texte_francais",
+      'dzT("reglages.modeles.defaut",{nom:mm.default||"seedance-2.5"})' in _SEL
+      and AIDE.fr("reglages.modeles.defaut", nom="seedance-2.5") == "Défaut (seedance-2.5)")
 check("vm_libelle_defaut_sans_reponse_du_serveur_dit_seedance_2_5", _d.get("sans") == "Défaut (seedance-2.5)", (_d, _why))
 check("vm_libelle_defaut_suit_le_serveur_quand_il_le_dit", _d.get("avec") == "Défaut (kling-v3-pro)"
       and _d.get("attente") is None and "attente" in _d, _d)
-_v, _whyv = node_json("sel_vieux.js", _JS_SEL.replace("__SEL__", _SEL_B))
+_v, _whyv = node_json("sel_vieux.js", AIDE.PRELUDE_DZT + _JS_SEL.replace("__SEL__", _SEL_B))
 check("temoin_vm_le_bak_disait_defaut_seedance_v1_pro", _v.get("sans") == "Défaut (seedance-v1-pro)", (_v, _whyv))
 
 # ── [4] T11b : les erreurs de generation lisibles ────────────────────────────

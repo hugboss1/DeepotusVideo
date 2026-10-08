@@ -52,6 +52,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, os.path.join(HERE, ".."))
 NODE = shutil.which("node")
+# t141 (08/10/2026) : la couche appelle dzT AU CHARGEMENT (constantes de la Bibliotheque traduite) ;
+# AIDE.PRELUDE_DZT pose le dictionnaire et dzT en francais, APRES le `var window={}` des shims (sinon ecrase).
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _i18n_l1_aide as AIDE
 
 ok = fail = 0
 
@@ -278,7 +282,7 @@ out.vign_169=T.projVignette({thumb:{job_id:"a"},ratio:"16:9"});
 out.vign_vide=[T.projVignette({}),T.projVignette(null),T.projVignette({thumb:"x"})];
 console.log(JSON.stringify(out));
 """
-D, why = node_json("t119_couche.js", '"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + JS + "\n" + PROBE)
+D, why = node_json("t119_couche.js", '"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + AIDE.PRELUDE_DZT + JS + "\n" + PROBE)
 check("3a_la_couche_s_execute_sous_node", bool(D) and "n" in D, why)
 if D:
     check("3b_trois_scenes_deux_coupes_sur_le_plan_ET_son_jumeau",

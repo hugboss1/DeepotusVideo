@@ -9,6 +9,10 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 SRC_PATH = os.path.join(ROOT, "frontend", "patches", "montage.js")
 NODE = shutil.which("node")
 TMP = tempfile.mkdtemp(prefix="dzl1_")
+# t141 (08/10/2026) : la couche appelle dzT AU CHARGEMENT (constantes de la Bibliotheque traduite) ;
+# AIDE.PRELUDE_DZT (dictionnaire + dzT en francais) est pose APRES le `var window={}` de chaque shim.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _i18n_l1_aide as AIDE
 ok = fail = 0
 def check(label, cond, detail=""):
     global ok, fail
@@ -1604,7 +1608,7 @@ else:
     shim = os.path.join(TMP, "shim.js")
     with open(SRC_PATH, "rb") as fh: SRC = fh.read().decode("utf-8-sig")
     with open(shim, "w", encoding="utf-8") as fh:
-        fh.write('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + SRC + "\n" + PROBE)
+        fh.write('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + AIDE.PRELUDE_DZT + SRC + "\n" + PROBE)
     r = sh([NODE, shim])
     check("js_shim_execute", r.returncode == 0, (r.stderr or "")[-600:])
     lignes = (r.stdout or "").strip().splitlines()
@@ -4338,7 +4342,7 @@ DX = {}
 if NODE and os.path.isfile(SRC_PATH) and globals().get("SRC"):
     _shx = os.path.join(TMP, "shim_l5x.js")
     with open(_shx, "w", encoding="utf-8") as fh:
-        fh.write('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + SRC + "\n" + PROBE_L5X)
+        fh.write('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + AIDE.PRELUDE_DZT + SRC + "\n" + PROBE_L5X)
     _rx = sh([NODE, _shx])
     _lx = (_rx.stdout or "").strip().splitlines()
     try:
@@ -4585,7 +4589,7 @@ D6 = {}
 if NODE and os.path.isfile(SRC_PATH) and globals().get("SRC") and len(_L6H) > 2000 and "function mini(" in _L6H:
     _sh6 = os.path.join(TMP, "shim_l6.js")
     with open(_sh6, "w", encoding="utf-8") as fh:
-        fh.write('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + SRC + "\n" + PROBE_L6)
+        fh.write('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + AIDE.PRELUDE_DZT + SRC + "\n" + PROBE_L6)
     _r6 = sh([NODE, _sh6])
     _l6x = (_r6.stdout or "").strip().splitlines()
     try:
@@ -4778,7 +4782,7 @@ D7 = {}
 if NODE and os.path.isfile(SRC_PATH) and globals().get("SRC") and len(_L6H) > 2000 and "function mini(" in _L6H:
     _sh7 = os.path.join(TMP, "shim_l6v.js")
     with open(_sh7, "w", encoding="utf-8") as fh:
-        fh.write('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + SRC + "\n" + PROBE_L6V)
+        fh.write('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + AIDE.PRELUDE_DZT + SRC + "\n" + PROBE_L6V)
     _r7 = sh([NODE, _sh7])
     _l7x = (_r7.stdout or "").strip().splitlines()
     try:
@@ -5043,7 +5047,7 @@ D8 = {}
 if NODE and os.path.isfile(SRC_PATH) and globals().get("SRC") and len(_L6H) > 2000 and "function mini(" in _L6H:
     _sh8 = os.path.join(TMP, "shim_r6.js")
     with open(_sh8, "w", encoding="utf-8") as fh:
-        fh.write('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + SRC + "\n" + PROBE_R6)
+        fh.write('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + AIDE.PRELUDE_DZT + SRC + "\n" + PROBE_R6)
     _r8 = sh([NODE, _sh8])
     _l8x = (_r8.stdout or "").strip().splitlines()
     try:
@@ -5342,7 +5346,7 @@ D9 = {}
 if NODE and os.path.isfile(SRC_PATH) and globals().get("SRC") and len(_L6H) > 2000 and "function mini(" in _L6H:
     _sh9 = os.path.join(TMP, "shim_r6s.js")
     with open(_sh9, "w", encoding="utf-8") as fh:
-        fh.write('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + SRC + "\n" + PROBE_R6S)
+        fh.write('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + AIDE.PRELUDE_DZT + SRC + "\n" + PROBE_R6S)
     _r9 = sh([NODE, _sh9])
     _l9x = (_r9.stdout or "").strip().splitlines()
     try:

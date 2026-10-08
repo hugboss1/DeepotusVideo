@@ -53,7 +53,9 @@
     if (INDEX) return INDEX;
     INDEX = {};
     for (var k in D) {
-      if (Object.prototype.hasOwnProperty.call(D, k) && D[k] && D[k].fr && D[k].en) INDEX[norm(D[k].fr)] = D[k].en;
+      // t141 : une entrée « contexte » (même français, autre sens selon l'écran : « Effacer », « Note ») ne sert qu'à
+      // dzT(clé) — la surcouche, qui traduit à l'aveugle un texte resté en dur, l'ignore.
+      if (Object.prototype.hasOwnProperty.call(D, k) && D[k] && D[k].fr && D[k].en && !D[k].contexte) INDEX[norm(D[k].fr)] = D[k].en;
     }
     return INDEX;
   }

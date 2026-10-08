@@ -10,6 +10,8 @@ BACKEND = pathlib.Path(__file__).resolve().parent.parent
 ROOT = BACKEND.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 import patch_bundle_montage as P                              # noqa: E402
+sys.path.insert(0, str(BACKEND / "tests"))
+import _i18n_l1_aide as AIDE                                  # noqa: E402  t141 : l'ecran des cles passe par dzT
 
 BASE = "1656085"
 NODE = shutil.which("node")
@@ -34,6 +36,10 @@ s = raw.decode("utf-8")
 bak = BAK.read_bytes().decode("utf-8") if BAK.is_file() else ""
 vieux = subprocess.run(["git", "show", f"{BASE}:frontend/dist/assets/index-BEOJX8L5.js"], cwd=ROOT, capture_output=True).stdout.decode("utf-8")
 SEC = {t: (a, r) for t, a, r in P.PATCHES if t.startswith("P2cl")}
+# t141 (08/10/2026) : la traduction L1 (maillon patch_bundle_i18n_l1, APRES le maillon montage) remplace dans ces
+# sections les textes par dzT("cle"). Ce que le PATCHER P2cl a livre se controle donc sur le bundle d'avant la traduction
+# (test_i18n_l1 garantit qu'elle est exactement reversible) ; ce que la traduction en a fait se controle en [2] sur `s`.
+s_av = AIDE.avant_i18n(s)
 
 print("\n[0] temoin : le bundle de la base (%s)" % BASE)
 check("0.1 TEMOIN : ni DzTestCle ni guides ; les deux messages et l'aide promettent un redemarrage",
@@ -51,24 +57,40 @@ check("1.1 treize sections P2cl, contiguës, en QUEUE de PATCHES (suivies seulem
 for t, (a, r) in SEC.items():
     check(f"1.x {t} : ancre x1 dans .bak_montage, touchee par aucune autre section, remplacement x1 livre, sans saut de ligne",
           bak.count(a) == 1 and sum(1 for t2, a2, r2 in P.PATCHES if t2 != t and (a in a2 or a in r2)) == 0
-          and s.count(r) == 1 and "\n" not in r and "\r" not in r, _d(bak.count(a), s.count(r)))
+          and s_av.count(r) == 1 and "\n" not in r and "\r" not in r, _d(bak.count(a), s_av.count(r)))
 
 print("\n[2] l'ecran dans le bundle livre")
 import re as _re
+# t141 : une promesse de redemarrage peut etre un litteral OU un dzT("cle") dont l'anglais d'origine la porte ; dans les
+# deux cas les 160 caracteres qui precedent doivent parler de backend/.env (edition a la main).
+_cles_rest = {k for k, v in AIDE.DICO.items() if "restart the backend" in v["en"].lower()}
 _rest = [s[max(0, m.start() - 160):m.start()] for m in _re.finditer(r"(?i)restart the backend", s)]
+_rest += [s[max(0, m.start() - 160):m.start()] for m in _re.finditer(r'dzT\("([a-z0-9_.]+)"', s) if m.group(1) in _cles_rest]
 check("2.1 plus aucune promesse de redemarrage APRES un enregistrement par l'interface : ne restent que les deux "
       "bandeaux qui disent d'EDITER backend/.env a la main (vrai : une edition manuelle exige un redemarrage)",
       len(_rest) == 2 and all("backend/.env" in x for x in _rest) and "pydantic-settings re-reads" not in s
-      and "Then in a PowerShell window" not in s and "Stop-Process -Force" not in s and vieux.lower().count("restart the backend") == 10,
+      and "Then in a PowerShell window" not in s and "Stop-Process -Force" not in s and vieux.lower().count("restart the backend") == 10
+      and all("redémarr" in AIDE.fr(k) for k in _cles_rest),
       _d(len(_rest), vieux.lower().count("restart the backend")))
+# t141 : textes passes par dzT -> cle epinglee dans le code, anglais d'origine = texte d'avant, francais qui dit pareil
+_en = lambda k: AIDE.DICO[k]["en"]
 check("2.1b l'Ollama local affiche le message du serveur ; X, Telegram et « Connected accounts » disent « no restart »",
-      s.count('f(h.message||"Saved — applied right away.")') == 1 and s.count(' Applied as soon as you save — no restart.",fields:[{k:"') == 2
-      and s.count("the adapter is active right away, no restart.") == 1 and s.count('children:"save the keys first"}') == 1, "")
+      s.count('f(h.message||dzT("reglages.cles.ollama_enregistre"))') == 1 and _en("reglages.cles.ollama_enregistre") == "Saved — applied right away."
+      and AIDE.fr("reglages.cles.ollama_enregistre") == "Enregistré : appliqué tout de suite."
+      and all(s.count(f'dzT("{k}"),fields:[{{k:"') == 1 and _en(k).endswith(" Applied as soon as you save — no restart.")
+              and AIDE.fr(k).endswith("sans redémarrage.") for k in ("reglages.comptes.x_note", "reglages.comptes.telegram_note"))
+      and s.count('dzT("reglages.comptes.aide_2")') == 1 and "the adapter is active right away, no restart." in _en("reglages.comptes.aide_2")
+      and "sans redémarrage" in AIDE.fr("reglages.comptes.aide_2")
+      and s.count('children:dzT("reglages.comptes.cles_dabord")}') == 1 and _en("reglages.comptes.cles_dabord") == "save the keys first", "")
 check("2.2 la ligne de cle a cinq colonnes, DzTestCle juste apres la pastille set/missing",
       s.count('gridTemplateColumns:"180px minmax(0,1fr) auto auto auto",gap:14') == 1 and s.count('style:{width:"100%",minWidth:0,boxSizing:"border-box",background:"var(--bg-base)",') == 1
-      and s.count('children:h&&h.set===null?"coffre":h&&h.set?"set":"missing"}),r.jsx(DzTestCle,{ck:k.k,def:!!(h&&h.set),verrou:!!(h&&h.set===null)}),r.jsx(K,{') == 1, "")
+      # t141 : la pastille passe par dzT ; « coffre » garde son francais, « set »/« missing » leur anglais d'origine
+      and s.count('children:h&&h.set===null?dzT("reglages.cles.coffre"):h&&h.set?dzT("reglages.cles.posee"):dzT("reglages.cles.manquante")}),r.jsx(DzTestCle,{ck:k.k,def:!!(h&&h.set),verrou:!!(h&&h.set===null)}),r.jsx(K,{') == 1
+      and AIDE.fr("reglages.cles.coffre") == "coffre" and _en("reglages.cles.posee") == "set" and _en("reglages.cles.manquante") == "missing", "")
 check("2.3 les deux messages d'enregistrement affichent celui du SERVEUR (applique / redemarrage pour …)",
-      s.count("f(p.message||`${k} enregistrée.`)") == 1 and s.count("f(c.message||`${") == 1, "")
+      # t141 : le repli local passe par dzT (francais = le gabarit d'avant) ; le message du SERVEUR reste prioritaire
+      s.count('f(p.message||dzT("reglages.cles.enregistree",{cle:k}))') == 1 and AIDE.DICO["reglages.cles.enregistree"]["fr"].replace("{cle}", "FAL_KEY") == "FAL_KEY enregistrée."
+      and s.count('f(c.message||dzT("reglages.cles.n_enregistrees",{n:') == 1 and AIDE.fr("reglages.cles.n_enregistrees", n=2) == "2 clé(s) enregistrée(s).", "")
 dz = s[s.find("function DzTestCle("):s.find("const Fu=[{k:\"FAL_KEY\"")]
 check("2.4 DzTestCle n'appelle que le test de #15, en n'envoyant que le NOM (la cle est relue cote serveur)",
       dz.count("fetch('/api/reglages/diagnostic/cle',{method:'POST'") == 1 and dz.count("body:JSON.stringify({nom:ck})") == 1

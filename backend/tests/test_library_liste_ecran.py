@@ -9,6 +9,8 @@ Run (depuis backend/) : & $PY tests/test_library_liste_ecran.py"""
 import json, pathlib, subprocess, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 _ICI = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(_ICI))
+import _i18n_l1_aide as AIDE  # t141 : dzT (prelude node) et textes francais des cles
 RACINE = _ICI.parent.parent
 BUN = (RACINE / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js").read_bytes().decode("utf-8")
 _TMP = pathlib.Path(tempfile.mkdtemp(prefix="dzlie_"))
@@ -32,7 +34,9 @@ check("T2 la grille devient une liste quand la bascule le dit ; les tris taille 
       and BUN.count('octets:S.size_kb!=null?S.size_kb*1024:null,mtime:S.mtime||0,larg:S.width||null,haut:S.height||null,licence:S.licence||""}));') == 1
       # la barre Projet : le bouton « ▦ État » bascule le panneau d'etat du projet regarde
       and BUN.count('if(f&&f.id&&etatOn)ch.push(r.jsx(DzEtatProjet,{pid:f.id},"etat"));') == 1
-      and BUN.count('ch.push(bouton("▦ État","Ce qui, dans ce projet, est monté, publié, imprimé — ou inutilisé",function(){setEtatOn(!etatOn)},etatOn));') == 1)
+      # t141 (08/10) : libelle et aide passent par dzT -> les CLES dans le bundle, et leur texte francais
+      and BUN.count('ch.push(bouton(dzT("biblio.projets.etat_bouton"),dzT("biblio.projets.etat_aide"),function(){setEtatOn(!etatOn)},etatOn));') == 1
+      and AIDE.fr("biblio.projets.etat_bouton") == "▦ État" and AIDE.fr("biblio.projets.etat_aide") == "Ce qui, dans ce projet, est monté, publié, imprimé — ou inutilisé")
 
 
 def fonction(nom):
@@ -83,7 +87,9 @@ function monteur(F){return {rendu:function(p){hi=0;EFF=[];return F(p||{})},monte
 
 def node(corps):
     f = _TMP / f"m{abs(hash(corps)) % 10**9}.js"
-    f.write_text(COUCHE + "\n" + HARNAIS + "\n(async function(){var R={};" + corps + "\nconsole.log(JSON.stringify(R))})()", encoding="utf-8")
+    # t141 (08/10) : la couche passe ses textes par dzT -> le prelude AVANT (constantes evaluees au chargement),
+    # et de nouveau APRES le harnais, dont le `var window=` remplace l'objet qui portait DZ_I18N.
+    f.write_text(AIDE.PRELUDE_DZT + "\n" + COUCHE + "\n" + HARNAIS + "\n" + AIDE.PRELUDE_DZT + "\n(async function(){var R={};" + corps + "\nconsole.log(JSON.stringify(R))})()", encoding="utf-8")
     p = subprocess.run(["node", str(f)], capture_output=True, text=True, encoding="utf-8", timeout=60)
     try:
         return json.loads(p.stdout.strip().splitlines()[-1])

@@ -70,6 +70,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, os.path.join(HERE, ".."))
 NODE = shutil.which("node")
+# t141 (08/10/2026) : la couche appelle dzT AU CHARGEMENT (constantes de la Bibliotheque traduite) ;
+# AIDE.PRELUDE_DZT pose le dictionnaire et dzT en francais, APRES le `var window={}` des shims (sinon ecrase).
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _i18n_l1_aide as AIDE
 
 ok = fail = 0
 
@@ -288,7 +292,7 @@ out.match_auto=dzmMatchBody(C,11,null,!0);
 out.fetch_urls=[];
 console.log(JSON.stringify(out));
 """
-_shim = ('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + JS + "\n"
+_shim = ('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + AIDE.PRELUDE_DZT + JS + "\n"
          + _PROBE.replace("__VIN__", json.dumps([v["in"] for v in VEC]))
          .replace("__CIN__", json.dumps(COURBES)).replace("__MIN__", json.dumps(MASQUES)))
 D, _dwhy = node_json("l5x_couche.js", _shim)

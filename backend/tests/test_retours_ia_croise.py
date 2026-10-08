@@ -62,6 +62,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, os.path.join(HERE, ".."))
 NODE = shutil.which("node")
+# t141 (08/10/2026) : la couche appelle dzT AU CHARGEMENT (constantes de la Bibliotheque traduite) ;
+# AIDE.PRELUDE_DZT pose le dictionnaire et dzT en francais, APRES le `var window={}` des shims (sinon ecrase).
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _i18n_l1_aide as AIDE
 
 ok = fail = 0
 
@@ -151,7 +155,7 @@ console.log(JSON.stringify(out));
 # la couche ne connait pas _fx.EFFECTS)
 TY = ("invert" if fx is not None and "invert" in fx.EFFECTS
       else (sorted(fx.EFFECTS)[0] if fx is not None and fx.EFFECTS else "invert"))
-D1, _w1 = node_json("ria_cadre.js", '"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + JS + "\n"
+D1, _w1 = node_json("ria_cadre.js", '"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + AIDE.PRELUDE_DZT + JS + "\n"
                     + _PROBE1.replace("__TY__", TY))
 BODIES = [b for b in (D1.get("bodies") or []) if isinstance(b, dict)]
 K_CLI = set()
@@ -249,7 +253,7 @@ function pres(c){try{return dzmGlAdjust([{tr:"j1",id:"jj",start:c[0],end:c[1],ef
   catch(e){return "LEVE "+e}}
 console.log(JSON.stringify({cas:C.map(pres),uni:U.map(pres)}));
 """
-D2, _w2 = node_json("ria_j1.js", '"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + JS + "\n"
+D2, _w2 = node_json("ria_j1.js", '"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + AIDE.PRELUDE_DZT + JS + "\n"
                     + _PROBE2.replace("__C__", json.dumps(CAS)).replace("__U__", json.dumps(CASU)))
 PYP = [py_present(c) for c in CAS] if ms is not None else []
 JSP = D2.get("cas") if isinstance(D2.get("cas"), list) else []

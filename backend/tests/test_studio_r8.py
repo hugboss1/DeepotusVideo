@@ -68,10 +68,16 @@ check("0.3 groupe R8 : seize sections, en QUEUE de PATCHES (avant P1)", len(R8) 
       _d([t[0] for t in _PT1[-9:]]))
 
 print("\n[1] chaque section : ancre x1 dans le .bak, remplacement x1 dans le livre")
+# t141 (08/10) : la traduction L1 (maillon de QUEUE) repasse par-dessus trois sections R8 (pr5-pr7 : textes des
+# dialogues -> dzT("cle")) ; la LIVRAISON de R8 se controle donc sur le bundle d'avant la traduction (avant_i18n,
+# exactement reversible, garanti par test_i18n_l1). Les textes traduits sont epingles par leur cle en [6].
+sys.path.insert(0, str(BACKEND / "tests"))
+import _i18n_l1_aide as AIDE                               # noqa: E402
+s_av = AIDE.avant_i18n(s)
 for tag, a, r in R8:
     check(f"1 {tag} : ancre x1 (.bak), remplacement x1 (livre), ancre {'gardee' if a in r else 'consommee'}",
-          bak.count(nl(a)) == 1 and s.count(nl(r)) == 1 and s.count(nl(a)) == (1 if a in r else 0),
-          _d(bak.count(nl(a)), s.count(nl(r)), s.count(nl(a))))
+          bak.count(nl(a)) == 1 and s_av.count(nl(r)) == 1 and s_av.count(nl(a)) == (1 if a in r else 0),
+          _d(bak.count(nl(a)), s_av.count(nl(r)), s_av.count(nl(a))))
 
 print("\n[2] format HeyGen : la regle du Studio = la regle du rendu (node contre Python)")
 _i = s.find("function dzHgAspect(w,h){"); _j = s.find("function dzHgTarget(", _i)
@@ -207,16 +213,24 @@ _SITES = [  # (fonction devenue async + await saisir, texte du dialogue)
     ('addEventListener("click",async function(){var lien=await window.__dzDialogue.saisir(', "Lien du calque Figma"),
     ('async function __dzPrint3d(sh){try{var rep=await window.__dzDialogue.saisir(', "Taille cible en mm"),
     ('r.jsx("button",{onClick:async function(){var nn=await window.__dzDialogue.saisir("Renommer ce rendu 3D :"', "Renommer ce rendu 3D"),
-    ('onClick:async()=>{var nn=await window.__dzDialogue.saisir("Renommer l\'image :"', "Renommer l'image"),
-    ('onClick:async()=>{var nn=await window.__dzDialogue.saisir("Renommer l\'asset :"', "Renommer l'asset"),
+    # t141 (08/10) : ces deux textes passent par dzT ; epingles par leur cle (francais verifie en 6.13)
+    ('onClick:async()=>{var nn=await window.__dzDialogue.saisir(dzT("biblio.detail.renommer_image")', "Renommer l'image"),
+    ('onClick:async()=>{var nn=await window.__dzDialogue.saisir(dzT("biblio.detail.renommer_asset")', "Renommer l'asset"),
     ('async function dzSavePreset(){var lbl=await window.__dzDialogue.saisir(', "Nom du preset maison"),
     ('run:async function(){var lg=await window.__dzDialogue.saisir(', "Langue de la nouvelle piste"),
 ]
 for _k, (_pose, _txt) in enumerate(_SITES):
     check(f"6.{_k + 2} « {_txt} » : fonction async + await saisir, x1", s.count(nl(_pose)) == 1, _d(s.count(nl(_pose))))
 check("6.10 copie du chemin d'illustration : deux saisir(...).then(done) (presse-papiers refuse ET absent)",
-      s.count('window.__dzDialogue.saisir("Copie ce chemin d\'illustration :",{titre:"Copier le chemin",valeur:v,ok:"Fermer"}).then(done)') == 2
+      # t141 (08/10) : textes passes par dzT ; epingles par leur cle (francais verifie en 6.13)
+      s.count('window.__dzDialogue.saisir(dzT("biblio.envoyer.cardforge_chemin"),{titre:dzT("biblio.envoyer.cardforge_chemin_titre"),'
+              'valeur:v,ok:dzT("commun.action.fermer")}).then(done)') == 2
       and bak.count('window.prompt("Copie ce chemin d\'illustration :",v);done()') == 2, "")
+check("6.13 t141 : les cles des dialogues traduits rendent le francais d'avant",
+      AIDE.fr("biblio.detail.renommer_image") == "Renommer l'image :" and AIDE.fr("biblio.detail.renommer_asset") == "Renommer l'asset :"
+      and AIDE.fr("commun.action.renommer") == "Renommer"
+      and AIDE.fr("biblio.envoyer.cardforge_chemin") == "Copie ce chemin d'illustration :"
+      and AIDE.fr("biblio.envoyer.cardforge_chemin_titre") == "Copier le chemin" and AIDE.fr("commun.action.fermer") == "Fermer")
 _nc = subprocess.run([NODE, "--check", str(BUNDLE)], capture_output=True, text=True) if NODE else None
 check("6.12 le bundle ENTIER passe node --check (un await hors fonction async y serait une SyntaxError)",
       _nc is not None and _nc.returncode == 0, _d(_nc.stderr[-300:] if _nc else "node absent"))

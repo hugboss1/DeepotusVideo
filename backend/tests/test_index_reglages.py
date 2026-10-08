@@ -25,6 +25,16 @@ def check(label, cond, detail=""):
 racine = pathlib.Path(__file__).resolve().parents[2]
 _B = racine / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js"
 s = _B.read_text(encoding="utf-8")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _i18n_l1_aide as AIDE                                        # noqa: E402
+# t141 (08/10/2026) : la barre des Réglages, la liste des clés et « Connected accounts » passent désormais par
+# dzT("clé"). Le miroir compare les libellés à l'index du SERVEUR (_RUBRIQUES de settings_routes), écrit d'après le
+# bundle d'AVANT la traduction (mélange : « Coffre », « Appareils », « Transfert entre machines » en français, le reste
+# en anglais d'origine) : il lit donc la structure sur `avant_i18n(s)` — même sections, même ordre, mêmes clés (test_i18n_l1
+# garantit que la traduction posée par-dessus est exactement réversible). L'écart entre l'index et les libellés
+# AFFICHÉS en français ou en anglais est relevé plus bas (impression, sans rougir : décision à prendre côté serveur).
+# (la table de la traduction est en octets : lu en CRLF, rendu en LF comme `s`, lu en mode texte)
+s_av = AIDE.avant_i18n(_B.read_bytes().decode("utf-8")).replace("\r\n", "\n")
 def base(p):
     return subprocess.run(["git", "show", "1e3d9f0:" + p], cwd=racine, capture_output=True).stdout.decode("utf-8")
 
@@ -34,14 +44,14 @@ check("0.1 TÉMOIN : pas de route /index", vr and '@router.get("/index")' not in
 check("0.2 TÉMOIN : pas de champ de recherche", vb and "function DzSettingsSearch(" not in vb)
 
 # ── ce que l'écran AFFICHE, lu dans le bundle ──
-m = re.search(r'children:"Settings"\}\),(?:r\.jsx\(DzSettingsSearch,\{aller:a\}\),)?\[(\{k:"diag".*?)\]\.map\(u=>', s)
+m = re.search(r'children:"Settings"\}\),(?:r\.jsx\(DzSettingsSearch,\{aller:a\}\),)?\[(\{k:"diag".*?)\]\.map\(u=>', s_av)
 barre = dict(re.findall(r'\{k:"([a-z]+)",l:"([^"]+)"\}', m.group(1))) if m else {}
-fu = re.search(r'Fu=\[(.*?)\];function bm\(', s)
+fu = re.search(r'Fu=\[(.*?)\];function bm\(', s_av)
 cles_keys = set(re.findall(r'\{k:"([A-Z_]+)",label:', fu.group(1))) if fu else set()
-_iw = s.find("function wm({serverKeys:e,onSaved:t})")
-wm = s[_iw:_iw + 6000] if _iw >= 0 else ""
+_iw = s_av.find("function wm({serverKeys:e,onSaved:t})")
+wm = s_av[_iw:_iw + 6000] if _iw >= 0 else ""
 cles_ollama = set(re.findall(r"e==null\?void 0:e\.([A-Z_]+)", wm))
-tm = s[s.find("function Tm("):s.find("function Tm(") + 9000]
+tm = s_av[s_av.find("function Tm("):s_av.find("function Tm(") + 9000]
 cles_comptes = set(re.findall(r'k:"([A-Z][A-Z_]+)"', tm))
 print(f"\n  (lu dans le bundle : {len(barre)} sections, {len(cles_keys)} + {sorted(cles_ollama)} clés à l'écran API keys, "
       f"{len(cles_comptes)} dans Connected accounts)")
@@ -76,6 +86,17 @@ check("1.1 CHAQUE section de la barre a au moins une entrée, et aucune entrée 
 check("1.2 chaque entrée porte le libellé de sa rubrique tel que la barre l'affiche",
       e and all(x.get("rubrique") == barre.get(x["section"]) for x in e),
       str([x for x in e if x.get("rubrique") != barre.get(x["section"])][:2]))
+# t141 : la barre LIVRÉE (dzT) résolue par le dictionnaire, comparée à l'index servi — informatif, ne rougit pas.
+_cles_barre = dict(re.findall(r'\{k:"([a-z]+)",l:dzT\("([a-z_.]+)"\)\}', s))
+check("1.2b la barre livrée nomme les MÊMES sections par une clé i18n chacune", set(_cles_barre) == set(barre)
+      and all(k in AIDE.DICO for k in _cles_barre.values()), str(_cles_barre))
+_ecarts = {sec: (r_, AIDE.DICO[_cles_barre[sec]]["fr"], AIDE.DICO[_cles_barre[sec]]["en"])
+           for sec, r_ in {x["section"]: x["rubrique"] for x in e}.items() if sec in _cles_barre
+           and r_ not in (AIDE.DICO[_cles_barre[sec]]["fr"], AIDE.DICO[_cles_barre[sec]]["en"])}
+_hors_fr = {sec: (r_, AIDE.DICO[_cles_barre[sec]]["fr"]) for sec, r_ in {x["section"]: x["rubrique"] for x in e}.items()
+            if sec in _cles_barre and r_ != AIDE.DICO[_cles_barre[sec]]["fr"]}
+print(f"  (t141, informatif) rubriques de l'index qui ne sont PAS le libellé affiché en français : {len(_hors_fr)} — {_hors_fr}")
+print(f"  (t141, informatif) ni le français ni l'anglais affichés : {_ecarts}")
 check("1.3 chaque entrée a un libellé et des mots (chaînes non vides)",
       e and all(isinstance(x.get("libelle"), str) and x["libelle"] and isinstance(x.get("mots"), str) and x["mots"] for x in e))
 
@@ -149,14 +170,26 @@ print("\n[5] l'écran (bundle livré)")
 dz = s[i1:s.find("function xm(")]
 check("5.1 DzSettingsSearch x1, monté UNE fois dans la barre, avec le setter de section de xm",
       s.count("function DzSettingsSearch(") == 1 and s.count("r.jsx(DzSettingsSearch,{aller:a})") == 1
-      and s.count('children:"Settings"}),r.jsx(DzSettingsSearch,{aller:a}),[{k:"diag"') == 1)
+      # t141 : le titre « Settings » est devenu dzT("reglages.cadre.titre") (clé épinglée, français et anglais d'origine)
+      and s.count('children:dzT("reglages.cadre.titre")}),r.jsx(DzSettingsSearch,{aller:a}),[{k:"diag"') == 1
+      and AIDE.fr("reglages.cadre.titre") == "Réglages" and AIDE.DICO["reglages.cadre.titre"]["en"] == "Settings")
 check("5.2 il lit /api/reglages/index une fois, et cherche avec dzChercheReglage", dz.count("fetch(") == 1
       and "fetch('/api/reglages/index')" in dz and "dzChercheReglage(ix,q)" in dz)
 check("5.3 un clic OUVRE la section et vide le champ", "onClick:()=>ouvrir(e)" in dz and "aller(e.section);setQ('')" in dz)
 check("5.4 clavier : Entrée ouvre le premier résultat, Échap vide le champ",
       "ev.key==='Enter'&&res.length" in dz and "ouvrir(res[0])" in dz and "ev.key==='Escape'" in dz)
-check("5.5 rien trouvé : c'est dit", "'Aucun réglage ne correspond.'" in dz)
-check("5.6 chaque résultat dit OÙ il mène (la rubrique affichée)", "e.rubrique" in dz)
+# t141 : la phrase passe par dzT ; clé épinglée + son français inchangé
+check("5.5 rien trouvé : c'est dit", 'dzT("reglages.recherche.aucun")' in dz
+      and AIDE.fr("reglages.recherche.aucun") == "Aucun réglage ne correspond.")
+# t141 (08/10/2026) : la rubrique affichée est celle de la BARRE dans la langue courante, tirée de la section du résultat
+# (dzRubrique) ; le libellé du serveur (e.rubrique, écrit contre l'ancien bundle) n'est plus qu'un repli
+_rub = _B.read_bytes().decode("utf-8")
+_i_rub = _rub.find("function dzRubrique(e){")
+_f_rub = _rub[_i_rub:_rub.find("}function DzSettingsSearch(", _i_rub)] if _i_rub >= 0 else ""
+check("5.6 chaque résultat dit OÙ il mène (la rubrique affichée, celle de la barre)",
+      "title:e.libelle+' → '+dzRubrique(e)" in dz and "'→ '+dzRubrique(e)" in dz
+      and 'keys:dzT("reglages.onglet.cles")' in _f_rub and 'pricing:dzT("reglages.onglet.tarifs")' in _f_rub
+      and "||(e&&e.rubrique)" in _f_rub and _f_rub.count(":dzT(\"reglages.onglet.") == 14)
 _nc = subprocess.run([_n, "--check", str(_B)], capture_output=True, text=True) if _n else None
 check("5.7 node --check du bundle entier", _nc is not None and _nc.returncode == 0, (_nc.stderr[-200:] if _nc else ""))
 

@@ -151,6 +151,10 @@ def _exe(name):
 
 
 NODE = _exe("node")
+# t141 (08/10/2026) : la couche appelle dzT AU CHARGEMENT (constantes de la Bibliotheque traduite) ;
+# AIDE.PRELUDE_DZT (dictionnaire + dzT en francais) est pose APRES le `var window={}` du shim.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _i18n_l1_aide as AIDE                             # noqa: E402
 from app.services import transcribe_service as T        # noqa: E402
 from app.services import subtitle_service as S          # noqa: E402
 
@@ -599,7 +603,7 @@ shim = os.path.join(TMP, "shim.js")          # fichier, jamais `node -e`
 # directive. Sans lui le cœur tournerait RELACHE ici alors que le navigateur
 # l'execute strict (module).
 with open(shim, "w", encoding="utf-8") as fh:
-    fh.write('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + SRC + "\n" + PROBE)
+    fh.write('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + AIDE.PRELUDE_DZT + SRC + "\n" + PROBE)
 r = sh([NODE, shim])
 if r.returncode != 0:
     check("js_shim_execute", False, (r.stderr or "")[-600:])

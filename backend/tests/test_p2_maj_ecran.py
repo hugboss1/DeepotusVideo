@@ -13,6 +13,8 @@ BACKEND = pathlib.Path(__file__).resolve().parent.parent
 ROOT = BACKEND.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 import patch_bundle_montage as P                              # noqa: E402
+sys.path.insert(0, str(BACKEND / "tests"))
+import _i18n_l1_aide as AIDE                                  # noqa: E402  t141 : les textes passent par dzT("cle")
 
 BASE = "6f935d7"
 NODE = shutil.which("node")
@@ -160,9 +162,15 @@ check("3.1 DzMaj x1, rendu dans l'en-tete du Diagnostic juste apres le badge de 
 check("3.2 il lit le cache et force une verification, rien d'autre", dz.count("fetch('/api/reglages/maj')") == 1
       and dz.count("fetch('/api/reglages/maj/verifier',{method:'POST'})") == 1 and dz.count("fetch(") == 2, "")
 check("3.3 une version trouvee par « Verifier » reveille le bandeau", dz.count("window.__dzMaj.poser(j)") == 1, "")
-check("3.4 le bouton porte un title qui dit le dernier echec", dz.count("r.jsx(K,{") == 1 and "dernier échec" in dz, "")
+# t141 (08/10/2026) : la bulle passe par dzT ; la cle est epinglee DANS le title du bouton et son francais dit le dernier echec
+check("3.4 le bouton porte un title qui dit le dernier echec", dz.count("r.jsx(K,{") == 1
+      and 'title:dzT("reglages.maj.verifier_aide")+(m.erreur?dzT("reglages.maj.dernier_echec",{erreur:m.erreur}):\'\')' in dz
+      and AIDE.fr("reglages.maj.dernier_echec", erreur="x") == " — dernier échec : x", "")
 t1 = [r for t, a, r in P.PATCHES if t.startswith("P2dg1")][0]
-check("3.5 livre par la section P2dg1 (une seule verite du bloc Reglages)", "function DzMaj(" in t1 and s.count(t1) == 1, "")
+# t141 : la traduction L1 (maillon APRES le montage) a pose des dzT dans la section P2dg1 ; ce que le PATCHER a livre se
+# controle sur le bundle d'avant la traduction (exactement reversible : test_i18n_l1). Lu en octets (la table est en CRLF).
+s_av = AIDE.avant_i18n(BUNDLE.read_bytes().decode("utf-8"))
+check("3.5 livre par la section P2dg1 (une seule verite du bloc Reglages)", "function DzMaj(" in t1 and s_av.count(t1) == 1, "")
 nc = subprocess.run([NODE, "--check", str(BUNDLE)], capture_output=True, text=True) if NODE else None
 check("3.6 node --check du bundle entier", nc is not None and nc.returncode == 0, _d(nc.stderr[-300:] if nc else ""))
 

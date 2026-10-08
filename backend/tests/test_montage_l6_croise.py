@@ -71,6 +71,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, os.path.join(HERE, ".."))
 NODE = shutil.which("node")
+# t141 (08/10/2026) : la couche appelle dzT AU CHARGEMENT (constantes de la Bibliotheque traduite) ;
+# AIDE.PRELUDE_DZT pose le dictionnaire et dzT en francais, APRES le `var window={}` des shims (sinon ecrase).
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _i18n_l1_aide as AIDE
 
 ok = fail = 0
 
@@ -277,7 +281,7 @@ out.nfe=[-95,-80,-20.5,-19,-5,-0.6,-0.3,0].map(function(n){return dzmNfEffectif(
 out.aff=__AFF__.map(function(c){return dzmNlAppris([{type:"denoise",params:{amount:12,learn_in:c[0],learn_out:c[1]}}])!==null});
 console.log(JSON.stringify(out));
 """
-_shim = ('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + JS + "\n"
+_shim = ('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + AIDE.PRELUDE_DZT + JS + "\n"
          + _PROBE.replace("__CAS__", json.dumps([[a, b] for a, b, _ in CAS])))
 # LES GARDES DE L'AFFICHAGE (revue finale L6, 25/09) : dzmNlAppris (statut, « Oublier ») et le resume « · appris » du
 # rack (bundle) jugent la plage comme learn_of (LEARN_MIN - 1e-9) -- 1,2 - 1,0 = 0,19999999999999996 en JS : sans la

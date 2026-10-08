@@ -189,6 +189,11 @@ raw = BUNDLE.read_bytes()
 s = raw.decode("utf-8")
 bak = BAK.read_bytes().decode("utf-8") if BAK.is_file() else ""
 SEC = {t: (a_, r_) for t, a_, r_ in P.PATCHES if t.startswith("P2pl")}
+# t141 (08/10/2026) : la traduction L1 (maillon APRES le montage) a pose des dzT dans la section P2pl1 ; ce que le
+# PATCHER a livre se controle sur le bundle d'avant la traduction (exactement reversible : test_i18n_l1).
+sys.path.insert(0, str(BACKEND / "tests"))
+import _i18n_l1_aide as AIDE                                  # noqa: E402
+s_av = AIDE.avant_i18n(s)
 check("3.1 deux sections P2pl, en QUEUE de PATCHES", list(SEC) == ["P2pl1-dzplafonds-sous-la-grille-des-tarifs",
       "P2pl2-la-grille-previent-les-plafonds"] and [t for t, _a, _r in P.PATCHES][[t for t, _a, _r in P.PATCHES].index(list(SEC)[0]):][:2] == list(SEC)
       and all(t.startswith(("P2cl", "P2rc", "P3", "P5", "P7", "P8", "P9")) for t in   # + P9lib (tache #77, 03/10) ; + P8kit (tache #72, 03/10) ; + P5qr (tache #48, 01/10) ; + P7pin (tache #67, 02/10)
@@ -197,7 +202,7 @@ check("3.1 deux sections P2pl, en QUEUE de PATCHES", list(SEC) == ["P2pl1-dzplaf
 for t, (a_, r_) in SEC.items():
     check(f"3.x {t} : ancre x1 dans .bak_montage, touchee par aucune autre section, remplacement x1 livre, sans saut de ligne",
           bak.count(a_) == 1 and sum(1 for t2, a2, r2 in P.PATCHES if t2 != t and (a_ in a2 or a_ in r2)) == 0
-          and s.count(r_) == 1 and "\n" not in r_ and "\r" not in r_, _d(bak.count(a_), s.count(r_)))
+          and s_av.count(r_) == 1 and "\n" not in r_ and "\r" not in r_, _d(bak.count(a_), s_av.count(r_)))
 dz = s[s.find("function DzPlafonds("):s.find("function DzDepenses(")]   # #21 : DzDepenses suit DzPlafonds
 check("3.2 DzPlafonds rendu en dernier enfant de la grille des tarifs", s.count(':null]}),r.jsx(DzPlafonds,{}),r.jsx(DzDepenses,{})]});}') == 1, "")
 check("3.3 il lit l'etat et ecrit les plafonds par /api/reglages, et seulement la",

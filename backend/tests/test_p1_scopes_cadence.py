@@ -32,6 +32,10 @@ os.environ.setdefault("FAL_KEY", "test-key")
 BACKEND = pathlib.Path(__file__).resolve().parent.parent
 ROOT = BACKEND.parent
 sys.path.insert(0, str(BACKEND))
+# t141 (08/10/2026) : la couche appelle dzT AU CHARGEMENT (Bibliotheque traduite) ; _node pose
+# AIDE.PRELUDE_DZT (dictionnaire + dzT en francais) APRES le `var window={}` du shim. Sans effet sur la couche de base.
+sys.path.insert(0, str(BACKEND / "tests"))
+import _i18n_l1_aide as AIDE                             # noqa: E402
 from loguru import logger                                 # noqa: E402
 logger.remove()
 from app.services import montage_service as MS            # noqa: E402
@@ -57,7 +61,7 @@ def _d(*a):
 def _node(src_txt, probe):
     """La couche sous le shim du banc d'edition (strict, window vide) + la sonde ; (code, json|None, stderr)."""
     p = pathlib.Path(TMP) / ("shim_%d.js" % abs(hash(probe + src_txt[:64])))
-    p.write_text('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + src_txt + "\n" + probe, encoding="utf-8")
+    p.write_text('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + AIDE.PRELUDE_DZT + src_txt + "\n" + probe, encoding="utf-8")
     r = subprocess.run([NODE, str(p)], capture_output=True, text=True, encoding="utf-8", errors="replace")
     try:
         return r.returncode, json.loads(r.stdout), r.stderr

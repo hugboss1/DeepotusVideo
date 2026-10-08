@@ -46,8 +46,15 @@ SRC = SCRIPT.read_bytes().decode("utf-8") if SCRIPT.is_file() else ""
 BUNB = (RACINE / REL).read_bytes()
 BUN = BUNB.decode("utf-8")
 
-ENTREE_VL = '{id:"vectorlab",label:"Vectorlab",icon:"vectorpen",desc:"Éditeur vectoriel & vitrail",new:!0},'
-ENTREE_PL = '{id:"photolab",label:"Photolab",icon:"photolab",desc:"Retouche d\'image & calques",new:!0},'
+# t141 (08/10) : la traduction L1 (maillon de queue) passe les descriptions du rail par dzT("clé") ; l'entrée est
+# épinglée avec sa clé, et la clé rend le texte français d'avant.
+sys.path.insert(0, str(HERE))
+import _i18n_l1_aide as AIDE  # noqa: E402
+ENTREE_VL = '{id:"vectorlab",label:"Vectorlab",icon:"vectorpen",desc:dzT("coque.rail.vectorlab_desc"),new:!0},'
+ENTREE_PL = '{id:"photolab",label:"Photolab",icon:"photolab",desc:dzT("coque.rail.photolab_desc"),new:!0},'
+check("0a_t141_les_cles_du_rail_rendent_le_francais_d_avant",
+      AIDE.fr("coque.rail.vectorlab_desc") == "Éditeur vectoriel & vitrail"
+      and AIDE.fr("coque.rail.photolab_desc") == "Retouche d'image & calques")
 VUE_PL = ('s==="photolab"&&r.jsx("iframe",{src:"/photolab/",title:"Photolab",style:{position:"absolute",inset:0,'
           'width:"100%",height:"100%",border:"0",background:"var(--bg-base)"}},"pplab"),')
 
@@ -128,12 +135,15 @@ i0 = BUN.find("Sh={")
 i1 = BUN.find("};function X(", i0) + 1 if i0 > 0 else -1
 carte = BUN[i0:i1] if 0 < i0 < i1 else ""
 # le tableau du rail : celui qui se termine par l'entrée Settings
-k1 = BUN.find('{id:"settings",label:"Settings",icon:"cog",desc:"Keys, paths, persona"}]')
+# t141 (08/10) : l'entrée Settings passe par dzT ; l'anglais d'origine reste la valeur `en` de ses clés
+FIN_RAIL = '{id:"settings",label:dzT("commun.objet.reglages"),icon:"cog",desc:dzT("coque.rail.reglages_desc")}]'
+check("0b_t141_cles_de_l_entree_settings", AIDE.DICO["commun.objet.reglages"]["en"] == "Settings"
+      and AIDE.DICO["coque.rail.reglages_desc"]["en"] == "Keys, paths, persona")
+k1 = BUN.find(FIN_RAIL)
 k0 = BUN.rfind("=[", 0, k1)
-rail = BUN[k0 + 1:k1 + len('{id:"settings",label:"Settings",icon:"cog",desc:"Keys, paths, persona"}]')] \
-    if 0 < k0 < k1 else ""
-PROBE = r"""
-"use strict";
+rail = BUN[k0 + 1:k1 + len(FIN_RAIL)] if 0 < k0 < k1 else ""
+# t141 : le prélude (dictionnaire + dzT en français) avant le code extrait du bundle
+PROBE = '"use strict";\n' + AIDE.PRELUDE_DZT + r"""
 var r={jsx:function(t,p,k){return {t:t,p:p,k:k}},jsxs:function(t,p,k){return {t:t,p:p,k:k}}};
 var __CARTE__;
 var RAIL=__RAIL__;

@@ -920,6 +920,12 @@ PATCHER = ROOT / "scripts" / "patch_bundle_montage.py"
 HTML = ROOT / "frontend" / "dist" / "index.html"
 CSS = ROOT / "frontend" / "dist" / "shared" / "montage.css"
 TMP = tempfile.mkdtemp(prefix="dzmb_")
+# t141 (08/10/2026) : la traduction L1 (coque, Reglages, Bibliotheque) passe les textes du bundle et de la
+# couche par dzT. (1) la couche appelle dzT AU CHARGEMENT : chaque shim node pose AIDE.PRELUDE_DZT
+# (dictionnaire + dzT en francais) APRES son `var window=...` ; (2) les controles de LIVRAISON des sections
+# du patcher montage se lisent sur AIDE.avant_i18n(s), le bundle tel que ce patcher l'a pose.
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import _i18n_l1_aide as AIDE
 
 ok = fail = 0
 def check(label, cond, detail=""):
@@ -1036,14 +1042,17 @@ check("bloc_EST_la_couche_octet_pour_octet", _bloc == nl(src).strip(),
 check("bloc_contient_la_couche", nl("window.DzTracks=DzTracks;") in s
       and nl("function svmTrackBusSync(ts){") in s,
       "le bloc ne porte pas l'export de la couche")
+# t141 (08/10/2026) : LIVRAISON lue sur le bundle d'avant la traduction L1 (R7vm3, R8pr5..7, P1, P2, P3, P5, P7,
+# P8, P9 sont recouvertes de dzT ; test_i18n_l1 garantit que la traduction est exactement reversible).
+_SA = AIDE.avant_i18n(s)
 for tag, a, r in P.PATCHES:
-    check(tag + "_remplace", s.count(nl(r)) == 1, f"count={s.count(nl(r))}")
+    check(tag + "_remplace", _SA.count(nl(r)) == 1, f"count={_SA.count(nl(r))}")
     # L'ancre ne doit avoir DISPARU que lorsque le remplacement ne la reprend
     # pas. Huit des onze sections l'englobent (en tête ou en queue) : y exiger
     # zéro serait un test faux, vert seulement si le patch n'a rien fait.
     if a not in r:
-        check(tag + "_ancre_consommee", s.count(nl(a)) == 0,
-              f"count={s.count(nl(a))}")
+        check(tag + "_ancre_consommee", _SA.count(nl(a)) == 0,
+              f"count={_SA.count(nl(a))}")
 # ── D-0 (21/09/2026) : L'HISTORIQUE COMPLET, LE FOND ───────────────────────
 # Les six sections H1…H5 et H7 sont deja comptees une a une par la boucle
 # ci-dessus. CETTE ligne mesure ce que la boucle ne voit pas : que undo ET
@@ -7226,7 +7235,7 @@ _TRANS_SRC = (_m_trans.group(0) + "\n") if _m_trans else "var SVM_TRANS=[];\n"
 check("D20_la_table_des_sept_historiques_est_extractible_du_bundle",
       _m_trans is not None and _TRANS_SRC.count('["') == 7,
       f"paires={_TRANS_SRC.count(chr(91) + chr(34))}")
-shim.write_text('"use strict";\n' + "var window={};var SVM_TRACK_BUS={};\n" + JSX
+shim.write_text('"use strict";\n' + "var window={};var SVM_TRACK_BUS={};\n" + AIDE.PRELUDE_DZT + JSX
                 + SVM_SRC.replace("\r\n", "\n") + "\n"
                 + RULER_SRC + _TRANS_SRC + src + "\n"
                 + probe.replace("__DZ_VIDEO_EXTS__",
@@ -9291,7 +9300,7 @@ _env = (_ENV.replace("__KBSEL__", _KBSEL)
         .replace("__APPLY__", _APPLY))
 shim2 = pathlib.Path(TMP) / "shim2.js"
 shim2.write_text('"use strict";\n' + "var window={};var SVM_TRACK_BUS={};\n"
-                 + JSX + SVM_SRC.replace("\r\n", "\n") + "\n"
+                 + AIDE.PRELUDE_DZT + JSX + SVM_SRC.replace("\r\n", "\n") + "\n"
                  + RULER_SRC + _SHORT + "\n" + _SPEED + "\n" + _KIND + "\n"
                  + src + "\n" + _env + _PROBE, encoding="utf-8")
 # LE DELAI EST UNE GARDE, PAS UN CONFORT, et il est MESURE : sans lui, la
@@ -10317,7 +10326,11 @@ check("tb_bibliotheque_EST_le_glyphe_Library_du_rail_de_navigation",
       and _FOLD.count('r.jsx("path"') == 2
       and all(nl('d:"%s"' % x) in _FOLD for x in _bib_d)
       and nl('opacity:"%s"' % _bib_o[0]) in _FOLD
-      and nl('{id:"library",label:"Library",icon:"folder"') in s,
+      # t141 (08/10/2026) : le libelle du rail passe par dzT ; la cle dans le code, son francais
+      # (langue de reference) et son anglais, l'ancien texte « Library », sont epingles tous les trois
+      and nl('{id:"library",label:dzT("coque.rail.bibliotheque"),icon:"folder"') in s
+      and AIDE.fr("coque.rail.bibliotheque") == "Bibliothèque"
+      and AIDE.DICO["coque.rail.bibliotheque"]["en"] == "Library",
       f"folder={len(_FOLD)} o, d={len(_bib_d)}, opacite={_bib_o} — "
       f"les deux tracés ont divergé")
 
@@ -15471,8 +15484,10 @@ check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB8b_puis_
       # L7-B D-37 et D-42 (24/09/2026) : AUCUNE section de plus (replis dans R_EC1) ; D-42 : sonde 159 -> 161
       # (cutAt + cutOpts dans le geste dzSceneCut) ; L7-B D-40 (T4) : AUCUNE section de plus (replis dans
       # R_DZ1/R_DZ3/R_DZ4), sonde 161 -> 163 (reframeCss dans l apercu vivant, reframeOf dans le payload)
-      and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1
-              and s.count(nl(a)) == (1 if a in r else 0)
+      # t141 (08/10/2026) : la LIVRAISON de chaque section se lit sur _SA = AIDE.avant_i18n(s), le bundle tel
+      # que le patcher montage l'a pose (R7vm3, R8pr5..7, P1..P9 sont recouvertes de dzT par la traduction L1)
+      and all(_bak.count(_nlb(a)) == 1 and _SA.count(nl(r)) == 1
+              and _SA.count(nl(a)) == (1 if a in r else 0)
               for _t, a, r in P.PATCHES[_DZ_I + 1:])
       # L6 (25/09/2026, tache 5) : 172 -> 173, NoiseLearn (L6nl1, seul site de code des sept sections L6)
       # L6 (25/09/2026, tache 6) : 173 -> 177, VoiceRec + dialogueTrack + voLabel + voCount (L6vo1, la puce voix off)
@@ -18150,7 +18165,7 @@ _L7BB_RT = None
 _mSK = re.search(r"function svmSrcKey\(s\)\{[^\n]*\}", _bak or "")
 _SVM_SK = _mSK.group(0) if _mSK else ""
 if _L7BB_F and src and _SVM_SK:
-    _L7BB_SHIM = ('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + src + "\n"
+    _L7BB_SHIM = ('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + AIDE.PRELUDE_DZT + src + "\n"
                   "var notes=[],calls=[],hist=0,set=null,dirty=!1,MODE='ok',proj={demo:!1},PEND=null;\n" + _SVM_SK + "\n"
                   "var clipsRef={current:[]},trackStRef={current:{}};\n"
                   "function fireNote(m){notes.push(m)}function pushHistory(){hist++}function setClips(v){set=v}function setDirty(v){dirty=v}\n"
@@ -18262,7 +18277,7 @@ _iN_d = s.find("/* ── Montage, couche window.DzTracks"); _iN_f = s.find("win
 _L7BN_LAYER = s[_iN_d:_iN_f + len("window.DzTracks=DzTracks;")].replace("\r\n", "\n") if 0 <= _iN_d < _iN_f else ""
 _L7BN_RT = "non joue"
 if len(_L7BN_LAYER) > 100000:
-    _L7BN_SHIM = ('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + _L7BN_LAYER + "\n" +
+    _L7BN_SHIM = ('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + AIDE.PRELUDE_DZT + _L7BN_LAYER + "\n" +
         "var HS=[],HI=0,EFF=[];\n"
         "function deps(a,b){if(!a||!b||a.length!==b.length)return !0;for(var i=0;i<a.length;i++)if(a[i]!==b[i])return !0;return !1}\n"
         "var x={useState:function(v){var i=HI++;if(!(i in HS))HS[i]=v;return [HS[i],function(n){HS[i]=typeof n==='function'?n(HS[i]):n}]},\n"
@@ -18340,7 +18355,7 @@ check("L7Bn_sous_node_chip_3_redemande_la_page_0_avec_min_rating_3_puis_la_retir
 # vraiment (min_rating, offset, limit) et applique chaque PUT A SA REPONSE (delai propre a chaque appel).
 _L7BN2_RT = "non joue"
 if len(_L7BN_LAYER) > 100000:
-    _L7BN2_SHIM = ('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + _L7BN_LAYER + "\n" +
+    _L7BN2_SHIM = ('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + AIDE.PRELUDE_DZT + _L7BN_LAYER + "\n" +
         "DZM_MED_PAGE=2;\n"
         "var HS,HI,EFF,SRV,CALLS,MODE,DELAIS,T;\n"
         "function deps(a,b){if(!a||!b||a.length!==b.length)return !0;for(var i=0;i<a.length;i++)if(a[i]!==b[i])return !0;return !1}\n"
@@ -18468,7 +18483,7 @@ check("L7Bac_css_bouton_de_ligne_et_popover_x1_dans_la_feuille",
 _L7BAC_RT = "non joue"
 if len(_L7BN_LAYER) > 100000:
     _L7BAC_SHIM = ('"use strict";\nvar window={addEventListener:function(){},removeEventListener:function(){}};var SVM_TRACK_BUS={};\n'
-        + _L7BN_LAYER + "\n" + r"""
+        + AIDE.PRELUDE_DZT + _L7BN_LAYER + "\n" + r"""
 var CUR=null;
 function deps(a,b){if(!a||!b||a.length!==b.length)return !0;for(var i=0;i<a.length;i++)if(a[i]!==b[i])return !0;return !1}
 var x={useState:function(v){var I=CUR,i=I.HI++;if(!(i in I.HS))I.HS[i]=typeof v==='function'?v():v;
@@ -18832,7 +18847,7 @@ _RF_LIGNE_PL = _RF_P[6]
 _RF_LIGNE_AP = P.R_L7BRF1[:-len(P.A_L7BRF1)]
 _L7RFP_RT = "non joue"
 if len(_L7BN_LAYER) > 100000 and s.count(_RF_LIGNE_PL) == 1 and s.count(nl(P.R_L7BRF1)) == 1 and len(_RF_LIGNE_AP) > 200:
-    _L7RFP_SHIM = ('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + _L7BN_LAYER + "\n" +
+    _L7RFP_SHIM = ('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + AIDE.PRELUDE_DZT + _L7BN_LAYER + "\n" +
         "function svmSpeedOf(c){return c&&typeof c.speed==='number'&&c.speed>0?c.speed:1}\n"
         "function pl(c){var o={};" + _RF_LIGNE_PL + "return o.reframe===void 0?null:o.reframe}\n"
         "var ECR=0,host={firstChild:null},lv={videoWidth:1920,videoHeight:1080,clientWidth:540,clientHeight:960,style:{_op:'',get objectPosition(){return this._op},set objectPosition(v){ECR++;this._op=v}}};\n"
@@ -18874,7 +18889,7 @@ check("L7Brf_sous_node_apercu_portrait_sur_paysage_et_cadre_non_mesure_rendent_l
 # L'INSPECTEUR, rendu sur la couche du bundle livre (hooks bouchonnes) : grise-jamais-masque, gestes des trois modes.
 _L7RFI_RT = "non joue"
 if len(_L7BN_LAYER) > 100000:
-    _L7RFI_SHIM = ('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + _L7BN_LAYER + "\n" +
+    _L7RFI_SHIM = ('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + AIDE.PRELUDE_DZT + _L7BN_LAYER + "\n" +
         "var HS=[],HI=0;\n"
         "var x={useState:function(v){var i=HI++;if(!(i in HS))HS[i]=v;return [HS[i],function(n){HS[i]=typeof n==='function'?n(HS[i]):n}]},\n"
         "  useRef:function(v){var i=HI++;if(!(i in HS))HS[i]={current:v};return HS[i]},useEffect:function(){}};\n"
@@ -18953,7 +18968,7 @@ check("L7Brf_revue_finale_lame_et_rognage_de_tete_avancent_srcIn_et_copient_le_c
       (len(_LAME), len(_ROGNE)))
 _L7RFG_RT = "non joue"
 if len(_L7BN_LAYER) > 100000 and _LAME and _ROGNE:
-    _L7RFG_SHIM = ('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + _L7BN_LAYER + "\n" +
+    _L7RFG_SHIM = ('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + AIDE.PRELUDE_DZT + _L7BN_LAYER + "\n" +
         "function svmSpeedOf(c){return c&&typeof c.speed==='number'&&c.speed>0?c.speed:1}\n"
         "function lame(c,p){return " + _LAME + "}\n"
         "function rogne(k,c,v,s0){" + _ROGNE + "\nreturn Object.assign({},k,upd)}\n"
@@ -19021,7 +19036,7 @@ check("L5gp_couche_du_bundle_porte_le_panneau_la_boite_et_les_aides_exports_x1",
 _L5GP_RT = "non joue"
 _iMk = s.find(_GP_MK)
 if len(_L7BN_LAYER) > 100000 and _iMk > 0:
-    _L5GP_SHIM = ('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + _L7BN_LAYER + "\n" +
+    _L5GP_SHIM = ('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + AIDE.PRELUDE_DZT + _L7BN_LAYER + "\n" +
         "function trackKind(t){return t==='a1'?'audio':t==='t1'?'title':'video'}\n"
         "function pay(c){var o={};var _fx=(c.effects||[]).filter(function(f){return !f.off});o.effects=_fx.length?_fx:void 0;\n"
         + s[_iMk:_iMk + len(_GP_MK)] + "\nreturn 'mask' in o?o.mask:'absent'}\n"
@@ -19146,7 +19161,7 @@ if 0 < _iL5a < _iL5b: _L5H_F = s[_iL5a:_iL5b + len("fireNote(q.note)}")]
 _mTK = re.search(r"  function trackKind\(trId\)\{[^\n]*\n[^\n]*\}", _bak or "")
 _L5H_RT = None
 if _L5H_F and src and _mTK:
-    _L5H_SHIM = ('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + src + "\n"
+    _L5H_SHIM = ('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + AIDE.PRELUDE_DZT + src + "\n"
                  "var ST={};window.localStorage={getItem:function(k){return Object.prototype.hasOwnProperty.call(ST,k)?ST[k]:null},setItem:function(k,v){ST[k]=String(v)}};\n"
                  "var notes=[],hist=0,set=null,dirty=!1,lb=null,sel=null,seek=null;\n"
                  "var clipsRef={current:[]},trackStRef={current:{}},dzProjRef={current:{demo:!1}};\n"
@@ -19543,7 +19558,7 @@ _VOD = {}
 if _VO_ST and _VO_SP and _VO_DN:
     _vsh = os.path.join(TMP, "shim_l6vo.js")
     with open(_vsh, "w", encoding="utf-8") as fh:
-        fh.write('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + src + "\n"
+        fh.write('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + AIDE.PRELUDE_DZT + src + "\n"
                  + _VO_JS.replace("__ST__", _VO_ST).replace("__SP__", _VO_SP).replace("__DN__", _VO_DN))
     _vr = NODE(["node", _vsh])
     _vl = (_vr.stdout or "").strip().splitlines()

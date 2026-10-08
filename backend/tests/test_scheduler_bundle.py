@@ -10,6 +10,11 @@ Run : & $PY tests/test_scheduler_bundle.py   (depuis backend/)"""
 import json, os, pathlib, shutil, subprocess, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _i18n_l1_aide as AIDE  # noqa: E402  (t141 : dzT sous node, clés des libellés traduits)
+# t141 : le prélude dans sa propre portée — son `var window` ne doit pas masquer le globalThis.window du harnais ;
+# dzT est publié sur globalThis par le prélude et garde SON window (le dictionnaire)
+PRELUDE = "(function(){\n" + AIDE.PRELUDE_DZT + "\n})();\n"
 
 ok = fail = 0
 def check(label, cond, detail=""):
@@ -59,10 +64,13 @@ check("2.2 Instagram : automatique, testable, état lu dans /health", "auto:!0,t
 check("2.3 TikTok : entrée neuve, ses quatre clés, connexion OAuth, et le privé sans audit est DIT",
       'connect:"tiktok"' in tk and "f.tiktok_enabled" in tk
       and all(f'k:"{k}"' in tk for k in ("TIKTOK_CLIENT_KEY", "TIKTOK_CLIENT_SECRET", "TIKTOK_REFRESH_TOKEN", "TIKTOK_AUDITED"))
-      and ("PRIVÉ" in tk or ("PRIV" + chr(92) + "u00c9") in tk), tk[:300])   # écrit en échappement JS dans le bundle
+      # t141 (08/10) : la note passe par dzT("reglages.comptes.tiktok_note") ; c'est son français qui DIT le privé
+      and 'note:dzT("reglages.comptes.tiktok_note")' in tk and "PRIVÉ" in AIDE.fr("reglages.comptes.tiktok_note"), tk[:300])
 check("2.4 le bouton Connecter : à côté du test, seulement pour les canaux OAuth, message dans la ligne du canal",
       tm.count("k.connect&&r.jsx(K,{") == 1 and "__dzSchedConnect(k.connect," in tm and "u(p=>({...p,[k.k]:M}))" in tm
-      and tm.count('title:"Ouvrir le consentement') == 1)
+      # t141 (08/10) : le title passe par dzT ; sa clé rend le français d'avant
+      and tm.count('title:dzT("reglages.comptes.connecter_titre",{nom:k.label})') == 1
+      and AIDE.fr("reglages.comptes.connecter_titre", nom="TikTok").startswith("Ouvrir le consentement TikTok"))
 
 print("\n[3] TikTok dans le Scheduler")
 check("3.1 la table des canaux (sélection, aperçus) connaît TikTok", s.count('tiktok:{id:"tiktok",label:"TikTok",icon:"channelTiktok"') == 1)
@@ -95,7 +103,7 @@ function fin(){ process.stdout.write(JSON.stringify(sortie)) }
 res = None
 if _n and helpers:
     tmp = pathlib.Path(tempfile.mkdtemp()) / "c.js"
-    tmp.write_text("var document={};function __dzToast(){}\n" + js, "utf-8")
+    tmp.write_text(PRELUDE + "var document={};function __dzToast(){}\n" + js, "utf-8")
     p = subprocess.run([_n, str(tmp)], capture_output=True, text=True, encoding="utf-8")
     try:
         res = json.loads(p.stdout)

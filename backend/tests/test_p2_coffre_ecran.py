@@ -11,6 +11,8 @@ BACKEND = pathlib.Path(__file__).resolve().parent.parent
 ROOT = BACKEND.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 import patch_bundle_montage as P                              # noqa: E402
+sys.path.insert(0, str(BACKEND / "tests"))
+import _i18n_l1_aide as AIDE                                  # noqa: E402  t141 : les textes passent par dzT("cle")
 
 BASE = "fca4207"
 NODE = shutil.which("node")
@@ -30,7 +32,12 @@ check("0.1 TÉMOIN : ni DzCoffre, ni entrée, ni branche, ni 3e état", vieux an
       and '{k:"coffre"' not in vieux and 's==="coffre"' not in vieux and 'h.set===null' not in vieux, "")
 
 print("\n[1] l'écran branché")
-check("1.1 entrée « Coffre » juste après « Diagnostic »", s.count('[{k:"diag",l:"Diagnostic"},{k:"coffre",l:"Coffre"},{k:"appareils",l:"Appareils"},{k:"keys",l:"API keys"},') == 1)
+# t141 (08/10/2026) : les libellés de la barre passent par dzT ; clés épinglées dans l'ordre, et leur français (ou
+# l'anglais d'origine pour « API keys ») est le texte d'avant.
+check("1.1 entrée « Coffre » juste après « Diagnostic »",
+      s.count('[{k:"diag",l:dzT("reglages.onglet.diag")},{k:"coffre",l:dzT("reglages.onglet.coffre")},{k:"appareils",l:dzT("reglages.onglet.appareils")},{k:"keys",l:dzT("reglages.onglet.cles")},') == 1
+      and [AIDE.fr("reglages.onglet." + k) for k in ("diag", "coffre", "appareils")] == ["Diagnostic", "Coffre", "Appareils"]
+      and AIDE.DICO["reglages.onglet.cles"]["en"] == "API keys")
 check("1.2 'coffre' dans la liste blanche (sinon ?section=coffre retombe sur accounts)", s.count('const ym=["diag","coffre","appareils","keys",') == 1)
 check("1.3 branche du corps rend DzCoffre", s.count('s==="coffre"&&r.jsx(DzCoffre,{}),') == 1 and s.count("function DzCoffre(") == 1)
 # tache #56 (01/10) : DzAppair suit DzCoffre (meme chaine P2dg1) -> la tranche s'arrete a lui s'il existe
@@ -45,8 +52,10 @@ print("\n[2] ce qui protège l'utilisateur")
 i = dz.find("const poser=")
 bloc = dz[i:dz.find("const ouvrir=", i)]
 check("2.1 poser passe par une CONFIRMATION du dialogue maison, avant l'appel, qui dit que les clés quittent le .env",
-      "const D=window.__dzDialogue;if(!D||!(await D.confirmer(" in bloc and bloc.find("D.confirmer(") < bloc.find("/api/reglages/coffre/poser") and "QUITTENT le fichier .env" in bloc
-      and "stocké nulle part" in bloc, "")
+      # t141 : la phrase du dialogue est dzT("reglages.coffre.poser_confirm") ; elle dit toujours la même chose en français
+      'const D=window.__dzDialogue;if(!D||!(await D.confirmer(dzT("reglages.coffre.poser_confirm")' in bloc
+      and bloc.find("D.confirmer(") < bloc.find("/api/reglages/coffre/poser")
+      and "QUITTENT le fichier .env" in AIDE.fr("reglages.coffre.poser_confirm") and "stocké nulle part" in AIDE.fr("reglages.coffre.poser_confirm"), "")
 check("2.2 poser exige 8 caractères et deux saisies identiques, côté écran aussi", "m1.length<8" in bloc and "m1!==m2" in bloc)
 champs = re.findall(r"r\.jsx\('input',\{type:'([a-z]+)'", dz)
 check("2.3 les mots de passe ne vont que dans des champs `password` (le seul autre champ est le fichier)", champs == ["password", "file"], json.dumps(champs))
@@ -61,8 +70,13 @@ check("2.8 tout bouton porte un title (E-12)", len(ks) == 7 and all("title:" in 
 
 print("\n[3] la pastille d'une clé : trois états")
 check("3.1 coffre verrouillé (set=null) : ambre « coffre », et DzTestCle dit « coffre fermé » avec quoi faire (le badge `te` ne porte pas de bulle, mesuré)",
-      s.count('tone:h&&h.set===null?"amber":h&&h.set?"green":"red"') == 1 and s.count('children:h&&h.set===null?"coffre":h&&h.set?"set":"missing"}),') == 1
-      and s.count("def:!!(h&&h.set),verrou:!!(h&&h.set===null)})") == 1 and "Coffre verrouillé : ouvrez-le" in s[s.find("function DzTestCle("):s.find("const Fu=[")])
+      # t141 : pastille et bulle passent par dzT (clés épinglées ; « coffre » et « Coffre verrouillé : ouvrez-le » en français)
+      s.count('tone:h&&h.set===null?"amber":h&&h.set?"green":"red"') == 1
+      and s.count('children:h&&h.set===null?dzT("reglages.cles.coffre"):h&&h.set?dzT("reglages.cles.posee"):dzT("reglages.cles.manquante")}),') == 1
+      and AIDE.fr("reglages.cles.coffre") == "coffre"
+      and s.count("def:!!(h&&h.set),verrou:!!(h&&h.set===null)})") == 1
+      and 'dzT("reglages.cles.coffre_verrouille_titre")' in s[s.find("function DzTestCle("):s.find("const Fu=[")]
+      and AIDE.fr("reglages.cles.coffre_verrouille_titre").startswith("Coffre verrouillé : ouvrez-le"))
 check("3.2 « Tester » reste caché tant que la clé est verrouillée (def = !!set)", s.count("r.jsx(DzTestCle,{ck:k.k,def:!!(h&&h.set),verrou:") == 1)
 check("3.3 l'ancienne pastille à deux états a disparu", 'tone:h&&h.set?"green":"red",dot:!0,children:h&&h.set?"set":"missing"}' not in s)
 

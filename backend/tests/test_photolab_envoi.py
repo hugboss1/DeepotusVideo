@@ -95,8 +95,17 @@ print("\n[2] le bundle")
 check("2a_les_aides_une_fois_dans_la_portee_du_menu", BUN.count("function __dzEnvoi(") == 1
       and BUN.count("window.__dzEnvoyerVers=function(nom,de){") == 1
       and BUN.find("function __dzSendTo(") < BUN.find("function __dzEnvoi(") < BUN.find("function __dzToSpriteLab(src){"))
+# t141 (08/10) : la traduction L1 (maillon de queue) passe les libellés du menu par dzT("clé") ; la cible est
+# épinglée par sa clé, et chaque clé rend le libellé français d'avant
+sys.path.insert(0, str(HERE))
+import _i18n_l1_aide as AIDE  # noqa: E402
+check("2b0_t141_les_cles_des_trois_cibles_rendent_les_libelles_d_avant",
+      AIDE.fr("photolab.cible.photolab") == "📷 Photolab — retoucher l'image"
+      and AIDE.fr("photolab.cible.vectorlab") == "✒ Vectorlab — nouveau document avec l'image"
+      and AIDE.fr("photolab.cible.tilelab") == "🧱 Tile Lab — source de la tuile")
 check("2b_les_trois_cibles_une_fois_juste_apres_sprite_lab_image",
-      BUN.count('__dzToSpriteLab({kind:"image",filename:nom})}});if(m.de!=="photolab")items.push({lbl:"📷 Photolab') == 1
+      BUN.count('__dzToSpriteLab({kind:"image",filename:nom})}});if(m.de!=="photolab")items.push('
+                '{lbl:dzT("photolab.cible.photolab")') == 1
       and BUN.count('__dzEnvoi("vectorlab",nom);__dzSendNav("vectorlab")') == 1
       and BUN.count('__dzEnvoi("tilelab",nom);__dzSendNav("assets3d",{subtab:"tiles"})') == 1)
 check("2c_jeton___dzSendTo_2_vers_3", BUN.count("__dzSendTo") == 3, BUN.count("__dzSendTo"))
@@ -141,7 +150,10 @@ console.log(JSON.stringify(R));
 D = {}
 if NODE and MENU:
     p = pathlib.Path(tempfile.mkdtemp(prefix="dzplm_")) / "m.js"
-    p.write_text(HARNAIS.split("var R={}")[0] + MENU + "\nvar R={}" + HARNAIS.split("var R={}")[1], encoding="utf-8")
+    # t141 : le prélude (dictionnaire + dzT en français) avant le menu extrait — APRÈS le `var window={}` du
+    # harnais, qui sinon effacerait window.DZ_I18N (le prélude garde un window existant)
+    h0, h1 = HARNAIS.split("var R={}")[0].split("\n", 2)[1:]
+    p.write_text(h0 + "\n" + AIDE.PRELUDE_DZT + h1 + MENU + "\nvar R={}" + HARNAIS.split("var R={}")[1], encoding="utf-8")
     rn = subprocess.run([NODE, str(p)], capture_output=True, text=True, encoding="utf-8", errors="replace")
     try:
         D = json.loads((rn.stdout or "").strip().splitlines()[-1])

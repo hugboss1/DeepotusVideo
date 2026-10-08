@@ -10,6 +10,8 @@ BACKEND = pathlib.Path(__file__).resolve().parent.parent
 ROOT = BACKEND.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 import patch_bundle_montage as P                              # noqa: E402
+sys.path.insert(0, str(BACKEND / "tests"))
+import _i18n_l1_aide as AIDE                                  # noqa: E402  t141 : les textes passent par dzT("cle")
 
 BASE = "e113a08"
 NODE = shutil.which("node")
@@ -34,6 +36,9 @@ s = raw.decode("utf-8")
 bak = BAK.read_bytes().decode("utf-8") if BAK.is_file() else ""
 vieux = subprocess.run(["git", "show", f"{BASE}:frontend/dist/assets/index-BEOJX8L5.js"], cwd=ROOT, capture_output=True).stdout.decode("utf-8")
 SEC = {t: (a, r) for t, a, r in P.PATCHES if t.startswith("P2dg")}
+# t141 (08/10/2026) : la traduction L1 (maillon APRES le montage) a remplace des textes de P2dg1/P2dg2 par dzT("cle") ;
+# ce que le PATCHER a livre se controle sur le bundle d'avant la traduction (exactement reversible : test_i18n_l1).
+s_av = AIDE.avant_i18n(s)
 
 print("\n[0] temoin : le bundle de la base (%s)" % BASE)
 check("0.1 TEMOIN : ni DzDiag, ni entree « Diagnostic », ni 'diag' dans ym, ni branche",
@@ -50,10 +55,14 @@ for t, (a, r) in SEC.items():
     garde = r.endswith(a[1:]) if t.startswith("P2dg1") else True
     check(f"1.x {t} : ancre x1 dans .bak_montage, touchee par aucune autre section, remplacement x1 livre",
           bak.count(a) == 1 and sum(1 for t2, a2, r2 in P.PATCHES if t2 != t and (a in a2 or a in r2)) == 0
-          and s.count(r) == 1 and garde and "\n" not in r and "\r" not in r, _d(bak.count(a), s.count(r)))
+          and s_av.count(r) == 1 and garde and "\n" not in r and "\r" not in r, _d(bak.count(a), s_av.count(r)))
 
 print("\n[2] l'ecran dans le bundle livre")
-check("2.1 « Diagnostic » en TETE de la barre laterale", s.count('[{k:"diag",l:"Diagnostic"},{k:"coffre",l:"Coffre"},{k:"appareils",l:"Appareils"},{k:"keys",l:"API keys"},') == 1, "")
+# t141 : libelles de la barre en dzT -> cles epinglees dans l'ordre + leur francais (« API keys » : son anglais d'origine)
+check("2.1 « Diagnostic » en TETE de la barre laterale",
+      s.count('[{k:"diag",l:dzT("reglages.onglet.diag")},{k:"coffre",l:dzT("reglages.onglet.coffre")},{k:"appareils",l:dzT("reglages.onglet.appareils")},{k:"keys",l:dzT("reglages.onglet.cles")},') == 1
+      and [AIDE.fr("reglages.onglet." + k) for k in ("diag", "coffre", "appareils")] == ["Diagnostic", "Coffre", "Appareils"]
+      and AIDE.DICO["reglages.onglet.cles"]["en"] == "API keys", "")
 check("2.2 'diag' dans la liste blanche des sections (sinon ?section=diag retombe sur accounts)", s.count('const ym=["diag","coffre","appareils","keys",') == 1, "")
 check("2.3 la branche du corps rend DzDiag, apres Pricing, avant Transfert",
       s.count('s==="pricing"&&r.jsx(DzPricing,{}),s==="diag"&&r.jsx(DzDiag,{}),s==="coffre"&&r.jsx(DzCoffre,{}),s==="appareils"&&r.jsx(DzAppair,{}),s==="transfert"') == 1, "")
@@ -77,7 +86,8 @@ i = s.find("function dzOct(")
 j = s.find("function DzDiag(", i)
 src = s[i:j] if 0 <= i < j else ""
 p = pathlib.Path(tempfile.mkdtemp()) / "o.js"
-p.write_text(src + "\nprocess.stdout.write(JSON.stringify([0,1023,1024,1536,10*1024*1024,14855500770,'x',null].map(dzOct)))", encoding="utf-8")
+# t141 : dzOct ecrit ses unites et sa virgule par dzT -> prelude dzT (francais)
+p.write_text(AIDE.PRELUDE_DZT + src + "\nprocess.stdout.write(JSON.stringify([0,1023,1024,1536,10*1024*1024,14855500770,'x',null].map(dzOct)))", encoding="utf-8")
 r = subprocess.run([NODE, str(p)], capture_output=True, text=True, encoding="utf-8")
 try:
     out = json.loads(r.stdout)
