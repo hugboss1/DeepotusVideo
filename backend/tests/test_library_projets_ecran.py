@@ -14,6 +14,8 @@ Run (depuis backend/) : & $PY tests/test_library_projets_ecran.py"""
 import json, pathlib, shutil, subprocess, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 _ICI = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(_ICI))
+import _i18n_l1_aide as AIDE  # t141 : dzT (prelude node) et textes francais des cles
 RACINE = _ICI.parent.parent
 BUNDLE = RACINE / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js"
 PATCHER = RACINE / "scripts" / "patch_bundle_montage.py"
@@ -46,8 +48,11 @@ check("B3 le filtre du projet entre DANS Lfs, replie dans P9lib4 : il vaut pour 
 check("B4 la barre « Projet » ouvre le contenu de la Bibliotheque, avant les chips de provenance",
       s.count('children:[r.jsx(DzProjetsBar,{f:dzPF,setF:dzPFs}),r.jsx(DzOutilsBiblio,{vue:dzVue,setVue:dzVues,liste:l,ouvrir:y}),__dzSrcChips(o,T,dzSF,dzSFs)') == 1)   # #81 PR C : la barre Corbeille / Nettoyage suit
 check("B5 « Envoyer vers » propose le projet pour TOUT asset (avant le « aucune cible »)",
-      s.count('items.push({lbl:"📁 Projet de la Bibliothèque…",fn:function(){dzProjMenu(m)}});'
-              'if(!items.length){__dzToast("Aucune cible pour cet asset");return}') == 1)
+      # t141 (08/10) : libelle et toast passent par dzT -> les CLES dans le bundle, et leur texte francais
+      s.count('items.push({lbl:dzT("biblio.envoyer.cible.projet"),fn:function(){dzProjMenu(m)}});'
+              'if(!items.length){__dzToast(dzT("biblio.envoyer.aucune_cible"));return}') == 1
+      and AIDE.fr("biblio.envoyer.cible.projet") == "📁 Projet de la Bibliothèque…"
+      and AIDE.fr("biblio.envoyer.aucune_cible") == "Aucune cible pour cet asset")
 check("B6 aucun window.prompt ni window.alert dans la couche (le dialogue maison)", "window.prompt" not in s[s.find(DEBUT):s.find(FIN)]
       and "window.alert" not in s[s.find(DEBUT):s.find(FIN)] and "__dzDialogue.saisir" in s[s.find(DEBUT):s.find(FIN)])
 check("B7 aucun onglet « Projets » de plus (le projet filtre les onglets existants)", "Projets:[]" not in s and "Projets:" not in
@@ -115,7 +120,8 @@ var R={};
 R = {}
 if NODE and couche:
     f = pathlib.Path(tempfile.mkdtemp()) / "h.js"
-    f.write_text(HARNAIS.replace("__COUCHE__", couche), "utf-8")
+    # t141 (08/10) : la couche passe ses textes par dzT -> le prelude (dictionnaire + dzT en francais) AVANT
+    f.write_text(AIDE.PRELUDE_DZT + "\n" + HARNAIS.replace("__COUCHE__", couche), "utf-8")
     p = subprocess.run([NODE, str(f)], capture_output=True, text=True, encoding="utf-8", timeout=60)
     try:
         R = json.loads(p.stdout or "{}")

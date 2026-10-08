@@ -7,6 +7,8 @@ Run (depuis backend/) : & $PY tests/test_library_commentaires_ecran.py"""
 import json, pathlib, subprocess, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 _ICI = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(_ICI))
+import _i18n_l1_aide as AIDE  # t141 : dzT (prelude node) et textes francais des cles
 RACINE = _ICI.parent.parent
 BUN = (RACINE / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js").read_bytes().decode("utf-8")
 _TMP = pathlib.Path(tempfile.mkdtemp(prefix="dzcme_"))
@@ -70,7 +72,9 @@ var AUJ=new Date().toISOString();
 
 def node(corps):
     f = _TMP / f"m{abs(hash(corps)) % 10**9}.js"
-    f.write_text(COUCHE + "\n" + HARNAIS + "\n(async function(){var R={};" + corps + "\nconsole.log(JSON.stringify(R))})()", encoding="utf-8")
+    # t141 (08/10) : la couche passe ses textes par dzT -> le prelude AVANT (constantes evaluees au chargement),
+    # et de nouveau APRES le harnais, dont le `var window=` remplace l'objet qui portait DZ_I18N.
+    f.write_text(AIDE.PRELUDE_DZT + "\n" + COUCHE + "\n" + HARNAIS + "\n" + AIDE.PRELUDE_DZT + "\n(async function(){var R={};" + corps + "\nconsole.log(JSON.stringify(R))})()", encoding="utf-8")
     p = subprocess.run(["node", str(f)], capture_output=True, text=True, encoding="utf-8", timeout=60)
     try:
         return json.loads(p.stdout.strip().splitlines()[-1])

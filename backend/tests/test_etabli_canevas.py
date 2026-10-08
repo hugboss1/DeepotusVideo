@@ -33,6 +33,8 @@ os.environ["OUTPUTS_FOLDER"] = str(pathlib.Path(_tmp, "outputs"))
 os.environ["VECTOR_FOLDER"] = str(pathlib.Path(_tmp, "vector"))
 pathlib.Path(_tmp, "images").mkdir(exist_ok=True)
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _i18n_l1_aide as AIDE  # t141 : bundle d'avant la traduction L1 et textes francais des cles
 
 RACINE = pathlib.Path(__file__).resolve().parent.parent.parent
 FRONT = RACINE / "frontend"
@@ -2066,6 +2068,13 @@ def _bundle() -> str:
     return _lire(_BUNDLE_REL)
 
 
+def _bundle_avant_i18n() -> str:
+    """t141 (08/10/2026) : le bundle d'avant la traduction L1, sous la même forme
+    que `_bundle()` (fins de ligne aplaties). Défait sur les OCTETS : une paire de
+    la table porte un CRLF littéral, que la lecture en mode texte aplatirait."""
+    return AIDE.avant_i18n((FRONT / _BUNDLE_REL).read_bytes().decode("utf-8")).replace("\r\n", "\n")
+
+
 def _patcher():
     """Le patcher CHARGÉ comme un module, jamais lu comme de la prose.
 
@@ -2156,7 +2165,13 @@ def test_l_onglet_vide_ne_se_remplit_pas_d_items_de_demonstration():
     # non le mot nu depuis le 01/10/2026 : le 20/09 (8815cba) le maillon
     # dialogue a injecté frontend/shared/dialogue.js, dont un COMMENTAIRE
     # nomme « l'Établi » — mot nu 2 -> 3 sans aucune clé de plus.
-    assert s.count('"Établi":') == 2
+    # 2 -> 3 le 08/10/2026 (t141, traduction L1) : la rangée d'onglets traduit
+    # ses libellés par une table clé -> dzT, qui cite la clé une fois de plus ;
+    # ce n'est PAS un item : la troisième est exactement ce libellé.
+    assert s.count('"Établi":') == 3
+    assert s.count('"Établi":dzT("biblio.vue.onglet.etabli")') == 1
+    assert AIDE.fr("biblio.vue.onglet.etabli") == "Établi"
+    assert _bundle_avant_i18n().count('"Établi":') == 2
 
 
 def test_la_liste_vient_de_la_route_greffee_sur_le_sondage_EXISTANT():
@@ -2251,8 +2266,10 @@ def test_le_menu_masque_l_Impression_3D_quand_imprimable_est_faux():
     """
     s = _bundle()
     assert 'if(m.kind==="asset3d"&&m.short&&m.imprimable!==!1){' in s
-    assert ('if(!items.length){__dzToast("Aucune cible pour cet asset");'
+    # t141 (08/10/2026) : le toast passe par dzT -> la CLÉ, et son texte français
+    assert ('if(!items.length){__dzToast(dzT("biblio.envoyer.aucune_cible"));'
             'return}') in s
+    assert AIDE.fr("biblio.envoyer.aucune_cible") == "Aucune cible pour cet asset"
     assert 'if(m.kind==="asset3d"&&m.short){' not in s
     assert "imprimable:(z&&z.imprimable)===!0" in s
     assert s.count("__dzPrint3d") == 3
@@ -2325,6 +2342,9 @@ def test_les_maillons_voisins_de_la_chaine_Bibliotheque_gardent_leurs_comptes():
         # 08/10 (t139, patch_bundle_plenvoi) : window.__dzEnvoyerVers expose le menu aux labs en iframe.
         "__dzSendTo": 1,
     }
+    # 08/10 (t141, traduction L1) : la table des libellés d'onglets passés par dzT cite
+    # la clé « Établi » une fois de plus (un libellé, pas un item) -> 1 + 1.
+    derives_aval["Établi"] += 1
     for sonde, combien in P.POST_COUNTS:
         assert s.count(sonde) == combien + derives_aval.get(sonde, 0), sonde
     for _nom, sonde, combien in P.STABLE_PROBES:
@@ -2379,7 +2399,10 @@ def test_le_bundle_livre_est_EXACTEMENT_le_patch_applique_UNE_fois():
     mesure d'où elle vient vraiment.
     """
     P = _patcher()
-    livre = _bundle()
+    # t141 (08/10/2026) : contrôle de LIVRAISON de ce patcher amont -> sur le bundle
+    # d'avant la traduction L1, qui pose par-dessus une table de libellés citant la
+    # clé « Établi » ; test_i18n_l1 garantit que cette traduction est réversible.
+    livre = _bundle_avant_i18n()
 
     nu = livre
     for tag, ancre, repl in reversed(P.PATCHES):

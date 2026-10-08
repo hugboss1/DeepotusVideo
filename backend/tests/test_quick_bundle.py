@@ -39,10 +39,17 @@ check("A4 les trois payloads portent la recette EN TETE", s.count("quick_recipe:
       and 'D.postJson("/generate/composition",{quick_recipe:dzQuickRecipe(),seedance:{camera_ctrl:dzCam(),video_model:' in s)
 check("A5 l'evenement : emis par le helper, ecoute par Quick (et retire au demontage)", s.count('"deepotus:quick-recipe"') == 3
       and 'window.removeEventListener("deepotus:quick-recipe",onR)' in s)
+# t141 (08/10) : la traduction L1 passe ces libelles par dzT("cle") ; epingles par leur cle, et chaque cle rend le
+# francais d'avant
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import _i18n_l1_aide as AIDE  # noqa: E402
 check("A6 le bouton de la Bibliotheque (renders seulement) et l'icone de la file, avec un title",
-      'm.kind==="render"&&m.jobId&&r.jsx(K,{variant:"ghost",size:"sm",icon:"bolt",title:"Rouvrir ce rendu dans Quick' in s
-      and 'children:"Rouvrir dans Quick"},"dzquick")' in s
-      and 'm&&r.jsx(se,{name:"bolt",title:"Rouvrir dans Quick (prérempli)",onClick:function(){__dzReopenQuick(e.id)}})' in s)
+      'm.kind==="render"&&m.jobId&&r.jsx(K,{variant:"ghost",size:"sm",icon:"bolt",title:dzT("biblio.detail.rouvrir_quick_aide")' in s
+      and AIDE.fr("biblio.detail.rouvrir_quick_aide").startswith("Rouvrir ce rendu dans Quick")
+      and 'children:dzT("biblio.detail.rouvrir_quick")},"dzquick")' in s
+      and AIDE.fr("biblio.detail.rouvrir_quick") == "Rouvrir dans Quick"
+      and 'm&&r.jsx(se,{name:"bolt",title:dzT("coque.file.rouvrir_quick"),onClick:function(){__dzReopenQuick(e.id)}})' in s
+      and AIDE.fr("coque.file.rouvrir_quick") == "Rouvrir dans Quick (prérempli)")
 fn = s[s.find("function __dzReopenQuick("):s.find("function __dzReopenStudio(")]
 check("A7 aucun window.alert ni window.prompt dans le groupe", "window.alert" not in fn and "window.prompt" not in fn and "__dzToast(" in fn)
 
@@ -240,7 +247,9 @@ print("\n[X] prolonger le clip (tache #51, plan Quick T2, groupe P5ex)")
 check("X0 temoin : la base (15c4c12) n'a pas __dzExtendClip", "__dzExtendClip" not in s0)
 check("X1 un helper, une entree de menu (branche render), aucun window.prompt/alert",
       s.count("function __dzExtendClip(") == 1 and s.count("__dzExtendClip(") == 2
-      and 'items.push({lbl:"⚡ Prolonger le clip (+7 s, Veo 3.1 Fast, prix montré avant)",fn:function(){onClose&&onClose();__dzExtendClip(m.jobId)}});' in s
+      # t141 (08/10) : libelle passe par dzT ; la cle rend le francais d'avant
+      and 'items.push({lbl:dzT("biblio.envoyer.cible.prolonger"),fn:function(){onClose&&onClose();__dzExtendClip(m.jobId)}});' in s
+      and AIDE.fr("biblio.envoyer.cible.prolonger") == "⚡ Prolonger le clip (+7 s, Veo 3.1 Fast, prix montré avant)"
       and "window.prompt" not in fonc("__dzExtendClip") and "window.alert" not in fonc("__dzExtendClip"))
 if node:
     js = fonc("__dzExtendClip") + r"""

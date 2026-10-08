@@ -79,9 +79,17 @@ function fetchs(){return J.filter(function(z){return z[0]==="fetch"}).map(functi
 """
 
 
+sys.path.insert(0, str(_ICI))
+import _i18n_l1_aide as AIDE  # noqa: E402
+# t141 (08/10) : la traduction L1 passe les libelles du menu par dzT ; le prelude (dictionnaire + dzT en FRANCAIS) est
+# pose dans sa propre portee — son `var window` ne doit pas heurter le window du harnais ; dzT est publie sur
+# globalThis et garde SON window (le dictionnaire). Les attentes francaises restent inchangees.
+PRELUDE = "(function(){\n" + AIDE.PRELUDE_DZT + "\n})();\n"
+
+
 def node(corps):
     f = _TMP / f"e{abs(hash(corps)) % 10**9}.js"
-    f.write_text(COUCHE + "\n" + HARNAIS + "\n(async function(){var R={};" + corps + "\nconsole.log(JSON.stringify(R))})()", encoding="utf-8")
+    f.write_text(PRELUDE + COUCHE + "\n" + HARNAIS + "\n(async function(){var R={};" + corps + "\nconsole.log(JSON.stringify(R))})()", encoding="utf-8")
     try:
         p = subprocess.run(["node", str(f)], capture_output=True, text=True, encoding="utf-8", timeout=60)
     except subprocess.TimeoutExpired:

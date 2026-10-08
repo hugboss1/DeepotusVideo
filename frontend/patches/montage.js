@@ -9676,7 +9676,7 @@ function dzSendChoisir(opts,titre){
     var t=setInterval(function(){if(fini){clearInterval(t);return}
       if(!document.getElementById("__dzSendHost")){clearInterval(t);fini=!0;res(null)}},250)})}
 function dzSendStudioRendu(m,nom,onClose){
-  return{lbl:"🎬 Studio — nouveau graphe (Existing render → Render)",fn:function(){onClose&&onClose();
+  return{lbl:dzT("biblio.envoyer.studio_rendu"),fn:function(){onClose&&onClose();
     fetch("/api/jobs/"+encodeURIComponent(m.jobId)).then(function(R){return R.ok?R.json():null}).catch(function(){return null}).then(function(j){
       var dur=Number(j&&(j.duration_real_s||j.duration_s))||0,props={jobId:m.jobId};if(dur>0)props.durationS=Math.round(dur*10)/10;
       window.__dzRenderGraph={name:(nom||"rendu")+".graph",nodes:[{id:"er1",type:"ExistingRender",x:220,y:240,props:props},
@@ -9714,7 +9714,7 @@ async function dzRecLancerAvec(image){
     await window.__dzDialogue.informer(String(j.detail||"Lancement refusé ("+Ln.status+")."),{titre:"Lancement refusé"})}
   catch(e){await window.__dzDialogue.informer("Recette : "+String(e&&e.message||e),{titre:"Lancer une recette"})}}
 function dzSendRecette(nom,onClose){
-  return{lbl:"🍳 Lancer une recette… (devis montré avant)",fn:function(){onClose&&onClose();dzRecLancerAvec(nom)}}}
+  return{lbl:dzT("biblio.envoyer.recette"),fn:function(){onClose&&onClose();dzRecLancerAvec(nom)}}}
 /* t130 (W-d du plan 2026-07-22-modeles-generation-onthefly, 07/10/2026) — MODÈLES PAR DÉFAUT DES NOUVEAUX NŒUDS.
    Settings → Provider defaults gagne deux rangées : le modèle vidéo et le modèle TTS avec lesquels NAISSENT les
    nouveaux nœuds Seedance et Voiceover (la fabrique `Y` du Studio passe par dzPropsNaissance) ; chaque nœud dévie
@@ -9732,10 +9732,10 @@ function dzDefautsLire(){
   return{video_model:v(o.video_model),tts_model:v(o.tts_model)}}
 /* écrit UN défaut (video_model | tts_model) sans toucher aux clés de rôle ; "" le retire */
 function dzDefautsEcrire(champ,valeur){
-  if(DZ_DEFAUTS_CHAMPS.indexOf(champ)<0)throw new Error("défaut inconnu : "+champ);
+  if(DZ_DEFAUTS_CHAMPS.indexOf(champ)<0)throw new Error(dzT("reglages.defauts.modeles.inconnu")+champ);
   var o=dzDefautsBrut();
   if(!valeur)delete o[champ];
-  else{if(!DZ_DEFAUTS_ID.test(String(valeur)))throw new Error("modèle illisible : "+valeur);o[champ]=String(valeur)}
+  else{if(!DZ_DEFAUTS_ID.test(String(valeur)))throw new Error(dzT("reglages.defauts.modeles.illisible")+valeur);o[champ]=String(valeur)}
   localStorage.setItem(DZ_DEFAUTS_CLE,JSON.stringify(o));return o}
 /* les props d'un nœud QUI NAÎT : celles du registre, plus le modèle par défaut pour Seedance (vidéo) et Voiceover
    (TTS) quand il est réglé ; jamais l'objet reçu muté, aucun autre type touché */
@@ -9755,11 +9755,11 @@ function DzModelDefaults(){
     return r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"260px 1fr auto",gap:14,alignItems:"center",padding:"14px 18px",borderTop:"1px solid var(--stroke)"},children:[
       r.jsxs("div",{children:[r.jsx("div",{style:{fontSize:12.5,color:"var(--ink-strong)"},children:titre}),
         r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-soft)"},children:aide})]}),
-      sel,r.jsx("span",{style:{fontSize:10.5,color:"var(--ink-muted)"},children:"nouveaux nœuds"})]})}
+      sel,r.jsx("span",{style:{fontSize:10.5,color:"var(--ink-muted)"},children:dzT("reglages.defauts.modeles.nouveaux_noeuds")})]})}
   return r.jsxs(r.Fragment,{children:[
-    ligne("Modèle vidéo par défaut","Les nouveaux nœuds Seedance naissent avec ce modèle ; chacun peut en changer.",
+    ligne(dzT("reglages.defauts.modeles.video"),dzT("reglages.defauts.modeles.video_aide"),
       r.jsx(DzVideoModelSel,{value:d.video_model,onChange:function(v){poser("video_model",v)}})),
-    ligne("Modèle de voix (TTS) par défaut","Les nouveaux nœuds Voiceover naissent avec ce modèle ElevenLabs ; chacun peut en changer.",
+    ligne(dzT("reglages.defauts.modeles.tts"),dzT("reglages.defauts.modeles.tts_aide"),
       r.jsx(DzVoModelSel,{value:d.tts_model,onChange:function(v){poser("tts_model",v)}}))]})}
 /* Tâche #72 PR B (plan-templates T1, 03/10/2026) — gérer les KITS DE MARQUE dans Réglages → Branding. Décisions de
    l'utilisateur (03/10) : les champs de l'écran (nom, accroches, couleurs, logo) modifient le kit ACTIF ; un rendu
@@ -9770,7 +9770,7 @@ function DzKits({onChange}){
   var ls=x.useState(null),L=ls[0],setL=ls[1],bs=x.useState(!1),busy=bs[0],setB=bs[1],ms=x.useState(""),msg=ms[0],setMsg=ms[1],
     ts_=x.useState(0),tick=ts_[0],setTick=ts_[1],vol=x.useRef(!1);   /* vol : une action EN COURS bloque la suivante (deux clics = deux copies) */
   function charger(){return fetch("/api/brand-kits").then(function(R){return R.json()}).then(function(d){setL(d);return d})
-    .catch(function(e){setMsg("Kits illisibles : "+String(e&&e.message||e))})}
+    .catch(function(e){setMsg(dzT("biblio.kits.illisibles")+String(e&&e.message||e))})}
   /* « Save brand », « Reset » et un logo envoyé (écran Sm) signalent deepotus:brand-refresh : la liste se recharge, sinon le kit actif y garde ses anciennes couleurs (vu à l écran, 03/10) */
   x.useEffect(function(){charger();function rf(){charger();setTick(Date.now())}window.addEventListener("deepotus:brand-refresh",rf);
     return function(){window.removeEventListener("deepotus:brand-refresh",rf)}},[]);
@@ -9779,26 +9779,26 @@ function DzKits({onChange}){
     var R=await fetch(url,{method:method,headers:body?{"Content-Type":"application/json"}:void 0,body:body?JSON.stringify(body):void 0});
     var d=await R.json().catch(function(){return{}});if(!R.ok)throw new Error(dzKitErr(R,d));return d}
   function nouveau(){agir(async function(){
-    var nm=await window.__dzDialogue.saisir("Nom du nouveau kit (il part des couleurs deepotus) :",{titre:"Nouveau kit de marque",valeur:"",ok:"Créer"});
+    var nm=await window.__dzDialogue.saisir(dzT("biblio.kits.nom_nouveau"),{titre:dzT("biblio.kits.nouveau_titre"),valeur:"",ok:dzT("biblio.kits.creer")});
     if(nm==null||!nm.trim())return;await envoyer("/api/brand-kits","POST",{name:nm.trim()});await charger();
-    setMsg("Kit « "+nm.trim()+" » créé — active-le pour le modifier ci-dessous.")})}
+    setMsg(dzT("biblio.kits.cree",{nom:nm.trim()}))})}
   function activer(k){agir(async function(){await envoyer("/api/brand-kits/"+encodeURIComponent(k.id)+"/activate","POST");
-    await charger();setTick(Date.now());Ji();onChange&&onChange();setMsg("Kit « "+k.name+" » actif : l’app et les prochains rendus le prennent.")})}
+    await charger();setTick(Date.now());Ji();onChange&&onChange();setMsg(dzT("biblio.kits.active",{nom:k.name}))})}
   function renommer(k){agir(async function(){
-    var nm=await window.__dzDialogue.saisir("Nouveau nom du kit :",{titre:"Renommer le kit",valeur:k.name,ok:"Renommer"});
+    var nm=await window.__dzDialogue.saisir(dzT("biblio.kits.nouveau_nom"),{titre:dzT("biblio.kits.renommer_titre"),valeur:k.name,ok:dzT("biblio.kits.renommer")});
     if(nm==null||!nm.trim()||nm.trim()===k.name)return;await envoyer("/api/brand-kits","POST",{id:k.id,name:nm.trim()});await charger()})}
   function dupliquer(k){agir(async function(){await envoyer("/api/brand-kits/"+encodeURIComponent(k.id)+"/dupliquer","POST");await charger();
-    setMsg("Copie de « "+k.name+" » créée (logo compris).")})}
+    setMsg(dzT("biblio.kits.copie",{nom:k.name}))})}
   function supprimer(k){agir(async function(){
-    if(!(await window.__dzDialogue.confirmer("Supprimer le kit « "+k.name+" » et son logo ? C’est irréversible.",{titre:"Supprimer le kit"})))return;
-    await envoyer("/api/brand-kits/"+encodeURIComponent(k.id),"DELETE");await charger();setMsg("Kit « "+k.name+" » supprimé.")})}
+    if(!(await window.__dzDialogue.confirmer(dzT("biblio.kits.supprimer_q",{nom:k.name}),{titre:dzT("biblio.kits.supprimer_titre")})))return;
+    await envoyer("/api/brand-kits/"+encodeURIComponent(k.id),"DELETE");await charger();setMsg(dzT("biblio.kits.supprime",{nom:k.name}))})}
   var kits=(L&&L.kits)||[],actif=kits.find(function(k){return k.actif})||null;   /* le dernier kit EST le kit actif : son bouton est grisé par là */
   function pastille(c){return r.jsx("span",{style:{display:"inline-block",width:12,height:12,borderRadius:3,background:c,border:"1px solid var(--stroke)"}})}
   return r.jsxs(jt,{className:"dz-kits",style:{padding:14,marginBottom:14},children:[
     r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:8},children:[
-      r.jsx("div",{style:{fontWeight:600,color:"var(--ink-strong)",flex:1},children:"Kits de marque"+(actif?" — les champs ci-dessous modifient « "+actif.name+" »":"")}),
-      r.jsx(K,{variant:"outline",size:"sm",icon:"plus",disabled:busy,onClick:nouveau,title:"Créer un kit (nom, accroches, couleurs, logo à part) — il ne devient actif que si tu l’actives",children:"Nouveau kit"})]}),
-    L?null:r.jsx("div",{style:{fontSize:11,color:"var(--ink-muted)"},children:"Chargement des kits…"}),
+      r.jsx("div",{style:{fontWeight:600,color:"var(--ink-strong)",flex:1},children:dzT("biblio.kits.titre")+(actif?dzT("biblio.kits.champs_modifient",{nom:actif.name}):"")}),
+      r.jsx(K,{variant:"outline",size:"sm",icon:"plus",disabled:busy,onClick:nouveau,title:dzT("biblio.kits.nouveau_aide"),children:dzT("biblio.kits.nouveau")})]}),
+    L?null:r.jsx("div",{style:{fontSize:11,color:"var(--ink-muted)"},children:dzT("biblio.kits.chargement")}),
     r.jsx("div",{style:{display:"flex",flexDirection:"column",gap:6},children:kits.map(function(k){
       return r.jsxs("div",{className:"dz-kit",style:{display:"flex",alignItems:"center",gap:8,padding:6,borderRadius:"var(--r-sm)",
         border:"1px solid var(--"+(k.actif?"cyan":"stroke")+")",background:"var(--bg-base)"},children:[
@@ -9806,12 +9806,12 @@ function DzKits({onChange}){
         r.jsxs("div",{style:{flex:1,minWidth:0},children:[
           r.jsx("div",{style:{color:"var(--ink-strong)",fontSize:12},children:k.name}),
           r.jsxs("div",{style:{fontSize:10.5,color:"var(--ink-muted)",display:"flex",gap:6,alignItems:"center"},children:[k.app_name+" "+k.app_sub,pastille(k.brand_color),pastille(k.accent_color)]})]}),
-        k.actif?r.jsx("span",{className:"mono",style:{color:"var(--cyan)",fontSize:10},children:"actif"}):
-          r.jsx(K,{variant:"outline",size:"sm",disabled:busy,onClick:function(){activer(k)},title:"Rendre ce kit actif : l’app et les prochains rendus le prennent (un rendu déjà parti garde le sien)",children:"Activer"}),
-        r.jsx(K,{variant:"ghost",size:"sm",disabled:busy,onClick:function(){renommer(k)},title:"Renommer ce kit",children:"Renommer"}),
-        r.jsx(K,{variant:"ghost",size:"sm",disabled:busy,onClick:function(){dupliquer(k)},title:"Dupliquer ce kit (couleurs, textes et logo)",children:"Dupliquer"}),
+        k.actif?r.jsx("span",{className:"mono",style:{color:"var(--cyan)",fontSize:10},children:dzT("biblio.kits.actif")}):
+          r.jsx(K,{variant:"outline",size:"sm",disabled:busy,onClick:function(){activer(k)},title:dzT("biblio.kits.activer_aide"),children:dzT("biblio.kits.activer")}),
+        r.jsx(K,{variant:"ghost",size:"sm",disabled:busy,onClick:function(){renommer(k)},title:dzT("biblio.kits.renommer_aide"),children:dzT("biblio.kits.renommer")}),
+        r.jsx(K,{variant:"ghost",size:"sm",disabled:busy,onClick:function(){dupliquer(k)},title:dzT("biblio.kits.dupliquer_aide"),children:dzT("biblio.kits.dupliquer")}),
         r.jsx(K,{variant:"ghost",size:"sm",disabled:busy||k.actif,onClick:function(){supprimer(k)},
-          title:k.actif?"Le kit actif ne se supprime pas : active d’abord un autre kit"+(kits.length<=1?" (c’est aussi le dernier)":""):"Supprimer ce kit et son logo",children:"Supprimer"})]},k.id)})}),
+          title:k.actif?dzT("biblio.kits.actif_indelebile")+(kits.length<=1?dzT("biblio.kits.dernier"):""):dzT("biblio.kits.supprimer_aide"),children:dzT("biblio.kits.supprimer")})]},k.id)})}),
     msg?r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)",marginTop:8},children:msg}):null]})}
 /* Tâche #73 PR B (plan-templates T2, 03/10/2026) — « Rejouer en … » dans la galerie Templates : le gabarit choisi,
    RÉAGENCÉ par le serveur (GET /api/layout-templates/{id}/reflow, rien n'est enregistré) s'affiche AVANT / APRÈS en
@@ -10131,7 +10131,7 @@ function dzFavToggle(t,k,apres){if(!k)return Promise.resolve();var v=!dzFavHas(t
   DZ_FAV[t][k]=v;DZ_FAV.vol[c]=(DZ_FAV.vol[c]||0)+1;DZ_FAV.t[c]=Date.now();
   return fetch(u[0],{method:u[1],headers:{"Content-Type":"application/json"},body:JSON.stringify({fav:v})})
     .then(function(R){if(!R.ok)return R.json().catch(function(){return{}}).then(function(d){throw new Error((d&&d.detail)||("HTTP "+R.status))})})
-    .catch(function(e){if(DZ_FAV[t][k]===v)DZ_FAV[t][k]=!v;dzToastSur("Favori non enregistré : "+String(e&&e.message||e))})
+    .catch(function(e){if(DZ_FAV[t][k]===v)DZ_FAV[t][k]=!v;dzToastSur(dzT("biblio.meta.favori_non_enregistre")+String(e&&e.message||e))})
     .then(function(){DZ_FAV.vol[c]--;if(!DZ_FAV.vol[c])delete DZ_FAV.vol[c];DZ_FAV.t[c]=Date.now();apres&&apres()})}
 // Le serveur EMPORTE le favori au renommage (library_index.renommer) : on déplace le cache, sans aucun appel.
 function dzFavRenomme(a,b){if(a&&b&&a!==b){if(DZ_FAV.i[a])DZ_FAV.i[b]=!0;delete DZ_FAV.i[a]}}
@@ -10149,7 +10149,7 @@ function dzFavMigrer(){if(DZ_FAV.migre||DZ_FAV.essais>=3)return Promise.resolve(
       L.images.forEach(function(k){if((im.ignores||[]).indexOf(k)<0)DZ_FAV.i[k]=!0});
       L.renders.forEach(function(k){if((rd.ignores||[]).indexOf(k)<0)DZ_FAV.r[k]=!0});
       try{localStorage.setItem("dz_fav_migre","1")}catch(e){}
-      var n=(im.repris||0)+(rd.repris||0);if(n)dzToastSur(n+" favori"+(n>1?"s":"")+" repris du navigateur dans la base");return d})
+      var n=(im.repris||0)+(rd.repris||0);if(n)dzToastSur((n>1?dzT("biblio.meta.favoris_repris.plusieurs",{n:n}):dzT("biblio.meta.favoris_repris.un",{n:n})));return d})
     .catch(function(){DZ_FAV.migre=!1;return null})}
 // ── note et tags (pur, joué sous node) ──
 function dzMetaFiltre(L,f){if(!f||(!f.tag&&!f.note&&!f.teinte))return L||[];return(L||[]).filter(function(z){
@@ -10174,17 +10174,17 @@ function DzMetaChips({o,T,f,setF}){if(o!=="Images"&&o!=="Favoris")return null;va
   c.teintes.forEach(function(z){ch.push(puce("teinte",z.t,r.jsxs("span",{children:[r.jsx("span",{style:{display:"inline-block",width:9,height:9,borderRadius:5,marginRight:5,
     background:z.c||"var(--ink-muted)",verticalAlign:"middle"}}),z.t+" ("+z.n+")"]}),f.teinte===z.t))});
   if(actif)ch.push(r.jsx("button",{type:"button",onClick:function(){setF({tag:"",note:0,teinte:""})},style:{height:22,padding:"0 8px",fontSize:11,
-      background:"none",border:0,color:"var(--ink-muted)",cursor:"pointer"},children:"Effacer"},"dzm_effacer"));
+      background:"none",border:0,color:"var(--ink-muted)",cursor:"pointer"},children:dzT("biblio.meta.effacer_filtres")},"dzm_effacer"));
   return r.jsx("div",{"data-dz":"metachips",style:{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center",marginBottom:10},children:ch})}
 function dzCarteMeta(C,rafraichir){if(!C||C.kind==="audio"||C.audioFile)return null;
   var t=C.jobId?"r":(C.kind==="image"?"i":null),k=t==="r"?C.jobId:C.name;if(!t||!k)return null;
   var fav=dzFavHas(t,k),note=Math.max(0,Math.min(5,Number(C.note||0))),tags=C.tags||[];
   return r.jsxs("div",{className:"dz-carte-meta",style:{display:"flex",alignItems:"center",gap:6,marginTop:4,minHeight:16},children:[
-    r.jsx("button",{type:"button",className:"dz-fav-btn","aria-pressed":fav,title:fav?"Retirer des favoris":"Ajouter aux favoris",
+    r.jsx("button",{type:"button",className:"dz-fav-btn","aria-pressed":fav,title:fav?dzT("biblio.meta.retirer_favoris"):dzT("biblio.meta.ajouter_favoris"),
       onClick:function(ev){ev.stopPropagation();dzFavToggle(t,k,rafraichir);rafraichir&&rafraichir()},
       style:{background:"none",border:0,padding:0,cursor:"pointer",fontSize:13,lineHeight:1,color:fav?"var(--amber)":"var(--ink-muted)"},
       children:fav?"★":"☆"}),
-    note?r.jsx("span",{className:"dz-carte-note",title:"Note "+note+"/5",style:{fontSize:9,letterSpacing:1,color:"var(--amber)"},children:"●".repeat(note)}):null,
+    note?r.jsx("span",{className:"dz-carte-note",title:dzT("biblio.meta.note_sur5",{n:note}),style:{fontSize:9,letterSpacing:1,color:"var(--amber)"},children:"●".repeat(note)}):null,
     tags.length?r.jsx("span",{className:"dz-carte-tags",title:tags.map(function(g){return"#"+g}).join(" "),style:{fontSize:9.5,color:"var(--ink-muted)",
       whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",minWidth:0},children:tags.map(function(g){return"#"+g}).join(" ")}):null]})}
 // La fiche d'une IMAGE : la note 0..5 (cliquer la note posée la retire) et les tags. Le PATCH rend l'état RELU,
@@ -10195,25 +10195,25 @@ function DzMetaEditor({m,maj}){var ss=x.useState(""),saisie=ss[0],setSaisie=ss[1
   function envoyer(champs){setMsg("");return fetch("/api/library/asset/"+encodeURIComponent(m.name),{method:"PATCH",
       headers:{"Content-Type":"application/json"},body:JSON.stringify(champs)})
     .then(function(R){return R.json().catch(function(){return{}}).then(function(d){if(!R.ok)throw new Error(d.detail||("HTTP "+R.status));return d})})
-    .then(function(d){maj({tags:d.tags||[],note:d.note||0})}).catch(function(e){setMsg("Non enregistré : "+String(e&&e.message||e))})}
+    .then(function(d){maj({tags:d.tags||[],note:d.note||0})}).catch(function(e){setMsg(dzT("biblio.meta.non_enregistre")+String(e&&e.message||e))})}
   function ajouter(){var n=dzTagsDe(saisie);if(!n.length)return;setSaisie("");envoyer({tags:tags.concat(n)})}
-  var points=[1,2,3,4,5].map(function(n){return r.jsx("button",{type:"button",title:"Note "+n+"/5"+(note===n?" — cliquer pour retirer la note":""),
+  var points=[1,2,3,4,5].map(function(n){return r.jsx("button",{type:"button",title:dzT("biblio.meta.note_sur5",{n:n})+(note===n?dzT("biblio.meta.retirer_note"):""),
       "aria-pressed":note>=n,onClick:function(){envoyer({note:note===n?0:n})},style:{background:"none",border:0,padding:"0 1px",cursor:"pointer",
       fontSize:14,lineHeight:1,color:note>=n?"var(--amber)":"var(--ink-muted)"},children:note>=n?"●":"○"},"n"+n)});
   var puces=tags.map(function(g){return r.jsxs("span",{style:{display:"inline-flex",alignItems:"center",gap:3,height:20,padding:"0 4px 0 8px",
       borderRadius:10,border:"1px solid var(--stroke)",fontSize:11,color:"var(--ink-soft)"},children:["#"+g,
-      r.jsx("button",{type:"button",title:"Retirer le tag « "+g+" »",onClick:function(){envoyer({tags:tags.filter(function(z){return z!==g})})},
+      r.jsx("button",{type:"button",title:dzT("biblio.meta.retirer_tag",{tag:g}),onClick:function(){envoyer({tags:tags.filter(function(z){return z!==g})})},
         style:{background:"none",border:0,cursor:"pointer",color:"var(--ink-muted)",fontSize:11,padding:"0 2px"},children:"×"})]},"t"+g)});
   return r.jsxs("div",{className:"dz-meta-editeur",style:{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"},children:[
-    r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)"},children:"Note"}),r.jsx("span",{children:points}),
+    r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)"},children:dzT("biblio.meta.note")}),r.jsx("span",{children:points}),
     r.jsx("span",{style:{width:1,height:16,background:"var(--stroke)"}}),
-    r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)"},children:"Tags"}),
+    r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)"},children:dzT("biblio.meta.tags")}),
     puces.length?r.jsx("span",{style:{display:"inline-flex",gap:4,flexWrap:"wrap"},children:puces}):null,
-    r.jsx("input",{value:saisie,placeholder:"vitrail, mer…",onChange:function(e){setSaisie(e.target.value)},
+    r.jsx("input",{value:saisie,placeholder:dzT("biblio.meta.tags_exemple"),onChange:function(e){setSaisie(e.target.value)},
       onKeyDown:function(e){if(e.key==="Enter"){e.preventDefault();ajouter()}},
       style:{width:150,height:24,padding:"0 8px",fontSize:11.5,background:"var(--bg-base)",color:"var(--ink-strong)",
         border:"1px solid var(--stroke)",borderRadius:6}}),
-    r.jsx(K,{variant:"ghost",size:"sm",onClick:ajouter,disabled:!saisie.trim(),title:"Ajouter les tags saisis (séparés par des virgules)",children:"Ajouter"}),
+    r.jsx(K,{variant:"ghost",size:"sm",onClick:ajouter,disabled:!saisie.trim(),title:dzT("biblio.meta.ajouter_tags_aide"),children:dzT("biblio.meta.ajouter")}),
     msg?r.jsx("span",{style:{fontSize:10.5,color:"var(--red)",flexBasis:"100%"},children:msg}):null]})}
 /* ── fin Bibliothèque #77 */
 /* ── Bibliothèque #79 PR B (plan-library T5, 03/10/2026) — la LIGNÉE dans la fiche d’une image.
@@ -10238,8 +10238,8 @@ function DzLignee({m,liste,ouvrir}){var gs=x.useState(null),g=gs[0],setG=gs[1];
     return function(){on=!1}},[nom]);
   var v=dzLigneeVue(g,liste);if(!nom||!v||(!v.mere&&!v.filles.length))return null;
   function vign(e,cle){var lbl=e.nom+(e.relation?" — "+e.relation:"");
-    var t=e.externe?"La vidéo source"+(e.job?" (rendu "+e.job+")":"")+" : elle est dans les Rendus, pas dans les images"
-      :e.item?"Ouvrir la fiche de « "+e.nom+" »":"« "+e.nom+" » n’est pas dans la liste chargée (filtre, projet ou fichier retiré)";
+    var t=e.externe?dzT("biblio.lignee.video_source",{rendu:(e.job?dzT("biblio.lignee.rendu",{job:e.job}):"")})
+      :e.item?dzT("biblio.lignee.ouvrir_fiche",{nom:e.nom}):dzT("biblio.lignee.hors_liste",{nom:e.nom});
     return r.jsxs("button",{type:"button",title:t,disabled:!e.item,onClick:function(){if(e.item)ouvrir(e.item)},
       style:{display:"inline-flex",alignItems:"center",gap:6,maxWidth:260,padding:"2px 8px 2px 2px",borderRadius:6,
         border:"1px solid var(--stroke)",background:"var(--bg-base)",color:"var(--ink-soft)",fontSize:11,
@@ -10250,12 +10250,12 @@ function DzLignee({m,liste,ouvrir}){var gs=x.useState(null),g=gs[0],setG=gs[1];
   function rangee(titre,enf){return r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"},children:[
     r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)",minWidth:54},children:titre}),...enf]})}
   return r.jsxs("div",{className:"dz-lignee","data-dz":"lignee",style:{display:"flex",flexDirection:"column",gap:6,marginTop:8},children:[
-    v.mere?rangee("Mère",[vign(v.mere,"mere")]):null,
-    v.filles.length?rangee("Filles ("+v.filles.length+")",v.filles.map(function(e,i){return vign(e,"f"+i)})):null,
-    v.cycle?r.jsx("span",{title:"Deux images se donnent l’une l’autre pour mère : la remontée s’est arrêtée",
-      style:{fontSize:10.5,color:"var(--amber)"},children:"↺ boucle dans la lignée"}):null,
-    v.racine||v.tronque?r.jsx("span",{style:{fontSize:10.5,color:"var(--ink-muted)"},children:(v.racine?"Racine : "+v.racine+" · ":"")+
-      v.famille+" descendant"+(v.famille>1?"s":"")+" sous la racine"+(v.tronque?" (liste tronquée)":"")}):null]})}
+    v.mere?rangee(dzT("biblio.lignee.mere"),[vign(v.mere,"mere")]):null,
+    v.filles.length?rangee(dzT("biblio.lignee.filles",{n:v.filles.length}),v.filles.map(function(e,i){return vign(e,"f"+i)})):null,
+    v.cycle?r.jsx("span",{title:dzT("biblio.lignee.cycle_aide"),
+      style:{fontSize:10.5,color:"var(--amber)"},children:dzT("biblio.lignee.cycle")}):null,
+    v.racine||v.tronque?r.jsx("span",{style:{fontSize:10.5,color:"var(--ink-muted)"},children:(v.racine?dzT("biblio.lignee.racine",{nom:v.racine})+" · ":"")+
+      (v.famille>1?dzT("biblio.lignee.descendants.plusieurs",{n:v.famille}):dzT("biblio.lignee.descendants.un",{n:v.famille}))+(v.tronque?dzT("biblio.lignee.tronquee"):"")}):null]})}
 /* Tâche #79 PR C (plan-etabli T10, 03/10/2026) — les versions de l’Etabli EN ARBRE dans la Bibliothèque. La route
    des productions de l’Etabli rend, pour chaque version, `profondeur` (dans l’arbre de son job) et `rang` (l’ordre de la
    lignée : parcours en profondeur). Ici, appliqué à la liste de TOUT onglet après le filtre : seules les entrées qui
@@ -10279,17 +10279,17 @@ function dzLigneeEtabli(L){try{
    EXPLICITE et éditable — la licence (liste + saisie libre), l’auteur et le lien s’enregistrent par le PATCH de #77 ;
    alerte ambre si la licence est inconnue ; « Rejouer » relance la recette du générateur (PAYANT : prix annoncé par le
    dialogue maison, plafond gardé par le serveur) ; pas de garde de licence à la publication. */
-function dzOctets(n){n=Number(n)||0;return n<1024?n+" o":n<1048576?(n/1024).toFixed(1)+" Ko":(n/1048576).toFixed(1)+" Mo"}
+function dzOctets(n){n=Number(n)||0;return n<1024?n+dzT("biblio.unites.o"):n<1048576?(n/1024).toFixed(1)+dzT("biblio.unites.ko"):(n/1048576).toFixed(1)+dzT("biblio.unites.mo")}
 function dzFicheLignes(f){if(!f)return null;var x2=f.fichier||{},rc=f.recette,o={};
   o.fichier=[x2.largeur&&x2.hauteur?x2.largeur+" × "+x2.hauteur+" px":null,x2.octets!=null?dzOctets(x2.octets):null,
     x2.format?String(x2.format).toUpperCase():null].filter(Boolean).join(" · ");
   o.source=f.source_libelle||f.source||"";
-  if(rc){var org={generation:"Générateur",template:"Image fixe de gabarit",mobile:"Téléphone"}[rc.origine]||rc.origine;
-    o.recette=[org,rc.model?"modèle "+rc.model:null,rc.style?"style "+rc.style:null,rc.size?"format "+rc.size:null,
-      rc.seed!=null?"graine "+rc.seed:null,rc.template_name||rc.template_id?"gabarit "+(rc.template_name||rc.template_id):null,
-      rc.at_s!=null?"à "+rc.at_s+" s":null].filter(Boolean).join(" · ");
+  if(rc){var org={generation:dzT("biblio.fiche.origine.generateur"),template:dzT("biblio.fiche.origine.gabarit"),mobile:dzT("biblio.fiche.origine.telephone")}[rc.origine]||rc.origine;
+    o.recette=[org,rc.model?dzT("biblio.fiche.recette.modele",{v:rc.model}):null,rc.style?dzT("biblio.fiche.recette.style",{v:rc.style}):null,rc.size?dzT("biblio.fiche.recette.format",{v:rc.size}):null,
+      rc.seed!=null?dzT("biblio.fiche.recette.graine",{v:rc.seed}):null,rc.template_name||rc.template_id?dzT("biblio.fiche.recette.gabarit",{v:rc.template_name||rc.template_id}):null,
+      rc.at_s!=null?dzT("biblio.fiche.recette.instant",{v:rc.at_s}):null].filter(Boolean).join(" · ");
     o.prompt=rc.prompt||"";}else{o.recette="";o.prompt=""}
-  var noms={rendu:"Rendu",post:"Post programmé",bible:"Bible",plan:"Plan",scene:"Scène",projet:"Projet"};
+  var noms={rendu:dzT("biblio.fiche.usage.rendu"),post:dzT("biblio.fiche.usage.post"),bible:dzT("biblio.fiche.usage.bible"),plan:dzT("biblio.fiche.usage.plan"),scene:dzT("biblio.fiche.usage.scene"),projet:dzT("biblio.fiche.usage.projet")};
   o.usages=(f.usages||[]).map(function(u){return(noms[u.type]||u.type)+" « "+u.libelle+" »"+(u.role?" ("+u.role+")":"")});
   return o}
 function DzFiche({m,lister}){var fs=x.useState(null),f=fs[0],setF=fs[1],es=x.useState(null),ed=es[0],setEd=es[1],
@@ -10304,16 +10304,16 @@ function DzFiche({m,lister}){var fs=x.useState(null),f=fs[0],setF=fs[1],es=x.use
   function enregistrer(){setMsg("");fetch("/api/library/asset/"+encodeURIComponent(nom),{method:"PATCH",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({licence:ed.licence.trim(),auteur:ed.auteur.trim(),source_url:ed.source_url.trim()})})
     .then(function(R){return R.json().catch(function(){return{}}).then(function(d){if(!R.ok)throw new Error(d.detail||("HTTP "+R.status));return d})})
-    .then(function(){setMsg("Droits enregistrés.");charger()}).catch(function(e){setMsg("Non enregistré : "+String(e&&e.message||e))})}
+    .then(function(){setMsg(dzT("biblio.fiche.droits_enregistres"));charger()}).catch(function(e){setMsg(dzT("biblio.fiche.non_enregistre")+String(e&&e.message||e))})}
   async function rejouer(){if(verrou.current||!f.rejouer)return;verrou.current=!0;setVol(!0);try{
-      var prix=f.rejouer.usd!=null?"≈ "+Number(f.rejouer.usd).toFixed(3)+" $":"prix inconnu";
-      var ok=await window.__dzDialogue.confirmer("Relancer cette recette fait UNE nouvelle image, payante ("+prix+", plafond de dépense appliqué). La graine est gardée : avec le même modèle, l’image devrait être la même.",
-        {titre:"Rejouer la recette",ok:"Rejouer ("+prix+")"});
-      if(!ok)return;setMsg("Génération…");
+      var prix=f.rejouer.usd!=null?"≈ "+Number(f.rejouer.usd).toFixed(3)+" $":dzT("biblio.fiche.prix_inconnu");
+      var ok=await window.__dzDialogue.confirmer(dzT("biblio.fiche.rejouer_q",{prix:prix}),
+        {titre:dzT("biblio.fiche.rejouer"),ok:dzT("biblio.fiche.rejouer_prix",{prix:prix})});
+      if(!ok)return;setMsg(dzT("biblio.fiche.generation"));
       var R=await fetch(f.rejouer.route,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(f.rejouer.corps)});
       var d=await R.json().catch(function(){return{}});
-      if(!R.ok){setMsg("Refusé : "+String(d.detail||("HTTP "+R.status)));return}
-      var im=(d.images||[])[0];setMsg(im?"Nouvelle image : "+im+" (dans Images).":"Aucune image rendue.");if(im&&lister)lister(im)}
+      if(!R.ok){setMsg(dzT("biblio.fiche.refuse")+String(d.detail||("HTTP "+R.status)));return}
+      var im=(d.images||[])[0];setMsg(im?dzT("biblio.fiche.nouvelle_image",{nom:im}):dzT("biblio.fiche.aucune_image"));if(im&&lister)lister(im)}
     finally{verrou.current=!1;setVol(!1)}}
   function champ(lbl,cle,ph,liste){return r.jsxs("label",{style:{display:"flex",alignItems:"center",gap:6,fontSize:11,color:"var(--ink-muted)"},children:[lbl,
     r.jsx("input",{value:ed[cle],placeholder:ph,list:liste,onChange:function(e){var n2=Object.assign({},ed);n2[cle]=e.target.value;setEd(n2)},
@@ -10323,26 +10323,26 @@ function DzFiche({m,lister}){var fs=x.useState(null),f=fs[0],setF=fs[1],es=x.use
     r.jsx("span",{style:{minWidth:64,color:"var(--ink-muted)"},children:t}),r.jsx("span",{style:{color:"var(--ink-soft)",overflow:"hidden",textOverflow:"ellipsis"},children:v})]}):null}
   return r.jsxs("div",{className:"dz-fiche","data-dz":"fiche",style:{display:"flex",flexDirection:"column",gap:6,marginTop:8,paddingTop:8,borderTop:"1px solid var(--stroke)"},children:[
     r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"},children:[
-      r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)",minWidth:64},children:"Droits"}),
-      champ("Licence","licence","propriétaire, CC BY…","dz-licences"),
+      r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)",minWidth:64},children:dzT("biblio.fiche.droits")}),
+      champ(dzT("biblio.fiche.licence"),"licence",dzT("biblio.fiche.licence_exemple"),"dz-licences"),
       r.jsx("datalist",{id:"dz-licences",children:(dr.licences||[]).map(function(z){return r.jsx("option",{value:z},z)})}),
-      champ("Auteur","auteur","nom ou crédit"),champ("Lien","source_url","https://…"),
-      r.jsx(K,{variant:"ghost",size:"sm",onClick:enregistrer,disabled:!change,title:"Enregistrer la licence, l’auteur et le lien de la source",children:"Enregistrer"})]}),
-    dr.alerte?r.jsx("div",{className:"dz-fiche-alerte",style:{fontSize:11,color:"var(--amber)"},title:"Une licence inconnue : à vérifier avant toute diffusion",
-      children:"⚠ Licence inconnue — à vérifier avant diffusion"}):null,
-    ligne("Fichier",L.fichier),
-    f.couleur?r.jsxs("div",{style:{display:"flex",gap:8,fontSize:11.5,alignItems:"center"},title:"Couleur dominante "+f.couleur.hex,children:[
-      r.jsx("span",{style:{minWidth:64,color:"var(--ink-muted)"},children:"Couleur"}),
+      champ(dzT("biblio.fiche.auteur"),"auteur",dzT("biblio.fiche.auteur_exemple")),champ(dzT("biblio.fiche.lien"),"source_url","https://…"),
+      r.jsx(K,{variant:"ghost",size:"sm",onClick:enregistrer,disabled:!change,title:dzT("biblio.fiche.enregistrer_aide"),children:dzT("biblio.fiche.enregistrer")})]}),
+    dr.alerte?r.jsx("div",{className:"dz-fiche-alerte",style:{fontSize:11,color:"var(--amber)"},title:dzT("biblio.fiche.licence_inconnue_aide"),
+      children:dzT("biblio.fiche.licence_inconnue")}):null,
+    ligne(dzT("biblio.fiche.fichier"),L.fichier),
+    f.couleur?r.jsxs("div",{style:{display:"flex",gap:8,fontSize:11.5,alignItems:"center"},title:dzT("biblio.fiche.couleur_dominante",{hex:f.couleur.hex}),children:[
+      r.jsx("span",{style:{minWidth:64,color:"var(--ink-muted)"},children:dzT("biblio.fiche.couleur")}),
       r.jsx("span",{"data-dz":"pastille",style:{width:14,height:14,borderRadius:7,background:f.couleur.hex,border:"1px solid var(--stroke)"}}),
       r.jsx("span",{style:{color:"var(--ink-soft)"},children:f.couleur.teinte+" · "+f.couleur.hex})]}):null,
-    ligne("Source",L.source),ligne("Recette",L.recette||"inconnue"),
-    L.prompt?ligne("Prompt",L.prompt.length>140?L.prompt.slice(0,140)+"…":L.prompt,L.prompt):null,
-    f.legende?ligne("Légende",f.legende.texte,"Légende par "+(f.legende.modele||"un modèle vision")):null,
-    L.usages.length?ligne("Usages",L.usages.join(" · ")):ligne("Usages","aucun"),
+    ligne(dzT("biblio.fiche.source"),L.source),ligne(dzT("biblio.fiche.recette"),L.recette||dzT("biblio.fiche.inconnue")),
+    L.prompt?ligne(dzT("biblio.fiche.prompt"),L.prompt.length>140?L.prompt.slice(0,140)+"…":L.prompt,L.prompt):null,
+    f.legende?ligne(dzT("biblio.fiche.legende"),f.legende.texte,dzT("biblio.fiche.legende_par",{modele:f.legende.modele||dzT("biblio.fiche.modele_vision")})):null,
+    L.usages.length?ligne(dzT("biblio.fiche.usages"),L.usages.join(" · ")):ligne(dzT("biblio.fiche.usages"),dzT("biblio.fiche.aucun")),
     f.rejouer?r.jsx("div",{children:r.jsx(K,{variant:"outline",size:"sm",onClick:rejouer,disabled:vol,
-      title:"Relancer la recette du générateur — PAYANT"+(f.rejouer.usd!=null?" (≈ "+Number(f.rejouer.usd).toFixed(3)+" $)":"")+", prix redemandé avant le tir",
-      children:"Rejouer la recette"})}):null,
-    msg?r.jsx("span",{style:{fontSize:10.5,color:/^(Non|Refus)/.test(msg)?"var(--red)":"var(--ink-soft)"},children:msg}):null]})}
+      title:dzT("biblio.fiche.rejouer_aide",{prix:(f.rejouer.usd!=null?" (≈ "+Number(f.rejouer.usd).toFixed(3)+" $)":"")}),
+      children:dzT("biblio.fiche.rejouer")})}):null,
+    msg?r.jsx("span",{style:{fontSize:10.5,color:/^(Non|Refus|Not )/.test(msg)?"var(--red)":"var(--ink-soft)"},children:msg}):null]})}
 /* ── fin Bibliothèque #80 */
 /* ── Bibliothèque #81 PR C (plan-library T9-T11, 03/10/2026) — CORBEILLE, NETTOYAGE et TEINTE à l’écran.
    Décisions de l’utilisateur (03/10) : jeter range à la corbeille (serveur #158) ; la Corbeille restaure, vide
@@ -10352,7 +10352,7 @@ function DzFiche({m,lister}){var fs=x.useState(null),f=fs[0],setF=fs[1],es=x.use
    pastille. Corbeille et Nettoyage sont des PANNEAUX ouverts par une barre (DzOutilsBiblio) et non des onglets : la liste
    des onglets est épinglée par les bancs de l’Etabli. La grille se recharge seule (toutes les 8 s) : une restauration
    y réapparaît sans rien de plus. */
-function dzDuree(iso){if(!iso)return"";var j=Math.floor((Date.now()-new Date(iso).getTime())/864e5);return j<1?"aujourd’hui":j===1?"hier":"il y a "+j+" jours"}
+function dzDuree(iso){if(!iso)return"";var j=Math.floor((Date.now()-new Date(iso).getTime())/864e5);return j<1?dzT("biblio.duree.aujourdhui"):j===1?dzT("biblio.duree.hier"):dzT("biblio.duree.il_y_a_jours",{n:j})}
 function dzCorbVue(d){if(!d)return null;var el=d.elements||[];
   return{n:el.length,octets:d.octets||0,anciens:el.filter(function(e){return e.ancien}).map(function(e){return e.id}),jours:d.jours||30,
     lignes:el.map(function(e){return{id:e.id,type:e.type,nom:e.nom,quand:dzDuree(e.jete_le),octets:e.octets||0,ancien:!!e.ancien,
@@ -10363,35 +10363,35 @@ function DzCorbeille(){var ds=x.useState(null),d=ds[0],setD=ds[1],ms=x.useState(
   async function poster(url,corps){var R=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(corps)});
     var j=await R.json().catch(function(){return{}});if(!R.ok)throw new Error(j.detail||("HTTP "+R.status));return j}
   async function restaurer(l){if(verrou.current)return;verrou.current=!0;setVol(!0);setMsg("");try{var j=await poster("/api/library/corbeille/restaurer",{id:l.id});
-      setMsg("« "+l.nom+" » restauré"+(j.renomme?" sous le nom « "+j.restaure+" » (le sien était repris)":"")+".");await charger()}
-    catch(e){setMsg("Non restauré : "+String(e&&e.message||e))}finally{verrou.current=!1;setVol(!1)}}
+      setMsg((j.renomme?dzT("biblio.corbeille.restaure_renomme",{nom:l.nom,nouveau:j.restaure}):dzT("biblio.corbeille.restaure",{nom:l.nom})));await charger()}
+    catch(e){setMsg(dzT("biblio.corbeille.non_restaure")+String(e&&e.message||e))}finally{verrou.current=!1;setVol(!1)}}
   async function vider(ids,texte){if(verrou.current)return;verrou.current=!0;setVol(!0);setMsg("");try{
-      if(!await window.__dzDialogue.confirmer(texte+" C’est DÉFINITIF : rien ne pourra plus être restauré.",{titre:"Vider la corbeille",ok:"Effacer définitivement"}))return;
-      var j=await poster("/api/library/corbeille/vider",ids?{ids:ids}:{tout:!0});setMsg(j.vides+" élément"+(j.vides>1?"s":"")+" effacé"+(j.vides>1?"s":"")+" ("+dzOctets(j.octets)+").");await charger()}
-    catch(e){setMsg("Non vidé : "+String(e&&e.message||e))}finally{verrou.current=!1;setVol(!1)}}
-  var v=dzCorbVue(d);if(!v)return r.jsx("div",{style:{fontSize:12,color:"var(--ink-muted)"},children:"Corbeille…"});
+      if(!await window.__dzDialogue.confirmer(texte+dzT("biblio.corbeille.definitif"),{titre:dzT("biblio.corbeille.vider"),ok:dzT("biblio.corbeille.effacer_definitivement")}))return;
+      var j=await poster("/api/library/corbeille/vider",ids?{ids:ids}:{tout:!0});setMsg((j.vides>1?dzT("biblio.corbeille.effaces.plusieurs",{n:j.vides,taille:dzOctets(j.octets)}):dzT("biblio.corbeille.effaces.un",{n:j.vides,taille:dzOctets(j.octets)})));await charger()}
+    catch(e){setMsg(dzT("biblio.corbeille.non_vide")+String(e&&e.message||e))}finally{verrou.current=!1;setVol(!1)}}
+  var v=dzCorbVue(d);if(!v)return r.jsx("div",{style:{fontSize:12,color:"var(--ink-muted)"},children:dzT("biblio.corbeille.chargement")});
   var icone={image:"🖼",son:"🔊",rendu:"🎬",illisible:"⚠"};
   return r.jsxs("div",{className:"dz-corbeille","data-dz":"corbeille",style:{display:"flex",flexDirection:"column",gap:8,marginBottom:14},children:[
     r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"},children:[
-      r.jsx("span",{style:{fontSize:12,color:"var(--ink-soft)"},children:v.n?v.n+" élément"+(v.n>1?"s":"")+" · "+dzOctets(v.octets)+(v.anciens.length?" · "+v.anciens.length+" de plus de "+v.jours+" jours":""):"La corbeille est vide."}),
-      v.anciens.length?r.jsx(K,{variant:"outline",size:"sm",disabled:vol,onClick:function(){vider(v.anciens,"Effacer les "+v.anciens.length+" élément(s) jetés il y a plus de "+v.jours+" jours ?")},
-        title:"Effacer définitivement ce qui est dans la corbeille depuis plus de "+v.jours+" jours (proposé, jamais fait seul)",children:"Vider les anciens ("+v.anciens.length+")"}):null,
-      v.n?r.jsx(K,{variant:"ghost",size:"sm",disabled:vol,onClick:function(){vider(null,"Effacer TOUT le contenu de la corbeille ("+v.n+" élément(s), "+dzOctets(v.octets)+") ?")},
-        title:"Effacer définitivement tout le contenu de la corbeille",children:"Vider la corbeille"}):null]}),
-    msg?r.jsx("span",{style:{fontSize:11,color:/^Non /.test(msg)?"var(--red)":"var(--ink-soft)"},children:msg}):null,
+      r.jsx("span",{style:{fontSize:12,color:"var(--ink-soft)"},children:v.n?(v.n>1?dzT("biblio.corbeille.elements.plusieurs",{n:v.n}):dzT("biblio.corbeille.elements.un",{n:v.n}))+" · "+dzOctets(v.octets)+(v.anciens.length?" · "+dzT("biblio.corbeille.anciens",{n:v.anciens.length,jours:v.jours}):""):dzT("biblio.corbeille.vide")}),
+      v.anciens.length?r.jsx(K,{variant:"outline",size:"sm",disabled:vol,onClick:function(){vider(v.anciens,dzT("biblio.corbeille.effacer_anciens_q",{n:v.anciens.length,jours:v.jours}))},
+        title:dzT("biblio.corbeille.vider_anciens_aide",{jours:v.jours}),children:dzT("biblio.corbeille.vider_anciens",{n:v.anciens.length})}):null,
+      v.n?r.jsx(K,{variant:"ghost",size:"sm",disabled:vol,onClick:function(){vider(null,dzT("biblio.corbeille.vider_tout_q",{n:v.n,taille:dzOctets(v.octets)}))},
+        title:dzT("biblio.corbeille.vider_aide"),children:dzT("biblio.corbeille.vider")}):null]}),
+    msg?r.jsx("span",{style:{fontSize:11,color:/^(Non |Not )/.test(msg)?"var(--red)":"var(--ink-soft)"},children:msg}):null,
     ...v.lignes.map(function(l){return r.jsxs("div",{"data-ancien":l.ancien?"1":"0",style:{display:"flex",alignItems:"center",gap:10,padding:"6px 8px",
         border:"1px solid "+(l.ancien?"var(--amber)":"var(--stroke)"),borderRadius:6,fontSize:12},children:[
       r.jsx("span",{children:icone[l.type]||"·"}),r.jsx("span",{style:{flex:1,color:"var(--ink-strong)",overflow:"hidden",textOverflow:"ellipsis"},children:l.nom}),
       r.jsx("span",{style:{color:"var(--ink-muted)",fontSize:11},children:l.quand+" · "+dzOctets(l.octets)}),
-      l.ancien?r.jsx("span",{title:"Dans la corbeille depuis plus de "+v.jours+" jours : proposé à la purge",style:{color:"var(--amber)",fontSize:11},children:"plus de "+v.jours+" j"}):null,
-      r.jsx(K,{variant:"outline",size:"sm",disabled:vol||!l.restaurable,onClick:function(){restaurer(l)},title:"Remettre « "+l.nom+" » à sa place (index, tags, projets compris)",children:"Restaurer"}),
-      r.jsx(K,{variant:"ghost",size:"sm",disabled:vol,onClick:function(){vider([l.id],"Effacer « "+l.nom+" » ?")},title:"Effacer définitivement cet élément",children:"Effacer"})]},l.id)})]})}
+      l.ancien?r.jsx("span",{title:dzT("biblio.corbeille.ancien_aide",{jours:v.jours}),style:{color:"var(--amber)",fontSize:11},children:dzT("biblio.corbeille.ancien",{jours:v.jours})}):null,
+      r.jsx(K,{variant:"outline",size:"sm",disabled:vol||!l.restaurable,onClick:function(){restaurer(l)},title:dzT("biblio.corbeille.restaurer_aide",{nom:l.nom}),children:dzT("biblio.corbeille.restaurer")}),
+      r.jsx(K,{variant:"ghost",size:"sm",disabled:vol,onClick:function(){vider([l.id],dzT("biblio.corbeille.effacer_q",{nom:l.nom}))},title:dzT("biblio.corbeille.effacer_aide"),children:dzT("biblio.corbeille.effacer")})]},l.id)})]})}
 function dzNettVue(d,coches){if(!d)return null;coches=coches||{};
   var gs=(d.doublons||[]).map(function(g){var fs=g.fichiers||[],restent=fs.filter(function(f){return!coches[f.filename]}).length;
     return{sha:g.sha256,octets:g.octets,en_trop:g.en_trop,vide:restent===0,fichiers:fs.map(function(f){
       var us=(f.usages||[]).map(function(u){return u.libelle+(u.role?" ("+u.role+")":"")});
       return{nom:f.filename,protege:!!f.protege,garder:!!f.garder,coche:!!coches[f.filename],
-        pourquoi:[f.fav?"favori":null,us.length?"utilisé : "+us.join(", "):null,(f.projets||[]).length?"projet : "+f.projets.join(", "):null].filter(Boolean).join(" · ")}})}});
+        pourquoi:[f.fav?dzT("biblio.nettoyage.favori"):null,us.length?dzT("biblio.nettoyage.utilise")+us.join(", "):null,(f.projets||[]).length?dzT("biblio.nettoyage.projet")+f.projets.join(", "):null].filter(Boolean).join(" · ")}})}});
   var choisis=Object.keys(coches).filter(function(k){return coches[k]});
   return{poids:d.poids||{},groupes:gs,choisis:choisis,bloque:gs.some(function(g){return g.vide}),en_trop:d.copies_en_trop||0,recup:d.octets_recuperables||0}}
 function dzNettAuto(d){var c={};(d&&d.doublons||[]).forEach(function(g){var fs=g.fichiers||[];
@@ -10399,46 +10399,46 @@ function dzNettAuto(d){var c={};(d&&d.doublons||[]).forEach(function(g){var fs=g
     fs.forEach(function(f){if(f!==garde&&!f.protege)c[f.filename]=!0})});return c}
 function DzNettoyage(){var ds=x.useState(null),d=ds[0],setD=ds[1],cs=x.useState({}),co=cs[0],setCo=cs[1],ms=x.useState(""),msg=ms[0],setMsg=ms[1],
     vs=x.useState(!1),vol=vs[0],setVol=vs[1],verrou=x.useRef(!1);
-  function charger(){setMsg("Analyse…");return fetch("/api/library/nettoyage").then(function(R){return R.ok?R.json():null})
-    .then(function(j){setD(j);setCo({});setMsg("")}).catch(function(){setMsg("Analyse impossible.")})}
+  function charger(){setMsg(dzT("biblio.nettoyage.analyse"));return fetch("/api/library/nettoyage").then(function(R){return R.ok?R.json():null})
+    .then(function(j){setD(j);setCo({});setMsg("")}).catch(function(){setMsg(dzT("biblio.nettoyage.analyse_impossible"))})}
   x.useEffect(function(){charger()},[]);
   async function jeter(v){if(verrou.current||!v.choisis.length||v.bloque)return;verrou.current=!0;setVol(!0);try{
-      if(!await window.__dzDialogue.confirmer("Mettre "+v.choisis.length+" copie(s) à la corbeille ? Elles restent restaurables depuis la Corbeille de la Bibliothèque.",{titre:"Doublons",ok:"Mettre à la corbeille"}))return;
+      if(!await window.__dzDialogue.confirmer((v.choisis.length>1?dzT("biblio.nettoyage.jeter_q.plusieurs",{n:v.choisis.length}):dzT("biblio.nettoyage.jeter_q.un",{n:v.choisis.length})),{titre:dzT("biblio.nettoyage.doublons"),ok:dzT("biblio.nettoyage.jeter")}))return;
       var R=await fetch("/api/library/nettoyage/jeter",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({fichiers:v.choisis})});
-      var j=await R.json().catch(function(){return{}});if(!R.ok){setMsg("Refusé : "+String(j.detail||("HTTP "+R.status)));return}
-      await charger();setMsg((j.jetes||[]).length+" copie(s) à la corbeille.")}finally{verrou.current=!1;setVol(!1)}}
-  var v=dzNettVue(d,co);if(!v)return r.jsx("div",{style:{fontSize:12,color:"var(--ink-muted)"},children:msg||"Analyse…"});
-  var P=v.poids,sortes=[["images","Images"],["sons","Sons"],["rendus","Rendus"],["corbeille","Corbeille"]];
+      var j=await R.json().catch(function(){return{}});if(!R.ok){setMsg(dzT("biblio.nettoyage.refuse")+String(j.detail||("HTTP "+R.status)));return}
+      await charger();setMsg(((j.jetes||[]).length>1?dzT("biblio.nettoyage.jetes.plusieurs",{n:(j.jetes||[]).length}):dzT("biblio.nettoyage.jetes.un",{n:(j.jetes||[]).length})))}finally{verrou.current=!1;setVol(!1)}}
+  var v=dzNettVue(d,co);if(!v)return r.jsx("div",{style:{fontSize:12,color:"var(--ink-muted)"},children:msg||dzT("biblio.nettoyage.analyse")});
+  var P=v.poids,sortes=[["images",dzT("biblio.nettoyage.images")],["sons",dzT("biblio.nettoyage.sons")],["rendus",dzT("biblio.nettoyage.rendus")],["corbeille",dzT("biblio.nettoyage.corbeille")]];
   return r.jsxs("div",{className:"dz-nettoyage","data-dz":"nettoyage",style:{display:"flex",flexDirection:"column",gap:8,marginBottom:14},children:[
     r.jsx("div",{style:{display:"flex",gap:14,flexWrap:"wrap",fontSize:12,color:"var(--ink-soft)"},children:sortes.map(function(s){var p=P[s[0]]||{};
       return r.jsx("span",{children:s[1]+" : "+(p.fichiers||0)+" · "+dzOctets(p.octets||0)},s[0])})}),
     r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"},children:[
-      r.jsx("span",{style:{fontSize:12,color:"var(--ink-strong)"},children:v.groupes.length?v.groupes.length+" groupe(s) de doublons · "+v.en_trop+" copie(s) en trop · "+dzOctets(v.recup)+" récupérables":"Aucun doublon."}),
-      v.groupes.length?r.jsx(K,{variant:"ghost",size:"sm",onClick:function(){setCo(dzNettAuto(d))},title:"Cocher les copies en trop, en gardant la copie utilisée (ou la plus ancienne) de chaque groupe",children:"Cocher les copies en trop"}):null,
+      r.jsx("span",{style:{fontSize:12,color:"var(--ink-strong)"},children:v.groupes.length?dzT("biblio.nettoyage.bilan",{groupes:v.groupes.length,copies:v.en_trop,taille:dzOctets(v.recup)}):dzT("biblio.nettoyage.aucun")}),
+      v.groupes.length?r.jsx(K,{variant:"ghost",size:"sm",onClick:function(){setCo(dzNettAuto(d))},title:dzT("biblio.nettoyage.cocher_aide"),children:dzT("biblio.nettoyage.cocher")}):null,
       v.groupes.length?r.jsx(K,{variant:"outline",size:"sm",disabled:vol||!v.choisis.length||v.bloque,onClick:function(){jeter(v)},
-        title:v.bloque?"Un groupe n’aurait plus aucune copie : gardez-en au moins une":"Mettre les copies cochées à la corbeille (restaurables)",children:"Mettre "+v.choisis.length+" à la corbeille"}):null,
-      r.jsx(K,{variant:"ghost",size:"sm",disabled:vol,onClick:charger,title:"Relancer l’analyse (empreintes recalculées si un fichier a changé)",children:"Analyser"})]}),
-    v.bloque?r.jsx("span",{style:{fontSize:11,color:"var(--amber)"},children:"Un groupe n’aurait plus aucune copie : décochez-en une."}):null,
-    msg?r.jsx("span",{style:{fontSize:11,color:/^(Refus|Analyse imp)/.test(msg)?"var(--red)":"var(--ink-soft)"},children:msg}):null,
+        title:v.bloque?dzT("biblio.nettoyage.bloque_aide"):dzT("biblio.nettoyage.jeter_aide"),children:dzT("biblio.nettoyage.jeter_n",{n:v.choisis.length})}):null,
+      r.jsx(K,{variant:"ghost",size:"sm",disabled:vol,onClick:charger,title:dzT("biblio.nettoyage.analyser_aide"),children:dzT("biblio.nettoyage.analyser")})]}),
+    v.bloque?r.jsx("span",{style:{fontSize:11,color:"var(--amber)"},children:dzT("biblio.nettoyage.bloque")}):null,
+    msg?r.jsx("span",{style:{fontSize:11,color:/^(Refus|Analyse imp|Analysis f)/.test(msg)?"var(--red)":"var(--ink-soft)"},children:msg}):null,
     ...v.groupes.map(function(g){return r.jsxs("div",{style:{border:"1px solid "+(g.vide?"var(--amber)":"var(--stroke)"),borderRadius:6,padding:"6px 8px",display:"flex",flexDirection:"column",gap:4},children:[
-      r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)"},children:g.fichiers.length+" copies identiques · "+dzOctets(g.octets)+" chacune"}),
-      ...g.fichiers.map(function(f){return r.jsxs("label",{title:f.protege?"Protégée — "+f.pourquoi:f.garder?"La plus ancienne : proposée à garder":"Cocher pour la mettre à la corbeille",
+      r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)"},children:dzT("biblio.nettoyage.groupe",{n:g.fichiers.length,taille:dzOctets(g.octets)})}),
+      ...g.fichiers.map(function(f){return r.jsxs("label",{title:f.protege?dzT("biblio.nettoyage.protegee_aide")+f.pourquoi:f.garder?dzT("biblio.nettoyage.garder_aide"):dzT("biblio.nettoyage.cocher_une"),
           style:{display:"flex",alignItems:"center",gap:8,fontSize:12,color:f.protege?"var(--ink-muted)":"var(--ink-soft)"},children:[
         r.jsx("input",{type:"checkbox",checked:f.coche,disabled:f.protege,onChange:function(e){var n=Object.assign({},co);n[f.nom]=e.target.checked;setCo(n)}}),
         r.jsx("img",{src:"/api/images/"+encodeURIComponent(f.nom),alt:"",style:{width:28,height:28,objectFit:"cover",borderRadius:3}}),
         r.jsx("span",{style:{flex:1},children:f.nom}),
-        f.protege?r.jsx("span",{style:{fontSize:10.5},children:"protégée"}):f.garder?r.jsx("span",{style:{fontSize:10.5,color:"var(--green)"},children:"à garder"}):null]},f.nom)})]},g.sha)})]})}
+        f.protege?r.jsx("span",{style:{fontSize:10.5},children:dzT("biblio.nettoyage.protegee")}):f.garder?r.jsx("span",{style:{fontSize:10.5,color:"var(--green)"},children:dzT("biblio.nettoyage.garder")}):null]},f.nom)})]},g.sha)})]})}
 function DzOutilsBiblio(P){var vs=x.useState(""),vue=vs[0],setVue=vs[1],aff=(P&&P.vue)||"grille";
   function bouton(cle,lbl,titre){var on=vue===cle;return r.jsx("button",{type:"button","aria-pressed":on,title:titre,onClick:function(){setVue(on?"":cle)},
     style:{height:24,padding:"0 10px",fontSize:11.5,borderRadius:6,cursor:"pointer",border:"1px solid "+(on?"var(--amber,#f0b429)":"var(--stroke)"),
       background:on?"var(--bg-panel-2)":"transparent",color:on?"var(--ink-strong)":"var(--ink-soft)"},children:lbl},cle)}
   return r.jsxs("div",{"data-dz":"outils-biblio",style:{display:"flex",flexDirection:"column",gap:8,marginBottom:vue?4:10},children:[
-    r.jsxs("div",{style:{display:"flex",gap:6,flexWrap:"wrap"},children:[bouton("corbeille","🗑 Corbeille","Ce qui a été jeté : restaurer, ou effacer définitivement"),
-      bouton("nettoyage","🧹 Nettoyage","Poids par sorte et doublons exacts à mettre à la corbeille"),
-      bouton("recherche","🔎 Recherche","Chercher par la légende, les tags, les prompts et les commentaires ; légender les images"),
+    r.jsxs("div",{style:{display:"flex",gap:6,flexWrap:"wrap"},children:[bouton("corbeille",dzT("biblio.outils.corbeille"),dzT("biblio.outils.corbeille_aide")),
+      bouton("nettoyage",dzT("biblio.outils.nettoyage"),dzT("biblio.outils.nettoyage_aide")),
+      bouton("recherche",dzT("biblio.outils.recherche"),dzT("biblio.outils.recherche_aide")),
       /* tâche #82 : la bascule grille / liste (mémorisée dans ce navigateur) */
       P&&P.setVue?r.jsx("span",{style:{width:1,height:18,background:"var(--stroke)",margin:"3px 4px"}}):null,
-      ...(P&&P.setVue?[["grille","▦ Grille","Afficher en vignettes"],["liste","☰ Liste","Afficher en liste triable (nom, source, taille, date, dimensions, tags, note, favori, licence, teinte)"]].map(function(b){
+      ...(P&&P.setVue?[["grille",dzT("biblio.outils.grille"),dzT("biblio.outils.grille_aide")],["liste",dzT("biblio.outils.liste"),dzT("biblio.outils.liste_aide")]].map(function(b){
         var on=aff===b[0];return r.jsx("button",{type:"button","aria-pressed":on,title:b[2],onClick:function(){P.setVue(b[0]);dzVueEcrite(b[0])},
           style:{height:24,padding:"0 10px",fontSize:11.5,borderRadius:6,cursor:"pointer",border:"1px solid "+(on?"var(--amber,#f0b429)":"var(--stroke)"),
             background:on?"var(--bg-panel-2)":"transparent",color:on?"var(--ink-strong)":"var(--ink-soft)"},children:b[1]},b[0])}):[])]}),
@@ -10449,7 +10449,7 @@ function DzOutilsBiblio(P){var vs=x.useState(""),vue=vs[0],setVue=vs[1],aff=(P&&
    Décision de l’utilisateur (04/10) : commentaires DATÉS avec un STATUT (à revoir / validé / rejeté) ; pour un son,
    l’instant visé (mm:ss) ; « note » désigne déjà la note 0..5, d’où le mot « commentaires ». Le statut se change d’un
    clic sur sa pastille ; supprimer passe par le dialogue maison. */
-var DZ_CM_STATUTS=[["a_revoir","à revoir","var(--amber)"],["valide","validé","var(--green)"],["rejete","rejeté","var(--red)"]];
+var DZ_CM_STATUTS=[["a_revoir",dzT("biblio.commentaires.statut.a_revoir"),"var(--amber)"],["valide",dzT("biblio.commentaires.statut.valide"),"var(--green)"],["rejete",dzT("biblio.commentaires.statut.rejete"),"var(--red)"]];
 function dzInstant(txt){var s=String(txt==null?"":txt).trim();if(!s)return null;var m=/^(\d+):([0-5]?\d)(?:\.(\d+))?$/.exec(s);
   if(m)return Number(m[1])*60+Number(m[2])+(m[3]?Number("0."+m[3]):0);var n=Number(s.replace(",","."));return isFinite(n)&&n>=0?n:NaN}
 function dzInstantTxt(t){if(t==null)return"";var m=Math.floor(t/60),s=t-m*60;return m+":"+(s<10?"0":"")+(Math.round(s*10)/10)}
@@ -10464,30 +10464,30 @@ function DzCommentaires({m}){var ls=x.useState(null),L=ls[0],setL=ls[1],ts=x.use
     var d=await R.json().catch(function(){return{}});if(!R.ok)throw new Error(d.detail||("HTTP "+R.status));return d}
   /* le verrou est une REF posée avant l’envoi : deux clics sur le même rendu ne font qu’un commentaire (l’état seul ne
      suffit pas, il est lu dans la fermeture du rendu) */
-  async function ajouter(){if(verrou.current||!txt.trim())return;var t=son?dzInstant(ins):null;if(son&&ins.trim()&&!isFinite(t)){setMsg("Instant illisible : mm:ss ou secondes.");return}
+  async function ajouter(){if(verrou.current||!txt.trim())return;var t=son?dzInstant(ins):null;if(son&&ins.trim()&&!isFinite(t)){setMsg(dzT("biblio.commentaires.instant_illisible"));return}
     verrou.current=!0;setVol(!0);setMsg("");try{var c={texte:txt.trim()};if(t!=null)c.t_s=t;await envoyer(U+encodeURIComponent(ref),"POST",c);setTxt("");setIns("");charger()}
-    catch(e){setMsg("Non enregistré : "+String(e&&e.message||e))}finally{verrou.current=!1;setVol(!1)}}
+    catch(e){setMsg(dzT("biblio.commentaires.non_enregistre")+String(e&&e.message||e))}finally{verrou.current=!1;setVol(!1)}}
   async function statut(c,st){if(c.statut===st)return;try{await envoyer(U+"c/"+encodeURIComponent(c.id),"PATCH",{statut:st});charger()}
-    catch(e){setMsg("Non enregistré : "+String(e&&e.message||e))}}
-  async function supprimer(c){if(!await window.__dzDialogue.confirmer("Supprimer ce commentaire ? « "+(c.texte.length>60?c.texte.slice(0,60)+"…":c.texte)+" »",{titre:"Commentaire",ok:"Supprimer"}))return;
-    try{await envoyer(U+"c/"+encodeURIComponent(c.id),"DELETE");charger()}catch(e){setMsg("Non supprimé : "+String(e&&e.message||e))}}
+    catch(e){setMsg(dzT("biblio.commentaires.non_enregistre")+String(e&&e.message||e))}}
+  async function supprimer(c){if(!await window.__dzDialogue.confirmer(dzT("biblio.commentaires.supprimer_q",{texte:(c.texte.length>60?c.texte.slice(0,60)+"…":c.texte)}),{titre:dzT("biblio.commentaires.titre_dialogue"),ok:dzT("biblio.commentaires.supprimer")}))return;
+    try{await envoyer(U+"c/"+encodeURIComponent(c.id),"DELETE");charger()}catch(e){setMsg(dzT("biblio.commentaires.non_supprime")+String(e&&e.message||e))}}
   var nb={};L.forEach(function(c){nb[c.statut]=(nb[c.statut]||0)+1});
   return r.jsxs("div",{className:"dz-commentaires","data-dz":"commentaires",style:{display:"flex",flexDirection:"column",gap:6,marginTop:8,paddingTop:8,borderTop:"1px solid var(--stroke)"},children:[
-    r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)"},children:L.length?"Commentaires ("+L.length+") · "+DZ_CM_STATUTS.filter(function(s){return nb[s[0]]}).map(function(s){return nb[s[0]]+" "+s[1]}).join(" · "):"Commentaires"}),
+    r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)"},children:L.length?dzT("biblio.commentaires.compte",{n:L.length})+" · "+DZ_CM_STATUTS.filter(function(s){return nb[s[0]]}).map(function(s){return nb[s[0]]+" "+s[1]}).join(" · "):dzT("biblio.commentaires.titre")}),
     ...L.map(function(c){return r.jsxs("div",{"data-statut":c.statut,style:{display:"flex",alignItems:"flex-start",gap:8,fontSize:11.5},children:[
       r.jsx("span",{style:{display:"flex",gap:3},children:DZ_CM_STATUTS.map(function(s){var on=c.statut===s[0];return r.jsx("button",{type:"button","aria-pressed":on,
-        title:on?"Statut : "+s[1]:"Passer à « "+s[1]+" »",onClick:function(){statut(c,s[0])},style:{height:18,padding:"0 6px",fontSize:10,borderRadius:9,cursor:"pointer",
+        title:on?dzT("biblio.commentaires.statut")+s[1]:dzT("biblio.commentaires.passer_a",{statut:s[1]}),onClick:function(){statut(c,s[0])},style:{height:18,padding:"0 6px",fontSize:10,borderRadius:9,cursor:"pointer",
         border:"1px solid "+(on?s[2]:"var(--stroke)"),background:"transparent",color:on?s[2]:"var(--ink-muted)"},children:s[1]},s[0])})}),
       c.t_s!=null?r.jsx("span",{style:{color:"var(--cyan)",fontFamily:"var(--f-mono)"},children:dzInstantTxt(c.t_s)}):null,
       r.jsx("span",{style:{flex:1,color:"var(--ink-soft)",whiteSpace:"pre-wrap"},children:c.texte}),
       r.jsx("span",{style:{color:"var(--ink-muted)",fontSize:10},children:dzDuree(c.cree_le)}),
-      r.jsx("button",{type:"button",title:"Supprimer ce commentaire",onClick:function(){supprimer(c)},style:{background:"none",border:0,cursor:"pointer",color:"var(--ink-muted)"},children:"×"})]},c.id)}),
+      r.jsx("button",{type:"button",title:dzT("biblio.commentaires.supprimer_aide"),onClick:function(){supprimer(c)},style:{background:"none",border:0,cursor:"pointer",color:"var(--ink-muted)"},children:"×"})]},c.id)}),
     r.jsxs("div",{style:{display:"flex",gap:6,alignItems:"center"},children:[
-      son?r.jsx("input",{value:ins,placeholder:"mm:ss",title:"L’instant visé dans le son (facultatif)",onChange:function(e){setIns(e.target.value)},
+      son?r.jsx("input",{value:ins,placeholder:"mm:ss",title:dzT("biblio.commentaires.instant_aide"),onChange:function(e){setIns(e.target.value)},
         style:{width:56,height:24,padding:"0 6px",fontSize:11.5,background:"var(--bg-base)",color:"var(--ink-strong)",border:"1px solid var(--stroke)",borderRadius:6}}):null,
-      r.jsx("input",{value:txt,placeholder:"Ajouter un commentaire…",onChange:function(e){setTxt(e.target.value)},onKeyDown:function(e){if(e.key==="Enter"){e.preventDefault();ajouter()}},
+      r.jsx("input",{value:txt,placeholder:dzT("biblio.commentaires.saisie"),onChange:function(e){setTxt(e.target.value)},onKeyDown:function(e){if(e.key==="Enter"){e.preventDefault();ajouter()}},
         style:{flex:1,height:24,padding:"0 8px",fontSize:11.5,background:"var(--bg-base)",color:"var(--ink-strong)",border:"1px solid var(--stroke)",borderRadius:6}}),
-      r.jsx(K,{variant:"ghost",size:"sm",onClick:ajouter,disabled:vol||!txt.trim(),title:"Ajouter ce commentaire (statut « à revoir »)",children:"Commenter"})]}),
+      r.jsx(K,{variant:"ghost",size:"sm",onClick:ajouter,disabled:vol||!txt.trim(),title:dzT("biblio.commentaires.ajouter_aide"),children:dzT("biblio.commentaires.commenter")})]}),
     msg?r.jsx("span",{style:{fontSize:10.5,color:"var(--red)"},children:msg}):null]})}
 /* ── fin Bibliothèque #82 A */
 /* ── Bibliothèque #82 PR B (plan-library T15 + décision du 04/10) — la LISTE triable, les tris RÉPARÉS, l’ÉTAT d’un projet.
@@ -10499,7 +10499,7 @@ function dzOctetsDe(z){if(z&&typeof z.octets==="number")return z.octets;var m=/^
   if(!m)return 0;var u=m[2].toUpperCase().replace("O","B");return Number(m[1])*(u==="GB"?1073741824:u==="MB"?1048576:u==="KB"?1024:1)}
 function dzCmpTaille(a,b){return dzOctetsDe(b)-dzOctetsDe(a)}
 function dzCmpRecent(a,b){return(Number(b&&b.mtime)||0)-(Number(a&&a.mtime)||0)}
-var DZ_LISTE_COLS=[["nom","Nom"],["source","Source"],["octets","Taille"],["mtime","Date"],["dims","Dimensions"],["tags","Tags"],["note","Note"],["fav","Favori"],["licence","Licence"],["teinte","Teinte"]];
+var DZ_LISTE_COLS=[["nom",dzT("biblio.liste.col.nom")],["source",dzT("biblio.liste.col.source")],["octets",dzT("biblio.liste.col.taille")],["mtime",dzT("biblio.liste.col.date")],["dims",dzT("biblio.liste.col.dimensions")],["tags",dzT("biblio.liste.col.tags")],["note",dzT("biblio.liste.col.note")],["fav",dzT("biblio.liste.col.favori")],["licence",dzT("biblio.liste.col.licence")],["teinte",dzT("biblio.liste.col.teinte")]];
 function dzListeVal(z,c){if(!z)return"";if(c==="nom")return String(z.name||"").toLowerCase();if(c==="octets")return dzOctetsDe(z);if(c==="mtime")return Number(z.mtime)||0;
   if(c==="dims")return(Number(z.larg)||0)*(Number(z.haut)||0);if(c==="tags")return(z.tags||[]).join(" ");if(c==="note")return Number(z.note)||0;if(c==="fav")return z.fav?1:0;
   return String(z[c]||"")}
@@ -10507,14 +10507,14 @@ function dzListeTri(L,t){if(!t||!t.col)return L||[];var s=t.desc?-1:1;return(L||
   return(x2<y?-1:x2>y?1:0)*s})}
 function DzListe({items,ouvrir}){var ts=x.useState({col:"",desc:!1}),tri=ts[0],setTri=ts[1];
   var L=dzListeTri(items,tri);
-  function entete(c){var on=tri.col===c[0];return r.jsx("th",{title:"Trier par "+c[1].toLowerCase()+(on?(tri.desc?" (décroissant)":" (croissant)"):""),
+  function entete(c){var on=tri.col===c[0];return r.jsx("th",{title:dzT("biblio.liste.trier_par",{col:c[1].toLowerCase()})+(on?(tri.desc?dzT("biblio.liste.decroissant"):dzT("biblio.liste.croissant")):""),
     onClick:function(){setTri({col:c[0],desc:on?!tri.desc:c[0]==="octets"||c[0]==="mtime"||c[0]==="note"||c[0]==="fav"})},
     style:{textAlign:"left",padding:"4px 8px",fontSize:11,fontWeight:500,cursor:"pointer",color:on?"var(--ink-strong)":"var(--ink-muted)",whiteSpace:"nowrap"},
     children:c[1]+(on?(tri.desc?" ▾":" ▴"):"")},c[0])}
   function cell(v,k){return r.jsx("td",{style:{padding:"4px 8px",fontSize:11.5,color:"var(--ink-soft)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:220},children:v},k)}
   return r.jsx("div",{"data-dz":"liste",style:{overflowX:"auto"},children:r.jsxs("table",{style:{width:"100%",borderCollapse:"collapse"},children:[
     r.jsx("thead",{children:r.jsxs("tr",{children:[r.jsx("th",{style:{width:40}},"apercu"),...DZ_LISTE_COLS.map(entete)]})}),
-    r.jsx("tbody",{children:L.map(function(z,i){return r.jsxs("tr",{onClick:function(){ouvrir(z)},title:"Ouvrir la fiche de « "+z.name+" »",
+    r.jsx("tbody",{children:L.map(function(z,i){return r.jsxs("tr",{onClick:function(){ouvrir(z)},title:dzT("biblio.liste.ouvrir_fiche",{nom:z.name}),
       style:{cursor:z.url?"pointer":"default",borderTop:"1px solid var(--stroke)"},children:[
       r.jsx("td",{style:{padding:"3px 8px"},children:z.kind==="image"&&z.url?r.jsx("img",{src:z.url,alt:"",style:{width:32,height:32,objectFit:"cover",borderRadius:3}}):r.jsx("span",{children:z.kind==="audio"?"🔊":z.kind==="render"?"🎬":"·"})},"a"),
       cell(z.name,"n"),cell(z.source||z.provider||"","s"),cell(z.octets!=null?dzOctets(z.octets):(z.size||""),"t"),cell(z.date||"","d"),
@@ -10523,17 +10523,17 @@ function DzListe({items,ouvrir}){var ts=x.useState({col:"",desc:!1}),tri=ts[0],s
       cell(z.teinte?r.jsxs("span",{children:[r.jsx("span",{style:{display:"inline-block",width:9,height:9,borderRadius:5,marginRight:5,background:z.couleur||"var(--ink-muted)"}}),z.teinte]}):"","e")]},z.name+"_"+i)})})]})})}
 function DzEtatProjet({pid}){var es=x.useState(null),e=es[0],setE=es[1],ms=x.useState(""),msg=ms[0],setMsg=ms[1];
   x.useEffect(function(){setE(null);setMsg("");if(!pid)return;fetch("/api/library/projets/"+encodeURIComponent(pid)+"/etat")
-    .then(function(R){return R.ok?R.json():Promise.reject(new Error("HTTP "+R.status))}).then(setE).catch(function(err){setMsg("État indisponible : "+String(err&&err.message||err))})},[pid]);
+    .then(function(R){return R.ok?R.json():Promise.reject(new Error("HTTP "+R.status))}).then(setE).catch(function(err){setMsg(dzT("biblio.projets.etat.indisponible")+String(err&&err.message||err))})},[pid]);
   if(msg)return r.jsx("span",{style:{fontSize:11,color:"var(--red)",flexBasis:"100%"},children:msg});
-  if(!e)return r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)",flexBasis:"100%"},children:"État…"});
-  var cols=[["monte","Monté","Un rendu terminé l’utilise, ou c’est un rendu terminé"],["publie","Publié","Un post publié l’utilise"],
-    ["imprime","Imprimé","Il a nourri une production 3D de l’atelier (version imprimable)"],["inutilise","Inutilisé","Rien de ce qui précède : à monter, publier ou ranger"]];
+  if(!e)return r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)",flexBasis:"100%"},children:dzT("biblio.projets.etat.chargement")});
+  var cols=[["monte",dzT("biblio.projets.etat.monte"),dzT("biblio.projets.etat.monte_aide")],["publie",dzT("biblio.projets.etat.publie"),dzT("biblio.projets.etat.publie_aide")],
+    ["imprime",dzT("biblio.projets.etat.imprime"),dzT("biblio.projets.etat.imprime_aide")],["inutilise",dzT("biblio.projets.etat.inutilise"),dzT("biblio.projets.etat.inutilise_aide")]];
   return r.jsx("div",{"data-dz":"etat-projet",style:{flexBasis:"100%",display:"grid",gridTemplateColumns:"repeat(4, minmax(0, 1fr))",gap:8,marginTop:4},
     children:cols.map(function(c){var l=e[c[0]]||[];return r.jsxs("div",{title:c[2],style:{border:"1px solid var(--stroke)",borderRadius:6,padding:"6px 8px",minWidth:0},children:[
       r.jsx("div",{style:{fontSize:11,color:"var(--ink-muted)",marginBottom:4},children:c[1]+" ("+l.length+")"}),
       ...l.slice(0,12).map(function(z){return r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"},
         children:(z.kind==="render"?"🎬 ":z.kind==="audio"?"🔊 ":"")+z.ref},z.ref)}),
-      l.length>12?r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-muted)"},children:"… et "+(l.length-12)+" autre(s)"}):null]},c[0])})})}
+      l.length>12?r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-muted)"},children:dzT("biblio.projets.etat.autres",{n:l.length-12})}):null]},c[0])})})}
 function dzVueLue(){try{return localStorage.getItem("dz_biblio_vue")==="liste"?"liste":"grille"}catch(e){return"grille"}}
 function dzVueEcrite(v){try{localStorage.setItem("dz_biblio_vue",v)}catch(e){}}
 /* ── fin Bibliothèque #82 B */
@@ -10542,8 +10542,8 @@ function dzVueEcrite(v){try{localStorage.setItem("dz_biblio_vue",v)}catch(e){}}
    prompts, commentaires, noms) et « CLIP » (sémantique, local, PR D : grisé d’ici là) ; les légendes par un modèle
    vision PAYANT : le prix est ANNONCÉ par le dialogue maison avant tout appel, qui dit aussi que les images partent
    chez Google ; le plafond « bibliothèque » reste la garde du serveur ; le travail se suit (faits / total). */
-var DZ_MOTEURS=[["texte","Texte — légendes, tags, prompts, commentaires"],["clip","CLIP — par le sens (en anglais, sur ce PC)"]];
-function dzUsdLeg(v){return v==null?"prix inconnu":"≈ "+(v<0.01?Number(v).toFixed(4):Number(v).toFixed(2))+" $"}
+var DZ_MOTEURS=[["texte",dzT("biblio.recherche.moteur.texte")],["clip",dzT("biblio.recherche.moteur.clip")]];
+function dzUsdLeg(v){return v==null?dzT("biblio.fiche.prix_inconnu"):"≈ "+(v<0.01?Number(v).toFixed(4):Number(v).toFixed(2))+" $"}
 function DzRecherche({liste,ouvrir}){var qs=x.useState(""),q=qs[0],setQ=qs[1],mo=x.useState("texte"),moteur=mo[0],setMoteur=mo[1],rs=x.useState(null),res=rs[0],setRes=rs[1],
     ms=x.useState(""),msg=ms[0],setMsg=ms[1],ds=x.useState(null),dv=ds[0],setDv=ds[1],es=x.useState(null),et=es[0],setEt=es[1],verrou=x.useRef(!1),
     cs=x.useState(null),clip=cs[0],setClip=cs[1];
@@ -10556,43 +10556,43 @@ function DzRecherche({liste,ouvrir}){var qs=x.useState(""),q=qs[0],setQ=qs[1],mo
     fetch("/api/library/recherche?q="+encodeURIComponent(t)+"&moteur="+encodeURIComponent(moteur)).then(function(R){return R.json().catch(function(){return{}}).then(function(d){
       if(!R.ok)throw new Error(d.detail||("HTTP "+R.status));return d})}).then(setRes).catch(function(e){setRes(null);setMsg(String(e&&e.message||e))})}
   async function legender(){if(verrou.current||!dv||!dv.n)return;verrou.current=!0;try{
-      if(!await window.__dzDialogue.confirmer("Légender "+dv.n+" image(s) avec "+dv.modele+" : "+dzUsdLeg(dv.usd)+" (PAYANT, plafond de dépense appliqué). Chaque image est envoyée en vignette à Google pour être décrite ; la légende reste sur ce PC et nourrit la recherche.",
-        {titre:"Légendes",ok:"Légender ("+dzUsdLeg(dv.usd)+")"}))return;
+      if(!await window.__dzDialogue.confirmer(dzT("biblio.recherche.legender_q",{n:dv.n,modele:dv.modele,prix:dzUsdLeg(dv.usd)}),
+        {titre:dzT("biblio.recherche.legendes"),ok:dzT("biblio.recherche.legender",{prix:dzUsdLeg(dv.usd)})}))return;
       var R=await fetch("/api/library/legendes",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});var d=await R.json().catch(function(){return{}});
-      if(!R.ok){setMsg("Refusé : "+String(d.detail&&d.detail.message||d.detail||("HTTP "+R.status)));return}
-      setEt({en_cours:d.lance>0,total:d.lance,faits:0,n_erreurs:0,arret:""});setMsg(d.lance?"":"Rien à légender.")}finally{verrou.current=!1}}
+      if(!R.ok){setMsg(dzT("biblio.recherche.refuse")+String(d.detail&&d.detail.message||d.detail||("HTTP "+R.status)));return}
+      setEt({en_cours:d.lance>0,total:d.lance,faits:0,n_erreurs:0,arret:""});setMsg(d.lance?"":dzT("biblio.recherche.rien"))}finally{verrou.current=!1}}
   var parNom={};(liste||[]).forEach(function(z){if(z&&z.name)parNom[z.name]=z});
   var champ={height:26,padding:"0 8px",fontSize:12,background:"var(--bg-base)",color:"var(--ink-strong)",border:"1px solid var(--stroke)",borderRadius:6};
   return r.jsxs("div",{className:"dz-recherche","data-dz":"recherche",style:{display:"flex",flexDirection:"column",gap:8,marginBottom:14},children:[
     r.jsxs("div",{style:{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"},children:[
-      r.jsx("input",{value:q,placeholder:"Chercher : phare, tempête, bleu…",onChange:function(e){setQ(e.target.value)},onKeyDown:function(e){if(e.key==="Enter"){e.preventDefault();chercher()}},
+      r.jsx("input",{value:q,placeholder:dzT("biblio.recherche.saisie"),onChange:function(e){setQ(e.target.value)},onKeyDown:function(e){if(e.key==="Enter"){e.preventDefault();chercher()}},
         style:Object.assign({flex:1,minWidth:180},champ)}),
-      r.jsx("select",{value:moteur,title:"Le moteur de recherche",onChange:function(e){setMoteur(e.target.value)},style:champ,
+      r.jsx("select",{value:moteur,title:dzT("biblio.recherche.moteur_aide"),onChange:function(e){setMoteur(e.target.value)},style:champ,
         children:DZ_MOTEURS.map(function(m){var inactif=m[0]==="clip"&&!(clip&&clip.installe&&clip.indexees);
-          return r.jsx("option",{value:m[0],disabled:inactif,children:m[1]+(inactif?(clip&&clip.installe?" — à indexer":" — à installer"):"")},m[0])})}),
-      r.jsx(K,{variant:"outline",size:"sm",onClick:chercher,disabled:!q.trim(),title:"Chercher dans la Bibliothèque (sur ce PC, gratuit)",children:"Chercher"})]}),
+          return r.jsx("option",{value:m[0],disabled:inactif,children:m[1]+(inactif?(clip&&clip.installe?dzT("biblio.recherche.a_indexer"):dzT("biblio.recherche.a_installer")):"")},m[0])})}),
+      r.jsx(K,{variant:"outline",size:"sm",onClick:chercher,disabled:!q.trim(),title:dzT("biblio.recherche.chercher_aide"),children:dzT("biblio.recherche.chercher")})]}),
     msg?r.jsx("span",{style:{fontSize:11,color:"var(--red)"},children:msg}):null,
-    res?r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)"},children:res.n?res.n+" image(s)"+(res.n>res.resultats.length?" (les "+res.resultats.length+" premières)":""):"Aucune image ne correspond."}):null,
+    res?r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)"},children:res.n?dzT("biblio.recherche.n_images",{n:res.n})+(res.n>res.resultats.length?dzT("biblio.recherche.premieres",{n:res.resultats.length}):""):dzT("biblio.recherche.aucune")}):null,
     res&&res.resultats.length?r.jsx("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(150px, 1fr))",gap:8},children:res.resultats.map(function(z){
-      var it=parNom[z.filename];return r.jsxs("button",{type:"button",disabled:!it,title:it?"Ouvrir la fiche — trouvé dans : "+z.champs.join(", "):"« "+z.filename+" » n’est pas dans la liste chargée",
+      var it=parNom[z.filename];return r.jsxs("button",{type:"button",disabled:!it,title:it?dzT("biblio.recherche.ouvrir_fiche",{champs:z.champs.join(", ")}):dzT("biblio.recherche.hors_liste",{nom:z.filename}),
         onClick:function(){if(it)ouvrir(it)},style:{display:"flex",flexDirection:"column",gap:4,padding:6,border:"1px solid var(--stroke)",borderRadius:6,background:"var(--bg-panel)",
           cursor:it?"pointer":"default",textAlign:"left",color:"var(--ink-soft)"},children:[
         r.jsx("img",{src:"/api/images/"+encodeURIComponent(z.filename),alt:"",style:{width:"100%",height:90,objectFit:"cover",borderRadius:4}}),
         r.jsx("span",{style:{fontSize:11,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"},children:z.filename}),
         z.extrait?r.jsx("span",{style:{fontSize:10.5,color:"var(--ink-muted)"},children:z.extrait}):null]},z.filename)})}):null,
     dv?r.jsxs("div",{"data-dz":"legendes",style:{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",fontSize:11.5,color:"var(--ink-soft)",paddingTop:6,borderTop:"1px solid var(--stroke)"},children:[
-      r.jsx("span",{children:et&&et.en_cours?"Légendage : "+et.faits+" / "+et.total+(et.n_erreurs?" · "+et.n_erreurs+" erreur(s)":""):
-        dv.n?dv.n+" image(s) sans légende — "+dzUsdLeg(dv.usd)+" avec "+dv.modele+" (les images sont envoyées à Google)":"Toutes les images ont une légende."}),
-      et&&!et.en_cours&&et.arret?r.jsx("span",{style:{color:"var(--red)"},children:"Arrêté : "+et.arret}):null,
+      r.jsx("span",{children:et&&et.en_cours?dzT("biblio.recherche.legendage",{faits:et.faits,total:et.total})+(et.n_erreurs?dzT("biblio.recherche.erreurs",{n:et.n_erreurs}):""):
+        dv.n?dzT("biblio.recherche.sans_legende",{n:dv.n,prix:dzUsdLeg(dv.usd),modele:dv.modele}):dzT("biblio.recherche.toutes")}),
+      et&&!et.en_cours&&et.arret?r.jsx("span",{style:{color:"var(--red)"},children:dzT("biblio.recherche.arrete")+et.arret}):null,
       dv.n&&!(et&&et.en_cours)?r.jsx(K,{variant:"outline",size:"sm",onClick:legender,disabled:!dv.cle,
-        title:dv.cle?"Décrire ces images par "+dv.modele+" — PAYANT, prix redemandé avant":"Clé Gemini absente (Réglages) : rien ne peut être légendé",
-        children:"Légender ("+dzUsdLeg(dv.usd)+")"}):null]}):null,
+        title:dv.cle?dzT("biblio.recherche.decrire_aide",{modele:dv.modele}):dzT("biblio.recherche.sans_cle"),
+        children:dzT("biblio.recherche.legender",{prix:dzUsdLeg(dv.usd)})}):null]}):null,
     r.jsx(DzClipBloc,{et:clip,setEt:setClip})]})}
 /* ── fin Bibliothèque #82 C */
 /* ── Bibliothèque #82 PR D (plan-library T12-T13, 04/10/2026) — CLIP en LOCAL : le bloc d’installation et d’index
    (dans la Recherche) et « ≈ Semblables » (sous la fiche). Décision de l’utilisateur (04/10) : version légère ≈ 186 Mo,
    installée à part ; rien ne sort du PC pour chercher. CLIP comprend l’ANGLAIS : le sélecteur le dit. */
-function dzMo(o){return(Number(o)/1048576).toFixed(0)+" Mo"}
+function dzMo(o){return(Number(o)/1048576).toFixed(0)+dzT("biblio.unites.mo")}
 function DzClipBloc({et,setEt}){var vr=x.useRef(!1),ms=x.useState(""),msg=ms[0],setMsg=ms[1];
   function relire(){return fetch("/api/library/clip/etat").then(function(R){return R.ok?R.json():null}).then(function(e){if(e)setEt(e)}).catch(function(){})}
   var actif=!!(et&&((et.installation&&et.installation.en_cours)||(et.index&&et.index.en_cours)));
@@ -10600,19 +10600,19 @@ function DzClipBloc({et,setEt}){var vr=x.useRef(!1),ms=x.useState(""),msg=ms[0],
   async function poster(url,txt,ok){if(vr.current)return;vr.current=!0;setMsg("");try{
       if(txt&&!await window.__dzDialogue.confirmer(txt,{titre:"CLIP",ok:ok}))return;
       var R=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});var d=await R.json().catch(function(){return{}});
-      if(!R.ok){setMsg("Refusé : "+String(d.detail||("HTTP "+R.status)));return}await relire()}finally{vr.current=!1}}
+      if(!R.ok){setMsg(dzT("biblio.clip.refuse")+String(d.detail||("HTTP "+R.status)));return}await relire()}finally{vr.current=!1}}
   if(!et)return null;var ins=et.installation||{},idx=et.index||{};
-  var lbl=!et.installe?(ins.en_cours?"Installation de CLIP : "+dzMo(ins.fait)+" / "+dzMo(ins.total)+(ins.etape?" — "+ins.etape:""):
-      "CLIP n’est pas installé — "+dzMo(et.octets)+" à télécharger (PyPI et Hugging Face), gratuit, tout reste sur ce PC")
-    :idx.en_cours?"Index CLIP : "+idx.faits+" / "+idx.total:"CLIP : "+et.indexees+" image(s) indexée(s)"+(et.a_indexer?" · "+et.a_indexer+" à indexer":"");
+  var lbl=!et.installe?(ins.en_cours?dzT("biblio.clip.installation",{fait:dzMo(ins.fait),total:dzMo(ins.total)})+(ins.etape?" — "+ins.etape:""):
+      dzT("biblio.clip.absent",{taille:dzMo(et.octets)}))
+    :idx.en_cours?dzT("biblio.clip.index",{faits:idx.faits,total:idx.total}):dzT("biblio.clip.indexees",{n:et.indexees})+(et.a_indexer?dzT("biblio.clip.a_indexer",{n:et.a_indexer}):"");
   return r.jsxs("div",{"data-dz":"clip",style:{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",fontSize:11.5,color:"var(--ink-soft)",paddingTop:6,borderTop:"1px solid var(--stroke)"},children:[
     r.jsx("span",{children:lbl}),
-    ins.erreur&&!ins.en_cours?r.jsx("span",{style:{color:"var(--red)"},children:"Installation échouée : "+ins.erreur}):null,
-    !et.installe&&!ins.en_cours?r.jsx(K,{variant:"outline",size:"sm",title:"Télécharger et installer CLIP ("+dzMo(et.octets)+") — versions figées, empreintes vérifiées",
-      onClick:function(){poster("/api/library/clip/installer","Installer CLIP : "+dzMo(et.octets)+" à télécharger (onnxruntime, numpy, tokenizers depuis PyPI ; modèle CLIP ViT-B/32 quantifié depuis Hugging Face). Gratuit ; installé à part, dans vos données ; ensuite, la recherche par le sens se fait sans rien envoyer.","Installer ("+dzMo(et.octets)+")")},
-      children:"Installer CLIP ("+dzMo(et.octets)+")"}):null,
-    et.installe&&et.a_indexer&&!idx.en_cours?r.jsx(K,{variant:"outline",size:"sm",title:"Calculer les vecteurs des images nouvelles ou modifiées (sur ce PC, gratuit)",
-      onClick:function(){poster("/api/library/clip/indexer",null,null)},children:"Indexer ("+et.a_indexer+")"}):null,
+    ins.erreur&&!ins.en_cours?r.jsx("span",{style:{color:"var(--red)"},children:dzT("biblio.clip.echec")+ins.erreur}):null,
+    !et.installe&&!ins.en_cours?r.jsx(K,{variant:"outline",size:"sm",title:dzT("biblio.clip.installer_aide",{taille:dzMo(et.octets)}),
+      onClick:function(){poster("/api/library/clip/installer",dzT("biblio.clip.installer_q",{taille:dzMo(et.octets)}),dzT("biblio.clip.installer",{taille:dzMo(et.octets)}))},
+      children:dzT("biblio.clip.installer_clip",{taille:dzMo(et.octets)})}):null,
+    et.installe&&et.a_indexer&&!idx.en_cours?r.jsx(K,{variant:"outline",size:"sm",title:dzT("biblio.clip.indexer_aide"),
+      onClick:function(){poster("/api/library/clip/indexer",null,null)},children:dzT("biblio.clip.indexer",{n:et.a_indexer})}):null,
     msg?r.jsx("span",{style:{color:"var(--red)"},children:msg}):null]})}
 function DzSemblables({m,liste,ouvrir}){var ls=x.useState(null),L=ls[0],setL=ls[1],ms=x.useState(""),msg=ms[0],setMsg=ms[1],vr=x.useRef(!1);
   var nom=m&&!m.jobId&&m.kind==="image"?m.name:null;
@@ -10620,15 +10620,15 @@ function DzSemblables({m,liste,ouvrir}){var ls=x.useState(null),L=ls[0],setL=ls[
   if(!nom)return null;
   async function voir(){if(vr.current)return;vr.current=!0;setMsg("");try{
       var R=await fetch("/api/library/semblables/"+encodeURIComponent(nom));var d=await R.json().catch(function(){return{}});
-      if(!R.ok){setMsg(R.status===503?"CLIP n’est pas installé : 🔎 Recherche → Installer CLIP.":String(d.detail||("HTTP "+R.status)));return}
+      if(!R.ok){setMsg(R.status===503?dzT("biblio.semblables.sans_clip"):String(d.detail||("HTTP "+R.status)));return}
       setL(d.semblables||[])}finally{vr.current=!1}}
   var parNom={};(liste||[]).forEach(function(z){if(z&&z.name)parNom[z.name]=z});
   return r.jsxs("div",{"data-dz":"semblables",style:{display:"flex",flexDirection:"column",gap:6,marginTop:8},children:[
-    r.jsx("div",{children:r.jsx(K,{variant:"ghost",size:"sm",onClick:voir,title:"Les images les plus proches de celle-ci, par CLIP (sur ce PC)",children:"≈ Images semblables"})}),
+    r.jsx("div",{children:r.jsx(K,{variant:"ghost",size:"sm",onClick:voir,title:dzT("biblio.semblables.aide"),children:dzT("biblio.semblables.bouton")})}),
     msg?r.jsx("span",{style:{fontSize:11,color:"var(--red)"},children:msg}):null,
-    L&&!L.length?r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)"},children:"Aucune image indexée à comparer (indexez d’abord)."}):null,
+    L&&!L.length?r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)"},children:dzT("biblio.semblables.aucune")}):null,
     L&&L.length?r.jsx("div",{style:{display:"flex",gap:6,flexWrap:"wrap"},children:L.slice(0,12).map(function(z){var it=parNom[z.filename];
-      return r.jsx("button",{type:"button",disabled:!it,onClick:function(){if(it)ouvrir(it)},title:z.filename+" — proximité "+Math.round(z.score*100)+" %",
+      return r.jsx("button",{type:"button",disabled:!it,onClick:function(){if(it)ouvrir(it)},title:z.filename+dzT("biblio.semblables.proximite",{p:Math.round(z.score*100)}),
         style:{padding:0,border:"1px solid var(--stroke)",borderRadius:4,background:"none",cursor:it?"pointer":"default"},
         children:r.jsx("img",{src:"/api/images/"+encodeURIComponent(z.filename),alt:"",style:{width:56,height:56,objectFit:"cover",display:"block"}})},z.filename)})}):null]})}
 /* ── fin Bibliothèque #82 D */
@@ -10661,16 +10661,16 @@ function dzProjMenu(m){var ref=dzProjCle(m),kind=dzProjKind(m),nom=(m&&m.name)||
   return Promise.all([dzProjApi("/api/library/projets"),dzProjApi("/api/library/projets?ref="+encodeURIComponent(ref))]).then(function(rs){
     var dedans={};((rs[1]&&rs[1].projets)||[]).forEach(function(p){dedans[p.id]=1});
     var items=((rs[0]&&rs[0].projets)||[]).map(function(p){var on=!!dedans[p.id];
-      return{lbl:(on?"✓ ":"📁 ")+p.nom+(on?" — retirer":""),fn:function(){
-        dzProjItems(p.id,ref,kind,on?"DELETE":"POST").then(function(){dzToastSur((on?"Retiré de « ":"Rangé dans « ")+p.nom+" »");dzProjSignal()})
-          .catch(function(e){dzToastSur("Projet : "+dzProjMsg(e))})}}});
-    items.push({lbl:"＋ Nouveau projet…",fn:function(){
-      return window.__dzDialogue.saisir("Nom du nouveau projet :",{titre:"Nouveau projet",ok:"Créer et ranger"}).then(function(v){
+      return{lbl:(on?"✓ ":"📁 ")+p.nom+(on?dzT("biblio.projets.retirer"):""),fn:function(){
+        dzProjItems(p.id,ref,kind,on?"DELETE":"POST").then(function(){dzToastSur((on?dzT("biblio.projets.retire_de",{nom:p.nom}):dzT("biblio.projets.range_dans",{nom:p.nom})));dzProjSignal()})
+          .catch(function(e){dzToastSur(dzT("biblio.projets.erreur")+dzProjMsg(e))})}}});
+    items.push({lbl:dzT("biblio.projets.nouveau_menu"),fn:function(){
+      return window.__dzDialogue.saisir(dzT("biblio.projets.nom_nouveau"),{titre:dzT("biblio.projets.nouveau_titre"),ok:dzT("biblio.projets.creer_ranger")}).then(function(v){
         if(!v||!String(v).trim())return;
         return dzProjApi("/api/library/projets",{method:"POST",headers:DZ_PJ_JSON,body:JSON.stringify({nom:v})}).then(function(p){
-          return dzProjItems(p.id,ref,kind,"POST").then(function(){dzToastSur("Rangé dans le nouveau projet « "+p.nom+" »");dzProjSignal()})})})
-        .catch(function(e){dzToastSur("Projet : "+dzProjMsg(e))})}});
-    __dzSendMenu(items,"Ranger « "+nom+" » dans un projet…")}).catch(function(e){dzToastSur("Projets injoignables : "+dzProjMsg(e))})}
+          return dzProjItems(p.id,ref,kind,"POST").then(function(){dzToastSur(dzT("biblio.projets.range_nouveau",{nom:p.nom}));dzProjSignal()})})})
+        .catch(function(e){dzToastSur(dzT("biblio.projets.erreur")+dzProjMsg(e))})}});
+    __dzSendMenu(items,dzT("biblio.projets.ranger_titre",{nom:nom}))}).catch(function(e){dzToastSur(dzT("biblio.projets.injoignables")+dzProjMsg(e))})}
 function DzProjetsBar({f,setF}){
   var ls=x.useState([]),liste=ls[0],setListe=ls[1],as=x.useState({id:""}),actif=as[0],setActif=as[1],ms=x.useState(""),msg=ms[0],setMsg=ms[1],
     es=x.useState(!1),etatOn=es[0],setEtatOn=es[1];
@@ -10681,7 +10681,7 @@ function DzProjetsBar({f,setF}){
     return function(){window.removeEventListener("dz-projets",h)}},[f&&f.id]);
   function agir(p){setMsg("");return p.then(function(){dzProjSignal()}).catch(function(e){setMsg(dzProjMsg(e))})}
   function choisir(id){setMsg("");if(!id){setF(null);return}dzProjCharger(id).then(setF).catch(function(e){setMsg(dzProjMsg(e))})}
-  function creer(){window.__dzDialogue.saisir("Nom du nouveau projet :",{titre:"Nouveau projet",ok:"Créer"}).then(function(v){
+  function creer(){window.__dzDialogue.saisir(dzT("biblio.projets.nom_nouveau"),{titre:dzT("biblio.projets.nouveau_titre"),ok:dzT("biblio.projets.creer")}).then(function(v){
       if(!v||!String(v).trim())return;
       return dzProjApi("/api/library/projets",{method:"POST",headers:DZ_PJ_JSON,body:JSON.stringify({nom:v})}).then(function(p){dzProjSignal();choisir(p.id)})})
     .catch(function(e){setMsg(dzProjMsg(e))})}
@@ -10689,30 +10689,30 @@ function DzProjetsBar({f,setF}){
   var bouton=function(lbl,titre,fn,on){return r.jsx("button",{type:"button",title:titre,onClick:fn,"aria-pressed":!!on,
     style:{height:24,padding:"0 9px",fontSize:11,borderRadius:12,cursor:"pointer",border:"1px solid "+(on?"var(--amber,#f0b429)":"var(--stroke)"),
       background:on?"var(--bg-panel-2)":"transparent",color:on?"var(--ink-strong)":"var(--ink-soft)"},children:lbl})};
-  var options=[r.jsx("option",{value:"",children:"Toute la Bibliothèque"},"")].concat(liste.map(function(p){
-    return r.jsx("option",{value:p.id,children:p.nom+" ("+p.n+")"+(p.epingle?" · 📱":"")+(p.id===actif.id?" · actif":"")},p.id)}));
-  var ch=[r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)"},children:"Projet"}),
-    r.jsx("select",{value:(f&&f.id)||"",onChange:function(e){choisir(e.target.value)},title:"Regarder un projet : tous les onglets ne montrent plus que ses assets",
+  var options=[r.jsx("option",{value:"",children:dzT("biblio.projets.tout")},"")].concat(liste.map(function(p){
+    return r.jsx("option",{value:p.id,children:p.nom+" ("+p.n+")"+(p.epingle?" · 📱":"")+(p.id===actif.id?dzT("biblio.projets.actif_suffixe"):"")},p.id)}));
+  var ch=[r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)"},children:dzT("biblio.projets.projet")}),
+    r.jsx("select",{value:(f&&f.id)||"",onChange:function(e){choisir(e.target.value)},title:dzT("biblio.projets.choisir_aide"),
       style:{height:26,minWidth:180,maxWidth:280,padding:"0 6px",fontSize:12,background:"var(--bg-base)",color:"var(--ink-strong)",
         border:"1px solid var(--stroke)",borderRadius:6},children:options})];
   if(f&&f.id){
-    ch.push(bouton(ici?"● Rangement automatique ici":"○ Ranger ici automatiquement",
-      ici?"Tout ce qui est produit entre dans ce projet. Cliquer pour arrêter.":"Faire de ce projet le projet ACTIF : images, sons, rendus, 3D et sprites produits ensuite y entrent d’eux-mêmes.",
+    ch.push(bouton(ici?dzT("biblio.projets.auto_ici"):dzT("biblio.projets.auto_activer"),
+      ici?dzT("biblio.projets.auto_ici_aide"):dzT("biblio.projets.auto_activer_aide"),
       function(){agir(dzProjApi("/api/library/projets/actif",{method:"PUT",headers:DZ_PJ_JSON,body:JSON.stringify({id:ici?"":f.id})}))},ici));
-    ch.push(bouton(f.epingle?"📱 Épinglé sur le téléphone":"📱 Épingler sur le téléphone",
-      "Un projet épinglé descend EN ENTIER sur le téléphone appairé (ses images).",
+    ch.push(bouton(f.epingle?dzT("biblio.projets.epingle"):dzT("biblio.projets.epingler"),
+      dzT("biblio.projets.epingler_aide"),
       function(){agir(dzProjApi("/api/library/projets/"+encodeURIComponent(f.id),{method:"PATCH",headers:DZ_PJ_JSON,body:JSON.stringify({epingle:!f.epingle})}))},f.epingle));
-    ch.push(bouton("✎ Renommer","Renommer ce projet",function(){window.__dzDialogue.saisir("Nouveau nom du projet :",{titre:"Renommer",valeur:f.nom,ok:"Renommer"})
+    ch.push(bouton(dzT("biblio.projets.renommer_bouton"),dzT("biblio.projets.renommer_aide"),function(){window.__dzDialogue.saisir(dzT("biblio.projets.nouveau_nom"),{titre:dzT("biblio.projets.renommer"),valeur:f.nom,ok:dzT("biblio.projets.renommer")})
       .then(function(v){if(v&&String(v).trim()&&v!==f.nom)return agir(dzProjApi("/api/library/projets/"+encodeURIComponent(f.id),
         {method:"PATCH",headers:DZ_PJ_JSON,body:JSON.stringify({nom:v})}))})}));
-    ch.push(bouton("▦ État","Ce qui, dans ce projet, est monté, publié, imprimé — ou inutilisé",function(){setEtatOn(!etatOn)},etatOn));   /* tâche #82 */
-    ch.push(bouton("Supprimer","Supprimer le projet (ses fichiers et rendus restent dans la Bibliothèque)",function(){
-      window.__dzDialogue.confirmer("Supprimer le projet « "+f.nom+" » ? Ses "+f.n+" asset(s) restent dans la Bibliothèque ; seul le classement disparaît.")
+    ch.push(bouton(dzT("biblio.projets.etat_bouton"),dzT("biblio.projets.etat_aide"),function(){setEtatOn(!etatOn)},etatOn));   /* tâche #82 */
+    ch.push(bouton(dzT("biblio.projets.supprimer"),dzT("biblio.projets.supprimer_aide"),function(){
+      window.__dzDialogue.confirmer(dzT("biblio.projets.supprimer_q",{nom:f.nom,n:f.n}))
         .then(function(oui){if(oui)return agir(dzProjApi("/api/library/projets/"+encodeURIComponent(f.id),{method:"DELETE"}).then(function(){setF(null)}))})}));}
-  ch.push(bouton("＋ Nouveau projet","Créer un projet (campagne, chapitre, deck…) — il peut contenir images, sons, rendus, 3D et sprites",creer));
-  if(actif.id&&!ici)ch.push(r.jsxs("span",{title:"Projet actif : ce qui est produit y entre",style:{fontSize:11,color:"var(--amber)",
-      display:"inline-flex",alignItems:"center",gap:4},children:["● Rangement auto : « "+actif.nom+" »",
-    r.jsx("button",{type:"button",title:"Arrêter le rangement automatique",onClick:function(){agir(dzProjApi("/api/library/projets/actif",
+  ch.push(bouton(dzT("biblio.projets.nouveau"),dzT("biblio.projets.nouveau_aide"),creer));
+  if(actif.id&&!ici)ch.push(r.jsxs("span",{title:dzT("biblio.projets.actif_aide"),style:{fontSize:11,color:"var(--amber)",
+      display:"inline-flex",alignItems:"center",gap:4},children:[dzT("biblio.projets.auto_actif",{nom:actif.nom}),
+    r.jsx("button",{type:"button",title:dzT("biblio.projets.auto_arreter"),onClick:function(){agir(dzProjApi("/api/library/projets/actif",
       {method:"PUT",headers:DZ_PJ_JSON,body:JSON.stringify({id:""})}))},style:{background:"none",border:0,cursor:"pointer",color:"var(--ink-muted)",fontSize:11},children:"✕"})]}));
   if(msg)ch.push(r.jsx("span",{style:{fontSize:10.5,color:"var(--red)",flexBasis:"100%"},children:msg}));
   if(f&&f.id&&etatOn)ch.push(r.jsx(DzEtatProjet,{pid:f.id},"etat"));

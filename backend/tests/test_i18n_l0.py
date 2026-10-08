@@ -176,12 +176,14 @@ check("2.2 clés zone.objet.role, fr et en non vides", toutes and not mauvais, m
 check("2.3 mêmes {variables} des deux côtés", not vars_ko, vars_ko)
 fr_dup = {}
 for k, v in toutes.items():
+    if isinstance(v, dict) and v.get("contexte"):
+        continue                     # t141 : entrée contextuelle, réservée à dzT(clé), ignorée par la surcouche
     fr_dup.setdefault(v.get("fr"), set()).add(v.get("en"))
 check("2.4 un même texte français a UNE seule traduction (sinon la surcouche serait ambiguë)",
       all(len(s) == 1 for s in fr_dup.values()), [f for f, s in fr_dup.items() if len(s) > 1][:5])
 # 2.6 (t137) : aucune chaîne — le texte anglais d'une clé n'est jamais le français d'une AUTRE clé traduit autrement.
 # Sinon la surcouche, qui repasse sur ce qu'elle vient d'écrire, retraduirait l'anglais (A -> B -> C, ou A -> B -> A).
-chaines = sorted(k for k, v in toutes.items() if isinstance(v, dict) and v.get("en") != v.get("fr")
+chaines = sorted(k for k, v in toutes.items() if isinstance(v, dict) and not v.get("contexte") and v.get("en") != v.get("fr")
                  and v.get("en") in fr_dup and fr_dup[v.get("en")] != {v.get("en")})
 check("2.6 aucune chaîne de traduction (l'anglais d'une clé n'est le français d'aucune autre)", not chaines, chaines[:10])
 try:

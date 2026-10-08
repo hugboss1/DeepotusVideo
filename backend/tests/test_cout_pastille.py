@@ -129,9 +129,19 @@ _paires = getattr(P, "PATCHES", None) if P is not None else None
 check("patcher_expose_sa_table_de_patches",
       isinstance(_paires, list) and len(_paires) >= 3,
       repr(type(_paires)) + " " + str(len(_paires or [])))
+# t141 (08/10/2026) : la traduction L1 (maillon APRES dzcout) a pose des dzT("cle") dans le preambule L1 ; ce que le
+# PATCHER a livre se controle sur le bundle d'avant la traduction (exactement reversible : test_i18n_l1). Les ancres,
+# elles, restent consommees dans le bundle LIVRE (ci-dessous, sur S).
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _i18n_l1_aide as AIDE  # noqa: E402
+try:
+    S_AV = AIDE.avant_i18n(S)
+except Exception as e:
+    S_AV = temoin(e)
+    print(f"  ----  avant_i18n : {S_AV}")
 for _tag, _anc, _rep in (_paires or []):
-    check(f"bundle_porte_{_tag}", S.count(_rep) == 1,
-          f"remplacement x{S.count(_rep)} (want 1)")
+    check(f"bundle_porte_{_tag}", S_AV.count(_rep) == 1,
+          f"remplacement x{S_AV.count(_rep)} (want 1)")
     # Quand le remplacement ne REPREND pas l'ancre, elle doit avoir DISPARU :
     # sinon le patch a ete applique deux fois, ou pas au bon endroit.
     if _anc not in _rep:
@@ -270,10 +280,14 @@ check("prefixe_du_bundle_est_celui_du_backend",
       f"cle backend={CLE_BLANCHE!r} prefixe bundle={PREFIXE_BUNDLE!r}")
 
 _dir = pathlib.Path(TMP)
+# t141 (08/10/2026) : la pastille ecrit ses textes par dzT("cle") -> le prelude (dictionnaire + dzT en francais) vient
+# APRES `var window={}` (il y greffe le dictionnaire) ; les attentes en francais ci-dessous sont inchangees.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _i18n_l1_aide as AIDE  # noqa: E402
 (_dir / "cas.json").write_text(
     json.dumps([c for _n, c in CAS], ensure_ascii=False), encoding="utf-8")
 (_dir / "shim.js").write_text(
-    "var window={};\n" + CŒUR + "\n"
+    "var window={};\n" + AIDE.PRELUDE_DZT + CŒUR + "\n"
     "var cas=JSON.parse(require('fs').readFileSync("
     + json.dumps(str(_dir / "cas.json")) + ",'utf8'));\n"
     "console.log(JSON.stringify(cas.map(function(c){"

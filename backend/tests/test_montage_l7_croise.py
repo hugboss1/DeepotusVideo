@@ -85,6 +85,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, os.path.join(HERE, ".."))
 NODE = shutil.which("node")
+# t141 (08/10/2026) : la couche appelle dzT AU CHARGEMENT (constantes de la Bibliotheque traduite) ;
+# AIDE.PRELUDE_DZT pose le dictionnaire et dzT en francais, APRES le `var window={}` des shims (sinon ecrase).
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _i18n_l1_aide as AIDE
 
 ok = fail = 0
 
@@ -167,7 +171,7 @@ out.tp=T.payload({tracks:[{id:"v1",kind:"video"},{id:"s1",kind:"subs"},{id:"s2",
 out.kp=T.kmPreset("resolve");
 console.log(JSON.stringify(out));
 """
-_shim = '"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + JS + "\n" + _PROBE_JS
+_shim = '"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + AIDE.PRELUDE_DZT + JS + "\n" + _PROBE_JS
 D, _dwhy = node_json("l7x_couche.js", _shim)
 check("x0_la_couche_s_execute_sous_node_et_rend_un_objet_json_avec_les_six_cles_de_la_sonde",
       bool(D) and all(k in D for k in ("ovx", "boringDef", "bo_defaut", "bo_30", "bo_60", "tp", "kp")), _dwhy or sorted(D))

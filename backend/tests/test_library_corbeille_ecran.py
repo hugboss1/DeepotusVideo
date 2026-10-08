@@ -10,6 +10,8 @@ Run (depuis backend/) : & $PY tests/test_library_corbeille_ecran.py"""
 import json, pathlib, subprocess, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 _ICI = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(_ICI))
+import _i18n_l1_aide as AIDE  # t141 : dzT (prelude node) et textes francais des cles
 RACINE = _ICI.parent.parent
 BUN = (RACINE / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js").read_bytes().decode("utf-8")
 _TMP = pathlib.Path(tempfile.mkdtemp(prefix="dzcoe_"))
@@ -27,7 +29,11 @@ check("T1 temoin : la base a la fiche mais ni corbeille ni nettoyage a l'ecran ;
       r0.returncode == 0 and b"DzFiche" in r0.stdout and b"DzCorbeille" not in r0.stdout and 'confirmer("Delete cette image ?")'.encode() in r0.stdout)
 check("T2 la barre Corbeille / Nettoyage suit la barre des projets ; les trois Delete disent la corbeille ; la grille porte teinte et couleur",
       BUN.count("r.jsx(DzProjetsBar,{f:dzPF,setF:dzPFs}),r.jsx(DzOutilsBiblio,{vue:dzVue,setVue:dzVues,liste:l,ouvrir:y}),__dzSrcChips(o,T,dzSF,dzSFs)") == 1
-      and BUN.count("à la corbeille ? (restaurable depuis la Corbeille de la Bibliothèque)") == 3 and "Delete cette image ?" not in BUN and "Delete ce son ?" not in BUN
+      # t141 (08/10) : les trois confirmations passent par dzT -> chaque CLE une fois dans le bundle, et son texte francais
+      and all(BUN.count('dzT("biblio.detail.corbeille_' + s_ + '")') == 1
+              and AIDE.fr("biblio.detail.corbeille_" + s_).endswith("à la corbeille ? (restaurable depuis la Corbeille de la Bibliothèque)")
+              for s_ in ("image", "rendu", "son"))
+      and "Delete cette image ?" not in BUN and "Delete ce son ?" not in BUN
       and BUN.count('fav:!!S.fav,teinte:S.teinte||"",couleur:S.couleur||"",') == 1)
 
 
@@ -77,7 +83,9 @@ var AUJ=new Date().toISOString(),VIEUX=new Date(Date.now()-40*864e5).toISOString
 
 def node(corps):
     f = _TMP / f"m{abs(hash(corps)) % 10**9}.js"
-    f.write_text(COUCHE + "\n" + HARNAIS + "\n(async function(){var R={};" + corps + "\nconsole.log(JSON.stringify(R))})()", encoding="utf-8")
+    # t141 (08/10) : la couche passe ses textes par dzT -> le prelude AVANT (constantes evaluees au chargement),
+    # et de nouveau APRES le harnais, dont le `var window=` remplace l'objet qui portait DZ_I18N.
+    f.write_text(AIDE.PRELUDE_DZT + "\n" + COUCHE + "\n" + HARNAIS + "\n" + AIDE.PRELUDE_DZT + "\n(async function(){var R={};" + corps + "\nconsole.log(JSON.stringify(R))})()", encoding="utf-8")
     p = subprocess.run(["node", str(f)], capture_output=True, text=True, encoding="utf-8", timeout=60)
     try:
         return json.loads(p.stdout.strip().splitlines()[-1])
@@ -154,9 +162,11 @@ if R:
     check("N3 « Cocher les copies en trop » garde la copie protegee (ou la plus ancienne) de chaque groupe",
           R["auto"] == {"a.png": True, "b.png": True, "f.png": True} and R["auto2"] == {"l": True} and R["cases2"] == [True, True, False, True, False], str(R["auto"]) + str(R["cases2"]))
     check("N4 cocher TOUTES les copies d'un groupe est BLOQUE (dit, bouton inactif, et un clic force ne part pas)", R["bloque"] == [True, True] and R["force"] == [0, 0], str(R["bloque"]) + str(R.get("force")))
+    # t141 (08/10) : le bilan passe par dzT avec un singulier et un pluriel (biblio.nettoyage.jetes.un/.plusieurs) :
+    # « 3 copie(s) à la corbeille. » est devenu « 3 copies à la corbeille. »
     check("N5 mettre a la corbeille : dialogue maison (annule = rien) ; confirme = les noms coches ; l'analyse est relancee ; le resultat est dit ; un refus est dit",
           R["annule"] == [1, 0] and R["jeter"] == ["/api/library/nettoyage/jeter", "POST", {"fichiers": ["a.png", "b.png", "f.png"]}]
-          and R["relu"] == "/api/library/nettoyage" and "3 copie(s) à la corbeille." in R["jMsg"] and "Refusé : « c.png » est utilisé" in R["refus"], str(R["jeter"]) + R["refus"])
+          and R["relu"] == "/api/library/nettoyage" and AIDE.fr("biblio.nettoyage.jetes.plusieurs", n=3) == "3 copies à la corbeille." and "3 copies à la corbeille." in R["jMsg"] and "Refusé : « c.png » est utilisé" in R["refus"], str(R["jeter"]) + R["refus"])
     check("N6 sans doublon : « Aucun doublon. »", "Aucun doublon." in R["aucun"])
 
 R = node("""

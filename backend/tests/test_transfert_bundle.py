@@ -98,13 +98,22 @@ check("bloc_unique", s.count(nl(P.BEGIN)) == 1 and s.count(nl(P.END)) == 1)
 # #15, ce banc n'était pas dans la série voisine — trouvé le 29/09).
 _M = load("patch_bundle_montage", PATCHER.parent / "patch_bundle_montage.py")
 _AVAL = {t: (a2, r2) for t, a2, r2 in _M.PATCHES if t.startswith("P2dg4")}
+# t141 (08/10) : la traduction L1 (maillon de QUEUE) passe le libellé de la catégorie par dzT ; la LIVRAISON des
+# sections de ce maillon amont se contrôle sur le bundle d'avant la traduction (avant_i18n, exactement réversible,
+# garanti par test_i18n_l1). Le libellé traduit est épinglé par sa clé plus bas.
+sys.path.insert(0, str(RACINE / "backend" / "tests"))
+import _i18n_l1_aide as AIDE  # noqa: E402
+# (la table de la traduction porte les fins de ligne du poste : on défait sur les OCTETS, puis on lit comme `s`)
+s_av = AIDE.avant_i18n(BUNDLE.read_bytes().decode("utf-8"))
+if not crlf:
+    s_av = s_av.replace("\r\n", "\n")
 for tag, a, rp in P.PATCHES:
     for _a2, _r2 in _AVAL.values():
         if _a2 in rp:
             rp = rp.replace(_a2, _r2)
-    check(tag + "_remplace", s.count(nl(rp)) == 1, f"count={s.count(nl(rp))}")
+    check(tag + "_remplace", s_av.count(nl(rp)) == 1, f"count={s_av.count(nl(rp))}")
     if a not in rp:
-        check(tag + "_ancre_consommee", s.count(nl(a)) == 0)
+        check(tag + "_ancre_consommee", s_av.count(nl(a)) == 0)
     check("couche_ne_cite_pas_l_ancre_de_" + tag, a not in src)
 check("l_ancre_d_injection_est_reprise",
       s.count(nl(P.ANCHOR_INJECT)) == 1)
@@ -134,7 +143,9 @@ check("T3_appelle_DzTransfert_qui_est_declare",
 check("la_categorie_et_la_section_portent_la_MEME_cle",
       'k:"transfert"' in s and 's==="transfert"' in s)
 check("la_categorie_est_la_derniere_de_la_liste",
-      '{k:"transfert",l:"Transfert entre machines"}]' in s)
+      # t141 (08/10) : libellé passé par dzT ; épinglé par sa clé, qui rend le français d'avant
+      '{k:"transfert",l:dzT("reglages.onglet.transfert")}]' in s
+      and AIDE.fr("reglages.onglet.transfert") == "Transfert entre machines")
 # la couche n'emploie que ce que le bundle lui offre — pas de React global
 check("la_couche_emploie_le_runtime_du_bundle_et_pas_un_React_global",
       "React." not in src and "window.__dzR" not in src

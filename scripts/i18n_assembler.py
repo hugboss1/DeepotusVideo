@@ -28,6 +28,8 @@ def assembler(dossier=DOSSIER) -> bytes:
             if k in tout:
                 raise SystemExit(f"clé en double : {k} ({f.name})")
             tout[k] = {"fr": v["fr"], "en": v["en"]}
+            if v.get("contexte"):
+                tout[k]["contexte"] = True          # t141 : réservée à dzT, ignorée par la surcouche
     lignes = ENTETE + ["window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {"]
     cles = sorted(tout)
     for i, k in enumerate(cles):

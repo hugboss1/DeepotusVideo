@@ -265,10 +265,18 @@ for jet, n in (("function Qh(e){return e.type===\"Seedance\"?r.jsx(DzVmCostTag,{
                ("J=await dzRunWith(dzMx,R.run);", 1),
                ("source_graph:e,max_usd:dzRunMaxTake()})", 1),
                ("preview:_pv,max_usd:dzRunMaxTake()??null})", 1),
-               ('{k:"video_max_usd_per_request",l:"Plafond vidéo par requête",u:"$ — 0 = aucun",step:"0.5"}', 1),
-               ('{k:"video_max_gen_s",l:"Secondes générées max par clip",u:"s — 0 = durée native",step:"1"}];', 1),
+               # t141 (08/10/2026) : libelles et unites des deux rangees passent par dzT ; cles epinglees ici, leur
+               # francais (identique au texte d'avant) en 4.z
+               ('{k:"video_max_usd_per_request",l:dzT("reglages.tarifs.plafond_video"),u:dzT("reglages.tarifs.unite_aucun"),step:"0.5"}', 1),
+               ('{k:"video_max_gen_s",l:dzT("reglages.tarifs.secondes_max"),u:dzT("reglages.tarifs.unite_duree_native"),step:"1"}];', 1),
                ("J=await R.run();", 0), ('ops.push({kind:"seedance",duration_s:Number(n.props&&n.props.durationS)||10', 0)):
     check(f"4.x bundle x{n} : {jet[:70]}", bun.count(jet) == n, _d(bun.count(jet)))
+sys.path.insert(0, str(BACKEND / "tests"))
+import _i18n_l1_aide as AIDE                               # noqa: E402
+check("4.z t141 : les rangees video de l'ecran Tarifs disent toujours, en francais, le texte d'avant la traduction",
+      [AIDE.fr(k) for k in ("reglages.tarifs.plafond_video", "reglages.tarifs.unite_aucun", "reglages.tarifs.secondes_max",
+                            "reglages.tarifs.unite_duree_native")]
+      == ["Plafond vidéo par requête", "$ — 0 = aucun", "Secondes générées max par clip", "s — 0 = durée native"])
 check("4.y dzRunMaxTake : trois mentions de code (definition, /generate, layout) ; __dzfxPreview garde son motif",
       bun.count("dzRunMaxTake()") == 3 and bun.count("var _pv=!!window.__dzfxPreview;window.__dzfxPreview=!1;") == 1, _d(bun.count("dzRunMaxTake()")))
 

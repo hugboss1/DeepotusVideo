@@ -108,6 +108,7 @@ with TestClient(app, client=("192.168.1.20", 50000), headers=_JA.entetes(app)) a
 
 print("\n[5] l'écran (bundle livré)")
 import shutil                                                       # noqa: E402
+import _i18n_l1_aide as AIDE  # noqa: E402  t141 (08/10/2026) : les textes de l'ecran passent par dzT("cle")
 _B = racine / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js"
 s = _B.read_text(encoding="utf-8")
 vb = subprocess.run(["git", "show", "fa8762e:frontend/dist/assets/index-BEOJX8L5.js"], cwd=racine, capture_output=True).stdout.decode("utf-8")
@@ -116,16 +117,29 @@ dz = s[s.find("function DzDepenses("):s.find("function dzChercheReglage(")]  # #
 check("5.1 DzDepenses x1, monté DEUX fois : sous les plafonds (Pricing & budget) et en bas du Diagnostic",
       s.count("function DzDepenses(") == 1 and s.count("r.jsx(DzDepenses,{})") == 2
       and s.count("r.jsx(DzPlafonds,{}),r.jsx(DzDepenses,{})]});}") == 1
-      and s.count("children:'Rien à signaler.'})]}),r.jsx(DzDepenses,{})]})}") == 1)
+      # t141 : « Rien à signaler. » est devenu dzT("reglages.diag.rien") (cle epinglee + son francais)
+      and s.count('children:dzT("reglages.diag.rien")})]}),r.jsx(DzDepenses,{})]})}') == 1
+      and AIDE.fr("reglages.diag.rien") == "Rien à signaler.")
 check("5.2 il ne lit que /api/reglages/depenses, et se recharge avec les plafonds (événement dz-plafonds)",
       dz.count("fetch(") == 1 and "fetch('/api/reglages/depenses')" in dz
       and "window.addEventListener('dz-plafonds',h)" in dz and "window.removeEventListener('dz-plafonds',h)" in dz)
+# t141 (08/10/2026) : les quatre libelles passent par dzT ; chaque cle est epinglee dans le code ET son francais garde
+# le texte d'avant (« réel 3/5 » : le gabarit {n}/{total} rend la meme chaine que la concatenation d'origine).
 check("5.3 les quatre états sont écrits en toutes lettres, jamais confondus",
-      all(x in dz for x in ("'réel'", "('réel '+l.rapproches+'/'+l.tirs)", "'estimé, non rapproché'", ":'estimé'"))
+      all(x in dz for x in ("l.etat==='reel'?dzT(\"reglages.depenses.reel\")",
+                            'dzT("reglages.depenses.reel_partiel",{n:l.rapproches,total:l.tirs})',
+                            "l.etat==='estime-non-rapproche'?dzT(\"reglages.depenses.estime_non_rapproche\")",
+                            ':dzT("reglages.depenses.estime")'))
+      and AIDE.fr("reglages.depenses.reel") == "réel" and AIDE.fr("reglages.depenses.reel_partiel", n=3, total=5) == "réel 3/5"
+      and AIDE.fr("reglages.depenses.estime_non_rapproche") == "estimé, non rapproché" and AIDE.fr("reglages.depenses.estime") == "estimé"
+      and len({AIDE.fr(k) for k in ("reglages.depenses.reel", "reglages.depenses.reel_partiel", "reglages.depenses.estime_non_rapproche",
+                                    "reglages.depenses.estime")}) == 4
       and dz.count("e==='estime-non-rapproche'?'amber'") == 1)
 check("5.4 un réel ou un écart absent s'affiche « — », jamais 0", "l.reel_usd==null?'—'" in dz and "l.ecart_usd==null?'—'" in dz)
 check("5.5 l'écart dit ce qu'il mesure (bulle) et le sens des couleurs : plus cher en rouge",
-      "title:'réel − estimé, sur les seuls tirs rapprochés'" in dz and "l.ecart_usd>0?'var(--red)':'var(--green)'" in dz)
+      # t141 : la bulle est dzT("reglages.depenses.ecart_aide") (cle epinglee + son francais)
+      'title:dzT("reglages.depenses.ecart_aide")' in dz
+      and AIDE.fr("reglages.depenses.ecart_aide") == "réel − estimé, sur les seuls tirs rapprochés" and "l.ecart_usd>0?'var(--red)':'var(--green)'" in dz)
 check("5.6 montants formatés comme le serveur (dzUsd, déjà bancé contre plafonds._fr)", dz.count("dzUsd(") >= 5)
 _n = shutil.which("node")
 _nc = subprocess.run([_n, "--check", str(_B)], capture_output=True, text=True) if _n else None

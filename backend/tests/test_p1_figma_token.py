@@ -32,6 +32,8 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from loguru import logger                                  # noqa: E402
 logger.remove()
 import patch_bundle_montage as P                           # noqa: E402
+sys.path.insert(0, str(BACKEND / "tests"))
+import _i18n_l1_aide as AIDE                               # noqa: E402  t141 : le catalogue passe par dzT
 
 BASE = "00f621e"
 ok = fail = 0
@@ -133,8 +135,11 @@ def _catalogue(txt):
     if i < 0 or j < 0 or not NODE:
         return None
     lit = txt[i + len("const Fu="):j + 1]
-    r = subprocess.run([NODE, "-e", "process.stdout.write(JSON.stringify(" + lit + "))"],
-                       capture_output=True, text=True, encoding="utf-8")
+    # t141 (08/10/2026) : libelles et « why » sont des dzT("cle") -> prelude dzT (francais) ; trop long pour -e
+    # (dictionnaire ~180 Ko > ligne de commande Windows) : un fichier temporaire.
+    f = pathlib.Path(TMP, "catalogue.js")
+    f.write_text(AIDE.PRELUDE_DZT + "process.stdout.write(JSON.stringify(" + lit + "))", encoding="utf-8")
+    r = subprocess.run([NODE, str(f)], capture_output=True, text=True, encoding="utf-8")
     return json.loads(r.stdout) if r.returncode == 0 else None
 
 

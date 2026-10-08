@@ -12,6 +12,8 @@ Run (depuis backend/) : & $PY tests/test_library_meta_ecran.py"""
 import json, os, pathlib, re, shutil, subprocess, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 _ICI = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(_ICI))
+import _i18n_l1_aide as AIDE  # t141 : dzT (prelude node)
 RACINE = _ICI.parent.parent
 BUNDLE = RACINE / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js"
 COUCHE = RACINE / "frontend" / "patches" / "montage.js"
@@ -133,7 +135,8 @@ var R={};function attendre(){return new Promise(function(ok){setTimeout(ok,5)})}
 """
 R = {}
 if NODE and couche:
-    js = HARNAIS.replace("__COUCHE__", couche) + "\nfunction __dzFavHas(id){return dzFavHas(\"r\",id)}\n"
+    # t141 (08/10) : la couche passe ses textes par dzT -> le prelude (dictionnaire + dzT en francais) AVANT
+    js = AIDE.PRELUDE_DZT + "\n" + HARNAIS.replace("__COUCHE__", couche) + "\nfunction __dzFavHas(id){return dzFavHas(\"r\",id)}\n"
     f = pathlib.Path(tempfile.mkdtemp()) / "h.js"
     f.write_text(js, "utf-8")
     p = subprocess.run([NODE, str(f)], capture_output=True, text=True, encoding="utf-8", timeout=60)

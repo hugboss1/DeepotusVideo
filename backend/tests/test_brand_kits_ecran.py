@@ -12,6 +12,8 @@ _ICI = pathlib.Path(__file__).resolve().parent
 RACINE = _ICI.parent.parent
 BUN = (RACINE / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js").read_bytes().decode("utf-8")
 _TMP = pathlib.Path(tempfile.mkdtemp(prefix="dzkite_"))
+sys.path.insert(0, str(_ICI))
+import _i18n_l1_aide as AIDE  # noqa: E402  t141 : les textes des Reglages passent par dzT
 
 ok = fail = 0
 def check(label, cond, detail=""):
@@ -23,7 +25,11 @@ def check(label, cond, detail=""):
 BASE = "70f4d263"
 r0 = subprocess.run(["git", "show", f"{BASE}:frontend/dist/assets/index-BEOJX8L5.js"], capture_output=True, cwd=str(RACINE))
 check("T1 temoin : la base a l'ecran Branding mais pas les kits", r0.returncode == 0 and b"function Sm(" in r0.stdout and b"DzKits" not in r0.stdout)
-APPEL = 'reset any time."]}),r.jsx(DzKits,{onChange:function(){n(null);d(Date.now())}}),r.jsxs(jt,{style:{padding:18},children:['
+# t141 (08/10/2026) : la fin de l'introduction (« reset any time. ») est devenue dzT("reglages.marque.aide_3") ; la cle
+# est epinglee dans le code ET son anglais d'origine reste celui que l'ancre portait.
+check("T2a la fin de l'introduction : cle i18n dont l'anglais d'origine est « ; reset any time. »",
+      AIDE.DICO["reglages.marque.aide_3"]["en"] == "; reset any time." and AIDE.fr("reglages.marque.aide_3") == " ; réinitialisable à tout moment.")
+APPEL = 'dzT("reglages.marque.aide_3")]}),r.jsx(DzKits,{onChange:function(){n(null);d(Date.now())}}),r.jsxs(jt,{style:{padding:18},children:['
 k = BUN.find("function Sm(")
 check("T2 l'ecran des kits est POSE dans Reglages -> Branding, entre l'introduction et les champs ; il remet les champs a zero et rafraichit le logo",
       BUN.count(APPEL) == 1 and 0 <= k < BUN.find(APPEL) < k + 4000 and BUN.count("r.jsx(DzKits,") == 1)
@@ -77,7 +83,8 @@ async function demarrer(){H=[];EFF=[];J=[];CHG=0;rendre();await attendre();rendr
 
 def node(corps):
     f = _TMP / f"k{abs(hash(corps)) % 10**9}.js"
-    f.write_text(COUCHE + "\n" + HARNAIS + "\n(async function(){var R={};" + corps + "\nconsole.log(JSON.stringify(R))})()", encoding="utf-8")
+    # t141 : le prelude dzT vient APRES le harnais (qui redefinit `window`) : il y greffe le dictionnaire
+    f.write_text(COUCHE + "\n" + HARNAIS + "\n" + AIDE.PRELUDE_DZT + "\n(async function(){var R={};" + corps + "\nconsole.log(JSON.stringify(R))})()", encoding="utf-8")
     try:
         p = subprocess.run(["node", str(f)], capture_output=True, text=True, encoding="utf-8", timeout=60)
     except subprocess.TimeoutExpired:

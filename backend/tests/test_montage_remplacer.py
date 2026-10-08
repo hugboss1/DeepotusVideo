@@ -504,6 +504,10 @@ from app.models.schemas import JobStatus                    # noqa: E402
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 LAYER = ROOT / "frontend" / "patches" / "montage.js"
 SERVICE = ROOT / "backend" / "app" / "services" / "montage_service.py"
+# t141 (08/10/2026) : la couche appelle dzT AU CHARGEMENT (constantes de la Bibliotheque traduite) ;
+# AIDE.PRELUDE_DZT (dictionnaire + dzT en francais) est pose APRES le `var window={}` du shim.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _i18n_l1_aide as AIDE                                # noqa: E402
 
 ok = fail = 0
 
@@ -1136,7 +1140,7 @@ out.coupe_hom_distinctes=(function(){var vu={},n=0;
 console.log(JSON.stringify(out));
 """
 shim = pathlib.Path(TMP) / "shim.js"
-shim.write_text('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + JSX
+shim.write_text('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + AIDE.PRELUDE_DZT + JSX
                 + LAYER.read_bytes().decode("utf-8-sig") + "\n" + probe,
                 encoding="utf-8")
 r = NODE(["node", str(shim)])

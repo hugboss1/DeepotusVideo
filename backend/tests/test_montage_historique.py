@@ -9,6 +9,10 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 SRC_PATH = os.path.join(ROOT, "frontend", "patches", "montage.js")
 NODE = shutil.which("node")
 TMP = tempfile.mkdtemp(prefix="dzl0_")
+# t141 (08/10/2026) : la couche appelle dzT AU CHARGEMENT (constantes de la Bibliotheque traduite) ;
+# le prelude pose le dictionnaire et dzT en francais, APRES le `var window={}` du shim (sinon ecrase).
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _i18n_l1_aide as AIDE
 ok = fail = 0
 def check(label, cond, detail=""):
     global ok, fail
@@ -136,7 +140,7 @@ else:
     shim = os.path.join(TMP, "shim.js")
     with open(SRC_PATH, "rb") as fh: SRC = fh.read().decode("utf-8-sig")
     with open(shim, "w", encoding="utf-8") as fh:
-        fh.write('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + SRC + "\n" + PROBE)
+        fh.write('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + AIDE.PRELUDE_DZT + SRC + "\n" + PROBE)
     r = sh([NODE, shim])
     check("js_shim_execute", r.returncode == 0, (r.stderr or "")[-600:])
     lignes = (r.stdout or "").strip().splitlines()

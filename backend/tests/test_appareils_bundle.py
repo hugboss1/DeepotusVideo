@@ -9,6 +9,8 @@ import json, pathlib, shutil, subprocess, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 _RACINE = pathlib.Path(__file__).resolve().parents[2]
 _BUNDLE = _RACINE / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js"
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import _i18n_l1_aide as AIDE  # noqa: E402  t141 : les libelles passent par dzT (prelude en francais sous node)
 
 ok = fail = 0
 def check(label, cond, detail=""):
@@ -36,7 +38,9 @@ def fonc(nom, src=s):
 
 print("\n[A] le bundle ecrit")
 check("A1 une page, une entree de barre, une cle dans la liste blanche, un branchement",
-      s.count("function DzAppair(") == 1 and s.count('{k:"appareils",l:"Appareils"}') == 1
+      # t141 (08/10/2026) : le libelle de la barre passe par dzT ; la cle est epinglee ET son francais reste « Appareils »
+      s.count("function DzAppair(") == 1 and s.count('{k:"appareils",l:dzT("reglages.onglet.appareils")}') == 1
+      and AIDE.fr("reglages.onglet.appareils") == "Appareils"
       and s.count('const ym=["diag","coffre","appareils","keys",') == 1 and s.count('s==="appareils"&&r.jsx(DzAppair,{})') == 1)
 f = fonc("DzAppair")
 check("A2 trois routes : liste, QR, rotation ; revoquer par /devices/<id>/revoke", all(u in f for u in
@@ -53,7 +57,9 @@ check("A5 aucun jeton LU ni affiche (la route ne le rend qu'au telephone) : ni .
 node = shutil.which("node")
 check("N0 node est present", bool(node))
 if node:
-    js = r"""
+    # t141 (08/10/2026) : DzAppair appelle dzT("cle") -> le prelude pose le dictionnaire et dzT (francais) ; le module
+    # (.mjs) a donc une variable `window` locale : on y greffe __dzDialogue au lieu de remplacer globalThis.window.
+    js = AIDE.PRELUDE_DZT + r"""
 // --- moteur de hooks minimal : etats persistants par position, effets apres rendu selon les dependances
 var etats=[],deps=[],nettoie=[],i=0,minut=[],toasts=[],appels=[],dlg={rep:true,vu:[]},rendu=null;
 var x={useState:function(v){var k=i++;if(!(k in etats))etats[k]=v;return[etats[k],function(n){etats[k]=typeof n==="function"?n(etats[k]):n;planif=true}]},
@@ -62,7 +68,7 @@ var x={useState:function(v){var k=i++;if(!(k in etats))etats[k]=v;return[etats[k
 var effetsAFaire=[],planif=false;
 function el(t,p){return{t:t,p:p||{}}}var r={jsx:el,jsxs:el,Fragment:"F"};
 function K(){}function te(){}function jt(){}
-globalThis.window={__dzDialogue:{confirmer:function(m,o){dlg.vu.push([m,o]);return Promise.resolve(dlg.rep)}}};
+globalThis.window=Object.assign(window,{__dzDialogue:{confirmer:function(m,o){dlg.vu.push([m,o]);return Promise.resolve(dlg.rep)}}});
 globalThis.__dzToast=function(m){toasts.push(m)};
 globalThis.setInterval=function(f,ms){minut.push(f);return minut.length};globalThis.clearInterval=function(id){minut[id-1]=null};
 var serveur={appareils:[],max:5,ecoute:"127.0.0.1"};

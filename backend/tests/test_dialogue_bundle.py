@@ -62,11 +62,17 @@ def main():
     DERIVES_AVAL = {'confirmer("Delete this render and its files?")': 'confirmer("Mettre ce rendu à la corbeille ? (restaurable depuis la Corbeille de la Bibliothèque)")',
                     'confirmer("Delete ce son ?")': 'confirmer("Mettre ce son à la corbeille ? (restaurable depuis la Corbeille de la Bibliothèque)")',
                     'confirmer("Delete cette image ?")': 'confirmer("Mettre cette image à la corbeille ? (restaurable depuis la Corbeille de la Bibliothèque)")'}
+    # t141 (08/10/2026) : la traduction L1 (maillon de QUEUE) repasse par-dessus six de ces sections (G2 G3 G4 G7 G10
+    # G11 : textes des dialogues -> dzT("clé")) ; la LIVRAISON de ce maillon amont se contrôle donc sur le bundle
+    # d'avant la traduction (avant_i18n, exactement réversible, garanti par test_i18n_l1).
+    sys.path.insert(0, str(RACINE / "backend" / "tests"))
+    import _i18n_l1_aide as AIDE
+    s_av = AIDE.avant_i18n(s)
     for tag, a, r, n in P.PATCHES:
         for _v, _n in DERIVES_AVAL.items():
             r = r.replace(_v, _n)
-        check(f"{tag} : ancre consommée", s.count(a) == 0, str(s.count(a)))
-        check(f"{tag} : remplacement présent ×{n}", s.count(r) == n, str(s.count(r)))
+        check(f"{tag} : ancre consommée", s_av.count(a) == 0, str(s_av.count(a)))
+        check(f"{tag} : remplacement présent ×{n}", s_av.count(r) == n, str(s_av.count(r)))
     check(f"{len(P.PATCHES)} sections = 11 sites confirm + 2 sites prompt du relevé", len(P.PATCHES) == 13)
     hors = s[:i] + s[j:]
     check("plus aucun confirm( ni prompt( natif hors couche",
