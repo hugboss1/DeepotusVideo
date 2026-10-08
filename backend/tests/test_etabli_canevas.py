@@ -2322,6 +2322,8 @@ def test_les_maillons_voisins_de_la_chaine_Bibliotheque_gardent_leurs_comptes():
         "__dzQuickStart": 1,
         # 03/10 (tâche #75 PR B) : l'échantillon d'aperçu des gabarits ouvre la Bibliothèque (couche montage).
         "__dzLibPicker": 1,
+        # 08/10 (t139, patch_bundle_plenvoi) : window.__dzEnvoyerVers expose le menu aux labs en iframe.
+        "__dzSendTo": 1,
     }
     for sonde, combien in P.POST_COUNTS:
         assert s.count(sonde) == combien + derives_aval.get(sonde, 0), sonde

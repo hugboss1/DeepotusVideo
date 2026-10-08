@@ -27,8 +27,9 @@ print("\n[T] temoin")
 check("T1 la base n'a ni __dzReopenQuick ni quick_recipe", bool(s0) and "__dzReopenQuick" not in s0 and "quick_recipe" not in s0)
 
 print("\n[A] le bundle ecrit")
+# __dzSendTo 2 -> 3 (t139, 08/10/2026) : patch_bundle_plenvoi expose le menu aux labs en iframe (window.__dzEnvoyerVers)
 check("A1 l'amont est intact (Quick unique, pickers et envois)", s.count("function um(") == 1 and s.count("__dzLibPicker") == 11
-      and s.count("__dzSendTo") == 2)
+      and s.count("__dzSendTo") == 3)
 check("A2 __dzQuickStart 3 -> 4 (dzQuickApply pose le global quand les images ne sont pas chargees)", s.count("__dzQuickStart") == 4)
 check("A3 __dzReopenQuick : definition + modal + carte de la file", s.count("__dzReopenQuick") == 3 and s.count("function __dzReopenQuick(") == 1
       and s.count("function __dzQuickFromJob(") == 1)

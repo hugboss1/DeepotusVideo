@@ -59,13 +59,16 @@ def reperer(calques, cid):
 
 def liste():
     return {"active": actif, "foreground": [0.0, 0.0, 0.0, 1.0], "background": [1.0, 1.0, 1.0, 1.0],
-            "documents": [{"index": k, "name": e["name"], "revision": e["revision"]} for k, e in enumerate(etats)]}
+            "documents": [{"index": k, "name": e["name"], "revision": e["revision"], "path": e.get("path")}
+                          for k, e in enumerate(etats)]}
 
 
 def nouveau_doc(p, nom):
     global actif
     docs.append(p)
-    etats.append({"name": nom, "calques": calques_neufs(), "revision": 1, "history": ["Open"], "rejouer": []})
+    # t139 : `path` comme le vrai moteur — posé par doc.open, RATTACHÉ au fichier par chaque doc.save
+    etats.append({"name": nom, "calques": calques_neufs(), "revision": 1, "history": ["Open"], "rejouer": [],
+                  "path": p.get("path")})
     actif = len(etats) - 1
     return len(docs) - 1
 
@@ -240,6 +243,8 @@ for ligne in sys.stdin:
         os.makedirs(os.path.dirname(os.path.join(ecriture, chemin)), exist_ok=True)
         with open(os.path.join(ecriture, chemin), "wb") as f:
             f.write(b"\x89PNG\r\n\x1a\nFAUX")
+        if m == "doc.save" and actif is not None:
+            etats[actif]["path"] = chemin                 # t139 : le document est désormais CE fichier (vrai moteur)
         repondre(i, True, {"path": chemin, "bytes": 12})
     elif m == "engine.commands":
         repondre(i, True, registre())

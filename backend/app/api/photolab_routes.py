@@ -8,6 +8,7 @@ Chaque réponse qui a parlé au moteur porte l'en-tête X-Photolab-Generation : 
 répondu. Si elle change entre deux demandes, le moteur a été relancé et les documents ouverts ont disparu.
 """
 import asyncio
+import collections
 import concurrent.futures
 import functools
 import hashlib
@@ -33,6 +34,9 @@ FORMATS = ("pcraft", "psd", "psb", "png", "jpg", "webp", "tif", "tga")
 _COMPTEUR_RENDUS = itertools.count(1)
 _PERIPHERIQUE = re.compile(r"(con|prn|aux|nul|com[0-9]|lpt[0-9])", re.IGNORECASE)
 _APERCU = re.compile(r"apercu-\d+-\d+\.png")
+# t139 : le fichier de travail d'une image enregistrée par /bibliotheque — son nom, extension aplatie
+# (photolab_20261008-154030_herbe.png -> photolab_20261008-154030_herbe-png.pcraft) : unique comme l'image elle-même.
+_TRAVAIL = re.compile(r"photolab_\d{8}-\d{6}_[A-Za-z0-9_-]{1,120}-(png|jpg)\.pcraft")
 GARDES_APERCUS = 3
 _VERROU_EXPORT = asyncio.Lock()          # choisir un nom libre ET enregistrer d'un seul tenant : deux sauvegardes ne se marchent pas dessus
 ENTETE_GENERATION = "X-Photolab-Generation"
@@ -115,27 +119,99 @@ async def nouveau(body: dict):
     return _json(*await _appeler("doc.new", p))
 
 
+# t139 : l'image de la Bibliothèque d'où vient chaque document, par CHEMIN moteur (session.list) — le nom ne suffit pas :
+# un .pcraft rouvert reprend le nom du document d'origine. Le moteur rattache un document au fichier de chaque doc.save
+# (exports/…, biblio/…) : la table suit ces rattachements. Bornée ; perdue au redémarrage (les documents aussi).
+_ORIGINES: "collections.OrderedDict[str, str]" = collections.OrderedDict()
+_ORIGINES_MAX = 256
+
+
+def _retenir(chemin, nom):
+    if not chemin or not nom:
+        return
+    _ORIGINES[chemin] = nom
+    _ORIGINES.move_to_end(chemin)
+    while len(_ORIGINES) > _ORIGINES_MAX:
+        _ORIGINES.popitem(last=False)
+
+
+async def _chemin_actif():
+    """Le chemin du document actif selon le moteur, ou None (aucun document, document neuf, moteur absent)."""
+    try:
+        s, _ = await _appeler("session.list")
+    except HTTPException:
+        return None
+    if not isinstance(s, dict):
+        return None
+    for d in s.get("documents") or []:
+        if isinstance(d, dict) and d.get("index") == s.get("active"):
+            return d.get("path") if isinstance(d.get("path"), str) else None
+    return None
+
+
+def _image_biblio(nom):
+    """Chemin d'une image de la Bibliothèque, ou None (nom refusé, hors du dossier — lien symbolique —, absente)."""
+    from app.config import settings
+    if not isinstance(nom, str) or not _NOM_IMAGE.fullmatch(nom):
+        return None
+    src = (settings.images_path / nom).resolve()
+    return src if settings.images_path.resolve() in src.parents and src.is_file() else None
+
+
+async def _travail_de(nom):
+    """t139 : le fichier de travail (.pcraft, calques) d'une image enregistrée par le Photolab, ou None. Le lien est le
+    doc_id de l'index ; il n'est suivi que pour une image de source « photolab », vers un nom de la forme écrite par
+    /bibliotheque, DANS biblio/ — jamais un chemin venu d'ailleurs. Résilient : l'index ne casse jamais l'ouverture."""
+    try:
+        from app.services.storage import LibraryAsset, async_session_factory
+        async with async_session_factory() as session:
+            row = await session.get(LibraryAsset, nom)
+            source, doc = (row.source, row.doc_id) if row is not None else (None, None)
+    except Exception:  # noqa: BLE001
+        return None
+    if source != "photolab" or not isinstance(doc, str) or not _TRAVAIL.fullmatch(doc):
+        return None
+    dossier = (PM.dossier_travail() / "biblio").resolve()
+    p = (dossier / doc).resolve()
+    return p if p.parent == dossier and p.is_file() else None
+
+
 @router.post("/ouvrir")
 async def ouvrir(body: dict):
-    from app.config import settings
-    nom = (body or {}).get("filename")
+    """{"filename", "calques"?: bool (défaut true)} : copie l'image (ou, si elle a été enregistrée par le Photolab avec
+    ses calques, son fichier de travail .pcraft) dans entrees/ et l'ouvre. Réponse du moteur + "travail": bool.
+    L'original n'est jamais ouvert en place : un enregistrement écrit toujours un NOUVEAU fichier."""
+    corps = body or {}
+    nom = corps.get("filename")
+    calques = corps.get("calques", True)
+    if not isinstance(calques, bool):
+        raise HTTPException(400, "calques : booléen attendu")
     if not isinstance(nom, str) or not _NOM_IMAGE.fullmatch(nom):
         raise HTTPException(400, f"nom d'image refusé : {nom!r}")
-    racine = settings.images_path.resolve()
-    src = (settings.images_path / nom).resolve()
-    # Un lien symbolique dans la Bibliothèque ne doit pas faire copier un fichier d'ailleurs dans le dossier du moteur.
-    if racine not in src.parents:
-        raise HTTPException(400, f"image hors de la Bibliothèque : {nom}")
-    if not src.is_file():
+    src = _image_biblio(nom)
+    if src is None:
+        from app.config import settings
+        brut = (settings.images_path / nom).resolve()
+        # Un lien symbolique dans la Bibliothèque ne doit pas faire copier un fichier d'ailleurs dans le dossier du moteur.
+        if settings.images_path.resolve() not in brut.parents:
+            raise HTTPException(400, f"image hors de la Bibliothèque : {nom}")
         raise HTTPException(404, f"image introuvable dans la Bibliothèque : {nom}")
-    souche, ext = os.path.splitext(nom)
+    travail = await _travail_de(nom) if calques else None
+    if travail is not None:
+        src, souche, ext = travail, travail.stem, travail.suffix
+    else:
+        souche, ext = os.path.splitext(nom)
     # Préfixe = empreinte du NOM d'origine : stable (rouvrir réutilise la copie), jamais deux noms qui se confondent
     # après nettoyage (« a b.png » et « a-b.png »).
     h = hashlib.sha1(nom.encode("utf-8")).hexdigest()[:8]
     sur = f"{h}-{_sur(re.sub(r'[^A-Za-z0-9._-]', '-', souche))}{re.sub(r'[^A-Za-z0-9.]', '-', ext)}"
     chemin = _relatif(f"entrees/{sur}")                    # refus (400) AVANT de copier quoi que ce soit
     await asyncio.to_thread(shutil.copyfile, src, PM.dossier_travail() / chemin)
-    return _json(*await _appeler("doc.open", {"path": chemin}))
+    resultat, gen = await _appeler("doc.open", {"path": chemin})
+    _retenir(chemin, nom)
+    if isinstance(resultat, dict):
+        resultat = {**resultat, "travail": travail is not None}
+    return _json(resultat, gen)
 
 
 @router.post("/executer")
@@ -236,6 +312,7 @@ def _base_sure(nom, defaut="photolab") -> str:
 async def _exporter(fmt, base, q):
     """doc.save sous exports/<base>.<fmt> (suffixe -2, -3… plutôt qu'un écrasement) -> (fichier, génération)."""
     dossier = PM.dossier_travail() / "exports"
+    avant = await _chemin_actif()
     async with _VERROU_EXPORT:
         fichier, k = f"{base}.{fmt}", 1
         while (dossier / fichier).exists():               # jamais d'écrasement : un export est le travail de quelqu'un
@@ -245,6 +322,7 @@ async def _exporter(fmt, base, q):
         if q is not None:
             p["quality"] = q
         _, gen = await _appeler("doc.save", p)
+    _retenir(p["path"], _ORIGINES.get(avant))             # le moteur a rattaché le document à ce fichier
     return fichier, gen
 
 
@@ -328,8 +406,23 @@ async def bibliotheque(body: dict):
         src.unlink()                                      # exports/ est réservé à /enregistrer : pas de doublon caché
     except OSError:
         pass
-    await LI.noter([nom], "photolab")
-    return _json({"filename": nom}, gen)
+    # t139 : le fichier de travail (calques), sous biblio/ du dossier du moteur — la Bibliothèque ne montre que l'image.
+    # Un échec ici n'annule pas l'image déjà déposée : la réponse dit simplement « travail »: null.
+    travail = nom.rsplit(".", 1)[0] + "-" + fmt + ".pcraft"
+    origine = _ORIGINES.get(await _chemin_actif())       # rattaché à exports/… par _exporter : la table a suivi
+    try:
+        (PM.dossier_travail() / "biblio").mkdir(parents=True, exist_ok=True)
+        _, gen = await _appeler("doc.save", {"path": _relatif(f"biblio/{travail}"), "format": "pcraft"})
+        _retenir(f"biblio/{travail}", origine)
+    except HTTPException:
+        travail = None
+    # Lignée : l'image de la Bibliothèque d'où vient le document — donnée par l'appelant, sinon retrouvée par le pont —,
+    # si elle existe vraiment.
+    parent = (body or {}).get("parent")
+    if _image_biblio(parent) is None:
+        parent = origine if _image_biblio(origine) is not None else None
+    await LI.noter([nom], "photolab", doc_id=travail, parent=parent, relation="retouche" if parent else None)
+    return _json({"filename": nom, "travail": travail}, gen)
 
 
 def _servir(sous, nom):
