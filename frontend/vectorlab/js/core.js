@@ -50,6 +50,7 @@ import { derives_rafraichir } from "./mod-vivants.js";
 import { initDialogue } from "./mod-dialogue.js";
 import { initControles } from "./mod-controles.js";
 import { initDidact } from "./mod-didact.js";
+import { initEnvoi } from "./mod-envoi.js";
 
 const $ = (s) => document.querySelector(s);
 const api = {
@@ -565,6 +566,7 @@ async function charger() {
   if (!id) {
     // sans ?doc : la page d'accueil BIBLIOTHÈQUE (chantier 27/08) — liste,
     // recherche, création ; l'éditeur reste caché (body.mode-biblio)
+    if (await VL.recevoirEnvoi()) return;   // t139 : « Envoyer vers › Vectorlab » crée son document et y part
     VL.ouvrirBiblio();
     return;
   }
@@ -582,6 +584,7 @@ async function charger() {
     etat.ty = Math.max(20, (r.height - etat.doc.taille.h * etat.zoom) / 2);
     appliquerVue();
     VL.surCharge();                    // le brouillon se propose ici (lot A)
+    VL.poserEnvoi();                   // t139 : l'image envoyée (?img=) posée dans le document neuf
   } catch (e) {
     $("#docMeta").classList.add("erreur");
     $("#docMeta").textContent = "erreur : " + e.message;
@@ -804,6 +807,7 @@ initPersona(VL);    // lot E (D8) : Vecteur / Pixel / Export — après initOuti
 initExportPlus(VL); // lot G : Export + (tranches, formats, impression, lot) — après initPersona (surPersona) et initExport (svgCourant)
 initPixelUI(VL);    // lot E : outils raster, sélections, ajustements, pixel-art — pose surOverlay/surTouche en chaîne
 initBrouillon(VL); // pose surCharge AVANT charger() (lot A)
+initEnvoi(VL);     // t139 : VL.recevoirEnvoi / VL.poserEnvoi AVANT charger() — après initImage (poserDepuisLibrary)
 initTexteUI(VL);     // R11 : Texte d'Affinity (corps au glisser, texte sur chemin, débordement, Tab) — après initTypo (poserTexte)
 initSelectionUI(VL); // R10 : Alt+glisser = copie déplacée, double-clic → Nœuds, survol — après initOutils
 initNoeudUI(VL);    // R9 : poignées tirables, segment déformable, insertion au double-clic, suppression lisse — après initOutils / initOutils2

@@ -15,9 +15,11 @@ export const REFUSES = ["file.", "app.", "automate.", "plugin.", "script", "wind
 
 // Entrées de fichier que l'écran exécute LUI-MÊME par ses routes (nouveau, ouvrir depuis la Bibliothèque, fermer,
 // enregistrer, exporter) : actives même si le pont refuserait la commande moteur de ce nom.
-export const TRAITES_PAR_ECRAN = new Set(["file.new", "file.open", "file.close", "file.save", "file.saveAs", "file.export.exportAs"]);
+// t139 : `pl.envoyer` (« Envoyer vers… ») n'est pas du catalogue amont — l'écran l'insère après « Revenir ».
+export const TRAITES_PAR_ECRAN = new Set(["file.new", "file.open", "file.close", "file.save", "file.saveAs", "file.export.exportAs",
+  "pl.envoyer"]);
 // … dont celles qui n'ont de sens qu'avec un document ouvert (grisées sur l'écran d'accueil).
-export const NECESSITE_DOC = new Set(["file.close", "file.save", "file.saveAs", "file.export.exportAs"]);
+export const NECESSITE_DOC = new Set(["file.close", "file.save", "file.saveAs", "file.export.exportAs", "pl.envoyer"]);
 
 // Le registre arrive en tableau ; on tolère {commands:[…]}.
 export function indexRegistre(registre) {
@@ -147,6 +149,13 @@ export function construireMenus(catalogue, registre, refuses, lang, t = (c) => c
     });
   }
   for (const m of menus) m.entrees = nettoyer(m.entrees);
+  // t139 : « Envoyer vers… » (Bibliothèque puis le menu de l'application) clôt le groupe des enregistrements du Fichier.
+  const fichier = menus.find((m) => m.nom === "File");
+  if (fichier) {
+    const k = fichier.entrees.findIndex((e) => e.id === "file.revert");
+    const pos = k >= 0 ? k + 1 : fichier.entrees.length;
+    fichier.entrees.splice(pos, 0, { type: "commande", id: "pl.envoyer", libelle: t("photolab.menu.envoyer"), raccourci: "", etat: "actif", champs: [] });
+  }
   menus.push({
     nom: "Aide", nom_affiche: t("photolab.menu.aide"),
     entrees: [{ type: "commande", id: "pl.apropos", libelle: t("photolab.menu.apropos"), raccourci: "", etat: "actif", champs: [] }],

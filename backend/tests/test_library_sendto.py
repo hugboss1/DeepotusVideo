@@ -22,7 +22,9 @@ _BUNDLE = _RACINE / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js"
 def test_le_miroir_bundle_envoyer_vers():
     s = _BUNDLE.read_text("utf-8")
     # le menu : définition + l'appel du bouton du modal
-    assert s.count("__dzSendTo") == 2
+    # 2 -> 3 (t139, 08/10/2026) : patch_bundle_plenvoi expose le même menu aux labs en iframe
+    # (window.__dzEnvoyerVers appelle __dzSendTo) — le Photolab envoie l'image qu'il vient d'enregistrer
+    assert s.count("__dzSendTo") == 3
     assert "Envoyer vers…" in s
     # greffe Quick : pose (menu) + lecture/consommation (mount de Quick)
     # 3 -> 4 (tache #48, 01/10/2026) : dzQuickApply (Rouvrir dans Quick) pose aussi le global quand la liste

@@ -341,6 +341,7 @@ window.__tl = Object.assign(window.__tl || {}, {   // lot 4 : ne pas écraser la
     $("#srcChip").textContent = "Source : " + fn;
     $("#srcChip").classList.add("set");
     updateRunEnabled();
+    if (libImages.length) renderImgGrid();   // t139 : la vignette choisie par un envoi est surlignée (liste déjà chargée)
   },
   run,
 });

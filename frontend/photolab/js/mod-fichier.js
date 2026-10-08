@@ -1,4 +1,5 @@
 import { brut } from "./mod-cycle.js";
+import { recevoir } from "../../shared/dz-envoi.js";
 
 // mod-fichier.js — Nouveau, Ouvrir (Bibliothèque), Enregistrer, Exporter, Fermer (C1, décision D5). Les fichiers ne
 // passent JAMAIS par une commande moteur (le pont refuse file.*) : uniquement par les routes /nouveau, /ouvrir,
@@ -70,9 +71,13 @@ export function aSauvegarder(doc, revEnregistree, revOuverture = null) {
 
 // Nom à montrer et à enregistrer : /ouvrir copie l'image sous « <empreinte sha1 8>-<nom> » dans le dossier du moteur,
 // qui nomme le document d'après cette copie ; on retire l'empreinte et l'extension (« e99baeb8-herbe.png » -> « herbe »).
+// t139 : une image enregistrée par le Photolab porte « photolab_<AAAAMMJJ-HHMMSS>_ » devant son nom, et son fichier de
+// travail « -png » / « -jpg » derrière : on les retire aussi, sinon chaque nouvel enregistrement empilerait le préfixe.
 export function nomDocument(nom) {
-  const s = String(nom == null ? "" : nom).replace(/^[0-9a-f]{8}-/, "");
-  return /\.[A-Za-z0-9]{2,6}$/.test(s) ? s.replace(/\.[A-Za-z0-9]{2,6}$/, "") : s;
+  let s = String(nom == null ? "" : nom).replace(/^[0-9a-f]{8}-/, "");
+  s = /\.[A-Za-z0-9]{2,6}$/.test(s) ? s.replace(/\.[A-Za-z0-9]{2,6}$/, "") : s;
+  const m = /^photolab_\d{8}-\d{6}_(.+)$/.exec(s);
+  return m ? m[1].replace(/-(png|jpg)$/, "") : s;
 }
 
 /* ───────────── côté DOM ───────────── */
@@ -244,10 +249,13 @@ export function initFichier(PL) {
   }
 
   /* ── Ouvrir : Bibliothèque ── */
+  // t139 : une image enregistrée par le Photolab se rouvre avec ses calques (fichier de travail) ; la lignée
+  // « retouche » vers l'image d'origine est tenue par le pont (chemin moteur du document), pas par l'écran.
   async function ouvrirImage(nom) {
-    try { await PL.post("/ouvrir", { filename: nom }); } catch (e) { return; }      // signalé par mod-api
+    let r;
+    try { r = await PL.post("/ouvrir", { filename: nom }); } catch (e) { return; }      // signalé par mod-api
     await apresOuverture();
-    PL.signaler(T("photolab.fichier.ouvert", { nom }));
+    PL.signaler(T(r && r.travail ? "photolab.envoi.calques" : "photolab.fichier.ouvert", { nom }));
   }
   PL.ouvrirImage = ouvrirImage;
 
@@ -318,18 +326,33 @@ export function initFichier(PL) {
     if (d && d.filename) ouvrirImage(d.filename);
   });
 
-  /* ── Enregistrer dans la Bibliothèque (PNG) ── */
+  /* ── Enregistrer dans la Bibliothèque (PNG + fichier de travail .pcraft, toujours un NOUVEAU fichier) ── */
   async function enregistrer() {
     const doc = PL.etat.doc;
-    if (!doc) return;
+    if (!doc) return null;
     let r;
     // Le nom affiché (sans l'empreinte de la copie) : sinon la Bibliothèque recevrait « photolab_…_e99baeb8-herbe-png ».
     const corps = { format: "png" };
     if (nomDocument(doc.name)) corps.nom = nomDocument(doc.name);
-    try { r = await PL.post("/bibliotheque", corps); } catch (e) { return; }
+    try { r = await PL.post("/bibliotheque", corps); } catch (e) { return null; }
     PL.etat.revEnregistree = doc.revision;
     majOnglet(PL.etat.doc);
-    PL.signaler(T("photolab.fichier.enregistre", { nom: r.filename }));
+    PL.signaler(T(r.travail ? "photolab.fichier.enregistre" : "photolab.envoi.sans_calques", { nom: r.filename }));
+    return r;
+  }
+
+  /* ── Envoyer vers… : enregistrer (nouveau fichier) puis le menu « Envoyer vers » de l'application, mêmes cibles que
+     la Bibliothèque (Studio, Quick, Montage, Vectorlab, Sprite Lab, Tile Lab, Cardforge…) ── */
+  async function envoyer() {
+    const r = await enregistrer();
+    if (!r) return;
+    let vers = null;
+    try {
+      const haut = window.top !== window ? window.top : null;
+      vers = haut && typeof haut.__dzEnvoyerVers === "function" ? haut.__dzEnvoyerVers : null;
+    } catch (e) { vers = null; }                 // application d'une autre origine : pas de menu partagé
+    if (vers) vers(r.filename, "photolab");
+    else PL.signaler(T("photolab.envoi.hors_app", { nom: r.filename }));
   }
 
   /* ── Exporter… : format, qualité, nom -> /enregistrer puis téléchargement ── */
@@ -410,6 +433,11 @@ export function initFichier(PL) {
   PL.actions["file.save"] = enregistrer;
   PL.actions["file.saveAs"] = exporter;
   PL.actions["file.export.exportAs"] = exporter;
+  PL.actions["pl.envoyer"] = envoyer;
   PL.$("#btnNouveau").addEventListener("click", nouveau);
   PL.$("#btnOuvrir").addEventListener("click", ouvrir);
+
+  // t139 : une image envoyée par un autre écran (« Envoyer vers › Photolab ») ou `?img=` : ouverte à l'arrivée.
+  const recu = recevoir("photolab");
+  if (recu) ouvrirImage(recu.image);
 }
