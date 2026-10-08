@@ -114,6 +114,23 @@ export function initGestes(PL) {
         const s = ecran(a.points[0][0], a.points[0][1]);
         svg.appendChild(el("circle", { cx: s.x, cy: s.y, r: 4 }, a.fermable ? "poignee actif" : "poignee"));
       }
+    } else if (a.type === "trait" && a.points.length) {
+      // t155 : le trait en cours, à la largeur de la pointe (contour seulement : le moteur peint au relâchement).
+      // Couleur de premier plan pour les outils qui peignent ; sinon un trait neutre (gomme, retouche).
+      const z = PL.vue.v.z;
+      const pts = a.points.length > 1 ? a.points : [a.points[0], [a.points[0][0] + 0.01, a.points[0][1]]];
+      const d = chemin(pts.map((p) => [p[0], p[1]]), false);
+      const trait = el("path", { d, fill: "none", "stroke-width": Math.max(1, a.taille * z), "stroke-linecap": "round", "stroke-linejoin": "round" }, "trait-apercu");
+      if (a.couleur) trait.style.stroke = a.couleur;
+      svg.appendChild(trait);
+    } else if (a.type === "ligne") {
+      const s0 = ecran(a.de[0], a.de[1]), s1 = ecran(a.a[0], a.a[1]);
+      for (const n of fourmis(el("line", { x1: s0.x, y1: s0.y, x2: s1.x, y2: s1.y }))) svg.appendChild(n);
+      for (const s of [s0, s1]) svg.appendChild(el("circle", { cx: s.x, cy: s.y, r: 4 }, "poignee"));
+    } else if (a.type === "pointe") {
+      // cercle de la pointe au survol (diamètre = taille en pixels document)
+      const s = ecran(a.x, a.y);
+      for (const n of fourmis(el("circle", { cx: s.x, cy: s.y, r: Math.max(1, (a.taille * PL.vue.v.z) / 2), fill: "none" }))) svg.appendChild(n);
     } else if (a.type === "recadrage" && a.cadre) {
       const c = a.cadre;
       const p0 = ecran(c.x, c.y), p1 = ecran(c.x + c.width, c.y + c.height);

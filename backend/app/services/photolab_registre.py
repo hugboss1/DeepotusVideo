@@ -419,6 +419,10 @@ def verifier(registre: dict, cid, params, kind=None, etat=None) -> dict:
         # Le registre ne décrit que `reds` ; les huit autres gammes sont dans sa note (relevé A4 : le moteur les accepte).
         for g in GAMMES_SELECTIVE:
             champs.setdefault(g, {"cle": g, "type": "json", "optionnel": True})
+    if cid == "tools.setBrush":
+        # Le registre résume ses champs en « …BrushSettings fields » : seule la forme de la pointe est admise (t155).
+        for c in CHAMPS_POINTE:
+            champs.setdefault(c["cle"], c)
     ctx = {"colorize": _colorise(params, etat)}
     for k, v in params.items():
         champ = champs.get(k)
@@ -442,6 +446,22 @@ GAMMES_SELECTIVE = ("yellows", "greens", "cyans", "blues", "magentas", "whites",
 
 
 BORNES_COLORIZE = {"hue": (0, 360), "saturation": (0, 100)}
+
+# t155 : champs de tools.setBrush que l'écran envoie (Paramètres de pinceau › Forme de la pointe, barre d'options),
+# bornes de l'amont (B §3.9, B §8 : taille 1..5000, espacement 1..1000 %) et unités de brush.get (0..1, espacement
+# en fraction de la taille). Les autres sections (dynamique, texture, double pointe…) restent refusées.
+CHAMPS_POINTE = (
+    {"cle": "size", "type": "number", "min": 1, "max": 5000, "optionnel": True},
+    {"cle": "hardness", "type": "number", "min": 0, "max": 1, "optionnel": True},
+    {"cle": "spacing", "type": "number", "min": 0.01, "max": 10, "optionnel": True},
+    {"cle": "spacingEnabled", "type": "bool", "optionnel": True},
+    {"cle": "angle", "type": "number", "min": -180, "max": 180, "optionnel": True},
+    {"cle": "roundness", "type": "number", "min": 0.01, "max": 1, "optionnel": True},
+    {"cle": "flipX", "type": "bool", "optionnel": True},
+    {"cle": "flipY", "type": "bool", "optionnel": True},
+    {"cle": "opacity", "type": "number", "min": 0, "max": 1, "optionnel": True},
+    {"cle": "flow", "type": "number", "min": 0, "max": 1, "optionnel": True},
+)
 
 
 def _kind_de_commande(cid):

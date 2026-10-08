@@ -20,6 +20,8 @@ import { initSelection } from "./mod-selection.js";
 import { initDeplacer } from "./mod-deplacer.js";
 import { initRecadrer } from "./mod-recadrer.js";
 import { initPipette } from "./mod-pipette.js";
+import { initPeinture } from "./mod-peinture.js";
+import { initPinceaux } from "./mod-pinceaux.js";
 import { initRaccourcis } from "./mod-raccourcis.js";
 import { initApropos } from "./mod-apropos.js";
 
@@ -112,6 +114,8 @@ initSelection(PL);
 initDeplacer(PL);
 initRecadrer(PL);
 initPipette(PL);
+initPeinture(PL);     // t155 : après la pipette (Alt-clic des pinceaux la réutilise) et le répartiteur des gestes
+initPinceaux(PL);     // t155 : après la peinture (PL.optionsPeintureDe) ; branche Fenêtre › Pinceaux… dans PL.actions
 
 // Onglets du groupe Calques | Historique | Navigateur, et rail d'icônes : calques/historique/navigateur montrent leur
 // onglet ; couleur et réglages (Propriétés) replient ou déplient leur groupe.
@@ -128,7 +132,8 @@ function majRail() {
   const onglet = (PL.$("#grpCalques .onglet.actif") || {}).dataset;
   PL.$$("#rail button[data-panneau]").forEach((b) => {
     const p = b.dataset.panneau;
-    const oui = p === "couleur" ? !PL.$("#grpCouleur").hidden : p === "reglages" ? !PL.$("#grpProprietes").hidden : onglet && onglet.onglet === p;
+    const oui = p === "couleur" ? !PL.$("#grpCouleur").hidden : p === "reglages" ? !PL.$("#grpProprietes").hidden
+      : p === "pinceaux" ? !PL.$("#grpPinceaux").hidden : onglet && onglet.onglet === p;
     b.classList.toggle("actif", !!oui); b.setAttribute("aria-pressed", oui ? "true" : "false");
   });
 }
@@ -138,6 +143,7 @@ PL.$$("#rail button[data-panneau]").forEach((b) => b.addEventListener("click", (
   const p = b.dataset.panneau;
   if (p === "couleur") PL.$("#grpCouleur").hidden = !PL.$("#grpCouleur").hidden;
   else if (p === "reglages") PL.$("#grpProprietes").hidden = !PL.$("#grpProprietes").hidden;
+  else if (p === "pinceaux") PL.basculerPinceaux();          // t155 : replie / déplie, et relit le moteur à l'ouverture
   else PL.montrerOnglet(p);
   majRail();
 }));

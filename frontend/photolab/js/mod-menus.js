@@ -17,7 +17,9 @@ export const REFUSES = ["file.", "app.", "automate.", "plugin.", "script", "wind
 // enregistrer, exporter) : actives même si le pont refuserait la commande moteur de ce nom.
 // t139 : `pl.envoyer` (« Envoyer vers… ») n'est pas du catalogue amont — l'écran l'insère après « Revenir ».
 export const TRAITES_PAR_ECRAN = new Set(["file.new", "file.open", "file.close", "file.save", "file.saveAs", "file.export.exportAs",
-  "pl.envoyer", "pl.natif.ouvrir", "pl.natif.reprendre"]);
+  "pl.envoyer", "pl.natif.ouvrir", "pl.natif.reprendre",
+  // t155 : le groupe Pinceaux (mod-pinceaux, PL.actions) ; window.* reste refusé au moteur
+  "window.panel.brushes", "window.panel.brushSettings", "window.panel.cloneSource", "window.panel.toolPresets"]);
 // … dont celles qui n'ont de sens qu'avec un document ouvert (grisées sur l'écran d'accueil).
 export const NECESSITE_DOC = new Set(["file.close", "file.save", "file.saveAs", "file.export.exportAs", "pl.envoyer", "pl.natif.ouvrir"]);
 
