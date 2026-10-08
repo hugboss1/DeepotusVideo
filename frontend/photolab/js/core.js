@@ -29,6 +29,7 @@ import { initPresets } from "./mod-presets.js";
 import { initInfos } from "./mod-infos.js";
 import { initCouches } from "./mod-couches.js";
 import { initCompositions } from "./mod-compositions.js";
+import { initTransformer } from "./mod-transformer.js";
 import { initRaccourcis } from "./mod-raccourcis.js";
 import { initApropos } from "./mod-apropos.js";
 
@@ -132,6 +133,7 @@ initPresets(PL, "motifs");
 initInfos(PL);
 initCouches(PL);
 initCompositions(PL);
+initTransformer(PL);     // t154 : après les gestes (PL.gestesPrioritaires, PL.dessinerTransformation) et les outils (barre d'options)
 
 // Onglets du groupe Calques | Historique | Navigateur, et rail d'icônes : calques/historique/navigateur montrent leur
 // onglet ; couleur et réglages (Propriétés) replient ou déplient leur groupe.

@@ -643,3 +643,17 @@ body.ecran-plein #panneaux, body.ecran-plein #statut, body.ecran-plein .espace-b
 .pr-recherche, .pr-courant, .hi-graphe, .pl-nom, .cmp-champ input, .cmp-champ textarea { box-sizing: border-box; }
 /* t153 : quatre onglets (Calques | Couches | Historique | Navigateur) dans 278 px : marges resserrées */
 #grpCalques .groupe-tete .onglet { padding: 0 5px; }
+/* ---- t154 : transformation manuelle (cadre, poignées, point de référence, barre d'options) ---- */
+#fourmis .transfo-cadre { stroke: var(--accent); stroke-width: 1; }
+#fourmis .transfo-poignee { fill: var(--ink-strong); stroke: var(--accent); stroke-width: 1; }
+#fourmis .transfo-pivot { fill: var(--ink-strong); stroke: var(--bg-base); stroke-width: .5; }
+#fourmis .transfo-croix { stroke: var(--ink-strong); stroke-width: 1; fill: none; }
+.tr-grille { display: grid; grid-template-columns: repeat(3, 8px); gap: 2px; margin: 0 6px; }
+.tr-ref { width: 8px; height: 8px; padding: 0; background: var(--bg-panel-3); border: 1px solid var(--stroke-strong); border-radius: 1px; }
+.tr-ref:hover { background: var(--accent); }
+.tr-champ input[type=number] { width: 58px; }
+.tr-unite { color: var(--ink-muted); font-size: 11px; margin-left: 2px; }
+.tr-bascule { min-width: 22px; height: 22px; padding: 0 4px; background: transparent; border: 1px solid var(--stroke); border-radius: 3px; color: var(--ink-soft); }
+.tr-bascule.actif { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+.tr-valider, .tr-annuler { min-width: 26px; height: 22px; margin-left: 4px; background: var(--bg-panel-2); border: 1px solid var(--stroke); border-radius: 3px; color: var(--ink-strong); }
+.tr-valider:hover { background: var(--accent); color: var(--accent-ink); }
