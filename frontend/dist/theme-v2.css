@@ -163,6 +163,7 @@ button[style*="border: 1px solid rgb(0, 229, 255)"]:not([style*="linear-gradient
   --cat-sprites:oklch(.72 .13 200); --cat-tuiles:oklch(.72 .13 145);
   --cat-matieres:oklch(.72 .13 80); --cat-cartes:oklch(.72 .13 25);
   --cat-vectoriel:oklch(.72 .13 340);
+  --cat-photo:oklch(.74 .12 112);
   --cat:var(--accent);
   --cat-fill:oklch(from var(--cat) l c h / .14);
   --cat-line:oklch(from var(--cat) l c h / .55);
@@ -177,6 +178,7 @@ button[style*="border: 1px solid rgb(0, 229, 255)"]:not([style*="linear-gradient
   --cat-sprites:oklch(.52 .12 200); --cat-tuiles:oklch(.52 .12 145);
   --cat-matieres:oklch(.52 .12 80); --cat-cartes:oklch(.52 .12 25);
   --cat-vectoriel:oklch(.52 .12 340);
+  --cat-photo:oklch(.52 .12 112);
   --cat-ink:#ffffff;
 }
 /* ── Les HUIT teintes des catégories de nœuds du Studio (28/08) ──────────

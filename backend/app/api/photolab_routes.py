@@ -9,6 +9,7 @@ répondu. Si elle change entre deux demandes, le moteur a été relancé et les 
 """
 import asyncio
 import concurrent.futures
+import functools
 import hashlib
 import itertools
 import os
@@ -44,9 +45,15 @@ _POOL = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix=
 
 async def _appeler(methode, params=None, delai_s=None):
     """(résultat, génération) — les erreurs du moteur deviennent des statuts HTTP qui disent la cause."""
+    return await _pool(lambda s: s.appeler_g, methode, params or {}, delai_s)
+
+
+async def _pool(choisir, *args):
+    """`choisir(session)` rend la fonction à lancer sur le pool dédié avec `args`. Les erreurs du moteur deviennent
+    des statuts HTTP (503 absent, 409 occupé, 504 délai, 422 refus du moteur, 400 valeur refusée)."""
     try:
         s = PM.session()
-        return await asyncio.get_running_loop().run_in_executor(_POOL, s.appeler_g, methode, params or {}, delai_s)
+        return await asyncio.get_running_loop().run_in_executor(_POOL, choisir(s), *args)
     except PM.MoteurAbsent as e:
         raise HTTPException(503, str(e))
     except PM.MoteurOccupe as e:
@@ -175,17 +182,14 @@ async def rendu(body: dict | None = None):
     return _json({"url": f"/api/photolab/rendus/{nom}", "ms": round((time.perf_counter() - t0) * 1000)}, gen)
 
 
-@router.post("/enregistrer")
-async def enregistrer(body: dict):
-    fmt = (body or {}).get("format")
-    if fmt not in FORMATS:
-        raise HTTPException(400, f"format hors liste : {fmt!r} ({', '.join(FORMATS)})")
+def _base_sure(nom, defaut="photolab") -> str:
     # ASCII d'abord (« Photo d'été » -> « Photo-d-ete ») : Windows et le moteur ne se fient pas aux accents.
-    brut = unicodedata.normalize("NFKD", str((body or {}).get("nom") or "")).encode("ascii", "ignore").decode()
-    base = _sur(re.sub(r"[^A-Za-z0-9_-]+", "-", brut).strip("-")[:80] or "photolab")
-    q = None
-    if "quality" in (body or {}):
-        q = _entier(body["quality"], 1, 100, "quality")
+    brut = unicodedata.normalize("NFKD", str(nom or "")).encode("ascii", "ignore").decode()
+    return _sur(re.sub(r"[^A-Za-z0-9_-]+", "-", brut).strip("-")[:80] or defaut)
+
+
+async def _exporter(fmt, base, q):
+    """doc.save sous exports/<base>.<fmt> (suffixe -2, -3… plutôt qu'un écrasement) -> (fichier, génération)."""
     dossier = PM.dossier_travail() / "exports"
     async with _VERROU_EXPORT:
         fichier, k = f"{base}.{fmt}", 1
@@ -196,7 +200,91 @@ async def enregistrer(body: dict):
         if q is not None:
             p["quality"] = q
         _, gen = await _appeler("doc.save", p)
+    return fichier, gen
+
+
+@router.post("/enregistrer")
+async def enregistrer(body: dict):
+    fmt = (body or {}).get("format")
+    if fmt not in FORMATS:
+        raise HTTPException(400, f"format hors liste : {fmt!r} ({', '.join(FORMATS)})")
+    q = None
+    if "quality" in (body or {}):
+        q = _entier(body["quality"], 1, 100, "quality")
+    fichier, gen = await _exporter(fmt, _base_sure((body or {}).get("nom")), q)
     return _json({"fichier": fichier, "url": f"/api/photolab/exports/{fichier}"}, gen)
+
+
+# ── t137 (P2) : ce que l'écran ajoute au pont ────────────────────────────────────────────────────────────────────
+
+@router.get("/session")
+async def session_liste():
+    """Documents ouverts, document actif, couleurs de premier plan et d'arrière-plan (méthode `session.list`)."""
+    return _json(*await _appeler("session.list"))
+
+
+@router.post("/historique")
+async def historique(body: dict):
+    """{"annuler": n} ou {"retablir": n} (1..100, entier, un seul des deux) -> {"inspect": doc.inspect après,
+    "completed": n faits, "failed": n refusés} (demander plus que l'historique n'est pas une erreur). UNE requête batch :
+    le moteur n'a aucun saut direct dans l'historique, l'écran convertit « clic sur l'état k » en n annulations."""
+    corps = body if isinstance(body, dict) else {}
+    cles = [k for k in ("annuler", "retablir") if k in corps]
+    if len(cles) != 1:
+        raise HTTPException(400, "historique : exactement un de « annuler » ou « retablir » est attendu")
+    n = _entier(corps[cles[0]], 1, 100, cles[0])
+    return _json(*await _pool(lambda s: functools.partial(PM.historique, s), cles[0], n))
+
+
+@router.get("/vignettes")
+async def vignettes(maxSide: int = 48):
+    """Une vignette PAR calque du document actif : {"vignettes": {"<id du calque>": "/api/photolab/rendus/vig-….png"}}.
+    Les fichiers sont servis par /rendus/. Cache par (génération, révision) côté service."""
+    m = _entier(maxSide, 16, 256, "maxSide")
+    noms, gen = await _pool(lambda s: functools.partial(PM.vignettes, s), m)
+    return _json({"vignettes": {k: f"/api/photolab/rendus/{n}" for k, n in noms.items()}}, gen)
+
+
+_VERROU_BIBLIO = asyncio.Lock()          # choisir un nom libre ET copier d'un seul tenant (deux enregistrements la même seconde)
+
+
+@router.post("/bibliotheque")
+async def bibliotheque(body: dict):
+    """{"format": "png"|"jpg", "quality"?} : enregistre le document actif dans exports/ puis COPIE le fichier dans la
+    Bibliothèque sous photolab_<AAAAMMJJ-HHMMSS>_<base>.<ext> ; le préfixe + la note d'index donnent la source
+    « Photolab » (même mécanisme que vector_). Rend {"filename": nom}."""
+    from app.config import settings
+    from app.services import library_index as LI
+    fmt = (body or {}).get("format")
+    if fmt not in ("png", "jpg"):
+        raise HTTPException(400, f"format hors liste : {fmt!r} (png, jpg)")
+    q = None
+    if "quality" in (body or {}):
+        q = _entier(body["quality"], 1, 100, "quality")
+    nom_doc = (body or {}).get("nom")
+    if not nom_doc:
+        nom_doc = (await _appeler("doc.inspect"))[0].get("name")      # sans document, le moteur refuse : 422 dit
+    base = _base_sure(nom_doc, "image")
+    fichier, gen = await _exporter(fmt, base, q)
+    src = PM.dossier_travail() / "exports" / fichier
+    dossier = settings.images_path
+    dossier.mkdir(parents=True, exist_ok=True)
+    horo = time.strftime("%Y%m%d-%H%M%S")
+    async with _VERROU_BIBLIO:
+        nom, k = f"photolab_{horo}_{base}.{fmt}", 1
+        while (dossier / nom).exists():
+            k += 1
+            nom = f"photolab_{horo}_{base}-{k}.{fmt}"
+        try:
+            await asyncio.to_thread(shutil.copyfile, src, dossier / nom)
+        except OSError as e:
+            raise HTTPException(500, f"copie dans la Bibliothèque impossible : {e}")
+    try:
+        src.unlink()                                      # exports/ est réservé à /enregistrer : pas de doublon caché
+    except OSError:
+        pass
+    await LI.noter([nom], "photolab")
+    return _json({"filename": nom}, gen)
 
 
 def _servir(sous, nom):

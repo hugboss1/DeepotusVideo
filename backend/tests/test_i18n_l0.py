@@ -34,7 +34,8 @@ SRC = ROOT / "frontend" / "shared"
 DIST = ROOT / "frontend" / "dist" / "shared"
 PAGES = ["frontend/dist/index.html", "frontend/atelier/index.html", "frontend/cardforge/index.html",
          "frontend/etabli/index.html", "frontend/materialforge/index.html", "frontend/spritelab/index.html",
-         "frontend/studio3d/index.html", "frontend/tilelab/index.html", "frontend/vectorlab/index.html"]
+         "frontend/studio3d/index.html", "frontend/tilelab/index.html", "frontend/vectorlab/index.html",
+         "frontend/photolab/index.html"]
 B_DICO = '<script src="/shared/dz-i18n-dico.js"></script>'
 B_RUN = '<script src="/shared/dz-i18n.js"></script>'
 ok = fail = 0
@@ -58,7 +59,10 @@ for nom in ("dz-i18n.js", "dz-i18n-dico.js"):
 if NODE and run_src.is_file() and dico_dist.is_file():
     HARNAIS = r"""
 const fs = require("fs");
-const [runSrc, dicoSrc, scen] = process.argv.slice(1);
+// Les CHEMINS passent en argument, pas les contenus : le dictionnaire dépasse 22 Ko depuis le Photolab (t137) et la
+// ligne de commande Windows plafonne à 32 767 caractères (WinError 206).
+const [runPath, dicoPath, scen] = process.argv.slice(1);
+const runSrc = fs.readFileSync(runPath, "utf8"), dicoSrc = fs.readFileSync(dicoPath, "utf8");
 function monde(ls, install) {
   const magasin = Object.assign({}, ls), entetes = [], recharge = [];
   const window = { location: { reload: () => recharge.push(1) } };
@@ -100,7 +104,7 @@ setTimeout(() => { R.premier = [m.magasin.dz_lang_install, m.recharge.length];
   const m2 = monde({ dz_lang_install: "en" }, "en");
   setTimeout(() => { R.second = m2.recharge.length; process.stdout.write(JSON.stringify(R)); }, 20); }, 20);
 """
-    r = subprocess.run([NODE, "-e", HARNAIS, run_src.read_text("utf-8"), dico_dist.read_text("utf-8"), ""],
+    r = subprocess.run([NODE, "-e", HARNAIS, str(run_src), str(dico_dist), ""],
                        capture_output=True, text=True, encoding="utf-8")
     if r.returncode:
         check("1.1 le runtime s'exécute sous node", False, r.stderr[-800:])
@@ -126,6 +130,33 @@ setTimeout(() => { R.premier = [m.magasin.dz_lang_install, m.recharge.length];
         check("1.12 dzSetLang mémorise et recharge ; borné", R["set"] == ["en", 1] and R["set_borne"] == "en", [R["set"], R["set_borne"]])
         check("1.13 premier lancement d'une installation anglaise : mémorisé puis UNE recharge, pas de boucle",
               R["premier"] == ["en", 1] and R["second"] == 0, [R["premier"], R["second"]])
+    # 1.14 (t137) : la surcouche ne réécrit JAMAIS un attribut dont la traduction est identique (« Menus », « Documents ») —
+    # le vrai MutationObserver émet un enregistrement à chaque setAttribute, même de même valeur : l'observateur se
+    # reprenait sans fin et figeait la page en anglais. L'observateur factice ci-dessous fait pareil, plafonné à 200.
+    BOUCLE = r"""
+const fs = require("fs");
+const [runPath, dicoPath] = process.argv.slice(1);
+function essai(texte) {
+  let rappel = null, n = 0;
+  const el = { nodeType: 1, attrs: { "aria-label": texte }, getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; },
+    hasAttribute() { return false; },
+    setAttribute(k, v) { this.attrs[k] = v; n++; if (n < 200 && rappel) rappel([{ type: "attributes", target: this }]); } };
+  function MO(cb) { rappel = cb; } MO.prototype.observe = function () {};
+  const window = { location: { reload() {} }, localStorage: { getItem: (k) => (k === "dz_lang" ? "en" : null), setItem() {} },
+    fetch: () => Promise.resolve({ ok: true, json: () => Promise.resolve({ ui_lang: "en" }) }) };
+  const document = { documentElement: { lang: "en" }, readyState: "loading", addEventListener() {} };
+  new Function("window", "document", "localStorage", "MutationObserver", "Node",
+    fs.readFileSync(dicoPath, "utf8") + "\n" + fs.readFileSync(runPath, "utf8") + "\n;return window;")(window, document, window.localStorage, MO, {});
+  rappel([{ type: "attributes", target: el }]);
+  return [n, el.attrs["aria-label"]];
+}
+process.stdout.write(JSON.stringify({ meme: essai("Documents"), autre: essai("Annuler") }));
+"""
+    r = subprocess.run([NODE, "-e", BOUCLE, str(run_src), str(dico_dist)], capture_output=True, text=True, encoding="utf-8")
+    B = json.loads(r.stdout) if r.returncode == 0 and r.stdout.strip() else {}
+    check("1.14 surcouche : un attribut au texte identique dans les deux langues n'est jamais réécrit (pas de boucle)",
+          B.get("meme") == [0, "Documents"], [B, r.stderr[-300:]])
+    check("1.15 surcouche : un attribut français est réécrit UNE fois en anglais", B.get("autre") == [1, "Cancel"], B)
 else:
     check("1.1 le runtime existe", False, "node ou fichiers absents")
 
@@ -148,6 +179,11 @@ for k, v in toutes.items():
     fr_dup.setdefault(v.get("fr"), set()).add(v.get("en"))
 check("2.4 un même texte français a UNE seule traduction (sinon la surcouche serait ambiguë)",
       all(len(s) == 1 for s in fr_dup.values()), [f for f, s in fr_dup.items() if len(s) > 1][:5])
+# 2.6 (t137) : aucune chaîne — le texte anglais d'une clé n'est jamais le français d'une AUTRE clé traduit autrement.
+# Sinon la surcouche, qui repasse sur ce qu'elle vient d'écrire, retraduirait l'anglais (A -> B -> C, ou A -> B -> A).
+chaines = sorted(k for k, v in toutes.items() if isinstance(v, dict) and v.get("en") != v.get("fr")
+                 and v.get("en") in fr_dup and fr_dup[v.get("en")] != {v.get("en")})
+check("2.6 aucune chaîne de traduction (l'anglais d'une clé n'est le français d'aucune autre)", not chaines, chaines[:10])
 try:
     import i18n_assembler as IA
     rejoue = IA.assembler(SRC / "i18n")

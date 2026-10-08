@@ -93,7 +93,9 @@
       var v = el.getAttribute(ATTRS[i]);
       if (v == null) continue;
       var t = traduire(v);
-      if (t != null) el.setAttribute(ATTRS[i], t);
+      // t === v : texte identique dans les deux langues (« Menus », « Documents »). Le réécrire quand même
+      // émettrait un enregistrement d'attribut, que l'observateur reprendrait sans fin (page figée, t137).
+      if (t != null && t !== v) el.setAttribute(ATTRS[i], t);
     }
   }
   function parcourir(racine) {
