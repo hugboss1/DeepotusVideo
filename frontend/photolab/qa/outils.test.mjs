@@ -16,7 +16,7 @@ const tous = EMPLACEMENTS.flat();
 check("1.3 identifiants uniques", new Set(tous.map((o) => o.id)).size === tous.length);
 check("1.4 chaque icône existe dans icones/", tous.every((o) => existsSync(join(racine, "icones", o.icone + ".svg"))),
   tous.filter((o) => !existsSync(join(racine, "icones", o.icone + ".svg"))).map((o) => o.icone));
-check("1.5 29 outils actifs (P2 : 11 ; t155 peinture et retouche : +18)", tous.filter((o) => o.p2).length === 29, tous.filter((o) => o.p2).map((o) => o.id).join());
+check("1.5 38 outils actifs (P2 : 11 ; t155 peinture et retouche : +18 ; t156 texte, formes, plume : +9)", tous.filter((o) => o.p2).length === 38, tous.filter((o) => o.p2).map((o) => o.id).join());
 check("1.6 emplacementDe", emplacementDe("move") === 0 && emplacementDe("ellipseMarquee") === 1 && emplacementDe("zoom") === 19 && emplacementDe("nimporte") === -1);
 check("1.7 outilDe", outilDe("crop").lettre === "C" && outilDe("x") === null);
 check("1.8 cleNom", cleNom("rectMarquee") === "photolab.outil.rect_marquee" && cleNom("move") === "photolab.outil.move");
@@ -34,7 +34,7 @@ check("2.9 prefMaj avec Maj cycle", outilParLettre("M", "rectMarquee", true, tru
 check("2.10 prefMaj, autre groupe : premier outil", outilParLettre("M", "move", false, true) === "rectMarquee");
 check("2.11 B -> Pinceau ; B depuis Pinceau -> Crayon (t155)", outilParLettre("B", "move", false) === "brush" && outilParLettre("B", "brush", false) === "pencil");
 check("2.11b J saute la Pièce (absente du moteur) : healing -> spotHealing", outilParLettre("J", "healing", false) === "spotHealing");
-check("2.11c aucune lettre P (Plume bientôt) -> null", outilParLettre("P", "move", false) === null);
+check("2.11c t156 : P choisit la Plume ; une lettre sans outil (K) -> null", outilParLettre("P", "move", false) === "pen" && outilParLettre("K", "move", false) === null);
 check("2.12 lettre inconnue -> null", outilParLettre("K", "move", false) === null && outilParLettre("", "move", false) === null);
 check("2.13 V depuis move -> move (un seul)", outilParLettre("V", "move", false) === "move");
 check("2.14 I depuis eyedropper -> eyedropper (les autres sont bientôt)", outilParLettre("I", "eyedropper", false) === "eyedropper");

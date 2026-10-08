@@ -14,11 +14,12 @@ from pathlib import Path
 # Groupes de panneaux de l'écran -> leurs onglets (index.html : #grpCouleur, #grpProprietes, #grpPinceaux, #grpCalques,
 # #grpInfos — t153).
 GROUPES = {
-    "couleur": ("couleur", "nuancier", "degrades", "motifs"),
-    "proprietes": ("proprietes", "ajustements", "compositions"),
+    "couleur": ("couleur", "nuancier", "degrades", "motifs", "formes"),
+    "proprietes": ("proprietes", "ajustements", "styles", "compositions"),
     "pinceaux": ("pinceaux", "parametres", "source", "predefinis"),
-    "calques": ("calques", "couches", "historique", "navigateur"),
+    "calques": ("calques", "couches", "traces", "historique", "navigateur"),
     "infos": ("histogramme", "infos"),                   # t153 : #grpInfos
+    "texte": ("caractere", "paragraphe", "glyphes", "stylesCar", "stylesPar"),       # t156 : #grpTexte
 }
 # Espaces fournis, dans l'ordre du menu (décision Q1 du 08/10/2026).
 FOURNIS = ("essentiel", "base", "graphisme", "mouvement", "peinture", "photo", "pixel")

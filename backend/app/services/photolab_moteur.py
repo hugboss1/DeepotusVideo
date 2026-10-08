@@ -793,32 +793,69 @@ _COTE_MOTIF = 64
 
 
 def vignette_motif(s: "SessionMoteur", ident: str):
-    """(octets PNG 64×64 du motif `ident` répété, génération). Le moteur n'a pas de rendu de motif : un document
-    temporaire (doc.new, calque de motif, doc.render) refermé dans un `finally`, l'original resélectionné ; le
-    document de l'utilisateur n'est jamais touché (ni historique ni révision). Cache par (génération, id) : le
-    contenu d'un motif ne change pas (renommer garde l'id, Définir un motif en crée un nouveau)."""
+    """(octets PNG 64×64 du motif `ident` répété, génération) — voir `vignette_preset`."""
     if not isinstance(ident, str) or not _ID_MOTIF.fullmatch(ident):
         raise ValueError(f"motif : identifiant mal formé : {ident!r}")
+    return vignette_preset(s, "motif", ident)
+
+
+# t156 : formes personnalisées et styles de calque, rendus comme les motifs. Le nom d'un préréglage du moteur n'est
+# qu'une clé de liste : il est refusé s'il ressemble à un fichier, s'il porte un caractère de contrôle ou dépasse 120.
+_GENRES_VIGNETTE = ("motif", "forme", "style")
+
+
+def _nom_preset(v, quoi):
+    if v is None and quoi == "groupe":
+        return None
+    if not isinstance(v, str) or not 1 <= len(v) <= 120 or any(ord(c) < 32 for c in v) or _valeur_fichier(v):
+        raise ValueError(f"{quoi} de préréglage refusé : {v!r}")
+    return v
+
+
+def vignette_preset(s: "SessionMoteur", genre: str, cle: str, groupe=None):
+    """(octets PNG 64×64, génération) d'un préréglage : motif (id), forme personnalisée ou style de calque (nom, groupe).
+    Le moteur ne rend aucun préréglage : un document temporaire (doc.new transparent, puis calque de motif, forme placée
+    ou carré uni stylé, doc.render) refermé dans un `finally`, l'original resélectionné ; le document de l'utilisateur
+    n'est jamais touché (ni historique ni révision). Cache par (génération, genre, clé, groupe) : renommer change la clé,
+    le contenu d'une clé ne change pas sans nouvelle génération."""
+    if genre not in _GENRES_VIGNETTE:
+        raise ValueError(f"genre de préréglage inconnu : {genre!r}")
+    if genre == "motif":
+        if not isinstance(cle, str) or not _ID_MOTIF.fullmatch(cle):
+            raise ValueError(f"motif : identifiant mal formé : {cle!r}")
+        groupe = None
+    else:
+        cle, groupe = _nom_preset(cle, "nom"), _nom_preset(groupe, "groupe")
     n = next(_COMPTEUR_APV)
     fichier = dossier_travail() / "rendus" / f"mtf-{n}.png"
+    c = _COTE_MOTIF
+    if genre == "motif":
+        etapes = [("layer.newFillLayer.pattern", {"pattern": cle})]
+    elif genre == "forme":
+        etapes = [("shape.presets.place", {"preset": cle, **({"group": groupe} if groupe else {}), "rect": [4, 4, c - 8, c - 8],
+                                           "fill": "#c8c8c8"})]
+    else:
+        etapes = [("shape.create", {"kind": "rect", "rect": [12, 12, c - 24, c - 24], "fill": "#9aa0a6"}),
+                  ("style.presets.apply", {"preset": cle, **({"group": groupe} if groupe else {})})]
+    cache = (genre, cle, groupe)
 
     def fn(appel, gen):
         with _VERROU_CACHE_MOTIFS:
-            if (gen, ident) in _CACHE_MOTIFS:
-                return _CACHE_MOTIFS[(gen, ident)]
+            if (gen, cache) in _CACHE_MOTIFS:
+                return _CACHE_MOTIFS[(gen, cache)]
         sl = appel("session.list") or {}
         actif, n_avant = sl.get("active"), len(sl.get("documents") or [])
         temp, reussi = None, False
         try:
-            appel("doc.new", {"width": _COTE_MOTIF, "height": _COTE_MOTIF, "background": "transparent",
-                              "name": "dz-motif"})
+            appel("doc.new", {"width": c, "height": c, "background": "transparent", "name": "dz-" + genre})
             apres = appel("session.list") or {}
             if len(apres.get("documents") or []) == n_avant + 1 and isinstance(apres.get("active"), int):
                 temp = apres["active"]
             if temp is None:
-                raise MoteurErreur("motif : le document temporaire n'a pas été créé")
-            appel("engine.execute", {"command": "layer.newFillLayer.pattern", "params": {"pattern": ident}})
-            appel("doc.render", {"path": relatif(f"rendus/{fichier.name}"), "maxSide": _COTE_MOTIF})
+                raise MoteurErreur(f"{genre} : le document temporaire n'a pas été créé")
+            for cid, params in etapes:
+                appel("engine.execute", {"command": cid, "params": params})
+            appel("doc.render", {"path": relatif(f"rendus/{fichier.name}"), "maxSide": c})
             octets = fichier.read_bytes()
             reussi = True
         finally:
@@ -837,7 +874,7 @@ def vignette_motif(s: "SessionMoteur", ident: str):
         with _VERROU_CACHE_MOTIFS:
             if len(_CACHE_MOTIFS) > 256:
                 _CACHE_MOTIFS.clear()
-            _CACHE_MOTIFS[(gen, ident)] = octets
+            _CACHE_MOTIFS[(gen, cache)] = octets
         return octets
     return s.sequence(fn)
 
