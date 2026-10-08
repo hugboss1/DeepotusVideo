@@ -10,15 +10,16 @@ export function cadreNavigateur(doc, boite) {
 }
 
 // Partie du document visible dans la vue {w,h} (vue v = {z, ox, oy}) -> rectangle dans le repère du navigateur.
+// t152 : en miroir (v.miroir, v.dw), la partie visible se lit dans la vue retournée.
 export function rectVue(v, vue, cadre) {
-  const x0 = -v.ox / v.z, y0 = -v.oy / v.z;
+  const x0 = v.miroir ? v.dw - (vue.w - v.ox) / v.z : -v.ox / v.z, y0 = -v.oy / v.z;
   return { x: cadre.x + x0 * cadre.echelle, y: cadre.y + y0 * cadre.echelle, w: (vue.w / v.z) * cadre.echelle, h: (vue.h / v.z) * cadre.echelle };
 }
 
 // Point (px, py) du navigateur -> nouvelle vue, même zoom, qui met ce point du document au centre de la vue.
 export function centrerVue(px, py, cadre, v, vue) {
   const dx = (px - cadre.x) / cadre.echelle, dy = (py - cadre.y) / cadre.echelle;
-  return { z: v.z, ox: vue.w / 2 - dx * v.z, oy: vue.h / 2 - dy * v.z };
+  return { z: v.z, ox: vue.w / 2 - (v.miroir ? v.dw - dx : dx) * v.z, oy: vue.h / 2 - dy * v.z };
 }
 
 export function initNavigateur(PL) {

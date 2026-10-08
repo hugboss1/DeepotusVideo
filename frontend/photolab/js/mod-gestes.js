@@ -4,11 +4,13 @@
 // dessine que des contours (forme en cours, cadre de recadrage, bornes de la sélection) : jamais de pixels.
 // La main (outil, Espace, bouton du milieu) et l'outil Zoom restent à mod-vue.
 
+import { rectVersEcran } from "./mod-vue.js";
+
 // Bornes de sélection du moteur [x, y, w, h] -> rectangle écran calé sur le demi-pixel (trait net d'un pixel).
 export function formeFourmis(bornes, v) {
   if (!Array.isArray(bornes) || bornes.length < 4) return null;
-  return { x: Math.round(bornes[0] * v.z + v.ox) + 0.5, y: Math.round(bornes[1] * v.z + v.oy) + 0.5,
-    w: Math.round(bornes[2] * v.z), h: Math.round(bornes[3] * v.z) };
+  const r = rectVersEcran(v, bornes[0], bornes[1], bornes[2], bornes[3]);      // t152 : vue en miroir comprise
+  return { x: Math.round(r.x) + 0.5, y: Math.round(r.y) + 0.5, w: Math.round(r.w), h: Math.round(r.h) };
 }
 
 const NS = "http://www.w3.org/2000/svg";
@@ -23,7 +25,9 @@ export function initGestes(PL) {
 
   const point = (ev) => {
     const s = PL.vue.pointeur(ev);
-    const d = PL.vue.versDoc(s.x, s.y);
+    let d = PL.vue.versDoc(s.x, s.y);
+    // t152 : Affichage › Aimanter — le point des outils géométriques se pose sur repères, grille, bords (Ctrl l'interrompt)
+    if (PL.affichage) d = PL.affichage.aimanterPointDoc(d, ev);
     return { x: d.x, y: d.y, sx: s.x, sy: s.y };
   };
   const outil = () => (PL.etat.doc && !PL.vue.mainActive() ? PL.gestes[PL.etat.outil] || null : null);
@@ -91,7 +95,8 @@ export function initGestes(PL) {
     const st = PL.$("#stSelection");
     if (!doc) { if (st) { st.textContent = ""; st.title = ""; } return; }
     const v = PL.vue.v;
-    const f = doc.hasSelection ? formeFourmis(doc.selectionBounds, v) : null;
+    // t152 : Affichage › Afficher › Contours de la sélection (et Extras)
+    const f = doc.hasSelection && (!PL.affichage || PL.affichage.voir("contoursSelection")) ? formeFourmis(doc.selectionBounds, v) : null;
     if (f) for (const n of fourmis(el("rect", { x: f.x, y: f.y, width: f.w, height: f.h }))) svg.appendChild(n);
     if (st) {
       // Le moteur ne donne que les bornes de la sélection en P2 : le contour affiché est un rectangle, on le dit.

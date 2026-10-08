@@ -30,10 +30,19 @@ export function ajuster(doc, vue, marge = 16) {
   return borner(Math.min(libreW / doc.w, libreH / doc.h));
 }
 
-// écran -> document : ((x - ox) / z, (y - oy) / z)
-export function versDoc(v, x, y) { return { x: (x - v.ox) / v.z, y: (y - v.oy) / v.z }; }
+// écran -> document : ((x - ox) / z, (y - oy) / z). t152 : en miroir (Affichage › Symétrie horizontale, v.miroir, v.dw =
+// largeur du document), x document = dw - (x - ox) / z — la VUE seule est retournée, jamais le document.
+export function versDoc(v, x, y) {
+  const dx = (x - v.ox) / v.z;
+  return { x: v.miroir ? v.dw - dx : dx, y: (y - v.oy) / v.z };
+}
 // document -> écran
-export function versEcran(v, x, y) { return { x: x * v.z + v.ox, y: y * v.z + v.oy }; }
+export function versEcran(v, x, y) { return { x: (v.miroir ? v.dw - x : x) * v.z + v.ox, y: y * v.z + v.oy }; }
+// Rectangle document {x, y, w, h} -> rectangle écran à largeur positive (miroir compris).
+export function rectVersEcran(v, x, y, w, h) {
+  const a = versEcran(v, x, y), b = versEcran(v, x + w, y + h);
+  return { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), w: Math.abs(b.x - a.x), h: Math.abs(b.y - a.y) };
+}
 
 // Nouveau v {z, ox, oy} qui garde le point écran (px,py) fixe. Le zoom est borné AVANT de calculer l'origine, sinon le
 // point dérive quand on bute sur une borne.
@@ -178,11 +187,18 @@ export function initVue(PL) {
     const d = dims();
     if (!d) return;
     lireJetons();
+    v.dw = d.w;                                 // t152 : largeur du document pour la vue en miroir (versEcran / versDoc)
     const x = v.ox, y = v.oy, W = d.w * v.z, H = d.h * v.z;
     damier(x, y, W, H, d, taille);
     if (vue.rendu && vue.rendu.image) {
-      ctx.imageSmoothingEnabled = v.z < 1;     // pixels francs au-delà de 100 %, lissé en réduction
-      ctx.drawImage(vue.rendu.image, x, y, W, H);
+      // pixels francs au-delà de 100 %, lissé en réduction ; t152 : Aperçu pixel art = pixels francs à tout zoom
+      ctx.imageSmoothingEnabled = v.z < 1 && !vue.pixelArt;
+      if (v.miroir) {
+        // t152 : Symétrie horizontale = la VUE retournée (le document du moteur ne change pas)
+        ctx.save(); ctx.translate(x + W, y); ctx.scale(-1, 1);
+        ctx.drawImage(vue.rendu.image, 0, 0, W, H);
+        ctx.restore();
+      } else ctx.drawImage(vue.rendu.image, x, y, W, H);
     }
     ctx.strokeStyle = jetons.trait;
     ctx.lineWidth = 1;
