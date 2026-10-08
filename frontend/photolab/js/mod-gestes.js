@@ -109,7 +109,10 @@ export function initGestes(PL) {
     if (a.type === "rect" || a.type === "ellipse") {
       const p0 = ecran(a.x, a.y), p1 = ecran(a.x + a.width, a.y + a.height);
       const forme = a.type === "rect"
-        ? el("rect", { x: Math.round(p0.x) + 0.5, y: Math.round(p0.y) + 0.5, width: Math.round(p1.x - p0.x), height: Math.round(p1.y - p0.y) })
+        ? (() => {   // t153 : rectangle normalisé (vue en miroir : p1.x < p0.x donnait une largeur négative, rien dessiné)
+          const r = rectVersEcran(PL.vue.v, a.x, a.y, a.width, a.height);
+          return el("rect", { x: Math.round(r.x) + 0.5, y: Math.round(r.y) + 0.5, width: Math.round(r.w), height: Math.round(r.h) });
+        })()
         : el("ellipse", { cx: (p0.x + p1.x) / 2, cy: (p0.y + p1.y) / 2, rx: Math.abs(p1.x - p0.x) / 2, ry: Math.abs(p1.y - p0.y) / 2 });
       for (const n of fourmis(forme)) svg.appendChild(n);
     } else if ((a.type === "lasso" || a.type === "poly" || a.type === "trace") && a.points.length) {
@@ -142,7 +145,8 @@ export function initGestes(PL) {
       const d0 = ecran(0, 0), d1 = ecran(doc.width, doc.height);
       // Hors du cadre, le document est voilé (evenodd : rectangle du document moins le cadre).
       svg.appendChild(el("path", { d: `M${d0.x} ${d0.y}H${d1.x}V${d1.y}H${d0.x}Z M${p0.x} ${p0.y}V${p1.y}H${p1.x}V${p0.y}Z`, "fill-rule": "evenodd" }, "voile-recadrage"));
-      svg.appendChild(el("rect", { x: p0.x, y: p0.y, width: p1.x - p0.x, height: p1.y - p0.y }, "cadre-recadrage"));
+      const rc = rectVersEcran(PL.vue.v, c.x, c.y, c.width, c.height);      // t153 : normalisé (vue en miroir)
+      svg.appendChild(el("rect", { x: rc.x, y: rc.y, width: rc.w, height: rc.h }, "cadre-recadrage"));
       for (const [x, y] of [[p0.x, p0.y], [p1.x, p0.y], [p0.x, p1.y], [p1.x, p1.y]]) svg.appendChild(el("rect", { x: x - 4, y: y - 4, width: 8, height: 8 }, "poignee"));
     }
   }

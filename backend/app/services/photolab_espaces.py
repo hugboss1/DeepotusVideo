@@ -11,12 +11,14 @@ import re
 import tempfile
 from pathlib import Path
 
-# Groupes de panneaux de l'écran -> leurs onglets (index.html : #grpCouleur, #grpProprietes, #grpPinceaux, #grpCalques).
+# Groupes de panneaux de l'écran -> leurs onglets (index.html : #grpCouleur, #grpProprietes, #grpPinceaux, #grpCalques,
+# #grpInfos — t153).
 GROUPES = {
-    "couleur": ("couleur",),
-    "proprietes": ("proprietes", "ajustements"),
+    "couleur": ("couleur", "nuancier", "degrades", "motifs"),
+    "proprietes": ("proprietes", "ajustements", "compositions"),
     "pinceaux": ("pinceaux", "parametres", "source", "predefinis"),
-    "calques": ("calques", "historique", "navigateur"),
+    "calques": ("calques", "couches", "historique", "navigateur"),
+    "infos": ("histogramme", "infos"),                   # t153 : #grpInfos
 }
 # Espaces fournis, dans l'ordre du menu (décision Q1 du 08/10/2026).
 FOURNIS = ("essentiel", "base", "graphisme", "mouvement", "peinture", "photo", "pixel")

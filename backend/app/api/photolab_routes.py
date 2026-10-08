@@ -21,10 +21,11 @@ import unicodedata
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 
 from app.services import photolab_moteur as PM
 from app.services import photolab_espaces as ESP
+from app.services import photolab_nuancier as NUA
 
 router = APIRouter()
 # Un nom ne finit ni par « . » ni par une espace : Windows les retire en silence (« a.png. » devient « a.png »), le
@@ -380,6 +381,24 @@ async def reperes():
     return _json({**lus, "revision": rev}, gen)
 
 
+# ── t153 : panneaux Motifs (vignettes) et Couches (contenu des alpha) ───────────────────────────────────────────────
+@router.get("/motifs/{ident}.png")
+async def vignette_motif(ident: str):
+    """La vignette 64×64 d'un motif de la bibliothèque (document temporaire refermé ; l'original n'est pas touché)."""
+    octets, gen = await _pool(lambda s: functools.partial(PM.vignette_motif, s), ident)
+    return Response(octets, media_type="image/png",
+                    headers={ENTETE_GENERATION: str(gen), "Cache-Control": "private, max-age=3600"})
+
+
+@router.get("/couches")
+async def couches(maxSide: int = 96, index: int | None = None):
+    """{"couches": [{"index", "png"}]} : le contenu des couches alpha du document actif en niveaux de gris (blanc =
+    sélectionné), rendu sur une copie ; `index` = une seule couche ; maxSide 32..1024."""
+    m = _entier(maxSide, 32, 1024, "maxSide")
+    out, gen = await _pool(lambda s: functools.partial(PM.couches_alpha, s), m, index)
+    return _json({"couches": out}, gen)
+
+
 _VERROU_BIBLIO = asyncio.Lock()          # choisir un nom libre ET copier d'un seul tenant (deux enregistrements la même seconde)
 
 
@@ -572,6 +591,22 @@ async def espaces_ecrire(body: dict):
     """Remplace l'état (liste blanche stricte : photolab_espaces.valider) ; 400 qui dit pourquoi sinon."""
     try:
         return await asyncio.to_thread(ESP.ecrire, body)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+# ── t153 : nuancier (données Deepotus ; le moteur n'a aucune commande de nuancier) ─────────────────────────────────
+@router.get("/nuancier")
+async def nuancier():
+    """Les groupes de nuances : enregistrés, ou le défaut (fichier absent, illisible ou refusé)."""
+    return await asyncio.to_thread(NUA.lire)
+
+
+@router.put("/nuancier")
+async def nuancier_ecrire(body: dict):
+    """Remplace le nuancier (liste blanche stricte : photolab_nuancier.valider) ; 400 qui dit pourquoi sinon."""
+    try:
+        return await asyncio.to_thread(NUA.ecrire, body)
     except ValueError as e:
         raise HTTPException(400, str(e))
 

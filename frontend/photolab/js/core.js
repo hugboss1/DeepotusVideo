@@ -24,6 +24,11 @@ import { initPeinture } from "./mod-peinture.js";
 import { initPinceaux } from "./mod-pinceaux.js";
 import { initEspaces } from "./mod-espaces.js";
 import { initAffichage } from "./mod-affichage.js";
+import { initNuancier } from "./mod-nuancier.js";
+import { initPresets } from "./mod-presets.js";
+import { initInfos } from "./mod-infos.js";
+import { initCouches } from "./mod-couches.js";
+import { initCompositions } from "./mod-compositions.js";
 import { initRaccourcis } from "./mod-raccourcis.js";
 import { initApropos } from "./mod-apropos.js";
 
@@ -119,6 +124,14 @@ initPipette(PL);
 initPeinture(PL);     // t155 : après la pipette (Alt-clic des pinceaux la réutilise) et le répartiteur des gestes
 initPinceaux(PL);     // t155 : après la peinture (PL.optionsPeintureDe) ; branche Fenêtre › Pinceaux… dans PL.actions
 initAffichage(PL);    // t152 : après le Déplacement (il enveloppe PL.gestes.move pour les repères) et la vue
+// t153 : panneaux Nuancier, Dégradés, Motifs (groupe Couleur), Compositions (groupe Propriétés), Couches (groupe
+// Calques), Histogramme et Infos (groupe Infos) — après le cycle (PL.surDoc), la vue (PL.vue.filtre) et la Couleur.
+initNuancier(PL);
+initPresets(PL, "degrades");
+initPresets(PL, "motifs");
+initInfos(PL);
+initCouches(PL);
+initCompositions(PL);
 
 // Onglets du groupe Calques | Historique | Navigateur, et rail d'icônes : calques/historique/navigateur montrent leur
 // onglet ; couleur et réglages (Propriétés) replient ou déplient leur groupe.
@@ -129,6 +142,7 @@ PL.montrerOnglet = function montrerOnglet(nom) {
   });
   PL.$$("#grpCalques .groupe-corps").forEach((c) => { c.hidden = c.dataset.vue !== nom; });
   if (nom === "navigateur" && PL.dessinerNavigateur) PL.dessinerNavigateur();
+  if (nom === "couches" && PL.couches) { PL.couches.relireVignettes(); PL.couches.dessiner(); }
   majRail();
 };
 function majRail() {
@@ -136,7 +150,7 @@ function majRail() {
   PL.$$("#rail button[data-panneau]").forEach((b) => {
     const p = b.dataset.panneau;
     const oui = p === "couleur" ? !PL.$("#grpCouleur").hidden : p === "reglages" ? !PL.$("#grpProprietes").hidden
-      : p === "pinceaux" ? !PL.$("#grpPinceaux").hidden : onglet && onglet.onglet === p;
+      : p === "pinceaux" ? !PL.$("#grpPinceaux").hidden : p === "infos" ? !PL.$("#grpInfos").hidden : onglet && onglet.onglet === p;
     b.classList.toggle("actif", !!oui); b.setAttribute("aria-pressed", oui ? "true" : "false");
   });
 }
@@ -147,6 +161,7 @@ PL.$$("#rail button[data-panneau]").forEach((b) => b.addEventListener("click", (
   if (p === "couleur") PL.$("#grpCouleur").hidden = !PL.$("#grpCouleur").hidden;
   else if (p === "reglages") PL.$("#grpProprietes").hidden = !PL.$("#grpProprietes").hidden;
   else if (p === "pinceaux") PL.basculerPinceaux();          // t155 : replie / déplie, et relit le moteur à l'ouverture
+  else if (p === "infos") { PL.$("#grpInfos").hidden = !PL.$("#grpInfos").hidden; PL.surOngletMontre("infos", PL.ongletDevant("#grpInfos", "data-onglet-in")); }
   else PL.montrerOnglet(p);
   majRail();
 }));
@@ -158,6 +173,28 @@ PL.$$("#rail button[data-panneau]").forEach((b) => {
   const cle = b.dataset.panneau === "reglages" ? "photolab.rail.ajustements" : "photolab.panneau." + b.dataset.panneau;
   b.title = T(cle); b.setAttribute("aria-label", b.title);
 });
+
+// t153 : onglets des groupes Couleur (data-onglet-co) et Infos (data-onglet-in), même mécanique que Propriétés ; un
+// onglet montré relit ce qu'il affiche (listes du moteur, histogramme, compositions).
+PL.ongletDevant = (sel, attr) => { const o = PL.$(sel + " .onglet.actif"); return o ? o.getAttribute(attr) : null; };
+PL.surOngletMontre = function surOngletMontre(groupe, nom) {
+  if (nom === "degrades" && PL.presets) PL.presets.degrades.relire();
+  else if (nom === "motifs" && PL.presets) PL.presets.motifs.relire();
+  else if (nom === "histogramme" && PL.histogramme) PL.histogramme.relire();
+  else if (nom === "compositions" && PL.compositions) PL.compositions.relire();
+};
+for (const [sel, attr, vue] of [["#grpCouleur", "data-onglet-co", "vueCo"], ["#grpInfos", "data-onglet-in", "vueIn"]]) {
+  const montrer = (nom) => {
+    PL.$$(sel + " .onglet").forEach((o) => {
+      const oui = o.getAttribute(attr) === nom;
+      o.classList.toggle("actif", oui); o.setAttribute("aria-selected", oui ? "true" : "false");
+    });
+    PL.$$(sel + " .groupe-corps").forEach((c) => { c.hidden = c.dataset[vue] !== nom; });
+    PL.surOngletMontre(sel, nom);
+  };
+  PL.$$(sel + " .onglet").forEach((o) => o.addEventListener("click", () => montrer(o.getAttribute(attr))));
+}
+PL.$$("#grpProprietes [data-onglet-pr=\"compositions\"]").forEach((o) => o.addEventListener("click", () => PL.surOngletMontre("#grpProprietes", "compositions")));
 
 // t151 : espaces de travail, APRÈS le rail et ses onglets (ils les rejouent pour appliquer une disposition).
 initEspaces(PL);

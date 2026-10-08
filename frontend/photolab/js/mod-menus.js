@@ -26,6 +26,9 @@ export const TRAITES_PAR_ECRAN = new Set(["file.new", "file.open", "file.close",
   "window.workspace.deleteWorkspace", "window.workspace.lockWorkspace",
   "window.panel.color", "window.panel.properties", "window.panel.adjustments", "window.panel.layers", "window.panel.history",
   "window.panel.navigator", "window.panel.options", "window.panel.tools",
+  // t153 : panneaux Nuancier, Dégradés, Motifs, Compositions, Couches, Histogramme, Infos (mod-espaces : PANNEAUX)
+  "window.panel.swatches", "window.panel.gradients", "window.panel.patterns", "window.panel.layerComps", "window.panel.channels",
+  "window.panel.histogram", "window.panel.info",
   // t152 : menu Affichage (mod-affichage : IDS_AFFICHAGE — banc affichage 7.4) ; les commandes moteur des repères
   // (Nouveau repère…, Effacer les repères…) restent au moteur
   "view.zoomIn", "view.zoomOut", "view.fitOnScreen", "view.fitLayersOnScreen", "view.actualPixels", "view.twoHundredPercent",
