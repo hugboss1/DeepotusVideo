@@ -217,48 +217,81 @@ class SessionMoteur:
         if not self._verrou.acquire(timeout=delai):
             raise MoteurOccupe("moteur occupé : une opération est en cours")
         try:
-            if self.ferme:                                # relu sous le verrou : l'arrêt a pu tomber pendant l'attente
-                raise MoteurAbsent("Photolab arrêté")
-            if not self.vivant():
-                self._demarrer()
-            proc, lignes, gen = self._proc, self._lignes, self.generation   # locaux : un fermer() concurrent ne nous casse pas
-            rid = next(self._ids)
+            gen = self._preparer()
+            return self._echange(self._proc, self._lignes, methode, params, delai), gen
+        finally:
+            self._verrou.release()
+
+    def _preparer(self) -> int:
+        """SOUS le verrou : le moteur est vivant (relancé au besoin) ; rend la génération qui va répondre."""
+        if self.ferme:                                    # relu sous le verrou : l'arrêt a pu tomber pendant l'attente
+            raise MoteurAbsent("Photolab arrêté")
+        if not self.vivant():
+            self._demarrer()
+        return self.generation
+
+    def _echange(self, proc, lignes, methode, params, delai):
+        """UNE requête sur CE processus, SOUS le verrou. `proc`/`lignes` sont des locaux : un fermer() concurrent ne
+        nous casse pas. Ne relance jamais rien (le redémarrage est l'affaire de `_preparer`)."""
+        rid = next(self._ids)
+        try:
+            proc.stdin.write((json.dumps({"id": rid, "method": methode, "params": params or {}}) + "\n")
+                             .encode("utf-8"))
+            proc.stdin.flush()
+        except (OSError, ValueError):
+            self.fermer()
+            raise MoteurErreur(f"{methode} : le moteur s'est arrêté")
+        fin = time.monotonic() + delai
+        while True:
+            reste = fin - time.monotonic()
+            if reste <= 0:
+                self.fermer(brutal=True)
+                raise MoteurDelai(f"{methode} : pas de réponse en {delai:g} s — moteur arrêté, relancé à la "
+                                  "demande suivante")
             try:
-                proc.stdin.write((json.dumps({"id": rid, "method": methode, "params": params or {}}) + "\n")
-                                 .encode("utf-8"))
-                proc.stdin.flush()
-            except (OSError, ValueError):
+                brut = lignes.get(timeout=reste)
+            except queue.Empty:
+                continue
+            if brut is None:
                 self.fermer()
                 raise MoteurErreur(f"{methode} : le moteur s'est arrêté")
-            fin = time.monotonic() + delai
-            while True:
-                reste = fin - time.monotonic()
-                if reste <= 0:
-                    self.fermer(brutal=True)
-                    raise MoteurDelai(f"{methode} : pas de réponse en {delai:g} s — moteur arrêté, relancé à la "
-                                      "demande suivante")
-                try:
-                    brut = lignes.get(timeout=reste)
-                except queue.Empty:
-                    continue
-                if brut is None:
-                    self.fermer()
-                    raise MoteurErreur(f"{methode} : le moteur s'est arrêté")
-                try:
-                    rep = json.loads(brut.decode("utf-8"))
-                except ValueError:
-                    continue                              # une ligne qui n'est pas une réponse (journal, bruit)
-                if not isinstance(rep, dict):
-                    continue
-                if rep.get("id") is None and not rep.get("ok"):
-                    # `{"id":null,"ok":false}` = le moteur n'a pas pu lire NOTRE ligne ; une seule requête à la fois,
-                    # donc c'est la nôtre : inutile d'attendre le délai.
-                    raise MoteurErreur(str(rep.get("error") or "requête illisible pour le moteur"))
-                if rep.get("id") != rid:
-                    continue
-                if rep.get("ok"):
-                    return rep.get("result"), gen
-                raise MoteurErreur(str(rep.get("error") or "erreur du moteur"))
+            try:
+                rep = json.loads(brut.decode("utf-8"))
+            except ValueError:
+                continue                                  # une ligne qui n'est pas une réponse (journal, bruit)
+            if not isinstance(rep, dict):
+                continue
+            if rep.get("id") is None and not rep.get("ok"):
+                # `{"id":null,"ok":false}` = le moteur n'a pas pu lire NOTRE ligne ; une seule requête à la fois,
+                # donc c'est la nôtre : inutile d'attendre le délai.
+                raise MoteurErreur(str(rep.get("error") or "requête illisible pour le moteur"))
+            if rep.get("id") != rid:
+                continue
+            if rep.get("ok"):
+                return rep.get("result")
+            raise MoteurErreur(str(rep.get("error") or "erreur du moteur"))
+
+    def sequence(self, fn, delai_s: float | None = None):
+        """(résultat de fn, génération) — plusieurs étapes du moteur tenues d'un seul tenant (t137, vignettes et
+        historique). Le verrou est pris UNE fois (attente bornée -> MoteurOccupe) et `fn(appel, gen)` reçoit un
+        `appel(methode, params=None, delai_etape=None)` qui parle au moteur SANS reprendre le verrou : aucun autre appel
+        ne peut s'intercaler entre deux étapes (sinon une demande étrangère verrait, ou agirait sur, le document
+        COPIE que les vignettes ouvrent un instant).
+        Redémarrage : le moteur est (re)lancé UNE fois, avant la première étape, et `gen` est sa génération. Si le
+        processus meurt ou dépasse son délai en cours de route, les étapes suivantes lèvent MoteurErreur : jamais
+        elles ne se rejouent sur un moteur neuf et vide, dont les documents ne sont plus ceux de la séquence."""
+        delai = self.delai_s if delai_s is None else delai_s
+        if not self._verrou.acquire(timeout=delai):
+            raise MoteurOccupe("moteur occupé : une opération est en cours")
+        try:
+            gen = self._preparer()
+            proc, lignes = self._proc, self._lignes
+
+            def appel(methode, params=None, delai_etape=None):
+                if self._proc is not proc or proc.poll() is not None:
+                    raise MoteurErreur(f"{methode} : le moteur s'est arrêté pendant la séquence")
+                return self._echange(proc, lignes, methode, params, delai if delai_etape is None else delai_etape)
+            return fn(appel, gen), gen
         finally:
             self._verrou.release()
 
@@ -287,6 +320,125 @@ def fermer():
         if _SESSION is not None:
             _SESSION.fermer(definitif=True)
         _SESSION = None
+
+
+def _a_plat(calques):
+    """L'arbre de calques de `doc.inspect` (haut -> bas, groupes avec `children`) à plat, groupes compris."""
+    for c in calques or []:
+        yield c
+        yield from _a_plat(c.get("children"))
+
+
+def _conteneur(c) -> bool:
+    return str(c.get("kind", "")).lower() in ("group", "artboard")
+
+
+# Cache des vignettes : variable de MODULE, clé de base (génération, document, révision), puis une entrée par maxSide.
+# La génération fait partie de la clé, donc un redémarrage du moteur l'invalide tout seul ; si une future route
+# réinitialise la session SANS changer de génération, elle doit vider ce cache (et les vig-* de rendus/).
+_CACHE_VIGNETTES = {"base": None, "tailles": {}}
+_VIG = re.compile(r"vig-\d+-\d+-\d+-\d+\.png")
+# Seuls les calques qui se rendent seuls de façon parlante ont une vignette : un réglage, un remplissage… n'a rien
+# à montrer sans ce qu'il modifie. Un calque d'écrêtage (clipped) est rendu SANS son calque de base : accepté en P2.
+_RENDUS_SEULS = {"pixel", "text", "type", "shape", "smart", "smartobject", "video", "frame"}
+
+
+def vignettes(s: SessionMoteur, max_side: int):
+    """(noms, génération) — un rendu PAR CALQUE du document actif, `noms` = {id du calque: fichier sous rendus/}
+    (t137, écran P2). Le moteur ne sait rendre ni un calque seul ni une région : on COPIE le document
+    (`image.duplicate`), on n'allume que le calque voulu sur la copie, on rend, puis on referme la copie et on
+    rend l'original actif — le document de l'utilisateur n'est jamais touché (même révision, mêmes visibilités).
+    Tout se passe dans UNE séquence sous le verrou (`SessionMoteur.sequence`) : personne ne voit la copie.
+    Cache par (génération, document, révision, maxSide) : une deuxième demande à la même révision ne relance rien.
+    Les vignettes d'une autre révision sont supprimées ; le maxSide est dans le nom du fichier (deux tailles de la
+    même révision coexistent).
+    Coût : le verrou est tenu pendant ~N_calques × 4 appels du moteur (allumer, rendre, éteindre + la mise en
+    place) ; acceptable en P2, une version par `batch` est une suite possible."""
+    d = dossier_travail() / "rendus"
+
+    def fn(appel, gen):
+        sl = appel("session.list") or {}
+        actif = sl.get("active")
+        if actif is None:
+            return {}                                      # aucun document : rien à copier
+        n_avant = len(sl.get("documents") or [])
+        insp = appel("doc.inspect")
+        rev = insp["revision"]
+        feuilles = [c for c in _a_plat(insp.get("layers"))
+                    if not _conteneur(c) and str(c.get("kind", "")).lower() in _RENDUS_SEULS]
+        base = (gen, actif, rev)
+        noms = {str(c["id"]): f"vig-{gen}-{c['id']}-{rev}-{max_side}.png" for c in feuilles}
+        if (_CACHE_VIGNETTES["base"] == base and max_side in _CACHE_VIGNETTES["tailles"]
+                and all((d / n).is_file() for n in noms.values())):
+            return dict(_CACHE_VIGNETTES["tailles"][max_side])
+        copie, reussi = None, False
+        try:
+            res = appel("engine.execute", {"command": "image.duplicate", "params": {"name": "dz-vignettes"}})
+            # La copie devient le document actif. On la repère d'abord par le compte (un document de plus qu'avant),
+            # pour la refermer même si le moteur ne dit pas son index.
+            apres = appel("session.list") or {}
+            if len(apres.get("documents") or []) == n_avant + 1 and isinstance(apres.get("active"), int):
+                copie = apres["active"]
+            idx = res.get("document") if isinstance(res, dict) else None
+            if not isinstance(idx, int) or isinstance(idx, bool):
+                raise MoteurErreur("vignettes : image.duplicate n'a pas rendu l'index du document copié")
+            if copie is None:
+                copie = idx
+            # la copie redonne des identifiants à ses calques : on les apparie PAR POSITION dans l'arbre (même ordre)
+            plats = list(_a_plat(appel("doc.inspect").get("layers")))
+            ids_origine = [c["id"] for c in _a_plat(insp.get("layers"))]
+            if len(plats) != len(ids_origine):
+                raise MoteurErreur("vignettes : la copie du document n'a pas la même structure de calques")
+            cible = {}                                     # id d'origine -> id dans la copie
+            for orig, cp in zip(ids_origine, plats):
+                cible[orig] = cp["id"]
+                visible = _conteneur(cp)                   # les groupes restent allumés : un enfant seul doit se voir
+                if bool(cp.get("visible")) != visible:
+                    appel("engine.execute", {"command": "layer.setProps", "params": {"layer": cp["id"], "visible": visible}})
+            for c in feuilles:
+                lid = cible[c["id"]]
+                appel("engine.execute", {"command": "layer.setProps", "params": {"layer": lid, "visible": True}})
+                appel("doc.render", {"path": relatif(f"rendus/{noms[str(c['id'])]}"), "maxSide": max_side})
+                appel("engine.execute", {"command": "layer.setProps", "params": {"layer": lid, "visible": False}})
+            reussi = True
+        finally:
+            # quoi qu'il arrive la copie est refermée et l'original redevient actif ; si le moteur est mort, ces
+            # appels lèvent à leur tour : on ne masque l'erreur d'origine par aucune autre, mais un nettoyage raté
+            # APRÈS une réussite est dit (le document de l'utilisateur ne serait pas dans l'état annoncé)
+            try:
+                if copie is not None:
+                    appel("doc.close", {"index": copie})
+                    appel("doc.select", {"index": actif})
+            except (MoteurErreur, MoteurDelai):
+                if reussi:
+                    raise
+        if _CACHE_VIGNETTES["base"] != base:               # autre révision : toutes les tailles précédentes sont périmées
+            _CACHE_VIGNETTES["base"], _CACHE_VIGNETTES["tailles"] = base, {}
+        _CACHE_VIGNETTES["tailles"][max_side] = noms
+        gardes = {n for t in _CACHE_VIGNETTES["tailles"].values() for n in t.values()}
+        for f in d.iterdir():                              # les vignettes d'une autre révision n'ont plus d'usage
+            if _VIG.fullmatch(f.name) and f.name not in gardes:
+                try:
+                    f.unlink()
+                except OSError:
+                    pass
+        return dict(noms)
+    return s.sequence(fn)
+
+
+def historique(s: SessionMoteur, sens: str, n: int):
+    """({"inspect": doc.inspect après, "completed": n faits, "failed": n refusés}, génération) — `n` annulations
+    (`sens` « annuler ») ou rétablissements, en UNE requête `batch` : le moteur n'a aucun saut direct dans
+    l'historique. L'inspection suit dans la même séquence, pour que l'écran voie l'état produit par CES étapes et
+    non celui d'une demande intercalée. Demander plus que ce qui existe n'est pas une erreur : `completed` < n et
+    `failed` ≥ 1 le disent à l'écran."""
+    commande = {"annuler": "edit.undo", "retablir": "edit.redo"}[sens]
+
+    def fn(appel, gen):
+        r = appel("batch", {"steps": [{"command": commande} for _ in range(n)], "stopOnError": True}) or {}
+        return {"inspect": appel("doc.inspect"), "completed": int(r.get("completed") or 0),
+                "failed": int(r.get("failed") or 0)}
+    return s.sequence(fn)
 
 
 def etat_session() -> dict:

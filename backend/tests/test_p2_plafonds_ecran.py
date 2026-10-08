@@ -25,7 +25,8 @@ DIST = ROOT / "frontend" / "dist" / "shared" / "dz-plafonds.js"
 BALISE = '<script src="/shared/dz-plafonds.js"></script>'
 PAGES = ["frontend/dist/index.html", "frontend/atelier/index.html", "frontend/cardforge/index.html",
          "frontend/etabli/index.html", "frontend/materialforge/index.html", "frontend/spritelab/index.html",
-         "frontend/studio3d/index.html", "frontend/tilelab/index.html", "frontend/vectorlab/index.html"]
+         "frontend/studio3d/index.html", "frontend/tilelab/index.html", "frontend/vectorlab/index.html",
+         "frontend/photolab/index.html"]
 ok = fail = 0
 def check(label, cond, detail=""):
     global ok, fail

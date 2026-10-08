@@ -123,6 +123,7 @@ a:hover{color:var(--ink-strong)}
   --cat-matieres:oklch(.72 .13 80);   /* ambre  — Matières */
   --cat-cartes:oklch(.72 .13 25);     /* rouge  — Cartes */
   --cat-vectoriel:oklch(.72 .13 340); /* rose   — Vectorlab (27/08) */
+  --cat-photo:oklch(.74 .12 112);     /* olive  — Photolab (t137, 08/10 : 112, milieu de l'écart libre 80→145 ; à 8 catégories, 40° partout n'est plus possible) */
   --cat:var(--accent);
   --cat-fill:oklch(from var(--cat) l c h / .14);
   --cat-line:oklch(from var(--cat) l c h / .55);
@@ -140,6 +141,7 @@ a:hover{color:var(--ink-strong)}
   --cat-sprites:oklch(.52 .12 200); --cat-tuiles:oklch(.52 .12 145);
   --cat-matieres:oklch(.52 .12 80); --cat-cartes:oklch(.52 .12 25);
   --cat-vectoriel:oklch(.52 .12 340);
+  --cat-photo:oklch(.52 .12 112);
   --cat-ink:#ffffff;
 }
 /* ── Les HUIT teintes des catégories de nœuds du Studio (28/08) ──────────

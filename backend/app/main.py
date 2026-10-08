@@ -486,6 +486,37 @@ if _vectorlab.is_dir():
 
     logger.info(f"Serving vectorlab from {_vectorlab}")
 
+# ── Photolab (t137, P2, 07/10/2026): l'écran de retouche d'image qui pilote le
+# moteur photocraft (/api/photolab). Page statique modulaire (frontend/photolab/),
+# montée comme /vectorlab, ouverte dans une iframe par la barre des applications.
+_photolab = Path(__file__).resolve().parent.parent.parent / "frontend" / "photolab"
+if _photolab.is_dir():
+    from fastapi.staticfiles import StaticFiles as _SFPl
+
+    class _PhotolabStatic(_SFPl):
+        """no-cache : core.js et les mod-*.js gardent un nom stable — sans
+        revalidation, une page périmée survivrait aux mises à jour."""
+        async def get_response(self, path, scope):
+            resp = await super().get_response(path, scope)
+            try:
+                resp.headers["Cache-Control"] = "no-cache, must-revalidate"
+            except Exception:
+                pass
+            return resp
+
+    app.mount("/photolab",
+              _PhotolabStatic(directory=str(_photolab), html=True),
+              name="photolab")
+
+    # Le montage ne reconnaît que « /photolab/... » : sans barre finale, la
+    # requête tomberait dans le catch-all de l'application (son index.html).
+    @app.get("/photolab", include_in_schema=False)
+    async def _photolab_no_slash():
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/photolab/", status_code=307)
+
+    logger.info(f"Serving photolab from {_photolab}")
+
 # ── Sprite Lab (chantier 9c): Game Assets 2D — source vidéo → sprite sheet,
 # at /spritelab. Standalone page (frontend/spritelab/) outside the compiled
 # bundle, iframed by the SPA's Game Assets hub (patch_bundle_spritelab).

@@ -40,6 +40,7 @@ SOURCES: dict[str, str] = {
     "sonvfx": "Son & VFX",                 # T099 : ce que la catégorie Son & VFX écrit (stems, isolations…)
     "mobile": "Compagnon mobile",   # plan mobile T12 (tâche #58) : images déposées par le téléphone
     "plateau": "Plateau 3D",        # t127 (07/10/2026) : les cadres de début et de fin capturés au Plateau
+    "photolab": "Photolab",         # t137 (07/10/2026) : « Enregistrer dans la Bibliothèque » du Photolab (photolab_*)
     "inconnu": "Inconnu",
 }
 
@@ -56,6 +57,7 @@ _PREFIXES: list[tuple[str, str]] = [
     ("tpl_still_", "templates"),
     ("tile_", "tuiles"),            # t113 : tile_<id>_atlas.png
     ("plateau_", "plateau"),        # t127 : plateau_<scène>_debut|fin_<n>.png
+    ("photolab_", "photolab"),      # t137 : photolab_<AAAAMMJJ-HHMMSS>_<nom>.png|jpg
     ("gen_", "generation"),
 ]
 
@@ -66,7 +68,8 @@ _PREFIXES: list[tuple[str, str]] = [
 # particules du catalogue de démarrage (Kenney) sont CC0. Une licence posée
 # n'est JAMAIS écrasée : seules les lignes à NULL reçoivent ce défaut.
 SOURCES_PROPRES = {"generation", "retouche", "matieres", "atelier", "cardforge",
-                   "vectorlab", "sprites", "assets3d", "templates", "tuiles", "plateau"}
+                   "vectorlab", "sprites", "assets3d", "templates", "tuiles", "plateau",
+                   "photolab"}
 LICENCE_PROPRE, LICENCE_INCONNUE = "propriétaire", "inconnue"
 
 

@@ -3669,8 +3669,10 @@ async def upload_image(file: UploadFile = File(...)):
             n += 1
     dest.write_bytes(contents)
     # provenance : les exports du Vectorlab passent par cette route avec
-    # leur préfixe ; tout le reste est un import utilisateur
+    # leur préfixe (t137 : ceux du Photolab aussi, photolab_) ; tout le reste
+    # est un import utilisateur
     await LI.noter([dest.name], "vectorlab" if dest.name.startswith("vector_")
+                   else "photolab" if dest.name.startswith("photolab_")
                    else "import")
     return {"saved": str(dest), "filename": dest.name, "size_kb": len(contents) // 1024}
 

@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Photolab</title>
+<!-- Internationalisation : dictionnaire puis runtime, AVANT tout autre script (banc test_i18n_l0.py). -->
+<script src="/shared/dz-i18n-dico.js"></script>
+<script src="/shared/dz-i18n.js"></script>
+<script src="/shared/dz-plafonds.js"></script>
+<script src="/shared/dialogue.js"></script>
+<link rel="stylesheet" href="photolab.css">
+</head>
+<body>
+  <!-- Disposition de photocraft (inventaire A1) : menus 32, options 36, onglets de documents 26,
+       barre d'outils 68, scène, rail d'icônes 34, colonne de panneaux 278, barre d'état 24. -->
+  <nav id="menubar" role="menubar" aria-label="Menus"></nav>
+  <div id="options" role="toolbar" aria-label="Options de l'outil"></div>
+  <div id="onglets" role="tablist" aria-label="Documents"></div>
+
+  <div id="corps">
+    <aside id="outils" aria-label="Outils"></aside>
+
+    <main id="scene">
+      <canvas id="toile"></canvas>
+      <svg id="fourmis" aria-hidden="true"></svg>
+      <div id="accueil">
+        <h1>Photolab</h1>
+        <p>Crée un document ou ouvre une image.</p>
+        <div class="accueil-boutons">
+          <button id="btnNouveau" class="btn plein" type="button">Nouveau…<kbd>Ctrl+N</kbd></button>
+          <button id="btnOuvrir" class="btn contour" type="button">Ouvrir depuis la Bibliothèque…<kbd>Ctrl+O</kbd></button>
+        </div>
+        <p class="depot">Dépose une image ici pour l'ouvrir.</p>
+      </div>
+    </main>
+
+    <nav id="rail" aria-label="Panneaux">
+      <button type="button" data-panneau="reglages" data-icone="sliders" title="Ajustements" aria-label="Ajustements"></button>
+      <button type="button" data-panneau="navigateur" data-icone="compass" title="Navigateur" aria-label="Navigateur"></button>
+      <button type="button" data-panneau="couleur" data-icone="palette" title="Couleur" aria-label="Couleur"></button>
+      <button type="button" data-panneau="calques" data-icone="layers" title="Calques" aria-label="Calques"></button>
+      <button type="button" data-panneau="historique" data-icone="history" title="Historique" aria-label="Historique"></button>
+    </nav>
+
+    <aside id="panneaux" aria-label="Panneaux">
+      <section id="grpCouleur" class="groupe">
+        <header class="groupe-tete"><span class="groupe-titre">Couleur</span></header>
+        <div class="groupe-corps" id="corpsCouleur"></div>
+      </section>
+      <section id="grpProprietes" class="groupe">
+        <header class="groupe-tete"><span class="groupe-titre">Propriétés</span></header>
+        <div class="groupe-corps" id="corpsProprietes"></div>
+      </section>
+      <section id="grpCalques" class="groupe grand">
+        <header class="groupe-tete" role="tablist">
+          <button type="button" class="onglet actif" role="tab" data-onglet="calques">Calques</button>
+          <button type="button" class="onglet" role="tab" data-onglet="historique">Historique</button>
+          <button type="button" class="onglet" role="tab" data-onglet="navigateur">Navigateur</button>
+        </header>
+        <div class="groupe-corps" id="corpsCalques" data-vue="calques"></div>
+        <div class="groupe-corps" id="corpsHistorique" data-vue="historique" hidden></div>
+        <div class="groupe-corps" id="corpsNavigateur" data-vue="navigateur" hidden></div>
+      </section>
+    </aside>
+  </div>
+
+  <footer id="statut" role="status">
+    <span id="stZoom" class="st-zoom">100 %</span>
+    <span id="stMode" class="st-mode">RGB · 8 bits</span>
+    <span id="stTaille" class="st-taille"></span>
+    <span id="stCalques" class="st-calques"></span>
+    <span id="stSelection" class="st-selection"></span>
+    <span id="stMessage" class="st-message"></span>
+  </footer>
+
+  <div id="toasts" aria-live="polite"></div>
+
+  <script type="module" src="js/core.js"></script>
+</body>
+</html>
