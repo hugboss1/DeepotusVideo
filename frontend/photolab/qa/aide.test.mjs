@@ -10,7 +10,8 @@ import { EMPLACEMENTS, idEmplacement } from "../js/mod-outils.js";
 import { KINDS, idReglage } from "../js/mod-reglages.js";
 
 const racine = join(dirname(fileURLToPath(import.meta.url)), "..");
-const ids = [...EMPLACEMENTS.map((_, i) => idEmplacement(i)), ...KINDS.map((k) => idReglage(k.kind))];
+const ids = [...EMPLACEMENTS.map((_, i) => idEmplacement(i)), ...KINDS.map((k) => idReglage(k.kind)),
+  "pl-espace"];          // t151 : le sélecteur d'espace de travail (mod-espaces.js)
 const sources = [readFileSync(join(racine, "index.html"), "utf-8"),
   ...readdirSync(join(racine, "js")).filter((n) => n.endsWith(".js")).map((n) => readFileSync(join(racine, "js", n), "utf-8")),
   ids.map((i) => `id="${i}"`).join("\n")];

@@ -22,6 +22,7 @@ import { initRecadrer } from "./mod-recadrer.js";
 import { initPipette } from "./mod-pipette.js";
 import { initPeinture } from "./mod-peinture.js";
 import { initPinceaux } from "./mod-pinceaux.js";
+import { initEspaces } from "./mod-espaces.js";
 import { initRaccourcis } from "./mod-raccourcis.js";
 import { initApropos } from "./mod-apropos.js";
 
@@ -155,6 +156,9 @@ PL.$$("#rail button[data-panneau]").forEach((b) => {
   const cle = b.dataset.panneau === "reglages" ? "photolab.rail.ajustements" : "photolab.panneau." + b.dataset.panneau;
   b.title = T(cle); b.setAttribute("aria-label", b.title);
 });
+
+// t151 : espaces de travail, APRÈS le rail et ses onglets (ils les rejouent pour appliquer une disposition).
+initEspaces(PL);
 
 PL.hydraterIcones();
 PL.afficherAccueil(true);

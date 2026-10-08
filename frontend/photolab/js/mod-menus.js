@@ -19,7 +19,13 @@ export const REFUSES = ["file.", "app.", "automate.", "plugin.", "script", "wind
 export const TRAITES_PAR_ECRAN = new Set(["file.new", "file.open", "file.close", "file.save", "file.saveAs", "file.export.exportAs",
   "pl.envoyer", "pl.natif.ouvrir", "pl.natif.reprendre",
   // t155 : le groupe Pinceaux (mod-pinceaux, PL.actions) ; window.* reste refusé au moteur
-  "window.panel.brushes", "window.panel.brushSettings", "window.panel.cloneSource", "window.panel.toolPresets"]);
+  "window.panel.brushes", "window.panel.brushSettings", "window.panel.cloneSource", "window.panel.toolPresets",
+  // t151 : espaces de travail et Fenêtre › <panneau> (mod-espaces : ACTIONS_ESPACE, PANNEAUX, BARRES — banc espaces 5.9)
+  "window.workspace.essentials", "window.workspace.photography", "window.workspace.painting", "window.workspace.pixelArt",
+  "window.workspace.graphicAndWeb", "window.workspace.motion", "window.workspace.resetWorkspace", "window.workspace.newWorkspace",
+  "window.workspace.deleteWorkspace", "window.workspace.lockWorkspace",
+  "window.panel.color", "window.panel.properties", "window.panel.adjustments", "window.panel.layers", "window.panel.history",
+  "window.panel.navigator", "window.panel.options", "window.panel.tools"]);
 // … dont celles qui n'ont de sens qu'avec un document ouvert (grisées sur l'écran d'accueil).
 export const NECESSITE_DOC = new Set(["file.close", "file.save", "file.saveAs", "file.export.exportAs", "pl.envoyer", "pl.natif.ouvrir"]);
 
@@ -175,7 +181,8 @@ export function actionEntree(entree) {
   if (!entree || entree.type === "separateur") return "rien";
   if (entree.id === "pl.apropos") return "apropos";
   if (entree.etat !== "actif") return "rien";
-  if (TRAITES_PAR_ECRAN.has(entree.id)) return "ecran";
+  // t151 : une entrée « pl.* » est une entrée de l'écran (Base, espaces personnels) : jamais une commande du moteur.
+  if (TRAITES_PAR_ECRAN.has(entree.id) || String(entree.id).startsWith("pl.")) return "ecran";
   const champs = entree.champs;
   if (!Array.isArray(champs)) return "dialogue";
   if (champsVisibles(champs).length) return "dialogue";
@@ -240,12 +247,15 @@ export function initMenus(PL) {
     },
     // Active une entrée de commande comme un clic (raccourcis clavier, C1) : même chemin que la souris.
     activer(entree) { return activer(null, { entree }); },
+    // t151 : reconstruit l'arbre sans relire le registre (coches des espaces et des panneaux).
+    redessiner() { reconstruire(); },
   };
 
   function reconstruire() {
     if (!catalogue) return;
     if (ouvert >= 0) { aReconstruire = true; return; }      // jamais sous les doigts de l'utilisateur
     menus = construireMenus(catalogue, registre, REFUSES, lang(), T);
+    if (PL.espaces) menus = PL.espaces.decorer(menus);      // t151 : sous-menu Espace de travail, coches de Fenêtre
     barre.textContent = "";
     menus.forEach((m, i) => {
       const b = document.createElement("button");
@@ -302,6 +312,13 @@ export function initMenus(PL) {
       if (e.type === "sous-menu") l.setAttribute("aria-haspopup", "menu");
       const lib = document.createElement("span"); lib.className = "menu-lib";
       lib.textContent = e.type === "sous-menu" ? e.nom_affiche : e.libelle;
+      if (e.brut) lib.setAttribute("data-dz-brut", "");          // t151 : nom d'un espace donné par l'utilisateur
+      if (typeof e.coche === "boolean") {
+        // t151 : entrée à coche (espace actif, verrou, panneau visible)
+        const co = document.createElement("span"); co.className = "menu-coche"; co.textContent = e.coche ? "✓" : "";
+        l.classList.add("cochable"); l.setAttribute("role", "menuitemcheckbox"); l.setAttribute("aria-checked", e.coche ? "true" : "false");
+        l.appendChild(co);
+      }
       const droite = document.createElement("span"); droite.className = "menu-droite";
       droite.textContent = e.type === "sous-menu" ? "▸" : e.raccourci || "";
       l.append(lib, droite);
@@ -339,7 +356,8 @@ export function initMenus(PL) {
     switch (actionEntree(e)) {
       case "ecran": {
         const f = PL.actions[e.id];
-        if (f) f(); else PL.signaler(T("photolab.menu.bientot"));
+        if (f) f();
+        else if (!(PL.actionEspace && PL.actionEspace(e.id))) PL.signaler(T("photolab.menu.bientot"));     // t151 : espaces personnels
         break;
       }
       case "apropos": PL.apropos(); break;
