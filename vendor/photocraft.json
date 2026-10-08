@@ -16,5 +16,44 @@
   "sources": {
     "archive": "photocraft-0.3.0-sources.tar.gz",
     "url": "https://github.com/storytold/photocraft/archive/refs/tags/v0.3.0.tar.gz"
-  }
+  },
+  "fichiers": {
+    "photocraft-0.3.0-windows-x64-portable/LICENSE-APACHE": {
+      "taille": 10351,
+      "sha256": "eb3d7b5485466acbd81f2b496f595ab637d2792e268206b27d99e793bdb67549"
+    },
+    "photocraft-0.3.0-windows-x64-portable/LICENSE-MIT": {
+      "taille": 1123,
+      "sha256": "77c414bd870a0cc1a5ec06e7aeae0d379713d1d5d2d38e8d0903002e4d572537"
+    },
+    "photocraft-0.3.0-windows-x64-portable/OFL-biz-ud-mincho.txt": {
+      "taille": 4501,
+      "sha256": "9c244a5edd2525aa4aa43dd714d7de00f3b3591a522d82d724db3644b5a95568"
+    },
+    "photocraft-0.3.0-windows-x64-portable/OFL-biz-ud-pgothic.txt": {
+      "taille": 4501,
+      "sha256": "062c81ae55b5ddd56c08331c8fe86598c1ef7f4453560c74706427a008b68534"
+    },
+    "photocraft-0.3.0-windows-x64-portable/OFL-shippori-mincho.txt": {
+      "taille": 4492,
+      "sha256": "0aef534f5885c2f30b360ed5fb09ea4661a40ec62845c35f8354e26d7977d87d"
+    },
+    "photocraft-0.3.0-windows-x64-portable/photocraft-cli.exe": {
+      "taille": 56495128,
+      "sha256": "cd88dee739545649e45e3b6958cefc4393fe373d61d4fda1a19ed3e343ad77e4"
+    },
+    "photocraft-0.3.0-windows-x64-portable/photocraft.exe": {
+      "taille": 76409368,
+      "sha256": "51ee4ff6365b9446f108b4cd25bb148976679d65381c067accb63257f16500a4"
+    },
+    "photocraft-0.3.0-windows-x64-portable/portable.txt": {
+      "taille": 527,
+      "sha256": "765cf8f8ffc8ee57f83f31e5eb2d453183e2e96ba97417ab9238717ccb27183b"
+    },
+    "photocraft-0.3.0-windows-x64-portable/README.md": {
+      "taille": 26607,
+      "sha256": "98da0d324cc4dec34c8221121face3b908fb9f5fb883ca5a49a45b9fdbf0c00b"
+    }
+  },
+  "fichiers_source": "Extraction de photocraft-0.3.0-windows-x64-portable.zip dont la taille et le sha256 9997f7df3a6f… ont été vérifiés par scripts/vendor_photocraft.py (t136, 07/10/2026), dossier intact depuis ; relevé le 08/10/2026 (t140)."
 }

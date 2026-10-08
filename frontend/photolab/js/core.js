@@ -21,6 +21,7 @@ import { initDeplacer } from "./mod-deplacer.js";
 import { initRecadrer } from "./mod-recadrer.js";
 import { initPipette } from "./mod-pipette.js";
 import { initRaccourcis } from "./mod-raccourcis.js";
+import { initApropos } from "./mod-apropos.js";
 
 const T = (cle, vars) => (window.dzT ? window.dzT(cle, vars) : cle);
 
@@ -93,6 +94,7 @@ initApi(PL);
 initVue(PL);
 initOutils(PL);
 initMenus(PL);
+initApropos(PL);         // t140 : remplace l'à propos simple de mod-menus (crédits + licences)
 initCycle(PL);
 initCalques(PL);
 initProprietes(PL);

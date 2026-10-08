@@ -445,3 +445,123 @@ async def servir_rendu(nom: str):
 @router.get("/exports/{nom}")
 async def servir_export(nom: str):
     return _servir("exports", nom)
+
+
+# ── t140 (P5, D10) : le repli « app native » ──────────────────────────────────────────────────────────────────
+
+def _base_doc(d: dict) -> str:
+    """Nom de base d'un document de session.list, tiré de son CHEMIN moteur (le nom d'un document ouvert n'est pas
+    fiable) : sans dossier, empreinte, extension, préfixe d'enregistrement, ni horodatage d'un envoi précédent."""
+    s = os.path.basename(str(d.get("path") or "")) or str(d.get("name") or "")
+    s = re.sub(r"^[0-9a-f]{8}-", "", s)
+    s = re.sub(r"(\.[A-Za-z0-9]{2,6})+$", "", s)
+    s = re.sub(r"^photolab_\d{8}-\d{6}_", "", s)
+    s = re.sub(r"(-retour)?-\d{8}-\d{6}(-\d+)?$", "", s)
+    s = re.sub(r"-(png|jpg)$", "", s)
+    return _base_sure(s, "document")
+
+
+def _natif_libre(prefixe: str) -> str:
+    dossier = PM.dossier_travail() / "natif"
+    dossier.mkdir(parents=True, exist_ok=True)
+    horo = time.strftime("%Y%m%d-%H%M%S")
+    nom, k = f"{prefixe}-{horo}.pcraft", 1
+    while (dossier / nom).exists():
+        k += 1
+        nom = f"{prefixe}-{horo}-{k}.pcraft"
+    return _relatif(f"natif/{nom}")
+
+
+async def _natif(fn, *args):
+    from app.services import photolab_natif as PN
+    try:
+        return await asyncio.to_thread(fn, *args)
+    except PN.NatifAbsent as e:
+        raise HTTPException(503, str(e))
+    except PN.NatifFerme as e:
+        raise HTTPException(409, str(e))
+    except PN.NatifInjoignable as e:
+        raise HTTPException(504, str(e))
+    except PN.NatifErreur as e:
+        raise HTTPException(422, f"app native : {e}")
+
+
+@router.get("/natif/etat")
+async def natif_etat():
+    from app.services import photolab_natif as PN
+    return PN.etat()
+
+
+@router.post("/natif/ouvrir")
+async def natif_ouvrir(body: dict | None = None):
+    """Enregistre le document actif en natif/<base>-<horodatage>.pcraft (calques compris) et l'ouvre dans l'app native
+    (lancée si besoin). La lignée suit : le fichier envoyé garde l'origine du document."""
+    from app.services import photolab_natif as PN
+    if not PN.etat()["present"]:
+        await _natif(PN.chemin_app)                         # 503 qui dit où le binaire manque
+    s, _ = await _appeler("session.list")
+    doc = next((d for d in (s.get("documents") or []) if isinstance(d, dict) and d.get("index") == s.get("active")), None) \
+        if isinstance(s, dict) else None
+    if doc is None:
+        raise HTTPException(409, "aucun document ouvert à envoyer vers l'app native")
+    origine = _ORIGINES.get(doc.get("path"))
+    base = _base_doc(doc)
+    fichier = _natif_libre(base)
+    _, gen = await _appeler("doc.save", {"path": fichier, "format": "pcraft"})
+    _retenir(fichier, origine)
+    await _natif(PN.ouvrir, fichier)
+    PN.dernier = {"fichier": fichier, "base": base, "origine": origine}
+    return _json({"fichier": fichier}, gen)
+
+
+@router.post("/natif/reprendre")
+async def natif_reprendre(body: dict | None = None):
+    """Fait enregistrer l'app native sous natif/<base>-retour-<horodatage>.pcraft puis l'ouvre dans le Photolab."""
+    from app.services import photolab_natif as PN
+    if not PN.etat()["actif"]:
+        raise HTTPException(409, "aucune app native ouverte : rien à reprendre")
+    fichier = _natif_libre((PN.dernier.get("base") or "document") + "-retour")
+    await _natif(PN.enregistrer, fichier)
+    resultat, gen = await _appeler("doc.open", {"path": fichier})
+    _retenir(fichier, PN.dernier.get("origine"))
+    if isinstance(resultat, dict):
+        resultat = {**resultat, "fichier": fichier}
+    return _json(resultat, gen)
+
+
+# ── t140 (P5) : « À propos » — les licences livrées avec le moteur ───────────────────────────────────────────────
+
+def _licences() -> dict:
+    """nom affiché -> fichier, pour les seuls textes de licence livrés : notre NOTICE, les mentions et licences amont
+    (vendor/licences-photocraft/), et les licences de l'archive du moteur (LICENSE-*, OFL-*). Rien d'autre n'est servi."""
+    v = PM.RACINE_APP / "vendor"
+    out = {"NOTICE-photocraft.txt": v / "NOTICE-photocraft.txt"}
+    lic = v / "licences-photocraft"
+    if lic.is_dir():
+        for f in sorted(lic.iterdir()):
+            out[f"licences-photocraft/{f.name}"] = f
+    base = v / f"photocraft-{PM.VERSION}"
+    if base.is_dir():
+        for f in sorted(base.rglob("*")):
+            if f.name.startswith(("LICENSE-", "OFL-")):
+                out[f.name] = f
+    return {k: p for k, p in out.items() if p.is_file()}
+
+
+@router.get("/licences")
+async def licences():
+    import json
+    try:
+        m = json.loads((PM.RACINE_APP / "vendor" / "photocraft.json").read_text("utf-8"))
+    except (OSError, ValueError):
+        m = {}
+    return {"version": m.get("version", PM.VERSION), "depot": m.get("depot"), "licence": m.get("licence"),
+            "fichiers": list(_licences())}
+
+
+@router.get("/licences/{nom:path}")
+async def licence(nom: str):
+    f = _licences().get(nom)
+    if f is None:
+        raise HTTPException(404, "licence inconnue")
+    return FileResponse(f, media_type="text/plain; charset=utf-8")

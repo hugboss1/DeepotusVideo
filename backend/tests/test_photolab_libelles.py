@@ -87,7 +87,10 @@ check("2.2 photolab.valeur.<valeur> fr+en non vides pour toute valeur fermée", 
 vides = sorted(k for k in DIC if k.startswith(("photolab.param.", "photolab.valeur.", "photolab.kind.")) and not plein(k))
 check("2.3 aucune entrée à moitié vide dans les trois familles", not vides, vides)
 # Une traduction qui recopie la clé brute (« blurAngle ») n'en est pas une.
-brutes = sorted(k for k in DIC if k.startswith("photolab.param.") and re.search(r"[a-z][A-Z]", DIC[k]["en"]) or re.search(r"[a-z][A-Z]", DIC[k]["fr"]))
+# t140 : parenthèses — sans elles, le `or` portait la règle sur le français de TOUTES les clés, et un nom propre
+# (« JetBrains Mono », police du moteur citée dans l'À propos) passait pour une clé brute.
+brutes = sorted(k for k in DIC if k.startswith("photolab.param.")
+                and (re.search(r"[a-z][A-Z]", DIC[k]["en"]) or re.search(r"[a-z][A-Z]", DIC[k]["fr"])))
 check("2.4 aucun libellé en camelCase brut", not brutes, brutes)
 
 print("\n[3] pas d'orphelins")
