@@ -25,7 +25,7 @@ RACINE = HERE.parent.parent
 BASE = "73c9cfe2"                      # main juste avant t137 (fusion #263, bundle de t134 368f29ea, sans Photolab)
 # le bundle de référence : tant que t137 n'est pas commis, le bundle du poste ; une fois commis, épingler ici le
 # commit de t137 (comme T125 dans test_assets2d_lanceur) — sinon la couche suivante qui bouge le bundle rougit [1c]
-T137 = None
+T137 = "db72da5b"   # commit t137 : le bundle de reference (comme T125 pour assets2d)
 REL = "frontend/dist/assets/index-BEOJX8L5.js"
 NODE = shutil.which("node")
 ok = fail = 0
