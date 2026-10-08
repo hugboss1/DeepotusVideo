@@ -390,6 +390,15 @@ async def vignette_motif(ident: str):
                     headers={ENTETE_GENERATION: str(gen), "Cache-Control": "private, max-age=3600"})
 
 
+@router.get("/presets/{genre}/vignette.png")
+async def vignette_preset(genre: str, cle: str, groupe: str | None = None):
+    """t156 : la vignette 64×64 d'une forme personnalisée (genre « forme ») ou d'un style de calque (« style ») — nom et
+    groupe du moteur ; « motif » (id) comme /motifs/{id}.png. Document temporaire refermé ; l'original n'est pas touché."""
+    octets, gen = await _pool(lambda s: functools.partial(PM.vignette_preset, s), genre, cle, groupe)
+    return Response(octets, media_type="image/png",
+                    headers={ENTETE_GENERATION: str(gen), "Cache-Control": "private, max-age=3600"})
+
+
 @router.get("/couches")
 async def couches(maxSide: int = 96, index: int | None = None):
     """{"couches": [{"index", "png"}]} : le contenu des couches alpha du document actif en niveaux de gris (blanc =

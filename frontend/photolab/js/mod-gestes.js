@@ -107,6 +107,7 @@ export function initGestes(PL) {
       st.title = b ? T("photolab.selection.approx") : "";
     }
     if (PL.dessinerTransformation) PL.dessinerTransformation(svg, el, ecran);      // t154 : cadre de la transformation
+    if (PL.dessinsSup) for (const f of PL.dessinsSup) f(svg, el, ecran);          // t156 : plume, tracés
     const a = PL.apercu;
     if (!a) return;
     if (a.type === "rect" || a.type === "ellipse") {

@@ -145,7 +145,7 @@ check("6.2 Compositions dans Propriétés, Couches dans Calques", html.includes(
   && html.includes('data-onglet="couches"') && html.includes('id="corpsCouches" data-vue="couches" hidden'));
 check("6.3 groupe Infos : Histogramme | Infos, replié, bouton de rail", html.includes('<section id="grpInfos" class="groupe" hidden>') && html.includes('data-onglet-in="histogramme"')
   && html.includes('data-onglet-in="infos"') && html.includes('data-panneau="infos"'));
-check("6.4 onglets du HTML = GROUPES des espaces", Object.entries(GROUPES).every(([g, os]) => os.every((o) => new RegExp(`data-(onglet|onglet-pr|onglet-pi|onglet-co|onglet-in)="${o}"`).test(html))));
+check("6.4 onglets du HTML = GROUPES des espaces", Object.entries(GROUPES).every(([g, os]) => os.every((o) => new RegExp(`data-(onglet|onglet-pr|onglet-pi|onglet-co|onglet-in|onglet-tx)="${o}"`).test(html))));
 const sept = ["window.panel.swatches", "window.panel.gradients", "window.panel.patterns", "window.panel.layerComps", "window.panel.channels", "window.panel.histogram", "window.panel.info"];
 check("6.5 Fenêtre : les 7 panneaux servis par l'écran et rattachés à leur onglet", sept.every((id) => TRAITES_PAR_ECRAN.has(id) && PANNEAUX[id] && GROUPES[PANNEAUX[id].groupe].includes(PANNEAUX[id].onglet)));
 check("6.6 core.js : les cinq modules initialisés après la Couleur et le cycle", ["initNuancier(PL)", 'initPresets(PL, "degrades")', 'initPresets(PL, "motifs")', "initInfos(PL)", "initCouches(PL)", "initCompositions(PL)"]

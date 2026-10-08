@@ -9,9 +9,10 @@ import { EMPLACEMENTS } from "./mod-outils.js";
 import { ouvrirDialogue } from "./mod-fichier.js";
 
 // t153 : Nuancier, Dégradés, Motifs (groupe Couleur), Compositions (Propriétés), Couches (Calques), et le groupe Infos.
-export const GROUPES = { couleur: ["couleur", "nuancier", "degrades", "motifs"], proprietes: ["proprietes", "ajustements", "compositions"],
-  pinceaux: ["pinceaux", "parametres", "source", "predefinis"], calques: ["calques", "couches", "historique", "navigateur"],
-  infos: ["histogramme", "infos"] };
+// t156 : Formes (Couleur), Styles (Propriétés), Tracés (Calques) et le groupe Texte.
+export const GROUPES = { couleur: ["couleur", "nuancier", "degrades", "motifs", "formes"], proprietes: ["proprietes", "ajustements", "styles", "compositions"],
+  pinceaux: ["pinceaux", "parametres", "source", "predefinis"], calques: ["calques", "couches", "traces", "historique", "navigateur"],
+  infos: ["histogramme", "infos"], texte: ["caractere", "paragraphe", "glyphes", "stylesCar", "stylesPar"] };
 export const FOURNIS = ["essentiel", "base", "graphisme", "mouvement", "peinture", "photo", "pixel"];
 export const MAX_PERSO = 20;
 const MAX_NOM = 64;
@@ -59,6 +60,19 @@ export const PANNEAUX = {
   "window.panel.channels": { groupe: "calques", onglet: "couches" },
   "window.panel.histogram": { groupe: "infos", onglet: "histogramme" },
   "window.panel.info": { groupe: "infos", onglet: "infos" },
+  "window.panel.character": { groupe: "texte", onglet: "caractere" },
+  "window.panel.paragraph": { groupe: "texte", onglet: "paragraphe" },
+  "window.panel.glyphs": { groupe: "texte", onglet: "glyphes" },
+  "window.panel.characterStyles": { groupe: "texte", onglet: "stylesCar" },
+  "window.panel.paragraphStyles": { groupe: "texte", onglet: "stylesPar" },
+  "window.panel.paths": { groupe: "calques", onglet: "traces" },
+  "window.panel.shapes": { groupe: "couleur", onglet: "formes" },
+  "window.panel.styles": { groupe: "proprietes", onglet: "styles" },
+  "type.panels.character": { groupe: "texte", onglet: "caractere" },
+  "type.panels.paragraph": { groupe: "texte", onglet: "paragraphe" },
+  "type.panels.glyphs": { groupe: "texte", onglet: "glyphes" },
+  "type.panels.characterStyles": { groupe: "texte", onglet: "stylesCar" },
+  "type.panels.paragraphStyles": { groupe: "texte", onglet: "stylesPar" },
 };
 export const BARRES = { "window.panel.options": "options", "window.panel.tools": "barreOutils" };
 // Jeu « base » (référence « Outils de base », ≈ 16 emplacements) : ces emplacements (outil principal) sont cachés.
@@ -69,14 +83,15 @@ const dispo = (colonnes, outils, groupes) => ({ colonnes, outils, options: true,
 // Adaptation de la référence (spec §2.2) : Essentiel = l'écran d'avant t151, inchangé.
 // t153 : le groupe Infos (Histogramme | Infos) ouvert là où la référence le montre (Mouvement, Photographie) ;
 // Peinture et Pixel art ouvrent le Couleur sur le Nuancier (référence Peinture : Nuancier devant).
+// t156 : le groupe Texte ouvert dans Graphisme et web (référence : Caractère · Paragraphe · Glyphes), replié ailleurs.
 export const DISPOSITIONS = {
-  essentiel: dispo(2, "tous", [g("couleur", "ouvert"), g("proprietes", "ouvert"), g("pinceaux", "replie"), g("calques", "ouvert"), g("infos", "replie")]),
-  base: dispo(1, "base", [g("proprietes", "ouvert"), g("calques", "ouvert"), g("couleur", "replie"), g("pinceaux", "masque"), g("infos", "masque")]),
-  graphisme: dispo(1, "tous", [g("couleur", "replie"), g("proprietes", "ouvert"), g("calques", "ouvert"), g("pinceaux", "masque"), g("infos", "masque")]),
-  mouvement: dispo(1, "tous", [g("infos", "ouvert"), g("proprietes", "ouvert", "ajustements"), g("calques", "ouvert"), g("couleur", "replie"), g("pinceaux", "replie", "parametres")]),
-  peinture: dispo(1, "tous", [g("couleur", "ouvert", "nuancier"), g("pinceaux", "ouvert"), g("calques", "ouvert"), g("proprietes", "replie"), g("infos", "masque")]),
-  photo: dispo(1, "tous", [g("infos", "ouvert"), g("proprietes", "ouvert", "ajustements"), g("calques", "ouvert"), g("couleur", "replie"), g("pinceaux", "replie", "source")]),
-  pixel: dispo(2, "tous", [g("couleur", "ouvert", "nuancier"), g("calques", "ouvert"), g("proprietes", "replie"), g("pinceaux", "replie"), g("infos", "replie")]),
+  essentiel: dispo(2, "tous", [g("couleur", "ouvert"), g("proprietes", "ouvert"), g("pinceaux", "replie"), g("calques", "ouvert"), g("infos", "replie"), g("texte", "replie")]),
+  base: dispo(1, "base", [g("proprietes", "ouvert"), g("calques", "ouvert"), g("couleur", "replie"), g("pinceaux", "masque"), g("infos", "masque"), g("texte", "masque")]),
+  graphisme: dispo(1, "tous", [g("texte", "ouvert"), g("couleur", "replie"), g("proprietes", "ouvert"), g("calques", "ouvert"), g("pinceaux", "masque"), g("infos", "masque")]),
+  mouvement: dispo(1, "tous", [g("infos", "ouvert"), g("proprietes", "ouvert", "ajustements"), g("calques", "ouvert"), g("couleur", "replie"), g("pinceaux", "replie", "parametres"), g("texte", "replie")]),
+  peinture: dispo(1, "tous", [g("couleur", "ouvert", "nuancier"), g("pinceaux", "ouvert"), g("calques", "ouvert"), g("proprietes", "replie"), g("infos", "masque"), g("texte", "masque")]),
+  photo: dispo(1, "tous", [g("infos", "ouvert"), g("proprietes", "ouvert", "ajustements"), g("calques", "ouvert"), g("couleur", "replie"), g("pinceaux", "replie", "source"), g("texte", "masque")]),
+  pixel: dispo(2, "tous", [g("couleur", "ouvert", "nuancier"), g("calques", "ouvert"), g("proprietes", "replie"), g("pinceaux", "replie"), g("infos", "replie"), g("texte", "masque")]),
 };
 
 const copie = (o) => JSON.parse(JSON.stringify(o));
@@ -187,10 +202,12 @@ export function decorerMenus(menus, etat, d, t) {
 
 /* ───────────── côté DOM ───────────── */
 
-const SECTIONS = { couleur: "#grpCouleur", proprietes: "#grpProprietes", pinceaux: "#grpPinceaux", calques: "#grpCalques", infos: "#grpInfos" };
-const ONGLET = { couleur: "data-onglet-co", proprietes: "data-onglet-pr", pinceaux: "data-onglet-pi", calques: "data-onglet", infos: "data-onglet-in" };
+const SECTIONS = { couleur: "#grpCouleur", proprietes: "#grpProprietes", pinceaux: "#grpPinceaux", calques: "#grpCalques", infos: "#grpInfos",
+  texte: "#grpTexte" };
+const ONGLET = { couleur: "data-onglet-co", proprietes: "data-onglet-pr", pinceaux: "data-onglet-pi", calques: "data-onglet", infos: "data-onglet-in",
+  texte: "data-onglet-tx" };
 const RAIL = { reglages: "proprietes", couleur: "couleur", pinceaux: "pinceaux", calques: "calques", historique: "calques", navigateur: "calques",
-  infos: "infos" };
+  infos: "infos", texte: "texte" };
 
 export function initEspaces(PL) {
   const T = (cle, vars) => (window.dzT ? window.dzT(cle, vars) : cle);
