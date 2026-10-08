@@ -24,6 +24,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 
 from app.services import photolab_moteur as PM
+from app.services import photolab_espaces as ESP
 
 router = APIRouter()
 # Un nom ne finit ni par « . » ni par une espace : Windows les retire en silence (« a.png. » devient « a.png »), le
@@ -546,6 +547,22 @@ def _licences() -> dict:
             if f.name.startswith(("LICENSE-", "OFL-")):
                 out[f.name] = f
     return {k: p for k, p in out.items() if p.is_file()}
+
+
+# ── t151 : espaces de travail (disposition de l'écran, aucun appel au moteur) ──────────────────────────────────────
+@router.get("/espaces")
+async def espaces():
+    """L'état des espaces de travail : enregistré, ou le défaut (fichier absent, illisible ou refusé)."""
+    return await asyncio.to_thread(ESP.lire)
+
+
+@router.put("/espaces")
+async def espaces_ecrire(body: dict):
+    """Remplace l'état (liste blanche stricte : photolab_espaces.valider) ; 400 qui dit pourquoi sinon."""
+    try:
+        return await asyncio.to_thread(ESP.ecrire, body)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
 
 @router.get("/licences")

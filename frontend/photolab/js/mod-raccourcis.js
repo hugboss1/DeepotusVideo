@@ -98,7 +98,8 @@ export function initRaccourcis(PL) {
     const e = idx.get(combo);
     if (!e) return;
     ev.preventDefault();
-    if (!doc && !sansDocument.has(e.id)) return;
+    // t151 : les panneaux et les espaces (Fenêtre, F5-F8) se règlent aussi sans document
+    if (!doc && !sansDocument.has(e.id) && !String(e.id).startsWith("window.")) return;
     if (e.etat === "bientot") { PL.signaler(T("photolab.menu.bientot")); return; }
     // « inactif » vient du registre, relu après le dernier cycle : il peut retarder d'un geste (sélection qui vient
     // d'apparaître). Le moteur reste juge : on tente, il refuse au besoin.

@@ -539,3 +539,17 @@ input[type=range]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 3px var(--
 .pi-action:hover { background: var(--bg-panel-2); color: var(--ink-strong); }
 .pi-rang { display: flex; gap: 6px; margin-top: 8px; }
 .pi-rang .pi-recherche { margin: 0; }
+
+/* ---- t151 : espaces de travail ---- */
+/* l'attribut hidden doit l'emporter sur les display: grid / flex des barres et des boutons */
+#outils[hidden], #options[hidden], #rail button[hidden], #outils button[hidden] { display: none; }
+/* barre d'outils sur une colonne (Base, Graphisme et web, Mouvement, Peinture, Photo) */
+#outils.une-colonne { width: 36px; grid-template-columns: 32px; justify-content: center; }
+/* sélecteur d'espace, à droite de la barre de menus */
+.espace-boite { position: fixed; top: 4px; right: 8px; z-index: 5; display: flex; align-items: center; gap: 4px; }
+.espace-choix { height: 24px; max-width: 200px; padding: 0 6px;
+  background: var(--bg-panel-2); color: var(--ink-strong); border: 1px solid var(--stroke); border-radius: 4px; font-size: 12px; }
+/* menus : coche à gauche du libellé */
+.menu-ligne.cochable .menu-coche { width: 14px; flex: none; color: var(--accent); }
+.menu-ligne .menu-coche { order: -1; }
+.menu-panneau:has(.cochable) .menu-ligne:not(.cochable) .menu-lib { padding-left: 14px; }
