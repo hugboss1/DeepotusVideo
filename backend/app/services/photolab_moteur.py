@@ -19,6 +19,8 @@ import threading
 import time
 from pathlib import Path
 
+from app.services import photolab_registre as PR
+
 VERSION = "0.3.0"
 RACINE_APP = Path(__file__).resolve().parents[3]          # le dépôt, ou %LOCALAPPDATA%\DeepotusVideoGen installé
 SOUS_DOSSIERS = ("entrees", "rendus", "exports")
@@ -78,21 +80,16 @@ def relatif(p) -> str:
 
 
 _ID_COMMANDE = re.compile(r"[a-z][A-Za-z0-9]*(\.[a-z][A-Za-z0-9]*)+")
+# Familles refusées même si le registre les décrit (t136, complétées t138) : fichiers, application, code, et les
+# 5 commandes NON gardées par le moteur qui lisent un chemin arbitraire (image.mode.* `profile`, import .abr / .grd,
+# plugin.*) ou écrivent les préférences persistantes (prefs.*), plus l'export CSV du journal de mesures.
 PREFIXES_REFUSES = ("file.", "app.", "automate.", "plugin.", "script", "window.", "help.", "edit.preferences",
-                    "edit.presets", "edit.keyboardshortcuts", "edit.menus")      # comparés sur cid.lower()
-# Clés qui désignent un fichier. Les noms COURTS (out, lut, src, dir…) ne sont refusés qu'en entier : en sous-chaîne
-# ils attraperaient des paramètres de réglage légitimes (`outBlack` des niveaux, `resolution`, `direction`).
-CLES_FICHIER_PARTIE = ("path", "file", "folder", "url", "uri", "source", "dest", "output", "profile", "preset")
-CLES_FICHIER_ENTIERES = {"dir", "directory", "src", "out", "lut", "paths"}
+                    "edit.presets", "edit.keyboardshortcuts", "edit.menus", "image.mode.", "brush.presets.import",
+                    "gradient.presets.import", "prefs.", "measurementlog.export")      # comparés sur cid.lower()
 _EXT_FICHIER = (".png", ".jpg", ".jpeg", ".psd", ".psb", ".pcraft", ".tif", ".tiff", ".webp", ".gif", ".bmp", ".tga",
                 ".exr", ".hdr", ".cube", ".3dl", ".look", ".icc", ".icm", ".abr", ".grd", ".pat", ".json", ".exe",
                 ".dll", ".wasm", ".txt", ".csv", ".pdf", ".ai")
 _LECTEUR = re.compile(r"^[A-Za-z]:")
-
-
-def _cle_fichier(k) -> bool:
-    k = str(k).lower()
-    return k in CLES_FICHIER_ENTIERES or any(m in k for m in CLES_FICHIER_PARTIE)
 
 
 def _valeur_fichier(v: str) -> bool:
@@ -101,42 +98,67 @@ def _valeur_fichier(v: str) -> bool:
     return "/" in v or "\\" in v or bool(_LECTEUR.match(v)) or v.lower().endswith(_EXT_FICHIER)
 
 
-def _suspect(v):
-    """Une clé ou une valeur de fichier n'importe où dans les paramètres (dicts et listes imbriqués) — son nom ou None."""
-    if isinstance(v, dict):
-        for k, w in v.items():
-            if _cle_fichier(k):
-                return f"clé {k!r}"
-            r = _suspect(w)
-            if r:
-                return r
-    elif isinstance(v, list):
-        for w in v:
-            r = _suspect(w)
-            if r:
-                return r
-    elif isinstance(v, str) and _valeur_fichier(v):
-        return f"valeur {v!r}"
-    return None
-
-
-def commande_autorisee(cid, params) -> str:
-    """L'id d'une commande moteur que l'écran peut lancer — sinon ValueError. Refusées : tout ce qui touche des
-    fichiers, l'application ou du code (préfixes ci-dessus, casse ignorée), et toute commande dont les paramètres
-    nomment OU contiennent un fichier : les fichiers passent par les routes du Photolab, jamais par une commande.
-    Défense en profondeur derrière les racines de lecture/écriture que le moteur impose lui-même."""
-    if not isinstance(cid, str) or not _ID_COMMANDE.fullmatch(cid):
-        raise ValueError(f"commande illisible : {cid!r}")
-    if cid.lower().startswith(PREFIXES_REFUSES):
-        raise ValueError(f"commande réservée aux routes du Photolab : {cid}")
-    if params is None:
-        params = {}
-    if not isinstance(params, dict):
-        raise ValueError(f"{cid} : les paramètres doivent être un objet")
-    r = _suspect(params)
-    if r:
-        raise ValueError(f"{cid} : {r} désigne un fichier — passe par les routes du Photolab")
+def commande_autorisee(cid, params, registre=None, kind=None, etat=None) -> str:
+    """L'id d'une commande moteur que l'écran peut lancer — sinon ValueError. Depuis t138 : LISTE BLANCHE sur le
+    registre du moteur épinglé (`PR.verifier` : commande connue, clés décrites, types et bornes), derrière les
+    familles refusées (PREFIXES_REFUSES) et le refus de toute valeur « fichier ». Sans registre on refuse tout :
+    l'ancienne liste de refus seule laissait passer clés inconnues, mauvais types et `blend: 3`."""
+    if registre is None:
+        raise ValueError("registre du moteur indisponible")
+    PR.verifier(registre, cid, params, kind, etat)
     return cid
+
+
+# Registre structuré, en cache par (session, génération) : `engine.commands` est lu et parsé UNE fois par démarrage
+# du moteur, alors que /commandes (menus) et /executer (chaque geste) le consultent sans cesse.
+_CACHE_REGISTRE = {"session": None, "gen": None, "registre": None}
+_VERROU_REGISTRE = threading.Lock()
+
+
+def _structure(s, gen, brut) -> dict:
+    with _VERROU_REGISTRE:
+        if _CACHE_REGISTRE["session"] is s and _CACHE_REGISTRE["gen"] == gen:
+            return _CACHE_REGISTRE["registre"]
+    liste = brut if isinstance(brut, list) else (brut or {}).get("commands") or []
+    reg = PR.structurer(liste)
+    with _VERROU_REGISTRE:
+        _CACHE_REGISTRE.update({"session": s, "gen": gen, "registre": reg})
+    return reg
+
+
+def registre(s) -> dict:
+    """id -> description structurée (PR.structurer) du registre de la session `s`. Sans appel au moteur si le cache
+    est celui de cette session et de sa génération courante, moteur vivant ; sinon `engine.commands` puis parse."""
+    with _VERROU_REGISTRE:
+        c = dict(_CACHE_REGISTRE)
+    # `session` d'abord : une session de remplacement des bancs n'a ni `generation` ni `vivant`
+    if c["session"] is s and c["gen"] == getattr(s, "generation", None) and getattr(s, "vivant", lambda: False)():
+        return c["registre"]
+    brut, gen = s.appeler_g("engine.commands")
+    return _structure(s, gen, brut)
+
+
+def commandes(s):
+    """(registre brut du moteur dont chaque entrée gagne ses `champs`, génération). Le brut est relu à chaque fois
+    (`enabled` dépend du document ouvert) ; le parse, lui, sort du cache de la génération."""
+    brut, gen = s.appeler_g("engine.commands")
+    reg = _structure(s, gen, brut)
+    liste = brut if isinstance(brut, list) else (brut or {}).get("commands") or []
+    return [{**c, "champs": reg.get(c.get("id"), {}).get("champs", [])} for c in liste], gen
+
+
+def elaguer_inspect(doc):
+    """doc.inspect sans le tableau `lut` des calques Color Lookup (107 811 nombres : 2 Mo par calque, relevé t138),
+    que l'écran ne lit pas : remplacé par None et marqué `lutElague`. Récursif dans les groupes (`children`)."""
+    if not isinstance(doc, dict):
+        return doc
+    for c in _a_plat(doc.get("layers")):
+        a = c.get("adjustment") if isinstance(c, dict) else None
+        cl = a.get("ColorLookup") if isinstance(a, dict) else None
+        if isinstance(cl, dict) and cl.get("lut") is not None:
+            cl["lut"] = None
+            cl["lutElague"] = True
+    return doc
 
 
 class SessionMoteur:
@@ -435,10 +457,254 @@ def historique(s: SessionMoteur, sens: str, n: int):
     commande = {"annuler": "edit.undo", "retablir": "edit.redo"}[sens]
 
     def fn(appel, gen):
+        # edit.undo / edit.redo partent ici sans passer par la liste blanche : la commande est choisie par le
+        # service (deux valeurs possibles), jamais par l'écran.
         r = appel("batch", {"steps": [{"command": commande} for _ in range(n)], "stopOnError": True}) or {}
-        return {"inspect": appel("doc.inspect"), "completed": int(r.get("completed") or 0),
+        return {"inspect": elaguer_inspect(appel("doc.inspect")), "completed": int(r.get("completed") or 0),
                 "failed": int(r.get("failed") or 0)}
     return s.sequence(fn)
+
+
+# ── t138 (P3, Task A3) : aperçu et histogramme calculés par le moteur sur une COPIE du document ─────────────────────
+# Liste STRICTE de ce qu'un aperçu peut jouer : ce qui transforme les pixels ou l'apparence d'un calque, rien qui crée,
+# supprime, sélectionne, ouvre ou touche au presse-papiers de styles (la copie disparaît à la fin : un geste structurel
+# n'y aurait rien à montrer, et copy/pasteLayerStyle laisseraient un état hors du document).
+# Filtres : tous sauf ceux qui ne sont pas un calcul de pixels paramétré (conversion en objet dynamique, « dernier
+# filtre » qui rejoue un état caché, galerie aux effets opaques) et les plein-écran D9 (Camera Raw, Liquify, Point de
+# fuite, Grand-angle adaptatif). Point de fuite exclu, plus aucune étape ne porte d'id de calque IMBRIQUÉ
+# (`paste[].layer`) : seul `layer` du premier niveau est traduit vers la copie, c'est voulu.
+FILTRES_HORS_APERCU = frozenset({"filter.convertForSmartFilters", "filter.lastFilter", "filter.filterGallery",
+                                 "filter.cameraRaw", "filter.liquify", "filter.vanishingPoint",
+                                 "filter.adaptiveWideAngle"})
+REGLAGES_HORS_APERCU = frozenset({"image.adjustments.colorLookup.list"})   # une liste, pas un réglage
+STYLES_APERCU = frozenset(f"layer.layerStyle.{k}" for k in (
+    "dropShadow", "innerShadow", "outerGlow", "innerGlow", "stroke", "colorOverlay", "gradientOverlay",
+    "patternOverlay", "bevelEmboss", "satin", "blendingOptions", "clear"))
+COMMANDES_APERCU = frozenset({"layer.setAdjustment", "layer.setProps"})
+MAX_ETAPES_APERCU = 12
+GARDES_APV = 3
+_APV = re.compile(r"apv-\d+-\d+\.png")
+_COMPTEUR_APV = itertools.count(1)
+
+
+def _admise_en_apercu(cid) -> bool:
+    if not isinstance(cid, str):
+        return False
+    if cid in COMMANDES_APERCU or cid in STYLES_APERCU:
+        return True
+    if cid.startswith("filter."):
+        return cid not in FILTRES_HORS_APERCU
+    if cid.startswith("image.adjustments."):
+        return cid not in REGLAGES_HORS_APERCU
+    return False
+
+
+def forme_etapes(etapes) -> list:
+    """FORME des étapes (liste de 1 à 12 objets, `command` lisible et admise en aperçu, `params` objet) — sans le
+    registre : une demande mal formée ne réveille pas le moteur pour lire `engine.commands`. ValueError -> 400."""
+    if not isinstance(etapes, list) or not 1 <= len(etapes) <= MAX_ETAPES_APERCU:
+        raise ValueError(f"aperçu : de 1 à {MAX_ETAPES_APERCU} étapes attendues")
+    propres = []
+    for e in etapes:
+        if not isinstance(e, dict):
+            raise ValueError("aperçu : chaque étape est un objet {command, params}")
+        cid, params = e.get("command"), e.get("params")
+        params = {} if params is None else params
+        if not isinstance(cid, str) or not _ID_COMMANDE.fullmatch(cid):
+            raise ValueError(f"commande illisible : {cid!r}")
+        if not _admise_en_apercu(cid):
+            raise ValueError(f"aperçu impossible pour cette commande : {cid}")
+        if not isinstance(params, dict):
+            raise ValueError(f"{cid} : les paramètres sont un objet")
+        propres.append({"command": cid, "params": dict(params)})
+    return propres
+
+
+def etapes_apercu(propres, reg) -> list:
+    """Liste blanche sur des étapes déjà mises en forme (`forme_etapes`), avant tout appel qui modifie quoi que ce
+    soit. `layer.setAdjustment` attend la séquence : ses clés dépendent du kind du calque visé (`_verifier_reglage`)."""
+    for e in propres:
+        if e["command"] != "layer.setAdjustment":
+            commande_autorisee(e["command"], e["params"], reg)
+    return propres
+
+
+def _verifier_reglage(etape, insp, reg):
+    """layer.setAdjustment : cible FIGÉE (`layer` explicite ou calque actif de l'original, comme /executer) puis
+    liste blanche avec le kind lu dans l'inspect de l'ORIGINAL — jamais déclaré par l'écran."""
+    p = etape["params"]
+    cible = p.get("layer", insp.get("activeLayer"))
+    calque = next((c for c in _a_plat(insp.get("layers")) if c.get("id") == cible), None)
+    if calque is None:
+        raise ValueError(f"layer.setAdjustment : calque introuvable : {cible!r}")
+    kind = PR.kind_de(calque)
+    if kind is None:
+        raise ValueError(f"layer.setAdjustment : le calque {cible} n'est pas un calque de réglage")
+    etape["params"] = {**p, "layer": cible}
+    commande_autorisee("layer.setAdjustment", etape["params"], reg, kind, calque.get("adjustment"))
+
+
+def _sur_copie(appel, insp, actif, n_avant, nom, travail):
+    """Duplique le document actif (`image.duplicate`, la copie devient active et GARDE la sélection — sonde s20),
+    repose sur la copie le calque actif de l'original (la copie active son calque du haut), puis `travail(cible)`
+    où `cible` = {id original: id copie}. Les ids sont renumérotés par la copie : on les apparie PAR POSITION dans
+    l'arbre `layers` aplati en préordre (comme `vignettes`).
+    Le `finally` referme la copie et resélectionne l'original MÊME si une étape a échoué au moteur. `doc.close`
+    prend `index` : la clé `document` est ignorée en silence et fermerait le document ACTIF (relevé t138)."""
+    copie, reussi = None, False
+    try:
+        res = appel("engine.execute", {"command": "image.duplicate", "params": {"name": nom}})
+        apres = appel("session.list") or {}
+        if len(apres.get("documents") or []) == n_avant + 1 and isinstance(apres.get("active"), int):
+            copie = apres["active"]
+        idx = res.get("document") if isinstance(res, dict) else None
+        if not isinstance(idx, int) or isinstance(idx, bool):
+            raise MoteurErreur(f"{nom} : image.duplicate n'a pas rendu l'index du document copié")
+        if copie is None:
+            copie = idx
+        plats = [c["id"] for c in _a_plat((appel("doc.inspect") or {}).get("layers"))]
+        ids_origine = [c["id"] for c in _a_plat(insp.get("layers"))]
+        if len(plats) != len(ids_origine):
+            raise MoteurErreur(f"{nom} : la copie du document n'a pas la même structure de calques")
+        cible = dict(zip(ids_origine, plats))
+        a = insp.get("activeLayer")
+        if a in cible:
+            appel("engine.execute", {"command": "layer.select", "params": {"layer": cible[a], "mode": "replace"}})
+        sortie = travail(cible)
+        reussi = True
+        return sortie
+    finally:
+        # même règle que `vignettes` : un nettoyage raté n'écrase pas l'erreur d'origine, mais il est dit s'il suit
+        # une réussite (le document de l'utilisateur ne serait pas dans l'état annoncé)
+        try:
+            if copie is not None:
+                appel("doc.close", {"index": copie})
+                appel("doc.select", {"index": actif})
+        except (MoteurErreur, MoteurDelai):
+            if reussi:
+                raise
+
+
+def _ouvrir_original(appel):
+    """(index de l'original, nombre de documents, doc.inspect de l'original) au début d'une séquence sur copie."""
+    sl = appel("session.list") or {}
+    actif = sl.get("active")
+    if not isinstance(actif, int) or isinstance(actif, bool):
+        raise MoteurErreur("aucun document ouvert")
+    return actif, len(sl.get("documents") or []), appel("doc.inspect") or {}
+
+
+def _traduire(cible, lid):
+    if lid not in cible:
+        raise ValueError(f"calque inconnu du document : {lid!r}")
+    return cible[lid]
+
+
+def apercu(s: SessionMoteur, etapes, max_side: int):
+    """({"fichier": apv-<gen>-<n>.png sous rendus/, "resultats": [result de chaque étape]}, génération) — les
+    étapes jouées sur une COPIE, rendue puis refermée : l'original garde révision, calque actif, sélection,
+    historique et pile de rétablissement (appliquer puis annuler laisserait l'étape dans la pile : écarté, s20).
+    Rendu identique à l'octet à l'application réelle (banc test_photolab_apercu [2]).
+    Toutes les étapes passent la liste blanche AVANT le moindre appel ; `layer.setAdjustment` (kind lu dans
+    l'original) et les ids de calque (inconnus -> 400) sont vérifiés dans la séquence, avant la copie."""
+    propres = forme_etapes(etapes)                         # la forme d'abord : un refus ne lit pas le registre
+    reg = registre(s)                                      # hors séquence : registre() prend le verrou lui-même
+    etapes_apercu(propres, reg)
+    n = next(_COMPTEUR_APV)
+
+    def fn(appel, gen):
+        actif, n_avant, insp = _ouvrir_original(appel)
+        connus = {c.get("id") for c in _a_plat(insp.get("layers"))}
+        for e in propres:
+            if e["command"] == "layer.setAdjustment":
+                _verifier_reglage(e, insp, reg)
+            if "layer" in e["params"] and e["params"]["layer"] not in connus:
+                raise ValueError(f"{e['command']} : calque inconnu du document : {e['params']['layer']!r}")
+        fichier = f"apv-{gen}-{n}.png"
+
+        def travail(cible):
+            resultats = []
+            for e in propres:
+                p = dict(e["params"])
+                if "layer" in p:                           # sinon un style viserait le calque d'un autre rang
+                    p["layer"] = _traduire(cible, p["layer"])
+                resultats.append(appel("engine.execute", {"command": e["command"], "params": p}))
+            appel("doc.render", {"path": relatif(f"rendus/{fichier}"), "maxSide": max_side})
+            return {"fichier": fichier, "resultats": resultats}
+        return _sur_copie(appel, insp, actif, n_avant, "dz-apercu", travail)
+    sortie, gen = s.sequence(fn)
+    _ranger_apv(dossier_travail() / "rendus")
+    return sortie, gen
+
+
+def _ranger_apv(d: Path):
+    """Ne garde que les GARDES_APV derniers aperçus : l'écran n'affiche que le dernier, un glisser en produit des
+    dizaines. Deux aperçus rangent en même temps (hors verrou du moteur) : un fichier peut disparaître entre la liste
+    et le stat ou l'unlink — toléré, jamais un 500 après un aperçu réussi."""
+    def date(f):
+        try:
+            return (f.stat().st_mtime_ns, f.name)
+        except OSError:
+            return None                                    # déjà supprimé par l'autre rangement
+    try:
+        dates = [(k, f) for f in d.iterdir() if _APV.fullmatch(f.name) and (k := date(f)) is not None]
+    except OSError:
+        return
+    for _, f in sorted(dates)[:-GARDES_APV]:
+        try:
+            f.unlink()
+        except OSError:
+            pass                                          # ouvert par un lecteur, ou déjà parti : le prochain le reprendra
+
+
+def histogramme(s: SessionMoteur, sans, max_side: int):
+    """({"r","g","b","l": 256 comptes chacun}, génération) — le moteur n'a aucune commande d'histogramme par canal :
+    on rend une COPIE (avec le calque `sans` de l'original masqué, ex. le réglage en cours d'édition) et Pillow
+    compte ; les pixels d'alpha nul ne comptent pas (rien n'y est peint). Voir `_compter` pour l.
+    Le rendu temporaire est supprimé dans un `finally` EXTÉRIEUR à la séquence : même si la fermeture de la copie
+    échoue après le rendu, aucun hst-* ne reste dans rendus/."""
+    if sans is not None and (not isinstance(sans, int) or isinstance(sans, bool)):
+        raise ValueError(f"sans : id de calque entier attendu : {sans!r}")
+    n = next(_COMPTEUR_APV)
+    chemins = []                                           # rempli dans la séquence, nettoyé hors d'elle quoi qu'il arrive
+
+    def fn(appel, gen):
+        actif, n_avant, insp = _ouvrir_original(appel)
+        if sans is not None and sans not in {c.get("id") for c in _a_plat(insp.get("layers"))}:
+            raise ValueError(f"sans : calque inconnu du document : {sans!r}")
+        fichier = f"hst-{gen}-{n}.png"
+        chemins.append(dossier_travail() / "rendus" / fichier)
+
+        def travail(cible):
+            if sans is not None:
+                appel("engine.execute", {"command": "layer.setProps",
+                                         "params": {"layer": _traduire(cible, sans), "visible": False}})
+            appel("doc.render", {"path": relatif(f"rendus/{fichier}"), "maxSide": max_side})
+            return fichier
+        return _sur_copie(appel, insp, actif, n_avant, "dz-histogramme", travail)
+    try:
+        _, gen = s.sequence(fn)
+        return _compter(chemins[0]), gen
+    finally:
+        for chemin in chemins:
+            try:
+                chemin.unlink()                            # temporaire : seul le compte sort d'ici
+            except OSError:
+                pass                                       # jamais rendu (échec avant doc.render) : rien à retirer
+
+
+def _compter(chemin: Path) -> dict:
+    """Histogrammes de Pillow sous le masque alpha > 0 (14 ms au pire cas 1024×1024 toutes couleurs distinctes,
+    contre 1,6 s par getcolors + formule en Python, mesuré t138). l = convert("L") de Pillow, ITU-R 601 en entiers
+    ((R·19595 + G·38470 + B·7471 + 2^15) >> 16) : il diffère de round(0.299 R + 0.587 G + 0.114 B) du plan sur 9 443
+    couleurs des 16 777 216 (0,06 %), d'un niveau au plus — invisible sur un histogramme de 256 cases."""
+    from PIL import Image
+    with Image.open(chemin) as im:
+        rgba = im.convert("RGBA")
+    masque = rgba.getchannel("A").point(lambda v: 255 if v else 0)
+    rgb = rgba.convert("RGB")
+    t = rgb.histogram(mask=masque)
+    return {"r": t[0:256], "g": t[256:512], "b": t[512:768], "l": rgb.convert("L").histogram(mask=masque)}
 
 
 def etat_session() -> dict:

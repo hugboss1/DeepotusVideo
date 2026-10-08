@@ -45,7 +45,9 @@ dr.ellipse((50, 20, 90, 60), fill=(20, 200, 60))
 im.save(_tmp / "images" / "entree.png")
 
 CAS = [("filter.blur.gaussianBlur", {"radius": 3}), ("image.adjustments.invert", {}),
-       ("image.adjustments.levels", {"lightness": {"outBlack": 60}}), ("image.adjustments.equalize", {}),
+       # t138 : `lightness` n'est pas une clé du registre de levels (le moteur l'ignorait sur un document RVB, le cas
+       # ne prouvait rien) : la liste blanche la refuse. outBlack au niveau composite change bien les pixels.
+       ("image.adjustments.levels", {"outBlack": 60}), ("image.adjustments.equalize", {}),
        ("filter.blur.average", {})]
 
 

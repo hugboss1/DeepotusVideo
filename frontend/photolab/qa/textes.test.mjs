@@ -57,5 +57,29 @@ check("9.3 dictionnaire : Ajustements / Adjustments, l'ancienne clé retirée",
   dico["photolab.rail.ajustements"] && dico["photolab.rail.ajustements"].fr === "Ajustements" && dico["photolab.rail.ajustements"].en === "Adjustments"
   && !dico["photolab.rail.reglages"]);
 
-console.log(`textes : ${ok} ok, ${ko} echec(s)`);
+// 10. familles composées de P3 (B3) : photolab.param.<cle>, photolab.valeur.<v>, photolab.kind.<kind>. Les clés
+//     viennent du dictionnaire lui-même (la liste des clés visibles du périmètre est calculée par
+//     backend/tests/test_photolab_libelles.py avec mod-champs.js) ; ici on tient la forme : fr ET en non vides, un
+//     libellé jamais recopié de la clé brute, et chaque kind de calque de réglage du catalogue y est.
+const famille = (pre) => Object.keys(dico).filter((k) => k.startsWith(pre));
+for (const pre of ["photolab.param.", "photolab.valeur.", "photolab.kind."]) {
+  const cles = famille(pre);
+  check("10 famille " + pre + " non vide", cles.length > 10, cles.length);
+  check("10 famille " + pre + " : fr et en non vides", !manque(cles).length, manque(cles));
+  const brut = cles.filter((k) => /[a-z][A-Z]/.test(dico[k].fr) || /[a-z][A-Z]/.test(dico[k].en));
+  check("10 famille " + pre + " : aucun libellé en camelCase brut", !brut.length, brut);
+}
+const menus = JSON.parse(readFileSync(join(racine, "donnees/menus.json"), "utf8"));
+const kindsCatalogue = menus.entrees.map((e) => e.id || "").filter((i) => i.startsWith("layer.newAdjustmentLayer.")).map((i) => i.slice("layer.newAdjustmentLayer.".length));
+check("10 les 16 réglages du catalogue ont leur photolab.kind.*", kindsCatalogue.length === 16 && !manque(kindsCatalogue.map((k) => "photolab.kind." + k.toLowerCase())).length, kindsCatalogue);
+check("10 le nom d'un réglage est celui du catalogue (sans « … »)", kindsCatalogue.every((k) => {
+  const e = menus.entrees.find((x) => x.id === "layer.newAdjustmentLayer." + k);
+  return dico["photolab.kind." + k.toLowerCase()].fr === e.libelle_fr.replace(/…$/, "") && dico["photolab.kind." + k.toLowerCase()].en === e.libelle_en.replace(/…$/, "");
+}));
+// Les modes de fusion gardent leurs libellés photolab.fusion.* : aucune valeur de fusion dupliquée sous photolab.valeur.*.
+const fusions = new Set(MODES_FUSION.map((m) => m.id.toLowerCase()));
+const doublons = famille("photolab.valeur.").map((k) => k.slice("photolab.valeur.".length)).filter((v) => fusions.has(v) && !["color", "hue", "saturation", "luminosity"].includes(v) && v !== "normal");
+check("10 pas de mode de fusion dupliqué sous photolab.valeur.*", !doublons.length, doublons);
+
+console.log(`textes :${ok} ok, ${ko} echec(s)`);
 if (ko) process.exit(1);

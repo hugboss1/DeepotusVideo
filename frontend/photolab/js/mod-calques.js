@@ -101,6 +101,12 @@ export function basculerVerrou(etat, cle) {
 }
 
 // L'arrière-plan : dernier calque à la racine, nommé « Background » par le moteur (cadenas, comme photocraft).
+// Le calque porte-t-il des effets (doc.inspect : effects.items, absent quand il n'y en a aucun) ? -> badge « fx » de sa
+// ligne (t138 B6). Ici et non dans mod-styles.js : mod-styles importe ce module, l'inverse ferait une boucle d'imports.
+export function aDesEffets(calque) {
+  return !!(calque && calque.effects && Array.isArray(calque.effects.items) && calque.effects.items.length);
+}
+
 export function estFond(calque, racines) {
   const l = racines || [];
   return !!calque && l.length > 0 && l[l.length - 1] === calque && calque.name === "Background" && !Array.isArray(calque.children);
@@ -146,9 +152,12 @@ export function initCalques(PL) {
   const pied = el("div", "cq-pied");
   const bientot = (b) => { b.disabled = true; b.classList.add("bientot"); b.title += " — " + T("photolab.outil.bientot"); return b; };
   const bLien = bientot(bouton("", "link", T("photolab.calques.lier")));
-  const bFx = bientot(bouton("", null, T("photolab.calques.style"))); bFx.textContent = "fx";
+  // t138 B6 : le dialogue Style de calque (mod-styles.js, lu à l'exécution : aucun import croisé).
+  const bFx = bouton("", null, T("photolab.calques.style")); bFx.textContent = "fx";
   const bMasque = bientot(bouton("", "scan", T("photolab.calques.masque")));
-  const bReglage = bientot(bouton("", "circle", T("photolab.calques.reglage")));
+  // t138 B5 : petit menu des 16 calques de réglage (mod-reglages.js, lu à l'exécution : aucun import croisé).
+  const bReglage = bouton("", "circle", T("photolab.calques.reglage"));
+  bReglage.setAttribute("aria-haspopup", "menu");
   const bGroupe = bouton("", "folder-plus", T("photolab.calques.nouveau_groupe"));
   const bNouveau = bouton("", "file-plus", T("photolab.calques.nouveau"));
   const bDupliquer = bouton("", "copy", T("photolab.calques.dupliquer"));
@@ -173,6 +182,8 @@ export function initCalques(PL) {
     majEntete(PL.etat.doc);
     PL.executer("layer.setProps", { layer: a, locks: PL.etat.verrous[a] });
   }));
+  bReglage.addEventListener("click", () => { if (PL.reglages) PL.reglages.menu(bReglage); });
+  bFx.addEventListener("click", () => { if (PL.ouvrirStyles) PL.ouvrirStyles(); });
   bNouveau.addEventListener("click", () => PL.executer("layer.new.layer", {}));
   bGroupe.addEventListener("click", () => PL.executer("layer.groupLayers", {}));
   bDupliquer.addEventListener("click", () => PL.executer("layer.duplicate", {}));
@@ -197,6 +208,21 @@ export function initCalques(PL) {
   function vignette(c) {
     const box = el("span", "cq-vignette");
     if (c.groupe) { icone("layers", box); return box; }
+    // Calque de réglage : l'icône de son kind à la place de la vignette (il n'a pas de pixels) ; double-clic -> son
+    // éditeur dans l'onglet Propriétés. dataset.icone (posé par icone()) tient les vignettes à l'écart de cette case.
+    const kr = PL.reglages ? PL.reglages.kindDe(c) : null;
+    if (kr) {
+      icone(PL.reglages.icone(kr), box);
+      box.classList.add("reglage");
+      box.title = T(PL.reglages.cle(kr));
+      box.addEventListener("dblclick", (ev) => {
+        ev.stopPropagation();
+        clearTimeout(minutClic); minutClic = null;          // le clic simple différé ne doit pas passer après
+        if (c.id !== actif()) PL.executer("layer.select", actionSelection(c.id, false, false));
+        PL.reglages.montrer("proprietes");
+      });
+      return box;
+    }
     const url = PL.etat.vignettes[String(c.id)];
     if (url) { const im = el("img"); im.alt = ""; im.src = url; im.dataset.id = String(c.id); box.appendChild(im); }
     return box;
@@ -225,6 +251,7 @@ export function initCalques(PL) {
     const nom = brut(el("span", "cq-nom", c.name || ""));
     nom.addEventListener("dblclick", (ev) => { ev.stopPropagation(); clearTimeout(minutClic); minutClic = null; renommer(c, nom); });
     l.append(oeil, retrait, chevron, vignette(c), nom);
+    if (aDesEffets(c)) l.appendChild(badgeFx(c));
     const idf = idFusion(c.blend);
     if (idf && idf !== "normal" && idf !== "passThrough") {
       const m = MODES_FUSION.find((x) => x.id === idf);
@@ -273,6 +300,25 @@ export function initCalques(PL) {
     return l;
   }
 
+  // Badge « fx » d'un calque qui a des effets ; double-clic -> dialogue Style de calque SUR CE calque : il est d'abord
+  // sélectionné et relu (le dialogue lit le calque actif de PL.etat.doc), puis le dialogue s'ouvre.
+  function badgeFx(c) {
+    const b = el("span", "cq-fx", "fx");
+    b.title = T("photolab.calques.style");
+    b.addEventListener("dblclick", async (ev) => {
+      ev.stopPropagation();
+      clearTimeout(minutClic); minutClic = null;           // le clic simple différé ne doit pas passer après
+      if (!PL.ouvrirStyles) return;
+      if (c.id !== actif()) {
+        const r = await PL.executer("layer.select", actionSelection(c.id, false, false), { cycle: false });
+        if (!(r && r.ok)) return;
+        await PL.cycle();
+      }
+      PL.ouvrirStyles();
+    });
+    return b;
+  }
+
   // Renommer en place : Entrée ou clic ailleurs valide, Échap annule (photocraft, layer_row_ui.rs:228-277).
   function renommer(c, nom) {
     enRenommage = c.id;
@@ -302,7 +348,7 @@ export function initCalques(PL) {
     if (enRenommage != null) { enAttente = true; return; }      // jamais sous les doigts de l'utilisateur
     majEntete(doc);
     liste.textContent = "";
-    for (const b of [bGroupe, bNouveau, bDupliquer, bFusionner, bSupprimer]) b.disabled = !doc;
+    for (const b of [bFx, bReglage, bGroupe, bNouveau, bDupliquer, bFusionner, bSupprimer]) b.disabled = !doc;
     if (!doc) return;
     const f = filtre.value.trim().toLowerCase();
     // Filtre : tout déplié (un calque qui correspond se voit même dans un groupe fermé dans le moteur).

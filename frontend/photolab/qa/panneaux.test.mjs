@@ -139,5 +139,28 @@ const v2 = centrerVue(cadre.x + 1000 * 0.13, cadre.y + 500 * 0.13, cadre, v, { w
 check("10.3 clic au centre du document : il passe au centre de la vue, zoom gardé",
   v2.z === 0.5 && proche(v2.ox + 1000 * 0.5, 400) && proche(v2.oy + 500 * 0.5, 300), v2);
 
+// 11. t138 B5 : Propriétés | Ajustements dans #grpProprietes, calques de réglage dans le panneau Calques (lecture des
+//     sources : ces branchements sont du DOM, les fonctions pures sont dans qa/reglages.test.mjs).
+const html = readFileSync(join(racine, "index.html"), "utf8");
+const css = readFileSync(join(racine, "photolab.css"), "utf8");
+const src = (f) => readFileSync(join(racine, "js", f), "utf8");
+const grp = (html.match(/<section id="grpProprietes"[\s\S]*?<\/section>/) || [""])[0];
+check("11.1 deux onglets dans #grpProprietes : Propriétés puis Ajustements",
+  /data-onglet-pr="proprietes"[^>]*>Propriétés</.test(grp) && /data-onglet-pr="ajustements"[^>]*>Ajustements</.test(grp)
+  && grp.indexOf('data-onglet-pr="proprietes"') < grp.indexOf('data-onglet-pr="ajustements"'), grp);
+check("11.2 deux corps : Propriétés visible, Ajustements caché", /id="corpsProprietes" data-vue-pr="proprietes">/.test(grp)
+  && /id="corpsAjustements" data-vue-pr="ajustements" hidden>/.test(grp));
+check("11.3 toujours trois sections et cinq boutons de rail (aucun panneau en plus)", (html.match(/<section\b/g) || []).length === 3
+  && ((html.match(/id="rail"[\s\S]*?<\/nav>/) || [""])[0].match(/<button\b/g) || []).length === 5);
+const regle = (css.match(/#grpProprietes\s*\{[^}]*\}/) || [""])[0];
+check("11.4 #grpProprietes : hauteur souple bornée (plus de 170 px fixes)", !/height\s*:\s*170px/.test(regle) && /max-height\s*:/.test(regle) && /flex\s*:\s*0 1 auto/.test(regle), regle);
+check("11.5 son corps défile (overflow des .groupe-corps) et suit son contenu", /\.groupe-corps\s*\{[^}]*overflow\s*:\s*auto/.test(css) && /#grpProprietes \.groupe-corps\s*\{[^}]*flex\s*:\s*0 1 auto/.test(css));
+check("11.6 bouton « nouveau calque de réglage » actif (menu des 16 kinds)", !/bientot\(bouton\("", "circle"/.test(src("mod-calques.js")) && /PL\.reglages\.menu\(bReglage\)/.test(src("mod-calques.js")));
+check("11.7 ligne d'un calque de réglage : icône du kind, double-clic -> Propriétés", /PL\.reglages\.kindDe\(c\)/.test(src("mod-calques.js")) && /PL\.reglages\.montrer\("proprietes"\)/.test(src("mod-calques.js")));
+check("11.8 Propriétés délègue l'éditeur au module des réglages", /PL\.reglages && PL\.reglages\.proprietes\(corps, doc\)/.test(src("mod-proprietes.js")));
+check("11.9 core.js initialise les réglages après les Courbes", src("core.js").indexOf("initReglages(PL)") > src("core.js").indexOf("initCourbes(PL)") && src("core.js").includes("PL.majRail = majRail"));
+const pc2 = proprietesDe({ ...doc, activeLayer: 7, layers: [{ id: 7, name: "Levels 1", kind: "Adjustment", adjustment: { Levels: {} } }] }, t);
+check("11.10 proprietesDe d'un calque de réglage : nom brut, type « adjustment »", pc2.lignes.some((l) => l.valeur === "Levels 1" && l.brut) && pc2.lignes.some((l) => l.valeur === "photolab.type_calque.adjustment"), pc2);
+
 console.log(`panneaux : ${ok} ok, ${ko} echec(s)`);
 if (ko) process.exit(1);
