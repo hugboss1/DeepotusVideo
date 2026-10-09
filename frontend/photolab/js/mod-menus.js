@@ -17,7 +17,17 @@ export const REFUSES = ["file.", "app.", "automate.", "plugin.", "script", "wind
 export const PERMIS = ["file.close", "file.closeAll", "file.closeOthers", "file.fileInfo",
   "image.mode.bitmap", "image.mode.grayscale", "image.mode.duotone", "image.mode.indexedColor",
   "image.mode.rgb", "image.mode.cmyk", "image.mode.lab", "image.mode.multichannel",
-  "image.mode.bits8", "image.mode.bits16", "image.mode.bits32", "image.mode.colorTable"];
+  "image.mode.bits8", "image.mode.bits16", "image.mode.bits32", "image.mode.colorTable",
+  // t159 : gestionnaire et échange de préréglages (photolab_registre : _v_gestionnaire, _v_echange)
+  "edit.presets.presetManager", "edit.presets.exportImportPresets"];
+
+// t159 : les 18 sections de Préférences (mod-preferences : SECTIONS — banc preferences 6.x) et les éditeurs de l'écran.
+export const IDS_PREFERENCES_ECRAN = ["edit.preferences.general", "edit.preferences.integrations", "edit.preferences.interface",
+  "edit.preferences.workspace", "edit.preferences.tools", "edit.preferences.historyLog", "edit.preferences.fileHandling",
+  "edit.preferences.export", "edit.preferences.performance", "edit.preferences.scratchDisks", "edit.preferences.cursors",
+  "edit.preferences.transparencyAndGamut", "edit.preferences.unitsAndRulers", "edit.preferences.guidesGridAndSlices",
+  "edit.preferences.plugIns", "edit.preferences.type", "edit.preferences.enhancedControls", "edit.preferences.rawDefaults",
+  "edit.keyboardShortcuts", "edit.menus", "window.panel.modifierKeys", "edit.presets.presetManager", "edit.presets.exportImportPresets"];
 
 // Entrées de fichier que l'écran exécute LUI-MÊME par ses routes (nouveau, ouvrir depuis la Bibliothèque, fermer,
 // enregistrer, exporter) : actives même si le pont refuserait la commande moteur de ce nom.
@@ -59,7 +69,10 @@ export const TRAITES_PAR_ECRAN = new Set(["file.new", "file.open", "file.close",
   // t157 : Sélectionner et masquer (mod-masquer : dialogue sur select.refineEdge, absent du moteur sous ce nom)
   "select.selectAndMask",
   // t158 : fichiers par les routes du pont (mod-documents : /copie, /revenir, /placer, /calque/exporter, /enregistrer)
-  ...IDS_DOCUMENTS]);
+  ...IDS_DOCUMENTS,
+  // t159 : préférences, raccourcis, menus (mod-preferences, mod-clavier : rien n'est envoyé au moteur), touches de
+  // modification (mod-modificateurs), préréglages (mod-gestionnaire : dialogues sur les commandes rouvertes par PERMIS)
+  ...IDS_PREFERENCES_ECRAN]);
 // … dont celles qui n'ont de sens qu'avec un document ouvert (grisées sur l'écran d'accueil).
 export const NECESSITE_DOC = new Set([...IDS_DOCUMENTS, "select.selectAndMask", "file.close", "file.save", "file.saveAs", "file.export.exportAs", "pl.envoyer", "pl.natif.ouvrir",
   // t152 : les zooms d'Affichage
@@ -233,6 +246,20 @@ export function actionEntree(entree) {
   return "executer";
 }
 
+// t159 : les entrées à dessiner — sans les masquées (Édition › Menus ; leur raccourci reste actif), sans sous-menu
+// vide, sans séparateur en tête, en queue ou doublé.
+export function entreesVisibles(entrees) {
+  const L = [];
+  for (const e of entrees || []) {
+    if (e.masque) continue;
+    if (e.type === "sous-menu") { const f = entreesVisibles(e.entrees); if (!f.some((x) => x.type !== "separateur")) continue; L.push({ ...e, entrees: f }); continue; }
+    if (e.type === "separateur" && (!L.length || L[L.length - 1].type === "separateur")) continue;
+    L.push(e);
+  }
+  while (L.length && L[L.length - 1].type === "separateur") L.pop();
+  return L;
+}
+
 export function rechercherEntree(menus, id) {
   const voir = (entrees) => {
     for (const e of entrees) {
@@ -347,7 +374,7 @@ export function initMenus(PL) {
     const el = document.createElement("div");
     el.className = "menu-panneau"; el.setAttribute("role", "menu");
     const p = { el, entrees, lignes: [], courante: -1, niveau };
-    for (const brut of entrees) {
+    for (const brut of entreesVisibles(entrees)) {
       if (brut.type === "separateur") { const s = document.createElement("div"); s.className = "menu-sep"; el.appendChild(s); continue; }
       const e = effective(brut);
       const l = document.createElement("div");
@@ -358,6 +385,7 @@ export function initMenus(PL) {
       const lib = document.createElement("span"); lib.className = "menu-lib";
       lib.textContent = e.type === "sous-menu" ? e.nom_affiche : e.libelle;
       if (e.brut) lib.setAttribute("data-dz-brut", "");          // t151 : nom d'un espace donné par l'utilisateur
+      if (e.couleur) l.dataset.couleur = e.couleur;              // t159 : Édition › Menus (couleur)
       if (typeof e.coche === "boolean") {
         // t151 : entrée à coche (espace actif, verrou, panneau visible)
         const co = document.createElement("span"); co.className = "menu-coche"; co.textContent = e.coche ? "✓" : "";

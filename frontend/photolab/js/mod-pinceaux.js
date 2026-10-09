@@ -283,6 +283,8 @@ export function initPinceaux(PL) {
   }
   PL.$$(".onglet", grp).forEach((o) => o.addEventListener("click", () => montrer(o.dataset.ongletPi)));
   PL.montrerPinceaux = (nom) => { grp.hidden = false; montrer(nom || actif); if (PL.majRail) PL.majRail(); };
+  // t159 : après le gestionnaire ou un import de préréglages, la liste est relue au prochain affichage
+  PL.pinceaux = { relire: () => { presets = null; if (!grp.hidden) rafraichir(); } };
   PL.basculerPinceaux = () => { grp.hidden = !grp.hidden; if (!grp.hidden) rafraichir(); if (PL.majRail) PL.majRail(); };
   PL.actions = PL.actions || {};
   for (const [id, onglet] of Object.entries(ACTIONS_FENETRE)) PL.actions[id] = () => PL.montrerPinceaux(onglet);

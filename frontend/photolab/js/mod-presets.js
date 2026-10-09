@@ -250,6 +250,9 @@ export function initPresets(PL, genre) {
     if (premiers) { premiers = false; groupes.slice(1).forEach((g) => replies.add(g.nom)); }   // seul le premier groupe ouvert (amont)
     dessiner();
   }
+  // t159 : le gestionnaire de préréglages (mod-gestionnaire) renomme, supprime, déplace : chaque panneau se relit
+  PL.relirePresets = PL.relirePresets || [];
+  PL.relirePresets.push(relire);
   function vignette(item) {
     const v = document.createElement("span"); v.className = "pr-vignette";
     if (genre === "degrades") v.style.background = cssDegrade(item.stops, item.transparency, fg, bg) + ", var(--damier, #888)";
