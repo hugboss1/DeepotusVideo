@@ -29,10 +29,9 @@ export const D9 = new Set(["filter.cameraRaw", "filter.liquify", "filter.vanishi
   "edit.puppetWarp"]);
 // Commandes sans éditeur, nommées UNE À UNE parce que le registre ne permet pas de les reconnaître :
 // - filter.other.custom (Personnalisé) : `kernel` (int[25]) est requis mais opaque, le formulaire générique ne montrerait
-//   que scale et offset et le moteur appliquerait un noyau que l'utilisateur n'a jamais vu ;
-// - filter.convertForSmartFilters : {layer?} seul s'exécuterait directement, mais l'écran ne montre pas les filtres
-//   dynamiques — l'utilisateur ne verrait rien de ce qu'il vient de faire.
-export const SANS_EDITEUR = new Set(["filter.other.custom", "filter.convertForSmartFilters"]);
+//   que scale et offset et le moteur appliquerait un noyau que l'utilisateur n'a jamais vu.
+// t157 : filter.convertForSmartFilters en est sorti — le panneau Calques montre désormais les filtres dynamiques.
+export const SANS_EDITEUR = new Set(["filter.other.custom"]);
 // Champs sans éditeur générique : l'écran ne les montre pas et le pont les borne en taille.
 export const OPAQUES = new Set(["json", "struct", "intArray", "union", "?"]);
 // Références (calque, document, état d'historique) : un entier qui DÉSIGNE quelque chose ; un champ nombre libre n'a

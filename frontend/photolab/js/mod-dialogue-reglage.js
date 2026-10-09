@@ -12,7 +12,8 @@ import { maxSideRequete } from "./mod-cycle.js";
 
 // Copie de FILTRES_HORS_APERCU / REGLAGES_HORS_APERCU du pont (photolab_moteur.py) : le pont refuse l'aperçu de ces
 // commandes (400) ; un banc relit le source Python et compare.
-export const FILTRES_HORS_APERCU = new Set(["filter.convertForSmartFilters", "filter.lastFilter", "filter.filterGallery",
+// t157 : la Galerie de filtres en est sortie (liste blanche par effet au pont, éditeur mod-galerie).
+export const FILTRES_HORS_APERCU = new Set(["filter.convertForSmartFilters", "filter.lastFilter",
   "filter.cameraRaw", "filter.liquify", "filter.vanishingPoint", "filter.adaptiveWideAngle"]);
 export const REGLAGES_HORS_APERCU = new Set(["image.adjustments.colorLookup.list"]);
 // Attente après le dernier changement avant de demander un aperçu : un curseur qu'on manie au clavier ne lance pas
@@ -101,6 +102,16 @@ export function valeursInitiales(champs) {
   const v = {};
   for (const c of vis) v[c.cle] = valeurInitiale(c, undefined, {});
   for (const c of vis) v[c.cle] = valeurInitiale(c, undefined, v);
+  return v;
+}
+
+// t157 : valeurs de départ REPRISES d'un filtre dynamique (ses params du moteur), complétées par les défauts.
+export function valeursReprises(champs, connues) {
+  const vis = champsVisibles(champs);
+  const k = connues && typeof connues === "object" ? connues : {};
+  const v = {};
+  for (const c of vis) v[c.cle] = valeurInitiale(c, k[c.cle], {});
+  for (const c of vis) v[c.cle] = valeurInitiale(c, k[c.cle], v);
   return v;
 }
 
@@ -439,18 +450,22 @@ export function initDialogueReglage(PL) {
     if (ouvert && identiteDocument(doc, PL.etat.generation) !== ouvert.identite) ouvert.fermer("orphelin");
   });
 
-  PL.ouvrirReglage = function ouvrirReglage(entree) {
+  // t157 : `options` = {initiales, versCommande(params) -> {command, params}} — réédition d'un filtre dynamique (panneau
+  // Calques) : le formulaire part des réglages du filtre, et l'aperçu comme la validation passent par la commande
+  // rendue (layer.smartFilter.setParams), jamais par le filtre lui-même (il s'empilerait).
+  PL.ouvrirReglage = function ouvrirReglage(entree, options) {
     if (!entree || !entree.id) return;
     if (ouvert) ouvert.fermer("annuler");          // un seul à la fois : l'ancien s'annule (et rend le rendu réel)
-    ouvert = construire(entree);
+    ouvert = construire(entree, options || {});
   };
 
-  function construire(entree) {
+  function construire(entree, options) {
     const id = entree.id;
     const champs = Array.isArray(entree.champs) ? entree.champs : [];
     const visibles = champsVisibles(champs);
-    const avecApercu = estFamilleApercu(id);
-    const initiales = valeursInitiales(champs);
+    const vers = typeof options.versCommande === "function" ? options.versCommande : (p) => ({ command: id, params: p });
+    const avecApercu = estFamilleApercu(id) || options.apercu === true;      // t157 : options de fusion d'un filtre dynamique
+    const initiales = options.initiales ? valeursReprises(champs, options.initiales) : valeursInitiales(champs);
     let valeurs = { ...initiales };
     let apercuPose = false;      // une image d'aperçu est à l'écran (Annuler doit rendre le rendu réel)
     let minuterie = null;
@@ -519,7 +534,7 @@ export function initDialogueReglage(PL) {
       const voulu = PL.vue.maxSideVoulu();             // gardé : la vue a pu zoomer pendant le calcul
       const maxSide = maxSideRequete(voulu, PL.etat.doc);
       occupe(true);
-      const r = await demander({ etapes: [{ command: id, params: envoyes }], maxSide });
+      const r = await demander({ etapes: [vers(envoyes)], maxSide });
       if (r.perime) return;                             // une demande plus récente (ou la fermeture) a pris la main
       occupe(demander.enVol());
       if (fini || !apercuActif()) return;
@@ -575,9 +590,9 @@ export function initDialogueReglage(PL) {
         // Par la file FIFO TOUT DE SUITE (l'aperçu en vol est déjà périmé par annuler()) : un Ctrl+Z tapé juste après
         // passe derrière le filtre. Le cycle qui suit pose le rendu réel ; en cas d'échec il n'y a pas de cycle, et un
         // aperçu resté à l'écran ferait croire le filtre appliqué : on relit le vrai document.
-        const p = parametres(champs, valeurs);
+        const c = vers(parametres(champs, valeurs));
         const apercuAEffacer = apercuPose;
-        PL.executer(id, p).then((r) => { if (!(r && r.ok) && apercuAEffacer) PL.cycle(); });
+        PL.executer(c.command, c.params).then((r) => { if (!(r && r.ok) && apercuAEffacer) PL.cycle(); });
       } else if (role === "annuler" && apercuPose) {
         PL.cycle();
       }

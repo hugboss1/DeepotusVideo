@@ -62,9 +62,11 @@ check("1.4 périmètre : au moins 100 commandes", len(ids) >= 100, len(ids))
 for pre, mini in (("filter.", 60), ("image.adjustments.", 15), ("layer.newAdjustmentLayer.", 16), ("layer.layerStyle.", 12)):
     n = sum(1 for i in ids if i.startswith(pre))
     check(f"1.5 {pre}* : au moins {mini}", n >= mini, n)
-check("1.6 D9, SANS_EDITEUR et Galerie hors périmètre", not any(i in ids for i in ("filter.cameraRaw", "filter.liquify", "filter.vanishingPoint",
-      "filter.adaptiveWideAngle", "filter.filterGallery", "filter.other.custom", "filter.convertForSmartFilters"))
-      and not any(i.startswith("filter.gallery.") for i in ids))
+check("1.6 D9 et SANS_EDITEUR hors périmètre", not any(i in ids for i in ("filter.cameraRaw", "filter.liquify", "filter.vanishingPoint",
+      "filter.adaptiveWideAngle", "filter.other.custom")))
+# t157 : les 47 filtres de la galerie sont DANS le périmètre (leurs réglages s'affichent dans la Galerie de filtres).
+check("1.6b filtres de la galerie dans le périmètre (47)", sum(1 for i in ids if i.startswith("filter.gallery.")) == 47,
+      sum(1 for i in ids if i.startswith("filter.gallery.")))
 check("1.7 des clés et des valeurs à traduire", len(perim["params"]) >= 150 and len(perim["valeurs"]) >= 100,
       (len(perim["params"]), len(perim["valeurs"])))
 

@@ -239,6 +239,15 @@ async def executer(body: dict):
         # La cible est FIGÉE : sans `layer`, le moteur prendrait le calque actif AU MOMENT de l'exécution ; s'il a
         # changé depuis la lecture, des clés vérifiées pour ce kind iraient à un réglage d'un autre kind.
         params = {**params, "layer": cible}
+    if cid == "layer.smartFilter.setParams" and isinstance(params, dict):
+        # t157 : les clés admises sont celles du filtre VISÉ (doc.inspect : smartFilters[index].command) ; la cible est
+        # figée comme pour setAdjustment.
+        insp, _ = await _appeler("doc.inspect")
+        try:
+            PM.verifier_filtre_dynamique(reg, params, insp or {})
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        params = {**params, "layer": params.get("layer", (insp or {}).get("activeLayer"))}
     try:
         PM.commande_autorisee(cid, params, reg, kind, etat)
     except ValueError as e:
@@ -406,6 +415,52 @@ async def couches(maxSide: int = 96, index: int | None = None):
     m = _entier(maxSide, 32, 1024, "maxSide")
     out, gen = await _pool(lambda s: functools.partial(PM.couches_alpha, s), m, index)
     return _json({"couches": out}, gen)
+
+
+# ── t157 : masques de fusion, Sélectionner et masquer, Galerie de filtres ────────────────────────────────────────────
+@router.get("/masques")
+async def masques(maxSide: int = 48, layer: int | None = None):
+    """{"masques": [{"layer", "png"}]} : le masque de fusion de chaque calque masqué (blanc = révélé), rendu sur une
+    copie ; `layer` = un seul calque (le masque montré seul sur la toile) ; maxSide 16..2048."""
+    m = _entier(maxSide, 16, 2048, "maxSide")
+    out, gen = await _pool(lambda s: functools.partial(PM.masques, s), m, layer)
+    return _json({"masques": out}, gen)
+
+
+@router.post("/masquer/apercu")
+async def masquer_apercu(body: dict):
+    """{"reglages": {radius, smooth…}, "vue": une de VUES_MASQUER, "transparence": 0..100 = 50, "inverser": false,
+    "maxSide": 64..2048 = 1024} -> {"url", "ms", "bounds"?} : une vue de « Sélectionner et masquer » calculée par le
+    moteur sur une copie. La sortie n'est jamais choisie ici (400) ; sans sélection : 400."""
+    corps = body if isinstance(body, dict) else {}
+    m = _entier(corps.get("maxSide", 1024), 64, 2048, "maxSide")
+    t0 = time.perf_counter()
+    sortie, gen = await _pool(lambda s: functools.partial(PM.apercu_masque, s), corps.get("reglages") or {},
+                              corps.get("vue"), corps.get("transparence", 50), corps.get("inverser", False), m)
+    rep = {"url": f"/api/photolab/rendus/{sortie['fichier']}", "ms": round((time.perf_counter() - t0) * 1000)}
+    if "bounds" in sortie:
+        rep["bounds"] = sortie["bounds"]
+    return _json(rep, gen)
+
+
+@router.get("/galerie")
+async def galerie():
+    """Le catalogue de la Galerie de filtres : {"categories", "filters": [{category, command, key, name, params}]}."""
+    return _json(*await _pool(lambda s: functools.partial(PM.catalogue_galerie, s)))
+
+
+_CLE_GALERIE = re.compile(r"[a-zA-Z][A-Za-z0-9]{0,40}")
+
+
+@router.get("/galerie/vignettes")
+async def galerie_vignettes(cles: str):
+    """{"vignettes": {clé: data-URL 80×56}} : chaque filtre (« cles » séparées par des virgules, 16 au plus) appliqué par
+    le moteur au centre du document actif, sur une copie."""
+    liste = [c for c in (cles or "").split(",") if c]
+    if not liste or not all(_CLE_GALERIE.fullmatch(c) for c in liste):
+        raise HTTPException(400, f"clés illisibles : {cles!r}")
+    out, gen = await _pool(lambda s: functools.partial(PM.vignettes_galerie, s), liste)
+    return _json({"vignettes": out}, gen)
 
 
 _VERROU_BIBLIO = asyncio.Lock()          # choisir un nom libre ET copier d'un seul tenant (deux enregistrements la même seconde)

@@ -11,6 +11,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const js = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "js");
 const C = await import(pathToFileURL(join(js, "mod-champs.js")));
 const M = await import(pathToFileURL(join(js, "mod-menus.js")));
+const G = await import(pathToFileURL(join(js, "mod-galerie.js")));        // t157 : réglages des effets de la galerie
 
 const reg = JSON.parse(readFileSync(process.argv[2], "utf8"));
 const menus = readFileSync(process.argv[3], "utf8");
@@ -20,7 +21,9 @@ const STYLES_B6 = ["bevelEmboss", "colorOverlay", "dropShadow", "gradientOverlay
 const ids = [];
 for (const id of Object.keys(reg).sort()) {
   let dedans = false;
-  if (id.startsWith("filter.")) dedans = FILTRES_MENU.has(id) && !id.startsWith("filter.gallery.");
+  // t157 : les filtres de la galerie (filter.gallery.*, hors menu) s'éditent dans la Galerie de filtres (mod-galerie).
+  if (id.startsWith("filter.gallery.")) dedans = true;
+  else if (id.startsWith("filter.")) dedans = FILTRES_MENU.has(id);
   else if (id.startsWith("image.adjustments.")) dedans = true;
   else if (id.startsWith("layer.newAdjustmentLayer.")) dedans = true;
   else if (id.startsWith("layer.layerStyle.")) dedans = STYLES_B6.includes(id.slice("layer.layerStyle.".length));
@@ -32,7 +35,8 @@ for (const id of Object.keys(reg).sort()) {
 }
 const params = {}, valeurs = {};
 for (const id of ids) {
-  for (const c of C.champsVisibles(reg[id].champs)) {
+  const visibles = id.startsWith("filter.gallery.") ? G.champsEffet(reg[id].champs) : C.champsVisibles(reg[id].champs);
+  for (const c of visibles) {
     (params[c.cle] = params[c.cle] || []).push(id);
     // Énumération fermée hors modes de fusion (clé blend : textes photolab.fusion.*, jamais photolab.valeur.*).
     if (c.type === "enum" && !c.ouverte && String(c.cle).toLowerCase() !== "blend") {

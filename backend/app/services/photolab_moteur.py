@@ -541,17 +541,21 @@ def historique(s: SessionMoteur, sens: str, n: int):
 # supprime, sélectionne, ouvre ou touche au presse-papiers de styles (la copie disparaît à la fin : un geste structurel
 # n'y aurait rien à montrer, et copy/pasteLayerStyle laisseraient un état hors du document).
 # Filtres : tous sauf ceux qui ne sont pas un calcul de pixels paramétré (conversion en objet dynamique, « dernier
-# filtre » qui rejoue un état caché, galerie aux effets opaques) et les plein-écran D9 (Camera Raw, Liquify, Point de
-# fuite, Grand-angle adaptatif). Point de fuite exclu, plus aucune étape ne porte d'id de calque IMBRIQUÉ
-# (`paste[].layer`) : seul `layer` du premier niveau est traduit vers la copie, c'est voulu.
-FILTRES_HORS_APERCU = frozenset({"filter.convertForSmartFilters", "filter.lastFilter", "filter.filterGallery",
+# filtre » qui rejoue un état caché) et les plein-écran D9 (Camera Raw, Liquify, Point de fuite, Grand-angle
+# adaptatif). t157 : la galerie a désormais sa liste blanche par effet (photolab_registre._galerie) et son aperçu.
+# Point de fuite exclu, plus aucune étape ne porte d'id de calque IMBRIQUÉ (`paste[].layer`) : seul `layer` du
+# premier niveau est traduit vers la copie, c'est voulu.
+FILTRES_HORS_APERCU = frozenset({"filter.convertForSmartFilters", "filter.lastFilter",
                                  "filter.cameraRaw", "filter.liquify", "filter.vanishingPoint",
                                  "filter.adaptiveWideAngle"})
 REGLAGES_HORS_APERCU = frozenset({"image.adjustments.colorLookup.list"})   # une liste, pas un réglage
 STYLES_APERCU = frozenset(f"layer.layerStyle.{k}" for k in (
     "dropShadow", "innerShadow", "outerGlow", "innerGlow", "stroke", "colorOverlay", "gradientOverlay",
     "patternOverlay", "bevelEmboss", "satin", "blendingOptions", "clear"))
-COMMANDES_APERCU = frozenset({"layer.setAdjustment", "layer.setProps", "edit.transform"})      # t154 : transformation manuelle
+COMMANDES_APERCU = frozenset({"layer.setAdjustment", "layer.setProps", "edit.transform",      # t154 : transformation manuelle
+                              # t157 : réédition d'un filtre dynamique et ses options (aperçu exact, sans empiler un filtre)
+                              "layer.smartFilter.setParams", "layer.smartFilter.setVisible",
+                              "layer.smartFilter.blendingOptions", "layer.smartFilter.disableSmartFilters"})
 MAX_ETAPES_APERCU = 12
 GARDES_APV = 3
 _APV = re.compile(r"apv-\d+-\d+\.png")
@@ -689,6 +693,8 @@ def apercu(s: SessionMoteur, etapes, max_side: int):
         for e in propres:
             if e["command"] == "layer.setAdjustment":
                 _verifier_reglage(e, insp, reg)
+            elif e["command"] == "layer.smartFilter.setParams":
+                verifier_filtre_dynamique(reg, e["params"], insp)
             if "layer" in e["params"] and e["params"]["layer"] not in connus:
                 raise ValueError(f"{e['command']} : calque inconnu du document : {e['params']['layer']!r}")
         fichier = f"apv-{gen}-{n}.png"
@@ -928,6 +934,307 @@ def couches_alpha(s: "SessionMoteur", max_side: int, index=None):
             gris.save(tampon, format="PNG")
             out.append({"index": i, "png": "data:image/png;base64," + base64.b64encode(tampon.getvalue()).decode()})
         return out, gen
+    finally:
+        for chemin in chemins:
+            try:
+                chemin.unlink()
+            except OSError:
+                pass
+
+
+# ── t157 (Photolab parité L7) : masques, filtres dynamiques, Sélectionner et masquer, Galerie de filtres ───────────────
+
+def verifier_filtre_dynamique(reg, params, insp):
+    """layer.smartFilter.setParams : `params.params` passe la liste blanche de la commande du filtre VISÉ, lue dans
+    doc.inspect (`smartFilters[index].command`, index absent = filtre du haut) — jamais déclarée par l'écran. Le moteur
+    fusionne ces clés dans le filtre : une clé d'un autre filtre ou une valeur hors bornes y serait gardée en silence.
+    ValueError -> 400."""
+    if not isinstance(params, dict):
+        raise ValueError("layer.smartFilter.setParams : les paramètres sont un objet")
+    cible = params.get("layer", insp.get("activeLayer"))
+    calque = next((c for c in _a_plat(insp.get("layers")) if c.get("id") == cible), None)
+    if calque is None:
+        raise ValueError(f"layer.smartFilter.setParams : calque introuvable : {cible!r}")
+    filtres = calque.get("smartFilters") or []
+    if not filtres:
+        raise ValueError(f"layer.smartFilter.setParams : le calque {cible} n'a pas de filtre dynamique")
+    i = params.get("index", len(filtres) - 1)
+    if not PR._entier(i) or not 0 <= i < len(filtres):
+        raise ValueError(f"layer.smartFilter.setParams : index hors de la pile (0..{len(filtres) - 1}) : {i!r}")
+    p = params.get("params", {})
+    if not isinstance(p, dict):
+        raise ValueError("layer.smartFilter.setParams : params : objet attendu")
+    commande = filtres[i].get("command")
+    if not isinstance(commande, str):
+        raise ValueError("layer.smartFilter.setParams : filtre sans commande (conservé, non modifiable)")
+    commande_autorisee(commande, p, reg)
+
+
+def _ex(appel, c, p=None):
+    return appel("engine.execute", {"command": c, "params": p or {}})
+
+
+def _au_sommet(appel):
+    """Rend actif le calque du HAUT de la racine : un calque créé ensuite (remplissage uni) couvre tout le document."""
+    racines = (appel("doc.inspect") or {}).get("layers") or []
+    if racines:
+        _ex(appel, "layer.select", {"layer": racines[0]["id"], "mode": "replace"})
+
+
+def _remplissage(appel, couleur):
+    """Un calque de remplissage uni au-dessus du calque actif -> son id (le calque actif après création)."""
+    _ex(appel, "layer.newFillLayer.solidColor", {"color": couleur})
+    return (appel("doc.inspect") or {}).get("activeLayer")
+
+
+def _masquer_par_selection(appel, calque, montrer=True):
+    """Masque de `calque` = la sélection courante (montrer) ou son inverse ; une sélection vide (tout noir) n'est pas
+    une sélection pour le moteur : tout masquer (ou tout révéler) à la place."""
+    sel = (appel("doc.inspect") or {}).get("hasSelection")
+    if sel:
+        _ex(appel, "layer.layerMask." + ("revealSelection" if montrer else "hideSelection"), {"layer": calque})
+    else:
+        _ex(appel, "layer.layerMask." + ("hideAll" if montrer else "revealAll"), {"layer": calque})
+
+
+MAX_MASQUES = 64
+
+
+def masques(s: "SessionMoteur", max_side: int, calque=None):
+    """([{"layer", "png": data-URL en niveaux de gris}], génération) — le masque de fusion de chaque calque masqué du
+    document actif (blanc = révélé). doc.render ne rend que le composite (view.layerMask n'y change rien, relevé t157) :
+    sur une COPIE (_sur_copie), un calque uni noir puis un blanc au sommet, le masque chargé comme sélection devient le
+    masque du blanc, rendu, puis les deux calques retirés. L'original n'est pas touché ; les rendus temporaires sont
+    effacés. `calque` : un seul calque (Alt-clic : le masque montré sur la toile)."""
+    import base64
+    import io
+    from PIL import Image
+    if calque is not None and (not PR._entier(calque) or calque < 0):
+        raise ValueError(f"layer : entier positif attendu : {calque!r}")
+    n = next(_COMPTEUR_APV)
+    chemins = []
+
+    def fn(appel, gen):
+        actif, n_avant, insp = _ouvrir_original(appel)
+        cibles = [c["id"] for c in _a_plat(insp.get("layers")) if c.get("hasMask")]
+        if calque is not None:
+            if calque not in cibles:
+                raise ValueError(f"le calque {calque} n'a pas de masque de fusion")
+            cibles = [calque]
+        cibles = cibles[:MAX_MASQUES]
+        if not cibles:
+            return []
+
+        def travail(cible):
+            sorties = []
+            for lid in cibles:
+                f = f"msk-{gen}-{n}-{lid}.png"
+                chemins.append(dossier_travail() / "rendus" / f)
+                if (appel("doc.inspect") or {}).get("hasSelection"):
+                    _ex(appel, "select.deselect")             # refusé sans sélection (« no selection »)
+                _au_sommet(appel)
+                noir = _remplissage(appel, "#000000")
+                blanc = _remplissage(appel, "#ffffff")
+                _ex(appel, "select.loadSelection", {"channel": "mask", "layer": cible[lid], "operation": "new"})
+                _masquer_par_selection(appel, blanc)
+                appel("doc.render", {"path": relatif(f"rendus/{f}"), "maxSide": max_side})
+                _ex(appel, "layer.delete", {"layer": blanc})
+                _ex(appel, "layer.delete", {"layer": noir})
+                sorties.append((lid, f))
+            return sorties
+        return _sur_copie(appel, insp, actif, n_avant, "dz-masques", travail)
+    try:
+        sorties, gen = s.sequence(fn)
+        out = []
+        for lid, f in sorties:
+            with Image.open(dossier_travail() / "rendus" / f) as im:
+                gris = im.convert("L")
+            tampon = io.BytesIO()
+            gris.save(tampon, format="PNG")
+            out.append({"layer": lid, "png": "data:image/png;base64," + base64.b64encode(tampon.getvalue()).decode()})
+        return out, gen
+    finally:
+        for chemin in chemins:
+            try:
+                chemin.unlink()
+            except OSError:
+                pass
+
+
+# Les 7 vues de « Sélectionner et masquer » (référence : Pelure d'oignon, Cadre de sélection actif, Incrustation, Sur
+# noir, Sur blanc, Noir et blanc, Sur calques) et les réglages que l'écran envoie. La SORTIE n'est jamais choisie par
+# l'écran pour un aperçu : chaque vue impose la sienne (OK passe par /executer avec la sortie de l'utilisateur).
+VUES_MASQUER = ("oignon", "fourmis", "incrustation", "noir", "blanc", "nb", "calques")
+CLES_MASQUER = frozenset({"radius", "smartRadius", "smooth", "feather", "contrast", "shiftEdge", "decontaminate", "amount",
+                          "sampleAllLayers"})
+
+
+def _cacher_sauf(appel, gardes):
+    """Cache tout ce qui n'est pas un calque de `gardes` ni un de leurs parents (les frères des parents aussi)."""
+    def voir(liste):
+        garde_ici = False
+        for c in liste or []:
+            enfants = c.get("children") if isinstance(c.get("children"), list) else None
+            dedans = c.get("id") in gardes or (enfants is not None and voir(enfants))
+            if not dedans and c.get("visible", True):
+                _ex(appel, "layer.setProps", {"layer": c["id"], "visible": False})
+            garde_ici = garde_ici or dedans
+        return garde_ici
+    voir((appel("doc.inspect") or {}).get("layers"))
+
+
+def apercu_masque(s: "SessionMoteur", reglages, vue, transparence, inverser, max_side: int):
+    """({"fichier": apv-….png sous rendus/, "bounds"?}, génération) — l'aperçu d'une vue de « Sélectionner et masquer » :
+    select.refineEdge joué sur une COPIE (l'original garde sélection, révision, historique), puis la vue composée avec
+    des commandes du moteur (calques unis, masques, visibilités), rendue, la copie refermée. `transparence` 0..100 :
+    rouge de l'incrustation, calque d'origine sous la pelure d'oignon. ValueError -> 400 (dont « aucune sélection »)."""
+    if vue not in VUES_MASQUER:
+        raise ValueError(f"vue inconnue : {vue!r} ({', '.join(VUES_MASQUER)})")
+    if not PR._nombre_fini(transparence) or not 0 <= transparence <= 100:
+        raise ValueError(f"transparence : nombre 0..100 attendu : {transparence!r}")
+    if not isinstance(inverser, bool):
+        raise ValueError("inverser : booléen attendu")
+    if not isinstance(reglages, dict):
+        raise ValueError("reglages : objet attendu")
+    inconnues = set(reglages) - CLES_MASQUER
+    if inconnues:
+        raise ValueError(f"select.refineEdge : réglage refusé en aperçu : {', '.join(sorted(map(str, inconnues)))}")
+    reg = registre(s)
+    commande_autorisee("select.refineEdge", reglages, reg)
+    n = next(_COMPTEUR_APV)
+    opacite = round(1 - transparence / 100, 4)
+
+    def fn(appel, gen):
+        actif, n_avant, insp = _ouvrir_original(appel)
+        if not insp.get("hasSelection"):
+            raise ValueError("Sélectionner et masquer : aucune sélection (le moteur en exige une)")
+        fichier = f"apv-{gen}-{n}.png"
+
+        def travail(cible):
+            sortie = {"fichier": fichier}
+            if inverser:
+                _ex(appel, "select.inverse")
+            r = dict(reglages)
+            if vue in ("nb", "fourmis", "incrustation"):
+                r.update(decontaminate=False, output="selection")      # décontaminer forcerait un nouveau calque
+                _ex(appel, "select.refineEdge", r)
+                if vue == "fourmis":
+                    sortie["bounds"] = (appel("doc.inspect") or {}).get("selectionBounds")
+                elif vue == "nb":
+                    _au_sommet(appel)
+                    _remplissage(appel, "#000000")
+                    _masquer_par_selection(appel, _remplissage(appel, "#ffffff"))
+                else:
+                    _au_sommet(appel)
+                    rouge = _remplissage(appel, "#ff0000")
+                    _masquer_par_selection(appel, rouge, montrer=False)
+                    _ex(appel, "layer.setProps", {"layer": rouge, "opacity": opacite})
+            else:
+                r["output"] = "newLayerWithMask"
+                res = _ex(appel, "select.refineEdge", r)
+                copie = res.get("layer") if isinstance(res, dict) else None
+                if copie is None:
+                    copie = (appel("doc.inspect") or {}).get("activeLayer")
+                source = cible.get(insp.get("activeLayer"))
+                if vue in ("noir", "blanc"):
+                    _cacher_sauf(appel, {copie})
+                    fond = _remplissage(appel, "#000000" if vue == "noir" else "#ffffff")
+                    _ex(appel, "layer.moveTo", {"layer": fond, "target": copie, "position": "below"})
+                elif vue == "oignon":
+                    _cacher_sauf(appel, {copie, source})
+                    if source is not None:
+                        _ex(appel, "layer.setProps", {"layer": source, "visible": True, "opacity": opacite})
+            appel("doc.render", {"path": relatif(f"rendus/{fichier}"), "maxSide": max_side})
+            return sortie
+        return _sur_copie(appel, insp, actif, n_avant, "dz-masquer", travail)
+    sortie, gen = s.sequence(fn)
+    _ranger_apv(dossier_travail() / "rendus")
+    return sortie, gen
+
+
+_CACHE_GALERIE = {"catalogue": None, "vignettes": {}}
+MAX_VIGNETTES_GALERIE = 16
+TAILLE_VIGNETTE_GALERIE = (80, 56)
+
+
+def catalogue_galerie(s: "SessionMoteur"):
+    """({"categories", "filters": [{category, command, key, name, params}]}, génération) — filter.filterGallery
+    {list:true}, gardé par génération (le catalogue ne dépend pas du document)."""
+    def fn(appel, gen):
+        c = _CACHE_GALERIE["catalogue"]
+        if c and c[0] == gen:
+            return c[1]
+        r = _ex(appel, "filter.filterGallery", {"list": True})
+        _CACHE_GALERIE["catalogue"] = (gen, r)
+        return r
+    return s.sequence(fn)
+
+
+def vignettes_galerie(s: "SessionMoteur", cles):
+    """({clé: data-URL PNG 80×56}, génération) — chaque filtre de la galerie, réglages par défaut, appliqué par le
+    MOTEUR au centre du document (comme l'amont : un morceau du milieu, environ 4× la vignette). Sur une COPIE : image
+    aplatie, recadrée au rapport 80:56, réduite à 160×112, puis pour chaque clé : filtre, rendu, annulation. Gardé par
+    (génération, document, révision) ; seules les clés manquantes sont calculées."""
+    import base64
+    import io
+    from PIL import Image
+    if not isinstance(cles, list) or not 1 <= len(cles) <= MAX_VIGNETTES_GALERIE:
+        raise ValueError(f"de 1 à {MAX_VIGNETTES_GALERIE} filtres attendus")
+    reg = registre(s)
+    connus = PR.cles_galerie(reg)
+    for k in cles:
+        if k not in connus:
+            raise ValueError(f"filtre de la galerie inconnu : {k!r}")
+    n = next(_COMPTEUR_APV)
+    chemins = []
+
+    def fn(appel, gen):
+        actif, n_avant, insp = _ouvrir_original(appel)
+        base = (gen, actif, insp.get("revision"))
+        cache = _CACHE_GALERIE["vignettes"]
+        if cache.get("base") != base:
+            cache.clear()
+            cache["base"] = base
+        manquantes = [k for k in dict.fromkeys(cles) if k not in cache]
+        if not manquantes:
+            return {}
+        w, h = int(insp.get("width") or 1), int(insp.get("height") or 1)
+        lw, lh = TAILLE_VIGNETTE_GALERIE
+        pw = min(w, 4 * lw)
+        ph = round(pw * lh / lw)
+        if ph > h:
+            ph = h
+            pw = max(1, round(ph * lw / lh))
+
+        def travail(_cible):
+            if (appel("doc.inspect") or {}).get("hasSelection"):
+                _ex(appel, "select.deselect")
+            if len((appel("doc.inspect") or {}).get("layers") or []) > 1:
+                _ex(appel, "layer.flattenImage")
+            _ex(appel, "image.crop", {"x": (w - pw) // 2, "y": (h - ph) // 2, "width": pw, "height": ph})
+            _ex(appel, "image.imageSize", {"width": 2 * lw, "height": 2 * lh})
+            faits = []
+            for k in manquantes:
+                f = f"gal-{gen}-{n}-{k}.png"
+                chemins.append(dossier_travail() / "rendus" / f)
+                _ex(appel, "filter.filterGallery", {"effects": [{"filter": k}]})
+                appel("doc.render", {"path": relatif(f"rendus/{f}"), "maxSide": lw})
+                _ex(appel, "edit.undo")
+                faits.append((k, f))
+            return faits
+        return _sur_copie(appel, insp, actif, n_avant, "dz-galerie", travail)
+    try:
+        faits, gen = s.sequence(fn)
+        cache = _CACHE_GALERIE["vignettes"]
+        for k, f in faits:
+            with Image.open(dossier_travail() / "rendus" / f) as im:
+                im = im.convert("RGB")
+                if im.size != TAILLE_VIGNETTE_GALERIE:
+                    im = im.resize(TAILLE_VIGNETTE_GALERIE)
+                tampon = io.BytesIO()
+                im.save(tampon, format="PNG")
+            cache[k] = "data:image/png;base64," + base64.b64encode(tampon.getvalue()).decode()
+        return {k: cache[k] for k in dict.fromkeys(cles)}, gen
     finally:
         for chemin in chemins:
             try:

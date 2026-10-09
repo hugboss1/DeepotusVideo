@@ -95,16 +95,17 @@ check("1.9 CLES_FICHIER == CLES_CHEMIN du pont", chemPy.length > 0 && JSON.strin
 // 2. sans écran (« bientôt »)
 for (const id of ["filter.cameraRaw", "filter.liquify", "filter.vanishingPoint", "filter.adaptiveWideAngle", "layer.smartObjects.puppetWarp", "edit.puppetWarp"])
   check("2.1 D9 : " + id, sansEcran(id, GAUSS) === true);
-// Sans éditeur : un champ requis que le formulaire ne sait pas montrer (noyau 5×5 de Personnalisé), ou une commande
-// dont l'effet n'est pas visible à l'écran (Convertir pour les filtres dynamiques) -> « bientôt », même avec des champs.
+// Sans éditeur : un champ requis que le formulaire ne sait pas montrer (noyau 5×5 de Personnalisé) -> « bientôt », même
+// avec des champs. t157 : Convertir pour les filtres dynamiques en est sorti (le panneau Calques montre les filtres).
 const PERSO = [{ cle: "kernel", type: "intArray", optionnel: false }, { cle: "scale", type: "number", min: 1, max: 9999, entier: true, optionnel: false, defaut: 1 },
   { cle: "offset", type: "number", min: -9999, max: 9999, entier: true, optionnel: false, defaut: 0 }];
-check("2.20 SANS_EDITEUR : Personnalisé et Convertir pour les filtres dynamiques",
-  CH.SANS_EDITEUR instanceof Set && CH.SANS_EDITEUR.size === 2 && CH.SANS_EDITEUR.has("filter.other.custom") && CH.SANS_EDITEUR.has("filter.convertForSmartFilters"));
+check("2.20 SANS_EDITEUR : Personnalisé seul (t157)",
+  CH.SANS_EDITEUR instanceof Set && CH.SANS_EDITEUR.size === 1 && CH.SANS_EDITEUR.has("filter.other.custom"));
 check("2.21 Personnalisé (kernel requis, scale/offset visibles) -> bientôt", sansEcran("filter.other.custom", PERSO) === true);
-check("2.22 Convertir pour les filtres dynamiques ({layer?} seul) -> bientôt",
-  sansEcran("filter.convertForSmartFilters", [{ cle: "layer", type: "layerId", optionnel: true }]) === true);
-check("2.2 galerie de filtres : rien d'éditable, effects json requis", sansEcran("filter.filterGallery", GALERIE) === true);
+check("2.22 Convertir pour les filtres dynamiques ({layer?} seul) -> s'exécute (t157)",
+  sansEcran("filter.convertForSmartFilters", [{ cle: "layer", type: "layerId", optionnel: true }]) === false);
+// Le générique n'a toujours rien à montrer pour la galerie : c'est mod-galerie qui l'édite (aiguillage « galerie »).
+check("2.2 galerie de filtres : rien d'éditable au générique, effects json requis", sansEcran("filter.filterGallery", GALERIE) === true);
 check("2.3 déplacement : mapDocument requis (autre document)", sansEcran("filter.distort.displace", DEPLACEMENT) === true);
 check("2.4 correspondance de couleur : source requise (autre document)", sansEcran("image.adjustments.matchColor", CORRESPONDANCE) === true);
 check("2.5 flou gaussien : non", sansEcran("filter.blur.gaussianBlur", GAUSS) === false);

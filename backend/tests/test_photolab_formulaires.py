@@ -70,6 +70,8 @@ vus = 0
 for o in sortie:
     if o["sans"]:
         continue                                              # « bientôt » : l'écran ne l'envoie jamais
+    if o["aig"] == "galerie":
+        continue                                              # t157 : éditeur sur mesure (mod-galerie), banc test_photolab_masques
     vus += 1
     try:
         PM.commande_autorisee(o["id"], o["params"], REG)
@@ -80,12 +82,14 @@ for scen in ("defaut", "zorg", "grand", "negatif", "nan", "virgule", "tableau", 
     l = refus.get(scen, []) + refus.get(scen + "+colorize", [])
     check(f"2.2 « {scen} » : 0 refus", not l, "\n    " + "\n    ".join(sorted(set(l))[:12]))
 bientot = sorted({o["id"] for o in sortie if o["sans"]})
-# SANS_EDITEUR (mod-champs.js) : Personnalisé (kernel int[25] requis, non éditable) et Convertir pour les filtres
-# dynamiques (que l'écran ne montre pas). edit.puppetWarp (D9) est hors du périmètre de ce banc (préfixe edit.).
-check("2.3 « bientôt » du périmètre = D9 + SANS_EDITEUR + Galerie + Déplacement + Correspondance + Flamme (10)", bientot == sorted([
-    "filter.adaptiveWideAngle", "filter.cameraRaw", "filter.convertForSmartFilters", "filter.distort.displace",
-    "filter.filterGallery", "filter.liquify", "filter.other.custom", "filter.render.flame", "filter.vanishingPoint",
+# SANS_EDITEUR (mod-champs.js) : Personnalisé (kernel int[25] requis, non éditable). t157 : Convertir pour les filtres
+# dynamiques en est sorti (le panneau Calques les montre) et la Galerie a son éditeur (aiguillage « galerie »).
+# edit.puppetWarp (D9) est hors du périmètre de ce banc (préfixe edit.).
+check("2.3 « bientôt » du périmètre = D9 + SANS_EDITEUR + Déplacement + Correspondance + Flamme (8)", bientot == sorted([
+    "filter.adaptiveWideAngle", "filter.cameraRaw", "filter.distort.displace",
+    "filter.liquify", "filter.other.custom", "filter.render.flame", "filter.vanishingPoint",
     "image.adjustments.matchColor"]), bientot)
+check("2.3b Galerie : aiguillée vers son éditeur (t157)", {o["aig"] for o in sortie if o["id"] == "filter.filterGallery"} == {"galerie"})
 ts = [o for o in sortie if o["id"] == "image.adjustments.hueSaturation" and o["scen"] == "grand+colorize"]
 check("2.4 colorisation : hue 1e9 -> 360, saturation -> 100", ts and ts[0]["params"].get("hue") == 360 and ts[0]["params"].get("saturation") == 100,
       ts and ts[0]["params"])
