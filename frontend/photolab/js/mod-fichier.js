@@ -149,7 +149,7 @@ export function initFichier(PL) {
     PL.etat.revEnregistree = null;
     const doc = await PL.documentOuvert();
     PL.etat.revOuverture = doc ? doc.revision : null;
-    majOnglet(PL.etat.doc);          // l'onglet a été dessiné pendant le cycle, avant ce repère : sans lui, « • » d'emblée
+    if (PL.majOnglets) PL.majOnglets();   // l'onglet a été dessiné pendant le cycle, avant ce repère : sans lui, « • » d'emblée
     return doc;
   }
 
@@ -259,22 +259,28 @@ export function initFichier(PL) {
   }
   PL.ouvrirImage = ouvrirImage;
 
-  function ouvrir() {
+  // t158 : choisir une image de la Bibliothèque (Ouvrir, Placer incorporé) -> rappel(nom | null).
+  function choisirImage(titre, rappel) {
     // Le sélecteur de la Bibliothèque du parent (même origine) d'abord ; un parent d'une autre origine lève à la lecture.
     let picker = null;
     try {
       const parent = window.parent !== window ? window.parent : null;
       picker = parent && typeof parent.__dzLibPicker === "function" ? parent.__dzLibPicker : null;
     } catch (e) { picker = null; }
-    if (picker) { picker({ titre: T("photolab.fichier.choisir") }, (nom) => { if (nom) ouvrirImage(nom); }); return; }
-    grilleDeRepli();
+    if (picker) { picker({ titre }, (nom) => rappel(nom || null)); return; }
+    grilleDeRepli(titre).then(rappel);
+  }
+  PL.choisirImage = choisirImage;
+
+  function ouvrir() {
+    choisirImage(T("photolab.fichier.choisir"), (nom) => { if (nom) ouvrirImage(nom); });
   }
 
   // Repli hors de l'application (page ouverte seule) : grille de GET /api/images avec recherche.
-  async function grilleDeRepli() {
+  async function grilleDeRepli(titre) {
     let choisi = null;
     await ouvrirDialogue(PL, {
-      titre: T("photolab.fichier.choisir"), classe: "large",
+      titre, classe: "large",
       boutons: [{ role: "annuler", libelle: T("commun.action.fermer") }],
       construire({ corps, fermer }) {
         const recherche = entree("search", "", { placeholder: T("commun.action.rechercher") });
@@ -304,7 +310,7 @@ export function initFichier(PL) {
         }).catch(() => { grille.textContent = T("photolab.fichier.biblio_injoignable"); });
       },
     });
-    if (choisi) ouvrirImage(choisi);
+    return choisi;
   }
 
   /* ── Dépôt d'un fichier sur la page : téléversé dans la Bibliothèque puis ouvert ── */
@@ -336,7 +342,7 @@ export function initFichier(PL) {
     if (nomDocument(doc.name)) corps.nom = nomDocument(doc.name);
     try { r = await PL.post("/bibliotheque", corps); } catch (e) { return null; }
     PL.etat.revEnregistree = doc.revision;
-    majOnglet(PL.etat.doc);
+    if (PL.majOnglets) PL.majOnglets();
     PL.signaler(T(r.travail ? "photolab.fichier.enregistre" : "photolab.envoi.sans_calques", { nom: r.filename }));
     return r;
   }
@@ -406,44 +412,11 @@ export function initFichier(PL) {
     PL.signaler(T("photolab.export.fait", { nom: resultat.fichier }));
   }
 
-  /* ── Fermer : confirmation si modifié depuis le dernier enregistrement ── */
-  async function fermer() {
-    const doc = PL.etat.doc;
-    if (!doc) return;
-    if (aSauvegarder(doc, PL.etat.revEnregistree, PL.etat.revOuverture)) {
-      const d = window.__dzDialogue;
-      // Sans le dialogue partagé (page ouverte hors de l'application), le dialogue maison du fichier : jamais de
-      // fermeture muette d'un document modifié.
-      const oui = d ? await d.confirmer(T("photolab.fichier.fermer_question"), { titre: T("photolab.fichier.fermer_titre"), ok: T("photolab.fichier.fermer_sans") })
-        : (await ouvrirDialogue(PL, {
-          titre: T("photolab.fichier.fermer_titre"),
-          construire({ corps }) { const p = document.createElement("p"); p.textContent = T("photolab.fichier.fermer_question"); corps.appendChild(p); },
-          boutons: [{ role: "annuler", libelle: T("commun.action.annuler") }, { role: "fermer", libelle: T("photolab.fichier.fermer_sans"), principal: true }],
-        })) === "fermer";
-      if (!oui) return;
-    }
-    PL.fermerVue();
-  }
-
-  /* ── onglet du document ── */
-  function majOnglet(doc) {
-    const zone = PL.$("#onglets");
-    zone.textContent = "";
-    if (!doc) return;
-    const o = document.createElement("div"); o.className = "onglet-doc actif"; o.setAttribute("role", "tab"); o.setAttribute("aria-selected", "true");
-    const n = brut(document.createElement("span"));        // nom du document : jamais traduit
-    n.textContent = (nomDocument(doc.name) || T("photolab.nouveau.sans_titre")) + (aSauvegarder(doc, PL.etat.revEnregistree, PL.etat.revOuverture) ? " •" : "");
-    const x = document.createElement("button"); x.type = "button"; x.className = "onglet-fermer"; x.textContent = "×";
-    x.title = T("commun.action.fermer"); x.setAttribute("aria-label", x.title);
-    x.addEventListener("click", fermer);
-    o.append(n, x);
-    zone.appendChild(o);
-  }
-  PL.surDoc.push(majOnglet);
+  // t158 : les onglets (un par document de la session) et « Fermer » (confirmation si modifié, puis fermeture RÉELLE du
+  // document du moteur) sont dans mod-documents (PL.majOnglets, PL.actions["file.close"]).
 
   PL.actions["file.new"] = nouveau;
   PL.actions["file.open"] = ouvrir;
-  PL.actions["file.close"] = fermer;
   PL.actions["file.save"] = enregistrer;
   PL.actions["file.saveAs"] = exporter;
   PL.actions["file.export.exportAs"] = exporter;

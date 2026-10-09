@@ -106,8 +106,12 @@ check("2.22 Convertir pour les filtres dynamiques ({layer?} seul) -> s'exécute 
   sansEcran("filter.convertForSmartFilters", [{ cle: "layer", type: "layerId", optionnel: true }]) === false);
 // Le générique n'a toujours rien à montrer pour la galerie : c'est mod-galerie qui l'édite (aiguillage « galerie »).
 check("2.2 galerie de filtres : rien d'éditable au générique, effects json requis", sansEcran("filter.filterGallery", GALERIE) === true);
-check("2.3 déplacement : mapDocument requis (autre document)", sansEcran("filter.distort.displace", DEPLACEMENT) === true);
-check("2.4 correspondance de couleur : source requise (autre document)", sansEcran("image.adjustments.matchColor", CORRESPONDANCE) === true);
+// t158 : l'écran fournit la liste des documents ouverts (CHOIX_ECRAN, mod-documents) ; toute AUTRE commande qui exige un
+// document reste grisée.
+check("2.3 déplacement : mapDocument choisi par l'écran -> plus « bientôt »", sansEcran("filter.distort.displace", DEPLACEMENT) === false);
+check("2.4 correspondance de couleur : source choisie par l'écran -> plus « bientôt »", sansEcran("image.adjustments.matchColor", CORRESPONDANCE) === false);
+check("2.4b une autre commande à document requis reste « bientôt »", sansEcran("filter.autre.document", DEPLACEMENT) === true
+  && sansEcran("image.adjustments.applyImage", CORRESPONDANCE) === true);
 check("2.5 flou gaussien : non", sansEcran("filter.blur.gaussianBlur", GAUSS) === false);
 check("2.6 correction de l'objectif (straighten optionnel) : non", sansEcran("filter.lensCorrection", OBJECTIF) === false);
 check("2.7 effets d'éclairage (lights json, mais 18 réglages visibles) : non", sansEcran("filter.render.lightingEffects", ECLAIRAGE) === false);
@@ -273,7 +277,8 @@ const EXPORTER = [{ cle: "layer", type: "layerId", optionnel: true }, { cle: "pa
   { cle: "scale", type: "number", min: 1, max: 1000, entier: true, optionnel: false, defaut: 100 }];
 check("14.1 layer.exportAs (scale visible, path requis) -> bientôt", sansEcran("layer.exportAs", EXPORTER) === true);
 const FLAMME = [{ cle: "length", type: "number", min: 1, max: 1000, entier: true, optionnel: false, defaut: 150 }, { cle: "path", type: "str", optionnel: false }];
-check("14.2 filter.render.flame (path = tracé) -> bientôt", sansEcran("filter.render.flame", FLAMME) === true);
+check("14.2 filter.render.flame (path = tracé choisi par l'écran, t158) -> plus « bientôt »", sansEcran("filter.render.flame", FLAMME) === false);
+check("14.2b la même forme sous un autre id reste « bientôt »", sansEcran("filter.render.autre", FLAMME) === true);
 const FORME = [{ cle: "kind", type: "enum", valeurs: ["rect", "path"], optionnel: false, defaut: "rect" }, { cle: "path", type: "struct", forme: "{…}", optionnel: false }];
 check("14.3 shape.create (path opaque requis) -> bientôt", sansEcran("shape.create", FORME) === true);
 check("14.4 path optionnel -> non", sansEcran("x.y", [{ cle: "path", type: "str", optionnel: true }, EXPORTER[2]]) === false);
