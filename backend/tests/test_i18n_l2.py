@@ -28,7 +28,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 RACINE = HERE.parent.parent
 REL = "frontend/dist/assets/index-BEOJX8L5.js"
 # le bundle de référence : tant que t142 n'est pas commis, le bundle du poste ; une fois commis, épingler ici le commit
-T142 = ""
+T142 = "f395cfdf"
 NODE = shutil.which("node")
 ZONES = ("quick", "studio", "templates", "news", "scheduler", "episodes")
 ok = fail = 0

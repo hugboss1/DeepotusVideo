@@ -3611,7 +3611,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "templates.texte.couleur_fond": {"fr": "Couleur du fond", "en": "Background color"},
   "templates.texte.couleur_ombre": {"fr": "Couleur de l’ombre", "en": "Shadow color"},
   "templates.texte.decalage_h": {"fr": "Décalage horizontal", "en": "Horizontal offset"},
-  "templates.texte.decalage_v": {"fr": "Décalage vertical", "en": "Vertical offset"},
+  "templates.texte.decalage_v": {"fr": "Décalage vertical", "en": "Vertical offset", "contexte": true},
   "templates.texte.degrade": {"fr": "Dégradé", "en": "Gradient"},
   "templates.texte.epaisseur_contour": {"fr": "Épaisseur du contour", "en": "Stroke width"},
   "templates.texte.exact": {"fr": "Aperçu exact", "en": "Exact preview"},

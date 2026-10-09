@@ -285,7 +285,9 @@ ENTREES = [
     L(670249, "templates.texte.couleur_contour", "Couleur du contour", "Stroke color"),
     L(670302, "templates.texte.ombre", "Ombre", "Shadow"),
     L(670378, "templates.texte.decalage_h", "Décalage horizontal", "Horizontal offset"),
-    L(670430, "templates.texte.decalage_v", "Décalage vertical", "Vertical offset"),
+    # contexte : le Photolab traduit « Décalage vertical » par « Baseline shift » (typographie) ; ici, la position
+    # verticale d'une région texte du gabarit
+    L(670430, "templates.texte.decalage_v", "Décalage vertical", "Vertical offset", contexte=True),
     L(670490, "templates.texte.flou", "Flou (0 = ombre nette)", "Blur (0 = sharp shadow)"),
     L(670548, "templates.texte.opacite", "Opacité", "Opacity"),
     L(670596, "templates.texte.couleur_ombre", "Couleur de l’ombre", "Shadow color"),
