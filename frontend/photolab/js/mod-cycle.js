@@ -98,6 +98,14 @@ export function creerAccumulateur(envoyer, cumuler) {
   };
 }
 
+// Tous les calques d'un arbre doc.inspect, à plat (groupes compris).
+export function aplatirSimple(layers) {
+  const out = [];
+  const voir = (l) => { for (const c of l || []) { out.push(c); if (Array.isArray(c.children)) voir(c.children); } };
+  voir(layers);
+  return out;
+}
+
 // Ce qui appartient au document affiché et doit disparaître avec lui (fermer, moteur relancé, autre document) : le
 // document, ses vignettes et les verrous que l'écran tient (le moteur ne les relit pas — un id de calque d'un autre
 // document hériterait sinon d'un cadenas).
@@ -105,6 +113,8 @@ export function viderEtatDocument(etat) {
   etat.doc = null;
   etat.vignettes = {};
   etat.verrous = {};
+  etat.vignettesMasques = {};     // t157 : id -> data-URL du masque de fusion
+  etat.etatsMasques = {};         // t157 : id -> {active, lie} (le moteur ne les relit pas, comme les verrous)
   return etat;
 }
 
@@ -128,6 +138,8 @@ export function initCycle(PL) {
   PL.surVignettes = [];      // crochets (carte id -> url) appelés quand les vignettes arrivent
   PL.etat.vignettes = {};
   PL.etat.verrous = PL.etat.verrous || {};
+  PL.etat.vignettesMasques = {};
+  PL.etat.etatsMasques = {};
   let docVignettes = null;   // {revision, name, width, height} des dernières vignettes demandées
   let jetonDemande = 0;      // +1 à chaque ouverture de document (recadrer la vue)…
   let jetonApplique = 0;     // … et le dernier jeton honoré par un cycle lancé après lui
@@ -212,6 +224,14 @@ export function initCycle(PL) {
       const r = await PL.get("/vignettes?maxSide=" + TAILLE_VIGNETTES, true);
       if (!PL.etat.doc) return;
       PL.etat.vignettes = (r && r.vignettes) || {};
+      // t157 : les masques de fusion (rendus sur copie) ; un document sans masque n'en demande aucun
+      const masques = aplatirSimple(PL.etat.doc.layers).some((c) => c.hasMask);
+      if (masques) {
+        try {
+          const m = await PL.get("/masques?maxSide=" + TAILLE_VIGNETTES, true);
+          PL.etat.vignettesMasques = Object.fromEntries(((m && m.masques) || []).map((x) => [String(x.layer), x.png]));
+        } catch (e) { /* facultatives, comme les vignettes */ }
+      } else PL.etat.vignettesMasques = {};
       sur(PL.surVignettes, PL.etat.vignettes);
     } catch (e) { /* vignettes facultatives : la liste des calques reste utilisable sans elles */ }
   }
@@ -258,6 +278,8 @@ export function initCycle(PL) {
     docVignettes = null;
     PL.etat.vignettes = {};
     PL.etat.verrous = {};
+    PL.etat.vignettesMasques = {};
+    PL.etat.etatsMasques = {};
     const doc = await PL.cycle();
     if (PL.menus) PL.menus.rafraichir();
     if (PL.relireCouleurs) PL.relireCouleurs();          // pastilles et panneau Couleur : la session du moteur fait foi

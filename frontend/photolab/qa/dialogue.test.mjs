@@ -19,7 +19,8 @@ const racine = join(dirname(fileURLToPath(import.meta.url)), "..");
 check("1.1 Flou gaussien", estFamilleApercu("filter.blur.gaussianBlur") === true);
 check("1.2 Luminosité/Contraste destructif", estFamilleApercu("image.adjustments.brightnessContrast") === true);
 check("1.3 Fluidité (D9) exclue", estFamilleApercu("filter.liquify") === false);
-check("1.4 Galerie de filtres exclue", estFamilleApercu("filter.filterGallery") === false);
+// t157 : le pont admet l'aperçu de la galerie (liste blanche par effet) ; son éditeur est mod-galerie, pas le générique.
+check("1.4 Galerie de filtres : aperçu admis (t157)", estFamilleApercu("filter.filterGallery") === true);
 check("1.5 Dernier filtre exclu", estFamilleApercu("filter.lastFilter") === false);
 check("1.6 liste des LUT exclue", estFamilleApercu("image.adjustments.colorLookup.list") === false);
 check("1.7 autres familles : pas d'aperçu générique",
@@ -207,7 +208,7 @@ check("10.1 identité : nom, index, génération", identiteDocument({ name: "a",
   check("8.3 touches stoppées dans la boîte", /stopPropagation\(\)/.test(src));
   check("8.4 l'aperçu passe par poserApercu", /PL\.vue\.poserApercu\(/.test(src));
   check("8.5 OK par la file FIFO (PL.executer), tout de suite (pas après attendre())", /PL\.executer\(/.test(src) && !/attendre\(\)\.then\(\(\) => PL\.executer/.test(src));
-  check("8.5b OK en échec avec aperçu posé : rendu réel relu", /PL\.executer\(id, p\)\.then\(\(r\) => \{ if \(!\(r && r\.ok\) && apercuAEffacer\) PL\.cycle\(\)/.test(src));
+  check("8.5b OK en échec avec aperçu posé : rendu réel relu", /PL\.executer\(c\.command, c\.params\)\.then\(\(r\) => \{ if \(!\(r && r\.ok\) && apercuAEffacer\) PL\.cycle\(\)/.test(src));
   check("8.5c maxSide voulu gardé à la demande", /PL\.vue\.poserApercu\(image, voulu\)/.test(src));
   check("8.5d erreur annoncée (role=alert), boîte nommée par son titre", /setAttribute\("role", "alert"\)/.test(src) && /setAttribute\("aria-labelledby"/.test(src));
   const vue = readFileSync(join(racine, "js/mod-vue.js"), "utf8");

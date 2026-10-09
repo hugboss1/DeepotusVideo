@@ -46,9 +46,11 @@ export const TRAITES_PAR_ECRAN = new Set(["file.new", "file.open", "file.close",
   "view.extras", "view.show.layerEdges", "view.show.selectionEdges", "view.show.grid", "view.show.guides", "view.show.canvasGuides",
   "view.show.pixelGrid", "view.show.brushPreview", "view.show.all", "view.show.showExtrasOptions", "view.rulers", "view.snap",
   "view.snapTo.guides", "view.snapTo.grid", "view.snapTo.layers", "view.snapTo.documentBounds", "view.snapTo.all", "view.lockGuides",
-  "view.pixelArtPreview"]);
+  "view.pixelArtPreview",
+  // t157 : Sélectionner et masquer (mod-masquer : dialogue sur select.refineEdge, absent du moteur sous ce nom)
+  "select.selectAndMask"]);
 // … dont celles qui n'ont de sens qu'avec un document ouvert (grisées sur l'écran d'accueil).
-export const NECESSITE_DOC = new Set(["file.close", "file.save", "file.saveAs", "file.export.exportAs", "pl.envoyer", "pl.natif.ouvrir",
+export const NECESSITE_DOC = new Set(["select.selectAndMask", "file.close", "file.save", "file.saveAs", "file.export.exportAs", "pl.envoyer", "pl.natif.ouvrir",
   // t152 : les zooms d'Affichage
   "view.zoomIn", "view.zoomOut", "view.fitOnScreen", "view.fitLayersOnScreen", "view.actualPixels", "view.twoHundredPercent", "view.printSize",
   // t154 : la transformation manuelle vise le calque actif
@@ -85,13 +87,15 @@ export function aiguillage(id) {
   const s = typeof id === "string" ? id : "";
   if (s === "image.adjustments.curves") return "courbes";
   if (s === "image.adjustments.levels") return "niveaux";
+  if (s === "filter.filterGallery") return "galerie";                    // t157 : mod-galerie
   if (s.startsWith(PREFIXE_REGLAGE) && s.length > PREFIXE_REGLAGE.length) return "reglage";
   if (s.startsWith(PREFIXE_STYLE) && STYLES.has(s.slice(PREFIXE_STYLE.length))) return "style";
   return "generique";
 }
 
 // Fonction de l'écran qui ouvre chaque famille (définies par B2-B6, absentes avant).
-const OUVREURS = { courbes: "ouvrirCourbes", niveaux: "ouvrirNiveaux", reglage: "creerReglage", style: "ouvrirStyles", generique: "ouvrirReglage" };
+const OUVREURS = { courbes: "ouvrirCourbes", niveaux: "ouvrirNiveaux", reglage: "creerReglage", style: "ouvrirStyles", galerie: "ouvrirGalerie",
+  generique: "ouvrirReglage" };
 
 // Où va une entrée « dialogue », selon les fonctions que l'écran possède (dispo = PL) : la famille sur mesure si son
 // éditeur existe ; sinon le dialogue générique s'il existe et qu'il y a quelque chose à y montrer ; sinon « bientot »
@@ -403,6 +407,7 @@ export function initMenus(PL) {
         else if (cible === "niveaux") PL.ouvrirNiveaux(e);
         else if (cible === "reglage") PL.creerReglage(suffixe);
         else if (cible === "style") PL.ouvrirStyles(suffixe);
+        else if (cible === "galerie") PL.ouvrirGalerie();
         else if (cible === "generique") PL.ouvrirReglage(e);
         else PL.signaler(T("photolab.menu.bientot"));       // éditeur absent (pont ancien sans champs, module non chargé)
         break;

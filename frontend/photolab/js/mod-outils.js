@@ -12,7 +12,7 @@ export const EMPLACEMENTS = [
   [{ id: "move", lettre: "V", icone: "move", p2: true }],
   [{ id: "rectMarquee", lettre: "M", icone: "rectangle-horizontal", p2: true }, { id: "ellipseMarquee", lettre: "M", icone: "circle", p2: true }],
   [{ id: "lasso", lettre: "L", icone: "lasso", p2: true }, { id: "polygonLasso", lettre: "L", icone: "pentagon", p2: true }],
-  [{ id: "magicWand", lettre: "W", icone: "wand", p2: true }, { id: "quickSelection", lettre: "W", icone: "lasso-select", p2: true }, { id: "objectSelection", lettre: "W", icone: "scan", p2: false }],
+  [{ id: "magicWand", lettre: "W", icone: "wand", p2: true }, { id: "quickSelection", lettre: "W", icone: "lasso-select", p2: true }, { id: "objectSelection", lettre: "W", icone: "scan", p2: true }],
   [{ id: "crop", lettre: "C", icone: "crop", p2: true }, { id: "slice", lettre: "C", icone: "scissors", p2: false }, { id: "sliceSelect", lettre: "C", icone: "mouse-pointer-2", p2: false }],
   [{ id: "eyedropper", lettre: "I", icone: "pipette", p2: true }, { id: "ruler", lettre: "I", icone: "ruler", p2: false }, { id: "note", lettre: "I", icone: "message-square", p2: false }, { id: "count", lettre: "I", icone: "hash", p2: false }],
   // section 2 : peinture et retouche (P3b)
@@ -86,13 +86,18 @@ const opt = (type, cle, extra = {}) => ({ type, cle, libelle: "photolab.option."
 const MODE = opt("mode", "mode", { valeurs: MODES_SELECTION });
 const CONTOUR = opt("nombre", "feather", { min: 0, max: 250, pas: 1, unite: "px" });
 const LISSAGE = opt("case", "antiAlias");
+// t157 : boutons de la barre des outils de sélection (référence et amont) : « Sélectionner un sujet » (select.subject)
+// et « Sélectionner et masquer… » (mod-masquer). action = id d'entrée de menu exécuté par PL.actions ou le moteur.
+const SUJET = opt("bouton", "selectSubject", { action: "select.subject" });
+const MASQUER = opt("bouton", "selectAndMask", { action: "select.selectAndMask" });
 const OPTIONS = {
-  rectMarquee: [MODE, CONTOUR, LISSAGE],
-  ellipseMarquee: [MODE, CONTOUR, LISSAGE],
-  lasso: [MODE, CONTOUR, LISSAGE],
-  polygonLasso: [MODE, CONTOUR, LISSAGE],
-  magicWand: [MODE, opt("nombre", "tolerance", { min: 0, max: 255, pas: 1 }), LISSAGE, opt("case", "contiguous"), opt("case", "sampleAllLayers")],
-  quickSelection: [MODE, opt("nombre", "size", { min: 1, max: 200, pas: 1, unite: "px" }), opt("case", "sampleAllLayers")],
+  rectMarquee: [MODE, CONTOUR, LISSAGE, MASQUER],
+  ellipseMarquee: [MODE, CONTOUR, LISSAGE, MASQUER],
+  lasso: [MODE, CONTOUR, LISSAGE, MASQUER],
+  polygonLasso: [MODE, CONTOUR, LISSAGE, MASQUER],
+  magicWand: [MODE, opt("nombre", "tolerance", { min: 0, max: 255, pas: 1 }), LISSAGE, opt("case", "contiguous"), opt("case", "sampleAllLayers"), SUJET, MASQUER],
+  quickSelection: [MODE, opt("nombre", "size", { min: 1, max: 200, pas: 1, unite: "px" }), opt("case", "sampleAllLayers"), SUJET, MASQUER],
+  objectSelection: [MODE, opt("case", "sampleAllLayers"), SUJET, MASQUER],
   crop: [opt("case", "deleteCroppedPixels")],
   move: [opt("case", "autoSelect"), opt("choix", "autoCible", { valeurs: ["layer", "group"] })],
 };
@@ -325,6 +330,18 @@ export function initOutils(PL) {
     const lib = document.createElement("span");
     lib.textContent = T(o.libelle);
     const val = store[o.cle];
+    if (o.type === "bouton") {
+      // t157 : un bouton d'action (pas une option rangée) : l'écran s'il traite l'entrée, sinon la commande du moteur.
+      const b = document.createElement("button"); b.type = "button"; b.className = "pl-bouton opt-action";
+      b.textContent = T(o.libelle);
+      b.addEventListener("click", () => {
+        if (!PL.etat.doc) return;
+        if (PL.actions && PL.actions[o.action]) PL.actions[o.action]();
+        else PL.executer(o.action, {});
+      });
+      w.appendChild(b);
+      return w;
+    }
     if (o.type === "case") {
       const c = document.createElement("input"); c.type = "checkbox"; c.checked = !!val;
       c.addEventListener("change", () => { store[o.cle] = c.checked; });

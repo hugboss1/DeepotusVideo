@@ -5,6 +5,11 @@
 
 import { brut } from "./mod-cycle.js";
 
+// t157 : un filtre est-il rééditable dans le dialogue générique (au moins un champ montrable) ? Copie MINIMALE de
+// champsVisibles (mod-champs importe ce module : l'import inverse ferait une boucle).
+const OPAQUES_SF = new Set(["json", "struct", "intArray", "union", "?", "layerId", "index", "docIndex"]);
+const champsVisibles = (champs) => (Array.isArray(champs) ? champs : []).filter((c) => c && c.cle !== "layer" && !OPAQUES_SF.has(c.type));
+
 const DELAI_CLIC = 220;                         // ms : laisse passer un double-clic avant de sélectionner
 const TYPE_GLISSER = "application/x-photolab-calque";
 
@@ -107,6 +112,55 @@ export function aDesEffets(calque) {
   return !!(calque && calque.effects && Array.isArray(calque.effects.items) && calque.effects.items.length);
 }
 
+/* t157 : masques, liens, filtres dynamiques */
+
+// Bouton Masque (amont layer_menu_ui.rs:13-20, référence) : avec une sélection, révéler (Alt : masquer) la sélection ;
+// sans, tout révéler (Alt : tout masquer). Un calque qui a déjà son masque de fusion reçoit un masque VECTORIEL
+// (Alt : qui masque tout).
+export function commandeMasque(aSelection, alt, aDejaUnMasque) {
+  if (aDejaUnMasque) return { command: "layer.vectorMask.add", params: alt ? { hide: true } : {} };
+  const nom = aSelection ? (alt ? "hideSelection" : "revealSelection") : (alt ? "hideAll" : "revealAll");
+  return { command: "layer.layerMask." + nom, params: {} };
+}
+
+// Calques choisis d'un doc.inspect (selected, ou le calque actif à défaut).
+export function calquesChoisis(doc) {
+  const out = [];
+  const voir = (l) => { for (const c of l || []) { if (c.selected) out.push(c); if (Array.isArray(c.children)) voir(c.children); } };
+  voir(doc && doc.layers);
+  if (!out.length && doc && doc.activeLayer != null) { const a = trouverCalque(doc.layers, doc.activeLayer); if (a) out.push(a); }
+  return out;
+}
+// Lier : deux calques choisis au moins, ou un calque déjà lié (la commande bascule : elle délie) — amont
+// layer_multi_cmds.rs:179-187.
+export function peutLier(doc) {
+  const c = calquesChoisis(doc);
+  return c.length >= 2 || (c.length === 1 && c[0].linkGroup != null);
+}
+
+// Geste sur la vignette d'un masque (amont mask_thumbs_ui.rs:182-205) -> {action, operation?} :
+// Ctrl = charger le masque comme sélection (Maj ajouter, Alt soustraire, les deux intersection), Maj = activer /
+// désactiver, Alt = voir le masque seul sur la toile, sinon choisir le calque.
+export function gesteMasque(ev) {
+  const ctrl = !!(ev && (ev.ctrlKey || ev.metaKey)), maj = !!(ev && ev.shiftKey), alt = !!(ev && ev.altKey);
+  if (ctrl) return { action: "selection", operation: maj && alt ? "intersect" : maj ? "add" : alt ? "subtract" : "new" };
+  if (maj && !alt) return { action: "activer" };
+  if (alt) return { action: "voir" };
+  return { action: "choisir" };
+}
+
+// Les filtres dynamiques d'un objet dynamique, tels que le panneau les montre : le DERNIER appliqué en haut ; `index`
+// reste celui du moteur (0 = le premier appliqué, en bas).
+export function filtresDynamiques(calque) {
+  const f = calque && Array.isArray(calque.smartFilters) ? calque.smartFilters : [];
+  return f.map((x, index) => ({ ...x, index })).reverse();
+}
+// Glisser un filtre dynamique sur un autre : layer.smartFilter.move {index, to} (même calque seulement).
+export function deplacementFiltre(source, cible) {
+  if (!source || !cible || source.layer !== cible.layer || source.index === cible.index) return null;
+  return { layer: source.layer, index: source.index, to: cible.index };
+}
+
 export function estFond(calque, racines) {
   const l = racines || [];
   return !!calque && l.length > 0 && l[l.length - 1] === calque && calque.name === "Background" && !Array.isArray(calque.children);
@@ -150,11 +204,10 @@ export function initCalques(PL) {
 
   const liste = el("div", "cq-liste"); liste.setAttribute("role", "listbox"); liste.setAttribute("aria-label", T("photolab.panneau.calques"));
   const pied = el("div", "cq-pied");
-  const bientot = (b) => { b.disabled = true; b.classList.add("bientot"); b.title += " — " + T("photolab.outil.bientot"); return b; };
-  const bLien = bientot(bouton("", "link", T("photolab.calques.lier")));
+  const bLien = bouton("", "link", T("photolab.calques.lier"));
   // t138 B6 : le dialogue Style de calque (mod-styles.js, lu à l'exécution : aucun import croisé).
   const bFx = bouton("", null, T("photolab.calques.style")); bFx.textContent = "fx";
-  const bMasque = bientot(bouton("", "scan", T("photolab.calques.masque")));
+  const bMasque = bouton("", "scan", T("photolab.calques.masque"));
   // t138 B5 : petit menu des 16 calques de réglage (mod-reglages.js, lu à l'exécution : aucun import croisé).
   const bReglage = bouton("", "circle", T("photolab.calques.reglage"));
   bReglage.setAttribute("aria-haspopup", "menu");
@@ -189,6 +242,14 @@ export function initCalques(PL) {
   bDupliquer.addEventListener("click", () => PL.executer("layer.duplicate", {}));
   bFusionner.addEventListener("click", () => PL.executer("layer.mergeDown", {}));
   bSupprimer.addEventListener("click", () => PL.executer("layer.delete", {}));
+  // t157 : Lier (bascule) et Masque (Alt : qui masque ; un calque déjà masqué reçoit un masque vectoriel)
+  bLien.addEventListener("click", () => PL.executer("layer.linkLayers", {}));
+  bMasque.addEventListener("click", (ev) => {
+    const doc = PL.etat.doc, c = doc && actif() != null ? trouverCalque(doc.layers, actif()) : null;
+    if (!c) return;
+    const m = commandeMasque(!!doc.hasSelection, ev.altKey, !!c.hasMask);
+    PL.executer(m.command, m.params);
+  });
   filtre.addEventListener("input", () => dessiner(PL.etat.doc));
 
   function majEntete(doc) {
@@ -225,6 +286,12 @@ export function initCalques(PL) {
     }
     const url = PL.etat.vignettes[String(c.id)];
     if (url) { const im = el("img"); im.alt = ""; im.src = url; im.dataset.id = String(c.id); box.appendChild(im); }
+    // t157 : badge de l'objet dynamique dans le coin de sa vignette (amont smart_ui.rs:12-21)
+    if (/smart/i.test(String(c.kind || ""))) {
+      const b = el("span", "cq-badge-dynamique"); b.title = T("photolab.calques.objet_dynamique");
+      PL.icone("app-window").then((svg) => { b.innerHTML = svg; });
+      box.classList.add("dynamique"); box.appendChild(b);
+    }
     return box;
   }
 
@@ -250,8 +317,17 @@ export function initCalques(PL) {
     // Le nom est une donnée de l'utilisateur : la surcouche de traduction n'y touche pas (data-dz-brut).
     const nom = brut(el("span", "cq-nom", c.name || ""));
     nom.addEventListener("dblclick", (ev) => { ev.stopPropagation(); clearTimeout(minutClic); minutClic = null; renommer(c, nom); });
-    l.append(oeil, retrait, chevron, vignette(c), nom);
+    l.append(oeil, retrait, chevron, vignette(c), ...masque(c), nom);
     if (aDesEffets(c)) l.appendChild(badgeFx(c));
+    // t157 : calque lié (amont : icône « link » à droite de la ligne)
+    if (c.linkGroup != null) { const li = el("span", "cq-lie"); li.title = T("photolab.calques.lie"); icone("link", li); l.appendChild(li); }
+    // t157 : objet dynamique à filtres — triangle qui replie ses sous-lignes
+    if (Array.isArray(c.smartFilters) && c.smartFilters.length) {
+      const cle = "sf-" + c.id, ouvert = !replies.has(cle);
+      const b = bouton("cq-sf-plier", ouvert ? "chevron-down" : "chevron-right", T(ouvert ? "photolab.filtres.replier" : "photolab.filtres.deplier"));
+      b.addEventListener("click", (ev) => { ev.stopPropagation(); if (replies.has(cle)) replies.delete(cle); else replies.add(cle); dessiner(PL.etat.doc); });
+      l.appendChild(b);
+    }
     const idf = idFusion(c.blend);
     if (idf && idf !== "normal" && idf !== "passThrough") {
       const m = MODES_FUSION.find((x) => x.id === idf);
@@ -349,11 +425,164 @@ export function initCalques(PL) {
     majEntete(doc);
     liste.textContent = "";
     for (const b of [bFx, bReglage, bGroupe, bNouveau, bDupliquer, bFusionner, bSupprimer]) b.disabled = !doc;
+    bLien.disabled = !doc || !peutLier(doc);
+    bMasque.disabled = !doc || actif() == null;
+    bMasque.title = T("photolab.calques.masque") + (doc && doc.hasSelection ? " — " + T("photolab.calques.masque_selection") : "");
+    bMasque.setAttribute("aria-label", bMasque.title);
     if (!doc) return;
     const f = filtre.value.trim().toLowerCase();
     // Filtre : tout déplié (un calque qui correspond se voit même dans un groupe fermé dans le moteur).
     const lignes = aplatirCalques(doc.layers, replies, !!f).filter((c) => !f || String(c.name || "").toLowerCase().includes(f));
-    lignes.forEach((c, i) => liste.appendChild(ligne(c, doc, lignes, i)));
+    lignes.forEach((c, i) => {
+      liste.appendChild(ligne(c, doc, lignes, i));
+      if (Array.isArray(c.smartFilters) && c.smartFilters.length && !replies.has("sf-" + c.id)) for (const x of lignesFiltres(c)) liste.appendChild(x);
+    });
+  }
+
+  /* ── t157 : masque de fusion d'une ligne ── */
+  const etatMasque = (id) => PL.etat.etatsMasques[id] || (PL.etat.etatsMasques[id] = { active: true, lie: true });
+  let vueMasque = null;                  // id du calque dont le masque est montré seul sur la toile (Alt-clic)
+  function masque(c) {
+    if (!c.hasMask) return [];
+    const em = etatMasque(c.id);
+    // chaîne : liée par défaut (le moteur ne relit pas cet état) ; clic = lier / délier le masque au calque
+    const chaine = bouton("cq-chaine" + (em.lie ? " lie" : ""), "link", T(em.lie ? "photolab.calques.masque_lie" : "photolab.calques.masque_delie"));
+    chaine.addEventListener("click", async (ev) => {
+      ev.stopPropagation();
+      const r = await PL.executer("layer.layerMask.linked", { layer: c.id });
+      if (r && r.ok && r.r && typeof r.r.linked === "boolean") etatMasque(c.id).lie = r.r.linked;
+    });
+    const box = el("span", "cq-vignette cq-masque" + (em.active ? "" : " inactif") + (vueMasque === c.id ? " vu" : ""));
+    box.title = T("photolab.calques.vignette_masque");
+    box.dataset.masque = String(c.id);
+    const url = PL.etat.vignettesMasques && PL.etat.vignettesMasques[String(c.id)];
+    if (url) { const im = el("img"); im.alt = ""; im.src = url; box.appendChild(im); }
+    box.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      clearTimeout(minutClic); minutClic = null;
+      const g = gesteMasque(ev);
+      if (g.action === "selection") PL.executer("select.loadSelection", { channel: "mask", layer: c.id, operation: g.operation });
+      else if (g.action === "activer") {
+        PL.executer("layer.layerMask.enabled", { layer: c.id }).then((r) => {
+          if (r && r.ok && r.r && typeof r.r.enabled === "boolean") { etatMasque(c.id).active = r.r.enabled; dessiner(PL.etat.doc); }
+        });
+      } else if (g.action === "voir") voirMasque(c.id);
+      else {
+        if (vueMasque != null) quitterVueMasque();
+        if (c.id !== actif()) PL.executer("layer.select", actionSelection(c.id, false, false));
+      }
+    });
+    return [chaine, box];
+  }
+  // Alt-clic : le masque seul sur la toile (rendu par le pont, comme la vignette) ; Alt-clic à nouveau, clic sur la
+  // vignette ou toute modification du document : retour à l'image.
+  async function voirMasque(id) {
+    if (vueMasque === id) { quitterVueMasque(); return; }
+    vueMasque = id;
+    dessiner(PL.etat.doc);
+    const voulu = PL.vue.maxSideVoulu();
+    try {
+      const r = await PL.get("/masques?layer=" + id + "&maxSide=" + Math.max(16, Math.min(2048, voulu || 1024)));
+      const m = r && r.masques && r.masques[0];
+      if (!m || vueMasque !== id) return;
+      const im = new Image();
+      im.onload = () => { if (vueMasque === id) PL.vue.poserApercu(im, voulu); };
+      im.src = m.png;
+    } catch (e) { vueMasque = null; dessiner(PL.etat.doc); }
+  }
+  function quitterVueMasque() { vueMasque = null; PL.cycle(); }
+  PL.surDoc.push((doc) => { if (vueMasque != null && !(doc && trouverCalque(doc.layers, vueMasque))) vueMasque = null; });
+  if (PL.surRendu) PL.surRendu.push(() => { if (vueMasque != null) { vueMasque = null; dessiner(PL.etat.doc); } });
+
+  /* ── t157 : filtres dynamiques sous un objet dynamique ── */
+  const TYPE_FILTRE = "application/x-photolab-filtre";
+  // L'entrée de menu d'un filtre (libellé, champs), sinon celle du registre.
+  function entreeDe(commande) {
+    const voir = (l) => { for (const e of l || []) { if (e.id === commande) return e; const r = e.entrees ? voir(e.entrees) : null; if (r) return r; } return null; };
+    const arbre = (PL.menus && PL.menus.arbre) || [];
+    for (const m of arbre) { const r = voir(m.entrees); if (r) return r; }
+    const reg = (PL.menus && PL.menus.registre) || [];
+    const r = (Array.isArray(reg) ? reg : []).find((x) => x && x.id === commande);
+    return r ? { id: commande, libelle: r.label || commande, champs: r.champs } : null;
+  }
+  const PREFIXE_GALERIE = "filter.gallery.";
+  function libelleFiltre(cmd) {
+    if (cmd === "filter.filterGallery") return T("photolab.galerie.titre");
+    if (String(cmd || "").startsWith(PREFIXE_GALERIE)) {
+      const cle = "photolab.galerie.f." + cmd.slice(PREFIXE_GALERIE.length).replace(/[A-Z]/g, (x) => "_" + x.toLowerCase());
+      const t = T(cle);
+      if (t && t !== cle) return t;
+    }
+    const e = entreeDe(cmd);
+    return e ? String(e.libelle || cmd).replace(/…$/, "") : String(cmd || "");
+  }
+  function lignesFiltres(c) {
+    const off = c.smartFiltersEnabled === false;
+    const tete = el("div", "cq-ligne cq-sf-tete" + (off ? " cache" : ""));
+    const oeilT = bouton("cq-oeil", off ? "eye-off" : "eye", T(off ? "photolab.filtres.activer" : "photolab.filtres.desactiver"));
+    oeilT.addEventListener("click", (ev) => { ev.stopPropagation(); PL.executer("layer.smartFilter.disableSmartFilters", { layer: c.id }); });
+    const r = el("span", "cq-retrait"); r.style.width = (c.profondeur * 14 + 22) + "px";
+    tete.append(oeilT, r, el("span", "cq-sf-nom", T("photolab.filtres.titre")));
+    const out = [tete];
+    for (const f of filtresDynamiques(c)) {
+      const cache = f.visible === false || off;
+      const l = el("div", "cq-ligne cq-sf" + (cache ? " cache" : ""));
+      l.dataset.filtre = String(f.index);
+      const oeil = bouton("cq-oeil", f.visible === false ? "eye-off" : "eye", T(f.visible === false ? "photolab.calques.montrer" : "photolab.calques.masquer"));
+      oeil.addEventListener("click", (ev) => { ev.stopPropagation(); PL.executer("layer.smartFilter.setVisible", { layer: c.id, index: f.index }); });
+      const rr = el("span", "cq-retrait"); rr.style.width = (c.profondeur * 14 + 36) + "px";
+      const nom = el("span", "cq-sf-nom", libelleFiltre(f.command));
+      nom.title = T("photolab.filtres.editer");
+      nom.addEventListener("dblclick", (ev) => { ev.stopPropagation(); editerFiltre(c, f); });
+      const opt = bouton("cq-sf-opt", "sliders", T("photolab.filtres.options"));
+      opt.addEventListener("click", (ev) => { ev.stopPropagation(); optionsFiltre(c, f); });
+      const sup = bouton("cq-sf-sup", "trash-2", T("photolab.filtres.supprimer"));
+      sup.addEventListener("click", (ev) => { ev.stopPropagation(); PL.executer("layer.smartFilter.delete", { layer: c.id, index: f.index }); });
+      l.append(oeil, rr, nom, opt, sup);
+      // glisser pour réordonner dans la pile du même calque
+      l.draggable = true;
+      l.addEventListener("dragstart", (ev) => { ev.stopPropagation(); ev.dataTransfer.effectAllowed = "move"; ev.dataTransfer.setData(TYPE_FILTRE, c.id + ":" + f.index); });
+      l.addEventListener("dragover", (ev) => { if (Array.from(ev.dataTransfer.types || []).includes(TYPE_FILTRE)) { ev.preventDefault(); ev.stopPropagation(); l.classList.add("depot-above"); } });
+      l.addEventListener("dragleave", () => l.classList.remove("depot-above"));
+      l.addEventListener("drop", (ev) => {
+        l.classList.remove("depot-above");
+        const [lid, idx] = String(ev.dataTransfer.getData(TYPE_FILTRE) || "").split(":").map(Number);
+        const d = deplacementFiltre({ layer: lid, index: idx }, { layer: c.id, index: f.index });
+        if (!d) return;
+        ev.preventDefault(); ev.stopPropagation();
+        PL.executer("layer.smartFilter.move", d);
+      });
+      out.push(l);
+    }
+    return out;
+  }
+  // Double-clic sur un filtre : son dialogue, rempli de ses réglages, AVEC aperçu (layer.smartFilter.setParams joué sur
+  // copie) ; la Galerie se rouvre avec sa pile.
+  async function editerFiltre(c, f) {
+    if (c.id !== actif()) {
+      const r = await PL.executer("layer.select", actionSelection(c.id, false, false), { cycle: false });
+      if (!(r && r.ok)) return;
+      await PL.cycle();
+    }
+    const vers = (p) => ({ command: "layer.smartFilter.setParams", params: { layer: c.id, index: f.index, params: p } });
+    if (f.command === "filter.filterGallery") {
+      if (PL.ouvrirGalerie) PL.ouvrirGalerie({ pile: (f.params || {}).effects, filtreDynamique: { layer: c.id, index: f.index } });
+      return;
+    }
+    const e = entreeDe(f.command);
+    const champs = e && Array.isArray(e.champs) ? e.champs : [];
+    if (!e || !PL.ouvrirReglage || !champsVisibles(champs).length) { PL.signaler(T("photolab.filtres.non_modifiable")); return; }
+    PL.ouvrirReglage({ ...e, libelle: libelleFiltre(f.command) }, { initiales: f.params || {}, versCommande: vers });
+  }
+  // Options de fusion d'un filtre (mode et opacité), aperçu compris.
+  function optionsFiltre(c, f) {
+    if (!PL.ouvrirReglage) return;
+    const champs = [{ cle: "blend", type: "enum", valeurs: MODES_FUSION.map((m) => m.id), optionnel: true },
+      { cle: "opacity", type: "number", min: 0, max: 100, entier: true, unite: "%", optionnel: true }];
+    PL.ouvrirReglage({ id: "layer.smartFilter.blendingOptions", libelle: T("photolab.filtres.options_de", { nom: libelleFiltre(f.command) }), champs },
+      { initiales: { blend: idFusion(f.blend) || "normal", opacity: Math.round((f.opacity == null ? 1 : f.opacity) * 100) }, apercu: true,
+        versCommande: (p) => ({ command: "layer.smartFilter.blendingOptions", params: { layer: c.id, index: f.index, blend: p.blend || "normal",
+          opacity: Math.round(p.opacity == null ? 100 : p.opacity) / 100 } }) });
   }
 
   PL.surDoc.push(dessiner);
@@ -363,6 +592,14 @@ export function initCalques(PL) {
       const url = carte[l.dataset.id];
       const box = PL.$(".cq-vignette", l);
       if (!url || !box || box.dataset.icone) return;
+      let im = PL.$("img", box);
+      if (!im) { im = el("img"); im.alt = ""; box.appendChild(im); }
+      if (im.getAttribute("src") !== url) im.src = url;
+    });
+    // t157 : vignettes des masques de fusion (arrivées avec celles des calques)
+    PL.$$(".cq-masque[data-masque]", liste).forEach((box) => {
+      const url = PL.etat.vignettesMasques && PL.etat.vignettesMasques[box.dataset.masque];
+      if (!url) return;
       let im = PL.$("img", box);
       if (!im) { im = el("img"); im.alt = ""; box.appendChild(im); }
       if (im.getAttribute("src") !== url) im.src = url;

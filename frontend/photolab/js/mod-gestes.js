@@ -98,7 +98,9 @@ export function initGestes(PL) {
     if (!doc) { if (st) { st.textContent = ""; st.title = ""; } return; }
     const v = PL.vue.v;
     // t152 : Affichage › Afficher › Contours de la sélection (et Extras)
-    const f = doc.hasSelection && (!PL.affichage || PL.affichage.voir("contoursSelection")) ? formeFourmis(doc.selectionBounds, v) : null;
+    // t157 : Sélectionner et masquer, vue « Cadre de sélection » : le cadre de la sélection AFFINÉE (calculé sur copie)
+    const bornes = Array.isArray(PL.fourmisApercu) ? PL.fourmisApercu : doc.selectionBounds;
+    const f = (doc.hasSelection || PL.fourmisApercu) && (!PL.affichage || PL.affichage.voir("contoursSelection")) ? formeFourmis(bornes, v) : null;
     if (f) for (const n of fourmis(el("rect", { x: f.x, y: f.y, width: f.w, height: f.h }))) svg.appendChild(n);
     if (st) {
       // Le moteur ne donne que les bornes de la sélection en P2 : le contour affiché est un rectangle, on le dit.

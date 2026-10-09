@@ -34,6 +34,8 @@ import { initFormes } from "./mod-formes.js";
 import { initTrace } from "./mod-trace.js";
 import { initTexte } from "./mod-texte.js";
 import { initRecherche } from "./mod-recherche.js";
+import { initGalerie } from "./mod-galerie.js";
+import { initMasquer } from "./mod-masquer.js";
 import { initRaccourcis } from "./mod-raccourcis.js";
 import { initApropos } from "./mod-apropos.js";
 
@@ -120,6 +122,8 @@ initDialogueReglage(PL);   // t138 B2 : après le cycle (PL.surDoc, PL.cycle, PL
 initCourbes(PL);           // t138 B4 : après le dialogue générique (coquille, PL.prendreReglage) ; Ctrl+M / Ctrl+L y mènent
 initReglages(PL);          // t138 B5 : après les Courbes (éditeur réutilisé) ; donne PL.creerReglage aux menus et PL.reglages aux panneaux
 initStyles(PL);            // t138 B6 : après le dialogue générique (coquille, PL.prendreReglage) ; donne PL.ouvrirStyles aux menus et au bouton fx
+initGalerie(PL);           // t157 : après le dialogue générique (coquille, PL.prendreReglage) ; donne PL.ouvrirGalerie aux menus et aux filtres dynamiques
+initMasquer(PL);           // t157 : Sélectionner et masquer (PL.actions["select.selectAndMask"], barre des outils de sélection)
 initRaccourcis(PL);
 initGestes(PL);       // répartiteur des gestes + aperçu #fourmis, AVANT les outils qui s'y inscrivent
 initSelection(PL);

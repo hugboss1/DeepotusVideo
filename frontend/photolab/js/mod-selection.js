@@ -66,6 +66,11 @@ export function commandeRapide(points, opts, mode) {
   if (!points || !points.length) return null;
   return { command: "select.quick", params: { points, size: opts.size, mode, sampleAllLayers: !!opts.sampleAllLayers } };
 }
+// t157 : Sélection d'objet — un rectangle autour de l'objet (amont retouch_ui.rs:122-139 : moins de 2 px = ignoré).
+export function commandeObjet(r, opts, mode) {
+  if (!r || r.width < 2 || r.height < 2) return null;
+  return { command: "select.object", params: { rect: [r.x, r.y, r.width, r.height], mode, sampleAllLayers: !!opts.sampleAllLayers } };
+}
 
 /* ───────────── côté DOM ───────────── */
 
@@ -100,6 +105,25 @@ export function initSelection(PL) {
   }
   PL.gestes.rectMarquee = marquee(false);
   PL.gestes.ellipseMarquee = marquee(true);
+
+  // t157 : Sélection d'objet — glisser un rectangle (fourmis), le moteur trouve l'objet dedans au relâchement.
+  let objet = null;
+  PL.gestes.objectSelection = {
+    appui(p, ev) { objet = { x0: p.x, y0: p.y, mode: modeSelection(o().mode, ev.shiftKey, ev.altKey, true) }; },
+    bouger(p) {
+      if (!objet) return;
+      PL.apercu = { type: "rect", ...rectDepuisGlisser(objet.x0, objet.y0, p.x, p.y) }; redessiner();
+    },
+    relacher(p) {
+      if (!objet) return;
+      const r = rectDepuisGlisser(objet.x0, objet.y0, p.x, p.y);
+      const mode = objet.mode; objet = null; PL.apercu = null; redessiner();
+      lancer(commandeObjet(r, o(), mode));
+    },
+    annuler() { objet = null; PL.apercu = null; redessiner(); },
+    touche(ev) { if (ev.key !== "Escape" || !objet) return false; objet = null; PL.apercu = null; redessiner(); return true; },
+    quitter() { objet = null; },
+  };
 
   // Lasso à main levée.
   let lasso = null;

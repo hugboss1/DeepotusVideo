@@ -443,6 +443,16 @@ def verifier(registre: dict, cid, params, kind=None, etat=None) -> dict:
         # Le registre résume ses champs en « …BrushSettings fields » : seule la forme de la pointe est admise (t155).
         for c in CHAMPS_POINTE:
             champs.setdefault(c["cle"], c)
+    if cid == "select.refineEdge":
+        # t157 : rayon et contour progressif sont des « px » sans bornes au registre ; le moteur les borne en silence
+        # (smartselect_cmds.rs : 0..250 et 0..1000) — le pont refuse au-delà.
+        for c in CHAMPS_AFFINER:
+            champs[c["cle"]] = {**champs.get(c["cle"], {}), **c}
+    if cid == "filter.filterGallery":
+        # t157 : `effects`, `foreground`, `background` sont des « json » au registre ; le moteur ramène EN SILENCE une
+        # valeur hors bornes au défaut du filtre (99 -> 4) : chaque effet est vérifié contre filter.gallery.<clé>.
+        _galerie(registre, cid, params)
+        return params
     ctx = {"colorize": _colorise(params, etat)}
     for k, v in params.items():
         champ = champs.get(k)
@@ -456,6 +466,70 @@ def verifier(registre: dict, cid, params, kind=None, etat=None) -> dict:
         if schema is not None:
             schema(cid, k, v, champs, ctx)
     return params
+
+
+# ── t157 : Sélectionner et masquer, la pile de la Galerie de filtres ────────────────────────────────────────────────
+CHAMPS_AFFINER = ({"cle": "radius", "type": "number", "min": 0, "max": 250, "optionnel": True},
+                  {"cle": "feather", "type": "number", "min": 0, "max": 1000, "optionnel": True})
+
+MAX_EFFETS_GALERIE = 20
+CLES_EFFET = {"filter", "params", "visible"}
+
+
+def cles_galerie(registre: dict) -> set[str]:
+    """Les clés des filtres de la galerie (`filter.gallery.<clé>` du registre)."""
+    return {c[len("filter.gallery."):] for c in registre if c.startswith("filter.gallery.")}
+
+
+def _couleur_01(cid, cle, v):
+    # glowColor : [r,g,b(,a)] en 0..1 (l'amont l'écrit [r,g,b,1]) ; une couleur 0..255 serait saturée en silence.
+    if not (isinstance(v, list) and len(v) in (3, 4) and all(_nombre_fini(x) and 0 <= x <= 1 for x in v)):
+        raise ValueError(f"{cid} : {cle} : couleur [r, g, b(, a)] en 0..1 attendue, reçu {v!r}")
+
+
+def _galerie(registre: dict, cid, params: dict):
+    from app.services import photolab_moteur as PM
+    for k in params:
+        if k not in ("effects", "foreground", "background", "list", "layer"):
+            raise ValueError(f"{cid} : paramètre inconnu : {k}")
+    if params.get("list") is True and set(params) == {"list"}:
+        return
+    if "list" in params:
+        raise ValueError(f"{cid} : « list » se demande seul (catalogue)")
+    if "layer" in params and (not _entier(params["layer"]) or params["layer"] < 0):
+        raise ValueError(f"{cid} : layer : entier ≥ 0 attendu")
+    for k in ("foreground", "background"):
+        if k in params and not (isinstance(params[k], str) and _HEX.fullmatch(params[k])):
+            raise ValueError(f"{cid} : {k} : couleur \"#rrggbb\" attendue, reçu {params[k]!r}")
+    effets = params.get("effects")
+    if not isinstance(effets, list) or not 1 <= len(effets) <= MAX_EFFETS_GALERIE:
+        raise ValueError(f"{cid} : effects : de 1 à {MAX_EFFETS_GALERIE} effets attendus")
+    connus = cles_galerie(registre)
+    for i, e in enumerate(effets):
+        if not isinstance(e, dict):
+            raise ValueError(f"{cid} : effet {i} : objet {{filter, params, visible}} attendu")
+        inconnues = set(e) - CLES_EFFET
+        if inconnues:
+            raise ValueError(f"{cid} : effet {i} : clé inconnue : {', '.join(sorted(map(str, inconnues)))}")
+        f = e.get("filter")
+        if f not in connus:
+            raise ValueError(f"{cid} : effet {i} : filtre de la galerie inconnu : {f!r}")
+        if "visible" in e and not isinstance(e["visible"], bool):
+            raise ValueError(f"{cid} : effet {i} : visible : booléen attendu")
+        p = e.get("params", {})
+        if not isinstance(p, dict):
+            raise ValueError(f"{cid} : effet {i} : params : objet attendu")
+        sous = f"filter.gallery.{f}"
+        champs = {c["cle"]: c for c in registre[sous]["champs"]}
+        for k, v in p.items():
+            champ = champs.get(k)
+            if champ is None:
+                raise ValueError(f"{sous} : paramètre inconnu : {k}")
+            if k in ("glowColor", "foreground", "background"):
+                if not (isinstance(v, str) and _HEX.fullmatch(v)):      # « #rrggbb » ou [r,g,b(,a)] en 0..1
+                    _couleur_01(sous, k, v)
+                continue
+            _valeur(sous, k, champ, v, PM._valeur_fichier)
 
 
 # ── Schémas des champs `json` des réglages (relevé A4 sur le vrai moteur) ───────────────────────────────────────────
