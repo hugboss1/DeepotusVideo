@@ -63,7 +63,9 @@ print("\n[2] l'ecran dans le bundle livre")
 import re as _re
 # t141 : une promesse de redemarrage peut etre un litteral OU un dzT("cle") dont l'anglais d'origine la porte ; dans les
 # deux cas les 160 caracteres qui precedent doivent parler de backend/.env (edition a la main).
-_cles_rest = {k for k, v in AIDE.DICO.items() if "restart the backend" in v["en"].lower()}
+# t144 : les clés des couches son (son. sfx. vfx. montage., traduction L4) parlent du rack VFX, pas des clés API
+_cles_rest = {k for k, v in AIDE.DICO.items() if "restart the backend" in v["en"].lower()
+              and not k.startswith(("son.", "sfx.", "vfx.", "montage."))}
 _rest = [s[max(0, m.start() - 160):m.start()] for m in _re.finditer(r"(?i)restart the backend", s)]
 _rest += [s[max(0, m.start() - 160):m.start()] for m in _re.finditer(r'dzT\("([a-z0-9_.]+)"', s) if m.group(1) in _cles_rest]
 check("2.1 plus aucune promesse de redemarrage APRES un enregistrement par l'interface : ne restent que les deux "

@@ -2567,14 +2567,16 @@ async def montage_newer(job_id: str = ""):
 
 
 @router.get("/transitions")
-async def montage_transitions():
+async def montage_transitions(request: Request = None):
     """D-20 — les 58 transitions xfade par familles, avec le drapeau `live`
-    (jouable en direct dans le lecteur vivant). Le client n'en a pas de copie."""
-    return transitions_catalog()
+    (jouable en direct dans le lecteur vivant). Le client n'en a pas de copie.
+    t144 : libellés dans la langue de la requête (app/i18n/catalogues) ; l'id xfade reste la valeur."""
+    from app.i18n import catalogues as CAT, langue_requete
+    return CAT.transitions(transitions_catalog(), langue_requete(request))
 
 
 @router.get("/titles")
-async def montage_titles():
+async def montage_titles(request: Request = None):
     """D-21 — les huit gabarits de titre, leur libellé français et ce qui les
     distingue à l'œil (fonte, corps à 1080 p, couleur de charte, couleur de
     boîte, tags d'animation). Le client n'en a aucune copie : même précédent
@@ -2590,11 +2592,12 @@ async def montage_titles():
     servir autre chose aurait fait proposer à l'écran des valeurs que le
     rendu remplace en silence."""
     from app.services import titles as TI
-    return {"gabarits": [
+    from app.i18n import catalogues as CAT, langue_requete   # t144 : libellés dans la langue de la requête
+    return {"gabarits": CAT.titres([
         {"id": k, "label": TI.LABELS.get(k, k), "font": t["font"],
          "size": t["size"], "color": t["color"], "box": t["box"],
          "anim": t["anim"]}
-        for k, t in TI.TEMPLATES.items()],
+        for k, t in TI.TEMPLATES.items()], langue_requete(request)),
         "fonts": list(TI.S.FONT_FILES), "colors": list(TI.BRAND)}
 
 
@@ -2656,11 +2659,12 @@ async def montage_title_preview(template: str = "", text: str = "", sub: str = "
 
 
 @router.get("/effects")
-async def montage_effects():
+async def montage_effects(request: Request = None):
     """Catalogue du moteur Effects / Mask pour le sélecteur d'effets par clip
-    de l'inspecteur (labels FR + paramètres par type)."""
+    de l'inspecteur (labels FR + paramètres par type). t144 : traduits selon la requête."""
     from app.services import effects_engine
-    return {"effects": effects_engine.catalog()}
+    from app.i18n import catalogues as CAT, langue_requete
+    return {"effects": CAT.effets(effects_engine.catalog(), langue_requete(request))}
 
 
 def media_rules() -> dict:
@@ -5187,15 +5191,16 @@ def _valider_presets(lst) -> list:
 
 
 @router.get("/deliver-presets")
-async def montage_deliver_presets():
+async def montage_deliver_presets(request: Request = None):
     """{builtins:[{id,label,fps,gif}], fps:[…], presets:[…maison]} — le client
     n'a AUCUNE liste en dur : les presets intégrés ET la liste des cadences
     viennent d'ici. P1 #8 (28/09/2026) : chaque intégré dit SA cadence et
     s'il est un GIF (cadence fixe) — l'image étalonnée et les scopes d'un plan
     en retime demandent la cadence du rendu final (`dzmGlFps`)."""
     presets = await asyncio.to_thread(_load_deliver_presets)
-    return {"builtins": [{"id": k, "label": v["label"], "fps": int(v["fps"]), "gif": bool(v.get("gif"))}
-                         for k, v in _DELIVER.items()],
+    from app.i18n import catalogues as CAT, langue_requete   # t144 : libellés dans la langue de la requête
+    return {"builtins": CAT.livraison([{"id": k, "label": v["label"], "fps": int(v["fps"]), "gif": bool(v.get("gif"))}
+                                       for k, v in _DELIVER.items()], langue_requete(request)),
             "fps": list(_DELIVER_FPS), "presets": presets}
 
 
