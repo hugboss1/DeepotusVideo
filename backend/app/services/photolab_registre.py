@@ -14,6 +14,7 @@ formulaire générique et le pont les borne en taille.
 """
 from __future__ import annotations
 
+import json
 import re
 
 TYPES = ("number", "int", "bool", "enum", "color", "str", "layerId", "index", "docIndex",
@@ -798,4 +799,103 @@ def _v_infos(cid, params):
             raise ValueError(f"{cid} : copyrightUrl : adresse http(s) attendue, reçu {u!r}")
 
 
-VERIFS_T158 = {"image.mode.duotone": _v_bichromie, "image.mode.colorTable": _v_table, "file.fileInfo": _v_infos}
+# t159 : préréglages. Le gestionnaire agit par INDEX dans une liste que le moteur rend (`list`) ; l'échange porte des
+# DONNÉES (le format que `export` rend), jamais un chemin : `edit.presets.migratePresets` {path} reste refusée.
+GENRES_GESTIONNAIRE = ("brushes", "customShapes", "patterns")
+GENRES_ECHANGE = ("brushes", "customShapes")
+MAX_NOM_PRESET = 64
+MAX_INDEX_PRESET = 10_000
+MAX_PRESETS_ECHANGE = 500
+MAX_OCTETS_ECHANGE = 2_000_000
+MAX_PROFONDEUR_ECHANGE = 12
+MAX_CHAINE_ECHANGE = 256
+_BASE64 = re.compile(r"[A-Za-z0-9+/]*={0,2}")
+
+
+def _index(cid, cle, v):
+    if isinstance(v, bool) or not isinstance(v, int) or not 0 <= v <= MAX_INDEX_PRESET:
+        raise ValueError(f"{cid} : {cle} : index entier de 0 à {MAX_INDEX_PRESET} attendu")
+
+
+def _v_gestionnaire(cid, params):
+    """Gestionnaire de préréglages : list | rename (index, newName) | delete (index) | move (index, to)."""
+    action = params.get("action")
+    admises = {"list": (), "rename": ("index", "newName"), "delete": ("index",), "move": ("index", "to")}
+    if action not in admises:
+        raise ValueError(f"{cid} : action : une valeur parmi {'|'.join(admises)}")
+    _cles(cid, params, ("action", "kind") + admises[action])
+    if params.get("kind") not in GENRES_GESTIONNAIRE:
+        raise ValueError(f"{cid} : kind : une valeur parmi {'|'.join(GENRES_GESTIONNAIRE)}")
+    for k in admises[action]:
+        if k not in params:
+            raise ValueError(f"{cid} : {k} manquant pour {action}")
+    for k in ("index", "to"):
+        if k in params:
+            _index(cid, k, params[k])
+    if "newName" in params:
+        n = params["newName"]
+        if not isinstance(n, str) or not n.strip() or len(n) > MAX_NOM_PRESET or any(ord(c) < 32 for c in n):
+            raise ValueError(f"{cid} : newName : 1 à {MAX_NOM_PRESET} caractères, sur une ligne")
+
+
+def _donnees_echange(cid, v, ou, niveau, compte):
+    if niveau > MAX_PROFONDEUR_ECHANGE:
+        raise ValueError(f"{cid} : {ou} : profondeur > {MAX_PROFONDEUR_ECHANGE}")
+    if isinstance(v, dict):
+        for k, w in v.items():
+            kl = str(k).lower()
+            if kl == "data" and isinstance(w, str) and _BASE64.fullmatch(w):
+                continue                                   # pointe échantillonnée : des octets en base64
+            if kl in CLES_CHEMIN:
+                raise ValueError(f"{cid} : {ou}.{k} désigne un fichier — refusé dans un échange de préréglages")
+            _donnees_echange(cid, w, f"{ou}.{k}", niveau + 1, compte)
+    elif isinstance(v, list):
+        for i, w in enumerate(v):
+            _donnees_echange(cid, w, f"{ou}[{i}]", niveau + 1, compte)
+    elif isinstance(v, str):
+        from app.services import photolab_moteur as PM
+        if len(v) > MAX_CHAINE_ECHANGE or PM._valeur_fichier(v):
+            raise ValueError(f"{cid} : {ou} : texte refusé (fichier, ou plus de {MAX_CHAINE_ECHANGE} caractères)")
+    elif not (v is None or isinstance(v, (bool, int, float))):
+        raise ValueError(f"{cid} : {ou} : valeur illisible")
+
+
+def _v_echange(cid, params):
+    """Exporter / importer des préréglages : export {kinds?, includeBuiltins?} ; import {data, kinds?} où `data` est ce
+    que l'export a rendu (format photocraft-presets, version 1), borné, sans aucune clé ni valeur de fichier."""
+    action = params.get("action")
+    if action not in ("export", "import"):
+        raise ValueError(f"{cid} : action : export ou import")
+    _cles(cid, params, ("action", "kinds", "includeBuiltins") if action == "export" else ("action", "kinds", "data"))
+    if "kinds" in params:
+        k = params["kinds"]
+        if not isinstance(k, list) or not k or any(x not in GENRES_ECHANGE for x in k) or len(set(k)) != len(k):
+            raise ValueError(f"{cid} : kinds : liste parmi {'|'.join(GENRES_ECHANGE)}")
+    if "includeBuiltins" in params and not isinstance(params["includeBuiltins"], bool):
+        raise ValueError(f"{cid} : includeBuiltins : booléen attendu")
+    if action == "export":
+        return
+    d = params.get("data")
+    if not isinstance(d, dict):
+        raise ValueError(f"{cid} : data : le contenu d'un fichier de préréglages exporté attendu")
+    _cles(cid, d, ("format", "version") + GENRES_ECHANGE)
+    if d.get("format") != "photocraft-presets" or d.get("version") != 1 or isinstance(d.get("version"), bool):
+        raise ValueError(f"{cid} : data : ce n'est pas un fichier de préréglages (format photocraft-presets, version 1)")
+    try:
+        taille = len(json.dumps(d, ensure_ascii=False).encode("utf-8"))
+    except (TypeError, ValueError):
+        raise ValueError(f"{cid} : data : illisible")
+    if taille > MAX_OCTETS_ECHANGE:
+        raise ValueError(f"{cid} : data : {MAX_OCTETS_ECHANGE // 1_000_000} Mo au plus")
+    for g in GENRES_ECHANGE:
+        liste = d.get(g, [])
+        if not isinstance(liste, list) or len(liste) > MAX_PRESETS_ECHANGE:
+            raise ValueError(f"{cid} : data.{g} : liste de {MAX_PRESETS_ECHANGE} préréglages au plus")
+        for i, item in enumerate(liste):
+            if not isinstance(item, dict):
+                raise ValueError(f"{cid} : data.{g}[{i}] : objet attendu")
+            _donnees_echange(cid, item, f"data.{g}[{i}]", 1, None)
+
+
+VERIFS_T158 = {"image.mode.duotone": _v_bichromie, "image.mode.colorTable": _v_table, "file.fileInfo": _v_infos,
+               "edit.presets.presetManager": _v_gestionnaire, "edit.presets.exportImportPresets": _v_echange}

@@ -76,10 +76,11 @@ export function changementSensible(ancien, nouveau, seuil = 0.25, grand = 0) {
 }
 
 // Interprétation d'un événement molette : Ctrl (ou pincement, que le navigateur rapporte avec ctrlKey) = zoom continu ;
-// Alt = ×1,05 par cran ; sinon panoramique, Maj = horizontal.
-export function gesteMolette(e) {
+// Alt = ×1,05 par cran ; sinon panoramique, Maj = horizontal. t159 : préférence « Zoom avec la molette » — la molette
+// seule zoome, Maj garde le panoramique horizontal.
+export function gesteMolette(e, zoomMolette = false) {
   const dx = e.deltaX || 0, dy = e.deltaY || 0;
-  if (e.ctrlKey) return { type: "zoom", facteur: Math.exp(-dy * 0.0015) };
+  if (e.ctrlKey || (zoomMolette && !e.shiftKey && !e.altKey)) return { type: "zoom", facteur: Math.exp(-dy * 0.0015) };
   if (e.altKey) return { type: "zoom", facteur: dy < 0 ? 1.05 : dy > 0 ? 1 / 1.05 : 1 };
   if (e.shiftKey) return { type: "pan", dx: -(dy || dx), dy: 0 };
   return { type: "pan", dx: -dx, dy: -dy };
@@ -161,16 +162,20 @@ export function initVue(PL) {
   // Damier de transparence : seules les tuiles de l'intersection document ∩ vue sont dessinées (borné par la vue).
   const T_DAMIER = 8;
   function damier(x, y, w, h, d, taille) {
-    const r = tuilesVisibles(v, d, taille, T_DAMIER);
-    if (r.i1 < r.i0) return;
+    // t159 : Préférences › Transparence — taille des cases (aucune = fond blanc) et couleurs (null = le thème)
+    const p = PL.prefs ? PL.prefs.damier() : { taille: T_DAMIER, c1: null, c2: null };
+    const t = p.taille;
     const xa = Math.max(x, 0), ya = Math.max(y, 0);
     const xb = Math.min(x + w, taille.w), yb = Math.min(y + h, taille.h);
-    ctx.fillStyle = jetons.c1; ctx.fillRect(xa, ya, xb - xa, yb - ya);
-    ctx.fillStyle = jetons.c2;
+    if (!t) { if (xb > xa && yb > ya) { ctx.fillStyle = "#ffffff"; ctx.fillRect(xa, ya, xb - xa, yb - ya); } return; }
+    const r = tuilesVisibles(v, d, taille, t);
+    if (r.i1 < r.i0) return;
+    ctx.fillStyle = p.c1 || jetons.c1; ctx.fillRect(xa, ya, xb - xa, yb - ya);
+    ctx.fillStyle = p.c2 || jetons.c2;
     for (let j = r.j0; j <= r.j1; j++) for (let i = r.i0; i <= r.i1; i++) {
       if (!((i + j) % 2)) continue;
-      const tx = Math.max(x + i * T_DAMIER, xa), ty = Math.max(y + j * T_DAMIER, ya);
-      const tx2 = Math.min(x + (i + 1) * T_DAMIER, xb), ty2 = Math.min(y + (j + 1) * T_DAMIER, yb);
+      const tx = Math.max(x + i * t, xa), ty = Math.max(y + j * t, ya);
+      const tx2 = Math.min(x + (i + 1) * t, xb), ty2 = Math.min(y + (j + 1) * t, yb);
       ctx.fillRect(tx, ty, tx2 - tx, ty2 - ty);
     }
   }
@@ -189,6 +194,12 @@ export function initVue(PL) {
     lireJetons();
     v.dw = d.w;                                 // t152 : largeur du document pour la vue en miroir (versEcran / versDoc)
     const x = v.ox, y = v.oy, W = d.w * v.z, H = d.h * v.z;
+    const bord = PL.prefs ? PL.prefs.v("interface", "canvasBorder") : "line";
+    if (bord === "dropShadow") {
+      // t159 : Préférences › Interface › Bordure : ombre portée sous le document
+      ctx.save(); ctx.shadowColor = "rgba(0,0,0,.6)"; ctx.shadowBlur = 12; ctx.shadowOffsetY = 3;
+      ctx.fillStyle = jetons.c1; ctx.fillRect(x, y, W, H); ctx.restore();
+    }
     damier(x, y, W, H, d, taille);
     if (vue.rendu && vue.rendu.image) {
       // t153 : vue d'une ou plusieurs couches (doc.render rend toujours le composite) — composée par mod-couches
@@ -202,9 +213,11 @@ export function initVue(PL) {
         ctx.restore();
       } else ctx.drawImage(image, x, y, W, H);
     }
-    ctx.strokeStyle = jetons.trait;
-    ctx.lineWidth = 1;
-    ctx.strokeRect(x - 0.5, y - 0.5, W + 1, H + 1);
+    if (bord === "line") {
+      ctx.strokeStyle = jetons.trait;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x - 0.5, y - 0.5, W + 1, H + 1);
+    }
     if (PL.surVue) PL.surVue.forEach((f) => f(v));
   };
   PL.surVue = [];          // crochets appelés après chaque redessin (sélection animée, navigateur…)
@@ -220,6 +233,9 @@ export function initVue(PL) {
   }
 
   function appliquer(nouveau, redemanderRendu = true) {
+    // t159 : Préférences › Outils › Défilement au-delà du document (coupé : le document ne quitte pas la vue)
+    const d = dims();
+    if (d && PL.prefs) nouveau = PL.prefs.bornerVue(nouveau, d, taillePx());
     v.z = nouveau.z; v.ox = nouveau.ox; v.oy = nouveau.oy;
     vue.dessiner(); statut();
     if (redemanderRendu) planifierRendu();
@@ -272,7 +288,7 @@ export function initVue(PL) {
   toile.addEventListener("wheel", (ev) => {
     if (!dims()) return;
     ev.preventDefault();
-    const g = gesteMolette(ev);
+    const g = gesteMolette(ev, !!(PL.prefs && PL.prefs.v("general", "zoomWithScrollWheel")));
     const p = vue.pointeur(ev);
     if (g.type === "zoom") appliquer(zoomAutour(v, v.z * g.facteur, p.x, p.y));
     else appliquer(panoramique(v, g.dx, g.dy), false);
@@ -304,7 +320,9 @@ export function initVue(PL) {
     } else if (ev.button === 0 && PL.etat.outil === "zoom") {
       // Outil Zoom : clic = palier suivant, Alt+clic = précédent (le glisser-zoom viendra avec les outils de C3).
       const p = vue.pointeur(ev);
-      appliquer(zoomAutour(v, palier(v.z, ev.altKey ? -1 : +1), p.x, p.y));
+      const z = zoomAutour(v, palier(v.z, ev.altKey ? -1 : +1), p.x, p.y);
+      // t159 : Préférences › Outils › Zoom : point cliqué au centre
+      appliquer(PL.prefs ? PL.prefs.centrerSur(z, p.x, p.y, taillePx()) : z);
     }
   });
   toile.addEventListener("pointermove", (ev) => {

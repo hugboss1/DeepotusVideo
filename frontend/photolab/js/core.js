@@ -40,6 +40,10 @@ import { initDocuments } from "./mod-documents.js";
 import { initMode } from "./mod-mode.js";
 import { initRaccourcis } from "./mod-raccourcis.js";
 import { initApropos } from "./mod-apropos.js";
+import { initPreferences } from "./mod-preferences.js";
+import { initClavier } from "./mod-clavier.js";
+import { initModificateurs } from "./mod-modificateurs.js";
+import { initGestionnaire } from "./mod-gestionnaire.js";
 
 const T = (cle, vars) => (window.dzT ? window.dzT(cle, vars) : cle);
 
@@ -109,6 +113,7 @@ PL.surMoteurRelance = () => PL.afficherAccueil(true);
 // outils avant menus : la barre d'options et PL.choisirOutil existent quand le premier menu s'ouvre. Le cycle avant
 // les panneaux et le fichier : ils s'abonnent à PL.surDoc qu'il crée.
 initApi(PL);
+initPreferences(PL);     // t159 : juste après l'API — les modules lisent PL.prefs.v au moment où ils servent
 initVue(PL);
 initOutils(PL);
 initMenus(PL);
@@ -151,6 +156,9 @@ initFormes(PL);          // t156 : outils de forme, plume / tracés, texte, Rech
 initTrace(PL);
 initTexte(PL);
 initRecherche(PL);
+initModificateurs(PL);   // t159 : Fenêtre › Touches de modification (capture des événements, coche de Fenêtre)
+initGestionnaire(PL);    // t159 : Édition › Préréglages (gestionnaire, export / import)
+initClavier(PL);         // t159 : Raccourcis clavier et Menus — son décorateur passe APRÈS tous les autres (raccourcis, masques)
 initTransformer(PL);     // t154 : après les gestes (PL.gestesPrioritaires, PL.dessinerTransformation) et les outils (barre d'options)
 
 // Onglets du groupe Calques | Historique | Navigateur, et rail d'icônes : calques/historique/navigateur montrent leur

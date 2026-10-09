@@ -67,6 +67,19 @@ export function traceParDefaut(choix) {
 function qualite(v) { return Math.max(1, Math.min(100, Math.round(Number(v) || 90))); }
 
 // Formulaire « Enregistrer une copie » -> corps de /copie.
+// t159 : Préférences › Exportation — l'exportation rapide suit le format, la qualité JPG et le lieu choisis
+// (« ask » : le dialogue Enregistrer une copie ; « library » : la Bibliothèque, PNG ou JPG seulement).
+export function exportRapidePrefs(prefs) {
+  const e = (prefs && prefs.export) || { quickExportFormat: "png", jpegQuality: 85, quickExportLocation: "download" };
+  if (e.quickExportLocation === "ask") return { dialogue: true };
+  const corps = { format: e.quickExportFormat };
+  if (e.quickExportFormat === "jpg") corps.quality = e.jpegQuality;
+  const biblio = e.quickExportLocation === "library" && FORMATS_BIBLIO.includes(e.quickExportFormat);
+  return { route: biblio ? "/copie" : "/enregistrer", corps: biblio ? { ...corps, destination: "bibliotheque" } : corps };
+}
+// t159 : Gestion des fichiers › extension en minuscules (décochée : « image.PNG » au téléchargement).
+export const nomTelecharge = (fichier, minuscules = true) => (minuscules ? fichier : String(fichier).replace(/\.([A-Za-z0-9]+)$/, (m, x) => "." + x.toUpperCase()));
+
 export function corpsCopie(form) {
   const f = FORMATS_EXPORT.find((x) => x.format === form.format);
   if (!f) throw erreurSaisie("photolab.export.erreur.format");
@@ -271,7 +284,8 @@ export function initDocuments(PL) {
   }
   function livrer(r, cleBiblio = "photolab.copie.biblio") {
     if (!r) return;
-    if (r.url) { telecharger(r.url, r.fichier); PL.signaler(T("photolab.export.fait", { nom: r.fichier })); }
+    const nom = r.fichier ? nomTelecharge(r.fichier, !PL.prefs || PL.prefs.v("fileHandling", "lowercaseExtension")) : r.fichier;
+    if (r.url) { telecharger(r.url, nom); PL.signaler(T("photolab.export.fait", { nom })); }
     else if (r.filename) PL.signaler(T(cleBiblio, { nom: r.filename }));
   }
 
@@ -342,8 +356,10 @@ export function initDocuments(PL) {
 
   async function exportRapide() {
     if (!PL.etat.doc) return;
+    const q = exportRapidePrefs(PL.prefs ? PL.prefs.p : null);
+    if (q.dialogue) return copie();
     let r;
-    try { r = await PL.file(() => PL.post("/enregistrer", { format: "png", nom: nomDocument(PL.etat.doc.name) })); } catch (e) { return; }
+    try { r = await PL.file(() => PL.post(q.route, { ...q.corps, nom: nomDocument(PL.etat.doc.name) })); } catch (e) { return; }
     livrer(r);
   }
 
@@ -374,7 +390,10 @@ export function initDocuments(PL) {
     if (!PL.etat.doc || !PL.choisirImage) return;
     PL.choisirImage(T("photolab.placer.choisir"), async (nom) => {
       if (!nom) return;
-      try { await PL.file(() => PL.post("/placer", { filename: nom })); } catch (e) { return; }
+      // t159 : Préférences › Paramètres (objet dynamique, redimensionner pendant le placement)
+      const p = PL.prefs ? PL.prefs.p.general : { alwaysCreateSmartObjectsWhenPlacing: true, resizeImageDuringPlace: true };
+      const corps = { filename: nom, objetDynamique: p.alwaysCreateSmartObjectsWhenPlacing, reduire: p.resizeImageDuringPlace };
+      try { await PL.file(() => PL.post("/placer", corps)); } catch (e) { return; }
       await PL.cycle();
       PL.signaler(T("photolab.placer.fait", { nom }));
       // comme la référence : l'objet placé arrive sous les poignées de la transformation manuelle

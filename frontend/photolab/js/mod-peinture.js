@@ -247,11 +247,19 @@ export function initPeinture(PL) {
     PL.apercu = { type: "trait", points, taille: o.taille || 1, couleur: ["brush", "pencil", "mixerBrush"].includes(id) ? PL.etat.couleurs.fg : null };
     PL.dessinerFourmis();
   };
+  // t159 : Préférences › Curseurs — standard / précis (aucun cercle), pointe normale (zone à plus de la moitié de
+  // l'opacité : la dureté la règle) ou pointe en taille réelle, réticule au centre.
+  const durete = (o) => (Number.isFinite(o.durete) ? o.durete / 100 : 1);
+  const formeCurseur = (id, enTrait = false) => (PL.prefs ? PL.prefs.curseurPeinture(durete(opts(id)), enTrait) : { css: "crosshair", cercle: 1, reticule: false });
+  PL.curseurPeinture = (id) => (OUTILS_PEINTURE[id] && OUTILS_PEINTURE[id].sorte === "trait" ? formeCurseur(id).css : null);
   const pointe = (id, p) => {
     const o = opts(id);
     // t152 : Affichage › Afficher › Aperçu du pinceau (et Extras)
     const montre = !PL.affichage || PL.affichage.voir("apercuPinceau");
-    PL.apercu = o.taille && montre ? { type: "pointe", x: p.x, y: p.y, taille: o.taille } : null;
+    const f = formeCurseur(id);
+    PL.apercu = o.taille && montre && f.cercle ? { type: "pointe", x: p.x, y: p.y, taille: o.taille * f.cercle, reticule: f.reticule } : null;
+    // sans cercle (aperçu coupé), le curseur du système reste visible
+    if (f.css === "none" && !PL.apercu) PL.$("#toile").style.cursor = "crosshair";
     PL.dessinerFourmis();
   };
 

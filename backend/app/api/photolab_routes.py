@@ -25,6 +25,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 
 from app.services import photolab_moteur as PM
 from app.services import photolab_espaces as ESP
+from app.services import photolab_preferences as PREF
 from app.services import photolab_nuancier as NUA
 
 router = APIRouter()
@@ -565,11 +566,18 @@ async def revenir_route():
 
 @router.post("/placer")
 async def placer_route(body: dict):
-    """Placer incorporé : {"filename"} d'une image de la Bibliothèque -> copiée sous entrees/, collée au centre du
-    document actif en objet dynamique (réduite si elle dépasse). -> {"layer", "bounds"}."""
+    """Placer incorporé : {"filename", "objetDynamique"?, "reduire"?} d'une image de la Bibliothèque -> copiée sous
+    entrees/, collée au centre du document actif en objet dynamique (réduite si elle dépasse). t159 : les deux
+    booléens viennent des préférences (Paramètres), vrais par défaut. -> {"layer", "bounds"}."""
     nom = (body or {}).get("filename")
     if not isinstance(nom, str) or not _NOM_IMAGE.fullmatch(nom):
         raise HTTPException(400, f"nom d'image refusé : {nom!r}")
+    inconnues = set(body) - {"filename", "objetDynamique", "reduire"}
+    if inconnues:
+        raise HTTPException(400, f"paramètre inconnu : {sorted(inconnues)[0]}")
+    options = {k: body.get(k, True) for k in ("objetDynamique", "reduire")}
+    if not all(isinstance(v, bool) for v in options.values()):
+        raise HTTPException(400, "objetDynamique et reduire : booléens attendus")
     src = _image_biblio(nom)
     if src is None:
         raise HTTPException(404, f"image introuvable dans la Bibliothèque : {nom}")
@@ -578,7 +586,8 @@ async def placer_route(body: dict):
     chemin = _relatif(f"entrees/{h}-{_sur(re.sub(r'[^A-Za-z0-9._-]', '-', souche))}{re.sub(r'[^A-Za-z0-9.]', '-', ext)}")
     await asyncio.to_thread(shutil.copyfile, src, PM.dossier_travail() / chemin)
     calque = unicodedata.normalize("NFC", souche)[:120] or "image"
-    return _json(*await _pool(lambda s: functools.partial(PM.placer, s), chemin, calque))
+    return _json(*await _pool(lambda s: functools.partial(PM.placer, s), chemin, calque,
+                              options["objetDynamique"], options["reduire"]))
 
 
 @router.post("/bibliotheque")
@@ -772,6 +781,29 @@ async def espaces_ecrire(body: dict):
         return await asyncio.to_thread(ESP.ecrire, body)
     except ValueError as e:
         raise HTTPException(400, str(e))
+
+
+# ── t159 : préférences de l'écran, raccourcis, menus (aucun appel au moteur : prefs.* reste refusé) ─────────────────
+@router.get("/preferences")
+async def preferences():
+    """{"etat", "enregistre"} : l'état enregistré, ou le défaut (`enregistre: false` : l'écran peut reprendre ce que le
+    navigateur gardait)."""
+    return await asyncio.to_thread(PREF.lire)
+
+
+@router.put("/preferences")
+async def preferences_ecrire(body: dict):
+    """Remplace l'état (liste blanche stricte : photolab_preferences.valider) ; 400 qui dit pourquoi sinon."""
+    try:
+        return await asyncio.to_thread(PREF.ecrire, body)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.post("/preferences/reinitialiser")
+async def preferences_reinitialiser():
+    """Retour aux défauts (préférences, raccourcis, menus), enregistré."""
+    return await asyncio.to_thread(PREF.reinitialiser)
 
 
 # ── t153 : nuancier (données Deepotus ; le moteur n'a aucune commande de nuancier) ─────────────────────────────────
