@@ -17,6 +17,69 @@ export const NOMS_INTEGRES = {
   "Black, White": "photolab.presets.noir_blanc", "Checkerboard": "photolab.presets.damier",
   "Diagonal Lines": "photolab.presets.diagonales", "Dots": "photolab.presets.points", "Grid": "photolab.presets.grille",
   "Bricks": "photolab.presets.briques", "Weave": "photolab.presets.tissage", "Paper Noise": "photolab.presets.papier",
+  // t156 : formes personnalisées et styles de calque fournis par le moteur
+  "Symbols": "photolab.presets.f_symbols",
+  "Heart": "photolab.presets.f_heart",
+  "Star": "photolab.presets.f_star",
+  "Six-Point Star": "photolab.presets.f_six_point_star",
+  "Burst": "photolab.presets.f_burst",
+  "Check Mark": "photolab.presets.f_check_mark",
+  "Cross": "photolab.presets.f_cross",
+  "Plus": "photolab.presets.f_plus",
+  "Ring": "photolab.presets.f_ring",
+  "Lightning": "photolab.presets.f_lightning",
+  "Diamond": "photolab.presets.f_diamond",
+  "Arrows": "photolab.presets.f_arrows",
+  "Arrow Right": "photolab.presets.f_arrow_right",
+  "Arrow Left": "photolab.presets.f_arrow_left",
+  "Arrow Up": "photolab.presets.f_arrow_up",
+  "Arrow Down": "photolab.presets.f_arrow_down",
+  "Double Arrow": "photolab.presets.f_double_arrow",
+  "Chevron": "photolab.presets.f_chevron",
+  "Curved Arrow": "photolab.presets.f_curved_arrow",
+  "Speech Bubbles": "photolab.presets.f_speech_bubbles",
+  "Speech Bubble": "photolab.presets.f_speech_bubble",
+  "Round Bubble": "photolab.presets.f_round_bubble",
+  "Thought Bubble": "photolab.presets.f_thought_bubble",
+  "Shout Bubble": "photolab.presets.f_shout_bubble",
+  "Nature": "photolab.presets.f_nature",
+  "Leaf": "photolab.presets.f_leaf",
+  "Sun": "photolab.presets.f_sun",
+  "Crescent Moon": "photolab.presets.f_crescent_moon",
+  "Cloud": "photolab.presets.f_cloud",
+  "Raindrop": "photolab.presets.f_raindrop",
+  "Flower": "photolab.presets.f_flower",
+  "Tree": "photolab.presets.f_tree",
+  "Animals": "photolab.presets.f_animals",
+  "Fish": "photolab.presets.f_fish",
+  "Cat": "photolab.presets.f_cat",
+  "Bird": "photolab.presets.f_bird",
+  "Butterfly": "photolab.presets.f_butterfly",
+  "Paw Print": "photolab.presets.f_paw_print",
+  "Rabbit": "photolab.presets.f_rabbit",
+  "Default Style (None)": "photolab.presets.s_default_style_none",
+  "Drop Shadow": "photolab.presets.s_drop_shadow",
+  "Soft Shadow": "photolab.presets.s_soft_shadow",
+  "Black Stroke": "photolab.presets.s_black_stroke",
+  "White Stroke": "photolab.presets.s_white_stroke",
+  "Inner Shadow": "photolab.presets.s_inner_shadow",
+  "Outer Glow": "photolab.presets.s_outer_glow",
+  "Emboss": "photolab.presets.s_emboss",
+  "Text Effects": "photolab.presets.s_text_effects",
+  "Neon Blue": "photolab.presets.s_neon_blue",
+  "Neon Pink": "photolab.presets.s_neon_pink",
+  "Chrome": "photolab.presets.s_chrome",
+  "Gold": "photolab.presets.s_gold",
+  "Comic Outline": "photolab.presets.s_comic_outline",
+  "Letterpress": "photolab.presets.s_letterpress",
+  "Hollow": "photolab.presets.s_hollow",
+  "Buttons": "photolab.presets.s_buttons",
+  "Glass": "photolab.presets.s_glass",
+  "Gel Green": "photolab.presets.s_gel_green",
+  "Pressed": "photolab.presets.s_pressed",
+  "Pill Red": "photolab.presets.s_pill_red",
+  "Flat Shadow": "photolab.presets.s_flat_shadow",
+  "Satin Plum": "photolab.presets.s_satin_plum",
 };
 // « Blue 03 » -> clé de « Bleu » + « 03 ».
 export const PREFIXES_INTEGRES = { Blue: "photolab.presets.bleu", Purple: "photolab.presets.violet", Pink: "photolab.presets.rose",
@@ -34,13 +97,16 @@ export function nomAffiche(nom, t) {
 // dégradé, id du motif).
 export function groupesDe(genre, r) {
   const gs = (r && Array.isArray(r.groups)) ? r.groups : [];
-  return gs.map((g) => ({ nom: g.name, items: (genre === "degrades" ? g.presets : g.patterns || []).map((p) =>
+  const liste = (g) => (genre === "degrades" || genre === "styles" ? g.presets : genre === "formes" ? g.shapes : g.patterns) || [];
+  return gs.map((g) => ({ nom: g.name, items: liste(g).map((p) =>
     genre === "degrades" ? { cle: p.name, nom: p.name, stops: p.stops, transparency: p.transparency }
-      : { cle: p.id, nom: p.name, largeur: p.width, hauteur: p.height }) }));
+      : genre === "motifs" ? { cle: p.id, nom: p.name, largeur: p.width, hauteur: p.height }
+        : { cle: p.name, nom: p.name, groupe: g.name }) }));
 }
 export function courantDe(genre, r) {
   const c = r && r.current;
   if (!c) return null;
+  if (genre === "formes" || genre === "styles") return null;           // pas de « courant » au moteur : l'écran le garde
   return genre === "degrades" ? c.name : (typeof c === "object" ? c.id : c);
 }
 export function filtrerGroupes(groupes, texte, t) {
@@ -88,6 +154,12 @@ export function cssDegrade(stops, transparency, fg = "#000000", bg = "#ffffff") 
 export const COMMANDES = {
   degrades: { lister: "gradient.presets.list", choisir: "gradient.presets.select", appliquer: "gradient.presets.apply",
     nouveau: "gradient.presets.new", editer: "gradient.presets.edit", champ: "preset" },
+  // t156 : Formes (formes personnalisées) et Styles (styles de calque). Une forme se choisit à l'écran (l'outil Forme
+  // personnalisée la place) ; un style s'applique au clic aux calques sélectionnés (Maj = ajouter aux effets).
+  formes: { lister: "shape.presets.list", choisir: null, appliquer: "shape.presets.place", nouveau: "shape.presets.new",
+    editer: "shape.presets.edit", champ: "preset" },
+  styles: { lister: "style.presets.list", choisir: null, appliquer: "style.presets.apply", nouveau: "style.presets.new",
+    editer: "style.presets.edit", champ: "preset" },
   motifs: { lister: "pattern.presets.list", choisir: "pattern.presets.select", appliquer: "pattern.presets.apply",
     nouveau: "pattern.presets.new", editer: "pattern.presets.edit", champ: "pattern" },
 };
@@ -102,10 +174,29 @@ export function paramsEdition(action, item, groupe, nom) {
   return null;
 }
 
+// Écran de chaque genre : corps, textes du champ de recherche et du bouton « nouveau », document requis pour « nouveau ».
+export const ECRANS = {
+  degrades: { corps: "#corpsDegrades", rechercher: "photolab.presets.rechercher_degrades", nouveau: "photolab.presets.nouveau_degrade",
+    defaut: "photolab.presets.perso", doc: false },
+  motifs: { corps: "#corpsMotifs", rechercher: "photolab.presets.rechercher_motifs", nouveau: "photolab.presets.definir_motif",
+    defaut: "photolab.presets.motif", doc: true },
+  formes: { corps: "#corpsFormes", rechercher: "photolab.presets.rechercher_formes", nouveau: "photolab.presets.definir_forme",
+    defaut: "photolab.presets.forme", doc: true },
+  styles: { corps: "#corpsStyles", rechercher: "photolab.presets.rechercher_styles", nouveau: "photolab.presets.nouveau_style",
+    defaut: "photolab.presets.style", doc: true },
+};
+// Vignette d'un préréglage : dégradé en CSS ; motif, forme et style rendus par le pont (document temporaire).
+export function urlVignette(genre, item) {
+  if (genre === "motifs") return "/api/photolab/motifs/" + item.cle + ".png";
+  const g = genre === "formes" ? "forme" : genre === "styles" ? "style" : null;
+  if (!g) return null;
+  return "/api/photolab/presets/" + g + "/vignette.png?cle=" + encodeURIComponent(item.cle) + (item.groupe ? "&groupe=" + encodeURIComponent(item.groupe) : "");
+}
+
 export function initPresets(PL, genre) {
   const T = (cle, vars) => (window.dzT ? window.dzT(cle, vars) : cle);
-  const C = COMMANDES[genre];
-  const corps = PL.$(genre === "degrades" ? "#corpsDegrades" : "#corpsMotifs");
+  const C = COMMANDES[genre], E = ECRANS[genre];
+  const corps = PL.$(E.corps);
   if (!corps) return;
   let groupes = [], courant = null, sel = null;          // sel = {groupe, item?}
   const replies = new Set();
@@ -115,7 +206,7 @@ export function initPresets(PL, genre) {
   const barre = document.createElement("div"); barre.className = "pr-courant";
   const recherche = document.createElement("input");
   recherche.type = "search"; recherche.className = "pr-recherche";
-  recherche.placeholder = T(genre === "degrades" ? "photolab.presets.rechercher_degrades" : "photolab.presets.rechercher_motifs");
+  recherche.placeholder = T(E.rechercher);
   recherche.setAttribute("aria-label", recherche.placeholder);
   const liste = document.createElement("div"); liste.className = "pr-liste";
   const pied = document.createElement("div"); pied.className = "pr-pied";
@@ -127,16 +218,12 @@ export function initPresets(PL, genre) {
     const nom = await demanderNom(PL, T("photolab.presets.nouveau_groupe"));
     if (nom) await commande(C.editer, paramsEdition("nouveauGroupe", null, null, nom));
   });
-  const bNouveau = bouton("plus", genre === "degrades" ? "photolab.presets.nouveau_degrade" : "photolab.presets.definir_motif", async () => {
-    if (genre === "degrades") {
-      const nom = await demanderNom(PL, T("photolab.presets.nouveau_degrade"), T("photolab.presets.perso"));
-      if (nom) await commande(C.nouveau, { name: nom, ...(sel && sel.groupe ? { group: sel.groupe } : {}) });
-    } else {
-      // Définir un motif : depuis la sélection (sinon le document entier) du document ouvert.
-      if (!PL.etat.doc) return;
-      const nom = await demanderNom(PL, T("photolab.presets.definir_motif"), T("photolab.presets.motif"));
-      if (nom) await commande(C.nouveau, { name: nom, ...(sel && sel.groupe ? { group: sel.groupe } : {}) });
-    }
+  // Nouveau : dégradé = le dégradé courant ; motif = la sélection (sinon le document) ; forme = le tracé de travail, la
+  // forme active ou le masque vectoriel ; style = les effets du calque actif.
+  const bNouveau = bouton("plus", E.nouveau, async () => {
+    if (E.doc && !PL.etat.doc) return;
+    const nom = await demanderNom(PL, T(E.nouveau), T(E.defaut));
+    if (nom) await commande(C.nouveau, { name: nom, ...(sel && sel.groupe ? { group: sel.groupe } : {}) });
   });
   const bSuppr = bouton("trash-2", "photolab.presets.supprimer", async () => {
     if (!sel) return;
@@ -166,7 +253,7 @@ export function initPresets(PL, genre) {
   function vignette(item) {
     const v = document.createElement("span"); v.className = "pr-vignette";
     if (genre === "degrades") v.style.background = cssDegrade(item.stops, item.transparency, fg, bg) + ", var(--damier, #888)";
-    else { const im = document.createElement("img"); im.alt = ""; im.loading = "lazy"; im.src = "/api/photolab/motifs/" + item.cle + ".png"; v.appendChild(im); }
+    else { const im = document.createElement("img"); im.alt = ""; im.loading = "lazy"; im.src = urlVignette(genre, item); v.appendChild(im); }
     return v;
   }
   async function menuContextuel(ev, item, groupe) {
@@ -208,20 +295,31 @@ export function initPresets(PL, genre) {
         b.setAttribute("aria-label", b.title);
         if (na.brut) b.setAttribute("data-dz-brut", "");
         b.appendChild(vignette(p));
-        b.addEventListener("click", () => { sel = { groupe: g.nom, item: p }; commande(C.choisir, { [C.champ]: p.cle }); });
-        // Double-clic : un calque de remplissage dans le document ouvert (historique : New Gradient / Pattern Fill Layer).
-        b.addEventListener("dblclick", () => { if (PL.etat.doc) PL.executer(C.appliquer, { [C.champ]: p.cle }); });
+        b.addEventListener("click", (ev) => {
+          sel = { groupe: g.nom, item: p };
+          if (genre === "formes") { courant = p.cle; PL.formePersonnalisee = { preset: p.cle, group: g.nom }; dessiner();
+            if (PL.choisirOutil && PL.etat.outil !== "customShape") PL.choisirOutil("customShape"); return; }
+          if (genre === "styles") { if (PL.etat.doc) PL.executer(C.appliquer, { preset: p.cle, group: g.nom, ...(ev.shiftKey ? { add: true } : {}) }); dessiner(); return; }
+          commande(C.choisir, { [C.champ]: p.cle });
+        });
+        // Double-clic : un calque de remplissage (dégradé, motif) ou la forme placée au centre (formes).
+        b.addEventListener("dblclick", () => {
+          if (!PL.etat.doc || genre === "styles") return;
+          if (genre === "formes") PL.executer(C.appliquer, { preset: p.cle, group: g.nom, fill: fg });
+          else PL.executer(C.appliquer, { [C.champ]: p.cle });
+        });
         b.addEventListener("contextmenu", (ev) => menuContextuel(ev, p, g.nom));
         grille.appendChild(b);
       }
       liste.appendChild(grille);
     }
     bSuppr.disabled = !sel;
-    if (genre === "motifs") bNouveau.disabled = !PL.etat.doc;
+    if (E.doc) bNouveau.disabled = !PL.etat.doc;
   }
   PL.surCouleurs = PL.surCouleurs || [];
   PL.surCouleurs.push((c) => { if (c && c.fg) { fg = c.fg; bg = c.bg || bg; if (genre === "degrades") dessiner(); } });
-  if (PL.surDoc) PL.surDoc.push(() => { if (genre === "motifs") bNouveau.disabled = !PL.etat.doc; });
+  if (PL.surDoc) PL.surDoc.push(() => { if (E.doc) bNouveau.disabled = !PL.etat.doc; });
   PL.presets = PL.presets || {};
+  PL.nomPreset = (n) => nomAffiche(n, T).texte;            // t156 : nom affiché d'une forme (barre de l'outil Forme personnalisée)
   PL.presets[genre] = { relire, groupes: () => groupes, courant: () => courant };
 }

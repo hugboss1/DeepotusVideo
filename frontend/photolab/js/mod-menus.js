@@ -29,6 +29,16 @@ export const TRAITES_PAR_ECRAN = new Set(["file.new", "file.open", "file.close",
   // t153 : panneaux Nuancier, Dégradés, Motifs, Compositions, Couches, Histogramme, Infos (mod-espaces : PANNEAUX)
   "window.panel.swatches", "window.panel.gradients", "window.panel.patterns", "window.panel.layerComps", "window.panel.channels",
   "window.panel.histogram", "window.panel.info",
+  // t154 : transformation manuelle et ses sous-modes (mod-transformer : MODES) ; la validation passe par edit.transform
+  "edit.freeTransform", "edit.transform.scale", "edit.transform.rotate", "edit.transform.skew", "edit.transform.distort",
+  "edit.transform.perspective",
+  // t156 : texte, formes, plume, tracés (mod-texte : APERCUS, LANGUES, PANNEAUX_TEXTE ; mod-espaces : PANNEAUX ; mod-recherche)
+  "window.panel.character", "window.panel.paragraph", "window.panel.glyphs", "window.panel.characterStyles", "window.panel.paragraphStyles",
+  "window.panel.paths", "window.panel.shapes", "window.panel.styles",
+  "type.panels.character", "type.panels.paragraph", "type.panels.glyphs", "type.panels.characterStyles", "type.panels.paragraphStyles",
+  "type.fontPreviewSize.small", "type.fontPreviewSize.medium", "type.fontPreviewSize.large", "type.fontPreviewSize.extraLarge",
+  "type.fontPreviewSize.huge", "type.languageOptions.defaultFeatures", "type.languageOptions.eastAsianFeatures",
+  "type.languageOptions.middleEasternFeatures", "type.languageOptions.middleEasternAndSouthAsianComposer", "edit.search",
   // t152 : menu Affichage (mod-affichage : IDS_AFFICHAGE — banc affichage 7.4) ; les commandes moteur des repères
   // (Nouveau repère…, Effacer les repères…) restent au moteur
   "view.zoomIn", "view.zoomOut", "view.fitOnScreen", "view.fitLayersOnScreen", "view.actualPixels", "view.twoHundredPercent",
@@ -40,7 +50,10 @@ export const TRAITES_PAR_ECRAN = new Set(["file.new", "file.open", "file.close",
 // … dont celles qui n'ont de sens qu'avec un document ouvert (grisées sur l'écran d'accueil).
 export const NECESSITE_DOC = new Set(["file.close", "file.save", "file.saveAs", "file.export.exportAs", "pl.envoyer", "pl.natif.ouvrir",
   // t152 : les zooms d'Affichage
-  "view.zoomIn", "view.zoomOut", "view.fitOnScreen", "view.fitLayersOnScreen", "view.actualPixels", "view.twoHundredPercent", "view.printSize"]);
+  "view.zoomIn", "view.zoomOut", "view.fitOnScreen", "view.fitLayersOnScreen", "view.actualPixels", "view.twoHundredPercent", "view.printSize",
+  // t154 : la transformation manuelle vise le calque actif
+  "edit.freeTransform", "edit.transform.scale", "edit.transform.rotate", "edit.transform.skew", "edit.transform.distort",
+  "edit.transform.perspective"]);
 
 // Le registre arrive en tableau ; on tolère {commands:[…]}.
 export function indexRegistre(registre) {
@@ -270,6 +283,7 @@ export function initMenus(PL) {
     menus = construireMenus(catalogue, registre, REFUSES, lang(), T);
     if (PL.espaces) menus = PL.espaces.decorer(menus);      // t151 : sous-menu Espace de travail, coches de Fenêtre
     if (PL.affichage) menus = PL.affichage.decorer(menus);  // t152 : menu Affichage (états et coches)
+    if (PL.decorateursMenus) for (const f of PL.decorateursMenus) menus = f(menus);   // t156 : menu Texte
     barre.textContent = "";
     menus.forEach((m, i) => {
       const b = document.createElement("button");

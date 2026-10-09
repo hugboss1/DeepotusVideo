@@ -249,6 +249,16 @@ def structurer(commandes: list[dict]) -> dict[str, dict]:
 # Clés qui désignent un fichier ou du contenu de fichier (comparées en minuscules) : refusées pour un champ texte ou
 # opaque, à tout niveau. `data` : colorLookup.data = texte d'un fichier LUT en ligne, brush/gradient = base64.
 CLES_CHEMIN = {"path", "file", "mappath", "dir", "directory", "folder", "input", "output", "droplet", "script", "data"}
+CHAMP_ALIGN = {"cle": "align", "type": "enum", "optionnel": True,
+               "valeurs": ["left", "center", "right", "justify", "justifyCenter", "justifyRight", "justifyAll"]}
+# t156 : pour ces commandes, `path` est un TRACÉ VECTORIEL (objet {subpaths, fillRule, inverted}) ou le tracé de travail
+# (« work »), jamais un fichier. L'exemption ne vaut que pour cette clé, un objet (ou « work ») ; son contenu passe quand
+# même le parcours en profondeur (aucune chaîne « fichier », aucune clé de fichier imbriquée).
+COMMANDES_TRACE = {"path.set", "shape.create", "shape.edit", "shape.presets.new"}
+
+
+def _trace_vectoriel(cid, cle, v):
+    return cid in COMMANDES_TRACE and cle == "path" and (isinstance(v, dict) or v == "work")
 MAX_CHAINE_STR = 256
 MAX_CHAINE_OPAQUE = 64
 MAX_PROFONDEUR = 6
@@ -372,12 +382,12 @@ def _valeur(cid, cle, champ, v, fichier):
             raise ValueError(f"{cid} : {cle} : couleur attendue (\"#rrggbb\"{' ou [r,g,b,a] en 0..255' if rgba else ''}), "
                              f"reçu {v!r}")
     elif t == "str":
-        if cle.lower() in CLES_CHEMIN:
+        if cle.lower() in CLES_CHEMIN and not _trace_vectoriel(cid, cle, v):
             raise ValueError(f"{cid} : {cle} désigne un fichier — passe par les routes du Photolab")
         if not isinstance(v, str) or len(v) > MAX_CHAINE_STR:
             raise ValueError(f"{cid} : {cle} : chaîne de {MAX_CHAINE_STR} caractères au plus attendue")
     else:                                                     # opaques : json, struct, intArray, union, ?
-        if cle.lower() in CLES_CHEMIN:
+        if cle.lower() in CLES_CHEMIN and not _trace_vectoriel(cid, cle, v):
             raise ValueError(f"{cid} : {cle} désigne un fichier — passe par les routes du Photolab")
         _profond(cid, cle, v, fichier, compte=[0, MAX_FEUILLES_POINTS if cle == "points" else MAX_FEUILLES])
         return
@@ -419,6 +429,16 @@ def verifier(registre: dict, cid, params, kind=None, etat=None) -> dict:
         # Le registre ne décrit que `reds` ; les huit autres gammes sont dans sa note (relevé A4 : le moteur les accepte).
         for g in GAMMES_SELECTIVE:
             champs.setdefault(g, {"cle": g, "type": "json", "optionnel": True})
+    if cid == "type.create" and "type.setStyle" in registre:
+        # t156 : le registre résume ses clés de caractère et de paragraphe (« …character keys ») ; ce sont celles de
+        # type.setStyle (même modèle, relevé sur le vrai moteur), sans `layer` ni `range`.
+        for c in registre["type.setStyle"]["champs"]:
+            if c["cle"] not in ("layer", "range"):
+                champs.setdefault(c["cle"], c)
+    if cid in ("type.setStyle", "type.create"):
+        # t156 : « align » n'est pas décrit pour setStyle et son énumération est tronquée (« justify… ») pour create :
+        # la liste complète du registre de setStyle (texte de ses paramètres), relevée sur le vrai moteur.
+        champs["align"] = CHAMP_ALIGN
     if cid == "tools.setBrush":
         # Le registre résume ses champs en « …BrushSettings fields » : seule la forme de la pointe est admise (t155).
         for c in CHAMPS_POINTE:

@@ -25,10 +25,11 @@ export const EMPLACEMENTS = [
   [{ id: "blur", lettre: "", icone: "droplet", p2: true }, { id: "sharpen", lettre: "", icone: "triangle", p2: true }, { id: "smudge", lettre: "", icone: "pointer", p2: true }],
   [{ id: "dodge", lettre: "O", icone: "sun", p2: true }, { id: "burn", lettre: "O", icone: "flame", p2: true }, { id: "sponge", lettre: "O", icone: "cloud", p2: true }],
   // section 3 : tracés, texte, formes
-  [{ id: "pen", lettre: "P", icone: "pen-tool", p2: false }],
-  [{ id: "type", lettre: "T", icone: "type", p2: false }],
-  [{ id: "pathSelection", lettre: "A", icone: "mouse-pointer-2", p2: false }],
-  [{ id: "rectangle", lettre: "U", icone: "rectangle-horizontal", p2: false }, { id: "ellipseShape", lettre: "U", icone: "circle", p2: false }, { id: "triangle", lettre: "U", icone: "triangle", p2: false }, { id: "polygon", lettre: "U", icone: "pentagon", p2: false }, { id: "line", lettre: "U", icone: "minus", p2: false }, { id: "customShape", lettre: "U", icone: "diamond", p2: false }],
+  // t156 : plume, texte, sélection de tracé et formes (mod-trace, mod-texte, mod-formes)
+  [{ id: "pen", lettre: "P", icone: "pen-tool", p2: true }],
+  [{ id: "type", lettre: "T", icone: "type", p2: true }],
+  [{ id: "pathSelection", lettre: "A", icone: "mouse-pointer-2", p2: true }],
+  [{ id: "rectangle", lettre: "U", icone: "rectangle-horizontal", p2: true }, { id: "ellipseShape", lettre: "U", icone: "circle", p2: true }, { id: "triangle", lettre: "U", icone: "triangle", p2: true }, { id: "polygon", lettre: "U", icone: "pentagon", p2: true }, { id: "line", lettre: "U", icone: "minus", p2: true }, { id: "customShape", lettre: "U", icone: "diamond", p2: true }],
   // section 4 : navigation
   [{ id: "hand", lettre: "H", icone: "hand", p2: true }],
   [{ id: "zoom", lettre: "Z", icone: "search", p2: true }],
@@ -303,6 +304,8 @@ export function initOutils(PL) {
     const nom = document.createElement("span");
     nom.className = "opt-nom"; nom.textContent = T(cleNom(PL.etat.outil));
     barre.appendChild(nom);
+    // t156 : un module qui a sa propre barre (formes, texte, plume) la déclare dans PL.barresOutils.
+    if (PL.barresOutils && PL.barresOutils[PL.etat.outil]) { PL.barresOutils[PL.etat.outil](barre); return; }
     const peint = optionsPeinture(PL.etat.outil);
     if (peint.length && PL.optionsPeintureDe) {
       const store = PL.optionsPeintureDe(PL.etat.outil);
@@ -312,6 +315,8 @@ export function initOutils(PL) {
     for (const o of optionsPour(PL.etat.outil)) barre.appendChild(champ(o, PL.etat.options));
   }
   PL.reconstruireOptions = construireOptions;
+  // t156 : outils actifs pour Édition › Rechercher (nom affiché).
+  PL.outilsCherchables = () => EMPLACEMENTS.flat().filter((o) => o.p2).map((o) => ({ id: o.id, nom: T(cleNom(o.id)) }));
   function champ(o, store) {
     // M3 : <label> seulement pour un contrôle unique (case, nombre, liste) ; un groupe de boutons n'est pas « étiqueté » par un clic.
     const w = document.createElement(o.type === "case" || o.type === "nombre" || o.type === "liste" ? "label" : "div");

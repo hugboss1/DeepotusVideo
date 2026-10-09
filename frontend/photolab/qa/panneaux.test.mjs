@@ -150,8 +150,9 @@ check("11.1 deux onglets dans #grpProprietes : Propriétés puis Ajustements",
   && grp.indexOf('data-onglet-pr="proprietes"') < grp.indexOf('data-onglet-pr="ajustements"'), grp);
 check("11.2 deux corps : Propriétés visible, Ajustements caché", /id="corpsProprietes" data-vue-pr="proprietes">/.test(grp)
   && /id="corpsAjustements" data-vue-pr="ajustements" hidden>/.test(grp));
-check("11.3 cinq sections (t155 : + #grpPinceaux ; t153 : + #grpInfos, repliés) et sept boutons de rail (+ pinceaux, infos)", (html.match(/<section\b/g) || []).length === 5
-  && ((html.match(/id="rail"[\s\S]*?<\/nav>/) || [""])[0].match(/<button\b/g) || []).length === 7
+check("11.3 six sections (t155 : + #grpPinceaux ; t153 : + #grpInfos ; t156 : + #grpTexte, repliés) et huit boutons de rail (+ pinceaux, infos, texte)", (html.match(/<section\b/g) || []).length === 6
+  && ((html.match(/id="rail"[\s\S]*?<\/nav>/) || [""])[0].match(/<button\b/g) || []).length === 8
+  && /<section id="grpTexte" class="groupe" hidden>/.test(html) && /data-panneau="texte"/.test(html)
   && /<section id="grpPinceaux" class="groupe" hidden>/.test(html) && /data-panneau="pinceaux"/.test(html)
   && /<section id="grpInfos" class="groupe" hidden>/.test(html) && /data-panneau="infos"/.test(html));
 const regle = (css.match(/#grpProprietes\s*\{[^}]*\}/) || [""])[0];
