@@ -85,10 +85,10 @@ bientot = sorted({o["id"] for o in sortie if o["sans"]})
 # SANS_EDITEUR (mod-champs.js) : Personnalisé (kernel int[25] requis, non éditable). t157 : Convertir pour les filtres
 # dynamiques en est sorti (le panneau Calques les montre) et la Galerie a son éditeur (aiguillage « galerie »).
 # edit.puppetWarp (D9) est hors du périmètre de ce banc (préfixe edit.).
-check("2.3 « bientôt » du périmètre = D9 + SANS_EDITEUR + Déplacement + Correspondance + Flamme (8)", bientot == sorted([
-    "filter.adaptiveWideAngle", "filter.cameraRaw", "filter.distort.displace",
-    "filter.liquify", "filter.other.custom", "filter.render.flame", "filter.vanishingPoint",
-    "image.adjustments.matchColor"]), bientot)
+# t158 : Déplacement, Correspondance de la couleur et Flamme en sont sortis (CHOIX_ECRAN : l'écran fournit l'autre
+# document ou le tracé).
+check("2.3 « bientôt » du périmètre = D9 + SANS_EDITEUR (5)", bientot == sorted([
+    "filter.adaptiveWideAngle", "filter.cameraRaw", "filter.liquify", "filter.other.custom", "filter.vanishingPoint"]), bientot)
 check("2.3b Galerie : aiguillée vers son éditeur (t157)", {o["aig"] for o in sortie if o["id"] == "filter.filterGallery"} == {"galerie"})
 ts = [o for o in sortie if o["id"] == "image.adjustments.hueSaturation" and o["scen"] == "grand+colorize"]
 check("2.4 colorisation : hue 1e9 -> 360, saturation -> 100", ts and ts[0]["params"].get("hue") == 360 and ts[0]["params"].get("saturation") == 100,

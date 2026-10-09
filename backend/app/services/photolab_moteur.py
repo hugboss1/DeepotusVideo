@@ -87,6 +87,13 @@ _ID_COMMANDE = re.compile(r"[a-z][A-Za-z0-9]*(\.[a-z][A-Za-z0-9]*)+")
 PREFIXES_REFUSES = ("file.", "app.", "automate.", "plugin.", "script", "window.", "help.", "edit.preferences",
                     "edit.presets", "edit.keyboardshortcuts", "edit.menus", "image.mode.", "brush.presets.import",
                     "gradient.presets.import", "prefs.", "measurementlog.export")      # comparés sur cid.lower()
+# t158 : commandes rouvertes UNE À UNE sous un préfixe refusé (jamais un retrait du préfixe) — aucune ne lit ni n'écrit
+# un chemin : fermer des documents, les métadonnées (texte), les 12 conversions de mode (`profile` limité aux profils
+# INTÉGRÉS par photolab_registre). Copie identique dans mod-menus.js (PERMIS), relue par le banc menus.
+PERMIS_REFUSES = frozenset({"file.close", "file.closeAll", "file.closeOthers", "file.fileInfo",
+                            "image.mode.bitmap", "image.mode.grayscale", "image.mode.duotone", "image.mode.indexedColor",
+                            "image.mode.rgb", "image.mode.cmyk", "image.mode.lab", "image.mode.multichannel",
+                            "image.mode.bits8", "image.mode.bits16", "image.mode.bits32", "image.mode.colorTable"})
 _EXT_FICHIER = (".png", ".jpg", ".jpeg", ".psd", ".psb", ".pcraft", ".tif", ".tiff", ".webp", ".gif", ".bmp", ".tga",
                 ".exr", ".hdr", ".cube", ".3dl", ".look", ".icc", ".icm", ".abr", ".grd", ".pat", ".json", ".exe",
                 ".dll", ".wasm", ".txt", ".csv", ".pdf", ".ai")
@@ -695,6 +702,8 @@ def apercu(s: SessionMoteur, etapes, max_side: int):
                 _verifier_reglage(e, insp, reg)
             elif e["command"] == "layer.smartFilter.setParams":
                 verifier_filtre_dynamique(reg, e["params"], insp)
+            elif e["command"] == "filter.render.flame" and "path" in e["params"]:
+                verifier_trace(e["params"], appel("engine.execute", {"command": "path.list", "params": {}}))   # t158
             if "layer" in e["params"] and e["params"]["layer"] not in connus:
                 raise ValueError(f"{e['command']} : calque inconnu du document : {e['params']['layer']!r}")
         fichier = f"apv-{gen}-{n}.png"
@@ -1241,3 +1250,160 @@ def vignettes_galerie(s: "SessionMoteur", cles):
                 chemin.unlink()
             except OSError:
                 pass
+
+
+# ── t158 : Fichier sûr — compositions de méthodes doc.* (le moteur désactive ses commandes à chemin ambiant) ─────────
+DOSSIERS_REVENIR = ("entrees/", "exports/", "biblio/", "natif/")
+
+
+def nom_libre(dossier: Path, base: str, ext: str) -> str:
+    """<base>.<ext>, sinon <base>-2.<ext>, -3… : jamais d'écrasement."""
+    fichier, k = f"{base}.{ext}", 1
+    while (dossier / fichier).exists():
+        k += 1
+        fichier = f"{base}-{k}.{ext}"
+    return fichier
+
+
+def copie_document(s: SessionMoteur, fmt: str, base: str, quality=None):
+    """Enregistrer une copie -> (nom sous exports/, génération). Le document actif est DUPLIQUÉ, la copie enregistrée
+    puis refermée : l'original garde son fichier, son état « modifié », sa sélection et son historique (un doc.save de
+    l'original le rattacherait au nouveau fichier)."""
+    def fn(appel, gen):
+        actif, n_avant, insp = _ouvrir_original(appel)
+        fichier = nom_libre(dossier_travail() / "exports", base, fmt)
+        p = {"path": relatif(f"exports/{fichier}"), "format": fmt}
+        if quality is not None:
+            p["quality"] = quality
+        _sur_copie(appel, insp, actif, n_avant, "dz-copie", lambda cible: appel("doc.save", p))
+        return fichier
+    return s.sequence(fn)
+
+
+def _lignee(calques, cible, parents=()):
+    """[ancêtres…, cible] de `cible` dans l'arbre, ou None."""
+    for c in calques or []:
+        if c.get("id") == cible:
+            return list(parents) + [cible]
+        r = _lignee(c.get("children"), cible, parents + (c.get("id"),))
+        if r:
+            return r
+    return None
+
+
+def _descendants(calques, cible, dedans=False):
+    out = set()
+    for c in calques or []:
+        if dedans:
+            out.add(c.get("id"))
+        out |= _descendants(c.get("children"), cible, dedans or c.get("id") == cible)
+    return out
+
+
+def exporter_calque(s: SessionMoteur, layer, fmt: str, base: str, echelle: int = 100, quality=None):
+    """Calque › Exporter sous / Exportation rapide -> (nom sous exports/, génération). Sur une COPIE : la cible et ses
+    groupes parents montrés, ses enfants tels quels, tout le reste masqué ; rognage du transparent ; échelle en % ;
+    enregistrement ; la copie est refermée. Calque vide (tout transparent) -> ValueError."""
+    def fn(appel, gen):
+        actif, n_avant, insp = _ouvrir_original(appel)
+        visee = insp.get("activeLayer") if layer is None else layer
+        lignee = _lignee(insp.get("layers"), visee)
+        if lignee is None:
+            raise ValueError(f"calque inconnu du document : {visee!r}")
+        enfants = _descendants(insp.get("layers"), visee)
+        fichier = nom_libre(dossier_travail() / "exports", base, fmt)
+
+        def travail(cible):
+            ex = lambda c, **p: appel("engine.execute", {"command": c, "params": p})
+            for c in _a_plat(insp.get("layers")):
+                if c["id"] in lignee:
+                    ex("layer.showLayers", layer=cible[c["id"]])
+                elif c["id"] not in enfants:
+                    ex("layer.hideLayers", layer=cible[c["id"]])
+            try:
+                ex("image.trim", basedOn="transparent")
+            except MoteurErreur as e:
+                if "nothing to trim" in str(e):
+                    raise ValueError("calque vide : rien à exporter") from None
+                raise
+            if echelle != 100:
+                i = appel("doc.inspect") or {}
+                ex("image.imageSize", width=max(1, round(i["width"] * echelle / 100)),
+                   height=max(1, round(i["height"] * echelle / 100)))
+            p = {"path": relatif(f"exports/{fichier}"), "format": fmt}
+            if quality is not None:
+                p["quality"] = quality
+            appel("doc.save", p)
+        _sur_copie(appel, insp, actif, n_avant, "dz-calque", travail)
+        return fichier
+    return s.sequence(fn)
+
+
+def revenir(s: SessionMoteur):
+    """Revenir à la version enregistrée -> (session.list après, génération). Le fichier du moteur du document actif
+    (sous entrees/, exports/, biblio/, natif/ seulement) est ROUVERT, puis l'ancien document fermé : l'historique est
+    perdu (le moteur désactive file.revert, qui en ferait une étape). Sans fichier -> ValueError."""
+    def fn(appel, gen):
+        sl = appel("session.list") or {}
+        actif = sl.get("active")
+        doc = next((d for d in sl.get("documents") or [] if isinstance(d, dict) and d.get("index") == actif), None)
+        chemin = doc.get("path") if doc else None
+        if not isinstance(chemin, str) or not chemin.startswith(DOSSIERS_REVENIR):
+            raise ValueError("ce document n'a pas de fichier enregistré à relire")
+        relatif(chemin)
+        if not (dossier_travail() / chemin).is_file():
+            raise ValueError(f"fichier enregistré introuvable : {chemin}")
+        res = appel("doc.open", {"path": chemin}) or {}
+        neuf = res.get("index")
+        if not isinstance(neuf, int) or isinstance(neuf, bool):
+            raise MoteurErreur("doc.open n'a pas rendu l'index du document rouvert")
+        appel("doc.close", {"index": actif})                # `index` : `document` fermerait l'ACTIF (t138)
+        neuf = neuf - 1 if actif < neuf else neuf
+        appel("engine.execute", {"command": "document.activate", "params": {"document": neuf}})
+        return appel("session.list")
+    return s.sequence(fn)
+
+
+def placer(s: SessionMoteur, chemin: str, nom: str):
+    """Placer incorporé -> ({"layer", "bounds"}, génération). L'image (déjà copiée sous entrees/) est ouverte, copiée
+    entière, refermée ; collée au centre du document actif, convertie en objet dynamique, nommée, et réduite pour tenir
+    dans la toile si elle dépasse (comme la référence). Le presse-papiers du moteur est réécrit."""
+    relatif(chemin)
+
+    def fn(appel, gen):
+        ex = lambda c, **p: appel("engine.execute", {"command": c, "params": p})
+        actif, _n, insp = _ouvrir_original(appel)
+        w, h = insp.get("width"), insp.get("height")
+        res = appel("doc.open", {"path": chemin}) or {}
+        idx, iw, ih = res.get("index"), res.get("width"), res.get("height")
+        if not all(isinstance(x, int) and not isinstance(x, bool) for x in (idx, iw, ih)):
+            raise MoteurErreur("doc.open n'a pas rendu l'index et la taille de l'image placée")
+        try:
+            ex("select.all")
+            ex("edit.copy")
+        finally:
+            appel("doc.close", {"index": idx})
+            ex("document.activate", document=actif)
+        ex("edit.paste", center=[w / 2, h / 2])
+        r = ex("layer.smartObjects.convertToSmartObject") or {}
+        lid = r.get("layer")
+        ex("layer.renameLayer", layer=lid, name=nom)
+        if iw > w or ih > h:
+            f = min(w / iw, h / ih)
+            x0, y0 = (w - iw * f) / 2, (h - ih * f) / 2
+            ex("edit.transform", layer=lid, quad=[[x0, y0], [x0 + iw * f, y0], [x0 + iw * f, y0 + ih * f], [x0, y0 + ih * f]])
+        calque = next((c for c in _a_plat((appel("doc.inspect") or {}).get("layers")) if c.get("id") == lid), {})
+        return {"layer": lid, "bounds": calque.get("bounds")}
+    return s.sequence(fn)
+
+
+def verifier_trace(params, liste):
+    """Flamme : `path` doit nommer un tracé du document (path.list) — un nom inconnu est ignoré EN SILENCE par le
+    moteur (usedPath:false), l'utilisateur croirait suivre son tracé."""
+    if "path" not in (params or {}):
+        return
+    noms = {p.get("name") for p in (liste or {}).get("paths") or [] if isinstance(p, dict)}
+    if (liste or {}).get("workPath"):
+        noms.add("work")
+    if params["path"] not in noms:
+        raise ValueError(f"filter.render.flame : tracé inconnu du document : {params['path']!r}")

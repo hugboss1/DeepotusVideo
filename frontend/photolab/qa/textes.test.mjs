@@ -42,7 +42,9 @@ const brutOk = [
   ["mod-calques.js : nom de calque", /brut\(el\("span", "cq-nom"/.test(src("mod-calques.js"))],
   ["mod-proprietes.js : ligne Nom marquée", /valeur: c\.name \|\| "", brut: true/.test(src("mod-proprietes.js")) && /if \(l\.brut\) brut\(dd\)/.test(src("mod-proprietes.js"))],
   ["mod-fichier.js : carte de la grille", /brut\(document\.createElement\("button"\)\);[^\n]*lib-carte/.test(src("mod-fichier.js"))],
-  ["mod-fichier.js : onglet du document", /function majOnglet[\s\S]{0,600}brut\(document\.createElement\("span"\)\)/.test(src("mod-fichier.js"))],
+  // t158 : les onglets (un par document de la session) sont dessinés par mod-documents
+  ["mod-documents.js : onglet du document", /function dessiner\(\)[\s\S]{0,1200}brut\(document\.createElement\("span"\)\)/.test(src("mod-documents.js"))],
+  ["mod-documents.js : noms des documents dans les listes de choix", /nonTraduit\(document\.createElement\("option"\)\)/.test(src("mod-dialogue-reglage.js"))],
   ["mod-cycle.js : brut pose data-dz-brut", /setAttribute\("data-dz-brut", "1"\)/.test(src("mod-cycle.js"))],
 ];
 for (const [nom, okb] of brutOk) check("8 " + nom, okb);

@@ -12,10 +12,19 @@ import { champsVisibles, sansEcran, D9, SANS_EDITEUR, OPAQUES, CLES_CACHEES } fr
 export const REFUSES = ["file.", "app.", "automate.", "plugin.", "script", "window.", "help.", "edit.preferences",
   "edit.presets", "edit.keyboardshortcuts", "edit.menus", "image.mode.", "brush.presets.import",
   "gradient.presets.import", "prefs.", "measurementlog.export"];
+// t158 : copie de PERMIS_REFUSES (photolab_moteur.py) — commandes rouvertes UNE À UNE sous un préfixe refusé (fermer
+// des documents, métadonnées, conversions de mode). Le même banc compare les deux listes.
+export const PERMIS = ["file.close", "file.closeAll", "file.closeOthers", "file.fileInfo",
+  "image.mode.bitmap", "image.mode.grayscale", "image.mode.duotone", "image.mode.indexedColor",
+  "image.mode.rgb", "image.mode.cmyk", "image.mode.lab", "image.mode.multichannel",
+  "image.mode.bits8", "image.mode.bits16", "image.mode.bits32", "image.mode.colorTable"];
 
 // Entrées de fichier que l'écran exécute LUI-MÊME par ses routes (nouveau, ouvrir depuis la Bibliothèque, fermer,
 // enregistrer, exporter) : actives même si le pont refuserait la commande moteur de ce nom.
 // t139 : `pl.envoyer` (« Envoyer vers… ») n'est pas du catalogue amont — l'écran l'insère après « Revenir ».
+// t158 : les entrées de mod-documents (toutes visent un document ouvert).
+export const IDS_DOCUMENTS = ["file.closeAll", "file.closeOthers", "file.saveACopy", "file.revert", "file.export.quickExportAsPng",
+  "file.placeEmbedded", "file.fileInfo", "layer.quickExportAsPng", "layer.exportAs"];
 export const TRAITES_PAR_ECRAN = new Set(["file.new", "file.open", "file.close", "file.save", "file.saveAs", "file.export.exportAs",
   "pl.envoyer", "pl.natif.ouvrir", "pl.natif.reprendre",
   // t155 : le groupe Pinceaux (mod-pinceaux, PL.actions) ; window.* reste refusé au moteur
@@ -48,9 +57,11 @@ export const TRAITES_PAR_ECRAN = new Set(["file.new", "file.open", "file.close",
   "view.snapTo.guides", "view.snapTo.grid", "view.snapTo.layers", "view.snapTo.documentBounds", "view.snapTo.all", "view.lockGuides",
   "view.pixelArtPreview",
   // t157 : Sélectionner et masquer (mod-masquer : dialogue sur select.refineEdge, absent du moteur sous ce nom)
-  "select.selectAndMask"]);
+  "select.selectAndMask",
+  // t158 : fichiers par les routes du pont (mod-documents : /copie, /revenir, /placer, /calque/exporter, /enregistrer)
+  ...IDS_DOCUMENTS]);
 // … dont celles qui n'ont de sens qu'avec un document ouvert (grisées sur l'écran d'accueil).
-export const NECESSITE_DOC = new Set(["select.selectAndMask", "file.close", "file.save", "file.saveAs", "file.export.exportAs", "pl.envoyer", "pl.natif.ouvrir",
+export const NECESSITE_DOC = new Set([...IDS_DOCUMENTS, "select.selectAndMask", "file.close", "file.save", "file.saveAs", "file.export.exportAs", "pl.envoyer", "pl.natif.ouvrir",
   // t152 : les zooms d'Affichage
   "view.zoomIn", "view.zoomOut", "view.fitOnScreen", "view.fitLayersOnScreen", "view.actualPixels", "view.twoHundredPercent", "view.printSize",
   // t154 : la transformation manuelle vise le calque actif
@@ -88,6 +99,7 @@ export function aiguillage(id) {
   if (s === "image.adjustments.curves") return "courbes";
   if (s === "image.adjustments.levels") return "niveaux";
   if (s === "filter.filterGallery") return "galerie";                    // t157 : mod-galerie
+  if (s.startsWith("image.mode.") && s.length > 11) return "mode";        // t158 : mod-mode (directes, aplatir, éditeurs)
   if (s.startsWith(PREFIXE_REGLAGE) && s.length > PREFIXE_REGLAGE.length) return "reglage";
   if (s.startsWith(PREFIXE_STYLE) && STYLES.has(s.slice(PREFIXE_STYLE.length))) return "style";
   return "generique";
@@ -95,7 +107,7 @@ export function aiguillage(id) {
 
 // Fonction de l'écran qui ouvre chaque famille (définies par B2-B6, absentes avant).
 const OUVREURS = { courbes: "ouvrirCourbes", niveaux: "ouvrirNiveaux", reglage: "creerReglage", style: "ouvrirStyles", galerie: "ouvrirGalerie",
-  generique: "ouvrirReglage" };
+  mode: "ouvrirMode", generique: "ouvrirReglage" };
 
 // Où va une entrée « dialogue », selon les fonctions que l'écran possède (dispo = PL) : la famille sur mesure si son
 // éditeur existe ; sinon le dialogue générique s'il existe et qu'il y a quelque chose à y montrer ; sinon « bientot »
@@ -119,7 +131,7 @@ export function raccourciAffiche(s, lang = "fr") {
 function etatDe(id, idx, refuses) {
   if (TRAITES_PAR_ECRAN.has(id)) return "actif";
   const bas = String(id).toLowerCase();
-  if (refuses.some((p) => bas.startsWith(p))) return "bientot";
+  if (refuses.some((p) => bas.startsWith(p)) && !PERMIS.includes(id)) return "bientot";
   const r = idx.get(id);
   if (!r) return "bientot";
   // Rien que l'écran sache éditer (D9, autre document requis, que des opaques) -> « bientôt ». Les familles sur mesure
@@ -213,6 +225,7 @@ export function actionEntree(entree) {
   if (entree.etat !== "actif") return "rien";
   // t151 : une entrée « pl.* » est une entrée de l'écran (Base, espaces personnels) : jamais une commande du moteur.
   if (TRAITES_PAR_ECRAN.has(entree.id) || String(entree.id).startsWith("pl.")) return "ecran";
+  if (aiguillage(entree.id) === "mode") return "dialogue";          // t158 : même sans champ (8 bits) : aplatir, coches
   const champs = entree.champs;
   if (!Array.isArray(champs)) return "dialogue";
   if (champsVisibles(champs).length) return "dialogue";
@@ -408,6 +421,7 @@ export function initMenus(PL) {
         else if (cible === "reglage") PL.creerReglage(suffixe);
         else if (cible === "style") PL.ouvrirStyles(suffixe);
         else if (cible === "galerie") PL.ouvrirGalerie();
+        else if (cible === "mode") PL.ouvrirMode(e);                // t158 : Image › Mode
         else if (cible === "generique") PL.ouvrirReglage(e);
         else PL.signaler(T("photolab.menu.bientot"));       // éditeur absent (pont ancien sans champs, module non chargé)
         break;

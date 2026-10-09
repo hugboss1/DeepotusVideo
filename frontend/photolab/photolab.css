@@ -792,3 +792,18 @@ body.ecran-plein #panneaux, body.ecran-plein #statut, body.ecran-plein .espace-b
 .msk-nombre:disabled, .msk-curseur:disabled, .msk-ligne select:disabled { opacity: .45; }
 .msk-actions { display: flex; gap: 8px; }
 .msk-memoire { padding-top: 2px; }
+
+/* t158 : onglets de documents (plusieurs), Bichromie, Table des couleurs */
+.onglet-doc:not(.actif) { cursor: pointer; }
+.onglet-doc:not(.actif):hover { color: var(--ink-strong); background: var(--bg-panel-2); }
+.pl-encres { display: grid; gap: 6px; margin: 8px 0; }
+.pl-encre { display: grid; grid-template-columns: 64px 40px minmax(0, 1fr); align-items: center; gap: 8px; }
+.pl-encre[hidden] { display: none; }
+.pl-encre-num { color: var(--ink-soft); }
+.pl-encre input[type=color] { width: 40px; height: 26px; padding: 0; border: 1px solid var(--stroke); background: none; }
+.pl-note { color: var(--ink-muted); font-size: 12px; margin: 4px 0; }
+.pl-table-grille { display: grid; grid-template-columns: repeat(16, 20px); gap: 2px; margin: 8px 0; }
+.pl-table-case { width: 20px; height: 20px; padding: 0; border: 1px solid var(--stroke-strong); border-radius: 2px; cursor: pointer; }
+.pl-table-case:disabled { cursor: default; opacity: .55; }
+.pl-table-case.transparente { outline: 2px dashed var(--accent); outline-offset: 1px; }
+.pl-case { display: flex; align-items: center; gap: 6px; }
