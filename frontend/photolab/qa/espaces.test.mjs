@@ -131,7 +131,7 @@ check("5.1 ordre : 7 fournis, les personnels, ---, réinitialiser, nouveau, supp
   "window.workspace.essentials:actif", "pl.espace.base:actif", "window.workspace.graphicAndWeb:actif", "window.workspace.motion:actif",
   "window.workspace.painting:actif", "window.workspace.photography:actif", "window.workspace.pixelArt:actif", "pl.espace.perso-1*:actif",
   "---", "window.workspace.resetWorkspace:actif", "window.workspace.newWorkspace:actif", "window.workspace.deleteWorkspace:actif",
-  "---", "edit.keyboardShortcuts:bientot", "window.workspace.lockWorkspace:actif"]), lignes);
+  "---", "edit.keyboardShortcuts:actif", "window.workspace.lockWorkspace:actif"]), lignes);
 check("5.2 libellés : dictionnaire pour les fournis, nom pour les personnels, « Réinitialiser » nomme l'espace",
   es.entrees[0].libelle === "photolab.espace.essentiel" && es.entrees[7].libelle === "Mon atelier"
   && es.entrees.find((x) => x.id === "window.workspace.resetWorkspace").libelle === 'photolab.espace.reinitialiser{"nom":"Mon atelier"}');

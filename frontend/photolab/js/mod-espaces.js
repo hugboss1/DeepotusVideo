@@ -109,8 +109,9 @@ export function dispositionDe(etat, id) {
   return completer((etat.modifs && etat.modifs[id]) || (p && p.disposition) || DISPOSITIONS[id] || DISPOSITIONS.essentiel);
 }
 export const choisir = (etat, id) => (connu(etat, id) ? { ...etat, actif: id } : etat);
-// La disposition modifiée de l'espace actif ; verrouillé, rien n'est gardé (l'espace revient tel quel).
-export const memoriser = (etat, d) => (etat.verrouille ? etat : { ...etat, modifs: { ...etat.modifs, [etat.actif]: copie(d) } });
+// La disposition modifiée de l'espace actif ; verrouillé, rien n'est gardé (l'espace revient tel quel). t159 :
+// Préférences › Espace de travail › « Mémoriser les modifications » décochée (`garder` faux) : de même.
+export const memoriser = (etat, d, garder = true) => (etat.verrouille || !garder ? etat : { ...etat, modifs: { ...etat.modifs, [etat.actif]: copie(d) } });
 export function reinitialiser(etat) {
   const modifs = { ...etat.modifs };
   delete modifs[etat.actif];
@@ -210,6 +211,7 @@ const RAIL = { reglages: "proprietes", couleur: "couleur", pinceaux: "pinceaux",
   infos: "infos", texte: "texte" };
 
 export function initEspaces(PL) {
+  const garder = () => !PL.prefs || PL.prefs.v("workspace", "rememberWorkspaceChanges");
   const T = (cle, vars) => (window.dzT ? window.dzT(cle, vars) : cle);
   const panneaux = PL.$("#panneaux");
   let etat = etatDefaut();
@@ -283,7 +285,7 @@ export function initEspaces(PL) {
     const d = capturer();
     if (JSON.stringify(d) === JSON.stringify(courante)) return;
     courante = d;
-    etat = memoriser(etat, d);
+    etat = memoriser(etat, d, garder());
     if (!etat.verrouille) sauver();
     if (PL.menus && PL.menus.redessiner) PL.menus.redessiner();
   }, 0);
@@ -364,7 +366,7 @@ export function initEspaces(PL) {
   PL.actions["window.workspace.deleteWorkspace"] = supprimer;
   PL.actions["window.workspace.lockWorkspace"] = () => { etat = basculerVerrou(etat); sauver(); if (PL.menus && PL.menus.redessiner) PL.menus.redessiner(); };
   for (const id of [...Object.keys(PANNEAUX), ...Object.keys(BARRES)]) {
-    PL.actions[id] = () => { const d = basculerPanneau(courante, id); etat = memoriser(etat, d); appliquer(d); if (!etat.verrouille) sauver(); };
+    PL.actions[id] = () => { const d = basculerPanneau(courante, id); etat = memoriser(etat, d, garder()); appliquer(d); if (!etat.verrouille) sauver(); };
   }
   // Espaces personnels : une entrée par espace, ids dynamiques.
   PL.actionEspace = (id) => { const k = espaceDuMenu(id); if (k && connu(etat, k)) { changer(choisir(etat, k)); return true; } return false; };

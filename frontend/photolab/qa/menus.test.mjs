@@ -134,7 +134,8 @@ check("7.2 REFUSES en minuscules", REFUSES.every((x) => x === x.toLowerCase()));
 // t158 : les commandes rouvertes une à une (PERMIS_REFUSES du pont) — même ensemble des deux côtés
 const mp = py.match(/PERMIS_REFUSES = frozenset\(\{([\s\S]*?)\}\)/);
 const permisPy = mp ? [...mp[1].matchAll(/"([^"]+)"/g)].map((x) => x[1]).sort() : [];
-check("7.3 PERMIS identique à PERMIS_REFUSES (lecture du source Python)", permisPy.length === 16 && JSON.stringify(permisPy) === JSON.stringify([...PERMIS].sort()), JSON.stringify([permisPy, PERMIS]));
+// t159 : + edit.presets.presetManager et exportImportPresets (18)
+check("7.3 PERMIS identique à PERMIS_REFUSES (lecture du source Python)", permisPy.length === 18 && JSON.stringify(permisPy) === JSON.stringify([...PERMIS].sort()), JSON.stringify([permisPy, PERMIS]));
 check("7.4 chaque permis est sous un préfixe refusé (sinon il n'aurait rien à rouvrir)", PERMIS.every((id) => REFUSES.some((p) => id.toLowerCase().startsWith(p))));
 const permisReg = registre.concat(PERMIS.map((id) => ({ id, label: id, params: "{}", enabled: true, champs: [] })));
 const arbrePermis = construireMenus(catalogue, permisReg, REFUSES, "fr", (k) => k);

@@ -243,6 +243,10 @@ export function initAffichage(PL) {
     return { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), w: Math.abs(b.x - a.x), h: Math.abs(b.y - a.y) };
   };
   const calqueActif = (d) => aplatir(d.layers).find((l) => l.id === d.activeLayer);
+  // t159 : Préférences › Repères, grille et tranches (couleur, style, pas, subdivisions) ; défauts de photocraft sans elles
+  const pr = (cle, defaut) => (PL.prefs ? PL.prefs.v("guidesGridAndSlices", cle) : defaut);
+  const styleTrait = (style) => { const t = PL.prefs ? PL.prefs.tirets(style) : ""; return t ? { "stroke-dasharray": t } : {}; };
+  const pasDe = (d) => (PL.prefs ? PL.prefs.pasGrille(d.resolution, d.width) : pasGrille(d.resolution));
 
   function dessiner() {
     svg.textContent = "";
@@ -253,12 +257,12 @@ export function initAffichage(PL) {
       const dims = { w: d.width, h: d.height };
       const r = rectEcran(0, 0, d.width, d.height);
       if (visible(o, "grille")) {
-        const g = el("g", { stroke: COULEUR_GRILLE }, "grille");
-        for (const l of lignesGrille(v, dims, vue, "x", pasGrille(d.resolution))) {
+        const g = el("g", { stroke: pr("gridColor", COULEUR_GRILLE), ...styleTrait(pr("gridStyle", "lines")) }, "grille");
+        for (const l of lignesGrille(v, dims, vue, "x", pasDe(d))) {
           const x = Math.round(ecranX(l.pos)) + 0.5;
           g.appendChild(el("line", { x1: x, y1: r.y, x2: x, y2: r.y + r.h }, l.majeure ? "majeure" : "mineure"));
         }
-        for (const l of lignesGrille(v, dims, vue, "y", pasGrille(d.resolution))) {
+        for (const l of lignesGrille(v, dims, vue, "y", pasDe(d))) {
           const y = Math.round(ecranY(l.pos)) + 0.5;
           g.appendChild(el("line", { x1: r.x, y1: y, x2: r.x + r.w, y2: y }, l.majeure ? "majeure" : "mineure"));
         }
@@ -287,7 +291,7 @@ export function initAffichage(PL) {
         }
       }
       if (visible(o, "reperes")) {
-        const g = el("g", { stroke: COULEUR_REPERE }, "reperes");
+        const g = el("g", { stroke: pr("guideColor", COULEUR_REPERE), ...styleTrait(pr("guideStyle", "lines")) }, "reperes");
         const vertical = [...reperes.vertical], horizontal = [...reperes.horizontal];
         if (glisseRepere && glisseRepere.index !== null) (glisseRepere.orientation === "vertical" ? vertical : horizontal).splice(glisseRepere.index, 1);
         for (const x of vertical) { const s = Math.round(ecranX(x)) + 0.5; g.appendChild(el("line", { x1: s, y1: 0, x2: s, y2: vue.h })); }
@@ -298,7 +302,8 @@ export function initAffichage(PL) {
     if (glisseRepere && glisseRepere.pos !== null) {
       const vert = glisseRepere.orientation === "vertical";
       const s = vert ? ecranX(glisseRepere.pos) : ecranY(glisseRepere.pos);
-      svg.appendChild(vert ? el("line", { x1: s, y1: 0, x2: s, y2: vue.h, stroke: COULEUR_REPERE }, "repere-glisse") : el("line", { x1: 0, y1: s, x2: vue.w, y2: s, stroke: COULEUR_REPERE }, "repere-glisse"));
+      const cr = pr("guideColor", COULEUR_REPERE);
+      svg.appendChild(vert ? el("line", { x1: s, y1: 0, x2: s, y2: vue.h, stroke: cr }, "repere-glisse") : el("line", { x1: 0, y1: s, x2: vue.w, y2: s, stroke: cr }, "repere-glisse"));
     }
     dessinerRegles();
   }
@@ -319,18 +324,20 @@ export function initAffichage(PL) {
       g.fillStyle = fond; g.fillRect(0, 0, horiz ? L : REGLE, horiz ? REGLE : L);
       if (!d) continue;
       const a = PL.vue.versDoc(0, 0), b = PL.vue.versDoc(vue.w, vue.h);
-      const debut = horiz ? Math.min(a.x, b.x) : a.y, fin = horiz ? Math.max(a.x, b.x) : b.y;
-      const gr = graduations(debut, fin, PL.vue.v.z);
+      // t159 : Préférences › Unités et règles — graduations dans l'unité choisie (px du document par unité)
+      const u = PL.prefs ? PL.prefs.pxParUnite(PL.prefs.v("unitsAndRulers", "rulers"), d.resolution, d.width) : 1;
+      const debut = (horiz ? Math.min(a.x, b.x) : a.y) / u, fin = (horiz ? Math.max(a.x, b.x) : b.y) / u;
+      const gr = graduations(debut, fin, PL.vue.v.z * u);
       g.strokeStyle = trait; g.fillStyle = trait; g.lineWidth = 1; g.font = "9px " + police;
       g.beginPath();
       for (const m of gr.majeurs) {
         for (let i = 0; i < 5; i++) {
-          const val = m + i * gr.mineur;
+          const val = (m + i * gr.mineur) * u;
           const p = Math.round(horiz ? ecranX(val) : ecranY(val)) + 0.5;
           const long = i === 0 ? REGLE : REGLE / 3;
           if (horiz) { g.moveTo(p, REGLE); g.lineTo(p, REGLE - long); } else { g.moveTo(REGLE, p); g.lineTo(REGLE - long, p); }
         }
-        const p = Math.round(horiz ? ecranX(m) : ecranY(m)) + 0.5;
+        const p = Math.round(horiz ? ecranX(m * u) : ecranY(m * u)) + 0.5;
         if (horiz) g.fillText(String(m), p + 2, 9);
         else { g.save(); g.translate(9, p + 2); g.rotate(-Math.PI / 2); g.fillText(String(m), -g.measureText(String(m)).width, 0); g.restore(); }
       }
@@ -446,7 +453,14 @@ export function initAffichage(PL) {
   }
 
   /* état */
-  function sauver() { try { localStorage.setItem(CLE_STOCKAGE, JSON.stringify(o)); } catch (e) { /* navigateur sans stockage */ } }
+  // t159 : les options vont aussi dans les préférences du dossier de données (PL.prefs.affichage), le navigateur garde
+  // la copie rapide ; un enregistrement par rafale de bascules.
+  let minutPrefs = null;
+  function sauver() {
+    try { localStorage.setItem(CLE_STOCKAGE, JSON.stringify(o)); } catch (e) { /* navigateur sans stockage */ }
+    clearTimeout(minutPrefs);
+    if (PL.prefs) minutPrefs = setTimeout(() => { PL.prefs.modifier("affichage", o).catch(() => {}); }, 400);
+  }
   function changer(nouv) {
     const avant = o;
     o = nouv;
@@ -524,6 +538,19 @@ export function initAffichage(PL) {
   });
 
   /* branchements */
+  // t159 : les options enregistrées dans les préférences (autre navigateur, autre machine) l'emportent au chargement
+  if (PL.prefs) PL.prefs.surChange.push((e) => {
+    if (!e.affichage) return;
+    const n = normaliserOptions(e.affichage);
+    if (JSON.stringify(n) === JSON.stringify(o)) { PL.vue.dessiner(); return; }
+    const avant = o;
+    o = n;
+    try { localStorage.setItem(CLE_STOCKAGE, JSON.stringify(o)); } catch (er) { /* facultatif */ }
+    PL.vue.v.miroir = o.miroir; PL.vue.pixelArt = o.pixelArt;
+    if (avant.ecran !== o.ecran) appliquerEcran();
+    PL.vue.dessiner();
+    if (PL.menus && PL.menus.redessiner) PL.menus.redessiner();
+  });
   PL.affichage = {
     get options() { return o; },
     voir: (cle) => visible(o, cle),

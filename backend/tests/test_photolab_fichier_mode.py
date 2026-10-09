@@ -126,8 +126,11 @@ def moteur():
         check(f"1b refusé ({pourquoi}) : {cid}", r is not True, r)
     check("1c PERMIS_REFUSES ne rouvre que des ids sous un préfixe refusé, connus du registre",
           all(c.lower().startswith(PM.PREFIXES_REFUSES) and c in reg for c in PM.PERMIS_REFUSES), sorted(PM.PERMIS_REFUSES))
-    check("1d aucun permis n'a de clé chemin au registre",
-          not any(c["cle"].lower() in PR.CLES_CHEMIN for i in PM.PERMIS_REFUSES for c in reg[i]["champs"]))
+    # t159 : edit.presets.exportImportPresets a une clé `data` (CLES_CHEMIN) qui porte des DONNÉES, jamais un chemin :
+    # vérifiée clé par clé par photolab_registre._v_echange (banc test_photolab_preferences 4c-4d)
+    check("1d aucun permis n'a de clé chemin au registre (hors `data` de l'échange de préréglages, vérifiée à part)",
+          not any(c["cle"].lower() in PR.CLES_CHEMIN for i in PM.PERMIS_REFUSES for c in reg[i]["champs"]
+                  if not (i == "edit.presets.exportImportPresets" and c["cle"] == "data")))
     liste = {"paths": [{"name": "Ligne"}], "workPath": {"knots": 2}}
     check("1e verifier_trace : nom connu / work admis", not refuse(PM.verifier_trace, {"path": "Ligne"}, liste)
           and not refuse(PM.verifier_trace, {"path": "work"}, liste) and not refuse(PM.verifier_trace, {}, liste))

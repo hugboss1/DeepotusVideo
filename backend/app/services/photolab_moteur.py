@@ -93,7 +93,10 @@ PREFIXES_REFUSES = ("file.", "app.", "automate.", "plugin.", "script", "window."
 PERMIS_REFUSES = frozenset({"file.close", "file.closeAll", "file.closeOthers", "file.fileInfo",
                             "image.mode.bitmap", "image.mode.grayscale", "image.mode.duotone", "image.mode.indexedColor",
                             "image.mode.rgb", "image.mode.cmyk", "image.mode.lab", "image.mode.multichannel",
-                            "image.mode.bits8", "image.mode.bits16", "image.mode.bits32", "image.mode.colorTable"})
+                            "image.mode.bits8", "image.mode.bits16", "image.mode.bits32", "image.mode.colorTable",
+                            # t159 : le gestionnaire de préréglages (par index, aucun chemin) et l'échange de
+                            # préréglages en DONNÉES (photolab_registre._v_echange) ; migratePresets (chemin) reste refusé
+                            "edit.presets.presetManager", "edit.presets.exportImportPresets"})
 _EXT_FICHIER = (".png", ".jpg", ".jpeg", ".psd", ".psb", ".pcraft", ".tif", ".tiff", ".webp", ".gif", ".bmp", ".tga",
                 ".exr", ".hdr", ".cube", ".3dl", ".look", ".icc", ".icm", ".abr", ".grd", ".pat", ".json", ".exe",
                 ".dll", ".wasm", ".txt", ".csv", ".pdf", ".ai")
@@ -1364,10 +1367,12 @@ def revenir(s: SessionMoteur):
     return s.sequence(fn)
 
 
-def placer(s: SessionMoteur, chemin: str, nom: str):
+def placer(s: SessionMoteur, chemin: str, nom: str, objet_dynamique: bool = True, reduire: bool = True):
     """Placer incorporé -> ({"layer", "bounds"}, génération). L'image (déjà copiée sous entrees/) est ouverte, copiée
     entière, refermée ; collée au centre du document actif, convertie en objet dynamique, nommée, et réduite pour tenir
-    dans la toile si elle dépasse (comme la référence). Le presse-papiers du moteur est réécrit."""
+    dans la toile si elle dépasse (comme la référence). Le presse-papiers du moteur est réécrit. t159 : les deux
+    préférences de la référence (Paramètres : « toujours créer des objets dynamiques », « redimensionner pendant le
+    placement ») — sans objet dynamique, un calque de pixels."""
     relatif(chemin)
 
     def fn(appel, gen):
@@ -1385,10 +1390,12 @@ def placer(s: SessionMoteur, chemin: str, nom: str):
             appel("doc.close", {"index": idx})
             ex("document.activate", document=actif)
         ex("edit.paste", center=[w / 2, h / 2])
-        r = ex("layer.smartObjects.convertToSmartObject") or {}
-        lid = r.get("layer")
+        if objet_dynamique:
+            lid = (ex("layer.smartObjects.convertToSmartObject") or {}).get("layer")
+        else:
+            lid = (appel("doc.inspect") or {}).get("activeLayer")
         ex("layer.renameLayer", layer=lid, name=nom)
-        if iw > w or ih > h:
+        if reduire and (iw > w or ih > h):
             f = min(w / iw, h / ih)
             x0, y0 = (w - iw * f) / 2, (h - ih * f) / 2
             ex("edit.transform", layer=lid, quad=[[x0, y0], [x0 + iw * f, y0], [x0 + iw * f, y0 + ih * f], [x0, y0 + ih * f]])

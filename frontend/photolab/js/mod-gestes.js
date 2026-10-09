@@ -145,6 +145,8 @@ export function initGestes(PL) {
       // cercle de la pointe au survol (diamètre = taille en pixels document)
       const s = ecran(a.x, a.y);
       for (const n of fourmis(el("circle", { cx: s.x, cy: s.y, r: Math.max(1, (a.taille * PL.vue.v.z) / 2), fill: "none" }))) svg.appendChild(n);
+      // t159 : Préférences › Curseurs › réticule dans la pointe
+      if (a.reticule) for (const n of fourmis(el("path", { d: `M${s.x - 5} ${s.y}H${s.x + 5}M${s.x} ${s.y - 5}V${s.y + 5}`, fill: "none" }))) svg.appendChild(n);
     } else if (a.type === "recadrage" && a.cadre) {
       const c = a.cadre;
       const p0 = ecran(c.x, c.y), p1 = ecran(c.x + c.width, c.y + c.height);

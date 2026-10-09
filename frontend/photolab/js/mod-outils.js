@@ -45,17 +45,19 @@ export const emplacementDe = (id) => EMPLACEMENTS.findIndex((e) => e.some((o) =>
 const snake = (s) => s.replace(/[A-Z]/g, (c) => "_" + c.toLowerCase());
 export const cleNom = (id) => "photolab.outil." + snake(id);
 
+// t159 : lettre d'un outil, surchargée par Édition › Raccourcis clavier › Outils (`surcharges` : id -> lettre, "" = aucune).
+export const lettreDe = (o, surcharges) => (surcharges && Object.prototype.hasOwnProperty.call(surcharges, o.id) ? surcharges[o.id].toUpperCase() : o.lettre);
 // Tous les outils qui partagent une lettre, dans l'ordre de la barre (la lettre « » n'en forme aucun).
-export function groupeDeLettre(lettre) {
+export function groupeDeLettre(lettre, surcharges) {
   const L = String(lettre || "").toUpperCase();
-  return L ? TOUS.filter((o) => o.lettre === L) : [];
+  return L ? TOUS.filter((o) => lettreDe(o, surcharges) === L) : [];
 }
 
 // Cyclage de photocraft (shortcuts.rs:327-340) : la lettre du groupe de l'outil courant passe à l'outil SUIVANT du
 // groupe (si !prefMaj ou Maj tenu) ; sinon, une lettre d'un autre groupe choisit le PREMIER outil du groupe. Les
 // outils p2:false sont sautés (cycle circulaire parmi les p2:true) ; aucun outil disponible -> null.
-export function outilParLettre(lettre, courant, maj, prefMaj = false) {
-  const groupe = groupeDeLettre(lettre);
+export function outilParLettre(lettre, courant, maj, prefMaj = false, surcharges) {
+  const groupe = groupeDeLettre(lettre, surcharges);
   if (!groupe.length) return null;
   const dispo = groupe.filter((o) => o.p2);
   if (!dispo.length) return null;
@@ -66,10 +68,11 @@ export function outilParLettre(lettre, courant, maj, prefMaj = false) {
 }
 
 // Infobulle : « Nom (V) », « Nom — bientôt » pour un outil à venir. `t` = traducteur (dzT) injecté.
-export function infobulle(outil, t = (c) => c) {
+export function infobulle(outil, t = (c) => c, surcharges) {
   const nom = t(cleNom(outil.id));
   if (!outil.p2) return nom + " — " + t("photolab.outil.bientot");
-  return outil.lettre ? nom + " (" + outil.lettre + ")" : nom;
+  const l = lettreDe(outil, surcharges);
+  return l ? nom + " (" + l + ")" : nom;
 }
 
 /* ───────────── barre d'options ───────────── */
@@ -152,7 +155,7 @@ export function initOutils(PL) {
     boutons.forEach((b, i) => {
       const o = outilDe(montre[i]);
       b.dataset.outil = o.id;
-      b.title = infobulle(o, T);
+      b.title = infobulle(o, T, PL.lettresOutils ? PL.lettresOutils() : null);
       b.setAttribute("aria-label", b.title);
       b.setAttribute("aria-pressed", o.id === PL.etat.outil ? "true" : "false");
       b.classList.toggle("bientot", !o.p2);
@@ -203,8 +206,10 @@ export function initOutils(PL) {
     const c = PL.$("#toile");
     if (!c) return;
     const o = PL.etat.outil;
-    c.style.cursor = PL.vue && PL.vue.mainTemporaire ? "grab"
+    const css = PL.vue && PL.vue.mainTemporaire ? "grab"
       : o === "hand" ? "grab" : o === "zoom" ? "zoom-in" : o === "move" ? "default" : "crosshair";
+    // t159 : Préférences › Curseurs (autres outils : précis = réticule) ; les outils de peinture règlent le leur
+    c.style.cursor = PL.curseurPeinture && PL.curseurPeinture(o) != null ? PL.curseurPeinture(o) : PL.prefs ? PL.prefs.curseurAutre(css) : css;
   }
   PL.curseur = curseur;
 
@@ -249,7 +254,7 @@ export function initOutils(PL) {
     const k = ev.key.toUpperCase();
     if (k === "X") { ev.preventDefault(); echanger(); return; }
     if (k === "D") { ev.preventDefault(); parDefaut(); return; }
-    const id = outilParLettre(k, PL.etat.outil, ev.shiftKey, PL.etat.prefMaj);
+    const id = outilParLettre(k, PL.etat.outil, ev.shiftKey, PL.etat.prefMaj, PL.lettresOutils ? PL.lettresOutils() : null);
     if (id) { ev.preventDefault(); choisir(id); }
   });
 

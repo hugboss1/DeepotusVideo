@@ -29,6 +29,9 @@ export const APERCUS = { "type.fontPreviewSize.small": 11, "type.fontPreviewSize
   "type.fontPreviewSize.extraLarge": 24, "type.fontPreviewSize.huge": 32 };
 export const LANGUES = ["type.languageOptions.defaultFeatures", "type.languageOptions.eastAsianFeatures", "type.languageOptions.middleEasternFeatures"];
 export const COMPOSEUR = "type.languageOptions.middleEasternAndSouthAsianComposer";
+// t159 : valeur de Préférences › Texte › Aperçu des polices -> entrée du menu Texte › Taille de l'aperçu.
+export const APERCU_PREF = { small: "type.fontPreviewSize.small", medium: "type.fontPreviewSize.medium", large: "type.fontPreviewSize.large",
+  extraLarge: "type.fontPreviewSize.extraLarge", huge: "type.fontPreviewSize.huge" };
 export const PREFS_DEFAUT = { apercu: "type.fontPreviewSize.medium", langue: "type.languageOptions.defaultFeatures", composeur: false };
 // Texte › Panneaux › et Fenêtre › -> onglet du groupe Texte.
 export const PANNEAUX_TEXTE = { "type.panels.character": "caractere", "type.panels.paragraph": "paragraphe", "type.panels.glyphs": "glyphes",
@@ -218,6 +221,9 @@ export function initTexte(PL) {
     Object.assign(zone.style, { left: (r.left - rs.left + gx) + "px", top: (r.top - rs.top + gy) + "px", width: w + "px", height: h + "px" });
     zone.addEventListener("keydown", (ev) => {
       ev.stopPropagation();
+      // t159 : Préférences › Texte › « Échap valide le texte » (décochée : Échap annule la saisie)
+      const echapValide = !PL.prefs || PL.prefs.v("type", "useEscToCommit");
+      if (ev.key === "Escape" && !echapValide) { ev.preventDefault(); annuler(); return; }
       if ((ev.key === "Enter" && (ev.ctrlKey || ev.metaKey)) || ev.key === "Escape") { ev.preventDefault(); valider(); }
     });
     zone.addEventListener("input", () => { if (!e.boite) { zone.style.width = Math.max(160, zone.scrollWidth + 8) + "px"; zone.style.height = "auto"; zone.style.height = zone.scrollHeight + "px"; } });
@@ -580,8 +586,24 @@ export function initTexte(PL) {
   PL.decorateursMenus.push((menus) => decorerTexte(menus, prefs));
   PL.actions = PL.actions || {};
   for (const id of [...Object.keys(APERCUS), ...LANGUES, COMPOSEUR]) {
-    PL.actions[id] = () => { prefs = basculerPref(prefs, id); ecrireLS(CLE_PREFS, prefs); construireParagraphe(); majPanneaux(); if (PL.menus && PL.menus.redessiner) PL.menus.redessiner(); };
+    PL.actions[id] = () => {
+      prefs = basculerPref(prefs, id); ecrireLS(CLE_PREFS, prefs); construireParagraphe(); majPanneaux(); if (PL.menus && PL.menus.redessiner) PL.menus.redessiner();
+      // t159 : la même valeur dans les préférences (Préférences › Texte › taille de l'aperçu ; langue, composeur)
+      if (PL.prefs) {
+        const e = JSON.parse(JSON.stringify(PL.prefs.etat));
+        const cle = Object.keys(APERCU_PREF).find((k) => APERCU_PREF[k] === prefs.apercu);
+        if (cle) e.prefs.type.fontPreview = cle;
+        e.texte = { langue: prefs.langue, composeur: !!prefs.composeur };
+        PL.prefs.enregistrer(e).catch(() => {});
+      }
+    };
   }
+  // t159 : préférences chargées ou modifiées (dialogue Préférences, autre machine) -> menu Texte et panneaux
+  if (PL.prefs) PL.prefs.surChange.push((e) => {
+    const n = { ...prefs, apercu: APERCU_PREF[e.prefs.type.fontPreview] || prefs.apercu, langue: e.texte.langue, composeur: e.texte.composeur };
+    if (JSON.stringify(n) === JSON.stringify(prefs)) return;
+    prefs = n; ecrireLS(CLE_PREFS, prefs); construireParagraphe(); majPanneaux();
+  });
   PL.surOngletTexte = (nom) => {
     if (nom === "caractere" || nom === "paragraphe") majPanneaux();
     else if (nom === "glyphes") dessinerGlyphes();
