@@ -13553,10 +13553,15 @@ async def export_material(mid: str, format: str = "zip",
 # =============================================================================
 
 @router.get("/effects/catalog")
-async def effects_catalog():
-    """Catalogue complet : catégories, libellés FR, paramètres et bornes."""
+async def effects_catalog(request: Request = None):
+    """Catalogue complet : catégories, libellés FR, paramètres et bornes.
+
+    t144 : noms, aides, catégories et libellés de paramètres dans la langue de la requête (app/i18n/catalogues)."""
     from app.services import effects_preview as FXP
-    return FXP.catalog_payload()
+    from app.i18n import catalogues as CAT, langue_requete
+    p = FXP.catalog_payload()
+    lang = langue_requete(request)
+    return dict(p, categories=CAT.categories(p["categories"], lang), effects=CAT.effets(p["effects"], lang))
 
 
 @router.get("/effects/preview")

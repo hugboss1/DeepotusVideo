@@ -38,17 +38,17 @@ function svxToDb(v){
   if(v<0)return v;                       /* déjà des dBFS */
   if(v<=0.0000158)return -99;            /* < −96 dB */
   return 20*Math.log(v)/Math.LN10}
-function svxKo(kb){kb=svxN(kb,0);return kb>=1024?(Math.round(kb/102.4)/10)+" Mo":kb+" Ko"}
+function svxKo(kb){kb=svxN(kb,0);return kb>=1024?(Math.round(kb/102.4)/10)+dzT("sfx.commun.mo"):kb+dzT("sfx.commun.ko")}
 function svxWaveEntry(src){
   var e=SVM_WAVES.get(svmSrcKey(src));
   return e&&e.st==="ok"?e:null}
 
 /* catégories de la bibliothèque — couleur = type de média, jamais un état */
 var SVX_KINDS={
-  sfx:{tag:"SFX",label:"Effet sonore",c:"--c-3d",track:"a3"},
-  voix:{tag:"VOIX",label:"Voix",c:"--c-audio",track:"a1"},
-  musique:{tag:"MUS",label:"Musique",c:"--c-av",track:"a2"},
-  import:{tag:"IMP",label:"Importé",c:"--c-text",track:"a3"}};
+  sfx:{tag:"SFX",label:dzT("sfx.type.effet_sonore"),c:"--c-3d",track:"a3"},
+  voix:{tag:"VOIX",label:dzT("sfx.commun.voix"),c:"--c-audio",track:"a1"},
+  musique:{tag:"MUS",label:dzT("sfx.commun.musique"),c:"--c-av",track:"a2"},
+  import:{tag:"IMP",label:dzT("sfx.type.importe"),c:"--c-text",track:"a3"}};
 function svxKindOf(name,metaMap){
   var m=metaMap&&metaMap[name];
   if(m&&m.kind){var k=String(m.kind).toLowerCase();
@@ -114,62 +114,62 @@ function svxBuf(url,cb){
    dehum et eq6 insérés, ordre relatif des dix d'avant inchangé). live:1 = audible dans
    l'audition Web Audio du rack ; live:0 = « Écouter (rendu) » (ffmpeg). */
 var SVX_FX_DEFS=[
- {type:"filter",label:"Filtre",live:1,params:[
-   {k:"mode",kind:"seg",opts:[["low","grave"],["high","aigu"],["band","bande"]],d:"low"},
-   {k:"freq",label:"Fréq",min:20,max:20000,d:1000,step:1,unit:"Hz",log:1},
+ {type:"filter",label:dzT("sfx.fx.filtre"),live:1,params:[
+   {k:"mode",kind:"seg",opts:[["low",dzT("sfx.fx.mode_grave")],["high",dzT("sfx.fx.mode_aigu")],["band",dzT("sfx.fx.mode_bande")]],d:"low"},
+   {k:"freq",label:dzT("sfx.fx.freq"),min:20,max:20000,d:1000,step:1,unit:"Hz",log:1},
    {k:"q",label:"Q",min:0.1,max:10,d:1,step:0.1,unit:""}]},
- {type:"dehum",label:"Anti-ronflement",live:0,params:[
-   {k:"base",label:"Secteur",min:50,max:60,d:50,step:10,unit:"Hz"},
-   {k:"harmonics",label:"Harmon.",min:1,max:6,d:4,step:1,unit:""},
-   {k:"amount",label:"Dosage",min:0,max:100,d:100,step:1,unit:"%"}]},
- {type:"eq3",label:"Égaliseur",live:1,params:[
-   {k:"bass_db",label:"Graves",min:-12,max:12,d:0,step:0.5,unit:"dB"},
-   {k:"mid_db",label:"Médiums",min:-12,max:12,d:0,step:0.5,unit:"dB"},
-   {k:"treble_db",label:"Aigus",min:-12,max:12,d:0,step:0.5,unit:"dB"}]},
- {type:"denoise",label:"Débruiteur",live:0,params:[
-   {k:"amount",label:"Réduction",min:0,max:97,d:12,step:1,unit:"dB"},
-   {k:"nf",label:"Plancher 0=auto",min:-80,max:0,d:0,step:1,unit:"dB",tip:"Plancher du débruiteur : 0 = auto, −20 au plus (le rendu ramène −19…−1 à −20)"},
-   {k:"learn_in",label:"Appris de",min:0,max:86400,d:0,step:0.001,dec:3,unit:"s",hide:1},
-   {k:"learn_out",label:"Appris à",min:0,max:86400,d:0,step:0.001,dec:3,unit:"s",hide:1}]},
- {type:"eq6",label:"Égaliseur 6 bandes",live:0,params:[
-   {k:"hp_hz",label:"Passe-haut",min:0,max:300,d:0,step:1,unit:"Hz"},
-   {k:"ls_f",label:"Grave Hz",min:30,max:500,d:100,step:1,unit:"Hz",log:1},
-   {k:"ls_g",label:"Grave dB",min:-12,max:12,d:0,step:0.5,unit:"dB"},
-   {k:"p1_f",label:"Cloche 1 Hz",min:40,max:16000,d:250,step:1,unit:"Hz",log:1},
-   {k:"p1_g",label:"Cloche 1 dB",min:-12,max:12,d:0,step:0.5,unit:"dB"},
+ {type:"dehum",label:dzT("sfx.fx.anti_ronflement"),live:0,params:[
+   {k:"base",label:dzT("sfx.fx.secteur"),min:50,max:60,d:50,step:10,unit:"Hz"},
+   {k:"harmonics",label:dzT("sfx.fx.harmoniques"),min:1,max:6,d:4,step:1,unit:""},
+   {k:"amount",label:dzT("sfx.fx.dosage"),min:0,max:100,d:100,step:1,unit:"%"}]},
+ {type:"eq3",label:dzT("sfx.fx.egaliseur"),live:1,params:[
+   {k:"bass_db",label:dzT("sfx.fx.graves"),min:-12,max:12,d:0,step:0.5,unit:"dB"},
+   {k:"mid_db",label:dzT("sfx.fx.mediums"),min:-12,max:12,d:0,step:0.5,unit:"dB"},
+   {k:"treble_db",label:dzT("sfx.fx.aigus"),min:-12,max:12,d:0,step:0.5,unit:"dB"}]},
+ {type:"denoise",label:dzT("sfx.fx.debruiteur"),live:0,params:[
+   {k:"amount",label:dzT("sfx.fx.reduction"),min:0,max:97,d:12,step:1,unit:"dB"},
+   {k:"nf",label:dzT("sfx.fx.plancher"),min:-80,max:0,d:0,step:1,unit:"dB",tip:dzT("sfx.fx.plancher_aide")},
+   {k:"learn_in",label:dzT("sfx.fx.appris_de"),min:0,max:86400,d:0,step:0.001,dec:3,unit:"s",hide:1},
+   {k:"learn_out",label:dzT("sfx.fx.appris_a"),min:0,max:86400,d:0,step:0.001,dec:3,unit:"s",hide:1}]},
+ {type:"eq6",label:dzT("sfx.fx.egaliseur6"),live:0,params:[
+   {k:"hp_hz",label:dzT("sfx.fx.passe_haut"),min:0,max:300,d:0,step:1,unit:"Hz"},
+   {k:"ls_f",label:dzT("sfx.fx.grave_hz"),min:30,max:500,d:100,step:1,unit:"Hz",log:1},
+   {k:"ls_g",label:dzT("sfx.fx.grave_db"),min:-12,max:12,d:0,step:0.5,unit:"dB"},
+   {k:"p1_f",label:dzT("sfx.fx.cloche1_hz"),min:40,max:16000,d:250,step:1,unit:"Hz",log:1},
+   {k:"p1_g",label:dzT("sfx.fx.cloche1_db"),min:-12,max:12,d:0,step:0.5,unit:"dB"},
    {k:"p1_q",label:"Q1",min:0.3,max:8,d:1,step:0.1,unit:""},
-   {k:"p2_f",label:"Cloche 2 Hz",min:40,max:16000,d:800,step:1,unit:"Hz",log:1},
-   {k:"p2_g",label:"Cloche 2 dB",min:-12,max:12,d:0,step:0.5,unit:"dB"},
+   {k:"p2_f",label:dzT("sfx.fx.cloche2_hz"),min:40,max:16000,d:800,step:1,unit:"Hz",log:1},
+   {k:"p2_g",label:dzT("sfx.fx.cloche2_db"),min:-12,max:12,d:0,step:0.5,unit:"dB"},
    {k:"p2_q",label:"Q2",min:0.3,max:8,d:1,step:0.1,unit:""},
-   {k:"p3_f",label:"Cloche 3 Hz",min:40,max:16000,d:2500,step:1,unit:"Hz",log:1},
-   {k:"p3_g",label:"Cloche 3 dB",min:-12,max:12,d:0,step:0.5,unit:"dB"},
+   {k:"p3_f",label:dzT("sfx.fx.cloche3_hz"),min:40,max:16000,d:2500,step:1,unit:"Hz",log:1},
+   {k:"p3_g",label:dzT("sfx.fx.cloche3_db"),min:-12,max:12,d:0,step:0.5,unit:"dB"},
    {k:"p3_q",label:"Q3",min:0.3,max:8,d:1,step:0.1,unit:""},
-   {k:"p4_f",label:"Cloche 4 Hz",min:40,max:16000,d:6000,step:1,unit:"Hz",log:1},
-   {k:"p4_g",label:"Cloche 4 dB",min:-12,max:12,d:0,step:0.5,unit:"dB"},
+   {k:"p4_f",label:dzT("sfx.fx.cloche4_hz"),min:40,max:16000,d:6000,step:1,unit:"Hz",log:1},
+   {k:"p4_g",label:dzT("sfx.fx.cloche4_db"),min:-12,max:12,d:0,step:0.5,unit:"dB"},
    {k:"p4_q",label:"Q4",min:0.3,max:8,d:1,step:0.1,unit:""},
-   {k:"hs_f",label:"Aigu Hz",min:1000,max:16000,d:8000,step:1,unit:"Hz",log:1},
-   {k:"hs_g",label:"Aigu dB",min:-12,max:12,d:0,step:0.5,unit:"dB"}]},
- {type:"deesser",label:"Dé-esseur",live:0,params:[
-   {k:"intensity",label:"Intensité",min:0,max:100,d:50,step:1,unit:"%"}]},
- {type:"compressor",label:"Compresseur",live:1,params:[
-   {k:"threshold_db",label:"Seuil",min:-60,max:0,d:-20,step:1,unit:"dB"},
+   {k:"hs_f",label:dzT("sfx.fx.aigu_hz"),min:1000,max:16000,d:8000,step:1,unit:"Hz",log:1},
+   {k:"hs_g",label:dzT("sfx.fx.aigu_db"),min:-12,max:12,d:0,step:0.5,unit:"dB"}]},
+ {type:"deesser",label:dzT("sfx.fx.de_esseur"),live:0,params:[
+   {k:"intensity",label:dzT("sfx.fx.intensite"),min:0,max:100,d:50,step:1,unit:"%"}]},
+ {type:"compressor",label:dzT("sfx.fx.compresseur"),live:1,params:[
+   {k:"threshold_db",label:dzT("sfx.fx.seuil"),min:-60,max:0,d:-20,step:1,unit:"dB"},
    {k:"ratio",label:"Ratio",min:1,max:20,d:4,step:0.5,unit:":1"},
-   {k:"attack_ms",label:"Attaque",min:1,max:500,d:50,step:1,unit:"ms"},
-   {k:"release_ms",label:"Relâche",min:10,max:2000,d:250,step:5,unit:"ms"}]},
- {type:"distortion",label:"Distorsion",live:1,params:[
+   {k:"attack_ms",label:dzT("sfx.fx.attaque"),min:1,max:500,d:50,step:1,unit:"ms"},
+   {k:"release_ms",label:dzT("sfx.fx.relache"),min:10,max:2000,d:250,step:5,unit:"ms"}]},
+ {type:"distortion",label:dzT("sfx.fx.distorsion"),live:1,params:[
    {k:"drive",label:"Drive",min:0,max:100,d:20,step:1,unit:"%"}]},
- {type:"echo",label:"Écho",live:1,params:[
-   {k:"time_ms",label:"Temps",min:20,max:1500,d:300,step:5,unit:"ms"},
-   {k:"feedback",label:"Répét.",min:0,max:90,d:30,step:1,unit:"%"},
+ {type:"echo",label:dzT("sfx.fx.echo"),live:1,params:[
+   {k:"time_ms",label:dzT("sfx.fx.temps"),min:20,max:1500,d:300,step:5,unit:"ms"},
+   {k:"feedback",label:dzT("sfx.fx.repetitions"),min:0,max:90,d:30,step:1,unit:"%"},
    {k:"mix",label:"Mix",min:0,max:100,d:30,step:1,unit:"%"}]},
- {type:"reverb",label:"Réverbe",live:1,params:[
+ {type:"reverb",label:dzT("sfx.fx.reverbe"),live:1,params:[
    {k:"mix",label:"Mix",min:0,max:100,d:30,step:1,unit:"%"},
-   {k:"decay_s",label:"Décrois.",min:0.2,max:8,d:2,step:0.1,unit:"s"}]},
- {type:"stereo",label:"Stéréo",live:1,params:[
+   {k:"decay_s",label:dzT("sfx.fx.decroissance"),min:0.2,max:8,d:2,step:0.1,unit:"s"}]},
+ {type:"stereo",label:dzT("sfx.fx.stereo"),live:1,params:[
    {k:"pan",label:"Pan",min:-100,max:100,d:0,step:1,unit:""},
-   {k:"width",label:"Largeur",min:0,max:200,d:100,step:1,unit:"%"}]},
- {type:"normalize",label:"Normaliser",live:0,params:[
-   {k:"target_lufs",label:"Cible",min:-30,max:-10,d:-16,step:1,unit:"LUFS"}]}];
+   {k:"width",label:dzT("sfx.fx.largeur"),min:0,max:200,d:100,step:1,unit:"%"}]},
+ {type:"normalize",label:dzT("sfx.fx.normaliser"),live:0,params:[
+   {k:"target_lufs",label:dzT("sfx.fx.cible"),min:-30,max:-10,d:-16,step:1,unit:"LUFS"}]}];
 var SVX_FX_BY={};
 SVX_FX_DEFS.forEach(function(d){SVX_FX_BY[d.type]=d});
 function svxFxDefaults(type){
@@ -209,19 +209,19 @@ function svxFxSig(on){
 function svxModSummary(def,p){
   if(!p)return "";
   switch(def.type){
-    case "filter":{var mm={low:"grave",high:"aigu",band:"bande"};
+    case "filter":{var mm={low:dzT("sfx.fx.mode_grave"),high:dzT("sfx.fx.mode_aigu"),band:dzT("sfx.fx.mode_bande")};
       return (mm[p.mode]||p.mode)+" "+Math.round(p.freq)+" Hz"}
     case "eq3":return svxDb1(p.bass_db).replace(".0","")+" / "+svxDb1(p.mid_db).replace(".0","")+" / "+svxDb1(p.treble_db).replace(".0","");
-    case "denoise":return p.amount+" dB"+(Number(p.nf)<=-.5?" · plancher "+Math.max(-80,Math.min(-20,Number(p.nf)))+" dB":"")+((Number(p.learn_out)||0)-(Number(p.learn_in)||0)>=.2-1e-9?" · appris":"");
+    case "denoise":return p.amount+" dB"+(Number(p.nf)<=-.5?dzT("sfx.resume.plancher")+Math.max(-80,Math.min(-20,Number(p.nf)))+" dB":"")+((Number(p.learn_out)||0)-(Number(p.learn_in)||0)>=.2-1e-9?dzT("sfx.resume.appris"):"");
     case "eq6":{var nb=["ls","p1","p2","p3","p4","hs"].filter(function(b){return Math.abs(Number(p[b+"_g"])||0)>=.05}).length;
-      return (p.hp_hz>0?"PH "+Math.round(p.hp_hz)+" Hz · ":"")+(nb?nb+" bande"+(nb>1?"s":""):"neutre")}
+      return (p.hp_hz>0?dzT("sfx.resume.passe_haut")+Math.round(p.hp_hz)+" Hz · ":"")+(nb?(nb>1?dzT("sfx.resume.bandes.plusieurs",{n:nb}):dzT("sfx.resume.bandes.un",{n:nb})):dzT("sfx.resume.neutre"))}
     case "dehum":return (p.base>=55?60:50)+" Hz ×"+p.harmonics+" · "+p.amount+" %";
     case "deesser":return p.intensity+" %";
     case "compressor":return svxDb1(p.threshold_db).replace(".0","")+" dB · "+p.ratio+":1";
     case "distortion":return p.drive+" %";
     case "echo":return p.time_ms+" ms · "+p.mix+" %";
     case "reverb":return p.mix+" % · "+p.decay_s+" s";
-    case "stereo":return (p.pan===0?"centre":(p.pan>0?"D +":"G −")+Math.abs(p.pan))+" · "+p.width+" %";
+    case "stereo":return (p.pan===0?dzT("sfx.resume.centre"):(p.pan>0?dzT("sfx.resume.droite"):dzT("sfx.resume.gauche"))+Math.abs(p.pan))+" · "+p.width+" %";
     case "normalize":return p.target_lufs+" LUFS";
     default:return ""}}
 
@@ -232,15 +232,15 @@ var svxFxPresets=[
    {type:"filter",params:{mode:"band",freq:1800,q:1.4}},
    {type:"compressor",params:{threshold_db:-24,ratio:6,attack_ms:5,release_ms:120}},
    {type:"distortion",params:{drive:14}}]},
- {id:"telephone",label:"Téléphone",fx:[
+ {id:"telephone",label:dzT("sfx.preset.telephone"),fx:[
    {type:"filter",params:{mode:"band",freq:1700,q:2.2}},
    {type:"compressor",params:{threshold_db:-20,ratio:8,attack_ms:3,release_ms:90}},
    {type:"distortion",params:{drive:8}}]},
- {id:"caverne",label:"Caverne",fx:[
+ {id:"caverne",label:dzT("sfx.preset.caverne"),fx:[
    {type:"eq3",params:{bass_db:2,mid_db:0,treble_db:-3}},
    {type:"echo",params:{time_ms:210,feedback:35,mix:22}},
    {type:"reverb",params:{mix:55,decay_s:3.5}}]},
- {id:"sous_leau",label:"Sous l'eau",fx:[
+ {id:"sous_leau",label:dzT("sfx.preset.sous_leau"),fx:[
    {type:"filter",params:{mode:"low",freq:420,q:0.8}},
    {type:"eq3",params:{bass_db:3,mid_db:-2,treble_db:-9}},
    {type:"reverb",params:{mix:35,decay_s:2.6}}]},
@@ -248,7 +248,7 @@ var svxFxPresets=[
    {type:"eq3",params:{bass_db:3,mid_db:0,treble_db:2}},
    {type:"compressor",params:{threshold_db:-18,ratio:8,attack_ms:8,release_ms:140}},
    {type:"distortion",params:{drive:10}}]},
- {id:"voix_nette",label:"Voix nette",fx:[
+ {id:"voix_nette",label:dzT("sfx.preset.voix_nette"),fx:[
    {type:"filter",params:{mode:"high",freq:85,q:0.7}},
    {type:"eq3",params:{bass_db:0,mid_db:2,treble_db:1}},
    {type:"denoise",params:{amount:12}},
@@ -268,7 +268,7 @@ function svxGenSfx(o){
     .then(function(res){return res.json().catch(function(){return {}})
       .then(function(d){return {ok:res.ok,status:res.status,d:d}})})
     .then(function(o2){
-      if(!o2.ok)throw new Error((o2.d&&(o2.d.detail||o2.d.error))||("génération refusée (HTTP "+o2.status+")"));
+      if(!o2.ok)throw new Error((o2.d&&(o2.d.detail||o2.d.error))||(dzT("sfx.generer.refusee",{code:o2.status})));
       var items=(o2.d&&o2.d.items||[]).map(function(it){
         var fn=it.filename||it.name||"";
         return {name:it.name||fn,filename:fn,
@@ -325,10 +325,10 @@ const SvxWave=(props)=>{
     style:props.h?{height:props.h}:void 0,ref:cv})};
 
 /* ── exemples de prompts SFX (cliquables, onglet Générer) ────────────────── */
-var SVX_EXAMPLES=["verre brisé","vent dans une grotte","clic d'interface",
-  "pas sur du gravier","porte qui grince au ralenti","explosion sourde et lointaine"];
-var SVX_TABS=[["tous","Tous"],["fav","★"],["sfx","SFX"],["voix","Voix"],
-  ["musique","Musique"],["import","Importés"]];
+var SVX_EXAMPLES=[dzT("sfx.exemple.verre"),dzT("sfx.exemple.vent"),dzT("sfx.exemple.clic"),
+  dzT("sfx.exemple.gravier"),dzT("sfx.exemple.porte"),dzT("sfx.exemple.explosion")];
+var SVX_TABS=[["tous",dzT("sfx.onglet.tous")],["fav","★"],["sfx","SFX"],["voix",dzT("sfx.commun.voix")],
+  ["musique",dzT("sfx.commun.musique")],["import",dzT("sfx.onglet.importes")]];
 
 /* ═════════════════ Tiroir « Sons » — bibliothèque + Générer ═════════════ */
 const SvxDrawer=(props)=>{
@@ -358,8 +358,8 @@ const SvxDrawer=(props)=>{
   var s21=x.useState(null),nearOf=s21[0],setNearOf=s21[1];           /* {name,items} */
   x.useEffect(function(){if(!open)return;var alive=!0;
     fetch("/api/audio/search/status").then(function(r2){return r2.json()})
-      .then(function(d){if(alive)setSsStatus(d&&typeof d==="object"?d:{ready:!1,indexed:0,hint:"statut indisponible"})})
-      .catch(function(){if(alive)setSsStatus({ready:!1,indexed:0,hint:"statut de la recherche indisponible"})});
+      .then(function(d){if(alive)setSsStatus(d&&typeof d==="object"?d:{ready:!1,indexed:0,hint:dzT("sfx.recherche.statut_indisponible")})})
+      .catch(function(){if(alive)setSsStatus({ready:!1,indexed:0,hint:dzT("sfx.recherche.statut_recherche_indisponible")})});
     return function(){alive=!1}},[open]);
   var hoverTimer=x.useRef(0);
   /* onglet Générer — l'état vit ici : changer d'onglet ne perd rien */
@@ -463,7 +463,7 @@ const SvxDrawer=(props)=>{
           dur:isFinite(a.duration)&&a.duration>0?a.duration:p.dur}:p})};
     a.onended=function(){stopRef.current();svxRelease(stopRef.current)};
     a.play().catch(function(){stopRef.current();svxRelease(stopRef.current);
-      fireNote("Lecture bloquée par le navigateur — cliquez d'abord dans la page.")})}
+      fireNote(dzT("sfx.liste.lecture_bloquee"))})}
 
   function doInsert(item,mode){
     if(!props.onInsert||!item)return;
@@ -482,8 +482,8 @@ const SvxDrawer=(props)=>{
     var on=!!favs[it.name];
     return r.jsx("button",{className:"svx-ifav","data-on":on?"":void 0,
       tabIndex:-1,"aria-pressed":on,
-      title:on?"Retirer des favoris (F)":"Ajouter aux favoris (F)",
-      "aria-label":(on?"Retirer des favoris : ":"Ajouter aux favoris : ")+it.name,
+      title:on?dzT("sfx.favori.retirer_aide"):dzT("sfx.favori.ajouter_aide"),
+      "aria-label":(on?dzT("sfx.favori.retirer"):dzT("sfx.favori.ajouter"))+it.name,
       onClick:function(e){e.stopPropagation();favToggle(it.name)},
       children:on?"★":"☆"})}
 
@@ -493,14 +493,14 @@ const SvxDrawer=(props)=>{
       .then(function(res){return res.json().catch(function(){return {}})
         .then(function(d){return {ok:res.ok,d:d}})})
       .then(function(o){
-        if(!o.ok)throw new Error((o.d&&o.d.detail)||"suppression refusée");
+        if(!o.ok)throw new Error((o.d&&o.d.detail)||dzT("sfx.supprimer.refusee"));
         if(prev&&prev.name===item.name){stopRef.current();svxRelease(stopRef.current)}
         setGRes(function(rs){return rs.filter(function(g){return g.name!==item.name})});
         setFavs(function(m){
           if(!m[item.name])return m;
           var nm=Object.assign({},m);delete nm[item.name];return nm});
-        refresh();fireNote("« "+item.name+" » supprimé.")})
-      .catch(function(e){fireNote("Suppression : "+String(e&&e.message||e))})}
+        refresh();fireNote(dzT("sfx.supprimer.fait",{nom:item.name}))})
+      .catch(function(e){fireNote(dzT("sfx.supprimer.echec",{e:String(e&&e.message||e)}))})}
 
   function upFiles(files){
     var fs=Array.prototype.slice.call(files||[]).filter(function(f){return f&&f.name});
@@ -511,8 +511,8 @@ const SvxDrawer=(props)=>{
       if(i>=fs.length){
         setUpBusy(!1);refresh();
         fireNote(fail.length
-          ?("Import : "+done+" ok · "+fail.length+" échec — "+fail[0])
-          :(done+" fichier"+(done>1?"s":"")+" importé"+(done>1?"s":"")+"."));
+          ?(dzT("sfx.import.bilan_echec",{ok:done,n:fail.length,e:fail[0]}))
+          :(done>1?dzT("sfx.import.importes.plusieurs",{n:done}):dzT("sfx.import.importes.un",{n:done})));
         return}
       var fd=new FormData();fd.append("file",fs[i]);
       fetch("/api/audio/upload",{method:"POST",body:fd})
@@ -627,25 +627,25 @@ const SvxDrawer=(props)=>{
         its.forEach(function(gi){real+=40*svxN(gi.dur,0)});
         setGCost(real>0?Math.round(real):null);
         refresh();
-        fireNote(its.length+" variation"+(its.length>1?"s":"")+" générée"+
-          (its.length>1?"s":"")+" — cartes ci-dessous, insérables ou déplaçables.")})
+        fireNote((its.length>1?dzT("sfx.generer.variations.plusieurs",{n:its.length})
+          :dzT("sfx.generer.variations.un",{n:its.length})))})
       .catch(function(e){setGBusy(!1);fireNote(String(e&&e.message||e))})}
 
   function renameGo(item){
     var ext=((item.name.match(/\.[a-z0-9]+$/i)||[".mp3"])[0]).toLowerCase();
     var nb=String(renaming&&renaming.val||"").trim()
       .replace(/[^\w.-]+/g,"_").replace(/^_+|_+$/g,"").slice(0,60);
-    if(!nb){fireNote("Nom vide — renommage annulé.");setRenaming(null);return}
+    if(!nb){fireNote(dzT("sfx.renommer.nom_vide"));setRenaming(null);return}
     var nn=nb.toLowerCase().slice(-ext.length)===ext?nb:nb+ext;
     if(nn===item.name){setRenaming(null);return}
-    fetch(item.url).then(function(res){if(!res.ok)throw new Error("source introuvable");return res.blob()})
+    fetch(item.url).then(function(res){if(!res.ok)throw new Error(dzT("sfx.renommer.source_introuvable"));return res.blob()})
       .then(function(bl){
         var fd=new FormData();
         fd.append("file",new File([bl],nn,{type:bl.type||"audio/mpeg"}));
         return fetch("/api/audio/upload",{method:"POST",body:fd})})
       .then(function(res){
         if(!res.ok)return res.json().catch(function(){return {}})
-          .then(function(d){throw new Error(d.detail||"import refusé")});
+          .then(function(d){throw new Error(d.detail||dzT("sfx.renommer.import_refuse"))});
         return fetch("/api/audio/"+encodeURIComponent(item.name),{method:"DELETE"})})
       .then(function(){
         setGRes(function(rs){return rs.map(function(g){
@@ -656,8 +656,8 @@ const SvxDrawer=(props)=>{
         setFavs(function(m){
           if(!m[item.name])return m;
           var nm=Object.assign({},m);delete nm[item.name];nm[nn]=1;return nm});
-        setRenaming(null);refresh();fireNote("Renommé en « "+nn+" ».")})
-      .catch(function(e){fireNote("Renommage : "+String(e&&e.message||e))})}
+        setRenaming(null);refresh();fireNote(dzT("sfx.renommer.fait",{nom:nn}))})
+      .catch(function(e){fireNote(dzT("sfx.renommer.echec",{e:String(e&&e.message||e)}))})}
 
   /* T101 : tags éditables — écrits dans le sidecar (PUT /api/audio/meta/<fn>, fusion côté serveur) */
   function tagSave(item,val){
@@ -665,9 +665,9 @@ const SvxDrawer=(props)=>{
     fetch("/api/audio/meta/"+encodeURIComponent(item.name),{method:"PUT",
       headers:{"Content-Type":"application/json"},body:JSON.stringify({tags:tags})})
       .then(function(res){return res.json().catch(function(){return {}})
-        .then(function(d){if(!res.ok)throw new Error(d.detail||"tags refusés");return d})})
+        .then(function(d){if(!res.ok)throw new Error(d.detail||dzT("sfx.tags.refuses"));return d})})
       .then(function(){setTagEdit(null);refresh()})
-      .catch(function(e){fireNote("Tags : "+String(e&&e.message||e))})}
+      .catch(function(e){fireNote(dzT("sfx.tags.echec",{e:String(e&&e.message||e)}))})}
   /* T101 : actions par son. Payantes (stems, isolate) : le PREMIER clic arme avec le devis du backend, le second
      tire ; gratuite (enhance) : un clic. Une seule action à la fois. */
   var SVX_ACT_ROUTE={stems:"/api/audio/stems",isolate:"/api/audio/isolate",enhance:"/api/audio/enhance"};
@@ -676,13 +676,13 @@ const SvxDrawer=(props)=>{
     fetch(SVX_ACT_ROUTE[act],{method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({filename:item.name})})
       .then(function(res){return res.json().catch(function(){return {}})
-        .then(function(d){if(!res.ok)throw new Error(d.detail&&d.detail.message||d.detail||"échec ("+res.status+")");return d})})
+        .then(function(d){if(!res.ok)throw new Error(d.detail&&d.detail.message||d.detail||dzT("sfx.action.echec_code",{code:res.status}));return d})})
       .then(function(d){setBusyAct("");refresh();
         fireNote(act==="stems"
-          ?((d.items||[]).length+" stem"+((d.items||[]).length>1?"s":"")+" posé"+((d.items||[]).length>1?"s":"")+" en Bibliothèque"
-            +((d.missing||[]).length?" — manquants : "+d.missing.join(", "):"")+" · ~$"+svxN(d.usd,0).toFixed(3))
-          :act==="isolate"?"Voix isolée : "+d.filename+" · ~$"+svxN(d.usd,0).toFixed(3)
-          :"Voix améliorée : "+d.filename+" (gratuit)")})
+          ?(((d.items||[]).length>1?dzT("sfx.action.stems_poses.plusieurs",{n:(d.items||[]).length,manquants:(d.missing||[]).length?dzT("sfx.action.stems_manquants",{liste:d.missing.join(", ")}):"",usd:svxN(d.usd,0).toFixed(3)})
+            :dzT("sfx.action.stems_poses.un",{n:(d.items||[]).length,manquants:(d.missing||[]).length?dzT("sfx.action.stems_manquants",{liste:d.missing.join(", ")}):"",usd:svxN(d.usd,0).toFixed(3)})))
+          :act==="isolate"?dzT("sfx.action.voix_isolee",{nom:d.filename,usd:svxN(d.usd,0).toFixed(3)})
+          :dzT("sfx.action.voix_amelioree",{nom:d.filename}))})
       .catch(function(e){setBusyAct("");fireNote(String(e&&e.message||e))})}
   function actGo(item,act){
     if(busyAct)return;
@@ -693,11 +693,11 @@ const SvxDrawer=(props)=>{
       setArmAct(function(a){return a&&a.name===item.name&&a.act===act?{name:item.name,act:act,usd:usd}:a})})}
   function actBtn(it,act,lbl,tt){
     var armed=armAct&&armAct.name===it.name&&armAct.act===act;
-    var prix=armed?(armAct.usd==null?"prix…":"~$"+armAct.usd.toFixed(armAct.usd<0.1?3:2)):"";
+    var prix=armed?(armAct.usd==null?dzT("sfx.action.prix_attente"):"~$"+armAct.usd.toFixed(armAct.usd<0.1?3:2)):"";
     return r.jsx("button",{className:"svx-abtn"+(armed?" svx-armed":""),tabIndex:-1,
       "data-act":act,"data-busy":busyAct===act+":"+it.name?"":void 0,
       disabled:!!busyAct&&busyAct!==act+":"+it.name,
-      title:armed?prix+" — cliquer encore pour lancer, Échap pour annuler":tt,
+      title:armed?dzT("sfx.action.armee",{prix:prix}):tt,
       "aria-label":tt+" : "+it.name,
       onClick:function(e){e.stopPropagation();actGo(it,act)},
       children:armed?prix+" ✓":lbl},act)}
@@ -711,7 +711,7 @@ const SvxDrawer=(props)=>{
   /* ── T103 (D3c) : recherche par description, indexation, voisins ──────────
      Tout passe par les routes de T12 ; aucune n'appelle un fournisseur payant
      (le service d'embeddings est local, ou fourni par l'utilisateur). */
-  function svxJsonOk(r2){return r2.json().then(function(d){if(!r2.ok)throw new Error((d&&d.detail)||"échec");return d})}
+  function svxJsonOk(r2){return r2.json().then(function(d){if(!r2.ok)throw new Error((d&&d.detail)||dzT("sfx.commun.echec"));return d})}
   function semSearch(){
     var q=query.trim();if(!q||semBusy)return;
     setSemBusy("q");setNearOf(null);
@@ -724,14 +724,14 @@ const SvxDrawer=(props)=>{
       body:JSON.stringify(force?{force:!0}:{})}).then(svxJsonOk)
       .then(function(d){setSemBusy("");
         setSsStatus(function(p){return Object.assign({},p,{indexed:d.total})});
-        fireNote(d.indexed+" son(s) indexé(s), "+d.skipped+" inchangé(s)"
-          +((d.dropped||[]).length?", "+d.dropped.length+" retiré(s)":""))})
-      .catch(function(e){setSemBusy("");fireNote("Indexation : "+String(e&&e.message||e))})}
+        fireNote(dzT("sfx.recherche.indexation_bilan",{n:d.indexed,m:d.skipped,
+          retires:(d.dropped||[]).length?dzT("sfx.recherche.indexation_retires",{n:d.dropped.length}):""}))})
+      .catch(function(e){setSemBusy("");fireNote(dzT("sfx.recherche.indexation_echec",{e:String(e&&e.message||e)}))})}
   function nearGo(it){
     fetch("/api/audio/similar/"+encodeURIComponent(it.name)+"?k=8").then(svxJsonOk)
       .then(function(d){setSemRes(null);setNearOf({name:it.name,items:d.items||[]});
-        if(!(d.items||[]).length)fireNote("« "+it.name+" » n'est pas encore indexé — ✧ puis « indexer ».")})
-      .catch(function(){fireNote("Voisins indisponibles.")})}
+        if(!(d.items||[]).length)fireNote(dzT("sfx.recherche.pas_indexe",{nom:it.name}))})
+      .catch(function(){fireNote(dzT("sfx.recherche.voisins_indisponibles"))})}
   /* résultat d'une recherche par description ou d'un « voisins » : les MÊMES
      rangées que la liste, plus le score, plus une sortie explicite */
   function semanticPanel(){
@@ -739,42 +739,42 @@ const SvxDrawer=(props)=>{
     var byName={};all.forEach(function(it){byName[it.name]=it});
     return r.jsxs("div",{className:"svx-sem",children:[
       r.jsxs("div",{className:"svx-semhead",children:[
-        r.jsx("span",{children:nearOf?"Proches de « "+nearOf.name+" »":"Décrit : « "+query.trim()+" »"}),
-        r.jsx("button",{className:"svx-minix",onClick:function(){setSemRes(null);setNearOf(null)},children:"retour à la liste"})]}),
-      semBusy==="q"?r.jsx("div",{className:"svx-note",children:"recherche…"})
+        r.jsx("span",{children:nearOf?dzT("sfx.recherche.proches_de",{nom:nearOf.name}):dzT("sfx.recherche.decrit",{q:query.trim()})}),
+        r.jsx("button",{className:"svx-minix",onClick:function(){setSemRes(null);setNearOf(null)},children:dzT("sfx.recherche.retour_liste")})]}),
+      semBusy==="q"?r.jsx("div",{className:"svx-note",children:dzT("sfx.recherche.en_cours")})
       :rows.length?rows.map(function(row){
         var it=byName[row.name];
         /* un son indexé mais absent de la liste (effacé depuis) : on le DIT plutôt qu'une rangée fantôme */
-        if(!it)return r.jsx("div",{className:"svx-note",children:"« "+row.name+" » n'est plus dans la bibliothèque — relance « indexer »."},row.name);
+        if(!it)return r.jsx("div",{className:"svx-note",children:dzT("sfx.recherche.plus_dans_biblio",{nom:row.name})},row.name);
         return r.jsxs("div",{className:"svx-semrow",children:[
-          r.jsx("span",{className:"svx-semscore svm-mono",title:"cosinus (CLAP)",children:Number(row.score).toFixed(2)}),
+          r.jsx("span",{className:"svx-semscore svm-mono",title:dzT("sfx.recherche.score_aide"),children:Number(row.score).toFixed(2)}),
           itemRow(it)]},row.name)})
       :r.jsx("div",{className:"svx-note",children:nearOf
-        ?"Aucun voisin — ce son n'est pas dans l'index."
-        :"Rien trouvé. Vérifie que les sons sont indexés (bouton « indexer »)."})]})}
+        ?dzT("sfx.recherche.aucun_voisin")
+        :dzT("sfx.recherche.rien_trouve")})]})}
 
   function itemRow(it){
     var playing=prev&&prev.name===it.name;
     if(confirmDel===it.name)
       return r.jsxs("div",{className:"svx-item svx-confirm",role:"alert",children:[
         r.jsxs("span",{className:"svx-conftxt",children:[
-          "Supprimer « ",r.jsx("b",{children:it.name})," » ?"]}),
+          dzT("sfx.supprimer.confirmer_avant"),r.jsx("b",{children:it.name}),dzT("sfx.supprimer.confirmer_apres")]}),
         r.jsx("button",{className:"svx-abtn svx-dangerfill",
-          onClick:function(){delGo(it)},children:"Supprimer"}),
+          onClick:function(){delGo(it)},children:dzT("sfx.commun.supprimer")}),
         r.jsx("button",{className:"svx-abtn",autoFocus:!0,
-          onClick:function(){setConfirmDel(null)},children:"Annuler"})]},it.name+"::c");
+          onClick:function(){setConfirmDel(null)},children:dzT("sfx.commun.annuler")})]},it.name+"::c");
     return r.jsxs("div",{className:"svx-item",tabIndex:0,role:"button",
       "data-svx-item":it.name,"data-play":playing?"":void 0,
       draggable:!0,
       onDragStart:function(e){dragStart(e,it)},onDragEnd:dragEnd,
       onClick:function(e){if(!e.defaultPrevented)prevToggle(it)},
       onMouseEnter:function(){hoverIn(it)},onMouseLeave:hoverOut,
-      title:"Clic / Espace : préécoute · glisser vers une piste A · Entrée : insérer",
+      title:dzT("sfx.liste.rangee_aide"),
       "aria-label":SVX_KINDS[it.kind].label+" "+it.name,
       children:[
       r.jsx("button",{className:"svm-playbtn svx-iplay",tabIndex:-1,
         "data-on":playing?"":void 0,
-        "aria-label":(playing?"Arrêter ":"Écouter ")+it.name,
+        "aria-label":(playing?dzT("sfx.liste.arreter"):dzT("sfx.liste.ecouter"))+it.name,
         onClick:function(e){e.stopPropagation();prevToggle(it)},
         children:playing?"▮▮":"▶"}),
       r.jsxs("div",{className:"svx-ibody",children:[
@@ -791,37 +791,37 @@ const SvxDrawer=(props)=>{
           children:it.prompt}):null,
         r.jsxs("div",{className:"svx-itags",children:[
           it.tags.map(function(t){return r.jsx("span",{className:"svx-itag",children:t},t)}),
-          it.starter?r.jsx("span",{className:"svx-itag svx-itag-cat",title:"Catalogue de démarrage (CC0)",
-            children:"catalogue"},"::cat"):null,
-          it.parent?r.jsx("span",{className:"svx-itag svx-itag-cat",title:"Dérivé de « "+it.parent+" »",
+          it.starter?r.jsx("span",{className:"svx-itag svx-itag-cat",title:dzT("sfx.liste.catalogue_aide"),
+            children:dzT("sfx.liste.catalogue")},"::cat"):null,
+          it.parent?r.jsx("span",{className:"svx-itag svx-itag-cat",title:dzT("sfx.liste.derive_de",{nom:it.parent}),
             children:"← "+(it.parent.length>20?it.parent.slice(0,19)+"…":it.parent)},"::mere"):null,
           tagEdit&&tagEdit.name===it.name?r.jsx("input",{className:"svx-tagin",autoFocus:!0,value:tagEdit.val,
-            placeholder:"tags, séparés par des virgules","aria-label":"Tags de "+it.name,
+            placeholder:dzT("sfx.tags.placeholder"),"aria-label":dzT("sfx.tags.de")+it.name,
             onClick:function(e){e.stopPropagation()},
             onChange:function(e){setTagEdit({name:it.name,val:e.target.value})},
             onKeyDown:function(e){
               if(e.key==="Enter"){e.preventDefault();tagSave(it,tagEdit.val)}
               else if(e.key==="Escape"){e.preventDefault();setTagEdit(null)}
               e.stopPropagation()}},"::in")
-          :r.jsx("button",{className:"svx-itag svx-itag-add",tabIndex:-1,title:"Éditer les tags",
-            "aria-label":"Éditer les tags de "+it.name,
+          :r.jsx("button",{className:"svx-itag svx-itag-add",tabIndex:-1,title:dzT("sfx.tags.editer"),
+            "aria-label":dzT("sfx.tags.editer_de")+it.name,
             onClick:function(e){e.stopPropagation();setTagEdit({name:it.name,val:it.tags.join(", ")})},
             children:"+ tag"},"::add")]})]}),
       r.jsxs("div",{className:"svx-iact",children:[
         props.onInsert?r.jsx("button",{className:"svx-abtn",tabIndex:-1,
-          title:"Insérer au playhead ("+svmShort(svxN(props.playheadSec,0))+
-            ") — piste "+svxTrackOf(it.kind).toUpperCase(),
+          title:dzT("sfx.liste.inserer_aide",{t:svmShort(svxN(props.playheadSec,0)),
+            piste:svxTrackOf(it.kind).toUpperCase()}),
           onClick:function(e){e.stopPropagation();doInsert(it,"playhead")},
           children:"⤵"}):null,
-        it.kind==="musique"?actBtn(it,"stems","≡","Séparer en stems (Demucs, fal)"):null,
-        it.kind==="voix"||it.kind==="import"?actBtn(it,"isolate","◌","Isoler la voix (ElevenLabs)"):null,
+        it.kind==="musique"?actBtn(it,"stems","≡",dzT("sfx.action.stems_aide")):null,
+        it.kind==="voix"||it.kind==="import"?actBtn(it,"isolate","◌",dzT("sfx.action.isoler_aide")):null,
         it.kind==="voix"||it.kind==="import"?actBtn(it,"enhance","✦",
-          "Améliorer : égaliseur → débruitage → compresseur → −16 LUFS (local, gratuit)"):null,
+          dzT("sfx.action.ameliorer_aide")):null,
         ssStatus&&ssStatus.indexed?r.jsx("button",{className:"svx-abtn",tabIndex:-1,
-          title:"Sons proches de celui-ci (index local, gratuit)","aria-label":"Sons proches de "+it.name,
+          title:dzT("sfx.action.proches_aide"),"aria-label":dzT("sfx.action.proches_de")+it.name,
           onClick:function(e){e.stopPropagation();nearGo(it)},children:"≈"}):null,
         r.jsx("button",{className:"svx-abtn svx-danger",tabIndex:-1,
-          title:"Supprimer de la bibliothèque",
+          title:dzT("sfx.supprimer.aide"),
           onClick:function(e){e.stopPropagation();setConfirmDel(it.name)},
           children:"✕"})]})]},it.name)}
 
@@ -834,33 +834,33 @@ const SvxDrawer=(props)=>{
     if(lib.err&&!(lib.items&&lib.items.length))
       return r.jsxs("div",{className:"svx-empty",children:[
         r.jsx("div",{className:"svx-emptytxt",
-          children:"Bibliothèque injoignable — le backend ne répond pas."}),
+          children:dzT("sfx.vide.injoignable")}),
         r.jsx("button",{className:"svm-secbtn",onClick:refresh,
-          children:"Réessayer"})]});
+          children:dzT("sfx.commun.reessayer")})]});
     if(qn)
       return r.jsxs("div",{className:"svx-empty",children:[
-        r.jsxs("div",{className:"svx-emptytxt",children:["Aucun résultat pour « ",qn," »."]}),
+        r.jsxs("div",{className:"svx-emptytxt",children:[dzT("sfx.vide.aucun_resultat",{q:qn})]}),
         r.jsx("button",{className:"svm-secbtn",onClick:function(){setQuery("")},
-          children:"Effacer la recherche"})]});
+          children:dzT("sfx.vide.effacer_recherche")})]});
     if(tab==="fav")
       return r.jsxs("div",{className:"svx-empty",children:[
-        r.jsx("div",{className:"svx-emptytxt",children:"Aucun favori pour l'instant."}),
+        r.jsx("div",{className:"svx-emptytxt",children:dzT("sfx.vide.aucun_favori")}),
         r.jsx("div",{className:"svx-emptyhint",
-          children:"Survolez un son et cliquez ★ (ou touche F) pour l'épingler ici."})]});
-    var msg=tab==="voix"?"Aucune voix — narrez un bloc (tiroir Narration, T) ou importez une prise."
-      :tab==="musique"?"Aucune musique — importez un fichier : il se posera sur la piste A2."
-      :tab==="sfx"?"Aucun effet sonore pour l'instant."
-      :"Votre bibliothèque de sons est vide.";
+          children:dzT("sfx.vide.aucun_favori_aide")})]});
+    var msg=tab==="voix"?dzT("sfx.vide.aucune_voix")
+      :tab==="musique"?dzT("sfx.vide.aucune_musique")
+      :tab==="sfx"?dzT("sfx.vide.aucun_sfx")
+      :dzT("sfx.vide.bibliotheque_vide");
     return r.jsxs("div",{className:"svx-empty",children:[
       r.jsx("div",{className:"svx-emptytxt",children:msg}),
       r.jsxs("div",{className:"svx-emptyrow",children:[
         r.jsx("button",{className:"svm-secbtn",
           onClick:function(){if(fileRef.current)fileRef.current.click()},
-          children:"Importer un son"}),
+          children:dzT("sfx.commun.importer_son")}),
         r.jsx("button",{className:"svm-goldbtn",
-          onClick:function(){setTabSel("gen")},children:"Générer un SFX"})]}),
+          onClick:function(){setTabSel("gen")},children:dzT("sfx.vide.generer_sfx")})]}),
       r.jsx("div",{className:"svx-emptyhint",
-        children:"Vous pouvez aussi déposer des fichiers audio ici."})]})}
+        children:dzT("sfx.vide.deposer")})]})}
 
   function genCard(it){
     var playing=prev&&prev.name===it.name;
@@ -870,11 +870,11 @@ const SvxDrawer=(props)=>{
       role:"button","data-play":playing?"":void 0,draggable:!0,
       onDragStart:function(e){dragStart(e,it)},onDragEnd:dragEnd,
       onClick:function(e){if(!e.defaultPrevented&&!ren)prevToggle(it)},
-      title:"Clic / Espace : préécoute · glisser vers une piste A",
+      title:dzT("sfx.carte.aide"),
       children:[
       r.jsxs("div",{className:"svx-irow1",children:[
         r.jsx("button",{className:"svm-playbtn svx-iplay",tabIndex:-1,
-          "data-on":playing?"":void 0,"aria-label":(playing?"Arrêter ":"Écouter ")+it.name,
+          "data-on":playing?"":void 0,"aria-label":(playing?dzT("sfx.carte.arreter_nom",{nom:it.name}):dzT("sfx.carte.ecouter_nom",{nom:it.name})),
           onClick:function(e){e.stopPropagation();prevToggle(it)},
           children:playing?"▮▮":"▶"}),
         ren?r.jsx("input",{className:"svx-rename svm-mono",autoFocus:!0,
@@ -885,7 +885,7 @@ const SvxDrawer=(props)=>{
             if(e.key==="Enter"){e.preventDefault();e.stopPropagation();renameGo(it)}
             else if(e.key==="Escape"){e.preventDefault();e.stopPropagation();setRenaming(null)}
             else e.stopPropagation()},
-          "aria-label":"Nouveau nom"})
+          "aria-label":dzT("sfx.carte.nouveau_nom")})
         :r.jsx("span",{className:"svx-iname",children:it.name}),
         ren?null:favBtn(it),
         r.jsx("span",{className:"svx-idur svm-mono",
@@ -894,30 +894,30 @@ const SvxDrawer=(props)=>{
         prog:playing&&prev.dur?prev.pos/prev.dur:null,onReady:waveTick,k:it.name}),
       r.jsxs("div",{className:"svx-gactions",children:[
         props.onInsert?r.jsx("button",{className:"svx-abtn",
-          title:"Insérer au playhead — piste A3 (SFX)",
+          title:dzT("sfx.carte.inserer_aide"),
           onClick:function(e){e.stopPropagation();doInsert(it,"playhead")},
-          children:"Insérer"}):null,
+          children:dzT("sfx.commun.inserer")}):null,
         r.jsx("a",{className:"svx-abtn svx-dl",href:it.url,download:it.name,
-          draggable:!1,title:"Télécharger « "+it.name+" »",
+          draggable:!1,title:dzT("sfx.carte.telecharger_nom",{nom:it.name}),
           onClick:function(e){e.stopPropagation()},
-          children:"Télécharger"}),
+          children:dzT("sfx.commun.telecharger")}),
         ren?r.jsx("button",{className:"svx-abtn",
-          onClick:function(e){e.stopPropagation();renameGo(it)},children:"Valider"})
+          onClick:function(e){e.stopPropagation();renameGo(it)},children:dzT("sfx.commun.valider")})
         :r.jsx("button",{className:"svx-abtn",
           onClick:function(e){e.stopPropagation();
             setRenaming({name:it.name,val:it.name.replace(/\.[a-z0-9]+$/i,"")})},
-          children:"Renommer"}),
+          children:dzT("sfx.commun.renommer")}),
         r.jsx("button",{className:"svx-abtn svx-danger",
           onClick:function(e){e.stopPropagation();setConfirmDel(it.name)},
-          children:"Supprimer"})]})]},it.name)}
+          children:dzT("sfx.commun.supprimer")})]})]},it.name)}
 
   function genPanel(){
     var cost=gAuto?null:Math.round(40*gDur)*gVar;
     return r.jsxs("div",{className:"svx-gen",children:[
-      r.jsx(SvmLabel,{children:"Décrire le son"}),
+      r.jsx(SvmLabel,{children:dzT("sfx.gen.decrire")}),
       r.jsx("textarea",{className:"svx-gprompt",rows:3,value:gPrompt,
-        placeholder:"« verre brisé sur du carrelage », « vent dans une grotte »…",
-        maxLength:450,"aria-label":"Description du son à générer",
+        placeholder:dzT("sfx.gen.exemple"),
+        maxLength:450,"aria-label":dzT("sfx.gen.description_aria"),
         onChange:function(e){setGPrompt(e.target.value)},
         onKeyDown:function(e){
           if(e.key==="Enter"&&(e.ctrlKey||e.metaKey)){e.preventDefault();genGo()}}}),
@@ -925,56 +925,56 @@ const SvxDrawer=(props)=>{
         return r.jsx("button",{className:"svx-gexchip",
           onClick:function(){setGPrompt(ex)},children:ex},ex)})}),
       r.jsxs("div",{className:"svx-grow",children:[
-        r.jsx("span",{className:"svx-glabel",children:"Durée"}),
+        r.jsx("span",{className:"svx-glabel",children:dzT("sfx.commun.duree")}),
         r.jsx("button",{className:"svx-gsegbtn","data-on":gAuto?"":void 0,
-          title:"ElevenLabs choisit la durée la plus naturelle",
+          title:dzT("sfx.gen.auto_aide"),
           onClick:function(){setGAuto(!gAuto)},children:"auto"}),
         r.jsx("input",{className:"svx-gslider",type:"range",min:0.5,max:22,step:0.5,
-          value:gDur,disabled:gAuto,"aria-label":"Durée (secondes)",
+          value:gDur,disabled:gAuto,"aria-label":dzT("sfx.gen.duree_secondes"),
           onChange:function(e){setGDur(svxN(e.target.value,3));setGAuto(!1)}}),
         r.jsx("input",{className:"svx-gnum svm-mono",type:"number",min:0.5,max:22,
           step:0.1,value:gAuto?"":gDur,disabled:gAuto,placeholder:"—",
-          "aria-label":"Durée précise (secondes)",
+          "aria-label":dzT("sfx.gen.duree_precise"),
           onChange:function(e){
             var v=svxN(e.target.value,gDur);
             setGDur(svxClamp(v,0.5,22));setGAuto(!1)}}),
         r.jsx("span",{className:"svx-gunit",children:"s"})]}),
       r.jsxs("div",{className:"svx-grow",children:[
-        r.jsx("span",{className:"svx-glabel",children:"Variations"}),
+        r.jsx("span",{className:"svx-glabel",children:dzT("sfx.gen.variations")}),
         r.jsx("div",{className:"svx-gseg",role:"radiogroup",
-          "aria-label":"Nombre de variations",children:[1,2,3,4].map(function(n){
+          "aria-label":dzT("sfx.gen.nombre_variations"),children:[1,2,3,4].map(function(n){
           return r.jsx("button",{className:"svx-gsegbtn",role:"radio",
             "aria-checked":gVar===n,"data-on":gVar===n?"":void 0,
             onClick:function(){setGVar(n)},children:String(n)},n)})})]}),
       r.jsxs("div",{className:"svx-grow",children:[
-        r.jsx("span",{className:"svx-glabel",children:"Fidélité"}),
+        r.jsx("span",{className:"svx-glabel",children:dzT("sfx.gen.fidelite")}),
         r.jsx("input",{className:"svx-gslider",type:"range",min:0,max:100,step:5,
-          value:gInf,"aria-label":"Fidélité au texte (prompt influence)",
-          title:"Haut : colle au texte · bas : plus créatif (30 % par défaut)",
+          value:gInf,"aria-label":dzT("sfx.gen.fidelite_aria"),
+          title:dzT("sfx.gen.fidelite_aide"),
           onChange:function(e){setGInf(svxN(e.target.value,30))}}),
         r.jsx("span",{className:"svx-gval svm-mono",children:gInf+" %"})]}),
       r.jsxs("div",{className:"svx-gfoot",children:[
         r.jsx("span",{className:"svx-gcost svm-mono",
-          title:"Estimation avant génération — ~40 crédits ElevenLabs par seconde et par variation",
-          children:cost==null?"≈ 40 crédits/s · total selon durée générée":"≈ "+cost+" crédits"}),
+          title:dzT("sfx.gen.estimation_aide"),
+          children:cost==null?dzT("sfx.gen.cout_auto"):dzT("sfx.gen.cout",{n:cost})}),
         r.jsx("button",{className:"svm-goldbtn svx-gold","data-busy":gBusy?"":void 0,
           disabled:gBusy||!gPrompt.trim(),
           onClick:genGo,
           children:gBusy?r.jsxs(r.Fragment,{children:[
             r.jsx("span",{className:"svx-spin","aria-hidden":!0}),
-            "Génération… (~10 s)"]}):"Générer"})]}),
+            dzT("sfx.gen.en_cours")]}):dzT("sfx.commun.generer")})]}),
       gRes.length?r.jsxs(r.Fragment,{children:[
         r.jsxs("div",{className:"svx-gresrow",children:[
-          r.jsx(SvmLabel,{children:"Résultats"}),
+          r.jsx(SvmLabel,{children:dzT("sfx.gen.resultats")}),
           gCost!=null?r.jsx("span",{className:"svx-gcost svm-mono",
-            title:"Coût réel estimé de la dernière génération — 40 crédits × durée générée × variations",
-            children:"≈ "+gCost+" crédits utilisés"}):null]}),
+            title:dzT("sfx.gen.cout_reel_aide"),
+            children:dzT("sfx.gen.cout_utilise",{n:gCost})}):null]}),
         r.jsx("div",{className:"svx-gres",children:gRes.map(genCard)})]}):null,
       history.length?r.jsxs(r.Fragment,{children:[
-        r.jsx(SvmLabel,{style:{margin:"16px 0 8px"},children:"Générations récentes"}),
+        r.jsx(SvmLabel,{style:{margin:"16px 0 8px"},children:dzT("sfx.gen.recentes")}),
         r.jsx("div",{className:"svx-ghist",children:history.map(function(h){
           return r.jsxs("button",{className:"svx-ghrow",
-            title:"Reprendre ce prompt",
+            title:dzT("sfx.gen.reprendre"),
             onClick:function(){setGPrompt(h.prompt)},children:[
             r.jsx("span",{className:"svx-ghprompt",children:h.prompt}),
             r.jsx("span",{className:"svx-idur svm-mono",
@@ -983,7 +983,7 @@ const SvxDrawer=(props)=>{
   /* T101 (plan-son-vfx T5) : `inline` = monté dans la page (Bibliothèque → Audio), toujours ouvert, sans « Fermer » */
   if(!open&&!props.inline)return null;
   return r.jsxs("aside",{className:"svx-drawer"+(props.inline?" svx-inline":""),ref:rootRef,tabIndex:-1,
-    onKeyDown:onKey,"aria-label":"Tiroir Sons",
+    onKeyDown:onKey,"aria-label":dzT("sfx.tiroir.aria"),
     "data-fileover":fileOver?"":void 0,
     onDragOver:function(e){
       if(isFileDrag(e)){e.preventDefault();e.dataTransfer.dropEffect="copy";
@@ -996,69 +996,69 @@ const SvxDrawer=(props)=>{
         upFiles(e.dataTransfer.files)}},
     children:[
     r.jsxs("div",{className:"svx-dhead",children:[
-      r.jsx("span",{className:"svx-dtitle",children:"Sons"}),
+      r.jsx("span",{className:"svx-dtitle",children:dzT("sfx.tiroir.titre")}),
       r.jsx("span",{className:"svx-dcount svm-mono",children:String(all.length)}),
-      r.jsx("button",{className:"svx-iconbtn",title:"Rafraîchir la bibliothèque",
-        "aria-label":"Rafraîchir",onClick:refresh,children:"⟳"}),
+      r.jsx("button",{className:"svx-iconbtn",title:dzT("sfx.tiroir.rafraichir_aide"),
+        "aria-label":dzT("sfx.commun.rafraichir"),onClick:refresh,children:"⟳"}),
       r.jsx("button",{className:"svx-iconbtn","data-busy":upBusy?"":void 0,
-        title:"Importer des fichiers audio (mp3, wav, m4a, ogg, flac…)",
-        "aria-label":"Importer un son",
+        title:dzT("sfx.tiroir.importer_aide"),
+        "aria-label":dzT("sfx.commun.importer_son"),
         onClick:function(){if(fileRef.current)fileRef.current.click()},
         children:upBusy?r.jsx("span",{className:"svx-spin","aria-hidden":!0}):"⤒"}),
-      props.inline?null:r.jsx("button",{className:"svx-iconbtn svx-dclose",title:"Fermer (B)",
-        "aria-label":"Fermer le tiroir Sons",
+      props.inline?null:r.jsx("button",{className:"svx-iconbtn svx-dclose",title:dzT("sfx.tiroir.fermer_aide"),
+        "aria-label":dzT("sfx.tiroir.fermer_aria"),
         onClick:function(){if(props.onClose)props.onClose()},children:"✕"})]}),
     r.jsxs("div",{className:"svx-tabs",role:"tablist",children:[
       SVX_TABS.map(function(td){
         return r.jsxs("button",{className:"svx-tab",role:"tab",
           "aria-selected":tab===td[0],"data-on":tab===td[0]?"":void 0,
-          title:td[0]==="fav"?"Favoris":void 0,
-          "aria-label":td[0]==="fav"?"Favoris ("+counts.fav+")":void 0,
+          title:td[0]==="fav"?dzT("sfx.commun.favoris"):void 0,
+          "aria-label":td[0]==="fav"?dzT("sfx.tiroir.favoris_n",{n:counts.fav}):void 0,
           onClick:function(){setTabSel(td[0])},children:[
           td[1],
           r.jsx("span",{className:"svx-tcount svm-mono",children:String(counts[td[0]])})]},td[0])}),
       r.jsx("span",{className:"svx-tsep","aria-hidden":!0}),
       r.jsx("button",{className:"svx-tab svx-tabgen",role:"tab",
         "aria-selected":tab==="gen","data-on":tab==="gen"?"":void 0,
-        onClick:function(){setTabSel("gen")},children:"Générer"})]}),
+        onClick:function(){setTabSel("gen")},children:dzT("sfx.commun.generer")})]}),
     tab!=="gen"?r.jsxs("div",{className:"svx-filters",children:[
       r.jsxs("div",{className:"svx-search",children:[
         r.jsx("input",{className:"svx-searchin",ref:searchRef,type:"text",
-          value:query,placeholder:semantic?"Décrire le son cherché, puis Entrée — « une porte lourde qui grince »":"Rechercher (nom, prompt)…",
-          "aria-label":"Rechercher un son",
+          value:query,placeholder:semantic?dzT("sfx.filtres.decrire_placeholder"):dzT("sfx.filtres.rechercher_placeholder"),
+          "aria-label":dzT("sfx.filtres.rechercher_aria"),
           onChange:function(e){setQuery(e.target.value)}}),
         r.jsx("kbd",{className:"svx-kbd","aria-hidden":!0,children:"/"})]}),
       /* T103 (D3c) : le mode « décrire » — désactivé avec sa RAISON en infobulle quand aucun service n'est là */
       r.jsx("button",{className:"svx-iconbtn svx-sembtn","data-on":semantic?"":void 0,
         title:ssStatus&&ssStatus.ready
-          ?"Chercher par DESCRIPTION ("+(ssStatus.indexed||0)+" sons indexés)"
-          :((ssStatus&&ssStatus.hint)||"recherche par description indisponible"),
-        "aria-pressed":semantic,"aria-label":"Recherche par description",
+          ?dzT("sfx.filtres.semantique_pret",{n:ssStatus.indexed||0})
+          :((ssStatus&&ssStatus.hint)||dzT("sfx.filtres.semantique_indispo")),
+        "aria-pressed":semantic,"aria-label":dzT("sfx.filtres.semantique_aria"),
         disabled:!(ssStatus&&ssStatus.ready),
         onClick:function(){setSemantic(!semantic);setSemRes(null);setNearOf(null)},children:"✧"}),
       semantic?r.jsx("button",{className:"svx-abtn","data-busy":semBusy==="ix"?"":void 0,
-        title:"Indexer les sons nouveaux ou modifiés (service local, gratuit)",
-        onClick:function(){semIndex(!1)},children:semBusy==="ix"?"…":"indexer"}):null,
+        title:dzT("sfx.filtres.indexer_aide"),
+        onClick:function(){semIndex(!1)},children:semBusy==="ix"?"…":dzT("sfx.filtres.indexer")}):null,
       semantic?r.jsx("button",{className:"svx-abtn",
-        title:"Tout réindexer depuis zéro — après un changement de modèle du service",
-        onClick:function(){semIndex(!0)},children:"tout réindexer"}):null,
+        title:dzT("sfx.filtres.reindexer_aide"),
+        onClick:function(){semIndex(!0)},children:dzT("sfx.filtres.reindexer")}):null,
       r.jsxs("select",{className:"svx-select",value:sort,
-        "aria-label":"Trier la bibliothèque",title:"Tri",
+        "aria-label":dzT("sfx.filtres.trier_aria"),title:dzT("sfx.filtres.tri"),
         onChange:function(e){setSort(e.target.value)},children:[
-        r.jsx("option",{value:"recent",children:"Récents"}),
-        r.jsx("option",{value:"nom",children:"Nom"}),
-        r.jsx("option",{value:"duree",children:"Durée"}),
-        r.jsx("option",{value:"fav",children:"Favoris d'abord"}),
-        r.jsx("option",{value:"ancien",children:"Plus anciens"})]}),
-      r.jsx("div",{className:"svx-seg",role:"group","aria-label":"Origine",children:
-        [["tous","Tous"],["miens","Mes sons"],["catalogue","Catalogue"]].map(function(o){
+        r.jsx("option",{value:"recent",children:dzT("sfx.filtres.tri_recents")}),
+        r.jsx("option",{value:"nom",children:dzT("sfx.filtres.tri_nom")}),
+        r.jsx("option",{value:"duree",children:dzT("sfx.commun.duree")}),
+        r.jsx("option",{value:"fav",children:dzT("sfx.filtres.tri_favoris")}),
+        r.jsx("option",{value:"ancien",children:dzT("sfx.filtres.tri_anciens")})]}),
+      r.jsx("div",{className:"svx-seg",role:"group","aria-label":dzT("sfx.filtres.origine"),children:
+        [["tous",dzT("sfx.filtres.origine_tous")],["miens",dzT("sfx.filtres.origine_miens")],["catalogue",dzT("sfx.filtres.origine_catalogue")]].map(function(o){
           return r.jsx("button",{className:"svx-segbtn","data-on":srcFilter===o[0]?"":void 0,
             "aria-pressed":srcFilter===o[0],
-            title:o[0]==="catalogue"?"Les sons du catalogue de démarrage (CC0)":o[0]==="miens"?"Vos sons : générés, importés, dérivés":void 0,
+            title:o[0]==="catalogue"?dzT("sfx.filtres.catalogue_aide"):o[0]==="miens"?dzT("sfx.filtres.miens_aide"):void 0,
             onClick:function(){setSrcFilter(o[0])},children:o[1]},o[0])})}),
       r.jsx("button",{className:"svx-iconbtn svx-hoverbtn","data-on":hoverPrev?"":void 0,
-        title:hoverPrev?"Pré-écoute au survol : active (350 ms)":"Pré-écoute au survol : coupée",
-        "aria-pressed":hoverPrev,"aria-label":"Pré-écoute au survol",
+        title:hoverPrev?dzT("sfx.filtres.survol_actif"):dzT("sfx.filtres.survol_coupe"),
+        "aria-pressed":hoverPrev,"aria-label":dzT("sfx.filtres.survol_aria"),
         onClick:function(){setHoverPrev(!hoverPrev)},children:"👂"})]}):null,
     r.jsx("div",{className:"svx-list",children:
       tab==="gen"?genPanel()
@@ -1067,13 +1067,13 @@ const SvxDrawer=(props)=>{
     note?r.jsx("div",{className:"svx-note",role:"status","aria-live":"polite",
       children:note}):null,
     r.jsxs("div",{className:"svx-hints","aria-hidden":!0,children:[
-      r.jsxs("span",{children:[r.jsx("kbd",{children:"Espace"})," préécoute"]}),
-      r.jsxs("span",{children:[r.jsx("kbd",{children:"↑↓"})," naviguer"]}),
-      r.jsxs("span",{children:[r.jsx("kbd",{children:"Entrée"})," insérer"]}),
-      r.jsxs("span",{children:[r.jsx("kbd",{children:"F"})," favori"]}),
-      r.jsxs("span",{children:[r.jsx("kbd",{children:"Suppr"})," supprimer"]}),
-      r.jsxs("span",{children:[r.jsx("kbd",{children:"/"})," recherche"]}),
-      props.inline?null:r.jsxs("span",{children:[r.jsx("kbd",{children:"B"})," fermer"]})]}),
+      r.jsxs("span",{children:[r.jsx("kbd",{children:dzT("sfx.touches.espace")}),dzT("sfx.touches.preecoute")]}),
+      r.jsxs("span",{children:[r.jsx("kbd",{children:"↑↓"}),dzT("sfx.touches.naviguer")]}),
+      r.jsxs("span",{children:[r.jsx("kbd",{children:dzT("sfx.touches.entree")}),dzT("sfx.touches.inserer")]}),
+      r.jsxs("span",{children:[r.jsx("kbd",{children:"F"}),dzT("sfx.touches.favori")]}),
+      r.jsxs("span",{children:[r.jsx("kbd",{children:dzT("sfx.touches.suppr")}),dzT("sfx.touches.supprimer")]}),
+      r.jsxs("span",{children:[r.jsx("kbd",{children:"/"}),dzT("sfx.touches.recherche")]}),
+      props.inline?null:r.jsxs("span",{children:[r.jsx("kbd",{children:"B"}),dzT("sfx.touches.fermer")]})]}),
     r.jsx("input",{className:"svx-file",ref:fileRef,type:"file",
       accept:"audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac,.opus",multiple:!0,
       "aria-hidden":!0,tabIndex:-1,
@@ -1141,7 +1141,7 @@ const SvxRack=(props)=>{
     emit({});
     setLastPreset(null);
     liveApply({});
-    fireNote("Chaîne d'effets réinitialisée.")}
+    fireNote(dzT("sfx.rack.chaine_reinitialisee"))}
   function applyPreset(p){
     var on={};
     p.fx.forEach(function(en){on[en.type]=svxCleanParams(en.type,en.params)});
@@ -1152,7 +1152,7 @@ const SvxRack=(props)=>{
       p.fx.forEach(function(en){nm[en.type]=1});
       return nm});
     liveApply(on);
-    fireNote("Preset « "+p.label+" » appliqué — la chaîne précédente est remplacée (annulable).")}
+    fireNote(dzT("sfx.rack.preset_applique",{preset:p.label}))}
   function presetSig(p){
     var on={};
     p.fx.forEach(function(en){on[en.type]=svxCleanParams(en.type,en.params)});
@@ -1231,7 +1231,7 @@ const SvxRack=(props)=>{
     setLoading(!1);
     var url=clipRef.current.url,e=url?SVX_BUFS.get(url):null;
     if(!e||e.st!=="ok"||!e.buf){
-      fireNote("Décodage impossible (codec non lu par le navigateur).");return}
+      fireNote(dzT("sfx.commun.decodage_impossible"));return}
     engineStop();
     svxClaim(wrapRef.current);
     var ctx=svmSharedAC();
@@ -1294,11 +1294,11 @@ const SvxRack=(props)=>{
   function listenToggle(){
     if(playing){engineStop();svxRelease(wrapRef.current);return}
     var url=clip.url;
-    if(!url){fireNote("Pas de source audio sur ce clip.");return}
-    if(!svmSharedAC()){fireNote("Web Audio indisponible dans ce navigateur.");return}
+    if(!url){fireNote(dzT("sfx.rack.sans_source"));return}
+    if(!svmSharedAC()){fireNote(dzT("sfx.rack.sans_webaudio"));return}
     var e=svxBuf(url,function(){if(wantRef.current)startEngine()});
     if(e.st==="ok"){wantRef.current=!0;startEngine()}
-    else if(e.st==="err")fireNote("Décodage impossible (codec non lu par le navigateur).");
+    else if(e.st==="err")fireNote(dzT("sfx.commun.decodage_impossible"));
     else{wantRef.current=!0;setLoading(!0)}}
 
   function renderAudition(){
@@ -1326,8 +1326,8 @@ const SvxRack=(props)=>{
     var v=p[pd.k];
     if(pd.kind==="seg")
       return r.jsxs("div",{className:"svx-prow",children:[
-        r.jsx("span",{className:"svx-plabel",children:"Mode"}),
-        r.jsx("div",{className:"svx-gseg",role:"radiogroup","aria-label":"Mode du filtre",
+        r.jsx("span",{className:"svx-plabel",children:dzT("sfx.rack.mode")}),
+        r.jsx("div",{className:"svx-gseg",role:"radiogroup","aria-label":dzT("sfx.rack.mode_filtre"),
           children:pd.opts.map(function(o){
           return r.jsx("button",{className:"svx-gsegbtn",role:"radio",
             "aria-checked":v===o[0],"data-on":v===o[0]?"":void 0,
@@ -1347,7 +1347,7 @@ const SvxRack=(props)=>{
           setParam(def.type,pd.k,svxClamp(nv,pd.min,pd.max))}}),
       r.jsx("input",{className:"svx-pval svm-mono",type:"number",
         min:pd.min,max:pd.max,step:pd.step,defaultValue:disp,
-        "aria-label":def.label+" — "+pd.label+" (valeur)",
+        "aria-label":dzT("sfx.rack.param_valeur",{module:def.label,param:pd.label}),
         onBlur:function(e){
           var nv=svxN(e.target.value,disp);
           if(nv!==disp)setParam(def.type,pd.k,svxClamp(nv,pd.min,pd.max))},
@@ -1371,15 +1371,15 @@ const SvxRack=(props)=>{
         children:[
         r.jsx("button",{className:"svx-sw",role:"switch","aria-checked":on,
           "data-on":on?"":void 0,
-          title:(on?"Désactiver":"Activer")+" — "+def.label,
-          "aria-label":(on?"Désactiver ":"Activer ")+def.label,
+          title:(on?dzT("sfx.rack.desactiver_aide",{module:def.label}):dzT("sfx.rack.activer_aide",{module:def.label})),
+          "aria-label":(on?dzT("sfx.rack.desactiver_module",{module:def.label}):dzT("sfx.rack.activer_module",{module:def.label})),
           onClick:function(e){e.stopPropagation();toggleMod(def.type)},
           children:r.jsx("i",{className:"svx-swk"})}),
         r.jsx("span",{className:"svx-mname",children:def.label}),
         r.jsx("span",{className:"svx-mtag","data-live":def.live?"":void 0,
-          title:def.live?"Audible dans l'audition live Web Audio"
-            :"Audible via « Écouter (rendu) » (ffmpeg) uniquement",
-          children:def.live?"live":"rendu"}),
+          title:def.live?dzT("sfx.rack.live_aide")
+            :dzT("sfx.rack.rendu_aide"),
+          children:def.live?"live":dzT("sfx.rack.rendu")}),
         on&&!exp?r.jsx("span",{className:"svx-msum svm-mono",
           children:svxModSummary(def,norm.on[def.type])}):null,
         r.jsx("span",{className:"svx-mcaret","aria-hidden":!0,children:exp?"▾":"▸"})]}),
@@ -1389,40 +1389,40 @@ const SvxRack=(props)=>{
   return r.jsxs("div",{className:"svx-rack",children:[
     r.jsxs("div",{className:"svx-rhead",children:[
       r.jsx("span",{className:"svx-rcount svm-mono",
-        children:activeCount?activeCount+" actif"+(activeCount>1?"s":""):"aucun effet"}),
+        children:activeCount?(activeCount>1?dzT("sfx.rack.actifs.plusieurs",{n:activeCount}):dzT("sfx.rack.actifs.un",{n:activeCount})):dzT("sfx.rack.aucun_effet")}),
       norm.unknown.length?r.jsx("span",{className:"svx-runk svm-mono",
-        title:"Effets d'une version plus récente — conservés tels quels dans le rendu",
-        children:"+"+norm.unknown.length+" inconnu"+(norm.unknown.length>1?"s":"")}):null,
+        title:dzT("sfx.rack.inconnus_aide"),
+        children:(norm.unknown.length>1?dzT("sfx.rack.inconnus.plusieurs",{n:norm.unknown.length}):dzT("sfx.rack.inconnus.un",{n:norm.unknown.length}))}):null,
       r.jsx("button",{className:"svx-rreset","data-off":activeCount?void 0:"",
-        disabled:!activeCount,title:"Retirer tous les effets du clip (annulable)",
-        onClick:resetAll,children:"Réinitialiser"})]}),
+        disabled:!activeCount,title:dzT("sfx.rack.reinitialiser_aide"),
+        onClick:resetAll,children:dzT("sfx.commun.reinitialiser")})]}),
     r.jsx("div",{className:"svx-presets",children:svxFxPresets.map(function(p){
       var match=activeCount>0&&presetSig(p)===fxSig;
       var dirty=lastPreset===p.id&&!match&&activeCount>0;
       return r.jsxs("button",{className:"svx-preset","data-on":match?"":void 0,
-        title:"Appliquer le preset « "+p.label+" » (remplace la chaîne)",
+        title:dzT("sfx.rack.appliquer_preset",{preset:p.label}),
         onClick:function(){applyPreset(p)},children:[
         p.label,
-        dirty?r.jsx("span",{className:"svx-dirty",title:"Preset modifié depuis l'application",
-          children:"modifié"}):null]},p.id)})}),
+        dirty?r.jsx("span",{className:"svx-dirty",title:dzT("sfx.rack.preset_modifie_aide"),
+          children:dzT("sfx.rack.modifie")}):null]},p.id)})}),
     r.jsxs("div",{className:"svx-listenrow",children:[
       r.jsx("button",{className:"svx-listen","data-on":playing?"":void 0,
-        title:playing?"Arrêter l'audition"
-          :"Écouter le segment du clip en boucle, effets appliqués en direct (Web Audio) — fondus non simulés",
+        title:playing?dzT("sfx.rack.arreter_audition")
+          :dzT("sfx.rack.ecouter_aide"),
         onClick:listenToggle,
         children:loading?r.jsxs(r.Fragment,{children:[
-            r.jsx("span",{className:"svx-spin","aria-hidden":!0}),"chargement…"]})
-          :playing?"▮▮ Stop":"▶ Écouter"}),
+            r.jsx("span",{className:"svx-spin","aria-hidden":!0}),dzT("sfx.commun.chargement")]})
+          :playing?dzT("sfx.rack.stop"):dzT("sfx.rack.ecouter")}),
       props.onAudition?r.jsx("button",{className:"svx-listen svx-listenr",
         "data-busy":rBusy?"":void 0,disabled:rBusy,
-        title:"Rendu ffmpeg exact du segment avec la chaîne complète (débruiteur, dé-esseur, normalisation compris)",
+        title:dzT("sfx.rack.rendu_ecoute_aide"),
         onClick:renderAudition,
         children:rBusy?r.jsxs(r.Fragment,{children:[
-            r.jsx("span",{className:"svx-spin","aria-hidden":!0}),"rendu…"]})
-          :"Écouter (rendu)"}):null,
+            r.jsx("span",{className:"svx-spin","aria-hidden":!0}),dzT("sfx.rack.rendu_en_cours")]})
+          :dzT("sfx.rack.ecouter_rendu")}):null,
       playing?r.jsx("span",{className:"svx-liveled","aria-hidden":!0}):null]}),
     nonLiveOn.length?r.jsx("div",{className:"svx-rnote",
-      children:nonLiveOn.join(" · ")+" : au rendu uniquement — passez par « Écouter (rendu) »."}):null,
+      children:dzT("sfx.rack.au_rendu",{liste:nonLiveOn.join(" · ")})}):null,
     r.jsx("div",{className:"svx-mods",children:SVX_FX_DEFS.map(moduleRow)}),
     note?r.jsx("div",{className:"svx-note",role:"status","aria-live":"polite",
       children:note}):null]})};
@@ -1474,38 +1474,38 @@ const SvxMeter=(props)=>{
         return r.jsx("i",{className:"svx-mtick",
           style:{left:svxMeterPct(mk)+"%"}},mk)}),
       r.jsx("i",{className:"svx-mtarget",style:{left:svxMeterPct(-14)+"%"},
-        title:"Cible réseaux sociaux : −14 LUFS (mesurée via « Mesurer le mix »)"}),
+        title:dzT("sfx.metre.cible_aide")}),
       engaged?r.jsx("div",{className:"svx-mfill","data-z":zone,
         style:{width:svxMeterPct(rdb)+"%"}}):null,
       engaged&&hold>-96?r.jsx("i",{className:"svx-mpeak",
         style:{left:svxMeterPct(hold)+"%"}}):null]})}
 
   return r.jsxs("div",{className:"svx-meter",ref:rootRef,role:"group",
-    "aria-label":"Niveau de sortie maître","data-idle":engaged?void 0:"",
+    "aria-label":dzT("sfx.metre.aria"),"data-idle":engaged?void 0:"",
     onMouseEnter:function(){setHov(!0)},onMouseLeave:function(){setHov(!1)},
     children:[
     r.jsx("button",{className:"svx-mled","data-on":clipped?"":void 0,
-      title:clipped?"Saturation détectée (≥ 0 dBFS) — cliquer pour réinitialiser"
-        :"Aucune saturation",
-      "aria-label":clipped?"Saturation détectée — réinitialiser":"Aucune saturation",
+      title:clipped?dzT("sfx.metre.saturation_aide")
+        :dzT("sfx.metre.aucune_saturation"),
+      "aria-label":clipped?dzT("sfx.metre.saturation_aria"):dzT("sfx.metre.aucune_saturation"),
       onClick:function(){setClipped(!1)}}),
     r.jsx("button",{className:"svx-mbarbtn","aria-expanded":open,
-      title:engaged?"RMS "+svxDb1(rdb)+" · pic "+svxDb1(hold)+" dBFS — clic : détails"
-        :"Au repos — lancez la lecture pour le niveau · clic : détails",
+      title:engaged?dzT("sfx.metre.barre_aide",{rms:svxDb1(rdb),pic:svxDb1(hold)})
+        :dzT("sfx.metre.repos_aide"),
       onClick:function(){setPin(!pin)},
       children:bar(!1)}),
     r.jsxs("span",{className:"svx-mnums svm-mono","aria-live":"off",children:[
       r.jsx("span",{className:"svx-mnum",children:engaged?"RMS "+svxDb1(rdb):"RMS —"}),
-      r.jsx("span",{className:"svx-mnum svx-mnump",children:engaged?"PIC "+svxDb1(hold):"PIC —"}),
+      r.jsx("span",{className:"svx-mnum svx-mnump",children:engaged?dzT("sfx.metre.pic",{v:svxDb1(hold)}):dzT("sfx.metre.pic_vide")}),
       engaged&&lufsM!=null?r.jsx("span",{className:"svx-mnum svx-mnumm",
-        title:"Loudness momentanée (fenêtre 400 ms, pondération K)",
+        title:dzT("sfx.metre.momentanee_aide"),
         children:"M "+svxDb1(lufsM)+" LUFS"}):null]}),
     open?r.jsxs("div",{className:"svx-mpop",role:"dialog",
-      "aria-label":"Détails du niveau de sortie",children:[
+      "aria-label":dzT("sfx.metre.details_aria"),children:[
       r.jsxs("div",{className:"svx-mpophead",children:[
-        r.jsx(SvmLabel,{children:"Sortie maître"}),
-        pin?r.jsx("button",{className:"svx-iconbtn",title:"Fermer (Échap)",
-          "aria-label":"Fermer les détails",
+        r.jsx(SvmLabel,{children:dzT("sfx.metre.sortie_maitre")}),
+        pin?r.jsx("button",{className:"svx-iconbtn",title:dzT("sfx.metre.fermer_aide"),
+          "aria-label":dzT("sfx.metre.fermer_aria"),
           onClick:function(){setPin(!1)},children:"✕"}):null]}),
       bar(!0),
       r.jsx("div",{className:"svx-mscale svm-mono","aria-hidden":!0,
@@ -1513,34 +1513,34 @@ const SvxMeter=(props)=>{
         return r.jsx("span",{style:{left:svxMeterPct(mk)+"%"},
           children:mk===0?"0":String(mk)},mk)})}),
       r.jsxs("div",{className:"svx-mreads svm-mono",children:[
-        r.jsx("span",{children:engaged?"RMS "+svxDb1(rdb)+" dBFS":"RMS — (au repos)"}),
-        r.jsx("span",{children:engaged?"PIC "+svxDb1(hold)+" dBFS":"PIC —"})]}),
+        r.jsx("span",{children:engaged?"RMS "+svxDb1(rdb)+" dBFS":dzT("sfx.metre.rms_repos")}),
+        r.jsx("span",{children:engaged?dzT("sfx.metre.pic",{v:svxDb1(hold)})+" dBFS":dzT("sfx.metre.pic_vide")})]}),
       r.jsxs("div",{className:"svx-mlufs",children:[
-        r.jsx(SvmLabel,{children:"Loudness du mix"}),
+        r.jsx(SvmLabel,{children:dzT("sfx.metre.loudness_mix")}),
         lufsM!=null?r.jsxs("div",{className:"svx-lufsm svm-mono",
-          title:"Loudness momentanée — temps réel pendant la lecture (fenêtre 400 ms, pondération K)",
+          title:dzT("sfx.metre.momentanee_reel_aide"),
           children:[
-          r.jsx("span",{className:"svx-lufsmlbl",children:"momentané"}),
+          r.jsx("span",{className:"svx-lufsmlbl",children:dzT("sfx.metre.momentane")}),
           r.jsx("span",{children:svxDb1(lufsM)+" LUFS"})]}):null,
         lufs?r.jsxs("div",{className:"svx-lufsrow svm-mono",children:[
-          r.jsx("span",{title:"Loudness intégrée",children:"I "+svxDb1(Number(lufs.i))+" LUFS"}),
-          r.jsx("span",{title:"Vrai pic",children:"TP "+svxDb1(Number(lufs.tp))+" dBTP"}),
-          r.jsx("span",{title:"Plage de loudness",children:"LRA "+svxRound(Number(lufs.lra),1)}),
+          r.jsx("span",{title:dzT("sfx.metre.integree"),children:"I "+svxDb1(Number(lufs.i))+" LUFS"}),
+          r.jsx("span",{title:dzT("sfx.metre.vrai_pic"),children:"TP "+svxDb1(Number(lufs.tp))+" dBTP"}),
+          r.jsx("span",{title:dzT("sfx.metre.plage"),children:"LRA "+svxRound(Number(lufs.lra),1)}),
           r.jsx("span",{className:"svx-lufsdev","data-ok":Math.abs(dev)<=1?"":void 0,
-            title:"Écart à la cible réseaux sociaux (−14 LUFS)",
-            children:svxDb1(dev)+" dB vs cible"})]})
+            title:dzT("sfx.metre.ecart_aide"),
+            children:svxDb1(dev)+dzT("sfx.metre.vs_cible")})]})
         :r.jsx("div",{className:"svx-lufsnone",
-          children:"Pas encore mesuré — « Mesurer le mix » analyse le mix audio complet (ebur128, gratuit)."}),
+          children:dzT("sfx.metre.pas_mesure")}),
         r.jsxs("div",{className:"svx-mpoprow",children:[
-          r.jsx("span",{className:"svx-mtargetlbl svm-mono",children:"cible réseaux : −14 LUFS"}),
+          r.jsx("span",{className:"svx-mtargetlbl svm-mono",children:dzT("sfx.metre.cible")}),
           props.onMeasure?r.jsx("button",{className:"svm-goldbtn svx-measure",
             disabled:!!props.busy,
             onClick:function(){props.onMeasure()},
             children:props.busy?r.jsxs(r.Fragment,{children:[
-                r.jsx("span",{className:"svx-spin","aria-hidden":!0}),"mesure…"]})
-              :"Mesurer le mix"}):null]})]}),
+                r.jsx("span",{className:"svx-spin","aria-hidden":!0}),dzT("sfx.metre.mesure_en_cours")]})
+              :dzT("sfx.metre.mesurer")}):null]})]}),
       r.jsx("div",{className:"svx-mhint",
-        children:pin?"Échap ou clic dehors pour fermer":"clic sur la barre : figer le panneau"})]}):null]})};
+        children:pin?dzT("sfx.metre.fermer_indice"):dzT("sfx.metre.figer_indice")})]}):null]})};
 
 /* ── export contrat ──────────────────────────────────────────────────────── */
 window.DzSfx={ready:!0,Drawer:SvxDrawer,Rack:SvxRack,Meter:SvxMeter,

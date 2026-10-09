@@ -68,7 +68,7 @@ function vfxSec(s){
 function vfxJson(url){
   return fetch(url).then(function(res){
     var ct=(res.headers.get("content-type")||"").toLowerCase();
-    if(!res.ok||ct.indexOf("json")<0)throw new Error("réponse non JSON");
+    if(!res.ok||ct.indexOf("json")<0)throw new Error(dzT("vfx.erreur.non_json"));
     return res.json()})}
 
 /* T103 (D2b) : POST JSON, même garde que vfxJson (le repli SPA répond 200 +
@@ -77,7 +77,7 @@ function vfxPost(url,body){
   return fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body||{})})
     .then(function(res){
       var ct=(res.headers.get("content-type")||"").toLowerCase();
-      if(ct.indexOf("json")<0)throw new Error("réponse non JSON");
+      if(ct.indexOf("json")<0)throw new Error(dzT("vfx.erreur.non_json"));
       return res.json().then(function(d){if(!res.ok)throw new Error((d&&d.detail)||("HTTP "+res.status));return d})})}
 /* T103 (D2b) : le détourage d'un plan — un seul à la fois, le modèle retenu
    d'un plan à l'autre ; les libellés sont ceux de matte_service.MATTE_MODELS */
@@ -106,60 +106,60 @@ var VFX_STATIC={
   grade:{label:"LUT / Grade",params:["preset","file"],
     presets:["teal_orange","cyberpunk","deepsea","noir","warm","cold","vintage",
              "cross","matrix","faded"]},
-  colorize:{label:"Colorisation",params:["preset","intensity"],
+  colorize:{label:dzT("vfx.effet.colorize"),params:["preset","intensity"],
     presets:["sepia","bw","duotone","matrix","redalert","gold"]},
   vhs:{label:"VHS",params:["intensity","speed"]},
-  gradient:{label:"Dégradé",params:["c0","c1","angle","opacity","blend"]},
-  grain:{label:"Grain film",params:["intensity"]},
+  gradient:{label:dzT("vfx.effet.gradient"),params:["c0","c1","angle","opacity","blend"]},
+  grain:{label:dzT("vfx.effet.grain"),params:["intensity"]},
   vignette:{label:"Vignette",params:["intensity"]},
-  chroma:{label:"Aberration chromatique",params:["intensity"]},
+  chroma:{label:dzT("vfx.effet.chroma"),params:["intensity"]},
   glitch:{label:"Glitch",params:["intensity"]},
   bloom:{label:"Bloom / Glow",params:["intensity"]},
   halation:{label:"Halation",params:["intensity"]},
   scanlines:{label:"Scanlines / CRT",params:["intensity"]},
-  letterbox:{label:"Letterbox ciné",params:["ratio"]},
+  letterbox:{label:dzT("vfx.effet.letterbox"),params:["ratio"]},
   oldfilm:{label:"Old film",params:["intensity"]},
-  sharpen:{label:"Netteté",params:["intensity"]},
-  blur:{label:"Flou",params:["intensity"]},
+  sharpen:{label:dzT("vfx.effet.sharpen"),params:["intensity"]},
+  blur:{label:dzT("vfx.effet.blur"),params:["intensity"]},
   dreamy:{label:"Soft / Dreamy",params:["intensity"]},
   pixelate:{label:"Pixelate",params:["intensity"]},
   shake:{label:"Camera shake",params:["intensity","speed"]},
-  mirror:{label:"Miroir",params:[]},
-  invert:{label:"Négatif",params:[]}};
+  mirror:{label:dzT("vfx.effet.mirror"),params:[]},
+  invert:{label:dzT("vfx.effet.invert"),params:[]}};
 
 /* catégorie + phrase d'aide par effet — la catégorie du backend gagne si
    elle existe (clé `category`), sinon celle-ci ; inconnu → « autres ». */
 var VFX_META={
-  grade:{cat:"couleur",hint:"Étalonnage cinéma — 10 rendus, du teal & orange au noir contrasté."},
-  colorize:{cat:"couleur",hint:"Teinte unique : sépia, N&B, duotone, alerte rouge, or."},
-  gradient:{cat:"couleur",hint:"Dégradé de deux couleurs fusionné sur l'image."},
-  vhs:{cat:"retro",hint:"Bande usée : lignes déplacées, bruit, chroma qui bave."},
-  oldfilm:{cat:"retro",hint:"Pellicule fatiguée : poussières, sautes, vignettage."},
-  scanlines:{cat:"retro",hint:"Lignes de balayage d'un tube cathodique."},
-  grain:{cat:"retro",hint:"Grain argentique — de la texture sans salir l'image."},
-  pixelate:{cat:"retro",hint:"Mosaïque — gros pixels, façon écran de 1998."},
-  bloom:{cat:"lumiere",hint:"Les hautes lumières débordent et rayonnent."},
-  halation:{cat:"lumiere",hint:"Halo chaud autour des sources vives, comme sur pellicule."},
-  vignette:{cat:"lumiere",hint:"Bords assombris : le regard va au centre."},
-  dreamy:{cat:"lumiere",hint:"Voile doux — portraits, souvenirs, rêve."},
-  chroma:{cat:"optique",hint:"Franges colorées sur les bords, comme un objectif bon marché."},
-  blur:{cat:"optique",hint:"Flou d'ensemble — arrière-plan ou transition."},
-  sharpen:{cat:"optique",hint:"Accentue les contours — à doser, ça crie vite."},
-  glitch:{cat:"optique",hint:"Décrochages numériques, blocs déplacés."},
-  shake:{cat:"mouvement",hint:"Caméra à l'épaule — impact, panique, course."},
-  mirror:{cat:"mouvement",hint:"Symétrie verticale de l'image."},
-  invert:{cat:"mouvement",hint:"Négatif — inversion complète des valeurs."},
-  letterbox:{cat:"cadre",hint:"Bandes noires : le format scope, tout de suite."}};
+  grade:{cat:"couleur",hint:dzT("vfx.aide.grade")},
+  colorize:{cat:"couleur",hint:dzT("vfx.aide.colorize")},
+  gradient:{cat:"couleur",hint:dzT("vfx.aide.gradient")},
+  vhs:{cat:"retro",hint:dzT("vfx.aide.vhs")},
+  oldfilm:{cat:"retro",hint:dzT("vfx.aide.oldfilm")},
+  scanlines:{cat:"retro",hint:dzT("vfx.aide.scanlines")},
+  grain:{cat:"retro",hint:dzT("vfx.aide.grain")},
+  pixelate:{cat:"retro",hint:dzT("vfx.aide.pixelate")},
+  bloom:{cat:"lumiere",hint:dzT("vfx.aide.bloom")},
+  halation:{cat:"lumiere",hint:dzT("vfx.aide.halation")},
+  vignette:{cat:"lumiere",hint:dzT("vfx.aide.vignette")},
+  dreamy:{cat:"lumiere",hint:dzT("vfx.aide.dreamy")},
+  chroma:{cat:"optique",hint:dzT("vfx.aide.chroma")},
+  blur:{cat:"optique",hint:dzT("vfx.aide.blur")},
+  sharpen:{cat:"optique",hint:dzT("vfx.aide.sharpen")},
+  glitch:{cat:"optique",hint:dzT("vfx.aide.glitch")},
+  shake:{cat:"mouvement",hint:dzT("vfx.aide.shake")},
+  mirror:{cat:"mouvement",hint:dzT("vfx.aide.mirror")},
+  invert:{cat:"mouvement",hint:dzT("vfx.aide.invert")},
+  letterbox:{cat:"cadre",hint:dzT("vfx.aide.letterbox")}};
 
 var VFX_BLENDS=["screen","overlay","multiply","softlight","addition","normal"];
 /* courbes de rampe — noms EXACTS acceptés par animation_service.ease() */
-var VFX_EASES=[["smooth","douce"],["linear","linéaire"],["easeIn","accélérée"],
-  ["easeOut","freinée"],["easeInOut","douce (2 sens)"],["easeInOutSine","sinus"],
-  ["anticipate","anticipation"],["overshoot","dépassement"],
-  ["easeOutBack","retour"],["easeOutBounce","rebond"],
+var VFX_EASES=[["smooth",dzT("vfx.courbe.douce")],["linear",dzT("vfx.courbe.lineaire")],["easeIn",dzT("vfx.courbe.acceleree")],
+  ["easeOut",dzT("vfx.courbe.freinee")],["easeInOut",dzT("vfx.courbe.douce_2_sens")],["easeInOutSine",dzT("vfx.courbe.sinus")],
+  ["anticipate",dzT("vfx.courbe.anticipation")],["overshoot",dzT("vfx.courbe.depassement")],
+  ["easeOutBack",dzT("vfx.courbe.retour")],["easeOutBounce",dzT("vfx.courbe.rebond")],
   /* t128 : la courbe dessinée à la main — la valeur stockée est « cubic-bezier(a,b,c,d) », que
      animation_service.ease() lit déjà ; « bezier » n'est que l'entrée du menu, jamais écrite */
-  ["bezier","courbe à la main…"]];
+  ["bezier",dzT("vfx.courbe.main")]];
 
 /* ── t128 : éditeur de courbe de Bézier (deux poignées, aperçu SVG) ─────────────────────────────────
    Les poignées des presets Bézier du backend, à l'IDENTIQUE (animation_service._BEZIER, banc
@@ -205,7 +205,7 @@ const VfxBezier=(props)=>{
   function poignee(i){
     var cx=vfxBezNb(G.m+p[2*i]*G.c),cy=vfxBezNb(G.m+(1-p[2*i+1])*G.c);
     return r.jsx("circle",{className:"vfx-bezh",cx:cx,cy:cy,r:6,
-      "aria-label":"Poignée "+(i+1),
+      "aria-label":dzT("vfx.bezier.poignee",{n:i+1}),
       onPointerDown:function(e){e.preventDefault();e.stopPropagation();
         try{e.currentTarget.setPointerCapture(e.pointerId)}catch(_e){}prise.current=i},
       onPointerMove:function(e){if(prise.current===i)pose(i,local(e))},
@@ -219,7 +219,7 @@ const VfxBezier=(props)=>{
   var X=function(v){return vfxBezNb(G.m+v*G.c)},Y=function(v){return vfxBezNb(G.m+(1-v)*G.c)};
   return r.jsxs("div",{className:"vfx-bez",children:[
     r.jsxs("svg",{ref:svgRef,className:"vfx-bezsvg",viewBox:"0 0 "+T+" "+T,width:T,height:T,
-      role:"img","aria-label":props.label||"Courbe de la rampe",children:[
+      role:"img","aria-label":props.label||dzT("vfx.bezier.courbe"),children:[
       r.jsx("rect",{className:"vfx-bezcadre",x:G.m,y:G.m,width:G.c,height:G.c}),
       r.jsx("line",{className:"vfx-bezdiag",x1:X(0),y1:Y(0),x2:X(1),y2:Y(1)}),
       r.jsx("line",{className:"vfx-bezbras",x1:X(0),y1:Y(0),x2:X(p[0]),y2:Y(p[1])}),
@@ -227,31 +227,31 @@ const VfxBezier=(props)=>{
       r.jsx("path",{className:"vfx-bezcourbe",d:vfxBezChemin(p)}),
       poignee(0),poignee(1)]}),
     r.jsxs("div",{className:"vfx-bezchamps",children:[
-      champ(0,"Poignée 1 — temps"),champ(1,"Poignée 1 — intensité"),
-      champ(2,"Poignée 2 — temps"),champ(3,"Poignée 2 — intensité")]}),
+      champ(0,dzT("vfx.bezier.p1_temps")),champ(1,dzT("vfx.bezier.p1_intensite")),
+      champ(2,dzT("vfx.bezier.p2_temps")),champ(3,dzT("vfx.bezier.p2_intensite"))]}),
     r.jsx("code",{className:"vfx-bezval",children:vfxBezEcrire(p)})]})};
 
 /* catégories de repli — la liste FAIT AUTORITÉ côté backend dès que
    /api/effects/catalog répond (clé `categories`), celle-ci ne sert qu'au
    catalogue local et à /api/montage/effects. */
-var VFX_CATS_FB=[["couleur","Couleur"],["retro","Rétro"],["lumiere","Lumière"],
-  ["optique","Optique"],["mouvement","Mouvement"],["cadre","Cadre"]];
+var VFX_CATS_FB=[["couleur",dzT("vfx.cat.couleur")],["retro",dzT("vfx.cat.retro")],["lumiere",dzT("vfx.cat.lumiere")],
+  ["optique",dzT("vfx.cat.optique")],["mouvement",dzT("vfx.cat.mouvement")],["cadre",dzT("vfx.cat.cadre")]];
 
 /* bornes de repli par paramètre — miroir de _PARAM_DEFAULTS (effects_engine) ;
    le backend renvoie `bounds` par effet et gagne toujours. */
 var VFX_PBOUNDS={
-  intensity:{type:"range",min:0,max:100,step:1,d:60,label:"Intensité",unit:"%"},
-  speed:{type:"range",min:0,max:100,step:1,d:50,label:"Vitesse",unit:"%"},
+  intensity:{type:"range",min:0,max:100,step:1,d:60,label:dzT("vfx.param.intensite"),unit:"%"},
+  speed:{type:"range",min:0,max:100,step:1,d:50,label:dzT("vfx.param.vitesse"),unit:"%"},
   angle:{type:"range",min:0,max:360,step:1,d:45,label:"Angle",unit:"°"},
-  opacity:{type:"range",min:0,max:100,step:1,d:40,label:"Opacité",unit:"%"},
-  cx:{type:"range",min:0,max:100,step:1,d:50,label:"Centre X",unit:"%"},
-  cy:{type:"range",min:0,max:100,step:1,d:40,label:"Centre Y",unit:"%"},
-  c0:{type:"color",d:"#00e5ff",label:"Couleur 1"},
-  c1:{type:"color",d:"#9945ff",label:"Couleur 2"},
-  blend:{type:"choice",choices:VFX_BLENDS,d:"screen",label:"Fusion"},
+  opacity:{type:"range",min:0,max:100,step:1,d:40,label:dzT("vfx.param.opacite"),unit:"%"},
+  cx:{type:"range",min:0,max:100,step:1,d:50,label:dzT("vfx.param.centre_x"),unit:"%"},
+  cy:{type:"range",min:0,max:100,step:1,d:40,label:dzT("vfx.param.centre_y"),unit:"%"},
+  c0:{type:"color",d:"#00e5ff",label:dzT("vfx.param.couleur_1")},
+  c1:{type:"color",d:"#9945ff",label:dzT("vfx.param.couleur_2")},
+  blend:{type:"choice",choices:VFX_BLENDS,d:"screen",label:dzT("vfx.param.fusion")},
   ratio:{type:"choice",choices:["2.39","2.35","1.85","1.33"],d:"2.35",
     label:"Format"},
-  preset:{type:"choice",choices:[],d:"",label:"Préréglage"},
+  preset:{type:"choice",choices:[],d:"",label:dzT("vfx.commun.prereglage")},
   file:{type:"lut",d:"",label:"LUT .cube"}};
 /* bornes effectives d'un paramètre : celles du backend, sinon le repli */
 function vfxBounds(ce,p){
@@ -287,10 +287,10 @@ function vfxNormCat(raw,src){
       bounds:d.bounds&&typeof d.bounds==="object"?d.bounds:null,
       cat:cat,hint:d.hint||m.hint||""};
     by[t]=e;list.push(e)});
-  if(hasOther){cats.push(["autres","Autres"]);lbl.autres="Autres"}
+  if(hasOther){cats.push(["autres",dzT("vfx.commun.autres")]);lbl.autres=dzT("vfx.commun.autres")}
   /* « tous » et « ★ » ouvrent toujours la rangée d'onglets */
   return {src:src,by:by,list:list,
-    cats:[["tous","Tous"],["fav","★"]].concat(cats)}}
+    cats:[["tous",dzT("vfx.commun.tous")],["fav","★"]].concat(cats)}}
 /* ── santé du service d'effets — source unique, auto-réparation ───────────
    Le rack tient à deux routes : /api/effects/catalog (la liste, les bornes,
    les préréglages) et /api/effects/preview (les vignettes rendues sur VOTRE
@@ -455,7 +455,7 @@ function vfxSummary(eff,ce){
   if(has("blend"))b.push(String(eff.blend||"screen"));
   if(has("opacity")&&!has("intensity"))
     b.push(Math.round(vfxN(eff.opacity,40))+" %");
-  return b.length?b.join(" · "):"sans réglage"}
+  return b.length?b.join(" · "):dzT("vfx.resume.sans_reglage")}
 
 /* clés d'état d'un effet qui ne sont PAS des paramètres de rendu d'image */
 var VFX_PRV_SKIP={type:1,off:1,label:1,t0:1,t1:1,fade_in:1,fade_out:1,
@@ -554,13 +554,11 @@ const VfxThumb=(props)=>{
         setErr(!0);
         vfxPrvFail()}}):null),
     dead?r.jsx("span",{className:"vfx-thumboff",
-      title:"Aperçu indisponible — ni /api/effects/preview ni /effect-thumbs "+
-        "ne rendent d'image pour cet effet.",
-      children:"aperçu —"})
+      title:dzT("vfx.vignette.indisponible"),
+      children:dzT("vfx.vignette.apercu_off")})
     :(useFb?r.jsx("span",{className:"vfx-thumbgen",
-        title:"Aperçu générique — /api/effects/preview (rendu sur VOTRE plan) "+
-          "n'est pas disponible ; ceci est la vignette de référence de l'effet.",
-        children:"gén."})
+        title:dzT("vfx.vignette.generique"),
+        children:dzT("vfx.vignette.gen")})
       :(okd?null:r.jsx("span",{className:"vfx-thumbskel","aria-hidden":!0})))]})};
 
 /* ── note interne (aucune dépendance au module sonvfx) ───────────────────── */
@@ -592,30 +590,25 @@ const VfxAlert=(props)=>{
   var n=(svc.cat&&svc.cat.list&&svc.cat.list.length)||0;
   var loc=!svc.cat||svc.cat.src==="local";
   var left=Math.max(0,Math.ceil((svc.next-Date.now())/1000));
-  var when=svc.probing?"Nouvelle tentative en cours…"
-    :"Reprise automatique — nouvelle tentative dans "+left+" s.";
+  var when=svc.probing?dzT("vfx.alerte.tentative")
+    :dzT("vfx.alerte.reprise",{n:left});
   /* dire EXACTEMENT ce qui manque : catalogue jamais reçu, ou catalogue
      d'avant la panne encore en mémoire mais vignettes mortes. */
   var what=loc
-    ?"Ceci n'est PAS le rack complet : liste de secours locale ("+n+" effets, "+
-     "posables), sans vignette rendue sur votre plan, sans les préréglages "+
-     "ni les bornes du moteur."
-    :"Les "+n+" effets ci-dessous datent d'avant la panne et restent posables, "+
-     "mais AUCUNE vignette ne peut plus être rendue sur votre plan.";
+    ?dzT("vfx.alerte.secours",{n:n})
+    :dzT("vfx.alerte.avant_panne",{n:n});
   return r.jsxs("div",{className:"vfx-alert",role:"alert","aria-live":"assertive",
     children:[
     r.jsx("span",{className:"vfx-alerticon","aria-hidden":!0,children:"!"}),
     r.jsxs("div",{className:"vfx-alerttxt",children:[
       r.jsx("b",{className:"vfx-alerthead",
-        children:"Service d'effets injoignable — le backend ne répond pas."}),
+        children:dzT("vfx.alerte.titre")}),
       r.jsx("span",{className:"vfx-alertsub",children:
-        "/api/effects/catalog et /api/effects/preview sont muets sur "+
-        "127.0.0.1:8765. "+what+" Relancez DeepotusVideoGen ; le rack se "+
-        "remplira tout seul, sans rouvrir ce panneau."}),
+        dzT("vfx.alerte.detail",{quoi:what})}),
       r.jsx("span",{className:"vfx-alertwhen",children:when})]}),
     r.jsx("button",{className:"vfx-btn vfx-alertbtn",disabled:!!svc.probing,
-      title:"Redemander /api/effects/catalog immédiatement",
-      onClick:vfxRetryNow,children:"Réessayer maintenant"})]})};
+      title:dzT("vfx.alerte.reessayer_aide"),
+      onClick:vfxRetryNow,children:dzT("vfx.alerte.reessayer")})]})};
 
 /* ═════════════════ Panneau d'effets (catégories · recherche · aperçus) ════ */
 const VfxPanel=(props)=>{
@@ -654,7 +647,7 @@ const VfxPanel=(props)=>{
       return e.label.toLowerCase().indexOf(qn)>=0||
         e.type.toLowerCase().indexOf(qn)>=0||
         (e.hint&&e.hint.toLowerCase().indexOf(qn)>=0)})},[all,qn]);
-  var tabs=(cat&&cat.cats)||[["tous","Tous"],["fav","★"]];
+  var tabs=(cat&&cat.cats)||[["tous",dzT("vfx.commun.tous")],["fav","★"]];
   var counts=x.useMemo(function(){
     var c={tous:searched.length,fav:0};
     tabs.forEach(function(k){if(k[0]!=="tous"&&k[0]!=="fav")c[k[0]]=0});
@@ -682,7 +675,7 @@ const VfxPanel=(props)=>{
       if(props.onPick)props.onPick(e.type,eff);
       return}
     if(props.onAdd)props.onAdd(eff,e);
-    fireNote("« "+e.label+" » posé sur le clip — réglez-le dans la pile.")}
+    fireNote(dzT("vfx.panneau.pose",{nom:e.label}))}
 
   function dragStart(ev,e){
     var eff=vfxDefaultsFor(e.type,e);
@@ -725,8 +718,8 @@ const VfxPanel=(props)=>{
       onKeyDown:function(ev){
         if(ev.key==="Enter"||ev.key===" "){ev.preventDefault();place(e)}
         else if(ev.key==="f"||ev.key==="F"){ev.preventDefault();favToggle(e.type)}},
-      title:e.hint?(e.hint+"\n\nClic : poser · glisser sur un clip · F : favori")
-        :"Clic : poser · glisser sur un clip · F : favori",
+      title:e.hint?(e.hint+dzT("vfx.tuile.aide_suite"))
+        :dzT("vfx.tuile.aide"),
       "aria-label":e.label+(e.hint?" — "+e.hint:""),
       children:[
       r.jsx(VfxThumb,{url:vfxPreviewUrl(clip,eff,168),fallback:vfxStaticUrl(eff),
@@ -735,12 +728,12 @@ const VfxPanel=(props)=>{
         r.jsx("span",{className:"vfx-tilename",children:e.label}),
         r.jsx("button",{className:"vfx-fav","data-on":on?"":void 0,tabIndex:-1,
           "aria-pressed":on,
-          title:on?"Retirer des favoris (F)":"Ajouter aux favoris (F)",
-          "aria-label":(on?"Retirer des favoris : ":"Ajouter aux favoris : ")+e.label,
+          title:on?dzT("vfx.tuile.retirer_fav"):dzT("vfx.tuile.ajouter_fav"),
+          "aria-label":(on?dzT("vfx.tuile.retirer_fav_nom"):dzT("vfx.tuile.ajouter_fav_nom"))+e.label,
           onClick:function(ev){ev.stopPropagation();favToggle(e.type)},
           children:on?"★":"☆"})]}),
       n?r.jsx("span",{className:"vfx-tilebadge",
-        title:"Déjà dans la pile de ce clip ("+n+")",children:"×"+n}):null]},e.type)}
+        title:dzT("vfx.tuile.deja",{n:n}),children:"×"+n}):null]},e.type)}
 
   function body(){
     if(!cat)
@@ -749,34 +742,34 @@ const VfxPanel=(props)=>{
     if(!shown.length)
       return r.jsxs("div",{className:"vfx-empty",children:[
         r.jsx("div",{className:"vfx-emptytxt",children:qn
-          ?"Aucun effet pour « "+qn+" »."
-          :tab==="fav"?"Aucun effet favori pour l'instant."
-          :"Aucun effet dans cette catégorie."}),
+          ?dzT("vfx.panneau.aucun_pour",{q:qn})
+          :tab==="fav"?dzT("vfx.panneau.aucun_favori")
+          :dzT("vfx.panneau.aucun_categorie")}),
         qn?r.jsx("button",{className:"vfx-btn",onClick:function(){setQuery("")},
-          children:"Effacer la recherche"})
+          children:dzT("vfx.panneau.effacer_recherche")})
         :tab==="fav"?r.jsx("div",{className:"vfx-emptyhint",
-          children:"Survolez un effet et cliquez ★ (ou touche F) pour l'épingler ici."}):null]});
+          children:dzT("vfx.panneau.favori_aide")}):null]});
     return r.jsx("div",{className:"vfx-grid",children:shown.map(tile)})}
 
   if(!open)return null;
-  var srcLbl=cat?(cat.src==="catalog"?"catalogue moteur"
-    :cat.src==="montage"?"catalogue Montage":"catalogue local (backend muet)"):"…";
+  var srcLbl=cat?(cat.src==="catalog"?dzT("vfx.panneau.src_moteur")
+    :cat.src==="montage"?dzT("vfx.panneau.src_montage"):dzT("vfx.panneau.src_local")):"…";
   return r.jsxs("div",{className:inline?"vfx-rack vfx-inline":"vfx-rack vfx-float",
     ref:rootRef,tabIndex:inline?void 0:-1,onKeyDown:onKey,
-    role:"group","aria-label":"Panneau d'effets vidéo",children:[
+    role:"group","aria-label":dzT("vfx.panneau.aria"),children:[
     r.jsxs("div",{className:"vfx-head",children:[
-      r.jsx("span",{className:"vfx-title",children:props.title||"Effets"}),
+      r.jsx("span",{className:"vfx-title",children:props.title||dzT("vfx.panneau.titre")}),
       r.jsx("span",{className:"vfx-count",children:String((cat&&cat.list.length)||0)}),
       clip&&clip.label?r.jsx("span",{className:"vfx-on",
-        title:"Les vignettes sont rendues sur CE plan",
-        children:"sur « "+clip.label+" »"}):null,
+        title:dzT("vfx.panneau.sur_plan_aide"),
+        children:dzT("vfx.panneau.sur_plan",{nom:clip.label})}):null,
       inline?null:r.jsx("button",{className:"vfx-iconbtn vfx-close",
-        title:"Fermer (Échap)","aria-label":"Fermer le panneau d'effets",
+        title:dzT("vfx.panneau.fermer"),"aria-label":dzT("vfx.panneau.fermer_aria"),
         onClick:function(){if(props.onClose)props.onClose()},children:"✕"})]}),
     r.jsx(VfxAlert,{}),
     r.jsxs("div",{className:"vfx-searchrow",children:[
       r.jsx("input",{className:"vfx-search",ref:searchRef,type:"text",value:query,
-        placeholder:"Rechercher un effet…","aria-label":"Rechercher un effet",
+        placeholder:dzT("vfx.panneau.rechercher"),"aria-label":dzT("vfx.panneau.rechercher_aria"),
         onChange:function(e){setQuery(e.target.value)}}),
       r.jsx("kbd",{className:"vfx-kbd","aria-hidden":!0,children:"/"})]}),
     r.jsx("div",{className:"vfx-tabs",role:"tablist",children:
@@ -784,7 +777,7 @@ const VfxPanel=(props)=>{
         return c[0]==="tous"||c[0]==="fav"||(counts[c[0]]||0)>0}).map(function(c){
         return r.jsxs("button",{className:"vfx-tab",role:"tab",
           "aria-selected":tab===c[0],"data-on":tab===c[0]?"":void 0,
-          "aria-label":c[0]==="fav"?"Favoris ("+(counts.fav||0)+")":void 0,
+          "aria-label":c[0]==="fav"?dzT("vfx.panneau.favoris_n",{n:counts.fav||0}):void 0,
           onClick:function(){setTab(c[0])},children:[
           c[1],
           r.jsx("span",{className:"vfx-tcount",children:String(counts[c[0]]||0)})]},c[0])})}),
@@ -793,21 +786,21 @@ const VfxPanel=(props)=>{
       children:note}):null,
     r.jsxs("div",{className:"vfx-foot",children:[
       r.jsxs("span",{className:"vfx-hints","aria-hidden":!0,children:[
-        r.jsx("kbd",{children:"clic"}),inline?" choisir · ":" poser · ",
-        inline?null:r.jsx("kbd",{children:"glisser"}),
-        inline?null:" sur un clip · ",
-        r.jsx("kbd",{children:"F"})," favori · ",
-        r.jsx("kbd",{children:"/"})," recherche"]}),
-      r.jsx("span",{className:"vfx-src",title:"Origine du catalogue d'effets",
+        r.jsx("kbd",{children:dzT("vfx.pied.clic")}),inline?dzT("vfx.pied.choisir"):dzT("vfx.pied.poser"),
+        inline?null:r.jsx("kbd",{children:dzT("vfx.pied.glisser")}),
+        inline?null:dzT("vfx.pied.sur_clip"),
+        r.jsx("kbd",{children:"F"}),dzT("vfx.pied.favori"),
+        r.jsx("kbd",{children:"/"}),dzT("vfx.pied.recherche")]}),
+      r.jsx("span",{className:"vfx-src",title:dzT("vfx.pied.origine"),
         children:srcLbl}),
       /* service debout mais des vignettes ont raté (ffmpeg saturé, cache
          froid…) : la panne globale est traitée par le bandeau, ceci ne
          couvre que les échecs isolés. */
       (svc.st==="ok"&&svc.fails)?r.jsx("button",{className:"vfx-btn",
-        title:"Redemander les vignettes à /api/effects/preview",
+        title:dzT("vfx.pied.reessayer_aide"),
         onClick:function(){
           VFX_SVC.fails=0;setTick(function(t){return t+1})},
-        children:"Réessayer les aperçus"}):null]})]})};
+        children:dzT("vfx.pied.reessayer")}):null]})]})};
 
 /* ═════════════════ Bornes t0/t1 + rampe (déjà gérées par le moteur) ══════ */
 const VfxBounds=(props)=>{
@@ -829,79 +822,79 @@ const VfxBounds=(props)=>{
   return r.jsxs("div",{className:"vfx-bounds",children:[
     r.jsxs("button",{className:"vfx-brow vfx-bhead",role:"switch","aria-checked":on,
       onClick:toggle,
-      title:on?"Repasser l'effet sur tout le plan"
-        :"Limiter l'effet à un intervalle du plan (t0 → t1), avec rampe",
+      title:on?dzT("vfx.bornes.tout_plan_aide")
+        :dzT("vfx.bornes.limiter_aide"),
       children:[
       r.jsx("span",{className:"vfx-sw","data-on":on?"":void 0,"aria-hidden":!0,
         children:r.jsx("i",{className:"vfx-swk"})}),
-      r.jsx("span",{className:"vfx-blabel",children:"Bornes temporelles"}),
+      r.jsx("span",{className:"vfx-blabel",children:dzT("vfx.bornes.titre")}),
       r.jsx("span",{className:"vfx-bsum",children:on
-        ?vfxSec(t0)+" → "+vfxSec(t1):"tout le plan"})]}),
+        ?vfxSec(t0)+" → "+vfxSec(t1):dzT("vfx.bornes.tout_plan")})]}),
     on?r.jsxs("div",{className:"vfx-bbody",children:[
       r.jsxs("div",{className:"vfx-prow",children:[
-        r.jsx("span",{className:"vfx-plabel",children:"Début"}),
+        r.jsx("span",{className:"vfx-plabel",children:dzT("vfx.bornes.debut")}),
         r.jsx("input",{className:"vfx-range",type:"range",min:0,max:vfxRound(dur,2),
-          step:.05,value:t0,"aria-label":"Début de l'effet (s)",
+          step:.05,value:t0,"aria-label":dzT("vfx.bornes.debut_aria"),
           onChange:function(e){
             var v=vfxClamp(vfxN(e.target.value,0),0,Math.max(0,t1-.05));
             set({t0:vfxRound(v,2)})}}),
         num({min:0,max:vfxRound(dur,2),step:.05,value:vfxRound(t0,2),
-          "aria-label":"Début précis (s)",
+          "aria-label":dzT("vfx.bornes.debut_precis"),
           onChange:function(e){
             var v=vfxClamp(vfxN(e.target.value,t0),0,Math.max(0,t1-.05));
             set({t0:vfxRound(v,2)})}}),
         r.jsx("span",{className:"vfx-punit",children:"s"})]}),
       r.jsxs("div",{className:"vfx-prow",children:[
-        r.jsx("span",{className:"vfx-plabel",children:"Fin"}),
+        r.jsx("span",{className:"vfx-plabel",children:dzT("vfx.bornes.fin")}),
         r.jsx("input",{className:"vfx-range",type:"range",min:0,max:vfxRound(dur,2),
-          step:.05,value:t1,"aria-label":"Fin de l'effet (s)",
+          step:.05,value:t1,"aria-label":dzT("vfx.bornes.fin_aria"),
           onChange:function(e){
             var v=vfxClamp(vfxN(e.target.value,dur),Math.min(dur,t0+.05),dur);
             set({t1:vfxRound(v,2)})}}),
         num({min:0,max:vfxRound(dur,2),step:.05,value:vfxRound(t1,2),
-          "aria-label":"Fin précise (s)",
+          "aria-label":dzT("vfx.bornes.fin_precise"),
           onChange:function(e){
             var v=vfxClamp(vfxN(e.target.value,t1),Math.min(dur,t0+.05),dur);
             set({t1:vfxRound(v,2)})}}),
         r.jsx("span",{className:"vfx-punit",children:"s"})]}),
       r.jsxs("div",{className:"vfx-prow",children:[
-        r.jsx("span",{className:"vfx-plabel",children:"Rampe entrée"}),
+        r.jsx("span",{className:"vfx-plabel",children:dzT("vfx.bornes.rampe_entree")}),
         num({min:0,max:vfxRound(span/2,2),step:.05,value:vfxRound(fi,2),
-          "aria-label":"Durée de la rampe d'entrée (s)",
+          "aria-label":dzT("vfx.bornes.rampe_entree_duree"),
           onChange:function(e){
             set({fade_in:vfxRound(vfxClamp(vfxN(e.target.value,0),0,span/2),2)})}}),
         r.jsx("span",{className:"vfx-punit",children:"s"}),
         r.jsx("select",{className:"vfx-sel",value:vfxBezLire(eff.ease_in)?"bezier":(eff.ease_in||"smooth"),
-          "aria-label":"Courbe de la rampe d'entrée",disabled:!(fi>0),
+          "aria-label":dzT("vfx.bornes.courbe_entree"),disabled:!(fi>0),
           onChange:function(e){set({ease_in:e.target.value==="bezier"
             ?vfxBezEcrire(vfxBezDepart(eff.ease_in||"smooth")):e.target.value})},
           children:VFX_EASES.map(function(o){
             return r.jsx("option",{value:o[0],children:o[1]},o[0])})})]}),
-      fi>0&&vfxBezLire(eff.ease_in)?r.jsx(VfxBezier,{value:eff.ease_in,label:"Courbe de la rampe d'entrée",
+      fi>0&&vfxBezLire(eff.ease_in)?r.jsx(VfxBezier,{value:eff.ease_in,label:dzT("vfx.bornes.courbe_entree"),
         onChange:function(v){set({ease_in:v})}}):null,
       r.jsxs("div",{className:"vfx-prow",children:[
-        r.jsx("span",{className:"vfx-plabel",children:"Rampe sortie"}),
+        r.jsx("span",{className:"vfx-plabel",children:dzT("vfx.bornes.rampe_sortie")}),
         num({min:0,max:vfxRound(span/2,2),step:.05,value:vfxRound(fo,2),
-          "aria-label":"Durée de la rampe de sortie (s)",
+          "aria-label":dzT("vfx.bornes.rampe_sortie_duree"),
           onChange:function(e){
             set({fade_out:vfxRound(vfxClamp(vfxN(e.target.value,0),0,span/2),2)})}}),
         r.jsx("span",{className:"vfx-punit",children:"s"}),
         r.jsx("select",{className:"vfx-sel",value:vfxBezLire(eff.ease_out)?"bezier":(eff.ease_out||"smooth"),
-          "aria-label":"Courbe de la rampe de sortie",disabled:!(fo>0),
+          "aria-label":dzT("vfx.bornes.courbe_sortie"),disabled:!(fo>0),
           onChange:function(e){set({ease_out:e.target.value==="bezier"
             ?vfxBezEcrire(vfxBezDepart(eff.ease_out||"smooth")):e.target.value})},
           children:VFX_EASES.map(function(o){
             return r.jsx("option",{value:o[0],children:o[1]},o[0])})})]}),
-      fo>0&&vfxBezLire(eff.ease_out)?r.jsx(VfxBezier,{value:eff.ease_out,label:"Courbe de la rampe de sortie",
+      fo>0&&vfxBezLire(eff.ease_out)?r.jsx(VfxBezier,{value:eff.ease_out,label:dzT("vfx.bornes.courbe_sortie"),
         onChange:function(v){set({ease_out:v})}}):null,
       /* t128 : le shake ne se fond pas (l'image secouée mélangée à l'image fixe se dédoublerait) — sa
          rampe module l'AMPLITUDE de la secousse ; la secousse + zoom garde une entrée et une sortie franches */
       eff.type==="shake"?r.jsx("div",{className:"vfx-bnote",
-        children:"Camera shake : la rampe règle la FORCE de la secousse, de 0 au réglage choisi."}):null,
+        children:dzT("vfx.bornes.note_shake")}):null,
       eff.type==="shakezoom"?r.jsx("div",{className:"vfx-bnote",
-        children:"Secousse + zoom : entrée et sortie franches — le zoom sauterait s'il rampait."}):null,
+        children:dzT("vfx.bornes.note_shakezoom")}):null,
       r.jsx("div",{className:"vfx-bnote",
-        children:"Hors de l'intervalle, le plan reste intact."})]}):null]})};
+        children:dzT("vfx.bornes.note_hors")})]}):null]})};
 
 /* ═════════════════ Pile d'effets du clip ════════════════════════════════ */
 const VfxStack=(props)=>{
@@ -931,7 +924,7 @@ const VfxStack=(props)=>{
     var next=list.slice(),f=next[i];
     next.splice(i,1);
     emit(next,!0);
-    fireNote("« "+ce(f&&f.type).label+" » retiré de la pile.")}
+    fireNote(dzT("vfx.pile.retire",{nom:ce(f&&f.type).label}))}
   function moveAt(i,d){
     var j=i+d;
     if(j<0||j>=list.length)return;
@@ -949,12 +942,12 @@ const VfxStack=(props)=>{
       if(anyOn)o.off=!0;else delete o.off;
       return o});
     emit(next,!0);
-    fireNote(anyOn?"Avant : toute la pile est contournée (le rendu ignore ces effets)."
-      :"Après : la pile est réactivée.")}
+    fireNote(anyOn?dzT("vfx.pile.avant_note")
+      :dzT("vfx.pile.apres_note"))}
   function clearAll(){
     if(!list.length)return;
     emit([],!0);
-    fireNote("Pile vidée.")}
+    fireNote(dzT("vfx.pile.videe"))}
 
   /* préréglages : des VIGNETTES, pas des noms — c'est là que le choix se fait
      à l'œil (chaîne de repli identique à celle du panneau). */
@@ -964,11 +957,11 @@ const VfxStack=(props)=>{
     if(!pr||!pr.length)return null;
     var cur=f.preset||(f.type==="grade"?"teal_orange":f.type==="colorize"?"duotone":pr[0]);
     return r.jsxs("div",{className:"vfx-pgroup",children:[
-      r.jsx("span",{className:"vfx-plabel",children:"Préréglage"}),
+      r.jsx("span",{className:"vfx-plabel",children:dzT("vfx.commun.prereglage")}),
       r.jsx("div",{className:"vfx-pgrid",children:pr.map(function(p){
         var pe=Object.assign({},f,{preset:p});
         return r.jsxs("button",{className:"vfx-ptile","data-on":p===cur?"":void 0,
-          title:"Préréglage « "+p+" »",
+          title:dzT("vfx.pile.prereglage_nom",{nom:p}),
           onClick:function(){patchAt(i,{preset:p})},children:[
           r.jsx(VfxThumb,{url:vfxPreviewUrl(clip,pe,120),fallback:vfxStaticUrl(pe),
             h:38,alt:p,tick:tick}),
@@ -983,7 +976,7 @@ const VfxStack=(props)=>{
         r.jsx("span",{className:"vfx-plabel",children:b.label}),
         r.jsx("input",{className:"vfx-num",type:"text",style:{width:"auto",flex:1},
           value:f[k]||"",placeholder:"mon_look.cube",
-          title:"Nom d'un fichier .cube déposé dans le dossier LUT",
+          title:dzT("vfx.pile.lut_aide"),
           "aria-label":d.label+" — "+b.label,
           onChange:function(e){patchAt(i,vfxPatch1(k,e.target.value))}})]},k)}
     if(b.type==="color"){
@@ -1038,9 +1031,9 @@ const VfxStack=(props)=>{
       fetch("/api/cost/estimate",{method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({kind:"matte",duration_s:vfxN(clip.end,0)-vfxN(clip.start,0)})})
         .then(function(res){return res.ok?res.json():null})
-        .then(function(e){VFX_MATTE.arm={id:clip.id,label:((e&&e.breakdown&&e.breakdown[0])||{}).label||"devis indisponible",
+        .then(function(e){VFX_MATTE.arm={id:clip.id,label:((e&&e.breakdown&&e.breakdown[0])||{}).label||dzT("vfx.matte.devis_indisponible"),
           usd:e&&typeof e.total_usd==="number"?e.total_usd:null};mtick(function(n){return n+1})})
-        .catch(function(){VFX_MATTE.arm={id:clip.id,label:"devis indisponible",usd:null};mtick(function(n){return n+1})});
+        .catch(function(){VFX_MATTE.arm={id:clip.id,label:dzT("vfx.matte.devis_indisponible"),usd:null};mtick(function(n){return n+1})});
       return}
     VFX_MATTE.arm=null;VFX_MATTE.busy=!0;mtick(function(n){return n+1});
     var id=clip.id;
@@ -1048,27 +1041,27 @@ const VfxStack=(props)=>{
       (function poll(){vfxJson("/api/matte/"+d.matte_id).then(function(st){
         if(st.status==="done"){VFX_MATTE.busy=!1;mtick(function(n){return n+1});
           window.dispatchEvent(new CustomEvent("dz-matte",{detail:{id:id,matte:st.file}}));
-          fireNote("Sujet détouré : "+st.file+" — "+(st.usd_note||""))}
-        else if(st.status==="failed"){VFX_MATTE.busy=!1;mtick(function(n){return n+1});fireNote("Détourage : "+st.error)}
+          fireNote(dzT("vfx.matte.sujet_detoure")+st.file+" — "+(st.usd_note||""))}
+        else if(st.status==="failed"){VFX_MATTE.busy=!1;mtick(function(n){return n+1});fireNote(dzT("vfx.matte.detourage_err")+st.error)}
         else setTimeout(poll,1200)}).catch(function(e){VFX_MATTE.busy=!1;mtick(function(n){return n+1});
-          fireNote("Détourage : "+e.message)})})()})
-      .catch(function(e){VFX_MATTE.busy=!1;mtick(function(n){return n+1});fireNote("Détourage : "+e.message)})}
+          fireNote(dzT("vfx.matte.detourage_err")+e.message)})})()})
+      .catch(function(e){VFX_MATTE.busy=!1;mtick(function(n){return n+1});fireNote(dzT("vfx.matte.detourage_err")+e.message)})}
   function matteRow(){
     if(!clip||!clip.src||!clip.src.job_id)return null;
     var arme=VFX_MATTE.arm&&VFX_MATTE.arm.id===clip.id?VFX_MATTE.arm:null;
     var mods=VFX_MATTE.models||[];
     return r.jsxs("div",{className:"vfx-matte",children:[
-      r.jsx("span",{className:"vfx-mlbl",children:clip.matte?"Sujet détouré : "+clip.matte:"Sujet non détouré"}),
-      mods.length?r.jsx("select",{className:"vfx-sel",value:VFX_MATTE.model,"aria-label":"Modèle de détourage",
+      r.jsx("span",{className:"vfx-mlbl",children:clip.matte?dzT("vfx.matte.sujet_detoure")+clip.matte:dzT("vfx.matte.sujet_non_detoure")}),
+      mods.length?r.jsx("select",{className:"vfx-sel",value:VFX_MATTE.model,"aria-label":dzT("vfx.matte.modele"),
         onChange:function(e){VFX_MATTE.model=e.target.value;VFX_MATTE.arm=null;mtick(function(n){return n+1})},
         children:mods.map(function(o){return r.jsx("option",{value:o.id,children:o.label},o.id)})}):null,
       r.jsx("button",{className:"vfx-btn","data-off":VFX_MATTE.busy||!mods.length?"":void 0,
-        title:"BiRefNet vidéo via fal — prix non affiché par fal : à lire sur le tableau de bord après le tir",
+        title:dzT("vfx.matte.bouton_aide"),
         onClick:matteGo,
-        children:VFX_MATTE.busy?"détourage…":arme?"Confirmer le détourage":(clip.matte?"Redétourer":"Détourer (fal)")}),
-      clip.matte?r.jsx("button",{className:"vfx-btn",onClick:function(){emitMatte(null)},children:"retirer"}):null,
-      arme?r.jsx("div",{className:"vfx-mhint",children:"devis : "+(arme.usd==null?"":"~$"+arme.usd.toFixed(2)+" — ")+arme.label
-        +" · un second clic lance le détourage"}):null]})}
+        children:VFX_MATTE.busy?dzT("vfx.matte.en_cours"):arme?dzT("vfx.matte.confirmer"):(clip.matte?dzT("vfx.matte.redetourer"):dzT("vfx.matte.detourer"))}),
+      clip.matte?r.jsx("button",{className:"vfx-btn",onClick:function(){emitMatte(null)},children:dzT("vfx.matte.retirer")}):null,
+      arme?r.jsx("div",{className:"vfx-mhint",children:dzT("vfx.matte.devis")+(arme.usd==null?"":"~$"+arme.usd.toFixed(2)+" — ")+arme.label
+        +dzT("vfx.matte.second_clic")}):null]})}
 
   function row(f,i){
     var d=ce(f.type);
@@ -1081,7 +1074,7 @@ const VfxStack=(props)=>{
           h:34,alt:d.label,tick:tick,debounce:360}),
         r.jsxs("button",{className:"vfx-mname",
           "aria-expanded":open,
-          title:"Déplier les réglages de « "+d.label+" »",
+          title:dzT("vfx.pile.deplier",{nom:d.label}),
           onClick:function(){setExp(function(m){
             var nm=Object.assign({},m);
             if(nm[i])delete nm[i];else nm[i]=1;
@@ -1092,70 +1085,70 @@ const VfxStack=(props)=>{
           r.jsxs("span",{className:"vfx-mtxt",children:[
             r.jsx("span",{className:"vfx-mn",children:d.label}),
             bounded?r.jsx("span",{className:"vfx-mbadge",
-              title:"Actif de "+vfxSec(f.t0)+" à "+vfxSec(f.t1)+" — "+vfxSummary(f,d),
+              title:dzT("vfx.pile.actif",{t0:vfxSec(f.t0),t1:vfxSec(f.t1),resume:vfxSummary(f,d)}),
               children:vfxSec(f.t0)+" → "+vfxSec(f.t1)})
             :r.jsx("span",{className:"vfx-msum",children:vfxSummary(f,d)})]}),
           r.jsx("span",{className:"vfx-mcaret","aria-hidden":!0,children:open?"▾":"▸"})]}),
         r.jsx("button",{className:"vfx-iconbtn",disabled:i===0,
-          title:"Monter dans la pile","aria-label":"Monter « "+d.label+" »",
+          title:dzT("vfx.pile.monter"),"aria-label":dzT("vfx.pile.monter_nom",{nom:d.label}),
           onClick:function(){moveAt(i,-1)},children:"▲"}),
         r.jsx("button",{className:"vfx-iconbtn",disabled:i===list.length-1,
-          title:"Descendre dans la pile","aria-label":"Descendre « "+d.label+" »",
+          title:dzT("vfx.pile.descendre"),"aria-label":dzT("vfx.pile.descendre_nom",{nom:d.label}),
           onClick:function(){moveAt(i,1)},children:"▼"}),
         /* T103 (D2b) : sur un plan détouré, chaque effet passe derrière le
            sujet (défaut) ou devant lui */
         clip&&clip.matte?r.jsx("button",{className:"vfx-tog","data-on":f.behind!==!1?"":void 0,
           role:"switch","aria-checked":f.behind!==!1,
-          title:f.behind!==!1?"Derrière le sujet détouré — clic : devant":"Devant le sujet — clic : derrière",
-          "aria-label":(f.behind!==!1?"Passer devant le sujet : ":"Passer derrière le sujet : ")+d.label,
+          title:f.behind!==!1?dzT("vfx.pile.derriere_aide"):dzT("vfx.pile.devant_aide"),
+          "aria-label":(f.behind!==!1?dzT("vfx.pile.passer_devant"):dzT("vfx.pile.passer_derriere"))+d.label,
           onClick:function(){patchAt(i,{behind:f.behind!==!1?!1:void 0},!0)},
-          children:f.behind!==!1?"derrière":"devant"}):null,
+          children:f.behind!==!1?dzT("vfx.pile.derriere"):dzT("vfx.pile.devant")}):null,
         r.jsx("button",{className:"vfx-iconbtn vfx-bypass","data-on":off?"":void 0,
           role:"switch","aria-checked":off,
-          title:off?"Réactiver — l'effet repart au rendu"
-            :"Contourner — l'effet reste dans la pile mais sort du rendu",
-          "aria-label":(off?"Réactiver ":"Contourner ")+d.label,
+          title:off?dzT("vfx.pile.reactiver_aide")
+            :dzT("vfx.pile.contourner_aide"),
+          "aria-label":(off?dzT("vfx.pile.reactiver"):dzT("vfx.pile.contourner"))+d.label,
           onClick:function(){bypassAt(i)},children:off?"◌":"◉"}),
         r.jsx("button",{className:"vfx-iconbtn vfx-del",
-          title:"Retirer de la pile","aria-label":"Retirer « "+d.label+" »",
+          title:dzT("vfx.pile.retirer"),"aria-label":dzT("vfx.pile.retirer_nom",{nom:d.label}),
           onClick:function(){removeAt(i)},children:"✕"})]}),
       open?r.jsxs("div",{className:"vfx-mbody",children:[
         d.hint?r.jsx("div",{className:"vfx-mhint",children:d.hint}):null,
         presetRow(f,i,d),
         (d.params||[]).map(function(k){return paramRow(f,i,d,k)}),
         (d.params||[]).length?null:r.jsx("div",{className:"vfx-mhint",
-          children:"Cet effet n'a aucun réglage — il s'applique tel quel."}),
+          children:dzT("vfx.pile.sans_reglage")}),
         r.jsx(VfxBounds,{eff:f,dur:dur,
           onChange:function(patch){patchAt(i,patch)}})]}):null]},f.type+"#"+i)}
 
   return r.jsxs("div",{className:"vfx-stack",children:[
     r.jsxs("div",{className:"vfx-shead",children:[
-      r.jsx("span",{className:"vfx-title",children:props.title||"Pile d'effets"}),
+      r.jsx("span",{className:"vfx-title",children:props.title||dzT("vfx.pile.titre")}),
       r.jsx("span",{className:"vfx-count",
-        children:list.length?String(list.length):"vide"}),
+        children:list.length?String(list.length):dzT("vfx.pile.vide")}),
       r.jsxs("div",{className:"vfx-ab",role:"group",
-        "aria-label":"Comparer avant / après",children:[
+        "aria-label":dzT("vfx.pile.ab_aria"),children:[
         r.jsx("button",{className:"vfx-abbtn","data-on":!anyOn?"":void 0,
           disabled:!list.length,
-          title:"Avant — toute la pile est contournée",
-          onClick:function(){if(anyOn)abToggle()},children:"avant"}),
+          title:dzT("vfx.pile.avant_aide"),
+          onClick:function(){if(anyOn)abToggle()},children:dzT("vfx.pile.avant")}),
         r.jsx("button",{className:"vfx-abbtn","data-on":anyOn?"":void 0,
           disabled:!list.length,
-          title:"Après — la pile est appliquée",
-          onClick:function(){if(!anyOn)abToggle()},children:"après"})]}),
+          title:dzT("vfx.pile.apres_aide"),
+          onClick:function(){if(!anyOn)abToggle()},children:dzT("vfx.pile.apres")})]}),
       r.jsx("button",{className:"vfx-btn",disabled:!list.length,
-        title:"Retirer tous les effets de ce clip (annulable)",
-        onClick:clearAll,children:"Vider"}),
+        title:dzT("vfx.pile.vider_aide"),
+        onClick:clearAll,children:dzT("vfx.pile.vider")}),
       props.onOpenPanel?r.jsx("button",{className:"vfx-btn vfx-add",
-        title:"Ouvrir le panneau d'effets",
-        onClick:function(){props.onOpenPanel()},children:"+ effet"}):null]}),
+        title:dzT("vfx.pile.ouvrir_panneau"),
+        onClick:function(){props.onOpenPanel()},children:dzT("vfx.pile.ajouter")}):null]}),
     r.jsx(VfxAlert,{}),
     matteRow(),
     list.length?r.jsx("div",{className:"vfx-mods",children:list.map(row)})
     :r.jsxs("div",{className:"vfx-empty",children:[
-      r.jsx("div",{className:"vfx-emptytxt",children:"Aucun effet sur ce plan."}),
+      r.jsx("div",{className:"vfx-emptytxt",children:dzT("vfx.pile.aucun")}),
       r.jsx("div",{className:"vfx-emptyhint",
-        children:"Ouvrez le panneau d'effets, ou glissez une vignette sur le clip."})]}),
+        children:dzT("vfx.pile.aucun_aide")})]}),
     note?r.jsx("div",{className:"vfx-note",role:"status","aria-live":"polite",
       children:note}):null]})};
 

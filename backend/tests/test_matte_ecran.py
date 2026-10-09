@@ -14,7 +14,11 @@ import json, pathlib, subprocess, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 _ICI = pathlib.Path(__file__).resolve().parent
 RACINE = _ICI.parent.parent
-BUN = (RACINE / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js").read_bytes().decode("utf-8")
+# t144 : la couche passe par dzT (traduction L4) ; le banc exécute/lit son texte français d'avant la traduction
+# (test_i18n_l4 garantit qu'elle se défait exactement)
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import _i18n_l1_aide as AIDE  # noqa: E402
+BUN = AIDE.avant_i18n_l4((RACINE / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js").read_bytes().decode("utf-8"))
 _TMP = pathlib.Path(tempfile.mkdtemp(prefix="dzmatte_ecran_"))
 
 ok = fail = 0

@@ -29,8 +29,12 @@ def base(rel):
 
 
 SV, MJ = "frontend/patches/son-vfx-montage.js", "frontend/patches/montage.js"
-sv, mj, sv0, mj0 = lire(SV), lire(MJ), base(SV), base(MJ)
-bundle = lire("frontend/dist/assets/index-BEOJX8L5.js")
+# t144 : la couche passe par dzT (traduction L4) ; le banc exécute/lit son texte français d'avant la traduction
+# (test_i18n_l4 garantit qu'elle se défait exactement)
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import _i18n_l1_aide as AIDE  # noqa: E402
+sv, mj, sv0, mj0 = AIDE.couche_avant_i18n_l4(lire(SV), "sonvfx"), lire(MJ), base(SV), base(MJ)
+bundle = AIDE.avant_i18n_l4(lire("frontend/dist/assets/index-BEOJX8L5.js"))
 
 # chaque porte : (nom, ancienne forme — présente dans la base, nouvelle forme — présente dans la source)
 PORTES = [
