@@ -15,6 +15,8 @@ _ICI = pathlib.Path(__file__).resolve().parent
 RACINE = _ICI.parent.parent
 BUN = (RACINE / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js").read_bytes().decode("utf-8")
 _TMP = pathlib.Path(tempfile.mkdtemp(prefix="dzduel_"))
+sys.path.insert(0, str(_ICI))
+import _i18n_l1_aide as AIDE                               # noqa: E402  (t142 : PRELUDE_DZT)
 
 ok = fail = 0
 def check(label, cond, detail=""):
@@ -86,7 +88,8 @@ function texte(T){var d=T.p.children[T.p.children.length-1];return d.p.children}
 
 def node(corps):
     f = _TMP / f"d{abs(hash(corps)) % 10**9}.js"
-    f.write_text(COUCHE + "\n" + HARNAIS + "\n(async function(){var R={};" + corps + "\nconsole.log(JSON.stringify(R))})()", encoding="utf-8")
+    # t142 (09/10) : la couche passe ses textes par dzT ; PRELUDE_DZT (dzT en francais) APRES le `var window` du harnais
+    f.write_text(COUCHE + "\n" + HARNAIS + "\n" + AIDE.PRELUDE_DZT + "\n(async function(){var R={};" + corps + "\nconsole.log(JSON.stringify(R))})()", encoding="utf-8")
     p = subprocess.run(["node", str(f)], capture_output=True, text=True, encoding="utf-8")
     try:
         return json.loads(p.stdout.strip().splitlines()[-1])

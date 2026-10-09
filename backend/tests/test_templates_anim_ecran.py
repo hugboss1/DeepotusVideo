@@ -12,6 +12,8 @@ RACINE = _ICI.parent.parent
 sys.path.insert(0, str(_ICI.parent))
 BUN = (RACINE / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js").read_bytes().decode("utf-8")
 _TMP = pathlib.Path(tempfile.mkdtemp(prefix="dzane_"))
+sys.path.insert(0, str(_ICI))
+import _i18n_l1_aide as AIDE                               # noqa: E402  (t142 : PRELUDE_DZT)
 
 ok = fail = 0
 def check(label, cond, detail=""):
@@ -67,7 +69,9 @@ function ed(rg){hi=0;UPD=[];return DzAnimEditor({rg:rg,upd:function(pt){UPD.push
 
 def node(corps):
     f = _TMP / f"m{abs(hash(corps)) % 10**9}.js"
-    f.write_text(COUCHE + "\n" + HARNAIS + "\n(async function(){var R={};" + corps + "\nconsole.log(JSON.stringify(R))})()", encoding="utf-8")
+    # t142 (09/10) : les tables DZ_ANIM_TYPES / DZ_ANIM_COURBES et les libelles passent par dzT (globale) des le
+    # chargement ; le prelude la pose en FRANCAIS avant la couche (les attentes en francais restent vraies)
+    f.write_text(AIDE.PRELUDE_DZT + COUCHE + "\n" + HARNAIS + "\n(async function(){var R={};" + corps + "\nconsole.log(JSON.stringify(R))})()", encoding="utf-8")
     try:
         p = subprocess.run(["node", str(f)], capture_output=True, text=True, encoding="utf-8", timeout=60)
     except subprocess.TimeoutExpired:

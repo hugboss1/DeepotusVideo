@@ -17,6 +17,8 @@ BACKEND = pathlib.Path(__file__).resolve().parent.parent
 ROOT = BACKEND.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 import patch_bundle_montage as P                           # noqa: E402
+sys.path.insert(0, str(BACKEND / "tests"))
+import _i18n_l1_aide as AIDE                                # noqa: E402  t142 : DzEpBar passe par dzT
 
 ok = fail = 0
 def check(label, cond, detail=""):
@@ -55,7 +57,7 @@ HARNAIS = r"""
 var journal=[],reponses={},confirmer=true,dz=null;
 var r={Fragment:"F",jsx:function(t,p){return{t:t,p:p||{}}},jsxs:function(t,p){return{t:t,p:p||{}}}};
 var D={imageUrl:function(f){return "/api/images/"+f}};
-global.window={__dzDialogue:{confirmer:function(m,o){journal.push(["confirm",(o&&o.titre)||""]);return Promise.resolve(confirmer)}}};
+var window=global.window={__dzDialogue:{confirmer:function(m,o){journal.push(["confirm",(o&&o.titre)||""]);return Promise.resolve(confirmer)}}};
 global.fetch=function(u,o){var m=(o&&o.method)||"GET";journal.push([m,u,o&&o.body?JSON.parse(o.body):null]);
   var rep=reponses[m+" "+u]||{ok:true,j:{}};return Promise.resolve({ok:rep.ok!==false,status:rep.status||200,json:function(){return Promise.resolve(rep.j)}})};
 var appels=[];function espion(n){return function(v){appels.push([n,v])}}
@@ -73,7 +75,9 @@ ST = {"title": "Chapitre 1", "script": "Texte du chapitre.", "lang": "fr", "vid"
 DOC = {"id": "ep_0123456789ab", "title": "Rouvert", "script": "Autre texte.", "language": "en", "voice_id": "v2",
        "scenes": [{"text": "b", "image_filename": "j.png", "motion": "kenburns"}], "scene_method": "ai", "scene_style": "vitrail",
        "narration": None, "last_job_id": "job-42"}
-SCEN = HARNAIS + SRC + r"""
+# t142 (traduction L2) : DzEpBar passe ses libelles par dzT -- le prelude (APRES le window du harnais, qu'il
+# garde) pose window.DZ_I18N et dzT en francais : les attentes en francais ci-dessous restent vraies.
+SCEN = HARNAIS + AIDE.PRELUDE_DZT + SRC + r"""
 (async function(){var out={},st=%s,DOC=%s;
 dz={id:"",sig:"",msg:"",list:null,open:!1};
 out.doc=dzEpDoc(st);

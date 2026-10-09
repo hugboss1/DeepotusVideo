@@ -34,12 +34,19 @@ print("\n[1] les panneaux DOM et l'en-tête du Scheduler")
 for f in ("__dzSchedApi", "__dzSchedPanel", "__dzSchedBtn", "__dzSchedConnect", "__dzSchedComptes", "__dzSchedValider",
           "__dzSchedCreneaux", "__dzSchedAnalytics"):
     check(f"1.{f} défini une fois", s.count(f"function {f}(") == 1, str(s.count(f"function {f}(")))
-ent = s[s.find('children:"New post"})'):s.find('children:"New post"})') + 1400]
-boutons = [("__dzSchedComptes()", "Comptes"), ("__dzSchedValider()", "Valider la semaine"),
-           ("__dzSchedCreneaux()", "Créneaux"), ("__dzSchedAnalytics()", "Analytics")]
+# t142 (09/10) : la traduction L2 passe les libellés de l'en-tête par dzT("clé") ; l'ancre « New post » devient sa clé
+# (dont l'anglais est l'ancien texte), chaque bouton est épinglé par sa clé et la clé rend le français d'avant
+NEW_POST = 'children:dzT("scheduler.calendrier.nouveau_post")})'
+ent = s[s.find(NEW_POST):s.find(NEW_POST) + 1600]
+boutons = [("__dzSchedComptes()", 'dzT("scheduler.calendrier.comptes")', "Comptes"),
+           ("__dzSchedValider()", 'dzT("scheduler.calendrier.valider")', "Valider la semaine"),
+           ("__dzSchedCreneaux()", 'dzT("scheduler.calendrier.creneaux")', "Créneaux"),
+           ("__dzSchedAnalytics()", '"Analytics"', "Analytics")]
 check("1.9 l'en-tête porte les quatre boutons, chacun avec son title (E-12)",
-      all(f"onClick:function(){{{fn}}},children:\"{lib}\"" in ent for fn, lib in boutons) and ent.count("title:") >= 4
-      and s.count('children:"New post"})') == 1, ent[:300])
+      all(f"onClick:function(){{{fn}}},children:{lib}" in ent for fn, lib, _fr in boutons)
+      and all(AIDE.fr(lib[5:-2]) == fr for _fn, lib, fr in boutons if lib.startswith("dzT("))
+      and ent.count("title:") >= 4 and s.find(NEW_POST) > 0 and s.count(NEW_POST) == 1
+      and AIDE.DICO["scheduler.calendrier.nouveau_post"]["en"] == "New post", ent[:300])
 for u in ('"/schedule/validate"', '"/schedule/slots"', '"/schedule/quotas"', '"/schedule/analytics?days=28"',
           '"/schedule/analytics/refresh"', '"/schedule/slots/suggest?tz_offset_minutes="', '"/api/oauth/"'):
     check(f"1.route {u}", u in s)
@@ -127,20 +134,29 @@ helpers2 = s[s.find("function __dzSchedApi("):s.find("function __dzSendSched")]
 for u in ('"/marketing/brief"', '"/schedule/series"', '"/schedule/series/"+x.id+"/materialize"', '"/schedule/series/"+x.id',
           '"/schedule/recycle/suggest?days=90&limit=5"', '"/schedule/recycle"', '"/schedule/"+id+"/thread"'):
     check(f"6.route {u}", u in helpers2)
-ent2 = s[s.find('children:"New post"})'):s.find('children:"New post"})') + 2000]
-check("6.10 l'en-tête gagne « Campagne », avec son title", 'onClick:function(){__dzSchedCampagne()},children:"Campagne"})' in ent2
-      and 'icon:"book",title:' in ent2)
-ins = s[s.find('onClick:P,children:"Duplicate to next day"})') - 50:s.find('onClick:P,children:"Duplicate to next day"})') + 600]
+# t142 (09/10) : libellés passés par dzT — ancres et épingles par clé, chaque clé rend le français d'avant
+ent2 = s[s.find(NEW_POST):s.find(NEW_POST) + 2200]
+check("6.10 l'en-tête gagne « Campagne », avec son title",
+      'onClick:function(){__dzSchedCampagne()},children:dzT("scheduler.calendrier.campagne")})' in ent2
+      and AIDE.fr("scheduler.calendrier.campagne") == "Campagne" and 'icon:"book",title:' in ent2)
+DUPL = 'onClick:P,children:dzT("scheduler.post.dupliquer")})'
+ins = s[s.find(DUPL) - 50:s.find(DUPL) + 600] if s.find(DUPL) >= 0 else ""
 check("6.11 l'inspecteur gagne « Suite (fil X) » — seulement pour un post sur X, avec son title",
-      '(e.channels||[]).indexOf("x")>=0&&r.jsx(K,{' in ins and "__dzSchedSuite(e.id)" in ins and 'children:"Suite (fil X)"' in ins
-      and 'title:"Écrire la suite de ce post' in ins
-      and s.count('children:"Suite (fil X)"') == 1, ins[:300])
+      '(e.channels||[]).indexOf("x")>=0&&r.jsx(K,{' in ins and "__dzSchedSuite(e.id)" in ins
+      and 'children:dzT("scheduler.post.suite")' in ins and AIDE.fr("scheduler.post.suite") == "Suite (fil X)"
+      and 'title:dzT("scheduler.post.suite_aide")' in ins and AIDE.fr("scheduler.post.suite_aide").startswith("Écrire la suite de ce post")
+      and AIDE.DICO["scheduler.post.dupliquer"]["en"] == "Duplicate to next day"
+      and s.count('children:dzT("scheduler.post.suite")') == 1, ins[:300])
 check("6.12 toujours AUCUN window.prompt ni window.alert dans le neuf (formulaires dans les panneaux)",
       "window.prompt(" not in s and "window.alert(" not in helpers2)
 check("6.13 le menu de libsend est RÉUTILISÉ pour Campagne, pas recopié", s.count("function __dzSendMenu(") == 1
       and "__dzSendMenu([" in helpers2)
-check("6.14 la série se crée par un FORMULAIRE (nom, jours, heure, canaux, gabarit)", all(x in helpers2 for x in
-      ('"Nom de la s\\u00e9rie"', '"Jours (0=lundi \\u2026 6=dimanche)"', '"Heure locale (HH:MM)"', '"Canaux (virgules)"')))
+# t142 (09/10) : les champs du formulaire passent par dzT ; épinglés par clé, le français d'avant vérifié
+_champs = {"scheduler.series.nom": "Nom de la série", "scheduler.series.jours": "Jours (0=lundi … 6=dimanche)",
+           "scheduler.series.heure": "Heure locale (HH:MM)", "scheduler.series.canaux": "Canaux (virgules)"}
+check("6.14 la série se crée par un FORMULAIRE (nom, jours, heure, canaux, gabarit)",
+      all(f'__dzSchedChamp(f,dzT("{k}")' in helpers2 and AIDE.fr(k) == v for k, v in _champs.items())
+      and '__dzSchedChamp(f,dzT("scheduler.series.gabarit"))' in helpers2)
 check("6.15 le recyclage ne demande JAMAIS le LLM payant depuis l'écran (pas de llm=true)", "llm=true" not in helpers2)
 lm = s[s.find("function Lm("):s.find("function Lm(") + 3000]
 check("6.17 le Scheduler RECHARGE sa liste sur deepotus:schedule-reload (reloadPosts), écouteur retiré au démontage",
@@ -158,7 +174,7 @@ process.stdout.write(JSON.stringify(vu));
 res2 = None
 if _n and helpers2:
     tmp2 = pathlib.Path(tempfile.mkdtemp()) / "m.js"
-    tmp2.write_text("var document={};function __dzToast(){}\n" + js2, "utf-8")
+    tmp2.write_text(PRELUDE + "var document={};function __dzToast(){}\n" + js2, "utf-8")   # t142 : dzT sous node
     p2 = subprocess.run([_n, str(tmp2)], capture_output=True, text=True, encoding="utf-8")
     try:
         res2 = json.loads(p2.stdout)

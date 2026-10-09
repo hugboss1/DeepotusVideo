@@ -26,9 +26,13 @@ check("T1 temoin : la base a la galerie et son groupe « New: » mais pas « Rej
       and b'children:"New:"' in r0.stdout and b"DzReflowBar" not in r0.stdout)
 APPEL = ('onClick:()=>l(A),children:A},A))]}),r.jsx(DzReflowBar,{tpl:u,onSaved:function(id){a(function(w){return w+1});'
          'setTimeout(function(){n(id)},200)}}),')   # #76 PR H : l'import Figma suit, dans la meme rangee
-k = BUN.find('children:"New:"')
+# t142 (09/10) : « New: » passe par dzT (francais « Nouveau : », anglais d'origine garde) ; epingle par sa cle
+sys.path.insert(0, str(_ICI))
+import _i18n_l1_aide as AIDE                               # noqa: E402
+k = BUN.find('children:dzT("templates.ecran.nouveau")')
 check("T2 la rangee est posee dans la barre de la galerie, juste apres « New: » ; une copie recharge la liste et se selectionne",
-      BUN.count(APPEL) == 1 and 0 <= k < BUN.find(APPEL) < k + 400 and BUN.count("r.jsx(DzReflowBar,") == 1)
+      BUN.count(APPEL) == 1 and 0 <= k < BUN.find(APPEL) < k + 400 and BUN.count("r.jsx(DzReflowBar,") == 1
+      and AIDE.fr("templates.ecran.nouveau") == "Nouveau :" and AIDE.DICO["templates.ecran.nouveau"]["en"] == "New:")
 
 
 def fonction(nom):
@@ -77,7 +81,8 @@ function msg(){var s=trouver(T,function(n){return n.t==="span"});return s.length
 
 def node(corps):
     f = _TMP / f"r{abs(hash(corps)) % 10**9}.js"
-    f.write_text(COUCHE + "\n" + HARNAIS + "\n(async function(){var R={};" + corps + "\nconsole.log(JSON.stringify(R))})()", encoding="utf-8")
+    # t142 : le code execute recoit dzT (globale) en FRANCAIS ; les attentes en francais restent vraies
+    f.write_text(AIDE.PRELUDE_DZT + COUCHE + "\n" + HARNAIS + "\n(async function(){var R={};" + corps + "\nconsole.log(JSON.stringify(R))})()", encoding="utf-8")
     try:
         p = subprocess.run(["node", str(f)], capture_output=True, text=True, encoding="utf-8", timeout=60)
     except subprocess.TimeoutExpired:

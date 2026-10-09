@@ -24,6 +24,8 @@ def check(label, cond, detail=""):
         fail += 1; print(f"  FAIL  {label} {detail}")
 
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import _i18n_l1_aide as AIDE  # noqa: E402  (t142 : la traduction L2 passe le bloc et les paires par dzT)
 COUCHE = (RACINE / "frontend/patches/montage.js").read_text("utf-8")
 m = re.search(r"/\*__T131_DEBUT__\*/(.*?)/\*__T131_FIN__\*/", COUCHE, re.S)
 check("1a_le_bloc_pur_est_balise", m is not None)
@@ -55,7 +57,13 @@ R.sansVo = o.dzVoDuck(null, { props: { duckDb: -8 } });
 R.defaut = o.dzVoDuck({ file: "v.mp3" }, { type: "AudioMix", props: {} });
 process.stdout.write(JSON.stringify(R));
 """
-    r = subprocess.run([NODE, "-e", HARNAIS, m.group(1)], capture_output=True, text=True, encoding="utf-8")
+    # t142 (09/10) : le bloc appelle dzT (globale) — prélude dans sa propre portée, dzT publié sur globalThis, en
+    # français : les libellés attendus ci-dessous restent ceux d'avant
+    # (le dictionnaire dépasse la ligne de commande Windows : le harnais passe par un fichier, le bloc devient argv[2])
+    import tempfile
+    _fh = pathlib.Path(tempfile.mkdtemp(prefix="dzt131_")) / "h.js"
+    _fh.write_text("(function(){\n" + AIDE.PRELUDE_DZT + "\n})();\n" + HARNAIS.replace("process.argv[1]", "process.argv[2]"), "utf-8")
+    r = subprocess.run([NODE, str(_fh), m.group(1)], capture_output=True, text=True, encoding="utf-8")
     if r.returncode:
         check("1b_le_bloc_s_evalue_sous_node", False, r.stderr[-600:])
     else:
@@ -83,9 +91,12 @@ try:
 except Exception as e:
     paires = None
     print(f"  (patcher illisible : {e!r})")
+# t142 (09/10) : les paires sont celles que le patcher AMONT a posées ; la traduction L2 en a repris certaines
+# (libellés passés par dzT) — contrôlées sur le bundle d'AVANT la traduction
+B0 = AIDE.avant_i18n(B)
 check("2a_paires_consignees_hors_de_PATCHES_et_chacune_une_fois_au_bundle",
-      paires is not None and len(paires) >= 15 and all(B.count(r) == 1 for _n, _a, r in paires)
-      and not any(n.startswith("T131") for n, _a, _r in PM.PATCHES), paires and [n for n, _a, r in paires if B.count(r) != 1])
+      paires is not None and len(paires) >= 15 and all(B0.count(r) == 1 for _n, _a, r in paires)
+      and not any(n.startswith("T131") for n, _a, _r in PM.PATCHES), paires and [n for n, _a, r in paires if B0.count(r) != 1])
 check("2b_plus_aucun_v1_gere_ElevenLabs_seul", "v1 gère ElevenLabs seul" not in B)
 check("2c_le_selecteur_de_voix_recoit_le_fournisseur_dans_Quick_et_le_noeud",
       B.count("r.jsx(DzVoicePicker,{provider:dzVp.id,") == 2)

@@ -47,14 +47,23 @@ MIROIR = RACINE / "backend" / "app" / "assets" / "studio_nodes.json"
 print("[A] le registre miroite")
 doc = json.loads(MIROIR.read_bytes().decode("utf-8")) if MIROIR.is_file() else {"count": 0, "types": {}}
 T = doc["types"]
+# t142 (09/10) : la traduction L2 (maillon de QUEUE) passe les titres et descriptions du registre par dzT ; le registre
+# tel que le Studio l'a pose (titres litteraux) se lit sur le bundle d'avant la traduction (avant_i18n, exactement
+# reversible) ; le bundle livre garde chaque type a sa categorie, son titre devenu dzT(...) ou laisse litteral.
+sys.path.insert(0, str(_ICI))
+import _i18n_l1_aide as AIDE                                        # noqa: E402
+BUN_AV = AIDE.avant_i18n(BUN)
 check("A1 34 types, chacun present au registre du bundle avec sa categorie et son titre", doc["count"] == 34 == len(T)
-      and all(f'{n}:{{cat:"{d["cat"]}",title:"{d["title"]}"' in BUN for n, d in T.items()), str(doc["count"]))
+      and all(f'{n}:{{cat:"{d["cat"]}",title:"{d["title"]}"' in BUN_AV for n, d in T.items())
+      and all(f'{n}:{{cat:"{d["cat"]}",title:"{d["title"]}"' in BUN or f'{n}:{{cat:"{d["cat"]}",title:dzT("studio.catalogue.' in BUN
+              for n, d in T.items()), str(doc["count"]))
 check("A2 les ports sont ceux du bundle (Seedance image/end/prompt -> out ; Render in/overlay/audio/fx ; Image sans entree)",
       T.get("Seedance", {}).get("in") == ["image", "end", "prompt"] and T.get("Render", {}).get("in") == ["in", "overlay", "audio", "fx"]
       and T.get("Image", {}).get("in") == [] and T.get("Image", {}).get("out") == ["out"] and T.get("Render", {}).get("out") == [])
 r = subprocess.run([sys.executable, str(RACINE / "scripts" / "qa" / "dump_studio_registry.py"), "--check"], capture_output=True,
-                   text=True, encoding="utf-8", cwd=str(RACINE))
-check("A3 DERIVE : le miroir suit le bundle livre (dump --check)", r.returncode == 0 and "a jour (34 types)" in r.stdout, r.stdout + r.stderr)
+                   text=True, encoding="utf-8", errors="replace", cwd=str(RACINE))   # t142 : stderr du script en cp1252
+check("A3 DERIVE : le miroir suit le bundle livre (dump --check)", r.returncode == 0 and "a jour (34 types)" in (r.stdout or ""),
+      (r.stdout or "") + (r.stderr or ""))
 import importlib.util, io, contextlib                               # noqa: E402
 _sp = importlib.util.spec_from_file_location("dz_dump", RACINE / "scripts" / "qa" / "dump_studio_registry.py")
 DUMP = importlib.util.module_from_spec(_sp); _sp.loader.exec_module(DUMP)
@@ -65,7 +74,10 @@ _perime.write_bytes(DUMP.texte(_d).encode("utf-8"))
 DUMP.CIBLE, _argv, _out = _perime, sys.argv, io.StringIO()
 sys.argv = ["dump", "--check"]
 with contextlib.redirect_stdout(_out):
-    _rc = DUMP.main()
+    try:
+        _rc = DUMP.main()
+    except SystemExit as _e:                                        # t142 : l'extracteur refuse la forme du registre
+        _rc = None; print(f"(main a quitte : {_e})")
 sys.argv = _argv
 check("A4 un miroir PERIME (un type de moins) est denonce par --check, sans etre reecrit",
       _rc == 1 and "DERIVE" in _out.getvalue() and "Upscale" not in _perime.read_text(encoding="utf-8"), _out.getvalue())

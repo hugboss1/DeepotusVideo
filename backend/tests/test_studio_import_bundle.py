@@ -12,6 +12,8 @@ _ICI = pathlib.Path(__file__).resolve().parent
 RACINE = _ICI.parent.parent
 BUN = (RACINE / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js").read_bytes().decode("utf-8")
 _TMP = pathlib.Path(tempfile.mkdtemp(prefix="dzimpb_"))
+sys.path.insert(0, str(_ICI))
+import _i18n_l1_aide as AIDE                               # noqa: E402  (t142 : PRELUDE_DZT, AIDE.fr)
 
 ok = fail = 0
 def check(label, cond, detail=""):
@@ -51,9 +53,11 @@ check("T2 la couche livree a le composant et sa liste (une fois chacun)", BUN.co
       and BUN.count("function dzImpListe(") == 1 and bool(LISTE) and bool(COMP))
 
 APPEL = ('r.jsx(DzImportGraph,{graph:o,onOpen:function(G){i(ts(G));d({});f({});a(null);k(null);'
-         'p("Graphe importé (non enregistré) : "+G.name)}}),r.jsx(DzOpenGraph,{onPick:async id=>{')
+         # t142 (09/10) : le message passe par dzT ; epingle par sa cle, le francais verifie par AIDE.fr
+         'p(dzT("studio.graphe.importe",{nom:G.name}))}}),r.jsx(DzOpenGraph,{onPick:async id=>{')
 check("T3 pose une fois, juste a gauche de « Ouvrir un graphe » : ts() fusionne les defauts, etats/selection/rendu remis a zero",
-      BUN.count(APPEL) == 1 and BUN.count("r.jsx(DzImportGraph,") == 1)
+      BUN.count(APPEL) == 1 and BUN.count("r.jsx(DzImportGraph,") == 1
+      and AIDE.fr("studio.graphe.importe", nom="G") == "Graphe importé (non enregistré) : G")
 j = BUN.find("function Lh(")
 check("T4 dans le Studio (Lh), ou o/i sont le graphe et son setter, d/f/a/k les etats, p le message",
       0 <= j < BUN.find(APPEL) and "[o,i]=x.useState(" in BUN[j:BUN.find(APPEL)] and "[c,p]=x.useState(" in BUN[j:BUN.find(APPEL)])
@@ -89,7 +93,8 @@ REP_PROPRE = {"ok": True, "d": {"graph": {"name": "Net", "nodes": [{"id": "n"}],
 
 def node(corps):
     f = _TMP / f"i{abs(hash(corps)) % 10**9}.js"
-    f.write_text(LISTE + "\n" + COMP + "\n" + HARNAIS + "\n(async function(){var R={};" + corps
+    # t142 (09/10) : le composant passe ses textes par dzT ; PRELUDE_DZT (dzT en francais) APRES le `var window` du harnais
+    f.write_text(LISTE + "\n" + COMP + "\n" + HARNAIS + "\n" + AIDE.PRELUDE_DZT + "\n(async function(){var R={};" + corps
                  + "\nconsole.log(JSON.stringify(R))})()", encoding="utf-8")
     p = subprocess.run(["node", str(f)], capture_output=True, text=True, encoding="utf-8")
     try:
@@ -124,7 +129,9 @@ if R:
     check("F3 confirme : le graphe RENDU PAR LE SERVEUR s'ouvre (pas le fichier brut)", R["ok"]["o"] == [REP_OK["d"]["graph"]], str(R["ok"]["o"]))
     check("F4 puis un dialogue LISTE chaque source manquante et chaque arete jetee, et dit que rien n'est enregistre",
           len(j) == 3 and j[2][0] == "informer" and "• Image im — image trone.png" in j[2][1] and "• ExistingRender er — rendu job_x" in j[2][1]
-          and "fantome" in j[2][1] and "« Save » le garde" in j[2][1] and j[2][2] == "Graphe importé — à reprendre", str(j[2:]))
+          # t142 (09/10) : le bouton « Save » du Studio s'appelle « Enregistrer » en francais ; le message le suit
+          and "fantome" in j[2][1] and "« Enregistrer » le garde" in j[2][1] and AIDE.fr("studio.graphe.enregistrer") == "Enregistrer"
+          and j[2][2] == "Graphe importé — à reprendre", str(j[2:]))
     check("F5 refus de remplacer : rien ne s'ouvre, rien d'autre n'est dit", R["non"]["o"] == [] and [x[0] for x in R["non"]["j"]] == ["fetch", "confirmer"])
     check("F6 graphe ouvert VIDE (ou absent) : pas de confirmation ; import propre : aucun dialogue",
           R["vide"]["o"] == [REP_PROPRE["d"]["graph"]] and [x[0] for x in R["vide"]["j"]] == ["fetch"]

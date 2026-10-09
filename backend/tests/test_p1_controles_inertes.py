@@ -31,6 +31,19 @@ BACKEND = pathlib.Path(__file__).resolve().parent.parent
 ROOT = BACKEND.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 import patch_bundle_montage as P                           # noqa: E402
+sys.path.insert(0, str(BACKEND / "tests"))
+import _i18n_l1_aide as AIDE                               # noqa: E402
+# t142 (09/10) : la traduction L2 passe les textes du Studio et des Templates par dzT (globale) ; le code exécuté sous
+# node reçoit le prélude (français, dans sa propre portée, dzT publié sur globalThis)
+PRELUDE = "(function(){\n" + AIDE.PRELUDE_DZT + "\n})();\n"
+
+
+def _en(cle, **v):
+    """Le texte ANGLAIS d'une clé (celui d'avant L2 quand l'écran était en anglais)."""
+    t = AIDE.DICO[cle]["en"]
+    for k, x in v.items():
+        t = t.replace("{" + k + "}", str(x))
+    return t
 
 ok = fail = 0
 def check(label, cond, detail=""):
@@ -110,16 +123,20 @@ VEC = {
                         {"id": "x3", "type": "NewsIllustration", "props": {}}], "edges": []},
     "defauts": {"nodes": [{"id": "x1", "type": "Upscale", "props": {}}, {"id": "v1", "type": "Voiceover", "props": {"provider": "voicebox"}}], "edges": []},
 }
-rc, out, err = _node(RES + "\nvar V=" + json.dumps(VEC) + ";var o={};for(var k in V){var q=dzGraphResume(V[k]);"
+rc, out, err = _node(PRELUDE + RES + "\nvar V=" + json.dumps(VEC) + ";var o={};for(var k in V){var q=dzGraphResume(V[k]);"
                      "o[k]={rn:q.rn?q.rn.id:null,maitre:q.maitre,loud:q.loud,prov:q.prov}}process.stdout.write(JSON.stringify(o))")
 check("2.2 s'execute", rc == 0 and out is not None, _d(err[-300:]))
 out = out or {}
 check("2.3 graphe vide : rien d'invente (tirets partout)",
       out.get("vide") == {"rn": None, "maitre": "—", "loud": "—", "prov": "—"}, _d(out.get("vide")))
 check("2.4 demo : Render trouve, maitre Avatar master tail 0.4 s, -16 LUFS, services dans l'ordre des noeuds",
-      out.get("demo") == {"rn": "r1", "maitre": "Avatar master · tail 0.4 s", "loud": "-16 LUFS",
-                          "prov": "fal.ai · HeyGen · ElevenLabs · LLM"}, _d(out.get("demo")))
-check("2.5 Spatial compose maitre", (out.get("spatial") or {}).get("maitre") == "Spatial compose · slot avatar · tail 0.6 s", _d(out.get("spatial")))
+      # t142 : le maître passe par dzT("studio.resume.maitre_avatar") ; rendu en français sous le prélude, et la clé
+      # rend en anglais le texte d'avant
+      out.get("demo") == {"rn": "r1", "maitre": AIDE.fr("studio.resume.maitre_avatar", s=0.4), "loud": "-16 LUFS",
+                          "prov": "fal.ai · HeyGen · ElevenLabs · LLM"}
+      and _en("studio.resume.maitre_avatar", s=0.4) == "Avatar master · tail 0.4 s", _d(out.get("demo")))
+check("2.5 Spatial compose maitre", (out.get("spatial") or {}).get("maitre") == AIDE.fr("studio.resume.maitre_compose", s=0.6)
+      and "0.6 s" in AIDE.fr("studio.resume.maitre_compose", s=0.6), _d(out.get("spatial")))
 check("2.6 UGC maitre", (out.get("ugc") or {}).get("maitre") == "UGC · 12 s", _d(out.get("ugc")))
 check("2.7 Upscale simple, RemoveBG local, NewsIllustration (fetch gratuit) : aucun service", (out.get("local") or {}).get("prov") == "—", _d(out.get("local")))
 check("2.8 defauts : Upscale sans mode = IA fal ; Voiceover voicebox = Voicebox", (out.get("defauts") or {}).get("prov") == "fal.ai · Voicebox", _d(out.get("defauts")))
@@ -143,7 +160,7 @@ G = {"name": "g.graph", "nodes": [{"id": "r1", "type": "Render", "props": {"form
 G0 = {"name": "g0", "nodes": [{"id": "s1", "type": "Seedance", "props": {}}], "edges": []}
 FH_NEW = _entre(s, "function Fh(", "function dzIsImgNode(")   # Fh (en-tete replie dans R8in3) puis dzGraphResume
 FH_OLD = _entre(bak, "function Fh(", "function dzIsImgNode(")
-rc1, o1, e1 = _node(HARNAIS + FH_NEW + "\nprocess.stdout.write(JSON.stringify({g:essai(" + json.dumps(G) + "),g0:essai(" + json.dumps(G0) + ")}))")
+rc1, o1, e1 = _node(PRELUDE + HARNAIS + FH_NEW + "\nprocess.stdout.write(JSON.stringify({g:essai(" + json.dumps(G) + "),g0:essai(" + json.dumps(G0) + ")}))")
 rc0, o0, e0 = _node(HARNAIS + FH_OLD + "\nprocess.stdout.write(JSON.stringify({g:essai(" + json.dumps(G) + ")}))")
 check("3.1 temoin : le Fh du .bak rendu au harnais a SIX onChange sans effet", rc0 == 0 and o0 and len(o0["g"]["inertes"]) == 6,
       _d(e0[-200:], o0 and o0["g"]["inertes"]))
@@ -153,13 +170,19 @@ _ef = (o1 or {}).get("g", {}).get("effets", [])
 check("3.3 Format -> onUpdateNode(r1,{format}) ; Render name -> onUpdateNode(r1,{name}) ; Graph name -> onRename",
       ["node", "r1", {"format": "1:1"}] in _ef and ["node", "r1", {"name": "x-banc"}] in _ef and ["rename", "x-banc"] in _ef, _d(_ef))
 _t1 = (o1 or {}).get("g", {}).get("texte", "")
-check("3.4 le resume dit le vrai maitre du graphe et les vrais services", "Avatar master · tail 0.4 s" in _t1 and "fal.ai · HeyGen" not in _t1, _d(_t1[-300:]))
+check("3.4 le resume dit le vrai maitre du graphe et les vrais services", AIDE.fr("studio.resume.maitre_avatar", s=0.4) in _t1 and "fal.ai · HeyGen" not in _t1, _d(_t1[-300:]))
 _g0 = (o1 or {}).get("g0", {})
 check("3.5 sans noeud Render : seul le nom du graphe est editable, et le panneau dit d'ajouter un Render",
-      _g0.get("n") == 1 and _g0.get("inertes") == [] and "Ajoute un nœud Render" in _g0.get("texte", ""), _d(_g0))
+      # t142 : la phrase passe par dzT("studio.inspecteur.render_manquant") ; son français nomme le nœud « Rendu »
+      # (titre français du nœud Render au catalogue, studio.catalogue.rendu_titre)
+      _g0.get("n") == 1 and _g0.get("inertes") == [] and AIDE.fr("studio.inspecteur.render_manquant") in _g0.get("texte", "")
+      and AIDE.fr("studio.inspecteur.render_manquant").startswith("Ajoute un nœud " + AIDE.fr("studio.catalogue.rendu_titre"))
+      and 'dzT("studio.inspecteur.render_manquant")' in FH_NEW, _d(_g0))
+# t142 : R8in3 est la section posée par le patcher AMONT ; la traduction L2 en reprend des libellés -> contrôlée sur le
+# bundle d'AVANT la traduction
 check("3.7 en-tete de Fh REPLIE dans R8in3 (son ancre est ce remplacement) : x1 livre, R8in3 intact sinon",
       s.count("function Fh({graph:e,onRename:t,onUpdateNode:U}){var dzRs=dzGraphResume(e),dzRn=dzRs.rn,") == 1
-      and s.count(P.R_R8IN3) == 1 and "onUpdateNode" not in P.A_R8IN3, "")
+      and AIDE.avant_i18n(s).count(P.R_R8IN3) == 1 and "onUpdateNode" not in P.A_R8IN3, "")
 check("3.6 l'appelant passe onUpdateNode a Fh", s.count("r.jsx(Fh,{graph:t,onRename:i,onUpdateNode:U})") == 1
       and bak.count("r.jsx(Fh,{graph:t,onRename:i})") == 1, "")
 
@@ -179,7 +202,9 @@ check("4.3 nom sans casse, sans accents, par tag et par id", tf.get("news") == [
 _ifm = s.find("function fm({variant:e}){")
 FM = s[_ifm:_ifm + 60000] if _ifm >= 0 else ""
 check("4.4 fm : etat dzTq declare, champ branche (value + onChange)", "[dzTq,dzSetTq]=x.useState(\"\")" in FM
-      and 'placeholder:"Search…",style:{width:220},value:dzTq,onChange:dzSetTq' in FM, "")
+      # t142 : le placeholder passe par dzT ; la clé rend en anglais le texte d'avant
+      and 'placeholder:dzT("templates.ecran.rechercher"),style:{width:220},value:dzTq,onChange:dzSetTq' in FM
+      and _en("templates.ecran.rechercher") == "Search…" and AIDE.fr("templates.ecran.rechercher") == "Rechercher…", "")
 check("4.5 fm : la grille rend dzTplFiltre(d,dzTq), la selection reste lue dans d (liste complete)",
       FM.count("children:dzTplFiltre(d,dzTq).map(f=>{const m=t===f.id;") == 1 and "u=d.find(f=>f.id===t)||d[0]" in FM, "")
 

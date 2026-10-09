@@ -43,6 +43,9 @@ check("A5 l'evenement : emis par le helper, ecoute par Quick (et retire au demon
 # francais d'avant
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import _i18n_l1_aide as AIDE  # noqa: E402
+# t142 (09/10) : la traduction L2 passe les textes de Quick par dzT (globale) ; chaque script node recoit le prelude,
+# dans sa propre portee (son `var window` ne masque pas celui des harnais), en francais : les attentes restent vraies
+PRELUDE = "(function(){\n" + AIDE.PRELUDE_DZT + "\n})();\n"
 check("A6 le bouton de la Bibliotheque (renders seulement) et l'icone de la file, avec un title",
       'm.kind==="render"&&m.jobId&&r.jsx(K,{variant:"ghost",size:"sm",icon:"bolt",title:dzT("biblio.detail.rouvrir_quick_aide")' in s
       and AIDE.fr("biblio.detail.rouvrir_quick_aide").startswith("Rouvrir ce rendu dans Quick")
@@ -110,7 +113,7 @@ function fabrique(etat){var u=etat.u||[];""" + "".join(f"var {n}=function(x){{ap
  console.log(JSON.stringify(out));
 })();
 """])
-    f = pathlib.Path(tempfile.mkdtemp(prefix="dzquickb_"), "q.mjs"); f.write_text(js, encoding="utf-8")
+    f = pathlib.Path(tempfile.mkdtemp(prefix="dzquickb_"), "q.mjs"); f.write_text(PRELUDE + js, encoding="utf-8")
     p = subprocess.run([node, str(f)], capture_output=True, text=True, encoding="utf-8", timeout=60)
     try:
         o = json.loads(p.stdout.strip().splitlines()[-1])
@@ -158,12 +161,16 @@ check("E0 temoin : la base (15c4c12) n'a ni dzEndOK ni le libelle « indisponibl
 check("E1 un etat, deux fonctions, la table lue sur /api/video-models (rien en dur)", s.count("dzSetEndCaps") == 2
       and s.count("function dzEndOK(") == 1 and s.count("function dzEndWhy(") == 1 and 'fetch("/api/video-models")' in um
       and "kling-v3-pro" not in fonc("dzEndWhy"))
-check("E2 le champ porte la raison a la place du select, avec un title", 'label:dzEndOK()?"Image de fin (optionnelle)":"Image de fin — indisponible"' in um
+# t142 (09/10) : libelles et title passes par dzT ; epingles par cle, chaque cle rend le francais d'avant
+check("E2 le champ porte la raison a la place du select, avec un title",
+      'label:dzEndOK()?dzT("quick.source.image_fin"):dzT("quick.source.image_fin_indispo")' in um
+      and AIDE.fr("quick.source.image_fin") == "Image de fin (optionnelle)" and AIDE.fr("quick.source.image_fin_indispo") == "Image de fin — indisponible"
       # tache #54 T9 (01/10) : le select et la vraie DropZone dans un meme bloc « dz-fin »
       and 'children:dzEndOK()?r.jsxs("div",{className:"dz-fin",children:[u.length>0?r.jsx(re,{value:g,' in um
-      and 'r.jsx("div",{title:"Choisissez un modèle qui accepte une image de fin"' in um and 'children:dzEndWhy()})})' in um)
+      and 'r.jsx("div",{title:dzT("quick.source.fin_aide")' in um
+      and AIDE.fr("quick.source.fin_aide") == "Choisissez un modèle qui accepte une image de fin" and 'children:dzEndWhy()})})' in um)
 check("E3 le bouton « Parcourir » de fin n'existe que si c'est accepte", 'dzEndOK()&&r.jsx(O,{label:"",children:r.jsx("button"' in um
-      and 'titre:"Image de fin (optionnelle)"},k)' in um)
+      and 'titre:dzT("quick.source.image_fin")},k)' in um)
 check("E4 le payload n'envoie jamais une fin refusee", 'image_filename_end:(dzEndOK()?g:"")||null,' in s and "image_filename_end:g||null," not in s)
 if node:
     i5 = s.find('onChange:function(v2){dzSetVMQ(v2);')
@@ -186,7 +193,7 @@ var f=monter("",{map:CAPS.map,dflt:"veo-3.1-fast-fal",oui:CAPS.oui});out.defautR
 etat.vide=[];c.change("veo-3.1-fast-fal");out.versVeo=etat.vide.slice();etat.vide=[];c.change("seedance-2.5");out.versSeed=etat.vide.slice();
 console.log(JSON.stringify(out));
 """
-    f = pathlib.Path(tempfile.mkdtemp(prefix="dzquicke_"), "e.mjs"); f.write_text(js, encoding="utf-8")
+    f = pathlib.Path(tempfile.mkdtemp(prefix="dzquicke_"), "e.mjs"); f.write_text(PRELUDE + js, encoding="utf-8")
     p = subprocess.run([node, str(f)], capture_output=True, text=True, encoding="utf-8", timeout=60)
     try:
         o = json.loads(p.stdout.strip().splitlines()[-1])
@@ -208,13 +215,19 @@ print("\n[S] sous-titres graves dans Quick (tache #50, plan Quick T4, groupe P5s
 check("S0 temoin : la base (15c4c12) n'a ni dzSubs (dzSubsExp du Montage est autre) ni « Sous-titrer le rendu »", "function dzSubs(" not in s0 and "subtitles:dzSubs()" not in s0 and "Sous-titrer le rendu" not in s0)
 check("S1 un dzSubs, trois payloads (seedance, heygen, composition)", s.count("function dzSubs(") == 1 and s.count("subtitles:dzSubs()") == 3
       and 'template_id:H||null,subtitles:dzSubs(),lipsync:dzLip()},we=await D.postJson("/generate",je)' in s
-      and 'engine:eng||void 0,subtitles:dzSubs()});at(Z.ok?{msg:"HeyGen queued."}' in s
+      # t142 : le message passe par dzT ; son anglais est l'ancien « HeyGen queued. »
+      and 'engine:eng||void 0,subtitles:dzSubs()});at(Z.ok?{msg:dzT("quick.lancer.heygen_file")}' in s
+      and AIDE.DICO["quick.lancer.heygen_file"]["en"] == "HeyGen queued."
       and 'transition_duration_s:.5,subtitles:dzSubs()});' in s)
 check("S2 les preselections viennent de /api/subtitles/presets", 'fetch("/api/subtitles/presets?ratio=9:16")' in um)
 check("S3 le bloc : interrupteur, style, langue, texte, case de transcription PAYANTE (seulement sans texte), aide",
-      'r.jsx(Ze,{checked:dzSubOn,label:"Sous-titrer le rendu",onChange:dzSetSubOn})' in um
-      and 'dzSubOn&&!dzSubTexte()&&r.jsx(O,{children:r.jsx(Ze,{checked:dzSubTr,label:"Transcrire si aucun texte (payant, sous le plafond de dépense)"' in um
-      and "Calage local du texte connu — 0 $" in um)
+      # t142 : libelles par cle, le francais d'avant verifie
+      'r.jsx(Ze,{checked:dzSubOn,label:dzT("quick.soustitres.activer"),onChange:dzSetSubOn})' in um
+      and AIDE.fr("quick.soustitres.activer") == "Sous-titrer le rendu"
+      and 'dzSubOn&&!dzSubTexte()&&r.jsx(O,{children:r.jsx(Ze,{checked:dzSubTr,label:dzT("quick.soustitres.transcrire")' in um
+      and AIDE.fr("quick.soustitres.transcrire") == "Transcrire si aucun texte (payant, sous le plafond de dépense)"
+      and 'dzSubTexte()?dzT("quick.soustitres.calage_local")' in um
+      and AIDE.fr("quick.soustitres.calage_local").startswith("Calage local du texte connu — 0 $"))
 if node:
     js = r"""
 function monter(st){var o=st.o,R=st.R,dzSubOn=st.on,dzSubSty="pop",dzSubLang="fr",dzSubTxt=st.txt,dzSubTr=st.tr;
@@ -227,7 +240,7 @@ console.log(JSON.stringify({
  seedSansTexte:monter({on:true,o:"seedance",R:"script avatar",txt:"",tr:false}),
  seedTr:monter({on:true,o:"seedance",R:"",txt:"",tr:true})}));
 """
-    f = pathlib.Path(tempfile.mkdtemp(prefix="dzquicks_"), "s.mjs"); f.write_text(js, encoding="utf-8")
+    f = pathlib.Path(tempfile.mkdtemp(prefix="dzquicks_"), "s.mjs"); f.write_text(PRELUDE + js, encoding="utf-8")
     p = subprocess.run([node, str(f)], capture_output=True, text=True, encoding="utf-8", timeout=60)
     try:
         o = json.loads(p.stdout.strip().splitlines()[-1])
@@ -275,7 +288,7 @@ var OK={ok:true,fal:true,veo_source:true,added_s:7,label:"Veo 3.1 Fast · extens
  out.nonVeo={saisie:saisies.slice(-1)[0],post:posts.slice(-1)[0],toast:toasts.slice(-1)[0]};
  console.log(JSON.stringify(out))})();
 """
-    f = pathlib.Path(tempfile.mkdtemp(prefix="dzquickx_"), "x.mjs"); f.write_text(js, encoding="utf-8")
+    f = pathlib.Path(tempfile.mkdtemp(prefix="dzquickx_"), "x.mjs"); f.write_text(PRELUDE + js, encoding="utf-8")
     p = subprocess.run([node, str(f)], capture_output=True, text=True, encoding="utf-8", timeout=60)
     try:
         o = json.loads(p.stdout.strip().splitlines()[-1])
@@ -306,9 +319,12 @@ check("L1 un dzLip, un seul payload (Seedance), la liste des voix off du dossier
       s.count("function dzLip(") == 1 and s.count("lipsync:dzLip()") == 1 and "D.listAudio().then(function(d2){if(on)" in um
       and "return z.name||z.filename||z" in um)
 check("L2 le bloc : onglet Seedance seulement, case qui dit payant, choix de la voix, bornes et prix ecrits",
-      'o==="seedance"&&r.jsx(O,{children:r.jsx(Ze,{checked:dzLipOn,label:"Lip-sync sur une voix off (Kling, payant)"' in um
-      and 'o==="seedance"&&dzLipOn&&r.jsx(O,{label:"Voix off \u00e0 synchroniser"' in um
-      and "le clip natif doit durer 2 \u00e0 10 s" in um and "0,07 $ ou 0,14 $" in um)
+      # t142 : libelles par cle, le francais d'avant verifie
+      'o==="seedance"&&r.jsx(O,{children:r.jsx(Ze,{checked:dzLipOn,label:dzT("quick.lipsync.activer")' in um
+      and AIDE.fr("quick.lipsync.activer") == "Lip-sync sur une voix off (Kling, payant)"
+      and 'o==="seedance"&&dzLipOn&&r.jsx(O,{label:dzT("quick.lipsync.voix")' in um and AIDE.fr("quick.lipsync.voix") == "Voix off \u00e0 synchroniser"
+      and 'o==="seedance"&&dzLipOn&&r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-soft)",marginTop:-4},children:dzT("quick.lipsync.note")}' in um
+      and "le clip natif doit durer 2 \u00e0 10 s" in AIDE.fr("quick.lipsync.note") and "0,07 $ ou 0,14 $" in AIDE.fr("quick.lipsync.note"))
 if node:
     js = r"""
 function monter(st){var o=st.o,dzLipOn=st.on,dzLipFile=st.file;
@@ -317,7 +333,7 @@ function monter(st){var o=st.o,dzLipOn=st.on,dzLipFile=st.file;
 console.log(JSON.stringify({ok:monter({o:"seedance",on:true,file:"v.mp3"}),heygen:monter({o:"heygen",on:true,file:"v.mp3"})===undefined,
  off:monter({o:"seedance",on:false,file:"v.mp3"})===undefined,sansFichier:monter({o:"seedance",on:true,file:""})===undefined}));
 """
-    f = pathlib.Path(tempfile.mkdtemp(prefix="dzquickl_"), "l.mjs"); f.write_text(js, encoding="utf-8")
+    f = pathlib.Path(tempfile.mkdtemp(prefix="dzquickl_"), "l.mjs"); f.write_text(PRELUDE + js, encoding="utf-8")
     p = subprocess.run([node, str(f)], capture_output=True, text=True, encoding="utf-8", timeout=60)
     try:
         o = json.loads(p.stdout.strip().splitlines()[-1])
@@ -333,8 +349,11 @@ check("P0 temoin : la base (15c4c12) n'a ni dzQpUI ni __dzQuickVoiceGet", "dzQpU
 check("P1 la rangee des presets EN TETE des quatre onglets (voix compris), une fois chacun",
       'children:o==="voice"?[dzQpUI(),r.jsx(DzQuickVoice,{},"dzqv")]:[dzQpUI(),' in um and um.count("dzQpUI()") == 3)
 check("P2 les deux boutons ont un title ; aucun window.prompt/confirm/alert dans les gestes",
-      'title:"Enregistrer l’état complet de l’onglet sous un nom",onClick:dzQpSave' in um
-      and 'title:dzQsel?"Supprimer le preset chargé (confirmation demandée)"' in um
+      # t142 : les title par cle, le francais d'avant verifie
+      'title:dzT("quick.preset.enregistrer_aide"),onClick:dzQpSave' in um
+      and AIDE.fr("quick.preset.enregistrer_aide") == "Enregistrer l’état complet de l’onglet sous un nom"
+      and 'title:dzQsel?dzT("quick.preset.supprimer_aide")' in um
+      and AIDE.fr("quick.preset.supprimer_aide") == "Supprimer le preset chargé (confirmation demandée)"
       and all(w not in fonc(f, um) for f in ("dzQpSave", "dzQpDel", "dzQpLoad") for w in ("window.prompt", "window.confirm", "window.alert")))
 check("P3 la recette porte la voix (onglet Voix) et son application la rejoue",
       'voice:(o==="voice"&&window.__dzQuickVoiceGet)?window.__dzQuickVoiceGet():void 0' in um
@@ -372,7 +391,7 @@ var attendre=function(){return new Promise(function(r){setTimeout(r,40)})};
  dzQsel="p1";dlg.oui=true;fetchs=[];dzQpDel();await attendre();out.delOui={req:fetchs[0],sel:etat.sel,toast:toasts.slice(-1)[0]};
  console.log(JSON.stringify(out))})();
 """
-    f = pathlib.Path(tempfile.mkdtemp(prefix="dzquickp_"), "p.mjs"); f.write_text(js, encoding="utf-8")
+    f = pathlib.Path(tempfile.mkdtemp(prefix="dzquickp_"), "p.mjs"); f.write_text(PRELUDE + js, encoding="utf-8")
     p = subprocess.run([node, str(f)], capture_output=True, text=True, encoding="utf-8", timeout=60)
     try:
         o = json.loads(p.stdout.strip().splitlines()[-1])
@@ -418,7 +437,7 @@ out.evt=set;out.evtPurge=!("__dzQuickVoicePending" in window);nettoie();
 out.demonte=!ecouteurs["deepotus:quick-voice"]&&!window.__dzQuickVoiceGet;
 console.log(JSON.stringify(out));
 """
-    f = pathlib.Path(tempfile.mkdtemp(prefix="dzquickv_"), "v.mjs"); f.write_text(js, encoding="utf-8")
+    f = pathlib.Path(tempfile.mkdtemp(prefix="dzquickv_"), "v.mjs"); f.write_text(PRELUDE + js, encoding="utf-8")
     p = subprocess.run([node, str(f)], capture_output=True, text=True, encoding="utf-8", timeout=60)
     try:
         o = json.loads(p.stdout.strip().splitlines()[-1])
@@ -438,12 +457,19 @@ print("\n[G] galerie de mouvements (tache #54, plan Quick T7 = D1, groupe P5ga)"
 check("G0 temoin : la base (15c4c12) n'a pas __dzQuickGallery", "__dzQuickGallery" not in s0)
 check("G1 un helper + un bouton (section Parameters), aucun window.alert/prompt dans le helper",
       s.count("function __dzQuickGallery(") == 1 and s.count("__dzQuickGallery(") == 2
-      and 'r.jsxs(ie,{label:"Parameters",right:r.jsx(K,{variant:"ghost",size:"sm",icon:"film",title:"Galerie de mouvements' in um
+      # t142 : la section et le title par cle ; « Parameters » est l'anglais de la cle, le title garde son francais
+      and 'r.jsxs(ie,{label:dzT("quick.parametres.titre"),right:r.jsx(K,{variant:"ghost",size:"sm",icon:"film",title:dzT("quick.galerie.bouton_aide")' in um
+      and AIDE.DICO["quick.parametres.titre"]["en"] == "Parameters"
+      and AIDE.fr("quick.galerie.bouton_aide").startswith("Galerie de mouvements")
       and "window.alert" not in fonc("__dzQuickGallery") and "window.prompt" not in fonc("__dzQuickGallery"))
 check("G2 deux routes seulement (manifeste + build) ; les vignettes viennent du manifeste",
       fonc("__dzQuickGallery").count("/api/quick/gallery") == 2)
 i_g2 = um.find('right:r.jsx(K,{variant:"ghost",size:"sm",icon:"film"')
-g2 = um[i_g2:um.find('children:"Galerie"})', i_g2)]
+# t142 : la borne de fin suit la cle du libelle (« Galerie » passe par dzT) ; sans elle, l'extrait courait jusqu'au
+# bout du bundle et le morceau execute ne compilait plus
+g2 = um[i_g2:um.find('children:dzT("quick.galerie.bouton")})', i_g2)]
+check("G2b la borne de l'extrait existe et le libelle rend le francais d'avant",
+      um.find('children:dzT("quick.galerie.bouton")})', i_g2) > i_g2 > 0 and AIDE.fr("quick.galerie.bouton") == "Galerie")
 check("G3 le clic ne replie pas la section (stopPropagation) ; Vibe changee seulement si elle existe",
       "e2.stopPropagation()" in g2 and "if(I.some(function(z){return z.id===ti.style}))V(ti.style);" in g2)
 if node:
@@ -457,7 +483,7 @@ pick({camera:"static, locked-off",style:"inconnu"});var p2=prompt;
 prompt="";pick({camera:"slow push-in",style:"cinematic"});
 console.log(JSON.stringify({p1:p1,p2:p2,p3:prompt,V:V_,t:toasts[0]}));
 """
-    f = pathlib.Path(tempfile.mkdtemp(prefix="dzquickg_"), "g.mjs"); f.write_text(js, encoding="utf-8")
+    f = pathlib.Path(tempfile.mkdtemp(prefix="dzquickg_"), "g.mjs"); f.write_text(PRELUDE + js, encoding="utf-8")
     p = subprocess.run([node, str(f)], capture_output=True, text=True, encoding="utf-8", timeout=60)
     try:
         o = json.loads(p.stdout.strip().splitlines()[-1])
@@ -500,7 +526,7 @@ var attendre=function(){return new Promise(function(r){setTimeout(r,30)})};
  etape={man:{built:false},postSt:404};__dzQuickGallery("z.png",function(){});await attendre();out.refus={toast:toasts.slice(-1)[0],ouvert:corps.length};
  console.log(JSON.stringify(out))})();
 """
-    f = pathlib.Path(tempfile.mkdtemp(prefix="dzquickh_"), "h.mjs"); f.write_text(js, encoding="utf-8")
+    f = pathlib.Path(tempfile.mkdtemp(prefix="dzquickh_"), "h.mjs"); f.write_text(PRELUDE + js, encoding="utf-8")
     p = subprocess.run([node, str(f)], capture_output=True, text=True, encoding="utf-8", timeout=60)
     try:
         o = json.loads(p.stdout.strip().splitlines()[-1])
@@ -530,10 +556,13 @@ check("K1 un etat, deux payloads (solo + slot seedance de comp), l'apercu par la
       s.count("function dzCam(") == 1 and s.count("camera_ctrl:dzCam()") == 2 and s.count("/api/quick/camera-phrase") == 1
       and "pushing in" not in s and "zoom in" not in s)
 check("K2 la section : repliee, absente sur HeyGen, six curseurs -10..10, la note honnete, « Remettre a zero » avec un title",
-      'o!=="heygen"&&r.jsx(ie,{label:"Caméra (curseurs)",defaultOpen:!1,' in um
-      and um.count('"Zoom (− arrière / + avant)"') == 1 and "min:-10,max:10,step:1" in um
-      and "Aucun modèle du registre n’expose de contrôle caméra via fal" in um
-      and 'title:"Remettre les six curseurs à zéro"' in um)
+      # t142 : libelles par cle, le francais d'avant verifie
+      'o!=="heygen"&&r.jsx(ie,{label:dzT("quick.camera.titre"),defaultOpen:!1,' in um and AIDE.fr("quick.camera.titre") == "Caméra (curseurs)"
+      and um.count('dzT("quick.camera.zoom")') == 1 and AIDE.fr("quick.camera.zoom") == "Zoom (− arrière / + avant)"
+      and "min:-10,max:10,step:1" in um
+      and 'children:dzT("quick.camera.note")' in um
+      and AIDE.fr("quick.camera.note").startswith("Aucun modèle du registre n’expose de contrôle caméra via fal")
+      and 'title:dzT("quick.camera.zero_aide")' in um and AIDE.fr("quick.camera.zero_aide") == "Remettre les six curseurs à zéro")
 if node:
     i_e = um.find("x.useEffect(function(){if(!dzCamN())")
     eff = um[i_e:um.find("},[dzCamCtl,VMQ]);", i_e) + len("},[dzCamCtl,VMQ]);")]
@@ -552,7 +581,7 @@ var attendre=function(ms){return new Promise(function(r){setTimeout(r,ms)})};
  monter({zoom:1},"");nettoyages.slice(-1)[0]();await attendre(260);out.annule=appels.length;
  console.log(JSON.stringify(out))})();
 """
-    f = pathlib.Path(tempfile.mkdtemp(prefix="dzquickk_"), "k.mjs"); f.write_text(js, encoding="utf-8")
+    f = pathlib.Path(tempfile.mkdtemp(prefix="dzquickk_"), "k.mjs"); f.write_text(PRELUDE + js, encoding="utf-8")
     p = subprocess.run([node, str(f)], capture_output=True, text=True, encoding="utf-8", timeout=60)
     try:
         o = json.loads(p.stdout.strip().splitlines()[-1])
@@ -589,15 +618,19 @@ check("U1 deux composants, la colonne a 360 px (plus de 380), deux DropZones (de
 check("U2 la maquette vd n'est plus dans les champs image de Quick ; le repli « upload an image in Library » reste derriere ||",
       'r.jsx(vd,{label:"upload images in Library"' not in um and 'r.jsx(vd,{label:"drop or pick"' not in um
       and 'avatarUrl:(function(){var _a=U.find(function(z){return z.avatar_id===C});return(_a&&_a.preview_image_url)||""})()})||r.jsxs("div"' in um
-      and '"upload an image in Library"' in um)
+      # t142 : le repli passe par dzT("quick.apercu.importer") ; son anglais est l'ancien texte
+      and 'children:dzT("quick.apercu.importer")' in um and AIDE.DICO["quick.apercu.importer"]["en"] == "upload an image in Library")
 check("U3 le bandeau et l'avertissement suivent l'onglet (Composition nomme les deux fournisseurs)",
-      'children:[o==="seedance"?A:o==="heygen"?"avatar":o==="comp"?We:"voix off"," · ",h,"s"]' in um
+      # t142 : « voix off » par cle, son francais verifie ; les fournisseurs restent des litteraux
+      'children:[o==="seedance"?A:o==="heygen"?"avatar":o==="comp"?We:dzT("quick.apercu.voix_off")," · ",h,"s"]' in um
+      and AIDE.fr("quick.apercu.voix_off") == "voix off"
       and 'children:o==="heygen"?"heygen.com":o==="comp"?"fal.ai + heygen.com":"fal.ai"})' in um)
 check("U13 chaque zone alimente SON champ (depart -> v, fin -> k) et ajoute le fichier a la liste des images",
       'onFile:function(nm){f(function(p2){return p2.indexOf(nm)>=0?p2:[nm].concat(p2)});v(nm)}},"dzdropdep")' in um
       and 'onFile:function(nm){f(function(p2){return p2.indexOf(nm)>=0?p2:[nm].concat(p2)});k(nm)}},"dzdropfin")' in um)
 check("U4 aucun window.alert dans les deux composants ; la zone a un title", "window.alert" not in fonc_d("DzQuickDrop")
-      and "window.alert" not in fonc_d("DzQuickStage") and 'className:"dz-drop",title:"Glissez une image ici' in s)
+      and "window.alert" not in fonc_d("DzQuickStage") and 'className:"dz-drop",title:dzT("quick.import.depot_aide")' in s
+      and AIDE.fr("quick.import.depot_aide").startswith("Glissez une image ici"))   # t142 : title par cle
 if node:
     js = r"""
 var etats=[],refs=[],toasts=[],posts=[],fichiers=[],reponse={};
@@ -641,7 +674,7 @@ var attendre=function(){return new Promise(function(r2){setTimeout(r2,30)})};
  inp.p.onChange({target:cible});await attendre();out.input={recus:recus.slice(-1)[0],valeur:cible.value,accept:inp.p.accept,cache:inp.p.style.display};
  console.log(JSON.stringify(out))})();
 """
-    f = pathlib.Path(tempfile.mkdtemp(prefix="dzquicks_"), "s.mjs"); f.write_text(js, encoding="utf-8")
+    f = pathlib.Path(tempfile.mkdtemp(prefix="dzquicks_"), "s.mjs"); f.write_text(PRELUDE + js, encoding="utf-8")
     p = subprocess.run([node, str(f)], capture_output=True, text=True, encoding="utf-8", timeout=60)
     try:
         o = json.loads(p.stdout.strip().splitlines()[-1])

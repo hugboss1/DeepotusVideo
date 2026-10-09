@@ -11,6 +11,10 @@ _ICI = pathlib.Path(__file__).resolve().parent
 RACINE = _ICI.parent.parent
 BUN = (RACINE / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js").read_bytes().decode("utf-8")
 _TMP = pathlib.Path(tempfile.mkdtemp(prefix="dzime_"))
+# t142 (09/10) : la traduction L2 fait passer les libelles par dzT (globale) ; le code execute sous node recoit le
+# prelude qui la pose en FRANCAIS (les attentes en francais restent vraies).
+sys.path.insert(0, str(_ICI))
+import _i18n_l1_aide as AIDE                               # noqa: E402
 
 ok = fail = 0
 def check(label, cond, detail=""):
@@ -27,7 +31,10 @@ k_ech = BUN.find('r.jsx(DzEchantillon,{rg:c,tpl:a,setTpl:l}),r.jsx(DzAnimEditor,
 check("T2 la carte de galerie enveloppe son schema dans la vignette (l'apercu de reagencement NON) ; l'export suit « Open in Studio » ; l'echantillon precede « Delete region »",
       BUN.count('children:r.jsx(DzTplVignette,{id:f.id,regions:f.regions,canvas:f.canvas,children:r.jsx(gm,{id:f.id,regions:f.regions,canvas:f.canvas})})})') == 1
       and BUN.count("r.jsx(DzTplVignette,") == 1 and BUN.count('r.jsx(gm,{id:tp.id||"apercu"') == 1
-      and BUN.count('children:"Open in Studio"}),r.jsx(DzExportImage,{tpl:a,regs:d})') == 1 and k_ech > 0 and BUN.count("r.jsx(DzEchantillon,") == 1)
+      # t142 (09/10) : « Open in Studio » passe par dzT (francais « Ouvrir dans le Studio », anglais d'origine garde)
+      and BUN.count('children:dzT("templates.editeur.ouvrir_studio")}),r.jsx(DzExportImage,{tpl:a,regs:d})') == 1
+      and AIDE.fr("templates.editeur.ouvrir_studio") == "Ouvrir dans le Studio" and AIDE.DICO["templates.editeur.ouvrir_studio"]["en"] == "Open in Studio"
+      and k_ech > 0 and BUN.count("r.jsx(DzEchantillon,") == 1)
 
 
 def fonction(nom):
@@ -73,7 +80,8 @@ function texte(T){var s=[];trouver(T,function(n){if(typeof n.p.children==="strin
 
 def node(corps):
     f = _TMP / f"m{abs(hash(corps)) % 10**9}.js"
-    f.write_text(COUCHE + "\n" + HARNAIS + "\n(async function(){var R={};" + corps + "\nconsole.log(JSON.stringify(R))})()", encoding="utf-8")
+    # t142 : le prelude APRES le harnais (qui pose son propre `window`), sinon son dictionnaire serait ecrase
+    f.write_text(COUCHE + "\n" + HARNAIS + "\n" + AIDE.PRELUDE_DZT + "\n(async function(){var R={};" + corps + "\nconsole.log(JSON.stringify(R))})()", encoding="utf-8")
     try:
         p = subprocess.run(["node", str(f)], capture_output=True, text=True, encoding="utf-8", timeout=60)
     except subprocess.TimeoutExpired:

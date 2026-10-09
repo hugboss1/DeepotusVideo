@@ -106,8 +106,16 @@ check("2a_monte_dans_provider_defaults_apres_la_voix",
       and B.count("function DzModelDefaults(") == 1)
 check("2b_la_fabrique_fait_naitre_par_dzPropsNaissance", B.count("props:dzPropsNaissance(R,{...L.props||{}})") == 1
       and B.count("props:{...L.props||{}}") == 0)
-check("2c_registre_Me_et_normalisation_ts_inchanges", entre(B, "Me={Image:{", "};") == entre(H, "Me={Image:{", "};")
-      and entre(B, "function ts(e){", "function Lh(") == entre(H, "function ts(e){", "function Lh("))
+# t142 (09/10) : la traduction L2 passe les title/desc du registre Me par dzT("studio.catalogue.*") (affichage seul) ;
+# t130 ne doit toujours pas y toucher : le registre est comparé sur le bundle d'AVANT la traduction, et chaque clé posée
+# dans le registre existe au dictionnaire
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import _i18n_l1_aide as AIDE  # noqa: E402
+B0 = AIDE.avant_i18n(B)
+_cles_me = re.findall(r'dzT\("([^"]+)"\)', entre(B, "Me={Image:{", "};"))
+check("2c_registre_Me_et_normalisation_ts_inchanges", entre(B0, "Me={Image:{", "};") == entre(H, "Me={Image:{", "};")
+      and entre(B, "function ts(e){", "function Lh(") == entre(H, "function ts(e){", "function Lh(")
+      and all(k in AIDE.DICO for k in _cles_me), [k for k in _cles_me if k not in AIDE.DICO])
 sys.path.insert(0, str(RACINE / "scripts"))
 try:
     import patch_bundle_montage as PM

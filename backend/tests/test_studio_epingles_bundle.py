@@ -14,6 +14,8 @@ _ICI = pathlib.Path(__file__).resolve().parent
 RACINE = _ICI.parent.parent
 BUN = (RACINE / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js").read_bytes().decode("utf-8")
 _TMP = pathlib.Path(tempfile.mkdtemp(prefix="dzpinb_"))
+sys.path.insert(0, str(_ICI))
+import _i18n_l1_aide as AIDE                               # noqa: E402  (t142 : textes par dzT, francais par AIDE.fr)
 
 ok = fail = 0
 def check(label, cond, detail=""):
@@ -192,8 +194,13 @@ check("W2 renderLayoutTemplate prepare et VERIFIE les epingles avant le tir (hor
 check("W3 un rendu ACCEPTE lance la recolte", BUN.count("if(s.ok){var dzJ=await s.json();dzPinRecolter(dzJ,g);return dzJ}") == 1)
 check("W4 le panneau dans l'inspecteur des Seedance et HeyGen ; son bouton « Regenerer » a un title ; le noeud seul est explique",
       BUN.count('(e.type==="Seedance"||e.type==="HeyGenAvatar")&&r.jsx(DzPinPanel,{node:e,graph:t,onUpdate:o})') == 1
-      and 'title:"Retirer l\'épingle' in BUN and "Pas d'épingle ici : un Seedance seul (ou un HeyGen seul) part directement par /generate" in BUN and "onUpdate({pin:null,pinPerime:null})" in BUN)
-check("W5 le « ≈ $ » dit les noeuds reemployes", BUN.count('dzPinNb(graph)?" · "+dzPinNb(graph)+" nœud(s) réutilisé(s)":""') == 1)
+      # t142 (09/10) : textes passes par dzT ; epingles par leur cle, le francais verifie par AIDE.fr
+      and 'title:dzT("studio.epingle.regenerer_aide")' in BUN and AIDE.fr("studio.epingle.regenerer_aide").startswith("Retirer l'épingle")
+      and 'children:dzT("studio.epingle.sans_epingle")' in BUN
+      and AIDE.fr("studio.epingle.sans_epingle").startswith("📌 Pas d'épingle ici : un Seedance seul (ou un HeyGen seul) part directement par /generate")
+      and "onUpdate({pin:null,pinPerime:null})" in BUN)
+check("W5 le « ≈ $ » dit les noeuds reemployes", BUN.count('dzPinNb(graph)?dzT("studio.cout.reutilises",{n:dzPinNb(graph)}):""') == 1
+      and AIDE.fr("studio.cout.reutilises", n=2) == " · 2 nœud(s) réutilisé(s)")
 check("W6 la chaine tient : sondes aval inchangees (DzTracks 181, __dzCoutBlanc 7, __dzSrcLbl x2)",
       BUN.count("DzTracks") == 181 and BUN.count("__dzCoutBlanc") == 7 and BUN.count("Object.assign(__dzSrcLbl,") == 2)
 
