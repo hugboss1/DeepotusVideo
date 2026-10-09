@@ -32,6 +32,10 @@ export const D9 = new Set(["filter.cameraRaw", "filter.liquify", "filter.vanishi
 //   que scale et offset et le moteur appliquerait un noyau que l'utilisateur n'a jamais vu.
 // t157 : filter.convertForSmartFilters en est sorti — le panneau Calques montre désormais les filtres dynamiques.
 export const SANS_EDITEUR = new Set(["filter.other.custom"]);
+// t158 : commandes dont le dialogue générique reçoit une LISTE DE CHOIX de l'écran (mod-documents : PL.choixDialogue) —
+// un autre document ouvert (source, carte de déplacement) ou un tracé du document (Flamme). Leur clé requise (docIndex,
+// path) n'est plus une raison de griser l'entrée.
+export const CHOIX_ECRAN = new Set(["image.adjustments.matchColor", "filter.distort.displace", "filter.render.flame"]);
 // Champs sans éditeur générique : l'écran ne les montre pas et le pont les borne en taille.
 export const OPAQUES = new Set(["json", "struct", "intArray", "union", "?"]);
 // Références (calque, document, état d'historique) : un entier qui DÉSIGNE quelque chose ; un champ nombre libre n'a
@@ -66,6 +70,7 @@ export function champsVisibles(champs) {
 // champs visibles, le dialogue s'ouvre et l'opaque garde le défaut du moteur.
 export function sansEcran(id, champs) {
   if (D9.has(id) || SANS_EDITEUR.has(id)) return true;
+  if (CHOIX_ECRAN.has(id)) return false;
   const requis = (c) => !c.optionnel && !aDefaut(c);
   if (liste(champs).some((c) => c && fichier(c) && requis(c) && CLES_FICHIER_REQUIS.has(String(c.cle).toLowerCase()))) return true;
   // Une commande qui n'est QU'un fichier (layer.smartObjects.replaceContents {layer?, path}) : l'écran n'en envoie

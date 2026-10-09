@@ -252,6 +252,13 @@ async def executer(body: dict):
         PM.commande_autorisee(cid, params, reg, kind, etat)
     except ValueError as e:
         raise HTTPException(400, str(e))
+    if cid == "filter.render.flame" and isinstance(params, dict) and "path" in params:
+        # t158 : un nom de tracé inconnu serait ignoré en silence par le moteur
+        liste, _ = await _appeler("engine.execute", {"command": "path.list", "params": {}})
+        try:
+            PM.verifier_trace(params, liste)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
     return _json(*await _appeler("engine.execute", {"command": cid, "params": params}))
 
 
@@ -464,6 +471,114 @@ async def galerie_vignettes(cles: str):
 
 
 _VERROU_BIBLIO = asyncio.Lock()          # choisir un nom libre ET copier d'un seul tenant (deux enregistrements la même seconde)
+
+
+# ── t158 : Fichier sûr — copie, Revenir, Placer, export de calque (compositions du pont, jamais un chemin reçu) ──────
+FORMATS_CALQUE = ("png", "jpg", "webp")
+DESTINATIONS = ("telecharger", "bibliotheque")
+
+
+def _qualite(corps):
+    return _entier(corps["quality"], 1, 100, "quality") if "quality" in corps else None
+
+
+def _destination(corps, fmt):
+    d = corps.get("destination", "telecharger")
+    if d not in DESTINATIONS:
+        raise HTTPException(400, f"destination hors liste : {d!r} ({', '.join(DESTINATIONS)})")
+    if d == "bibliotheque" and fmt not in ("png", "jpg"):
+        raise HTTPException(400, f"la Bibliothèque reçoit du png ou du jpg, pas {fmt!r}")
+    return d
+
+
+async def _livrer(fichier, fmt, base, destination, gen):
+    """Un fichier de exports/ : rendu à télécharger, ou DÉPLACÉ dans la Bibliothèque sous photolab_<horodatage>_<base>
+    (lignée vers l'image d'où vient le document actif, si elle existe)."""
+    if destination == "telecharger":
+        return _json({"fichier": fichier, "url": f"/api/photolab/exports/{fichier}"}, gen)
+    from app.config import settings
+    from app.services import library_index as LI
+    src = PM.dossier_travail() / "exports" / fichier
+    dossier = settings.images_path
+    dossier.mkdir(parents=True, exist_ok=True)
+    horo = time.strftime("%Y%m%d-%H%M%S")
+    async with _VERROU_BIBLIO:
+        nom = PM.nom_libre(dossier, f"photolab_{horo}_{base}", fmt)
+        try:
+            await asyncio.to_thread(shutil.copyfile, src, dossier / nom)
+        except OSError as e:
+            raise HTTPException(500, f"copie dans la Bibliothèque impossible : {e}")
+    try:
+        src.unlink()
+    except OSError:
+        pass
+    origine = _ORIGINES.get(await _chemin_actif())
+    parent = origine if _image_biblio(origine) is not None else None
+    await LI.noter([nom], "photolab", parent=parent, relation="retouche" if parent else None)
+    return _json({"filename": nom}, gen)
+
+
+@router.post("/copie")
+async def copie(body: dict):
+    """Enregistrer une copie : {"format": FORMATS, "quality"?, "nom"?, "destination"?: telecharger|bibliotheque} — le
+    document actif est dupliqué, la COPIE enregistrée puis refermée (l'original reste tel quel, fichier compris)."""
+    corps = body if isinstance(body, dict) else {}
+    fmt = corps.get("format")
+    if fmt not in FORMATS:
+        raise HTTPException(400, f"format hors liste : {fmt!r} ({', '.join(FORMATS)})")
+    q, dest = _qualite(corps), _destination(corps, fmt)
+    base = _base_sure(corps.get("nom"), "copie")
+    async with _VERROU_EXPORT:                            # même dossier exports/ que /enregistrer
+        fichier, gen = await _pool(lambda s: functools.partial(PM.copie_document, s), fmt, base, q)
+    return await _livrer(fichier, fmt, base, dest, gen)
+
+
+@router.post("/calque/exporter")
+async def calque_exporter(body: dict):
+    """Calque › Exporter sous / Exportation rapide : {"layer"?, "format": png|jpg|webp, "echelle"?: 1..1000 (%),
+    "quality"?, "nom"?, "destination"?} — le calque seul, rogné, sur une copie du document."""
+    corps = body if isinstance(body, dict) else {}
+    fmt = corps.get("format")
+    if fmt not in FORMATS_CALQUE:
+        raise HTTPException(400, f"format hors liste : {fmt!r} ({', '.join(FORMATS_CALQUE)})")
+    layer = corps.get("layer")
+    if layer is not None and (not isinstance(layer, int) or isinstance(layer, bool) or layer < 0):
+        raise HTTPException(400, "layer : identifiant de calque attendu")
+    echelle = _entier(corps.get("echelle", 100), 1, 1000, "echelle")
+    q, dest = _qualite(corps), _destination(corps, fmt)
+    base = _base_sure(corps.get("nom"), "calque")
+    async with _VERROU_EXPORT:
+        fichier, gen = await _pool(lambda s: functools.partial(PM.exporter_calque, s), layer, fmt, base, echelle, q)
+    return await _livrer(fichier, fmt, base, dest, gen)
+
+
+@router.post("/revenir")
+async def revenir_route():
+    """Revenir à la version enregistrée : le fichier du moteur du document actif est rouvert, l'ancien fermé
+    (historique perdu). Sans fichier enregistré : 400. -> session.list après."""
+    avant = await _chemin_actif()
+    resultat, gen = await _pool(lambda s: functools.partial(PM.revenir, s))
+    if avant:
+        _retenir(avant, _ORIGINES.get(avant))             # même chemin : la lignée suit
+    return _json(resultat, gen)
+
+
+@router.post("/placer")
+async def placer_route(body: dict):
+    """Placer incorporé : {"filename"} d'une image de la Bibliothèque -> copiée sous entrees/, collée au centre du
+    document actif en objet dynamique (réduite si elle dépasse). -> {"layer", "bounds"}."""
+    nom = (body or {}).get("filename")
+    if not isinstance(nom, str) or not _NOM_IMAGE.fullmatch(nom):
+        raise HTTPException(400, f"nom d'image refusé : {nom!r}")
+    src = _image_biblio(nom)
+    if src is None:
+        raise HTTPException(404, f"image introuvable dans la Bibliothèque : {nom}")
+    souche, ext = os.path.splitext(nom)
+    h = hashlib.sha1(nom.encode("utf-8")).hexdigest()[:8]
+    chemin = _relatif(f"entrees/{h}-{_sur(re.sub(r'[^A-Za-z0-9._-]', '-', souche))}{re.sub(r'[^A-Za-z0-9.]', '-', ext)}")
+    await asyncio.to_thread(shutil.copyfile, src, PM.dossier_travail() / chemin)
+    calque = unicodedata.normalize("NFC", souche)[:120] or "image"
+    return _json(*await _pool(lambda s: functools.partial(PM.placer, s), chemin, calque))
 
 
 @router.post("/bibliotheque")

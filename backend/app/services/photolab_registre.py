@@ -382,6 +382,11 @@ def _valeur(cid, cle, champ, v, fichier):
             raise ValueError(f"{cid} : {cle} : couleur attendue (\"#rrggbb\"{' ou [r,g,b,a] en 0..255' if rgba else ''}), "
                              f"reçu {v!r}")
     elif t == "str":
+        if cid == "filter.render.flame" and cle == "path":
+            # t158 : le NOM d'un tracé du document (path.list) ; son existence est vérifiée par la route
+            if not isinstance(v, str) or not 0 < len(v) <= MAX_NOM_TRACE or fichier(v):
+                raise ValueError(f"{cid} : path : nom de tracé attendu (1 à {MAX_NOM_TRACE} caractères), reçu {v!r}")
+            return
         if cle.lower() in CLES_CHEMIN and not _trace_vectoriel(cid, cle, v):
             raise ValueError(f"{cid} : {cle} désigne un fichier — passe par les routes du Photolab")
         if not isinstance(v, str) or len(v) > MAX_CHAINE_STR:
@@ -405,7 +410,7 @@ def verifier(registre: dict, cid, params, kind=None, etat=None) -> dict:
     from app.services import photolab_moteur as PM
     if not isinstance(cid, str) or not PM._ID_COMMANDE.fullmatch(cid):
         raise ValueError(f"commande illisible : {cid!r}")
-    if cid.lower().startswith(PM.PREFIXES_REFUSES):
+    if cid.lower().startswith(PM.PREFIXES_REFUSES) and cid not in PM.PERMIS_REFUSES:
         raise ValueError(f"commande réservée aux routes du Photolab : {cid}")
     if cid not in registre:
         raise ValueError(f"commande inconnue du moteur : {cid}")
@@ -413,6 +418,10 @@ def verifier(registre: dict, cid, params, kind=None, etat=None) -> dict:
         params = {}
     if not isinstance(params, dict):
         raise ValueError(f"{cid} : les paramètres doivent être un objet")
+    if cid in VERIFS_T158:
+        # t158 : clés et formes nommées une à une (registre trop vague : « <builtin id> », json, struct)
+        VERIFS_T158[cid](cid, params)
+        return params
     champs = {c["cle"]: c for c in registre[cid]["champs"]}
     if cid.startswith("layer.layerStyle."):
         # honorés par le moteur bien que non décrits dans 9 styles sur 10 (relevé t138)
@@ -439,6 +448,10 @@ def verifier(registre: dict, cid, params, kind=None, etat=None) -> dict:
         # t156 : « align » n'est pas décrit pour setStyle et son énumération est tronquée (« justify… ») pour create :
         # la liste complète du registre de setStyle (texte de ses paramètres), relevée sur le vrai moteur.
         champs["align"] = CHAMP_ALIGN
+    if cid in PROFILS_MODE:
+        # t158 : « <builtin id>|working|/path/to/profile.icc » au registre — le chemin .icc est la lecture arbitraire
+        # relevée au t138. Seuls les profils INTÉGRÉS au moteur de cet espace colorimétrique (edit.profileInfo).
+        champs["profile"] = {"cle": "profile", "type": "enum", "valeurs": list(PROFILS_MODE[cid]), "optionnel": True}
     if cid == "tools.setBrush":
         # Le registre résume ses champs en « …BrushSettings fields » : seule la forme de la pointe est admise (t155).
         for c in CHAMPS_POINTE:
@@ -674,3 +687,115 @@ SCHEMAS.update({("levels", k): _s_niveaux for k in ("red", "green", "blue")})
 SCHEMAS.update({("channelMixer", k): _s_mixeur for k in ("red", "green", "blue", "gray")})
 SCHEMAS.update({("colorBalance", k): _s_equilibre for k in ("shadows", "midtones", "highlights")})
 SCHEMAS.update({("hueSaturation", k): _s_gamme_teinte for k in ("reds", "yellows", "greens", "cyans", "blues", "magentas")})
+
+
+# ── t158 : Image › Mode et Informations sur le fichier ──────────────────────────────────────────────────────────────
+# Profils intégrés du moteur 0.3.0 par espace (edit.profileInfo, relevé 09/10 ; le banc les compare au vrai moteur).
+PROFILS_MODE = {
+    "image.mode.rgb": ("working", "srgb", "display-p3", "adobe-rgb-compat", "prophoto-compat", "linear-srgb", "rec2020"),
+    "image.mode.grayscale": ("working", "sgray", "gray-gamma-2.2"),
+    "image.mode.cmyk": ("working", "coated-cmyk"),
+    "image.mode.lab": ("working", "lab-d50"),
+}
+MAX_NOM_TRACE = 64
+ENCRES_PAR_TYPE = {"monotone": 1, "duotone": 2, "tritone": 3, "quadtone": 4}
+MAX_POINTS_COURBE = 16
+TABLES = ("custom", "blackBody", "grayscale", "spectrum", "systemMac", "systemWindows", "web")
+MAX_TEXTE_INFO = 2000
+MAX_MOTS_CLES = 64
+STATUTS_COPYRIGHT = ("unknown", "copyrighted", "publicDomain")
+_URL = re.compile(r"https?://[^\s\"'<>\\]{1,500}")
+_INDEX_TABLE = re.compile(r"(0|[1-9][0-9]{0,2})")
+
+
+def _cles(cid, params, admises):
+    inconnues = sorted(set(params) - set(admises))
+    if inconnues:
+        raise ValueError(f"{cid} : paramètre inconnu : {inconnues[0]}")
+
+
+def _hex(cid, cle, v):
+    if not (isinstance(v, str) and _HEX.fullmatch(v)):
+        raise ValueError(f"{cid} : {cle} : couleur « #rrggbb » attendue, reçu {v!r}")
+
+
+def _v_bichromie(cid, params):
+    """Bichromie : `type` (défaut duotone) et EXACTEMENT autant d'encres — le moteur complète ou tronque en silence."""
+    _cles(cid, params, ("type", "inks"))
+    t = params.get("type", "duotone")
+    if t not in ENCRES_PAR_TYPE:
+        raise ValueError(f"{cid} : type hors liste {t!r} ({'|'.join(ENCRES_PAR_TYPE)})")
+    encres = params.get("inks")
+    if not isinstance(encres, list) or len(encres) != ENCRES_PAR_TYPE[t]:
+        raise ValueError(f"{cid} : inks : {ENCRES_PAR_TYPE[t]} encre(s) attendue(s) pour {t}")
+    for k, e in enumerate(encres):
+        if not isinstance(e, dict):
+            raise ValueError(f"{cid} : inks[{k}] : objet attendu")
+        _cles(cid, e, ("name", "color", "curve"))
+        nom = e.get("name")
+        if not isinstance(nom, str) or not 0 < len(nom) <= MAX_CHAINE_OPAQUE:
+            raise ValueError(f"{cid} : inks[{k}].name : nom de 1 à {MAX_CHAINE_OPAQUE} caractères attendu")
+        _hex(cid, f"inks[{k}].color", e.get("color"))
+        if "curve" in e:
+            c = e["curve"]
+            if not isinstance(c, list) or not 2 <= len(c) <= MAX_POINTS_COURBE:
+                raise ValueError(f"{cid} : inks[{k}].curve : 2 à {MAX_POINTS_COURBE} points attendus")
+            avant = -1
+            for p in c:
+                if not (isinstance(p, list) and len(p) == 2 and all(_nombre_fini(x) and 0 <= x <= 100 for x in p)):
+                    raise ValueError(f"{cid} : inks[{k}].curve : points [entrée, sortie] en 0..100 attendus")
+                if p[0] <= avant:
+                    raise ValueError(f"{cid} : inks[{k}].curve : entrées strictement croissantes attendues")
+                avant = p[0]
+
+
+def _v_table(cid, params):
+    """Table des couleurs : sans clé, LIT la table (aucune étape) ; `colors` (256 au plus), `entries` {index: couleur},
+    `transparent` (index ou null)."""
+    _cles(cid, params, ("table", "colors", "entries", "transparent"))
+    if "table" in params and params["table"] not in TABLES:
+        raise ValueError(f"{cid} : table hors liste {params['table']!r}")
+    if "colors" in params:
+        c = params["colors"]
+        if not isinstance(c, list) or not 1 <= len(c) <= 256:
+            raise ValueError(f"{cid} : colors : 1 à 256 couleurs attendues")
+        for k, v in enumerate(c):
+            _hex(cid, f"colors[{k}]", v)
+    if "entries" in params:
+        e = params["entries"]
+        if not isinstance(e, dict) or not 1 <= len(e) <= 256:
+            raise ValueError(f"{cid} : entries : objet de 1 à 256 entrées attendu")
+        for k, v in e.items():
+            if not (isinstance(k, str) and _INDEX_TABLE.fullmatch(k) and int(k) <= 255):
+                raise ValueError(f"{cid} : entries : index 0..255 attendu, reçu {k!r}")
+            _hex(cid, f"entries[{k}]", v)
+    if "transparent" in params:
+        t = params["transparent"]
+        if t is not None and not (_entier(t) and 0 <= t <= 255):
+            raise ValueError(f"{cid} : transparent : index 0..255 ou null attendu")
+
+
+def _v_infos(cid, params):
+    """Informations sur le fichier : du TEXTE rangé dans le document (aucun n'est lu comme un chemin par le moteur),
+    borné ; l'URL du copyright en http(s) seulement ; sans clé, une lecture."""
+    textes = ("title", "author", "authorTitle", "description", "copyright")
+    _cles(cid, params, textes + ("keywords", "copyrightStatus", "copyrightUrl"))
+    for k in textes:
+        if k in params and (not isinstance(params[k], str) or len(params[k]) > MAX_TEXTE_INFO):
+            raise ValueError(f"{cid} : {k} : texte de {MAX_TEXTE_INFO} caractères au plus attendu")
+    if "keywords" in params:
+        m = params["keywords"]
+        if isinstance(m, str):
+            m = [m]
+        if not isinstance(m, list) or len(m) > MAX_MOTS_CLES or \
+                not all(isinstance(x, str) and len(x) <= MAX_CHAINE_OPAQUE for x in m):
+            raise ValueError(f"{cid} : keywords : {MAX_MOTS_CLES} mots-clés de {MAX_CHAINE_OPAQUE} caractères au plus")
+    if "copyrightStatus" in params and params["copyrightStatus"] not in STATUTS_COPYRIGHT:
+        raise ValueError(f"{cid} : copyrightStatus hors liste {params['copyrightStatus']!r}")
+    if "copyrightUrl" in params:
+        u = params["copyrightUrl"]
+        if not isinstance(u, str) or (u and not _URL.fullmatch(u)):
+            raise ValueError(f"{cid} : copyrightUrl : adresse http(s) attendue, reçu {u!r}")
+
+
+VERIFS_T158 = {"image.mode.duotone": _v_bichromie, "image.mode.colorTable": _v_table, "file.fileInfo": _v_infos}

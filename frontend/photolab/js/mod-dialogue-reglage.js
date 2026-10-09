@@ -8,7 +8,7 @@
 import { champsVisibles, controleDe, valeursDe, valeurInitiale, coercer, parametres, bornesEffectives, libelleParam,
   libelleValeur, humaniser, pasDe } from "./mod-champs.js";
 import { MODES_FUSION, MODE_TRANSFERT } from "./mod-calques.js";
-import { maxSideRequete } from "./mod-cycle.js";
+import { maxSideRequete, brut as nonTraduit } from "./mod-cycle.js";
 
 // Copie de FILTRES_HORS_APERCU / REGLAGES_HORS_APERCU du pont (photolab_moteur.py) : le pont refuse l'aperçu de ces
 // commandes (400) ; un banc relit le source Python et compare.
@@ -93,6 +93,22 @@ export function valeursAppliquees(champs, envoyes, actuelles, filtre) {
     if (v !== undefined && v !== e[c.cle] && a[c.cle] === e[c.cle]) patch[c.cle] = v;
   }
   return patch;
+}
+
+// t158 : listes de choix de l'écran (options.choix = [{cle, valeurs: [{valeur, libelle}], defaut?}]) — un autre document
+// ouvert, un tracé. La valeur choisie est envoyée telle quelle ; "" (aucun) n'envoie rien.
+export function avecChoix(params, choisis) {
+  const out = { ...(params || {}) };
+  for (const [k, v] of Object.entries(choisis || {})) if (v !== "" && v !== undefined && v !== null) out[k] = v;
+  return out;
+}
+export function choixInitiaux(choix) {
+  const v = {};
+  for (const c of Array.isArray(choix) ? choix : []) {
+    const vals = (c.valeurs || []).map((x) => x.valeur);
+    v[c.cle] = vals.includes(c.defaut) ? c.defaut : (vals.length ? vals[0] : "");
+  }
+  return v;
 }
 
 // Valeurs de départ des champs visibles. Deux passes : la seconde relit les bornes qui dépendent d'autres valeurs
@@ -455,6 +471,11 @@ export function initDialogueReglage(PL) {
   // rendue (layer.smartFilter.setParams), jamais par le filtre lui-même (il s'empilerait).
   PL.ouvrirReglage = function ouvrirReglage(entree, options) {
     if (!entree || !entree.id) return;
+    // t158 : une liste de choix à fournir (documents, tracés) : demandée d'abord ; null = l'écran a dit pourquoi
+    const fournir = PL.choixDialogue && PL.choixDialogue[entree.id];
+    if (fournir && !(options && options.choix)) {
+      return Promise.resolve(fournir()).then((choix) => { if (choix) PL.ouvrirReglage(entree, { ...(options || {}), choix }); });
+    }
     if (ouvert) ouvert.fermer("annuler");          // un seul à la fois : l'ancien s'annule (et rend le rendu réel)
     ouvert = construire(entree, options || {});
   };
@@ -467,6 +488,10 @@ export function initDialogueReglage(PL) {
     const avecApercu = estFamilleApercu(id) || options.apercu === true;      // t157 : options de fusion d'un filtre dynamique
     const initiales = options.initiales ? valeursReprises(champs, options.initiales) : valeursInitiales(champs);
     let valeurs = { ...initiales };
+    const choix = Array.isArray(options.choix) ? options.choix : [];
+    const choisisDepart = choixInitiaux(choix);
+    let choisis = { ...choisisDepart };
+    const aEnvoyer = () => avecChoix(parametres(champs, valeurs), choisis);
     let apercuPose = false;      // une image d'aperçu est à l'écran (Annuler doit rendre le rendu réel)
     let minuterie = null;
     let fini = false;
@@ -485,6 +510,27 @@ export function initDialogueReglage(PL) {
     // `poser` est une déclaration de fonction (hissée) ; `valeurs` est relu à chaque appel (poser le remplace).
     const ctxControles = { T, valeurs: () => valeurs, poser };
     const controle = (c) => fabriquerControle(c, ctxControles);
+
+    /* t158 : listes de choix en tête (document source, tracé) */
+    const selectsChoix = [];
+    for (const c of choix) {
+      const ligne = document.createElement("div"); ligne.className = "pl-rg-champ sorte-liste"; ligne.dataset.cle = c.cle;
+      const lib = document.createElement("label"); lib.className = "pl-rg-lib"; lib.textContent = c.libelle || c.cle;
+      const sel = document.createElement("select"); sel.className = "pl-rg-choix"; sel.id = idChamp(); lib.htmlFor = sel.id;
+      for (const v of c.valeurs || []) {
+        const o = nonTraduit(document.createElement("option"));    // noms de documents et de tracés : jamais traduits
+        o.value = String(v.valeur); o.textContent = v.libelle; sel.appendChild(o);
+      }
+      sel.value = String(choisis[c.cle]);
+      sel.addEventListener("change", () => {
+        const v = (c.valeurs || []).find((x) => String(x.valeur) === sel.value);
+        choisis = { ...choisis, [c.cle]: v ? v.valeur : "" };
+        planifier();
+      });
+      ligne.append(lib, sel);
+      corps.appendChild(ligne);
+      selectsChoix.push({ c, sel });
+    }
 
     /* contrôles : un par champ visible ; chacun sait se réécrire depuis `valeurs` et relire ses bornes */
     const controles = [];
@@ -530,7 +576,7 @@ export function initDialogueReglage(PL) {
 
     async function lancerApercu() {
       if (!apercuActif()) return;
-      const envoyes = parametres(champs, valeurs);
+      const envoyes = aEnvoyer();
       const voulu = PL.vue.maxSideVoulu();             // gardé : la vue a pu zoomer pendant le calcul
       const maxSide = maxSideRequete(voulu, PL.etat.doc);
       occupe(true);
@@ -574,6 +620,8 @@ export function initDialogueReglage(PL) {
 
     function reinitialiser() {
       valeurs = { ...initiales };
+      choisis = { ...choisisDepart };
+      selectsChoix.forEach((x) => { x.sel.value = String(choisis[x.c.cle]); });
       controles.forEach((x) => x.ecrire());
       montrerErreur("");
       planifier();
@@ -590,7 +638,7 @@ export function initDialogueReglage(PL) {
         // Par la file FIFO TOUT DE SUITE (l'aperçu en vol est déjà périmé par annuler()) : un Ctrl+Z tapé juste après
         // passe derrière le filtre. Le cycle qui suit pose le rendu réel ; en cas d'échec il n'y a pas de cycle, et un
         // aperçu resté à l'écran ferait croire le filtre appliqué : on relit le vrai document.
-        const c = vers(parametres(champs, valeurs));
+        const c = vers(aEnvoyer());
         const apercuAEffacer = apercuPose;
         PL.executer(c.command, c.params).then((r) => { if (!(r && r.ok) && apercuAEffacer) PL.cycle(); });
       } else if (role === "annuler" && apercuPose) {

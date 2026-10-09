@@ -166,7 +166,7 @@ async def scenario():
         for corps, motif in (({"command": "filter.blur.gaussianBlur", "params": {"radius": 4, "zorglub": 1}}, "paramètre inconnu : zorglub"),
                              ({"command": "filter.blur.gaussianBlur", "params": {"radius": 5000}}, "0.1..1000"),
                              ({"command": "filter.zorg", "params": {}}, "inconnue du moteur"),
-                             ({"command": "image.mode.rgb", "params": {"profile": "C:/x.icc"}}, "réservée"),
+                             ({"command": "image.mode.rgb", "params": {"profile": "C:/x.icc"}}, "hors liste"),   # t158
                              ({"command": "layer.setProps", "params": {"blend": "zorg"}}, "mode de fusion")):
             r = await c.post("/api/photolab/executer", json=corps)
             check(f"15d /executer refuse {corps['command']} {corps['params']} (400, « {motif} »)",

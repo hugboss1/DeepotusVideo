@@ -290,7 +290,7 @@ for cid, params, kind in (("filter.blur.gaussianBlur", {"radius": 4}, None),
     a, err = admis(cid, params, kind)
     check(f"4b P3 admise {cid} {params} kind={kind}", a, err)
 REFUS = [
-    ("image.mode.rgb", {"profile": "C:/x.icc"}, None, "réservée"),
+    ("image.mode.rgb", {"profile": "C:/x.icc"}, None, "hors liste"),      # t158 : rouverte, profil intégré seulement
     ("plugin.install", {"path": "x.wasm"}, None, "réservée"),
     ("brush.presets.importAbr", {"path": "../a.abr"}, None, "réservée"),
     ("gradient.presets.importGrd", {"path": "a.grd"}, None, "réservée"),

@@ -93,6 +93,11 @@ export const ETATS_MOTEUR = {
   "Blur Tool": "photolab.outil.blur",
   "Sharpen Tool": "photolab.outil.sharpen",
   "Smudge Tool": "photolab.outil.smudge",
+  // t158 : Image › Mode et Flamme (noms relevés sur le vrai moteur, banc test_photolab_fichier_mode [2]) ; les autres
+  // (Duotone, Bitmap, Indexed Color, Color Table, File Info…) ont leur libellé au catalogue des menus.
+  "Mode Change": "photolab.histo.mode_change",
+  "Bit Depth": "photolab.histo.bit_depth",
+  "Flame…": "photolab.histo.flame",
 };
 
 // Ordre : carte ci-dessus (fr et en, par le dictionnaire) -> libellé du catalogue des menus (fr) -> nom du moteur.

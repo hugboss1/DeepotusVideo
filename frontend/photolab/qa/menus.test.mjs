@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { construireMenus, raccourciAffiche, indexRegistre, REFUSES, TRAITES_PAR_ECRAN, actionEntree, aiguillage, cibleDialogue, rechercherEntree, placerPanneau } from "../js/mod-menus.js";
+import { construireMenus, raccourciAffiche, indexRegistre, REFUSES, PERMIS, TRAITES_PAR_ECRAN, actionEntree, aiguillage, cibleDialogue, rechercherEntree, placerPanneau } from "../js/mod-menus.js";
 
 let ok = 0, ko = 0;
 function check(label, cond, detail = "") { if (cond) ok++; else { ko++; console.error("ECHEC :", label, detail); } }
@@ -61,7 +61,8 @@ check("2.2 raccourci Ctrl+N", fichier[0].raccourci === "Ctrl+N");
 const trouver = (entrees, id) => { for (const e of entrees) { if (e.id === id) return e; if (e.entrees) { const r = trouver(e.entrees, id); if (r) return r; } } return null; };
 check("2.3 file.saveAs traité par l'écran : actif sans registre", trouver(fichier, "file.saveAs").etat === "actif");
 check("2.4 file.export.exportAs actif (sous-menu Exporter)", trouver(fichier, "file.export.exportAs").etat === "actif");
-check("2.5 file.placeEmbedded -> bientot", trouver(fichier, "file.placeEmbedded").etat === "bientot");
+check("2.5 file.placeEmbedded traité par l'écran (t158) : actif", trouver(fichier, "file.placeEmbedded").etat === "actif");
+check("2.5b file.openAs reste « bientôt » (écarté au t158)", trouver(fichier, "file.openAs").etat === "bientot");
 check("2.6 file.automate.batch -> bientot (préfixe refusé)", trouver(fichier, "file.automate.batch").etat === "bientot");
 for (const id of ["file.new", "file.open", "file.close", "file.save", "file.saveAs", "file.export.exportAs"])
   check("2.7 écran : " + id, TRAITES_PAR_ECRAN.has(id));
@@ -130,6 +131,16 @@ const m = py.match(/PREFIXES_REFUSES = \(([\s\S]*?)\)\s*#/);
 const prefPy = m ? [...m[1].matchAll(/"([^"]+)"/g)].map((x) => x[1].toLowerCase()) : [];
 check("7.1 REFUSES identique à PREFIXES_REFUSES (lecture du source Python)", prefPy.length > 0 && JSON.stringify(prefPy) === JSON.stringify(REFUSES.map((x) => x.toLowerCase())), JSON.stringify([prefPy, REFUSES]));
 check("7.2 REFUSES en minuscules", REFUSES.every((x) => x === x.toLowerCase()));
+// t158 : les commandes rouvertes une à une (PERMIS_REFUSES du pont) — même ensemble des deux côtés
+const mp = py.match(/PERMIS_REFUSES = frozenset\(\{([\s\S]*?)\}\)/);
+const permisPy = mp ? [...mp[1].matchAll(/"([^"]+)"/g)].map((x) => x[1]).sort() : [];
+check("7.3 PERMIS identique à PERMIS_REFUSES (lecture du source Python)", permisPy.length === 16 && JSON.stringify(permisPy) === JSON.stringify([...PERMIS].sort()), JSON.stringify([permisPy, PERMIS]));
+check("7.4 chaque permis est sous un préfixe refusé (sinon il n'aurait rien à rouvrir)", PERMIS.every((id) => REFUSES.some((p) => id.toLowerCase().startsWith(p))));
+const permisReg = registre.concat(PERMIS.map((id) => ({ id, label: id, params: "{}", enabled: true, champs: [] })));
+const arbrePermis = construireMenus(catalogue, permisReg, REFUSES, "fr", (k) => k);
+check("7.5 un permis connu du registre n'est plus « bientôt » ; file.saveACopy (non permis, hors écran) le resterait sans l'écran",
+  ["image.mode.rgb", "image.mode.bits16", "file.fileInfo"].every((id) => rechercherEntree(arbrePermis, id) && rechercherEntree(arbrePermis, id).etat !== "bientot")
+  && rechercherEntree(arbrePermis, "file.automate.batch").etat === "bientot");
 
 // 8. actions
 const idx = indexRegistre(registre);
@@ -139,7 +150,7 @@ check("8.3 action écran", actionEntree(trouver(fichier, "file.new")) === "ecran
 check("8.4 action à propos", actionEntree(fr[9].entrees[0]) === "apropos");
 check("8.5 action exécuter", actionEntree(neg) === "executer");
 check("8.6 Flou gaussien -> dialogue par ses champs", actionEntree(gauss) === "dialogue");
-check("8.7 bientôt / inactif -> rien", actionEntree(trouver(fichier, "file.placeEmbedded")) === "rien" && actionEntree(trouver(fr[1].entrees, "edit.undo")) === "rien");
+check("8.7 bientôt / inactif -> rien", actionEntree(trouver(fichier, "file.openAs")) === "rien" && actionEntree(trouver(fr[1].entrees, "edit.undo")) === "rien");
 const reveler = trouver(fr[3].entrees, "layer.layerMask.revealAll");
 check("8.8 Révéler tout (layer caché seul) -> exécuter", reveler && actionEntree(reveler) === "executer");
 const courbes = trouver(fr[2].entrees, "image.adjustments.curves");
