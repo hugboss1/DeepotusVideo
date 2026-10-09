@@ -1414,3 +1414,82 @@ def verifier_trace(params, liste):
         noms.add("work")
     if params["path"] not in noms:
         raise ValueError(f"filter.render.flame : tracé inconnu du document : {params['path']!r}")
+
+
+# ── t160 : mesure, comptage, notes, tranches ───────────────────────────────────────────────────────────────────────
+def analyse(s: SessionMoteur):
+    """Ce que la surcouche de l'écran dessine, lu en UNE séquence -> ({ruler, count, notes, slices, locked, scale},
+    génération). Rien n'est écrit : ces lectures ne font aucune étape d'historique."""
+    def fn(appel, gen):
+        ex = lambda c, **p: appel("engine.execute", {"command": c, "params": p}) or {}
+        regle = ex("image.analysis.rulerTool")
+        tranches = ex("slice.list")
+        return {"ruler": regle.get("ruler"), "rulerInfo": regle.get("info"), "count": ex("image.analysis.countTool"),
+                "notes": ex("notes.list").get("notes", []), "slices": tranches.get("slices", []),
+                "locked": bool(tranches.get("locked")), "scale": ex("image.analysis.setMeasurementScale")}
+    return s.sequence(fn)
+
+
+def _cellule(v):
+    if v is None:
+        return ""
+    if isinstance(v, list):
+        return " ".join(str(x) for x in v)
+    if isinstance(v, float):
+        return "0" if v == 0 else f"{v:.6g}"                # -0.0 (angle d'une règle horizontale) -> « 0 »
+    return str(v)
+
+
+def journal_csv(s: SessionMoteur, lignes=None) -> str:
+    """Fenêtre › Journal des mesures › Exporter : `measurementLog.export` est désactivé par le moteur (chemin ambiant) ;
+    le CSV est composé ici depuis `measurementLog.list`, colonnes = celles choisies (selectDataPoints) dans l'ordre du
+    moteur, séparateur « ; », guillemets si besoin. `lignes` : ids à garder (None = toutes)."""
+    import csv
+    import io
+
+    def fn(appel, gen):
+        ex = lambda c, **p: appel("engine.execute", {"command": c, "params": p}) or {}
+        return ex("measurementLog.list"), ex("image.analysis.selectDataPoints")
+    (journal, points), _ = s.sequence(fn)
+    choisies = set().union(*[set(v) for v in (points.get("dataPoints") or {}).values()]) if points.get("dataPoints") else None
+    colonnes = [c for c in points.get("columns") or [] if choisies is None or c.get("key") in choisies]
+    tampon = io.StringIO()
+    w = csv.writer(tampon, delimiter=";", lineterminator="\r\n")
+    w.writerow([c.get("name") or c.get("key") for c in colonnes])
+    garder = set(lignes) if lignes is not None else None
+    for r in journal.get("rows") or []:
+        if garder is not None and r.get("id") not in garder:
+            continue
+        vals = r.get("values") or {}
+        w.writerow([_cellule(vals.get(c.get("key"))) for c in colonnes])
+    return tampon.getvalue()
+
+
+def importer_notes(s: SessionMoteur, source: int):
+    """Fichier › Importer › Notes : `file.import.notes` est désactivé par le moteur (chemin ambiant). Les notes d'un
+    AUTRE document ouvert sont copiées dans l'actif (texte, auteur, couleur, position bornée à la toile, fermées).
+    -> ({"imported": n}, génération)."""
+    def fn(appel, gen):
+        ex = lambda c, **p: appel("engine.execute", {"command": c, "params": p}) or {}
+        sl = appel("session.list") or {}
+        actif = sl.get("active")
+        index = [d.get("index") for d in sl.get("documents") or []]
+        if source == actif or source not in index:
+            raise ValueError(f"document source introuvable ou actif : {source!r}")
+        ex("document.activate", document=source)
+        try:
+            notes = ex("notes.list").get("notes", [])
+        finally:
+            ex("document.activate", document=actif)
+        insp = appel("doc.inspect") or {}
+        w, h = insp.get("width") or 1, insp.get("height") or 1
+        n = 0
+        for note in notes:
+            x, y = (note.get("position") or [0, 0])[:2]
+            c = note.get("color") or [1, 1, 0.51]
+            couleur = "#" + "".join(f"{max(0, min(255, round(v * 255))):02x}" for v in c[:3])
+            ex("notes.add", x=max(0, min(w - 1, x)), y=max(0, min(h - 1, y)), text=str(note.get("text") or "")[:4000],
+               author=str(note.get("author") or "")[:128], color=couleur, open=False)
+            n += 1
+        return {"imported": n}
+    return s.sequence(fn)

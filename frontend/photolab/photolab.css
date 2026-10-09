@@ -846,3 +846,33 @@ body.pl-grands-onglets .onglet-doc { height: 34px; font-size: 13px; }
 .pl-mod { min-width: 48px; height: 40px; border: 1px solid var(--stroke); border-radius: 4px; background: var(--bg-panel-2); color: var(--ink); }
 .pl-mod.une { border-color: var(--accent); color: var(--ink-strong); }
 .pl-mod.tenue { background: var(--accent); color: var(--bg-base); border-color: var(--accent); }
+
+/* ── t160 : surcouche de mesure (règle, marques de comptage, notes, tranches) et panneaux Mesures / Notes ── */
+#mesures { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+#mesures .regle-ligne { stroke: var(--accent); stroke-width: 1.5; fill: none; }
+#mesures .regle-croix { stroke: var(--ink-strong); stroke-width: 1; fill: none; }
+#mesures .tranche { fill: none; stroke-width: 1; }
+#mesures .tranche.utilisateur { stroke: var(--blue); }
+#mesures .tranche.auto { stroke: var(--slate); stroke-dasharray: 3 3; }
+#mesures .tranche.choisie { stroke: var(--amber); stroke-width: 2; }
+#mesures .tranche-badge rect { fill: var(--blue); }
+#mesures .tranche-badge.auto rect { fill: var(--slate); }
+#mesures .tranche-badge text { fill: var(--bg-base); font: 9px var(--f-mono); text-anchor: middle; }
+#mesures .poignee { fill: var(--bg-panel); stroke: var(--amber); }
+#mesures .marque-num { font-family: var(--f-mono); paint-order: stroke; stroke: var(--bg-base); stroke-width: 2px; }
+#mesures .note-icone path { stroke: var(--bg-base); stroke-width: 1; }
+#mesures .note-icone.choisie path { stroke: var(--accent); stroke-width: 2; }
+.opt-lecture { display: flex; gap: 10px; align-items: center; font: 11px var(--f-mono); color: var(--ink-soft); }
+.opt-lecture b { color: var(--ink-muted); font-weight: 600; }
+.ms-barre { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-bottom: 6px; }
+.ms-zone { overflow: auto; max-height: 260px; border: 1px solid var(--stroke); border-radius: 3px; }
+.ms-table { border-collapse: collapse; font: 11px var(--f-mono); white-space: nowrap; }
+.ms-table th, .ms-table td { padding: 2px 6px; border-bottom: 1px solid var(--stroke); text-align: left; }
+.ms-table th { position: sticky; top: 0; background: var(--bg-panel-2); color: var(--ink-soft); font-weight: 600; }
+.ms-table tr { cursor: default; }
+.ms-table tr.actif td { background: var(--accent-soft); color: var(--ink-strong); }
+.nt-titre { color: var(--ink-strong); }
+.nt-auteur { color: var(--ink-muted); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.nt-texte { width: 100%; min-height: 120px; resize: vertical; box-sizing: border-box; background: var(--bg-base); color: var(--ink);
+  border: 1px solid var(--stroke); border-radius: 3px; padding: 6px; font: inherit; }
+

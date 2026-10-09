@@ -12,7 +12,7 @@ import { ouvrirDialogue } from "./mod-fichier.js";
 // t156 : Formes (Couleur), Styles (Propriétés), Tracés (Calques) et le groupe Texte.
 export const GROUPES = { couleur: ["couleur", "nuancier", "degrades", "motifs", "formes"], proprietes: ["proprietes", "ajustements", "styles", "compositions"],
   pinceaux: ["pinceaux", "parametres", "source", "predefinis"], calques: ["calques", "couches", "traces", "historique", "navigateur"],
-  infos: ["histogramme", "infos"], texte: ["caractere", "paragraphe", "glyphes", "stylesCar", "stylesPar"] };
+  infos: ["histogramme", "infos", "mesures", "notes"], texte: ["caractere", "paragraphe", "glyphes", "stylesCar", "stylesPar"] };
 export const FOURNIS = ["essentiel", "base", "graphisme", "mouvement", "peinture", "photo", "pixel"];
 export const MAX_PERSO = 20;
 const MAX_NOM = 64;
@@ -60,6 +60,7 @@ export const PANNEAUX = {
   "window.panel.channels": { groupe: "calques", onglet: "couches" },
   "window.panel.histogram": { groupe: "infos", onglet: "histogramme" },
   "window.panel.info": { groupe: "infos", onglet: "infos" },
+  "window.panel.measurementLog": { groupe: "infos", onglet: "mesures" }, "window.panel.notes": { groupe: "infos", onglet: "notes" },     // t160
   "window.panel.character": { groupe: "texte", onglet: "caractere" },
   "window.panel.paragraph": { groupe: "texte", onglet: "paragraphe" },
   "window.panel.glyphs": { groupe: "texte", onglet: "glyphes" },

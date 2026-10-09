@@ -98,6 +98,16 @@ export const ETATS_MOTEUR = {
   "Mode Change": "photolab.histo.mode_change",
   "Bit Depth": "photolab.histo.bit_depth",
   "Flame…": "photolab.histo.flame",
+  // t160 : comptage, notes, tranches, analyse (noms relevés sur le vrai moteur, banc test_photolab_mesure)
+  "Count": "photolab.histo.count", "Clear Count": "photolab.histo.clear_count", "New Count Group": "photolab.histo.new_count_group",
+  "Delete Count Group": "photolab.histo.delete_count_group", "Count Group Options": "photolab.histo.count_group_options",
+  "New Note": "photolab.histo.new_note", "Edit Note": "photolab.histo.edit_note", "Move Note": "photolab.histo.move_note",
+  "Delete Note": "photolab.histo.delete_note", "Slice": "photolab.histo.slice", "Slice Options": "photolab.histo.slice_options",
+  "Divide Slice": "photolab.histo.divide_slice", "Promote to User Slice": "photolab.histo.promote_slice",
+  "Delete Slice": "photolab.histo.delete_slice", "Slices From Guides": "photolab.histo.slices_from_guides",
+  "New Layer Based Slice": "photolab.histo.layer_slice", "Clear Slices": "photolab.histo.clear_slices",
+  "Place Scale Marker": "photolab.histo.scale_marker", "Straighten": "photolab.histo.straighten",
+  "Set Measurement Scale": "photolab.histo.measurement_scale",
 };
 
 // Ordre : carte ci-dessus (fr et en, par le dictionnaire) -> libellé du catalogue des menus (fr) -> nom du moteur.
