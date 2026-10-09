@@ -11,6 +11,10 @@ _ICI = pathlib.Path(__file__).resolve().parent
 RACINE = _ICI.parent.parent
 BUN = (RACINE / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js").read_bytes().decode("utf-8")
 _TMP = pathlib.Path(tempfile.mkdtemp(prefix="dzmske_"))
+# t142 (09/10) : la traduction L2 fait passer les libelles de la section par dzT (globale) ; le code execute sous node
+# recoit le prelude qui la pose en FRANCAIS (les attentes en francais restent vraies).
+sys.path.insert(0, str(_ICI))
+import _i18n_l1_aide as AIDE                               # noqa: E402
 
 ok = fail = 0
 def check(label, cond, detail=""):
@@ -68,7 +72,7 @@ function par(T,t,lab){return trouver(T,function(n){return n.t===t&&(lab===undefi
 
 def node(corps):
     f = _TMP / f"m{abs(hash(corps)) % 10**9}.js"
-    f.write_text(COUCHE + "\n" + HARNAIS + "\n(async function(){var R={};" + corps + "\nconsole.log(JSON.stringify(R))})()", encoding="utf-8")
+    f.write_text(AIDE.PRELUDE_DZT + COUCHE + "\n" + HARNAIS + "\n(async function(){var R={};" + corps + "\nconsole.log(JSON.stringify(R))})()", encoding="utf-8")
     try:
         p = subprocess.run(["node", str(f)], capture_output=True, text=True, encoding="utf-8", timeout=60)
     except subprocess.TimeoutExpired:

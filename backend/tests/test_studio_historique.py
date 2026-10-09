@@ -13,6 +13,8 @@ _ICI = pathlib.Path(__file__).resolve().parent
 RACINE = _ICI.parent.parent
 BUN = (RACINE / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js").read_bytes().decode("utf-8")
 _TMP = pathlib.Path(tempfile.mkdtemp(prefix="dzhist_"))
+sys.path.insert(0, str(_ICI))
+import _i18n_l1_aide as AIDE                               # noqa: E402  (t142 : textes par dzT, francais par AIDE.fr)
 
 ok = fail = 0
 def check(label, cond, detail=""):
@@ -78,14 +80,19 @@ check("R2 un REEMPLOI ne rempile pas (pile inchangee, pas de doublon)", R is not
 print("\n[U] le panneau")
 H = entre("function DzPinHist(", "function DzPinPanel(")
 check("U1 la pile se montre sous l'etat de l'epingle, epinglee OU NON (apres « Regenerer », on peut revenir a une prise)",
-      BUN.count("r.jsx(DzPinHist,{p:p,onUpdate:onUpdate})") == 2 and "Rendus de ce nœud (" in H)
+      # t142 (09/10) : textes passes par dzT ; epingles par leur cle, le francais verifie par AIDE.fr (U1-U4)
+      BUN.count("r.jsx(DzPinHist,{p:p,onUpdate:onUpdate})") == 2 and 'dzT("studio.epingle.rendus_noeud",{n:h.length})' in H
+      and AIDE.fr("studio.epingle.rendus_noeud", n=3) == "Rendus de ce nœud (3)")
 check("U2 chaque prise : sa video (rendu du job), son identifiant, sa date ; « en aval » pour celle qui alimente",
-      "D.jobVideoUrl(x.job_id)" in H and '"rendu "+String(x.job_id).slice(0,8)' in H and '"en aval"' in H)
+      "D.jobVideoUrl(x.job_id)" in H and 'dzT("studio.epingle.rendu")+String(x.job_id).slice(0,8)' in H and 'dzT("studio.epingle.en_aval")' in H
+      and AIDE.fr("studio.epingle.rendu") == "rendu " and AIDE.fr("studio.epingle.en_aval") == "en aval")
 check("U3 « Utiliser » (avec title) en fait l'epingle, avec SON empreinte — verifiee par le serveur au prochain run",
-      'title:"Faire alimenter l\'aval par ce rendu (gratuit) — vérifié au prochain run' in H
+      'title:dzT("studio.epingle.utiliser_aide")' in H and 'children:dzT("studio.epingle.utiliser")' in H
+      and AIDE.fr("studio.epingle.utiliser_aide").startswith("Faire alimenter l'aval par ce rendu (gratuit) — vérifié au prochain run")
+      and AIDE.fr("studio.epingle.utiliser") == "Utiliser"
       and "onUpdate({pin:{job_id:String(x.job_id),empreinte:x.empreinte||\"\",le:x.le||null,choisi:!0},pinPerime:null})" in H)
-check("U4 une prise faite avec d'AUTRES reglages que l'epingle active est signalee", '" · autres réglages"' in H
-      and "x.empreinte!==pin.empreinte" in H)
+check("U4 une prise faite avec d'AUTRES reglages que l'epingle active est signalee", 'dzT("studio.epingle.autres_reglages")' in H
+      and AIDE.fr("studio.epingle.autres_reglages") == " · autres réglages" and "x.empreinte!==pin.empreinte" in H)
 check("U5 la chaine tient : sondes aval inchangees (DzTracks 181, __dzCoutBlanc 7, __dzSrcLbl x2)",
       BUN.count("DzTracks") == 181 and BUN.count("__dzCoutBlanc") == 7 and BUN.count("Object.assign(__dzSrcLbl,") == 2)
 

@@ -125,7 +125,9 @@ check("2.5 inspecteur HeyGen : DzAvatarPick PUIS DzHgFormat (graphe + noeud), un
       and bak.count('e.type==="HeyGenAvatar"?r.jsx(DzAvatarPick,{p:n,set:o})') == 1, "")
 check("2.6 DzHgFormat lit le template par /api/layout-templates/<id> et le port par dzSpatialSlots",
       s.count('fetch("/api/layout-templates/"+encodeURIComponent(tid))') == 1
-      and s.count("var sp=dzSpatialSlots(tpl,hit.sc.props||{})") == 1 and "Génération HeyGen" in s, "")
+      # t142 (09/10) : le libelle passe par dzT ; epingle par sa cle, le francais verifie par AIDE.fr
+      and s.count("var sp=dzSpatialSlots(tpl,hit.sc.props||{})") == 1 and 'label:dzT("studio.hgformat.generation")' in s
+      and AIDE.fr("studio.hgformat.generation") == "Génération HeyGen", "")
 
 print("\n[3] « Ouvrir un graphe » : bouton icone, liste maison")
 check("3.1 plus de « Open graph… » (temoin : x1 dans le .bak)", s.count("Open graph…") == 0
@@ -150,8 +152,9 @@ check("4.1 en-tete du noeud : plus de trois points decoratifs (temoin : x1 dans 
       s.count(nl('r.jsx(se,{name:"more"})]})})}function Fh(')) == 0
       and bak.count('r.jsx(se,{name:"more"})]})})}function Fh(') == 1, "")
 check("4.2 ... remplaces par « Replier l'inspecteur » (panelR, dziOpen(!1)) dans Oh ET dans Fh",
-      s.count('title:"Replier l\'inspecteur","aria-label":"Replier l\'inspecteur",className:"dz-insp-fold",'
-              'onClick:function(){dziOpen(!1)}') == 2, "")
+      # t142 (09/10) : title et aria-label passent par dzT ; epingles par leur cle, le francais verifie par AIDE.fr
+      s.count('title:dzT("studio.inspecteur.replier"),"aria-label":dzT("studio.inspecteur.replier"),className:"dz-insp-fold",'
+              'onClick:function(){dziOpen(!1)}') == 2 and AIDE.fr("studio.inspecteur.replier") == "Replier l'inspecteur", "")
 check("4.3 le menu trois points FONCTIONNEL de la bibliotheque de templates reste (name:\"more\",size:24)",
       s.count('r.jsx(se,{name:"more",size:24') == 1 and bak.count('r.jsx(se,{name:"more",size:24') == 1, "")
 check("4.4 grille : dz-insp-hidden calculee au rendu depuis dziSt, a cote de dz-dock-hidden",
@@ -197,10 +200,14 @@ print("\n[5] Save : le nom du graphe par le dialogue maison, plus par prompt()")
 check("5.1 plus de window.prompt(\"Name this graph\" (temoin : x1 dans le .bak)",
       s.count('window.prompt("Name this graph:"') == 0 and bak.count('window.prompt("Name this graph:"') == 1, "")
 check("5.2 await window.__dzDialogue.saisir, titre, valeur = nom courant, bouton Enregistrer ; annuler (null) sort",
-      s.count('var nm=await window.__dzDialogue.saisir("Nom du graphe :",{titre:"Enregistrer le graphe",'
-              'valeur:(o.name||"My graph"),ok:"Enregistrer"});if(nm==null)return;') == 1, "")
-check("5.3 ... dans le onClick ASYNC du bouton Save (« Save this graph »)",
-      s.count('title:"Save this graph",onClick:async()=>{try{var nm=await window.__dzDialogue.saisir(') == 1, "")
+      # t142 (09/10) : textes du dialogue et title du bouton passes par dzT ; epingles par leur cle, francais par AIDE.fr
+      s.count('var nm=await window.__dzDialogue.saisir(dzT("studio.graphe.nom_invite"),{titre:dzT("studio.graphe.enregistrer_le"),'
+              'valeur:(o.name||"My graph"),ok:dzT("studio.graphe.enregistrer")});if(nm==null)return;') == 1
+      and AIDE.fr("studio.graphe.nom_invite") == "Nom du graphe :" and AIDE.fr("studio.graphe.enregistrer_le") == "Enregistrer le graphe"
+      and AIDE.fr("studio.graphe.enregistrer") == "Enregistrer", "")
+check("5.3 ... dans le onClick ASYNC du bouton Save (« Save this graph », « Enregistrer ce graphe » en francais depuis t142)",
+      s.count('title:dzT("studio.graphe.enregistrer_titre"),onClick:async()=>{try{var nm=await window.__dzDialogue.saisir(') == 1
+      and AIDE.fr("studio.graphe.enregistrer_titre") == "Enregistrer ce graphe", "")
 check("5.4 la couche de dialogue est dans le bundle (saisir defini) -- temoin : deja au .bak",
       'saisir: function (m, o) { return ouvrir("saisir", m, o); }' in s
       and 'saisir: function (m, o) { return ouvrir("saisir", m, o); }' in bak, "")

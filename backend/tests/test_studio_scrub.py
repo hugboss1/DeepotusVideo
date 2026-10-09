@@ -27,6 +27,8 @@ os.environ["HEYGEN_API_KEY"] = "cle-de-banc"
 _ICI = pathlib.Path(__file__).resolve().parent
 RACINE = _ICI.parent.parent
 sys.path.insert(0, str(_ICI.parent))
+sys.path.insert(0, str(_ICI))
+import _i18n_l1_aide as AIDE                                        # noqa: E402  (t142 : PRELUDE_DZT)
 from loguru import logger                                           # noqa: E402
 logger.remove()
 
@@ -176,7 +178,8 @@ function cle(k,cible,mod){var ev={key:k,target:cible||{tagName:"BODY"},defaultPr
 
 def node(corps):
     f = _tmp / f"s{abs(hash(corps)) % 10**9}.js"
-    f.write_text(COUCHE + "\n" + HARNAIS + "\n(async function(){var R={};" + corps + "\nconsole.log(JSON.stringify(R))})()", encoding="utf-8")
+    # t142 (09/10) : la couche passe ses textes par dzT ; PRELUDE_DZT (dzT en francais) APRES le `var window` du harnais
+    f.write_text(COUCHE + "\n" + HARNAIS + "\n" + AIDE.PRELUDE_DZT + "\n(async function(){var R={};" + corps + "\nconsole.log(JSON.stringify(R))})()", encoding="utf-8")
     p = subprocess.run(["node", str(f)], capture_output=True, text=True, encoding="utf-8")
     try:
         return json.loads(p.stdout.strip().splitlines()[-1])

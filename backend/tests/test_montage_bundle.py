@@ -15021,19 +15021,27 @@ _E3_ST2 = ('onClick:function(){window.__dzMontageAdd={job_id:n.id,title:n.title|
            + _E3_NAV + '},' + _E3_LBL + '},"mont"),r.jsx("a",{href:D.jobVideoUrl(n.id),download:!0,'
            'style:{flex:1,textDecoration:"none"},children:r.jsx(K,{variant:"outline",size:"sm",'
            'icon:"download",style:{width:"100%"},children:"Download"})},"dl")]})')
+# t142 (traduction L2) : libelles et infobulles des deux boutons passent par dzT (Episodes, Studio) -- ce que
+# le patcher montage a POSE se lit sur _SA = AIDE.avant_i18n(s) ; le livre porte les cles, dont le francais
+# reste « Ouvrir dans le Montage ».
 check("E3_ouvrir_dans_le_montage_deux_fois_chapitres_avant_scheduler_studio_en_tableau",
-      s.count(_E3_LBL) == 2 and s.count(_E3_NAV) == 2
-      and s.count(_E3_CH) == 1 and s.count(_E3_ST) == 1 and s.count(_E3_ST2) == 1
-      and s.count("window.__dzMontageAdd={") == 4
-      and s.count('detail:{view:"scheduler"}') == 1
+      _SA.count(_E3_LBL) == 2 and _SA.count(_E3_NAV) == 2
+      and _SA.count(_E3_CH) == 1 and _SA.count(_E3_ST) == 1 and _SA.count(_E3_ST2) == 1
+      and _SA.count("window.__dzMontageAdd={") == 4
+      and _SA.count('detail:{view:"scheduler"}') == 1
       # + 1 : tache #54 (01/10/2026), le bouton « Galerie » de la section Parameters de Quick (P5ga2)
-      and s.count('icon:"film"') == _bak.count('icon:"film"') + 3
+      and _SA.count('icon:"film"') == _bak.count('icon:"film"') + 3
+      and s.count(_E3_LBL) == 0 and s.count(_E3_NAV) == 2 and s.count("window.__dzMontageAdd={") == 4
+      and s.count('children:dzT("episodes.assemblage.montage")}),') == 1
+      and s.count('children:dzT("studio.resultat.ouvrir_montage")},"mont")') == 1
+      and AIDE.fr("episodes.assemblage.montage") == "Ouvrir dans le Montage"
+      and AIDE.fr("studio.resultat.ouvrir_montage") == "Ouvrir dans le Montage"
       and (_bak.count(_E3_LBL) == 0 and _bak.count(_E3_NAV) == 0
            and _bak.count("window.__dzMontageAdd={") == 2
            and _bak.count('detail:{view:"scheduler"}') == 1 if _bak else False),
-      f"lbl={s.count(_E3_LBL)} nav={s.count(_E3_NAV)} ch={s.count(_E3_CH)} "
-      f"st={s.count(_E3_ST)}/{s.count(_E3_ST2)} add={s.count('window.__dzMontageAdd={')} "
-      f"film={s.count('icon:\"film\"')} bak_film={_bak.count('icon:\"film\"') if _bak else '?'}")
+      f"lbl={_SA.count(_E3_LBL)} nav={_SA.count(_E3_NAV)} ch={_SA.count(_E3_CH)} "
+      f"st={_SA.count(_E3_ST)}/{_SA.count(_E3_ST2)} add={_SA.count('window.__dzMontageAdd={')} "
+      f"film={_SA.count('icon:\"film\"')} bak_film={_bak.count('icon:\"film\"') if _bak else '?'}")
 # ET LE PATCHER LES PORTE, en queue de PATCHES, après TT11 : les ancres EA1/
 # EA2/EA3 valent 1 dans .bak_montage, 0 dans la source du patcher (règle de
 # la chaîne), et chaque remplacement est RETROUVÉ 1/1 (la boucle générique
@@ -15047,7 +15055,8 @@ _E3_I = _E3_TAGS.index("EA1-porte-bibliotheque-v1") if "EA1-porte-bibliotheque-v
 check("E3_le_patcher_porte_EA1_EA2_EA3_apres_TT11",
       _E3_I > 0 and _E3_TAGS[_E3_I - 1] == "TT11-plus-de-t1-pose-un-carton"
       and [t.split("-")[0] for t in _E3_TAGS[_E3_I:_E3_I + 3]] == ["EA1", "EA2", "EA3"]
-      and all(_bak.count(a) == 1 and s.count(nl(r)) == 1 for t, a, r in P.PATCHES[_E3_I:_E3_I + 3])  # t119 : R_EA1 multiligne -> nl()
+      # t142 : R_EA2/R_EA3 sont recouvertes de dzT (L2) -> la livraison se lit sur _SA, comme la boucle du haut
+      and all(_bak.count(a) == 1 and _SA.count(nl(r)) == 1 for t, a, r in P.PATCHES[_E3_I:_E3_I + 3])  # t119 : R_EA1 multiligne -> nl()
       if _bak else False,
       f"pos={_E3_I} voisins={_E3_TAGS[max(0, _E3_I - 1):_E3_I + 3]}")
 
@@ -15140,10 +15149,15 @@ check("E4_le_patcher_porte_les_huit_sections_en_queue_apres_EA3",
       if _bak else False,
       f"queue={_E4_TAGS[_E4_I + 1:_E4_I + 9]}")
 check("E4_l_infobulle_E3_dit_cet_episode_aux_chapitres_et_ce_rendu_au_studio",
-      "%s" in P._EA_TIP and s.count("Poser cet épisode sur la piste V1") == 1
-      and s.count("Poser ce rendu sur la piste V1") == 1 and s.count("Poser ce rendu") == 1
+      # t142 (traduction L2) : les deux infobulles passent par dzT -- la forme posee par le patcher se lit sur
+      # _SA, le livre porte les cles et leur francais reste celui de _EA_TIP
+      "%s" in P._EA_TIP and _SA.count("Poser cet épisode sur la piste V1") == 1
+      and _SA.count("Poser ce rendu sur la piste V1") == 1 and _SA.count("Poser ce rendu") == 1
+      and s.count('title:dzT("episodes.assemblage.montage_aide")') == 1 and s.count('title:dzT("studio.resultat.montage_titre")') == 1
+      and 'title:"' + AIDE.fr("episodes.assemblage.montage_aide") + '",' == P._EA_TIP % "cet épisode"
+      and 'title:"' + AIDE.fr("studio.resultat.montage_titre") + '",' == P._EA_TIP % "ce rendu"
       and (_bak.count("Poser cet épisode") == 0 and _bak.count("Poser ce rendu") == 0 if _bak else False),
-      f"episode={s.count('Poser cet épisode sur la piste V1')} rendu={s.count('Poser ce rendu sur la piste V1')}")
+      f"episode={_SA.count('Poser cet épisode sur la piste V1')} rendu={_SA.count('Poser ce rendu sur la piste V1')}")
 # REVUE (I-1) : LE BANDEAU SE FERME AU LANCEMENT D'UN RENDU — `setDzFin(null)`
 # juste apres la garde de `launchRender` (EA6). Sans cela l'instance sans
 # `key` etait reutilisee par le second rendu : etat « Brouillon ajouté »
@@ -15982,7 +15996,10 @@ check("EB4_le_bouton_Preview_garde_son_handler_et_perd_480p_gratuit",
       and P.A_EB4 == "        " + _EB4_A.replace('"Preview"', '"Preview 480p (gratuit)"') and P.R_EB4 == "        " + _EB4_R
       and _EB4_R.count("title:") == 1 and _EB4_A.count("title:") == 0
       # `children:"Preview"}),` seul vaut DEUX (le Studio minifie, graphe Mh) : l'ancre est la ligne entiere
-      and s.count('children:"Preview"}),') == 2 and (_bak.count('children:"Preview"}),') == 1 if _bak else False)
+      # t142 (traduction L2) : le « Preview » du Studio passe par dzT("studio.graphe.apercu") -> le compte de 2 se lit
+      # sur _SA (avant traduction) ; le livre n'en garde qu'un, celui de la barre (couche montage, non traduite)
+      and _SA.count('children:"Preview"}),') == 2 and (_bak.count('children:"Preview"}),') == 1 if _bak else False)
+      and s.count('children:"Preview"}),') == 1 and s.count('children:dzT("studio.graphe.apercu")}),') == 1
       and ("EB4-libelle-preview", P.A_EB4, P.R_EB4) in P.PATCHES
       and s.count('children:"Preview 480p (gratuit)"') == 0 and s.count("Preview 480p (gratuit)") == 1
       and s.count('"lancer Preview 480p (gratuit)"') == 1

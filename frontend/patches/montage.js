@@ -9441,33 +9441,33 @@ function DzPinHist({p,onUpdate}){
   var h=Array.isArray(p.hist)?p.hist:[],pin=p.pin||null;
   if(!h.length)return null;
   return r.jsxs("div",{className:"dz-pin-hist",style:{marginTop:8},children:[
-    r.jsx("div",{style:{color:"var(--ink-soft)",marginBottom:4},children:"Rendus de ce nœud ("+h.length+")"}),
+    r.jsx("div",{style:{color:"var(--ink-soft)",marginBottom:4},children:dzT("studio.epingle.rendus_noeud",{n:h.length})}),
     r.jsx("div",{style:{display:"flex",flexDirection:"column",gap:6},children:h.map(function(x,ix){
       var actif=!!(pin&&String(pin.job_id)===String(x.job_id)),autres=!!(pin&&pin.empreinte&&x.empreinte&&x.empreinte!==pin.empreinte);
       return r.jsxs("div",{style:{display:"flex",gap:8,alignItems:"center",padding:6,borderRadius:"var(--r-sm)",background:"var(--bg-base)",
         border:"1px solid var(--"+(actif?"cyan":"stroke")+")"},children:[
         r.jsx("video",{src:D.jobVideoUrl(x.job_id),muted:!0,preload:"metadata",style:{width:40,height:70,objectFit:"cover",borderRadius:4,background:"#000"}}),
         r.jsxs("div",{style:{flex:1,minWidth:0,fontSize:10.5,color:"var(--ink-soft)"},children:[
-          r.jsx("div",{className:"mono",style:{color:"var(--ink-strong)"},children:"rendu "+String(x.job_id).slice(0,8)}),
-          r.jsx("div",{children:(x.le?String(x.le).slice(0,16).replace("T"," "):"")+(autres?" · autres réglages":"")})]}),
-        actif?r.jsx("span",{className:"mono",style:{color:"var(--cyan)",fontSize:10},children:"en aval"}):
-        r.jsx("button",{type:"button",className:"btn",title:"Faire alimenter l'aval par ce rendu (gratuit) — vérifié au prochain run : avec d'autres réglages que ceux du nœud, il est écarté et c'est dit",
-          onClick:function(){onUpdate({pin:{job_id:String(x.job_id),empreinte:x.empreinte||"",le:x.le||null,choisi:!0},pinPerime:null})},children:"Utiliser"})]},String(x.job_id)+":"+ix)})})]})}
+          r.jsx("div",{className:"mono",style:{color:"var(--ink-strong)"},children:dzT("studio.epingle.rendu")+String(x.job_id).slice(0,8)}),
+          r.jsx("div",{children:(x.le?String(x.le).slice(0,16).replace("T"," "):"")+(autres?dzT("studio.epingle.autres_reglages"):"")})]}),
+        actif?r.jsx("span",{className:"mono",style:{color:"var(--cyan)",fontSize:10},children:dzT("studio.epingle.en_aval")}):
+        r.jsx("button",{type:"button",className:"btn",title:dzT("studio.epingle.utiliser_aide"),
+          onClick:function(){onUpdate({pin:{job_id:String(x.job_id),empreinte:x.empreinte||"",le:x.le||null,choisi:!0},pinPerime:null})},children:dzT("studio.epingle.utiliser")})]},String(x.job_id)+":"+ix)})})]})}
 function DzPinPanel({node,graph,onUpdate}){
   var p=node&&node.props||{},pin=p.pin;
   var box={padding:"10px 14px",borderBottom:"1px solid var(--stroke)",fontSize:11,lineHeight:1.45};
   if(!dzPinRendu(graph))return r.jsx("div",{className:"dz-pin",style:box,children:r.jsx("span",{style:{color:"var(--ink-muted)"},
-    children:"📌 Pas d'épingle ici : un Seedance seul (ou un HeyGen seul) part directement par /generate. L'épingle vaut dans un graphe composé (Seedance + HeyGen, Concatenate, Spatial compose, UGC)."})});
+    children:dzT("studio.epingle.sans_epingle")})});
   if(!pin||!pin.job_id)return r.jsxs("div",{className:"dz-pin",style:box,children:[
-    r.jsx("div",{style:{color:"var(--ink-soft)"},children:"📌 Pas encore épinglé : après le prochain rendu, son résultat est gardé et réemployé (gratuit) tant que sa requête ne change pas."}),
-    p.pinPerime?r.jsx("div",{style:{color:"var(--amber)",marginTop:4},children:"Épingle retirée : "+p.pinPerime}):null,
+    r.jsx("div",{style:{color:"var(--ink-soft)"},children:dzT("studio.epingle.pas_encore")}),
+    p.pinPerime?r.jsx("div",{style:{color:"var(--amber)",marginTop:4},children:dzT("studio.epingle.retiree",{raison:p.pinPerime})}):null,
     r.jsx(DzPinHist,{p:p,onUpdate:onUpdate})]});
   return r.jsxs("div",{className:"dz-pin",style:box,children:[
-    r.jsx("div",{style:{color:"var(--cyan)",marginBottom:4},children:"📌 Épinglé — réemployé (gratuit) tant que sa requête ne change pas"}),
+    r.jsx("div",{style:{color:"var(--cyan)",marginBottom:4},children:dzT("studio.epingle.epingle")}),
     r.jsx("div",{className:"mono",style:{color:"var(--ink-muted)",fontSize:10,marginBottom:6},
-      children:"rendu "+String(pin.job_id).slice(0,8)+(pin.le?" · "+String(pin.le).slice(0,16).replace("T"," "):"")}),
-    r.jsx("button",{type:"button",className:"btn",title:"Retirer l'épingle : le prochain run RÉGÉNÈRE ce nœud (payant, coût affiché avant le tir)",
-      onClick:function(){onUpdate({pin:null,pinPerime:null})},children:"↻ Regénérer ce nœud"}),
+      children:dzT("studio.epingle.rendu")+String(pin.job_id).slice(0,8)+(pin.le?" · "+String(pin.le).slice(0,16).replace("T"," "):"")}),
+    r.jsx("button",{type:"button",className:"btn",title:dzT("studio.epingle.regenerer_aide"),
+      onClick:function(){onUpdate({pin:null,pinPerime:null})},children:dzT("studio.epingle.regenerer")}),
     r.jsx(DzPinHist,{p:p,onUpdate:onUpdate})]})}
 /* Tâche #69 (plan-studio T6-T7, 02/10/2026) — IMPORTER un graphe JSON dans le Studio. Le fichier (export du Studio :
    graphe nu ; ou enregistrement du magasin : {id, name, graph}) est VALIDÉ par le serveur (POST
@@ -9476,34 +9476,33 @@ function DzPinPanel({node,graph,onUpdate}){
    sources absentes de cette machine et les arêtes jetées sont LISTÉES dans un dialogue, une par ligne. */
 function dzImpListe(d){
   var miss=d&&Array.isArray(d.missing)?d.missing:[],warn=d&&Array.isArray(d.warnings)?d.warnings:[],l=[];
-  if(miss.length){l.push("Sources absentes de cette machine — à rebrancher dans leur nœud :");
-    miss.forEach(function(m){l.push("• "+m.type+" "+m.node_id+" — "+(m.champ==="jobId"?"rendu ":"image ")+m.valeur)})}
-  if(warn.length){if(l.length)l.push("");l.push("Arêtes jetées (le reste du graphe est ouvert) :");
+  if(miss.length){l.push(dzT("studio.import.sources_absentes"));
+    miss.forEach(function(m){l.push("• "+m.type+" "+m.node_id+" — "+(m.champ==="jobId"?dzT("studio.import.rendu"):"image ")+m.valeur)})}
+  if(warn.length){if(l.length)l.push("");l.push(dzT("studio.import.aretes_jetees"));
     warn.forEach(function(w){l.push("• "+w)})}
   return l.join("\n")}
 function DzImportGraph({graph,onOpen}){
   var rf=x.useRef(null);
-  function dire(m,t){return window.__dzDialogue.informer(m,{titre:t||"Importer un graphe"})}
+  function dire(m,t){return window.__dzDialogue.informer(m,{titre:t||dzT("studio.import.titre")})}
   async function lire(f){
     if(!f)return;
-    if(f.size>5e6){await dire("Fichier trop gros pour un graphe Studio ("+Math.round(f.size/1e6)+" Mo).");return}
-    var g;try{g=JSON.parse(await f.text())}catch(e){await dire("« "+f.name+" » n’est pas du JSON valide : "+String(e&&e.message||e));return}
+    if(f.size>5e6){await dire(dzT("studio.import.trop_gros",{mo:Math.round(f.size/1e6)}));return}
+    var g;try{g=JSON.parse(await f.text())}catch(e){await dire(dzT("studio.import.json_invalide",{nom:f.name,e:String(e&&e.message||e)}));return}
     var R,d;
     try{R=await fetch("/api/studio-graphs/import",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({graph:g})});
       d=await R.json().catch(function(){return{}})}
-    catch(e){await dire("Le serveur ne répond pas : "+String(e&&e.message||e));return}
-    if(!R.ok){await dire(String(d&&d.detail||"Import refusé ("+R.status+")."),"Import refusé");return}
+    catch(e){await dire(dzT("studio.import.serveur_muet",{e:String(e&&e.message||e)}));return}
+    if(!R.ok){await dire(String(d&&d.detail||dzT("studio.import.refuse_code",{code:R.status})),dzT("studio.import.refuse"));return}
     var n=graph&&Array.isArray(graph.nodes)?graph.nodes.length:0;
-    if(n&&!(await window.__dzDialogue.confirmer("Le graphe importé « "+d.graph.name+" » ("+d.graph.nodes.length+" nœuds) remplacera le graphe ouvert « "
-      +(graph.name||"sans nom")+" » ("+n+" nœuds) : ce qui n’est pas enregistré sera perdu.",{titre:"Importer un graphe",ok:"Remplacer"})))return;
+    if(n&&!(await window.__dzDialogue.confirmer(dzT("studio.import.remplacer_confirm",{nom:d.graph.name,n:d.graph.nodes.length,ouvert:graph.name||dzT("studio.import.sans_nom"),m:n}),{titre:dzT("studio.import.titre"),ok:dzT("studio.import.remplacer")})))return;
     onOpen(d.graph);
     var l=dzImpListe(d);
-    if(l)await dire(l+"\n\nLe graphe n’est pas enregistré : « Save » le garde.","Graphe importé — à reprendre")}
+    if(l)await dire(l+dzT("studio.import.non_enregistre"),dzT("studio.import.importe_titre"))}
   return r.jsxs(r.Fragment,{children:[
     r.jsx("input",{ref:rf,type:"file",accept:"application/json,.json",style:{display:"none"},
       onChange:function(ev){var f=ev.target.files&&ev.target.files[0];ev.target.value="";lire(f)}}),
-    r.jsx(K,{variant:"outline",size:"sm",icon:"upload",title:"Importer un graphe (.json exporté du Studio) — validé par le serveur, ouvert sans être enregistré",
-      "aria-label":"Importer un graphe",onClick:function(){rf.current&&rf.current.click()},children:"Importer"})]})}
+    r.jsx(K,{variant:"outline",size:"sm",icon:"upload",title:dzT("studio.import.bouton_aide"),
+      "aria-label":dzT("studio.import.titre"),onClick:function(){rf.current&&rf.current.click()},children:dzT("studio.import.bouton")})]})}
 /* Tâche #70 (plan-studio T8, 02/10/2026) — le tiroir de résultat du Studio se PARCOURT image par image. La cadence est
    LUE dans le fichier rendu (GET /api/jobs/{id}/media, ffprobe) : le nœud Render n'est pas lu par le compilateur, et un
    clip Seedance ou HeyGen garde sa cadence d'origine ; illisible, 30 i/s et la raison sont dits. Lecture automatique à
@@ -9538,7 +9537,7 @@ function DzScrub({jobId}){
     if(ev.key===","){ev.preventDefault();pasRef.current(-1)}else if(ev.key==="."){ev.preventDefault();pasRef.current(1)}}
     window.addEventListener("keydown",onk);return function(){window.removeEventListener("keydown",onk)}},[]);
   var idx=dzScrubIndex(s.t,F,N);
-  var cad=meta?(meta.source==="fichier"?F+" i/s (lue dans le fichier)":"30 i/s (cadence non lue : "+(meta.raison||"inconnue")+")"):"cadence…";
+  var cad=meta?(meta.source==="fichier"?dzT("studio.scrub.cadence_lue",{fps:F}):dzT("studio.scrub.cadence_defaut",{raison:meta.raison||dzT("studio.scrub.inconnue")})):dzT("studio.scrub.cadence_attente");
   return r.jsxs("div",{className:"dz-scrub",children:[
     r.jsx("video",{ref:vr,src:D.jobVideoUrl(jobId),controls:!0,autoPlay:!0,preload:"metadata",
       onLoadedMetadata:function(ev){setS({d:ev.target.duration||0,t:ev.target.currentTime||0})},
@@ -9546,14 +9545,14 @@ function DzScrub({jobId}){
       onSeeked:function(ev){setS({d:ev.target.duration||0,t:ev.target.currentTime||0})},
       style:{width:"100%",borderRadius:8,background:"#000",border:"1px solid var(--stroke-strong)"}}),
     r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:6,marginTop:8},children:[
-      r.jsx(K,{variant:"outline",size:"sm",title:"Image précédente (« , ») — met en pause",onClick:function(){pas(-1)},children:"‹"}),
-      r.jsx("input",{type:"range",min:0,max:Math.max(0,N-1),step:1,value:idx,title:"Parcourir image par image (← → : une image)",
-        "aria-label":"Position en images",onChange:function(ev){pose(Number(ev.target.value))},style:{flex:1,accentColor:"var(--cyan)"}}),
-      r.jsx(K,{variant:"outline",size:"sm",title:"Image suivante (« . ») — met en pause",onClick:function(){pas(1)},children:"›"}),
+      r.jsx(K,{variant:"outline",size:"sm",title:dzT("studio.scrub.precedente"),onClick:function(){pas(-1)},children:"‹"}),
+      r.jsx("input",{type:"range",min:0,max:Math.max(0,N-1),step:1,value:idx,title:dzT("studio.scrub.reglette"),
+        "aria-label":dzT("studio.scrub.position"),onChange:function(ev){pose(Number(ev.target.value))},style:{flex:1,accentColor:"var(--cyan)"}}),
+      r.jsx(K,{variant:"outline",size:"sm",title:dzT("studio.scrub.suivante"),onClick:function(){pas(1)},children:"›"}),
       r.jsx("span",{className:"mono",style:{fontSize:10.5,color:"var(--ink-soft)",minWidth:84,textAlign:"right"},
         children:"f "+(idx+1)+" / "+N})]}),
     r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-muted)",marginTop:4},
-      children:"« , » et « . » : une image en arrière / en avant · ← → sur la réglette · "+cad})]})}
+      children:dzT("studio.scrub.aide")+cad})]})}
 /* Tâche #71 PR A (plan-studio T9-T10, 03/10/2026) — figer un graphe en RECETTE. La capture compile le graphe (Mh) et
    arrête renderLayoutTemplate APRÈS la préparation des épingles (repli dans P7pin3) : elle rend la requête au lieu de
    l'envoyer — slots, épingles et node_id compris, pour que les nœuds inchangés soient réemployés gratuitement au
@@ -9563,21 +9562,21 @@ function DzScrub({jobId}){
    textes) ; le lancement, devis confirmé, est dans « Envoyer vers » de la Bibliothèque (PR C). */
 function dzRecRefus(g){
   var ns=g&&Array.isArray(g.nodes)?g.nodes:[];
-  if(!ns.length)return"Le graphe est vide : rien à figer.";
+  if(!ns.length)return dzT("studio.recette.vide");
   var ugc=ns.some(function(n){return n&&n.type==="Upload"&&n.props&&n.props.jobId});
-  if(!ugc&&ns.some(function(n){return n&&n.type==="Animation"}))return"Un graphe avec un nœud Animation part par son propre rendu : il ne se fige pas en recette.";
-  if(!dzPinRendu(g))return"Une recette se fait d’un graphe composé (Spatial compose, Concatenate, ou une vidéo UGC). Un Seedance seul ou un avatar seul part directement chez le fournisseur : il n’y a rien à figer.";
+  if(!ugc&&ns.some(function(n){return n&&n.type==="Animation"}))return dzT("studio.recette.refus_animation");
+  if(!dzPinRendu(g))return dzT("studio.recette.refus_direct");
   return""}
 function dzRecVerrou(f0){
   return function(u,o){var m=String(o&&o.method||"GET").toUpperCase(),url=String(u&&u.url||u);
     if(m==="GET"||/\/studio\/pins\/verifier$/.test(url))return f0.apply(this,arguments);
-    return Promise.reject(new Error("Capture : requête bloquée ("+m+" "+url+") — rien ne part pendant une capture."))}}
+    return Promise.reject(new Error(dzT("studio.recette.requete_bloquee",{methode:m,url:url})))}}
 async function dzRecCapturer(g){
   var why=dzRecRefus(g);if(why)throw new Error(why);
-  var R=Mh(g);if(!R||!R.ok)throw new Error((R&&R.error)||"Compilation impossible.");
+  var R=Mh(g);if(!R||!R.ok)throw new Error((R&&R.error)||dzT("studio.recette.compilation_impossible"));
   var f0=window.fetch,out;window.fetch=dzRecVerrou(f0);window.__dzCapture=!0;
   try{out=await R.run()}finally{window.__dzCapture=!1;window.fetch=f0}
-  if(!out||!out.captured)throw new Error((out&&out.error)||"La compilation n’a pas pu être figée.");
+  if(!out||!out.captured)throw new Error((out&&out.error)||dzT("studio.recette.non_figee"));
   return out.captured}
 function DzRecetteBtn({graph,setGraph,dire}){
   var bs=x.useState(!1),busy=bs[0],setB=bs[1];
@@ -9585,21 +9584,21 @@ function DzRecetteBtn({graph,setGraph,dire}){
     if(busy)return;setB(!0);
     try{
       var cap=await dzRecCapturer(graph);
-      var nm=await window.__dzDialogue.saisir("Nom de la recette (le graphe est enregistré avec elle) :",
-        {titre:"Figer en recette",valeur:graph.name||"Ma recette",ok:"Enregistrer"});
+      var nm=await window.__dzDialogue.saisir(dzT("studio.recette.nom_invite"),
+        {titre:dzT("studio.recette.figer"),valeur:graph.name||"Ma recette",ok:dzT("studio.recette.enregistrer")});
       if(nm==null)return;
       var R=await fetch("/api/studio-graphs",{method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({id:graph.id||void 0,name:(nm||"Ma recette").trim(),graph:graph,recette:cap})});
       var d=await R.json().catch(function(){return{}});
-      if(!R.ok){await window.__dzDialogue.informer(String(d&&d.detail||"Recette refusée ("+R.status+")."),{titre:"Recette refusée"});return}
+      if(!R.ok){await window.__dzDialogue.informer(String(d&&d.detail||dzT("studio.recette.refusee_code",{code:R.status})),{titre:dzT("studio.recette.refusee")});return}
       setGraph(function(G){return Object.assign({},G,{id:d.id,name:d.name})});
       window.dispatchEvent(new Event("dz-graphs-changed"));
-      dire("Recette « "+d.name+" » : "+(d.trous||0)+" source(s) remplaçable(s) — à lancer depuis la Bibliothèque (Envoyer vers…).")}
-    catch(E){await window.__dzDialogue.informer(String(E&&E.message||E),{titre:"Recette impossible"})}
+      dire(dzT("studio.recette.figee",{nom:d.name,n:d.trous||0}))}
+    catch(E){await window.__dzDialogue.informer(String(E&&E.message||E),{titre:dzT("studio.recette.impossible")})}
     finally{setB(!1)}}
-  return r.jsx(K,{variant:"outline",size:"sm",icon:"check",disabled:busy,"aria-label":"Figer en recette",
-    title:"Figer ce graphe en recette : la compilation est gardée telle quelle, seules ses images et ses textes changeront au lancement (rien n’est généré ici)",
-    onClick:figer,children:busy?"Capture…":"Recette"})}
+  return r.jsx(K,{variant:"outline",size:"sm",icon:"check",disabled:busy,"aria-label":dzT("studio.recette.figer"),
+    title:dzT("studio.recette.figer_aide"),
+    onClick:figer,children:busy?dzT("studio.recette.capture"):dzT("studio.recette.bouton")})}
 /* Tâche #71 PR B (plan-studio T11, 03/10/2026) — le DUEL DE MOTEURS sur un nœud Image gen : le même prompt, au même
    cadre, part chez deux modèles EN PARALLÈLE ; les deux images s'affichent côte à côte avec leur coût estimé et leur
    durée mesurée ; « Garder » fait de l'une l'image du nœud. Décisions de l'utilisateur (03/10) : Image gen seulement
@@ -9624,46 +9623,44 @@ function DzDuelPanel({node,graph,onUpdate}){
   var A=dzDuelChampion(p,mm),B=String(p.duelModel||""),prompt=dzDuelPrompt(graph,node);
   async function lancer(){
     if(busy||vol.current)return;
-    if(!prompt){setMsg("Branche un nœud Prompt/Text, ou écris un prompt dans le panneau Image gen.");return}
-    if(!B||B===A){setMsg("Choisis un challenger différent du champion.");return}
+    if(!prompt){setMsg(dzT("studio.duel.sans_prompt"));return}
+    if(!B||B===A){setMsg(dzT("studio.duel.challenger"));return}
     vol.current=!0;setB(!0);setMsg("");
     try{
       var E=await fetch("/api/cost/estimate",{method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({kind:"campaign",ops:[{kind:"image",model:A,n:1},{kind:"image",model:B,n:1}]})});
       var est=E.ok?await E.json():null;
-      if(!est||!isFinite(est.total_usd)){setMsg("Devis impossible : le duel ne part pas.");return}
+      if(!est||!isFinite(est.total_usd)){setMsg(dzT("studio.duel.devis_impossible"));return}
       var ua=dzDuelUsd(est,0),ub=dzDuelUsd(est,1);
-      var ok=await window.__dzDialogue.confirmer("Duel : « "+dzDuelLabel(mm,A)+" » ≈ $"+(ua==null?"?":ua.toFixed(3))+" contre « "
-        +dzDuelLabel(mm,B)+" » ≈ $"+(ub==null?"?":ub.toFixed(3))+". Les DEUX images sont payées : ≈ $"+Number(est.total_usd).toFixed(3)
-        +" au total. La perdante reste dans la Bibliothèque.",{titre:"Duel de moteurs",ok:"Lancer le duel"});
+      var ok=await window.__dzDialogue.confirmer(dzT("studio.duel.confirmer",{a:dzDuelLabel(mm,A),ua:(ua==null?"?":ua.toFixed(3)),b:dzDuelLabel(mm,B),ub:(ub==null?"?":ub.toFixed(3)),total:Number(est.total_usd).toFixed(3)}),{titre:dzT("studio.duel.titre"),ok:dzT("studio.duel.lancer")});
       if(!ok)return;
-      setRes(null);setMsg("Duel en cours…");
+      setRes(null);setMsg(dzT("studio.duel.en_cours"));
       var size=p.size||"portrait_16_9";
       function tir(m,usd){var t0=performance.now();
         return D.generateImage(prompt,1,size,m).then(function(d){var f=d&&d.images&&d.images[0];
-          return{model:m,usd:usd,s:(performance.now()-t0)/1000,file:f||null,err:f?null:String((d&&d.error)||"génération échouée").slice(0,160)}},
+          return{model:m,usd:usd,s:(performance.now()-t0)/1000,file:f||null,err:f?null:String((d&&d.error)||dzT("studio.duel.generation_echouee")).slice(0,160)}},
           function(e){return{model:m,usd:usd,s:(performance.now()-t0)/1000,file:null,err:String(e&&e.message||e).slice(0,160)}})}
       var out=await Promise.all([tir(A,ua),tir(B,ub)]);
-      setRes(out);setMsg(out.every(function(o){return o.file})?"Choisis le gagnant : son image devient celle du nœud.":"Un des tirs a échoué : son erreur est dite sur sa carte.")}
-    catch(e){setMsg("Duel interrompu : "+String(e&&e.message||e).slice(0,160))}
+      setRes(out);setMsg(out.every(function(o){return o.file})?dzT("studio.duel.choisir"):dzT("studio.duel.un_echec"))}
+    catch(e){setMsg(dzT("studio.duel.interrompu",{e:String(e&&e.message||e).slice(0,160)}))}
     finally{vol.current=!1;setB(!1)}}
-  function garder(o){onUpdate({filename:o.file});setMsg("« "+dzDuelLabel(mm,o.model)+" » gagne : son image est celle du nœud. L’autre reste dans la Bibliothèque.")}
+  function garder(o){onUpdate({filename:o.file});setMsg(dzT("studio.duel.gagne",{nom:dzDuelLabel(mm,o.model)}))}
   var box={padding:"10px 14px",borderBottom:"1px solid var(--stroke)",fontSize:11,lineHeight:1.45};
   return r.jsxs("div",{className:"dz-duel",style:box,children:[
-    r.jsx("div",{style:{color:"var(--ink-soft)",marginBottom:6},children:"⚔ Duel de moteurs — champion : « "+dzDuelLabel(mm,A)+" »"}),
+    r.jsx("div",{style:{color:"var(--ink-soft)",marginBottom:6},children:dzT("studio.duel.champion",{nom:dzDuelLabel(mm,A)})}),
     r.jsx("div",{style:{marginBottom:6},children:r.jsx(DzImgModelSel,{value:B,onChange:function(v){onUpdate({duelModel:v})}})}),
     r.jsx(K,{variant:"outline",size:"sm",icon:"sparkle",disabled:busy||!B||B===A,onClick:lancer,
-      title:"Même prompt, même cadre, deux modèles en parallèle — les DEUX images sont payées (coût annoncé et confirmé avant le tir)",
-      children:busy?"Duel…":"Lancer le duel"}),
+      title:dzT("studio.duel.lancer_aide"),
+      children:busy?dzT("studio.duel.bref"):dzT("studio.duel.lancer")}),
     res?r.jsx("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:8},children:res.map(function(o,ix){
       return r.jsxs("div",{className:"dz-duel-carte",style:{border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",padding:6,background:"var(--bg-base)"},children:[
         o.file?r.jsx("img",{src:D.imageUrl(o.file),alt:o.file,style:{width:"100%",aspectRatio:"9 / 16",objectFit:"contain",background:"#02060d",borderRadius:4}})
-          :r.jsx("div",{style:{color:"var(--red)",fontSize:10.5},children:"Échec : "+o.err}),
+          :r.jsx("div",{style:{color:"var(--red)",fontSize:10.5},children:dzT("studio.duel.echec",{e:o.err})}),
         r.jsx("div",{style:{fontWeight:600,marginTop:4,color:"var(--ink-strong)"},children:dzDuelLabel(mm,o.model)}),
         r.jsx("div",{className:"mono",style:{fontSize:10,color:"var(--ink-muted)"},children:"≈ $"+(o.usd==null?"?":o.usd.toFixed(3))+" · "+o.s.toFixed(1)+" s"}),
         o.file?r.jsx(K,{variant:"outline",size:"sm",onClick:function(){garder(o)},
-          title:"Ce modèle gagne : son image devient celle du nœud ; l’autre reste dans la Bibliothèque",children:"Garder"}):null]},"d"+ix)})}):null,
-    r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-muted)",marginTop:6},children:msg||"Coût : estimation des tarifs des Réglages. Durée : mesurée ici."})]})}
+          title:dzT("studio.duel.garder_aide"),children:dzT("studio.duel.garder")}):null]},"d"+ix)})}):null,
+    r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-muted)",marginTop:6},children:msg||dzT("studio.duel.pied")})]})}
 /* Tâche #71 PR C (plan-studio T12, 03/10/2026) — « Envoyer vers… » de la Bibliothèque : (1) sur un RENDU, « Studio —
    nouveau graphe » ouvre un graphe neuf Existing render → Render, à la DURÉE RÉELLE du rendu (sans elle, le nœud
    prendrait les 18,4 s du registre) — distinct de « Rouvrir dans Studio » qui recharge le graphe source ; (2) sur une
@@ -9830,34 +9827,34 @@ function DzReflowBar({tpl,onSaved}){
   function voir(f){agir(async function(){
     var R=await fetch("/api/layout-templates/"+encodeURIComponent(tpl.id)+"/reflow?format="+encodeURIComponent(f));
     var d=await R.json().catch(function(){return{}});
-    if(!R.ok){setMsg(String(d.detail||("Aperçu impossible (HTTP "+R.status+").")));return}
+    if(!R.ok){setMsg(String(d.detail||(dzT("templates.reagencer.apercu_impossible",{n:R.status}))));return}
     setA({f:f,d:d})})}
   function garder(){agir(async function(){if(!apercu)return;
     var R=await fetch("/api/layout-templates/"+encodeURIComponent(tpl.id)+"/reflow",{method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({format:apercu.f})});
     var d=await R.json().catch(function(){return{}});
-    if(!R.ok){setMsg(String(d.detail||("Enregistrement refusé (HTTP "+R.status+").")));return}
-    setA(null);setMsg("Copie « "+d.name+" » créée.");onSaved&&onSaved(d.template_id)})}
+    if(!R.ok){setMsg(String(d.detail||(dzT("templates.reagencer.refuse",{n:R.status}))));return}
+    setA(null);setMsg(dzT("templates.reagencer.copie_creee",{nom:d.name}));onSaved&&onSaved(d.template_id)})}
   var av=apercu&&apercu.d&&Array.isArray(apercu.d.warnings)?apercu.d.warnings:[],t2=apercu&&apercu.d&&apercu.d.template;
   function colonne(titre,tp){return r.jsxs("div",{style:{display:"flex",flexDirection:"column",alignItems:"center",gap:6},children:[
     r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)"},children:titre}),
     r.jsx("div",{style:{width:256,height:148,display:"flex",alignItems:"center",justifyContent:"center",background:"var(--bg-base)",borderRadius:6},
       children:r.jsx(gm,{id:tp.id||"apercu",regions:tp.regions||[],canvas:tp.canvas})})]})}
   return r.jsxs("div",{className:"dz-reflow",style:{display:"flex",gap:4,alignItems:"center"},children:[
-    r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)"},children:"Rejouer en :"}),
+    r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)"},children:dzT("templates.reagencer.rejouer_en")}),
     cibles.map(function(f){return r.jsx(K,{variant:"outline",size:"sm",disabled:busy,onClick:function(){voir(f)},
-      title:"Réagencer « "+nom+" » en "+f+" : aperçu d’abord ; une COPIE est enregistrée, le gabarit d’origine ne change pas",children:f},f)}),
+      title:dzT("templates.reagencer.bouton_aide",{nom:nom,f:f}),children:f},f)}),
     msg?r.jsx("span",{style:{fontSize:10.5,color:"var(--ink-soft)",maxWidth:260},children:msg}):null,
     apercu&&t2?r.jsx("div",{className:"dz-reflow-apercu",onClick:function(e){if(e.target===e.currentTarget)setA(null)},
       style:{position:"fixed",inset:0,background:"rgba(4,6,10,.6)",zIndex:9400,display:"flex",alignItems:"center",justifyContent:"center"},
       children:r.jsxs("div",{style:{background:"var(--bg-panel)",border:"1px solid var(--stroke)",borderRadius:12,padding:16,maxWidth:620,boxShadow:"0 18px 60px rgba(0,0,0,.55)"},children:[
-        r.jsx("div",{style:{fontWeight:600,color:"var(--ink-strong)",marginBottom:10},children:"Réagencer « "+nom+" » en "+apercu.f}),
-        r.jsxs("div",{style:{display:"flex",gap:16,justifyContent:"center"},children:[colonne("Avant ("+(fmt||"?")+")",tpl),colonne("Après ("+apercu.f+")",t2)]}),
+        r.jsx("div",{style:{fontWeight:600,color:"var(--ink-strong)",marginBottom:10},children:dzT("templates.reagencer.titre",{nom:nom,f:apercu.f})}),
+        r.jsxs("div",{style:{display:"flex",gap:16,justifyContent:"center"},children:[colonne(dzT("templates.reagencer.avant",{f:fmt||"?"}),tpl),colonne(dzT("templates.reagencer.apres",{f:apercu.f}),t2)]}),
         r.jsx("div",{className:"dz-reflow-avert",style:{marginTop:12,fontSize:11.5,lineHeight:1.45,color:av.length?"var(--amber)":"var(--ink-soft)"},
-          children:av.length?av.map(function(w,i){return r.jsx("div",{children:"⚠ "+w},"w"+i)}):"Aucun avertissement : les cases suivent la toile, les éléments gardent leurs proportions."}),
+          children:av.length?av.map(function(w,i){return r.jsx("div",{children:"⚠ "+w},"w"+i)}):dzT("templates.reagencer.aucun_avertissement")}),
         r.jsxs("div",{style:{display:"flex",gap:8,justifyContent:"flex-end",marginTop:14},children:[
-          r.jsx(K,{variant:"ghost",size:"sm",disabled:busy,onClick:function(){setA(null)},title:"Fermer l’aperçu sans rien enregistrer",children:"Annuler"}),
-          r.jsx(K,{variant:"primary",size:"sm",disabled:busy,onClick:garder,title:"Enregistrer cette version "+apercu.f+" comme NOUVEAU gabarit (le gabarit d’origine reste tel quel)",children:"Enregistrer la copie"})]})]})}):null]})}
+          r.jsx(K,{variant:"ghost",size:"sm",disabled:busy,onClick:function(){setA(null)},title:dzT("templates.reagencer.fermer_aide"),children:dzT("templates.reagencer.annuler")}),
+          r.jsx(K,{variant:"primary",size:"sm",disabled:busy,onClick:garder,title:dzT("templates.reagencer.enregistrer_aide",{f:apercu.f}),children:dzT("templates.reagencer.enregistrer_copie")})]})]})}):null]})}
 /* Tâche #74 PR B (plan-templates T3, 03/10/2026) — MASQUES dans l'éditeur de gabarit. Section « Masque » de
    l'inspecteur des cases vidéo et image : forme (coins arrondis, ellipse, polygone), rayon, bord adouci, liseré
    (épaisseur et couleur), fenêtres ajourées (rectangle ou ellipse, en % de la case), et pour le polygone un ÉDITEUR DE
@@ -9906,26 +9903,26 @@ function DzMaskEditor({rg,upd}){
   var trous=m&&Array.isArray(m.holes)?m.holes:[],forme=m&&m.shape||"rounded",bord=Math.max(1,Math.round(Math.min(rg.width||100,rg.height||100)/2));
   function majTrou(i,pt){var q=trous.map(function(t,k){return k===i?Object.assign({},t,pt):t});maj({holes:q})}
   return r.jsxs("div",{className:"dz-masque",style:{marginTop:10,paddingTop:10,borderTop:"1px solid var(--stroke)"},children:[
-    r.jsx(O,{children:r.jsx(Ze,{checked:!!m,onChange:function(on){upd({mask:on?{shape:"rounded",radius:Math.min(40,bord)}:null})},label:"Masque (forme de la case)"})}),
+    r.jsx(O,{children:r.jsx(Ze,{checked:!!m,onChange:function(on){upd({mask:on?{shape:"rounded",radius:Math.min(40,bord)}:null})},label:dzT("templates.masque.activer")})}),
     m?r.jsxs(r.Fragment,{children:[
-      r.jsx(O,{label:"Forme",children:r.jsx(re,{value:forme,onChange:function(v){maj(v==="polygon"&&!(m.points&&m.points.length>=3)?{shape:v,points:DZ_MASQUE_MODELES.hexagone}:{shape:v})},
-        options:[{value:"rounded",label:"Coins arrondis"},{value:"ellipse",label:"Ellipse / cercle"},{value:"polygon",label:"Polygone"}]})}),
-      forme==="rounded"?r.jsx(O,{children:r.jsx(Oe,{label:"Rayon des coins",unit:" px",value:Number(m.radius)||0,min:0,max:bord,step:1,onChange:function(v){maj({radius:v})}})}):null,
-      forme==="polygon"?r.jsxs(O,{label:"Points (glisser · clic : ajouter · double-clic : retirer)",children:[
+      r.jsx(O,{label:dzT("templates.masque.forme"),children:r.jsx(re,{value:forme,onChange:function(v){maj(v==="polygon"&&!(m.points&&m.points.length>=3)?{shape:v,points:DZ_MASQUE_MODELES.hexagone}:{shape:v})},
+        options:[{value:"rounded",label:dzT("templates.masque.coins_arrondis")},{value:"ellipse",label:dzT("templates.masque.ellipse")},{value:"polygon",label:dzT("templates.masque.polygone")}]})}),
+      forme==="rounded"?r.jsx(O,{children:r.jsx(Oe,{label:dzT("templates.masque.rayon_coins"),unit:" px",value:Number(m.radius)||0,min:0,max:bord,step:1,onChange:function(v){maj({radius:v})}})}):null,
+      forme==="polygon"?r.jsxs(O,{label:dzT("templates.masque.points"),children:[
         r.jsx(DzPointsEditeur,{pts:m.points||DZ_MASQUE_MODELES.hexagone,ratio:(rg.width||1)/(rg.height||1),onChange:function(q){maj({points:q})}}),
-        r.jsx("div",{style:{display:"flex",gap:4,flexWrap:"wrap",marginTop:4},children:[["triangle","Triangle"],["losange","Losange"],["hexagone","Hexagone"],["etoile","Étoile"]].map(function(z){
-          return r.jsx(K,{variant:"ghost",size:"sm",title:"Remplacer les points par le modèle « "+z[1]+" »",onClick:function(){maj({points:DZ_MASQUE_MODELES[z[0]]})},children:z[1]},z[0])})})]}):null,
-      r.jsx(O,{children:r.jsx(Oe,{label:"Bord adouci",unit:" px",value:Number(m.feather_px)||0,min:0,max:100,step:1,onChange:function(v){maj({feather_px:v})}})}),
-      r.jsx(O,{children:r.jsx(Oe,{label:"Liseré",unit:" px",value:Number(m.border_px)||0,min:0,max:40,step:1,onChange:function(v){maj({border_px:v})}})}),
-      Number(m.border_px)>0?r.jsx(O,{label:"Couleur du liseré",children:r.jsx(DzColorPicker,{value:m.border_color||"#ffffff",onChange:function(c){maj({border_color:c})}})}):null,
-      r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)",margin:"8px 0 4px"},children:"Fenêtres ajourées (en % de la case) — le fond se voit au travers"}),
+        r.jsx("div",{style:{display:"flex",gap:4,flexWrap:"wrap",marginTop:4},children:[["triangle",dzT("templates.masque.triangle")],["losange",dzT("templates.masque.losange")],["hexagone",dzT("templates.masque.hexagone")],["etoile",dzT("templates.masque.etoile")]].map(function(z){
+          return r.jsx(K,{variant:"ghost",size:"sm",title:dzT("templates.masque.modele_aide",{nom:z[1]}),onClick:function(){maj({points:DZ_MASQUE_MODELES[z[0]]})},children:z[1]},z[0])})})]}):null,
+      r.jsx(O,{children:r.jsx(Oe,{label:dzT("templates.masque.bord_adouci"),unit:" px",value:Number(m.feather_px)||0,min:0,max:100,step:1,onChange:function(v){maj({feather_px:v})}})}),
+      r.jsx(O,{children:r.jsx(Oe,{label:dzT("templates.masque.lisere"),unit:" px",value:Number(m.border_px)||0,min:0,max:40,step:1,onChange:function(v){maj({border_px:v})}})}),
+      Number(m.border_px)>0?r.jsx(O,{label:dzT("templates.masque.couleur_lisere"),children:r.jsx(DzColorPicker,{value:m.border_color||"#ffffff",onChange:function(c){maj({border_color:c})}})}):null,
+      r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)",margin:"8px 0 4px"},children:dzT("templates.masque.fenetres")}),
       trous.map(function(t,i){return r.jsxs("div",{className:"dz-trou",style:{display:"grid",gridTemplateColumns:"70px repeat(4,minmax(0,1fr)) 24px",gap:4,alignItems:"center",marginBottom:4},children:[
-        r.jsx(re,{value:t.shape||"rect",onChange:function(v){majTrou(i,{shape:v})},options:[{value:"rect",label:"Rect."},{value:"ellipse",label:"Ellipse"}]}),
+        r.jsx(re,{value:t.shape||"rect",onChange:function(v){majTrou(i,{shape:v})},options:[{value:"rect",label:dzT("templates.masque.rect")},{value:"ellipse",label:dzT("templates.masque.ellipse_trou")}]}),
         ["x","y","width","height"].map(function(c){return r.jsx(le,{mono:!0,value:pct(t[c]),onChange:function(s){var pt={};pt[c]=frac(s);majTrou(i,pt)}},c)}),
-        r.jsx("button",{type:"button",title:"Retirer cette fenêtre",onClick:function(){maj({holes:trous.filter(function(_t,k){return k!==i})})},
+        r.jsx("button",{type:"button",title:dzT("templates.masque.retirer_fenetre"),onClick:function(){maj({holes:trous.filter(function(_t,k){return k!==i})})},
           style:{background:"transparent",border:0,color:"var(--red)",cursor:"pointer"},children:"✕"})]},"t"+i)}),
-      trous.length<16?r.jsx(K,{variant:"ghost",size:"sm",title:"Ajouter une fenêtre au centre de la case (rectangle de 30 %)",
-        onClick:function(){maj({holes:trous.concat([{shape:"rect",x:0.35,y:0.35,width:0.3,height:0.3}])})},children:"+ Fenêtre"}):null]}):null]})}
+      trous.length<16?r.jsx(K,{variant:"ghost",size:"sm",title:dzT("templates.masque.ajouter_fenetre_aide"),
+        onClick:function(){maj({holes:trous.concat([{shape:"rect",x:0.35,y:0.35,width:0.3,height:0.3}])})},children:dzT("templates.masque.ajouter_fenetre")}):null]}):null]})}
 /* Tâche #74 PR D (plan-templates T4, 03/10/2026) — TEXTE ADAPTATIF et EFFETS dans l'éditeur de gabarit. Section
    « Texte » de l'inspecteur des textes, sous-titres, badges et tickers : styles prêts à l'emploi (un clic, puis
    réglables), ajustement à la case (couper puis réduire, taille minimale ; jamais pour le ticker qui défile), contour,
@@ -9936,12 +9933,12 @@ var DZ_TEXTE_TYPES=["text","text_slot","badge","ticker"];
 var DZ_TEXTE_DEFAUTS={stroke:{px:4,color:"#000000"},shadow:{dx:3,dy:4,blur:0,color:"#000000",opacity:0.6},
   box:{color:"#000000",opacity:0.6,radius:0,pad:12},gradient:{c0:"#ffffff",c1:"#00e5ff",direction:"vertical"}};
 var DZ_TEXTE_STYLES=[
-  ["aucun","Aucun effet","Retirer tous les effets (le texte redevient celui d’origine, contour par défaut)",null,null],
-  ["soustitre","Sous-titre réseau","Contour noir épais et ombre nette, ajusté à la case : lisible sur toute image",
+  ["aucun",dzT("templates.styles.aucun"),dzT("templates.styles.aucun_aide"),null,null],
+  ["soustitre",dzT("templates.styles.soustitre"),dzT("templates.styles.soustitre_aide"),
     {stroke:{px:6,color:"#000000"},shadow:{dx:0,dy:4,blur:0,color:"#000000",opacity:0.6}},!0],
-  ["neon","Néon","Fin contour cyan et halo flou de la même couleur",{stroke:{px:2,color:"#00e5ff"},shadow:{dx:0,dy:0,blur:18,color:"#00e5ff",opacity:0.9}},null],
-  ["bandeau","Bandeau","Fond sombre à coins arrondis derrière le texte",{box:{color:"#0b1220",opacity:0.85,radius:18,pad:14}},null],
-  ["degrade","Titre dégradé","Dégradé jaune vers rose et ombre douce",{gradient:{c0:"#ffd400",c1:"#ff2a6d",direction:"vertical"},shadow:{dx:3,dy:5,blur:6,color:"#000000",opacity:0.7}},null]];
+  ["neon",dzT("templates.styles.neon"),dzT("templates.styles.neon_aide"),{stroke:{px:2,color:"#00e5ff"},shadow:{dx:0,dy:0,blur:18,color:"#00e5ff",opacity:0.9}},null],
+  ["bandeau",dzT("templates.styles.bandeau"),dzT("templates.styles.bandeau_aide"),{box:{color:"#0b1220",opacity:0.85,radius:18,pad:14}},null],
+  ["degrade",dzT("templates.styles.degrade"),dzT("templates.styles.degrade_aide"),{gradient:{c0:"#ffd400",c1:"#ff2a6d",direction:"vertical"},shadow:{dx:3,dy:5,blur:6,color:"#000000",opacity:0.7}},null]];
 function dzRgba(hex,a){var h=String(hex||"#000000").replace("#","");if(h.length!==6)h="000000";
   return "rgba("+parseInt(h.slice(0,2),16)+","+parseInt(h.slice(2,4),16)+","+parseInt(h.slice(4,6),16)+","+(a==null?1:a)+")"}
 function dzTexteApercu(j,face){
@@ -9974,9 +9971,9 @@ function DzTexteEditor({rg,upd}){
   function style(z){var pt={text_effects:z[3]?JSON.parse(JSON.stringify(z[3])):null};if(z[4]&&!defile&&!arc)pt.text_fit=!0;upd(pt)}
   function majArc(pt){upd({text_curve:pt===null?null:Object.assign({},arc||{radius:rayonMin,dir:"haut"},pt)})}
   var cle=JSON.stringify(rg);
-  async function exact(){if(vol.current)return;vol.current=!0;setMsg("Rendu de l’aperçu…");
+  async function exact(){if(vol.current)return;vol.current=!0;setMsg(dzT("templates.texte.rendu_apercu"));
     try{var R=await fetch("/api/layout-templates/apercu-texte",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({region:rg})});
-      if(!R.ok){var d=await R.json().catch(function(){return{}});setMsg(String(d.detail||("Aperçu impossible (HTTP "+R.status+").")));return}
+      if(!R.ok){var d=await R.json().catch(function(){return{}});setMsg(String(d.detail||(dzT("templates.texte.apercu_impossible",{n:R.status}))));return}
       var blob=await R.blob();if(ap&&ap.url)URL.revokeObjectURL(ap.url);setAp({url:URL.createObjectURL(blob),cle:cle});setMsg("")}
     catch(e){setMsg(String(e&&e.message||e))}finally{vol.current=!1}}
   function bascule(nom,lib){return r.jsx(O,{children:r.jsx(Ze,{checked:!!fx[nom],onChange:function(on){majFx(nom,on?{}:null)},label:lib})})}
@@ -9984,40 +9981,40 @@ function DzTexteEditor({rg,upd}){
     return r.jsx(O,{children:r.jsx(Oe,{label:lib,unit:unit||" px",value:v,min:min,max:max,step:step||1,onChange:function(v2){var pt={};pt[c]=v2;majFx(nom,pt)}})})}
   function teinte(nom,c,lib){return r.jsx(O,{label:lib,children:r.jsx(DzColorPicker,{value:fx[nom]&&fx[nom][c]||DZ_TEXTE_DEFAUTS[nom][c],onChange:function(v){var pt={};pt[c]=v;majFx(nom,pt)}})})}
   return r.jsxs("div",{className:"dz-texte",style:{marginTop:10,paddingTop:10,borderTop:"1px solid var(--stroke)"},children:[
-    r.jsx("div",{style:{fontSize:11.5,fontWeight:600,color:"var(--ink-strong)",marginBottom:6},children:"Texte : ajustement et effets"}),
+    r.jsx("div",{style:{fontSize:11.5,fontWeight:600,color:"var(--ink-strong)",marginBottom:6},children:dzT("templates.texte.titre")}),
     r.jsx("div",{className:"dz-texte-styles",style:{display:"flex",gap:4,flexWrap:"wrap",marginBottom:8},children:DZ_TEXTE_STYLES.map(function(z){
       return r.jsx(K,{variant:"ghost",size:"sm",title:z[2],onClick:function(){style(z)},children:z[1]},z[0])})}),
-    defile?r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)",marginBottom:6},children:"Le ticker défile : il n’est jamais ajusté à la case ; ses effets s’appliquent."})
-      :arc?r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)",marginBottom:6},children:"Sur un arc, le texte tient sur une ligne et se RÉDUIT s’il dépasse la case (pas de coupe en lignes)."})
-      :r.jsx(O,{children:r.jsx(Ze,{checked:!!rg.text_fit,onChange:function(on){upd({text_fit:on})},label:"Ajuster à la case (couper en lignes, puis réduire)"})}),
+    defile?r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)",marginBottom:6},children:dzT("templates.texte.ticker_aide")})
+      :arc?r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)",marginBottom:6},children:dzT("templates.texte.arc_aide")})
+      :r.jsx(O,{children:r.jsx(Ze,{checked:!!rg.text_fit,onChange:function(on){upd({text_fit:on})},label:dzT("templates.texte.ajuster")})}),
     arcable?r.jsx(O,{children:r.jsx(Ze,{checked:!!arc,onChange:function(on){if(on)upd({text_curve:{radius:rayonMin,dir:"haut"},text_fit:!1});else majArc(null)},
-      label:"Texte sur arc"})}):null,
+      label:dzT("templates.texte.arc")})}):null,
     arc?r.jsxs(r.Fragment,{children:[
-      r.jsx(O,{children:r.jsx(Oe,{label:"Rayon de l’arc",unit:" px",value:Number(arc.radius)||300,min:40,max:3000,step:10,onChange:function(v){majArc({radius:v})}})}),
-      r.jsx(O,{label:"Sens",children:r.jsx(re,{value:arc.dir||"haut",onChange:function(v){majArc({dir:v})},options:[{value:"haut",label:"Arche ∩"},{value:"bas",label:"Sourire ∪"}]})}),
-      deborde?r.jsx("div",{className:"dz-arc-deborde",style:{fontSize:10.5,color:"var(--amber)",marginBottom:4},children:"⚠ Avec ce rayon, l’arche est haute : le texte sera réduit pour tenir dans la case (rayon conseillé "+rayonMin+" px)."}):null,
-      r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-soft)",marginBottom:6},children:"La toile montre le texte droit ; « Aperçu exact » montre l’arc. Pour un tracé libre : Vectorlab (texte sur chemin), puis sticker."})]}):null,
-    !defile&&(arc||rg.text_fit)?r.jsx(O,{children:r.jsx(Oe,{label:"Taille minimale",unit:" px",value:Number(rg.text_min_size)||Math.min(12,taille),min:6,max:Math.max(6,Math.min(400,taille)),step:1,
+      r.jsx(O,{children:r.jsx(Oe,{label:dzT("templates.texte.rayon_arc"),unit:" px",value:Number(arc.radius)||300,min:40,max:3000,step:10,onChange:function(v){majArc({radius:v})}})}),
+      r.jsx(O,{label:dzT("templates.texte.sens"),children:r.jsx(re,{value:arc.dir||"haut",onChange:function(v){majArc({dir:v})},options:[{value:"haut",label:dzT("templates.texte.arche")},{value:"bas",label:dzT("templates.texte.sourire")}]})}),
+      deborde?r.jsx("div",{className:"dz-arc-deborde",style:{fontSize:10.5,color:"var(--amber)",marginBottom:4},children:dzT("templates.texte.arc_deborde",{n:rayonMin})}):null,
+      r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-soft)",marginBottom:6},children:dzT("templates.texte.arc_toile")})]}):null,
+    !defile&&(arc||rg.text_fit)?r.jsx(O,{children:r.jsx(Oe,{label:dzT("templates.texte.taille_min"),unit:" px",value:Number(rg.text_min_size)||Math.min(12,taille),min:6,max:Math.max(6,Math.min(400,taille)),step:1,
       onChange:function(v){upd({text_min_size:v})}})}):null,
-    bascule("stroke","Contour"),
-    fx.stroke?r.jsxs(r.Fragment,{children:[curseur("stroke","px","Épaisseur du contour",0,40),teinte("stroke","color","Couleur du contour")]}):null,
-    bascule("shadow","Ombre"),
-    fx.shadow?r.jsxs(r.Fragment,{children:[curseur("shadow","dx","Décalage horizontal",-50,50),curseur("shadow","dy","Décalage vertical",-50,50),
-      curseur("shadow","blur","Flou (0 = ombre nette)",0,60),curseur("shadow","opacity","Opacité",0,1,0.05," "),teinte("shadow","color","Couleur de l’ombre")]}):null,
-    bascule("box","Fond"),
-    fx.box?r.jsxs(r.Fragment,{children:[teinte("box","color","Couleur du fond"),curseur("box","opacity","Opacité du fond",0,1,0.05," "),
-      curseur("box","radius","Coins arrondis",0,100),curseur("box","pad","Marge intérieure",0,80)]}):null,
-    bascule("gradient","Dégradé"),
-    fx.gradient?r.jsxs(r.Fragment,{children:[teinte("gradient","c0","Couleur de départ"),teinte("gradient","c1","Couleur d’arrivée"),
-      r.jsx(O,{label:"Sens",children:r.jsx(re,{value:fx.gradient.direction||"vertical",onChange:function(v){majFx("gradient",{direction:v})},
-        options:[{value:"vertical",label:"De haut en bas"},{value:"horizontal",label:"De gauche à droite"}]})})]}):null,
+    bascule("stroke",dzT("templates.texte.contour")),
+    fx.stroke?r.jsxs(r.Fragment,{children:[curseur("stroke","px",dzT("templates.texte.epaisseur_contour"),0,40),teinte("stroke","color",dzT("templates.texte.couleur_contour"))]}):null,
+    bascule("shadow",dzT("templates.texte.ombre")),
+    fx.shadow?r.jsxs(r.Fragment,{children:[curseur("shadow","dx",dzT("templates.texte.decalage_h"),-50,50),curseur("shadow","dy",dzT("templates.texte.decalage_v"),-50,50),
+      curseur("shadow","blur",dzT("templates.texte.flou"),0,60),curseur("shadow","opacity",dzT("templates.texte.opacite"),0,1,0.05," "),teinte("shadow","color",dzT("templates.texte.couleur_ombre"))]}):null,
+    bascule("box",dzT("templates.texte.fond")),
+    fx.box?r.jsxs(r.Fragment,{children:[teinte("box","color",dzT("templates.texte.couleur_fond")),curseur("box","opacity",dzT("templates.texte.opacite_fond"),0,1,0.05," "),
+      curseur("box","radius",dzT("templates.texte.coins_arrondis"),0,100),curseur("box","pad",dzT("templates.texte.marge"),0,80)]}):null,
+    bascule("gradient",dzT("templates.texte.degrade")),
+    fx.gradient?r.jsxs(r.Fragment,{children:[teinte("gradient","c0",dzT("templates.texte.couleur_depart")),teinte("gradient","c1",dzT("templates.texte.couleur_arrivee")),
+      r.jsx(O,{label:dzT("templates.texte.sens"),children:r.jsx(re,{value:fx.gradient.direction||"vertical",onChange:function(v){majFx("gradient",{direction:v})},
+        options:[{value:"vertical",label:dzT("templates.texte.haut_bas")},{value:"horizontal",label:dzT("templates.texte.gauche_droite")}]})})]}):null,
     r.jsxs("div",{style:{display:"flex",gap:6,alignItems:"center",marginTop:8},children:[
-      r.jsx(K,{variant:"outline",size:"sm",onClick:exact,title:"Rendre UNE image de cette case avec le vrai moteur (ajustement, effets, encodage) — local et gratuit",children:"Aperçu exact"}),
+      r.jsx(K,{variant:"outline",size:"sm",onClick:exact,title:dzT("templates.texte.exact_aide"),children:dzT("templates.texte.exact")}),
       msg?r.jsx("span",{className:"dz-texte-msg",style:{fontSize:10.5,color:"var(--ink-soft)"},children:msg}):null]}),
     ap&&ap.url?r.jsxs("div",{className:"dz-texte-exact",style:{marginTop:6},children:[
-      r.jsx("img",{src:ap.url,alt:"Aperçu exact de la case",style:{maxWidth:"100%",maxHeight:220,display:"block",borderRadius:6,border:"1px solid var(--stroke)",background:"#101010"}}),
+      r.jsx("img",{src:ap.url,alt:dzT("templates.texte.exact_alt"),style:{maxWidth:"100%",maxHeight:220,display:"block",borderRadius:6,border:"1px solid var(--stroke)",background:"#101010"}}),
       r.jsx("div",{style:{fontSize:10.5,color:ap.cle===cle?"var(--ink-soft)":"var(--amber)",marginTop:3},
-        children:ap.cle===cle?"Rendu réel de la case (image fixe : sans pulsation).":"Réglages changés depuis cet aperçu : relancez « Aperçu exact »."})]}):null]})}
+        children:ap.cle===cle?dzT("templates.texte.rendu_reel"):dzT("templates.texte.perime")})]}):null]})}
 /* Tâche #75 PR B (plan-templates T5-T6, 03/10/2026) — IMAGE FIXE et VIGNETTES au contenu réel, à l'écran.
    Galerie : chaque carte superpose au schéma la VRAIE vignette du gabarit (rendue par le moteur, échantillons ou
    mire dans les cases), dès qu'elle est chargée ; le schéma reste en attendant ou en cas d'échec. Éditeur : « Exporter
@@ -10031,7 +10028,7 @@ function DzTplVignette({id,regions,canvas,children}){
   if(!id)return children;
   var src="/api/layout-templates/"+encodeURIComponent(id)+"/thumb?v="+dzHache(JSON.stringify([regions||[],canvas||{}]))+"."+__dzTplThumbV;
   return r.jsxs("div",{className:"dz-vignette",style:{position:"relative",display:"inline-block",lineHeight:0},children:[children,
-    r.jsx("img",{src:src,alt:"",loading:"lazy",title:"Aperçu réel (échantillons ou mire dans les cases)",onLoad:function(){setPret(src)},onError:function(){setPret("")},
+    r.jsx("img",{src:src,alt:"",loading:"lazy",title:dzT("templates.vignette.aide"),onLoad:function(){setPret(src)},onError:function(){setPret("")},
       style:{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",borderRadius:4,opacity:pret===src?1:0,transition:"opacity .2s"}})]})}
 function dzGabaritCourant(tpl,regs){
   return Object.assign({},tpl,{regions:(regs||[]).map(function(E){var O0=(tpl.regions||[]).find(function(z){return z.id===E.id})||{},EX={};
@@ -10041,20 +10038,20 @@ function DzExportImage({tpl,regs}){
   var is_=x.useState("1"),inst=is_[0],setInst=is_[1],fs=x.useState("png"),fmt=fs[0],setFmt=fs[1],ms=x.useState(""),msg=ms[0],setMsg=ms[1],vol=x.useRef(!1);
   if(!tpl)return null;
   async function exporter(){if(vol.current)return;var at=parseFloat(String(inst).replace(",","."));
-    if(!isFinite(at)||at<0){setMsg("Instant illisible : un nombre de secondes (ex. 1,5).");return}
-    vol.current=!0;setMsg("Rendu de l’image…");
+    if(!isFinite(at)||at<0){setMsg(dzT("templates.export.instant_illisible"));return}
+    vol.current=!0;setMsg(dzT("templates.export.rendu_image"));
     try{var R=await fetch("/api/layout-templates/"+encodeURIComponent(tpl.id||"_editeur")+"/render-image",{method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({template:dzGabaritCourant(tpl,regs),at_s:at,format:fmt})});
       var d=await R.json().catch(function(){return{}});
-      if(!R.ok){setMsg(String(d.detail||("Export impossible (HTTP "+R.status+").")));return}
-      setMsg("Ajoutée à la Bibliothèque : "+d.filename)}
+      if(!R.ok){setMsg(String(d.detail||(dzT("templates.export.impossible",{n:R.status}))));return}
+      setMsg(dzT("templates.export.ajoutee")+d.filename)}
     catch(e){setMsg(String(e&&e.message||e))}finally{vol.current=!1}}
   return r.jsxs("div",{className:"dz-export-image",style:{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap",marginTop:6},children:[
-    r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)"},children:"Image à"}),
-    r.jsx("div",{style:{width:56},title:"Instant de l’image, en secondes (1 s : un ticker est entré, une pulsation est pleine)",children:r.jsx(le,{mono:!0,value:inst,onChange:function(s){setInst(s)}})}),
+    r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)"},children:dzT("templates.export.image_a")}),
+    r.jsx("div",{style:{width:56},title:dzT("templates.export.instant_aide"),children:r.jsx(le,{mono:!0,value:inst,onChange:function(s){setInst(s)}})}),
     r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)"},children:"s"}),
-    r.jsx("div",{style:{width:86},title:"Format du fichier exporté",children:r.jsx(re,{value:fmt,onChange:function(v){setFmt(v)},options:[{value:"png",label:"PNG"},{value:"jpeg",label:"JPEG"},{value:"webp",label:"WebP"}]})}),
-    r.jsx(K,{variant:"outline",size:"sm",onClick:exporter,title:"Rendre UNE image du gabarit tel qu’il est à l’écran (même non enregistré) et l’ajouter à la Bibliothèque — local et gratuit",children:"Exporter l’image"}),
+    r.jsx("div",{style:{width:86},title:dzT("templates.export.format_aide"),children:r.jsx(re,{value:fmt,onChange:function(v){setFmt(v)},options:[{value:"png",label:"PNG"},{value:"jpeg",label:"JPEG"},{value:"webp",label:"WebP"}]})}),
+    r.jsx(K,{variant:"outline",size:"sm",onClick:exporter,title:dzT("templates.export.exporter_aide"),children:dzT("templates.export.exporter")}),
     msg?r.jsx("span",{className:"dz-export-msg",style:{fontSize:10.5,color:"var(--ink-soft)",flexBasis:"100%"},children:msg}):null]})}
 function DzEchantillon({rg,tpl,setTpl}){
   if(!rg||!rg.slot_name||(rg.type!=="video_slot"&&rg.type!=="image_slot"))return null;
@@ -10062,20 +10059,20 @@ function DzEchantillon({rg,tpl,setTpl}){
   function poser(v){__dzTplThumbV++;setTpl(function(A){if(!A)return A;var md=Object.assign({},A.metadata||{}),s=Object.assign({},md.samples||{});
     if(v)s[rg.slot_name]=v;else delete s[rg.slot_name];if(Object.keys(s).length)md.samples=s;else delete md.samples;return Object.assign({},A,{metadata:md})})}
   return r.jsxs("div",{className:"dz-echantillon",style:{marginTop:10,paddingTop:10,borderTop:"1px solid var(--stroke)"},children:[
-    r.jsx("div",{style:{fontSize:11.5,fontWeight:600,color:"var(--ink-strong)",marginBottom:4},children:"Échantillon d’aperçu"}),
-    r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-soft)",marginBottom:6},children:"Sert aux vignettes et à l’export d’image ; jamais au rendu vidéo. Sans échantillon : une mire au nom de la case."}),
+    r.jsx("div",{style:{fontSize:11.5,fontWeight:600,color:"var(--ink-strong)",marginBottom:4},children:dzT("templates.echantillon.titre")}),
+    r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-soft)",marginBottom:6},children:dzT("templates.echantillon.aide")}),
     r.jsxs("div",{style:{display:"flex",gap:6,alignItems:"center"},children:[
       nom?r.jsx("img",{src:"/api/images/"+encodeURIComponent(nom),alt:nom,title:nom,style:{width:48,height:48,objectFit:"cover",borderRadius:4,border:"1px solid var(--stroke)"}}):null,
-      r.jsx(K,{variant:"ghost",size:"sm",title:"Choisir l’image d’échantillon de « "+(rg.slot_label||rg.slot_name)+" » dans la Bibliothèque",
-        onClick:function(){window.__dzLibPicker({titre:"Échantillon d’aperçu — « "+(rg.slot_label||rg.slot_name)+" »"},function(fn){if(fn)poser(String(fn))})},children:nom?"Changer…":"Choisir…"}),
-      nom?r.jsx(K,{variant:"ghost",size:"sm",title:"Retirer l’échantillon : la case montrera une mire",onClick:function(){poser("")},children:"Retirer"}):null]})]})}
+      r.jsx(K,{variant:"ghost",size:"sm",title:dzT("templates.echantillon.choisir_aide",{nom:rg.slot_label||rg.slot_name}),
+        onClick:function(){window.__dzLibPicker({titre:dzT("templates.echantillon.picker_titre",{nom:rg.slot_label||rg.slot_name})},function(fn){if(fn)poser(String(fn))})},children:nom?dzT("templates.echantillon.changer"):dzT("templates.echantillon.choisir")}),
+      nom?r.jsx(K,{variant:"ghost",size:"sm",title:dzT("templates.echantillon.retirer_aide"),onClick:function(){poser("")},children:dzT("templates.echantillon.retirer")}):null]})]})}
 /* Tâche #76 PR B (plan-templates T9 / D2, 03/10/2026) — ANIMATIONS dans l'éditeur de gabarit. Section « Animation »
    de l'inspecteur de toute région visible : ENTRÉE et SORTIE (fondu, glissement dans un sens, pop), durée, délai,
    courbe (douce, linéaire, rebond). « Rejouer sur la toile » joue une approximation CSS sur la case ; l'image fixe et
    le rendu font foi. Décisions de l'utilisateur (03/10) : fondu, glissement, pop + courbes ; toutes les régions
    visibles. Les noms suivent le serveur : le glissement dit le SENS DU MOUVEMENT (« ← » entre par la droite). */
-var DZ_ANIM_TYPES=[["","Aucune"],["fade","Fondu"],["slide_left","Glissement ←"],["slide_right","Glissement →"],["slide_up","Glissement ↑"],["slide_down","Glissement ↓"],["pop","Pop"]];
-var DZ_ANIM_COURBES=[["ease_out","Douce"],["linear","Linéaire"],["back","Rebond"]];
+var DZ_ANIM_TYPES=[["",dzT("templates.animtypes.aucune")],["fade",dzT("templates.animtypes.fondu")],["slide_left",dzT("templates.animtypes.gauche")],["slide_right",dzT("templates.animtypes.droite")],["slide_up",dzT("templates.animtypes.haut")],["slide_down",dzT("templates.animtypes.bas")],["pop","Pop"]];
+var DZ_ANIM_COURBES=[["ease_out",dzT("templates.animcourbes.douce")],["linear",dzT("templates.animcourbes.lineaire")],["back",dzT("templates.animcourbes.rebond")]];
 var DZ_ANIM_VISIBLES=["video_slot","image_slot","text","text_slot","badge","ticker","sticker","separator","brand_strip","component"];
 var DZ_ANIM_CSS={ease_out:"cubic-bezier(0.33,1,0.68,1)",linear:"linear",back:"cubic-bezier(0.34,1.56,0.64,1)"};
 var __dzAnimJeu={id:null,n:0};
@@ -10105,14 +10102,14 @@ function DzAnimEditor({rg,upd}){
     return r.jsxs("div",{className:"dz-anim-"+sens,style:{marginBottom:6},children:[
       r.jsx(O,{label:titre,children:r.jsx(re,{value:m&&m.type||"",onChange:function(v){maj(sens,v?{type:v}:null)},options:DZ_ANIM_TYPES.map(function(z){return{value:z[0],label:z[1]}})})}),
       m?r.jsxs(r.Fragment,{children:[
-        r.jsx(O,{children:r.jsx(Oe,{label:"Durée",unit:" s",value:m.duration!=null?Number(m.duration):0.6,min:0.1,max:5,step:0.1,onChange:function(v){maj(sens,{duration:v})}})}),
-        r.jsx(O,{children:r.jsx(Oe,{label:sens==="in"?"Délai après le début":"Avance sur la fin",unit:" s",value:Number(m.delay)||0,min:0,max:10,step:0.1,onChange:function(v){maj(sens,{delay:v})}})}),
-        m.type!=="fade"?r.jsx(O,{label:"Courbe",children:r.jsx(re,{value:m.easing||"ease_out",onChange:function(v){maj(sens,{easing:v})},options:DZ_ANIM_COURBES.map(function(z){return{value:z[0],label:z[1]}})})}):null]}):null]})}
+        r.jsx(O,{children:r.jsx(Oe,{label:dzT("templates.anim.duree"),unit:" s",value:m.duration!=null?Number(m.duration):0.6,min:0.1,max:5,step:0.1,onChange:function(v){maj(sens,{duration:v})}})}),
+        r.jsx(O,{children:r.jsx(Oe,{label:sens==="in"?dzT("templates.anim.delai"):dzT("templates.anim.avance"),unit:" s",value:Number(m.delay)||0,min:0,max:10,step:0.1,onChange:function(v){maj(sens,{delay:v})}})}),
+        m.type!=="fade"?r.jsx(O,{label:dzT("templates.anim.courbe"),children:r.jsx(re,{value:m.easing||"ease_out",onChange:function(v){maj(sens,{easing:v})},options:DZ_ANIM_COURBES.map(function(z){return{value:z[0],label:z[1]}})})}):null]}):null]})}
   return r.jsxs("div",{className:"dz-anim",style:{marginTop:10,paddingTop:10,borderTop:"1px solid var(--stroke)"},children:[
-    r.jsx("div",{style:{fontSize:11.5,fontWeight:600,color:"var(--ink-strong)",marginBottom:6},children:"Animation"}),
-    bloc("in","Entrée"),bloc("out","Sortie"),
-    a.in||a.out?r.jsx(K,{variant:"ghost",size:"sm",title:"Rejouer l’animation sur la toile (approximation ; l’image fixe et le rendu font foi)",
-      onClick:function(){__dzAnimJeu={id:rg.id,n:__dzAnimJeu.n+1};upd({})},children:"▶ Rejouer sur la toile"}):null]})}
+    r.jsx("div",{style:{fontSize:11.5,fontWeight:600,color:"var(--ink-strong)",marginBottom:6},children:dzT("templates.anim.titre")}),
+    bloc("in",dzT("templates.anim.entree")),bloc("out",dzT("templates.anim.sortie")),
+    a.in||a.out?r.jsx(K,{variant:"ghost",size:"sm",title:dzT("templates.anim.rejouer_aide"),
+      onClick:function(){__dzAnimJeu={id:rg.id,n:__dzAnimJeu.n+1};upd({})},children:dzT("templates.anim.rejouer")}):null]})}
 /* ── Bibliothèque #77 PR B (plan-library T2, 03/10/2026) — favori, note et tags EN BASE.
    Les helpers du bundle (__dzFavHas, __dzFavToggle, __dzFavImgHas, __dzFavImgToggle) gardent leurs NOMS et leurs
    appelants ; la section P9lib1 les fait déléguer ici. La vérité est le SERVEUR (library_assets.fav, jobs.fav) ;
@@ -10736,7 +10733,7 @@ async function dzCmpCharger(force){
 function dzCmpTrouve(id){return(__dzCmp.liste||[]).find(function(c){return c.id===id})||null}
 function dzComposantFace(j,face){
   if(!j||j.type!=="component")return face;var c=dzCmpTrouve(j.component);
-  if(!c)return r.jsx("div",{className:"dz-cmp-face",style:{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"6cqw",color:"var(--ink-soft)",border:"1px dashed var(--stroke-strong)"},children:"Composant "+(j.component||"?")});
+  if(!c)return r.jsx("div",{className:"dz-cmp-face",style:{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"6cqw",color:"var(--ink-soft)",border:"1px dashed var(--stroke-strong)"},children:dzT("templates.composant.face")+(j.component||"?")});
   var ov=j.overrides||{},cw=Number(c.width)||1,ch=Number(c.height)||1;
   return r.jsx("div",{className:"dz-cmp-face",style:{position:"absolute",inset:0,overflow:"hidden",pointerEvents:"none",containerType:"size"},children:(c.regions||[]).map(function(s0){
     var s=Object.assign({},s0,ov[s0.id]||{}),txt=s.text!=null?s.text:s.default_text,fond=s.type==="separator"?s.color:(s.type==="brand_strip"||s.type==="badge"||s.type==="ticker")?s.background_color:null;
@@ -10749,17 +10746,17 @@ function DzComposantEditor({rg,upd}){
   if(!rg||rg.type!=="component")return null;var c=dzCmpTrouve(rg.component),ov=rg.overrides||{};
   function maj(sid,champ,val){var q=JSON.parse(JSON.stringify(ov));q[sid]=Object.assign({},q[sid]||{});q[sid][champ]=val;upd({overrides:q})}
   return r.jsxs("div",{className:"dz-cmp-editeur",style:{marginTop:10,paddingTop:10,borderTop:"1px solid var(--stroke)"},children:[
-    r.jsx("div",{style:{fontSize:11.5,fontWeight:600,color:"var(--ink-strong)",marginBottom:4},children:"Composant : "+(c?c.name:rg.component)}),
-    r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-soft)",marginBottom:6},children:"Seuls les textes et les couleurs se changent ici ; la forme reste celle du composant."}),
+    r.jsx("div",{style:{fontSize:11.5,fontWeight:600,color:"var(--ink-strong)",marginBottom:4},children:dzT("templates.composant.editeur_titre")+(c?c.name:rg.component)}),
+    r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-soft)",marginBottom:6},children:dzT("templates.composant.editeur_aide")}),
     c?(c.regions||[]).map(function(s){var o=ov[s.id]||{},champTxt=s.type==="text_slot"?"default_text":(s.type==="text"||s.type==="badge"||s.type==="ticker")?"text":null,
         couleurs=s.type==="separator"?["color"]:(s.type==="brand_strip"?["background_color"]:(s.type==="badge"||s.type==="ticker")?["color","background_color"]:champTxt?["color"]:[]);
       if(!champTxt&&!couleurs.length)return null;
       return r.jsxs("div",{className:"dz-cmp-sous",style:{marginBottom:6},children:[
         r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-muted)"},children:s.id+" · "+s.type}),
         champTxt?r.jsx(O,{children:r.jsx(le,{value:o[champTxt]!=null?o[champTxt]:(s[champTxt]||""),onChange:function(v){maj(s.id,champTxt,v)}})}):null,
-        couleurs.map(function(cc){return r.jsx(O,{label:cc==="color"?"Couleur":"Fond",children:r.jsx(DzColorPicker,{value:o[cc]||s[cc]||"#ffffff",onChange:function(v){maj(s.id,cc,v)}})},cc)}),
-        Object.keys(o).length?r.jsx(K,{variant:"ghost",size:"sm",title:"Revenir aux textes et couleurs du composant pour « "+s.id+" »",onClick:function(){var q=JSON.parse(JSON.stringify(ov));delete q[s.id];upd({overrides:q})},children:"↺ Rétablir"}):null]},s.id)})
-     :r.jsx("div",{style:{fontSize:10.5,color:"var(--amber)"},children:"Composant introuvable (supprimé ?) : l’instance ne se rendra pas."})]})}
+        couleurs.map(function(cc){return r.jsx(O,{label:cc==="color"?dzT("templates.composant.couleur"):dzT("templates.composant.fond"),children:r.jsx(DzColorPicker,{value:o[cc]||s[cc]||"#ffffff",onChange:function(v){maj(s.id,cc,v)}})},cc)}),
+        Object.keys(o).length?r.jsx(K,{variant:"ghost",size:"sm",title:dzT("templates.composant.retablir_aide",{id:s.id}),onClick:function(){var q=JSON.parse(JSON.stringify(ov));delete q[s.id];upd({overrides:q})},children:dzT("templates.composant.retablir")}):null]},s.id)})
+     :r.jsx("div",{style:{fontSize:10.5,color:"var(--amber)"},children:dzT("templates.composant.introuvable")})]})}
 function DzComposantBar({W,H,regs,setRegs,select,sel}){
   var os=x.useState(!1),ouvert=os[0],setOuvert=os[1],ds=x.useState(null),dlg=ds[0],setDlg=ds[1],ms=x.useState(""),msg=ms[0],setMsg=ms[1],vs=x.useState(0),setV=vs[1],vol=x.useRef(!1);
   x.useEffect(function(){function f(){setV(function(n){return n+1})}window.addEventListener("dz-composants",f);dzCmpCharger();return function(){window.removeEventListener("dz-composants",f)}},[]);
@@ -10770,42 +10767,42 @@ function DzComposantBar({W,H,regs,setRegs,select,sel}){
     select(nid);setOuvert(!1)}
   function ouvrir(){setMsg("");setDlg({coches:sel&&visibles.some(function(q){return q.id===sel})?[sel]:[],nom:"",remplacer:!0})}
   async function enregistrer(){if(vol.current||!dlg)return;var choisies=visibles.filter(function(q){return dlg.coches.indexOf(q.id)>=0});
-    if(!choisies.length){setMsg("Cochez au moins une région.");return}if(!String(dlg.nom).trim()){setMsg("Donnez un nom au composant.");return}
+    if(!choisies.length){setMsg(dzT("templates.composant.cocher"));return}if(!String(dlg.nom).trim()){setMsg(dzT("templates.composant.nommer"));return}
     var x0=Math.min.apply(null,choisies.map(function(q){return Math.round(q.x)})),y0=Math.min.apply(null,choisies.map(function(q){return Math.round(q.y)})),
       x1=Math.max.apply(null,choisies.map(function(q){return Math.round(q.x+q.width)})),y1=Math.max.apply(null,choisies.map(function(q){return Math.round(q.y+q.height)}));
     var sous=choisies.map(function(q){var o={};for(var k in q){if(k!=="_disp"&&q[k]!==void 0)o[k]=q[k]}o.x=Math.round(q.x)-x0;o.y=Math.round(q.y)-y0;o.width=Math.round(q.width);o.height=Math.round(q.height);return o});
-    vol.current=!0;setMsg("Enregistrement…");
+    vol.current=!0;setMsg(dzT("templates.composant.enregistrement"));
     try{var R=await fetch("/api/template-components",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:dlg.nom,width:x1-x0,height:y1-y0,regions:sous})});
       var d=await R.json().catch(function(){return{}});
-      if(!R.ok){setMsg(String(d.detail||("Enregistrement refusé (HTTP "+R.status+").")));return}
+      if(!R.ok){setMsg(String(d.detail||(dzT("templates.composant.refuse",{n:R.status}))));return}
       await dzCmpCharger(!0);
       if(dlg.remplacer){var nid="cmp_"+Math.random().toString(36).slice(2,6),zz=Math.max.apply(null,choisies.map(function(q){return q.z_index||0}));
         setRegs(function(L){return L.filter(function(q){return dlg.coches.indexOf(q.id)<0}).concat([{id:nid,type:"component",component:d.id,x:x0,y:y0,width:x1-x0,height:y1-y0,z_index:zz,overrides:{}}])});select(nid)}
-      setDlg(null);setMsg("Composant « "+dlg.nom+" » enregistré.")}
+      setDlg(null);setMsg(dzT("templates.composant.enregistre",{nom:dlg.nom}))}
     catch(e){setMsg(String(e&&e.message||e))}finally{vol.current=!1}}
   return r.jsxs("span",{className:"dz-cmp-barre",style:{display:"inline-flex",gap:6,alignItems:"center",position:"relative"},children:[
-    r.jsx("button",{type:"button",title:"Poser un composant (groupe de régions réutilisable)",onClick:function(){setOuvert(!ouvert)},
-      style:{fontSize:10.5,fontFamily:"var(--f-mono)",color:"var(--ink-strong)",background:"var(--bg-panel-2)",border:"1px solid var(--stroke-strong)",borderRadius:"var(--r-sm)",padding:"3px 8px",cursor:"pointer"},children:"+ Composant"}),
-    r.jsx("button",{type:"button",title:"Enregistrer des régions de ce gabarit comme un composant réutilisable",onClick:ouvrir,
-      style:{fontSize:10.5,fontFamily:"var(--f-mono)",color:"var(--cyan)",background:"transparent",border:"1px dashed var(--stroke-strong)",borderRadius:"var(--r-sm)",padding:"3px 8px",cursor:"pointer"},children:"⧉ Enregistrer comme composant"}),
+    r.jsx("button",{type:"button",title:dzT("templates.composant.poser_aide"),onClick:function(){setOuvert(!ouvert)},
+      style:{fontSize:10.5,fontFamily:"var(--f-mono)",color:"var(--ink-strong)",background:"var(--bg-panel-2)",border:"1px solid var(--stroke-strong)",borderRadius:"var(--r-sm)",padding:"3px 8px",cursor:"pointer"},children:dzT("templates.composant.ajouter")}),
+    r.jsx("button",{type:"button",title:dzT("templates.composant.enregistrer_aide"),onClick:ouvrir,
+      style:{fontSize:10.5,fontFamily:"var(--f-mono)",color:"var(--cyan)",background:"transparent",border:"1px dashed var(--stroke-strong)",borderRadius:"var(--r-sm)",padding:"3px 8px",cursor:"pointer"},children:dzT("templates.composant.enregistrer_bouton")}),
     msg&&!dlg?r.jsx("span",{className:"dz-cmp-msg",style:{fontSize:10.5,color:"var(--ink-soft)"},children:msg}):null,
     ouvert?r.jsx("div",{className:"dz-cmp-liste",style:{position:"absolute",top:"100%",left:0,zIndex:50,marginTop:4,background:"var(--bg-panel)",border:"1px solid var(--stroke)",borderRadius:8,padding:6,minWidth:220,boxShadow:"0 10px 30px rgba(0,0,0,.45)"},
-      children:liste.length?liste.map(function(c){return r.jsx("button",{type:"button",title:"Poser « "+c.name+" » ("+c.width+"×"+c.height+")"+(c.builtin?" — livré":""),onClick:function(){poser(c)},
-        style:{display:"block",width:"100%",textAlign:"left",fontSize:11,padding:"5px 8px",background:"transparent",border:0,color:"var(--ink)",cursor:"pointer"},children:c.name+(c.builtin?" · livré":"")},c.id)})
-        :r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)",padding:4},children:"Aucun composant."})}):null,
+      children:liste.length?liste.map(function(c){return r.jsx("button",{type:"button",title:dzT("templates.composant.poser_titre",{nom:c.name,l:c.width,h:c.height})+(c.builtin?dzT("templates.composant.livre_tiret"):""),onClick:function(){poser(c)},
+        style:{display:"block",width:"100%",textAlign:"left",fontSize:11,padding:"5px 8px",background:"transparent",border:0,color:"var(--ink)",cursor:"pointer"},children:c.name+(c.builtin?dzT("templates.composant.livre_point"):"")},c.id)})
+        :r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)",padding:4},children:dzT("templates.composant.aucun")})}):null,
     dlg?r.jsx("div",{className:"dz-cmp-dialogue",onClick:function(e){if(e.target===e.currentTarget)setDlg(null)},style:{position:"fixed",inset:0,background:"rgba(4,6,10,.6)",zIndex:9400,display:"flex",alignItems:"center",justifyContent:"center"},
       children:r.jsxs("div",{style:{background:"var(--bg-panel)",border:"1px solid var(--stroke)",borderRadius:12,padding:16,width:380,maxHeight:"80vh",overflow:"auto",boxShadow:"0 18px 60px rgba(0,0,0,.55)"},children:[
-        r.jsx("div",{style:{fontWeight:600,color:"var(--ink-strong)",marginBottom:8},children:"Enregistrer comme composant"}),
-        r.jsx(O,{label:"Nom",children:r.jsx(le,{value:dlg.nom,onChange:function(v){setDlg(Object.assign({},dlg,{nom:v}))}})}),
-        r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)",margin:"6px 0 4px"},children:"Régions (texte, badge, ticker, sticker, séparateur, bandeau, case image) :"}),
+        r.jsx("div",{style:{fontWeight:600,color:"var(--ink-strong)",marginBottom:8},children:dzT("templates.composant.dialogue_titre")}),
+        r.jsx(O,{label:dzT("templates.composant.nom"),children:r.jsx(le,{value:dlg.nom,onChange:function(v){setDlg(Object.assign({},dlg,{nom:v}))}})}),
+        r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)",margin:"6px 0 4px"},children:dzT("templates.composant.regions")}),
         visibles.length?visibles.map(function(q){var on=dlg.coches.indexOf(q.id)>=0;return r.jsx(O,{children:r.jsx(Ze,{checked:on,label:q.id+" · "+q.type,onChange:function(v){
           setDlg(Object.assign({},dlg,{coches:v?dlg.coches.concat([q.id]):dlg.coches.filter(function(z){return z!==q.id})}))}})},q.id)})
-          :r.jsx("div",{style:{fontSize:11,color:"var(--amber)"},children:"Aucune région visuelle dans ce gabarit."}),
-        r.jsx(O,{children:r.jsx(Ze,{checked:!!dlg.remplacer,label:"Remplacer ces régions par une instance du composant",onChange:function(v){setDlg(Object.assign({},dlg,{remplacer:v}))}})}),
+          :r.jsx("div",{style:{fontSize:11,color:"var(--amber)"},children:dzT("templates.composant.aucune_region")}),
+        r.jsx(O,{children:r.jsx(Ze,{checked:!!dlg.remplacer,label:dzT("templates.composant.remplacer"),onChange:function(v){setDlg(Object.assign({},dlg,{remplacer:v}))}})}),
         msg?r.jsx("div",{className:"dz-cmp-msg",style:{fontSize:10.5,color:"var(--amber)",marginTop:6},children:msg}):null,
         r.jsxs("div",{style:{display:"flex",gap:8,justifyContent:"flex-end",marginTop:12},children:[
-          r.jsx(K,{variant:"ghost",size:"sm",title:"Fermer sans rien enregistrer",onClick:function(){setDlg(null)},children:"Annuler"}),
-          r.jsx(K,{variant:"primary",size:"sm",title:"Enregistrer les régions cochées comme un composant réutilisable",onClick:enregistrer,children:"Enregistrer"})]})]})}):null]})}
+          r.jsx(K,{variant:"ghost",size:"sm",title:dzT("templates.composant.fermer_aide"),onClick:function(){setDlg(null)},children:dzT("templates.composant.annuler")}),
+          r.jsx(K,{variant:"primary",size:"sm",title:dzT("templates.composant.enregistrer_coches_aide"),onClick:enregistrer,children:dzT("templates.composant.enregistrer")})]})]})}):null]})}
 
 /* Tâche #76 PR H (plan-templates T10 / D3, 03/10/2026) — FIGMA et VECTORLAB à l’écran. Galerie : « Importer un
    cadre Figma… » (le lien d’un CADRE devient un gabarit éditable ; le coût en appels à l’API Figma est annoncé
@@ -10815,33 +10812,33 @@ function DzComposantBar({W,H,regs,setRegs,select,sel}){
 function DzFigmaImport({onSaved}){
   var ms=x.useState(""),msg=ms[0],setMsg=ms[1],vol=x.useRef(!1);
   async function importer(){if(vol.current)return;vol.current=!0;   /* verrou AVANT le dialogue : deux clics, un seul import */
-    var url=await window.__dzDialogue.saisir("Collez le lien d’un CADRE Figma (dans Figma : clic droit sur le cadre → Copy link). L’import fait 1 appel à l’API Figma, 2 si le cadre contient des images : gratuit, mais compté sur votre quota Figma.",{titre:"Importer un cadre Figma",valeur:"",ok:"Importer"});
-    if(!url||!String(url).trim()){vol.current=!1;return}setMsg("Import Figma…");
+    var url=await window.__dzDialogue.saisir(dzT("templates.figma.saisir"),{titre:dzT("templates.figma.titre"),valeur:"",ok:dzT("templates.figma.importer")});
+    if(!url||!String(url).trim()){vol.current=!1;return}setMsg(dzT("templates.figma.en_cours"));
     try{var R=await fetch("/api/layout-templates/import-figma",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url:String(url).trim()})});
       var d=await R.json().catch(function(){return{}});
-      if(!R.ok){setMsg(String(d.detail||("Import refusé (HTTP "+R.status+").")));return}
+      if(!R.ok){setMsg(String(d.detail||(dzT("templates.figma.refuse",{n:R.status}))));return}
       var av=Array.isArray(d.warnings)?d.warnings:[];
-      setMsg("« "+d.name+" » importé ("+d.appels+" appel"+(d.appels>1?"s":"")+" Figma"+(d.images&&d.images.length?", "+d.images.length+" image"+(d.images.length>1?"s":"")+" en Bibliothèque":"")+")"+(av.length?" — "+av.length+" remarque"+(av.length>1?"s":"")+" : "+av.slice(0,3).join(" · "):""));
+      setMsg((d.appels>1?dzT("templates.figma.importe_plusieurs",{nom:d.name,n:d.appels}):dzT("templates.figma.importe_un",{nom:d.name,n:d.appels}))+(d.images&&d.images.length?(d.images.length>1?dzT("templates.figma.images_plusieurs",{n:d.images.length}):dzT("templates.figma.images_un",{n:d.images.length})):"")+")"+(av.length?(av.length>1?dzT("templates.figma.remarques_plusieurs",{n:av.length}):dzT("templates.figma.remarques_un",{n:av.length}))+av.slice(0,3).join(" · "):""));
       onSaved&&onSaved(d.template_id)}
     catch(e){setMsg(String(e&&e.message||e))}finally{vol.current=!1}}
   return r.jsxs("div",{className:"dz-figma-import",style:{display:"flex",gap:6,alignItems:"center"},children:[
-    r.jsx(K,{variant:"outline",size:"sm",onClick:importer,title:"Importer un cadre Figma comme GABARIT éditable (textes, cases image avec leur image en échantillon) — 1 à 2 appels à l’API Figma",children:"Importer un cadre Figma…"}),
+    r.jsx(K,{variant:"outline",size:"sm",onClick:importer,title:dzT("templates.figma.bouton_aide"),children:dzT("templates.figma.bouton")}),
     msg?r.jsx("span",{className:"dz-figma-msg",style:{fontSize:10.5,color:"var(--ink-soft)",maxWidth:340},children:msg}):null]})}
 function DzExportFigma({tpl,regs}){
   var ms=x.useState(""),msg=ms[0],setMsg=ms[1],vol=x.useRef(!1);
   if(!tpl)return null;
   function svg(){if(!tpl.id)return;window.open("/api/layout-templates/"+encodeURIComponent(tpl.id)+"/export.svg","_blank")}
-  async function vectorlab(){if(vol.current)return;vol.current=!0;setMsg("Création du document…");
+  async function vectorlab(){if(vol.current)return;vol.current=!0;setMsg(dzT("templates.export.creation_document"));
     try{var R=await fetch("/api/layout-templates/"+encodeURIComponent(tpl.id||"_editeur")+"/vers-vectorlab",{method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({template:dzGabaritCourant(tpl,regs)})});
       var d=await R.json().catch(function(){return{}});
-      if(!R.ok){setMsg(String(d.detail||("Ouverture refusée (HTTP "+R.status+").")));return}
-      setMsg("Document Vectorlab créé ("+d.objets+" objets, "+d.images+" image"+(d.images>1?"s":"")+").");
+      if(!R.ok){setMsg(String(d.detail||(dzT("templates.export.ouverture_refusee",{n:R.status}))));return}
+      setMsg((d.images>1?dzT("templates.export.vectorlab_cree_plusieurs",{objets:d.objets,images:d.images}):dzT("templates.export.vectorlab_cree_un",{objets:d.objets,images:d.images})));
       window.open("/vectorlab/?doc="+encodeURIComponent(d.id),"_blank")}
     catch(e){setMsg(String(e&&e.message||e))}finally{vol.current=!1}}
   return r.jsxs("div",{className:"dz-export-figma",style:{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap",marginTop:6},children:[
-    r.jsx(K,{variant:"outline",size:"sm",onClick:svg,disabled:!tpl.id,title:"Télécharger le gabarit ENREGISTRÉ en SVG (cases, textes, bandeaux, images d’échantillon) — à glisser dans Figma",children:"SVG ↓"}),
-    r.jsx(K,{variant:"outline",size:"sm",onClick:vectorlab,title:"Ouvrir le gabarit tel qu’à l’écran dans le Vectorlab, comme document éditable (nouvel onglet) — gratuit",children:"Ouvrir dans le Vectorlab"}),
+    r.jsx(K,{variant:"outline",size:"sm",onClick:svg,disabled:!tpl.id,title:dzT("templates.export.svg_aide"),children:dzT("templates.export.svg")}),
+    r.jsx(K,{variant:"outline",size:"sm",onClick:vectorlab,title:dzT("templates.export.vectorlab_aide"),children:dzT("templates.export.vectorlab")}),
     msg?r.jsx("span",{className:"dz-export-figma-msg",style:{fontSize:10.5,color:"var(--ink-soft)",flexBasis:"100%"},children:msg}):null]})}
 
 /* Tâche #76 (03/10/2026) — la transition d’un acte de gabarit À L’ÉCRAN du Studio. Depuis la conversion des blocs
@@ -10878,8 +10875,8 @@ function dzVoFournisseurEffectif(prov,choix){
 function dzVoFournisseurOptions(prov){
   var liste=(prov&&prov.providers)||[],res=(prov&&prov.resolved)||"";
   var lb=function(id){var f=liste.filter(function(p){return p&&p.id===id})[0];return(f&&f.label)||id};
-  return[{value:"",label:"Auto ("+(res?lb(res):"aucun")+")"}].concat(liste.map(function(p){
-    return{value:p.id,label:p.label+(p.ready?"":" — indisponible")}}))}
+  return[{value:"",label:dzT("studio.fournisseur.auto",{nom:res?lb(res):dzT("studio.fournisseur.aucun")})}].concat(liste.map(function(p){
+    return{value:p.id,label:p.label+(p.ready?"":dzT("studio.fournisseur.indisponible"))}}))}
 /* le choix mémorisé de Quick ; tout ce qui n'est pas un fournisseur connu vaut Auto ("") */
 function dzVoLocalLire(){
   try{var v=localStorage.getItem(DZ_VO_LOCAL)||"";return DZ_VO_FOURNISSEURS.indexOf(v)>=0?v:""}catch(e){return""}}
@@ -10901,12 +10898,12 @@ function dzVoListe(pv){
     var v=(d&&d.voices)||[];DzVoCatalogues[pv||""]=v;return v})}
 /* le sélecteur de fournisseur et son état, commun à Quick et au nœud Voiceover */
 function DzVoFournisseur({prov:prov,choix:choix,onChange:onChange}){
-  if(prov===void 0)return r.jsx("div",{style:{fontSize:11,color:"var(--ink-muted)"},children:"Fournisseur de voix…"});
+  if(prov===void 0)return r.jsx("div",{style:{fontSize:11,color:"var(--ink-muted)"},children:dzT("studio.fournisseur.attente")});
   var vp=dzVoFournisseurEffectif(prov,choix);
   var bandeau=function(ton,etat,fort,suite){return r.jsxs("div",{"data-dzprov":etat,style:{marginTop:6,padding:8,background:"var(--"+ton+"-soft)",border:"1px solid var(--"+ton+")",borderRadius:"var(--r-sm)",fontSize:11,color:"var(--ink)"},children:[r.jsx("strong",{style:{color:"var(--"+ton+")"},children:fort}),suite]})};
-  var etat=vp.ok?r.jsxs("div",{"data-dzprov":vp.id,style:{display:"inline-flex",alignItems:"center",gap:6,marginTop:6,padding:"3px 9px",background:"var(--bg-panel-2)",border:"1px solid var(--stroke)",borderRadius:999,fontSize:10.5,color:"var(--ink-soft)"},children:[r.jsx("span",{style:{width:7,height:7,borderRadius:99,background:"var(--green)",display:"inline-block"}}),vp.id==="voicebox"?"Voicebox · local, gratuit":"ElevenLabs"]})
-    :vp.etat==="indisponible"?(vp.id==="voicebox"?bandeau("amber","voicebox-off","Voicebox injoignable"," — lance voicebox-server ou choisis ElevenLabs."):bandeau("amber","elevenlabs-off","Clé ElevenLabs manquante"," — ajoute-la dans Réglages → Clés, ou choisis Voicebox."))
-    :bandeau("red","none","Aucune voix disponible"," — ajoute la clé ElevenLabs (Réglages → Clés) ou lance voicebox-server.");
+  var etat=vp.ok?r.jsxs("div",{"data-dzprov":vp.id,style:{display:"inline-flex",alignItems:"center",gap:6,marginTop:6,padding:"3px 9px",background:"var(--bg-panel-2)",border:"1px solid var(--stroke)",borderRadius:999,fontSize:10.5,color:"var(--ink-soft)"},children:[r.jsx("span",{style:{width:7,height:7,borderRadius:99,background:"var(--green)",display:"inline-block"}}),vp.id==="voicebox"?dzT("studio.fournisseur.voicebox_local"):"ElevenLabs"]})
+    :vp.etat==="indisponible"?(vp.id==="voicebox"?bandeau("amber","voicebox-off",dzT("studio.fournisseur.voicebox_off"),dzT("studio.fournisseur.voicebox_off_suite")):bandeau("amber","elevenlabs-off",dzT("studio.fournisseur.cle_manquante"),dzT("studio.fournisseur.cle_manquante_suite")))
+    :bandeau("red","none",dzT("studio.fournisseur.aucune_voix"),dzT("studio.fournisseur.aucune_voix_suite"));
   return r.jsxs("div",{"data-dzvofourn":vp.etat,children:[r.jsx(re,{value:DZ_VO_FOURNISSEURS.indexOf(choix)>=0?choix:"",onChange:onChange,options:dzVoFournisseurOptions(prov)}),etat]})}
 /* t134 (traduction, lot 0, 07/10/2026) — la rangée « Langue de l'interface » des Réglages, sous les modèles par
    défaut. Premier écran écrit par dzT (runtime /shared/dz-i18n.js) : le français est la langue de référence. Choisir

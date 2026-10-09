@@ -183,14 +183,21 @@ print("\n[U] l'ecran du Scheduler (bundle ecrit)")
 import shutil as _sh                                                # noqa: E402
 _B = (_ICI.parents[1] / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js").read_text(encoding="utf-8")
 check("U1 le post du Scheduler porte la delegation (wh : delegueA)", _B.count("brief:e.brief||null,delegueA:e.delegue_a||null}}") == 1)
+# t142 (09/10) : la traduction L2 passe le libelle, le title et les toasts par dzT("cle") ; la borne de fin suit la cle,
+# le francais de chaque cle reste verifie, et le clic s'execute avec le prelude dzT (en francais)
+import _i18n_l1_aide as AIDE                                        # noqa: E402
 i_b = _B.find("e.delegueA&&r.jsx(K,{")
-bouton = _B[i_b:_B.find('children:"Confié au téléphone · Reprendre sur le PC"})', i_b)]
+bouton = _B[i_b:_B.find('children:dzT("scheduler.post.confie")})', i_b)]
 check("U2 l'inspecteur : bouton SEULEMENT pour un post confie, avec un title qui dit que le PC ne le publiera pas",
-      i_b > 0 and "le PC ne le publiera pas" in bouton and "/reprendre" in bouton)
+      i_b > 0 and _B.find('children:dzT("scheduler.post.confie")})', i_b) > i_b
+      and AIDE.fr("scheduler.post.confie") == "Confié au téléphone · Reprendre sur le PC"
+      and 'title:dzT("scheduler.post.confie_aide")' in bouton
+      and "le PC ne le publiera pas" in AIDE.fr("scheduler.post.confie_aide") and "/reprendre" in bouton)
 _node = _sh.which("node")
 if _node and i_b > 0:
     clic = bouton[bouton.find("onClick:") + len("onClick:"):bouton.rfind(",")]
-    js = ("var appels=[],toasts=[],evts=[];globalThis.__dzToast=function(m){toasts.push(m)};"
+    js = ("(function(){\n" + AIDE.PRELUDE_DZT + "\n})();\n"   # t142 : dzT publie sur globalThis, son window a lui
+          "var appels=[],toasts=[],evts=[];globalThis.__dzToast=function(m){toasts.push(m)};"
           "globalThis.window={dispatchEvent:function(e){evts.push(e.type)}};globalThis.CustomEvent=function(t){this.type=t};"
           "globalThis.fetch=function(u,o){appels.push([u,o&&o.method]);return Promise.resolve({ok:true,status:200})};"
           "var e={id:'p 1',delegueA:'d1'};var f=" + clic + ";f();"

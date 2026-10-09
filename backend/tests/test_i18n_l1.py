@@ -47,6 +47,10 @@ import i18n_l1_generer as G  # noqa: E402
 BUNB = (RACINE / REL).read_bytes()
 BUN = BUNB.decode("utf-8")
 COUCHE = (RACINE / "frontend/patches/montage.js").read_bytes().decode("utf-8")
+sys.path.insert(0, str(HERE))
+import _i18n_l1_aide as AIDE  # noqa: E402
+# t142 : la traduction L2 change aussi la couche, par-dessus L1 ; le rejeu de L1 part de la couche de L1
+COUCHE_L1 = AIDE.couche_avant_i18n_l2(COUCHE)
 TABLE = json.loads((RACINE / "scripts/i18n_l1_paires.json").read_bytes().decode("utf-8"))
 
 print("\n[1] la saisie et le générateur")
@@ -63,7 +67,7 @@ SRC = SCRIPT.read_bytes().decode("utf-8")
 check("2a lecture et écriture en octets", "read_text(" not in SRC and "write_text(" not in SRC and "read_bytes()" in SRC)
 eol = b"\r\n" if BUNB.count(b"\r\n") == BUNB.count(b"\n") else b"\n"
 base = G.base("bundle")
-entree = G.avec_couche(base, COUCHE)
+entree = G.avec_couche(base, COUCHE_L1)
 if T141:
     reference = subprocess.run(["git", "show", f"{T141}:{REL}"], cwd=str(RACINE), capture_output=True).stdout
 else:
@@ -97,8 +101,8 @@ try:
           AIDE.couche_avant_i18n(COUCHE).replace("\r\n", "\n") == G.base("couche").replace("\r\n", "\n"))
 except ValueError as e:
     check("2g la traduction se défait exactement", False, e)
-check("2f la couche du poste est celle que le générateur produit (rien d'édité à la main)",
-      COUCHE.replace("\r\n", "\n") == G.construire({c: G.base(c) for c in G.CIBLES})[1].replace("\r\n", "\n"))
+check("2f la couche du poste, L2 défaite (t142), est celle que le générateur L1 produit (rien d'édité à la main)",
+      COUCHE_L1.replace("\r\n", "\n") == G.construire({c: G.base(c) for c in G.CIBLES})[1].replace("\r\n", "\n"))
 
 print("\n[3] le dictionnaire")
 # les SOURCES du dictionnaire (l'assemblé dz-i18n-dico.js en est la concaténation, contrôlée en 3f)

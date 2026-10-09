@@ -42,27 +42,38 @@ check("A3 les trois ponts definis une fois, poses AVANT l'ecran", all(s.count(f"
 check("A4 au chargement le classement est GRATUIT : __dzNewsRank(brief,!1) ; !0 seulement dans rankIA",
       pm.count("__dzNewsRank(brief,!1)") == 2 and pm.count("__dzNewsRank(brief,!0)") == 1
       and pm.find("__dzNewsRank(brief,!0)") > pm.find("async function rankIA(") > 0, "")
+# t142 (09/10) : la traduction L2 passe les textes de l'ecran News par dzT("cle") ; chaque libelle est epingle par sa
+# cle, et la cle rend le francais d'avant. Les VALEURS (relevance, auto, EN…) restent des litteraux.
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import _i18n_l1_aide as AIDE  # noqa: E402
 check("A5 le bouton « Classer avec l'IA » appelle rankIA, porte un title qui dit « payant » et « plafond »",
-      'onClick:rankIA' in pm and 'title:"Classer avec l’IA : payant, sous le plafond de dépense.' in pm)
+      'title:dzT("news.classement.ia_aide"),onClick:rankIA' in pm
+      and AIDE.fr("news.classement.ia_aide").startswith("Classer avec l’IA : payant, sous le plafond de dépense."))
 check("A6 « Score du jour » remplace « By relevance » et devient le tri par defaut",
-      '{value:"relevance",label:"Score du jour"}' in pm and 'label:"By relevance"' not in s
+      '{value:"relevance",label:dzT("news.liste.tri_score")}' in pm and AIDE.fr("news.liste.tri_score") == "Score du jour"
+      and 'label:"By relevance"' not in s
       and 'const[sort,setSort]=x.useState(__dzK("news.sort","relevance"));' in pm and 'useState("recent")' not in pm)   # t129 : le defaut passe par le conservateur
 check("A7 le select de style mort est retire DES DEUX COTES (etat et JSX)", "sty" not in pm.replace("style", "").replace("Sty", "")
       and "setSty" not in pm and '["deep-sea","cinematic","glitch","documentary"]' not in pm)
 check("A8 les items gardent published et doublons ; payload emporte id et published",
       'published:z.published||"",doublons:z.doublons||[]' in pm and 'link:i.link,id:i.id,source_id:i.source_id||"",published:i.published||""}))}' in pm)
 check("A16 (tache #34) le sujet deja couvert est recopie du classement et montre en ambre, avec son titre au survol",
-      'en_tete:m.en_tete,deja_couvert:m.deja_couvert,' in pm and 'i.deja_couvert?r.jsx("span",{title:"Sujet proche d\u2019un reel d\u00e9j\u00e0 lanc\u00e9 : "+i.deja_couvert,' in pm
-      and 'children:"d\u00e9j\u00e0 couvert"' in pm)
+      'en_tete:m.en_tete,deja_couvert:m.deja_couvert,' in pm
+      and 'i.deja_couvert?r.jsx("span",{title:dzT("news.article.deja_couvert_aide",{t:i.deja_couvert}),' in pm
+      and AIDE.fr("news.article.deja_couvert_aide", t="X") == "Sujet proche d’un reel déjà lancé : X"
+      and 'children:dzT("news.article.deja_couvert")' in pm and AIDE.fr("news.article.deja_couvert") == "déjà couvert")
 check("A9 la carte montre score, motif, etoile de tete et origine IA", 'children:i.score_pourquoi' in pm
-      and '(i.en_tete?"★ ":"")+i.score+"/100"' in pm and '"IA · "+i.score_origine' in pm)
+      and '(i.en_tete?"★ ":"")+i.score+"/100"' in pm and 'dzT("news.article.ia",{o:i.score_origine})' in pm
+      and AIDE.fr("news.article.ia", o="claude") == "IA · claude")
 check("A10 les ecartes : puce comptee, motifs au survol (span porteur du title : `te` ne le transmet pas)",
       'r.jsx("span",{title:ranked.ecartes.map(function(z){return z.title+" — "+z.motif}).join("\\n"),children:r.jsx(te,{tone:"amber",style:{whiteSpace:"nowrap"}' in pm
-      and '" écartés ce jour"' in pm)
+      and 'dzT("news.liste.ecartes",{n:ranked.ecartes.length})' in pm and AIDE.fr("news.liste.ecartes", n=4) == "4 écartés ce jour")
 check("A11 le panneau du filtre : quatre champs, un bouton titre qui enregistre", all(f'fch("{k}"' in pm for k in
-      ("mots_cles", "mots_noirs", "sources_noires", "fraicheur_h")) and 'title:"Enregistrer le filtre gratuit et reclasser",onClick:saveFilt' in pm)
+      ("mots_cles", "mots_noirs", "sources_noires", "fraicheur_h")) and 'title:dzT("news.filtre.enregistrer_aide"),onClick:saveFilt' in pm
+      and AIDE.fr("news.filtre.enregistrer_aide") == "Enregistrer le filtre gratuit et reclasser")
 check("A12 le brief remplace le style et se garde (localStorage, lecture/ecriture sous try)",
-      'label:"Brief de campagne"' in pm and 'localStorage.getItem("dzNewsBrief")' in pm and 'localStorage.setItem("dzNewsBrief",brief)' in pm)
+      'label:dzT("news.brief.titre")' in pm and AIDE.fr("news.brief.titre") == "Brief de campagne"
+      and 'localStorage.getItem("dzNewsBrief")' in pm and 'localStorage.setItem("dzNewsBrief",brief)' in pm)
 def _titre_du_bouton(gestion):
     i = pm.find(gestion)
     k = pm.rfind("r.jsx(K,{", 0, i)
@@ -72,7 +83,9 @@ check("A13 E-12 : les trois boutons neufs (IA, repli, filtre) portent un title A
       str([_titre_du_bouton(g) for g in ("onClick:rankIA", "onClick:function(){setPlie(!plie)}", "onClick:saveFilt")]))
 check("A15 la barre de la liste passe a la ligne et ses puces ne se coupent pas (mesure a l'ecran : grille 1462 px pour 1400)",
       'gap:10,flexWrap:"wrap",rowGap:6,background:"var(--bg-panel)"},children:[r.jsxs("span",{className:"display",style:{fontSize:14,color:"var(--ink-strong)",whiteSpace:"nowrap"}' in pm
-      and 'r.jsxs(te,{tone:"cyan",style:{whiteSpace:"nowrap"},children:[sel.size," selected"]})' in pm)
+      # t142 : le compte passe par dzT("news.liste.selection",{n}) ; son anglais est l'ancien « N selected »
+      and 'r.jsxs(te,{tone:"cyan",style:{whiteSpace:"nowrap"},children:[dzT("news.liste.selection",{n:sel.size})]})' in pm
+      and AIDE.DICO["news.liste.selection"]["en"] == "{n} selected")
 check("A14 aucun window.prompt ni alert dans l'ecran", "window.prompt" not in pm and "alert(" not in pm)
 
 print("\n[N] execution sous node")
@@ -141,15 +154,22 @@ function tri(sort,ranked,plie,shown){""" + tri + r"""return shown}
 print("\n[C] la chaine du jour a l'ecran (tache #35 PR3, groupe P3nc)")
 check("C1 temoin : la base (b8dae2f) n'a ni __dzNewsChaine ni la voix auto", "__dzNewsChaine" not in s0 and '{value:"auto"' not in s0)
 check("C2 le panneau est defini une fois, le bouton « Chaine du jour » l'ouvre avec le brief et porte un title",
-      s.count("function __dzNewsChaine(") == 1 and 'title:"Préparer le lot du jour (gratuit), le polir si besoin, le programmer avec son reel cartes",onClick:function(){__dzNewsChaine(brief)},children:"Chaîne du jour"})' in pm)
-check("C3 « Send to Studio » reste", 'children:"Send to Studio"})' in pm)
+      s.count("function __dzNewsChaine(") == 1
+      and 'title:dzT("news.chaine.bouton_aide"),onClick:function(){__dzNewsChaine(brief)},children:dzT("news.chaine.titre")})' in pm
+      and AIDE.fr("news.chaine.bouton_aide") == "Préparer le lot du jour (gratuit), le polir si besoin, le programmer avec son reel cartes"
+      and AIDE.fr("news.chaine.titre") == "Chaîne du jour")
+# t142 : le bouton passe par dzT("news.compose.vers_studio") ; son anglais est l'ancien libelle
+check("C3 « Send to Studio » reste", 'onClick:()=>Go&&Go("studio"),children:dzT("news.compose.vers_studio")})' in pm
+      and AIDE.DICO["news.compose.vers_studio"]["en"] == "Send to Studio")
 check("C4 voix : « Auto » en tete du selecteur et par defaut ; auto n'envoie pas de voice_mode",
-      '{value:"auto",label:"Auto (selon le sujet)"},{value:"oracle"' in pm and 'const[voice,setVoice]=x.useState(__dzK("news.voice","auto"));' in pm   # t129 : le defaut passe par le conservateur
+      '{value:"auto",label:dzT("news.voix.auto")},{value:"oracle"' in pm and AIDE.fr("news.voix.auto") == "Auto (selon le sujet)" and'const[voice,setVoice]=x.useState(__dzK("news.voice","auto"));' in pm   # t129 : le defaut passe par le conservateur
       and 'voice_mode:voice==="auto"?void 0:voice,language:"EN"' in pm and 'useState("oracle")' not in pm)
-check("C5 le motif de la voix s'affiche sous le script", ',script.voice_mode_auto?r.jsx("div",{style:{marginTop:6,fontSize:10.5,color:"var(--ink-soft)"},children:"Voix : "+script.voice_mode_auto+" — "+(script.voice_mode_reason||"")' in pm)
+check("C5 le motif de la voix s'affiche sous le script", ',script.voice_mode_auto?r.jsx("div",{style:{marginTop:6,fontSize:10.5,color:"var(--ink-soft)"},children:dzT("news.script.voix_auto",{v:script.voice_mode_auto,r:script.voice_mode_reason||""})' in pm
+      and AIDE.fr("news.script.voix_auto", v="alpha", r="crash") == "Voix : alpha — crash")
 check("C6 la tendance est recopiee du classement et montree en vert sur la carte",
       'deja_couvert:m.deja_couvert,tendance:m.tendance,tendance_sources:m.tendance_sources})' in pm
-      and 'i.tendance?r.jsx("span",{title:"Cité par "+i.tendance_sources+" médias distincts le même jour",style:{color:"var(--green)"}' in pm)
+      and 'i.tendance?r.jsx("span",{title:dzT("news.article.cite_par",{n:i.tendance_sources}),style:{color:"var(--green)"}' in pm
+      and AIDE.fr("news.article.cite_par", n=3) == "Cité par 3 médias distincts le même jour")
 if node:
     fns = [fonc(n) for n in ("__dzSchedApi", "__dzSchedPanel", "__dzSchedBtn", "__dzSchedRecharger", "__dzSchedOut", "__dzSchedTexte",
                              "__dzSchedChamp", "__dzNewsSel", "__dzNewsChaine")]
@@ -200,6 +220,9 @@ var attendre=function(){return new Promise(function(r){setTimeout(r,20)})};
  console.log(JSON.stringify(out));
 })();
 """])
+    # t142 : le panneau appelle dzT (globale) — prelude dans sa propre portee (son `var window` ne masque pas celui du
+    # harnais), en francais : les attentes ci-dessous restent vraies
+    js = "(function(){\n" + AIDE.PRELUDE_DZT + "\n})();\n" + js
     f = pathlib.Path(tempfile.mkdtemp(prefix="dznewsc_"), "c.mjs"); f.write_text(js, encoding="utf-8")
     p = subprocess.run([node, str(f)], capture_output=True, text=True, encoding="utf-8", timeout=60)
     try:

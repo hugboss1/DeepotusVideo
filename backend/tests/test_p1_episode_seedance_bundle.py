@@ -21,6 +21,8 @@ BACKEND = pathlib.Path(__file__).resolve().parent.parent
 ROOT = BACKEND.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 import patch_bundle_montage as P                           # noqa: E402
+sys.path.insert(0, str(BACKEND / "tests"))
+import _i18n_l1_aide as AIDE                                # noqa: E402  t142 : textes Episodes passes par dzT
 
 ok = fail = 0
 def check(label, cond, detail=""):
@@ -56,7 +58,9 @@ check("1.2 la promesse « prochaine iteration » a disparu", s.count(PROCHAINE) 
 check("1.3 l'ancienne requete a disparu ; la nouvelle emporte payload + max_usd",
       s.count(REQ_OLD) == 0 and s.count("scenes:dzEpScenesPayload(scenes),max_usd:dzMx") == 1, "")
 check("1.3b assembleEpisode REFUSE avant tout appel quand le devis n'est pas pret ou perime",
-      s.count('async function assembleEpisode(){var dzMx=dzEpMaxUsd(scenes);if(dzMx===!1){setEpErr("Devis Seedance pas encore prêt') == 1, "")
+      # t142 (traduction L2) : le message de refus passe par dzT ; son texte francais reste verifie
+      s.count('async function assembleEpisode(){var dzMx=dzEpMaxUsd(scenes);if(dzMx===!1){setEpErr(dzT("episodes.assemblage.devis_pas_pret"));') == 1
+      and AIDE.fr("episodes.assemblage.devis_pas_pret").startswith("Devis Seedance pas encore prêt"), "")
 check("1.4 le devis est rendu a l'etape 4, le selecteur par scene seedance, le repli en fin de rendu",
       s.count("r.jsx(DzEpDevis,{scenes:scenes})") == 1 and s.count('sc.motion==="seedance"?r.jsx(DzEpSeedance,') == 1
       and s.count('"data-dzeprepli":"1"') == 1, "")

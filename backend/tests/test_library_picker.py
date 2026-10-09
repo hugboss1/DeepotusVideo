@@ -173,8 +173,16 @@ def test_le_miroir_bundle_selecteur():
               / "index-BEOJX8L5.js").read_text("utf-8")
     assert bundle.count("__dzLibPicker") == 11  # tache #75 PR B (03/10) : 10 -> 11, l'echantillon d'apercu des gabarits (DzEchantillon, couche montage)
     # les trois greffes : nœud Image du Studio, Quick départ et fin
-    assert 'label:"Bibliothèque"' in bundle
-    assert "Image de départ" in bundle and "Image de fin" in bundle
+    # t142 (09/10) : la traduction L2 passe ces libellés par dzT("clé") ;
+    # épinglés par leur clé, et chaque clé rend le français d'avant
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+    import _i18n_l1_aide as AIDE
+    assert 'label:dzT("studio.source.bibliotheque")' in bundle
+    assert AIDE.fr("studio.source.bibliotheque") == "Bibliothèque"
+    assert '__dzLibPicker({titre:dzT("quick.source.image_depart_seedance")},v)' in bundle
+    assert '__dzLibPicker({titre:dzT("quick.source.image_fin")},k)' in bundle
+    assert AIDE.fr("quick.source.image_depart_seedance") == "Image de départ (Seedance)"
+    assert AIDE.fr("quick.source.image_fin") == "Image de fin (optionnelle)"
     # le picker interroge la liste, téléverse, importe Figma
     assert "/api/images/import-figma" in bundle
     patcher = (racine / "scripts"
