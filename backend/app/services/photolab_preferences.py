@@ -88,8 +88,9 @@ SECTIONS_EXPLICATIVES = ("historyLog", "performance", "scratchDisks", "plugIns",
 
 # Reprise des options que l'écran gardait dans le navigateur (mod-affichage OPTIONS_DEFAUT, mod-texte PREFS_DEFAUT).
 AFFICHAGE_BOOLS = ("extras", "regles", "grille", "reperes", "aimanter", "verrouReperes", "miroir", "pixelArt")
-AFFICHAGE_SOUS = {"afficher": ("contoursCalque", "contoursSelection", "grillePixels", "apercuPinceau", "reperesCanevas"),
-                  "aimanterA": ("reperes", "grille", "calques", "document")}
+AFFICHAGE_SOUS = {"afficher": ("contoursCalque", "contoursSelection", "grillePixels", "apercuPinceau", "reperesCanevas",
+                               "compteur", "notes", "tranches"),                  # t160
+                  "aimanterA": ("reperes", "grille", "calques", "document", "tranches")}
 ECRANS = ("standard", "menus", "plein")
 LANGUES_TEXTE = ("type.languageOptions.defaultFeatures", "type.languageOptions.eastAsianFeatures",
                  "type.languageOptions.middleEasternFeatures")

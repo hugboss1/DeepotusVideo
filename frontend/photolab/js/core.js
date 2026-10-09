@@ -41,6 +41,7 @@ import { initMode } from "./mod-mode.js";
 import { initRaccourcis } from "./mod-raccourcis.js";
 import { initApropos } from "./mod-apropos.js";
 import { initPreferences } from "./mod-preferences.js";
+import { initMesure } from "./mod-mesure.js";
 import { initClavier } from "./mod-clavier.js";
 import { initModificateurs } from "./mod-modificateurs.js";
 import { initGestionnaire } from "./mod-gestionnaire.js";
@@ -156,6 +157,7 @@ initFormes(PL);          // t156 : outils de forme, plume / tracés, texte, Rech
 initTrace(PL);
 initTexte(PL);
 initRecherche(PL);
+initMesure(PL);          // t160 : Règle, Comptage, Note, Tranches ; panneaux Mesures et Notes — après les gestes et l'affichage
 initModificateurs(PL);   // t159 : Fenêtre › Touches de modification (capture des événements, coche de Fenêtre)
 initGestionnaire(PL);    // t159 : Édition › Préréglages (gestionnaire, export / import)
 initClavier(PL);         // t159 : Raccourcis clavier et Menus — son décorateur passe APRÈS tous les autres (raccourcis, masques)
@@ -216,6 +218,7 @@ PL.surOngletMontre = function surOngletMontre(groupe, nom) {
   else if ((nom === "formes" || nom === "styles") && PL.presets && PL.presets[nom]) PL.presets[nom].relire();     // t156
   else if (nom === "traces" && PL.traces) PL.traces.dessiner();
   else if (PL.surOngletTexte && ["caractere", "paragraphe", "glyphes", "stylesCar", "stylesPar"].includes(nom)) PL.surOngletTexte(nom);
+  else if ((nom === "mesures" || nom === "notes") && PL.mesure) PL.mesure.surOnglet(nom);     // t160
 };
 for (const [sel, attr, vue] of [["#grpCouleur", "data-onglet-co", "vueCo"], ["#grpInfos", "data-onglet-in", "vueIn"], ["#grpTexte", "data-onglet-tx", "vueTx"]]) {
   const montrer = (nom) => {

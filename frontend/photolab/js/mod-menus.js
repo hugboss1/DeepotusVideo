@@ -29,6 +29,11 @@ export const IDS_PREFERENCES_ECRAN = ["edit.preferences.general", "edit.preferen
   "edit.preferences.plugIns", "edit.preferences.type", "edit.preferences.enhancedControls", "edit.preferences.rawDefaults",
   "edit.keyboardShortcuts", "edit.menus", "window.panel.modifierKeys", "edit.presets.presetManager", "edit.presets.exportImportPresets"];
 
+// t160 : Fenêtre › Journal des mesures / Notes, Affichage › Afficher › Compteur / Notes / Tranches, Aimanter à ›
+// Tranches, Fichier › Importer › Notes (les notes d'un autre document ouvert : file.import.notes est désactivé par le moteur).
+export const IDS_MESURE = ["window.panel.measurementLog", "window.panel.notes", "view.show.count", "view.show.notes", "view.show.slices",
+  "view.snapTo.slices", "file.import.notes"];
+
 // Entrées de fichier que l'écran exécute LUI-MÊME par ses routes (nouveau, ouvrir depuis la Bibliothèque, fermer,
 // enregistrer, exporter) : actives même si le pont refuserait la commande moteur de ce nom.
 // t139 : `pl.envoyer` (« Envoyer vers… ») n'est pas du catalogue amont — l'écran l'insère après « Revenir ».
@@ -72,9 +77,11 @@ export const TRAITES_PAR_ECRAN = new Set(["file.new", "file.open", "file.close",
   ...IDS_DOCUMENTS,
   // t159 : préférences, raccourcis, menus (mod-preferences, mod-clavier : rien n'est envoyé au moteur), touches de
   // modification (mod-modificateurs), préréglages (mod-gestionnaire : dialogues sur les commandes rouvertes par PERMIS)
-  ...IDS_PREFERENCES_ECRAN]);
+  ...IDS_PREFERENCES_ECRAN,
+  // t160 : mesure, comptage, notes, tranches (mod-mesure ; Affichage par mod-affichage, panneaux par mod-espaces)
+  ...IDS_MESURE]);
 // … dont celles qui n'ont de sens qu'avec un document ouvert (grisées sur l'écran d'accueil).
-export const NECESSITE_DOC = new Set([...IDS_DOCUMENTS, "select.selectAndMask", "file.close", "file.save", "file.saveAs", "file.export.exportAs", "pl.envoyer", "pl.natif.ouvrir",
+export const NECESSITE_DOC = new Set([...IDS_DOCUMENTS, "file.import.notes", "select.selectAndMask", "file.close", "file.save", "file.saveAs", "file.export.exportAs", "pl.envoyer", "pl.natif.ouvrir",
   // t152 : les zooms d'Affichage
   "view.zoomIn", "view.zoomOut", "view.fitOnScreen", "view.fitLayersOnScreen", "view.actualPixels", "view.twoHundredPercent", "view.printSize",
   // t154 : la transformation manuelle vise le calque actif

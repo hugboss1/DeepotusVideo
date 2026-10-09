@@ -16,7 +16,7 @@ const tous = EMPLACEMENTS.flat();
 check("1.3 identifiants uniques", new Set(tous.map((o) => o.id)).size === tous.length);
 check("1.4 chaque icône existe dans icones/", tous.every((o) => existsSync(join(racine, "icones", o.icone + ".svg"))),
   tous.filter((o) => !existsSync(join(racine, "icones", o.icone + ".svg"))).map((o) => o.icone));
-check("1.5 39 outils actifs (P2 : 11 ; t155 peinture et retouche : +18 ; t156 texte, formes, plume : +9 ; t157 sélection d'objet : +1)", tous.filter((o) => o.p2).length === 39, tous.filter((o) => o.p2).map((o) => o.id).join());
+check("1.5 44 outils actifs (P2 : 11 ; t155 peinture et retouche : +18 ; t156 texte, formes, plume : +9 ; t157 sélection d'objet : +1 ; t160 Règle, Note, Comptage, Tranche, Sélection de tranche : +5)", tous.filter((o) => o.p2).length === 44, tous.filter((o) => o.p2).map((o) => o.id).join());
 check("1.6 emplacementDe", emplacementDe("move") === 0 && emplacementDe("ellipseMarquee") === 1 && emplacementDe("zoom") === 19 && emplacementDe("nimporte") === -1);
 check("1.7 outilDe", outilDe("crop").lettre === "C" && outilDe("x") === null);
 check("1.8 cleNom", cleNom("rectMarquee") === "photolab.outil.rect_marquee" && cleNom("move") === "photolab.outil.move");
@@ -38,7 +38,9 @@ check("2.11b J saute la Pièce (absente du moteur) : healing -> spotHealing", ou
 check("2.11c t156 : P choisit la Plume ; une lettre sans outil (K) -> null", outilParLettre("P", "move", false) === "pen" && outilParLettre("K", "move", false) === null);
 check("2.12 lettre inconnue -> null", outilParLettre("K", "move", false) === null && outilParLettre("", "move", false) === null);
 check("2.13 V depuis move -> move (un seul)", outilParLettre("V", "move", false) === "move");
-check("2.14 I depuis eyedropper -> eyedropper (les autres sont bientôt)", outilParLettre("I", "eyedropper", false) === "eyedropper");
+check("2.14 t160 : I cycle pipette -> règle -> note -> comptage -> pipette ; C : recadrage -> tranche -> sélection de tranche",
+  outilParLettre("I", "eyedropper", false) === "ruler" && outilParLettre("I", "ruler", false) === "note" && outilParLettre("I", "note", false) === "count"
+  && outilParLettre("I", "count", false) === "eyedropper" && outilParLettre("C", "crop", false) === "slice" && outilParLettre("C", "slice", false) === "sliceSelect");
 check("2.15 L : lasso -> polygonLasso -> lasso", outilParLettre("L", "lasso", false) === "polygonLasso" && outilParLettre("L", "polygonLasso", false) === "lasso");
 check("2.16 groupeDeLettre W : 3 outils, tous actifs (t157)", groupeDeLettre("W").length === 3 && groupeDeLettre("W").filter((o) => o.p2).length === 3);
 check("2.17 outil sans lettre (blur) ignoré", groupeDeLettre("").length === 0);

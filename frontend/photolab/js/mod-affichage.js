@@ -17,8 +17,9 @@ const ID_ECRAN = { "view.screenMode.standard": "standard", "view.screenMode.full
 export const OPTIONS_DEFAUT = {
   extras: true, regles: false, grille: false, reperes: true, aimanter: true, verrouReperes: false,
   ecran: "standard", miroir: false, pixelArt: false,
-  afficher: { contoursCalque: false, contoursSelection: true, grillePixels: true, apercuPinceau: true, reperesCanevas: true },
-  aimanterA: { reperes: true, grille: true, calques: true, document: true },
+  afficher: { contoursCalque: false, contoursSelection: true, grillePixels: true, apercuPinceau: true, reperesCanevas: true,
+    compteur: true, notes: true, tranches: true },                                  // t160
+  aimanterA: { reperes: true, grille: true, calques: true, document: true, tranches: true },
 };
 export const IDS_ZOOM = ["view.zoomIn", "view.zoomOut", "view.fitOnScreen", "view.fitLayersOnScreen", "view.actualPixels", "view.twoHundredPercent", "view.printSize"];
 // Entrée -> où vit son interrupteur : [chemin dans les options]. Les zooms et les modes d'écran sont à part.
@@ -30,6 +31,9 @@ const BASCULES = {
   "view.show.canvasGuides": ["afficher", "reperesCanevas"],
   "view.snapTo.guides": ["aimanterA", "reperes"], "view.snapTo.grid": ["aimanterA", "grille"], "view.snapTo.layers": ["aimanterA", "calques"],
   "view.snapTo.documentBounds": ["aimanterA", "document"],
+  // t160 : comptage, notes, tranches (surcouche de mod-mesure) ; aimantation aux bords des tranches
+  "view.show.count": ["afficher", "compteur"], "view.show.notes": ["afficher", "notes"], "view.show.slices": ["afficher", "tranches"],
+  "view.snapTo.slices": ["aimanterA", "tranches"],
 };
 export const IDS_AFFICHAGE = [...IDS_ZOOM, ...Object.keys(ID_ECRAN), ...Object.keys(BASCULES), "view.show.all", "view.show.showExtrasOptions", "view.snapTo.all"];
 
@@ -139,7 +143,7 @@ export function aimanterDeplacement(bornes, dx, dy, cibles, seuil) {
 const aplat = (l) => (l || []).flatMap((c) => [c, ...aplat(c.children)]);
 // Cibles d'aimantation : repères (visibles), grille (visible), limites et centre du document, bords et centres des calques
 // qui NE bougent PAS (ni l'actif ni les sélectionnés).
-export function ciblesAimant(o, doc, reperes) {
+export function ciblesAimant(o, doc, reperes, tranches = null) {
   const c = { x: [], y: [] };
   if (!o.aimanter || !doc) return c;
   if (o.aimanterA.reperes && visible(o, "reperes") && reperes) { c.x.push(...(reperes.vertical || [])); c.y.push(...(reperes.horizontal || [])); }
@@ -150,6 +154,14 @@ export function ciblesAimant(o, doc, reperes) {
       if (bougent.has(l.id) || !Array.isArray(l.bounds) || l.visible === false) continue;
       const [x, y, w, h] = l.bounds;
       c.x.push(x, x + w / 2, x + w); c.y.push(y, y + h / 2, y + h);
+    }
+  }
+  // t160 : bords des tranches utilisateur et d'après un calque (les automatiques suivent les autres)
+  if (o.aimanterA.tranches && tranches) {
+    for (const s of tranches) {
+      if (s.origin === "auto" || !Array.isArray(s.rect)) continue;
+      const [x, y, w, h] = s.rect;
+      c.x.push(x, x + w); c.y.push(y, y + h);
     }
   }
   if (o.aimanterA.grille && visible(o, "grille")) {
@@ -203,7 +215,8 @@ export function decorerAffichage(menus, o) {
 
 const NS = "http://www.w3.org/2000/svg";
 // Outils dont le point de geste s'aimante (sélections géométriques, recadrage, dégradé).
-export const OUTILS_AIMANTES = new Set(["rectMarquee", "ellipseMarquee", "polygonLasso", "crop", "gradient"]);
+// t160 : + Tranche (ses bords se posent sur repères, grille, tranches et bords du document)
+export const OUTILS_AIMANTES = new Set(["rectMarquee", "ellipseMarquee", "polygonLasso", "crop", "gradient", "slice"]);
 const CLE_STOCKAGE = "dz-photolab-affichage";
 const REGLE = 18;          // épaisseur des règles (px)
 const TOL_REPERE = 4;      // px d'écran pour attraper un repère
@@ -558,7 +571,7 @@ export function initAffichage(PL) {
     // point de geste aimanté (outils géométriques) ; Ctrl tenu l'interrompt
     aimanterPointDoc(p, ev) {
       if (!OUTILS_AIMANTES.has(PL.etat.outil) || (ev && (ev.ctrlKey || ev.metaKey))) return p;
-      const q = aimanterPoint(p, ciblesAimant(o, PL.etat.doc, reperes), seuilDoc());
+      const q = aimanterPoint(p, ciblesAimant(o, PL.etat.doc, reperes, PL.mesure ? PL.mesure.tranches : null), seuilDoc());
       return { ...p, x: q.x, y: q.y };
     },
     aimanterDeplacement(dx, dy) {
@@ -566,7 +579,7 @@ export function initAffichage(PL) {
       if (!d) return { dx, dy };
       const c = calqueActif(d);
       const bornes = d.hasSelection && Array.isArray(d.selectionBounds) ? d.selectionBounds : c && Array.isArray(c.bounds) ? c.bounds : null;
-      return bornes ? aimanterDeplacement(bornes, dx, dy, ciblesAimant(o, d, reperes), seuilDoc()) : { dx, dy };
+      return bornes ? aimanterDeplacement(bornes, dx, dy, ciblesAimant(o, d, reperes, PL.mesure ? PL.mesure.tranches : null), seuilDoc()) : { dx, dy };
     },
     get reperes() { return reperes; },
     relire,
