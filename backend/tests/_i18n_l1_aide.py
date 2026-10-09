@@ -9,6 +9,9 @@
                           la section est contrôlée telle que le patcher l'a posée ; test_i18n_l1 garantit que la
                           traduction posée par-dessus est exactement réversible.
   couche_avant_i18n(c)    la couche frontend/patches/montage.js d'avant la traduction L1.
+  avant_i18n_l4(bundle)   t144 : le bundle dont les blocs SFXSTUDIO, VFXRACK, SONVFX sont ramenés aux couches d'avant L4
+                          (avant_i18n le fait aussi, en premier).
+  couche_avant_i18n_l4(texte, cible)  t144 : une des trois couches (sfxstudio, vfxrack, sonvfx) d'avant L4.
   PRELUDE_DZT             code JS à placer AVANT la couche ou le bundle exécutés sous node : window.DZ_I18N (le
                           dictionnaire assemblé) et dzT(clé, vars) en FRANÇAIS, la langue de référence — les attentes
                           en français des bancs restent vraies.
@@ -103,6 +106,7 @@ def _bloc(s, f):
 
 
 def _avant_l2_crlf(bundle: str) -> str:
+    bundle = avant_i18n_l4(bundle)                 # t144 : les blocs des couches son, traduits APRÈS L2
     if not _TABLE2.is_file():
         return bundle
     return _bloc(_defaire(bundle, _TABLE2, "avant_i18n_l2"), couche_avant_i18n_l2)
@@ -117,9 +121,69 @@ def avant_i18n_l2(bundle: str) -> str:
 
 
 def _avant_crlf(bundle: str) -> str:
-    s = _avant_l2_crlf(bundle)                     # t142 : L2 se défait d'abord (maillon posé APRÈS L1)
+    s = _avant_l2_crlf(bundle)                     # t142 : L2 se défait d'abord (maillon posé APRÈS L1) ; t144 : L4 avant
     s = _defaire(s, _TABLE, "avant_i18n")
     return _bloc(s, lambda c: _couche_defaire(c, _TABLE, "couche"))
+
+
+# t144 — traduction L4 : les trois couches sfxstudio, vfxrack, son-vfx-montage (blocs SFXSTUDIO, VFXRACK, SONVFX du
+# bundle) passent par dzT ; scripts/i18n_l4_paires.json garde, couche par couche, les substitutions de la saisie
+_TABLE4 = RACINE / "scripts" / "i18n_l4_paires.json"
+_BLOCS4 = {"sfxstudio": "SFXSTUDIO", "vfxrack": "VFXRACK", "sonvfx": "SONVFX"}
+_FICHIERS4 = {"sfxstudio.js": "sfxstudio", "vfxrack.js": "vfxrack", "son-vfx-montage.js": "sonvfx"}
+
+
+def _defaire4(texte: str, cible: str, nom: str) -> str:
+    """Défait les substitutions L4 d'une couche (positions de la couche de BASE ecf945e4, CRLF)."""
+    if not _TABLE4.is_file():
+        return texte
+    subs = json.loads(_TABLE4.read_bytes().decode("utf-8"))["couches"].get(cible, [])
+    return _couche_defaire_subs(texte, subs, nom)
+
+
+def _couche_defaire_subs(couche, subs, nom):
+    crlf = "\r\n" in couche
+    s = couche if crlf else couche.replace("\n", "\r\n")
+    decal, morceaux, k = 0, [], 0
+    for e in sorted(subs, key=lambda x: x["pos"]):
+        p = e["pos"] + decal
+        if s[p:p + len(e["apres"])] != e["apres"]:
+            raise ValueError(f"{nom} : la substitution {e['groupe']}@{e['pos']} n'est pas à sa place ({s[p:p + 40]!r})")
+        morceaux.append(s[k:p] + e["avant"])
+        k = p + len(e["apres"])
+        decal += len(e["apres"]) - len(e["avant"])
+    morceaux.append(s[k:])
+    r = "".join(morceaux)
+    return r if crlf else r.replace("\r\n", "\n")
+
+
+def couche_avant_i18n_l4(texte: str, cible: str) -> str:
+    """t144 : la couche `cible` (« sfxstudio », « vfxrack », « sonvfx », ou le nom de fichier « sfxstudio.js »…)
+    d'avant la traduction L4. Accepte le texte du fichier (BOM toléré) ou le cœur du bloc du bundle ; LF ou CRLF :
+    on rend la même forme."""
+    cible = _FICHIERS4.get(cible, cible)
+    bom = texte[:1] == "﻿"
+    r = _defaire4(texte[1:] if bom else texte, cible, f"couche {cible} L4")
+    return ("﻿" + r) if bom else r
+
+
+def avant_i18n_l4(bundle: str) -> str:
+    """Le bundle dont les blocs SFXSTUDIO, VFXRACK et SONVFX sont ramenés aux couches d'avant L4 (bords conservés)."""
+    s = bundle
+    for cible, tag in _BLOCS4.items():
+        b, e = f"/*__DZ_{tag}_BEGIN__*/", f"/*__DZ_{tag}_END__*/"
+        if b not in s:
+            continue
+        head, rest = s.split(b, 1)
+        bloc, tail = rest.split(e, 1)
+        lead = bloc[:len(bloc) - len(bloc.lstrip("\r\n"))]
+        trail = bloc[len(bloc.rstrip("\r\n")):]
+        coeur = bloc.strip("\r\n")
+        # un bloc encore en français (le .bak_montage reconstruit depuis le bundle du commit d'avant L4) est rendu tel quel
+        if 'dzT("' + {"sfxstudio": "sfx", "vfxrack": "vfx", "sonvfx": "son"}[cible] + "." in coeur:
+            coeur = couche_avant_i18n_l4(coeur, cible)
+        s = head + b + lead + coeur + trail + e + tail
+    return s
 
 
 def _prelude():

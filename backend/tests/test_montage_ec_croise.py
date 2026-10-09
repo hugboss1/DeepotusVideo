@@ -86,7 +86,11 @@ def un(motif, texte, flags=0):
 
 
 JS = lire("frontend/patches/montage.js")
-BUN = lire("frontend/dist/assets/index-BEOJX8L5.js")
+# t144 : les blocs SONVFX / SFXSTUDIO / VFXRACK passent par dzT (traduction L4) : le banc lit leurs textes
+# français d'avant la traduction (test_i18n_l4 garantit qu'elle se défait exactement)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _i18n_l1_aide as _AIDE4  # noqa: E402
+BUN = _AIDE4.avant_i18n_l4(lire("frontend/dist/assets/index-BEOJX8L5.js"))
 CSS = lire("frontend/dist/shared/montage.css")
 MSV = lire("backend/app/services/montage_service.py")
 ERGO = lire("backend/tests/test_montage_ergonomie.py")

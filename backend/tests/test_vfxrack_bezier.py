@@ -36,8 +36,19 @@ const res = {
 process.stdout.write(JSON.stringify(res));
 """
 
-r = subprocess.run([NODE, "-e", HARNAIS, os.path.join(RACINE, "frontend", "patches", "vfxrack.js")],
-                   capture_output=True, text=True, encoding="utf-8")
+# t144 : la couche passe par dzT (traduction L4) ; le banc exécute/lit son texte français d'avant la traduction
+# (test_i18n_l4 garantit qu'elle se défait exactement)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _i18n_l1_aide as AIDE  # noqa: E402
+import tempfile  # noqa: E402
+_TMP = tempfile.mkdtemp(prefix="dzbez_")
+_COUCHE = os.path.join(_TMP, "vfxrack.js")
+with open(os.path.join(RACINE, "frontend", "patches", "vfxrack.js"), "rb") as _fh:
+    _src = AIDE.couche_avant_i18n_l4(_fh.read().decode("utf-8"), "vfxrack")
+with open(_COUCHE, "wb") as _fh:
+    _fh.write(_src.encode("utf-8"))
+r = subprocess.run([NODE, "-e", HARNAIS, _COUCHE], capture_output=True, text=True, encoding="utf-8")
+shutil.rmtree(_TMP, ignore_errors=True)
 if r.returncode:
     print("ECHEC du harnais node :", r.stderr[-800:])
     sys.exit(1)
