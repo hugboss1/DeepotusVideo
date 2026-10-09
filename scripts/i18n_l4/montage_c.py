@@ -41,8 +41,8 @@ ENTREES = [
     L(342330, 'montage.raccourcis.reinitialiser', 'réinitialiser', 'reset'),
     L(342472, 'montage.raccourcis.fixe_aide', 'geste ou touche fixe — non remappable', 'fixed gesture or key — not remappable'),
     # panneau « Raccourcis clavier » : en-tête, recherche, compteur
-    L(342858, 'montage.raccourcis.titre', 'Raccourcis clavier', 'Keyboard shortcuts'),
-    L(342997, 'montage.raccourcis.titre', 'Raccourcis clavier', 'Keyboard shortcuts'),
+    L(342858, 'montage.raccourcis.titre', 'Raccourcis clavier', 'Keyboard Shortcuts'),
+    L(342997, 'montage.raccourcis.titre', 'Raccourcis clavier', 'Keyboard Shortcuts'),
     L(343074, 'montage.raccourcis.sous_titre', "Raccourcis personnalisables — cliquez une touche pour la remapper. Personnalisation gardée sur ce poste (stockage local) · Échap ou clic à l'extérieur pour fermer.", 'Customizable shortcuts — click a key to remap it. Customization is kept on this computer (local storage) · Esc or click outside to close.'),
     L(343416, 'montage.raccourcis.recherche', 'Rechercher une action ou une touche…', 'Search for an action or a key…'),
     L(343482, 'montage.raccourcis.recherche_aria', 'Rechercher une action ou une touche', 'Search for an action or a key'),

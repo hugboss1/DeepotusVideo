@@ -279,7 +279,7 @@
   "sfx.touches.naviguer": {"fr": " naviguer", "en": " navigate"},
   "sfx.touches.preecoute": {"fr": " préécoute", "en": " preview"},
   "sfx.touches.recherche": {"fr": " recherche", "en": " search"},
-  "sfx.touches.suppr": {"fr": "Suppr", "en": "Del"},
+  "sfx.touches.suppr": {"fr": "Suppr", "en": "Del", "contexte": true},
   "sfx.touches.supprimer": {"fr": " supprimer", "en": " delete"},
   "sfx.type.effet_sonore": {"fr": "Effet sonore", "en": "Sound effect"},
   "sfx.type.importe": {"fr": "Importé", "en": "Imported"},

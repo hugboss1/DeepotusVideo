@@ -131,7 +131,7 @@ ENTREES = [
     L(63176, 'sfx.touches.entree', 'Entrée', 'Enter', contexte=True),
     L(63187, 'sfx.touches.inserer', ' insérer', ' insert'),
     L(63262, 'sfx.touches.favori', ' favori', ' favorite'),
-    L(63330, 'sfx.touches.suppr', 'Suppr', 'Del'),
+    L(63330, 'sfx.touches.suppr', 'Suppr', 'Del', contexte=True),
     L(63340, 'sfx.touches.supprimer', ' supprimer', ' delete'),
     L(63417, 'sfx.touches.recherche', ' recherche', ' search'),
     L(63512, 'sfx.touches.fermer', ' fermer', ' close'),

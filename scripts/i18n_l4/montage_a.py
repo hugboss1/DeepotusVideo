@@ -504,7 +504,7 @@ ENTREES = [
       {'montage.touches.maj': ('Maj', 'Shift', 'contexte'),
        'montage.touches.echap': ('Échap', 'Esc', 'contexte'),
        'montage.touches.espace': ('Espace', 'Space', 'contexte'),
-       'montage.touches.suppr': ('Suppr', 'Del'),
+       'montage.touches.suppr': ('Suppr', 'Del', 'contexte'),
        'montage.touches.entree': ('Entrée', 'Enter', 'contexte')}),
     S(135912, 'DzTracks.comboToKey(svmKeyLabel(id)||(a&&a.combo)||"")',
       'DzTracks.comboToKey(km.byId[id]||(a&&a.combo)||"")', {}),

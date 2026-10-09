@@ -254,7 +254,7 @@ ENTREES = [
     S(435403, '"Raccourcis ("+svmKeyLabel("keys_panel")+") — personnalisables"',
       'dzT("montage.raccourcis.aide",{k:svmKeyLabel("keys_panel")})',
       {'montage.raccourcis.aide': ('Raccourcis ({k}) — personnalisables', 'Shortcuts ({k}) — customizable')}),
-    L(435492, 'montage.raccourcis.label', 'Raccourcis clavier', 'Keyboard shortcuts'),
+    L(435492, 'montage.raccourcis.label', 'Raccourcis clavier', 'Keyboard Shortcuts'),
     # en-têtes de piste : +, M, S, verrou, mini-fader de bus
     L(437691, 'montage.piste.ajout_sous_titre', 'Écrire un sous-titre à la tête de lecture', 'Write a subtitle at the playhead'),
     L(437798, 'montage.piste.ajout_son', 'Ajouter un son de la Bibliothèque à la tête de lecture', 'Add a sound from the Library at the playhead'),
