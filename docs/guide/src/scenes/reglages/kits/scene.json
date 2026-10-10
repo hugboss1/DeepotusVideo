@@ -1,0 +1,82 @@
+{
+  "titre": {
+    "fr": "Les kits de marque",
+    "en": "Brand kits"
+  },
+  "legende": {
+    "fr": "Réglages › Identité visuelle : plusieurs kits de marque, un seul actif, et ses champs juste dessous.",
+    "en": "Settings › Branding: several brand kits, a single active one, and its fields right below."
+  },
+  "captures": [
+    {
+      "fr": "kits.fr.webp",
+      "en": "kits.en.webp"
+    }
+  ],
+  "taille": [
+    1208,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        1030,
+        217
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Créer un kit",
+        "en": "Create a kit"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        789,
+        248,
+        42,
+        27
+      ],
+      "bulle": {
+        "fr": "Le kit actif habille toute l'application",
+        "en": "The active kit dresses the whole app"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        1041,
+        200
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Créer un kit",
+        "en": "Create a kit"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        820,
+        231,
+        48,
+        27
+      ],
+      "bulle": {
+        "fr": "Le kit actif habille toute l'application",
+        "en": "The active kit dresses the whole app"
+      }
+    }
+  ],
+  "taille_en": [
+    1208,
+    900
+  ]
+}

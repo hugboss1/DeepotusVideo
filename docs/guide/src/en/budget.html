@@ -1,0 +1,32 @@
+<p class="chapeau-chap">You will know what you spend, set a cap per month and per engine, and decide yourself when a render may go over it. Five minutes, free.</p>
+
+<h3>Where to see what you spend</h3>
+<p>The dollar counter in the top bar shows the month's total. One click opens <span class="chemin"><b class="ui">Settings</b> › <b class="ui">Pricing &amp; budget</b></span>, where everything is set.</p>
+
+<h3>Set your rates and caps</h3>
+<figure class="scene" data-scene="budget/plafonds"></figure>
+<ol class="etapes">
+<li>At the top of <b class="ui">Pricing &amp; budget</b>, enter your providers' rates (price of a picture, of a second of video, of a voice character…). The costs shown in Quick, the Studio and the Scheduler become accurate. <b class="ui">Save pricing</b>.</li>
+<li><strong>Video cap per request</strong> limits the cost of a single video generation; <strong>Max generated seconds per clip</strong> limits its length.</li>
+<li>Further down, <strong>Monthly caps</strong>: one overall cap and one per engine (fal, OpenAI, Anthropic, ElevenLabs, HeyGen, Meshy), in dollars. A bar shows what was spent.</li>
+<li>Set <strong>Alert at (% of a cap)</strong>: a banner warns you once a month when a cap reaches that level. <b class="ui">Save caps</b>.</li>
+</ol>
+
+<h3>When a render would go over a cap</h3>
+<p>Before leaving, every paid generation is checked against your caps. If it goes over, a “Monthly spending cap” dialog opens, wherever you are in the app:</p>
+<ol class="etapes">
+<li>“Tirer quand même” (run anyway) sends exactly the same request, once.</li>
+<li>“Annuler” (cancel) sends nothing and tells you why.</li>
+</ol>
+
+<h3>Actual versus estimated</h3>
+<p>Below the caps, the <strong>Monthly spend — actual vs estimated</strong> table gives one row per engine and per screen: the number of runs, what was estimated, what was actually billed, and the difference.</p>
+<div class="cartes">
+<article><i data-dz="dz-etat-succes"></i><h4>Actual</h4><p>The provider gave the exact price (Meshy, HeyGen): that is what counts.</p></article>
+<article><i data-dz="dz-etat-attente"></i><h4>Partly actual</h4><p>Some runs have their exact price, the rest is still estimated.</p></article>
+<article><i data-dz="dz-etat-information"></i><h4>Estimated</h4><p>The provider gives no price: the app counts the quote made at launch.</p></article>
+</div>
+
+<h3>Good to know</h3>
+<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>Spending made from your phone goes into the same record and the same caps, counted once.</p></aside>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>The Studio sends the cost it displays as the request's cap: a render cannot cost more than what you saw before clicking.</p></aside>

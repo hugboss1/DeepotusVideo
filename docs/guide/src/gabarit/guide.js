@@ -139,7 +139,7 @@
     var bulle = doc.createElement("div"); bulle.className = "bulle"; cadre.appendChild(bulle);
     var barres = $$(".temps button", fig), pause = $(".pause", fig);
     var i = -1, minuterie = null, actif = false, enPause = false;
-    function poser(t) {
+    function poser(t, k) {
       imgs.forEach(function (im, k) { im.classList.toggle("vu", k === t.capture); });
       if (t.curseur) {
         curseur.style.display = "";
@@ -158,7 +158,7 @@
       bulle.classList.remove("vu");
       if (t.bulle) {
         var a = t.ancre || t.curseur || (t.surligne ? [t.surligne[0] + t.surligne[2] / 2, t.surligne[1] + t.surligne[3]] : [W / 2, H / 2]);
-        bulle.innerHTML = '<span class="no">' + (i + 1) + "</span>" + t.bulle[LANG];
+        bulle.innerHTML = '<span class="no">' + (k + 1) + "</span>" + t.bulle[LANG];
         bulle.style.left = Math.min(Math.max(a[0] / W * 100 - 10, 2), 58) + "%";
         bulle.style.top = (a[1] / H > .7 ? a[1] / H * 100 - 16 : a[1] / H * 100 + 5) + "%";
         setTimeout(function () { bulle.classList.add("vu"); }, t.curseur ? 650 : 120);
@@ -178,7 +178,7 @@
         b.style.setProperty("--d", dur + "ms");
       });
       void fig.offsetWidth; if (barres[i]) barres[i].classList.add("cours");
-      poser(t);
+      poser(t, i);
       minuterie = setTimeout(suivant, dur + (i === d.temps.length - 1 ? 1500 : 0));
     }
     barres.forEach(function (b, k) { b.addEventListener("click", function () { i = k - 1; enPause = false; suivant(); }); });
@@ -186,9 +186,17 @@
       enPause = !enPause; pause.title = enPause ? T.lire : T.pause; pause.setAttribute("aria-pressed", String(enPause));
       if (!enPause) { i--; suivant(); } else clearTimeout(minuterie);
     });
-    this.lancer = function () { if (actif) return; actif = true; i = -1; suivant(); };
+    // ne démarre qu'une fois les captures chargées : sinon la première bulle se pose sur un cadre noir
+    function pretes() {
+      return Promise.all(imgs.map(function (im) {
+        return im.complete && im.naturalWidth ? 1 : new Promise(function (r) { im.addEventListener("load", r); im.addEventListener("error", r); });
+      }));
+    }
+    this.lancer = function () { if (actif) return; actif = true; pretes().then(function () { if (actif) { i = -1; suivant(); } }); };
     this.arreter = function () { actif = false; clearTimeout(minuterie); };
-    poser(d.temps[0]);
+    // au repos : la première capture seule, sans repère ni bulle (ils viennent quand la scène joue)
+    imgs.forEach(function (im, k) { im.classList.toggle("vu", k === d.temps[0].capture); });
+    curseur.style.display = "none"; cadreSurl.style.display = "none";
   }
   var scenes = $$("figure.scene").map(function (f) { var s = new Scene(f); f._s = s; return f; });
   if (!reduit && "IntersectionObserver" in window) {

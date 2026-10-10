@@ -1,12 +1,51 @@
-<p>Several features call a language model: <strong>news summaries</strong> (News), <strong>marketing plan generation</strong> (Scheduler) and <strong>Episode storyboards</strong> (the "By AI" split). As of v1.15, you choose the <strong>provider</strong> for each.</p>
-<h3>Cloud providers — Anthropic, OpenAI, Gemini</h3>
-<p>Paste whichever key(s) you want in <strong>Settings → API keys</strong>: <strong>Anthropic</strong> (Claude), <strong>OpenAI</strong> (GPT) and/or <strong>Google Gemini</strong>. Just <strong>one</strong> is enough to enable summaries and AI plans; add several if you want to switch between them.</p>
-<div class="tip"><strong>Gemini model</strong>: by default the app uses <code>gemini-flash-latest</code>, Google's stable alias that automatically tracks the latest Flash release — nothing to do. To pin a specific version (e.g. <code>gemini-2.0-flash</code>), fill the <strong>"Gemini — modèle"</strong> field in <em>Settings → API keys</em> and restart the backend. The same Gemini key also powers the Studio's native Google video models (Veo 3.1).</div>
-<div class="step"><span class="n">1</span><div>In <strong>Settings → Provider defaults</strong>, pick the provider per role (summarizer, planner) from a dropdown. A role is only marked "missing" when <strong>none</strong> of its possible providers has a key.</div></div>
-<div class="step"><span class="n">2</span><div><strong>Automatic fallback</strong>: if the chosen provider is unavailable (no key, outage), the app moves to the next available one — you're never stuck.</div></div>
-<div class="tip"><strong>Engine priority</strong>: your choice in <em>Provider defaults</em> first, then the default order <strong>Anthropic → OpenAI → Gemini → Ollama → built-in planner</strong> (deterministic). The plan badge shows which engine actually ran.</div>
-<h3>Fully local LLM — Ollama (free, private)</h3>
-<p>Plans can also run on an <strong>AI model installed on your machine</strong>: it's <strong>free</strong> and your strategy never leaves your computer.</p>
-<div class="step"><span class="n">1</span><div>Install <strong>Ollama</strong> from <code>ollama.com</code> (Windows).</div></div>
-<div class="step"><span class="n">2</span><div>Pull a model: <code>ollama pull qwen2.5:14b-instruct</code>. <em>Recommended: 14B or more.</em></div></div>
-<div class="step"><span class="n">3</span><div><strong>Settings → API keys → Local LLM (Ollama)</strong>: leave the default URL, set the <em>model name</em>, <em>Save</em>, restart the app.</div></div>
+<p class="chapeau-chap">You will set an AI provider's key, choose which engine does what, and protect your keys with a password. Ten minutes, free; keys are created with each provider.</p>
+
+<h3>Before you start</h3>
+<p>An API key is a code the provider gives you on its website, in your account. It lets the app work on your behalf; the provider bills you. Only one is required to start: <strong>fal.ai</strong>.</p>
+
+<h3>Set a key</h3>
+<figure class="scene" data-scene="cles/cles"></figure>
+<ol class="etapes">
+<li>Open <span class="chemin"><b class="ui">Settings</b> › <b class="ui">API keys</b></span>. Each provider has its row and its status: <strong>missing</strong> until a key is set.</li>
+<li>Click <b class="ui">Guide</b>: it tells where to create the key with the provider and how it is billed.</li>
+<li>Paste the key in the field, then <b class="ui">Save</b>. It works <strong>right away</strong>, no restart.</li>
+<li>Click <b class="ui">Test</b> on the row: the provider says whether it accepts the key, without spending anything.</li>
+</ol>
+<p>To set several keys at once, fill in the fields then <b class="ui">Save all changes</b>.</p>
+
+<h3>Which key unlocks what</h3>
+<div class="tableau"><table>
+<tr><th>Key</th><th>What it unlocks</th></tr>
+<tr><td>fal.ai</td><td>Pictures (FLUX) and video clips (Seedance). The only key you need.</td></tr>
+<tr><td>HeyGen</td><td>Talking avatars, alone or in a composition.</td></tr>
+<tr><td>ElevenLabs</td><td>Voiceover and narration.</td></tr>
+<tr><td>Anthropic, OpenAI or Gemini</td><td>News summaries, post plans, scripts and storyboards written by AI. One is enough; OpenAI also makes pictures (GPT Image).</td></tr>
+<tr><td>Meshy</td><td>Premium picture-to-3D (optional, Meshy subscription).</td></tr>
+<tr><td>Figma</td><td>Import Figma layers into the Library and Templates.</td></tr>
+<tr><td>Ollama (no key)</td><td>An AI model installed on your PC for post plans: free, nothing leaves your machine.</td></tr>
+</table></div>
+<p>Network keys (X, Telegram, YouTube, Instagram, TikTok) go into <b class="ui">Connected accounts</b>: see <a href="#comptes">Connect your accounts</a>.</p>
+
+<h3>Choose the engine for each job</h3>
+<p>In <span class="chemin"><b class="ui">Settings</b> › <b class="ui">Provider defaults</b></span>, each role has its engine: picture generation, voice, picture to video, avatar, voiceover, news summary, post planning. Only keys actually set are offered.</p>
+<div class="cartes">
+<article><i data-dz="dz-media-generer-video"></i><h4>Default video model</h4><p>The model new Seedance nodes start with in the Studio. Each node can change it.</p></article>
+<article><i data-dz="dz-media-voix"></i><h4>Default voice model</h4><p>The ElevenLabs model of new voiceover nodes.</p></article>
+<article><i data-dz="dz-etat-ia"></i><h4>Local AI with Ollama</h4><p>Install Ollama, download a model, then enter its name in the <b class="ui">Local LLM (Ollama)</b> card of API keys.</p></article>
+<article><i data-dz="dz-nav-reglages"></i><h4>Gemini: pick the version</h4><p>Left empty, the “Gemini — model” field always follows the latest Flash version; fill it in to pin one.</p></article>
+</div>
+
+<h3>Protect your keys in the vault</h3>
+<figure class="scene" data-scene="cles/coffre"></figure>
+<ol class="etapes">
+<li>Open <span class="chemin"><b class="ui">Settings</b> › <b class="ui">Vault</b></span>.</li>
+<li>Choose a master password (at least 8 characters), type it twice, then <b class="ui">Set up vault</b>. Your keys are encrypted and leave the plain-text file.</li>
+<li><b class="ui">Close</b> removes the keys from memory: nothing paid can go out. <b class="ui">Open</b> makes them active again with the password.</li>
+<li><b class="ui">Remember on this PC</b> opens the vault on its own at launch, for your Windows session; <b class="ui">Stop remembering</b> asks for the password again.</li>
+</ol>
+<p>On each row of <b class="ui">API keys</b>, a badge tells where the key lives: in the file, in the vault, or vault closed (one click takes you there).</p>
+
+<h3>Good to know</h3>
+<aside class="attention"><i data-dz="dz-etat-avertissement"></i><p>The vault password is stored nowhere: if lost, it cannot be recovered. Write it down, or keep an encrypted archive.</p></aside>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p><b class="ui">Export archive</b> creates a <code>.dzk</code> file that carries your keys, caps and rates to another PC or your phone, protected by its own password. <b class="ui">Import an archive…</b> takes them back.</p></aside>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p><span class="chemin"><b class="ui">Settings</b> › <b class="ui">Diagnostics</b></span> shows the status of all keys at once (never their value) and the providers' balances.</p></aside>

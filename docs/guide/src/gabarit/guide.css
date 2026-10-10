@@ -263,10 +263,12 @@ figure { margin:20px 0; }
   .g-accueil { break-after:page; }
   h2, h3, h4 { break-after:avoid; }
   .step, ol.etapes > li, aside, .tip, .warn, .recipe, figure, table, .cartes article { break-inside:avoid; }
-  .scene .cadre > img { display:none; } .scene .cadre > img.fin { display:block; position:static; opacity:1; }
-  .scene .bulle { opacity:1; transform:none; }
-  .scene .surligne { stroke-dashoffset:0; }
-  .scene .curseur, .scene .onde, .scene .voile { display:none; }
+  /* une scène s'imprime en ses temps côte à côte, chacun avec sa bulle en légende */
+  .scene .cadre { display:none; }
+  .scene .trois { display:grid !important; grid-template-columns:repeat(auto-fit,minmax(55mm,1fr)); gap:3mm; }
+  .scene .trois figure { margin:0; break-inside:avoid; }
+  .scene .trois img { width:100%; border:1px solid #ccc; border-radius:2mm; }
+  .scene .trois figcaption { font-size:8.5pt; margin:1mm 0 0; color:#333; }
   a[href^="http"]::after { content:" (" attr(href) ")"; font-size:9pt; color:#555; word-break:break-all; }
   .g-cartes-acc a { break-inside:avoid; }
 }

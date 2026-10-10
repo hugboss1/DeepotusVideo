@@ -102,24 +102,31 @@ def copier(src, dst, sorties):
 
 # ── scènes et fiches ─────────────────────────────────────────────────────────
 def scene(ref, lang, sorties):
+    """Une scène : ses captures (une par langue quand capturer.js l'a prise dans les deux langues) et ses temps.
+    `temps_en` / `taille_en` existent quand les repères anglais ne tombent pas au même pixel que les français."""
     dossier = SRC / "scenes" / ref
     d = json.loads((dossier / "scene.json").read_text("utf-8"))
-    imgs = []
-    for k, cap in enumerate(d["captures"]):
+    temps, taille = d.get(f"temps_{lang}", d["temps"]), d.get(f"taille_{lang}", d["taille"])
+    noms = []
+    for cap in d["captures"]:
         src = dossier / (cap[lang] if isinstance(cap, dict) else cap)
         nom = f"img/scenes/{ref}/{src.name}"
         copier(src, GUIDE / nom, sorties)
-        cls = ["vu"] if k == 0 else []
-        if k == max(t["capture"] for t in d["temps"]):
-            cls.append("fin")
-        imgs.append(f'<img src="{nom}" alt="" loading="lazy" width="{d["taille"][0]}" height="{d["taille"][1]}"'
+        noms.append(nom)
+    derniere = max(t["capture"] for t in temps)
+    imgs = []
+    for k, nom in enumerate(noms):
+        cls = (["vu"] if k == 0 else []) + (["fin"] if k == derniere else [])
+        imgs.append(f'<img src="{nom}" alt="" loading="lazy" width="{taille[0]}" height="{taille[1]}"'
                     + (f' class="{" ".join(cls)}"' if cls else "") + ">")
-    barres = "".join(f'<button type="button" aria-label="{k + 1}"><i></i></button>' for k in range(len(d["temps"])))
-    trois = "".join(
-        f'<figure><img src="img/scenes/{ref}/{pathlib.Path(d["captures"][t["capture"]] if not isinstance(d["captures"][t["capture"]], dict) else d["captures"][t["capture"]][lang]).name}" alt="" loading="lazy">'
-        f'<figcaption>{k + 1}. {t["bulle"][lang] if t.get("bulle") else ""}</figcaption></figure>'
-        for k, t in enumerate(d["temps"]))
-    donnees = json.dumps({"taille": d["taille"], "temps": d["temps"]}, ensure_ascii=False).replace("</", "<\\/")
+    barres = "".join(f'<button type="button" aria-label="{k + 1}"><i></i></button>' for k in range(len(temps)))
+    # version FIXE (mouvement réduit, impression) : une image par capture, ses bulles numérotées en légende
+    groupes = {}
+    for k, t in enumerate(temps):
+        groupes.setdefault(t["capture"], []).append(f'{k + 1}. {t["bulle"][lang]}' if t.get("bulle") else "")
+    trois = "".join(f'<figure><img src="{noms[c]}" alt="" loading="lazy">'
+                    f'<figcaption>{" ".join(x for x in b if x)}</figcaption></figure>' for c, b in groupes.items())
+    donnees = json.dumps({"taille": taille, "temps": temps}, ensure_ascii=False).replace("</", "<\\/")
     leg = d.get("legende", d.get("titre", {})).get(lang, "")
     return (f'<figure class="scene" data-scene="{ref}"><div class="cadre">{"".join(imgs)}'
             f'<button type="button" class="g-btn pause" title="{TXT[lang]["pause"]}" aria-pressed="false">'
@@ -134,13 +141,18 @@ def fiche(ref, lang, sorties, ou=""):
     lab, ident = ref.split("/", 1)
     entrees = json.loads((RACINE / "frontend" / lab / "aide" / "index.json").read_text("utf-8"))
     e = next(x for x in entrees if x.get("id") == ident)
-    src = RACINE / "frontend" / lab / "aide" / pathlib.Path(e["fichier"]).name
+    # l'anglais du LAB d'abord (titre_en, phrase_en, animation fichier_en capturée en anglais : t146) ;
+    # src/fiches-en.json seulement pour les labs pas encore traduits
+    fichier, titre, phrase = e["fichier"], e["titre"], e["phrase"]
+    if lang == "en":
+        if e.get("titre_en"):
+            fichier, titre, phrase = e.get("fichier_en") or fichier, e["titre_en"], e.get("phrase_en") or phrase
+        else:
+            en = json.loads((SRC / "fiches-en.json").read_text("utf-8"))[ref]
+            titre, phrase = en["titre"], en["phrase"]
+    src = RACINE / "frontend" / lab / "aide" / pathlib.Path(fichier).name
     nom = f"img/fiches/{lab}/{src.name}"
     copier(src, GUIDE / nom, sorties)
-    titre, phrase = e["titre"], e["phrase"]
-    if lang == "en":
-        en = json.loads((SRC / "fiches-en.json").read_text("utf-8"))[ref]
-        titre, phrase = en["titre"], en["phrase"]
     ou = f'<span class="ou">{ou}</span>' if ou else ""
     return (f'<figure class="fiche" data-fiche="{ref}"><img src="{nom}" alt="{html.escape(TXT[lang]["fiche"])} : '
             f'{html.escape(titre)}" loading="lazy" width="320" height="200"><figcaption><b>{html.escape(titre)}</b>'

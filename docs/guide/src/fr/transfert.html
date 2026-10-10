@@ -1,8 +1,31 @@
-<p>Tout est stocké <strong>en local</strong> : l'application dans <code>%LOCALAPPDATA%\DeepotusVideoGen</code>, et vos données (générations, <strong>calendrier + posts planifiés</strong>, clés API) dans <code>%LOCALAPPDATA%\DeepotusVideoGenData</code>. Pour continuer sur un autre PC (voyage) <strong>sans interrompre le planning</strong>, un kit se trouve dans <code>Bureau\deepotus-migration</code>.</p>
-<h3>Avec les scripts (recommandé)</h3>
-<div class="step"><span class="n">1</span><div>Sur CE PC, un disque/clé branché : <code>export-migration.ps1 -Dest "E:\deepotus-transfer"</code>. Copie l'app + toutes les données + un snapshot cohérent de la base.</div></div>
-<div class="step"><span class="n">2</span><div>Copiez ce dossier sur l'autre portable, puis <strong>double-cliquez <code>IMPORT-TOUT.cmd</code></strong> à sa racine : il restaure <strong>tout en un clic</strong> — application, générations, calendrier, clés, <em>et</em> vos sessions Claude Code si elles sont dans le kit. (Équivalent manuel : <code>import-migration.ps1 -Src "E:\deepotus-transfer"</code>.) L'installateur <code>DeepotusVideoGen-Setup-*.exe</code> est aussi joint au kit pour une installation propre sur une 3e machine.</div></div>
-<div class="step"><span class="n">3</span><div>Lancez <strong>Deepotus Video Gen</strong> : <em>Library</em> = vos rendus, <em>Scheduler</em> = vos posts planifiés, <em>Settings</em> = vos clés.</div></div>
-<h3>À la main</h3>
-<p>Fermez l'app, copiez les <strong>deux dossiers</strong> ci-dessus vers les <strong>mêmes emplacements</strong> <code>%LOCALAPPDATA%\</code> sur l'autre PC, puis lancez <code>scripts\create-desktop-shortcut.ps1</code> (ou double-cliquez <code>scripts\launch-silent.vbs</code>).</p>
-<div class="warn">Ne faites <strong>pas</strong> tourner l'app sur les deux PC en même temps (risque de double-publication des posts planifiés). Idéal : <strong>même nom d'utilisateur Windows</strong> sur les deux (les chemins correspondent ; sinon le script d'import les réécrit). Le <strong>Scheduler s'exécute quand l'app est ouverte</strong> — gardez-la lancée aux heures de publication sur le portable de voyage, et l'ancien PC fermé.</div>
+<p class="chapeau-chap">Vous saurez emporter tout votre travail sur un autre ordinateur, vérifier que rien ne s'est abîmé en route, et y retrouver vos clés. Quinze minutes, gratuit ; il faut l'application installée sur les deux machines.</p>
+
+<h3>Ce qui voyage</h3>
+<p>Le transfert emporte tout ce que l'application a créé : la Bibliothèque et l'origine de chaque fichier, les rendus, la bible, les plans de communication, les documents vectoriels, les séries de cartes et les modèles 3D. Vos clés d'API, elles, ne partent <strong>jamais</strong> dans le paquet.</p>
+
+<h3>Exporter depuis l'ancien PC</h3>
+<figure class="scene" data-scene="transfert/export"></figure>
+<ol class="etapes">
+<li>Ouvrez <span class="chemin"><b class="ui">Réglages</b> › <b class="ui">Transfert entre machines</b></span> : le nombre de fichiers et le poids à emporter s'affichent.</li>
+<li>Cliquez <b class="ui">Exporter…</b>, puis choisissez la destination : un disque, une clé USB, ou un chemin.</li>
+<li>Cochez si vous le voulez les lots en plus : <b class="ui">Journaux</b> et <b class="ui">Rebuts — corbeilles datées</b>. Ils sont décochés par défaut, avec leur poids.</li>
+<li><b class="ui">Lancer l'export</b> : un dossier daté s'écrit à la destination, chaque fichier avec son empreinte. Ne fermez pas l'application pendant l'écriture.</li>
+<li>Cliquez <b class="ui">Contrôler l'intégrité</b> : chaque fichier écrit est relu et comparé à son empreinte.</li>
+</ol>
+
+<h3>Importer sur le nouveau PC</h3>
+<ol class="etapes">
+<li>Installez l'application, puis ouvrez <span class="chemin"><b class="ui">Réglages</b> › <b class="ui">Transfert entre machines</b></span> et cliquez <b class="ui">Importer…</b>.</li>
+<li>Indiquez le dossier du paquet, puis <b class="ui">Vérifier</b> : l'application lit le paquet sans rien écrire et dit d'où il vient (date, machine, version).</li>
+<li><b class="ui">Lancer l'import</b>. L'import <strong>ajoute</strong> : rien de ce que ce PC possède déjà n'est écrasé. Un fichier abîmé est écarté et nommé.</li>
+</ol>
+
+<h3>Emporter aussi vos clés</h3>
+<ol class="etapes">
+<li>Sur l'ancien PC : <span class="chemin"><b class="ui">Réglages</b> › <b class="ui">Coffre</b></span> › <b class="ui">Exporter l’archive</b>, avec un mot de passe à part.</li>
+<li>Sur le nouveau PC : <b class="ui">Importer une archive…</b> et ce mot de passe. Vos clés, vos plafonds et vos tarifs reviennent.</li>
+</ol>
+
+<h3>Bon à savoir</h3>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Les chemins de l'ancienne machine sont réécrits pour la nouvelle : vos projets retrouvent leurs fichiers sans rien régler.</p></aside>
+<aside class="attention"><i data-dz="dz-etat-avertissement"></i><p>Interrompre un export laisse un paquet incomplet. Si cela arrive, relancez l'export, puis <b class="ui">Contrôler l'intégrité</b> avant d'importer.</p></aside>

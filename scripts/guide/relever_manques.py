@@ -16,6 +16,7 @@ import sys
 RACINE = pathlib.Path(__file__).resolve().parents[2]
 SRC = RACINE / "docs" / "guide" / "src"
 SORTIE = RACINE / "docs" / "guide" / "MANQUES.md"
+RECLASSER = {}
 
 
 def lire(nom):
@@ -23,7 +24,9 @@ def lire(nom):
 
 
 def construire():
+    global RECLASSER
     som, liv, cov = lire("chapitres.json"), lire("releve/livraisons.json"), lire("releve/couverture-v2.8.json")
+    RECLASSER = lire("releve/reclasser.json") if (SRC / "releve/reclasser.json").is_file() else {}
     par_ecran = {e["ecran"]: e for e in liv["ecrans"]}
     anciens = {c["id"]: c for c in cov["chapitres"]}
     familles = {f["id"]: f["fr"] for f in som["familles"]}
@@ -43,7 +46,11 @@ def construire():
         if ch["famille"] != famille:
             famille = ch["famille"]
             L += [f"## {familles[famille]}", ""]
-        fonctions = [(e, f) for nom in ch["ecrans"] for e in [par_ecran[nom]] for f in e["fonctions"]]
+        # releve/reclasser.json range une fonction dans un autre chapitre que celui de son écran (ex. HeyGen → quick)
+        fonctions = [(e, f) for nom in ch["ecrans"] for e in [par_ecran[nom]] for f in e["fonctions"]
+                     if RECLASSER.get(f["nom"], ch["id"]) == ch["id"]]
+        fonctions += [(e, f) for e in liv["ecrans"] for f in e["fonctions"]
+                      if RECLASSER.get(f["nom"]) == ch["id"] and e["ecran"] not in ch["ecrans"]]
         resume[ch["lot"]] += len(fonctions)
         faits[ch["lot"]] += len(fonctions) if ch.get("etat") == "v3" else 0
         anc = ", ".join(ch["anciens"]) or "nouveau"

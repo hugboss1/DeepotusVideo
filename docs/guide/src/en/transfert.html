@@ -1,8 +1,31 @@
-<p>Everything is stored <strong>locally</strong>: the app in <code>%LOCALAPPDATA%\DeepotusVideoGen</code>, and your data (generations, <strong>calendar + scheduled posts</strong>, API keys) in <code>%LOCALAPPDATA%\DeepotusVideoGenData</code>. To continue on another PC (travel) <strong>without interrupting the schedule</strong>, a kit lives in <code>Desktop\deepotus-migration</code>.</p>
-<h3>With the scripts (recommended)</h3>
-<div class="step"><span class="n">1</span><div>On THIS PC, with a USB/external drive plugged in: <code>export-migration.ps1 -Dest "E:\deepotus-transfer"</code>. Copies the app + all data + a consistent DB snapshot.</div></div>
-<div class="step"><span class="n">2</span><div>Copy that folder to the other laptop, then <strong>double-click <code>IMPORT-TOUT.cmd</code></strong> at its root: it restores <strong>everything in one click</strong> — app, generations, calendar, keys, <em>and</em> your Claude Code sessions if they are in the kit. (Manual equivalent: <code>import-migration.ps1 -Src "E:\deepotus-transfer"</code>.) The <code>DeepotusVideoGen-Setup-*.exe</code> installer is also bundled for a clean install on a third machine.</div></div>
-<div class="step"><span class="n">3</span><div>Launch <strong>Deepotus Video Gen</strong>: <em>Library</em> = your renders, <em>Scheduler</em> = your scheduled posts, <em>Settings</em> = your keys.</div></div>
-<h3>Manually</h3>
-<p>Close the app, copy the <strong>two folders</strong> above to the <strong>same</strong> <code>%LOCALAPPDATA%\</code> paths on the other PC, then run <code>scripts\create-desktop-shortcut.ps1</code> (or double-click <code>scripts\launch-silent.vbs</code>).</p>
-<div class="warn">Do <strong>not</strong> run the app on both PCs at once (scheduled posts could double-publish). Best: <strong>same Windows username</strong> on both (paths match; otherwise the import script rewrites them). The <strong>Scheduler runs while the app is open</strong> — keep it running around posting times on the travel laptop, and keep the old PC closed.</div>
+<p class="chapeau-chap">You will take all your work to another computer, check that nothing got damaged on the way, and get your keys back there. Fifteen minutes, free; the app must be installed on both machines.</p>
+
+<h3>What travels</h3>
+<p>The transfer takes everything the app created: the Library and the origin of every file, renders, the bible, communication plans, vector documents, card series and 3D models. Your API keys <strong>never</strong> go into the package.</p>
+
+<h3>Export from the old PC</h3>
+<figure class="scene" data-scene="transfert/export"></figure>
+<ol class="etapes">
+<li>Open <span class="chemin"><b class="ui">Settings</b> › <b class="ui">Machine transfer</b></span>: the number of files and the size to take are shown.</li>
+<li>Click <b class="ui">Export…</b>, then pick the destination: a drive, a USB stick, or a path.</li>
+<li>Tick the extras if you want them: <b class="ui">Logs</b> and <b class="ui">Discards — dated trash folders</b>. They are unchecked by default, with their size.</li>
+<li><b class="ui">Start export</b>: a dated folder is written at the destination, each file with its checksum. Do not close the app while it writes.</li>
+<li>Click <b class="ui">Check integrity</b>: every written file is read back and compared with its checksum.</li>
+</ol>
+
+<h3>Import on the new PC</h3>
+<ol class="etapes">
+<li>Install the app, then open <span class="chemin"><b class="ui">Settings</b> › <b class="ui">Machine transfer</b></span> and click <b class="ui">Import…</b>.</li>
+<li>Give the package folder, then <b class="ui">Check</b>: the app reads the package without writing anything and tells where it comes from (date, machine, version).</li>
+<li><b class="ui">Start import</b>. Import <strong>adds</strong>: nothing this PC already has is overwritten. A damaged file is left out and named.</li>
+</ol>
+
+<h3>Take your keys too</h3>
+<ol class="etapes">
+<li>On the old PC: <span class="chemin"><b class="ui">Settings</b> › <b class="ui">Vault</b></span> › <b class="ui">Export archive</b>, with a separate password.</li>
+<li>On the new PC: <b class="ui">Import an archive…</b> and that password. Your keys, caps and rates come back.</li>
+</ol>
+
+<h3>Good to know</h3>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Paths from the old machine are rewritten for the new one: your projects find their files without any setting.</p></aside>
+<aside class="attention"><i data-dz="dz-etat-avertissement"></i><p>Stopping an export leaves an incomplete package. If it happens, run the export again, then <b class="ui">Check integrity</b> before importing.</p></aside>
