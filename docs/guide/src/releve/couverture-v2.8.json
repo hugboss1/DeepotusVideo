@@ -1,0 +1,579 @@
+{
+ "chapitres": [
+  {
+   "id": "c0",
+   "titre": "Démarrage & clés API",
+   "ecran": "Lanceur Bureau, assistant de premier lancement (onboarding), Settings → API keys, pastilles d'état de la barre du haut",
+   "fonctions": [
+    "Lancement par l'icône Bureau, démarrage silencieux, ouverture du navigateur sur le studio",
+    "Assistant de premier lancement en 5 étapes (persona, fournisseurs/Generators, canaux) ; option Ollama listée",
+    "Rejouer l'assistant : palette de commandes ⌘K → « Replay onboarding »",
+    "Modèle BYO keys : seule fal.ai obligatoire (images FLUX + clips Seedance), lien fal.ai/dashboard/keys",
+    "Settings → API keys : un champ, un statut et un bouton Save par clé ; redémarrage de l'app après Save",
+    "Pastilles en haut à droite fal / heygen / voice, vertes quand la clé est active",
+    "Carte Local LLM (Ollama) en bas de Settings → API keys",
+    "Tableau des coûts indicatifs (image FLUX ≈ $0.003, Seedance 10 s ≈ $0.30–0.60, HeyGen 1 min ≈ 6 crédits, ElevenLabs aux caractères, uploads gratuits, résumé/plan LLM ≈ $0.01 ou gratuit Ollama, publication Telegram/X)",
+    "Tableau « quelle clé débloque quoi » : fal.ai, HeyGen, ElevenLabs, Anthropic/OpenAI/Gemini (une suffit, sinon gabarits déterministes), Ollama, X (4 clés), Telegram (bot token)",
+    "Données locales dans %LOCALAPPDATA%\\DeepotusVideoGenData, survivent aux mises à jour/réinstallations"
+   ],
+   "captures": [
+    "img/onboarding.png",
+    "img/settings-keys.png"
+   ],
+   "perime": [
+    "« Settings → API keys », bouton « Save » (libellés anglais ; UI désormais traduite FR/EN, Réglages refondus : coffre à clés #20, test de clé, recherche #22, plafonds #16, mise à jour #18)",
+    "« Collez vos clés … puis redémarrez l'app » (clés à chaud #17 : redémarrage plus nécessaire)",
+    "« palette de commandes ⌘K → « Replay onboarding » » (glyphe macOS sur app Windows ; libellé anglais)",
+    "Pastilles « fal / heygen / voice » : à vérifier vs barre actuelle",
+    "Tableau des clés : ni Meshy, ni coffre DPAPI, ni plafonds de dépense, ni OAuth YouTube/Instagram/TikTok du Scheduler",
+    "Coûts « HeyGen ≈ 6 crédits » (HeyGen v3 = wallet USD)"
+   ],
+   "mots": 428
+  },
+  {
+   "id": "c1",
+   "titre": "Configurer un persona",
+   "ecran": "Settings → Personas",
+   "fonctions": [
+    "Settings → Personas : créer, éditer, activer la voix de marque",
+    "Bouton New persona : nom, ton, audience, mode de voix",
+    "Clic sur la carte = activer le persona ; persona actif rappelé dans les écrans de génération",
+    "Le persona alimente plans marketing, scripts d'avatar, générateur de prompts"
+   ],
+   "captures": [
+    "img/settings-personas.png"
+   ],
+   "perime": [
+    "« Settings → Personas », « New persona » (libellés anglais)"
+   ],
+   "mots": 71
+  },
+  {
+   "id": "c2",
+   "titre": "Créer vos premières images",
+   "ecran": "Library (Bibliothèque) — onglet Images",
+   "fonctions": [
+    "Library = bibliothèque d'images, rendus vidéo, sons, captions",
+    "Champ « Describe an image to create » + Entrée → image FLUX (~3 s) dans la bibliothèque",
+    "Prompt manager : ingrédients (sujet, ambiance, lumière, mouvement…), Random, Refine with AI, Use this prompt (remplace le champ)",
+    "Upload image (ou glisser-déposer n'importe où)",
+    "Upload video (renvoi chap. 5)",
+    "Survol d'un rendu pour le lire",
+    "Exemples de prompts (encadré tip)"
+   ],
+   "captures": [
+    "img/library.png"
+   ],
+   "perime": [
+    "Onglet « Library » (Bibliothèque unifiée v2.6 : DAM #77, projets #78, lignée #79, fiche #80, corbeille/doublons #81, recherche CLIP #82, Envoyer vers — rien de cela n'est décrit)",
+    "« Describe an image to create », « Prompt manager », « Refine with AI », « Use this prompt » (libellés anglais)"
+   ],
+   "mots": 155
+  },
+  {
+   "id": "c3",
+   "titre": "Vidéo type ① — le clip cinématique (Seedance)",
+   "ecran": "Quick, mode Seedance ; Job Dock",
+   "fonctions": [
+    "Quick / mode Seedance : image + prompt → clip vertical",
+    "Image de départ ; image de fin optionnelle (transition)",
+    "Prompt de mouvement, templates de prompt, générateur de prompt (écrase le prompt par défaut)",
+    "Réglages style, durée 5–60 s, format (9:16 par défaut)",
+    "Coût estimé avant lancement ; aperçu au format réel à droite",
+    "Generate → progression dans le Job Dock (bandeau du bas), rendu en 30–45 s dans Library",
+    "Renommer un rendu depuis le Job Dock (crayon ✏️), lecture ▶ ; nom propagé à Library et sélecteurs"
+   ],
+   "captures": [
+    "img/quick-seedance.png"
+   ],
+   "perime": [
+    "Glyphes ✏️ et ▶ comme icônes du Job Dock (icônes Deepotus Glyph remplacent les emojis)",
+    "« Generate » (libellé anglais)",
+    "« durée (5–60 s) » et Seedance comme modèle implicite (t130 a changé les modèles vidéo par défaut) ; saisie Quick refaite (t129)"
+   ],
+   "mots": 137
+  },
+  {
+   "id": "c4",
+   "titre": "Vidéo type ② — l'avatar parlant (HeyGen)",
+   "ecran": "Quick, mode HeyGen ; mode Composition ; statut HeyGen (barre + Settings)",
+   "fonctions": [
+    "Quick / mode HeyGen : choix avatar + voix dans des listes avec recherche",
+    "Upload photo → avatar personnalisé en ~30 s, sélectionné automatiquement",
+    "Script jusqu'à 4 900 caractères, Generate, 1 à 3 min",
+    "Premier chargement du catalogue (1 000+ avatars, 2 000 voix) jusqu'à ~1 min ; préchargement au démarrage ; cache",
+    "Liste rafraîchie automatiquement après création d'un avatar",
+    "Statut HeyGen (clé + crédits) instantané en haut à droite et dans Settings",
+    "Mode Composition : clip Seedance + avatar HeyGen (séquentiel ou écran partagé), anti-coupure automatique"
+   ],
+   "captures": [
+    "img/quick-heygen.png",
+    "img/heygen-avatars.png"
+   ],
+   "perime": [
+    "Badge « v1.15 » sur le h3 du premier chargement",
+    "« ⏱ » emoji dans le titre h3",
+    "Migration HeyGen v3 (Avatar III par look, wallet USD, listes en cache disque) non reflétée ; « crédits »",
+    "« 1 281 avatars » chiffré dans la légende de capture"
+   ],
+   "mots": 348
+  },
+  {
+   "id": "c5",
+   "titre": "Vidéo type ③ — votre propre vidéo (UGC)",
+   "ecran": "Library → Upload video, onglet Renders ; Studio nœud UGC video",
+   "fonctions": [
+    "Library → Upload video : import, mesure de durée réelle, onglet Renders, réutilisable (Scheduler, Studio)",
+    "Studio : glisser un nœud UGC video, Upload your video, miniature dans le nœud",
+    "Starter « UGC + animation »",
+    "Interrupteur ⏱ Duration master : la durée du clip commande la vidéo finale, Seedance calibré autour",
+    "Recette éclair UGC + Image + Seedance → Run (vidéo en bas, animation en haut)"
+   ],
+   "captures": [
+    "img/studio-ugc.png"
+   ],
+   "perime": [
+    "« ⏱ Duration master » (emoji comme icône, libellé anglais)",
+    "Onglet « Renders » de la Library (Bibliothèque unifiée)"
+   ],
+   "mots": 221
+  },
+  {
+   "id": "c6",
+   "titre": "Audio, voix off & musique",
+   "ecran": "Library → onglet Audio ; Quick → onglet Voice Over ; Studio nœud Piste audio ; rendu simple",
+   "fonctions": [
+    "Library → onglet Audio (à côté d'Images et Renders) : sons importés, voix off générées, musiques",
+    "Bouton Importer un son ou glisser-déposer (.mp3/.wav/.m4a…), durée mesurée, lecture sur place",
+    "Liens vers banques de musique libres (Pixabay Music, Freesound, Free Music Archive, YouTube Audio Library)",
+    "Quick → onglet Voice Over : voix off seule, texte ≤ 2 500 caractères (plus long → Chapitres), choix de la langue, compteur et coût estimé en direct",
+    "Liste défilante de voix avec ▶ pré-écoute et champ de filtre ; voix par défaut de l'app",
+    "Castings voix + langue réutilisables (★ Sauver)",
+    "Générer la voix → mp3 écoutable, enregistré dans Library → Audio",
+    "Avertissement offre gratuite ElevenLabs (voix premade seulement ; library/community = payant), l'app prévient",
+    "Studio : nœud Piste audio (choix de piste avec aperçu, volume, boucler sur la durée), relié au Render",
+    "Piste de fond attachable sur le rendu simple sans Studio",
+    "Piste bouclée/rognée à la durée exacte puis mixée sous la voix/le clip"
+   ],
+   "captures": [],
+   "perime": [
+    "Badges « v1.15.6 » (h2) et « v1.17.0 » (h3 Voix off)",
+    "« Quick → Voice Over » (libellé anglais ; Voicebox Quick/Studio + ducking t131 non décrit)",
+    "Aucune mention du tiroir Sons / Son & VFX (stems T100, tiroir T101, chanson/voix #102, matte/recherche #103)",
+    "Glyphes ▶ et ★ comme icônes",
+    "Aucune capture"
+   ],
+   "mots": 440
+  },
+  {
+   "id": "c7",
+   "titre": "Vidéo type ⑤ — Épisodes (un roman narré → vidéo)",
+   "ecran": "Page Épisodes (barre latérale), stepper 4 étapes ; Job Dock ; Scheduler",
+   "fonctions": [
+    "Page Épisodes ouverte depuis la barre latérale, stepper cliquable en 4 étapes",
+    "Étape 1 : titre, coller le texte ou téléverser .txt/.docx/.pdf (extraction)",
+    "Choix voix + langue, écoute ▶",
+    "Générer la narration (ElevenLabs), enregistrée en bibliothèque audio, découpage/recousage auto des longs chapitres",
+    "Étape 2 : storyboard — découpage Par paragraphe ou Par l'IA (prompts d'illustration riches) ; générer les deux et comparer",
+    "Édition des scènes : texte, prompt, réordonner ↑ ↓, ajouter/retirer ＋ / ✕",
+    "Étape 3 : Générer toutes les illustrations (ou une par une), modèle FLUX ou GPT Image",
+    "Animation par scène : Ken Burns (défaut), Seedance, Image fixe",
+    "Étape 4 : Assembler l'épisode (Job Dock), aperçu",
+    "Envoyer au Scheduler → brouillons YouTube + Instagram",
+    "Conseil feuilleton : même persona/voix, un épisode par jour"
+   ],
+   "captures": [],
+   "perime": [
+    "Badge « v1.15.6 »",
+    "Glyphes ↑ ↓ ＋ ✕ ▶ comme icônes de boutons",
+    "Chapitres #62-#66 (exports manuscrit/scénario/storyboard docx/PDF), scènes d'épisode t119, saisie Épisodes t129 non décrits",
+    "Aucune capture"
+   ],
+   "mots": 358
+  },
+  {
+   "id": "c8",
+   "titre": "Vidéo type ④ — composer avec les Templates",
+   "ecran": "Onglet Templates (galerie + éditeur spatial)",
+   "fonctions": [
+    "Galerie de mises en page 9:16 (news reel + avatar + bandeau, écran partagé, coin PIP, triptyque…), vignettes reflétant la vraie disposition",
+    "Clic vignette → éditeur de droite : déplacer/redimensionner les régions (poignées)",
+    "Save layout (apparaît aussitôt dans la galerie), New template (vierge)",
+    "Open in Studio"
+   ],
+   "captures": [
+    "img/templates.png"
+   ],
+   "perime": [
+    "« Save layout », « New template », « Open in Studio » (libellés anglais)",
+    "Kits de marque (#72-73), masques + texte (#74), image fixe (#75), animations (#76) des Templates non décrits"
+   ],
+   "mots": 107
+  },
+  {
+   "id": "c9",
+   "titre": "Composer avec le Studio (éditeur de nœuds)",
+   "ecran": "Studio : palette, canevas, inspecteur, barre New/Preview/Run",
+   "fonctions": [
+    "Palette de nœuds à gauche, canevas au centre, inspecteur à droite ; barre du haut New, Preview, Run",
+    "Starter graphs : Seedance solo, Avatar post, UGC + animation, News reel, Timeline montage",
+    "New → canevas vierge avec nœud Render ; nom du graphe éditable dans le panneau de droite",
+    "Ajout de nœud par glisser-déposer depuis la palette (Image, Seedance, UGC video, Piste audio, Text…)",
+    "Relier sortie → entrée ; déplacer un nœud ; supprimer par × dans l'en-tête (retire les connexions)",
+    "Preview (entrées/rendu) puis Run (compile + rendu réel, Job Dock)",
+    "Miniature d'asset dans le nœud quand on choisit une image/render/UGC/piste"
+   ],
+   "captures": [
+    "img/studio.png"
+   ],
+   "perime": [
+    "Badge « ENRICHI »",
+    "« Starter graphs », « New », « Run » (libellés anglais)",
+    "Épingles Studio (#67), recette/duel (#67-71), Studio R8, avatar HeyGen décalé, table de Montage (v2.7.0, plusieurs séquences t117, courbes t118, Bézier t128) non décrits"
+   ],
+   "mots": 261
+  },
+  {
+   "id": "c10",
+   "titre": "Planifier & publier votre semaine",
+   "ecran": "Scheduler : calendrier semaine/mois, Generate plan, Import doc, inspecteur de post",
+   "fonctions": [
+    "Calendrier semaine/mois, human-in-the-loop",
+    "Generate plan : brief en une phrase → plan IA complet (posts datés, hooks, captions, formats), preview puis Add to calendar",
+    "Import doc : .md/.docx/.pdf → posts datés, semaines préservées",
+    "New post / + add post sur un jour (manuel) ; Épisodes arrivent en brouillon",
+    "Inspecteur de post : graphe du post + inspecteur à droite",
+    "Produce : fabrique image FLUX puis clip Seedance (ou réutilise la source choisie) ; miniature sur le nœud Render ; aperçu vidéo dans l'inspecteur",
+    "Inspecteur : canaux, légende",
+    "Barre d'emojis rapides ❤️ 🔥 🚀 😍 🎉 👍 💯 insérés au curseur",
+    "Pack Telegram Premium : tags brandés (🐙 Deepotus Protocol, 🌊 Rippled Signal, 👁️ Prophet, 🎴 Board Game, 🎲 D&D, 🪙 $DEEP…)",
+    "Mode par post : Assisted (défaut, passe READY, clic Send) ou Auto (Telegram, X)",
+    "Couleurs de statut : gris brouillon, cyan planifié, ambre prêt, vert publié, rouge échec"
+   ],
+   "captures": [
+    "img/scheduler.png",
+    "img/plan-generate.png",
+    "img/plan-import.png",
+    "img/scheduler-caption.png"
+   ],
+   "perime": [
+    "Badge « ENRICHI »",
+    "« Generate plan », « Import doc », « New post », « Add to calendar », « Produce », « Send », « Assisted/Auto » (anglais)",
+    "Auto seulement « (Telegram, X) » : Scheduler YouTube (#25), Instagram (#26), TikTok OAuth (#27), réglages OAuth (#28), métriques (#29), créneaux + validation (#30), écran (#31), lot 2 (#32), débordement (PR #288) non décrits",
+    "Barre d'emojis : fonction réelle de contenu, à revérifier vs l'UI actuelle"
+   ],
+   "mots": 351
+  },
+  {
+   "id": "c11",
+   "titre": "Choisir votre moteur d'IA (cloud & local)",
+   "ecran": "Settings → API keys (Anthropic/OpenAI/Gemini, champ Gemini — modèle, carte Ollama) ; Settings → Provider defaults",
+   "fonctions": [
+    "Usages LLM : résumé d'actualités (News), plans marketing (Scheduler), storyboards d'Épisodes (Par l'IA)",
+    "Clés Anthropic / OpenAI / Gemini dans Settings → API keys ; une seule suffit",
+    "Champ « Gemini — modèle » (défaut gemini-flash-latest, figer une version, redémarrer le backend) ; même clé pour Veo 3.1 dans le Studio",
+    "Settings → Provider defaults : fournisseur par rôle (résumeur, planificateur) en menu déroulant ; « missing » si aucun fournisseur possible n'a de clé",
+    "Bascule automatique vers le suivant disponible",
+    "Ordre par défaut Anthropic → OpenAI → Gemini → Ollama → planificateur intégré ; badge du moteur réel sur le plan",
+    "Ollama : installer depuis ollama.com, ollama pull qwen2.5:14b-instruct (14B+ recommandé), Settings → API keys → Local LLM (Ollama) : URL, nom du modèle, Save, redémarrer"
+   ],
+   "captures": [],
+   "perime": [
+    "Badges « v1.15 » (h2) et « v1.21 » (tip Gemini)",
+    "« Depuis la v1.15, vous choisissez… »",
+    "« Provider defaults », « Local LLM (Ollama) », « missing » (anglais)",
+    "« redémarrez le backend/l'app » après Save",
+    "Aucune capture"
+   ],
+   "mots": 322
+  },
+  {
+   "id": "c12",
+   "titre": "Connecter vos comptes (publier)",
+   "ecran": "Settings → Connected accounts",
+   "fonctions": [
+    "Settings → Connected accounts : identifiants du Scheduler stockés localement, statut réel par canal auto / assisted",
+    "Telegram : @BotFather /newbot, token, bot administrateur du canal, token + chat ID, Save, redémarrer, Send test message",
+    "X : 4 clés sur developer.x.com (pay-per-use), Verify credentials",
+    "YouTube et Instagram restent en mode assisté"
+   ],
+   "captures": [
+    "img/settings-accounts.png"
+   ],
+   "perime": [
+    "« YouTube et Instagram restent en mode assisté » (dépassé : Scheduler YouTube #25 / Instagram #26 ; TikTok #27 absent)",
+    "« Connected accounts », « Send test message », « Verify credentials » (anglais)",
+    "Réglages + OAuth (#28) non décrits ; redémarrage après Save"
+   ],
+   "mots": 96
+  },
+  {
+   "id": "c13",
+   "titre": "Marque blanche (rebrander le studio)",
+   "ecran": "Settings → Branding",
+   "fonctions": [
+    "Nom, sous-titre, taglines, couleur primaire et accent → splash, barre latérale, accents",
+    "Aperçu en direct du wordmark ; stocké dans le dossier de données",
+    "Logo… : téléverser un logo (normalisé automatiquement)",
+    "Save brand ; Reset to deepotus",
+    "Logo affiché sur l'écran de chargement au démarrage"
+   ],
+   "captures": [
+    "img/settings-branding.png"
+   ],
+   "perime": [
+    "« Save brand », « Reset to deepotus », « Logo… » (anglais)",
+    "Lien avec kits de marque des Templates (/branding = kit actif) non décrit"
+   ],
+   "mots": 114
+  },
+  {
+   "id": "c14",
+   "titre": "Dépannage & recettes",
+   "ecran": "Transversal : pastilles, Settings, HeyGen, ElevenLabs, dossier de données, port 8765 ; recettes Library/Scheduler/Studio/News/Templates/Épisodes",
+   "fonctions": [
+    "Dépannage : pastille down → relancer l'icône Bureau",
+    "Dépannage : pastille rouge fal/heygen/voice → clé à corriger dans Settings → API keys",
+    "Dépannage : avatars HeyGen lents au premier chargement (normal, cache)",
+    "Dépannage : erreur « paid plan » ElevenLabs → voix premade",
+    "Dépannage : clés/bibliothèque « disparues » au redémarrage → données dans %LOCALAPPDATA%\\DeepotusVideoGenData",
+    "Dépannage : plan sur planificateur intégré → aucune clé Anthropic ni modèle Ollama",
+    "Dépannage : CERTIFICATE_VERIFY_FAILED (inspection HTTPS antivirus, gérée automatiquement)",
+    "Dépannage : « Port 8765 already in use » → ouvrir http://deepotus.localhost:8765",
+    "Dépannage : emplacement des fichiers (assets\\images, outputs\\final, outputs\\uploads, assets\\audio)",
+    "Recette A : meme Telegram en 5 min (Library Create image → Scheduler New post, Auto → Send now)",
+    "Recette B : selfie UGC + animation (Studio starter, Duration master, Seedance, Scheduler)",
+    "Recette C : news reel du jour (News → Refresh, cocher 2-3 articles, Build script, Build illustration, Templates, Send to Scheduler)",
+    "Recette D : épisode de roman (Épisodes, narration, Par l'IA, illustrations, Ken Burns/Seedance, Assembler, Envoyer au Scheduler)"
+   ],
+   "captures": [],
+   "perime": [
+    "TOC « Dépannage & recettes » vs h2 « Dépannage » (incohérence interne)",
+    "Emoji 🍳 dans les 4 titres de recettes ; 🔥 dans la recette A",
+    "Badge « v1.15.6 » sur la recette D",
+    "« Aucune clé Anthropic ni modèle Ollama (chapitres 11–12) » : ignore OpenAI/Gemini et renvoie au chap. 12 (comptes) au lieu du 11",
+    "Écran News décrit seulement dans la recette C (filtre, score, mémoire, chaîne #33-35 non décrits)",
+    "« Create image », « Send now », « Refresh », « Build script », « Build illustration », « Send to Scheduler » (anglais)"
+   ],
+   "mots": 447
+  },
+  {
+   "id": "c15",
+   "titre": "Studio — Effets, masques & aperçu",
+   "ecran": "Studio : nœud Effects / Mask (section Composition), port fx du Render, bouton Preview",
+   "fonctions": [
+    "Nœud Effects / Mask (section Composition), sortie vers le port fx du Render",
+    "Grille de miniatures pour choisir l'effet",
+    "Effet LUT / Grade (Teal&Orange, Cyberpunk, Deep-sea, Noir, Vintage…)",
+    "Effet VHS (intensité + vitesse, séquençable)",
+    "Effet Colorisation (Sépia, Duotone, Matrix, Red-alert…)",
+    "Effet Dégradés (2 couleurs, angle, opacité, fusion)",
+    "Effets classiques : grain, vignette, aberration chromatique, glitch, bloom, halation, scanlines/CRT, letterbox ciné, old film, netteté, flou, dreamy, pixelate, camera shake, miroir, négatif",
+    "« Appliquer sur » : tout le rendu ou un nœud précis ; plusieurs nœuds Effects cumulables",
+    "+ Effet → miniature → intensité (preset/vitesse selon l'effet)",
+    "Preview gratuit et rapide : clips Seedance/HeyGen non générés remplacés par leur image source ; overlays et effets visibles avant Run",
+    "Overlays texte (Text overlay / Ticker / Separator) appliqués sur toutes les compositions au Render"
+   ],
+   "captures": [],
+   "perime": [
+    "Badge « nouveau » (date de v1.15.7)",
+    "« Deux ajouts au node editor » / « désormais » formulés comme nouveautés",
+    "Aucune capture"
+   ],
+   "mots": 256
+  },
+  {
+   "id": "c16",
+   "titre": "Changer d'ordinateur — migration & export",
+   "ecran": "Hors app : kit Bureau\\deepotus-migration, scripts PowerShell",
+   "fonctions": [
+    "Emplacements %LOCALAPPDATA%\\DeepotusVideoGen (app) et %LOCALAPPDATA%\\DeepotusVideoGenData (données)",
+    "Kit Bureau\\deepotus-migration",
+    "export-migration.ps1 -Dest : copie app + données + snapshot cohérent de la base",
+    "IMPORT-TOUT.cmd : restauration en un clic (app, générations, calendrier, clés, sessions Claude Code)",
+    "import-migration.ps1 -Src (équivalent manuel)",
+    "Installateur DeepotusVideoGen-Setup-*.exe joint au kit",
+    "Migration manuelle : copier les deux dossiers, scripts\\create-desktop-shortcut.ps1 ou scripts\\launch-silent.vbs",
+    "Avertissements : pas deux PC en même temps, même nom d'utilisateur Windows, Scheduler tourne seulement app ouverte"
+   ],
+   "captures": [],
+   "perime": [
+    "Badge « nouveau »",
+    "Chapitre antérieur à la v2.8.0 « Le transfert entre machines » (transfert intégré à l'app, sha256 + lots, #19) : aucune mention",
+    "« vos sessions Claude Code » dans un guide utilisateur",
+    "Aucune capture"
+   ],
+   "mots": 259
+  },
+  {
+   "id": "c17",
+   "titre": "Game Assets — image → objet 3D",
+   "ecran": "Barre latérale Game Assets (formulaire, canvas pipeline, cartes de résultat) ; Library → onglet 3D",
+   "fonctions": [
+    "Image de la Library → modèle 3D texturé (Unity, Unreal, Godot, Blender) ; clé fal.ai seule",
+    "5 moteurs : TripoSR (≈ $0.07), Hunyuan3D, Tripo (défaut), TRELLIS, Rodin ; coût estimé en direct",
+    "Choix de l'image source et du moteur (liste déroulante avec description et tarif) ; champ sujet",
+    "Option Multi-view (défaut, 4 vues via Seedream)",
+    "Option Textures",
+    "Option T-pose",
+    "Formats d'export GLB toujours + FBX / OBJ / STL / USDZ selon moteur ; format non supporté signalé ; surcoût affiché",
+    "Generate → canvas pipeline Input → Views → Engine → Response animé ; rouvrable via le titre de la carte",
+    "Carte de résultat : ▶ Rotate (visionneuse 3D), téléchargement par format",
+    "Bande Shots : télécharger une vue ou l'envoyer dans Library → Images (★)",
+    "Renommer (✎) / supprimer (🗑) depuis l'en-tête de carte",
+    "Library → onglet 3D : aperçu, rotation en grand, téléchargement GLB, favoris ★, renommage, suppression",
+    "Rendu WebGL : garder l'onglet au premier plan ; fichiers dans assets\\outputs\\assets3d\\ (suivent la migration)"
+   ],
+   "captures": [
+    "img/game-assets.png",
+    "img/game-assets-canvas.png",
+    "img/library-3d.png"
+   ],
+   "perime": [
+    "Badge « nouveau »",
+    "Glyphes ▶ ★ ✎ 🗑 comme icônes de boutons",
+    "DÉFAUT FR : 14 apostrophes doublées (« s''affiche », « d''abord », « L''onglet »…), absentes de l'EN",
+    "3D Studio, rig Meshy (T104), LOD/textures (T105), vues avant le tir (T106), banc GPU/photos (T107), Plateau 3D (t127), lanceur Assets 2D (t125), Sprites (T108-T112, t111), Tuiles (#113-#116), Matières (T095-T098) non décrits"
+   ],
+   "mots": 363
+  },
+  {
+   "id": "c18",
+   "titre": "Card Forge — éditeur de cartes à jouer",
+   "ecran": "Game Assets → sous-onglet Card Forge (rail de modules 01-08)",
+   "fonctions": [
+    "Sous-onglet Card Forge à côté de 3D / Sprites / Tuiles / Matières",
+    "Réglages globaux : format (poker, bridge, tarot, domino…), définition 150/300/600 DPI, fond perdu, zone sûre",
+    "01 Face : illustration importée, générée par IA (fal) ou catalogue local de 108 illustrations ; jauge de définition effective",
+    "02 Cadre : bordures, rareté, dos de carte",
+    "03 Typographie : titre, encadré de règles, texte d'ambiance, 23 polices embarquées",
+    "04 Données : import CSV → mapping colonnes/champs → deck complet",
+    "05 Volume : aperçu 3D avec épaisseur et tranche",
+    "06 Matières : 8 canaux PBR calculés localement",
+    "07 Impression : contrôle avant vol (fond perdu, traits de coupe, TrimBox/BleedBox PDF, densité pHYs PNG) vérifié sur les octets",
+    "08 Export 3D : .glb + .gltf autonome, maps PBR (base, normale, rugosité, métallique, occlusion, hauteur, émissive, ORM)",
+    "Curseur Émission 0..1 dans l'export 3D (GLB, glTF, MTL), borné à 1.0, masque par luminance (seuil réglable)",
+    "Correction en un clic d'une pose masquée par le cadre depuis le module Face (bouton + offre contextuelle)"
+   ],
+   "captures": [
+    "img/cardforge-face.png",
+    "img/cardforge-print.png"
+   ],
+   "perime": [
+    "« huit modules » alors que le chap. 19 décrit un module 09 (incohérence)",
+    "Gabarits imprimeur MPC/TGC/DriveThruCards + PDF X-1a (#83), édition (#84), dos/mire/stats (#85), langues (#86), art en lot/jeu 3D/livret (#87) non décrits",
+    "« se règle désormais » (formulation de nouveauté)"
+   ],
+   "mots": 379
+  },
+  {
+   "id": "c19",
+   "titre": "Forge 3D — couches, graphe & moteurs image→3D",
+   "ecran": "Card Forge → module 09 Forge 3D (graphe de couches, bordereau)",
+   "fonctions": [
+    "Export par couches (fond-matière, illustration, voile, cadre, typographie, ornements + composite) ; preuve d'empilement 0 px, contre-preuve PIL, manifeste scellé ; couche vide écrite",
+    "Graphe : traitement plan ou relief par couche",
+    "Matière de la boutique Material Forge tuilée au pas physique (mm)",
+    "Finition argent ou dorure holographique (iridescence, clearcoat, anisotropie)",
+    "Transform : position, rotation, échelle, empilement z",
+    "Traitement mesh 3D vers 7 moteurs : tripo, hunyuan, trellis, rodin, triposr (fal, $) ou Meshy 6/7 API directe (crédits ; ultra +5 cr sur meshy-7)",
+    "Prix sur le nœud et en pied de graphe avant lancement ; chip d'état (en file → en cours → servi · crédits réels → échec)",
+    "Relancer un nœud réinitialise son dossier",
+    "Construire : fusion des GLB, GLB final + STL seulement si solides fermés (refus motivé), bordereau (éléments, moteurs, crédits)",
+    "MESHY_API_KEY (champ des Réglages, partagé avec le 3D Studio) ; MESHY_MOCK=1 dans le .env pour simuler"
+   ],
+   "captures": [
+    "img/cardforge-forge3d.png"
+   ],
+   "perime": [
+    "Badge « nouveau »",
+    "« qualité NFT »",
+    "« 30 cr (~0,60 $) » chiffré dans la légende"
+   ],
+   "mots": 405
+  },
+  {
+   "id": "c20",
+   "titre": "Imprimer ses créations — impression 3D",
+   "ecran": "Boutons → Impression 3D (Card Forge 09, Game Assets · 3D, Vectorlab menu Exporter) ; ElegooSlicer",
+   "fonctions": [
+    "Cible Elegoo Centauri Carbon 2 (256³ mm) + ElegooSlicer (OrcaSlicer compatible)",
+    "Dossier assets\\print3d\\ par export : STL, 3MF (unité mm + nom), impression.json (provenance, échelle, étanchéité)",
+    "Bouton « Ouvrir dans le slicer » via l'association .3mf ; repli SLICER_PATH dans le .env",
+    "Depuis Card Forge module 09 : bouton → Impression 3D quand le bordereau livre un STL ; taille vide = mm réels ou cible ; étanchéité « garantie »",
+    "Depuis Game Assets · 3D : bouton → Impression 3D, taille de la plus grande dimension en mm, centrage + pose au sol ; lit model.glb ; fichier optimisé refusé avec message",
+    "Depuis le Vectorlab (Exporter → Impression 3D…) : relief, hauteur globale mm + surcharge par calque nom=mm ; tracés sans fond par épaisseur de trait ; textes ignorés et comptés ; dimensions suivant l'unité du document",
+    "Pas de G-code ; avertissement au-delà de 256 mm sans blocage",
+    "Étanchéité « inconnue » pour les moteurs image→3D"
+   ],
+   "captures": [],
+   "perime": [
+    "Badge « nouveau »",
+    "Aucune capture",
+    "Le Vectorlab n'apparaît que ici (aucun chapitre Vectorlab/Spritelab/Tilelab/Photolab)"
+   ],
+   "mots": 486
+  },
+  {
+   "id": "c21",
+   "titre": "Préparer avant le slicer — démarrer, lexique, ressources",
+   "ecran": "Établi 3D (Game Assets → 3D Studio → 07 · Établi 3D →) : rail de droite, onglets Fiche/Export, plaque, barre du bas, colonne La vie du modèle",
+   "fonctions": [
+    "Chaque geste modifiant la pièce écrit une VERSION ; colonne « La vie du modèle » à gauche",
+    "Champ taille cible (mm) dans le rail de droite ; sans taille : « unités glTF » et refus des gestes à cote physique",
+    "Menu imprimante : profil Elegoo Centauri Carbon 2 intégré (256 × 256 × 256, zone exclue) + profils OrcaSlicer/ElegooSlicer lus ; contour vert du plateau, rectangle rouge zone exclue",
+    "Fiche → Réparer en un clic : souder sommets, retirer faces dupliquées, triangles plats, normales cohérentes ; « Trous bouchés » décoché d'office ; détail dans la barre du bas",
+    "Poser sur une face (touche F), file « 1 modification en attente », écrire la version",
+    "Orienter : trois poses classées (appui, surplomb, hauteur), clic pour appliquer",
+    "Surplombs : faces < 45° en orange",
+    "Tranches : vingt sections en bleu, aperçus non écrits",
+    "Fiche → Creuser (paroi 2 mm), maillage fermé requis, épaisseur tenable indiquée",
+    "Fiche → Percer (drainage) : diamètre 3-4 mm, clic sur la face, traverse une paroi et recoud ; pièce pleine refusée",
+    "Sur la plaque : séparer les pièces ; Ranger sur le plateau (rotation, 2 mm d'écart, second plateau, pièce trop grande signalée)",
+    "Glisser une pièce (aimantée au pas, Maj libère), flèches ; position/cotes/angle sous « Sur la plaque » ; la plaque est une vue",
+    "Mesurer : deux clics → distance, composantes x/y/z, angle des faces",
+    "Export → Impression 3D (version affichée, mm de la taille cible) ; Ouvrir dans le slicer",
+    "Fiche → Décimer (cité dans le lexique)",
+    "Ordre conseillé : réparer → poser → regarder → creuser → exporter",
+    "Lexique de 18 termes avec ancres lex-* (assise, surplomb, support, brim, raft, jupe, remplissage, couture, rétraction, couche, périmètre, pont, warping, étanchéité, manifold, décimation, creusage, drainage), liés depuis le bouton Aide de l'Établi",
+    "Tableau de 16 ressources (Prusa ×11, Simplify3D, OrcaSlicer ×3, Elegoo) vérifiées le 05/10/2026",
+    "Avertissement : réglages chiffrés valables pour la machine citée ; 3D Builder et Meshmixer non maintenus"
+   ],
+   "captures": [],
+   "perime": [
+    "Badge « nouveau »",
+    "Aucune capture",
+    "Liens « vérifiés le 05/10/2026 » (datés)",
+    "Chemin « Game Assets → 3D Studio → 07 · Établi 3D → » (à vérifier vs navrail actuel)",
+    "Établi : booléens/connecteurs (T092), rig/export (T093), matériaux + Blender (T094), profils (#88) non décrits"
+   ],
+   "mots": 1601
+  }
+ ],
+ "ecarts_fr_en": [
+  "Structure identique : 22 h2 c0..c21 dans le même ordre, mêmes ancres, 457 lignes chacun, mêmes 22 captures aux mêmes places, même nombre de .step/.tip/.warn/.recipe par chapitre, mêmes 62 lignes de tableau, mêmes 18 ancres lex-* (ids FRANÇAIS aussi dans l'EN), mêmes liens externes (empreinte md5 identique)",
+  "Badges .new identiques en version (v1.15, v1.15.6, v1.17.0, v1.21) ; libellés traduits ENRICHI→EXPANDED, nouveau→new",
+  "Inventaire des glyphes/emojis strictement identique",
+  "Sous-titre et pied de page portent v2.8.0 dans les deux ; liens croisés en.html ↔ fr.html ; title « Guide complet » / « Complete Guide »",
+  "EN ≈ 7 % plus court en mots (c0 428/390, c13 114/91, c21 1601/1479…) : traduction fidèle, pas de contenu en plus ou en moins détecté",
+  "Défaut FR seul : chap. 17 contient 14 apostrophes doublées (« s''affiche »…), absentes de l'EN",
+  "Les deux langues citent des libellés d'interface ANGLAIS (Settings → API keys, Library, Quick, Generate, Save…) alors que l'app a maintenant une UI FR (Traduction L0-L5) : le FR ne cite pas les libellés français réels"
+ ],
+ "styles": "HTML autonome par langue (docs/guide/fr.html, en.html), CSS inline : tokens :root (--ink #1a2330, --soft #5a6a7e, --brand #c93535, --cyan #0891b2, --panel #f4f6f9, --stroke #dde3ea, --violet), police Segoe UI, .page max 880px, aucun mode sombre, aucun JS, aucune recherche. Composants : h1 (avec emoji 🐙) ; p.sub (sous-titre + version + lien autre langue) ; div.lead (intro rouge pâle, bord gauche brand) ; div.toc (sommaire 2 colonnes, liens #cN) ; h2#cN + span.num (numéro rouge) ; h3 ; img.shot (capture pleine largeur) + p.cap (légende) ; div.step > span.n (pastille ronde numérotée) + div ; table/th/td (coûts, clés, dépannage, lexique, ressources) ; div.tip (cyan pâle) ; div.warn (ambre pâle) ; span.new (badge rouge : vX.Y, ENRICHI, nouveau) ; div.recipe (encadré gris, h3 rouge, titres 🍳) ; code / span.k (monospace) ; div.footer. Impression : page-break-after:avoid sur h2/h3, page-break-inside:avoid sur .step/table/.tip/.warn/.recipe/img.shot ; @media print retire le padding. Icônes = emojis (aucune image d'icône). Servi par l'app : StaticFiles monté sur /guide depuis docs/guide (backend/app/main.py vers l.423), lien au pied de la barre latérale ; l'aide de l'Établi pointe /guide/<langue>#lex-*. PDF Deepotus-Guide-FR.pdf / -EN.pdf (~8,4 Mo, 34 pages depuis le c21) : produits par Microsoft Edge headless, AUCUN script versionné dans scripts/ ; commande consignée dans docs/superpowers/plans/2026-09-03-plan-etabli.md l.3300-3303 : msedge.exe (C:\\Program Files (x86)\\Microsoft\\Edge\\Application) --headless --disable-gpu --no-pdf-header-footer --print-to-pdf=\"<docs/guide>\\Deepotus-Guide-FR.pdf\" \"file:///<docs/guide>/fr.html\" (idem EN). Métadonnées : Creator Mozilla/5.0 (Windows…), Producer Skia/PDF m154. Confirmé par les commits 1abf0b69 (« PDFs regeneres Edge headless »), 0dd05af6 (impression sans en-tête/pied ; version cuite en glyphes sous-ensemblés : on régénère, jamais de patch d'octets ; preuve d'équivalence par longueur du texte extrait) et 28dfbcc9. La version figure 2 fois par langue (sous-titre + pied), listée comme porteur à éditer dans scripts/patch_bundle_version.py.",
+ "glyphes": [
+  "🐙 OCTOPUS : h1 « 🐙 Deepotus Video Gen » et tag Premium « 🐙 Deepotus Protocol » (c10)",
+  "① ② ③ ④ ⑤ : numérotation des 5 types de vidéo (encadré lead + h2 c3, c4, c5, c7, c8)",
+  "⌘ : « ⌘K » palette de commandes (c0) — glyphe macOS sur app Windows",
+  "✏️ PENCIL : renommer un rendu dans le Job Dock (c3)",
+  "▶ : lecture/pré-écoute (Job Dock c3, voix c6, Épisodes c7), « ▶ Rotate » (c17)",
+  "⏱ STOPWATCH : h3 premier chargement HeyGen (c4), interrupteur « ⏱ Duration master » (c5, recette B)",
+  "★ : « ★ Sauver » casting (c6), envoyer une vue vers Library (c17), favoris onglet 3D (c17)",
+  "↑ ↓ ＋ ✕ : réordonner/ajouter/retirer une scène d'Épisode (c7)",
+  "× : supprimer un nœud Studio (c9)",
+  "❤️ 🔥 🚀 😍 🎉 👍 💯 : barre d'emojis rapides de la légende (c10, contenu inséré, pas icône) ; 🔥 aussi recette A",
+  "🌊 👁️ 🎴 🎲 🪙 : tags du pack Telegram Premium (c10)",
+  "🍳 COOKING : titres des recettes A-D (c14)",
+  "✎ et 🗑 : renommer/supprimer un asset 3D (c17)",
+  "→ (94 occurrences) : chemins de menu et flux ; ≈ pour les coûts ; couleurs inline auto #178017 / assisted #b8860b (c12)"
+ ]
+}
