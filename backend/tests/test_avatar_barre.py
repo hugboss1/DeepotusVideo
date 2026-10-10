@@ -46,9 +46,8 @@ print("\n[I] l'inverse (bancs de traduction)")
 sans = A.avant_avatar(B)
 check("I1 avant_avatar défait les trois paires : plus de marqueur, plus d'iframe /avatar/",
       M.MARKER not in sans and 'src:"/avatar/"' not in sans and '"photolab"],sg=Yu.includes(' in sans)
-# dzbiblio, posé APRÈS avatar, est défait par avant_avatar : la référence est le bundle sans dzbiblio
-check("I2 l'aller-retour est exact à l'octet (réappliquer les paires rend le bundle livré, sans dzbiblio)",
-      M.appliquer(sans) == A.avant_dzbiblio(B))
+check("I2 l'aller-retour est exact à l'octet (réappliquer les paires rend le bundle d'avant les nœuds t168b, posés après)",
+      M.appliquer(sans) == A.avant_avnoeuds(B))
 check("I3 avant_dzsched défait D'ABORD l'entrée Avatar live (posée après lui)",
       M.MARKER not in A.avant_dzsched(B) and '"data-dz-debord":"1"' not in A.avant_dzsched(B))
 check("I4 un bundle sans le maillon passe tel quel", A.avant_avatar(sans) == sans)

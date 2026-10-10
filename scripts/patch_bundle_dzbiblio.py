@@ -13,9 +13,9 @@ Ce qu'il pose : la barre passe à la ligne (`flexWrap:"wrap"`, `rowGap:8`), marq
 Son min-content tombe à celui de son plus large enfant (le champ de recherche, 240 px) : `<main>` reprend la largeur
 de la piste (1 208 px à 1 440, 1 134 à 1 366). La grille de la coque, partagée par tous les écrans, n'est pas touchée.
 
-Maillon de QUEUE, APRÈS avatar (t168) et dzgbar (dont il sonde les marqueurs) ; comme lui, il garde un .js.bak_dzbiblio le temps de
+Maillon de QUEUE, APRÈS avnoeuds (t168b), avatar (t168) et dzgbar (dont il sonde les marqueurs) ; comme lui, il garde un .js.bak_dzbiblio le temps de
 l'écriture puis le SUPPRIME, et `version` reste le dernier maillon. Lecture et écriture en OCTETS. Son inverse vit
-dans backend/tests/_i18n_l1_aide.py (`avant_dzbiblio`, appelé en tête de `avant_avatar`).
+dans backend/tests/_i18n_l1_aide.py (`avant_dzbiblio`, appelé en tête de `avant_avnoeuds`).
 
 Run : python scripts/patch_bundle_dzbiblio.py [--check]
 """
@@ -29,6 +29,7 @@ TAG = "dzbiblio"
 MARKER = '"data-dz-biblio-barre":"1"'
 
 SONDE_AMONT = [
+    ("avnoeuds", "function dzAvCompile(", 1),
     ("avatar", '{id:"avatarlive",', 1),
     ("dzgbar", '"data-dz-gbar":"1"', 1),
     ("dzsched", '"data-dz-debord":"1"', 1),
