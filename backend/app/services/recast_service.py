@@ -17,6 +17,12 @@ le job dans sa RECETTE (outputs/recast/recettes/<job>.json) ; « Brouillon » ti
 même recette (source, Personnage, consigne, voix, graine) à la résolution finale. fal ne promet pas l'identité du
 rendu à graine égale (la résolution change le bruit initial) : l'écran le dit, sans le cacher.
 
+t168e (10/10/2026) — d'après la doc fal de Kling v3 motion control (llms.txt relu le 10/10) : `elements` n'accepte
+qu'UN visage et ne vaut que si character_orientation = « video » ; l'orientation « image » limite la vidéo à 10 s.
+Wan Animate ne prend qu'une image de personnage : UNE personne est remplacée par prise, l'écran le dit.
+`decrire_decor` : une image du milieu de la prise décrite par le LLM de vision déjà branché (Anthropic, sinon
+OpenAI), le lieu SEUL et jamais les personnes, en anglais, pour proposer une consigne à relire avant le tir.
+
 Le rendu est un JOB (JobRecord, provider « recast ») : il paraît dans les rendus, le Montage le lit par job_id, le
 téléphone le tire par /sync/media/{job_id}. Les appels réseau passent par trois seams (`_upload`, `_fal_subscribe`,
 `_download`) que les bancs remplacent. PAYANT : la route passe la garde des plafonds AVANT `lancer_recast`."""
@@ -38,6 +44,7 @@ from app.config import settings, SSL_VERIFY
 
 DUREE_MIN_S = 3.0
 DUREE_MAX_S = 30.0
+DUREE_MAX_KLING_IMAGE_S = 10.0   # t168e : Kling motion control, orientation « image » (doc fal du 10/10)
 
 MODELES: dict[str, dict] = {
     "remplacer": {"fal": "fal-ai/wan/v2.2-14b/animate/replace", "famille": "wan",
@@ -184,6 +191,9 @@ def preparer(corps: dict, src: Path, duree_s: float, personnage: dict | None) ->
     if brouillon and not m.get("graine"):
         raise ValueError(f"« {m['label']} » n'a pas de brouillon : fal ne prend pas de graine pour ce modèle, un "
                          "second tir ne repartirait pas du même rendu.")
+    if m["famille"] == "kling" and str(corps.get("orientation") or "") == "image" and duree_s > DUREE_MAX_KLING_IMAGE_S:
+        raise ValueError(f"Orientation « celle de l'image » : Kling prend {DUREE_MAX_KLING_IMAGE_S:.0f} s au plus "
+                         f"(la prise fait {duree_s:.1f} s). Choisissez « celle de la vidéo » (30 s) ou coupez la prise.")
     res = BROUILLON_RES if brouillon else resolution(modele, corps.get("resolution"))
     graine = None
     if m.get("graine"):
@@ -205,6 +215,64 @@ def preparer(corps: dict, src: Path, duree_s: float, personnage: dict | None) ->
     return {"modele": modele, "resolution": res, "consigne": consigne, "orientation": orient,
             "duree_s": float(duree_s), "src": src, "personnage": personnage, "voice_id": voice_id, "op": op,
             "graine": graine, "brouillon": brouillon}
+
+
+_DECRIRE = ("Describe ONLY the place in this video frame: the setting, the background, the light and the mood. Never "
+            "describe the people, their faces, clothes or identity. Answer with ONE English sentence of at most 35 "
+            "words that starts with \"in \" or \"on \" and could follow \"the scene takes place\" in a video prompt.")
+DECRIRE_TOK = {"in": 1700, "out": 90}   # une image ~1 600 jetons + la consigne ; la phrase rendue
+
+
+def fournisseur_vision() -> str | None:
+    if (settings.ANTHROPIC_API_KEY or "").strip():
+        return "anthropic"
+    if (settings.OPENAI_API_KEY or "").strip():
+        return "openai"
+    return None
+
+
+def _vision(fournisseur: str, b64: str, media: str) -> str:             # seam (réseau, payant)
+    if fournisseur == "anthropic":
+        r = httpx.post("https://api.anthropic.com/v1/messages",
+                       headers={"x-api-key": settings.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01",
+                                "content-type": "application/json"},
+                       json={"model": settings.ANTHROPIC_MODEL, "max_tokens": 160, "messages": [{"role": "user", "content": [
+                           {"type": "image", "source": {"type": "base64", "media_type": media, "data": b64}},
+                           {"type": "text", "text": _DECRIRE}]}]}, timeout=45.0, verify=SSL_VERIFY)
+        r.raise_for_status()
+        return "".join(b.get("text", "") for b in r.json().get("content", []) if b.get("type") == "text")
+    r = httpx.post("https://api.openai.com/v1/chat/completions", headers={"Authorization": f"Bearer {settings.OPENAI_API_KEY}"},
+                   json={"model": "gpt-4o-mini", "max_tokens": 160, "messages": [{"role": "user", "content": [
+                       {"type": "text", "text": _DECRIRE},
+                       {"type": "image_url", "image_url": {"url": f"data:{media};base64,{b64}"}}]}]},
+                   timeout=45.0, verify=SSL_VERIFY)
+    r.raise_for_status()
+    return r.json()["choices"][0]["message"]["content"]
+
+
+def nettoyer_consigne(t: str) -> str:
+    """Une phrase, sans guillemets ni préambule, 300 caractères au plus ; vide si rien d'exploitable."""
+    t = re.sub(r"\s+", " ", str(t or "")).strip().strip('"\u201c\u201d\'').strip()
+    t = re.sub(r"^(the scene takes place\s+)", "", t, flags=re.I)
+    return t[:300].rstrip(" ,;") if len(t) >= 8 else ""
+
+
+async def decrire_decor(src: Path, info: dict, fournisseur: str) -> str:
+    """PAYANT (LLM de vision, une image) : la garde est passée dans la route. Rend la consigne proposée."""
+    import base64
+    from app.services import decor_service as DS
+    w = min(1024, int(info["width"]) // 2 * 2)
+    h = int(int(info["height"]) * w / max(1, int(info["width"]))) // 2 * 2
+    img = DS.apercus_dir() / (uuid4().hex + ".decrire.png")
+    try:
+        await asyncio.to_thread(DS._image_a, src, float(info.get("duration_s") or 0) / 2, w, h, img)
+        b64 = base64.b64encode(img.read_bytes()).decode()
+    finally:
+        img.unlink(missing_ok=True)
+    t = nettoyer_consigne(await asyncio.to_thread(_vision, fournisseur, b64, "image/png"))
+    if not t:
+        raise RuntimeError("Le modèle de vision n'a rien rendu d'exploitable : écrivez la consigne vous-même.")
+    return t
 
 
 async def _upload(path: Path) -> str:                               # seam
@@ -268,7 +336,9 @@ def arguments(prep: dict, video_url: str, images: list[str]) -> dict:
              "keep_original_sound": True}
         if prep["consigne"]:
             a["prompt"] = prep["consigne"]
-        a["elements"] = [{"frontal_image_url": images[0], **({"reference_image_urls": images[1:4]} if len(images) > 1 else {})}]
+        # t168e : UN seul élément, et seulement en orientation « video » (sinon fal ne le lie pas)
+        if prep["orientation"] == "video":
+            a["elements"] = [{"frontal_image_url": images[0], **({"reference_image_urls": images[1:4]} if len(images) > 1 else {})}]
         return a
     a = {"video_url": video_url, "prompt": prep["consigne"], "resolution": prep["resolution"]}
     if prep.get("graine") is not None:

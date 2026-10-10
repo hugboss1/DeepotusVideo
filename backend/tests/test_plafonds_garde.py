@@ -74,6 +74,7 @@ PAYANTES = {
     ("routes", "POST", "/assets/sprite/from-board"),
     ("avatar_live", "POST", "/sessions"),
     ("avatar_live", "POST", "/recast"),
+    ("avatar_live", "POST", "/recast/decrire"),   # t168e : la consigne proposée par le LLM de vision (une image)
     ("avatar_live", "POST", "/decor/apercu"),   # t168d : l'aperçu du détourage, une image (fal)
     ("avatar_live", "POST", "/recast/finaliser"),   # t168c (10/10) : la finale d'un brouillon, même garde que /recast
     ("avatar_live", "POST", "/voix"),
