@@ -101,7 +101,7 @@
         <div class="ligne">
           <label class="champ court">Résolution <select id="rRes"></select></label>
           <label class="champ court" id="rOrientChamp">Orientation
-            <select id="rOrient"><option value="video">celle de la vidéo</option><option value="image">celle de l'image</option></select>
+            <select id="rOrient"><option value="video" data-t="avatar.recast.orient_video">celle de la vidéo</option><option value="image" data-t="avatar.recast.orient_image">celle de l'image</option></select>
           </label>
         </div>
 
@@ -125,11 +125,11 @@
           <h2>Décor seul</h2>
           <p class="aide">Le sujet de la vidéo source est détouré, puis posé sur un nouveau fond. Le jeu, la voix et la taille ne changent pas.</p>
           <div class="ligne">
-            <label class="champ court">Fond
+            <label class="champ court">Nouveau fond
               <select id="dType">
-                <option value="couleur">Couleur unie</option>
-                <option value="image">Image de la Bibliothèque</option>
-                <option value="video">Vidéo déposée</option>
+                <option value="couleur" data-t="avatar.decor.couleur_unie">Couleur unie</option>
+                <option value="image" data-t="avatar.decor.image_biblio">Image de la Bibliothèque</option>
+                <option value="video" data-t="avatar.decor.video_deposee">Vidéo déposée</option>
               </select>
             </label>
             <label class="champ court" id="dCouleurChamp">Couleur <input id="dCouleur" type="color" value="#00b140"></label>
@@ -170,7 +170,7 @@
         <div id="xPre" class="puces" role="group" aria-label="Décors"></div>
         <textarea id="xConsigne" rows="2" maxlength="300" placeholder="Consigne libre (en anglais de préférence), ex. wearing a red leather jacket"></textarea>
         <div class="ligne">
-          <label class="champ court">Format <select id="xFormat"><option value="16:9">16:9 paysage</option><option value="9:16">9:16 portrait</option></select></label>
+          <label class="champ court">Format <select id="xFormat"><option value="16:9" data-t="avatar.direct.paysage">16:9 paysage</option><option value="9:16" data-t="avatar.direct.portrait">9:16 portrait</option></select></label>
           <label class="champ court">Durée réservée
             <select id="xDuree"><option value="1">1 min</option><option value="5" selected>5 min</option><option value="10">10 min</option><option value="30">30 min</option></select>
           </label>
@@ -196,10 +196,10 @@
             <svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-badge-direct"></use></svg>Démarrer le direct
           </button>
           <button id="xStop" type="button" class="btn" disabled>
-            <svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-arret"></use></svg>Arrêter
+            <svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-arret"></use></svg>Arrêter le direct
           </button>
           <button id="xAppliquer" type="button" class="btn" disabled>Appliquer le décor</button>
-          <button id="xRec" type="button" class="btn" disabled><span>Enregistrer</span></button>
+          <button id="xRec" type="button" class="btn" disabled><span>Enregistrer le direct</span></button>
         </div>
         <p id="xMsg" class="msg" aria-live="polite"></p>
       </div>

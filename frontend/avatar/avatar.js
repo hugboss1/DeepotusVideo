@@ -5,6 +5,10 @@
 (function () {
   "use strict";
   var API = "/api/avatar-live";
+  // G7 (t168) : les textes passent par dzT (dictionnaire frontend/shared/i18n/avatar.json, FR de référence, EN) ;
+  // les <option> aussi, que la surcouche ignore.
+  function T(cle, vars) { return window.dzT ? window.dzT(cle, vars) : cle; }
+  document.querySelectorAll("option[data-t]").forEach(function (o) { o.textContent = T(o.dataset.t); });
   var $ = function (id) { return document.getElementById(id); };
   var etat = { cat: null, persos: [], fichiers: [], source: null, modele: "remplacer", pre: "", suivis: {} };
 
@@ -75,7 +79,7 @@
   $("pConsent").addEventListener("change", majCreer);
 
   $("pCreer").addEventListener("click", async function () {
-    $("pCreer").disabled = true; msg("pMsg", "Création…");
+    $("pCreer").disabled = true; msg("pMsg", T("avatar.perso.creation"));
     try {
       var images = await Promise.all(etat.fichiers.map(b64));
       var voix = $("pVoix").value.trim();
@@ -83,7 +87,7 @@
         body: JSON.stringify({ nom: $("pNom").value, images: images, consentement: $("pConsent").checked,
           voix: voix ? { fournisseur: "elevenlabs", voice_id: voix } : {} }) });
       var p = await lire(r);
-      msg("pMsg", "« " + p.nom + " » est prêt.");
+      msg("pMsg", T("avatar.perso.pret", { nom: p.nom }));
       etat.fichiers = []; $("pVignettes").textContent = ""; $("pNom").value = ""; $("pVoix").value = "";
       $("pConsent").checked = false;
       await chargerPersos();
@@ -94,24 +98,24 @@
   async function chargerPersos() {
     etat.persos = (await lire(await fetch(API + "/personnages"))).personnages || [];
     var g = $("pListe"); g.textContent = "";
-    if (!etat.persos.length) g.appendChild(el("p", { class: "vide", text: "Aucun Personnage pour l'instant." }));
+    if (!etat.persos.length) g.appendChild(el("p", { class: "vide", text: T("avatar.perso.aucun") }));
     etat.persos.forEach(function (p) {
       g.appendChild(el("article", { class: "perso" }, [
         el("img", { src: API + "/personnages/" + p.id + "/image/0", alt: "", loading: "lazy" }),
         el("div", { class: "corps" }, [
           el("b", { text: p.nom }),
-          el("small", { text: p.images + (p.images > 1 ? " photos" : " photo") + (p.voix && p.voix.voice_id ? " · voix " + p.voix.voice_id : "") }),
-          el("small", { text: "Consentement du " + String(p.consentement.le || "").slice(0, 10).split("-").reverse().join("/") }),
+          el("small", { text: T("avatar.perso.photos", { n: p.images }) + (p.voix && p.voix.voice_id ? " · " + T("avatar.perso.voix_de", { id: p.voix.voice_id }) : "") }),
+          el("small", { text: T("avatar.perso.consenti_le", { date: String(p.consentement.le || "").slice(0, 10).split("-").reverse().join("/") }) }),
           el("div", { class: "ligne" }, [
-            el("button", { type: "button", class: "btn fin", title: "1 à 5 extraits de la voix seule, 30 s à 3 min au total",
-              onclick: function () { clonerVoix(p); } }, [el("span", { text: p.voix && p.voix.clonee ? "Recloner la voix" : "Cloner la voix" })]),
+            el("button", { type: "button", class: "btn fin", title: T("avatar.perso.cloner_aide"),
+              onclick: function () { clonerVoix(p); } }, [el("span", { text: T(p.voix && p.voix.clonee ? "avatar.perso.recloner" : "avatar.perso.cloner") })]),
             el("button", { type: "button", class: "btn fin", onclick: function () { supprimer(p); } }, [
-              el("span", { text: "Supprimer" })])])
+              el("span", { text: T("avatar.perso.supprimer") })])])
         ])
       ]));
     });
     var s = $("rPerso"), avant = s.value; s.textContent = "";
-    s.appendChild(el("option", { value: "", text: "— aucun —" }));
+    s.appendChild(el("option", { value: "", text: T("avatar.recast.aucun_perso") }));
     etat.persos.forEach(function (p) { s.appendChild(el("option", { value: p.id, text: p.nom })); });
     if (avant) s.value = avant; else if (etat.persos.length) s.value = etat.persos[etat.persos.length - 1].id;
     majRecast();
@@ -120,12 +124,12 @@
   $("pVoixFichiers").addEventListener("change", async function () {
     var fs = Array.from($("pVoixFichiers").files || []); $("pVoixFichiers").value = "";
     if (!cible || !fs.length) return;
-    msg("pMsg", "Clonage de la voix de « " + cible.nom + " »…");
+    msg("pMsg", T("avatar.perso.clonage", { nom: cible.nom }));
     try {
       var fd = new FormData(); fs.slice(0, 5).forEach(function (f) { fd.append("echantillons", f, f.name); });
       fd.append("debruiter", "true");
       await lire(await fetch(API + "/personnages/" + cible.id + "/voix", { method: "POST", body: fd }));
-      msg("pMsg", "Voix de « " + cible.nom + " » clonée.");
+      msg("pMsg", T("avatar.perso.clonee", { nom: cible.nom }));
     } catch (e) { msg("pMsg", e.message, true); }
     chargerPersos();
   });
@@ -133,7 +137,7 @@
 
   async function supprimer(p) {
     var D = window.__dzDialogue;
-    var ok = D && D.confirmer ? await D.confirmer("Supprimer « " + p.nom + " » et ses photos de référence ?", { titre: "Supprimer le Personnage", ok: "Supprimer", annuler: "Annuler" }) : false;
+    var ok = D && D.confirmer ? await D.confirmer(T("avatar.perso.supprimer_question", { nom: p.nom }), { titre: T("avatar.perso.supprimer_titre"), ok: T("avatar.perso.supprimer"), annuler: T("avatar.commun.annuler") }) : false;
     if (!ok) return;
     try { await lire(await fetch(API + "/personnages/" + p.id, { method: "DELETE" })); } catch (e) { msg("pMsg", e.message, true); }
     chargerPersos();
@@ -143,7 +147,7 @@
   zoneDepot($("rDepot"), $("rFichier"), async function (fs) {
     var f = fs[0]; if (!f) return;
     $("rRendu").value = "";
-    $("rSourceInfo").textContent = "Envoi de « " + f.name + " »…";
+    $("rSourceInfo").textContent = T("avatar.recast.envoi", { nom: f.name });
     try {
       var fd = new FormData(); fd.append("fichier", f, f.name);
       var d = await lire(await fetch(API + "/recast/source", { method: "POST", body: fd }));
@@ -155,7 +159,7 @@
   $("rRendu").addEventListener("change", function () {
     var o = $("rRendu").selectedOptions[0];
     etat.source = o && o.value ? { job_id: o.value, duree_s: Number(o.dataset.duree) || 0, nom: o.textContent } : null;
-    $("rSourceInfo").textContent = etat.source ? (etat.source.duree_s ? sec(etat.source.duree_s) : "durée lue au lancement") : "";
+    $("rSourceInfo").textContent = etat.source ? (etat.source.duree_s ? sec(etat.source.duree_s) : T("avatar.recast.duree_lue")) : "";
     majRecast();
   });
 
@@ -164,7 +168,7 @@
     var m = cat.modeles[etat.modele];
     var res = $("rRes"); var avant = res.value; res.textContent = "";
     Object.keys(m.prix_usd_s).forEach(function (k) {
-      res.appendChild(el("option", { value: k, text: k === "source" ? "celle de la source" : k }));
+      res.appendChild(el("option", { value: k, text: k === "source" ? T("avatar.recast.res_source") : k }));
     });
     res.value = m.prix_usd_s[avant] != null ? avant : m.defaut;
     $("rOrientChamp").hidden = etat.modele.indexOf("mouvement") !== 0;
@@ -174,9 +178,9 @@
     $("rVoix").disabled = !aVoix; if (!aVoix) $("rVoix").checked = false;
     var prix = (m.prix_usd_s[res.value] || 0) + ($("rVoix").checked ? (cat.voix_usd_s || 0) : 0);
     var d = etat.source && etat.source.duree_s;
-    $("rDevis").textContent = d ? "≈ " + usd(prix * d) + " (" + sec(d) + " × " + usdS(prix) + ")" : usdS(prix) + " de vidéo";
+    $("rDevis").textContent = d ? T("avatar.recast.devis", { total: usd(prix * d), duree: sec(d), prix: usdS(prix) }) : T("avatar.recast.prix_s", { prix: usdS(prix) });
     var dureeOk = !d || (d >= cat.duree.min && d <= cat.duree.max);
-    if (d && !dureeOk) $("rSourceInfo").textContent = "Cette vidéo fait " + sec(d) + " : le Recast prend de " + cat.duree.min + " à " + cat.duree.max + " s. Coupe-la au Montage.";
+    if (d && !dureeOk) $("rSourceInfo").textContent = T("avatar.recast.trop_long", { duree: sec(d), min: cat.duree.min, max: cat.duree.max });
     var consigneOk = !(etat.modele === "objet" && !$("rConsigne").value.trim() && !etat.pre);
     $("rLancer").disabled = !(etat.source && dureeOk && consigneOk && (!m.personnage || $("rPerso").value));
     $("rVoixSeule").disabled = !(etat.source && aVoix);
@@ -208,26 +212,26 @@
   }
 
   $("rLancer").addEventListener("click", async function () {
-    $("rLancer").disabled = true; msg("rMsg", "Lancement…");
+    $("rLancer").disabled = true; msg("rMsg", T("avatar.recast.lancement"));
     try {
       var src = etat.source.job_id ? { job_id: etat.source.job_id } : { depot: etat.source.depot };
       var d = await lire(await fetch(API + "/recast", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ source: src, personnage_id: $("rPerso").value || null, modele: etat.modele,
           resolution: $("rRes").value, consigne: $("rConsigne").value, prereglage: etat.pre, orientation: $("rOrient").value,
           voix: $("rVoix").checked }) }));
-      msg("rMsg", "Lancé : " + usd(d.devis_usd) + " réservés.");
+      msg("rMsg", T("avatar.recast.lance", { usd: usd(d.devis_usd) }));
       suivre(d.job_id);
     } catch (e) { msg("rMsg", e.message, true); }
     majRecast();
   });
 
   $("rVoixSeule").addEventListener("click", async function () {
-    $("rVoixSeule").disabled = true; msg("rMsg", "Conversion de la voix…");
+    $("rVoixSeule").disabled = true; msg("rMsg", T("avatar.recast.conversion"));
     try {
       var src = etat.source.job_id ? { job_id: etat.source.job_id } : { depot: etat.source.depot };
       var d = await lire(await fetch(API + "/voix", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ source: src, personnage_id: $("rPerso").value }) }));
-      msg("rMsg", "Lancé : " + usd(d.devis_usd) + " réservés.");
+      msg("rMsg", T("avatar.recast.lance", { usd: usd(d.devis_usd) }));
       suivre(d.job_id);
     } catch (e) { msg("rMsg", e.message, true); }
     majRecast();
@@ -244,23 +248,23 @@
   ["dType", "dImage", "dCouleur"].forEach(function (id) { $(id).addEventListener("input", majDecor); });
   zoneDepot($("dDepot"), $("dFichier"), async function (fs) {
     var f = fs[0]; if (!f) return;
-    msg("dMsg", "Envoi du fond…");
+    msg("dMsg", T("avatar.decor.envoi_fond"));
     try {
       var fd = new FormData(); fd.append("fichier", f, f.name);
       fondVideo = (await lire(await fetch(API + "/recast/source", { method: "POST", body: fd }))).depot;
-      msg("dMsg", "Fond : " + f.name);
+      msg("dMsg", T("avatar.decor.fond_nom", { nom: f.name }));
     } catch (e) { fondVideo = null; msg("dMsg", e.message, true); }
     majDecor();
   });
   $("dLancer").addEventListener("click", async function () {
-    $("dLancer").disabled = true; msg("dMsg", "Lancement…");
+    $("dLancer").disabled = true; msg("dMsg", T("avatar.recast.lancement"));
     var t = $("dType").value;
     var fond = t === "couleur" ? { couleur: $("dCouleur").value } : t === "image" ? { image: $("dImage").value } : { video: fondVideo };
     try {
       var src = etat.source.job_id ? { job_id: etat.source.job_id } : { depot: etat.source.depot };
       var d = await lire(await fetch(API + "/decor", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ source: src, fond: fond }) }));
-      msg("dMsg", d.devis_usd ? "Lancé : " + usd(d.devis_usd) + " réservés (détourage)." : "Lancé. Prix du détourage BiRefNet à mesurer : fal n'affiche pas de tarif ; lis-le sur ton tableau de bord fal après ce rendu.");
+      msg("dMsg", d.devis_usd ? T("avatar.decor.lance", { usd: usd(d.devis_usd) }) : T("avatar.decor.a_mesurer"));
       suivre(d.job_id);
     } catch (e) { msg("dMsg", e.message, true); }
     majDecor();
@@ -274,7 +278,7 @@
     } catch (e) { /* liste facultative */ }
   }
 
-  var LIB = { queued: "En file", uploading_image: "Envoi", generating_video: "Rendu chez fal", downloading_video: "Téléchargement", generating_voiceover: "Voix", merging: "Composition", done: "Terminé", failed: "Échec" };
+  var LIB = ["queued", "uploading_image", "generating_video", "downloading_video", "generating_voiceover", "merging", "done", "failed"];
   function carteJob(j) {
     var id = jid(j), box = etat.suivis[id];
     if (!box) {
@@ -284,7 +288,7 @@
     }
     box.textContent = "";
     box.appendChild(el("div", { class: "tete" }, [el("b", { text: j.title || id }),
-      el("span", { class: "statut " + j.status, text: LIB[j.status] || j.status })]));
+      el("span", { class: "statut " + j.status, text: LIB.indexOf(j.status) >= 0 ? T("avatar.job." + j.status) : j.status })]));
     if (j.status !== "done" && j.status !== "failed") {
       var g = el("div", { class: "jauge" }, [el("span")]); g.firstChild.style.width = (j.progress || 0) + "%";
       box.appendChild(g);
@@ -292,7 +296,7 @@
     } else if (j.status === "done") {
       box.appendChild(el("video", { src: "/api/jobs/" + id + "/video", controls: true, preload: "metadata" }));
     } else {
-      box.appendChild(el("small", { class: "msg err", text: j.error || "Échec." }));
+      box.appendChild(el("small", { class: "msg err", text: j.error || T("avatar.commun.echec") }));
     }
   }
   async function suivre(id) {
@@ -326,15 +330,15 @@
       var e = await lire(await fetch(API + "/etat"));
       var r = await lire(await fetch(API + "/recast/modeles"));
       etat.cat = e; etat.cat.recast = r;
-      $("pConsentTexte").textContent = e.consentement;
-      $("etatCle").textContent = e.cle ? "Direct : clé Decart posée" : "";
+      $("pConsentTexte").textContent = T("avatar.perso.consentement");
+      $("etatCle").textContent = e.cle ? T("avatar.direct.etat_cle") : "";
       construireRecast();
       await chargerPersos();
       await chargerRendus();
       await chargerImages();
       var o = null; try { o = localStorage.getItem("dz_avatar_onglet"); } catch (x) { /* rien */ }
       var b = o && document.querySelector('.onglet[data-onglet="' + o + '"]'); if (b) b.click();
-    } catch (x) { msg("pMsg", "Le serveur ne répond pas : " + x.message, true); }
+    } catch (x) { msg("pMsg", T("avatar.commun.serveur_muet", { raison: x.message }), true); }
   }
   demarrer();
 })();

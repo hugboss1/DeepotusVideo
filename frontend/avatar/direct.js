@@ -20,11 +20,12 @@ import { ouvrirVoixDirect, retardVideoPossible } from "./voix-direct.js";
 const RETARD_MS = { cloud: 2100, local: 750 };
 
 const API = "/api/avatar-live";
+const T = (cle, vars) => (window.dzT ? window.dzT(cle, vars) : cle);   // G7 : frontend/shared/i18n/avatar.json
 const $ = (id) => document.getElementById(id);
 const st = { cat: null, rc: null, sess: null, local: null, debut: 0, minuterie: null, cache: null, rec: null, morceaux: [], vd: null };
 
 function eur(v) { return window.__dzPlafonds ? window.__dzPlafonds.usd(v) : (Number(v) || 0).toFixed(2) + " $"; }
-function hms(s) { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + " min " + String(s % 60).padStart(2, "0") + " s"; }
+function hms(s) { s = Math.max(0, Math.round(s)); return T("avatar.temps.min_s", { m: Math.floor(s / 60), s: String(s % 60).padStart(2, "0") }); }
 function dire(t, err) { const m = $("xMsg"); m.textContent = t || ""; m.classList.toggle("err", !!err); }
 async function lire(r) {
   let j = null; try { j = await r.json(); } catch (e) { /* vide */ }
@@ -44,7 +45,7 @@ function majDevis() {
   if (!st.cat) return;
   const min = Number($("xDuree").value) || 5, rapide = $("xRapide").checked;
   const prix = rapide ? st.cat.prix_rapide_usd_s : st.cat.prix_usd_s;
-  $("xDevis").textContent = "Réservé au départ : " + eur(prix * min * 60) + " (" + min + " min × " + eur(prix * 60) + "/min)";
+  $("xDevis").textContent = T("avatar.direct.devis", { total: eur(prix * min * 60), min, par_min: eur(prix * 60) });
 }
 
 async function poserCle() {
@@ -53,20 +54,20 @@ async function poserCle() {
     await lire(await fetch("/api/settings/keys", { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: "DECART_API_KEY", value: v }) }));
     $("xCle").value = ""; await charger();
-    dire("Clé Decart enregistrée (coffre ou .env), appliquée tout de suite.");
+    dire(T("avatar.direct.cle_posee"));
   } catch (e) { dire(e.message, true); }
 }
 
 async function demarrer() {
   if (st.rc) return;
-  $("xGo").disabled = true; dire("Ouverture de la caméra…");
+  $("xGo").disabled = true; dire(T("avatar.direct.ouverture_camera"));
   try {
     const [w, h] = $("xFormat").value === "9:16" ? [720, 1280] : [1280, 720];
     const voixChoix = $("xVoix").value;
     st.local = await navigator.mediaDevices.getUserMedia({ video: { width: w, height: h, frameRate: 30 },
       audio: voixChoix ? { echoCancellation: true, noiseSuppression: true, channelCount: 1 } : $("xMicro").checked });
     $("xLocal").srcObject = st.local;
-    dire("Réservation de la durée et jeton Decart…");
+    dire(T("avatar.direct.reservation"));
     const min = Number($("xDuree").value) || 5;
     st.sess = await lire(await fetch(API + "/sessions", { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ personnage_id: $("xPerso").value || null, duree_s: min * 60, rapide: $("xRapide").checked,
@@ -86,16 +87,16 @@ async function demarrer() {
         },
         surStats: (s) => {
           const l = s.latences.slice().sort((a, b) => a - b), med = l.length ? l[l.length >> 1] : 0;
-          $("xVoixStats").textContent = "voix : " + s.segments + " segments, latence " + med + " ms, retard vidéo "
-            + s.retardMs + " ms" + (s.pertes ? ", " + s.pertes + " perdus" + (s.erreur ? " (" + s.erreur + ")" : "") : "");
+          $("xVoixStats").textContent = T("avatar.direct.stats", { n: s.segments, ms: med, retard: s.retardMs })
+            + (s.pertes ? T("avatar.direct.stats_pertes", { n: s.pertes }) + (s.erreur ? " (" + s.erreur + ")" : "") : "");
         },
       });
       fluxEnvoye = st.vd.flux;
-      if (!st.vd.videoRetardee) dire("Ce navigateur ne sait pas retarder la vidéo : la voix arrivera en décalé.", true);
+      if (!st.vd.videoRetardee) dire(T("avatar.direct.pas_de_retard"), true);
     }
     const client = createDecartClient({ apiKey: st.sess.jeton });
     const e0 = etatCourant();
-    dire("Connexion au direct…");
+    dire(T("avatar.direct.connexion"));
     st.rc = await client.realtime.connect(fluxEnvoye, {
       model: models.realtime(st.sess.modele),
       speed: st.sess.rapide ? "fast" : undefined,
@@ -104,11 +105,11 @@ async function demarrer() {
       onRemoteStream: (flux) => { $("xSortie").srcObject = flux; st.sortie = flux; },
       initialState: Object.assign({ prompt: { text: e0.prompt, enhance: true } }, e0.image ? { image: e0.image } : {}),
     });
-    st.rc.on("sessionEnded", (ev) => arreter("Session terminée par Decart" + (ev && ev.reason ? " (" + ev.reason + ")" : "") + "."));
-    st.rc.on("error", (ev) => dire("Erreur du direct : " + ((ev && ev.message) || ev), true));
+    st.rc.on("sessionEnded", (ev) => arreter(T("avatar.direct.fin_decart", { raison: ev && ev.reason ? " (" + ev.reason + ")" : "" })));
+    st.rc.on("error", (ev) => dire(T("avatar.direct.erreur", { raison: (ev && ev.message) || ev }), true));
     st.debut = performance.now();
     st.minuterie = setInterval(tic, 500);
-    majBoutons(); dire("En direct.");
+    majBoutons(); dire(T("avatar.direct.en_cours"));
   } catch (e) {
     dire(e.message || String(e), true);
     await arreter(null);
@@ -121,14 +122,14 @@ function tic() {
   const s = (performance.now() - st.debut) / 1000;
   $("xTemps").textContent = hms(s) + " / " + hms(st.sess.duree_max_s);
   $("xCout").textContent = eur(s * st.sess.prix_usd_s);
-  if (s >= st.sess.duree_max_s) arreter("Durée réservée atteinte : direct coupé.");
+  if (s >= st.sess.duree_max_s) arreter(T("avatar.direct.borne"));
 }
 
 async function appliquer() {
   if (!st.rc) return;
   const e = etatCourant();
-  try { await st.rc.set({ prompt: e.prompt, image: e.image, enhance: true }); dire("Appliqué en direct."); }
-  catch (x) { dire("Changement refusé : " + (x.message || x), true); }
+  try { await st.rc.set({ prompt: e.prompt, image: e.image, enhance: true }); dire(T("avatar.direct.applique")); }
+  catch (x) { dire(T("avatar.direct.refuse", { raison: x.message || x }), true); }
 }
 
 async function arreter(motif) {
@@ -145,9 +146,9 @@ async function arreter(motif) {
     try {
       const f = await lire(await fetch(API + "/sessions/fin", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ session_id: sess.session_id, secondes }), keepalive: true }));
-      dire((motif ? motif + " " : "Direct arrêté. ") + hms(f.secondes) + " facturées : " + eur(f.reel_usd)
-        + (f.voix_s != null ? " ; voix " + hms(f.voix_s) + " : " + eur(f.voix_usd) : "") + ".");
-    } catch (e) { dire("Fin de session non notée : " + e.message, true); }
+      dire(T("avatar.direct.facture", { motif: motif || T("avatar.direct.arrete"), duree: hms(f.secondes), usd: eur(f.reel_usd) })
+        + (f.voix_s != null ? T("avatar.direct.facture_voix", { duree: hms(f.voix_s), usd: eur(f.voix_usd) }) : "") + ".");
+    } catch (e) { dire(T("avatar.direct.fin_non_notee", { raison: e.message }), true); }
   } else if (motif) dire(motif);
   majBoutons();
 }
@@ -162,15 +163,15 @@ function enregistrer() {
   st.rec.onstop = async () => {
     majBoutons();
     if (!st.morceaux.length) return;
-    dire("Rangement de l'enregistrement…");
+    dire(T("avatar.direct.rangement"));
     try {
       const fd = new FormData(); fd.append("fichier", new Blob(st.morceaux, { type: "video/webm" }), "direct.webm");
       const dep = await lire(await fetch(API + "/recast/source", { method: "POST", body: fd }));
       const r = await lire(await fetch(API + "/direct/enregistrer", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ depot: dep.depot, personnage_id: $("xPerso").value || null }) }));
-      dire("Enregistrement rangé dans les rendus (" + hms(r.duree_s) + ").");
+      dire(T("avatar.direct.range", { duree: hms(r.duree_s) }));
       window.dispatchEvent(new CustomEvent("dz-avatar-rendu", { detail: r.job_id }));
-    } catch (e) { dire("Enregistrement perdu : " + e.message, true); }
+    } catch (e) { dire(T("avatar.direct.perdu", { raison: e.message }), true); }
   };
   st.rec.start(1000);
   majBoutons();
@@ -182,7 +183,7 @@ function majBoutons() {
   $("xStop").disabled = !actif;
   $("xAppliquer").disabled = !actif;
   $("xRec").disabled = !actif;
-  $("xRec").querySelector("span").textContent = st.rec && st.rec.state === "recording" ? "Arrêter l'enregistrement" : "Enregistrer";
+  $("xRec").querySelector("span").textContent = T(st.rec && st.rec.state === "recording" ? "avatar.direct.arreter_enregistrement" : "avatar.direct.enregistrer");
   $("xDirectEtat").hidden = !actif;
   ["xFormat", "xDuree", "xRapide", "xMicro", "xMiroir", "xVoix", "xTranspose"].forEach((id) => { $(id).disabled = actif; });
 }
@@ -204,7 +205,7 @@ async function charger() {
   });
   const persos = (await lire(await fetch(API + "/personnages"))).personnages || [];
   const s = $("xPerso"), avant = s.value; s.textContent = "";
-  s.appendChild(new Option("— garder mon visage —", ""));
+  s.appendChild(new Option(T("avatar.direct.garder_visage"), ""));
   persos.forEach((p) => s.appendChild(new Option(p.nom, p.id)));
   s.value = avant || (persos.length ? persos[persos.length - 1].id : "");
   await chargerVoix();
@@ -215,15 +216,15 @@ async function chargerVoix() {
   let e = null;
   try { e = await lire(await fetch(API + "/voix-direct/etat")); } catch (x) { /* la voix reste « telle quelle » */ }
   const s = $("xVoix"), avant = s.value; s.textContent = "";
-  s.appendChild(new Option("Ma voix, telle quelle", ""));
-  const o = new Option("Voix du Personnage — ElevenLabs (cloud, ~" + (RETARD_MS.cloud / 1000).toFixed(1).replace(".", ",") + " s de retard)", "cloud");
+  s.appendChild(new Option(T("avatar.direct.voix_telle"), ""));
+  const o = new Option(T("avatar.direct.voix_cloud", { s: (RETARD_MS.cloud / 1000).toFixed(1).replace(".", ",") }), "cloud");
   o.disabled = !(e && e.cloud.disponible); s.appendChild(o);
-  ((e && e.local.modeles) || []).forEach((m) => s.appendChild(new Option("Voix RVC locale — " + m.nom + (m.index ? "" : " (sans index)"), "local:" + m.nom)));
+  ((e && e.local.modeles) || []).forEach((m) => s.appendChild(new Option(T(m.index ? "avatar.direct.voix_locale" : "avatar.direct.voix_locale_sans_index", { nom: m.nom }), "local:" + m.nom)));
   s.value = [...s.options].some((x) => x.value === avant && !x.disabled) ? avant : "";
-  const aide = !e ? "" : !e.local.gpu ? "Voix locale : aucun GPU NVIDIA détecté — le cloud seul est possible."
-    : !e.local.voixbox ? "Voix locale : GPU " + e.local.gpu.nom + " détecté ; lance Voixbox pour l'activer (fiche « Voix locale RVC »)."
-    : !e.local.modeles.length ? "Voix locale : Voixbox tourne, mais aucune voix n'est entraînée (fiche « Entraîner une voix RVC »)." : "";
-  $("xVoixAide").textContent = aide + (retardVideoPossible() ? "" : " Ce navigateur ne sait pas retarder la vidéo : préfère Edge ou Chrome.");
+  const aide = !e ? "" : !e.local.gpu ? T("avatar.direct.sans_gpu")
+    : !e.local.voixbox ? T("avatar.direct.sans_voixbox", { gpu: e.local.gpu.nom })
+    : !e.local.modeles.length ? T("avatar.direct.sans_voix_rvc") : "";
+  $("xVoixAide").textContent = aide + (retardVideoPossible() ? "" : " " + T("avatar.direct.navigateur"));
   majVoix();
 }
 function majVoix() {
@@ -250,7 +251,7 @@ $("xRec").addEventListener("click", enregistrer);
 $("xVoix").addEventListener("change", majVoix);
 document.addEventListener("visibilitychange", () => {
   clearTimeout(st.cache);
-  if (document.hidden && st.rc) st.cache = setTimeout(() => arreter("Onglet caché depuis 60 s : direct coupé pour ne pas payer dans le vide."), 60000);
+  if (document.hidden && st.rc) st.cache = setTimeout(() => arreter(T("avatar.direct.cache")), 60000);
 });
 window.addEventListener("pagehide", () => { if (st.rc) arreter(null); });
-charger().catch((e) => dire("Le serveur ne répond pas : " + e.message, true));
+charger().catch((e) => dire(T("avatar.commun.serveur_muet", { raison: e.message }), true));

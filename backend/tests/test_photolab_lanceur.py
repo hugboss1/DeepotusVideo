@@ -113,7 +113,7 @@ check("2b_entree_de_rail_juste_apres_vectorlab", BUN.count(ENTREE_PL) == 1 and B
 check("2c_vue_iframe_photolab_apres_la_vue_vectorlab",
       BUN.count(VUE_PL) == 1 and BUN.count('"pvlab"),' + VUE_PL) == 1 and BUN.count('src:"/photolab/"') == 1)
 check("2d_photolab_est_une_vue_navigable",
-      BUN.count('"news","library","settings","vectorlab","photolab"],sg=Yu.includes(') == 1)
+      BUN.count('"news","library","settings","vectorlab","photolab"') == 1)  # t168 : "avatarlive" peut suivre
 check("2e_compteurs_des_maillons_aval_intacts", BUN.count("x.useState(") == 731 and BUN.count("DzTracks") == 181,
       (BUN.count("x.useState("), BUN.count("DzTracks")))
 check("2f_fins_de_ligne_intactes_en_octets", BUNB.count(b"\r\n") > 15000 and BUNB.count(b"\r\n") == BUNB.count(b"\n"),
