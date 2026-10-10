@@ -1,0 +1,2012 @@
+{
+ "dz-action-abandonner": {
+  "option": "refonte",
+  "t": "2026-10-10T03:42:27.380Z"
+ },
+ "dz-action-actualiser": {
+  "option": "refonte",
+  "t": "2026-10-10T03:42:25.527Z"
+ },
+ "dz-action-aide": {
+  "option": "refonte",
+  "t": "2026-10-10T03:42:22.618Z"
+ },
+ "dz-action-ajouter": {
+  "option": "refonte",
+  "t": "2026-10-10T03:42:21.709Z"
+ },
+ "dz-action-ajouter-bibliotheque": {
+  "option": "refonte",
+  "t": "2026-10-10T03:42:18.780Z"
+ },
+ "dz-action-ajouter-calendrier": {
+  "option": "refonte",
+  "t": "2026-10-10T03:42:17.959Z"
+ },
+ "dz-action-ajuster-vue": {
+  "option": "refonte",
+  "t": "2026-10-10T03:42:17.232Z"
+ },
+ "dz-action-aleatoire": {
+  "option": "refonte",
+  "t": "2026-10-10T03:42:16.386Z"
+ },
+ "dz-action-annuler": {
+  "option": "refonte",
+  "t": "2026-10-10T03:42:40.745Z"
+ },
+ "dz-action-apercu": {
+  "option": "refonte",
+  "t": "2026-10-10T03:42:41.305Z"
+ },
+ "dz-action-appairer": {
+  "option": "refonte",
+  "t": "2026-10-10T03:42:42.072Z"
+ },
+ "dz-action-capturer": {
+  "option": "refonte",
+  "t": "2026-10-10T03:42:43.092Z"
+ },
+ "dz-action-chercher": {
+  "option": "refonte",
+  "t": "2026-10-10T03:42:44.043Z"
+ },
+ "dz-action-choisir-bibliotheque": {
+  "option": "refonte",
+  "t": "2026-10-10T03:42:44.833Z"
+ },
+ "dz-action-coller": {
+  "option": "refonte",
+  "t": "2026-10-10T03:42:47.235Z"
+ },
+ "dz-action-comparer": {
+  "option": "refonte",
+  "t": "2026-10-10T03:42:00.575Z"
+ },
+ "dz-action-connecter": {
+  "option": "refonte",
+  "t": "2026-10-10T03:42:01.137Z"
+ },
+ "dz-action-continuer": {
+  "option": "refonte",
+  "t": "2026-10-10T03:42:03.170Z"
+ },
+ "dz-action-copier": {
+  "option": "refonte",
+  "t": "2026-10-10T03:42:04.143Z"
+ },
+ "dz-action-cout": {
+  "option": "refonte",
+  "t": "2026-10-10T03:42:05.368Z"
+ },
+ "dz-action-decouper-plans": {
+  "option": "refonte",
+  "t": "2026-10-10T03:42:09.380Z"
+ },
+ "dz-action-deplier": {
+  "option": "refonte",
+  "t": "2026-10-10T03:41:44.886Z"
+ },
+ "dz-action-detourer": {
+  "option": "refonte",
+  "t": "2026-10-10T03:41:45.988Z"
+ },
+ "dz-action-disposition-colonne": {
+  "option": "refonte",
+  "t": "2026-10-10T03:41:48.043Z"
+ },
+ "dz-action-duel": {
+  "option": "refonte",
+  "t": "2026-10-10T03:41:49.070Z"
+ },
+ "dz-action-dupliquer": {
+  "option": "refonte",
+  "t": "2026-10-10T03:41:49.806Z"
+ },
+ "dz-action-element-precedent": {
+  "option": "refonte",
+  "t": "2026-10-10T03:41:51.085Z"
+ },
+ "dz-action-element-suivant": {
+  "option": "refonte",
+  "t": "2026-10-10T03:50:48.813Z"
+ },
+ "dz-action-enregistrer": {
+  "option": "refonte",
+  "t": "2026-10-10T03:41:54.417Z"
+ },
+ "dz-action-enregistrer-modele": {
+  "option": "refonte",
+  "t": "2026-10-10T03:42:53.143Z"
+ },
+ "dz-action-envoyer-vers": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:13.444Z"
+ },
+ "dz-action-epingler-mobile": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:12.240Z"
+ },
+ "dz-action-exporter": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:11.487Z"
+ },
+ "dz-action-fabriquer": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:10.235Z"
+ },
+ "dz-action-favori": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:06.228Z"
+ },
+ "dz-action-fermer": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:05.229Z"
+ },
+ "dz-action-figer-recette": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:04.144Z"
+ },
+ "dz-action-generer": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:03.172Z"
+ },
+ "dz-action-importer": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:02.203Z"
+ },
+ "dz-action-lancer": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:07.759Z"
+ },
+ "dz-action-lancer-recette": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:08.584Z"
+ },
+ "dz-action-menu": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:16.429Z"
+ },
+ "dz-action-mesurer": {
+  "option": "refonte",
+  "t": "2026-10-10T03:51:03.270Z"
+ },
+ "dz-action-modifier": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:24.865Z"
+ },
+ "dz-action-nettoyer": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:30.917Z"
+ },
+ "dz-action-nouveau": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:26.523Z"
+ },
+ "dz-action-nouveau-dossier": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:28.105Z"
+ },
+ "dz-action-ouvrir": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:29.095Z"
+ },
+ "dz-action-ouvrir-externe": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:34.541Z"
+ },
+ "dz-action-palette-commandes": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:32.192Z"
+ },
+ "dz-action-panneau-lateral": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:35.380Z"
+ },
+ "dz-action-plus-options": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:36.438Z"
+ },
+ "dz-action-poignee": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:37.315Z"
+ },
+ "dz-action-programmer": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:38.283Z"
+ },
+ "dz-action-publier": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:39.168Z"
+ },
+ "dz-action-quantite": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:40.150Z"
+ },
+ "dz-action-raccourcis": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:41.125Z"
+ },
+ "dz-action-rangement-auto": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:42.386Z"
+ },
+ "dz-action-ranger": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:43.442Z"
+ },
+ "dz-action-recalculer": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:44.627Z"
+ },
+ "dz-action-recentrer": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:45.520Z"
+ },
+ "dz-action-recherche-semantique": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:46.458Z"
+ },
+ "dz-action-recurrence": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:47.433Z"
+ },
+ "dz-action-recycler": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:48.295Z"
+ },
+ "dz-action-redefinir": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:49.203Z"
+ },
+ "dz-action-reecrire-ia": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:50.620Z"
+ },
+ "dz-action-reessayer": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:51.588Z"
+ },
+ "dz-action-regenerer": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:52.690Z"
+ },
+ "dz-action-reglages": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:30.780Z"
+ },
+ "dz-action-reinitialiser": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:29.876Z"
+ },
+ "dz-action-renommer": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:29.066Z"
+ },
+ "dz-action-repondre": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:28.069Z"
+ },
+ "dz-action-reprendre-reglages": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:27.345Z"
+ },
+ "dz-action-restaurer": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:26.269Z"
+ },
+ "dz-action-retablir": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:25.391Z"
+ },
+ "dz-action-retirer": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:19.658Z"
+ },
+ "dz-action-retour": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:20.555Z"
+ },
+ "dz-action-rouvrir-quick": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:21.432Z"
+ },
+ "dz-action-rouvrir-studio": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:22.113Z"
+ },
+ "dz-action-suggerer": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:23.052Z"
+ },
+ "dz-action-supprimer": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:23.847Z"
+ },
+ "dz-action-telecharger": {
+  "option": "refonte",
+  "t": "2026-10-10T03:50:24.911Z"
+ },
+ "dz-action-tester": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:55.127Z"
+ },
+ "dz-action-theme": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:55.862Z"
+ },
+ "dz-action-tout-selectionner": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:56.816Z"
+ },
+ "dz-action-trier": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:32.898Z"
+ },
+ "dz-action-valider": {
+  "option": "refonte",
+  "t": "2026-10-10T03:50:27.888Z"
+ },
+ "dz-action-vider": {
+  "option": "refonte",
+  "t": "2026-10-10T03:50:26.478Z"
+ },
+ "dz-action-vue-grille": {
+  "option": "refonte",
+  "t": "2026-10-10T03:50:28.796Z"
+ },
+ "dz-action-vue-liste": {
+  "option": "refonte",
+  "t": "2026-10-10T03:50:30.543Z"
+ },
+ "dz-action-zoom-arriere": {
+  "option": "refonte",
+  "t": "2026-10-10T03:50:31.474Z"
+ },
+ "dz-action-zoom-avant": {
+  "option": "refonte",
+  "t": "2026-10-10T03:50:32.380Z"
+ },
+ "dz-calque-balance-couleurs": {
+  "option": "refonte",
+  "t": "2026-10-10T03:47:25.159Z"
+ },
+ "dz-calque-couleur-selective": {
+  "option": "refonte",
+  "t": "2026-10-10T03:47:20.501Z"
+ },
+ "dz-calque-courbes": {
+  "option": "refonte",
+  "t": "2026-10-10T03:47:19.541Z"
+ },
+ "dz-calque-ecretage": {
+  "option": "refonte",
+  "t": "2026-10-10T03:47:18.769Z"
+ },
+ "dz-calque-exposition": {
+  "option": "refonte",
+  "t": "2026-10-10T03:47:18.075Z"
+ },
+ "dz-calque-filtre-photo": {
+  "option": "refonte",
+  "t": "2026-10-10T03:47:16.121Z"
+ },
+ "dz-calque-fusionner": {
+  "option": "refonte",
+  "t": "2026-10-10T03:47:15.109Z"
+ },
+ "dz-calque-groupe": {
+  "option": "refonte",
+  "t": "2026-10-10T03:47:11.801Z"
+ },
+ "dz-calque-inverser": {
+  "option": "refonte",
+  "t": "2026-10-10T03:47:10.563Z"
+ },
+ "dz-calque-luminosite-contraste": {
+  "option": "refonte",
+  "t": "2026-10-10T03:47:09.693Z"
+ },
+ "dz-calque-mappage-degrade": {
+  "option": "refonte",
+  "t": "2026-10-10T03:47:08.749Z"
+ },
+ "dz-calque-masque": {
+  "option": "refonte",
+  "t": "2026-10-10T03:47:07.976Z"
+ },
+ "dz-calque-melangeur-couches": {
+  "option": "refonte",
+  "t": "2026-10-10T03:47:05.745Z"
+ },
+ "dz-calque-niveaux": {
+  "option": "refonte",
+  "t": "2026-10-10T03:47:04.819Z"
+ },
+ "dz-calque-noir-blanc": {
+  "option": "refonte",
+  "t": "2026-10-10T03:47:03.979Z"
+ },
+ "dz-calque-nouveau": {
+  "option": "refonte",
+  "t": "2026-10-10T03:47:03.094Z"
+ },
+ "dz-calque-objet-dynamique": {
+  "option": "refonte",
+  "t": "2026-10-10T03:47:01.977Z"
+ },
+ "dz-calque-pixel": {
+  "option": "refonte",
+  "t": "2026-10-10T03:47:01.226Z"
+ },
+ "dz-calque-posteriser": {
+  "option": "refonte",
+  "t": "2026-10-10T03:47:00.439Z"
+ },
+ "dz-calque-reglage": {
+  "option": "refonte",
+  "t": "2026-10-10T03:46:58.006Z"
+ },
+ "dz-calque-seuil": {
+  "option": "refonte",
+  "t": "2026-10-10T03:46:56.981Z"
+ },
+ "dz-calque-table-couleurs": {
+  "option": "refonte",
+  "t": "2026-10-10T03:46:55.954Z"
+ },
+ "dz-calque-teinte-saturation": {
+  "option": "refonte",
+  "t": "2026-10-10T03:46:54.724Z"
+ },
+ "dz-calque-texte": {
+  "option": "refonte",
+  "t": "2026-10-10T03:46:53.606Z"
+ },
+ "dz-calque-vectoriel": {
+  "option": "refonte",
+  "t": "2026-10-10T03:46:52.729Z"
+ },
+ "dz-calque-vibrance": {
+  "option": "refonte",
+  "t": "2026-10-10T03:46:51.904Z"
+ },
+ "dz-cat-3d": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:09.099Z"
+ },
+ "dz-cat-ambiance": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:10.525Z"
+ },
+ "dz-cat-animation": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:11.631Z"
+ },
+ "dz-cat-assets-2d": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:12.692Z"
+ },
+ "dz-cat-audio": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:13.690Z"
+ },
+ "dz-cat-cartes": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:14.545Z"
+ },
+ "dz-cat-composition": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:15.820Z"
+ },
+ "dz-cat-date": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:16.758Z"
+ },
+ "dz-cat-decor": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:17.729Z"
+ },
+ "dz-cat-generateur": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:18.626Z"
+ },
+ "dz-cat-lieu": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:19.676Z"
+ },
+ "dz-cat-maitre": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:20.636Z"
+ },
+ "dz-cat-matieres": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:21.581Z"
+ },
+ "dz-cat-montage": {
+  "option": "refonte",
+  "t": "2026-10-10T03:50:57.880Z"
+ },
+ "dz-cat-objet": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:22.548Z"
+ },
+ "dz-cat-personnage": {
+  "option": "refonte",
+  "t": "2026-10-10T03:42:38.180Z"
+ },
+ "dz-cat-sortie": {
+  "option": "refonte",
+  "t": "2026-10-10T03:42:35.631Z"
+ },
+ "dz-cat-source": {
+  "option": "refonte",
+  "t": "2026-10-10T03:42:34.639Z"
+ },
+ "dz-cat-sprites": {
+  "option": "refonte",
+  "t": "2026-10-10T03:42:33.747Z"
+ },
+ "dz-cat-studio-3d": {
+  "option": "refonte",
+  "t": "2026-10-10T03:42:32.674Z"
+ },
+ "dz-cat-tuiles": {
+  "option": "refonte",
+  "t": "2026-10-10T03:42:30.552Z"
+ },
+ "dz-edit-aimanter": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:35.533Z"
+ },
+ "dz-edit-aligner-bas": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:36.455Z"
+ },
+ "dz-edit-aligner-centre-h": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:37.386Z"
+ },
+ "dz-edit-aligner-centre-v": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:38.094Z"
+ },
+ "dz-edit-aligner-droite": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:39.186Z"
+ },
+ "dz-edit-aligner-gauche": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:58.135Z"
+ },
+ "dz-edit-aligner-haut": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:58.984Z"
+ },
+ "dz-edit-anim-couleur": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:00.019Z"
+ },
+ "dz-edit-anim-halo": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:01.061Z"
+ },
+ "dz-edit-anim-rebond": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:02.027Z"
+ },
+ "dz-edit-annotation": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:04.393Z"
+ },
+ "dz-edit-arriere-plan": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:41.682Z"
+ },
+ "dz-edit-autotuile": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:05.651Z"
+ },
+ "dz-edit-cadres-edition": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:06.690Z"
+ },
+ "dz-edit-charger-selection": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:07.659Z"
+ },
+ "dz-edit-conserver-proportions": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:08.597Z"
+ },
+ "dz-edit-contour-trace": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:09.469Z"
+ },
+ "dz-edit-convertir-en-cadre": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:10.465Z"
+ },
+ "dz-edit-convertir-en-chemin": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:11.538Z"
+ },
+ "dz-edit-couleur-contour": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:12.528Z"
+ },
+ "dz-edit-couleur-fond": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:13.450Z"
+ },
+ "dz-edit-couleurs-defaut": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:14.312Z"
+ },
+ "dz-edit-couper": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:15.707Z"
+ },
+ "dz-edit-courbes-niveau": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:17.283Z"
+ },
+ "dz-edit-decaler-px": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:18.865Z"
+ },
+ "dz-edit-degrade-conique": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:20.358Z"
+ },
+ "dz-edit-degrade-lineaire": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:51.695Z"
+ },
+ "dz-edit-degrade-radial": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:52.693Z"
+ },
+ "dz-edit-degrouper": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:53.749Z"
+ },
+ "dz-edit-descendre": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:54.488Z"
+ },
+ "dz-edit-detacher": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:55.655Z"
+ },
+ "dz-edit-directions": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:56.398Z"
+ },
+ "dz-edit-distribuer-h": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:57.387Z"
+ },
+ "dz-edit-distribuer-v": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:50.136Z"
+ },
+ "dz-edit-division": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:49.040Z"
+ },
+ "dz-edit-echanger-couleurs": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:47.750Z"
+ },
+ "dz-edit-effet": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:46.545Z"
+ },
+ "dz-edit-energie": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:45.474Z"
+ },
+ "dz-edit-enregistrer-selection": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:44.750Z"
+ },
+ "dz-edit-epaissir": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:43.895Z"
+ },
+ "dz-edit-grille": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:21.872Z"
+ },
+ "dz-edit-grille-hex": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:22.960Z"
+ },
+ "dz-edit-grouper": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:24.010Z"
+ },
+ "dz-edit-incliner": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:25.225Z"
+ },
+ "dz-edit-intersection": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:26.290Z"
+ },
+ "dz-edit-inverser-sens": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:27.437Z"
+ },
+ "dz-edit-justifier": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:59.870Z"
+ },
+ "dz-edit-justifier-centre": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:28.585Z"
+ },
+ "dz-edit-justifier-droite": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:29.604Z"
+ },
+ "dz-edit-justifier-gauche": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:30.279Z"
+ },
+ "dz-edit-lier": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:31.038Z"
+ },
+ "dz-edit-meme-hauteur": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:31.690Z"
+ },
+ "dz-edit-meme-largeur": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:32.375Z"
+ },
+ "dz-edit-miroir-h": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:33.085Z"
+ },
+ "dz-edit-miroir-v": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:33.738Z"
+ },
+ "dz-edit-monter": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:34.431Z"
+ },
+ "dz-edit-motif": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:35.215Z"
+ },
+ "dz-edit-orientation-texte": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:36.025Z"
+ },
+ "dz-edit-paragraphes": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:36.700Z"
+ },
+ "dz-edit-pivot": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:37.450Z"
+ },
+ "dz-edit-pointe-fleche": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:39.325Z"
+ },
+ "dz-edit-premier-plan": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:40.187Z"
+ },
+ "dz-edit-relatif": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:40.945Z"
+ },
+ "dz-edit-remplir-trace": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:42.040Z"
+ },
+ "dz-edit-reperes": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:42.745Z"
+ },
+ "dz-edit-ripple": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:43.442Z"
+ },
+ "dz-edit-sans-couleur": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:44.306Z"
+ },
+ "dz-edit-seamless": {
+  "option": "refonte",
+  "t": "2026-10-10T03:51:07.380Z"
+ },
+ "dz-edit-selection-vers-trace": {
+  "option": "refonte",
+  "t": "2026-10-10T03:51:06.446Z"
+ },
+ "dz-edit-soustraire": {
+  "option": "refonte",
+  "t": "2026-10-10T03:51:05.305Z"
+ },
+ "dz-edit-symbole": {
+  "option": "refonte",
+  "t": "2026-10-10T03:51:04.615Z"
+ },
+ "dz-edit-texte-aligner-centre": {
+  "option": "refonte",
+  "t": "2026-10-10T03:51:08.741Z"
+ },
+ "dz-edit-texte-aligner-droite": {
+  "option": "refonte",
+  "t": "2026-10-10T03:51:09.716Z"
+ },
+ "dz-edit-texte-aligner-gauche": {
+  "option": "refonte",
+  "t": "2026-10-10T03:51:10.773Z"
+ },
+ "dz-edit-texte-barre": {
+  "option": "refonte",
+  "t": "2026-10-10T03:51:17.448Z"
+ },
+ "dz-edit-texte-capitales": {
+  "option": "refonte",
+  "t": "2026-10-10T03:51:16.623Z"
+ },
+ "dz-edit-texte-gras": {
+  "option": "refonte",
+  "t": "2026-10-10T03:51:15.393Z"
+ },
+ "dz-edit-texte-italique": {
+  "option": "refonte",
+  "t": "2026-10-10T03:51:14.478Z"
+ },
+ "dz-edit-texte-petites-capitales": {
+  "option": "refonte",
+  "t": "2026-10-10T03:51:13.810Z"
+ },
+ "dz-edit-texte-souligne": {
+  "option": "refonte",
+  "t": "2026-10-10T03:51:13.001Z"
+ },
+ "dz-edit-transformer": {
+  "option": "refonte",
+  "t": "2026-10-10T03:51:11.947Z"
+ },
+ "dz-edit-union": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:45.228Z"
+ },
+ "dz-edit-vectoriser": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:46.098Z"
+ },
+ "dz-etat-acquitte": {
+  "option": "refonte",
+  "t": "2026-10-10T03:50:33.595Z"
+ },
+ "dz-etat-actif": {
+  "option": "refonte",
+  "t": "2026-10-10T03:50:35.493Z"
+ },
+ "dz-etat-attente": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:58.158Z"
+ },
+ "dz-etat-avertissement": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:59.209Z"
+ },
+ "dz-etat-cache": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:00.325Z"
+ },
+ "dz-etat-contourne": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:01.173Z"
+ },
+ "dz-etat-derive": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:01.893Z"
+ },
+ "dz-etat-enregistre": {
+  "option": "refonte",
+  "t": "2026-10-10T03:50:03.596Z"
+ },
+ "dz-etat-epingle": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:53.928Z"
+ },
+ "dz-etat-erreur": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:52.743Z"
+ },
+ "dz-etat-exclu": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:54.652Z"
+ },
+ "dz-etat-grave": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:50.909Z"
+ },
+ "dz-etat-ia": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:50.179Z"
+ },
+ "dz-etat-inconnu": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:49.271Z"
+ },
+ "dz-etat-information": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:48.155Z"
+ },
+ "dz-etat-libre": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:40.887Z"
+ },
+ "dz-etat-meilleur": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:39.971Z"
+ },
+ "dz-etat-mobile": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:39.116Z"
+ },
+ "dz-etat-modifie": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:38.052Z"
+ },
+ "dz-etat-note": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:36.511Z"
+ },
+ "dz-etat-option-active": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:35.719Z"
+ },
+ "dz-etat-origine": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:34.864Z"
+ },
+ "dz-etat-sans-apercu": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:43.070Z"
+ },
+ "dz-etat-selection-multiple": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:44.502Z"
+ },
+ "dz-etat-succes": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:45.251Z"
+ },
+ "dz-etat-verrou-pixels": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:46.486Z"
+ },
+ "dz-etat-verrou-plan-travail": {
+  "option": "refonte",
+  "t": "2026-10-10T03:50:14.516Z"
+ },
+ "dz-etat-verrou-position": {
+  "option": "refonte",
+  "t": "2026-10-10T03:50:13.691Z"
+ },
+ "dz-etat-verrou-transparence": {
+  "option": "refonte",
+  "t": "2026-10-10T03:50:12.611Z"
+ },
+ "dz-etat-verrouille": {
+  "option": "refonte",
+  "t": "2026-10-10T03:50:11.557Z"
+ },
+ "dz-etat-vide": {
+  "option": "refonte",
+  "t": "2026-10-10T03:50:09.153Z"
+ },
+ "dz-etat-visible": {
+  "option": "refonte",
+  "t": "2026-10-10T03:50:06.986Z"
+ },
+ "dz-lab3d-artefact": {
+  "option": "refonte",
+  "t": "2026-10-10T03:46:50.317Z"
+ },
+ "dz-lab3d-assemblage": {
+  "option": "refonte",
+  "t": "2026-10-10T03:46:49.415Z"
+ },
+ "dz-lab3d-camera": {
+  "option": "refonte",
+  "t": "2026-10-10T03:46:48.476Z"
+ },
+ "dz-lab3d-capsule": {
+  "option": "refonte",
+  "t": "2026-10-10T03:46:47.532Z"
+ },
+ "dz-lab3d-cube": {
+  "option": "refonte",
+  "t": "2026-10-10T03:46:46.497Z"
+ },
+ "dz-lab3d-cylindre": {
+  "option": "refonte",
+  "t": "2026-10-10T03:46:45.454Z"
+ },
+ "dz-lab3d-deriver-maps": {
+  "option": "refonte",
+  "t": "2026-10-10T03:46:44.141Z"
+ },
+ "dz-lab3d-extrusion": {
+  "option": "refonte",
+  "t": "2026-10-10T03:46:40.302Z"
+ },
+ "dz-lab3d-filaire": {
+  "option": "refonte",
+  "t": "2026-10-10T03:46:36.175Z"
+ },
+ "dz-lab3d-forger-matiere": {
+  "option": "refonte",
+  "t": "2026-10-10T03:46:33.739Z"
+ },
+ "dz-lab3d-hdri": {
+  "option": "refonte",
+  "t": "2026-10-10T03:46:31.969Z"
+ },
+ "dz-lab3d-impression-3d": {
+  "option": "refonte",
+  "t": "2026-10-10T03:46:31.046Z"
+ },
+ "dz-lab3d-lod": {
+  "option": "refonte",
+  "t": "2026-10-10T03:46:30.274Z"
+ },
+ "dz-lab3d-lumiere": {
+  "option": "refonte",
+  "t": "2026-10-10T03:46:28.429Z"
+ },
+ "dz-lab3d-maillage": {
+  "option": "refonte",
+  "t": "2026-10-10T03:46:27.522Z"
+ },
+ "dz-lab3d-materiau": {
+  "option": "refonte",
+  "t": "2026-10-10T03:46:25.902Z"
+ },
+ "dz-lab3d-optimiser": {
+  "option": "refonte",
+  "t": "2026-10-10T03:46:24.454Z"
+ },
+ "dz-lab3d-os": {
+  "option": "refonte",
+  "t": "2026-10-10T03:46:20.884Z"
+ },
+ "dz-lab3d-piece": {
+  "option": "refonte",
+  "t": "2026-10-10T03:46:18.042Z"
+ },
+ "dz-lab3d-plan": {
+  "option": "refonte",
+  "t": "2026-10-10T03:46:13.271Z"
+ },
+ "dz-lab3d-procedural": {
+  "option": "refonte",
+  "t": "2026-10-10T03:46:11.756Z"
+ },
+ "dz-lab3d-relief": {
+  "option": "refonte",
+  "t": "2026-10-10T03:46:09.597Z"
+ },
+ "dz-lab3d-rig": {
+  "option": "refonte",
+  "t": "2026-10-10T03:46:08.404Z"
+ },
+ "dz-lab3d-rotation": {
+  "option": "refonte",
+  "t": "2026-10-10T03:46:05.451Z"
+ },
+ "dz-lab3d-sphere": {
+  "option": "refonte",
+  "t": "2026-10-10T03:46:04.549Z"
+ },
+ "dz-marque-icone-adaptative": {
+  "option": "actuel:logo-marque",
+  "t": "2026-10-10T07:00:00Z",
+  "note": "décision utilisateur du 10/10 : icône d application = logo réel (le glyphe se dégrade à 1024 px)"
+ },
+ "dz-marque-icone-app": {
+  "option": "actuel:logo-marque",
+  "t": "2026-10-10T07:00:00Z",
+  "note": "décision utilisateur du 10/10 : icône d application = logo réel (le glyphe se dégrade à 1024 px)"
+ },
+ "dz-marque-oracle": {
+  "option": "refonte",
+  "t": "2026-10-10T03:45:23.314Z"
+ },
+ "dz-marque-poulpe": {
+  "option": "actuel:logo-marque",
+  "t": "2026-10-10T03:45:19.085Z"
+ },
+ "dz-marque-seer": {
+  "option": "refonte",
+  "t": "2026-10-10T03:45:08.810Z"
+ },
+ "dz-marque-splash": {
+  "option": "actuel:splash-jpg",
+  "t": "2026-10-10T03:45:06.418Z"
+ },
+ "dz-media-ameliorer": {
+  "option": "refonte",
+  "t": "2026-10-10T03:50:08.178Z"
+ },
+ "dz-media-animatique": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:15.103Z"
+ },
+ "dz-media-apparitions": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:18.170Z"
+ },
+ "dz-media-arret": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:17.158Z"
+ },
+ "dz-media-article": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:03.715Z"
+ },
+ "dz-media-assembler": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:11.724Z"
+ },
+ "dz-media-audio": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:11.135Z"
+ },
+ "dz-media-automation": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:10.094Z"
+ },
+ "dz-media-avatar": {
+  "option": "refonte",
+  "t": "2026-10-10T03:42:56.338Z"
+ },
+ "dz-media-badge-direct": {
+  "option": "refonte",
+  "t": "2026-10-10T03:42:57.201Z"
+ },
+ "dz-media-badge-prix": {
+  "option": "refonte",
+  "t": "2026-10-10T03:42:58.068Z"
+ },
+ "dz-media-chaine-du-jour": {
+  "option": "refonte",
+  "t": "2026-10-10T03:42:58.639Z"
+ },
+ "dz-media-cloner-voix": {
+  "option": "refonte",
+  "t": "2026-10-10T03:42:59.765Z"
+ },
+ "dz-media-coffre": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:00.412Z"
+ },
+ "dz-media-creneaux": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:01.235Z"
+ },
+ "dz-media-dicter": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:07.313Z"
+ },
+ "dz-media-duree": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:06.369Z"
+ },
+ "dz-media-emoji": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:05.649Z"
+ },
+ "dz-media-emoji-auto": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:04.883Z"
+ },
+ "dz-media-extraire-son": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:04.100Z"
+ },
+ "dz-media-extraits": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:02.998Z"
+ },
+ "dz-media-feuille": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:02.165Z"
+ },
+ "dz-media-fichier": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:04.465Z"
+ },
+ "dz-media-film": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:05.298Z"
+ },
+ "dz-media-flux-rss": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:06.385Z"
+ },
+ "dz-media-fond-carte": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:08.426Z"
+ },
+ "dz-media-forme-onde": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:09.610Z"
+ },
+ "dz-media-generer-image": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:11.553Z"
+ },
+ "dz-media-generer-script": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:24.125Z"
+ },
+ "dz-media-generer-video": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:12.520Z"
+ },
+ "dz-media-generer-voix": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:13.623Z"
+ },
+ "dz-media-graphe-depart": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:14.545Z"
+ },
+ "dz-media-image": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:16.945Z"
+ },
+ "dz-media-image-cle": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:19.592Z"
+ },
+ "dz-media-image-cle-retirer": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:21.684Z"
+ },
+ "dz-media-image-precedente": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:25.173Z"
+ },
+ "dz-media-image-suivante": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:25.960Z"
+ },
+ "dz-media-incrustation": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:27.955Z"
+ },
+ "dz-media-inserer": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:28.953Z"
+ },
+ "dz-media-isoler-voix": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:30.317Z"
+ },
+ "dz-media-lecture": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:31.308Z"
+ },
+ "dz-media-manuscrit": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:32.223Z"
+ },
+ "dz-media-marqueur": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:33.324Z"
+ },
+ "dz-media-mouvements-camera": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:34.285Z"
+ },
+ "dz-media-muet": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:35.103Z"
+ },
+ "dz-media-pack-depart": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:36.640Z"
+ },
+ "dz-media-pause": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:37.585Z"
+ },
+ "dz-media-persona": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:38.703Z"
+ },
+ "dz-media-piste-audio": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:39.602Z"
+ },
+ "dz-media-piste-video": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:40.615Z"
+ },
+ "dz-media-police": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:43.150Z"
+ },
+ "dz-media-post": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:44.552Z"
+ },
+ "dz-media-precedent": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:45.925Z"
+ },
+ "dz-media-preecoute": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:47.125Z"
+ },
+ "dz-media-prompt": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:48.018Z"
+ },
+ "dz-media-rec": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:48.775Z"
+ },
+ "dz-media-reel": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:49.487Z"
+ },
+ "dz-media-rendre": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:50.261Z"
+ },
+ "dz-media-routage": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:50.957Z"
+ },
+ "dz-media-solo": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:51.820Z"
+ },
+ "dz-media-sous-titres": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:52.727Z"
+ },
+ "dz-media-stems": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:53.672Z"
+ },
+ "dz-media-sticker": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:55.682Z"
+ },
+ "dz-media-suivant": {
+  "option": "refonte",
+  "t": "2026-10-10T03:54:56.882Z"
+ },
+ "dz-media-tete-lecture": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:31.489Z"
+ },
+ "dz-media-texte": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:30.537Z"
+ },
+ "dz-media-timeline-allonger": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:29.751Z"
+ },
+ "dz-media-timeline-raccourcir": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:28.739Z"
+ },
+ "dz-media-titre": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:27.620Z"
+ },
+ "dz-media-tuile-iso": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:26.780Z"
+ },
+ "dz-media-video": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:25.933Z"
+ },
+ "dz-media-vitesse": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:32.893Z"
+ },
+ "dz-media-voix": {
+  "option": "refonte",
+  "t": "2026-10-10T03:43:33.569Z"
+ },
+ "dz-nav-accueil": {
+  "option": "refonte",
+  "t": "2026-10-10T03:40:28.438Z"
+ },
+ "dz-nav-analytics": {
+  "option": "refonte",
+  "t": "2026-10-10T03:40:31.550Z"
+ },
+ "dz-nav-atelier": {
+  "option": "refonte",
+  "t": "2026-10-10T03:40:32.450Z"
+ },
+ "dz-nav-bible": {
+  "option": "refonte",
+  "t": "2026-10-10T03:40:34.619Z"
+ },
+ "dz-nav-bibliotheque": {
+  "option": "refonte",
+  "t": "2026-10-10T03:40:35.796Z"
+ },
+ "dz-nav-campagne": {
+  "option": "refonte",
+  "t": "2026-10-10T03:40:37.896Z"
+ },
+ "dz-nav-cf-cadre": {
+  "option": "refonte",
+  "t": "2026-10-10T03:40:39.703Z"
+ },
+ "dz-nav-cf-donnees": {
+  "option": "refonte",
+  "t": "2026-10-10T03:52:41.950Z"
+ },
+ "dz-nav-cf-edition": {
+  "option": "refonte",
+  "t": "2026-10-10T03:40:48.599Z"
+ },
+ "dz-nav-cf-export-3d": {
+  "option": "refonte",
+  "t": "2026-10-10T03:40:49.806Z"
+ },
+ "dz-nav-cf-face": {
+  "option": "refonte",
+  "t": "2026-10-10T03:40:50.938Z"
+ },
+ "dz-nav-cf-forge-3d": {
+  "option": "refonte",
+  "t": "2026-10-10T03:40:51.832Z"
+ },
+ "dz-nav-cf-galerie": {
+  "option": "refonte",
+  "t": "2026-10-10T03:40:53.750Z"
+ },
+ "dz-nav-cf-import": {
+  "option": "refonte",
+  "t": "2026-10-10T03:40:55.883Z"
+ },
+ "dz-nav-cf-impression": {
+  "option": "refonte",
+  "t": "2026-10-10T03:41:00.433Z"
+ },
+ "dz-nav-cf-matieres": {
+  "option": "refonte",
+  "t": "2026-10-10T03:41:04.483Z"
+ },
+ "dz-nav-cf-typo": {
+  "option": "refonte",
+  "t": "2026-10-10T03:41:08.143Z"
+ },
+ "dz-nav-cf-volume": {
+  "option": "refonte",
+  "t": "2026-10-10T03:41:10.970Z"
+ },
+ "dz-nav-chapitres": {
+  "option": "refonte",
+  "t": "2026-10-10T03:41:12.073Z"
+ },
+ "dz-nav-cles-api": {
+  "option": "refonte",
+  "t": "2026-10-10T03:41:13.213Z"
+ },
+ "dz-nav-corbeille": {
+  "option": "refonte",
+  "t": "2026-10-10T03:41:14.729Z"
+ },
+ "dz-nav-direction-artistique": {
+  "option": "refonte",
+  "t": "2026-10-10T03:41:15.718Z"
+ },
+ "dz-nav-documents": {
+  "option": "refonte",
+  "t": "2026-10-10T03:41:16.768Z"
+ },
+ "dz-nav-episodes": {
+  "option": "refonte",
+  "t": "2026-10-10T03:41:17.780Z"
+ },
+ "dz-nav-espace-pixel": {
+  "option": "refonte",
+  "t": "2026-10-10T03:41:18.664Z"
+ },
+ "dz-nav-etabli": {
+  "option": "refonte",
+  "t": "2026-10-10T03:41:24.747Z"
+ },
+ "dz-nav-file-rendus": {
+  "option": "refonte",
+  "t": "2026-10-10T03:41:31.423Z"
+ },
+ "dz-nav-game-assets": {
+  "option": "refonte",
+  "t": "2026-10-10T03:41:42.064Z"
+ },
+ "dz-nav-guide": {
+  "option": "refonte",
+  "t": "2026-10-10T03:49:00.147Z"
+ },
+ "dz-nav-montage": {
+  "option": "refonte",
+  "t": "2026-10-10T03:50:46.375Z"
+ },
+ "dz-nav-news": {
+  "option": "refonte",
+  "t": "2026-10-10T03:52:43.555Z"
+ },
+ "dz-nav-panneau-ajustements": {
+  "option": "refonte",
+  "t": "2026-10-10T03:52:44.522Z"
+ },
+ "dz-nav-panneau-calques": {
+  "option": "refonte",
+  "t": "2026-10-10T03:52:45.213Z"
+ },
+ "dz-nav-panneau-couleur": {
+  "option": "refonte",
+  "t": "2026-10-10T03:52:45.933Z"
+ },
+ "dz-nav-panneau-historique": {
+  "option": "refonte",
+  "t": "2026-10-10T03:52:46.900Z"
+ },
+ "dz-nav-panneau-infos": {
+  "option": "refonte",
+  "t": "2026-10-10T03:52:48.123Z"
+ },
+ "dz-nav-panneau-navigateur": {
+  "option": "refonte",
+  "t": "2026-10-10T03:52:49.060Z"
+ },
+ "dz-nav-panneau-pinceaux": {
+  "option": "refonte",
+  "t": "2026-10-10T03:52:50.020Z"
+ },
+ "dz-nav-panneau-texte": {
+  "option": "refonte",
+  "t": "2026-10-10T03:52:50.815Z"
+ },
+ "dz-nav-photolab": {
+  "option": "refonte",
+  "t": "2026-10-10T03:52:53.635Z"
+ },
+ "dz-nav-plateau": {
+  "option": "refonte",
+  "t": "2026-10-10T03:52:54.932Z"
+ },
+ "dz-nav-projets": {
+  "option": "refonte",
+  "t": "2026-10-10T03:52:55.787Z"
+ },
+ "dz-nav-prompts": {
+  "option": "refonte",
+  "t": "2026-10-10T03:52:56.647Z"
+ },
+ "dz-nav-quick": {
+  "option": "refonte",
+  "t": "2026-10-10T03:52:57.491Z"
+ },
+ "dz-nav-reglages": {
+  "option": "refonte",
+  "t": "2026-10-10T03:52:58.833Z"
+ },
+ "dz-nav-scheduler": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:00.543Z"
+ },
+ "dz-nav-son-vfx": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:01.369Z"
+ },
+ "dz-nav-studio": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:02.245Z"
+ },
+ "dz-nav-templates": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:03.059Z"
+ },
+ "dz-nav-transfert": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:03.850Z"
+ },
+ "dz-nav-vectorlab": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:04.592Z"
+ },
+ "dz-nav-versions": {
+  "option": "refonte",
+  "t": "2026-10-10T03:53:07.629Z"
+ },
+ "dz-outil-photo-compteur": {
+  "option": "refonte",
+  "t": "2026-10-10T03:48:15.930Z"
+ },
+ "dz-outil-photo-correcteur": {
+  "option": "refonte",
+  "t": "2026-10-10T03:48:14.854Z"
+ },
+ "dz-outil-photo-correcteur-tache": {
+  "option": "refonte",
+  "t": "2026-10-10T03:48:13.991Z"
+ },
+ "dz-outil-photo-densite-moins": {
+  "option": "refonte",
+  "t": "2026-10-10T03:48:12.236Z"
+ },
+ "dz-outil-photo-densite-plus": {
+  "option": "refonte",
+  "t": "2026-10-10T03:48:09.446Z"
+ },
+ "dz-outil-photo-deplacer": {
+  "option": "refonte",
+  "t": "2026-10-10T03:48:05.268Z"
+ },
+ "dz-outil-photo-doigt": {
+  "option": "actuel:lucide-pointer",
+  "t": "2026-10-10T03:48:01.159Z"
+ },
+ "dz-outil-photo-eponge": {
+  "option": "refonte",
+  "t": "2026-10-10T03:47:52.546Z"
+ },
+ "dz-outil-photo-flou": {
+  "option": "refonte",
+  "t": "2026-10-10T03:47:49.781Z"
+ },
+ "dz-outil-photo-nettete": {
+  "option": "refonte",
+  "t": "2026-10-10T03:47:48.807Z"
+ },
+ "dz-outil-photo-piece": {
+  "option": "refonte",
+  "t": "2026-10-10T03:47:46.790Z"
+ },
+ "dz-outil-photo-pinceau-historique": {
+  "option": "refonte",
+  "t": "2026-10-10T03:47:39.821Z"
+ },
+ "dz-outil-photo-recadrer": {
+  "option": "refonte",
+  "t": "2026-10-10T03:47:37.143Z"
+ },
+ "dz-outil-photo-selection-objet": {
+  "option": "refonte",
+  "t": "2026-10-10T03:47:32.906Z"
+ },
+ "dz-outil-photo-selection-sujet": {
+  "option": "refonte",
+  "t": "2026-10-10T03:47:30.533Z"
+ },
+ "dz-outil-photo-selection-tranche": {
+  "option": "refonte",
+  "t": "2026-10-10T03:47:28.211Z"
+ },
+ "dz-outil-photo-tampon": {
+  "option": "refonte",
+  "t": "2026-10-10T03:47:26.029Z"
+ },
+ "dz-outil-px-baguette": {
+  "option": "refonte",
+  "t": "2026-10-10T03:52:09.221Z"
+ },
+ "dz-outil-px-crayon": {
+  "option": "refonte",
+  "t": "2026-10-10T03:52:10.361Z"
+ },
+ "dz-outil-px-degrade": {
+  "option": "refonte",
+  "t": "2026-10-10T03:52:18.971Z"
+ },
+ "dz-outil-px-gomme": {
+  "option": "refonte",
+  "t": "2026-10-10T03:52:17.470Z"
+ },
+ "dz-outil-px-gomme-fond": {
+  "option": "refonte",
+  "t": "2026-10-10T03:52:16.733Z"
+ },
+ "dz-outil-px-gomme-magique": {
+  "option": "refonte",
+  "t": "2026-10-10T03:52:15.746Z"
+ },
+ "dz-outil-px-lasso": {
+  "option": "refonte",
+  "t": "2026-10-10T03:52:14.771Z"
+ },
+ "dz-outil-px-lasso-polygonal": {
+  "option": "refonte",
+  "t": "2026-10-10T03:52:13.008Z"
+ },
+ "dz-outil-px-ligne": {
+  "option": "refonte",
+  "t": "2026-10-10T03:52:12.015Z"
+ },
+ "dz-outil-px-pinceau": {
+  "option": "refonte",
+  "t": "2026-10-10T03:52:20.470Z"
+ },
+ "dz-outil-px-pinceau-melangeur": {
+  "option": "refonte",
+  "t": "2026-10-10T03:52:21.641Z"
+ },
+ "dz-outil-px-pot": {
+  "option": "refonte",
+  "t": "2026-10-10T03:52:22.413Z"
+ },
+ "dz-outil-px-rectangle": {
+  "option": "refonte",
+  "t": "2026-10-10T03:52:23.576Z"
+ },
+ "dz-outil-px-selection": {
+  "option": "refonte",
+  "t": "2026-10-10T03:52:24.408Z"
+ },
+ "dz-outil-px-selection-ellipse": {
+  "option": "refonte",
+  "t": "2026-10-10T03:52:25.166Z"
+ },
+ "dz-outil-px-selection-rapide": {
+  "option": "refonte",
+  "t": "2026-10-10T03:52:26.096Z"
+ },
+ "dz-outil-px-symetrie": {
+  "option": "refonte",
+  "t": "2026-10-10T03:48:18.389Z"
+ },
+ "dz-outil-vec-apparence": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:47.193Z"
+ },
+ "dz-outil-vec-cadre-texte": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:47.860Z"
+ },
+ "dz-outil-vec-coin": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:48.543Z"
+ },
+ "dz-outil-vec-constructeur": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:49.278Z"
+ },
+ "dz-outil-vec-couteau": {
+  "option": "refonte",
+  "t": "2026-10-10T03:51:20.610Z"
+ },
+ "dz-outil-vec-crayon": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:50.410Z"
+ },
+ "dz-outil-vec-donut": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:51.273Z"
+ },
+ "dz-outil-vec-ellipse": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:53.357Z"
+ },
+ "dz-outil-vec-engrenage": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:54.138Z"
+ },
+ "dz-outil-vec-etoile": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:54.866Z"
+ },
+ "dz-outil-vec-fermer-chemin": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:55.616Z"
+ },
+ "dz-outil-vec-fleche": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:56.394Z"
+ },
+ "dz-outil-vec-forme": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:57.348Z"
+ },
+ "dz-outil-vec-forme-perso": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:58.128Z"
+ },
+ "dz-outil-vec-fractionner": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:58.998Z"
+ },
+ "dz-outil-vec-gomme": {
+  "option": "refonte",
+  "t": "2026-10-10T03:55:59.830Z"
+ },
+ "dz-outil-vec-halo": {
+  "option": "refonte",
+  "t": "2026-10-10T03:56:00.633Z"
+ },
+ "dz-outil-vec-hexagone": {
+  "option": "refonte",
+  "t": "2026-10-10T03:56:01.413Z"
+ },
+ "dz-outil-vec-iris": {
+  "option": "refonte",
+  "t": "2026-10-10T03:56:02.365Z"
+ },
+ "dz-outil-vec-ligne": {
+  "option": "refonte",
+  "t": "2026-10-10T03:51:44.546Z"
+ },
+ "dz-outil-vec-lisser": {
+  "option": "refonte",
+  "t": "2026-10-10T03:51:43.125Z"
+ },
+ "dz-outil-vec-loupe": {
+  "option": "refonte",
+  "t": "2026-10-10T03:51:42.191Z"
+ },
+ "dz-outil-vec-main": {
+  "option": "refonte",
+  "t": "2026-10-10T03:51:40.727Z"
+ },
+ "dz-outil-vec-mesure": {
+  "option": "refonte",
+  "t": "2026-10-10T03:51:38.778Z"
+ },
+ "dz-outil-vec-noeud": {
+  "option": "refonte",
+  "t": "2026-10-10T03:51:37.620Z"
+ },
+ "dz-outil-vec-noeud-intelligent": {
+  "option": "refonte",
+  "t": "2026-10-10T03:51:36.723Z"
+ },
+ "dz-outil-vec-noeud-lisse": {
+  "option": "refonte",
+  "t": "2026-10-10T03:51:29.048Z"
+ },
+ "dz-outil-vec-noeud-vif": {
+  "option": "refonte",
+  "t": "2026-10-10T03:51:30.010Z"
+ },
+ "dz-outil-vec-ouvrir-chemin": {
+  "option": "refonte",
+  "t": "2026-10-10T03:51:30.813Z"
+ },
+ "dz-outil-vec-pinceau": {
+  "option": "refonte",
+  "t": "2026-10-10T03:51:31.442Z"
+ },
+ "dz-outil-vec-pipette": {
+  "option": "refonte",
+  "t": "2026-10-10T03:51:32.520Z"
+ },
+ "dz-outil-vec-plan-de-travail": {
+  "option": "refonte",
+  "t": "2026-10-10T03:51:33.603Z"
+ },
+ "dz-outil-vec-plume": {
+  "option": "refonte",
+  "t": "2026-10-10T03:51:34.346Z"
+ },
+ "dz-outil-vec-polygone": {
+  "option": "refonte",
+  "t": "2026-10-10T03:51:27.835Z"
+ },
+ "dz-outil-vec-profil-calligraphie": {
+  "option": "refonte",
+  "t": "2026-10-10T03:51:26.853Z"
+ },
+ "dz-outil-vec-profil-fuseau": {
+  "option": "refonte",
+  "t": "2026-10-10T03:51:26.056Z"
+ },
+ "dz-outil-vec-profil-plat": {
+  "option": "refonte",
+  "t": "2026-10-10T03:51:25.296Z"
+ },
+ "dz-outil-vec-rayons": {
+  "option": "refonte",
+  "t": "2026-10-10T03:51:23.966Z"
+ },
+ "dz-outil-vec-rectangle": {
+  "option": "refonte",
+  "t": "2026-10-10T03:51:23.163Z"
+ },
+ "dz-outil-vec-relier": {
+  "option": "refonte",
+  "t": "2026-10-10T03:51:22.098Z"
+ },
+ "dz-outil-vec-selection": {
+  "option": "refonte",
+  "t": "2026-10-10T03:51:48.873Z"
+ },
+ "dz-outil-vec-spirale": {
+  "option": "refonte",
+  "t": "2026-10-10T03:52:02.483Z"
+ },
+ "dz-outil-vec-texte": {
+  "option": "refonte",
+  "t": "2026-10-10T03:56:03.258Z"
+ },
+ "dz-outil-vec-texte-sur-chemin": {
+  "option": "refonte",
+  "t": "2026-10-10T03:56:04.150Z"
+ },
+ "dz-outil-vec-tranche": {
+  "option": "refonte",
+  "t": "2026-10-10T03:56:05.013Z"
+ },
+ "dz-outil-vec-transparence": {
+  "option": "refonte",
+  "t": "2026-10-10T03:56:07.847Z"
+ },
+ "dz-outil-vec-triangle": {
+  "option": "refonte",
+  "t": "2026-10-10T03:56:09.033Z"
+ },
+ "dz-outil-vec-tuiles": {
+  "option": "refonte",
+  "t": "2026-10-10T03:52:04.886Z"
+ },
+ "dz-outil-vec-vitrail-arc": {
+  "option": "refonte",
+  "t": "2026-10-10T03:52:05.779Z"
+ },
+ "dz-outil-vec-vitrail-grille": {
+  "option": "refonte",
+  "t": "2026-10-10T03:52:06.505Z"
+ },
+ "dz-outil-vec-vitrail-plomb": {
+  "option": "refonte",
+  "t": "2026-10-10T03:52:07.489Z"
+ },
+ "dz-outil-vec-vitrail-rosette": {
+  "option": "refonte",
+  "t": "2026-10-10T03:52:08.310Z"
+ },
+ "dz-reseau-figma": {
+  "option": "refonte",
+  "t": "2026-10-10T03:44:11.885Z"
+ },
+ "dz-reseau-instagram": {
+  "option": "refonte",
+  "t": "2026-10-10T03:44:10.348Z"
+ },
+ "dz-reseau-telegram": {
+  "option": "refonte",
+  "t": "2026-10-10T03:44:09.395Z"
+ },
+ "dz-reseau-tiktok": {
+  "option": "refonte",
+  "t": "2026-10-10T03:44:08.270Z"
+ },
+ "dz-reseau-x": {
+  "option": "refonte",
+  "t": "2026-10-10T03:44:07.279Z"
+ },
+ "dz-reseau-youtube": {
+  "option": "refonte",
+  "t": "2026-10-10T03:44:06.559Z"
+ }
+}

@@ -1,0 +1,4274 @@
+{
+ "coque.accueil-premier-lancement.accueil-continuer": {
+  "cible": "dz-action-chevron",
+  "confiance": "probable",
+  "manque": "",
+  "note": "bouton Continuer, chevron orienté à droite"
+ },
+ "coque.accueil-premier-lancement.accueil-entrer": {
+  "cible": "dz-nav-studio",
+  "confiance": "probable",
+  "manque": "",
+  "note": "entrée dans l'app"
+ },
+ "coque.accueil-premier-lancement.accueil-retour": {
+  "cible": "dz-action-chevron",
+  "confiance": "probable",
+  "manque": "",
+  "note": "retour étape précédente"
+ },
+ "coque.accueil-premier-lancement-etape-canaux.canal-instagram-776560": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-instagram",
+  "note": ""
+ },
+ "coque.accueil-premier-lancement-etape-canaux.canal-telegram-776560": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-telegram",
+  "note": ""
+ },
+ "coque.accueil-premier-lancement-etape-canaux.canal-tiktok-776560": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-tiktok",
+  "note": ""
+ },
+ "coque.accueil-premier-lancement-etape-canaux.canal-x-776560": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-x",
+  "note": ""
+ },
+ "coque.accueil-premier-lancement-etape-canaux.canal-youtube-776560": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-youtube",
+  "note": ""
+ },
+ "coque.accueil-etape-bienvenue.accueil-carte-planificateur": {
+  "cible": "dz-nav-scheduler",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.accueil-etape-bienvenue.accueil-carte-publication-auto": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-publier",
+  "note": ""
+ },
+ "coque.accueil-etape-bienvenue.accueil-carte-studio": {
+  "cible": "dz-nav-studio",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.accueil-etape-canaux.accueil-canaux": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-publier",
+  "note": ""
+ },
+ "coque.accueil-etape-fournisseurs.accueil-cle-etat": {
+  "cible": "dz-etat-succes",
+  "confiance": "probable",
+  "manque": "",
+  "note": "paire succes / avertissement selon l'état de la clé"
+ },
+ "coque.accueil-etape-fournisseurs.accueil-cle-masquee": {
+  "cible": "dz-etat-masque",
+  "confiance": "probable",
+  "manque": "",
+  "note": "valeur masquée"
+ },
+ "coque.accueil-etape-fournisseurs.accueil-fournisseurs": {
+  "cible": "dz-action-generer",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "coque.accueil-etape-persona.accueil-persona": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-nav-persona",
+  "note": ""
+ },
+ "coque.accueil-etape-pret.accueil-pret": {
+  "cible": "dz-etat-succes",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "coque.accueil-etape-pret.accueil-recap": {
+  "cible": "dz-etat-succes",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.apercu-video-d-un-job-fenetre.apercu-dl": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.apercu-video-d-un-job-fenetre.apercu-fermer": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.apercu-video-d-un-job-fenetre.apercu-titre": {
+  "cible": "dz-media-video",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.carte-de-job-og-code-mort.copy-copy-link-id": {
+  "cible": "dz-action-copier",
+  "confiance": "sure",
+  "manque": "",
+  "note": "CODE MORT"
+ },
+ "coque.carte-de-job-og-code-mort.play-preview": {
+  "cible": "dz-media-lecture",
+  "confiance": "sure",
+  "manque": "",
+  "note": "CODE MORT"
+ },
+ "coque.carte-de-job-og-code-mort.trash-delete": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": "CODE MORT"
+ },
+ "coque.champ-ia-tous-les-ecrans.badge-ia": {
+  "cible": "dz-action-generer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "pastille IA = champ génératif"
+ },
+ "coque.champ-ia-tous-les-ecrans.micro": {
+  "cible": "dz-media-voix",
+  "confiance": "probable",
+  "manque": "",
+  "note": "dictée au micro"
+ },
+ "coque.champ-ia-tous-les-ecrans.micro-stop": {
+  "cible": "dz-media-arret",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.composant-partage-section-accordeon-ie.caretr-a-gauche-du-titre-de-cha": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.composant-partage-select-liste-deroulante-re.caret-a-droite-de-la-valeur-ch": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.composant-partage-select-liste-deroulante-re.check-a-droite-de-l-option-act": {
+  "cible": "dz-etat-succes",
+  "confiance": "probable",
+  "manque": "",
+  "note": "coche d'option active"
+ },
+ "coque.composant-partage-bouton-k.bouton-k": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (porte l'icône passée en prop)"
+ },
+ "coque.composant-partage-liste-deroulante-re.select-chevron": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.composant-partage-liste-deroulante-re.select-coche": {
+  "cible": "dz-etat-succes",
+  "confiance": "probable",
+  "manque": "",
+  "note": "coche d'option active"
+ },
+ "coque.composant-partage-section-repliable-insp.section-repliable": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.dialogues-maison-dialogue-js-confirmer-i.dialogue": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "coque.en-tete-ng.calendar-planificateur": {
+  "cible": "dz-nav-scheduler",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.en-tete-ng.cog-reglages": {
+  "cible": "dz-nav-parametres",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.en-tete-ng.film-chapitres": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-nav-chapitres",
+  "note": ""
+ },
+ "coque.en-tete-ng.flow-studio": {
+  "cible": "dz-nav-studio",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.en-tete-ng.folder-bibliotheque": {
+  "cible": "dz-nav-bibliotheque",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.en-tete-ng.gamegrid-game-assets": {
+  "cible": "dz-nav-game-assets",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.en-tete-ng.grid-modeles": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-nav-templates",
+  "note": ""
+ },
+ "coque.en-tete-ng.layers-montage": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-nav-montage",
+  "note": ""
+ },
+ "coque.en-tete-ng.octopus-revoir-l-accueil": {
+  "cible": "dz-nav-accueil",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.en-tete-ng.photolab-photolab": {
+  "cible": "dz-nav-photolab",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.en-tete-ng.rss-news": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-nav-news",
+  "note": ""
+ },
+ "coque.en-tete-ng.search-commande-rapide": {
+  "cible": "dz-action-chercher",
+  "confiance": "probable",
+  "manque": "",
+  "note": "ouvre la palette de commandes"
+ },
+ "coque.en-tete-ng.vectorpen-vectorlab": {
+  "cible": "dz-nav-vectorlab",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.en-tete-ng.wave-son-vfx": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-nav-son-vfx",
+  "note": ""
+ },
+ "coque.en-tete-ng.zap-quick": {
+  "cible": "dz-nav-quick",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.en-tete.badges-cles": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé (pastilles d'état)"
+ },
+ "coque.en-tete.commande-kbd": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé (touche clavier)"
+ },
+ "coque.en-tete-ng-badge-de-cout.zap-cliquer-pour-ouvrir-regl": {
+  "cible": "dz-action-cout",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.en-tete-de-l-ecran-barre-du-haut.entete-accueil": {
+  "cible": "dz-nav-accueil",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.en-tete-de-l-ecran-barre-du-haut.entete-cmdk": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé (touche clavier)"
+ },
+ "coque.en-tete-de-l-ecran-barre-du-haut.entete-commande": {
+  "cible": "dz-action-chercher",
+  "confiance": "probable",
+  "manque": "",
+  "note": "ouvre la palette de commandes"
+ },
+ "coque.en-tete-de-l-ecran-barre-du-haut.entete-depenses": {
+  "cible": "dz-action-cout",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.en-tete-de-l-ecran-barre-du-haut.entete-ecran": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "reprend la clé dz-nav-* de l'écran courant"
+ },
+ "coque.en-tete-de-l-ecran-barre-du-haut.entete-file": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-nav-file-rendus",
+  "note": ""
+ },
+ "coque.en-tete-bouton-file-des-rendus-dzqbtn.signal-file-des-rendus-n-en-cou": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-nav-file-rendus",
+  "note": ""
+ },
+ "coque.file.pastille-compteur": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé (compteur)"
+ },
+ "coque.menu-envoyer-vers-dzsendmenu.sendmenu-annuler": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "coque.palette-de-commandes-ig-k.calendar-aller-au-planificateur": {
+  "cible": "dz-nav-scheduler",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.palette-de-commandes-ig-k.cog-reglages-cles-d-api": {
+  "cible": "dz-nav-parametres",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.palette-de-commandes-ig-k.film-ouvrir-le-dernier-rendu": {
+  "cible": "dz-media-video",
+  "confiance": "probable",
+  "manque": "",
+  "note": "dernier rendu"
+ },
+ "coque.palette-de-commandes-ig-k.flow-aller-au-studio": {
+  "cible": "dz-nav-studio",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.palette-de-commandes-ig-k.link-reglages-comptes-connect": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-lien",
+  "note": "comptes connectés"
+ },
+ "coque.palette-de-commandes-ig-k.mic-nouveau-graphe-de-post-a": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-media-avatar",
+  "note": ""
+ },
+ "coque.palette-de-commandes-ig-k.octopus-revoir-l-accueil": {
+  "cible": "dz-nav-accueil",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.palette-de-commandes-ig-k.rss-aller-aux-news": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-nav-news",
+  "note": ""
+ },
+ "coque.palette-de-commandes-ig-k.search-tapez-une-commande-un-n-": {
+  "cible": "dz-action-chercher",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.palette-de-commandes-ig-k.send-programmer-un-post-pour-": {
+  "cible": "dz-nav-scheduler",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.palette-de-commandes-ig-k.sparkle-nouveau-graphe-de-reel-n": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-nav-news",
+  "note": "nouveau graphe de reel News"
+ },
+ "coque.palette-de-commandes-ig-k.zap-aller-a-quick": {
+  "cible": "dz-nav-quick",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.palette.esc": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé (touche clavier)"
+ },
+ "coque.palette-de-commandes-k.cmd-aller-a-quick": {
+  "cible": "dz-nav-quick",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.palette-de-commandes-k.cmd-aller-au-planificateur": {
+  "cible": "dz-nav-scheduler",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.palette-de-commandes-k.cmd-aller-au-studio": {
+  "cible": "dz-nav-studio",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.palette-de-commandes-k.cmd-aller-aux-news": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-nav-news",
+  "note": ""
+ },
+ "coque.palette-de-commandes-k.cmd-nouveau-graphe-de-post-avatar": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-media-avatar",
+  "note": ""
+ },
+ "coque.palette-de-commandes-k.cmd-nouveau-graphe-de-reel-news": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-nav-news",
+  "note": "nouveau graphe de reel News"
+ },
+ "coque.palette-de-commandes-k.cmd-ouvrir-le-dernier-rendu": {
+  "cible": "dz-media-video",
+  "confiance": "probable",
+  "manque": "",
+  "note": "dernier rendu"
+ },
+ "coque.palette-de-commandes-k.cmd-programmer-un-post-pour-demain": {
+  "cible": "dz-nav-scheduler",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.palette-de-commandes-k.cmd-reglages-cles-d-api": {
+  "cible": "dz-nav-parametres",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.palette-de-commandes-k.cmd-reglages-comptes-connectes": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-lien",
+  "note": "comptes connectés"
+ },
+ "coque.palette-de-commandes-k.cmd-revoir-l-accueil": {
+  "cible": "dz-nav-accueil",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.palette-de-commandes-k.palette-recherche": {
+  "cible": "dz-action-chercher",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.panneau-file-des-rendus.file-fermer": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.panneau-file-des-rendus.file-titre": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-nav-file-rendus",
+  "note": ""
+ },
+ "coque.panneau-file-des-rendus.file-vide": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (illustration d'état vide)"
+ },
+ "coque.panneau-file-des-rendus.file-vide-run": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (glyphe dans du texte courant)"
+ },
+ "coque.panneau-file-des-rendus-confirmation.job-supprimer-ok": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.panneau-file-des-rendus-ligne-de-job.job-apercu": {
+  "cible": "dz-media-lecture",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.panneau-file-des-rendus-ligne-de-job.job-copier": {
+  "cible": "dz-action-copier",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.panneau-file-des-rendus-ligne-de-job.job-quick": {
+  "cible": "dz-action-quick",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.panneau-file-des-rendus-ligne-de-job.job-reessayer": {
+  "cible": "dz-action-reessayer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.panneau-file-des-rendus-ligne-de-job.job-renommer": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-renommer",
+  "note": ""
+ },
+ "coque.panneau-file-des-rendus-ligne-de-job.job-supprimer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "marque.logo.coque-rail-de-navigation-marque-ch": {
+  "cible": "dz-marque-poulpe",
+  "confiance": "sure",
+  "manque": "",
+  "note": "logo du kit actif, poulpe par défaut"
+ },
+ "coque.rail-de-navigation-tg.calendar-planificateur": {
+  "cible": "dz-nav-scheduler",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.rail-de-navigation-tg.cog-reglages": {
+  "cible": "dz-nav-parametres",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.rail-de-navigation-tg.film-chapitres": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-nav-chapitres",
+  "note": ""
+ },
+ "coque.rail-de-navigation-tg.flow-studio": {
+  "cible": "dz-nav-studio",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.rail-de-navigation-tg.folder-bibliotheque": {
+  "cible": "dz-nav-bibliotheque",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.rail-de-navigation-tg.gamegrid-game-assets": {
+  "cible": "dz-nav-game-assets",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.rail-de-navigation-tg.grid-modeles": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-nav-templates",
+  "note": ""
+ },
+ "coque.rail-de-navigation-tg.layers-montage": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-nav-montage",
+  "note": ""
+ },
+ "coque.rail-de-navigation-tg.photolab-photolab": {
+  "cible": "dz-nav-photolab",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.rail-de-navigation-tg.rss-news": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-nav-news",
+  "note": ""
+ },
+ "coque.rail-de-navigation-tg.vectorpen-vectorlab": {
+  "cible": "dz-nav-vectorlab",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.rail-de-navigation-tg.wave-son-vfx": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-nav-son-vfx",
+  "note": ""
+ },
+ "coque.rail-de-navigation-tg.zap-quick": {
+  "cible": "dz-nav-quick",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.rail.badge-nouveau": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé (badge)"
+ },
+ "coque.rail-de-navigation-tg-carte-de-pied.book-guide": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-nav-guide",
+  "note": ""
+ },
+ "coque.rail-de-navigation-tg-carte-de-pied.octopus-a-gauche-de-la-tagline": {
+  "cible": "dz-marque-poulpe",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.rail.guide-fr-en": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "coque.rail-de-navigation-tg-en-tete.caret-replier": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.rail-de-navigation-tg-pied-rail-replie.caretr-deplier": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.selecteur-d-image-de-la-bibliotheque-dzl.libpicker-fermer": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.selecteur-d-image-de-la-bibliotheque-dzl.libpicker-figma": {
+  "cible": "dz-action-importer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "import depuis Figma"
+ },
+ "coque.selecteur-d-image-de-la-bibliotheque-dzl.libpicker-importer": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.tiroir-file-des-rendus-y.close-fermer-echap": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.tiroir-file-des-rendus-y.signal-file-des-rendus": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône"
+ },
+ "coque.file.vide-run": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (glyphe dans du texte courant)"
+ },
+ "coque.tiroir-file-des-rendus-confirmation.trash-supprimer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.tiroir-file-des-rendus-lecteur.close-bouton": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.tiroir-file-des-rendus-lecteur.download-telecharger": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.tiroir-file-des-rendus-lecteur.film-a-gauche-du-titre-de-la-": {
+  "cible": "dz-media-video",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.tiroir-file-des-rendus-ligne-de-job-yd.bolt-reessayer": {
+  "cible": "dz-action-reessayer",
+  "confiance": "sure",
+  "manque": "",
+  "note": "bouton sans onClick"
+ },
+ "coque.tiroir-file-des-rendus-ligne-de-job-yd.bolt-rouvrir-dans-quick-prere": {
+  "cible": "dz-action-quick",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.tiroir-file-des-rendus-ligne-de-job-yd.copy-copier-l-url-de-la-video": {
+  "cible": "dz-action-copier",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.tiroir-file-des-rendus-ligne-de-job-yd.play-apercu": {
+  "cible": "dz-media-lecture",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.tiroir-file-des-rendus-ligne-de-job-yd.trash-supprimer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.tiroir-file-des-rendus-titre-d-un-job-hu.rename-rename-render": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-renommer",
+  "note": ""
+ },
+ "coque.vignette-de-media-composant-rr.onde-audio": {
+  "cible": "dz-media-forme-onde",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "coque.ecran-de-demarrage-hm.anneaux-splash": {
+  "cible": "dz-etat-attente",
+  "confiance": "probable",
+  "manque": "",
+  "note": "anneaux de chargement du splash"
+ },
+ "marque.logo.coque-ecran-de-demarrage-splash": {
+  "cible": "dz-marque-poulpe",
+  "confiance": "sure",
+  "manque": "",
+  "note": "logo du kit actif, poulpe par défaut"
+ },
+ "marque.navrail.logo": {
+  "cible": "dz-marque-poulpe",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "marque.png.dist": {
+  "cible": "dz-marque-fenetre",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "marque.ico.installeur": {
+  "cible": "dz-marque-fenetre",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "marque.favicon.dist": {
+  "cible": "dz-marque-favicon",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "marque.favicon.source": {
+  "cible": "dz-marque-favicon",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "marque.titre.emoji": {
+  "cible": "dz-marque-poulpe",
+  "confiance": "probable",
+  "manque": "",
+  "note": "emoji du titre d'onglet"
+ },
+ "marque.ico.desinstaller": {
+  "cible": "dz-marque-fenetre",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "marque.ico.bureau": {
+  "cible": "dz-marque-fenetre",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "marque.ico.menu-demarrer": {
+  "cible": "dz-marque-fenetre",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "marque.splash.image": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "illustration de fond, pas d'icône"
+ },
+ "marque.splash.logo": {
+  "cible": "dz-marque-poulpe",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "marque.splash.mot": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "mot-symbole typographique, pas d'icône"
+ },
+ "partage.maj.notes": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "partage.maj.plus-tard": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "partage.maj.telecharger": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "partage.champ-ia.micro": {
+  "cible": "dz-media-voix",
+  "confiance": "probable",
+  "manque": "",
+  "note": "dictée au micro"
+ },
+ "partage.champ-ia.modele": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "partage.champ-ia.modele-mini": {
+  "cible": "dz-action-chevron",
+  "confiance": "probable",
+  "manque": "",
+  "note": "liste des modèles, version réduite"
+ },
+ "partage.champ-ia.stop": {
+  "cible": "dz-media-arret",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "partage.dialogue.boutons": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "partage.plafonds.ok": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "partage.envoi.contrat": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "aucune UI"
+ },
+ "accueil-onboarding.pied-de-l-assistant-km.caretr-continuer": {
+  "cible": "dz-action-chevron",
+  "confiance": "probable",
+  "manque": "",
+  "note": "bouton Continuer"
+ },
+ "accueil-onboarding.pied-de-l-assistant-km.zap-entrer-dans-le-studio": {
+  "cible": "dz-nav-studio",
+  "confiance": "probable",
+  "manque": "",
+  "note": "entrée dans l'app"
+ },
+ "marque.logo.accueil-onboarding-en-tete": {
+  "cible": "dz-marque-poulpe",
+  "confiance": "sure",
+  "manque": "",
+  "note": "logo du kit actif"
+ },
+ "accueil-onboarding.etape-bienvenue-cartes-qm.calendar-planificateur": {
+  "cible": "dz-nav-scheduler",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "accueil-onboarding.etape-bienvenue-cartes-qm.send-publication-auto": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-publier",
+  "note": ""
+ },
+ "accueil-onboarding.etape-bienvenue-cartes-qm.sparkle-studio": {
+  "cible": "dz-nav-studio",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "accueil-onboarding.etape-canaux-en-tete-xr.send-connectez-vos-canaux": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-publier",
+  "note": ""
+ },
+ "accueil-onboarding.etape-fournisseurs-en-tete-xr.sparkle-branchez-vos-fournisseur": {
+  "cible": "dz-action-generer",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "accueil-onboarding.etape-fournisseurs-liste.check-pastille-de-chaque-fourn": {
+  "cible": "dz-etat-succes",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "accueil-onboarding.etape-fournisseurs-liste.warn-pastille-de-chaque-fourn": {
+  "cible": "dz-etat-avertissement",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "accueil-onboarding.etape-persona-en-tete-xr.octopus-choisissez-ou-creez-une-": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-nav-persona",
+  "note": ""
+ },
+ "accueil-onboarding.etape-pret-en-tete-xr.zap-les-profondeurs-sont-cal": {
+  "cible": "dz-etat-succes",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "accueil-onboarding.etape-pret-recapitulatif.check-devant-chaque-ligne-cana": {
+  "cible": "dz-etat-succes",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "accueil-onboarding.etape-ou-vous-publiez-zm.channelinstagram-instagram": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-instagram",
+  "note": ""
+ },
+ "accueil-onboarding.etape-ou-vous-publiez-zm.channeltelegram-telegram": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-telegram",
+  "note": ""
+ },
+ "accueil-onboarding.etape-ou-vous-publiez-zm.channeltiktok-tiktok": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-tiktok",
+  "note": ""
+ },
+ "accueil-onboarding.etape-ou-vous-publiez-zm.channelx-x": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-x",
+  "note": ""
+ },
+ "accueil-onboarding.etape-ou-vous-publiez-zm.channelyoutube-youtube": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-youtube",
+  "note": ""
+ },
+ "quick.apercu-colonne-droite.image-importez-une-image-dans-": {
+  "cible": "dz-media-image",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "quick.apercu-avertissement-d-appel.warn-vous-allez-appeler": {
+  "cible": "dz-action-cout",
+  "confiance": "probable",
+  "manque": "",
+  "note": "avertit d'un appel payant"
+ },
+ "quick.barre-des-presets-haut-de-quick.preset-enregistrer": {
+  "cible": "dz-action-enregistrer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "quick.barre-des-presets-haut-de-quick.preset-supprimer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "quick.bloc-prompt.ouvrir-generateur": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "quick.bloc-gabarits-de-prompt.gabarits-generer": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "quick.accordeon.camera-curseurs": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "quick.accordeon.disposition-de-la-composition": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "quick.accordeon.gabarits-de-prompt": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "quick.accordeon.gabarits-seedance-n": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "quick.accordeon.parametres": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "quick.accordeon.presets": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "quick.accordeon.prompt": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "quick.accordeon.script-n-4900-car": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "quick.accordeon.source-seedance": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "quick.composant-vd-depot-d-image-code-mort.upload-png-jpg-webp-up-to-16mb": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": "CODE MORT"
+ },
+ "quick.galerie-de-mouvements-fenetre.galerie-fermer": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "quick.galerie-de-mouvements-fenetre.galerie-rerendre": {
+  "cible": "dz-action-actualiser",
+  "confiance": "probable",
+  "manque": "",
+  "note": "recalcule la galerie"
+ },
+ "quick.modale-generateur-de-prompts-lu.close-bouton-en-haut-a-droite": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "quick.modale-generateur-de-prompts-lu.copy-copier": {
+  "cible": "dz-action-copier",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "quick.modale-generateur-de-prompts-lu.sparkle-affiner-par-ia": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": "affinage IA"
+ },
+ "quick.modale-generateur-de-prompts-lu.sparkle-generateur-de-prompts": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "quick.modale-generateur-de-prompts-lu.zap-aleatoire": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-aleatoire",
+  "note": ""
+ },
+ "quick.modale-generateur-de-prompts-lu.zap-utiliser-ce-prompt": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-valider",
+  "note": ""
+ },
+ "quick.accordeon.avatar-u-length": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "quick.mode-avatar-casting.upload-importer-une-photo": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "quick.mode-avatar-castings-enregistres.save-enregistrer-le-casting": {
+  "cible": "dz-action-enregistrer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "quick.mode-avatar-castings-enregistres.trash-supprimer-le-casting-le-": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "quick.mode-avatar-liste-des-avatars.search-rechercher-parmi-n-avata": {
+  "cible": "dz-action-chercher",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "quick.mode-avatar-liste-des-voix.search-rechercher-parmi-n-voix": {
+  "cible": "dz-action-chercher",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "quick.mode-avatar-voix-choisie.play-preecouter-la-voix": {
+  "cible": "dz-media-lecture",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "quick.onglets-de-mode-en-tete-quick.onglet-composition": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-composition",
+  "note": ""
+ },
+ "quick.onglets-de-mode-en-tete-quick.onglet-heygen": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-media-avatar",
+  "note": ""
+ },
+ "quick.onglets-de-mode-en-tete-quick.onglet-seedance": {
+  "cible": "dz-media-video",
+  "confiance": "probable",
+  "manque": "",
+  "note": "image vers vidéo Seedance"
+ },
+ "quick.onglets-de-mode-en-tete-quick.onglet-voix-off": {
+  "cible": "dz-media-voix",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "quick.panneau-camera-seedance.film-galerie": {
+  "cible": "dz-lab3d-camera",
+  "confiance": "probable",
+  "manque": "",
+  "note": "galerie de mouvements de caméra"
+ },
+ "quick.panneau-seedance-image-de-depart.parcourir-depart": {
+  "cible": "dz-nav-bibliotheque",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "quick.panneau-seedance-image-de-fin.parcourir-fin": {
+  "cible": "dz-nav-bibliotheque",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "quick.accordeon.script": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "quick.accordeon.voix": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "quick.panneau-voix-quick-voice.sparkle-generation": {
+  "cible": "dz-etat-attente",
+  "confiance": "probable",
+  "manque": "",
+  "note": "génération en cours"
+ },
+ "quick.panneau-voix-quick-voice.wave-generer-la-voix": {
+  "cible": "dz-media-voix",
+  "confiance": "probable",
+  "manque": "",
+  "note": "générer la voix"
+ },
+ "quick.panneau-camera-seedance.galerie": {
+  "cible": "dz-lab3d-camera",
+  "confiance": "probable",
+  "manque": "",
+  "note": "galerie de mouvements de caméra"
+ },
+ "quick.pied-de-quick.generer": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": "lecture/étincelle selon l'état"
+ },
+ "quick.pied-de-page-quick.play-generer-mode": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "quick.pied-de-page-quick.sparkle-mise-en-file": {
+  "cible": "dz-etat-attente",
+  "confiance": "probable",
+  "manque": "",
+  "note": "mise en file"
+ },
+ "quick.reglages-de-voix-dzvotuning.defauts": {
+  "cible": "dz-action-reinitialiser",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "quick.scene-d-apercu-centre.scene-appel": {
+  "cible": "dz-action-cout",
+  "confiance": "probable",
+  "manque": "",
+  "note": "avertit d'un appel payant"
+ },
+ "quick.scene-d-apercu-centre.scene-vide": {
+  "cible": "dz-media-image",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "quick.section-gabarits-de-prompt.sparkle-generer": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "quick.section-prompt.sparkle-ouvrir-le-generateur-de-": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "quick.selecteur-de-persona-dzqpui.octopus-persona": {
+  "cible": "dz-marque-poulpe",
+  "confiance": "probable",
+  "manque": "",
+  "note": "avatar du persona, poulpe par défaut"
+ },
+ "quick.zone-de-depot-d-image-dzquickdrop.depot-vide": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.apercu-de-composition-spatiale.compose-avatar": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-media-avatar",
+  "note": ""
+ },
+ "studio.apercu-de-composition-spatiale.compose-bandeau": {
+  "cible": "dz-marque-poulpe",
+  "confiance": "probable",
+  "manque": "",
+  "note": "bandeau de marque simulé"
+ },
+ "studio.bandeau-d-etat-du-rendu-sous-la-barre.check-termine": {
+  "cible": "dz-etat-succes",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.bandeau-d-etat-du-rendu-sous-la-barre.close-bouton-a-droite-du-messa": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.bandeau-d-etat-du-rendu-sous-la-barre.sparkle-a-gauche-du-message-d-et": {
+  "cible": "dz-etat-attente",
+  "confiance": "probable",
+  "manque": "",
+  "note": "rendu en cours"
+ },
+ "studio.bandeau-d-etat-du-rendu-sous-la-barre.warn-meme-emplacement-etat-er": {
+  "cible": "dz-etat-avertissement",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.bandeau-d-etat-du-canevas.etat-execution": {
+  "cible": "dz-etat-attente",
+  "confiance": "probable",
+  "manque": "",
+  "note": "trio attente / succes / avertissement selon l'état"
+ },
+ "studio.bandeau-d-etat-du-canevas.etat-fermer": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.barre-d-outils-du-graphe.check-enregistrer": {
+  "cible": "dz-action-enregistrer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.barre-d-outils-du-graphe.download-telecharger-le-dernier-r": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.barre-d-outils-du-graphe.flow-a-gauche-du-nom-du-graph": {
+  "cible": "dz-nav-studio",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.barre-d-outils-du-graphe.folderopen-ouvrir-un-graphe": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-ouvrir",
+  "note": ""
+ },
+ "studio.barre-d-outils-du-graphe.play-executer": {
+  "cible": "dz-media-lecture",
+  "confiance": "probable",
+  "manque": "",
+  "note": "exécuter le graphe"
+ },
+ "studio.barre-d-outils-du-graphe.plus-enregistrer-le-layout": {
+  "cible": "dz-action-enregistrer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "enregistrer le layout"
+ },
+ "studio.barre-d-outils-du-graphe.plus-nouveau": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.barre-d-outils-du-graphe.preview-apercu": {
+  "cible": "dz-etat-visible",
+  "confiance": "probable",
+  "manque": "",
+  "note": "aperçu rapide"
+ },
+ "studio.barre-d-outils-du-graphe.upload-importer": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.barre-d-outils-du-graphe-recette.check-recette": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-figer",
+  "note": "figer en recette"
+ },
+ "studio.barre-du-haut-du-canevas.apercu": {
+  "cible": "dz-etat-visible",
+  "confiance": "probable",
+  "manque": "",
+  "note": "aperçu rapide"
+ },
+ "studio.barre-du-haut-du-canevas.enregistrer": {
+  "cible": "dz-action-enregistrer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.barre-du-haut-du-canevas.enregistrer-layout": {
+  "cible": "dz-action-enregistrer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "enregistrer le layout"
+ },
+ "studio.barre-du-haut-du-canevas.executer": {
+  "cible": "dz-media-lecture",
+  "confiance": "probable",
+  "manque": "",
+  "note": "exécuter le graphe"
+ },
+ "studio.barre-du-haut-du-canevas.exporter": {
+  "cible": "dz-action-exporter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.barre-du-haut-du-canevas.importer-graphe": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.barre-du-haut-du-canevas.nouveau": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.barre-du-haut-du-canevas.ouvrir-un-graphe": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-ouvrir",
+  "note": ""
+ },
+ "studio.barre-du-haut-du-canevas.recette": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-figer",
+  "note": "figer en recette"
+ },
+ "studio.barre-du-haut-du-canevas.titre-graphe": {
+  "cible": "dz-nav-studio",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.canevas-bord-droit.insp-rouvrir": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-panneau-lateral",
+  "note": ""
+ },
+ "studio.canevas-bord-gauche.dock-rouvrir": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-panneau-lateral",
+  "note": ""
+ },
+ "studio.canevas-coin-bas-gauche.zoom-moins": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-zoom-arriere",
+  "note": ""
+ },
+ "studio.canevas-coin-bas-gauche.zoom-plus": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-zoom-avant",
+  "note": ""
+ },
+ "studio.canevas-coin-haut-droit.kbd-cmdk": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé (touche clavier)"
+ },
+ "studio.canevas-coin-haut-droit.kbd-entree": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé (touche clavier)"
+ },
+ "studio.canevas-de-graphe-carte-de-n-ud-th.close-supprimer-le-n-ud": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.canevas-de-graphe-carte-de-n-ud-th.download-sortie": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-sortie",
+  "note": ""
+ },
+ "studio.canevas-de-graphe-carte-de-n-ud-th.film-montage": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-montage",
+  "note": ""
+ },
+ "studio.canevas-de-graphe-carte-de-n-ud-th.image-source": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-source",
+  "note": ""
+ },
+ "studio.canevas-de-graphe-carte-de-n-ud-th.layers-composition": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-composition",
+  "note": ""
+ },
+ "studio.canevas-de-graphe-carte-de-n-ud-th.sparkle-animations": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-mouvement",
+  "note": ""
+ },
+ "studio.canevas-de-graphe-carte-de-n-ud-th.sparkle-generateur": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-generateur",
+  "note": ""
+ },
+ "studio.canevas-de-graphe-carte-de-n-ud-th.warn-maitre": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-maitre",
+  "note": ""
+ },
+ "studio.canevas-de-graphe-carte-de-n-ud-th.wave-audio": {
+  "cible": "dz-media-audio",
+  "confiance": "probable",
+  "manque": "",
+  "note": "catégorie de nœuds Audio"
+ },
+ "studio.canevas-de-graphe-vignette-de-n-ud-ih.download-sortie": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-sortie",
+  "note": ""
+ },
+ "studio.canevas-de-graphe-vignette-de-n-ud-ih.film-montage": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-montage",
+  "note": ""
+ },
+ "studio.canevas-de-graphe-vignette-de-n-ud-ih.image-source": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-source",
+  "note": ""
+ },
+ "studio.canevas-de-graphe-vignette-de-n-ud-ih.layers-composition": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-composition",
+  "note": ""
+ },
+ "studio.canevas-de-graphe-vignette-de-n-ud-ih.sparkle-animations": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-mouvement",
+  "note": ""
+ },
+ "studio.canevas-de-graphe-vignette-de-n-ud-ih.sparkle-generateur": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-generateur",
+  "note": ""
+ },
+ "studio.canevas-de-graphe-vignette-de-n-ud-ih.warn-maitre": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-maitre",
+  "note": ""
+ },
+ "studio.canevas-de-graphe-vignette-de-n-ud-ih.wave-audio": {
+  "cible": "dz-media-audio",
+  "confiance": "probable",
+  "manque": "",
+  "note": "catégorie de nœuds Audio"
+ },
+ "studio.canevas-de-noeuds.fleche-arete": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (pointe de flèche d'arête)"
+ },
+ "studio.canevas-commandes-de-zoom-bas-gauche.minus-bouton": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-zoom-arriere",
+  "note": ""
+ },
+ "studio.canevas-commandes-de-zoom-bas-gauche.plus-bouton": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-zoom-avant",
+  "note": ""
+ },
+ "studio.canevas-poignee-de-l-inspecteur-replie.panelr-inspecteur-rouvrir": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-panneau-lateral",
+  "note": ""
+ },
+ "studio.canevas-poignee-de-la-colonne-nodes-repliee.flow-n-uds-touche": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-panneau-lateral",
+  "note": ""
+ },
+ "studio.canevas-vignette-des-n-uds-video-seedance-trim-e.film-au-centre-de-la-vignette": {
+  "cible": "dz-media-video",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.canevas-vignette-du-n-ud-concatenate-dzconcatstr.film-au-centre-de-la-vignette": {
+  "cible": "dz-media-film",
+  "confiance": "probable",
+  "manque": "",
+  "note": "enchaînement vide"
+ },
+ "studio.canevas-vignette-du-n-ud-concatenate-dzconcatstr.film-dans-chaque-case-de-la-b": {
+  "cible": "dz-media-video",
+  "confiance": "probable",
+  "manque": "",
+  "note": "source sans miniature"
+ },
+ "studio.canevas-vignette-du-n-ud-render.play-triangle-de-lecture-dans": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône"
+ },
+ "studio.carte-de-noeud-apercu.apercu-du-noeud-animation-au-dessus-du-n": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-mouvement",
+  "note": ""
+ },
+ "studio.carte-de-noeud-apercu.apercu-du-noeud-render-cadre-9-16-avec-t": {
+  "cible": "dz-media-video",
+  "confiance": "probable",
+  "manque": "",
+  "note": "rendu à venir"
+ },
+ "studio.carte-de-noeud-apercu.bandeau-apercu": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "emoji de contenu dans le texte rendu, pas d'icône"
+ },
+ "studio.carte-de-noeud-apercu.concat-case": {
+  "cible": "dz-media-video",
+  "confiance": "probable",
+  "manque": "",
+  "note": "source sans miniature"
+ },
+ "studio.carte-de-noeud-apercu.concat-vide": {
+  "cible": "dz-media-film",
+  "confiance": "probable",
+  "manque": "",
+  "note": "enchaînement vide"
+ },
+ "studio.carte-de-noeud-apercu.icone-de-la-categorie": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "reprend la clé de la catégorie de nœud (dz-cat-sortie, -montage, -source, -composition, -mouvement, -generateur, -maitre, dz-media-audio)"
+ },
+ "studio.carte-de-noeud-apercu.video-hachure": {
+  "cible": "dz-media-video",
+  "confiance": "probable",
+  "manque": "",
+  "note": "vidéo pas encore générée"
+ },
+ "studio.carte-de-noeud-apercu.zone-d-apercu-des-noeuds-voiceover-music": {
+  "cible": "dz-media-forme-onde",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.carte-de-noeud-canevas.noeud-cat-audio": {
+  "cible": "dz-media-audio",
+  "confiance": "probable",
+  "manque": "",
+  "note": "catégorie de nœuds Audio"
+ },
+ "studio.carte-de-noeud-canevas.noeud-cat-compose": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-composition",
+  "note": ""
+ },
+ "studio.carte-de-noeud-canevas.noeud-cat-edit": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-montage",
+  "note": ""
+ },
+ "studio.carte-de-noeud-canevas.noeud-cat-gen": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-generateur",
+  "note": ""
+ },
+ "studio.carte-de-noeud-canevas.noeud-cat-master": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-maitre",
+  "note": ""
+ },
+ "studio.carte-de-noeud-canevas.noeud-cat-motion": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-mouvement",
+  "note": ""
+ },
+ "studio.carte-de-noeud-canevas.noeud-cat-output": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-sortie",
+  "note": ""
+ },
+ "studio.carte-de-noeud-canevas.noeud-cat-source": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-source",
+  "note": ""
+ },
+ "studio.carte-de-noeud-canevas.noeud-suppr": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.carte-de-noeud-pied.carte-maitre": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-media-duree",
+  "note": ""
+ },
+ "studio.catalogue-de-noeuds.bandeau-defaut": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "emoji de contenu (valeur par défaut), pas d'icône"
+ },
+ "studio.champ-texte-selecteur-d-emojis-dzemojipi.emoji-fermer": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.champ-texte-selecteur-d-emojis-dzemojipi.emoji-ouvrir": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-emoji",
+  "note": ""
+ },
+ "studio.champ-texte-selecteur-d-emojis-dzemojipi.emoji-perso": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-favori",
+  "note": ""
+ },
+ "studio.champ-texte-selecteur-d-emojis-dzemojipi.emoji-perso-suppr": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.colonne-nodes-palette-ah.close-masquer": {
+  "cible": "dz-action-fermer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "masque la colonne"
+ },
+ "studio.colonne-nodes-palette-ah.download-sortie": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-sortie",
+  "note": ""
+ },
+ "studio.colonne-nodes-palette-ah.film-montage": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-montage",
+  "note": ""
+ },
+ "studio.colonne-nodes-palette-ah.image-source": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-source",
+  "note": ""
+ },
+ "studio.colonne-nodes-palette-ah.layers-composition": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-composition",
+  "note": ""
+ },
+ "studio.colonne-nodes-palette-ah.search-rechercher": {
+  "cible": "dz-action-chercher",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.colonne-nodes-palette-ah.sparkle-animations": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-mouvement",
+  "note": ""
+ },
+ "studio.colonne-nodes-palette-ah.sparkle-generateur": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-generateur",
+  "note": ""
+ },
+ "studio.colonne-nodes-palette-ah.warn-maitre": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-maitre",
+  "note": ""
+ },
+ "studio.colonne-nodes-palette-ah.wave-audio": {
+  "cible": "dz-media-audio",
+  "confiance": "probable",
+  "manque": "",
+  "note": "catégorie de nœuds Audio"
+ },
+ "studio.colonne-nodes-graphes-de-depart.flow-graphes-de-depart": {
+  "cible": "dz-nav-studio",
+  "confiance": "probable",
+  "manque": "",
+  "note": "graphe de départ"
+ },
+ "studio.dialogue-duel-de-modeles.sparkle-lancer-le-duel": {
+  "cible": "dz-action-generer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "duel de modèles"
+ },
+ "studio.gestionnaire-de-prompts-modale.pm-affiner": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": "affinage IA"
+ },
+ "studio.gestionnaire-de-prompts-modale.pm-aleatoire": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-aleatoire",
+  "note": ""
+ },
+ "studio.gestionnaire-de-prompts-modale.pm-copier": {
+  "cible": "dz-action-copier",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.gestionnaire-de-prompts-modale.pm-entete": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.gestionnaire-de-prompts-modale.pm-fermer": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.gestionnaire-de-prompts-modale.pm-utiliser": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-valider",
+  "note": ""
+ },
+ "studio.gestionnaire-de-prompts-galerie-de-prere.preset-abyss-descent": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "pastille emoji de contenu (préréglage), garder l'emoji"
+ },
+ "studio.gestionnaire-de-prompts-galerie-de-prere.preset-chart-of-the-deep": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "pastille emoji de contenu (préréglage), garder l'emoji"
+ },
+ "studio.gestionnaire-de-prompts-galerie-de-prere.preset-deep-throne": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "pastille emoji de contenu (préréglage), garder l'emoji"
+ },
+ "studio.gestionnaire-de-prompts-galerie-de-prere.preset-echo-shoal": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "pastille emoji de contenu (préréglage), garder l'emoji"
+ },
+ "studio.gestionnaire-de-prompts-galerie-de-prere.preset-flicker-eye": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "pastille emoji de contenu (préréglage), garder l'emoji"
+ },
+ "studio.gestionnaire-de-prompts-galerie-de-prere.preset-glitch-throne": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "pastille emoji de contenu (préréglage), garder l'emoji"
+ },
+ "studio.gestionnaire-de-prompts-galerie-de-prere.preset-liquid-time": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "pastille emoji de contenu (préréglage), garder l'emoji"
+ },
+ "studio.gestionnaire-de-prompts-galerie-de-prere.preset-oracle-eye": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "pastille emoji de contenu (préréglage), garder l'emoji"
+ },
+ "studio.gestionnaire-de-prompts-galerie-de-prere.preset-oracle-s-desk": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "pastille emoji de contenu (préréglage), garder l'emoji"
+ },
+ "studio.gestionnaire-de-prompts-galerie-de-prere.preset-porthole-watch": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "pastille emoji de contenu (préréglage), garder l'emoji"
+ },
+ "studio.gestionnaire-de-prompts-galerie-de-prere.preset-red-flash-drop": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "pastille emoji de contenu (préréglage), garder l'emoji"
+ },
+ "studio.gestionnaire-de-prompts-galerie-de-prere.preset-red-noir-prophecy": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "pastille emoji de contenu (préréglage), garder l'emoji"
+ },
+ "studio.gestionnaire-de-prompts-galerie-de-prere.preset-shoal-ascends": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "pastille emoji de contenu (préréglage), garder l'emoji"
+ },
+ "studio.gestionnaire-de-prompts-galerie-de-prere.preset-tentacle-coin": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "pastille emoji de contenu (préréglage), garder l'emoji"
+ },
+ "studio.gestionnaire-de-prompts-galerie-de-prere.preset-tickerwall": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "pastille emoji de contenu (préréglage), garder l'emoji"
+ },
+ "studio.import-de-graphe-rapport.import-puce": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (puce)"
+ },
+ "studio.inspecteur-de-noeud.insp-cat-audio": {
+  "cible": "dz-media-audio",
+  "confiance": "probable",
+  "manque": "",
+  "note": "catégorie de nœuds Audio"
+ },
+ "studio.inspecteur-de-noeud.insp-cat-compose": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-composition",
+  "note": ""
+ },
+ "studio.inspecteur-de-noeud.insp-cat-edit": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-montage",
+  "note": ""
+ },
+ "studio.inspecteur-de-noeud.insp-cat-gen": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-generateur",
+  "note": ""
+ },
+ "studio.inspecteur-de-noeud.insp-cat-master": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-maitre",
+  "note": ""
+ },
+ "studio.inspecteur-de-noeud.insp-cat-motion": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-mouvement",
+  "note": ""
+ },
+ "studio.inspecteur-de-noeud.insp-cat-output": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-sortie",
+  "note": ""
+ },
+ "studio.inspecteur-de-noeud.insp-cat-source": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-source",
+  "note": ""
+ },
+ "studio.inspecteur-de-noeud.insp-replier": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-panneau-lateral",
+  "note": ""
+ },
+ "studio.accordeon.audio": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.accordeon.connexions": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.accordeon.estimation": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.accordeon.execution": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.accordeon.nom-du-graphe": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.accordeon.sortie": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.inspecteur-du-graphe-fh-aucun-n-ud-selectionne.panelr-replier-l-inspecteur": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-panneau-lateral",
+  "note": ""
+ },
+ "studio.inspecteur-du-graphe-aucun-noeud-selecti.insp-replier-graphe": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-panneau-lateral",
+  "note": ""
+ },
+ "studio.inspecteur-du-n-ud-oh.download-sortie": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-sortie",
+  "note": ""
+ },
+ "studio.inspecteur-du-n-ud-oh.film-montage": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-montage",
+  "note": ""
+ },
+ "studio.inspecteur-du-n-ud-oh.image-source": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-source",
+  "note": ""
+ },
+ "studio.inspecteur-du-n-ud-oh.layers-composition": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-composition",
+  "note": ""
+ },
+ "studio.inspecteur-du-n-ud-oh.panelr-replier-l-inspecteur": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-panneau-lateral",
+  "note": ""
+ },
+ "studio.inspecteur-du-n-ud-oh.sparkle-animations": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-mouvement",
+  "note": ""
+ },
+ "studio.inspecteur-du-n-ud-oh.sparkle-generateur": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-generateur",
+  "note": ""
+ },
+ "studio.inspecteur-du-n-ud-oh.warn-maitre": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-maitre",
+  "note": ""
+ },
+ "studio.inspecteur-du-n-ud-oh.wave-audio": {
+  "cible": "dz-media-audio",
+  "confiance": "probable",
+  "manque": "",
+  "note": "catégorie de nœuds Audio"
+ },
+ "studio.inspecteur-du-noeud-render.planifier": {
+  "cible": "dz-nav-scheduler",
+  "confiance": "probable",
+  "manque": "",
+  "note": "planifier ce rendu"
+ },
+ "studio.accordeon.affinage-ia-diction-de-l-avatar": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.inspecteur-affinage-ia-du-texte-dztextai.sparkle-affiner-pour-l-oral": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": "affinage IA"
+ },
+ "studio.accordeon.animation": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.accordeon.article-news": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.accordeon.avatar": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.accordeon.decoupe": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.accordeon.effets-masque": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.accordeon.enchainement": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.accordeon.favoris": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.accordeon.format": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.accordeon.generateur": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.accordeon.generateur-de-prompt-ia": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.inspecteur-generateur-de-prompt-ia-dzpromptai.sparkle-affiner-avec-l-ia": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": "affinage IA"
+ },
+ "studio.accordeon.generation-d-images": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.accordeon.layout": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.accordeon.master": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.accordeon.piste-musicale": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.accordeon.prompt": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.accordeon.proprietes": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.accordeon.apercu-du-rendu": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.accordeon.apercu-du-rendu-2": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.accordeon.apercu-du-rendu-en-direct": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.accordeon.render": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.accordeon.rendu-existant": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.accordeon.separateur": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.accordeon.texte": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.accordeon.texte-en-surimpression": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.accordeon.ticker": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.accordeon.titles-kind-kind": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.accordeon.video-ugc": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.accordeon.voix-off": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.inspecteur-champ-prompt-ia-dzpromptai.promptia-affiner": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": "affinage IA"
+ },
+ "studio.inspecteur-champ-prompt-ia-dzpromptai.promptia-ok": {
+  "cible": "dz-etat-succes",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.inspecteur-champ-texte-ia-dztextai.texteia-affiner": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": "affinage IA"
+ },
+ "studio.inspecteur-champ-texte-ia-dztextai.texteia-ok": {
+  "cible": "dz-etat-succes",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.inspecteur-noeud-animation.anim-el-descendre": {
+  "cible": "dz-edit-pile-reculer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.inspecteur-noeud-animation.anim-el-monter": {
+  "cible": "dz-edit-pile-avancer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.inspecteur-noeud-animation.anim-el-suppr": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.inspecteur-noeud-animation.anim-kf-prec": {
+  "cible": "dz-media-precedent",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.inspecteur-noeud-animation.anim-kf-retirer": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-retirer",
+  "note": "retire l'image clé"
+ },
+ "studio.inspecteur-noeud-animation.anim-kf-suiv": {
+  "cible": "dz-media-suivant",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.inspecteur-noeud-animation.anim-lire": {
+  "cible": "dz-media-lecture",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.inspecteur-noeud-animation.anim-type-image": {
+  "cible": "dz-media-image",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.inspecteur-noeud-animation.anim-type-sticker": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-media-sticker",
+  "note": ""
+ },
+ "studio.inspecteur-noeud-animation.anim-type-texte": {
+  "cible": "dz-media-texte",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.inspecteur-noeud-animation-favoris.fav-anim": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-favori",
+  "note": ""
+ },
+ "studio.inspecteur-noeud-animation-favoris.fav-element": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-favori",
+  "note": ""
+ },
+ "studio.inspecteur-noeud-animation-favoris.fav-retirer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "retire le favori"
+ },
+ "studio.inspecteur-noeud-animation-favoris.fav-typo": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-favori",
+  "note": ""
+ },
+ "studio.inspecteur-noeud-animation-favoris.favoris-titre": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-favori",
+  "note": ""
+ },
+ "studio.inspecteur-noeud-animation-police.police-prec": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.inspecteur-noeud-animation-police.police-suiv": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.inspecteur-n-ud-avatar-dzavatarpick.play-ecouter-la-voix": {
+  "cible": "dz-media-lecture",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.inspecteur-n-ud-generation-d-images.sparkle-generer": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.inspecteur-noeud-generation-d-images.imagegen-generer": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.accordeon.illustration-news": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.accordeon.image": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.inspecteur-noeud-image.image-parcourir": {
+  "cible": "dz-nav-bibliotheque",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.inspecteur-noeud-news-pick.news-a-image": {
+  "cible": "dz-etat-succes",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.inspecteur-noeud-news-pick.news-titre-image": {
+  "cible": "dz-media-image",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.inspecteur-noeud-retouche-variantes-agra.imgproc-appliquer": {
+  "cible": "dz-action-generer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "traitement d'image"
+ },
+ "studio.accordeon.script-news": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.inspecteur-n-ud-traitement-d-image.sparkle-appliquer-generer-les-va": {
+  "cible": "dz-action-generer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "traitement d'image"
+ },
+ "studio.inspecteur-noeud-upload.duree-maitresse": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-media-duree",
+  "note": ""
+ },
+ "studio.inspecteur-noeud-upload-video-ugc.upload-video": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.inspecteur-n-ud-video-ugc-source.upload-importer-ta-video": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.inspecteur-n-ud-voix-off.sparkle-generation": {
+  "cible": "dz-etat-attente",
+  "confiance": "probable",
+  "manque": "",
+  "note": "génération en cours"
+ },
+ "studio.inspecteur-n-ud-voix-off.wave-generer-la-voix": {
+  "cible": "dz-media-voix",
+  "confiance": "probable",
+  "manque": "",
+  "note": "générer la voix"
+ },
+ "studio.inspecteur-panneau-planifier-h.send-planifier-ce-rendu": {
+  "cible": "dz-nav-scheduler",
+  "confiance": "probable",
+  "manque": "",
+  "note": "planifier ce rendu"
+ },
+ "studio.inspecteur-epingle-du-noeud-dzpinpanel.pin-epingle": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-etat-epingle",
+  "note": ""
+ },
+ "studio.inspecteur-epingle-du-noeud-dzpinpanel.pin-pas-encore": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-etat-epingle",
+  "note": ""
+ },
+ "studio.inspecteur-epingle-du-noeud-dzpinpanel.pin-regenerer": {
+  "cible": "dz-action-regenerer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.inspecteur-epingle-du-noeud-dzpinpanel.pin-sans": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-etat-epingle",
+  "note": ""
+ },
+ "studio.palette-de-noeuds-colonne-nodes.palette-cat-audio": {
+  "cible": "dz-media-audio",
+  "confiance": "probable",
+  "manque": "",
+  "note": "catégorie de nœuds Audio"
+ },
+ "studio.palette-de-noeuds-colonne-nodes.palette-cat-compose": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-composition",
+  "note": ""
+ },
+ "studio.palette-de-noeuds-colonne-nodes.palette-cat-edit": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-montage",
+  "note": ""
+ },
+ "studio.palette-de-noeuds-colonne-nodes.palette-cat-gen": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-generateur",
+  "note": ""
+ },
+ "studio.palette-de-noeuds-colonne-nodes.palette-cat-master": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-maitre",
+  "note": ""
+ },
+ "studio.palette-de-noeuds-colonne-nodes.palette-cat-motion": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-mouvement",
+  "note": ""
+ },
+ "studio.palette-de-noeuds-colonne-nodes.palette-cat-output": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-sortie",
+  "note": ""
+ },
+ "studio.palette-de-noeuds-colonne-nodes.palette-cat-source": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-cat-source",
+  "note": ""
+ },
+ "studio.palette-de-noeuds-colonne-nodes.palette-masquer": {
+  "cible": "dz-action-fermer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "replie la colonne"
+ },
+ "studio.palette-de-noeuds-colonne-nodes.palette-recherche": {
+  "cible": "dz-action-chercher",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.palette-de-noeuds-colonne-nodes.ports-fleche": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (flèche dans du texte)"
+ },
+ "studio.palette-de-noeuds-colonne-nodes.starter": {
+  "cible": "dz-nav-studio",
+  "confiance": "probable",
+  "manque": "",
+  "note": "graphe de départ"
+ },
+ "studio.panneau-duel-de-moteurs.duel": {
+  "cible": "dz-action-generer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "duel de moteurs"
+ },
+ "studio.panneau-duel-de-moteurs.duel-champion": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-duel",
+  "note": ""
+ },
+ "studio.panneau-resultat-jh.close-bouton-en-haut-a-droite": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.panneau-resultat-jh.download-telecharger": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.panneau-resultat-jh.film-ouvrir-dans-le-montage": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-nav-montage",
+  "note": ""
+ },
+ "studio.panneau-resultat-jh-glisse-de-la-droite.preview-resultat": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône"
+ },
+ "studio.planifier-depuis-le-studio-brouillon-de-.legende-defaut": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "emoji de contenu dans la légende, pas d'icône"
+ },
+ "studio.tiroir-resultat-entrees-apercu-d-executi.telecharger": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.tiroir-resultat-entrees-apercu-d-executi.tiroir-fermer": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.tiroir-resultat-entrees-apercu-d-executi.tiroir-resultat": {
+  "cible": "dz-media-video",
+  "confiance": "probable",
+  "manque": "",
+  "note": "tiroir d'aperçu du rendu"
+ },
+ "studio.tiroir-resultat-entrees-apercu-d-executi.vers-montage": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-nav-montage",
+  "note": ""
+ },
+ "studio.tiroir-resultat-defileur-image-par-image.scrub-prec": {
+  "cible": "dz-media-precedent",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.tiroir-resultat-defileur-image-par-image.scrub-suiv": {
+  "cible": "dz-media-suivant",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.toast-d-erreur-fournisseur-dzprovider.toast-erreur": {
+  "cible": "dz-etat-erreur",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.toast-d-erreur-fournisseur-dzprovider.toast-lien": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-ouvrir-externe",
+  "note": ""
+ },
+ "studio.editeur-de-sticker-dzstickereditor.sticker-ia": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio.editeur-de-sticker-dzstickereditor.sticker-importer": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "templates.export-figma-dzexportfigma.export-svg": {
+  "cible": "dz-action-exporter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "templates.fenetre-reagencer-dzreflowbar.avertissement": {
+  "cible": "dz-etat-avertissement",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "templates.grille-des-modeles.search-rechercher": {
+  "cible": "dz-action-chercher",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "templates.grille-des-modeles-carte.more-bouton-de-la-carte": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-plus-options",
+  "note": ""
+ },
+ "templates.inspecteur-de-region.region-supprimer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "templates.inspecteur-animation-de-region-dzanimedi.anim-bas": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "flèche dans le libellé, texte seul conseillé"
+ },
+ "templates.inspecteur-animation-de-region-dzanimedi.anim-droite": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "flèche dans le libellé, texte seul conseillé"
+ },
+ "templates.inspecteur-animation-de-region-dzanimedi.anim-gauche": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "flèche dans le libellé, texte seul conseillé"
+ },
+ "templates.inspecteur-animation-de-region-dzanimedi.anim-haut": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "flèche dans le libellé, texte seul conseillé"
+ },
+ "templates.inspecteur-animation-de-region-dzanimedi.anim-rejouer": {
+  "cible": "dz-media-lecture",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "templates.inspecteur-masque-de-case-dzmaskeditor.masque-retirer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "retire une fenêtre du masque"
+ },
+ "templates.inspecteur-texte-en-arche-dztexteeditor.arche-deborde": {
+  "cible": "dz-etat-avertissement",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "templates.liste-des-templates-gauche.integre": {
+  "cible": "dz-etat-verrouille",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "templates.liste-des-templates-gauche.menu": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-plus-options",
+  "note": ""
+ },
+ "templates.liste-des-templates-gauche.recherche": {
+  "cible": "dz-action-chercher",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "templates.menu-d-un-template.menu-supprimer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "templates.menu-d-un-template.menu-verrouille": {
+  "cible": "dz-etat-verrouille",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "templates.pied-de-l-editeur.enregistre": {
+  "cible": "dz-etat-succes",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "templates.pied-de-l-editeur.enregistrer": {
+  "cible": "dz-action-enregistrer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "templates.pied-de-l-editeur.vers-studio": {
+  "cible": "dz-nav-studio",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "templates.editeur-de-composant-dzcomposanteditor.composant-retablir": {
+  "cible": "dz-action-reinitialiser",
+  "confiance": "probable",
+  "manque": "",
+  "note": "annule la surcharge locale"
+ },
+ "templates.editeur-de-mise-en-page.check-enregistrer-la-mise-en-p": {
+  "cible": "dz-action-enregistrer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "templates.editeur-de-mise-en-page.flow-ouvrir-dans-le-studio": {
+  "cible": "dz-nav-studio",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "templates.editeur-spatial-barre-ajouter.ajout-live": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-etat-direct",
+  "note": ""
+ },
+ "templates.editeur-spatial-barre-ajouter.ajout-prix": {
+  "cible": "dz-action-cout",
+  "confiance": "probable",
+  "manque": "",
+  "note": "badge de prix"
+ },
+ "templates.editeur-spatial-barre-ajouter.ajout-sticker": {
+  "cible": "dz-action-ajouter",
+  "confiance": "probable",
+  "manque": "",
+  "note": "ajoute une région sticker"
+ },
+ "templates.editeur-spatial-barre-ajouter.ajout-types": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "templates.editeur-spatial-regions-par-defaut-d-un-.defaut-ticker": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (puces dans du texte)"
+ },
+ "templates.editeur-spatial-toile.badge-prix": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône"
+ },
+ "templates.editeur-spatial-toile.region-audio": {
+  "cible": "dz-media-audio",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "templates.editeur-spatial-toile.region-image": {
+  "cible": "dz-media-image",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "templates.editeur-spatial-toile.region-sticker": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-media-sticker",
+  "note": ""
+ },
+ "templates.editeur-spatial-toile.region-ticker": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (puces dans du texte)"
+ },
+ "templates.editeur-spatial-toile.region-video": {
+  "cible": "dz-media-video",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "templates.accordeon.c-dzt-templates-inspecteur-region": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "news.barre-d-actions-bas.chaine-du-jour": {
+  "cible": "dz-nav-scheduler",
+  "confiance": "probable",
+  "manque": "",
+  "note": "chaîne du jour programmée"
+ },
+ "news.barre-d-actions-bas.illustration": {
+  "cible": "dz-media-image",
+  "confiance": "probable",
+  "manque": "",
+  "note": "illustration B-roll"
+ },
+ "news.barre-d-actions-bas.script": {
+  "cible": "dz-media-texte",
+  "confiance": "probable",
+  "manque": "",
+  "note": "rédige le script"
+ },
+ "news.barre-d-actions-bas.vers-studio": {
+  "cible": "dz-action-envoyer-vers",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "news.accordeon.classement-du-jour": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "news.accordeon.filtre-gratuit": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "news.accordeon.script": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "news.accordeon.script-genere": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "news.colonne-composer.film-illustration": {
+  "cible": "dz-media-image",
+  "confiance": "probable",
+  "manque": "",
+  "note": "illustration B-roll"
+ },
+ "news.colonne-composer.flow-envoyer-vers-le-studio": {
+  "cible": "dz-action-envoyer-vers",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "news.colonne-composer.mic-script": {
+  "cible": "dz-media-texte",
+  "confiance": "probable",
+  "manque": "",
+  "note": "rédige le script"
+ },
+ "news.colonne-composer.send-chaine-du-jour": {
+  "cible": "dz-nav-scheduler",
+  "confiance": "probable",
+  "manque": "",
+  "note": "chaîne du jour programmée"
+ },
+ "news.colonne-sources.bolt-tout-actualiser": {
+  "cible": "dz-action-actualiser",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "news.colonne-sources.plus-ajouter": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "news.colonne-sources-gauche.source-ajouter": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "news.colonne-sources-gauche.source-retirer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "retire la source"
+ },
+ "news.colonne-sources-gauche.source-rss": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-media-rss",
+  "note": ""
+ },
+ "news.colonne-sources-gauche.tout-actualiser": {
+  "cible": "dz-action-actualiser",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "news.colonne-sources-liste.rss-devant-chaque-source-rss": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-media-rss",
+  "note": ""
+ },
+ "news.colonne-sources-liste.trash-retirer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "retire la source"
+ },
+ "news.fenetre-chaine-du-jour.chaine-en-tete": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-favori",
+  "note": "article en tête"
+ },
+ "news.liste-des-articles.article-coche": {
+  "cible": "dz-etat-succes",
+  "confiance": "probable",
+  "manque": "",
+  "note": "case cochée"
+ },
+ "news.liste-des-articles.article-en-tete": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-favori",
+  "note": "article en tête"
+ },
+ "news.liste-des-articles.article-ouvrir": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-ouvrir-externe",
+  "note": ""
+ },
+ "news.liste-des-articles.articles-recherche": {
+  "cible": "dz-action-chercher",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "news.liste-des-articles.check-case-a-cocher-de-chaque-": {
+  "cible": "dz-etat-succes",
+  "confiance": "probable",
+  "manque": "",
+  "note": "case cochée"
+ },
+ "news.liste-des-articles.link-ouvrir-l-article": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-ouvrir-externe",
+  "note": ""
+ },
+ "news.liste-des-articles.search-filtrer-les-articles": {
+  "cible": "dz-action-chercher",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "scheduler.barre-du-calendrier.analytics": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-nav-analytics",
+  "note": ""
+ },
+ "scheduler.barre-du-calendrier.campagne": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-campagne",
+  "note": ""
+ },
+ "scheduler.barre-du-calendrier.comptes": {
+  "cible": "dz-action-reglages",
+  "confiance": "probable",
+  "manque": "",
+  "note": "comptes et quotas"
+ },
+ "scheduler.barre-du-calendrier.creneaux": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-etat-horloge",
+  "note": ""
+ },
+ "scheduler.barre-du-calendrier.generer-plan": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "scheduler.barre-du-calendrier.nouveau-post": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "scheduler.barre-du-calendrier.semaine-prec": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "scheduler.barre-du-calendrier.semaine-suiv": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "scheduler.barre-du-calendrier.valider-semaine": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-valider",
+  "note": ""
+ },
+ "scheduler.calendrier-barre-d-outils.book-campagne": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-campagne",
+  "note": ""
+ },
+ "scheduler.calendrier-barre-d-outils.check-valider-la-semaine": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-valider",
+  "note": ""
+ },
+ "scheduler.calendrier-barre-d-outils.clock-creneaux": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-etat-horloge",
+  "note": ""
+ },
+ "scheduler.calendrier-barre-d-outils.cog-comptes": {
+  "cible": "dz-action-reglages",
+  "confiance": "probable",
+  "manque": "",
+  "note": "comptes et quotas"
+ },
+ "scheduler.calendrier-barre-d-outils.plus-nouveau-post": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "scheduler.calendrier-barre-d-outils.signal-analytics": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-nav-analytics",
+  "note": ""
+ },
+ "scheduler.calendrier-barre-d-outils.sparkle-generer-un-plan": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "scheduler.calendrier-carte-de-post.canal-instagram-720009": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-instagram",
+  "note": ""
+ },
+ "scheduler.calendrier-carte-de-post.canal-telegram-720009": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-telegram",
+  "note": ""
+ },
+ "scheduler.calendrier-carte-de-post.canal-tiktok-720009": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-tiktok",
+  "note": ""
+ },
+ "scheduler.calendrier-carte-de-post.canal-x-720009": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-x",
+  "note": ""
+ },
+ "scheduler.calendrier-carte-de-post.canal-youtube-720009": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-youtube",
+  "note": ""
+ },
+ "scheduler.calendrier-carte-de-post-om.channelinstagram-instagram": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-instagram",
+  "note": ""
+ },
+ "scheduler.calendrier-carte-de-post-om.channeltelegram-telegram": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-telegram",
+  "note": ""
+ },
+ "scheduler.calendrier-carte-de-post-om.channeltiktok-tiktok": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-tiktok",
+  "note": ""
+ },
+ "scheduler.calendrier-carte-de-post-om.channelx-x": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-x",
+  "note": ""
+ },
+ "scheduler.calendrier-carte-de-post-om.channelyoutube-youtube": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-youtube",
+  "note": ""
+ },
+ "scheduler.calendrier-cellule-de-jour.jour-ajouter": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "scheduler.calendrier-en-tete.caret-precedent": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "scheduler.calendrier-en-tete.caret-suivant": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "scheduler.calendrier-jour-vide.plus-ajouter-un-post": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "scheduler.generateur-de-plan-r.close-bouton-en-haut-a-droite": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "scheduler.generateur-de-plan-r.sparkle-generer-un-plan-marketin": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône"
+ },
+ "scheduler.generateur-de-plan-fenetre.canal-instagram-754830": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-instagram",
+  "note": ""
+ },
+ "scheduler.generateur-de-plan-fenetre.canal-telegram-754830": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-telegram",
+  "note": ""
+ },
+ "scheduler.generateur-de-plan-fenetre.canal-tiktok-754830": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-tiktok",
+  "note": ""
+ },
+ "scheduler.generateur-de-plan-fenetre.canal-x-754830": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-x",
+  "note": ""
+ },
+ "scheduler.generateur-de-plan-fenetre.canal-youtube-754830": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-youtube",
+  "note": ""
+ },
+ "scheduler.generateur-de-plan-fenetre.plan-entete": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "scheduler.generateur-de-plan-fenetre.plan-fermer": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "scheduler.generateur-de-plan-fenetre-apercu.plan-images-aide": {
+  "cible": "dz-media-image",
+  "confiance": "probable",
+  "manque": "",
+  "note": "aide sur les images"
+ },
+ "scheduler.generateur-de-plan-fenetre-mode-import.plan-import": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "scheduler.generateur-de-plan-fenetre-pied.plan-ajouter": {
+  "cible": "dz-nav-scheduler",
+  "confiance": "probable",
+  "manque": "",
+  "note": "ajoute au calendrier"
+ },
+ "scheduler.generateur-de-plan-fenetre-pied.plan-generer": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "scheduler.generateur-de-plan-fenetre-pied.plan-reimport": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "scheduler.generateur-de-plan-canaux-r.channelinstagram-instagram": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-instagram",
+  "note": ""
+ },
+ "scheduler.generateur-de-plan-canaux-r.channeltelegram-telegram": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-telegram",
+  "note": ""
+ },
+ "scheduler.generateur-de-plan-canaux-r.channeltiktok-tiktok": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-tiktok",
+  "note": ""
+ },
+ "scheduler.generateur-de-plan-canaux-r.channelx-x": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-x",
+  "note": ""
+ },
+ "scheduler.generateur-de-plan-canaux-r.channelyoutube-youtube": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-youtube",
+  "note": ""
+ },
+ "scheduler.generateur-de-plan-images.image-choisissez-une-image-de-": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône"
+ },
+ "scheduler.generateur-de-plan-import.upload-deposez-votre-document-d": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "scheduler.generateur-de-plan-pied.calendar-ajouter-au-calendrier": {
+  "cible": "dz-nav-scheduler",
+  "confiance": "probable",
+  "manque": "",
+  "note": "ajoute au calendrier"
+ },
+ "scheduler.generateur-de-plan-pied.sparkle-generer-regenerer": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "scheduler.generateur-de-plan-pied.upload-re-import": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "scheduler.inspecteur-de-post.post-entete": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-publier",
+  "note": ""
+ },
+ "scheduler.inspecteur-de-post.post-supprimer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "scheduler.inspecteur-de-post-canaux.canal-instagram-741544": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-instagram",
+  "note": ""
+ },
+ "scheduler.inspecteur-de-post-canaux.canal-telegram-741544": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-telegram",
+  "note": ""
+ },
+ "scheduler.inspecteur-de-post-canaux.canal-tiktok-741544": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-tiktok",
+  "note": ""
+ },
+ "scheduler.inspecteur-de-post-canaux.canal-x-741544": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-x",
+  "note": ""
+ },
+ "scheduler.inspecteur-de-post-canaux.canal-youtube-741544": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-youtube",
+  "note": ""
+ },
+ "scheduler.inspecteur-de-post-legende.reaction-704806": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "emoji de contenu inséré, garder l'emoji"
+ },
+ "scheduler.inspecteur-de-post-legende.reaction-704811": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "emoji de contenu inséré, garder l'emoji"
+ },
+ "scheduler.inspecteur-de-post-legende.reaction-704816": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "emoji de contenu inséré, garder l'emoji"
+ },
+ "scheduler.inspecteur-de-post-legende.reaction-704821": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "emoji de contenu inséré, garder l'emoji"
+ },
+ "scheduler.inspecteur-de-post-legende.reaction-704826": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "emoji de contenu inséré, garder l'emoji"
+ },
+ "scheduler.inspecteur-de-post-legende.reaction-704831": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "emoji de contenu inséré, garder l'emoji"
+ },
+ "scheduler.inspecteur-de-post-legende.reaction-704836": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "emoji de contenu inséré, garder l'emoji"
+ },
+ "scheduler.inspecteur-de-post-pack-telegram-premium.pack-board-game": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "emoji de contenu inséré, garder l'emoji"
+ },
+ "scheduler.inspecteur-de-post-pack-telegram-premium.pack-chapter-drop": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "emoji de contenu inséré, garder l'emoji"
+ },
+ "scheduler.inspecteur-de-post-pack-telegram-premium.pack-d-d": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "emoji de contenu inséré, garder l'emoji"
+ },
+ "scheduler.inspecteur-de-post-pack-telegram-premium.pack-deep": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "emoji de contenu inséré, garder l'emoji"
+ },
+ "scheduler.inspecteur-de-post-pack-telegram-premium.pack-deepotus-protocol": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "image de contenu insérée, garder l'image"
+ },
+ "scheduler.inspecteur-de-post-pack-telegram-premium.pack-gencoin": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "emoji de contenu inséré, garder l'emoji"
+ },
+ "scheduler.inspecteur-de-post-pack-telegram-premium.pack-mobile-devlog": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "emoji de contenu inséré, garder l'emoji"
+ },
+ "scheduler.inspecteur-de-post-pack-telegram-premium.pack-prophet": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "emoji de contenu inséré, garder l'emoji"
+ },
+ "scheduler.inspecteur-de-post-pack-telegram-premium.pack-rippled-signal": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "image de contenu insérée, garder l'image"
+ },
+ "scheduler.inspecteur-de-post-pack-telegram-premium.pack-titre": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-telegram",
+  "note": "pack Telegram Premium"
+ },
+ "scheduler.inspecteur-de-post-pack-telegram-premium.pack-video-engine": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "emoji de contenu inséré, garder l'emoji"
+ },
+ "scheduler.inspecteur-de-post-pied.post-dupliquer": {
+  "cible": "dz-action-dupliquer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "scheduler.inspecteur-de-post-pied.post-envoyer": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-publier",
+  "note": ""
+ },
+ "scheduler.inspecteur-de-post-pied.post-reprendre": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-reprendre",
+  "note": "reprendre sur le PC"
+ },
+ "scheduler.inspecteur-de-post-pied.post-suite": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-repondre",
+  "note": "suite en fil X"
+ },
+ "scheduler.inspecteur-de-post-plan.plan-generer-image": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "scheduler.inspecteur-de-post-plan.plan-news": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-nav-news",
+  "note": "article News"
+ },
+ "scheduler.inspecteur-de-post-source.produire": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "scheduler.inspecteur-de-post-source.source-image": {
+  "cible": "dz-media-image",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "scheduler.inspecteur-de-post-source.source-rendu": {
+  "cible": "dz-media-video",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "scheduler.inspecteur-de-post-source.source-retirer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "retire la source"
+ },
+ "scheduler.menu-campagne.campagne-brief": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-editer",
+  "note": ""
+ },
+ "scheduler.menu-campagne.campagne-recyclage": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-recycler",
+  "note": ""
+ },
+ "scheduler.menu-campagne.campagne-series": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-recurrence",
+  "note": ""
+ },
+ "scheduler.routage-du-post-h.bolt-reinitialiser": {
+  "cible": "dz-action-reinitialiser",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "scheduler.routage-du-post-h.flow-a-gauche-du-titre-du-pos": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône"
+ },
+ "scheduler.routage-du-post-h.send-envoyer-maintenant": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-publier",
+  "note": ""
+ },
+ "scheduler.routage-du-post-h-zoom.minus-bouton": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-zoom-arriere",
+  "note": ""
+ },
+ "scheduler.routage-du-post-h-zoom.plus-bouton": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-zoom-avant",
+  "note": ""
+ },
+ "scheduler.routage-du-post-carte-legende-ss.rename-legende": {
+  "cible": "dz-media-texte",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "scheduler.routage-du-post-carte-rendu-ss.film-rendu": {
+  "cible": "dz-media-video",
+  "confiance": "probable",
+  "manque": "",
+  "note": "rendu attaché"
+ },
+ "scheduler.routage-du-post-carte-canal-ss.channelinstagram-instagram": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-instagram",
+  "note": ""
+ },
+ "scheduler.routage-du-post-carte-canal-ss.channeltelegram-telegram": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-telegram",
+  "note": ""
+ },
+ "scheduler.routage-du-post-carte-canal-ss.channeltiktok-tiktok": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-tiktok",
+  "note": ""
+ },
+ "scheduler.routage-du-post-carte-canal-ss.channelx-x": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-x",
+  "note": ""
+ },
+ "scheduler.routage-du-post-carte-canal-ss.channelyoutube-youtube": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-youtube",
+  "note": ""
+ },
+ "scheduler.routage-du-post-cartes-ss.more-a-droite-de-l-en-tete-de": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône"
+ },
+ "scheduler.vue-routage-graphe-du-post.canal-instagram-727532": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-instagram",
+  "note": ""
+ },
+ "scheduler.vue-routage-graphe-du-post.canal-telegram-727532": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-telegram",
+  "note": ""
+ },
+ "scheduler.vue-routage-graphe-du-post.canal-tiktok-727532": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-tiktok",
+  "note": ""
+ },
+ "scheduler.vue-routage-graphe-du-post.canal-x-727532": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-x",
+  "note": ""
+ },
+ "scheduler.vue-routage-graphe-du-post.canal-youtube-727532": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-youtube",
+  "note": ""
+ },
+ "scheduler.vue-routage-graphe-du-post.noeud-legende": {
+  "cible": "dz-media-texte",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "scheduler.vue-routage-graphe-du-post.noeud-more": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône"
+ },
+ "scheduler.vue-routage-graphe-du-post.noeud-rendu": {
+  "cible": "dz-media-video",
+  "confiance": "probable",
+  "manque": "",
+  "note": "rendu attaché"
+ },
+ "scheduler.vue-routage-graphe-du-post.routage-envoyer": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-publier",
+  "note": ""
+ },
+ "scheduler.vue-routage-graphe-du-post.routage-reinit": {
+  "cible": "dz-action-reinitialiser",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "scheduler.vue-routage-graphe-du-post.routage-titre": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-routage",
+  "note": ""
+ },
+ "scheduler.vue-routage-graphe-du-post.routage-zoom-moins": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-zoom-arriere",
+  "note": ""
+ },
+ "scheduler.vue-routage-graphe-du-post.routage-zoom-plus": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-zoom-avant",
+  "note": ""
+ },
+ "scheduler.accordeon.canaux": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "scheduler.accordeon.legende": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "scheduler.accordeon.programmation": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "scheduler.accordeon.rendu": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "scheduler.accordeon.reprogrammer-n-importe-quelle-date": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "scheduler.editeur-de-post-bm-p.send-pastille-a-gauche-du-tit": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-publier",
+  "note": ""
+ },
+ "scheduler.editeur-de-post-p.trash-supprimer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "scheduler.editeur-de-post-legende.sparkle-pack-telegram-premium": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-telegram",
+  "note": "pack Telegram Premium"
+ },
+ "scheduler.editeur-de-post-pied.copy-dupliquer-au-lendemain": {
+  "cible": "dz-action-dupliquer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "scheduler.editeur-de-post-pied.send-envoyer-sur-n-canal-main": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-publier",
+  "note": ""
+ },
+ "scheduler.editeur-de-post-pied.send-suite-fil-x": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-repondre",
+  "note": "suite en fil X"
+ },
+ "scheduler.editeur-de-post-pied-post-confie-a-un-telephone.undo-post-repris": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-reprendre",
+  "note": "reprendre sur le PC"
+ },
+ "scheduler.editeur-de-post-section-canaux-p.channelinstagram-instagram": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-instagram",
+  "note": ""
+ },
+ "scheduler.editeur-de-post-section-canaux-p.channeltelegram-telegram": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-telegram",
+  "note": ""
+ },
+ "scheduler.editeur-de-post-section-canaux-p.channeltiktok-tiktok": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-tiktok",
+  "note": ""
+ },
+ "scheduler.editeur-de-post-section-canaux-p.channelx-x": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-x",
+  "note": ""
+ },
+ "scheduler.editeur-de-post-section-canaux-p.channelyoutube-youtube": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-marque-youtube",
+  "note": ""
+ },
+ "scheduler.editeur-de-post-source.close-retirer-la-source": {
+  "cible": "dz-action-supprimer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "retire la source"
+ },
+ "scheduler.editeur-de-post-source.sparkle-produire-avec-la-source-": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "episodes.barre-des-episodes-dzepbar.barre-actions": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé (boutons Nouveau/Enregistrer/Narrer : dz-action-ajouter / dz-action-enregistrer / dz-media-voix possibles)"
+ },
+ "episodes.barre-des-episodes-dzepbar.barre-modifie": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-etat-modifie",
+  "note": ""
+ },
+ "episodes.barre-des-episodes-dzepbar.barre-ouvrir": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "episodes.barre-des-episodes-liste-deroulante.liste-supprimer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "episodes.carte-d-episode-bloc-brief-dzbrief.brief-deplie": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "episodes.carte-d-episode-bloc-brief-dzbrief.brief-replie": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "episodes.chapitres-choix-du-mode-2-cartes.mode-atelier": {
+  "cible": "dz-action-chevron",
+  "confiance": "probable",
+  "manque": "",
+  "note": "flèche d'entrée"
+ },
+ "episodes.chapitres-choix-du-mode-2-cartes.mode-origine": {
+  "cible": "dz-action-chevron",
+  "confiance": "probable",
+  "manque": "",
+  "note": "flèche d'entrée"
+ },
+ "episodes.chapitres-en-tete-d-un-mode.changer-mode": {
+  "cible": "dz-action-chevron",
+  "confiance": "probable",
+  "manque": "",
+  "note": "retour au choix du mode"
+ },
+ "episodes.etape-assemblage.assembler": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-assembler",
+  "note": ""
+ },
+ "episodes.etape-assemblage.legende-marque": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "emoji de contenu dans la légende, pas d'icône"
+ },
+ "episodes.etape-assemblage.vers-montage": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-nav-montage",
+  "note": ""
+ },
+ "episodes.etape-assemblage.vers-scheduler": {
+  "cible": "dz-nav-scheduler",
+  "confiance": "probable",
+  "manque": "",
+  "note": "envoie au Scheduler"
+ },
+ "episodes.etape-illustrations.illus-toutes": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "episodes.etape-illustrations-carte-de-scene.illus-une": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "episodes.etape-narration.narration-generer": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "episodes.etape-narration.narration-ok": {
+  "cible": "dz-etat-succes",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "episodes.etape-scenes.scene-ajouter": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "episodes.etape-scenes.scenes-generer": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "episodes.etape-scenes-carte-de-scene.scene-descendre": {
+  "cible": "dz-action-chevron",
+  "confiance": "probable",
+  "manque": "",
+  "note": "descend la scène"
+ },
+ "episodes.etape-scenes-carte-de-scene.scene-monter": {
+  "cible": "dz-action-chevron",
+  "confiance": "probable",
+  "manque": "",
+  "note": "monte la scène"
+ },
+ "episodes.etape-scenes-carte-de-scene.scene-supprimer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "episodes.etape-texte.texte-importer": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "chapitres-episodes.section-assemblage-export.calendar-envoyer-au-scheduler": {
+  "cible": "dz-nav-scheduler",
+  "confiance": "probable",
+  "manque": "",
+  "note": "envoie au Scheduler"
+ },
+ "chapitres-episodes.section-assemblage-export.film-ouvrir-dans-le-montage": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-nav-montage",
+  "note": ""
+ },
+ "chapitres-episodes.section-assemblage-export.zap-assembler-l-episode": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "dz-action-assembler",
+  "note": ""
+ },
+ "chapitres-episodes.section-illustrations-animation.zap-generer-toutes-les-illus": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "chapitres-episodes.section-illustrations-scene.zap-generer-regenerer": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "chapitres-episodes.section-script-voix.upload-importer-txt-docx-pdf": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "chapitres-episodes.section-script-voix.zap-generer-la-narration": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "chapitres-episodes.section-storyboard.upload-ajouter-une-scene": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "chapitres-episodes.section-storyboard.zap-generer-les-scenes": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "chapitres-episodes.accordeon.assemblage-export": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "chapitres-episodes.accordeon.illustrations-animation": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "chapitres-episodes.accordeon.script-voix": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "chapitres-episodes.accordeon.storyboard-decoupage-en-scenes": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ }
+}
