@@ -170,12 +170,12 @@ def motif_de_rejet(item: dict, reglages: dict,
         return "mot sur liste noire"
     cles = reglages["mots_cles"]
     if cles and not any(c in corpus for c in cles):
-        return "hors mots-cles"
+        return "hors mots-clés"
     d = _quand(item)
     if d is not None:
         age_h = (maintenant - d).total_seconds() / 3600.0
         if age_h > reglages["fraicheur_h"]:
-            return "hors fenetre de fraicheur"
+            return "hors fenêtre de fraîcheur"
     return None
 
 

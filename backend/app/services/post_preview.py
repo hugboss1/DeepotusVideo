@@ -15,6 +15,8 @@ from typing import Optional
 
 from PIL import Image, ImageDraw, ImageFont
 
+from app.i18n import msg
+
 _FONT_DIR = Path(r"C:\Windows\Fonts")
 
 
@@ -148,7 +150,8 @@ def _load_hero(hero_path: Optional[str], width: int, max_h: int):
     return canvas
 
 
-def _placeholder(width, height, label="No visual yet — Produce or attach one"):
+def _placeholder(width, height, label=None):
+    label = label or msg("apercu.vide")
     im = Image.new("RGBA", (width, height), (12, 18, 28, 255))
     d = ImageDraw.Draw(im)
     d.rounded_rectangle([1, 1, width - 2, height - 2], radius=14,
@@ -165,7 +168,7 @@ def _initial(name):
     return name[0].upper() if name else "D"
 
 
-def _render_x(caption, hero_path, display_name, handle):
+def _render_x(caption, hero_path, display_name, handle, lang="fr"):
     W, pad = 680, 28
     CW = W - 2 * pad
     ink, sub, accent = (15, 20, 25, 255), (83, 100, 113, 255), (29, 155, 240, 255)
@@ -175,7 +178,7 @@ def _render_x(caption, hero_path, display_name, handle):
     cap_lines = _wrap(caption, f_cap, ef, 27, CW)
     line_h = 39
     header_h = 56
-    hero = _load_hero(hero_path, CW, 520) or _placeholder(CW, 300)
+    hero = _load_hero(hero_path, CW, 520) or _placeholder(CW, 300, msg("apercu.vide", lang))
     hero = _rounded(hero, 16)
     y = pad
     cap_h = len(cap_lines) * line_h
@@ -218,7 +221,7 @@ def _render_x(caption, hero_path, display_name, handle):
     return img
 
 
-def _render_telegram(caption, hero_path, display_name):
+def _render_telegram(caption, hero_path, display_name, lang="fr"):
     W, pad = 680, 22
     bubble_x, bubble_w = pad, W - 2 * pad
     inner = bubble_w - 24
@@ -249,7 +252,7 @@ def _render_telegram(caption, hero_path, display_name):
         img.paste(hr, (bubble_x, y), hr)
         y += hero_h + 14
     else:
-        ph = _placeholder(inner, 220)
+        ph = _placeholder(inner, 220, msg("apercu.vide", lang))
         img.paste(ph, (bubble_x + 12, y), ph)
         y += 220 + 14
     # caption
@@ -262,7 +265,7 @@ def _render_telegram(caption, hero_path, display_name):
     fw = f_small.getlength(foot)
     d.text((bubble_x + bubble_w - fw - 14, pad + bubble_h - 28), foot,
            font=f_small, fill=sub)
-    d.text((bubble_x + 14, pad + bubble_h - 28), f"{n} chars · Telegram",
+    d.text((bubble_x + 14, pad + bubble_h - 28), msg("apercu.telegram", lang, n=n),
            font=f_small, fill=sub)
     return img
 
@@ -286,7 +289,7 @@ def _cover(im, w, h):
     return im.crop((x, y, x + w, y + h))
 
 
-def _render_vertical(caption, hero_path, handle, network):
+def _render_vertical(caption, hero_path, handle, network, lang="fr"):
     W, H = CANVAS
     z = SAFE_ZONES[network]
     hero = None
@@ -295,7 +298,7 @@ def _render_vertical(caption, hero_path, handle, network):
             hero = _cover(Image.open(hero_path).convert("RGBA"), W, H)
         except Exception:
             hero = None
-    img = hero or _placeholder(W, H, "Aucun visuel — rendu 9:16 attendu")
+    img = hero or _placeholder(W, H, msg("apercu.vide_vertical", lang))
     top, bot, right = int(H * z["top"]), int(H * z["bottom"]), int(W * z["right"])
     ov = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(ov)
@@ -309,7 +312,7 @@ def _render_vertical(caption, hero_path, handle, network):
     f_name, f_cap, f_small = _bold(20), _regular(19), _regular(14)
     ef = _emoji(19)
     white = (255, 255, 255, 255)
-    d.text((16, 12), f"{z['label']} · zones indicatives · {len(caption or '')} car.", font=f_small, fill=white)
+    d.text((16, 12), msg("apercu.zones", lang, reseau=z['label'], n=len(caption or '')), font=f_small, fill=white)
     d.text((16, H - bot + 12), f"@{handle}", font=f_name, fill=white)
     y = H - bot + 42
     for ln in _wrap(caption or "", f_cap, ef, 19, W - right - 32)[:3]:
@@ -319,14 +322,14 @@ def _render_vertical(caption, hero_path, handle, network):
 
 
 def render_preview(*, channel: str, caption: str, hero_path: Optional[str],
-                   display_name: str = "Deepotus", handle: str = "deepotus") -> bytes:
+                   display_name: str = "Deepotus", handle: str = "deepotus", lang: str = "fr") -> bytes:
     ch = (channel or "x").lower()
     if ch in ("telegram", "tg"):
-        img = _render_telegram(caption or "", hero_path, display_name)
+        img = _render_telegram(caption or "", hero_path, display_name, lang)
     elif ch in SAFE_ZONES:
-        img = _render_vertical(caption or "", hero_path, handle, ch)
+        img = _render_vertical(caption or "", hero_path, handle, ch, lang)
     else:
-        img = _render_x(caption or "", hero_path, display_name, handle)
+        img = _render_x(caption or "", hero_path, display_name, handle, lang)
     buf = io.BytesIO()
     img.convert("RGB").save(buf, format="PNG")
     return buf.getvalue()

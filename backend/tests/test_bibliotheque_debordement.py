@@ -69,8 +69,8 @@ try:
     import patch_bundle_dzbiblio as _m
     avant = _aide.avant_dzbiblio(s)
     refait = _m.appliquer(avant)
-    check("2.7 avant_dzbiblio défait le maillon, et le réappliquer rend le bundle octet pour octet",
-          MARQUEUR not in avant and ANCIENNE in avant and refait == s)
+    check("2.7 avant_dzbiblio défait le maillon, et le réappliquer rend le bundle octet pour octet (vu d'avant i18nfix, posé après)",
+          MARQUEUR not in avant and ANCIENNE in avant and refait == _aide.avant_i18nfix(s))
     check("2.8 avant_dzgbar défait dzbiblio d'abord", MARQUEUR not in _aide.avant_dzgbar(s))
 except Exception as e:  # noqa: BLE001
     check("2.7 avant_dzbiblio défait le maillon", False, repr(e))

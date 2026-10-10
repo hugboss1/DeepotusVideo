@@ -46,7 +46,7 @@ def test_les_mots_cles_gardent_et_le_reste_tombe():
     reglages = dict(F.REGLAGES_DEFAUT, mots_cles=["bitcoin", "solana"])
     gardes, motifs = F.filtrer(items, reglages, maintenant=MAINTENANT)
     assert [i["title"] for i in gardes] == ["Bitcoin ETF outflows accelerate"]
-    assert motifs["Storm fl"] == "hors mots-cles"
+    assert motifs["Storm fl"] == "hors mots-clés"
 
 
 def test_une_source_noire_tombe_meme_si_elle_a_le_mot_cle():
@@ -76,7 +76,7 @@ def test_la_fenetre_de_fraicheur_coupe_le_vieux():
     reglages = dict(F.REGLAGES_DEFAUT, fraicheur_h=48)
     gardes, motifs = F.filtrer(items, reglages, maintenant=MAINTENANT)
     assert [i["title"] for i in gardes] == ["Frais assez recent"]
-    assert motifs["Vieux de"] == "hors fenetre de fraicheur"
+    assert motifs["Vieux de"] == "hors fenêtre de fraîcheur"
 
 
 def test_une_date_illisible_ne_fait_pas_tomber_l_article():

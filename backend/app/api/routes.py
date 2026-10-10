@@ -3321,6 +3321,18 @@ async def delete_custom_emoji(name: str, request: Request):
 
 # ---- v1.7: News / RSS pipeline ----
 
+def _i18n_pn():
+    """Traduction des textes serveur du Planificateur et de News (app/i18n/planif_news.py, 10/10/2026)."""
+    from app.i18n import planif_news
+    return planif_news
+
+
+def _i18n_pn_lang(request) -> str:
+    """La langue d'une requête, fr quand la route est appelée directement (sans Request) par un banc."""
+    from app import i18n as _i18n
+    return _i18n.langue_requete(request) if request is not None else "fr"
+
+
 @router.get("/news/sources")
 async def list_news_sources():
     return {"sources": news_service.list_sources()}
@@ -3387,7 +3399,7 @@ async def put_news_filter(request: NewsFilterSettings):
 
 
 @router.post("/news/rank", response_model=NewsRankResponse)
-async def rank_news(request: NewsRankRequest):
+async def rank_news(request: NewsRankRequest, http: Request = None):
     """Le tri du jour : filtre gratuit, puis score sur ce qui reste. Déterministe (gratuit) par défaut ; `llm=true`
     — décision de l'utilisateur du 30/09 : sur demande seulement — passe D'ABORD par la garde des plafonds, et
     seulement s'il reste un article à noter : aucun appel payant sur un article que le filtre a écarté (P1).
@@ -3407,8 +3419,13 @@ async def rank_news(request: NewsRankRequest):
     classes = await asyncio.to_thread(news_rank.classer, gardes, brief=request.brief, penalites=penalites,
                                       llm=bool(request.llm and gardes))
     par_id = {str(i.get("id")): i for i in bruts}
-    ecartes = [NewsDropped(id=str(k), title=str((par_id.get(str(k)) or {}).get("title") or ""), motif=v)
+    # 10/10/2026 : motifs (filtre, score) dans la langue de la requête — APRÈS le tri, qui lit « brief : » en français
+    lang = _i18n_pn_lang(http)
+    ecartes = [NewsDropped(id=str(k), title=str((par_id.get(str(k)) or {}).get("title") or ""),
+                           motif=_i18n_pn().motif(v, lang))
                for k, v in motifs.items()]
+    if lang != "fr":
+        classes = [dict(it, score_pourquoi=_i18n_pn().motif(it.get("score_pourquoi"), lang)) for it in classes]
     champs = set(NewsRankedItem.model_fields)
     return NewsRankResponse(
         items=[NewsRankedItem(**{k: v for k, v in it.items() if k in champs}) for it in classes],
@@ -3420,10 +3437,12 @@ async def rank_news(request: NewsRankRequest):
 
 # plan News T11 et T14 (tâche #35, 30/09/2026) : les formes de reel chiffrées avant tir, et les tendances.
 @router.get("/news/forms")
-async def list_news_forms():
-    """Les formes de reel, leur caractère payant et leur disponibilité réelle (clé du fournisseur)."""
+async def list_news_forms(request: Request = None):
+    """Les formes de reel, leur caractère payant et leur disponibilité réelle (clé du fournisseur) ; nom et
+    description dans la langue de la requête (10/10/2026)."""
     from app.services import news_forms
-    return {"forms": [dict(f, disponible=news_forms.disponible(f["id"])) for f in news_forms.catalogue()]}
+    formes = [dict(f, disponible=news_forms.disponible(f["id"])) for f in news_forms.catalogue()]
+    return {"forms": _i18n_pn().formes(formes, _i18n_pn_lang(request))}
 
 
 @router.post("/news/forms/estimate", response_model=NewsFormEstimateResponse)
@@ -3441,7 +3460,7 @@ async def estimate_news_form(request: NewsFormEstimateRequest):
 # plan News T12-T13 (tâche #35, 30/09/2026) : la chaîne article -> post. Préparer est GRATUIT (décision de
 # l'utilisateur) ; polir est PAYANT et gardé ; valider programme le post avec son reel « cartes » (gratuit, local).
 @router.post("/news/chain/preview", response_model=NewsChainLot)
-async def preview_news_chain(request: NewsChainRequest):
+async def preview_news_chain(request: NewsChainRequest, http: Request = None):
     """Le lot du jour, préparé sans rien écrire ni rien dépenser : articles classés, brouillon de script, forme
     chiffrée, créneau du Scheduler. La validation est une route à part : préparer ne publie jamais par accident."""
     from app.services import news_chain
@@ -3452,11 +3471,16 @@ async def preview_news_chain(request: NewsChainRequest):
             voice_mode=(request.voice_mode.value if request.voice_mode else None), canal=request.canal)
     except ValueError as e:
         raise HTTPException(400, str(e))
+    lang = _i18n_pn_lang(http)
+    if lang != "fr":                                 # 10/10/2026 : raison du mode de voix et motifs des articles
+        lot = dict(lot, voice_mode_reason=_i18n_pn().motif(lot.get("voice_mode_reason"), lang),
+                   articles=[dict(a, score_pourquoi=_i18n_pn().motif(a.get("score_pourquoi"), lang))
+                             if isinstance(a, dict) and a.get("score_pourquoi") else a for a in lot.get("articles") or []])
     return NewsChainLot(**lot)
 
 
 @router.post("/news/chain/polish")
-async def polish_news_chain(request: NewsChainPolishRequest):
+async def polish_news_chain(request: NewsChainPolishRequest, http: Request = None):
     """« Polir avec l'IA » UN script du lot : PAYANT, donc la garde des plafonds d'abord (402 sans appel)."""
     from app.services import news_chain, plafonds as _PLAF
     await _plafond(_PLAF.op_llm(len(request.script) / 4 + 600, request.max_words * 2 + 200), "news")
@@ -3468,11 +3492,12 @@ async def polish_news_chain(request: NewsChainPolishRequest):
     except ValueError as e:
         raise HTTPException(400, str(e))
     return {"script": script, "poli": bool(prov), "fournisseur": prov,
-            "motif": "" if prov else "aucun fournisseur n'a répondu (clé absente ?) : le brouillon est gardé"}
+            "motif": "" if prov else _i18n_pn().texte("aucun fournisseur n'a répondu (clé absente ?) : le brouillon "
+                                                      "est gardé", _i18n_pn_lang(http))}
 
 
 @router.post("/news/chain/commit", response_model=NewsChainCommitResponse)
-async def commit_news_chain(request: NewsChainCommitRequest, background_tasks: BackgroundTasks):
+async def commit_news_chain(request: NewsChainCommitRequest, background_tasks: BackgroundTasks, http: Request = None):
     """Programme le lot en UN post, et lance son reel « cartes » (ffmpeg local, gratuit) dont le `job_id` est posé
     sur le post. La couverture est notée au rendu réussi. Passe par `marketing.materialize_plan`."""
     from app.services import news_chain
@@ -3484,7 +3509,8 @@ async def commit_news_chain(request: NewsChainCommitRequest, background_tasks: B
              for a in out["articles"]]
     background_tasks.add_task(news_chain.rendre_et_noter, pipeline, items, job_id=out["job_id"], post_id=out["post_id"])
     return NewsChainCommitResponse(post_id=out["post_id"], job_id=out["job_id"],
-                                   message="Post programmé ; le reel cartes se rend (file des rendus).")
+                                   message=_i18n_pn().texte("Post programmé ; le reel cartes se rend (file des "
+                                                            "rendus).", _i18n_pn_lang(http)))
 
 
 @router.get("/news/trends")
@@ -3500,6 +3526,8 @@ async def news_trends_route(request: Request, x_query: str = ""):
     if q:
         _require_localhost(request)          # une lecture X consomme un quota : jamais depuis hors de la machine
         out["x"] = await asyncio.to_thread(news_trends.signal_x, q)
+        if isinstance(out["x"], dict) and out["x"].get("motif"):     # 10/10/2026 : motif dans la langue de la requête
+            out["x"] = dict(out["x"], motif=_i18n_pn().motif(out["x"]["motif"], _i18n_pn_lang(request)))
     return out
 
 
@@ -7638,15 +7666,23 @@ def _render_poster_frame(jobrec) -> str | None:
 # plan scheduler T7 (tâche #29, 30/09/2026) : le tableau de bord des métriques. Aucun GET /schedule/{post_id} nu
 # n'existe : l'ordre de déclaration est libre (le banc le prouve).
 @router.get("/schedule/analytics")
-async def schedule_analytics(days: int = 28):
+async def schedule_analytics(days: int = 28, request: Request = None):
     from app.services import metrics_service as _ms
-    return await _ms.analytics(max(1, min(365, days)))
+    from app.i18n import planif_news as _pn
+    from app import i18n as _i18n
+    a = await _ms.analytics(max(1, min(365, days)))
+    if request is not None and isinstance(a, dict) and isinstance(a.get("quotas"), dict):
+        a = dict(a, quotas=_pn.quotas(a["quotas"], _i18n.langue_requete(request)))    # 10/10 : sources dans la langue
+    return a
 
 
 @router.get("/schedule/quotas")
-async def schedule_quotas():
+async def schedule_quotas(request: Request = None):
+    """Compteurs et plafonds par canal ; la `source` datée suit la langue de la requête (10/10/2026)."""
     from app.services import quota as _q
-    return _q.summary()
+    from app.i18n import planif_news as _pn
+    from app import i18n as _i18n
+    return _pn.quotas(_q.summary(), _i18n.langue_requete(request) if request is not None else "fr")
 
 
 @router.post("/schedule/analytics/refresh")
@@ -7681,7 +7717,8 @@ async def suggest_slots(days: int = 56, tz_offset_minutes: int | None = None):
 async def scheduled_post_preview(post_id: str, channel: str = "x",
                                  caption: str | None = None,
                                  img: str | None = None,
-                                 job: str | None = None):
+                                 job: str | None = None,
+                                 lang: str | None = None):
     """Compose the final post (hero image + caption) as a platform-styled PNG
     so the user can visualize it before publishing. channel = x | telegram.
 
@@ -7691,8 +7728,10 @@ async def scheduled_post_preview(post_id: str, channel: str = "x",
     bubble with image-then-caption).
 
     Optional query overrides (caption, img, job) let the inspector preview
-    live, still-unsaved edits without a DB round-trip."""
+    live, still-unsaved edits without a DB round-trip. `lang` (fr | en, posé par l'inspecteur d'après dzLang()) :
+    la langue des textes dessinés par l'aperçu ; une <img> n'a pas l'en-tête du runtime, défaut = UI_LANG."""
     from app.services import post_preview as _pp
+    from app import i18n as _i18n
     async with async_session_factory() as session:
         res = await session.execute(
             _select(ScheduledPost).where(ScheduledPost.id == post_id))
@@ -7724,7 +7763,7 @@ async def scheduled_post_preview(post_id: str, channel: str = "x",
     try:
         png = await asyncio.to_thread(
             _pp.render_preview, channel=channel, caption=caption,
-            hero_path=hero, display_name=name, handle=handle)
+            hero_path=hero, display_name=name, handle=handle, lang=_i18n.borne(lang) or _i18n.langue_ui())
     except Exception as e:
         logger.exception("post preview render failed")
         raise HTTPException(500, f"Preview failed: {e}")
