@@ -14,24 +14,24 @@
    document — c'est le guide, lui, qui existe en deux langues. */
 
 export const LEXIQUE = {
-  assise: { titre: "Assise", texte: "La face qui touche le plateau. Large et plate, l'impression tient ; étroite, elle se décolle." },
-  surplomb: { titre: "Surplomb", texte: "Une paroi trop penchée pour tenir sur la couche d'en dessous. Sous 45 à 60° depuis l'horizontale, il faut un support." },
-  support: { titre: "Support", texte: "Structure jetable qui soutient les surplombs. Le slicer la génère ; l'Établi aide à en avoir moins besoin." },
-  brim: { titre: "Brim", texte: "Collerette d'une couche autour de la pièce, contre le décollement des coins." },
-  raft: { titre: "Raft", texte: "Radeau imprimé sous toute la pièce. Plus sûr qu'un brim, plus coûteux, face rugueuse." },
-  jupe: { titre: "Jupe (skirt)", texte: "Contour tracé à côté de la pièce pour amorcer le flux avant de commencer." },
-  remplissage: { titre: "Remplissage", texte: "Motif de l'intérieur. 15 % suffisent le plus souvent ; le gyroïde résiste à peu près autant dans tous les sens." },
-  couture: { titre: "Couture", texte: "Ligne verticale laissée par le début et la fin de chaque tour de paroi. Le slicer la place ou la disperse." },
-  retraction: { titre: "Rétraction", texte: "Le filament est tiré en arrière pendant les déplacements, contre les fils." },
-  couche: { titre: "Couche", texte: "Tranche horizontale. 0,2 mm est le compromis courant ; 0,12 mm pour du détail." },
-  perimetre: { titre: "Périmètre", texte: "Nombre de tours de paroi. Deux à 0,45 mm font 0,9 mm : le minimum à viser en modélisant." },
-  pont: { titre: "Pont", texte: "Couche imprimée au-dessus du vide entre deux appuis. Quelques centimètres, avec un bon refroidissement." },
-  warping: { titre: "Warping", texte: "Coins qui se soulèvent en refroidissant. Plateau propre, brim, enceinte fermée." },
-  etancheite: { titre: "Étanchéité", texte: "Surface fermée, sans trou ni bord libre. C'est le « fermé » de la barre du bas." },
-  manifold: { titre: "Manifold", texte: "Chaque arête appartient à exactement deux faces. Un maillage peut être fermé ET non-manifold." },
-  decimation: { titre: "Décimation", texte: "Réduire le nombre de triangles. 500 000 ne s'impriment pas mieux que 100 000, mais ralentissent tout." },
-  creusage: { titre: "Creusage", texte: "Remplacer l'intérieur plein par une coque. Surtout utile en résine ; 2 mm pour commencer." },
-  drainage: { titre: "Drainage", texte: "Le trou qui laisse sortir la résine (et l'air) d'une pièce creusée. Fiche → « Percer (drainage) », puis un clic sur la face." },
+  assise: { titre: dzT("etabli.et1_lex.assise_titre"), texte: dzT("etabli.et1_lex.assise_texte") },
+  surplomb: { titre: dzT("etabli.et1_lex.surplomb_titre"), texte: dzT("etabli.et1_lex.surplomb_texte") },
+  support: { titre: dzT("etabli.et1_lex.support_titre"), texte: dzT("etabli.et1_lex.support_texte") },
+  brim: { titre: dzT("etabli.et1_lex.brim_titre"), texte: dzT("etabli.et1_lex.brim_texte") },
+  raft: { titre: dzT("etabli.et1_lex.raft_titre"), texte: dzT("etabli.et1_lex.raft_texte") },
+  jupe: { titre: dzT("etabli.et1_lex.jupe_titre"), texte: dzT("etabli.et1_lex.jupe_texte") },
+  remplissage: { titre: dzT("etabli.et1_lex.remplissage_titre"), texte: dzT("etabli.et1_lex.remplissage_texte") },
+  couture: { titre: dzT("etabli.et1_lex.couture_titre"), texte: dzT("etabli.et1_lex.couture_texte") },
+  retraction: { titre: dzT("etabli.et1_lex.retraction_titre"), texte: dzT("etabli.et1_lex.retraction_texte") },
+  couche: { titre: dzT("etabli.et1_lex.couche_titre"), texte: dzT("etabli.et1_lex.couche_texte") },
+  perimetre: { titre: dzT("etabli.et1_lex.perimetre_titre"), texte: dzT("etabli.et1_lex.perimetre_texte") },
+  pont: { titre: dzT("etabli.et1_lex.pont_titre"), texte: dzT("etabli.et1_lex.pont_texte") },
+  warping: { titre: dzT("etabli.et1_lex.warping_titre"), texte: dzT("etabli.et1_lex.warping_texte") },
+  etancheite: { titre: dzT("etabli.et1_lex.etancheite_titre"), texte: dzT("etabli.et1_lex.etancheite_texte") },
+  manifold: { titre: dzT("etabli.et1_lex.manifold_titre"), texte: dzT("etabli.et1_lex.manifold_texte") },
+  decimation: { titre: dzT("etabli.et1_lex.decimation_titre"), texte: dzT("etabli.et1_lex.decimation_texte") },
+  creusage: { titre: dzT("etabli.et1_lex.creusage_titre"), texte: dzT("etabli.et1_lex.creusage_texte") },
+  drainage: { titre: dzT("etabli.et1_lex.drainage_titre"), texte: dzT("etabli.et1_lex.drainage_texte") },
 };
 
 /* Le chapitre du guide, dans la langue du document. `lang` est posé une seule
@@ -51,19 +51,19 @@ export function ouvrirAide(hote, esc) {
   const lignes = Object.entries(LEXIQUE).map(([cle, d]) =>
     `<div class="aide-mot"><b>${esc(d.titre)}</b> — ${esc(d.texte)}
      <a href="${esc(lienGuide(cle))}" target="_blank" rel="noopener">guide</a></div>`).join("");
-  hote.innerHTML = `<div class="dt-label">Aide — préparer avant le slicer</div>
+  hote.innerHTML = `<div class="dt-label">${dzT("etabli.et1_aide.titre")}</div>
     <ol class="aide-pas">
-      <li>Pose une taille cible (rail de droite) : sans elle, aucun millimètre.</li>
-      <li>Choisis l'imprimante : le contour vert est son plateau, le rouge la zone exclue.</li>
-      <li>Répare en un clic (onglet Fiche), lis le détail dans la barre du bas.</li>
-      <li>Pose sur une face (F), puis « écrire la version » — ou laisse « Orienter » proposer, et REGARDE la proposition.</li>
-      <li>Regarde les Surplombs (orange) et les Tranches : tourne jusqu'à ce que l'orange recule.</li>
-      <li>Creuse si c'est utile (surtout en résine), paroi de 2 mm pour commencer.</li>
-      <li>Range sur le plateau (Sur la plaque) : une vue, le modèle ne bouge pas.</li>
-      <li>Mesure, puis onglet Export → « → Impression 3D » et « Ouvrir dans le slicer ».</li>
+      <li>${dzT("etabli.et1_aide.pas1")}</li>
+      <li>${dzT("etabli.et1_aide.pas2")}</li>
+      <li>${dzT("etabli.et1_aide.pas3")}</li>
+      <li>${dzT("etabli.et1_aide.pas4")}</li>
+      <li>${dzT("etabli.et1_aide.pas5")}</li>
+      <li>${dzT("etabli.et1_aide.pas6")}</li>
+      <li>${dzT("etabli.et1_aide.pas7")}</li>
+      <li>${dzT("etabli.et1_aide.pas8")}</li>
     </ol>
     <div class="aide-lex">${lignes}</div>
     <a class="aide-tout" href="${esc(lienGuide(null))}" target="_blank" rel="noopener">
-      ${typeof dzIcone === "function" ? dzIcone("dz-nav-guide", { taille: 16, classe: "dzi--16" }) : ""} Le chapitre complet du guide, avec les ressources vérifiées</a>`;
+      ${typeof dzIcone === "function" ? dzIcone("dz-nav-guide", { taille: 16, classe: "dzi--16" }) : ""} ${dzT("etabli.et1_aide.chapitre")}</a>`;
   hote.classList.remove("hidden");
 }

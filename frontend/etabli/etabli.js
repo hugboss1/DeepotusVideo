@@ -27,6 +27,8 @@ import { arbreDesOs, poserSquelette, surlignerChaine, peindrePoids, retirerPoids
   from "/lib3d/rig.js";
 
 const $ = (s) => document.querySelector(s);
+/* t148 : la surcouche de traduction n'entre pas dans les <select> — les <option> fixes de la page sont traduites ici, une fois (window.__dzI18n.traduire ne rend rien en français). */
+for (const o of document.querySelectorAll("select option")) { const t = window.__dzI18n && window.__dzI18n.traduire(o.textContent); if (t) o.textContent = t; }
 
 /* Seuil de confort machine — MONTRÉ, jamais caché (doctrine des seuils du QC).
    Le franchir n'interdit rien : cela propose la version allégée. */
@@ -170,7 +172,7 @@ const MODES_GESTE = ["selection", "glisser", "assise", "couteau", "mesure", "for
    retombe sur « matériau » ACCENTUÉ pour un matériau sans nom. Sans cette
    table, l'onglet « materiau » listait des rangées « matériau ». */
 const LIBELLE_GRANULARITE =
-  { noeud: "nœud", maillage: "maillage", materiau: "matériau" };
+  { noeud: dzT("etabli.et1_gran.noeud"), maillage: dzT("etabli.et1_gran.maillage"), materiau: dzT("etabli.et1_gran.materiau") };
 
 /* Le gizmo de manipulation, UN pour toute la page : il se branche sur la
    caméra et sur le canevas de la vue A, l'un et l'autre créés une seule fois
@@ -335,10 +337,10 @@ function direGeometrie() {
   const geo = S.geoA;
   if (!geo) { zone.textContent = "—"; return; }
   zone.textContent =
-    `${geo.tris.toLocaleString("fr-FR")} triangles · ${geo.maillages} maillages`;
+    dzT("etabli.et1_geo.tris_maillages", { n: geo.tris.toLocaleString("fr-FR"), m: geo.maillages });
   if (geo.tris > SEUIL.triangles) {
     zone.textContent +=
-      ` · au-delà du seuil de ${SEUIL.triangles.toLocaleString("fr-FR")}, une version décimée existe peut-être`;
+      dzT("etabli.et1_geo.au_dela", { n: SEUIL.triangles.toLocaleString("fr-FR") });
   }
 }
 
@@ -386,7 +388,7 @@ function rendreChrono() {
       <div class="job-tete">${esc(t.nom)}<span>meshy · ${esc(t.phase || "")}</span></div>
       <div class="job-etapes">${etapes}</div></section>`);
   }
-  box.innerHTML = blocs.join("") || '<div class="chrono-vide">aucun maillage</div>';
+  box.innerHTML = blocs.join("") || `<div class="chrono-vide">${dzT("etabli.et1_chrono.vide")}</div>`;
 
   box.querySelectorAll(".etape").forEach((b) => {
     b.addEventListener("click", (ev) => {
@@ -492,7 +494,7 @@ async function _ouvrirPrincipale(cible, numero) {
   $("#barreFichier").textContent = cible.url.split("/").pop();
   geoBox.classList.remove("erreur");
   geoBox.title = "";                 /* le refus entier d'avant, au survol */
-  geoBox.textContent = "chargement…";
+  geoBox.textContent = dzT("etabli.et1_charge.en_cours");
   let geo;
   try {
     /* creerCanevas() DANS le try : sans contexte WebGL (GPU sur liste noire,
@@ -511,7 +513,7 @@ async function _ouvrirPrincipale(cible, numero) {
     rendreParties();                 // ni au panneau, qui listerait un modèle absent
     perimerEcart();                  // ni à l'écran, si une comparaison est ouverte
     $("#chipSource").textContent = "—";
-    geoBox.textContent = `échec du chargement — ${e.message}`;
+    geoBox.textContent = dzT("etabli.et1_charge.echec", { m: e.message });
     geoBox.classList.add("erreur");
     return;
   }
@@ -672,7 +674,7 @@ function ligneEcart(fa, fb, geoA, geoB) {
      un mur — et cette ligne est justement l'endroit où cet écart se lit. glTF
      compte en mètres ; un maillage qui n'en tient pas compte se voit ici. */
   const da = dim(ga), db = dim(gb);
-  const unite = (da !== "—" || db !== "—") ? ' <i>u. glTF (1 = 1 m)</i>' : "";
+  const unite = (da !== "—" || db !== "—") ? ` <i>${dzT("etabli.et1_ecart.unite")}</i>` : "";
   return `
     <div><b>triangles</b> ${chiffre(ta)} → ${chiffre(tb)}${delta}</div>
     <div><b>dimensions</b> ${da} → ${db}${unite}</div>
@@ -725,7 +727,7 @@ async function _ouvrirComparaison(cible, numero) {
      cadrage du réseau. L'écriture finale remplace ensuite un contenu de MÊME
      hauteur, donc sans saut de caméra — ce qu'aurait coûté l'autre correctif
      possible, déplacer le cadrage après la réponse du réseau. */
-  boite.innerHTML = '<div class="ecart-tete">comparaison…</div>'
+  boite.innerHTML = `<div class="ecart-tete">${dzT("etabli.et1_ecart.comparaison")}</div>`
     + ligneEcart(null, null, {}, {});
   let geoB;
   try {
@@ -764,7 +766,7 @@ async function _ouvrirComparaison(cible, numero) {
     fermerComparaison();
     boite.classList.remove("hidden");
     boite.classList.add("erreur");
-    boite.textContent = `échec du chargement de B — ${e.message}`;
+    boite.textContent = dzT("etabli.et1_ecart.echec_b", { m: e.message });
     return;
   }
   if (numero !== _demandeB) {
@@ -803,7 +805,7 @@ async function _ouvrirComparaison(cible, numero) {
     fermerComparaison();
     boite.classList.remove("hidden");
     boite.classList.add("erreur");
-    boite.textContent = "comparaison abandonnée — la vue A a changé";
+    boite.textContent = dzT("etabli.et1_ecart.abandonnee");
     return;
   }
   /* S.a === a ici, la garde vient de le dire : les deux écritures parlent du
@@ -833,7 +835,7 @@ function perimerEcart() {
   const boite = $("#ecart");
   boite.classList.add("erreur");
   boite.innerHTML =
-    '<div class="ecart-tete">la vue A a changé — alt-cliquez pour recomparer</div>'
+    `<div class="ecart-tete">${dzT("etabli.et1_ecart.perime")}</div>`
     + ligneEcart(null, null, {}, {});
 }
 
@@ -918,8 +920,7 @@ $("#btnRetour").addEventListener("click", () => {
      que ce bouton ne voit pas.) */
   if (_envoiPlan || PLQ.aEnvoyer || _envoisEnVol) {
     envoyerPlan();
-    direRefus("disposition de la plaque en cours d'enregistrement — un "
-      + "instant, puis revenez au 3D Studio");
+    direRefus(dzT("etabli.et1_retour.plan_en_cours"));
     return;
   }
   if (S.enAttente.length) {
@@ -929,10 +930,8 @@ $("#btnRetour").addEventListener("click", () => {
        mais un refus qui montre du doigt un bouton mort est un refus qui ment.
        On dit alors la seule chose vraie : c'est en cours, ça va se vider. */
     direRefus(_ecritEnCours
-      ? `${S.enAttente.length} modification(s) en cours d'écriture — `
-        + "attends la fin de la série avant de revenir au 3D Studio"
-      : `${S.enAttente.length} modification(s) non écrite(s) — `
-        + "« écrire la version » ou « annuler » avant de revenir au 3D Studio");
+      ? dzT("etabli.et1_retour.ecriture_en_cours", { n: S.enAttente.length })
+      : dzT("etabli.et1_retour.non_ecrites", { n: S.enAttente.length }));
     return;
   }
   location.href = "/studio3d/";
@@ -995,23 +994,21 @@ function majBoutonPlaque() {
   const b = $("#btnPlaque");
   /* Le libellé porte la DESTINATION, comme « ← 3D Studio » : ce qu'un clic
      fait, et non l'état où l'on est — l'état, la vue 3D le crie déjà. */
-  b.textContent = PLQ.active ? "Assemblé" : "Sur la plaque";
+  b.textContent = PLQ.active ? dzT("etabli.et1_plaque.assemble") : dzT("etabli.et1_plaque.sur_la_plaque");
   /* Grisé le temps de lire le plan : un second clic pendant l'aller-retour
      n'étalerait pas deux fois, et le bouton porte l'état plutôt qu'un
      `return` muet ne le cache — la règle de #btnEcrire. */
   b.disabled = PLQ.enCours;
-  b.title = PLQ.enCours ? "lecture du plan de plaque…"
+  b.title = PLQ.enCours ? dzT("etabli.et1_plaque.lecture")
     : PLQ.active
-      ? "Revenir au modèle assemblé — le maillage n'a pas bougé, la "
-        + "disposition reste dans son plan de plaque"
-      : "Étaler les pièces pour les voir et les ranger — une VUE : le "
-        + "maillage n'est jamais modifié, seule la disposition s'écrit";
+      ? dzT("etabli.et1_plaque.revenir_titre")
+      : dzT("etabli.et1_plaque.etaler_titre");
 }
 
 async function basculerPlaque() {
   if (PLQ.active) { quitterPlaque(); return; }
   if (!S.vueA || !S.vueA.racine) {
-    direRefus("aucun modèle chargé — rien à étaler sur la plaque");
+    direRefus(dzT("etabli.et1_plaque.rien_a_etaler"));
     return;
   }
   /* LE PLAN DE PLAQUE SE LIT AVANT D'ÉTALER — un aller-retour réseau — et le
@@ -1030,7 +1027,7 @@ async function basculerPlaque() {
     /* Un plan illisible n'empêche pas de regarder : on étale par défaut et on
        le DIT — pris pour « pas de plan », un fichier corrompu serait écrasé à
        la première retouche sans que personne ne l'ait su. */
-    direRefus(`plan de plaque illisible — étalement par défaut (${e.message})`);
+    direRefus(dzT("etabli.et1_plaque.plan_illisible", { m: e.message }));
   } finally {
     PLQ.enCours = false;
     majBoutonPlaque();
@@ -1050,8 +1047,7 @@ async function basculerPlaque() {
   armerGeste("selection");
   const etalement = etaler(S.vueA, plan);
   if (!etalement) {
-    direRefus("aucune pièce mesurable — ce modèle n'expose aucun nœud glTF "
-      + "porteur de géométrie, il n'y a rien à étaler");
+    direRefus(dzT("etabli.et1_plaque.aucune_piece"));
     return;
   }
   PLQ.active = true;
@@ -1206,22 +1202,18 @@ async function lirePlan(cible) {
    un même état divergeraient. */
 function texteEtatPlan() {
   if (PLQ.planFichier === null) {
-    return "La disposition ne peut pas être enregistrée : cette étape n'a "
-      + "pas de version numérotée.";
+    return dzT("etabli.et1_plan.impossible");
   }
   if (PLQ.sauvegarde === "ok") {
-    return `Disposition enregistrée dans ${PLQ.planFichier} — le maillage, `
-      + "lui, n'a pas bougé.";
+    return dzT("etabli.et1_plan.ok", { f: PLQ.planFichier });
   }
   if (PLQ.sauvegarde === "refus") {
-    return `Disposition NON enregistrée (${PLQ.planFichier}) : voir le refus `
-      + "dans la barre du bas.";
+    return dzT("etabli.et1_plan.refus", { f: PLQ.planFichier });
   }
   if (PLQ.planApplique) {
-    return `Disposition relue depuis ${PLQ.planFichier}.`;
+    return dzT("etabli.et1_plan.relue", { f: PLQ.planFichier });
   }
-  return `La disposition s'enregistrera dans ${PLQ.planFichier} à la première `
-    + "retouche.";
+  return dzT("etabli.et1_plan.a_venir", { f: PLQ.planFichier });
 }
 
 function rendreEtatPlan() {
@@ -1261,8 +1253,7 @@ async function envoyerPlan() {
       PLQ.sauvegarde = "ok";
     } catch (e) {
       PLQ.sauvegarde = "refus";
-      direRefus(`plan de plaque non enregistré (${corps.job} v${corps.version}) `
-        + `— ${e.message}`);
+      direRefus(dzT("etabli.et1_plan.non_enregistre", { job: corps.job, v: corps.version, m: e.message }));
     } finally {
       _envoisEnVol--;
     }
@@ -1327,7 +1318,7 @@ function contourPlateau() {
 function rendreImprimante() {
   const box = $("#imprimante");
   if (!box) return;
-  if (PROFIL.erreur) { box.innerHTML = `<div class="dt-label">Imprimante</div><p class="note">${esc(PROFIL.erreur)}</p>`; return; }
+  if (PROFIL.erreur) { box.innerHTML = `<div class="dt-label">${dzT("etabli.et1_imp.titre")}</div><p class="note">${esc(PROFIL.erreur)}</p>`; return; }
   const a = PROFIL.actif;
   const groupes = new Map();
   for (const p of PROFIL.liste) {
@@ -1342,10 +1333,10 @@ function rendreImprimante() {
      n'écrit pas d'abréviation d'unité hors de uniteCourante(). */
   const desc = a ? (a.resume || a.nom) : "—";
   const prop = PROFIL.slicer && (!a || PROFIL.slicer.id !== a.id)
-    ? `<button id="impSlicer" title="Prendre le preset sélectionné dans OrcaSlicer (lu, jamais modifié)">Prendre « ${esc(PROFIL.slicer.nom)} » (actif dans le slicer)</button>` : "";
-  box.innerHTML = `<div class="dt-label">Imprimante</div>
-    <label>profil <select id="impProfil" title="La garde du plateau de l'export et le contour sur la plaque viennent de ce profil">${options}</select></label>
-    <p class="note">${esc(desc)}. Le contour se dessine sur la plaque sous une taille cible ; l'export AVERTIT au-delà du plateau, il n'interdit pas.</p>${prop}`;
+    ? `<button id="impSlicer" title="${dzT("etabli.et1_imp.slicer_titre")}">${dzT("etabli.et1_imp.slicer_prendre", { nom: esc(PROFIL.slicer.nom) })}</button>` : "";
+  box.innerHTML = `<div class="dt-label">${dzT("etabli.et1_imp.titre")}</div>
+    <label>${dzT("etabli.et1_imp.profil")} <select id="impProfil" title="${dzT("etabli.et1_imp.profil_titre")}">${options}</select></label>
+    <p class="note">${esc(desc)}. ${dzT("etabli.et1_imp.note")}</p>${prop}`;
   $("#impProfil").addEventListener("change", (ev) => choisirProfil(ev.target.value));
   if (prop) $("#impSlicer").addEventListener("click", () => choisirProfil(PROFIL.slicer.id));
 }
@@ -1363,25 +1354,24 @@ function rendreImprimante() {
    ce que dessinerContourPlateau rend (decalages), jamais réécrit ici. */
 const MARGE_PLATEAU = 2;             /* en millimètres : l'espacement entre pièces que proposent les slicers */
 async function arrangerPlaque() {
-  if (!PLQ.active) { direRefus("passe d'abord sur la plaque — le rangement range les pièces étalées"); return; }
+  if (!PLQ.active) { direRefus(dzT("etabli.et1_ranger.plaque_d_abord")); return; }
   const c = PROFIL.actif && PROFIL.actif.contour;
   if (!enMillimetres() || !c) {
-    direRefus("pose une taille cible et choisis une imprimante — un plateau est une cote physique, "
-      + "il ne se range pas en unités glTF");
+    direRefus(dzT("etabli.et1_ranger.taille_imprimante"));
     return;
   }
   const g = plateauDe(S.vueA);
-  if (!g) { direRefus("plateau introuvable"); return; }
+  if (!g) { direRefus(dzT("etabli.et1_ranger.plateau_introuvable")); return; }
   const pieces = PLQ.pieces.filter((p) => !PLQ.masquees.has(p.cle))
     .map((p) => ({ cle: p.cle, e: empreinteDe(S.vueA, p.cle) })).filter((x) => x.e);
-  if (!pieces.length) { direRefus("aucune pièce visible à ranger"); return; }
+  if (!pieces.length) { direRefus(dzT("etabli.et1_ranger.aucune_piece")); return; }
   let d;
   try {
     d = await jpost("/api/etabli/ranger", {
       pieces: pieces.map((x) => ({ cle: x.cle, l: x.e.l, p: x.e.p })),
       plateau: [versUnites(c.l), versUnites(c.p)], marge: versUnites(MARGE_PLATEAU), rotation: true,
       exclusions: (c.zones || []).map((z) => z.map(versUnites)) });
-  } catch (e) { direRefus(`rangement refusé : ${e.message}`); return; }
+  } catch (e) { direRefus(dzT("etabli.et1_ranger.refuse", { m: e.message })); return; }
   PLQ.plateaux = Math.max(1, d.plateaux.length);
   const contour = contourPlateau();
   const decalages = (contour && contour.decalages) || [0];
@@ -1400,10 +1390,9 @@ async function arrangerPlaque() {
   rendreRotation();
   lirePieceCourante();
   noterPlan();
-  direAvis(`rangé : ${d.plateaux.length} plateau(x), occupation `
-    + d.taux.map((t) => `${Math.round(t * 100)} %`).join(" · ")
-    + (d.debordent.length ? ` — ${d.debordent.length} pièce(s) plus grande(s) que le plateau, laissée(s) où elle(s) sont` : "")
-    + (d.exclusions_ignorees ? ` — ${d.exclusions_ignorees} zone(s) exclue(s) loin du bord avant NON évitée(s)` : ""));
+  direAvis(dzT("etabli.et1_ranger.range", { n: d.plateaux.length, taux: d.taux.map((t) => `${Math.round(t * 100)} %`).join(" · ") })
+    + (d.debordent.length ? dzT("etabli.et1_ranger.debordent", { n: d.debordent.length }) : "")
+    + (d.exclusions_ignorees ? dzT("etabli.et1_ranger.exclusions", { n: d.exclusions_ignorees }) : ""));
 }
 
 /* ── MESURER (tâche #89 PR C, plan-etabli T8) ──────────────────────────────────
@@ -1435,11 +1424,11 @@ function tracerMesure() {
   MESURE.trace = groupe;
 }
 function mesurerAuClic(objet, touche) {
-  if (!objet || !touche || !touche.point) { direRefus("mesure : clique sur le modèle"); return; }
+  if (!objet || !touche || !touche.point) { direRefus(dzT("etabli.et1_mesure.clique_modele")); return; }
   if (MESURE.points.length >= 2) MESURE.points.length = 0;
   const n = touche.normale;
   MESURE.points.push({ p: { x: touche.point.x, y: touche.point.y, z: touche.point.z },
-                       n: n ? { x: n.x, y: n.y, z: n.z } : null, nom: objet.name || "sans nom" });
+                       n: n ? { x: n.x, y: n.y, z: n.z } : null, nom: objet.name || dzT("etabli.et1_mesure.sans_nom") });
   tracerMesure();
   rendreMesure();
 }
@@ -1451,12 +1440,12 @@ function rangerMesure() {
 function rendreMesure() {
   const box = $("#repereMesure");
   if (!MESURE.points.length) { box.innerHTML = ""; return; }
-  if (MESURE.points.length < 2) { box.innerHTML = "<b>mesure</b> : clique un second point"; return; }
+  if (MESURE.points.length < 2) { box.innerHTML = dzT("etabli.et1_mesure.second_point"); return; }
   const [a, b] = MESURE.points;
   const c = composantes(a.p, b.p), ang = angleDeFaces(a.n, b.n), u = uniteCourante();
-  box.innerHTML = `<b>mesure</b> ${esc(a.nom)} → ${esc(b.nom)}<br>`
+  box.innerHTML = `<b>${dzT("etabli.et1_mesure.mot")}</b> ${esc(a.nom)} → ${esc(b.nom)}<br>`
     + `d = ${esc(fmtMesure(c.norme))} ${esc(u)} (x ${esc(fmtMesure(c.dx))} · y ${esc(fmtMesure(c.dy))} · `
-    + `z ${esc(fmtMesure(c.dz))})<br>angle des faces : ${ang === null ? "—" : `${ang.toFixed(1)}°`}`;
+    + `z ${esc(fmtMesure(c.dz))})<br>${dzT("etabli.et1_mesure.angle")} ${ang === null ? "—" : `${ang.toFixed(1)}°`}`;
 }
 
 async function chargerProfils() {
@@ -1467,7 +1456,7 @@ async function chargerProfils() {
     PROFIL.slicer = l.actif_slicer || null;
     PROFIL.erreur = "";
   } catch (e) {
-    PROFIL.erreur = `profils d'imprimante illisibles (${e.message}) — la garde par défaut (Centauri Carbon 2) s'applique`;
+    PROFIL.erreur = dzT("etabli.et1_imp.profils_illisibles", { m: e.message });
   }
   rendreImprimante();
   contourPlateau();
@@ -1476,9 +1465,9 @@ async function choisirProfil(id) {
   try {
     const r = await jpost("/api/print3d/profils/actif", { id });
     PROFIL.actif = r.profil || PROFIL.liste.find((p) => p.id === r.actif) || PROFIL.actif;
-    direAvis(`imprimante : ${PROFIL.actif ? PROFIL.actif.nom : id}`);
+    direAvis(dzT("etabli.et1_imp.choisie", { nom: PROFIL.actif ? PROFIL.actif.nom : id }));
   } catch (e) {
-    direRefus(`imprimante refusée : ${e.message}`);
+    direRefus(dzT("etabli.et1_imp.refusee", { m: e.message }));
   }
   rendreImprimante();
   contourPlateau();
@@ -1498,7 +1487,7 @@ function pieceCourante(cle) {
    maillage, pas celui de la pièce. */
 function nomDePiece(cle) {
   const p = PLQ.pieces.find((x) => x.cle === cle);
-  return (p && p.nom) || `pièce ${cle}`;
+  return (p && p.nom) || dzT("etabli.et1_piece.nom", { cle });
 }
 
 /* LA LECTURE CHIFFRÉE DE LA PIÈCE COURANTE (tâche T090, plan-etabli T11) —
@@ -1526,7 +1515,7 @@ function lirePieceCourante() {
      haut — la même pose que celle d'arrangerPlaque, lue à l'envers. */
   const u = g.sens.u > 0 ? emp.u - g.coin[g.u] : g.coin[g.u] - emp.u - emp.l;
   const v = g.sens.v > 0 ? emp.v - g.coin[g.v] : g.coin[g.v] - emp.v - emp.p;
-  box.textContent = `${nomDePiece(cle)} · coin ${fmtMesure(u)} ; ${fmtMesure(v)}`
+  box.textContent = `${nomDePiece(cle)} · ${dzT("etabli.et1_piece.coin")} ${fmtMesure(u)} ; ${fmtMesure(v)}`
     + ` · ${fmtMesure(emp.l)} × ${fmtMesure(emp.p)} ${uniteCourante()}`
     + ` · ${Number(rotationDe(S.vueA, cle) || 0).toFixed(0)}°`;
 }
@@ -1544,13 +1533,12 @@ function poserRotation(brut) {
   const texte = String(brut ?? "").trim();
   const degres = Number(texte);
   if (texte === "" || !Number.isFinite(degres)) {
-    direRefus("rotation invalide — un angle en degrés, positif ou négatif");
+    direRefus(dzT("etabli.et1_piece.rotation_invalide"));
     rendreRotation();
     return false;
   }
   if (PLQ.courante === null || !poserAngle(S.vueA, PLQ.courante, degres)) {
-    direRefus("aucune pièce courante — cliquez une pièce sur la plaque avant "
-      + "de la tourner");
+    direRefus(dzT("etabli.et1_piece.aucune_courante"));
     return false;
   }
   marquerPiece(S.vueA, PLQ.courante);
@@ -1727,16 +1715,16 @@ function eteindreApercus() {
 /* LES SURPLOMBS, peints sur ce qui est AFFICHÉ (la plaque comprise) : le calcul
    est dans la page, sur les triangles à l'écran, dans l'axe du plateau. */
 function basculerSurplombs() {
-  if (!S.vueA || !S.a) { direRefus("aucun modèle à l'écran"); return; }
+  if (!S.vueA || !S.a) { direRefus(dzT("etabli.et1_surplomb.aucun_modele")); return; }
   SURPLOMB.actif = !SURPLOMB.actif;
   const r = peindreSurplombs(S.vueA, SURPLOMB.actif ? SEUIL_SURPLOMB : 0, axeHautImpression());
   majOutils();
-  if (!SURPLOMB.actif) { direAvis("surplombs éteints"); return; }
-  if (!r) { SURPLOMB.actif = false; majOutils(); direRefus("aucun modèle à l'écran"); return; }
-  direAvis(`${r.triangles} triangle(s) sous ${SEUIL_SURPLOMB}° sur ${r.vus} — `
+  if (!SURPLOMB.actif) { direAvis(dzT("etabli.et1_surplomb.eteints")); return; }
+  if (!r) { SURPLOMB.actif = false; majOutils(); direRefus(dzT("etabli.et1_surplomb.aucun_modele")); return; }
+  direAvis(dzT("etabli.et1_surplomb.bilan", { n: r.triangles, seuil: SEUIL_SURPLOMB, vus: r.vus })
     + (r.triangles
-      ? "tourne la pièce jusqu'à ce que l'orange recule, ou laisse le slicer poser des supports"
-      : "rien à supporter dans cette pose"));
+      ? dzT("etabli.et1_surplomb.tourner")
+      : dzT("etabli.et1_surplomb.rien")));
 }
 
 /* LES TRANCHES : lues par le serveur sur la VERSION écrite, donc dans le monde
@@ -1747,13 +1735,13 @@ async function basculerTranches() {
     TRANCHES.actives = false;
     dessinerTranches(S.vueA, null);
     majOutils();
-    direAvis("aperçu de tranchage éteint");
+    direAvis(dzT("etabli.et1_tranches.eteint"));
     return;
   }
-  if (!S.a || !S.a.job || !S.a.version) { direRefus("aucune version chargée — l'aperçu lit une version écrite"); return; }
-  if (PLQ.active) { direRefus("repasse en « Assemblé » — les tranches se lisent sur le modèle tel qu'il est écrit"); return; }
+  if (!S.a || !S.a.job || !S.a.version) { direRefus(dzT("etabli.et1_tranches.aucune_version")); return; }
+  if (PLQ.active) { direRefus(dzT("etabli.et1_tranches.assemble")); return; }
   if (S.enAttente.length) {
-    direRefus(`${S.enAttente.length} modification(s) en attente — écris-les d'abord : l'aperçu lit le fichier`);
+    direRefus(dzT("etabli.et1_tranches.en_attente", { n: S.enAttente.length }));
     return;
   }
   const axe = axeHautImpression();
@@ -1761,14 +1749,13 @@ async function basculerTranches() {
   try {
     d = await jpost("/api/etabli/tranches", { job: S.a.job, version: S.a.version,
       axe: axe.x ? "x" : axe.z ? "z" : "y", nombre: NB_TRANCHES });
-  } catch (e) { direRefus(`aperçu de tranchage refusé : ${e.message}`); return; }
+  } catch (e) { direRefus(dzT("etabli.et1_tranches.refuse", { m: e.message })); return; }
   TRANCHES.actives = true;
   const r = dessinerTranches(S.vueA, d.couches);
   majOutils();
   const plus = d.couches.reduce((m, c) => (c.perimetre > m.perimetre ? c : m), d.couches[0]);
-  direAvis(`${NB_TRANCHES} couches indicatives, ${r ? r.segments : 0} segments — `
-    + `la plus longue à ${fmtMesure(plus.z - d.z_min)} ${uniteCourante()} du bas `
-    + `(${fmtMesure(plus.perimetre)} ${uniteCourante()} de contour). Aperçu seulement : le slicer tranche pour de vrai.`);
+  direAvis(dzT("etabli.et1_tranches.bilan", { n: NB_TRANCHES, seg: r ? r.segments : 0, z: fmtMesure(plus.z - d.z_min),
+      u: uniteCourante(), p: fmtMesure(plus.perimetre) }));
 }
 
 /* ── « → IMPRESSION 3D » : la version AFFICHÉE, au slicer (tâche T091) ──────
@@ -1779,27 +1766,27 @@ async function basculerTranches() {
    adoptée n'a pas de version, une file non écrite n'est pas dans le fichier,
    et sans taille cible aucun millimètre n'existe (la doctrine de la page). */
 async function imprimerVersion() {
-  if (!S.a) { direRefus("aucun modèle chargé"); return; }
+  if (!S.a) { direRefus(dzT("etabli.et1_imprimer.aucun_modele")); return; }
   if (!S.a.job || !S.a.version) {
-    direRefus("écris d'abord une version : une tâche Meshy s'imprime une fois adoptée par l'Établi");
+    direRefus(dzT("etabli.et1_imprimer.version_d_abord"));
     return;
   }
   if (!enMillimetres()) {
-    direRefus("pose une taille cible (rail de droite) — un fichier 3D ne porte aucun millimètre");
+    direRefus(dzT("etabli.et1_imprimer.taille_cible"));
     return;
   }
   if (S.enAttente.length) {
-    direRefus(`${S.enAttente.length} modification(s) en attente — écris-les d'abord : l'impression lit le fichier`);
+    direRefus(dzT("etabli.et1_imprimer.en_attente", { n: S.enAttente.length }));
     return;
   }
   let r;
   try {
     r = await jpost(`/api/print3d/from-assets3d/${encodeURIComponent(S.a.job)}`,
       { version: S.a.version, cible_millimetres: REP.cibleMm, nom: `${S.a.job}-v${S.a.version}` });
-  } catch (e) { direRefus(`impression refusée : ${e.message}`); return; }
+  } catch (e) { direRefus(dzT("etabli.et1_imprimer.refusee", { m: e.message })); return; }
   IMPRESSION = r.dossier;
-  direAvis(`version ${S.a.version} exportée pour l'impression : ${r.triangles} triangles, STL + 3MF dans `
-    + `${r.dossier}` + (r.avertissement ? ` — ${r.avertissement}` : "") + " — « Ouvrir dans le slicer » ensuite");
+  direAvis(dzT("etabli.et1_imprimer.exportee", { v: S.a.version, n: r.triangles, d: r.dossier })
+    + (r.avertissement ? ` — ${r.avertissement}` : "") + dzT("etabli.et1_imprimer.ensuite"));
 }
 
 /* ── L'ORIENTATION AUTOMATIQUE (tâche T092, plan-etabli T19) ───────────────
@@ -1813,20 +1800,20 @@ async function imprimerVersion() {
 const pourCent = (x) => `${Math.round(100 * x)} %`;
 async function proposerOrientation() {
   if (!S.a || !S.a.job || !S.a.version) {
-    direRefus("aucune version chargée — l'orientation se calcule sur une version écrite");
+    direRefus(dzT("etabli.et1_orient.aucune_version"));
     return;
   }
   let d;
   try {
     d = await jget(`/api/etabli/orienter?job=${encodeURIComponent(S.a.job)}&version=${S.a.version}`);
-  } catch (e) { direRefus(`orientation refusée : ${e.message}`); return; }
+  } catch (e) { direRefus(dzT("etabli.et1_orient.refusee", { m: e.message })); return; }
   const lignes = d.candidats.map((c, k) => `
-    <button class="orient-choix" data-orient="${k}">pose ${k + 1} — appui ${pourCent(c.part_contact)} · `
-    + `surplomb ${pourCent(c.part_surplomb)} · hauteur ${esc(fmtMesure(c.hauteur))} ${esc(uniteCourante())}</button>`)
+    <button class="orient-choix" data-orient="${k}">${dzT("etabli.et1_orient.choix", { k: k + 1, appui: pourCent(c.part_contact), surplomb: pourCent(c.part_surplomb),
+      h: esc(fmtMesure(c.hauteur)), u: esc(uniteCourante()) })}</button>`)
     .join("");
   const zone = document.createElement("div");
   zone.className = "orient";
-  zone.innerHTML = `<div class="dt-label">Orientations proposées</div>${lignes}<p class="note"></p>`;
+  zone.innerHTML = `<div class="dt-label">${dzT("etabli.et1_orient.titre")}</div>${lignes}<p class="note"></p>`;
   zone.querySelector(".note").textContent = d.avertissement;
   const box = $("#panFiche");
   const vieux = box.querySelector(".orient");
@@ -1839,12 +1826,12 @@ async function proposerOrientation() {
       const c = d.candidats[k];
       const bilan = await ecrireSeule("assise", { normale: c.rotation, point: null });
       if (bilan) {
-        direAvis(`posé sur la pose ${k + 1} (version ${bilan.derniere.version}) — appui `
-          + `${pourCent(c.part_contact)}, surplomb ${pourCent(c.part_surplomb)}`);
+        direAvis(dzT("etabli.et1_orient.pose", { k: k + 1, v: bilan.derniere.version,
+          appui: pourCent(c.part_contact), surplomb: pourCent(c.part_surplomb) }));
       }
     });
   });
-  direAvis(`${d.candidats.length} pose(s) proposée(s), la meilleure d'abord — ${d.avertissement}`);
+  direAvis(dzT("etabli.et1_orient.proposees", { n: d.candidats.length, a: d.avertissement }));
 }
 
 /* ── LE PANNEAU RIG (tâche T093, plan etabli-p4-p5 tâches 1 à 3) ──────────
@@ -1867,9 +1854,8 @@ async function rendreRig() {
   if (numero !== RIG.rendu) return;
   if (!vu.aSquelette) {
     box.innerHTML = inv && inv.a_squelette
-      ? `<div class="vide">le fichier déclare un squelette de ${esc(inv.nb_os)} os, mais aucune peau n'y est liée — `
-        + "rien à déformer ici</div>"
-      : "<div class=\"vide\">ce maillage n'a pas de squelette — l'étape <b>04 · squelette</b> du 3D Studio en pose un</div>";
+      ? `<div class="vide">${dzT("etabli.et1_rig.sans_peau", { n: esc(inv.nb_os) })}</div>`
+      : `<div class="vide">${dzT("etabli.et1_rig.sans_squelette")}</div>`;
     return;
   }
   const os = [];
@@ -1882,31 +1868,31 @@ async function rendreRig() {
   memoriserRepos(S.vueA);
   const clips = lecteurClips(S.vueA);
   box.innerHTML = `
-    <div class="dt-label">${esc(arbre.length)} os${vu.peaux.length > 1 ? ` · ${esc(vu.peaux.length)} peaux` : ""}</div>
+    <div class="dt-label">${dzT("etabli.et1_rig.n_os", { n: esc(arbre.length) })}${vu.peaux.length > 1 ? ` · ${dzT("etabli.et1_rig.n_peaux", { n: esc(vu.peaux.length) })}` : ""}</div>
     <div class="os-arbre">${arbre.map((o) => `<button class="os" data-os="${esc(o.nom)}"
       style="padding-left:${6 + 10 * o.profondeur}px">${esc(o.nom)}</button>`).join("")}</div>
-    <div class="dt-label spaced">Poids d'influence</div>
-    <label class="rig-case"><input type="checkbox" id="rigPoids"> colorer l'os choisi (bleu 0 → rouge 1)</label>
-    <div class="dt-label spaced">Pose d'essai — rien n'est écrit</div>
+    <div class="dt-label spaced">${dzT("etabli.et1_rig.poids")}</div>
+    <label class="rig-case"><input type="checkbox" id="rigPoids"> ${dzT("etabli.et1_rig.colorer")}</label>
+    <div class="dt-label spaced">${dzT("etabli.et1_rig.pose_essai")}</div>
     <div class="rig-pose" id="rigPose">${["x", "y", "z"].map((a) => `<label>${a}
       <input type="range" min="-180" max="180" step="1" value="0" data-axe="${a}" disabled></label>`).join("")}</div>
-    <button id="rigRepos">remettre la pose de repos</button>
+    <button id="rigRepos">${dzT("etabli.et1_rig.repos")}</button>
     <div class="dt-label spaced">Clips</div>
     <div class="rig-clips" id="rigClips">${clips.length
       ? clips.map((c) => `<button class="clip" data-i="${esc(c.i)}">${esc(c.nom)} <span>${esc(c.duree)} s</span></button>`)
-        .join("") + `<label>vitesse <input id="rigVitesse" type="range" min="0.1" max="2" step="0.1" value="1"></label>
-        <button id="rigStop">arrêter</button>`
-      : "<div class=\"vide\">aucun clip — l'étape <b>05 · animation</b> du 3D Studio en produit</div>"}</div>`;
+        .join("") + `<label>${dzT("etabli.et1_rig.vitesse")} <input id="rigVitesse" type="range" min="0.1" max="2" step="0.1" value="1"></label>
+        <button id="rigStop">${dzT("etabli.et1_rig.arreter")}</button>`
+      : `<div class="vide">${dzT("etabli.et1_rig.sans_clip")}</div>`}</div>`;
   const choisir = (nom) => {
     RIG.os = nom;
     box.querySelectorAll(".os").forEach((b) => b.classList.toggle("actif", b.dataset.os === nom));
     surlignerChaine(S.vueA, nom);
     box.querySelectorAll("#rigPose input").forEach((r) => { r.disabled = false; r.value = 0; });
-    if ($("#rigPoids").checked) direAvis(`${peindrePoids(S.vueA, nom)} sommet(s) sous l'influence de « ${nom} »`);
+    if ($("#rigPoids").checked) direAvis(dzT("etabli.et1_rig.sommets", { n: peindrePoids(S.vueA, nom), os: nom }));
   };
   box.querySelectorAll(".os").forEach((b) => b.addEventListener("click", () => choisir(b.dataset.os)));
   $("#rigPoids").addEventListener("change", (e) => {
-    if (e.target.checked && RIG.os) direAvis(`${peindrePoids(S.vueA, RIG.os)} sommet(s) sous l'influence de « ${RIG.os} »`);
+    if (e.target.checked && RIG.os) direAvis(dzT("etabli.et1_rig.sommets", { n: peindrePoids(S.vueA, RIG.os), os: RIG.os }));
     else retirerPoids(S.vueA);
   });
   const lirePose = () => {
@@ -1941,32 +1927,31 @@ async function rendreExportMoteurs() {
   if (!box) return;
   if (!_cibles) {
     try { _cibles = (await jget("/api/etabli/cibles")).cibles; } catch (e) {
-      box.textContent = `cibles moteur illisibles : ${e.message}`;
+      box.textContent = dzT("etabli.et1_moteurs.illisibles", { m: e.message });
       return;
     }
   }
-  box.innerHTML = `<div class="dt-label spaced">Moteurs de jeu</div>`
+  box.innerHTML = `<div class="dt-label spaced">${dzT("etabli.et1_moteurs.titre")}</div>`
     + Object.entries(_cibles).map(([id, c]) => `
     <section class="cible" data-cible="${esc(id)}">
-      <div class="cible-tete"><b>${esc(c.nom)}</b><span>${esc(c.format)} · ${esc(c.axe_haut)} en haut</span></div>
+      <div class="cible-tete"><b>${esc(c.nom)}</b><span>${esc(c.format)} · ${esc(c.axe_haut)} ${dzT("etabli.et1_moteurs.en_haut")}</span></div>
       <p class="cible-note">${esc(c.note)}</p>
       <div class="cible-actions">
-        <button data-a="export">Préparer</button>
-        <button data-a="ouvrir" title="${esc(c.variable_exe)} dans le .env">${c.geste_ouvrir === "fichier"
-          ? "Ouvrir dans l'application" : "Ouvrir le projet"}</button>
+        <button data-a="export">${dzT("etabli.et1_moteurs.preparer")}</button>
+        <button data-a="ouvrir" title="${esc(c.variable_exe)} ${dzT("etabli.et1_moteurs.dans_env")}">${c.geste_ouvrir === "fichier"
+          ? dzT("etabli.et1_moteurs.ouvrir_appli") : dzT("etabli.et1_moteurs.ouvrir_projet")}</button>
         ${c.geste_ouvrir === "fichier" ? "" : `<button data-a="deposer"
-          title="${esc(c.variable_projet)} dans le .env : la racine du projet">Déposer dans le projet</button>`}
-        <button data-a="url">Copier l'URL</button>
+          title="${esc(c.variable_projet)} ${dzT("etabli.et1_moteurs.env_racine")}">${dzT("etabli.et1_moteurs.deposer")}</button>`}
+        <button data-a="url">${dzT("etabli.et1_moteurs.copier_url")}</button>
       </div>
       <div class="cible-etat"></div>
     </section>`).join("")
-    + `<p class="cible-note">Le <b>FBX</b> n'est jamais écrit ici : format fermé d'Autodesk. Il n'existe que si le
-       fournisseur en a livré un avec le job. Cet onglet ne dépense aucun crédit.</p>`;
+    + `<p class="cible-note">${dzT("etabli.et1_moteurs.fbx")}</p>`;
   box.querySelectorAll(".cible").forEach((sec) => {
     const id = sec.dataset.cible, etat = sec.querySelector(".cible-etat");
     sec.querySelectorAll("[data-a]").forEach((b) => b.addEventListener("click", async () => {
       if (!S.a || !S.a.job || !S.a.version) {
-        etat.textContent = "aucune version chargée — une tâche Meshy s'exporte une fois adoptée par l'Établi";
+        etat.textContent = dzT("etabli.et1_moteurs.aucune_version");
         return;
       }
       const corps = { job: S.a.job, version: S.a.version, cible: id };
@@ -1974,14 +1959,14 @@ async function rendreExportMoteurs() {
         if (b.dataset.a === "url") {
           const r = await jpost("/api/etabli/export", corps);
           await navigator.clipboard.writeText(location.origin + r.url);
-          etat.textContent = `URL copiée : ${r.fichier}`;
+          etat.textContent = dzT("etabli.et1_moteurs.url_copiee", { f: r.fichier });
           return;
         }
         const r = await jpost(`/api/etabli/${b.dataset.a}`, corps);
         etat.textContent = b.dataset.a === "export"
-          ? `écrit : ${r.fichier} et sa fiche d'import${r.fbx_disponible ? " — un FBX du fournisseur est aussi dans le job" : ""}`
-          : b.dataset.a === "deposer" ? `déposé et vérifié : ${r.chemin}${r.avertissement ? ` — ${r.avertissement}` : ""}`
-            : `lancé (${r.geste === "fichier" ? `import de ${r.fichier}` : `projet ${r.projet}`})`;
+          ? dzT("etabli.et1_moteurs.ecrit", { f: r.fichier }) + (r.fbx_disponible ? dzT("etabli.et1_moteurs.fbx_dispo") : "")
+          : b.dataset.a === "deposer" ? `${dzT("etabli.et1_moteurs.depose", { c: r.chemin })}${r.avertissement ? ` — ${r.avertissement}` : ""}`
+            : dzT("etabli.et1_moteurs.lance", { x: r.geste === "fichier" ? dzT("etabli.et1_moteurs.import_de", { f: r.fichier }) : dzT("etabli.et1_moteurs.projet", { p: r.projet }) });
       } catch (e) {
         etat.textContent = String(e.message || e);
       }
@@ -2051,22 +2036,22 @@ async function rendreMateriaux() {
   if (numero !== MATERIAUX.rendu) return;
   MATERIAUX.liste = liste;
   if (!liste.length) {
-    box.innerHTML = `<div class="dt-label">Matériaux</div><p class="note">ce document n'a aucun matériau</p>`;
+    box.innerHTML = `<div class="dt-label">${dzT("etabli.et1_mat.titre")}</div><p class="note">${dzT("etabli.et1_mat.aucun")}</p>`;
     return;
   }
-  box.innerHTML = `<div class="dt-label">Matériaux</div>
-    <label>matériau <select id="mIndex">${liste.map((m) =>
+  box.innerHTML = `<div class="dt-label">${dzT("etabli.et1_mat.titre")}</div>
+    <label>${dzT("etabli.et1_mat.materiau")} <select id="mIndex">${liste.map((m) =>
       `<option value="${esc(m.index)}">${esc(m.nom)}</option>`).join("")}</select></label>
-    <label>couleur <input id="mCouleur" data-champ="couleur" type="color"></label>
-    <label>opacité <input id="mOpacite" data-champ="opacite" type="range" min="0" max="1" step="0.01"></label>
-    <label>métal <input id="mMetal" data-champ="metal" type="range" min="0" max="1" step="0.01"></label>
-    <label>rugosité <input id="mRugosite" data-champ="rugosite" type="range" min="0" max="1" step="0.01"></label>
-    <label>émission <input id="mEmission" data-champ="emission" type="color"></label>
-    <label>mode alpha <select id="mAlpha" data-champ="mode_alpha"><option value="OPAQUE">opaque</option>
-      <option value="MASK">masque</option><option value="BLEND">transparent</option></select></label>
-    <label><input id="mDouble" data-champ="double_face" type="checkbox"> double face</label>
+    <label>${dzT("etabli.et1_mat.couleur")} <input id="mCouleur" data-champ="couleur" type="color"></label>
+    <label>${dzT("etabli.et1_mat.opacite")} <input id="mOpacite" data-champ="opacite" type="range" min="0" max="1" step="0.01"></label>
+    <label>${dzT("etabli.et1_mat.metal")} <input id="mMetal" data-champ="metal" type="range" min="0" max="1" step="0.01"></label>
+    <label>${dzT("etabli.et1_mat.rugosite")} <input id="mRugosite" data-champ="rugosite" type="range" min="0" max="1" step="0.01"></label>
+    <label>${dzT("etabli.et1_mat.emission")} <input id="mEmission" data-champ="emission" type="color"></label>
+    <label>${dzT("etabli.et1_mat.mode_alpha")} <select id="mAlpha" data-champ="mode_alpha"><option value="OPAQUE">opaque</option>
+      <option value="MASK">${dzT("etabli.et1_mat.masque")}</option><option value="BLEND">transparent</option></select></label>
+    <label><input id="mDouble" data-champ="double_face" type="checkbox"> ${dzT("etabli.et1_mat.double_face")}</label>
     <p class="note" id="mNote"></p>
-    <button id="mAppliquer" title="Écrit AUSSITÔT une version de plus : seuls les champs changés partent">Appliquer au matériau</button>`;
+    <button id="mAppliquer" title="${dzT("etabli.et1_mat.appliquer_titre")}">${dzT("etabli.et1_mat.appliquer")}</button>`;
   const lire = () => ({ couleur: $("#mCouleur").value, opacite: Number($("#mOpacite").value),
                         metal: Number($("#mMetal").value), rugosite: Number($("#mRugosite").value),
                         emission: $("#mEmission").value, mode_alpha: $("#mAlpha").value,
@@ -2079,7 +2064,7 @@ async function rendreMateriaux() {
     $("#mRugosite").value = m.rugosite; $("#mEmission").value = m.emission; $("#mAlpha").value = m.mode_alpha;
     $("#mDouble").checked = m.double_face;
     $("#mNote").textContent = m.texture
-      ? "ce matériau a une texture : la couleur la MULTIPLIE (blanc = texture telle quelle)" : "";
+      ? dzT("etabli.et1_mat.texture") : "";
   };
   remplir();
   $("#mIndex").addEventListener("change", remplir);
@@ -2090,10 +2075,10 @@ async function rendreMateriaux() {
   $("#mAppliquer").addEventListener("click", async () => {
     const index = Number($("#mIndex").value);
     const champs = champsChanges(MATERIAUX.liste[index], lire(), touches);
-    if (!Object.keys(champs).length) { direRefus("rien n'a changé sur ce matériau"); return; }
+    if (!Object.keys(champs).length) { direRefus(dzT("etabli.et1_mat.rien_change")); return; }
     const bilan = await ecrireSeule("materiau", { materiau: index, ...champs });
     if (bilan) {
-      direAvis(`matériau « ${MATERIAUX.liste[index].nom} » écrit (version ${bilan.derniere.version}) : `
+      direAvis(dzT("etabli.et1_mat.ecrit", { nom: MATERIAUX.liste[index].nom, v: bilan.derniere.version })
         + Object.keys(champs).join(", "));
     }
   });
@@ -2106,7 +2091,7 @@ async function rendreMateriaux() {
    l'export sont DITS en avis — l'import n'est pas refusé pour autant, un
    maillage nettoyé sans rig peut être exactement ce qu'on voulait. */
 async function importerRetour(fichier) {
-  if (!S.a || !S.a.job) { direRefus("ouvrez d'abord une version d'un job : le retour s'y ajoute"); return; }
+  if (!S.a || !S.a.job) { direRefus(dzT("etabli.et1_retour_blender.version_d_abord")); return; }
   const depuis = S.a.version || 1;
   let src, version;
   try {
@@ -2116,7 +2101,7 @@ async function importerRetour(fichier) {
     const fiche = await r.json();
     src = fiche.source || {};
     version = fiche.version;
-  } catch (e) { direRefus(`import : ${e.message}`); return; }
+  } catch (e) { direRefus(dzT("etabli.et1_retour_blender.import", { m: e.message })); return; }
   try {
     S.sources = await jget("/api/etabli/sources");
     rendreChrono();
@@ -2124,8 +2109,8 @@ async function importerRetour(fichier) {
   await ouvrirPrincipale({ ...S.a, version, url: `/api/assets/3d/${S.a.job}/version/${version}`,
                            libelle: `version ${version}` });
   const pertes = src.avertissements || [];
-  if (pertes.length) direAvis(`version ${version} importée — ATTENTION : ${pertes.join(" ; ")}`);
-  else direAvis(`version ${version} importée depuis ${fichier.name} : rien de perdu en route`);
+  if (pertes.length) direAvis(dzT("etabli.et1_retour_blender.pertes", { v: version, p: pertes.join(" ; ") }));
+  else direAvis(dzT("etabli.et1_retour_blender.ok", { v: version, f: fichier.name }));
 }
 
 /* ── UNE MATIÈRE PAR PARTIE (tâche T098, plan-matieres T15) ─────────────────
@@ -2163,35 +2148,35 @@ async function remplirMatieres() {
   if (!sel) return;
   try {
     const d = await jget("/api/materials");
-    sel.innerHTML = '<option value="">— matière —</option>'
+    sel.innerHTML = `<option value="">${dzT("etabli.et1_matiere.choisir")}</option>`
       + (d.materials || []).map((m) => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join("");
   } catch { /* le Forge ne répond pas : le sélecteur reste vide, le bouton grisé */ }
 }
 
 async function habillerSelection() {
   const mid = $("#matiereSel").value;
-  if (!mid) { direRefus("choisis d'abord une matière du Material Forge"); return; }
+  if (!mid) { direRefus(dzT("etabli.et1_matiere.d_abord")); return; }
   const lots = lotsHabillage(mid);
-  if (!lots.length) { direRefus("aucune pièce cochée ne se rattache au document"); return; }
+  if (!lots.length) { direRefus(dzT("etabli.et1_matiere.aucune_piece")); return; }
   const bilan = await ecrireSeule("habiller", { lots });
-  if (bilan) direAvis(`matière posée sur ${lots.length} partie(s) — version ${bilan.derniere.version}`);
+  if (bilan) direAvis(dzT("etabli.et1_matiere.posee", { n: lots.length, v: bilan.derniere.version }));
 }
 
 function voirMasques() {
   /* LECTURE, en vue B : la version courante (A) ne bouge pas, et la caméra
      des deux vues est la même — on lit les creux et les arêtes sur le modèle
      qu'on regarde. R = cavité, V = arête, en couleurs de sommet. */
-  if (!S.a || !S.a.job) { direRefus("aucun modèle chargé"); return; }
-  ouvrirComparaison({ ...S.a, libelle: `masques v${S.a.version}`,
+  if (!S.a || !S.a.job) { direRefus(dzT("etabli.et1_imprimer.aucun_modele")); return; }
+  ouvrirComparaison({ ...S.a, libelle: dzT("etabli.et1_masques.libelle", { v: S.a.version }),
     url: `/api/etabli/masques?job=${encodeURIComponent(S.a.job)}&version=${S.a.version}` });
 }
 
 async function ouvrirDansSlicer() {
-  if (!IMPRESSION) { direRefus("exporte d'abord la version (→ Impression 3D)"); return; }
+  if (!IMPRESSION) { direRefus(dzT("etabli.et1_slicer.export_d_abord")); return; }
   try {
     const r = await jpost("/api/print3d/open", { dossier: IMPRESSION });
-    direAvis(`${r.fichier} ouvert dans le slicer`);
-  } catch (e) { direRefus(`slicer : ${e.message}`); }
+    direAvis(dzT("etabli.et1_slicer.ouvert", { f: r.fichier }));
+  } catch (e) { direRefus(dzT("etabli.et1_slicer.refus", { m: e.message })); }
 }
 
 
@@ -2240,46 +2225,38 @@ function libeller(el, cle, texte) {
 function majOutils() {
   const a = $("#btnAssise"), c = $("#btnCouteau");
   a.textContent = GESTE.mode === "assise"
-    ? "Poser sur une face : cliquez une face (Échap annule)" : "Poser sur une face";
+    ? dzT("etabli.et1_outils.assise_arme") : dzT("etabli.et1_outils.assise");
   a.title = GESTE.mode === "assise"
-    ? "Cliquez la face du maillage qui doit toucher le sol — Échap pour renoncer"
-    : "Touche F — la face cliquée devient l'assise : le modèle tourne pour "
-      + "qu'elle regarde le bas et se pose au contact (mis en attente, puis "
-      + "écrit par « écrire la version »)";
+    ? dzT("etabli.et1_outils.assise_arme_titre")
+    : dzT("etabli.et1_outils.assise_titre");
   a.classList.toggle("actif", GESTE.mode === "assise");
-  libeller(c, "dz-outil-vec-couteau", GESTE.mode === "couteau" ? "Ranger le couteau" : "Couteau");
+  libeller(c, "dz-outil-vec-couteau", GESTE.mode === "couteau" ? dzT("etabli.et1_outils.couteau_ranger") : dzT("etabli.et1_outils.couteau"));
   c.title = GESTE.mode === "couteau"
-    ? "Retirer le plan de coupe sans rien couper (Échap)"
-    : "Touche C — un plan de coupe sur les pièces RETENUES dans Parties : "
-      + "déplacez-le, tournez-le, puis « Couper » écrit une version où chaque "
-      + "pièce devient deux pièces refermées";
+    ? dzT("etabli.et1_outils.couteau_arme_titre")
+    : dzT("etabli.et1_outils.couteau_titre");
   c.classList.toggle("actif", GESTE.mode === "couteau");
   $("#couteauBarre").classList.toggle("hidden", GESTE.mode !== "couteau");
   $("#btnCouteauManip").textContent =
-    COUTEAU.manip === "translate" ? "tourner le plan" : "déplacer le plan";
+    COUTEAU.manip === "translate" ? dzT("etabli.et1_outils.plan_tourner") : dzT("etabli.et1_outils.plan_deplacer");
   $("#couteauGarder").value = COUTEAU.garder;
   const m = $("#btnMesure");
-  libeller(m, "dz-outil-vec-mesure", GESTE.mode === "mesure" ? "Mesurer : deux clics (Échap)" : "Mesurer");
-  m.title = "Deux clics sur le modèle : distance, composantes x/y/z et angle des deux faces";
+  libeller(m, "dz-outil-vec-mesure", GESTE.mode === "mesure" ? dzT("etabli.et1_outils.mesurer_arme") : dzT("etabli.et1_outils.mesurer"));
+  m.title = dzT("etabli.et1_outils.mesurer_titre");
   m.classList.toggle("actif", GESTE.mode === "mesure");
   const sp = $("#btnSurplombs");
-  libeller(sp, SURPLOMB.actif ? "dz-etat-option-active" : null, "Surplombs");
-  sp.title = `Peint en orange les faces sous ${SEUIL_SURPLOMB}° depuis l'horizontale (dans l'axe du plateau `
-    + "sur la plaque) — là où le slicer devra poser un support. Un regard : rien n'est écrit";
+  libeller(sp, SURPLOMB.actif ? "dz-etat-option-active" : null, dzT("etabli.et1_outils.surplombs"));
+  sp.title = dzT("etabli.et1_outils.surplombs_titre", { seuil: SEUIL_SURPLOMB });
   sp.classList.toggle("actif", SURPLOMB.actif);
   const tr = $("#btnTranches");
-  libeller(tr, TRANCHES.actives ? "dz-etat-option-active" : null, "Tranches");
-  tr.title = `Aperçu de tranchage INDICATIF : ${NB_TRANCHES} sections du modèle assemblé, tracées en bleu — `
-    + "pas de G-code, pas de support ; le slicer tranche pour de vrai";
+  libeller(tr, TRANCHES.actives ? "dz-etat-option-active" : null, dzT("etabli.et1_outils.tranches"));
+  tr.title = dzT("etabli.et1_outils.tranches_titre", { n: NB_TRANCHES });
   tr.classList.toggle("actif", TRANCHES.actives);
   const o = $("#btnOrienter");
-  libeller(o, "dz-lab3d-orienter", "Orienter");
-  o.title = "Propose trois poses classées (appui, surplomb, hauteur) dans l'onglet Fiche — rien n'est écrit tant "
-    + "que tu n'en choisis pas une, et c'est l'assise qui l'applique";
+  libeller(o, "dz-lab3d-orienter", dzT("etabli.et1_outils.orienter"));
+  o.title = dzT("etabli.et1_outils.orienter_titre");
   const r = $("#btnArranger");
-  r.textContent = "Ranger sur le plateau";
-  r.title = "Sur la plaque, sous une taille cible : range les pièces sur le plateau de l'imprimante active — "
-    + "rotation à plat, espacement, plusieurs plateaux au besoin (vue seulement, enregistrée comme la plaque)";
+  r.textContent = dzT("etabli.et1_outils.arranger");
+  r.title = dzT("etabli.et1_outils.arranger_titre");
 }
 
 /* Les matériaux d'un objet, qu'il en porte un ou un tableau, jamais de trou.
@@ -2300,12 +2277,11 @@ const materiauxDe = (o) =>
 function armerAssise() {
   if (GESTE.mode === "assise") { armerGeste("selection"); direGeometrie(); return; }
   if (!S.vueA || !S.vueA.racine) {
-    direRefus("aucun modèle chargé — rien à poser sur une face");
+    direRefus(dzT("etabli.et1_assise.rien_a_poser_face"));
     return;
   }
   if (PLQ.active) {
-    direRefus("la plaque est une VUE : revenez à « Assemblé » pour poser le "
-      + "modèle sur une face");
+    direRefus(dzT("etabli.et1_assise.plaque_vue"));
     return;
   }
   /* Le gizmo lâche : la face cliquée ne doit pas aussi saisir son nœud. */
@@ -2316,12 +2292,11 @@ function armerAssise() {
 
 function poserSurFace(obj, touche) {
   if (!obj || !touche || !touche.normale) {
-    direRefus("cliquez une FACE du maillage pour la poser au sol — le vide ne "
-      + "se pose pas (Échap pour renoncer)");
+    direRefus(dzT("etabli.et1_assise.cliquez_face"));
     return;
   }
   if (!S.a) {
-    direRefus("aucun modèle chargé — rien à poser");
+    direRefus(dzT("etabli.et1_assise.rien_a_poser"));
     armerGeste("selection");
     return;
   }
@@ -2537,17 +2512,16 @@ function rangerCouteau() {
 function armerCouteau() {
   if (GESTE.mode === "couteau") { armerGeste("selection"); direGeometrie(); return; }
   if (!S.vueA || !S.vueA.racine) {
-    direRefus("aucun modèle chargé — rien à couper");
+    direRefus(dzT("etabli.et2_couteau.rien_a_couper"));
     return;
   }
   if (PLQ.active) {
-    direRefus("la plaque est une VUE : revenez à « Assemblé » pour couper");
+    direRefus(dzT("etabli.et2_couteau.plaque_vue"));
     return;
   }
   const { noeuds, source } = noeudsRetenus();
   if (!noeuds.length) {
-    direRefus("aucune pièce retenue — cochez dans Parties ce que le couteau "
-      + "doit couper : il ne tranche jamais tout le modèle par défaut");
+    direRefus(dzT("etabli.et2_couteau.aucune_piece_cochez"));
     return;
   }
   armerGeste("couteau");
@@ -2564,8 +2538,7 @@ function reconstruireApercuCoupe() {
   const { noeuds, source } = noeudsRetenus();
   if (!noeuds.length) {
     armerGeste("selection");
-    direRefus("couteau rangé : plus aucune pièce retenue, il n'y a plus rien à "
-      + "couper");
+    direRefus(dzT("etabli.et2_couteau.range"));
     return;
   }
   COUTEAU.noeuds = noeuds;
@@ -2587,26 +2560,23 @@ function reconstruireApercuCoupe() {
    page, et le dupliquer pour une seule route l'aurait fait diverger. */
 async function confirmerCoupe() {
   if (GESTE.mode !== "couteau" || !COUTEAU.plan) {
-    direRefus("le couteau n'est pas armé — « Couteau » pose d'abord le plan de coupe");
+    direRefus(dzT("etabli.et2_couteau.pas_arme"));
     return false;
   }
-  if (!S.a) { direRefus("aucun modèle chargé — rien à couper"); return false; }
+  if (!S.a) { direRefus(dzT("etabli.et2_couteau.rien_a_couper")); return false; }
   if (_ecritEnCours) {
-    direRefus("une écriture est en cours — attends la fin de la série avant de couper");
+    direRefus(dzT("etabli.et2_couteau.ecriture_en_cours"));
     return false;
   }
   if (S.enAttente.length) {
-    direRefus(`${S.enAttente.length} modification(s) en attente — écris d'abord `
-      + "les modifications en attente (« écrire la version ») : la coupe "
-      + "renumérote les nœuds et ne se met pas en file derrière elles");
+    direRefus(dzT("etabli.et2_couteau.attente_ecris", { n: S.enAttente.length }));
     return false;
   }
   /* UNE SOURCE : les nœuds de l'APERÇU, pas une relecture de la sélection —
      ce qui part au serveur est ce que l'écran montre coupé. */
   const noeuds = COUTEAU.noeuds, source = COUTEAU.source;
   if (!noeuds.length) {
-    direRefus("aucune pièce retenue — le couteau ne tranche jamais tout le "
-      + "modèle par défaut");
+    direRefus(dzT("etabli.et2_couteau.aucune_piece"));
     return false;
   }
   const n = normaleDuPlan(), p = COUTEAU.plan.position;
@@ -2660,25 +2630,24 @@ async function poserConnecteurApresCoupe(fiche) {
   if (!COUTEAU.connecteur) return;
   const type = COUTEAU.connecteur;
   if (!enMillimetres()) {
-    direRefus("connecteur non posé : pose une taille cible — un connecteur se donne en millimètres");
+    direRefus(dzT("etabli.et2_connecteur.sans_cible"));
     return;
   }
   const src = (fiche && fiche.source) || {};
   if (src.garder !== "deux") {
-    direRefus("connecteur non posé : la coupe n'a gardé qu'un côté — il faut les deux moitiés à relier");
+    direRefus(dzT("etabli.et2_connecteur.un_cote"));
     return;
   }
   const traversees = (src.pieces || []).filter((p) => p.traversee && p.cotes && p.cotes.a && p.cotes.b);
   if (traversees.length !== 1) {
-    direRefus("connecteur non posé : la coupe a traversé plusieurs pièces — coupe-en une seule à la fois");
+    direRefus(dzT("etabli.et2_connecteur.plusieurs"));
     return;
   }
   const { a, b } = traversees[0].cotes;
   const bilan = await ecrireSeule("connecteur", { a: a.noeud_apres, b: b.noeud_apres, type, ...cotesDuConnecteur(type) });
   if (!bilan) return;
-  const roles = (bilan.derniere.source.pieces || []).map((p) => `${p.role === "male" ? "mâle" : p.role} « ${p.nom} »`);
-  direAvis(`${type} posé (version ${bilan.derniere.version}) : ${roles.join(", ")} — jeu ${JEU_CONNECTEUR.toLocaleString("fr-FR")} millimètre(s) `
-    + "porté par la femelle ; passe « Réparer en un clic » pour souder la couture");
+  const roles = (bilan.derniere.source.pieces || []).map((p) => dzT("etabli.et2_connecteur.role_nom", { role: p.role === "male" ? dzT("etabli.et2_connecteur.male") : p.role === "femelle" ? dzT("etabli.et2_connecteur.femelle") : p.role, nom: p.nom }));
+  direAvis(dzT("etabli.et2_connecteur.pose", { type: ({ teton: dzT("etabli.et2_connecteur.teton"), cheville: dzT("etabli.et2_connecteur.cheville"), aronde: dzT("etabli.et2_connecteur.aronde") }[type] || type), version: bilan.derniere.version, roles: roles.join(", "), jeu: JEU_CONNECTEUR.toLocaleString("fr-FR") }));
 }
 
 /* Le compte rendu du couteau (`source` de la fiche, format en tête de la
@@ -2696,8 +2665,7 @@ function direBilanCoupe(fiche) {
     }
   }
   if (!manques.length) return;
-  direAvis(`coupe écrite (version ${fiche.version}) — capuchon non posé : `
-    + manques.join(" · "));
+  direAvis(dzT("etabli.et2_couteau.capuchon_non_pose", { version: fiche.version, manques: manques.join(" · ") }));
 }
 
 /* ── le clavier des outils : F, C, Échap ────────────────────────────────────
@@ -2813,9 +2781,9 @@ const VUE_DE_PLAQUE = { x: "profil", y: "dessus", z: "face" };
    d'axe est orthographique (voir PROJECTION_DE_VUE), et l'utilisateur doit
    savoir pourquoi le bouton d'à côté vient de passer à « Perspective ». */
 const TITRE_VUE = {
-  face: "Depuis +Z, en orthographique — un axe du modèle, pas de la plaque",
-  dessus: "Depuis +Y, en orthographique — un axe du modèle, pas de la plaque",
-  profil: "Depuis +X, en orthographique — un axe du modèle, pas de la plaque",
+  face: dzT("etabli.et2_vue.titre_face"),
+  dessus: dzT("etabli.et2_vue.titre_dessus"),
+  profil: dzT("etabli.et2_vue.titre_profil"),
 };
 
 /* CONSÉQUENCE ASSUMÉE, ET ÉCRITE ICI PLUTÔT QUE DÉCOUVERTE À L'USAGE : le
@@ -2831,11 +2799,10 @@ function majBoutonProjection() {
   /* Le libellé porte la DESTINATION, comme « ← 3D Studio » et « Sur la
      plaque » : ce qu'un clic fait, et non l'état où l'on est — l'état, la vue
      3D le crie déjà. */
-  b.textContent = iso ? "Perspective" : "Isométrique";
+  b.textContent = iso ? dzT("etabli.et2_vue.perspective") : dzT("etabli.et2_vue.isometrique");
   b.title = iso
-    ? "Revenir à la caméra à fuite, sur la direction d'origine"
-    : "Caméra orthographique sur (1, 1, 1) : les fuyantes disparaissent, "
-      + "deux longueurs égales se lisent égales où qu'elles soient";
+    ? dzT("etabli.et2_vue.titre_perspective")
+    : dzT("etabli.et2_vue.titre_iso");
 }
 
 function majBoutonsVue() {
@@ -2848,7 +2815,7 @@ function majBoutonsVue() {
     b.classList.toggle("actif", nom === courante);
     b.classList.toggle("plaque", nom === face);
     b.title = TITRE_VUE[nom] + (nom === face
-      ? " · c'est cette vue qui regarde la plaque en face" : "");
+      ? dzT("etabli.et2_vue.face_plaque") : "");
   }
 }
 
@@ -2891,7 +2858,7 @@ const PROJECTION_DE_VUE = { libre: "perspective", iso: "orthographique",
 
 function appliquerVue(nom) {
   if (!S.vueA) {
-    direRefus("aucun modèle chargé — il n'y a pas encore de caméra à orienter");
+    direRefus(dzT("etabli.et2_vue.rien_a_orienter"));
     return;
   }
   /* LA TABLE EST INCOMPLÈTE, ET ÇA SE DIT. Une sixième orientation ajoutée dans
@@ -2902,7 +2869,7 @@ function appliquerVue(nom) {
      lit leur valeur de retour. Cette garde-ci, si, et un banc exécuté vérifie
      de son côté que les deux tables ont les MÊMES clés. */
   if (!PROJECTION_DE_VUE[nom]) {
-    direRefus(`vue inconnue « ${nom} » — aucune projection ne lui est associée`);
+    direRefus(dzT("etabli.et2_vue.inconnue", { nom }));
     return;
   }
   /* LES DEUX VUES, jamais A seule : la comparaison A/B promet un point de vue
@@ -2944,7 +2911,7 @@ function appliquerVue(nom) {
    comprise. Deux options complètes, comme la demande les dit. */
 function basculerProjection() {
   if (!S.vueA) {
-    direRefus("aucun modèle chargé — il n'y a pas encore de caméra à basculer");
+    direRefus(dzT("etabli.et2_vue.rien_a_basculer"));
     return;
   }
   appliquerVue(S.vueA.projection === "orthographique" ? "libre" : "iso");
@@ -2998,7 +2965,7 @@ function rendreParties() {
           ? `<i class="pastille" style="background:${esc(PLQ.teintes.get(x.uuid))}"></i>`
           : ""}
         <b>${esc(x.nom)}</b>${x.tris
-          ? `<span>${x.tris.toLocaleString("fr-FR")} tri</span>` : ""}
+          ? `<span>${dzT("etabli.et2_parties.tris", { n: x.tris.toLocaleString("fr-FR") })}</span>` : ""}
       </label>`).join("");
   /* ── l'œil, ET POURQUOI IL N'EST PAS BRANCHÉ SUR `SEL.retenus` ────────────
      La question était posée : brancher la liste latérale sur la sélection
@@ -3028,13 +2995,13 @@ function rendreParties() {
      le plateau, sans qu'aucun état ne soit dupliqué ni qu'aucun geste de vue
      ne puisse abîmer une charge d'écriture. La sélection reste où elle
      était, dans un seul vocabulaire. */
-  const oeil = (cle) => (PLQ.masquees.has(cle) ? "montrer" : "masquer");
+  const oeil = (cle) => (PLQ.masquees.has(cle) ? dzT("etabli.et2_plaque.montrer_piece") : dzT("etabli.et2_plaque.masquer_piece"));
   /* La pièce COURANTE se voit dans la liste (classe `courante`) et se choisit
      en cliquant sa rangée — l'œil garde son propre bouton. Ses outils suivent :
      la saisie en degrés, et l'aide des gestes quand rien n'est choisi. */
   const courante = PLQ.pieces.find((x) => x.cle === PLQ.courante) || null;
   const plaqueBloc = !PLQ.active ? "" : `
-    <div class="plaque-tete">Sur la plaque · ${PLQ.pieces.length} pièce(s)</div>
+    <div class="plaque-tete">${dzT("etabli.et2_plaque.tete", { n: PLQ.pieces.length })}</div>
     <div class="plaque-lecture" id="plaqueLecture"></div>
     <div class="plaque-liste">${PLQ.pieces.map((x) => `
       <div class="plaque-rang${PLQ.masquees.has(x.cle) ? " masquee" : ""}${
@@ -3042,28 +3009,19 @@ function rendreParties() {
         <i class="pastille" style="background:${esc(x.couleur)}"></i>
         <b>${esc(x.nom)}</b>
         <button class="plaque-oeil" data-cle="${esc(x.cle)}"
-                title="${oeil(x.cle)} cette pièce"
-                aria-label="${oeil(x.cle)} cette pièce"
+                title="${oeil(x.cle)}"
+                aria-label="${oeil(x.cle)}"
         >${ico(PLQ.masquees.has(x.cle) ? "dz-etat-cache" : "dz-etat-visible")}</button>
       </div>`).join("")}</div>
     <div class="plaque-outils">${courante
-      ? `<label>rotation de <b>${esc(courante.nom)}</b>
+      ? `<label>${dzT("etabli.et2_plaque.rotation_de")} <b>${esc(courante.nom)}</b>
            <input id="plqRot" type="number" step="any"
                   value="${esc(rotationDe(S.vueA, courante.cle))}"> °</label>
-         <span>glisser déplace (aimanté au pas du plateau, Maj libère) ·
-           flèches = un pas, Alt fin, Ctrl ×10 · l'anneau tourne
-           (Maj = ${PAS_ROTATION}°)</span>`
-      : `<span>cliquez une pièce : la glisser la déplace (aimantée au pas du
-           plateau, Maj libère), l'anneau la tourne (Maj = ${PAS_ROTATION}°),
-           les flèches la poussent d'un pas (Alt fin, Ctrl ×10)</span>`}</div>
-    <p class="plaque-note">Vue seulement : le maillage assemblé reste la
-      vérité — déplacer ici n'écrit jamais dans le modèle, seulement dans le
-      plan de plaque. <span id="plqEtat">${esc(texteEtatPlan())}</span>${PLQ.vides
-        ? ` ${PLQ.vides} nœud(s) sans géométrie ne sont pas étalés : un
-      contenant n'a rien à montrer, et son œil ne commanderait rien.` : ""}${PLQ.partages
-        ? ` ${PLQ.partages} matériau(x) partagé(s) entre pièces — leur teinte
-      sur le modèle n'est pas fidèle (le dernier parcouru gagne) ; la
-      pastille, elle, l'est.` : ""}</p>`;
+         <span>${dzT("etabli.et2_plaque.aide_courante", { pas: PAS_ROTATION })}</span>`
+      : `<span>${dzT("etabli.et2_plaque.aide_aucune", { pas: PAS_ROTATION })}</span>`}</div>
+    <p class="plaque-note">${dzT("etabli.et2_plaque.note")} <span id="plqEtat">${esc(texteEtatPlan())}</span>${PLQ.vides
+        ? ` ${dzT("etabli.et2_plaque.vides", { n: PLQ.vides })}` : ""}${PLQ.partages
+        ? ` ${dzT("etabli.et2_plaque.partages", { n: PLQ.partages })}` : ""}</p>`;
   /* Les deux boutons sont rendus MÊME quand la liste est vide : ils sont relus
      juste après par leur id, et un panneau sans eux ferait lever le
      addEventListener sur null. isoler() garde de son côté le cas « aucun
@@ -3075,28 +3033,28 @@ function rendreParties() {
       ).join("")}
     </div>
     <div class="parties">${rangees || `<div class="vide">${S.vueA && S.vueA.racine
-      ? "aucune partie à cette granularité" : "aucun modèle chargé"}</div>`}</div>
+      ? dzT("etabli.et2_parties.aucune_partie") : dzT("etabli.et2_commun.aucun_modele")}</div>`}</div>
     <div class="parties-actions">
-      <button id="btnIsoler">Isoler la sélection</button>
-      <button id="btnToutVoir">Tout revoir</button>
-      <button id="btnSeparer">Séparer la sélection en une version</button>
-      <label class="sep-mode" title="Une version PAR élément coché, toutes nées de la version courante (des sœurs, pas une chaîne)">
-        <input type="checkbox" id="pSeparement"> une par une</label>
+      <button id="btnIsoler">${dzT("etabli.et2_parties.isoler")}</button>
+      <button id="btnToutVoir">${dzT("etabli.et2_parties.tout_revoir")}</button>
+      <button id="btnSeparer">${dzT("etabli.et2_parties.separer")}</button>
+      <label class="sep-mode" title="${dzT("etabli.et2_parties.titre_separement")}">
+        <input type="checkbox" id="pSeparement"> ${dzT("etabli.et2_parties.une_par_une")}</label>
     </div>
-    <div class="habiller-barre" title="Pose une matière du Material Forge sur les pièces cochées — écrit une version">
-      <select id="matiereSel"><option value="">— matière —</option></select>
-      <button id="btnHabiller">Habiller</button>
-      <button id="btnMasques" title="Cavités (rouge) et arêtes (vert) calculées depuis la géométrie, en vue B — rien n'est écrit">Masques</button>
+    <div class="habiller-barre" title="${dzT("etabli.et2_parties.titre_habiller")}">
+      <select id="matiereSel"><option value="">${dzT("etabli.et2_parties.matiere_vide")}</option></select>
+      <button id="btnHabiller">${dzT("etabli.et2_parties.habiller")}</button>
+      <button id="btnMasques" title="${dzT("etabli.et2_parties.titre_masques")}">${dzT("etabli.et2_parties.masques")}</button>
     </div>
-    <div class="bool-barre" title="Union, différence ou intersection de deux groupes de pièces — écrit une version">
+    <div class="bool-barre" title="${dzT("etabli.et2_bool.titre")}">
       <select id="pBoolOp">
         <option value="union">union</option>
-        <option value="difference">différence (A − B)</option>
+        <option value="difference">${dzT("etabli.et2_bool.option_difference")}</option>
         <option value="intersection">intersection</option>
       </select>
-      <button id="btnBoolA">A = sélection</button>
-      <button id="btnBoolB">B = sélection</button>
-      <button id="btnBooleen">Appliquer</button>
+      <button id="btnBoolA">${dzT("etabli.et2_bool.a_selection")}</button>
+      <button id="btnBoolB">${dzT("etabli.et2_bool.b_selection")}</button>
+      <button id="btnBooleen">${dzT("etabli.et2_bool.appliquer")}</button>
       <span class="bool-etat">A : ${BOOL.a.length} · B : ${BOOL.b.length}</span>
     </div>`;
 
@@ -3218,8 +3176,7 @@ function poserGizmo(objet) {
      partout sur cette page, plutôt que de laisser un clic sans effet. */
   if (estEtalee(S.vueA)) {
     if (GIZMO) GIZMO.detach();
-    direRefus("la plaque est une VUE : revenez à « Assemblé » pour "
-      + "déplacer une pièce");
+    direRefus(dzT("etabli.et2_gizmo.plaque_vue"));
     return;
   }
   /* On REMONTE jusqu'au premier ancêtre qui EST un nœud du document. Un
@@ -3239,8 +3196,7 @@ function poserGizmo(objet) {
        joli et sans effet : la file resterait vide, l'utilisateur croirait
        avoir déplacé quelque chose. On le DIT, et on lâche le gizmo. */
     if (GIZMO) GIZMO.detach();
-    direRefus("ce maillage n'est rattaché à aucun nœud glTF — "
-      + "rien à envoyer au serveur, donc rien à déplacer");
+    direRefus(dzT("etabli.et2_gizmo.sans_noeud"));
     return;
   }
   assurerGizmo();
@@ -3358,8 +3314,7 @@ function contradictionDeLaFile() {
   if (!a || !r) return null;
   /* LE GESTE D'ABORD : la barre coupe à sa largeur (preuve 8799 : « « posé … »
      seul restait lisible) ; la phrase entière vit dans le `title`. */
-  return "« recentrer » défait « posé sur une face » : décoche « recentrer »"
-    + " ou annule l'assise — le recentrage est écrit APRÈS l'assise.";
+  return dzT("etabli.et2_attente.contradiction");
 }
 
 /* La barre ÉNUMÈRE, elle ne se contente pas de compter : c'est ce détail qui
@@ -3367,41 +3322,40 @@ function contradictionDeLaFile() {
    « 1 modification », qui aurait laissé passer l'écrasement en silence. */
 const fmtCoord = (v) => Number(v).toFixed(2);
 const LIBELLES_ATTENTE = {
-  transformer: (t) => `${Object.keys(t.charge).length} nœud(s) déplacé(s)`,
-  extraire: (t) => `${t.charge.noeuds.length} nœud(s) à séparer`
-    + (t.charge.separement ? " — un fichier par élément" : ""),
-  reparer: (t) => `réparer l'assise : axe ${t.charge.axe_haut}, échelle ${t.charge.echelle}`
-    + (t.charge.recentrer ? ", recentré" : ""),
-  assise: (t) => `posé sur une face (normale ${t.charge.normale.map(fmtCoord).join(", ")})`,
-  couper: (t) => `coupe de ${t.charge.noeuds.length} pièce(s) — garder ${t.charge.garder}`,
-  reparer_maillage: (t) => `réparer le maillage : ${t.charge.actions.map((a) => LIBELLE_ACTION[a] || a).join(", ")}`,
-  decimer: (t) => `décimer vers ${t.charge.preset || t.charge.target_tris} triangles`,
-  creuser: (t) => `creuser : paroi ${fmtMesure(t.charge.paroi)} ${uniteCourante()}`,
-  percer: (t) => `percer : ⌀ ${fmtMesure(2 * t.charge.rayon)} ${uniteCourante()}`,
-  booleen: (t) => `${t.charge.operation} de ${t.charge.a.length} et ${t.charge.b.length} pièce(s)`,
-  connecteur: (t) => `connecteur ${t.charge.type} : rayon ${fmtMesure(t.charge.rayon)} ${uniteCourante()}`,
-  materiau: (t) => `matériau ${t.charge.materiau} : ${Object.keys(t.charge).filter((k) => k !== "materiau").join(", ")}`,
-  habiller: (t) => `habiller ${t.charge.lots.length} partie(s)`,
+  transformer: (t) => dzT("etabli.et2_attente.deplaces", { n: Object.keys(t.charge).length }),
+  extraire: (t) => dzT("etabli.et2_attente.a_separer", { n: t.charge.noeuds.length })
+    + (t.charge.separement ? dzT("etabli.et2_attente.un_fichier") : ""),
+  reparer: (t) => dzT("etabli.et2_attente.reparer", { axe: t.charge.axe_haut, echelle: t.charge.echelle })
+    + (t.charge.recentrer ? dzT("etabli.et2_attente.recentre") : ""),
+  assise: (t) => dzT("etabli.et2_attente.assise", { normale: t.charge.normale.map(fmtCoord).join(", ") }),
+  couper: (t) => dzT("etabli.et2_attente.coupe", { n: t.charge.noeuds.length, garder: t.charge.garder === "deux" ? dzT("etabli.et2_attente.les_deux") : t.charge.garder }),
+  reparer_maillage: (t) => dzT("etabli.et2_attente.reparer_maillage", { actions: t.charge.actions.map((a) => LIBELLE_ACTION[a] || a).join(", ") }),
+  decimer: (t) => dzT("etabli.et2_attente.decimer", { cible: t.charge.preset || t.charge.target_tris }),
+  creuser: (t) => dzT("etabli.et2_attente.creuser", { paroi: fmtMesure(t.charge.paroi), unite: uniteCourante() }),
+  percer: (t) => dzT("etabli.et2_attente.percer", { d: fmtMesure(2 * t.charge.rayon), unite: uniteCourante() }),
+  booleen: (t) => dzT("etabli.et2_attente.booleen", { op: ({ union: dzT("etabli.et2_bool.op_union"), difference: dzT("etabli.et2_bool.op_difference"), intersection: dzT("etabli.et2_bool.op_intersection") }[t.charge.operation] || t.charge.operation), a: t.charge.a.length, b: t.charge.b.length }),
+  connecteur: (t) => dzT("etabli.et2_attente.connecteur", { type: ({ teton: dzT("etabli.et2_connecteur.teton"), cheville: dzT("etabli.et2_connecteur.cheville"), aronde: dzT("etabli.et2_connecteur.aronde") }[t.charge.type] || t.charge.type), rayon: fmtMesure(t.charge.rayon), unite: uniteCourante() }),
+  materiau: (t) => dzT("etabli.et2_attente.materiau", { nom: t.charge.materiau, champs: Object.keys(t.charge).filter((k) => k !== "materiau").join(", ") }),
+  habiller: (t) => dzT("etabli.et2_attente.habiller", { n: t.charge.lots.length }),
 };
 
 /* ── RÉPARER EN UN CLIC (tâche #88 PR A, plan-etabli T2) ─────────────────────
    Ce qui RENUMÉROTE écrit SEUL : la file doit être vide, la ligne y entre pour la
    durée de sa propre écriture — la garde de confirmerCoupe(), pour toute opération.
    Rend le bilan d'ecrireVersion(), ou null (refus dit dans la barre). */
-const LIBELLE_OP = { reparer_maillage: "réparer le maillage", decimer: "décimer", creuser: "creuser", percer: "percer",
-                     booleen: "le booléen", connecteur: "le connecteur",
-                     materiau: "le matériau", habiller: "l'habillage" };
-const LIBELLE_ACTION = { souder: "sommets confondus", doublons: "faces dupliquées", degeneres: "triangles plats",
-                         normales: "normales unifiées", trous: "trous bouchés" };
+const LIBELLE_OP = { reparer_maillage: dzT("etabli.et2_op.reparer_maillage"), decimer: dzT("etabli.et2_op.decimer"), creuser: dzT("etabli.et2_op.creuser"), percer: dzT("etabli.et2_op.percer"),
+                     booleen: dzT("etabli.et2_op.booleen"), connecteur: dzT("etabli.et2_op.connecteur"),
+                     materiau: dzT("etabli.et2_op.materiau"), habiller: dzT("etabli.et2_op.habillage") };
+const LIBELLE_ACTION = { souder: dzT("etabli.et2_action.souder"), doublons: dzT("etabli.et2_action.doublons"), degeneres: dzT("etabli.et2_action.degeneres"),
+                         normales: dzT("etabli.et2_action.normales"), trous: dzT("etabli.et2_action.trous") };
 /* Les actions cochées d'office : TOUT sauf les trous — décision de l'utilisateur (04/10) :
    boucher un trou ajoute de la matière, et la triangulation peut échouer sur une boucle gauche. */
 const ACTIONS_PAR_DEFAUT = ["souder", "doublons", "degeneres", "normales"];
 async function ecrireSeule(operation, charge, source) {
-  if (!S.a) { direRefus("aucun modèle chargé"); return null; }
-  if (_ecritEnCours) { direRefus("une écriture est en cours — attends la fin de la série"); return null; }
+  if (!S.a) { direRefus(dzT("etabli.et2_commun.aucun_modele")); return null; }
+  if (_ecritEnCours) { direRefus(dzT("etabli.et2_ecrire.en_cours")); return null; }
   if (S.enAttente.length) {
-    direRefus(`${S.enAttente.length} modification(s) en attente — écris-les d'abord : « ${LIBELLE_OP[operation] || operation} » `
-      + "renumérote les nœuds et ne se met pas en file derrière elles");
+    direRefus(dzT("etabli.et2_ecrire.attente_op", { n: S.enAttente.length, op: LIBELLE_OP[operation] || operation }));
     return null;
   }
   noterAttente(operation, charge, source);
@@ -3425,10 +3379,8 @@ function direBilanReparation(fiche) {
     non: s.non + ((x.trous && x.trous.non_bouches) || 0) }),
     { soudes: 0, doublons: 0, degeneres: 0, retournes: 0, bouches: 0, non: 0 });
   const trous = (src.actions || []).includes("trous")
-    ? `, ${p.bouches} trou(s) bouché(s)${p.non ? `, ${p.non} NON bouché(s) (raisons dans la fiche)` : ""}` : "";
-  direAvis(`maillage réparé (version ${fiche.version}) : ${p.soudes} sommet(s) soudé(s), ${p.doublons} doublon(s), `
-    + `${p.degeneres} triangle(s) plat(s), ${p.retournes} retourné(s)${trous} — `
-    + (src.ferme_apres ? "fermé" : (src.ferme_avant ? "fermé avant, OUVERT après" : "encore ouvert")));
+    ? `, ${dzT("etabli.et2_bilan.trous_bouches", { n: p.bouches })}${p.non ? `, ${dzT("etabli.et2_bilan.trous_non", { n: p.non })}` : ""}` : "";
+  direAvis(dzT("etabli.et2_bilan.repare", { version: fiche.version, soudes: p.soudes, doublons: p.doublons, plats: p.degeneres, retournes: p.retournes, trous, etat: src.ferme_apres ? dzT("etabli.et2_bilan.ferme") : (src.ferme_avant ? dzT("etabli.et2_bilan.ferme_avant") : dzT("etabli.et2_bilan.ouvert")) }));
 }
 /* Le creusage se dit : la paroi, les pièces, puis — si elle ne tient pas — la paroi qui tient, dans l'unité
    courante, AVANT l'explication : la barre coupe à LARGEUR_REFUS (le texte entier reste au survol), et la
@@ -3436,9 +3388,9 @@ function direBilanReparation(fiche) {
 function direBilanCreusage(fiche) {
   const src = fiche && fiche.source;
   if (!src || !src.pieces) return;
-  direAvis(`creusé (version ${fiche.version}) : paroi ${fmtMesure(src.paroi)} ${uniteCourante()} sur ${src.pieces.length} pièce(s)`
-    + (src.avertissement ? ` — paroi qui tient : ${fmtMesure(src.paroi_max)} ${uniteCourante()} — ${src.avertissement}` : "")
-    + (src.limite ? ` — limite : ${src.limite}` : ""));
+  direAvis(dzT("etabli.et2_bilan.creuse", { version: fiche.version, paroi: fmtMesure(src.paroi), unite: uniteCourante(), n: src.pieces.length })
+    + (src.avertissement ? dzT("etabli.et2_bilan.paroi_tient", { paroi: fmtMesure(src.paroi_max), unite: uniteCourante(), avert: src.avertissement }) : "")
+    + (src.limite ? dzT("etabli.et2_bilan.limite", { limite: src.limite }) : ""));
 }
 /* Le perçage se dit : le diamètre et la paroi traversée D'ABORD (la barre coupe à LARGEUR_REFUS), puis ce qui a
    été retiré de chaque peau et la taille du tube recousu — les vrais comptes de hollow.percer. */
@@ -3446,10 +3398,8 @@ function direBilanPercage(fiche) {
   const src = fiche && fiche.source;
   if (!src || !src.pieces || !src.pieces.length) return;
   const q = src.pieces[0];
-  direAvis(`percé (version ${fiche.version}) : ⌀ ${fmtMesure(2 * src.rayon)} ${uniteCourante()}, paroi traversée `
-    + `${fmtMesure(q.paroi_traversee)} ${uniteCourante()} — ${q.retires_dehors} + ${q.retires_dedans} triangle(s) `
-    + `retirés (dehors + dedans), tube de ${q.tube} triangle(s)`
-    + (src.pieces.length > 1 ? ` — ${src.pieces.length} pièces percées` : ""));
+  direAvis(dzT("etabli.et2_bilan.perce", { version: fiche.version, d: fmtMesure(2 * src.rayon), unite: uniteCourante(), paroi: fmtMesure(q.paroi_traversee), dehors: q.retires_dehors, dedans: q.retires_dedans, tube: q.tube })
+    + (src.pieces.length > 1 ? dzT("etabli.et2_bilan.pieces_percees", { n: src.pieces.length }) : ""));
 }
 /* LE FORET (t133). Un clic sur la peau extérieure d'une pièce CREUSÉE, et Python perce un trou de drainage le long
    de la normale de la face touchée — la MÊME normale monde que « poser sur une face » (selection.js la passe par la
@@ -3459,14 +3409,14 @@ function direBilanPercage(fiche) {
 async function percerAuClic(objet, touche) {
   armerGeste("selection");
   if (!objet || !touche || !touche.point || !touche.normale) {
-    direRefus("perçage : clique sur la peau de la pièce à percer");
+    direRefus(dzT("etabli.et2_foret.clique_peau"));
     return;
   }
   const diametre = Number($("#fForetDiam") && $("#fForetDiam").value);
-  if (!(diametre > 0)) { direRefus("perçage : un diamètre en millimètres > 0"); return; }
+  if (!(diametre > 0)) { direRefus(dzT("etabli.et2_foret.diametre")); return; }
   const rayon = versUnites(diametre / 2);
   if (rayon === null) {
-    direRefus("pose une taille cible : un trou de drainage en millimètres n'a de sens qu'avec une échelle");
+    direRefus(dzT("etabli.et2_foret.sans_cible"));
     return;
   }
   const n = touche.normale, p = touche.point;
@@ -3478,9 +3428,9 @@ async function percerAuClic(objet, touche) {
 function direBilanDecimation(fiche) {
   const src = fiche && fiche.source;
   if (!src || !src.before || !src.after) return;
-  direAvis(`décimé (version ${fiche.version}) : ${src.before.tris} → ${src.after.tris} triangles `
-    + `(−${src.reduction_pct} %)${src.aggressive ? ", passe agressive" : ""}`
-    + (src.cible_atteinte === false ? ` — cible de ${src.target_tris} NON atteinte, le maillage ne se simplifie pas plus` : ""));
+  direAvis(dzT("etabli.et2_bilan.decime", { version: fiche.version, avant: src.before.tris, apres: src.after.tris, pct: src.reduction_pct })
+    + (src.aggressive ? dzT("etabli.et2_bilan.agressive") : "")
+    + (src.cible_atteinte === false ? dzT("etabli.et2_bilan.cible_non", { cible: src.target_tris }) : ""));
 }
 const libelleAttente = (t) =>
   (LIBELLES_ATTENTE[t.operation] || ((x) => x.operation))(t);
@@ -3493,7 +3443,7 @@ function rendreAttente() {
      les comptes sont des nombres, mais l'invariant ne se négocie pas au cas
      par cas — c'est ainsi qu'il survit à la prochaine tâche. */
   const doute = S.enAttente.some((t) => t.heuristique)
-    ? `<span class="attente-doute">index de nœud déduits d'un NOM — repli heuristique, à vérifier</span>`
+    ? `<span class="attente-doute">${dzT("etabli.et2_attente.doute")}</span>`
     : "";
   /* Le `title` n'est pas décoratif : l'énumération se RÉORDONNE sous les yeux
      de l'utilisateur (fileOrdonnee), et rien à l'écran ne dirait pourquoi.
@@ -3513,11 +3463,11 @@ function rendreAttente() {
      file contradictoire est exactement ce qu'il faut pouvoir faire. */
   const contra = contradictionDeLaFile();
   const refus = contra ? `<span class="attente-refus"></span>` : "";
-  const etat = _ecritEnCours ? "en cours d'écriture" : "en attente";
-  box.innerHTML = `<b>${S.enAttente.length} modification(s) ${etat}</b>
-    <span class="attente-liste" title="ordre d'écriture imposé : déplacer, puis poser sur une face, puis réparer, puis séparer — le déplacement rend au fichier le monde affiché, l'assise y est mesurée, l'extraction renumérote les nœuds">${esc(liste)}</span>${doute}${refus}
-    <button id="btnEcrire"${_ecritEnCours || contra ? " disabled" : ""}>écrire la version</button>
-    <button id="btnAnnuler"${_ecritEnCours ? " disabled" : ""}>annuler</button>`;
+  const etat = _ecritEnCours ? dzT("etabli.et2_attente.en_cours") : dzT("etabli.et2_attente.en_attente");
+  box.innerHTML = `<b>${dzT("etabli.et2_attente.n_modifs", { n: S.enAttente.length, etat })}</b>
+    <span class="attente-liste" title="${dzT("etabli.et2_attente.ordre")}">${esc(liste)}</span>${doute}${refus}
+    <button id="btnEcrire"${_ecritEnCours || contra ? " disabled" : ""}>${dzT("etabli.et2_attente.ecrire")}</button>
+    <button id="btnAnnuler"${_ecritEnCours ? " disabled" : ""}>${dzT("etabli.et2_attente.annuler")}</button>`;
   if (contra) {
     const r = $("#barreAttente .attente-refus");
     r.textContent = contra;
@@ -3535,7 +3485,7 @@ function rendreAttente() {
 }
 
 async function ecrireVersion() {
-  if (!S.a) { direRefus("aucun modèle chargé — rien à écrire"); return; }
+  if (!S.a) { direRefus(dzT("etabli.et2_ecrire.rien_a_ecrire")); return; }
   /* UN VERROU, et il court jusqu'à la QUEUE de la fonction. La fenêtre
      dangereuse n'est pas la boucle d'écriture : c'est tout l'intervalle où
      `S.a` ne correspond pas encore au disque. Pendant le rechargement final —
@@ -3584,8 +3534,7 @@ async function ecrireVersion() {
          index que ce qui est à l'écran. Un GLB faux, sur disque, en silence.
          ficheDe() refuse déjà cette étape pour exactement la même raison. */
       if (!S.a.version) {
-        throw new Error("l'étape « décimée » n'est pas une version numérotée : "
-          + "chargez une version pour la corriger");
+        throw new Error(dzT("etabli.et2_ecrire.etape_decimee"));
       }
       const base = { job: S.a.job, version: S.a.version };
       for (const t of fileOrdonnee()) {
@@ -3662,9 +3611,9 @@ async function ecrireVersion() {
          réécrit #barreGeo, donc un refus posé avant lui disparaîtrait sans
          avoir été lu. On dit ce qui est passé ET ce qui ne l'est pas — un
          « échec » sec laisserait croire que le disque n'a pas bougé. */
-      direRefus(`écrit : ${ecrites.join(", ") || "rien"}`
-        + (adopte ? ` · adoption faite (job ${S.a.job})` : "")
-        + ` · abandonné : ${restantes.join(", ") || "rien"}`
+      direRefus(dzT("etabli.et2_ecrire.ecrit", { ops: ecrites.join(", ") || dzT("etabli.et2_ecrire.rien") })
+        + (adopte ? dzT("etabli.et2_ecrire.adoption", { job: S.a.job }) : "")
+        + dzT("etabli.et2_ecrire.abandonne", { ops: restantes.join(", ") || dzT("etabli.et2_ecrire.rien") })
         + ` — ${echec.message}`);
     }
   } finally {
@@ -3801,8 +3750,7 @@ async function capturerVignette(job, version) {
     vue.renderer.render(vue.scene, vue.camera);
     reduite = reduireCanevas(vue.renderer.domElement);
   } catch (e) {
-    direRefus(`vignette non fabriquée (${e.message}) — la version `
-      + `${version} est écrite`);
+    direRefus(dzT("etabli.et2_vignette.non_fabriquee", { msg: e.message, version }));
     return;
   } finally {
     if (helper) helper.visible = visible;
@@ -3810,7 +3758,7 @@ async function capturerVignette(job, version) {
   }
   try {
     const png = await new Promise((tenir, casser) => reduite.toBlob(
-      (b) => (b ? tenir(b) : casser(new Error("toBlob n'a rien rendu"))),
+      (b) => (b ? tenir(b) : casser(new Error(dzT("etabli.et2_vignette.toblob_vide")))),
       "image/png"));
     /* Le serveur vérifie la signature PNG, borne la taille, aplatit `job` et
        exige que la version existe : cet en-tête est une politesse, pas une
@@ -3820,8 +3768,7 @@ async function capturerVignette(job, version) {
       { method: "POST", headers: { "Content-Type": "image/png" }, body: png });
     if (!r.ok) throw new Error((await r.text()).split("\n")[0] || `${r.status}`);
   } catch (e) {
-    direRefus(`vignette non envoyée (${e.message}) — la version `
-      + `${version} est écrite`);
+    direRefus(dzT("etabli.et2_vignette.non_envoyee", { msg: e.message, version }));
   }
 }
 
@@ -3860,8 +3807,7 @@ function separerSelection() {
   if (!idx.length) {
     /* La page a déjà une façon de refuser en le disant, et ce n'est pas une
        boîte modale du navigateur : la barre du bas. */
-    direRefus("aucun nœud glTF dans la sélection — un matériau, ou une "
-      + "primitive de maillage, n'a pas d'index à envoyer");
+    direRefus(dzT("etabli.et2_parties.sans_noeud"));
     return;
   }
   /* LA CHARGE EST UN OBJET depuis la tâche #89 PR D : « ensemble » et « une par une » se
@@ -3883,12 +3829,12 @@ function separerSelection() {
 function prendreOperande(cote) {
   const { noeuds, source } = noeudsRetenus();
   if (!noeuds.length) {
-    direRefus(`${cote.toUpperCase()} : coche d'abord des pièces dans la liste — A et B sont des groupes de nœuds`);
+    direRefus(dzT("etabli.et2_bool.coche_dabord", { cote: cote.toUpperCase() }));
     return;
   }
   const autre = BOOL[cote === "a" ? "b" : "a"];
   if (noeuds.some((n) => autre.includes(n))) {
-    direRefus("un même nœud ne peut pas être à la fois dans A et dans B");
+    direRefus(dzT("etabli.et2_bool.meme_noeud"));
     return;
   }
   BOOL[cote] = noeuds;
@@ -3898,7 +3844,7 @@ function prendreOperande(cote) {
 
 async function appliquerBooleen() {
   if (!BOOL.a.length || !BOOL.b.length) {
-    direRefus("choisis A puis B (« A = sélection », « B = sélection ») : un booléen a deux opérandes");
+    direRefus(dzT("etabli.et2_bool.choisis"));
     return;
   }
   const op = $("#pBoolOp").value;
@@ -3907,8 +3853,7 @@ async function appliquerBooleen() {
   BOOL.a = []; BOOL.b = []; BOOL.source = undefined;
   rendreParties();
   const src = bilan.derniere.source;
-  direAvis(`${src.booleen} écrite (version ${bilan.derniere.version}) : ${src.triangles_a} + ${src.triangles_b} → `
-    + `${src.triangles} triangles — ${src.couture} ; ${src.matieres}`);
+  direAvis(dzT("etabli.et2_bool.ecrite", { op: ({ union: dzT("etabli.et2_bool.op_union"), difference: dzT("etabli.et2_bool.op_difference"), intersection: dzT("etabli.et2_bool.op_intersection") }[src.booleen] || src.booleen), version: bilan.derniere.version, a: src.triangles_a, b: src.triangles_b, n: src.triangles, couture: src.couture, matieres: src.matieres }));
 }
 
 /* ── le panneau Fiche : réparer l'assise ────────────────────────────────────
@@ -3917,49 +3862,40 @@ async function appliquerBooleen() {
    n'écrit rien — il pose une ligne dans la file. */
 function rendreFiche() {
   $("#panFiche").innerHTML = `
-    <div class="dt-label">Réparer l'assise</div>
-    <label>axe haut
+    <div class="dt-label">${dzT("etabli.et2_fiche.reparer_assise")}</div>
+    <label>${dzT("etabli.et2_fiche.axe_haut")}
       <select id="fAxe"><option value="Y">Y (glTF, Unity, Godot)</option>
       <option value="Z">Z (Blender, Unreal)</option></select></label>
-    <label>échelle <input id="fEchelle" type="number" step="0.01" value="1"></label>
-    <label><input id="fRecentrer" type="checkbox"> recentrer sur l'origine</label>
-    <button id="fAppliquer">Mettre en attente</button>
-    <p class="note">Le recentrage a besoin de la géométrie : sur un GLB
-      compressé il refuse, en le disant. L'axe et l'échelle passent quand
-      même.</p>
-    <div class="dt-label">Réparer le maillage</div>
+    <label>${dzT("etabli.et2_fiche.echelle")} <input id="fEchelle" type="number" step="0.01" value="1"></label>
+    <label><input id="fRecentrer" type="checkbox"> ${dzT("etabli.et2_fiche.recentrer")}</label>
+    <button id="fAppliquer">${dzT("etabli.et2_fiche.mettre_en_attente")}</button>
+    <p class="note">${dzT("etabli.et2_fiche.note_recentrage")}</p>
+    <div class="dt-label">${dzT("etabli.et2_fiche.reparer_maillage")}</div>
     <div class="reparer-actions">${Object.keys(LIBELLE_ACTION).map((a) =>
       `<label><input type="checkbox" data-action="${a}"${ACTIONS_PAR_DEFAUT.includes(a) ? " checked" : ""}> ${LIBELLE_ACTION[a]}</label>`).join("")}</div>
-    <button id="fReparerMaillage" title="Écrit aussitôt une version de plus : sommets confondus, doublons, triangles plats, normales — et les trous si la case est cochée">Réparer en un clic</button>
-    <p class="note">Écrit AUSSITÔT une version de plus (les nœuds sont renumérotés) ; le
-      détail de ce qui a été fait s'affiche dans la barre du bas, et la version d'avant
-      reste sur le disque. « Trous bouchés » ajoute de la matière : décoché d'office.</p>
-    <div class="dt-label">Creuser</div>
-    <label>paroi (millimètres) <input id="fParoi" type="number" step="0.1" min="0.1" value="2"
-      title="L'épaisseur de la paroi, en millimètres réels — exige une taille cible"></label>
-    <button id="fCreuser" title="Écrit aussitôt une version creusée : la peau doublée vers l'intérieur, sur la sélection ou tout le modèle">Creuser</button>
-    <p class="note">Double la peau vers l'intérieur, à épaisseur constante. Exige une taille cible
-      (une paroi est une cote physique) et un maillage FERMÉ — sinon « Réparer le maillage », trous
-      cochés. Ce que la paroi ne peut pas tenir est compté et dit, avec l'épaisseur qui tient.</p>
-    <div class="dt-label">Percer (drainage)</div>
-    <label>trou ⌀ (millimètres) <input id="fForetDiam" type="number" step="0.5" min="0.5" value="4"
-      title="Le diamètre du trou de drainage, en millimètres réels — exige une taille cible"></label>
-    <button id="fForet" title="Arme le foret : clique ensuite la face à percer, le trou suit sa normale (Échap renonce)">Percer (clic sur la pièce)</button>
-    <p class="note">Sur une pièce CREUSÉE : le foret traverse la paroi sous le clic (dehors puis dedans) et recoud le
-      tube entre les deux peaux — la paroi opposée n'est pas touchée. Écrit aussitôt une version de plus. Une pièce
-      pleine, un rayon plus fin qu'une facette ou un bord qui rase une arête sont refusés, en le disant.</p>
-    <div class="dt-label">Décimer</div>
-    <label>cible <select id="fDecPreset" title="Le nombre de triangles visé ; les noms de pièces sont gardés">
-      <option value="ultra">ultra — 100 000 triangles</option>
-      <option value="high">élevé — 50 000</option>
-      <option value="game" selected>jeu — 10 000</option>
-      <option value="detailed">détaillé — 5 000</option></select></label>
-    <button id="fDecimer" title="Écrit aussitôt une version décimée — elle entre dans la lignée, la version d'avant reste sur le disque">Décimer</button>
-    <p class="note">La décimation écrit une VERSION de plus, au lieu du fichier « décimé » à
-      part que l'Établi ne sait pas charger. Un modèle déjà sous la cible est refusé.</p>
+    <button id="fReparerMaillage" title="${dzT("etabli.et2_fiche.titre_reparer")}">${dzT("etabli.et2_fiche.reparer_un_clic")}</button>
+    <p class="note">${dzT("etabli.et2_fiche.note_reparer")}</p>
+    <div class="dt-label">${dzT("etabli.et2_fiche.creuser")}</div>
+    <label>${dzT("etabli.et2_fiche.paroi")} <input id="fParoi" type="number" step="0.1" min="0.1" value="2"
+      title="${dzT("etabli.et2_fiche.titre_paroi")}"></label>
+    <button id="fCreuser" title="${dzT("etabli.et2_fiche.titre_creuser")}">${dzT("etabli.et2_fiche.creuser")}</button>
+    <p class="note">${dzT("etabli.et2_fiche.note_creuser")}</p>
+    <div class="dt-label">${dzT("etabli.et2_fiche.percer")}</div>
+    <label>${dzT("etabli.et2_fiche.trou")} <input id="fForetDiam" type="number" step="0.5" min="0.5" value="4"
+      title="${dzT("etabli.et2_fiche.titre_trou")}"></label>
+    <button id="fForet" title="${dzT("etabli.et2_fiche.titre_foret")}">${dzT("etabli.et2_fiche.foret")}</button>
+    <p class="note">${dzT("etabli.et2_fiche.note_foret")}</p>
+    <div class="dt-label">${dzT("etabli.et2_fiche.decimer")}</div>
+    <label>${dzT("etabli.et2_fiche.cible")} <select id="fDecPreset" title="${dzT("etabli.et2_fiche.titre_decimer")}">
+      <option value="ultra">${dzT("etabli.et2_fiche.preset_ultra")}</option>
+      <option value="high">${dzT("etabli.et2_fiche.preset_high")}</option>
+      <option value="game" selected>${dzT("etabli.et2_fiche.preset_game")}</option>
+      <option value="detailed">${dzT("etabli.et2_fiche.preset_detailed")}</option></select></label>
+    <button id="fDecimer" title="${dzT("etabli.et2_fiche.titre_decimer_btn")}">${dzT("etabli.et2_fiche.decimer")}</button>
+    <p class="note">${dzT("etabli.et2_fiche.note_decimer")}</p>
     <div class="fiche-materiaux" id="ficheMateriaux"></div>`;
   $("#fAppliquer").addEventListener("click", () => {
-    if (!S.a) { direRefus("aucun modèle chargé — rien à réparer"); return; }
+    if (!S.a) { direRefus(dzT("etabli.et2_fiche.rien_a_reparer")); return; }
     /* Les trois clés sont celles que la route attend, au caractère près :
        `axe_haut`, `echelle`, `recentrer`. Une faute de frappe ici passerait
        en 200 et ne corrigerait RIEN — la route lit `body.get(...)` et prend
@@ -3972,17 +3908,17 @@ function rendreFiche() {
   });
   $("#fReparerMaillage").addEventListener("click", async () => {
     const actions = [...$("#panFiche").querySelectorAll("[data-action]:checked")].map((c) => c.dataset.action);
-    if (!actions.length) { direRefus("cochez au moins une action de réparation"); return; }
+    if (!actions.length) { direRefus(dzT("etabli.et2_fiche.une_action")); return; }
     const bilan = await ecrireSeule("reparer_maillage", { actions });
     if (bilan) direBilanReparation(bilan.derniere);
   });
   $("#fCreuser").addEventListener("click", async () => {
     const saisie = Number($("#fParoi").value);
-    if (!(saisie > 0)) { direRefus("paroi : un nombre de millimètres > 0"); return; }
+    if (!(saisie > 0)) { direRefus(dzT("etabli.et2_fiche.paroi_invalide")); return; }
     /* LA CONVERSION PASSE PAR LA GARDE UNIQUE (versUnites) : sans taille cible, `null`, et on refuse. */
     const paroi = versUnites(saisie);
     if (paroi === null) {
-      direRefus("pose une taille cible : une paroi en millimètres n'a de sens qu'avec une échelle");
+      direRefus(dzT("etabli.et2_fiche.paroi_sans_cible"));
       return;
     }
     /* Rien de retenu = tout le modèle (le serveur prend toutes les pièces de la scène). */
@@ -3992,16 +3928,16 @@ function rendreFiche() {
     if (bilan) direBilanCreusage(bilan.derniere);
   });
   $("#fForet").addEventListener("click", () => {
-    if (GESTE.mode === "foret") { armerGeste("selection"); direAvis("foret rangé"); return; }
-    if (!S.a) { direRefus("aucun modèle chargé — rien à percer"); return; }
+    if (GESTE.mode === "foret") { armerGeste("selection"); direAvis(dzT("etabli.et2_foret.range")); return; }
+    if (!S.a) { direRefus(dzT("etabli.et2_foret.rien_a_percer")); return; }
     if (!enMillimetres()) {
-      direRefus("pose une taille cible : un trou de drainage en millimètres n'a de sens qu'avec une échelle");
+      direRefus(dzT("etabli.et2_foret.sans_cible"));
       return;
     }
-    if (PLQ.active) { direRefus("la plaque est une VUE : revenez à « Assemblé » pour percer"); return; }
+    if (PLQ.active) { direRefus(dzT("etabli.et2_foret.plaque_vue")); return; }
     if (GIZMO) GIZMO.detach();               /* le clic sur la face ne doit pas aussi saisir son nœud */
     armerGeste("foret");
-    direAvis("foret armé : clique la face à percer — le trou suit sa normale (Échap renonce)");
+    direAvis(dzT("etabli.et2_foret.arme"));
   });
   $("#fDecimer").addEventListener("click", async () => {
     const bilan = await ecrireSeule("decimer", { preset: $("#fDecPreset").value });
@@ -4151,7 +4087,7 @@ function mesurerRetenus() {
     if (lu.etale) etale++;
     lignes.push({
       nom: o.name || (o.userData && o.userData.indexGltf !== undefined
-        ? `nœud ${o.userData.indexGltf}` : "sans nom"),
+        ? dzT("etabli.et2_repere.noeud_n", { n: o.userData.indexGltf }) : dzT("etabli.et2_repere.sans_nom")),
       c, etale: lu.etale,
     });
     points.push(c);
@@ -4165,24 +4101,15 @@ function mesurerRetenus() {
    case à cocher. Seules les deux zones nommées ci-dessous sont réécrites. */
 function rendreRepere() {
   $("#repere").innerHTML = `
-    <div class="dt-label">Repère · origine</div>
+    <div class="dt-label">${dzT("etabli.et2_repere.titre")}</div>
     <div class="repere-pas" id="repereEchelle">—</div>
-    <label>taille cible
+    <label>${dzT("etabli.et2_repere.taille_cible")}
       <input id="rCible" type="number" step="any" min="0" placeholder="mm">
     </label>
     <div class="repere-lecture" id="repereLecture"></div>
     <div class="repere-mesure" id="repereMesure"></div>
-    <p class="repere-note">Tout se lit en unités glTF tant qu'aucune taille
-      cible n'est posée : un GLB n'en porte AUCUNE, et c'est le serveur qui en
-      fabrique une pour écrire un STL — la plus grande dimension du modèle
-      devient la cible. Ce champ applique CETTE règle et rien d'autre ; vide,
-      aucun chiffre en millimètres n'est affiché.</p>
-    <p class="repere-note">Ce sont des cotes, PAS des coordonnées de plateau :
-      l'export STL recentre en X/Y et pose Z au sol, si bien qu'une pièce lue
-      ici à −31,50 n'arrivera pas à −31,50 dans le slicer. La cible, elle,
-      SURVIT au changement de modèle — c'est ce qu'on veut imprimer, pas une
-      propriété du maillage — et l'échelle est refaite sur le maillage
-      affiché.</p>`;
+    <p class="repere-note">${dzT("etabli.et2_repere.note_unites")}</p>
+    <p class="repere-note">${dzT("etabli.et2_repere.note_cotes")}</p>`;
   /* `change` ET NON `input`, qui se déclenche à CHAQUE frappe : « 63 » poserait
      d'abord une échelle à 6 — tous les chiffres de l'écran seraient dix fois
      trop grands pendant une fraction de seconde — et « 0,5 » traverserait deux
@@ -4221,16 +4148,14 @@ function poserCible(brut) {
      variable suffirait à ouvrir la porte que cette négative ferme. */
   const cible = Number(texte);
   if (!Number.isFinite(cible) || !(cible > 0)) {
-    direRefus("taille cible invalide — un nombre de millimètres > 0, ou le "
-      + "champ vide pour rester en unités glTF");
+    direRefus(dzT("etabli.et2_repere.cible_invalide"));
     rendreCible();
     return false;
   }
   if (!(plusGrandeDimension() > 0)) {
     /* Sans modèle mesuré il n'y a pas de dénominateur : la cible serait
        acceptée et ne convertirait rien, ce qui est un bouton qui ment. */
-    direRefus("aucun modèle mesuré — une taille cible se pose sur la plus "
-      + "grande dimension d'un maillage, il en faut un à l'écran");
+    direRefus(dzT("etabli.et2_repere.aucun_mesure"));
     rendreCible();
     return false;
   }
@@ -4310,10 +4235,10 @@ function lireRepere() {
      rail qui annoncerait le pas d'une grille invisible mentirait. */
   const pasVu = PLQ.active ? PLQ.pas : REP.pas;
   const pas = Number.isFinite(pasVu) ? `${fmtMesure(pasVu)} ${u}` : "—";
-  $("#repereEchelle").innerHTML = `pas ${PLQ.active ? "du plateau" : "de la grille"} <b>${esc(pas)}</b>`
+  $("#repereEchelle").innerHTML = (PLQ.active ? dzT("etabli.et2_repere.pas_plateau", { pas: `<b>${esc(pas)}</b>` }) : dzT("etabli.et2_repere.pas_grille", { pas: `<b>${esc(pas)}</b>` }))
     + (enMillimetres()
-      ? ` · cible ${esc(REP.cibleMm)} ${esc(u)} sur la plus grande dimension`
-      : " · aucune taille cible, donc aucun millimètre déduit");
+      ? dzT("etabli.et2_repere.cible_sur", { cible: esc(REP.cibleMm), unite: esc(u) })
+      : dzT("etabli.et2_repere.aucune_cible"));
   /* Les règles du plateau portent la MÊME unité que ce rail, et changent avec
      elle : c'est ici, après le recalcul de l'échelle, qu'elles se redessinent
      (mémo dans le canevas — gratuit quand rien n'a changé). */
@@ -4331,7 +4256,7 @@ function lireRepere() {
   const tronquees = PLQ.active ? 0 : m.points.length - marquees;
   const visibles = m.lignes.slice(0, LIGNES_REPERE);
   const corps = m.lignes.length
-    ? `<div class="repere-tete">x · y · z depuis l'origine, en ${esc(u)}</div>`
+    ? `<div class="repere-tete">${dzT("etabli.et2_repere.tete", { unite: esc(u) })}</div>`
       + visibles.map((l) => `
       <div class="repere-ligne${l.etale ? " etale" : ""}">
         <b>${esc(l.nom)}${l.etale ? " †" : ""}</b>
@@ -4339,24 +4264,18 @@ function lireRepere() {
         <span>${esc(fmtMesure(l.c.y))}</span>
         <span>${esc(fmtMesure(l.c.z))}</span>
       </div>`).join("")
-    : `<div class="repere-vide">aucune sélection — le repère montre
-        l'origine, ses trois axes et son pas</div>`;
+    : `<div class="repere-vide">${dzT("etabli.et2_repere.vide")}</div>`;
   const reste = m.lignes.length - visibles.length;
   const pied = (reste > 0
-      ? `<div class="repere-plus">… et ${reste} autre(s) sélection(s)</div>` : "")
+      ? `<div class="repere-plus">${dzT("etabli.et2_repere.autres", { n: reste })}</div>` : "")
     + (m.sansPosition
-      ? `<div class="repere-plus">${m.sansPosition} sélection(s) sans
-        position — un matériau n'est pas un volume, un nœud sans géométrie
-        n'a pas de boîte</div>` : "")
+      ? `<div class="repere-plus">${dzT("etabli.et2_repere.sans_position", { n: m.sansPosition })}</div>` : "")
     + (tronquees > 0
-      ? `<div class="repere-plus">${tronquees} croix non tracée(s) — au-delà,
-        le repère 3D cesse d'être lisible ; les chiffres, eux, restent</div>`
+      ? `<div class="repere-plus">${dzT("etabli.et2_repere.tronquees", { n: tronquees })}</div>`
       : "")
     + (PLQ.active
-      ? `<div class="repere-plus">la plaque est une VUE : les chiffres sont
-        ceux du MODÈLE, étalement et rotation défaits, et le repère 3D ne
-        marque rien — sa croix tomberait à côté des pièces étalées.${m.etale
-          ? " † cette lecture-là n'a pas pu être corrigée." : ""}</div>` : "");
+      ? `<div class="repere-plus">${dzT("etabli.et2_repere.plaque_vue")}${m.etale
+          ? dzT("etabli.et2_repere.non_corrigee") : ""}</div>` : "");
   $("#repereLecture").innerHTML = corps + pied;
   /* poser une taille cible change l'UNITÉ : une lecture restée en unités glTF
      sous un rail en millimètres serait fausse à l'écran */
@@ -4540,7 +4459,7 @@ async function amorcer() {
        dans la console. textContent et non innerHTML — le message vient du
        serveur, il n'a rien à faire dans le balisage. */
     box.innerHTML = '<div class="chrono-vide"></div>';
-    box.firstElementChild.textContent = `chronologie illisible — ${e.message}`;
+    box.firstElementChild.textContent = dzT("etabli.et2_chrono.illisible", { msg: e.message });
   }
 }
 amorcer();
