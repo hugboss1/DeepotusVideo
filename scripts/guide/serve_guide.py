@@ -1,11 +1,12 @@
-# Backend de PREUVE du guide v3 : le code du worktree guide-v2, un dossier de données jetable, aucune clé
-# (rien de payant n'est possible), une image de démonstration. Jamais le 8765 de l'utilisateur.
+# Backend de PREUVE du guide v3 (port 8809 ; le 8799 est arrêté par d'autres sessions) : le code de ce dépôt, un
+# dossier de données jetable, aucune clé (rien de payant n'est possible), une image de démonstration.
+# Jamais le 8765 de l'utilisateur. Données de démonstration ensuite : semer_atelier.py, semer_sons.py.
 import os
 import pathlib
 import sys
 import tempfile
 
-WT = pathlib.Path(r"C:\Users\olivi\DeepotusVideo\.claude\worktrees\guide-v2\backend")
+WT = pathlib.Path(__file__).resolve().parents[2] / "backend"      # le backend du dépôt (ou du worktree) de ce script
 d = pathlib.Path(tempfile.mkdtemp(prefix="dzguide_preuve_"))
 os.environ["DEEPOTUS_DATA_DIR"] = str(d)
 os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{(d / 't.db').as_posix()}"
