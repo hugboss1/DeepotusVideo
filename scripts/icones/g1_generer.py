@@ -34,7 +34,7 @@ import subprocess
 import sys
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
-BASE = "0ab48c7f"                                   # socle G0 (PR #281)
+BASE = "91162fee"                                   # socle G0 (PR #281) + traduction L3 (t143)
 REL_BUNDLE = "frontend/dist/assets/index-BEOJX8L5.js"
 TABLE = REPO / "scripts" / "dzglyph_paires.json"
 SAISIE_CLES = REPO / "scripts" / "icones" / "g1_saisie_cles.json"

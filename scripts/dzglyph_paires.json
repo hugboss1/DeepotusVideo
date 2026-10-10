@@ -1,5 +1,5 @@
 {
- "base": "0ab48c7f",
+ "base": "91162fee",
  "n_editions": 635,
  "n_couches": 174,
  "paires": [
@@ -3462,23 +3462,23 @@
  "couches": {
   "montage": [
    {
-    "pos": 43301,
-    "avant": "\"+ piste vidéo\"",
-    "apres": "__dzGlT(\"dz-action-ajouter\",\"+ piste vidéo\",\"+\")",
+    "pos": 42512,
+    "avant": "dzT(\"montage.pistes.ajouter_video\")",
+    "apres": "__dzGlT(\"dz-action-ajouter\",dzT(\"montage.pistes.ajouter_video\"),\"+\")",
     "ids": [
      "montage.bandeau-du-haut.ajout-piste"
     ]
    },
    {
-    "pos": 43792,
-    "avant": "\"+ piste audio\"",
-    "apres": "__dzGlT(\"dz-action-ajouter\",\"+ piste audio\",\"+\")",
+    "pos": 42803,
+    "avant": "dzT(\"montage.pistes.ajouter_audio\")",
+    "apres": "__dzGlT(\"dz-action-ajouter\",dzT(\"montage.pistes.ajouter_audio\"),\"+\")",
     "ids": [
      "montage.bandeau-du-haut.ajout-piste"
     ]
    },
    {
-    "pos": 52133,
+    "pos": 50523,
     "avant": "\"⋮\"",
     "apres": "__dzGl(\"dz-action-poignee\")",
     "ids": [
@@ -3486,7 +3486,7 @@
     ]
    },
    {
-    "pos": 52446,
+    "pos": 50816,
     "avant": "\"▲\"",
     "apres": "__dzGl(\"dz-edit-monter\")",
     "ids": [
@@ -3494,7 +3494,7 @@
     ]
    },
    {
-    "pos": 52696,
+    "pos": 51104,
     "avant": "\"▼\"",
     "apres": "__dzGl(\"dz-edit-descendre\")",
     "ids": [
@@ -3502,7 +3502,7 @@
     ]
    },
    {
-    "pos": 53445,
+    "pos": 51928,
     "avant": "\"×\"",
     "apres": "__dzGl(\"dz-action-supprimer\")",
     "ids": [
@@ -3510,7 +3510,7 @@
     ]
    },
    {
-    "pos": 100718,
+    "pos": 97794,
     "avant": "\"\\u2205\"",
     "apres": "__dzGl(\"dz-etat-vide\")",
     "ids": [
@@ -3518,7 +3518,7 @@
     ]
    },
    {
-    "pos": 102491,
+    "pos": 99461,
     "avant": "\"⇄\"",
     "apres": "__dzGl(\"dz-action-comparer\")",
     "ids": [
@@ -3526,7 +3526,7 @@
     ]
    },
    {
-    "pos": 103744,
+    "pos": 100601,
     "avant": "\"×\"",
     "apres": "__dzGl(\"dz-action-supprimer\")",
     "ids": [
@@ -3534,7 +3534,7 @@
     ]
    },
    {
-    "pos": 135006,
+    "pos": 129804,
     "avant": "\"−\"",
     "apres": "__dzGl(\"dz-media-timeline-raccourcir\")",
     "ids": [
@@ -3542,7 +3542,7 @@
     ]
    },
    {
-    "pos": 135688,
+    "pos": 130197,
     "avant": "\"+\"",
     "apres": "__dzGl(\"dz-media-timeline-allonger\")",
     "ids": [
@@ -3550,21 +3550,21 @@
     ]
    },
    {
-    "pos": 179883,
-    "avant": "\"Extraire le son → \"+TR",
-    "apres": "__dzGlT(\"dz-media-extraire-son\",\"Extraire le son → \"+TR,\"→\")",
+    "pos": 172174,
+    "avant": "dzT(\"montage.extraire.bouton\",{piste:TR})",
+    "apres": "__dzGlT(\"dz-media-extraire-son\",dzT(\"montage.extraire.bouton\",{piste:TR}),\"→\")",
     "ids": [
      "montage.inspecteur-plan.extraire-son"
     ]
    },
    {
-    "pos": 187499,
+    "pos": 179808,
     "avant": "function DzmTbIcon(o){",
     "apres": "var DZM_TB_GLYPHE={\"piste-video\":\"dz-media-piste-video\",\"piste-audio\":\"dz-media-piste-audio\",\"bibliotheque\":\"dz-action-choisir-bibliotheque\",\"couleur\":\"dz-edit-anim-couleur\",\"rebond\":\"dz-edit-anim-rebond\",\"glow\":\"dz-edit-anim-halo\",\"emoji\":\"dz-media-emoji-auto\",\"texte\":\"dz-media-sous-titres\",\"projets\":\"dz-nav-projets\",\"poignee\":\"dz-action-poignee\",\"piste-incrust\":\"dz-media-incrustation\"};\r\nfunction DzmTbIcon(o){",
     "ids": []
    },
    {
-    "pos": 187590,
+    "pos": 179899,
     "avant": "var px=Number(o.size);if(!isFinite(px)||px<=0)px=DZM_TB_PX;\r\n",
     "apres": "var px=Number(o.size);if(!isFinite(px)||px<=0)px=DZM_TB_PX;\r\n  /* icônes G1 : la suite Deepotus Glyph d'abord (window.DZ_ICONS), les tracés maison en repli */\r\n  var gk=DZM_TB_GLYPHE[o.name],gs=gk&&typeof window!==\"undefined\"&&window.DZ_ICONS&&window.DZ_ICONS[gk],gm=typeof gs===\"string\"&&/^<svg[^>]*>([\\s\\S]*)<\\/svg>$/.exec(gs);\r\n  if(gm)return r.jsx(\"svg\",{className:\"dzm-tbi\",viewBox:\"0 0 24 24\",fill:\"currentColor\",width:px,height:px,\"aria-hidden\":!0,\r\n    focusable:\"false\",\"data-dzi\":gk,dangerouslySetInnerHTML:{__html:gm[1]}},o.k||(\"tbi-\"+o.name));\r\n",
     "ids": [
@@ -3593,7 +3593,7 @@
     ]
    },
    {
-    "pos": 243633,
+    "pos": 233915,
     "avant": "\"▾\"",
     "apres": "__dzGl(\"dz-action-deplier\")",
     "ids": [
@@ -3601,7 +3601,7 @@
     ]
    },
    {
-    "pos": 243637,
+    "pos": 233919,
     "avant": "\"▴\"",
     "apres": "__dzGl(\"dz-action-deplier\",\"1em\",{transform:\"rotate(180deg)\"})",
     "ids": [
@@ -3609,7 +3609,7 @@
     ]
    },
    {
-    "pos": 248837,
+    "pos": 239127,
     "avant": "\"⌖\"",
     "apres": "__dzGl(\"dz-action-recentrer\")",
     "ids": [
@@ -3617,7 +3617,7 @@
     ]
    },
    {
-    "pos": 249112,
+    "pos": 239410,
     "avant": "\"×\"",
     "apres": "__dzGl(\"dz-action-deplier\")",
     "ids": [
@@ -3625,7 +3625,7 @@
     ]
    },
    {
-    "pos": 320952,
+    "pos": 311179,
     "avant": "\"\\u2716\"",
     "apres": "__dzGl(\"dz-action-supprimer\")",
     "ids": [
@@ -3633,15 +3633,15 @@
     ]
    },
    {
-    "pos": 399647,
-    "avant": "\"Diviser à la tête →\"",
-    "apres": "__dzGlT(\"dz-edit-couper\",\"Diviser à la tête →\",\"→\")",
+    "pos": 390585,
+    "avant": "dzT(\"montage.proprietes.diviser\")",
+    "apres": "__dzGlT(\"dz-edit-couper\",dzT(\"montage.proprietes.diviser\"),\"→\")",
     "ids": [
      "montage.inspecteur-plan-rampe-de-vitesse.rampe-diviser"
     ]
    },
    {
-    "pos": 411922,
+    "pos": 403053,
     "avant": "\"★ 3+\"",
     "apres": "__dzGlT(\"dz-etat-note\",\"★ 3+\",\"★\")",
     "ids": [
@@ -3649,7 +3649,7 @@
     ]
    },
    {
-    "pos": 412007,
+    "pos": 403138,
     "avant": "\"★ 5\"",
     "apres": "__dzGlT(\"dz-etat-note\",\"★ 5\",\"★\")",
     "ids": [
@@ -3657,15 +3657,15 @@
     ]
    },
    {
-    "pos": 422707,
-    "avant": "\"✂ auto-clips\"",
-    "apres": "__dzGlT(\"dz-media-extraits\",\"✂ auto-clips\",\"✂\")",
+    "pos": 413814,
+    "avant": "dzT(\"montage.autoclips.bouton\")",
+    "apres": "__dzGlT(\"dz-media-extraits\",dzT(\"montage.autoclips.bouton\"),\"✂\")",
     "ids": [
      "montage.tiroir-medias-dzmmediadrawer.medias-autoclips"
     ]
    },
    {
-    "pos": 423721,
+    "pos": 414890,
     "avant": "\"★\"",
     "apres": "__dzGl(\"dz-etat-note\")",
     "ids": [
@@ -3673,7 +3673,7 @@
     ]
    },
    {
-    "pos": 454679,
+    "pos": 445984,
     "avant": "children:it.combo||\"\"}",
     "apres": "children:it.combo===\"✓\"?__dzGl(\"dz-etat-option-active\"):it.combo||\"\"}",
     "ids": [
@@ -3685,7 +3685,7 @@
     ]
    },
    {
-    "pos": 577504,
+    "pos": 568311,
     "avant": "\"■ \"+el",
     "apres": "__dzGlT(\"dz-media-arret\",\"■ \"+el,\"■\")",
     "ids": [
@@ -3693,15 +3693,15 @@
     ]
    },
    {
-    "pos": 577556,
-    "avant": "\"● voix off\"",
-    "apres": "__dzGlT(\"dz-media-rec\",\"● voix off\",\"●\")",
+    "pos": 568409,
+    "avant": "dzT(\"montage.prise.puce\")",
+    "apres": "__dzGlT(\"dz-media-rec\",dzT(\"montage.prise.puce\"),\"●\")",
     "ids": [
      "montage.barre-du-lecteur-prise-de-voix-dzmvoicer.voixoff-rec"
     ]
    },
    {
-    "pos": 588599,
+    "pos": 579420,
     "avant": "\"×\"",
     "apres": "__dzGl(\"dz-action-fermer\")",
     "ids": [
@@ -3709,7 +3709,7 @@
     ]
    },
    {
-    "pos": 613542,
+    "pos": 604166,
     "avant": "dzT(\"studio.epingle.sans_epingle\")",
     "apres": "__dzGlT(\"dz-etat-epingle\",dzT(\"studio.epingle.sans_epingle\"),\"📌\")",
     "ids": [
@@ -3717,7 +3717,7 @@
     ]
    },
    {
-    "pos": 613726,
+    "pos": 604350,
     "avant": "dzT(\"studio.epingle.pas_encore\")",
     "apres": "__dzGlT(\"dz-etat-epingle\",dzT(\"studio.epingle.pas_encore\"),\"📌\")",
     "ids": [
@@ -3725,7 +3725,7 @@
     ]
    },
    {
-    "pos": 614085,
+    "pos": 604709,
     "avant": "dzT(\"studio.epingle.epingle\")",
     "apres": "__dzGlT(\"dz-etat-epingle\",dzT(\"studio.epingle.epingle\"),\"📌\")",
     "ids": [
@@ -3733,7 +3733,7 @@
     ]
    },
    {
-    "pos": 614520,
+    "pos": 605144,
     "avant": "dzT(\"studio.epingle.regenerer\")",
     "apres": "__dzGlT(\"dz-action-regenerer\",dzT(\"studio.epingle.regenerer\"),\"↻\")",
     "ids": [
@@ -3741,7 +3741,7 @@
     ]
    },
    {
-    "pos": 617316,
+    "pos": 607940,
     "avant": "\"upload\"",
     "apres": "\"dz-action-importer\"",
     "ids": [
@@ -3750,7 +3750,7 @@
     ]
    },
    {
-    "pos": 621446,
+    "pos": 612070,
     "avant": "\"‹\"",
     "apres": "__dzGl(\"dz-media-image-precedente\")",
     "ids": [
@@ -3758,7 +3758,7 @@
     ]
    },
    {
-    "pos": 621830,
+    "pos": 612454,
     "avant": "\"›\"",
     "apres": "__dzGl(\"dz-media-image-suivante\")",
     "ids": [
@@ -3766,7 +3766,7 @@
     ]
    },
    {
-    "pos": 625370,
+    "pos": 615994,
     "avant": "\"check\"",
     "apres": "\"dz-action-figer-recette\"",
     "ids": [
@@ -3775,7 +3775,7 @@
     ]
    },
    {
-    "pos": 629924,
+    "pos": 620548,
     "avant": "dzT(\"studio.duel.champion\",{nom:dzDuelLabel(mm,A)})",
     "apres": "__dzGlT(\"dz-etat-meilleur\",dzT(\"studio.duel.champion\",{nom:dzDuelLabel(mm,A)}),\"⚔\")",
     "ids": [
@@ -3783,7 +3783,7 @@
     ]
    },
    {
-    "pos": 630156,
+    "pos": 620780,
     "avant": "\"sparkle\"",
     "apres": "\"dz-action-duel\"",
     "ids": [
@@ -3792,13 +3792,13 @@
     ]
    },
    {
-    "pos": 632319,
+    "pos": 622943,
     "avant": "return{lbl:o.lbl,",
     "apres": "return{ic:o.ic,g:o.g,lbl:o.lbl,",
     "ids": []
    },
    {
-    "pos": 632597,
+    "pos": 623221,
     "avant": "{lbl:",
     "apres": "{ic:\"dz-nav-studio\",g:\"🎬\",lbl:",
     "ids": [
@@ -3806,7 +3806,7 @@
     ]
    },
    {
-    "pos": 633702,
+    "pos": 624285,
     "avant": "return{lbl:",
     "apres": "return{ic:\"dz-action-lancer-recette\",g:\"🍳\",lbl:",
     "ids": [
@@ -3814,7 +3814,7 @@
     ]
    },
    {
-    "pos": 636518,
+    "pos": 627272,
     "avant": "{lbl:",
     "apres": "{ic:\"dz-action-lancer-recette\",g:\"🍳\",lbl:",
     "ids": [
@@ -3822,7 +3822,7 @@
     ]
    },
    {
-    "pos": 644543,
+    "pos": 635297,
     "avant": "\"plus\"",
     "apres": "\"dz-action-ajouter\"",
     "ids": [
@@ -3831,7 +3831,7 @@
     ]
    },
    {
-    "pos": 651109,
+    "pos": 641863,
     "avant": "\"⚠ \"+w",
     "apres": "__dzGlT(\"dz-etat-avertissement\",\"⚠ \"+w,\"⚠\")",
     "ids": [
@@ -3839,7 +3839,7 @@
     ]
    },
    {
-    "pos": 660092,
+    "pos": 650846,
     "avant": "\"✕\"",
     "apres": "__dzGl(\"dz-action-retirer\")",
     "ids": [
@@ -3847,7 +3847,7 @@
     ]
    },
    {
-    "pos": 668575,
+    "pos": 659329,
     "avant": "dzT(\"templates.texte.arc_deborde\",{n:rayonMin})",
     "apres": "__dzGlT(\"dz-etat-avertissement\",dzT(\"templates.texte.arc_deborde\",{n:rayonMin}),\"⚠\")",
     "ids": [
@@ -3855,7 +3855,7 @@
     ]
    },
    {
-    "pos": 682118,
+    "pos": 672872,
     "avant": "dzT(\"templates.anim.rejouer\")",
     "apres": "__dzGlT(\"dz-media-lecture\",dzT(\"templates.anim.rejouer\"),\"▶\")",
     "ids": [
@@ -3863,7 +3863,7 @@
     ]
    },
    {
-    "pos": 687740,
+    "pos": 678494,
     "avant": "\"★ 3+ (\"+c.note3+\")\"",
     "apres": "__dzGlT(\"dz-etat-note\",(\"★ 3+ (\"+c.note3+\")\"),\"★\")",
     "ids": [
@@ -3871,7 +3871,7 @@
     ]
    },
    {
-    "pos": 689389,
+    "pos": 680143,
     "avant": "\"★\"",
     "apres": "__dzGl(\"dz-action-favori\")",
     "ids": [
@@ -3879,7 +3879,7 @@
     ]
    },
    {
-    "pos": 689393,
+    "pos": 680147,
     "avant": "\"☆\"",
     "apres": "__dzGl(\"dz-action-favori\")",
     "ids": [
@@ -3887,7 +3887,7 @@
     ]
    },
    {
-    "pos": 689559,
+    "pos": 680313,
     "avant": "\"●\".repeat(note)",
     "apres": "Array.apply(null,Array(note)).map(function(){return __dzGl(\"dz-etat-note\")})",
     "ids": [
@@ -3895,7 +3895,7 @@
     ]
    },
    {
-    "pos": 691326,
+    "pos": 682080,
     "avant": "\"●\"",
     "apres": "__dzGl(\"dz-etat-note\")",
     "ids": [
@@ -3903,7 +3903,7 @@
     ]
    },
    {
-    "pos": 691330,
+    "pos": 682084,
     "avant": "\"○\"",
     "apres": "__dzGl(\"dz-etat-note\",\"1em\",{opacity:.35})",
     "ids": [
@@ -3911,7 +3911,7 @@
     ]
    },
    {
-    "pos": 691880,
+    "pos": 682634,
     "avant": "\"×\"",
     "apres": "__dzGl(\"dz-action-retirer\")",
     "ids": [
@@ -3919,7 +3919,7 @@
     ]
    },
    {
-    "pos": 695783,
+    "pos": 686537,
     "avant": "\"🎬\"",
     "apres": "__dzGl(\"dz-media-video\")",
     "ids": [
@@ -3927,7 +3927,7 @@
     ]
    },
    {
-    "pos": 696744,
+    "pos": 687498,
     "avant": "dzT(\"biblio.lignee.cycle\")",
     "apres": "__dzGlT(\"dz-etat-avertissement\",dzT(\"biblio.lignee.cycle\"),\"↺\")",
     "ids": [
@@ -3935,7 +3935,7 @@
     ]
    },
    {
-    "pos": 705036,
+    "pos": 695790,
     "avant": "dzT(\"biblio.fiche.licence_inconnue\")",
     "apres": "__dzGlT(\"dz-etat-avertissement\",dzT(\"biblio.fiche.licence_inconnue\"),\"⚠\")",
     "ids": [
@@ -3943,7 +3943,7 @@
     ]
    },
    {
-    "pos": 709998,
+    "pos": 700752,
     "avant": "var icone={image:\"🖼\",son:\"🔊\",rendu:\"🎬\",illisible:\"⚠\"};",
     "apres": "var icone={image:__dzGl(\"dz-media-image\"),son:__dzGl(\"dz-media-audio\"),rendu:__dzGl(\"dz-media-video\"),illisible:__dzGl(\"dz-etat-avertissement\")};",
     "ids": [
@@ -3954,7 +3954,7 @@
     ]
    },
    {
-    "pos": 719272,
+    "pos": 710026,
     "avant": "dzT(\"biblio.outils.corbeille\")",
     "apres": "__dzGlT(\"dz-nav-corbeille\",dzT(\"biblio.outils.corbeille\"),\"🗑\")",
     "ids": [
@@ -3962,7 +3962,7 @@
     ]
    },
    {
-    "pos": 719367,
+    "pos": 710121,
     "avant": "dzT(\"biblio.outils.nettoyage\")",
     "apres": "__dzGlT(\"dz-action-nettoyer\",dzT(\"biblio.outils.nettoyage\"),\"🧹\")",
     "ids": [
@@ -3970,7 +3970,7 @@
     ]
    },
    {
-    "pos": 719462,
+    "pos": 710216,
     "avant": "dzT(\"biblio.outils.recherche\")",
     "apres": "__dzGlT(\"dz-action-chercher\",dzT(\"biblio.outils.recherche\"),\"🔎\")",
     "ids": [
@@ -3978,7 +3978,7 @@
     ]
    },
    {
-    "pos": 719758,
+    "pos": 710512,
     "avant": "dzT(\"biblio.outils.grille\")",
     "apres": "__dzGlT(\"dz-action-vue-grille\",dzT(\"biblio.outils.grille\"),\"▦\")",
     "ids": [
@@ -3986,7 +3986,7 @@
     ]
    },
    {
-    "pos": 719829,
+    "pos": 710583,
     "avant": "dzT(\"biblio.outils.liste\")",
     "apres": "__dzGlT(\"dz-action-vue-liste\",dzT(\"biblio.outils.liste\"),\"☰\")",
     "ids": [
@@ -3994,7 +3994,7 @@
     ]
    },
    {
-    "pos": 725701,
+    "pos": 716455,
     "avant": "\"×\"",
     "apres": "__dzGl(\"dz-action-supprimer\")",
     "ids": [
@@ -4002,7 +4002,7 @@
     ]
    },
    {
-    "pos": 729431,
+    "pos": 720185,
     "avant": "c[1]+(on?(tri.desc?\" ▾\":\" ▴\"):\"\")",
     "apres": "on?[c[1],\" \",__dzGl(\"dz-action-trier\",\"1em\",tri.desc?void 0:{transform:\"rotate(180deg)\"})]:c[1]",
     "ids": [
@@ -4010,7 +4010,7 @@
     ]
    },
    {
-    "pos": 730402,
+    "pos": 721156,
     "avant": "\"🔊\"",
     "apres": "__dzGl(\"dz-media-audio\")",
     "ids": [
@@ -4018,7 +4018,7 @@
     ]
    },
    {
-    "pos": 730424,
+    "pos": 721178,
     "avant": "\"🎬\"",
     "apres": "__dzGl(\"dz-media-video\")",
     "ids": [
@@ -4026,7 +4026,7 @@
     ]
    },
    {
-    "pos": 730717,
+    "pos": 721471,
     "avant": "\"●\".repeat(Math.min(5,z.note))",
     "apres": "Array.apply(null,Array(Math.min(5,z.note))).map(function(){return __dzGl(\"dz-etat-note\")})",
     "ids": [
@@ -4034,7 +4034,7 @@
     ]
    },
    {
-    "pos": 730767,
+    "pos": 721521,
     "avant": "\"★\"",
     "apres": "__dzGl(\"dz-action-favori\")",
     "ids": [
@@ -4042,7 +4042,7 @@
     ]
    },
    {
-    "pos": 732727,
+    "pos": 723481,
     "avant": "(z.kind===\"render\"?\"🎬 \":z.kind===\"audio\"?\"🔊 \":\"\")+z.ref",
     "apres": "z.kind===\"render\"?__dzGlT(\"dz-media-video\",\"🎬 \"+z.ref,\"🎬\"):z.kind===\"audio\"?__dzGlT(\"dz-media-audio\",\"🔊 \"+z.ref,\"🔊\"):z.ref",
     "ids": [
@@ -4051,7 +4051,7 @@
     ]
    },
    {
-    "pos": 743478,
+    "pos": 734232,
     "avant": "dzT(\"biblio.semblables.sans_clip\")",
     "apres": "__dzGlT(\"dz-action-chercher\",dzT(\"biblio.semblables.sans_clip\"),\"🔎\")",
     "ids": [
@@ -4059,7 +4059,7 @@
     ]
    },
    {
-    "pos": 747568,
+    "pos": 738322,
     "avant": "return{lbl:",
     "apres": "return{ic:on?\"dz-etat-option-active\":\"dz-action-ranger\",g:on?\"✓\":\"📁\",lbl:",
     "ids": [
@@ -4068,7 +4068,7 @@
     ]
    },
    {
-    "pos": 751339,
+    "pos": 742093,
     "avant": "dzT(\"biblio.projets.auto_ici\")",
     "apres": "__dzGlT(\"dz-action-rangement-auto\",dzT(\"biblio.projets.auto_ici\"),\"●\")",
     "ids": [
@@ -4076,7 +4076,7 @@
     ]
    },
    {
-    "pos": 751370,
+    "pos": 742124,
     "avant": "dzT(\"biblio.projets.auto_activer\")",
     "apres": "__dzGlT(\"dz-action-rangement-auto\",dzT(\"biblio.projets.auto_activer\"),\"○\")",
     "ids": [
@@ -4084,7 +4084,7 @@
     ]
    },
    {
-    "pos": 751668,
+    "pos": 742422,
     "avant": "dzT(\"biblio.projets.epingle\")",
     "apres": "__dzGlT(\"dz-action-epingler-mobile\",dzT(\"biblio.projets.epingle\"),\"📱\")",
     "ids": [
@@ -4092,7 +4092,7 @@
     ]
    },
    {
-    "pos": 751698,
+    "pos": 742452,
     "avant": "dzT(\"biblio.projets.epingler\")",
     "apres": "__dzGlT(\"dz-action-epingler-mobile\",dzT(\"biblio.projets.epingler\"),\"📱\")",
     "ids": [
@@ -4100,7 +4100,7 @@
     ]
    },
    {
-    "pos": 751970,
+    "pos": 742724,
     "avant": "dzT(\"biblio.projets.renommer_bouton\")",
     "apres": "__dzGlT(\"dz-action-renommer\",dzT(\"biblio.projets.renommer_bouton\"),\"✎\")",
     "ids": [
@@ -4108,7 +4108,7 @@
     ]
    },
    {
-    "pos": 752436,
+    "pos": 743190,
     "avant": "dzT(\"biblio.projets.etat_bouton\")",
     "apres": "__dzGlT(\"dz-etat-information\",dzT(\"biblio.projets.etat_bouton\"),\"▦\")",
     "ids": [
@@ -4116,7 +4116,7 @@
     ]
    },
    {
-    "pos": 753197,
+    "pos": 743951,
     "avant": "dzT(\"biblio.projets.auto_actif\",{nom:actif.nom})",
     "apres": "__dzGlT(\"dz-action-rangement-auto\",dzT(\"biblio.projets.auto_actif\",{nom:actif.nom}),\"●\")",
     "ids": [
@@ -4124,7 +4124,7 @@
     ]
    },
    {
-    "pos": 753558,
+    "pos": 744312,
     "avant": "\"✕\"",
     "apres": "__dzGl(\"dz-action-rangement-auto\")",
     "ids": [
@@ -4132,7 +4132,7 @@
     ]
    },
    {
-    "pos": 758781,
+    "pos": 749535,
     "avant": "dzT(\"templates.composant.retablir\")",
     "apres": "__dzGlT(\"dz-action-reinitialiser\",dzT(\"templates.composant.retablir\"),\"↺\")",
     "ids": [
@@ -4140,7 +4140,7 @@
     ]
    },
    {
-    "pos": 769692,
+    "pos": 760446,
     "avant": "dzT(\"templates.export.svg\")",
     "apres": "__dzGlT(\"dz-action-exporter\",dzT(\"templates.export.svg\"),\"↓\")",
     "ids": [
@@ -4148,7 +4148,7 @@
     ]
    },
    {
-    "pos": 776924,
+    "pos": 767678,
     "avant": "dzT(\"reglages.langue.titre\")",
     "apres": "[__dzGl(\"dz-action-langue\"),\" \",dzT(\"reglages.langue.titre\")]",
     "ids": [
@@ -4552,7 +4552,7 @@
   ],
   "sfxstudio": [
    {
-    "pos": 19437,
+    "pos": 19456,
     "avant": "\"★\"",
     "apres": "__dzGl(\"dz-action-favori\")",
     "ids": [
@@ -4560,7 +4560,7 @@
     ]
    },
    {
-    "pos": 28847,
+    "pos": 28866,
     "avant": "\"★\"",
     "apres": "__dzGl(\"dz-action-favori\")",
     "ids": [
@@ -4568,7 +4568,7 @@
     ]
    },
    {
-    "pos": 28851,
+    "pos": 28870,
     "avant": "\"☆\"",
     "apres": "__dzGl(\"dz-action-favori\")",
     "ids": [
@@ -4576,7 +4576,7 @@
     ]
    },
    {
-    "pos": 30981,
+    "pos": 31000,
     "avant": "g.textContent=\"♪ \"+item.name+(item.dur?\" · \"+svmShort(item.dur):\"\");",
     "apres": "__dzGlD(g,\"dz-media-audio\",\"♪ \"+item.name+(item.dur?\" · \"+svmShort(item.dur):\"\"),\"♪\",12);",
     "ids": [
@@ -4584,7 +4584,7 @@
     ]
    },
    {
-    "pos": 40805,
+    "pos": 40824,
     "avant": "prix+\" ✓\"",
     "apres": "[prix,\" \",__dzGl(\"dz-action-valider\")]",
     "ids": [
@@ -4592,7 +4592,7 @@
     ]
    },
    {
-    "pos": 42721,
+    "pos": 42740,
     "avant": "dzT(\"sfx.recherche.pas_indexe\",{nom:it.name})",
     "apres": "__dzGlT(\"dz-action-recherche-semantique\",dzT(\"sfx.recherche.pas_indexe\",{nom:it.name}),\"✧\")",
     "ids": [
@@ -4600,7 +4600,7 @@
     ]
    },
    {
-    "pos": 45788,
+    "pos": 45807,
     "avant": "\"▮▮\"",
     "apres": "__dzGl(\"dz-media-arret\")",
     "ids": [
@@ -4608,7 +4608,7 @@
     ]
    },
    {
-    "pos": 45793,
+    "pos": 45812,
     "avant": "\"▶\"",
     "apres": "__dzGl(\"dz-media-lecture\")",
     "ids": [
@@ -4616,7 +4616,7 @@
     ]
    },
    {
-    "pos": 47007,
+    "pos": 47026,
     "avant": "\"← \"+(it.parent.length>20?it.parent.slice(0,19)+\"…\":it.parent)",
     "apres": "__dzGlT(\"dz-etat-derive\",(\"← \"+(it.parent.length>20?it.parent.slice(0,19)+\"…\":it.parent)),\"←\")",
     "ids": [
@@ -4624,7 +4624,7 @@
     ]
    },
    {
-    "pos": 48351,
+    "pos": 48370,
     "avant": "\"⤵\"",
     "apres": "__dzGl(\"dz-media-inserer\")",
     "ids": [
@@ -4632,7 +4632,7 @@
     ]
    },
    {
-    "pos": 48410,
+    "pos": 48429,
     "avant": "\"≡\"",
     "apres": "__dzGl(\"dz-media-stems\")",
     "ids": [
@@ -4640,7 +4640,7 @@
     ]
    },
    {
-    "pos": 48516,
+    "pos": 48535,
     "avant": "\"◌\"",
     "apres": "__dzGl(\"dz-media-isoler-voix\")",
     "ids": [
@@ -4648,7 +4648,7 @@
     ]
    },
    {
-    "pos": 48623,
+    "pos": 48642,
     "avant": "\"✦\"",
     "apres": "__dzGl(\"dz-media-ameliorer\")",
     "ids": [
@@ -4656,7 +4656,7 @@
     ]
    },
    {
-    "pos": 49158,
+    "pos": 49177,
     "avant": "\"✕\"",
     "apres": "__dzGl(\"dz-action-supprimer\")",
     "ids": [
@@ -4664,7 +4664,7 @@
     ]
    },
    {
-    "pos": 50319,
+    "pos": 50338,
     "avant": "dzT(\"sfx.vide.aucun_favori_aide\")",
     "apres": "__dzGlT(\"dz-action-favori\",dzT(\"sfx.vide.aucun_favori_aide\"),\"★\")",
     "ids": [
@@ -4672,7 +4672,7 @@
     ]
    },
    {
-    "pos": 52030,
+    "pos": 52049,
     "avant": "\"▮▮\"",
     "apres": "__dzGl(\"dz-media-arret\")",
     "ids": [
@@ -4680,7 +4680,7 @@
     ]
    },
    {
-    "pos": 52035,
+    "pos": 52054,
     "avant": "\"▶\"",
     "apres": "__dzGl(\"dz-media-lecture\")",
     "ids": [
@@ -4688,7 +4688,7 @@
     ]
    },
    {
-    "pos": 59629,
+    "pos": 59648,
     "avant": "\"⟳\"",
     "apres": "__dzGl(\"dz-action-actualiser\")",
     "ids": [
@@ -4696,7 +4696,7 @@
     ]
    },
    {
-    "pos": 59967,
+    "pos": 59986,
     "avant": "\"⤒\"",
     "apres": "__dzGl(\"dz-action-importer\")",
     "ids": [
@@ -4704,7 +4704,7 @@
     ]
    },
    {
-    "pos": 60211,
+    "pos": 60230,
     "avant": "\"✕\"",
     "apres": "__dzGl(\"dz-action-fermer\")",
     "ids": [
@@ -4712,7 +4712,7 @@
     ]
    },
    {
-    "pos": 62214,
+    "pos": 62233,
     "avant": "\"✧\"",
     "apres": "__dzGl(\"dz-action-recherche-semantique\")",
     "ids": [
@@ -4720,7 +4720,7 @@
     ]
    },
    {
-    "pos": 64197,
+    "pos": 64216,
     "avant": "\"👂\"",
     "apres": "__dzGl(\"dz-media-preecoute\")",
     "ids": [
@@ -4728,7 +4728,7 @@
     ]
    },
    {
-    "pos": 80243,
+    "pos": 80262,
     "avant": "\"▾\"",
     "apres": "__dzGl(\"dz-action-deplier\")",
     "ids": [
@@ -4736,7 +4736,7 @@
     ]
    },
    {
-    "pos": 80247,
+    "pos": 80266,
     "avant": "\"▸\"",
     "apres": "__dzGl(\"dz-action-deplier\",\"1em\",{transform:\"rotate(-90deg)\"})",
     "ids": [
@@ -4744,7 +4744,7 @@
     ]
    },
    {
-    "pos": 82246,
+    "pos": 82265,
     "avant": "dzT(\"sfx.rack.stop\")",
     "apres": "__dzGlT(\"dz-media-arret\",dzT(\"sfx.rack.stop\"),\"▮▮\")",
     "ids": [
@@ -4752,7 +4752,7 @@
     ]
    },
    {
-    "pos": 82267,
+    "pos": 82286,
     "avant": "dzT(\"sfx.rack.ecouter\")",
     "apres": "__dzGlT(\"dz-media-lecture\",dzT(\"sfx.rack.ecouter\"),\"▶\")",
     "ids": [
@@ -4760,7 +4760,7 @@
     ]
    },
    {
-    "pos": 87321,
+    "pos": 87340,
     "avant": "\"✕\"",
     "apres": "__dzGl(\"dz-action-fermer\")",
     "ids": [

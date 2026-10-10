@@ -1606,7 +1606,7 @@ if not NODE or not os.path.isfile(SRC_PATH):
     check("js_shim_execute", False, f"node={NODE} src={os.path.isfile(SRC_PATH)}")
 else:
     shim = os.path.join(TMP, "shim.js")
-    with open(SRC_PATH, "rb") as fh: SRC = fh.read().decode("utf-8-sig")
+    with open(SRC_PATH, "rb") as fh: SRC = AIDE.couche_avant_i18n_l3(fh.read().decode("utf-8-sig"))  # t143 : texte d'avant L3
     with open(shim, "w", encoding="utf-8") as fh:
         fh.write('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + AIDE.PRELUDE_DZT + SRC + "\n" + PROBE)
     r = sh([NODE, shim])

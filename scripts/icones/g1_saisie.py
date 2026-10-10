@@ -763,20 +763,21 @@ T("son-vfx.rack-vfx-vfxrack-panneau-d-effets-du-cli.vfx-ajouter", 'children:dzT(
   "dz-action-ajouter", "+")
 
 # ═══ S16 — couche MONTAGE (Montage, et composants Studio / Templates / Bibliothèque qui y vivent) ═══════════════
-for _lit in ('"+ piste vidéo"', '"+ piste audio"'):
-    E("montage.bandeau-du-haut.ajout-piste", 'children:' + _lit + '},', _lit, '__dzGlT("dz-action-ajouter",' + _lit + ',"+")')
+# t143 : textes passés par dzT (traduction L3, posée AVANT G1) ; l'anglais garde le glyphe
+for _lit in ('dzT("montage.pistes.ajouter_video")', 'dzT("montage.pistes.ajouter_audio")'):
+    T("montage.bandeau-du-haut.ajout-piste", 'children:' + _lit + '},', _lit, "dz-action-ajouter", "+")
 GL("montage.en-tete-de-piste.piste-grip", 'className:"dzm-grip","aria-hidden":!0,children:"⋮"}', '"⋮"', "dz-action-poignee")
 GL("montage.en-tete-de-piste.piste-monter", 'onClick:function(){mv(-1)},children:"▲"}', '"▲"', "dz-edit-monter")
 GL("montage.en-tete-de-piste.piste-descendre", 'onClick:function(){mv(1)},children:"▼"}', '"▼"', "dz-edit-descendre")
 GL("montage.en-tete-de-piste.piste-retirer", 'children:arm?String(n):"×"}', '"×"', "dz-action-supprimer")
-GL("montage.liste-des-projets-popover-projets.projet-vide", 'title:"montage vide",\r\n          children:"\\u2205"}', '"\\u2205"',
+GL("montage.liste-des-projets-popover-projets.projet-vide", 'title:dzT("montage.projets.montage_vide"),\r\n          children:"\\u2205"}', '"\\u2205"',
    "dz-etat-vide")
 GL("montage.liste-des-projets-popover-projets.projet-comparer", 'props.onDiff(p)},children:"⇄"}', '"⇄"', "dz-action-comparer")
-GL("montage.liste-des-projets-popover-projets.projet-supprimer", 'children:xArm?"supprimer ?":"×"}', '"×"', "dz-action-supprimer")
+GL("montage.liste-des-projets-popover-projets.projet-supprimer", 'children:xArm?dzT("montage.projets.supprimer_arme"):"×"}', '"×"', "dz-action-supprimer")
 GL("montage.barre-de-duree-de-timeline-dzmdurbtn.duree-moins", 'dzmDurBtn("dzm-durm","−",', '"−"', "dz-media-timeline-raccourcir")
 GL("montage.barre-de-duree-de-timeline-dzmdurbtn.duree-plus", 'dzmDurBtn("dzm-durp","+",', '"+"', "dz-media-timeline-allonger")
-E("montage.inspecteur-plan.extraire-son", 'children:tr?"Extraire le son → "+TR:', '"Extraire le son → "+TR',
-  '__dzGlT("dz-media-extraire-son","Extraire le son → "+TR,"→")')
+T("montage.inspecteur-plan.extraire-son", 'children:tr?dzT("montage.extraire.bouton",{piste:TR}):',
+  'dzT("montage.extraire.bouton",{piste:TR})', "dz-media-extraire-son", "→")
 GL("montage.barre-d-outils-flottante-onglet-outils.tb-onglet-ouvert", 'className:"dzm-tbchev","aria-hidden":!0,\r\n        children:open?"▾":"▴"}',
    '"▾"', "dz-action-deplier")
 E("montage.barre-d-outils-flottante-onglet-outils.tb-onglet-ferme", 'className:"dzm-tbchev","aria-hidden":!0,\r\n        children:open?"▾":"▴"}',
@@ -785,20 +786,20 @@ GL("montage.barre-d-outils-flottante.tb-recentrer", 'o.onRecentrer()},\r\n      
 GL("montage.barre-d-outils-flottante.tb-replier", 'o.onClose()},\r\n      children:"×"},"cl")', '"×"', "dz-action-deplier")
 GL("montage.index-des-marqueurs-dzmmarkerindex.marqueur-retirer", 'o.onRemove(m.id)},\r\n          children:"\\u2716"}', '"\\u2716"',
    "dz-action-supprimer")
-E("montage.inspecteur-plan-rampe-de-vitesse.rampe-diviser", 'children:"Diviser à la tête →"}', '"Diviser à la tête →"',
-  '__dzGlT("dz-edit-couper","Diviser à la tête →","→")')
+T("montage.inspecteur-plan-rampe-de-vitesse.rampe-diviser", 'children:dzT("montage.proprietes.diviser")}',
+  'dzT("montage.proprietes.diviser")', "dz-edit-couper", "→")
 E("montage.tiroir-medias-dzmmediadrawer.medias-filtre-3", 'var DZM_NOTE_CHIPS=[[3,"★ 3+",', '"★ 3+"',
   '__dzGlT("dz-etat-note","★ 3+","★")')
 E("montage.tiroir-medias-dzmmediadrawer.medias-filtre-5", '  [5,"★ 5","Ne montrer que les Good Take', '"★ 5"',
   '__dzGlT("dz-etat-note","★ 5","★")')
-E("montage.tiroir-medias-dzmmediadrawer.medias-autoclips", 'children:"✂ auto-clips"}', '"✂ auto-clips"',
-  '__dzGlT("dz-media-extraits","✂ auto-clips","✂")')
+T("montage.tiroir-medias-dzmmediadrawer.medias-autoclips", 'children:dzT("montage.autoclips.bouton")}',
+  'dzT("montage.autoclips.bouton")', "dz-media-extraits", "✂")
 GL("montage.tiroir-medias-dzmmediadrawer.medias-noter", 'noter(j,i)},children:"★"}', '"★"', "dz-etat-note")
 E("montage.barre-du-lecteur-prise-de-voix-dzmvoicer.voixoff-stop", 'children:st==="prise"?"■ "+el:', '"■ "+el',
   '__dzGlT("dz-media-arret","■ "+el,"■")')
-E("montage.barre-du-lecteur-prise-de-voix-dzmvoicer.voixoff-rec", ':st==="envoi"?"envoi…":"● voix off"}', '"● voix off"',
-  '__dzGlT("dz-media-rec","● voix off","●")')
-GL("montage.scopes-dzmscopes.scopes-fermer", '"aria-label":"Fermer les scopes",onClick:bascule,children:"×"}', '"×"', "dz-action-fermer")
+T("montage.barre-du-lecteur-prise-de-voix-dzmvoicer.voixoff-rec",
+  ':st==="envoi"?dzT("montage.prise.puce_envoi"):dzT("montage.prise.puce")}', 'dzT("montage.prise.puce")', "dz-media-rec", "●")
+GL("montage.scopes-dzmscopes.scopes-fermer", '"aria-label":dzT("montage.scopes.fermer"),onClick:bascule,children:"×"}', '"×"', "dz-action-fermer")
 # Studio (composants de la couche)
 T("studio.inspecteur-epingle-du-noeud-dzpinpanel.pin-sans", 'children:dzT("studio.epingle.sans_epingle")}',
   'dzT("studio.epingle.sans_epingle")', "dz-etat-epingle", "📌")

@@ -21,6 +21,10 @@
                           Chaque « avant_* » ci-dessus commence par là : les icônes se défont AVANT les traductions.
   couche_avant_dzglyph(texte, cible)  une couche (« montage », « sonvfx »… ou son nom de fichier) d'avant G1 ; un texte
                           qui ne porte pas G1 (déjà défait, ou plus ancien) est rendu tel quel.
+  couche_avant_i18n_l3(c) / avant_i18n_l3(bundle)  t143 : la couche montage (ou le bloc MONTAGE) d'avant L3 ; G1, posé
+                          APRÈS L3 (BASE de g1_generer = la couche traduite), y est GARDÉ, recalé en positions d'avant
+                          L3 : la vue est la couche de main d'avant L3, à l'octet. couche_avant_dzglyph défait G1 dans
+                          les deux vues (couche traduite, ou d'avant L3).
 """
 import json
 import pathlib
@@ -73,9 +77,79 @@ def _couche_defaire(couche: str, table, nom) -> str:
     return r if crlf else r.replace("\r\n", "\n")
 
 
+_TABLE3 = RACINE / "scripts" / "i18n_l3_paires.json"   # t143 : la couche montage.js traduite par-dessus L2
+
+
+def _subs3():
+    return json.loads(_TABLE3.read_bytes().decode("utf-8"))["couches"].get("montage", []) if _TABLE3.is_file() else []
+
+
+def _sans_g1_ni_l3(couche: str) -> str:
+    """La couche montage d'avant G1 ET d'avant L3 (L1 et L2 posées) : G1 se défait d'abord (sa table est en positions
+    de la couche traduite), puis L3."""
+    couche = couche_avant_dzglyph(couche, "montage")
+    if 'dzT("montage.' not in couche or not _subs3():
+        return couche
+    return _couche_defaire_subs(couche, _subs3(), "couche L3")
+
+
+def _g1_avant_l3():
+    """Les éditions G1 de la couche montage ramenées en positions de la couche d'AVANT L3 : décalées des
+    substitutions L3 qui les précèdent ; une substitution L3 contenue dans une édition G1 (« + piste vidéo »
+    devenu dzT(...) puis __dzGlT(…, dzT(...), "+")) y est remise en français."""
+    t = _table_g()
+    gsubs = (t or {}).get("couches", {}).get("montage", [])
+    l3c, cum = [], 0
+    for s in sorted(_subs3(), key=lambda x: x["pos"]):
+        l3c.append((s["pos"] + cum, s))
+        cum += len(s["apres"]) - len(s["avant"])
+    out = []
+    for e in gsubs:
+        a, b = e["pos"], e["pos"] + len(e["avant"])
+        delta, avant, apres = 0, e["avant"], e["apres"]
+        for p, s in l3c:
+            q = p + len(s["apres"])
+            if q <= a:
+                delta += len(s["apres"]) - len(s["avant"])
+            elif p >= b:
+                break
+            else:
+                if not (a <= p and q <= b):
+                    raise ValueError(f"G1/L3 : édition G1 à cheval sur une substitution L3 ({e['ids'][:1]})")
+                avant = avant.replace(s["apres"], s["avant"], 1)
+                apres = apres.replace(s["apres"], s["avant"], 1)
+        out.append({"pos": a - delta, "avant": avant, "apres": apres, "ids": e["ids"], "groupe": "dzglyph"})
+    return out
+
+
+def couche_avant_i18n_l3(couche: str) -> str:
+    """t143 : la couche frontend/patches/montage.js d'avant la seule traduction L3 (L1 et L2 posées). Une couche
+    qui ne porte pas L3 (aucun dzT("montage.") : le .bak reconstruit, une base) est rendue telle quelle.
+    Icônes G1 (posées APRÈS L3) : une couche qui les porte les GARDE (recalées sur la couche d'avant L3, comme les
+    bancs qui exécutent la couche et attendent « ⟦clé⟧ ») ; couche_avant_dzglyph sait les défaire dans cette vue."""
+    sans = _sans_g1_ni_l3(couche)
+    if couche_avant_dzglyph(couche, "montage") == couche:
+        return sans                                # pas de G1 : L3 seule défaite (ou rien)
+    crlf = "\r\n" in sans
+    s = sans if crlf else sans.replace("\n", "\r\n")
+    for e in sorted(_g1_avant_l3(), key=lambda x: -x["pos"]):
+        if s[e["pos"]:e["pos"] + len(e["avant"])] != e["avant"]:
+            raise ValueError(f"couche L3 : édition G1 {e['ids'][:1]} introuvable dans la couche d'avant L3")
+        s = s[:e["pos"]] + e["apres"] + s[e["pos"] + len(e["avant"]):]
+    return s if crlf else s.replace("\r\n", "\n")
+
+
 def couche_avant_i18n_l2(couche: str) -> str:
-    """t142 : la couche frontend/patches/montage.js d'avant la seule traduction L2 (L1 toujours posée)."""
-    return _couche_defaire(couche_avant_dzglyph(couche, "montage"), _TABLE2, "couche L2")
+    """t142 : la couche frontend/patches/montage.js d'avant la seule traduction L2 (L1 toujours posée).
+    t143 : G1 puis L3 se défont d'abord."""
+    return _couche_defaire(_sans_g1_ni_l3(couche), _TABLE2, "couche L2")
+
+
+def avant_i18n_l3(bundle: str) -> str:
+    """t143 : le bundle dont le bloc MONTAGE est ramené à la couche d'avant L3 (L1 et L2 posées). LF ou CRLF."""
+    if "/*__DZ_MONTAGE_BEGIN__*/" not in bundle:
+        return bundle
+    return _bloc(bundle, couche_avant_i18n_l3)    # icônes G1 gardées si le bundle les porte (couche_avant_i18n_l3)
 
 
 def couche_avant_i18n(couche: str) -> str:
@@ -218,10 +292,21 @@ def couche_avant_dzglyph(texte: str, cible: str) -> str:
     corps = texte[1:] if bom else texte
     crlf = "\r\n" in corps
     s = corps if crlf else corps.replace("\n", "\r\n")
-    e0 = min(subs, key=lambda x: x["pos"])
-    if s[e0["pos"]:e0["pos"] + len(e0["apres"])] != e0["apres"]:
+    # t143 : la couche montage peut aussi être la vue d'avant L3 qui garde G1 (couche_avant_i18n_l3), éditions recalées
+    vues = [subs] + ([_g1_avant_l3()] if cible == "montage" else [])
+    r = None
+    for v in vues:
+        e0 = min(v, key=lambda x: x["pos"])
+        if s[e0["pos"]:e0["pos"] + len(e0["apres"])] != e0["apres"]:
+            continue
+        try:
+            r = _couche_defaire_subs(s, [dict(x, groupe="dzglyph") for x in v], f"couche {cible} G1")
+            break
+        except ValueError:
+            if v is vues[-1]:
+                raise
+    if r is None:
         return texte
-    r = _couche_defaire_subs(s, [dict(x, groupe="dzglyph") for x in subs], f"couche {cible} G1")
     r = r if crlf else r.replace("\r\n", "\n")
     return ("\ufeff" + r) if bom else r
 

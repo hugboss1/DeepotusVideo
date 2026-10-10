@@ -283,6 +283,7 @@
   "sfx.touches.supprimer": {"fr": " supprimer", "en": " delete"},
   "sfx.type.effet_sonore": {"fr": "Effet sonore", "en": "Sound effect"},
   "sfx.type.importe": {"fr": "Importé", "en": "Imported"},
+  "sfx.types.voix_tag": {"fr": "VOIX", "en": "VOICE"},
   "sfx.vide.aucun_favori": {"fr": "Aucun favori pour l'instant.", "en": "No favorites yet."},
   "sfx.vide.aucun_favori_aide": {"fr": "Survolez un son et cliquez ★ (ou touche F) pour l'épingler ici.", "en": "Hover a sound and click ★ (or press F) to pin it here."},
   "sfx.vide.aucun_resultat": {"fr": "Aucun résultat pour « {q} ».", "en": "No results for “{q}”."},

@@ -7188,7 +7188,7 @@ function svxWaveEntry(src){
 /* catégories de la bibliothèque — couleur = type de média, jamais un état */
 var SVX_KINDS={
   sfx:{tag:"SFX",label:dzT("sfx.type.effet_sonore"),c:"--c-3d",track:"a3"},
-  voix:{tag:"VOIX",label:dzT("sfx.commun.voix"),c:"--c-audio",track:"a1"},
+  voix:{tag:dzT("sfx.types.voix_tag"),label:dzT("sfx.commun.voix"),c:"--c-audio",track:"a1"},
   musique:{tag:"MUS",label:dzT("sfx.commun.musique"),c:"--c-av",track:"a2"},
   import:{tag:"IMP",label:dzT("sfx.type.importe"),c:"--c-text",track:"a3"}};
 function svxKindOf(name,metaMap){
@@ -14301,17 +14301,17 @@ function dzmAddDit(ts,kind){
   for(i=0;i<out.length;i++)if(avant.indexOf(out[i].id)<0){neuf=out[i];break}
   if(!neuf)return {tracks:out,id:"",type:"",note:""};
   var nom=String(neuf.id).toUpperCase(),ty=String(neuf.type||""),note;
-  if(neuf.kind==="audio")note="Piste "+nom+" ajoutée — audio, bus "+
-    String(neuf.bus||"sfx")+(neuf.loop?", bouclée":"")+" : une bande vide, "+
-    "sous les pistes audio existantes.";
-  else if(ty==="vidéo")note="Piste "+nom+" ajoutée — vidéo plein cadre : "+
-    "ses plans recouvrent V1 pendant leur durée et leur son est extrait sur "+
-    "la piste de dialogue ; ses plans ont leurs transitions, leur vitesse et "+
-    "leurs effets, comme V1 ; V1 reste la séquence maîtresse (durée).";
-  else note="Piste "+nom+" ajoutée — incrustation"+
-    (ty==="overlay/VFX"?" (overlay/VFX, la piste historique)":"")+
-    " : image dans l'image, réglable (position, échelle, rotation, "+
-    "opacité), muette ; ses plans ont aussi transitions, vitesse et effets.";
+  if(neuf.kind==="audio")note=dzT("montage.pistes.ajoutee_audio",{piste:nom,
+    bus:String(neuf.bus||"sfx"),boucle:neuf.loop?dzT("montage.pistes.bouclee"):""}
+    );
+  else if(ty==="vidéo")note=dzT("montage.pistes.ajoutee_video",{piste:nom}
+    
+    
+    );
+  else note=dzT("montage.pistes.ajoutee_incrustation",{piste:nom,
+    historique:ty==="overlay/VFX"?dzT("montage.pistes.historique"):""}
+    
+    );
   return {tracks:out,id:neuf.id,type:ty,note:note}}
 /* Le rang de la PREMIÈRE piste qui n'est pas une piste de titres, c'est-à-
    dire le haut du groupe des incrustations. `0` quand il n'y a aucun titre :
@@ -14413,14 +14413,14 @@ function dzmIsVideoJob(j,exts){
    (info.word_anim_skipped). Aucune de ces valeurs ne détruit quoi que ce
    soit — c'est un champ de style, on revient en arrière en le rechangeant. */
 var DZM_WORD_ANIMS=[
- {v:"couleur",l:"couleur",t:"Le mot actif change de couleur (karaoké). "+
-   "Rien n'est déplacé : les répliques sur plusieurs lignes en profitent aussi."},
- {v:"rebond",l:"rebond",t:"Chaque mot entre en grossissant, puis se pose. "+
-   "Mesuré à l'image : 222 pixels éclairés à 130 ms contre 191 une fois posé "+
-   "(×1,16). Réservé aux répliques qui tiennent sur UNE ligne — les autres "+
-   "gardent la couleur."},
- {v:"glow",l:"glow",t:"Chaque mot pousse son contour puis le laisse "+
-   "retomber. Mêmes limites que le rebond : une seule ligne."}];
+ {v:"couleur",l:dzT("montage.motanim.couleur"),t:dzT("montage.motanim.couleur_aide"
+   )},
+ {v:"rebond",l:dzT("montage.motanim.rebond"),t:dzT("montage.motanim.rebond_aide"
+   
+   
+   )},
+ {v:"glow",l:"glow",t:dzT("montage.motanim.glow_aide"
+   )}];
 
 /* Les suggestions de POST /api/subtitles/emoji-hints en clips d'overlay.
    PUR : c'est ce que le banc exécute sous node. La piste visée est la
@@ -14637,18 +14637,18 @@ var DzmTrackAdd=function(props){
   function add(k){if(props&&props.onChange)props.onChange(dzmAdd(ts,k))}
   return r.jsxs("span",{className:"dzm-add",children:[
     r.jsx("button",{className:"svm-tbtn dzm-addb",
-      title:"Ajouter une PISTE vidéo plein cadre (une bande vide) — posée "+
-        "tout en haut ; ses plans recouvrent V1 pendant leur durée. Pour "+
-        "poser un clip, c'est « Bibliothèque… ».",
-      "aria-label":"Ajouter une piste vidéo plein cadre",
-      onClick:function(){add("video")},children:__dzGlT("dz-action-ajouter","+ piste vidéo","+")},"v"),
+      title:dzT("montage.pistes.ajouter_video_aide"
+        
+        ),
+      "aria-label":dzT("montage.pistes.ajouter_video_aria"),
+      onClick:function(){add("video")},children:__dzGlT("dz-action-ajouter",dzT("montage.pistes.ajouter_video"),"+")},"v"),
     r.jsx("button",{className:"svm-tbtn dzm-addb",
-      title:"Ajouter une PISTE audio (une bande vide) — posée sous les pistes "+
-        "audio existantes, au-dessus des sous-titres. Bus BRUITAGES, sauf si "+
-        "l'identifiant libre est celui d'une piste historique retirée (A1, "+
-        "A2) : elle revient alors avec son bus d'origine et son habillage.",
-      "aria-label":"Ajouter une piste audio",
-      onClick:function(){add("audio")},children:__dzGlT("dz-action-ajouter","+ piste audio","+")},"a")]})};
+      title:dzT("montage.pistes.ajouter_audio_aide"
+        
+        
+        ),
+      "aria-label":dzT("montage.pistes.ajouter_audio_aria"),
+      onClick:function(){add("audio")},children:__dzGlT("dz-action-ajouter",dzT("montage.pistes.ajouter_audio"),"+")},"a")]})};
 
 /* ── P9 : le bouton « Bibliothèque… » de la barre de transport ─────────────
    MESURE qui le fonde : `openPicker` n'était appelé QU'À UN endroit du
@@ -14666,18 +14666,18 @@ var DzmLibBtn=function(props){
   var ts=dzmTsOr(props&&props.tracks);
   var id=dzmPickTrack(ts,"video");
   return r.jsx("button",{className:"svm-tbtn dzm-libb",
-    title:id?("Ouvrir la Bibliothèque et poser une vidéo, une image ou un "+
-        "rendu sur la piste "+id.toUpperCase()+", à la tête de lecture — "+
-        "c'est la piste vidéo la plus haute du projet.")
-      :("Aucune piste vidéo dans ce projet : rien ne pourrait recevoir le "+
-        "clip. « + piste vidéo » en crée une."),
-    "aria-label":"Ouvrir la Bibliothèque pour ajouter un clip",
+    title:id?(dzT("montage.pistes.biblio_aide",{piste:
+        id.toUpperCase()}
+        ))
+      :(dzT("montage.pistes.biblio_sans_video"
+        )),
+    "aria-label":dzT("montage.pistes.biblio_aria"),
     onClick:function(){
-      if(!id){if(props&&props.note)props.note("Aucune piste vidéo dans ce "+
-        "projet — « + piste vidéo » en crée une, puis « Bibliothèque… » y "+
-        "posera le clip.");return}
+      if(!id){if(props&&props.note)props.note(dzT("montage.pistes.biblio_sans_video_note"
+        
+        ));return}
       if(props&&props.onPick)props.onPick(id)},
-    children:"Bibliothèque…"},"lib")};
+    children:dzT("montage.pistes.bibliotheque")},"lib")};
 
 /* ── P9 : le marquage d'un clip V1 qui n'est pas une vidéo ─────────────────
    GET /api/montage/project rend `v1_non_video` — des identifiants de clips,
@@ -14703,18 +14703,18 @@ var DzmLibBtn=function(props){
    qui n'arrive pas aurait été le même défaut, à l'envers. */
 function dzmBadSrcChip(c,onFix){
   return r.jsx("button",{className:"dzm-badsrc",
-    title:"Ce plan n'est pas une vidéo : son fichier ne porte pas "+
-      "d'extension vidéo (planche de sprites, maillage 3D, archive…). Un "+
-      "maillage ou une archive fera échouer le rendu, qui les nommera ; une "+
-      "image passera le contrôle mais se rendra en carton fixe. Cliquez "+
-      "pour rouvrir la Bibliothèque et poser un vrai rendu à sa place, puis "+
-      "retirez celui-ci.",
-    "aria-label":"Plan qui n'est pas une vidéo — ouvrir la Bibliothèque",
+    title:dzT("montage.pistes.pas_video_aide"
+      
+      
+      
+      
+      ),
+    "aria-label":dzT("montage.pistes.pas_video_aria"),
     onPointerDown:function(e){if(e&&e.stopPropagation)e.stopPropagation()},
     onClick:function(e){
       if(e&&e.stopPropagation)e.stopPropagation();
       if(onFix)onFix(c)},
-    children:"pas une vidéo"},"badsrc")}
+    children:dzT("montage.pistes.pas_video")},"badsrc")}
 
 /* ▲ ▼ × d'un en-tête de piste, et la poignée de glisser-déposer.
    Le × ARME avant de frapper quand la piste porte des clips : un clic pose
@@ -14735,16 +14735,16 @@ var DzmTrackBtns=function(props){
   function set(nx){if(props.onSet&&nx!==ts)props.onSet(nx)}
   function mv(d){
     var nx=dzmMove(ts,tr.id,d);
-    if(nx===ts){note("« "+(tr.name||tr.id)+" » ne peut pas aller plus "+
-      (d<0?"haut":"bas")+" — les overlays restent au-dessus de V1, l'audio "+
-      "au milieu, les sous-titres en bas.");return}
+    if(nx===ts){note((d<0?dzT("montage.pistes.bloquee_haut",{nom:tr.name||tr.id}):
+      dzT("montage.pistes.bloquee_bas",{nom:tr.name||tr.id})
+      ));return}
     set(nx)}
   function del(){
     if(base){note(tr.id==="s1"
-      ?"S1 est la seule piste de sous-titres et rien ne sait la recréer : "+
-       "elle ne peut pas être retirée."
-      :"V1 est la piste de base du montage : elle ne peut pas être "+
-       "retirée.");return}
+      ?dzT("montage.pistes.s1_base_note"
+       )
+      :dzT("montage.pistes.v1_base_note"
+       ));return}
     if(n&&!arm){setArm(1);return}
     setArm(0);
     set(dzmRemove(ts,tr.id));
@@ -14765,22 +14765,22 @@ var DzmTrackBtns=function(props){
        lectures du même genre par deux chemins différents, c'est une
        divergence qui attend son tour. */
     var kd=dzmKindOf(tr.id,tr.kind);
-    note("Piste "+(tr.name||tr.id)+" retirée"+
-      (n?" avec "+n+" clip"+(n>1?"s":""):"")+
-      (n?" — annuler ramène les clips ; la piste, elle, "+
+    note((!n?dzT("montage.pistes.retiree",{piste:tr.name||tr.id}):
+      n>1?dzT("montage.pistes.retiree_clips.plusieurs",{piste:tr.name||tr.id,n:n}):dzT("montage.pistes.retiree_clips.un",{piste:tr.name||tr.id,n:n}))+
+      (n?dzT("montage.pistes.retiree_suite")+
          (kd==="title"
-          ?"revient avec "+dzmCombo("title_add","Maj+T")+
-           ", qui repose un carton (même identifiant)."
+          ?dzT("montage.pistes.revient_titre",{touche:dzmCombo("title_add","Maj+T")}
+           )
           /* D-9 (revue 23/09/2026) : MÊME DÉFAUT QUE T1 — aucun « + vidéo »
              ne repose j1 (dzmAdd ne fabrique que v…/a…) ; elle revient par
              Maj+J / « J+ », qui la recrée sous t1 (`adjustTrack`). */
           :kd==="adjust"
-          ?"revient avec "+dzmCombo("adjust_add","Maj+J")+
-           ", qui repose un clip d'ajustement (même identifiant)."
-          :"se rajoute par « + "+(kd==="audio"?"audio":"vidéo")+
-           " » (même identifiant)."):"."))}
+          ?dzT("montage.pistes.revient_ajustement",{touche:dzmCombo("adjust_add","Maj+J")}
+           )
+          :(kd==="audio"?dzT("montage.pistes.se_rajoute_audio"):dzT("montage.pistes.se_rajoute_video")
+           )):"."))}
   return r.jsxs("div",{className:"dzm-hb",draggable:!0,
-    title:"Glisser pour réordonner la piste (ou ▲ ▼)",
+    title:dzT("montage.pistes.poignee_aide"),
     onDragStart:function(e){
       try{e.dataTransfer.setData("dz-track",tr.id);
         e.dataTransfer.effectAllowed="move"}catch(_e){}},
@@ -14800,25 +14800,25 @@ var DzmTrackBtns=function(props){
     children:[
     r.jsx("span",{className:"dzm-grip","aria-hidden":!0,children:__dzGl("dz-action-poignee")},"g"),
     r.jsx("button",{className:"dzm-hbtn",disabled:!upOk,"aria-disabled":!upOk,
-      title:"Monter "+(tr.name||tr.id)+" d'un rang — une piste plus haute est "+
-        "composée AU-DESSUS au rendu",
-      "aria-label":"Monter la piste "+(tr.name||tr.id),
+      title:dzT("montage.pistes.monter_aide",{piste:tr.name||tr.id}
+        ),
+      "aria-label":dzT("montage.pistes.monter_aria",{piste:tr.name||tr.id}),
       onClick:function(){mv(-1)},children:__dzGl("dz-edit-monter")},"u"),
     r.jsx("button",{className:"dzm-hbtn",disabled:!dnOk,"aria-disabled":!dnOk,
-      title:"Descendre "+(tr.name||tr.id)+" d'un rang",
-      "aria-label":"Descendre la piste "+(tr.name||tr.id),
+      title:dzT("montage.pistes.descendre_aide",{piste:tr.name||tr.id}),
+      "aria-label":dzT("montage.pistes.descendre_aria",{piste:tr.name||tr.id}),
       onClick:function(){mv(1)},children:__dzGl("dz-edit-descendre")},"d"),
     r.jsx("button",{className:"dzm-hbtn dzm-hbx",disabled:base,"aria-disabled":base,
       "data-arm":arm?"":void 0,
       title:base?(tr.id==="s1"
-          ?"S1 est la seule piste de sous-titres — elle ne se retire pas"
-          :"V1 est la piste de base du montage — elle ne se retire pas")
-        :n?(arm?"Confirmer : retirer "+(tr.name||tr.id)+" ET ses "+n+" clip"+
-              (n>1?"s":"")+" — annuler ramène les clips"
-             :"Retirer la piste "+(tr.name||tr.id)+" ("+n+" clip"+(n>1?"s":"")+
-              " — un second clic confirmera)")
-        :"Retirer la piste "+(tr.name||tr.id)+" (vide)",
-      "aria-label":"Retirer la piste "+(tr.name||tr.id),
+          ?dzT("montage.pistes.s1_base_aide")
+          :dzT("montage.pistes.v1_base_aide"))
+        :n?(arm?(n>1?dzT("montage.pistes.confirmer_retrait.plusieurs",{piste:tr.name||tr.id,n:n}):
+              dzT("montage.pistes.confirmer_retrait.un",{piste:tr.name||tr.id,n:n}))
+             :(n>1?dzT("montage.pistes.retirer_clips.plusieurs",{piste:tr.name||tr.id,n:n}):
+              dzT("montage.pistes.retirer_clips.un",{piste:tr.name||tr.id,n:n})))
+        :dzT("montage.pistes.retirer_vide",{piste:tr.name||tr.id}),
+      "aria-label":dzT("montage.pistes.retirer_aria",{piste:tr.name||tr.id}),
       onClick:function(){del()},children:arm?String(n):__dzGl("dz-action-supprimer")},"x")]})};
 
 function dzmHeadBtns(tr,ts,set,clips,setClips,note){
@@ -14834,8 +14834,8 @@ var DzmWordAnimChip=function(props){
   var v=String((props&&props.value)||"couleur");
   function set(nv){if(props&&props.onChange&&nv!==v)props.onChange(nv)}
   return r.jsxs("span",{className:"dzm-wa",role:"group",
-    "aria-label":"Animation des sous-titres, mot par mot",children:[
-    r.jsx("span",{className:"dzm-walbl","aria-hidden":!0,children:"mot"},"l"),
+    "aria-label":dzT("montage.motanim.aria"),children:[
+    r.jsx("span",{className:"dzm-walbl","aria-hidden":!0,children:dzT("montage.motanim.mot")},"l"),
     r.jsx("span",{className:"dzm-wab",children:DZM_WORD_ANIMS.map(function(o){
       return r.jsx("button",{className:"svm-tbtn dzm-wabtn",
         "data-on":v===o.v?"":void 0,"aria-pressed":v===o.v,
@@ -14878,14 +14878,14 @@ function dzmEmojiGo(p){
   if(p.busy)return "occupe";
   var segs=p.segments||[];
   if(!segs.length){
-    note("Aucun sous-titre : les emoji se posent sur les MOTS d'une "+
-      "réplique. Écrivez la piste S1 d'abord.");return "sans-soustitre"}
+    note(dzT("montage.emoji.sans_soustitre"
+      ));return "sans-soustitre"}
   if(typeof p.onAdd!=="function"){
-    note("Emoji : rien pour recevoir les clips.");return "sans-hote"}
+    note(dzT("montage.emoji.sans_hote"));return "sans-hote"}
   var f=(typeof p.fetch==="function")?p.fetch:null;
   if(!f&&typeof window!=="undefined"&&typeof window.fetch==="function")
     f=function(u,o){return window.fetch(u,o)};
-  if(!f){note("Emoji : ce navigateur ne sait pas interroger le serveur.");
+  if(!f){note(dzT("montage.emoji.sans_reseau"));
     return "sans-reseau"}
   busy(1);
   return f("/api/subtitles/emoji-hints",{method:"POST",
@@ -14895,28 +14895,28 @@ function dzmEmojiGo(p){
     .then(function(d){
       busy(0);
       var hs=(d&&d.hints)||[];
-      if(!hs.length){note("Aucun mot-clé reconnu — les mots suivis sont "+
-        "feu, lune, vague, poulpe, or, fusée.");return}
+      if(!hs.length){note(dzT("montage.emoji.aucun_mot_cle"
+        ));return}
       var cs=dzmEmojiClips(hs,p.tracks,Date.now());
-      if(!cs.length){note("Aucune piste vidéo d'overlay pour les poser : "+
-        "ajoutez-en une par « + vidéo ».");return}
+      if(!cs.length){note(dzT("montage.emoji.sans_overlay"
+        ));return}
       p.onAdd(cs);
-      note(cs.length+" emoji posé"+(cs.length>1?"s":"")+" sur "+cs[0].tr+
-        " — annuler les retire tous.")})
+      note((cs.length>1?dzT("montage.emoji.poses.plusieurs",{n:cs.length,piste:cs[0].tr}):dzT("montage.emoji.poses.un",{n:cs.length,piste:cs[0].tr})
+        ))})
     .catch(function(e){busy(0);
-      note("Emoji : "+((e&&e.message)||"échec de la requête"))})}
+      note(dzT("montage.emoji.erreur",{e:(e&&e.message)||dzT("montage.emoji.echec_requete")}))})}
 /* Le bouton « emoji » du bandeau : il ne porte plus QUE son attente.
    RÉVERSIBLE — l'appelant pousse l'historique AVANT d'ajouter, donc
    « annuler » les retire d'un coup ; et ce sont des clips ordinaires, qui se
    déplacent et se suppriment comme les autres. */
-var DZM_EMO_TITRE="Poser un emoji sur les mots-clés des sous-titres (feu, "+
-  "lune, vague, poulpe, or, fusée) — un clip par mot, sur la piste "+
-  "d'overlay la plus haute. Annuler les retire.";
+var DZM_EMO_TITRE=dzT("montage.emoji.bouton_aide"
+  
+  );
 var DzmEmojiBtn=function(props){
   var sb=x.useState(0),busy=sb[0],setBusy=sb[1];
   return r.jsx("button",{className:"svm-tbtn dzm-emo",disabled:!!busy,
     title:DZM_EMO_TITRE,
-    "aria-label":"Poser les emoji des mots-clés",
+    "aria-label":dzT("montage.emoji.bouton_aria"),
     onClick:function(){dzmEmojiGo({segments:props&&props.segments,
       tracks:props&&props.tracks,note:props&&props.note,
       onAdd:props&&props.onAdd,busy:busy,setBusy:setBusy})},
@@ -14994,20 +14994,20 @@ var DzmTextDrawer=function(props){
       var ws=((d&&d.aligned)||[]).map(function(w,i){
         return {i:i,w:String(w.raw||w.w||"")+String(w.punct||""),
           start:w.start,end:w.end,clip:w.clip}});
-      if(!ws.length)throw new Error("Aucun mot calé sur la narration.");
+      if(!ws.length)throw new Error(dzT("montage.texte.aucun_mot_cale"));
       return post("/api/subtitles/fillers",{words:ws}).then(function(fd){
         if(!alive)return;
         setBusy(0);setData({words:ws,spans:(fd&&fd.spans)||[]})})})
       .catch(function(e){
         if(alive){setBusy(0);
-          setErr((e&&e.message)||"échec de la requête")}});
+          setErr((e&&e.message)||dzT("montage.texte.echec_requete"))}});
     return function(){alive=!1}},[open,data]);
 
   function cut(ranges){
     var rg=(ranges||[]).filter(function(p){
       return p&&p[1]>p[0]});
-    if(!rg.length){note("Rien à couper : la sélection est vide.");return}
-    if(!props.onCut){note("Texte : rien pour recevoir la coupe.");return}
+    if(!rg.length){note(dzT("montage.texte.rien_a_couper"));return}
+    if(!props.onCut){note(dzT("montage.texte.pas_de_receveur"));return}
     /* les mots partent AVEC la coupe : c'est eux qui répartiront le texte
        d'un bloc de narration fendu entre ses deux moitiés. */
     props.onCut(rg,(data&&data.words)||[]);
@@ -15044,9 +15044,9 @@ var DzmTextDrawer=function(props){
     setSel(function(p){return (ext&&p)?{a:p.a,b:i}:{a:i,b:i}})}
   return r.jsxs("div",{className:"dzm-txt",children:[
     r.jsxs("div",{className:"dzm-txth",children:[
-      r.jsx("span",{className:"dzm-txtt",children:"Texte"},"t"),
+      r.jsx("span",{className:"dzm-txtt",children:dzT("montage.texte.titre")},"t"),
       r.jsx("span",{className:"dzm-txtn",children:
-        busy?"…":(words.length?words.length+" mots":"")},"n")]},"h"),
+        busy?"…":(words.length?dzT("montage.texte.n_mots",{n:words.length}):"")},"n")]},"h"),
     err?r.jsx("div",{className:"dzm-txterr",children:err},"e"):null,
     words.length?r.jsx("div",{className:"dzm-txtw",children:
       words.map(function(w,i){
@@ -15054,11 +15054,11 @@ var DzmTextDrawer=function(props){
         return r.jsx("button",{className:"dzm-txtb",
           "data-filler":fill[i]||void 0,"data-on":on?"":void 0,
           "aria-pressed":!!on,
-          title:(fill[i]==="hesitation"?"Hésitation — ":
-                 fill[i]==="tic"?"Mot béquille (mot plein : à couper à la "+
-                   "main, jamais en bloc) — ":"")+
-            (w.start!=null?Number(w.start).toFixed(2)+" s":"sans temps")+
-            " · cliquer, Maj+clic ou glisser pour étendre la sélection",
+          title:(fill[i]==="hesitation"?dzT("montage.texte.hesitation"):
+                 fill[i]==="tic"?dzT("montage.texte.tic"
+                   ):"")+
+            (w.start!=null?Number(w.start).toFixed(2)+" s":dzT("montage.texte.sans_temps"))+
+            dzT("montage.texte.mot_aide"),
           onMouseDown:function(e){dragRef.current=!0;selTo(i,e&&e.shiftKey)},
           onMouseEnter:function(){
             if(dragRef.current)setSel(function(p){
@@ -15075,33 +15075,33 @@ var DzmTextDrawer=function(props){
     r.jsxs("div",{className:"dzm-txta",children:[
       r.jsx("button",{className:"svm-tbtn dzm-txtbtn",disabled:!rgSel,
         title:rgSel
-          ?("Couper de "+rgSel[0].toFixed(2)+" s à "+rgSel[1].toFixed(2)+
-            " s sur toutes les pistes non verrouillées : ce qui suit remonte. "+
-            "Annuler défait la coupe entièrement. La durée du projet ne bouge "+
-            "pas : la fin de la timeline est maintenant vide, raccourcissez-la "+
-            "si vous voulez.")
-          :"Sélectionnez des mots (clic, Maj+clic, ou clic-glissé du premier "+
-           "au dernier)",
+          ?(dzT("montage.texte.couper_aide",{a:rgSel[0].toFixed(2),b:rgSel[1].toFixed(2)}
+            
+            
+            
+            ))
+          :dzT("montage.texte.selectionner_aide"
+           ),
         onClick:function(){cut([rgSel])},
-        children:"couper la sélection"},"c"),
+        children:dzT("montage.texte.couper")},"c"),
       r.jsx("button",{className:"svm-tbtn dzm-txtbtn",disabled:!hes.length,
         title:hes.length
-          ?("Retirer "+hesMots.map(function(m){return "« "+m+" »"}).join(", ")+
-            " — "+hes.length+" plage"+(hes.length>1?"s":"")+", de la fin vers "+
-            "le début pour que les précédentes ne se décalent pas. Seules les "+
-            "HÉSITATIONS partent ainsi ; les mots béquille soulignés se "+
-            "coupent à la sélection, un par un. Annuler défait la coupe "+
-            "entièrement. La durée du projet ne bouge pas : la fin de la "+
-            "timeline est maintenant vide, raccourcissez-la si vous voulez.")
+          ?(dzT(hes.length>1?"montage.texte.retirer_aide_plusieurs":"montage.texte.retirer_aide_un",
+            {mots:hesMots.map(function(m){return dzT("montage.texte.mot_cite",{m:m})}).join(", "),
+            n:hes.length}
+            
+            
+            
+            ))
           :(spans.length
-            ?"Aucune hésitation. Les "+spans.length+" mot"+
-             (spans.length>1?"s":"")+" souligné"+(spans.length>1?"s":"")+
-             " sont des mots PLEINS : à couper à la sélection, en les lisant."
-            :"Aucun mot de remplissage repéré dans cette narration"),
+            ?(spans.length>1?dzT("montage.texte.aucune_hesitation_plusieurs",{n:spans.length}):
+             dzT("montage.texte.aucune_hesitation_un",{n:spans.length})
+             )
+            :dzT("montage.texte.aucun_remplissage")),
         onClick:function(){cut(hes.map(function(s){
           return [s.start,s.end]}))},
-        children:hes.length?("retirer les "+hes.length+" « euh »")
-          :"aucun « euh »"},"f")]},"a")]})};
+        children:hes.length?(dzT("montage.texte.retirer_euh",{n:hes.length}))
+          :dzT("montage.texte.aucun_euh")},"f")]},"a")]})};
 
 /* ── P4 : « appliquer cet étalonnage à tous les plans de la piste » ─────
    Les quatre curseurs (exposition, contraste, saturation, température) sont
@@ -15250,19 +15250,19 @@ function dzmGradeAllBtn(sel,clips,setClips,pushHistory,setDirty,note){
   var hors="";
   var t=pv.targets
     ?(pv.applied
-      ?("Recopier l'exposition, le contraste, la saturation et la "+
-        "température de ce plan sur "+pv.applied+" autre"+
-        (pv.applied>1?"s":"")+" plan"+(pv.applied>1?"s":"")+" "+TR+
-        (pv.replaced?(", dont "+pv.replaced+" dont l'étalonnage actuel sera "+
-                      "REMPLACÉ"):"")+". Les bornes de temps de l'effet ne "+
-        "sont pas recopiées : l'étalonnage porte sur le plan entier. Annuler "+
-        "restaure l'étalonnage de chaque plan tel qu'il était."+hors)
+      ?(dzT(pv.applied>1?"montage.etalonnage.recopier_plusieurs":"montage.etalonnage.recopier_un",
+        {n:pv.applied,piste:TR,
+        
+        dont:pv.replaced?dzT("montage.etalonnage.dont_remplace",{n:pv.replaced}):""}
+                      
+        
+        )+hors)
       :(pv.targets>1
-        ?("Les "+pv.targets+" autres plans "+TR+" portent déjà exactement "+
-          "cet étalonnage.")
-        :("Le seul autre plan "+TR+" porte déjà exactement cet étalonnage.")))
-    :("Aucun autre plan "+TR+" : rien à étalonner ailleurs.");
-  var lbl="étalonnage → tous les plans "+TR;
+        ?(dzT("montage.etalonnage.deja_plusieurs",{n:pv.targets,piste:TR}
+          ))
+        :(dzT("montage.etalonnage.deja_un",{piste:TR}))))
+    :(dzT("montage.etalonnage.aucun_autre",{piste:TR}));
+  var lbl=dzT("montage.etalonnage.tous_les_plans",{piste:TR});
   /* aria-label = le texte VISIBLE, puis l'état. Un aria-label FIGÉ masquait la
      seule phrase qui dit pourquoi le bouton est éteint : quand il existe, les
      lecteurs d'écran n'annoncent plus le `title`. Le libellé visible en reste
@@ -15276,12 +15276,12 @@ function dzmGradeAllBtn(sel,clips,setClips,pushHistory,setDirty,note){
       if(pushHistory)pushHistory();
       if(setClips)setClips(res.clips);
       if(setDirty)setDirty(!0);
-      if(note)note("Étalonnage appliqué à "+res.applied+" plan"+
-        (res.applied>1?"s":"")+" "+TR+
-        (res.replaced?(" (dont "+res.replaced+" dont l'étalonnage a été "+
-                       "remplacé)"):"")+
-        ". Les bornes de temps ne sont pas recopiées. Annuler restaure "+
-        "l'étalonnage de chaque plan tel qu'il était."+hors)},
+      if(note)note(dzT(res.applied>1?"montage.etalonnage.applique_plusieurs":"montage.etalonnage.applique_un",
+        {n:res.applied,piste:TR,
+        dont:res.replaced?dzT("montage.etalonnage.dont_a_ete_remplace",{n:res.replaced}):""}
+                       
+        
+        )+hors)},
     children:lbl},"dzmgall")}
 
 /* ── P5 : les PROJETS NOMMÉS ───────────────────────────────────────────────
@@ -15390,7 +15390,7 @@ var DzmProjects=function(props){
     return req(url,{method:method,headers:{"Content-Type":"application/json"},
       body:JSON.stringify(body||{})})}
   function url(p){return "/api/montage/projects/"+encodeURIComponent(p)}
-  function fail(e){setBusy(0);setErr((e&&e.message)||"requête impossible")}
+  function fail(e){setBusy(0);setErr((e&&e.message)||dzT("montage.projets.requete_impossible"))}
 
   function load(){
     setBusy(1);setErr("");
@@ -15437,7 +15437,7 @@ var DzmProjects=function(props){
   x.useEffect(function(){
     if(opn<=0||!oproj||!oproj.id)return;
     var p={id:String(oproj.id),name:String(oproj.name||oproj.id)};
-    if(busy){note("Liste des projets occupée — ouvrez « "+p.name+" » depuis ☰ › Projets.");return}
+    if(busy){note(dzT("montage.projets.liste_occupee",{nom:p.name}));return}
     setOp(!0);setArm("");setRen(null);setBusy(1);setErr("");
     surete().then(function(s){if(s)ouvrir(p,s.nom)})},[opn]);
 
@@ -15462,8 +15462,8 @@ var DzmProjects=function(props){
       .then(function(d){
         setBusy(0);setNv("");
         if(props.onNamed)props.onNamed(d.id,d.name);
-        note("Montage enregistré sous « "+d.name+" ». Les modifications "+
-          "suivantes y vont toutes seules, sans un geste de plus.");
+        note(dzT("montage.projets.enregistre_sous",{nom:d.name}
+          ));
         load()})
       .catch(fail)}
 
@@ -15494,8 +15494,8 @@ var DzmProjects=function(props){
       .then(function(d){if(props.onNamed)props.onNamed(d.id,d.name);
           return {nom:d.name}},
         function(e){setBusy(0);
-          note("Copie de sûreté impossible ("+((e&&e.message)||"requête impossible")+
-            ") — ouverture annulée");return null})}
+          note(dzT("montage.projets.surete_impossible",{e:(e&&e.message)||dzT("montage.projets.requete_impossible")}
+            ));return null})}
 
   /* l'ouverture proprement dite, factorisée : « remplacer ? » et
      « nouveau » y passent tous deux. `sauve` = nom de la copie de sûreté. */
@@ -15512,17 +15512,17 @@ var DzmProjects=function(props){
         if(props.onOpen&&props.onOpen(d)){
           if(props.onNamed)props.onNamed(p.id,p.name);
           setOp(!1);
-          note("« "+p.name+" » ouvert. Le montage précédent a été remplacé"+
-            (sauve?" — il est à l'abri sous « "+sauve+" »"
-              :" : s'il n'était pas enregistré sous un nom, il n'existe plus")+
-            ", et « annuler » ne le rend pas.")}
+          note(dzT(sauve?"montage.projets.ouvert_copie":"montage.projets.ouvert_perdu",
+            {nom:p.name,copie:sauve}
+              
+            ))}
         else
           /* le serveur refuse déjà d'ouvrir un projet sans plan vivant (409,
              et le courant reste intact) : il ne reste ici qu'une réponse que
              l'écran n'a pas su appliquer. Le taire ferait croire que rien ne
              s'est passé. */
-          setErr("Réponse inattendue du serveur : rien n'a été appliqué. "+
-            "Rechargez la page avant d'enregistrer.")})
+          setErr(dzT("montage.projets.reponse_inattendue"
+            ))})
       /* L'OUVERTURE A ECHOUE, et la liste est EXACTE : 409 « projet
          inouvrable », backend injoignable — les cas où la requête LÈVE. La
          timeline affichée n'a pas bougé et elle reste à enregistrer, or
@@ -15567,7 +15567,7 @@ var DzmProjects=function(props){
     setBusy(1);setErr("");
     send(url(p.id)+"/duplicate","POST").then(function(d){
       setBusy(0);
-      note("Copie « "+d.name+" » créée. Le montage ouvert n'a pas changé.");
+      note(dzT("montage.projets.copie_creee",{nom:d.name}));
       load()})
       .catch(fail)}
 
@@ -15579,8 +15579,8 @@ var DzmProjects=function(props){
       setBusy(0);
       if(p.id===pid&&props.onNamed)props.onNamed(p.id,d.name);
       note(d.name===p.name
-        ?("Nom inchangé : « "+d.name+" » — un champ vide garde l'ancien nom.")
-        :("« "+p.name+" » renommé en « "+d.name+" »."));
+        ?(dzT("montage.projets.nom_inchange",{nom:d.name}))
+        :(dzT("montage.projets.renomme",{ancien:p.name,nom:d.name})));
       load()})
       .catch(fail)}
 
@@ -15618,10 +15618,10 @@ var DzmProjects=function(props){
     req(url(p.id),{method:"DELETE"}).then(function(){
       setBusy(0);
       if(p.id===pid&&props.onNamed)props.onNamed("",nm);
-      note("« "+p.name+" » supprimé — DÉFINITIVEMENT : le fichier est parti "+
-        "du disque, ni « annuler » ni rien d'autre ne le rejoue."+
-        (p.id===pid?" La timeline affichée, elle, reste : elle n'est simplement "+
-          "plus rattachée à aucun projet.":""));
+      note(dzT("montage.projets.supprime",{nom:p.name,
+        
+        suite:p.id===pid?dzT("montage.projets.supprime_courant"
+          ):""}));
       load()})
       .catch(fail)}
 
@@ -15651,63 +15651,63 @@ var DzmProjects=function(props){
       r.jsxs("div",{className:"dzm-projid",children:[
         edit
           ?r.jsx("input",{className:"dzm-projin",value:ren.v,autoFocus:!0,
-              "aria-label":"Nouveau nom du projet",
+              "aria-label":dzT("montage.projets.nouveau_nom"),
               onChange:function(e){setRen({id:p.id,v:e.target.value})},
               onKeyDown:function(e){
                 if(e.key==="Enter")doRen(p);
                 if(e.key==="Escape")setRen(null)}},"i")
           :r.jsx("span",{className:"dzm-projnm",title:p.name||"",
-              children:(p.name||"sans nom")+(mine?" · ouvert":"")},"n"),
-        p.vide?r.jsx("span",{className:"dzm-projvide-chip",title:"montage vide",
+              children:(p.name||dzT("montage.mots.sans_nom"))+(mine?dzT("montage.projets.ouvert"):"")},"n"),
+        p.vide?r.jsx("span",{className:"dzm-projvide-chip",title:dzT("montage.projets.montage_vide"),
           children:__dzGl("dz-etat-vide")},"vd"):null,
         r.jsx("span",{className:"dzm-projmeta",title:String(p.updated_at||""),
           children:dzmProjLine(p)},"m")]},"l"),
       r.jsxs("div",{className:"dzm-proja",children:[
         edit
           ?r.jsx("button",{className:"svm-tbtn dzm-projbtn",disabled:off,
-              title:"Valider le nouveau nom (Entrée). Un champ vide garde "+
-                "l'ancien nom.",
+              title:dzT("montage.projets.valider_nom"
+                ),
               onClick:function(){doRen(p)},children:"ok"},"ok")
           :r.jsx("button",{className:"svm-tbtn dzm-projbtn",disabled:off,
-              title:"Renommer « "+(p.name||"")+" » — le montage lui-même "+
-                "n'est pas touché",
+              title:dzT("montage.projets.renommer_aide",{nom:p.name||""}
+                ),
               onClick:function(){setArm("");setRen({id:p.id,v:p.name||""})},
-              children:"renommer"},"rn"),
+              children:dzT("montage.projets.renommer")},"rn"),
         r.jsx("button",{className:"svm-tbtn dzm-projbtn",disabled:off,
-          title:"Dupliquer « "+(p.name||"")+" » — une copie indépendante, "+
-            "sous un nom suffixé « (copie) ». Rien d'autre ne bouge.",
-          onClick:function(){doDup(p)},children:"dupliquer"},"dp"),
+          title:dzT("montage.projets.dupliquer_aide",{nom:p.name||""}
+            ),
+          onClick:function(){doDup(p)},children:dzT("montage.projets.dupliquer")},"dp"),
         /* L7 D-39 (24/09/2026) : « ⇄ » compare CE projet à la timeline courante
            — TOUJOURS rendu, grisé sur le courant (comme « ouvrir » : un bouton
            conditionnel est une forme de plus à dater dans l'audit E-12). Rien
            n'est modifié : l'hôte lit le projet, calcule et montre. */
         r.jsx("button",{className:"svm-tbtn dzm-projbtn dzm-projdiff",disabled:mine||off,"aria-disabled":mine||off,
           title:mine
-            ?"« "+(p.name||"")+" » est le montage ouvert — rien à comparer"
-            :"Comparer « "+(p.name||"")+" » à la timeline courante (rien n'est modifié)",
+            ?dzT("montage.projets.comparer_courant",{nom:p.name||""})
+            :dzT("montage.projets.comparer_aide",{nom:p.name||""}),
           onClick:function(){if(props&&props.onDiff)props.onDiff(p)},children:__dzGl("dz-action-comparer")},"df"),
         r.jsx("button",{className:"svm-tbtn dzm-projbtn dzm-projop",
           "data-arm":oArm?"":void 0,disabled:mine||off,"aria-disabled":mine||off,
           title:mine
-            ?"« "+(p.name||"")+" » est déjà le montage ouvert."
+            ?dzT("montage.projets.deja_ouvert",{nom:p.name||""})
             :(oArm
-              ?"Confirmer : OUVRIR « "+(p.name||"")+" » REMPLACE le montage "+
-               "affiché. S'il n'est pas enregistré sous un nom, il est perdu "+
-               "— « annuler » ne le rend pas."
-              :"Ouvrir « "+(p.name||"")+" » — cela REMPLACE le montage "+
-               "affiché (un second clic confirmera)"),
+              ?dzT("montage.projets.ouvrir_confirmer",{nom:p.name||""}
+               
+               )
+              :dzT("montage.projets.ouvrir_aide",{nom:p.name||""}
+               )),
           onClick:function(){doOpen(p)},
-          children:oArm?"remplacer ?":"ouvrir"},"op"),
+          children:oArm?dzT("montage.projets.remplacer_arme"):dzT("montage.projets.ouvrir")},"op"),
         r.jsx("button",{className:"svm-tbtn dzm-projbtn dzm-projx",disabled:off,
           "data-arm":xArm?"":void 0,
           title:xArm
-            ?"Confirmer : supprimer « "+(p.name||"")+" » DÉFINITIVEMENT. "+
-             "Le fichier part du disque et rien ne le rejoue."
-            :"Supprimer « "+(p.name||"")+" » du disque, définitivement "+
-             "(un second clic confirmera)",
-          "aria-label":"Supprimer "+(p.name||"ce projet"),
+            ?dzT("montage.projets.supprimer_confirmer",{nom:p.name||""}
+             )
+            :dzT("montage.projets.supprimer_aide",{nom:p.name||""}
+             ),
+          "aria-label":dzT("montage.projets.supprimer_aria",{nom:p.name||dzT("montage.projets.ce_projet")}),
           onClick:function(){doDel(p)},
-          children:xArm?"supprimer ?":__dzGl("dz-action-supprimer")},"x")]},"a")]},p.id)}
+          children:xArm?dzT("montage.projets.supprimer_arme"):__dzGl("dz-action-supprimer")},"x")]},"a")]},p.id)}
 
   var rows=list||[];
   return r.jsxs("span",{className:"dzm-proj",ref:box,
@@ -15715,46 +15715,46 @@ var DzmProjects=function(props){
     nu?null:r.jsx("button",{className:"svm-tbtn dzm-projb","data-on":op?"":void 0,
       "aria-expanded":op,"aria-haspopup":"dialog",
       title:pid
-        ?("Projets — ce montage est enregistré sous « "+nm+" » et suit vos "+
-          "modifications tout seul. La liste ouvre, duplique, renomme ou "+
-          "supprime les autres.")
-        :("Projets — ce montage n'a PAS de nom : il vit dans la timeline "+
-          "courante, et le prochain projet ouvert l'écrasera sans retour. "+
-          "« Enregistrer sous… » lui en donne un."),
-      "aria-label":"Projets"+(pid?" — enregistré sous "+nm
-                                 :" — ce montage n'a pas de nom"),
-      onClick:toggle,children:"projets"},"b"),
+        ?(dzT("montage.projets.bouton_nomme",{nom:nm}
+          
+          ))
+        :(dzT("montage.projets.bouton_sans_nom"
+          
+          )),
+      "aria-label":(pid?dzT("montage.projets.aria_nomme",{nom:nm})
+                                 :dzT("montage.projets.aria_sans_nom")),
+      onClick:toggle,children:dzT("montage.projets.bouton")},"b"),
     op?r.jsxs("div",{className:"dzm-projp",role:"dialog",
-      "aria-label":"Projets de montage",children:[
+      "aria-label":dzT("montage.projets.dialogue"),children:[
       r.jsxs("div",{className:"dzm-projh",children:[
-        r.jsx("span",{className:"dzm-projt",children:"Projets"},"t"),
+        r.jsx("span",{className:"dzm-projt",children:dzT("montage.projets.titre")},"t"),
         r.jsx("span",{className:"dzm-projn",children:
-          busy?"…":(rows.length+" enregistré"+(rows.length>1?"s":""))},"n")]},"h"),
+          busy?"…":((rows.length>1?dzT("montage.projets.n_enregistres_plusieurs",{n:rows.length}):dzT("montage.projets.n_enregistres_un",{n:rows.length})))},"n")]},"h"),
       r.jsxs("div",{className:"dzm-projsave",children:[
         r.jsx("input",{className:"dzm-projin",value:nv,
-          placeholder:pid?nm:"nom du montage","aria-label":"Nom du projet",
+          placeholder:pid?nm:dzT("montage.projets.nom_placeholder"),"aria-label":dzT("montage.projets.nom"),
           onChange:function(e){setNv(e.target.value)},
           onKeyDown:function(e){if(e.key==="Enter")saveAs()}},"i"),
         r.jsx("button",{className:"svm-minibtn dzm-projnew",disabled:!!busy,
           title:arm==="n"
-            ?"Confirmer : créer un montage vide REMPLACE le montage affiché "+
-             "(enregistré d'abord s'il n'a pas de nom)"
-            :"Créer un montage vide et l'ouvrir (le montage affiché est "+
-             "d'abord enregistré s'il n'a pas de nom ; un second clic confirmera)",
-          onClick:doNew,children:arm==="n"?"nouveau ?":"nouveau"},"nw"),
+            ?dzT("montage.projets.nouveau_confirmer"
+             )
+            :dzT("montage.projets.nouveau_aide"
+             ),
+          onClick:doNew,children:arm==="n"?dzT("montage.projets.nouveau_arme"):dzT("montage.projets.nouveau")},"nw"),
         r.jsx("button",{className:"svm-tbtn dzm-projbtn",disabled:!!busy,
-          title:"Enregistrer le montage AFFICHÉ comme un nouveau projet. "+
-            "Rien n'est écrasé : c'est un fichier de plus, et c'est lui qui "+
-            "recevra les modifications suivantes. Champ vide : le nom "+
-            "courant est repris.",
-          onClick:saveAs,children:"enregistrer sous…"},"s")]},"s"),
+          title:dzT("montage.projets.enregistrer_sous_aide"
+            
+            
+            ),
+          onClick:saveAs,children:dzT("montage.projets.enregistrer_sous")},"s")]},"s"),
       err?r.jsx("div",{className:"dzm-projerr",children:err},"e"):null,
       rows.length
         ?r.jsx("div",{className:"dzm-projgrid",children:rows.map(row)},"l")
         :r.jsx("div",{className:"dzm-projvide",children:
-          busy?"…":"Aucun projet enregistré. « Enregistrer sous… » crée le "+
-            "premier ; jusque-là, le montage affiché est le seul, et ouvrir "+
-            "un projet l'écraserait."},"v")]},"p"):null]})};
+          busy?"…":dzT("montage.projets.aucun"
+            
+            )},"v")]},"p"):null]})};
 
 /* ── P6 : REMPLACER LA SOURCE D'UN PLAN, SANS PERDRE SON MONTAGE ───────────
    Le geste : l'utilisateur a régénéré un plan et veut échanger la SOURCE
@@ -15867,15 +15867,15 @@ var DZM_HIST_MAX=10;
 function dzmGapFate(tr){
   var kd=dzmKindOf(tr);
   if(kd==="audio")
-    return " — sur une piste son, aucune piste ne réapparaît en dessous : "+
-      "ce trou-là s'entend. Sauf sur une piste BOUCLÉE (A2 par défaut), "+
-      "dont le rendu ignore les bornes de son premier clip et joue la "+
-      "source d'un bout à l'autre du film.";
+    return dzT("montage.trou_fin.son"
+      
+      
+      );
   if(kd!=="video")return ".";
   return tr==="v1"
-    ?", rendu en noir à l'export."
-    :" — sur une piste d'incrustation, c'est la piste du dessous qui "+
-     "réapparaît.";}
+    ?dzT("montage.trou_fin.noir")
+    :dzT("montage.trou_fin.incrustation"
+     );}
 function dzmSrcLen(c){
   var o=c||{};
   return (Number(o.end)||0)-(Number(o.start)||0)}
@@ -15902,27 +15902,27 @@ function dzmReplaceSrc(c,src,label,srcDur,now){
   if(rfOld){
     if(rfOld.mode==="manuel"){k.reframe=Object.assign({},rfOld);delete k.reframe.points}
     else delete k.reframe;
-    rfDit=" Le suivi du mouvement de l'ancienne source est retiré"+(rfOld.mode==="suivi"?" (cadrage centré)":"")+
-      " — relancez « Analyser le mouvement »."}
+    rfDit=dzT("montage.source_plan.suivi_retire",{centre:rfOld.mode==="suivi"?dzT("montage.source_plan.cadrage_centre"):""}
+      )}
   if(d<=0){
-    warn="Durée de la nouvelle source inconnue : les bornes du plan n'ont "+
-      "pas pu être vérifiées — contrôlez sa fin."}
+    warn=dzT("montage.source_plan.duree_inconnue"
+      )}
   else if(inn+len*sp>d+1e-3){
     k.srcIn=0;
     if(len*sp>d+1e-3){
       k.end=Math.round(((Number(o.start)||0)+d/sp)*1000)/1000;
-      warn="La nouvelle source ne dure que "+d.toFixed(2)+" s : le plan a "+
-        "été raccourci de "+len.toFixed(2)+" s à "+(d/sp).toFixed(2)+" s, "+
-        "et la timeline garde un trou derrière lui"+dzmGapFate(o.tr)}
-    else warn="Point d'entrée ramené à 0 : la nouvelle source ("+
-      d.toFixed(2)+" s) ne va pas assez loin pour l'ancien. Le plan garde "+
-      "sa durée, il ne montre plus le même morceau."}
+      warn=dzT("montage.source_plan.raccourci",{d:d.toFixed(2),
+        de:len.toFixed(2),a:(d/sp).toFixed(2),
+        suite:dzmGapFate(o.tr)})}
+    else warn=dzT("montage.source_plan.entree_zero",{d:
+      d.toFixed(2)}
+      )}
   return {clip:k,warn:warn,
-    note:"Source de « "+(o.label||"ce plan")+" » remplacée par « "+
-      (k.label||"")+" ». Bornes, effets, transition et mixage conservés."+
-      (warn?" "+warn:"")+rfDit+" Annuler restaure les clips et le mixage — pas la "+
-      "durée du projet ni les pistes ; « Revenir à la version précédente » "+
-      "rend aussi l'ancienne source."}}
+    note:dzT("montage.source_plan.remplacee",{ancien:o.label||dzT("montage.mots.ce_plan"),
+      nouveau:k.label||"",
+      suite:(warn?" "+warn:"")+rfDit}
+      
+      )}}
 function dzmRevertSrc(c){
   var o=c||{},h=(o.src_history&&o.src_history.length)?o.src_history:null;
   if(!h)return null;
@@ -15940,36 +15940,36 @@ function dzmRevertSrc(c){
      l'inspecteur changeait derrière un geste qui promet de tout rendre. */
   if("srcOut" in last)k.srcOut=last.srcOut;
   return {clip:k,
-    note:"Source précédente rendue : « "+(last.label||"sans titre")+" », "+
-      "avec son point d'entrée et sa fin d'alors."+
-      (rest.length?(" "+rest.length+" version"+(rest.length>1?"s":"")+
-        " plus ancienne"+(rest.length>1?"s":"")+" en mémoire."):
-        " C'était la dernière en mémoire.")}}
+    note:dzT("montage.source_plan.rendue",{nom:last.label||dzT("montage.mots.sans_titre"),
+      suite:
+      (rest.length?(rest.length>1?dzT("montage.source_plan.anciennes.plusieurs",{n:rest.length})
+        :dzT("montage.source_plan.anciennes.un",{n:rest.length})):
+        dzT("montage.source_plan.derniere"))})}}
 /* Le bouton de l'inspecteur. Il n'apparaît QUE sur un clip qui A une source :
    la maquette de démonstration n'en pose aucune sur ses clips (mesuré), donc
    il est absent de la démo par construction — pas par une garde de plus. */
 function dzmReplaceBtn(sel,onArm){
   if(!sel||!sel.src)return null;
   return r.jsx("button",{className:"svm-secbtn dzm-repl",
-    title:"Échanger le fichier source de ce plan sans toucher au montage : "+
-      "ses bornes sur la timeline, ses effets, sa transition et son mixage "+
-      "restent en place. La Bibliothèque s'ouvre ; le clip que vous y "+
-      "choisirez remplacera la source au lieu d'être ajouté.",
-    "aria-label":"Remplacer la source de "+(sel.label||"ce plan"),
+    title:dzT("montage.source_plan.remplacer_aide"
+      
+      
+      ),
+    "aria-label":dzT("montage.source_plan.remplacer_aria",{nom:sel.label||dzT("montage.mots.ce_plan")}),
     onClick:function(){if(onArm)onArm()},
-    children:"Remplacer la source…"},"dzmrepl")}
+    children:dzT("montage.source_plan.remplacer")},"dzmrepl")}
 function dzmRevertBtn(sel,onRevert){
   var h=(sel&&sel.src_history&&sel.src_history.length)?sel.src_history:null;
   if(!h)return null;
   var last=h[h.length-1];
   return r.jsx("button",{className:"svm-secbtn dzm-revert",
-    title:"Rendre à ce plan sa source précédente, « "+
-      (last.label||"sans titre")+" », avec le point d'entrée et la fin "+
-      "qu'il avait alors. "+h.length+" version"+(h.length>1?"s":"")+
-      " en mémoire (10 au plus, les plus anciennes tombent).",
-    "aria-label":"Revenir à la source précédente de "+(sel.label||"ce plan"),
+    title:(h.length>1?dzT("montage.source_plan.revenir_aide.plusieurs",{nom:last.label||dzT("montage.mots.sans_titre"),n:h.length})
+      :dzT("montage.source_plan.revenir_aide.un",{nom:last.label||dzT("montage.mots.sans_titre"),n:h.length})
+      
+      ),
+    "aria-label":dzT("montage.source_plan.revenir_aria",{nom:sel.label||dzT("montage.mots.ce_plan")}),
     onClick:function(){if(onRevert)onRevert()},
-    children:"Revenir à la version précédente"},"dzmrev")}
+    children:dzT("montage.source_plan.revenir")},"dzmrev")}
 /* La ligne d'une proposition. PURE — c'est la part du rappel que node
    mesure ; le composant, lui, interroge le réseau.
 
@@ -16036,14 +16036,14 @@ function dzmRevertBtn(sel,onRevert){
    place aurait rendu une rangée d'horodatages nus. L'`aria-label`, lui,
    reprend l'en-tête ET la ligne : un lecteur d'écran qui tabule droit sur
    le bouton entend les deux. */
-var DZM_NEWER_H="Rendus plus récents portant ce titre";
+var DZM_NEWER_H=dzT("montage.versions.entete");
 function dzmNewerLine(c){
   if(!c)return "";
   var o=c,bits=[],w=dzmProjWhen(o.completed_at,1),d=Number(o.duration_s)||0;
   if(w)bits.push(w);
-  bits.push(d>0?(d.toFixed(1).replace(".",",")+" s"):"durée inconnue");
-  bits.push(o.title||o.job_id||"sans titre");
-  return bits.join(" · ")+" — remplacer"}
+  bits.push(d>0?(d.toFixed(1).replace(".",",")+" s"):dzT("montage.versions.duree_inconnue"));
+  bits.push(o.title||o.job_id||dzT("montage.mots.sans_titre"));
+  return bits.join(" · ")+dzT("montage.versions.remplacer")}
 /* Le rappel « une version plus récente existe ». Il interroge la route qui
    rapproche PAR LE TITRE, et le dit : c'est une heuristique, pas un lien
    établi en base. Deux rendus peuvent partager un titre sans rien avoir en
@@ -16065,8 +16065,8 @@ var DzmNewerHint=function(props){
     fetch("/api/montage/newer?job_id="+encodeURIComponent(jid))
       .then(function(res){return res.json()})
       .then(function(d){if(on)setList((d&&d.candidates)||[])})
-      .catch(function(){if(on)setErr("Versions plus récentes : recherche "+
-        "impossible (le service n'a pas répondu).")});
+      .catch(function(){if(on)setErr(dzT("montage.versions.erreur"
+        ))});
     return function(){on=!1}},[jid]);
   if(err)return r.jsx("div",{className:"dzm-newer dzm-newererr",children:err});
   if(!list||!list.length)return null;
@@ -16074,12 +16074,12 @@ var DzmNewerHint=function(props){
     r.jsx("div",{className:"dzm-newerh",children:DZM_NEWER_H},"dzmnewh"),
     list.map(function(c){
     return r.jsx("button",{className:"dzm-newerb",
-      title:"Rapprochement par le TITRE du rendu — une heuristique, pas un "+
-        "lien enregistré : rien en base ne relie deux rendus du même plan. "+
-        "Le titre étant la clé du rapprochement, TOUS les candidats le "+
-        "partagent : ce qui les distingue, c'est la date et la durée "+
-        "portées par la ligne. Vérifiez-les avant de remplacer."+
-        (c.completed_at?(" Terminé le "+dzmProjWhen(c.completed_at,1)+"."):""),
+      title:dzT("montage.versions.aide",{fin:
+        
+        
+        
+        
+        c.completed_at?dzT("montage.versions.termine",{date:dzmProjWhen(c.completed_at,1)}):""}),
       "aria-label":DZM_NEWER_H+" : "+dzmNewerLine(c),
       onClick:function(){if(props&&props.onPick)props.onPick(c)},
       children:dzmNewerLine(c)},c.job_id)})]})};
@@ -16157,9 +16157,9 @@ function dzmSecs(v){
    la couche les appelle et que le bundle les déclare. */
 function dzmDurTxt(v){return svmRuler(Math.round(v))}
 
-var DZM_DUR_UNDO=" « Annuler » (Ctrl+Z) rend aussi la durée du projet : elle "+
-  "entre dans l'historique depuis le 21/09/2026, avec les pistes, le style "+
-  "des sous-titres, la plage et les marqueurs.";
+var DZM_DUR_UNDO=dzT("montage.duree_tl.annuler"
+  
+  );
 
 function dzmDurBtn(cls,lbl,ttl,aria,fn,key){
   return r.jsx("button",{className:"svm-zoomstep dzm-durb "+cls,
@@ -16206,46 +16206,46 @@ function dzmDurCtl(o){
   var vide=Math.round((d-fit)*1000)/1000;
   function put(nv,msg){if(set)set(nv);if(note)note(msg+DZM_DUR_UNDO)}
   function moins(){
-    if(d<=fit){if(note)note("La timeline fait déjà la longueur de son "+
-      "contenu ("+dzmDurTxt(fit)+", fin du dernier clip) : la raccourcir "+
-      "ferait sortir des clips du champ — ils ne seraient pas supprimés, "+
-      "mais plus rien ne les montrerait. Déplacez ou retirez d'abord le "+
-      "dernier clip.");return}
+    if(d<=fit){if(note)note(dzT("montage.duree_tl.deja_minimale",{
+      fin:dzmDurTxt(fit)}
+      
+      
+      ));return}
     var vise=Math.round((d-stp)*1000)/1000,nv=Math.max(fit,vise);
-    put(nv,"Timeline raccourcie de "+dzmDurTxt(d)+" à "+dzmDurTxt(nv)+
-      (nv>vise?(" — le pas de "+dzmSecs(stp)+" s'est arrêté sur la fin du "+
-        "dernier clip : aucun clip ne sort du champ."):"")+
-      " Aucun clip n'a bougé.")}
+    put(nv,dzT("montage.duree_tl.raccourcie",{de:dzmDurTxt(d),a:dzmDurTxt(nv),
+      arret:nv>vise?dzT("montage.duree_tl.pas_arrete",{pas:dzmSecs(stp)}):""}
+        
+      ))}
   function plus(){
     var nv=Math.round((d+stp)*1000)/1000;
-    put(nv,"Timeline allongée de "+dzmDurTxt(d)+" à "+dzmDurTxt(nv)+
-      " (+"+dzmSecs(stp)+"). Aucun clip n'a bougé.")}
+    put(nv,dzT("montage.duree_tl.allongee",{de:dzmDurTxt(d),a:dzmDurTxt(nv),
+      pas:dzmSecs(stp)}))}
   function ajuste(){
-    put(fit,"Timeline ajustée à son contenu : "+dzmDurTxt(d)+" → "+
-      dzmDurTxt(fit)+", soit "+dzmSecs(vide)+" de queue vide retirés. "+
-      "Aucun clip n'a bougé.")}
+    put(fit,dzT("montage.duree_tl.ajustee",{de:dzmDurTxt(d),
+      a:dzmDurTxt(fit),vide:dzmSecs(vide)}
+      ))}
   var kids=[
     dzmDurBtn("dzm-durm",__dzGl("dz-media-timeline-raccourcir"),
-      "Raccourcir la timeline d'une graduation ("+dzmSecs(stp)+"). Le "+
-      "raccourcissement s'arrête sur la fin du dernier clip : aucun clip ne "+
-      "peut sortir du champ."+DZM_DUR_UNDO,
-      "Raccourcir la timeline de "+dzmSecs(stp),moins,"m"),
+      dzT("montage.duree_tl.moins_aide",{pas:dzmSecs(stp)}
+      
+      )+DZM_DUR_UNDO,
+      dzT("montage.duree_tl.moins_aria",{pas:dzmSecs(stp)}),moins,"m"),
     r.jsx("span",{className:"dzm-durv",
-      title:"Durée de la timeline — une BORNE D'ÉDITION, pas une propriété "+
-        "du film : le rendu recalcule sa durée depuis les plans, cette "+
-        "valeur ne lui est jamais envoyée. Les boutons − et + la règlent "+
-        "d'une graduation de la règle ("+dzmSecs(stp)+")."+DZM_DUR_UNDO,
+      title:dzT("montage.duree_tl.valeur_aide",
+        
+        
+        {pas:dzmSecs(stp)})+DZM_DUR_UNDO,
       children:dzmDurTxt(d)+" total"},"v"),
     dzmDurBtn("dzm-durp",__dzGl("dz-media-timeline-allonger"),
-      "Allonger la timeline d'une graduation ("+dzmSecs(stp)+")."+
+      dzT("montage.duree_tl.plus_aide",{pas:dzmSecs(stp)})+
       DZM_DUR_UNDO,
-      "Allonger la timeline de "+dzmSecs(stp),plus,"p")];
+      dzT("montage.duree_tl.plus_aria",{pas:dzmSecs(stp)}),plus,"p")];
   /* « ajuster » n'apparaît QUE s'il y a une queue vide à retirer : un bouton
      toujours là mais sans effet neuf fois sur dix serait un piège de plus. */
-  if(vide>0)kids.push(dzmDurBtn("dzm-durf","ajuster",
-    "Ramener la fin de la timeline sur le dernier clip : "+dzmSecs(vide)+
-    " de vide à retirer. Aucun clip ne bouge ni ne disparaît."+DZM_DUR_UNDO,
-    "Ajuster la timeline à son contenu",ajuste,"f"));
+  if(vide>0)kids.push(dzmDurBtn("dzm-durf",dzT("montage.duree_tl.ajuster"),
+    dzT("montage.duree_tl.ajuster_aide",{vide:dzmSecs(vide)}
+    )+DZM_DUR_UNDO,
+    dzT("montage.duree_tl.ajuster_aria"),ajuste,"f"));
   return r.jsx("span",{className:"dzm-durctl",children:kids},"dzmdur")}
 
 /* ══ P11 — UN CLIP ENTRE À LA LONGUEUR DE SA SOURCE ═══════════════════════
@@ -16341,17 +16341,17 @@ function dzmClipLen(kind,srcDur,defauts){
   var k=kind==="audio"?"audio":"video";
   var v=Number(srcDur);
   if(isFinite(v)&&v>0)return {len:Math.round(v*1000)/1000,origine:"source",
-    note:" Le clip fait "+dzmSecs(v)+", la longueur ENTIÈRE de la source."};
+    note:dzT("montage.longueur.source",{d:dzmSecs(v)})};
   var r=repli(k);
   return {len:r,origine:"repli",
     /* L'ACCORD EST PORTÉ PAR LA BRANCHE, pas par un suffixe commun :
        « Cette vidéo a été posé » était la phrase livrée, et elle est
        LUE par l'utilisateur à chaque source non mesurable. Le son
        était juste par accident (masculin), la vidéo fausse. */
-    note:" "+(k==="audio"?"Ce son a été posé":"Cette vidéo a été posée")
-      +" à "+dzmSecs(r)+" — une longueur PAR DÉFAUT, pas la sienne : "+
-      "l'application n'a pas pu mesurer la durée de cette source. Rognez le "+
-      "bord droit du clip pour lui donner sa vraie longueur."}}
+    note:(k==="audio"?dzT("montage.longueur.repli_son",{d:dzmSecs(r)})
+      :dzT("montage.longueur.repli_video",{d:dzmSecs(r)})
+      
+      )}}
 
 /* FAUT-IL ALLER DEMANDER LA DURÉE ? PURE.
    Non pour une image (elle n'en a pas). Non quand on la connaît déjà. Non
@@ -16532,17 +16532,17 @@ function dzmSubsSources(clips,ts){
   var piste=(repli?"v1":dial).toUpperCase(),n=list.length,
       noms=list.map(function(l){return l.label+" ("+dzmSecs(l.dur)+")"});
   return {track:dial,list:list,total:total,repli:repli,files:keys.length,
-    step:!n?"envoi…":n===1?"envoi de "+list[0].label+"…"
-        :"envoi de "+n+" clips de "+piste+"…",
+    step:!n?dzT("montage.transcription.envoi"):n===1?dzT("montage.transcription.envoi_un",{nom:list[0].label})
+        :dzT("montage.transcription.envoi_plusieurs",{n:n,piste:piste}),
     dit:!n?"":repli
-      ?"Aucun clip de la piste "+(dial||"de dialogue").toUpperCase()+
-       " ne porte de son : la vidéo "+noms[0]+" de V1 est envoyée entière, "+
-       "ses répliques posées à son instant."
-      :"Envoyé : "+n+" clip"+(n>1?"s":"")+
-       (keys.length<n?" ("+keys.length+" fichier"+(keys.length>1?"s":"")+")":"")+
-       " de la piste "+piste+" — "+noms.join(", ")+" — "+dzmSecs(total)+
-       " de son, chaque réplique posée à l'instant de son clip. Chaque fichier "+
-       "part entier chez le moteur : un clip rogné coûte la durée de son fichier."}}
+      ?dzT("montage.transcription.repli",{piste:(dial||dzT("montage.transcription.de_dialogue")).toUpperCase(),
+       nom:noms[0]}
+       )
+      :dzT("montage.transcription.envoye",{clips:n>1?dzT("montage.transcription.clips.plusieurs",{n:n}):dzT("montage.transcription.clips.un",{n:n}),
+       fichiers:keys.length<n?(keys.length>1?dzT("montage.transcription.fichiers.plusieurs",{n:keys.length}):dzT("montage.transcription.fichiers.un",{n:keys.length})):"",
+       piste:piste,noms:noms.join(", "),duree:dzmSecs(total)}
+       
+       )}}
 
 /* ── P16 : TRADUIRE LES RÉPLIQUES — le cœur calculable ────────────────────
    La rangée « Répliques » du tiroir de sous-titres gagne une langue cible
@@ -16565,7 +16565,7 @@ function dzmSubsTrLangLab(code,langs){
   for(i=0;i<l.length;i++)if(l[i]&&l[i][0]===code)return String(l[i][1]);
   return String(code||"?")}
 function dzmSubsTrLabel(target,langs){
-  return "Traduire vers "+dzmSubsTrLangLab(target,langs)}
+  return dzT("montage.trad_s1.vers",{langue:dzmSubsTrLangLab(target,langs)})}
 function dzmSubsTrBody(segs,target,source){
   var cs=Array.isArray(segs)?segs:[],t=String(target||"");
   if(!cs.length||!t)return null;
@@ -16577,25 +16577,25 @@ function dzmSubsTrBody(segs,target,source){
        reçoit alors source:null et laisse le modèle lire la langue. */
     source:(source&&source!=="auto")?String(source):null}}
 function dzmSubsTrEnabled(n,est,busy){
-  if(busy)return {on:!1,pourquoi:"Un travail est déjà en cours — attendez sa fin."};
-  if(!(n>0))return {on:!1,pourquoi:"Aucune réplique à traduire : la piste S1 est vide."};
+  if(busy)return {on:!1,pourquoi:dzT("montage.trad_s1.occupe")};
+  if(!(n>0))return {on:!1,pourquoi:dzT("montage.trad_s1.vide")};
   if(!est||!est.ok)return {on:!1,pourquoi:String((est&&est.reason)||
-    "Aucune clé LLM configurée (Réglages) — le coût ne peut pas être "+
-    "annoncé, donc rien n'est lancé.")};
+    dzT("montage.trad_s1.sans_cle"
+    ))};
   return {on:!0,pourquoi:""}}
 function dzmSubsTrTitle(n){
-  if(!(n>1))return "REMPLACE le texte de la réplique de S1 par sa "+
-    "traduction ; son temps est conservé. « Annuler » de la timeline "+
-    "restaure le texte d'avant (le remplacement pousse une entrée "+
-    "d'historique avant d'écrire). Piste S1 verrouillée : rien n'est "+
-    "écrit, et l'écran le dit.";
-  return "REMPLACE le texte des "+n+" répliques de S1 par leur traduction ; "+
-    "leurs temps sont conservés. « Annuler » de la timeline restaure le "+
-    "texte d'avant (le remplacement pousse une entrée d'historique avant "+
-    "d'écrire). Piste S1 verrouillée : rien n'est écrit, et l'écran le dit."}
+  if(!(n>1))return dzT("montage.trad_s1.aide.un"
+    
+    
+    
+    );
+  return dzT("montage.trad_s1.aide.plusieurs",{n:n}
+    
+    
+    )}
 function dzmSubsTrNote(n,target,langs){
-  return n+" réplique"+(n>1?"s":"")+" traduite"+(n>1?"s":"")+" vers "+
-    dzmSubsTrLangLab(target,langs)+" — relisez, la machine se trompe."}
+  return (n>1?dzT("montage.trad_s1.note.plusieurs",{n:n,langue:dzmSubsTrLangLab(target,langs)})
+    :dzT("montage.trad_s1.note.un",{n:n,langue:dzmSubsTrLangLab(target,langs)}))}
 function dzmSubsTrApply(segs,rendus,labelOf){
   var cs=Array.isArray(segs)?segs:[],rs=Array.isArray(rendus)?rendus:[];
   if(!cs.length||cs.length!==rs.length)return null;
@@ -16648,9 +16648,9 @@ function dzmOverlayNote(kind,ts,id){
   for(i=0;i<list.length;i++)if(list[i]&&String(list[i].id)===String(id)){t=list[i];break}
   if(!t||dzmKindOf(t.id,t.kind)!=="video"||dzmTrackPlein(ts,id))return "";
   var tr=dzmDialogueTrack(ts);
-  return " Posé sur "+String(id).toUpperCase()+" (incrustation) : le son de "+
-    "ce plan n'a PAS été extrait — sélectionnez-le puis « Extraire le son"+
-    (tr?" → "+tr.toUpperCase():"")+" » dans l'inspecteur."}
+  return dzT("montage.extraire.note_incrust",{piste:String(id).toUpperCase(),
+    
+    cible:tr?" → "+tr.toUpperCase():""})}
 
 /* ── P14 : « PISTE DE GENRE VIDÉO AUTRE QUE V1 » ──────────────────────────
    Le bundle codait « v2 » EN DUR à NEUF endroits (mesuré le 06/09/2026 en
@@ -16746,9 +16746,9 @@ function dzmAudioForget(src){
    chaîne vide. */
 function dzmAudioPourquoi(pq){
   var p=String(pq||"");
-  return p==="delai"?"délai dépassé":p==="refus"?"le serveur a refusé"
-    :p==="erreur"?"erreur réseau":p==="sans-reseau"?"hors ligne"
-    :p==="src-illisible"?"source illisible":(p||"sans réponse")}
+  return p==="delai"?dzT("montage.audio.pourquoi_delai"):p==="refus"?dzT("montage.audio.pourquoi_refus")
+    :p==="erreur"?dzT("montage.audio.pourquoi_erreur"):p==="sans-reseau"?dzT("montage.audio.pourquoi_hors_ligne")
+    :p==="src-illisible"?dzT("montage.audio.pourquoi_illisible"):(p||dzT("montage.audio.pourquoi_sans_reponse"))}
 
 /* LA SONDE. Motif EXACT d'askDur — `done(verdict, pourquoi)` appelée UNE
    SEULE FOIS quoi qu'il arrive, `fetch` et `timer` injectables (absent =
@@ -16882,11 +16882,11 @@ function dzmTwinClip(clip,trId,clips){
    qu'« Annuler » retire les deux clips d'un coup (un seul pushHistory, un
    seul concat : l'appelant s'y engage, le banc [3-bis] le mesure). */
 function dzmTwinPlan(neuf,ts,clips,v,locked){
-  var c=neuf||{},L=c.label||"ce plan",tr=dzmDialogueTrack(ts),TR=tr.toUpperCase();
+  var c=neuf||{},L=c.label||dzT("montage.mots.ce_plan"),tr=dzmDialogueTrack(ts),TR=tr.toUpperCase();
   function out(clip,motif,note){return {clip:clip,tr:tr,motif:motif,note:note}}
-  if(!v)return out(null,"non-sonde"," Son du plan : la source n'a pas été "+
-    "sondée — rien n'a été extrait. « Extraire le son » dans l'inspecteur "+
-    "réessaie.");
+  if(!v)return out(null,"non-sonde",dzT("montage.jumeau.non_sonde"
+    
+    ));
   if(!v.has_audio){
     if(v.pourquoi==="mesure"){
       /* MESURÉ sans flux ET sans durée : ffprobe n'a rien pu lire — la
@@ -16896,29 +16896,29 @@ function dzmTwinPlan(neuf,ts,clips,v,locked){
          mensonge : `dur` est le témoin qui sépare les deux. Une image rend
          0 aussi, mais une image n'est jamais sondée (wantsTwin exige le
          genre « video », extractBtn refuse `src.image`). */
-      if(!(Number(v.dur)>0))return out(null,"non-sondable"," Son du plan : "+
-        "la source n'a pas pu être sondée (aucune durée mesurable : fichier "+
-        "vide ou illisible) — rien n'a été extrait. Vérifiez le fichier, ou "+
-        "remplacez la source.");
-      return out(null,"muet"," Cette vidéo n'a pas de piste audio : rien "+
-        "n'a été extrait.")}
-    return out(null,"non-sonde"," Son du plan : la sonde n'a pas abouti ("+
-      dzmAudioPourquoi(v.pourquoi)+") — rien n'a été extrait, et le rendu "+
-      "n'emporte JAMAIS l'audio embarqué d'un plan. « Extraire le son » dans "+
-      "l'inspecteur réessaie.")}
-  if(!tr)return out(null,"sans-piste"," Cette vidéo a du son, mais ce projet "+
-    "n'a pas de piste de dialogue : le rendu la jouera MUETTE. Ajoutez une "+
-    "piste avec « + piste audio », puis « Extraire le son » dans "+
-    "l'inspecteur.");
-  if(typeof locked==="function"&&locked(tr))return out(null,"verrou"," Piste "+
-    TR+" verrouillée : le son de « "+L+" » n'a PAS été extrait — "+
-    "déverrouillez-la, puis « Extraire le son » dans l'inspecteur.");
+      if(!(Number(v.dur)>0))return out(null,"non-sondable",dzT("montage.jumeau.non_sondable"
+        
+        
+        ));
+      return out(null,"muet",dzT("montage.jumeau.muet"
+        ))}
+    return out(null,"non-sonde",dzT("montage.jumeau.sonde_echec",{raison:
+      dzmAudioPourquoi(v.pourquoi)}
+      
+      ))}
+  if(!tr)return out(null,"sans-piste",dzT("montage.jumeau.sans_piste"
+    
+    
+    ));
+  if(typeof locked==="function"&&locked(tr))return out(null,"verrou",dzT("montage.jumeau.verrou",{piste:
+    TR,nom:L}
+    ));
   var j=dzmTwinClip(c,tr,clips);
-  if(!j)return out(null,"doublon"," Son du plan : déjà présent sur "+TR+
-    " (même source, même plage) — pas de second exemplaire.");
-  return out(j,"pose"," Son du plan extrait sur "+TR+" (« "+j.label+" », "+
-    "mêmes bornes, même source) : « Annuler » (Ctrl+Z) retire les DEUX clips "+
-    "d'un coup.")}
+  if(!j)return out(null,"doublon",dzT("montage.jumeau.doublon",{piste:TR}
+    ));
+  return out(j,"pose",dzT("montage.jumeau.pose",{piste:TR,nom:j.label}
+    
+    ))}
 
 /* LE BOUTON DES PLANS DÉJÀ POSÉS — même moteur : la sonde (cache compris),
    twinClip, refus DIT. `o` est l'hôte : {tracks, clips (un THUNK : les clips
@@ -16941,17 +16941,17 @@ function dzmTwinPlan(neuf,ts,clips,v,locked){
 function dzmExtract(sel,o){
   o=o||{};
   var note=typeof o.note==="function"?o.note:function(){};
-  var c=sel||{},L=c.label||"ce plan";
-  if(!c.src){note("Aucun plan à source n'est sélectionné : rien à extraire.");
+  var c=sel||{},L=c.label||dzT("montage.mots.ce_plan");
+  if(!c.src){note(dzT("montage.extraire.aucun_plan"));
     return !1}
-  if(c.src.image){note("« "+L+" » est une image : elle n'a pas de son à "+
-    "extraire.");return !1}
+  if(c.src.image){note(dzT("montage.extraire.image",{nom:L}
+    ));return !1}
   var ts=dzmTsOr(o.tracks),tr=dzmDialogueTrack(ts),TR=tr.toUpperCase();
-  if(!tr){note("Ce projet n'a pas de piste de dialogue : le son de « "+L+
-    " » n'a pas été extrait. Ajoutez une piste avec « + piste audio », puis "+
-    "recommencez.");return !1}
-  if(typeof o.locked==="function"&&o.locked(tr)){note("Piste "+TR+
-    " verrouillée — déverrouillez-la pour y extraire le son de « "+L+" ».");
+  if(!tr){note(dzT("montage.extraire.sans_piste",{nom:L}
+    
+    ));return !1}
+  if(typeof o.locked==="function"&&o.locked(tr)){note(dzT("montage.extraire.verrou",{piste:TR,
+    nom:L}));
     return !1}
   var v0=dzmAudioOf(c.src);
   if(v0&&v0.pourquoi!=="mesure"&&v0.pourquoi!=="src-illisible")dzmAudioForget(c.src);
@@ -16959,28 +16959,28 @@ function dzmExtract(sel,o){
   ask(c.src,{done:function(v,pq){
     if(!v||!v.has_audio){
       note(!v||v.pourquoi!=="mesure"
-        ?"La sonde audio de « "+L+" » n'a pas abouti ("+
-          dzmAudioPourquoi((v&&v.pourquoi)||pq)+") : rien n'a été posé. "+
-          "Réessayez dans un instant."
+        ?dzT("montage.extraire.sonde_echec",{nom:L,raison:
+          dzmAudioPourquoi((v&&v.pourquoi)||pq)}
+          )
         :!(Number(v.dur)>0)
-        ?"« "+L+" » n'a pas pu être sondé (aucune durée mesurable : fichier "+
-          "vide ou illisible) : rien à extraire. Vérifiez le fichier, ou "+
-          "remplacez la source."
-        :"« "+L+" » n'a pas de piste audio : rien à extraire.");return}
+        ?dzT("montage.extraire.non_sondable",{nom:L}
+          
+          )
+        :dzT("montage.extraire.muet",{nom:L}));return}
     var cs=(typeof o.clips==="function"?o.clips():o.clips)||[],i,la=null;
     for(i=0;i<cs.length;i++)if(cs[i]&&cs[i].id===c.id){la=cs[i];break}
-    if(!la){note("« "+L+" » n'est plus dans la timeline : rien n'a été "+
-      "posé.");return}
+    if(!la){note(dzT("montage.extraire.plan_absent",{nom:L}
+      ));return}
     /* `la`, le clip FRAIS — ses bornes du moment, pas celles du clic */
     var j=dzmTwinClip(la,tr,cs);
-    if(!j){note("Le son de « "+L+" » est déjà sur "+TR+" (même source, "+
-      "même plage) : rien n'a été ajouté.");return}
+    if(!j){note(dzT("montage.extraire.doublon",{nom:L,piste:TR}
+      ));return}
     if(typeof o.pushHistory==="function")o.pushHistory();
     if(typeof o.setClips==="function")o.setClips(cs.concat([j]));
     if(typeof o.setDirty==="function")o.setDirty(!0);
-    note("Son de « "+L+" » extrait sur "+TR+" : « "+j.label+" », "+
-      dzmSecs(j.end-j.start)+", mêmes bornes et même source que le plan. "+
-      "« Annuler » (Ctrl+Z) le retire.")}});
+    note(dzT("montage.extraire.pose",{nom:L,piste:TR,clip:j.label,duree:
+      dzmSecs(j.end-j.start)}
+      ))}});
   return !0}
 /* Visible pour TOUT clip vidéo porteur d'une source — V1, V2, V3… — parce que
    c'est le seul chemin qui rend son son à un plan DÉJÀ posé (celui de
@@ -16990,19 +16990,19 @@ function dzmExtract(sel,o){
 function dzmExtractBtn(sel,o){
   if(!sel||!sel.src||sel.src.image||dzmKindOf(sel.tr)!=="video")return null;
   var tr=dzmDialogueTrack(dzmTsOr(o&&o.tracks)),TR=tr.toUpperCase();
-  var L=sel.label||"ce plan";
+  var L=sel.label||dzT("montage.mots.ce_plan");
   return r.jsx("button",{className:"svm-secbtn dzm-extract",
     title:(tr
-      ?"Poser sur "+TR+" (piste de dialogue) un clip « "+L+" · son du plan » : "+
-       "même source, mêmes bornes, même point d'entrée. Le rendu n'emporte "+
-       "JAMAIS l'audio embarqué d'un plan vidéo — sans ce clip, ce plan "+
-       "sort muet. Refusé si la source n'a pas de piste audio ou si ce son "+
-       "est déjà sur "+TR+" à cette plage. « Annuler » (Ctrl+Z) le retire."
-      :"Ce projet n'a pas de piste de dialogue : ajoutez une piste avec "+
-       "« + piste audio » pour pouvoir extraire le son de ce plan."),
-    "aria-label":"Extraire le son de "+L+(tr?" vers "+TR:""),
+      ?dzT("montage.extraire.bouton_aide",{piste:TR,clip:L+" · son du plan"}
+       
+       
+       
+       )
+      :dzT("montage.extraire.bouton_sans_piste"
+       )),
+    "aria-label":(tr?dzT("montage.extraire.aria_vers",{nom:L,piste:TR}):dzT("montage.extraire.aria",{nom:L})),
     onClick:function(){dzmExtract(sel,o)},
-    children:tr?__dzGlT("dz-media-extraire-son","Extraire le son → "+TR,"→"):"Extraire le son (aucune piste de dialogue)"},
+    children:tr?__dzGlT("dz-media-extraire-son",dzT("montage.extraire.bouton",{piste:TR}),"→"):dzT("montage.extraire.bouton_sans_dialogue")},
     "dzmextr")}
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -17289,17 +17289,17 @@ var DZM_TB_PLAN=[
      plein cadre, « incrust. » une piste d'incrustation. Mesuré : au rendu
      toute piste vidéo ≠ V1 est une incrustation, et l'utilisateur doit
      pouvoir choisir. */
-  {g:"pistes",t:"PISTES",type:"action",
-   btns:[{i:"piste-video",l:"vidéo"},{i:"piste-incrust",l:"incrust."},
+  {g:"pistes",t:dzT("montage.barre.groupe_pistes"),type:"action",
+   btns:[{i:"piste-video",l:dzT("montage.barre.btn_video")},{i:"piste-incrust",l:dzT("montage.barre.btn_incrust")},
          {i:"piste-audio",l:"audio"}]},
-  {g:"biblio",t:"BIBLIOTHÈQUE",type:"ouvre un panneau",
-   btns:[{i:"bibliotheque",l:"lier"}]},
-  {g:"mot",t:"MOT",suf:"— sélection",type:"bascules",
-   btns:[{i:"couleur",l:"couleur"},{i:"rebond",l:"rebond"},{i:"glow",l:"glow"}]},
-  {g:"ajouts",t:"AJOUTS",type:"outils de placement",
-   btns:[{i:"emoji",l:"emoji"},{i:"texte",l:"texte"}]},
-  {g:"projets",t:"PROJETS",type:"ouvre un panneau",
-   btns:[{i:"projets",l:"projets"}]}];
+  {g:"biblio",t:dzT("montage.barre.groupe_biblio"),type:"ouvre un panneau",
+   btns:[{i:"bibliotheque",l:dzT("montage.barre.btn_lier")}]},
+  {g:"mot",t:dzT("montage.barre.groupe_mot"),suf:dzT("montage.barre.suffixe_selection"),type:"bascules",
+   btns:[{i:dzT("montage.barre.btn_couleur"),l:"couleur"},{i:dzT("montage.barre.btn_rebond"),l:"rebond"},{i:"glow",l:"glow"}]},
+  {g:"ajouts",t:dzT("montage.barre.groupe_ajouts"),type:"outils de placement",
+   btns:[{i:"emoji",l:"emoji"},{i:dzT("montage.barre.btn_texte"),l:"texte"}]},
+  {g:"projets",t:dzT("montage.barre.groupe_projets"),type:"ouvre un panneau",
+   btns:[{i:dzT("montage.barre.btn_projets"),l:"projets"}]}];
 
 /* `dzmTbEtape7` VIVAIT ICI — la phrase des deux boutons qui n'étaient pas
    câblés. L'étape 7 a câblé les neuf : plus personne ne l'appelait, et une
@@ -17307,27 +17307,27 @@ var DZM_TB_PLAN=[
    Retirée, pas commentée. Ce qu'elle disait est mesuré à l'envers désormais :
    le banc exige qu'AUCUN titre de la barre ne nomme encore une étape à
    venir. */
-var DZM_TB_SANS_HOTE="Action non fournie à la barre par l'écran qui la "+
-  "monte — il n'y a rien à déclencher.";
+var DZM_TB_SANS_HOTE=dzT("montage.barre.sans_hote"
+  );
 /* LA POIGNÉE PARLE DES TROIS GESTES qu'elle accepte, et de la seule règle
    que l'utilisateur peut constater : la barre ne sort pas. */
-var DZM_TB_T_GRIP="Poignée — glisser pour déplacer la barre d'outils ; "+
-  "flèches pour la déplacer de 8 px, Maj + flèches de 1 px. Elle reste "+
-  "entièrement dans la timeline et la prévisualisation, à 8 px des bords, "+
-  "et s'aimante aux bords et à la tête de lecture au relâchement.";
-var DZM_TB_A_GRIP="Déplacer la barre d'outils";
+var DZM_TB_T_GRIP=dzT("montage.barre.poignee_aide"
+  
+  
+  );
+var DZM_TB_A_GRIP=dzT("montage.barre.poignee");
 /* DEUX PHRASES, PAS UN BOUTON ÉTEINT (§4.2 : « il ne doit jamais être
    masqué »). Il reste CLIQUABLE même quand il n'a rien à recentrer : c'est
    le filet de sécurité du déport, et un filet qui se désarme tout seul dès
    que l'état le croit inutile n'en est plus un. Son titre dit laquelle des
    deux situations est en cours. */
-var DZM_TB_T_RECENTRER="Recentrer la barre d'outils — la ramène sous le "+
-  "bandeau de transport, à sa place d'origine.";
-var DZM_TB_T_RECENTREE="Recentrer la barre d'outils — elle est déjà à sa "+
-  "place d'origine.";
-var DZM_TB_T_REPLIER="Replier la barre d'outils sur son onglet.";
-var DZM_TB_T_TEXTE="Ouvrir ou fermer le panneau « Texte » — la narration "+
-  "mot par mot dans la colonne de droite.";
+var DZM_TB_T_RECENTRER=dzT("montage.barre.recentrer"
+  );
+var DZM_TB_T_RECENTREE=dzT("montage.barre.recentree"
+  );
+var DZM_TB_T_REPLIER=dzT("montage.barre.replier");
+var DZM_TB_T_TEXTE=dzT("montage.barre.texte_aide"
+  );
 /* L'ÉCART DU GROUPE MOT, DIT À L'UTILISATEUR ET PAS SEULEMENT EN COMMENTAIRE.
    Le §4.3 veut trois bascules INDÉPENDANTES et CUMULABLES, calculées depuis
    la sélection de mots des sous-titres. Cette base n'a NI sélection de mot NI
@@ -17337,9 +17337,9 @@ var DZM_TB_T_TEXTE="Ouvrir ou fermer le panneau « Texte » — la narration "+
    boutons sur ce champ donne trois boutons VIVANTS qui font ce que la base
    sait faire ; les laisser éteints aurait rendu l'effet inatteignable dès
    que l'étape 6 retire la chip. Le comportement du §4.3 est l'étape 7. */
-var DZM_TB_MOT_ECART=" — Cette base porte UNE animation à la fois pour "+
-  "toute la piste de sous-titres, pas trois effets cumulables sur une "+
-  "sélection de mots : choisir celle-ci remplace la précédente.";
+var DZM_TB_MOT_ECART=dzT("montage.barre.ecart_mot"
+  
+  );
 /* LES DEUX AUTRES ÉCARTS DU §6, DITS À L'UTILISATEUR ET PAS SEULEMENT ICI.
    Ils décrivent CE QUE LA BASE FAIT ; ils ne citent pas le handoff, que
    personne devant l'écran n'a sous les yeux. Le rapport, lui, les nomme.
@@ -17351,19 +17351,19 @@ var DZM_TB_MOT_ECART=" — Cette base porte UNE animation à la fois pour "+
        que le §5.1 retire du bandeau, donc celui dont la barre doit devenir
        le point d'entrée. Le geste que le §6 décrit existe ailleurs
        (`subsAddHere`, le « + » de l'en-tête S1) et le titre y renvoie. */
-var DZM_TB_EMO_ECART=" Cette base n'a pas de sélecteur d'emoji : elle pose "+
-  "d'elle-même un clip par mot reconnu, là où ce mot est dit, et non un "+
-  "emoji choisi à la tête de lecture.";
-var DZM_TB_TXT_ECART=" Ce bouton ouvre un panneau, il ne pose pas de clip : "+
-  "pour écrire un sous-titre à la tête de lecture, le « + » de l'en-tête de "+
-  "la piste S1.";
-var DZM_TB_T_EMOJI="Poser les emoji des mots-clés des sous-titres (feu, "+
-  "lune, vague, poulpe, or, fusée) — un clip de 0,8 s par mot reconnu, sur "+
-  "la piste vidéo d'overlay la plus haute.";
-var DZM_TB_T_EMOJI_OCC="Emoji — la demande précédente est encore en cours ; "+
-  "le bouton se rallume à la réponse du serveur.";
-var DZM_TB_T_PROJETS="Ouvrir la liste des projets de montage — enregistrer "+
-  "sous un nom, ouvrir, dupliquer, renommer, supprimer.";
+var DZM_TB_EMO_ECART=dzT("montage.barre.ecart_emoji"
+  
+  );
+var DZM_TB_TXT_ECART=dzT("montage.barre.ecart_texte"
+  
+  );
+var DZM_TB_T_EMOJI=dzT("montage.barre.emoji_aide"
+  
+  );
+var DZM_TB_T_EMOJI_OCC=dzT("montage.barre.emoji_occupe"
+  );
+var DZM_TB_T_PROJETS=dzT("montage.barre.projets_aide"
+  );
 
 /* ── EXIGENCE 1 DU §6 : « TOUTES LES ACTIONS PASSENT PAR LE MÊME HISTORIQUE »
    ── ET CE QUE CET HISTORIQUE-CI SAIT FAIRE ────────────────────────────
@@ -17382,19 +17382,19 @@ var DZM_TB_T_PROJETS="Ouvrir la liste des projets de montage — enregistrer "+
    `redo` sont trois hooks du bundle, hors de la surface que cette chaîne de
    patchs ouvre, et l'élargir toucherait TOUS les gestes de l'écran. On DIT
    la limite à chaque bouton, et le retour qui existe vraiment. */
-var DZM_TB_H_CLIPS=" « Annuler » (Ctrl+Z) retire d'un coup ce qui vient "+
-  "d'être posé : l'historique de cet écran mémorise tout l'état du montage.";
-var DZM_TB_H_PISTE=" « Annuler » (Ctrl+Z) retire la piste : l'historique de "+
-  "cet écran mémorise les pistes depuis le 21/09/2026. Le « × » de l'en-tête "+
-  "de la piste la retire aussi.";
-var DZM_TB_H_STYLE=" « Annuler » (Ctrl+Z) revient dessus : ce réglage entre "+
-  "dans l'historique (une entrée par rafale de 600 ms).";
-var DZM_TB_H_PANNEAU=" Ouvrir ou fermer ce panneau n'entre pas dans "+
-  "l'historique et ne déplace pas la tête de lecture.";
-var DZM_TB_H_PROJET=" Ouvrir la liste n'entre pas dans l'historique et ne "+
-  "déplace pas la tête de lecture. Ouvrir un PROJET, en revanche, remplace "+
-  "le montage affiché, VIDE l'historique et ramène la tête à zéro : la liste "+
-  "demande confirmation avant.";
+var DZM_TB_H_CLIPS=dzT("montage.barre.annuler_clips"
+  );
+var DZM_TB_H_PISTE=dzT("montage.barre.annuler_piste"
+  
+  );
+var DZM_TB_H_STYLE=dzT("montage.barre.annuler_style"
+  );
+var DZM_TB_H_PANNEAU=dzT("montage.barre.annuler_panneau"
+  );
+var DZM_TB_H_PROJET=dzT("montage.barre.annuler_projet"
+  
+  
+  );
 /* LA TABLE, ET À QUOI ELLE SERT. Elle porte pour chacune des neuf clés
    d'icône du §2.4 la réponse aux DEUX premières exigences transversales :
    `h` = ce que `Ctrl+Z` rend, `tete` = si l'action déplace la tête de
@@ -17472,22 +17472,22 @@ function dzmTbCablage(p){
     if(typeof p.note==="function"&&r.note)p.note(r.note)}
   m["piste-video"]={disabled:!poseTr,
     act:poseTr?function(){poseTrack("video")}:null,
-    title:poseTr?("Ajouter une piste vidéo plein cadre — ses plans "+
-      "RECOUVRENT V1 pendant leur durée et leur son est extrait sur la "+
-      "piste de dialogue ; ses plans ont leurs transitions, leur vitesse et "+
-      "leurs effets, comme V1 (fondus visibles dans l'aperçu rendu) ; V1 reste "+
-      "la séquence maîtresse (durée)."+
+    title:poseTr?(dzT("montage.cablage.piste_video"
+      
+      
+      
+      )+
       dzmTbUndo("piste-video")):DZM_TB_SANS_HOTE};
   m["piste-incrust"]={disabled:!poseTr,
     act:poseTr?function(){poseTrack("overlay")}:null,
-    title:poseTr?("Ajouter une piste d'incrustation — image dans l'image, "+
-      "réglable (position, échelle, rotation, opacité), muette ; ses plans "+
-      "ont aussi transitions, vitesse et effets."+
+    title:poseTr?(dzT("montage.cablage.piste_incrust"
+      
+      )+
       dzmTbUndo("piste-incrust")):DZM_TB_SANS_HOTE};
   m["piste-audio"]={disabled:!poseTr,
     act:poseTr?function(){poseTrack("audio")}:null,
-    title:poseTr?("Ajouter une piste audio — posée sous les pistes audio "+
-      "existantes, au-dessus des sous-titres."+
+    title:poseTr?(dzT("montage.cablage.piste_audio"
+      )+
       dzmTbUndo("piste-audio")):DZM_TB_SANS_HOTE};
   /* BIBLIOTHÈQUE — `onPick` est le `openPicker` de l'écran, qui porte DÉJÀ
      ses propres refus (projet de démonstration, piste verrouillée). La piste
@@ -17501,12 +17501,12 @@ function dzmTbCablage(p){
   m["bibliotheque"]={disabled:!(pick&&vid),
     act:(pick&&vid)?function(){p.onPick(vid)}:null,
     title:!pick?DZM_TB_SANS_HOTE
-      :vid?("Ouvrir la Bibliothèque et poser une vidéo, une image ou un "+
-        "rendu sur la piste "+String(vid).toUpperCase()+", à la tête de "+
-        "lecture — c'est la piste vidéo la plus haute du projet."+
+      :vid?(dzT("montage.cablage.bibliotheque",{piste:String(vid).toUpperCase()}
+        
+        )+
         dzmTbUndo("bibliotheque"))
-      :("Aucune piste vidéo dans ce projet : rien ne pourrait recevoir le "+
-        "clip. « vidéo » du groupe PISTES en crée une.")};
+      :(dzT("montage.cablage.sans_video"
+        ))};
   /* MOT — les trois valeurs viennent de DZM_WORD_ANIMS, la table qui sert
      déjà la chip du bandeau : leur `v` EST la clé d'icône du §3, et leur `t`
      la phrase qui décrit l'effet. Une seconde liste aurait divergé. */
@@ -17950,7 +17950,7 @@ function dzmTbTouche(k,maj){
    déport. Le laisser hors du roving lui aurait donné un troisième arrêt de
    tabulation, ou aucun. */
 var DZM_TB_SEL_ROVE=".dzm-tbb,.dzm-tbwb";
-var DZM_TB_A_BARRE="Outils de création";
+var DZM_TB_A_BARRE=dzT("montage.barre_outils.aria");
 /* HORIZONTALE : seules les flèches gauche/droite naviguent (§4.5, et
    `aria-orientation="horizontal"` le promet). Haut/bas restent à l'écran —
    ce sont ses sauts de coupe, et les voler ici serait un raccourci de plus
@@ -18070,7 +18070,7 @@ function dzmTbDedans(bar,el){
    n'est ajouté, jamais une parenthèse vide. */
 function dzmTbCombo(c){
   var s=(typeof c==="string")?c.trim():"";
-  return s?(" Raccourci : "+s+"."):""}
+  return s?(dzT("montage.barre_outils.raccourci",{touche:s})):""}
 
 /* ── L'ONGLET D'APPEL (§2.1) ───────────────────────────────────────────────
    Cinq pastilles aux cinq teintes — l'aperçu du contenu, on voit les
@@ -18084,14 +18084,14 @@ function DzmToolTab(o){
   var open=o.open===!0;
   return r.jsx("button",{type:"button",className:"dzm-tbtab",ref:o.tabRef,
     "aria-expanded":open?"true":"false","aria-controls":DZM_TB_ID,
-    title:(open?DZM_TB_T_REPLIER:"Ouvrir la barre d'outils de création.")
+    title:(open?DZM_TB_T_REPLIER:dzT("montage.barre_outils.ouvrir"))
       +dzmTbCombo(o.keyLbl),
     onClick:function(){if(typeof o.onToggle==="function")o.onToggle()},
     children:[
       r.jsx("span",{className:"dzm-tbdots","aria-hidden":!0,
         children:DZM_TB_GROUPES.map(function(g){
           return r.jsx("span",{className:"dzm-tbdot dzm-g-"+g},g)})},"d"),
-      r.jsx("span",{className:"dzm-tblbl",children:"OUTILS"},"l"),
+      r.jsx("span",{className:"dzm-tblbl",children:dzT("montage.barre_outils.onglet")},"l"),
       r.jsx("span",{className:"dzm-tbchev","aria-hidden":!0,
         children:open?__dzGl("dz-action-deplier"):__dzGl("dz-action-deplier","1em",{transform:"rotate(180deg)"})},"c")]},"tbtab")}
 
@@ -18178,12 +18178,12 @@ function DzmToolBar(o){
   kids.push(r.jsx("span",{className:"dzm-tbwin",children:[
     r.jsx("button",{type:"button",className:"dzm-tbwb dzm-tbrc",
       title:deporte?DZM_TB_T_RECENTRER:DZM_TB_T_RECENTREE,
-      "aria-label":"Recentrer la barre d'outils",
+      "aria-label":dzT("montage.barre_outils.recentrer"),
       tabIndex:rove===nAct?0:-1,
       onClick:function(){if(typeof o.onRecentrer==="function")o.onRecentrer()},
       children:__dzGl("dz-action-recentrer")},"rc"),
     r.jsx("button",{type:"button",className:"dzm-tbwb dzm-tbcl",
-      title:DZM_TB_T_REPLIER,"aria-label":"Replier la barre d'outils",
+      title:DZM_TB_T_REPLIER,"aria-label":dzT("montage.barre_outils.replier"),
       tabIndex:rove===nAct+1?0:-1,
       onClick:function(){if(typeof o.onClose==="function")o.onClose()},
       children:__dzGl("dz-action-deplier")},"cl")]},"win"));
@@ -18825,8 +18825,8 @@ function DzmRangeBar(o){
      déjà hors champ laisse une bande de zéro, pas une bande à l'envers. */
   var l=Math.min(100,rg.in/d*100),w=Math.min(100-l,(rg.out-rg.in)/d*100);
   return r.jsx("div",{className:"dzm-range",
-    title:"Plage "+rg.in.toFixed(2)+" s → "+rg.out.toFixed(2)+" s — I : entrée, "+
-      "U : sortie, X : effacer, Maj+X : couper la plage (toutes pistes, ripple)",
+    title:dzT("montage.plage_bande.aide",{a:rg.in.toFixed(2),b:rg.out.toFixed(2)}
+      ),
     style:{left:"calc(88px + (100% - 88px) * "+(l/100)+")",width:"calc((100% - 88px) * "+(w/100)+")"}})}
 
 /* ── D-2 (21/09/2026) : LES MODES D'ÉDITION ─────────────────────────────
@@ -18911,9 +18911,9 @@ function DzmRangeBar(o){
    `ecraser` sur la piste visée et le chemin NORMAL reprend — la garde de
    verrou et la pose du jumeau s'appliquent donc aussi à ce repli (mesuré :
    l'ancien `return` écrivait sur une piste verrouillée et perdait le son). */
-var DZM_MODES=Object.freeze([["ecraser","écraser"],["inserer","insérer"],
-  ["fin","en fin"],["dessus","au-dessus"],["ripple_ecraser","écraser en ripple"],
-  ["remplir","remplir la plage"]].map(function(p){return Object.freeze(p)}));
+var DZM_MODES=Object.freeze([["ecraser",dzT("montage.modes.ecraser")],["inserer",dzT("montage.modes.inserer")],
+  ["fin",dzT("montage.modes.fin")],["dessus",dzT("montage.modes.dessus")],["ripple_ecraser",dzT("montage.modes.ripple_ecraser")],
+  ["remplir",dzT("montage.modes.remplir")]].map(function(p){return Object.freeze(p)}));
 /* Les refus sont des JETONS STABLES, jamais une phrase : la phrase française
    vit dans `note` (que l'appelant concatène à la sienne), le jeton vit dans
    `refus` (que l'appelant teste). */
@@ -18991,8 +18991,8 @@ function dzmInsereUn(clips,clip,mode,opts,tr){
     /* L'ÉCRÊTAGE EST DIT. Une source de 100 s dans une plage de 3 s demande
        ×33,3 : on écrête à ×4, et le clip posé ne montrera donc PAS toute la
        source. Se taire ferait croire à un « remplir » exact. */
-    if(sp!==brut)nt=sp>=4?"vitesse écrêtée à ×4 (source trop longue pour la plage)":
-      "vitesse écrêtée à ×0,25 (source trop courte pour la plage)";
+    if(sp!==brut)nt=sp>=4?dzT("montage.insertion.vitesse_max"):
+      dzT("montage.insertion.vitesse_min");
     p=dzmPose(dzmCarve(clips,tr,rg.in,rg.out),tr,clip,rg.in,rg.out,{speed:sp,srcIn:0});
     return {clips:p.clips,pose:p.clip,mode:mode,note:nt}}
   p=dzmPose(dzmCarve(clips,tr,st,st+len),tr,clip,st,st+len);
@@ -19024,7 +19024,7 @@ function dzmInsere(clips,clip,mode,opts){
     var kind=(ix>=0&&ts[ix])?ts[ix].kind:null,found=null;
     for(i=ix-1;i>=0;i--){t=ts[i];if(t&&t.kind===kind&&!dzmOverlap(cs,t.id,st,en)){found=t.id;break}}
     if(found==null){m="ecraser";refus="aucune_piste";
-      note="aucune piste libre au-dessus : posé sur "+String(tr==null?"":tr).toUpperCase()}
+      note=dzT("montage.insertion.aucune_libre",{piste:String(tr==null?"":tr).toUpperCase()})}
     else{tr=found;m="ecraser"}}
   if(lk[tr])return {clips:cs.slice(),track:tr,mode:m,refus:"verrou",note:"",id:null};
   var res=dzmInsereUn(cs,clip,m,o,tr),pose=res.pose||null;
@@ -19036,8 +19036,8 @@ function dzmInsere(clips,clip,mode,opts){
          jumeau (l'appelant apprend ce qui MANQUE), `note` garde les deux
          phrases. */
       refus="verrou_jumeau";
-      note=dzmNoteJoin(note,"piste "+String(tw.tr).toUpperCase()+
-        " verrouillée : le son n'a pas été posé")}
+      note=dzmNoteJoin(note,dzT("montage.insertion.jumeau_verrou",{piste:String(tw.tr).toUpperCase()}
+        ))}
     else{
       var tm=res.mode,tc;
       if(tm==="fin"||tm==="remplir"){
@@ -19066,22 +19066,22 @@ function dzmInsere(clips,clip,mode,opts){
    « écraser » (dzmInsereUn, branche "remplir" : `if(!rg)return … "ecraser"`),
    et un mode qui ment est pire qu'un mode grisé — le `title` dit quoi faire. */
 var DZM_MODE_T={
-  ecraser:"Écraser : le clip se pose à la tête et rogne ou fend ce qui est dessous.",
-  inserer:"Insérer : fend à la tête et pousse la suite de la piste (ripple).",
-  fin:"En fin : après le dernier clip de la piste, la tête est ignorée.",
-  dessus:"Au-dessus : sur la piste vidéo libre la plus proche au-dessus (titres, PIP).",
-  ripple_ecraser:"Écraser en ripple : remplace le clip sous la tête, la suite se recale à la nouvelle durée.",
-  remplir:"Remplir la plage : bornes = plage I/O, vitesse calculée pour la remplir (V1)."};
+  ecraser:dzT("montage.modes.ecraser_aide"),
+  inserer:dzT("montage.modes.inserer_aide"),
+  fin:dzT("montage.modes.fin_aide"),
+  dessus:dzT("montage.modes.dessus_aide"),
+  ripple_ecraser:dzT("montage.modes.ripple_ecraser_aide"),
+  remplir:dzT("montage.modes.remplir_aide")};
 function DzmModeBar(o){
   var cur=dzmModeOk(o&&o.mode),on=typeof (o&&o.onMode)==="function"?o.onMode:function(){};
   return r.jsx("div",{className:"dzm-modebar",role:"radiogroup",
-    "aria-label":"Mode d'édition",
+    "aria-label":dzT("montage.modes.aria"),
     children:DZM_MODES.map(function(m){
       var dis=m[0]==="remplir"&&!dzmRangeFrom(o&&o.range);
       return r.jsx("button",{className:"svm-toolchip dzm-modechip",role:"radio",
         "aria-checked":cur===m[0]?"true":"false","data-on":cur===m[0]?"":void 0,
         disabled:dis||void 0,
-        title:DZM_MODE_T[m[0]]+(dis?" — posez d'abord une plage (I / U).":""),
+        title:DZM_MODE_T[m[0]]+(dis?dzT("montage.modes.sans_plage"):""),
         onClick:function(){on(m[0])},children:m[1]},m[0])})})}
 /* Le LIBELLÉ français d'un mode, lu dans DZM_MODES (table gelée, source
    unique) : la note d'ajout d'`addAsset` le dit quand le mode appliqué n'est
@@ -19335,7 +19335,7 @@ function dzmMarkersFrom(v){
 function dzmCombo(id,repli){
   var f=typeof svmKeyLabelNow==="function"?svmKeyLabelNow:null;
   return (f&&f(id))||repli}
-function dzmMarkerCombo(){return dzmCombo("marker_toggle","Maj+M")}
+function dzmMarkerCombo(){return dzmCombo("marker_toggle",dzT("montage.marqueurs.combo_repli"))}
 function DzmMarkers(o){
   var ms=Array.isArray(o&&o.markers)?o.markers.filter(Boolean):[],
       d=Number(o&&o.dur)||1,go=o&&o.onSeek;
@@ -19343,9 +19343,9 @@ function DzmMarkers(o){
   return ms.map(function(m){
     var l=Math.min(100,Math.max(0,(Number(m.t)||0)/d*100));
     return r.jsx("button",{className:"dzm-mk",
-      "aria-label":"Marqueur "+dzTc(m.t)+(m.title?" — "+m.title:""),
-      title:(m.title||"marqueur")+" · "+dzTc(m.t)+(m.note?"\n"+m.note:"")+
-        "\nclic : aller · "+dzmMarkerCombo()+" à la tête : retirer",
+      "aria-label":dzT("montage.marqueurs.aria",{t:dzTc(m.t)})+(m.title?" — "+m.title:""),
+      title:(m.title||dzT("montage.marqueurs.defaut"))+" · "+dzTc(m.t)+(m.note?"\n"+m.note:"")+
+        dzT("montage.marqueurs.aide_clic",{touche:dzmMarkerCombo()}),
       style:{left:"calc(88px + (100% - 88px) * "+(l/100)+")",
         background:dzmMarkerHex(m.color)},
       /* C-1 (revue du 21/09/2026) : SANS CECI LE CLIC NE VA NULLE PART. Le
@@ -19372,13 +19372,13 @@ function DzmMarkerIndex(o){
     if(v===m.title)return;
     if(o.onChange)o.onChange(m.id,{title:v})}
   return r.jsxs("div",{className:"svm-pop dzm-mkidx",style:{top:96},children:[
-    r.jsx("div",{className:"svm-poptitle",children:"Marqueurs — "+ms.length}),
+    r.jsx("div",{className:"svm-poptitle",children:dzT("montage.marqueurs.titre",{n:ms.length})}),
     ms.length?ms.map(function(m){
       return r.jsxs("div",{className:"dzm-mkrow",children:[
-        r.jsx("button",{className:"svm-fxchip",title:"aller à ce marqueur",
+        r.jsx("button",{className:"svm-fxchip",title:dzT("montage.marqueurs.aller"),
           onClick:function(){if(o.onSeek)o.onSeek(m.t)},children:dzTc(m.t)}),
         r.jsx("select",{className:"dzm-mkcol",value:m.color,
-          "aria-label":"Couleur du marqueur "+dzTc(m.t),
+          "aria-label":dzT("montage.marqueurs.couleur",{t:dzTc(m.t)}),
           onChange:function(e){
             if(o.onChange)o.onChange(m.id,{color:e.target.value})},
           children:DZM_MARKER_COLORS.map(function(c){
@@ -19401,20 +19401,20 @@ function DzmMarkerIndex(o){
            ou un hook serait parfaitement legal. Le choix est delibere, pas
            impose.) */
         r.jsx("input",{className:"dzm-mktitre",defaultValue:m.title,
-          placeholder:"titre","aria-label":"Titre du marqueur "+dzTc(m.t),
+          placeholder:dzT("montage.marqueurs.titre_placeholder"),"aria-label":dzT("montage.marqueurs.titre_aria",{t:dzTc(m.t)}),
           onBlur:function(e){titre(m,e)},
           onKeyDown:function(e){if(e.key==="Enter")titre(m,e)}},
           m.id+"|"+m.title),
-        r.jsx("button",{className:"svm-minibtn",title:"Retirer ce marqueur",
-          "aria-label":"Retirer le marqueur "+dzTc(m.t),
+        r.jsx("button",{className:"svm-minibtn",title:dzT("montage.marqueurs.retirer_aide"),
+          "aria-label":dzT("montage.marqueurs.retirer_aria",{t:dzTc(m.t)}),
           onClick:function(){if(o.onRemove)o.onRemove(m.id)},
           children:__dzGl("dz-action-supprimer")})]},m.id)}):
       r.jsx("div",{className:"svm-note",
-        children:"Aucun marqueur — "+dzmMarkerCombo()+
-          " en pose un à la tête de lecture."}),
+        children:dzT("montage.marqueurs.aucun",{touche:dzmMarkerCombo()}
+          )}),
     r.jsx("div",{className:"svm-poprow",children:
-      r.jsx("button",{className:"svm-secbtn",title:"Fermer l'index des marqueurs",onClick:o&&o.onClose,
-        children:"Fermer"})})]})}
+      r.jsx("button",{className:"svm-secbtn",title:dzT("montage.marqueurs.fermer_aide"),onClick:o&&o.onClose,
+        children:dzT("montage.mots.fermer")})})]})}
 
 /* ── D-4 : ÉCHANGER un plan avec son voisin de gauche (dir −1) ou de droite ─
    `dzmSwap(clips,id,dir)` échange le clip `id` avec son voisin de contact
@@ -19556,7 +19556,7 @@ function dzmTransLabel(id,legacy,cat){
    pas un defaut vivant. */
 function dzmTransList(legacy,cat){
   var lg=Array.isArray(legacy)?legacy:[],fs=dzmTransFams(cat);
-  var inCat={},out=[{id:"coupe",label:"coupe",items:[{id:"cut",label:dzmTransLabel("cut",lg,cat),live:!0}]}];
+  var inCat={},out=[{id:"coupe",label:dzT("montage.transgrille.coupe"),items:[{id:"cut",label:dzmTransLabel("cut",lg,cat),live:!0}]}];
   fs.forEach(function(f){f.items.forEach(function(it){inCat[it.id]=1})});
   /* DEDOUBLONNE PAR ID : `SVM_TRANS` est une liste de paires, rien n'y
      interdit deux entrees de meme nom, et la galerie aurait rendu deux
@@ -19565,7 +19565,7 @@ function dzmTransList(legacy,cat){
   var vus={},hist=lg.filter(function(o){
     if(!o||o[0]==="cut"||inCat[o[0]]||vus[o[0]])return !1;
     vus[o[0]]=1;return !0}).map(function(o){return {id:String(o[0]),label:String(o[1]),live:dzmTransLive(o[0],cat)}});
-  if(hist.length)out.push({id:"historiques",label:"historiques",items:hist});
+  if(hist.length)out.push({id:"historiques",label:dzT("montage.transgrille.historiques"),items:hist});
   fs.forEach(function(f){out.push({id:String(f.id),label:String(f.label||f.id),
     items:f.items.map(function(it){return {id:String(it.id),label:String(it.label||it.id),live:!!it.live}})})});
   return out}
@@ -19598,7 +19598,7 @@ function DzmTransGrid(o){
         var dir=dzmTransDir(it.id);
         return r.jsxs("button",{className:"svm-transtile","data-sel":cur===it.id?"":void 0,
           "aria-pressed":cur===it.id,
-          title:it.label+" ("+it.id+")"+(dit&&!it.live?" — visible après Preview":""),
+          title:it.label+" ("+it.id+")"+(dit&&!it.live?dzT("montage.transgrille.apres_preview"):""),
           onClick:function(){on(it.id)},children:[
           r.jsxs("span",{className:"svm-tprev","data-tt":it.id,"data-fam":fam||void 0,"data-dir":dir||void 0,"aria-hidden":!0,
             children:[r.jsx("i",{className:"svm-ta"}),r.jsx("i",{className:"svm-tb"})]}),
@@ -19981,9 +19981,9 @@ function DzmTitleInspector(o){
   function pousseNb(avant,e){
     var n=Math.round(Number(e&&e.target?e.target.value:NaN));
     if(!isFinite(n)||n===Number(avant))return;maj({size:n})}
-  var vignette=txt.trim()||"Titre";
+  var vignette=txt.trim()||dzT("montage.mots.titre");
   return r.jsxs("div",{className:"dzm-ttinsp",children:[
-    r.jsx("div",{className:"svm-poptitle",children:"Titre — gabarit"}),
+    r.jsx("div",{className:"svm-poptitle",children:dzT("montage.carton_insp.titre")}),
     /* SANS CATALOGUE, UNE PHRASE PLUTÔT QU'UNE GRILLE VIDE. Le `fetch` de
        `/titles` échoue en silence (même parti pris que le catalogue des
        transitions) : une grille de zéro case laisserait l'utilisateur
@@ -19991,7 +19991,7 @@ function DzmTitleInspector(o){
        marche encore — le texte, le sous-texte et le corps restent
        réglables, et le rendu garde les défauts du gabarit. */
     gs.length?r.jsx("div",{className:"dzm-ttcards",role:"group",
-      "aria-label":"Gabarits de titre",
+      "aria-label":dzT("montage.carton_insp.gabarits_aria"),
       children:gs.map(function(g){
         var gid=String(g.id||""),lab=String(g.label||gid),ici=cur===gid;
         return r.jsxs("button",{className:"dzm-ttcard",
@@ -20000,62 +20000,62 @@ function DzmTitleInspector(o){
           onClick:function(){if(gid&&gid!==cur)maj({template:gid})},children:[
           r.jsx("img",{className:"dzm-ttimg",loading:"lazy",alt:"",
             src:"/api/montage/title-preview?template="+encodeURIComponent(gid)+
-              "&text="+encodeURIComponent(ici?vignette:"Titre")+
+              "&text="+encodeURIComponent(ici?vignette:dzT("montage.mots.titre"))+
               (ici&&sub?"&sub="+encodeURIComponent(sub):"")+
               "&w="+DZM_TT_CARD_W}),
           r.jsx("span",{className:"dzm-ttname",children:lab})]},gid)})}):
       r.jsx("div",{className:"svm-note",
-        children:"Gabarits indisponibles — le texte reste réglable."}),
+        children:dzT("montage.carton_insp.indisponibles")}),
     r.jsxs("label",{className:"dzm-ttrow",children:[
-      r.jsx("span",{className:"dzm-ttlab",children:"Texte"}),
+      r.jsx("span",{className:"dzm-ttlab",children:dzT("montage.mots.texte")}),
       r.jsx("input",{className:"dzm-ttxt",defaultValue:txt,
-        maxLength:DZM_TT_MAX_TEXT,placeholder:"Titre",
-        "aria-label":"Texte du carton",
+        maxLength:DZM_TT_MAX_TEXT,placeholder:dzT("montage.mots.titre"),
+        "aria-label":dzT("montage.carton_insp.texte_aria"),
         onBlur:function(e){pousse("text",txt,e)},
         onKeyDown:function(e){if(e.key==="Enter")pousse("text",txt,e)}},
         c.id+"|"+nz+"|"+txt)]}),
     r.jsxs("label",{className:"dzm-ttrow",children:[
-      r.jsx("span",{className:"dzm-ttlab",children:"Sous-texte"}),
+      r.jsx("span",{className:"dzm-ttlab",children:dzT("montage.carton_insp.sous_texte")}),
       r.jsx("input",{className:"dzm-ttxt",defaultValue:sub,
-        maxLength:DZM_TT_MAX_SUB,placeholder:"(aucun)",
-        "aria-label":"Sous-texte du carton",
+        maxLength:DZM_TT_MAX_SUB,placeholder:dzT("montage.carton_insp.aucun"),
+        "aria-label":dzT("montage.carton_insp.sous_texte_aria"),
         onBlur:function(e){pousse("sub",sub,e)},
         onKeyDown:function(e){if(e.key==="Enter")pousse("sub",sub,e)}},
         c.id+"|s|"+nz+"|"+sub)]}),
     r.jsxs("label",{className:"dzm-ttrow",children:[
-      r.jsx("span",{className:"dzm-ttlab",children:"Couleur"}),
+      r.jsx("span",{className:"dzm-ttlab",children:dzT("montage.mots.couleur")}),
       r.jsx("select",{className:"dzm-ttsel",
         value:typeof ti.color==="string"?ti.color:"",
-        "aria-label":"Couleur du carton",
+        "aria-label":dzT("montage.carton_insp.couleur_aria"),
         onChange:function(e){pousse("color",ti.color,e)},
         children:[r.jsx("option",{value:"",
-          children:"(du gabarit"+(gab&&gab.color?" — "+gab.color:"")+")"},"")]
+          children:dzT("montage.carton_insp.du_gabarit",{v:gab&&gab.color?" — "+gab.color:""})},"")]
           .concat(cols.map(function(k){
             return r.jsx("option",{value:String(k),children:String(k)},
               String(k))}))})]}),
     r.jsxs("label",{className:"dzm-ttrow",children:[
-      r.jsx("span",{className:"dzm-ttlab",children:"Police"}),
+      r.jsx("span",{className:"dzm-ttlab",children:dzT("montage.mots.police")}),
       r.jsx("select",{className:"dzm-ttsel",
         value:typeof ti.font==="string"?ti.font:"",
-        "aria-label":"Police du carton",
+        "aria-label":dzT("montage.carton_insp.police_aria"),
         onChange:function(e){pousse("font",ti.font,e)},
         children:[r.jsx("option",{value:"",
-          children:"(du gabarit"+(gab&&gab.font?" — "+gab.font:"")+")"},"")]
+          children:dzT("montage.carton_insp.du_gabarit",{v:gab&&gab.font?" — "+gab.font:""})},"")]
           .concat(fonts.map(function(f){
             return r.jsx("option",{value:String(f),children:String(f)},
               String(f))}))})]}),
     r.jsxs("label",{className:"dzm-ttrow",children:[
-      r.jsx("span",{className:"dzm-ttlab",children:"Taille"}),
+      r.jsx("span",{className:"dzm-ttlab",children:dzT("montage.mots.taille")}),
       r.jsx("input",{className:"dzm-ttsize",type:"range",min:24,max:200,step:1,
         defaultValue:String(taille),
-        "aria-label":"Corps du titre à 1080 p, en pixels",
+        "aria-label":dzT("montage.carton_insp.taille_aria"),
         onPointerUp:function(e){pousseNb(taille,e)},
         onKeyUp:function(e){pousseNb(taille,e)},
         onBlur:function(e){pousseNb(taille,e)}},c.id+"|z|"+taille),
       r.jsx("span",{className:"dzm-ttnb",children:taille+" px"})]}),
     r.jsx("div",{className:"svm-note",
-      children:"Le placement et l'animation viennent du gabarit. "+
-        "L'aperçu du lecteur est approché : Preview 480p fait foi."})]})}
+      children:dzT("montage.carton_insp.note"
+        )})]})}
 
 /* ── E-1 (22/09/2026) : UN MONTAGE NEUF. Le corps de POST /projects pour un
    projet VIDE : nom nettoyé (« montage neuf » à défaut), `vide:true`, et les
@@ -20095,7 +20095,7 @@ function dzmPublishDefaults(nom,now,memo){
 /* LE BANDEAU DE FIN DE RENDU. props : {fin:{job_id,name,project_id}, memo,
    onSend(form)→Promise, onLib(), onClose()}. Un double clic ne crée pas deux
    brouillons : le bouton se désarme pendant « … » et après succès. */
-var DZM_FIN_OK="Brouillon ajouté au Scheduler";
+var DZM_FIN_OK=dzT("montage.fin.ok");
 function DzmFinBandeau(o){
   var fin=o&&o.fin;if(!fin)return null;
   var d0=dzmPublishDefaults(fin.name,new Date(),o.memo);
@@ -20107,19 +20107,19 @@ function DzmFinBandeau(o){
   /* E-11 (23/09/2026) : le voile du bundle (EB5a) ferme au clic ;
      la racine arrête le clic comme le popover (EB5b) et kbPanel */
   return r.jsxs("div",{className:"svm-pop dzm-fin",onClick:function(e){e.stopPropagation()},children:[
-    r.jsx("div",{className:"svm-poptitle",children:"Rendu terminé"}),
+    r.jsx("div",{className:"svm-poptitle",children:dzT("montage.fin.titre")}),
     r.jsx("div",{className:"dzm-fin-row",children:DZM_CHANNELS.map(function(c){return r.jsxs("label",{className:"dzm-fin-ch",children:[
       r.jsx("input",{type:"checkbox",checked:ch.indexOf(c[0])>=0,onChange:function(){tog(c[0])}})," "+c[1]]},c[0])})}),
     r.jsxs("div",{className:"dzm-fin-row",children:[r.jsx("input",{type:"datetime-local",value:when,onChange:function(e){setWhen(e.target.value)}}),
-      r.jsx("input",{type:"text",value:cap,placeholder:"légende",onChange:function(e){setCap(e.target.value)}})]}),
+      r.jsx("input",{type:"text",value:cap,placeholder:dzT("montage.fin.legende"),onChange:function(e){setCap(e.target.value)}})]}),
     st?r.jsx("div",{className:"dzm-fin-st",children:st}):null,
     r.jsxs("div",{className:"dzm-fin-row",children:[
       r.jsx("button",{className:"svm-goldbtn",disabled:st==="…"||st===DZM_FIN_OK,
-        title:"Envoyer ce rendu au Scheduler (brouillon, rien n'est publié sans validation)",onClick:function(){setSt("…");
+        title:dzT("montage.fin.envoyer_aide"),onClick:function(){setSt("…");
         Promise.resolve(o.onSend({job_id:fin.job_id,project_id:fin.project_id||void 0,channels:dzmChannelsNorm(ch),run_at:dzmPublishIso(when)||void 0,caption:cap}))
-          .then(function(){setSt(DZM_FIN_OK)}).catch(function(e){setSt("Envoi impossible : "+String(e))})},children:"Envoyer vers le Scheduler"}),
-      r.jsx("button",{className:"svm-secbtn",title:"Ouvrir la Bibliothèque sur ce rendu",onClick:function(){o.onLib&&o.onLib()},children:"Voir dans la Bibliothèque"}),
-      r.jsx("button",{className:"svm-secbtn",title:"Fermer le bandeau (Échap)",onClick:function(){o.onClose&&o.onClose()},children:"Fermer"})]})]})}
+          .then(function(){setSt(DZM_FIN_OK)}).catch(function(e){setSt(dzT("montage.fin.envoi_impossible",{e:String(e)}))})},children:dzT("montage.fin.envoyer")}),
+      r.jsx("button",{className:"svm-secbtn",title:dzT("montage.fin.biblio_aide"),onClick:function(){o.onLib&&o.onLib()},children:dzT("montage.livraison.voir_biblio")}),
+      r.jsx("button",{className:"svm-secbtn",title:dzT("montage.fin.fermer_aide"),onClick:function(){o.onClose&&o.onClose()},children:dzT("montage.mots.fermer")})]})]})}
 /* ── E-7 (lot E-C, tâche 3, 23/09/2026) : LA VUE « LIVRAISON » ─────────────
    dzmJobsTri(jobs, nom) — pure : les jobs `provider==="montage"` dont le
    titre COMMENCE par `nom` (nom vide : tous), séparés en {finals, previews}
@@ -20152,18 +20152,18 @@ function DzmDeliver(o){
     r.jsx("span",{className:"svm-deltitle",children:String(j.title||j.job_id||"")}),
     r.jsx("span",{className:"svm-deldate",children:dzmDelDate(j.created_at)}),
     r.jsx("span",{className:"svm-deldur",children:j.duration_s>0?dzmDurTxt(Number(j.duration_s)):""}),
-    r.jsx("span",{className:"svm-delbadge",children:kind==="preview"?"aperçu":"final"}),
+    r.jsx("span",{className:"svm-delbadge",children:kind==="preview"?dzT("montage.livraison.apercu"):"final"}),
     /* L4 (D-36) : le statut brut du job (queued / generating_video / done / failed) en badge, texte par dzmDelStatut */
     (function(){var st=dzmDelStatut(j);return r.jsx("span",{className:"svm-delbadge svm-delst","data-st":st.st,children:st.txt})})()]},String(j.job_id||"")+kind)};
   return r.jsxs("div",{className:"svm-deliver",children:[
-    r.jsx("h2",{className:"svm-delh",children:"Livraison"}),
+    r.jsx("h2",{className:"svm-delh",children:dzT("montage.livraison.titre")}),
     r.jsxs("div",{className:"svm-delbtns",children:[
-      r.jsx("button",{className:"svm-secbtn",title:"Aperçu 480p — rapide, pour vérifier le montage",onClick:function(){o.onPreview&&o.onPreview()},children:"Preview 480p"}),
-      r.jsx("button",{className:"svm-goldbtn",title:"Rendu final (master 1080), aucun crédit consommé",onClick:function(){o.onRender&&o.onRender()},children:"Rendre…"}),
-      r.jsx("button",{className:"svm-secbtn",disabled:!o.publishOn,title:o.publishOn?"Envoyer le dernier rendu final au Scheduler":"Aucun rendu final pour ce projet",onClick:function(){if(o.publishOn&&o.onPublish)o.onPublish()},children:"Publier ce rendu"})]}),
-    r.jsx("div",{className:"svm-dellast",children:lf?"Dernier rendu final : "+String(lf.name||"")+" · "+dzmDelDate(lf.at):"Dernier rendu final : aucun"}),
-    r.jsx("div",{className:"svm-dellist",children:n?tri.finals.map(function(j){return row(j,"final")}).concat(tri.previews.map(function(j){return row(j,"preview")})):r.jsx("div",{className:"svm-delempty",children:"Aucun rendu pour ce projet."})}),
-    r.jsx("button",{className:"svm-secbtn",title:"Ouvrir la Bibliothèque sur les rendus vidéo",onClick:function(){o.onOpenLib&&o.onOpenLib()},children:"Voir dans la Bibliothèque"})]})}
+      r.jsx("button",{className:"svm-secbtn",title:dzT("montage.livraison.preview_aide"),onClick:function(){o.onPreview&&o.onPreview()},children:dzT("montage.livraison.preview")}),
+      r.jsx("button",{className:"svm-goldbtn",title:dzT("montage.livraison.rendre_aide"),onClick:function(){o.onRender&&o.onRender()},children:dzT("montage.livraison.rendre")}),
+      r.jsx("button",{className:"svm-secbtn",disabled:!o.publishOn,title:o.publishOn?dzT("montage.livraison.publier_aide"):dzT("montage.livraison.publier_vide"),onClick:function(){if(o.publishOn&&o.onPublish)o.onPublish()},children:dzT("montage.livraison.publier")})]}),
+    r.jsx("div",{className:"svm-dellast",children:lf?dzT("montage.livraison.dernier",{nom:String(lf.name||""),date:dzmDelDate(lf.at)}):dzT("montage.livraison.dernier_aucun")}),
+    r.jsx("div",{className:"svm-dellist",children:n?tri.finals.map(function(j){return row(j,"final")}).concat(tri.previews.map(function(j){return row(j,"preview")})):r.jsx("div",{className:"svm-delempty",children:dzT("montage.livraison.aucun")})}),
+    r.jsx("button",{className:"svm-secbtn",title:dzT("montage.livraison.biblio_aide"),onClick:function(){o.onOpenLib&&o.onOpenLib()},children:dzT("montage.livraison.voir_biblio")})]})}
 /* ── E-13 / E-14 (lot E-C, tâche 5, 23/09/2026) : LA TÊTE DANS L'INSPECTEUR,
    LE TROU SÉLECTIONNÉ ──────────────────────────────────────────────────────
    dzmTeteTxt(ph, sel, fmt) — pure : « tête à <fmt(ph)> », puis « · +<fmt(ph−start)>
@@ -20188,9 +20188,9 @@ function DzmDeliver(o){
 function dzmTeteTxt(ph,sel,fmt){
   var p=Number(ph);if(!isFinite(p))return "";
   var f=typeof fmt==="function"?fmt:function(v){return String(Math.round(v*100)/100)};
-  var s="tête à "+f(p);
+  var s=dzT("montage.tete_txt.a",{t:f(p)});
   if(sel&&typeof sel==="object"&&isFinite(Number(sel.start))&&isFinite(Number(sel.end)))
-    s+=(Number(sel.start)<=p&&p<Number(sel.end))?" · +"+f(p-Number(sel.start))+" dans le plan":" · hors du plan";
+    s+=(Number(sel.start)<=p&&p<Number(sel.end))?dzT("montage.tete_txt.dans",{t:f(p-Number(sel.start))}):dzT("montage.tete_txt.hors");
   return s}
 function dzmTrou(clips,tr,t){
   var p=Number(t);if(!Array.isArray(clips)||!isFinite(p))return null;
@@ -20266,35 +20266,35 @@ function dzmDeliverPayload(base,opts){
   return out}
 function dzmDelStatut(j){
   var st=String(j&&j.status||""),p=Math.max(0,Math.min(100,Math.round(Number(j&&j.progress)||0)));
-  var txt=st==="queued"?"en file":st==="generating_video"?"en cours "+p+" %":st==="done"?"terminé":st==="failed"?"échec":"";
+  var txt=st==="queued"?dzT("montage.livraison.statut_file"):st==="generating_video"?dzT("montage.livraison.statut_en_cours",{p:p}):st==="done"?dzT("montage.livraison.statut_termine"):st==="failed"?dzT("montage.livraison.statut_echec"):"";
   return {st:st,txt:txt}}
 function DzmDeliverRow(o){
   o=o||{};var opts=o.opts&&typeof o.opts==="object"?o.opts:{},lst=dzmDeliverOpts(o.api);
   var ch=function(p){if(o.onChange)o.onChange(p)};
   var grp=function(g){var it=lst.filter(function(p){return p.groupe===g});
-    return it.length?r.jsx("optgroup",{label:g,children:it.map(function(p){return r.jsx("option",{value:p.id,children:p.label},p.id)})},g):null};
+    return it.length?r.jsx("optgroup",{label:g==="Maison"?dzT("montage.livraison.groupe_maison"):g,children:it.map(function(p){return r.jsx("option",{value:p.id,children:p.label},p.id)})},g):null};
   var pv=typeof opts.preset==="string"&&opts.preset?opts.preset:(lst[0]?lst[0].id:"");
   /* revue T4 : un preset persiste qui n'est plus servi (maison supprime, api en panne) est DIT, jamais remplace en silence */
-  var absent=pv&&!lst.some(function(p){return p.id===pv})?r.jsx("option",{value:pv,children:pv+" (absent)"},pv):null;
+  var absent=pv&&!lst.some(function(p){return p.id===pv})?r.jsx("option",{value:pv,children:pv+dzT("montage.livraison.absent")},pv):null;
   var lz=opts.loudness,li=o.lufs&&isFinite(Number(o.lufs.i))?Number(o.lufs.i):null;
   var etat=dzmLoudPastille(li,lz);
-  var ptitre=li==null?"mesurez d'abord (bouton « mesurer » du bandeau Son)":"mesure "+dzmLoudTxt(li)+" LUFS · cible "+(lz==null?"aucune":dzmLoudTxt(lz));
+  var ptitre=li==null?dzT("montage.livraison.mesurer_dabord"):dzT("montage.livraison.mesure",{m:dzmLoudTxt(li),c:lz==null?dzT("montage.mots.aucune"):dzmLoudTxt(lz)});
   var plein={gridColumn:"1 / -1"};
   return r.jsxs("div",{className:"svm-delopts",children:[
     r.jsx("span",{children:"preset"}),
-    r.jsxs("select",{title:"Preset de sortie (codec, taille, conteneur) — les presets maison suivent les standards",value:pv,onChange:function(e){ch({preset:e.target.value})},children:[absent,grp("Standard"),grp("Maison")]}),
-    r.jsx("span",{children:"cadence"}),
-    r.jsx("select",{title:"Cadence d'images du rendu final — « projet » laisse celle du preset",value:opts.fps==null||opts.fps===""?"":String(opts.fps),onChange:function(e){var v=e.target.value;ch({fps:v?Number(v):null})},
-      children:[r.jsx("option",{value:"",children:"projet (30)"},"")].concat(DZM_DEL_FPS.map(function(f){return r.jsx("option",{value:String(f),children:String(f)},String(f))}))}),
+    r.jsxs("select",{title:dzT("montage.livraison.preset_aide"),value:pv,onChange:function(e){ch({preset:e.target.value})},children:[absent,grp("Standard"),grp("Maison")]}),
+    r.jsx("span",{children:dzT("montage.livraison.cadence")}),
+    r.jsx("select",{title:dzT("montage.livraison.cadence_aide"),value:opts.fps==null||opts.fps===""?"":String(opts.fps),onChange:function(e){var v=e.target.value;ch({fps:v?Number(v):null})},
+      children:[r.jsx("option",{value:"",children:dzT("montage.livraison.cadence_projet")},"")].concat(DZM_DEL_FPS.map(function(f){return r.jsx("option",{value:String(f),children:String(f)},String(f))}))}),
     r.jsx("span",{children:"loudness"}),
     r.jsxs("span",{className:"svm-delloud",children:[
-      r.jsx("select",{title:"Normalisation de loudness en deux passes (ffmpeg loudnorm) — « aucune » laisse le mix tel quel",value:lz==null?"":String(lz),onChange:function(e){var v=e.target.value;ch({loudness:v?Number(v):null})},
-        children:[r.jsx("option",{value:"",children:"aucune"},"")].concat(DZM_DEL_LOUD.map(function(l){return r.jsx("option",{value:String(l[0]),children:l[1]},String(l[0]))}))}),
+      r.jsx("select",{title:dzT("montage.livraison.loudness_aide"),value:lz==null?"":String(lz),onChange:function(e){var v=e.target.value;ch({loudness:v?Number(v):null})},
+        children:[r.jsx("option",{value:"",children:dzT("montage.mots.aucune")},"")].concat(DZM_DEL_LOUD.map(function(l){return r.jsx("option",{value:String(l[0]),children:l[1]},String(l[0]))}))}),
       r.jsx("span",{className:"svm-loudpill","data-etat":etat,title:ptitre})]}),
-    o.hasRange?r.jsxs("label",{className:"svm-delrange",style:plein,title:"Ne rendre que la plage I/O de la timeline (coupe de sortie — sous-titres et titres gardent l'horloge globale)",children:[
-      r.jsx("input",{type:"checkbox",checked:!!opts.rangeOnly,title:"Rendre la plage I/O seulement",onChange:function(e){ch({rangeOnly:!!e.target.checked})}}),
-      " Rendre la plage I/O seulement"]}):null,
-    r.jsx("button",{className:"svm-secbtn svm-delsave",style:plein,title:"Enregistrer preset + cadence comme preset maison (un nom est demandé)",onClick:function(){if(o.onSavePreset)o.onSavePreset()},children:"Enregistrer ce réglage…"})]})}
+    o.hasRange?r.jsxs("label",{className:"svm-delrange",style:plein,title:dzT("montage.livraison.plage_aide"),children:[
+      r.jsx("input",{type:"checkbox",checked:!!opts.rangeOnly,title:dzT("montage.livraison.plage_seule"),onChange:function(e){ch({rangeOnly:!!e.target.checked})}}),
+      dzT("montage.livraison.plage_seule_case")]}):null,
+    r.jsx("button",{className:"svm-secbtn svm-delsave",style:plein,title:dzT("montage.livraison.enregistrer_aide"),onClick:function(){if(o.onSavePreset)o.onSavePreset()},children:dzT("montage.livraison.enregistrer")})]})}
 /* ── D-13 (22/09/2026) : LE ZOOM DYNAMIQUE ───────────────────────────────
    `dz` = {x0,y0,w0,x1,y1,w1,ease} en FRACTIONS du cadre — MÊMES bornes que
    `montage_service._dz_spec` (w ∈ [0.1,1], x/y ∈ [0,1−w], plein cadre aux
@@ -20389,10 +20389,10 @@ function dzmStabNorm(raw){
   return {on:!0,smooth:n(raw.smooth,1,100,15),crop:raw.crop==="black"?"black":"keep",zoom:n(raw.zoom,-30,30,0)}}
 function dzmStabOf(c){return c&&c.stab?dzmStabNorm(c.stab):null}
 function dzmStabState(job){
-  if(!job)return "à analyser";
-  if(job.status==="done")return "analysée";
-  if(job.status==="failed")return "échec : "+String(job.error||"?");
-  return "analyse "+Math.round(Number(job.progress)||0)+" %"}
+  if(!job)return dzT("montage.stabilisation.a_analyser");
+  if(job.status==="done")return dzT("montage.stabilisation.analysee");
+  if(job.status==="failed")return dzT("montage.stabilisation.echec",{e:String(job.error||"?")});
+  return dzT("montage.stabilisation.analyse",{p:Math.round(Number(job.progress)||0)})}
 /* ── D-14 (22/09/2026) : KEYFRAMES D'ÉCHELLE ET D'OPACITÉ SUR LES OVERLAYS ──
    Contrat du rendu (T7a) : un point sans `scale` (ou `opacity`) ne participe
    pas à CETTE animation ; sans point porteur, la statique du clip reste.
@@ -20570,25 +20570,25 @@ function DzmPlanProps(o){
     r.jsx("div",{className:"svm-propk",children:label}),r.jsx("div",{className:"svm-propv",children:kids})]},key)};
   var sel=function(cur,opts,cb,title){return r.jsx("select",{className:"svm-vitsel",value:cur,title:title,
     onChange:function(e){cb(e.target.value)},children:opts.map(function(p){return r.jsx("option",{value:p[0],children:p[1]},p[0])})})};
-  var kids=[row("Zoom dyn.",sel(dz?(dz.w1<dz.w0?"in":dz.w1>dz.w0?"out":"custom"):"off",
-    [["off","aucun"],["in","zoom avant"],["out","zoom arrière"],["custom","personnalisé"]],
+  var kids=[row(dzT("montage.proprietes.zoom_dyn"),sel(dz?(dz.w1<dz.w0?"in":dz.w1>dz.w0?"out":"custom"):"off",
+    [["off",dzT("montage.mots.aucun")],["in",dzT("montage.proprietes.zoom_avant")],["out",dzT("montage.proprietes.zoom_arriere")],["custom",dzT("montage.proprietes.personnalise")]],
     function(v){if(v==="custom"&&dz)return;on({dz:v==="off"?void 0:v==="custom"?(dz||dzmDzPreset("in")):dzmDzPreset(v)},!0)},
-    "Zoom dynamique : deux fenêtres, début (vert) et fin (rouge) du plan — glisser les rectangles dans le lecteur, le rendu interpole"),"dz")];
+    dzT("montage.proprietes.zoom_aide")),"dz")];
   if(dz){
-    kids.push(row("Courbe",sel(dz.ease,[["doux","douce"],["lin","linéaire"]],function(v){on({dz:Object.assign({},dz,{ease:v})},!0)},"Interpolation du zoom"),"dz-ease"));
-    kids.push(row("Fenêtres",r.jsx("span",{className:"dzm-plan-hint",
-      children:"début "+Math.round(dz.w0*100)+" % · fin "+Math.round(dz.w1*100)+" %"}),"dz-w"))}
+    kids.push(row(dzT("montage.proprietes.courbe"),sel(dz.ease,[["doux",dzT("montage.proprietes.douce")],["lin",dzT("montage.proprietes.lineaire")]],function(v){on({dz:Object.assign({},dz,{ease:v})},!0)},dzT("montage.proprietes.zoom_interp")),"dz-ease"));
+    kids.push(row(dzT("montage.proprietes.fenetres"),r.jsx("span",{className:"dzm-plan-hint",
+      children:dzT("montage.proprietes.fenetres_val",{a:Math.round(dz.w0*100),b:Math.round(dz.w1*100)})}),"dz-w"))}
   /* D-15 : l'interpolation du retime (sans effet à 100 %, le backend ne la lit qu'avec une vitesse) */
-  kids.push(row("Interpolation",sel(rt||"nearest",[["nearest","image voisine"],["blend","fondu d'images"],["flow","flux optique (lent)"]],
+  kids.push(row(dzT("montage.proprietes.interpolation"),sel(rt||"nearest",[["nearest",dzT("montage.proprietes.image_voisine")],["blend",dzT("montage.proprietes.fondu_images")],["flow",dzT("montage.proprietes.flux_optique")]],
     function(v){on({retime:v==="nearest"?void 0:v},!0)},
-    spd===1?"Sans effet à 100 % — change d'abord la vitesse":"Qualité du retime (D-15) : fondu = flou de mouvement, flux optique = images intermédiaires calculées"),"rt"));
+    spd===1?dzT("montage.proprietes.retime_sans_effet"):dzT("montage.proprietes.retime_aide")),"rt"));
   /* D-15 : la rampe = diviser à la tête, la partie droite à la vitesse choisie */
-  kids.push(row("Rampe",r.jsxs("span",{className:"dzm-plan-hint",children:[
+  kids.push(row(dzT("montage.proprietes.rampe"),r.jsxs("span",{className:"dzm-plan-hint",children:[
     r.jsx("button",{className:"svm-minibtn",disabled:!inClip,
-      title:inClip?"Diviser le plan à la tête : la partie gauche garde sa vitesse, la droite passe à la vitesse choisie":"Placer la tête à 0,3 s au moins des deux bords du plan",
-      onClick:function(){if(typeof o.onRampe==="function")o.onRampe(head,spd,rampSpd)},children:__dzGlT("dz-edit-couper","Diviser à la tête →","→")}),
+      title:inClip?dzT("montage.proprietes.rampe_aide"):dzT("montage.proprietes.rampe_bords"),
+      onClick:function(){if(typeof o.onRampe==="function")o.onRampe(head,spd,rampSpd)},children:__dzGlT("dz-edit-couper",dzT("montage.proprietes.diviser"),"→")}),
     sel(String(rampSpd),[["0.5","50 %"],["0.75","75 %"],["1","100 %"],["1.5","150 %"],["2","200 %"],["3","300 %"]],
-      function(v){setRampSpd(Number(v))},"Vitesse de la partie droite")]}),"rampe"));
+      function(v){setRampSpd(Number(v))},dzT("montage.proprietes.vitesse_droite"))]}),"rampe"));
   /* D-16 : la stabilisation — case (lourd), « Analyser » (désactivé pendant
      l'analyse), chip d'état ; puis, si active, deux curseurs (léger : le
      range tire onChange à chaque cran, la rafale de 600 ms fait UNE entrée)
@@ -20597,22 +20597,22 @@ function DzmPlanProps(o){
   /* revue : « Analyser » n'est réarmé que sur un échec — après « analysée »
      un second clic ne ferait qu'un POST inoffensif (le cache n'est jamais purgé) */
   var sb=dzmStabOf(c),sj=o.stabJob||null,sjBloque=!!sj&&sj.status!=="failed";
-  kids.push(row("Stabilis.",r.jsxs("span",{className:"dzm-plan-hint dzm-stab",children:[
-    r.jsx("input",{type:"checkbox",checked:!!sb,title:"Stabiliser le plan (vidstab, deux passes au rendu)",
+  kids.push(row(dzT("montage.proprietes.stabilis"),r.jsxs("span",{className:"dzm-plan-hint dzm-stab",children:[
+    r.jsx("input",{type:"checkbox",checked:!!sb,title:dzT("montage.proprietes.stabiliser_aide"),
       onChange:function(e){on({stab:e.target.checked?dzmStabNorm({on:!0}):void 0},!0)}}),
     r.jsx("button",{className:"svm-minibtn",disabled:!sb||sjBloque,
-      title:"Analyser la source maintenant (sinon le rendu le fera, plus long)",
-      onClick:function(){if(typeof o.onStab==="function")o.onStab()},children:"Analyser"}),
+      title:dzT("montage.proprietes.analyser_aide"),
+      onClick:function(){if(typeof o.onStab==="function")o.onStab()},children:dzT("montage.mots.analyser")}),
     r.jsx("span",{className:"dzm-stab-st","data-st":sj?sj.status:"",children:sb?dzmStabState(sj):""})]}),"stab"));
   if(sb){
     var rng=function(key,lo,hi,label,title){return row(label,r.jsxs("span",{className:"dzm-plan-hint dzm-stab",children:[
       r.jsx("input",{type:"range",min:lo,max:hi,value:sb[key],title:title,
         onChange:function(e){var p={};p[key]=Number(e.target.value);on({stab:dzmStabNorm(Object.assign({},sb,p))},!1)}}),
       " "+sb[key]]}),"stab-"+key)};
-    kids.push(rng("smooth",1,100,"Lissage","Fenêtre de lissage (images) — 15 par défaut"));
-    kids.push(rng("zoom",-30,30,"Zoom","Zoom fixe en % pour cacher les bords (0 = optzoom)"));
-    kids.push(row("Bords",sel(sb.crop,[["keep","garder"],["black","noir"]],
-      function(v){on({stab:dzmStabNorm(Object.assign({},sb,{crop:v}))},!0)},"Que faire des bords découverts"),"stab-crop"))}
+    kids.push(rng("smooth",1,100,dzT("montage.proprietes.lissage"),dzT("montage.proprietes.lissage_aide")));
+    kids.push(rng("zoom",-30,30,"Zoom",dzT("montage.proprietes.zoom_fixe_aide")));
+    kids.push(row(dzT("montage.proprietes.bords"),sel(sb.crop,[["keep",dzT("montage.proprietes.garder")],["black",dzT("montage.proprietes.noir")]],
+      function(v){on({stab:dzmStabNorm(Object.assign({},sb,{crop:v}))},!0)},dzT("montage.proprietes.bords_aide")),"stab-crop"))}
   /* L7-B D-40 (24/09/2026, tâche 4) : le CADRAGE — trois modes (boutons,
      lourds), la position du mode manuel (curseur 0..100 %, léger : la
      rafale de 600 ms fait UNE entrée), « Analyser le mouvement »
@@ -20636,36 +20636,36 @@ function DzmPlanProps(o){
   var rfT0=isFinite(head)?Math.max(0,(head-c.start)*spd):0;
   /* le manuel part de la position que le suivi montrerait à la tête (points gardés compris), sinon du cadrage courant */
   var rfSuivi=rfPts?dzmReframeOf({start:c.start,end:c.end,speed:c.speed,srcIn:c.srcIn,reframe:{mode:"suivi",points:rfPts}}):null;
-  var rfNon="Sans effet sur ce plan : la source n'est pas plus large que le cadre du projet — le recadrage horizontal ne déplace rien";
-  var rfInc=rfK===null?" (dimensions de la source pas encore lues : placez la tête sur le plan)":"";
-  var rfGel="Analyse du mouvement en cours sur ce plan — les modes reviennent à la fin";
+  var rfNon=dzT("montage.cadrage.sans_effet");
+  var rfInc=rfK===null?dzT("montage.cadrage.dimensions_inconnues"):"";
+  var rfGel=dzT("montage.cadrage.analyse_en_cours");
   var rfAnalyse=function(){if(typeof o.onReframe!=="function"||rfBusy)return;var id=c.id;
     setRfBusy(function(m){var n=Object.assign({},m);n[id]=!0;return n});
     var fin=function(){setRfBusy(function(m){var n=Object.assign({},m);delete n[id];return n})};
     Promise.resolve(o.onReframe()).then(fin,fin)};
   var rfBtn=function(m,lbl,title,dis,cb){return r.jsx("button",{className:"svm-minibtn dzm-rf-mode","data-on":rfMode===m?"1":"",
     "aria-pressed":rfMode===m,disabled:dis,title:title,onClick:cb,children:lbl},"rf-"+m)};
-  kids.push(row("Cadrage",r.jsxs("span",{className:"dzm-plan-hint dzm-rf",children:[
-    rfBtn("centre","Centré",rfBusy?rfGel:"Cadrage centré (historique) — les points d'une analyse restent gardés pour « Suivre »",rfBusy,
+  kids.push(row(dzT("montage.cadrage.titre"),r.jsxs("span",{className:"dzm-plan-hint dzm-rf",children:[
+    rfBtn("centre",dzT("montage.cadrage.centre"),rfBusy?rfGel:dzT("montage.cadrage.centre_aide"),rfBusy,
       function(){on({reframe:rfPts?{mode:"centre",points:rfPts}:void 0},!0)}),
-    rfBtn("suivi","Suivre",rfSans?rfNon:rfBusy?rfGel:(rfPts?"Suivre le mouvement analysé ("+rfPts.length+" points)":"Suivre le mouvement : analyse la source puis fait glisser la fenêtre")+rfInc,
+    rfBtn("suivi",dzT("montage.cadrage.suivre"),rfSans?rfNon:rfBusy?rfGel:(rfPts?dzT("montage.cadrage.suivre_points",{n:rfPts.length}):dzT("montage.cadrage.suivre_aide"))+rfInc,
       rfSans||rfBusy,function(){if(rfPts)on({reframe:{mode:"suivi",points:rfPts}},!0);else rfAnalyse()}),
-    rfBtn("manuel","Manuel",rfSans?rfNon:rfBusy?rfGel:"Position fixe de la fenêtre, réglée au curseur"+rfInc,rfSans||rfBusy,
+    rfBtn("manuel",dzT("montage.cadrage.manuel"),rfSans?rfNon:rfBusy?rfGel:dzT("montage.cadrage.manuel_aide")+rfInc,rfSans||rfBusy,
       function(){var m={mode:"manuel",x:Math.round(dzmReframeAt(rfSuivi||rfN,rfT0)*1000)/1000};if(rfPts)m.points=rfPts;on({reframe:m},!0)})]}),"rf"));
   if(rfMode==="manuel"){var rfV=Math.round(rfN.x*100);
-    kids.push(row("Position",r.jsxs("span",{className:"dzm-plan-hint dzm-rf",children:[
-      r.jsx("input",{type:"range",min:0,max:100,step:1,value:rfV,disabled:rfSans||rfBusy,"aria-label":"Position horizontale du cadrage",
-        title:rfSans?rfNon:rfBusy?rfGel:"Position horizontale de la fenêtre dans la source : 0 % à gauche, 100 % à droite",
+    kids.push(row(dzT("montage.cadrage.position"),r.jsxs("span",{className:"dzm-plan-hint dzm-rf",children:[
+      r.jsx("input",{type:"range",min:0,max:100,step:1,value:rfV,disabled:rfSans||rfBusy,"aria-label":dzT("montage.cadrage.position_aria"),
+        title:rfSans?rfNon:rfBusy?rfGel:dzT("montage.cadrage.position_aide"),
         onChange:function(e){var v=Number(e.target.value);if(!isFinite(v))return;
           on({reframe:Object.assign({},rf,{mode:"manuel",x:Math.max(0,Math.min(100,v))/100})},!1)}}),
       r.jsx("span",{className:"dzm-rf-val",children:rfV+" %"})]}),"rf-x"))}
-  kids.push(row("Mouvement",r.jsxs("span",{className:"dzm-plan-hint dzm-rf",children:[
+  kids.push(row(dzT("montage.cadrage.mouvement"),r.jsxs("span",{className:"dzm-plan-hint dzm-rf",children:[
     r.jsx("button",{className:"svm-minibtn",disabled:rfSans||rfBusy,
-      title:rfSans?rfNon:rfBusy?rfGel:"Analyser le mouvement de l'extrait (srcIn, durée de source) et passer en « Suivre »"+rfInc,
-      onClick:rfAnalyse,children:"Analyser le mouvement"}),
+      title:rfSans?rfNon:rfBusy?rfGel:dzT("montage.cadrage.analyser_aide")+rfInc,
+      onClick:rfAnalyse,children:dzT("montage.cadrage.analyser")}),
     r.jsx("span",{className:"dzm-rf-st","data-st":rfBusy?"busy":rfMode==="suivi"?"suivi":"",
-      children:rfBusy?"analyse…":rfMode==="suivi"?rfN.points.length+" points":""})]}),"rf-an"));
-  return r.jsxs("div",{className:"dzm-plan",children:[r.jsx("div",{className:"dzm-plan-t",children:"Propriétés du plan"}),
+      children:rfBusy?dzT("montage.cadrage.analyse"):rfMode==="suivi"?rfN.points.length+" points":""})]}),"rf-an"));
+  return r.jsxs("div",{className:"dzm-plan",children:[r.jsx("div",{className:"dzm-plan-t",children:dzT("montage.proprietes.titre")}),
     r.jsx("div",{className:"svm-props",children:kids})]})}
 /* LES DEUX RECTANGLES (vert = début, rouge = fin) dans le cadre du lecteur,
    en % du cadre — glisser le corps = déplacer, glisser le coin = échelle.
@@ -20693,9 +20693,9 @@ function DzmDzRects(o){
       w.addEventListener("pointermove",mv);w.addEventListener("pointerup",up);w.addEventListener("pointercancel",up)}};
     return r.jsxs("div",{className:"dzm-dzrect","data-k":k?"fin":"debut",
       style:{left:(x*100)+"%",top:(y*100)+"%",width:(w*100)+"%",height:(w*100)+"%"},
-      title:(k?"Fin":"Début")+" du zoom — glisser : déplacer · coin : échelle",
+      title:(k?dzT("montage.rect_zoom.fin_aide"):dzT("montage.rect_zoom.debut_aide")),
       onPointerDown:down("move"),children:[
-        r.jsx("span",{className:"dzm-dzlab",children:k?"fin":"début"}),
+        r.jsx("span",{className:"dzm-dzlab",children:k?dzT("montage.mots.fin"):dzT("montage.mots.debut")}),
         r.jsx("i",{className:"dzm-dzh",onPointerDown:down("scale")})]},k)};
   return r.jsxs("div",{className:"dzm-dzwrap",children:[mk(0),mk(1)]})}
 /* ── E-2 (23/09/2026) : LE TIROIR MÉDIAS — provenance, filtre, liste paginée ──
@@ -20714,7 +20714,7 @@ function DzmDzRects(o){
    « Autres ». */
 var DZM_PROV_LBL={seedance:"Studio",heygen:"Studio",composition:"Studio",animation:"Studio",extend:"Studio",
   episode:"Chapitres",news:"News",template:"Templates",ugc:"Importés",montage:"Montages"};
-function dzmProvGroupe(p){var k=(p==null||p==="")?"seedance":String(p);return DZM_PROV_LBL[k]||k}
+function dzmProvAff(g){var t={Tout:dzT("montage.mots.tout"),Chapitres:dzT("montage.mots.chapitres"),Importés:dzT("montage.mots.importes"),Montages:dzT("montage.mots.montages")};return Object.prototype.hasOwnProperty.call(t,g)?t[g]:g}function dzmProvGroupe(p){var k=(p==null||p==="")?"seedance":String(p);return DZM_PROV_LBL[k]||k}
 /* « Tout » en tête, puis les groupes dans l'ORDRE D'APPARITION, uniques */
 function dzmProvChips(jobs){var out=["Tout"],seen={};(jobs||[]).forEach(function(j){
   var g=dzmProvGroupe(j&&j.provider);if(!seen[g]){seen[g]=1;out.push(g)}});return out}
@@ -20814,7 +20814,7 @@ function DzmMediaDrawer(o){
         setJobs(function(prev){var base=remplace?[]:prev,vu={};base.forEach(function(j){if(j&&j.job_id)vu[j.job_id]=1});
           return base.concat(page.filter(function(j){if(!j||!j.job_id||vu[j.job_id])return !1;vu[j.job_id]=1;return !0}))});
         setOffset(off+page.length);setFin(page.length<DZM_MED_PAGE);setSt("")})
-      .catch(function(e){if(vivant.current&&n===seq.current)setSt("Rendus : chargement impossible ("+String((e&&e.message)||e)+")")})};
+      .catch(function(e){if(vivant.current&&n===seq.current)setSt(dzT("montage.tiroir_medias.chargement_impossible",{e:String((e&&e.message)||e)}))})};
   /* ouverture ou nouvelle recherche serveur : repartir de zéro (250 ms de repos sur la frappe) */
   x.useEffect(function(){
     if(!o.open)return;
@@ -20850,7 +20850,7 @@ function DzmMediaDrawer(o){
         if(vivant.current&&seuil>0&&vague.current===v0){var dl=(apres>=seuil?1:0)-(c0>=seuil?1:0);
           if(dl)setOffset(function(o2){return Math.max(0,o2+dl)})}})
       .catch(function(e){if(!vivant.current||noteSeq.current[jid]!==k)return;pose(noteConf.current[jid]);
-        setNoteMsg("Note refusée : "+String((e&&e.message)||"erreur réseau")+" — note d'avant remise.")});
+        setNoteMsg(dzT("montage.tiroir_medias.note_refusee",{e:String((e&&e.message)||dzT("montage.mots.erreur_reseau"))}))});
     noteFile.current[jid]=envoi};
   if(!o.open)return null;
   var vus=jobs.filter(function(j){return dzmIsVideoJob(j,o.exts)});
@@ -20859,7 +20859,7 @@ function DzmMediaDrawer(o){
   var row=function(j){var jid=String(j.job_id||""),lbl=j.title||jid;
     var src=encodeURIComponent(JSON.stringify({job_id:jid}));
     return r.jsxs("div",{className:"svm-medrow",draggable:!0,
-      title:lbl+" — Glisser vers une bande, ou cliquer pour poser sur "+(o.trId||"la piste vidéo"),
+      title:dzT("montage.tiroir_medias.ligne_aide",{nom:lbl,piste:o.trId||dzT("montage.tiroir_medias.piste_video")}),
       onDragStart:function(e){if(o.dragPayload)o.dragPayload(e,{job_id:jid},lbl,"video",j.duration_s||0)},
       onClick:function(){if(o.onAdd)o.onAdd(j)},
       children:[
@@ -20869,14 +20869,14 @@ function DzmMediaDrawer(o){
           r.jsx("div",{className:"svm-medtitle",children:lbl}),
           r.jsxs("div",{className:"svm-medsub",children:[
             r.jsx("span",{children:j.duration_s>0?dzmDurTxt(j.duration_s):"—"}),
-            r.jsx("span",{className:"svm-themechip svm-medgrp",children:dzmProvGroupe(j.provider)}),
+            r.jsx("span",{className:"svm-themechip svm-medgrp",children:dzmProvAff(dzmProvGroupe(j.provider))}),
             /* L7-B D-41 : « ✂ auto-clips » ouvre le popover de CETTE ligne ; comme les étoiles, son clic
                n'atteint pas la ligne (pas de pose) et un glisser commencé dessus est annulé */
             r.jsx("button",{type:"button",className:"svm-medac",draggable:!0,
-              title:"Auto-clips — proposer des extraits de 15 à 60 s de ce rendu (texte connu gratuit ; transcription payante seulement après confirmation)",
-              "aria-label":"Auto-clips de « "+lbl+" »","data-on":ac&&String(ac.job_id)===jid?"":void 0,
+              title:dzT("montage.autoclips.bouton_aide"),
+              "aria-label":dzT("montage.autoclips.de",{nom:lbl}),"data-on":ac&&String(ac.job_id)===jid?"":void 0,
               onDragStart:function(e){e.preventDefault();e.stopPropagation()},
-              onClick:function(e){e.stopPropagation();e.preventDefault();setAc(j)},children:__dzGlT("dz-media-extraits","✂ auto-clips","✂")})]}),
+              onClick:function(e){e.stopPropagation();e.preventDefault();setAc(j)},children:__dzGlT("dz-media-extraits",dzT("montage.autoclips.bouton"),"✂")})]}),
           /* L7-B D-34 : cinq étoiles. Le span est son propre point de glisser
              (annulé) pour qu'un geste commencé sur une étoile ne tire pas la
              ligne ; le clic d'une étoile n'atteint pas la ligne (pas de pose). */
@@ -20885,31 +20885,31 @@ function DzmMediaDrawer(o){
             children:[1,2,3,4,5].map(function(i){var cur=dzmRatingNorm(j.rating);
               /* une étoile n'est pas une bascule (l'étoile 2 d'une note 4 est allumée
                  mais cliquer la baisse) : on dit l'ACTION, même phrase que l'infobulle */
-              var ti=i===cur?"Retirer la note ("+i+" ★)":"Noter "+i+" ★"+(i===5?" — Good Take":"");
+              var ti=i===cur?dzT("montage.tiroir_medias.retirer_note",{n:i}):dzT("montage.tiroir_medias.noter",{n:i})+(i===5?" — Good Take":"");
               return r.jsx("button",{type:"button",className:"svm-medstar","data-on":i<=cur?"":void 0,
                 title:ti,"aria-label":ti,
                 onClick:function(e){e.stopPropagation();e.preventDefault();noter(j,i)},children:__dzGl("dz-etat-note")},i)})})]})]},jid||lbl)};
   return r.jsxs("div",{className:"svm-meddrawer",children:[
     r.jsxs("div",{className:"svm-medhead",children:[
-      r.jsx("div",{className:"svm-poptitle",children:"Médias — rendus vidéo"+(o.trId?" → "+o.trId:"")}),
-      r.jsx("button",{className:"svm-secbtn",title:"Fermer le tiroir Médias",onClick:function(){if(o.onClose)o.onClose()},children:"Fermer"})]}),
-    r.jsx("input",{type:"search",className:"svm-medq",value:q,placeholder:"Rechercher un titre…",
+      r.jsx("div",{className:"svm-poptitle",children:dzT("montage.tiroir_medias.titre")+(o.trId?" → "+o.trId:"")}),
+      r.jsx("button",{className:"svm-secbtn",title:dzT("montage.tiroir_medias.fermer_aide"),onClick:function(){if(o.onClose)o.onClose()},children:dzT("montage.mots.fermer")})]}),
+    r.jsx("input",{type:"search",className:"svm-medq",value:q,placeholder:dzT("montage.tiroir_medias.rechercher"),
       onChange:function(e){setQ(e.target.value)}}),
     r.jsx("div",{className:"svm-medchips",children:chips.map(function(c){
       return r.jsx("button",{className:"svm-themechip","data-on":c===g?"":void 0,
-        onClick:function(){setGroupe(c)},children:c},c)})}),
+        onClick:function(){setGroupe(c)},children:dzmProvAff(c)},c)})}),
     /* L7-B D-34 : les chips de note — re-demandent la liste au serveur depuis la page 0 ; re-cliquer la chip active la retire */
     r.jsx("div",{className:"svm-medchips svm-mednotes",children:DZM_NOTE_CHIPS.map(function(n){
       return r.jsx("button",{type:"button",className:"svm-themechip","data-on":minNote===n[0]?"":void 0,
-        title:minNote===n[0]?"Retirer le filtre de note — tous les rendus":n[2],
+        title:minNote===n[0]?dzT("montage.tiroir_medias.retirer_filtre"):n[0]===5?dzT("montage.tiroir_medias.note5_aide"):dzT("montage.tiroir_medias.note3_aide"),
         onClick:function(){setMinNote(minNote===n[0]?0:n[0])},children:n[1]},n[0])})}),
     r.jsx("div",{className:"svm-medlist",children:liste.map(row)}),
     noteMsg?r.jsx("div",{className:"svm-medst svm-mednotemsg",children:noteMsg}):null,
     st?r.jsx("div",{className:"svm-medst",children:st}):null,
-    !st&&!liste.length?r.jsx("div",{className:"svm-medst",children:vus.length?"Aucun rendu dans ce groupe.":minNote?"Aucun rendu noté "+(minNote>=5?"5 ★":minNote+" ★ ou plus")+".":"Aucun rendu vidéo terminé."}):null,
+    !st&&!liste.length?r.jsx("div",{className:"svm-medst",children:vus.length?dzT("montage.tiroir_medias.aucun_groupe"):minNote?(minNote>=5?dzT("montage.tiroir_medias.aucun_note5"):dzT("montage.tiroir_medias.aucun_note_plus",{n:minNote})):dzT("montage.tiroir_medias.aucun_rendu")}):null,
     !fin?r.jsx("button",{className:"svm-secbtn svm-medplus",disabled:st==="…",
-      title:"Charger les rendus suivants",
-      onClick:function(){charge(offset,qServ,!1)},children:"Plus"}):null,
+      title:dzT("montage.tiroir_medias.plus_aide"),
+      onClick:function(){charge(offset,qServ,!1)},children:dzT("montage.tiroir_medias.plus")}):null,
     /* L7-B D-41 : le popover des auto-clips de la ligne choisie ; la clé (le job) le remonte à neuf quand la ligne change */
     ac?r.jsx(DzmAutoclips,{src:{job_id:String(ac.job_id)},label:ac.title||String(ac.job_id),dur:ac.duration_s||0,
       onClose:function(){setAc(null)},onOpenProject:o.onOpenProject},String(ac.job_id)):null]})}
@@ -20976,19 +20976,19 @@ function dzmAcUsd(u){if(typeof u!=="number"||!isFinite(u)||u<0)return "? $";
   return u>0&&u<.01?"< 0,01 $":u.toFixed(2).replace(".",",")+" $"}
 /* l'estimation dite en une ligne : coût, durée, fournisseur ; un refus dit sa raison */
 function dzmAcEstTxt(est){if(!est||typeof est!=="object")return "";
-  if(est.ok!==!0)return "Pas de transcription payante possible"+(est.reason?" — "+String(est.reason):"");
+  if(est.ok!==!0)return dzT("montage.autoclips.pas_payante")+(est.reason?" — "+String(est.reason):"");
   var eta=Number(est.eta_s)||0,d=eta>=90?"~"+Math.round(eta/60)+" min":"~"+Math.max(1,Math.round(eta))+" s";
-  return "Transcription payante : ≈ "+dzmAcUsd(est.usd)+" · "+d+" · "+String(est.label||est.provider||"fournisseur inconnu")}
+  return dzT("montage.autoclips.estimation",{c:dzmAcUsd(est.usd),d:d,f:String(est.label||est.provider||dzT("montage.autoclips.fournisseur_inconnu"))})}
 /* d'où vient le texte des extraits (champ `transcript` de la réponse). Le chemin du chapitre n'est pas appelé
    par le popover (écart daté plus haut) : s'il revenait, il serait dit « texte : » suivi de son nom. */
 function dzmAcTrTxt(tr){var s=String(tr==null?"":tr),m;
-  if(s==="align")return "texte connu calé sur le son (gratuit)";
-  if((m=/^stt:(.+):cache$/.exec(s)))return "transcription déjà payée, réutilisée ("+m[1]+")";
-  if((m=/^stt:(.+)$/.exec(s)))return "transcription payée ("+m[1]+")";
-  return "texte : "+(s||"?")}
+  if(s==="align")return dzT("montage.autoclips.texte_connu");
+  if((m=/^stt:(.+):cache$/.exec(s)))return dzT("montage.autoclips.deja_payee",{f:m[1]});
+  if((m=/^stt:(.+)$/.exec(s)))return dzT("montage.autoclips.payee",{f:m[1]});
+  return dzT("montage.autoclips.texte",{t:s||"?"})}
 /* la ligne d'un extrait : bornes en secondes de SOURCE, durée, origine du score */
 function dzmAcClipTxt(c){c=c||{};var a=Number(c.start),b=Number(c.end);
-  return dzmAcDec(a)+" → "+dzmAcDec(b)+" s · "+dzmAcDec(b-a)+" s · "+(c.origine==="llm"?"IA":"heuristique")}
+  return dzmAcDec(a)+" → "+dzmAcDec(b)+" s · "+dzmAcDec(b-a)+" s · "+(c.origine==="llm"?dzT("montage.autoclips.ia_mot"):dzT("montage.autoclips.heuristique"))}
 /* LE COMPOSANT. props : {src, label, dur, onClose(), onOpenProject({id,name})}. Lit `r`/`x` À L'APPEL. */
 function DzmAutoclips(o){
   o=o||{};
@@ -21019,10 +21019,10 @@ function DzmAutoclips(o){
     if(!rp.ok){var er=new Error((d&&typeof d.detail==="string"&&d.detail)||("HTTP "+rp.status));er.corps=d;throw er}return d})};
   var lancer=function(){if(busy)return;
     var b=dzmAcPayload({src:o.src,text:text,n:n,persona:persona,llm:llm,lang:lang,payer:payer,vu:vu});
-    if(!b){setMsg("Source illisible — rien n'est lancé.");return}
+    if(!b){setMsg(dzT("montage.autoclips.source_illisible"));return}
     var q=++seq.current,k0=k,paye=b.confirm===!0;
     if(paye){if(enVolPaye.current)return;enVolPaye.current=!0}
-    setBusy(1);setArm(-1);setMsg(paye?"Transcription payante en cours, puis analyse…":"Analyse…");
+    setBusy(1);setArm(-1);setMsg(paye?dzT("montage.autoclips.transcription_en_cours"):dzT("montage.autoclips.analyse"));
     /* la case « payer » ne sert qu'une fois : décochée dès l'envoi confirmé */
     if(paye)setPayer(null);
     var libere=function(){if(paye)enVolPaye.current=!1};
@@ -21031,80 +21031,80 @@ function DzmAutoclips(o){
       .then(function(d){libere();if(!frais(q,k0))return;setBusy(0);
         if(d&&d.ok===!0){var cs=Array.isArray(d.clips)?d.clips:[],sc=String(d.source||"");
           setRes(d);poseVu(null);
-          setMsg(cs.length+" extrait"+(cs.length>1?"s":"")+" — "+dzmAcTrTxt(d.transcript)+" ; "
-            +(sc.indexOf("llm:")===0?"classés par l'IA ("+sc.slice(4)+")":"classés par l'heuristique (gratuit)")+".");return}
+          setMsg((function(cl){return cs.length>1?dzT("montage.autoclips.extraits.plusieurs",{n:cs.length,transcription:dzmAcTrTxt(d.transcript),classement:cl}):
+            dzT("montage.autoclips.extraits.un",{n:cs.length,transcription:dzmAcTrTxt(d.transcript),classement:cl})})(sc.indexOf("llm:")===0?dzT("montage.autoclips.classes_ia",{modele:sc.slice(4)}):dzT("montage.autoclips.classes_heuristique")));return}
         var est=(d&&d.estimate&&typeof d.estimate==="object")?d.estimate:{ok:!1};
         setRes(null);poseVu(Object.assign({},est,{pour:k0}));
-        setMsg(String((d&&d.reason)||"Transcription payante non confirmée — rien n'a été lancé."))})
+        setMsg(String((d&&d.reason)||dzT("montage.autoclips.non_confirmee")))})
       .catch(function(e){libere();if(!frais(q,k0))return;setBusy(0);
         var ne=dzmAcEstRefus(e&&e.corps,k0);if(ne)poseVu(ne);
-        setMsg("Auto-clips refusés : "+String((e&&e.message)||"erreur réseau"))})};
+        setMsg(dzT("montage.autoclips.refuses",{e:String((e&&e.message)||dzT("montage.mots.erreur_reseau"))}))})};
   var creer=function(c,i){if(busy)return;
     if(arm!==i){setArm(i);return}
     var q=++seq.current,k0=k,nom=String((c&&c.title)||"").trim().slice(0,48);
-    setArm(-1);setBusy(1);setMsg("Création du projet…");
+    setArm(-1);setBusy(1);setMsg(dzT("montage.autoclips.creation"));
     fetch("/api/montage/autoclips/create",{method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({src:o.src,clip:{start:c.start,end:c.end,segments:Array.isArray(c.segments)?c.segments:[],title:nom},
         name:nom||void 0})})
       .then(lire)
       .then(function(d){if(!frais(q,k0))return;setBusy(0);
         var pid=d&&(d.project_id||d.id);
-        if(!pid){setMsg("Réponse inattendue : aucun projet n'a été créé.");return}
+        if(!pid){setMsg(dzT("montage.autoclips.reponse_inattendue"));return}
         var nm=String(d.name||nom||pid);
         /* la liste des projets dit elle-même si une copie de sûreté a été faite : ce popover ne le sait pas */
         if(typeof o.onOpenProject==="function"){o.onOpenProject({id:String(pid),name:nm});
-          setMsg("Projet « "+nm+" » créé — ouverture demandée : il remplace le montage affiché, la liste des projets dit le résultat.")}
-        else setMsg("Projet « "+nm+" » créé — ouvrez-le depuis la liste des projets.")})
+          setMsg(dzT("montage.autoclips.cree_ouverture",{nom:nm}))}
+        else setMsg(dzT("montage.autoclips.cree",{nom:nm}))})
       .catch(function(e){if(!frais(q,k0))return;setBusy(0);
-        setMsg("Création refusée : "+String((e&&e.message)||"erreur réseau"))})};
+        setMsg(dzT("montage.autoclips.creation_refusee",{e:String((e&&e.message)||dzT("montage.mots.erreur_reseau"))}))})};
   var libre=!!text.trim(),est=vu&&vu.pour===k?vu:null,estOk=!!(est&&est.ok===!0),coche=!!est&&payer===est;
   var clips=(res&&Array.isArray(res.clips))?res.clips:[];
-  var goTxt=busy?"Analyse…":libre?"Lancer (texte connu, gratuit)":estOk&&coche?"Payer et lancer (≈ "+dzmAcUsd(est.usd)+")":"Estimer / Lancer";
-  var goTi=libre?"Cale le texte connu sur le son de la vidéo (gratuit), puis propose les extraits"
-    :estOk&&coche?"Lance la transcription PAYANTE annoncée (≈ "+dzmAcUsd(est.usd)+"), puis propose les extraits"
-    :"Sans texte connu : demande d'abord le coût de la transcription — rien n'est payé sans la case « Payer la transcription »";
+  var goTxt=busy?dzT("montage.autoclips.analyse"):libre?dzT("montage.autoclips.lancer_gratuit"):estOk&&coche?dzT("montage.autoclips.payer_lancer",{usd:dzmAcUsd(est.usd)}):dzT("montage.autoclips.estimer_lancer");
+  var goTi=libre?dzT("montage.autoclips.lancer_gratuit_aide")
+    :estOk&&coche?dzT("montage.autoclips.payer_lancer_aide",{usd:dzmAcUsd(est.usd)})
+    :dzT("montage.autoclips.estimer_aide");
   return r.jsxs("div",{className:"svm-pop dzm-autoclips",role:"dialog","aria-label":"Auto-clips",children:[
     r.jsxs("div",{className:"svm-medhead",children:[
-      r.jsx("div",{className:"svm-poptitle",children:"Auto-clips — extraits de 15 à 60 s"}),
-      r.jsx("button",{type:"button",className:"svm-secbtn",title:"Fermer les auto-clips (rien n'est lancé)",
-        onClick:function(){if(o.onClose)o.onClose()},children:"Fermer"})]}),
-    r.jsx("div",{className:"dzm-acsrc",title:k,children:"Source : "+String(o.label||"rendu")+(o.dur>0?" · "+dzmAcDec(Number(o.dur))+" s":"")}),
+      r.jsx("div",{className:"svm-poptitle",children:dzT("montage.autoclips.titre")}),
+      r.jsx("button",{type:"button",className:"svm-secbtn",title:dzT("montage.autoclips.fermer_aide"),
+        onClick:function(){if(o.onClose)o.onClose()},children:dzT("montage.mots.fermer")})]}),
+    r.jsx("div",{className:"dzm-acsrc",title:k,children:dzT("montage.autoclips.source",{nom:String(o.label||dzT("montage.mots.rendu"))})+(o.dur>0?" · "+dzmAcDec(Number(o.dur))+" s":"")}),
     r.jsx("textarea",{className:"dzm-actext",value:text,rows:3,disabled:!!busy,
-      placeholder:"Texte connu (gratuit) — le texte dit dans la vidéo",
-      title:"Texte connu (gratuit) : le script dit dans la vidéo, calé sur le son sans transcription payante. Vide : la transcription payante est estimée d'abord.",
+      placeholder:dzT("montage.autoclips.texte_placeholder"),
+      title:dzT("montage.autoclips.texte_aide"),
       onChange:function(e){setText(e.target.value);setPayer(null)}}),
     r.jsxs("div",{className:"dzm-acrow",children:[
-      r.jsxs("label",{className:"dzm-acn",title:"Nombre d'extraits proposés (1 à 8)",children:["Extraits ",
+      r.jsxs("label",{className:"dzm-acn",title:dzT("montage.autoclips.nombre_aide"),children:[dzT("montage.autoclips.extraits_label"),
         r.jsx("input",{type:"number",min:1,max:8,step:1,value:n,disabled:!!busy,onChange:function(e){setN(e.target.value);setPayer(null)}})]}),
       r.jsx("select",{className:"dzm-aclang",value:lang,disabled:!!busy,
-        title:"Langue parlée dans la vidéo (calage du texte connu, transcription)",
+        title:dzT("montage.autoclips.langue_aide"),
         onChange:function(e){setLang(e.target.value);setPayer(null)},
         children:DZM_AC_LANGS.map(function(l){return r.jsx("option",{value:l,children:l},l)})}),
       r.jsx("input",{type:"text",className:"dzm-acpersona",value:persona,maxLength:60,disabled:!!busy,
-        placeholder:"Persona (facultatif)",title:"Persona (facultatif, 60 caractères) : le public visé, ses mots-clés comptent dans le score",
+        placeholder:dzT("montage.autoclips.persona_placeholder"),title:dzT("montage.autoclips.persona_aide"),
         onChange:function(e){setPersona(e.target.value)}})]}),
-    r.jsxs("label",{className:"dzm-accheck",title:"Coché : un modèle de langue note et titre les extraits (quelques centimes). Décoché : score heuristique, gratuit.",
+    r.jsxs("label",{className:"dzm-accheck",title:dzT("montage.autoclips.ia_aide"),
       children:[r.jsx("input",{type:"checkbox",checked:!!llm,disabled:!!busy,onChange:function(e){setLlm(!!e.target.checked)}}),
-        "Classer avec l'IA (quelques centimes)"]}),
+        dzT("montage.autoclips.ia")]}),
     est?r.jsx("div",{className:"dzm-acest","data-ok":estOk?"":void 0,children:dzmAcEstTxt(est)}):null,
     estOk&&!libre?r.jsxs("label",{className:"dzm-accheck dzm-acpay",
-      title:"Cocher pour autoriser CETTE dépense au prochain « Lancer » — une seule fois ; décochée, rien n'est payé",
+      title:dzT("montage.autoclips.payer_aide"),
       children:[r.jsx("input",{type:"checkbox",checked:coche,disabled:!!busy,onChange:function(e){setPayer(e.target.checked?est:null)}}),
-        "Payer la transcription (≈ "+dzmAcUsd(est.usd)+")"]}):null,
+        dzT("montage.autoclips.payer",{usd:dzmAcUsd(est.usd)})]}):null,
     r.jsx("button",{type:"button",className:"svm-goldbtn dzm-acgo",disabled:!!busy,title:goTi,onClick:lancer,children:goTxt}),
     msg?r.jsx("div",{className:"svm-medst dzm-acmsg",children:msg}):null,
     r.jsx("div",{className:"dzm-aclist",children:clips.map(function(c,i){var ar=arm===i;
       return r.jsxs("div",{className:"dzm-acclip",children:[
         r.jsxs("div",{className:"dzm-achead",children:[
-          r.jsx("span",{className:"dzm-acscore",title:"Score 0–100 ("+(c.origine==="llm"?"IA":"heuristique")+")",
+          r.jsx("span",{className:"dzm-acscore",title:dzT("montage.autoclips.score",{origine:c.origine==="llm"?dzT("montage.autoclips.origine_ia"):dzT("montage.autoclips.origine_heuristique")}),
             children:String(Math.round(Number(c.score)||0))}),
-          r.jsx("span",{className:"dzm-actitle",children:String(c.title||"Extrait "+(i+1))})]}),
+          r.jsx("span",{className:"dzm-actitle",children:String(c.title||dzT("montage.autoclips.extrait_n",{n:i+1}))})]}),
         c.hook?r.jsx("div",{className:"dzm-achook",children:String(c.hook)}):null,
         r.jsx("div",{className:"dzm-acmeta",children:dzmAcClipTxt(c)}),
         r.jsx("button",{type:"button",className:"svm-secbtn dzm-accreate","data-arm":ar?"":void 0,disabled:!!busy,
-          title:ar?"Confirmer : créer ce projet et l'OUVRIR — il remplace le montage affiché (un montage non nommé est d'abord mis à l'abri par la liste des projets)"
-            :"Créer un projet neuf avec cet extrait (V1, son du plan, sous-titres) — un second clic confirme",
-          onClick:function(){creer(c,i)},children:ar?"Créer et ouvrir ?":"Créer le projet"})]},i)})})]})}
+          title:ar?dzT("montage.autoclips.creer_confirmer_aide")
+            :dzT("montage.autoclips.creer_aide"),
+          onClick:function(){creer(c,i)},children:ar?dzT("montage.autoclips.creer_ouvrir"):dzT("montage.autoclips.creer")})]},i)})})]})}
 /* E-5 (lot E-B, tache 4, 23/09/2026) — LE DERNIER RENDU FINAL PAR PROJET.
    Aucun JobRecord ne porte de project_id (mesure routes.py:3330, _job_to_dict) :
    la memoire est COTE CLIENT, un store {project_id:{job_id,name,at}} que l'hote
@@ -21195,7 +21195,7 @@ function DzmMinimap(o){
   var a=dzmClamp(vf[0],0,1,0),b=dzmClamp(vf[1],0,1,1);if(b<a)b=a;
   function clic(e){if(typeof o.onSeek!=="function")return;var rc=e.currentTarget.getBoundingClientRect();
     if(!(rc.width>0))return;o.onSeek(Math.max(0,Math.min(1,(e.clientX-rc.left)/rc.width)))}
-  return r.jsxs("div",{className:"svm-minimap",title:"Mini-carte — cliquer pour centrer la timeline",onClick:clic,children:[
+  return r.jsxs("div",{className:"svm-minimap",title:dzT("montage.minimap.aide"),onClick:clic,children:[
     m.rows.map(function(row,i){return r.jsx("div",{className:"svm-mmrow",style:{height:(100/n)+"%"},
       children:m.rects.filter(function(q){return q.row===i}).map(function(q,k){
         return r.jsx("div",{className:"svm-mmrect","data-kind":q.kind,
@@ -21291,7 +21291,7 @@ function DzmCtxMenu(o){
     style:{left:Math.max(0,Math.min(px,W-270)),top:Math.max(0,Math.min(py,H-40*n))},
     children:rubs.map(function(g,gi){var its=(g&&Array.isArray(g.items))?g.items:[];
       return r.jsxs("div",{className:"svm-menugrp",children:[
-        g&&g.rub?r.jsx("div",{className:"svm-menurub",children:g.rub}):null,its.map(row)]},gi)})})}
+        g&&g.rub?r.jsx("div",{className:"svm-menurub",children:g.rub==="Édition"?dzT("montage.menurub.edition"):g.rub==="Marqueurs"?dzT("montage.menurub.marqueurs"):g.rub==="Affichage"?dzT("montage.menurub.affichage"):g.rub==="Aide"?dzT("montage.menurub.aide"):g.rub}):null,its.map(row)]},gi)})})}
 /* ── L7 D-10 (24/09/2026) : preset clavier Resolve, export / import du mappage (pur) ──
    Le preset est un dictionnaire d'OVERRIDES {actionId: combo} que l'hôte applique par
    setKmOv (le chemin du panneau « ? »). MESURÉ sur le bundle : « Ctrl+T » et « Ctrl+Maj+T »
@@ -21373,8 +21373,8 @@ function dzmClipPisteCible(tracks,tr){
 function dzmClipPaste(clips,payload,opts){
   var o=opts||{},base=Array.isArray(clips)?clips.slice():[];
   if(!payload||typeof payload!=="object"||!payload.clip||typeof payload.clip!=="object")
-    return {clips:base,track:null,mode:null,refus:"vide",note:"Presse-papiers vide — copiez d'abord un clip",id:null,start:null};
-  if(payload.v!==1)return {clips:base,track:null,mode:null,refus:"version",note:"Presse-papiers d'une autre version",id:null,start:null};
+    return {clips:base,track:null,mode:null,refus:"vide",note:dzT("montage.collage.vide"),id:null,start:null};
+  if(payload.v!==1)return {clips:base,track:null,mode:null,refus:"version",note:dzT("montage.collage.version"),id:null,start:null};
   /* revue M-3 : la RECOPIE est voulue — le payload (lu du stockage, ou
      tenu par l'appelant) n'est jamais muté : tr/start/end/id sont écrits
      sur la copie, et le presse-papiers reste collable une seconde fois */
@@ -21383,9 +21383,9 @@ function dzmClipPaste(clips,payload,opts){
      n'ont pas de src) ne serait jamais rendu — renderPayload filtre
      `c.src || kind title/adjust` ; on le refuse ici, pas au rendu */
   if(!c.src&&c.kind!=="title"&&c.kind!=="adjust")
-    return {clips:base,track:null,mode:null,refus:"source",note:"Ce clip n'a pas de source (copié depuis la démo ?) — rien n'a été collé",id:null,start:null};
+    return {clips:base,track:null,mode:null,refus:"source",note:dzT("montage.collage.sans_source"),id:null,start:null};
   var tr=dzmClipPisteCible(tracks,c.tr);
-  if(tr==null)return {clips:base,track:null,mode:null,refus:"piste",note:"Aucune piste "+genre+" pour coller",id:null,start:null};
+  if(tr==null)return {clips:base,track:null,mode:null,refus:"piste",note:dzT("montage.collage.aucune_piste",{genre:genre}),id:null,start:null};
   var head=Number(o.head);if(!isFinite(head)||head<0)head=0;head=dzmR3(head);
   var len=dzmR3((Number(c.end)||0)-(Number(c.start)||0));
   if(!(len>0))len=dzmR3(Number(DZM_CLIP_DEFAUTS.video)||6);
@@ -21393,7 +21393,7 @@ function dzmClipPaste(clips,payload,opts){
   c.id=dzmUniqueId(clips,String(tr)+"u"+(o.seq|0)+"_"+Math.round(head*10));
   var r=dzmInsere(clips,c,o.mode||"inserer",{tracks:tracks,head:head,srcDur:o.srcDur,range:o.range,locked:o.locked,twin:o.twin});
   var note=r.note||"";
-  if(r.id==null&&!note)note=r.refus==="verrou"?"Piste "+String(r.track||tr).toUpperCase()+" verrouillée — rien n'a été collé":"Rien n'a été collé";
+  if(r.id==null&&!note)note=r.refus==="verrou"?dzT("montage.collage.verrou",{piste:String(r.track||tr).toUpperCase()}):dzT("montage.collage.rien");
   /* revue M-1 : `start` est la position RÉELLE du clip posé (« en fin »,
      « ripple », « remplir » le posent ailleurs qu'à la tête) — l'hôte la dit */
   var pose=null;if(r.id!=null)for(var q=0;q<r.clips.length;q++)if(r.clips[q]&&r.clips[q].id===r.id){pose=r.clips[q];break}
@@ -21494,8 +21494,8 @@ function dzmDiffTemps(v){
   v=Number(v);if(!(v>0))v=0;
   var s=Math.floor(v),d=Math.round((v-s)*10);if(d>=10){s+=1;d=0}
   return svmRuler(s)+(d?","+d:"")}
-var DZM_DIFF_RUB=[["added","Ajouté","Ajoutés"],["removed","Supprimé","Supprimés"],["moved","Déplacé","Déplacés"],
-  ["trimmed","Rogné","Rognés"],["changed","Modifié","Modifiés"]];
+var DZM_DIFF_RUB=[["added",dzT("montage.diff.ajoute"),dzT("montage.diff.ajoutes")],["removed",dzT("montage.diff.supprime"),dzT("montage.diff.supprimes")],["moved",dzT("montage.diff.deplace"),dzT("montage.diff.deplaces")],
+  ["trimmed",dzT("montage.diff.rogne"),dzT("montage.diff.rognes")],["changed",dzT("montage.diff.modifie"),dzT("montage.diff.modifies")]];
 /* la vue : un svm-pop (le voile et Échap sont ceux de l'hôte), un résumé, cinq rubriques data-rub, « Fermer » */
 function DzmDiffView(o){
   o=o||{};var d=o.diff||{},noms=d.noms||{};
@@ -21508,7 +21508,7 @@ function DzmDiffView(o){
     return nom(e)}
   var res=DZM_DIFF_RUB.map(function(rb){var c=n(rb[0]);return c+" "+(c>1?rb[2]:rb[1]).toLowerCase()}).join(" · ");
   return r.jsxs("div",{className:"svm-pop dzm-diff",onClick:function(e){e.stopPropagation()},children:[
-    r.jsx("div",{className:"svm-poptitle",children:"Comparer : « "+(o.nomA||"montage courant")+" » → « "+(o.nomB||"autre projet")+" »"}),
+    r.jsx("div",{className:"svm-poptitle",children:dzT("montage.diff.titre",{a:o.nomA||dzT("montage.diff.courant"),b:o.nomB||dzT("montage.diff.autre")})}),
     r.jsx("div",{className:"svm-popnote dzm-diffres",children:res})].concat(DZM_DIFF_RUB.map(function(rb){
       var k=rb[0],items=Array.isArray(d[k])?d[k]:[];
       return r.jsxs("div",{className:"dzm-diffrub","data-rub":k,children:[
@@ -21517,7 +21517,7 @@ function DzmDiffView(o){
           ?items.map(function(e,i){return r.jsx("li",{children:ligne(k,e)},k+i)})
           :[r.jsx("li",{className:"dzm-diffnone",children:"—"},"none")]})]},k)}),[
     r.jsx("div",{className:"svm-poprow",children:
-      r.jsx("button",{className:"svm-secbtn",title:"Fermer la comparaison (Échap)",onClick:function(){if(o.onClose)o.onClose()},children:"Fermer"})},"fin")])})}
+      r.jsx("button",{className:"svm-secbtn",title:dzT("montage.diff.fermer_aide"),onClick:function(){if(o.onClose)o.onClose()},children:dzT("montage.mots.fermer")})},"fin")])})}
 
 /* ── L7 D-3b (24/09/2026) : les deux secondes de source d'une jonction (pur) ──
    A = la DERNIÈRE image du plan gauche (srcIn + durée × vitesse − une image :
@@ -21679,9 +21679,9 @@ function dzmCutAt(clips,id,times,opts){
   var cs=Array.isArray(clips)?clips:[],locked=(opts&&opts.locked)||{};
   var c=null,i;
   for(i=0;i<cs.length;i++)if(cs[i]&&id!=null&&cs[i].id===id){c=cs[i];break}
-  if(!c)return {clips:cs.slice(),n:0,refus:"clip",note:"Clip introuvable — rien à découper."};
+  if(!c)return {clips:cs.slice(),n:0,refus:"clip",note:dzT("montage.decoupe.introuvable")};
   if(locked[c.tr])return {clips:cs.slice(),n:0,refus:"verrou",
-    note:"Piste "+String(c.tr).toUpperCase()+" verrouillée — déverrouillez-la pour découper ce plan."};
+    note:dzT("montage.decoupe.verrou",{p:String(c.tr).toUpperCase()})};
   var c0=Number(c.start)||0,c1=Number(c.end)||0;
   var sp=(typeof c.speed==="number"&&c.speed>0)?c.speed:1,si=Number(c.srcIn)||0;
   var cand=[],ps=[],prev=null;
@@ -21693,7 +21693,7 @@ function dzmCutAt(clips,id,times,opts){
   cand.sort(function(a,b){return a-b});
   cand.forEach(function(p){if(prev===null||p-prev>=DZM_CUT_BORD-1e-9)ps.push(p);prev=p});
   if(!ps.length)return {clips:cs.slice(),n:0,refus:"aucune_coupe",
-    note:"Aucun changement de plan à découper dans ce clip."};
+    note:dzT("montage.decoupe.aucune")};
   var pool=cs.slice(),bornes=[c0].concat(ps,[c1]),morceaux=[];
   for(i=0;i<bornes.length-1;i++){
     if(i===0){morceaux.push(Object.assign({},c,{end:bornes[1]}));continue}
@@ -21705,7 +21705,7 @@ function dzmCutAt(clips,id,times,opts){
   var out=[];
   cs.forEach(function(k){if(k===c)out.push.apply(out,morceaux);else out.push(k)});
   return {clips:out,n:ps.length,refus:"",
-    note:ps.length+" coupe"+(ps.length>1?"s":"")+" aux changements de plan"}}
+    note:(ps.length>1?dzT("montage.decoupe.coupes.plusieurs",{n:ps.length}):dzT("montage.decoupe.coupes.un",{n:ps.length}))}}
 
 /* ── t119 (07/10/2026, E-3) : UN PLAN PAR SCÈNE D'ÉPISODE ─────────────────
    `scenes` = ce que rend GET /api/montage/episode-scenes/{job_id} :
@@ -21727,18 +21727,18 @@ function dzmScenesPose(clips,id,scenes,markers,opts){
   var locked=(opts&&opts.locked)||{},c=null,i;
   for(i=0;i<cs.length;i++)if(cs[i]&&id!=null&&cs[i].id===id){c=cs[i];break}
   function refus(r,n){return {clips:cs.slice(),markers:ms,n:0,refus:r,note:n}}
-  if(!c)return refus("clip","Plan introuvable — l'épisode n'a pas été découpé.");
+  if(!c)return refus("clip",dzT("montage.decoupe.plan_introuvable"));
   var sc=(Array.isArray(scenes)?scenes:[]).filter(function(s){
     return s&&isFinite(Number(s.start))&&isFinite(Number(s.end))&&Number(s.start)<Number(s.end)})
     .sort(function(a,b){return Number(a.start)-Number(b.start)});
   if(sc.length<2)return refus("une_scene","");
-  if(locked[c.tr])return refus("verrou","Piste "+String(c.tr).toUpperCase()+
-    " verrouillée — l'épisode reste en un seul plan.");
+  if(locked[c.tr])return refus("verrou",dzT("montage.decoupe.piste_verrouillee",{piste:String(c.tr).toUpperCase()}
+    ));
   var c0=Number(c.start)||0,c1=Number(c.end)||0,si=Number(c.srcIn)||0;
   var sp=(typeof c.speed==="number"&&c.speed>0)?c.speed:1;
   var ts=sc.slice(1).map(function(s){return Number(s.start)-si});
   var r=dzmCutAt(cs,c.id,ts,{locked:locked});
-  if(!r.n)return refus("aucune_coupe","Aucune borne de scène dans ce plan — il reste entier.");
+  if(!r.n)return refus("aucune_coupe",dzT("montage.decoupe.aucune_borne"));
   var tw=null,k0=dzmSrcKey(c.src);
   for(i=0;i<cs.length;i++){var k=cs[i];
     if(!k||k===c||k.tr===c.tr||!k.src||dzmSrcKey(k.src)!==k0)continue;
@@ -21747,9 +21747,9 @@ function dzmScenesPose(clips,id,scenes,markers,opts){
   if(tw){
     var tsp=(typeof tw.speed==="number"&&tw.speed>0)?tw.speed:1;
     if(Math.abs(tsp-sp)>1e-9||Math.abs((Number(tw.srcIn)||0)-si)>1e-6)
-      son=" Le son du plan ("+String(tw.tr).toUpperCase()+") n'a pas la même vitesse ou le même point d'entrée : il reste entier.";
+      son=dzT("montage.decoupe.son_decale",{piste:String(tw.tr).toUpperCase()});
     else{var rt=dzmCutAt(out,tw.id,ts,{locked:locked});
-      if(rt.refus==="verrou")son=" Piste "+String(tw.tr).toUpperCase()+" verrouillée : le son du plan reste entier.";
+      if(rt.refus==="verrou")son=dzT("montage.decoupe.son_verrouille",{piste:String(tw.tr).toUpperCase()});
       else out=rt.clips}}
   sc.forEach(function(s,j){
     if(Number(s.end)<=si+1e-6)return;
@@ -21757,7 +21757,7 @@ function dzmScenesPose(clips,id,scenes,markers,opts){
     if(p>=c1-DZM_CUT_BORD)return;
     ms=dzmMarkerAdd(ms,Math.max(c0,p),{title:"Scène "+(j+1),note:String(s.texte||""),force:!0})});
   return {clips:out,markers:ms,n:r.n,refus:"",
-    note:"Épisode découpé en "+(r.n+1)+" plans, un par scène, avec un marqueur par scène — « Annuler » le rend en un seul plan."+son}}
+    note:dzT("montage.decoupe.fait",{n:r.n+1})+son}}
 
 /* t119 (E-1) : l'URL de la vignette d'une carte de projet — une planche
    d'UNE image (`/strip?n=1` : l'image du MILIEU, mesuré) de la source
@@ -22027,9 +22027,9 @@ function dzmFrameBody(c,head,w){
 function dzmGpSig(c){
   if(!c||typeof c!=="object")return "";
   return [dzmSrcKey(c.src),dzmRfNum(c.srcIn)||0,dzmRfNum(c.start)||0,dzmRfNum(c.end)||0,dzmRfSpeed(c.speed)].join("|")}
-var DZM_GP_TABS=[["m","M","Courbe maître : les trois canaux ensemble"],["r","R","Courbe du canal rouge"],
-    ["g","G","Courbe du canal vert"],["b","B","Courbe du canal bleu"]],
-  DZM_GP_ROUES=[["lift","Lift","Ombres (lift)",-.5,.5],["gamma","Gamma","Tons moyens (gamma)",-2,2],["gain","Gain","Hautes lumières (gain)",-1,1]],
+var DZM_GP_TABS=[["m","M",dzT("montage.etalonnage.onglet_maitre")],["r","R",dzT("montage.etalonnage.onglet_rouge")],
+    ["g","G",dzT("montage.etalonnage.onglet_vert")],["b","B",dzT("montage.etalonnage.onglet_bleu")]],
+  DZM_GP_ROUES=[["lift","Lift",dzT("montage.etalonnage.ombres"),-.5,.5],["gamma","Gamma",dzT("montage.etalonnage.tons_moyens"),-2,2],["gain","Gain",dzT("montage.etalonnage.hautes_lumieres"),-1,1]],
   DZM_GP_MASK0={x:.25,y:.25,w:.5,h:.5,soft:.05,inv:!1};
 /* LE RÉSEAU, LE STOCKAGE, LE GESTE ET LE DESSIN du panneau (hors des aides pures) :
    dzmGpFetch(url, corps, blob, signal?) -> promesse du JSON (ou du Blob) ; `signal` (tâche 6) = celui d'un contrôleur
@@ -22057,7 +22057,7 @@ function dzmGpFetch(url,body,blob,sig,hdr){
       return blob?res.blob():res.json()}
     return res.json().catch(function(){return {}}).then(function(j){
       var d=j&&typeof j.detail==="string"&&j.detail;
-      throw new Error(d||("HTTP "+res.status+(res.status===404||res.status===405?" — route absente de ce serveur (backend à relancer)":"")))})})}
+      throw new Error(d||("HTTP "+res.status+(res.status===404||res.status===405?dzT("montage.etalonnage.route_absente"):"")))})})}
 function dzmGpRead(st){
   var s=st||dzmTbStore();
   try{var v=s?JSON.parse(s.getItem(DZM_GP_CLE)||"null"):null;return v&&typeof v==="object"&&Array.isArray(v.effects)?v:null}
@@ -22142,7 +22142,7 @@ function DzmGradePanel(o){
   var cur=x.useRef(null),urlR=x.useRef(null),seq=x.useRef(0),vivant=x.useRef(!0),enVol=x.useRef(!1),retrait=x.useRef(null),
     gsR=x.useRef(null),pvR=x.useRef(null),ajR=x.useRef(null),wR=[x.useRef(null),x.useRef(null),x.useRef(null)],cR=x.useRef(null);
   cur.current=c;
-  var fx=Array.isArray(c.effects)?c.effects:[],lock=!!o.locked,lockT="Piste V1 verrouillée — déverrouillez-la pour étalonner ce plan";
+  var fx=Array.isArray(c.effects)?c.effects:[],lock=!!o.locked,lockT=dzT("montage.etalonnage.v1_verrouillee");
   var jouant=!!o.playing,body=jouant?null:dzmFrameBody(c,o.head,DZM_GP_W),sig=body?JSON.stringify(body):"";
   /* D-27 : les trois points des roues, lus sur l'effet `wheels` du plan (le premier) ; D-29 : la courbe de l'onglet */
   var we=dzmFxOf(fx,"wheels"),wp=DZM_GP_ROUES.map(function(w){var k=w[0];
@@ -22161,7 +22161,7 @@ function DzmGradePanel(o){
     var h=setTimeout(function(){
       dzmGpFetch("/api/montage/grade-frame",b,!0,ac?ac.signal:null).then(function(bl){if(q!==seq.current)return;
         var u=URL.createObjectURL(bl);if(urlR.current)URL.revokeObjectURL(urlR.current);urlR.current=u;setImg({u:u,id:id,t:b.t});setImgErr(null)},
-      function(e){if(q===seq.current)setImgErr({id:id,msg:"Aperçu étalonné indisponible : "+((e&&e.message)||"erreur réseau")})})},400);
+      function(e){if(q===seq.current)setImgErr({id:id,msg:dzT("montage.etalonnage.apercu_indispo",{e:(e&&e.message)||dzT("montage.mots.erreur_reseau")})})})},400);
     return function(){seq.current++;clearTimeout(h);if(ac)ac.abort()}},[sig,c.id]);
   x.useEffect(function(){wR.forEach(function(rf,i){dzmGpDrawWheel(rf.current,wp[i])})},[wp[0].x,wp[0].y,wp[1].x,wp[1].y,wp[2].x,wp[2].y]);
   x.useEffect(function(){dzmGpDrawCurve(cR.current,cpts,tab)},[cStr,tab]);
@@ -22179,13 +22179,13 @@ function DzmGradePanel(o){
         on({effects:dzmFxPut(base,dzmWheelsSet(bw,k,(cx-bx.left-bx.width/2)/R,-(cy-bx.top-bx.height/2)/R,m0))},!1)};
       ecrit(e.clientX,e.clientY);geste(e,ecrit)};
     return r.jsxs("div",{className:"dzm-gp-wheel",children:[
-      r.jsx("canvas",{className:"dzm-gp-wcv","data-kind":k,width:96,height:96,"aria-label":"Roue "+w[1],
-        title:lock?lockT:w[2]+" : glisser le point vers une teinte — double-clic : remise à zéro",
+      r.jsx("canvas",{className:"dzm-gp-wcv","data-kind":k,width:96,height:96,"aria-label":dzT("montage.etalonnage.roue",{nom:w[1]}),
+        title:lock?lockT:dzT("montage.etalonnage.roue_aide",{nom:w[2]}),
         ref:wR[wi],onPointerDown:down,
         onDoubleClick:function(){if(!lock)poser(dzmWheelsSet(we,k,0,0,0))}}),
       r.jsx("div",{className:"dzm-gp-wl",children:w[1]}),
       r.jsx("input",{type:"range",min:Math.round(w[3]*100),max:Math.round(w[4]*100),step:1,value:Math.round(pt.m*100),disabled:lock,
-        title:lock?lockT:"Maître "+w[1]+" : les trois canaux ensemble","aria-label":"Maître "+w[1],
+        title:lock?lockT:dzT("montage.etalonnage.maitre_aide",{nom:w[1]}),"aria-label":dzT("montage.etalonnage.maitre",{nom:w[1]}),
         onChange:function(e){var v=Number(e.target.value);if(isFinite(v))poser(dzmWheelsSet(we,k,pt.x,pt.y,v/100))}})]},k)};
   /* D-29 : la courbe du canal de l'onglet (effet `curves`, paramètres cachés pts_m|r|g|b) */
   var mid=dzmCurveMid(cpts),plein=cpts.length>=DZM_CURVE_MAX;
@@ -22194,7 +22194,7 @@ function DzmGradePanel(o){
     var base=fx,bc=cu,p=cpts,px=(e.clientX-bx.left)/bx.width,py=1-(e.clientY-bx.top)/bx.height,i=dzmCurveHit(p,px,py,DZM_GP_HIT);
     e.preventDefault();
     if(i<0){var a=dzmCurveAdd(p,px,py);
-      if(!a){if(p.length>=DZM_CURVE_MAX)note("Courbe : 16 points au plus — double-cliquez un point pour le retirer.");return}
+      if(!a){if(p.length>=DZM_CURVE_MAX)note(dzT("montage.etalonnage.courbe_pleine_note"));return}
       p=a.pts;i=a.i;poseC(base,bc,p,!1);ajR.current={id:c.id,tab:tab,x:p[i][0],y:p[i][1],n:0}}
     else if(ajR.current)ajR.current.n++;
     geste(e,function(cx,cy){poseC(base,bc,dzmCurveMove(p,i,(cx-bx.left)/bx.width,1-(cy-bx.top)/bx.height),!1)})};
@@ -22206,12 +22206,12 @@ function DzmGradePanel(o){
     poseC(fx,cu,dzmCurveDel(cpts,i),!1)};
   /* D-30 : le masque — GRISÉ sans effet actif (il ne limiterait rien), « Aucun » grisé sans masque */
   var fxOn=fx.some(function(f){return !!f&&typeof f==="object"&&!f.off}),mk=dzmMaskOf(c.mask),mf=mk?mk.shape:"none";
-  var mT="Le masque limite les effets du plan : ajoutez-en un";
+  var mT=dzT("montage.etalonnage.masque_sans_effet");
   var mBtn=function(v,lbl,title){var dis=lock||(v==="none"?!mk:!fxOn);
     return r.jsx("button",{className:"svm-minibtn dzm-gp-mk","data-on":mf===v?"1":"","aria-pressed":mf===v,disabled:dis,
-      title:lock?lockT:v==="none"?(mk?title:"Aucun masque posé"):fxOn?title:mT,
+      title:lock?lockT:v==="none"?(mk?title:dzT("montage.etalonnage.aucun_masque")):fxOn?title:mT,
       onClick:function(){on({mask:v==="none"?void 0:dzmMaskOf(Object.assign({},mk||DZM_GP_MASK0,{shape:v}))},!0)},children:lbl},"mk-"+v)};
-  var mDis=lock||!mk||!fxOn,mDit=lock?lockT:!fxOn?mT:!mk?"Choisir d'abord Rectangle ou Ellipse":"";
+  var mDis=lock||!mk||!fxOn,mDit=lock?lockT:!fxOn?mT:!mk?dzT("montage.etalonnage.choisir_forme"):"";
   var mRng=function(k,lbl,max,title){var v=Math.round((mk?mk[k]:DZM_GP_MASK0[k])*100);
     return r.jsxs("label",{className:"dzm-gp-mr",children:[lbl,
       r.jsx("input",{type:"range",min:0,max:max,step:1,value:v,disabled:mDis,title:mDit||title,"aria-label":title,
@@ -22222,72 +22222,72 @@ function DzmGradePanel(o){
       r.jsx("span",{className:"dzm-gp-mv",children:v+" %"})]},"mr-"+k)};
   /* D-28 : l'accord de couleur (plan précédent de V1, ou automatique) */
   if(!pvR.current||pvR.current.a!==o.clips||pvR.current.c!==c)pvR.current={a:o.clips,c:c,v:dzmGradePrev(o.clips,c)};
-  var pv=pvR.current.v,bT="Accord en cours…";
+  var pv=pvR.current.v,bT=dzT("montage.etalonnage.accord_en_cours");
   var accorder=function(auto){if(lock||enVol.current)return;var b=dzmMatchBody(c,o.head,pv,auto);if(!b)return;
     var id=c.id,sg=dzmGpSig(c),fin=function(){enVol.current=!1;if(vivant.current)setBusy(!1)};
-    enVol.current=!0;setBusy(!0);note(auto?"Accord automatique…":"Accord sur le plan précédent…");
+    enVol.current=!0;setBusy(!0);note(auto?dzT("montage.etalonnage.accord_auto_en_cours"):dzT("montage.etalonnage.accord_prec_en_cours"));
     dzmGpFetch("/api/montage/color-match",b,!1).then(function(j){if(!vivant.current)return;
       var k=cur.current;
-      if(k.id!==id||dzmGpSig(k)!==sg){note("Accord refusé : le plan a changé pendant le calcul — relancez.");return}
-      if(!j||!j.effect||typeof j.effect!=="object"){note("Accord refusé : réponse illisible du serveur.");return}
+      if(k.id!==id||dzmGpSig(k)!==sg){note(dzT("montage.etalonnage.accord_plan_change"));return}
+      if(!j||!j.effect||typeof j.effect!=="object"){note(dzT("montage.etalonnage.accord_illisible"));return}
       on({effects:dzmColorMatchPut(k.effects,j.effect)},!0);
-      note(auto?"Accord automatique posé (effet « Accord couleur »).":"Plan accordé sur le précédent (effet « Accord couleur »).")},
-    function(e){if(vivant.current)note("Accord refusé : "+((e&&e.message)||"erreur réseau"))}).then(fin,fin)};
+      note(auto?dzT("montage.etalonnage.accord_auto_pose"):dzT("montage.etalonnage.accord_prec_pose"))},
+    function(e){if(vivant.current)note(dzT("montage.etalonnage.accord_refuse",{e:(e&&e.message)||dzT("montage.mots.erreur_reseau")}))}).then(fin,fin)};
   /* D-32 : copier / coller le grade — les MÊMES gestes que le clavier et les menus (tâche 6) : dzmGradeCopyDo /
      dzmGradePasteDo, un seul stockage (dzmGpRead / dzmGpWrite), une seule phrase par issue */
   if(!gsR.current||gsR.current.v!==DZM_GP_VER.n)gsR.current={v:DZM_GP_VER.n,g:dzmGpRead()};
   var gt=dzmGradeTake(c),gs=gsR.current.g;
   /* re-revue T6 : `jouant` testé AVANT `voit` (comme les scopes) -- une image déjà montrée ne tait plus la lecture */
-  var voit=!!(img&&img.id===c.id),pMsg=jouant?"Lecture : l'aperçu se rafraîchit à l'arrêt":imgErr&&imgErr.id===c.id?imgErr.msg:voit?"":"calcul de l'aperçu…";
+  var voit=!!(img&&img.id===c.id),pMsg=jouant?dzT("montage.etalonnage.lecture"):imgErr&&imgErr.id===c.id?imgErr.msg:voit?"":dzT("montage.etalonnage.calcul_apercu");
   var kids=[
-    row("Roues",r.jsx("div",{className:"dzm-gp-wheels",children:DZM_GP_ROUES.map(roue)}),"roues"),
-    row("Courbes",r.jsxs("div",{className:"dzm-gp-curve",children:[
+    row(dzT("montage.etalonnage.roues"),r.jsx("div",{className:"dzm-gp-wheels",children:DZM_GP_ROUES.map(roue)}),"roues"),
+    row(dzT("montage.etalonnage.courbes"),r.jsxs("div",{className:"dzm-gp-curve",children:[
       r.jsx("span",{className:"dzm-gp-tabs",children:DZM_GP_TABS.map(function(t){
         return r.jsx("button",{className:"svm-minibtn dzm-gp-tab","data-on":tab===t[0]?"1":"","aria-pressed":tab===t[0],title:t[2],
           onClick:function(){setTab(t[0])},children:t[1]},t[0])})}),
-      r.jsx("canvas",{className:"dzm-gp-ccv","data-kind":"curve",width:200,height:200,"aria-label":"Courbe",
-        title:lock?lockT:"Cliquer : ajouter un point · glisser : déplacer · double-clic : retirer (extrémités fixes en x)",
+      r.jsx("canvas",{className:"dzm-gp-ccv","data-kind":"curve",width:200,height:200,"aria-label":dzT("montage.etalonnage.courbe"),
+        title:lock?lockT:dzT("montage.etalonnage.courbe_aide"),
         ref:cR,onPointerDown:cdown,onDoubleClick:cdbl}),
       r.jsxs("span",{className:"dzm-gp-cbtns",children:[
         r.jsx("button",{className:"svm-minibtn",disabled:lock||plein,
-          title:lock?lockT:plein?"16 points au plus : double-cliquer un point pour le retirer":"Ajouter un point au milieu du plus grand écart (16 au plus) — ou cliquer dans la courbe",
+          title:lock?lockT:plein?dzT("montage.etalonnage.courbe_pleine"):dzT("montage.etalonnage.ajouter_point"),
           onClick:function(){var a=mid&&dzmCurveAdd(cpts,mid.x,mid.y);if(a)poseC(fx,cu,a.pts,!0)},children:"+ Point"}),
         r.jsx("button",{className:"svm-minibtn",disabled:lock||cId,
-          title:lock?lockT:cId?"Courbe déjà à plat sur ce canal":"Remettre ce canal à plat (identité)",
-          onClick:function(){poseC(fx,cu,[[0,0],[1,1]],!0)},children:"À plat"}),
+          title:lock?lockT:cId?dzT("montage.etalonnage.deja_plat"):dzT("montage.etalonnage.remettre_plat"),
+          onClick:function(){poseC(fx,cu,[[0,0],[1,1]],!0)},children:dzT("montage.etalonnage.a_plat")}),
         r.jsx("span",{className:"dzm-gp-cn",children:cpts.length+" / "+DZM_CURVE_MAX})]})]}),"courbes"),
-    row("Masque",r.jsxs("div",{className:"dzm-gp-mask",children:[
+    row(dzT("montage.etalonnage.masque"),r.jsxs("div",{className:"dzm-gp-mask",children:[
       r.jsxs("span",{className:"dzm-gp-mks",children:[
-        mBtn("none","Aucun","Retirer le masque : les effets couvrent tout le cadre"),
-        mBtn("rect","Rectangle","Masque rectangulaire : les effets du plan ne s'appliquent que dedans"),
-        mBtn("ellipse","Ellipse","Masque elliptique : les effets du plan ne s'appliquent que dedans")]}),
-      mRng("x","X",100,"Bord gauche du masque (% du cadre)"),mRng("y","Y",100,"Bord haut du masque (% du cadre)"),
-      mRng("w","L",100,"Largeur du masque (% du cadre)"),mRng("h","H",100,"Hauteur du masque (% du cadre)"),
-      mRng("soft","Adouc.",50,"Adoucissement du bord (0 à 50 % du petit côté de la forme)"),
+        mBtn("none",dzT("montage.etalonnage.aucun"),dzT("montage.etalonnage.retirer_masque")),
+        mBtn("rect","Rectangle",dzT("montage.etalonnage.masque_rect")),
+        mBtn("ellipse","Ellipse",dzT("montage.etalonnage.masque_ellipse"))]}),
+      mRng("x","X",100,dzT("montage.etalonnage.bord_gauche")),mRng("y","Y",100,dzT("montage.etalonnage.bord_haut")),
+      mRng("w",dzT("montage.etalonnage.lettre_largeur"),100,dzT("montage.etalonnage.largeur")),mRng("h","H",100,dzT("montage.etalonnage.hauteur")),
+      mRng("soft",dzT("montage.etalonnage.adouc"),50,dzT("montage.etalonnage.adouc_aide")),
       r.jsxs("label",{className:"dzm-gp-inv",children:[
-        r.jsx("input",{type:"checkbox",checked:!!(mk&&mk.inv),disabled:mDis,title:mDit||"Inverser : les effets s'appliquent HORS de la forme",
-          "aria-label":"Inverser le masque",onChange:function(e){if(mk)on({mask:Object.assign({},mk,{inv:!!e.target.checked})},!0)}}),
-        " Inverser"]})]}),"masque"),
-    row("Accord",r.jsxs("span",{className:"dzm-plan-hint dzm-gp-acc",children:[
+        r.jsx("input",{type:"checkbox",checked:!!(mk&&mk.inv),disabled:mDis,title:mDit||dzT("montage.etalonnage.inverser_aide"),
+          "aria-label":dzT("montage.etalonnage.inverser_masque"),onChange:function(e){if(mk)on({mask:Object.assign({},mk,{inv:!!e.target.checked})},!0)}}),
+        dzT("montage.etalonnage.inverser")]})]}),"masque"),
+    row(dzT("montage.etalonnage.accord"),r.jsxs("span",{className:"dzm-plan-hint dzm-gp-acc",children:[
       r.jsx("button",{className:"svm-minibtn",disabled:lock||busy||!pv,
-        title:lock?lockT:busy?bT:pv?"Accorder ce plan sur le plan précédent de V1 (pose ou remplace l'effet « Accord couleur »)":"Aucun plan précédent sur V1 : rien à accorder",
-        onClick:function(){accorder(!1)},children:"Accorder sur le plan précédent"}),
+        title:lock?lockT:busy?bT:pv?dzT("montage.etalonnage.accorder_prec_aide"):dzT("montage.etalonnage.aucun_prec"),
+        onClick:function(){accorder(!1)},children:dzT("montage.etalonnage.accorder_prec")}),
       r.jsx("button",{className:"svm-minibtn",disabled:lock||busy,
-        title:lock?lockT:busy?bT:"Accord automatique : neutralise la dominante et étire le contraste (pose ou remplace l'effet « Accord couleur »)",
+        title:lock?lockT:busy?bT:dzT("montage.etalonnage.accord_auto_aide"),
         onClick:function(){accorder(!0)},children:"Auto"})]}),"accord"),
     row("Grade",r.jsxs("span",{className:"dzm-plan-hint dzm-gp-grade",children:[
       r.jsx("button",{className:"svm-minibtn",disabled:!gt,
-        title:gt?"Copier le grade de ce plan : effets couleur et masque":"Rien à copier : ni effet couleur ni masque sur ce plan",
+        title:gt?dzT("montage.etalonnage.copier_aide"):dzT("montage.etalonnage.rien_a_copier"),
         onClick:function(){if(gt){note(dzmGradeCopyDo(c).note);setGv(function(n){return n+1})}},
-        children:"Copier le grade"}),
+        children:dzT("montage.etalonnage.copier")}),
       r.jsx("button",{className:"svm-minibtn",disabled:lock||!gs,
-        title:lock?lockT:gs?"Coller le grade copié : remplace les effets couleur de ce plan, les autres restent":"Aucun grade copié (Copier le grade d'abord)",
+        title:lock?lockT:gs?dzT("montage.etalonnage.coller_aide"):dzT("montage.etalonnage.aucun_grade"),
         onClick:function(){if(lock)return;var q=dzmGradePasteDo(cur.current);
-          if(q.clip)on({effects:q.clip.effects,mask:q.clip.mask},!0);note(q.note)},children:"Coller le grade"})]}),"grade"),
-    row("Aperçu",r.jsxs("div",{className:"dzm-gp-prev",children:[
-      voit?r.jsx("img",{src:img.u,alt:"Image étalonnée du plan",title:"Image étalonnée (la pile d'effets du plan rendue par ffmpeg) à "+img.t+" s de source"}):null,
+          if(q.clip)on({effects:q.clip.effects,mask:q.clip.mask},!0);note(q.note)},children:dzT("montage.etalonnage.coller")})]}),"grade"),
+    row(dzT("montage.etalonnage.apercu"),r.jsxs("div",{className:"dzm-gp-prev",children:[
+      voit?r.jsx("img",{src:img.u,alt:dzT("montage.etalonnage.image_alt"),title:dzT("montage.etalonnage.image_aide",{t:img.t})}):null,
       r.jsx("span",{className:"dzm-gp-pmsg",children:pMsg})]}),"prev")];
-  return r.jsxs("div",{className:"dzm-plan dzm-gp",children:[r.jsx("div",{className:"dzm-plan-t",children:"Étalonnage"}),
+  return r.jsxs("div",{className:"dzm-plan dzm-gp",children:[r.jsx("div",{className:"dzm-plan-t",children:dzT("montage.etalonnage.titre")}),
     r.jsx("div",{className:"svm-props",children:kids})]})}
 /* LE CONTOUR DU MASQUE au lecteur (repli R_DZ2, dans le cadre `.svm-tf`, en % du cadre = les fractions du masque) :
    seulement si le masque est lisible ET qu'un effet actif existe (sinon il ne limite rien et le rendu l'ignore) ;
@@ -22343,22 +22343,22 @@ function dzmScopesSet(v,st){
   var s=st||dzmTbStore();
   try{if(s)s.setItem(DZM_SC_CLE,v?"1":"0")}catch(e){}
   return !!v}
-function dzmGpNfx(g){var n=g&&Array.isArray(g.effects)?g.effects.length:0;return n+" effet"+(n>1?"s":"")}
+function dzmGpNfx(g){var n=g&&Array.isArray(g.effects)?g.effects.length:0;return dzT(n>1?"montage.etalonnage.effets_plusieurs":"montage.etalonnage.effets_un",{n:n})}
 function dzmGradeCopyDo(clip,st){
   var g=dzmGradeTake(clip);
-  if(!g)return {ok:!1,note:"Rien à copier : ni effet couleur ni masque sur ce plan"};
-  if(!dzmGpWrite(g,st))return {ok:!1,note:"Copie refusée : stockage du navigateur indisponible."};
-  return {ok:!0,note:"Grade copié ("+dzmGpNfx(g)+")"}}
+  if(!g)return {ok:!1,note:dzT("montage.etalonnage.rien_a_copier")};
+  if(!dzmGpWrite(g,st))return {ok:!1,note:dzT("montage.etalonnage.copie_refusee")};
+  return {ok:!0,note:dzT("montage.etalonnage.grade_copie",{effets:dzmGpNfx(g)})}}
 function dzmGradePasteDo(clip,st){
   var g=dzmGpRead(st);
-  if(!g)return {clip:null,note:"Aucun grade copié (Copier le grade d'abord)"};
-  return {clip:dzmGradePaste(clip,g),note:"Grade collé ("+dzmGpNfx(g)+")"}}
+  if(!g)return {clip:null,note:dzT("montage.etalonnage.aucun_grade")};
+  return {clip:dzmGradePaste(clip,g),note:dzT("montage.etalonnage.grade_colle",{effets:dzmGpNfx(g)})}}
 var DZM_GL_MS=250,DZM_GL_RATIOS=["9:16","16:9","1:1","4:5"];
 /* retours 26/09 (tâche 3) : l'anti-rebond quand la stabilisation est posée (le serveur décode depuis 0, jusqu'à 20 s de
    source), la cadence envoyée au retime (celle du rendu Preview : `fps = 30` de la route de rendu sans preset), le palier
    de largeur de l'empreinte, et les notes du serveur (X-Dz-Grade-Note) dans l'ordre où la pastille les dit. */
 var DZM_GL_MS_STAB=600,DZM_GL_FPS=30,DZM_GL_PAL=160,
-  DZM_GL_NOTES=[["stab-non-analysee","stabilisation non analysée"],["stab-trop-loin","stabilisation : trop loin dans la source"]];
+  DZM_GL_NOTES=[["stab-non-analysee",dzT("montage.pastille.stab_non_analysee")],["stab-trop-loin",dzT("montage.pastille.stab_trop_loin")]];
 /* P1 #8 (28/09/2026) : LA CADENCE DU RETIME SUIT LE RENDU FINAL. DZM_GL_FPS (30) n'est plus que le repli : mesuré le 28/09,
    l'image étalonnée d'un plan en retime envoyait fps = 30 quel que soit le preset (GIF 12 i/s, cadence 60 choisie…).
    dzmGlFps(réglages, api) = la cadence que _deliver_resolve donnera au rendu FINAL, lue dans les MÊMES données que la
@@ -22517,10 +22517,10 @@ function dzmGlBadge(b,note){
   var cd=b.cadre&&typeof b.cadre==="object"?b.cadre:{},fx=Array.isArray(b.effects)?b.effects:[],
     nl=String(note==null?"":note).split(",").map(function(v){return v.trim()}),out=[],
     dites=DZM_GL_NOTES.filter(function(n){return nl.indexOf(n[0])>=0});
-  if(fx.some(function(f){return dzmGlActif(f,cd.t_local,cd.dur)}))out.push("étalonné");
-  if(cd.retime)out.push("vitesse");
-  if(cd.stab&&!dites.some(function(n){return n[0].indexOf("stab-")===0}))out.push("stabilisation");
-  if(Array.isArray(cd.adjust)&&cd.adjust.length)out.push("ajustement");
+  if(fx.some(function(f){return dzmGlActif(f,cd.t_local,cd.dur)}))out.push(dzT("montage.pastille.etalonne"));
+  if(cd.retime)out.push(dzT("montage.pastille.vitesse"));
+  if(cd.stab&&!dites.some(function(n){return n[0].indexOf("stab-")===0}))out.push(dzT("montage.pastille.stabilisation"));
+  if(Array.isArray(cd.adjust)&&cd.adjust.length)out.push(dzT("montage.pastille.ajustement"));
   dites.forEach(function(n){out.push(n[1])});
   return out.join(" · ")}
 /* ── Retours L6 (26/09/2026, tâche 5) : LES SCOPES DANS UNE FENÊTRE FLOTTANTE, déplaçable et redimensionnable (l'encart
@@ -22675,17 +22675,17 @@ function DzmGradeLive(o){
    dzmRecMime(juge) : le premier type de DZM_VO_MIMES que le juge INJECTÉ accepte (le juge qui lève est sauté) ; aucun,
    ou pas de juge -> "" (l'enregistreur choisit alors son type par défaut). */
 function dzmLearnRange(clip,range,srcDur){
-  if(!clip||typeof clip!=="object")return {refus:"clip",note:"Aucun clip audio sélectionné : rien à apprendre"};
+  if(!clip||typeof clip!=="object")return {refus:"clip",note:dzT("montage.bruit.aucun_clip")};
   var s=dzmRfNum(clip.start),i=range&&typeof range==="object"?dzmRfNum(range["in"]):null,o=range&&typeof range==="object"?dzmRfNum(range.out):null;
-  if(s===null)return {refus:"clip",note:"Ce clip audio n'a pas de début lisible : rien à apprendre"};
-  if(i===null||o===null||!(o>i))return {refus:"plage",note:"Posez une plage I/O (I puis U) sur un passage de bruit seul"};
+  if(s===null)return {refus:"clip",note:dzT("montage.bruit.debut_illisible")};
+  if(i===null||o===null||!(o>i))return {refus:"plage",note:dzT("montage.bruit.poser_plage")};
   var si=dzmRfNum(clip.srcIn),v=dzmRfNum(clip.speed),d=dzmRfNum(srcDur);
   si=si===null?0:Math.max(0,si);
   v=v===null||!(v>0)||Math.abs(v-1)<1e-3?1:Math.max(.5,Math.min(2,v));
   var a=dzmCoR(si+(i-s)*v,3),b=dzmCoR(si+(o-s)*v,3);
-  if(b-a<.2-1e-9)return {refus:"courte",note:"Plage trop courte : il faut au moins 0,2 s de bruit seul (dans la source)"};
-  if(b-a>30)return {refus:"longue",note:"Plage trop longue : 30 s de bruit seul au plus (dans la source)"};
-  if(a<0||(d!==null&&d>0&&b>d))return {refus:"hors_source",note:"La plage sort de la source de ce clip : posez-la sur un passage que la source contient"};
+  if(b-a<.2-1e-9)return {refus:"courte",note:dzT("montage.bruit.trop_courte")};
+  if(b-a>30)return {refus:"longue",note:dzT("montage.bruit.trop_longue")};
+  if(a<0||(d!==null&&d>0&&b>d))return {refus:"hors_source",note:dzT("montage.bruit.hors_source")};
   return {a:a,b:b}}
 function dzmDenoiseLearn(fx,a,b,nf){
   var L=Array.isArray(fx)?fx.slice():[],A=dzmRfNum(a),B=dzmRfNum(b),n=dzmRfNum(nf),k=-1,j;
@@ -22775,12 +22775,12 @@ function DzmNoiseLearn(o){
   var lr=dzmLearnRange(c,o.range,sd),ap=dzmNlAppris(fx),demo=!!o.demo,apNf=ap?dzmNfEffectif(ap.nf):null;
   var note=typeof o.onNote==="function"?o.onNote:function(){},ecrit=typeof o.onFx==="function"?o.onFx:function(){};
   var sansPlage=lr.refus==="plage"||lr.refus==="clip",dis=demo||busy||sansPlage;
-  var tt=demo?"Projet de démonstration : l'apprentissage du bruit est désactivé"
-    :busy?"Mesure du bruit en cours…"
-    :sansPlage?"Posez une plage I/O (I puis U) sur un passage de bruit seul, puis apprenez-le"
-    :lr.refus?"Apprendre le bruit — "+lr.note
-    :"Apprendre le bruit sur la plage I/O ("+lr.a+"–"+lr.b+" s de source) : son niveau règle le plancher du débruiteur, "
-      +"et le rendu apprend son timbre"+(o.music?" — musique bouclée : seul le plancher s'applique au rendu":"");
+  var tt=demo?dzT("montage.bruit.demo")
+    :busy?dzT("montage.bruit.mesure_en_cours")
+    :sansPlage?dzT("montage.bruit.poser_plage_apprendre")
+    :lr.refus?dzT("montage.bruit.apprendre_refus",{raison:lr.note})
+    :dzT("montage.bruit.apprendre_aide",{a:lr.a,b:lr.b}
+      )+(o.music?dzT("montage.bruit.musique_bouclee"):"");
   function apprendre(){
     if(dis)return;
     if(lr.refus){note(lr.note);return}
@@ -22789,28 +22789,28 @@ function DzmNoiseLearn(o){
     dzmGpFetch("/api/montage/noise-profile",{src:c.src,t0:a,t1:b,fx:fx},!1,null).then(function(d){
       if(!vivant.current)return;
       setBusy(!1);
-      if(!d||d.ok!==!0){note("Plage muette : rien à apprendre");return}
+      if(!d||d.ok!==!0){note(dzT("montage.bruit.plage_muette"));return}
       var nf=dzmRfNum(d.nf_db);
-      if(nf===null){note("Apprentissage : réponse illisible du serveur");return}
+      if(nf===null){note(dzT("montage.bruit.reponse_illisible"));return}
       ecrit(id,function(cur){return dzmDenoiseLearn(cur,a,b,nf)});
-      note("Bruit appris sur "+a+"–"+b+" s (source) : plancher "+nf+" dB")},
+      note(dzT("montage.bruit.appris_note",{a:a,b:b,nf:nf}))},
     function(e){
       if(!vivant.current)return;
       setBusy(!1);
-      note("Apprentissage impossible : "+((e&&e.message)||"erreur réseau"))})}
+      note(dzT("montage.bruit.impossible",{e:(e&&e.message)||dzT("montage.mots.erreur_reseau")}))})}
   function oublier(){
     if(!ap)return;
     ecrit(c.id,dzmDenoiseForget);
-    note("Bruit appris oublié : le débruiteur reste, plancher automatique")}
+    note(dzT("montage.bruit.oublie"))}
   return r.jsxs("div",{className:"dzm-nl",children:[
     r.jsx("button",{className:"svm-minibtn dzm-nlbtn",disabled:dis,"aria-disabled":dis,title:tt,onClick:apprendre,
-      children:busy?"Mesure…":"Apprendre le bruit"}),
+      children:busy?dzT("montage.bruit.mesure"):dzT("montage.bruit.apprendre")}),
     r.jsx("button",{className:"svm-minibtn dzm-nlbtn",disabled:!ap,"aria-disabled":!ap,
-      title:ap?"Oublier le bruit appris ("+ap.a+"–"+ap.b+" s de source, plancher "+(apNf!==null?apNf+" dB":"automatique")+") — le débruiteur reste"
-        :"Aucun bruit appris sur ce clip : rien à oublier",
-      onClick:oublier,children:"Oublier"}),
+      title:ap?dzT("montage.bruit.oublier_aide",{a:ap.a,b:ap.b,plancher:apNf!==null?apNf+" dB":dzT("montage.bruit.automatique")})
+        :dzT("montage.bruit.rien_a_oublier"),
+      onClick:oublier,children:dzT("montage.bruit.oublier")}),
     r.jsx("span",{className:"dzm-nlst svm-mono","aria-live":"polite",
-      children:ap?"appris "+ap.a+"–"+ap.b+" s · "+(apNf!==null?apNf+" dB":"auto"):"aucun bruit appris"})]})}
+      children:ap?dzT("montage.bruit.appris_etat",{a:ap.a,b:ap.b,plancher:apNf!==null?apNf+" dB":"auto"}):dzT("montage.bruit.aucun_appris")})]})}
 /* L6 D-26 (25/09/2026, tâche 6) : aides PURES de l'enregistreur de voix off. dzmVoExt(type) -> l'extension du fichier
    envoyé (ogg | m4a | webm ; la route transcode tout, le nom n'est qu'un indice) ; dzmVoChrono(s) -> « m:ss » (entier
    inférieur, illisible ou négatif -> 0:00) ; dzmVoErr(e) -> la raison d'un refus du micro en français (accès refusé,
@@ -22824,11 +22824,11 @@ function dzmVoChrono(s){
   return m+":"+(q<10?"0":"")+q}
 function dzmVoErr(e){
   var n=e&&typeof e==="object"?String(e.name||""):"";
-  if(n==="NotAllowedError"||n==="SecurityError"||n==="PermissionDeniedError")return "accès au micro refusé";
-  if(n==="NotFoundError"||n==="DevicesNotFoundError"||n==="OverconstrainedError")return "aucun micro détecté";
-  if(n==="NotReadableError"||n==="TrackStartError")return "micro occupé par une autre application";
+  if(n==="NotAllowedError"||n==="SecurityError"||n==="PermissionDeniedError")return dzT("montage.micro.acces_refuse");
+  if(n==="NotFoundError"||n==="DevicesNotFoundError"||n==="OverconstrainedError")return dzT("montage.micro.aucun");
+  if(n==="NotReadableError"||n==="TrackStartError")return dzT("montage.micro.occupe");
   var m=e&&typeof e==="object"&&e.message?String(e.message):typeof e==="string"?e:"";
-  return m||"erreur inconnue"}
+  return m||dzT("montage.mots.erreur_inconnue")}
 /* L'ENREGISTREUR DE VOIX OFF (puce montée par l'hôte à côté de « narration », section L6vo1) : props {demo, combo (le
    raccourci vivant de vo_record, pour le title), ctl (une réf de l'hôte : la bascule y est inscrite à chaque rendu, pour
    l'action clavier vo_record ; retirée au démontage), onStart() -> {t0, pj} (SEULE forme acceptée : la tête, et l'identité du
@@ -22874,7 +22874,7 @@ function DzmVoiceRec(o){
     if(M.st==="prise"){try{hote("onStop")}catch(e){}pose("envoi")}
     var type=(rc&&rc.mimeType)||mime||"audio/webm",bl=null;
     try{bl=new Blob(morceaux,{type:type})}catch(e){bl=null}
-    if(!bl||!bl.size){pose("repos");note("Prise vide : rien n'a été capté — prise non enregistrée");return}
+    if(!bl||!bl.size){pose("repos");note(dzT("montage.prise.vide"));return}
     var fd=new FormData(),t0=M.t0,pj=M.pj;fd.append("file",bl,"prise."+dzmVoExt(type));
     fetch("/api/audio/recording",{method:"POST",body:fd}).then(function(res){
       return res.json().catch(function(){return null}).then(function(j){
@@ -22884,24 +22884,24 @@ function DzmVoiceRec(o){
       /* t120 — démonté PENDANT l'envoi (écran quitté) : la prise est arrivée, rien ne sera posé ; c'est DIT par le toast
          global (la note de l'hôte est partie avec lui), et la prise est NOMMÉE pour la retrouver dans la Bibliothèque */
       if(!M.vivant){dzToastSur(d&&typeof d.filename==="string"&&d.filename
-        ?"Voix off : la prise « "+d.filename+" » est dans la Bibliothèque — le Montage a été quitté pendant l'envoi, elle n'a pas été posée."
-        :"Voix off : réponse illisible du serveur après la sortie du Montage — prise non enregistrée.");return}
+        ?dzT("montage.prise.quitte_biblio",{f:d.filename})
+        :dzT("montage.prise.quitte_illisible"));return}
       pose("repos");
       var du=d?Number(d.dur):NaN;
       if(!d||typeof d.filename!=="string"||!d.filename||!(du>0)){
-        note("Voix off : réponse illisible du serveur — "+(d&&d.filename?"la prise « "+d.filename+" » est dans la Bibliothèque, non posée":"prise non enregistrée"));return}
+        note(dzT("montage.prise.illisible",{suite:d&&d.filename?dzT("montage.prise.illisible_biblio",{f:d.filename}):dzT("montage.prise.non_enregistree")}));return}
       hote("onDone",d.filename,du,t0,pj)},
     function(e){
-      if(!M.vivant){dzToastSur("Voix off : envoi de la prise impossible ("+dzmVoErr(e)+") — prise non enregistrée.");return}
+      if(!M.vivant){dzToastSur(dzT("montage.prise.envoi_quitte",{e:dzmVoErr(e)}));return}
       pose("repos");
-      note("Envoi de la prise impossible : "+dzmVoErr(e)+" — prise non enregistrée")})}
+      note(dzT("montage.prise.envoi_impossible",{e:dzmVoErr(e)}))})}
   function demarre(){
-    if(demo){note("Voix off : disponible sur un projet réel — la démo est une maquette.");return}
+    if(demo){note(dzT("montage.prise.demo"));return}
     var I=o.rec&&typeof o.rec==="object"?o.rec:null,N=typeof navigator!=="undefined"?navigator:null;
     var md=I&&typeof I.media==="function"?I.media
       :N&&N.mediaDevices&&typeof N.mediaDevices.getUserMedia==="function"?function(c){return N.mediaDevices.getUserMedia(c)}:null;
     var Rec=I&&typeof I.Rec==="function"?I.Rec:typeof MediaRecorder==="function"?MediaRecorder:null;
-    if(!md||!Rec){note("Micro indisponible : ce navigateur n'enregistre pas le son ici (page non sûre ou fonction absente)");return}
+    if(!md||!Rec){note(dzT("montage.prise.navigateur"));return}
     var juge=I&&typeof I.juge==="function"?I.juge:typeof Rec.isTypeSupported==="function"?function(t){return Rec.isTypeSupported(t)}:null;
     pose("micro");
     var p;try{p=Promise.resolve(md({audio:!0}))}catch(e){p=Promise.reject(e)}
@@ -22910,37 +22910,37 @@ function DzmVoiceRec(o){
       M.flux=flux;
       var mime=dzmRecMime(juge),rc,morceaux=[];
       try{rc=mime?new Rec(flux,{mimeType:mime}):new Rec(flux)}
-      catch(e){coupe();pose("repos");note("Micro indisponible : "+dzmVoErr(e));return}
+      catch(e){coupe();pose("repos");note(dzT("montage.prise.micro_indispo",{e:dzmVoErr(e)}));return}
       rc.ondataavailable=function(ev){if(ev&&ev.data&&ev.data.size>0)morceaux.push(ev.data)};
       rc.onstop=function(){envoie(rc,morceaux,mime)};
-      rc.onerror=function(ev){if(M.vivant)note("Enregistreur arrêté : "+dzmVoErr(ev&&ev.error?ev.error:ev))};
+      rc.onerror=function(ev){if(M.vivant)note(dzT("montage.prise.enregistreur_arrete",{e:dzmVoErr(ev&&ev.error?ev.error:ev)}))};
       var r0=0;try{r0=hote("onStart")}catch(e){r0=0}
       var ob=r0&&typeof r0==="object",t0=Number(ob?r0.t0:r0)||0;
       M.rec=rc;M.t0=t0;M.pj=ob?r0.pj:void 0;M.deb=Date.now();
       try{rc.start(1000)}
       catch(e){M.rec=null;coupe();try{hote("onStop")}catch(e2){}
-        pose("repos");note("Enregistrement impossible : "+dzmVoErr(e));return}
+        pose("repos");note(dzT("montage.prise.enregistrement_impossible",{e:dzmVoErr(e)}));return}
       pose("prise")},
-    function(e){if(!M.vivant)return;pose("repos");note("Micro indisponible : "+dzmVoErr(e))})}
+    function(e){if(!M.vivant)return;pose("repos");note(dzT("montage.prise.micro_indispo",{e:dzmVoErr(e)}))})}
   function arrete(){
     var rc=M.rec;if(!rc)return;
     pose("envoi");
     try{hote("onStop")}catch(e){}
-    try{rc.stop()}catch(e){M.rec=null;coupe();pose("repos");note("Arrêt impossible : "+dzmVoErr(e)+" — prise non enregistrée");return}
+    try{rc.stop()}catch(e){M.rec=null;coupe();pose("repos");note(dzT("montage.prise.arret_impossible",{e:dzmVoErr(e)}));return}
     coupe()}
   function bascule(){if(M.st==="repos")demarre();else if(M.st==="prise")arrete();
-    else if(M.st==="micro")note("Voix off : accès au micro en cours…");else if(M.st==="envoi")note("Voix off : prise en cours d'envoi…")}
+    else if(M.st==="micro")note(dzT("montage.prise.micro_en_cours"));else if(M.st==="envoi")note(dzT("montage.prise.envoi_en_cours"))}
   if(ctl)ctl.current=bascule;
   var cb=o.combo?" ("+o.combo+")":"",el=st==="prise"?dzmVoChrono((Date.now()-M.deb)/1000):"";
   var dis=demo||st==="micro"||st==="envoi";
-  var tt=demo?"Projet de démonstration : l'enregistrement d'une voix off est désactivé"
-    :st==="micro"?"Accès au micro en cours — autorisez-le dans le navigateur"
-    :st==="envoi"?"Envoi de la prise en cours…"
-    :st==="prise"?"Arrêter la prise ("+el+")"+cb+" — elle sera posée sur la piste de dialogue à l'instant où elle a commencé"
-    :"Enregistrer une voix off au micro"+cb+" — le montage est lu pendant la prise, qui est posée sur la piste de dialogue à la tête de lecture (mode « écraser »)";
+  var tt=demo?dzT("montage.prise.demo_aide")
+    :st==="micro"?dzT("montage.prise.micro_aide")
+    :st==="envoi"?dzT("montage.prise.envoi_aide")
+    :st==="prise"?dzT("montage.prise.arreter_aide",{t:el,touche:cb})
+    :dzT("montage.prise.enregistrer_aide",{touche:cb});
   return r.jsx("button",{className:"svm-themechip dzm-vochip","data-rec":st==="prise"?"1":void 0,"aria-pressed":st==="prise",
     disabled:dis,"aria-disabled":dis,title:tt,onClick:bascule,
-    children:st==="prise"?__dzGlT("dz-media-arret","■ "+el,"■"):st==="micro"?"micro…":st==="envoi"?"envoi…":__dzGlT("dz-media-rec","● voix off","●")})}
+    children:st==="prise"?__dzGlT("dz-media-arret","■ "+el,"■"):st==="micro"?dzT("montage.prise.puce_micro"):st==="envoi"?dzT("montage.prise.puce_envoi"):__dzGlT("dz-media-rec",dzT("montage.prise.puce"),"●")})}
 /* LES SCOPES (section L5sc1 de l'hôte, sous la barre du lecteur) : props {clips, head, playing}. Une bascule « Scopes »
    (mémoire dz_montage_scopes lue UNE fois, au montage) ; allumée et À L'ARRÊT, le PNG de POST /api/montage/scopes pour le
    plan V1 sous la tête (effets actifs + masque : le scope mesure ce que le rendu produira), à l'instant de source.
@@ -23007,7 +23007,7 @@ function DzmScopes(o){
         if(!vivant.current||q!==seq.current)return;
         var u=URL.createObjectURL(bl);libere();urlR.current=u;setImg({u:u,sig:sig});setErr(null)},
       function(e){if(vivant.current&&q===seq.current)
-        setErr({sig:sig,msg:"Scopes indisponibles : "+((e&&e.message)||"erreur réseau")})})},DZM_SC_MS);
+        setErr({sig:sig,msg:dzT("montage.scopes.indispo",{e:(e&&e.message)||dzT("montage.mots.erreur_reseau")})})})},DZM_SC_MS);
     return function(){seq.current++;clearTimeout(h);if(ac)ac.abort()}},[sig]);
   /* la RACINE de la même vue, cherchée à l'allumage (pas à chaque rendu) ; la CIBLE (racine, ou le cadre s'il est déjà en
      plein écran) ; la géométrie mémorisée y est recadrée */
@@ -23054,24 +23054,24 @@ function DzmScopes(o){
     ote=dzmScwFin(g,e.pointerId,function(){fin(!0)});
     gesteR.current=abandon}};
   var voit=!!(sig&&img&&img.sig===sig);
-  var msg=!on?"":jouant?"Lecture : les scopes se rafraîchissent à l'arrêt":!c?"Aucun plan lisible sous la tête":
-    voit?"":err&&err.sig===sig?err.msg:"Mesure en cours…";
+  var msg=!on?"":jouant?dzT("montage.scopes.lecture"):!c?dzT("montage.scopes.aucun_plan"):
+    voit?"":err&&err.sig===sig?err.msg:dzT("montage.scopes.mesure");
   var encart=on?r.jsxs("div",{className:"dzm-scpop dzm-scwin",role:"region","aria-label":"Scopes",
     style:geo?{left:geo.x+"px",top:geo.y+"px",width:geo.s+"px"}:void 0,children:[
-    r.jsxs("div",{className:"dzm-scwbar",title:"Déplacer la fenêtre des scopes (glisser la barre de titre)",onPointerDown:saisir("m"),children:[
+    r.jsxs("div",{className:"dzm-scwbar",title:dzT("montage.scopes.deplacer"),onPointerDown:saisir("m"),children:[
       r.jsx("span",{className:"dzm-scwt",children:"Scopes"}),
-      r.jsx("button",{className:"dzm-scwx",title:"Fermer les scopes (comme la puce « Scopes » de la barre du lecteur)",
-        "aria-label":"Fermer les scopes",onClick:bascule,children:__dzGl("dz-action-fermer")})]}),
+      r.jsx("button",{className:"dzm-scwx",title:dzT("montage.scopes.fermer_aide"),
+        "aria-label":dzT("montage.scopes.fermer"),onClick:bascule,children:__dzGl("dz-action-fermer")})]}),
     r.jsxs("div",{className:"dzm-scwbody",style:geo?{height:geo.s+"px"}:void 0,children:[
-      voit?r.jsx("img",{className:"dzm-scimg",src:img.u,alt:"Scopes du plan sous la tête",
-        title:"Forme d'onde (haut), vecteurscope et histogramme (bas) de l'image étalonnée à "+body.t+" s de source"}):null,
+      voit?r.jsx("img",{className:"dzm-scimg",src:img.u,alt:dzT("montage.scopes.image"),
+        title:dzT("montage.scopes.image_aide",{t:body.t})}):null,
       msg?r.jsx("span",{className:"dzm-scmsg","aria-live":"polite",children:msg}):null]}),
-    r.jsx("div",{className:"dzm-scwgrip",title:"Redimensionner les scopes (carré, "+DZM_SCW_MIN+" à "+DZM_SCW_MAX+" px)",
+    r.jsx("div",{className:"dzm-scwgrip",title:dzT("montage.scopes.redimensionner",{min:DZM_SCW_MIN,max:DZM_SCW_MAX}),
       "aria-hidden":"true",onPointerDown:saisir("s")})]}):null;
   var tg=cibleR.current||hote,cible=encart&&tg&&tg.isConnected!==!1&&typeof Pu!=="undefined"&&Pu&&typeof Pu.createPortal==="function"?tg:null;
   return r.jsxs("div",{className:"dzm-scopes","data-on":on?"1":"",ref:wrapR,children:[
     r.jsx("button",{className:"svm-pchip dzm-scbtn","data-on":on?"":void 0,"aria-pressed":on,
-      title:on?"Masquer les scopes":"Afficher les scopes du plan V1 sous la tête (forme d'onde, vecteurscope, histogramme de l'image étalonnée) — rafraîchis à l'arrêt, jamais pendant la lecture",
+      title:on?dzT("montage.scopes.masquer"):dzT("montage.scopes.afficher"),
       onClick:bascule,children:"Scopes"}),
     cible?Pu.createPortal(encart,cible):encart]})}
 /* LA LIGHTBOX DES PLANS (ouverte par ☰ › Affichage, montée par l'hôte dans le repli R_EB5A) : props {clips, onPick(plan),
@@ -23109,17 +23109,17 @@ function DzmLightbox(o){
       urls.forEach(function(u){URL.revokeObjectURL(u)})}},[]);
   var tuiles=pl.map(function(c,i){var u=imgs[c.id],lbl=c.label||c.id;
     return r.jsxs("button",{className:"dzm-lbtile","data-id":c.id,
-      title:"Aller au plan « "+lbl+" » (début à "+dzmCoR(dzmRfNum(c.start),2)+" s) et le sélectionner",
+      title:dzT("montage.lbplans.aller",{nom:lbl,t:dzmCoR(dzmRfNum(c.start),2)}),
       onClick:function(){pick(c)},children:[
-        u?r.jsx("img",{src:u,alt:"Plan « "+lbl+" » étalonné"})
-          :r.jsx("span",{className:"dzm-lbph",children:!c.src?"sans source":u===""?"image indisponible":"calcul…"}),
+        u?r.jsx("img",{src:u,alt:dzT("montage.lbplans.etalonne",{nom:lbl})})
+          :r.jsx("span",{className:"dzm-lbph",children:!c.src?dzT("montage.lbplans.sans_source"):u===""?dzT("montage.lbplans.image_indispo"):dzT("montage.lbplans.calcul")}),
         r.jsx("span",{className:"dzm-lbcap",children:(i+1)+". "+lbl})]},c.id)});
   return r.jsx("div",{className:"dzm-lbscrim",onClick:function(e){if(e&&e.target===e.currentTarget)fin()},children:
-    r.jsxs("div",{className:"dzm-lb",role:"dialog","aria-modal":"true","aria-label":"Lightbox des plans",children:[
+    r.jsxs("div",{className:"dzm-lb",role:"dialog","aria-modal":"true","aria-label":dzT("montage.lbplans.titre"),children:[
       r.jsxs("div",{className:"dzm-lbhead",children:[
-        r.jsx("span",{className:"dzm-lbt",children:"Lightbox des plans · V1 ("+pl.length+")"}),
-        r.jsx("button",{className:"svm-minibtn",ref:fermeR,title:"Fermer la lightbox (Échap, ou clic hors de la grille)",onClick:fin,children:"Fermer"})]}),
-      pl.length?r.jsx("div",{className:"dzm-lbgrid",children:tuiles}):r.jsx("div",{className:"dzm-lbmsg",children:"Aucun plan sur V1"})]})})}
+        r.jsx("span",{className:"dzm-lbt",children:dzT("montage.lbplans.titre_n",{n:pl.length})}),
+        r.jsx("button",{className:"svm-minibtn",ref:fermeR,title:dzT("montage.lbplans.fermer_aide"),onClick:fin,children:dzT("montage.mots.fermer")})]}),
+      pl.length?r.jsx("div",{className:"dzm-lbgrid",children:tuiles}):r.jsx("div",{className:"dzm-lbmsg",children:dzT("montage.lbplans.vide")})]})})}
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
   TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,cutOpts:dzmCutOpts,withWords:dzmWithWords,
@@ -23324,14 +23324,14 @@ async function dzPinPreparer(tid,slots,vm,tpl,g){
     rep=R.ok?await R.json():null}catch(_e){rep=null}
   if(!rep||!rep.slots){
     avec.forEach(function(sn){delete slots[sn].pin});
-    return"Vérification des épingles impossible — rien n'est parti. Relancez dans un instant."}
+    return dzT("montage.epingles.verif_impossible")}
   var perimes=[];
   avec.forEach(function(sn){
     var v=rep.slots[sn];if(v&&v.valide)return;
-    var nid=slots[sn].node_id,why=(v&&v.raison)||"épingle inconnue";
+    var nid=slots[sn].node_id,why=(v&&v.raison)||dzT("montage.epingles.inconnue");
     delete slots[sn].pin;perimes.push((nid||sn)+" : "+why);
     if(nid&&typeof window.__dzStudioMaj==="function")window.__dzStudioMaj(nid,{pin:null,pinPerime:why})});
-  return perimes.length?"Épingle périmée — "+perimes.join(" ; ")+". Elle est retirée et le coût recalculé : relancez pour régénérer.":""}
+  return perimes.length?dzT("montage.epingles.perimee",{liste:perimes.join(" ; ")}):""}
 /* Tâche #68 (plan-studio T5, 02/10/2026) — la PILE des rendus d'un nœud (props.hist) : chaque rendu récolté s'empile en
    tête, sans doublon, huit au plus. « Utiliser » un rendu de la pile en fait l'épingle — le serveur la VÉRIFIE au
    prochain run : un rendu fait avec d'autres réglages est écarté (raison dite), jamais réemployé en douce. Le plan
@@ -23608,33 +23608,33 @@ async function dzRecLancerAvec(image){
   try{
     var L=await fetch("/api/studio-graphs").then(function(R){return R.json()});
     var recs=((L&&L.graphs)||[]).filter(function(g){return g&&g.recette>0});
-    if(!recs.length){await window.__dzDialogue.informer("Aucune recette : dans le Studio, fige un graphe composé avec le bouton « Recette ».",{titre:"Lancer une recette"});return}
-    var rid=recs.length===1?recs[0].id:await dzSendChoisir(recs.map(function(g){return{ic:"dz-action-lancer-recette",g:"🍳",lbl:"🍳 "+g.name+" — "+g.recette+" source(s)",v:g.id}}),"Lancer quelle recette avec « "+image+" » ?");
+    if(!recs.length){await window.__dzDialogue.informer(dzT("montage.recette.aucune"),{titre:dzT("montage.recette.lancer_titre")});return}
+    var rid=recs.length===1?recs[0].id:await dzSendChoisir(recs.map(function(g){return{ic:"dz-action-lancer-recette",g:"🍳",lbl:"🍳 "+g.name+" — "+g.recette+" source(s)",v:g.id}}),dzT("montage.recette.laquelle",{image:image}));
     if(!rid)return;
     var R=await fetch("/api/studio-graphs/"+encodeURIComponent(rid)+"/recette"),rec=await R.json().catch(function(){return{}});
-    if(!R.ok){await window.__dzDialogue.informer(String(rec.detail||"Recette illisible ("+R.status+")."),{titre:"Lancer une recette"});return}
+    if(!R.ok){await window.__dzDialogue.informer(String(rec.detail||dzT("montage.recette.illisible",{code:R.status})),{titre:dzT("montage.recette.lancer_titre")});return}
     var ts_=rec.trous||[],imgs=ts_.filter(function(t){return t.nature==="image"}),txts=ts_.filter(function(t){return t.nature==="texte"});
-    if(!imgs.length){await window.__dzDialogue.informer("La recette « "+rec.name+" » n’a aucune image à remplacer.",{titre:"Lancer une recette"});return}
-    var cible=imgs.length===1?imgs[0].id:await dzSendChoisir(imgs.map(function(t){return{lbl:t.libelle+" (aujourd’hui : "+t.valeur+")",v:t.id}}),"« "+image+" » remplace quelle image ?");
+    if(!imgs.length){await window.__dzDialogue.informer(dzT("montage.recette.sans_image",{nom:rec.name}),{titre:dzT("montage.recette.lancer_titre")});return}
+    var cible=imgs.length===1?imgs[0].id:await dzSendChoisir(imgs.map(function(t){return{lbl:dzT("montage.recette.trou_valeur",{libelle:t.libelle,valeur:t.valeur}),v:t.id}}),dzT("montage.recette.quelle_image",{image:image}));
     if(!cible)return;
     var valeurs={};valeurs[cible]=image;
     for(var i=0;i<txts.length;i++){var t=txts[i];
-      var v=await window.__dzDialogue.saisir(t.libelle+" — garde-le ou change-le :",{titre:"Recette « "+rec.name+" » ("+(i+1)+"/"+txts.length+")",valeur:t.valeur,ok:"Suivant"});
+      var v=await window.__dzDialogue.saisir(dzT("montage.recette.texte_garder",{libelle:t.libelle}),{titre:dzT("montage.recette.texte_titre",{nom:rec.name,i:i+1,n:txts.length}),valeur:t.valeur,ok:dzT("montage.mots.suivant")});
       if(v==null)return;if(v!==t.valeur)valeurs[t.id]=v}
     var Dv=await fetch("/api/studio-graphs/"+encodeURIComponent(rid)+"/recette/devis",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({valeurs:valeurs})});
     var dv=await Dv.json().catch(function(){return{}});
-    if(!Dv.ok||!isFinite(dv.usd)){await window.__dzDialogue.informer(String(dv.detail||"Devis impossible ("+Dv.status+")."),{titre:"Devis impossible"});return}
+    if(!Dv.ok||!isFinite(dv.usd)){await window.__dzDialogue.informer(String(dv.detail||dzT("montage.recette.devis_code",{code:Dv.status})),{titre:dzT("montage.recette.devis_titre")});return}
     var usd=Number(dv.usd);
-    var ok=await window.__dzDialogue.confirmer("Lancer « "+rec.name+" » avec « "+image+" » : ≈ $"+usd.toFixed(2)+" — "+dv.generations+" génération(s)"
-      +(dv.voix?", "+dv.voix+" voix off":"")+(dv.reemplois?", "+dv.reemplois+" nœud(s) réemployé(s) gratuitement":"")
-      +". Le rendu part dans la file ; plus cher que ce devis, il serait refusé avant toute génération.",{titre:"Lancer la recette",ok:"Lancer ($"+usd.toFixed(2)+")"});
+    var ok=await window.__dzDialogue.confirmer(dzT("montage.recette.confirmer",{nom:rec.name,image:image,usd:usd.toFixed(2),n:dv.generations,
+      voix:dv.voix?dzT("montage.recette.confirmer_voix",{n:dv.voix}):"",reemplois:dv.reemplois?dzT("montage.recette.confirmer_reemplois",{n:dv.reemplois}):""
+      }),{titre:dzT("montage.recette.lancer_la"),ok:dzT("montage.recette.lancer_prix",{usd:usd.toFixed(2)})});
     if(!ok)return;
     var Ln=await fetch("/api/studio-graphs/"+encodeURIComponent(rid)+"/recette/lancer",{method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({valeurs:valeurs,max_usd:usd})});
     var j=await Ln.json().catch(function(){return{}});
-    if(Ln.ok&&j.job_id){__dzToast("Recette « "+rec.name+" » lancée (≈ $"+usd.toFixed(2)+") — le rendu est dans la file");return}
-    await window.__dzDialogue.informer(String(j.detail||"Lancement refusé ("+Ln.status+")."),{titre:"Lancement refusé"})}
-  catch(e){await window.__dzDialogue.informer("Recette : "+String(e&&e.message||e),{titre:"Lancer une recette"})}}
+    if(Ln.ok&&j.job_id){__dzToast(dzT("montage.recette.lancee",{nom:rec.name,usd:usd.toFixed(2)}));return}
+    await window.__dzDialogue.informer(String(j.detail||dzT("montage.recette.refus_code",{code:Ln.status})),{titre:dzT("montage.recette.refus_titre")})}
+  catch(e){await window.__dzDialogue.informer(dzT("montage.recette.erreur",{e:String(e&&e.message||e)}),{titre:dzT("montage.recette.lancer_titre")})}}
 function dzSendRecette(nom,onClose){
   return{ic:"dz-action-lancer-recette",g:"🍳",lbl:dzT("biblio.envoyer.recette"),fn:function(){onClose&&onClose();dzRecLancerAvec(nom)}}}
 /* t130 (W-d du plan 2026-07-22-modeles-generation-onthefly, 07/10/2026) — MODÈLES PAR DÉFAUT DES NOUVEAUX NŒUDS.

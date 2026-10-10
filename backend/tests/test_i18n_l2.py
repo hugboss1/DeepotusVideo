@@ -81,7 +81,7 @@ def main():
         (TMP / "scripts").mkdir()
         shutil.copy(RACINE / "scripts/i18n_l2_paires.json", TMP / "scripts/i18n_l2_paires.json")
         # le maillon reçoit le bundle de base dont la couche MONTAGE est déjà rafraîchie depuis la source actuelle
-        (TMP / REL).write_bytes(G.avec_couche(base, COUCHE).encode("utf-8"))
+        (TMP / REL).write_bytes(G.avec_couche(base, AIDE.couche_avant_i18n_l3(COUCHE)).encode("utf-8"))
         r1 =subprocess.run([sys.executable, str(SCRIPT)], cwd=str(TMP), capture_output=True, text=True,
                             encoding="utf-8", errors="replace")
         rejoue = (TMP / REL).read_bytes()
@@ -116,7 +116,7 @@ def main():
         check("2h avant_i18n défait L2 puis L1", False, e)
     n = lambda t: t.replace("\r\n", "\n")                                   # noqa: E731
     check("2i la couche du poste est celle que le générateur produit (rien d'édité à la main)",
-          n(COUCHE) == n(G.construire({c: G.base(c) for c in G.CIBLES})[1]))
+          n(AIDE.couche_avant_i18n_l3(COUCHE)) == n(G.construire({c: G.base(c) for c in G.CIBLES})[1]))
     try:
         check("2j la couche d'avant L2 (celle de L1) se reconstruit exactement, sans git",
               n(AIDE.couche_avant_i18n_l2(COUCHE)) == n(G.base("couche")))
