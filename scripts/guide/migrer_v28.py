@@ -50,7 +50,7 @@ def nettoyer(corps):
 
 def recettes(corps):
     """Le chapitre 14 mêle dépannage et recettes : les recettes commencent au premier h3 qui en est une."""
-    m = re.search(r"<h3>[^<]*(Recette|Recipe)", corps)
+    m = re.search(r'(<div class="recipe">\s*)?<h3>[^<]*(Recette|Recipe)', corps)   # avec le cadre qui l'ouvre
     return (corps[:m.start()].rstrip(), corps[m.start():]) if m else (corps, "")
 
 

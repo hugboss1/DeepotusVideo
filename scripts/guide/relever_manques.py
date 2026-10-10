@@ -38,13 +38,14 @@ def construire():
          "Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger), puis les fonctions "
          "manquantes. Le lot coche une ligne quand le chapitre l'explique.", ""]
     famille = None
-    resume = collections.Counter()
+    resume, faits = collections.Counter(), collections.Counter()
     for ch in som["chapitres"]:
         if ch["famille"] != famille:
             famille = ch["famille"]
             L += [f"## {familles[famille]}", ""]
         fonctions = [(e, f) for nom in ch["ecrans"] for e in [par_ecran[nom]] for f in e["fonctions"]]
         resume[ch["lot"]] += len(fonctions)
+        faits[ch["lot"]] += len(fonctions) if ch.get("etat") == "v3" else 0
         anc = ", ".join(ch["anciens"]) or "nouveau"
         L += [f"### {ch['fr']} (`{ch['id']}`, lot {ch['lot']}, reprend : {anc}) — {len(fonctions)} manques", ""]
         perimes = [p for a in ch["anciens"] for p in anciens.get(a, {}).get("perime", [])]
@@ -57,10 +58,11 @@ def construire():
                 L += [f"**{ecran}** — accès : {e.get('acces') or '?'}", ""]
             prix = " **payant**" if f.get("payant") else (" *(coût variable)*" if f.get("payant") is None else "")
             comment = f" — *{f['comment']}*" if f.get("comment") else ""
-            L.append(f"- [ ] **{f['nom']}**{prix} : {f['quoi']}{comment} ({f.get('ref') or '?'})")
+            case = "x" if ch.get("etat") == "v3" else " "      # un chapitre réécrit (état v3) couvre ses lignes
+            L.append(f"- [{case}] **{f['nom']}**{prix} : {f['quoi']}{comment} ({f.get('ref') or '?'})")
         L.append("")
-    L += ["## Répartition par lot", "", "| Lot | Fonctions à écrire |", "|---|---|"]
-    L += [f"| {lot} | {n} |" for lot, n in sorted(resume.items())]
+    L += ["## Répartition par lot", "", "| Lot | Fonctions | Écrites |", "|---|---|---|"]
+    L += [f"| {lot} | {n} | {faits[lot]} |" for lot, n in sorted(resume.items())]
     return "\n".join(L) + "\n"
 
 

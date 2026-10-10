@@ -1376,54 +1376,54 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 
 **Icônes « Deepotus Glyph »** — accès : Toute l'application et tous les labs ; lexique des icônes dans docs/icones
 
-- [ ] **Atelier, Matières, Établi, Plateau 3D, Studio 3D en icônes Glyph** : Ces cinq pages et les éléments partagés (micro du champ IA, carte de mise à jour) passent à la suite ; la marque de l'Atelier devient le logo. (PR #285 · commits 0e77a512, b92b1313 · G6)
-- [ ] **Card Forge en icônes Glyph** : Rail, barres d'outils, blocs, alignements, galerie et Forge 3D du Card Forge passent à la suite (166 emplacements) ; image introuvable = icône d'erreur. (PR #286 · commits 3ee80d14, 95c084ee · G2)
-- [ ] **Chevron unique** : Accordéons et rails utilisent un seul chevron « déplier » orienté selon l'état. (PR #287 · commit 99a298fd · G1)
-- [ ] **Coque React en icônes Glyph** : Coque, Quick, Studio, Templates, News, Scheduler, Épisodes, Game Assets, Bibliothèque et Réglages passent aux icônes de la suite ; titre de la page sans emoji. (PR #287 · commit c101e8bc · G1)
-- [ ] **Favicon = logo Deepotus** : L'onglet du navigateur de toutes les pages affiche le logo Deepotus. (PR #285 · commit b92b1313 · G6)
-- [ ] **Icône d'application = logo Deepotus** : L'icône d'application (et l'icône adaptative du téléphone) est le vrai logo Deepotus. (PR #281 · commit dd9e3307 · G0)
-- [ ] **Lexique des icônes** : Un lexique documente chaque icône et la fonction qu'elle désigne. — *docs/icones (lexique)* (PR #281 · commit 0ab48c7f · G0)
-- [ ] **Listes déroulantes sans emoji** : Plus de glyphe collé dans les options : au Plateau 3D les choix sont groupés « Entités de la bible » / « Maillages 3D », au Studio 3D les photos du téléphone sont groupées en tête sous « Téléphone ». (PR #291 · commit a360d7ef)
-- [ ] **Montage, Son & VFX, tiroir Sons, rack VFX en icônes Glyph** : Les couches Montage, Son & VFX, tiroir Sons, rack VFX, les sous-titres et le transfert reçoivent les icônes de la suite, y compris la barre d'outils flottante du Montage et les menus. (PR #287 · commit 99a298fd · G1)
-- [ ] **Photolab en icônes Glyph** : Les 45 outils, menus volants, calques, panneaux et menus du Photolab passent à la suite (289 emplacements) ; le Doigt garde son pointeur ; Nouveau groupe = nouveau dossier, Position a son icône. (PR #283 · commits cbf8f761, 6e56a3ba · G4)
-- [ ] **Spritelab et Tilelab en icônes Glyph** : En-têtes, onglets, exports, éditeur, hitboxes, squelette et peintre passent à la suite (124 emplacements) ; la loupe se pose dans les champs de recherche ; les boutons à icône seule sont annoncés aux lecteurs d'écran. (PR #282 · commits d7bf9db3, 6d5c35f0 · G5)
-- [ ] **Suite d'icônes Deepotus Glyph** : Une suite unique de 526 icônes dessinées (une par fonction) remplace emojis et glyphes disparates dans toute l'app. (PR #281 · commits 0ab48c7f, a30c5a2b · G0)
-- [ ] **Vectorlab en icônes Glyph** : Outils, menus volants, panneaux, calques, dialogues et barre d'état du Vectorlab passent à la suite (288 emplacements) ; Paramètres de l'appli a sa propre icône, distincte de Configuration du document ; Sans fond et Sans contour ont chacun la leur. (PR #284 · commits 1d7ed331, e284b254, 9f8a06d7 · G3)
+- [x] **Atelier, Matières, Établi, Plateau 3D, Studio 3D en icônes Glyph** : Ces cinq pages et les éléments partagés (micro du champ IA, carte de mise à jour) passent à la suite ; la marque de l'Atelier devient le logo. (PR #285 · commits 0e77a512, b92b1313 · G6)
+- [x] **Card Forge en icônes Glyph** : Rail, barres d'outils, blocs, alignements, galerie et Forge 3D du Card Forge passent à la suite (166 emplacements) ; image introuvable = icône d'erreur. (PR #286 · commits 3ee80d14, 95c084ee · G2)
+- [x] **Chevron unique** : Accordéons et rails utilisent un seul chevron « déplier » orienté selon l'état. (PR #287 · commit 99a298fd · G1)
+- [x] **Coque React en icônes Glyph** : Coque, Quick, Studio, Templates, News, Scheduler, Épisodes, Game Assets, Bibliothèque et Réglages passent aux icônes de la suite ; titre de la page sans emoji. (PR #287 · commit c101e8bc · G1)
+- [x] **Favicon = logo Deepotus** : L'onglet du navigateur de toutes les pages affiche le logo Deepotus. (PR #285 · commit b92b1313 · G6)
+- [x] **Icône d'application = logo Deepotus** : L'icône d'application (et l'icône adaptative du téléphone) est le vrai logo Deepotus. (PR #281 · commit dd9e3307 · G0)
+- [x] **Lexique des icônes** : Un lexique documente chaque icône et la fonction qu'elle désigne. — *docs/icones (lexique)* (PR #281 · commit 0ab48c7f · G0)
+- [x] **Listes déroulantes sans emoji** : Plus de glyphe collé dans les options : au Plateau 3D les choix sont groupés « Entités de la bible » / « Maillages 3D », au Studio 3D les photos du téléphone sont groupées en tête sous « Téléphone ». (PR #291 · commit a360d7ef)
+- [x] **Montage, Son & VFX, tiroir Sons, rack VFX en icônes Glyph** : Les couches Montage, Son & VFX, tiroir Sons, rack VFX, les sous-titres et le transfert reçoivent les icônes de la suite, y compris la barre d'outils flottante du Montage et les menus. (PR #287 · commit 99a298fd · G1)
+- [x] **Photolab en icônes Glyph** : Les 45 outils, menus volants, calques, panneaux et menus du Photolab passent à la suite (289 emplacements) ; le Doigt garde son pointeur ; Nouveau groupe = nouveau dossier, Position a son icône. (PR #283 · commits cbf8f761, 6e56a3ba · G4)
+- [x] **Spritelab et Tilelab en icônes Glyph** : En-têtes, onglets, exports, éditeur, hitboxes, squelette et peintre passent à la suite (124 emplacements) ; la loupe se pose dans les champs de recherche ; les boutons à icône seule sont annoncés aux lecteurs d'écran. (PR #282 · commits d7bf9db3, 6d5c35f0 · G5)
+- [x] **Suite d'icônes Deepotus Glyph** : Une suite unique de 526 icônes dessinées (une par fonction) remplace emojis et glyphes disparates dans toute l'app. (PR #281 · commits 0ab48c7f, a30c5a2b · G0)
+- [x] **Vectorlab en icônes Glyph** : Outils, menus volants, panneaux, calques, dialogues et barre d'état du Vectorlab passent à la suite (288 emplacements) ; Paramètres de l'appli a sa propre icône, distincte de Configuration du document ; Sans fond et Sans contour ont chacun la leur. (PR #284 · commits 1d7ed331, e284b254, 9f8a06d7 · G3)
 **Aide didactique intégrée** — accès : Dans le Vectorlab, le Sprite Lab, le Tile Lab et le Photolab : laisser le pointeur 900 ms sur une option, ou cliquer le petit bouton « ? » à côté
 
-- [ ] **Fiche Vectorlab « Conique »** : La couleur tourne autour du milieu de la forme comme les rayons d'une roue. — *Apparence → dégradé Conique* (commit 799a21c4)
-- [ ] **Fiche Vectorlab « Contour sombre »** : Un trait sombre entoure le dessin pour qu'il se détache du fond. — *Persona Pixel → Contour sombre* (commit fb9c82ef)
-- [ ] **Fiche Vectorlab « Créer le calque pixel »** : Une feuille transparente se pose sur l'image modèle pour dessiner case par case. — *Persona Pixel → Créer le calque pixel* (commit 9003a19d)
-- [ ] **Fiche Vectorlab « Dépouille des flancs »** : Les côtés de la pièce penchent : le bas s'élargit, le haut rétrécit. — *Dialogue Impression 3D → Dépouille des flancs* (commit 9003a19d)
-- [ ] **Fiche Vectorlab « Désigner comme modèle »** : L'image pâlit, se fige et reçoit une grille de cases pour guider. — *Persona Pixel → Désigner comme modèle* (commit 799a21c4)
-- [ ] **Fiche Vectorlab « Pixeliser l'image »** : L'image devient de gros carrés, autant que la taille de tuile. — *Persona Pixel → Pixeliser l'image* (commit 799a21c4)
-- [ ] **Fiches animées à trois temps** : Un encart montre le titre de l'option, une phrase simple et une animation faite de vraies captures : départ, geste, résultat. — *Survol long (900 ms) ou bouton « ? »* (commits 8e3be59f, 8d973546)
-- [ ] **Aide étendue au Sprite Lab et au Tile Lab** : Les fiches s'ouvrent aussi dans le Sprite Lab et le Tile Lab, même sur un bouton désactivé. (PR #256 · commit eeb2f539 · t126)
-- [ ] **Fiche Sprite Lab « Auto-détecter »** : L'outil compte les images de la planche et dessine une case autour de chacune. — *Feuille → Auto-détecter* (PR #256 · t126)
-- [ ] **Fiche Sprite Lab « Contour »** : Un trait entoure le personnage pour qu'il se voie sur tout fond. — *Post-traitement → Contour* (PR #256 · t126)
-- [ ] **Fiche Sprite Lab « Miroir »** : Le personnage se retourne comme dans un miroir. — *Préviz → ⇋* (PR #256 · t126)
-- [ ] **Fiche Sprite Lab « Ombre X / Y »** : Une ombre décalée se pose derrière le personnage. — *Post-traitement → Ombre X / Y* (PR #256 · t126)
-- [ ] **Fiche Sprite Lab « Pieds »** : Tous les personnages posent les pieds à la même hauteur. — *Feuille → Alignement → Pieds* (PR #256 · t126)
-- [ ] **Fiche Sprite Lab « Pixel-art (9b) »** : Le dessin devient de gros carrés et peu de couleurs, comme un vieux jeu vidéo. — *Case Pixel-art (9b)* (PR #256 · t126)
-- [ ] **Fiche Tile Lab « Forme »** : La tuile devient un losange ou un hexagone. — *Mode Formes → Forme* (PR #256 · t126)
-- [ ] **Fiche Tile Lab « Grille de placement »** : Les cases deviennent des losanges en quinconce. — *Feuille de tuiles → Grille de placement* (PR #256 · t126)
-- [ ] **Fiche Tile Lab « Jeu »** : Choisir 47 morceaux pour des coins ronds ou 16 pour aller vite. — *Mode Jeu → Jeu* (PR #256 · t126)
-- [ ] **Fiche Tile Lab « Méthode »** : Miroir plie la texture en quatre : les bords se touchent toujours parfaitement. — *Mode Seamless → Méthode* (PR #256 · t126)
-- [ ] **Fiche Tile Lab « Nouvel aperçu »** : Une nouvelle carte se dessine au hasard pour voir si les tuiles vont ensemble. — *Mode Jeu → Nouvel aperçu* (PR #256 · t126)
-- [ ] **Fiche Tile Lab « Rendre seamless »** : La texture se raccorde : posée côte à côte, on ne voit plus les jointures. — *Mode Seamless → Rendre seamless* (PR #256 · t126)
-- [ ] **Fiche Vectorlab « Courbes »** : Des lignes relient les endroits de même hauteur sur la carte. — *Panneau Carte réelle → Courbes* (PR #256 · t126)
-- [ ] **Fiche Vectorlab « Découper »** : La carte devient des cases à six côtés colorées selon la hauteur. — *Panneau Carte réelle → Découper* (PR #256 · t126)
-- [ ] **Fiche Vectorlab « En cadre »** : Une longue ligne de texte rentre dans une boîte et passe à la ligne toute seule. — *Apparence → texte En cadre* (PR #256 · t126)
-- [ ] **Fiche Vectorlab « Motif »** : La forme se remplit de petits traits répétés. — *Apparence → Motif* (PR #256 · t126)
-- [ ] **Fiche Vectorlab « Sur chemin »** : Les mots suivent la ligne tracée. — *Apparence → texte Sur chemin* (PR #256 · t126)
-- [ ] **Fiche Vectorlab « Transparence »** : La forme s'efface doucement d'un côté à l'autre. — *Apparence → Transparence* (PR #256 · t126)
-- [ ] **Fiche Photolab « Baguette magique (W) »** : Un clic choisit toute la tache d'une couleur. — *Outil Baguette magique* (PR #267 · t140)
-- [ ] **Fiche Photolab « Espace de travail »** : Choisir un espace range panneaux et outils pour la tâche voulue. — *Liste des espaces de travail* (PR #269 · commit 8b26219d · t151)
-- [ ] **Fiche Photolab « Noir et blanc »** : Un clic pose un calque qui retire les couleurs, retirable à tout moment. — *Calque de réglage Noir et blanc* (PR #267 · commit b810b242 · t140)
-- [ ] **Fiche Photolab « Pinceau (B) »** : Glisser peint un trait de la couleur choisie. — *Outil Pinceau* (PR #268 · commit 7dc1700b · t155)
-- [ ] **Fiche Photolab « Recadrage (C) »** : Tracer un cadre puis Entrée : le hors-cadre disparaît. — *Outil Recadrage* (PR #267 · t140)
-- [ ] **Fiche Photolab « Sélection rectangulaire (M) »** : Glisser trace un rectangle en pointillés autour de la zone à modifier. — *Outil Sélection rectangulaire* (PR #267 · t140)
-- [ ] **Fiche Photolab « Tampon de duplication (S) »** : Alt-clic sur la source puis peindre ailleurs pour recopier ce morceau d'image. — *Outil Tampon de duplication* (PR #268 · t155)
+- [x] **Fiche Vectorlab « Conique »** : La couleur tourne autour du milieu de la forme comme les rayons d'une roue. — *Apparence → dégradé Conique* (commit 799a21c4)
+- [x] **Fiche Vectorlab « Contour sombre »** : Un trait sombre entoure le dessin pour qu'il se détache du fond. — *Persona Pixel → Contour sombre* (commit fb9c82ef)
+- [x] **Fiche Vectorlab « Créer le calque pixel »** : Une feuille transparente se pose sur l'image modèle pour dessiner case par case. — *Persona Pixel → Créer le calque pixel* (commit 9003a19d)
+- [x] **Fiche Vectorlab « Dépouille des flancs »** : Les côtés de la pièce penchent : le bas s'élargit, le haut rétrécit. — *Dialogue Impression 3D → Dépouille des flancs* (commit 9003a19d)
+- [x] **Fiche Vectorlab « Désigner comme modèle »** : L'image pâlit, se fige et reçoit une grille de cases pour guider. — *Persona Pixel → Désigner comme modèle* (commit 799a21c4)
+- [x] **Fiche Vectorlab « Pixeliser l'image »** : L'image devient de gros carrés, autant que la taille de tuile. — *Persona Pixel → Pixeliser l'image* (commit 799a21c4)
+- [x] **Fiches animées à trois temps** : Un encart montre le titre de l'option, une phrase simple et une animation faite de vraies captures : départ, geste, résultat. — *Survol long (900 ms) ou bouton « ? »* (commits 8e3be59f, 8d973546)
+- [x] **Aide étendue au Sprite Lab et au Tile Lab** : Les fiches s'ouvrent aussi dans le Sprite Lab et le Tile Lab, même sur un bouton désactivé. (PR #256 · commit eeb2f539 · t126)
+- [x] **Fiche Sprite Lab « Auto-détecter »** : L'outil compte les images de la planche et dessine une case autour de chacune. — *Feuille → Auto-détecter* (PR #256 · t126)
+- [x] **Fiche Sprite Lab « Contour »** : Un trait entoure le personnage pour qu'il se voie sur tout fond. — *Post-traitement → Contour* (PR #256 · t126)
+- [x] **Fiche Sprite Lab « Miroir »** : Le personnage se retourne comme dans un miroir. — *Préviz → ⇋* (PR #256 · t126)
+- [x] **Fiche Sprite Lab « Ombre X / Y »** : Une ombre décalée se pose derrière le personnage. — *Post-traitement → Ombre X / Y* (PR #256 · t126)
+- [x] **Fiche Sprite Lab « Pieds »** : Tous les personnages posent les pieds à la même hauteur. — *Feuille → Alignement → Pieds* (PR #256 · t126)
+- [x] **Fiche Sprite Lab « Pixel-art (9b) »** : Le dessin devient de gros carrés et peu de couleurs, comme un vieux jeu vidéo. — *Case Pixel-art (9b)* (PR #256 · t126)
+- [x] **Fiche Tile Lab « Forme »** : La tuile devient un losange ou un hexagone. — *Mode Formes → Forme* (PR #256 · t126)
+- [x] **Fiche Tile Lab « Grille de placement »** : Les cases deviennent des losanges en quinconce. — *Feuille de tuiles → Grille de placement* (PR #256 · t126)
+- [x] **Fiche Tile Lab « Jeu »** : Choisir 47 morceaux pour des coins ronds ou 16 pour aller vite. — *Mode Jeu → Jeu* (PR #256 · t126)
+- [x] **Fiche Tile Lab « Méthode »** : Miroir plie la texture en quatre : les bords se touchent toujours parfaitement. — *Mode Seamless → Méthode* (PR #256 · t126)
+- [x] **Fiche Tile Lab « Nouvel aperçu »** : Une nouvelle carte se dessine au hasard pour voir si les tuiles vont ensemble. — *Mode Jeu → Nouvel aperçu* (PR #256 · t126)
+- [x] **Fiche Tile Lab « Rendre seamless »** : La texture se raccorde : posée côte à côte, on ne voit plus les jointures. — *Mode Seamless → Rendre seamless* (PR #256 · t126)
+- [x] **Fiche Vectorlab « Courbes »** : Des lignes relient les endroits de même hauteur sur la carte. — *Panneau Carte réelle → Courbes* (PR #256 · t126)
+- [x] **Fiche Vectorlab « Découper »** : La carte devient des cases à six côtés colorées selon la hauteur. — *Panneau Carte réelle → Découper* (PR #256 · t126)
+- [x] **Fiche Vectorlab « En cadre »** : Une longue ligne de texte rentre dans une boîte et passe à la ligne toute seule. — *Apparence → texte En cadre* (PR #256 · t126)
+- [x] **Fiche Vectorlab « Motif »** : La forme se remplit de petits traits répétés. — *Apparence → Motif* (PR #256 · t126)
+- [x] **Fiche Vectorlab « Sur chemin »** : Les mots suivent la ligne tracée. — *Apparence → texte Sur chemin* (PR #256 · t126)
+- [x] **Fiche Vectorlab « Transparence »** : La forme s'efface doucement d'un côté à l'autre. — *Apparence → Transparence* (PR #256 · t126)
+- [x] **Fiche Photolab « Baguette magique (W) »** : Un clic choisit toute la tache d'une couleur. — *Outil Baguette magique* (PR #267 · t140)
+- [x] **Fiche Photolab « Espace de travail »** : Choisir un espace range panneaux et outils pour la tâche voulue. — *Liste des espaces de travail* (PR #269 · commit 8b26219d · t151)
+- [x] **Fiche Photolab « Noir et blanc »** : Un clic pose un calque qui retire les couleurs, retirable à tout moment. — *Calque de réglage Noir et blanc* (PR #267 · commit b810b242 · t140)
+- [x] **Fiche Photolab « Pinceau (B) »** : Glisser peint un trait de la couleur choisie. — *Outil Pinceau* (PR #268 · commit 7dc1700b · t155)
+- [x] **Fiche Photolab « Recadrage (C) »** : Tracer un cadre puis Entrée : le hors-cadre disparaît. — *Outil Recadrage* (PR #267 · t140)
+- [x] **Fiche Photolab « Sélection rectangulaire (M) »** : Glisser trace un rectangle en pointillés autour de la zone à modifier. — *Outil Sélection rectangulaire* (PR #267 · t140)
+- [x] **Fiche Photolab « Tampon de duplication (S) »** : Alt-clic sur la source puis peindre ailleurs pour recopier ce morceau d'image. — *Outil Tampon de duplication* (PR #268 · t155)
 
 ### Raccourcis clavier (`raccourcis`, lot t181, reprend : nouveau) — 0 manques
 
@@ -1442,18 +1442,18 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 
 ## Répartition par lot
 
-| Lot | Fonctions à écrire |
-|---|---|
-| t168 | 0 |
-| t170 | 46 |
-| t171 | 87 |
-| t172 | 73 |
-| t173 | 41 |
-| t174 | 119 |
-| t175 | 32 |
-| t176 | 275 |
-| t177 | 221 |
-| t178 | 102 |
-| t179 | 56 |
-| t180 | 42 |
-| t181 | 0 |
+| Lot | Fonctions | Écrites |
+|---|---|---|
+| t168 | 0 | 0 |
+| t170 | 46 | 46 |
+| t171 | 87 | 0 |
+| t172 | 73 | 0 |
+| t173 | 41 | 0 |
+| t174 | 119 | 0 |
+| t175 | 32 | 0 |
+| t176 | 275 | 0 |
+| t177 | 221 | 0 |
+| t178 | 102 | 0 |
+| t179 | 56 | 0 |
+| t180 | 42 | 0 |
+| t181 | 0 | 0 |

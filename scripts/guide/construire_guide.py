@@ -128,23 +128,23 @@ def scene(ref, lang, sorties):
             f'<script type="application/json">{donnees}</script></figure>')
 
 
-def fiche(ref, lang, sorties):
+def fiche(ref, lang, sorties, ou=""):
+    """Fiche animée d'un lab (skill didacticiel-option). Le WebP est en français : la légende anglaise vient de
+    src/fiches-en.json, et le banc exige une entrée par fiche citée."""
     lab, ident = ref.split("/", 1)
-    idx = json.loads((RACINE / "frontend" / lab / "aide" / "index.json").read_text("utf-8"))
-    entrees = idx if isinstance(idx, list) else idx.get("fiches", idx)
-    if isinstance(entrees, dict):
-        e = entrees[ident]
-    else:
-        e = next(x for x in entrees if x.get("id") == ident)
-    img = e.get("webp") or e.get("image") or e.get("fichier")
-    src = RACINE / "frontend" / lab / "aide" / pathlib.Path(img).name
+    entrees = json.loads((RACINE / "frontend" / lab / "aide" / "index.json").read_text("utf-8"))
+    e = next(x for x in entrees if x.get("id") == ident)
+    src = RACINE / "frontend" / lab / "aide" / pathlib.Path(e["fichier"]).name
     nom = f"img/fiches/{lab}/{src.name}"
     copier(src, GUIDE / nom, sorties)
-    titre = e.get("titre", ident) if isinstance(e.get("titre"), str) else e["titre"].get(lang, ident)
-    phrase = e.get("phrase", "") if isinstance(e.get("phrase", ""), str) else e["phrase"].get(lang, "")
+    titre, phrase = e["titre"], e["phrase"]
+    if lang == "en":
+        en = json.loads((SRC / "fiches-en.json").read_text("utf-8"))[ref]
+        titre, phrase = en["titre"], en["phrase"]
+    ou = f'<span class="ou">{ou}</span>' if ou else ""
     return (f'<figure class="fiche" data-fiche="{ref}"><img src="{nom}" alt="{html.escape(TXT[lang]["fiche"])} : '
             f'{html.escape(titre)}" loading="lazy" width="320" height="200"><figcaption><b>{html.escape(titre)}</b>'
-            f'{html.escape(phrase)}</figcaption></figure>')
+            f'{html.escape(phrase)}{ou}</figcaption></figure>')
 
 
 # ── un chapitre ──────────────────────────────────────────────────────────────
@@ -153,7 +153,8 @@ def chapitre(c, fam, lang, sorties, index):
     frag = re.sub(r'<i data-dz="([a-z0-9-]+)"(?: data-titre="([^"]*)")?></i>',
                   lambda m: svg(m.group(1), m.group(2)), frag)
     frag = re.sub(r'<figure class="scene" data-scene="([^"]+)"></figure>', lambda m: scene(m.group(1), lang, sorties), frag)
-    frag = re.sub(r'<figure class="fiche" data-fiche="([^"]+)"></figure>', lambda m: fiche(m.group(1), lang, sorties), frag)
+    frag = re.sub(r'<figure class="fiche" data-fiche="([^"]+)"(?: data-ou="([^"]*)")?></figure>',
+                  lambda m: fiche(m.group(1), lang, sorties, m.group(2) or ""), frag)
     vus = set(re.findall(r'\bid="([^"]+)"', frag))
     # les ancres des sections sont celles du FRANÇAIS, au même rang dans l'anglais : la bascule de langue garde
     # la section lue (le banc garantit le même squelette dans les deux langues)
@@ -247,6 +248,125 @@ def page(som, lang, sorties):
     sorties[GUIDE / f"{lang}.html"] = corps
 
 
+# ── lexique imprimable des icônes (t170) ─────────────────────────────────────
+FAMILLES_LX = [
+    ("nav", "Navigation", "Navigation", "Les écrans, onglets et panneaux : là où l'on va.",
+     "Screens, tabs and panels: where you go."),
+    ("action", "Actions", "Actions", "Ce que fait un bouton quand on clique : créer, enregistrer, envoyer, supprimer…",
+     "What a button does when you click it: create, save, send, delete…"),
+    ("edit", "Édition", "Editing", "Modifier un objet déjà là : aligner, retourner, grouper, verrouiller…",
+     "Change something already there: align, flip, group, lock…"),
+    ("outil-vec", "Outils du Vectorlab", "Vectorlab tools", "Les outils de dessin vectoriel : formes, plume, texte, sélection.",
+     "Vector drawing tools: shapes, pen, text, selection."),
+    ("outil-px", "Outils pixel", "Pixel tools", "Les outils du persona Pixel du Vectorlab, pour dessiner case par case.",
+     "Tools of the Vectorlab Pixel persona, to draw cell by cell."),
+    ("outil-photo", "Outils du Photolab", "Photolab tools", "Les outils de retouche photo : sélection, pinceau, tampon, recadrage.",
+     "Photo retouching tools: selection, brush, stamp, crop."),
+    ("calque", "Calques et réglages", "Layers and adjustments", "Les calques, masques, styles et réglages d'image.",
+     "Layers, masks, styles and image adjustments."),
+    ("media", "Médias et lecture", "Media and playback", "Lire, couper, monter : vidéo, son, timeline.",
+     "Play, cut, edit: video, sound, timeline."),
+    ("etat", "États", "States", "Ce que l'application vous signale : réussi, en erreur, verrouillé, plafond atteint…",
+     "What the app tells you: done, failed, locked, limit reached…"),
+    ("cat", "Catégories", "Categories", "Les familles de contenus et de nœuds, chacune avec sa couleur.",
+     "Content and node families, each with its own colour."),
+    ("lab3d", "3D", "3D", "Les gestes et objets des ateliers 3D (Forge 3D, Établi, Matières, Plateau).",
+     "Actions and objects of the 3D workshops (3D Forge, Workbench, Materials, Set)."),
+    ("reseau", "Réseaux sociaux", "Social networks", "Les plateformes où vous publiez.",
+     "The platforms you publish to."),
+    ("marque", "Marque", "Brand", "Le logo Deepotus, ou celui de votre kit de marque.",
+     "The Deepotus logo, or your brand kit's."),
+]
+ZONES_EN = {"Accueil": "Home", "Bibliothèque": "Library", "Chapitres": "Chapters", "Coque": "App shell",
+            "Dépenses / plafonds": "Spending / limits", "Marque": "Brand", "Matières": "Materials",
+            "Mise à jour": "Update", "Partagé": "Shared", "Plateau 3D": "3D Set", "Réglages": "Settings",
+            "Scheduler": "Planner", "Voix / Voicebox": "Voices / Voicebox", "Épisodes": "Episodes",
+            "Établi": "Workbench", "Studio 3D": "3D Studio"}
+TXT_LX = {
+    "fr": {"titre": "Lexique des icônes", "intro": "Chaque icône de l'application, son nom et ce qu'elle fait, rangée par "
+           "famille. Cherchez un mot, filtrez une famille, puis imprimez : l'impression reprend ce qui est affiché.",
+           "tout": "Tout", "ou": "Où", "vide": "Aucune icône ne correspond.",
+           "guide": "Retour au guide", "chercher": "Chercher une icône",
+           "pied": "Deepotus Video Gen {v} — {n} icônes Deepotus Glyph. Logos de réseaux : simple-icons (CC0), "
+                   "marques de leurs propriétaires. Doigt du Photolab : Lucide (ISC)."},
+    "en": {"titre": "Icon glossary", "intro": "Every icon of the app, its name and what it does, sorted by family. "
+           "Search a word, filter a family, then print: printing keeps what is shown.",
+           "tout": "All", "ou": "Where", "vide": "No icon matches.",
+           "guide": "Back to the guide", "chercher": "Search an icon",
+           "pied": "Deepotus Video Gen {v} — {n} Deepotus Glyph icons. Social network logos: simple-icons (CC0), "
+                   "trademarks of their owners. Photolab Smudge: Lucide (ISC)."},
+}
+
+
+def textes_lexique():
+    out = {}
+    for f in sorted((SRC / "lexique").glob("*.json")):
+        out.update(json.loads(f.read_text("utf-8")))
+    return out
+
+
+def lexique(lang, sorties):
+    t, v = TXT_LX[lang], version()
+    autre = "en" if lang == "fr" else "fr"
+    base = {e["cle"]: e for e in json.loads((RACINE / "docs/icones/suite-finale/lexique.json").read_text("utf-8"))}
+    txt = textes_lexique()
+    manque = sorted(set(base) - set(txt))
+    if manque:
+        raise SystemExit(f"lexique : {len(manque)} icônes sans nom ni fonction (ex. {manque[:5]})")
+    puces, sections = [f'<button type="button" data-famille="*" aria-pressed="true">{t["tout"]}</button>'], []
+    for fid, nfr, nen, dfr, den in FAMILLES_LX:
+        cles = sorted((k for k, e in base.items() if e["famille"] == fid), key=lambda k: txt[k]["nom"][lang].lower())
+        if not cles:
+            continue
+        nom = nfr if lang == "fr" else nen
+        puces.append(f'<button type="button" data-famille="{fid}" aria-pressed="false">{nom} '
+                     f'<small>{len(cles)}</small></button>')
+        cellules = []
+        for k in cles:
+            e, x = base[k], txt[k]
+            zones = ", ".join(z if lang == "fr" else ZONES_EN.get(z, z) for z in e["zones"])
+            voisins = [txt[n[0]]["nom"][lang] for n in e.get("ncf", []) if n and n[0] in txt][:3]
+            ncf = f'<span class="ncf">≠ {html.escape(", ".join(voisins))}</span><br>' if voisins else ""
+            cellules.append(
+                f'<article class="lx-ic" id="i-{k}"><span class="pic">{svg(k)}</span><b>{html.escape(x["nom"][lang])}</b>'
+                f'<p>{html.escape(x["fonction"][lang])}</p><span class="meta">{ncf}{t["ou"]} : {html.escape(zones)} · '
+                f'<code>{k}</code></span></article>')
+        sections.append(f'<section class="lx-fam" id="f-{fid}" data-famille="{fid}"><h2>{nom} <small>{len(cles)}</small></h2>'
+                        f'<p>{dfr if lang == "fr" else den}</p><div class="lx-grille">{"".join(cellules)}</div></section>')
+    css = (SRC / "gabarit/guide.css").read_text("utf-8") + (SRC / "gabarit/lexique.css").read_text("utf-8")
+    js = (SRC / "gabarit/lexique.js").read_text("utf-8")
+    sorties[GUIDE / f"lexique-icones-{lang}.html"] = f"""<!DOCTYPE html>
+<html lang="{lang}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deepotus — {t["titre"]} {v}</title>
+<link rel="alternate" hreflang="{autre}" href="lexique-icones-{autre}.html">
+<style>{css}</style>
+</head>
+<body>
+<header class="lx-top">
+<a class="g-btn" href="{lang}.html#icones" title="{t["guide"]}">{svg("dz-nav-guide")}<span class="txt">{t["guide"]}</span></a>
+<h1>{svg("dz-marque-poulpe")}{t["titre"]} <small>{v} · {len(base)}</small></h1>
+<div class="g-cherche" role="search">{svg("dz-action-chercher")}<input id="g-q" type="search" placeholder="{t["chercher"]}" aria-label="{t["chercher"]}" autocomplete="off"><kbd>/</kbd></div>
+<a class="g-btn" href="lexique-icones-{autre}.html" hreflang="{autre}">{autre.upper()}</a>
+<button type="button" class="g-btn" id="g-theme" title="{TXT[lang]["theme"]}">{svg("dz-action-theme")}</button>
+<button type="button" class="g-btn" onclick="window.print()" title="{TXT[lang]["imprimer"]}">{svg("dz-nav-cf-impression")}<span class="txt">{TXT[lang]["imprimer"]}</span></button>
+</header>
+<nav class="lx-familles" aria-label="{t["titre"]}">{"".join(puces)}</nav>
+<main class="lx-corps">
+<p class="lx-titre-imp">Deepotus — {t["titre"]} {v}</p>
+<p class="lx-intro">{t["intro"]}</p>
+<p class="lx-vide" hidden>{t["vide"]}</p>
+{chr(10).join(sections)}
+<div class="lx-pied">{t["pied"].format(v=v, n=len(base))}</div>
+</main>
+<script>{js}</script>
+</body>
+</html>
+"""
+
+
 INDEX = """<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -277,6 +397,8 @@ def construire():
     sorties = {}
     for lang in LANGS:
         page(som, lang, sorties)
+        if any((SRC / "lexique").glob("*.json")):
+            lexique(lang, sorties)
     sorties[GUIDE / "index.html"] = INDEX
     copier(SRC / "gabarit/logo.png", GUIDE / "img/logo.png", sorties)
     return sorties
@@ -294,15 +416,17 @@ def imprimer():
         raise SystemExit("ni Edge ni Chrome : impossible d'imprimer le PDF")
     import tempfile
     import time
-    for lang in LANGS:
-        pdf = GUIDE / f"Deepotus-Guide-{lang.upper()}.pdf"
+    travaux = [(GUIDE / f"{l}.html", GUIDE / f"Deepotus-Guide-{l.upper()}.pdf") for l in LANGS]
+    travaux += [(GUIDE / f"lexique-icones-{l}.html", GUIDE / f"Deepotus-Icones-{l.upper()}.pdf") for l in LANGS
+                if (GUIDE / f"lexique-icones-{l}.html").is_file()]
+    for source, pdf in travaux:
         avant = time.time()
         # Edge rend la main AVANT d'avoir écrit le PDF (son processus d'impression continue en fond : constaté le
         # 10/10, retour en 0,5 s et fichier écrit après) → profil jetable, puis on ATTEND un fichier neuf et stable
         with tempfile.TemporaryDirectory(prefix="dzguide_edge_", ignore_cleanup_errors=True) as profil:
             subprocess.run([str(edge), "--headless=new", "--disable-gpu", "--no-first-run", f"--user-data-dir={profil}",
                             "--no-pdf-header-footer", "--virtual-time-budget=6000", f"--print-to-pdf={pdf}",
-                            (GUIDE / f"{lang}.html").as_uri()], check=True, capture_output=True, timeout=300)
+                            source.as_uri()], check=True, capture_output=True, timeout=300)
             taille, fin = -1, time.time() + 180
             while time.time() < fin:
                 if pdf.is_file() and pdf.stat().st_mtime >= avant:
