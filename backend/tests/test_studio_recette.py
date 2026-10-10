@@ -392,7 +392,7 @@ J=[];MH=function(){return {ok:false,error:"Add a Render node"}};await clic();R.e
 check("B10 le bouton s'execute sous node", R2 is not None)
 if R2:
     post = [x for x in R2["ok"] if x[0] == "net"]
-    check("B11 « Recette » : bouton du Studio AVEC title qui dit que rien n'est genere ici", R2["ch"] == "Recette" and R2["icon"] == "check"
+    check("B11 « Recette » : bouton du Studio AVEC title qui dit que rien n'est genere ici", R2["ch"] == "Recette" and R2["icon"] == "dz-action-figer-recette"
           and "rien n’est généré ici" in (R2["titre"] or ""), str(R2.get("titre")))
     check("B12 le nom est demande par le dialogue maison (valeur = nom du graphe) ; annuler n'enregistre RIEN",
           R2["annule"] == [["saisir", "Nom de la recette (le graphe est enregistré avec elle) :", "Figer en recette", "Matin", "Enregistrer"]], str(R2["annule"]))

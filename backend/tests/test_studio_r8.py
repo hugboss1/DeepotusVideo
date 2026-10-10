@@ -133,7 +133,7 @@ print("\n[3] « Ouvrir un graphe » : bouton icone, liste maison")
 check("3.1 plus de « Open graph… » (temoin : x1 dans le .bak)", s.count("Open graph…") == 0
       and bak.count("Open graph…") == 1, _d(s.count("Open graph…"), bak.count("Open graph…")))
 check("3.2 bouton K outline/sm, icone folderOpen, aria menu, liste /api/studio-graphs rafraichie",
-      s.count('r.jsx(K,{variant:"outline",size:"sm",icon:"folderOpen"') == 1
+      s.count('r.jsx(K,{variant:"outline",size:"sm",icon:"dz-action-ouvrir"') == 1      # icônes G1 : clé finale
       and s.count('"aria-haspopup":"menu","aria-expanded":open') == 1
       and s.count('window.addEventListener("dz-graphs-changed",load)') == 1
       and s.count('className:"dz-opengraph-item"') == 1, "")
@@ -156,7 +156,7 @@ check("4.2 ... remplaces par « Replier l'inspecteur » (panelR, dziOpen(!1)) da
       s.count('title:dzT("studio.inspecteur.replier"),"aria-label":dzT("studio.inspecteur.replier"),className:"dz-insp-fold",'
               'onClick:function(){dziOpen(!1)}') == 2 and AIDE.fr("studio.inspecteur.replier") == "Replier l'inspecteur", "")
 check("4.3 le menu trois points FONCTIONNEL de la bibliotheque de templates reste (name:\"more\",size:24)",
-      s.count('r.jsx(se,{name:"more",size:24') == 1 and bak.count('r.jsx(se,{name:"more",size:24') == 1, "")
+      s.count('r.jsx(se,{name:"dz-action-plus-options",size:24') == 1 and bak.count('r.jsx(se,{name:"more",size:24') == 1, "")
 check("4.4 grille : dz-insp-hidden calculee au rendu depuis dziSt, a cote de dz-dock-hidden",
       s.count('+(dzdSt.open?"":" dz-dock-hidden")+(dziSt.open?"":" dz-insp-hidden")') == 1, "")
 check("4.5 poignee INSPECTOR (panelR, dziOpen(!0)) AVANT la poignee NODES, x1",

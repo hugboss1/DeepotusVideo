@@ -47,11 +47,11 @@ import _i18n_l1_aide as AIDE  # noqa: E402
 # dans sa propre portee (son `var window` ne masque pas celui des harnais), en francais : les attentes restent vraies
 PRELUDE = "(function(){\n" + AIDE.PRELUDE_DZT + "\n})();\n"
 check("A6 le bouton de la Bibliotheque (renders seulement) et l'icone de la file, avec un title",
-      'm.kind==="render"&&m.jobId&&r.jsx(K,{variant:"ghost",size:"sm",icon:"bolt",title:dzT("biblio.detail.rouvrir_quick_aide")' in s
+      'm.kind==="render"&&m.jobId&&r.jsx(K,{variant:"ghost",size:"sm",icon:"dz-action-rouvrir-quick",title:dzT("biblio.detail.rouvrir_quick_aide")' in s
       and AIDE.fr("biblio.detail.rouvrir_quick_aide").startswith("Rouvrir ce rendu dans Quick")
       and 'children:dzT("biblio.detail.rouvrir_quick")},"dzquick")' in s
       and AIDE.fr("biblio.detail.rouvrir_quick") == "Rouvrir dans Quick"
-      and 'm&&r.jsx(se,{name:"bolt",title:dzT("coque.file.rouvrir_quick"),onClick:function(){__dzReopenQuick(e.id)}})' in s
+      and 'm&&r.jsx(se,{name:"dz-action-rouvrir-quick",title:dzT("coque.file.rouvrir_quick"),onClick:function(){__dzReopenQuick(e.id)}})' in s
       and AIDE.fr("coque.file.rouvrir_quick") == "Rouvrir dans Quick (prérempli)")
 fn = s[s.find("function __dzReopenQuick("):s.find("function __dzReopenStudio(")]
 check("A7 aucun window.alert ni window.prompt dans le groupe", "window.alert" not in fn and "window.prompt" not in fn and "__dzToast(" in fn)
@@ -261,7 +261,7 @@ check("X0 temoin : la base (15c4c12) n'a pas __dzExtendClip", "__dzExtendClip" n
 check("X1 un helper, une entree de menu (branche render), aucun window.prompt/alert",
       s.count("function __dzExtendClip(") == 1 and s.count("__dzExtendClip(") == 2
       # t141 (08/10) : libelle passe par dzT ; la cle rend le francais d'avant
-      and 'items.push({lbl:dzT("biblio.envoyer.cible.prolonger"),fn:function(){onClose&&onClose();__dzExtendClip(m.jobId)}});' in s
+      and 'items.push({ic:"dz-media-generer-video",g:"⚡",lbl:dzT("biblio.envoyer.cible.prolonger"),fn:function(){onClose&&onClose();__dzExtendClip(m.jobId)}});' in s
       and AIDE.fr("biblio.envoyer.cible.prolonger") == "⚡ Prolonger le clip (+7 s, Veo 3.1 Fast, prix montré avant)"
       and "window.prompt" not in fonc("__dzExtendClip") and "window.alert" not in fonc("__dzExtendClip"))
 if node:
@@ -458,13 +458,13 @@ check("G0 temoin : la base (15c4c12) n'a pas __dzQuickGallery", "__dzQuickGaller
 check("G1 un helper + un bouton (section Parameters), aucun window.alert/prompt dans le helper",
       s.count("function __dzQuickGallery(") == 1 and s.count("__dzQuickGallery(") == 2
       # t142 : la section et le title par cle ; « Parameters » est l'anglais de la cle, le title garde son francais
-      and 'r.jsxs(ie,{label:dzT("quick.parametres.titre"),right:r.jsx(K,{variant:"ghost",size:"sm",icon:"film",title:dzT("quick.galerie.bouton_aide")' in um
+      and 'r.jsxs(ie,{label:dzT("quick.parametres.titre"),right:r.jsx(K,{variant:"ghost",size:"sm",icon:"dz-media-mouvements-camera",title:dzT("quick.galerie.bouton_aide")' in um
       and AIDE.DICO["quick.parametres.titre"]["en"] == "Parameters"
       and AIDE.fr("quick.galerie.bouton_aide").startswith("Galerie de mouvements")
       and "window.alert" not in fonc("__dzQuickGallery") and "window.prompt" not in fonc("__dzQuickGallery"))
 check("G2 deux routes seulement (manifeste + build) ; les vignettes viennent du manifeste",
       fonc("__dzQuickGallery").count("/api/quick/gallery") == 2)
-i_g2 = um.find('right:r.jsx(K,{variant:"ghost",size:"sm",icon:"film"')
+i_g2 = um.find('right:r.jsx(K,{variant:"ghost",size:"sm",icon:"dz-media-mouvements-camera"')
 # t142 : la borne de fin suit la cle du libelle (« Galerie » passe par dzT) ; sans elle, l'extrait courait jusqu'au
 # bout du bundle et le morceau execute ne compilait plus
 g2 = um[i_g2:um.find('children:dzT("quick.galerie.bouton")})', i_g2)]
@@ -499,6 +499,7 @@ console.log(JSON.stringify({p1:p1,p2:p2,p3:prompt,V:V_,t:toasts[0]}));
     js = r"""
 var corps=[],ecouteurs={},posts=[],toasts=[],picks=[],etape={};
 function el(tag){var e={tag:tag,style:{},children:[],className:"",textContent:"",title:"",appendChild:function(c){c.parent=e;e.children.push(c)},
+  setAttribute:function(k,v){e[k]=String(v)},
   remove:function(){var i=corps.indexOf(e);if(i>=0)corps.splice(i,1)}};return e}
 globalThis.document={createElement:el,body:{appendChild:function(e){corps.push(e)}},
   getElementById:function(id){return corps.find(function(e){return e.id===id})||null},

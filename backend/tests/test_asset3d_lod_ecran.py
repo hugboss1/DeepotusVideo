@@ -46,13 +46,17 @@ def fonction(nom):
 OPT = fonction("DzOptimize")
 check("L1 DzLod défini une fois, greffé une fois", BUN.count("function DzLod(") == 1 and BUN.count("r.jsx(DzLod,") == 1)
 check("L2 la greffe est DANS DzOptimize, juste après sa rangée de boutons",
-      'children:cmp?"▣ Simple":"⇆ Comparer"},"cp"):null]},"row"),r.jsx(DzLod,{sh:sh},"lod"+sh),' in OPT)
+      'children:cmp?__dzGlT("dz-action-comparer","▣ Simple","▣"):__dzGlT("dz-action-comparer","⇆ Comparer","⇆")},"cp"):null]},"row"),'
+      'r.jsx(DzLod,{sh:sh},"lod"+sh),' in OPT)
 check("L3 les budgets ne sont pas recopiés dans le bundle (ils viennent du serveur)",
       "60000" not in fonction("DzLod") and "Mobile / WebGL" not in fonction("DzLod"))
 
 COUCHE = fonction("DzOptFmt") + "\n" + fonction("DzLodNum") + "\n" + fonction("DzLod")
 
-HARNAIS = r"""
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import _i18n_l1_aide as AIDE  # noqa: E402  (icônes G1 : __dzGl & co. sous node)
+
+HARNAIS = AIDE.PRELUDE_DZGLYPH + r"""
 var H=[],hi=0,EFF=[],CALLS=[],REP={};
 var x={useState:function(v){var i=hi++;if(!(i in H))H[i]=v;return [H[i],function(n){H[i]=typeof n==="function"?n(H[i]):n}]},
   useEffect:function(f){var i=hi++;if(!(i in H)){H[i]=1;EFF.push(f)}}};
@@ -107,7 +111,7 @@ if "options" in o:
     check("U2 le pourquoi et les niveaux du budget choisi en infobulle", o["titre"] == "gros plan (60000 / 20000 / 6000 tris)"
           and o["titreMobile"].startswith("premier plan sur téléphone"), f"{o['titre']} | {o['titreMobile']}")
     check("U3 pas d'archive tant qu'aucune chaîne n'existe", o["archiveAvant"] == 0)
-    check("U4 le bouton dit ce qu'il fait (local, gratuit, perte mesurée)", o["go"] == "⛰ LOD" and "gratuite" in o["goTitle"] and "LOD0" in o["goTitle"], o["goTitle"])
+    check("U4 le bouton dit ce qu'il fait (local, gratuit, perte mesurée)", o["go"] == "⟦dz-lab3d-lod⟧ LOD" and "gratuite" in o["goTitle"] and "LOD0" in o["goTitle"], o["goTitle"])
     check("U5 le POST porte l'usage choisi", o["post"][:1] == ['/api/assets/3d/job1/lod {"usage":"mobile"}'], str(o["post"]))
     check("U6 le refus du serveur est DIT tel quel", "n'allègerait rien" in o["err"], o["err"][-200:])
     lg = {l[0].split(" · ")[0]: l for l in o["lignes"]}
@@ -118,7 +122,7 @@ if "options" in o:
           "manquée est DITE", "IoU non mesuré · Δn non mesuré · agressif · cible 6.0k non tenue" in lg["LOD2"][0]
           and lg["LOD2"][1] == "glb compressé", str(lg["LOD2"]))
     check("U8b une cible tenue ne dit rien de plus", "non tenue" not in lg["LOD1"][0], str(lg["LOD1"]))
-    check("U9 l'archive apparaît avec la chaîne, vers /lod-zip", o["archive"] == ["/api/assets/3d/job1/lod-zip", "↓ Archive LOD"], str(o["archive"]))
+    check("U9 l'archive apparaît avec la chaîne, vers /lod-zip", o["archive"] == ["/api/assets/3d/job1/lod-zip", "⟦dz-action-telecharger⟧ Archive LOD"], str(o["archive"]))
 
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

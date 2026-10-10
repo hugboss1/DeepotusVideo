@@ -3492,7 +3492,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "reglages.appareils.titre": {"fr": "Appareils", "en": "Devices"},
   "reglages.apparence.aide": {"fr": "Animations et effets. Enregistré dans votre navigateur, appliqué tout de suite à tous les écrans.", "en": "Motion + flair toggles. Saved in your browser; apply across all screens immediately."},
   "reglages.apparence.halo": {"fr": "Halo de tentacules sur le nœud actif", "en": "Tentacle halo on active node"},
-  "reglages.apparence.halo_aide": {"fr": "🐙 L'effet des profondeurs sur le nœud du Studio en cours.", "en": "🐙 The deep flair on the running Studio node."},
+  "reglages.apparence.halo_aide": {"fr": "L'effet des profondeurs sur le nœud du Studio en cours.", "en": "The deep flair on the running Studio node."},
   "reglages.apparence.mouvement_aide": {"fr": "Coupe la pulsation du halo, la cascade des bords, le zoom de l'écran d'accueil et les reflets. Suit ", "en": "Disable halo pulse, edge cascade, splash zoom, caustics. Honors "},
   "reglages.apparence.mouvement_auto": {"fr": " automatiquement.", "en": " automatically."},
   "reglages.apparence.mouvement_reduit": {"fr": "Mouvement réduit", "en": "Reduced motion"},

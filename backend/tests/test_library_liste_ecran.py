@@ -35,7 +35,8 @@ check("T2 la grille devient une liste quand la bascule le dit ; les tris taille 
       # la barre Projet : le bouton « ▦ État » bascule le panneau d'etat du projet regarde
       and BUN.count('if(f&&f.id&&etatOn)ch.push(r.jsx(DzEtatProjet,{pid:f.id},"etat"));') == 1
       # t141 (08/10) : libelle et aide passent par dzT -> les CLES dans le bundle, et leur texte francais
-      and BUN.count('ch.push(bouton(dzT("biblio.projets.etat_bouton"),dzT("biblio.projets.etat_aide"),function(){setEtatOn(!etatOn)},etatOn));') == 1
+      # icônes G1 (10/10) : le « ▦ » du libellé devient l'icône dz-etat-information (__dzGlT, glyphe retiré à l'affichage)
+      and BUN.count('ch.push(bouton(__dzGlT("dz-etat-information",dzT("biblio.projets.etat_bouton"),"▦"),dzT("biblio.projets.etat_aide"),function(){setEtatOn(!etatOn)},etatOn));') == 1
       and AIDE.fr("biblio.projets.etat_bouton") == "▦ État" and AIDE.fr("biblio.projets.etat_aide") == "Ce qui, dans ce projet, est monté, publié, imprimé — ou inutilisé")
 
 
@@ -115,8 +116,8 @@ var T4=M.rendu({items:L,ouvrir:function(z){OUV.push(z.name)}});trouver(T4,functi
 R.img=trouver(T4,function(n){return n.t==="img"}).length;
 // la bascule grille / liste
 var POSE=[];var Tb=monteur(DzOutilsBiblio).rendu({vue:"grille",setVue:function(v){POSE.push(v)}});
-var bl=trouver(Tb,function(n){return n.t==="button"&&n.p.children==="☰ Liste"})[0];R.blTitre=bl.p.title;bl.p.onClick();R.pose=POSE;R.sto=STO.dz_biblio_vue;R.lue=dzVueLue();
-R.sansBascule=trouver(monteur(DzOutilsBiblio).rendu({}),function(n){return n.t==="button"&&n.p.children==="☰ Liste"}).length;
+var bl=trouver(Tb,function(n){return n.t==="button"&&n.p.children==="⟦dz-action-vue-liste⟧ Liste"})[0];R.blTitre=bl.p.title;bl.p.onClick();R.pose=POSE;R.sto=STO.dz_biblio_vue;R.lue=dzVueLue();
+R.sansBascule=trouver(monteur(DzOutilsBiblio).rendu({}),function(n){return n.t==="button"&&n.p.children==="⟦dz-action-vue-liste⟧ Liste"}).length;
 """)
 check("L0 sous node : la liste s'execute", R is not None)
 if R:
@@ -125,7 +126,7 @@ if R:
           and R["octets"] == [1.5 * 1048576, 3072, 0, 7], str(R["taille"]) + str(R["recent"]) + str(R["octets"]))
     check("L2 la liste : dix colonnes avec un title, un clic trie (taille DECROISSANTE d'abord, fleche), un second clic inverse ; une ligne ouvre la fiche ; vignette pour une image",
           R["cols"] == ["Nom", "Source", "Taille", "Date", "Dimensions", "Tags", "Note", "Favori", "Licence", "Teinte"] and R["titres"]
-          and R["ordre"] == ["a.png", "b.png", "c.png", "rendu"] and R["fleche"] == "Taille ▾" and R["ordre2"] == ["rendu", "c.png", "b.png", "a.png"]
+          and R["ordre"] == ["a.png", "b.png", "c.png", "rendu"] and R["fleche"] == ["Taille", " ", "⟦dz-action-trier⟧"] and R["ordre2"] == ["rendu", "c.png", "b.png", "a.png"]
           and R["ouv"] == ["rendu"] and R["img"] == 3 and R["tri"][0] == ["a.png", "b.png", "c.png", "rendu"] and R["tri"][2] is True, str(R))
     check("L3 la bascule « ☰ Liste » (title) pose la vue et la MEMORISE ; sans setVue (ancien appel), pas de bascule",
           "liste triable" in R["blTitre"] and R["pose"] == ["liste"] and R["sto"] == "liste" and R["lue"] == "liste" and R["sansBascule"] == 0, str(R))
@@ -144,7 +145,7 @@ check("P0 sous node : l'etat du projet s'execute", R is not None)
 if R:
     check("P1 quatre colonnes avec compteurs (Monte, Publie, Imprime, Inutilise), un title chacune ; UNE requete au projet encode ; rendu 🎬, son 🔊",
           R["fetch"] == [["/api/library/projets/pj%201/etat", "GET", None]] and "Monté (1)" in R["txt"] and "Publié (1)" in R["txt"] and "Imprimé (0)" in R["txt"]
-          and "Inutilisé (2)" in R["txt"] and "🎬 r1" in R["txt"] and "🔊 c.mp3" in R["txt"] and len(R["cols"]) == 4, R["txt"])
+          and "Inutilisé (2)" in R["txt"] and "⟦dz-media-video⟧ r1" in R["txt"] and "⟦dz-media-audio⟧ c.mp3" in R["txt"] and len(R["cols"]) == 4, R["txt"])
     check("P2 au-dela de 12 : « … et 3 autre(s) » ; une panne est DITE", "… et 3 autre(s)" in R["gros"] and R["lignes"] == 12 and "État indisponible : HTTP 404" in R["panne"], R["panne"])
 
 R = node("""

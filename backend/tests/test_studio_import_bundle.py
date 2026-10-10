@@ -155,7 +155,7 @@ R = node("var T=DzImportGraph({graph:null,onOpen:function(){}});var b=trouver(T,
          "JOURNAL=[];b.p.onClick();R.b={title:b.p.title,icon:b.p.icon,ch:b.p.children,aria:b.p['aria-label'],v:b.p.variant};"
          "R.i={type:i.p.type,accept:i.p.accept,disp:i.p.style.display};R.clic=JOURNAL;")
 check("U1 « Importer » : bouton du Studio (K, contour, icone upload) AVEC title, et libelle accessible",
-      R is not None and R["b"]["ch"] == "Importer" and R["b"]["icon"] == "upload" and R["b"]["v"] == "outline"
+      R is not None and R["b"]["ch"] == "Importer" and R["b"]["icon"] == "dz-action-importer" and R["b"]["v"] == "outline"
       and "validé par le serveur" in (R["b"]["title"] or "") and "sans être enregistré" in R["b"]["title"] and R["b"]["aria"] == "Importer un graphe", str(R))
 check("U2 il ouvre un champ fichier CACHE, limite au JSON", R is not None and R["clic"] == [["click"]]
       and R["i"] == {"type": "file", "accept": "application/json,.json", "disp": "none"}, str(R))

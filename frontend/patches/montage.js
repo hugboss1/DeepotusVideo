@@ -721,14 +721,14 @@ var DzmTrackAdd=function(props){
         "tout en haut ; ses plans recouvrent V1 pendant leur durée. Pour "+
         "poser un clip, c'est « Bibliothèque… ».",
       "aria-label":"Ajouter une piste vidéo plein cadre",
-      onClick:function(){add("video")},children:"+ piste vidéo"},"v"),
+      onClick:function(){add("video")},children:__dzGlT("dz-action-ajouter","+ piste vidéo","+")},"v"),
     r.jsx("button",{className:"svm-tbtn dzm-addb",
       title:"Ajouter une PISTE audio (une bande vide) — posée sous les pistes "+
         "audio existantes, au-dessus des sous-titres. Bus BRUITAGES, sauf si "+
         "l'identifiant libre est celui d'une piste historique retirée (A1, "+
         "A2) : elle revient alors avec son bus d'origine et son habillage.",
       "aria-label":"Ajouter une piste audio",
-      onClick:function(){add("audio")},children:"+ piste audio"},"a")]})};
+      onClick:function(){add("audio")},children:__dzGlT("dz-action-ajouter","+ piste audio","+")},"a")]})};
 
 /* ── P9 : le bouton « Bibliothèque… » de la barre de transport ─────────────
    MESURE qui le fonde : `openPicker` n'était appelé QU'À UN endroit du
@@ -878,16 +878,16 @@ var DzmTrackBtns=function(props){
       var after=box.height>0&&(e.clientY-box.top)>box.height/2;
       set(dzmMoveTo(ts,src,tr.id,after))},
     children:[
-    r.jsx("span",{className:"dzm-grip","aria-hidden":!0,children:"⋮"},"g"),
+    r.jsx("span",{className:"dzm-grip","aria-hidden":!0,children:__dzGl("dz-action-poignee")},"g"),
     r.jsx("button",{className:"dzm-hbtn",disabled:!upOk,"aria-disabled":!upOk,
       title:"Monter "+(tr.name||tr.id)+" d'un rang — une piste plus haute est "+
         "composée AU-DESSUS au rendu",
       "aria-label":"Monter la piste "+(tr.name||tr.id),
-      onClick:function(){mv(-1)},children:"▲"},"u"),
+      onClick:function(){mv(-1)},children:__dzGl("dz-edit-monter")},"u"),
     r.jsx("button",{className:"dzm-hbtn",disabled:!dnOk,"aria-disabled":!dnOk,
       title:"Descendre "+(tr.name||tr.id)+" d'un rang",
       "aria-label":"Descendre la piste "+(tr.name||tr.id),
-      onClick:function(){mv(1)},children:"▼"},"d"),
+      onClick:function(){mv(1)},children:__dzGl("dz-edit-descendre")},"d"),
     r.jsx("button",{className:"dzm-hbtn dzm-hbx",disabled:base,"aria-disabled":base,
       "data-arm":arm?"":void 0,
       title:base?(tr.id==="s1"
@@ -899,7 +899,7 @@ var DzmTrackBtns=function(props){
               " — un second clic confirmera)")
         :"Retirer la piste "+(tr.name||tr.id)+" (vide)",
       "aria-label":"Retirer la piste "+(tr.name||tr.id),
-      onClick:function(){del()},children:arm?String(n):"×"},"x")]})};
+      onClick:function(){del()},children:arm?String(n):__dzGl("dz-action-supprimer")},"x")]})};
 
 function dzmHeadBtns(tr,ts,set,clips,setClips,note){
   return r.jsx(DzmTrackBtns,{tr:tr,tracks:ts,onSet:set,clips:clips,
@@ -1739,7 +1739,7 @@ var DzmProjects=function(props){
           :r.jsx("span",{className:"dzm-projnm",title:p.name||"",
               children:(p.name||"sans nom")+(mine?" · ouvert":"")},"n"),
         p.vide?r.jsx("span",{className:"dzm-projvide-chip",title:"montage vide",
-          children:"\u2205"},"vd"):null,
+          children:__dzGl("dz-etat-vide")},"vd"):null,
         r.jsx("span",{className:"dzm-projmeta",title:String(p.updated_at||""),
           children:dzmProjLine(p)},"m")]},"l"),
       r.jsxs("div",{className:"dzm-proja",children:[
@@ -1765,7 +1765,7 @@ var DzmProjects=function(props){
           title:mine
             ?"« "+(p.name||"")+" » est le montage ouvert — rien à comparer"
             :"Comparer « "+(p.name||"")+" » à la timeline courante (rien n'est modifié)",
-          onClick:function(){if(props&&props.onDiff)props.onDiff(p)},children:"⇄"},"df"),
+          onClick:function(){if(props&&props.onDiff)props.onDiff(p)},children:__dzGl("dz-action-comparer")},"df"),
         r.jsx("button",{className:"svm-tbtn dzm-projbtn dzm-projop",
           "data-arm":oArm?"":void 0,disabled:mine||off,"aria-disabled":mine||off,
           title:mine
@@ -1787,7 +1787,7 @@ var DzmProjects=function(props){
              "(un second clic confirmera)",
           "aria-label":"Supprimer "+(p.name||"ce projet"),
           onClick:function(){doDel(p)},
-          children:xArm?"supprimer ?":"×"},"x")]},"a")]},p.id)}
+          children:xArm?"supprimer ?":__dzGl("dz-action-supprimer")},"x")]},"a")]},p.id)}
 
   var rows=list||[];
   return r.jsxs("span",{className:"dzm-proj",ref:box,
@@ -2305,7 +2305,7 @@ function dzmDurCtl(o){
       dzmDurTxt(fit)+", soit "+dzmSecs(vide)+" de queue vide retirés. "+
       "Aucun clip n'a bougé.")}
   var kids=[
-    dzmDurBtn("dzm-durm","−",
+    dzmDurBtn("dzm-durm",__dzGl("dz-media-timeline-raccourcir"),
       "Raccourcir la timeline d'une graduation ("+dzmSecs(stp)+"). Le "+
       "raccourcissement s'arrête sur la fin du dernier clip : aucun clip ne "+
       "peut sortir du champ."+DZM_DUR_UNDO,
@@ -2316,7 +2316,7 @@ function dzmDurCtl(o){
         "valeur ne lui est jamais envoyée. Les boutons − et + la règlent "+
         "d'une graduation de la règle ("+dzmSecs(stp)+")."+DZM_DUR_UNDO,
       children:dzmDurTxt(d)+" total"},"v"),
-    dzmDurBtn("dzm-durp","+",
+    dzmDurBtn("dzm-durp",__dzGl("dz-media-timeline-allonger"),
       "Allonger la timeline d'une graduation ("+dzmSecs(stp)+")."+
       DZM_DUR_UNDO,
       "Allonger la timeline de "+dzmSecs(stp),plus,"p")];
@@ -3082,7 +3082,7 @@ function dzmExtractBtn(sel,o){
        "« + piste audio » pour pouvoir extraire le son de ce plan."),
     "aria-label":"Extraire le son de "+L+(tr?" vers "+TR:""),
     onClick:function(){dzmExtract(sel,o)},
-    children:tr?"Extraire le son → "+TR:"Extraire le son (aucune piste de dialogue)"},
+    children:tr?__dzGlT("dz-media-extraire-son","Extraire le son → "+TR,"→"):"Extraire le son (aucune piste de dialogue)"},
     "dzmextr")}
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -3192,11 +3192,16 @@ var DZM_TB_ICONS=(function(){
    bouton, jamais de l'icône (§3). `aria-hidden` parce que le sens est porté
    par le libellé et l'`aria-label` du bouton — une icône annoncée en plus
    ferait dire deux fois la même chose au lecteur d'écran. */
+var DZM_TB_GLYPHE={"piste-video":"dz-media-piste-video","piste-audio":"dz-media-piste-audio","bibliotheque":"dz-action-choisir-bibliotheque","couleur":"dz-edit-anim-couleur","rebond":"dz-edit-anim-rebond","glow":"dz-edit-anim-halo","emoji":"dz-media-emoji-auto","texte":"dz-media-sous-titres","projets":"dz-nav-projets","poignee":"dz-action-poignee","piste-incrust":"dz-media-incrustation"};
 function DzmTbIcon(o){
   o=o||{};
   var n=DZM_TB_ICONS[o.name];
   if(!n)return null;
   var px=Number(o.size);if(!isFinite(px)||px<=0)px=DZM_TB_PX;
+  /* icônes G1 : la suite Deepotus Glyph d'abord (window.DZ_ICONS), les tracés maison en repli */
+  var gk=DZM_TB_GLYPHE[o.name],gs=gk&&typeof window!=="undefined"&&window.DZ_ICONS&&window.DZ_ICONS[gk],gm=typeof gs==="string"&&/^<svg[^>]*>([\s\S]*)<\/svg>$/.exec(gs);
+  if(gm)return r.jsx("svg",{className:"dzm-tbi",viewBox:"0 0 24 24",fill:"currentColor",width:px,height:px,"aria-hidden":!0,
+    focusable:"false","data-dzi":gk,dangerouslySetInnerHTML:{__html:gm[1]}},o.k||("tbi-"+o.name));
   return r.jsx("svg",{className:"dzm-tbi",viewBox:"0 0 24 24",
     fill:"currentColor",width:px,height:px,"aria-hidden":!0,
     focusable:"false",
@@ -4168,7 +4173,7 @@ function DzmToolTab(o){
           return r.jsx("span",{className:"dzm-tbdot dzm-g-"+g},g)})},"d"),
       r.jsx("span",{className:"dzm-tblbl",children:"OUTILS"},"l"),
       r.jsx("span",{className:"dzm-tbchev","aria-hidden":!0,
-        children:open?"▾":"▴"},"c")]},"tbtab")}
+        children:open?__dzGl("dz-action-deplier"):__dzGl("dz-action-deplier","1em",{transform:"rotate(180deg)"})},"c")]},"tbtab")}
 
 /* ── LA BARRE (§2.2) ───────────────────────────────────────────────────────
    Trois zones : poignée, groupes, contrôles de fenêtre.
@@ -4256,12 +4261,12 @@ function DzmToolBar(o){
       "aria-label":"Recentrer la barre d'outils",
       tabIndex:rove===nAct?0:-1,
       onClick:function(){if(typeof o.onRecentrer==="function")o.onRecentrer()},
-      children:"⌖"},"rc"),
+      children:__dzGl("dz-action-recentrer")},"rc"),
     r.jsx("button",{type:"button",className:"dzm-tbwb dzm-tbcl",
       title:DZM_TB_T_REPLIER,"aria-label":"Replier la barre d'outils",
       tabIndex:rove===nAct+1?0:-1,
       onClick:function(){if(typeof o.onClose==="function")o.onClose()},
-      children:"×"},"cl")]},"win"));
+      children:__dzGl("dz-action-deplier")},"cl")]},"win"));
   /* LA TRANSLATION PASSE PAR DEUX PROPRIÉTÉS PERSONNALISÉES FIXES, jamais
      par une transformation écrite en JS : `transform` est déjà employée par
      le repli (§4.1 — `translateY(6px)`) et les deux se seraient écrasées.
@@ -5483,7 +5488,7 @@ function DzmMarkerIndex(o){
         r.jsx("button",{className:"svm-minibtn",title:"Retirer ce marqueur",
           "aria-label":"Retirer le marqueur "+dzTc(m.t),
           onClick:function(){if(o.onRemove)o.onRemove(m.id)},
-          children:"\u2716"})]},m.id)}):
+          children:__dzGl("dz-action-supprimer")})]},m.id)}):
       r.jsx("div",{className:"svm-note",
         children:"Aucun marqueur — "+dzmMarkerCombo()+
           " en pose un à la tête de lecture."}),
@@ -6661,7 +6666,7 @@ function DzmPlanProps(o){
   kids.push(row("Rampe",r.jsxs("span",{className:"dzm-plan-hint",children:[
     r.jsx("button",{className:"svm-minibtn",disabled:!inClip,
       title:inClip?"Diviser le plan à la tête : la partie gauche garde sa vitesse, la droite passe à la vitesse choisie":"Placer la tête à 0,3 s au moins des deux bords du plan",
-      onClick:function(){if(typeof o.onRampe==="function")o.onRampe(head,spd,rampSpd)},children:"Diviser à la tête →"}),
+      onClick:function(){if(typeof o.onRampe==="function")o.onRampe(head,spd,rampSpd)},children:__dzGlT("dz-edit-couper","Diviser à la tête →","→")}),
     sel(String(rampSpd),[["0.5","50 %"],["0.75","75 %"],["1","100 %"],["1.5","150 %"],["2","200 %"],["3","300 %"]],
       function(v){setRampSpd(Number(v))},"Vitesse de la partie droite")]}),"rampe"));
   /* D-16 : la stabilisation — case (lourd), « Analyser » (désactivé pendant
@@ -6810,8 +6815,8 @@ function dzmMediaFiltre(jobs,f){var g=(f&&f.groupe)||"Tout",q=String((f&&f.q)||"
 function dzmRatingNorm(v){return typeof v==="number"&&v%1===0&&v>=0&&v<=5?v:0}
 function dzmRatingNext(cur,clic){var c=dzmRatingNorm(cur),k=dzmRatingNorm(clic);
   if(!k)return c;return k===c?0:k}
-var DZM_NOTE_CHIPS=[[3,"★ 3+","Ne montrer que les rendus notés 3 ★ ou plus (filtré par le serveur)"],
-  [5,"★ 5","Ne montrer que les Good Take (5 ★, filtré par le serveur)"]];
+var DZM_NOTE_CHIPS=[[3,__dzGlT("dz-etat-note","★ 3+","★"),"Ne montrer que les rendus notés 3 ★ ou plus (filtré par le serveur)"],
+  [5,__dzGlT("dz-etat-note","★ 5","★"),"Ne montrer que les Good Take (5 ★, filtré par le serveur)"]];
 /* LE COMPOSANT. props : {open, trId, exts, onAdd(job), onClose(), dragPayload(e,src,label,kind,dur),
    onOpenProject({id,name}) (L7-B D-41 : relayé au popover des auto-clips)}.
    Il lit `r`/`x` À L'APPEL (comme DzmFinBandeau) et ses hooks tournent
@@ -6951,7 +6956,7 @@ function DzmMediaDrawer(o){
               title:"Auto-clips — proposer des extraits de 15 à 60 s de ce rendu (texte connu gratuit ; transcription payante seulement après confirmation)",
               "aria-label":"Auto-clips de « "+lbl+" »","data-on":ac&&String(ac.job_id)===jid?"":void 0,
               onDragStart:function(e){e.preventDefault();e.stopPropagation()},
-              onClick:function(e){e.stopPropagation();e.preventDefault();setAc(j)},children:"✂ auto-clips"})]}),
+              onClick:function(e){e.stopPropagation();e.preventDefault();setAc(j)},children:__dzGlT("dz-media-extraits","✂ auto-clips","✂")})]}),
           /* L7-B D-34 : cinq étoiles. Le span est son propre point de glisser
              (annulé) pour qu'un geste commencé sur une étoile ne tire pas la
              ligne ; le clic d'une étoile n'atteint pas la ligne (pas de pose). */
@@ -6963,7 +6968,7 @@ function DzmMediaDrawer(o){
               var ti=i===cur?"Retirer la note ("+i+" ★)":"Noter "+i+" ★"+(i===5?" — Good Take":"");
               return r.jsx("button",{type:"button",className:"svm-medstar","data-on":i<=cur?"":void 0,
                 title:ti,"aria-label":ti,
-                onClick:function(e){e.stopPropagation();e.preventDefault();noter(j,i)},children:"★"},i)})})]})]},jid||lbl)};
+                onClick:function(e){e.stopPropagation();e.preventDefault();noter(j,i)},children:__dzGl("dz-etat-note")},i)})})]})]},jid||lbl)};
   return r.jsxs("div",{className:"svm-meddrawer",children:[
     r.jsxs("div",{className:"svm-medhead",children:[
       r.jsx("div",{className:"svm-poptitle",children:"Médias — rendus vidéo"+(o.trId?" → "+o.trId:"")}),
@@ -7361,7 +7366,7 @@ function DzmCtxMenu(o){
     if(it.sep)return r.jsx("div",{className:"svm-menusep"},"s"+k);
     return r.jsxs("button",{className:"svm-menuitem",role:"menuitem",disabled:!!it.off,title:it.lbl,
       onClick:function(){try{it.run&&it.run()}finally{o.onClose&&o.onClose()}},
-      children:[r.jsx("span",{children:it.lbl}),r.jsx("span",{className:"svm-menukey",children:it.combo||""})]},k)}
+      children:[r.jsx("span",{children:it.lbl}),r.jsx("span",{className:"svm-menukey",children:it.combo==="✓"?__dzGl("dz-etat-option-active"):it.combo||""})]},k)}
   return r.jsx("div",{className:"svm-pop svm-menu",role:"menu",onClick:function(e){e.stopPropagation()},
     style:{left:Math.max(0,Math.min(px,W-270)),top:Math.max(0,Math.min(py,H-40*n))},
     children:rubs.map(function(g,gi){var its=(g&&Array.isArray(g.items))?g.items:[];
@@ -9015,7 +9020,7 @@ function DzmVoiceRec(o){
     :"Enregistrer une voix off au micro"+cb+" — le montage est lu pendant la prise, qui est posée sur la piste de dialogue à la tête de lecture (mode « écraser »)";
   return r.jsx("button",{className:"svm-themechip dzm-vochip","data-rec":st==="prise"?"1":void 0,"aria-pressed":st==="prise",
     disabled:dis,"aria-disabled":dis,title:tt,onClick:bascule,
-    children:st==="prise"?"■ "+el:st==="micro"?"micro…":st==="envoi"?"envoi…":"● voix off"})}
+    children:st==="prise"?__dzGlT("dz-media-arret","■ "+el,"■"):st==="micro"?"micro…":st==="envoi"?"envoi…":__dzGlT("dz-media-rec","● voix off","●")})}
 /* LES SCOPES (section L5sc1 de l'hôte, sous la barre du lecteur) : props {clips, head, playing}. Une bascule « Scopes »
    (mémoire dz_montage_scopes lue UNE fois, au montage) ; allumée et À L'ARRÊT, le PNG de POST /api/montage/scopes pour le
    plan V1 sous la tête (effets actifs + masque : le scope mesure ce que le rendu produira), à l'instant de source.
@@ -9136,7 +9141,7 @@ function DzmScopes(o){
     r.jsxs("div",{className:"dzm-scwbar",title:"Déplacer la fenêtre des scopes (glisser la barre de titre)",onPointerDown:saisir("m"),children:[
       r.jsx("span",{className:"dzm-scwt",children:"Scopes"}),
       r.jsx("button",{className:"dzm-scwx",title:"Fermer les scopes (comme la puce « Scopes » de la barre du lecteur)",
-        "aria-label":"Fermer les scopes",onClick:bascule,children:"×"})]}),
+        "aria-label":"Fermer les scopes",onClick:bascule,children:__dzGl("dz-action-fermer")})]}),
     r.jsxs("div",{className:"dzm-scwbody",style:geo?{height:geo.s+"px"}:void 0,children:[
       voit?r.jsx("img",{className:"dzm-scimg",src:img.u,alt:"Scopes du plan sous la tête",
         title:"Forme d'onde (haut), vecteurscope et histogramme (bas) de l'image étalonnée à "+body.t+" s de source"}):null,
@@ -9457,17 +9462,17 @@ function DzPinPanel({node,graph,onUpdate}){
   var p=node&&node.props||{},pin=p.pin;
   var box={padding:"10px 14px",borderBottom:"1px solid var(--stroke)",fontSize:11,lineHeight:1.45};
   if(!dzPinRendu(graph))return r.jsx("div",{className:"dz-pin",style:box,children:r.jsx("span",{style:{color:"var(--ink-muted)"},
-    children:dzT("studio.epingle.sans_epingle")})});
+    children:__dzGlT("dz-etat-epingle",dzT("studio.epingle.sans_epingle"),"📌")})});
   if(!pin||!pin.job_id)return r.jsxs("div",{className:"dz-pin",style:box,children:[
-    r.jsx("div",{style:{color:"var(--ink-soft)"},children:dzT("studio.epingle.pas_encore")}),
+    r.jsx("div",{style:{color:"var(--ink-soft)"},children:__dzGlT("dz-etat-epingle",dzT("studio.epingle.pas_encore"),"📌")}),
     p.pinPerime?r.jsx("div",{style:{color:"var(--amber)",marginTop:4},children:dzT("studio.epingle.retiree",{raison:p.pinPerime})}):null,
     r.jsx(DzPinHist,{p:p,onUpdate:onUpdate})]});
   return r.jsxs("div",{className:"dz-pin",style:box,children:[
-    r.jsx("div",{style:{color:"var(--cyan)",marginBottom:4},children:dzT("studio.epingle.epingle")}),
+    r.jsx("div",{style:{color:"var(--cyan)",marginBottom:4},children:__dzGlT("dz-etat-epingle",dzT("studio.epingle.epingle"),"📌")}),
     r.jsx("div",{className:"mono",style:{color:"var(--ink-muted)",fontSize:10,marginBottom:6},
       children:dzT("studio.epingle.rendu")+String(pin.job_id).slice(0,8)+(pin.le?" · "+String(pin.le).slice(0,16).replace("T"," "):"")}),
     r.jsx("button",{type:"button",className:"btn",title:dzT("studio.epingle.regenerer_aide"),
-      onClick:function(){onUpdate({pin:null,pinPerime:null})},children:dzT("studio.epingle.regenerer")}),
+      onClick:function(){onUpdate({pin:null,pinPerime:null})},children:__dzGlT("dz-action-regenerer",dzT("studio.epingle.regenerer"),"↻")}),
     r.jsx(DzPinHist,{p:p,onUpdate:onUpdate})]})}
 /* Tâche #69 (plan-studio T6-T7, 02/10/2026) — IMPORTER un graphe JSON dans le Studio. Le fichier (export du Studio :
    graphe nu ; ou enregistrement du magasin : {id, name, graph}) est VALIDÉ par le serveur (POST
@@ -9501,7 +9506,7 @@ function DzImportGraph({graph,onOpen}){
   return r.jsxs(r.Fragment,{children:[
     r.jsx("input",{ref:rf,type:"file",accept:"application/json,.json",style:{display:"none"},
       onChange:function(ev){var f=ev.target.files&&ev.target.files[0];ev.target.value="";lire(f)}}),
-    r.jsx(K,{variant:"outline",size:"sm",icon:"upload",title:dzT("studio.import.bouton_aide"),
+    r.jsx(K,{variant:"outline",size:"sm",icon:"dz-action-importer",title:dzT("studio.import.bouton_aide"),
       "aria-label":dzT("studio.import.titre"),onClick:function(){rf.current&&rf.current.click()},children:dzT("studio.import.bouton")})]})}
 /* Tâche #70 (plan-studio T8, 02/10/2026) — le tiroir de résultat du Studio se PARCOURT image par image. La cadence est
    LUE dans le fichier rendu (GET /api/jobs/{id}/media, ffprobe) : le nœud Render n'est pas lu par le compilateur, et un
@@ -9545,10 +9550,10 @@ function DzScrub({jobId}){
       onSeeked:function(ev){setS({d:ev.target.duration||0,t:ev.target.currentTime||0})},
       style:{width:"100%",borderRadius:8,background:"#000",border:"1px solid var(--stroke-strong)"}}),
     r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:6,marginTop:8},children:[
-      r.jsx(K,{variant:"outline",size:"sm",title:dzT("studio.scrub.precedente"),onClick:function(){pas(-1)},children:"‹"}),
+      r.jsx(K,{variant:"outline",size:"sm",title:dzT("studio.scrub.precedente"),onClick:function(){pas(-1)},children:__dzGl("dz-media-image-precedente")}),
       r.jsx("input",{type:"range",min:0,max:Math.max(0,N-1),step:1,value:idx,title:dzT("studio.scrub.reglette"),
         "aria-label":dzT("studio.scrub.position"),onChange:function(ev){pose(Number(ev.target.value))},style:{flex:1,accentColor:"var(--cyan)"}}),
-      r.jsx(K,{variant:"outline",size:"sm",title:dzT("studio.scrub.suivante"),onClick:function(){pas(1)},children:"›"}),
+      r.jsx(K,{variant:"outline",size:"sm",title:dzT("studio.scrub.suivante"),onClick:function(){pas(1)},children:__dzGl("dz-media-image-suivante")}),
       r.jsx("span",{className:"mono",style:{fontSize:10.5,color:"var(--ink-soft)",minWidth:84,textAlign:"right"},
         children:"f "+(idx+1)+" / "+N})]}),
     r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-muted)",marginTop:4},
@@ -9596,7 +9601,7 @@ function DzRecetteBtn({graph,setGraph,dire}){
       dire(dzT("studio.recette.figee",{nom:d.name,n:d.trous||0}))}
     catch(E){await window.__dzDialogue.informer(String(E&&E.message||E),{titre:dzT("studio.recette.impossible")})}
     finally{setB(!1)}}
-  return r.jsx(K,{variant:"outline",size:"sm",icon:"check",disabled:busy,"aria-label":dzT("studio.recette.figer"),
+  return r.jsx(K,{variant:"outline",size:"sm",icon:"dz-action-figer-recette",disabled:busy,"aria-label":dzT("studio.recette.figer"),
     title:dzT("studio.recette.figer_aide"),
     onClick:figer,children:busy?dzT("studio.recette.capture"):dzT("studio.recette.bouton")})}
 /* Tâche #71 PR B (plan-studio T11, 03/10/2026) — le DUEL DE MOTEURS sur un nœud Image gen : le même prompt, au même
@@ -9647,9 +9652,9 @@ function DzDuelPanel({node,graph,onUpdate}){
   function garder(o){onUpdate({filename:o.file});setMsg(dzT("studio.duel.gagne",{nom:dzDuelLabel(mm,o.model)}))}
   var box={padding:"10px 14px",borderBottom:"1px solid var(--stroke)",fontSize:11,lineHeight:1.45};
   return r.jsxs("div",{className:"dz-duel",style:box,children:[
-    r.jsx("div",{style:{color:"var(--ink-soft)",marginBottom:6},children:dzT("studio.duel.champion",{nom:dzDuelLabel(mm,A)})}),
+    r.jsx("div",{style:{color:"var(--ink-soft)",marginBottom:6},children:__dzGlT("dz-etat-meilleur",dzT("studio.duel.champion",{nom:dzDuelLabel(mm,A)}),"⚔")}),
     r.jsx("div",{style:{marginBottom:6},children:r.jsx(DzImgModelSel,{value:B,onChange:function(v){onUpdate({duelModel:v})}})}),
-    r.jsx(K,{variant:"outline",size:"sm",icon:"sparkle",disabled:busy||!B||B===A,onClick:lancer,
+    r.jsx(K,{variant:"outline",size:"sm",icon:"dz-action-duel",disabled:busy||!B||B===A,onClick:lancer,
       title:dzT("studio.duel.lancer_aide"),
       children:busy?dzT("studio.duel.bref"):dzT("studio.duel.lancer")}),
     res?r.jsx("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:8},children:res.map(function(o,ix){
@@ -9669,11 +9674,11 @@ function DzDuelPanel({node,graph,onUpdate}){
    `max_usd` : un rendu plus cher est refusé avant toute génération (décisions de l'utilisateur, 03/10). */
 function dzSendChoisir(opts,titre){
   return new Promise(function(res){var fini=!1;
-    __dzSendMenu(opts.map(function(o){return{lbl:o.lbl,fn:function(){fini=!0;res(o.v)}}}),titre);
+    __dzSendMenu(opts.map(function(o){return{ic:o.ic,g:o.g,lbl:o.lbl,fn:function(){fini=!0;res(o.v)}}}),titre);
     var t=setInterval(function(){if(fini){clearInterval(t);return}
       if(!document.getElementById("__dzSendHost")){clearInterval(t);fini=!0;res(null)}},250)})}
 function dzSendStudioRendu(m,nom,onClose){
-  return{lbl:dzT("biblio.envoyer.studio_rendu"),fn:function(){onClose&&onClose();
+  return{ic:"dz-nav-studio",g:"🎬",lbl:dzT("biblio.envoyer.studio_rendu"),fn:function(){onClose&&onClose();
     fetch("/api/jobs/"+encodeURIComponent(m.jobId)).then(function(R){return R.ok?R.json():null}).catch(function(){return null}).then(function(j){
       var dur=Number(j&&(j.duration_real_s||j.duration_s))||0,props={jobId:m.jobId};if(dur>0)props.durationS=Math.round(dur*10)/10;
       window.__dzRenderGraph={name:(nom||"rendu")+".graph",nodes:[{id:"er1",type:"ExistingRender",x:220,y:240,props:props},
@@ -9684,7 +9689,7 @@ async function dzRecLancerAvec(image){
     var L=await fetch("/api/studio-graphs").then(function(R){return R.json()});
     var recs=((L&&L.graphs)||[]).filter(function(g){return g&&g.recette>0});
     if(!recs.length){await window.__dzDialogue.informer("Aucune recette : dans le Studio, fige un graphe composé avec le bouton « Recette ».",{titre:"Lancer une recette"});return}
-    var rid=recs.length===1?recs[0].id:await dzSendChoisir(recs.map(function(g){return{lbl:"🍳 "+g.name+" — "+g.recette+" source(s)",v:g.id}}),"Lancer quelle recette avec « "+image+" » ?");
+    var rid=recs.length===1?recs[0].id:await dzSendChoisir(recs.map(function(g){return{ic:"dz-action-lancer-recette",g:"🍳",lbl:"🍳 "+g.name+" — "+g.recette+" source(s)",v:g.id}}),"Lancer quelle recette avec « "+image+" » ?");
     if(!rid)return;
     var R=await fetch("/api/studio-graphs/"+encodeURIComponent(rid)+"/recette"),rec=await R.json().catch(function(){return{}});
     if(!R.ok){await window.__dzDialogue.informer(String(rec.detail||"Recette illisible ("+R.status+")."),{titre:"Lancer une recette"});return}
@@ -9711,7 +9716,7 @@ async function dzRecLancerAvec(image){
     await window.__dzDialogue.informer(String(j.detail||"Lancement refusé ("+Ln.status+")."),{titre:"Lancement refusé"})}
   catch(e){await window.__dzDialogue.informer("Recette : "+String(e&&e.message||e),{titre:"Lancer une recette"})}}
 function dzSendRecette(nom,onClose){
-  return{lbl:dzT("biblio.envoyer.recette"),fn:function(){onClose&&onClose();dzRecLancerAvec(nom)}}}
+  return{ic:"dz-action-lancer-recette",g:"🍳",lbl:dzT("biblio.envoyer.recette"),fn:function(){onClose&&onClose();dzRecLancerAvec(nom)}}}
 /* t130 (W-d du plan 2026-07-22-modeles-generation-onthefly, 07/10/2026) — MODÈLES PAR DÉFAUT DES NOUVEAUX NŒUDS.
    Settings → Provider defaults gagne deux rangées : le modèle vidéo et le modèle TTS avec lesquels NAISSENT les
    nouveaux nœuds Seedance et Voiceover (la fabrique `Y` du Studio passe par dzPropsNaissance) ; chaque nœud dévie
@@ -9794,7 +9799,7 @@ function DzKits({onChange}){
   return r.jsxs(jt,{className:"dz-kits",style:{padding:14,marginBottom:14},children:[
     r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:8},children:[
       r.jsx("div",{style:{fontWeight:600,color:"var(--ink-strong)",flex:1},children:dzT("biblio.kits.titre")+(actif?dzT("biblio.kits.champs_modifient",{nom:actif.name}):"")}),
-      r.jsx(K,{variant:"outline",size:"sm",icon:"plus",disabled:busy,onClick:nouveau,title:dzT("biblio.kits.nouveau_aide"),children:dzT("biblio.kits.nouveau")})]}),
+      r.jsx(K,{variant:"outline",size:"sm",icon:"dz-action-ajouter",disabled:busy,onClick:nouveau,title:dzT("biblio.kits.nouveau_aide"),children:dzT("biblio.kits.nouveau")})]}),
     L?null:r.jsx("div",{style:{fontSize:11,color:"var(--ink-muted)"},children:dzT("biblio.kits.chargement")}),
     r.jsx("div",{style:{display:"flex",flexDirection:"column",gap:6},children:kits.map(function(k){
       return r.jsxs("div",{className:"dz-kit",style:{display:"flex",alignItems:"center",gap:8,padding:6,borderRadius:"var(--r-sm)",
@@ -9851,7 +9856,7 @@ function DzReflowBar({tpl,onSaved}){
         r.jsx("div",{style:{fontWeight:600,color:"var(--ink-strong)",marginBottom:10},children:dzT("templates.reagencer.titre",{nom:nom,f:apercu.f})}),
         r.jsxs("div",{style:{display:"flex",gap:16,justifyContent:"center"},children:[colonne(dzT("templates.reagencer.avant",{f:fmt||"?"}),tpl),colonne(dzT("templates.reagencer.apres",{f:apercu.f}),t2)]}),
         r.jsx("div",{className:"dz-reflow-avert",style:{marginTop:12,fontSize:11.5,lineHeight:1.45,color:av.length?"var(--amber)":"var(--ink-soft)"},
-          children:av.length?av.map(function(w,i){return r.jsx("div",{children:"⚠ "+w},"w"+i)}):dzT("templates.reagencer.aucun_avertissement")}),
+          children:av.length?av.map(function(w,i){return r.jsx("div",{children:__dzGlT("dz-etat-avertissement","⚠ "+w,"⚠")},"w"+i)}):dzT("templates.reagencer.aucun_avertissement")}),
         r.jsxs("div",{style:{display:"flex",gap:8,justifyContent:"flex-end",marginTop:14},children:[
           r.jsx(K,{variant:"ghost",size:"sm",disabled:busy,onClick:function(){setA(null)},title:dzT("templates.reagencer.fermer_aide"),children:dzT("templates.reagencer.annuler")}),
           r.jsx(K,{variant:"primary",size:"sm",disabled:busy,onClick:garder,title:dzT("templates.reagencer.enregistrer_aide",{f:apercu.f}),children:dzT("templates.reagencer.enregistrer_copie")})]})]})}):null]})}
@@ -9920,7 +9925,7 @@ function DzMaskEditor({rg,upd}){
         r.jsx(re,{value:t.shape||"rect",onChange:function(v){majTrou(i,{shape:v})},options:[{value:"rect",label:dzT("templates.masque.rect")},{value:"ellipse",label:dzT("templates.masque.ellipse_trou")}]}),
         ["x","y","width","height"].map(function(c){return r.jsx(le,{mono:!0,value:pct(t[c]),onChange:function(s){var pt={};pt[c]=frac(s);majTrou(i,pt)}},c)}),
         r.jsx("button",{type:"button",title:dzT("templates.masque.retirer_fenetre"),onClick:function(){maj({holes:trous.filter(function(_t,k){return k!==i})})},
-          style:{background:"transparent",border:0,color:"var(--red)",cursor:"pointer"},children:"✕"})]},"t"+i)}),
+          style:{background:"transparent",border:0,color:"var(--red)",cursor:"pointer"},children:__dzGl("dz-action-retirer")})]},"t"+i)}),
       trous.length<16?r.jsx(K,{variant:"ghost",size:"sm",title:dzT("templates.masque.ajouter_fenetre_aide"),
         onClick:function(){maj({holes:trous.concat([{shape:"rect",x:0.35,y:0.35,width:0.3,height:0.3}])})},children:dzT("templates.masque.ajouter_fenetre")}):null]}):null]})}
 /* Tâche #74 PR D (plan-templates T4, 03/10/2026) — TEXTE ADAPTATIF et EFFETS dans l'éditeur de gabarit. Section
@@ -9992,7 +9997,7 @@ function DzTexteEditor({rg,upd}){
     arc?r.jsxs(r.Fragment,{children:[
       r.jsx(O,{children:r.jsx(Oe,{label:dzT("templates.texte.rayon_arc"),unit:" px",value:Number(arc.radius)||300,min:40,max:3000,step:10,onChange:function(v){majArc({radius:v})}})}),
       r.jsx(O,{label:dzT("templates.texte.sens"),children:r.jsx(re,{value:arc.dir||"haut",onChange:function(v){majArc({dir:v})},options:[{value:"haut",label:dzT("templates.texte.arche")},{value:"bas",label:dzT("templates.texte.sourire")}]})}),
-      deborde?r.jsx("div",{className:"dz-arc-deborde",style:{fontSize:10.5,color:"var(--amber)",marginBottom:4},children:dzT("templates.texte.arc_deborde",{n:rayonMin})}):null,
+      deborde?r.jsx("div",{className:"dz-arc-deborde",style:{fontSize:10.5,color:"var(--amber)",marginBottom:4},children:__dzGlT("dz-etat-avertissement",dzT("templates.texte.arc_deborde",{n:rayonMin}),"⚠")}):null,
       r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-soft)",marginBottom:6},children:dzT("templates.texte.arc_toile")})]}):null,
     !defile&&(arc||rg.text_fit)?r.jsx(O,{children:r.jsx(Oe,{label:dzT("templates.texte.taille_min"),unit:" px",value:Number(rg.text_min_size)||Math.min(12,taille),min:6,max:Math.max(6,Math.min(400,taille)),step:1,
       onChange:function(v){upd({text_min_size:v})}})}):null,
@@ -10109,7 +10114,7 @@ function DzAnimEditor({rg,upd}){
     r.jsx("div",{style:{fontSize:11.5,fontWeight:600,color:"var(--ink-strong)",marginBottom:6},children:dzT("templates.anim.titre")}),
     bloc("in",dzT("templates.anim.entree")),bloc("out",dzT("templates.anim.sortie")),
     a.in||a.out?r.jsx(K,{variant:"ghost",size:"sm",title:dzT("templates.anim.rejouer_aide"),
-      onClick:function(){__dzAnimJeu={id:rg.id,n:__dzAnimJeu.n+1};upd({})},children:dzT("templates.anim.rejouer")}):null]})}
+      onClick:function(){__dzAnimJeu={id:rg.id,n:__dzAnimJeu.n+1};upd({})},children:__dzGlT("dz-media-lecture",dzT("templates.anim.rejouer"),"▶")}):null]})}
 /* ── Bibliothèque #77 PR B (plan-library T2, 03/10/2026) — favori, note et tags EN BASE.
    Les helpers du bundle (__dzFavHas, __dzFavToggle, __dzFavImgHas, __dzFavImgToggle) gardent leurs NOMS et leurs
    appelants ; la section P9lib1 les fait déléguer ici. La vérité est le SERVEUR (library_assets.fav, jobs.fav) ;
@@ -10166,7 +10171,7 @@ function DzMetaChips({o,T,f,setF}){if(o!=="Images"&&o!=="Favoris")return null;va
       border:"1px solid "+(on?"var(--amber,#f0b429)":"var(--stroke)"),background:on?"var(--bg-panel-2)":"transparent",
       color:on?"var(--ink-strong)":"var(--ink-soft)"},children:lbl},"dzm_"+cle+"_"+val)}
   var ch=c.tags.map(function(z){return puce("tag",z.t,"#"+z.t+" ("+z.n+")",f.tag===z.t)});
-  if(c.note3||f.note)ch.push(puce("note",3,"★ 3+ ("+c.note3+")",f.note===3));
+  if(c.note3||f.note)ch.push(puce("note",3,__dzGlT("dz-etat-note",("★ 3+ ("+c.note3+")"),"★"),f.note===3));
   /* tâche #81 : une puce par TEINTE (pastille de la couleur rencontrée) */
   c.teintes.forEach(function(z){ch.push(puce("teinte",z.t,r.jsxs("span",{children:[r.jsx("span",{style:{display:"inline-block",width:9,height:9,borderRadius:5,marginRight:5,
     background:z.c||"var(--ink-muted)",verticalAlign:"middle"}}),z.t+" ("+z.n+")"]}),f.teinte===z.t))});
@@ -10180,8 +10185,8 @@ function dzCarteMeta(C,rafraichir){if(!C||C.kind==="audio"||C.audioFile)return n
     r.jsx("button",{type:"button",className:"dz-fav-btn","aria-pressed":fav,title:fav?dzT("biblio.meta.retirer_favoris"):dzT("biblio.meta.ajouter_favoris"),
       onClick:function(ev){ev.stopPropagation();dzFavToggle(t,k,rafraichir);rafraichir&&rafraichir()},
       style:{background:"none",border:0,padding:0,cursor:"pointer",fontSize:13,lineHeight:1,color:fav?"var(--amber)":"var(--ink-muted)"},
-      children:fav?"★":"☆"}),
-    note?r.jsx("span",{className:"dz-carte-note",title:dzT("biblio.meta.note_sur5",{n:note}),style:{fontSize:9,letterSpacing:1,color:"var(--amber)"},children:"●".repeat(note)}):null,
+      children:fav?__dzGl("dz-action-favori"):__dzGl("dz-action-favori")}),
+    note?r.jsx("span",{className:"dz-carte-note",title:dzT("biblio.meta.note_sur5",{n:note}),style:{fontSize:9,letterSpacing:1,color:"var(--amber)"},children:Array.apply(null,Array(note)).map(function(){return __dzGl("dz-etat-note")})}):null,
     tags.length?r.jsx("span",{className:"dz-carte-tags",title:tags.map(function(g){return"#"+g}).join(" "),style:{fontSize:9.5,color:"var(--ink-muted)",
       whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",minWidth:0},children:tags.map(function(g){return"#"+g}).join(" ")}):null]})}
 // La fiche d'une IMAGE : la note 0..5 (cliquer la note posée la retire) et les tags. Le PATCH rend l'état RELU,
@@ -10196,11 +10201,11 @@ function DzMetaEditor({m,maj}){var ss=x.useState(""),saisie=ss[0],setSaisie=ss[1
   function ajouter(){var n=dzTagsDe(saisie);if(!n.length)return;setSaisie("");envoyer({tags:tags.concat(n)})}
   var points=[1,2,3,4,5].map(function(n){return r.jsx("button",{type:"button",title:dzT("biblio.meta.note_sur5",{n:n})+(note===n?dzT("biblio.meta.retirer_note"):""),
       "aria-pressed":note>=n,onClick:function(){envoyer({note:note===n?0:n})},style:{background:"none",border:0,padding:"0 1px",cursor:"pointer",
-      fontSize:14,lineHeight:1,color:note>=n?"var(--amber)":"var(--ink-muted)"},children:note>=n?"●":"○"},"n"+n)});
+      fontSize:14,lineHeight:1,color:note>=n?"var(--amber)":"var(--ink-muted)"},children:note>=n?__dzGl("dz-etat-note"):__dzGl("dz-etat-note","1em",{opacity:.35})},"n"+n)});
   var puces=tags.map(function(g){return r.jsxs("span",{style:{display:"inline-flex",alignItems:"center",gap:3,height:20,padding:"0 4px 0 8px",
       borderRadius:10,border:"1px solid var(--stroke)",fontSize:11,color:"var(--ink-soft)"},children:["#"+g,
       r.jsx("button",{type:"button",title:dzT("biblio.meta.retirer_tag",{tag:g}),onClick:function(){envoyer({tags:tags.filter(function(z){return z!==g})})},
-        style:{background:"none",border:0,cursor:"pointer",color:"var(--ink-muted)",fontSize:11,padding:"0 2px"},children:"×"})]},"t"+g)});
+        style:{background:"none",border:0,cursor:"pointer",color:"var(--ink-muted)",fontSize:11,padding:"0 2px"},children:__dzGl("dz-action-retirer")})]},"t"+g)});
   return r.jsxs("div",{className:"dz-meta-editeur",style:{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"},children:[
     r.jsx("span",{style:{fontSize:11,color:"var(--ink-muted)"},children:dzT("biblio.meta.note")}),r.jsx("span",{children:points}),
     r.jsx("span",{style:{width:1,height:16,background:"var(--stroke)"}}),
@@ -10241,7 +10246,7 @@ function DzLignee({m,liste,ouvrir}){var gs=x.useState(null),g=gs[0],setG=gs[1];
       style:{display:"inline-flex",alignItems:"center",gap:6,maxWidth:260,padding:"2px 8px 2px 2px",borderRadius:6,
         border:"1px solid var(--stroke)",background:"var(--bg-base)",color:"var(--ink-soft)",fontSize:11,
         cursor:e.item?"pointer":"default",opacity:e.item||e.externe?1:.6},children:[
-      e.externe?r.jsx("span",{style:{width:32,height:32,display:"grid",placeItems:"center",fontSize:16},children:"🎬"})
+      e.externe?r.jsx("span",{style:{width:32,height:32,display:"grid",placeItems:"center",fontSize:16},children:__dzGl("dz-media-video")})
         :r.jsx("img",{src:"/api/images/"+encodeURIComponent(e.nom),alt:"",style:{width:32,height:32,objectFit:"cover",borderRadius:4}}),
       r.jsx("span",{style:{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"},children:lbl})]},cle)}
   function rangee(titre,enf){return r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"},children:[
@@ -10250,7 +10255,7 @@ function DzLignee({m,liste,ouvrir}){var gs=x.useState(null),g=gs[0],setG=gs[1];
     v.mere?rangee(dzT("biblio.lignee.mere"),[vign(v.mere,"mere")]):null,
     v.filles.length?rangee(dzT("biblio.lignee.filles",{n:v.filles.length}),v.filles.map(function(e,i){return vign(e,"f"+i)})):null,
     v.cycle?r.jsx("span",{title:dzT("biblio.lignee.cycle_aide"),
-      style:{fontSize:10.5,color:"var(--amber)"},children:dzT("biblio.lignee.cycle")}):null,
+      style:{fontSize:10.5,color:"var(--amber)"},children:__dzGlT("dz-etat-avertissement",dzT("biblio.lignee.cycle"),"↺")}):null,
     v.racine||v.tronque?r.jsx("span",{style:{fontSize:10.5,color:"var(--ink-muted)"},children:(v.racine?dzT("biblio.lignee.racine",{nom:v.racine})+" · ":"")+
       (v.famille>1?dzT("biblio.lignee.descendants.plusieurs",{n:v.famille}):dzT("biblio.lignee.descendants.un",{n:v.famille}))+(v.tronque?dzT("biblio.lignee.tronquee"):"")}):null]})}
 /* Tâche #79 PR C (plan-etabli T10, 03/10/2026) — les versions de l’Etabli EN ARBRE dans la Bibliothèque. La route
@@ -10326,7 +10331,7 @@ function DzFiche({m,lister}){var fs=x.useState(null),f=fs[0],setF=fs[1],es=x.use
       champ(dzT("biblio.fiche.auteur"),"auteur",dzT("biblio.fiche.auteur_exemple")),champ(dzT("biblio.fiche.lien"),"source_url","https://…"),
       r.jsx(K,{variant:"ghost",size:"sm",onClick:enregistrer,disabled:!change,title:dzT("biblio.fiche.enregistrer_aide"),children:dzT("biblio.fiche.enregistrer")})]}),
     dr.alerte?r.jsx("div",{className:"dz-fiche-alerte",style:{fontSize:11,color:"var(--amber)"},title:dzT("biblio.fiche.licence_inconnue_aide"),
-      children:dzT("biblio.fiche.licence_inconnue")}):null,
+      children:__dzGlT("dz-etat-avertissement",dzT("biblio.fiche.licence_inconnue"),"⚠")}):null,
     ligne(dzT("biblio.fiche.fichier"),L.fichier),
     f.couleur?r.jsxs("div",{style:{display:"flex",gap:8,fontSize:11.5,alignItems:"center"},title:dzT("biblio.fiche.couleur_dominante",{hex:f.couleur.hex}),children:[
       r.jsx("span",{style:{minWidth:64,color:"var(--ink-muted)"},children:dzT("biblio.fiche.couleur")}),
@@ -10367,7 +10372,7 @@ function DzCorbeille(){var ds=x.useState(null),d=ds[0],setD=ds[1],ms=x.useState(
       var j=await poster("/api/library/corbeille/vider",ids?{ids:ids}:{tout:!0});setMsg((j.vides>1?dzT("biblio.corbeille.effaces.plusieurs",{n:j.vides,taille:dzOctets(j.octets)}):dzT("biblio.corbeille.effaces.un",{n:j.vides,taille:dzOctets(j.octets)})));await charger()}
     catch(e){setMsg(dzT("biblio.corbeille.non_vide")+String(e&&e.message||e))}finally{verrou.current=!1;setVol(!1)}}
   var v=dzCorbVue(d);if(!v)return r.jsx("div",{style:{fontSize:12,color:"var(--ink-muted)"},children:dzT("biblio.corbeille.chargement")});
-  var icone={image:"🖼",son:"🔊",rendu:"🎬",illisible:"⚠"};
+  var icone={image:__dzGl("dz-media-image"),son:__dzGl("dz-media-audio"),rendu:__dzGl("dz-media-video"),illisible:__dzGl("dz-etat-avertissement")};
   return r.jsxs("div",{className:"dz-corbeille","data-dz":"corbeille",style:{display:"flex",flexDirection:"column",gap:8,marginBottom:14},children:[
     r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"},children:[
       r.jsx("span",{style:{fontSize:12,color:"var(--ink-soft)"},children:v.n?(v.n>1?dzT("biblio.corbeille.elements.plusieurs",{n:v.n}):dzT("biblio.corbeille.elements.un",{n:v.n}))+" · "+dzOctets(v.octets)+(v.anciens.length?" · "+dzT("biblio.corbeille.anciens",{n:v.anciens.length,jours:v.jours}):""):dzT("biblio.corbeille.vide")}),
@@ -10430,12 +10435,12 @@ function DzOutilsBiblio(P){var vs=x.useState(""),vue=vs[0],setVue=vs[1],aff=(P&&
     style:{height:24,padding:"0 10px",fontSize:11.5,borderRadius:6,cursor:"pointer",border:"1px solid "+(on?"var(--amber,#f0b429)":"var(--stroke)"),
       background:on?"var(--bg-panel-2)":"transparent",color:on?"var(--ink-strong)":"var(--ink-soft)"},children:lbl},cle)}
   return r.jsxs("div",{"data-dz":"outils-biblio",style:{display:"flex",flexDirection:"column",gap:8,marginBottom:vue?4:10},children:[
-    r.jsxs("div",{style:{display:"flex",gap:6,flexWrap:"wrap"},children:[bouton("corbeille",dzT("biblio.outils.corbeille"),dzT("biblio.outils.corbeille_aide")),
-      bouton("nettoyage",dzT("biblio.outils.nettoyage"),dzT("biblio.outils.nettoyage_aide")),
-      bouton("recherche",dzT("biblio.outils.recherche"),dzT("biblio.outils.recherche_aide")),
+    r.jsxs("div",{style:{display:"flex",gap:6,flexWrap:"wrap"},children:[bouton("corbeille",__dzGlT("dz-nav-corbeille",dzT("biblio.outils.corbeille"),"🗑"),dzT("biblio.outils.corbeille_aide")),
+      bouton("nettoyage",__dzGlT("dz-action-nettoyer",dzT("biblio.outils.nettoyage"),"🧹"),dzT("biblio.outils.nettoyage_aide")),
+      bouton("recherche",__dzGlT("dz-action-chercher",dzT("biblio.outils.recherche"),"🔎"),dzT("biblio.outils.recherche_aide")),
       /* tâche #82 : la bascule grille / liste (mémorisée dans ce navigateur) */
       P&&P.setVue?r.jsx("span",{style:{width:1,height:18,background:"var(--stroke)",margin:"3px 4px"}}):null,
-      ...(P&&P.setVue?[["grille",dzT("biblio.outils.grille"),dzT("biblio.outils.grille_aide")],["liste",dzT("biblio.outils.liste"),dzT("biblio.outils.liste_aide")]].map(function(b){
+      ...(P&&P.setVue?[["grille",__dzGlT("dz-action-vue-grille",dzT("biblio.outils.grille"),"▦"),dzT("biblio.outils.grille_aide")],["liste",__dzGlT("dz-action-vue-liste",dzT("biblio.outils.liste"),"☰"),dzT("biblio.outils.liste_aide")]].map(function(b){
         var on=aff===b[0];return r.jsx("button",{type:"button","aria-pressed":on,title:b[2],onClick:function(){P.setVue(b[0]);dzVueEcrite(b[0])},
           style:{height:24,padding:"0 10px",fontSize:11.5,borderRadius:6,cursor:"pointer",border:"1px solid "+(on?"var(--amber,#f0b429)":"var(--stroke)"),
             background:on?"var(--bg-panel-2)":"transparent",color:on?"var(--ink-strong)":"var(--ink-soft)"},children:b[1]},b[0])}):[])]}),
@@ -10478,7 +10483,7 @@ function DzCommentaires({m}){var ls=x.useState(null),L=ls[0],setL=ls[1],ts=x.use
       c.t_s!=null?r.jsx("span",{style:{color:"var(--cyan)",fontFamily:"var(--f-mono)"},children:dzInstantTxt(c.t_s)}):null,
       r.jsx("span",{style:{flex:1,color:"var(--ink-soft)",whiteSpace:"pre-wrap"},children:c.texte}),
       r.jsx("span",{style:{color:"var(--ink-muted)",fontSize:10},children:dzDuree(c.cree_le)}),
-      r.jsx("button",{type:"button",title:dzT("biblio.commentaires.supprimer_aide"),onClick:function(){supprimer(c)},style:{background:"none",border:0,cursor:"pointer",color:"var(--ink-muted)"},children:"×"})]},c.id)}),
+      r.jsx("button",{type:"button",title:dzT("biblio.commentaires.supprimer_aide"),onClick:function(){supprimer(c)},style:{background:"none",border:0,cursor:"pointer",color:"var(--ink-muted)"},children:__dzGl("dz-action-supprimer")})]},c.id)}),
     r.jsxs("div",{style:{display:"flex",gap:6,alignItems:"center"},children:[
       son?r.jsx("input",{value:ins,placeholder:"mm:ss",title:dzT("biblio.commentaires.instant_aide"),onChange:function(e){setIns(e.target.value)},
         style:{width:56,height:24,padding:"0 6px",fontSize:11.5,background:"var(--bg-base)",color:"var(--ink-strong)",border:"1px solid var(--stroke)",borderRadius:6}}):null,
@@ -10507,16 +10512,16 @@ function DzListe({items,ouvrir}){var ts=x.useState({col:"",desc:!1}),tri=ts[0],s
   function entete(c){var on=tri.col===c[0];return r.jsx("th",{title:dzT("biblio.liste.trier_par",{col:c[1].toLowerCase()})+(on?(tri.desc?dzT("biblio.liste.decroissant"):dzT("biblio.liste.croissant")):""),
     onClick:function(){setTri({col:c[0],desc:on?!tri.desc:c[0]==="octets"||c[0]==="mtime"||c[0]==="note"||c[0]==="fav"})},
     style:{textAlign:"left",padding:"4px 8px",fontSize:11,fontWeight:500,cursor:"pointer",color:on?"var(--ink-strong)":"var(--ink-muted)",whiteSpace:"nowrap"},
-    children:c[1]+(on?(tri.desc?" ▾":" ▴"):"")},c[0])}
+    children:on?[c[1]," ",__dzGl("dz-action-trier","1em",tri.desc?void 0:{transform:"rotate(180deg)"})]:c[1]},c[0])}
   function cell(v,k){return r.jsx("td",{style:{padding:"4px 8px",fontSize:11.5,color:"var(--ink-soft)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:220},children:v},k)}
   return r.jsx("div",{"data-dz":"liste",style:{overflowX:"auto"},children:r.jsxs("table",{style:{width:"100%",borderCollapse:"collapse"},children:[
     r.jsx("thead",{children:r.jsxs("tr",{children:[r.jsx("th",{style:{width:40}},"apercu"),...DZ_LISTE_COLS.map(entete)]})}),
     r.jsx("tbody",{children:L.map(function(z,i){return r.jsxs("tr",{onClick:function(){ouvrir(z)},title:dzT("biblio.liste.ouvrir_fiche",{nom:z.name}),
       style:{cursor:z.url?"pointer":"default",borderTop:"1px solid var(--stroke)"},children:[
-      r.jsx("td",{style:{padding:"3px 8px"},children:z.kind==="image"&&z.url?r.jsx("img",{src:z.url,alt:"",style:{width:32,height:32,objectFit:"cover",borderRadius:3}}):r.jsx("span",{children:z.kind==="audio"?"🔊":z.kind==="render"?"🎬":"·"})},"a"),
+      r.jsx("td",{style:{padding:"3px 8px"},children:z.kind==="image"&&z.url?r.jsx("img",{src:z.url,alt:"",style:{width:32,height:32,objectFit:"cover",borderRadius:3}}):r.jsx("span",{children:z.kind==="audio"?__dzGl("dz-media-audio"):z.kind==="render"?__dzGl("dz-media-video"):"·"})},"a"),
       cell(z.name,"n"),cell(z.source||z.provider||"","s"),cell(z.octets!=null?dzOctets(z.octets):(z.size||""),"t"),cell(z.date||"","d"),
       cell(z.larg&&z.haut?z.larg+" × "+z.haut:"","x"),cell((z.tags||[]).map(function(g){return"#"+g}).join(" "),"g"),
-      cell(z.note?"●".repeat(Math.min(5,z.note)):"","o"),cell(z.fav?"★":"","f"),cell(z.licence||"","l"),
+      cell(z.note?Array.apply(null,Array(Math.min(5,z.note))).map(function(){return __dzGl("dz-etat-note")}):"","o"),cell(z.fav?__dzGl("dz-action-favori"):"","f"),cell(z.licence||"","l"),
       cell(z.teinte?r.jsxs("span",{children:[r.jsx("span",{style:{display:"inline-block",width:9,height:9,borderRadius:5,marginRight:5,background:z.couleur||"var(--ink-muted)"}}),z.teinte]}):"","e")]},z.name+"_"+i)})})]})})}
 function DzEtatProjet({pid}){var es=x.useState(null),e=es[0],setE=es[1],ms=x.useState(""),msg=ms[0],setMsg=ms[1];
   x.useEffect(function(){setE(null);setMsg("");if(!pid)return;fetch("/api/library/projets/"+encodeURIComponent(pid)+"/etat")
@@ -10529,7 +10534,7 @@ function DzEtatProjet({pid}){var es=x.useState(null),e=es[0],setE=es[1],ms=x.use
     children:cols.map(function(c){var l=e[c[0]]||[];return r.jsxs("div",{title:c[2],style:{border:"1px solid var(--stroke)",borderRadius:6,padding:"6px 8px",minWidth:0},children:[
       r.jsx("div",{style:{fontSize:11,color:"var(--ink-muted)",marginBottom:4},children:c[1]+" ("+l.length+")"}),
       ...l.slice(0,12).map(function(z){return r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"},
-        children:(z.kind==="render"?"🎬 ":z.kind==="audio"?"🔊 ":"")+z.ref},z.ref)}),
+        children:z.kind==="render"?__dzGlT("dz-media-video","🎬 "+z.ref,"🎬"):z.kind==="audio"?__dzGlT("dz-media-audio","🔊 "+z.ref,"🔊"):z.ref},z.ref)}),
       l.length>12?r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-muted)"},children:dzT("biblio.projets.etat.autres",{n:l.length-12})}):null]},c[0])})})}
 function dzVueLue(){try{return localStorage.getItem("dz_biblio_vue")==="liste"?"liste":"grille"}catch(e){return"grille"}}
 function dzVueEcrite(v){try{localStorage.setItem("dz_biblio_vue",v)}catch(e){}}
@@ -10617,7 +10622,7 @@ function DzSemblables({m,liste,ouvrir}){var ls=x.useState(null),L=ls[0],setL=ls[
   if(!nom)return null;
   async function voir(){if(vr.current)return;vr.current=!0;setMsg("");try{
       var R=await fetch("/api/library/semblables/"+encodeURIComponent(nom));var d=await R.json().catch(function(){return{}});
-      if(!R.ok){setMsg(R.status===503?dzT("biblio.semblables.sans_clip"):String(d.detail||("HTTP "+R.status)));return}
+      if(!R.ok){setMsg(R.status===503?__dzGlT("dz-action-chercher",dzT("biblio.semblables.sans_clip"),"🔎"):String(d.detail||("HTTP "+R.status)));return}
       setL(d.semblables||[])}finally{vr.current=!1}}
   var parNom={};(liste||[]).forEach(function(z){if(z&&z.name)parNom[z.name]=z});
   return r.jsxs("div",{"data-dz":"semblables",style:{display:"flex",flexDirection:"column",gap:6,marginTop:8},children:[
@@ -10658,7 +10663,7 @@ function dzProjMenu(m){var ref=dzProjCle(m),kind=dzProjKind(m),nom=(m&&m.name)||
   return Promise.all([dzProjApi("/api/library/projets"),dzProjApi("/api/library/projets?ref="+encodeURIComponent(ref))]).then(function(rs){
     var dedans={};((rs[1]&&rs[1].projets)||[]).forEach(function(p){dedans[p.id]=1});
     var items=((rs[0]&&rs[0].projets)||[]).map(function(p){var on=!!dedans[p.id];
-      return{lbl:(on?"✓ ":"📁 ")+p.nom+(on?dzT("biblio.projets.retirer"):""),fn:function(){
+      return{ic:on?"dz-etat-option-active":"dz-action-ranger",g:on?"✓":"📁",lbl:(on?"✓ ":"📁 ")+p.nom+(on?dzT("biblio.projets.retirer"):""),fn:function(){
         dzProjItems(p.id,ref,kind,on?"DELETE":"POST").then(function(){dzToastSur((on?dzT("biblio.projets.retire_de",{nom:p.nom}):dzT("biblio.projets.range_dans",{nom:p.nom})));dzProjSignal()})
           .catch(function(e){dzToastSur(dzT("biblio.projets.erreur")+dzProjMsg(e))})}}});
     items.push({lbl:dzT("biblio.projets.nouveau_menu"),fn:function(){
@@ -10693,24 +10698,24 @@ function DzProjetsBar({f,setF}){
       style:{height:26,minWidth:180,maxWidth:280,padding:"0 6px",fontSize:12,background:"var(--bg-base)",color:"var(--ink-strong)",
         border:"1px solid var(--stroke)",borderRadius:6},children:options})];
   if(f&&f.id){
-    ch.push(bouton(ici?dzT("biblio.projets.auto_ici"):dzT("biblio.projets.auto_activer"),
+    ch.push(bouton(ici?__dzGlT("dz-action-rangement-auto",dzT("biblio.projets.auto_ici"),"●"):__dzGlT("dz-action-rangement-auto",dzT("biblio.projets.auto_activer"),"○"),
       ici?dzT("biblio.projets.auto_ici_aide"):dzT("biblio.projets.auto_activer_aide"),
       function(){agir(dzProjApi("/api/library/projets/actif",{method:"PUT",headers:DZ_PJ_JSON,body:JSON.stringify({id:ici?"":f.id})}))},ici));
-    ch.push(bouton(f.epingle?dzT("biblio.projets.epingle"):dzT("biblio.projets.epingler"),
+    ch.push(bouton(f.epingle?__dzGlT("dz-action-epingler-mobile",dzT("biblio.projets.epingle"),"📱"):__dzGlT("dz-action-epingler-mobile",dzT("biblio.projets.epingler"),"📱"),
       dzT("biblio.projets.epingler_aide"),
       function(){agir(dzProjApi("/api/library/projets/"+encodeURIComponent(f.id),{method:"PATCH",headers:DZ_PJ_JSON,body:JSON.stringify({epingle:!f.epingle})}))},f.epingle));
-    ch.push(bouton(dzT("biblio.projets.renommer_bouton"),dzT("biblio.projets.renommer_aide"),function(){window.__dzDialogue.saisir(dzT("biblio.projets.nouveau_nom"),{titre:dzT("biblio.projets.renommer"),valeur:f.nom,ok:dzT("biblio.projets.renommer")})
+    ch.push(bouton(__dzGlT("dz-action-renommer",dzT("biblio.projets.renommer_bouton"),"✎"),dzT("biblio.projets.renommer_aide"),function(){window.__dzDialogue.saisir(dzT("biblio.projets.nouveau_nom"),{titre:dzT("biblio.projets.renommer"),valeur:f.nom,ok:dzT("biblio.projets.renommer")})
       .then(function(v){if(v&&String(v).trim()&&v!==f.nom)return agir(dzProjApi("/api/library/projets/"+encodeURIComponent(f.id),
         {method:"PATCH",headers:DZ_PJ_JSON,body:JSON.stringify({nom:v})}))})}));
-    ch.push(bouton(dzT("biblio.projets.etat_bouton"),dzT("biblio.projets.etat_aide"),function(){setEtatOn(!etatOn)},etatOn));   /* tâche #82 */
+    ch.push(bouton(__dzGlT("dz-etat-information",dzT("biblio.projets.etat_bouton"),"▦"),dzT("biblio.projets.etat_aide"),function(){setEtatOn(!etatOn)},etatOn));   /* tâche #82 */
     ch.push(bouton(dzT("biblio.projets.supprimer"),dzT("biblio.projets.supprimer_aide"),function(){
       window.__dzDialogue.confirmer(dzT("biblio.projets.supprimer_q",{nom:f.nom,n:f.n}))
         .then(function(oui){if(oui)return agir(dzProjApi("/api/library/projets/"+encodeURIComponent(f.id),{method:"DELETE"}).then(function(){setF(null)}))})}));}
   ch.push(bouton(dzT("biblio.projets.nouveau"),dzT("biblio.projets.nouveau_aide"),creer));
   if(actif.id&&!ici)ch.push(r.jsxs("span",{title:dzT("biblio.projets.actif_aide"),style:{fontSize:11,color:"var(--amber)",
-      display:"inline-flex",alignItems:"center",gap:4},children:[dzT("biblio.projets.auto_actif",{nom:actif.nom}),
+      display:"inline-flex",alignItems:"center",gap:4},children:[__dzGlT("dz-action-rangement-auto",dzT("biblio.projets.auto_actif",{nom:actif.nom}),"●"),
     r.jsx("button",{type:"button",title:dzT("biblio.projets.auto_arreter"),onClick:function(){agir(dzProjApi("/api/library/projets/actif",
-      {method:"PUT",headers:DZ_PJ_JSON,body:JSON.stringify({id:""})}))},style:{background:"none",border:0,cursor:"pointer",color:"var(--ink-muted)",fontSize:11},children:"✕"})]}));
+      {method:"PUT",headers:DZ_PJ_JSON,body:JSON.stringify({id:""})}))},style:{background:"none",border:0,cursor:"pointer",color:"var(--ink-muted)",fontSize:11},children:__dzGl("dz-action-rangement-auto")})]}));
   if(msg)ch.push(r.jsx("span",{style:{fontSize:10.5,color:"var(--red)",flexBasis:"100%"},children:msg}));
   if(f&&f.id&&etatOn)ch.push(r.jsx(DzEtatProjet,{pid:f.id},"etat"));
   return r.jsx("div",{"data-dz":"projets",style:{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",marginBottom:12},children:ch})}
@@ -10755,7 +10760,7 @@ function DzComposantEditor({rg,upd}){
         r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-muted)"},children:s.id+" · "+s.type}),
         champTxt?r.jsx(O,{children:r.jsx(le,{value:o[champTxt]!=null?o[champTxt]:(s[champTxt]||""),onChange:function(v){maj(s.id,champTxt,v)}})}):null,
         couleurs.map(function(cc){return r.jsx(O,{label:cc==="color"?dzT("templates.composant.couleur"):dzT("templates.composant.fond"),children:r.jsx(DzColorPicker,{value:o[cc]||s[cc]||"#ffffff",onChange:function(v){maj(s.id,cc,v)}})},cc)}),
-        Object.keys(o).length?r.jsx(K,{variant:"ghost",size:"sm",title:dzT("templates.composant.retablir_aide",{id:s.id}),onClick:function(){var q=JSON.parse(JSON.stringify(ov));delete q[s.id];upd({overrides:q})},children:dzT("templates.composant.retablir")}):null]},s.id)})
+        Object.keys(o).length?r.jsx(K,{variant:"ghost",size:"sm",title:dzT("templates.composant.retablir_aide",{id:s.id}),onClick:function(){var q=JSON.parse(JSON.stringify(ov));delete q[s.id];upd({overrides:q})},children:__dzGlT("dz-action-reinitialiser",dzT("templates.composant.retablir"),"↺")}):null]},s.id)})
      :r.jsx("div",{style:{fontSize:10.5,color:"var(--amber)"},children:dzT("templates.composant.introuvable")})]})}
 function DzComposantBar({W,H,regs,setRegs,select,sel}){
   var os=x.useState(!1),ouvert=os[0],setOuvert=os[1],ds=x.useState(null),dlg=ds[0],setDlg=ds[1],ms=x.useState(""),msg=ms[0],setMsg=ms[1],vs=x.useState(0),setV=vs[1],vol=x.useRef(!1);
@@ -10837,7 +10842,7 @@ function DzExportFigma({tpl,regs}){
       window.open("/vectorlab/?doc="+encodeURIComponent(d.id),"_blank")}
     catch(e){setMsg(String(e&&e.message||e))}finally{vol.current=!1}}
   return r.jsxs("div",{className:"dz-export-figma",style:{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap",marginTop:6},children:[
-    r.jsx(K,{variant:"outline",size:"sm",onClick:svg,disabled:!tpl.id,title:dzT("templates.export.svg_aide"),children:dzT("templates.export.svg")}),
+    r.jsx(K,{variant:"outline",size:"sm",onClick:svg,disabled:!tpl.id,title:dzT("templates.export.svg_aide"),children:__dzGlT("dz-action-exporter",dzT("templates.export.svg"),"↓")}),
     r.jsx(K,{variant:"outline",size:"sm",onClick:vectorlab,title:dzT("templates.export.vectorlab_aide"),children:dzT("templates.export.vectorlab")}),
     msg?r.jsx("span",{className:"dz-export-figma-msg",style:{fontSize:10.5,color:"var(--ink-soft)",flexBasis:"100%"},children:msg}):null]})}
 
@@ -10917,7 +10922,7 @@ function DzLangueUI(){
     fetch(Te+"/reglages/langue",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({lang:v})})
       .catch(function(){}).then(function(){dzSetLang(v)})}
   return r.jsxs("div",{"data-dzlangueui":l,style:{display:"grid",gridTemplateColumns:"260px 1fr auto",gap:14,alignItems:"center",padding:"14px 18px",borderTop:"1px solid var(--stroke)"},children:[
-    r.jsxs("div",{children:[r.jsx("div",{style:{fontSize:12.5,color:"var(--ink-strong)"},children:dzT("reglages.langue.titre")}),
+    r.jsxs("div",{children:[r.jsx("div",{style:{fontSize:12.5,color:"var(--ink-strong)"},children:[__dzGl("dz-action-langue")," ",dzT("reglages.langue.titre")]}),
       r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-soft)"},children:dzT("reglages.langue.aide")})]}),
     r.jsx("div",{"data-dz-brut":"1",children:r.jsx(re,{value:l,onChange:choisir,options:[{value:"fr",label:"Français"},{value:"en",label:"English"}]})}),
     r.jsx("span",{style:{fontSize:10.5,color:"var(--ink-muted)"},children:dzT("reglages.langue.portee")})]})}

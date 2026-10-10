@@ -16,6 +16,11 @@
                           dictionnaire assemblé) et dzT(clé, vars) en FRANÇAIS, la langue de référence — les attentes
                           en français des bancs restent vraies.
   fr(cle, **vars)         le texte français d'une clé (pour les bancs qui épinglent un libellé).
+  avant_dzglyph(bundle)   icônes G1 (maillon de queue patch_bundle_dzglyph, APRÈS L1/L2/L4) : sa table défaite et les
+                          blocs des quatre couches (montage, sonvfx, sfxstudio, vfxrack) ramenés à leur source d'avant G1.
+                          Chaque « avant_* » ci-dessus commence par là : les icônes se défont AVANT les traductions.
+  couche_avant_dzglyph(texte, cible)  une couche (« montage », « sonvfx »… ou son nom de fichier) d'avant G1 ; un texte
+                          qui ne porte pas G1 (déjà défait, ou plus ancien) est rendu tel quel.
 """
 import json
 import pathlib
@@ -70,7 +75,7 @@ def _couche_defaire(couche: str, table, nom) -> str:
 
 def couche_avant_i18n_l2(couche: str) -> str:
     """t142 : la couche frontend/patches/montage.js d'avant la seule traduction L2 (L1 toujours posée)."""
-    return _couche_defaire(couche, _TABLE2, "couche L2")
+    return _couche_defaire(couche_avant_dzglyph(couche, "montage"), _TABLE2, "couche L2")
 
 
 def couche_avant_i18n(couche: str) -> str:
@@ -106,6 +111,7 @@ def _bloc(s, f):
 
 
 def _avant_l2_crlf(bundle: str) -> str:
+    bundle = avant_dzglyph(bundle)                 # icônes G1 : le maillon de queue dzglyph, posé APRÈS L4
     bundle = avant_i18n_l4(bundle)                 # t144 : les blocs des couches son, traduits APRÈS L2
     if not _TABLE2.is_file():
         return bundle
@@ -162,6 +168,7 @@ def couche_avant_i18n_l4(texte: str, cible: str) -> str:
     d'avant la traduction L4. Accepte le texte du fichier (BOM toléré) ou le cœur du bloc du bundle ; LF ou CRLF :
     on rend la même forme."""
     cible = _FICHIERS4.get(cible, cible)
+    texte = couche_avant_dzglyph(texte, cible)     # icônes G1, posées APRÈS L4
     bom = texte[:1] == "﻿"
     r = _defaire4(texte[1:] if bom else texte, cible, f"couche {cible} L4")
     return ("﻿" + r) if bom else r
@@ -169,7 +176,7 @@ def couche_avant_i18n_l4(texte: str, cible: str) -> str:
 
 def avant_i18n_l4(bundle: str) -> str:
     """Le bundle dont les blocs SFXSTUDIO, VFXRACK et SONVFX sont ramenés aux couches d'avant L4 (bords conservés)."""
-    s = bundle
+    s = avant_dzglyph(bundle)
     for cible, tag in _BLOCS4.items():
         b, e = f"/*__DZ_{tag}_BEGIN__*/", f"/*__DZ_{tag}_END__*/"
         if b not in s:
@@ -186,6 +193,78 @@ def avant_i18n_l4(bundle: str) -> str:
     return s
 
 
+# icônes G1 — le maillon de queue patch_bundle_dzglyph (table scripts/dzglyph_paires.json : ses paires, et les éditions
+# faites DANS les sources des quatre couches rafraîchissables, positions dans la source de base, CRLF)
+_TABLE_G = RACINE / "scripts" / "dzglyph_paires.json"
+_MARQUE_G = "function __dzGlyphe("
+_BLOCS_G = {"montage": "MONTAGE", "sonvfx": "SONVFX", "sfxstudio": "SFXSTUDIO", "vfxrack": "VFXRACK"}
+_FICHIERS_G = {"montage.js": "montage", "son-vfx-montage.js": "sonvfx", "sfxstudio.js": "sfxstudio",
+               "vfxrack.js": "vfxrack"}
+
+
+def _table_g():
+    return json.loads(_TABLE_G.read_bytes().decode("utf-8")) if _TABLE_G.is_file() else None
+
+
+def couche_avant_dzglyph(texte: str, cible: str) -> str:
+    """La couche `cible` d'avant les icônes G1. Accepte le fichier (BOM toléré) ou le cœur du bloc ; LF ou CRLF : on
+    rend la même forme. Un texte qui ne porte pas G1 (sa première édition absente de sa place) est rendu tel quel."""
+    t = _table_g()
+    cible = _FICHIERS_G.get(cible, cible)
+    subs = (t or {}).get("couches", {}).get(cible, [])
+    if not subs:
+        return texte
+    bom = texte[:1] == "\ufeff"
+    corps = texte[1:] if bom else texte
+    crlf = "\r\n" in corps
+    s = corps if crlf else corps.replace("\n", "\r\n")
+    e0 = min(subs, key=lambda x: x["pos"])
+    if s[e0["pos"]:e0["pos"] + len(e0["apres"])] != e0["apres"]:
+        return texte
+    r = _couche_defaire_subs(s, [dict(x, groupe="dzglyph") for x in subs], f"couche {cible} G1")
+    r = r if crlf else r.replace("\r\n", "\n")
+    return ("\ufeff" + r) if bom else r
+
+
+def _bloc_tag(s, tag, f):
+    b, e = f"/*__DZ_{tag}_BEGIN__*/", f"/*__DZ_{tag}_END__*/"
+    if b not in s:
+        return s
+    head, rest = s.split(b, 1)
+    bloc, tail = rest.split(e, 1)
+    lead = bloc[:len(bloc) - len(bloc.lstrip("\r\n"))]
+    trail = bloc[len(bloc.rstrip("\r\n")):]
+    return head + b + lead + f(bloc.strip("\r\n")) + trail + e + tail
+
+
+def avant_dzglyph(bundle: str) -> str:
+    """Le bundle d'avant les icônes G1 : la table du maillon dzglyph défaite (si son marqueur est là) et les blocs des
+    quatre couches ramenés à leur source d'avant G1. LF ou CRLF : on rend la même forme."""
+    if "\r\n" not in bundle:
+        return avant_dzglyph(bundle.replace("\n", "\r\n")).replace("\r\n", "\n")
+    s = bundle
+    if _TABLE_G.is_file() and _MARQUE_G in s:
+        s = _defaire(s, _TABLE_G, "avant_dzglyph")
+    for cible, tag in _BLOCS_G.items():
+        s = _bloc_tag(s, tag, lambda c, cible=cible: couche_avant_dzglyph(c, cible))
+    return s
+
+
+# icônes G1 sous node : les outils que le maillon dzglyph pose dans le bundle, rendus sans React et en TEXTE —
+# __dzGl(clé) rend « ⟦clé⟧ », __dzGlT(clé, texte, glyphe) le texte où le glyphe est devenu « ⟦clé⟧ » (mêmes espaces
+# que dans l'app), __dzGlS / __dzGlD comme dans l'app ; __dzGlH rend un <svg data-dzi="clé"> vide. Un banc qui
+# cherchait un bouton par son glyphe (« × ») le cherche donc par sa clé (« ⟦dz-action-fermer⟧ »). Inclus dans
+# PRELUDE_DZT.
+PRELUDE_DZGLYPH = r"""
+function __dzGl(e,t,n){return "⟦"+e+"⟧"}
+function __dzGlT(e,s,g,t){var i=__dzGl(e,t);if(typeof s!=="string")return s;var k=g?s.indexOf(g):-1;if(k<0)return s;var a=s.slice(0,k).replace(/\s+$/,""),b=s.slice(k+g.length).replace(/^\s+/,"");return a&&b?a+" "+i+" "+b:a?a+" "+i:b?i+" "+b:i}
+function __dzGlS(s,g){if(typeof s!=="string"||!g)return s;var k=s.indexOf(g);return k<0?s:(s.slice(0,k)+s.slice(k+g.length)).replace(/^\s+|\s+$/g,"").replace(/\s{2,}/g," ")}
+function __dzGlH(e,t){return '<svg class="dzi" data-dzi="'+e+'"></svg>'}
+function __dzGlD(el,e,s,g,t){var k=typeof s==="string"&&g?s.indexOf(g):0,f=k>0&&k>=s.length-g.length,x=__dzGlS(s,g)||"";el.textContent=f?x+" ⟦"+e+"⟧":"⟦"+e+"⟧ "+x;return el}
+if (typeof globalThis !== 'undefined') { globalThis.__dzGl = __dzGl; globalThis.__dzGlT = __dzGlT; globalThis.__dzGlS = __dzGlS; globalThis.__dzGlH = __dzGlH; globalThis.__dzGlD = __dzGlD; }
+"""
+
+
 def _prelude():
     dico_js = _DICO_JS.read_bytes().decode("utf-8") if _DICO_JS.is_file() else "window.DZ_I18N={};"
     return ("var window = (typeof window !== 'undefined') ? window : {};\n"
@@ -193,7 +272,8 @@ def _prelude():
             + "function dzT(k, v) { var e = (window.DZ_I18N || {})[k]; var s = e ? e.fr : k;"
               " if (v) s = s.replace(/\\{(\\w+)\\}/g, function (m, n) { return v[n] != null ? String(v[n]) : m; });"
               " return s; }\n"
-            + "if (typeof globalThis !== 'undefined') globalThis.dzT = dzT;\n")
+            + "if (typeof globalThis !== 'undefined') globalThis.dzT = dzT;\n"
+            + PRELUDE_DZGLYPH)
 
 
 PRELUDE_DZT = _prelude()

@@ -97,7 +97,7 @@ REP["POST "+U]={id:"c3"};FETCH=[];var b2=trouver(rendu({m:M}),function(n){return
 R.post=FETCH.filter(function(f){return f[1]==="POST"});R.vide=trouver(rendu({m:M}),function(n){return n.t==="input"})[0].p.value;
 REP["POST "+U]={__ko:400,detail:"Le commentaire est vide."};trouver(rendu({m:M}),function(n){return n.t==="input"})[0].p.onChange({target:{value:"x"}});
 await trouver(rendu({m:M}),function(n){return n.t==="K"})[0].p.onClick();R.refus=texte(rendu({m:M}));
-var del=trouver(rendu({m:M}),function(n){return n.t==="button"&&n.p.children==="×"})[0];R.delTitre=del.p.title;
+var del=trouver(rendu({m:M}),function(n){return n.t==="button"&&n.p.children==="⟦dz-action-supprimer⟧"})[0];R.delTitre=del.p.title;
 DREP=false;DIAL=[];FETCH=[];await del.p.onClick();R.annule=[DIAL.length,FETCH.length];R.dial=DIAL[0];
 DREP=true;REP["DELETE /api/library/commentaires/c/c1"]={supprime:"c1"};FETCH=[];await del.p.onClick();await attendre();R.del=FETCH[0];
 """)
