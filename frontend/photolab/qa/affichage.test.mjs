@@ -21,7 +21,7 @@ const o = OPTIONS_DEFAUT;
 check("1.1 extras oui, règles et grille non, repères oui, aimanter oui, repères non verrouillés", o.extras && !o.regles && !o.grille && o.reperes && o.aimanter && !o.verrouReperes);
 check("1.2 afficher : sélection, grille de pixels, aperçu du pinceau, repères du canevas oui ; contours du calque non",
   o.afficher.contoursSelection && o.afficher.grillePixels && o.afficher.apercuPinceau && o.afficher.reperesCanevas && !o.afficher.contoursCalque);
-check("1.3 aimanter à : tout", eq(o.aimanterA, { reperes: true, grille: true, calques: true, document: true }));
+check("1.3 aimanter à : tout (t160 : + tranches)", eq(o.aimanterA, { reperes: true, grille: true, calques: true, document: true, tranches: true }));
 check("1.4 écran standard, pas de miroir, pas d'aperçu pixel art", o.ecran === "standard" && !o.miroir && !o.pixelArt);
 check("1.5 seuil d'aimantation : 8 px d'écran (snap_ui.rs)", SEUIL_AIMANT_PX === 8);
 
@@ -41,15 +41,19 @@ check("2.7 Afficher › Tout : tous les extras allumés", tout.grille && tout.re
 check("2.8 Ctrl+R règles, Maj+Ctrl+; aimanter, Alt+Ctrl+; verrouiller", basculer(o, "view.rulers").regles && !basculer(o, "view.snap").aimanter && basculer(o, "view.lockGuides").verrouReperes);
 check("2.9 Aimanter à › repères / grille / calques / limites du document", !basculer(o, "view.snapTo.guides").aimanterA.reperes && !basculer(o, "view.snapTo.grid").aimanterA.grille
   && !basculer(o, "view.snapTo.layers").aimanterA.calques && !basculer(o, "view.snapTo.documentBounds").aimanterA.document);
-check("2.10 Aimanter à › Tout : tout rallumé", eq(basculer({ ...o, aimanterA: { reperes: false, grille: false, calques: false, document: false } }, "view.snapTo.all").aimanterA, o.aimanterA));
+check("2.10 Aimanter à › Tout : tout rallumé", eq(basculer({ ...o, aimanterA: { reperes: false, grille: false, calques: false, document: false, tranches: false } }, "view.snapTo.all").aimanterA, o.aimanterA));
 check("2.11 Symétrie horizontale, aperçu pixel art", basculer(o, "view.flipHorizontal").miroir && basculer(o, "view.pixelArtPreview").pixelArt);
 check("2.12 modes d'écran : coche radio", basculer(o, "view.screenMode.fullScreen").ecran === "plein" && coche(basculer(o, "view.screenMode.fullScreen"), "view.screenMode.fullScreen")
   && !coche(basculer(o, "view.screenMode.fullScreen"), "view.screenMode.standard") && basculer(o, "view.screenMode.fullScreenWithMenuBar").ecran === "menus");
 check("2.13 zooms : ni bascule ni coche", IDS_ZOOM.every((id) => coche(o, id) === undefined && eq(basculer(o, id), o)));
 check("2.14 F : standard -> menus -> plein -> standard", ecranSuivant("standard") === "menus" && ecranSuivant("menus") === "plein" && ecranSuivant("plein") === "standard");
-check("2.15 30 entrées servies, aucune hors du catalogue Affichage", IDS_AFFICHAGE.length === 30 && IDS_AFFICHAGE.every((id) => id.startsWith("view.")));
+check("2.15 34 entrées servies (t160 : + Compteur, Notes, Tranches, Aimanter à › Tranches), aucune hors du catalogue Affichage",
+  IDS_AFFICHAGE.length === 34 && IDS_AFFICHAGE.every((id) => id.startsWith("view."))
+  && ["view.show.count", "view.show.slices", "view.show.notes", "view.snapTo.slices"].every((id) => IDS_AFFICHAGE.includes(id)));
 check("2.16 entrées écartées absentes", !["view.fitArtboardOnScreen", "view.show.artboardGuides", "view.show.mesh", "view.show.editPins", "view.patternPreview",
-  "view.show.targetPath", "view.show.count", "view.show.slices", "view.show.notes", "view.snapTo.slices", "view.show.smartGuides"].some((id) => IDS_AFFICHAGE.includes(id)));
+  "view.show.targetPath", "view.show.smartGuides"].some((id) => IDS_AFFICHAGE.includes(id)));
+check("2.16b t160 : Compteur, Notes, Tranches cochés par défaut, une bascule les coupe", ["compteur", "notes", "tranches"].every((k) => o.afficher[k] === true)
+  && basculer(o, "view.show.count").afficher.compteur === false && basculer(o, "view.snapTo.slices").aimanterA.tranches === false);
 check("2.17 normaliserOptions : stockage illisible ou partiel -> défauts complétés, types forcés", eq(normaliserOptions(null), o)
   && normaliserOptions({ grille: true, afficher: { contoursCalque: true }, ecran: "zorg", zorg: 1 }).grille === true
   && normaliserOptions({ afficher: { contoursCalque: true } }).afficher.contoursSelection === true
@@ -133,10 +137,10 @@ const dec = decorerAffichage(arbre, basculer(o, "view.show.grid"));
 const plat = []; const voir = (l) => { for (const x of l) { if (x.type === "sous-menu") voir(x.entrees); else if (x.type === "commande") plat.push(x); } };
 voir(dec.find((m) => m.nom === "View").entrees);
 const servies = plat.filter((x) => IDS_AFFICHAGE.includes(x.id));
-check("7.1 les 30 entrées servies sont actives", servies.length === 30 && servies.every((x) => x.etat === "actif"), servies.filter((x) => x.etat !== "actif").map((x) => x.id));
+check("7.1 les 34 entrées servies sont actives", servies.length === 34 && servies.every((x) => x.etat === "actif"), servies.filter((x) => x.etat !== "actif").map((x) => x.id));
 check("7.2 coches : grille cochée, règles non, extras oui ; zooms sans coche", plat.find((x) => x.id === "view.show.grid").coche === true && plat.find((x) => x.id === "view.rulers").coche === false
   && plat.find((x) => x.id === "view.extras").coche === true && plat.find((x) => x.id === "view.zoomIn").coche === undefined);
-check("7.3 les écartées restent « bientôt »", ["view.fitArtboardOnScreen", "view.show.mesh", "view.show.count"].every((id) => plat.find((x) => x.id === id).etat === "bientot"));
+check("7.3 les écartées restent « bientôt »", ["view.fitArtboardOnScreen", "view.show.mesh", "view.show.targetPath"].every((id) => plat.find((x) => x.id === id).etat === "bientot"));
 check("7.4 traitées par l'écran (jamais envoyées au moteur)", servies.every((x) => TRAITES_PAR_ECRAN.has(x.id) && actionEntree(x) === "ecran"));
 check("7.5 les zooms demandent un document", IDS_ZOOM.every((id) => NECESSITE_DOC.has(id)));
 check("7.6 decorerAffichage ne modifie pas l'arbre reçu", arbre.find((m) => m.nom === "View").entrees.every((x) => x.coche === undefined));

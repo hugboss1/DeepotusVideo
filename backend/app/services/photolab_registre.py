@@ -897,5 +897,219 @@ def _v_echange(cid, params):
             _donnees_echange(cid, item, f"data.{g}[{i}]", 1, None)
 
 
+# t160 : comptage, notes, tranches, journal des mesures. Le registre résume leurs formes alternatives (« {index} |
+# {x, y} ») et leurs options (« plus Slice Options… ») : chaque commande est décrite ici clé par clé. Les textes (note,
+# auteur, nom de groupe, options de tranche) sont rangés dans le document, jamais lus comme chemin : bornés, sur
+# l'exemple de file.fileInfo, sans le refus « fichier » (« voir a/b.png » est une note légitime).
+MAX_COORD = 1_000_000
+MAX_TEXTE_NOTE = 4000
+MAX_NOM_COURT = 128
+TYPES_TRANCHE = ("image", "noImage", "table")
+OPTIONS_TRANCHE = {"name": MAX_NOM_COURT, "url": 2048, "target": MAX_NOM_COURT, "message": 512, "alt": 512, "cellText": MAX_TEXTE_NOTE}
+
+
+def _borne(cid, cle, v, a=-MAX_COORD, b=MAX_COORD, entier=False):
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or v != v or (entier and not float(v).is_integer()):
+        raise ValueError(f"{cid} : {cle} : {'entier' if entier else 'nombre'} attendu")
+    if not a <= v <= b:
+        raise ValueError(f"{cid} : {cle} : entre {a} et {b}")
+
+
+def _point(cid, cle, v):
+    if not isinstance(v, list) or len(v) != 2:
+        raise ValueError(f"{cid} : {cle} : [x, y] attendu")
+    for i, x in enumerate(v):
+        _borne(cid, f"{cle}[{i}]", x)
+
+
+def _texte(cid, cle, v, n):
+    if not isinstance(v, str) or len(v) > n or any(ord(c) < 32 and c not in "\n\t" for c in v):
+        raise ValueError(f"{cid} : {cle} : texte de {n} caractères au plus attendu")
+
+
+def _booleen(cid, cle, v):
+    if not isinstance(v, bool):
+        raise ValueError(f"{cid} : {cle} : booléen attendu")
+
+
+def _une_forme(cid, params, formes):
+    """`formes` : listes de clés obligatoires ; la première présente en entier est rendue."""
+    trouvees = [f for f in formes if all(k in params for k in f)]
+    if not trouvees:
+        raise ValueError(f"{cid} : il faut " + " ou ".join("{" + ", ".join(f) + "}" for f in formes))
+    return trouvees[0]
+
+
+def _v_comptage(cid, params):
+    op = cid.split(".", 1)[1]
+    admises = {"add": ("x", "y", "group"), "remove": ("index", "group", "x", "y", "radius"), "move": ("index", "group", "x", "y", "to"),
+               "clear": ("group",), "newGroup": ("name", "color"), "deleteGroup": ("group",),
+               "setGroup": ("group", "name", "color", "markerSize", "labelSize", "visible", "active")}[op]
+    _cles(cid, params, admises)
+    if op == "add":
+        _une_forme(cid, params, [("x", "y")])
+    if op in ("remove", "move"):
+        f = _une_forme(cid, params, [("index",), ("x", "y")])
+        if f == ("index",) and ("x" in params or "y" in params):
+            raise ValueError(f"{cid} : index ou {{x, y}}, pas les deux")
+        if f == ("x", "y") and "group" in params:
+            raise ValueError(f"{cid} : group ne va qu'avec index")
+        if f == ("index",) and "radius" in params:
+            raise ValueError(f"{cid} : radius ne va qu'avec {{x, y}}")
+    if op == "move":
+        if "to" not in params:
+            raise ValueError(f"{cid} : to manquant")
+        _point(cid, "to", params["to"])
+    for k in ("x", "y"):
+        if k in params:
+            _borne(cid, k, params[k])
+    if "index" in params:
+        _borne(cid, "index", params["index"], 0, 100_000, True)
+    if "radius" in params:
+        _borne(cid, "radius", params["radius"], 0, 1000)
+    if "group" in params and not (op == "clear" and params["group"] == "all"):
+        _borne(cid, "group", params["group"], 0, 1000, True)
+    if "name" in params:
+        _texte(cid, "name", params["name"], MAX_NOM_COURT)
+    if "color" in params:
+        _hex(cid, "color", params["color"])
+    if "markerSize" in params:
+        _borne(cid, "markerSize", params["markerSize"], 1, 10, True)
+    if "labelSize" in params:
+        _borne(cid, "labelSize", params["labelSize"], 8, 72, True)
+    for k in ("visible", "active"):
+        if k in params:
+            _booleen(cid, k, params[k])
+
+
+def _v_notes(cid, params):
+    op = cid.split(".", 1)[1]
+    if op == "delete":
+        _cles(cid, params, ("index", "all"))
+        f = _une_forme(cid, params, [("index",), ("all",)])
+        if len(params) != 1:
+            raise ValueError(f"{cid} : index ou all, pas les deux")
+        if f == ("all",):
+            if params["all"] is not True:
+                raise ValueError(f"{cid} : all : true attendu")
+        else:
+            _borne(cid, "index", params["index"], 0, 100_000, True)
+        return
+    admises = ("x", "y", "text", "author", "color", "open") + (("index",) if op == "set" else ())
+    _cles(cid, params, admises)
+    if op == "add":
+        _une_forme(cid, params, [("x", "y")])
+    else:
+        _une_forme(cid, params, [("index",)])
+        _borne(cid, "index", params["index"], 0, 100_000, True)
+    for k in ("x", "y"):
+        if k in params:
+            _borne(cid, k, params[k])
+    if "text" in params:
+        _texte(cid, "text", params["text"], MAX_TEXTE_NOTE)
+    if "author" in params:
+        _texte(cid, "author", params["author"], MAX_NOM_COURT)
+    if "color" in params:
+        _hex(cid, "color", params["color"])
+    if "open" in params:
+        _booleen(cid, "open", params["open"])
+
+
+def _rect_tranche(cid, params):
+    if "rect" in params:
+        if any(k in params for k in ("x", "y", "width", "height")):
+            raise ValueError(f"{cid} : rect ou x, y, width, height, pas les deux")
+        r = params["rect"]
+        if not isinstance(r, list) or len(r) != 4:
+            raise ValueError(f"{cid} : rect : [x, y, largeur, hauteur] attendu")
+        for i, v in enumerate(r):
+            _borne(cid, f"rect[{i}]", v, -MAX_COORD if i < 2 else 1, MAX_COORD)
+        return True
+    xywh = [k for k in ("x", "y", "width", "height") if k in params]
+    if xywh and len(xywh) != 4:
+        raise ValueError(f"{cid} : x, y, width, height vont ensemble")
+    for k in xywh:
+        _borne(cid, k, params[k], -MAX_COORD if k in ("x", "y") else 1, MAX_COORD)
+    return bool(xywh)
+
+
+def _options_tranche(cid, params):
+    for k, n in OPTIONS_TRANCHE.items():
+        if k in params:
+            _texte(cid, k, params[k], n)
+    if "kind" in params and params["kind"] not in TYPES_TRANCHE:
+        raise ValueError(f"{cid} : kind : une valeur parmi {'|'.join(TYPES_TRANCHE)}")
+    if "cellTextIsHtml" in params:
+        _booleen(cid, "cellTextIsHtml", params["cellTextIsHtml"])
+    for k in ("horizontalAlign", "verticalAlign"):
+        if k in params:
+            _borne(cid, k, params[k], 0, 4, True)
+    if "background" in params and params["background"] != "none":
+        _hex(cid, "background", params["background"])
+
+
+def _cible_tranche(cid, params, plusieurs=False):
+    formes = [("slice",), ("number",)] + ([("slices",)] if plusieurs else [])
+    f = _une_forme(cid, params, formes)
+    if sum(k in params for k in ("slice", "number", "slices")) != 1:
+        raise ValueError(f"{cid} : une seule cible (slice, number" + (", slices" if plusieurs else "") + ")")
+    if f == ("slices",):
+        v = params["slices"]
+        if not isinstance(v, list) or not v or len(v) > 1000:
+            raise ValueError(f"{cid} : slices : liste d'ids attendue")
+        for i, x in enumerate(v):
+            _borne(cid, f"slices[{i}]", x, 0, 1_000_000, True)
+    else:
+        _borne(cid, f[0], params[f[0]], 0 if f == ("slice",) else 1, 1_000_000, True)
+
+
+def _v_tranches(cid, params):
+    op = cid.split(".", 1)[1]
+    options = tuple(OPTIONS_TRANCHE) + ("kind", "cellTextIsHtml", "horizontalAlign", "verticalAlign", "background")
+    rect = ("rect", "x", "y", "width", "height")
+    if op == "new":
+        _cles(cid, params, rect + options)
+        if not _rect_tranche(cid, params):
+            raise ValueError(f"{cid} : rect ou x, y, width, height attendu")
+        _options_tranche(cid, params)
+    elif op == "set":
+        _cles(cid, params, ("slice", "number") + rect + options)
+        _cible_tranche(cid, params)
+        _rect_tranche(cid, params)
+        _options_tranche(cid, params)
+    elif op == "promote":
+        _cles(cid, params, ("slice", "number"))
+        _cible_tranche(cid, params)
+    elif op == "delete":
+        _cles(cid, params, ("slice", "number", "slices"))
+        _cible_tranche(cid, params, plusieurs=True)
+    elif op == "divide":
+        _cles(cid, params, ("slice", "number", "horizontal", "vertical"))
+        _cible_tranche(cid, params)
+        for k in ("horizontal", "vertical"):
+            if k in params:
+                _borne(cid, k, params[k], 1, 100, True)
+
+
+def _v_journal_supprimer(cid, params):
+    _cles(cid, params, ("rows", "all"))
+    f = _une_forme(cid, params, [("rows",), ("all",)])
+    if len(params) != 1:
+        raise ValueError(f"{cid} : rows ou all, pas les deux")
+    if f == ("all",):
+        if params["all"] is not True:
+            raise ValueError(f"{cid} : all : true attendu")
+        return
+    v = params["rows"]
+    if not isinstance(v, list) or not v or len(v) > 100_000:
+        raise ValueError(f"{cid} : rows : liste d'ids attendue")
+    for i, x in enumerate(v):
+        _borne(cid, f"rows[{i}]", x, 0, 10_000_000, True)
+
+
 VERIFS_T158 = {"image.mode.duotone": _v_bichromie, "image.mode.colorTable": _v_table, "file.fileInfo": _v_infos,
-               "edit.presets.presetManager": _v_gestionnaire, "edit.presets.exportImportPresets": _v_echange}
+               "edit.presets.presetManager": _v_gestionnaire, "edit.presets.exportImportPresets": _v_echange,
+               **{f"count.{op}": _v_comptage for op in ("add", "remove", "move", "clear", "newGroup", "deleteGroup", "setGroup")},
+               **{f"notes.{op}": _v_notes for op in ("add", "set", "delete")},
+               **{f"slice.{op}": _v_tranches for op in ("new", "set", "promote", "delete", "divide")},
+               "measurementLog.delete": _v_journal_supprimer}

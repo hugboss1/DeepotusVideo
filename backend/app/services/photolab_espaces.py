@@ -18,7 +18,7 @@ GROUPES = {
     "proprietes": ("proprietes", "ajustements", "styles", "compositions"),
     "pinceaux": ("pinceaux", "parametres", "source", "predefinis"),
     "calques": ("calques", "couches", "traces", "historique", "navigateur"),
-    "infos": ("histogramme", "infos"),                   # t153 : #grpInfos
+    "infos": ("histogramme", "infos", "mesures", "notes"),   # t153 : #grpInfos ; t160 : Journal des mesures, Notes
     "texte": ("caractere", "paragraphe", "glyphes", "stylesCar", "stylesPar"),       # t156 : #grpTexte
 }
 # Espaces fournis, dans l'ordre du menu (décision Q1 du 08/10/2026).

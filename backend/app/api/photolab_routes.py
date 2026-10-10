@@ -839,3 +839,37 @@ async def licence(nom: str):
     if f is None:
         raise HTTPException(404, "licence inconnue")
     return FileResponse(f, media_type="text/plain; charset=utf-8")
+
+
+# ── t160 : mesure, comptage, notes, tranches ───────────────────────────────────────────────────────────────────────
+@router.get("/analyse")
+async def analyse_route():
+    """Règle, comptage, notes, tranches et échelle du document actif, en une lecture (surcouche de l'écran)."""
+    return _json(*await _pool(lambda s: functools.partial(PM.analyse, s)))
+
+
+@router.get("/mesures.csv")
+async def mesures_csv(lignes: str | None = None):
+    """Le journal des mesures en CSV (téléchargement) ; `lignes` = ids séparés par des virgules (défaut : toutes)."""
+    garder = None
+    if lignes:
+        try:
+            garder = [int(x) for x in lignes.split(",") if x.strip()]
+        except ValueError:
+            raise HTTPException(400, "lignes : ids entiers séparés par des virgules")
+        if len(garder) > 100_000:
+            raise HTTPException(400, "lignes : 100 000 au plus")
+    texte = await _pool(lambda s: functools.partial(PM.journal_csv, s), garder)
+    return Response(content="\ufeff" + texte, media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": 'attachment; filename="journal-des-mesures.csv"'})
+
+
+@router.post("/notes/importer")
+async def notes_importer(body: dict):
+    """{"document": index d'un autre document ouvert} -> ses notes copiées dans l'actif."""
+    if set(body or {}) - {"document"}:
+        raise HTTPException(400, f"paramètre inconnu : {sorted(set(body) - {'document'})[0]}")
+    doc = (body or {}).get("document")
+    if isinstance(doc, bool) or not isinstance(doc, int) or doc < 0:
+        raise HTTPException(400, f"document : index entier attendu, reçu {doc!r}")
+    return _json(*await _pool(lambda s: functools.partial(PM.importer_notes, s), doc))

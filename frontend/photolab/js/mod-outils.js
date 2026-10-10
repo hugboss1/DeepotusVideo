@@ -13,8 +13,8 @@ export const EMPLACEMENTS = [
   [{ id: "rectMarquee", lettre: "M", icone: "rectangle-horizontal", p2: true }, { id: "ellipseMarquee", lettre: "M", icone: "circle", p2: true }],
   [{ id: "lasso", lettre: "L", icone: "lasso", p2: true }, { id: "polygonLasso", lettre: "L", icone: "pentagon", p2: true }],
   [{ id: "magicWand", lettre: "W", icone: "wand", p2: true }, { id: "quickSelection", lettre: "W", icone: "lasso-select", p2: true }, { id: "objectSelection", lettre: "W", icone: "scan", p2: true }],
-  [{ id: "crop", lettre: "C", icone: "crop", p2: true }, { id: "slice", lettre: "C", icone: "scissors", p2: false }, { id: "sliceSelect", lettre: "C", icone: "mouse-pointer-2", p2: false }],
-  [{ id: "eyedropper", lettre: "I", icone: "pipette", p2: true }, { id: "ruler", lettre: "I", icone: "ruler", p2: false }, { id: "note", lettre: "I", icone: "message-square", p2: false }, { id: "count", lettre: "I", icone: "hash", p2: false }],
+  [{ id: "crop", lettre: "C", icone: "crop", p2: true }, { id: "slice", lettre: "C", icone: "scissors", p2: true }, { id: "sliceSelect", lettre: "C", icone: "mouse-pointer-2", p2: true }],
+  [{ id: "eyedropper", lettre: "I", icone: "pipette", p2: true }, { id: "ruler", lettre: "I", icone: "ruler", p2: true }, { id: "note", lettre: "I", icone: "message-square", p2: true }, { id: "count", lettre: "I", icone: "hash", p2: true }],
   // section 2 : peinture et retouche (P3b)
   [{ id: "spotHealing", lettre: "J", icone: "bandage", p2: true }, { id: "healing", lettre: "J", icone: "bandage", p2: true }, { id: "patch", lettre: "J", icone: "bandage", p2: false }],
   [{ id: "brush", lettre: "B", icone: "brush", p2: true }, { id: "pencil", lettre: "B", icone: "pencil", p2: true }, { id: "mixerBrush", lettre: "B", icone: "brush", p2: true }],

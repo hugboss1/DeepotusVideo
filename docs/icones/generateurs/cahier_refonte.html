@@ -1,0 +1,83 @@
+<h2>Refonte « Deepotus Glyph »</h2>
+<p>La refonte remplace les cinq langages visuels actuels et le kit reçu par une seule suite : 524 icônes, une par fonction. Les 2 479 usages relevés (2 396 sur le PC, 83 sur le compagnon mobile) ont chacun reçu leur icône définitive, ou ont été classés « emoji conservé » ou « texte seul », avec la raison.</p>
+<div class="tw"><table class="t">
+<tr><th>Décision</th><th>Usages</th></tr>
+<tr><td>Icône de la suite</td><td>2 211</td></tr>
+<tr><td>Emoji conservé, parce que c'est un contenu (posts, légendes, sélecteur d'emojis, types de suggestions du menu Quick)</td><td>40</td></tr>
+<tr><td>Texte seul (onglets de panneaux, sections des Réglages, menus textuels, code mort)</td><td>228</td></tr>
+</table></div>
+
+<h2>Les trois règles qui garantissent l'absence de confusion</h2>
+<ol>
+<li><b>Une fonction, une icône ; une icône, une fonction.</b> Le lexique (onglet « Suite finale ») donne pour chaque icône son sens en une phrase et la liste des icônes voisines avec lesquelles elle ne doit pas être confondue, avec ce qui les distingue. Exemples tranchés :
+  <ul>
+  <li>Fermer, Supprimer, Retirer, Abandonner et Vider sont cinq icônes distinctes. Fermer ne détruit rien ; Retirer sort d'une liste sans détruire ; Abandonner jette une saisie en cours ; Vider garde le contenant.</li>
+  <li>Valider (coche nue), Succès (disque) et Option active (case cochée) ne se remplacent pas l'une l'autre.</li>
+  <li>L'étincelle signale uniquement une génération par IA payante, posée sur l'objet produit (image, vidéo, voix, modèle 3D…). L'éclair est réservé à Quick, le dé au tirage local, la fusée à l'exécution.</li>
+  <li>Actualiser, Recalculer, Régénérer, Réessayer, Réinitialiser, Restaurer et Redéfinir ont chacun leur icône.</li>
+  <li>L'écran Réglages garde les curseurs ; les options d'un objet prennent l'engrenage.</li>
+  <li>« Envoyer vers » une destination fixe prend l'icône du lieu de destination, comme dans le menu « Envoyer vers ».</li>
+  </ul></li>
+<li><b>Lisible en un seul ton.</b> Le sujet est découpé dans son support, avec une réserve de 1,4 à 1,6 unité, au lieu d'être posé dessus. Rendue dans une seule teinte (notification mobile, masque CSS, icône Windows), chaque icône garde une silhouette qui lui est propre. Le kit reçu ne tenait pas cette règle : en un seul ton, ses 7 types de calques devenaient le même carré et ses 5 états le même disque.</li>
+<li><b>Silhouettes contrôlées deux à deux.</b> Un banc rend les 524 icônes, compare leurs silhouettes deux à deux et refuse toute paire trop proche (recouvrement ≥ 0,92). Il signale à la relecture celles qui dépassent 0,85.</li>
+</ol>
+
+<h2>Dessin</h2>
+<ul>
+<li>Grille 24 × 24, zone utile 20 × 20, gabarits optiques (cercle Ø20, carré 18, paysage 20 × 16, portrait 16 × 20).</li>
+<li>Masses pleines en <code>currentColor</code>. Deux tons seulement : le sujet à 1, le support à 0,38. Les éléments filaires (arcs, anses, ondes) sont des traits de 2,6, la valeur du kit et du DESIGN.md §15.</li>
+<li>Partie pleine d'au moins 2 unités, espace d'au moins 1,6 : à 16 px, rien ne se bouche.</li>
+<li>Une grammaire de sept badges dans le quart bas-droit, chacun avec un seul sens :
+  <ul>
+  <li>plus : créer ;</li>
+  <li>moins : retirer ;</li>
+  <li>étincelle : produit par l'IA ;</li>
+  <li>flèche sortante : ouvrir ailleurs ;</li>
+  <li>coche : fait ;</li>
+  <li>horloge : programmé ;</li>
+  <li>cadenas : verrouillé.</li>
+  </ul></li>
+<li>Soixante motifs partagés (dossier, feuille, image, pellicule, cube, sphère, loupe, cadenas, œil, poulpe…) : un même objet a le même dessin dans toutes les icônes.</li>
+<li>Les séries sont dessinées ensemble sur un même gabarit :
+  <ul>
+  <li>transport ;</li>
+  <li>six alignements et deux distributions ;</li>
+  <li>quatre ordres de pile et quatre booléens ;</li>
+  <li>les paires importer / exporter, visible / masqué, verrouillé / libre, annuler / rétablir, zoom avant / arrière.</li>
+  </ul></li>
+<li>Les logos tiers (YouTube, Instagram, TikTok, X, Telegram, Figma) ne sont pas redessinés : ce sont les tracés officiels monochromes de simple-icons 16.34.0, ramenés à la zone utile 20 × 20 et passés en <code>currentColor</code>. Simple-icons est sous CC0, mais les marques restent celles de leurs propriétaires : leur emploi doit suivre les chartes de chaque réseau (liens dans <code>suite-finale/LOGOS-TIERS.md</code>).</li>
+</ul>
+
+<h2>Compagnon mobile</h2>
+<p>39 icônes de la suite figurent aussi dans le compagnon (onglet « Mobile »), avec exactement le même dessin que sur le PC.</p>
+<ul>
+<li><b>Livraison</b> : <code>dz-icons.mobile.ts</code> (clé → SVG), rendu par <code>&lt;SvgXml xml={DZ_ICONS[cle]} color={couleur} width={24} height={24}/&gt;</code> de <code>react-native-svg</code>.</li>
+<li><b>Tailles</b> : 24 dp dans les en-têtes et sur les boutons de l'accueil, 20 dp dans les listes. Cible tactile d'au moins 44 pt (iOS) / 48 dp (Android) autour de l'icône.</li>
+<li><b>Identité</b> : le téléphone affiche aujourd'hui les images par défaut d'Expo. La suite fournit le poulpe pour l'icône d'application (iOS, Android adaptative avec avant-plan et fond, monochrome Android 13) et pour l'écran de démarrage. Elle fournit aussi la petite icône de notification Android : une silhouette blanche pleine, sans demi-ton.</li>
+<li><b>Notifications</b> : une icône par famille (rappel, succès, échec, alerte de plafond, synchronisation), qui reprend les icônes d'état du PC.</li>
+</ul>
+
+<h2>Implémentation</h2>
+<ol>
+<li><b>Source unique</b> : <code>docs/icones/suite-finale/</code>. On y trouve :
+  <ul>
+  <li><code>svg/</code> : un fichier par icône ;</li>
+  <li><code>dz-icons.svg</code> : le sprite (un <code>&lt;symbol&gt;</code> par icône) ;</li>
+  <li><code>dz-icons.js</code> : la carte clé → SVG pour les labs vanilla ;</li>
+  <li><code>dz-icons.mobile.ts</code> : la même carte pour le compagnon ;</li>
+  <li><code>lexique.json</code> : les sens et les voisines à ne pas confondre ;</li>
+  <li><code>implementation.json</code> : pour chaque usage, l'emplacement dans le code et la clé finale.</li>
+  </ul>
+  À copier dans <code>frontend/shared/icons/</code>, puis à déployer dans <code>frontend/dist/shared/icons/</code> en vérifiant l'identité des copies par <code>git hash-object</code>.</li>
+<li><b>Coque React (bundle)</b> : un patch en fin de chaîne remplace la carte d'icônes nommées et <code>__dzCatSVG</code> par les clés de la suite. Il corrige au passage <code>save</code> et <code>undo</code>, aujourd'hui absentes, et les flèches du Scheduler.</li>
+<li><b>Labs</b> : chaque glyphe, emoji ou ancien SVG de la table d'implémentation devient <code>&lt;svg class="dzi" aria-hidden="true" focusable="false"&gt;&lt;use href="/shared/icons/dz-icons.svg#…"/&gt;&lt;/svg&gt;</code>. Le libellé reste porté par le bouton (<code>aria-label</code> traduit par <code>dzT</code>).</li>
+<li><b>Ordre</b> : coque et partagé ; Card Forge ; Vectorlab ; Photolab ; Spritelab et Tilelab ; Atelier, Matières, Établi, Plateau, Studio 3D ; mobile.</li>
+<li><b>Contrôle de fin de lot</b> : plus aucune ligne de la table d'implémentation de ce lot ne pointe vers un ancien glyphe. On met à jour dans le même lot les bancs figés sur des glyphes.</li>
+</ol>
+<h2>Points à valider</h2>
+<ul>
+<li>Les 15 emojis des préréglages du gestionnaire de prompts du Studio sont conservés comme types de suggestions, en considérant ce gestionnaire comme partagé avec Quick.</li>
+<li>Les 14 sections de la colonne de gauche des Réglages restent en texte seul.</li>
+<li>Trois entrées groupées du code (types d'ajout des Templates, barre d'actions des Épisodes, bandeau d'actions du Montage) sont à scinder avant de recevoir leurs icônes.</li>
+</ul>
+<hr>

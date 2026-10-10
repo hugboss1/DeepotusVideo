@@ -108,9 +108,14 @@
         <header class="groupe-tete" role="tablist">
           <button type="button" class="onglet actif" role="tab" data-onglet-in="histogramme" aria-selected="true">Histogramme</button>
           <button type="button" class="onglet" role="tab" data-onglet-in="infos" aria-selected="false">Infos</button>
+          <button type="button" class="onglet" role="tab" data-onglet-in="mesures" aria-selected="false">Mesures</button>
+          <button type="button" class="onglet" role="tab" data-onglet-in="notes" aria-selected="false">Notes</button>
         </header>
         <div class="groupe-corps" id="corpsHistogramme" data-vue-in="histogramme"></div>
         <div class="groupe-corps" id="corpsInfos" data-vue-in="infos" hidden></div>
+        <!-- t160 : Journal des mesures et Notes (mod-mesure) -->
+        <div class="groupe-corps" id="corpsMesures" data-vue-in="mesures" hidden></div>
+        <div class="groupe-corps" id="corpsNotes" data-vue-in="notes" hidden></div>
       </section>
       <!-- t156 : Caractère | Paragraphe | Glyphes | Styles de caractère | Styles de paragraphe (référence « Graphique et web ») ;
            replié tant qu'on ne l'ouvre pas. -->
