@@ -352,7 +352,7 @@ function renderTags() {
       <select class="tdir" title="Sens de lecture">
         ${DIRS.map(d => `<option value="${d}"${d === t.direction ? " selected" : ""}>${d}</option>`).join("")}
       </select>
-      <button class="del" type="button" title="Retirer ce tag" aria-label="Retirer ce tag">${dzIcone("dz-action-supprimer", { taille: 16 })}</button>
+      <button class="del" type="button" title="Retirer ce tag" aria-label="Retirer ce tag">${dzIcone("dz-action-retirer", { taille: 16 })}</button>
     </div>`).join("");
   box.querySelectorAll(".tagrow").forEach(row => {
     const i = parseInt(row.dataset.i, 10);
@@ -1274,7 +1274,7 @@ function feuilleDessiner() {
     x.fillStyle = "#9a9a9a"; x.font = "9px system-ui"; x.fillText(String(i), r.x + 2, r.y + 9);
   }
   const n = F.sel.filter(Boolean).length; $("#fCount").textContent = `${n}/${F.occ.filter(Boolean).length}`;
-  $("#fSections").innerHTML = F.sections.map((s) => `<div class="section-row"><span class="nom">${esc(s.nom)}</span><span>${s.debut}–${s.fin}</span><span>${esc(s.mode)}</span><button class="btn ghost fSecDel" data-nom="${esc(s.nom)}" title="Retirer" aria-label="Retirer">${dzIcone("dz-action-supprimer", { taille: 16 })}</button></div>`).join("") || `<div class="hint">aucune section — sélectionne des cases puis « + depuis la sélection »</div>`;
+  $("#fSections").innerHTML = F.sections.map((s) => `<div class="section-row"><span class="nom">${esc(s.nom)}</span><span>${s.debut}–${s.fin}</span><span>${esc(s.mode)}</span><button class="btn ghost fSecDel" data-nom="${esc(s.nom)}" title="Retirer" aria-label="Retirer">${dzIcone("dz-action-retirer", { taille: 16 })}</button></div>`).join("") || `<div class="hint">aucune section — sélectionne des cases puis « + depuis la sélection »</div>`;
   $$(".fSecDel").forEach((b) => b.onclick = () => { F.sections = F.sections.filter((s) => s.nom !== b.dataset.nom); feuilleDessiner(); });
 }
 const fCaseDe = (ev) => { const cv = $("#fCanvas"), r = cv.getBoundingClientRect(); if (!r.width) return -1; const x = (ev.clientX - r.left) * cv.width / r.width, y = (ev.clientY - r.top) * cv.height / r.height; const c = Math.floor(x / F.g.cell_w), l = Math.floor(y / F.g.cell_h); return (c < 0 || l < 0 || c >= F.g.cols || l >= F.g.rows) ? -1 : l * F.g.cols + c; };
