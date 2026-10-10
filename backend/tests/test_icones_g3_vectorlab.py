@@ -97,7 +97,7 @@ COMPTES = {
     "dz-edit-degrouper": 1, "dz-edit-descendre": 2, "dz-edit-detacher": 3, "dz-edit-distribuer-h": 1, "dz-edit-distribuer-v": 1,
     "dz-edit-division": 1, "dz-edit-effet": 4, "dz-edit-epaissir": 1, "dz-edit-grille": 2, "dz-edit-grille-hex": 2, "dz-edit-grouper": 2,
     "dz-edit-incliner": 1, "dz-edit-intersection": 1, "dz-edit-inverser-sens": 1, "dz-edit-miroir-h": 1, "dz-edit-miroir-v": 1,
-    "dz-edit-monter": 2, "dz-edit-motif": 2, "dz-edit-pivot": 1, "dz-edit-premier-plan": 1, "dz-edit-sans-couleur": 6,
+    "dz-edit-monter": 2, "dz-edit-motif": 2, "dz-edit-pivot": 1, "dz-edit-premier-plan": 1, "dz-edit-sans-contour": 2, "dz-edit-sans-couleur": 4,
     "dz-edit-soustraire": 1, "dz-edit-symbole": 2, "dz-edit-texte-aligner-centre": 1, "dz-edit-texte-aligner-droite": 1,
     "dz-edit-texte-aligner-gauche": 1, "dz-edit-union": 1, "dz-edit-vectoriser": 3, "dz-etat-avertissement": 1, "dz-etat-enregistre": 3,
     "dz-etat-inconnu": 3, "dz-etat-libre": 2, "dz-etat-modifie": 1, "dz-etat-sans-apercu": 1, "dz-etat-verrouille": 3,
@@ -139,6 +139,13 @@ ic0 = CODE[VL / "js/mod-icones.js"]
 cd, pa = re.search(r'configDoc: "([^"]+)"', ic0), re.search(r'parametres: "([^"]+)"', ic0)
 check("2.6 deux fonctions, deux icônes : Configuration du document = dz-action-reglages, Paramètres de l'appli = dz-nav-reglages",
       bool(cd and pa) and cd.group(1) == "dz-action-reglages" and pa.group(1) == "dz-nav-reglages", (cd and cd.group(1), pa and pa.group(1)))
+
+fl, st = CODE[VL / "js/mod-flyout.js"], CODE[VL / "js/mod-style.js"]
+sf = re.search(r'id: "sansfond"[^}]*icone: "([^"]+)"', fl); sc = re.search(r'id: "sanscontour"[^}]*icone: "([^"]+)"', fl)
+bf = re.search(r'title="Sans fond"[^>]*>\$\{dzi\("([^"]+)"', st); bc = re.search(r'title="Sans contour"[^>]*>\$\{dzi\("([^"]+)"', st)
+check("2.7 arbitrage : Sans fond = dz-edit-sans-couleur, Sans contour = dz-edit-sans-contour (menu Apparence et panneau), jamais la même clé",
+      all((sf, sc, bf, bc)) and sf.group(1) == bf.group(1) == "dz-edit-sans-couleur" and sc.group(1) == bc.group(1) == "dz-edit-sans-contour",
+      [m and m.group(1) for m in (sf, sc, bf, bc)])
 
 # ── [3] plus aucun ancien dessin
 print("[3] plus aucun ancien dessin")

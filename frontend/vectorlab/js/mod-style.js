@@ -130,7 +130,7 @@ export function initStyle(VL) {
                 title="Couleur de contour — ouvre le nuancier"></button>
         <button id="apContourAucun"
                 class="${!s.contour || s.contour === "none" ? "actif" : ""}"
-                title="Sans contour" aria-label="Sans contour">${dzi("dz-edit-sans-couleur", 16)}</button>
+                title="Sans contour" aria-label="Sans contour">${dzi("dz-edit-sans-contour", 16)}</button>
         <input type="number" id="apEpaisseur" min="0.5" max="200" step="0.5"
                value="${s.epaisseur ?? 2}" title="Épaisseur"/>
       </div>

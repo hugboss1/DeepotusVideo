@@ -173,7 +173,7 @@ export const MENUS = {
     const n = c.etat.selection.length;
     return { titre: "Apparence", entrees: [
       ...flyout_actions([{ id: "fond", libelle: "Couleur de fond…", icone: "dz-edit-couleur-fond", cible: "#apFond" }, { id: "sansfond", libelle: "Sans fond", icone: "dz-edit-sans-couleur", cible: "#apFondAucun" },
-        { id: "contour", libelle: "Couleur de contour…", icone: "dz-edit-couleur-contour", cible: "#apContour" }, { id: "sanscontour", libelle: "Sans contour", icone: "dz-edit-sans-couleur", cible: "#apContourAucun" }], c.existe),
+        { id: "contour", libelle: "Couleur de contour…", icone: "dz-edit-couleur-contour", cible: "#apContour" }, { id: "sanscontour", libelle: "Sans contour", icone: "dz-edit-sans-contour", cible: "#apContourAucun" }], c.existe),
       ...flyout_reglages([1, 2, 4, 8], +s.epaisseur || 2, "epaisseur", "px d'épaisseur"),
       ...flyout_reglages([100, 75, 50, 25], Math.round((s.opacite ?? 1) * 100), "opacite", "% d'opacité", (v) => v / 100),
       ...flyout_actions([{ id: "gradl", libelle: "Dégradé linéaire", icone: "dz-edit-degrade-lineaire", cible: "#apGradL" }, { id: "gradr", libelle: "Dégradé radial", icone: "dz-edit-degrade-radial", cible: "#apGradR" },
