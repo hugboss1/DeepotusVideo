@@ -51,7 +51,8 @@ print("\n[I] l'inverse")
 sans = A.avant_avnoeuds(B)
 check("I1 avant_avnoeuds défait le maillon : plus de marqueur ni de nœud Recast au catalogue",
       M.MARKER not in sans and 'Recast:{cat:"gen"' not in sans)
-check("I2 l'aller-retour est exact à l'octet", M.appliquer(sans) == B)
+# dzbiblio, posé APRÈS avnoeuds, est défait par avant_avnoeuds : la référence est le bundle sans dzbiblio
+check("I2 l'aller-retour est exact à l'octet (bundle sans dzbiblio)", M.appliquer(sans) == A.avant_dzbiblio(B))
 check("I3 avant_avatar défait D'ABORD les nœuds (posés après lui)", M.MARKER not in A.avant_avatar(B) and '{id:"avatarlive",' not in A.avant_avatar(B))
 r = subprocess.run([sys.executable, str(RACINE / "scripts" / "patch_bundle_avnoeuds.py"), "--check"], capture_output=True,
                    text=True, cwd=str(RACINE))
