@@ -334,10 +334,26 @@ def _bloc_tag(s, tag, f):
     return head + b + lead + f(bloc.strip("\r\n")) + trail + e + tail
 
 
+def avant_dzgbar(bundle: str) -> str:
+    """Le bundle d'avant le correctif de la barre du graphe du Studio (maillon de queue patch_bundle_dzgbar, posé APRÈS
+    dzsched) : ses paires défaites, lues dans le maillon lui-même. Sans son marqueur : rendu tel quel."""
+    import patch_bundle_dzgbar as _m
+    if _m.MARKER not in bundle:
+        return bundle
+    s = bundle
+    for ancre, remplace in reversed(_m.PAIRES):
+        if s.count(remplace) != 1:
+            raise AssertionError(f"avant_dzgbar : remplacement x{s.count(remplace)} (attendu 1) : {remplace[:70]!r}")
+        s = s.replace(remplace, ancre, 1)
+    return s
+
+
 def avant_dzsched(bundle: str) -> str:
     """Le bundle d'avant le correctif de débordement du Planificateur (maillon de queue patch_bundle_dzsched, posé APRÈS
-    dzglyph) : ses paires défaites, lues dans le maillon lui-même (une seule source). Sans son marqueur : rendu tel quel."""
+    dzglyph) : ses paires défaites, lues dans le maillon lui-même (une seule source). Sans son marqueur : rendu tel quel.
+    Le correctif dzgbar, posé après dzsched, est défait d'abord."""
     import patch_bundle_dzsched as _m
+    bundle = avant_dzgbar(bundle)
     if _m.MARKER not in bundle:
         return bundle
     s = bundle
@@ -478,3 +494,43 @@ def source_avant_i18n_l6(texte: str, fichier: str) -> str:
     r = "".join(morceaux)
     r = r if crlf else r.replace("\r\n", "\n")
     return ("﻿" + r) if bom else r
+
+
+# t147 — traduction L7 : les modules du Card Forge (scripts classiques) passent par dzT(clé) ;
+# scripts/i18n_l7_paires.json garde, fichier par fichier, les éditions (positions de la source de BASE, CRLF)
+_TABLE7 = RACINE / "scripts" / "i18n_l7_paires.json"
+
+
+def source_avant_i18n_l7(texte: str, fichier: str) -> str:
+    """t147 : le module du Card Forge `fichier` (« js/mod-face.js », relatif à frontend/cardforge/ ; un chemin plus long
+    finissant ainsi est accepté) d'avant la traduction L7, sans git. LF ou CRLF (BOM toléré) : on rend la même forme.
+    Un texte qui ne porte pas L7 (aucun dzT("cartes.) est rendu tel quel."""
+    if not _TABLE7.is_file() or 'dzT("cartes.' not in texte:
+        return texte
+    f = str(fichier).replace("\\", "/").split("frontend/cardforge/", 1)[-1]
+    eds = json.loads(_TABLE7.read_bytes().decode("utf-8"))["fichiers"].get(f, [])
+    if not eds:
+        return texte
+    bom = texte[:1] == "﻿"
+    corps = texte[1:] if bom else texte
+    crlf = "\r\n" in corps
+    s = corps if crlf else corps.replace("\n", "\r\n")
+    decal, morceaux, k = 0, [], 0
+    for e in sorted(eds, key=lambda x: x["pos"]):
+        p = e["pos"] + decal
+        if s[p:p + len(e["apres"])] != e["apres"]:
+            raise ValueError(f"source L7 {f} : l'édition {e['groupe']}@{e['pos']} n'est pas à sa place ({s[p:p + 40]!r})")
+        morceaux.append(s[k:p] + e["avant"])
+        k = p + len(e["apres"])
+        decal += len(e["apres"]) - len(e["avant"])
+    morceaux.append(s[k:])
+    r = "".join(morceaux)
+    r = r if crlf else r.replace("\r\n", "\n")
+    return ("﻿" + r) if bom else r
+
+
+def lire_cartes(chemin) -> str:
+    """t147 : un fichier du Card Forge lu tel que le banc l'attend — un module js/ ramené à sa source d'avant L7."""
+    p = pathlib.Path(chemin)
+    t = p.read_bytes().decode("utf-8")
+    return source_avant_i18n_l7(t, p.as_posix()) if p.suffix == ".js" else t

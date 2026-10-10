@@ -7,6 +7,8 @@ du lot ; la colonne remplie est celle mappée sur l'illustration, en UNE modific
 Les fonctions LIVRÉES sont extraites de mod-data.js et EXÉCUTÉES sous node (aucun appel réel).
 Témoin positif : la base (5234b286) n'a pas d'art en lot.
 Run (depuis backend/) : & $PY tests/test_cards_lot_art_ecran.py"""
+import sys as _sys_l7, pathlib as _pl_l7; _sys_l7.path.insert(0, str(_pl_l7.Path(__file__).resolve().parent))  # noqa: E401,E702
+import _cartes_avant_l7  # noqa: F401,E402  (t147 : la source du Card Forge d'avant la traduction L7)
 import json, pathlib, subprocess, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 _ICI = pathlib.Path(__file__).resolve().parent

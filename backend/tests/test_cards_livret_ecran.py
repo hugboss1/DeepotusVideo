@@ -4,6 +4,8 @@ L'écart du livret (texte en image à 300 DPI) est DIT à l'écran ; le rendu 3D
 Les fonctions LIVRÉES sont extraites de mod-edition.js et EXÉCUTÉES sous node (aucun appel réel).
 Témoin positif : la base (21ce8994) n'a pas de livret.
 Run (depuis backend/) : & $PY tests/test_cards_livret_ecran.py"""
+import sys as _sys_l7, pathlib as _pl_l7; _sys_l7.path.insert(0, str(_pl_l7.Path(__file__).resolve().parent))  # noqa: E401,E702
+import _cartes_avant_l7  # noqa: F401,E402  (t147 : la source du Card Forge d'avant la traduction L7)
 import json, pathlib, subprocess, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 _ICI = pathlib.Path(__file__).resolve().parent

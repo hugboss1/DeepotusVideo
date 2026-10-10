@@ -52,8 +52,8 @@
      liste (capture.py:SIDES) et c'est LUI qui refuse un troisieme nom : cette
      copie-ci ne sert qu'a peindre deux boutons. */
   const SIDES = [
-    { id: "recto", label: "Recto", nom: "source_recto.png" },
-    { id: "verso", label: "Verso", nom: "source_verso.png" },
+    { id: "recto", label: dzT("cartes.capture.recto"), nom: "source_recto.png" },
+    { id: "verso", label: dzT("cartes.capture.verso"), nom: "source_verso.png" },
   ];
 
   /* Le cote long au-dela duquel le SERVEUR reduit une image importee. MEME
@@ -230,7 +230,7 @@
      « bonne », pas de « fiable » : deux decimales, et le lecteur juge. Une
      confiance qu'on n'a pas se DIT inconnue — elle ne vaut pas zero. */
   function conf(v) {
-    return estNombre(v) ? "confiance " + num(v, 2) : "confiance inconnue";
+    return estNombre(v) ? dzT("cartes.capture.confiance", { v: num(v, 2) }) : dzT("cartes.capture.confiance_inconnue");
   }
   function quand(ms) {
     const n = Number(ms);
@@ -312,18 +312,18 @@
     const s = isPlain(o) ? o : null;
     const voie = s && (s.voie === "local" || s.voie === "fal") ? s.voie : null;
     const off = { on: false, voie: voie, gratuit: voie === "local",
-      libelle: "Détourer le sujet", motif: "" };
+      libelle: dzT("cartes.capture.detourer"), motif: "" };
     if (!s) {
-      off.motif = "les voies de détourage n'ont pas encore été lues sur ce poste";
+      off.motif = dzT("cartes.capture.voies_pas_lues");
       return off;
     }
     if (!voie) {
       off.motif = String(s.motif
-        || "aucune voie de détourage n'est disponible sur ce poste");
+        || dzT("cartes.capture.aucune_voie"));
       return off;
     }
     if (!aRecto) {
-      off.motif = "déposez d'abord un recto : le sujet s'isole sur lui";
+      off.motif = dzT("cartes.capture.recto_d_abord_sujet");
       return off;
     }
     /* SANS PRIX TABULE, LA VOIE PAYANTE N'EST PAS OFFERTE. §8 dit « prix
@@ -334,15 +334,13 @@
        tarif. */
     if (voie === "fal" && !estNombre(s.prix_usd)) {
       off.voie = null;
-      off.motif = "le tarif du détourage n'est pas dans la table de "
-        + "l'application (Réglages → Tarifs et budget) : le prix se dit AVANT "
-        + "l'appel, donc l'option payante n'est pas proposée";
+      off.motif = dzT("cartes.capture.sans_tarif");
       return off;
     }
     off.on = true;
     off.libelle = voie === "local"
-      ? "Détourer le sujet — gratuit (local)"
-      : "Détourer le sujet (fal, ~" + num(s.prix_usd, 3) + " $)";
+      ? dzT("cartes.capture.detourer_local")
+      : dzT("cartes.capture.detourer_fal", { prix: num(s.prix_usd, 3) });
     return off;
   }
 
@@ -353,23 +351,20 @@
      ses bornes, alors que le backend les publie. Le JSON disait juste,
      l'ecran mentait ; c'est l'ecran qu'on corrige. */
   function lignesFond(g) {
-    if (!isPlain(g)) return ["non mesuré"];
+    if (!isPlain(g)) return [dzT("cartes.capture.non_mesure")];
     if (!g.bg_failed) {
-      return ["pourtour " + String(g.color || "?"),
+      return [dzT("cartes.capture.pourtour", { c: String(g.color || "?") }),
         estNombre(g.couverture)
-          ? "le détourage garderait " + num(g.couverture * 100, 1)
-            + " % de l'image" : null];
+          ? dzT("cartes.capture.garderait", { p: num(g.couverture * 100, 1) }) : null];
     }
-    const motif = String(g.motif || "mesure hors bornes");
+    const motif = String(g.motif || dzT("cartes.capture.hors_bornes"));
     const bornes = Array.isArray(g.couverture_bornes) ? g.couverture_bornes : null;
-    const tete = "détourage local refusé — " + motif;
-    const uni = "uniformité du pourtour " + num(g.uniformite, 2)
-      + " pour un plancher de " + num(g.seuil, 2);
+    const tete = dzT("cartes.capture.refuse", { motif: motif });
+    const uni = dzT("cartes.capture.uniformite", { u: num(g.uniformite, 2), s: num(g.seuil, 2) });
     const couv = estNombre(g.couverture)
-      ? "couverture retirée " + num(g.couverture * 100, 1) + " %"
+      ? dzT("cartes.capture.couverture", { p: num(g.couverture * 100, 1) })
         + (bornes && estNombre(bornes[0]) && estNombre(bornes[1])
-          ? " — attendue entre " + num(bornes[0] * 100, 0) + " % et "
-            + num(bornes[1] * 100, 0) + " %" : "")
+          ? dzT("cartes.capture.attendue", { a: num(bornes[0] * 100, 0), b: num(bornes[1] * 100, 0) }) : "")
       : null;
     /* La MESURE QUI A REFUSE vient en premier ; l'autre suit, pour situer. */
     const ordre = motif.indexOf("uni") === 0 || motif.indexOf("pourtour") === 0
@@ -381,8 +376,7 @@
        renvoi, la phrase envoyait chercher ailleurs. */
     return [tete].concat(ordre).concat(g.option_ia
       ? [String(g.option_ia),
-        "Le bloc « Détourage IA », plus bas, dit ce que ce poste sait faire "
-        + "et à quel prix."]
+        dzT("cartes.capture.bloc_ia")]
       : [null]);
   }
 
@@ -421,27 +415,23 @@
     if (!isPlain(src.recto)) return [];
     return [
       { id: "illustration", piece: "face",
-        titre: "Importer l'illustration",
-        quoi: "la pile d'images de la pièce Illustration — ou, d'un clic, "
-          + "« adopter » ce qui vient d'être repris ici",
+        titre: dzT("cartes.capture.et_illus"),
+        quoi: dzT("cartes.capture.et_illus_q"),
         ouvre: ['#cf-face-tabs button[data-tab="imp"]'],
         cibles: ["#cf-face-adopt", "#cf-face-drop", "#cf-face-pane-imp"] },
       { id: "bordure", piece: "frame",
-        titre: "Choisir ou importer la bordure",
-        quoi: "le catalogue de familles, et « adopter la bordure » qui pose "
-          + "les mesures relevées sur la carte reprise",
+        titre: dzT("cartes.capture.et_bord"),
+        quoi: dzT("cartes.capture.et_bord_q"),
         ouvre: [],
         cibles: [".cff-adopt", ".cff-grid"] },
       { id: "sceau", piece: "frame",
-        titre: "Régler le Sceau prismatique",
-        quoi: "métal, largeur de bande, et les trois portées — écran, "
-          + "impression, 3D — réglables séparément",
+        titre: dzT("cartes.capture.et_sceau"),
+        quoi: dzT("cartes.capture.et_sceau_q"),
         ouvre: [],
         cibles: [".cff-grp-sceau"] },
       { id: "verso", piece: "frame",
-        titre: "Éditer le verso",
-        quoi: "le dos de carte : motif du catalogue, image importée et "
-          + "calques de texture",
+        titre: dzT("cartes.capture.et_verso"),
+        quoi: dzT("cartes.capture.et_verso_q"),
         ouvre: [],
         cibles: [".cff-grp-dos", "#cf-frame-backdrop"] },
     ];
@@ -458,13 +448,11 @@
     const src = isPlain(d.sources) ? d.sources : {};
     const off = { on: false, motif: "" };
     if (!isPlain(src.recto)) {
-      off.motif = "déposez d'abord un recto : c'est lui que la Forge 3D "
-        + "recevra en couche.";
+      off.motif = dzT("cartes.capture.pub_sans_recto");
       return off;
     }
     if (!d.analyzed) {
-      off.motif = "analysez le recto d'abord : le manifeste porte le format "
-        + "et les millimètres de la mesure.";
+      off.motif = dzT("cartes.capture.pub_sans_mesure");
       return off;
     }
     off.on = true;
@@ -480,24 +468,21 @@
     const m = isPlain(r.layers) ? r.layers : {};
     const ls = Array.isArray(m.layers) ? m.layers : [];
     if (!isPlain(r.layers)) {
-      return "publication terminée, mais le serveur n'a pas rendu de "
-        + "bordereau : ouvrez la pièce Forge 3D pour voir ce qui a été écrit.";
+      return dzT("cartes.capture.pub_sans_bordereau");
     }
     const roles = [];
     ls.forEach((l) => { if (isPlain(l) && l.role) roles.push(String(l.role)); });
     const n = ls.length;
     if (!n) {
-      return "aucune couche publiée : le manifeste est vide (redéposez le "
-        + "recto, puis relancez).";
+      return dzT("cartes.capture.pub_vide");
     }
     const toile = Array.isArray(m.canvas_px) ? m.canvas_px : null;
-    return n + (n > 1 ? " couches publiées" : " couche publiée")
-      + " vers la Forge 3D"
+    return dzT(n > 1 ? "cartes.capture.publiees_plusieurs" : "cartes.capture.publiees_un", { n: n })
       + (roles.length ? " — " + roles.join(" · ") : "")
-      + " (" + String(r.manifeste || "manifeste sans nom")
+      + " (" + String(r.manifeste || dzT("cartes.capture.manifeste_sans_nom"))
       + (m.format ? ", format " + String(m.format) : "")
       + (toile && toile.length === 2
-        ? ", toile " + toile[0] + " × " + toile[1] + " px" : "")
+        ? dzT("cartes.capture.toile", { w: toile[0], h: toile[1] }) : "")
       + ")";
   }
 
@@ -565,8 +550,8 @@
       + '<div class="cf-capture-wrap">'
 
       + '<section class="cf-capture-card">'
-      + '<header class="cf-capture-h"><b>Reprendre une carte</b>'
-      + '<span class="cf-capture-sub">un fichier par côté — le second dépôt remplace le premier</span>'
+      + '<header class="cf-capture-h"><b>' + dzT("cartes.capture.titre") + '</b>'
+      + '<span class="cf-capture-sub">' + dzT("cartes.capture.sous_titre") + '</span>'
       + '<span class="cf-capture-spacer"></span>'
       + '<div class="seg sm" id="cf-capture-seg"></div>'
       + '</header>'
@@ -583,28 +568,28 @@
       + '<img class="cf-capture-img hidden" id="cf-capture-img" alt="" draggable="false">'
       + '<span class="cf-capture-boxes hidden" id="cf-capture-boxes"></span>'
       + '</span>'
-      + '<p class="cf-capture-empty" id="cf-capture-empty">Déposez ici l\'image de la carte, ou choisissez un fichier.</p>'
+      + '<p class="cf-capture-empty" id="cf-capture-empty">' + dzT("cartes.capture.vide_accueil") + '</p>'
       + '</div>'
       + '<div class="cf-capture-actions">'
       /* LE FILTRE EST UNE PROMESSE. `image/*` ouvrait le selecteur sur HEIC,
          SVG, AVIF et TIFF — que la route refuse en « corps illisible ». On ne
          propose que ce que PIL sait ouvrir de l'autre cote. */
       + '<input type="file" accept="image/png,image/jpeg,image/webp" class="cf-capture-file" id="cf-capture-file">'
-      + '<button class="btn strong sm" id="cf-capture-pick" type="button" title="PNG, JPEG ou WebP — le serveur réduit l\'image au-delà du plafond d\'import">' + ICO("dz-action-importer", 16, "cf-ic") + 'Choisir un fichier…</button>'
-      + '<button class="btn ghost sm hidden" id="cf-capture-replace" type="button" title="Déposer une autre image à la place de celle-ci">Remplacer</button>'
+      + '<button class="btn strong sm" id="cf-capture-pick" type="button" title="' + dzT("cartes.capture.pick_t") + '">' + ICO("dz-action-importer", 16, "cf-ic") + dzT("cartes.capture.pick") + '</button>'
+      + '<button class="btn ghost sm hidden" id="cf-capture-replace" type="button" title="' + dzT("cartes.capture.remplacer_t") + '">' + dzT("cartes.capture.remplacer") + '</button>'
       + '<span class="cf-capture-spacer"></span>'
-      + '<button class="btn sm hidden" id="cf-capture-analyse" type="button" title="Mesurer le recto déposé : bordure, zones, fond, palette. Gratuit, local, sans aucun appel payant — et rejouable autant de fois qu\'on veut.">' + ICO("dz-action-mesurer", 16, "cf-ic") + 'Analyser</button>'
-      + '<button class="btn ghost sm hidden" id="cf-capture-boxtog" type="button" title="Afficher ou masquer les zones candidates par-dessus l\'aperçu">Masquer les zones</button>'
+      + '<button class="btn sm hidden" id="cf-capture-analyse" type="button" title="' + dzT("cartes.capture.analyser_t") + '">' + ICO("dz-action-mesurer", 16, "cf-ic") + dzT("cartes.capture.analyser") + '</button>'
+      + '<button class="btn ghost sm hidden" id="cf-capture-boxtog" type="button" title="' + dzT("cartes.capture.boxtog_t") + '">' + dzT("cartes.capture.masquer_zones") + '</button>'
       + '</div>'
       + '</div>'
 
       + '<div class="cf-capture-side">'
-      + '<span class="cf-capture-state" id="cf-capture-state">pas de capture</span>'
+      + '<span class="cf-capture-state" id="cf-capture-state">' + dzT("cartes.capture.pas_capture") + '</span>'
       + '<dl class="cf-capture-read" id="cf-capture-read">'
-      + '<dt>Côté</dt><dd id="cf-capture-r-side">—</dd>'
-      + '<dt>Trame</dt><dd id="cf-capture-r-px">—</dd>'
-      + '<dt>Fichier</dt><dd id="cf-capture-r-bytes">—</dd>'
-      + '<dt>Analyse</dt><dd id="cf-capture-r-an">—</dd>'
+      + '<dt>' + dzT("cartes.capture.r_cote") + '</dt><dd id="cf-capture-r-side">—</dd>'
+      + '<dt>' + dzT("cartes.capture.r_trame") + '</dt><dd id="cf-capture-r-px">—</dd>'
+      + '<dt>' + dzT("cartes.capture.r_fichier") + '</dt><dd id="cf-capture-r-bytes">—</dd>'
+      + '<dt>' + dzT("cartes.capture.r_analyse") + '</dt><dd id="cf-capture-r-an">—</dd>'
       + '</dl>'
       + '<p class="hint" id="cf-capture-note"></p>'
       + '</div>'
@@ -616,8 +601,8 @@
          le chiffre de confiance de la détection qui l'a produit. Ce qui n'a
          PAS pu être mesuré descend dans les notes, avec son motif. */
       + '<section class="cf-capture-card cf-capture-mesures hidden" id="cf-capture-mesures">'
-      + '<header class="cf-capture-h"><b>Mesures du recto</b>'
-      + '<span class="cf-capture-sub">chaque détection porte sa confiance chiffrée — analyse locale, gratuite, rejouable</span>'
+      + '<header class="cf-capture-h"><b>' + dzT("cartes.capture.mesures_titre") + '</b>'
+      + '<span class="cf-capture-sub">' + dzT("cartes.capture.mesures_sous") + '</span>'
       + '<span class="cf-capture-spacer"></span>'
       + '<span class="cf-capture-state" id="cf-capture-m-when">—</span>'
       + '</header>'
@@ -641,8 +626,8 @@
          quand la voie est payante — le tarif vient de la route (qui le lit
          dans pricing.json), jamais d'une copie écrite ici. */
       + '<section class="cf-capture-card hidden" id="cf-capture-ia">'
-      + '<header class="cf-capture-h"><b>Détourage IA</b>'
-      + '<span class="cf-capture-sub">isoler le sujet du recto — une option, jamais une étape obligée</span>'
+      + '<header class="cf-capture-h"><b>' + dzT("cartes.capture.ia_titre") + '</b>'
+      + '<span class="cf-capture-sub">' + dzT("cartes.capture.ia_sous") + '</span>'
       + '<span class="cf-capture-spacer"></span>'
       + '<span class="cf-capture-state" id="cf-capture-ia-etat">—</span>'
       + '</header>'
@@ -652,10 +637,10 @@
       + '<span class="cf-capture-frame hidden" id="cf-capture-sujet-cadre">'
       + '<img class="cf-capture-img hidden" id="cf-capture-sujet" alt="" draggable="false">'
       + '</span>'
-      + '<p class="cf-capture-empty" id="cf-capture-ia-vide">Le sujet détouré s\'affichera ici.</p>'
+      + '<p class="cf-capture-empty" id="cf-capture-ia-vide">' + dzT("cartes.capture.ia_vide") + '</p>'
       + '</div>'
       + '<div class="cf-capture-actions">'
-      + '<button class="btn sm" id="cf-capture-detour" type="button">' + ICO("dz-action-detourer", 16, "cf-ic") + 'Détourer le sujet</button>'
+      + '<button class="btn sm" id="cf-capture-detour" type="button">' + ICO("dz-action-detourer", 16, "cf-ic") + dzT("cartes.capture.detourer") + '</button>'
       + '<span class="cf-capture-spacer"></span>'
       + '</div>'
       + '</div>'
@@ -672,12 +657,12 @@
          Et, dessous, le geste qui manquait à §7.1.6 : publier les couches
          importées vers la Forge 3D. */
       + '<section class="cf-capture-card cf-capture-suite hidden" id="cf-capture-suite">'
-      + '<header class="cf-capture-h"><b>Et maintenant</b>'
-      + '<span class="cf-capture-sub">quatre gestes, chacun chez la pièce qui le sait faire</span>'
+      + '<header class="cf-capture-h"><b>' + dzT("cartes.capture.suite_titre") + '</b>'
+      + '<span class="cf-capture-sub">' + dzT("cartes.capture.suite_sous") + '</span>'
       + '</header>'
       + '<ol class="cf-capture-etapes" id="cf-capture-etapes"></ol>'
       + '<div class="cf-capture-pub">'
-      + '<button class="btn strong sm hidden" id="cf-capture-publier" type="button" title="Écrit les couches importées dans le manifeste que la pièce Forge 3D sait lire — local, gratuit, rejouable">' + ICO("dz-nav-cf-forge-3d", 16, "cf-ic") + 'Publier vers la 3D</button>'
+      + '<button class="btn strong sm hidden" id="cf-capture-publier" type="button" title="' + dzT("cartes.capture.publier_t") + '">' + ICO("dz-nav-cf-forge-3d", 16, "cf-ic") + dzT("cartes.capture.publier") + '</button>'
       + '<p class="hint" id="cf-capture-pub-note"></p>'
       + '</div>'
       + '</section>'
@@ -694,8 +679,8 @@
       b.type = "button";
       b.className = "seg-b" + (s.id === SIDE ? " active" : "");
       b.textContent = s.label + (info(s.id) ? " •" : "");
-      b.title = info(s.id) ? s.label + " : une capture est déposée"
-        : s.label + " : rien encore";
+      b.title = info(s.id) ? dzT("cartes.capture.seg_depose", { cote: s.label })
+        : dzT("cartes.capture.seg_rien", { cote: s.label });
       b.addEventListener("click", () => { SIDE = s.id; paint(); });
       seg.appendChild(b);
     });
@@ -729,15 +714,14 @@
           img.classList.add("hidden");
           if (vide) {
             vide.classList.remove("hidden");
-            vide.textContent = "L'image de cette capture ne se charge plus "
-              + "(fichier absent côté serveur). Déposez-la à nouveau.";
+            vide.textContent = dzT("cartes.capture.img_ko");
           }
           const e2 = $("#cf-capture-state");
-          if (e2) { e2.textContent = "capture illisible"; e2.className = "cf-capture-state ko"; }
+          if (e2) { e2.textContent = dzT("cartes.capture.illisible"); e2.className = "cf-capture-state ko"; }
         };
         img.onload = () => { img.classList.remove("hidden"); };
         img.src = M.api.url("file/" + d.nom) + "?t=" + (Number(i.stamp) || 0);
-        img.alt = "capture " + d.label;
+        img.alt = dzT("cartes.capture.alt", { cote: d.label });
         img.classList.remove("hidden");
       } else {
         img.onerror = null;
@@ -749,7 +733,7 @@
     if (vide) {
       /* le texte d'accueil est REPOSE a chaque peinture : `onerror` l'a
          peut-etre remplace par son message d'echec au tour precedent. */
-      vide.textContent = "Déposez ici l'image de la carte, ou choisissez un fichier.";
+      vide.textContent = dzT("cartes.capture.vide_accueil");
       vide.classList.toggle("hidden", !!i);
     }
     if (rempl) rempl.classList.toggle("hidden", !i);
@@ -760,27 +744,22 @@
     const mesure = analysee() && SIDE === "recto";
     const etat = $("#cf-capture-state");
     if (etat) {
-      etat.textContent = !i ? "pas de capture"
-        : (mesure ? "analysée" : "capture déposée");
+      etat.textContent = !i ? dzT("cartes.capture.pas_capture")
+        : (mesure ? dzT("cartes.capture.analysee") : dzT("cartes.capture.deposee"));
       etat.className = "cf-capture-state" + (!i ? "" : (mesure ? " ok" : " on"));
     }
 
     txt("#cf-capture-r-side", d.label);
     txt("#cf-capture-r-px", i ? (i.w + " × " + i.h + " px") : "—");
     txt("#cf-capture-r-bytes", i ? weight(i.bytes) : "—",
-      i ? (Number(i.bytes) || 0).toLocaleString("fr-FR") + " octets" : "");
-    txt("#cf-capture-r-an", SIDE !== "recto" ? "propriété du recto"
-      : (analysee() ? quand(st().analyzed) : "pas encore"));
+      i ? dzT("cartes.capture.octets", { n: (Number(i.bytes) || 0).toLocaleString("fr-FR") }) : "");
+    txt("#cf-capture-r-an", SIDE !== "recto" ? dzT("cartes.capture.prop_recto")
+      : (analysee() ? quand(st().analyzed) : dzT("cartes.capture.pas_encore")));
     txt("#cf-capture-note", !i
-      ? "PNG, JPEG ou WebP. Au-delà de " + MAX_IMPORT_PX + " px de côté, le "
-        + "serveur réduit l'image et répond ses dimensions réelles."
+      ? dzT("cartes.capture.note_vide", { px: MAX_IMPORT_PX })
       : (SIDE === "recto"
-        ? "« Analyser » mesure ce recto sur le serveur : bordure, zones, fond, "
-          + "palette. C'est local et gratuit — aucun appel payant — et ça se "
-          + "rejoue autant de fois qu'on veut."
-        : "L'analyse porte sur le RECTO — bordure, zones et fond s'y mesurent. "
-          + "Déposer un verso ne l'efface pas : il sert au dos de carte et à "
-          + "l'objet 3D."));
+        ? dzT("cartes.capture.note_recto")
+        : dzT("cartes.capture.note_verso")));
 
     /* Le bouton n'existe que s'il y a de quoi mesurer, et il dit ce qu'il
        fera : ANALYSER une premiere fois, REMESURER ensuite. */
@@ -788,7 +767,7 @@
     if (ana) {
       const recto = !!info("recto");
       ana.classList.toggle("hidden", !recto);
-      ana.textContent = analysee() ? "Remesurer" : "Analyser";
+      ana.textContent = analysee() ? dzT("cartes.capture.remesurer") : dzT("cartes.capture.analyser");
     }
     const tog = $("#cf-capture-boxtog");
     if (tog) {
@@ -796,7 +775,7 @@
          agir est pire qu'un bouton absent : il fait douter du clic. */
       tog.classList.toggle("hidden",
         !(SIDE === "recto" && !!i && peutIncruster(st())));
-      tog.textContent = BOITES ? "Masquer les zones" : "Montrer les zones";
+      tog.textContent = BOITES ? dzT("cartes.capture.masquer_zones") : dzT("cartes.capture.montrer_zones");
     }
     mesures();
     blocIA();
@@ -828,8 +807,7 @@
         b.type = "button";
         b.className = "lnk cf-capture-go";
         b.textContent = e.titre;
-        b.title = "Ouvre la pièce « " + String(e.piece) + " » et amène la "
-          + "section sous les yeux";
+        b.title = dzT("cartes.capture.go_t", { piece: String(e.piece) });
         b.addEventListener("click", () => aller(e));
         li.appendChild(b);
         const q = document.createElement("span");
@@ -846,10 +824,7 @@
       b.disabled = !!BUSY;
     }
     txt("#cf-capture-pub-note", off.on
-      ? "Écrit le manifeste des couches importées dans le dossier de la "
-        + "pièce Forge 3D : la face reprise (et le sujet détouré s'il "
-        + "existe) deviennent des sources de nœuds. Local, gratuit, "
-        + "rejouable — un nouveau format se republie."
+      ? dzT("cartes.capture.pub_note")
       : off.motif);
   }
 
@@ -865,8 +840,7 @@
   function aller(e) {
     if (!e || !e.piece) return;
     try { CF.show(e.piece); } catch (x) {
-      M.toast("la pièce « " + String(e.piece) + " » n'existe pas sur cette "
-        + "version : " + String((x && x.message) || x), true);
+      M.toast(dzT("cartes.capture.piece_absente", { piece: String(e.piece), err: String((x && x.message) || x) }), true);
       return;
     }
     deplieRail();
@@ -879,8 +853,7 @@
       if (!cible) cible = document.querySelector(sel);
     });
     if (!cible) {
-      M.toast("la pièce est ouverte, mais la section « " + String(e.titre)
-        + " » n'a pas été trouvée dans cette version de l'écran.", true);
+      M.toast(dzT("cartes.capture.section_absente", { titre: String(e.titre) }), true);
       return;
     }
     /* DEPUIS LA CIBLE ELLE-MEME, et non depuis son parent : deux des quatre
@@ -938,17 +911,16 @@
     const b = $("#cf-capture-detour");
     if (b) {
       b.classList.toggle("hidden", !off.on);
-      b.textContent = suj ? off.libelle.replace("Détourer", "Redétourer")
+      b.textContent = suj ? off.libelle.replace(dzT("cartes.capture.mot_detourer"), dzT("cartes.capture.mot_redetourer"))
         : off.libelle;
       b.title = off.on && off.gratuit
-        ? "rembg tourne sur cette machine : aucun appel, aucune dépense"
-        : "l'image part chez le fournisseur, qui facture directement — le "
-          + "tarif affiché vient de Réglages → Tarifs et budget";
+        ? dzT("cartes.capture.rembg_t")
+        : dzT("cartes.capture.fal_t");
       b.disabled = !!BUSY;
     }
     const etat = $("#cf-capture-ia-etat");
     if (etat) {
-      etat.textContent = suj ? "sujet isolé" : (off.on ? "disponible" : "indisponible");
+      etat.textContent = suj ? dzT("cartes.capture.sujet_isole") : (off.on ? dzT("cartes.capture.disponible") : dzT("cartes.capture.indisponible"));
       etat.className = "cf-capture-state" + (suj ? " ok" : (off.on ? " on" : ""));
     }
     const img = $("#cf-capture-sujet");
@@ -965,8 +937,7 @@
           img.classList.add("hidden");
           if (vide) {
             vide.classList.remove("hidden");
-            vide.textContent = "La couche détourée ne se charge plus (fichier "
-              + "absent côté serveur). Relancez le détourage.";
+            vide.textContent = dzT("cartes.capture.sujet_ko");
           }
         };
         img.onload = () => { img.classList.remove("hidden"); };
@@ -974,7 +945,7 @@
            vient du document, pas de nous (voir `fichierSujet`). */
         img.src = M.api.url("file/" + fichierSujet(suj))
           + "?t=" + (Number(suj.stamp) || 0);
-        img.alt = "sujet détouré";
+        img.alt = dzT("cartes.capture.sujet_alt");
       } else {
         img.onerror = null;
         img.onload = null;
@@ -989,19 +960,16 @@
       if (off.motif) parts.push(off.motif);
       if (off.on) {
         parts.push(off.gratuit
-          ? "Le détourage tourne ICI : rien ne sort de la machine, rien n'est "
-            + "facturé."
-          : "L'image part chez fal.ai, qui facture directement. Le montant "
-            + "affiché vient de la table de tarifs de l'application.");
+          ? dzT("cartes.capture.ia_local")
+          : dzT("cartes.capture.ia_fal"));
       }
       if (suj) {
-        parts.push("Couche « sujet » : " + suj.w + " × " + suj.h + " px, "
-          + weight(suj.bytes)
+        parts.push(dzT("cartes.capture.couche_sujet", { w: suj.w, h: suj.h, poids: weight(suj.bytes) })
           + (estNombre(suj.couverture)
-            ? " — elle garde " + num(suj.couverture * 100, 1) + " % de l'image"
+            ? dzT("cartes.capture.garde", { p: num(suj.couverture * 100, 1) })
             : "")
-          + (suj.voie ? " (voie " + String(suj.voie) + ")" : "")
-          + ". La pièce Illustration peut l'adopter.");
+          + (suj.voie ? dzT("cartes.capture.voie", { v: String(suj.voie) }) : "")
+          + dzT("cartes.capture.adopter"));
       }
       note.textContent = parts.join(" ");
     }
@@ -1023,16 +991,14 @@
     const on = analysee() && SIDE === "recto";
     carte.classList.toggle("hidden", !on);
     if (!on) return;
-    txt("#cf-capture-m-when", "mesuré le " + quand(s.analyzed));
+    txt("#cf-capture-m-when", dzT("cartes.capture.mesure_le", { date: quand(s.analyzed) }));
 
     const div = divergence(s.echelle, CF.doc());
     const bandeau = $("#cf-capture-m-diverge");
     if (bandeau) {
       bandeau.classList.toggle("hidden", !div);
       if (div) {
-        bandeau.textContent = "Le format du jeu a changé depuis cette mesure : "
-          + div.avant + " → " + div.apres + ". Les millimètres ci-dessous "
-          + "décrivent la carte d'avant — relancez « Remesurer ».";
+        bandeau.textContent = dzT("cartes.capture.diverge", { avant: div.avant, apres: div.apres });
       }
     }
 
@@ -1040,68 +1006,63 @@
     const px = Array.isArray(e.image_px) ? e.image_px : [];
     const mm = Array.isArray(e.carte_mm) ? e.carte_mm : [];
     const ec = s.ecart_ratio;
-    bloc("#cf-capture-m-echelle", "Échelle", [
+    bloc("#cf-capture-m-echelle", dzT("cartes.capture.echelle"), [
       px.length === 2 ? px[0] + " × " + px[1] + " px" : null,
       mm.length === 2 ? num(mm[0], 1) + " × " + num(mm[1], 1) + " mm"
         + (e.fmt ? " (format " + e.fmt + ")" : "") : null,
       estNombre(e.mm_par_px)
-        ? num(e.mm_par_px * 1000, 3) + " µm par pixel" : null,
+        ? dzT("cartes.capture.um_px", { v: num(e.mm_par_px * 1000, 3) }) : null,
       /* L'ECART DE RATIO EST UNE MESURE, PAS UN ECHEC : les mm sont cales sur
          la LARGEUR, et cet ecart dit de combien la hauteur les dement. */
       estNombre(ec)
-        ? "ratio image " + num(e.ratio_image, 4) + " contre "
-          + num(e.ratio_format, 4) + " au format — écart "
-          + (ec >= 0 ? "+" : "−") + num(Math.abs(ec) * 100, 1) + " %"
+        ? dzT("cartes.capture.ratio", { ri: num(e.ratio_image, 4), rf: num(e.ratio_format, 4), signe: ec >= 0 ? "+" : "−", p: num(Math.abs(ec) * 100, 1) })
         : null,
     ], null);
 
     const b = isPlain(s.border) ? s.border : null;
-    bloc("#cf-capture-m-bord", "Bordure", b ? [
-      "bande de " + num(b.mm, 2) + " mm — " + String(b.color || "?"),
+    bloc("#cf-capture-m-bord", dzT("cartes.capture.bordure"), b ? [
+      dzT("cartes.capture.bande", { mm: num(b.mm, 2), c: String(b.color || "?") }),
       estNombre(b.radius_mm)
-        ? "rayon de coin estimé " + num(b.radius_mm, 2) + " mm"
-        : "rayon de coin : non mesuré",
+        ? dzT("cartes.capture.rayon", { mm: num(b.radius_mm, 2) })
+        : dzT("cartes.capture.rayon_nm"),
       /* LES BORDS VUS, CHACUN AVEC LE SIEN. La ligne annonçait « les quatre
          bords » et alignait les valeurs TRIEES PAR TAILLE a cote d'une liste
          de noms triee par ALPHABET : trois valeurs sous une etiquette qui en
          promettait quatre, et l'appariement faux. Le backend rend maintenant
          un dictionnaire ; on l'ecrit tel quel. */
       isPlain(b.epaisseurs_mm) && Object.keys(b.epaisseurs_mm).length
-        ? "les " + Object.keys(b.epaisseurs_mm).length + " bords vus : "
+        ? dzT("cartes.capture.bords_vus", { n: Object.keys(b.epaisseurs_mm).length })
           + Object.keys(b.epaisseurs_mm).sort()
             .map((k) => k + " " + num(b.epaisseurs_mm[k], 2)).join(" · ") + " mm"
         : null,
-      "régularité " + num(b.regularite, 2) + " · netteté " + num(b.nettete, 2),
-    ] : ["aucune bordure mesurable sur cette carte"],
+      dzT("cartes.capture.regularite", { r: num(b.regularite, 2), n: num(b.nettete, 2) }),
+    ] : [dzT("cartes.capture.sans_bordure")],
       b ? b.confidence : null, b ? "" : "vide");
 
     const bx = Array.isArray(s.boxes) ? s.boxes : [];
     /* LA BANDE EXCLUE SE DIT AVANT LES BOITES. Une boite `tronquee` bute sur
        la frontiere du masque : sa mesure est un MINIMUM, pas une taille, et
        celui qui l'adopte doit le lire avant d'en faire un slot. */
-    bloc("#cf-capture-m-zones", "Zones occupées",
+    bloc("#cf-capture-m-zones", dzT("cartes.capture.zones"),
       (bx.length
-        ? [bx.length + (bx.length > 1 ? " zones candidates" : " zone candidate")]
+        ? [dzT(bx.length > 1 ? "cartes.capture.zones_plusieurs" : "cartes.capture.zones_un", { n: bx.length })]
           .concat(bx.map((z, k) => isPlain(z)
-            ? (k + 1) + " · " + num(z.w, 1) + " × " + num(z.h, 1) + " mm"
-              + " en (" + num(z.x, 1) + " ; " + num(z.y, 1) + ") — densité "
-              + num(z.densite, 2) + " · netteté " + num(z.nettete, 2)
-              + (z.tronquee ? " — TRONQUÉE par la bande exclue" : "")
+            ? dzT("cartes.capture.zone_ligne", { k: k + 1, w: num(z.w, 1), h: num(z.h, 1), x: num(z.x, 1), y: num(z.y, 1), d: num(z.densite, 2), n: num(z.nettete, 2) })
+              + (z.tronquee ? dzT("cartes.capture.tronquee") : "")
             : null))
-        : ["aucune zone candidate"])
+        : [dzT("cartes.capture.aucune_zone")])
         .concat(estNombre(s.zones_bande_mm) && s.zones_bande_mm > 0
-          ? ["bande exclue le long des bords : " + num(s.zones_bande_mm, 2)
-             + " mm (bordure + portée du filtre)"] : []),
+          ? [dzT("cartes.capture.bande_exclue", { mm: num(s.zones_bande_mm, 2) })] : []),
       null, bx.length ? "" : "vide");
 
     const g = isPlain(s.bg) ? s.bg : null;
-    bloc("#cf-capture-m-fond", "Fond", lignesFond(g),
+    bloc("#cf-capture-m-fond", dzT("cartes.capture.fond"), lignesFond(g),
       g && !g.bg_failed ? g.confidence : null,
       g ? (g.bg_failed ? "ko" : "") : "vide");
 
     const pal = Array.isArray(s.palette) ? s.palette : [];
     const hote = bloc("#cf-capture-m-pal", "Palette",
-      [pal.length ? pal.length + " teintes dominantes" : "non mesurée"],
+      [pal.length ? dzT("cartes.capture.teintes", { n: pal.length }) : dzT("cartes.capture.non_mesuree")],
       null, pal.length ? "" : "vide");
     if (hote && pal.length) {
       const rang = document.createElement("div");
@@ -1162,10 +1123,8 @@
       el.style.top = (100 * (Number(b.y) || 0) / lh) + "%";
       el.style.width = (100 * (Number(b.w) || 0) / lw) + "%";
       el.style.height = (100 * (Number(b.h) || 0) / lh) + "%";
-      el.title = "zone " + (k + 1) + " — " + num(b.w, 1) + " × " + num(b.h, 1)
-        + " mm, densité " + num(b.densite, 2)
-        + (b.tronquee ? " — tronquée par la bande exclue : cette taille est un "
-          + "minimum" : "");
+      el.title = dzT("cartes.capture.zone_t", { k: k + 1, w: num(b.w, 1), h: num(b.h, 1), d: num(b.densite, 2) })
+        + (b.tronquee ? dzT("cartes.capture.tronquee_t") : "");
       const n = document.createElement("i");
       n.textContent = String(k + 1);
       el.appendChild(n);
@@ -1293,31 +1252,30 @@
      dire quoi faire. Le CORE a deja ecrit ce remede (core.js:1244, « backend
      injoignable ») ; on l'applique ici plutot que de le redecouvrir. */
   function panne(e, quoi) {
-    if (e && e.missing) return "backend absent : " + quoi + " exige /api/cards";
+    if (e && e.missing) return dzT("cartes.capture.backend_absent", { quoi: quoi });
     const m = String((e && e.message) || e);
     /* `fetch` rejette avec un TypeError et un message que le navigateur
        choisit (« Failed to fetch », « NetworkError… », « Load failed ») : on
        reconnait le TYPE, pas la phrase — elle change d'un navigateur a l'autre. */
     if (e instanceof TypeError) {
-      return "backend injoignable (" + m + ") — " + quoi
-        + " a besoin du service local";
+      return dzT("cartes.capture.backend_injoignable", { err: m, quoi: quoi });
     }
     return m;
   }
 
   async function upload(f, side) {
-    if (BUSY) { M.toast("un import est déjà en cours"); return; }
+    if (BUSY) { M.toast(dzT("cartes.capture.import_en_cours")); return; }
     if (!f) return;
     /* Le type MIME du navigateur est un indice, pas une preuve : le refus qui
        compte est celui du serveur, qui ouvre les octets. Celui-ci evite juste
        un aller-retour de 60 Mo sur un .zip depose par megarde. */
     if (f.type && !/^image\//.test(f.type)) {
-      M.toast("ce fichier n'est pas une image (" + (f.type || "type inconnu") + ")", true);
+      M.toast(dzT("cartes.capture.pas_image", { type: f.type || dzT("cartes.capture.type_inconnu") }), true);
       return;
     }
     BUSY = true;
     try {
-      M.busy(true, "import de la carte…");
+      M.busy(true, dzT("cartes.capture.import_busy"));
       const d = await lireJson(await M.api.raw(
         "POST", "card?side=" + encodeURIComponent(side), f));
       const maj = {};
@@ -1325,9 +1283,9 @@
       maj[side] = { w: d.w, h: d.h, bytes: d.bytes, stamp: d.stamp };
       M.patch(Object.assign({ sources: maj }, effacements(side)));
       paint();
-      M.toast("carte importée — " + d.w + " × " + d.h + " px, " + weight(d.bytes));
+      M.toast(dzT("cartes.capture.importee", { w: d.w, h: d.h, poids: weight(d.bytes) }));
     } catch (e) {
-      M.toast(panne(e, "l'import"), true);
+      M.toast(panne(e, dzT("cartes.capture.q_import")), true);
     } finally {
       BUSY = false;
       M.busy(false);
@@ -1347,25 +1305,25 @@
      fichier monte mesurerait l'image d'avant.
      ═══════════════════════════════════════════════════════════════════════ */
   async function analyser() {
-    if (BUSY) { M.toast("un traitement est déjà en cours"); return; }
+    if (BUSY) { M.toast(dzT("cartes.capture.traitement_en_cours")); return; }
     if (!info("recto")) {
-      M.toast("déposez d'abord un recto : l'analyse porte sur lui", true);
+      M.toast(dzT("cartes.capture.recto_d_abord_analyse"), true);
       return;
     }
     BUSY = true;
     try {
-      M.busy(true, "analyse du recto…");
+      M.busy(true, dzT("cartes.capture.analyse_busy"));
       const r = releve(await lireJson(await M.api.raw("POST", "analyse")));
       M.patch(r);
       paint();
       const b = isPlain(r.border) ? r.border : null;
-      M.toast("recto analysé — "
-        + (b ? "bordure " + num(b.mm, 2) + " mm (" + conf(b.confidence) + ")"
-             : "aucune bordure mesurable")
-        + ", " + r.boxes.length + " zone" + (r.boxes.length > 1 ? "s" : "")
-        + ", " + r.palette.length + " teintes");
+      M.toast(dzT("cartes.capture.analyse_ok", {
+        bord: b ? dzT("cartes.capture.analyse_bord", { mm: num(b.mm, 2), conf: conf(b.confidence) })
+             : dzT("cartes.capture.analyse_sans_bord"),
+        zones: dzT(r.boxes.length > 1 ? "cartes.capture.analyse_zones_plusieurs" : "cartes.capture.analyse_zones_un", { n: r.boxes.length }),
+        teintes: r.palette.length }));
     } catch (e) {
-      M.toast(panne(e, "l'analyse"), true);
+      M.toast(panne(e, dzT("cartes.capture.q_analyse")), true);
     } finally {
       BUSY = false;
       M.busy(false);
@@ -1390,7 +1348,7 @@
       IA_ERR = "";
     } catch (e) {
       IA = null;
-      IA_ERR = panne(e, "les options de détourage");
+      IA_ERR = panne(e, dzT("cartes.capture.q_options"));
     }
     paint();
   }
@@ -1404,9 +1362,9 @@
      `layers` est FUSIONNE et non remplace — T5 rangera d'autres couches a
      cote, et les ecraser a chaque detourage serait un defaut muet. */
   async function detourer() {
-    if (BUSY) { M.toast("un traitement est déjà en cours"); return; }
+    if (BUSY) { M.toast(dzT("cartes.capture.traitement_en_cours")); return; }
     let off = offreIA(IA, !!info("recto"));
-    if (!off.on) { M.toast(off.motif || "détourage indisponible", true); return; }
+    if (!off.on) { M.toast(off.motif || dzT("cartes.capture.detour_indispo"), true); return; }
     /* LE PRIX AFFICHE PEUT NE PLUS ETRE LE PRIX RENDU. Les options sont lues
        au montage ; la table de tarifs, elle, se modifie dans les Reglages a
        tout moment (mesure : table multipliee par 83, bouton inchange jusqu'a
@@ -1418,16 +1376,14 @@
     const avant = off;
     await chargeOptions();
     off = offreIA(IA, !!info("recto"));
-    if (!off.on) { M.toast(off.motif || "détourage indisponible", true); return; }
+    if (!off.on) { M.toast(off.motif || dzT("cartes.capture.detour_indispo"), true); return; }
     if (off.libelle !== avant.libelle) {
-      M.toast("le tarif a changé depuis l'affichage : « " + avant.libelle
-        + " » → « " + off.libelle + " ». Rien n'a été envoyé — relancez si "
-        + "vous êtes d'accord.", true);
+      M.toast(dzT("cartes.capture.tarif_change", { avant: avant.libelle, apres: off.libelle }), true);
       return;
     }
     BUSY = true;
     try {
-      M.busy(true, off.gratuit ? "détourage local…" : "détourage par fal.ai…");
+      M.busy(true, off.gratuit ? dzT("cartes.capture.detour_local_busy") : dzT("cartes.capture.detour_fal_busy"));
       const d = await lireJson(await M.api.raw("POST", "rembg"));
       const maj = {};
       const anc = isPlain(st().layers) ? st().layers : {};
@@ -1448,12 +1404,12 @@
          du decor IA de P2). Deux chiffres differents de part et d'autre d'un
          clic, c'est la confiance perdue. Et une voie gratuite ne parle pas
          d'argent du tout. */
-      M.toast("sujet isolé — " + d.w + " × " + d.h + " px, " + weight(d.bytes)
-        + (d.voie === "local" ? " (local, gratuit)"
-          : (estNombre(d.prix_usd) ? " (fal, ~" + num(d.prix_usd, 3) + " $)"
+      M.toast(dzT("cartes.capture.sujet_ok", { w: d.w, h: d.h, poids: weight(d.bytes) })
+        + (d.voie === "local" ? dzT("cartes.capture.local_gratuit")
+          : (estNombre(d.prix_usd) ? dzT("cartes.capture.fal_prix", { prix: num(d.prix_usd, 3) })
             : " (fal)")));
     } catch (e) {
-      M.toast(panne(e, "le détourage"), true);
+      M.toast(panne(e, dzT("cartes.capture.q_detourage")), true);
     } finally {
       BUSY = false;
       M.busy(false);
@@ -1480,12 +1436,12 @@
      fichiers d'apres l'index de carte (`c01`, `c02`…). Publier toujours la
      premiere ecrirait chez la voisine pendant qu'on regarde la troisieme. */
   async function publier() {
-    if (BUSY) { M.toast("un traitement est déjà en cours"); return; }
+    if (BUSY) { M.toast(dzT("cartes.capture.traitement_en_cours")); return; }
     const off = offrePublier(st());
-    if (!off.on) { M.toast(off.motif || "rien à publier", true); return; }
+    if (!off.on) { M.toast(off.motif || dzT("cartes.capture.rien_publier"), true); return; }
     BUSY = true;
     try {
-      M.busy(true, "publication des couches vers la Forge 3D…");
+      M.busy(true, dzT("cartes.capture.pub_busy"));
       const n = Number(CF.current());
       const carte = isFinite(n) && n >= 0 ? n : 0;
       const d = await lireJson(await M.api.raw(
@@ -1493,7 +1449,7 @@
       paint();
       M.toast(bordereau(d));
     } catch (e) {
-      M.toast(panne(e, "la publication vers la 3D"), true);
+      M.toast(panne(e, dzT("cartes.capture.q_publication")), true);
     } finally {
       BUSY = false;
       M.busy(false);
