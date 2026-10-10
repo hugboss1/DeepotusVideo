@@ -53,16 +53,20 @@ T = doc["types"]
 sys.path.insert(0, str(_ICI))
 import _i18n_l1_aide as AIDE                                        # noqa: E402
 BUN_AV = AIDE.avant_i18n(BUN)
-check("A1 34 types, chacun present au registre du bundle avec sa categorie et son titre", doc["count"] == 34 == len(T)
-      and all(f'{n}:{{cat:"{d["cat"]}",title:"{d["title"]}"' in BUN_AV for n, d in T.items())
+# t168b (10/10/2026) : 34 -> 36 types (Recast, VoixVoix d'Avatar live) ; posés par un maillon de queue APRÈS la traduction, titrés d'emblée par dzT("avatar.noeud.…")
+_AVATAR = {"Recast", "VoixVoix"}
+check("A1 36 types, chacun present au registre du bundle avec sa categorie et son titre", doc["count"] == 36 == len(T)
+      and all(f'{n}:{{cat:"{d["cat"]}",title:"{d["title"]}"' in BUN_AV for n, d in T.items() if n not in _AVATAR)
+      and all(f'{n}:{{cat:"{d["cat"]}",title:dzT("avatar.noeud.' in BUN for n, d in T.items() if n in _AVATAR)
       and all(f'{n}:{{cat:"{d["cat"]}",title:"{d["title"]}"' in BUN or f'{n}:{{cat:"{d["cat"]}",title:dzT("studio.catalogue.' in BUN
+              or n in _AVATAR
               for n, d in T.items()), str(doc["count"]))
 check("A2 les ports sont ceux du bundle (Seedance image/end/prompt -> out ; Render in/overlay/audio/fx ; Image sans entree)",
       T.get("Seedance", {}).get("in") == ["image", "end", "prompt"] and T.get("Render", {}).get("in") == ["in", "overlay", "audio", "fx"]
       and T.get("Image", {}).get("in") == [] and T.get("Image", {}).get("out") == ["out"] and T.get("Render", {}).get("out") == [])
 r = subprocess.run([sys.executable, str(RACINE / "scripts" / "qa" / "dump_studio_registry.py"), "--check"], capture_output=True,
                    text=True, encoding="utf-8", errors="replace", cwd=str(RACINE))   # t142 : stderr du script en cp1252
-check("A3 DERIVE : le miroir suit le bundle livre (dump --check)", r.returncode == 0 and "a jour (34 types)" in (r.stdout or ""),
+check("A3 DERIVE : le miroir suit le bundle livre (dump --check)", r.returncode == 0 and "a jour (36 types)" in (r.stdout or ""),
       (r.stdout or "") + (r.stderr or ""))
 import importlib.util, io, contextlib                               # noqa: E402
 _sp = importlib.util.spec_from_file_location("dz_dump", RACINE / "scripts" / "qa" / "dump_studio_registry.py")
@@ -115,7 +119,7 @@ if SG:
     check("V2 le graphe rendu n'a PAS d'id (il s'ouvre non enregistre) et garde son nom", "id" not in g and g["name"] == "essai")
     m = sain(); m["nodes"][1]["type"] = "SoraDeluxe"
     e = refus(m)
-    check("V3 type inconnu : REFUS qui nomme le type, le noeud et le nombre de types connus", bool(e) and "SoraDeluxe" in e and "sd" in e and "34" in e, str(e))
+    check("V3 type inconnu : REFUS qui nomme le type, le noeud et le nombre de types connus", bool(e) and "SoraDeluxe" in e and "sd" in e and "36" in e, str(e))
     m = sain(); m["nodes"][2]["id"] = "im"
     e = refus(m)
     check("V4 identifiant en double : refus qui le nomme", bool(e) and "double" in e and "im" in e, str(e))

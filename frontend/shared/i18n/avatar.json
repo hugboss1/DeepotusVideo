@@ -674,5 +674,65 @@
   "avatar.recast.en_res": {
     "fr": "en {res}",
     "en": "at {res}"
+  },
+  "avatar.noeud.recast_titre": {
+    "fr": "Recast",
+    "en": "Recast"
+  },
+  "avatar.noeud.recast_desc": {
+    "fr": "vidéo → autre personnage ou décor",
+    "en": "video → another character or setting"
+  },
+  "avatar.noeud.voix_titre": {
+    "fr": "Voix → voix",
+    "en": "Voice → voice"
+  },
+  "avatar.noeud.voix_desc": {
+    "fr": "la voix du Personnage, même rythme",
+    "en": "the Character’s voice, same pace"
+  },
+  "avatar.noeud.source_manquante": {
+    "fr": "Branchez un rendu existant ou une vidéo UGC (3 à 30 s) sur l'entrée du nœud.",
+    "en": "Connect an existing render or a UGC video (3 to 30 s) to the node’s input."
+  },
+  "avatar.noeud.personnage_manquant": {
+    "fr": "Choisissez un Personnage qui a une voix clonée.",
+    "en": "Choose a Character that has a cloned voice."
+  },
+  "avatar.noeud.consigne": {
+    "fr": "Consigne (en anglais de préférence)",
+    "en": "Instruction (preferably in English)"
+  },
+  "avatar.noeud.recast_aide": {
+    "fr": "Le rendu garde le jeu et le son de la source. Le prix se lit au devis du graphe, avant de lancer.",
+    "en": "The render keeps the source’s acting and sound. The price shows in the graph quote, before you start."
+  },
+  "avatar.noeud.voix_apres_recast": {
+    "fr": "Branché après un Recast : la voix de son Personnage est posée sur le rendu, dans le même job.",
+    "en": "Connected after a Recast: its Character’s voice is laid on the render, in the same job."
+  },
+  "avatar.noeud.voix_aide": {
+    "fr": "Remplace la voix de la vidéo par celle du Personnage, au même rythme : les lèvres restent calées (ElevenLabs).",
+    "en": "Replaces the video’s voice with the Character’s, at the same pace: the lips stay in sync (ElevenLabs)."
+  },
+  "avatar.noeud.sans_voix": {
+    "fr": "sans voix clonée",
+    "en": "no cloned voice"
+  },
+  "avatar.noeud.chargement": {
+    "fr": "Chargement des Personnages…",
+    "en": "Loading the Characters…"
+  },
+  "avatar.noeud.resume_recast": {
+    "fr": "Recast",
+    "en": "Recast"
+  },
+  "avatar.noeud.resume_recast_voix": {
+    "fr": "Recast avec la voix du Personnage",
+    "en": "Recast with the Character’s voice"
+  },
+  "avatar.noeud.resume_voix": {
+    "fr": "Voix → voix",
+    "en": "Voice → voice"
   }
 }

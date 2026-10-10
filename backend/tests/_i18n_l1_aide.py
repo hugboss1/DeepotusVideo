@@ -334,9 +334,26 @@ def _bloc_tag(s, tag, f):
     return head + b + lead + f(bloc.strip("\r\n")) + trail + e + tail
 
 
+def avant_avnoeuds(bundle: str) -> str:
+    """Le bundle d'avant les nœuds Studio Recast et Voix → voix (maillon de queue patch_bundle_avnoeuds, t168b, posé
+    APRÈS avatar) : ses paires défaites, lues dans le maillon lui-même (aux fins de ligne du bundle). Sans son
+    marqueur : rendu tel quel."""
+    import patch_bundle_avnoeuds as _m
+    if _m.MARKER not in bundle:
+        return bundle
+    s = bundle
+    for ancre, remplace in reversed(_m.paires(s)):
+        if s.count(remplace) != 1:
+            raise AssertionError(f"avant_avnoeuds : remplacement x{s.count(remplace)} (attendu 1) : {remplace[:70]!r}")
+        s = s.replace(remplace, ancre, 1)
+    return s
+
+
 def avant_avatar(bundle: str) -> str:
     """Le bundle d'avant l'entrée « Avatar live » de la barre (maillon de queue patch_bundle_avatar, t168, posé APRÈS
-    dzgbar) : ses paires défaites, lues dans le maillon lui-même. Sans son marqueur : rendu tel quel."""
+    dzgbar) : ses paires défaites, lues dans le maillon lui-même. Sans son marqueur : rendu tel quel.
+    Les nœuds Studio (t168b), posés APRÈS lui, sont défaits d'abord."""
+    bundle = avant_avnoeuds(bundle)
     import patch_bundle_avatar as _m
     if _m.MARKER not in bundle:
         return bundle

@@ -1,5 +1,5 @@
 {
- "count": 34,
+ "count": 36,
  "source": "index-BEOJX8L5.js",
  "types": {
   "Animation": {
@@ -306,6 +306,22 @@
    },
    "title": "Prompt"
   },
+  "Recast": {
+   "cat": "gen",
+   "in": [
+    "in"
+   ],
+   "in_types": {
+    "in": "av"
+   },
+   "out": [
+    "out"
+   ],
+   "out_types": {
+    "out": "av"
+   },
+   "title": "Recast"
+  },
   "RemoveBG": {
    "cat": "edit",
    "in": [
@@ -557,6 +573,22 @@
     "out": "audio"
    },
    "title": "Voiceover"
+  },
+  "VoixVoix": {
+   "cat": "audio",
+   "in": [
+    "in"
+   ],
+   "in_types": {
+    "in": "av"
+   },
+   "out": [
+    "out"
+   ],
+   "out_types": {
+    "out": "av"
+   },
+   "title": "Voice → voice"
   }
  }
 }
