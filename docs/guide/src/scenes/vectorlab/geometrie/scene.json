@@ -1,0 +1,84 @@
+{
+  "titre": {
+    "fr": "Le menu Vecteur",
+    "en": "The Vector menu"
+  },
+  "legende": {
+    "fr": "Géométrie (union, soustraction, intersection, division), courbes, symboles et traçage d'image.",
+    "en": "Geometry (union, subtract, intersect, divide), curves, symbols and image trace."
+  },
+  "captures": [
+    {
+      "fr": "menu.fr.webp",
+      "en": "menu.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        243,
+        85,
+        232,
+        36
+      ],
+      "bulle": {
+        "fr": "Combiner des formes",
+        "en": "Combine shapes"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        243,
+        352,
+        232,
+        36
+      ],
+      "bulle": {
+        "fr": "Vectoriser une image, en local",
+        "en": "Vectorise an image, locally"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        204,
+        85,
+        232,
+        36
+      ],
+      "bulle": {
+        "fr": "Combiner des formes",
+        "en": "Combine shapes"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        204,
+        352,
+        232,
+        36
+      ],
+      "bulle": {
+        "fr": "Vectoriser une image, en local",
+        "en": "Vectorise an image, locally"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

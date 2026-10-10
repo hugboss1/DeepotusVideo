@@ -1,0 +1,62 @@
+<p class="chapeau-chap">Vous saurez retoucher des pixels et faire du pixel-art dans le Vectorlab, exporter vos dessins dans le bon format, fabriquer une carte à partir de vraies données et transformer un dessin en pièces à imprimer en 3D. Tout est gratuit et calculé sur votre PC.</p>
+
+<h3>Le persona Pixel</h3>
+<figure class="scene" data-scene="vectorlab-pixel/persona"></figure>
+<ol class="etapes">
+<li>Cliquez la pastille <b class="ui">Pixel</b> (ou Affichage › <b class="ui">Persona Pixel</b>). Le même document garde ses calques ; les outils et les panneaux changent. Depuis le hub Game Assets, la carte Pixel ouvre directement ce persona.</li>
+<li>Pour retoucher une image posée, choisissez-la puis Pixel › <b class="ui">Éditer les pixels</b>.</li>
+<li>Sélectionnez les pixels : rectangle (M), lasso (L), baguette magique (W) ou par couleur ; le menu Pixel les fait croître, contracter ou s'inverser (<kbd>Ctrl</kbd>+<kbd>I</kbd>).</li>
+<li>Peignez : pinceau (B) et gomme (E) avec rayon, dureté et forme ronde ou carrée, pot de peinture (G) contigu ou global, tampon de clonage (C), flou, éclaircir et assombrir. Clic droit = couleur secondaire, <kbd>X</kbd> les échange, <kbd>Alt</kbd>+clic prélève.</li>
+</ol>
+<p>Pixel › <b class="ui">Réglages et filtres…</b> donne niveaux, courbes, teinte et saturation, noir et blanc, seuil et flou. Chaque retouche s'annule par <kbd>Ctrl</kbd>+<kbd>Z</kbd>, comme le reste du document. L'onglet Histogramme montre les quatre canaux de l'image éditée.</p>
+
+<h3>Faire du pixel-art</h3>
+<p>Le panneau Pixel-art règle la taille de tuile, la symétrie, la palette (les mêmes que le Sprite Lab et le Tile Lab), la quantification et la grille de pixels. Le crayon pixel (K) trace sans doubles pixels dans les diagonales ; <kbd>Maj</kbd>+clic trace un segment droit depuis le dernier point.</p>
+<div class="cartes">
+<article><i data-dz="dz-calque-pixel"></i><h4>Calquer un modèle</h4><p><b class="ui">Désigner comme modèle</b> pâlit et fige une image avec sa grille ; un calque pixel se pose dessus pour dessiner case par case, la pipette prend la couleur exacte, moyenne ou dominante d'une cellule.</p></article>
+<article><i data-dz="dz-outil-px-selection"></i><h4>Pixeliser</h4><p>Pixeliser ramène une image ou une sélection vectorielle à de gros pixels. Rasteriser y ajoute palette et tramage (ordonné ou Floyd-Steinberg).</p></article>
+<article><i data-dz="dz-edit-grille-hex"></i><h4>Tuiles et raccord</h4><p>L'aperçu 3×3 note le raccord d'une tuile ; la tuile iso 2:1 limite la peinture au losange, avec symétrie le long de ses bords.</p></article>
+<article><i data-dz="dz-media-image"></i><h4>Animation</h4><p>La ligne de temps montre les cadres : lecture (<kbd>Entrée</kbd>), boucle, FPS, pelure d'oignon rouge (précédent) et bleue (suivant). Exportez en feuille PNG + JSON ou en bande.</p></article>
+<article><i data-dz="dz-edit-couleur-contour"></i><h4>Finitions</h4><p><b class="ui">Contour sombre</b> détache le dessin du fond, <b class="ui">Accentuer</b> renforce le contraste ; l'export PNG agrandit de ×1 à ×16 sans flou.</p></article>
+<article><i data-dz="dz-action-envoyer-vers"></i><h4>Vers les autres labs</h4><p>Pixel › <b class="ui">Pixel-art vers Tilelab…</b> envoie le dessin au Tile Lab ; le panneau Pixel-art l'envoie aussi au Sprite Lab.</p></article>
+</div>
+<div class="fiches">
+<figure class="fiche" data-fiche="vectorlab/pxDesigner"></figure>
+<figure class="fiche" data-fiche="vectorlab/pxCreerCalque"></figure>
+<figure class="fiche" data-fiche="vectorlab/pxPixeliser"></figure>
+<figure class="fiche" data-fiche="vectorlab/pxContour"></figure>
+</div>
+
+<h3>Exporter</h3>
+<figure class="scene" data-scene="vectorlab-pixel/export"></figure>
+<ol class="etapes">
+<li>Ouvrez l'onglet <b class="ui">Exporter</b> (Fichier › <b class="ui">Exporter…</b> ou Fenêtre › Exporter), commun aux deux personas.</li>
+<li>Choisissez ce qui part : le document entier, chaque planche, chaque calque visible, chaque objet sélectionné, ou les tranches dessinées avec l'outil Tranche.</li>
+<li>Choisissez le format (PNG, JPEG, WebP, SVG, PDF, DXF) et une ou plusieurs résolutions (@1x, @2x…). Les noms de fichiers se construisent seuls ; un export en lot sort toutes les tranches, résolutions et formats d'un coup.</li>
+</ol>
+<div class="cartes">
+<article><i data-dz="dz-action-exporter"></i><h4>PDF vectoriel</h4><p>Par défaut : textes en contours, page à la taille physique, dégradés et motifs vectoriels, traits de coupe et fond perdu pour l'imprimeur. Un message dit ce qui a dû être rasterisé et pourquoi.</p></article>
+<article><i data-dz="dz-outil-vec-couteau"></i><h4>DXF pour la découpe</h4><p>En millimètres, textes en contours de glyphes, symboles et groupes compris.</p></article>
+<article><i data-dz="dz-action-enregistrer"></i><h4>Exports rapides</h4><p>Fichier › <b class="ui">Exporter SVG</b> (images incorporées), <b class="ui">Exporter PNG 2×</b>, et <b class="ui">Vers la Bible…</b> pour un chapitre.</p></article>
+</div>
+
+<h3>Une carte réelle</h3>
+<figure class="scene" data-scene="vectorlab-pixel/carte"></figure>
+<p>Document › <b class="ui">Carte réelle…</b> ouvre le panneau Carte : sans clé ni coût, il pose un relief ombré, trace les courbes de niveau en chemins vectoriels au pas choisi, ajoute un fond OpenStreetMap avec son attribution, et découpe la carte en tuiles hexagonales colorées par altitude. Fichier › <b class="ui">Importer un GPX…</b> pose un tracé à l'échelle vraie, garde son altitude (profil, longueur, dénivelés) et peut en faire un ruban en relief.</p>
+<div class="fiches">
+<figure class="fiche" data-fiche="vectorlab/carteCourbes"></figure>
+<figure class="fiche" data-fiche="vectorlab/carteTuiles"></figure>
+</div>
+
+<h3>Imprimer en 3D</h3>
+<figure class="scene" data-scene="vectorlab-pixel/impression"></figure>
+<ol class="etapes">
+<li>Fichier › <b class="ui">Impression 3D…</b> (ou Texte › Logo 3D…). Choisissez le mode : calques (une hauteur par calque), tuiles de plateau avec socle, logo (biseau, évidement à mur minimal), relief de carte, ou pixel-art (une hauteur par couleur).</li>
+<li>Réglez hauteurs et options, puis <b class="ui">Aperçu 3D</b> : le modèle tourne dans la visionneuse, chaque pièce dans sa couleur, avec dimensions, triangles et volume. Un modèle plus large que le plateau est signalé.</li>
+<li><b class="ui">Un STL</b> pour une seule pièce, ou <b class="ui">Lot par tuile / dalle</b> : un STL par pièce, plateau.3mf coloré et nomenclature.csv. <b class="ui">Ouvrir le slicer</b> passe la main à votre logiciel d'impression.</li>
+</ol>
+<p>En mode relief, les dalles numérotées reçoivent des logements sous le socle et des clés séparées (jeu 0,2 mm) pour s'assembler. La dépouille des flancs incline les bords d'un logo pour le démoulage.</p>
+<figure class="fiche" data-fiche="vectorlab/impDepouilleR"></figure>
+
+<h3>Bon à savoir</h3>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Un texte doit être converti en courbes pour être imprimé : le dialogue le signale et l'ignore sinon. Pour aller plus loin avec un modèle 3D, voir <a href="#etabli">l'Établi</a> et <a href="#impression3d">l'impression 3D</a>.</p></aside>

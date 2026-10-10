@@ -1,0 +1,62 @@
+<p class="chapeau-chap">You will be able to retouch pixels and make pixel art in Vectorlab, export your drawings in the right format, build a map from real data and turn a drawing into parts to 3D-print. Everything is free and computed on your PC.</p>
+
+<h3>The Pixel persona</h3>
+<figure class="scene" data-scene="vectorlab-pixel/persona"></figure>
+<ol class="etapes">
+<li>Click the <b class="ui">Pixel</b> pill (or View › <b class="ui">Pixel Persona</b>). The same document keeps its layers; tools and panels change. From the Game Assets hub, the Pixel card opens this persona directly.</li>
+<li>To retouch a placed image, pick it then Pixel › <b class="ui">Edit pixels</b>.</li>
+<li>Select pixels: rectangle (M), lasso (L), magic wand (W) or by colour; the Pixel menu grows, contracts or inverts them (<kbd>Ctrl</kbd>+<kbd>I</kbd>).</li>
+<li>Paint: brush (B) and eraser (E) with radius, hardness and round or square shape, paint bucket (G) contiguous or global, clone stamp (C), blur, dodge and burn. Right-click = secondary colour, <kbd>X</kbd> swaps them, <kbd>Alt</kbd>+click picks.</li>
+</ol>
+<p>Pixel › <b class="ui">Adjustments and filters…</b> gives levels, curves, hue and saturation, black and white, threshold and blur. Every retouch undoes with <kbd>Ctrl</kbd>+<kbd>Z</kbd>, like the rest of the document. The Histogram tab shows the four channels of the edited image.</p>
+
+<h3>Make pixel art</h3>
+<p>The Pixel-art panel sets tile size, symmetry, palette (the same as Sprite Lab and Tile Lab), quantization and the pixel grid. The pixel pencil (K) draws without double pixels in diagonals; <kbd>Shift</kbd>+click draws a straight segment from the last point.</p>
+<div class="cartes">
+<article><i data-dz="dz-calque-pixel"></i><h4>Trace a reference</h4><p><b class="ui">Set as reference</b> fades and locks an image with its grid; a pixel layer sits on top to draw cell by cell, the eyedropper takes a cell's exact, average or dominant colour.</p></article>
+<article><i data-dz="dz-outil-px-selection"></i><h4>Pixelate</h4><p>Pixelate turns an image or a vector selection into big pixels. Rasterize adds palette and dithering (ordered or Floyd-Steinberg).</p></article>
+<article><i data-dz="dz-edit-grille-hex"></i><h4>Tiles and seams</h4><p>The 3×3 preview scores a tile's seams; the 2:1 iso tile limits painting to the diamond, with symmetry along its edges.</p></article>
+<article><i data-dz="dz-media-image"></i><h4>Animation</h4><p>The timeline shows frames: play (<kbd>Enter</kbd>), loop, FPS, red (previous) and blue (next) onion skin. Export as a PNG + JSON sheet or a strip.</p></article>
+<article><i data-dz="dz-edit-couleur-contour"></i><h4>Finishing</h4><p><b class="ui">Dark outline</b> sets the drawing off the background, <b class="ui">Sharpen</b> boosts contrast; PNG export scales from ×1 to ×16 without blur.</p></article>
+<article><i data-dz="dz-action-envoyer-vers"></i><h4>To the other labs</h4><p>Pixel › <b class="ui">Pixel art to Tilelab…</b> sends the drawing to Tile Lab; the Pixel-art panel also sends it to Sprite Lab.</p></article>
+</div>
+<div class="fiches">
+<figure class="fiche" data-fiche="vectorlab/pxDesigner"></figure>
+<figure class="fiche" data-fiche="vectorlab/pxCreerCalque"></figure>
+<figure class="fiche" data-fiche="vectorlab/pxPixeliser"></figure>
+<figure class="fiche" data-fiche="vectorlab/pxContour"></figure>
+</div>
+
+<h3>Export</h3>
+<figure class="scene" data-scene="vectorlab-pixel/export"></figure>
+<ol class="etapes">
+<li>Open the <b class="ui">Export</b> tab (File › <b class="ui">Export…</b> or Window › Export), shared by both personas.</li>
+<li>Choose what goes out: the whole document, each artboard, each visible layer, each selected object, or the slices drawn with the Slice tool.</li>
+<li>Choose the format (PNG, JPEG, WebP, SVG, PDF, DXF) and one or more resolutions (@1x, @2x…). File names build themselves; a batch export outputs every slice, resolution and format at once.</li>
+</ol>
+<div class="cartes">
+<article><i data-dz="dz-action-exporter"></i><h4>Vector PDF</h4><p>By default: text as outlines, page at physical size, vector gradients and patterns, crop marks and bleed for the printer. A message says what had to be rasterized and why.</p></article>
+<article><i data-dz="dz-outil-vec-couteau"></i><h4>DXF for cutting</h4><p>In millimetres, text as glyph outlines, symbols and groups included.</p></article>
+<article><i data-dz="dz-action-enregistrer"></i><h4>Quick exports</h4><p>File › <b class="ui">Export SVG</b> (embedded images), <b class="ui">Export PNG 2×</b>, and <b class="ui">Send to Bible…</b> for a chapter.</p></article>
+</div>
+
+<h3>A real map</h3>
+<figure class="scene" data-scene="vectorlab-pixel/carte"></figure>
+<p>Document › <b class="ui">Real map…</b> opens the Map panel: no key, no cost, it lays a shaded relief, draws contour lines as vector paths at the chosen interval, adds an OpenStreetMap background with its attribution, and slices the map into hexagonal tiles coloured by altitude. File › <b class="ui">Import GPX…</b> places a track at true scale, keeps its altitude (profile, length, climbs) and can turn it into a raised ribbon.</p>
+<div class="fiches">
+<figure class="fiche" data-fiche="vectorlab/carteCourbes"></figure>
+<figure class="fiche" data-fiche="vectorlab/carteTuiles"></figure>
+</div>
+
+<h3>Print in 3D</h3>
+<figure class="scene" data-scene="vectorlab-pixel/impression"></figure>
+<ol class="etapes">
+<li>File › <b class="ui">3D Print…</b> (or Text › 3D Logo…). Choose the mode: layers (one height per layer), board tiles with base, logo (bevel, hollowing with a minimum wall), map relief, or pixel art (one height per colour).</li>
+<li>Set heights and options, then <b class="ui">3D preview</b>: the model turns in the viewer, each part in its colour, with dimensions, triangles and volume. A model wider than the bed is flagged.</li>
+<li><b class="ui">One STL</b> for a single part, or <b class="ui">Batch per tile / slab</b>: one STL per part, a coloured plateau.3mf and nomenclature.csv. <b class="ui">Open the slicer</b> hands over to your printing software.</li>
+</ol>
+<p>In relief mode, numbered slabs get sockets under the base and separate keys (0.2 mm clearance) to fit together. Side draft tilts a logo's edges for demoulding.</p>
+<figure class="fiche" data-fiche="vectorlab/impDepouilleR"></figure>
+
+<h3>Good to know</h3>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>A text must be converted to curves to be printed: the dialog says so and skips it otherwise. To go further with a 3D model, see <a href="#etabli">the Workbench</a> and <a href="#impression3d">3D printing</a>.</p></aside>

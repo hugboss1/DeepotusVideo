@@ -1,0 +1,56 @@
+{
+  "titre": {
+    "fr": "L'onglet Exporter",
+    "en": "The Export tab"
+  },
+  "legende": {
+    "fr": "Commun aux deux personas : formats, résolutions, tranches et préréglages d'impression.",
+    "en": "Shared by both personas: formats, resolutions, slices and print presets."
+  },
+  "captures": [
+    {
+      "fr": "export.fr.webp",
+      "en": "export.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 3,
+      "surligne": [
+        1238,
+        693,
+        75,
+        34
+      ],
+      "bulle": {
+        "fr": "PNG, JPEG, WebP, SVG, PDF, DXF",
+        "en": "PNG, JPEG, WebP, SVG, PDF, DXF"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 3,
+      "surligne": [
+        1231,
+        693,
+        64,
+        34
+      ],
+      "bulle": {
+        "fr": "PNG, JPEG, WebP, SVG, PDF, DXF",
+        "en": "PNG, JPEG, WebP, SVG, PDF, DXF"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}
