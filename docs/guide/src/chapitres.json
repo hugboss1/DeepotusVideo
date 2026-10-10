@@ -216,12 +216,23 @@
       "id": "avatar-live",
       "famille": "video",
       "lot": "t168",
-      "icone": "dz-nav-studio",
-      "fr": "Jouer un avatar en direct",
-      "en": "Perform a live avatar",
+      "icone": "dz-media-avatar",
+      "fr": "Jouer un avatar, en différé ou en direct",
+      "en": "Play an avatar, deferred or live",
       "anciens": [],
       "ecrans": [],
-      "note": "écrit par le chantier Avatar live (t161-t168) dans le modèle du guide v3"
+      "etat": "v3"
+    },
+    {
+      "id": "voix-rvc",
+      "famille": "video",
+      "lot": "t168",
+      "icone": "dz-media-cloner-voix",
+      "fr": "Installer et entraîner une voix locale RVC",
+      "en": "Install and train a local RVC voice",
+      "anciens": [],
+      "ecrans": [],
+      "etat": "v3"
     },
     {
       "id": "montage",

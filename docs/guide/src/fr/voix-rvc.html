@@ -1,0 +1,45 @@
+<p class="chapeau-chap">Vous saurez installer Voixbox, enregistrer votre voix, l'entraîner avec RVC et la faire parler pendant un Direct, sur votre carte graphique. Gratuit : rien ne part sur Internet. Comptez trente minutes d'installation, un quart d'heure d'enregistrement et environ une heure de calcul par voix.</p>
+
+<h3>Avant de commencer</h3>
+<p>Il faut une carte graphique <strong>NVIDIA</strong> avec 6 Go de mémoire ou plus, et environ 6 Go de disque. Sans elle, le Direct propose votre voix telle quelle ou la voix du Personnage par ElevenLabs (payante, sans installation).</p>
+<p>Le moteur est <strong>RVC</strong> (licence MIT), par sa WebUI officielle : la même installation sert à entraîner une voix et à la faire parler. Ne clonez que votre voix, ou celle d'une personne qui vous a donné son accord.</p>
+
+<h3>Installer Voixbox (une fois)</h3>
+<ol class="etapes">
+<li>Ouvrez PowerShell dans le dossier de l'application, là où se trouve <code>tools\voixbox</code> (par défaut <code>%LOCALAPPDATA%\DeepotusVideoGen</code>).</li>
+<li>Lancez <code>powershell -ExecutionPolicy Bypass -File tools\voixbox\installer.ps1</code>.</li>
+<li>Le script installe <code>uv</code>, télécharge la WebUI dans une version vérifiée, crée son Python, y pose torch pour CUDA (3 Go environ) puis ses poids (560 Mo).</li>
+<li>Il finit par <code>CUDA True | NVIDIA …</code> : la carte est vue. Au moindre échec, il s'arrête et dit pourquoi.</li>
+</ol>
+
+<h3>Enregistrer votre voix</h3>
+<p>La qualité de la voix clonée dépend presque tout entière de cet enregistrement.</p>
+<ol class="etapes">
+<li>Enregistrez 10 à 15 minutes de votre voix seule : pas de musique, pas de deuxième voix, pas d'écho.</li>
+<li>Pièce calme, micro à 15-20 cm, toujours le même micro. Parlez comme pendant vos directs, en variant les phrases.</li>
+<li>Évitez la saturation. Préférez plusieurs fichiers de 30 s à 2 min, en WAV.</li>
+<li>Rangez-les dans un dossier qui ne contient qu'eux, par exemple <code>C:\Voix\oli</code>.</li>
+</ol>
+
+<h3>Entraîner une voix RVC</h3>
+<ol class="etapes">
+<li>Lancez <code>powershell -ExecutionPolicy Bypass -File tools\voixbox\webui.ps1</code>. La WebUI s'ouvre en français sur <code>http://127.0.0.1:7865</code> ; laissez la fenêtre PowerShell ouverte.</li>
+<li>Onglet « Entraîner », étape 1 : un <strong>nom d'expérience</strong> court sans espace ni accent (<code>oli</code>), taux <code>40k</code>, guidage de la hauteur <strong>Oui</strong>, version <code>v2</code>.</li>
+<li>Étape 2 : le dossier de vos enregistrements, et l'algorithme de hauteur <code>rmvpe</code>.</li>
+<li>Étape 3 : sauvegarde toutes les <code>25</code> époques, <strong>200</strong> époques au total (100 pour un essai), batch <code>8</code> (ou <code>4</code> avec 6 Go), petit modèle final à chaque sauvegarde : <strong>Oui</strong>.</li>
+<li>Cliquez « Entraînement en un clic ». Comptez environ 1 h 15 pour 200 époques sur une RTX 2080 Ti.</li>
+<li>Rangez la voix là où Voixbox la cherche : <code>powershell -ExecutionPolicy Bypass -File tools\voixbox\ranger-voix.ps1 -Nom oli</code>.</li>
+</ol>
+<p>Avant de vous en servir, écoutez-la : onglet « Inférence du modèle » de la WebUI, choisissez <code>oli.pth</code> et donnez un court enregistrement. Une voix qui grésille demande plus d'époques ou un enregistrement plus propre.</p>
+
+<h3>Parler avec elle pendant un Direct</h3>
+<ol class="etapes">
+<li>Lancez <code>powershell -ExecutionPolicy Bypass -File tools\voixbox\lancer.ps1</code> et laissez la fenêtre ouverte : elle annonce le nombre de voix entraînées.</li>
+<li>Dans <b class="ui">Avatar live</b>, onglet <b class="ui">Direct</b>, choisissez la voix RVC locale dans <b class="ui">Voix envoyée</b>.</li>
+<li>Réglez la <b class="ui">Transposition (demi-tons)</b> si besoin : <code>+12</code> pour passer d'une voix d'homme à une voix de femme.</li>
+<li><b class="ui">Démarrer le direct</b>. Chaque demi-seconde de voix est convertie en 110 ms environ ; l'image est retardée de 0,75 s pour rester calée sur les lèvres.</li>
+</ol>
+
+<h3>Bon à savoir</h3>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>L'écran Direct dit ce qui manque : aucune carte NVIDIA, Voixbox pas lancé, ou aucune voix entraînée. Un autre port se règle par <code>VOIXBOX_URL</code> dans le <code>.env</code>.</p></aside>
+<aside class="attention"><i data-dz="dz-etat-avertissement"></i><p>Avec Avast ou un antivirus qui inspecte les connexions, passez toujours par les scripts de <code>tools\voixbox</code> : ils retirent pour eux seuls la variable <code>SSLKEYLOGFILE</code> et lisent les certificats de Windows. Sinon Python plante (<code>no OPENSSL_Applink</code>).</p></aside>

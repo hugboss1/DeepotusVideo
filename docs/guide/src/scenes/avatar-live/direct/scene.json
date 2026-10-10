@@ -1,0 +1,112 @@
+{
+  "titre": {
+    "fr": "Le Direct",
+    "en": "Live"
+  },
+  "legende": {
+    "fr": "Direct : Personnage, décor, format, durée réservée et voix envoyée ; le prix réservé s'affiche avant de démarrer.",
+    "en": "Live: Character, setting, format, reserved duration and voice sent; the reserved price shows before you start."
+  },
+  "captures": [
+    {
+      "fr": "direct.fr.webp",
+      "en": "direct.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    1000
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        35,
+        287,
+        410,
+        137
+      ],
+      "bulle": {
+        "fr": "Le décor, changeable en plein direct",
+        "en": "The setting, switchable mid-session"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        35,
+        636,
+        380,
+        46
+      ],
+      "bulle": {
+        "fr": "Votre voix, celle du Personnage, ou une voix RVC locale",
+        "en": "Your voice, the Character's, or a local RVC voice"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        35,
+        836,
+        182,
+        51
+      ],
+      "bulle": {
+        "fr": "Le prix réservé est dit avant de démarrer",
+        "en": "The reserved price is shown before you start"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        35,
+        287,
+        410,
+        137
+      ],
+      "bulle": {
+        "fr": "Le décor, changeable en plein direct",
+        "en": "The setting, switchable mid-session"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        35,
+        636,
+        345,
+        46
+      ],
+      "bulle": {
+        "fr": "Votre voix, celle du Personnage, ou une voix RVC locale",
+        "en": "Your voice, the Character's, or a local RVC voice"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        35,
+        836,
+        199,
+        51
+      ],
+      "bulle": {
+        "fr": "Le prix réservé est dit avant de démarrer",
+        "en": "The reserved price is shown before you start"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    1000
+  ]
+}

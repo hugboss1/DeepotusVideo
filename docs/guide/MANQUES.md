@@ -4,7 +4,7 @@ Généré par `scripts/guide/relever_manques.py` : ne pas éditer à la main.
 
 - 1094 fonctions visibles livrées depuis le 07/09/2026 (v2.8.0) ; 42 sont payantes.
 - 194 fonctions décrites par le guide v2.8.0 (22 chapitres c0-c21).
-- 37 chapitres dans le sommaire v3, en 6 familles.
+- 38 chapitres dans le sommaire v3, en 6 familles.
 
 Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger), puis les fonctions manquantes. Le lot coche une ligne quand le chapitre l'explique.
 
@@ -343,7 +343,10 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 - [x] **Voix off dirigée** **payant** : Ajoute des balises d'émotion et de jeu Eleven v3 (palette servie par le serveur, dont accents) à une voix off, montre ce qui part réellement et la chiffre avant génération ; hors v3 ou sous Voicebox les balises sont retirées et c'est dit. — *Son & VFX → carte « Voix off dirigée » : palette de balises, aperçu, générer armé par le devis* (PR #217 · commit a96a5a56 · T102)
 - [x] **Éditeur de paroles par sections** : Un squelette de paroles est proposé selon le persona et se modifie section par section ; le thème se saisit par un dialogue maison. — *Son & VFX → éditeur de sections des paroles* (PR #217 · commit a96a5a56 · T102)
 
-### Jouer un avatar en direct (`avatar-live`, lot t168, reprend : nouveau) — 0 manques
+### Jouer un avatar, en différé ou en direct (`avatar-live`, lot t168, reprend : nouveau) — 0 manques
+
+
+### Installer et entraîner une voix locale RVC (`voix-rvc`, lot t168, reprend : nouveau) — 0 manques
 
 
 ### Monter une vidéo (`montage`, lot t174, reprend : nouveau) — 50 manques

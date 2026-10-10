@@ -1,0 +1,112 @@
+{
+  "titre": {
+    "fr": "Rejouer une vidéo",
+    "en": "Replay a video"
+  },
+  "legende": {
+    "fr": "Recast : une vidéo source, un modèle et son prix, le Personnage, le décor ; le devis s'affiche avant de lancer.",
+    "en": "Recast: a source video, a model and its price, the Character, the setting; the quote shows before you start."
+  },
+  "captures": [
+    {
+      "fr": "recast.fr.webp",
+      "en": "recast.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    1360
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        35,
+        393,
+        410,
+        384
+      ],
+      "bulle": {
+        "fr": "Chaque modèle affiche son prix à la seconde",
+        "en": "Each model shows its price per second"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        35,
+        885,
+        410,
+        137
+      ],
+      "bulle": {
+        "fr": "Un décor tout prêt, ou votre consigne",
+        "en": "A ready-made setting, or your own instruction"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        35,
+        1250,
+        170,
+        51
+      ],
+      "bulle": {
+        "fr": "Le devis d'abord, puis le lancement",
+        "en": "The quote first, then the launch"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        35,
+        393,
+        410,
+        405
+      ],
+      "bulle": {
+        "fr": "Chaque modèle affiche son prix à la seconde",
+        "en": "Each model shows its price per second"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        35,
+        906,
+        410,
+        137
+      ],
+      "bulle": {
+        "fr": "Un décor tout prêt, ou votre consigne",
+        "en": "A ready-made setting, or your own instruction"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        35,
+        1271,
+        168,
+        51
+      ],
+      "bulle": {
+        "fr": "Le devis d'abord, puis le lancement",
+        "en": "The quote first, then the launch"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    1360
+  ]
+}
