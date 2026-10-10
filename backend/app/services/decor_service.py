@@ -8,7 +8,12 @@ alpha) puis le COMPOSER en local par ffmpeg sur un fond :
 La sortie garde la taille, la durée et le SON de la source. Un rendu est un JOB (provider recast, modèle « decor »).
 Prix : celui du matte (kind « matte », taux « à mesurer » tant que fal n'affiche que $0). L'autre voie du décor —
 une consigne Lucy Edit avec les préréglages — est le modèle « objet » du Recast (G1).
-Seams : `_upload`, `_fal_subscribe`, `_download`."""
+Seams : `_upload`, `_fal_subscribe`, `_download`.
+
+t168d (10/10/2026) — contrôler le détourage AVANT de payer la vidéo : `apercu_detourage` détoure UNE image du milieu de la prise
+(BiRefNet image, fal-ai/birefnet/v2, même modèle que la vidéo) et la compose en local sur le fond choisi ; l'écran ne
+lance le décor vidéo qu'après cet aperçu. Le modèle (Portrait par défaut, Matting pour cheveux et transparences,
+Général) est celui de matte_service.MATTE_MODELS, transmis ensuite au détourage vidéo."""
 from __future__ import annotations
 
 import asyncio
@@ -23,6 +28,29 @@ from loguru import logger
 from app.config import settings
 
 _COULEUR = re.compile(r"^#[0-9a-fA-F]{6}$")
+_APERCU = re.compile(r"^[0-9a-f]{32}\.png$")
+ENDPOINT_IMAGE = "fal-ai/birefnet/v2"
+MODELE_DEFAUT = "portrait"
+
+
+def modele(m) -> str:
+    from app.services import matte_service as MT
+    m = str(m or "").strip().lower()
+    return m if m in MT.MATTE_MODELS else MODELE_DEFAUT
+
+
+def apercus_dir() -> Path:
+    p = Path(settings.outputs_path) / "recast" / "apercus"
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+
+def chemin_apercu(nom: str) -> Path | None:
+    n = str(nom or "")
+    if not _APERCU.match(n):
+        return None
+    p = apercus_dir() / n
+    return p if p.is_file() else None
 _IMAGES = (".png", ".jpg", ".jpeg", ".webp")
 _TACHES: set = set()
 
@@ -86,7 +114,58 @@ def commande(matte: Path, src: Path, fond: dict, w: int, h: int, dest: Path) -> 
     return ff
 
 
-async def _executer(job_id: str, src: Path, fond: dict, info: dict, lignes: list) -> None:
+def _image_a(src: Path, t: float, w: int, h: int, dest: Path) -> None:
+    """Une image de `src` à l'instant `t`, au cadre w×h (recadrée, jamais déformée)."""
+    r = subprocess.run([_bin("ffmpeg"), "-y", "-v", "error", "-ss", f"{max(0.0, t):.3f}", "-i", str(src), "-frames:v", "1",
+                        "-vf", f"scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1", str(dest)],
+                       capture_output=True, timeout=120)
+    if r.returncode != 0 or not dest.is_file():
+        raise RuntimeError("ffmpeg n'a pas extrait l'image : " + r.stderr.decode("utf-8", "replace")[-200:])
+
+
+def composer_apercu(sujet: Path, fond: dict, t: float, w: int, h: int, dest: Path) -> None:
+    """Le sujet détouré (PNG avec alpha) posé sur le fond, comme le fera la composition vidéo."""
+    from PIL import Image, ImageOps
+    if fond.get("couleur"):
+        bg = Image.new("RGB", (w, h), fond["couleur"])
+    elif fond.get("image"):
+        bg = ImageOps.fit(Image.open(chemin_fond(fond)).convert("RGB"), (w, h))
+    else:
+        tmp = dest.with_name(dest.stem + ".fond.png")
+        _image_a(chemin_fond(fond), t, w, h, tmp)
+        bg = Image.open(tmp).convert("RGB")
+        tmp.unlink(missing_ok=True)
+    fg = Image.open(sujet).convert("RGBA").resize((w, h))
+    bg.paste(fg, (0, 0), fg)
+    bg.save(dest, "PNG")
+
+
+async def apercu_detourage(src: Path, fond: dict, info: dict, mod: str) -> dict:
+    """PAYANT (fal, une image) : la garde est passée dans la route. Rend {source, apercu} (noms de fichiers PNG)."""
+    from uuid import uuid4 as _u
+    from app.services import matte_service as MT
+    w, h = int(info["width"]) // 2 * 2, int(info["height"]) // 2 * 2
+    t = float(info.get("duration_s") or 0) / 2
+    d = apercus_dir()
+    nom_src, nom_ap = _u().hex + ".png", _u().hex + ".png"
+    await asyncio.to_thread(_image_a, src, t, w, h, d / nom_src)
+    url = await _upload(d / nom_src)
+    res = await _fal_subscribe(ENDPOINT_IMAGE, {"image_url": url, "model": MT.MATTE_MODELS[mod]["fal"],
+                                                "operating_resolution": "1024x1024", "refine_foreground": True,
+                                                "output_format": "png"})
+    iurl = ((res or {}).get("image") or {}).get("url") if isinstance(res, dict) else None
+    if not iurl:
+        raise RuntimeError("fal.ai : aucune image détourée dans la réponse")
+    sujet = d / (_u().hex + ".sujet.png")
+    try:
+        await _download(iurl, sujet)
+        await asyncio.to_thread(composer_apercu, sujet, fond, t, w, h, d / nom_ap)
+    finally:
+        sujet.unlink(missing_ok=True)
+    return {"source": nom_src, "apercu": nom_ap, "instant_s": round(t, 2)}
+
+
+async def _executer(job_id: str, src: Path, fond: dict, info: dict, lignes: list, mod: str = MODELE_DEFAUT) -> None:
     from app.models.schemas import JobStatus
     from app.services.storage import JobRecord, async_session_factory
     from app.services import plafonds as _plaf, matte_service as MT
@@ -103,7 +182,7 @@ async def _executer(job_id: str, src: Path, fond: dict, info: dict, lignes: list
         await maj(status=JobStatus.UPLOADING.value, current_step="Envoi de la prise", progress=10)
         url = await _upload(src)
         await maj(status=JobStatus.GENERATING_VIDEO.value, current_step="Détourage du sujet (BiRefNet)", progress=35)
-        res = await _fal_subscribe(MT.ENDPOINT, dict(MT.ARGS_FIXED, video_url=url, model=MT.MATTE_MODELS["portrait"]["fal"]))
+        res = await _fal_subscribe(MT.ENDPOINT, dict(MT.ARGS_FIXED, video_url=url, model=MT.MATTE_MODELS[modele(mod)]["fal"]))
         vurl = ((res or {}).get("video") or {}).get("url") if isinstance(res, dict) else None
         if not vurl:
             raise RuntimeError("fal.ai : aucune vidéo détourée dans la réponse")
@@ -124,7 +203,8 @@ async def _executer(job_id: str, src: Path, fond: dict, info: dict, lignes: list
         matte.unlink(missing_ok=True)
 
 
-async def lancer_decor(src: Path, fond: dict, info: dict, lignes: list, parent_job_id: str | None) -> str:
+async def lancer_decor(src: Path, fond: dict, info: dict, lignes: list, parent_job_id: str | None,
+                       mod: str = MODELE_DEFAUT) -> str:
     """Crée le job « decor » et le lance. PAYANT (fal, BiRefNet) : la garde est passée dans la route."""
     from app.models.schemas import JobStatus, Provider
     from app.services.storage import JobRecord, async_session_factory
@@ -135,7 +215,7 @@ async def lancer_decor(src: Path, fond: dict, info: dict, lignes: list, parent_j
                         parent_job_id=parent_job_id, video_model="decor", duration_s=int(round(info["duration_s"])),
                         aspect_ratio=info.get("ratio"), title=f"Décor — {quoi}"[:200], created_at=datetime.utcnow()))
         await s.commit()
-    t = asyncio.get_running_loop().create_task(_executer(job_id, src, fond, info, lignes))
+    t = asyncio.get_running_loop().create_task(_executer(job_id, src, fond, info, lignes, modele(mod)))
     _TACHES.add(t)
     t.add_done_callback(_TACHES.discard)
     return job_id

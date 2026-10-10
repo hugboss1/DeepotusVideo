@@ -88,6 +88,10 @@
           </label>
         </div>
         <div id="rSourceInfo" class="info"></div>
+        <div id="rDuo" class="duo" hidden>
+          <figure><video id="rDuoSource" muted playsinline preload="metadata"></video><figcaption>La prise</figcaption></figure>
+          <figure><img id="rDuoPerso" alt=""><figcaption>Le Personnage</figcaption></figure>
+        </div>
 
         <h3>2. Le modèle</h3>
         <div id="rModeles" class="modeles" role="radiogroup" aria-label="Modèle"></div>
@@ -142,6 +146,22 @@
               <div id="dDepot" class="depot petit" tabindex="0" role="button" aria-label="Choisir une vidéo de fond"><span>Déposer une vidéo de fond</span>
                 <input id="dFichier" type="file" accept="video/mp4,video/quicktime,video/webm" hidden></div>
             </div>
+            <label class="champ court">Modèle de détourage
+              <select id="dModele">
+                <option value="portrait" data-t="avatar.decor.mod_portrait">Portrait</option>
+                <option value="matting" data-t="avatar.decor.mod_matting">Matting — cheveux, transparences</option>
+                <option value="general" data-t="avatar.decor.mod_general">Général</option>
+              </select>
+            </label>
+          </div>
+          <div class="actions">
+            <button id="dVerifier" type="button" class="btn" disabled>
+              <svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-apercu"></use></svg>Vérifier le détourage
+            </button>
+          </div>
+          <div id="dApercu" class="duo" hidden>
+            <figure><img id="dApercuSource" alt=""><figcaption>Image de la prise</figcaption></figure>
+            <figure><img id="dApercuImage" alt=""><figcaption>Sur le nouveau fond</figcaption></figure>
           </div>
           <div class="actions">
             <button id="dLancer" type="button" class="btn plein" disabled>
