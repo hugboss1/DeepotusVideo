@@ -319,6 +319,8 @@ def restes(textes: dict, table: dict, fichiers, dico, gardes):
     out = []
     for f in fichiers:
         s = textes[f]                              # la source de BASE : les numéros de ligne sont ceux de la saisie
+        if f.endswith(".html"):                    # index.html n'est jamais réécrit (surcouche) : son état COURANT
+            s = (RACINE / (LAB + f)).read_bytes().decode("utf-8")
         if f.endswith(".html"):
             cands = [(m.start(1), m.group(1)) for m in re.finditer(r">([^<>{}]{2,300})<", s)]
             cands += [(m.start(1), m.group(1)) for m in re.finditer(r'\b(?:title|placeholder|aria-label|alt)="([^"]{2,300})"', s)]

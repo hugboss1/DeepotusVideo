@@ -1,0 +1,330 @@
+{
+  "dz-lab3d-artefact": {
+    "nom": {"fr": "Artefact", "en": "Artifact"},
+    "fonction": {"fr": "Marque le nœud résultat, l'objet final produit par la Forge 3D.", "en": "Marks the result node, the final object built by the 3D Forge."}
+  },
+  "dz-lab3d-assemblage": {
+    "nom": {"fr": "Assemblage", "en": "Assembly"},
+    "fonction": {"fr": "Marque le nœud qui réunit plusieurs pièces de la Forge 3D.", "en": "Marks the node that joins several pieces in the 3D Forge."}
+  },
+  "dz-lab3d-camera": {
+    "nom": {"fr": "Caméra", "en": "Camera"},
+    "fonction": {"fr": "Indique la caméra prévue pour filmer ce plan en 3D.", "en": "Shows the camera planned to film this shot in 3D."}
+  },
+  "dz-lab3d-capsule": {
+    "nom": {"fr": "Capsule", "en": "Capsule"},
+    "fonction": {"fr": "Ajoute une capsule, cylindre aux bouts arrondis, à la scène.", "en": "Adds a capsule, a cylinder with rounded ends, to the scene."}
+  },
+  "dz-lab3d-cube": {
+    "nom": {"fr": "Boîte", "en": "Box"},
+    "fonction": {"fr": "Ajoute une boîte, forme cubique simple, à la scène 3D.", "en": "Adds a box, a simple cube shape, to the 3D scene."}
+  },
+  "dz-lab3d-cylindre": {
+    "nom": {"fr": "Cylindre", "en": "Cylinder"},
+    "fonction": {"fr": "Ajoute un cylindre aux bouts plats à la scène 3D.", "en": "Adds a flat-ended cylinder to the 3D scene."}
+  },
+  "dz-lab3d-deriver-maps": {
+    "nom": {"fr": "Dériver les maps", "en": "Derive maps"},
+    "fonction": {"fr": "Calcule les images de couleur, relief et brillance d'une matière.", "en": "Computes the color, bump and shine images of a material."}
+  },
+  "dz-lab3d-extrusion": {
+    "nom": {"fr": "Extrusion", "en": "Extrusion"},
+    "fonction": {"fr": "Marque le nœud qui donne de l'épaisseur à une forme plate.", "en": "Marks the node that gives depth to a flat shape."}
+  },
+  "dz-lab3d-filaire": {
+    "nom": {"fr": "Filaire", "en": "Wireframe"},
+    "fonction": {"fr": "Affiche le modèle en fil de fer pour voir ses arêtes.", "en": "Shows the model as a wireframe to reveal its edges."}
+  },
+  "dz-lab3d-forger-matiere": {
+    "nom": {"fr": "Forger la matière", "en": "Forge material"},
+    "fonction": {"fr": "Crée une nouvelle matière par IA à partir d'une description (payant).", "en": "Creates a new material with AI from a description (paid)."}
+  },
+  "dz-lab3d-generer-modele": {
+    "nom": {"fr": "Générer le modèle", "en": "Generate model"},
+    "fonction": {"fr": "Fabrique un modèle 3D par IA à partir de vues préparées (payant).", "en": "Builds a 3D model with AI from prepared views (paid)."}
+  },
+  "dz-lab3d-hdri": {
+    "nom": {"fr": "HDRI", "en": "HDRI"},
+    "fonction": {"fr": "Importe une image panoramique qui éclaire toute la scène.", "en": "Imports a panoramic image that lights the whole scene."}
+  },
+  "dz-lab3d-impression-3d": {
+    "nom": {"fr": "Impression 3D", "en": "3D printing"},
+    "fonction": {"fr": "Exporte l'objet pour l'imprimante 3D et l'ouvre dans le logiciel de découpe.", "en": "Exports the object for 3D printing and opens it in the slicer."}
+  },
+  "dz-lab3d-lod": {
+    "nom": {"fr": "LOD", "en": "LOD"},
+    "fonction": {"fr": "Crée des versions du modèle de moins en moins détaillées, donc plus légères.", "en": "Creates ever less detailed, lighter versions of the model."}
+  },
+  "dz-lab3d-lumiere": {
+    "nom": {"fr": "Lumière", "en": "Light"},
+    "fonction": {"fr": "Ajoute ou déplace une lampe pour voir la matière autrement éclairée.", "en": "Adds or moves a lamp to see the material lit differently."}
+  },
+  "dz-lab3d-maillage": {
+    "nom": {"fr": "Maillage 3D", "en": "3D mesh"},
+    "fonction": {"fr": "Marque le nœud qui contient un objet 3D fait de triangles.", "en": "Marks the node holding a 3D object made of triangles."}
+  },
+  "dz-lab3d-materiau": {
+    "nom": {"fr": "Matière", "en": "Material"},
+    "fonction": {"fr": "Indique la matière appliquée à un nœud de la Forge 3D.", "en": "Shows the material applied to a node in the 3D Forge."}
+  },
+  "dz-lab3d-optimiser": {
+    "nom": {"fr": "Optimiser", "en": "Optimize"},
+    "fonction": {"fr": "Allège et compresse le modèle 3D pour qu'il charge plus vite.", "en": "Slims down and compresses the 3D model so it loads faster."}
+  },
+  "dz-lab3d-orienter": {
+    "nom": {"fr": "Orienter", "en": "Orient"},
+    "fonction": {"fr": "Propose les meilleures façons de poser l'objet sur le plateau d'impression.", "en": "Suggests the best ways to lay the object on the print bed."}
+  },
+  "dz-lab3d-os": {
+    "nom": {"fr": "Os", "en": "Bone"},
+    "fonction": {"fr": "Dessine un os du squelette ou choisit celui où accrocher la suite.", "en": "Draws a skeleton bone or picks the one to attach to next."}
+  },
+  "dz-lab3d-piece": {
+    "nom": {"fr": "Pièce", "en": "Part"},
+    "fonction": {"fr": "Pose une boîte d'image qui suit les mouvements d'un os.", "en": "Places an image box that follows a bone's movements."}
+  },
+  "dz-lab3d-plan": {
+    "nom": {"fr": "Plan texturé", "en": "Textured plane"},
+    "fonction": {"fr": "Marque le nœud qui pose une image sur une surface plate.", "en": "Marks the node that puts an image on a flat surface."}
+  },
+  "dz-lab3d-procedural": {
+    "nom": {"fr": "Générateurs", "en": "Generators"},
+    "fonction": {"fr": "Ouvre le mode qui crée des matières par réglages, sans photo.", "en": "Opens the mode that builds materials from settings, without photos."}
+  },
+  "dz-lab3d-relief": {
+    "nom": {"fr": "Relief", "en": "Relief"},
+    "fonction": {"fr": "Ajoute un relief tiré d'une carte des hauteurs du terrain.", "en": "Adds relief taken from a map of terrain heights."}
+  },
+  "dz-lab3d-rig": {
+    "nom": {"fr": "Rig", "en": "Rig"},
+    "fonction": {"fr": "Crée ou enregistre le squelette qui permet d'animer le modèle.", "en": "Creates or saves the skeleton that lets the model move."}
+  },
+  "dz-lab3d-rotation": {
+    "nom": {"fr": "Rotation", "en": "Rotation"},
+    "fonction": {"fr": "Fait tourner l'aperçu sur lui-même ou le fige en image fixe.", "en": "Spins the preview on itself or freezes it as a still."}
+  },
+  "dz-lab3d-sphere": {
+    "nom": {"fr": "Sphère", "en": "Sphere"},
+    "fonction": {"fr": "Ajoute une boule parfaitement ronde à la scène 3D.", "en": "Adds a perfectly round ball to the 3D scene."}
+  },
+  "dz-nav-accueil": {
+    "nom": {"fr": "Revoir l'accueil", "en": "Replay onboarding"},
+    "fonction": {"fr": "Relance l'assistant de bienvenue du premier démarrage.", "en": "Restarts the welcome assistant from the first launch."}
+  },
+  "dz-nav-analytics": {
+    "nom": {"fr": "Analytics", "en": "Analytics"},
+    "fonction": {"fr": "Montre les vues, l'engagement et les quotas de vos publications.", "en": "Shows the views, engagement and quotas of your posts."}
+  },
+  "dz-nav-atelier": {
+    "nom": {"fr": "Atelier", "en": "Workshop"},
+    "fonction": {"fr": "Ouvre l'Atelier pour écrire le script et le storyboard d'un chapitre.", "en": "Opens the Workshop to write a chapter's script and storyboard."}
+  },
+  "dz-nav-bible": {
+    "nom": {"fr": "Bible", "en": "Bible"},
+    "fonction": {"fr": "Envoie vers la fiche d'un personnage ou d'une entité de l'Atelier.", "en": "Sends to the sheet of a Workshop character or entity."}
+  },
+  "dz-nav-bibliotheque": {
+    "nom": {"fr": "Bibliothèque", "en": "Library"},
+    "fonction": {"fr": "Ouvre la Bibliothèque où sont rangés vos ressources et rendus.", "en": "Opens the Library where your assets and renders are stored."}
+  },
+  "dz-nav-boite-reception": {
+    "nom": {"fr": "Boîte de réception", "en": "Inbox"},
+    "fonction": {"fr": "Montre les images, textes et liens partagés depuis le téléphone.", "en": "Shows the images, texts and links shared from your phone."}
+  },
+  "dz-nav-campagne": {
+    "nom": {"fr": "Campagne", "en": "Campaign"},
+    "fonction": {"fr": "Ouvre le menu pour préparer des séries de posts autour d'un brief.", "en": "Opens the menu to plan post series around a brief."}
+  },
+  "dz-nav-cf-cadre": {
+    "nom": {"fr": "Cadre", "en": "Frame"},
+    "fonction": {"fr": "Ouvre l'étape où l'on choisit la bordure de la carte.", "en": "Opens the step where you choose the card's border."}
+  },
+  "dz-nav-cf-donnees": {
+    "nom": {"fr": "Données", "en": "Data"},
+    "fonction": {"fr": "Ouvre l'étape où l'on remplit le tableau des champs des cartes.", "en": "Opens the step where you fill in the cards' field table."}
+  },
+  "dz-nav-cf-edition": {
+    "nom": {"fr": "Édition", "en": "Publishing"},
+    "fonction": {"fr": "Ouvre la pièce qui produit fiche produit, livret et maquettes du jeu.", "en": "Opens the room that makes the product sheet, booklet and mockups."}
+  },
+  "dz-nav-cf-export-3d": {
+    "nom": {"fr": "Export 3D", "en": "3D export"},
+    "fonction": {"fr": "Ouvre l'étape qui exporte la carte en fichier 3D.", "en": "Opens the step that exports the card as a 3D file."}
+  },
+  "dz-nav-cf-face": {
+    "nom": {"fr": "Face", "en": "Face"},
+    "fonction": {"fr": "Ouvre l'étape où l'on compose le recto et son illustration.", "en": "Opens the step where you lay out the front and its artwork."}
+  },
+  "dz-nav-cf-forge-3d": {
+    "nom": {"fr": "Forge 3D", "en": "3D Forge"},
+    "fonction": {"fr": "Ouvre l'étape où l'on construit un volume par nœuds reliés.", "en": "Opens the step where you build a volume from linked nodes."}
+  },
+  "dz-nav-cf-galerie": {
+    "nom": {"fr": "Modèles", "en": "Templates"},
+    "fonction": {"fr": "Ouvre la galerie de départ pour choisir un modèle ou reprendre un jeu.", "en": "Opens the start gallery to pick a template or resume a deck."}
+  },
+  "dz-nav-cf-import": {
+    "nom": {"fr": "Import", "en": "Import"},
+    "fonction": {"fr": "Ouvre l'étape pour reprendre une carte qui existe déjà.", "en": "Opens the step to bring in a card that already exists."}
+  },
+  "dz-nav-cf-impression": {
+    "nom": {"fr": "Impression", "en": "Print"},
+    "fonction": {"fr": "Ouvre l'étape qui prépare le paquet à envoyer à l'imprimeur.", "en": "Opens the step that prepares the package for the printer."}
+  },
+  "dz-nav-cf-matieres": {
+    "nom": {"fr": "Matières", "en": "Materials"},
+    "fonction": {"fr": "Ouvre l'étape qui ajoute grain et dorure à la carte.", "en": "Opens the step that adds grain and gilding to the card."}
+  },
+  "dz-nav-cf-typo": {
+    "nom": {"fr": "Typographie", "en": "Typography"},
+    "fonction": {"fr": "Ouvre l'étape où l'on place et règle les blocs de texte.", "en": "Opens the step where you place and style text blocks."}
+  },
+  "dz-nav-cf-volume": {
+    "nom": {"fr": "Volume", "en": "Volume"},
+    "fonction": {"fr": "Ouvre l'étape qui règle l'épaisseur de la carte, vue en 3D.", "en": "Opens the step that sets the card's thickness, shown in 3D."}
+  },
+  "dz-nav-chapitres": {
+    "nom": {"fr": "Chapitres", "en": "Chapters"},
+    "fonction": {"fr": "Ouvre l'écran qui transforme un roman en vidéo narrée.", "en": "Opens the screen that turns a novel into a narrated video."}
+  },
+  "dz-nav-cles-api": {
+    "nom": {"fr": "Clés d'API", "en": "API keys"},
+    "fonction": {"fr": "Signale l'étape où l'on branche ses fournisseurs de génération.", "en": "Marks the step where you connect your generation providers."}
+  },
+  "dz-nav-corbeille": {
+    "nom": {"fr": "Corbeille", "en": "Trash"},
+    "fonction": {"fr": "Ouvre la corbeille pour restaurer ou effacer pour de bon.", "en": "Opens the trash to restore items or delete them for good."}
+  },
+  "dz-nav-direction-artistique": {
+    "nom": {"fr": "Direction artistique", "en": "Art direction"},
+    "fonction": {"fr": "Ouvre le style visuel commun choisi pour tout le projet.", "en": "Opens the shared visual style chosen for the whole project."}
+  },
+  "dz-nav-documents": {
+    "nom": {"fr": "Documents", "en": "Documents"},
+    "fonction": {"fr": "Revient à la liste des documents, l'accueil du Vectorlab.", "en": "Returns to the document list, the Vectorlab home."}
+  },
+  "dz-nav-episodes": {
+    "nom": {"fr": "Épisodes", "en": "Episodes"},
+    "fonction": {"fr": "Ouvre le flux Épisodes qui tire une vidéo narrée d'un roman.", "en": "Opens the Episodes flow that makes a narrated video from a novel."}
+  },
+  "dz-nav-espace-pixel": {
+    "nom": {"fr": "Pixel", "en": "Pixel"},
+    "fonction": {"fr": "Passe le Vectorlab en espace Pixel pour dessiner point par point.", "en": "Switches the Vectorlab to Pixel space to draw dot by dot."}
+  },
+  "dz-nav-espace-travail": {
+    "nom": {"fr": "Espace de travail", "en": "Workspace"},
+    "fonction": {"fr": "Change la disposition des panneaux du Photolab.", "en": "Changes how the Photolab panels are arranged."}
+  },
+  "dz-nav-espace-vecteur": {
+    "nom": {"fr": "Vecteur", "en": "Vector"},
+    "fonction": {"fr": "Passe le Vectorlab en espace Vecteur pour dessiner des tracés nets.", "en": "Switches the Vectorlab to Vector space to draw sharp paths."}
+  },
+  "dz-nav-etabli": {
+    "nom": {"fr": "Établi", "en": "Workbench"},
+    "fonction": {"fr": "Ouvre l'Établi pour préparer un modèle avant l'impression 3D.", "en": "Opens the Workbench to prepare a model for 3D printing."}
+  },
+  "dz-nav-file-rendus": {
+    "nom": {"fr": "File des rendus", "en": "Render queue"},
+    "fonction": {"fr": "Montre les rendus en cours et ceux terminés récemment.", "en": "Shows renders in progress and those recently finished."}
+  },
+  "dz-nav-game-assets": {
+    "nom": {"fr": "Game Assets", "en": "Game Assets"},
+    "fonction": {"fr": "Ouvre l'écran des ressources de jeu : 3D, sprites, tuiles et cartes.", "en": "Opens the game resources screen: 3D, sprites, tiles and cards."}
+  },
+  "dz-nav-guide": {
+    "nom": {"fr": "Guide", "en": "Guide"},
+    "fonction": {"fr": "Ouvre le guide de l'application au chapitre utile.", "en": "Opens the app guide at the relevant chapter."}
+  },
+  "dz-nav-montage": {
+    "nom": {"fr": "Montage", "en": "Montage"},
+    "fonction": {"fr": "Ouvre le Montage ou y envoie l'élément, sur la timeline multipiste.", "en": "Opens the Montage or sends the item to its multitrack timeline."}
+  },
+  "dz-nav-news": {
+    "nom": {"fr": "News", "en": "News"},
+    "fonction": {"fr": "Ouvre l'écran qui transforme une actualité en vidéo courte.", "en": "Opens the screen that turns a news item into a short video."}
+  },
+  "dz-nav-panneau-ajustements": {
+    "nom": {"fr": "Ajustements", "en": "Adjustments"},
+    "fonction": {"fr": "Ouvre le groupe Propriétés, Ajustements, Styles et Compositions du Photolab.", "en": "Opens the Photolab Properties, Adjustments, Styles and Comps group."}
+  },
+  "dz-nav-panneau-calques": {
+    "nom": {"fr": "Calques", "en": "Layers"},
+    "fonction": {"fr": "Ouvre le panneau qui liste et range les calques de l'image.", "en": "Opens the panel that lists and orders the image layers."}
+  },
+  "dz-nav-panneau-couleur": {
+    "nom": {"fr": "Couleur", "en": "Color"},
+    "fonction": {"fr": "Ouvre le groupe Couleur, Nuancier, Dégradés, Motifs et Formes du Photolab.", "en": "Opens the Photolab Color, Swatches, Gradients, Patterns and Shapes group."}
+  },
+  "dz-nav-panneau-historique": {
+    "nom": {"fr": "Historique", "en": "History"},
+    "fonction": {"fr": "Ouvre la liste des étapes pour revenir à un état précédent.", "en": "Opens the list of steps to go back to an earlier state."}
+  },
+  "dz-nav-panneau-infos": {
+    "nom": {"fr": "Histogramme et infos", "en": "Histogram and Info"},
+    "fonction": {"fr": "Ouvre le graphique des tons et les mesures de l'image.", "en": "Opens the tone graph and the image measurements."}
+  },
+  "dz-nav-panneau-navigateur": {
+    "nom": {"fr": "Navigateur", "en": "Navigator"},
+    "fonction": {"fr": "Ouvre une vignette de l'image pour choisir la zone affichée.", "en": "Opens an image thumbnail to choose the visible area."}
+  },
+  "dz-nav-panneau-pinceaux": {
+    "nom": {"fr": "Pinceaux", "en": "Brushes"},
+    "fonction": {"fr": "Ouvre les pointes de pinceau prêtes à l'emploi du Photolab.", "en": "Opens the Photolab's ready-made brush tips."}
+  },
+  "dz-nav-panneau-texte": {
+    "nom": {"fr": "Texte", "en": "Text"},
+    "fonction": {"fr": "Ouvre le groupe Caractère, Paragraphe, Glyphes et Styles du Photolab.", "en": "Opens the Photolab Character, Paragraph, Glyphs and Styles group."}
+  },
+  "dz-nav-photolab": {
+    "nom": {"fr": "Photolab", "en": "Photolab"},
+    "fonction": {"fr": "Ouvre le Photolab pour retoucher une image avec des calques.", "en": "Opens the Photolab to retouch an image with layers."}
+  },
+  "dz-nav-plateau": {
+    "nom": {"fr": "Plateau 3D", "en": "3D Stage"},
+    "fonction": {"fr": "Ouvre le Plateau 3D pour composer un plan avec décor et caméra.", "en": "Opens the 3D Stage to compose a shot with set and camera."}
+  },
+  "dz-nav-projets": {
+    "nom": {"fr": "Projets", "en": "Projects"},
+    "fonction": {"fr": "Ouvre la liste des projets de montage à ouvrir, copier ou comparer.", "en": "Opens the list of edit projects to open, copy or compare."}
+  },
+  "dz-nav-prompts": {
+    "nom": {"fr": "Gestionnaire de prompts", "en": "Prompt manager"},
+    "fonction": {"fr": "Ouvre vos prompts enregistrés et l'outil qui en écrit de nouveaux.", "en": "Opens your saved prompts and the tool that writes new ones."}
+  },
+  "dz-nav-quick": {
+    "nom": {"fr": "Quick", "en": "Quick"},
+    "fonction": {"fr": "Ouvre Quick, les générateurs qui créent en un seul clic.", "en": "Opens Quick, the generators that create in a single click."}
+  },
+  "dz-nav-reglages": {
+    "nom": {"fr": "Réglages", "en": "Settings"},
+    "fonction": {"fr": "Ouvre les Réglages : clés, dossiers et préférences de l'application.", "en": "Opens Settings: keys, folders and app preferences."}
+  },
+  "dz-nav-scheduler": {
+    "nom": {"fr": "Planificateur", "en": "Scheduler"},
+    "fonction": {"fr": "Ouvre le Planificateur ou y envoie un rendu à publier.", "en": "Opens the Scheduler or sends a render there to post."}
+  },
+  "dz-nav-son-vfx": {
+    "nom": {"fr": "Son & VFX", "en": "Sound & VFX"},
+    "fonction": {"fr": "Ouvre l'écran de la musique, des voix, des bruitages et effets.", "en": "Opens the screen for music, voices, sound effects and VFX."}
+  },
+  "dz-nav-studio": {
+    "nom": {"fr": "Studio", "en": "Studio"},
+    "fonction": {"fr": "Ouvre le Studio, l'éditeur où l'on relie des nœuds.", "en": "Opens the Studio, the editor where you link nodes."}
+  },
+  "dz-nav-templates": {
+    "nom": {"fr": "Modèles", "en": "Templates"},
+    "fonction": {"fr": "Ouvre l'écran des mises en page prêtes à remplir.", "en": "Opens the screen of ready-to-fill layouts."}
+  },
+  "dz-nav-transfert": {
+    "nom": {"fr": "Transfert", "en": "Transfer"},
+    "fonction": {"fr": "Exporte ou importe vos données pour passer à une autre machine.", "en": "Exports or imports your data to move to another computer."}
+  },
+  "dz-nav-vectorlab": {
+    "nom": {"fr": "Vectorlab", "en": "Vectorlab"},
+    "fonction": {"fr": "Ouvre le Vectorlab, l'éditeur de dessin vectoriel et de vitrail.", "en": "Opens the Vectorlab, the vector drawing and stained glass editor."}
+  },
+  "dz-nav-versions": {
+    "nom": {"fr": "Versions", "en": "Versions"},
+    "fonction": {"fr": "Montre les copies enregistrées d'un chapitre pour en rouvrir une.", "en": "Shows saved copies of a chapter so you can reopen one."}
+  }
+}

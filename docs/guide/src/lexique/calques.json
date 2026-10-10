@@ -1,0 +1,106 @@
+{
+  "dz-calque-balance-couleurs": {
+    "nom": {"fr": "Balance des couleurs", "en": "Color Balance"},
+    "fonction": {"fr": "Ajoute un calque qui rééquilibre les couleurs vers une teinte voulue.", "en": "Adds a layer that shifts the colors toward a chosen tint."}
+  },
+  "dz-calque-couleur-selective": {
+    "nom": {"fr": "Couleur sélective", "en": "Selective Color"},
+    "fonction": {"fr": "Ajoute un calque qui modifie une seule famille de couleurs.", "en": "Adds a layer that changes just one family of colors."}
+  },
+  "dz-calque-courbes": {
+    "nom": {"fr": "Courbes", "en": "Curves"},
+    "fonction": {"fr": "Ajoute un calque qui règle finement ombres, tons moyens et lumières.", "en": "Adds a layer that fine-tunes shadows, midtones and highlights."}
+  },
+  "dz-calque-ecretage": {
+    "nom": {"fr": "Masque d'écrêtage", "en": "Clipping Mask"},
+    "fonction": {"fr": "Le premier objet sélectionné découpe les autres à sa forme.", "en": "The first selected object trims the others to its shape."}
+  },
+  "dz-calque-exposition": {
+    "nom": {"fr": "Exposition", "en": "Exposure"},
+    "fonction": {"fr": "Ajoute un calque qui éclaircit ou assombrit toute l'image.", "en": "Adds a layer that brightens or darkens the whole image."}
+  },
+  "dz-calque-filtre-photo": {
+    "nom": {"fr": "Filtre photo", "en": "Photo Filter"},
+    "fonction": {"fr": "Ajoute un calque qui pose un voile coloré, comme un filtre d'objectif.", "en": "Adds a layer that lays a colored tint, like a lens filter."}
+  },
+  "dz-calque-fusionner": {
+    "nom": {"fr": "Fusionner vers le bas", "en": "Merge Down"},
+    "fonction": {"fr": "Réunit le calque actif et celui du dessous en un seul.", "en": "Combines the active layer and the one below into one."}
+  },
+  "dz-calque-groupe": {
+    "nom": {"fr": "Groupe", "en": "Group"},
+    "fonction": {"fr": "Signale un groupe : un dossier qui range plusieurs calques ensemble.", "en": "Marks a group: a folder holding several layers together."}
+  },
+  "dz-calque-inverser": {
+    "nom": {"fr": "Inverser", "en": "Invert"},
+    "fonction": {"fr": "Ajoute un calque qui transforme l'image en négatif.", "en": "Adds a layer that turns the image into a negative."}
+  },
+  "dz-calque-luminosite-contraste": {
+    "nom": {"fr": "Luminosité/Contraste", "en": "Brightness/Contrast"},
+    "fonction": {"fr": "Ajoute un calque qui règle la clarté et le contraste de l'image.", "en": "Adds a layer that adjusts image brightness and contrast."}
+  },
+  "dz-calque-mappage-degrade": {
+    "nom": {"fr": "Mappage de dégradé", "en": "Gradient Map"},
+    "fonction": {"fr": "Ajoute un calque qui recolore l'image selon un dégradé, du sombre au clair.", "en": "Adds a layer that recolors the image along a gradient, dark to light."}
+  },
+  "dz-calque-masque": {
+    "nom": {"fr": "Masque", "en": "Mask"},
+    "fonction": {"fr": "Ajoute un masque qui cache une partie du calque sans l'effacer.", "en": "Adds a mask that hides part of the layer without erasing it."}
+  },
+  "dz-calque-melangeur-couches": {
+    "nom": {"fr": "Mélangeur de canaux", "en": "Channel Mixer"},
+    "fonction": {"fr": "Ajoute un calque qui mélange le rouge, le vert et le bleu autrement.", "en": "Adds a layer that remixes the red, green and blue channels."}
+  },
+  "dz-calque-niveaux": {
+    "nom": {"fr": "Niveaux", "en": "Levels"},
+    "fonction": {"fr": "Ajoute un calque qui règle les points noir, gris et blanc.", "en": "Adds a layer that sets the black, gray and white points."}
+  },
+  "dz-calque-noir-blanc": {
+    "nom": {"fr": "Noir et blanc", "en": "Black & White"},
+    "fonction": {"fr": "Ajoute un calque qui passe l'image en noir et blanc.", "en": "Adds a layer that turns the image black and white."}
+  },
+  "dz-calque-nouveau": {
+    "nom": {"fr": "Nouveau calque", "en": "New Layer"},
+    "fonction": {"fr": "Crée un calque vide au-dessus des autres, pas un nouveau document.", "en": "Creates an empty layer in the stack, not a new document."}
+  },
+  "dz-calque-objet-dynamique": {
+    "nom": {"fr": "Objet dynamique", "en": "Smart Object"},
+    "fonction": {"fr": "Signale un objet dynamique : son contenu d'origine reste intact.", "en": "Marks a smart object: its original content stays intact."}
+  },
+  "dz-calque-pixel": {
+    "nom": {"fr": "Calque d'image", "en": "Image Layer"},
+    "fonction": {"fr": "Signale ou crée un calque d'image faite de pixels.", "en": "Marks or creates an image layer made of pixels."}
+  },
+  "dz-calque-posteriser": {
+    "nom": {"fr": "Postériser", "en": "Posterize"},
+    "fonction": {"fr": "Ajoute un calque qui réduit l'image à quelques aplats de couleur.", "en": "Adds a layer that reduces the image to a few flat colors."}
+  },
+  "dz-calque-reglage": {
+    "nom": {"fr": "Calque de réglage", "en": "Adjustment Layer"},
+    "fonction": {"fr": "Ajoute un réglage qui modifie tout ce qui se trouve dessous.", "en": "Adds an adjustment that changes everything beneath it."}
+  },
+  "dz-calque-seuil": {
+    "nom": {"fr": "Seuil", "en": "Threshold"},
+    "fonction": {"fr": "Ajoute un calque qui rend chaque pixel soit noir, soit blanc.", "en": "Adds a layer that makes every pixel either black or white."}
+  },
+  "dz-calque-table-couleurs": {
+    "nom": {"fr": "Table de couleurs", "en": "Color Lookup"},
+    "fonction": {"fr": "Ajoute un calque qui applique un étalonnage tout prêt aux couleurs.", "en": "Adds a layer that applies a ready-made color grade."}
+  },
+  "dz-calque-teinte-saturation": {
+    "nom": {"fr": "Teinte/Saturation", "en": "Hue/Saturation"},
+    "fonction": {"fr": "Ajoute un calque qui change la teinte et l'intensité des couleurs.", "en": "Adds a layer that changes color hue and intensity."}
+  },
+  "dz-calque-texte": {
+    "nom": {"fr": "Bloc de texte", "en": "Text Block"},
+    "fonction": {"fr": "Signale ou ajoute un calque contenant du texte.", "en": "Marks or adds a layer that holds text."}
+  },
+  "dz-calque-vectoriel": {
+    "nom": {"fr": "Calque vectoriel", "en": "Vector Layer"},
+    "fonction": {"fr": "Signale un calque ou un chemin vectoriel, dessiné par des courbes.", "en": "Marks a vector layer or path, drawn with curves."}
+  },
+  "dz-calque-vibrance": {
+    "nom": {"fr": "Vibrance", "en": "Vibrance"},
+    "fonction": {"fr": "Ajoute un calque qui ravive surtout les couleurs ternes, en douceur.", "en": "Adds a layer that gently boosts mostly the dull colors."}
+  }
+}
