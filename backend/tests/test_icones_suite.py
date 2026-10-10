@@ -67,6 +67,9 @@ sprite = (SRC / "dz-icons.svg").read_text(encoding="utf-8")
 ids = re.findall(r'<symbol id="([^"]+)"', sprite)
 check("3.3 sprite : un symbole par icône dessinée (520 = 524 − logo, splash et icônes d application en image), ids uniques",
       len(ids) == 520 and len(set(ids)) == 520 and set(ids) == cles - {"dz-marque-poulpe", "dz-marque-splash", "dz-marque-icone-app", "dz-marque-icone-adaptative"}, len(ids))
+css = (SRC / "dz-icons.css").read_text(encoding="utf-8")
+check("3.5 css : le remplissage currentColor épargne les icônes au trait (fill=none, pointeur Lucide)",
+      'svg.dzi:not([fill="none"]){fill:currentColor}' in css and "svg.dzi{fill" not in css)
 check("3.4 sprite sans script ni gestionnaire", "<script" not in sprite.lower() and not re.search(r"\son\w+=", sprite))
 
 print("[4] runtime dz-icons.js sous node")

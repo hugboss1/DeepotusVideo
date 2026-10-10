@@ -1,4 +1,6 @@
 /* Deepotus Glyph — généré par scripts/icones/construire_suite.py : ne pas éditer à la main.
+   Licences : dessins Deepotus ; dz-reseau-* = simple-icons (CC0, marques de leurs propriétaires) ;
+   dz-outil-photo-doigt = Lucide (ISC, frontend/photolab/icones/LICENSE-lucide.txt).
    window.dzIcone(cle, {taille, titre, classe}) rend le balisage d'une icône ;
    sans titre, l'icône est décorative (aria-hidden) : le sens est porté par le bouton. */
 (function () {
