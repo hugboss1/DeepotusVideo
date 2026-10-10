@@ -422,3 +422,5 @@ textarea#script[readonly] { opacity: .72; cursor: not-allowed; }
 .btn>.dzi,a>.dzi,b>.dzi,span>.dzi,summary>.dzi,p>.dzi,.seedtag>.dzi,.scene-cam>.dzi{vertical-align:-3px}
 .sel-ico{display:inline-flex;align-items:center;color:var(--ink-soft);margin-right:-3px}
 .savestate .dzi,#styleSaved .dzi{width:14px;height:14px;vertical-align:-3px}
+/* la marque = le logo réel (dz-marque-poulpe, choix de l'utilisateur : une image) */
+.brand>img.dzi{vertical-align:-5px;border-radius:4px}

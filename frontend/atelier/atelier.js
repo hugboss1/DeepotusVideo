@@ -327,7 +327,7 @@ async function renderBible() {
         <button class="btn act-roll" title="Nouvelle planche, seed aléatoire" aria-label="Nouvelle planche, seed aléatoire">${ico("dz-action-aleatoire")}</button>
         ${e.has_recipe ? `<button class="btn act-recipe" title="Rejoue la recette verrouillée (prompt exact + seed) — image identique garantie" aria-label="Rejouer la recette verrouillée">${ico("dz-action-lancer-recette")}</button>` : ""}
         ${BESOIN_3D_PAR_KIND[e.kind]
-          ? `<button class="btn act-3d" title="Verrouille l'entité EN 3D : une vue unique → maillage GLB réutilisable par tous les chapitres, et exportable vers Blender / Unity / Unreal. Le moteur et son coût sont annoncés avant de lancer.">🧊 3D</button>`
+          ? `<button class="btn act-3d" title="Verrouille l'entité EN 3D : une vue unique → maillage GLB réutilisable par tous les chapitres, et exportable vers Blender / Unity / Unreal. Le moteur et son coût sont annoncés avant de lancer.">${ico("dz-lab3d-generer-modele")} 3D</button>`
           : ""}
       </div>
     </div>
@@ -1520,7 +1520,7 @@ async function loadVectorBiblio() {
       <span class="vector-orig" title="${d.chapter_id
         ? "Document propre à un autre chapitre"
         : "Document de la bibliothèque globale (sans chapitre)"}">${
-        d.chapter_id ? ico("dz-etat-origine") : "◇"}</span>
+        d.chapter_id ? ico("dz-etat-origine") : ico("dz-nav-bibliotheque")}</span>
       <span class="vector-role">${esc(VECTOR_ROLES[d.role] || d.role)}</span>
       <b>${esc(d.name)}</b> <span class="vector-v">v${d.version}</span>
       <span class="vector-actions">

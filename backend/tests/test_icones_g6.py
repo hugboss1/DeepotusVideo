@@ -4,7 +4,8 @@ le 3D Studio et les fichiers partagés dz-champ-ia.js / dz-maj.js (liste de trav
 docs/icones/suite-finale/implementation.json, entrées dont `source` est sous ces dossiers).
 
   [1] le runtime : chaque page du lot charge dz-icons.css et dz-icons.js, une fois, le script APRÈS dz-i18n.js (s'il
-      y est) et AVANT les scripts du lab ; chaque page porte le favicon de l'application (dz-marque-icone-app, doré).
+      y est) et AVANT les scripts du lab ; chaque page porte le favicon de l'application : le LOGO (/api/branding/logo) ; aucun emoji de MARQUE
+      (🐙) hors contenu : la marque est dz-marque-poulpe, le logo en image.
   [2] chaque site de la liste porte sa clé : toute entrée `cle_finale` du périmètre trouve sa clé dans le(s)
       fichier(s) de sa source (sauf DEUX sites non posables, dits et justifiés : une <option> ne porte pas de SVG) ;
       et le compte de chaque clé par fichier est FIGÉ (hors commentaires) — un site perdu ou doublé se voit.
@@ -132,6 +133,7 @@ ATTENDU = {
         'dz-etat-origine': 1,
         'dz-etat-verrouille': 2,
         'dz-lab3d-camera': 1,
+        'dz-lab3d-generer-modele': 1,
         'dz-media-apparitions': 1,
         'dz-media-cloner-voix': 1,
         'dz-media-duree': 1,
@@ -142,6 +144,7 @@ ATTENDU = {
         'dz-media-lecture': 3,
         'dz-media-reel': 1,
         'dz-media-voix': 1,
+        'dz-nav-bibliotheque': 1,
         'dz-nav-plateau': 1,
     },
     'frontend/materialforge/index.html': {
@@ -264,7 +267,7 @@ GLYPHES = '¶×←↑→↓↩↺↻⇔⌄⏱⏳■▶▾◆◈◉◌◧☀⚒�
 # bouton voice-over d'une scène (le voice-over existe déjà) gardé à côté de son icône
 GLYPHES_RESTANTS = {
     'frontend/atelier/index.html': {'→': 2, '✨': 1, '🎞': 1, '🎨': 1, '📚': 1, '🕘': 1},
-    'frontend/atelier/atelier.js': {'¶': 3, '→': 8, '↻': 1, '⏱': 2, '▾': 1, '⚠': 1, '⛓': 1, '✨': 3, '＋': 1, '🎙': 2, '🎨': 3, '🎬': 4, '🎭': 6, '📚': 2, '🔁': 4, '🔊': 3, '🔒': 1, '🕘': 1, '🧊': 3, '🧬': 1},
+    'frontend/atelier/atelier.js': {'¶': 3, '→': 8, '↻': 1, '⏱': 2, '▾': 1, '⚠': 1, '⛓': 1, '✨': 3, '＋': 1, '🎙': 2, '🎨': 3, '🎬': 4, '🎭': 6, '📚': 2, '🔁': 4, '🔊': 3, '🔒': 1, '🕘': 1, '🧊': 2, '🧬': 1},
     'frontend/atelier/atelier.css': {},
     'frontend/materialforge/index.html': {'×': 1, '☀': 2},
     'frontend/materialforge/materialforge.js': {'×': 7, '↑': 1, '→': 4, '↓': 1},
@@ -467,10 +470,13 @@ ANCIENS = [
     ('frontend/etabli/etabli.css', '.etape.lourde b::after { content: " ⚠"; color: var(--amber); }'),
     ('frontend/shared/dz-champ-ia.js', 'if (e === "ecoute" || e === "prise") { txt = "■"; cls = "dzia-mstop"; titre = TITRE_STOP; }'),
     ('frontend/shared/dz-champ-ia.js', 'poserAttr(b, "aria-pressed", txt === "■" ? "true" : "false");'),
+    ('frontend/atelier/atelier.js', 'Le moteur et son coût sont annoncés avant de lancer.">🧊 3D</button>'),
+    ('frontend/atelier/atelier.js', 'd.chapter_id ? ico("dz-etat-origine") : "◇"}'),
 ]
 
 print("[1] runtime et favicon")
-fav_svg = lire("docs/icones/suite-finale/svg/dz-marque-icone-app.svg").strip()
+_m = re.search(r'"dz-marque-icone-app": "([^"]+)"', lire("frontend/shared/icons/dz-icons.js"))
+logo_url = _m.group(1) if _m else None
 for p in PAGES:
     t = lire(p)
     i_s, i_i = t.find(SCRIPT), t.find(I18N)
@@ -478,10 +484,22 @@ for p in PAGES:
     check(f"1.1 {p} : dz-icons.css et dz-icons.js, une fois chacun", t.count(LIEN) == 1 and t.count(SCRIPT) == 1)
     check(f"1.2 {p} : le script après dz-i18n.js ({'présent' if i_i >= 0 else 'absent'}) et avant les scripts du lab",
           i_s >= 0 and (i_i < 0 or i_i < i_s) and labo and all(i_s < k for k in labo), (i_i, i_s, labo))
-    m = re.search(r'<link rel="icon" type="image/svg\+xml" href="data:image/svg\+xml,([^"]+)">', t)
-    dessin = urllib.parse.unquote(m.group(1)) if m else ""
-    check(f"1.3 {p} : favicon = dz-marque-icone-app, doré (#f0b429)",
-          dessin == fav_svg.replace('fill="currentColor"', 'fill="#f0b429"').replace('"', "'"), dessin[:120])
+    # choix de l'utilisateur (G0 dd9e3307) : l'icône d'application est le LOGO réel, servi par /api/branding/logo
+    # (l'URL de DZ_ICONS_IMAGES["dz-marque-icone-app"]), plus un dessin de la suite
+    check(f"1.3 {p} : favicon = logo Deepotus (/api/branding/logo, PNG), une fois",
+          t.count('<link rel="icon"') == 1 and '<link rel="icon" type="image/png" href="/api/branding/logo">' in t
+          and logo_url == "/api/branding/logo", logo_url)
+
+MARQUE = ["frontend/atelier/index.html", "frontend/atelier/preview.html", "frontend/materialforge/index.html",
+          "frontend/etabli/index.html", "frontend/plateau/index.html", "frontend/studio3d/index.html",
+          "frontend/atelier/atelier.js", "frontend/materialforge/materialforge.js", "frontend/etabli/etabli.js",
+          "frontend/plateau/plateau.js", "frontend/studio3d/studio3d.js", "frontend/studio3d/fal.js",
+          "frontend/studio3d/vues.js"]
+poulpes = [f for f in MARQUE if "🐙" in sans_commentaires(lire(f), f)]
+check("1.4 aucun emoji de marque 🐙 hors commentaires dans les pages et scripts du lot", not poulpes, poulpes)
+for f in ("frontend/atelier/index.html", "frontend/atelier/preview.html"):
+    check(f"1.5 {f} : la marque = le logo en image (dz-marque-poulpe)",
+          '<div class="brand"><img class="dzi dzi--20" src="/api/branding/logo" alt=""> <b>Atelier Chapitre</b>' in lire(f))
 
 print("[2] chaque site porte sa clé")
 liste = json.loads(lire("docs/icones/suite-finale/implementation.json"))
