@@ -118,7 +118,7 @@
   /* ═══ CF-FORGE3D-SIDES-END ═══ */
 
   /* le mot de l'œil pour une provenance — jamais l'identifiant nu. */
-  const SIDE_LABELS = { front: "recto", back: "verso", capture: "import" };
+  const SIDE_LABELS = { front: dzT("cartes.forge3d.recto_min"), back: dzT("cartes.forge3d.verso_min"), capture: "import" };
 
   function sideLabel(s) {
     return connu(SIDE_LABELS, s) ? SIDE_LABELS[s] : String(s == null ? "" : s);
@@ -159,7 +159,7 @@
      y ajoute le moteur. Ce n'est PAS une grille de prix ni un roster de
      moteurs (ceux-la viennent de /info) : c'est le vocabulaire du graphe. */
   const PROC_KINDS = ["plane", "relief", "mesh3d"];
-  const PROC_LABELS = { plane: "plan", relief: "relief", mesh3d: "mesh 3D (moteur)" };
+  const PROC_LABELS = { plane: dzT("cartes.forge3d.kind_plan"), relief: "relief", mesh3d: dzT("cartes.forge3d.kind_mesh_moteur") };
   /* borne ANTI-GEL de la descente de chaine — miroir de `_CHAIN_MAX`.
      CE QU'ELLE GARDE, EXACTEMENT (clause du report T4) : une chaine qui
      BOUCLE, ou qui s'allonge sans fin, ne peut venir que de l'API BRUTE (un
@@ -317,11 +317,10 @@
      une panne ; ces phrases disent la fonction du nœud (et, pour l'export,
      l'engagement du bordereau). */
   const KIND_HINTS = {
-    extrude: "la couronne du contour de la carte, en volume — sa forme vient "
-      + "du format, pas d'une couche : elle n'a donc pas d'entrée.",
-    assemble: "réunit les éléments de toutes les chaînes en un seul artefact.",
-    artifact: "porte le nom du fichier construit — « Construire », ci-dessous.",
-    export: "point de téléchargement : il n'éteint rien du bordereau.",
+    extrude: dzT("cartes.forge3d.indice_extrude"),
+    assemble: dzT("cartes.forge3d.indice_assemble"),
+    artifact: dzT("cartes.forge3d.indice_artifact"),
+    export: dzT("cartes.forge3d.indice_export"),
   };
 
   /* LE CÔTÉ D'UN OBJET QUI EN PORTE UN — un nœud `layer`, un manifeste. UNE
@@ -381,7 +380,7 @@
 
   const M = CF.register({
     id: "forge3d",
-    title: "Forge 3D",
+    title: dzT("cartes.forge3d.titre"),
     icon: "dz-nav-cf-forge-3d",
     order: 9,
     state: {
@@ -495,31 +494,24 @@
   function shell() {
     return '<div class="cf-forge3d-wrap">'
       + '<section class="cf-forge3d-card">'
-      + '<header class="cf-forge3d-h"><b>Couches de la carte</b></header>'
-      + '<p class="hint">Une PNG alpha par élément (fond, illustration, voile, cadre, '
-      + 'typo, ornements), recto et verso, plus le composite. Chaque couche est '
-      + 'PROUVÉE : l\'empilement doit reproduire la carte au pixel près.</p>'
+      + '<header class="cf-forge3d-h"><b>' + dzT("cartes.forge3d.couches_titre") + '</b></header>'
+      + '<p class="hint">' + dzT("cartes.forge3d.couches_aide") + '</p>'
       + '<button class="btn strong" id="cf-forge3d-export" type="button">'
-      + ICO("dz-action-exporter", 16, "cf-ic") + 'Exporter les couches</button>'
+      + ICO("dz-action-exporter", 16, "cf-ic") + '' + dzT("cartes.forge3d.exporter_couches") + '</button>'
       + '<p class="hint" id="cf-forge3d-status"></p>'
       + '<div id="cf-forge3d-slip"></div>'
       + '</section>'
 
       + '<section class="cf-forge3d-card">'
-      + '<header class="cf-forge3d-h"><b>Graphe 3D</b>'
+      + '<header class="cf-forge3d-h"><b>' + dzT("cartes.forge3d.graphe_titre") + '</b>'
       + '<div class="seg sm cf-forge3d-vue" id="cf-forge3d-vue">'
-      + '<button class="seg-b" type="button" data-vue="canvas">canvas</button>'
-      + '<button class="seg-b" type="button" data-vue="liste">liste</button>'
+      + '<button class="seg-b" type="button" data-vue="canvas">' + dzT("cartes.forge3d.vue_canvas") + '</button>'
+      + '<button class="seg-b" type="button" data-vue="liste">' + dzT("cartes.forge3d.vue_liste") + '</button>'
       + '</div>'
       + '<button class="lnk" id="cf-forge3d-undo" type="button" '
-      + 'title="annule la dernière édition du graphe">' + ICO("dz-action-annuler", 16, "cf-ic") + 'annuler</button>'
+      + 'title="' + dzT("cartes.forge3d.annuler_title") + '">' + ICO("dz-action-annuler", 16, "cf-ic") + '' + dzT("cartes.forge3d.annuler") + '</button>'
       + '</header>'
-      + '<p class="hint">Un traitement par couche livrée : plan texturé (gratuit), '
-      + 'relief extrudé (gratuit, solide fermé imprimable) ou moteur 3D (payant, '
-      + 'prix annoncé avant). Chaque nœud porte sa chaîne — matière et placement. '
-      + 'Chaque champ édité patche aussitôt le graphe — annulable. Les deux vues '
-      + 'projettent LE MÊME graphe : le canvas se déplace au glisser du fond et '
-      + 'se zoome à la molette (position des nœuds gardée, jamais annulable).</p>'
+      + '<p class="hint">' + dzT("cartes.forge3d.graphe_aide") + '</p>'
       /* LA PALETTE — ce qui peut NAITRE, et rien d'autre. Elle vit HORS de la
          surface (pas une surcouche) : elle porte des menus, et un menu ouvert
          par-dessus un canvas qui se déplace au glisser serait un piège. */
@@ -533,11 +525,11 @@
       + '<div class="cf-forge3d-surcouche cf-forge3d-vide"></div>'
       + '<div class="cf-forge3d-surcouche cf-forge3d-outils">'
       + '<button class="btn sm" type="button" data-act="vue-recentre" '
-      + 'title="ramène la vue à l\'origine">recentrer</button>'
+      + 'title="' + dzT("cartes.forge3d.recentrer_title") + '">' + dzT("cartes.forge3d.recentrer") + '</button>'
       + '</div>'
       + '</div>'
       + '<aside class="cf-forge3d-inspecteur" id="cf-forge3d-inspecteur">'
-      + '<header class="cf-forge3d-insp-tete"><b>Inspecteur</b>'
+      + '<header class="cf-forge3d-insp-tete"><b>' + dzT("cartes.forge3d.inspecteur") + '</b>'
       + '<span class="mono" id="cf-forge3d-insp-nom"></span></header>'
       + '<div class="cf-forge3d-insp-view" id="cf-forge3d-insp-view"></div>'
       + '<p class="hint" id="cf-forge3d-insp-etat"></p>'
@@ -554,17 +546,17 @@
          laisserait une carte vide et titrée, c'est-à-dire exactement le cadre
          qui se lit comme une panne. Voir `sectionsBasses`. */
       + '<section class="cf-forge3d-card" id="cf-forge3d-sec-build">'
-      + '<header class="cf-forge3d-h"><b>Construire</b></header>'
+      + '<header class="cf-forge3d-h"><b>' + dzT("cartes.forge3d.construire_titre") + '</b></header>'
       + '<button class="btn strong" id="cf-forge3d-build" type="button">'
-      + 'Construire l\'artefact 3D</button>'
+      + '' + dzT("cartes.forge3d.construire_btn") + '</button>'
       + '<p class="hint" id="cf-forge3d-build-status"></p>'
       + '<div id="cf-forge3d-build-slip"></div>'
       + '</section>'
 
       + '<section class="cf-forge3d-card" id="cf-forge3d-sec-apercu">'
-      + '<header class="cf-forge3d-h"><b>Aperçu</b>'
+      + '<header class="cf-forge3d-h"><b>' + dzT("cartes.forge3d.apercu_titre") + '</b>'
       + '<button class="btn sm" id="cf-forge3d-freeze" type="button" disabled>'
-      + 'figer l\'aperçu</button>'
+      + '' + dzT("cartes.forge3d.figer") + '</button>'
       + '</header>'
       + '<div class="cf-forge3d-view" id="cf-forge3d-view"></div>'
       + '<p class="hint" id="cf-forge3d-freeze-status"></p>'
@@ -575,17 +567,16 @@
          l'Imprimante 3D (STL + 3MF, etancheite comptee) ; la boite depliee
          sort en PDF a imprimer et decouper. */
       + '<section class="cf-forge3d-card" id="cf-forge3d-sec-jeu">'
-      + '<header class="cf-forge3d-h"><b>Objets du jeu</b></header>'
-      + '<p class="hint">Jetons, pion et présentoir partent vers l’Imprimante 3D (STL + 3MF, solides fermés, posés à z = 0) ; '
-      + 'la boîte dépliée sort en PDF : trait plein = couper, pointillé = plier.</p>'
+      + '<header class="cf-forge3d-h"><b>' + dzT("cartes.forge3d.objets_titre") + '</b></header>'
+      + '<p class="hint">' + dzT("cartes.forge3d.objets_aide") + '</p>'
       + '<div class="cf-forge3d-jeu" id="cf-forge3d-jeu">'
-      + '<button class="btn sm" type="button" data-jeu="jeton" title="Un jeton rond — diamètre demandé, 3 mm d’épaisseur">Jeton</button>'
-      + '<button class="btn sm" type="button" data-jeu="jeton_relief" title="Un jeton qui porte le RELIEF de la carte courante (clair = haut)">Jeton en relief de la carte</button>'
-      + '<button class="btn sm" type="button" data-jeu="pion" title="Un pion en trois étages, socle large : il tient debout">Pion</button>'
-      + '<button class="btn sm" type="button" data-jeu="presentoir" title="Un socle et deux rails : la carte se glisse debout dans la rainure (largeur et rainure lues du jeu)">Présentoir</button>'
-      + '<select id="cf-forge3d-jeu-feuille" title="Feuille du patron de boîte (le paysage est choisi tout seul si nécessaire)">'
+      + '<button class="btn sm" type="button" data-jeu="jeton" title="' + dzT("cartes.forge3d.jeton_title") + '">' + dzT("cartes.forge3d.jeton") + '</button>'
+      + '<button class="btn sm" type="button" data-jeu="jeton_relief" title="' + dzT("cartes.forge3d.jeton_relief_title") + '">' + dzT("cartes.forge3d.jeton_relief") + '</button>'
+      + '<button class="btn sm" type="button" data-jeu="pion" title="' + dzT("cartes.forge3d.pion_title") + '">' + dzT("cartes.forge3d.pion") + '</button>'
+      + '<button class="btn sm" type="button" data-jeu="presentoir" title="' + dzT("cartes.forge3d.presentoir_title") + '">' + dzT("cartes.forge3d.presentoir") + '</button>'
+      + '<select id="cf-forge3d-jeu-feuille" title="' + dzT("cartes.forge3d.feuille_title") + '">'
       + '<option value="a4">A4</option><option value="letter">Letter</option><option value="a3">A3</option></select>'
-      + '<button class="btn sm strong" type="button" data-jeu="boite" title="Le patron de la tuck box en PDF, aux dimensions du jeu plus 1 mm de jeu ; l’épaisseur vient de la pièce 05">Boîte dépliée (PDF)…</button>'
+      + '<button class="btn sm strong" type="button" data-jeu="boite" title="' + dzT("cartes.forge3d.boite_title") + '">' + dzT("cartes.forge3d.boite") + '</button>'
       + '</div>'
       + '<p class="hint" id="cf-forge3d-jeu-status"></p>'
       + '</section>'
@@ -738,26 +729,22 @@
       const preuves = [];
       for (let s = 0; s < sides.length; s++) {
         const face = sides[s];
-        status.textContent = "rendu des couches ("
-          + (face === "front" ? "recto" : "verso") + ")…";
+        status.textContent = dzT("cartes.forge3d.rendu_couches", { face: face === "front" ? dzT("cartes.forge3d.recto_min") : dzT("cartes.forge3d.verso_min") });
         const L = await CF.layers(carte, { face: face, groups: LAYER_ROLES });
         if (L.errors && L.errors.length) {
           /* une couche rendue avec une erreur de painter n'est pas une couche
              de confiance : on nomme (face + painters) et on n'envoie rien. */
-          status.textContent = "erreur de painter pendant le rendu des couches ("
-            + face + " : " + L.errors.map((e) => e.id + " z=" + e.z).join(", ")
-            + ") — rien n'a été envoyé.";
-          M.toast("rendu des couches en erreur : export refusé", true);
+          status.textContent = dzT("cartes.forge3d.erreur_painter", { face: face, liste: L.errors.map((e) => e.id + " z=" + e.z).join(", ") });
+          M.toast(dzT("cartes.forge3d.rendu_erreur"), true);
           return;
         }
         if (!L.stack_ok) {
           /* la preuve a echoue : on NOMME et on n'envoie RIEN — un ZIP faux
              est pire qu'un echec dit. */
           const fautive = L.layers.filter((l) => l.mode === "empreinte")
-            .map((l) => l.role).join(", ") || "inconnue";
-          status.textContent = "preuve d'empilement ÉCHOUÉE (" + face
-            + ") — couches en cause : " + fautive + ". Rien n'a été envoyé.";
-          M.toast("empilement non reproduit : export refusé", true);
+            .map((l) => l.role).join(", ") || dzT("cartes.forge3d.fautive_inconnue");
+          status.textContent = dzT("cartes.forge3d.preuve_echouee", { face: face, couches: fautive });
+          M.toast(dzT("cartes.forge3d.empilement_non"), true);
           return;
         }
         preuves.push({ face: face, L: L });
@@ -780,7 +767,7 @@
         L.layers.forEach((l) => { modes[l.role] = l.mode; });
         fd.append("modes", JSON.stringify(modes));
         fd.append("client_proof", JSON.stringify({ stack_ok: L.stack_ok, diff_px: 0 }));
-        status.textContent = "téléversement (" + face + ")…";
+        status.textContent = dzT("cartes.forge3d.televersement", { face: face });
         const rep = await M.api.post("layers", fd);
         results.push(rep.layers);
         /* I3a — CETTE FACE-CI EST LIVRÉE : SES PIXELS SONT PÉRIMÉS, MAINTENANT.
@@ -853,7 +840,7 @@
       M.patch({ last_export: { at: new Date().toISOString(), sides: results.length } });
       paintSlip(results);
       paintVue();
-      status.textContent = "couches livrées, preuve tenue des deux côtés.";
+      status.textContent = dzT("cartes.forge3d.couches_livrees");
     } catch (e) {
       status.textContent = String(e && e.message || e);
       M.toast(String(e && e.message || e), true);
@@ -878,9 +865,8 @@
         + '" alt="" loading="lazy" decoding="async">'
         + '<span class="mono">' + esc(l.role) + " · " + esc(l.mode) + " · "
         + Number(l.coverage_pct) + " % · " + weight(l.bytes) + "</span></div>").join("");
-      return '<h4>' + (man.side === "front" ? "Recto" : "Verso") + '</h4>' + rows
-        + '<p class="mono">empilement : navigateur strict OK · second avis PIL '
-        + Number(man.proof.backend.diff_px) + ' px d\'écart · '
+      return '<h4>' + (man.side === "front" ? dzT("cartes.forge3d.recto") : dzT("cartes.forge3d.verso")) + '</h4>' + rows
+        + '<p class="mono">' + dzT("cartes.forge3d.empilement_ok", { px: Number(man.proof.backend.diff_px) }) + ' · '
         + '<button class="btn sm" type="button" data-act="grab-zip" data-name="'
         + esc(man.zip.name) + '">' + esc(man.zip.name) + " ("
         + weight(man.zip.bytes) + ')</button></p>';
@@ -913,14 +899,12 @@
     if (!name) return;
     try {
       const rep = await window.__dzDialogue.saisir(
-        "Taille cible en mm ? (vide = tel quel — la carte est déjà en mm "
-        + "réels ; ex. 80 pour une figurine, 250 max sur le plateau "
-        + "Centauri Carbon 2 : 256)", { valeur: "", ok: "Imprimer" });
+        dzT("cartes.forge3d.taille_cible"), { valeur: "", ok: dzT("cartes.forge3d.imprimer") });
       if (rep === null) return;
       let cible = null;
       if (rep.trim() !== "") {
         cible = +rep.trim();
-        if (!(cible > 0)) { M.toast("taille en mm invalide", true); return; }
+        if (!(cible > 0)) { M.toast(dzT("cartes.forge3d.taille_invalide"), true); return; }
       }
       const blob = await M.api.blob("GET", "file/" + encodeURIComponent(name));
       const doc = CF.doc() || {};
@@ -935,14 +919,12 @@
       };
       if (cible !== null) bord.cible_mm = cible;
       const d = await CF.print3d.fromStl(blob, bord);
-      M.toast("dossier d'impression : " + d.dossier + " ("
-        + d.triangles + " triangles)");
-      if (await window.__dzDialogue.confirmer("Export écrit (" + d.dossier
-                  + ") — ouvrir le .3mf dans le slicer ?", { ok: "Ouvrir le slicer" })) {
+      M.toast(dzT("cartes.forge3d.dossier_impression", { dossier: d.dossier, n: d.triangles }));
+      if (await window.__dzDialogue.confirmer(dzT("cartes.forge3d.export_ecrit", { dossier: d.dossier }), { ok: dzT("cartes.forge3d.ouvrir_slicer") })) {
         await CF.print3d.open(d.dossier);
       }
     } catch (e) {
-      M.toast("impression 3D : " + String((e && e.message) || e), true);
+      M.toast(dzT("cartes.forge3d.impression_err", { err: String((e && e.message) || e) }), true);
     }
   }
 
@@ -959,11 +941,11 @@
     try {
       const params = {};
       if (objet === "jeton" || objet === "jeton_relief") {
-        const rep = await window.__dzDialogue.saisir("Diamètre du jeton en mm ? (10 à 300)",
-          { valeur: objet === "jeton" ? "25" : "30", ok: "Fabriquer" });
+        const rep = await window.__dzDialogue.saisir(dzT("cartes.forge3d.diametre_q"),
+          { valeur: objet === "jeton" ? "25" : "30", ok: dzT("cartes.forge3d.fabriquer") });
         if (rep === null) return;
         const d = Number(String(rep).replace(",", ".").trim());
-        if (!(d > 0)) { M.toast("diamètre en mm invalide", true); return; }
+        if (!(d > 0)) { M.toast(dzT("cartes.forge3d.diametre_invalide"), true); return; }
         params.diam_mm = d;
       }
       const doc = CF.doc() || {};
@@ -972,19 +954,18 @@
       fd.append("params", JSON.stringify(params));
       fd.append("nom", String((doc.name || "jeu") + " " + objet).slice(0, 60));
       if (objet === "jeton_relief") {
-        jeuStatut("rendu de la carte " + ((CF.current ? CF.current() : 0) + 1) + "…");
+        jeuStatut(dzT("cartes.forge3d.rendu_carte", { n: (CF.current ? CF.current() : 0) + 1 }));
         fd.append("image", await CF.cardBlob(CF.current ? CF.current() : 0, { face: "front" }), "carte.png");
       }
-      jeuStatut("fabrication…");
+      jeuStatut(dzT("cartes.forge3d.fabrication"));
       const d = await M.api.post("jeu", fd);
       jeuStatut(d.dossier + " · " + d.triangles + " triangles" + (d.avertissement ? " · " + d.avertissement : ""));
-      if (await window.__dzDialogue.confirmer("Objet écrit dans l’Imprimante 3D (" + d.dossier + ")"
-                  + (d.avertissement ? " — " + d.avertissement : "") + ". Ouvrir le .3mf dans le slicer ?", { ok: "Ouvrir le slicer" })) {
+      if (await window.__dzDialogue.confirmer(dzT("cartes.forge3d.objet_ecrit", { dossier: d.dossier, avert: d.avertissement ? " — " + d.avertissement : "" }), { ok: dzT("cartes.forge3d.ouvrir_slicer") })) {
         await CF.print3d.open(d.dossier);
       }
     } catch (e) {
       jeuStatut("");
-      M.toast("objet du jeu : " + String((e && e.message) || e), true);
+      M.toast(dzT("cartes.forge3d.objet_err", { err: String((e && e.message) || e) }), true);
     } finally { JEUV = false; }
   }
   async function boiteDepliee() {
@@ -992,19 +973,19 @@
     JEUV = true;
     try {
       const n = (CF.cards ? CF.cards().length : 0) || 60;
-      const rep = await window.__dzDialogue.saisir("Combien de cartes dans la boîte ? (l’épaisseur du paquet en découle)",
-        { valeur: String(n), ok: "Patron PDF" });
+      const rep = await window.__dzDialogue.saisir(dzT("cartes.forge3d.combien_cartes"),
+        { valeur: String(n), ok: dzT("cartes.forge3d.patron_pdf") });
       if (rep === null) return;
       const cartes = parseInt(String(rep).trim(), 10);
-      if (!(cartes >= 1 && cartes <= 1000)) { M.toast("nombre de cartes invalide (1 à 1000)", true); return; }
+      if (!(cartes >= 1 && cartes <= 1000)) { M.toast(dzT("cartes.forge3d.nombre_invalide"), true); return; }
       const sel = $("#cf-forge3d-jeu-feuille");
-      jeuStatut("patron de la boîte…");
+      jeuStatut(dzT("cartes.forge3d.patron_boite"));
       const b = await M.api.blob("POST", "boite", { cartes: cartes, feuille: (sel && sel.value) || "a4" });
       M.download(b, "boite-" + cartes + "-cartes.pdf");
-      jeuStatut("patron de " + cartes + " cartes téléchargé — trait plein = couper, pointillé = plier");
+      jeuStatut(dzT("cartes.forge3d.patron_telecharge", { n: cartes }));
     } catch (e) {
       jeuStatut("");
-      M.toast("boîte dépliée : " + String((e && e.message) || e), true);
+      M.toast(dzT("cartes.forge3d.boite_err", { err: String((e && e.message) || e) }), true);
     } finally { JEUV = false; }
   }
 
@@ -1355,7 +1336,7 @@
   /* le prix d'UN nœud, dans les mots de son fournisseur */
   function priceTxt(eng, ultra) {
     const p = engPrice(eng, ultra);
-    if (!p) return "prix inconnu";
+    if (!p) return dzT("cartes.forge3d.prix_inconnu");
     return (eng.provider === "meshy")
       ? (p.credits + " cr (~" + usdTxt(p.usd) + ")")
       : usdTxt(p.usd);
@@ -1406,13 +1387,13 @@
     /* relief laissé VIDE = « auto » (T097) : la hauteur physique de la
        matière chaînée, sinon le défaut que /info publie */
     const auto = isRelief && lim && lim.relief_depth_mm_default != null
-      ? "auto : hauteur de la matière, sinon " + lim.relief_depth_mm_default : "";
-    return numHtml("profondeur", "depth_mm", proc.depth_mm,
+      ? dzT("cartes.forge3d.relief_auto", { d: lim.relief_depth_mm_default }) : "";
+    return numHtml(dzT("cartes.forge3d.profondeur"), "depth_mm", proc.depth_mm,
                    [isRelief ? 0 : pd[0], isRelief ? rdMax : pd[1]], "0.05", "mm",
                    false, auto)
       + (isRelief
         ? (numHtml("base", "base_mm", proc.base_mm, rb, "0.05", "mm")
-          + numHtml("grille", "grid", proc.grid, rg, "1", ""))
+          + numHtml(dzT("cartes.forge3d.grille"), "grid", proc.grid, rg, "1", ""))
         : "");
   }
 
@@ -1430,16 +1411,14 @@
     return '<div class="cf-forge3d-line">'
       + (cont.length
         ? ('<select class="cf-forge3d-contour" data-field="contour" '
-          + 'title="la courbe suivie : le cadre du format, ou l\'anneau du '
-          + 'Sceau">'
+          + 'title="' + dzT("cartes.forge3d.contour_title") + '">'
           + cont.map((c) => '<option value="' + esc(c) + '"'
             + ((c === choisi) ? " selected" : "") + '>' + esc(c)
             + '</option>').join("")
           + '</select>')
-        : '<span class="hint">contours indisponibles — le contrat /info n\'a '
-          + 'pas été chargé.</span>')
-      + numHtml("largeur", "width_mm", n.width_mm, w, "0.05", "mm")
-      + numHtml("profondeur", "depth_mm", n.depth_mm, p, "0.05", "mm")
+        : '<span class="hint">' + dzT("cartes.forge3d.contours_indispo") + '</span>')
+      + numHtml(dzT("cartes.forge3d.largeur"), "width_mm", n.width_mm, w, "0.05", "mm")
+      + numHtml(dzT("cartes.forge3d.profondeur"), "depth_mm", n.depth_mm, p, "0.05", "mm")
       + numHtml("arcs", "segments", n.segments, s, "1", "")
       + '</div>';
   }
@@ -1463,8 +1442,7 @@
        rien : on montre au moins CE QU'IL EST, plutôt qu'un menu vide. */
     const liste = offres.length ? offres : [cote];
     return '<select class="cf-forge3d-side" data-field="side"'
-      + ((liste.length < 2) ? ' disabled title="ce rôle n\'existe que d\'un'
-        + ' côté"' : "") + '>'
+      + ((liste.length < 2) ? ' disabled title="' + dzT("cartes.forge3d.role_un_cote") + '"' : "") + '>'
       + liste.map((s) => '<option value="' + esc(s) + '"'
         + ((s === cote) ? " selected" : "") + '>' + esc(sideLabel(s))
         + '</option>').join("")
@@ -1524,8 +1502,8 @@
          dépensé. `runHtml` sait déjà se désactiver sans moteur — il rend un
          bouton mort et l'état lu du disque. */
       return '<div class="cf-forge3d-blk cf-forge3d-mesh"><p class="hint">'
-        + '<b>moteurs 3D indisponibles</b> — ' + esc((m && m.degraded)
-          || "le contrat /info n'a pas été chargé (backend injoignable ?)")
+        + '<b>' + dzT("cartes.forge3d.moteurs_indispo") + '</b> — ' + esc((m && m.degraded)
+          || dzT("cartes.forge3d.contrat_non_charge"))
         + '</p><span class="cf-forge3d-run" data-nid="' + esc(proc.id) + '">'
         + runHtml(proc) + '</span></div>';
     }
@@ -1534,12 +1512,12 @@
     const opts = engines.map((e) => '<option value="' + esc(e.id) + '"'
       + (e.id === eng.id ? " selected" : "") + '>' + esc(e.label) + " · "
       + esc(priceTxt(e, false))
-      + esc(e.provider === "meshy" && cle ? " — clé requise (Réglages)" : "")
+      + esc(e.provider === "meshy" && cle ? dzT("cartes.forge3d.cle_requise") : "")
       + '</option>').join("");
     const ultraCr = ultraCredits(eng);
     const promptMax = Number((m && m.prompt_max) || 0);
     return '<div class="cf-forge3d-blk cf-forge3d-mesh">'
-      + '<label class="cf-forge3d-sel">moteur<select data-field="engine">'
+      + '<label class="cf-forge3d-sel">' + dzT("cartes.forge3d.moteur") + '<select data-field="engine">'
       + opts + '</select></label>'
       + '<span class="cf-forge3d-price mono">' + esc(priceTxt(eng, proc.ultra))
       + '</span>'
@@ -1552,12 +1530,11 @@
       + 'data-field="texture_prompt"'
       + (promptMax > 0 ? ' maxlength="' + promptMax + '"' : "")
       + ' value="' + esc(proc.texture_prompt || "") + '" '
-      + 'placeholder="ce que le moteur doit peindre"></label>'
+      + 'placeholder="' + dzT("cartes.forge3d.texture_ph") + '"></label>'
       + '<span class="cf-forge3d-run" data-nid="' + esc(proc.id) + '">'
       + runHtml(proc) + '</span>'
       + (m.meshy_mock
-        ? '<p class="hint">simulateur Meshy local actif — aucun crédit réel '
-          + 'n\'est débité.</p>'
+        ? '<p class="hint">' + dzT("cartes.forge3d.meshy_mock") + '</p>'
         : "")
       + '</div>';
   }
@@ -1578,9 +1555,9 @@
     return '<button class="btn primary sm" type="button" data-act="launch" '
       + 'data-nid="' + esc(proc.id) + '"'
       + ((court || sansCle || !eng) ? " disabled" : "") + '>'
-      + (job ? "relancer" : "lancer") + '</button>'
+      + (job ? dzT("cartes.forge3d.relancer") : dzT("cartes.forge3d.lancer")) + '</button>'
       + (sansCle
-        ? '<span class="cf-forge3d-chip echec">clé Meshy absente — Réglages</span>'
+        ? '<span class="cf-forge3d-chip echec">' + dzT("cartes.forge3d.meshy_absente") + '</span>'
         : "")
       + chipHtml(proc.id, job);
   }
@@ -1599,11 +1576,10 @@
 
   function chipHtml(nid, job) {
     const src = sourceTxt(job);
-    const dit = src ? (' title="servi depuis ' + esc(src) + '"') : "";
+    const dit = src ? (' title="' + esc(dzT("cartes.forge3d.servi_depuis", { src: src })) + '"') : "";
     let html = "";
     if (RUNS[nid]) {
-      html += '<span class="cf-forge3d-chip ailleurs">relancé ailleurs — un '
-        + 'autre onglet a repris ce nœud</span>';
+      html += '<span class="cf-forge3d-chip ailleurs">' + dzT("cartes.forge3d.relance_ailleurs") + '</span>';
     }
     if (ERRS[nid]) {
       /* le refus du backend TEL QUEL : la famille nommée 400 (nœud/couche/clé
@@ -1614,7 +1590,7 @@
     }
     if (job === undefined) return html;              /* pas encore sondé */
     if (job === null) {
-      return html + '<span class="cf-forge3d-chip">jamais lancé</span>';
+      return html + '<span class="cf-forge3d-chip">' + dzT("cartes.forge3d.jamais_lance") + '</span>';
     }
     /* la provenance suit TOUTES les chips d'un job : ce qu'il a servi, ce
        qu'il sert, ce sur quoi il a échoué — jamais un état muet sur SA
@@ -1632,27 +1608,27 @@
        chaque branche — c'est aussi ce qui rend la garantie vérifiable d'un
        coup d'œil (et épinglable par un test de source). */
     const pas = esc(job.step || "");
-    const echec = esc(job.error || "sans motif rendu par le backend");
+    const echec = esc(job.error || dzT("cartes.forge3d.sans_motif"));
     const note = esc(job.closed_note || "");
     const st = job.status;
     if (st === "queued") {
-      return html + '<span class="cf-forge3d-chip file"' + dit + '>en file'
+      return html + '<span class="cf-forge3d-chip file"' + dit + '>' + dzT("cartes.forge3d.en_file") + ''
         + quoi + '</span>';
     }
     if (st === "running") {
-      return html + '<span class="cf-forge3d-chip cours"' + dit + '>en cours '
+      return html + '<span class="cf-forge3d-chip cours"' + dit + '>' + dzT("cartes.forge3d.en_cours") + ' '
         + Number(job.progress || 0) + ' %' + (pas ? " · " + pas : "")
         + quoi + '</span>';
     }
     if (st === "served") {
       const cr = (job.consumed_credits != null)
         ? " · " + Number(job.consumed_credits) + " cr" : "";
-      return html + '<span class="cf-forge3d-chip servi"' + dit + '>servi'
+      return html + '<span class="cf-forge3d-chip servi"' + dit + '>' + dzT("cartes.forge3d.servi") + ''
         + cr + quoi + '</span>'
         + (note ? '<span class="cf-forge3d-chip note">' + note + '</span>' : "");
     }
     if (st === "failed") {
-      return html + '<span class="cf-forge3d-chip echec"' + dit + '>échec : '
+      return html + '<span class="cf-forge3d-chip echec"' + dit + '>' + dzT("cartes.forge3d.echec_pref")
         + echec + quoi + '</span>';
     }
     return html + '<span class="cf-forge3d-chip"' + dit + '>' + esc(st)
@@ -1705,7 +1681,7 @@
        que d'être décoré d'un adjectif faux. Les ids de surface sont des ids
        de boutique (`metal_brosse_aniso`) : leurs soulignés deviennent des
        espaces, sans plus. */
-    if (estHolo(f)) return f + " holographique";
+    if (estHolo(f)) return dzT("cartes.forge3d.holo_label", { f: f });
     if (estVerre(f)) return String(f).replace(/-/g, " ");
     if (estSurface(f)) return String(f).replace(/_/g, " ");
     return String(f);
@@ -1770,71 +1746,51 @@
        cacher laisserait des données mortes que l'écran refuserait de montrer
        et que la construction avouerait quand même. */
     const mort = !holo && liste.length
-      ? '<p class="hint cf-forge3d-motif-off">aucune finition holographique : '
-        + 'ces calques ne s\'incrusteront nulle part (le canal d\'epaisseur '
-        + 'n\'existe qu\'en argent ou dorure) — la construction le dira aussi.'
-        + '</p>'
+      ? '<p class="hint cf-forge3d-motif-off">' + dzT("cartes.forge3d.motifs_morts") + '</p>'
       : "";
     if (!MOTIFS) {
-      return '<p class="hint cf-forge3d-motifs"><b>motifs</b> — sources non '
-        + 'chargees (contrat motif-sources indisponible).</p>';
+      return '<p class="hint cf-forge3d-motifs">' + dzT("cartes.forge3d.motifs_non_charges") + '</p>';
     }
     if (!src.length) {
-      return '<p class="hint cf-forge3d-motifs"><b>motifs dans '
-        + 'l\'hologramme</b> — aucune source dans ce jeu : importez une image '
-        + 'de calque (Typographie), une matiere de support (Matieres), ou '
-        + 'installez une matiere dans la boutique.'
+      return '<p class="hint cf-forge3d-motifs">' + dzT("cartes.forge3d.motifs_aucune_source")
         + (MOTIFS.degraded ? " " + esc(MOTIFS.degraded) : "") + '</p>';
     }
     const rangs = liste.map((m, i) =>
       '<div class="cf-forge3d-line cf-forge3d-motif">'
-      + '<label class="cf-forge3d-sel">calque ' + (i + 1)
+      + '<label class="cf-forge3d-sel">' + dzT("cartes.forge3d.calque_n", { n: i + 1 })
       + '<select data-field="motif_src_' + i + '">'
-      + '<option value="">— retirer ce calque —</option>'
+      + '<option value="">' + dzT("cartes.forge3d.retirer_calque") + '</option>'
       + motifOptions(m.src) + '</select></label>'
-      + numHtml("part", "motif_gain_" + i, m.gain, lim.gain, "0.05", "")
+      + numHtml(dzT("cartes.forge3d.part"), "motif_gain_" + i, m.gain, lim.gain, "0.05", "")
       + '</div>').join("");
     const reste = lim.max > 0 && liste.length >= lim.max;
     const ajout = reste
-      ? '<p class="hint">' + lim.max + ' calques : le plafond est atteint '
-        + '(retirez-en un pour en poser un autre).</p>'
-      : '<label class="cf-forge3d-sel cf-forge3d-motif-add">ajouter'
-        + '<select data-field="motif_add"><option value="">— un motif… —'
+      ? '<p class="hint">' + dzT("cartes.forge3d.motifs_plafond", { n: lim.max }) + '</p>'
+      : '<label class="cf-forge3d-sel cf-forge3d-motif-add">' + dzT("cartes.forge3d.ajouter") + ''
+        + '<select data-field="motif_add"><option value="">' + dzT("cartes.forge3d.un_motif") + ''
         + '</option>' + motifOptions(null) + '</select></label>';
     return '<div class="cf-forge3d-motifs">' + mort
-      + '<p class="hint"><b>motifs dans l\'hologramme</b> — chaque calque '
-      + 'epaissit le film la ou il est clair ; l\'ORDRE est l\'ordre '
-      + 'd\'addition (le premier sert en premier, le suivant ne prend que ce '
-      + 'qui reste).</p>'
+      + '<p class="hint">' + dzT("cartes.forge3d.motifs_aide") + '</p>'
       /* F1 — LA CLAUSE QUI MANQUAIT, et elle est mesurée : à part PLEINE
          l'opérateur dégénère en somme écrêtée, donc COMMUTATIF (24
          permutations de 4 calques à 1,0 rendent un seul fichier). Promettre
          « l'ordre compte » sans cette clause, c'est promettre plus que ce que
          les octets tiennent. */
-      + '<p class="hint">l\'ordre compte des qu\'une part est < 1 : a part '
-      + 'pleine, chaque calque ne fait qu\'ajouter jusqu\'au plafond et '
-      + 'l\'ordre ne change plus le fichier.</p>'
+      + '<p class="hint">' + dzT("cartes.forge3d.motifs_ordre") + '</p>'
       /* F3 — la conséquence d'une part pleine sur une source PLEIN-CADRE
          claire (« matiere de support » et les matieres de la boutique le sont
          exactement) : le film est rempli partout et les franges disparaissent.
          Mesuré : blanc pur a part pleine -> le canal d'epaisseur tombe a UN
          seul niveau. D'ou le defaut servi par /info, plus doux. */
-      + '<p class="hint">une source claire <b>plein-cadre</b> a part pleine '
-      + 'ecrase l\'arc-en-ciel de base (le film est rempli partout, les '
-      + 'franges disparaissent) : gardez une part basse pour une texture, '
-      + 'montez-la pour un sigle decoupe.</p>'
+      + '<p class="hint">' + dzT("cartes.forge3d.motifs_plein_cadre") + '</p>'
       /* HONNÊTETÉ DE PORTÉE : la texture d'épaisseur est CARRÉE et couvre les
          UV de l'élément ENTIER — isoler une bande n'existe pas ici (comme
          l'arc-en-ciel de base de la 2b, qu'elle épaissit). Un utilisateur qui
          croit poser un sceau de bordure doit l'apprendre AVANT de construire,
          pas en ouvrant le GLB. */
-      + '<p class="hint">le motif couvre TOUT l\'element et suit ses '
-      + 'proportions (la texture d\'epaisseur est carree, etiree comme '
-      + 'l\'arc-en-ciel de base) : on n\'isole pas une bande.</p>'
+      + '<p class="hint">' + dzT("cartes.forge3d.motifs_tout") + '</p>'
       + rangs + ajout
-      + '<p class="hint">le noeud matiere ne se previsualise pas : le motif se '
-      + 'voit sur l\'apercu du plan ou du relief en amont, '
-      + 'et sur l\'artefact construit.</p></div>';
+      + '<p class="hint">' + dzT("cartes.forge3d.motifs_apercu") + '</p></div>';
   }
 
   function matHtml(r, isMesh, hote) {
@@ -1869,25 +1825,25 @@
     const verre = estVerre(mat && mat.finish);
     const surface = estSurface(mat && mat.finish);
     const matSel = mats.length
-      ? ('<label class="cf-forge3d-sel">matière<select data-field="mat">'
-        + '<option value=""' + (mat && mat.mat ? "" : " selected") + '>aucune</option>'
+      ? ('<label class="cf-forge3d-sel">' + dzT("cartes.forge3d.matiere") + '<select data-field="mat">'
+        + '<option value=""' + (mat && mat.mat ? "" : " selected") + '>' + dzT("cartes.forge3d.aucune") + '</option>'
         + mats.map((x) => '<option value="' + esc(x.id) + '"'
           + (mat && mat.mat === x.id ? " selected" : "") + '>' + esc(x.name)
           + '</option>').join("")
         + '</select></label>')
       /* jamais un select vide muet : la panne (ou la boutique vide) est dite */
-      : ('<span class="hint"><b>aucune matière</b> — ' + esc(panne
-        || (INFO ? "la boutique de matières est vide (aucune matière installée)."
-                 : "contrat /info non chargé.")) + '</span>');
+      : ('<span class="hint"><b>' + dzT("cartes.forge3d.aucune_matiere") + '</b> — ' + esc(panne
+        || (INFO ? dzT("cartes.forge3d.boutique_vide")
+                 : dzT("cartes.forge3d.contrat_non_charge_court"))) + '</span>');
     const finSel = finitions.length
-      ? ('<label class="cf-forge3d-sel">finition<select data-field="finish">'
+      ? ('<label class="cf-forge3d-sel">' + dzT("cartes.forge3d.finition") + '<select data-field="finish">'
         + finitions.map((f) => '<option value="' + esc(f) + '"'
           + (((mat && mat.finish) || "aucune") === f ? " selected" : "") + '>'
           + esc(finishLabel(f)) + '</option>').join("")
         + '</select></label>')
-      : '<span class="hint">finitions inconnues (contrat /info non chargé).</span>';
+      : '<span class="hint">' + dzT("cartes.forge3d.finitions_inconnues") + '</span>';
     const dedans = '<div class="cf-forge3d-line">' + matSel + finSel
-      + numHtml("tuile", "tile_mm",
+      + numHtml(dzT("cartes.forge3d.tuile"), "tile_mm",
                 (mat && mat.tile_mm != null) ? mat.tile_mm : TILE_DEFAUT,
                 lim && lim.tile_mm, "1", "mm", !pose)
       /* L'ANISOTROPIE N'EXISTE QUE DANS UNE RECETTE HOLOGRAPHIQUE : c'est
@@ -1896,7 +1852,7 @@
          alors rien du tout, en silence) mais sur la FAMILLE. */
       + '<label class="cf-forge3d-chk"><input type="checkbox" data-field="aniso"'
       + (mat && mat.aniso ? " checked" : "") + (holo ? "" : " disabled")
-      + '> anisotropie</label>'
+      + '> ' + dzT("cartes.forge3d.anisotropie") + '</label>'
       /* L'OCCLUSION, ENFIN VISIBLE (phase 5, T4). Elle DESCENDAIT DÉJÀ dans le
          GLB — le writer pose `occlusionTexture` dès que la matière en porte
          une — mais cet écran n'en disait pas un mot et personne ne pouvait la
@@ -1909,8 +1865,7 @@
       + ((!mat || mat.ao !== false) ? " checked" : "")
       + (ligne ? "" : " disabled") + '> occlusion</label></div>'
       + (ligne && !aAo
-         ? '<p class="hint">cette matière ne porte AUCUNE carte d\'occlusion '
-           + '(le disque fait foi) : la case ne changera rien au fichier.</p>'
+         ? '<p class="hint">' + dzT("cartes.forge3d.sans_ao") + '</p>'
          : "")
       /* M3 — LA CASE GRISÉE QUI AGIT QUAND MÊME. Le nœud porte une matière,
          mais la boutique ne répond pas : le réglage d'occlusion CONTINUE
@@ -1918,10 +1873,8 @@
          l'écran ne peut ni le montrer ni le changer. Le dire vaut mieux
          qu'une case morte au sens inconnu. */
       + (muet
-         ? '<p class="hint">' + esc(panne || "matière inconnue de ce contrat")
-           + ' — l\'écran ne peut pas dire ce que cette matière porte '
-           + '(occlusion, relief, couleur). Les réglages du graphe, eux, '
-           + 'agissent toujours à la construction.</p>'
+         ? '<p class="hint">' + esc(panne || dzT("cartes.forge3d.matiere_inconnue"))
+           + ' — ' + dzT("cartes.forge3d.matiere_muette") + '</p>'
          : "")
       /* R2 — L'INDISCERNABILITÉ, DITE AVANT DE CONSTRUIRE. Une EXTRUSION n'a
          pas d'image : sous une recette à transmission pleine, elle ne montre
@@ -1931,38 +1884,22 @@
          qui les sépare, et elle n'a rien à brouiller. Le bordereau le dit
          aussi ; ici on le dit AVANT que l'utilisateur choisisse. */
       + (verre && r.proc && r.proc.kind === "extrude"
-         ? '<p class="hint">cette extrusion n\'a <b>pas d\'image</b> : la '
-           + 'lumière transmise n\'y montre que le décor, et un décor uni n\'a '
-           + 'rien à flouter — « verre » et « verre dépoli » y rendent la '
-           + '<b>même image</b> (mesuré). Le grain du dépoli se voit sur une '
-           + 'couche texturée ; « translucide », lui, se distingue par sa '
-           + 'teinte.</p>'
+         ? '<p class="hint">' + dzT("cartes.forge3d.extrusion_verre") + '</p>'
          : "")
       /* R1 — L'ONDULATION DU SCEAU, ÉTEINTE PAR LE RELIEF DE LA MATIÈRE.
          Même vérité que le bordereau du backend, dite AVANT de construire. */
       + (holo && aRelief
-         ? '<p class="hint">cette matière porte sa propre carte de relief : '
-           + 'l\'<b>ondulation</b> de la feuille ne sera pas posée (un '
-           + 'matériau glTF n\'accepte qu\'un relief, et c\'est le vôtre qui '
-           + 'gagne). La construction le dira aussi.</p>'
+         ? '<p class="hint">' + dzT("cartes.forge3d.relief_propre") + '</p>'
          : "")
       /* LA SURFACE (R10c D3) : même règle que le verre côté micro-surface
          (le writer saute le pack MR sous toute finition), et l'aveu de
          l'émission « animée » dit AVANT de construire — glTF n'anime aucune
          propriété de matériau, le bordereau le dira aussi. */
       + (surface
-         ? '<p class="hint">la finition de surface <b>remplace la '
-           + 'micro-surface</b> de la matière (rugosité et métal viennent de '
-           + 'la recette) ; son relief et son occlusion parlent encore. Une '
-           + 'émission « animée » ne pulse que dans l\'aperçu du lab Matières '
-           + ': le fichier la porte <b>fixe</b>.</p>'
+         ? '<p class="hint">' + dzT("cartes.forge3d.surface_aide") + '</p>'
          : "")
       + (verre
-         ? '<p class="hint">le verre <b>remplace la micro-surface</b> de la '
-           + 'matière (rugosité et métal viennent de la recette) ; son relief '
-           + 'et son occlusion, eux, parlent encore. La lumière transmise est '
-           + 'teintée par la COUCHE elle-même — un vitrail, pas une vitre '
-           + 'blanche.</p>'
+         ? '<p class="hint">' + dzT("cartes.forge3d.verre_aide") + '</p>'
            /* D'OÙ VIENT LA TEINTE, EXACTEMENT (R5). Le réglage de couleur du
               lab n'est PAS la couleur de l'image : mesuré sur les 18 matières
               installées, ΔE76 médian 86,4 entre les deux, et seize d'entre
@@ -1970,18 +1907,12 @@
               de l'image qui teinte — et l'écran ne montre un hex que dans le
               seul cas où ce hex est bien celui qui sera utilisé (matière sans
               image). Afficher l'autre serait afficher un chiffre faux. */
-           + '<p class="hint">« translucide » teinte en plus son absorption '
+           + '<p class="hint">' + dzT("cartes.forge3d.translucide_pref") + ' '
            + (!ligne
-              ? 'avec la couleur de la matière — aucune matière posée : il ne '
-                + 'teinte rien.'
+              ? dzT("cartes.forge3d.translucide_sans")
               : ((ligne.maps || []).indexOf("basecolor") >= 0
-                 ? 'avec la <b>moyenne de l\'image</b> de la matière choisie '
-                   + '(pas son réglage de couleur : les deux diffèrent sur '
-                   + 'toute la boutique).'
-                 : 'avec le réglage de couleur de la matière'
-                   + (ligne.color ? ' (ici ' + esc(String(ligne.color)) + ')'
-                                  : "")
-                   + ' — elle n\'a pas d\'image.'))
+                 ? dzT("cartes.forge3d.translucide_moyenne")
+                 : dzT("cartes.forge3d.translucide_reglage", { ici: ligne.color ? dzT("cartes.forge3d.translucide_ici", { c: esc(String(ligne.color)) }) : "" })))
            + '</p>'
          : "")
       /* le bloc motifs SUIT la finition : sans recette holographique il n'y a
@@ -1993,21 +1924,17 @@
          pire des deux mondes. */
       + (holo || (mat && mat.motifs && mat.motifs.length)
          ? motifsHtml(mat, holo) : "")
-      + '<p class="hint">matière sur plan/relief seulement — un GLB moteur '
-      + 'garde la sienne.' + (isMesh && mat
-        ? ' Ce rang est un moteur : la matière chaînée sera avouée comme '
-          + 'ignorée au bordereau.' : "")
-      + (pose ? "" : ' La tuile s\'active dès qu\'une matière ou une finition '
-        + 'est posée.')
+      + '<p class="hint">' + dzT("cartes.forge3d.matiere_plan_relief") + (isMesh && mat
+        ? ' ' + dzT("cartes.forge3d.rang_moteur") : "")
+      + (pose ? "" : ' ' + dzT("cartes.forge3d.tuile_active"))
       /* CHAQUE CASE DIT CE QUI L'ACTIVE, ET C'EST LA MÊME RÈGLE QUE CÔTÉ
          SERVEUR : l'anisotropie n'existe que dans une recette holographique
          (`holo_finish`), l'occlusion ne peut venir que d'une MATIÈRE (une
          recette n'en fabrique pas). Une case grisée sans motif est une
          promesse muette. */
-      + (holo ? "" : ' L\'anisotropie demande une finition holographique.')
-      + (ligne ? "" : ' L\'occlusion vient de la matière : elle demande '
-        + 'qu\'une matière soit choisie.') + '</p>';
-    return blocHtml("matière", !!mat, dedans, hote);
+      + (holo ? "" : ' ' + dzT("cartes.forge3d.aniso_holo"))
+      + (ligne ? "" : ' ' + dzT("cartes.forge3d.ao_matiere")) + '</p>';
+    return blocHtml(dzT("cartes.forge3d.matiere"), !!mat, dedans, hote);
   }
 
   /* LE z EFFECTIF D'UN ÉLÉMENT SANS NŒUD `transform` — c'est-à-dire ce que le
@@ -2026,8 +1953,7 @@
     const t = r.trs;
     if (!lim) {
       return blocHtml("placement", false,
-                      '<p class="hint">bornes inconnues (contrat /info non '
-                      + 'chargé).</p>', hote);
+                      '<p class="hint">' + dzT("cartes.forge3d.bornes_inconnues") + '</p>', hote);
     }
     /* M1 — CE QUI SERA CONSTRUIT, JAMAIS UN CHAMP VIDE. Même sans nœud
        `transform`, le writer POSE un placement : identité en x/y/rotation,
@@ -2042,11 +1968,9 @@
       + numHtml("y", "y_mm", d.y_mm, lim.xy_mm, "0.5", "mm")
       + numHtml("z", "z_mm", d.z_mm, lim.z_mm, "0.1", "mm")
       + numHtml("rotation", "rot_deg", d.rot_deg, lim.rot_deg, "1", "°")
-      + numHtml("échelle", "scale", d.scale, lim.scale, "0.05", "")
+      + numHtml(dzT("cartes.forge3d.echelle"), "scale", d.scale, lim.scale, "0.05", "")
       + '</div>'
-      + '<p class="hint">un placement absent laisse l\'élément là où son '
-      + 'traitement le pose — les valeurs ci-dessus sont celles qui seront '
-      + 'construites.</p>';
+      + '<p class="hint">' + dzT("cartes.forge3d.placement_absent") + '</p>';
     return blocHtml("placement", !!t, dedans, hote);
   }
 
@@ -2070,10 +1994,9 @@
     const graph = get("graph");
     if (!graph) {
       host.innerHTML = LAST_MANIFEST
-        ? ('<p class="hint">Aucun graphe construit pour le moment.</p>'
-          + seedButtonHtml("cf-forge3d-graph-seed", "construire le graphe par défaut"))
-        : '<p class="hint">Exportez les couches d\'abord (section ci-dessus) '
-          + 'pour proposer un graphe par défaut.</p>';
+        ? ('<p class="hint">' + dzT("cartes.forge3d.aucun_graphe") + '</p>'
+          + seedButtonHtml("cf-forge3d-graph-seed", dzT("cartes.forge3d.seed")))
+        : '<p class="hint">' + dzT("cartes.forge3d.exportez_dabord") + '</p>';
       paintCost();
       return;
     }
@@ -2081,13 +2004,12 @@
     const lim = (INFO && INFO.graph_limits) || null;
     const body = rows.length
       ? rows.map((r) => rowHtml(r, lim)).join("")
-      : '<p class="hint">Graphe sans traitement — aucune couche reliée à un '
-        + 'plan, un relief ou un moteur.</p>';
+      : '<p class="hint">' + dzT("cartes.forge3d.graphe_sans_traitement") + '</p>';
     /* le re-seed reste OFFERT même une fois le graphe construit : abîmer son
        graphe n'est plus une impasse — et comme il passe par setGraph, il
        reste lui-même annulable. */
     const reseed = LAST_MANIFEST
-      ? seedButtonHtml("cf-forge3d-reseed", "reconstruire le graphe par défaut")
+      ? seedButtonHtml("cf-forge3d-reseed", dzT("cartes.forge3d.reseed"))
       : "";
     /* M5 — LE PLAFOND D'ÉLÉMENTS EST DIT, PAS DÉCOUVERT AU REFUS. `build3d`
        rend un 400 nommé au-delà de `max_elements` ; ce chiffre est SERVI par
@@ -2097,9 +2019,7 @@
     const maxEl = Number(lim && lim.max_elements) || 0;
     const n = nbElements(graph);
     const trop = (maxEl > 0 && n > maxEl)
-      ? ('<p class="hint cf-forge3d-trop"><b>' + n + ' éléments</b> — '
-        + 'le maximum construisible est ' + maxEl
-        + ' : retire des rangs, la construction refuserait.</p>')
+      ? ('<p class="hint cf-forge3d-trop">' + dzT("cartes.forge3d.trop_elements", { n: n, max: maxEl }) + '</p>')
       : "";
     /* T5 — LA LISTE NE SAIT PAS MONTRER UNE EXTRUSION, ET ELLE LE DIT. Un
        rang de cette vue part d'une COUCHE ; une extrusion n'en a pas (sa
@@ -2111,9 +2031,7 @@
        existe pour fermer. */
     const nExt = nbExtrusions(graph);
     const hors = nExt
-      ? ('<p class="hint">' + nExt + ' extrusion(s) dans ce graphe — un rang '
-        + 'part d\'une couche, une extrusion n\'en a pas : elles se règlent '
-        + 'sur la vue canvas. Elles sont construites quand même.</p>')
+      ? ('<p class="hint">' + dzT("cartes.forge3d.extrusions_hors", { n: nExt }) + '</p>')
       : "";
     host.innerHTML = body + hors + trop + reseed;
     sondeMoteurs(graph);
@@ -2151,10 +2069,8 @@
          on complète un verbe (« relancer coûterait … »), où cette énumération
          ne se dit pas. Un aveu qu'on ne peut pas lire n'avoue rien. */
       bouts.push(appendice
-        ? ("un montant inconnu pour " + s.inconnus + " nœud(s) (table des "
-          + "moteurs indisponible)")
-        : (s.inconnus + " nœud(s) au prix inconnu (table des moteurs "
-          + "indisponible)"));
+        ? (dzT("cartes.forge3d.montant_inconnu", { n: s.inconnus }))
+        : (dzT("cartes.forge3d.prix_inconnus", { n: s.inconnus })));
     }
     return bouts.join(" + ");
   }
@@ -2182,15 +2098,12 @@
        « 100 % gratuit » à côté d'un bouton payant : le seul mensonge que ce
        pied de page puisse commettre. */
     if (tete) {
-      return { txt: "Coût à lancer : " + tete + (differe
-        ? (" · " + servis.n + " nœud(s) déjà servi(s) — relancer coûterait "
-          + differe) : ""), payant: true };
+      return { txt: dzT("cartes.forge3d.cout_lancer", { tete: tete }) + (differe ? (" · " + dzT("cartes.forge3d.deja_servis", { n: servis.n, cout: differe })) : ""), payant: true };
     }
     if (differe) {
-      return { txt: "Graphe construit — relancer " + servis.n + " nœud(s) "
-        + "moteur coûterait " + differe + ".", payant: true };
+      return { txt: dzT("cartes.forge3d.cout_differe", { n: servis.n, cout: differe }), payant: true };
     }
-    return { txt: "Graphe 100 % gratuit.", payant: false };
+    return { txt: dzT("cartes.forge3d.gratuit"), payant: false };
   }
 
   function paintCost() {
@@ -3228,7 +3141,7 @@
       /* `textContent` et non `innerHTML` : rien d'interpolé ici, et rien à
          échapper — le bouton ne porte AUCUNE donnée du graphe (l'arête, elle,
          est dans `ARETE`, pas dans le DOM). */
-      bt.textContent = "supprimer";
+      bt.textContent = dzT("cartes.forge3d.supprimer");
       monde.appendChild(bt);
     }
     const m = milieuArete(a, b);
@@ -3305,10 +3218,10 @@
      ceci n'est qu'un dictionnaire d'affichage (PROC_LABELS le fait déjà pour
      les traitements de la liste). */
   const KIND_LABELS = {
-    layer: "couche", plane: "plan", relief: "relief", mesh3d: "mesh 3D",
+    layer: dzT("cartes.forge3d.kind_couche"), plane: dzT("cartes.forge3d.kind_plan"), relief: "relief", mesh3d: dzT("cartes.forge3d.kind_mesh"),
     extrude: "extrusion",
-    material: "matière", transform: "placement", assemble: "assemblage",
-    artifact: "artefact", export: "export",
+    material: dzT("cartes.forge3d.matiere"), transform: "placement", assemble: dzT("cartes.forge3d.kind_assemblage"),
+    artifact: dzT("cartes.forge3d.kind_artefact"), export: "export",
   };
 
   function kindLabel(k) {
@@ -3400,11 +3313,11 @@
     if (n.kind === "layer") {
       return (n.role || "composite") + " · " + sideLabel(coteDe(n));
     }
-    if (n.kind === "extrude") return n.contour || "contour";
-    if (n.kind === "artifact") return n.name || "artefact";
-    if (n.kind === "mesh3d") return n.engine || "moteur";
+    if (n.kind === "extrude") return n.contour || dzT("cartes.forge3d.contour");
+    if (n.kind === "artifact") return n.name || dzT("cartes.forge3d.kind_artefact");
+    if (n.kind === "mesh3d") return n.engine || dzT("cartes.forge3d.moteur");
     if (n.kind === "material") {
-      return n.mat || ((n.finish && n.finish !== "aucune") ? n.finish : "matière");
+      return n.mat || ((n.finish && n.finish !== "aucune") ? n.finish : dzT("cartes.forge3d.matiere"));
     }
     return n.id;
   }
@@ -3435,12 +3348,12 @@
     let h = "";
     if (aEntree(n.kind)) {
       h += '<span class="cf-forge3d-port cf-forge3d-port-in" data-port="in"'
-        + ' data-nid="' + esc(n.id) + '" title="entrée"></span>';
+        + ' data-nid="' + esc(n.id) + '" title="' + dzT("cartes.forge3d.port_entree") + '"></span>';
     }
     if (aSortie(n.kind)) {
       h += '<span class="cf-forge3d-port cf-forge3d-port-out" data-port="out"'
         + ' data-nid="' + esc(n.id) + '"'
-        + ' title="sortie — glisser vers une entrée"></span>';
+        + ' title="' + dzT("cartes.forge3d.port_sortie") + '"></span>';
     }
     return h;
   }
@@ -3505,8 +3418,7 @@
     if (n.kind === "layer") {
       champs = (r && att.role === "layer")
         ? ('<div class="cf-forge3d-line">' + sideSelHtml(r.layer) + '</div>')
-        : '<p class="hint">couche non reliée à un traitement — elle ne sera '
-          + 'pas construite.</p>';
+        : '<p class="hint">' + dzT("cartes.forge3d.couche_non_reliee") + '</p>';
       if (r && att.role === "layer") proc = r.proc.id;
     } else if (n.kind === "extrude") {
       /* PAS DE `r` À CHERCHER : une extrusion n'a pas de rang (un rang part
@@ -3519,19 +3431,16 @@
       champs = r
         ? ('<div class="cf-forge3d-line">' + procSelHtml(n) + geoHtml(n, lim)
           + '</div>' + (n.kind === "mesh3d" ? mesh3dHtml(n) : ""))
-        : '<p class="hint">traitement sans couche source — il ne sera pas '
-          + 'construit.</p>';
+        : '<p class="hint">' + dzT("cartes.forge3d.traitement_sans_source") + '</p>';
       if (r) proc = n.id;
     } else if (n.kind === "material") {
       champs = (r && att.role === "mat")
         ? matHtml(r, r.proc.kind === "mesh3d", "node")
-        : '<p class="hint">matière hors chaîne — aucun traitement ne la '
-          + 'porte.</p>';
+        : '<p class="hint">' + dzT("cartes.forge3d.matiere_hors_chaine") + '</p>';
       if (r && att.role === "mat") proc = r.proc.id;
     } else if (n.kind === "transform") {
       champs = (r && att.role === "trs") ? trsHtml(r, "node")
-        : '<p class="hint">placement hors chaîne — aucun traitement ne le '
-          + 'porte.</p>';
+        : '<p class="hint">' + dzT("cartes.forge3d.placement_hors_chaine") + '</p>';
       if (r && att.role === "trs") proc = r.proc.id;
     } else if (n.kind === "artifact" || n.kind === "export") {
       /* `data-proc` NE DÉSIGNE PAS UN TRAITEMENT : il désigne le nœud AU NOM
@@ -3569,19 +3478,19 @@
      bordereau MESURÉ. « figer l'aperçu » reste à côté du viewer : c'est
      l'image qui deviendra celle de la carte, elle appartient au résultat. */
   function artifactNodeHtml(n) {
-    return '<label class="cf-forge3d-txt">nom<input type="text" '
+    return '<label class="cf-forge3d-txt">' + dzT("cartes.forge3d.nom") + '<input type="text" '
       + 'data-field="name" maxlength="' + Number(ART_NAME_MAX) + '" value="'
-      + esc(n.name || "") + '" placeholder="artefact"></label>'
+      + esc(n.name || "") + '" placeholder="' + dzT("cartes.forge3d.kind_artefact") + '"></label>'
       + '<div class="cf-forge3d-line">'
       + '<button class="btn primary sm" type="button" data-act="build3d"'
-      + (build3d.busy ? " disabled" : "") + '>Construire</button>'
+      + (build3d.busy ? " disabled" : "") + '>' + dzT("cartes.forge3d.construire_titre") + '</button>'
       + '<button class="btn sm" type="button" data-act="freeze"'
       /* LES DEUX CONDITIONS, PAS UNE (voir `FIGE_PRET`) : les octets sont
          livrés ET la scène est décodée. `majFige` dit la même chose au bouton
          DÉJÀ posé ; ici c'est l'état de naissance du bouton. */
       + ((PREVIEW_URL && FIGE_PRET) ? "" : " disabled")
-      + ' title="capture le rendu affiché et l\'écrit côté serveur">'
-      + 'figer l\'aperçu</button>'
+      + ' title="' + dzT("cartes.forge3d.figer_title") + '">'
+      + '' + dzT("cartes.forge3d.figer") + '</button>'
       + '</div>'
       + '<div class="cf-forge3d-art-view"></div>'
       + bordereauHtml(ARTIFACT) + publieHtml(ARTIFACT);
@@ -3593,9 +3502,7 @@
      pas le devis d'avant), et les aveux au complet. */
   function bordereauHtml(art) {
     if (!art) {
-      return '<p class="hint">rien de construit dans cette session — '
-        + '« Construire » écrit le GLB, le metadata et (si le solide est '
-        + 'fermé) le STL. Les nœuds d\'export s\'allument avec lui.</p>';
+      return '<p class="hint">' + dzT("cartes.forge3d.rien_construit") + '</p>';
     }
     const det = art.elements_detail || [];
     const moteurs = [];
@@ -3604,10 +3511,10 @@
       if (d && d.engine && moteurs.indexOf(d.engine) < 0) moteurs.push(d.engine);
       if (d && d.credits != null) credits += Number(d.credits) || 0;
     });
-    return '<p class="mono">' + Number(art.elements) + ' élément(s) · '
+    return '<p class="mono">' + dzT("cartes.forge3d.n_elements", { n: Number(art.elements) }) + ' · '
       + esc(weight(art.glb.bytes))
       + (moteurs.length ? (" · " + esc(moteurs.join(", "))) : "")
-      + (credits > 0 ? (" · " + Number(credits) + " cr consommés") : "")
+      + (credits > 0 ? (" · " + dzT("cartes.forge3d.cr_consommes", { n: Number(credits) })) : "")
       + '</p>' + ignoresHtml(art);
   }
 
@@ -3627,8 +3534,8 @@
     if (!art) return "";
     const p = art.published;
     return '<div class="cf-forge3d-file"><span class="mono">'
-      + (p ? ("publié · " + esc(p.title) + " · " + esc(p.short))
-           : "pas encore publié dans la Bibliothèque")
+      + (p ? esc(dzT("cartes.forge3d.publie_info", { titre: p.title, court: p.short }))
+           : dzT("cartes.forge3d.pas_publie"))
       + '</span><button class="btn sm" type="button" data-act="publish-lib"'
       /* VERROUILLÉ PENDANT UNE CONSTRUCTION AUSSI (M4) : `build3d` écrit
          `{art}.glb` sur le disque du deck, et c'est CE fichier que publier
@@ -3636,8 +3543,8 @@
          build PRÉCÉDENT — ou, dans la fenêtre du `write_bytes`, un fichier à
          moitié écrit. Le bouton dit ce que le serveur ferait. */
       + ((publishLibrary.busy || build3d.busy) ? " disabled" : "")
-      + ' title="copie l\'artefact dans la Bibliothèque 3D de l\'application">'
-      + (p ? "republier" : "Publier dans la Bibliothèque")
+      + ' title="' + dzT("cartes.forge3d.publier_title") + '">'
+      + (p ? dzT("cartes.forge3d.republier") : dzT("cartes.forge3d.publier"))
       + '</button></div>';
   }
 
@@ -3657,11 +3564,11 @@
        deck ; tant que `build3d` l'écrit, ce fichier n'est PAS l'artefact
        qu'on croit publier. */
     if (build3d.busy) {
-      M.toast("construction en cours — publie quand elle est finie", true);
+      M.toast(dzT("cartes.forge3d.build_en_cours"), true);
       return;
     }
     if (!ARTIFACT) {
-      M.toast("construis l'artefact d'abord", true);
+      M.toast(dzT("cartes.forge3d.construis_dabord"), true);
       return;
     }
     publishLibrary.busy = true;
@@ -3679,9 +3586,8 @@
         published: { job_id: rep.job_id, short: rep.short, title: rep.title },
       });
       paintArtifact(ARTIFACT);
-      if (status) status.textContent = "publié dans la Bibliothèque — "
-        + rep.title + ".";
-      M.toast("publié dans la Bibliothèque — " + rep.title);
+      if (status) status.textContent = dzT("cartes.forge3d.publie_statut", { titre: rep.title });
+      M.toast(dzT("cartes.forge3d.publie_toast", { titre: rep.title }));
     } catch (e) {
       if (gen !== GEN) return;
       if (status) status.textContent = String(e && e.message || e);
@@ -3700,7 +3606,7 @@
   function ignoresHtml(art) {
     const list = (art && art.ignored) || [];
     if (!list.length) return "";
-    return '<p class="hint"><b>éléments ignorés</b> — avoués, jamais tus :</p>'
+    return '<p class="hint">' + dzT("cartes.forge3d.ignores") + '</p>'
       + '<ul class="cf-forge3d-ignored">'
       + list.map((i) => '<li class="mono">' + esc(i.node) + " · " + esc(i.why)
         + '</li>').join("")
@@ -3717,7 +3623,7 @@
       + " · " + esc(nom) + esc(octets == null ? "" : (" · " + weight(octets)))
       + '</span>'
       + '<button class="btn sm" type="button" data-act="grab-file" data-name="'
-      + esc(nom) + '">télécharger</button></div>';
+      + esc(nom) + '">' + dzT("cartes.forge3d.telecharger") + '</button></div>';
   }
 
   /* LES FORMATS SONT SERVIS, JAMAIS RECOPIÉS — `graph_limits.export_formats`
@@ -3744,8 +3650,7 @@
         + fmts.map((f) => '<option value="' + esc(f) + '"'
           + (f === fmt ? " selected" : "") + '>' + esc(f) + '</option>').join("")
         + '</select></label>')
-      : ('<span class="hint"><b>formats inconnus</b> — le contrat /info n\'a '
-        + 'pas été chargé (backend injoignable ?).</span>');
+      : ('<span class="hint">' + dzT("cartes.forge3d.formats_inconnus") + '</span>');
     return sel + exportEtatHtml(fmt);
   }
 
@@ -3754,8 +3659,7 @@
     if (!art) {
       /* UN ÉTAT, PAS UNE ERREUR : rien n'a échoué, rien n'a encore été
          construit. Le dire en rouge apprendrait à craindre un écran neuf. */
-      return '<p class="hint">construis d\'abord l\'artefact — ce point de '
-        + 'téléchargement s\'allume avec le bordereau.</p>';
+      return '<p class="hint">' + dzT("cartes.forge3d.export_attente") + '</p>';
     }
     if (fmt === "glb") return fichierHtml("GLB", art.glb.name, art.glb.bytes);
     if (fmt === "metadata") {
@@ -3768,25 +3672,22 @@
          geste : dossier STL+3MF aux mm de la carte, puis le slicer. */
       return (art.stl && art.stl.written)
         ? (fichierHtml("STL", art.stl.name, art.stl.bytes)
-          + '<div class="cf-forge3d-file"><span class="mono">solide FERMÉ '
-          + '(gate) — dossier d\'impression STL + 3MF aux mm réels</span>'
+          + '<div class="cf-forge3d-file"><span class="mono">' + dzT("cartes.forge3d.solide_ferme") + '</span>'
           + '<button class="btn sm" type="button" data-act="imprimer-3d" '
           + 'data-name="' + esc(art.stl.name)
-          + '" title="Écrit un dossier assets/print3d (STL + 3MF, étanchéité garantie par le gate) puis propose d\'ouvrir le .3mf dans le slicer (ElegooSlicer)">'
-          + ICO("dz-lab3d-impression-3d", 16, "cf-ic") + 'Impression 3D</button></div>')
-        : ('<p class="hint"><b>STL non fourni</b> : '
-          + esc((art.stl && art.stl.why) || "motif non rendu par le backend")
+          + '" title="' + dzT("cartes.forge3d.imprimer_title") + '">'
+          + ICO("dz-lab3d-impression-3d", 16, "cf-ic") + '' + dzT("cartes.forge3d.impression3d") + '</button></div>')
+        : ('<p class="hint"><b>' + dzT("cartes.forge3d.stl_non_fourni") + '</b> : '
+          + esc((art.stl && art.stl.why) || dzT("cartes.forge3d.motif_non_rendu"))
           + '</p>');
     }
     if (fmt === "preview") {
       const p = art.preview || {};
       return p.written
-        ? fichierHtml("aperçu", p.expected, (p.bytes == null) ? null : p.bytes)
-        : ('<p class="hint">aperçu <b>attendu</b> (' + esc(p.expected)
-          + ') — « figer l\'aperçu », sur le nœud artefact, l\'écrit.</p>');
+        ? fichierHtml(dzT("cartes.forge3d.apercu"), p.expected, (p.bytes == null) ? null : p.bytes)
+        : ('<p class="hint">' + dzT("cartes.forge3d.apercu_attendu", { f: esc(p.expected) }) + '</p>');
     }
-    return '<p class="hint">le bordereau ne livre pas « ' + esc(fmt)
-      + ' » — choisis un autre format.</p>';
+    return '<p class="hint">' + dzT("cartes.forge3d.format_non_livre", { f: esc(fmt) }) + '</p>';
   }
 
   /* la zone de vignette : un canvas 2D à la surface de dessin FIXE (la
@@ -4126,13 +4027,13 @@
      l'image — la version d'avant peignait la couche, puis effaçait tout pour
      la repeindre avec son ombre, soit deux fois le travail à chaque frappe. */
   function thumbCouche(ctx, enc, l, alpha, dec) {
-    if (!l) { dessinePicto(ctx, enc, "layer", "sans couche source"); return; }
+    if (!l) { dessinePicto(ctx, enc, "layer", dzT("cartes.forge3d.vign_sans_source")); return; }
     const cle = layerFile(l);
     const img = imageDeProvenance("couche:" + cle, "file/" + encodeURIComponent(cle));
     if (!img) {
       damier(ctx, enc);
       dessinePicto(ctx, enc, "layer",
-                   (img === null) ? "couche non exportée" : "chargement…");
+                   (img === null) ? dzT("cartes.forge3d.vign_non_exportee") : dzT("cartes.forge3d.chargement"));
       return;
     }
     damier(ctx, enc);
@@ -4215,7 +4116,7 @@
       ctx.fillRect(8, 8, THUMB_W - 16, THUMB_H - 16);
       ctx.globalAlpha = 1;
       dessinePicto(ctx, enc, "material",
-                   mid ? "sans vignette" : "aucune matière");
+                   mid ? dzT("cartes.forge3d.sans_vignette") : dzT("cartes.forge3d.aucune_matiere"));
     }
     const fin = n.finish ? String(n.finish) : "";
     if (fin && fin !== "aucune") {
@@ -4262,16 +4163,16 @@
   function thumbMesh3d(ctx, enc, n) {
     const eng = engineFor(n);
     const job = connu(JOBS, n.id) ? JOBS[n.id] : undefined;
-    let etat = "jamais lancé";
+    let etat = dzT("cartes.forge3d.jamais_lance");
     let couleur = enc.encre;
-    if (job === undefined) etat = "état non lu";
-    else if (job === null) etat = "jamais lancé";
-    else if (job.status === "served") { etat = "servi"; couleur = enc.fort; }
-    else if (job.status === "failed") etat = "échec";
+    if (job === undefined) etat = dzT("cartes.forge3d.etat_non_lu");
+    else if (job === null) etat = dzT("cartes.forge3d.jamais_lance");
+    else if (job.status === "served") { etat = dzT("cartes.forge3d.servi"); couleur = enc.fort; }
+    else if (job.status === "failed") etat = dzT("cartes.forge3d.echec");
     else if (job.status === "running") {
-      etat = "en cours " + Number(job.progress || 0) + " %";
+      etat = dzT("cartes.forge3d.en_cours_pct", { n: Number(job.progress || 0) });
       couleur = enc.accent;
-    } else if (job.status === "queued") { etat = "en file"; couleur = enc.accent; }
+    } else if (job.status === "queued") { etat = dzT("cartes.forge3d.en_file"); couleur = enc.accent; }
     const fichiers = (job && job.files) || null;
     const nom = (job && job.status === "served" && fichiers && fichiers.preview)
       ? String(fichiers.preview) : "";
@@ -4285,11 +4186,11 @@
          texture) — le rogner lui couperait ce qu'on veut justement voir. */
       const b = boiteContenue(img.width, img.height);
       ctx.drawImage(img, b.x, b.y, b.w, b.h);
-      texteCentre(ctx, enc, (eng && eng.label) || n.engine || "moteur", 12, 10,
+      texteCentre(ctx, enc, (eng && eng.label) || n.engine || dzT("cartes.forge3d.moteur"), 12, 10,
                   enc.encre);
     } else {
       dessinePicto(ctx, enc, "mesh3d",
-                   (eng && eng.label) || n.engine || "moteur");
+                   (eng && eng.label) || n.engine || dzT("cartes.forge3d.moteur"));
     }
     texteCentre(ctx, enc, etat, THUMB_H - 22, 11, couleur);
   }
@@ -4339,11 +4240,10 @@
       if (monde) monde.innerHTML = "";
       if (vide) {
         vide.innerHTML = LAST_MANIFEST
-          ? ('<p class="hint">Aucun graphe construit pour le moment.</p>'
+          ? ('<p class="hint">' + dzT("cartes.forge3d.aucun_graphe") + '</p>'
             + seedButtonHtml("cf-forge3d-canvas-seed",
-                             "construire le graphe par défaut"))
-          : '<p class="hint">Exportez les couches d\'abord (section ci-dessus) '
-            + 'pour proposer un graphe par défaut.</p>';
+                             dzT("cartes.forge3d.seed")))
+          : '<p class="hint">' + dzT("cartes.forge3d.exportez_dabord") + '</p>';
       }
       /* PLUS DE NŒUD ARTEFACT, DONC PLUS D'HÔTE : les deux sections basses
          reviennent. Ce chemin-ci est atteint SANS changement de vue — annuler
@@ -4453,7 +4353,7 @@
     if (!el) return;
     const list = (extras && Array.isArray(extras.ignored)) ? extras.ignored : [];
     if (!list.length) { el.innerHTML = ""; return; }
-    el.innerHTML = '<b>avoués</b> — '
+    el.innerHTML = '<b>' + dzT("cartes.forge3d.avoues") + '</b> — '
       + list.map((i) => '<span class="mono">' + esc(i && i.node) + " · "
         + esc(i && i.why) + '</span>').join(" ; ");
   }
@@ -4551,16 +4451,14 @@
       }
       const vue = $("#cf-forge3d-insp-view");
       if (vue) vue.innerHTML = "";
-      inspNom("arête " + ARETE.from + " → " + ARETE.to);
-      inspEtat("une arête n'est pas un élément : elle n'a pas d'aperçu. "
-        + "« supprimer », sur le trait, la coupe ; l'en-tête d'un nœud le "
-        + "désigne à la place.");
+      inspNom(dzT("cartes.forge3d.arete_nom", { de: ARETE.from, vers: ARETE.to }));
+      inspEtat(dzT("cartes.forge3d.arete_insp"));
       inspAvoues(null);
       return;
     }
     const n = graph ? (graph.nodes || []).filter((x) => x.id === SEL)[0] : null;
     inspNom(n ? (kindLabel(n.kind) + " · " + noeudTitre(n)) : String(SEL));
-    inspEtat("aperçu en construction…");
+    inspEtat(dzT("cartes.forge3d.apercu_construction"));
     inspAvoues(null);
     const nid = SEL;
     inspTimer = setTimeout(() => { inspTimer = 0; inspecte(nid); }, INSP_MS);
@@ -4577,7 +4475,7 @@
     const graph = get("graph");
     const view = $("#cf-forge3d-insp-view");
     if (!view) return;
-    if (!graph || !nid) { inspEtat("aucun graphe à inspecter."); return; }
+    if (!graph || !nid) { inspEtat(dzT("cartes.forge3d.rien_a_inspecter")); return; }
     let r = null;
     try {
       r = await M.api.raw("POST", "node-preview", {
@@ -4601,7 +4499,7 @@
     try { blob = await r.blob(); } catch (e) { blob = null; }
     if (gen !== GEN || jeton !== INSP_JETON) return;
     if (!blob) {
-      echecInsp(view, "aperçu illisible (corps vide)", true);
+      echecInsp(view, dzT("cartes.forge3d.apercu_illisible"), true);
       return;
     }
     let extras = null;
@@ -4609,9 +4507,8 @@
     if (gen !== GEN || jeton !== INSP_JETON) return;
     if (typeof customElements === "undefined"
         || !customElements.get("model-viewer")) {
-      view.innerHTML = '<p class="empty-note sm">La visionneuse 3D '
-        + '(/assets/model-viewer.min.js) n\'est pas chargée.</p>';
-      inspEtat("aperçu construit — la visionneuse, elle, n'est pas chargée.");
+      view.innerHTML = '<p class="empty-note sm">' + dzT("cartes.forge3d.viewer_absent") + '</p>';
+      inspEtat(dzT("cartes.forge3d.apercu_sans_viewer"));
       inspAvoues(extras);
       return;
     }
@@ -4623,7 +4520,7 @@
       INSP_MV.setAttribute("camera-controls", "");
       INSP_MV.setAttribute("auto-rotate", "");
       INSP_MV.addEventListener("error", () => {
-        M.toast("la visionneuse n'a pas pu ouvrir l'aperçu du nœud", true);
+        M.toast(dzT("cartes.forge3d.viewer_echec_noeud"), true);
       });
     }
     if (!INSP_MV) return;
@@ -4632,7 +4529,7 @@
       view.appendChild(INSP_MV);
     }
     INSP_MV.setAttribute("src", INSP_URL);
-    inspEtat("aperçu réel de ce nœud — construit à la demande, jamais payant.");
+    inspEtat(dzT("cartes.forge3d.apercu_reel"));
     inspAvoues(extras);
   }
 
@@ -4767,8 +4664,7 @@
     const maxEl = Number(lim && lim.max_elements) || 0;
     const n = nbElements(graph);
     if (!(maxEl > 0) || n < maxEl) return false;
-    M.toast(n + " élément(s) — le maximum construisible est " + maxEl + " : "
-      + phrase + ". Retire un rang d'abord.", true);
+    M.toast(dzT("cartes.forge3d.plafond_toast", { n: n, max: maxEl, phrase: phrase }), true);
     return true;
   }
 
@@ -4786,7 +4682,7 @@
   function naitCouche() {
     const graph = get("graph");
     if (!graph) return;
-    if (plafondAtteint(graph, "une couche de plus ne serait pas construite")) return;
+    if (plafondAtteint(graph, dzT("cartes.forge3d.plafond_couche"))) return;
     const restes = couchesRestantes(graph);
     /* L'ENTRÉE CHOISIE, PAS SEULEMENT SON RÔLE : c'est elle qui porte le CÔTÉ.
        Le menu offre `cadre` ET `cadre (verso)` — les distinguer par le rôle
@@ -4794,7 +4690,7 @@
        celui d'avant : un menu jamais touché pose la première offre. */
     const choisi = restes.filter((r) => r.cle === PAL.role)[0] || restes[0];
     if (!choisi) {
-      M.toast("toutes les couches livrées sont déjà des sources de ce graphe",
+      M.toast(dzT("cartes.forge3d.toutes_sources"),
               true);
       return;
     }
@@ -4810,14 +4706,14 @@
       { id: freeId(next.nodes || [],
                    choisi.role + suffixeCote(choisi.side)),
         kind: "layer", role: choisi.role, side: choisi.side }]);
-    setGraph(next, "+ couche");
+    setGraph(next, dzT("cartes.forge3d.plus_couche"));
     paintVue();
   }
 
   function naitProc() {
     const graph = get("graph");
     if (!graph) return;
-    if (plafondAtteint(graph, "un traitement de plus ne serait pas construit")) return;
+    if (plafondAtteint(graph, dzT("cartes.forge3d.plafond_proc"))) return;
     const next = JSON.parse(JSON.stringify(graph));
     /* IL NAÎT EN PLAN, et sans source. Le plan est le seul traitement à la
        fois gratuit et sans réglage obligatoire (le relief a une base et une
@@ -4829,19 +4725,17 @@
        l'autre connecté. */
     next.nodes = (next.nodes || []).concat([
       { id: freeId(next.nodes || [], "t"), kind: "plane", depth_mm: 0 }]);
-    setGraph(next, "+ traitement");
+    setGraph(next, dzT("cartes.forge3d.plus_traitement"));
     paintVue();
   }
 
   function naitExtrude() {
     const graph = get("graph");
     if (!graph) return;
-    if (plafondAtteint(graph, "une extrusion de plus ne serait pas construite")) return;
+    if (plafondAtteint(graph, dzT("cartes.forge3d.plafond_extrude"))) return;
     const cont = extrudeContours();
     if (!cont.length) {
-      M.toast("contours indisponibles : le contrat /info n'a pas été chargé "
-        + "(backend injoignable ?) — une extrusion sans contour ne serait pas "
-        + "construite.", true);
+      M.toast(dzT("cartes.forge3d.extrude_sans_contour"), true);
       return;
     }
     const next = JSON.parse(JSON.stringify(graph));
@@ -4872,11 +4766,7 @@
     const proc = (graph.nodes || []).filter(
       (n) => n.id === SEL && PROC_KINDS.indexOf(n.kind) >= 0)[0];
     if (!proc) {
-      M.toast("désigne d'abord le traitement à "
-        + (mat ? "habiller" : "placer")
-        + " (clic sur l'en-tête d'un plan, d'un relief ou d'un moteur) : "
-        + (mat ? "une matière appartient" : "un placement appartient")
-        + " à une chaîne — seul, le maillon ne serait pas construit.", true);
+      M.toast((mat ? dzT("cartes.forge3d.designe_mat") : dzT("cartes.forge3d.designe_trs")), true);
       return;
     }
     /* ... ET LA CHAÎNE DOIT AVOIR SA SOURCE. Un traitement sans couche n'est
@@ -4890,10 +4780,7 @@
        (un fil visé à la main est un geste — la distinction du bloc ci-dessus). */
     const chaine = rowModel(graph, proc.id);
     if (!chaine || !chaine.layer) {
-      M.toast("« " + noeudTitre(proc) + " » n'a pas encore de couche source : "
-        + "relie d'abord une couche à ce traitement — sans elle, "
-        + (mat ? "la matière" : "le placement")
-        + " naîtrait dans une chaîne que la construction ne suit pas.", true);
+      M.toast((mat ? dzT("cartes.forge3d.sans_source_mat", { nom: noeudTitre(proc) }) : dzT("cartes.forge3d.sans_source_trs", { nom: noeudTitre(proc) })), true);
       return;
     }
     /* LES MOTS DU BORDEREAU, RÉUTILISÉS TELS QUELS. `surnumeraire` les écrit
@@ -4912,8 +4799,7 @@
         /* la panne (ou la boutique vide) est dite avec LES MOTS DÉJÀ ÉCRITS
            dans le bloc matière — jamais un « impossible » muet. */
         M.toast(String((INFO && INFO.materials_degraded)
-          || (INFO ? "la boutique de matières est vide (aucune matière "
-                   + "installée)." : "contrat /info non chargé.")), true);
+          || (INFO ? dzT("cartes.forge3d.boutique_vide") : dzT("cartes.forge3d.contrat_non_charge_court"))), true);
         return;
       }
       editMat(next, proc.id, "mat", mid);
@@ -4924,7 +4810,7 @@
          ET le câblage de la chaîne) est fait par la MÊME porte que la liste. */
       editTrs(next, proc.id, "scale", 1);
     }
-    setGraph(next, mat ? "+ matière" : "+ placement");
+    setGraph(next, mat ? dzT("cartes.forge3d.plus_matiere") : "+ placement");
     paintVue();
   }
 
@@ -4933,16 +4819,13 @@
     if (!graph) return;
     const art = (graph.nodes || []).filter((n) => n.kind === "artifact")[0];
     if (!art) {
-      M.toast("aucun nœud artefact dans ce graphe : un export est un point de "
-        + "téléchargement SUR un artefact — reconstruis le graphe par défaut, "
-        + "il en pose un.", true);
+      M.toast(dzT("cartes.forge3d.export_sans_artefact"), true);
       return;
     }
     const fmts = exportFormats();
     const fmt = (PAL.format && fmts.indexOf(PAL.format) >= 0) ? PAL.format : fmts[0];
     if (!fmt) {
-      M.toast("formats d'export inconnus — le contrat /info n'a pas été chargé "
-        + "(backend injoignable ?).", true);
+      M.toast(dzT("cartes.forge3d.formats_export_inconnus"), true);
       return;
     }
     /* UN SECOND POINT DE TÉLÉCHARGEMENT DU MÊME FICHIER N'AJOUTE RIEN. Les
@@ -4954,9 +4837,7 @@
     const deja = (graph.nodes || []).filter(
       (n) => n.kind === "export" && String(n.format || "") === fmt)[0];
     if (deja) {
-      M.toast("un nœud d'export « " + fmt + " » existe déjà (" + deja.id
-        + ") — il porte le MÊME fichier du MÊME bordereau : un second "
-        + "n'ajouterait rien. Choisis un autre format.", true);
+      M.toast(dzT("cartes.forge3d.export_doublon", { f: fmt, id: deja.id }), true);
       return;
     }
     const next = JSON.parse(JSON.stringify(graph));
@@ -4974,8 +4855,7 @@
   function paletteHtml() {
     const graph = get("graph");
     if (!graph) {
-      return '<span class="hint">la palette pose des nœuds SUR un graphe — '
-        + 'construis-en un d\'abord (bouton au centre de la surface).</span>';
+      return '<span class="hint">' + dzT("cartes.forge3d.palette_sans_graphe") + '</span>';
     }
     const restes = couchesRestantes(graph);
     const fmts = exportFormats();
@@ -4986,12 +4866,10 @@
     const maxEl = Number(lim && lim.max_elements) || 0;
     const n = nbElements(graph);
     const plein = (maxEl > 0 && n >= maxEl);
-    const sansProc = "désigne un traitement (plan, relief ou moteur) : "
-      + "un maillon appartient à une chaîne";
-    return '<span class="lbl">poser</span>'
+    const sansProc = dzT("cartes.forge3d.sans_proc");
+    return '<span class="lbl">' + dzT("cartes.forge3d.poser") + '</span>'
       + (restes.length
-        ? ('<select data-pal="role" title="les couches livrées qui ne sont pas '
-          + 'encore des sources">'
+        ? ('<select data-pal="role" title="' + dzT("cartes.forge3d.pal_role_title") + '">'
           + restes.map((r) => '<option value="' + esc(r.cle) + '"'
             + (PAL.role === r.cle ? " selected" : "") + '>' + esc(r.label)
             + '</option>').join("")
@@ -5000,12 +4878,12 @@
       + '<button class="btn sm" type="button" data-act="pal-couche"'
       + ((!restes.length || plein) ? " disabled" : "") + ' title="'
       + esc(restes.length
-        ? "une couche livrée, pas encore reliée à un traitement"
-        : "toutes les couches livrées sont déjà des sources de ce graphe")
-      + '">+ couche</button>'
+        ? dzT("cartes.forge3d.pal_couche_title")
+        : dzT("cartes.forge3d.toutes_sources"))
+      + '">' + dzT("cartes.forge3d.plus_couche") + '</button>'
       + '<button class="btn sm" type="button" data-act="pal-proc"'
       + (plein ? " disabled" : "")
-      + ' title="un plan, à relier à une couche">+ traitement</button>'
+      + ' title="' + dzT("cartes.forge3d.pal_proc_title") + '">' + dzT("cartes.forge3d.plus_traitement") + '</button>'
       /* L'EXTRUSION NAÎT SANS RIEN DEMANDER : pas de couche à choisir (sa
          forme vient du format), pas de traitement à désigner (elle EN est
          un). Le seul refus possible est le plafond d'éléments — et elle en
@@ -5013,20 +4891,19 @@
       + '<button class="btn sm" type="button" data-act="pal-extrude"'
       + ((plein || !extrudeContours().length) ? " disabled" : "") + ' title="'
       + esc(extrudeContours().length
-        ? "la couronne du contour de la carte, en volume"
-        : "contours indisponibles — le contrat /info n'a pas été chargé")
+        ? dzT("cartes.forge3d.pal_extrude_title")
+        : dzT("cartes.forge3d.pal_extrude_off"))
       + '">+ extrusion</button>'
       + '<button class="btn sm" type="button" data-act="pal-mat"'
       + (proc ? "" : " disabled") + ' title="'
-      + esc(proc ? ("habille « " + noeudTitre(proc) + " »") : sansProc)
-      + '">+ matière</button>'
+      + esc(proc ? dzT("cartes.forge3d.habille", { nom: noeudTitre(proc) }) : sansProc)
+      + '">' + dzT("cartes.forge3d.plus_matiere") + '</button>'
       + '<button class="btn sm" type="button" data-act="pal-trs"'
       + (proc ? "" : " disabled") + ' title="'
-      + esc(proc ? ("place « " + noeudTitre(proc) + " »") : sansProc)
+      + esc(proc ? dzT("cartes.forge3d.place", { nom: noeudTitre(proc) }) : sansProc)
       + '">+ placement</button>'
       + (fmts.length
-        ? ('<select data-pal="format" title="les formats que le bordereau '
-          + 'livre">'
+        ? ('<select data-pal="format" title="' + dzT("cartes.forge3d.pal_format_title") + '">'
           + fmts.map((f) => '<option value="' + esc(f) + '"'
             + (PAL.format === f ? " selected" : "") + '>' + esc(f)
             + '</option>').join("")
@@ -5034,13 +4911,13 @@
         : "")
       + '<button class="btn sm" type="button" data-act="pal-export"'
       + ((!fmts.length || !art) ? " disabled" : "") + ' title="'
-      + esc(art ? "un point de téléchargement sur l'artefact"
-                : "aucun nœud artefact dans ce graphe")
+      + esc(art ? dzT("cartes.forge3d.pal_export_title")
+                : dzT("cartes.forge3d.pal_export_off"))
       + '">+ export</button>'
       /* LE PLAFOND, TOUJOURS LISIBLE — pas seulement au moment du refus. */
       + '<span class="mono cf-forge3d-pal-compte'
       + (plein ? " cf-forge3d-trop" : "") + '">' + Number(n)
-      + (maxEl > 0 ? (" / " + Number(maxEl)) : "") + ' élément(s)</span>'
+      + (maxEl > 0 ? (" / " + Number(maxEl)) : "") + ' ' + dzT("cartes.forge3d.elements_suffixe") + '</span>'
       /* 2d — LE VERSO MANQUANT SE DIT. Sans cette ligne, une carte dont le
          verso n'a jamais été exporté offre exactement la même palette qu'une
          carte recto seul : le menu est simplement plus court, et rien ne
@@ -5053,8 +4930,7 @@
          zéro couche est un verso qu'on ne peut pas poser, et le dire est
          exactement le service rendu ici. */
       + (aDesCouches(MANIFEST_BACK) ? ""
-        : '<span class="hint cf-forge3d-pal-note">verso : exporte les couches '
-          + 'verso (section ci-dessus) pour les proposer ici.</span>');
+        : '<span class="hint cf-forge3d-pal-note">' + dzT("cartes.forge3d.verso_manquant") + '</span>');
   }
 
   function paintPalette() {
@@ -5278,19 +5154,19 @@
   async function seedDefault() {
     for (let k = 0; k < 3 && cardLabel() !== MANIFEST_CARD; k++) await cardChanged();
     if (cardLabel() !== MANIFEST_CARD) {
-      M.toast("manifeste de cette carte non chargé — réessayez", true);
+      M.toast(dzT("cartes.forge3d.manifeste_non_charge"), true);
       return;
     }
     if (!LAST_MANIFEST) {
       /* la carte courante n'a pas de couches livrées : le bouton lui-même
          n'aurait pas dû être là — on repeint pour dire la vérité. */
-      M.toast("aucune couche exportée pour cette carte", true);
+      M.toast(dzT("cartes.forge3d.aucune_couche_carte"), true);
       paintVue();
       return;
     }
     /* LA CARTE ENTIÈRE, les deux faces (2d). `MANIFEST_BACK` peut être `null`
        — le seed rend alors exactement le graphe recto seul d'avant. */
-    setGraph(defaultGraph(LAST_MANIFEST, MANIFEST_BACK), "graphe par défaut");
+    setGraph(defaultGraph(LAST_MANIFEST, MANIFEST_BACK), dzT("cartes.forge3d.label_defaut"));
     paintVue();       /* structurel : la vue entière change de forme */
   }
 
@@ -5364,7 +5240,7 @@
      mod-gltf.js:set — c'est TOUJOURS l'appelant qui décide) : c'est ce
      découplage qui rend le correctif I1 possible juste en dessous. */
   function setGraph(next, label) {
-    HIST.push({ before: get("graph"), label: label || "graphe" });
+    HIST.push({ before: get("graph"), label: label || dzT("cartes.forge3d.label_graphe") });
     if (HIST.length > 40) HIST.shift();
     M.patch({ graph: next });
     paintUndo();
@@ -5376,16 +5252,16 @@
     const b = $("#cf-forge3d-undo");
     if (!b) return;
     b.disabled = !HIST.length;
-    b.innerHTML = ICO("dz-action-annuler", 16, "cf-ic") + esc(HIST.length ? "annuler " + HIST[HIST.length - 1].label : "annuler");
+    b.innerHTML = ICO("dz-action-annuler", 16, "cf-ic") + esc(HIST.length ? dzT("cartes.forge3d.annuler_label", { label: HIST[HIST.length - 1].label }) : dzT("cartes.forge3d.annuler"));
   }
 
   function undoGraph() {
     const h = HIST.pop();
-    if (!h) { M.toast("rien à annuler"); return; }
+    if (!h) { M.toast(dzT("cartes.forge3d.rien_a_annuler")); return; }
     M.patch({ graph: h.before });
     paintUndo();
     paintVue();
-    M.toast("annulé : " + h.label);
+    M.toast(dzT("cartes.forge3d.annule", { label: h.label }));
   }
 
   /* ═══════════════════════════════════════════════════════════════════════
@@ -5426,8 +5302,7 @@
          SECONDE table (le genre de chaque kind) à tenir d'accord avec
          `KIND_LABELS` — pour un article. Les guillemets disent la même chose
          sans rien à synchroniser. */
-      return { refus: "« " + kindLabel(de.kind) + " » ne se branche pas sur « "
-        + kindLabel(vers.kind) + " » — chaîne attendue : " + chaineAttendue() };
+      return { refus: dzT("cartes.forge3d.lien_refuse", { de: kindLabel(de.kind), vers: kindLabel(vers.kind), chaine: chaineAttendue() }) };
     }
     const surn = surnumeraire(graph, de, vers);
     if (surn) return { refus: surn };
@@ -5485,9 +5360,7 @@
     if (PROC_KINDS.indexOf(vers.kind) >= 0) {
       const r = rowModel(graph, vers.id);
       if (r && r.layer) {
-        return "ce traitement a déjà une source (" + r.layer.id + ") — une "
-          + "seconde serait surnuméraire : la première arête gagne, l'autre "
-          + "est une perte que le bordereau avouerait.";
+        return dzT("cartes.forge3d.source_surnumeraire", { id: r.layer.id });
       }
       return null;
     }
@@ -5507,10 +5380,7 @@
          C'est aussi ce qui rend de nouveau VRAIE la phrase « cet écran ne
          produit jamais cette topologie » (rowDuNoeud, maillonsAval). */
       if ((graph.edges || []).some((e) => e.to === vers.id)) {
-        return (mat ? "cette matière appartient" : "ce placement appartient")
-          + " déjà à une autre chaîne — un maillon partagé se fait réécrire "
-          + "par la première rangée éditée, et l'autre chaîne perd son lien "
-          + "en silence.";
+        return (mat ? dzT("cartes.forge3d.maillon_partage_mat") : dzT("cartes.forge3d.maillon_partage_trs"));
       }
       const r = chaineDe(graph, de);
       const deja = r ? (mat ? r.mat : r.trs) : null;
@@ -5518,11 +5388,7 @@
         /* TOUTE la phrase s'accorde sur le même genre (une matière / une
            seconde / la première — un placement / un second / le premier) :
            n'en accorder qu'un morceau remet la faute un mot plus loin. */
-        return "cette chaîne porte déjà " + (mat ? "une matière" : "un placement")
-          + " (" + deja.id + ") — " + (mat ? "une seconde" : "un second")
-          + " serait surnuméraire : le serveur garderait "
-          + (mat ? "la première" : "le premier")
-          + " et avouerait l'autre au bordereau.";
+        return (mat ? dzT("cartes.forge3d.chaine_deja_mat", { id: deja.id }) : dzT("cartes.forge3d.chaine_deja_trs", { id: deja.id }));
       }
     }
     return null;
@@ -5550,7 +5416,7 @@
       if (r && r.refus) M.toast(r.refus, true);
       return false;
     }
-    setGraph(r.graph, "connexion");
+    setGraph(r.graph, dzT("cartes.forge3d.label_connexion"));
     selectionneArete(null);
     /* STRUCTUREL : une arête de plus change les chaînes — donc les rangs de
        la vue liste, les vignettes qui lisent la couche source, le devis. */
@@ -5561,7 +5427,7 @@
   function suppLien(deNid, versNid) {
     const r = grapheSansLien(get("graph"), deNid, versNid);
     if (!r) return false;
-    setGraph(r.graph, "déconnexion");
+    setGraph(r.graph, dzT("cartes.forge3d.label_deconnexion"));
     selectionneArete(null);
     paintVue();
     return true;
@@ -6037,7 +5903,7 @@
       /* un clic pendant la lecture d'un état (ou pendant un job vivant) ne
          disparaît pas en silence : le backend refuserait en 409, l'écran le
          dit d'abord. */
-      M.toast("état de ce nœud en cours de lecture — réessayez");
+      M.toast(dzT("cartes.forge3d.etat_en_lecture"));
       return;
     }
     const zone = findByAttr(".cf-forge3d-run", "data-nid", nid);
@@ -6091,7 +5957,7 @@
        absente, pas un job absent. */
     const ct = (r.headers.get("content-type") || "").toLowerCase();
     if (r.ok && ct.indexOf("json") < 0) {
-      return { erreur: "route absente sur ce backend (reponse non JSON)" };
+      return { erreur: dzT("cartes.forge3d.route_absente") };
     }
     let d = null;
     try { d = await r.json(); } catch (e) { d = null; }
@@ -6181,8 +6047,7 @@
     const btn = $("#cf-forge3d-build");
     const status = $("#cf-forge3d-build-status");
     if (!graph) {
-      if (status) status.textContent = "construisez d'abord le graphe (par "
-        + "défaut ou personnalisé), ci-dessus.";
+      if (status) status.textContent = dzT("cartes.forge3d.graphe_dabord");
       return;
     }
     build3d.busy = true;
@@ -6190,7 +6055,7 @@
     /* le bouton du NŒUD artefact dit la même chose que celui de la section :
        `artifactNodeHtml` lit `build3d.busy`, il suffit de le repeindre. */
     repeintLeBordereau();
-    if (status) status.textContent = "construction…";
+    if (status) status.textContent = dzT("cartes.forge3d.construction");
     /* N1 (même forme, enjeu moindre) : le bordereau d'une construction décrit
        LA carte pour laquelle elle a tourné — le peindre dans l'écran d'une
        autre attribuerait ses fichiers et son aperçu à la mauvaise. */
@@ -6205,8 +6070,7 @@
          on les repeint AVANT de monter l'aperçu, sans quoi le viewer se
          monterait dans un corps qu'on s'apprête à remplacer. */
       repeintLeBordereau();
-      if (status) status.textContent = ARTIFACT.elements + " élément(s) — "
-        + weight(ARTIFACT.glb.bytes) + " · " + ARTIFACT.ms.total + " ms.";
+      if (status) status.textContent = dzT("cartes.forge3d.build_ok", { n: ARTIFACT.elements, poids: weight(ARTIFACT.glb.bytes), ms: ARTIFACT.ms.total });
       await mountPreview(ARTIFACT.glb.name);
     } catch (e) {
       if (status) status.textContent = String(e && e.message || e);
@@ -6256,18 +6120,18 @@
     let stlHtml;
     if (art.stl && art.stl.written) {
       files.push({ label: "STL", name: art.stl.name, bytes: art.stl.bytes });
-      stlHtml = '<p class="mono">STL : imprimable, solide fermé prouvé.</p>';
+      stlHtml = '<p class="mono">' + dzT("cartes.forge3d.stl_ok") + '</p>';
     } else {
-      stlHtml = '<p class="hint"><b>STL non fourni</b> : '
+      stlHtml = '<p class="hint"><b>' + dzT("cartes.forge3d.stl_non_fourni") + '</b> : '
         + esc(art.stl.why) + '</p>';
     }
     /* MÊME ligne de fichier que les nœuds d'export (Task 5) : `fichierHtml`
        est la seule écriture de ce balisage dans le module. */
     const rows = files.map(
       (f) => fichierHtml(f.label, f.name, f.bytes)).join("");
-    const previewHtml = '<p class="hint">aperçu : ' + (art.preview.written
-      ? "figé — " + esc(art.preview.expected)
-      : "en attente (" + esc(art.preview.expected) + ")") + '</p>';
+    const previewHtml = '<p class="hint">' + dzT("cartes.forge3d.apercu_pref") + (art.preview.written
+      ? dzT("cartes.forge3d.apercu_fige_f", { f: esc(art.preview.expected) })
+      : dzT("cartes.forge3d.apercu_attente", { f: esc(art.preview.expected) })) + '</p>';
     /* la Bibliothèque EN BAS du bordereau, et dans les DEUX vues : le canvas
        la porte sur le nœud artefact, la liste ici — la vue liste reste le
        repli sans pointeur, elle ne perd aucune action. */
@@ -6297,7 +6161,7 @@
   function elementsHtml(art) {
     const det = (art && art.elements_detail) || [];
     if (!det.length) return "";
-    return '<p class="hint">éléments assemblés :</p>'
+    return '<p class="hint">' + dzT("cartes.forge3d.elements_assembles") + '</p>'
       + '<ul class="cf-forge3d-elems">'
       + det.map((d) => '<li class="mono">' + esc(d.name)
         + " · " + esc(d.kind) + " · " + esc(d.node)
@@ -6337,9 +6201,7 @@
     if (!host || typeof document === "undefined") return null;
     if (typeof customElements === "undefined"
         || !customElements.get("model-viewer")) {
-      host.innerHTML = '<p class="empty-note sm">La visionneuse 3D '
-        + '(/assets/model-viewer.min.js) n\'est pas chargée. Le fichier, lui, '
-        + 'est construit et téléchargeable.</p>';
+      host.innerHTML = '<p class="empty-note sm">' + dzT("cartes.forge3d.viewer_absent_fichier") + '</p>';
       return null;
     }
     if (!MV) {
@@ -6352,7 +6214,7 @@
          tomberait entre les deux re-poserait sinon un bouton verrouillé. */
       MV.addEventListener("load", () => { FIGE_PRET = true; majFige(false); });
       MV.addEventListener("error", () => {
-        M.toast("la visionneuse n'a pas pu ouvrir le GLB", true);
+        M.toast(dzT("cartes.forge3d.viewer_echec_glb"), true);
       });
     }
     if (MV.parentNode !== host) {
@@ -6375,9 +6237,7 @@
     if (!sect) return;
     if (MV && MV.parentNode === sect) return;   /* il est ici : rien à dire */
     const dit = !PREVIEW_URL ? ""
-      : ('<p class="empty-note sm">l\'aperçu est monté dans le '
-        + 'nœud <b>artefact</b>, sur le canvas — bascule sur « liste » pour le '
-        + 'revoir ici.</p>');
+      : ('<p class="empty-note sm">' + dzT("cartes.forge3d.apercu_dans_noeud") + '</p>');
     /* ÉCRIRE SEULEMENT SI ÇA CHANGE. Le narrowing de `poseViewer` (« seulement
        quand il DÉMÉNAGE ») ne couvre PAS le cas le plus fréquent : `paintNode`
        remplace le corps du nœud artefact, ce qui DÉTACHE le viewer — au
@@ -6462,7 +6322,7 @@
     const mv = (MV && MV.isConnected) ? MV : null;
     const status = $("#cf-forge3d-freeze-status");
     if (!mv || !ARTIFACT) {
-      M.toast("construisez et affichez l'aperçu d'abord", true);
+      M.toast(dzT("cartes.forge3d.apercu_dabord"), true);
       return;
     }
     freezePreview.busy = true;
@@ -6474,7 +6334,7 @@
       if (!r.ok) {
         let d = null;
         try { d = await r.json(); } catch (err) { d = null; }
-        throw new Error((d && d.detail) || ("aperçu refusé (" + r.status + ")"));
+        throw new Error((d && d.detail) || (dzT("cartes.forge3d.apercu_refuse", { s: r.status })));
       }
       const d = await r.json();
       /* le POIDS vient de la RÉPONSE (ce que le serveur a écrit), jamais de la
@@ -6486,8 +6346,8 @@
       });
       paintArtifact(ARTIFACT);
       repeintLeBordereau();
-      if (status) status.textContent = "aperçu figé — " + weight(d.preview.bytes) + ".";
-      M.toast("aperçu figé");
+      if (status) status.textContent = dzT("cartes.forge3d.apercu_fige_poids", { poids: weight(d.preview.bytes) });
+      M.toast(dzT("cartes.forge3d.apercu_fige"));
     } catch (e) {
       if (status) status.textContent = String(e && e.message || e);
       M.toast(String(e && e.message || e), true);

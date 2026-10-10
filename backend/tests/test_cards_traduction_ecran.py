@@ -5,6 +5,8 @@ DÉCISIONS DE L'UTILISATEUR (04/10) : coût annoncé AVANT par le dialogue maiso
 Les fonctions LIVRÉES sont extraites de mod-data.js et EXÉCUTÉES sous node (aucun appel réel).
 Témoin positif : la base (0cd41ee6) n'a pas de traduction.
 Run (depuis backend/) : & $PY tests/test_cards_traduction_ecran.py"""
+import sys as _sys_l7, pathlib as _pl_l7; _sys_l7.path.insert(0, str(_pl_l7.Path(__file__).resolve().parent))  # noqa: E401,E702
+import _cartes_avant_l7  # noqa: F401,E402  (t147 : la source du Card Forge d'avant la traduction L7)
 import json, pathlib, subprocess, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 _ICI = pathlib.Path(__file__).resolve().parent

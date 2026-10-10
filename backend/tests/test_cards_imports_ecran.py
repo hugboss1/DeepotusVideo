@@ -3,6 +3,8 @@
 déposé dans l'import existant. Les fonctions LIVRÉES sont extraites de mod-data.js et EXÉCUTÉES sous node.
 Témoin positif : la base (6f77e3a3) n'a ni bouton Sheets ni .zip accepté.
 Run (depuis backend/) : & $PY tests/test_cards_imports_ecran.py"""
+import sys as _sys_l7, pathlib as _pl_l7; _sys_l7.path.insert(0, str(_pl_l7.Path(__file__).resolve().parent))  # noqa: E401,E702
+import _cartes_avant_l7  # noqa: F401,E402  (t147 : la source du Card Forge d'avant la traduction L7)
 import json, pathlib, subprocess, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 _ICI = pathlib.Path(__file__).resolve().parent
