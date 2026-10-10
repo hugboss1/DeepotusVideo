@@ -351,3 +351,14 @@ select option:disabled { color: var(--ink-muted); }
 .fal-banc .banc-ligne { padding: 3px 0; border-bottom: 1px solid var(--stroke); }
 .fal-banc .banc-ligne b { font-weight: 500; color: var(--ink-strong); }
 .fal-banc .jamais { color: var(--ink-soft); font-style: italic; }
+
+/* ── Deepotus Glyph (G6) : l'icône hérite de la couleur du bouton et s'aligne sur son texte. Les boutons dont
+   le libellé est réécrit par le JS (libeller : texte, puis icône devant) n'ont pas d'espace : la marge le fait. */
+.engine-goto > .dzi, .next-step > .dzi, .transport button > .dzi, .btn-run > .dzi { vertical-align: -3px; }
+.btn-run > .dzi, #btnPlay > .dzi { margin-right: 6px; }
+#btnReplay > .dzi { margin: 0; }
+/* `.graph svg` (les câbles : absolu, 892 px) attrape aussi l'icône d'un nœud : on la remet dans le flux */
+.graph .node-bottom svg.dzi { position: static; inset: auto; width: 12px; height: 12px; overflow: hidden;
+  vertical-align: -2px; }
+.graph .node-bottom svg.dzi path { fill: currentColor; stroke-width: 0; }
+.vue-actions button > .dzi { width: 13px; height: 13px; vertical-align: -2px; }

@@ -4,9 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Deepotus — Établi</title>
+<link rel="icon" type="image/png" href="/api/branding/logo">
+<link rel="stylesheet" href="/shared/icons/dz-icons.css">
 <link rel="stylesheet" href="etabli.css">
 <script src="/shared/dz-i18n-dico.js"></script>
 <script src="/shared/dz-i18n.js"></script>
+<script src="/shared/icons/dz-icons.js"></script>
 <!-- Carte EN LIGNE, et non <script type="importmap" src="…"> : les import maps
      externes ne sont supportées par aucun navigateur — mesuré, la page reste
      inerte avec « Failed to resolve module specifier "three" ». La référence du
@@ -48,7 +51,7 @@
            les rend identiques, jamais leur `id` — voir etabli.css. Un banc
            compare le nombre de `<button>` de l'en-tête à celui des porteurs
            de la classe, pour qu'un quatrième ne naisse pas nu. -->
-      <button class="head-btn" id="btnRetour" title="Revenir au graphe du 3D Studio">← 3D Studio</button>
+      <button class="head-btn" id="btnRetour" title="Revenir au graphe du 3D Studio"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-retour"></use></svg> 3D Studio</button>
       <span class="head-title">Établi</span>
       <span class="head-chip" id="chipSource">—</span>
       <div class="head-right">
@@ -63,9 +66,9 @@
              dès l'import du module — comme #panParties naît vide et se
              remplit au même moment. Les écrire ICI aussi ferait deux sources
              pour un seul texte, qui divergeraient à la première retouche. -->
-        <button class="head-btn" id="btnAide" title="Le pas à pas et le lexique, sans quitter l'écran — et le chapitre 21 du guide">Aide</button>
+        <button class="head-btn" id="btnAide" title="Le pas à pas et le lexique, sans quitter l'écran — et le chapitre 21 du guide"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-aide"></use></svg> Aide</button>
         <button class="head-btn" id="btnPlaque"></button>
-        <button class="head-btn" id="btnCompare" title="Fermer la comparaison">A/B ✕</button>
+        <button class="head-btn" id="btnCompare" title="Fermer la comparaison"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-fermer"></use></svg> A/B</button>
       </div>
     </header>
 
@@ -159,14 +162,14 @@
     <div class="panneau hidden" id="panFiche"></div>
     <div class="panneau hidden" id="panExport">
       <div class="dt-label">Impression 3D</div>
-      <button id="btnImprimer" title="Exporte la version AFFICHÉE en STL + 3MF aux millimètres de la taille cible (dossier sous assets/print3d)">→ Impression 3D</button>
-      <button id="btnSlicer" title="Ouvre le .3mf du dernier export dans le slicer (ElegooSlicer ou OrcaSlicer)">Ouvrir dans le slicer</button>
+      <button id="btnImprimer" title="Exporte la version AFFICHÉE en STL + 3MF aux millimètres de la taille cible (dossier sous assets/print3d)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-lab3d-impression-3d"></use></svg> Impression 3D</button>
+      <button id="btnSlicer" title="Ouvre le .3mf du dernier export dans le slicer (ElegooSlicer ou OrcaSlicer)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-lab3d-impression-3d"></use></svg> Ouvrir dans le slicer</button>
       <!-- les moteurs de jeu (T093) : rendus par rendreExportMoteurs(), nés vides -->
       <div class="moteurs" id="panMoteurs"></div>
       <!-- l'aller-retour Blender (T094) : le GLB corrigé revient comme une version DE PLUS -->
       <div class="dt-label">Retour de Blender</div>
       <input id="retourFichier" type="file" accept=".glb,model/gltf-binary" hidden>
-      <button id="btnRetourBlender" title="Importe un GLB corrigé (dans Blender ou ailleurs) comme une version de PLUS du job affiché : rien n'est écrasé, et ce qui s'est perdu en route (squelette, clips, matériaux) est dit">Importer une version corrigée…</button>
+      <button id="btnRetourBlender" title="Importe un GLB corrigé (dans Blender ou ailleurs) comme une version de PLUS du job affiché : rien n'est écrasé, et ce qui s'est perdu en route (squelette, clips, matériaux) est dit"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-importer"></use></svg> Importer une version corrigée…</button>
     </div>
 
     <!-- ══ le repère : HORS des onglets, et c'est la décision ══

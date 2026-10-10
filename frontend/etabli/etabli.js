@@ -363,7 +363,7 @@ function rendreChrono() {
         data-job="${esc(j.id)}" data-version="${esc(e.version ?? "")}"
         data-url="${esc(e.url)}" data-libelle="${esc(e.libelle)}"
         title="${tri ? tri + " triangles · " : ""}${fmtOctets(e.bytes)}">
-        <b>${esc(e.libelle)}</b>
+        <b>${esc(e.libelle)}${lourd ? " " + ico("dz-etat-avertissement") : ""}</b>
         <span>${tri ? tri.toLocaleString("fr-FR") + " tri" : fmtOctets(e.bytes)}</span>
       </button>`;
     }).join("");
@@ -2218,6 +2218,20 @@ function armerGeste(mode) {
   majOutils();
 }
 
+/* Deepotus Glyph (G6) : une icône de la suite, décorative — le sens est porté par le bouton (libellé, title,
+   aria-label). Sans runtime d'icônes (harnais node), la chaîne est vide. */
+function ico(cle) {
+  return typeof dzIcone === "function" ? dzIcone(cle, { taille: 16, classe: "dzi--16" }) : "";
+}
+
+/* Le libellé d'un bouton d'outil, précédé de son icône : textContent d'abord, l'icône ensuite, pour que le
+   texte du bouton reste EXACTEMENT son libellé. `cle` nulle = pas d'icône (un aperçu éteint). */
+function libeller(el, cle, texte) {
+  el.textContent = texte;
+  const i = cle ? ico(cle) : "";
+  if (i && typeof el.insertAdjacentHTML === "function") el.insertAdjacentHTML("afterbegin", i);
+}
+
 /* Les libellés des outils, écrits d'UN seul endroit et dès l'import — la
    règle de majBoutonPlaque() : #btnAssise, #btnCouteau et #btnCouteauManip
    naissent sans texte dans index.html. Le libellé porte l'ÉTAT du geste pour
@@ -2233,7 +2247,7 @@ function majOutils() {
       + "qu'elle regarde le bas et se pose au contact (mis en attente, puis "
       + "écrit par « écrire la version »)";
   a.classList.toggle("actif", GESTE.mode === "assise");
-  c.textContent = GESTE.mode === "couteau" ? "Ranger le couteau" : "Couteau";
+  libeller(c, "dz-outil-vec-couteau", GESTE.mode === "couteau" ? "Ranger le couteau" : "Couteau");
   c.title = GESTE.mode === "couteau"
     ? "Retirer le plan de coupe sans rien couper (Échap)"
     : "Touche C — un plan de coupe sur les pièces RETENUES dans Parties : "
@@ -2245,21 +2259,21 @@ function majOutils() {
     COUTEAU.manip === "translate" ? "tourner le plan" : "déplacer le plan";
   $("#couteauGarder").value = COUTEAU.garder;
   const m = $("#btnMesure");
-  m.textContent = GESTE.mode === "mesure" ? "Mesurer : deux clics (Échap)" : "Mesurer";
+  libeller(m, "dz-outil-vec-mesure", GESTE.mode === "mesure" ? "Mesurer : deux clics (Échap)" : "Mesurer");
   m.title = "Deux clics sur le modèle : distance, composantes x/y/z et angle des deux faces";
   m.classList.toggle("actif", GESTE.mode === "mesure");
   const sp = $("#btnSurplombs");
-  sp.textContent = SURPLOMB.actif ? "Surplombs ✓" : "Surplombs";
+  libeller(sp, SURPLOMB.actif ? "dz-etat-option-active" : null, "Surplombs");
   sp.title = `Peint en orange les faces sous ${SEUIL_SURPLOMB}° depuis l'horizontale (dans l'axe du plateau `
     + "sur la plaque) — là où le slicer devra poser un support. Un regard : rien n'est écrit";
   sp.classList.toggle("actif", SURPLOMB.actif);
   const tr = $("#btnTranches");
-  tr.textContent = TRANCHES.actives ? "Tranches ✓" : "Tranches";
+  libeller(tr, TRANCHES.actives ? "dz-etat-option-active" : null, "Tranches");
   tr.title = `Aperçu de tranchage INDICATIF : ${NB_TRANCHES} sections du modèle assemblé, tracées en bleu — `
     + "pas de G-code, pas de support ; le slicer tranche pour de vrai";
   tr.classList.toggle("actif", TRANCHES.actives);
   const o = $("#btnOrienter");
-  o.textContent = "Orienter";
+  libeller(o, "dz-lab3d-orienter", "Orienter");
   o.title = "Propose trois poses classées (appui, surplomb, hauteur) dans l'onglet Fiche — rien n'est écrit tant "
     + "que tu n'en choisis pas une, et c'est l'assise qui l'applique";
   const r = $("#btnArranger");
@@ -3030,7 +3044,7 @@ function rendreParties() {
         <button class="plaque-oeil" data-cle="${esc(x.cle)}"
                 title="${oeil(x.cle)} cette pièce"
                 aria-label="${oeil(x.cle)} cette pièce"
-        >${PLQ.masquees.has(x.cle) ? "◌" : "◉"}</button>
+        >${ico(PLQ.masquees.has(x.cle) ? "dz-etat-cache" : "dz-etat-visible")}</button>
       </div>`).join("")}</div>
     <div class="plaque-outils">${courante
       ? `<label>rotation de <b>${esc(courante.nom)}</b>

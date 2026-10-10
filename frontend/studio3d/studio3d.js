@@ -277,7 +277,7 @@ function buildGraph() {
       ${n.mesh ? `<div class="node-mesh" id="nm-${n.id}">en attente</div>` : ""}
       ${n.chips ? `<div class="node-chips" id="nc-${n.id}"></div>` : ""}
       ${n.door
-        ? `<div class="node-bottom"><span class="node-door">ouvrir →</span></div>`
+        ? `<div class="node-bottom"><span class="node-door">${FAL.ico("dz-nav-etabli")} ouvrir</span></div>`
         : `<div class="node-bottom">
             <div class="node-bar"><div id="nb-${n.id}" style="width:0%"></div></div>
             <div class="node-state">
@@ -500,9 +500,9 @@ function paint() {
   $("#mBalance").textContent = S.balance == null ? "—" : fmtCr(S.balance);
   $("#mUsedBar").style.width = est.total ? `${Math.min(100, Math.round(used / est.total * 100))}%` : "0%";
 
-  $("#btnPlay").textContent = S.playing ? "❙❙ Pause" : "▶ Lecture";
+  FAL.libeller($("#btnPlay"), S.playing ? "dz-media-pause" : "dz-media-lecture", S.playing ? "Pause" : "Lecture");
   const runBtn = $("#btnRun");
-  runBtn.textContent = `${S.run ? "Relancer" : "Lancer"} · ${fmtCr(est.total)}`;
+  FAL.libeller(runBtn, "dz-lab3d-generer-modele", `${S.run ? "Relancer" : "Lancer"} · ${fmtCr(est.total)}`);
   runBtn.disabled = !meshyOn || !S.status.enabled || !!running;
   runBtn.title = !meshyOn ? "Sélectionne Meshy — les moteurs fal vivent dans Game Assets 3D"
     : !S.status.enabled ? "Configure MESHY_API_KEY dans Réglages (ou MESHY_MOCK=1)"

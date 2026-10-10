@@ -5,6 +5,17 @@
    DIT pourquoi tant qu'une porte est fermée (clé, approbation, texture) ; un tir payant se confirme. */
 "use strict";
 const $ = (s) => document.querySelector(s);
+/* Deepotus Glyph (G6) : une icône de la suite, décorative — le sens est porté par le bouton (libellé, title,
+   aria-label). libeller() écrit le libellé en textContent PUIS pose l'icône devant : le texte du bouton reste
+   exactement le libellé (et, sans runtime d'icônes — un banc sous node —, le bouton n'a que son texte). */
+export function ico(cle, t = 16) {
+  return typeof dzIcone === "function" ? dzIcone(cle, { taille: t, classe: "dzi--" + t }) : "";
+}
+export function libeller(el, cle, texte) {
+  el.textContent = texte;
+  const i = ico(cle);
+  if (i && typeof el.insertAdjacentHTML === "function") el.insertAdjacentHTML("afterbegin", i);
+}
 
 export const F = { jobs: [], job: null, devis: null, poll: null, actions: new Set() };
 
@@ -130,7 +141,7 @@ export function dessinerActions(connues) {
 
 export async function rafraichirDevis() {
   const btn = $("#btnRig");
-  if (!F.job) { btn.textContent = "Rig Meshy · aucun job"; btn.disabled = true; btn.title = "aucun job Game Assets 3D"; return; }
+  if (!F.job) { libeller(btn, "dz-lab3d-rig", "Rig Meshy · aucun job"); btn.disabled = true; btn.title = "aucun job Game Assets 3D"; return; }
   try {
     const acts = [...F.actions].sort((a, b) => a - b).join(",");
     const d = await jget(`/api/assets/3d/${encodeURIComponent(F.job)}/rig/devis?actions=${encodeURIComponent(acts)}`);
@@ -140,7 +151,7 @@ export async function rafraichirDevis() {
       + (d.remesh_requis ? " · remesh requis (> 300 000 faces)" : "");
     const cr = (d.credits && d.credits.meshy) || 0;
     const non = refus(d);
-    btn.textContent = `Rig Meshy · ${cr} cr`;
+    libeller(btn, "dz-lab3d-rig", `Rig Meshy · ${cr} cr`);
     btn.disabled = !!non;
     btn.title = non || (d.breakdown || []).map((l) => `${l.label} : ${l.units} cr`).join("\n");
     $("#rigRefus").textContent = non;

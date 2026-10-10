@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Deepotus — Plateau</title>
+<link rel="icon" type="image/png" href="/api/branding/logo">
+<link rel="stylesheet" href="/shared/icons/dz-icons.css">
 <link rel="stylesheet" href="plateau.css">
 <!-- Carte EN LIGNE (une import map externe n'est supportée par aucun navigateur — mesuré pour l'Établi) ; elle doit
      rester identique à /assets/three/importmap.json : test_plateau_ecran.py le vérifie. -->
@@ -15,6 +17,7 @@
   }
 }
 </script>
+<script src="/shared/icons/dz-icons.js"></script>
 </head>
 <body>
 <div class="plateau" id="plateau">
@@ -24,14 +27,14 @@
     <div class="dt-label">Scène</div>
     <div class="ligne"><input id="nomScene" class="champ" placeholder="nom de la scène" aria-label="Nom de la scène"></div>
     <div class="ajouts">
-      <button class="btn" data-forme="boite" title="Une boîte — mur, table, caisse">＋ Boîte</button>
-      <button class="btn" data-forme="capsule" title="Une capsule — un personnage debout">＋ Capsule</button>
-      <button class="btn" data-forme="cylindre" title="Un cylindre — colonne, tronc">＋ Cylindre</button>
-      <button class="btn" data-forme="sphere" title="Une sphère">＋ Sphère</button>
+      <button class="btn" data-forme="boite" title="Une boîte — mur, table, caisse"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-lab3d-cube"></use></svg> Boîte</button>
+      <button class="btn" data-forme="capsule" title="Une capsule — un personnage debout"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-lab3d-capsule"></use></svg> Capsule</button>
+      <button class="btn" data-forme="cylindre" title="Un cylindre — colonne, tronc"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-lab3d-cylindre"></use></svg> Cylindre</button>
+      <button class="btn" data-forme="sphere" title="Une sphère"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-lab3d-sphere"></use></svg> Sphère</button>
     </div>
     <div class="ligne">
       <select id="selMaillage" class="champ" aria-label="Maillage à poser" title="Un maillage d'un job Game Assets 3D ou d'une entité de la bible"><option value="">maillage…</option></select>
-      <button class="btn" id="btnMaillage" title="Poser ce maillage (niveau allégé : 2 500 triangles)">＋</button>
+      <button class="btn" id="btnMaillage" title="Poser ce maillage (niveau allégé : 2 500 triangles)" aria-label="Poser ce maillage"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-ajouter"></use></svg></button>
     </div>
     <ul class="instances" id="instances"></ul>
     <div class="fiche" id="fiche"></div>
@@ -41,7 +44,7 @@
   <!-- ══════════ centre : le cadre ══════════ -->
   <main class="centre">
     <header class="head">
-      <a class="head-btn" id="lienRetour" href="/atelier/" title="Revenir au storyboard de l'Atelier">← Atelier</a>
+      <a class="head-btn" id="lienRetour" href="/atelier/" title="Revenir au storyboard de l'Atelier"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-retour"></use></svg> Atelier</a>
       <span class="head-title">Plateau</span>
       <span class="head-chip" id="chipPlan">aucun plan lié</span>
       <span class="head-etat" id="etat" role="status"></span>
@@ -54,7 +57,7 @@
     </div>
     <div class="lecture" id="lecture" aria-live="polite"></div>
     <div class="timeline">
-      <button class="btn" id="btnPlay" title="Lire le mouvement en boucle (Espace)">▶</button>
+      <button class="btn" id="btnPlay" title="Lire le mouvement en boucle (Espace)" aria-label="Lire le mouvement en boucle"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-lecture"></use></svg></button>
       <input type="range" id="tete" min="0" max="4" step="0.01" value="0" aria-label="Tête de lecture">
       <span class="tc" id="tc">0,00 s</span>
       <div class="kfs" id="kfs" aria-label="Keyframes"></div>
@@ -78,7 +81,7 @@
 
     <div class="dt-label">Mouvement</div>
     <div class="ligne">
-      <button class="btn" id="btnKf" title="Poser un keyframe à la tête de lecture avec la caméra courante (K)">◆ Keyframe</button>
+      <button class="btn" id="btnKf" title="Poser un keyframe à la tête de lecture avec la caméra courante (K)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-image-cle"></use></svg> Keyframe</button>
       <select id="preset" class="champ" aria-label="Preset de mouvement">
         <option value="">preset…</option><option value="travelling">travelling avant</option>
         <option value="orbite90">orbite 90°</option><option value="grue">grue descendante</option><option value="fixe">plan fixe</option>
@@ -90,10 +93,10 @@
     <div class="dt-label">Sorties</div>
     <div class="ligne">
       <button class="btn" id="btnCompose" title="Composer le GLB de scène (versionné, avec sa fiche)">Composer le GLB</button>
-      <a class="btn lien" id="lienGlb" href="#" download aria-disabled="true">↓ GLB</a>
+      <a class="btn lien" id="lienGlb" href="#" download aria-disabled="true"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-telecharger"></use></svg> GLB</a>
     </div>
     <div class="ligne">
-      <button class="btn" id="btnCapture" title="Capturer le cadre du premier et du dernier keyframe vers la Bibliothèque">Capturer début / fin</button>
+      <button class="btn" id="btnCapture" title="Capturer le cadre du premier et du dernier keyframe vers la Bibliothèque"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-capturer"></use></svg> Capturer début / fin</button>
     </div>
     <div class="captures" id="captures"></div>
     <div class="ligne"><button class="btn primaire" id="btnPlan" title="Proposer au plan lié : type de plan, mouvement, prompt de mouvement, images de bornes">Appliquer au plan…</button></div>
