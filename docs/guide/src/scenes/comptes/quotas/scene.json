@@ -1,0 +1,84 @@
+{
+  "titre": {
+    "fr": "Comptes et quotas",
+    "en": "Accounts and quotas"
+  },
+  "legende": {
+    "fr": "Dans le Planificateur, Comptes montre les quotas du mois et connecte YouTube et TikTok.",
+    "en": "In the Scheduler, Accounts shows the month's quotas and connects YouTube and TikTok."
+  },
+  "captures": [
+    {
+      "fr": "panneau.fr.webp",
+      "en": "panneau.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        349,
+        377,
+        141,
+        43
+      ],
+      "bulle": {
+        "fr": "Connexion par la page de consentement",
+        "en": "Connect through the consent page"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 3,
+      "surligne": [
+        349,
+        329,
+        742,
+        224
+      ],
+      "bulle": {
+        "fr": "Le quota de chaque réseau, vérifié avant l'envoi",
+        "en": "Each network's quota, checked before sending"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        349,
+        377,
+        130,
+        43
+      ],
+      "bulle": {
+        "fr": "Connexion par la page de consentement",
+        "en": "Connect through the consent page"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 3,
+      "surligne": [
+        349,
+        329,
+        742,
+        224
+      ],
+      "bulle": {
+        "fr": "Le quota de chaque réseau, vérifié avant l'envoi",
+        "en": "Each network's quota, checked before sending"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

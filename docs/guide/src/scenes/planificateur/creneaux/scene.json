@@ -1,0 +1,84 @@
+{
+  "titre": {
+    "fr": "Les créneaux par canal",
+    "en": "Time slots per channel"
+  },
+  "legende": {
+    "fr": "Des heures locales par canal, appliquées par les plans générés.",
+    "en": "Local times per channel, applied by generated plans."
+  },
+  "captures": [
+    {
+      "fr": "panneau.fr.webp",
+      "en": "panneau.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        469,
+        417,
+        104,
+        30
+      ],
+      "bulle": {
+        "fr": "Des heures séparées par des virgules",
+        "en": "Times separated by commas"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        558,
+        524,
+        211,
+        43
+      ],
+      "bulle": {
+        "fr": "Ou laissez vos métriques proposer",
+        "en": "Or let your metrics suggest"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        496,
+        417,
+        104,
+        30
+      ],
+      "bulle": {
+        "fr": "Des heures séparées par des virgules",
+        "en": "Times separated by commas"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        552,
+        524,
+        170,
+        43
+      ],
+      "bulle": {
+        "fr": "Ou laissez vos métriques proposer",
+        "en": "Or let your metrics suggest"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

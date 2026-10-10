@@ -1,9 +1,26 @@
-<p><strong>Settings → Connected accounts</strong> : les identifiants utilisés par le Scheduler. Tout est stocké localement.</p>
-<img class="shot" src="img/settings-accounts.png" alt="Connected accounts">
-<p class="cap">Connected accounts : statut réel par canal — <span style="color:#178017">auto</span> (publication seule) ou <span style="color:#b8860b">assisted</span> (vous cliquez Send).</p>
-<h3>Telegram (5 minutes, gratuit, recommandé)</h3>
-<div class="step"><span class="n">1</span><div>Sur Telegram, parlez à <code>@BotFather</code> → <code>/newbot</code> → copiez le token.</div></div>
-<div class="step"><span class="n">2</span><div>Ajoutez le bot comme <strong>administrateur</strong> de votre canal.</div></div>
-<div class="step"><span class="n">3</span><div>Collez token + chat ID, <em>Save</em>, redémarrez, puis <em>Send test message</em>.</div></div>
-<h3>X (Twitter)</h3>
-<p>Créez vos 4 clés sur <code>developer.x.com</code> (écriture disponible en pay-per-use) et collez-les. Bouton <em>Verify credentials</em>. <strong>YouTube</strong> et <strong>Instagram</strong> restent en mode assisté.</p>
+<p class="chapeau-chap">Vous saurez brancher Telegram, X, YouTube, Instagram et TikTok pour que le Planificateur publie seul. Gratuit : il suffit des accès fournis par chaque réseau, enregistrés sur votre PC.</p>
+
+<h3>Où ça se règle</h3>
+<figure class="scene" data-scene="comptes/reglages"></figure>
+<p>Ouvrez <b class="ui">Réglages</b> › <b class="ui">Comptes connectés</b>. Un bloc par réseau dit combien de clés sont posées et son état en direct : <strong>auto</strong> (le Planificateur publie seul), <strong>assisté</strong> (il prépare le post et vous cliquez sur Envoyer) ou <strong>non connecté</strong>.</p>
+<ol class="etapes">
+<li>Dépliez le bloc du réseau et lisez sa note : elle dit où obtenir les accès.</li>
+<li>Collez chaque valeur et cliquez <b class="ui">Enregistrer</b> à côté. L'adaptateur est actif tout de suite, sans redémarrage.</li>
+<li>Contrôlez avec <b class="ui">Vérifier les identifiants</b> (ou <b class="ui">Envoyer un message de test</b> pour Telegram).</li>
+</ol>
+
+<h3>Réseau par réseau</h3>
+<div class="cartes">
+<article><i data-dz="dz-reseau-telegram"></i><h4>Telegram</h4><p>Le plus simple, en cinq minutes. Créez un bot avec @BotFather, nommez-le administrateur du canal, collez le jeton du bot et l'ID du chat du canal.</p></article>
+<article><i data-dz="dz-reseau-x"></i><h4>X</h4><p>Les quatre clés de developer.x.com (clé et secret d'API, jeton et secret d'accès). L'offre gratuite permet de publier, dans la limite de 500 posts par mois.</p></article>
+<article><i data-dz="dz-reseau-youtube"></i><h4>YouTube</h4><p>Créez un client OAuth Google de type « Application de bureau », collez son ID et son secret, puis <b class="ui">Connecter</b>. Tant que le projet Google n'a pas passé l'audit, YouTube garde les Shorts en privé, et le Planificateur le dit.</p></article>
+<article><i data-dz="dz-reseau-instagram"></i><h4>Instagram</h4><p>Un compte professionnel et un jeton de Page (EAA…) ou Instagram (IG…). Les Reels partent depuis votre PC, sans hébergement, dans la limite de 100 posts par 24 h glissantes.</p></article>
+<article><i data-dz="dz-reseau-tiktok"></i><h4>TikTok</h4><p>Une app TikTok for Developers (Login Kit, plateforme « Desktop ») : collez la clé et le secret client, puis <b class="ui">Connecter</b>. Sans audit, les envois sont privés et le compte doit l'être ; passez TIKTOK_AUDITED à true après l'audit.</p></article>
+</div>
+
+<h3>Connecter YouTube et TikTok sans copier de code</h3>
+<figure class="scene" data-scene="comptes/quotas"></figure>
+<p><b class="ui">Connecter</b> ouvre la page de consentement du réseau dans un nouvel onglet : acceptez, revenez, l'état passe à connecté et le jeton de renouvellement s'enregistre seul. Le même geste existe dans le Planificateur : bouton <b class="ui">Comptes</b>, puis <b class="ui">Connecter YouTube</b> ou <b class="ui">Connecter TikTok</b>. Ce panneau montre aussi les quotas du mois de chaque réseau.</p>
+
+<h3>Bon à savoir</h3>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Un réseau non connecté n'empêche rien : ses posts passent en mode assisté et vous les envoyez d'un clic, ou depuis le <a href="#mobile">téléphone</a>.</p></aside>

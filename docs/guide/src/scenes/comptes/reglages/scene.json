@@ -1,0 +1,84 @@
+{
+  "titre": {
+    "fr": "Comptes connectés",
+    "en": "Connected accounts"
+  },
+  "legende": {
+    "fr": "Réglages, Comptes connectés : un bloc par réseau, ses clés, son état en direct.",
+    "en": "Settings, Connected accounts: one block per network, its keys, its live status."
+  },
+  "captures": [
+    {
+      "fr": "youtube.fr.webp",
+      "en": "youtube.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        507,
+        502,
+        192,
+        30
+      ],
+      "bulle": {
+        "fr": "Collez l'ID et le secret, puis Enregistrer",
+        "en": "Paste the ID and secret, then Save"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        676,
+        736,
+        106,
+        38
+      ],
+      "bulle": {
+        "fr": "Connecter ouvre la page de consentement",
+        "en": "Connect opens the consent page"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        507,
+        485,
+        192,
+        30
+      ],
+      "bulle": {
+        "fr": "Collez l'ID et le secret, puis Enregistrer",
+        "en": "Paste the ID and secret, then Save"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        649,
+        719,
+        96,
+        38
+      ],
+      "bulle": {
+        "fr": "Connecter ouvre la page de consentement",
+        "en": "Connect opens the consent page"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

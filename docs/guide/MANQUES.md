@@ -499,25 +499,25 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 
 **Scheduler (planificateur de publications)** — accès : Barre latérale → Scheduler ; boutons de l'en-tête Comptes, Valider la semaine, Créneaux, Analytics, Campagne
 
-- [ ] **Publication Instagram Reels** : Publication directe des Reels sur Instagram, envoyés depuis le PC, avec contrôle du compteur Instagram (100 posts par 24 h glissantes) avant chaque envoi. (PR #65 · commit cc307bf4 · tâche #26)
-- [ ] **Publication YouTube Shorts** : Le Scheduler publie directement les Shorts sur YouTube (envoi résumable) et dit la visibilité réellement appliquée (privé forcé tant que le projet Google n'est pas vérifié). (PR #64 · commit f74d1275 · tâche #25)
-- [ ] **Quotas par canal** : Les plafonds de chaque réseau (X 500/mois, Instagram 100/24 h, YouTube 100/j, TikTok 15/j) sont vérifiés avant l'envoi et comptés après ; un canal déjà publié n'est jamais republié. — *Scheduler → « Comptes » (quotas du mois)* (PR #63 · PR #71 · commits 81e85a00, 6bdd634a · tâches #24, #31)
-- [ ] **Analytics — 28 jours** : Tableau de bord des vues, j'aime et engagement par canal, par format et par semaine, top 5 et quotas ; les métriques sont relues chaque jour automatiquement. — *Scheduler → « Analytics » → « Rafraîchir maintenant » (rationné : 10 posts, budget X du mois)* (PR #68 · PR #71 · commits 2bc877f9, 6bdd634a · tâches #29, #31)
-- [ ] **Aperçus Reels / Shorts / TikTok à zones sûres** : L'aperçu d'un post vertical (540×960) assombrit les bandes haute et basse et le rail de droite que l'interface du réseau recouvre, avec @compte et légende placés dans la bande basse. — *Aperçu du post dans l'inspecteur* (PR #70 · commit 0d11b800 · tâche #30)
-- [ ] **Brief de campagne** *(coût variable)* : Un brief persistant (un seul actif) que le planificateur suit ; ses termes interdits sont retirés des légendes, accroches et hashtags générés. — *Scheduler → « Campagne… » → « Brief de campagne »* (PR #73 · PR #75 · commits 9329f639, 9543c2b3 · tâche #32)
-- [ ] **Créneaux par canal** : Des heures locales de publication par canal (et votre fuseau) qu'un plan généré applique automatiquement. — *Scheduler → « Créneaux » → heures HH:MM séparées par des virgules → « Enregistrer »* (PR #70 · PR #71 · commits d22fb7a2, 6bdd634a · tâches #30, #31)
-- [ ] **Fils X (Suite)** : Écrire la suite d'un post X : elle part deux minutes après et répond au message précédent (reportée tant que celui-ci n'est pas parti). — *Inspecteur d'un post X → « Suite (fil X) »* (PR #74 · PR #75 · commits 28095032, 9543c2b3 · tâche #32)
-- [ ] **Horaire proposé d'après les métriques** : Propose, par canal, l'heure au meilleur engagement moyen dès 5 posts mesurés. — *Scheduler → « Créneaux » → « Proposer d'après mes métriques »* (PR #70 · PR #71 · commits d22fb7a2, 6bdd634a · tâches #30, #31)
-- [ ] **Liste rechargée après une action** : Valider, poser une série, proposer un recyclage ou ajouter une suite recharge la liste du Scheduler, même si l'on y est déjà. (PR #75 · commit 9543c2b3 · tâche #32)
-- [ ] **Lot validé exportable vers le téléphone** : Les posts validés de la semaine forment un lot (légendes, hashtags, média vérifié) que le téléphone appairé peut emporter, l'état publié revenant au PC. (PR #72 · commit 411424d4 · tâche #32)
-- [ ] **Panneau Comptes** : Montre les quotas du mois et permet de connecter YouTube et TikTok par leur page de consentement, sans coller de code. — *Scheduler → « Comptes » → « Connecter YouTube » / « Connecter TikTok »* (PR #71 · commit 6bdd634a · tâche #31)
-- [ ] **Publication TikTok Direct Post** : Publication directe sur TikTok ; tant que l'app n'est pas auditée par TikTok, les envois sont privés et c'est dit. (PR #66 · commit 1a877eac · tâche #27)
-- [ ] **Recyclage proposé** : Les posts les mieux mesurés publiés depuis 3 semaines reviennent avec une légende variée (sans les interdits du brief), posés en brouillon pour demain ; aucune IA payante appelée depuis l'écran. — *Scheduler → « Campagne… » → « Recyclage proposé » → « Proposer demain »* (PR #74 · PR #75 · commits 36b9da71, 9543c2b3 · tâche #32)
-- [ ] **Séries récurrentes** : Une règle (jours, heure locale, canaux, format, gabarit de légende avec {date} {weekday} {week}) pose des brouillons qui passent ensuite par la validation ; poser deux fois ne duplique rien. — *Scheduler → « Campagne… » → « Séries récurrentes » → « Créer la série », « Poser 4 semaines », « Retirer »* (PR #73 · PR #75 · commits f5c3ff68, 9543c2b3 · tâche #32)
-- [ ] **TikTok dans les canaux** : TikTok apparaît dans la table des canaux, les icônes et l'écran Distribution, et peut être choisi dans un plan. (PR #71 · commit 6bdd634a · tâche #31)
-- [ ] **Valider la semaine (validation par lot)** : Valide d'un coup les posts des 7 prochains jours (ou d'un plan) pour qu'ils partent ; un post sans média est ignoré et nommé ; modifier réellement un post le dévalide. — *Scheduler → « Valider la semaine »* (PR #70 · PR #71 · commits 627351aa, 6bdd634a · tâches #30, #31)
-- [ ] **Post confié au téléphone / Reprendre sur le PC** : L'inspecteur indique qu'un post est confié au téléphone (le PC ne le publiera pas) et permet de le reprendre. — *Inspecteur → « Confié au téléphone · Reprendre sur le PC »* (commit 7978a3c3 · tâche #57)
-- [ ] **L'écran ne déborde plus** : En-tête et panneau de droite restent visibles dans la fenêtre (1280 à 1600 px), en vues Semaine et Mois ; la barre d'outils passe à la ligne. (PR #288 · commit 2abf446c)
+- [x] **Publication Instagram Reels** : Publication directe des Reels sur Instagram, envoyés depuis le PC, avec contrôle du compteur Instagram (100 posts par 24 h glissantes) avant chaque envoi. (PR #65 · commit cc307bf4 · tâche #26)
+- [x] **Publication YouTube Shorts** : Le Scheduler publie directement les Shorts sur YouTube (envoi résumable) et dit la visibilité réellement appliquée (privé forcé tant que le projet Google n'est pas vérifié). (PR #64 · commit f74d1275 · tâche #25)
+- [x] **Quotas par canal** : Les plafonds de chaque réseau (X 500/mois, Instagram 100/24 h, YouTube 100/j, TikTok 15/j) sont vérifiés avant l'envoi et comptés après ; un canal déjà publié n'est jamais republié. — *Scheduler → « Comptes » (quotas du mois)* (PR #63 · PR #71 · commits 81e85a00, 6bdd634a · tâches #24, #31)
+- [x] **Analytics — 28 jours** : Tableau de bord des vues, j'aime et engagement par canal, par format et par semaine, top 5 et quotas ; les métriques sont relues chaque jour automatiquement. — *Scheduler → « Analytics » → « Rafraîchir maintenant » (rationné : 10 posts, budget X du mois)* (PR #68 · PR #71 · commits 2bc877f9, 6bdd634a · tâches #29, #31)
+- [x] **Aperçus Reels / Shorts / TikTok à zones sûres** : L'aperçu d'un post vertical (540×960) assombrit les bandes haute et basse et le rail de droite que l'interface du réseau recouvre, avec @compte et légende placés dans la bande basse. — *Aperçu du post dans l'inspecteur* (PR #70 · commit 0d11b800 · tâche #30)
+- [x] **Brief de campagne** *(coût variable)* : Un brief persistant (un seul actif) que le planificateur suit ; ses termes interdits sont retirés des légendes, accroches et hashtags générés. — *Scheduler → « Campagne… » → « Brief de campagne »* (PR #73 · PR #75 · commits 9329f639, 9543c2b3 · tâche #32)
+- [x] **Créneaux par canal** : Des heures locales de publication par canal (et votre fuseau) qu'un plan généré applique automatiquement. — *Scheduler → « Créneaux » → heures HH:MM séparées par des virgules → « Enregistrer »* (PR #70 · PR #71 · commits d22fb7a2, 6bdd634a · tâches #30, #31)
+- [x] **Fils X (Suite)** : Écrire la suite d'un post X : elle part deux minutes après et répond au message précédent (reportée tant que celui-ci n'est pas parti). — *Inspecteur d'un post X → « Suite (fil X) »* (PR #74 · PR #75 · commits 28095032, 9543c2b3 · tâche #32)
+- [x] **Horaire proposé d'après les métriques** : Propose, par canal, l'heure au meilleur engagement moyen dès 5 posts mesurés. — *Scheduler → « Créneaux » → « Proposer d'après mes métriques »* (PR #70 · PR #71 · commits d22fb7a2, 6bdd634a · tâches #30, #31)
+- [x] **Liste rechargée après une action** : Valider, poser une série, proposer un recyclage ou ajouter une suite recharge la liste du Scheduler, même si l'on y est déjà. (PR #75 · commit 9543c2b3 · tâche #32)
+- [x] **Lot validé exportable vers le téléphone** : Les posts validés de la semaine forment un lot (légendes, hashtags, média vérifié) que le téléphone appairé peut emporter, l'état publié revenant au PC. (PR #72 · commit 411424d4 · tâche #32)
+- [x] **Panneau Comptes** : Montre les quotas du mois et permet de connecter YouTube et TikTok par leur page de consentement, sans coller de code. — *Scheduler → « Comptes » → « Connecter YouTube » / « Connecter TikTok »* (PR #71 · commit 6bdd634a · tâche #31)
+- [x] **Publication TikTok Direct Post** : Publication directe sur TikTok ; tant que l'app n'est pas auditée par TikTok, les envois sont privés et c'est dit. (PR #66 · commit 1a877eac · tâche #27)
+- [x] **Recyclage proposé** : Les posts les mieux mesurés publiés depuis 3 semaines reviennent avec une légende variée (sans les interdits du brief), posés en brouillon pour demain ; aucune IA payante appelée depuis l'écran. — *Scheduler → « Campagne… » → « Recyclage proposé » → « Proposer demain »* (PR #74 · PR #75 · commits 36b9da71, 9543c2b3 · tâche #32)
+- [x] **Séries récurrentes** : Une règle (jours, heure locale, canaux, format, gabarit de légende avec {date} {weekday} {week}) pose des brouillons qui passent ensuite par la validation ; poser deux fois ne duplique rien. — *Scheduler → « Campagne… » → « Séries récurrentes » → « Créer la série », « Poser 4 semaines », « Retirer »* (PR #73 · PR #75 · commits f5c3ff68, 9543c2b3 · tâche #32)
+- [x] **TikTok dans les canaux** : TikTok apparaît dans la table des canaux, les icônes et l'écran Distribution, et peut être choisi dans un plan. (PR #71 · commit 6bdd634a · tâche #31)
+- [x] **Valider la semaine (validation par lot)** : Valide d'un coup les posts des 7 prochains jours (ou d'un plan) pour qu'ils partent ; un post sans média est ignoré et nommé ; modifier réellement un post le dévalide. — *Scheduler → « Valider la semaine »* (PR #70 · PR #71 · commits 627351aa, 6bdd634a · tâches #30, #31)
+- [x] **Post confié au téléphone / Reprendre sur le PC** : L'inspecteur indique qu'un post est confié au téléphone (le PC ne le publiera pas) et permet de le reprendre. — *Inspecteur → « Confié au téléphone · Reprendre sur le PC »* (commit 7978a3c3 · tâche #57)
+- [x] **L'écran ne déborde plus** : En-tête et panneau de droite restent visibles dans la fenêtre (1280 à 1600 px), en vues Semaine et Mois ; la barre d'outils passe à la ligne. (PR #288 · commit 2abf446c)
 
 ### Connecter ses comptes (`comptes`, lot t175, reprend : c12) — 0 manques
 
@@ -532,19 +532,19 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 
 **News** — accès : Barre latérale → News
 
-- [ ] **Filtre gratuit et dédoublonnage** : Au rafraîchissement, les articles sont filtrés (mots-clés, listes noires, fraîcheur) et les reprises d'une même dépêche fusionnées. (PR #41 · commit 06873afc · P1 #5)
-- [ ] **Articles écartés et motifs** : Une puce compte les écartés, motifs au survol ; bascule Tout voir / En tête seulement. — *Puce des écartés ; Tout voir / En tête seulement* (PR #77 · commit d5486061 · tâche #33)
-- [ ] **Chaîne du jour** *(coût variable)* : Panneau qui va de l'article au post programmé : Préparer (gratuit), Polir avec l'IA (payant, le brouillon est gardé sur un 402), Programmer le lot (script, légende, créneau édités, reel cartes). — *Bouton « Chaîne du jour » à côté de Send to Studio* (PR #81 · PR #82 · commits dbed3473, 9ca13e8c · tâche #35)
-- [ ] **Classer avec l'IA** **payant** : Reclasse le lot par un LLM, sur demande seulement et sous la garde des plafonds. — *Bouton « Classer avec l'IA »* (PR #77 · commit d5486061 · tâche #33)
-- [ ] **Déjà couvert** : Un sujet déjà traité ces 30 derniers jours est marqué en ambre (titre au survol) et pénalisé ; les sources trop utilisées reçoivent un malus. (PR #79 · commits e3159226, 2a402535, acab65ff · tâche #34)
-- [ ] **Formes de reel chiffrées** *(coût variable)* : Cinq formes de reel (cartes gratuites en local, illustration IA, plans Seedance, avatar, voix off) chiffrées avant tout tir. (PR #80 · commit f0c78d93 · tâche #35)
-- [ ] **Réglages du filtre** : Panneau du filtre gratuit (mots-clés, sources et mots bannis, fenêtre de fraîcheur). — *Panneau du filtre* (PR #76 · PR #77 · commits 6278a7eb, d5486061 · tâche #33)
-- [ ] **Score du jour** : Les articles sont triés par défaut par un score gratuit (motif et étoile sur la carte), recalculé à chaque brief ; le brief passe d'abord. — *Tri « Score du jour »* (PR #76 · PR #77 · PR #78 · commits 2b2c185c, d5486061, f21851c3 · tâche #33)
-- [ ] **Signal X** **payant** : Lit des posts X sur un sujet, sur clic seulement, borné à 3 appels par jour et au quota de lecture X. — *Chaîne du jour → Signal X* (PR #80 · PR #82 · commits 10495c48, 9ca13e8c · tâche #35)
-- [ ] **Sources en légende** : La légende du post se termine par une ligne de sources (média, date, domaine). (PR #79 · commit 2a402535 · tâche #34)
-- [ ] **Tendances** : Un sujet repris par trois médias le même jour est marqué tendance, affiché en vert sur la carte. (PR #80 · PR #82 · commits 10495c48, 9ca13e8c · tâche #35)
-- [ ] **Voix selon le sujet** : Le mode de voix du persona est choisi d'après les mots du sujet (gratuit) ; option « Auto (selon le sujet) » par défaut avec le motif affiché. — *Choix de voix → « Auto (selon le sujet) »* (PR #79 · PR #82 · commits 2a402535, 9ca13e8c · tâches #34, #35)
-- [ ] **La saisie est gardée** : Articles cochés, requête, tri, voix, longueur, lecture et script sont retrouvés en revenant sur News. (PR #259 · commit 84be3d26 · t129)
+- [x] **Filtre gratuit et dédoublonnage** : Au rafraîchissement, les articles sont filtrés (mots-clés, listes noires, fraîcheur) et les reprises d'une même dépêche fusionnées. (PR #41 · commit 06873afc · P1 #5)
+- [x] **Articles écartés et motifs** : Une puce compte les écartés, motifs au survol ; bascule Tout voir / En tête seulement. — *Puce des écartés ; Tout voir / En tête seulement* (PR #77 · commit d5486061 · tâche #33)
+- [x] **Chaîne du jour** *(coût variable)* : Panneau qui va de l'article au post programmé : Préparer (gratuit), Polir avec l'IA (payant, le brouillon est gardé sur un 402), Programmer le lot (script, légende, créneau édités, reel cartes). — *Bouton « Chaîne du jour » à côté de Send to Studio* (PR #81 · PR #82 · commits dbed3473, 9ca13e8c · tâche #35)
+- [x] **Classer avec l'IA** **payant** : Reclasse le lot par un LLM, sur demande seulement et sous la garde des plafonds. — *Bouton « Classer avec l'IA »* (PR #77 · commit d5486061 · tâche #33)
+- [x] **Déjà couvert** : Un sujet déjà traité ces 30 derniers jours est marqué en ambre (titre au survol) et pénalisé ; les sources trop utilisées reçoivent un malus. (PR #79 · commits e3159226, 2a402535, acab65ff · tâche #34)
+- [x] **Formes de reel chiffrées** *(coût variable)* : Cinq formes de reel (cartes gratuites en local, illustration IA, plans Seedance, avatar, voix off) chiffrées avant tout tir. (PR #80 · commit f0c78d93 · tâche #35)
+- [x] **Réglages du filtre** : Panneau du filtre gratuit (mots-clés, sources et mots bannis, fenêtre de fraîcheur). — *Panneau du filtre* (PR #76 · PR #77 · commits 6278a7eb, d5486061 · tâche #33)
+- [x] **Score du jour** : Les articles sont triés par défaut par un score gratuit (motif et étoile sur la carte), recalculé à chaque brief ; le brief passe d'abord. — *Tri « Score du jour »* (PR #76 · PR #77 · PR #78 · commits 2b2c185c, d5486061, f21851c3 · tâche #33)
+- [x] **Signal X** **payant** : Lit des posts X sur un sujet, sur clic seulement, borné à 3 appels par jour et au quota de lecture X. — *Chaîne du jour → Signal X* (PR #80 · PR #82 · commits 10495c48, 9ca13e8c · tâche #35)
+- [x] **Sources en légende** : La légende du post se termine par une ligne de sources (média, date, domaine). (PR #79 · commit 2a402535 · tâche #34)
+- [x] **Tendances** : Un sujet repris par trois médias le même jour est marqué tendance, affiché en vert sur la carte. (PR #80 · PR #82 · commits 10495c48, 9ca13e8c · tâche #35)
+- [x] **Voix selon le sujet** : Le mode de voix du persona est choisi d'après les mots du sujet (gratuit) ; option « Auto (selon le sujet) » par défaut avec le motif affiché. — *Choix de voix → « Auto (selon le sujet) »* (PR #79 · PR #82 · commits 2a402535, 9ca13e8c · tâches #34, #35)
+- [x] **La saisie est gardée** : Articles cochés, requête, tri, voix, longueur, lecture et script sont retrouvés en revenant sur News. (PR #259 · commit 84be3d26 · t129)
 
 ## Images et dessin
 
@@ -1454,7 +1454,7 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 | t172 | 78 | 78 |
 | t173 | 41 | 41 |
 | t174 | 119 | 119 |
-| t175 | 32 | 0 |
+| t175 | 32 | 32 |
 | t176 | 275 | 0 |
 | t177 | 221 | 0 |
 | t178 | 102 | 0 |

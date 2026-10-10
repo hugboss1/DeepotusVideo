@@ -1,21 +1,48 @@
-<p><strong>Scheduler</strong> tab: the publishing calendar, and the heart of "human-in-the-loop" — <strong>nothing goes out without your approval</strong> (unless you decide otherwise).</p>
-<img class="shot" src="img/scheduler.png" alt="Scheduler">
-<p class="cap">Scheduler: week/month, AI plan, document import, the post's graph + inspector on the right.</p>
-<h3>Three ways to fill the calendar</h3>
-<div class="step"><span class="n">1</span><div><strong>Generate plan</strong>: describe your week in one sentence → the AI proposes a full plan (dated posts, hooks, captions, formats). <em>Review the preview</em> before "Add to calendar".</div></div>
-<img class="shot" src="img/plan-generate.png" alt="Generate plan">
-<p class="cap">"Generate plan": a one-sentence brief becomes a full plan, reviewed by you (human-in-the-loop).</p>
-<div class="step"><span class="n">2</span><div><strong>Import doc</strong>: drop your existing plan (.md, .docx, .pdf) — transcribed into dated posts, <strong>weeks preserved</strong>.</div></div>
-<img class="shot" src="img/plan-import.png" alt="Import strategy document">
-<p class="cap">"Import doc": your strategy document becomes calendar posts.</p>
-<div class="step"><span class="n">3</span><div><strong>New post</strong> or <em>+ add post</em> on a day: manual creation. Episodes also land here as drafts (chapter 7).</div></div>
-<h3>Generate the render — before posting</h3>
-<p>Select a post: the right inspector opens the post's whole workshop. <strong>Produce</strong> button: the app builds the image (FLUX) then the clip (Seedance) from the plan's ideas — or reuses the source you chose. A <strong>thumbnail</strong> of the render appears on the post-graph's <em>Render</em> node, and a <strong>video preview</strong> shows in the inspector: you see the result <strong>before</strong> clicking Send or enabling Auto.</p>
-<img class="shot" src="img/scheduler-caption.png" alt="Post inspector: caption, emojis, Premium pack">
-<p class="cap">A post's inspector: channels, caption, and the <strong>emoji bar</strong> + the <strong>Telegram Premium pack</strong> (branded one-tap tags) — plus the render preview before publishing.</p>
-<h3>Polish the caption — emojis &amp; Premium pack</h3>
-<p>Under the caption, two one-tap rows, ideal for Telegram and X:</p>
-<div class="step"><span class="n">1</span><div><strong>Quick emojis</strong>: ❤️ 🔥 🚀 😍 🎉 👍 💯 — inserted at the cursor.</div></div>
-<div class="step"><span class="n">2</span><div><strong>Telegram Premium pack</strong>: branded tags per content vertical (🐙 Deepotus Protocol, 🌊 Rippled Signal, 👁️ Prophet, 🎴 Board Game, 🎲 D&amp;D, 🪙 $DEEP…) to sign each post in one gesture.</div></div>
-<h3>Auto or assisted?</h3>
-<p>Each post has a mode. <strong>Assisted</strong> (default): at the set time, the post flips to <code>READY</code> — you click <em>Send</em>. <strong>Auto</strong>: it goes out by itself on connected channels (Telegram, X). Status by color: gray = draft, cyan = scheduled, amber = ready, green = posted, red = failed.</p>
+<p class="chapeau-chap">You will fill your week with posts, review them, approve them in one go and let them go out on time on Telegram, X, YouTube, Instagram and TikTok. The Scheduler is free; only what you produce (image, clip, avatar) has a price, shown before the run.</p>
+
+<h3>Before you start</h3>
+<p>For a post to go out on its own, its network must be connected: see <a href="#comptes">Connect your accounts</a>. Without a connected account everything still works in assisted mode: the post is ready at the set time and you click <b class="ui">Send</b>.</p>
+
+<h3>The week at a glance</h3>
+<figure class="scene" data-scene="planificateur/semaine"></figure>
+<p>Open <b class="ui">Scheduler</b> in the rail. At the top, the calendar in <b class="ui">Week</b> or <b class="ui">Month</b> view. Click a post: its <strong>graph</strong> (render, caption, one node per channel) shows in the middle and its <strong>inspector</strong> on the right. The screen fits the window from 1280 to 1600 px; the toolbar wraps when needed.</p>
+
+<h3>Fill the week</h3>
+<figure class="scene" data-scene="planificateur/plan"></figure>
+<ol class="etapes">
+<li><b class="ui">Generate plan</b>: describe the week in one sentence, pick the number of days, posts per day, language, start date and channels, then <b class="ui">Generate</b>. Without an AI key the built-in planner does the job; with an Anthropic key or a local Ollama model the plan is finer.</li>
+<li>Review the proposal, then <b class="ui">Add to calendar</b>. Times follow your per-channel time slots.</li>
+<li>Already have a written schedule? The <b class="ui">Import doc</b> tab turns a .md, .txt, .docx or .pdf file into dated posts, keeping weeks and themes.</li>
+<li>For a single post: <b class="ui">New post</b>, or <strong>add post</strong> at the bottom of a day. Episodes from <a href="#chapitres">Chapters</a> land here as drafts.</li>
+</ol>
+
+<h3>Prepare a post</h3>
+<p>In the inspector, set the day and time, tick <strong>Scheduled</strong> (unticked, the post stays a draft), pick the channels and write the caption, the same on every channel, with its character count. <b class="ui">Produce with chosen source</b> makes the visual or clip the plan calls for; the render runs in the background and its thumbnail appears on the graph's Render node.</p>
+<figure class="scene" data-scene="planificateur/apercu"></figure>
+<p>The <strong>final preview</strong> shows the post as it will look on the network. For a Reel, a Short or a TikTok, it darkens the top and bottom bands and the right rail that the network's interface covers: put nothing important there.</p>
+
+<h3>Approve and publish</h3>
+<figure class="scene" data-scene="planificateur/valider"></figure>
+<ol class="etapes">
+<li>Each post has a mode. <strong>Assisted</strong> (default): at the set time it flips to ready and you click <b class="ui">Send</b>. <strong>Auto</strong> (<b class="ui">Auto-publish at time</b>): it goes out on its own on its connected channels.</li>
+<li><b class="ui">Approve the week</b> then <b class="ui">Approve the 7 days</b> switches the drafts and scheduled posts of the next 7 days to automatic in one go. A post without media is skipped and named; really editing an approved post puts it back on hold.</li>
+<li>To publish right now: <b class="ui">Send now</b> on the graph, or the yellow inspector button that counts the channels.</li>
+</ol>
+<p>Before each send, the network's quota is checked (X 500 posts a month, Instagram 100 per rolling 24 h, YouTube 100 a day, TikTok 15 a day); a channel already published is never published again.</p>
+
+<h3>Going further</h3>
+<figure class="scene" data-scene="planificateur/creneaux"></figure>
+<div class="cartes">
+<article><i data-dz="dz-media-creneaux"></i><h4>Time slots</h4><p><b class="ui">Time slots</b>: local times per channel, separated by commas, then <b class="ui">Save</b>. <b class="ui">Suggest from my metrics</b> picks the hour with the best engagement, from 5 measured posts.</p></article>
+<article><i data-dz="dz-nav-analytics"></i><h4>Analytics</h4><p>Views, likes and engagement over the last 28 days by channel, format and week, with the top 5. Metrics are re-read every day; <b class="ui">Refresh now</b> re-reads 10 posts.</p></article>
+<article><i data-dz="dz-nav-campagne"></i><h4>Campaign brief</h4><p><b class="ui">Campaign</b> › <b class="ui">Campaign brief</b>: objective, key messages, fixed sections and banned terms. The next plan follows it; banned terms are removed from captions and hashtags.</p></article>
+<article><i data-dz="dz-action-recurrence"></i><h4>Recurring series</h4><p>A rule (days, time, channels, caption template with {date}, {weekday}, {week}): <b class="ui">Create series</b>, then <b class="ui">Create 4 weeks</b>. These are drafts; creating twice duplicates nothing.</p></article>
+<article><i data-dz="dz-action-recycler"></i><h4>Suggested recycling</h4><p>Your best-measured posts, published more than three weeks ago, come back with a varied caption. <b class="ui">Suggest for tomorrow</b> creates a draft; no paid AI is called.</p></article>
+<article><i data-dz="dz-reseau-x"></i><h4>X thread</h4><p><b class="ui">Follow-up (X thread)</b> writes the follow-up to an X post: it goes out two minutes later and replies to the previous message, never before it.</p></article>
+<article><i data-dz="dz-action-dupliquer"></i><h4>Duplicate, sign</h4><p><b class="ui">Duplicate to next day</b> copies the post. Under the caption, a row of emojis and the <b class="ui">Telegram Premium pack</b> insert your brand tags, set in Settings.</p></article>
+<article><i data-dz="dz-etat-mobile"></i><h4>With the phone</h4><p>Approved posts form a batch the <a href="#mobile">paired phone</a> can take along. A post handed to the phone says so in the inspector, with "Take back on the PC".</p></article>
+</div>
+
+<h3>Good to know</h3>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>After an action (approve, create a series, suggest a recycle, add a follow-up), the list reloads by itself: no need to leave the screen.</p></aside>
+<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>The calendar, built-in plans, approval and sending are free. Producing an image, a clip or an avatar is paid, under your spending caps (see <a href="#budget">Control your spending</a>).</p></aside>

@@ -1,0 +1,74 @@
+{
+  "titre": {
+    "fr": "Générer un plan",
+    "en": "Generate a plan"
+  },
+  "legende": {
+    "fr": "Un brief, une date de début, le nombre de jours et de posts : le plan se relit avant d'entrer au calendrier.",
+    "en": "A brief, a start date, the number of days and posts: you review the plan before it enters the calendar."
+  },
+  "captures": [
+    {
+      "fr": "avant.fr.webp",
+      "en": "avant.en.webp"
+    },
+    {
+      "fr": "dialogue.fr.webp",
+      "en": "dialogue.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.2,
+      "curseur": [
+        815,
+        88
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Générer un plan",
+        "en": "Generate plan"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3.4,
+      "bulle": {
+        "fr": "Décrivez la semaine en une phrase",
+        "en": "Describe the week in one sentence"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.2,
+      "curseur": [
+        843,
+        88
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Générer un plan",
+        "en": "Generate plan"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3.4,
+      "bulle": {
+        "fr": "Décrivez la semaine en une phrase",
+        "en": "Describe the week in one sentence"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}
