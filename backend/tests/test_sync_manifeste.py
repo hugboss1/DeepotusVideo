@@ -217,7 +217,7 @@ with TestClient(app, client=("127.0.0.1", 50000), raise_server_exceptions=False)
     check("D13 recette illisible : 400, rien ecrit", r.status_code == 400 and not (IMAGES / "mob_f.png").exists(), f"{r.status_code}")
     check("D14 /sync/depot rejoint les ecritures ouvertes (et /sync/depenses, tache #58 T18 — rien d'autre)",
           _MAIN._ECRITURES_OUVERTES == frozenset({("POST", "/api/pair/claim"), ("POST", "/api/sync/lot/etat"), ("POST", "/api/sync/depot"), ("POST", "/api/sync/depenses"), ("POST", "/api/sync/chapitre/prendre"), ("POST", "/api/sync/chapitre/rendre"),
-                                                 ("POST", "/api/avatar-live/sessions"), ("POST", "/api/avatar-live/sessions/fin")}),   # t161 : + le Direct
+                                                 ("POST", "/api/avatar-live/sessions"), ("POST", "/api/avatar-live/sessions/fin"), ("POST", "/api/avatar-live/sessions/voix")}),   # t161 : + le Direct
           str(sorted(_MAIN._ECRITURES_OUVERTES)))
     check("D15 la source « mobile » est au catalogue", LI.SOURCES.get("mobile") == "Compagnon mobile")
     loc.post(f"/api/devices/{moi['id']}/revoke")

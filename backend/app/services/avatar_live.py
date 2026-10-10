@@ -201,7 +201,33 @@ async def _poster(url: str, entetes: dict, corps: dict) -> tuple[int, dict]:
         return r.status_code, {"detail": r.text[:200]}
 
 
-def preparer_session(personnage_id: str, duree_s, rapide: bool = False) -> dict:
+_MODELE_RVC = re.compile(r"^[A-Za-z0-9_-]{1,40}$")
+
+
+def preparer_voix(voix, personnage: dict | None) -> dict | None:
+    """G5 (t166) : la voix en direct demandée à l'ouverture. None = la voix du micro telle quelle."""
+    if not isinstance(voix, dict) or not voix.get("moteur"):
+        return None
+    if voix["moteur"] == "cloud":
+        if not (getattr(settings, "ELEVENLABS_API_KEY", "") or "").strip():
+            raise Refus(409, "Clé ElevenLabs absente (Réglages → clés API) : la voix en direct par le cloud est indisponible.")
+        vid = str(voix.get("voice_id") or ((personnage or {}).get("voix") or {}).get("voice_id") or "").strip()[:80]
+        if not vid:
+            raise Refus(400, "Voix en direct : ce Personnage n'a pas de voix (clonez-la dans l'onglet Personnages).")
+        return {"moteur": "cloud", "voice_id": vid}
+    if voix["moteur"] == "local":
+        m = str(voix.get("modele") or "")
+        if not _MODELE_RVC.match(m):
+            raise Refus(400, "Voix locale : choisissez une voix RVC entraînée (Voixbox).")
+        try:
+            tr = max(-12, min(12, int(voix.get("transpose") or 0)))
+        except (TypeError, ValueError):
+            tr = 0
+        return {"moteur": "local", "modele": m, "transpose": tr}
+    raise Refus(400, "Voix en direct : moteur « cloud » ou « local ».")
+
+
+def preparer_session(personnage_id: str, duree_s, rapide: bool = False, voix=None) -> dict:
     """Vérifie tout ce qui ne coûte rien (clé, Personnage) et rend l'op d'estimation : la route passe la garde du
     plafond ENTRE ce contrôle et `ouvrir_session_direct`."""
     if not cle_presente():
@@ -211,8 +237,12 @@ def preparer_session(personnage_id: str, duree_s, rapide: bool = False) -> dict:
     if f is None:
         raise Refus(404, "Personnage inconnu.")
     duree = borner_duree(duree_s)
-    return {"personnage": f, "duree_s": duree, "rapide": bool(rapide),
-            "op": {"kind": "direct", "seconds": duree, "rapide": bool(rapide)},
+    v = preparer_voix(voix, f)
+    op = {"kind": "direct", "seconds": duree, "rapide": bool(rapide)}
+    if v and v["moteur"] == "cloud":
+        # UNE garde pour l'image et la voix (un seul dialogue de plafond) ; les lignes sont rattachées séparément
+        op = {"kind": "campaign", "ops": [op, {"kind": "voix_sts", "duration_s": float(duree)}]}
+    return {"personnage": f, "duree_s": duree, "rapide": bool(rapide), "voix": v, "op": op,
             "session_id": _secrets.token_hex(12)}
 
 
@@ -222,7 +252,11 @@ async def ouvrir_session_direct(prep: dict, lignes: list, appareil: str | None) 
     from app.services import plafonds as _plaf
     sid = prep["session_id"]
     ref = f"decart:{sid}"
-    await _plaf.rattacher(lignes, ref)
+    voix = prep.get("voix")
+    # l'ordre des lignes est celui du devis : decart d'abord, la voix ensuite (lignes à 0 $ non écrites)
+    await _plaf.rattacher(lignes[:1], ref)
+    if voix and voix["moteur"] == "cloud" and len(lignes) > 1:
+        await _plaf.rattacher(lignes[1:2], f"voixlive:{sid}")
     corps = {"expiresIn": TTL_JETON_S, "allowedModels": [MODELE],
              "constraints": {"realtime": {"maxSessionDuration": prep["duree_s"]}}}
     try:
@@ -234,16 +268,18 @@ async def ouvrir_session_direct(prep: dict, lignes: list, appareil: str | None) 
     jeton = rep.get("apiKey") if isinstance(rep, dict) else None
     if statut != 200 or not isinstance(jeton, str) or not jeton:
         await _plaf.noter_reel(ref, 0.0, 0.0)
+        if voix and voix["moteur"] == "cloud":
+            await _plaf.noter_reel(f"voixlive:{sid}", 0.0, 0.0)
         # relevé le 10/10 sur le vrai Decart : une clé refusée rend 401 {"error": "Invalid or expired API key"}
         detail = ((rep.get("detail") or rep.get("error")) if isinstance(rep, dict) else "") or ""
         raise Refus(502, f"Decart a refusé le jeton (HTTP {statut}) : {str(detail)[:120]} — rien n'a été facturé.")
     prix = prix_usd_s(prep["rapide"])
     _SESSIONS[sid] = {"personnage_id": prep["personnage"]["id"], "duree_s": prep["duree_s"], "prix_usd_s": prix,
-                      "ref": ref, "appareil": appareil, "ouverte": time.time()}
+                      "ref": ref, "appareil": appareil, "ouverte": time.time(), "voix": voix, "voix_s": 0.0}
     pid = prep["personnage"]["id"]
     return {"session_id": sid, "jeton": jeton, "expire": rep.get("expiresAt"), "modele": MODELE,
             "duree_max_s": prep["duree_s"], "prix_usd_s": prix, "devis_usd": round(prix * prep["duree_s"], 6),
-            "rapide": prep["rapide"], "personnage": prep["personnage"],
+            "rapide": prep["rapide"], "personnage": prep["personnage"], "voix": voix,
             "image_url": f"/api/avatar-live/personnages/{pid}/image/0"}
 
 
@@ -264,4 +300,24 @@ async def terminer_session(session_id: str, secondes, appareil: str | None) -> d
     _SESSIONS.pop(session_id, None)
     reel = round(sec * s["prix_usd_s"], 6)
     await _plaf.noter_reel(s["ref"], reel, sec)
-    return {"session_id": session_id, "secondes": sec, "reel_usd": reel}
+    out = {"session_id": session_id, "secondes": sec, "reel_usd": reel}
+    if s.get("voix") and s["voix"]["moteur"] == "cloud":
+        from app.services import pricing as _pricing
+        vs = round(s["voix_s"], 3)
+        vu = round(_pricing.estimate({"kind": "voix_sts", "duration_s": vs})["total_usd"], 6)
+        await _plaf.noter_reel(f"voixlive:{session_id}", vu, vs / 60.0 * 1000.0)
+        out.update(voix_s=vs, voix_usd=vu)
+    return out
+
+
+def imputer_voix(session_id: str, appareil: str | None, duree_s: float) -> dict:
+    """G5 : un segment de voix s'impute sur la session (la réserve cloud = la durée de la session). Rend la voix."""
+    s = _SESSIONS.get(session_id if isinstance(session_id, str) else "")
+    if s is None or (appareil is not None and s["appareil"] != appareil):
+        raise Refus(404, "Session inconnue ou déjà close.")
+    if not s.get("voix"):
+        raise Refus(409, "Cette session a été ouverte sans voix en direct.")
+    if s["voix_s"] + duree_s > float(s["duree_s"]) + 0.5:
+        raise Refus(409, "Réserve de voix épuisée pour cette session : rouvrez un direct.")
+    s["voix_s"] += duree_s
+    return s["voix"]

@@ -91,7 +91,7 @@ async def session_ouvrir(request: Request, body: dict | None = None):
     appareil = await _appareil(request)
     b = body if isinstance(body, dict) else {}
     try:
-        prep = AL.preparer_session(b.get("personnage_id"), b.get("duree_s"), bool(b.get("rapide")))
+        prep = AL.preparer_session(b.get("personnage_id"), b.get("duree_s"), bool(b.get("rapide")), b.get("voix"))
     except AL.Refus as e:
         raise _http(e)
     garde = await _PLAF.verifier(prep["op"], "direct", ref=f"decart:{prep['session_id']}")
@@ -334,3 +334,29 @@ async def direct_enregistrer(body: dict | None = None):
         await s.commit()
     src.unlink(missing_ok=True)
     return {"job_id": job_id, "duree_s": info.get("duration_s"), "ratio": info.get("ratio")}
+
+
+# ── G5 (t166, 10/10/2026) : la voix en direct — un segment PCM 16 kHz mono à la fois ──────────────────────────────
+# Écriture ouverte au téléphone appairé comme /sessions (la session est celle de SON jeton). Pas de garde ici : le
+# coût est RÉSERVÉ à l'ouverture de la session (/sessions, gardée), chaque segment s'impute sur la réserve et un
+# segment au-delà est refusé (409) ; la fin note le réel.
+
+@router.get("/voix-direct/etat")
+async def voix_direct_etat():
+    from app.services import voix_direct as VD
+    return await VD.etat()
+
+
+@router.post("/sessions/voix")
+async def session_voix(request: Request, session_id: str = ""):
+    from fastapi.responses import Response
+    from app.services import voix_direct as VD
+    appareil = await _appareil(request)
+    pcm = await request.body()
+    try:
+        d = VD.valider_pcm(pcm)
+        voix = AL.imputer_voix(session_id, appareil, d)
+        out, ms = await VD.convertir_segment(voix, pcm)
+    except (AL.Refus, VD.Refus) as e:
+        raise HTTPException(e.statut, e.message)
+    return Response(out, media_type="application/octet-stream", headers={"X-Latence-Ms": str(ms)})

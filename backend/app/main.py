@@ -334,7 +334,9 @@ _ECRITURES_OUVERTES: frozenset = frozenset({("POST", "/api/pair/claim"), ("POST"
                                             # Avatar live G0 (t161, 10/10) : le téléphone lance et clôt SON Direct
                                             # (garde du plafond identique ; l'appareil est celui du JETON)
                                             ("POST", "/api/avatar-live/sessions"),
-                                            ("POST", "/api/avatar-live/sessions/fin")})
+                                            ("POST", "/api/avatar-live/sessions/fin"),
+                                            # t166 : un segment de voix en direct (imputé sur la réserve de SA session)
+                                            ("POST", "/api/avatar-live/sessions/voix")})
 
 
 @app.middleware("http")
