@@ -48,6 +48,15 @@ function toast(msg, err) {
   t.textContent = msg; t.classList.toggle("err", !!err); t.classList.remove("hidden");
   clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.add("hidden"), 4200);
 }
+/* icônes G5 : une réussite = le texte, l'icône dz-etat-succes (ancienne coche), puis la suite du message */
+function toastOk(avant, apres) {
+  toast("");
+  $("#toast").innerHTML = esc(avant) + " " + dzIcone("dz-etat-succes", { taille: 16 }) + esc(apres || "");
+}
+/* icônes G5 : le bouton lecture / pause montre l'action disponible */
+function playIcone() {
+  $("#playBtn").innerHTML = player.playing ? dzIcone("dz-media-pause", { taille: 16 }) : dzIcone("dz-media-lecture", { taille: 16 });
+}
 function esc(s) { return (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 
 /* ───────── statuts + progression ───────── */
@@ -275,7 +284,7 @@ async function extract() {
 function renderStrip() {
   $("#strip").innerHTML = Array.from({ length: stripN }, (_, i) =>
     `<div class="frame ${stripState[i] ? "" : "off"}" data-i="${i}" title="frame ${i} — clic : garder/enlever, Shift-clic : plage">
-       <img loading="lazy" src="/api/assets/sprite/${extractShort}/frame/${i}"><span class="fno">${i}</span>
+       <img loading="lazy" src="/api/assets/sprite/${extractShort}/frame/${i}"><span class="fno">${i}</span><span class="frame-x">${dzIcone("dz-etat-exclu", { taille: 24 })}</span>
      </div>`).join("");
   $$("#strip .frame").forEach(el => el.onclick = (ev) => {
     const i = parseInt(el.dataset.i, 10);
@@ -303,7 +312,7 @@ async function updateCost() {
   try {
     const d = await api.send("POST", "/cost/estimate",
       { kind: "sprite2d", frames: keptIndices().length, remove_bg: "api" });
-    el.textContent = d && d.total_usd != null ? `≈ $${(+d.total_usd).toFixed(3)}` : "";
+    el.innerHTML = d && d.total_usd != null ? `${dzIcone("dz-action-cout", { taille: 16 })} $${(+d.total_usd).toFixed(3)}` : "";
   } catch (e) { el.textContent = ""; }
 }
 
@@ -343,7 +352,7 @@ function renderTags() {
       <select class="tdir" title="Sens de lecture">
         ${DIRS.map(d => `<option value="${d}"${d === t.direction ? " selected" : ""}>${d}</option>`).join("")}
       </select>
-      <button class="del" type="button" title="Retirer ce tag">✕</button>
+      <button class="del" type="button" title="Retirer ce tag" aria-label="Retirer ce tag">${dzIcone("dz-action-retirer", { taille: 16 })}</button>
     </div>`).join("");
   box.querySelectorAll(".tagrow").forEach(row => {
     const i = parseInt(row.dataset.i, 10);
@@ -397,7 +406,7 @@ async function generate() {
     const m = await api.get("/assets/sprite/" + short + "/manifest");
     clearStatus(st);
     showResult(short, m);
-    toast("Sprite sheet généré ✓");
+    toastOk("Sprite sheet généré");
   } catch (e) {
     setStatus(st, "Échec : " + e.message, true);
     toast("Génération échouée : " + e.message, true);
@@ -464,10 +473,10 @@ function renderEditor() {
       <img src="/api/assets/sprite/${short}/frame/${src}?r=${sheetRev}" alt="">
       <div class="no">${k} ← #${src}</div>
       <div class="ops">
-        <button data-op="left" title="Vers la gauche"${k === 0 ? " disabled" : ""}>◀</button>
-        <button data-op="dup" title="Dupliquer"${n >= 64 ? " disabled" : ""}>⧉</button>
-        <button data-op="del" title="Supprimer"${n <= 1 ? " disabled" : ""}>✕</button>
-        <button data-op="right" title="Vers la droite"${k === n - 1 ? " disabled" : ""}>▶</button>
+        <button data-op="left" title="Vers la gauche" aria-label="Vers la gauche"${k === 0 ? " disabled" : ""}>${dzIcone("dz-edit-monter", { taille: 16 })}</button>
+        <button data-op="dup" title="Dupliquer" aria-label="Dupliquer"${n >= 64 ? " disabled" : ""}>${dzIcone("dz-action-dupliquer", { taille: 16 })}</button>
+        <button data-op="del" title="Supprimer" aria-label="Supprimer"${n <= 1 ? " disabled" : ""}>${dzIcone("dz-action-retirer", { taille: 16 })}</button>
+        <button data-op="right" title="Vers la droite" aria-label="Vers la droite"${k === n - 1 ? " disabled" : ""}>${dzIcone("dz-edit-descendre", { taille: 16 })}</button>
       </div>
     </div>`).join("");
   $("#editStrip").querySelectorAll(".ops button").forEach(b => b.onclick = () => {
@@ -662,17 +671,17 @@ function skDessiner(apercu) {
 
 function skListe() {
   const ligneOs = (b) => `<div class="sk-row${b.name === sk.sel ? " on" : ""}" data-os="${escA(b.name)}">
-      <span class="sk-ico" title="Choisir cet os : les prochains os et pièces s'y accrochent">🦴</span>
+      <span class="sk-ico" title="Choisir cet os : les prochains os et pièces s'y accrochent">${dzIcone("dz-lab3d-os", { taille: 16 })}</span>
       <input class="sk-nom" value="${escA(b.name)}" maxlength="32" title="Nom de l'os (lettres, chiffres, _ ou -)">
       <span class="unit">← ${esc(b.parent)} · ${Math.round(b.rotation)}°</span>
-      <button class="sk-del" title="Supprimer cet os, ses enfants et leurs pièces">✕</button></div>`;
+      <button class="sk-del" title="Supprimer cet os, ses enfants et leurs pièces" aria-label="Supprimer cet os, ses enfants et leurs pièces">${dzIcone("dz-action-supprimer", { taille: 16 })}</button></div>`;
   const lignePiece = (p) => `<div class="sk-row" data-piece="${escA(p.name)}">
-      <span class="sk-ico">▭</span>
+      <span class="sk-ico">${dzIcone("dz-lab3d-piece", { taille: 16 })}</span>
       <input class="sk-nom" value="${escA(p.name)}" maxlength="32" title="Nom de la pièce — c'est aussi le nom de son PNG">
       <span class="unit">→ ${esc(p.bone)} · ${p.w}×${p.h}</span>
-      <button class="sk-del" title="Supprimer cette pièce">✕</button></div>`;
+      <button class="sk-del" title="Supprimer cette pièce" aria-label="Supprimer cette pièce">${dzIcone("dz-action-supprimer", { taille: 16 })}</button></div>`;
   $("#skList").innerHTML = (sk.bones.map(ligneOs).join("") + sk.pieces.map(lignePiece).join(""))
-    || `<div class="hint">aucun os — glisse sur la case avec l'outil 🦴 Os</div>`;
+    || `<div class="hint">aucun os — glisse sur la case avec l'outil ${dzIcone("dz-lab3d-os", { taille: 16 })} Os</div>`;
   $$("#skList .sk-row").forEach((row) => {
     const os = row.dataset.os, piece = row.dataset.piece;
     const champ = row.querySelector(".sk-nom");
@@ -749,7 +758,7 @@ async function applyEditor() {
         anim: animOpts(editOrder.length) });
     const m = await api.get("/assets/sprite/" + sheet.short + "/manifest");
     showResult(sheet.short, m);
-    toast("Feuille réassemblée ✓ — local, gratuit");
+    toastOk("Feuille réassemblée", " — local, gratuit");
   } catch (e) {
     setStatus(st, "Échec : " + e.message, true);
   } finally {
@@ -767,7 +776,7 @@ function buildPlayer(short, m) {
     return im;
   });
   player.n = m.frames.length; player.i = 0; player.acc = 0; player.last = 0;
-  player.playing = true; $("#playBtn").textContent = "⏸";
+  player.playing = true; playIcone();
   if (m.fps) { $("#pfps").value = m.fps; $("#pfpsVal").textContent = m.fps; }
   applyZoom(); applyBg();
   const ctx = cv.getContext("2d");
@@ -817,7 +826,7 @@ function playgroundWire() {
     else if (k === "d" || k === "arrowright") player.dx = Math.min(borne, player.dx + pas);
     else if (k === "w" || k === "arrowup") player.dy = Math.max(-borne, player.dy - pas);
     else if (k === "s" || k === "arrowdown") player.dy = Math.min(borne, player.dy + pas);
-    else if (k === " ") { player.playing = !player.playing; $("#playBtn").textContent = player.playing ? "⏸" : "▶"; }
+    else if (k === " ") { player.playing = !player.playing; playIcone(); }
     else return;
     ev.preventDefault(); applyPose();
   });
@@ -829,7 +838,7 @@ async function saveToLibrary() {
     const d = await api.send("POST", `/assets/sprite/${sheet.short}/save`);
     savedSheet = { short: sheet.short, filename: (d && d.filename) || null };
     updateStudioBtn();
-    toast(`Sheet copié dans la Library${d && d.filename ? " : " + d.filename : ""} ✓ — réutilisable dans le Studio (nœud Image).`);
+    toastOk(`Sheet copié dans la Library${d && d.filename ? " : " + d.filename : ""}`, " — réutilisable dans le Studio (nœud Image).");
   } catch (e) { toast("Save to Library échoué : " + e.message, true); }
 }
 
@@ -922,7 +931,7 @@ async function finirFeuille(jobId, st, msg) {
   const m = await api.get("/assets/sprite/" + short + "/manifest");
   clearStatus(st);
   showResult(short, m);
-  toast(msg);
+  toastOk(msg[0], msg[1]);
 }
 
 async function cutFromBible() {
@@ -936,7 +945,7 @@ async function cutFromBible() {
     const px = pixelOpts(); if (px) body.pixel = px;
     const po = postOpts(); if (po) body.post = po;
     const d = await api.send("POST", "/assets/sprite/from-board", body);
-    await finirFeuille(d.job_id, st, "4 directions depuis la planche ✓ — gratuit, local");
+    await finirFeuille(d.job_id, st, ["4 directions depuis la planche", " — gratuit, local"]);
   } catch (err) {
     setStatus(st, "Échec : " + err.message, true);
   }
@@ -989,7 +998,7 @@ async function captureOrbites() {
     setStatus(st, "Assemblage de la feuille…", false, 90);
     const d = await api.send("POST", "/assets/sprite", body);
     await finirFeuille(d.job_id, st, sansAlpha.length
-      ? "8 directions ✓ — rendu opaque, clé chroma locale appliquée" : "8 directions ✓ — rendu déjà détouré");
+      ? ["8 directions", " — rendu opaque, clé chroma locale appliquée"] : ["8 directions", " — rendu déjà détouré"]);
   } catch (err) {
     setStatus(st, "Échec : " + err.message, true);
   }
@@ -1018,7 +1027,7 @@ async function majDevisPrompt() {
   try {
     const d = await api.send("POST", "/cost/estimate",
       { kind: "image", n: parseInt($("#pmN").value, 10) || 1, model: imageModel || "flux" });
-    el.textContent = d && d.total_usd != null ? `≈ $${(+d.total_usd).toFixed(3)}` : "";
+    el.innerHTML = d && d.total_usd != null ? `${dzIcone("dz-action-cout", { taille: 16 })} $${(+d.total_usd).toFixed(3)}` : "";
   } catch (e) { el.textContent = ""; }
 }
 
@@ -1038,7 +1047,7 @@ async function generateFromPrompt() {
     // le suffixe demande un fond vert uni : la clé chroma locale (gratuite) le retire — jamais l'API payante par défaut
     if ($("#removeBg").value === "api") { $("#removeBg").value = "chroma"; savePrefs(); updateCost(); }
     setSource({ kind: "images", filenames: noms, label: `${noms.length} image(s) du prompt` });
-    toast(`${noms.length} image(s) générée(s) ✓ — détourage en clé chroma (local) ; choisis tes frames puis génère le sheet`);
+    toastOk(`${noms.length} image(s) générée(s)`, " — détourage en clé chroma (local) ; choisis tes frames puis génère le sheet");
   } catch (e) {
     setStatus(st, "Échec : " + e.message, true);
   }
@@ -1134,7 +1143,7 @@ async function runStarter(kind, id, btn) {
     const m = await api.get("/assets/sprite/" + short + "/manifest");
     clearStatus(st);
     showResult(short, m);
-    toast("Sprite prêt ✓ — gratuit, généré en local");
+    toastOk("Sprite prêt", " — gratuit, généré en local");
   } catch (e) {
     setStatus(st, "Échec : " + e.message, true);
     toast("Génération échouée : " + e.message, true);
@@ -1205,7 +1214,7 @@ function wire() {
 
   $("#playBtn").onclick = () => {
     player.playing = !player.playing;
-    $("#playBtn").textContent = player.playing ? "⏸" : "▶";
+    playIcone();
   };
   $("#pfps").oninput = () => { $("#pfpsVal").textContent = $("#pfps").value; savePrefs(); };
   $("#pzoom").onchange = () => { applyZoom(); savePrefs(); };
@@ -1265,7 +1274,7 @@ function feuilleDessiner() {
     x.fillStyle = "#9a9a9a"; x.font = "9px system-ui"; x.fillText(String(i), r.x + 2, r.y + 9);
   }
   const n = F.sel.filter(Boolean).length; $("#fCount").textContent = `${n}/${F.occ.filter(Boolean).length}`;
-  $("#fSections").innerHTML = F.sections.map((s) => `<div class="section-row"><span class="nom">${esc(s.nom)}</span><span>${s.debut}–${s.fin}</span><span>${esc(s.mode)}</span><button class="btn ghost fSecDel" data-nom="${esc(s.nom)}" title="Retirer">✕</button></div>`).join("") || `<div class="hint">aucune section — sélectionne des cases puis « + depuis la sélection »</div>`;
+  $("#fSections").innerHTML = F.sections.map((s) => `<div class="section-row"><span class="nom">${esc(s.nom)}</span><span>${s.debut}–${s.fin}</span><span>${esc(s.mode)}</span><button class="btn ghost fSecDel" data-nom="${esc(s.nom)}" title="Retirer" aria-label="Retirer">${dzIcone("dz-action-retirer", { taille: 16 })}</button></div>`).join("") || `<div class="hint">aucune section — sélectionne des cases puis « + depuis la sélection »</div>`;
   $$(".fSecDel").forEach((b) => b.onclick = () => { F.sections = F.sections.filter((s) => s.nom !== b.dataset.nom); feuilleDessiner(); });
 }
 const fCaseDe = (ev) => { const cv = $("#fCanvas"), r = cv.getBoundingClientRect(); if (!r.width) return -1; const x = (ev.clientX - r.left) * cv.width / r.width, y = (ev.clientY - r.top) * cv.height / r.height; const c = Math.floor(x / F.g.cell_w), l = Math.floor(y / F.g.cell_h); return (c < 0 || l < 0 || c >= F.g.cols || l >= F.g.rows) ? -1 : l * F.g.cols + c; };
@@ -1285,7 +1294,7 @@ function feuilleJoueur() {                      // le lecteur local : les cases 
   const cv = $("#cv"); cv.width = F.g.cell_w; cv.height = F.g.cell_h;
   $("#outEmpty").classList.add("hidden"); $("#player").classList.remove("hidden"); $("#exports").classList.add("hidden"); $("#sheetWrap").classList.add("hidden"); $("#feuilleOut").classList.remove("hidden");
   $("#outInfo").textContent = `${F.g.cols}×${F.g.rows} · ${F.g.cell_w}px · ${idx.length} frames · ${F.filename || ""}`;
-  player.imgs = []; player.n = idx.length; player.i = 0; player.acc = 0; player.last = 0; player.playing = true; $("#playBtn").textContent = "⏸";
+  player.imgs = []; player.n = idx.length; player.i = 0; player.acc = 0; player.last = 0; player.playing = true; playIcone();
   applyZoom(); applyBg();
   const ctx = cv.getContext("2d");
   const tick = (t) => { const fps = parseInt($("#pfps").value, 10) || 8; if (!player.last) player.last = t;
@@ -1367,7 +1376,7 @@ async function restoreLast() {
           `${jj.current_step || jj.status}…`, false, jj.progress || 5));
         if (j.status !== "done") throw new Error(j.error || "génération échouée");
         clearStatus(st);
-        if (await showShort(run.job_id.slice(0, 8))) toast("Sprite sheet généré ✓");
+        if (await showShort(run.job_id.slice(0, 8))) toastOk("Sprite sheet généré");
       } catch (e) {
         setStatus(st, "Échec : " + e.message, true);
       }
@@ -1378,7 +1387,7 @@ async function restoreLast() {
       .filter(j => j.status === "done" && j.final_video_path)
       .sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""))[0];
     if (done && await showShort(done.job_id.slice(0, 8)))
-      toast("Dernier sheet rechargé ✓");
+      toastOk("Dernier sheet rechargé");
   } catch (e) { /* réseau/API indisponible : placeholder d'origine */ }
 }
 

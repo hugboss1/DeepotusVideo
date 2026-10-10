@@ -5,12 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Deepotus — Sprite Lab</title>
 <link rel="stylesheet" href="spritelab.css">
+<link rel="stylesheet" href="/shared/icons/dz-icons.css">
 </head>
 <body>
 <header class="topbar">
-  <div class="brand">🧩 <b>Sprite Lab</b> <span class="tag">image → animation → sprite sheet · pack Unity</span></div>
+  <div class="brand"><svg class="dzi dzi--20" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-cat-sprites"></use></svg> <b>Sprite Lab</b> <span class="tag">image → animation → sprite sheet · pack Unity</span></div>
   <div class="srcchip" id="srcChip">aucune source — choisis une image à animer, un render ou une vidéo</div>
-  <a class="backlink" href="/" target="_top" title="Retour à l'app">← App</a>
+  <a class="backlink" href="/" target="_top" title="Retour à l'app"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-retour"></use></svg> App</a>
 </header>
 
 <main class="panes">
@@ -18,13 +19,13 @@
   <section class="pane src-pane" id="srcPane">
     <div class="pane-head">
       <nav class="tabs" id="srcTabs">
-        <button class="tab active" data-src="starter" title="Packs CC0 livrés avec l'app — un sprite jouable sans aucune clé API">✨ Démarrer</button>
-        <button class="tab" data-src="image" title="Choisir une image de la Library et l'animer avec Seedance sur fond uni">🖼 Image</button>
-        <button class="tab" data-src="render" title="Partir d'un render vidéo existant">🎬 Render</button>
-        <button class="tab" data-src="upload" title="Importer une vidéo de ton PC">📤 Vidéo</button>
-        <button class="tab" data-src="feuille" title="Ouvrir une planche existante (Library ou fichier) : grille, sélection, alignement, sections, JSON — tout en local">🗂 Feuille</button>
-        <button class="tab" data-src="bible" title="Les directions d'un personnage de la bible : 4 découpées dans sa planche, ou 8 rendues depuis son modèle 3D — gratuit, l'identité vient de la bible">🧬 Bible</button>
-        <button class="tab" data-src="prompt" title="Décrire un sprite, générer les images (payant), puis les pixeliser en local">✍ Prompt</button>
+        <button class="tab active" data-src="starter" title="Packs CC0 livrés avec l'app — un sprite jouable sans aucune clé API"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-pack-depart"></use></svg> Démarrer</button>
+        <button class="tab" data-src="image" title="Choisir une image de la Library et l'animer avec Seedance sur fond uni"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-image"></use></svg> Image</button>
+        <button class="tab" data-src="render" title="Partir d'un render vidéo existant"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-video"></use></svg> Render</button>
+        <button class="tab" data-src="upload" title="Importer une vidéo de ton PC"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-importer"></use></svg> Vidéo</button>
+        <button class="tab" data-src="feuille" title="Ouvrir une planche existante (Library ou fichier) : grille, sélection, alignement, sections, JSON — tout en local"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-feuille"></use></svg> Feuille</button>
+        <button class="tab" data-src="bible" title="Les directions d'un personnage de la bible : 4 découpées dans sa planche, ou 8 rendues depuis son modèle 3D — gratuit, l'identité vient de la bible"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-nav-bible"></use></svg> Bible</button>
+        <button class="tab" data-src="prompt" title="Décrire un sprite, générer les images (payant), puis les pixeliser en local"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-generer-image"></use></svg> Prompt</button>
       </nav>
     </div>
 
@@ -47,7 +48,7 @@
 
     <!-- Image de la Library → Animer -->
     <div id="srcImage" class="src-body hidden">
-      <input id="imgSearch" class="search" placeholder="🔎 Filtrer les images…">
+      <div class="search-wrap"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-chercher"></use></svg><input id="imgSearch" class="search" placeholder="Filtrer les images…"></div>
       <div id="imgGrid" class="img-grid"><div class="empty-note">Chargement de la Library…</div></div>
       <div class="animer-box">
         <label class="fld">Action à animer
@@ -62,14 +63,14 @@
           </label>
         </div>
         <div class="hint">Preset sprite ajouté au prompt : <i>static camera, character animation loop, plain solid green background, full body visible</i></div>
-        <button id="animerBtn" class="btn primary" title="Lance une génération Seedance (coût selon les Réglages) puis enchaîne sur l'extraction des frames">🎬 Animer (Seedance, fond uni)</button>
+        <button id="animerBtn" class="btn primary" title="Lance une génération Seedance (coût selon les Réglages) puis enchaîne sur l'extraction des frames"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-generer-video"></use></svg> Animer (Seedance, fond uni)</button>
         <div id="animStatus" class="status hidden"></div>
       </div>
     </div>
 
     <!-- Render existant -->
     <div id="srcRender" class="src-body hidden">
-      <input id="renderSearch" class="search" placeholder="🔎 Filtrer les renders…">
+      <div class="search-wrap"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-chercher"></use></svg><input id="renderSearch" class="search" placeholder="Filtrer les renders…"></div>
       <div id="renderList" class="render-list"><div class="empty-note">Chargement des renders…</div></div>
     </div>
 
@@ -77,7 +78,7 @@
     <div id="srcUpload" class="src-body hidden">
       <div class="upload-box">
         <p class="hint">La vidéo rejoint la Library (Renders) puis sert de source au sheet — idéal pour un clip tourné ou généré ailleurs.</p>
-        <label class="btn" for="vidFile">📤 Choisir une vidéo (mp4/mov/webm)</label>
+        <label class="btn" for="vidFile"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-importer"></use></svg> Choisir une vidéo (mp4/mov/webm)</label>
         <input type="file" id="vidFile" accept=".mp4,.mov,.webm,.m4v,.avi" hidden>
         <div id="upStatus" class="status hidden"></div>
       </div>
@@ -87,24 +88,24 @@
     <div id="srcFeuille" class="src-body hidden">
       <div class="upload-box">
         <p class="hint">Une planche déjà faite (par l'IA, par un autre outil, par toi) : la grille se détecte, les cases se choisissent, les frames s'alignent, les sections se nomment. Rien n'est envoyé, aucun crédit.</p>
-        <label class="btn" for="feuilleFile">📂 Ouvrir un PNG de mon PC</label>
+        <label class="btn" for="feuilleFile"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-ouvrir"></use></svg> Ouvrir un PNG de mon PC</label>
         <input type="file" id="feuilleFile" accept="image/png,image/webp" hidden>
       </div>
-      <input id="feuilleSearch" class="search" placeholder="🔎 Filtrer les planches de la Library…">
+      <div class="search-wrap"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-chercher"></use></svg><input id="feuilleSearch" class="search" placeholder="Filtrer les planches de la Library…"></div>
       <div id="feuilleGrid" class="img-grid"><div class="empty-note">Chargement de la Library…</div></div>
     </div>
 
     <!-- t111 (plan-sprites T9-T10) : les directions d'un personnage de la bible — directions.js (module pur) -->
     <div id="srcBible" class="src-body hidden">
-      <input id="entSearch" class="search" placeholder="🔎 Filtrer les personnages…">
+      <div class="search-wrap"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-chercher"></use></svg><input id="entSearch" class="search" placeholder="Filtrer les personnages…"></div>
       <div id="entList" class="render-list"><div class="empty-note">Chargement de la bible…</div></div>
       <div class="animer-box">
         <div class="hint">Les 4 vues (sud, ouest, est, nord) sont <b>découpées</b> dans la planche du personnage : gratuit,
           et l'identité est celle de la bible. Les 4 diagonales viennent du <b>modèle 3D</b>, rendu sous 8 angles, quand
           l'entité en a un. Les réglages de la colonne du milieu (cellule, pixel-art, post-traitement) s'appliquent.</div>
         <div class="bible-row">
-          <button id="bibleCut" class="btn primary" disabled title="Découpe la planche en 4 directions et assemble la feuille (local, gratuit)">🧬 4 directions (planche)</button>
-          <button id="bible3d" class="btn" disabled title="Rend le modèle 3D sous 8 angles et en fait une feuille de 8 directions (local, gratuit)">🧊 8 directions (modèle 3D)</button>
+          <button id="bibleCut" class="btn primary" disabled title="Découpe la planche en 4 directions et assemble la feuille (local, gratuit)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-edit-directions"></use></svg> 4 directions (planche)</button>
+          <button id="bible3d" class="btn" disabled title="Rend le modèle 3D sous 8 angles et en fait une feuille de 8 directions (local, gratuit)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-edit-directions"></use></svg> 8 directions (modèle 3D)</button>
         </div>
         <div class="mv-hold"><model-viewer id="mv3d" interaction-prompt="none" disable-zoom disable-pan shadow-intensity="0" exposure="1"></model-viewer></div>
         <div id="bibleStatus" class="status hidden"></div>
@@ -131,7 +132,7 @@
           un nom d'artiste. Les images rendues deviennent la source : choisis tes frames, coche « Pixel-art », génère
           le sheet — le détourage passe en clé chroma locale (gratuite).</div>
         <div class="bible-row">
-          <button id="pmGen" class="btn primary" title="Génère les images avec le générateur par défaut des Réglages (payant), puis les charge comme source">✍ Générer les images</button>
+          <button id="pmGen" class="btn primary" title="Génère les images avec le générateur par défaut des Réglages (payant), puis les charge comme source"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-generer-image"></use></svg> Générer les images</button>
           <span id="pmCost" class="cost" title="Coût estimé : images × tarif du générateur par défaut"></span>
         </div>
         <div id="pmStatus" class="status hidden"></div>
@@ -144,8 +145,8 @@
     <div class="pane-head">
       <h2>Frames</h2>
       <span id="stripCount" class="counter">—</span>
-      <button id="stripAll" class="btn ghost" title="Tout garder / tout enlever">☑ Tout</button>
-      <button id="extractBtn" class="btn" title="Ré-extraire les frames de la source avec les réglages fps / max ci-dessous (local, gratuit)">🔄 Ré-extraire</button>
+      <button id="stripAll" class="btn ghost" title="Tout garder / tout enlever"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-tout-selectionner"></use></svg> Tout</button>
+      <button id="extractBtn" class="btn" title="Ré-extraire les frames de la source avec les réglages fps / max ci-dessous (local, gratuit)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-recalculer"></use></svg> Ré-extraire</button>
     </div>
     <div id="feuillePane" class="feuille hidden">
       <div class="feuille-bar">
@@ -221,7 +222,7 @@
             <input id="animMs" type="number" min="10" max="10000" value="125" title="Durée de chaque image de la feuille (aperçu GIF, manifeste et exports moteur)">
           </label>
           <label class="fld">Tags
-            <button id="tagAdd" class="btn ghost" type="button" title="Ajoute une animation nommée (idle, run, jump…) sur une plage d'images">➕ Tag</button>
+            <button id="tagAdd" class="btn ghost" type="button" title="Ajoute une animation nommée (idle, run, jump…) sur une plage d'images"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-ajouter"></use></svg> Tag</button>
           </label>
         </div>
         <div id="tagRows" class="tagrows"></div>
@@ -253,7 +254,7 @@
       </fieldset>
 
       <div class="genrow">
-        <button id="genBtn" class="btn primary big" disabled title="Assemble le sprite sheet avec les frames gardées et les réglages ci-dessus">🧩 Générer le sheet</button>
+        <button id="genBtn" class="btn primary big" disabled title="Assemble le sprite sheet avec les frames gardées et les réglages ci-dessus"><svg class="dzi dzi--18" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-fabriquer"></use></svg> Générer le sheet</button>
         <span id="costHint" class="cost" title="Coût estimé (détourage API × frames gardées)"></span>
       </div>
       <div id="genStatus" class="status hidden"></div>
@@ -272,12 +273,12 @@
       <div class="hint">WASD ou flèches déplacent le sprite dans la scène · Espace lecture / pause (Playground)</div>
       <div id="stage" class="stage bg-checker"><canvas id="cv" width="256" height="256"></canvas></div>
       <div class="pctrl">
-        <button id="playBtn" class="btn" title="Lecture / pause">⏸</button>
+        <button id="playBtn" class="btn" title="Lecture / pause" aria-label="Lecture / pause"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-pause"></use></svg></button>
         <label class="fld inline">FPS <input id="pfps" type="range" min="1" max="24" value="8"><span id="pfpsVal" class="unit">8</span></label>
         <select id="pzoom" title="Zoom">
           <option value="fit" selected>Ajusté</option><option value="1">1×</option><option value="2">2×</option><option value="4">4×</option>
         </select>
-        <button id="pflip" class="btn" title="Miroir gauche / droite (Invert L/R)">⇋</button>
+        <button id="pflip" class="btn" title="Miroir gauche / droite (Invert L/R)" aria-label="Miroir gauche / droite (Invert L/R)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-edit-miroir-h"></use></svg></button>
         <select id="pspeed" title="Vitesse de lecture"><option value="0.5">0,5×</option><option value="1" selected>1×</option><option value="2">2×</option></select>
         <select id="pbg" title="Fond de la préviz">
           <option value="checker" selected>Damier</option><option value="#000000">Noir</option><option value="#ffffff">Blanc</option><option value="#00b140">Vert</option><option value="sc-ciel">Ciel</option><option value="sc-exterieur">Extérieur</option><option value="sc-donjon">Donjon</option><option value="sc-cave">Cave</option><option value="#ff00ff">Magenta</option>
@@ -286,25 +287,25 @@
     </div>
 
     <div id="exports" class="exports hidden">
-      <a id="dlSheet" class="btn" download title="Le sprite sheet PNG (grille de cellules transparentes)">⬇ Sheet PNG</a>
-      <a id="dlZip" class="btn" download title="sheet + frames + manifest.json + sheet.unity.json + SpriteSheetImporter.cs">⬇ ZIP (frames + pack Unity)</a>
-      <a id="dlGif" class="btn" download title="La préviz animée GIF">🎞 GIF</a>
-      <a id="dlGodot" class="btn hidden" download title="Ressource Godot 4 SpriteFrames (.tres) — une AtlasTexture par image, une animation par tag. Dépose-la à la racine du projet avec le Sheet PNG (sinon Godot propose de corriger la dépendance)">⬇ Godot .tres</a>
-      <a id="dlAtlas" class="btn hidden" download title="Atlas JSON Hash façon TexturePacker — lu par Phaser et PixiJS">⬇ Atlas JSON</a>
-      <a id="dlAse" class="btn hidden" download title="Fichier Aseprite (.ase) — un calque, une image par frame, les tags">⬇ Aseprite .ase</a>
-      <a id="dlP2d" class="btn hidden" download title="Feuille Unreal Paper2D — l'importateur crée texture, sprites et flipbook">⬇ Paper2D</a>
-      <button id="saveLib" class="btn primary" title="Copie le sheet dans la Library (réutilisable dans le Studio comme nœud Image)">💾 Save to Library</button>
-      <button id="toStudio" class="btn hidden" title="Ouvre le Studio avec ce sheet comme nœud Image">🎛 → Studio</button>
+      <a id="dlSheet" class="btn" download title="Le sprite sheet PNG (grille de cellules transparentes)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-telecharger"></use></svg> Sheet PNG</a>
+      <a id="dlZip" class="btn" download title="sheet + frames + manifest.json + sheet.unity.json + SpriteSheetImporter.cs"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-exporter"></use></svg> ZIP (frames + pack Unity)</a>
+      <a id="dlGif" class="btn" download title="La préviz animée GIF"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-telecharger"></use></svg> GIF</a>
+      <a id="dlGodot" class="btn hidden" download title="Ressource Godot 4 SpriteFrames (.tres) — une AtlasTexture par image, une animation par tag. Dépose-la à la racine du projet avec le Sheet PNG (sinon Godot propose de corriger la dépendance)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-exporter"></use></svg> Godot .tres</a>
+      <a id="dlAtlas" class="btn hidden" download title="Atlas JSON Hash façon TexturePacker — lu par Phaser et PixiJS"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-exporter"></use></svg> Atlas JSON</a>
+      <a id="dlAse" class="btn hidden" download title="Fichier Aseprite (.ase) — un calque, une image par frame, les tags"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-exporter"></use></svg> Aseprite .ase</a>
+      <a id="dlP2d" class="btn hidden" download title="Feuille Unreal Paper2D — l'importateur crée texture, sprites et flipbook"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-exporter"></use></svg> Paper2D</a>
+      <button id="saveLib" class="btn primary" title="Copie le sheet dans la Library (réutilisable dans le Studio comme nœud Image)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-ajouter-bibliotheque"></use></svg> Save to Library</button>
+      <button id="toStudio" class="btn hidden" title="Ouvre le Studio avec ce sheet comme nœud Image"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-nav-studio"></use></svg> → Studio</button>
     </div>
 
     <div id="editor" class="editor hidden">
       <div class="editor-head">
         <b>Éditeur</b>
         <span id="editInfo" class="counter">—</span>
-        <button id="editApply" class="btn primary" title="Réassemble la feuille avec cet ordre, ses tags et sa durée par image (local, gratuit — rien n'est re-détouré)">✔ Appliquer</button>
-        <button id="editReset" class="btn ghost" title="Revenir à l'ordre de la feuille actuelle">↺ Annuler</button>
+        <button id="editApply" class="btn primary" title="Réassemble la feuille avec cet ordre, ses tags et sa durée par image (local, gratuit — rien n'est re-détouré)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-valider"></use></svg> Appliquer</button>
+        <button id="editReset" class="btn ghost" title="Revenir à l'ordre de la feuille actuelle"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-abandonner"></use></svg> Annuler</button>
       </div>
-      <div class="hint">Réordonne (◀ ▶), duplique (⧉) ou supprime (✕) des images, puis Appliquer. Les tags du panneau
+      <div class="hint">Réordonne (<svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-edit-monter"></use></svg> <svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-edit-descendre"></use></svg>), duplique (<svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-dupliquer"></use></svg>) ou supprime (<svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-retirer"></use></svg>) des images, puis Appliquer. Les tags du panneau
         Animation suivent la nouvelle numérotation.</div>
       <div id="editStrip" class="editstrip"></div>
       <div id="editStatus" class="status hidden"></div>
@@ -315,14 +316,14 @@
       <div class="editor-head">
         <b>Hitboxes</b>
         <span id="hbInfo" class="counter">—</span>
-        <button id="hbPrev" class="btn ghost" title="Frame précédente">◀</button>
+        <button id="hbPrev" class="btn ghost" title="Frame précédente" aria-label="Frame précédente"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-image-precedente"></use></svg></button>
         <select id="hbFrame" title="La frame dont on dessine les hitboxes"></select>
-        <button id="hbNext" class="btn ghost" title="Frame suivante">▶</button>
+        <button id="hbNext" class="btn ghost" title="Frame suivante" aria-label="Frame suivante"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-image-suivante"></use></svg></button>
         <select id="hbType" title="Type des prochains rectangles dessinés">
           <option value="hit" selected>hit — frappe</option><option value="hurt">hurt — peut être touché</option>
         </select>
-        <button id="hbCopy" class="btn ghost" title="Copier les rectangles de cette frame (Ctrl+C)">⧉ Copier</button>
-        <button id="hbPaste" class="btn ghost" title="Coller sur cette frame (Ctrl+V)">📋 Coller</button>
+        <button id="hbCopy" class="btn ghost" title="Copier les rectangles de cette frame (Ctrl+C)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-copier"></use></svg> Copier</button>
+        <button id="hbPaste" class="btn ghost" title="Coller sur cette frame (Ctrl+V)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-coller"></use></svg> Coller</button>
       </div>
       <div class="hint">Glisse sur la case pour dessiner un rectangle, clique pour le choisir, Suppr pour l'effacer.
         Ctrl+C / Ctrl+V copient d'une frame à l'autre. Enregistré tout seul ; l'atlas JSON et Paper2D les emportent.</div>
@@ -335,7 +336,7 @@
           <label class="fld inline">w <input id="hbW" type="number" min="1" step="1"></label>
           <label class="fld inline">h <input id="hbH" type="number" min="1" step="1"></label>
           <select id="hbSelType" title="Type du rectangle choisi"><option value="hit">hit</option><option value="hurt">hurt</option></select>
-          <button id="hbDel" class="btn ghost" title="Effacer le rectangle choisi (Suppr)">✕ Effacer</button>
+          <button id="hbDel" class="btn ghost" title="Effacer le rectangle choisi (Suppr)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-supprimer"></use></svg> Effacer</button>
         </div>
       </div>
       <div id="hbStatus" class="status hidden"></div>
@@ -347,10 +348,10 @@
         <b>Squelette Spine</b>
         <span id="skInfo" class="counter">—</span>
         <select id="skFrame" title="La frame découpée en pièces"></select>
-        <button id="skOutilOs" class="btn ghost sk-outil on" data-outil="os" title="Os : glisser de la base vers le bout ; il s'accroche à l'os choisi">🦴 Os</button>
-        <button id="skOutilPiece" class="btn ghost sk-outil" data-outil="piece" title="Pièce : glisser pour tracer une boîte ; elle suit l'os choisi">▭ Pièce</button>
-        <button id="skSave" class="btn primary" disabled title="Découpe les pièces et écrit le rig Spine 3.8 côté serveur (local, gratuit)">✔ Écrire le rig</button>
-        <a id="dlSpine" class="btn hidden" download title="Le squelette Spine JSON — les PNG des pièces sont dans le ZIP (dossier spine/)">⬇ Spine JSON</a>
+        <button id="skOutilOs" class="btn ghost sk-outil on" data-outil="os" title="Os : glisser de la base vers le bout ; il s'accroche à l'os choisi"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-lab3d-os"></use></svg> Os</button>
+        <button id="skOutilPiece" class="btn ghost sk-outil" data-outil="piece" title="Pièce : glisser pour tracer une boîte ; elle suit l'os choisi"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-lab3d-piece"></use></svg> Pièce</button>
+        <button id="skSave" class="btn primary" disabled title="Découpe les pièces et écrit le rig Spine 3.8 côté serveur (local, gratuit)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-lab3d-rig"></use></svg> Écrire le rig</button>
+        <a id="dlSpine" class="btn hidden" download title="Le squelette Spine JSON — les PNG des pièces sont dans le ZIP (dossier spine/)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-exporter"></use></svg> Spine JSON</a>
       </div>
       <div class="hint">Pose les os au glisser (chaque nouvel os s'accroche au précédent ; choisis-en un dans la liste pour
         brancher ailleurs), puis trace les pièces : chacune suit l'os choisi. Les noms se changent dans la liste. Un rig,
@@ -366,12 +367,12 @@
       <div class="settings">
         <div class="settings-sec">Alignement <span class="hint">sur la première frame sélectionnée</span></div>
         <div class="row"><button id="fAlDeux" class="btn" title="Centre horizontal et pieds">Les deux axes</button><button id="fAlX" class="btn" title="Centre horizontal seulement">Gauche / droite</button><button id="fAlPieds" class="btn" title="Bas de l'alpha seulement (les pieds)">Pieds</button><button id="fAlZero" class="btn ghost" title="Retirer tous les décalages">Remettre</button></div>
-        <div class="row nudges"><span class="hint">Frame courante :</span><button class="btn ghost fNudge" data-dx="0" data-dy="-1" title="1 px vers le haut">↑</button><button class="btn ghost fNudge" data-dx="-1" data-dy="0" title="1 px vers la gauche">←</button><button class="btn ghost fNudge" data-dx="1" data-dy="0" title="1 px vers la droite">→</button><button class="btn ghost fNudge" data-dx="0" data-dy="1" title="1 px vers le bas">↓</button></div>
+        <div class="row nudges"><span class="hint">Frame courante :</span><button class="btn ghost fNudge" data-dx="0" data-dy="-1" title="1 px vers le haut" aria-label="1 px vers le haut"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-edit-decaler-px"></use></svg></button><button class="btn ghost fNudge" data-dx="-1" data-dy="0" title="1 px vers la gauche" aria-label="1 px vers la gauche"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-edit-decaler-px"></use></svg></button><button class="btn ghost fNudge" data-dx="1" data-dy="0" title="1 px vers la droite" aria-label="1 px vers la droite"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-edit-decaler-px"></use></svg></button><button class="btn ghost fNudge" data-dx="0" data-dy="1" title="1 px vers le bas" aria-label="1 px vers le bas"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-edit-decaler-px"></use></svg></button></div>
         <div class="settings-sec">Sections</div>
         <div id="fSections" class="sections"></div>
-        <div class="row"><input id="fSecNom" class="fld-in" placeholder="nom (marche, saut…)"><select id="fSecMode" title="Mode de lecture"><option value="boucle">boucle</option><option value="pingpong">ping-pong</option><option value="inverse">inversé</option></select><button id="fSecAdd" class="btn" title="La section = la sélection courante, dans l'ordre de lecture">+ depuis la sélection</button></div>
+        <div class="row"><input id="fSecNom" class="fld-in" placeholder="nom (marche, saut…)"><select id="fSecMode" title="Mode de lecture"><option value="boucle">boucle</option><option value="pingpong">ping-pong</option><option value="inverse">inversé</option></select><button id="fSecAdd" class="btn" title="La section = la sélection courante, dans l'ordre de lecture"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-ajouter"></use></svg> depuis la sélection</button></div>
         <div class="settings-sec">Export</div>
-        <div class="row"><button id="fCopyJson" class="btn" title="Copie le manifest v2 (grille, frames, décalages, fps, sections)">📋 Copier le JSON</button><button id="fDlJson" class="btn" title="Télécharge le manifest JSON">⬇ JSON</button><button id="fDlPng" class="btn" title="Télécharge la planche alignée (PNG)">⬇ Planche alignée</button><button id="fSaveLib" class="btn primary" title="Sauve la planche alignée en Library (préfixe sprites_feuille_) — de là, « Envoyer vers » le Vectorlab">💾 Save to Library</button></div>
+        <div class="row"><button id="fCopyJson" class="btn" title="Copie le manifest v2 (grille, frames, décalages, fps, sections)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-copier"></use></svg> Copier le JSON</button><button id="fDlJson" class="btn" title="Télécharge le manifest JSON"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-telecharger"></use></svg> JSON</button><button id="fDlPng" class="btn" title="Télécharge la planche alignée (PNG)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-telecharger"></use></svg> Planche alignée</button><button id="fSaveLib" class="btn primary" title="Sauve la planche alignée en Library (préfixe sprites_feuille_) — de là, « Envoyer vers » le Vectorlab"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-ajouter-bibliotheque"></use></svg> Save to Library</button></div>
         <div id="fStatus" class="status hidden"></div>
       </div>
     </div>
@@ -386,6 +387,7 @@
 <div id="toast" class="toast hidden"></div>
 <script src="/shared/dz-i18n-dico.js"></script>
 <script src="/shared/dz-i18n.js"></script>
+<script src="/shared/icons/dz-icons.js"></script>
 <script type="module">import * as SLF from "./feuille.js"; window.SLF = SLF; document.dispatchEvent(new Event("slf-pret"));</script>
 <script type="module">import * as SLH from "./hitbox.js"; window.SLH = SLH; document.dispatchEvent(new Event("slh-pret"));</script>
 <script type="module">import * as SLK from "./skeleton.js"; window.SLK = SLK; document.dispatchEvent(new Event("slk-pret"));</script>

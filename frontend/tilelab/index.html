@@ -6,36 +6,37 @@
 <title>Deepotus — Tile Lab</title>
 <link rel="stylesheet" href="/spritelab/spritelab.css">
 <link rel="stylesheet" href="tilelab.css">
+<link rel="stylesheet" href="/shared/icons/dz-icons.css">
 </head>
 <body>
 <header class="topbar">
-  <div class="brand">🧱 <b>Tile Lab</b> <span class="tag">image → tuile seamless · score de raccord</span></div>
+  <div class="brand"><svg class="dzi dzi--20" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-cat-tuiles"></use></svg> <b>Tile Lab</b> <span class="tag">image → tuile seamless · score de raccord</span></div>
   <div class="srcchip" id="srcChip">aucune image — choisis une image de la Library</div>
-  <a class="backlink" href="/" target="_top" title="Retour à l'app">← App</a>
+  <a class="backlink" href="/" target="_top" title="Retour à l'app"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-retour"></use></svg> App</a>
 </header>
 
 <main class="panes tl-panes">
   <!-- ══════════ 1. Source ══════════ -->
   <section class="pane src-pane">
     <div class="pane-head"><nav class="tabs" id="tlTabs">
-      <button class="tab active" data-m="seamless" title="Une image devient une tuile seamless (existant)">🧱 Seamless</button>
-      <button class="tab" data-m="feuille" title="Une planche de tuiles existante : détection, grille de placement, raccords, exports — tout en local">🗂 Feuille de tuiles</button>
-      <button class="tab" data-m="jeu" title="Deux matières deviennent un jeu blob 47 / 16 auto-tuilable, mesuré, exporté vers Tiled, LDtk, Godot">🧩 Jeu</button>
-      <button class="tab" data-m="formes" title="Une matière devient une tuile losange 2:1 ou hexagonale qui pave sans couture">🔷 Formes</button>
-      <button class="tab" data-m="peintre" title="Peins une petite carte avec le jeu fabriqué : Python pose la bonne tuile à chaque case (auto-tiling)">🖌 Peintre</button></nav></div>
+      <button class="tab active" data-m="seamless" title="Une image devient une tuile seamless (existant)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-edit-seamless"></use></svg> Seamless</button>
+      <button class="tab" data-m="feuille" title="Une planche de tuiles existante : détection, grille de placement, raccords, exports — tout en local"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-feuille"></use></svg> Feuille de tuiles</button>
+      <button class="tab" data-m="jeu" title="Deux matières deviennent un jeu blob 47 / 16 auto-tuilable, mesuré, exporté vers Tiled, LDtk, Godot"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-edit-autotuile"></use></svg> Jeu</button>
+      <button class="tab" data-m="formes" title="Une matière devient une tuile losange 2:1 ou hexagonale qui pave sans couture"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-tuile-iso"></use></svg> Formes</button>
+      <button class="tab" data-m="peintre" title="Peins une petite carte avec le jeu fabriqué : Python pose la bonne tuile à chaque case (auto-tiling)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-outil-vec-tuiles"></use></svg> Peintre</button></nav></div>
     <div id="tlSeamlessSrc" class="src-body">
-    <input id="imgSearch" class="search" placeholder="🔎 Filtrer les images…">
+    <div class="search-wrap"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-chercher"></use></svg><input id="imgSearch" class="search" placeholder="Filtrer les images…"></div>
     <div id="imgGrid" class="img-grid tall"><div class="empty-note">Chargement de la Library…</div></div>
     </div>
     <!-- lot 4 : Feuille de tuiles -->
     <div id="tlFeuilleSrc" class="src-body hidden">
       <div class="upload-box">
         <p class="hint">Une planche déjà faite (IA, autre outil, Vectorlab) : les tuiles se détectent par leur transparence, se posent sur une grille carrée ou iso pour tester les raccords, et s'exportent alignées. Rien n'est envoyé.</p>
-        <label class="btn" for="feuilleFile">📂 Ouvrir un PNG de mon PC</label>
+        <label class="btn" for="feuilleFile"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-ouvrir"></use></svg> Ouvrir un PNG de mon PC</label>
         <input type="file" id="feuilleFile" accept="image/png,image/webp" hidden>
         <label class="fld inline" style="margin-top:8px">Côté min <input id="tlMin" type="number" min="1" max="256" value="2" style="width:60px" title="Une composante plus petite est ignorée (poussière)"> px <button id="tlDetecter" class="btn ghost" title="Redétecter les tuiles">Détecter</button></label>
       </div>
-      <input id="feuilleSearch" class="search" placeholder="🔎 Filtrer les planches de la Library…">
+      <div class="search-wrap"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-chercher"></use></svg><input id="feuilleSearch" class="search" placeholder="Filtrer les planches de la Library…"></div>
       <div id="feuilleGrid" class="img-grid tall"><div class="empty-note">Chargement de la Library…</div></div>
     </div>
     <!-- t115 : Jeu (blob) — deux matières de la Library -->
@@ -44,18 +45,18 @@
         <button id="jeuSlotA" class="tl-slot on" data-slot="a" title="Le TERRAIN : la matière posée là où la case est pleine"><span class="tl-slot-k">A · terrain</span><img alt=""><span class="tl-slot-n">clique une image ↓</span></button>
         <button id="jeuSlotB" class="tl-slot" data-slot="b" title="Le FOND : la matière autour du terrain"><span class="tl-slot-k">B · fond</span><img alt=""><span class="tl-slot-n">puis une seconde</span></button>
       </div>
-      <div class="tl-src" title="D'où viennent les matières"><button id="jeuSrcLib" class="tl-srcb on" data-src="lib">🖼 Bibliothèque</button><button id="jeuSrcForge" class="tl-srcb" data-src="forge" title="Les matières du Material Forge — leur couleur de base">🧪 Material Forge</button></div>
-      <input id="jeuSearch" class="search" placeholder="🔎 Filtrer les matières…">
+      <div class="tl-src" title="D'où viennent les matières"><button id="jeuSrcLib" class="tl-srcb on" data-src="lib"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-choisir-bibliotheque"></use></svg> Bibliothèque</button><button id="jeuSrcForge" class="tl-srcb" data-src="forge" title="Les matières du Material Forge — leur couleur de base"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-cat-matieres"></use></svg> Material Forge</button></div>
+      <div class="search-wrap"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-chercher"></use></svg><input id="jeuSearch" class="search" placeholder="Filtrer les matières…"></div>
       <div id="jeuGrid" class="img-grid tall"><div class="empty-note">Chargement de la Library…</div></div>
       <!-- t116 (T11) : le style d'un lieu de la bible — un PROMPT, rien n'est généré ici -->
       <fieldset class="tl-lieu">
         <legend>Style d'un lieu de la bible</legend>
         <label class="fld">Lieu <select id="lieuSel" title="Les lieux de la bible"></select></label>
         <label class="fld">Surface <input id="lieuSurface" type="text" value="sol de pierre" maxlength="80" title="Ce que la tuile représente"></label>
-        <button id="lieuRun" class="btn" title="Un prompt de tuile contraint par la planche et la palette du lieu — gratuit, rien n'est généré">🎨 Prompt du lieu</button>
+        <button id="lieuRun" class="btn" title="Un prompt de tuile contraint par la planche et la palette du lieu — gratuit, rien n'est généré"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-prompt"></use></svg> Prompt du lieu</button>
         <div id="lieuPalette" class="tl-pal"></div>
         <textarea id="lieuPrompt" rows="4" placeholder="Le prompt contraint par la planche et la palette du lieu apparaît ici — à coller dans le générateur d'images."></textarea>
-        <button id="lieuCopier" class="btn ghost" disabled title="Copier le prompt">📋 Copier le prompt</button>
+        <button id="lieuCopier" class="btn ghost" disabled title="Copier le prompt"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-copier"></use></svg> Copier le prompt</button>
       </fieldset>
     </div>
     <!-- t115 : Formes — une matière -->
@@ -63,21 +64,21 @@
       <div class="tl-slots">
         <button id="formeSlot" class="tl-slot on" title="La matière envoyée sur le réseau de la forme"><span class="tl-slot-k">Matière</span><img alt=""><span class="tl-slot-n">clique une image ↓</span></button>
       </div>
-      <div class="tl-src" title="D'où vient la matière"><button id="formeSrcLib" class="tl-srcb on" data-src="lib">🖼 Bibliothèque</button><button id="formeSrcForge" class="tl-srcb" data-src="forge" title="Les matières du Material Forge — leur couleur de base">🧪 Material Forge</button></div>
-      <input id="formeSearch" class="search" placeholder="🔎 Filtrer les matières…">
+      <div class="tl-src" title="D'où vient la matière"><button id="formeSrcLib" class="tl-srcb on" data-src="lib"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-choisir-bibliotheque"></use></svg> Bibliothèque</button><button id="formeSrcForge" class="tl-srcb" data-src="forge" title="Les matières du Material Forge — leur couleur de base"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-cat-matieres"></use></svg> Material Forge</button></div>
+      <div class="search-wrap"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-chercher"></use></svg><input id="formeSearch" class="search" placeholder="Filtrer les matières…"></div>
       <div id="formeGrid" class="img-grid tall"><div class="empty-note">Chargement de la Library…</div></div>
     </div>
     <!-- t116 (T12) : le peintre — une grille, Python compose -->
     <div id="tlPeintreSrc" class="src-body hidden">
       <div class="upload-box">
-        <p class="hint">Le peintre pose des cases de TERRAIN sur une grille ; à chaque coup de pinceau, Python choisit la tuile de chaque case d'après ses voisines, avec le jeu fabriqué dans le mode 🧩 Jeu. Clique-glisse pour peindre, repasse pour gommer.</p>
+        <p class="hint">Le peintre pose des cases de TERRAIN sur une grille ; à chaque coup de pinceau, Python choisit la tuile de chaque case d'après ses voisines, avec le jeu fabriqué dans le mode <svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-edit-autotuile"></use></svg> Jeu. Clique-glisse pour peindre, repasse pour gommer.</p>
         <div id="peJeu" class="counter">—</div>
         <div class="grid2">
           <label class="fld">Largeur <span class="unit">cases</span><input id="peLargeur" type="number" min="2" max="32" value="12"></label>
           <label class="fld">Hauteur <span class="unit">cases</span><input id="peHauteur" type="number" min="2" max="32" value="8"></label>
           <label class="fld">Graine <input id="peGraine" type="number" min="1" value="1" title="Même graine = mêmes variantes"></label>
         </div>
-        <button id="peEffacer" class="btn ghost" title="Une grille vide (garde la taille)">🧽 Tout effacer</button>
+        <button id="peEffacer" class="btn ghost" title="Une grille vide (garde la taille)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-vider"></use></svg> Tout effacer</button>
       </div>
     </div>
     <div class="hint">Textures sol/mur, motifs, feuillages… La tuile générée rejoint la Library (<i>gen_*.png</i>) et sert partout (Studio, Seedance, Sprite Lab).</div>
@@ -134,7 +135,7 @@
       </fieldset>
 
       <div class="genrow">
-        <button id="runBtn" class="btn primary big" disabled title="Local et gratuit (PIL) — la tuile rejoint la Library">🧱 Rendre seamless</button>
+        <button id="runBtn" class="btn primary big" disabled title="Local et gratuit (PIL) — la tuile rejoint la Library"><svg class="dzi dzi--18" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-edit-seamless"></use></svg> Rendre seamless</button>
         <span class="cost">gratuit · local</span>
       </div>
       <div id="runStatus" class="status hidden"></div>
@@ -146,14 +147,14 @@
     <div id="feuilleOut" class="tl-feuille hidden">
       <div class="tl-sec">Tuiles détectées <span id="tlTuilesCount" class="counter">—</span> <span class="hint">clic = choisir · double-clic = raccord ×9 · liseré cyan = déjà posée</span></div>
       <div id="tlTuiles" class="tl-tuiles"><div class="empty-note">Ouvre une planche à gauche.</div></div>
-      <div class="row"><span class="hint">Ordre de la tuile choisie :</span><button id="tlAvant" class="btn ghost" title="Un cran vers l'avant (les placements suivent)">◀</button><button id="tlApres" class="btn ghost" title="Un cran vers l'arrière">▶</button></div>
+      <div class="row"><span class="hint">Ordre de la tuile choisie :</span><button id="tlAvant" class="btn ghost" title="Un cran vers l'avant (les placements suivent)" aria-label="Un cran vers l'avant (les placements suivent)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-edit-monter"></use></svg></button><button id="tlApres" class="btn ghost" title="Un cran vers l'arrière" aria-label="Un cran vers l'arrière"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-edit-descendre"></use></svg></button></div>
       <div class="tl-sec">Grille de placement</div>
       <div class="row">
         <select id="tlGrilleType" title="Carrée, ou iso 2:1 (losanges)"><option value="carree">Carrée</option><option value="iso">Iso 2:1</option></select>
         <label class="fld inline">cols <input id="tlCols" type="number" min="1" max="64" value="4" style="width:52px"></label>
         <label class="fld inline">rows <input id="tlRows" type="number" min="1" max="64" value="3" style="width:52px"></label>
         <label class="fld inline">cellule <input id="tlCellW" type="number" min="1" max="1024" value="16" style="width:56px"> × <input id="tlCellH" type="number" min="1" max="1024" value="16" style="width:56px"></label>
-        <button id="tlVider" class="btn ghost" title="Retire tous les placements">Vider</button>
+        <button id="tlVider" class="btn ghost" title="Retire tous les placements"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-vider"></use></svg> Vider</button>
       </div>
       <div class="hint">Choisis une tuile puis clique les cellules · clic droit retire</div>
       <div class="tl-place-wrap"><canvas id="tlPlacement" class="tl-placement"></canvas></div>
@@ -163,10 +164,10 @@
       <div class="row">
         <label class="fld inline">colonnes <input id="tlExpCols" type="number" min="1" max="64" value="8" style="width:52px"></label>
         <label class="fld inline">marge <input id="tlExpPad" type="number" min="0" max="64" value="0" style="width:52px"></label>
-        <button id="tlDlFeuille" class="btn" title="Chaque tuile centrée dans une cellule uniforme (taille commune + marge) + JSON">⬇ Feuille alignée + JSON</button>
-        <button id="tlDlTileset" class="btn" title="La grille de placement peinte, en PNG + JSON des placements">⬇ Tileset + JSON</button>
-        <button id="tlDlTuiles" class="btn" title="Un zip avec un PNG par tuile">⬇ Tuiles séparées (zip)</button>
-        <button id="tlSaveLib" class="btn primary" title="La feuille alignée rejoint la Library (tiles_feuille_)">💾 Save to Library</button>
+        <button id="tlDlFeuille" class="btn" title="Chaque tuile centrée dans une cellule uniforme (taille commune + marge) + JSON"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-telecharger"></use></svg> Feuille alignée + JSON</button>
+        <button id="tlDlTileset" class="btn" title="La grille de placement peinte, en PNG + JSON des placements"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-telecharger"></use></svg> Tileset + JSON</button>
+        <button id="tlDlTuiles" class="btn" title="Un zip avec un PNG par tuile"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-telecharger"></use></svg> Tuiles séparées (zip)</button>
+        <button id="tlSaveLib" class="btn primary" title="La feuille alignée rejoint la Library (tiles_feuille_)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-ajouter-bibliotheque"></use></svg> Save to Library</button>
       </div>
     </div>
 
@@ -179,7 +180,7 @@
       <div id="peResultat" class="hidden">
         <div class="tl-sec">Carte composée par Python <span class="hint">carte.png + carte.json dans le dossier du jeu</span></div>
         <img id="peCarte" class="tl-damier pe-carte" alt="carte auto-tuilée">
-        <div class="row"><a id="pePng" class="btn" target="_blank" download="carte.png">⬇ carte.png</a><a id="peJson" class="btn" target="_blank" download="carte.json">⬇ carte.json</a></div>
+        <div class="row"><a id="pePng" class="btn" target="_blank" download="carte.png"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-telecharger"></use></svg> carte.png</a><a id="peJson" class="btn" target="_blank" download="carte.json"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-telecharger"></use></svg> carte.json</a></div>
       </div>
     </div>
     <div id="jeuOut" class="tl-feuille hidden">
@@ -197,7 +198,7 @@
           <input id="jeuGraine" type="number" min="1" value="1" title="Même graine = mêmes variantes"></label>
       </div>
       <div class="genrow">
-        <button id="jeuRun" class="btn primary big" disabled title="Local et gratuit (PIL) — l'atlas rejoint la Library (tile_…_atlas.png)">🧩 Fabriquer le jeu</button>
+        <button id="jeuRun" class="btn primary big" disabled title="Local et gratuit (PIL) — l'atlas rejoint la Library (tile_…_atlas.png)"><svg class="dzi dzi--18" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-fabriquer"></use></svg> Fabriquer le jeu</button>
         <span class="cost">gratuit · local</span>
         <span id="jeuInfo" class="counter">—</span>
       </div>
@@ -210,18 +211,18 @@
         <div class="row">
           <label class="fld inline">cases <select id="jeuCases"><option>4</option><option selected>8</option><option>12</option><option>16</option></select></label>
           <label class="fld inline">densité <input id="jeuDensite" type="number" min="0" max="1" step="0.05" value="0.55" style="width:64px"></label>
-          <button id="jeuApercuBtn" class="btn" title="Tire une nouvelle carte (nouvelle graine)">🎲 Nouvel aperçu</button>
+          <button id="jeuApercuBtn" class="btn" title="Tire une nouvelle carte (nouvelle graine)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-aleatoire"></use></svg> Nouvel aperçu</button>
           <span id="jeuApercuInfo" class="hint"></span>
         </div>
         <img id="jeuApercu" class="tl-damier" alt="aperçu auto-tuilé">
-        <div class="tl-sec">Mesures <button id="jeuMesuresBtn" class="btn ghost" title="Raccord, répétition (sur l'aperçu montré), éclairage — chacun contre son seuil">📏 Mesurer</button></div>
+        <div class="tl-sec">Mesures <button id="jeuMesuresBtn" class="btn ghost" title="Raccord, répétition (sur l'aperçu montré), éclairage — chacun contre son seuil"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-mesurer"></use></svg> Mesurer</button></div>
         <div id="jeuMesures" class="tl-scores tl-mesures"><span class="hint">Pas encore mesuré.</span></div>
         <div class="tl-sec">Export <span class="hint">pose le fichier À CÔTÉ de atlas.png : il le désigne par un chemin relatif</span></div>
         <div class="row">
-          <button id="expAtlas" class="btn" title="L'atlas PNG, que chaque format désigne">⬇ atlas.png</button>
-          <button id="expTiled" class="btn" title="Tiled : tileset externe + jeu Wang (mixed / edge)">⬇ Tiled .tsx</button>
-          <button id="expLdtk" class="btn" title="LDtk 1.5.3 : projet avec couche IntGrid et règles d'auto-layer">⬇ LDtk .ldtk</button>
-          <button id="expGodot" class="btn" title="Godot 4 : TileSet avec terrain set">⬇ Godot .tres</button>
+          <button id="expAtlas" class="btn" title="L'atlas PNG, que chaque format désigne"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-telecharger"></use></svg> atlas.png</button>
+          <button id="expTiled" class="btn" title="Tiled : tileset externe + jeu Wang (mixed / edge)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-exporter"></use></svg> Tiled .tsx</button>
+          <button id="expLdtk" class="btn" title="LDtk 1.5.3 : projet avec couche IntGrid et règles d'auto-layer"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-exporter"></use></svg> LDtk .ldtk</button>
+          <button id="expGodot" class="btn" title="Godot 4 : TileSet avec terrain set"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-exporter"></use></svg> Godot .tres</button>
         </div>
       </div>
     </div>
@@ -238,7 +239,7 @@
           <select id="formeCote"><option>16</option><option selected>32</option><option>64</option><option>128</option></select></label>
       </div>
       <div class="genrow">
-        <button id="formeRun" class="btn primary big" disabled title="Local et gratuit (PIL)">🔷 Fabriquer la tuile</button>
+        <button id="formeRun" class="btn primary big" disabled title="Local et gratuit (PIL)"><svg class="dzi dzi--18" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-fabriquer"></use></svg> Fabriquer la tuile</button>
         <span class="cost">gratuit · local</span>
         <span id="formeInfo" class="counter">—</span>
       </div>
@@ -251,9 +252,9 @@
         </div>
         <div class="tl-sec">Export <span class="hint">LDtk est orthogonal : il ne porte ni losange ni hexagone</span></div>
         <div class="row">
-          <button id="expFormeAtlas" class="btn">⬇ atlas.png</button>
-          <button id="expFormeTiled" class="btn">⬇ Tiled .tsx</button>
-          <button id="expFormeGodot" class="btn">⬇ Godot .tres</button>
+          <button id="expFormeAtlas" class="btn"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-telecharger"></use></svg> atlas.png</button>
+          <button id="expFormeTiled" class="btn"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-exporter"></use></svg> Tiled .tsx</button>
+          <button id="expFormeGodot" class="btn"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-exporter"></use></svg> Godot .tres</button>
         </div>
       </div>
     </div>
@@ -269,8 +270,8 @@
         <figure><figcaption>Pavage 3×3</figcaption><canvas id="paveCv" width="600" height="600"></canvas></figure>
       </div>
       <div class="exports">
-        <a id="dlTile" class="btn" download title="La tuile PNG (déjà dans la Library)">⬇ Tuile PNG</a>
-        <button id="toStudio" class="btn hidden" title="Ouvre le Studio avec cette tuile comme nœud Image">🎛 → Studio</button>
+        <a id="dlTile" class="btn" download title="La tuile PNG (déjà dans la Library)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-telecharger"></use></svg> Tuile PNG</a>
+        <button id="toStudio" class="btn hidden" title="Ouvre le Studio avec cette tuile comme nœud Image"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-nav-studio"></use></svg> → Studio</button>
       </div>
     </div>
   </section>
@@ -279,6 +280,7 @@
 <div id="toast" class="toast hidden"></div>
 <script src="/shared/dz-i18n-dico.js"></script>
 <script src="/shared/dz-i18n.js"></script>
+<script src="/shared/icons/dz-icons.js"></script>
 <script type="module">import * as T from "./feuille_tuiles.js"; import * as X from "/vectorlab/js/mod-pixelart.js"; import * as Z from "/spritelab/zip.js"; window.TLF = T; window.PXA = X; window.DZ_ZIP = Z; document.dispatchEvent(new Event("tlf-pret"));</script>
 <script type="module">import * as P from "/spritelab/palettes.js"; window.DZ_PALETTES = P; document.dispatchEvent(new Event("dz-palettes"));</script>
 <script type="module">import { initDidact } from "/vectorlab/js/mod-didact.js"; initDidact({}, { aide: "aide/", racine: "body" });   /* t126 : fiches didactiques (aide/index.json), survol long ou « ? » */</script>

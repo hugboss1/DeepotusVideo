@@ -10,9 +10,10 @@
   const $ = (s) => document.querySelector(s);
   const P = { grille: [], larg: 12, haut: 8, pose: 1, glisse: false, dernier: null, minuteur: 0, tid: null, envoi: 0 };
 
-  function statut(msg, err) {
+  function statut(msg, err, html) {
     const el = $("#peStatus");
-    el.classList.remove("hidden"); el.classList.toggle("err", !!err); el.textContent = msg;
+    el.classList.remove("hidden"); el.classList.toggle("err", !!err);
+    if (html) el.innerHTML = msg; else el.textContent = msg;   // html : un message fixe qui porte une icône
   }
   function jeuCourant() {
     const e = window.__tljeu && window.__tljeu.etat;
@@ -79,7 +80,7 @@
 
   async function composer() {
     const j = jeuCourant();
-    if (!j) return statut("Fabrique d'abord un jeu dans le mode 🧩 Jeu : le peintre pose SES tuiles.", true);
+    if (!j) return statut("Fabrique d'abord un jeu dans le mode " + dzIcone("dz-edit-autotuile", { taille: 16 }) + " Jeu : le peintre pose SES tuiles.", true, true);
     const n = ++P.envoi;                       // seule la dernière réponse s'affiche (coups de pinceau rapides)
     try {
       statut("Composition…");
@@ -100,7 +101,8 @@
 
   function entrer() {
     const j = jeuCourant();
-    $("#peJeu").textContent = j ? `jeu ${j.jeu.jeu || ""} · ${j.jeu.cote || "?"} px · ${j.tid}` : "aucun jeu — fabrique-le dans le mode 🧩 Jeu";
+    if (j) $("#peJeu").textContent = `jeu ${j.jeu.jeu || ""} · ${j.jeu.cote || "?"} px · ${j.tid}`;
+    else $("#peJeu").innerHTML = "aucun jeu — fabrique-le dans le mode " + dzIcone("dz-edit-autotuile", { taille: 16 }) + " Jeu";
     if (j && j.tid !== P.tid) { P.tid = j.tid; $("#peResultat").classList.add("hidden"); }
     if (!P.grille.length) nouvelleGrille(); else dessiner();
   }
