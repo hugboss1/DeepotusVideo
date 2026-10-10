@@ -68,8 +68,9 @@ for (const [nom, t] of [["index.html", html], ["photolab.css", css], ["core.js",
   check("5 " + nom + " sans ArtCraft/Discord/Photoshop", !/artcraft|discord|photoshop/i.test(t));
 }
 
-// 6. fichiers d'icônes et attribution
-for (const f of ["icones/LICENSE-lucide.txt", "ATTRIBUTION.md", "icones/move.svg", "icones/layers.svg", "js/core.js", "js/mod-api.js"]) {
+// 6. fichiers d'icônes et attribution (G4 : la suite Deepotus Glyph remplace les SVG de l'amont ; la licence Lucide reste
+//    pour le pointeur du Doigt, servi par la suite)
+for (const f of ["icones/LICENSE-lucide.txt", "ATTRIBUTION.md", "../shared/icons/dz-icons.js", "../shared/icons/dz-icons.svg", "js/core.js", "js/mod-api.js"]) {
   check("6 fichier " + f, existsSync(join(racine, f)));
 }
 

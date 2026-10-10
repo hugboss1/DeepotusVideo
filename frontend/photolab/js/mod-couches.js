@@ -91,13 +91,13 @@ export function initCouches(PL) {
     b.title = T(cle); b.setAttribute("aria-label", b.title); b.addEventListener("click", fn); pied.appendChild(b); return b;
   };
   const cibleAlpha = () => lignes.find((l) => l.cible && l.type === "alpha");
-  const bCharger = bouton("circle-dashed", "photolab.couches.charger", () => {
+  const bCharger = bouton("dz-edit-charger-selection", "photolab.couches.charger", () => {
     const l = lignes.find((x) => x.cible);
     if (l) PL.executer("select.loadSelection", { channel: l.ref, operation: "new" });
   });
-  const bEnreg = bouton("square-dashed", "photolab.couches.enregistrer", () => PL.executer("select.saveSelection", {}));
-  bouton("plus", "photolab.couches.nouvelle", () => PL.executer("channel.new", {}));
-  const bSuppr = bouton("trash-2", "photolab.couches.supprimer", () => { const l = cibleAlpha(); if (l) PL.executer("channel.delete", { channel: l.index }); });
+  const bEnreg = bouton("dz-edit-enregistrer-selection", "photolab.couches.enregistrer", () => PL.executer("select.saveSelection", {}));
+  bouton("dz-action-ajouter", "photolab.couches.nouvelle", () => PL.executer("channel.new", {}));
+  const bSuppr = bouton("dz-action-supprimer", "photolab.couches.supprimer", () => { const l = cibleAlpha(); if (l) PL.executer("channel.delete", { channel: l.index }); });
   if (PL.hydraterIcones) PL.hydraterIcones(pied);
 
   // Vignettes : couleurs tirées du dernier rendu (petit canevas), alpha lues par /couches?maxSide=64.
@@ -131,7 +131,7 @@ export function initCouches(PL) {
       const row = document.createElement("div"); row.className = "cou-ligne" + (l.cible ? " cible" : "");
       row.dataset.ref = String(l.ref);
       const oeil = document.createElement("button"); oeil.type = "button"; oeil.className = "cou-oeil";
-      oeil.dataset.icone = l.visible ? "eye" : "eye-off";
+      oeil.dataset.icone = l.visible ? "dz-etat-visible" : "dz-etat-cache";
       oeil.setAttribute("aria-label", T(l.visible ? "photolab.couches.masquer" : "photolab.couches.afficher"));
       oeil.addEventListener("click", (ev) => { ev.stopPropagation(); PL.executer("channel.setVisible", { channel: l.ref, visible: !l.visible }); });
       const n = nomDe(l);

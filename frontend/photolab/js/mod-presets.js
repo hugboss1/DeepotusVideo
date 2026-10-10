@@ -214,18 +214,18 @@ export function initPresets(PL, genre) {
     const b = document.createElement("button"); b.type = "button"; b.className = "pr-btn"; b.dataset.icone = icone;
     b.title = T(cle); b.setAttribute("aria-label", b.title); b.addEventListener("click", fn); pied.appendChild(b); return b;
   };
-  bouton("folder-plus", "photolab.presets.nouveau_groupe", async () => {
+  bouton("dz-action-nouveau-dossier", "photolab.presets.nouveau_groupe", async () => {
     const nom = await demanderNom(PL, T("photolab.presets.nouveau_groupe"));
     if (nom) await commande(C.editer, paramsEdition("nouveauGroupe", null, null, nom));
   });
   // Nouveau : dégradé = le dégradé courant ; motif = la sélection (sinon le document) ; forme = le tracé de travail, la
   // forme active ou le masque vectoriel ; style = les effets du calque actif.
-  const bNouveau = bouton("plus", E.nouveau, async () => {
+  const bNouveau = bouton("dz-action-ajouter", E.nouveau, async () => {
     if (E.doc && !PL.etat.doc) return;
     const nom = await demanderNom(PL, T(E.nouveau), T(E.defaut));
     if (nom) await commande(C.nouveau, { name: nom, ...(sel && sel.groupe ? { group: sel.groupe } : {}) });
   });
-  const bSuppr = bouton("trash-2", "photolab.presets.supprimer", async () => {
+  const bSuppr = bouton("dz-action-supprimer", "photolab.presets.supprimer", async () => {
     if (!sel) return;
     await commande(C.editer, sel.item ? paramsEdition("supprimer", sel.item, sel.groupe) : paramsEdition("supprimerGroupe", null, sel.groupe));
     sel = null;
@@ -275,7 +275,7 @@ export function initPresets(PL, genre) {
     for (const g of filtrerGroupes(groupes, recherche.value, T)) {
       const tete = document.createElement("div");
       tete.className = "pr-groupe" + (sel && sel.groupe === g.nom && !sel.item ? " choisi" : "");
-      const fl = document.createElement("button"); fl.type = "button"; fl.className = "pr-fleche"; fl.textContent = replies.has(g.nom) ? "▸" : "▾";
+      const fl = document.createElement("button"); fl.type = "button"; fl.className = "pr-fleche" + (replies.has(g.nom) ? " pl-replie" : ""); fl.innerHTML = PL.icone("dz-action-deplier");
       fl.setAttribute("aria-label", T(replies.has(g.nom) ? "photolab.presets.deplier" : "photolab.presets.replier"));
       fl.addEventListener("click", () => { if (replies.has(g.nom)) replies.delete(g.nom); else replies.add(g.nom); dessiner(); });
       const n = nomAffiche(g.nom, T);

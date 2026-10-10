@@ -241,7 +241,7 @@ export function initPinceaux(PL) {
         if (outil && PL.choisirOutil) PL.choisirOutil(outil);
         await synchroniserPointe();
       });
-      const sup = el("button", "pi-suppr", "×"); sup.type = "button";
+      const sup = el("button", "pi-suppr"); sup.type = "button"; sup.innerHTML = PL.icone("dz-action-supprimer");
       sup.title = T("photolab.pinceaux.supprimer"); sup.setAttribute("aria-label", sup.title + " " + p.name);
       sup.addEventListener("click", async () => {
         const d = window.__dzDialogue;

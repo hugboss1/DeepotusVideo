@@ -23,6 +23,10 @@ export const LIB_AA = { none: "photolab.texte.aa_none", sharp: "photolab.texte.a
 export const LIB_ALIGNS = { left: "photolab.texte.align_left", center: "photolab.texte.align_center", right: "photolab.texte.align_right",
   justifyLeft: "photolab.texte.align_justify_left", justifyCenter: "photolab.texte.align_justify_center",
   justifyRight: "photolab.texte.align_justify_right", justifyAll: "photolab.texte.align_justify_all" };
+// G4 : icône de chaque alignement (suite Deepotus Glyph), barre d'options et panneau Paragraphe.
+export const ICONES_ALIGN = { left: "dz-edit-texte-aligner-gauche", center: "dz-edit-texte-aligner-centre", right: "dz-edit-texte-aligner-droite",
+  justifyLeft: "dz-edit-justifier-gauche", justifyCenter: "dz-edit-justifier-centre", justifyRight: "dz-edit-justifier-droite",
+  justifyAll: "dz-edit-justifier" };
 
 // Taille de l'aperçu des polices (menu Texte) : px des noms dans la liste des polices.
 export const APERCUS = { "type.fontPreviewSize.small": 11, "type.fontPreviewSize.medium": 14, "type.fontPreviewSize.large": 18,
@@ -309,10 +313,10 @@ export function initTexte(PL) {
   PL.barresOutils = PL.barresOutils || {};
   PL.barresOutils.type = (barre) => {
     const champ = (lib, el) => { const w = document.createElement("label"); w.className = "opt fo-champ"; const s = document.createElement("span"); s.textContent = T(lib); w.append(s, el); barre.appendChild(w); return el; };
-    const ori = document.createElement("button"); ori.type = "button"; ori.className = "tr-bascule"; ori.textContent = opts.orientation === "vertical" ? "↕T" : "T↔";
-    ori.title = T("photolab.texte.orientation");
+    const ori = document.createElement("button"); ori.type = "button"; ori.className = "tr-bascule" + (opts.orientation === "vertical" ? " actif" : ""); ori.innerHTML = PL.icone("dz-edit-orientation-texte");
+    ori.title = T("photolab.texte.orientation"); ori.setAttribute("aria-label", ori.title); ori.setAttribute("aria-pressed", String(opts.orientation === "vertical"));
     ori.addEventListener("click", () => {
-      opts.orientation = opts.orientation === "vertical" ? "horizontal" : "vertical"; ori.textContent = opts.orientation === "vertical" ? "↕T" : "T↔";
+      opts.orientation = opts.orientation === "vertical" ? "horizontal" : "vertical"; ori.classList.toggle("actif", opts.orientation === "vertical"); ori.setAttribute("aria-pressed", String(opts.orientation === "vertical"));
       const l = calqueActifTexte(); if (l) PL.executer("type.orientation." + (opts.orientation === "vertical" ? "vertical" : "horizontal"), { layer: l.id });
     });
     barre.appendChild(ori);
@@ -335,7 +339,7 @@ export function initTexte(PL) {
     champ("photolab.texte.anticrenelage", aa);
     for (const v of ["left", "center", "right"]) {
       const b = document.createElement("button"); b.type = "button"; b.className = "tr-bascule tx-align" + (opts.align === v ? " actif" : ""); b.dataset.align = v;
-      b.textContent = v === "left" ? "⫷" : v === "center" ? "≡" : "⫸"; b.title = T(LIB_ALIGNS[v]);
+      b.innerHTML = PL.icone(ICONES_ALIGN[v]); b.title = T(LIB_ALIGNS[v]); b.setAttribute("aria-label", b.title);
       b.addEventListener("click", () => { appliquer(paramsStyle("align", v)); barre.querySelectorAll(".tx-align").forEach((x) => x.classList.toggle("actif", x === b)); });
       barre.appendChild(b);
     }
@@ -343,9 +347,9 @@ export function initTexte(PL) {
     coul.addEventListener("change", () => appliquer({ color: coul.value }));
     champ("photolab.texte.couleur", coul);
     if (ed) {
-      const ok = document.createElement("button"); ok.type = "button"; ok.className = "tr-valider"; ok.textContent = "✓"; ok.title = T("photolab.texte.valider");
+      const ok = document.createElement("button"); ok.type = "button"; ok.className = "tr-valider"; ok.innerHTML = PL.icone("dz-action-valider"); ok.title = T("photolab.texte.valider"); ok.setAttribute("aria-label", ok.title);
       ok.addEventListener("click", valider);
-      const ko = document.createElement("button"); ko.type = "button"; ko.className = "tr-annuler"; ko.textContent = "⊘"; ko.title = T("photolab.texte.annuler");
+      const ko = document.createElement("button"); ko.type = "button"; ko.className = "tr-annuler"; ko.innerHTML = PL.icone("dz-action-abandonner"); ko.title = T("photolab.texte.annuler"); ko.setAttribute("aria-label", ko.title);
       ko.addEventListener("click", annuler);
       barre.append(ok, ko);
     }
@@ -415,10 +419,10 @@ export function initTexte(PL) {
     const wc = document.createElement("label"); wc.className = "tx-champ"; const sc = document.createElement("span"); sc.className = "tx-lib"; sc.textContent = T("photolab.texte.couleur");
     wc.append(sc, coul); l5.appendChild(wc); champsCar.color = coul;
     const l6 = ligne(); l6.classList.add("tx-bascules");
-    for (const [cle, txt, lib, val] of [["fauxBold", "T", "photolab.texte.faux_gras", true], ["fauxItalic", "T", "photolab.texte.faux_italique", true],
-      ["caps:all", "TT", "photolab.texte.capitales", "all"], ["caps:small", "Tt", "photolab.texte.petites_capitales", "small"],
-      ["underline", "T", "photolab.texte.souligne", true], ["strikethrough", "T", "photolab.texte.barre", true]]) {
-      const b = document.createElement("button"); b.type = "button"; b.className = "tr-bascule tx-bascule tx-" + cle.replace(":", "-"); b.textContent = txt; b.title = T(lib);
+    for (const [cle, ico, lib, val] of [["fauxBold", "dz-edit-texte-gras", "photolab.texte.faux_gras", true], ["fauxItalic", "dz-edit-texte-italique", "photolab.texte.faux_italique", true],
+      ["caps:all", "dz-edit-texte-capitales", "photolab.texte.capitales", "all"], ["caps:small", "dz-edit-texte-petites-capitales", "photolab.texte.petites_capitales", "small"],
+      ["underline", "dz-edit-texte-souligne", "photolab.texte.souligne", true], ["strikethrough", "dz-edit-texte-barre", "photolab.texte.barre", true]]) {
+      const b = document.createElement("button"); b.type = "button"; b.className = "tr-bascule tx-bascule tx-" + cle.replace(":", "-"); b.innerHTML = PL.icone(ico); b.title = T(lib); b.setAttribute("aria-label", b.title);
       b.addEventListener("click", () => {
         const actif = b.classList.contains("actif");
         if (cle.startsWith("caps:")) appliquer(paramsStyle("caps", actif ? "normal" : val));
@@ -433,7 +437,7 @@ export function initTexte(PL) {
     const l1 = document.createElement("div"); l1.className = "tx-ligne tx-bascules"; cPar.appendChild(l1);
     for (const v of ALIGNS) {
       const b = document.createElement("button"); b.type = "button"; b.className = "tr-bascule tx-palign"; b.dataset.align = v; b.title = T(LIB_ALIGNS[v]);
-      b.textContent = { left: "⫷", center: "≡", right: "⫸", justifyLeft: "☰⫷", justifyCenter: "☰≡", justifyRight: "☰⫸", justifyAll: "☰" }[v];
+      b.innerHTML = PL.icone(ICONES_ALIGN[v]); b.setAttribute("aria-label", b.title);
       b.addEventListener("click", () => appliquer(paramsStyle("align", v)));
       l1.appendChild(b); champsPar["align:" + v] = b;
     }
@@ -459,7 +463,7 @@ export function initTexte(PL) {
       wd.append(sd, dir); cPar.appendChild(wd); champsPar.direction = dir;
     }
     if (prefs.langue === "type.languageOptions.eastAsianFeatures") {
-      const b = document.createElement("button"); b.type = "button"; b.className = "tr-bascule tx-vertical"; b.textContent = "↕T " + T("photolab.texte.vertical");
+      const b = document.createElement("button"); b.type = "button"; b.className = "tr-bascule tx-vertical"; b.innerHTML = PL.icone("dz-edit-orientation-texte"); b.append(" " + T("photolab.texte.vertical"));
       b.addEventListener("click", () => { const l = calqueActifTexte(); if (l) PL.executer("type.orientation.vertical", { layer: l.id }); });
       cPar.appendChild(b); champsPar.vertical = b;
     }
@@ -551,11 +555,11 @@ export function initTexte(PL) {
     const cible = () => { if (ed && ed.calque) { const z = ed.zone; return { layer: ed.calque, ...(z.selectionStart < z.selectionEnd ? { range: [z.selectionStart, z.selectionEnd] } : {}) }; } return {}; };
     const exec = async (c, p) => { if (!PL.etat.doc) return; await synchroniser(); await PL.executer(c, p); relire(); };
     const bouton = (icone, cle, fn) => { const b = document.createElement("button"); b.type = "button"; b.className = "pr-btn"; b.dataset.icone = icone; b.title = T(cle); b.setAttribute("aria-label", b.title); b.addEventListener("click", fn); pied.appendChild(b); return b; };
-    const bEffacer = bouton("eraser", "photolab.styles_texte.effacer", () => exec(cmd("clearOverride"), cible()));
-    const bRedef = bouton("rotate-cw", "photolab.styles_texte.redefinir", () => exec(cmd("redefine"), { ...(st.sel ? { id: st.sel } : {}), ...cible() }));
-    bouton("plus", "photolab.styles_texte.nouveau", () => exec(cmd("new"), { fromSelection: true, ...cible() }));
-    const bDup = bouton("copy", "photolab.styles_texte.dupliquer", () => { if (st.sel) exec(cmd("duplicate"), { id: st.sel }); });
-    const bSup = bouton("trash-2", "photolab.styles_texte.supprimer", () => { if (st.sel) { exec(cmd("delete"), { id: st.sel }); st.sel = null; } });
+    const bEffacer = bouton("dz-action-reinitialiser", "photolab.styles_texte.effacer", () => exec(cmd("clearOverride"), cible()));
+    const bRedef = bouton("dz-action-redefinir", "photolab.styles_texte.redefinir", () => exec(cmd("redefine"), { ...(st.sel ? { id: st.sel } : {}), ...cible() }));
+    bouton("dz-action-ajouter", "photolab.styles_texte.nouveau", () => exec(cmd("new"), { fromSelection: true, ...cible() }));
+    const bDup = bouton("dz-action-dupliquer", "photolab.styles_texte.dupliquer", () => { if (st.sel) exec(cmd("duplicate"), { id: st.sel }); });
+    const bSup = bouton("dz-action-supprimer", "photolab.styles_texte.supprimer", () => { if (st.sel) { exec(cmd("delete"), { id: st.sel }); st.sel = null; } });
     if (PL.hydraterIcones) PL.hydraterIcones(pied);
     async function relire() {
       if (!PL.etat.doc) { st.liste = null; dessiner(); return; }

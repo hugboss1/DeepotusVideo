@@ -1514,7 +1514,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "photolab.affichage.options_titre": {"fr": "Options d'affichage des extras", "en": "Show Extras Options"},
   "photolab.affichage.reperes": {"fr": "Repères", "en": "Guides"},
   "photolab.affichage.reperes_canevas": {"fr": "Repères du canevas", "en": "Canvas Guides"},
-  "photolab.apropos.icones": {"fr": "Icônes Lucide (licence ISC), catalogue des menus de photocraft.", "en": "Lucide icons (ISC license), photocraft menu catalog."},
+  "photolab.apropos.icones": {"fr": "Icônes de la suite Deepotus Glyph ; icône de l'outil Doigt : Lucide (licence ISC) ; catalogue des menus de photocraft.", "en": "Deepotus Glyph icon suite; Smudge tool icon: Lucide (ISC license); photocraft menu catalog."},
   "photolab.apropos.illisible": {"fr": "Ce texte n'a pas pu être lu.", "en": "This text could not be read."},
   "photolab.apropos.lic.apache": {"fr": "photocraft — licence Apache 2.0", "en": "photocraft — Apache 2.0 license"},
   "photolab.apropos.lic.lucide": {"fr": "Icônes Lucide — licence ISC", "en": "Lucide icons — ISC license"},

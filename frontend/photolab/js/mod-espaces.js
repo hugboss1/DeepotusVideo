@@ -299,7 +299,8 @@ export function initEspaces(PL) {
   choix.title = T("photolab.espace.choisir"); choix.setAttribute("aria-label", choix.title);
   // Dans une boîte fixe (en haut à droite) : le « ? » de l'aide (mod-didact, posé APRÈS l'élément) reste à côté.
   const boite = document.createElement("div"); boite.className = "espace-boite";
-  boite.appendChild(choix);
+  const icoEspace = document.createElement("span"); icoEspace.className = "espace-ico"; icoEspace.innerHTML = PL.icone("dz-nav-espace-travail");
+  boite.append(icoEspace, choix);
   document.body.appendChild(boite);
   function dessinerChoix() {
     choix.textContent = "";
