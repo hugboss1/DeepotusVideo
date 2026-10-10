@@ -21,10 +21,13 @@ const RETARD_MS = { cloud: 2100, local: 750 };
 
 const API = "/api/avatar-live";
 const T = (cle, vars) => (window.dzT ? window.dzT(cle, vars) : cle);   // G7 : frontend/shared/i18n/avatar.json
+const Tid = (cle, defaut) => { const v = T(cle); return v === cle ? defaut : v; };   // catalogue du serveur, par id
+const EN = !!(window.__dzI18n && window.__dzI18n.langue === "en");
+const dec = (t) => (EN ? String(t).replace(",", ".") : String(t).replace(".", ","));   // virgule FR, point EN
 const $ = (id) => document.getElementById(id);
 const st = { cat: null, rc: null, sess: null, local: null, debut: 0, minuterie: null, cache: null, rec: null, morceaux: [], vd: null };
 
-function eur(v) { return window.__dzPlafonds ? window.__dzPlafonds.usd(v) : (Number(v) || 0).toFixed(2) + " $"; }
+function eur(v) { return dec(window.__dzPlafonds ? window.__dzPlafonds.usd(v) : (Number(v) || 0).toFixed(2) + " $"); }
 function hms(s) { s = Math.max(0, Math.round(s)); return T("avatar.temps.min_s", { m: Math.floor(s / 60), s: String(s % 60).padStart(2, "0") }); }
 function dire(t, err) { const m = $("xMsg"); m.textContent = t || ""; m.classList.toggle("err", !!err); }
 async function lire(r) {
@@ -195,7 +198,7 @@ async function charger() {
   const pre = $("xPre"); pre.textContent = "";
   rc.prereglages.forEach((p) => {
     const b = document.createElement("button");
-    b.type = "button"; b.className = "puce"; b.textContent = p.label; b.setAttribute("aria-pressed", "false");
+    b.type = "button"; b.className = "puce"; b.textContent = Tid("avatar.prereglage." + p.id, p.label); b.setAttribute("aria-pressed", "false");
     b.onclick = () => {
       st.pre = st.pre && st.pre.id === p.id ? null : { id: p.id, consigne: "the scene now takes place " + (CONSIGNES[p.id] || p.label) };
       pre.querySelectorAll(".puce").forEach((x) => x.setAttribute("aria-pressed", String(x === b && !!st.pre)));
@@ -217,7 +220,7 @@ async function chargerVoix() {
   try { e = await lire(await fetch(API + "/voix-direct/etat")); } catch (x) { /* la voix reste « telle quelle » */ }
   const s = $("xVoix"), avant = s.value; s.textContent = "";
   s.appendChild(new Option(T("avatar.direct.voix_telle"), ""));
-  const o = new Option(T("avatar.direct.voix_cloud", { s: (RETARD_MS.cloud / 1000).toFixed(1).replace(".", ",") }), "cloud");
+  const o = new Option(T("avatar.direct.voix_cloud", { s: dec((RETARD_MS.cloud / 1000).toFixed(1)) }), "cloud");
   o.disabled = !(e && e.cloud.disponible); s.appendChild(o);
   ((e && e.local.modeles) || []).forEach((m) => s.appendChild(new Option(T(m.index ? "avatar.direct.voix_locale" : "avatar.direct.voix_locale_sans_index", { nom: m.nom }), "local:" + m.nom)));
   s.value = [...s.options].some((x) => x.value === avant && !x.disabled) ? avant : "";

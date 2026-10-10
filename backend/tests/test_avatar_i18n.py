@@ -66,5 +66,17 @@ check("H1 chaque texte fixe de la page (et title/placeholder/aria-label) est au 
 ordre = [m.group(1) for m in re.finditer(r'<script[^>]*src="([^"]+)"', html)]
 check("H2 dictionnaire puis runtime AVANT tout autre script", ordre[:2] == ["/shared/dz-i18n-dico.js", "/shared/dz-i18n.js"], str(ordre))
 
+print("\n[K] les catalogues du serveur (arrivent en français, traduits par leur id)")
+sys.path.insert(0, str(RACINE / "backend"))
+from app.services import recast_service as RS  # noqa: E402
+manque = [f"avatar.modele.{k}" for k in RS.MODELES if f"avatar.modele.{k}" not in AV] + \
+         [f"avatar.prereglage.{p['id']}" for p in RS.PREREGLAGES if f"avatar.prereglage.{p['id']}" not in AV]
+check("K1 chaque modèle et chaque préréglage du serveur a sa clé", not manque, str(manque))
+ecart = [k for k in RS.MODELES if AV.get(f"avatar.modele.{k}", {}).get("fr") != RS.MODELES[k]["label"]] + \
+        [p["id"] for p in RS.PREREGLAGES if AV.get(f"avatar.prereglage.{p['id']}", {}).get("fr") != p["label"]]
+check("K2 le français du dictionnaire est le libellé du serveur (un libellé changé là-bas se voit ici)", not ecart, str(ecart))
+check("K3 les nombres suivent la langue : virgule en français, point en anglais (dec)",
+      js.count("dec(") >= 6 and '.replace(".", ",") + " $/s"' not in js)
+
 print(f"\n{ok} ok, {fail} fail")
 sys.exit(1 if fail else 0)

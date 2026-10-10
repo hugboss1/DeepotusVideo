@@ -8,6 +8,11 @@
   // G7 (t168) : les textes passent par dzT (dictionnaire frontend/shared/i18n/avatar.json, FR de référence, EN) ;
   // les <option> aussi, que la surcouche ignore.
   function T(cle, vars) { return window.dzT ? window.dzT(cle, vars) : cle; }
+  // G7 : les catalogues du serveur (modèles, préréglages) arrivent en français ; traduits par leur id, sinon tels quels
+  function Tid(cle, defaut) { var v = T(cle); return v === cle ? defaut : v; }
+  // virgule décimale en français, point en anglais (dz-plafonds formate à la française)
+  var EN = !!(window.__dzI18n && window.__dzI18n.langue === "en");
+  function dec(t) { return EN ? String(t).replace(",", ".") : String(t).replace(".", ","); }
   document.querySelectorAll("option[data-t]").forEach(function (o) { o.textContent = T(o.dataset.t); });
   var $ = function (id) { return document.getElementById(id); };
   var etat = { cat: null, persos: [], fichiers: [], source: null, modele: "remplacer", pre: "", suivis: {} };
@@ -22,11 +27,11 @@
     (kids || []).forEach(function (c) { if (c != null) n.appendChild(typeof c === "string" ? document.createTextNode(c) : c); });
     return n;
   }
-  function usd(v) { return (window.__dzPlafonds ? window.__dzPlafonds.usd(v) : (Number(v) || 0).toFixed(2) + " $"); }
+  function usd(v) { return dec(window.__dzPlafonds ? window.__dzPlafonds.usd(v) : (Number(v) || 0).toFixed(2) + " $"); }
   // un tarif PAR SECONDE garde ses trois décimales (0,126 $/s, pas 0,13)
   function jid(j) { return j.job_id || j.id; }   // /api/jobs rend « job_id »
-  function sec(v) { return (Number(v) || 0).toFixed(1).replace(".", ",") + " s"; }
-  function usdS(v) { return (Number(v) || 0).toFixed(3).replace(/0$/, "").replace(".", ",") + " $/s"; }
+  function sec(v) { return dec((Number(v) || 0).toFixed(1)) + " s"; }
+  function usdS(v) { return dec((Number(v) || 0).toFixed(3).replace(/0$/, "")) + " $/s"; }
   function msg(id, t, err) { var m = $(id); m.textContent = t || ""; m.classList.toggle("err", !!err); }
   async function lire(r) {
     var j = null;
@@ -192,17 +197,17 @@
     var cat = etat.cat.recast, box = $("rModeles"); box.textContent = "";
     Object.keys(cat.modeles).forEach(function (k) {
       var m = cat.modeles[k];
-      var prix = Object.keys(m.prix_usd_s).map(function (r) { return usdS(m.prix_usd_s[r]) + (r === "source" ? "" : " en " + r); });
+      var prix = Object.keys(m.prix_usd_s).map(function (r) { return usdS(m.prix_usd_s[r]) + (r === "source" ? "" : " " + T("avatar.recast.en_res", { res: r })); });
       box.appendChild(el("label", { class: "modele", title: m.note_prix || "" }, [
         el("input", { type: "radio", name: "modele", value: k, checked: k === etat.modele,
           onchange: function () { etat.modele = k; majRecast(); } }),
-        el("span", { class: "nom" }, [el("span", { text: m.label }),
+        el("span", { class: "nom" }, [el("span", { text: Tid("avatar.modele." + k, m.label) }),
           el("span", { class: "prix", text: prix[0] + (prix.length > 1 ? " · " + prix[prix.length - 1] : "") })])
       ]));
     });
     var pre = $("rPre"); pre.textContent = "";
     cat.prereglages.forEach(function (p) {
-      var b = el("button", { type: "button", class: "puce", "aria-pressed": "false", text: p.label, onclick: function () {
+      var b = el("button", { type: "button", class: "puce", "aria-pressed": "false", text: Tid("avatar.prereglage." + p.id, p.label), onclick: function () {
         etat.pre = etat.pre === p.id ? "" : p.id;
         pre.querySelectorAll(".puce").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b && etat.pre === p.id)); });
         majRecast();
