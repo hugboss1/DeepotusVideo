@@ -3127,6 +3127,8 @@ def _peint_foil(tmp_path, cas: list) -> list:
         re.search(r"const esc = \(s\).*?&quot;\"\);", src, re.S).group(0),
         re.search(r"const nf = \(v, n\) => \{.*?\n  \};", src, re.S).group(0),
         re.search(r"const nfx = [^;]+;", src).group(0),
+        # icônes G2 : le verdict passe par ICO (repli à clé : le CF de paille n'a pas d'icone)
+        re.search(r"const ICO = \(k, t, c\) =>.*?\);\n", src, re.S).group(0),
         _js_fn(src, "paintFoil"),
         "return { run: (seal, foil, layers) => { SEAL = seal; "
         "BPLAN = foil ? { foil: foil } : null; LAYERS = layers !== false; "

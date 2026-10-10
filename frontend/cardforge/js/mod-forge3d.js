@@ -79,6 +79,12 @@
   const CF = (typeof window !== "undefined") ? window.CF : null;
   if (!CF) throw new Error("mod-forge3d: js/core.js doit etre charge avant ce fichier");
 
+  /* icônes G2 (10/10/2026) : la suite « Deepotus Glyph » passe par le CORE
+     (CF.icone), gardé `typeof` comme CF.chevronSVG — un CF de paille (bancs
+     node) rend un marqueur qui porte la clé. */
+  const ICO = (k, t, c) => (typeof CF.icone === "function" ? CF.icone(k, t, c)
+    : '<i class="dzi" data-cle="' + k + '"></i>');
+
   /* ── LA TABLE DES COUCHES — BLOC MIROIR ─────────────────────────────────
      ═══ CF-FORGE3D-LAYERS-BEGIN ═══
      Le miroir Python est dans backend/app/services/cards/forge3d.py, entre
@@ -283,11 +289,12 @@
      artefact, export) et le repli NOMME du kind `mesh3d` — voir la note
      « LE preview.png D'UN JOB N'EST SERVI PAR AUCUNE ROUTE » plus bas. */
   const PICTO = {
-    layer: "▤", plane: "▭", relief: "◧", mesh3d: "⬢", extrude: "▢",
-    material: "◍", transform: "✥", assemble: "⧉",
-    artifact: "◆", export: "⭳",
+    layer: "dz-calque-pixel", plane: "dz-lab3d-plan", relief: "dz-lab3d-relief",
+    mesh3d: "dz-lab3d-maillage", extrude: "dz-lab3d-extrusion",
+    material: "dz-lab3d-materiau", transform: "dz-edit-transformer", assemble: "dz-lab3d-assemblage",
+    artifact: "dz-lab3d-artefact", export: "dz-action-exporter",
   };
-  const PICTO_DEFAUT = "○";
+  const PICTO_DEFAUT = "dz-etat-inconnu";
   /* LA FINITION, ESQUISSEE — un DEGRADE de vignette, jamais la recette. La
      recette holographique vit cote serveur (forge3d_scene) et ne se voit
      vraiment qu'en tournant le modele dans le viewer ; ce bandeau dit
@@ -375,7 +382,7 @@
   const M = CF.register({
     id: "forge3d",
     title: "Forge 3D",
-    icon: "⬢",
+    icon: "dz-nav-cf-forge-3d",
     order: 9,
     state: {
       last_export: null,        /* horodatage et compte de faces du dernier
@@ -493,7 +500,7 @@
       + 'typo, ornements), recto et verso, plus le composite. Chaque couche est '
       + 'PROUVÉE : l\'empilement doit reproduire la carte au pixel près.</p>'
       + '<button class="btn strong" id="cf-forge3d-export" type="button">'
-      + 'Exporter les couches</button>'
+      + ICO("dz-action-exporter", 16, "cf-ic") + 'Exporter les couches</button>'
       + '<p class="hint" id="cf-forge3d-status"></p>'
       + '<div id="cf-forge3d-slip"></div>'
       + '</section>'
@@ -505,7 +512,7 @@
       + '<button class="seg-b" type="button" data-vue="liste">liste</button>'
       + '</div>'
       + '<button class="lnk" id="cf-forge3d-undo" type="button" '
-      + 'title="annule la dernière édition du graphe">↶ annuler</button>'
+      + 'title="annule la dernière édition du graphe">' + ICO("dz-action-annuler", 16, "cf-ic") + 'annuler</button>'
       + '</header>'
       + '<p class="hint">Un traitement par couche livrée : plan texturé (gratuit), '
       + 'relief extrudé (gratuit, solide fermé imprimable) ou moteur 3D (payant, '
@@ -3766,7 +3773,7 @@
           + '<button class="btn sm" type="button" data-act="imprimer-3d" '
           + 'data-name="' + esc(art.stl.name)
           + '" title="Écrit un dossier assets/print3d (STL + 3MF, étanchéité garantie par le gate) puis propose d\'ouvrir le .3mf dans le slicer (ElegooSlicer)">'
-          + '→ Impression 3D</button></div>')
+          + ICO("dz-lab3d-impression-3d", 16, "cf-ic") + 'Impression 3D</button></div>')
         : ('<p class="hint"><b>STL non fourni</b> : '
           + esc((art.stl && art.stl.why) || "motif non rendu par le backend")
           + '</p>');
@@ -4023,11 +4030,33 @@
   }
 
   /* le pictogramme d'un kind, en grand — le contenu de vignette d'un nœud
-     qui n'a pas de pixels à lui. */
+     qui n'a pas de pixels à lui. Icônes G2 : c'est le tracé de la suite
+     « Deepotus Glyph » (window.DZ_ICONS), peint en Path2D — la vignette est
+     une toile, pas du DOM. Sans la suite (bancs node), elle reste nue. */
   function dessinePicto(ctx, enc, kind, sous) {
-    texteCentre(ctx, enc, connu(PICTO, kind) ? PICTO[kind] : PICTO_DEFAUT,
-                THUMB_H / 2 - 12, 44, enc.trait);
+    peintIcone(ctx, connu(PICTO, kind) ? PICTO[kind] : PICTO_DEFAUT,
+               THUMB_W / 2, THUMB_H / 2 - 12, 44, enc.trait);
     if (sous) texteCentre(ctx, enc, sous, THUMB_H / 2 + 26, 11, enc.encre);
+  }
+  function peintIcone(ctx, cle, cx, cy, taille, couleur) {
+    const src = (typeof window !== "undefined" && window.DZ_ICONS) ? window.DZ_ICONS[cle] : null;
+    if (!src || typeof Path2D === "undefined") return false;
+    const k = taille / 24;
+    ctx.save();
+    ctx.translate(cx - taille / 2, cy - taille / 2);
+    ctx.scale(k, k);
+    ctx.fillStyle = couleur;
+    const re = /<path\b([^>]*)>/g;
+    let m;
+    while ((m = re.exec(src))) {
+      const d = /\sd="([^"]*)"/.exec(m[1]);
+      if (!d) continue;
+      const op = /\sopacity="([^"]*)"/.exec(m[1]);
+      ctx.globalAlpha = op ? parseFloat(op[1]) : 1;
+      ctx.fill(new Path2D(d[1]), /fill-rule="evenodd"/.test(m[1]) ? "evenodd" : "nonzero");
+    }
+    ctx.restore();
+    return true;
   }
 
   /* LA SILHOUETTE TEINTÉE d'une image — pur canvas 2D : on redessine l'image
@@ -5347,7 +5376,7 @@
     const b = $("#cf-forge3d-undo");
     if (!b) return;
     b.disabled = !HIST.length;
-    b.textContent = HIST.length ? "↶ annuler " + HIST[HIST.length - 1].label : "↶ annuler";
+    b.innerHTML = ICO("dz-action-annuler", 16, "cf-ic") + esc(HIST.length ? "annuler " + HIST[HIST.length - 1].label : "annuler");
   }
 
   function undoGraph() {

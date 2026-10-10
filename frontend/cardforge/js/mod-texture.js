@@ -36,6 +36,12 @@
   const CF = (typeof window !== "undefined") ? window.CF : null;
   if (!CF) throw new Error("mod-texture: js/core.js doit etre charge avant ce fichier");
 
+  /* icônes G2 (10/10/2026) : la suite « Deepotus Glyph » passe par le CORE
+     (CF.icone), gardé `typeof` comme CF.chevronSVG — un CF de paille (bancs
+     node) rend un marqueur qui porte la clé. */
+  const ICO = (k, t, c) => (typeof CF.icone === "function" ? CF.icone(k, t, c)
+    : '<i class="dzi" data-cle="' + k + '"></i>');
+
   /* ═══════════════════════════════════════════════════════════════════════
      1. LE CATALOGUE — 30 matieres, procedurales, servies en local.
      Le bloc encadre est LU PAR LE TEST (`test_cards_texture.py`) : il compte
@@ -1349,7 +1355,7 @@
   const M = CF.register({
     id: "texture",
     title: "Matières",
-    icon: "\u{1F9F5}",
+    icon: "dz-nav-cf-matieres",
     order: 6,
 
     painters: [
@@ -1448,10 +1454,10 @@
       + '<span class="cf-tx-dot"></span><span>' + esc((OVER_BY_ID[s.over] || OVER_BY_ID.none).label) + '</span>'
       + '<span class="cf-tx-dot"></span><span class="mono">' + g.canvas_px.join(" x ") + ' px @ ' + g.dpi + ' DPI</span></div>';
     const acts = elm("div", "cf-tx-acts");
-    const bU = elm("button", "cf-tx-mini", "&#8630; Annuler");
+    const bU = elm("button", "cf-tx-mini", ICO("dz-action-annuler", 16, "cf-ic") + "Annuler");
     bU.type = "button"; bU.id = "cf-texture-undo"; bU.title = "Alt+Z";
     bU.addEventListener("click", () => restore(UNDO, REDO));
-    const bR = elm("button", "cf-tx-mini", "&#8631; Rétablir");
+    const bR = elm("button", "cf-tx-mini", ICO("dz-action-retablir", 16, "cf-ic") + "Rétablir");
     bR.type = "button"; bR.id = "cf-texture-redo"; bR.title = "Alt+Y";
     bR.addEventListener("click", () => restore(REDO, UNDO));
     const bZ = elm("button", "cf-tx-mini", "Défauts");
@@ -1559,7 +1565,7 @@
       cuts.appendChild(checkBox(c[1], LIT[c[0]], (v) => { LIT[c[0]] = v; litDraw(); }));
     });
     side.appendChild(cuts);
-    const bs = elm("button", "cf-tx-mini" + (LIT.sweep ? " on" : ""), "↻ Balayer la lumière");
+    const bs = elm("button", "cf-tx-mini" + (LIT.sweep ? " on" : ""), ICO("dz-lab3d-lumiere", 16, "cf-ic") + "Balayer la lumière");
     bs.type = "button"; bs.id = "cf-texture-sweep";
     bs.addEventListener("click", () => {
       litSweep(!LIT.sweep);
@@ -1697,7 +1703,7 @@
       if (/^#[0-9a-fA-F]{6}$/.test(hex.value)) { col.value = hex.value; push({ tint: hex.value }); }
     });
     tintRow.appendChild(col); tintRow.appendChild(hex);
-    const dice = elm("button", "cf-tx-mini", "&#8635; Grain");
+    const dice = elm("button", "cf-tx-mini", ICO("dz-action-aleatoire", 16, "cf-ic") + "Grain");
     dice.type = "button"; dice.title = "Regénère le hasard du motif";
     dice.addEventListener("click", () => {
       push({ seed: 1 + Math.floor(Math.random() * 9999) });
@@ -1750,7 +1756,7 @@
         + ' / max ' + fx(r.y.max, 2)
         + '<i class="cf-tx-def">marche de jonction / médiane / plus forte, par axe</i></span>'
         + (r.exces > SEAM_ALERT
-          ? '<span class="cf-tx-alert">⚠ ' + fx(r.exces, 2) + '×</span>' : '');
+          ? '<span class="cf-tx-alert">' + ICO("dz-etat-avertissement", 16, "cf-ic") + fx(r.exces, 2) + '×</span>' : '');
       host.appendChild(line);
     }
     const b = elm("button", "cf-tx-mini", "Mesurer les " + MATS.length + " tuiles");
@@ -1926,7 +1932,7 @@
         + "× — H " + fx(r.x.edge, 2) + " / méd. " + fx(r.x.med, 2) + " / max " + fx(r.x.max, 2)
         + ", V " + fx(r.y.edge, 2) + " / méd. " + fx(r.y.med, 2) + " / max " + fx(r.y.max, 2);
       if (r.exces > SEAM_ALERT) {
-        const w = elm("i", "cf-tx-matseam", "⚠ " + fx(r.exces, 1) + "×");
+        const w = elm("i", "cf-tx-matseam", ICO("dz-etat-avertissement", 16, "cf-ic") + fx(r.exces, 1) + "×");
         w.title = "la jonction de cette tuile dépasse la plus forte marche qu'elle contient";
         b.appendChild(w);
       }
@@ -2030,7 +2036,7 @@
     }
 
     const run = elm("div", "cf-tx-run");
-    const b = elm("button", "btn strong", "Dériver les 8 maps");
+    const b = elm("button", "btn strong", ICO("dz-lab3d-deriver-maps", 16, "cf-ic") + "Dériver les 8 maps");
     b.type = "button"; b.id = "cf-texture-derive"; b.title = "Alt+D";
     b.addEventListener("click", derive);
     run.appendChild(b);

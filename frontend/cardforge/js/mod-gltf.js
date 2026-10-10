@@ -35,6 +35,12 @@
   const CF = (typeof window !== "undefined") ? window.CF : null;
   if (!CF) throw new Error("mod-gltf: js/core.js doit etre charge avant ce fichier");
 
+  /* icônes G2 (10/10/2026) : la suite « Deepotus Glyph » passe par le CORE
+     (CF.icone), gardé `typeof` comme CF.chevronSVG — un CF de paille (bancs
+     node) rend un marqueur qui porte la clé. */
+  const ICO = (k, t, c) => (typeof CF.icone === "function" ? CF.icone(k, t, c)
+    : '<i class="dzi" data-cle="' + k + '"></i>');
+
   /* ── ilots de SECOURS ─────────────────────────────────────────────────────
      La verite est `contract.UV_ISLANDS`, servie par GET info. Cette copie ne
      sert qu'a composer un atlas quand l'API n'a pas encore repondu : sans
@@ -67,7 +73,7 @@
   const M = CF.register({
     id: "gltf",
     title: "Export 3D",
-    icon: "\u{1F4E6}",
+    icon: "dz-nav-cf-export-3d",
     order: 8,
 
     /* Aucun z n'est alloue a cette piece : elle ne dessine pas la carte. */
@@ -285,7 +291,7 @@
       /* ── reglages ──────────────────────────────────────────────────── */
       + '<section class="cf-gltf-card">'
       + '<header class="cf-gltf-h"><b>Réglages</b>'
-      + '<button class="lnk" id="cf-gltf-undo" type="button" title="Ctrl+Z">↶ annuler</button>'
+      + '<button class="lnk" id="cf-gltf-undo" type="button" title="Ctrl+Z">' + ICO("dz-action-annuler", 16, "cf-ic") + 'annuler</button>'
       + '</header>'
 
       + '<div class="fld"><span class="lbl">Définition de l\'atlas</span>'
@@ -378,7 +384,7 @@
       /* ── bordereau ─────────────────────────────────────────────────── */
       + '<section class="cf-gltf-card">'
       + '<header class="cf-gltf-h"><b>Bordereau</b>'
-      + '<button class="btn sm hidden" id="cf-gltf-all" type="button">Tout télécharger</button>'
+      + '<button class="btn sm hidden" id="cf-gltf-all" type="button">' + ICO("dz-action-telecharger", 16, "cf-ic") + 'Tout télécharger</button>'
       + '</header>'
       + '<div id="cf-gltf-slip"></div>'
       /* ── LE SEUL POINT QUE CET ÉCRAN PERDAIT ────────────────────────────
@@ -1624,7 +1630,7 @@
     const b = $("#cf-gltf-undo");
     if (!b) return;
     b.disabled = !HIST.length;
-    b.textContent = HIST.length ? "↶ annuler " + HIST[HIST.length - 1].label : "↶ annuler";
+    b.innerHTML = ICO("dz-action-annuler", 16, "cf-ic") + esc(HIST.length ? "annuler " + HIST[HIST.length - 1].label : "annuler");
   }
 
   /* LE COUPLAGE AVEC LA PIECE 06, RENDU VISIBLE.

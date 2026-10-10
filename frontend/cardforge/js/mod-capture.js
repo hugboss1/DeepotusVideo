@@ -42,6 +42,12 @@
   const CF = (typeof window !== "undefined") ? window.CF : null;
   if (!CF) throw new Error("mod-capture: js/core.js doit etre charge avant ce fichier");
 
+  /* icônes G2 (10/10/2026) : la suite « Deepotus Glyph » passe par le CORE
+     (CF.icone), gardé `typeof` comme CF.chevronSVG — un CF de paille (bancs
+     node) rend un marqueur qui porte la clé. */
+  const ICO = (k, t, c) => (typeof CF.icone === "function" ? CF.icone(k, t, c)
+    : '<i class="dzi" data-cle="' + k + '"></i>');
+
   /* Les deux cotes, dans l'ordre ou on les depose. Le backend porte la meme
      liste (capture.py:SIDES) et c'est LUI qui refuse un troisieme nom : cette
      copie-ci ne sert qu'a peindre deux boutons. */
@@ -83,7 +89,7 @@
   const M = CF.register({
     id: "capture",
     title: "Import",
-    icon: "\u{1F4E5}",
+    icon: "dz-nav-cf-import",
     order: 10,
 
     /* Aucun z n'est alloue a cette piece : elle ne dessine pas la carte.
@@ -584,10 +590,10 @@
          SVG, AVIF et TIFF — que la route refuse en « corps illisible ». On ne
          propose que ce que PIL sait ouvrir de l'autre cote. */
       + '<input type="file" accept="image/png,image/jpeg,image/webp" class="cf-capture-file" id="cf-capture-file">'
-      + '<button class="btn strong sm" id="cf-capture-pick" type="button" title="PNG, JPEG ou WebP — le serveur réduit l\'image au-delà du plafond d\'import">Choisir un fichier…</button>'
+      + '<button class="btn strong sm" id="cf-capture-pick" type="button" title="PNG, JPEG ou WebP — le serveur réduit l\'image au-delà du plafond d\'import">' + ICO("dz-action-importer", 16, "cf-ic") + 'Choisir un fichier…</button>'
       + '<button class="btn ghost sm hidden" id="cf-capture-replace" type="button" title="Déposer une autre image à la place de celle-ci">Remplacer</button>'
       + '<span class="cf-capture-spacer"></span>'
-      + '<button class="btn sm hidden" id="cf-capture-analyse" type="button" title="Mesurer le recto déposé : bordure, zones, fond, palette. Gratuit, local, sans aucun appel payant — et rejouable autant de fois qu\'on veut.">Analyser</button>'
+      + '<button class="btn sm hidden" id="cf-capture-analyse" type="button" title="Mesurer le recto déposé : bordure, zones, fond, palette. Gratuit, local, sans aucun appel payant — et rejouable autant de fois qu\'on veut.">' + ICO("dz-action-mesurer", 16, "cf-ic") + 'Analyser</button>'
       + '<button class="btn ghost sm hidden" id="cf-capture-boxtog" type="button" title="Afficher ou masquer les zones candidates par-dessus l\'aperçu">Masquer les zones</button>'
       + '</div>'
       + '</div>'
@@ -649,7 +655,7 @@
       + '<p class="cf-capture-empty" id="cf-capture-ia-vide">Le sujet détouré s\'affichera ici.</p>'
       + '</div>'
       + '<div class="cf-capture-actions">'
-      + '<button class="btn sm" id="cf-capture-detour" type="button">Détourer le sujet</button>'
+      + '<button class="btn sm" id="cf-capture-detour" type="button">' + ICO("dz-action-detourer", 16, "cf-ic") + 'Détourer le sujet</button>'
       + '<span class="cf-capture-spacer"></span>'
       + '</div>'
       + '</div>'
@@ -671,7 +677,7 @@
       + '</header>'
       + '<ol class="cf-capture-etapes" id="cf-capture-etapes"></ol>'
       + '<div class="cf-capture-pub">'
-      + '<button class="btn strong sm hidden" id="cf-capture-publier" type="button" title="Écrit les couches importées dans le manifeste que la pièce Forge 3D sait lire — local, gratuit, rejouable">Publier vers la 3D</button>'
+      + '<button class="btn strong sm hidden" id="cf-capture-publier" type="button" title="Écrit les couches importées dans le manifeste que la pièce Forge 3D sait lire — local, gratuit, rejouable">' + ICO("dz-nav-cf-forge-3d", 16, "cf-ic") + 'Publier vers la 3D</button>'
       + '<p class="hint" id="cf-capture-pub-note"></p>'
       + '</div>'
       + '</section>'

@@ -513,3 +513,29 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
   transition:transform var(--dur-panel) var(--ease-panel); }
 .fmt-fold .ff-c svg{ width:12px; height:12px; display:block; }
 .fmtbar.replie .fmt-fold .ff-c{ transform:rotate(90deg); }
+
+/* ═══ Icônes G2 (10/10/2026) — la suite « Deepotus Glyph » ════════════════
+   L'icône hérite de currentColor (/shared/icons/dz-icons.css). Collée à un
+   libellé elle prend un écart (cf-ic : avant le texte, cf-ic-d : après) ;
+   dans un bouton elle ne grandit pas la ligne (marges négatives sur
+   l'élément remplacé). */
+.brand{ display:inline-flex; align-items:center; gap:6px; }
+.cf-ic{ margin-right:.4em; }
+.cf-ic-d{ margin-left:.4em; }
+button > .dzi, label.btn > .dzi, a.backlink > .dzi, .chip > .dzi{ margin-top:-3px; margin-bottom:-3px; }
+/* le chevron unique : le dessin de la suite pointe vers le BAS ; tourné
+   d'un quart il pointe à GAUCHE, l'orientation de référence que les règles
+   d'escamotage tournent ensuite (rail, colonne carte, barre de format, P2). */
+.cf-chev{ transform:rotate(90deg); }
+/* la pointe de flèche (dz-edit-pointe-fleche) est dessinée vers le haut à
+   droite : le bout d'arrivée la tourne à droite, le bout de départ à gauche. */
+.cf-fl-fin{ transform:rotate(45deg); }
+.cf-fl-deb{ transform:rotate(-135deg); }
+/* le même chevron pour les <summary> dessinés en CSS (::before) : un masque
+   tiré du tracé de dz-action-deplier (test_icones_g2 vérifie qu'il reste
+   identique à la suite). Replié il pointe à droite, ouvert vers le bas. */
+:root{ --cf-chev-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 8.5L3.1 8L3.3 7.6L3.7 7.2L4.2 7L4.7 7L5.2 7.1L5.6 7.3L5.8 7.5L12 13.7L18.1 7.6L18.5 7.3L18.9 7.1L19.4 7L19.9 7.1L20.4 7.3L20.7 7.7L21 8.1L21 8.6L20.9 9.1L20.7 9.6L20.5 9.8L13.3 17L12.9 17.3L12.4 17.6L11.9 17.6L11.4 17.5L11 17.3L10.8 17.1L3.6 9.9L3.2 9.5L3 9Z'/%3E%3C/svg%3E"); }
+/* la rangée de la colonne carte tient sur UNE ligne à 1600 px comme avant les icônes :
+   glyphes à 14 px, flèches de navigation resserrées. */
+.stage-head .dzi{ width:14px; height:14px; }
+.stage-head #prevBtn, .stage-head #nextBtn{ padding:3px 5px; }
