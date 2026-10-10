@@ -2346,7 +2346,8 @@ def test_la_telemetrie_descend_dans_un_tiroir_sans_perdre_un_chiffre():
     assert "d.open = DETAIL_OPEN;" in src
     css = CSS.read_text(encoding="utf-8")
     assert ".cf-face-det > summary" in css
-    assert 'content: "▸"' in css, "le tiroir doit s'annoncer d'un chevron"
+    # icônes G2 (10/10/2026) : le chevron est celui de la suite (dz-action-deplier), en masque CSS
+    assert "summary::before" in css and "var(--cf-chev-mask)" in css, "le tiroir doit s'annoncer d'un chevron"
 
 
 def test_le_dpi_effectif_affiche_sa_formule_avec_LES_DEUX_rapports():

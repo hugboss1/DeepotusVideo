@@ -4,9 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Deepotus — 3D Studio</title>
+<link rel="icon" type="image/png" href="/api/branding/logo">
+<link rel="stylesheet" href="/shared/icons/dz-icons.css">
 <link rel="stylesheet" href="studio3d.css">
 <script src="/shared/dz-i18n-dico.js"></script>
 <script src="/shared/dz-i18n.js"></script>
+<script src="/shared/icons/dz-icons.js"></script>
 <script type="module" src="/assets/model-viewer.min.js"></script>
 </head>
 <body>
@@ -20,7 +23,7 @@
       <div class="engine-note" id="engineNote">…</div>
       <button class="engine-goto hidden" id="engineGoto"
               title="Rigger et animer un modèle déjà généré par un moteur fal (Game Assets 3D)">
-        → Atelier fal (rig d'un job)</button>
+        <svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-lab3d-rig"></use></svg> Atelier fal (rig d'un job)</button>
     </section>
 
     <!-- T104 (plan-moteurs-3d T2) : rig + animations Meshy d'un job Game Assets 3D (fal) — fal.js -->
@@ -33,7 +36,7 @@
                title="Taille approximative du personnage — Meshy en déduit l'échelle du squelette"></label>
       <div class="fal-sub">actions (3 cr chacune — marche et course incluses)</div>
       <div class="rig-acts" id="rigActions"></div>
-      <button id="btnRig" class="btn-run" disabled>Rig Meshy · —</button>
+      <button id="btnRig" class="btn-run" disabled><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-lab3d-rig"></use></svg>Rig Meshy · —</button>
       <div class="engine-note fal-refus" id="rigRefus"></div>
       <div class="engine-note" id="rigEtat"></div>
       <select id="animPick" class="fal-sel hidden" title="Clips rapatriés — lus dans l'aperçu ci-dessous"></select>
@@ -44,23 +47,23 @@
       <label class="fld fal-fld"><span>taille (mm, STL / 3MF)</span>
         <input type="number" id="cvMm" min="0.1" max="10000" step="1" placeholder="telle quelle"
                title="Plus grande dimension du modèle à l'impression ; vide = l'échelle du fichier"></label>
-      <button id="cvGo" class="engine-goto">Convertir</button>
+      <button id="cvGo" class="engine-goto"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-convertir"></use></svg> Convertir</button>
       <div class="engine-note" id="cvEtat"></div>
       <div class="engine-note" id="cvConvertis"></div>
       <div class="engine-note" id="cvNote"></div>
       <label class="engine-goto fal-import" title="Un modèle venu d'ailleurs devient un job : Atelier fal, Établi, Bibliothèque">
-        ⤒ Importer un modèle (OBJ, STL, glTF, GLB)
+        <svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-importer"></use></svg> Importer un modèle (OBJ, STL, glTF, GLB)
         <input type="file" id="cvImport" accept=".obj,.stl,.gltf,.glb" hidden></label>
       <!-- T107 (plan-moteurs-3d T8) : le banc de référence — ce que chaque moteur a rendu CHEZ NOUS — banc.js -->
       <div class="fal-sub">banc de référence · médianes mesurées chez nous</div>
       <div class="fal-banc" id="falBanc"></div>
       <select id="bancSujet" class="fal-sel" title="Le sujet type que représente le job choisi"></select>
       <button id="btnBanc" class="engine-goto" title="Lit la fiche de maillage du job choisi et la range au banc — gratuit">
-        → ranger ce job au banc · gratuit</button>
+        <svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-envoyer-vers"></use></svg> ranger ce job au banc · gratuit</button>
       <!-- T107 (plan-moteurs-3d T10) : l'état du service GPU local — local.js -->
       <div class="engine-note" id="falLocal"></div>
       <button class="engine-goto" id="falHub" title="Générer un modèle, valider sa géométrie, le texturer">
-        → ouvrir Game Assets 3D (fal)</button>
+        <svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-cat-3d"></use></svg> ouvrir Game Assets 3D (fal)</button>
     </section>
 
     <!-- T106 (plan-moteurs-3d T6) : les vues se regardent, se rejouent et se détourent AVANT le moteur — vues.js -->
@@ -74,12 +77,12 @@
       <label class="fld fal-fld"><span>sujet</span>
         <input type="text" id="vuesSujet" placeholder="(facultatif) ce que montrent les vues"
                title="Décrit le sujet dans le prompt de chaque vue — vide : « le même personnage/objet »"></label>
-      <button id="btnVues" class="btn-run" disabled>Préparer les vues · —</button>
+      <button id="btnVues" class="btn-run" disabled><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-lab3d-generer-modele"></use></svg>Préparer les vues · —</button>
       <div class="fal-sub">ou reprendre la planche d'une entité de la bible (gratuit)</div>
       <select id="vuesEntite" class="fal-sel" title="Personnages et objets de la bible qui ont une planche"></select>
       <button id="btnVuesBible" class="engine-goto" disabled
               title="Les vues de la planche — panneaux d'origine ou découpe vérifiée — sans aucune génération">
-        → vues de la planche · gratuit</button>
+        <svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-importer"></use></svg> vues de la planche · gratuit</button>
       <div class="fal-sub">ou depuis des photos de la Bibliothèque (📱 = déposées par le téléphone) — gratuit</div>
       <select id="photoFront" class="fal-sel" title="Photo de FACE — exigée"></select>
       <select id="photoBack" class="fal-sel" title="Photo de dos (facultative)"></select>
@@ -88,10 +91,10 @@
       <label class="rig-act" title="Retire le fond de chaque photo — local, gratuit"><input type="checkbox" id="photoDetourer" checked>
         détourer (local, gratuit)</label>
       <button id="btnVuesPhotos" class="engine-goto" title="Redressées, bornées à 2048 px, sans aucune génération">
-        → jeu de vues depuis les photos · gratuit</button>
+        <svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-importer"></use></svg> jeu de vues depuis les photos · gratuit</button>
       <select id="vuesJeu" class="fal-sel" title="Les jeux de vues préparés, le plus récent d'abord"></select>
       <div class="vues-grille" id="vuesGrille"></div>
-      <button id="btnTirer" class="btn-run" disabled>Tirer · —</button>
+      <button id="btnTirer" class="btn-run" disabled><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-lab3d-generer-modele"></use></svg>Tirer · —</button>
       <div class="engine-note fal-refus" id="tirRefus"></div>
       <div class="engine-note" id="vuesEtat"></div>
     </section>
@@ -109,20 +112,20 @@
     <section>
       <div class="dt-label">Transport</div>
       <div class="transport">
-        <button id="btnPlay" title="Gèle / reprend l'animation du graphe et le rafraîchissement — les tâches Meshy, elles, continuent">❙❙ Pause</button>
-        <button id="btnReplay" title="Réinitialise l'affichage du graphe (aucune tâche annulée)">↺</button>
+        <button id="btnPlay" title="Gèle / reprend l'animation du graphe et le rafraîchissement — les tâches Meshy, elles, continuent"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-pause"></use></svg>Pause</button>
+        <button id="btnReplay" title="Réinitialise l'affichage du graphe (aucune tâche annulée)" aria-label="Réinitialiser l'affichage du graphe"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-reinitialiser"></use></svg></button>
       </div>
-      <button class="btn-run" id="btnRun" title="Le coût estimé est détaillé avant tout lancement">Lancer · — cr</button>
+      <button class="btn-run" id="btnRun" title="Le coût estimé est détaillé avant tout lancement"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-lab3d-generer-modele"></use></svg>Lancer · — cr</button>
     </section>
 
     <section class="rail-bottom">
       <div class="dt-label">Étape suivante</div>
-      <button class="next-step" id="goSprite">04 · Sprite Sheet →</button>
+      <button class="next-step" id="goSprite"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-cat-sprites"></use></svg> 04 · Sprite Sheet</button>
       <!-- l'Établi n'est pas un sous-onglet du hub : il PREND LA PLACE de
            cette page dans l'iframe (voir ouvrirEtabli) et rend la main par son
            bouton « ← 3D Studio ». Donc pas de gotoSubtab, qui demanderait au
            hub de changer d'onglet — l'Établi n'en est pas un. -->
-      <button class="next-step" id="goEtabli">07 · Établi 3D →</button>
+      <button class="next-step" id="goEtabli"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-nav-etabli"></use></svg> 07 · Établi 3D</button>
     </section>
   </aside>
 

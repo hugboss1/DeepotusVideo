@@ -4,68 +4,46 @@
   <meta charset="utf-8"/>
   <title>Deepotus — Vectorlab</title>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <link rel="stylesheet" href="/shared/icons/dz-icons.css"/>
   <link rel="stylesheet" href="vectorlab.css"/>
 </head>
 <body>
-  <svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true">
-    <symbol id="t-select" viewBox="0 0 24 24"><path d="M5.5 3.2 19 12.6l-5.6 1.1 3.3 5.9-2.4 1.3-3.3-5.9-4 4.2z"></path></symbol>
-    <symbol id="t-pen" viewBox="0 0 24 24"><path d="M3 12h7l4-5v10l-4-5H3z"></path><circle cx="18.5" cy="12" r="3.2"></circle></symbol>
-    <symbol id="t-rect" viewBox="0 0 24 24"><rect x="3.5" y="7" width="17" height="10" fill="none" stroke="currentColor" stroke-width="1.7"></rect></symbol>
-    <symbol id="t-ellipse" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4" fill="none" stroke="currentColor" stroke-width="1.7"></circle></symbol>
-    <symbol id="t-line" viewBox="0 0 24 24"><path d="M4 20 20 4" stroke="currentColor" stroke-width="1.7" fill="none"></path></symbol>
-    <symbol id="t-node" viewBox="0 0 24 24"><rect x="10.6" y="3" width="2.8" height="18"></rect><rect x="3" y="10.6" width="18" height="2.8"></rect><rect x="9.2" y="9.2" width="5.6" height="5.6" fill="#0e1114" stroke="currentColor" stroke-width="1.6"></rect></symbol>
-    <symbol id="t-scale" viewBox="0 0 24 24"><path d="M5 19 19 5" stroke="currentColor" stroke-width="1.7" fill="none"></path><path d="M13 5h6v6z"></path><path d="M11 19H5v-6z"></path></symbol>
-    <symbol id="t-pipette" viewBox="0 0 24 24"><path d="M12 2.6c3.4 4.6 5.6 7.8 5.6 10.4A5.6 5.6 0 0 1 12 18.6a5.6 5.6 0 0 1-5.6-5.6c0-2.6 2.2-5.8 5.6-10.4z"></path></symbol>
-    <symbol id="t-text" viewBox="0 0 24 24"><rect x="3.4" y="3.8" width="17.2" height="3"></rect><rect x="10.4" y="6.8" width="3.2" height="13.4"></rect></symbol>
-    <symbol id="t-forme" viewBox="0 0 24 24"><path d="M12 2.5l2.6 6.4 6.9.5-5.3 4.4 1.7 6.7L12 16.9l-5.9 3.6 1.7-6.7-5.3-4.4 6.9-.5z" fill="none" stroke="currentColor" stroke-width="1.6"></path></symbol>
-    <symbol id="t-crayon" viewBox="0 0 24 24"><path d="M3 20c3-8 8-12 15-16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path><path d="M16 6l2 2" stroke="currentColor" stroke-width="1.8"></path></symbol>
-    <symbol id="t-couteau" viewBox="0 0 24 24"><path d="M4 20L20 4" stroke="currentColor" stroke-width="1.8"></path><path d="M14 4h6v6" fill="none" stroke="currentColor" stroke-width="1.6"></path></symbol>
-    <symbol id="t-gomme" viewBox="0 0 24 24"><path d="M4 16l8-8 6 6-6 6H8z" fill="none" stroke="currentColor" stroke-width="1.7"></path><path d="M8 20h12" stroke="currentColor" stroke-width="1.7"></path></symbol>
-    <symbol id="t-coin" viewBox="0 0 24 24"><path d="M4 20V10a6 6 0 0 1 6-6h10" fill="none" stroke="currentColor" stroke-width="1.8"></path></symbol>
-    <symbol id="t-constructeur" viewBox="0 0 24 24"><circle cx="9" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="1.6"></circle><circle cx="15" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="1.6"></circle><path d="M12 7.2a6 6 0 0 1 0 9.6a6 6 0 0 1 0-9.6z"></path></symbol>
-    <symbol id="t-hex" viewBox="0 0 24 24"><path d="M12 2.5 20.2 7.2v9.6L12 21.5 3.8 16.8V7.2z" fill="none" stroke="currentColor" stroke-width="1.7"></path></symbol>
-    <symbol id="t-ai" viewBox="0 0 24 24"><path d="M12 1.8 14.4 9l7.2 2.4-7.2 2.4L12 21l-2.4-7.2L2.4 11.4 9.6 9z"></path><rect x="18.4" y="2.4" width="3.2" height="3.2" opacity=".6"></rect></symbol>
-    <symbol id="v-arc" viewBox="0 0 24 24"><path d="M4 21V10.4C4 5.8 7.6 2.2 12 2.2s8 3.6 8 8.2V21z" opacity=".28"></path><rect x="4" y="14.4" width="16" height="6.6"></rect><rect x="11.1" y="2.4" width="1.8" height="18.6" opacity=".55"></rect></symbol>
-    <symbol id="v-rosette" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.4" opacity=".26"></circle><rect x="10.9" y="2.6" width="2.2" height="18.8"></rect><rect x="2.6" y="10.9" width="18.8" height="2.2"></rect><rect x="10.9" y="2.6" width="2.2" height="18.8" transform="rotate(45 12 12)" opacity=".55"></rect><rect x="10.9" y="2.6" width="2.2" height="18.8" transform="rotate(-45 12 12)" opacity=".55"></rect></symbol>
-    <symbol id="v-grille" viewBox="0 0 24 24"><path d="M12 2.4 21.6 12 12 21.6 2.4 12z" opacity=".26"></path><path d="M12 2.4 16.8 7.2 12 12 7.2 7.2zM12 12l4.8 4.8L12 21.6l-4.8-4.8z"></path></symbol>
-    <symbol id="v-plomb" viewBox="0 0 24 24"><path d="M2.6 12 8 3.4h8L21.4 12 16 20.6H8z" opacity=".24"></path><path d="M2.6 11.2h18.8v1.6H2.6zM7.3 3.8l8.9 16.8-1.4.8L5.9 4.6zM16.7 3.8 7.8 20.6l-1.4-.8L15.3 3z"></path></symbol>
-  </svg>
   <nav id="menubar" class="mb" aria-label="Menus"></nav>
   <header class="bar pb">
     <nav id="personas" class="personas" title="Persona : une surface, deux métiers (D8)"></nav>
-    <button id="btnBiblio" class="pb-icone" title="Bibliothèque des documents (Accueil)">⌂</button>
+    <button id="btnBiblio" class="pb-icone" title="Bibliothèque des documents (Accueil)" aria-label="Bibliothèque des documents (Accueil)"><svg class="dzi dzi--18" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-nav-documents"></use></svg></button>
     <div class="spacer"></div>
     <span id="pbCotes" class="pb-cotes" title="Cotes de la sélection">Pas de données</span>
     <span id="pbDoc" class="pb-doc" title="Taille, unité et dpi du document"></span>
-    <span id="temoin" title="État d'enregistrement">✓</span>
-    <button id="btnAnnuler" class="pb-icone" title="Annuler (Ctrl+Z)">↶</button>
-    <button id="btnRefaire" class="pb-icone" title="Refaire (Ctrl+Y)">↷</button>
+    <span id="temoin" title="État d'enregistrement"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-etat-enregistre"></use></svg></span>
+    <button id="btnAnnuler" class="pb-icone" title="Annuler (Ctrl+Z)" aria-label="Annuler (Ctrl+Z)"><svg class="dzi dzi--18" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-annuler"></use></svg></button>
+    <button id="btnRefaire" class="pb-icone" title="Refaire (Ctrl+Y)" aria-label="Refaire (Ctrl+Y)"><svg class="dzi dzi--18" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-retablir"></use></svg></button>
     <span class="exp-conteneur">
-      <button id="btnExporter" class="pb-export" title="Exporter le document"><i></i>Exporter SVG ▾</button>
+      <button id="btnExporter" class="pb-export" title="Exporter le document"><i></i>Exporter SVG<svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-deplier"></use></svg></button>
       <div id="expMenu" class="exp-menu hidden">
         <button id="expSvg" title="Compile ici, stocké au serveur, servi sur export.svg">SVG (serveur)</button>
         <button id="expPng1" title="PNG taille du document → Library">PNG 1×</button>
         <button id="expPng2" title="PNG double → Library">PNG 2×</button>
         <button id="expPng4" title="PNG quadruple → Library">PNG 4×</button>
         <label title="Compile sans le fond du document — coché d'office pour un calque de lumière"><input type="checkbox" id="expTransparent"/> fond transparent</label>
-        <button id="expBible" title="Exporte en 2× et l'ajoute aux images d'inspiration d'une entité de la bible — les planches s'y conditionnent ensuite (machinerie existante, tir opt-in)">→ Bible…</button>
-        <button id="expPrint3d" title="Impression 3D : calques en relief, plateau de tuiles (socle + terrain, un STL par tuile), logo (biseau, évidement) — aperçu 3D avant tir, STL + 3MF, ouverture du slicer">→ Impression 3D…</button>
+        <button id="expBible" title="Exporte en 2× et l'ajoute aux images d'inspiration d'une entité de la bible — les planches s'y conditionnent ensuite (machinerie existante, tir opt-in)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-nav-bible"></use></svg>Bible…</button>
+        <button id="expPrint3d" title="Impression 3D : calques en relief, plateau de tuiles (socle + terrain, un STL par tuile), logo (biseau, évidement) — aperçu 3D avant tir, STL + 3MF, ouverture du slicer"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-lab3d-impression-3d"></use></svg>Impression 3D…</button>
       </div>
     </span>
     <span class="exp-conteneur">
       <input type="file" id="imgFichierInput" accept="image/png,image/jpeg,image/webp" hidden/>
     </span>
-    <button id="btnSauver" class="primaire" title="Sauver (Ctrl+S)">Sauver</button>
-    <button id="btnAide" class="pb-icone" title="Raccourcis clavier (F1)">?</button>
+    <button id="btnSauver" class="primaire" title="Sauver (Ctrl+S)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-enregistrer"></use></svg>Sauver</button>
+    <button id="btnAide" class="pb-icone" title="Raccourcis clavier (F1)" aria-label="Raccourcis clavier (F1)"><svg class="dzi dzi--18" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-raccourcis"></use></svg></button>
   </header>
   <div id="contexte" class="cb">
     <span id="cbSelection">Aucune sélection</span>
     <span class="cb-sep"></span>
     <span id="cbOutil"></span>
     <span class="cb-sep"></span>
-    <button id="btnGrille" title="Grille d'aimantation et repère visuel (G)">⊞ 8</button>
+    <button id="btnGrille" title="Grille d'aimantation et repère visuel (G)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-edit-grille"></use></svg><span>8</span></button>
     <select id="selGrille" title="Pas de la grille — en pixels du document"></select>
-    <button id="btnAimant" class="actif" title="Aimantation aux objets : bords, centres, écarts réguliers">⌖</button>
+    <button id="btnAimant" class="actif" title="Aimantation aux objets : bords, centres, écarts réguliers" aria-label="Aimantation aux objets"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-edit-aimanter"></use></svg></button>
     <button id="btnUnite" title="Unité d'affichage des règles et des cotes (px → mm → cm → in) — sauvée avec le document">px</button>
     <span class="spacer"></span>
     <span id="zoomLabel" title="Molette : zoom · glisser (main ou fond) : déplacer">100 %</span>
@@ -82,7 +60,7 @@
       </select>
       <select id="bibNouvFormat" title="Format du document — les formats physiques posent l'unité mm à 300 dpi"></select>
       <input id="bibNouvTaille" type="text" value="640×960" title="Taille du document en px (L×H) — éditable en format Libre"/>
-      <button id="bibCreer" class="primaire" title="Crée le document et l'ouvre dans l'éditeur">＋ Créer</button>
+      <button id="bibCreer" class="primaire" title="Crée le document et l'ouvre dans l'éditeur"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-nouveau"></use></svg>Créer</button>
       <span class="spacer"></span>
       <input id="bibRecherche" type="search" placeholder="rechercher par nom…"/>
       <select id="bibRole" title="Filtrer par rôle">
@@ -156,14 +134,14 @@
         <input id="assetsRecherche" type="search" placeholder="rechercher…"/><div id="assetsGrille" class="assets-grille"></div></details>
      <details id="calquesDetails" open>
       <summary class="panneau-tete">Calques
-        <button id="btnCalquePlus" title="Nouveau calque">＋</button>
+        <button id="btnCalquePlus" title="Nouveau calque" aria-label="Nouveau calque"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-calque-nouveau"></use></svg></button>
       </summary>
       <div id="listeCalques"></div>
      </details>
     </aside>
   </div>
   <footer class="sb">
-    <span id="sbPages" class="sb-pages">|◀ ◀ 1 sur 1 ▶ ▶|</span>
+    <span id="sbPages" class="sb-pages"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-element-precedent"></use></svg><span>1 sur 1</span><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-element-suivant"></use></svg></span>
     <span id="hintOutil" class="sb-phrase"></span>
     <span class="spacer"></span>
     <span id="docMeta" class="sb-msg"></span>
@@ -172,7 +150,7 @@
     <div class="vl-dlg-boite">
       <div class="vl-dlg-tete"><b>Bibliothèque</b>
         <input id="libRecherche" type="search" placeholder="rechercher…"/>
-        <button id="libFermer" title="Fermer">✕</button></div>
+        <button id="libFermer" title="Fermer" aria-label="Fermer"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-fermer"></use></svg></button></div>
       <div id="libGrille" class="lib-grille"></div>
     </div>
   </div>
@@ -181,6 +159,7 @@
   <div id="vlDlg" class="vl-dlg hidden"></div>
   <script src="/shared/dz-i18n-dico.js"></script>
   <script src="/shared/dz-i18n.js"></script>
+  <script src="/shared/icons/dz-icons.js"></script>
   <script src="vendor/martinez.umd.js"></script>
   <script src="vendor/imagetracer_v1.2.6.js"></script>
   <script src="vendor/opentype.min.js"></script>

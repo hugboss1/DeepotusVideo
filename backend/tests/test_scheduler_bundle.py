@@ -80,9 +80,9 @@ check("2.4 le bouton Connecter : à côté du test, seulement pour les canaux OA
       and AIDE.fr("reglages.comptes.connecter_titre", nom="TikTok").startswith("Ouvrir le consentement TikTok"))
 
 print("\n[3] TikTok dans le Scheduler")
-check("3.1 la table des canaux (sélection, aperçus) connaît TikTok", s.count('tiktok:{id:"tiktok",label:"TikTok",icon:"channelTiktok"') == 1)
+check("3.1 la table des canaux (sélection, aperçus) connaît TikTok", s.count('tiktok:{id:"tiktok",label:"TikTok",icon:"dz-reseau-tiktok"') == 1)
 check("3.2 son icône existe (channelTiktok) : table, carte d'icônes, Distribution, Connected accounts",
-      s.count("channelTiktok:r.jsx(") == 1 and s.count('icon:"channelTiktok"') == 3, str(s.count('icon:"channelTiktok"')))
+      s.count("channelTiktok:r.jsx(") == 1 and s.count('icon:"dz-reseau-tiktok"') == 3, str(s.count('icon:"dz-reseau-tiktok"')))
 check("3.3 l'écran Distribution affiche TikTok, connecté d'après /health", '{id:"tiktok",label:"TikTok"' in s
       and "connected:!!(f&&f.tiktok_enabled)" in s)
 
@@ -138,7 +138,7 @@ for u in ('"/marketing/brief"', '"/schedule/series"', '"/schedule/series/"+x.id+
 ent2 = s[s.find(NEW_POST):s.find(NEW_POST) + 2200]
 check("6.10 l'en-tête gagne « Campagne », avec son title",
       'onClick:function(){__dzSchedCampagne()},children:dzT("scheduler.calendrier.campagne")})' in ent2
-      and AIDE.fr("scheduler.calendrier.campagne") == "Campagne" and 'icon:"book",title:' in ent2)
+      and AIDE.fr("scheduler.calendrier.campagne") == "Campagne" and 'icon:"dz-nav-campagne",title:' in ent2)
 DUPL = 'onClick:P,children:dzT("scheduler.post.dupliquer")})'
 ins = s[s.find(DUPL) - 50:s.find(DUPL) + 600] if s.find(DUPL) >= 0 else ""
 check("6.11 l'inspecteur gagne « Suite (fil X) » — seulement pour un post sur X, avec son title",

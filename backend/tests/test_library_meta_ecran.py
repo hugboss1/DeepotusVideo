@@ -64,7 +64,7 @@ check("B6 la recherche lit AUSSI les tags (Bibliotheque et selecteur)",
 check("B7 la rangee de chips, la vignette et l'editeur de la fiche sont poses",
       s.count('r.jsx(DzMetaChips,{o:o,T:T,f:dzMF,setF:dzMFs}),o==="Audio"&&') == 1
       and s.count('children:C.provider}),dzCarteMeta(C,function(){dzMFs(function(v){return Object.assign({},v)})})') == 1
-      and s.count('r.jsx(se,{name:"close",onClick:()=>y(null)})]}),r.jsx(DzMetaEditor,{m:m,maj:') == 1)
+      and s.count('r.jsx(se,{name:"dz-action-fermer",onClick:()=>y(null)})]}),r.jsx(DzMetaEditor,{m:m,maj:') == 1)
 check("B8 le renommage ne bascule PLUS le favori (le serveur l'emporte) : il deplace le cache",
       s.count("dzFavRenomme(m.name,j.new)") == 1 and "__dzFavImgToggle(j.new)" not in s)
 check("B9 fins de ligne : le bundle reste en CRLF homogene", braw.count(b"\r\n") > 15000
@@ -177,14 +177,14 @@ if R and "erreur" not in R:
           R["renomme"] == [False, True], str(R["renomme"]))
     c = R["carte"]
     check("N12 la vignette : l'etoile du FAVORI (★ allume), la note en points (3), les tags ; rien pour un son",
-          R["carte_audio"] is None and '"children":"★"' in c and "●●●" in c and "#vitrail" in c
+          R["carte_audio"] is None and '"children":"⟦dz-action-favori⟧"' in c and c.count("⟦dz-etat-note⟧") == 3 and "#vitrail" in c
           and "Retirer des favoris" in c, c[:300])
     check("N13 la vignette d'un rendu porte l'etoile (eteinte) et ni note ni tags inventes",
-          '"children":"☆"' in R["carte_r"] and "●" not in R["carte_r"] and "#" not in R["carte_r"], R["carte_r"][:300])
+          '"children":"⟦dz-action-favori⟧"' in R["carte_r"] and "dz-etat-note" not in R["carte_r"] and "#" not in R["carte_r"], R["carte_r"][:300])
     check("N14 la rangee de chips : rien si rien a filtrer ou hors Images/Favoris ; sinon tags comptes, filtre actif marque, "
           "« 3+ » compte, et un bouton pour effacer",
           R["chips_vide"] is None and R["chips_renders"] is None and "#vitrail (2)" in R["chips"] and "#mer (1)" in R["chips"]
-          and "★ 3+ (1)" in R["chips"] and "Effacer" in R["chips"] and '"aria-pressed":true' in R["chips"], R["chips"][:400])
+          and "⟦dz-etat-note⟧ 3+ (1)" in R["chips"] and "Effacer" in R["chips"] and '"aria-pressed":true' in R["chips"], R["chips"][:400])
     check("N16 l'etoile d'une vignette ne laisse PAS le clic ouvrir la fiche (stopPropagation), envoie le favori et rafraichit",
           R["clic_carte"] == [1, "/api/library/asset/z.png", '{"fav":true}', True, True], str(R["clic_carte"]))
     e = R["editeur"]

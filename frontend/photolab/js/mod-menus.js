@@ -395,12 +395,13 @@ export function initMenus(PL) {
       if (e.couleur) l.dataset.couleur = e.couleur;              // t159 : Édition › Menus (couleur)
       if (typeof e.coche === "boolean") {
         // t151 : entrée à coche (espace actif, verrou, panneau visible)
-        const co = document.createElement("span"); co.className = "menu-coche"; co.textContent = e.coche ? "✓" : "";
+        const co = document.createElement("span"); co.className = "menu-coche"; co.innerHTML = e.coche ? PL.icone("dz-etat-option-active", 14) : "";
         l.classList.add("cochable"); l.setAttribute("role", "menuitemcheckbox"); l.setAttribute("aria-checked", e.coche ? "true" : "false");
         l.appendChild(co);
       }
       const droite = document.createElement("span"); droite.className = "menu-droite";
-      droite.textContent = e.type === "sous-menu" ? "▸" : e.raccourci || "";
+      if (e.type === "sous-menu") { droite.classList.add("menu-sous"); droite.innerHTML = PL.icone("dz-action-deplier", 12); }
+      else droite.textContent = e.raccourci || "";
       l.append(lib, droite);
       if (e.etat === "bientot") l.title = T("photolab.menu.bientot");
       l.addEventListener("pointerenter", () => selectionner(p, p.lignes.findIndex((x) => x.el === l)));

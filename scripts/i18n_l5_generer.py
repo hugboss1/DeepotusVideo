@@ -257,12 +257,23 @@ def _json_zone(dico, zone):
                               for k, v in z.items()) + "\n}\n"
 
 
+def _g1(texte, tag):
+    """Icônes G1 (scripts/icones/g1_generer.py, BASE = les blocs traduits par L5) posées PAR-DESSUS une source dont
+    le bloc est édité par le maillon dzglyph (TRANSFERT : la source en est le miroir) ; DIALOGUE n'en a aucune."""
+    if tag != "TRANSFERT":
+        return texte
+    spec = importlib.util.spec_from_file_location("g1_generer", RACINE / "scripts" / "icones" / "g1_generer.py")
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return m.appliquer_bloc_g1(texte)
+
+
 def sorties(paires, sources, dico, gardes, trace):
     out = {PAIRES: (json.dumps({"base": BASE, "paires": paires, "gardes": gardes, "sources": trace,
                                 "decalages": getattr(construire, "decalages", {})},
                                ensure_ascii=False, indent=1) + "\n").encode("utf-8")}
     for c, rel in SOURCES.items():
-        out[RACINE / rel] = sources[c].encode("utf-8")
+        out[RACINE / rel] = _g1(sources[c], TAGS[c]).encode("utf-8")
         for copie in COPIES.get(c, []):
             out[RACINE / copie] = sources[c].encode("utf-8")
     for zone, fichier in ZONES.items():

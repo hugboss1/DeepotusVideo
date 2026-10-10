@@ -149,7 +149,7 @@ if R:
     check("S2 une vignette par voisin (proximite en % dans le title) ; celle de la liste OUVRE sa fiche, l'absente est desactivee",
           R["cartes"] == [[False, "b.png — proximité 91 %"], [True, "zz.png — proximité 50 %"]] and R["ouv"] == ["b.png"]
           and R["img"] == ["/api/images/b.png", "/api/images/zz.png"], str(R["cartes"]))
-    check("S3 503 : dit OU installer CLIP ; aucun voisin : dit d'indexer d'abord", "🔎 Recherche → Installer CLIP" in R["m503"]
+    check("S3 503 : dit OU installer CLIP ; aucun voisin : dit d'indexer d'abord", "⟦dz-action-chercher⟧ Recherche → Installer CLIP" in R["m503"]
           and "Aucune image indexée à comparer" in R["vide"], R["m503"] + R["vide"])
     check("S4 pas de bouton pour une video, un rendu, ni sans media", R["nul"] == [None, None, None], str(R["nul"]))
 

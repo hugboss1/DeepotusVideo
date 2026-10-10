@@ -52,7 +52,7 @@ function svmAudioDur(url){return new Promise(function(res){
   a.onloadedmetadata=function(){fin(isFinite(a.duration)?a.duration:0)};
   a.onerror=function(){fin(0)};
   try{a.src=url}catch(_e){fin(0)}})}
-function SvmThemeChip(props){return r.jsx("button",{className:"svm-themechip",title:dzT("son.theme.apercu_aide"),onClick:function(){props.setTheme(props.theme==="dark"?"light":"dark")},children:props.theme==="dark"?dzT("son.theme.clair"):dzT("son.theme.sombre")})}
+function SvmThemeChip(props){return r.jsx("button",{className:"svm-themechip",title:dzT("son.theme.apercu_aide"),onClick:function(){props.setTheme(props.theme==="dark"?"light":"dark")},children:[__dzGl("dz-action-theme")," ",props.theme==="dark"?dzT("son.theme.clair"):dzT("son.theme.sombre")]})}
 function svmBars(csv){return csv.split(",").map(Number)}
 function SvmLabel(props){return r.jsx("div",{className:"svm-label",style:props.style,children:props.children})}
 /* normalisation de recherche (cheatsheet) — minuscules sans accents */
@@ -244,7 +244,7 @@ function SvmSfxBrowser(props){
       return r.jsxs("div",{className:"svm-sfx",children:[
         r.jsx("button",{className:"svm-playbtn","data-on":on?"":void 0,
           title:on?"Pause":dzT("son.commun.ecouter"),"aria-label":dzT("son.sfx.ecouter_nom",{nom:it.name}),
-          onClick:function(){props.play(url)},children:on?"▮▮":"▶"}),
+          onClick:function(){props.play(url)},children:on?__dzGl("dz-media-pause"):__dzGl("dz-media-lecture")}),
         r.jsx("span",{className:"svm-sfxname",children:it.name}),
         r.jsx("span",{className:"svm-dur",style:{marginLeft:"auto"},
           children:it.dur>0?svmShort(it.dur):"—"}),
@@ -254,7 +254,7 @@ function SvmSfxBrowser(props){
             title:dzT("son.sfx.copier_aide"),
             "aria-label":dzT("son.sfx.ajouter_nom",{nom:it.name}),
             onClick:function(){add(it)},
-            children:busy===it.id?"…":dzT("son.sfx.ajouter")})]},it.id)})}),
+            children:busy===it.id?"…":__dzGlT("dz-action-ajouter-bibliotheque",dzT("son.sfx.ajouter"),"+")})]},it.id)})}),
     r.jsx("div",{className:"svm-note",children:
       dzT("son.sfx.licence",{n:(items?items.length:0)})})]})}
 
@@ -330,7 +330,7 @@ function SvmParticles(props){
           children:dzT("son.vfx.telecharger")}),
         r.jsx("button",{className:"svm-primarybtn",
           onClick:function(){props.go&&props.go("library")},
-          children:dzT("son.vfx.ouvrir_biblio")})]}):null]}),
+          children:__dzGlT("dz-nav-bibliotheque",dzT("son.vfx.ouvrir_biblio"),"→")})]}):null]}),
 
     r.jsxs("div",{className:"svm-card",children:[
       r.jsxs("div",{className:"svm-cardhead",children:[
@@ -403,7 +403,7 @@ function SvmLyricsEditor(props){
       r.jsx("textarea",{className:"svm-musicprompt",rows:2,value:s.text,"aria-label":dzT("son.paroles.texte",{n:(i+1)}),
         onChange:function(e){var n=secs.slice();n[i]=Object.assign({},s,{text:e.target.value});set(n)}}),
       r.jsx("button",{className:"svm-minibtn",title:dzT("son.paroles.retirer"),"aria-label":dzT("son.paroles.retirer_n",{n:(i+1)}),
-        onClick:function(){set(secs.filter(function(_s,j){return j!==i}))},children:"✕"})]},i)})]})}
+        onClick:function(){set(secs.filter(function(_s,j){return j!==i}))},children:__dzGl("dz-action-supprimer")})]},i)})]})}
 /* le prix affiché d'un modèle de musique : par génération, ou à la seconde (ACE-Step) sur la durée choisie */
 function svmMusicPrice(v,dur){
   return v.usd_unit==="s"?"~$"+(v.usd*dur).toFixed(3)+" · "+dur+" s":"~$"+v.usd.toFixed(2)}
@@ -525,7 +525,7 @@ function SvmMusic(props){
       r.jsxs("div",{className:"svm-sfx",style:{marginTop:10},children:[
         r.jsx("button",{className:"svm-playbtn","data-on":on?"":void 0,
           title:on?"Pause":dzT("son.commun.ecouter"),"aria-label":dzT("son.musique.ecouter_piste"),
-          onClick:function(){props.play(resUrl)},children:on?"▮▮":"▶"}),
+          onClick:function(){props.play(resUrl)},children:on?__dzGl("dz-media-pause"):__dzGl("dz-media-lecture")}),
         r.jsx("span",{className:"svm-sfxname",children:res.item.name}),
         r.jsx("span",{className:"svm-dur",style:{marginLeft:"auto"},
           children:res.item.dur>0?svmShort(res.item.dur):"—"}),
@@ -537,7 +537,7 @@ function SvmMusic(props){
           children:dzT("son.musique.dans_biblio")}),
         r.jsx("button",{className:"svm-primarybtn",
           onClick:function(){props.go&&props.go("montage")},
-          children:dzT("son.musique.ouvrir_montage")})]})]}):null]})}
+          children:__dzGlT("dz-nav-montage",dzT("son.musique.ouvrir_montage"),"→")})]})]}):null]})}
 
 /* T102 : le devis d'une action payante — LE chiffre du backend (le même que la
    garde des plafonds), jamais un tarif recopié ici. null = devis indisponible. */
@@ -738,7 +738,7 @@ function DzSonVfx(props){
               r.jsx("div",{className:"svm-vmeta",children:v.meta})]}),
             r.jsx("button",{className:"svm-playbtn","data-on":playingVoice===v.id?"":void 0,
               title:dzT("son.voix.ecouter"),"aria-label":dzT("son.sfx.ecouter_nom",{nom:v.name}),
-              onClick:function(e){playVoice(v,e)},children:playingVoice===v.id?"▮▮":"▶"})]},v.id)})})]}):
+              onClick:function(e){playVoice(v,e)},children:playingVoice===v.id?__dzGl("dz-media-pause"):__dzGl("dz-media-lecture")})]},v.id)})})]}):
     selGen==="sfx"?r.jsxs(r.Fragment,{children:[
       r.jsx(SvmLabel,{style:{margin:"22px 0 10px"},children:dzT("son.rail.familles_sons")}),
       r.jsx(SvmRailFamilies,{families:(ix&&ix.sfx_families)||[],sel:sfxFam,
@@ -783,7 +783,7 @@ function DzSonVfx(props){
       r.jsx("div",{className:"svm-wavehead",style:{left:(cur.dur?cur.pos/cur.dur*100:0)+"%"}})]}),
     r.jsxs("div",{className:"svm-toolrow",children:[
       r.jsx("button",{className:"svm-play30",onClick:toggleEditor,
-        title:playing?"Pause":dzT("son.commun.lecture"),"aria-label":playing?"Pause":dzT("son.commun.lecture"),children:playing?"▮▮":"▶"}),
+        title:playing?"Pause":dzT("son.commun.lecture"),"aria-label":playing?"Pause":dzT("son.commun.lecture"),children:playing?__dzGl("dz-media-pause"):__dzGl("dz-media-lecture")}),
       [dzT("son.editeur.rogner"),dzT("son.editeur.fondu"),"Ducking",dzT("son.editeur.normaliser"),dzT("son.editeur.de_esser")].map(function(t){
         return r.jsx("button",{className:"svm-toolbtn",
           /* couche DzSfx chargée : ces outils EXISTENT, par clip dans le
@@ -793,7 +793,7 @@ function DzSonVfx(props){
             :dzT("son.editeur.outil_cible",{outil:t}))},
           children:t},t)}),
       r.jsx("button",{className:"svm-primarybtn",
-        onClick:function(){props.go&&props.go("montage")},children:dzT("son.editeur.envoyer_montage")})]})]});
+        onClick:function(){props.go&&props.go("montage")},children:__dzGlT("dz-nav-montage",dzT("son.editeur.envoyer_montage"),"→")})]})]});
 
   /* ── T102 (T7) : la voix off DIRIGÉE — une vraie génération ──────────────
      Palette des balises Eleven v3 servie par /api/voice-tags (registre relu
@@ -920,7 +920,7 @@ function DzSonVfx(props){
             r.jsx("button",{className:"svm-playbtn","data-on":sfxPlay===it.url?"":void 0,
               title:sfxPlay===it.url?"Pause":dzT("son.commun.ecouter"),
               "aria-label":dzT("son.sfx.ecouter_nom",{nom:it.name||dzT("son.sfx.variation",{n:i2+1})}),
-              onClick:function(){playSfxItem(it)},children:sfxPlay===it.url?"▮▮":"▶"}),
+              onClick:function(){playSfxItem(it)},children:sfxPlay===it.url?__dzGl("dz-media-pause"):__dzGl("dz-media-lecture")}),
             r.jsx("span",{className:"svm-sfxname",children:it.name||(dzT("son.sfx.variation",{n:i2+1}))}),
             r.jsx("span",{className:"svm-dur",style:{marginLeft:"auto"},
               children:Number(it.dur)>0?svmShort(Number(it.dur)):"—"})]},it.url||i2)})}),
@@ -929,7 +929,7 @@ function DzSonVfx(props){
             children:dzT("son.sfx.sauvegardes")}),
           r.jsx("button",{className:"svm-primarybtn",
             onClick:function(){stopAll();props.go&&props.go("montage")},
-            children:dzT("son.sfx.ouvrir_montage")})]})]}):
+            children:__dzGlT("dz-nav-montage",dzT("son.sfx.ouvrir_montage"),"→")})]})]}):
       r.jsx("div",{className:"svm-note",
         children:dzT("son.sfx.note",{touche:svmKeyLabelNow("sounds_drawer")})})]}):
     r.jsxs("div",{className:"svm-card",children:[
@@ -937,7 +937,7 @@ function DzSonVfx(props){
       r.jsx("div",{className:"svm-sfxlist",children:SVM_SFX.map(function(s2){
         return r.jsxs("div",{className:"svm-sfx",children:[
           r.jsx("button",{className:"svm-playbtn",title:dzT("son.commun.ecouter"),"aria-label":dzT("son.sfx.ecouter_nom",{nom:s2.name}),
-            onClick:function(){fireNote(dzT("son.sfx.sans_backend"))},children:"▶"}),
+            onClick:function(){fireNote(dzT("son.sfx.sans_backend"))},children:__dzGl("dz-media-lecture")}),
           r.jsx("span",{className:"svm-sfxname",children:s2.name}),
           r.jsx("div",{className:"svm-miniwave",children:s2.bars.map(function(h,i){
             return r.jsx("div",{className:"svm-minibar",style:{height:h+"%"}},i)})}),
@@ -4968,7 +4968,7 @@ function DzMontage(props){
           children:mp.length+"/"+SVM_MP_CAP}):null,
         r.jsx("button",{className:"svm-minibtn svm-vpbtn",
           title:dzT("montage.trajectoire.poser_aide"),
-          onClick:svmMpHere,children:dzT("montage.trajectoire.poser")})]}),
+          onClick:svmMpHere,children:__dzGlT("dz-media-image-cle",dzT("montage.trajectoire.poser"),"◇")})]}),
       mp?r.jsxs("div",{className:"svm-vplist",children:[
         mp.map(function(p,pi){
           return r.jsxs("div",{className:"svm-vprow",style:{cursor:"pointer"},
@@ -4984,7 +4984,7 @@ function DzMontage(props){
               title:dzT("montage.trajectoire.retirer"),
               "aria-label":dzT("montage.trajectoire.retirer_a",{t:svmShort(p.t)}),
               onClick:function(e){e.stopPropagation();svmMpRemove(sel.id,pi)},
-              children:"🗑︎"})]},pi)}),
+              children:__dzGl("dz-action-supprimer")})]},pi)}),
         r.jsx("div",{className:"svm-vprow",children:
           r.jsx("span",{className:"svm-transnone",style:{marginTop:0,flex:"1 1 auto"},
             children:mp.length<2?dzT("montage.trajectoire.un_seul")
@@ -5340,8 +5340,8 @@ function DzMontage(props){
          grisée quand les deux plans ne sont pas des vidéos en contact */
       r.jsxs("div",{className:"svm-abrow",children:[
         r.jsx("img",{className:"svm-abthumb",src:abA||void 0,alt:"","data-ab":"a",draggable:!1,title:dzT("montage.jonction.vignette_a")}),
-        r.jsx("button",{className:"svm-secbtn svm-abbtn",disabled:!abOk,"aria-disabled":!abOk,title:dzT("montage.jonction.reculer"),onClick:function(e){abRoll(e.shiftKey?-10:-1)},children:"◀ −1"}),
-        r.jsx("button",{className:"svm-secbtn svm-abbtn",disabled:!abOk,"aria-disabled":!abOk,title:dzT("montage.jonction.avancer"),onClick:function(e){abRoll(e.shiftKey?10:1)},children:"+1 ▶"}),
+        r.jsx("button",{className:"svm-secbtn svm-abbtn",disabled:!abOk,"aria-disabled":!abOk,title:dzT("montage.jonction.reculer"),onClick:function(e){abRoll(e.shiftKey?-10:-1)},children:__dzGlT("dz-media-image-precedente","◀ −1","◀")}),
+        r.jsx("button",{className:"svm-secbtn svm-abbtn",disabled:!abOk,"aria-disabled":!abOk,title:dzT("montage.jonction.avancer"),onClick:function(e){abRoll(e.shiftKey?10:1)},children:__dzGlT("dz-media-image-suivante","+1 ▶","▶")}),
         r.jsx("img",{className:"svm-abthumb",src:abB||void 0,alt:"","data-ab":"b",draggable:!1,title:dzT("montage.jonction.vignette_b")})]}),
       r.jsxs("div",{className:"svm-fxedit",style:{marginTop:10},children:[
         r.jsx("span",{className:"svm-fxeditname",children:dzT("montage.commun.duree")}),
@@ -5514,7 +5514,7 @@ function DzMontage(props){
           "aria-pressed":autoOn,
           title:dzT("montage.audio.automation_aide",{touche:svmKeyLabel("delete")})+
             (isMus?dzT("montage.audio.automation_musique"):""),
-          onClick:function(){setAutoOn(!autoOn)},children:"◇ automation"})]}),
+          onClick:function(){setAutoOn(!autoOn)},children:__dzGlT("dz-media-automation","◇ automation","◇")})]}),
       r.jsxs("div",{className:"svm-fadegain",children:[
         r.jsx("span",{className:"svm-fxeditname",children:"Gain"}),
         r.jsx("input",{className:"svm-range",type:"range",min:-24,max:12,step:1,value:g,
@@ -5535,7 +5535,7 @@ function DzMontage(props){
             r.jsx("button",{className:"svm-minibtn svm-vpdel",
               title:dzT("montage.audio.point_retirer"),
               "aria-label":dzT("montage.audio.point_retirer_aria")+svmShort(p.t),
-              onClick:function(){svmVpRemove(sel.id,pi)},children:"🗑︎"})]},pi)}),
+              onClick:function(){svmVpRemove(sel.id,pi)},children:__dzGl("dz-action-supprimer")})]},pi)}),
         r.jsxs("div",{className:"svm-vprow",children:[
           r.jsx("span",{className:"svm-transnone",style:{marginTop:0,flex:"1 1 auto"},
             children:vp.length<2?dzT("montage.audio.un_seul_point")
@@ -5588,7 +5588,7 @@ function DzMontage(props){
           title:spdv===1?dzT("montage.audio.vitesse_origine"):dzT("montage.audio.vitesse_revenir"),
           "aria-label":dzT("montage.audio.vitesse_un"),
           onClick:function(){if(spdv!==1)svmSetClipAudio(selRef.current,{speed:1})},
-          children:"×"+spdv.toFixed(2)})]}):null,
+          children:[__dzGl("dz-action-reinitialiser")," ","×"+spdv.toFixed(2)]})]}):null,
       dzsfx&&dzsfx.Rack?r.jsxs(r.Fragment,{children:[
         r.jsx(SvmLabel,{style:{margin:"14px 0 0"},children:dzT("montage.commun.effets")}),
         r.jsx(dzsfx.Rack,{fx:sel.fx||[],
@@ -5787,14 +5787,14 @@ function DzMontage(props){
           title:c.src?(narrPlayId===c.id?"Pause":dzT("montage.narration.ecouter_aide")):dzT("montage.narration.rien_a_ecouter"),
           "aria-label":dzT("montage.narration.ecouter_aria")+(i+1),
           onClick:function(e){e.stopPropagation();if(c.src)narrListen(c)},
-          children:narrPlayId===c.id?"▮▮":"▶"}),
+          children:narrPlayId===c.id?__dzGl("dz-media-pause"):__dzGl("dz-media-lecture")}),
         r.jsx("button",{className:"svm-minibtn svm-nbdel",
           title:dzT("montage.narration.supprimer_aide"),
           "aria-label":dzT("montage.narration.supprimer_aria")+(i+1),
           onClick:function(e){e.stopPropagation();
             if(narrPlayId===c.id)narrStop();
             delClipById(c.id)},
-          children:"🗑︎"})]})]},c.id)}
+          children:__dzGl("dz-action-supprimer")})]})]},c.id)}
   function narrPanel(){
     if(!narrOn)return null;
     var blocks=clips.filter(function(c){return c.tr==="a1"}).slice()
@@ -5843,7 +5843,7 @@ function DzMontage(props){
   return r.jsxs("div",{className:"dzsvm svm-col",ref:rootRef,"data-view":view,"data-svm-theme":theme==="light"?"light":void 0,children:[
     /* barre de titre */
     r.jsxs("div",{className:"svm-titlebar",children:[
-      r.jsx("button",{className:"svm-secbtn svm-menubtn",title:dzT("montage.titre.menu_aide"),"aria-haspopup":"menu","aria-expanded":!!(dzMenu&&dzMenu.kind==="main"),onClick:function(e){if(dzMenu&&dzMenu.kind==="main"){setDzMenu(null);return}var b=e.currentTarget.getBoundingClientRect();setDzMenu(dzMenuProps("main",{x:b.left,y:b.bottom+4}))},children:"☰"}),
+      r.jsx("button",{className:"svm-secbtn svm-menubtn",title:dzT("montage.titre.menu_aide"),"aria-haspopup":"menu","aria-expanded":!!(dzMenu&&dzMenu.kind==="main"),onClick:function(e){if(dzMenu&&dzMenu.kind==="main"){setDzMenu(null);return}var b=e.currentTarget.getBoundingClientRect();setDzMenu(dzMenuProps("main",{x:b.left,y:b.bottom+4}))},children:__dzGl("dz-action-menu")}),
       r.jsx("span",{className:"svm-title",children:"Montage"}),
       r.jsx("span",{className:"svm-projmeta",children:proj.name+" · "+proj.version+" · "+svmRuler(Math.round(dur))}),
       /* réinitialisation depuis la Bibliothèque (A) — confirmation INLINE :
@@ -5883,7 +5883,7 @@ function DzMontage(props){
           children:SVM_RATIOS.map(function(rt){
             return r.jsx("option",{value:rt[0],children:rt[1]},rt[0])})}),
         r.jsx("button",{className:"svm-secbtn",title:dzT("montage.titre.preview_aide"),onClick:function(){setPop(pop==="preview"?"":"preview")},children:"Preview"}),
-        r.jsx("button",{className:"svm-goldbtn",title:dzT("montage.titre.rendre_aide"),onClick:function(){setPop(pop==="render"?"":"render")},children:dzT("montage.titre.rendre")}),
+        r.jsx("button",{className:"svm-goldbtn",title:dzT("montage.titre.rendre_aide"),onClick:function(){setPop(pop==="render"?"":"render")},children:__dzGlT("dz-media-rendre",dzT("montage.titre.rendre"),"→")}),
         /* E-5 : « Publier » = le dernier rendu FINAL de ce projet (mémoire par projet), sinon grisé */
         r.jsx("button",{className:"svm-secbtn svm-pubbtn",disabled:!dzLast,title:dzLast?dzT("montage.titre.publier_aide"):dzT("montage.titre.publier_vide"),
           onClick:function(){if(dzLast){setPop("");setDzFin(Object.assign({project_id:proj.project_id||""},dzLast))}},children:dzT("montage.commun.publier")}),
@@ -6096,7 +6096,7 @@ function DzMontage(props){
           r.jsx("div",{className:"svm-clipname",style:{marginTop:0,flex:"1 1 auto",minWidth:0,
             whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"},children:sel?sel.label:"—"}),
           sel?r.jsx("button",{className:"svm-minibtn",title:dzT("montage.inspecteur.supprimer_clip",{k:svmKeyLabel("delete")}),
-            "aria-label":dzT("montage.inspecteur.supprimer_nom",{nom:sel.label}),onClick:delClip,children:"🗑︎"}):null]}),
+            "aria-label":dzT("montage.inspecteur.supprimer_nom",{nom:sel.label}),onClick:delClip,children:__dzGl("dz-action-supprimer")}):null]}),
         (function(){
           /* Out affiché = durée de SOURCE consommée : à vitesse ×s (audio
              atempo comme V1) le clip lit s fois plus de source */
@@ -6352,28 +6352,28 @@ function DzMontage(props){
           svmTcFF(ph),r.jsx("span",{className:"svm-tctotal",children:" / "+svmTcFF(dur)})]}),
         playing&&spd!==1?r.jsx("span",{className:"svm-spdchip",
           title:dzT("montage.transport.vitesse_aide"),
-          children:(spd<0?"◀ ×":"×")+Math.abs(spd)}):null,
+          children:spd<0?[__dzGl("dz-media-vitesse")," ×"+Math.abs(spd)]:"×"+Math.abs(spd)}):null,
         /* badge SOLO — visible dès qu'un solo d'écoute est actif */
         (function(){var sks=Object.keys(solo).filter(function(kk){return solo[kk]});
           return sks.length?r.jsx("span",{className:"svm-solochip",
             title:dzT("montage.solo.badge_aide",{pistes:sks.map(function(s3){return s3.toUpperCase()}).join(" + ")})+(previewUrl?dzT("montage.solo.sans_effet_apercu"):""),
             children:"SOLO "+sks.map(function(s3){return s3.toUpperCase()}).join("+")}):null})(),
         r.jsxs("div",{className:"svm-transbtns",children:[
-          r.jsx("button",{className:"svm-tbtn",title:dzT("montage.transport.coupe_prec",{k:svmKeyLabel("cut_prev")}),onClick:function(){jump(-1)},children:"◀◀"}),
+          r.jsx("button",{className:"svm-tbtn",title:dzT("montage.transport.coupe_prec",{k:svmKeyLabel("cut_prev")}),onClick:function(){jump(-1)},children:__dzGl("dz-media-precedent")}),
           r.jsx("button",{className:"svm-tbtn",title:dzT("montage.transport.image_prec",{k:svmKeyLabel("step_back")}),"aria-label":dzT("montage.transport.reculer"),
-            onClick:function(){seekTo(Math.max(0,Math.round(phRef.current*30-1)/30))},children:"|◀"}),
+            onClick:function(){seekTo(Math.max(0,Math.round(phRef.current*30-1)/30))},children:__dzGl("dz-media-image-precedente")}),
           r.jsx("button",{className:"svm-tbtn svm-gold",
             title:playing?dzT("montage.transport.pause",{a:svmKeyLabel("play"),b:svmKeyLabel("jog_pause")})
               :dzT("montage.transport.lecture",{a:svmKeyLabel("play"),b:svmKeyLabel("jog_fwd")}),
-            onClick:function(){setSpd(1);setPlaying(!playing)},children:playing?"▮▮":"▶"}),
+            onClick:function(){setSpd(1);setPlaying(!playing)},children:playing?__dzGl("dz-media-pause"):__dzGl("dz-media-lecture")}),
           r.jsx("button",{className:"svm-tbtn",title:dzT("montage.transport.image_suiv",{k:svmKeyLabel("step_fwd")}),"aria-label":dzT("montage.transport.avancer"),
-            onClick:function(){seekTo(Math.min(durRef.current,Math.round(phRef.current*30+1)/30))},children:"▶|"}),
-          r.jsx("button",{className:"svm-tbtn",title:dzT("montage.transport.coupe_suiv",{k:svmKeyLabel("cut_next")}),onClick:function(){jump(1)},children:"▶▶"})]}),
+            onClick:function(){seekTo(Math.min(durRef.current,Math.round(phRef.current*30+1)/30))},children:__dzGl("dz-media-image-suivante")}),
+          r.jsx("button",{className:"svm-tbtn",title:dzT("montage.transport.coupe_suiv",{k:svmKeyLabel("cut_next")}),onClick:function(){jump(1)},children:__dzGl("dz-media-suivant")})]}),
         r.jsxs("div",{className:"svm-transbtns",children:[
           r.jsx("button",{className:"svm-tbtn",title:dzT("montage.transport.annuler_aide",{k:svmKeyLabel("undo")}),"aria-label":dzT("montage.transport.annuler"),
-            "data-off":histRef.current.u.length?void 0:"",onClick:undo,children:"↶"}),
+            "data-off":histRef.current.u.length?void 0:"",onClick:undo,children:__dzGl("dz-action-annuler")}),
           r.jsx("button",{className:"svm-tbtn",title:dzT("montage.transport.retablir_aide",{k:svmKeyLabel("redo")}),"aria-label":dzT("montage.transport.retablir"),
-            "data-off":histRef.current.r.length?void 0:"",onClick:redo,children:"↷"})]}),
+            "data-off":histRef.current.r.length?void 0:"",onClick:redo,children:__dzGl("dz-action-retablir")})]}),
         r.jsxs("div",{className:"svm-toolchips",children:[
           /* étape 8 du handoff « Barre Outils Flottante » (§4.5) : les
              trois `aria-label`. Sous largeur réduite ces chips passent
@@ -6391,9 +6391,9 @@ function DzMontage(props){
             title:dzT("montage.outils.ripple_aide",{k:svmKeyLabel("ripple")}),onClick:function(){setRipple(!ripple)},children:"ripple"}),
           r.jsx("button",{className:"svm-toolchip","data-on":dzMkOn?"":void 0,
             "aria-label":dzT("montage.outils.marqueurs"),
-            title:dzT("montage.outils.marqueurs_aide",{a:svmKeyLabel("marker_index"),b:svmKeyLabel("marker_toggle")}),onClick:function(){dzMkToggle()},children:"◆ "+((proj.markers||[]).length)}),
-          r.jsx("button",{className:"svm-toolchip","aria-label":dzT("montage.outils.titre"),title:dzT("montage.outils.titre_aide",{k:svmKeyLabel("title_add")}),onClick:function(){dzTtAdd()},children:"T+"}),
-          r.jsx("button",{className:"svm-toolchip","aria-label":dzT("montage.outils.ajustement"),title:dzT("montage.outils.ajustement_aide",{k:svmKeyLabel("adjust_add")}),onClick:function(){dzAjAdd()},children:"J+"}),
+            title:dzT("montage.outils.marqueurs_aide",{a:svmKeyLabel("marker_index"),b:svmKeyLabel("marker_toggle")}),onClick:function(){dzMkToggle()},children:__dzGlT("dz-media-marqueur",("◆ "+((proj.markers||[]).length)),"◆")}),
+          r.jsx("button",{className:"svm-toolchip","aria-label":dzT("montage.outils.titre"),title:dzT("montage.outils.titre_aide",{k:svmKeyLabel("title_add")}),onClick:function(){dzTtAdd()},children:__dzGl("dz-media-titre")}),
+          r.jsx("button",{className:"svm-toolchip","aria-label":dzT("montage.outils.ajustement"),title:dzT("montage.outils.ajustement_aide",{k:svmKeyLabel("adjust_add")}),onClick:function(){dzAjAdd()},children:__dzGl("dz-calque-reglage")}),
           /* sous-titres : la chip dit combien de lignes porte la piste et
              combien sont SIGNALÉES — les deux chiffres sortent du verdict,
              donc ils valent exactement ceux du badge d'onglet du tiroir et
@@ -6480,7 +6480,7 @@ function DzMontage(props){
             "aria-label":dzT("montage.rappels.masquer"),
             onClick:function(){setHintsOff(!0);
               try{localStorage.setItem("dz_hints_off","1")}catch(_e){}},
-            children:"×"})]}),
+            children:__dzGl("dz-action-fermer")})]}),
         /* bouton discret du panneau raccourcis — fin de transport */
         r.jsx(DzTracks.Projects,{name:proj.name,projectId:proj.project_id,note:fireNote,
           /* étape 6 (§5.1) : le BOUTON « projets » a quitté le
@@ -6504,7 +6504,7 @@ function DzMontage(props){
         /* bouton discret du panneau raccourcis — fin de transport */
         r.jsx("button",{className:"svm-tbtn",title:dzT("montage.raccourcis.aide",{k:svmKeyLabel("keys_panel")}),
           "aria-label":dzT("montage.raccourcis.label"),"aria-haspopup":"dialog","aria-expanded":kbOn,
-          onClick:function(){setKbOn(!kbOn)},children:"?"})]}),
+          onClick:function(){setKbOn(!kbOn)},children:__dzGl("dz-action-raccourcis")})]}),
       /* D-7 : mini-carte HORS zoom — un rect par clip, la fenêtre visible ; clic = centrer .svm-scroll
          (la gouttière de 88 px est dans .svm-lanes donc dans scrollWidth : déduite, comme le zoom fait W-88) */
       r.jsx(DzTracks.Minimap,{clips:clips,tracks:svmTracksOf(proj),dur:dur,viewFrac:mmView,onSeek:function(f){var el=tlScrollRef.current;if(!el)return;var w=el.scrollWidth-88;el.scrollLeft=Math.max(0,f*w-(el.clientWidth-88)/2)}}),
@@ -6544,23 +6544,23 @@ function DzMontage(props){
                 if(trackKind(tr.id)==="adjust"){dzAjAdd();return}
                 if(trackKind(tr.id)==="title"){dzTtAdd();return}
                 if(trackKind(tr.id)==="video"&&!(e&&e.shiftKey)){if(proj.demo){fireNote(dzT("montage.commun.ajout_demo"));return}setMedTr(tr.id);setMedOn(!0);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1);return}
-                openPicker(tr.id)},children:"+"},"add");
+                openPicker(tr.id)},children:__dzGl("dz-action-ajouter")},"add");
             var thType=r.jsx("span",{className:"svm-ttype",title:tr.type,children:tr.type},"type");
             var thM=bus?r.jsx("button",{className:"svm-minibtn svm-tkbtn",
               "data-on":muted?"":void 0,"aria-pressed":muted,
               title:muted?dzT("montage.piste.reactiver",{nom:tr.name,bus:bus})
                 :dzT("montage.piste.rendre_muette",{nom:tr.name,bus:bus}),
-              onClick:function(){svmTrackMute(tr.id)},children:"M"},"m"):null;
+              onClick:function(){svmTrackMute(tr.id)},children:__dzGl("dz-media-muet")},"m"):null;
             var thS=bus?r.jsx("button",{className:"svm-minibtn svm-tkbtn svm-tksolo",
               "data-on":soloOn?"":void 0,"aria-pressed":soloOn,
               title:soloOn?dzT("montage.piste.solo_retirer",{nom:tr.name,k:svmKeyLabel("solo")})
                 :dzT("montage.piste.solo_poser",{nom:tr.name,k:svmKeyLabel("solo")}),
-              onClick:function(e){svmTrackSolo(tr.id,e.shiftKey)},children:"S"},"s"):null;
+              onClick:function(e){svmTrackSolo(tr.id,e.shiftKey)},children:__dzGl("dz-media-solo")},"s"):null;
             var thLock=r.jsx("button",{className:"svm-minibtn svm-tkbtn",
               "data-on":locked?"":void 0,"aria-pressed":locked,
               title:locked?dzT("montage.piste.deverrouiller",{nom:tr.name})
                 :dzT("montage.piste.verrouiller",{nom:tr.name}),
-              onClick:function(){svmTrackLock(tr.id)},children:"🔒︎"},"lk");
+              onClick:function(){svmTrackLock(tr.id)},children:__dzGl("dz-etat-verrouille")},"lk");
             var thFader=bus?r.jsx("div",{className:"svm-thfader",children:
               r.jsx("div",{className:"svm-thmix","data-bus":bus,role:"slider",tabIndex:0,
                 title:dzT("montage.piste.bus_aide",{bus:bus,niveau:muted?dzT("montage.commun.muet"):svmBusDbTxt(busDb)}),

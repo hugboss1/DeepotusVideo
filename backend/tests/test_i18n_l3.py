@@ -65,15 +65,16 @@ def main():
 
     print("\n[2] la réversibilité")
     try:
-        check("2a la couche d'avant L3 se reconstruit exactement, sans git", n(AIDE.couche_avant_i18n_l3(COUCHE)) == n(BASE))
+        check("2a la couche d'avant L3 se reconstruit exactement, sans git (icônes G1 défaites ensuite)",
+              n(AIDE.couche_avant_dzglyph(AIDE.couche_avant_i18n_l3(COUCHE), "montage")) == n(BASE))
     except ValueError as e:
         check("2a la couche d'avant L3 se reconstruit exactement", False, e)
     check("2b la table consignée rejoue la couche : base + substitutions = couche du poste",
-          n(G.appliquer("montage", BASE)) == n(COUCHE))
+          n(G.appliquer("montage", BASE)) == n(AIDE.couche_avant_dzglyph(COUCHE, "montage")))   # G1 posées après L3
     b, e = "/*__DZ_MONTAGE_BEGIN__*/", "/*__DZ_MONTAGE_END__*/"
     bloc = BUN.split(b, 1)[1].split(e, 1)[0] if BUN.count(b) == 1 else ""
     check("2c le bloc MONTAGE du bundle EST la couche (rafraîchie)", n(bloc).strip("\n") == n(COUCHE).lstrip("﻿").strip("\n"))
-    bloc0 = AIDE.avant_i18n_l3(BUN).split(b, 1)[1].split(e, 1)[0]
+    bloc0 = AIDE.couche_avant_dzglyph(AIDE.avant_i18n_l3(BUN).split(b, 1)[1].split(e, 1)[0].strip("\r\n"), "montage")
     check("2d avant_i18n_l3(bundle) rend le bloc d'avant L3", n(bloc0).strip("\n") == n(BASE).strip("\n"))
     import i18n_l1_generer as G1
     try:

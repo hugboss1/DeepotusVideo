@@ -131,3 +131,10 @@ button, input, select { font-family: inherit; }
 .vers-plan td { border-top: 1px solid var(--stroke); padding: 3px 4px; vertical-align: top; word-break: break-word; }
 .vers-plan td:first-child { font-family: var(--f-mono); color: var(--ink-soft); white-space: nowrap; }
 .vers-plan tr.change td:last-child { color: var(--accent); }
+
+/* ── Deepotus Glyph (G6) : l'icône hérite de la couleur du bouton ; un bouton flex garde un écart
+   entre l'icône et son texte (l'espace du balisage y est avalé) ── */
+.btn { gap: 5px; }
+.btn > .dzi { width: 14px; height: 14px; }
+.head-btn > .dzi { width: 13px; height: 13px; vertical-align: -2px; }
+.mesure .dzi, .mouvement .dzi, .avert .dzi { width: 13px; height: 13px; vertical-align: -2px; }

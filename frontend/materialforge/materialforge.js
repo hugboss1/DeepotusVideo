@@ -19,6 +19,8 @@
 
 /* ───────────────────────── utilitaires ───────────────────────── */
 const $ = (s) => document.querySelector(s);
+/* Deepotus Glyph (G6) : une icône de la suite, décorative — le sens est porté par le bouton (libellé, title, aria-label) */
+const ico = (cle, t = 16) => (typeof dzIcone === "function" ? dzIcone(cle, { taille: t, classe: "dzi--" + t }) : "");
 const $$ = (s) => Array.from(document.querySelectorAll(s));
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const esc = (s) => String(s == null ? "" : s)
@@ -670,7 +672,7 @@ function renderPlan() {
     const done = planRun.done[i] != null;
     const run = planRun.active === i;
     const cls = "step" + (done ? " ok" : run ? " run" : "") + (s.paid ? " paid" : "");
-    const dot = done ? "✓" : String(i + 1);
+    const dot = done ? ico("dz-etat-succes") : String(i + 1);
     // à droite : RIEN avant le lancement (le prix et la durée sont sur le
     // bouton), la durée RÉELLE une fois l'étape franchie.
     const right = done
@@ -780,7 +782,7 @@ function setProgress(pct) {
 }
 function setBusy(b) {
   $("#genBtn").disabled = b;
-  $("#genLabel").textContent = b ? "⚒ Forge en cours…" : "⚒ Forger la matière";
+  $("#genLabel").innerHTML = ico("dz-lab3d-forger-matiere") + (b ? " Forge en cours…" : " Forger la matière");
 }
 
 /* pct renvoyé par le backend -> index d'étape du parcours affiché.
@@ -1183,7 +1185,7 @@ const SORTS = [
   { id: "recent", label: "Plus récentes" },
   { id: "name", label: "Nom (A → Z)" },
   { id: "seam", label: "Meilleur raccord" },
-  { id: "res", label: "Résolution ↓" },
+  { id: "res", label: "Résolution décroissante" },
 ];
 function sortList(list) {
   const l = list.slice();
@@ -1455,7 +1457,7 @@ async function ouvrirCatalogue(famille) {
 function emptyHtml(q) {
   if (state.apiOk === false) {
     return `<div class="empty-card">
-      <div class="empty-ic">⚠</div>
+      <div class="empty-ic">${ico("dz-etat-erreur", 20)}</div>
       <h3>L’API Matières ne répond pas</h3>
       <p>Le lab reste ouvert. Dès que <code>GET /api/materials</code> répond, la galerie se remplit ici.</p>
       <button class="btn sm" data-empty="retry">Réessayer</button>
@@ -1463,14 +1465,14 @@ function emptyHtml(q) {
   }
   if (q) {
     return `<div class="empty-card">
-      <div class="empty-ic">🔎</div>
+      <div class="empty-ic">${ico("dz-action-chercher", 20)}</div>
       <h3>Aucune matière pour « ${esc(state.filter)} »</h3>
       <p>${state.materials.length} matière${state.materials.length > 1 ? "s" : ""} en stock — le filtre porte sur le nom, l’invite et l’image d’origine.</p>
       <button class="btn sm" data-empty="clear">Effacer le filtre</button>
     </div>`;
   }
   return `<div class="empty-card">
-    <div class="empty-ic">⚒</div>
+    <div class="empty-ic">${ico("dz-cat-matieres", 20)}</div>
     <h3>La galerie est vide</h3>
     <p>Décris une matière à gauche, ou pars d’une image de la Library.
        Chaque forge dépose ici une carte en aperçu 3D réel, avec ses
@@ -1479,7 +1481,7 @@ function emptyHtml(q) {
       ${SEED_PROMPTS.map((p) => `<button class="chip" data-empty="seed" data-p="${esc(p)}">${esc(p)}</button>`).join("")}
     </div>
     <p>Ou pars d'une matière du catalogue :
-      <button class="btn sm" data-empty="catalog">📚 Catalogue CC0 (30 matières)</button></p>
+      <button class="btn sm" data-empty="catalog">${ico("dz-media-pack-depart")} Catalogue CC0 (30 matières)</button></p>
     <p class="empty-foot">Rouvrir une matière plus tard : un clic sur sa carte la rouvre
       dans l’éditeur, propriétés et maps intactes.</p>
   </div>`;
@@ -1553,8 +1555,8 @@ const MAP_COURT = { basecolor: "couleur", normal: "normale", roughness: "rugosit
   orm: "ORM", maskmap: "MaskMap" };
 function proofChip(m) {
   const c = proofCount(m);
-  if (!c.n) return "◧ maps";
-  const tete = "◧ " + c.n + " maps";
+  if (!c.n) return ico("dz-etat-information") + " maps";
+  const tete = ico("dz-etat-information") + " " + c.n + " maps";
   if (!c.audited) return tete;
   const noms = c.flat.map((k) => MAP_COURT[k] || mapFr(k)).join(", ");
   return tete + '<i class="cst">' + (c.cst
@@ -1607,7 +1609,7 @@ function cardHtml(m, i) {
     ${state.varied ? `<span class="card-mesh">${esc(meshLabel)}</span>` : ""}
     <button class="card-del" data-act="del" data-arm="0" type="button"
             aria-label="Supprimer ${esc(nm)}"
-            title="Supprimer la matière et ses maps — un second clic confirme">✕</button>
+            title="Supprimer la matière et ses maps — un second clic confirme">${ico("dz-action-supprimer")}</button>
     <span class="card-open">Ouvrir</span>
   </div>
   <div class="card-meta">
@@ -1618,9 +1620,9 @@ function cardHtml(m, i) {
     <div class="card-prompt" title="${esc(sub)}">${esc(sub) || "&nbsp;"}</div>
     <div class="card-foot">
       <button class="iact pchip" data-act="proof" title="${esc(proofTitle(m))}">${proofChip(m)}</button>
-      <button class="iact" data-act="dup" title="Copie locale et gratuite de cette matière">⧉ Dupliquer</button>
-      <button class="iact" data-act="dl" title="Télécharger l’archive ZIP des maps de cette matière — son contenu exact est listé dans la preuve">ZIP</button>
-      <button class="iact" data-act="reuse" title="Recharger son invite et ses réglages dans le rail de gauche">↺ Invite</button>
+      <button class="iact" data-act="dup" title="Copie locale et gratuite de cette matière">${ico("dz-action-dupliquer")} Dupliquer</button>
+      <button class="iact" data-act="dl" title="Télécharger l’archive ZIP des maps de cette matière — son contenu exact est listé dans la preuve">${ico("dz-action-telecharger")} ZIP</button>
+      <button class="iact" data-act="reuse" title="Recharger son invite et ses réglages dans le rail de gauche">${ico("dz-action-reprendre-reglages")} Invite</button>
     </div>
   </div>
 </article>`;
@@ -1636,7 +1638,7 @@ function disarmAll() {
   clearTimeout(armTimer);
   $$('#gallery [data-act="del"][data-arm="1"]').forEach((b) => {
     b.dataset.arm = "0";
-    b.textContent = "✕";
+    b.innerHTML = ico("dz-action-supprimer");
   });
 }
 function armDelete(btn, id) {
@@ -1944,7 +1946,7 @@ async function openProof(id) {
   const verdict = !au || !au.ref
     ? "Audit impossible : la hauteur n'a pas pu être lue dans cette page."
     : gains.length
-      ? "⚠ " + gains.map((x) => mapLabel(x.k)).join(", ") + " : le meilleur ajustement " +
+      ? ico("dz-etat-avertissement") + " " + gains.map((x) => mapLabel(x.k)).join(", ") + " : le meilleur ajustement " +
         "affine sur la " + esc(refFr) + " ne laisse rien — ces maps SONT la même image " +
         "re-réglée. " + testedTxt
       : "Aucune map n'est la " + esc(refFr) + " re-réglée. La plus proche des maps " +
@@ -2015,7 +2017,7 @@ async function openProof(id) {
 
   const dl = document.createElement("button");
   dl.className = "btn strong wide";
-  dl.textContent = "⬇ Télécharger ce ZIP";
+  dl.innerHTML = ico("dz-action-telecharger") + " Télécharger ce ZIP";
   dl.onclick = () => doExport(m.id, true);
   $("#proofBody").appendChild(dl);
 }
@@ -2360,7 +2362,7 @@ function propRow(row, val, def, onChange) {
 /* en-tête d'un groupe : chevron + titre + résumé (replié) + pastille de
    modifications. `dig` peut être nul (Maps, Dérivation portent leur compte). */
 function grpSummary(title, dig, mods) {
-  return '<summary><i class="chev"></i><span class="grp-t">' + esc(title) + "</span>" +
+  return '<summary><i class="chev">' + ico("dz-action-deplier", 12) + '</i><span class="grp-t">' + esc(title) + "</span>" +
     (dig ? '<b class="grp-dig">' + esc(dig) + "</b>" : "") +
     (mods ? '<em class="grp-mod" title="' + mods + ' réglage(s) hors défaut">' + mods + "</em>" : "") +
     "</summary>";
@@ -2490,7 +2492,7 @@ function fillInspector(m) {
   const rb = document.createElement("button");
   rb.className = "btn primary wide";
   rb.id = "btnDerive";
-  rb.textContent = "↻ Re-dériver les maps";
+  rb.innerHTML = ico("dz-lab3d-deriver-maps") + " Re-dériver les maps";
   rb.onclick = rederive;
   db.appendChild(rb);
   dd.appendChild(db);
@@ -2708,7 +2710,7 @@ async function rederive() {
   if (!id) return;
   const m = matById(id);
   const btn = $("#btnDerive");
-  if (btn) { btn.disabled = true; btn.textContent = "↻ Dérivation…"; }
+  if (btn) { btn.disabled = true; btn.innerHTML = ico("dz-lab3d-deriver-maps") + " Dérivation…"; }
   try {
     await flushPatch();
     const d = await api.post("/materials/" + encodeURIComponent(id) + "/derive",
@@ -2726,7 +2728,7 @@ async function rederive() {
        une revendication chiffrée doit venir de la mesure. */
     toast(((nm.maps || []).length || "les") + " maps re-dérivées localement — 0 crédit.");
   } catch (e) { toast("Dérivation impossible : " + e.message, true); }
-  if (btn) { btn.disabled = false; btn.textContent = "↻ Re-dériver les maps"; }
+  if (btn) { btn.disabled = false; btn.innerHTML = ico("dz-lab3d-deriver-maps") + " Re-dériver les maps"; }
 }
 
 async function captureThumb() {
@@ -3031,7 +3033,7 @@ async function fetchManifest() {
     $("#exMani").innerHTML = '<div class="mani-empty">Bordereau indisponible : ' + esc(e.message) + "</div>";
     $("#exTot").textContent = "—";
     $("#exWeigh").textContent = "";
-    $("#btnExport").innerHTML = "⬇ Télécharger";
+    $("#btnExport").innerHTML = ico("dz-action-telecharger") + " Télécharger";
   }
 }
 
@@ -3115,7 +3117,7 @@ function renderMani(d) {
   $("#exTot").textContent = tot;
   // le poids de l'archive n'est pas un COÛT : il ne porte plus le jeton ambre
   // réservé aux crédits (« 4 cr » du bouton de forge).
-  $("#btnExport").innerHTML = "⬇ " + esc(d.archive) + ' <b class="est-size">' + tot + "</b>";
+  $("#btnExport").innerHTML = ico("dz-action-telecharger") + " " + esc(d.archive) + ' <b class="est-size">' + tot + "</b>";
   $("#exFoot").textContent = FORMAT_NOTE[d.format] || "";
   // le bordereau porte la note VERIFIEE de la convention qu'il decrit
   $("#exNamingNote").textContent = d.naming_note || NAMING_NOTE[d.naming] || "";

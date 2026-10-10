@@ -4,6 +4,7 @@
 // définir/retoucher/retirer) et le panneau Plateau (générateur : rayon ou
 // rectangle, taille, orientation, terrain, numérotation). Logique PURE en
 // tête (banc node).
+import { dzi } from "./mod-icones.js";
 import { op_grille, terrains_de, op_terrain_definir, op_terrain_supprimer,
          op_plateau_generer } from "./mod-doc.js";
 import { GRILLE_TYPES } from "./mod-grille.js";
@@ -35,10 +36,10 @@ export function motifDepuisSaisie(s) {
   return m ? m.id : null;
 }
 export function grilleLibelle(g, pasAffichage) {
-  if (!g) return "⊞ " + pasAffichage;
-  if (g.type === "hex") return `⊞ hex ${g.pas} ${g.orientation}`;
-  if (g.type === "carree") return `⊞ ${g.pas}` + (g.sous > 1 ? ` ÷${g.sous}` : "");
-  return `⊞ ${g.type} ${g.pas}`;
+  if (!g) return String(pasAffichage);                 // l'icône dz-edit-grille est posée par core (majBoutonGrille)
+  if (g.type === "hex") return `hex ${g.pas} ${g.orientation}`;
+  if (g.type === "carree") return `${g.pas}` + (g.sous > 1 ? ` ÷${g.sous}` : "");
+  return `${g.type} ${g.pas}`;
 }
 
 /* ── DOM ── */
@@ -90,8 +91,8 @@ export function initPlateau(VL) {
     const t = terrains_de(etat.doc);
     if (!t[etat.terrainCourant]) etat.terrainCourant = Object.keys(t)[0];
     hT.innerHTML = Object.entries(t).map(([k, f]) => terrainLigne(k, f, k === etat.terrainCourant)).join("")
-      + `<div class="ap-ligne"><button id="terPlus" title="Nouveau terrain (clé, nom, couleur, hauteur mm)">＋ terrain</button>
-         <button id="terMoins" title="Retirer la surcharge du terrain courant (un défaut revient à sa fiche)">− surcharge</button></div>`;
+      + `<div class="ap-ligne"><button id="terPlus" title="Nouveau terrain (clé, nom, couleur, hauteur mm)">${dzi("dz-action-ajouter", 16)}terrain</button>
+         <button id="terMoins" title="Retirer la surcharge du terrain courant (un défaut revient à sa fiche)">${dzi("dz-action-reinitialiser", 16)}surcharge</button></div>`;
     hT.querySelectorAll(".terrain").forEach((el) => {
       el.addEventListener("click", () => { etat.terrainCourant = el.dataset.terrain; rendreTerrains(); });
       el.addEventListener("dblclick", () => retoucher(el.dataset.terrain));

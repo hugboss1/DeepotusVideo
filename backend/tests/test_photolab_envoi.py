@@ -105,7 +105,7 @@ check("2b0_t141_les_cles_des_trois_cibles_rendent_les_libelles_d_avant",
       and AIDE.fr("photolab.cible.tilelab") == "🧱 Tile Lab — source de la tuile")
 check("2b_les_trois_cibles_une_fois_juste_apres_sprite_lab_image",
       BUN.count('__dzToSpriteLab({kind:"image",filename:nom})}});if(m.de!=="photolab")items.push('
-                '{lbl:dzT("photolab.cible.photolab")') == 1
+                '{ic:"dz-nav-photolab",g:"📷",lbl:dzT("photolab.cible.photolab")') == 1
       and BUN.count('__dzEnvoi("vectorlab",nom);__dzSendNav("vectorlab")') == 1
       and BUN.count('__dzEnvoi("tilelab",nom);__dzSendNav("assets3d",{subtab:"tiles"})') == 1)
 check("2c_jeton___dzSendTo_2_vers_3", BUN.count("__dzSendTo") == 3, BUN.count("__dzSendTo"))

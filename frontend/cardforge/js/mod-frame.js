@@ -23,6 +23,12 @@
   const CF = (typeof window !== "undefined") ? window.CF : null;
   if (!CF) throw new Error("mod-frame: js/core.js doit etre charge avant ce fichier");
 
+  /* icônes G2 (10/10/2026) : la suite « Deepotus Glyph » passe par le CORE
+     (CF.icone), gardé `typeof` comme CF.chevronSVG — un CF de paille (bancs
+     node) rend un marqueur qui porte la clé. */
+  const ICO = (k, t, c) => (typeof CF.icone === "function" ? CF.icone(k, t, c)
+    : '<i class="dzi" data-cle="' + k + '"></i>');
+
   /* ═══════════════════════════════════════════════════════════════════════
      LE CATALOGUE. Bloc EXTRAIT et compare a `cards/frame.py` par
      `test_cards_frame.py` : deux listes qui derivent en silence, c'est un
@@ -3732,7 +3738,7 @@
   const M = CF.register({
     id: "frame",
     title: "Cadre",
-    icon: "\u{1F5BC}",
+    icon: "dz-nav-cf-cadre",
     order: 2,
 
     painters: [
@@ -3999,8 +4005,9 @@
     const top = h("div", "cff-top");
     UI.count = h("div", "cff-count");
     const acts = h("div", "cff-acts");
-    UI.undo = h("button", "btn sm", "↶ Annuler");
-    UI.redo = h("button", "btn sm", "↷");
+    UI.undo = h("button", "btn sm", ICO("dz-action-annuler", 16, "cf-ic") + "Annuler");
+    UI.redo = h("button", "btn sm", ICO("dz-action-retablir", 16));
+    UI.redo.setAttribute("aria-label", "Rétablir");
     const reset = h("button", "btn sm", "Réinitialiser");
     /* LE COMPTEUR DE RECOUVREMENTS, a cote de la verification du backend :
        le meme endroit que la liste d'erreurs de rendu du CORE. Sans lui,
@@ -4217,7 +4224,7 @@
     UI.decorCost = h("p", "hint cff-cost");
     g17.body.appendChild(UI.decorCost);
     const dbtns = h("div", "cff-row");
-    UI.decorGen = h("button", "btn strong sm", "Générer le décor");
+    UI.decorGen = h("button", "btn strong sm", ICO("dz-media-generer-image", 16, "cf-ic") + "Générer le décor");
     UI.decorGen.type = "button";
     UI.decorGen.addEventListener("click", decorGenerate);
     const dclr = h("button", "btn sm", "Retirer le décor");
@@ -4424,11 +4431,11 @@
     const bshow = h("button", "btn sm", "Voir le dos");
     bshow.type = "button";
     bshow.addEventListener("click", showBack);
-    const bdl = h("button", "btn strong sm", "PNG dos 1:1 + pHYs");
+    const bdl = h("button", "btn strong sm", ICO("dz-action-telecharger", 16, "cf-ic") + "PNG dos 1:1 + pHYs");
     bdl.type = "button";
     bdl.title = "Rend le VERSO à geom.canvas_px, écrit le chunk pHYs (définition) et les boîtes de coupe en tEXt, puis télécharge — local, gratuit";
     bdl.addEventListener("click", exportBack);
-    const fdl = h("button", "btn strong sm", "PNG recto 1:1 + pHYs");
+    const fdl = h("button", "btn strong sm", ICO("dz-action-telecharger", 16, "cf-ic") + "PNG recto 1:1 + pHYs");
     fdl.type = "button";
     fdl.title = "Le même fichier que l'aperçu, à geom.canvas_px, estampillé pHYs + tEXt";
     fdl.addEventListener("click", exportFront);
@@ -4613,7 +4620,7 @@
       b.type = "button";
       /* le chevron unique du design 26/08, garde `typeof` (patron sanscore) */
       b.innerHTML = '<i class="cff-cf-c">'
-        + (typeof CF.chevronSVG === "string" ? CF.chevronSVG : "&#8249;")
+        + (typeof CF.chevronSVG === "string" ? CF.chevronSVG : ICO("dz-action-deplier", 16, "cf-chev"))
         + '</i><span class="cff-cf-t">' + esc(quoi) + '</span>';
       b.addEventListener("click", () => {
         PLI[cle] = !PLI[cle];
@@ -5970,16 +5977,16 @@
       + "<span>valeur annoncée</span><span>ce que la mesure dit</span></div>" + rows.join("")
       + (S.dess.length ? ('<div class="cff-proofhd cff-swhd"><span>·</span><span>format</span>'
         + "<span>rayon</span><span>pixels changés — ornements ‖ métaux</span></div>"
-        + S.dess.map((l) => '<div class="cff-proofr cff-swr ok"><span class="v">✓</span><span>'
+        + S.dess.map((l) => '<div class="cff-proofr cff-swr ok"><span class="v">' + ICO("dz-etat-succes", 16) + '</span><span>'
           + esc(l.fmt) + " <i>" + esc(l.prof) + "</i></span><span>" + l.corner + " mm</span><span>"
           + l.coins.map((c) => esc(c.label) + " " + c.px).join(" · ") + " ‖ "
           + l.metaux.map((m) => esc(m.label) + " " + m.px).join(" · ")
           + "</span></div>").join("")) : "");
     UI.swbadge.className = "cff-pbadge " + (bad ? "ko" : (S.fini ? "ok" : ""));
-    UI.swbadge.textContent = bad
+    UI.swbadge.innerHTML = bad
       ? (bad + " écart(s) · " + hms(S.at))
       : (S.fini
-        ? ("✓ " + S.geo.length + " géométries + " + S.rendus + " rendus, 0 échec · " + hms(S.at))
+        ? (ICO("dz-etat-succes", 16, "cf-ic") + S.geo.length + " géométries + " + S.rendus + " rendus, 0 échec · " + hms(S.at))
         : (S.geo.length + " géométries · rendus " + S.paires + "/" + (S.couples || 0)
           + " couples…"));
     UI.swRead.innerHTML = "Balayage à <b>" + S.dpi + " DPI</b> — c'est une vérification de "
@@ -6419,15 +6426,15 @@
     }
     const bt = (txt, titre, off, on) => {
       const b = h("button", "btn sm", txt);
-      b.type = "button"; b.title = titre; b.disabled = off;
+      b.type = "button"; b.title = titre; b.disabled = off; b.setAttribute("aria-label", titre);
       b.addEventListener("click", on);
       return b;
     };
     L.forEach((l, i) => {
       const row = h("div", "cff-bl");
-      const up = bt("↑", "monter (peint plus tôt)", i === 0, () => backLayerMove(i, -1));
-      const dn = bt("↓", "descendre (peint plus tard)", i === L.length - 1, () => backLayerMove(i, 1));
-      const del = bt("✕", "retirer ce calque", false, () => backLayerDel(i));
+      const up = bt(ICO("dz-edit-monter", 16), "monter (peint plus tôt)", i === 0, () => backLayerMove(i, -1));
+      const dn = bt(ICO("dz-edit-descendre", 16), "descendre (peint plus tard)", i === L.length - 1, () => backLayerMove(i, 1));
+      const del = bt(ICO("dz-action-supprimer", 16), "retirer ce calque", false, () => backLayerDel(i));
       const src = h("button", "btn sm cff-blsrc");
       src.type = "button";
       src.textContent = backFile(l.src) || "choisir un fichier…";
@@ -7024,7 +7031,7 @@
      horizontalement, et une croix rouge hors champ ne sert a personne. */
   function proofRow(quoi, annonce, mesure, ok, note) {
     return '<div class="cff-proofr ' + (ok ? "ok" : "ko") + '"><span class="v">'
-      + (ok ? "✓" : "✗") + "</span><span>" + esc(quoi)
+      + (ok ? ICO("dz-etat-succes", 16) : ICO("dz-etat-erreur", 16)) + "</span><span>" + esc(quoi)
       + "</span><span>" + esc(annonce) + "</span><span>" + esc(mesure)
       + (note ? " — " + esc(note) : "") + "</span></div>";
   }
@@ -7173,10 +7180,10 @@
     const perime = PROOF.sig !== fileSig();
     PA.perime = perime;
     UI.pbadge.className = "cff-pbadge " + (bad ? "ko" : (perime ? "" : "ok"));
-    UI.pbadge.textContent = bad
+    UI.pbadge.innerHTML = bad
       ? (bad + " écart(s) sur " + rows.length + " · " + hms(P.at))
       : (perime ? "périmée depuis " + hms(P.at) + " — relecture…"
-        : "✓ " + rows.length + " lignes vérifiées sur les octets · " + hms(P.at));
+        : ICO("dz-etat-succes", 16, "cf-ic") + rows.length + " lignes vérifiées sur les octets · " + hms(P.at));
     UI.pbadge.title = "Empreinte vérifiée : " + PROOF.sig + " (géométrie + document + carte courante). "
       + "Relecture " + (PROOF.auto ? "automatique" : "demandée à la main") + " à " + hms(P.at)
       + (perime ? " — l'empreinte vaut maintenant " + fileSig() + ", la relecture repart." : "");
@@ -7483,8 +7490,8 @@
     const vieux = TWIN.sig !== fileSig();
     TWIN.perime = vieux;
     UI.tbadge.className = "cff-pbadge " + (bad ? "ko" : (vieux ? "" : "ok"));
-    UI.tbadge.textContent = bad ? (bad + " écart(s) sur " + rows.length + " · " + hms(TWIN.at))
-      : ((vieux ? "périmée depuis " : "✓ " + rows.length + " lignes vérifiées sur les DEUX fichiers · ")
+    UI.tbadge.innerHTML = bad ? (bad + " écart(s) sur " + rows.length + " · " + hms(TWIN.at))
+      : ((vieux ? "périmée depuis " : ICO("dz-etat-succes", 16, "cf-ic") + rows.length + " lignes vérifiées sur les DEUX fichiers · ")
         + hms(TWIN.at));
     UI.tbadge.title = "Empreinte du document REPOSÉ, prise après le retour à " + TWIN.dpi0
       + " DPI et une seconde de calme : " + TWIN.sig
@@ -7628,8 +7635,8 @@
     const vieux = C.sig !== fileSig();
     C.perime = vieux;
     UI.cbadge.className = "cff-pbadge " + (bad ? "ko" : (vieux ? "" : "ok"));
-    UI.cbadge.textContent = bad ? (bad + " écart(s) sur " + rows.length)
-      : ((vieux ? "périmée depuis " : "✓ " + rows.length + " lignes vérifiées sur les octets · ")
+    UI.cbadge.innerHTML = bad ? (bad + " écart(s) sur " + rows.length)
+      : ((vieux ? "périmée depuis " : ICO("dz-etat-succes", 16, "cf-ic") + rows.length + " lignes vérifiées sur les octets · ")
         + hms(C.at));
     UI.cbadge.title = "Empreinte mesurée : " + C.sig + (C.auto ? " · départ automatique" : "")
       + (vieux ? " — le document a changé depuis." : "");
@@ -7844,7 +7851,7 @@
     renderAdopt(f0, g);
     UI.undo.disabled = !HIST.length;
     UI.redo.disabled = !REDO.length;
-    UI.undo.textContent = "↶ Annuler" + (HIST.length ? " (" + HIST.length + ")" : "");
+    UI.undo.innerHTML = ICO("dz-action-annuler", 16, "cf-ic") + "Annuler" + (HIST.length ? " (" + HIST.length + ")" : "");
 
     /* millimetres ET pixels, cote a cote, sur CHAQUE longueur */
     const mmpx = (v) => r2(v) + " mm = " + r1(v / 25.4 * g.dpi) + " px";

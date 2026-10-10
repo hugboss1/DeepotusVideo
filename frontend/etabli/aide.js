@@ -64,6 +64,6 @@ export function ouvrirAide(hote, esc) {
     </ol>
     <div class="aide-lex">${lignes}</div>
     <a class="aide-tout" href="${esc(lienGuide(null))}" target="_blank" rel="noopener">
-      Le chapitre complet du guide, avec les ressources vérifiées →</a>`;
+      ${typeof dzIcone === "function" ? dzIcone("dz-nav-guide", { taille: 16, classe: "dzi--16" }) : ""} Le chapitre complet du guide, avec les ressources vérifiées</a>`;
   hote.classList.remove("hidden");
 }

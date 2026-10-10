@@ -5,6 +5,7 @@
 // VL.dialogue.{confirmer, informer, saisir} — toutes asynchrones — rendues
 // dans #vlDlg avec le patron .vl-dlg-boite / .vl-dlg-tete de mod-impression.
 
+import { dzi } from "./mod-icones.js";
 export function dialogue_spec(type, message, o = {}) {
   const t = ["confirmer", "informer", "saisir"].includes(type) ? type : "informer";
   const corps = String(message ?? "").split("\n").map((l) => l.trim()).filter(Boolean);
@@ -57,7 +58,7 @@ export function initDialogue(VL) {
     return new Promise((resoudre) => {
       courant = { resoudre, spec };
       hote.innerHTML = `<div class="vl-dlg-boite vl-dlg-petite" role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
-        <div class="vl-dlg-tete"><b>${esc(spec.titre)}</b><span class="spacer"></span><button data-role="${spec.type === "informer" ? "ok" : "annuler"}" title="Fermer">✕</button></div>
+        <div class="vl-dlg-tete"><b>${esc(spec.titre)}</b><span class="spacer"></span><button data-role="${spec.type === "informer" ? "ok" : "annuler"}" title="Fermer" aria-label="Fermer">${dzi("dz-action-fermer", 16)}</button></div>
         <div class="vl-dlg-corps">${spec.corps.map((l) => `<p>${esc(l)}</p>`).join("")}${spec.champ ? `<input type="text" value="${esc(spec.champ.valeur)}" placeholder="${esc(spec.champ.placeholder)}">` : ""}</div>
         <div class="vl-dlg-pied">${spec.boutons.map((b) => `<button data-role="${b.role}" class="${b.danger ? "vl-dlg-danger" : ""}${b.role === spec.defaut ? " vl-dlg-defaut" : ""}">${esc(b.libelle)}</button>`).join("")}</div>
       </div>`;

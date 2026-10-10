@@ -27,6 +27,12 @@
   const CF = (typeof window !== "undefined") ? window.CF : null;
   if (!CF) throw new Error("mod-data: js/core.js doit etre charge avant ce fichier");
 
+  /* icônes G2 (10/10/2026) : la suite « Deepotus Glyph » passe par le CORE
+     (CF.icone), gardé `typeof` comme CF.chevronSVG — un CF de paille (bancs
+     node) rend un marqueur qui porte la clé. */
+  const ICO = (k, t, c) => (typeof CF.icone === "function" ? CF.icone(k, t, c)
+    : '<i class="dzi" data-cle="' + k + '"></i>');
+
   /* ── slots de repli ───────────────────────────────────────────────────────
      P3 publie doc.type.slots. Tant qu'elle ne l'a pas fait — et cette piece
      doit etre demontrable SEULE — on sert ce jeu-la, clairement annonce comme
@@ -779,8 +785,8 @@
        la table, ce qu'il faisait justement avant. */
     if (REFS.expdeck) {
       const nc = st ? st.n_cards : 0;
-      REFS.expdeck.textContent = nc
-        ? ("Exporter le deck — " + nc + " carte(s)") : "Exporter le deck";
+      REFS.expdeck.innerHTML = ICO("dz-action-exporter", 16, "cf-ic") + (nc
+        ? ("Exporter le deck — " + nc + " carte(s)") : "Exporter le deck");
       REFS.expdeck.disabled = !nc;
     }
   }
@@ -1117,7 +1123,7 @@
         p.appendChild(h("code", "", esc(o.col)));
         p.appendChild(h("span", "cf-data-awhy", esc(" — " + (o.why || ""))));
         if (o.slot && !usedSlot(o.slot)) {
-          const b = h("button", "btn sm cf-data-b", "→ " + esc(slotLabel(o.slot)));
+          const b = h("button", "btn sm cf-data-b", ICO("dz-edit-lier", 16, "cf-ic") + esc(slotLabel(o.slot)));
           b.type = "button";
           on(b, "click", () => setMap(o.col, o.slot));
           p.appendChild(b);
@@ -1675,7 +1681,7 @@
       : h("div", "cf-data-strip", "");
     if (!full) {
       drop.appendChild(h("span", "cf-data-sfile",
-        "&#128196; " + esc(T.src || "table saisie à la main")));
+        ICO("dz-media-fichier", 16, "cf-ic") + esc(T.src || "table saisie à la main")));
       const rep = h("button", "btn sm cf-data-b", "Remplacer…");
       rep.type = "button";
       rep.title = "Charger un autre fichier (ou glissez-le n'importe où sur ce panneau)";
@@ -1884,7 +1890,7 @@
     }
 
     const row = h("div", "btn-row cf-data-erow");
-    const blank = h("button", "btn strong cf-data-blank", "Table vierge 4 × 3");
+    const blank = h("button", "btn strong cf-data-blank", ICO("dz-action-nouveau", 16, "cf-ic") + "Table vierge 4 × 3");
     blank.type = "button";
     on(blank, "click", async () => {
       pushUndo();
@@ -1900,7 +1906,7 @@
       LASTTABLE = null;
       commit(); render(); schedule(0);
     });
-    const paste = h("button", "btn strong cf-data-paste", "Coller depuis le presse-papiers");
+    const paste = h("button", "btn strong cf-data-paste", ICO("dz-action-coller", 16, "cf-ic") + "Coller depuis le presse-papiers");
     paste.type = "button";
     on(paste, "click", async () => {
       try {
@@ -2267,9 +2273,9 @@
           + " ligne(s) active(s) sur " + CLAUSES.n_active
           + " — mesuré par le moteur sur la table, pas estimé.";
       }
-      const x = h("button", "cf-data-fx", "&times;");
+      const x = h("button", "cf-data-fx", ICO("dz-action-supprimer", 16));
       x.type = "button";
-      x.title = "Retirer cette condition";
+      x.title = "Retirer cette condition"; x.setAttribute("aria-label", x.title);
       on(x, "click", () => removeClause(i));
       chip.appendChild(x);
       g.appendChild(chip);
@@ -2404,8 +2410,8 @@
       : (String(s.text || "") ? "gabarit" : "—"));
     t.appendChild(val);
     if (srcs.length) {
-      const x = h("button", "cf-data-x", "&times;");
-      x.type = "button"; x.title = "Retirer ce mappage";
+      const x = h("button", "cf-data-x", ICO("dz-action-supprimer", 16));
+      x.type = "button"; x.title = "Retirer ce mappage"; x.setAttribute("aria-label", x.title);
       on(x, "click", (e) => {
         e.stopPropagation();
         pushUndo();
@@ -2541,22 +2547,22 @@
     const keys = sortKeys();
     const cur = keys.filter((k) => fold(k.name) === fold(c))[0];
     const sb = h("button", "cf-data-sortb" + (cur ? " on" : ""),
-      cur ? (cur.desc ? "&#9660;" : "&#9650;") : "&#8693;");
+      cur ? (cur.desc ? "&#9660;" : "&#9650;") : ICO("dz-action-trier", 16));
     sb.type = "button";
-    sb.title = "Trier le deck sur cette colonne";
+    sb.title = "Trier le deck sur cette colonne"; sb.setAttribute("aria-label", sb.title);
     on(sb, "click", () => cycleSort(c));
     top.appendChild(sb);
-    const qb = h("button", "cf-data-qb" + (T.qty_col === c ? " on" : ""), "&times;n");
+    const qb = h("button", "cf-data-qb" + (T.qty_col === c ? " on" : ""), ICO("dz-action-quantite", 16));
     qb.type = "button";
-    qb.title = "Utiliser cette colonne comme quantité";
+    qb.title = "Utiliser cette colonne comme quantité"; qb.setAttribute("aria-label", qb.title);
     on(qb, "click", () => {
       pushUndo();
       T.qty_col = (T.qty_col === c) ? null : c;
       commit(); render(); schedule(0);
     });
     top.appendChild(qb);
-    const db = h("button", "cf-data-delc", "&times;");
-    db.type = "button"; db.title = "Supprimer la colonne";
+    const db = h("button", "cf-data-delc", ICO("dz-action-supprimer", 16));
+    db.type = "button"; db.title = "Supprimer la colonne"; db.setAttribute("aria-label", db.title);
     on(db, "click", () => delColumn(j));
     top.appendChild(db);
     th.appendChild(top);
@@ -2657,8 +2663,8 @@
       tr.appendChild(td);
     });
     const tx = h("td", "cf-data-tdx");
-    const xb = h("button", "cf-data-delr", "&times;");
-    xb.type = "button"; xb.title = "Supprimer la ligne";
+    const xb = h("button", "cf-data-delr", ICO("dz-action-supprimer", 16));
+    xb.type = "button"; xb.title = "Supprimer la ligne"; xb.setAttribute("aria-label", xb.title);
     on(xb, "click", () => delRow(r));
     tx.appendChild(xb);
     tr.appendChild(tx);
@@ -2720,7 +2726,7 @@
           f.title = "Cette ligne est décochée : ni filtre ni quantité ne sont en cause.";
         } else if (st && !kept) {
           const w = why[r] || (T.filter.trim() || "quantité 0");
-          f.textContent = "✕ " + w;
+          f.innerHTML = ICO("dz-etat-exclu", 16, "cf-ic") + esc(w);
           f.className = "cf-data-rwhy out";
           f.title = "Écartée par cette condition du filtre" + (why[r] ? "" : " (ou quantité 0)")
             + " — la case ci-contre reste cochée : elle ne dit que l'activation manuelle.";
@@ -2830,13 +2836,14 @@
     }
     box.className = "cf-data-langues";
     const cur = T.lang || "";
-    const bouton = (code, label, title) => '<button type="button" class="btn sm cf-data-langb' + (code === cur ? " on" : "")
-      + '" data-lang="' + esc(code) + '" title="' + esc(title) + '">' + esc(label) + "</button>";
+    const bouton = (code, label, title, apres) => '<button type="button" class="btn sm cf-data-langb' + (code === cur ? " on" : "")
+      + '" data-lang="' + esc(code) + '" title="' + esc(title) + '">' + esc(label) + (apres || "") + "</button>";
     let html = '<b>Langue active</b> '
       + bouton("", "telle que mappée", "Les colonnes exactement comme le mappage les désigne");
     ls.forEach((l) => {
-      html += bouton(l.code, l.label + (l.cartes_incompletes ? " ⚠" : ""), "Rendre tout le jeu en " + l.label
-        + (l.cartes_incompletes ? " — " + l.cartes_incompletes + " carte(s) avec une colonne manquante" : " — complet"));
+      html += bouton(l.code, l.label, "Rendre tout le jeu en " + l.label
+        + (l.cartes_incompletes ? " — " + l.cartes_incompletes + " carte(s) avec une colonne manquante" : " — complet"),
+        l.cartes_incompletes ? ICO("dz-etat-avertissement", 16, "cf-ic-d") : "");
     });
     const l = ls.filter((x) => x.code === cur)[0];
     if (l) {
@@ -3176,11 +3183,11 @@
       if (!it || !it.v) { dot.textContent = ""; dot.title = ""; return; }
       if (it.ok) {
         td.classList.add("ok");
-        dot.textContent = "●";
+        dot.innerHTML = ICO("dz-etat-succes", 16);
         dot.title = "Trouvée : " + it.url + (it.why ? " — " + it.why : "");
       } else {
         td.classList.add("miss");
-        dot.textContent = "●";
+        dot.innerHTML = ICO("dz-etat-erreur", 16);
         dot.title = "INTROUVABLE"
           + (it.why ? " — " + it.why : "") + (ART ? " · dossier " + ART.folder : "");
       }
@@ -3346,7 +3353,7 @@
       "La table telle qu'elle est ici. Relue, elle rend la même table — "
       + "l'aller-retour est vérifié sur les octets rendus.",
       () => exportCsv("table"));
-    REFS.expdeck = mk("btn strong sm cf-data-b", "Exporter le deck",
+    REFS.expdeck = mk("btn strong sm cf-data-b", ICO("dz-action-exporter", 16, "cf-ic") + "Exporter le deck",
       "Une ligne PAR CARTE : filtre, tri et quantités appliqués.",
       () => exportCsv("deck"));
     mk("btn strong sm cf-data-b", "Reconstruire", "Ctrl + Entrée", () => schedule(0));
@@ -3612,7 +3619,7 @@
   M = CF.register({
     id: "data",
     title: "Données",
-    icon: "\u{1F4CA}",
+    icon: "dz-nav-cf-donnees",
     order: 4,
 
     /* Aucun z : cette piece ne dessine pas la carte. */

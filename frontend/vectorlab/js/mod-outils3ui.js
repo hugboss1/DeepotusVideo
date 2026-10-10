@@ -41,7 +41,6 @@ export function initOutils3(VL) {
   for (const o of OUTILS3) {
     const b = document.createElement("button");
     b.dataset.outil = o.id; b.title = o.titre; if (o.pixel) b.className = "outil-pixel";
-    b.textContent = o.id;
     b.addEventListener("click", () => VL.setOutil(o.id));
     nav.appendChild(b);
   }

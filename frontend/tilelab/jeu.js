@@ -65,7 +65,7 @@
   }
   function poserSlot(el, m) {
     el.querySelector("img").src = m ? m.vignette : "";
-    el.querySelector(".tl-slot-n").textContent = m ? (m.source === "materiau" ? "🧪 " : "") + m.nom : "—";
+    el.querySelector(".tl-slot-n").innerHTML = m ? (m.source === "materiau" ? dzIcone("dz-cat-matieres", { taille: 16 }) + " " : "") + esc(m.nom) : "—";
     el.classList.toggle("plein", !!m);
   }
   function specDe(s) { return s.source === "materiau" ? { materiau: s.id } : { image: s.id }; }

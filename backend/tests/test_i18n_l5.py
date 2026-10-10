@@ -72,11 +72,17 @@ def main():
     eol = b"\r\n" if BUNB.count(b"\r\n") == BUNB.count(b"\n") else b"\n"
     B = G.bases()
     base = B["subs"][0]
+    # t143 + icônes G1 (10/10) : L3 (bloc MONTAGE) et G1 (maillon dzglyph, éditions des couches et de transfert.js)
+    # sont posés APRÈS la BASE de L5 — on compare dans la vue d'avant G1, couches rafraîchissables prises au poste
+    PRE = AIDE.avant_dzglyph(BUN)
+    for tag in ("MONTAGE", "SONVFX", "SFXSTUDIO", "VFXRACK"):
+        base = G.avec_bloc(base, tag, PRE.split(f"/*__DZ_{tag}_BEGIN__*/", 1)[1].split(f"/*__DZ_{tag}_END__*/", 1)[0])
+    SRC0 = {c: AIDE.couche_avant_dzglyph(s, c) for c, s in SRC.items()}
     reference = (subprocess.run(["git", "show", f"{T145}:{REL}"], cwd=str(RACINE), capture_output=True).stdout
-                 if T145 else BUNB).replace(b"\r\n", b"\n").replace(b"\n", eol)
+                 if T145 else PRE.encode("utf-8")).replace(b"\r\n", b"\n").replace(b"\n", eol)
     rafraichi = base
     for c in G.SOURCES:
-        rafraichi = G.avec_bloc(rafraichi, G.TAGS[c], G.sans_marqueurs(SRC[c], G.TAGS[c]))
+        rafraichi = G.avec_bloc(rafraichi, G.TAGS[c], G.sans_marqueurs(SRC0[c], G.TAGS[c]))
     TMP = pathlib.Path(tempfile.mkdtemp(prefix="dzl5_"))
     try:
         (TMP / "frontend/dist/assets").mkdir(parents=True)
@@ -110,10 +116,10 @@ def main():
         check("2g la traduction L5 se défait exactement", False, e)
     final = G.construire(B)
     for c in G.SOURCES:
-        check(f"2h {c} : la source du poste est celle que le générateur produit", SRC[c] == final[1][c])
+        check(f"2h {c} : la source du poste est celle que le générateur produit", SRC[c] == G._g1(final[1][c], G.TAGS[c]))
         try:
             check(f"2i {c} : la source d'avant L5 se reconstruit exactement, sans git",
-                  AIDE.source_avant_i18n_l5(SRC[c], c) == B[c][0])
+                  AIDE.source_avant_i18n_l5(SRC0[c], c) == B[c][0])
         except ValueError as e:
             check(f"2i {c} : la source d'avant L5 se reconstruit", False, e)
         tag = G.TAGS[c]

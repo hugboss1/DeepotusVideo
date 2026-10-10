@@ -36,7 +36,7 @@ const PL = {
   etat: { outil: "move", doc: null },
   $: (sel, racine) => (racine ? racine.tous((n) => sel.startsWith(".") && classes(n).includes(sel.slice(1)))[0] || null : ids[sel] || null),
   $$: (sel, racine) => (racine || doc).tous((n) => n.tagName === sel.toUpperCase()),
-  icone: () => Promise.resolve(""),
+  icone: () => "",
   signaler() {},
 };
 const reglages = {};

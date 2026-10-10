@@ -387,7 +387,7 @@ function DzTransfert() {
       style: DZT_S.modal, children: [
         r.jsxs("div", { style: DZT_S.tete, children: [
           r.jsx("span", { style: { color: "var(--brand, #4a90e2)" },
-            children: dztIcone(modal, 18) }, "i"),
+            children: __dzGl("dz-nav-transfert", 18, { display: "block" }) }, "i"),
           r.jsx("span", { style: DZT_S.titre,
             children: modal === "export" ? dzT("transfert.export.titre")
               : dzT("transfert.import.titre") }, "t"),
@@ -411,11 +411,11 @@ function DzTransfert() {
       r.jsxs("div", { style: { display: "flex", gap: 8 }, children: [
         dztBouton({ onClick: function () { setModal("export"); },
           title: dzT("transfert.export.bouton_aide"),
-          children: [dztIcone("export", 16),
+          children: [__dzGl("dz-action-exporter", 16, { display: "block" }),
                      r.jsx("span", { children: dzT("commun.action.exporter_suite") }, "l")] }),
         dztBouton({ onClick: function () { setModal("import"); },
           title: dzT("transfert.import.bouton_aide"),
-          children: [dztIcone("import", 16),
+          children: [__dzGl("dz-action-importer", 16, { display: "block" }),
                      r.jsx("span", { children: dzT("commun.action.importer_suite") }, "l")] })] }, "b"),
       vue] });
 }

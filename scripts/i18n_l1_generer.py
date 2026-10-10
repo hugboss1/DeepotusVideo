@@ -181,6 +181,15 @@ def _json_zone(dico, zone):
                               for k, v in z.items()) + "\n}\n"
 
 
+def _g1(texte, cible):
+    """Icônes G1 (scripts/icones/g1_generer.py) posées PAR-DESSUS la couche traduite : la source du poste les porte."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("g1_generer", RACINE / "scripts" / "icones" / "g1_generer.py")
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return m.appliquer_couche_g1(texte, cible)
+
+
 def sorties(paires, couche, dico, gardes):
     """chemin -> octets attendus"""
     # t142 : la traduction L2 change aussi la couche, PAR-DESSUS celle de L1 (positions de la couche L1, table
@@ -188,7 +197,7 @@ def sorties(paires, couche, dico, gardes):
     sys.path.insert(0, str(RACINE / "scripts"))      # le python embarqué n'ajoute pas le dossier du script
     import i18n_l2_generer
     out ={PAIRES: _json_paires(paires, gardes).encode("utf-8"),
-           RACINE / CIBLES["couche"]: i18n_l2_generer.appliquer_couche(couche).encode("utf-8")}
+           RACINE / CIBLES["couche"]: _g1(i18n_l2_generer.appliquer_couche(couche), "montage").encode("utf-8")}
     for zone, fichier in ZONES.items():
         out[RACINE / "frontend" / "shared" / "i18n" / fichier] = _json_zone(dico, zone).encode("utf-8")
     return out

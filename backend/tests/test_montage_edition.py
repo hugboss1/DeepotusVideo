@@ -3312,7 +3312,7 @@ check("l7d_exports_diff_DiffView_diffTemps_dans_DzTracks",
 _L7DP = _SRCb[_SRCb.find("  function row(p){"):_SRCb.find("  var rows=list||[];")]
 check("l7d_projets_bouton_compare_toujours_rendu_disabled_mine_title_onDiff_x1_entre_dupliquer_et_ouvrir",
       0 < len(_L7DP) < 6000 and _L7DP.count('className:"svm-tbtn dzm-projbtn dzm-projdiff",disabled:mine||off,"aria-disabled":mine||off,') == 1
-      and _L7DP.count("onClick:function(){if(props&&props.onDiff)props.onDiff(p)},children:\"⇄\"},\"df\")") == 1
+      and _L7DP.count("onClick:function(){if(props&&props.onDiff)props.onDiff(p)},children:__dzGl(\"dz-action-comparer\")},\"df\")") == 1
       # x2 : la garde et l'appel, sur la meme ligne
       and _SRCb.count("props.onDiff") == 2 and _SRCb.count("dzm-projdiff") == 1
       and _L7DP.find('children:"dupliquer"},"dp")') < _L7DP.find("dzm-projdiff") < _L7DP.find('children:oArm?"remplacer ?":"ouvrir"},"op")')
@@ -3510,7 +3510,7 @@ check("rx_bornes_clic_illisible_rend_la_note_courante_normalisee",
       D.get("rx_bornes") == [3, 3, 3, 3, 0, 2], D.get("rx_bornes"))
 check("rx_suite_de_clics_3_3_5_2_2", D.get("rx_suite") == [3, 0, 5, 2, 0], D.get("rx_suite"))
 check("rchips_deux_seuils_3_puis_5_avec_titre",
-      D.get("rchips") == [[3, "★ 3+", True], [5, "★ 5", True]], D.get("rchips"))
+      D.get("rchips") == [[3, "⟦dz-etat-note⟧ 3+", True], [5, "⟦dz-etat-note⟧ 5", True]], D.get("rchips"))
 _L7N = {n: _corps(n) for n in ("dzmRatingNorm", "dzmRatingNext")}
 check("l7b_rn_coeur_pur_ni_r_ni_x_ni_reseau_export_x1",
       all(len(c) > 60 for c in _L7N.values())
@@ -4073,7 +4073,7 @@ check("sc_rendu_eteint_un_bouton_titre_non_presse_aucun_message",
 # pin realigne : allume, deux boutons (la puce pressee, puis « × » sans aria-pressed ni data-on)
 _SCx = "Fermer les scopes (comme la puce « Scopes » de la barre du lecteur)"
 check("sc_rendu_allume_presse_mesure_en_cours_lecture_dite_aucun_plan_dit_plan_sans_source_dit",
-      _SCR[4:9] == [[["Scopes", "Masquer les scopes", True, ""], ["×", _SCx, None, None]], ["Mesure en cours…"],
+      _SCR[4:9] == [[["Scopes", "Masquer les scopes", True, ""], ["⟦dz-action-fermer⟧", _SCx, None, None]], ["Mesure en cours…"],
                     # revue T4 m2 : le plan sans source n'est plus sous la tete (pin realigne) ; cloture des retours L6
                     # (26/09) : « Aucun plan LISIBLE sous la tete » -- vrai pour le vide comme pour le plan sans source
                     ["Lecture : les scopes se rafraîchissent à l'arrêt"], ["Aucun plan lisible sous la tête"],
@@ -4800,27 +4800,27 @@ def _l7(k, n):
 _V1 = _l7("demo", 2)
 _V1b = _l7("demo_ctl", 3)
 check("l6v_demo_un_bouton_grise_titre_la_bascule_clavier_dit_le_refus_sans_ouvrir_le_micro",
-      isinstance(_V1[0], list) and len(_V1[0]) == 1 and _V1[0][0][:2] == ["● voix off", True]
+      isinstance(_V1[0], list) and len(_V1[0]) == 1 and _V1[0][0][:2] == ["⟦dz-media-rec⟧ voix off", True]
       and "démonstration" in (_V1[0][0][2] or "") and _V1[1] == "function"
       and _V1b[0] == 0 and _V1b[2] == 0 and isinstance(_V1b[1], list) and len(_V1b[1]) == 1 and "démo" in _V1b[1][0],
       [_V1, _V1b])
 _V2 = _l7("absent", 3)
 check("l6v_sans_micro_ni_enregistreur_micro_indisponible_dit_rien_ne_demarre_bouton_actif",
       isinstance(_V2[0], list) and len(_V2[0]) == 1 and _V2[0][0].startswith("Micro indisponible : ")
-      and _V2[1] == 0 and _V2[2] == ["● voix off", False], _V2)
+      and _V2[1] == 0 and _V2[2] == ["⟦dz-media-rec⟧ voix off", False], _V2)
 _V3 = _l7("refus", 3)
 check("l6v_micro_refuse_la_raison_est_dite_attente_grisee_retour_au_repos",
       _R7.get("refus_attente") == ["micro…", True]
-      and _V3[0] == ["Micro indisponible : accès au micro refusé"] and _V3[1] == 0 and _V3[2] == ["● voix off", False],
+      and _V3[0] == ["Micro indisponible : accès au micro refusé"] and _V3[1] == 0 and _V3[2] == ["⟦dz-media-rec⟧ voix off", False],
       [_R7.get("refus_attente"), _V3])
 _V4r = _R7.get("repos") if isinstance(_R7.get("repos"), list) else []
 _V4a = _l7("attente", 2)
 _V4 = _l7("prise", 7)
 check("l6v_cycle_prise_micro_audio_type_du_juge_onStart_une_fois_bouton_a_deux_etats_titre_une_demande_malgre_deux_clics",
-      len(_V4r) == 1 and _V4r[0][:2] == ["● voix off", False] and len(_V4r[0][2] or "") > 20 and "()" not in (_V4r[0][2] or "")
+      len(_V4r) == 1 and _V4r[0][:2] == ["⟦dz-media-rec⟧ voix off", False] and len(_V4r[0][2] or "") > 20 and "()" not in (_V4r[0][2] or "")
       and _V4a == [["micro…", True], 1]
       and _V4[0] == [{"audio": True}] and _V4[1] == {"mimeType": "audio/ogg;codecs=opus"} and _V4[2] == "recording"
-      and _V4[3] == 1 and _V4[4] == 1 and isinstance(_V4[5], list) and str(_V4[5][0]).startswith("■ 0:0")
+      and _V4[3] == 1 and _V4[4] == 1 and isinstance(_V4[5], list) and str(_V4[5][0]).startswith("⟦dz-media-arret⟧ 0:0")
       and _V4[5][1] is False and "Arrêter" in (_V4[5][2] or "") and _V4[5][3] == "1" and _V4[6] == "function"
       and _V4r[0][2] != _V4[5][2],
       [_V4r, _V4a, _V4])
@@ -4833,13 +4833,13 @@ check("l6v_second_clic_onStop_une_fois_pistes_coupees_envoi_grise_une_requete_au
 _V7 = _l7("pose", 3)
 check("l6v_reponse_onDone_des_dernieres_props_une_fois_avec_filename_dur_et_t0_de_la_tete_au_debut_retour_au_repos_rien_de_dit",
       # revue T6 : le second clic pendant « micro… » (bouton grise ; le clavier, lui, y arrive) DIT l'attente
-      _V7 == [[["neuf", "voix-off-20260925-101010.wav", 3.25, 12.5]], ["● voix off", False], ["Voix off : accès au micro en cours…"]], _V7)
+      _V7 == [[["neuf", "voix-off-20260925-101010.wav", 3.25, 12.5]], ["⟦dz-media-rec⟧ voix off", False], ["Voix off : accès au micro en cours…"]], _V7)
 _V8 = _l7("ctl", 3)
 _V8b = _l7("echec", 3)
 check("l6v_bascule_clavier_meme_cycle_envoi_en_echec_dit_prise_non_enregistree_rien_de_pose",
       _V8 == [2, 2, 2] and _V8b[0] == 1
       and _V8b[1] == ["Envoi de la prise impossible : Enregistrement illisible — prise non enregistrée"]
-      and _V8b[2] == ["● voix off", False],
+      and _V8b[2] == ["⟦dz-media-rec⟧ voix off", False],
       [_V8, _V8b])
 _V9 = _l7("sans_duree", 2)
 check("l6v_reponse_sans_duree_lisible_dite_rien_de_pose",
@@ -4866,7 +4866,7 @@ check("l6v_arret_spontane_raison_dite_pistes_coupees_lecture_arretee_passage_par
       _V13 == [1, 1, ["envoi…", True], 1, ["Enregistreur arrêté : micro occupé par une autre application"], 0]
       and _R7.get("crash_ctl") == ["Voix off : prise en cours d'envoi…"], [_V13, _R7.get("crash_ctl")])
 check("l6v_arret_spontane_onDone_recoit_l_identite_du_projet_rendue_par_onStart",
-      _R7.get("crash_pose") == [[["voix-off-c.wav", 1.5, 4, "P9"]], ["● voix off", False]], _R7.get("crash_pose"))
+      _R7.get("crash_pose") == [[["voix-off-c.wav", 1.5, 4, "P9"]], ["⟦dz-media-rec⟧ voix off", False]], _R7.get("crash_pose"))
 check("l6v_refus_422_detail_liste_serialise_jamais_object_Object",
       _R7.get("d422") == ['Envoi de la prise impossible : [{"loc":["body","file"],"msg":"field required"}] — prise non enregistrée'],
       _R7.get("d422"))
@@ -5261,7 +5261,7 @@ function P(h,j){return {clips:CL,head:h,playing:!!j,ratio:"16:9"}}
      le dernier geste, aucune requête (taille inchangée) */
   ROOT.clientWidth=800;fire("resize",{});M.flush();tick();R.recadre=[sty(M.H.out)[0],S.dz_montage_scopes_geo,FQ.length];
   /* 6 : « × » (titré) éteint comme la puce -- mémoire « 0 », fenêtre retirée, écouteur de redimensionnement ôté */
-  var bx=btn(M.H.out,"×");R.x=[bx?bx.p.title:null,bx?bx.p["aria-label"]:null];bx.p.onClick();M.flush();tick();
+  var bx=btn(M.H.out,"⟦dz-action-fermer⟧");R.x=[bx?bx.p.title:null,bx?bx.p["aria-label"]:null];bx.p.onClick();M.flush();tick();
   R.ferme=[S.dz_montage_scopes,cls(M.H.out,"dzm-scwin").length,btn(M.H.out,"Scopes").p["aria-pressed"],FQ.length,nls(),UR.rev.slice()];
   /* 7 : mémoire corrompue -> défaut en haut à droite de la racine (800 de large) ; démontage EN PLEIN GESTE -> les cinq
      écouteurs du geste ôtés, le rAF annulé, rien mémorisé */
@@ -5280,7 +5280,7 @@ function P(h,j){return {clips:CL,head:h,playing:!!j,ratio:"16:9"}}
   ROOT.clientWidth=1400;ROOT.clientHeight=900;S.dz_montage_scopes="1";S.dz_montage_scopes_geo='{"x":100,"y":100,"s":320}';FQ=[];TM=[];
   var M6=mini(T.Scopes,att);M6.render(P(1));M6.flush();var w6=win(M6.H.out);R.role=[w6?w6.p.role:null,w6?w6.p["aria-label"]:null,w6?w6.p["aria-modal"]:null];
   cls(M6.H.out,"dzm-scwgrip")[0].p.onPointerDown(pdn(30,500,500));fire("pointermove",{pointerId:30,clientX:560,clientY:520});frame();M6.flush();
-  btn(M6.H.out,"×").p.onClick();M6.flush();var nx=nls();fire("pointerup",{pointerId:30});frame();M6.flush();
+  btn(M6.H.out,"⟦dz-action-fermer⟧").p.onClick();M6.flush();var nx=nls();fire("pointerup",{pointerId:30});frame();M6.flush();
   R.x_geste=[nx,S.dz_montage_scopes_geo,S.dz_montage_scopes,nls()];
   /* 11 (m1b) : un SECOND pointerdown pendant un geste abandonne le premier (écouteurs ôtés, pas doublés ; son relâcher
      ne mémorise rien) ; le second part de la géométrie AFFICHÉE et seul lui est mémorisé */

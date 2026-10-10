@@ -119,14 +119,14 @@ check("1.2 le document envoye : champs de la page, image_url RETIREE (derivee), 
       dd.get("title") == "Chapitre 1" and dd.get("language") == "fr" and dd.get("voice_id") == "v1"
       and dd.get("scenes") == [{"text": "a", "image_filename": "i.png", "motion": "seedance", "video_model": "seedance-v1-pro"}]
       and dd.get("narration") == {"filename": "n.mp3", "url": "/api/audio/n.mp3", "kb": 12}, _d(dd))
-check("1.3 non enregistre : « ● Enregistrer » et « Non enregistré »", O.get("dirty0") == "● Enregistrer" and O.get("msg0") == "Non enregistré",
+check("1.3 non enregistre : « ● Enregistrer » et « Non enregistré »", O.get("dirty0") == "⟦dz-etat-modifie⟧ Enregistrer" and O.get("msg0") == "Non enregistré",
       _d(O.get("dirty0"), O.get("msg0")))
 check("1.4 Enregistrer : POST /api/episodes avec le document ; id recu, etat propre", (O.get("post") or [None, None])[1] == "/api/episodes"
       and (O.get("post") or [0, 0, {}])[2] == dd and O.get("dz1") == {"id": "ep_aaaaaaaaaaaa", "propre": True}
       and O.get("dirty1") == "Enregistrer", _d(O.get("post"), O.get("dz1"), O.get("dirty1")))
 check("1.5 window.__dzEpSave (assemblage) : PUT sur l'id connu, rend l'id", (O.get("put") or [0, 0])[0:2] == ["PUT", "/api/episodes/ep_aaaaaaaaaaaa"]
       and O.get("saveId") == "ep_aaaaaaaaaaaa", _d(O.get("put"), O.get("saveId")))
-check("1.6 une modification rallume « ● Enregistrer »", O.get("dirty2") == "● Enregistrer", _d(O.get("dirty2")))
+check("1.6 une modification rallume « ● Enregistrer »", O.get("dirty2") == "⟦dz-etat-modifie⟧ Enregistrer", _d(O.get("dirty2")))
 check("1.7 Ouvrir liste les episodes du serveur", O.get("items") == ["ep_0123456789ab"], _d(O.get("items")))
 check("1.8 episode modifie + confirmation REFUSEE : rien n'est charge", O.get("refus") == {"confirm": 1, "appels": 0}, _d(O.get("refus")))
 ch = O.get("charge") or {}

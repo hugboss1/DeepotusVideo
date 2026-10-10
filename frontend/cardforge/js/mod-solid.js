@@ -58,6 +58,12 @@
   const CF = (typeof window !== "undefined") ? window.CF : null;
   if (!CF) throw new Error("mod-solid: js/core.js doit etre charge avant ce fichier");
 
+  /* icônes G2 (10/10/2026) : la suite « Deepotus Glyph » passe par le CORE
+     (CF.icone), gardé `typeof` comme CF.chevronSVG — un CF de paille (bancs
+     node) rend un marqueur qui porte la clé. */
+  const ICO = (k, t, c) => (typeof CF.icone === "function" ? CF.icone(k, t, c)
+    : '<i class="dzi" data-cle="' + k + '"></i>');
+
   /* ── bornes, miroir de cards/solid.py ─────────────────────────────────── */
   const LIM = {
     thickness_mm: [0.20, 1.20],
@@ -159,7 +165,7 @@
   const M = CF.register({
     id: "solid",
     title: "Volume",
-    icon: "\u{1F9CA}",
+    icon: "dz-nav-cf-volume",
     order: 5,
 
     /* LE SCHEMA : ces cles sont les SEULES que M.patch({...}) acceptera.
@@ -273,8 +279,8 @@
     + '  <section class="cf-solid-view">'
     + '    <div class="cf-solid-bar">'
     + '      <div class="cf-solid-seg" id="cf-solid-views"></div>'
-    + '      <button type="button" class="chip cf-solid-t" data-t="wire" title="Filaire (W)">&#9638; Filaire</button>'
-    + '      <button type="button" class="chip cf-solid-t" data-t="spin" title="Tourne-disque (R)">&#8635; Rotation</button>'
+    + '      <button type="button" class="chip cf-solid-t" data-t="wire" title="Filaire (W)">' + ICO("dz-lab3d-filaire", 16, "cf-ic") + 'Filaire</button>'
+    + '      <button type="button" class="chip cf-solid-t" data-t="spin" title="Tourne-disque (R)">' + ICO("dz-lab3d-rotation", 16, "cf-ic") + 'Rotation</button>'
     /* LES TROIS FACES, ATTEIGNABLES. Le grief : « le verso n'est visible nulle
        part a l'ecran ; il a fallu que j'ouvre le fichier et que je le rende
        moi-meme pour le lire — un utilisateur ne fera pas ca », et « la
@@ -287,9 +293,9 @@
        ne le DISAIT. Un inventaire de visionneuse se compte sur une image
        arretee. */
     + '      <div class="cf-solid-zoom">'
-    + '        <button type="button" class="btn sm cf-solid-z" data-z="-1" title="Zoom arrière (molette)">&minus;</button>'
+    + '        <button type="button" class="btn sm cf-solid-z" data-z="-1" title="Zoom arrière (molette)" aria-label="Zoom arrière">' + ICO("dz-action-zoom-arriere", 16) + '</button>'
     + '        <b id="cf-solid-fov">26&deg;</b>'
-    + '        <button type="button" class="btn sm cf-solid-z" data-z="1" title="Zoom avant (molette)">+</button>'
+    + '        <button type="button" class="btn sm cf-solid-z" data-z="1" title="Zoom avant (molette)" aria-label="Zoom avant">' + ICO("dz-action-zoom-avant", 16) + '</button>'
     + '        <i class="cf-solid-zh">glisser = tourner · clic droit = déplacer</i>'
     + '      </div>'
     + '      <label class="cf-solid-inline"><span class="lbl">Lumière</span><select id="cf-solid-env" class="cf-solid-sel"></select>'
@@ -297,9 +303,9 @@
     /* IMPORT D'UN HDRI. Les cinq environnements fabriques ici sont en basse
        dynamique ; un vrai .hdr donne des reflets que rien d'autre ne donne, et
        c'est la seule chose que la reference savait faire et pas nous. */
-    + '      <label class="btn sm cf-solid-hdrib" title="Importer un environnement : .hdr, .exr ou une image">HDRI…'
+    + '      <label class="btn sm cf-solid-hdrib" title="Importer un environnement : .hdr, .exr ou une image">' + ICO("dz-lab3d-hdri", 16, "cf-ic") + 'HDRI…'
     + '        <input type="file" id="cf-solid-hdri" accept=".hdr,.exr,image/*" hidden></label>'
-    + '      <button type="button" class="btn sm cf-solid-fit" title="Recadrer la caméra (F)">Recadrer</button>'
+    + '      <button type="button" class="btn sm cf-solid-fit" title="Recadrer la caméra (F)">' + ICO("dz-action-ajuster-vue", 16, "cf-ic") + 'Recadrer</button>'
     + '    </div>'
     + '    <div class="cf-solid-stage" id="cf-solid-stage">'
     + '      <model-viewer id="cf-solid-mv" class="cf-solid-mv" camera-controls enable-pan interaction-prompt="none"'

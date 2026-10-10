@@ -5,6 +5,7 @@
 // raster va au magasin du DOCUMENT (POST /vector/docs/<id>/images), jamais
 // en base64 dans le JSON. La logique PURE est en tête (banc node) ;
 // initImage ne touche le DOM qu'à l'appel.
+import { dzi } from "./mod-icones.js";
 import { op_ajouter, op_image_rogner, op_image_verrou, op_reperes,
          reperes_rects } from "./mod-doc.js";
 
@@ -278,10 +279,10 @@ export function initImage(VL) {
       <div class="ap-ligne"><span></span>
         <input type="number" id="imRw" min="1" value="${r.w}" title="Largeur de la fenêtre"/>
         <input type="number" id="imRh" min="1" value="${r.h}" title="Hauteur de la fenêtre"/>
-        <button id="imRognerRaz" title="Image entière">↺</button></div>
+        <button id="imRognerRaz" title="Image entière" aria-label="Image entière">${dzi("dz-action-reinitialiser", 16)}</button></div>
       <div class="ap-ligne"><span>Verrou</span>
-        <button id="imVerrou" class="${o.verrou ? "actif" : ""}" title="Verrouillé : aucune commande ne bouge, ne redimensionne ni ne supprime l'image">${o.verrou ? "🔒 verrouillée" : "🔓 libre"}</button>
-        <button id="imVectoriser" title="Vectoriser cette image en aplats de couleur (aperçu avant validation)">Vectoriser…</button></div>`;
+        <button id="imVerrou" class="${o.verrou ? "actif" : ""}" title="Verrouillé : aucune commande ne bouge, ne redimensionne ni ne supprime l'image">${o.verrou ? dzi("dz-etat-verrouille", 16) + "verrouillée" : dzi("dz-etat-libre", 16) + "libre"}</button>
+        <button id="imVectoriser" title="Vectoriser cette image en aplats de couleur (aperçu avant validation)">${dzi("dz-edit-vectoriser", 16)}Vectoriser…</button></div>`;
     const lireRognage = () => rognage_normaliser({ x: +$("#imRx").value, y: +$("#imRy").value,
       w: +$("#imRw").value, h: +$("#imRh").value }, o.nat);
     for (const id of ["imRx", "imRy", "imRw", "imRh"]) {

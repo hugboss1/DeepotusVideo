@@ -21,6 +21,12 @@
   const CF = (typeof window !== "undefined") ? window.CF : null;
   if (!CF) throw new Error("mod-print: js/core.js doit etre charge avant ce fichier");
 
+  /* icônes G2 (10/10/2026) : la suite « Deepotus Glyph » passe par le CORE
+     (CF.icone), gardé `typeof` comme CF.chevronSVG — un CF de paille (bancs
+     node) rend un marqueur qui porte la clé. */
+  const ICO = (k, t, c) => (typeof CF.icone === "function" ? CF.icone(k, t, c)
+    : '<i class="dzi" data-cle="' + k + '"></i>');
+
   /* ══ aides ═══════════════════════════════════════════════════════════════ */
   const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;")
     .replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -705,8 +711,8 @@
       + '<span class="cf-print-free">0 crédit — tout est calculé sur ce poste</span>'
       + '<span class="cf-print-chk" data-role="verify">plan non vérifié</span>'
       + '<span class="tb-spacer"></span>'
-      + '<button class="btn sm" type="button" data-act="guides" title="Fond perdu / coupe / zone sûre par-dessus la carte (touche R)">&#9635; Repères</button>'
-      + '<button class="btn sm" type="button" data-act="undo" title="Annuler le dernier réglage (Ctrl+Z)">&#8630;</button>'
+      + '<button class="btn sm" type="button" data-act="guides" title="Fond perdu / coupe / zone sûre par-dessus la carte (touche R)">' + ICO("dz-edit-reperes", 16, "cf-ic") + 'Repères</button>'
+      + '<button class="btn sm" type="button" data-act="undo" title="Annuler le dernier réglage (Ctrl+Z)" aria-label="Annuler le dernier réglage (Ctrl+Z)">' + ICO("dz-action-annuler", 16) + '</button>'
       + '</div>'
 
       /* ── GABARIT D'IMPRIMEUR (tache #83) : le choix qui regle tout le reste ── */
@@ -714,7 +720,7 @@
       + '<div class="cf-print-gabs" data-role="gabs"></div>'
       + '<p class="cf-print-ecart hidden" data-role="gab-ecart"></p>'
       + '<div class="btn-row">'
-      + '<button class="btn strong hidden" type="button" data-act="pack" title="Un PNG par face, nommés recto / verso, et le manifeste : ce que le portail de l’imprimeur attend">Paquet imprimeur (.zip)</button>'
+      + '<button class="btn strong hidden" type="button" data-act="pack" title="Un PNG par face, nommés recto / verso, et le manifeste : ce que le portail de l’imprimeur attend">' + ICO("dz-action-telecharger", 16, "cf-ic") + 'Paquet imprimeur (.zip)</button>'
       + '</div>'
       + '<p class="hint">Choisir un imprimeur règle le <b>format du jeu</b> (fond perdu, zone sûre, DPI) '
       + 'et l’impression qu’il impose ; revenir à « maison » rétablit ce qu’il y avait avant.</p>'
@@ -841,7 +847,7 @@
       + '<div class="btn-row">'
       + '<button class="btn strong" type="button" data-act="png">Planche PNG <b>(P)</b></button>'
       + '<button class="btn strong" type="button" data-act="pdf">PDF multipage <b>(D)</b></button>'
-      + '<button class="btn" type="button" data-act="mire" title="Deux pages à imprimer en recto-verso sur VOTRE imprimante : un vernier au dixième de millimètre mesure le décalage réel de la machine (le PDF, lui, est déjà miroir)">Mire recto-verso (PDF)</button>'
+      + '<button class="btn" type="button" data-act="mire" title="Deux pages à imprimer en recto-verso sur VOTRE imprimante : un vernier au dixième de millimètre mesure le décalage réel de la machine (le PDF, lui, est déjà miroir)">' + ICO("dz-action-telecharger", 16, "cf-ic") + 'Mire recto-verso (PDF)</button>'
       + '</div>'
       + '<p class="hint">Le PDF porte les <b>trois</b> cadres emboîtés sur chaque page — '
       + '<b>/BleedBox</b> (fond perdu) &#8835; <b>/TrimBox</b> (coupe) &#8835; <b>/ArtBox</b> '
@@ -1302,7 +1308,7 @@
     box.innerHTML = rows.map((r) => '<div class="cf-print-pf-row ' + r[0] + '">'
       + '<span class="cf-print-c">foil</span>'
       + '<span class="cf-print-m">' + r[1] + '</span>'
-      + '<span class="cf-print-v">' + (r[0] === "ok" ? "&#10003;" : "&#8212;")
+      + '<span class="cf-print-v">' + (r[0] === "ok" ? ICO("dz-etat-succes", 16) : "&#8212;")
       + '</span></div>').join("");
   }
 
@@ -1380,7 +1386,7 @@
     const ligne = (quoi, mesure, bon) => '<div class="cf-print-pf-row '
       + (bon ? "ok" : "warn") + '"><span class="cf-print-c">' + esc(quoi)
       + '</span><span class="cf-print-m mono">' + esc(mesure)
-      + '</span><span class="cf-print-v">' + (bon ? "&#10003;" : "&#8212;")
+      + '</span><span class="cf-print-v">' + (bon ? ICO("dz-etat-succes", 16) : "&#8212;")
       + '</span></div>';
     box.innerHTML = '<div class="cf-print-pf-sum"><b class="'
       + (a.pdfx ? "ok" : "") + '">' + (a.pdfx || "aucune revendication PDF/X")
@@ -1885,7 +1891,7 @@
       return;
     }
     if (!PF.rows.length) {
-      box.innerHTML = '<div class="cf-print-pf-ok">&#10003; ' + (PF.checked ? PF.checked.cards : 0)
+      box.innerHTML = '<div class="cf-print-pf-ok">' + ICO("dz-etat-succes", 16, "cf-ic") + (PF.checked ? PF.checked.cards : 0)
         + ' carte(s), ' + (PF.checked ? PF.checked.slots : 0) + ' slot(s) : rien à signaler. '
         + 'Zone sûre ' + (PF.safe_px || []).join(" x ") + ' px.</div>';
       return;
@@ -1905,7 +1911,7 @@
             : r.kind === "colonne_non_imprimee" ? esc(r.slot)
               : r.kind === "champ_sans_bloc" ? esc(r.slot)
                 : r.kind === "bloc_vide" ? r.value + "/" + r.limit
-                  : r.level === "ok" ? "&#10003;" : "&#8212;") + '</span></div>').join("")
+                  : r.level === "ok" ? ICO("dz-etat-succes", 16) : "&#8212;") + '</span></div>').join("")
       + (PF.rows.length > 200 ? '<div class="cf-print-pf-ok muted">… et '
         + (PF.rows.length - 200) + ' autres</div>' : "");
   }
@@ -2415,7 +2421,7 @@
     if (!b || !mine) return;
     const on = b.classList.contains("active");
     mine.classList.toggle("strong", on);
-    mine.innerHTML = (on ? "&#9635;" : "&#9634;") + " Repères" + (on ? "" : " (masqués)");
+    mine.innerHTML = ICO("dz-edit-reperes", 16, "cf-ic") + "Repères" + (on ? "" : " (masqués)");
   }
 
   function sync() {
@@ -2458,7 +2464,7 @@
   M = CF.register({
     id: "print",
     title: "Impression",
-    icon: "\u{1F5A8}",
+    icon: "dz-nav-cf-impression",
     order: 7,
 
     /* Aucun z n'est alloue a cette piece : elle ne dessine pas la carte.

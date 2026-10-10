@@ -207,13 +207,13 @@ export function initGalerie(PL) {
     const pied = el("div", "gal-pile-pied");
     const bouton = (ico, cle, f) => {
       const b = el("button", "pl-bouton-icone"); b.type = "button"; b.title = T(cle); b.setAttribute("aria-label", b.title);
-      b.dataset.icone = ico; PL.icone(ico).then((s) => { b.innerHTML = s; });
+      b.dataset.icone = ico; b.innerHTML = PL.icone(ico);
       b.addEventListener("click", f); return b;
     };
-    const bMonter = bouton("chevron-up", "photolab.galerie.monter", () => { ({ pile, i: choisi } = deplacerEffet(pile, choisi, 1)); tout(); planifier(); });
-    const bDescendre = bouton("chevron-down", "photolab.galerie.descendre", () => { ({ pile, i: choisi } = deplacerEffet(pile, choisi, -1)); tout(); planifier(); });
-    const bNouveau = bouton("file-plus", "photolab.galerie.nouvel_effet", () => { ({ pile, i: choisi } = nouvelEffet(pile, choisi)); tout(); planifier(); });
-    const bSupprimer = bouton("trash-2", "photolab.galerie.supprimer_effet", () => { ({ pile, i: choisi } = supprimerEffet(pile, choisi)); tout(); planifier(); });
+    const bMonter = bouton("dz-edit-monter", "photolab.galerie.monter", () => { ({ pile, i: choisi } = deplacerEffet(pile, choisi, 1)); tout(); planifier(); });
+    const bDescendre = bouton("dz-edit-descendre", "photolab.galerie.descendre", () => { ({ pile, i: choisi } = deplacerEffet(pile, choisi, -1)); tout(); planifier(); });
+    const bNouveau = bouton("dz-action-ajouter", "photolab.galerie.nouvel_effet", () => { ({ pile, i: choisi } = nouvelEffet(pile, choisi)); tout(); planifier(); });
+    const bSupprimer = bouton("dz-action-supprimer", "photolab.galerie.supprimer_effet", () => { ({ pile, i: choisi } = supprimerEffet(pile, choisi)); tout(); planifier(); });
     pied.append(bMonter, bDescendre, el("span", "gal-espace"), bNouveau, bSupprimer);
     droite.append(liste, reglages, note, el("div", "gal-titre-pile", T("photolab.galerie.pile")), pileEl, pied);
 
@@ -254,7 +254,7 @@ export function initGalerie(PL) {
         const oeil = el("button", "gal-oeil"); oeil.type = "button";
         oeil.title = T(e.visible === false ? "photolab.calques.montrer" : "photolab.calques.masquer");
         oeil.setAttribute("aria-label", oeil.title);
-        PL.icone(e.visible === false ? "eye-off" : "eye").then((s) => { oeil.innerHTML = s; });
+        oeil.innerHTML = PL.icone(e.visible === false ? "dz-etat-cache" : "dz-etat-visible");
         oeil.addEventListener("click", (ev) => { ev.stopPropagation(); pile = basculerEffet(pile, k); tout(); planifier(); });
         l.append(oeil, el("span", "gal-effet-nom", nomFiltre(e.filter)));
         l.addEventListener("click", () => { choisi = k; tout(); });

@@ -8,6 +8,7 @@
 import { op_ajouter, op_supprimer, op_style, op_texte_vectoriser, op_texte_en_cadre, op_texte_sur_chemin } from "./mod-doc.js";
 import { op_contour } from "./mod-bool.js";
 import { POLICES, commandes_vers_d } from "./mod-texte3d.js";
+import { dzi } from "./mod-icones.js";
 
 /* ── pur ── */
 export function polices_toutes(lib, user, systeme) {
@@ -250,22 +251,22 @@ export function initTypo(VL) {
           : `<p class="px-note">Outil Texte (T) : cliquer sur la scène pose un texte et l'édite en place. Double-clic sur un texte pour le rééditer.</p>`}
       <div class="ap-ligne"><span>Police</span><i class="px-note" style="font-family:&quot;${esc(familleCourante || "Segoe UI")}&quot;;font-size:14px">${esc(familleCourante || "—")}</i></div>
       <div class="ap-ligne"><span></span><i class="px-note">se choisit dans le menu du bouton Texte</i></div>
-      <div class="ap-ligne"><button id="txDeposer" title="Déposer un fichier TTF / OTF / WOFF : il rejoint la bibliothèque du poste">⬆ Déposer une police…</button>
-        <button id="txSysteme" ${peutSystem ? "" : "disabled"} title="${peutSystem ? "Lister les polices installées sur ce poste (permission du navigateur)" : "Ce navigateur ne donne pas ses polices"}">💻 Système…</button></div>
+      <div class="ap-ligne"><button id="txDeposer" title="Déposer un fichier TTF / OTF / WOFF : il rejoint la bibliothèque du poste">${dzi("dz-action-importer", 16)}Déposer une police…</button>
+        <button id="txSysteme" ${peutSystem ? "" : "disabled"} title="${peutSystem ? "Lister les polices installées sur ce poste (permission du navigateur)" : "Ce navigateur ne donne pas ses polices"}">${dzi("dz-media-police", 16)}Système…</button></div>
       <input type="file" id="txFichier" accept=".ttf,.otf,.woff,.woff2" hidden/>
       ${o ? `
       <div class="ap-ligne"><span>Corps</span><input type="number" id="txCorps" min="4" max="600" value="${s.corps || 16}"/>
         <select id="txGraisse" title="Graisse">${["normal", "bold", "300", "600", "800"].map((g) => `<option${(s.graisse || "normal") === g ? " selected" : ""}>${g}</option>`).join("")}</select></div>
       <div class="ap-ligne"><span>Espace</span><input type="number" id="txInterlettrage" step="0.5" min="-20" max="60" value="${s.interlettrage || 0}" title="Interlettrage (px)"/>
         <input type="number" id="txInterligne" step="0.05" min="0.5" max="4" value="${s.interligne || 1.2}" title="Interligne (× corps)"/></div>
-      <div class="ap-ligne"><span>Ancre</span>${[["start", "⇤"], ["middle", "↔"], ["end", "⇥"]].map(([a, g]) => `<button data-ancre="${a}" class="${(s.ancre || "start") === a ? "actif" : ""}" title="Ancrage ${a === "start" ? "à gauche" : a === "middle" ? "au centre" : "à droite"} du point posé">${g}</button>`).join("")}</div>
+      <div class="ap-ligne"><span>Ancre</span>${[["start", "dz-edit-texte-aligner-gauche"], ["middle", "dz-edit-texte-aligner-centre"], ["end", "dz-edit-texte-aligner-droite"]].map(([a, ic]) => `<button data-ancre="${a}" class="${(s.ancre || "start") === a ? "actif" : ""}" title="Ancrage ${a === "start" ? "à gauche" : a === "middle" ? "au centre" : "à droite"} du point posé" aria-label="Ancrage ${a === "start" ? "à gauche" : a === "middle" ? "au centre" : "à droite"}">${dzi(ic, 16)}</button>`).join("")}</div>
       <div class="ap-ligne"><label title="Chaque lettre devient un chemin séparé (déplaçable, éditable aux nœuds, booléen)"><input type="checkbox" id="txParGlyphe"${etat.typo.parGlyphe ? " checked" : ""}/> un chemin par glyphe</label></div>
-      <div class="ap-ligne"><button id="txContours" ${o.type === "texte" ? "" : "disabled"} title="Le texte devient ses contours : chemins éditables (outil Nœuds), épaississables, booléens — annulable">◇ Contours</button>
-        <button id="txLogo" title="Contours puis Impression 3D en mode logo (biseau, évidement, STL / 3MF)">⬢ Logo 3D</button></div>
+      <div class="ap-ligne"><button id="txContours" ${o.type === "texte" ? "" : "disabled"} title="Le texte devient ses contours : chemins éditables (outil Nœuds), épaississables, booléens — annulable">${dzi("dz-edit-convertir-en-chemin", 16)}Contours</button>
+        <button id="txLogo" title="Contours puis Impression 3D en mode logo (biseau, évidement, STL / 3MF)">${dzi("dz-lab3d-impression-3d", 16)}Logo 3D</button></div>
       <div class="ap-ligne"><span>Épaissir</span><input type="number" id="txDecal" step="0.5" value="2" title="Décalage du contour (px) : + engraisse, − amaigrit — sur des contours vectorisés"/>
-        <button id="txEpaissir" title="Applique un contour ± à la sélection (des chemins)">±</button>
-        <button id="txCadre" ${o.type === "texte" ? "" : "disabled"} title="Cadre de texte à paragraphes">→ cadre</button></div>` : ""}
-      ${etat.selection.length === 2 ? `<div class="ap-ligne"><button id="txSurChemin" title="Sélectionner le texte PUIS un chemin : le texte suit le chemin">↝ Sur le chemin</button></div>` : ""}`;
+        <button id="txEpaissir" title="Applique un contour ± à la sélection (des chemins)" aria-label="Épaissir la sélection">${dzi("dz-edit-epaissir", 16)}</button>
+        <button id="txCadre" ${o.type === "texte" ? "" : "disabled"} title="Cadre de texte à paragraphes">${dzi("dz-edit-convertir-en-cadre", 16)}cadre</button></div>` : ""}
+      ${etat.selection.length === 2 ? `<div class="ap-ligne"><button id="txSurChemin" title="Sélectionner le texte PUIS un chemin : le texte suit le chemin">${dzi("dz-outil-vec-texte-sur-chemin", 16)}Sur le chemin</button></div>` : ""}`;
     lier(o);
   }
   function lier(o) {

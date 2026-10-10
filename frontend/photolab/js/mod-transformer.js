@@ -391,6 +391,9 @@ export function initTransformer(PL) {
     // point de référence : grille 3 × 3
     const grille = document.createElement("div"); grille.className = "tr-grille"; grille.setAttribute("role", "group");
     grille.setAttribute("aria-label", T("photolab.transformation.reference"));
+    // G4 : l'icône « point de référence » devant la grille (décor : le groupe porte le libellé)
+    const icoRef = document.createElement("span"); icoRef.className = "tr-ref-ico"; icoRef.innerHTML = PL.icone("dz-edit-point-reference");
+    barre.appendChild(icoRef);
     for (let i = 0; i < 9; i++) {
       const b = document.createElement("button"); b.type = "button"; b.className = "tr-ref"; b.dataset.ref = String(i);
       b.title = T("photolab.transformation.reference"); b.addEventListener("click", () => changer(pointReference(s.etat, i)));
@@ -406,15 +409,15 @@ export function initTransformer(PL) {
       i.addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); i.dispatchEvent(new Event("change")); } ev.stopPropagation(); });
       w.append(l, i, u); barre.appendChild(w); champs[cle] = i;
     };
-    const delta = document.createElement("button"); delta.type = "button"; delta.className = "tr-bascule tr-delta"; delta.textContent = "Δ";
-    delta.title = T("photolab.transformation.relatif");
+    const delta = document.createElement("button"); delta.type = "button"; delta.className = "tr-bascule tr-delta"; delta.innerHTML = PL.icone("dz-edit-relatif");
+    delta.title = T("photolab.transformation.relatif"); delta.setAttribute("aria-label", delta.title);
     delta.addEventListener("click", () => { s.relatif = !s.relatif; delta.classList.toggle("actif", s.relatif); majBarre(); });
     barre.appendChild(delta);
     num("x", "photolab.transformation.x", "px", (v) => changer(placerPivot(s.etat, s.relatif ? s.pivot0[0] + v : v, s.etat.pivot[1])));
     num("y", "photolab.transformation.y", "px", (v) => changer(placerPivot(s.etat, s.etat.pivot[0], s.relatif ? s.pivot0[1] + v : v)));
     num("l", "photolab.transformation.l", "%", (v) => { const a = lecture(s.etat, s.rect, s.pivot0); const k = v / a.l; changer(echelleAutour(s.etat, k, s.lie ? k : 1)); });
-    const lien = document.createElement("button"); lien.type = "button"; lien.className = "tr-bascule tr-lien actif"; lien.textContent = "⛓";
-    lien.title = T("photolab.transformation.lier"); lien.setAttribute("aria-pressed", "true");
+    const lien = document.createElement("button"); lien.type = "button"; lien.className = "tr-bascule tr-lien actif"; lien.innerHTML = PL.icone("dz-edit-conserver-proportions");
+    lien.title = T("photolab.transformation.lier"); lien.setAttribute("aria-label", lien.title); lien.setAttribute("aria-pressed", "true");
     lien.addEventListener("click", () => { s.lie = !s.lie; lien.classList.toggle("actif", s.lie); lien.setAttribute("aria-pressed", String(s.lie)); });
     barre.appendChild(lien);
     num("h", "photolab.transformation.h", "%", (v) => { const a = lecture(s.etat, s.rect, s.pivot0); const k = v / a.h; changer(echelleAutour(s.etat, s.lie ? k : 1, k)); });
@@ -427,9 +430,9 @@ export function initTransformer(PL) {
     for (const v of INTERPOLATIONS) { const o = document.createElement("option"); o.value = v; o.textContent = T(LIB_INTERP[v]); sel.appendChild(o); }
     sel.value = s.interp; sel.addEventListener("change", () => { s.interp = sel.value; apercu(); });
     wi.append(li, sel); barre.appendChild(wi);
-    const ok = document.createElement("button"); ok.type = "button"; ok.className = "tr-valider"; ok.textContent = "✓";
+    const ok = document.createElement("button"); ok.type = "button"; ok.className = "tr-valider"; ok.innerHTML = PL.icone("dz-action-valider");
     ok.title = T("photolab.transformation.valider"); ok.setAttribute("aria-label", ok.title); ok.addEventListener("click", valider);
-    const ko = document.createElement("button"); ko.type = "button"; ko.className = "tr-annuler"; ko.textContent = "⊘";
+    const ko = document.createElement("button"); ko.type = "button"; ko.className = "tr-annuler"; ko.innerHTML = PL.icone("dz-action-abandonner");
     ko.title = T("photolab.transformation.annuler"); ko.setAttribute("aria-label", ko.title); ko.addEventListener("click", annuler);
     barre.append(ok, ko);
     majBarre();

@@ -52,7 +52,8 @@ def main():
 
     BUNB = (RACINE / REL).read_bytes()
     BUN = BUNB.decode("utf-8")
-    COUCHE = (RACINE / "frontend/patches/montage.js").read_bytes().decode("utf-8")
+    # icônes G1 (10/10) : la couche du poste porte aussi G1, posé APRÈS L2 ; L2 se mesure sur la couche d'avant G1
+    COUCHE = AIDE.couche_avant_dzglyph((RACINE / "frontend/patches/montage.js").read_bytes().decode("utf-8"), "montage")
     TABLE = json.loads((RACINE / "scripts/i18n_l2_paires.json").read_bytes().decode("utf-8"))
 
     print("\n[1] la saisie et le générateur")
@@ -122,7 +123,7 @@ def main():
     except ValueError as e:
         check("2j la couche d'avant L2 se reconstruit exactement", False, e)
     check("2k la table consignée rejoue la couche : couche L1 + substitutions L2 = couche du poste",
-          n(G.appliquer_couche(G.base("couche"))) == n(COUCHE))
+          n(G.appliquer_couche(G.base("couche"))) == n(AIDE.couche_avant_dzglyph(COUCHE, "montage")))   # icônes G1 posées après
 
     print("\n[3] le dictionnaire")
     DICO = {}

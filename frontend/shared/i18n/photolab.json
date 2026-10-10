@@ -89,7 +89,7 @@
   "photolab.menu.catalogue_absent": {"fr": "Le catalogue des menus est introuvable.", "en": "The menu catalog could not be found."},
   "photolab.apropos.titre": {"fr": "Photolab, d'après photocraft", "en": "Photolab, based on photocraft"},
   "photolab.apropos.moteur": {"fr": "Moteur photocraft 0.3.0, licence MIT OU Apache-2.0.", "en": "photocraft 0.3.0 engine, MIT OR Apache-2.0 license."},
-  "photolab.apropos.icones": {"fr": "Icônes Lucide (licence ISC), catalogue des menus de photocraft.", "en": "Lucide icons (ISC license), photocraft menu catalog."},
+  "photolab.apropos.icones": {"fr": "Icônes de la suite Deepotus Glyph ; icône de l'outil Doigt : Lucide (licence ISC) ; catalogue des menus de photocraft.", "en": "Deepotus Glyph icon suite; Smudge tool icon: Lucide (ISC license); photocraft menu catalog."},
   "photolab.apropos.moteur_v": {"fr": "Moteur photocraft {version}, licence {licence}.", "en": "photocraft {version} engine, {licence} license."},
   "photolab.apropos.ou": {"fr": "OU", "en": "OR"},
   "photolab.apropos.polices": {"fr": "Les polices intégrées au moteur (Inter, JetBrains Mono, BIZ UD, Shippori Mincho) sont sous licence SIL OFL 1.1.", "en": "The fonts built into the engine (Inter, JetBrains Mono, BIZ UD, Shippori Mincho) are under the SIL OFL 1.1."},

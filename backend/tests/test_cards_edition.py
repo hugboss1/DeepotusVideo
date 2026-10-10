@@ -87,7 +87,8 @@ def test_le_module_ecran_s_enregistre_onzieme_sans_painter():
     assert '"use strict"' in js[:3000], "règle 11"
     assert "painters: []" in js and 'id: "edition"' in js and "order: 11" in js
     core = _lire(FRONT / "js" / "core.js")
-    assert "edition: SVG_O" in core, "le rail a son pictogramme"
+    # icônes G2 (10/10/2026) : le pictogramme du rail est la clé de la suite « Deepotus Glyph »
+    assert 'edition: "dz-nav-cf-edition"' in core, "le rail a son pictogramme"
 
 
 def test_la_piece_repond_ses_cibles():
