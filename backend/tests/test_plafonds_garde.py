@@ -72,7 +72,8 @@ PAYANTES = {
     # t111 (plan-sprites T9) : la feuille de directions passe par assets_sprite — chroma local par défaut, mais un
     # `remove_bg: "api"` atteint le puits fal, et la garde est celle d'assets_sprite (gardée PAR la porte commune)
     ("routes", "POST", "/assets/sprite/from-board"),
-    ("avatar_live", "POST", "/sessions"),   # t161 : une session du Direct (Decart Lucy 2.5, réservée entière)
+    ("avatar_live", "POST", "/sessions"),
+    ("avatar_live", "POST", "/recast"),   # t162 : le Recast différé (fal), réservé sur la durée de la source   # t161 : une session du Direct (Decart Lucy 2.5, réservée entière)
 }
 
 

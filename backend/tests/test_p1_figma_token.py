@@ -81,7 +81,8 @@ check("1.2 FIGMA_TOKEN dans _ALLOWED_ENV_KEYS", "FIGMA_TOKEN" in R._ALLOWED_ENV_
 # tâche #28 (30/09/2026) : les quatre clés TikTok du plan scheduler T6 entrent aussi, et rien d'autre
 _TIKTOK = {"TIKTOK_CLIENT_KEY", "TIKTOK_CLIENT_SECRET", "TIKTOK_REFRESH_TOKEN", "TIKTOK_AUDITED"}
 check("1.3 rien d'autre n'entre ni ne sort de la liste blanche",
-      OLD is not None and R._ALLOWED_ENV_KEYS - OLD == {"FIGMA_TOKEN"} | _TIKTOK and not (OLD - R._ALLOWED_ENV_KEYS),
+      # t161 (10/10/2026) : + DECART_API_KEY, la cle du Direct (Avatar live)
+      OLD is not None and R._ALLOWED_ENV_KEYS - OLD == {"FIGMA_TOKEN", "DECART_API_KEY"} | _TIKTOK and not (OLD - R._ALLOWED_ENV_KEYS),
       _d(sorted((R._ALLOWED_ENV_KEYS ^ OLD) if OLD else [])))
 
 

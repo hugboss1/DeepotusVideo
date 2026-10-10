@@ -104,3 +104,97 @@ async def session_fin(request: Request, body: dict | None = None):
         return await AL.terminer_session(b.get("session_id"), b.get("secondes"), appareil)
     except AL.Refus as e:
         raise _http(e)
+
+
+# ── G1 (t162, 10/10/2026) : le Recast différé, l'équivalent de Genjutsu ────────────────────────────────────────────
+# Le catalogue est SERVI (l'écran ne recopie ni libellé ni prix). Le dépôt d'une vidéo source et le lancement sont
+# des écritures : boucle locale seulement (le téléphone passera par /sync/depot en G6). Le rendu est un JOB.
+
+@router.get("/recast/modeles")
+async def recast_modeles():
+    from app.services import recast_service as RS
+    return {"modeles": {k: {"label": m["label"], "prix_usd_s": m["prix"], "defaut": m["defaut"],
+                            "personnage": m["personnage"], "consigne": m["consigne"],
+                            **({"note_prix": m["note_prix"]} if m.get("note_prix") else {})}
+                        for k, m in RS.MODELES.items()},
+            "prereglages": [{"id": p["id"], "label": p["label"]} for p in RS.PREREGLAGES],
+            "duree": {"min": int(RS.DUREE_MIN_S), "max": int(RS.DUREE_MAX_S)}}
+
+
+_DEPOT_MAX_OCTETS = 300 * 1024 * 1024
+
+
+@router.post("/recast/source")
+async def recast_source(request: Request):
+    """Dépose une vidéo source (multipart, champ `fichier`) sous un nom ALÉATOIRE confiné ; ffprobe doit y lire une
+    vidéo d'une durée > 0, sinon 415 et rien n'est gardé."""
+    import asyncio
+    import secrets
+    from app.services import recast_service as RS, fal_video_tools as FV
+    form = await request.form()
+    f = form.get("fichier")
+    if f is None or not hasattr(f, "read"):
+        raise HTTPException(400, "Champ « fichier » attendu (multipart).")
+    ext = (str(getattr(f, "filename", "") or "").rsplit(".", 1)[-1] or "").lower()
+    if ext not in ("mp4", "mov", "webm"):
+        raise HTTPException(415, "Vidéo attendue : .mp4, .mov ou .webm.")
+    dest = RS.sources_dir() / f"{secrets.token_hex(12)}.{ext}"
+    total = 0
+    with open(dest, "wb") as out:
+        while True:
+            bloc = await f.read(1024 * 1024)
+            if not bloc:
+                break
+            total += len(bloc)
+            if total > _DEPOT_MAX_OCTETS:
+                out.close()
+                dest.unlink(missing_ok=True)
+                raise HTTPException(413, "Vidéo trop lourde (300 Mo au plus) : un Recast prend 30 s au plus.")
+            out.write(bloc)
+    try:
+        info = await asyncio.to_thread(FV.probe, dest)
+    except Exception:  # noqa: BLE001
+        info = {}
+    if not info.get("duration_s") or not info.get("width"):
+        dest.unlink(missing_ok=True)
+        raise HTTPException(415, "Ces octets ne sont pas une vidéo lisible (ffprobe n'y trouve ni durée ni image).")
+    return {"depot": dest.name, "duree_s": info["duration_s"], "largeur": info["width"], "hauteur": info["height"],
+            "ratio": info.get("ratio")}
+
+
+@router.post("/recast")
+async def recast_lancer(body: dict | None = None):
+    """{source: {job_id}|{depot}, personnage_id?, modele, resolution?, consigne?, prereglage?, orientation?}
+    -> {job_id, devis_usd}. Tout ce qui ne coûte rien est vérifié, PUIS la garde des plafonds, PUIS fal."""
+    import asyncio
+    from pathlib import Path
+    from app.services import recast_service as RS, fal_video_tools as FV
+    from app.services.pipeline import Pipeline
+    b = body if isinstance(body, dict) else {}
+    src_b = b.get("source") if isinstance(b.get("source"), dict) else {}
+    parent = None
+    if src_b.get("job_id"):
+        j = await Pipeline.get_job(str(src_b["job_id"]))
+        p = Path(j.final_video_path) if j is not None and j.final_video_path else None
+        src = p if p is not None and p.is_file() else None
+        parent = j.id if src is not None else None
+    else:
+        src = RS.chemin_depot(src_b.get("depot"))
+    if src is None:
+        raise HTTPException(404, "Vidéo source introuvable (rendu sans vidéo, ou dépôt inconnu).")
+    pid = b.get("personnage_id")
+    perso = AL.lire_personnage(pid) if pid else None
+    if pid and perso is None and RS.MODELES.get(str(b.get("modele") or ""), {}).get("personnage"):
+        raise HTTPException(400, "Personnage inconnu : choisissez un Personnage (images de référence avec consentement).")
+    try:
+        info = await asyncio.to_thread(FV.probe, src)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    try:
+        prep = RS.preparer(b, src, float(info.get("duration_s") or 0), perso)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    garde = await _PLAF.verifier(prep["op"], "studio", ref=f"recast:{src.name}")
+    job_id = await RS.lancer_recast(prep, garde["lignes"], parent)
+    return {"job_id": job_id, "devis_usd": garde["devis"]["total_usd"], "modele": prep["modele"],
+            "resolution": prep["resolution"], "duree_s": prep["duree_s"]}

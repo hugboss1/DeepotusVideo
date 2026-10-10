@@ -648,6 +648,23 @@ def estimate(op: dict, p: dict | None = None) -> dict:
                            cr, "credits",
                            cr * float(p.get("meshy_credit_usd",
                                             DEFAULTS["meshy_credit_usd"]))))
+    elif kind == "recast":
+        # Avatar live G1 (t162) : prix PAR SECONDE de vidéo source, relevés le 10/10 et tenus dans le
+        # catalogue du service (une seule source). Modèle inconnu -> ligne à 0 QUI LE DIT.
+        from app.services import recast_service as _rs
+        mod = str(op.get("modele") or "")
+        try:
+            sec = max(0.0, float(op.get("seconds") or 0))
+            if not math.isfinite(sec):
+                sec = 0.0
+        except (TypeError, ValueError):
+            sec = 0.0
+        if mod in _rs.MODELES:
+            res = _rs.resolution(mod, op.get("resolution"))
+            lines.append(_line("fal", f"Recast {_rs.MODELES[mod]['label']} ({res})", sec, "s",
+                               sec * _rs.prix_usd_s(mod, res)))
+        else:
+            lines.append(_line("fal", f"Recast : modèle inconnu {mod[:24]!r} (non chiffré)", sec, "s", 0.0))
     elif kind == "direct":
         # Avatar live G0 (t161) : UNE session du Direct, réservée ENTIÈRE (Decart la coupe à cette borne,
         # maxSessionDuration). Durée illisible -> la durée par défaut du Direct, jamais 0.
