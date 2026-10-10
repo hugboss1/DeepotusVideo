@@ -1,6 +1,7 @@
 // mod-planches.js — lot C : le panneau Planches (liste, ajouter depuis la
 // sélection ou depuis la page, zoom sur une planche, renommer, retirer,
 // PNG 2× de la planche). Les cadres se tracent dans l'overlay du cœur.
+import { T } from "./mod-i18n.js";
 import { op_planche_ajouter, op_planche_modifier, op_planche_supprimer,
          planche_de } from "./mod-doc.js";
 import { versUnite, suffixe } from "./mod-unites.js";
@@ -16,10 +17,10 @@ export function plancheLigne(p, unites) {
   return `<div class="planche-ligne" data-planche="${esc(p.id)}">`
     + `<span class="nom" title="${esc(p.nom)}">${esc(p.nom)}</span>`
     + `<small>${u(p.w)} × ${u(p.h)} ${esc(suffixe(unites.affichage))}</small>`
-    + `<button data-pl-zoom="${esc(p.id)}" title="Cadrer la vue sur la planche" aria-label="Cadrer la vue sur la planche">${dzi("dz-action-ajuster-vue", 16)}</button>`
-    + `<button data-pl-png="${esc(p.id)}" title="PNG 2× de la planche → Library">2×</button>`
-    + `<button data-pl-renommer="${esc(p.id)}" title="Renommer" aria-label="Renommer">${dzi("dz-action-renommer", 16)}</button>`
-    + `<button data-pl-supprimer="${esc(p.id)}" title="Retirer la planche (les objets restent)" aria-label="Retirer la planche">${dzi("dz-action-supprimer", 16)}</button>`
+    + `<button data-pl-zoom="${esc(p.id)}" title="${T("vectorlab.planches.cadrer")}" aria-label="${T("vectorlab.planches.cadrer")}">${dzi("dz-action-ajuster-vue", 16)}</button>`
+    + `<button data-pl-png="${esc(p.id)}" title="${T("vectorlab.planches.png")}">2×</button>`
+    + `<button data-pl-renommer="${esc(p.id)}" title="${T("vectorlab.planches.renommer")}" aria-label="${T("vectorlab.planches.renommer")}">${dzi("dz-action-renommer", 16)}</button>`
+    + `<button data-pl-supprimer="${esc(p.id)}" title="${T("vectorlab.planches.retirer_titre")}" aria-label="${T("vectorlab.planches.retirer")}">${dzi("dz-action-supprimer", 16)}</button>`
     + `</div>`;
 }
 
@@ -32,16 +33,16 @@ export function initPlanches(VL) {
     if (!etat.doc) { hote.innerHTML = ""; return; }
     const ps = etat.doc.planches || [];
     hote.innerHTML = (ps.length ? ps.map((p) => plancheLigne(p, VL.unites())).join("")
-      : `<p class="vl-amorce">Aucune planche — la page entière est la seule surface.</p>`)
+      : `<p class="vl-amorce">${T("vectorlab.planches.aucune")}</p>`)
       + `<div class="ap-ligne"><button id="plaSel" ${etat.selection.length ? "" : "disabled"}
-           title="Une planche au cadre de la sélection">${dzi("dz-action-ajouter", 16)}sélection</button>
-         <button id="plaPage" title="Une planche de la taille de la page, à droite de la dernière">${dzi("dz-action-ajouter", 16)}page</button></div>`;
+           title="${T("vectorlab.planches.sel_titre")}">${dzi("dz-action-ajouter", 16)}${T("vectorlab.planches.selection")}</button>
+         <button id="plaPage" title="${T("vectorlab.planches.page_titre")}">${dzi("dz-action-ajouter", 16)}page</button></div>`;
     $("#plaSel").addEventListener("click", () => {
       const b = VL.bboxSelectionDoc();
       if (!b) return;
       const id = VL.executer(op_planche_ajouter, { nom: "", x: Math.round(b.x), y: Math.round(b.y),
                                                     w: Math.round(b.w), h: Math.round(b.h) });
-      if (id) VL.toast(`planche ${id} créée`);
+      if (id) VL.toast(T("vectorlab.planches.creee", { id }));
     });
     $("#plaPage").addEventListener("click", () => {
       const der = ps[ps.length - 1];
@@ -53,12 +54,12 @@ export function initPlanches(VL) {
     hote.querySelectorAll("[data-pl-png]").forEach((b) => b.addEventListener("click", () => {
       const p = planche_de(etat.doc, b.dataset.plPng);
       VL.exporterPNG(2, { cadre: p, suffixe: "_" + p.id })
-        .then((f) => VL.toast(`${f} déposé (planche ${p.nom})`))
+        .then((f) => VL.toast(T("vectorlab.planches.depose", { f, nom: p.nom })))
         .catch((e) => VL.toast(e.message, true));
     }));
     hote.querySelectorAll("[data-pl-renommer]").forEach((b) => b.addEventListener("click", async () => {
       const p = planche_de(etat.doc, b.dataset.plRenommer);
-      const nom = await VL.dialogue.saisir("Nom de la planche :", { valeur: p.nom, titre: "Renommer la planche", valider: "Renommer" });
+      const nom = await VL.dialogue.saisir(T("vectorlab.planches.nom"), { valeur: p.nom, titre: T("vectorlab.planches.renommer_titre"), valider: T("vectorlab.planches.renommer") });
       if (nom !== null) VL.executer(op_planche_modifier, p.id, { nom });
     }));
     hote.querySelectorAll("[data-pl-supprimer]").forEach((b) =>

@@ -7,12 +7,13 @@
 // clic sur l'extrémité d'une courbe ouverte sélectionnée = la prolonger ;
 // actions Vif / Lisse / Fractionner / Ouvrir / Fermer / Lisser / Relier /
 // Inverser sur VL.actions.plume. Géométrie : mod-plume (pure).
+import { T } from "./mod-i18n.js";
 import { trace_debut, trace_ajouter, trace_poignee, trace_retirer, trace_finir, elastique, contraindre_angle, lisser_catmull, chemin_ouvrir, chemin_lisser, chemin_fractionner, trace_depuis_chemin, extremite_proche, types_ancres } from "./mod-plume.js";
 import { op_ajouter, op_chemin_fermer, op_noeud_convertir, chemin_ancres, chemin_parser } from "./mod-doc.js";
 import { op_chemin_inverser, op_chemins_joindre } from "./mod-noeuds.js";
 
-export const MODES_PLUME = [{ id: "plume", nom: "Plume" }, { id: "intelligent", nom: "Intelligent" }, { id: "polygone", nom: "Polygone" }, { id: "ligne", nom: "Ligne" }];
-export const HINT_PLUME = "cliquer ou glisser pour prolonger une courbe depuis sa fin · clic droit pour créer une ligne droite · glisser + Maj pour contraindre la tangente d'un nœud · Alt pour ignorer le magnétisme · Retour arrière retire le dernier nœud · Entrée ou Échap finit";
+export const MODES_PLUME = [{ id: "plume", nom: T("vectorlab.plume.mode_plume") }, { id: "intelligent", nom: T("vectorlab.plume.mode_intelligent") }, { id: "polygone", nom: T("vectorlab.formes.polygone") }, { id: "ligne", nom: T("vectorlab.plume.mode_ligne") }];
+export const HINT_PLUME = T("vectorlab.plume.hint");
 const SNS = "http://www.w3.org/2000/svg";
 
 export function initPlume(VL) {
@@ -59,7 +60,7 @@ export function initPlume(VL) {
     if (!d) return;
     if (P.prolonge) {
       const id = P.prolonge; P.prolonge = null;
-      VL.executer((doc) => { const o = doc.calques.flatMap((c) => c.objets).find((x) => x.id === id); if (!o) throw new Error("chemin prolongé introuvable"); o.d = fermer ? d.replace(/\s*Z?$/, "") + " Z" : d; });
+      VL.executer((doc) => { const o = doc.calques.flatMap((c) => c.objets).find((x) => x.id === id); if (!o) throw new Error(T("vectorlab.plume.err_prolonge")); o.d = fermer ? d.replace(/\s*Z?$/, "") + " Z" : d; });
       VL.setSelection([id]); P.dernier = id;
       return;
     }
@@ -143,18 +144,18 @@ export function initPlume(VL) {
   /* ── les actions de la barre contextuelle ── */
   const chemin = () => { const id = etat.selection.length === 1 ? etat.selection[0] : P.dernier; const t = id && VL.objetDe(id); return t && t.objet.type === "path" ? t.objet : null; };
   const ancreCible = () => { const o = chemin(); if (!o) return null; const n = chemin_ancres(chemin_parser(o.d)).length; const i = etat.ancreSel !== null && etat.ancreSel !== undefined ? etat.ancreSel : n - 1; return { o, i, n }; };
-  const convertir = (vers) => { const c = ancreCible(); if (!c) { VL.toast("plume : aucun chemin", true); return; } const t = types_ancres(c.o.d)[c.i]; if (t !== vers) VL.executer(op_noeud_convertir, c.o.id, c.i); };
+  const convertir = (vers) => { const c = ancreCible(); if (!c) { VL.toast(T("vectorlab.plume.aucun_chemin"), true); return; } const t = types_ancres(c.o.d)[c.i]; if (t !== vers) VL.executer(op_noeud_convertir, c.o.id, c.i); };
   VL.actions = VL.actions || {};
   VL.actions.plume = {
     mode: (m) => { if (MODES_PLUME.some((x) => x.id === m)) P.mode = m; },
     vif: () => convertir("vif"),
     intelligent: () => { const A = VL.actions.noeuds; if (A && A.intelligent) A.intelligent(); },
     lisse: () => convertir("lisse"),
-    fractionner: () => { const c = ancreCible(); if (!c) { VL.toast("plume : aucun chemin", true); return; } const parts = chemin_fractionner(c.o.d, c.i); if (parts.length === 1 && parts[0] === c.o.d) { VL.toast("fractionner : choisir une ancre intérieure (outil Nœuds)", true); return; } VL.executer((doc) => { const o = doc.calques.flatMap((k) => k.objets).find((x) => x.id === c.o.id); o.d = parts[0]; if (parts[1]) { const cal = doc.calques.find((k) => k.objets.includes(o)); op_ajouter(doc, cal.id, { type: "path", d: parts[1], style: { ...(o.style || {}) } }); } }); },
+    fractionner: () => { const c = ancreCible(); if (!c) { VL.toast(T("vectorlab.plume.aucun_chemin"), true); return; } const parts = chemin_fractionner(c.o.d, c.i); if (parts.length === 1 && parts[0] === c.o.d) { VL.toast(T("vectorlab.plume.fractionner"), true); return; } VL.executer((doc) => { const o = doc.calques.flatMap((k) => k.objets).find((x) => x.id === c.o.id); o.d = parts[0]; if (parts[1]) { const cal = doc.calques.find((k) => k.objets.includes(o)); op_ajouter(doc, cal.id, { type: "path", d: parts[1], style: { ...(o.style || {}) } }); } }); },
     ouvrir: () => { const o = chemin(); if (!o) return; VL.executer((doc) => { const x = doc.calques.flatMap((k) => k.objets).find((y) => y.id === o.id); x.d = chemin_ouvrir(x.d); }); },
     fermer: () => { const o = chemin(); if (!o) return; VL.executer(op_chemin_fermer, o.id); },
     lisserCourbe: () => { const o = chemin(); if (!o) return; VL.executer((doc) => { const x = doc.calques.flatMap((k) => k.objets).find((y) => y.id === o.id); x.d = chemin_lisser(x.d); }); },
-    relier: () => { if (etat.selection.length !== 2) { VL.toast("relier : sélectionner deux chemins ouverts", true); return; } const id = VL.executer(op_chemins_joindre, etat.selection[0], etat.selection[1]); if (id) VL.setSelection([id]); },
+    relier: () => { if (etat.selection.length !== 2) { VL.toast(T("vectorlab.plume.relier"), true); return; } const id = VL.executer(op_chemins_joindre, etat.selection[0], etat.selection[1]); if (id) VL.setSelection([id]); },
     inverser: () => { const o = chemin(); if (!o) return; VL.executer(op_chemin_inverser, o.id); },
     peut: () => ({ chemin: !!chemin(), deux: etat.selection.length === 2, trace: !!P.trace }),
   };

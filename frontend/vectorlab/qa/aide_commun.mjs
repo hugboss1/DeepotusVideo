@@ -50,11 +50,23 @@ export function verifier_aide(dossier, sources) {
     if (v.length) { e.push(`${f && f.id} : ${v.join(", ")}`); continue; }
     if (ids.has(f.id)) e.push(`${f.id} : id en double`);
     ids.add(f.id); fichiers.add(f.fichier);
-    const p = join(dossier, f.fichier);
-    if (!existsSync(p)) { e.push(`${f.id} : ${f.fichier} absent`); continue; }
-    const a = animation_lire(readFileSync(p));
-    if (!a) e.push(`${f.id} : ${f.fichier} n'est ni un WebP ni une APNG`);
-    else if (a.w !== 320 || a.h !== 200 || a.images !== 3) e.push(`${f.id} : ${a.w}×${a.h}, ${a.images} image(s) — 320×200 à trois temps attendu`);
+    // t146 : la version anglaise (titre_en, phrase_en, fichier_en — capture refaite sur l'interface anglaise) passe le
+    // même contrôle ; une fiche qui en porte une partie seulement est refusée
+    const en = ["titre_en", "phrase_en", "fichier_en"].filter((k) => f[k]);
+    if (en.length && en.length !== 3) e.push(`${f.id} : version anglaise incomplète (${en.join(", ")})`);
+    if (en.length === 3 && valider_fiche({ ...f, titre: f.titre_en, phrase: f.phrase_en, fichier: f.fichier_en }).length)
+      e.push(`${f.id} : version anglaise invalide`);
+    const anims = en.length === 3 ? [f.fichier, f.fichier_en] : [f.fichier];
+    let absent = false;
+    for (const fic of anims) {
+      fichiers.add(fic);
+      const p = join(dossier, fic);
+      if (!existsSync(p)) { e.push(`${f.id} : ${fic} absent`); absent = true; continue; }
+      const a = animation_lire(readFileSync(p));
+      if (!a) e.push(`${f.id} : ${fic} n'est ni un WebP ni une APNG`);
+      else if (a.w !== 320 || a.h !== 200 || a.images !== 3) e.push(`${f.id} : ${a.w}×${a.h}, ${a.images} image(s) — 320×200 à trois temps attendu`);
+    }
+    if (absent) continue;
     const re = new RegExp(`(id="${f.id}"|["'\`#]${f.id}["'\`])`);
     if (!sources.some((s) => re.test(s))) e.push(`${f.id} : aucun élément de ce nom dans la page (fiche orpheline)`);
   }

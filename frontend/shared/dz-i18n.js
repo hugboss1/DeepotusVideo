@@ -48,11 +48,14 @@
 
   // ── la surcouche : français exact -> anglais ──
   function norm(s) { return String(s).replace(/\s+/g, " ").trim(); }
-  var INDEX = null;
+  var INDEX = null, DEJA_EN = null;
   function index() {
     if (INDEX) return INDEX;
-    INDEX = {};
+    INDEX = {}; DEJA_EN = {};
     for (var k in D) {
+      // t146 : chaque anglais connu (contexte compris) — un texte DÉJÀ traduit par dzT ne se retraduit pas
+      // (« Contours » des courbes du Vectorlab est aussi le français d'une catégorie du Photolab → « Brush Strokes »)
+      if (Object.prototype.hasOwnProperty.call(D, k) && D[k] && D[k].en) DEJA_EN[norm(D[k].en)] = 1;
       // t141 : une entrée « contexte » (même français, autre sens selon l'écran : « Effacer », « Note ») ne sert qu'à
       // dzT(clé) — la surcouche, qui traduit à l'aveugle un texte resté en dur, l'ignore.
       if (Object.prototype.hasOwnProperty.call(D, k) && D[k] && D[k].fr && D[k].en && !D[k].contexte) INDEX[norm(D[k].fr)] = D[k].en;
@@ -63,6 +66,7 @@
     if (lang !== "en" || s == null) return null;
     var n = norm(s);
     if (!n || !Object.prototype.hasOwnProperty.call(index(), n)) return null;
+    if (Object.prototype.hasOwnProperty.call(DEJA_EN, n)) return null;
     return /^\s*/.exec(s)[0] + index()[n] + /\s*$/.exec(s)[0];
   }
 

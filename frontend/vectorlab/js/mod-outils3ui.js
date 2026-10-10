@@ -4,33 +4,34 @@
 // Assombrir. Gestes en CAPTURE sur #stage (patron de mod-exportplus), une
 // commande par geste via VL.executer, aperçu dans #ovTmp ; la géométrie est
 // dans mod-outils3 (pure), les pixels dans mod-pixel (pur).
+import { T } from "./mod-i18n.js";
 import { zoom_rect, zoom_point, degrade_de_glisser, rognage_de_rect, cadre_de_rect, rect_normalise, disque_masque } from "./mod-outils3.js";
 import { op_planche_ajouter, op_degrade_creer, op_degrade_transparence, op_image_rogner, op_ajouter, op_style } from "./mod-doc.js";
 import { flou, hsl } from "./mod-pixel.js";
 
 export const OUTILS3 = [
-  { id: "main", touche: "h", titre: "Main — glisser pour déplacer la vue (H)" },
-  { id: "loupe", touche: "z", titre: "Loupe — clic : zoom avant, Alt+clic : zoom arrière, glisser : cadrer (Z)" },
-  { id: "planche", touche: "", titre: "Plan de travail — glisser pour poser une planche nommée" },
-  { id: "degrade", touche: "", titre: "Dégradé — glisser sur la sélection : un dégradé linéaire de fond, du fond courant au blanc" },
-  { id: "transparence", touche: "y", titre: "Transparence — glisser sur la sélection : un dégradé de masque, opaque → transparent (Y)" },
-  { id: "cadre", touche: "", titre: "Cadre de texte — glisser un cadre à paragraphes, puis écrire" },
-  { id: "recadrer", touche: "", titre: "Recadrer — glisser sur l'image sélectionnée : rognage ; double-clic : retirer le rognage" },
-  { id: "px-flou", touche: "", titre: "Flou — glisser sur les pixels : adoucit localement (rayon du contexte)", pixel: true },
-  { id: "px-eclaircir", touche: "", titre: "Éclaircir (densité −) — glisser sur les pixels", pixel: true },
-  { id: "px-assombrir", touche: "", titre: "Assombrir (densité +) — glisser sur les pixels", pixel: true },
+  { id: "main", touche: "h", titre: T("vectorlab.outils3.titre_main") },
+  { id: "loupe", touche: "z", titre: T("vectorlab.outils3.titre_loupe") },
+  { id: "planche", touche: "", titre: T("vectorlab.outils3.titre_planche") },
+  { id: "degrade", touche: "", titre: T("vectorlab.outils3.titre_degrade") },
+  { id: "transparence", touche: "y", titre: T("vectorlab.outils3.titre_transparence") },
+  { id: "cadre", touche: "", titre: T("vectorlab.outils3.titre_cadre") },
+  { id: "recadrer", touche: "", titre: T("vectorlab.outils3.titre_recadrer") },
+  { id: "px-flou", touche: "", titre: T("vectorlab.outils3.titre_flou"), pixel: true },
+  { id: "px-eclaircir", touche: "", titre: T("vectorlab.outils3.titre_eclaircir"), pixel: true },
+  { id: "px-assombrir", touche: "", titre: T("vectorlab.outils3.titre_assombrir"), pixel: true },
 ];
 export const HINTS5 = {
-  main: "glisser pour déplacer la vue · Espace fait la même chose depuis tout outil",
-  loupe: "cliquer = zoom avant · Alt = zoom arrière · glisser = cadrer la zone",
-  planche: "glisser pour poser une planche · le panneau Planches la nomme et l'exporte",
-  degrade: "glisser sur la sélection : du fond courant au blanc · les poignées se retouchent ensuite",
-  transparence: "glisser sur la sélection : opaque au départ, transparent à l'arrivée",
-  cadre: "glisser un cadre · double-clic (sélection) pour rééditer le texte",
-  recadrer: "glisser sur une image sélectionnée pour la rogner · double-clic retire le rognage",
-  "px-flou": "glisser pour adoucir · rayon et dureté dans la barre contextuelle",
-  "px-eclaircir": "glisser pour éclaircir · rayon dans la barre contextuelle",
-  "px-assombrir": "glisser pour assombrir · rayon dans la barre contextuelle",
+  main: T("vectorlab.outils3.hint_main"),
+  loupe: T("vectorlab.outils3.hint_loupe"),
+  planche: T("vectorlab.outils3.hint_planche"),
+  degrade: T("vectorlab.outils3.hint_degrade"),
+  transparence: T("vectorlab.outils3.hint_transparence"),
+  cadre: T("vectorlab.outils3.hint_cadre"),
+  recadrer: T("vectorlab.outils3.hint_recadrer"),
+  "px-flou": T("vectorlab.outils3.hint_flou"),
+  "px-eclaircir": T("vectorlab.outils3.hint_eclaircir"),
+  "px-assombrir": T("vectorlab.outils3.hint_assombrir"),
 };
 const SNS = "http://www.w3.org/2000/svg";
 
@@ -70,7 +71,7 @@ export function initOutils3(VL) {
     if (o === "loupe") { geste = { type: "loupe", e0: [ex, ey], e1: [ex, ey], alt: ev.altKey }; return; }
     if (pxOutil()) {
       const t = etat.px && etat.px.tampon;
-      if (!t || !etat.px.id) { VL.toast("retouche : éditer d'abord les pixels d'une image (onglet Pixel)", true); geste = null; return; }
+      if (!t || !etat.px.id) { VL.toast(T("vectorlab.outils3.retouche_dabord"), true); geste = null; return; }
       geste = { type: "retouche", outil: o, n: 0 };
       retoucher(ev); return;
     }
@@ -104,14 +105,14 @@ export function initOutils3(VL) {
     }
     const rect = rect_normalise(g.p0, g.p1, 4);
     if (g.type === "planche") {
-      if (!rect) { VL.toast("plan de travail : glisser un rectangle", true); return; }
+      if (!rect) { VL.toast(T("vectorlab.outils3.planche_glisser"), true); return; }
       const n = ((etat.doc.planches || []).length + 1);
       const id = VL.executer(op_planche_ajouter, { nom: `Planche ${n}`, x: Math.round(rect.x), y: Math.round(rect.y), w: Math.round(rect.w), h: Math.round(rect.h) });
-      if (id) VL.toast(`planche « Planche ${n} » posée — panneau Planches`);
+      if (id) VL.toast(T("vectorlab.outils3.planche_posee", { nom: "Planche " + n }));
       return;
     }
     if (g.type === "degrade") {
-      if (!etat.selection.length) { VL.toast("dégradé : sélectionner d'abord un objet", true); return; }
+      if (!etat.selection.length) { VL.toast(T("vectorlab.outils3.degrade_dabord"), true); return; }
       const tete = VL.objetDe(etat.selection[0]);
       const spec = degrade_de_glisser(g.p0, g.p1, (tete && tete.objet.style) || etat.styleCourant);
       if (!spec) return;
@@ -120,13 +121,13 @@ export function initOutils3(VL) {
       return;
     }
     if (g.type === "transparence") {
-      if (!etat.selection.length) { VL.toast("transparence : sélectionner d'abord un objet", true); return; }
+      if (!etat.selection.length) { VL.toast(T("vectorlab.outils3.transparence_dabord"), true); return; }
       if (!rect) return;
       VL.executer(op_degrade_transparence, etat.selection.slice(), rect);
       return;
     }
     if (g.type === "cadre") {
-      if (!rect) { VL.toast("cadre de texte : glisser un rectangle", true); return; }
+      if (!rect) { VL.toast(T("vectorlab.outils3.cadre_glisser"), true); return; }
       const s = { police: (etat.typo && (etat.typo.polices.find((p) => p.id === etat.typo.courante) || {}).famille) || "sans-serif", corps: 16, fond: etat.styleCourant.contour || "#1F1512" };
       const id = VL.executer(op_ajouter, etat.calqueActif, cadre_de_rect(rect, s, "Texte"));
       if (id) { VL.setOutil("select"); VL.setSelection([id]); if (VL.editerTexte) VL.editerTexte(id); }
@@ -134,10 +135,10 @@ export function initOutils3(VL) {
     }
     if (g.type === "recadrer") {
       const img = imageSel();
-      if (!img) { VL.toast("recadrer : sélectionner d'abord une image", true); return; }
+      if (!img) { VL.toast(T("vectorlab.outils3.recadrer_dabord"), true); return; }
       if (!rect) return;
       const rg = rognage_de_rect(img, rect);
-      if (!rg) { VL.toast("recadrer : le rectangle ne couvre pas l'image", true); return; }
+      if (!rg) { VL.toast(T("vectorlab.outils3.recadrer_hors"), true); return; }
       // le rognage garde l'échelle : l'objet prend la taille du rectangle
       VL.executer((doc) => { op_image_rogner(doc, img.id, rg); const o = doc.calques.flatMap((c) => c.objets).find((x) => x.id === img.id); o.x = rect.x; o.y = rect.y; o.w = rect.w; o.h = rect.h; });
     }
@@ -147,7 +148,7 @@ export function initOutils3(VL) {
     const img = imageSel(); if (!img || !img.rognage) return;
     ev.stopPropagation();
     VL.executer(op_image_rogner, img.id, null);
-    VL.toast("rognage retiré");
+    VL.toast(T("vectorlab.outils3.rognage_retire"));
   }, true);
 
   /* ── retouche raster : un disque de masque au point, la primitive de mod-pixel dessus ── */

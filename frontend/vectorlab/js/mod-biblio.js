@@ -5,6 +5,7 @@
 // node) ; initBiblio ne touche le DOM qu'à l'appel.
 
 /* ── pur ── */
+import { T } from "./mod-i18n.js";
 import { dzi } from "./mod-icones.js";
 const esc = (s) => String(s == null ? "" : s)
   .replace(/&/g, "&amp;").replace(/</g, "&lt;")
@@ -12,10 +13,10 @@ const esc = (s) => String(s == null ? "" : s)
 
 export function parseTaille(texte) {
   const m = /^\s*(\d+)\s*[x×X]\s*(\d+)\s*$/.exec(String(texte || ""));
-  if (!m) throw new Error("taille attendue « L×H » en px, ex. 640×960");
+  if (!m) throw new Error(T("vectorlab.biblio.taille_attendue"));
   const w = +m[1], h = +m[2];
-  if (!(w > 0) || !(h > 0)) throw new Error("taille : dimensions positives requises");
-  if (w > 8192 || h > 8192) throw new Error("taille : 8192 px de côté au plus");
+  if (!(w > 0) || !(h > 0)) throw new Error(T("vectorlab.biblio.taille_positive"));
+  if (w > 8192 || h > 8192) throw new Error(T("vectorlab.biblio.taille_max"));
   return { w, h };
 }
 
@@ -33,20 +34,20 @@ export function docVierge(nom, w, h, unites) {
    mm/300 dpi et calculent les px ; les px posent px/96 ; « libre » lit
    la taille saisie ── */
 export const FORMATS = [
-  { id: "libre", libelle: "Libre (px)" },
-  { id: "carre", libelle: "Carré — 2048×2048", w: 2048, h: 2048 },
+  { id: "libre", libelle: T("vectorlab.biblio.format_libre") },
+  { id: "carre", libelle: T("vectorlab.biblio.format_carre"), w: 2048, h: 2048 },
   { id: "16x9", libelle: "16:9 — 1920×1080", w: 1920, h: 1080 },
   { id: "9x16", libelle: "9:16 — 1080×1920", w: 1080, h: 1920 },
   { id: "a4p", libelle: "A4 portrait — 210×297 mm", mm: [210, 297] },
-  { id: "a4l", libelle: "A4 paysage — 297×210 mm", mm: [297, 210] },
+  { id: "a4l", libelle: T("vectorlab.biblio.format_a4l"), mm: [297, 210] },
   { id: "a5p", libelle: "A5 — 148×210 mm", mm: [148, 210] },
-  { id: "carte", libelle: "Carte (poker) — 63,5×88,9 mm", mm: [63.5, 88.9] },
-  { id: "vitrail", libelle: "Vitrail — 640×960", w: 640, h: 960 },
+  { id: "carte", libelle: T("vectorlab.biblio.format_carte"), mm: [63.5, 88.9] },
+  { id: "vitrail", libelle: T("vectorlab.biblio.format_vitrail"), w: 640, h: 960 },
 ];
 
 export function formatVersDoc(id, tailleTexte) {
   const f = FORMATS.find((x) => x.id === id);
-  if (!f) throw new Error(`format inconnu : ${id}`);
+  if (!f) throw new Error(T("vectorlab.biblio.format_inconnu", { id }));
   if (f.mm) {
     const dpi = 300;
     const px = (mm) => Math.round(mm / 25.4 * dpi);
@@ -60,9 +61,9 @@ export function formatVersDoc(id, tailleTexte) {
 }
 
 function badge(d) {
-  if (d.chapter_id) return `${dzi("dz-nav-chapitres", 16)} chapitre`;
-  if (d.deck_id) return `${dzi("dz-cat-cartes", 16)} cartes`;
-  return `${dzi("dz-nav-bibliotheque", 16)} bibliothèque`;
+  if (d.chapter_id) return `${dzi("dz-nav-chapitres", 16)} ${T("vectorlab.biblio.badge_chapitre")}`;
+  if (d.deck_id) return `${dzi("dz-cat-cartes", 16)} ${T("vectorlab.biblio.badge_cartes")}`;
+  return `${dzi("dz-nav-bibliotheque", 16)} ${T("vectorlab.biblio.badge_bibliotheque")}`;
 }
 
 export function bibLigne(d) {
@@ -70,25 +71,25 @@ export function bibLigne(d) {
   const vig = d.vignette
     ? `<img src="/api/vector/docs/${encodeURIComponent(d.id)}/vignette.png?v=${
         encodeURIComponent(d.version)}" alt="" loading="lazy"/>`
-    : `<span class="bib-sans" title="la vignette naît au premier Sauver">${dzi("dz-etat-sans-apercu", 24)}</span>`;
+    : `<span class="bib-sans" title="${T("vectorlab.biblio.vignette_titre")}">${dzi("dz-etat-sans-apercu", 24)}</span>`;
   return `<div class="bib-carte" data-bib-id="${id}">`
     + `<div class="bib-vig">${vig}</div>`
     + `<div class="bib-nom" title="${esc(d.name)}">${esc(d.name)}</div>`
-    + `<div class="bib-meta">${esc(d.role)} · v${esc(d.version)} · ${badge(d)}</div>`
+    + `<div class="bib-meta">${esc(({ libre: T("vectorlab.page.role_libre"), decor: T("vectorlab.page.role_decor"), lumiere: T("vectorlab.page.role_lumiere"), personnage: T("vectorlab.page.role_personnage") })[d.role] || d.role)} · v${esc(d.version)} · ${badge(d)}</div>`
     + `<div class="bib-actions">`
-    + `<button data-bib-open="${id}" title="Ouvrir dans l'éditeur">Ouvrir</button>`
-    + `<button data-bib-dup="${id}" title="Copie indépendante (le contenu courant du disque)">Dupliquer</button>`
-    + `<button data-bib-del="${id}" title="Supprime l'entrée — la dernière version reste archivée sur disque">Supprimer</button>`
+    + `<button data-bib-open="${id}" title="${T("vectorlab.biblio.ouvrir_titre")}">${T("vectorlab.biblio.ouvrir")}</button>`
+    + `<button data-bib-dup="${id}" title="${T("vectorlab.biblio.dupliquer_titre")}">${T("vectorlab.biblio.dupliquer")}</button>`
+    + `<button data-bib-del="${id}" title="${T("vectorlab.biblio.supprimer_titre")}">${T("vectorlab.biblio.supprimer")}</button>`
     + `</div></div>`;
 }
 
 export function bibVide(q, role) {
   const filtres = [];
-  if (q) filtres.push(`la recherche « ${esc(q)} »`);
-  if (role) filtres.push(`le rôle ${esc(role)}`);
+  if (q) filtres.push(T("vectorlab.biblio.filtre_recherche", { q: esc(q) }));
+  if (role) filtres.push(T("vectorlab.biblio.filtre_role", { role: esc(role) }));
   return filtres.length
-    ? `Aucun document pour ${filtres.join(" et ")}.`
-    : "Aucun document — crée le premier avec la rangée ci-dessus.";
+    ? T("vectorlab.biblio.aucun_pour", { filtres: filtres.join(T("vectorlab.biblio.et")) })
+    : T("vectorlab.biblio.aucun");
 }
 
 /* ── DOM (seulement à l'appel — jamais au chargement du module) ── */
@@ -110,7 +111,7 @@ export function initBiblio(VL) {
         : `<p class="bib-vide">${bibVide(q, role)}</p>`;
     } catch (e) {
       $("#bibListe").innerHTML =
-        `<p class="bib-vide">erreur : ${esc(e.message)}</p>`;
+        `<p class="bib-vide">${T("vectorlab.biblio.erreur", { m: esc(e.message) })}</p>`;
     }
   }
 
@@ -146,7 +147,7 @@ export function initBiblio(VL) {
   }
 
   async function dupliquer(id) {
-    const nom = await VL.dialogue.saisir("Nom de la copie ? (vide = « (copie) »)", { valeur: "", titre: "Dupliquer", valider: "Dupliquer" });
+    const nom = await VL.dialogue.saisir(T("vectorlab.biblio.nom_copie"), { valeur: "", titre: T("vectorlab.biblio.dupliquer"), valider: T("vectorlab.biblio.dupliquer") });
     if (nom === null) return;
     const r = await fetch("/api/vector/docs/" + encodeURIComponent(id)
       + "/duplicate", {
@@ -159,10 +160,10 @@ export function initBiblio(VL) {
   }
 
   async function supprimer(id) {
-    if (!await VL.dialogue.confirmer("Supprimer ce document ?\nSa dernière version reste archivée sur disque.", { ok: "Supprimer", danger: true })) return;
+    if (!await VL.dialogue.confirmer(T("vectorlab.biblio.supprimer_q"), { ok: T("vectorlab.biblio.supprimer"), danger: true })) return;
     const r = await fetch("/api/vector/docs/" + encodeURIComponent(id),
                           { method: "DELETE" });
-    if (!r.ok) { VL.toast("suppression : " + r.status, true); return; }
+    if (!r.ok) { VL.toast(T("vectorlab.biblio.err_suppression", { s: r.status }), true); return; }
     await rafraichir();
   }
 
@@ -194,7 +195,7 @@ export function initBiblio(VL) {
 
   // le retour à l'accueil (Bibliothèque des documents) depuis l'éditeur — confirm si le document est sale
   $("#btnBiblio").addEventListener("click", async () => {
-    if (etat.sale && !await VL.dialogue.confirmer("Des modifications non sauvées seront perdues." + BS + "nRetourner à la bibliothèque ?", { ok: "Quitter sans sauver", danger: true, titre: "Modifications non sauvées" })) {
+    if (etat.sale && !await VL.dialogue.confirmer(T("vectorlab.biblio.quitter_q"), { ok: T("vectorlab.biblio.quitter_sans_sauver"), danger: true, titre: T("vectorlab.biblio.modifs_non_sauvees") })) {
       return;
     }
     location.href = "/vectorlab/";
@@ -203,7 +204,7 @@ export function initBiblio(VL) {
   VL.ouvrirBiblio = async () => {
     document.body.classList.add("mode-biblio");
     $("#docTitle").textContent = "Vectorlab";
-    $("#docMeta").textContent = "bibliothèque des documents";
+    $("#docMeta").textContent = T("vectorlab.biblio.meta");
     await rafraichir();
   };
 }

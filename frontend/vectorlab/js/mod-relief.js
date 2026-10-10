@@ -6,6 +6,8 @@
 // part et d'autre d'une arête commune et CLÉS séparées qui les alignent.
 // Module FEUILLE : aucun import, aucun DOM ; les volumes se mesurent.
 
+// t146 (traduction L6) : T(clé, vars) de cette feuille — dzT du runtime dans la page ; sous node, le français des dictionnaires (frontend/shared/i18n)
+const T = (cle, vars) => { const g = globalThis, w = g.window; if (w && typeof w.dzT === "function") return w.dzT(cle, vars); if (typeof g.dzT === "function") return g.dzT(cle, vars); if (!g.__vlFr && g.process && g.process.getBuiltinModule) { const fs = g.process.getBuiltinModule("fs"), u = new URL("../../shared/i18n/", import.meta.url); g.__vlFr = {}; for (const n of fs.readdirSync(u).filter((x) => x.endsWith(".json")).sort()) Object.assign(g.__vlFr, JSON.parse(fs.readFileSync(new URL(n, u), "utf8"))); } const e = g.__vlFr && g.__vlFr[cle]; if (!e) return cle; return vars ? e.fr.replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? String(vars[k]) : m)) : e.fr; };
 function _orienter(a, b, c, dir) {
   // rend le triangle dont la normale pointe dans le sens de `dir`
   const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
@@ -22,16 +24,16 @@ function _quad(out, p0, p1, p2, p3, dir) {
 // hauteur ; un mur intérieur borde la poche ; les murs extérieurs se coupent au niveau de la poche pour
 // que chaque arête garde son opposée (une poche au bord s'ouvre sur le côté : c'est la moitié d'un tenon).
 export function plaque(grid, w, h, { largeur_mm, socle_mm, mm_par_m, exageration = 1, z_min = 0, logements = [], prof_logement = 0 }) {
-  if (!(w >= 2 && h >= 2) || grid.length < w * h) throw new Error("relief : grille d'au moins 2 × 2 requise");
-  if (!(socle_mm > 0)) throw new Error("relief : socle > 0 mm requis");
-  if (!(largeur_mm > 0) || !(mm_par_m > 0)) throw new Error("relief : largeur et mm/m > 0 requis");
+  if (!(w >= 2 && h >= 2) || grid.length < w * h) throw new Error(T("vectorlab.relief.err_grille"));
+  if (!(socle_mm > 0)) throw new Error(T("vectorlab.relief.err_socle"));
+  if (!(largeur_mm > 0) || !(mm_par_m > 0)) throw new Error(T("vectorlab.relief.err_largeur"));
   const cell = largeur_mm / (w - 1);
   const X = (i) => i * cell, Y = (j) => (h - 1 - j) * cell;          // nord en haut → y grand
   const Z = (i, j) => socle_mm + Math.max(0, grid[j * w + i] - z_min) * mm_par_m * exageration;
   const P = (i, j) => [X(i), Y(j), Z(i, j)];
   const out = [];
   const L = logements || [];
-  if (L.length && !(prof_logement > 0 && prof_logement < socle_mm)) throw new Error("relief : 0 < profondeur de logement < socle");
+  if (L.length && !(prof_logement > 0 && prof_logement < socle_mm)) throw new Error(T("vectorlab.relief.err_logement"));
   const creux = (i, j) => L.some((r) => i >= r.i0 && i < r.i0 + r.ni && j >= r.j0 && j < r.j0 + r.nj);
   const F = (i, j) => (L.length && creux(i, j) ? prof_logement : 0);       // le fond de la cellule (i, j)
   const Pz = (i, j, z) => [X(i), Y(j), z];
@@ -94,14 +96,14 @@ export function graver(grid, w, h, polylignes, profondeur, rayon) {
 // joints en onglet (bornés à 4 × la demi-épaisseur dans les virages serrés) : l'aire vaut longueur ×
 // épaisseur. Les doublons consécutifs (GPS à l'arrêt) tombent.
 export function ruban(pts, epaisseur) {
-  if (!(epaisseur > 0)) throw new Error("ruban : épaisseur > 0 mm requise");
+  if (!(epaisseur > 0)) throw new Error(T("vectorlab.relief.err_ruban_ep"));
   const P = [];
   for (const p of pts || []) {
     const q = P[P.length - 1];
     if (!q || Math.hypot(p[0] - q[0], p[1] - q[1]) > 1e-9) P.push(p);
   }
-  if (P.length < 2) throw new Error("ruban : deux points distincts au moins");
-  if (P.some((p) => !(p[2] > 0))) throw new Error("ruban : hauteur > 0 mm à chaque point");
+  if (P.length < 2) throw new Error(T("vectorlab.relief.err_ruban_points"));
+  if (P.some((p) => !(p[2] > 0))) throw new Error(T("vectorlab.relief.err_ruban_h"));
   const n = P.length, e = epaisseur / 2;
   const nrm = [];                        // normale gauche de chaque segment
   for (let k = 0; k + 1 < n; k++) {
@@ -154,7 +156,7 @@ export function tenons(parts, cell_mm, socle_mm, { jeu = 0.2, demi_mm = 4, long_
   const par_dalle = {}, cles = [];
   for (const d of parts) par_dalle[d.nom] = [];
   const prof = Math.round((socle_mm - 0.8) * 1000) / 1000;
-  if (!(prof >= 0.8)) return { prof: 0, par_dalle, cles, raison: "tenons : socle trop mince (1,6 mm au moins)" };
+  if (!(prof >= 0.8)) return { prof: 0, par_dalle, cles, raison: T("vectorlab.relief.tenons_mince") };
   const ka = Math.max(1, Math.round(demi_mm / cell_mm)), kb = Math.max(1, Math.round(long_mm / cell_mm));
   let raison = "";
   const places = (len) => (len >= 4 * kb ? [0.25, 0.75] : len >= kb + 2 ? [0.5] : [])
@@ -163,9 +165,9 @@ export function tenons(parts, cell_mm, socle_mm, { jeu = 0.2, demi_mm = 4, long_
     const est = B.x0 === A.x0 + A.w - 1 && B.y0 === A.y0, sud = B.y0 === A.y0 + A.h - 1 && B.x0 === A.x0;
     if (!est && !sud) continue;
     const ca = est ? A.w - 1 : A.h - 1, cb = est ? B.w - 1 : B.h - 1, len = est ? A.h - 1 : A.w - 1;
-    if (ca < ka + 1 || cb < ka + 1) { raison = "tenons : dalle trop étroite pour un logement"; continue; }
+    if (ca < ka + 1 || cb < ka + 1) { raison = T("vectorlab.relief.tenons_etroite"); continue; }
     const pos = places(len);
-    if (!pos.length) { raison = "tenons : arête trop courte pour un logement"; continue; }
+    if (!pos.length) { raison = T("vectorlab.relief.tenons_courte"); continue; }
     for (const p of pos) {
       if (est) {
         par_dalle[A.nom].push({ i0: ca - ka, j0: p, ni: ka, nj: kb });

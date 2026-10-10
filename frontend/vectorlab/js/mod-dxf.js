@@ -4,6 +4,8 @@
 // ($INSUNITS 4 = mm), TABLES (un calque), ENTITIES en LWPOLYLINE fermées.
 // Module FEUILLE.
 
+// t146 (traduction L6) : T(clé, vars) de cette feuille — dzT du runtime dans la page ; sous node, le français des dictionnaires (frontend/shared/i18n)
+const T = (cle, vars) => { const g = globalThis, w = g.window; if (w && typeof w.dzT === "function") return w.dzT(cle, vars); if (typeof g.dzT === "function") return g.dzT(cle, vars); if (!g.__vlFr && g.process && g.process.getBuiltinModule) { const fs = g.process.getBuiltinModule("fs"), u = new URL("../../shared/i18n/", import.meta.url); g.__vlFr = {}; for (const n of fs.readdirSync(u).filter((x) => x.endsWith(".json")).sort()) Object.assign(g.__vlFr, JSON.parse(fs.readFileSync(new URL(n, u), "utf8"))); } const e = g.__vlFr && g.__vlFr[cle]; if (!e) return cle; return vars ? e.fr.replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? String(vars[k]) : m)) : e.fr; };
 const _mm = (v) => { const s = String(Math.round(v * 1000) / 1000); return s.includes(".") ? s : s + ".0"; };
 
 export function polylignes_mm(polylignes, cadre, dpi) {
@@ -13,8 +15,8 @@ export function polylignes_mm(polylignes, cadre, dpi) {
 
 const _g = (code, valeur) => `${String(code).padStart(3, " ")}\n${valeur}\n`;
 export function dxf_de(polylignes, { calque = "0" } = {}) {
-  if (!Array.isArray(polylignes) || !polylignes.length) throw new Error("DXF : aucune polyligne");
-  for (const pl of polylignes) if (!Array.isArray(pl) || pl.length < 3) throw new Error("DXF : une polyligne a moins de trois points");
+  if (!Array.isArray(polylignes) || !polylignes.length) throw new Error(T("vectorlab.dxf.aucune_polyligne"));
+  for (const pl of polylignes) if (!Array.isArray(pl) || pl.length < 3) throw new Error(T("vectorlab.dxf.trois_points"));
   const nom = String(calque || "0").replace(/[^A-Za-z0-9_-]/g, "_") || "0";
   let s = "";
   s += _g(0, "SECTION") + _g(2, "HEADER") + _g(9, "$ACADVER") + _g(1, "AC1009") + _g(9, "$INSUNITS") + _g(70, "     4") + _g(0, "ENDSEC");

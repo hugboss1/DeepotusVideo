@@ -1,29 +1,30 @@
+import { T } from "./mod-i18n.js";
 // mod-familles.js — les familles d'outils d'Affinity (R-D6) : un bouton
 // par famille montrant le membre courant, flyout vertical des membres.
 // Feuille pure. `personas` : les personas où la famille est visible.
 const m = (outil, nom, touche = "") => ({ outil, nom, touche });
 export const FAMILLES = [
-  { id: "deplacer", nom: "Déplacer", personas: ["vecteur", "pixel"], membres: [m("select", "Déplacer", "V")] },
-  { id: "noeuds", nom: "Nœuds", personas: ["vecteur"], membres: [m("noeuds", "Nœud", "N"), m("coin", "Coin", "C")] },
-  { id: "plume", nom: "Plume", personas: ["vecteur"], membres: [m("plume", "Plume", "P"), m("crayon", "Crayon", "B"), m("pinceauv", "Pinceau vectoriel", "J")] },
-  { id: "formes", nom: "Formes", personas: ["vecteur"], membres: [m("rect", "Rectangle", "R"), m("ellipse", "Ellipse", "E"), m("ligne", "Ligne", "L"), m("forme", "Forme paramétrique", "F")] },
-  { id: "constructeur", nom: "Constructeur", personas: ["vecteur"], membres: [m("constructeur", "Constructeur de formes", "S"), m("couteau", "Couteau", "X"), m("gomme", "Gomme vectorielle", "W")] },
-  { id: "texte", nom: "Texte", personas: ["vecteur"], membres: [m("texte", "Texte", "T"), m("cadre", "Cadre de texte")] },
-  { id: "image", nom: "Image", personas: ["vecteur", "pixel"], membres: [m("image", "Image (menu)"), m("recadrer", "Recadrer")] },
-  { id: "degrade", nom: "Dégradé", personas: ["vecteur"], membres: [m("degrade", "Dégradé"), m("transparence", "Transparence", "Y")] },
-  { id: "apparence", nom: "Apparence", personas: ["vecteur"], membres: [m("apparence", "Apparence (menu)")] },
-  { id: "symbole", nom: "Symboles", personas: ["vecteur"], membres: [m("symbole", "Symboles (menu)")] },
-  { id: "mesure", nom: "Mesure", personas: ["vecteur"], membres: [m("mesure", "Mesure", "M"), m("pipette", "Pipette", "I")] },
-  { id: "tuiles", nom: "Tuiles", personas: ["vecteur"], membres: [m("tuiles", "Pinceau de tuiles", "K")] },
-  { id: "planche", nom: "Plan de travail", personas: ["vecteur"], membres: [m("planche", "Plan de travail")] },
-  { id: "ia", nom: "IA", personas: ["vecteur"], membres: [m("ia", "Illustration IA")] },
-  { id: "pxselection", nom: "Sélection de pixels", personas: ["pixel"], membres: [m("px-selrect", "Sélection rectangle", "M"), m("px-lasso", "Lasso", "L"), m("px-baguette", "Baguette magique", "W")] },
-  { id: "pxpinceau", nom: "Pinceau", personas: ["pixel"], membres: [m("px-pinceau", "Pinceau", "B"), m("px-gomme", "Gomme", "E"), m("px-cloner", "Tampon de clonage", "C")] },
-  { id: "pxretouche", nom: "Retouche", personas: ["pixel"], membres: [m("px-flou", "Flou"), m("px-eclaircir", "Éclaircir (densité −)"), m("px-assombrir", "Assombrir (densité +)")] },
-  { id: "pxseau", nom: "Seau", personas: ["pixel"], membres: [m("px-seau", "Pot de peinture", "G")] },
-  { id: "pxart", nom: "Pixel-art", personas: ["pixel"], membres: [m("px-crayon", "Crayon pixel", "K"), m("px-ligne", "Ligne pixel", "I"), m("px-rectpx", "Rectangle pixel", "R")] },
-  { id: "vue", nom: "Vue", personas: ["vecteur", "pixel"], membres: [m("main", "Main", "H"), m("loupe", "Loupe", "Z")] },
-  { id: "tranche", nom: "Tranche", personas: ["vecteur", "pixel"], membres: [m("tranche", "Tranche d'export")] },
+  { id: "deplacer", nom: T("vectorlab.familles.deplacer"), personas: ["vecteur", "pixel"], membres: [m("select", T("vectorlab.familles.deplacer"), "V")] },
+  { id: "noeuds", nom: T("vectorlab.familles.noeuds"), personas: ["vecteur"], membres: [m("noeuds", T("vectorlab.familles.noeud"), "N"), m("coin", T("vectorlab.familles.coin"), "C")] },
+  { id: "plume", nom: T("vectorlab.familles.plume"), personas: ["vecteur"], membres: [m("plume", T("vectorlab.familles.plume"), "P"), m("crayon", T("vectorlab.familles.crayon"), "B"), m("pinceauv", T("vectorlab.familles.pinceauv"), "J")] },
+  { id: "formes", nom: T("vectorlab.familles.formes"), personas: ["vecteur"], membres: [m("rect", "Rectangle", "R"), m("ellipse", "Ellipse", "E"), m("ligne", T("vectorlab.familles.ligne"), "L"), m("forme", T("vectorlab.familles.forme"), "F")] },
+  { id: "constructeur", nom: T("vectorlab.familles.constructeur_famille"), personas: ["vecteur"], membres: [m("constructeur", T("vectorlab.familles.constructeur"), "S"), m("couteau", T("vectorlab.familles.couteau"), "X"), m("gomme", T("vectorlab.familles.gomme"), "W")] },
+  { id: "texte", nom: T("vectorlab.familles.texte"), personas: ["vecteur"], membres: [m("texte", T("vectorlab.familles.texte"), "T"), m("cadre", T("vectorlab.familles.cadre"))] },
+  { id: "image", nom: "Image", personas: ["vecteur", "pixel"], membres: [m("image", "Image (menu)"), m("recadrer", T("vectorlab.familles.recadrer"))] },
+  { id: "degrade", nom: T("vectorlab.familles.degrade"), personas: ["vecteur"], membres: [m("degrade", T("vectorlab.familles.degrade")), m("transparence", T("vectorlab.familles.transparence"), "Y")] },
+  { id: "apparence", nom: T("vectorlab.familles.apparence"), personas: ["vecteur"], membres: [m("apparence", T("vectorlab.familles.apparence_menu"))] },
+  { id: "symbole", nom: T("vectorlab.familles.symboles"), personas: ["vecteur"], membres: [m("symbole", T("vectorlab.familles.symboles_menu"))] },
+  { id: "mesure", nom: T("vectorlab.familles.mesure"), personas: ["vecteur"], membres: [m("mesure", T("vectorlab.familles.mesure"), "M"), m("pipette", T("vectorlab.familles.pipette"), "I")] },
+  { id: "tuiles", nom: T("vectorlab.familles.tuiles"), personas: ["vecteur"], membres: [m("tuiles", T("vectorlab.familles.tuiles_pinceau"), "K")] },
+  { id: "planche", nom: T("vectorlab.familles.planche"), personas: ["vecteur"], membres: [m("planche", T("vectorlab.familles.planche"))] },
+  { id: "ia", nom: T("vectorlab.familles.ia"), personas: ["vecteur"], membres: [m("ia", T("vectorlab.familles.ia_illustration"))] },
+  { id: "pxselection", nom: T("vectorlab.familles.pxselection"), personas: ["pixel"], membres: [m("px-selrect", T("vectorlab.familles.px_selrect"), "M"), m("px-lasso", "Lasso", "L"), m("px-baguette", T("vectorlab.familles.px_baguette"), "W")] },
+  { id: "pxpinceau", nom: T("vectorlab.familles.px_pinceau"), personas: ["pixel"], membres: [m("px-pinceau", T("vectorlab.familles.px_pinceau"), "B"), m("px-gomme", T("vectorlab.familles.px_gomme"), "E"), m("px-cloner", T("vectorlab.familles.px_cloner"), "C")] },
+  { id: "pxretouche", nom: T("vectorlab.familles.pxretouche"), personas: ["pixel"], membres: [m("px-flou", T("vectorlab.familles.px_flou")), m("px-eclaircir", T("vectorlab.familles.px_eclaircir")), m("px-assombrir", T("vectorlab.familles.px_assombrir"))] },
+  { id: "pxseau", nom: T("vectorlab.familles.pxseau"), personas: ["pixel"], membres: [m("px-seau", T("vectorlab.familles.px_seau"), "G")] },
+  { id: "pxart", nom: "Pixel-art", personas: ["pixel"], membres: [m("px-crayon", T("vectorlab.familles.px_crayon"), "K"), m("px-ligne", T("vectorlab.familles.px_ligne"), "I"), m("px-rectpx", T("vectorlab.familles.px_rectpx"), "R")] },
+  { id: "vue", nom: T("vectorlab.familles.vue"), personas: ["vecteur", "pixel"], membres: [m("main", T("vectorlab.familles.main"), "H"), m("loupe", T("vectorlab.familles.loupe"), "Z")] },
+  { id: "tranche", nom: T("vectorlab.familles.tranche"), personas: ["vecteur", "pixel"], membres: [m("tranche", T("vectorlab.familles.tranche_export"))] },
 ];
 export const familles_de = (persona) => FAMILLES.filter((f) => f.personas.includes(persona));
 export const famille_par_id = (id) => FAMILLES.find((f) => f.id === id) || null;
@@ -41,7 +42,7 @@ export function choisir_membre(etat, outil) {
 }
 export function flyout_famille(famille, courant) {
   if (!famille) return [];
-  return famille.membres.map((x) => ({ id: x.outil, libelle: `Outil ${x.nom}`, detail: x.touche, actif: x.outil === courant }));
+  return famille.membres.map((x) => ({ id: x.outil, libelle: T("vectorlab.familles.outil", { nom: x.nom }), detail: x.touche, actif: x.outil === courant }));
 }
 export function touche_de(outil) {
   for (const f of FAMILLES) { const x = f.membres.find((y) => y.outil === outil); if (x) return x.touche; }

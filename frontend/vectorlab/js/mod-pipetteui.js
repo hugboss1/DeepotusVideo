@@ -8,6 +8,7 @@
 // pointeur avec la lecture R : G : B ; au pointerup la couleur prélevée va
 // au fond (clic droit : contour) de la sélection si « Appliquer », sinon à
 // la couleur courante. Maj inverse la loupe, Alt inverse « Appliquer ».
+import { T } from "./mod-i18n.js";
 import { echantillon_rayon, hex_de_rgb, pipette_decision, PIPETTE_DEFAUT } from "./mod-pipette.js";
 import { op_style } from "./mod-doc.js";
 
@@ -52,7 +53,7 @@ export function initPipetteUI(VL) {
     clone.setAttribute("width", String(Math.max(1, Math.round(bb.width)))); clone.setAttribute("height", String(Math.max(1, Math.round(bb.height))));
     const s = new XMLSerializer().serializeToString(clone);
     const img = new Image();
-    await new Promise((res, rej) => { img.onload = res; img.onerror = () => rej(new Error("rendu illisible")); img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(s); });
+    await new Promise((res, rej) => { img.onload = res; img.onerror = () => rej(new Error(T("vectorlab.pipette.rendu_illisible"))); img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(s); });
     const cv = document.createElement("canvas"); cv.width = Math.max(1, Math.round(sr.width)); cv.height = Math.max(1, Math.round(sr.height));
     const ctx = cv.getContext("2d", { willReadFrequently: true });
     ctx.drawImage(img, bb.left - sr.left, bb.top - sr.top, bb.width, bb.height);
@@ -73,7 +74,7 @@ export function initPipetteUI(VL) {
     ctx.drawImage(raster.canvas, Math.round(e.x) - 7.5, Math.round(e.y) - 7.5, 15, 15, 0, 0, 120, 120);
     ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.lineWidth = 1; ctx.strokeRect(56.5, 56.5, 8, 8);
     ctx.strokeStyle = "rgba(0,0,0,.6)"; ctx.strokeRect(55.5, 55.5, 10, 10);
-    lval.textContent = e.n ? `R : ${e.r}  G : ${e.g}  B : ${e.b}` : "transparent";
+    lval.textContent = e.n ? T("vectorlab.pipette.rgb", { r: e.r, g: e.g, b: e.b }) : "transparent";
     loupe.style.left = (ev.clientX - 60) + "px"; loupe.style.top = (ev.clientY - 60 - 76) + "px";
     loupe.classList.remove("hidden");
   }
@@ -81,13 +82,13 @@ export function initPipetteUI(VL) {
     // `ev.button` n'est pas assignable (getter) : le bouton du geste voyage à part
     const cible = ev.target && ev.target.closest && ev.target.closest("[data-objet]");
     const d = pipette_decision({ appliquer: etat.pipette.appliquer, alt: ev.altKey, ctrl: false, droit: !!droit, selection: etat.selection, cible: cible && cible.dataset.objet });
-    if (!hex) { VL.toast("transparent — couleur inchangée"); return; }
+    if (!hex) { VL.toast(T("vectorlab.pipette.transparent")); return; }
     if (d.action === "fond" || d.action === "contour") {
       VL.executer(op_style, etat.selection.slice(), d.action === "fond" ? { fond: hex } : { contour: hex, epaisseur: (etat.styleCourant && etat.styleCourant.epaisseur) || 2 });
-      VL.toast(`${d.action} de la sélection : ${hex}`);
+      VL.toast(T(d.action === "fond" ? "vectorlab.pipette.fond_sel" : "vectorlab.pipette.contour_sel", { hex }));
     } else {
       etat.styleCourant = { ...etat.styleCourant, fond: hex };
-      VL.toast(`couleur courante : ${hex} — les nouveaux objets la prendront`);
+      VL.toast(T("vectorlab.pipette.courante", { hex }));
       VL.surSelection();
     }
   }
@@ -98,7 +99,7 @@ export function initPipetteUI(VL) {
     ev.stopImmediatePropagation(); ev.preventDefault();
     geste = { droit: ev.button === 2, dernier: null };
     try { stage.setPointerCapture(ev.pointerId); } catch (e) { /* synthétique */ }
-    rasteriser(etat.pipette.source).then((r) => { raster = r; if (!geste) return; const e = lire(ev); geste.dernier = e; montrerLoupe(ev, e); }).catch((e) => { VL.toast("pipette : " + e.message, true); geste = null; });
+    rasteriser(etat.pipette.source).then((r) => { raster = r; if (!geste) return; const e = lire(ev); geste.dernier = e; montrerLoupe(ev, e); }).catch((e) => { VL.toast(T("vectorlab.pipette.erreur") + e.message, true); geste = null; });
   }, true);
   stage.addEventListener("pointermove", (ev) => {
     if (!geste) return;
@@ -113,6 +114,6 @@ export function initPipetteUI(VL) {
     const fin = () => { const e = raster ? (lire(ev) || g.dernier) : g.dernier; appliquerCouleur(e && e.hex, ev, g.droit); };
     if (raster) fin(); else setTimeout(fin, 250);   // le rendu arrive encore
   }, true);
-  VL.hints = Object.assign(VL.hints || {}, { pipette: "Cliquer ou Glisser pour prélever une couleur — Ctrl : le style de l'objet · Maj : loupe · Alt : appliquer à la sélection" });
+  VL.hints = Object.assign(VL.hints || {}, { pipette: T("vectorlab.pipette.hint") });
   VL.pipette = { rasteriser, lire, loupe, get raster() { return raster; } };   // la preuve
 }
