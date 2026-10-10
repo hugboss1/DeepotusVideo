@@ -265,6 +265,8 @@ class Texte extends Noeud { constructor(d) { super(3); this.data = d; } }
 class Doc extends Noeud {
   constructor() { super(9); }
   createElement(t) { const e = new Element(t); e._rect = { left: 0, top: 0, width: 20, height: 16 }; return e; }
+  /* G6 : les icônes Deepotus Glyph (svg + use du sprite) */
+  createElementNS(ns, t) { const e = this.createElement(t); e.namespaceURI = ns; return e; }
   createTextNode(d) { return new Texte(d); }
   getElementById(i) { return this._tous([]).find(e => e.getAttribute("id") === i) || null; }
 }
@@ -715,7 +717,7 @@ function opt(id) { const l = listeOuverte(); return l ? l.querySelectorAll(".dzi
   // ÉTAT VIDE : ni reconnaissance, ni micro → bouton grisé, titré, sans exception au clic
   A.marquer(document.body); await pause(30); A.synchroniser();
   const micro = () => { const b = ta.nextSibling; return b && b.querySelector ? b.querySelector(".dzia-micro") : null; };
-  const vuM = () => { const m = micro(); return m ? { tag: m.tagName, txt: m.textContent, title: m.getAttribute("title"), dis: m.getAttribute("aria-disabled"),
+  const vuM = () => { const m = micro(); const ic = m && m.querySelector("[data-dz-icone]"); return m ? { tag: m.tagName, txt: m.textContent, ico: ic ? ic.getAttribute("data-dz-icone") : null, title: m.getAttribute("title"), dis: m.getAttribute("aria-disabled"),
     etat: m.getAttribute("data-dzia-etat"), ecoute: ta.nextSibling.classList.contains("dzia-ecoute") } : null; };
   const note = () => { const n = body.querySelector(".dzia-note"); return n ? n.textContent : ""; };
   D10.slots = etat(ta).slots; D10.rien = vuM(); const m0 = micro();
@@ -1274,8 +1276,8 @@ def main():
     check("voie 1 : SpeechRecognition — lang = documentElement.lang || fr-FR, interimResults, continuous, start()",
           sr.get("n") == 1 and sr.get("lang") == "fr-FR" and sr.get("interim") is True and sr.get("cont") is True and sr.get("start") == 1, str(sr))
     ec = dd("ecoute")
-    check("pendant l'écoute : MÊME bouton, « ■ » titré « Arrêter la dictée », classe .dzia-ecoute",
-          ec.get("txt") == "■" and ec.get("title") == "Arrêter la dictée" and ec.get("ecoute") is True and D.get("meme") is True, f"{ec} {D.get('meme')}")
+    check("pendant l'écoute : MÊME bouton, icône dz-media-arret (G6, ex « ■ ») titré « Arrêter la dictée », classe .dzia-ecoute",
+          ec.get("ico") == "dz-media-arret" and ec.get("txt") == "" and ec.get("title") == "Arrêter la dictée" and ec.get("ecoute") is True and D.get("meme") is True, f"{ec} {D.get('meme')}")
     check("pendant l'écoute : « À l'écoute… (clic ou Échap pour arrêter) »",
           "À l'écoute… (clic ou Échap pour arrêter)" in (D.get("noteEcoute") or ""), str(D.get("noteEcoute")))
     it = dd("interim")
@@ -1293,14 +1295,14 @@ def main():
           mk.get("tag") == "BUTTON" and mk.get("type") == "button" and mk.get("tab") != "-1", str(mk))
     af = dd("apresFin")
     check("fin d'écoute : le bouton revient au repos (titre voie 1, plus de .dzia-ecoute)",
-          af.get("title") == TITRE_V1 and af.get("ecoute") is False and af.get("etat") == "repos" and af.get("txt") != "■", str(af))
+          af.get("title") == TITRE_V1 and af.get("ecoute") is False and af.get("etat") == "repos" and af.get("ico") == "dz-media-dicter", str(af))
     check("lang du document (en-US) transmis à la reconnaissance", D.get("lang2") == "en-US", str(D.get("lang2")))
     check("resultIndex respecté, insertion en fin après ponctuation (« Fin. suite »)", D.get("fin2") == "Fin. suite", str(D.get("fin2")))
     check("clic sur « ■ » arrête l'écoute", D.get("clicStop") == 1, str(D.get("clicStop")))
     ba = dd("bascule")
     check("erreur network de la voie 1 → voie 2 aussitôt : getUserMedia, MediaRecorder (webm/opus), prise en cours, raison dite",
           (ba.get("gum") or 0) >= 1 and (ba.get("rec") or 0) >= 1 and ba.get("mime") == "audio/webm;codecs=opus"
-          and (ba.get("etat") or {}).get("etat") == "prise" and (ba.get("etat") or {}).get("txt") == "■" and "network" in (ba.get("note") or ""), str(ba))
+          and (ba.get("etat") or {}).get("etat") == "prise" and (ba.get("etat") or {}).get("ico") == "dz-media-arret" and "network" in (ba.get("note") or ""), str(ba))
     ea = D.get("estimeAppels") or []
     check("arrêt → UNE estimation POST /api/dictation/estimate {file} (la prise, son type, dictee.webm)",
           ea == [["POST", "/api/dictation/estimate", [["file", "blob:1234:audio/webm;codecs=opus", "dictee.webm"]]]], str(ea))

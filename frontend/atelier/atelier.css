@@ -417,3 +417,8 @@ textarea#script[readonly] { opacity: .72; cursor: not-allowed; }
 .shot-cast{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px}
 .cast-chip{font-size:10.5px;line-height:16px;padding:0 6px;border-radius:8px;color:var(--ink-soft);border:1px solid var(--ink-muted)}
 .cast-chip.cast-none{border-style:dashed;color:var(--amber)}
+/* Deepotus Glyph (G6) : l'icône hérite de la couleur du bouton et s'aligne sur son texte ; devant une liste
+   déroulante (une <option> ne porte pas de SVG), elle dit la fonction de la liste */
+.btn>.dzi,a>.dzi,b>.dzi,span>.dzi,summary>.dzi,p>.dzi,.seedtag>.dzi,.scene-cam>.dzi{vertical-align:-3px}
+.sel-ico{display:inline-flex;align-items:center;color:var(--ink-soft);margin-right:-3px}
+.savestate .dzi,#styleSaved .dzi{width:14px;height:14px;vertical-align:-3px}

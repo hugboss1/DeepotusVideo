@@ -3,6 +3,8 @@
 "use strict";
 
 const $ = (s) => document.querySelector(s);
+/* Deepotus Glyph (G6) : une icône de la suite, décorative — le sens est porté par le bouton (libellé, title, aria-label) */
+const ico = (cle, t = 16) => (typeof dzIcone === "function" ? dzIcone(cle, { taille: t, classe: "dzi--" + t }) : "");
 const api = {
   async get(p) { const r = await fetch("/api" + p); if (!r.ok) throw new Error(await r.text()); return r.json(); },
   async send(m, p, body) {
@@ -93,7 +95,7 @@ async function majEmporte() {
   if (!emporte && !journal.length) { box.classList.add("hidden"); box.innerHTML = ""; return; }
   const quand = (iso) => iso ? new Date(iso).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }) : "";
   box.innerHTML =
-    (emporte ? `<p>📱 Emporté par le téléphone « ${esc(emporte.appareil.nom)} » depuis le ${quand(emporte.pris_le)} : il l'écrit
+    (emporte ? `<p>${ico("dz-etat-mobile")} Emporté par le téléphone « ${esc(emporte.appareil.nom)} » depuis le ${quand(emporte.pris_le)} : il l'écrit
        hors ligne. Lecture seule ici, pour que rien ne soit écrasé.</p>
        <button class="btn" id="btnReprendre" title="Libère le chapitre : son retour du téléphone sera gardé au journal, jamais perdu">Reprendre sur le PC</button>` : "")
     + (journal.length ? `<div class="journal"><p>Textes gardés au journal (${journal.length}) :</p>` + journal.map(c =>
@@ -135,7 +137,7 @@ function scheduleSave() {
         title: chapter.title, series: chapter.series,
         script_text: chapter.script_text, spans: chapter.spans,
       });
-      $("#saveState").textContent = "enregistré ✓"; $("#saveState").className = "savestate saved";
+      $("#saveState").innerHTML = "enregistré " + ico("dz-etat-enregistre"); $("#saveState").className = "savestate saved";
       const c = chapters.find(x => x.id === chapter.id);
       if (c) { c.title = chapter.title; c.series = chapter.series; }
     } catch (e) {
@@ -221,7 +223,7 @@ function refreshSelBar() {
   if (!sel || !chapter) { bar.classList.add("hidden"); return; }
   $("#selText").textContent = "« " + (sel.text.length > 60 ? sel.text.slice(0, 60) + "…" : sel.text) + " »";
   const link = $("#linkSelect");
-  link.innerHTML = `<option value="">🔗 Lier à…</option>` + entities.map(e =>
+  link.innerHTML = `<option value="">Lier à…</option>` + entities.map(e =>
     `<option value="${e.id}">${KIND_LABEL[e.kind]} · ${esc(e.name)}</option>`).join("");
   bar.classList.remove("hidden");
 }
@@ -315,15 +317,15 @@ async function renderBible() {
              <img class="refimg board-ref" src="/api/images/${encodeURIComponent(e.face_image)}" alt="visages"></a>`
         : ""}
       <div class="seedrow">
-        ${e.seed != null ? `<span class="seedbadge" title="Seed verrouillé de la planche">🔒 ${e.seed}</span>` : `<span class="seedbadge" style="opacity:.5">seed —</span>`}
+        ${e.seed != null ? `<span class="seedbadge" title="Seed verrouillé de la planche">${ico("dz-etat-verrouille")} ${e.seed}</span>` : `<span class="seedbadge" style="opacity:.5">seed —</span>`}
         ${e.model3d_job
-          ? `<a class="seedbadge" href="/api/assets/3d/${encodeURIComponent(e.model3d_job)}/version/1" title="Maillage verrouillé — télécharger le GLB (Blender, Unity, Unreal, three.js)">🧊 GLB</a>`
+          ? `<a class="seedbadge" href="/api/assets/3d/${encodeURIComponent(e.model3d_job)}/version/1" title="Maillage verrouillé — télécharger le GLB (Blender, Unity, Unreal, three.js)">${ico("dz-action-telecharger")} GLB</a>`
           : ""}
       </div>
       <div class="entity-actions">
-        <button class="btn primary act-gen" title="Génère la planche de référence multi-vues (personnage: face + profils + dos + gros plans visage — un seul seed pour tous les angles)">🎨 Planche</button>
-        <button class="btn act-roll" title="Nouvelle planche, seed aléatoire">🎲</button>
-        ${e.has_recipe ? `<button class="btn act-recipe" title="Rejoue la recette verrouillée (prompt exact + seed) — image identique garantie">🔁</button>` : ""}
+        <button class="btn primary act-gen" title="Génère la planche de référence multi-vues (personnage: face + profils + dos + gros plans visage — un seul seed pour tous les angles)">${ico("dz-media-generer-image")} Planche</button>
+        <button class="btn act-roll" title="Nouvelle planche, seed aléatoire" aria-label="Nouvelle planche, seed aléatoire">${ico("dz-action-aleatoire")}</button>
+        ${e.has_recipe ? `<button class="btn act-recipe" title="Rejoue la recette verrouillée (prompt exact + seed) — image identique garantie" aria-label="Rejouer la recette verrouillée">${ico("dz-action-lancer-recette")}</button>` : ""}
         ${BESOIN_3D_PAR_KIND[e.kind]
           ? `<button class="btn act-3d" title="Verrouille l'entité EN 3D : une vue unique → maillage GLB réutilisable par tous les chapitres, et exportable vers Blender / Unity / Unreal. Le moteur et son coût sont annoncés avant de lancer.">🧊 3D</button>`
           : ""}
@@ -333,19 +335,19 @@ async function renderBible() {
       <div class="row1">
         <span class="kinddot k-${e.kind}"></span>
         <input class="entity-name" value="${esc(e.name)}" title="Nom">
-        <button class="btn ghost act-apps" title="Où cette entité apparaît : mentions, plans, scènes, chapitre par chapitre">⛓ Apparitions</button>
-        <button class="btn ghost act-del" title="Supprimer l'entité">🗑</button>
+        <button class="btn ghost act-apps" title="Où cette entité apparaît : mentions, plans, scènes, chapitre par chapitre">${ico("dz-media-apparitions")} Apparitions</button>
+        <button class="btn ghost act-del" title="Supprimer l'entité" aria-label="Supprimer l'entité">${ico("dz-action-supprimer")}</button>
       </div>
       <textarea class="entity-desc" placeholder="Description physique / visuelle (sert de prompt de référence)">${esc(e.description)}</textarea>
       <input class="entity-style" placeholder="Style spécifique (vide = style global du projet)" title="Override ponctuel : si renseigné, cette entité est générée dans CE style au lieu du style global du projet" value="${esc(e.style_notes)}">
       <div class="entity-apps hidden"></div>
       ${e.kind === "character" ? `
       <div class="voice-row">
-        🎙 <span class="voice-name">${e.voice_name ? esc(e.voice_name) : "<i style='opacity:.55'>pas de voix</i>"}</span>
-        ${e.voice_prev ? `<button class="btn ghost act-voice-play" title="Pré-écouter la voix">▶</button>` : ""}
-        <button class="btn act-voice-suggest" title="L'agent croise la fiche du personnage (genre, âge, ton) avec les voix ElevenLabs de ton compte et propose la meilleure + des alternatives du même profil">🎙 Suggérer</button>
-        <button class="btn ghost act-voice-all" title="Choisir manuellement parmi toutes les voix du compte">⌄ Toutes</button>
-        <button class="btn ghost act-voice-clone" title="Cloner une voix pour CE personnage à partir de prises du dossier audio (1 à 2 min d'audio propre) — ElevenLabs, occupe un emplacement de voix du compte">🧬 Cloner</button>
+        ${ico("dz-media-voix")} <span class="voice-name">${e.voice_name ? esc(e.voice_name) : "<i style='opacity:.55'>pas de voix</i>"}</span>
+        ${e.voice_prev ? `<button class="btn ghost act-voice-play" title="Pré-écouter la voix" aria-label="Pré-écouter la voix">${ico("dz-media-lecture")}</button>` : ""}
+        <button class="btn act-voice-suggest" title="L'agent croise la fiche du personnage (genre, âge, ton) avec les voix ElevenLabs de ton compte et propose la meilleure + des alternatives du même profil">${ico("dz-action-suggerer")} Suggérer</button>
+        <button class="btn ghost act-voice-all" title="Choisir manuellement parmi toutes les voix du compte">${ico("dz-action-deplier")} Toutes</button>
+        <button class="btn ghost act-voice-clone" title="Cloner une voix pour CE personnage à partir de prises du dossier audio (1 à 2 min d'audio propre) — ElevenLabs, occupe un emplacement de voix du compte">${ico("dz-media-cloner-voix")} Cloner</button>
       </div>
       ${temperRow(e)}
       <div class="voice-alts hidden"></div>` : ""}
@@ -360,7 +362,7 @@ async function renderBible() {
         <span style="font-size:11px;color:var(--ink-soft)">Inspirations :</span>
         ${(e.inspiration_images || []).map(f =>
           `<img src="/api/images/${encodeURIComponent(f)}" data-f="${esc(f)}" class="act-rm-insp" title="Retirer ${esc(f)}">`).join("")}
-        <button class="btn ghost act-add-insp" title="Ajouter depuis la Library">＋</button>
+        <button class="btn ghost act-add-insp" title="Ajouter depuis la Library" aria-label="Ajouter depuis la Library">${ico("dz-action-choisir-bibliotheque")}</button>
       </div>
     </div>
   </div>`).join("");
@@ -473,7 +475,7 @@ async function loadShotcraft() {
   catch (e) { shotcraft = { status: null, cards: [] }; }
   const el = $("#shotcraftStatus");
   if (el && shotcraft.status) {
-    el.textContent = `🎬 shotcraft · ${shotcraft.status.cards} fiches · ` +
+    el.innerHTML = ico("dz-etat-information") + ` shotcraft · ${shotcraft.status.cards} fiches · ` +
       (shotcraft.status.installed ? "skill installé" : "catalogue embarqué");
     el.title = "Recettes motion video-shotcraft — l'IA de découpage les " +
       "utilise (doctrine + catalogue), et chaque plan peut en porter une." +
@@ -493,9 +495,9 @@ function recipeOptions(cur) {
 }
 
 function energyOptions(cur) {
-  return `<option value=""${cur == null ? " selected" : ""}>⚡ —</option>` +
+  return `<option value=""${cur == null ? " selected" : ""}>—</option>` +
     [1, 2, 3, 4, 5].map(v => `<option value="${v}"` +
-      `${v === cur ? " selected" : ""}>⚡ ${ENERGY_LABELS[v]}</option>`).join("");
+      `${v === cur ? " selected" : ""}>${ENERGY_LABELS[v]}</option>`).join("");
 }
 
 function setMode(m) {
@@ -541,9 +543,9 @@ function renderScreenplay() {
   <div class="scene-card" data-id="${s.id}">
     <div class="scene-slug">SCÈNE ${i + 1} · ${esc(s.slugline)}
       <span class="scene-vo">
-        ${s.duration_s ? `<span class="seedbadge" title="Durée réelle du voice-over — c'est la durée de la scène">⏱ ${fmtDur(s.duration_s)}</span>` : ""}
-        ${s.vo_audio ? `<button class="btn ghost sc-vo-play" title="Écouter le voice-over de la scène">▶</button>` : ""}
-        <button class="btn sc-vo-gen" title="Génère le voice-over de la scène : narration lue par le Narrateur, répliques par les voix castées des personnages. La durée réelle minute la scène.">🔊${s.vo_audio ? " ↻" : ""}</button>
+        ${s.duration_s ? `<span class="seedbadge" title="Durée réelle du voice-over — c'est la durée de la scène">${ico("dz-media-duree")} ${fmtDur(s.duration_s)}</span>` : ""}
+        ${s.vo_audio ? `<button class="btn ghost sc-vo-play" title="Écouter le voice-over de la scène" aria-label="Écouter le voice-over de la scène">${ico("dz-media-lecture")}</button>` : ""}
+        <button class="btn sc-vo-gen" title="Génère le voice-over de la scène : narration lue par le Narrateur, répliques par les voix castées des personnages. La durée réelle minute la scène." aria-label="Générer le voice-over de la scène">${ico("dz-media-generer-voix")}${s.vo_audio ? " ↻" : ""}</button>
       </span>
     </div>
     <div class="scene-meta">
@@ -556,7 +558,7 @@ function renderScreenplay() {
       <input class="sc-light" value="${esc(s.lighting)}" placeholder="éclairage" title="Type d'éclairage">
       <input class="sc-mood" value="${esc(s.mood)}" placeholder="mood" title="Ambiance émotionnelle">
     </div>
-    <div class="scene-cam">🎥 <input class="sc-cam" value="${esc(s.camera_notes)}" placeholder="intention caméra + pourquoi"></div>
+    <div class="scene-cam">${ico("dz-lab3d-camera")} <input class="sc-cam" value="${esc(s.camera_notes)}" placeholder="intention caméra + pourquoi"></div>
     <textarea class="scene-fountain" spellcheck="false">${esc(s.fountain_text)}</textarea>
     <div class="scene-ents">${entChips(s.entities)}</div>
     ${s.source_text ? `<div class="scene-src">source : « ${esc(s.source_text)}… »</div>` : ""}
@@ -812,26 +814,26 @@ function renderBoard() {
       ${s.sketch_image
         ? `<img src="/api/images/${encodeURIComponent(s.sketch_image)}" alt="croquis">`
         : `<div class="noimg">pas de croquis<br>— 🎨 ⤵</div>`}
-      ${s.sketch_seed != null ? `<div class="seedtag">🔒 ${s.sketch_seed}</div>` : ""}
+      ${s.sketch_seed != null ? `<div class="seedtag">${ico("dz-etat-verrouille")} ${s.sketch_seed}</div>` : ""}
       <div class="entity-actions">
-        <button class="btn primary act-sketch" title="Générer le croquis (même seed si déjà généré)">🎨</button>
-        <button class="btn act-resketch" title="Nouveau croquis (seed aléatoire)">🎲</button>
-        <button class="btn ghost act-prod" title="Image de production : Nano Banana avec les vues des entités du plan en référence — coût affiché et confirmé avant">🖼</button>
-        <button class="btn ghost act-plateau" title="Plateau 3D : composer ce plan en 3D (gratuit), mesurer son cadre et son mouvement, capturer ses images de début et de fin">🎥</button>
+        <button class="btn primary act-sketch" title="Générer le croquis (même seed si déjà généré)" aria-label="Générer le croquis">${ico("dz-media-generer-image")}</button>
+        <button class="btn act-resketch" title="Nouveau croquis (seed aléatoire)" aria-label="Nouveau croquis (seed aléatoire)">${ico("dz-action-aleatoire")}</button>
+        <button class="btn ghost act-prod" title="Image de production : Nano Banana avec les vues des entités du plan en référence — coût affiché et confirmé avant" aria-label="Image de production">${ico("dz-media-generer-image")}</button>
+        <button class="btn ghost act-plateau" title="Plateau 3D : composer ce plan en 3D (gratuit), mesurer son cadre et son mouvement, capturer ses images de début et de fin" aria-label="Plateau 3D">${ico("dz-nav-plateau")}</button>
       </div>
       ${s.image ? `<div class="shot-prod"><img src="/api/images/${encodeURIComponent(s.image)}" alt="image de production"
-        title="Image de production — ${s.image_refs || 0} vue(s) en référence"><span>🖼 ${s.image_refs || 0} réf.</span>
-        <button class="btn ghost act-derive" title="Mesurer la dérive (gratuit, lecture seule) : couleur et silhouette comparées à la vue de chaque entité">📏</button></div>
+        title="Image de production — ${s.image_refs || 0} vue(s) en référence"><span>${ico("dz-media-image")} ${s.image_refs || 0} réf.</span>
+        <button class="btn ghost act-derive" title="Mesurer la dérive (gratuit, lecture seule) : couleur et silhouette comparées à la vue de chaque entité" aria-label="Mesurer la dérive">${ico("dz-action-mesurer")}</button></div>
         <div class="shot-derive"></div>` : ""}
     </div>
     <div class="shot-main">
       <div class="rowhead">
         <span class="shot-no">PLAN ${i + 1}/${shots.length}</span>
         <div class="shot-actions">
-          <button class="btn ghost act-up" title="Monter" ${i === 0 ? "disabled" : ""}>↑</button>
-          <button class="btn ghost act-down" title="Descendre" ${i === shots.length - 1 ? "disabled" : ""}>↓</button>
-          <button class="btn ghost act-insert" title="Insérer un plan après">＋</button>
-          <button class="btn ghost act-delshot" title="Supprimer le plan">🗑</button>
+          <button class="btn ghost act-up" title="Monter" aria-label="Monter" ${i === 0 ? "disabled" : ""}>${ico("dz-edit-monter")}</button>
+          <button class="btn ghost act-down" title="Descendre" aria-label="Descendre" ${i === shots.length - 1 ? "disabled" : ""}>${ico("dz-edit-descendre")}</button>
+          <button class="btn ghost act-insert" title="Insérer un plan après" aria-label="Insérer un plan après">${ico("dz-action-ajouter")}</button>
+          <button class="btn ghost act-delshot" title="Supprimer le plan" aria-label="Supprimer le plan">${ico("dz-action-supprimer")}</button>
         </div>
       </div>
       <textarea class="shot-action" placeholder="Action : ce que l'on VOIT dans ce plan">${esc(s.action)}</textarea>
@@ -846,7 +848,7 @@ function renderBoard() {
       </div>
       <div class="shot-params shot-craft">
         <select class="shot-recipe" title="Recette motion video-shotcraft (colore le croquis, et la production ensuite)">${recipeOptions(s.motion_recipe)}</select>
-        <select class="shot-energy" title="Énergie du plan (1 calme → 5 pic) — la courbe doit respirer">${energyOptions(s.energy)}</select>
+        <span class="sel-ico" aria-hidden="true">${ico("dz-edit-energie")}</span><select class="shot-energy" title="Énergie du plan (1 calme → 5 pic) — la courbe doit respirer">${energyOptions(s.energy)}</select>
       </div>
       <div class="shot-ents">${entChips(s.entities) || "<span style='opacity:.5'>aucune entité détectée</span>"}</div>
       <div class="shot-cast" title="Qui parlera, avec quelle voix et quel tempérament (T103)">${(s.entities || []).map(eid => {
@@ -1081,7 +1083,7 @@ async function sortiesEtat() {
     $("#animSorties").classList.toggle("hidden", !s.animatique);
     ["film", "reel"].forEach(n => { const b = $(`[data-sortie="${n}"]`), v = (s.natures || {})[n];
       b.disabled = !s.a_jour;
-      if (v) b.textContent = `${n === "film" ? "🎬 Film" : "⚡ Reel"} · ${v.plans} plan(s), ${fmtDur(v.duree_s)}`; });
+      if (v) b.innerHTML = `${ico(n === "film" ? "dz-media-film" : "dz-media-reel")} ${n === "film" ? "Film" : "Reel"} · ${v.plans} plan(s), ${esc(fmtDur(v.duree_s))}`; });
     $("#animSortieNote").textContent = s.animatique && !s.a_jour ? "le storyboard a changé : remontez l'animatique" : "";
   } catch (_) { $("#animSorties").classList.add("hidden"); }
 }
@@ -1232,8 +1234,8 @@ function voiceChip(v, entityId) {
   const meta = [lbl.gender, lbl.age, lbl.accent].filter(Boolean).join(" · ");
   return `<span class="voice-chip" data-vid="${v.voice_id}">
     <b>${esc(v.name)}</b>${meta ? ` <i>${esc(meta)}</i>` : ""}
-    ${v.preview_url ? `<button class="btn ghost vc-play" data-prev="${esc(v.preview_url)}" title="Pré-écouter">▶</button>` : ""}
-    <button class="btn vc-pick" title="Attribuer cette voix">✓</button>
+    ${v.preview_url ? `<button class="btn ghost vc-play" data-prev="${esc(v.preview_url)}" title="Pré-écouter" aria-label="Pré-écouter">${ico("dz-media-lecture")}</button>` : ""}
+    <button class="btn vc-pick" title="Attribuer cette voix" aria-label="Attribuer cette voix">${ico("dz-action-valider")}</button>
   </span>`;
 }
 
@@ -1518,7 +1520,7 @@ async function loadVectorBiblio() {
       <span class="vector-orig" title="${d.chapter_id
         ? "Document propre à un autre chapitre"
         : "Document de la bibliothèque globale (sans chapitre)"}">${
-        d.chapter_id ? "⚓" : "◇"}</span>
+        d.chapter_id ? ico("dz-etat-origine") : "◇"}</span>
       <span class="vector-role">${esc(VECTOR_ROLES[d.role] || d.role)}</span>
       <b>${esc(d.name)}</b> <span class="vector-v">v${d.version}</span>
       <span class="vector-actions">
@@ -1578,7 +1580,7 @@ const saveGlobalStyle = debounce(async () => {
     $("#styleSaved").textContent = "…"; $("#styleSaved").className = "savestate saving";
     await api.send("PUT", "/atelier/settings",
                    { global_style: $("#globalStyle").value });
-    $("#styleSaved").textContent = "✓"; $("#styleSaved").className = "savestate saved";
+    $("#styleSaved").innerHTML = ico("dz-etat-enregistre"); $("#styleSaved").className = "savestate saved";
   } catch (e) { $("#styleSaved").textContent = "!"; toast("Style global : " + e.message, true); }
 }, 700);
 
@@ -1689,8 +1691,8 @@ async function renderDiff(vid) {
     const cls = { "=": "ver-same", "~": "ver-mod", "+": "ver-add", "-": "ver-del" };
     const col = (k) => d.lignes.map(l => `<div class="ver-l ${cls[l.op]}">${l[k] === null ? "" : (esc(l[k]) || "&nbsp;")}</div>`).join("");
     const action = d.version.restaurable
-      ? `<button id="verRestore" class="btn primary" title="Réécrit avec cette version — le texte courant est gardé en instantané avant">↩ Restaurer</button>`
-      : `<button id="verCopier" class="btn" title="Un scénario gardé ne se restaure pas en scènes : copiez son texte">⧉ Copier le texte</button>`;
+      ? `<button id="verRestore" class="btn primary" title="Réécrit avec cette version — le texte courant est gardé en instantané avant">${ico("dz-action-restaurer")} Restaurer</button>`
+      : `<button id="verCopier" class="btn" title="Un scénario gardé ne se restaure pas en scènes : copiez son texte">${ico("dz-action-copier")} Copier le texte</button>`;
     box.innerHTML = `
       <div class="ver-diff-head">
         <span>${KIND_VER[d.version.kind] || ""} v${d.version.n} · ${esc(PASSE_LABEL[d.version.passe] || d.version.passe)}</span>
@@ -1724,7 +1726,7 @@ async function renderDiff(vid) {
 /* ═════════ tâche #60 (plan chapitres P1) — plan ↔ entités, apparitions ═════════ */
 function entPicker(selected) {
   const sel = new Set(selected || []);
-  return `<details class="shot-ents-edit"><summary title="Cocher les entités présentes dans ce plan">⛓ entités du plan</summary>
+  return `<details class="shot-ents-edit"><summary title="Cocher les entités présentes dans ce plan">${ico("dz-edit-lier")} entités du plan</summary>
     ${entities.map(e => `<label class="chip k-${e.kind}"><input type="checkbox" value="${escA(e.id)}" ${sel.has(e.id) ? "checked" : ""}> ${esc(e.name)}</label>`).join("")}
   </details>`;
 }
