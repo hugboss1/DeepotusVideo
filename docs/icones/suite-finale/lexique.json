@@ -2221,7 +2221,7 @@
  {
   "cle": "dz-nav-reglages",
   "famille": "nav",
-  "sens": "Écran Réglages (clés, chemins, persona) et commandes qui y mènent.",
+  "sens": "Écran Réglages (clés, chemins, persona) et commandes qui y mènent ; aussi les préférences d’application d’un lab (dialogue Paramètres de l’appli du Vectorlab).",
   "origine": "design15",
   "mobile": false,
   "usages": 6,
