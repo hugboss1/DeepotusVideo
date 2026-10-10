@@ -2,7 +2,7 @@
 # scripts/patch_bundle_i18nfix.py
 """Maillon de queue : correctifs de traduction du Planificateur relevés le 10/10/2026 en capturant le guide v3 (t175).
 
-Ce qu'il pose (ancres uniques, relevées le 10/10 sur le bundle de main 86333d74, rejouées sur ebe8cfa8) :
+Ce qu'il pose (ancres uniques, relevées le 10/10 sur le bundle de main 86333d74, rejouées sur ebe8cfa8 puis 9d96986f) :
   - F1 l'inspecteur d'un post : la pastille de mode (« auto-publish » / « assisted ») et la pastille d'état (« draft »,
     « scheduled »…) affichaient la VALEUR stockée ; elles passent par dzT (scheduler.mode.*, scheduler.etat.*). Un
     état inconnu du dictionnaire s'affiche tel quel (jamais la clé). Les valeurs stockées ne changent pas ;
@@ -14,7 +14,7 @@ Ce qu'il pose (ancres uniques, relevées le 10/10 sur le bundle de main 86333d74
     modifiable dans le même sélecteur. Pas de useState ajouté : la valeur initiale seule change.
 Les clés vivent dans frontend/shared/i18n/planif_news.json.
 
-Maillon de QUEUE, APRÈS avnoeuds (t168b) et avatar (dont il sonde les marqueurs) ; comme lui, il garde un .js.bak_i18nfix le temps de
+Maillon de QUEUE, APRÈS dzbiblio, avnoeuds (t168b) et avatar (dont il sonde les marqueurs) ; comme lui, il garde un .js.bak_i18nfix le temps de
 l'écriture puis le SUPPRIME, et `version` reste le dernier maillon. Son INVERSE est `avant_i18nfix` dans
 backend/tests/_i18n_l1_aide.py (lu sur les PAIRES d'ici : une seule source). Lecture et écriture en OCTETS.
 Run : python scripts/patch_bundle_i18nfix.py [--check]
@@ -29,6 +29,7 @@ TAG = "i18nfix"
 MARKER = 'dzT("scheduler.mode.assiste")'
 
 SONDE_AMONT = [
+    ("dzbiblio", '"data-dz-biblio-barre":"1"', 1),
     ("avnoeuds", "function dzAvCompile(", 1),
     ("avatar", '{id:"avatarlive",', 1),
     ("dzgbar", '"data-dz-gbar":"1"', 1),

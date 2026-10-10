@@ -336,7 +336,7 @@ def _bloc_tag(s, tag, f):
 
 def avant_i18nfix(bundle: str) -> str:
     """Le bundle d'avant les correctifs de traduction du Planificateur du 10/10/2026 (maillon de queue
-    patch_bundle_i18nfix, posé APRÈS avnoeuds) : ses paires défaites, lues dans le maillon lui-même. Sans son
+    patch_bundle_i18nfix, posé APRÈS dzbiblio) : ses paires défaites, lues dans le maillon lui-même. Sans son
     marqueur : rendu tel quel."""
     import patch_bundle_i18nfix as _m
     if _m.MARKER not in bundle:
@@ -349,12 +349,28 @@ def avant_i18nfix(bundle: str) -> str:
     return s
 
 
+def avant_dzbiblio(bundle: str) -> str:
+    """Le bundle d'avant le correctif de débordement de la Bibliothèque (maillon de queue patch_bundle_dzbiblio, posé
+    APRÈS avnoeuds) : ses paires défaites, lues dans le maillon lui-même. Sans son marqueur : rendu tel quel.
+    Les correctifs i18nfix (10/10), posés APRÈS lui, sont défaits d'abord."""
+    bundle = avant_i18nfix(bundle)
+    import patch_bundle_dzbiblio as _m
+    if _m.MARKER not in bundle:
+        return bundle
+    s = bundle
+    for ancre, remplace in reversed(_m.PAIRES):
+        if s.count(remplace) != 1:
+            raise AssertionError(f"avant_dzbiblio : remplacement x{s.count(remplace)} (attendu 1) : {remplace[:70]!r}")
+        s = s.replace(remplace, ancre, 1)
+    return s
+
+
 def avant_avnoeuds(bundle: str) -> str:
     """Le bundle d'avant les nœuds Studio Recast et Voix → voix (maillon de queue patch_bundle_avnoeuds, t168b, posé
     APRÈS avatar) : ses paires défaites, lues dans le maillon lui-même (aux fins de ligne du bundle). Sans son
-    marqueur : rendu tel quel. Les correctifs i18nfix (10/10), posés APRÈS lui, sont défaits d'abord."""
-    bundle = avant_i18nfix(bundle)
+    marqueur : rendu tel quel. Le correctif dzbiblio, posé après lui, est défait d'abord."""
     import patch_bundle_avnoeuds as _m
+    bundle = avant_dzbiblio(bundle)
     if _m.MARKER not in bundle:
         return bundle
     s = bundle
@@ -368,7 +384,7 @@ def avant_avnoeuds(bundle: str) -> str:
 def avant_avatar(bundle: str) -> str:
     """Le bundle d'avant l'entrée « Avatar live » de la barre (maillon de queue patch_bundle_avatar, t168, posé APRÈS
     dzgbar) : ses paires défaites, lues dans le maillon lui-même. Sans son marqueur : rendu tel quel.
-    Les nœuds Studio (t168b), posés APRÈS lui, sont défaits d'abord."""
+    Les nœuds Studio (t168b), posés APRÈS lui, sont défaits d'abord (et dzbiblio avant eux)."""
     bundle = avant_avnoeuds(bundle)
     import patch_bundle_avatar as _m
     if _m.MARKER not in bundle:
@@ -384,7 +400,7 @@ def avant_avatar(bundle: str) -> str:
 def avant_dzgbar(bundle: str) -> str:
     """Le bundle d'avant le correctif de la barre du graphe du Studio (maillon de queue patch_bundle_dzgbar, posé APRÈS
     dzsched) : ses paires défaites, lues dans le maillon lui-même. Sans son marqueur : rendu tel quel.
-    L'entrée Avatar live (t168), posée APRÈS lui, est défaite d'abord."""
+    L'entrée Avatar live (t168), posée APRÈS lui, est défaite d'abord (et dzbiblio avant elle)."""
     bundle = avant_avatar(bundle)
     import patch_bundle_dzgbar as _m
     if _m.MARKER not in bundle:
