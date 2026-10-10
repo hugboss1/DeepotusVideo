@@ -141,13 +141,18 @@ def fiche(ref, lang, sorties, ou=""):
     lab, ident = ref.split("/", 1)
     entrees = json.loads((RACINE / "frontend" / lab / "aide" / "index.json").read_text("utf-8"))
     e = next(x for x in entrees if x.get("id") == ident)
-    src = RACINE / "frontend" / lab / "aide" / pathlib.Path(e["fichier"]).name
+    # l'anglais du LAB d'abord (titre_en, phrase_en, animation fichier_en capturée en anglais : t146) ;
+    # src/fiches-en.json seulement pour les labs pas encore traduits
+    fichier, titre, phrase = e["fichier"], e["titre"], e["phrase"]
+    if lang == "en":
+        if e.get("titre_en"):
+            fichier, titre, phrase = e.get("fichier_en") or fichier, e["titre_en"], e.get("phrase_en") or phrase
+        else:
+            en = json.loads((SRC / "fiches-en.json").read_text("utf-8"))[ref]
+            titre, phrase = en["titre"], en["phrase"]
+    src = RACINE / "frontend" / lab / "aide" / pathlib.Path(fichier).name
     nom = f"img/fiches/{lab}/{src.name}"
     copier(src, GUIDE / nom, sorties)
-    titre, phrase = e["titre"], e["phrase"]
-    if lang == "en":
-        en = json.loads((SRC / "fiches-en.json").read_text("utf-8"))[ref]
-        titre, phrase = en["titre"], en["phrase"]
     ou = f'<span class="ou">{ou}</span>' if ou else ""
     return (f'<figure class="fiche" data-fiche="{ref}"><img src="{nom}" alt="{html.escape(TXT[lang]["fiche"])} : '
             f'{html.escape(titre)}" loading="lazy" width="320" height="200"><figcaption><b>{html.escape(titre)}</b>'

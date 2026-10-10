@@ -235,8 +235,13 @@ citees = set(re.findall(r'data-fiche="([^"]+)"', (SRC / "fr" / "icones.html").re
 check(f"7.8 la galerie du chapitre montre TOUTES les fiches animées des labs ({len(fiches)})", citees == fiches,
       sorted(fiches ^ citees))
 en = json.loads((SRC / "fiches-en.json").read_text("utf-8"))
-check("7.9 chaque fiche a son titre et sa phrase en anglais", set(en) >= fiches and
-      all(en[f]["titre"] and en[f]["phrase"] for f in fiches), sorted(fiches - set(en)))
+idx_en = {f"{lab}/{e['id']}": e for lab in ("vectorlab", "photolab", "spritelab", "tilelab")
+          for e in json.loads((RACINE / "frontend" / lab / "aide" / "index.json").read_text("utf-8"))}
+sans_en = sorted(f for f in fiches if not idx_en[f].get("titre_en") and not (f in en and en[f]["titre"] and en[f]["phrase"]))
+check("7.9 chaque fiche a son titre et sa phrase en anglais (ceux du lab d'abord, sinon src/fiches-en.json)",
+      not sans_en, sans_en)
+doublons = sorted(f for f in en if f in idx_en and idx_en[f].get("titre_en"))
+check("7.10 src/fiches-en.json ne double pas une fiche que son lab a traduite (le lab fait foi)", not doublons, doublons)
 
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)
