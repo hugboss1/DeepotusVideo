@@ -200,8 +200,8 @@
     "en": "the video’s"
   },
   "avatar.recast.orient_image": {
-    "fr": "celle de l'image",
-    "en": "the image’s"
+    "fr": "celle de l'image (10 s au plus)",
+    "en": "the image's (10 s at most)"
   },
   "avatar.recast.res_source": {
     "fr": "celle de la source",
@@ -826,5 +826,29 @@
   "avatar.recast.le_perso": {
     "fr": "Le Personnage",
     "en": "The Character"
+  },
+  "avatar.recast.une_personne": {
+    "fr": "Une seule personne est remplacée par prise : les modèles de fal n'acceptent qu'un Personnage.",
+    "en": "Only one person is replaced per take: the fal models accept a single Character."
+  },
+  "avatar.recast.decrire": {
+    "fr": "Proposer une consigne d'après la prise",
+    "en": "Suggest an instruction from the take"
+  },
+  "avatar.recast.decrire_titre": {
+    "fr": "Une image de la prise est décrite par l'IA de vision (le lieu seul) ; relisez la consigne avant de lancer",
+    "en": "One picture of the take is described by the vision AI (the place only); read the instruction before you start"
+  },
+  "avatar.recast.description": {
+    "fr": "Description du lieu de la prise…",
+    "en": "Describing the place in the take…"
+  },
+  "avatar.recast.consigne_proposee": {
+    "fr": "Consigne proposée ({usd}) : relisez-la, modifiez-la si besoin, puis lancez.",
+    "en": "Suggested instruction ({usd}): read it, edit it if needed, then start."
+  },
+  "avatar.recast.kling_image_10s": {
+    "fr": "La prise fait {duree} : avec « celle de l'image », Kling prend 10 s au plus. Choisissez « celle de la vidéo » ou coupez la prise.",
+    "en": "The take is {duree} long: with “the image's”, Kling takes 10 s at most. Choose “the video's” or trim the take."
   }
 }
