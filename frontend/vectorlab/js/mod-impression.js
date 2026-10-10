@@ -225,7 +225,7 @@ export function initImpression(VL) {
     } else if (r.mode === "pixelart") {
       // lot 3 : une pièce et une hauteur par couleur du calque pixel
       if (!pixelT) throw new Error(vlT("vectorlab.impression.pixel_charge"));
-      const lignes = [...$("#impHauteurs").querySelectorAll("input[data-couleur]")].map((i) => ({ couleur: i.dataset.couleur, mm: i.value }));
+      const lignes = [...$("#impHauteursPx").querySelectorAll("input[data-couleur]")].map((i) => ({ couleur: i.dataset.couleur, mm: i.value }));
       pieces.push(...pixels_vers_pieces(pixelT.tampon, r.cellule_mm, hauteurs_lire(lignes, r.hmin), { socle_mm: r.socle }));
       if (!pieces.length) throw new Error(vlT("vectorlab.impression.pixel_vide"));
     } else if (r.mode === "logo") {
@@ -352,7 +352,7 @@ export function initImpression(VL) {
             <option value="pixelart"${mode === "pixelart" ? " selected" : ""}${pixelId ? "" : " disabled"}>${vlT("vectorlab.impression.mode_pixelart")}</option></select></label>
           <label class="imp-pixelart">${vlT("vectorlab.impression.cellule")} <input id="impCellule" type="number" step="0.1" min="0.2" value="2"/></label>
           <label class="imp-pixelart">${vlT("vectorlab.impression.hauteurs_minmax")} <span class="imp-range"><input id="impHmin" type="number" step="0.1" min="0.2" value="1"/><input id="impHmax" type="number" step="0.1" min="0.4" value="5"/><button id="impHauteursLum" title="${vlT("vectorlab.impression.lum_titre")}">${vlT("vectorlab.impression.par_luminosite")}</button></span></label>
-          <div class="imp-pixelart imp-hauteurs" id="impHauteurs"><i class="tr-etat">${vlT("vectorlab.impression.chargement_pixel")}</i></div>
+          <div class="imp-pixelart imp-hauteurs" id="impHauteursPx"><i class="tr-etat">${vlT("vectorlab.impression.chargement_pixel")}</i></div>
           <label class="imp-relief">${vlT("vectorlab.impression.largeur")} <input id="impLargeur" type="number" step="1" min="10" value="${largeurDefaut}"/></label>
           <label class="imp-relief">${vlT("vectorlab.impression.exageration")} <input id="impExag" type="number" step="0.1" min="0.1" max="10" value="1.5"/></label>
           <label class="imp-relief">${vlT("vectorlab.impression.gravure")} <input id="impGravure" type="number" step="0.1" min="0" value="0.6"/></label>
@@ -387,10 +387,10 @@ export function initImpression(VL) {
     // lot 3 : la table des hauteurs par couleur du calque pixel
     const tableHauteurs = (t) => {
       const cs = couleurs_utilisees(t, 64), H = hauteurs_par_luminosite(cs, num($("#impHmin").value, 1), num($("#impHmax").value, 5));
-      $("#impHauteurs").innerHTML = cs.length ? cs.map((c) => `<label><span class="imp-pastille" style="background:${c}"></span>${c}<input type="number" step="0.1" min="0" data-couleur="${c}" value="${H[c]}"/></label>`).join("") : `<i class="tr-etat">${vlT("vectorlab.impression.aucun_pixel")}</i>`;
+      $("#impHauteursPx").innerHTML = cs.length ? cs.map((c) => `<label><span class="imp-pastille" style="background:${c}"></span>${c}<input type="number" step="0.1" min="0" data-couleur="${c}" value="${H[c]}"/></label>`).join("") : `<i class="tr-etat">${vlT("vectorlab.impression.aucun_pixel")}</i>`;
     };
     if (pixelId && VL.pixelTampon) {
-      VL.pixelTampon(pixelId).then((t) => { pixelT = { id: pixelId, tampon: t }; tableHauteurs(t); }).catch((e) => { $("#impHauteurs").innerHTML = `<i class="tr-etat">${e.message}</i>`; });
+      VL.pixelTampon(pixelId).then((t) => { pixelT = { id: pixelId, tampon: t }; tableHauteurs(t); }).catch((e) => { $("#impHauteursPx").innerHTML = `<i class="tr-etat">${e.message}</i>`; });
     }
     $("#impHauteursLum").addEventListener("click", () => { if (pixelT) tableHauteurs(pixelT.tampon); });
     majMode();
