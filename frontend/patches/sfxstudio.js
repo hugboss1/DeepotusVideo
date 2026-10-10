@@ -46,7 +46,7 @@ function svxWaveEntry(src){
 /* catégories de la bibliothèque — couleur = type de média, jamais un état */
 var SVX_KINDS={
   sfx:{tag:"SFX",label:dzT("sfx.type.effet_sonore"),c:"--c-3d",track:"a3"},
-  voix:{tag:"VOIX",label:dzT("sfx.commun.voix"),c:"--c-audio",track:"a1"},
+  voix:{tag:dzT("sfx.types.voix_tag"),label:dzT("sfx.commun.voix"),c:"--c-audio",track:"a1"},
   musique:{tag:"MUS",label:dzT("sfx.commun.musique"),c:"--c-av",track:"a2"},
   import:{tag:"IMP",label:dzT("sfx.type.importe"),c:"--c-text",track:"a3"}};
 function svxKindOf(name,metaMap){

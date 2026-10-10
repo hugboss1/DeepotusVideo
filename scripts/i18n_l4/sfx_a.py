@@ -297,4 +297,6 @@ ENTREES = [
       "No voices — narrate a block (Narration drawer, T) or import a take."),
     L(49017, "sfx.vide.aucune_musique", "Aucune musique — importez un fichier : il se posera sur la piste A2.",
       "No music — import a file: it will land on track A2."),
+    # t143 : étiquette de type « VOIX » (capitales, invisible au contrôle lexical) — vue à la preuve de L3
+    L(2783, 'sfx.types.voix_tag', 'VOIX', 'VOICE'),
 ]

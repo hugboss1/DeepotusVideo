@@ -83,7 +83,10 @@ def num(m, i):
         return None
 
 
-JS = lire("frontend/patches/montage.js")
+# t143 : la couche montage.js passe par dzT (traduction L3) ; le banc lit son texte français d'avant la traduction
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _i18n_l1_aide as _AIDE3  # noqa: E402
+JS = _AIDE3.couche_avant_i18n_l3(lire("frontend/patches/montage.js"))
 SVC = lire("backend/app/services/montage_service.py")
 check("x0_la_couche_et_le_service_sont_lus_en_octets_et_non_vides",
       len(JS) > 100_000 and len(SVC) > 100_000, (len(JS), len(SVC)))

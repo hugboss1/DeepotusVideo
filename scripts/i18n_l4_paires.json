@@ -21,6 +21,12 @@
     "groupe": "sfx_a"
    },
    {
+    "pos": 2783,
+    "avant": "\"VOIX\"",
+    "apres": "dzT(\"sfx.types.voix_tag\")",
+    "groupe": "sfx_a"
+   },
+   {
     "pos": 2796,
     "avant": "\"Voix\"",
     "apres": "dzT(\"sfx.commun.voix\")",
