@@ -1,0 +1,56 @@
+{
+  "titre": {
+    "fr": "Le panneau Calques",
+    "en": "The Layers panel"
+  },
+  "legende": {
+    "fr": "Chaque calque se déplie en arbre de ses objets, avec vignette, verrou, œil, opacité et mode de fusion.",
+    "en": "Each layer unfolds into a tree of its objects, with thumbnail, lock, eye, opacity and blend mode."
+  },
+  "captures": [
+    {
+      "fr": "calques.fr.webp",
+      "en": "calques.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 3,
+      "surligne": [
+        1177,
+        337,
+        73,
+        34
+      ],
+      "bulle": {
+        "fr": "Fond, Phare, Titre : trois calques",
+        "en": "Background, Lighthouse, Title: three layers"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 3,
+      "surligne": [
+        1177,
+        337,
+        65,
+        34
+      ],
+      "bulle": {
+        "fr": "Fond, Phare, Titre : trois calques",
+        "en": "Background, Lighthouse, Title: three layers"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

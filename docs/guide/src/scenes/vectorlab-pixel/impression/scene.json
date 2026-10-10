@@ -1,0 +1,50 @@
+{
+  "titre": {
+    "fr": "Imprimer en 3D",
+    "en": "Print in 3D"
+  },
+  "legende": {
+    "fr": "Fichier › Impression 3D… transforme le dessin en pièces : aperçu 3D, puis STL, 3MF ou un lot par pièce.",
+    "en": "File › 3D printing… turns the drawing into parts: 3D preview, then STL, 3MF or a batch per part."
+  },
+  "captures": [
+    {
+      "fr": "dialogue.fr.webp",
+      "en": "dialogue.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        177,
+        195,
+        272,
+        36
+      ],
+      "bulle": {
+        "fr": "Calques, tuiles, logo, relief ou pixel-art",
+        "en": "Layers, tiles, logo, relief or pixel art"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 3,
+      "surligne": [
+        451,
+        175,
+        812,
+        552
+      ],
+      "bulle": {
+        "fr": "L'aperçu 3D, en couleurs de pièces",
+        "en": "The 3D preview, in part colours"
+      }
+    }
+  ]
+}

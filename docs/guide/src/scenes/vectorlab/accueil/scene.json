@@ -1,0 +1,114 @@
+{
+  "titre": {
+    "fr": "L'accueil du Vectorlab",
+    "en": "The Vectorlab home"
+  },
+  "legende": {
+    "fr": "L'accueil liste vos documents : un clic sur une carte l'ouvre ; Nouveau en crée un.",
+    "en": "The home lists your documents: one click on a card opens it; New creates one."
+  },
+  "captures": [
+    {
+      "fr": "accueil.fr.webp",
+      "en": "accueil.en.webp"
+    },
+    {
+      "fr": "document.fr.webp",
+      "en": "document.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        313,
+        285
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Ouvrez un document",
+        "en": "Open a document"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        13,
+        34,
+        102,
+        38
+      ],
+      "bulle": {
+        "fr": "Deux personas : Vecteur et Pixel",
+        "en": "Two personas: Vector and Pixel"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        0,
+        126,
+        56,
+        758
+      ],
+      "bulle": {
+        "fr": "Les outils, rangés par familles",
+        "en": "Tools, grouped by family"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        313,
+        285
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Ouvrez un document",
+        "en": "Open a document"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        13,
+        34,
+        96,
+        38
+      ],
+      "bulle": {
+        "fr": "Deux personas : Vecteur et Pixel",
+        "en": "Two personas: Vector and Pixel"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        0,
+        126,
+        56,
+        758
+      ],
+      "bulle": {
+        "fr": "Les outils, rangés par familles",
+        "en": "Tools, grouped by family"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

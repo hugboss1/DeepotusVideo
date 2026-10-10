@@ -1,0 +1,70 @@
+<p class="chapeau-chap">You will be able to draw a poster, a logo or a sheet in vectors in Vectorlab: shapes, pen, text, appearance, layers, symbols, then send it to other screens. Free, everything is computed on your PC; only AI illustration is paid, price shown first.</p>
+
+<h3>Open Vectorlab</h3>
+<figure class="scene" data-scene="vectorlab/accueil"></figure>
+<ol class="etapes">
+<li>Open <b class="ui">Vectorlab</b> in the app bar. The home lists your documents: one click on a card opens it. Pick a format (square, 16:9, A4, playing card…) then <b class="ui">Create</b> for a new document.</li>
+<li>A document also comes from elsewhere: <b class="ui">Send to…</b> › Vectorlab from the Library or Photolab, “Edit this face in Vectorlab” from <a href="#cardforge">Card Forge</a>, “Open in Vectorlab” from a Templates layout.</li>
+<li>At the top left, two pills: <b class="ui">Vector</b> to draw, <b class="ui">Pixel</b> to retouch pixels (see <a href="#vectorlab-pixel">the next chapter</a>). Each has its own tools and panels.</li>
+</ol>
+<p>The screen follows Affinity's conventions: ten menus at the top (<b class="ui">File</b>, <b class="ui">Edit</b>, Document, <b class="ui">Text</b>, <b class="ui">Vector</b>, Pixel, <b class="ui">Layer</b>, <b class="ui">View</b>, <b class="ui">Window</b>, <b class="ui">Help</b>), a context bar showing the selection and the current tool's settings, tools on the left, the tabbed panel stack on the right and a status bar that recalls the tool's gestures. The document tab shows “name @ zoom” and a star when it is not saved.</p>
+
+<h3>Pick a tool</h3>
+<figure class="scene" data-scene="vectorlab/familles"></figure>
+<p>Tools are grouped in families: only the current tool of each family is visible. The corner triangle or a long press opens the family, right-click opens the tool's settings, the letter picks it from the keyboard.</p>
+<div class="cartes">
+<article><i data-dz="dz-outil-vec-selection"></i><h4>Select (V)</h4><p>The marquee only takes objects fully inside (<kbd>Alt</kbd>: those it touches). <kbd>Shift</kbd> constrains, <kbd>Ctrl</kbd> resizes from the centre, <kbd>Alt</kbd>+drag copies, <kbd>Ctrl</kbd>+click reaches an object inside a group, <kbd>Tab</kbd> goes to the next one.</p></article>
+<article><i data-dz="dz-outil-vec-plume"></i><h4>Pen (P) and Node (N)</h4><p>Click = sharp node, drag = smooth node, click the first node to close. Four modes: Pen, Smart, Polygon, Line. The Node tool pulls handles, bends a segment, adds (double-click) or deletes nodes.</p></article>
+<article><i data-dz="dz-outil-vec-forme"></i><h4>Shapes (R, E, L, F)</h4><p>Rectangle, ellipse, line and parametric shapes (polygon, star, cog, arrow, donut, spiral) adjustable by handles. A single click places a shape; the Corner tool (C) rounds a corner.</p></article>
+<article><i data-dz="dz-outil-vec-pinceau"></i><h4>Freehand</h4><p>Smoothed pencil (B), vector brush (J) with flat, tapered or calligraphic profile, eraser (W), knife (X) and shape builder (S) that combines or removes areas by clicks.</p></article>
+<article><i data-dz="dz-outil-vec-texte"></i><h4>Text (T)</h4><p>Drag = text sized to the height you pull; click on a curve = text on that path; double-click to edit in place. The text frame flows text and flags overflow in red.</p></article>
+<article><i data-dz="dz-outil-vec-pipette"></i><h4>Eyedropper, measure, view</h4><p>Eyedropper (I) with loupe (<kbd>Ctrl</kbd>: the whole style), measure (M), hand (H), zoom (Z, <kbd>Alt</kbd> to zoom out). <kbd>Ctrl</kbd>+<kbd>0</kbd> fits the page, <kbd>Ctrl</kbd>+<kbd>1</kbd> shows 100%.</p></article>
+</div>
+
+<h3>Set the appearance</h3>
+<figure class="scene" data-scene="vectorlab/apparence"></figure>
+<ol class="etapes">
+<li>Select an object. The context bar gives X, Y, W, H and opacity; fields accept calculations (100/3).</li>
+<li>The <b class="ui">Appearance</b> tab sets fill and stroke from the swatches, no fill or no stroke, width, opacity. <b class="ui">Stroke</b> and <b class="ui">Transform</b> have their own tabs (skew, movable pivot).</li>
+<li><b class="ui">Appearance +</b> goes further: linear, radial and conical gradients, transparency, patterns (hatching, dots, checkerboard), multiple strokes, six effects, 16 blend modes, global colours, harmonies, object styles, paste inside a shape (clipping mask), text in a frame or on a path.</li>
+</ol>
+<div class="fiches">
+<figure class="fiche" data-fiche="vectorlab/a2Conique"></figure>
+<figure class="fiche" data-fiche="vectorlab/a2Transp"></figure>
+<figure class="fiche" data-fiche="vectorlab/a2Motif"></figure>
+<figure class="fiche" data-fiche="vectorlab/a2EnCadre"></figure>
+<figure class="fiche" data-fiche="vectorlab/a2SurChemin"></figure>
+</div>
+<p>An offset stroke and a text on a path stay <strong>live</strong>: they recompute when their source changes, until you detach them.</p>
+
+<h3>Layers and symbols</h3>
+<figure class="scene" data-scene="vectorlab/calques"></figure>
+<p>The <b class="ui">Layers</b> tab shows the layer's opacity and blend mode at the top, then each layer with its thumbnail, lock and eye; a triangle unfolds it into a tree of its objects, clips, masks and effects. The <b class="ui">Layer</b> menu creates, renames, groups (<kbd>Ctrl</kbd>+<kbd>G</kbd>), locks, hides and orders.</p>
+<p>A <strong>symbol</strong> is created with Vector › <b class="ui">Create Symbol</b>; its instances follow every change. Double-click an instance to edit it in place, then <b class="ui">Done</b> or <b class="ui">Discard</b>.</p>
+
+<h3>The Vector menu</h3>
+<figure class="scene" data-scene="vectorlab/geometrie"></figure>
+<div class="cartes">
+<article><i data-dz="dz-edit-contour-trace"></i><h4>Geometry</h4><p>Add, subtract, intersect and divide shapes; join, reverse, break at node; <b class="ui">Round corners</b>.</p></article>
+<article><i data-dz="dz-media-texte"></i><h4>Convert to curves</h4><p>A text becomes paths (<kbd>Ctrl</kbd>+<kbd>Enter</kbd>), as one or one path per glyph.</p></article>
+<article><i data-dz="dz-media-image"></i><h4>Image trace</h4><p><b class="ui">Image Trace…</b> vectorises a placed image (colours, smoothing, threshold), with preview, on your PC.</p></article>
+</div>
+
+<h3>The document</h3>
+<p>The Document menu holds <b class="ui">Setup…</b> (size, resolution, unit, background), <b class="ui">Artboards…</b> exported separately, <b class="ui">Margins and bleed…</b> (guides never exported), the <b class="ui">Document grid…</b> (square, iso, triangular, hexagonal, snapping), <b class="ui">Board and terrains…</b> to paint tiles (K) and the <b class="ui">Real map…</b>. View › <b class="ui">Snap to objects</b> snaps to edges, centres and even gaps.</p>
+<p>File › <b class="ui">Place image…</b> or <b class="ui">Place from Library…</b> places an image; the Stock tab shows the Library with search, one click places the image. An image can be cropped, locked and also receives effects.</p>
+
+<h3>Good to know</h3>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>The document is saved as a draft every 30 seconds: when you reopen it, a window offers to restore it or to start from the server. History keeps 1000 steps; Edit › <b class="ui">Add Snapshot</b> marks a state to come back to.</p></aside>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Hover an option for a second, or click the “?” next to it, for its animated card. <kbd>F1</kbd> lists every shortcut; Edit › Settings (<kbd>Ctrl</kbd>+<kbd>,</kbd>) sets tooltips, grid and snapping.</p></aside>
+<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>AI illustration (AI family, or File › New image processing) is paid: the price is shown first, within your caps. Everything else is free.</p></aside>
+
+<h3>Shortcuts</h3>
+<div class="tableau"><table>
+<tr><th>Gesture</th><th>Shortcut</th></tr>
+<tr><td>Undo, redo</td><td><kbd>Ctrl</kbd>+<kbd>Z</kbd>, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></td></tr>
+<tr><td>Duplicate, group, ungroup</td><td><kbd>Ctrl</kbd>+<kbd>D</kbd>, <kbd>Ctrl</kbd>+<kbd>G</kbd>, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd></td></tr>
+<tr><td>Fit page, 100%, grid</td><td><kbd>Ctrl</kbd>+<kbd>0</kbd>, <kbd>Ctrl</kbd>+<kbd>1</kbd>, <kbd>G</kbd></td></tr>
+<tr><td>Vectorlab home</td><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>H</kbd></td></tr>
+<tr><td>All shortcuts</td><td><kbd>F1</kbd></td></tr>
+</table></div>

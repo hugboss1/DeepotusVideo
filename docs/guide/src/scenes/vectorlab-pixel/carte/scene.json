@@ -1,0 +1,56 @@
+{
+  "titre": {
+    "fr": "Une carte réelle",
+    "en": "A real map"
+  },
+  "legende": {
+    "fr": "Document › Carte réelle… : relief, courbes de niveau, fond OpenStreetMap et tracés GPX, sans clé ni coût.",
+    "en": "Document › Real map…: relief, contour lines, OpenStreetMap background and GPX tracks, no key, no cost."
+  },
+  "captures": [
+    {
+      "fr": "panneau.fr.webp",
+      "en": "panneau.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 3,
+      "surligne": [
+        1279,
+        361,
+        57,
+        34
+      ],
+      "bulle": {
+        "fr": "Le panneau Carte",
+        "en": "The Map panel"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 3,
+      "surligne": [
+        1265,
+        361,
+        51,
+        34
+      ],
+      "bulle": {
+        "fr": "Le panneau Carte",
+        "en": "The Map panel"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}
