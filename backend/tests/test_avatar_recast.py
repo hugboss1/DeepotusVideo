@@ -243,6 +243,30 @@ with TestClient(app, client=("127.0.0.1", 5), raise_server_exceptions=False) as 
     check("SON2 témoin : la sortie simulée de fal n'avait pas de son", not RS.a_du_son(SRC5))
     check("SON3 source muette : sortie muette, aucun échec (rendu J2)", not RS.a_du_son(_tmp / "outputs" / "final" / f"{jid}.mp4"))
 
+    print("\n[T] le téléphone appairé (G6)")
+    from app.services import appairage                                # noqa: E402
+    jeton, _ = asyncio.run(appairage.reclamer(appairage.creer_secret().secret, "Pixel"))
+    H = {"Authorization": "Bearer " + jeton}
+    with open(SRC5, "rb") as fh:
+        r = lan.post("/api/avatar-live/recast/source", files={"fichier": ("tel.mp4", fh, "video/mp4")}, headers=H)
+    dtel = r.json().get("depot", "") if r.status_code == 200 else ""
+    check("T1 le téléphone dépose sa prise (écriture ouverte, vérifiée par ffprobe comme sur le PC)",
+          r.status_code == 200 and RS.chemin_depot(dtel) is not None, r.text[:200])
+    RS._fal_subscribe = f_subscribe
+    plafonds.enregistrer({"par_moteur": {"fal": 0.0001}})
+    r = lan.post("/api/avatar-live/recast", json={"source": {"depot": dtel}, "personnage_id": pid, "modele": "remplacer"},
+                 headers=H)
+    check("T2 ...et lance un Recast : la MÊME garde du plafond le refuse (402) avant tout envoi",
+          r.status_code == 402 and "dz_plafond" in r.text, r.text[:200])
+    plafonds.enregistrer({"par_moteur": {}})
+    r = lan.post("/api/avatar-live/recast", json={"source": {"depot": dtel}, "personnage_id": pid, "modele": "remplacer"},
+                 headers=H)
+    check("T3 sous le plafond : le job part depuis le téléphone", r.status_code == 200 and r.json().get("job_id"), r.text[:200])
+    check("T4 sans jeton depuis le Wi-Fi : 401, rien", lan.post("/api/avatar-live/recast", json={}).status_code == 401)
+    check("T5 créer un Personnage reste réservé au PC (le consentement se donne là)",
+          lan.post("/api/avatar-live/personnages", json={"nom": "x", "images": [png()], "consentement": True},
+                   headers=H).status_code == 403)
+
 print("\n[R] recensement")
 import _recensement_payant as RP                                    # noqa: E402
 rec = RP.recenser()

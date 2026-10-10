@@ -83,7 +83,7 @@ with TestClient(app, client=("127.0.0.1", 50000), raise_server_exceptions=False)
     check("A2 la route est ouverte au Wi-Fi, ELLE SEULE de plus",
           _MAIN._ECRITURES_OUVERTES == frozenset({("POST", "/api/pair/claim"), ("POST", "/api/sync/lot/etat"),
                                                   ("POST", "/api/sync/depot"), ("POST", "/api/sync/depenses"), ("POST", "/api/sync/chapitre/prendre"), ("POST", "/api/sync/chapitre/rendre"),
-                                                  ("POST", "/api/avatar-live/sessions"), ("POST", "/api/avatar-live/sessions/fin"), ("POST", "/api/avatar-live/sessions/voix")}), str(sorted(_MAIN._ECRITURES_OUVERTES)))   # t161 : + le Direct
+                                                  ("POST", "/api/avatar-live/sessions"), ("POST", "/api/avatar-live/sessions/fin"), ("POST", "/api/avatar-live/sessions/voix"), ("POST", "/api/avatar-live/recast/source"), ("POST", "/api/avatar-live/recast"), ("POST", "/api/avatar-live/voix"), ("POST", "/api/avatar-live/decor"), ("POST", "/api/avatar-live/direct/enregistrer")}), str(sorted(_MAIN._ECRITURES_OUVERTES)))   # t161 : + le Direct
 
     print("\n[F] fusion dans la table Depense")
     vieux = (NOW - timedelta(days=62)).replace(day=15, hour=12)
