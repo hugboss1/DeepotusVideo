@@ -9501,7 +9501,7 @@ function DzImportGraph({graph,onOpen}){
   return r.jsxs(r.Fragment,{children:[
     r.jsx("input",{ref:rf,type:"file",accept:"application/json,.json",style:{display:"none"},
       onChange:function(ev){var f=ev.target.files&&ev.target.files[0];ev.target.value="";lire(f)}}),
-    r.jsx(K,{variant:"outline",size:"sm",icon:"upload",title:dzT("studio.import.bouton_aide"),
+    r.jsx(K,{variant:"outline",size:"sm",icon:"dz-action-importer",title:dzT("studio.import.bouton_aide"),
       "aria-label":dzT("studio.import.titre"),onClick:function(){rf.current&&rf.current.click()},children:dzT("studio.import.bouton")})]})}
 /* Tâche #70 (plan-studio T8, 02/10/2026) — le tiroir de résultat du Studio se PARCOURT image par image. La cadence est
    LUE dans le fichier rendu (GET /api/jobs/{id}/media, ffprobe) : le nœud Render n'est pas lu par le compilateur, et un
@@ -9596,7 +9596,7 @@ function DzRecetteBtn({graph,setGraph,dire}){
       dire(dzT("studio.recette.figee",{nom:d.name,n:d.trous||0}))}
     catch(E){await window.__dzDialogue.informer(String(E&&E.message||E),{titre:dzT("studio.recette.impossible")})}
     finally{setB(!1)}}
-  return r.jsx(K,{variant:"outline",size:"sm",icon:"check",disabled:busy,"aria-label":dzT("studio.recette.figer"),
+  return r.jsx(K,{variant:"outline",size:"sm",icon:"dz-action-figer-recette",disabled:busy,"aria-label":dzT("studio.recette.figer"),
     title:dzT("studio.recette.figer_aide"),
     onClick:figer,children:busy?dzT("studio.recette.capture"):dzT("studio.recette.bouton")})}
 /* Tâche #71 PR B (plan-studio T11, 03/10/2026) — le DUEL DE MOTEURS sur un nœud Image gen : le même prompt, au même
@@ -9649,7 +9649,7 @@ function DzDuelPanel({node,graph,onUpdate}){
   return r.jsxs("div",{className:"dz-duel",style:box,children:[
     r.jsx("div",{style:{color:"var(--ink-soft)",marginBottom:6},children:dzT("studio.duel.champion",{nom:dzDuelLabel(mm,A)})}),
     r.jsx("div",{style:{marginBottom:6},children:r.jsx(DzImgModelSel,{value:B,onChange:function(v){onUpdate({duelModel:v})}})}),
-    r.jsx(K,{variant:"outline",size:"sm",icon:"sparkle",disabled:busy||!B||B===A,onClick:lancer,
+    r.jsx(K,{variant:"outline",size:"sm",icon:"dz-action-duel",disabled:busy||!B||B===A,onClick:lancer,
       title:dzT("studio.duel.lancer_aide"),
       children:busy?dzT("studio.duel.bref"):dzT("studio.duel.lancer")}),
     res?r.jsx("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:8},children:res.map(function(o,ix){
@@ -9794,7 +9794,7 @@ function DzKits({onChange}){
   return r.jsxs(jt,{className:"dz-kits",style:{padding:14,marginBottom:14},children:[
     r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:8},children:[
       r.jsx("div",{style:{fontWeight:600,color:"var(--ink-strong)",flex:1},children:dzT("biblio.kits.titre")+(actif?dzT("biblio.kits.champs_modifient",{nom:actif.name}):"")}),
-      r.jsx(K,{variant:"outline",size:"sm",icon:"plus",disabled:busy,onClick:nouveau,title:dzT("biblio.kits.nouveau_aide"),children:dzT("biblio.kits.nouveau")})]}),
+      r.jsx(K,{variant:"outline",size:"sm",icon:"dz-action-ajouter",disabled:busy,onClick:nouveau,title:dzT("biblio.kits.nouveau_aide"),children:dzT("biblio.kits.nouveau")})]}),
     L?null:r.jsx("div",{style:{fontSize:11,color:"var(--ink-muted)"},children:dzT("biblio.kits.chargement")}),
     r.jsx("div",{style:{display:"flex",flexDirection:"column",gap:6},children:kits.map(function(k){
       return r.jsxs("div",{className:"dz-kit",style:{display:"flex",alignItems:"center",gap:8,padding:6,borderRadius:"var(--r-sm)",

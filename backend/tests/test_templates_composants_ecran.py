@@ -29,7 +29,7 @@ r0 = subprocess.run(["git", "show", f"{BASE}:frontend/dist/assets/index-BEOJX8L5
 check("T1 temoin : la base a l'editeur (rangee Add) mais pas la barre des composants", r0.returncode == 0
       and b'children:"+ "+z[1]},z[0])})' in r0.stdout and b"DzComposantBar" not in r0.stdout)
 check("T2 la barre suit la rangee « Add: » (toile g x v, cases d / u, selection m / f) ; l'inspecteur suit la section Animation ; la toile dessine le composant AU CENTRE de la chaine d'apercus",
-      BUN.count('children:"+ "+z[1]},z[0])}),r.jsx(DzComposantBar,{W:g,H:v,regs:d,setRegs:u,select:m,sel:f})') == 1
+      BUN.count('children:z[2]?["+ "].concat(__dzGlT(z[2],z[1],z[3])):"+ "+z[1]},z[0])}),r.jsx(DzComposantBar,{W:g,H:v,regs:d,setRegs:u,select:m,sel:f})') == 1
       and BUN.count('r.jsx(DzAnimEditor,{rg:c,upd:function(pt){p(c.id,pt)}}),r.jsx(DzComposantEditor,{rg:c,upd:function(pt){p(c.id,pt)}}),') == 1
       and BUN.count("children:[dzAnimApercu(j,dzTexteApercu(j,dzMasqueApercu(j,dzComposantFace(j,dzRegionFace(j))))),") == 1)
 

@@ -1038,7 +1038,9 @@ src = LAYER.read_bytes().decode("utf-8-sig")
 _i = s.find(nl(P.BEGIN))
 _j = s.find(nl(P.END), _i if _i >= 0 else 0)
 _bloc = s[_i + len(nl(P.BEGIN)):_j].strip() if _i >= 0 and _j > _i else ""
-check("bloc_EST_la_couche_octet_pour_octet", _bloc == nl(src).strip(),
+# icônes G1 (10/10) : `s` est la vue d'avant G1 (avant_i18n_l4 défait aussi le maillon dzglyph et ses éditions de
+# couches) ; la couche se compare donc dans la même vue — test_icones_g1 garantit bloc livré == fichier à l'octet
+check("bloc_EST_la_couche_octet_pour_octet", _bloc == nl(AIDE.couche_avant_dzglyph(src, "montage")).strip(),
       f"bloc={len(_bloc)} o, couche={len(nl(src).strip())} o — le bundle "
       f"n'execute pas le fichier que ce banc mesure")
 check("bloc_contient_la_couche", nl("window.DzTracks=DzTracks;") in s

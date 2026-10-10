@@ -195,11 +195,20 @@ def _json_zone(dico, zone):
                               for k, v in z.items()) + "\n}\n"
 
 
+def _g1(texte, cible):
+    """Icônes G1 (scripts/icones/g1_generer.py) posées PAR-DESSUS la couche traduite : la source du poste les porte."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("g1_generer", RACINE / "scripts" / "icones" / "g1_generer.py")
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return m.appliquer_couche_g1(texte, cible)
+
+
 def sorties(couches, table, dico, gardes):
     """chemin -> octets attendus"""
     out = {PAIRES: _json_paires(table, gardes).encode("utf-8")}
     for c, s in couches.items():
-        out[RACINE / CIBLES[c]] = s.encode("utf-8")
+        out[RACINE / CIBLES[c]] = _g1(s, c).encode("utf-8")
     for zone, fichier in ZONES.items():
         out[RACINE / "frontend" / "shared" / "i18n" / fichier] = _json_zone(dico, zone).encode("utf-8")
     return out

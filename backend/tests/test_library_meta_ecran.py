@@ -64,7 +64,7 @@ check("B6 la recherche lit AUSSI les tags (Bibliotheque et selecteur)",
 check("B7 la rangee de chips, la vignette et l'editeur de la fiche sont poses",
       s.count('r.jsx(DzMetaChips,{o:o,T:T,f:dzMF,setF:dzMFs}),o==="Audio"&&') == 1
       and s.count('children:C.provider}),dzCarteMeta(C,function(){dzMFs(function(v){return Object.assign({},v)})})') == 1
-      and s.count('r.jsx(se,{name:"close",onClick:()=>y(null)})]}),r.jsx(DzMetaEditor,{m:m,maj:') == 1)
+      and s.count('r.jsx(se,{name:"dz-action-fermer",onClick:()=>y(null)})]}),r.jsx(DzMetaEditor,{m:m,maj:') == 1)
 check("B8 le renommage ne bascule PLUS le favori (le serveur l'emporte) : il deplace le cache",
       s.count("dzFavRenomme(m.name,j.new)") == 1 and "__dzFavImgToggle(j.new)" not in s)
 check("B9 fins de ligne : le bundle reste en CRLF homogene", braw.count(b"\r\n") > 15000

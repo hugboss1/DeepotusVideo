@@ -41,8 +41,8 @@ ENTREES = [
       "Disable halo pulse, edge cascade, splash zoom, caustics. Honors "),
     L(675352, "reglages.apparence.mouvement_auto", " automatiquement.", " automatically."),
     L(675604, "reglages.apparence.halo", "Halo de tentacules sur le nœud actif", "Tentacle halo on active node"),
-    L(675703, "reglages.apparence.halo_aide", "🐙 L'effet des profondeurs sur le nœud du Studio en cours.",
-      "🐙 The deep flair on the running Studio node."),
+    L(675703, "reglages.apparence.halo_aide", "L'effet des profondeurs sur le nœud du Studio en cours.",
+      "The deep flair on the running Studio node."),
 
     # _m : Chemins
     L(675852, "reglages.chemins.images", "Dossier des images", "Images folder"),

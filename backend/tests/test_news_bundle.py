@@ -176,10 +176,12 @@ if node:
     js = "\n".join(fns + [r"""
 function El(t){this.tagName=t;this.children=[];this.style={};this._t="";this.value="";this.title="";this.disabled=false;this._ev={}}
 Object.defineProperty(El.prototype,"textContent",{set:function(v){this._t=String(v);if(v==="")this.children=[]},get:function(){return this._t}});
-El.prototype.appendChild=function(c){this.children.push(c);c.parentNode=this;return c};
+El.prototype.appendChild=function(c){if(c&&c.nodeType===3){this._t+=c._t;return c}this.children.push(c);c.parentNode=this;return c};
+// icônes G1 : la liste des articles s'écrit en nœuds texte + icône (insertAdjacentHTML) ; l'icône se lit « ⟦clé⟧ »
+El.prototype.insertAdjacentHTML=function(p,h){var m=/data-dzi="([^"]+)"/.exec(h);this._t+=(m?"\u27e6"+m[1]+"\u27e7":"")+h.replace(/<[^>]*>/g,"")};
 El.prototype.addEventListener=function(t,f){this._ev[t]=f};El.prototype.remove=function(){};
 Object.defineProperty(El.prototype,"innerHTML",{set:function(v){this.children=[]},get:function(){return ""}});
-globalThis.document={createElement:function(t){return new El(t)},getElementById:function(){return null},body:new El("body"),
+globalThis.document={createElement:function(t){return new El(t)},createTextNode:function(t){return {nodeType:3,_t:String(t)}},getElementById:function(){return null},body:new El("body"),
   addEventListener:function(){},removeEventListener:function(){}};
 globalThis.window={dispatchEvent:function(){globalThis.recharge=(globalThis.recharge||0)+1}};globalThis.CustomEvent=function(n){this.n=n};
 function tous(e,out){out=out||[];out.push(e);(e.children||[]).forEach(function(c){tous(c,out)});return out}
@@ -238,7 +240,7 @@ var attendre=function(){return new Promise(function(r){setTimeout(r,20)})};
     check("C9 preparer envoie le brief, la forme CHOISIE, 3 articles et le canal", o.get("prev") == {"brief": "crypto Solana", "forme": "avatar",
           "articles_max": 3, "language": "EN", "canal": "x"}, str(o.get("prev")))
     check("C10 le lot s'affiche : articles (etoile, score, tendance), script, legende, creneau editables ; voix et cout dits",
-          any("★ 64/100 Solana record — tendance (3 médias)" in t for t in o.get("pres", []))
+          any("⟦dz-etat-meilleur⟧ 64/100 Solana record — tendance (3 médias)" in t for t in o.get("pres", []))
           and "Script (brouillon)=Brouillon." in o.get("champs", []) and "Légende=Legende" in o.get("champs", [])
           and "Créneau (ISO, UTC)=2026-10-04T17:30:00+00:00" in o.get("champs", [])
           and any("Voix : alpha" in t and "0.00 $" in t for t in o.get("pres", [])) and o.get("visibles") == ["", ""], str(o.get("pres")))
