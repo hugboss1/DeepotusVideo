@@ -1,0 +1,70 @@
+{
+  "titre": {
+    "fr": "Chercher un réglage",
+    "en": "Search a setting"
+  },
+  "legende": {
+    "fr": "La recherche des Réglages trouve un réglage par son nom et ouvre directement la bonne section.",
+    "en": "Settings search finds a setting by its name and opens the right section directly."
+  },
+  "captures": [
+    {
+      "fr": "vide.fr.webp",
+      "en": "vide.en.webp"
+    },
+    {
+      "fr": "frappe.fr.webp",
+      "en": "frappe.en.webp"
+    },
+    {
+      "fr": "ouvert.fr.webp",
+      "en": "ouvert.en.webp"
+    }
+  ],
+  "taille": [
+    1208,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2,
+      "surligne": [
+        8,
+        89,
+        223,
+        43
+      ],
+      "bulle": {
+        "fr": "Tapez ce que vous cherchez",
+        "en": "Type what you are looking for"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.4,
+      "surligne": [
+        8,
+        89,
+        223,
+        43
+      ],
+      "ancre": [
+        120,
+        127
+      ],
+      "bulle": {
+        "fr": "Les sections qui en parlent s'affichent",
+        "en": "The matching sections show up"
+      }
+    },
+    {
+      "capture": 2,
+      "duree": 3,
+      "bulle": {
+        "fr": "Entrée ouvre la première",
+        "en": "Enter opens the first one"
+      }
+    }
+  ]
+}

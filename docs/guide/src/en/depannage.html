@@ -1,0 +1,12 @@
+<table>
+  <tr><th>Symptom</th><th>Fix</th></tr>
+  <tr><td><code>down</code> pill top-right</td><td>The engine isn't running: relaunch the Desktop icon.</td></tr>
+  <tr><td>Red pill on <code>fal</code>/<code>heygen</code>/<code>voice</code></td><td>Missing/invalid key: Settings → API keys, fix, restart.</td></tr>
+  <tr><td>HeyGen avatars are slow to appear (or the list looks empty at first)</td><td><strong>Normal on the very first load</strong>: HeyGen returns 1,000+ avatars and takes up to ~1 min to respond (their service is slow). The app pre-loads the list at startup and caches it — wait once, then it's instant. If the <strong>HeyGen status</strong> is green in Settings, your key is fine: it's neither the key, the network, nor the antivirus.</td></tr>
+  <tr><td>A voice gives a "paid plan" error</td><td>On the ElevenLabs free plan, only "premade" voices work via the API; custom library/community voices need a paid ElevenLabs plan. Pick a premade voice, or upgrade ElevenLabs.</td></tr>
+  <tr><td>After a restart, keys/library "gone"</td><td>No data is lost (it lives in <code>%LOCALAPPDATA%\DeepotusVideoGenData</code>). Relaunch cleanly via the Desktop icon.</td></tr>
+  <tr><td>The plan uses the built-in planner</td><td>No Anthropic key nor Ollama model (chapters 11–12).</td></tr>
+  <tr><td><code>CERTIFICATE_VERIFY_FAILED</code> error</td><td>Antivirus inspecting HTTPS — handled automatically; otherwise disable HTTPS inspection.</td></tr>
+  <tr><td>"Port 8765 already in use"</td><td>The app is already running — open <code>http://deepotus.localhost:8765</code>.</td></tr>
+  <tr><td>Where are my files?</td><td>Images: <code>…\DeepotusVideoGenData\assets\images</code> · Videos: <code>…\assets\outputs\final</code> · Your uploads: <code>…\assets\outputs\uploads</code> · Sounds: <code>…\assets\audio</code>.</td></tr>
+</table>

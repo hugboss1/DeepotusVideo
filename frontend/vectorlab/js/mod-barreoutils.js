@@ -5,6 +5,7 @@
 // d'angle / l'appui long ouvrent le flyout vertical de la famille (rendu
 // par mod-flyout), un raccourci qui choisit un membre replié fait
 // basculer la famille. Le membre courant est mémorisé (dz_vl_familles).
+import { T } from "./mod-i18n.js";
 import { FAMILLES, famille_de, membre_courant, choisir_membre, flyout_famille, touche_de } from "./mod-familles.js";
 import { icone_svg } from "./mod-icones.js";
 
@@ -29,7 +30,7 @@ export function initBarreOutils(VL) {
   for (const b of nav.querySelectorAll("button[data-outil]")) {
     b.innerHTML = icone_svg(b.dataset.outil, 18);
     const t = touche_de(b.dataset.outil);
-    if (t && !/\([A-Z]\)\s*$/.test(b.title)) b.title = `${b.title} (${t})`;
+    if (t && !/\([A-Z]\)\s*$/.test(b.title)) b.title = `${(window.__dzI18n && window.__dzI18n.traduire(b.title)) || b.title} (${t})`;
   }
   // 3. replier : seul le membre courant de chaque famille est visible
   function appliquer() {

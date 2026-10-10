@@ -1,3 +1,4 @@
+import { T } from "./mod-i18n.js";
 // mod-controles.js — contrôles maison des panneaux (finitions UI, 20/09/2026) :
 // <vl-curseur> (piste 4 px, poignée ronde, valeur éditable, molette ±1,
 // Maj ±10), <vl-curseur-couleur> (pastille colorée, mode="teinte" = roue des
@@ -61,7 +62,7 @@ export function initControles(VL) {
       this._pret = true;
       this.tabIndex = this.hasAttribute("disabled") ? -1 : 0;
       this.setAttribute("role", "slider");
-      this.innerHTML = `<span class="vl-curseur-piste"><span class="vl-curseur-plein"></span><span class="vl-curseur-poignee"></span></span><input class="vl-curseur-val" type="text" inputmode="decimal" aria-label="valeur">`;
+      this.innerHTML = `<span class="vl-curseur-piste"><span class="vl-curseur-plein"></span><span class="vl-curseur-poignee"></span></span><input class="vl-curseur-val" type="text" inputmode="decimal" aria-label="${T("vectorlab.controles.valeur")}">`;
       this._val = this.querySelector(".vl-curseur-val");
       const piste = this.querySelector(".vl-curseur-piste");
       const poser = (ev, fin) => {
@@ -121,7 +122,7 @@ export function initControles(VL) {
       const teinte = this.getAttribute("mode") === "teinte";
       this.innerHTML = teinte
         ? `<span class="vl-curseur-piste vl-teintes"><span class="vl-curseur-poignee"></span></span>`
-        : `<span class="vl-couleur-pastille" title="${this.getAttribute("title") || "Clic : nuancier · double-clic : sélecteur système"}"></span><input type="color" class="vl-couleur-natif" tabindex="-1" aria-hidden="true">`;
+        : `<span class="vl-couleur-pastille" title="${this.getAttribute("title") || T("vectorlab.controles.pastille_titre")}"></span><input type="color" class="vl-couleur-natif" tabindex="-1" aria-hidden="true">`;
       if (teinte) {
         const piste = this.querySelector(".vl-curseur-piste");
         const poser = (ev, fin) => { const r = piste.getBoundingClientRect(); this._poser(curseur_valeur(ev.clientX - r.left, r.width, { min: 0, max: 359, step: 1 }), fin); };

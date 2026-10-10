@@ -10,7 +10,7 @@ Ce qu'il pose (ancres uniques, relevées le 10/10 sur le bundle de main e7fb1ac1
   - P2 la vue : une iframe `/avatar/`, clé `pavlive`, après celle du Photolab ; `allow` donne caméra et micro à la
     page (le Direct en a besoin : une iframe ne les reçoit PAS par défaut) ;
   - P3 `avatarlive` entre dans la liste blanche des vues de `deepotus:navigate` : `?view=avatarlive` ouvre l'écran.
-Maillon de QUEUE, APRÈS dzsched (dont il sonde le marqueur) ; comme lui, il garde un .js.bak_avatar le temps de
+Maillon de QUEUE, APRÈS dzsched et dzgbar (dont il sonde les marqueurs) ; comme lui, il garde un .js.bak_avatar le temps de
 l'écriture puis le SUPPRIME, et `version` reste le dernier maillon. Son INVERSE est `avant_avatar` dans
 backend/tests/_i18n_l1_aide.py (lu sur les PAIRES d'ici : une seule source). Lecture et écriture en OCTETS.
 Run : python scripts/patch_bundle_avatar.py [--check]
@@ -25,6 +25,7 @@ TAG = "avatar"
 MARKER = '{id:"avatarlive",'
 
 SONDE_AMONT = [
+    ("dzgbar", '"data-dz-gbar":"1"', 1),
     ("dzsched", '"data-dz-debord":"1"', 1),
     ("dzglyph", "function __dzGlyphe(", 1),
     ("photolab", '{id:"photolab",', 1),

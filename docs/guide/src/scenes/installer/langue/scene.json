@@ -1,0 +1,37 @@
+{
+  "titre": {
+    "fr": "Changer de langue",
+    "en": "Switch language"
+  },
+  "legende": {
+    "fr": "Réglages › Fournisseurs par défaut › Langue de l'interface : la page se recharge dans la langue choisie.",
+    "en": "Settings › Provider defaults › Interface language: the page reloads in the chosen language."
+  },
+  "captures": [
+    {
+      "fr": "langue.fr.webp",
+      "en": "langue.en.webp"
+    }
+  ],
+  "taille": [
+    1208,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 3.2,
+      "surligne": [
+        277,
+        443,
+        272,
+        30
+      ],
+      "voile": true,
+      "bulle": {
+        "fr": "Français ou anglais, pour toute l'application",
+        "en": "French or English, for the whole app"
+      }
+    }
+  ]
+}

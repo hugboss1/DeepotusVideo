@@ -5,6 +5,7 @@
 // raster va au magasin du DOCUMENT (POST /vector/docs/<id>/images), jamais
 // en base64 dans le JSON. La logique PURE est en tête (banc node) ;
 // initImage ne touche le DOM qu'à l'appel.
+import { T } from "./mod-i18n.js";
 import { dzi } from "./mod-icones.js";
 import { op_ajouter, op_image_rogner, op_image_verrou, op_reperes,
          reperes_rects } from "./mod-doc.js";
@@ -27,7 +28,7 @@ export function image_url(docId, href, rev, px) {
 
 // la pose par défaut : contenue dans la page (jamais agrandie), centrée
 export function image_poser_spec(nat, taille) {
-  if (!(nat && nat.w > 0 && nat.h > 0)) throw new Error("image: taille native inconnue");
+  if (!(nat && nat.w > 0 && nat.h > 0)) throw new Error(T("vectorlab.image.taille_inconnue"));
   const k = Math.min(1, taille.w / nat.w, taille.h / nat.h);
   const w = Math.max(1, Math.round(nat.w * k)), h = Math.max(1, Math.round(nat.h * k));
   return { x: Math.round((taille.w - w) / 2), y: Math.round((taille.h - h) / 2), w, h };
@@ -74,7 +75,7 @@ export function libListeHTML(images, q) {
   const f = String(q || "").toLowerCase();
   const vus = (images || []).filter((i) => !f || String(i.filename).toLowerCase().includes(f));
   if (!vus.length) {
-    return `<p class="lib-vide">Aucune image${f ? ` pour « ${esc(q)} »` : " dans la Bibliothèque"}.</p>`;
+    return `<p class="lib-vide">${f ? T("vectorlab.image.aucune_pour", { q: esc(q) }) : T("vectorlab.image.aucune_biblio")}</p>`;
   }
   return vus.map((i) => `<button class="lib-carte" data-lib-nom="${esc(i.filename)}"
     title="${esc(i.filename)}${i.width ? ` — ${i.width}×${i.height}` : ""}">
@@ -100,7 +101,7 @@ export function initImage(VL) {
       const url = URL.createObjectURL(blob);
       const im = new Image();
       im.onload = () => { URL.revokeObjectURL(url); res(im); };
-      im.onerror = () => { URL.revokeObjectURL(url); rej(new Error("image illisible")); };
+      im.onerror = () => { URL.revokeObjectURL(url); rej(new Error(T("vectorlab.image.illisible"))); };
       im.src = url;
     });
   }
@@ -111,10 +112,10 @@ export function initImage(VL) {
     cv.width = im.naturalWidth; cv.height = im.naturalHeight;
     cv.getContext("2d").drawImage(im, 0, 0);
     return new Promise((res, rej) => cv.toBlob((b) => b ? res(b)
-      : rej(new Error("ré-encodage PNG impossible")), "image/png"));
+      : rej(new Error(T("vectorlab.image.reencodage"))), "image/png"));
   }
   async function poserBlob(blob) {
-    if (!etat.docId) throw new Error("aucun document ouvert");
+    if (!etat.docId) throw new Error(T("vectorlab.image.aucun_doc"));
     const im = await decoder(blob);
     const nat = { w: im.naturalWidth, h: im.naturalHeight };
     const png = await versPNG(blob, im);
@@ -127,9 +128,9 @@ export function initImage(VL) {
   }
   async function poserDepuisLibrary(nom) {
     const r = await fetch("/api/images/" + encodeURIComponent(nom));
-    if (!r.ok) throw new Error(`Bibliothèque : ${nom} introuvable (${r.status})`);
+    if (!r.ok) throw new Error(T("vectorlab.image.biblio_introuvable", { nom, status: r.status }));
     await poserBlob(await r.blob());
-    VL.toast(`« ${nom} » posée`);
+    VL.toast(T("vectorlab.image.posee", { nom }));
   }
 
   /* ── Bibliothèque : le sélecteur du parent, sinon la grille de repli ── */
@@ -140,14 +141,14 @@ export function initImage(VL) {
     try { picker = parent && typeof parent.__dzLibPicker === "function" ? parent.__dzLibPicker : null; }
     catch (e) { picker = null; }             // parent d'une autre origine : repli
     if (picker) {
-      picker({ titre: "Poser une image dans le Vectorlab" },
+      picker({ titre: T("vectorlab.image.picker_titre") },
         (nom) => poserDepuisLibrary(nom).catch((e) => VL.toast(e.message, true)));
       return;
     }
     const dlg = $("#libDlg");
     dlg.classList.remove("hidden");
     $("#libRecherche").value = "";
-    $("#libGrille").innerHTML = `<p class="lib-vide">chargement…</p>`;
+    $("#libGrille").innerHTML = `<p class="lib-vide">${T("vectorlab.image.chargement")}</p>`;
     const d = await VL.api.get("/images");
     libImages = (d.images || []).slice().sort((a, b) => (b.mtime || 0) - (a.mtime || 0));
     $("#libGrille").innerHTML = libListeHTML(libImages, "");
@@ -168,7 +169,7 @@ export function initImage(VL) {
   const det = $("#assetsDetails");
   let assets = null;
   async function chargerAssets() {
-    $("#assetsGrille").innerHTML = `<p class="lib-vide">chargement…</p>`;
+    $("#assetsGrille").innerHTML = `<p class="lib-vide">${T("vectorlab.image.chargement")}</p>`;
     const d = await VL.api.get("/images");
     assets = (d.images || []).slice().sort((a, b) => (b.mtime || 0) - (a.mtime || 0));
     $("#assetsGrille").innerHTML = libListeHTML(assets, $("#assetsRecherche").value);
@@ -192,7 +193,7 @@ export function initImage(VL) {
   inputFichier.addEventListener("change", () => {
     const f = inputFichier.files && inputFichier.files[0];
     inputFichier.value = "";
-    if (f) poserBlob(f).then(() => VL.toast(`« ${f.name} » posée`))
+    if (f) poserBlob(f).then(() => VL.toast(T("vectorlab.image.posee", { nom: f.name })))
                        .catch((e) => VL.toast(e.message, true));
   });
 
@@ -204,32 +205,32 @@ export function initImage(VL) {
     const it = items.find((i) => i.type.startsWith("image/"));
     if (!it) return;                       // pas une image : le coller interne garde la main
     ev.preventDefault();
-    poserBlob(it.getAsFile()).then(() => VL.toast("image du presse-papiers posée"))
+    poserBlob(it.getAsFile()).then(() => VL.toast(T("vectorlab.image.pp_posee")))
       .catch((e) => VL.toast(e.message, true));
   });
   async function collerImage() {
     if (!navigator.clipboard || !navigator.clipboard.read) {
-      throw new Error("presse-papiers : utiliser Ctrl+V sur la scène");
+      throw new Error(T("vectorlab.image.pp_ctrlv"));
     }
     for (const item of await navigator.clipboard.read()) {
       const t = item.types.find((x) => x.startsWith("image/"));
-      if (t) { await poserBlob(await item.getType(t)); VL.toast("image du presse-papiers posée"); return; }
+      if (t) { await poserBlob(await item.getType(t)); VL.toast(T("vectorlab.image.pp_posee")); return; }
     }
-    throw new Error("le presse-papiers ne contient pas d'image");
+    throw new Error(T("vectorlab.image.pp_vide"));
   }
 
   /* ── génération : la route existante, la clé dépensée est dite ── */
   async function generer() {
-    const p = await VL.dialogue.saisir("Décrire l'image à générer (dépense la clé du fournisseur des Réglages) :", { valeur: "", titre: "Générer une image", valider: "Générer" });
+    const p = await VL.dialogue.saisir(T("vectorlab.image.generer_question"), { valeur: "", titre: T("vectorlab.image.generer_titre"), valider: T("vectorlab.image.generer") });
     if (!p) return;
-    VL.toast("génération en cours…");
+    VL.toast(T("vectorlab.image.generation"));
     const r = await fetch("/api/images/generate", { method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prompt: p, n: 1, source: "vectorlab" }) });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.detail || r.statusText);
     const nom = (d.images || [])[0];
-    if (!nom) throw new Error("la génération n'a rendu aucune image");
+    if (!nom) throw new Error(T("vectorlab.image.generation_vide"));
     await poserDepuisLibrary(nom);
   }
 
@@ -253,12 +254,12 @@ export function initImage(VL) {
     if (t && t.objet.type === "image") return t.objet.id;
     const toutes = imagesDuDoc();
     if (toutes.length === 1) return toutes[0].id;
-    if (!toutes.length) throw new Error("aucune image dans le document — Image ▾ pour en poser une");
-    const rep = await VL.dialogue.saisir("Quelle image ?\n" + toutes.map((o, i) =>
-      `${i + 1}) ${o.id} — ${o.href} (${o.nat.w}×${o.nat.h})`).join("\n"), { valeur: "1", titre: "Image cible" });
-    if (rep === null) throw new Error("annulé");
+    if (!toutes.length) throw new Error(T("vectorlab.image.aucune_doc"));
+    const rep = await VL.dialogue.saisir(T("vectorlab.image.quelle") + "\n" + toutes.map((o, i) =>
+      `${i + 1}) ${o.id} — ${o.href} (${o.nat.w}×${o.nat.h})`).join("\n"), { valeur: "1", titre: T("vectorlab.image.cible") });
+    if (rep === null) throw new Error(T("vectorlab.image.annule"));
     const o = toutes[(+rep || 0) - 1];
-    if (!o) throw new Error("numéro inconnu");
+    if (!o) throw new Error(T("vectorlab.image.numero_inconnu"));
     return o.id;
   }
 
@@ -273,16 +274,16 @@ export function initImage(VL) {
     const r = o.rognage || { x: 0, y: 0, w: o.nat.w, h: o.nat.h };
     hote.innerHTML = `
       <div class="ap-ligne"><span>Source</span><i class="img-src" title="${esc(o.href)}">${esc(o.href)} · ${o.nat.w}×${o.nat.h}</i></div>
-      <div class="ap-ligne"><span>Rogner</span>
-        <input type="number" id="imRx" min="0" value="${r.x}" title="X de la fenêtre (px de l'image)"/>
-        <input type="number" id="imRy" min="0" value="${r.y}" title="Y de la fenêtre"/></div>
+      <div class="ap-ligne"><span>${T("vectorlab.image.rogner")}</span>
+        <input type="number" id="imRx" min="0" value="${r.x}" title="${T("vectorlab.image.rx_titre")}"/>
+        <input type="number" id="imRy" min="0" value="${r.y}" title="${T("vectorlab.image.ry_titre")}"/></div>
       <div class="ap-ligne"><span></span>
-        <input type="number" id="imRw" min="1" value="${r.w}" title="Largeur de la fenêtre"/>
-        <input type="number" id="imRh" min="1" value="${r.h}" title="Hauteur de la fenêtre"/>
-        <button id="imRognerRaz" title="Image entière" aria-label="Image entière">${dzi("dz-action-reinitialiser", 16)}</button></div>
-      <div class="ap-ligne"><span>Verrou</span>
-        <button id="imVerrou" class="${o.verrou ? "actif" : ""}" title="Verrouillé : aucune commande ne bouge, ne redimensionne ni ne supprime l'image">${o.verrou ? dzi("dz-etat-verrouille", 16) + "verrouillée" : dzi("dz-etat-libre", 16) + "libre"}</button>
-        <button id="imVectoriser" title="Vectoriser cette image en aplats de couleur (aperçu avant validation)">${dzi("dz-edit-vectoriser", 16)}Vectoriser…</button></div>`;
+        <input type="number" id="imRw" min="1" value="${r.w}" title="${T("vectorlab.image.rw_titre")}"/>
+        <input type="number" id="imRh" min="1" value="${r.h}" title="${T("vectorlab.image.rh_titre")}"/>
+        <button id="imRognerRaz" title="${T("vectorlab.image.entiere")}" aria-label="${T("vectorlab.image.entiere")}">${dzi("dz-action-reinitialiser", 16)}</button></div>
+      <div class="ap-ligne"><span>${T("vectorlab.image.verrou")}</span>
+        <button id="imVerrou" class="${o.verrou ? "actif" : ""}" title="${T("vectorlab.image.verrou_titre")}">${o.verrou ? dzi("dz-etat-verrouille", 16) + T("vectorlab.image.verrouillee") : dzi("dz-etat-libre", 16) + T("vectorlab.image.libre")}</button>
+        <button id="imVectoriser" title="${T("vectorlab.image.vectoriser_titre")}">${dzi("dz-edit-vectoriser", 16)}${T("vectorlab.image.vectoriser")}</button></div>`;
     const lireRognage = () => rognage_normaliser({ x: +$("#imRx").value, y: +$("#imRy").value,
       w: +$("#imRw").value, h: +$("#imRh").value }, o.nat);
     for (const id of ["imRx", "imRy", "imRw", "imRh"]) {
@@ -301,13 +302,13 @@ export function initImage(VL) {
     const nv = (v) => v === undefined ? "" : Math.round(VL.versUnite(v[0]) * 100) / 100;
     const suf = VL.unites().affichage;
     hoteRep.innerHTML = `
-      <div class="ap-ligne"><span>Coupe</span>
+      <div class="ap-ligne"><span>${T("vectorlab.image.coupe")}</span>
         <input type="number" id="repFond" step="any" min="0" value="${nv(r.fondPerdu)}" placeholder="—"
-               title="Fond perdu : retrait de la ligne de coupe depuis le bord (${suf}) — vide = aucun"/>
+               title="${T("vectorlab.image.fond_perdu_titre", { suf })}"/>
         <i class="rep-pastille rep-fond"></i></div>
-      <div class="ap-ligne"><span>Zone sûre</span>
+      <div class="ap-ligne"><span>${T("vectorlab.image.zone_sure")}</span>
         <input type="number" id="repSure" step="any" min="0" value="${nv(r.zoneSure)}" placeholder="—"
-               title="Zone sûre : retrait depuis le bord (${suf}) — vide = aucune"/>
+               title="${T("vectorlab.image.zone_sure_titre", { suf })}"/>
         <i class="rep-pastille rep-sure"></i></div>`;
     const lire = (id) => { const v = $("#" + id).value.trim(); return v === "" ? null : VL.depuisUnite(+v); };
     $("#repFond").addEventListener("change", () => VL.executer(op_reperes, { fondPerdu: lire("repFond") }));

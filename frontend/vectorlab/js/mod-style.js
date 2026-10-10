@@ -3,6 +3,7 @@
 // joint), opacité, ordre z, grouper/dégrouper, stops du dégradé. Chaque
 // interaction = UNE commande via VL.executer ; le panneau reflète le
 // premier objet sélectionné, sinon le style courant des nouveaux objets.
+import { T } from "./mod-i18n.js";
 import { op_style, op_ordre, op_grouper, op_degrouper, op_degrade_creer,
          op_degrade_modifier, op_degrade_stop_ajouter,
          op_degrade_stop_modifier, op_degrade_stop_supprimer,
@@ -14,7 +15,7 @@ import { op_booleen, op_division, op_contour } from "./mod-bool.js";
 import { POLICES } from "./mod-texte3d.js";
 import { dzi } from "./mod-icones.js";
 
-const POINTILLES = [["", "plein"], ["6 4", "tirets"], ["2 3", "points"]];
+const POINTILLES = [["", T("vectorlab.style.trait_plein")], ["6 4", T("vectorlab.style.trait_tirets")], ["2 3", T("vectorlab.style.trait_points")]];
 const JOINTS = ["round", "miter", "bevel"];
 
 export function initStyle(VL) {
@@ -43,7 +44,7 @@ export function initStyle(VL) {
 
   function degradeDefaut(type) {
     if (etat.selection.length !== 1) {
-      VL.toast("sélectionne UN objet pour poser un dégradé", true);
+      VL.toast(T("vectorlab.style.degrade_un"), true);
       return;
     }
     const b = VL.bboxSelectionDoc();
@@ -102,90 +103,90 @@ export function initStyle(VL) {
       ${b ? `
       <div class="ap-ligne"><span>X · Y</span>
         <input type="text" id="apX" value="${nv(b.x)}"
-               title="X de la sélection (${suf})"/>
+               title="${T("vectorlab.style.x_titre", { suf })}"/>
         <input type="text" id="apY" value="${nv(b.y)}"
-               title="Y de la sélection (${suf})"/>
+               title="${T("vectorlab.style.y_titre", { suf })}"/>
       </div>
-      <div class="ap-ligne"><span>L · H</span>
+      <div class="ap-ligne"><span>${T("vectorlab.style.l_h")}</span>
         <input type="text" id="apW" value="${nv(b.w)}"
-               title="Largeur (${suf})"/>
+               title="${T("vectorlab.style.largeur_titre", { suf })}"/>
         <input type="text" id="apH" value="${nv(b.h)}"
-               title="Hauteur (${suf})"/>
+               title="${T("vectorlab.style.hauteur_titre", { suf })}"/>
       </div>
 ` : ""}`;
     hote.innerHTML += `
-      <div class="ap-ligne"><span>Fond</span>
+      <div class="ap-ligne"><span>${T("vectorlab.style.fond")}</span>
         <button class="nu-pastille" id="apFond" style="background:${fondCouleur}"
                 data-hex="${fondCouleur}"
-                title="Couleur de fond — ouvre le nuancier (RGB, CMJN, hex, palettes)"></button>
+                title="${T("vectorlab.style.fond_titre")}"></button>
         <button id="apFondAucun" class="${s.fond === "none" ? "actif" : ""}"
-                title="Sans fond" aria-label="Sans fond">${dzi("dz-edit-sans-couleur", 16)}</button>
-        <button id="apGradL" title="Dégradé linéaire (sélection unique)" aria-label="Dégradé linéaire">${dzi("dz-edit-degrade-lineaire", 16)}</button>
-        <button id="apGradR" title="Dégradé radial (sélection unique)" aria-label="Dégradé radial">${dzi("dz-edit-degrade-radial", 16)}</button>
+                title="${T("vectorlab.style.sans_fond")}" aria-label="${T("vectorlab.style.sans_fond")}">${dzi("dz-edit-sans-couleur", 16)}</button>
+        <button id="apGradL" title="${T("vectorlab.style.grad_l_titre")}" aria-label="${T("vectorlab.style.grad_l")}">${dzi("dz-edit-degrade-lineaire", 16)}</button>
+        <button id="apGradR" title="${T("vectorlab.style.grad_r_titre")}" aria-label="${T("vectorlab.style.grad_r")}">${dzi("dz-edit-degrade-radial", 16)}</button>
       </div>
-      <div class="ap-ligne"><span>Contour</span>
+      <div class="ap-ligne"><span>${T("vectorlab.style.contour")}</span>
         <button class="nu-pastille" id="apContour"
                 style="background:${s.contour && s.contour !== "none" ? s.contour : "#1F1512"}"
                 data-hex="${s.contour && s.contour !== "none" ? s.contour : "#1F1512"}"
-                title="Couleur de contour — ouvre le nuancier"></button>
+                title="${T("vectorlab.style.contour_titre")}"></button>
         <button id="apContourAucun"
                 class="${!s.contour || s.contour === "none" ? "actif" : ""}"
-                title="Sans contour" aria-label="Sans contour">${dzi("dz-edit-sans-contour", 16)}</button>
+                title="${T("vectorlab.style.sans_contour")}" aria-label="${T("vectorlab.style.sans_contour")}">${dzi("dz-edit-sans-contour", 16)}</button>
         <input type="number" id="apEpaisseur" min="0.5" max="200" step="0.5"
-               value="${s.epaisseur ?? 2}" title="Épaisseur"/>
+               value="${s.epaisseur ?? 2}" title="${T("vectorlab.style.epaisseur")}"/>
       </div>
-      <div class="ap-ligne"><span>Trait</span>
-        <select id="apPointilles" title="Pointillés">${POINTILLES.map(
+      <div class="ap-ligne"><span>${T("vectorlab.style.trait")}</span>
+        <select id="apPointilles" title="${T("vectorlab.style.pointilles")}">${POINTILLES.map(
           ([v, l]) => `<option value="${v}"${(s.pointilles || "") === v
             ? " selected" : ""}>${l}</option>`).join("")}</select>
-        <select id="apJoint" title="Joint des angles">${JOINTS.map(
+        <select id="apJoint" title="${T("vectorlab.style.joint")}">${JOINTS.map(
           (j) => `<option${(s.joint || "round") === j ? " selected" : ""}>${j}
           </option>`).join("")}</select>
       </div>
-      <div class="ap-ligne"><span>Opacité</span>
+      <div class="ap-ligne"><span>${T("vectorlab.style.opacite")}</span>
         <vl-curseur id="apOpacite" min="0" max="100" step="1"
                value="${Math.round((s.opacite ?? 1) * 100)}"></vl-curseur>
       </div>
-      <div class="ap-ligne"><span>Incliner</span>
-        <input type="number" id="apKx" step="1" value="0" title="Inclinaison horizontale skewX (°)"/>
-        <input type="number" id="apKy" step="1" value="0" title="Inclinaison verticale skewY (°)"/>
-        <button id="apIncliner" ${sel ? "" : "disabled"} title="Incline la sélection autour du pivot (⌖ déplaçable sur la scène)" aria-label="Incliner la sélection">${dzi("dz-edit-incliner", 16)}</button>
-        <button id="apPivotRaz" title="Ramène le pivot au centre de la sélection" aria-label="Ramène le pivot au centre de la sélection">${dzi("dz-edit-pivot", 16)}</button>
+      <div class="ap-ligne"><span>${T("vectorlab.style.incliner")}</span>
+        <input type="number" id="apKx" step="1" value="0" title="${T("vectorlab.style.kx_titre")}"/>
+        <input type="number" id="apKy" step="1" value="0" title="${T("vectorlab.style.ky_titre")}"/>
+        <button id="apIncliner" ${sel ? "" : "disabled"} title="${T("vectorlab.style.incliner_titre")}" aria-label="${T("vectorlab.style.incliner_sel")}">${dzi("dz-edit-incliner", 16)}</button>
+        <button id="apPivotRaz" title="${T("vectorlab.style.pivot_raz")}" aria-label="${T("vectorlab.style.pivot_raz")}">${dzi("dz-edit-pivot", 16)}</button>
       </div>
-      <div class="ap-ligne"><span>Puissance</span>
-        <input type="number" id="apPn" min="1" max="200" value="3" title="Nombre de copies"/>
-        <input type="number" id="apPdx" step="any" value="20" title="Décalage X par copie (px)"/>
-        <input type="number" id="apPdy" step="any" value="0" title="Décalage Y par copie (px)"/>
+      <div class="ap-ligne"><span>${T("vectorlab.style.puissance")}</span>
+        <input type="number" id="apPn" min="1" max="200" value="3" title="${T("vectorlab.style.p_n")}"/>
+        <input type="number" id="apPdx" step="any" value="20" title="${T("vectorlab.style.p_dx")}"/>
+        <input type="number" id="apPdy" step="any" value="0" title="${T("vectorlab.style.p_dy")}"/>
       </div>
       <div class="ap-ligne"><span></span>
-        <input type="number" id="apProt" step="1" value="0" title="Rotation par copie (°)"/>
-        <input type="number" id="apPech" step="0.05" min="0.05" value="1" title="Échelle par copie"/>
-        <button id="apPuissance" ${sel ? "" : "disabled"} title="Duplication puissance : n copies qui répètent la transformation (nombre, décalage X · Y, rotation, échelle)" aria-label="Duplication puissance">${dzi("dz-action-dupliquer", 16)}</button>
+        <input type="number" id="apProt" step="1" value="0" title="${T("vectorlab.style.p_rot")}"/>
+        <input type="number" id="apPech" step="0.05" min="0.05" value="1" title="${T("vectorlab.style.p_ech")}"/>
+        <button id="apPuissance" ${sel ? "" : "disabled"} title="${T("vectorlab.style.puissance_titre")}" aria-label="${T("vectorlab.style.puissance_btn")}">${dzi("dz-action-dupliquer", 16)}</button>
       </div>
-      <div class="ap-ligne"><span>Attribut</span>
-        ${["fond", "contour", "type"].map((k) => `<button data-attr="${k}" ${sel === 1 ? "" : "disabled"} title="Sélectionner tous les objets de même ${k}">${k}</button>`).join("")}
+      <div class="ap-ligne"><span>${T("vectorlab.style.attribut")}</span>
+        ${[["fond", T("vectorlab.style.attr_fond")], ["contour", T("vectorlab.style.attr_contour")], ["type", T("vectorlab.style.attr_type")]].map(([k, lib]) => `<button data-attr="${k}" ${sel === 1 ? "" : "disabled"} title="${T("vectorlab.style.attr_titre", { k: lib })}">${lib}</button>`).join("")}
       </div>
-      <div class="ap-ligne"><span>Décaler</span>
-        <input type="number" id="apDecal" step="any" value="5" title="Décalage en px : + vers le dehors, − vers le dedans"/>
-        <button id="apDecaler" ${sel ? "" : "disabled"} title="Crée un chemin décalé (copie au-dessus de l'original)">décaler</button>
+      <div class="ap-ligne"><span>${T("vectorlab.style.decaler")}</span>
+        <input type="number" id="apDecal" step="any" value="5" title="${T("vectorlab.style.decal_titre")}"/>
+        <button id="apDecaler" ${sel ? "" : "disabled"} title="${T("vectorlab.style.decaler_titre")}">${T("vectorlab.style.decaler_btn")}</button>
       </div>
       ${objetReflete() && objetReflete().type === "rect" ? `
-      <div class="ap-ligne"><span>Rayon</span>
+      <div class="ap-ligne"><span>${T("vectorlab.style.rayon")}</span>
         <input type="number" id="apRayon" min="0" step="1"
                value="${objetReflete().rx || 0}"
-               title="Rayon d'angle du rectangle (px du document, borné à min(L,H)/2 ; 0 = angles vifs)"/>
+               title="${T("vectorlab.style.rayon_titre")}"/>
       </div>` : ""}
       ${/* Texte & logo : fonte, corps, graisse, interlettrage et contours vivent dans le panneau Texte */ ""}
-      ${g ? `<div class="ap-stops" title="Stops du dégradé du fond">
+      ${g ? `<div class="ap-stops" title="${T("vectorlab.style.stops_titre")}">
         ${g.stops.map((st, i) => `<div class="ap-stop">
           <button class="nu-pastille" data-stop="${i}"
                   style="background:${st.couleur}" data-hex="${st.couleur}"
-                  title="Couleur du stop — ouvre le nuancier"></button>
+                  title="${T("vectorlab.style.stop_titre")}"></button>
           <input type="number" data-stopt="${i}" min="0" max="100"
                  value="${Math.round(st.t * 100)}"/>%
-          <button data-stopx="${i}" title="Retirer ce stop" aria-label="Retirer ce stop">${dzi("dz-action-supprimer", 16)}</button>
+          <button data-stopx="${i}" title="${T("vectorlab.style.stop_x")}" aria-label="${T("vectorlab.style.stop_x")}">${dzi("dz-action-supprimer", 16)}</button>
         </div>`).join("")}
-        <button id="apStopPlus" title="Ajouter un stop médian">${dzi("dz-action-ajouter", 16)}stop</button>
+        <button id="apStopPlus" title="${T("vectorlab.style.stop_plus")}">${dzi("dz-action-ajouter", 16)}${T("vectorlab.style.stop")}</button>
       </div>` : ""}`;
 
     if (b) {

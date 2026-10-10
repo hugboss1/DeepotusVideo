@@ -1,0 +1,84 @@
+{
+  "titre": {
+    "fr": "L'écran Son & VFX",
+    "en": "The Sound & VFX screen"
+  },
+  "legende": {
+    "fr": "Les générateurs en haut ; voix off dirigée, effets sonores et post-traitement dessous.",
+    "en": "The generators at the top; directed voiceover, sound effects and post-processing below."
+  },
+  "captures": [
+    {
+      "fr": "audio.fr.webp",
+      "en": "audio.en.webp"
+    }
+  ],
+  "taille": [
+    1208,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        10,
+        66,
+        249,
+        25
+      ],
+      "bulle": {
+        "fr": "Musique, bruitages, voix, particules, post : le prix est dit",
+        "en": "Music, effects, voice, particles, post: the price is shown"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        299,
+        134,
+        130,
+        25
+      ],
+      "bulle": {
+        "fr": "Diriger le jeu de la voix",
+        "en": "Direct the voice's acting"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        10,
+        66,
+        249,
+        25
+      ],
+      "bulle": {
+        "fr": "Musique, bruitages, voix, particules, post : le prix est dit",
+        "en": "Music, effects, voice, particles, post: the price is shown"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        299,
+        134,
+        153,
+        25
+      ],
+      "bulle": {
+        "fr": "Diriger le jeu de la voix",
+        "en": "Direct the voice's acting"
+      }
+    }
+  ],
+  "taille_en": [
+    1208,
+    900
+  ]
+}

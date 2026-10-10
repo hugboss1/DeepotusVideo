@@ -1,0 +1,51 @@
+<p class="chapeau-chap">Vous saurez composer une vidéo pièce par pièce en reliant des nœuds, la voir avant de payer, ne jamais repayer ce qui est déjà fait, et réutiliser un graphe comme une recette. Payant selon les nœuds ; le coût du graphe s'affiche avant de lancer.</p>
+
+<h3>L'écran du Studio</h3>
+<figure class="scene" data-scene="studio/graphe"></figure>
+<p>À gauche, la palette des <strong>nœuds</strong> (touche <kbd>/</kbd>) et les <strong>graphes de départ</strong>. Au centre, le graphe. À droite, l'inspecteur du nœud choisi, que l'on peut replier. En haut, la barre du graphe : <b class="ui">Nouveau</b>, <b class="ui">Enregistrer</b>, <b class="ui">Recette</b>, <b class="ui">Importer</b>, le format, <b class="ui">Aperçu</b>, le coût estimé et <b class="ui">Exécuter</b>.</p>
+
+<h3>Composer un graphe</h3>
+<ol class="etapes">
+<li>Partez d'un graphe de départ (<strong>Seedance solo</strong>, <strong>Post avatar</strong>, <strong>UGC + animation</strong>, <strong>Post reel News</strong>, <strong>Montage sur timeline</strong>) ou d'une page blanche avec <b class="ui">Nouveau</b>.</li>
+<li>Glissez des nœuds depuis la palette : sources (image, texte, votre vidéo), générateurs (Seedance, avatar HeyGen, images), audio, montage, composition, sortie.</li>
+<li>Reliez une sortie, à droite d'un nœud, à une entrée, à gauche d'un autre. Cliquez un nœud pour le régler dans l'inspecteur.</li>
+<li><b class="ui">Aperçu</b> calcule gratuitement la composition finale : les clips pas encore générés y sont remplacés par leur image.</li>
+<li>Lisez le coût estimé, puis <b class="ui">Exécuter</b>. Ce montant part comme plafond : le rendu ne peut pas coûter plus. <b class="ui">Enregistrer</b> garde le graphe sous un nom.</li>
+</ol>
+
+<h3>Ne jamais repayer ce qui est fait</h3>
+<p>Le rendu payé d'un nœud Seedance ou HeyGen est <strong>épinglé</strong> automatiquement : tant que sa demande ne change pas, il est réutilisé gratuitement, et le coût estimé dit quels nœuds le sont.</p>
+<div class="cartes">
+<article><i data-dz="dz-etat-epingle"></i><h4>Les huit derniers rendus</h4><p>L'inspecteur liste les derniers rendus du nœud ; <b class="ui">Utiliser</b> choisit celui qui alimente la suite.</p></article>
+<article><i data-dz="dz-action-reessayer"></i><h4>Régénérer</h4><p>Pour un nouveau tirage payant malgré l'épingle, demandez explicitement la régénération du nœud.</p></article>
+</div>
+
+<h3>Réutiliser un graphe comme recette</h3>
+<ol class="etapes">
+<li><b class="ui">Recette</b> fige le graphe : ses images et ses textes deviennent des trous à remplir.</li>
+<li>Lancez la recette avec de nouvelles valeurs : un devis s'affiche, vous confirmez. Les nœuds inchangés sont réutilisés gratuitement.</li>
+<li>Depuis une image de la Bibliothèque, <strong>Envoyer vers</strong> propose aussi de lancer une recette sur elle.</li>
+</ol>
+
+<h3>Aller plus loin</h3>
+<div class="cartes">
+<article><i data-dz="dz-action-duel"></i><h4>Duel de moteurs</h4><p>Sur un nœud de génération d'images, le même prompt part sur deux modèles après accord sur le coût ; vous comparez côte à côte et gardez le gagnant.</p></article>
+<article><i data-dz="dz-calque-masque"></i><h4>Effets et masques</h4><p>Le nœud Effets / Masque, branché sur l'entrée fx du Rendu : étalonnages, VHS, colorisation…, sur tout le rendu ou un seul calque.</p></article>
+<article><i data-dz="dz-etat-ia"></i><h4>Champs IA</h4><p>Un champ au liseré coloré est envoyé à une IA. Sa pastille montre le modèle et son prix ; son micro dicte votre texte.</p></article>
+<article><i data-dz="dz-media-voix"></i><h4>Voix et mixage</h4><p>Le nœud Voix off choisit Voicebox ou ElevenLabs ; le Mix audio baisse la musique sous la voix (léger, moyen, fort).</p></article>
+<article><i data-dz="dz-action-importer"></i><h4>Importer un graphe</h4><p><b class="ui">Importer</b> ouvre un graphe JSON ; les sources manquantes sont listées et rien n'est enregistré sans votre accord.</p></article>
+<article><i data-dz="dz-media-image-suivante"></i><h4>Image par image</h4><p>Le tiroir du résultat avance image par image avec les touches <kbd>,</kbd> et <kbd>.</kbd>.</p></article>
+</div>
+
+<h3>Bon à savoir</h3>
+<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>Une génération vidéo au-dessus du coût annoncé ou de votre plafond par requête est refusée avant tout appel. La durée générée est plafonnée par les Réglages ; le reste est prolongé sur votre PC.</p></aside>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Les nouveaux nœuds Seedance naissent avec Seedance 2.5 ; un graphe enregistré garde son modèle. Le modèle par défaut se change dans <span class="chemin"><b class="ui">Réglages</b> › <b class="ui">Fournisseurs par défaut</b></span>.</p></aside>
+<aside class="attention"><i data-dz="dz-etat-avertissement"></i><p>Si le navigateur ne sait pas dicter, l'enregistrement peut être transcrit par le serveur : c'est payant, un devis s'affiche et « Non » est le choix par défaut.</p></aside>
+
+<h3>Raccourcis</h3>
+<div class="tableau"><table>
+<tr><th>Touche</th><th>Effet</th></tr>
+<tr><td><kbd>/</kbd></td><td>Ouvre la palette des nœuds</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Entrée</kbd></td><td>Exécute le graphe</td></tr>
+<tr><td><kbd>,</kbd> <kbd>.</kbd></td><td>Image précédente, image suivante dans le résultat</td></tr>
+</table></div>

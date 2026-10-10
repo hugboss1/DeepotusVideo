@@ -220,9 +220,9 @@
   }));
 
   const KIND_LABELS = {
-    titre: "Titres", fantasy: "Fantasy", texte: "Texte courant",
-    mono: "Chasse fixe", manuscrit: "Manuscrites", retro: "Rétro / jeu",
-    autre: "Autres",
+    titre: dzT("cartes.type1.famille_titres"), fantasy: "Fantasy", texte: dzT("cartes.type1.famille_texte"),
+    mono: dzT("cartes.type1.famille_mono"), manuscrit: dzT("cartes.type1.famille_manuscrites"), retro: dzT("cartes.type1.famille_retro"),
+    autre: dzT("cartes.type1.famille_autres"),
   };
 
   const ALIGNS = ["left", "center", "right", "justify"];
@@ -604,10 +604,10 @@
   function clearTxt(rect, g, bad) {
     const c = trimClearMm(rect, g), mg = safeMarginMm(g);
     if (c < 0) {
-      return "<b>l'encre passe " + fx(-c, 2) + " mm sous la lame</b>";
+      return "<b>" + dzT("cartes.type1.encre_sous_lame", { mm: fx(-c, 2) }) + "</b>";
     }
-    return (bad ? "<b>" : "") + "l'encre s'arrête à " + fx(c, 2) + " mm du bord de coupe"
-      + (bad ? ", pour " + fx(mg, 2) + " mm de marge au format</b>" : "");
+    return (bad ? "<b>" : "") + dzT("cartes.type1.encre_bord_coupe", { mm: fx(c, 2) })
+      + (bad ? dzT("cartes.type1.encre_marge_format", { mm: fx(mg, 2) }) + "</b>" : "");
   }
 
   /* ═════════════════════════════════════════════════════════════════════════
@@ -864,7 +864,7 @@
   async function proveFonts() {
     if (fontsBusy) return;
     fontsBusy = true;
-    M.busy(true, "chargement des " + FONTS.length + " polices…");
+    M.busy(true, dzT("cartes.type1.chargement_polices", { n: FONTS.length }));
     try {
       await Promise.all(FONTS.map((f) => loadFont(f.id)));
       FONTS.forEach((f) => { if (FONT_STATE[f.id] === "ok") FONT_MEAS[f.id] = faceIsReal(f.id); });
@@ -873,8 +873,8 @@
       M.busy(false);
     }
     const p = fontProof();
-    M.toast(p.dist + " / " + p.served + " familles chargées et distinctes du repli"
-      + (p.ko ? " · " + p.ko + " illisible(s)" : ""), p.dist < p.served);
+    M.toast(dzT("cartes.type1.familles_chargees", { dist: p.dist, servies: p.served })
+      + (p.ko ? dzT("cartes.type1.familles_illisibles", { n: p.ko }) : ""), p.dist < p.served);
     renderAll();
   }
 
@@ -2024,7 +2024,7 @@
 
   const M = CF.register({
     id: "type",
-    title: "Typographie",
+    title: dzT("cartes.type1.titre_piece"),
     icon: "dz-nav-cf-typo",
     order: 3,
 
@@ -2310,7 +2310,7 @@
     mpatch(p);
   }
   function undo() {
-    if (!UNDO.length) { M.toast("rien à annuler"); return; }
+    if (!UNDO.length) { M.toast(dzT("cartes.type1.rien_annuler")); return; }
     const cur = { slots: clone(slots()), sel: selIds() };
     const prev = UNDO.pop();
     REDO.push(cur);
@@ -2318,7 +2318,7 @@
     renderAll();
   }
   function redo() {
-    if (!REDO.length) { M.toast("rien à rétablir"); return; }
+    if (!REDO.length) { M.toast(dzT("cartes.type1.rien_retablir")); return; }
     const cur = { slots: clone(slots()), sel: selIds() };
     const nx = REDO.pop();
     UNDO.push(cur);
@@ -2361,7 +2361,7 @@
       slots: next, preset: pid, seeded: true, sel: selNorm(first),
       fit_rect: safeRectMm(g).map((v) => Math.round(v * 1e4) / 1e4),
     });
-    if (!silent) M.toast("gabarit « " + (PRESETS[pid] || {}).label + " » posé — " + next.length + " slots");
+    if (!silent) M.toast(dzT("cartes.type1.gabarit_pose", { nom: (PRESETS[pid] || {}).label, n: next.length }));
     renderAll();
   }
   /* Reechelonnage : la mise en page suit la zone sure d'un format a l'autre.
@@ -2386,7 +2386,7 @@
       });
     });
     mpatch({ slots: next.map((s, i) => normSlot(s, i)), fit_rect: now.map((v) => Math.round(v * 1e4) / 1e4) });
-    M.toast("mise en page réadaptée à " + CF.geom().label);
+    M.toast(dzT("cartes.type1.mise_en_page_readaptee", { format: CF.geom().label }));
     renderAll();
   }
 
@@ -2396,40 +2396,40 @@
   function buildPanel() {
     HOST.innerHTML = ''
       + '<div class="cf-type-bar">'
-      + '  <button class="btn sm cf-type-add" type="button" title="Nouveau bloc de texte, posé au centre du cadre de composition">' + ICO("dz-calque-texte", 16, "cf-ic") + 'Slot</button>'
+      + '  <button class="btn sm cf-type-add" type="button" title="' + dzT("cartes.type1.bouton_slot_titre") + '">' + ICO("dz-calque-texte", 16, "cf-ic") + 'Slot</button>'
       /* LA NATURE SE CHOISIT A LA NAISSANCE, et c'est pour cela qu'il y a deux
          boutons plutot qu'une bascule dans le panneau. Voir `addImgSlot`. */
-      + '  <button class="btn sm cf-type-addimg" type="button" title="Nouveau calque d\'image, posé au centre du cadre de composition — il se peint au-dessus du cadre de base et sous le décor haut">' + ICO("dz-calque-pixel", 16, "cf-ic") + 'Image</button>'
+      + '  <button class="btn sm cf-type-addimg" type="button" title="' + dzT("cartes.type1.bouton_image_titre") + '">' + ICO("dz-calque-pixel", 16, "cf-ic") + 'Image</button>'
       /* LA PALETTE §6.1 : ce que ce jeu peut poser — les trois entrées
          génériques et, quand il vient d'un modèle, les éléments de CE
          modèle-là. Voir la section 6bis. */
-      + '  <button class="btn sm cf-type-pal" type="button" title="Palette d\'éléments : zone de texte, zone de statistique, calque d\'image — et les éléments du modèle dont ce jeu est né">+ Élément</button>'
-      + '  <button class="btn sm cf-type-preset" type="button" title="Poser un gabarit complet">Gabarits</button>'
+      + '  <button class="btn sm cf-type-pal" type="button" title="' + dzT("cartes.type1.bouton_palette_titre") + '">' + dzT("cartes.type1.bouton_palette") + '</button>'
+      + '  <button class="btn sm cf-type-preset" type="button" title="' + dzT("cartes.type1.bouton_gabarits_titre") + '">' + dzT("cartes.type1.bouton_gabarits") + '</button>'
       /* REMPLACER LE DECOR PAR DES FORMES (phase 6, T4-B — demande du
          25/08). Le patron « Zones importees » : P2 ne touche jamais
          doc.type, P3 lit le plan OFFICIEL (POST /frame/occupancy, le
          miroir que l ecran confronte deja) et pose SES formes a l endroit
          exact de la gemme et du bandeau. Eteindre l ornement reste le
          geste de P2 - chaque piece garde son droit. */
-      + '  <button class="btn sm cf-type-decorformes" type="button" title="Poser des formes à l\'emplacement exact de la gemme et du bandeau — puis éteignez-les dans Cadre pour les remplacer par vos formes">Formes du décor</button>'
+      + '  <button class="btn sm cf-type-decorformes" type="button" title="' + dzT("cartes.type1.bouton_decor_titre") + '">' + dzT("cartes.type1.bouton_decor") + '</button>'
       /* ADOPTER LES ZONES MESUREES PAR LA PIECE 10 (§7.1.5). Ne se montre
          QUE s'il y a de quoi : la visibilite DERIVE de `doc.capture.boxes`,
          elle n'est pas gardee — un bouton qui s'affiche sans pouvoir agir
          fait douter du clic. */
-      + '  <button class="btn sm cf-type-zones hidden" type="button" title="Reprendre les zones mesurées sur la carte importée : une boîte de la pièce Import = un bloc éditable ici">Zones importées</button>'
+      + '  <button class="btn sm cf-type-zones hidden" type="button" title="' + dzT("cartes.type1.bouton_zones_titre") + '">' + dzT("cartes.type1.bouton_zones") + '</button>'
       + '  <span class="stage-sep" aria-hidden="true"></span>'
-      + '  <button class="btn sm cf-type-undo" type="button" title="Annuler (Ctrl+Z)" aria-label="Annuler (Ctrl+Z)">' + ICO("dz-action-annuler", 16) + '</button>'
-      + '  <button class="btn sm cf-type-redo" type="button" title="Rétablir (Ctrl+Y)" aria-label="Rétablir (Ctrl+Y)">' + ICO("dz-action-retablir", 16) + '</button>'
-      + '  <button class="chip cf-type-boxes" type="button" title="Cadres d\'édition sur l\'aperçu (jamais exportés)">' + ICO("dz-edit-cadres-edition", 16, "cf-ic") + 'Cadres</button>'
-      + '  <button class="chip cf-type-audit" type="button" title="Contrôle photométrique : relit le fichier de la carte et compte l\'encre réellement visible, slot par slot">' + ICO("dz-action-mesurer", 16, "cf-ic") + 'Lisibilité</button>'
+      + '  <button class="btn sm cf-type-undo" type="button" title="' + dzT("cartes.type1.annuler") + '" aria-label="' + dzT("cartes.type1.annuler") + '">' + ICO("dz-action-annuler", 16) + '</button>'
+      + '  <button class="btn sm cf-type-redo" type="button" title="' + dzT("cartes.type1.retablir") + '" aria-label="' + dzT("cartes.type1.retablir") + '">' + ICO("dz-action-retablir", 16) + '</button>'
+      + '  <button class="chip cf-type-boxes" type="button" title="' + dzT("cartes.type1.cadres_titre") + '">' + ICO("dz-edit-cadres-edition", 16, "cf-ic") + dzT("cartes.type1.cadres") + '</button>'
+      + '  <button class="chip cf-type-audit" type="button" title="' + dzT("cartes.type1.lisibilite_titre") + '">' + ICO("dz-action-mesurer", 16, "cf-ic") + dzT("cartes.type1.lisibilite") + '</button>'
       /* LA COLONNE UNIQUE (phase 6, T6-G) : liste des calques et inspecteur
          EMPILES pour rendre la largeur a la carte. Etat d ecran (dz_cf_*),
          jamais du document ; la piece le DIT au CORE (CF.coulisse) et la
          scene absorbe la place. */
-      + '  <button class="chip cf-type-mono" type="button" aria-pressed="false" title="Liste des calques et inspecteur en une seule colonne — la carte gagne la largeur libérée">' + ICO("dz-action-disposition-colonne", 16, "cf-ic") + '1 colonne</button>'
-      + '  <label class="cf-type-opt" title="Marge optique retranchée de chaque boîte avant composition : les repères de coupe d\'une rotative dérivent de ±0,5 mm.">'
-      + '<span>Marge optique</span><input type="number" class="cf-type-optv" step="0.25" min="0" max="' + OPTICAL_MM_MAX + '"><i>mm</i></label>'
-      + '  <button class="btn sm cf-type-refit hidden" type="button" title="Réadapter la mise en page au format courant">Réadapter</button>'
+      + '  <button class="chip cf-type-mono" type="button" aria-pressed="false" title="' + dzT("cartes.type1.une_colonne_titre") + '">' + ICO("dz-action-disposition-colonne", 16, "cf-ic") + dzT("cartes.type1.une_colonne") + '</button>'
+      + '  <label class="cf-type-opt" title="' + dzT("cartes.type1.marge_optique_titre") + '">'
+      + '<span>' + dzT("cartes.type1.marge_optique") + '</span><input type="number" class="cf-type-optv" step="0.25" min="0" max="' + OPTICAL_MM_MAX + '"><i>mm</i></label>'
+      + '  <button class="btn sm cf-type-refit hidden" type="button" title="' + dzT("cartes.type1.readapter_titre") + '">' + dzT("cartes.type1.readapter") + '</button>'
       + '  <span class="tb-spacer"></span>'
       + '  <span class="cf-type-count mono"></span>'
       + '</div>'
@@ -2441,7 +2441,7 @@
          travail de la pièce. Ce qu'on replie, c'est la pile entière quand on
          veut toute la place pour l'inspecteur. */
       + '    <details class="grp cf-type-lay" open>'
-      + '<summary>Calques &#183; ordre de peinture (recto)</summary>'
+      + '<summary>' + dzT("cartes.type1.calques_ordre") + '</summary>'
       + '      <div class="grp-body cf-type-lbody">'
       + '        <div class="cf-type-bhaut"></div>'
       + '    <div class="cf-type-list"></div>'
@@ -2451,11 +2451,8 @@
          trois lignes du panneau pour redire ce que la souris apprend en une
          seconde. Replie, il reste a un clic et dans le DOM — rien n'est perdu,
          la place revient a la liste des blocs. */
-      + '    <details class="cf-type-keys"><summary>Raccourcis</summary>'
-      + '<p class="hint">Sur l\'aperçu : <b>glisser</b> déplace, les coins redimensionnent. '
-      + 'Clavier : <b>flèches</b> 1 mm (<b>Maj</b> 0,2 mm), <b>Alt+flèches</b> redimensionne, '
-      + '<b>Ctrl+D</b> duplique, <b>Suppr</b> supprime, <b>Ctrl+Z</b> annule. '
-      + 'Un bloc <b>verrouillé</b> (cadenas) refuse ces gestes et reste réglable ici.</p></details>'
+      + '    <details class="cf-type-keys"><summary>' + dzT("cartes.type1.raccourcis") + '</summary>'
+      + '<p class="hint">' + dzT("cartes.type1.raccourcis_aide") + '</p></details>'
       + '  </div>'
       + '  <div class="cf-type-insp"></div>'
       + '</div>'
@@ -2545,9 +2542,7 @@
   function placeOu(n, quoi) {
     const a = slots().length;
     if (a + n <= SLOTS_MAX) return true;
-    M.toast(a + " slot(s) + " + n + " = " + (a + n) + ", le maximum est "
-      + SLOTS_MAX + " — « " + quoi + " » n'est pas posé : supprimez "
-      + (a + n - SLOTS_MAX) + " bloc(s) d'abord.", true);
+    M.toast(dzT("cartes.type1.plafond_slots", { a: a, n: n, total: a + n, max: SLOTS_MAX, quoi: quoi, trop: a + n - SLOTS_MAX }), true);
     return false;
   }
 
@@ -2618,7 +2613,7 @@
       size_pt: 10, min_pt: 5, align: "center", valign: "middle",
       autofit: CF.get("type.autofit", true),
       text: "Nouveau texte",
-    }], "zone de texte");
+    }], dzT("cartes.type1.quoi_zone_texte"));
   }
   /* ── UN CALQUE D'IMAGE NAIT ICI, ET SEULEMENT ICI ───────────────────────
      DECISION : la nature d'un bloc se pose A LA NAISSANCE ; le panneau la
@@ -2644,7 +2639,7 @@
          d'image, donc pas de rapport de forme a respecter — le fit s'en
          chargera au depot, et la poignee au millimetre pres. */
       box: [sr[0] + sr[2] * 0.2, sr[1] + sr[3] * 0.3, sr[2] * 0.6, sr[3] * 0.3],
-    }], "calque d'image");
+    }], dzT("cartes.type1.quoi_calque_image"));
   }
 
   /* ── UNE FORME NAIT ICI, ET SEULEMENT ICI (phase 5, D3) ─────────────────
@@ -2728,14 +2723,12 @@
         stroke: rct.stroke, stroke_mm: rct.stroke_mm });
     }
     if (!specs.length) {
-      M.toast("aucune pose de décor publiée : allumez la gemme ou le "
-        + "bandeau dans Cadre (une gemme rangée en écrin ne compte pas)",
+      M.toast(dzT("cartes.type1.aucune_pose_decor"),
         false);
       return;
     }
-    naitre(specs, "formes du décor");
-    M.toast(specs.length + " forme(s) posée(s) à l'emplacement du décor — "
-      + "éteignez la gemme/le bandeau dans Cadre pour les remplacer");
+    naitre(specs, dzT("cartes.type1.quoi_formes_decor"));
+    M.toast(dzT("cartes.type1.formes_posees", { n: specs.length }));
   }
 
   /* ═══ ADOPTER LES ZONES D'UNE CARTE IMPORTEE (P10 -> P3, §7.1.5) ═══════
@@ -2808,13 +2801,11 @@
   function phraseZones(n, tronquees, deja) {
     const t = Math.max(0, Number(tronquees) || 0);
     const d = Math.max(0, Number(deja) || 0);
-    return n + (n > 1 ? " zones adoptées" : " zone adoptée")
-      + (t ? ", dont " + t + (t > 1 ? " tronquées" : " tronquée")
-        + " au bord : leur taille est un minimum, à reprendre à la main"
+    return (n > 1 ? dzT("cartes.type1.zones_adoptees.plusieurs", { n: n }) : dzT("cartes.type1.zones_adoptees.un", { n: n }))
+      + (t ? (t > 1 ? dzT("cartes.type1.zones_tronquees.plusieurs", { t: t }) : dzT("cartes.type1.zones_tronquees.un", { t: t }))
         : "")
-      + (d ? " — " + d + (d > 1 ? " zones importées étaient déjà posées"
-        : " zone importée était déjà posée")
-        + ", les nouvelles se superposent" : "");
+      + (d ? (d > 1 ? dzT("cartes.type1.zones_deja_posees.plusieurs", { d: d }) : dzT("cartes.type1.zones_deja_posees.un", { d: d }))
+        : "");
   }
 
   /* Les blocs nés d'une adoption précédente. Le critère est l'IDENTIFIANT :
@@ -2833,7 +2824,7 @@
        qu'un suffixe collé après. */
     const specs = specsZones(docCapture(), libreN(["zone"]));
     if (!specs.length) {
-      M.toast("aucune zone à adopter : mesurez d'abord une carte dans la pièce Import", true);
+      M.toast(dzT("cartes.type1.aucune_zone"), true);
       return null;
     }
     const tronq = specs.filter((s) => s.tronquee).length;
@@ -2844,7 +2835,7 @@
        ici, dans la phrase, puis elle s'arrête. */
     const nes = naitre(specs.map((s) => ({
       id: s.id, label: s.label, text: s.text, box: s.box,
-    })), "zones importées");
+    })), dzT("cartes.type1.quoi_zones_importees"));
     if (!nes) return null;
     M.toast(phraseZones(nes.length, tronq, deja));
     return nes;
@@ -2879,7 +2870,7 @@
         box: [sr[0] + sr[2] * 0.59, y, sr[2] * 0.26, h],
         font: "JetBrainsMono", align: "right", text: "12",
       }),
-    ], "zone de statistique");
+    ], dzT("cartes.type1.quoi_zone_stat"));
   }
   /* ═════════════════════════════════════════════════════════════════════════
      6bis. LA PALETTE D'ÉLÉMENTS (spec §6.1)
@@ -2925,34 +2916,25 @@
      la barre, où « + Slot » et « + Image » vivent déjà. Consigné au plan.
      ═════════════════════════════════════════════════════════════════════════ */
   const GENERIQUES = [
-    { id: "gen:texte", label: "Zone de texte", n: 1,
-      hint: "Un bloc de texte ordinaire, posé au centre du cadre de composition." },
-    { id: "gen:stat", label: "Zone de statistique", n: 2,
-      hint: "Étiquette et valeur côte à côte : deux blocs nés ensemble, libres "
-        + "ensuite. La valeur est en chasse fixe — une colonne de chiffres qui "
-        + "ne l'est pas danse d'une carte à l'autre." },
-    { id: "gen:image", label: "Calque d'image", n: 1,
-      hint: "Une image du jeu, dans sa boîte — au-dessus du cadre de base et "
-        + "sous le décor haut." },
+    { id: "gen:texte", label: dzT("cartes.type1.pal_texte"), n: 1,
+      hint: dzT("cartes.type1.pal_texte_aide") },
+    { id: "gen:stat", label: dzT("cartes.type1.pal_stat"), n: 2,
+      hint: dzT("cartes.type1.pal_stat_aide") },
+    { id: "gen:image", label: dzT("cartes.type1.pal_image"), n: 1,
+      hint: dzT("cartes.type1.pal_image_aide") },
     /* ── LES QUATRE FORMES (phase 5, D3) ────────────────────────────────
        Chaque entrée NAÎT HABILLÉE : une forme posée sans encre serait un
        bouton qui ne pose rien de visible — le reproche qu'on fait aux barres
        concurrentes. L'infobulle dit ce que la forme EST, pas comment elle
        est faite. */
     { id: "gen:rect", label: "Rectangle", n: 1,
-      hint: "Un aplat rectangulaire — un bandeau, une réglure, un fond de "
-        + "colonne. Les coins s'arrondissent par la plaque de fond." },
+      hint: dzT("cartes.type1.pal_rect_aide") },
     { id: "gen:ellipse", label: "Ellipse", n: 1,
-      hint: "Une ellipse inscrite dans sa boîte. Une boîte CARRÉE donne un "
-        + "cercle parfait : rayon = demi-côté — c'est ainsi qu'on pose un "
-        + "halo ou une pastille." },
-    { id: "gen:line", label: "Ligne", n: 1,
-      hint: "Un trait d'un coin de la boîte à l'autre. Aplatissez la boîte "
-        + "pour l'horizontale, resserrez-la pour la verticale ; « Retourner » "
-        + "prend l'autre diagonale." },
-    { id: "gen:arrow", label: "Flèche", n: 1,
-      hint: "Une ligne avec un bout fléché — longueur de tête réglable, et "
-        + "chaque bout se met ou s'enlève." },
+      hint: dzT("cartes.type1.pal_ellipse_aide") },
+    { id: "gen:line", label: dzT("cartes.type1.pal_ligne"), n: 1,
+      hint: dzT("cartes.type1.pal_ligne_aide") },
+    { id: "gen:arrow", label: dzT("cartes.type1.pal_fleche"), n: 1,
+      hint: dzT("cartes.type1.pal_fleche_aide") },
   ];
   let MODELS = null, MODELS_REQ = null, MODELS_ERR = "";
   let PAL_SEQ = 0, PAL_MENU = null;
@@ -2975,7 +2957,7 @@
          « CF.models is not a function » dans la console. La phrase parle du
          PRODUIT et non de son montage — c'est la règle du panneau. */
       lire = (typeof CF.models === "function") ? CF.models()
-        : Promise.reject(new Error("le catalogue des modèles n'est pas disponible dans cette version"));
+        : Promise.reject(new Error(dzT("cartes.type1.catalogue_indispo")));
     } catch (e) { lire = Promise.reject(e); }
     MODELS_REQ = Promise.resolve(lire).then((l) => {
       MODELS = Array.isArray(l) ? l : [];
@@ -3034,27 +3016,24 @@
      l'échec n'est pas perdu pour autant — il part dans l'infobulle de la
      phrase, où celui qui le cherche le trouve et où il n'encombre personne. */
   function paletteNote() {
-    if (MODELS_ERR) return "le catalogue des modèles n'a pas pu être lu — "
-      + "les entrées génériques restent.";
-    if (!MODELS) return "chargement du catalogue des modèles…";
+    if (MODELS_ERR) return dzT("cartes.type1.catalogue_illisible");
+    if (!MODELS) return dzT("cartes.type1.catalogue_chargement");
     /* LA LISTE VIDE EST UN ÉTAT, et c'est CELUI QUE `CF.models` FABRIQUE quand
        la route est absente de ce backend. Tout backend qui a la route sert au
        moins les sept archétypes d'usine : une liste vide ne veut donc pas dire
        « ce poste n'a pas de modèles », elle veut dire « personne n'a
        répondu ». `!MODELS` ne l'attrapait pas — un tableau vide est VRAI en
        JS — et c'est ainsi que cet état est resté muet. */
-    if (!MODELS.length) return "aucun modèle disponible sur ce poste — les "
-      + "entrées génériques restent.";
+    if (!MODELS.length) return dzT("cartes.type1.aucun_modele");
     const id = presetModele();
     if (!id) return "";
     const m = modelCourant();
     /* SON MODÈLE A DISPARU : perso supprimé, jeu rapporté d'une autre machine.
        Ce n'est pas « ce jeu ne vient d'aucun modèle » — c'est « le sien n'est
        plus là », et les deux ne se réparent pas de la même façon. */
-    if (!m) return "le modèle « " + id + " » n'est plus disponible sur ce "
-      + "poste : ses éléments ne sont pas proposés.";
+    if (!m) return dzT("cartes.type1.modele_disparu", { id: id });
     return elementsDe(m).length ? ""
-      : "modèle « " + m.label + " » sans éléments : rien de plus à poser ici.";
+      : dzT("cartes.type1.modele_sans_elements", { nom: m.label });
   }
   /* R14 — TOUT CE QUI VIENT DU CATALOGUE EST ÉCHAPPÉ. Ces libellés et ces
      notes sont des données SERVEUR : un modèle perso est un fichier JSON du
@@ -3063,8 +3042,7 @@
     const note = paletteNote();
     return paletteOffres().map((o) => '<button class="cf-type-mi" type="button"'
       + ' data-o="' + esc(o.id) + '"><b>' + esc(o.label) + '</b><span>'
-      + esc(o.hint) + '</span><i class="mono">' + Number(o.n)
-      + (o.n > 1 ? " blocs" : " bloc") + '</i></button>').join("")
+      + esc(o.hint) + '</span><i class="mono">' + (o.n > 1 ? dzT("cartes.type1.n_blocs.plusieurs", { n: Number(o.n) }) : dzT("cartes.type1.n_blocs.un", { n: Number(o.n) })) + '</i></button>').join("")
       /* le détail de l'échec vit dans l'infobulle : la phrase reste celle du
          métier, le diagnostic reste atteignable. Valeur d'ATTRIBUT venue du
          réseau — donc échappée. ATTENTION : R14 ne juge que les lectures
@@ -3089,7 +3067,7 @@
     const o = paletteOffres().filter((x) => x.id === oid)[0];
     /* l'offre a pu disparaître entre le clic et ici (poser un gabarit réécrit
        le preset) : on le DIT, on ne pose rien au hasard. */
-    if (!o || !o.slots) { M.toast("élément introuvable dans ce modèle", true); return null; }
+    if (!o || !o.slots) { M.toast(dzT("cartes.type1.element_introuvable"), true); return null; }
     /* les slots du modèle sont des données SERVEUR : ils repassent par le
        normaliseur (dans `naitre`) avant d'entrer dans le document. */
     return naitre(o.slots.map((s) => clone(s)), o.label);
@@ -3168,7 +3146,7 @@
      duplication est un defaut muet, pas un compromis. */
   function dupLot(ids) {
     const a = slots();
-    if (!placeOu(ids.length, "duplication de " + ids.length + " blocs")) return;
+    if (!placeOu(ids.length, dzT("cartes.type1.quoi_duplication", { n: ids.length }))) return;
     const par = {};
     a.forEach((s) => { par[s.id] = s; });
     const pris = a.map((s) => s.id);
@@ -3236,8 +3214,7 @@
   }
   function ditVerrous(n, quoi) {
     if (!n) return;
-    M.toast(n + " bloc(s) verrouillé(s) " + quoi
-      + " — ouvrez leur cadenas d'abord", true);
+    M.toast(dzT("cartes.type1.verrous", { n: n, quoi: quoi }), true);
   }
   function delLot() {
     const ids = dulot();
@@ -3245,8 +3222,8 @@
     const l = lotLibre(ids);
     if (!l.libres.length) {
       M.toast(ids.length > 1
-        ? "tout le lot est verrouillé — ouvrez un cadenas pour supprimer"
-        : "bloc verrouillé — ouvrez le cadenas pour le supprimer", true);
+        ? dzT("cartes.type1.lot_verrouille")
+        : dzT("cartes.type1.bloc_verrouille"), true);
       return;
     }
     const a = slots();
@@ -3258,7 +3235,7 @@
        efface laisse une selection VIDE, pas un fantome. */
     commit(next, next.length
       ? [next[Math.min(i0, next.length - 1)].id] : []);
-    ditVerrous(l.bloques, "n'ont pas été supprimés");
+    ditVerrous(l.bloques, dzT("cartes.type1.verrous_non_supprimes"));
     renderAll();
   }
   /* la poussee au clavier, sur tout le lot et du MEME pas : arrondir chaque
@@ -3359,9 +3336,8 @@
     const a = slots(), lot = selIds();
     if (!a.length) {
       wrap.innerHTML = '<div class="cf-type-empty">'
-        + '<b>Aucun slot de texte.</b>'
-        + '<p class="hint">Un gabarit pose d\'un coup le titre, le coût, les statistiques, '
-        + 'l\'encadré de règles, l\'ambiance et les crédits — déjà calés sur le format courant.</p>'
+        + '<b>' + dzT("cartes.type1.aucun_slot") + '</b>'
+        + '<p class="hint">' + dzT("cartes.type1.aucun_slot_aide") + '</p>'
         + '<div class="cf-type-egal">'
         + Object.keys(PRESETS).map((p) => '<button class="btn sm cf-type-ep" type="button" data-p="' + p + '">'
           + esc(PRESETS[p].label) + '</button>').join("")
@@ -3396,34 +3372,28 @@
       /* le relevé du slot, en clair, au survol : ce sont les chiffres relus
          sur les octets du composite, pas une estimation. */
       const tip = img
-        ? ("calque d'image — " + (fichier ? fichier + ", cadrage "
-          + (s.fit === "cover" ? "remplir" : "entière")
-          : "aucune image déposée") + " · aucune mesure d'encre : ce bloc n'a pas de glyphe")
+        ? (dzT("cartes.type1.tip_calque_image") + (fichier ? dzT("cartes.type1.tip_cadrage", { fichier: fichier, cadrage: s.fit === "cover" ? dzT("cartes.type1.cadrage_remplir") : dzT("cartes.type1.cadrage_entiere") })
+          : dzT("cartes.type1.aucune_image_deposee")) + dzT("cartes.type1.tip_sans_glyphe"))
         : forme
-        ? ((SHAPE_LABELS[s.kind] || "forme") + " — "
+        ? ((SHAPE_LABELS[s.kind] || dzT("cartes.type1.forme_min")) + " — "
           + (s.fill || s.stroke
-            ? "trait " + fx(s.stroke_mm, 2) + " mm"
-            : "aucune encre : cette forme ne se peint pas encore")
-          + " · aucune mesure d'encre : ce bloc n'a pas de glyphe")
-        : !au ? "mesure en cours" : (au.empty ? "slot sans glyphe"
-        : (au.total + " px de corps de glyphe · " + (au.exact ? fx(au.rate * 100, 1) + " % visibles"
-          : "survie non mesurable (opacité < 100 %)")
-          + (au.contrast_min != null ? " · contraste " + fx(au.contrast_min, 2) + ":1 (seuil "
-            + fx(au.seuil, 1) + ":1 à " + fx(au.pt, 1) + " pt)" : "")
-          + (au.lum_a != null ? " = " + contrastCalc(au) + " sur " + au.bg_n
-            + " points de fond · " + contrastWhere(au) : "")
+            ? dzT("cartes.type1.trait_mm", { mm: fx(s.stroke_mm, 2) })
+            : dzT("cartes.type1.forme_sans_encre"))
+          + dzT("cartes.type1.tip_sans_glyphe"))
+        : !au ? dzT("cartes.type1.mesure_en_cours") : (au.empty ? dzT("cartes.type1.slot_sans_glyphe")
+        : (dzT("cartes.type1.px_corps_glyphe", { n: au.total }) + (au.exact ? dzT("cartes.type1.pct_visibles", { pct: fx(au.rate * 100, 1) })
+          : dzT("cartes.type1.survie_non_mesurable"))
+          + (au.contrast_min != null ? dzT("cartes.type1.tip_contraste", { c: fx(au.contrast_min, 2), seuil: fx(au.seuil, 1), pt: fx(au.pt, 1) }) : "")
+          + (au.lum_a != null ? dzT("cartes.type1.tip_calcul", { calc: contrastCalc(au), n: au.bg_n, ou: contrastWhere(au) }) : "")
           + (au.via === "contour" && au.contrast_direct != null
-            ? " · sans le contour " + fx(au.contrast_direct, 2) + ":1" : "")
-          + (au.clear_mm != null ? " · dégagement " + fx(au.clear_mm, 2) + " mm" : "")
-          + (au.ink_px ? " · encre " + (au.clipped ? "≥ " : "") + au.ink_px[2] + " x "
-            + au.ink_px[3] + " px (anticrénelage compris)"
-            + (au.ink_core_px ? ", corps plein " + au.ink_core_px[2] + " x "
-              + au.ink_core_px[3] + " px" : "") : "")
-          + (au.halo_px ? " · halo d'ombre " + au.halo_px[2] + " x " + au.halo_px[3]
-            + " px, à " + fx(au.halo_clear_mm, 2) + " mm du cadre de composition" : "")));
+            ? dzT("cartes.type1.tip_sans_contour", { c: fx(au.contrast_direct, 2) }) : "")
+          + (au.clear_mm != null ? dzT("cartes.type1.tip_degagement", { mm: fx(au.clear_mm, 2) }) : "")
+          + (au.ink_px ? dzT("cartes.type1.tip_encre", { ge: au.clipped ? "≥ " : "", w: au.ink_px[2], h: au.ink_px[3] })
+            + (au.ink_core_px ? dzT("cartes.type1.tip_corps_plein", { w: au.ink_core_px[2], h: au.ink_core_px[3] }) : "") : "")
+          + (au.halo_px ? dzT("cartes.type1.tip_halo", { w: au.halo_px[2], h: au.halo_px[3], mm: fx(au.halo_clear_mm, 2) }) : "")));
       return '<div class="cf-type-row' + (lot.indexOf(s.id) >= 0 ? " on" : "") + (s.on ? "" : " off")
         + '" data-id="' + esc(s.id) + '" data-audit="' + esc(tip) + '" title="' + esc(tip) + '" draggable="true">'
-        + '<button class="cf-type-eye" type="button" title="Afficher / masquer">' + (s.on ? ICO("dz-etat-visible", 16) : ICO("dz-etat-cache", 16)) + '</button>'
+        + '<button class="cf-type-eye" type="button" title="' + dzT("cartes.type1.afficher_masquer") + '">' + (s.on ? ICO("dz-etat-visible", 16) : ICO("dz-etat-cache", 16)) + '</button>'
         /* LE CADENAS. Meme rang que l'oeil : deux etats d'un bloc, pas deux
            familles de commandes. Il protege des GESTES DE SCENE (glisser,
            poignees, fleches, Suppr au clavier) et de rien d'autre — la ligne
@@ -3445,11 +3415,7 @@
            l'enveloppe et il donne sa taille en reference, il ne recoit pas le
            patch, et la phrase le dit. */
         + '<button class="cf-type-lock' + (s.lock ? " on" : "") + '" type="button" title="'
-        + (s.lock ? "Déverrouiller ce bloc" : "Verrouiller ce bloc — il refusera le glisser, "
-          + "les poignées, la rotation, les flèches, Suppr, et les commandes de "
-          + "la barre de lot (aligner, distribuer, égaliser) : il y sert alors "
-          + "d'ANCRE, c'est-à-dire qu'on aligne sur lui sans le déplacer. "
-          + "Le panneau, lui, continuera de le régler")
+        + (s.lock ? dzT("cartes.type1.deverrouiller_bloc") : dzT("cartes.type1.verrouiller_bloc"))
         + '">' + (s.lock ? ICO("dz-etat-verrouille", 16) : ICO("dz-etat-libre", 16)) + '</button>'
         /* LE BADGE DE NATURE. La liste est la seule vue où les deux natures se
            croisent : elle doit les distinguer d'un coup d'œil, sans quoi
@@ -3459,65 +3425,58 @@
         + '<span class="cf-type-nm"><b>' + esc(s.label) + '</b><i class="mono">' + esc(s.id) + '</i></span>'
         + '<span class="cf-type-meta mono">'
         + (img
-          ? (fichier ? esc(fichier) : "sans image")
-            + ' · ' + (s.fit === "cover" ? "remplir" : "entière")
+          ? (fichier ? esc(fichier) : dzT("cartes.type1.sans_image"))
+            + ' · ' + (s.fit === "cover" ? dzT("cartes.type1.cadrage_remplir") : dzT("cartes.type1.cadrage_entiere"))
           : forme
           ? esc(SHAPE_LABELS[s.kind] || s.kind) + ' · '
-            + (s.stroke_mm ? fx(s.stroke_mm, 2) + ' mm' : 'sans trait')
+            + (s.stroke_mm ? fx(s.stroke_mm, 2) + ' mm' : dzT("cartes.type1.sans_trait"))
           : esc(fontLabel(s.font)) + ' · ' + fx(m ? m.pt : s.size_pt, 1) + ' pt')
         + (!muet && synthNote(s) ? ' · <i class="cf-type-syn" title="' + esc(synthNote(s)) + '">'
           + (s.bold ? "G" : "") + (s.italic ? "I" : "") + '*</i>' : "")
-        + (s.side !== "front" ? ' · ' + (s.side === "back" ? "verso" : "R/V") : "") + '</span>'
-        + (vide ? '<em class="cf-type-badge bad" title="slot configuré, aucun glyphe posé">vide</em>' : '')
+        + (s.side !== "front" ? ' · ' + (s.side === "back" ? dzT("cartes.type1.face_verso") : dzT("cartes.type1.face_rv")) : "") + '</span>'
+        + (vide ? '<em class="cf-type-badge bad" title="' + dzT("cartes.type1.slot_vide_titre") + '">' + dzT("cartes.type1.badge_vide") + '</em>' : '')
         /* LE FICHIER QUI N'EST PAS ARRIVE. L'aperçu le dit déjà (damier + nom
            dans la boîte) ; la liste le dit aussi, parce qu'un calque peut être
            masqué, hors face ou caché sous un autre — et il partirait alors à
            l'impression sans que rien ne l'ait annoncé. */
         + (img && fichier && imgRec(fichier) && !imgRec(fichier).ok
-          ? '<em class="cf-type-badge bad" title="' + esc(fichier
-            + " n'est pas dans ce jeu — l'aperçu pose un damier à sa place")
-            + '">image absente</em>' : '')
+          ? '<em class="cf-type-badge bad" title="' + esc(dzT("cartes.type1.image_absente_titre", { fichier: fichier }))
+            + '">' + dzT("cartes.type1.image_absente") + '</em>' : '')
         /* LE BADGE QUI MANQUAIT : ce texte contient des signes que cette
            police n'a pas. Le navigateur les emprunte ailleurs, sans un mot. */
         + (tofu.length && !vide ? '<em class="cf-type-badge bad" title="'
-          + esc(tofu.join(" ") + ' — « ' + fontLabel(s.font) + ' » ne porte pas ' + (tofu.length > 1 ? 'ces signes' : 'ce signe')
-            + ' (lu dans la table cmap du fichier). Le navigateur les dessine avec une autre police.')
-          + '">' + esc(tofu.join("")) + ' hors police</em>' : '')
+          + esc(tofu.length > 1 ? dzT("cartes.type1.tofu.plusieurs", { signes: tofu.join(" "), police: fontLabel(s.font) })
+            : dzT("cartes.type1.tofu.un", { signes: tofu.join(" "), police: fontLabel(s.font) }))
+          + '">' + dzT("cartes.type1.hors_police", { signes: esc(tofu.join("")) }) + '</em>' : '')
         /* LE BADGE NOMME SES RECOUVREURS (T3-C) : « une couche dessinée
            au-dessus » faisait chercher l'utilisateur parmi les blocs quand
            le coupable était la gemme du décor haut — mesuré sur le terrain.
            Les noms viennent de `couvreursDe`, la géométrie qui les désigne. */
-        + (masq ? '<em class="cf-type-badge bad" title="' + Number(au.masked)
-          + ' px d\'encre recouverts — '
+        + (masq ? '<em class="cf-type-badge bad" title="' + dzT("cartes.type1.px_recouverts", { n: Number(au.masked) })
           + esc(au.couvreurs && au.couvreurs.length
-            ? 'recouvert par : ' + au.couvreurs.join(", ")
-            : 'aucun recouvreur nommé parmi les couches : re-peindre et re-jouer la preuve')
+            ? dzT("cartes.type1.recouvert_par", { qui: au.couvreurs.join(", ") })
+            : dzT("cartes.type1.aucun_recouvreur"))
           + '">'
-          + fx((1 - au.rate) * 100, 0) + ' % masqué</em>' : '')
-        + (lowc && !masq ? '<em class="cf-type-badge bad" title="contraste mesuré contre le fond réellement derrière l\'encre">'
+          + dzT("cartes.type1.pct_masque", { pct: fx((1 - au.rate) * 100, 0) }) + '</em>' : '')
+        + (lowc && !masq ? '<em class="cf-type-badge bad" title="' + dzT("cartes.type1.contraste_fond_titre") + '">'
           + fx(au.contrast_min, 1) + ':1</em>' : '')
         /* L'ORDRE DIT LA GRAVITE. « Hors cadre » d'abord (de l'encre part
            hors du cadre), puis « sous le plancher » (le fichier est juste, la
            carte ne se lira pas), puis « ajuste » — qui ne s'affiche PLUS quand
            le corps est passe sous le plancher de lisibilite : un badge vert
            sur un titre a 9 pt certifiait l'encombrement et taisait la lecture. */
-        + (bad ? '<em class="cf-type-badge bad" title="' + Number(m.over_chars)
-          + ' caractères débordent du cadre — ils sont dessinés quand même">'
-          + m.over_chars + ' hors cadre</em>'
+        + (bad ? '<em class="cf-type-badge bad" title="' + dzT("cartes.type1.debordent_titre", { n: Number(m.over_chars) }) + '">'
+          + dzT("cartes.type1.hors_cadre", { n: m.over_chars }) + '</em>'
           : (m && m.under_read)
-            ? '<em class="cf-type-badge warn" title="composé à ' + fx(m.pt, 1)
-              + ' pt pour ' + fx(m.read_pt, 1)
-              + ' pt réglés — le texte tient dans sa boîte, il ne se lira pas à taille réelle">'
+            ? '<em class="cf-type-badge warn" title="' + dzT("cartes.type1.sous_plancher_titre", { pt: fx(m.pt, 1), regle: fx(m.read_pt, 1) }) + '">'
               + fx(m.pt, 1) + ' &lt; ' + fx(m.read_pt, 1) + ' pt</em>'
             /* le badge porte la MESURE de l'ajustement, plus son nom : « ajusté »
                ne disait pas ce qu'il avait coûté. */
-            : shr ? '<em class="cf-type-badge ok" title="corps ramené de ' + fx(s.size_pt, 1)
-              + ' à ' + fx(m.pt, 1) + ' pt, ' + m.posed + ' des ' + m.srcn
-              + ' signes posés">' + fx(s.size_pt, 1) + ' → ' + fx(m.pt, 1) + ' pt</em>' : '')
+            : shr ? '<em class="cf-type-badge ok" title="' + dzT("cartes.type1.corps_ramene_titre", { de: fx(s.size_pt, 1), a: fx(m.pt, 1), poses: m.posed, total: m.srcn }) + '">' + fx(s.size_pt, 1) + ' → ' + fx(m.pt, 1) + ' pt</em>' : '')
         + '<span class="cf-type-ops">'
-        + '<button class="cf-type-mv" type="button" data-d="-1" title="Monter" aria-label="Monter">' + ICO("dz-edit-monter", 16) + '</button>'
-        + '<button class="cf-type-mv" type="button" data-d="1" title="Descendre" aria-label="Descendre">' + ICO("dz-edit-descendre", 16) + '</button>'
-        + '<button class="cf-type-del" type="button" title="Supprimer" aria-label="Supprimer">' + ICO("dz-action-supprimer", 16) + '</button>'
+        + '<button class="cf-type-mv" type="button" data-d="-1" title="' + dzT("cartes.type1.monter") + '" aria-label="' + dzT("cartes.type1.monter") + '">' + ICO("dz-edit-monter", 16) + '</button>'
+        + '<button class="cf-type-mv" type="button" data-d="1" title="' + dzT("cartes.type1.descendre") + '" aria-label="' + dzT("cartes.type1.descendre") + '">' + ICO("dz-edit-descendre", 16) + '</button>'
+        + '<button class="cf-type-del" type="button" title="' + dzT("cartes.type1.supprimer") + '" aria-label="' + dzT("cartes.type1.supprimer") + '">' + ICO("dz-action-supprimer", 16) + '</button>'
         + '</span></div>';
     }).join("");
     wrap.querySelectorAll(".cf-type-row").forEach((row) => {
@@ -3608,7 +3567,7 @@
      pas le refuser.
      ═════════════════════════════════════════════════════════════════════════ */
   const MOI = "type";               /* l'id donné à CF.register, celui du rail */
-  const MUET = "par défaut", AUCUN = "aucun", VIDE = "vide";
+  const MUET = dzT("cartes.type1.bande_defaut"), AUCUN = dzT("cartes.type1.bande_aucun"), VIDE = dzT("cartes.type1.badge_vide");
 
   /* CE QUE DIT UNE COUCHE VOISINE — lu par `CF.get` sur l'état PUBLIÉ (patron
      art_window : mod-face lit frame.art_window). Deux choses ne sont PAS
@@ -3639,7 +3598,7 @@
   function resPapier() {
     const p = lu("texture.paper");
     if (!p) return MUET;
-    return p === "none" ? AUCUN : (p === "__import" ? "importé" : p);
+    return p === "none" ? AUCUN : (p === "__import" ? dzT("cartes.type1.papier_importe") : p);
   }
   function resEffet() {
     const o = lu("texture.over");
@@ -3652,7 +3611,7 @@
   function resFace() {
     const c = CF.card(CF.current()) || {};
     const own = c.art || ((c.fields || {}).art) || null;
-    return (own || lu("face.default_art") || lu("face.src")) ? "posée" : VIDE;
+    return (own || lu("face.default_art") || lu("face.src")) ? dzT("cartes.type1.face_posee") : VIDE;
   }
   function resCadre() {
     const f = lu("frame.family");
@@ -3671,17 +3630,17 @@
        se peint en couche 40, sous les blocs — le taire ici ferait de cette
        rangee une carte fausse (il est encore peint, ailleurs). */
     const sous = (k) => (CF.get("frame." + k, null) === "dessous"
-      ? " (sous les blocs)" : "");
-    if (CF.get("frame.gem", null) !== false) on.push("gemme" + sous("gem_plan"));
-    if (CF.get("frame.banner", null) !== false) on.push("bandeau" + sous("banner_plan"));
+      ? dzT("cartes.type1.sous_les_blocs") : "");
+    if (CF.get("frame.gem", null) !== false) on.push(dzT("cartes.type1.decor_gemme") + sous("gem_plan"));
+    if (CF.get("frame.banner", null) !== false) on.push(dzT("cartes.type1.decor_bandeau") + sous("banner_plan"));
     return on.length ? on.join(" + ") : AUCUN;
   }
   const BANDES = {
-    10: { nom: "papier", res: resPapier },
-    20: { nom: "illustration", res: resFace },
-    30: { nom: "effet", res: resEffet },
-    40: { nom: "cadre", res: resCadre },
-    70: { nom: "décor haut", res: resDecor },
+    10: { nom: dzT("cartes.type1.bande_papier"), res: resPapier },
+    20: { nom: dzT("cartes.type1.bande_illustration"), res: resFace },
+    30: { nom: dzT("cartes.type1.bande_effet"), res: resEffet },
+    40: { nom: dzT("cartes.type1.bande_cadre"), res: resCadre },
+    70: { nom: dzT("cartes.type1.bande_decor_haut"), res: resDecor },
   };
 
   /* L'ORDRE, DÉRIVÉ — z décroissant, haut de peinture en haut de liste. Le z du
@@ -3695,15 +3654,14 @@
   }
   function bandeHtml(b) {
     const d = BANDES[b.z] || null;
-    const nom = d ? d.nom : "couche z" + b.z;
+    const nom = d ? d.nom : dzT("cartes.type1.couche_z", { z: b.z });
     const res = d ? d.res() : "—";
     return '<div class="cf-type-band" data-z="' + Number(b.z) + '">'
       + '<i class="cf-type-bz mono">' + Number(b.z) + '</i>'
       + '<span class="cf-type-nm"><b>' + esc(nom) + '</b>'
       + '<i class="cf-type-bres">' + esc(res) + '</i></span>'
       + '<button class="cf-type-go" type="button" data-mod="' + esc(b.mod)
-      + '" title="' + esc("Aller à la pièce « " + b.mod + " » : cette couche s'y "
-        + "règle. Cette rangée ne fait que dire ce qui s'y peint.") + '">Aller</button>'
+      + '" title="' + esc(dzT("cartes.type1.aller_titre", { mod: b.mod })) + '">' + dzT("cartes.type1.aller") + '</button>'
       + '</div>';
   }
 
@@ -3789,11 +3747,9 @@
     if (!slot || (!slot.bold && !slot.italic)) return "";
     if (facesOf(slot.font) > 1) return "";
     const q = [];
-    if (slot.bold) q.push("gras");
-    if (slot.italic) q.push("italique");
-    return q.join(" et ") + " synthétique — « " + fontLabel(slot.font)
-      + " » n'a qu'un fichier, donc une seule graisse et un seul style : "
-      + "le navigateur épaissit et penche le glyphe, il ne charge pas un caractère dessiné.";
+    if (slot.bold) q.push(dzT("cartes.type1.synth_gras"));
+    if (slot.italic) q.push(dzT("cartes.type1.synth_italique"));
+    return dzT("cartes.type1.synthetique", { quoi: q.join(dzT("cartes.type1.synth_et")), police: fontLabel(slot.font) });
   }
 
   /* ── inspecteur ────────────────────────────────────────────────────────── */
@@ -3832,18 +3788,16 @@
   }
   function inspMeasInner(s) {
     const g = CF.geom(), m = MEAS[s.id], bpx = boxPx(s, g);
-    return '<p class="hint mono cf-type-bpx">' + fx(bpx[2], 1) + ' x ' + fx(bpx[3], 1) + ' px de toile'
-      + ' · corps ' + (m ? corps(m, g) : fx(s.size_pt, 1) + " pt (" + fx(pxOfPt(s.size_pt, g), 1)
-        + " px) — <i>demandé, pas encore composé</i>")
-      + (m && m.under_read ? ' · <b>plus petit que les ' + fx(m.read_pt, 1)
-        + ' pt réglés</b>' : "")
-      + ' · cadre de composition ' + g.safe_px[0] + ' x ' + g.safe_px[1] + ' px'
-      + ' · marge optique ' + fx(CF.get("type.optical_mm", OPTICAL_MM_DEF), 2) + ' mm'
+    return '<p class="hint mono cf-type-bpx">' + dzT("cartes.type1.px_toile", { w: fx(bpx[2], 1), h: fx(bpx[3], 1) })
+      + dzT("cartes.type1.sep_corps") + (m ? corps(m, g) : dzT("cartes.type1.corps_demande", { pt: fx(s.size_pt, 1), px: fx(pxOfPt(s.size_pt, g), 1) }))
+      + (m && m.under_read ? dzT("cartes.type1.plus_petit_plancher", { pt: fx(m.read_pt, 1) }) : "")
+      + dzT("cartes.type1.cadre_composition_px", { w: g.safe_px[0], h: g.safe_px[1] })
+      + dzT("cartes.type1.marge_optique_mm", { mm: fx(CF.get("type.optical_mm", OPTICAL_MM_DEF), 2) })
       /* LA REGLE DE CONVERSION, A COTE DES MILLIMETRES. Les boites sont en mm
          et le fichier est en pixels : sans le facteur, aucun des chiffres en
          mm de ce panneau ne se verifie sur les octets. Avec lui, chacun se
          recalcule a la main. */
-      + ' · 1 mm = ' + fx(g.mm2px(1), 3) + ' px à ' + g.dpi + ' DPI</p>'
+      + dzT("cartes.type1.mm_px_dpi", { px: fx(g.mm2px(1), 3), dpi: g.dpi }) + '</p>'
       /* les chiffres du paragraphe SOUS les reglages qui les produisent : le
          releve du bas ne detaille que le titre et l'encadre, or tout slot de
          plusieurs lignes paie la justification. */
@@ -3879,12 +3833,10 @@
     ellipse: "dz-outil-vec-ellipse", line: "dz-outil-vec-ligne", arrow: "dz-outil-vec-fleche" };
   function kindGlyphe(s) { return ICO(KIND_GLYPHE[s && s.kind] || "dz-calque-texte", 16); }
   function kindTitre(s) {
-    if (isImage(s)) return "Calque d'image — il se peint dans sa boîte, "
-      + "au-dessus du cadre de base et sous le décor haut";
-    if (isShape(s)) return (SHAPE_LABELS[s.kind] || "Forme")
-      + " — une forme de gabarit, peinte dans la même couche que le texte, "
-      + "dans l'ordre de la liste";
-    return "Bloc de texte";
+    if (isImage(s)) return dzT("cartes.type1.nature_image");
+    if (isShape(s)) return (SHAPE_LABELS[s.kind] || dzT("cartes.type1.nature_forme_repli"))
+      + dzT("cartes.type1.nature_forme");
+    return dzT("cartes.type1.nature_texte");
   }
   function inspHead(s) {
     const img = isImage(s);
@@ -3892,10 +3844,9 @@
       /* LA NATURE EST MONTREE, PAS BASCULEE — voir `addImgSlot`. Le panneau
          dit ce qu'on édite ; il ne transforme pas un bloc en un autre. */
       + '<em class="cf-type-kind' + (img || isShape(s) ? " img" : "") + '" title="'
-      + esc(kindTitre(s) + ". La nature d'un bloc se choisit à sa création : "
-        + "pour en changer, créez le bloc voulu et supprimez celui-ci.")
+      + esc(kindTitre(s) + dzT("cartes.type1.nature_choix"))
       + '">' + kindGlyphe(s) + '</em>'
-      + '<input type="text" class="cf-type-label" value="' + esc(s.label) + '" maxlength="40" title="Nom du slot">'
+      + '<input type="text" class="cf-type-label" value="' + esc(s.label) + '" maxlength="40" title="' + dzT("cartes.type1.nom_slot") + '">'
       + '<span class="counter mono cf-type-id">' + esc(s.id) + '</span>'
       + '</div>'
       + inspZ();
@@ -3909,16 +3860,15 @@
   function inspZ() {
     const b = (z, txt, tit) => '<button class="btn sm cf-type-z" type="button"'
       + ' data-z="' + z + '" title="' + esc(tit) + '">' + txt + '</button>';
-    return '<div class="cf-type-zbar" title="Ordre de peinture — le dernier de la liste se peint DEVANT">'
-      + b("tout-arriere", ICO("dz-edit-arriere-plan", 16, "cf-ic") + "Fond",
-        "Tout au fond : peint en premier, donc sous tous les autres blocs")
-      + b("arriere", ICO("dz-edit-descendre", 16, "cf-ic") + "Derrière",
-        "Un cran vers le fond — c'est la flèche « Monter » de la rangée, "
-        + "la liste se lisant du fond vers la surface")
-      + b("avant", "Devant" + ICO("dz-edit-monter", 16, "cf-ic-d"),
-        "Un cran vers la surface — c'est la flèche « Descendre » de la rangée")
-      + b("tout-avant", "Surface" + ICO("dz-edit-premier-plan", 16, "cf-ic-d"),
-        "Tout devant : peint en dernier, donc par-dessus tous les autres blocs")
+    return '<div class="cf-type-zbar" title="' + dzT("cartes.type1.ordre_peinture_titre") + '">'
+      + b("tout-arriere", ICO("dz-edit-arriere-plan", 16, "cf-ic") + dzT("cartes.type1.z_fond"),
+        dzT("cartes.type1.z_fond_titre"))
+      + b("arriere", ICO("dz-edit-descendre", 16, "cf-ic") + dzT("cartes.type1.z_derriere"),
+        dzT("cartes.type1.z_derriere_titre"))
+      + b("avant", dzT("cartes.type1.z_devant") + ICO("dz-edit-monter", 16, "cf-ic-d"),
+        dzT("cartes.type1.z_devant_titre"))
+      + b("tout-avant", dzT("cartes.type1.z_surface") + ICO("dz-edit-premier-plan", 16, "cf-ic-d"),
+        dzT("cartes.type1.z_surface_titre"))
       + '</div>';
   }
   function wireZ(box) {
@@ -3926,7 +3876,7 @@
       b.addEventListener("click", () => {
         if (!zApplique(selIds(), b.dataset.z)) {
           M.toast(b.dataset.z.indexOf("arriere") >= 0
-            ? "déjà au fond de la pile" : "déjà à la surface de la pile");
+            ? dzT("cartes.type1.z_deja_fond") : dzT("cartes.type1.z_deja_surface"));
         }
       });
     });
@@ -3953,44 +3903,39 @@
     return (s.kind === "line" || s.kind === "arrow") ? !trait : (!fill && !trait);
   }
   function inspPlaque(s) {
-    return '<details class="grp cf-type-grp" open><summary>Plaque de fond et bordure</summary>'
+    return '<details class="grp cf-type-grp" open><summary>' + dzT("cartes.type1.plaque_titre") + '</summary>'
       + '<div class="grp-body"><div class="cf-type-grid">'
-      + '<label class="fld cf-type-f"><span class="lbl">Couleur plaque</span>'
+      + '<label class="fld cf-type-f"><span class="lbl">' + dzT("cartes.type1.couleur_plaque") + '</span>'
       + '<input type="color" class="cf-type-pcol" value="'
       + esc(String(s.plate_color || "#1b1206").slice(0, 7))
-      + '" title="Rectangle peint SOUS le contenu de ce slot, dans sa boîte."></label>'
-      + nfield("plate_alpha", "Opacité plaque", s.plate_alpha, 0.05,
-        "Opacité de la plaque, de 0 à 1. Elle se multiplie avec l'opacité du slot : "
-        + "un slot à 50 % et une plaque à 0,8 posent 40 %.", 0, 1)
-      + nfield("plate_radius", "Rayon (mm)", s.plate_radius, 0.25,
-        "Rayon des coins de la plaque, en millimètres. Il est ramené à la moitié du "
-        + "petit côté de la boîte au dessin : au-delà, un coin arrondi est un disque.",
+      + '" title="' + dzT("cartes.type1.couleur_plaque_titre") + '"></label>'
+      + nfield("plate_alpha", dzT("cartes.type1.opacite_plaque"), s.plate_alpha, 0.05,
+        dzT("cartes.type1.opacite_plaque_titre"), 0, 1)
+      + nfield("plate_radius", dzT("cartes.type1.rayon_mm"), s.plate_radius, 0.25,
+        dzT("cartes.type1.rayon_titre"),
         0, PLATE_RADIUS_MAX_MM)
-      + '<label class="fld cf-type-f"><span class="lbl">Couleur bordure</span>'
+      + '<label class="fld cf-type-f"><span class="lbl">' + dzT("cartes.type1.couleur_bordure") + '</span>'
       + '<input type="color" class="cf-type-bcol" value="'
       + esc(String(s.plate_stroke || "#f2efe9").slice(0, 7))
-      + '" title="Contour de la zone. Il suit exactement le rayon de la plaque, '
-      + 'et il existe SANS elle : on peut border un encadré sans rien peindre dessous."></label>'
-      + nfield("plate_stroke_mm", "Bordure (mm)", s.plate_stroke_mm, 0.1,
-        "Épaisseur du contour de la zone, en millimètres. 0 = pas de bordure du tout "
-        + "— pas un trait fin que la presse refuserait.", 0, STROKE_MM_MAX)
+      + '" title="' + dzT("cartes.type1.couleur_bordure_titre") + '"></label>'
+      + nfield("plate_stroke_mm", dzT("cartes.type1.bordure_mm"), s.plate_stroke_mm, 0.1,
+        dzT("cartes.type1.bordure_titre"), 0, STROKE_MM_MAX)
       + '</div>'
       + '<div class="btn-row"><button class="btn sm cf-type-pnone" type="button"'
-      + ' title="Retire la plaque : le contenu revient sur le fond des autres couches">Sans plaque</button>'
+      + ' title="' + dzT("cartes.type1.sans_plaque_titre") + '">' + dzT("cartes.type1.sans_plaque") + '</button>'
       + '<button class="btn sm cf-type-bnone" type="button"'
-      + ' title="Retire la bordure de la zone">Sans bordure</button></div>'
+      + ' title="' + dzT("cartes.type1.sans_bordure_titre") + '">' + dzT("cartes.type1.sans_bordure") + '</button></div>'
       + '<p class="hint">' + (s.plate_color
-        ? 'plaque ' + esc(s.plate_color) + ' à ' + fx(s.plate_alpha * 100, 0) + ' %'
-          + (s.plate_radius ? ', coins ' + fx(s.plate_radius, 2) + ' mm' : ', coins vifs')
-        : 'aucune plaque — posez une couleur pour en créer une')
+        ? dzT("cartes.type1.plaque_info", { c: esc(s.plate_color), pct: fx(s.plate_alpha * 100, 0) })
+          + (s.plate_radius ? dzT("cartes.type1.coins_mm", { mm: fx(s.plate_radius, 2) }) : dzT("cartes.type1.coins_vifs"))
+        : dzT("cartes.type1.aucune_plaque"))
       + ' · ' + (s.plate_stroke && s.plate_stroke_mm > 0
-        ? 'bordure ' + esc(s.plate_stroke) + ' de ' + fx(s.plate_stroke_mm, 2) + ' mm'
-        : 'aucune bordure — posez une épaisseur pour en créer une')
+        ? dzT("cartes.type1.bordure_info", { c: esc(s.plate_stroke), mm: fx(s.plate_stroke_mm, 2) })
+        : dzT("cartes.type1.aucune_bordure"))
       /* LA CONDITION DE LA GARDE, DITE ICI : sans elle, le pied annonçait un
          fond et un liseré que la carte ne peint pas. */
       + (plaqueMuette(s)
-        ? " — <b>rien n’est peint tant que cette forme n’a pas d’encre</b> "
-          + "(remplissage ou contour) : la plaque suit son bloc."
+        ? dzT("cartes.type1.plaque_muette")
         : '')
       + '</p></div></details>';
   }
@@ -4002,10 +3947,10 @@
     return (s && (s.kind === "line" || s.kind === "arrow")) ? 0 : MIN_BOX_MM;
   }
   function inspBoite(s, mesures) {
-    return '<details class="grp cf-type-grp" open><summary>Boîte — millimètres depuis le coin de coupe</summary>'
+    return '<details class="grp cf-type-grp" open><summary>' + dzT("cartes.type2.boite_titre") + '</summary>'
       + '<div class="grp-body"><div class="cf-type-grid">'
-      + nfield("bx", "X (mm)", s.box[0], 0.25, "Depuis le coin de coupe")
-      + nfield("by", "Y (mm)", s.box[1], 0.25, "Depuis le coin de coupe")
+      + nfield("bx", "X (mm)", s.box[0], 0.25, dzT("cartes.type2.depuis_coin"))
+      + nfield("by", "Y (mm)", s.box[1], 0.25, dzT("cartes.type2.depuis_coin"))
       /* ── LE PLANCHER DES TAILLES, ET C'EST LA PORTE D'ENTREE (ronde T3, R1)
          Ces deux champs n'avaient pas de `min` : c'est par la qu'une boite a
          DIMENSION NULLE entre dans le document, et une boite plate en
@@ -4018,15 +3963,15 @@
          pose en dur aurait rendu toute ligne droite inatteignable au panneau.
          Les champs de POSITION, eux, gardent leur liberte : une boite a x = 0
          est legitime, une boite de 0 mm de large ne l'est que pour un axe. */
-      + nfield("bw", "Largeur (mm)", s.box[2], 0.25, "Largeur de la boîte",
+      + nfield("bw", dzT("cartes.type2.largeur_mm"), s.box[2], 0.25, dzT("cartes.type2.largeur_boite"),
         plancherBoite(s))
-      + nfield("bh", "Hauteur (mm)", s.box[3], 0.25, "Hauteur de la boîte",
+      + nfield("bh", dzT("cartes.type2.hauteur_mm"), s.box[3], 0.25, dzT("cartes.type2.hauteur_boite"),
         plancherBoite(s))
       + '</div>'
       + mesures
-      + '<div class="btn-row"><button class="btn sm cf-type-dup" type="button" title="Ctrl+D">Dupliquer</button>'
-      + '<button class="btn sm cf-type-center" type="button">Centrer</button>'
-      + '<button class="btn sm cf-type-fill" type="button" title="Étendre à toute la largeur du cadre de composition">Pleine largeur</button>'
+      + '<div class="btn-row"><button class="btn sm cf-type-dup" type="button" title="Ctrl+D">' + dzT("cartes.type2.dupliquer") + '</button>'
+      + '<button class="btn sm cf-type-center" type="button">' + dzT("cartes.type2.centrer") + '</button>'
+      + '<button class="btn sm cf-type-fill" type="button" title="' + dzT("cartes.type2.pleine_largeur_titre") + '">' + dzT("cartes.type2.pleine_largeur") + '</button>'
       + '</div></div></details>';
   }
 
@@ -4057,12 +4002,12 @@
      porte, donc aucun bouton du bandeau segmente ne s'allume. */
   const MIXTE = "__mixte__";
   const ALIGNEMENTS = [
-    ["left", ICO("dz-edit-aligner-gauche", 16), "Aligner les bords gauches sur l'enveloppe du lot"],
-    ["hcenter", ICO("dz-edit-aligner-centre-h", 16), "Centrer horizontalement dans l'enveloppe du lot"],
-    ["right", ICO("dz-edit-aligner-droite", 16), "Aligner les bords droits sur l'enveloppe du lot"],
-    ["top", ICO("dz-edit-aligner-haut", 16), "Aligner les bords hauts sur l'enveloppe du lot"],
-    ["vcenter", ICO("dz-edit-aligner-centre-v", 16), "Centrer verticalement dans l'enveloppe du lot"],
-    ["bottom", ICO("dz-edit-aligner-bas", 16), "Aligner les bords bas sur l'enveloppe du lot"],
+    ["left", ICO("dz-edit-aligner-gauche", 16), dzT("cartes.type2.aligner_gauche")],
+    ["hcenter", ICO("dz-edit-aligner-centre-h", 16), dzT("cartes.type2.centrer_h")],
+    ["right", ICO("dz-edit-aligner-droite", 16), dzT("cartes.type2.aligner_droite")],
+    ["top", ICO("dz-edit-aligner-haut", 16), dzT("cartes.type2.aligner_haut")],
+    ["vcenter", ICO("dz-edit-aligner-centre-v", 16), dzT("cartes.type2.centrer_v")],
+    ["bottom", ICO("dz-edit-aligner-bas", 16), dzT("cartes.type2.aligner_bas")],
   ];
   function renderInspMulti(box, list) {
     const n = list.length;
@@ -4074,11 +4019,11 @@
     const puce = (k, lbl, c, tit, off) => '<button class="chip cf-type-t'
       + (c.mix ? " mix" : (c.v ? " active" : "")) + (off ? " off" : "")
       + '" data-k="' + k + '" type="button" title="' + esc(tit) + '">'
-      + lbl + (c.mix ? " <i>mixte</i>" : "") + '</button>';
+      + lbl + (c.mix ? " <i>" + dzT("cartes.type2.mixte") + "</i>" : "") + '</button>';
     box.innerHTML = ''
       + '<div class="cf-type-ihead">'
-      + '<em class="cf-type-kind img" title="Sélection multiple">' + ICO("dz-etat-selection-multiple", 16) + '</em>'
-      + '<b class="cf-type-lotn">' + n + ' blocs sélectionnés</b>'
+      + '<em class="cf-type-kind img" title="' + dzT("cartes.type2.selection_multiple") + '">' + ICO("dz-etat-selection-multiple", 16) + '</em>'
+      + '<b class="cf-type-lotn">' + dzT("cartes.type2.n_blocs_selectionnes", { n: n }) + '</b>'
       + '<span class="counter mono cf-type-id">'
       + esc(list.slice(0, 3).map((s) => s.id).join(" ")) + (n > 3 ? " …" : "") + '</span>'
       + '</div>'
@@ -4091,50 +4036,39 @@
         + ' data-a="' + a[0] + '" title="' + esc(a[2]) + '" aria-label="' + esc(a[2]) + '">' + a[1] + '</button>').join("")
       + '<span class="stage-sep" aria-hidden="true"></span>'
       + '<button class="btn sm cf-type-alg" type="button" data-a="disth" title="'
-      + esc("Espaces horizontaux égaux entre les blocs — les deux extrêmes ne "
-        + "bougent pas, le blanc se répartit. Trois blocs au moins.")
+      + esc(dzT("cartes.type2.disth_titre"))
       + '">' + ICO("dz-edit-distribuer-h", 16) + '</button>'
       + '<button class="btn sm cf-type-alg" type="button" data-a="distv" title="'
-      + esc("Espaces verticaux égaux entre les blocs — les deux extrêmes ne "
-        + "bougent pas, le blanc se répartit. Trois blocs au moins.")
+      + esc(dzT("cartes.type2.distv_titre"))
       + '">' + ICO("dz-edit-distribuer-v", 16) + '</button>'
       + '<span class="stage-sep" aria-hidden="true"></span>'
       + '<button class="btn sm cf-type-alg" type="button" data-a="eqw" title="'
-      + esc("Même largeur que le PREMIER sélectionné (« " + list[0].label + " »)")
+      + esc(dzT("cartes.type2.eqw_titre", { nom: list[0].label }))
       + '">' + ICO("dz-edit-meme-largeur", 16) + '</button>'
       + '<button class="btn sm cf-type-alg" type="button" data-a="eqh" title="'
-      + esc("Même hauteur que le PREMIER sélectionné (« " + list[0].label + " »). "
-        + "Les lignes et flèches à hauteur nulle sont ignorées : les égaliser "
-        + "les rendrait diagonales.")
+      + esc(dzT("cartes.type2.eqh_titre", { nom: list[0].label }))
       + '">' + ICO("dz-edit-meme-hauteur", 16) + '</button>'
       + '</div>'
-      + '<p class="hint">La référence des égalisations est le <b>premier '
-      + 'sélectionné</b> (« ' + esc(list[0].label) + ' ») — le patron Figma. '
-      + 'Les alignements, eux, se calculent sur l’<b>enveloppe</b> du lot.</p>'
-      + segf("Face" + (cSide.mix ? " — mixte" : ""), "side",
-        [["front", "Recto"], ["back", "Verso"], ["both", "R+V"]],
+      + '<p class="hint">' + dzT("cartes.type2.ref_egalisations", { nom: esc(list[0].label) }) + '</p>'
+      + segf(dzT("cartes.type2.face") + (cSide.mix ? dzT("cartes.type2.tiret_mixte") : ""), "side",
+        [["front", dzT("cartes.type2.recto")], ["back", dzT("cartes.type2.verso")], ["both", dzT("cartes.type2.r_v")]],
         cSide.mix ? MIXTE : cSide.v,
-        ["recto seul", "verso seul", "recto et verso"])
+        [dzT("cartes.type2.recto_seul"), dzT("cartes.type2.verso_seul"), dzT("cartes.type2.recto_et_verso")])
       + '<div class="cf-type-tog">'
-      + puce("lock", ICO("dz-etat-verrouille", 16, "cf-ic") + "Verrou", cLock,
-        "Verrouille ou déverrouille tout le lot d'un coup")
-      + puce("arrow_start", ICO("dz-edit-pointe-fleche", 16, "cf-ic cf-fl-deb") + "Bout de départ", cDeb,
-        "Bout fléché au départ du trait — appliqué à toutes les flèches du lot ("
-        + fleches + " sur " + n + " blocs) ; les autres natures l'ignorent",
+      + puce("lock", ICO("dz-etat-verrouille", 16, "cf-ic") + dzT("cartes.type2.verrou"), cLock,
+        dzT("cartes.type2.verrou_lot_titre"))
+      + puce("arrow_start", ICO("dz-edit-pointe-fleche", 16, "cf-ic cf-fl-deb") + dzT("cartes.type2.bout_depart"), cDeb,
+        dzT("cartes.type2.bout_depart_lot", { f: fleches, n: n }),
         !fleches)
-      + puce("arrow_end", "Bout d’arrivée" + ICO("dz-edit-pointe-fleche", 16, "cf-ic-d cf-fl-fin"), cFin,
-        "Bout fléché à l'arrivée du trait — appliqué à toutes les flèches du lot ("
-        + fleches + " sur " + n + " blocs) ; les autres natures l'ignorent",
+      + puce("arrow_end", dzT("cartes.type2.bout_arrivee") + ICO("dz-edit-pointe-fleche", 16, "cf-ic-d cf-fl-fin"), cFin,
+        dzT("cartes.type2.bout_arrivee_lot", { f: fleches, n: n }),
         !fleches)
       + '</div>'
       + '<p class="hint">'
       + (fleches
-        ? '<b>' + fleches + ' flèche' + (fleches > 1 ? 's' : '') + '</b> dans ce lot : '
-          + 'les bouts fléchés ne visent qu’elle' + (fleches > 1 ? 's' : '')
-          + ', les autres natures restent intactes.'
-        : 'Aucune flèche dans ce lot — les deux bouts fléchés n’ont rien à viser.')
-      + ' La rotation se règle bloc par bloc : en lot, chacun tournerait sur '
-      + 'son propre centre.</p>';
+        ? dzT(fleches > 1 ? "cartes.type2.fleches_lot.plusieurs" : "cartes.type2.fleches_lot.un", { n: fleches })
+        : dzT("cartes.type2.aucune_fleche_lot"))
+      + ' ' + dzT("cartes.type2.rotation_par_bloc") + '</p>';
     wireZ(box);
     box.querySelectorAll(".cf-type-alg").forEach((b) => {
       b.addEventListener("click", () => barreGeste(b.dataset.a));
@@ -4164,16 +4098,14 @@
     const list = selSlots();
     const vises = quels ? list.filter(quels) : list;
     if (!vises.length) {
-      M.toast("aucune flèche dans ce lot : les bouts fléchés ne visent que les "
-        + "flèches, et les autres natures les ignorent", true);
+      M.toast(dzT("cartes.type2.toast_aucune_fleche"), true);
       return;
     }
     const c = commun(vises, k);
     const n = patchLot(selIds(), { [k]: c.mix ? true : !c.v }, quels);
     renderAll();
     if (fleche) {
-      M.toast(n + " flèche(s) sur " + list.length + " bloc(s) — les autres natures "
-        + "n'ont pas de bout fléché et n'ont pas bougé");
+      M.toast(dzT("cartes.type2.toast_fleches_basculees", { n: n, total: list.length }));
     }
   }
   /* ── LA BARRE CONTEXTUELLE, BRANCHEE SUR LES FONCTIONS PURES ─────────────
@@ -4184,8 +4116,8 @@
   /* le PARTICIPE de chaque famille, pour que la phrase du verrou nomme LE
      geste qu'on vient de refuser et pas « le geste » en general. */
   const BARRE_QUOI = {
-    disth: "distribués", distv: "distribués",
-    eqw: "égalisés", eqh: "égalisés",
+    disth: dzT("cartes.type2.pas_distribues"), distv: dzT("cartes.type2.pas_distribues"),
+    eqw: dzT("cartes.type2.pas_egalises"), eqh: dzT("cartes.type2.pas_egalises"),
   };
   function barreGeste(a) {
     /* ── UNE SEULE REGLE POUR LES BLOCS MASQUES (ronde T3, M3) ────────────
@@ -4204,14 +4136,12 @@
     const masques = tous.length - list.length;
     const ditMasques = () => {
       if (masques) {
-        M.toast(masques + " bloc(s) masqué(s) du lot ignoré(s) : les gestes de "
-          + "lot agissent sur ce qui est à l'écran");
+        M.toast(dzT("cartes.type2.masques_ignores", { n: masques }));
       }
     };
     if (list.length < 2) {
       if (masques) {
-        M.toast("il ne reste qu'un bloc visible dans ce lot : rien à aligner "
-          + "(les blocs masqués sont ignorés)", true);
+        M.toast(dzT("cartes.type2.un_seul_visible"), true);
       }
       return;
     }
@@ -4231,34 +4161,30 @@
     let res = null;
     if (a === "disth" || a === "distv") {
       if (list.length < 3) {
-        M.toast("distribuer demande au moins trois blocs visibles : entre deux, "
-          + "l'espace est déjà égal à lui-même", true);
+        M.toast(dzT("cartes.type2.distribuer_trois"), true);
         return;
       }
       const d = distribue(boxes, a === "distv" ? "v" : "h");
       res = d.boxes;
       if (d.jeu < 0) {
-        M.toast("ces blocs ne tiennent pas dans leur propre portée : l'espace "
-          + "égal vaut " + fx(d.jeu, 2) + " mm — ils se chevauchent d'autant");
+        M.toast(dzT("cartes.type2.chevauchement", { mm: fx(d.jeu, 2) }));
       }
     } else if (a === "eqw" || a === "eqh") {
       const dim = a === "eqh" ? "h" : "w";
-      const mot = dim === "h" ? "hauteur" : "largeur";
+      const mot = dim === "h" ? dzT("cartes.type2.mot_hauteur") : dzT("cartes.type2.mot_largeur");
       const r = egalise(boxes, list.map((s) => s.kind), dim);
       if (r.refuse) {
         /* LA PHRASE NE DIT PLUS « UNE LIGNE PLATE » : c'est faux quand la
            reference est un titre a hauteur nulle, et c'est precisement le cas
            que la garde vient d'attraper. */
-        M.toast("le premier sélectionné (« " + list[0].label + " ») a une " + mot
-          + " nulle : la prendre comme référence aplatirait tout le lot — "
-          + "désignez d'abord un bloc de référence à " + mot + " réelle", true);
+        M.toast(dzT("cartes.type2.ref_nulle", { nom: list[0].label, mot: mot }), true);
         return;
       }
       res = r.boxes;
       if (r.ignores.length) {
-        M.toast(r.ignores.length + (r.ignores.length > 1
-          ? " lignes ignorées : égaliser leur " + mot + " les rendrait diagonales"
-          : " ligne ignorée : égaliser sa " + mot + " la rendrait diagonale"));
+        M.toast(dzT(r.ignores.length > 1
+          ? "cartes.type2.lignes_ignorees.plusieurs"
+          : "cartes.type2.lignes_ignorees.un", { n: r.ignores.length, mot: mot }));
       }
     } else {
       res = aligne(boxes, a);
@@ -4269,11 +4195,11 @@
       if (l.libres.indexOf(s.id) >= 0) { garde.push(s.id); gboxes.push(res[i]); }
     });
     if (!garde.length) {
-      ditVerrous(l.bloques, "n'ont pas été " + (BARRE_QUOI[a] || "alignés"));
+      ditVerrous(l.bloques, (BARRE_QUOI[a] || dzT("cartes.type2.pas_alignes")));
       return;
     }
     poseBoites(garde, gboxes);
-    ditVerrous(l.bloques, "n'ont pas été " + (BARRE_QUOI[a] || "alignés"));
+    ditVerrous(l.bloques, (BARRE_QUOI[a] || dzT("cartes.type2.pas_alignes")));
     ditMasques();
   }
   function poseBoites(ids, boxes) {
@@ -4289,7 +4215,7 @@
     });
     /* RIEN A FAIRE SE DIT, ET NE S'ANNULE PAS : un patch identique poserait
        une entree d'annulation qui ne defait rien. */
-    if (!bouge) { M.toast("le lot est déjà dans cette disposition"); return; }
+    if (!bouge) { M.toast(dzT("cartes.type2.deja_disposition")); return; }
     appliqueBoites(map);
     renderAll();
   }
@@ -4307,7 +4233,7 @@
        venait explicitement de relacher. Le clavier vise le meme lot vide
        (`dulot`), les deux surfaces disent donc la meme chose. */
     const s = lot[0] || null;
-    if (!s) { box.innerHTML = '<p class="empty-note sm">Sélectionnez un slot pour en régler la typographie.</p>'; return; }
+    if (!s) { box.innerHTML = '<p class="empty-note sm">' + dzT("cartes.type2.selectionnez_slot") + '</p>'; return; }
     /* LE PANNEAU BASCULE SES SECTIONS SELON LA NATURE DU BLOC. Un calque
        d'image n'a ni police, ni corps, ni casse, ni césure : les afficher
        inertes aurait été onze réglages qui ne font rien — la faute qu'on
@@ -4316,9 +4242,9 @@
     if (isShape(s)) { renderInspShape(box, s); return; }
     box.innerHTML = ''
       + inspHead(s)
-      + '<label class="fld cf-type-f"><span class="lbl">Texte par défaut<i class="cf-type-cc mono">'
-      + Array.from(s.text).length + ' car.</i></span>'
-      + '<textarea class="cf-type-text" rows="3" title="Utilisé tant que la colonne CSV du même nom est vide">'
+      + '<label class="fld cf-type-f"><span class="lbl">' + dzT("cartes.type2.texte_defaut") + '<i class="cf-type-cc mono">'
+      + dzT("cartes.type2.n_car", { n: Array.from(s.text).length }) + '</i></span>'
+      + '<textarea class="cf-type-text" rows="3" title="' + dzT("cartes.type2.texte_defaut_titre") + '">'
       + esc(s.text) + '</textarea></label>'
       + '<div class="cf-type-grid">'
       /* LE NOM DE LA FAMILLE EST ECRIT DANS SA PROPRE FONTE, menu ferme. La
@@ -4327,26 +4253,20 @@
          qu'un nom et un compteur ». Ecrit ainsi, le champ EST l'apercu, et il
          trahit tout de suite une famille qui n'a pas charge (elle s'affiche
          alors dans le repli). */
-      + '<div class="fld cf-type-f cf-type-fontf"><span class="lbl">Police</span>'
-      + '<button class="btn cf-type-font" type="button" title="' + FONTS.length
-      + ' familles installées avec le logiciel · le nom est écrit dans sa propre fonte">'
+      + '<div class="fld cf-type-f cf-type-fontf"><span class="lbl">' + dzT("cartes.type2.police") + '</span>'
+      + '<button class="btn cf-type-font" type="button" title="' + dzT("cartes.type2.police_titre", { n: FONTS.length }) + '">'
       + '<span class="cf-type-fs" style="font-family:\'' + esc(familyOf(s.font)) + '\',sans-serif">'
       + esc(fontLabel(s.font)) + '</span><i>' + esc("." + ((FONT_BY_ID[s.font] || {}).ext || "ttf"))
       + ' · ' + FONTS.length + '</i></button></div>'
-      + nfield("size_pt", "Corps (pt)", s.size_pt, 0.5, "Corps demandé, en points typographiques", 2, 400)
-      + nfield("min_pt", "Mini (pt)", s.min_pt, 0.5,
-        "Jusqu'où « Ajuster » a le droit de descendre pour faire tenir le texte dans "
-        + "la boîte.", 2, 400)
-      + nfield("read_pt", "Lisible dès (pt)", s.read_pt, 0.5,
-        "Le corps sous lequel ce bloc ne se lit plus une fois la carte imprimée et tenue "
-        + "à bout de bras. Repères d'usage : un titre tient à 12 à 20 pt, un encadré de "
-        + "règles à 6 à 9, les crédits à 4 à 5. Le texte reste entier dans tous les cas : "
-        + "le relevé écrit le corps composé et ce qu'il faudrait changer pour remonter. "
-        + "0 = pas de contrôle.", 0, 400)
-      + '<label class="fld cf-type-f"><span class="lbl">Couleur</span>'
+      + nfield("size_pt", dzT("cartes.type2.corps_pt"), s.size_pt, 0.5, dzT("cartes.type2.corps_titre"), 2, 400)
+      + nfield("min_pt", dzT("cartes.type2.mini_pt"), s.min_pt, 0.5,
+        dzT("cartes.type2.mini_titre"), 2, 400)
+      + nfield("read_pt", dzT("cartes.type2.lisible_pt"), s.read_pt, 0.5,
+        dzT("cartes.type2.lisible_titre"), 0, 400)
+      + '<label class="fld cf-type-f"><span class="lbl">' + dzT("cartes.type2.couleur") + '</span>'
       + '<input type="color" class="cf-type-col" value="' + esc(s.color.slice(0, 7)) + '"></label>'
-      + nfield("track", "Interlettrage (%)", s.track, 0.5, "Approche, en % du cadratin", -30, 100)
-      + nfield("leading", "Interligne", s.leading, 0.02, "Multiple du corps", 0.6, 3)
+      + nfield("track", dzT("cartes.type2.interlettrage_pct"), s.track, 0.5, dzT("cartes.type2.interlettrage_titre"), -30, 100)
+      + nfield("leading", dzT("cartes.type2.interligne"), s.leading, 0.02, dzT("cartes.type2.interligne_titre"), 0.6, 3)
       + '</div>'
       /* ── LES REGLAGES DU DOMAINE, AU-DESSUS DE LA LIGNE DE FLOTTAISON ──────
          Alignement, vertical, casse, contour, ombre et arc existaient tous ;
@@ -4355,28 +4275,26 @@
          typographe touche en premier passe donc devant, et les reglages de
          justification — qu'on regle une fois — passent derriere. Aucun champ
          n'a ete retire : ils ont change de rang. */
-      + segf("Alignement", "align", [["left", ICO("dz-edit-texte-aligner-gauche", 16)], ["center", ICO("dz-edit-texte-aligner-centre", 16)], ["right", ICO("dz-edit-texte-aligner-droite", 16)], ["justify", ICO("dz-edit-justifier", 16)]], s.align,
-        ["à gauche", "centré", "à droite", "justifié — les blancs absorbent la largeur manquante"])
+      + segf(dzT("cartes.type2.alignement"), "align", [["left", ICO("dz-edit-texte-aligner-gauche", 16)], ["center", ICO("dz-edit-texte-aligner-centre", 16)], ["right", ICO("dz-edit-texte-aligner-droite", 16)], ["justify", ICO("dz-edit-justifier", 16)]], s.align,
+        [dzT("cartes.type2.a_gauche"), dzT("cartes.type2.centre"), dzT("cartes.type2.a_droite"), dzT("cartes.type2.justifie")])
       + segf("Vertical", "valign", [["top", ICO("dz-edit-aligner-haut", 16)], ["middle", ICO("dz-edit-aligner-centre-v", 16)], ["bottom", ICO("dz-edit-aligner-bas", 16)]], s.valign,
-        ["en haut", "au milieu", "en bas"])
-      + segf("Casse", "caps", [["none", "Aa"], ["upper", "AA"], ["lower", "aa"], ["title", "Ab Cd"]], s.caps,
-        ["telle quelle", "capitales", "bas de casse", "capitales initiales"])
-      + segf("Face", "side", [["front", "Recto"], ["back", "Verso"], ["both", "R+V"]], s.side,
-        ["recto seul", "verso seul", "recto et verso"])
+        [dzT("cartes.type2.en_haut"), dzT("cartes.type2.au_milieu"), dzT("cartes.type2.en_bas")])
+      + segf(dzT("cartes.type2.casse"), "caps", [["none", "Aa"], ["upper", "AA"], ["lower", "aa"], ["title", "Ab Cd"]], s.caps,
+        [dzT("cartes.type2.telle_quelle"), dzT("cartes.type2.capitales"), dzT("cartes.type2.bas_de_casse"), dzT("cartes.type2.capitales_initiales")])
+      + segf(dzT("cartes.type2.face"), "side", [["front", dzT("cartes.type2.recto")], ["back", dzT("cartes.type2.verso")], ["both", dzT("cartes.type2.r_v")]], s.side,
+        [dzT("cartes.type2.recto_seul"), dzT("cartes.type2.verso_seul"), dzT("cartes.type2.recto_et_verso")])
       + '<div class="cf-type-tog">'
       /* le libelle porte l'asterisque des que la famille n'a qu'un fichier :
          le bouton dit alors ce qu'il fait vraiment, avant qu'on clique. */
       + '<button class="chip cf-type-t' + (s.bold ? " active" : "") + '" data-k="bold" type="button" title="'
-      + esc(facesOf(s.font) > 1 ? "Gras" : "Gras synthétique : « " + fontLabel(s.font)
-        + " » n'a qu'un fichier (une graisse). Le navigateur épaissit le trait, il ne charge pas un gras dessiné.")
-      + '"><b>G</b>' + (facesOf(s.font) > 1 ? "" : "<sup>*</sup>") + '</button>'
+      + esc(facesOf(s.font) > 1 ? dzT("cartes.type2.gras") : dzT("cartes.type2.gras_synthetique", { nom: fontLabel(s.font) }))
+      + '"><b>' + dzT("cartes.type2.gras_lettre") + '</b>' + (facesOf(s.font) > 1 ? "" : "<sup>*</sup>") + '</button>'
       + '<button class="chip cf-type-t' + (s.italic ? " active" : "") + '" data-k="italic" type="button" title="'
-      + esc(facesOf(s.font) > 1 ? "Italique" : "Italique synthétique : « " + fontLabel(s.font)
-        + " » n'a qu'un fichier (un style). Le navigateur penche le glyphe, il ne charge pas une italique dessinée.")
+      + esc(facesOf(s.font) > 1 ? dzT("cartes.type2.italique") : dzT("cartes.type2.italique_synthetique", { nom: fontLabel(s.font) }))
       + '"><i>I</i>' + (facesOf(s.font) > 1 ? "" : "<sup>*</sup>") + '</button>'
-      + '<button class="chip cf-type-t' + (s.autofit ? " active" : "") + '" data-k="autofit" type="button" title="Réduit le corps, jusqu\'au mini, pour faire entrer le texte dans sa boîte">Ajuster</button>'
-      + '<button class="chip cf-type-t' + (s.wrap ? " active" : "") + '" data-k="wrap" type="button" title="Retour à la ligne automatique">Retour ligne</button>'
-      + '<button class="chip cf-type-t' + (s.hyphen ? " active" : "") + '" data-k="hyphen" type="button" title="Césure : coupe entre deux consonnes encadrées de voyelles, jamais dans un digramme, jamais à moins de 3 lettres d\'un bout. Le tiret conditionnel U+00AD que vous posez vous-même est toujours respecté.">Césure</button>'
+      + '<button class="chip cf-type-t' + (s.autofit ? " active" : "") + '" data-k="autofit" type="button" title="' + dzT("cartes.type2.ajuster_titre") + '">' + dzT("cartes.type2.ajuster") + '</button>'
+      + '<button class="chip cf-type-t' + (s.wrap ? " active" : "") + '" data-k="wrap" type="button" title="' + dzT("cartes.type2.retour_ligne_titre") + '">' + dzT("cartes.type2.retour_ligne") + '</button>'
+      + '<button class="chip cf-type-t' + (s.hyphen ? " active" : "") + '" data-k="hyphen" type="button" title="' + dzT("cartes.type2.cesure_titre") + '">' + dzT("cartes.type2.cesure") + '</button>'
       + '</div>'
       /* ── LA PLAQUE DE FOND, JUSTE AVANT LE CONTOUR ────────────────────────
          Elle se regle avec le meme geste que le contour et l'ombre — c'est le
@@ -4387,31 +4305,26 @@
          par erreur ne se reprenait plus. Le bloc est partage avec le calque
          d'image (`inspPlaque`) : c'est le meme fond, sous un autre contenu. */
       + inspPlaque(s)
-      + '<details class="grp cf-type-grp" open><summary>Contour, ombre, arc</summary>'
+      + '<details class="grp cf-type-grp" open><summary>' + dzT("cartes.type2.contour_ombre_arc") + '</summary>'
       + '<div class="grp-body cf-type-grid">'
-      + nfield("outline", "Contour (pt)", s.outline, 0.1, "Épaisseur du contour", 0, 20)
-      + '<label class="fld cf-type-f"><span class="lbl">Couleur contour</span>'
+      + nfield("outline", dzT("cartes.type2.contour_pt"), s.outline, 0.1, dzT("cartes.type2.contour_titre"), 0, 20)
+      + '<label class="fld cf-type-f"><span class="lbl">' + dzT("cartes.type2.couleur_contour") + '</span>'
       + '<input type="color" class="cf-type-ocol" value="' + esc(s.outline_color.slice(0, 7)) + '"></label>'
-      + nfield("shadow", "Ombre (pt)", s.shadow, 0.2, "Flou de l’ombre portée", 0, 40)
-      + '<label class="fld cf-type-f"><span class="lbl">Couleur ombre</span>'
+      + nfield("shadow", dzT("cartes.type2.ombre_pt"), s.shadow, 0.2, dzT("cartes.type2.ombre_titre"), 0, 40)
+      + '<label class="fld cf-type-f"><span class="lbl">' + dzT("cartes.type2.couleur_ombre") + '</span>'
       + '<input type="color" class="cf-type-scol" value="' + esc(s.shadow_color.slice(0, 7)) + '"></label>'
-      + nfield("shadow_dx", "Ombre X (pt)", s.shadow_dx, 0.2, "Décalage horizontal", -40, 40)
-      + nfield("shadow_dy", "Ombre Y (pt)", s.shadow_dy, 0.2, "Décalage vertical", -40, 40)
-      + nfield("rotate", "Rotation (°)", s.rotate, 1, "Rotation autour du centre de la boîte", -180, 180)
-      + nfield("arc", "Arc (%)", s.arc, 2, "Texte sur arc : positif = bombé, négatif = creux", -100, 100)
+      + nfield("shadow_dx", dzT("cartes.type2.ombre_x_pt"), s.shadow_dx, 0.2, dzT("cartes.type2.decalage_h"), -40, 40)
+      + nfield("shadow_dy", dzT("cartes.type2.ombre_y_pt"), s.shadow_dy, 0.2, dzT("cartes.type2.decalage_v"), -40, 40)
+      + nfield("rotate", "Rotation (°)", s.rotate, 1, dzT("cartes.type2.rotation_titre"), -180, 180)
+      + nfield("arc", "Arc (%)", s.arc, 2, dzT("cartes.type2.arc_titre"), -100, 100)
       + '</div></details>'
-      + '<details class="grp cf-type-grp"><summary>Opacité, justification</summary>'
+      + '<details class="grp cf-type-grp"><summary>' + dzT("cartes.type2.opacite_justification") + '</summary>'
       + '<div class="grp-body cf-type-grid">'
-      + nfield("opacity", "Opacité (%)", s.opacity, 5, "Opacité du texte", 0, 100)
-      + nfield("just_max", "Blancs max (%)", s.just_max, 1,
-        "Élasticité maximale d'un blanc justifié, en % de l'espace naturel de la fonte. "
-        + "Au-delà, le supplément passe dans l'interlettrage de la ligne au lieu de gonfler "
-        + "encore ses blancs : une ligne lâche se voit, un dixième de pixel entre les lettres non. "
-        + "133 % est la valeur du métier.", 100, 400)
-      + nfield("last_pct", "Dern. ligne (%)", s.last_pct, 5,
-        "Longueur minimale de la dernière ligne d'un paragraphe, en % de la justification. "
-        + "En dessous, le dernier mot de la ligne précédente lui est descendu — jamais un mot "
-        + "n'est coupé ni remonté. 0 désactive le contrôle.", 0, 80)
+      + nfield("opacity", dzT("cartes.type2.opacite_pct"), s.opacity, 5, dzT("cartes.type2.opacite_texte"), 0, 100)
+      + nfield("just_max", dzT("cartes.type2.blancs_max_pct"), s.just_max, 1,
+        dzT("cartes.type2.blancs_max_titre"), 100, 400)
+      + nfield("last_pct", dzT("cartes.type2.derniere_ligne_pct"), s.last_pct, 5,
+        dzT("cartes.type2.derniere_ligne_titre"), 0, 80)
       + '</div></details>'
       + inspBoite(s, inspMeas(s));
 
@@ -4421,7 +4334,7 @@
     ta.addEventListener("input", () => {
       patchSlot(id, { text: ta.value }, true);
       const cc = box.querySelector(".cf-type-cc");
-      if (cc) cc.textContent = Array.from(ta.value).length + " car.";
+      if (cc) cc.textContent = dzT("cartes.type2.n_car", { n: Array.from(ta.value).length });
     });
     ta.addEventListener("focus", pushUndo);
     box.querySelector(".cf-type-font").addEventListener("click", (e) => openFontPicker(e.currentTarget, id));
@@ -4522,17 +4435,16 @@
     const sh = (rec && rec.ok) ? (rec.img.naturalHeight || rec.img.height) : 0;
     const r = (sw && sh) ? fitRect(sw, sh, b, s.fit) : null;
     return '<p class="hint mono cf-type-bpx">'
-      + fx(b[2], 1) + ' x ' + fx(b[3], 1) + ' px de toile'
-      + (sw ? ' · image ' + sw + ' x ' + sh + ' px' : '')
+      + dzT("cartes.type2.px_toile", { w: fx(b[2], 1), h: fx(b[3], 1) })
+      + (sw ? ' · ' + dzT("cartes.type2.image_px", { w: sw, h: sh }) : '')
       /* LE CHIFFRE QUI DECIDE DE LA QUALITE D'IMPRESSION : combien de pixels
          de la source tombent dans un pixel de la toile. En dessous de 1, la
          toile agrandit — c'est le meme fait que la jauge de DPI de P1, dit
          ici avec les grandeurs de ce panneau. */
-      + (r ? ' · posée ' + fx(r[2], 1) + ' x ' + fx(r[3], 1) + ' px, soit '
-        + fx(sw / Math.max(1, r[2]), 2) + ' pixel(s) d\'image par pixel de toile'
-        + (sw / Math.max(1, r[2]) < 0.999 ? ' — <b>la toile agrandit</b>' : '') : '')
-      + (file && rec && !rec.ok ? ' · <b>' + esc(file) + ' introuvable</b>' : '')
-      + ' · 1 mm = ' + fx(g.mm2px(1), 3) + ' px à ' + g.dpi + ' DPI</p>';
+      + (r ? ' · ' + dzT("cartes.type2.posee_px", { w: fx(r[2], 1), h: fx(r[3], 1), k: fx(sw / Math.max(1, r[2]), 2) })
+        + (sw / Math.max(1, r[2]) < 0.999 ? ' — <b>' + dzT("cartes.type2.toile_agrandit") + '</b>' : '') : '')
+      + (file && rec && !rec.ok ? ' · <b>' + dzT("cartes.type2.introuvable", { f: esc(file) }) + '</b>' : '')
+      + ' · ' + dzT("cartes.type2.mm_px_dpi", { px: fx(g.mm2px(1), 3), dpi: g.dpi }) + '</p>';
   }
   function renderInspImage(box, s) {
     const file = srcFile(s);
@@ -4541,33 +4453,31 @@
       + inspHead(s)
       /* LA ZONE DE DEPOT — patron de P1 (mod-face) : cliquer, deposer ou
          coller, les trois chemins d'un import d'image dans ce lab. */
-      + '<div class="cf-type-drop" title="Déposez une image, collez-la (Ctrl+V) ou cliquez pour en choisir une">'
+      + '<div class="cf-type-drop" title="' + dzT("cartes.type2.depot_titre") + '">'
       + '<input type="file" class="cf-type-file" accept="image/*" hidden>'
-      + '<b>' + (file ? esc(file) : 'Aucune image') + '</b>'
+      + '<b>' + (file ? esc(file) : dzT("cartes.type2.aucune_image")) + '</b>'
       + '<span class="hint">' + (file
-        ? 'Déposez-en une autre pour la remplacer.'
-        : 'Déposez une image, collez-la ou cliquez ici.')
+        ? dzT("cartes.type2.depot_remplacer")
+        : dzT("cartes.type2.depot_vide"))
       + '</span></div>'
       + (file && rec && !rec.ok
-        ? '<p class="hint cf-type-warn">' + esc(file) + ' n\'est pas dans ce jeu : '
-          + 'l\'aperçu pose un damier à sa place. Déposez le fichier à nouveau.'
+        ? '<p class="hint cf-type-warn">' + dzT("cartes.type2.fichier_absent_jeu", { f: esc(file) })
         + '</p>' : '')
-      + segf("Cadrage", "fit", [["contain", "Entière"], ["cover", "Remplir"]], s.fit,
-        ["l'image entière tient dans la boîte — des bandes vides restent sur le petit côté",
-          "l'image remplit la boîte et ce qui dépasse est coupé"])
-      + segf("Face", "side", [["front", "Recto"], ["back", "Verso"], ["both", "R+V"]], s.side,
-        ["recto seul", "verso seul", "recto et verso"])
+      + segf(dzT("cartes.type2.cadrage"), "fit", [["contain", dzT("cartes.type2.entiere")], ["cover", dzT("cartes.type2.remplir")]], s.fit,
+        [dzT("cartes.type2.entiere_titre"),
+          dzT("cartes.type2.remplir_titre")])
+      + segf(dzT("cartes.type2.face"), "side", [["front", dzT("cartes.type2.recto")], ["back", dzT("cartes.type2.verso")], ["both", dzT("cartes.type2.r_v")]], s.side,
+        [dzT("cartes.type2.recto_seul"), dzT("cartes.type2.verso_seul"), dzT("cartes.type2.recto_et_verso")])
       + inspPlaque(s)
-      + '<details class="grp cf-type-grp" open><summary>Rotation, opacité</summary>'
+      + '<details class="grp cf-type-grp" open><summary>' + dzT("cartes.type2.rotation_opacite") + '</summary>'
       + '<div class="grp-body cf-type-grid">'
-      + nfield("rotate", "Rotation (°)", s.rotate, 1, "Rotation autour du centre de la boîte", -180, 180)
-      + nfield("opacity", "Opacité (%)", s.opacity, 5, "Opacité du calque, plaque comprise", 0, 100)
+      + nfield("rotate", "Rotation (°)", s.rotate, 1, dzT("cartes.type2.rotation_titre"), -180, 180)
+      + nfield("opacity", dzT("cartes.type2.opacite_pct"), s.opacity, 5, dzT("cartes.type2.opacite_calque"), 0, 100)
       + '</div>'
       /* OU CE CALQUE SE PEINT, dit a l'ecran : la bande z=60 passe AU-DESSUS
          du cadre de base (40) et SOUS le decor haut (70). Sans cette phrase,
          « mon image passe derriere le cadre » devient un rapport de bogue. */
-      + '<p class="hint">Ce calque se peint au-dessus du cadre de base et sous le décor haut, '
-      + 'dans l\'ordre de la liste des blocs.</p>'
+      + '<p class="hint">' + dzT("cartes.type2.calque_ordre") + '</p>'
       + '</details>'
       + inspBoite(s, imgMeasHtml(s));
 
@@ -4605,101 +4515,88 @@
      pour une ligne, la boite n'est pas un cadre, c'est le SEGMENT (d'un coin
      a l'autre). Le dire evite le rapport de bogue « ma ligne ne remplit pas sa
      boite ». */
-  const SHAPE_LABELS = { rect: "Rectangle", ellipse: "Ellipse",
-    line: "Ligne", arrow: "Flèche" };
+  const SHAPE_LABELS = { rect: dzT("cartes.type2.rectangle"), ellipse: dzT("cartes.type2.ellipse"),
+    line: dzT("cartes.type2.ligne"), arrow: dzT("cartes.type2.fleche") };
   function shapeNote(s) {
     if (s.kind === "ellipse") {
       const car = Math.abs(s.box[2] - s.box[3]) < 0.02;
       return car
-        ? "Boîte carrée : c'est un <b>cercle</b> de " + fx(s.box[2] / 2, 2)
-          + " mm de rayon, centré sur la boîte."
-        : "Ellipse inscrite : demi-axes " + fx(s.box[2] / 2, 2) + " et "
-          + fx(s.box[3] / 2, 2) + " mm. Égalisez largeur et hauteur pour un cercle.";
+        ? dzT("cartes.type2.note_cercle", { r: fx(s.box[2] / 2, 2) })
+        : dzT("cartes.type2.note_ellipse", { a: fx(s.box[2] / 2, 2), b: fx(s.box[3] / 2, 2) });
     }
     if (s.kind === "line" || s.kind === "arrow") {
-      return "Le trait va d'un <b>coin de la boîte à l'autre</b>"
-        + (s.flip ? " (bas-gauche → haut-droit)" : " (haut-gauche → bas-droit)")
-        + " : hauteur nulle = horizontale, largeur nulle = verticale.";
+      return dzT(s.flip ? "cartes.type2.note_trait.retourne" : "cartes.type2.note_trait.normal");
     }
-    return "L'aplat occupe toute la boîte. Les coins s'arrondissent par le "
-      + "rayon de la plaque de fond.";
+    return dzT("cartes.type2.note_aplat");
   }
   function renderInspShape(box, s) {
     const droite = (s.kind === "line" || s.kind === "arrow");
     box.innerHTML = ''
       + inspHead(s)
       + '<p class="hint cf-type-shnote">' + shapeNote(s) + '</p>'
-      + '<details class="grp cf-type-grp" open><summary>Encre</summary>'
+      + '<details class="grp cf-type-grp" open><summary>' + dzT("cartes.type2.encre") + '</summary>'
       + '<div class="grp-body"><div class="cf-type-grid">'
       + (droite ? ''
-        : '<label class="fld cf-type-f"><span class="lbl">Remplissage</span>'
+        : '<label class="fld cf-type-f"><span class="lbl">' + dzT("cartes.type2.remplissage") + '</span>'
           + '<input type="color" class="cf-type-fcol" value="'
           + esc(String(s.fill || "#f2efe9").slice(0, 7))
-          + '" title="Couleur de l’intérieur de la forme"></label>'
-          + nfield("fill_alpha", "Opacité du remplissage", s.fill_alpha, 0.05,
-            "Opacité de l’intérieur, de 0 à 1. Elle se multiplie avec l’opacité "
-            + "du bloc : un bloc à 50 % et un remplissage à 0,8 posent 40 %.",
+          + '" title="' + dzT("cartes.type2.remplissage_titre") + '"></label>'
+          + nfield("fill_alpha", dzT("cartes.type2.opacite_remplissage"), s.fill_alpha, 0.05,
+            dzT("cartes.type2.opacite_remplissage_titre"),
             0, 1))
       + '<label class="fld cf-type-f"><span class="lbl">'
-      + (droite ? "Couleur du trait" : "Contour") + '</span>'
+      + (droite ? dzT("cartes.type2.couleur_trait") : dzT("cartes.type2.contour")) + '</span>'
       + '<input type="color" class="cf-type-scol2" value="'
       + esc(String(s.stroke || "#f2efe9").slice(0, 7))
       + '" title="' + esc(droite
-        ? "Couleur du trait et de sa ou ses têtes"
-        : "Couleur du contour de la forme") + '"></label>'
-      + nfield("stroke_mm", "Épaisseur (mm)", s.stroke_mm, 0.1,
-        "Épaisseur du trait, en millimètres. 0 = pas de trait du tout — pas un "
-        + "trait fin que la presse refuserait.", 0, STROKE_MM_MAX)
+        ? dzT("cartes.type2.couleur_trait_titre")
+        : dzT("cartes.type2.couleur_contour_titre")) + '"></label>'
+      + nfield("stroke_mm", dzT("cartes.type2.epaisseur_mm"), s.stroke_mm, 0.1,
+        dzT("cartes.type2.epaisseur_titre"), 0, STROKE_MM_MAX)
       + '</div>'
       + '<div class="btn-row">'
       + (droite ? '' : '<button class="btn sm cf-type-nofill" type="button"'
-        + ' title="Retire le remplissage : il ne reste que le contour">Sans remplissage</button>')
+        + ' title="' + dzT("cartes.type2.sans_remplissage_titre") + '">' + dzT("cartes.type2.sans_remplissage") + '</button>')
       + '<button class="btn sm cf-type-nostroke" type="button"'
-      + ' title="Retire le trait">Sans trait</button></div>'
+      + ' title="' + dzT("cartes.type2.sans_trait_titre") + '">' + dzT("cartes.type2.sans_trait") + '</button></div>'
       + '<p class="hint">' + (s.fill || s.stroke
-        ? (droite ? 'trait ' + esc(String(s.stroke || "aucun"))
-          : 'remplissage ' + esc(String(s.fill || "aucun"))
-            + ' · contour ' + esc(String(s.stroke || "aucun")))
-          + ' à ' + fx(s.stroke_mm, 2) + ' mm'
-        : 'aucune encre — cette forme ne se peint pas encore')
+        ? (droite ? dzT("cartes.type2.encre_trait", { t: esc(String(s.stroke || dzT("cartes.type2.aucun"))), mm: fx(s.stroke_mm, 2) })
+          : dzT("cartes.type2.encre_forme", { f: esc(String(s.fill || dzT("cartes.type2.aucun"))), t: esc(String(s.stroke || dzT("cartes.type2.aucun"))), mm: fx(s.stroke_mm, 2) }))
+        : dzT("cartes.type2.aucune_encre"))
       + '</p></div></details>'
       + (droite
-        ? '<details class="grp cf-type-grp" open><summary>Axe et bouts</summary>'
+        ? '<details class="grp cf-type-grp" open><summary>' + dzT("cartes.type2.axe_bouts") + '</summary>'
           + '<div class="grp-body">'
           + '<div class="btn-row">'
           + '<button class="btn sm cf-type-t" data-k="flip" type="button"'
-          + ' title="Prend l’autre diagonale de la boîte">'
-          + ICO("dz-edit-inverser-sens", 16, "cf-ic") + (s.flip ? "Retournée" : "Retourner") + '</button>'
+          + ' title="' + dzT("cartes.type2.retourner_titre") + '">'
+          + ICO("dz-edit-inverser-sens", 16, "cf-ic") + (s.flip ? dzT("cartes.type2.retournee") : dzT("cartes.type2.retourner")) + '</button>'
           + (s.kind === "arrow"
             ? '<button class="btn sm cf-type-t' + (s.arrow_start ? " on" : "")
-              + '" data-k="arrow_start" type="button" title="Tête au départ du trait">'
-              + (s.arrow_start ? ICO("dz-edit-pointe-fleche", 16, "cf-ic cf-fl-deb") : "") + "Bout de départ" + '</button>'
+              + '" data-k="arrow_start" type="button" title="' + dzT("cartes.type2.tete_depart_titre") + '">'
+              + (s.arrow_start ? ICO("dz-edit-pointe-fleche", 16, "cf-ic cf-fl-deb") : "") + dzT("cartes.type2.bout_depart") + '</button>'
               + '<button class="btn sm cf-type-t' + (s.arrow_end ? " on" : "")
-              + '" data-k="arrow_end" type="button" title="Tête à la fin du trait">'
-              + "Bout d’arrivée" + (s.arrow_end ? ICO("dz-edit-pointe-fleche", 16, "cf-ic-d cf-fl-fin") : "") + '</button>'
+              + '" data-k="arrow_end" type="button" title="' + dzT("cartes.type2.tete_fin_titre") + '">'
+              + dzT("cartes.type2.bout_arrivee") + (s.arrow_end ? ICO("dz-edit-pointe-fleche", 16, "cf-ic-d cf-fl-fin") : "") + '</button>'
             : '')
           + '</div>'
           + (s.kind === "arrow"
             ? '<div class="cf-type-grid">'
-              + nfield("head_mm", "Tête (mm)", s.head_mm, 0.5,
-                "Longueur de la tête fléchée, en millimètres. Sa base est aussi "
-                + "large que sa longueur.", 0, HEAD_MM_MAX)
+              + nfield("head_mm", dzT("cartes.type2.tete_mm"), s.head_mm, 0.5,
+                dzT("cartes.type2.tete_titre"), 0, HEAD_MM_MAX)
               + '</div>'
             : '')
           + '</div></details>'
         : '')
-      + segf("Face", "side", [["front", "Recto"], ["back", "Verso"], ["both", "R+V"]], s.side,
-        ["recto seul", "verso seul", "recto et verso"])
+      + segf(dzT("cartes.type2.face"), "side", [["front", dzT("cartes.type2.recto")], ["back", dzT("cartes.type2.verso")], ["both", dzT("cartes.type2.r_v")]], s.side,
+        [dzT("cartes.type2.recto_seul"), dzT("cartes.type2.verso_seul"), dzT("cartes.type2.recto_et_verso")])
       + inspPlaque(s)
-      + '<details class="grp cf-type-grp" open><summary>Rotation, opacité</summary>'
+      + '<details class="grp cf-type-grp" open><summary>' + dzT("cartes.type2.rotation_opacite") + '</summary>'
       + '<div class="grp-body cf-type-grid">'
-      + nfield("rotate", "Rotation (°)", s.rotate, 1, "Rotation autour du centre de la boîte", -180, 180)
-      + nfield("opacity", "Opacité (%)", s.opacity, 5, "Opacité de la forme, plaque comprise", 0, 100)
+      + nfield("rotate", "Rotation (°)", s.rotate, 1, dzT("cartes.type2.rotation_titre"), -180, 180)
+      + nfield("opacity", dzT("cartes.type2.opacite_pct"), s.opacity, 5, dzT("cartes.type2.opacite_forme"), 0, 100)
       + '</div>'
-      + '<p class="hint">Cette forme se peint au-dessus du cadre de base et '
-      + 'sous le décor haut, dans l\'ordre de la liste des blocs — comme un '
-      + 'texte et comme un calque d\'image. Pour écrire par-dessus, posez un '
-      + 'bloc de texte : une forme ne contient pas de texte.</p>'
+      + '<p class="hint">' + dzT("cartes.type2.forme_ordre") + '</p>'
       + '</details>'
       + inspBoite(s, shapeMesHtml(s));
 
@@ -4720,11 +4617,10 @@
   function shapeMesInner(s) {
     const g = CF.geom(), b = boxPx(s, g);
     return '<p class="hint mono cf-type-bpx">'
-      + fx(b[2], 1) + ' x ' + fx(b[3], 1) + ' px de toile'
-      + ' · trait ' + fx(s.stroke_mm, 2) + ' mm = ' + fx(g.mm2px(s.stroke_mm), 1) + ' px'
-      + (s.kind === "arrow" ? ' · tête ' + fx(s.head_mm, 2) + ' mm = '
-        + fx(g.mm2px(s.head_mm), 1) + ' px' : '')
-      + ' · 1 mm = ' + fx(g.mm2px(1), 3) + ' px à ' + g.dpi + ' DPI</p>';
+      + dzT("cartes.type2.px_toile", { w: fx(b[2], 1), h: fx(b[3], 1) })
+      + ' · ' + dzT("cartes.type2.trait_mm_px", { mm: fx(s.stroke_mm, 2), px: fx(g.mm2px(s.stroke_mm), 1) })
+      + (s.kind === "arrow" ? ' · ' + dzT("cartes.type2.tete_mm_px", { mm: fx(s.head_mm, 2), px: fx(g.mm2px(s.head_mm), 1) }) : '')
+      + ' · ' + dzT("cartes.type2.mm_px_dpi", { px: fx(g.mm2px(1), 3), dpi: g.dpi }) + '</p>';
   }
 
   /* LE COLLAGE — au niveau du document, comme dans P1, et garde par le meme
@@ -4776,27 +4672,27 @@
      NON-DÉPART — rien n'est envoyé, rien n'est à annuler. */
   let IMPORTING = false;
   async function importImage(f, id) {
-    if (IMPORTING) { M.toast("un import est déjà en cours", true); return; }
+    if (IMPORTING) { M.toast(dzT("cartes.type2.import_en_cours"), true); return; }
     if (!f || !/^image\//.test(f.type || "")) {
-      M.toast("ce fichier n'est pas une image", true);
+      M.toast(dzT("cartes.type2.pas_une_image"), true);
       return;
     }
     let body = f;
     IMPORTING = true;
-    M.busy(true, "import de l'image…");
+    M.busy(true, dzT("cartes.type2.import_image"));
     try {
       /* `createImageBitmap` et non une URL d'objet : la pièce n'a pas le droit
          de fabriquer d'URL de blob (elle n'a aucun chemin de livraison), et le
          décodage direct s'en passe. */
       let bmp = null;
       try { bmp = await createImageBitmap(f); }
-      catch (e) { M.toast("image illisible : " + f.name, true); return; }
+      catch (e) { M.toast(dzT("cartes.type2.image_illisible", { nom: f.name }), true); return; }
       if (Math.max(bmp.width, bmp.height) > MAX_IMPORT_PX) {
         body = await downscaleImg(bmp, bmp.width, bmp.height);
       }
       if (bmp.close) bmp.close();
       const resp = await M.api.raw("POST", "image", body);
-      if (resp.status === 404) { M.toast("import impossible : le service de cartes n'est pas joignable", true); return; }
+      if (resp.status === 404) { M.toast(dzT("cartes.type2.service_injoignable"), true); return; }
       const d = await resp.json().catch(() => null);
       if (!resp.ok) throw new Error((d && d.detail) || (resp.status + " " + resp.statusText));
       /* ON RELIT L'IMAGE SERVIE, pas le fichier local : c'est elle que le
@@ -4807,8 +4703,7 @@
       patchSlot(id, { src: d.src });
       renderAll();
       M.invalidate();
-      M.toast("image importée — " + d.px[0] + " x " + d.px[1] + " px ("
-        + d.n + " / " + d.max + ")");
+      M.toast(dzT("cartes.type2.image_importee", { w: d.px[0], h: d.px[1], n: d.n, max: d.max }));
     } catch (e) {
       M.toast(String((e && e.message) || e), true);
     } finally { IMPORTING = false; M.busy(false); }
@@ -4823,7 +4718,7 @@
     const groups = {};
     FONTS.forEach((f) => { (groups[f.kind] = groups[f.kind] || []).push(f); });
     fp.innerHTML = '<div class="cf-type-fph">'
-      + '<input type="text" class="search sm cf-type-fq" placeholder="Filtrer ' + FONTS.length + ' polices…">'
+      + '<input type="text" class="search sm cf-type-fq" placeholder="' + dzT("cartes.type2.filtrer_polices", { n: FONTS.length }) + '">'
       + '<span class="counter mono cf-type-fn">' + FONTS.length + '</span></div>'
       + '<div class="cf-type-fpl">'
       + Object.keys(groups).map((k) => '<div class="cf-type-fg">' + esc(KIND_LABELS[k] || k) + '</div>'
@@ -4837,10 +4732,9 @@
           return '<button class="cf-type-fi' + (miss && miss.length ? " part" : "")
             + '" type="button" data-f="' + esc(f.id) + '" data-l="'
             + esc(f.label.toLowerCase()) + '" title="'
-            + esc(miss == null ? "couverture non mesurée (catalogue hors ligne)"
-              : (miss.length ? miss.length + " des " + FR_PROBE.length
-                + " signes du français manquent dans " + f.file + " : " + miss.join(" ")
-                : "les " + FR_PROBE.length + " signes du français sont dans " + f.file))
+            + esc(miss == null ? dzT("cartes.type2.couverture_non_mesuree")
+              : (miss.length ? dzT("cartes.type2.signes_manquants", { n: miss.length, total: FR_PROBE.length, f: f.file, liste: miss.join(" ") })
+                : dzT("cartes.type2.signes_complets", { total: FR_PROBE.length, f: f.file })))
             + '">'
             + '<span class="cf-type-fsample" style="font-family:\'' + esc(f.family) + '\',sans-serif">' + esc(FP_SAMPLE) + '</span>'
             + '<span class="cf-type-flab">' + esc(f.label) + '<i class="mono">.' + esc(f.ext)
@@ -4904,7 +4798,7 @@
     menu.className = "cf-type cf-type-menu";
     menu.innerHTML = Object.keys(PRESETS).map((p) => '<button class="cf-type-mi" type="button" data-p="' + p + '">'
       + '<b>' + esc(PRESETS[p].label) + '</b><span>' + esc(PRESETS[p].hint) + '</span>'
-      + '<i class="mono">' + PRESETS[p].slots.length + ' slots</i></button>').join("");
+      + '<i class="mono">' + dzT("cartes.type2.n_slots", { n: PRESETS[p].slots.length }) + '</i></button>').join("");
     document.body.appendChild(menu);
     placeMenu(menu, e, 400);
     menu.querySelectorAll(".cf-type-mi").forEach((b) => b.addEventListener("click", () => {
@@ -4987,36 +4881,28 @@
        bitmap, parce que l'approche droite du dernier glyphe change d'une ligne
        a l'autre. Publier le seul zero, c'etait promettre un chiffre que le
        fichier ne rend pas. */
-    const out = ["fins de ligne " + fx(m.ragged * 100, 0) + " % d'irrégularité au tracé (bord droit)"
+    const out = [dzT("cartes.type2.fins_ligne", { p: fx(m.ragged * 100, 0) })
       + (m.edge_ink
-        ? " · <b>" + m.edge_ink.spread + " px</b> d'écart d'encre relus sur le fichier ("
-          + fx(m.edge_ink.pct, 1) + " %, " + m.edge_ink.n + " lignes, bords "
-          + m.edge_ink.right[0] + " à " + m.edge_ink.right[1] + " px"
+        ? " · " + dzT("cartes.type2.ecart_encre", { px: m.edge_ink.spread, p: fx(m.edge_ink.pct, 1), n: m.edge_ink.n, a: m.edge_ink.right[0], b: m.edge_ink.right[1] })
           /* LES DEUX SEUILS, PARCE QU'IL Y A DEUX FACONS DE REMESURER. Celui
              qui masque la couleur d'encre ne voit pas le liseré et trouve des
              bords decales d'un pixel : ce nombre-la est publie aussi, sinon
              son re-mesurage contredit le panneau et le panneau a tort. */
           + (m.edge_ink.right_core
-            ? " ; corps plein seul " + m.edge_ink.right_core[0] + " à "
-              + m.edge_ink.right_core[1] + " px, écart " + m.edge_ink.spread_core + " px"
+            ? dzT("cartes.type2.corps_plein_ecart", { a: m.edge_ink.right_core[0], b: m.edge_ink.right_core[1], px: m.edge_ink.spread_core })
             : "") + ")"
         : "")];
     if (m.ws_lo != null && m.ws_hi != null) {
-      out.push("blancs-mots " + fx(m.ws_lo, 1) + " → " + fx(m.ws_hi, 1) + " px d'avance, étirement max "
-        + fx(m.ws_stretch, 2) + " × le naturel (" + fx(m.natWs, 1) + " px, plafond "
-        + fx(m.just_max / 100, 2) + " ×)"
-        + (m.ws_capped ? " · " + m.ws_capped + " ligne(s) rattrapée(s) par l'interlettrage" : "")
+      out.push(dzT("cartes.type2.blancs_mots", { lo: fx(m.ws_lo, 1), hi: fx(m.ws_hi, 1), k: fx(m.ws_stretch, 2), nat: fx(m.natWs, 1), max: fx(m.just_max / 100, 2) })
+        + (m.ws_capped ? " · " + dzT("cartes.type2.lignes_rattrapees", { n: m.ws_capped }) : "")
         /* LES DEUX CONVENTIONS COTE A COTE. Sans la seconde, quiconque
            remesure le bitmap trouve un autre nombre et conclut au mensonge. */
-        + (m.ws_ink ? " · " + m.ws_ink.lo + " → " + m.ws_ink.hi
-          + " px mesurés d'encre à encre sur le fichier (" + m.ws_ink.n + " blancs"
-          + (m.ws_ink.lo_core != null ? " ; corps plein seul " + m.ws_ink.lo_core
-            + " → " + m.ws_ink.hi_core + " px" : "") + ")" : ""));
+        + (m.ws_ink ? " · " + dzT("cartes.type2.blancs_encre", { lo: m.ws_ink.lo, hi: m.ws_ink.hi, n: m.ws_ink.n })
+          + (m.ws_ink.lo_core != null ? dzT("cartes.type2.corps_plein_fleche", { lo: m.ws_ink.lo_core, hi: m.ws_ink.hi_core }) : "") + ")" : ""));
     }
     if (m.last_pct != null) {
-      out.push((m.last_short ? "<b>dernière ligne " : "dernière ligne ") + fx(m.last_pct, 0)
-        + " % de la justification" + (m.last_short ? "</b>" : "")
-        + (m.last_min > 0 ? " (mini " + fx(m.last_min, 0) + " %)" : " — contrôle désactivé"));
+      out.push((m.last_short ? "<b>" : "") + dzT("cartes.type2.derniere_ligne", { p: fx(m.last_pct, 0) }) + (m.last_short ? "</b>" : "")
+        + (m.last_min > 0 ? " (" + dzT("cartes.type2.mini_pct", { p: fx(m.last_min, 0) }) + ")" : dzT("cartes.type2.controle_desactive")));
     }
     return out.join(" · ");
   }
@@ -5028,7 +4914,7 @@
     if (!r || r.lum_a == null || r.lum_b == null) return "";
     const hi = Math.max(r.lum_a, r.lum_b), lo = Math.min(r.lum_a, r.lum_b);
     return "(" + fx(hi, 4) + " + 0,05) / (" + fx(lo, 4) + " + 0,05)"
-      + (r.via === "contour" ? " — c'est le contour qui fait le relais" : "");
+      + (r.via === "contour" ? dzT("cartes.type2.contour_relais") : "");
   }
   /* ── OU CE CHIFFRE A ETE PRIS ─────────────────────────────────────────────
      Deux luminances publiees laissent encore chercher OU les lire : sur un fond
@@ -5044,15 +4930,14 @@
        fond : quand le contour fait le relais, c'est CONTOUR contre fond. Donner
        les pixels sans dire lequel porte quoi aurait remplace une ambiguite par
        une autre. */
-    const enc = "encre" + (r.ink_pt ? " au pixel " + ptTxt(r.ink_pt) : "");
-    const fnd = "fond" + (r.bg_pt ? " au pixel " + ptTxt(r.bg_pt) : "");
-    const con = "contour " + (r.out_hex || "") + " (couleur déclarée)";
+    const enc = (r.ink_pt ? dzT("cartes.type2.encre_au_pixel", { pt: ptTxt(r.ink_pt) }) : dzT("cartes.type2.encre_mot"));
+    const fnd = (r.bg_pt ? dzT("cartes.type2.fond_au_pixel", { pt: ptTxt(r.bg_pt) }) : dzT("cartes.type2.fond_mot"));
+    const con = dzT("cartes.type2.contour_declare", { hex: r.out_hex || "" });
     const m = { ink_bg: [enc, fnd], outline_bg: [con, fnd], ink_outline: [enc, con] }[r.pair]
       || [enc, fnd];
     const hi = Math.max(r.lum_a, r.lum_b), lo = Math.min(r.lum_a, r.lum_b);
     const first = r.lum_a >= r.lum_b ? 0 : 1;
-    return "relevé sur le fichier : " + fx(hi, 4) + " = " + m[first] + " · "
-      + fx(lo, 4) + " = " + m[1 - first];
+    return dzT("cartes.type2.releve_fichier", { hi: fx(hi, 4), a: m[first], lo: fx(lo, 4), b: m[1 - first] });
   }
   function auditOf(id) {
     if (!AUDIT || AUDIT.stamp !== AUDIT_STAMP) return null;
@@ -5082,32 +4967,31 @@
       /* les chiffres viennent du painter : tant qu'il n'a pas rendu la main,
          on le DIT au lieu d'afficher des zeros qui ressembleraient a un
          verdict. */
-      html += '<div class="cf-type-prow"><i>' + ICO("dz-etat-attente", 16) + '</i><b>Mesure</b>'
-        + '<span>rendu en cours — les chiffres ci-dessous sont ceux du dernier rendu de la toile.</span></div>';
+      html += '<div class="cf-type-prow"><i>' + ICO("dz-etat-attente", 16) + '</i><b>' + dzT("cartes.type2.mesure") + '</b>'
+        + '<span>' + dzT("cartes.type2.rendu_en_cours") + '</span></div>';
     } else if (MEAS_SIDE !== LAST_SIDE) {
       /* le releve decrit une face, le dernier rendu en concernait une autre :
          on NOMME la face plutot que de laisser croire que les chiffres
          viennent de la passe qu'on vient de voir passer. */
-      html += '<div class="cf-type-prow"><i>' + ICO("dz-etat-information", 16) + '</i><b>Face</b><span>relevé du <b>'
-        + (MEAS_SIDE === "front" ? "recto" : "verso") + '</b> — le dernier rendu portait sur le '
-        + (LAST_SIDE === "front" ? "recto" : "verso") + ', qui ne porte aucun slot de texte.</span></div>';
+      html += '<div class="cf-type-prow"><i>' + ICO("dz-etat-information", 16) + '</i><b>' + dzT("cartes.type2.face") + '</b><span>'
+        + dzT("cartes.type2.releve_face", { a: MEAS_SIDE === "front" ? dzT("cartes.type2.recto_min") : dzT("cartes.type2.verso_min"),
+          b: LAST_SIDE === "front" ? dzT("cartes.type2.recto_min") : dzT("cartes.type2.verso_min") }) + '</span></div>';
     }
     if (hero) {
       html += line(
         esc(hero.s.label),
-        hero.m.empty ? "<b>aucun texte</b> — le bloc est réglé mais ne pose aucun glyphe"
+        hero.m.empty ? dzT("cartes.type2.aucun_texte")
           /* CE QUE LE BLOC EST DEVENU, EN CHIFFRES ET SANS VERDICT. « rétréci
              pour tenir » disait la manoeuvre sans dire son prix ; « 14 → 8,2 pt »
              dit les deux, et se relit sur le fichier. « 44 des 44 signes »
              remplace un compteur a zero par les deux nombres qui le produisent :
              qui recompte le texte et l'image retombe dessus. */
-          : (hero.m.chars + " car. en " + hero.m.lines.length + " ligne" + (hero.m.lines.length > 1 ? "s" : "")
-            + " · corps " + corps(hero.m, g)
-            + (hero.m.shrunk ? ", demandé " + fx(hero.s.size_pt, 1) + " pt" : "")
-            + (hero.m.over ? " · corps mini " + fx(hero.s.min_pt, 1) + " pt atteint" : "")
-            + (hero.m.under_read ? " · <b>plus petit que les " + fx(hero.m.read_pt, 1)
-              + " pt réglés pour ce bloc</b>" : "")
-            + " · " + hero.m.posed + " des " + hero.m.srcn + " signes composés (blancs exclus)"
+          : (dzT(hero.m.lines.length > 1 ? "cartes.type2.car_lignes.plusieurs" : "cartes.type2.car_lignes.un", { c: hero.m.chars, n: hero.m.lines.length })
+            + " · " + dzT("cartes.type2.corps_val", { v: corps(hero.m, g) })
+            + (hero.m.shrunk ? ", " + dzT("cartes.type2.demande_pt", { v: fx(hero.s.size_pt, 1) }) : "")
+            + (hero.m.over ? " · " + dzT("cartes.type2.corps_mini_atteint", { v: fx(hero.s.min_pt, 1) }) : "")
+            + (hero.m.under_read ? " · <b>" + dzT("cartes.type2.sous_lisible", { v: fx(hero.m.read_pt, 1) }) + "</b>" : "")
+            + " · " + dzT("cartes.type2.signes_composes", { n: hero.m.posed, total: hero.m.srcn })
             + " · " + clearTxt(hero.m.ink, g, hero.bad)),
         /* le fichier d'abord : rien de perdu, rien qui sorte. Le plancher de
            lisibilite ne descend la ligne qu'en ambre — c'est un defaut de
@@ -5127,16 +5011,12 @@
          plein seul — pour qu'un re-mesurage retombe sur un chiffre AFFICHE
          quel que soit le masque qu'il applique au PNG. */
       const pave = ar && ar.ink_px
-        ? (ar.clipped ? "au moins " : "") + ar.ink_px[2] + " x " + ar.ink_px[3]
-          + " px d'encre totale (α &gt; 0)"
-          + (ar.ink_core_px ? ", " + ar.ink_core_px[2] + " x " + ar.ink_core_px[3]
-            + " px de corps plein (α ≥ 250)" : "")
-          + " — relus sur le PNG"
-        : fx(rules.m.ink[2], 0) + " x " + fx(rules.m.ink[3], 0)
-          + " px (estimé — le contrôle photométrique n'a pas encore relu le fichier)";
-      html += line("Encadré de règles",
-        rules.m.chars + " car. · pavé " + pave
-        + " · cadre de composition " + sr[2] + " x " + sr[3] + " px · "
+        ? dzT(ar.clipped ? "cartes.type2.encre_totale.au_moins" : "cartes.type2.encre_totale.exacte", { w: ar.ink_px[2], h: ar.ink_px[3] })
+          + (ar.ink_core_px ? ", " + dzT("cartes.type2.corps_plein_px", { w: ar.ink_core_px[2], h: ar.ink_core_px[3] }) : "")
+          + dzT("cartes.type2.relus_png")
+        : dzT("cartes.type2.pave_estime", { w: fx(rules.m.ink[2], 0), h: fx(rules.m.ink[3], 0) });
+      html += line(dzT("cartes.type2.encadre_regles"),
+        dzT("cartes.type2.encadre_detail", { c: rules.m.chars, pave: pave, w: sr[2], h: sr[3] }) + " · "
         /* PAS DE PROMESSE UNIVERSELLE. « toute re-mesure tombe entre ces deux
            bornes » etait une affirmation sur TOUS les masques possibles, alors
            que l'essai porte sur une plage de tolerances donnee (elle est ecrite
@@ -5167,18 +5047,16 @@
       const c = trimClearMm(r.m.ink, g);
       if (!pres || c < pres.c) pres = { c: c, label: r.s.label };
     });
-    html += line("Mise en page",
-      a.length + " blocs de texte · " + fp.dist + " police(s) posée(s) sur les "
-      + fp.served + " du catalogue, chasse mesurée"
-      + (fp.ko ? " · <b>" + fp.ko + " fichier(s) de police illisible(s)</b>" : "")
-      + (shrunk ? " · " + shrunk + " au corps réduit" : "")
-      + (ptMin != null ? " · corps le plus petit " + fx(ptMin, 1) + " pt" : "")
-      + (pres ? " · encre la plus proche de la coupe " + fx(pres.c, 2) + " mm (« "
-        + esc(pres.label) + " »)" : "")
-      + (over ? " · <b>" + over + " bloc(s) débordent de leur cadre</b>" : "")
-      + (outSafe ? " · <b>" + outSafe + " bloc(s) entament la marge du format</b>" : "")
-      + (creuses ? " · <b>" + creuses + " ligne(s) creuse(s)</b>" : "")
-      + (empty ? " · <b>" + empty + " sans glyphe</b>" : "")
+    html += line(dzT("cartes.type2.mise_en_page"),
+      dzT("cartes.type2.mise_en_page_detail", { n: a.length, dist: fp.dist, served: fp.served })
+      + (fp.ko ? " · <b>" + dzT("cartes.type2.polices_illisibles", { n: fp.ko }) + "</b>" : "")
+      + (shrunk ? " · " + dzT("cartes.type2.corps_reduit", { n: shrunk }) : "")
+      + (ptMin != null ? " · " + dzT("cartes.type2.corps_min", { v: fx(ptMin, 1) }) : "")
+      + (pres ? " · " + dzT("cartes.type2.encre_proche_coupe", { mm: fx(pres.c, 2), nom: esc(pres.label) }) : "")
+      + (over ? " · <b>" + dzT("cartes.type2.debordent", { n: over }) + "</b>" : "")
+      + (outSafe ? " · <b>" + dzT("cartes.type2.entament_marge", { n: outSafe }) + "</b>" : "")
+      + (creuses ? " · <b>" + dzT("cartes.type2.lignes_creuses", { n: creuses }) + "</b>" : "")
+      + (empty ? " · <b>" + dzT("cartes.type2.sans_glyphe", { n: empty }) + "</b>" : "")
       + (apiVerdict ? " · " + esc(apiVerdict) : ""),
       over === 0 && outSafe === 0 && empty === 0 && creuses === 0 && fp.ko === 0);
     /* ── LES SIGNES QUE LA POLICE N'A PAS ─────────────────────────────────
@@ -5192,20 +5070,14 @@
       const tofus = rows.filter((r) => !r.m.empty && r.s.on)
         .map((r) => ({ r: r, t: tofuOf(r.s, textOf(r.s, cardT)) }))
         .filter((x) => x.t.length);
-      html += line("Signes hors police",
+      html += line(dzT("cartes.type3.sig_titre"),
         (tofus.length
-          ? "<b>" + tofus.length + " bloc(s) demandent des signes que leur police n'a pas</b> : "
-            + tofus.map((x) => esc(x.r.s.label) + " → " + esc(x.t.join(" ")) + " (« "
-              + esc(fontLabel(x.r.s.font)) + " »)").join(" · ")
-            + " — le navigateur va les chercher dans une autre police, sans un mot, "
-            + "et c'est cette autre police qui part à l'impression."
-          : "aucun : les " + rows.filter((r) => r.s.on).length
-            + " bloc(s) visibles n'emploient que des signes présents dans leur propre fichier de police")
-        + " · " + frc.ok + " des " + frc.n + " familles du catalogue portent les "
-        + FR_PROBE.length + " signes du français"
-        + (frc.bad ? ", " + frc.bad + " ne les portent pas" : "")
-        + (frc.unk ? ", " + frc.unk + " non mesurée(s)" : "")
-        + " — lu dans la table cmap de chaque fichier",
+          ? dzT("cartes.type3.sig_manque", { n: tofus.length, liste: tofus.map((x) => dzT("cartes.type3.sig_item", { bloc: esc(x.r.s.label), signes: esc(x.t.join(" ")), police: esc(fontLabel(x.r.s.font)) })).join(" · ") })
+          : dzT("cartes.type3.sig_aucun", { n: rows.filter((r) => r.s.on).length }))
+        + " · " + dzT("cartes.type3.sig_familles", { ok: frc.ok, n: frc.n, k: FR_PROBE.length })
+        + (frc.bad ? dzT("cartes.type3.sig_bad", { n: frc.bad }) : "")
+        + (frc.unk ? dzT("cartes.type3.sig_unk", { n: frc.unk }) : "")
+        + dzT("cartes.type3.sig_cmap"),
         tofus.length ? false : true);
     }
     /* ── LE PLANCHER DE LISIBILITE, SUR SA PROPRE LIGNE ────────────────────
@@ -5217,17 +5089,10 @@
        taisant sur la lecture. */
     const avecPlancher = rows.filter((r) => !r.m.empty && r.m.read_pt > 0);
     if (avecPlancher.length) {
-      html += line("Corps à l'impression",
+      html += line(dzT("cartes.type3.corps_titre"),
         sous.length
-          ? "<b>" + sous.length + " bloc(s) composé(s) plus petit que réglé</b> : "
-            + sous.map((r) => esc(r.s.label) + " " + fx(r.m.pt, 1) + " pt pour "
-              + fx(r.m.read_pt, 1) + " pt demandés").join(" · ")
-            + " — le texte est entier et dans sa boîte, mais la carte se lira mal à "
-            + "taille réelle. Ce qu'il faut changer, et de combien, est mesuré ci-dessous."
-          : avecPlancher.length + " bloc(s) portent un corps de lecture réglé, tous "
-            + "composés au-dessus (le plus juste : " + esc(serre(avecPlancher).s.label)
-            + " à " + fx(serre(avecPlancher).m.pt, 1) + " pt pour "
-            + fx(serre(avecPlancher).m.read_pt, 1) + " pt demandés)",
+          ? dzT("cartes.type3.corps_sous", { n: sous.length, liste: sous.map((r) => dzT("cartes.type3.corps_item", { bloc: esc(r.s.label), pt: fx(r.m.pt, 1), req: fx(r.m.read_pt, 1) })).join(" · ") })
+          : dzT("cartes.type3.corps_ok", { n: avecPlancher.length, bloc: esc(serre(avecPlancher).s.label), pt: fx(serre(avecPlancher).m.pt, 1), req: fx(serre(avecPlancher).m.read_pt, 1) }),
         sous.length ? "warn" : true);
     }
     /* LE REMEDE SE LIT AVEC LE DEFAUT QU'IL REPARE. Pose en fin de releve, il
@@ -5240,37 +5105,30 @@
     html += defLine();
     if (SERIES) {
       const e = SERIES.per[(hero && hero.s.id) || ""] || null;
-      html += line("Série",
-        SERIES.n + (SERIES.n > 1 ? " cartes · " : " carte · ")
-        + (e && e.n ? esc(e.label) + " de " + fx(e.lo, 1) + " à " + fx(e.hi, 1) + " pt · "
-          + e.min + " au corps mini · " : "")
+      html += line(dzT("cartes.type3.serie_titre"),
+        (SERIES.n > 1 ? dzT("cartes.type3.serie_cartes", { n: SERIES.n }) : dzT("cartes.type3.serie_carte", { n: SERIES.n }))
+        + (e && e.n ? dzT("cartes.type3.serie_plage", { bloc: esc(e.label), lo: fx(e.lo, 1), hi: fx(e.hi, 1), min: e.min }) : "")
         /* LES DEUX COMPTES PLUTOT QUE LEUR DIFFERENCE : « 0 caractere supprime »
            demandait qu'on croie un zero, « 9 600 signes demandés, 9 600 posés »
            se recompte sur la colonne du tableur et sur les cartes. */
-        + SERIES.srcn.toLocaleString("fr-FR") + " signes demandés, "
-        + SERIES.posed.toLocaleString("fr-FR") + " posés"
-        + (SERIES.over ? " · <b>" + SERIES.over + " bloc(s) débordent</b>" : "")
-        + (SERIES.under ? " · <b>" + SERIES.under + " bloc(s) plus petits que réglé</b>" : "")
-        + (SERIES.empty ? " · " + SERIES.empty + " champ vide" : ""),
+        + dzT("cartes.type3.serie_signes", { n: SERIES.srcn.toLocaleString("fr-FR"), p: SERIES.posed.toLocaleString("fr-FR") })
+        + (SERIES.over ? " · " + dzT("cartes.type3.serie_over", { n: SERIES.over }) : "")
+        + (SERIES.under ? " · " + dzT("cartes.type3.serie_under", { n: SERIES.under }) : "")
+        + (SERIES.empty ? " · " + dzT("cartes.type3.serie_vide", { n: SERIES.empty }) : ""),
         SERIES.cut === 0 && SERIES.over === 0 && SERIES.empty === 0 && !SERIES.under);
     }
     html += '</div>';
     if (over) {
-      html += '<p class="cf-type-warn">' + over + ' bloc(s) débordent de leur cadre. Le texte '
-        + 'reste entier dans le fichier : agrandissez la boîte, baissez le corps mini '
-        + 'ou activez « Ajuster ».</p>';
+      html += '<p class="cf-type-warn">' + dzT("cartes.type3.warn_over", { n: over }) + '</p>';
     }
     html += auditDetail();
     html += defDetail();
     html += methodNote();
     html += '<p class="hint cf-type-tools">'
-      + '<button class="cf-type-lnk cf-type-recheck" type="button">Recontrôler la lisibilité</button> · '
-      + '<button class="cf-type-lnk cf-type-series" type="button">Contrôler toute la série</button>'
+      + '<button class="cf-type-lnk cf-type-recheck" type="button">' + dzT("cartes.type3.recheck") + '</button> · '
+      + '<button class="cf-type-lnk cf-type-series" type="button">' + dzT("cartes.type3.series") + '</button>'
       + (fp.dist < fp.served
-        ? ' · <button class="cf-type-lnk cf-type-provef" type="button" title="Charge les '
-          + fp.served + ' fichiers et vérifie, pour chacun, que la chasse posée diffère de '
-          + 'celle du repli du système — une police qui n\'arrive pas se voit alors tout de suite.">'
-          + 'Vérifier les ' + fp.served + ' polices</button>'
+        ? ' · <button class="cf-type-lnk cf-type-provef" type="button" title="' + dzT("cartes.type3.provef_titre", { n: fp.served }) + '">' + dzT("cartes.type3.provef", { n: fp.served }) + '</button>'
         : "")
       + '</p>';
     el.innerHTML = html;
@@ -5280,7 +5138,7 @@
         /* la remise en page de 200 cartes prend quelques secondes et elle est
            synchrone : sans ce report d'une frame, le voyant d'attente n'aurait
            pas le temps de s'afficher et l'ecran passerait pour fige. */
-        M.busy(true, "mise en page de la série…");
+        M.busy(true, dzT("cartes.type3.serie_busy"));
         setTimeout(() => {
           try { runSeries(); } finally { M.busy(false); }
           renderProof();
@@ -5348,17 +5206,17 @@
        absent, il eteint la vigilance. */
     function auditLine() {
       if (!CF.get("type.audit", true)) {
-        return '<div class="cf-type-prow"><i>' + ICO("dz-action-mesurer", 16) + '</i><b>Lisibilité</b><span>'
-          + 'contrôle photométrique désactivé — les compteurs ci-dessus ne parlent que de géométrie. '
-          + '<button class="cf-type-lnk cf-type-recheck" type="button">Contrôler maintenant</button></span></div>';
+        return '<div class="cf-type-prow"><i>' + ICO("dz-action-mesurer", 16) + '</i><b>' + dzT("cartes.type3.lisibilite") + '</b><span>'
+          + dzT("cartes.type3.audit_off") + ' '
+          + '<button class="cf-type-lnk cf-type-recheck" type="button">' + dzT("cartes.type3.audit_go") + '</button></span></div>';
       }
       if (auditErr) {
-        return '<div class="cf-type-prow bad"><i>' + ICO("dz-etat-erreur", 16) + '</i><b>Lisibilité</b><span>contrôle impossible : '
-          + esc(auditErr) + ' <button class="cf-type-lnk cf-type-recheck" type="button">Réessayer</button></span></div>';
+        return '<div class="cf-type-prow bad"><i>' + ICO("dz-etat-erreur", 16) + '</i><b>' + dzT("cartes.type3.lisibilite") + '</b><span>' + dzT("cartes.type3.audit_err", { err: esc(auditErr) })
+          + ' <button class="cf-type-lnk cf-type-recheck" type="button">' + dzT("cartes.type3.reessayer") + '</button></span></div>';
       }
       if (!AUDIT || AUDIT.stamp !== AUDIT_STAMP) {
-        return '<div class="cf-type-prow"><i>' + ICO("dz-etat-attente", 16) + '</i><b>Lisibilité</b>'
-          + '<span>contrôle photométrique en cours sur le composite…</span></div>';
+        return '<div class="cf-type-prow"><i>' + ICO("dz-etat-attente", 16) + '</i><b>' + dzT("cartes.type3.lisibilite") + '</b>'
+          + '<span>' + dzT("cartes.type3.audit_cours") + '</span></div>';
       }
       const A = AUDIT;
       /* UN CHIFFRE SANS SON SLOT SE FAIT LIRE A L'ENVERS. « Contraste le plus
@@ -5384,43 +5242,33 @@
          que la marge optique doit tenir, et c'est elle qu'on annonce. */
       const opt = A.optical_mm;
       const tightTxt = nr
-        ? "dégagement optique " + fx(nr.clear_mm, 2) + " mm — « " + esc(nr.label) + " »"
-          + (nh ? " (halo d'ombre à " + (nh.halo_clear_mm < opt ? "<b>" : "")
-            + fx(nh.halo_clear_mm, 2) + " mm" + (nh.halo_clear_mm < opt ? "</b>" : "")
-            + " — « " + esc(nh.label) + " »)" : "")
-          + " · marge déclarée " + fx(opt, 2) + " mm"
+        ? dzT("cartes.type3.degag", { mm: fx(nr.clear_mm, 2), bloc: esc(nr.label) })
+          + (nh ? dzT("cartes.type3.degag_halo", { mm: (nh.halo_clear_mm < opt ? "<b>" : "") + fx(nh.halo_clear_mm, 2) + " mm" + (nh.halo_clear_mm < opt ? "</b>" : ""), bloc: esc(nh.label) }) : "")
+          + dzT("cartes.type3.degag_marge", { mm: fx(opt, 2) })
         : "";
       const parts = [
         /* D'OU VIENNENT CES CHIFFRES : d'un fichier PNG, pas d'une toile. Et
            l'ecart entre les deux est MESURE, pas affirme — c'est le critere
            « apercu contre fichier livre » du dossier, chiffre sur les octets. */
-        A.rows.length + " slots relus sur le PNG encodé (" + fx(A.file_bytes / 1024, 0)
-        + " Ko, " + A.canvas[0] + " x " + A.canvas[1] + " px)"
+        dzT("cartes.type3.relus", { n: A.rows.length, ko: fx(A.file_bytes / 1024, 0), w: A.canvas[0], h: A.canvas[1] })
         + (A.file_dev != null
-          ? " · l’aperçu et le fichier livré diffèrent de "
-            + (A.file_dev ? "<b>" + A.file_dev + " canal</b>" : "<b>zéro canal</b>")
-            + " sur " + A.file_n.toLocaleString("fr-FR") + " px comparés" : ""),
-        (A.masked.length ? "<b>" + maskedPx + " px d'encre masqués sur " + A.masked.length + " slot(s)</b>"
-          : "0 px d'encre masqué"),
-        (wr ? "contraste le plus bas " + fx(wr.contrast_min, 2) + ":1 — « " + esc(wr.label)
-          + " » à " + fx(wr.pt, 1) + " pt" + (wr.bold ? " gras" : "") + ", seuil AA "
-          + fx(wr.seuil, 1) + ":1"
+          ? dzT("cartes.type3.ecart_fichier", { d: "<b>" + (A.file_dev ? dzT("cartes.type3.canaux", { n: A.file_dev }) : dzT("cartes.type3.zero_canal")) + "</b>", n: A.file_n.toLocaleString("fr-FR") }) : ""),
+        (A.masked.length ? dzT("cartes.type3.masques", { px: maskedPx, n: A.masked.length })
+          : dzT("cartes.type3.masque_zero")),
+        (wr ? dzT("cartes.type3.contraste_bas", { r: fx(wr.contrast_min, 2), bloc: esc(wr.label), pt: fx(wr.pt, 1), gras: (wr.bold ? dzT("cartes.type3.gras") : ""), seuil: fx(wr.seuil, 1) })
           + (wr.lum_a != null ? " = " + contrastCalc(wr) : "")
           + (contrastWhere(wr) ? " · " + contrastWhere(wr) : "")
           /* LE RAPPORT DIRECT, DES QUE LE CONTOUR FAIT LE RELAIS. C'est celui
              qu'une pipette WCAG rend sur le fichier ; le taire, c'etait
              laisser le re-mesureur trouver un autre nombre. */
           + (wr.via === "contour" && wr.contrast_direct != null
-            ? " · encre contre fond sans le contour : "
-              + (wr.contrast_direct < wr.seuil ? "<b>" : "")
-              + fx(wr.contrast_direct, 2) + ":1"
-              + (wr.contrast_direct < wr.seuil ? " (sous le seuil)</b>" : "")
+            ? dzT("cartes.type3.direct", { r: (wr.contrast_direct < wr.seuil ? "<b>" : "") + fx(wr.contrast_direct, 2) + ":1" + (wr.contrast_direct < wr.seuil ? dzT("cartes.type3.sous_seuil") + "</b>" : "") })
             : "")
-          : "contraste non mesurable"),
+          : dzT("cartes.type3.contraste_nm")),
         tightTxt,
-        (A.empties.length ? "<b>" + A.empties.length + " slot(s) sans glyphe</b>" : ""),
+        (A.empties.length ? dzT("cartes.type3.vides", { n: A.empties.length }) : ""),
       ].filter(Boolean);
-      return line("Lisibilité (photométrique)", parts.join(" · "),
+      return line(dzT("cartes.type3.lisibilite_photo"), parts.join(" · "),
         ok ? true : ((A.masked.length || A.lowc.length || A.empties.length) ? false : "warn"));
     }
     /* ── LA LIGNE DE DEFINITION ──────────────────────────────────────────
@@ -5431,14 +5279,14 @@
     function defLine() {
       const alt = altDpi(g.dpi);
       const bouton = '<button class="cf-type-lnk cf-type-defc" type="button">'
-        + (alt == null ? "définition unique" : "Refaire l’épreuve à " + alt + " DPI") + '</button>';
+        + (alt == null ? dzT("cartes.type3.def_unique") : dzT("cartes.type3.def_refaire", { dpi: alt })) + '</button>';
       if (defcBusy) {
-        return '<div class="cf-type-prow"><i>' + ICO("dz-etat-attente", 16) + '</i><b>Épreuve</b>'
-          + '<span>second tirage à ' + alt + ' DPI, en cours…</span></div>';
+        return '<div class="cf-type-prow"><i>' + ICO("dz-etat-attente", 16) + '</i><b>' + dzT("cartes.type3.epreuve") + '</b>'
+          + '<span>' + dzT("cartes.type3.def_cours", { dpi: alt }) + '</span></div>';
       }
       if (defcErr) {
-        return '<div class="cf-type-prow bad"><i>' + ICO("dz-etat-erreur", 16) + '</i><b>Épreuve</b><span>'
-          + 'tirage impossible : ' + esc(defcErr) + ' ' + bouton + '</span></div>';
+        return '<div class="cf-type-prow bad"><i>' + ICO("dz-etat-erreur", 16) + '</i><b>' + dzT("cartes.type3.epreuve") + '</b><span>'
+          + dzT("cartes.type3.def_err", { err: esc(defcErr) }) + ' ' + bouton + '</span></div>';
       }
       /* ELLE NE RESTE PAS VIDE. Le tour precedent laissait cette ligne sur
          « non contrôlé » avec un bouton gris : la mesure la plus chere du
@@ -5446,12 +5294,10 @@
          donc toute seule des que la mise en page se pose (voir
          scheduleDefCheck) ; ce qui suit n'est plus qu'un etat d'attente. */
       if (!DEFC || DEFC.key !== defKey(g)) {
-        return '<div class="cf-type-prow"><i>' + ICO("dz-etat-attente", 16) + '</i><b>Épreuve</b><span>'
+        return '<div class="cf-type-prow"><i>' + ICO("dz-etat-attente", 16) + '</i><b>' + dzT("cartes.type3.epreuve") + '</b><span>'
           + (alt == null
-            ? 'une seule définition disponible pour ce format.'
-            : 'second tirage à ' + alt + ' DPI en attente — la même carte est '
-              + 'recomposée à l’autre définition et les deux tirages sont comparés '
-              + 'pavé par pavé. ' + bouton) + '</span></div>';
+            ? dzT("cartes.type3.def_seule_format")
+            : dzT("cartes.type3.def_attente", { dpi: alt }) + ' ' + bouton) + '</span></div>';
       }
       const D = DEFC;
       /* le temoin fait partie du verdict : tant que le retracage ne fait pas
@@ -5460,35 +5306,30 @@
       const dur = D.moved.length || D.lost.length || D.gone.length || D.out_b.length
         || D.repts.length || flou;
       const parts = [
-        D.n + " bloc(s) recomposé(s) à " + D.dpi_b + " DPI (toile " + D.canvas_b[0]
-        + " x " + D.canvas_b[1] + " px contre " + D.canvas_a[0] + " x " + D.canvas_a[1]
-        + ") et relus sur " + fx(D.bytes / 1024, 0) + " Ko de PNG",
+        dzT("cartes.type3.def_recomp", { n: D.n, dpi: D.dpi_b, wb: D.canvas_b[0], hb: D.canvas_b[1], wa: D.canvas_a[0], ha: D.canvas_a[1], ko: fx(D.bytes / 1024, 0) }),
         /* L'ECART EST DONNE DANS L'UNITE QUI LE REND LISIBLE. En millimetres
            seuls, « 0,127 » ressemble a un deplacement ; rapporte au pas de la
            grille, on voit que c'est un pixel et demi de la definition la plus
            grossiere, c'est-a-dire le grain meme du cadre d'encre. */
         (D.worst
-          ? "écart de pavé maximal <b>" + fx(D.worst.dmm, 3) + " mm</b> = "
-            + fx(D.worst.dpx, 1) + " px de la grille de " + D.dpi_min + " DPI (1 px = "
-            + fx(D.qmm, 3) + " mm) — « " + esc(D.worst.label) + " »"
-            + (D.moved.length ? ", <b>" + D.moved.length + " au-delà du grain de grille</b>"
-              : ", tout est dans le grain de grille : <b>aucun bloc n'a bougé</b>")
-          : "aucun pavé mesurable"),
+          ? dzT("cartes.type3.def_ecart", { mm: fx(D.worst.dmm, 3), px: fx(D.worst.dpx, 1), dpi: D.dpi_min, q: fx(D.qmm, 3), bloc: esc(D.worst.label) })
+            + (D.moved.length ? dzT("cartes.type3.def_bouge", { n: D.moved.length })
+              : dzT("cartes.type3.def_immobile"))
+          : dzT("cartes.type3.def_aucun_pave")),
         (D.repts.length
-          ? "<b>" + D.repts.length + " bloc(s) changent de corps</b> : "
+          ? dzT("cartes.type3.def_corps", { n: D.repts.length })
             + D.repts.map((r) => esc(r.label) + " " + fx(r.a.pt, 2) + " → "
               + fx(r.b.pt, 2) + " pt").join(" · ")
-          : "0 changement de corps composé"),
+          : dzT("cartes.type3.def_corps_zero")),
         (D.lost.length
-          ? "<b>" + D.lost.length + " bloc(s) changent de contenu</b> : "
-            + D.lost.map((r) => esc(r.label) + " " + (r.dchars ? r.dchars + " car." : "")
-              + (r.dlines ? " " + r.dlines + " ligne(s)" : "")).join(" · ")
-          : "0 caractère et 0 ligne de différence"),
-        (D.gone.length ? "<b>" + D.gone.length + " bloc(s) disparaissent</b>" : ""),
+          ? dzT("cartes.type3.def_contenu", { n: D.lost.length })
+            + D.lost.map((r) => esc(r.label) + " " + (r.dchars ? dzT("cartes.type3.n_car", { n: r.dchars }) : "")
+              + (r.dlines ? " " + dzT("cartes.type3.n_lignes", { n: r.dlines }) : "")).join(" · ")
+          : dzT("cartes.type3.def_contenu_zero")),
+        (D.gone.length ? dzT("cartes.type3.def_gone", { n: D.gone.length }) : ""),
         (D.out_b.length
-          ? "<b>" + D.out_b.length + " bloc(s) entament la marge du format à "
-            + D.dpi_b + " DPI</b>"
-          : "la marge du format est tenue aux deux définitions"),
+          ? dzT("cartes.type3.def_marge", { n: D.out_b.length, dpi: D.dpi_b })
+          : dzT("cartes.type3.def_marge_ok")),
         /* LE CHIFFRE QUI NE SE FALSIFIE PAS — ET SON TEMOIN, MESURE. Doubler
            la definition multiplie l'aire d'un glyphe par 4 et son perimetre
            par 2 : la part de liseré recule SI le texte est redessine. Ce que
@@ -5496,16 +5337,13 @@
            depart est reellement agrandi, encode et recompte, et son chiffre
            est publie a cote. */
         (D.ratio != null
-          ? "netteté : liseré d'anticrénelage " + fx(D.frac_a * 100, 1) + " % du tracé à "
-            + D.dpi_a + " DPI → " + fx(D.frac_b * 100, 1) + " % à " + D.dpi_b
-            + " DPI (<b>" + fx(D.ratio, 2) + " ×</b>)"
+          ? dzT("cartes.type3.nettete", { a: fx(D.frac_a * 100, 1), dpia: D.dpi_a, b: fx(D.frac_b * 100, 1), dpib: D.dpi_b, r: fx(D.ratio, 2) })
             + (D.ratio_w != null
-              ? " · témoin mesuré, le même tirage simplement agrandi ×" + fx(1 / (D.dpi_a / D.dpi_b), 0)
-                + " : " + fx(D.frac_w * 100, 1) + " % (" + fx(D.ratio_w, 2) + " ×)"
+              ? dzT("cartes.type3.temoin", { x: fx(1 / (D.dpi_a / D.dpi_b), 0), w: fx(D.frac_w * 100, 1), r: fx(D.ratio_w, 2) })
               : "")
           : ""),
       ].filter(Boolean);
-      return line("Épreuve (" + D.dpi_a + " → " + D.dpi_b + " DPI)",
+      return line(dzT("cartes.type3.epreuve_dpi", { a: D.dpi_a, b: D.dpi_b }),
         parts.join(" · ") + " " + bouton, !dur);
     }
     /* ── CE QU'IL FAUT CHANGER, ET DE COMBIEN ────────────────────────────
@@ -5536,22 +5374,19 @@
            echanger un defaut contre un autre), sauf si c'est la seule qui
            suffise. Le resultat est remesure a la passe suivante et annonce. */
         const auto = autoLever(r);
-        const head = '<p class="cf-type-fixh"><b>' + esc(r.label) + '</b> — composé à '
-          + fx(r.pt, 1) + ' pt'
-          + (r.over_chars ? ', <b>' + r.over_chars + ' caractères hors du cadre</b>' : "")
+        const head = '<p class="cf-type-fixh"><b>' + esc(r.label) + '</b>' + dzT("cartes.type3.fix_compose", { pt: fx(r.pt, 1) })
+          + (r.over_chars ? dzT("cartes.type3.fix_horscadre", { n: r.over_chars }) : "")
           + (r.kind === "read"
-            ? ', réglé pour être lisible dès ' + fx(r.target, 1) + ' pt. Pour le composer à '
-              + fx(r.target, 1) + ' pt' + (r.over_chars ? ' et le faire rentrer' : "")
-              + ', une seule de ces lignes suffit :'
-            : '. Pour qu\'il rentre dans son cadre, une seule de ces lignes suffit :')
+            ? (r.over_chars ? dzT("cartes.type3.fix_read_over", { pt: fx(r.target, 1) }) : dzT("cartes.type3.fix_read", { pt: fx(r.target, 1) }))
+            : dzT("cartes.type3.fix_over"))
           + (auto ? ' <button class="cf-type-fixgo" type="button" data-id="' + esc(r.id)
-            + '" title="Applique la sortie mesurée ci-dessous, puis remesure ce qui a été composé">'
-            + 'Corriger : ' + esc(auto.court) + '</button>' : "") + '</p>';
+            + '" title="' + dzT("cartes.type3.fixgo_titre") + '">'
+            + dzT("cartes.type3.corriger", { quoi: esc(auto.court) }) + '</button>' : "") + '</p>';
         return head + '<ul class="cf-type-fixl">' + r.levers.map((l) => '<li class="'
           + (l.ok && !l.info ? "on" : (l.info ? "info" : "no")) + '">' + l.txt
           + (l.patch ? ' <button class="cf-type-fixb" type="button" data-id="' + esc(r.id)
-            + '" data-k="' + esc(l.k) + '" title="Applique ce réglage, puis remesure ce qui a été composé">'
-            + 'Appliquer</button>' : "") + '</li>').join("") + '</ul>';
+            + '" data-k="' + esc(l.k) + '" title="' + dzT("cartes.type3.fixb_titre") + '">'
+            + dzT("cartes.type3.appliquer") + '</button>' : "") + '</li>').join("") + '</ul>';
       }).join("") + '</div>';
     }
     /* LA REGLE DU CALCUL, ECRITE A COTE DU CHIFFRE. Un contraste annonce sans
@@ -5586,114 +5421,53 @@
         + " %</td></tr>";
       const vivants = D.rows.filter((r) => !r.empty);
       if (!vivants.length) return "";
-      return '<details class="cf-type-meth"><summary>Épreuve, bloc par bloc — '
-        + D.dpi_a + ' DPI contre ' + D.dpi_b + ' DPI, relue sur le fichier</summary>'
+      return '<details class="cf-type-meth"><summary>' + dzT("cartes.type3.dd_titre", { a: D.dpi_a, b: D.dpi_b }) + '</summary>'
         + '<div class="cf-type-defw"><table class="cf-type-deft"><thead><tr>'
-        + '<th>Bloc</th><th>Pavé à ' + D.dpi_a + ' DPI (mm)</th><th>Pavé à ' + D.dpi_b
-        + ' DPI (mm)</th><th>Écart (mm, px de ' + D.dpi_min + ' DPI)</th><th>car. / lignes / corps</th>'
-        + '<th>idem à ' + D.dpi_b + '</th><th>liseré</th></tr></thead><tbody>'
+        + '<th>' + dzT("cartes.type3.dd_bloc") + '</th><th>' + dzT("cartes.type3.dd_pave", { dpi: D.dpi_a }) + '</th><th>' + dzT("cartes.type3.dd_pave", { dpi: D.dpi_b })
+        + '</th><th>' + dzT("cartes.type3.dd_ecart", { dpi: D.dpi_min }) + '</th><th>' + dzT("cartes.type3.dd_car") + '</th>'
+        + '<th>' + dzT("cartes.type3.dd_idem", { dpi: D.dpi_b }) + '</th><th>' + dzT("cartes.type3.dd_lisere") + '</th></tr></thead><tbody>'
         + vivants.map(cel).join("") + '</tbody></table></div>'
-        + '<p class="hint cf-type-methb">Les pavés sont donnés en millimètres depuis le '
-        + 'coin de coupe (fond perdu déduit), mesurés sur le PNG de chaque tirage — pas sur '
-        + 'la toile, pas sur la boîte. L\'écart est aussi donné en <b>pixels de la grille de '
-        + D.dpi_min + ' DPI</b> (1 px = ' + fx(D.qmm, 3) + ' mm) : un cadre d\'encre est calé '
-        + 'sur une grille, deux grilles différentes ne cernent pas le même contour au même '
-        + 'endroit, et un écart d\'un pixel n\'est pas un déplacement. Au-delà de '
-        + DEFC_PX + ' px, ou dès qu\'un caractère, une ligne ou le corps composé change, la '
-        + 'ligne passe en ambre. « Liseré » = part des pixels d\'anticrénelage dans le tracé.'
+        + '<p class="hint cf-type-methb">' + dzT("cartes.type3.dd_note", { dpi: D.dpi_min, q: fx(D.qmm, 3), px: DEFC_PX })
         + '</p></details>';
     }
     function methodNote() {
       if (!AUDIT || AUDIT.stamp !== AUDIT_STAMP) return "";
-      return '<details class="cf-type-meth"><summary>Conventions de mesure'
-        + ' — encre, contraste, blancs-mots</summary>'
+      return '<details class="cf-type-meth"><summary>' + dzT("cartes.type3.mn_titre") + '</summary>'
         + '<p class="hint cf-type-methb">'
-        + '<i>Où sont pris les chiffres</i> : la carte est rendue, <b>encodée en PNG</b>, puis '
-        + 'les octets sont relus — tout ce qui suit est mesuré sur ce fichier, jamais sur la '
-        + 'toile. L\'écart entre les deux est publié à côté (0 canal attendu). '
-        + '<i>Encre</i> : deux bornes, données ensemble parce qu\'il y a deux façons de '
-        + 'remesurer un PNG. L\'<b>encre totale</b> compte tout pixel d\'opacité non nulle '
-        + '(α &gt; 0) posé par le slot, liseré d\'anticrénelage compris ; le <b>corps plein</b> '
-        + 'ne compte que les pixels franchement opaques (α ≥ 250). Un masque de couleur posé '
-        + 'sur le fichier livré retombe forcément <b>entre les deux</b> — plus le masque est '
-        + 'lâche, plus il approche la borne haute. VÉRIFIÉ hors du produit sur l\'encadré de '
-        + 'règles de la carte de démonstration : de ±10 à ±80 niveaux de tolérance, le pavé '
-        + 'remesuré va de 646 x 188 à 647 x 193 px, toujours dans la fourchette publiée. Ni '
-        + 'la boîte, ni une estimation. L\'ombre portée '
-        + 'est mesurée <b>à part</b> (« halo ») : c\'est un dégradé, pas de l\'encre pleine, '
-        + 'mais elle est bien dans le fichier. '
-        + '<i>Contraste</i> : luminance relative WCAG entre la médiane du corps des glyphes '
-        + '(alpha plein) et le 5<sup>e</sup> centile des fonds à 6 px ou moins du glyphe, '
-        + 'contour pris comme relais quand il y en a un ; seuil AA 4,5:1, ou 3:1 au-delà de '
-        + '18 pt (14 pt en gras) ; le rapport affiché est la division des deux luminances '
-        + 'affichées, arrondies d\'abord — il se refait à la main et retombe au centième près. '
-        + 'Les <b>coordonnées publiées</b> à côté du rapport sont celles du fichier livré '
-        + '(origine en haut à gauche de la toile de ' + g.canvas_px[0] + ' x ' + g.canvas_px[1]
-        + ' px, fond perdu compris) : une pipette posée sur ces deux pixels-là retombe sur '
-        + 'ces deux luminances-là. '
-        + 'Dès que le relais sert, le rapport <b>direct</b> (encre contre fond, sans le contour) '
-        + 'est publié à côté : c\'est celui que rend une pipette WCAG, et il est plus bas. '
-        + '<i>Fins de ligne</i> : deux chiffres. Le <b>tracé</b> vaut 0 % par construction — une '
-        + 'ligne justifiée occupe exactement la justification. L\'<b>encre</b> s\'arrête où '
-        + 'finit le dernier glyphe : l\'écart des bords droits est relu sur le composite, en '
-        + 'pixels, et c\'est lui qu\'un re-mesurage trouve. '
-        + '<i>Marge optique</i> : comparée à la marque la plus proche du bord du cadre, '
-        + '<b>halo d\'ombre compris</b> — un dégradé est de l\'encre du fichier. '
-        + '<i>Blancs-mots</i> : deux conventions, données ensemble. L\'<b>avance</b> = espace '
-        + 'naturel de la fonte au corps posé plus l\'étirement réellement dessiné. L\'<b>encre à '
-        + 'encre</b> = le vide relu entre deux amas sur le composite, soit l\'avance moins les '
-        + 'approches des deux glyphes voisins ; sur une ligne qui porte <i>k</i> espaces, les '
-        + '<i>k</i> plus grands vides sont comptés comme blancs-mots. '
-        + '<i>Corps de lecture</i> : le corps réglé bloc par bloc (champ « Lisible dès »), sous '
-        + 'lequel le texte ne se lit plus une fois la carte imprimée — distinct du corps mini, '
-        + 'qui ne borne que l\'encombrement. '
-        + '<i>Définition</i> : chaque bloc est recomposé à l\'autre définition, les deux tirages '
-        + 'sont encodés en PNG puis relus, et les pavés d\'encre sont comparés en millimètres '
-        + 'depuis le coin de coupe — un bloc qui bouge, rétrécit, perd un caractère ou sort de '
-        + 'la marge du format en changeant de définition est nommé. La part de liseré recule quand '
-        + 'la définition double, parce que l\'aire d\'un glyphe est multipliée par 4 et son '
-        + 'périmètre seulement par 2 ; à ces corps-là, où les fûts font un pixel de large, '
-        + 'elle ne tombe pas jusqu\'à 0,50 × pour autant. Ce que ferait un agrandissement '
-        + 'n\'est donc pas affirmé mais <b>mesuré</b> : le tirage de départ est réellement '
-        + 'agrandi, encodé en PNG, relu et recompté de la même main, et son chiffre est publié '
-        + 'à côté. Tant que le retraçage ne fait pas mieux que ce témoin, la ligne reste en '
-        + 'ambre.</p></details>';
+        + dzT("cartes.type3.mn_ou") + ' '
+        + dzT("cartes.type3.mn_encre") + ' '
+        + dzT("cartes.type3.mn_contraste", { w: g.canvas_px[0], h: g.canvas_px[1] }) + ' '
+        + dzT("cartes.type3.mn_fins") + ' '
+        + dzT("cartes.type3.mn_marge") + ' '
+        + dzT("cartes.type3.mn_blancs") + ' '
+        + dzT("cartes.type3.mn_corps") + ' '
+        + dzT("cartes.type3.mn_def") + '</p></details>';
     }
     function auditDetail() {
       if (!AUDIT || AUDIT.stamp !== AUDIT_STAMP) return "";
       const A = AUDIT, out = [];
       A.masked.forEach((r) => {
-        out.push("<b>" + esc(r.label) + "</b> : " + r.masked + " px d'encre sur " + r.total
-          + " sont recouverts — "
-          + fx((1 - r.rate) * 100, 1) + " % des glyphes ne sont pas dans le fichier livré. "
+        out.push(dzT("cartes.type3.ad_masque", { bloc: esc(r.label), px: r.masked, total: r.total, pc: fx((1 - r.rate) * 100, 1) }) + " "
           /* LE DETAIL NOMME (T3-C) : la geometrie designe les couches
              au-dessus dont la boite mange ce pave d'encre — les blocs de P3
              peints apres lui, et le decor haut au plan « dessus ». */
           + (r.couvreurs && r.couvreurs.length
-            ? "Recouvert par : " + esc(r.couvreurs.join(", ")) + "."
-            : "Aucun recouvreur nommé parmi les couches : re-peindre et re-jouer la preuve."));
+            ? dzT("cartes.type3.ad_par", { qui: esc(r.couvreurs.join(", ")) })
+            : dzT("cartes.type3.ad_par_aucun")));
       });
       A.lowc.forEach((r) => {
-        out.push("<b>" + esc(r.label) + "</b> : contraste mesuré " + fx(r.contrast_min, 2)
-          + ":1 contre le fond réellement derrière (médiane " + fx(r.contrast, 2) + ":1), "
-          + "sous le seuil WCAG AA de " + fx(r.seuil, 1) + ":1 à " + fx(r.pt, 1)
-          + " pt" + (r.lum_a != null ? " — " + contrastCalc(r) : "")
-          + (contrastWhere(r) ? ", " + contrastWhere(r) : "")
-          + ". Un contour, une ombre ou une plaque de fond règlent le cas.");
+        out.push(dzT("cartes.type3.ad_lowc", { bloc: esc(r.label), r: fx(r.contrast_min, 2), med: fx(r.contrast, 2), seuil: fx(r.seuil, 1), pt: fx(r.pt, 1),
+          calc: (r.lum_a != null ? " — " + contrastCalc(r) : "") + (contrastWhere(r) ? ", " + contrastWhere(r) : "") }));
       });
       A.empties.forEach((r) => {
-        out.push("<b>" + esc(r.label) + "</b> : slot configuré, aucun glyphe posé. "
-          + "La zone reste vide dans le fichier livré.");
+        out.push(dzT("cartes.type3.ad_vide", { bloc: esc(r.label) }));
       });
       A.relayed.forEach((r) => {
-        out.push("<b>" + esc(r.label) + "</b> : lisible grâce à son contour ("
-          + fx(r.contrast_min, 2) + ":1 par le relais), mais l'encre seule contre le fond ne fait que "
-          + fx(r.contrast_direct, 2) + ":1"
+        out.push(dzT("cartes.type3.ad_relais", { bloc: esc(r.label), r: fx(r.contrast_min, 2), d: fx(r.contrast_direct, 2) })
           + (r.direct_a != null ? " — (" + fx(r.direct_a, 4) + " + 0,05) / ("
             + fx(r.direct_b, 4) + " + 0,05)" : "")
-          + (r.ink_pt && r.direct_pt ? ", relevé au pixel " + ptTxt(r.ink_pt)
-            + " pour l'encre et " + ptTxt(r.direct_pt) + " pour le fond" : "")
-          + ", sous le seuil AA de " + fx(r.seuil, 1) + ":1 à " + fx(r.pt, 1) + " pt. "
+          + (r.ink_pt && r.direct_pt ? dzT("cartes.type3.ad_pixels", { a: ptTxt(r.ink_pt), b: ptTxt(r.direct_pt) }) : "")
+          + dzT("cartes.type3.ad_seuil", { seuil: fx(r.seuil, 1), pt: fx(r.pt, 1) }) + " "
           /* CE QUI LE REMONTE, VERIFIE PLUTOT QUE SUPPOSE. Le panneau disait
              « épaissir le contour ou assombrir le fond le remonte » : la
              seconde moitié est vraie, la première est FAUSSE. Le rapport direct
@@ -5702,23 +5476,16 @@
              fond 0,3163 : même une encre BLANCHE ne donnerait que
              (1,05)/(0,3663) = 2,87:1, toujours sous 3. Seul le fond peut
              bouger — c'est mesurable, donc c'est ce qui est écrit. */
-          + "C'est le chiffre que rendra une pipette WCAG posée sur le fichier, et il ne "
-          + "dépend que de deux couleurs : assombrir le fond sous l'encre — ou lui poser "
-          + "une plaque — le remonte. Épaissir le contour, non : le contour n'agit que "
-          + "sur le relais.");
+          + dzT("cartes.type3.ad_pipette"));
       });
       A.tight.forEach((r) => {
         /* on NOMME la marque en cause : le corps des glyphes, ou le halo de
            l'ombre. Les deux sont dans le fichier, l'un est de l'encre pleine
            et l'autre un dégradé — les confondre était le premier défaut. */
         const halo = r.halo_clear_mm != null && (r.clear_mm == null || r.halo_clear_mm < r.clear_mm);
-        out.push("<b>" + esc(r.label) + "</b> : " + (halo
-          ? "le halo de l'ombre portée passe à " + fx(r.halo_clear_mm, 2)
-          : "l'encre passe à " + fx(r.clear_mm, 2))
-          + " mm du bord du cadre de composition — sous la marge optique de "
-          + fx(A.optical_mm, 2) + " mm que ce panneau déclare"
-          + (halo ? " (le corps des glyphes, lui, est à " + fx(r.clear_mm, 2) + " mm)" : "")
-          + ". Les repères de coupe d'une rotative dérivent d'autant.");
+        out.push((halo
+          ? dzT("cartes.type3.ad_halo", { bloc: esc(r.label), mm: fx(r.halo_clear_mm, 2), opt: fx(A.optical_mm, 2), corps: fx(r.clear_mm, 2) })
+          : dzT("cartes.type3.ad_encre", { bloc: esc(r.label), mm: fx(r.clear_mm, 2), opt: fx(A.optical_mm, 2) })));
       });
       return out.length ? '<p class="cf-type-warn">' + out.join("<br>") + "</p>" : "";
     }
@@ -5828,9 +5595,7 @@
       /* PREALABLE et non remede : neutre a l'affichage (il ne suffit pas seul),
          mais il porte son bouton — c'est le premier geste a faire. */
       out.levers.push({ k: "size", ok: false, info: true,
-        txt: "d'abord porter le corps demandé de " + fx(slot.size_pt, 1) + " à "
-          + fx(target, 1) + " pt : <i>l'ajustement ne monte jamais au-dessus du corps"
-          + " demandé, aucun agrandissement ne peut donc y arriver seul</i>",
+        txt: dzT("cartes.type3.rm_size", { de: fx(slot.size_pt, 1), a: fx(target, 1) }),
         patch: { size_pt: target } });
     }
     const lo = Math.min(base.min_pt, base.size_pt), hi = base.size_pt;
@@ -5884,23 +5649,18 @@
       /* on ne nomme que la dimension qui CHANGE : « +-0 x +8,8 » etait juste et
          illisible. */
       const dim = (dw > 0.05 && dh > 0.05)
-        ? "la boîte : " + fx(slot.box[2], 1) + " x " + fx(slot.box[3], 1) + " → <b>"
-          + fx(nb[2], 1) + " x " + fx(nb[3], 1) + " mm</b>"
+        ? dzT("cartes.type3.rm_box", { w: fx(slot.box[2], 1), h: fx(slot.box[3], 1), nw: fx(nb[2], 1), nh: fx(nb[3], 1) })
         : (dh > 0.05
-          ? "la boîte en hauteur : " + fx(slot.box[3], 1) + " → <b>" + fx(nb[3], 1)
-            + " mm</b> (+" + fx(dh, 1) + ")"
-          : "la boîte en largeur : " + fx(slot.box[2], 1) + " → <b>" + fx(nb[2], 1)
-            + " mm</b> (+" + fx(dw, 1) + ")");
+          ? dzT("cartes.type3.rm_box_h", { h: fx(slot.box[3], 1), nh: fx(nb[3], 1), d: fx(dh, 1) })
+          : dzT("cartes.type3.rm_box_w", { w: fx(slot.box[2], 1), nw: fx(nb[2], 1), d: fx(dw, 1) }));
       out.levers.push({ k: "box", ok: true, patch: { box: nb }, heurt: heurt.length,
-        txt: "agrandir " + dim + (heurt.length
-          ? " — <i>elle chevauchera alors « " + heurt.map(esc).join(" » et « ") + " »</i>"
+        txt: dim + (heurt.length
+          ? dzT("cartes.type3.rm_heurt", { qui: heurt.map(esc).join(dzT("cartes.type3.rm_heurt_et")) })
           : "") });
     } else {
       /* la phrase n'est publiee qu'apres avoir ESSAYE la boite maximale. */
       out.levers.push({ k: "box", ok: false,
-        txt: "agrandir la boîte ne suffit pas : <b>même portée à " + fx(wMax, 0) + " x "
-          + fx(hMax, 0) + " mm</b>" + (keepIn ? " (tout le cadre de composition)" : "")
-          + ", ce bloc ne compose pas à " + fx(target, 1) + " pt" });
+        txt: dzT("cartes.type3.rm_box_non", { w: fx(wMax, 0), h: fx(hMax, 0), tout: (keepIn ? dzT("cartes.type3.rm_tout_cadre") : ""), pt: fx(target, 1) }) });
     }
     /* 2. LE TEXTE — combien de caracteres en trop, dans la boite ACTUELLE.
        Chiffre, jamais bouton : ce module ne supprime pas un caractere. */
@@ -5914,8 +5674,7 @@
           if (fitsN(mid)) a = mid; else b = mid;
         }
         out.levers.push({ k: "chars", ok: true, info: true,
-          txt: "ou raccourcir le texte de <b>" + (gl.length - a) + " caractères</b> ("
-            + gl.length + " → " + a + ") — <i>chiffre, pas bouton : ce module ne coupe rien</i>" });
+          txt: dzT("cartes.type3.rm_chars", { n: gl.length - a, de: gl.length, a: a }) });
       }
     }
     /* 3. LES REGLAGES DEJA PRESENTS DANS CET INSPECTEUR, essayes un par un.
@@ -5936,22 +5695,22 @@
         if (ok) { best = { k: nom, ok: true, reach: p, label: c.label, over: c.over }; break; }
       }
       out.levers.push({ k: best.k, ok: best.ok, reach: best.reach,
-        txt: best.label + " : " + (best.reach == null ? "le texte ne rentre toujours pas"
-          : "atteint <b>" + fx(best.reach, 1) + " pt</b>" + (best.ok ? "" : " (insuffisant)")),
+        txt: best.label + " : " + (best.reach == null ? dzT("cartes.type3.rm_rentre_pas")
+          : dzT("cartes.type3.rm_atteint", { pt: fx(best.reach, 1) }) + (best.ok ? "" : dzT("cartes.type3.rm_insuff"))),
         patch: best.ok ? best.over : null });
     };
     if (!slot.hyphen && slot.wrap) {
-      famille("hyphen", [{ over: { hyphen: true }, label: "activer la césure" }]);
+      famille("hyphen", [{ over: { hyphen: true }, label: dzT("cartes.type3.lv_hyphen") }]);
     }
     famille("track", FIX_TRACKS
       .map((d) => Math.round((slot.track + d) * 10) / 10)
       .filter((t) => t >= TRACK_MIN_PC)
       .map((t) => ({ over: { track: t },
-        label: "interlettrage " + fx(slot.track, 1) + " → " + fx(t, 1) + " %" })));
+        label: dzT("cartes.type3.rm_track", { de: fx(slot.track, 1), a: fx(t, 1) }) })));
     famille("lead", (m.lines.length > 1 ? FIX_LEADS : [])
       .filter((l) => l < slot.leading - 0.005)
       .map((l) => ({ over: { leading: l },
-        label: "interligne " + fx(slot.leading, 2) + " → " + fx(l, 2) })));
+        label: dzT("cartes.type3.rm_lead", { de: fx(slot.leading, 2), a: fx(l, 2) }) })));
     /* ── 4. UNE AUTRE FAMILLE — LE LEVIER QUE L'INSPECTEUR NE POUVAIT PAS
        TROUVER SEUL. Un titre qui ne compose pas a 12 pt dans une romaine large
        y arrive dans une etroite ; le catalogue en sert 23 et leur chasse se
@@ -5975,10 +5734,7 @@
       if (bf) {
         const okf = Math.round(bf.p * 10) >= Math.round(target * 10);
         out.levers.push({ k: "font", ok: okf, reach: bf.p,
-          txt: "changer de police pour « " + esc(bf.f.label) + " » : atteint <b>"
-            + fx(bf.p, 1) + " pt</b>" + (okf ? "" : " (insuffisant)")
-            + " — <i>la meilleure des " + posables.length
-            + " familles essayées qui savent écrire ce texte</i>",
+          txt: dzT("cartes.type3.rm_font", { police: esc(bf.f.label), pt: fx(bf.p, 1), insuff: (okf ? "" : dzT("cartes.type3.rm_insuff")), n: posables.length }),
           patch: okf ? { font: bf.f.id } : null });
       }
     }
@@ -5991,9 +5747,9 @@
      demande part avec elle : deux reglages, un clic, une seule mise en page.
      Rend null quand aucune sortie ne suffit — le panneau n'offre alors PAS de
      bouton, plutot qu'un bouton qui ne tiendrait pas sa promesse. */
-  const LEVER_COURT = { box: "agrandir la boîte", hyphen: "activer la césure",
-    track: "resserrer l'interlettrage", lead: "resserrer l'interligne",
-    font: "changer de police" };
+  const LEVER_COURT = { box: dzT("cartes.type3.lv_box"), hyphen: dzT("cartes.type3.lv_hyphen"),
+    track: dzT("cartes.type3.lv_track"), lead: dzT("cartes.type3.lv_lead"),
+    font: dzT("cartes.type3.lv_font") };
   function autoLever(r) {
     if (!r || !r.levers) return null;
     const suff = r.levers.filter((l) => l.ok && !l.info && l.patch);
@@ -6004,7 +5760,7 @@
     return {
       lever: best,
       patch: Object.assign({}, pre ? pre.patch : null, best.patch),
-      court: LEVER_COURT[best.k] || "appliquer",
+      court: LEVER_COURT[best.k] || dzT("cartes.type3.lv_appliquer"),
     };
   }
   function fixKey(g) {
@@ -6061,9 +5817,7 @@
     if (!m || PENDING.stamp === AUDIT_STAMP) return;
     const p = PENDING; PENDING = null;
     const ok = Math.round(m.pt * 10) >= Math.round(p.target * 10) && !m.over;
-    M.toast("« " + p.label + " » composé à " + fx(m.pt, 1) + " pt"
-      + (ok ? " — les " + fx(p.target, 1) + " pt réglés sont atteints"
-        : " : le remède n'a pas tenu"), !ok);
+    M.toast((ok ? dzT("cartes.type3.pend_ok", { bloc: p.label, pt: fx(m.pt, 1), cible: fx(p.target, 1) }) : dzT("cartes.type3.pend_ko", { bloc: p.label, pt: fx(m.pt, 1) })), !ok);
   }
 
   /* Le meme controle, mais rendu par le BACKEND, avec la meme regle de
@@ -6107,18 +5861,15 @@
            les memes encombrements mesures, avec la meme regle de geometrie —
            c'est ce que « recompté hors de l'écran » veut dire, et un desaccord
            entre les deux chiffres serait visible au lieu d'etre tu. */
-        apiVerdict = s ? ("recompté hors de l'écran : " + (s.ok ? "aucun bloc à reprendre"
-          : s.outside_safe.length + " bloc(s) entament la marge du format")
+        apiVerdict = s ? (dzT("cartes.type3.api_recompte") + (s.ok ? dzT("cartes.type3.api_ok")
+          : dzT("cartes.type3.api_hors", { n: s.outside_safe.length }))
           + ((s.under_read && s.under_read.length)
-            ? ", " + s.under_read.length + " sous le corps réglé" : "")
+            ? dzT("cartes.type3.api_sous", { n: s.under_read.length }) : "")
           + ((s.missing_glyphs && s.missing_glyphs.length)
-            ? ", " + s.missing_glyphs.length + " avec un signe hors police" : "")
-          + (dd ? " · le cadre de composition lui-même varie de " + fx(dd.drift_mm, 3)
-            + " mm entre les définitions du format (" + dd.dpis.join(" / ")
-            + " DPI, soit " + fx(dd.drift_px_min_dpi, 2)
-            + " px de " + dd.dpis[0] + " DPI) : c'est la tolérance de ce relevé" : "")) : null;
+            ? dzT("cartes.type3.api_signe", { n: s.missing_glyphs.length }) : "")
+          + (dd ? dzT("cartes.type3.api_derive", { mm: fx(dd.drift_mm, 3), dpis: dd.dpis.join(" / "), px: fx(dd.drift_px_min_dpi, 2), dpi: dd.dpis[0] }) : "")) : null;
       } catch (e) {
-        apiVerdict = (e && e.missing) ? "second comptage indisponible" : null;
+        apiVerdict = (e && e.missing) ? dzT("cartes.type3.api_indispo") : null;
       }
       renderProof();
     }, 700);
@@ -6191,7 +5942,7 @@
      c'est l'encodage qui a menti, et on veut le savoir. */
   async function asFile(cv) {
     const blob = await new Promise((res, rej) => {
-      cv.toBlob((b) => (b ? res(b) : rej(new Error("encodage PNG impossible"))), "image/png");
+      cv.toBlob((b) => (b ? res(b) : rej(new Error(dzT("cartes.type3.png_ko")))), "image/png");
     });
     const bmp = await createImageBitmap(blob);
     const c2 = document.createElement("canvas");
@@ -6300,13 +6051,13 @@
       const decor = [];
       const dp = CF.get("frame.decor_pose", null);
       if (dp && dp.gem && CF.get("frame.gem_plan", null) !== "dessous") {
-        decor.push({ label: "gemme (décor haut)",
+        decor.push({ label: dzT("cartes.type3.couv_gemme"),
           box: [dp.gem.cx - dp.gem.r, dp.gem.cy - dp.gem.r,
             2 * dp.gem.r, 2 * dp.gem.r] });
       }
       if (dp && dp.banner && Array.isArray(dp.banner.box)
         && CF.get("frame.banner_plan", null) !== "dessous") {
-        decor.push({ label: "bandeau (décor haut)",
+        decor.push({ label: dzT("cartes.type3.couv_bandeau"),
           box: dp.banner.box.slice(0, 4) });
       }
       const sr = safeRectPx(g);
@@ -6888,13 +6639,13 @@
     if (defcBusy) return;
     const g = CF.geom();
     const alt = altDpi(g.dpi);
-    if (alt == null) { defcErr = "une seule définition disponible"; renderProof(); return; }
+    if (alt == null) { defcErr = dzT("cartes.type3.def_seule"); renderProof(); return; }
     defcBusy = true; defcErr = "";
     /* AUTOMATIQUE = SILENCIEUX. Le voyant « occupé » du CORE appartient aux
        gestes de l'utilisateur ; le faire clignoter tout seul toutes les
        secondes aurait rendu le panneau inutilisable. Le clic, lui, garde son
        accusé de réception. */
-    if (!auto) M.busy(true, "second tirage à " + alt + " DPI…");
+    if (!auto) M.busy(true, dzT("cartes.type3.def_busy", { dpi: alt }));
     try {
       const gg = CF.geomOf(g.fmt, alt, g.bleed_mm, g.safe_mm, g.corner_mm);
       const card = CF.card(CF.current());
@@ -7072,9 +6823,9 @@
          cmap de chaque fichier, au backend. Hors ligne, il n'est pas affiche
          du tout — on ne remplace pas une mesure absente par un optimisme. */
       const fr = frCount();
-      c.textContent = slots().length + " blocs · " + fpb.served + " polices"
-        + (fpb.dist >= fpb.served ? ", chasses relues" : "")
-        + (fr.unk >= fr.n ? "" : " · " + fr.ok + " en français");
+      c.textContent = dzT("cartes.type3.cnt", { n: slots().length, p: fpb.served })
+        + (fpb.dist >= fpb.served ? dzT("cartes.type3.cnt_relues") : "")
+        + (fr.unk >= fr.n ? "" : dzT("cartes.type3.cnt_fr", { n: fr.ok }));
     }
     const bx = HOST.querySelector(".cf-type-boxes");
     if (bx) bx.classList.toggle("active", CF.get("type.show_boxes", true));
@@ -7090,7 +6841,7 @@
       const dispo = specsZones(docCapture(), 1).length;
       zn.classList.toggle("hidden", !dispo);
       if (dispo) {
-        zn.textContent = "Zones importées (" + dispo + ")";
+        zn.textContent = dzT("cartes.type3.zones", { n: dispo });
       }
     }
     const rf = HOST.querySelector(".cf-type-refit");
@@ -7098,7 +6849,7 @@
       const was = CF.get("type.fit_rect", []), now = safeRectMm(CF.geom());
       const dif = was && was.length === 4 && (Math.abs(was[2] - now[2]) > 0.02 || Math.abs(was[3] - now[3]) > 0.02);
       rf.classList.toggle("hidden", !dif);
-      if (dif) rf.textContent = "Réadapter à " + fx(now[2], 0) + " x " + fx(now[3], 0) + " mm";
+      if (dif) rf.textContent = dzT("cartes.type3.refit", { w: fx(now[2], 0), h: fx(now[3], 0) });
     }
     paintOverlay();
   }
@@ -7158,10 +6909,10 @@
     });
     const w = CF.get("frame.art_window", null);
     if (Array.isArray(w) && w.length === 4 && w.every((v) => isFinite(Number(v)))) {
-      trois(w.map(Number), "fenêtre d’illustration");
+      trois(w.map(Number), dzT("cartes.type3.cible_fenetre"));
     }
-    pousse("x", g.trim_px[0] * k / 2, "centre de carte");
-    pousse("y", g.trim_px[1] * k / 2, "centre de carte");
+    pousse("x", g.trim_px[0] * k / 2, dzT("cartes.type3.cible_centre"));
+    pousse("y", g.trim_px[1] * k / 2, dzT("cartes.type3.cible_centre"));
     return cx;
   }
 
@@ -7260,13 +7011,13 @@
         /* LE DEBORD D'UNE FORME EST NOMME EN MILLIMETRES : c'est la grandeur
            qu'on remet dans le champ de la boite, et la seule qui se verifie
            a la regle sur l'epreuve. */
-        ? " · hors cadre de " + fx(Math.max.apply(null,
+        ? dzT("cartes.type3.why_forme", { mm: fx(Math.max.apply(null,
           [outsideBy(inkF, sr).left, outsideBy(inkF, sr).top,
             outsideBy(inkF, sr).right, outsideBy(inkF, sr).bottom])
-          * 25.4 / g.dpi, 2) + " mm"
+          * 25.4 / g.dpi, 2) })
         : m.over
-        ? " · " + m.over_chars + " car. hors cadre"
-        : " · entame la marge du format");
+        ? dzT("cartes.type3.why_car", { n: m.over_chars })
+        : dzT("cartes.type3.why_marge"));
       /* ── UNE BOITE PLATE RESTE ATTRAPABLE (phase 5, D3) ─────────────────
          Une ligne horizontale, c'est une boite de HAUTEUR NULLE — c'est la
          regle de l'axe, et c'est la forme qu'on trace neuf fois sur dix.
@@ -7319,11 +7070,8 @@
         h += '<i class="cf-type-rot' + (solo ? "" : " off")
           + '" data-h="rot" title="'
           + esc(solo
-            ? "Rotation autour du centre de la boîte — Maj par pas de "
-              + ROT_STEP_DEG + "°"
-            : "Rotation indisponible en sélection multiple : chaque bloc "
-              + "tournerait sur SON centre et le lot se disloquerait. "
-              + "Désignez un seul bloc.")
+            ? dzT("cartes.type3.rot_titre", { pas: ROT_STEP_DEG })
+            : dzT("cartes.type3.rot_lot"))
           + '"></i>';
       }
       return h + "</div>";
@@ -7344,8 +7092,7 @@
          dixieme donnent trois cibles a la meme place. */
       + GUIDES.map((gd) => '<i class="cf-type-guide '
         + (gd.axe === "x" ? "gx" : "gy") + '" title="'
-        + esc((gd.axe === "x" ? "aligné sur " : "aligné sur ") + gd.de
-          + " — " + fx(gd.mm, 2) + " mm") + '" style="'
+        + esc(dzT("cartes.type3.guide", { de: gd.de, mm: fx(gd.mm, 2) })) + '" style="'
         + (gd.axe === "x"
           ? "left:" + ((g.bleed_off_px[0] + g.mm2px(gd.mm)) * k)
           : "top:" + ((g.bleed_off_px[1] + g.mm2px(gd.mm)) * k))
@@ -7408,8 +7155,7 @@
     /* LA POIGNEE DE ROTATION EST GRISEE EN LOT, et le refus se DIT : un
        curseur qui ne fait rien se lit comme une panne. */
     if (geste === "rot" && lot.length > 1) {
-      M.toast("rotation indisponible en sélection multiple : chacun tournerait "
-        + "sur son propre centre et le lot se disloquerait — désignez un seul bloc", true);
+      M.toast(dzT("cartes.type3.rot_toast"), true);
       return;
     }
     /* LE LOT QUI BOUGE : tous les designes SAUF les verrouilles. Le verrou vaut
@@ -7627,8 +7373,7 @@
        relachement, quand on SAIT qu'il y a eu deplacement. Au `pointerdown`,
        la phrase serait partie a chaque simple clic de designation. */
     if (dragState && dragState.moved && dragState.bloques) {
-      M.toast(dragState.bloques + " bloc(s) verrouillé(s) du lot n'ont pas suivi "
-        + "— ouvrez leur cadenas pour les déplacer", true);
+      M.toast(dzT("cartes.type3.verrou_lot", { n: dragState.bloques }), true);
     }
     dragState = null;
     GUIDES = [];
@@ -7655,7 +7400,7 @@
       const av = e.key === "]";
       if (!zApplique(selIds(), e.shiftKey ? (av ? "tout-avant" : "tout-arriere")
         : (av ? "avant" : "arriere"))) {
-        M.toast(av ? "déjà à la surface de la pile" : "déjà au fond de la pile");
+        M.toast(av ? dzT("cartes.type3.pile_haut") : dzT("cartes.type3.pile_bas"));
       }
       return;
     }

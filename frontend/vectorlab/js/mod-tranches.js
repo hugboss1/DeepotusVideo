@@ -5,20 +5,22 @@
 // (tranches × résolutions × formats), la saignée et les marques de coupe /
 // repérage en SVG (coordonnées du document). Module FEUILLE.
 
+// t146 (traduction L6) : T(clé, vars) de cette feuille — dzT du runtime dans la page ; sous node, le français des dictionnaires (frontend/shared/i18n)
+const vlT = (cle, vars) => { const g = globalThis, w = g.window; if (w && typeof w.dzT === "function") return w.dzT(cle, vars); if (typeof g.dzT === "function") return g.dzT(cle, vars); if (!g.__vlFr && g.process && g.process.getBuiltinModule) { const fs = g.process.getBuiltinModule("fs"), u = new URL("../../shared/i18n/", import.meta.url); g.__vlFr = {}; for (const n of fs.readdirSync(u).filter((x) => x.endsWith(".json")).sort()) Object.assign(g.__vlFr, JSON.parse(fs.readFileSync(new URL(n, u), "utf8"))); } const e = g.__vlFr && g.__vlFr[cle]; if (!e) return cle; return vars ? e.fr.replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? String(vars[k]) : m)) : e.fr; };
 export const MODES = [
-  { id: "document", libelle: "Document entier" },
-  { id: "planches", libelle: "Chaque planche" },
-  { id: "calques", libelle: "Chaque calque visible" },
-  { id: "objets", libelle: "Chaque objet sélectionné" },
-  { id: "dessinees", libelle: "Tranches dessinées" },
+  { id: "document", libelle: vlT("vectorlab.tranches.document") },
+  { id: "planches", libelle: vlT("vectorlab.tranches.planches") },
+  { id: "calques", libelle: vlT("vectorlab.tranches.calques") },
+  { id: "objets", libelle: vlT("vectorlab.tranches.objets") },
+  { id: "dessinees", libelle: vlT("vectorlab.tranches.dessinees") },
 ];
 export const FORMATS = [
   { id: "png", ext: "png", libelle: "PNG", raster: true },
   { id: "jpeg", ext: "jpg", libelle: "JPEG", raster: true },
   { id: "webp", ext: "webp", libelle: "WebP", raster: true },
   { id: "svg", ext: "svg", libelle: "SVG", raster: false },
-  { id: "pdf", ext: "pdf", libelle: "PDF (impression)", raster: false },
-  { id: "dxf", ext: "dxf", libelle: "DXF (découpe)", raster: false },
+  { id: "pdf", ext: "pdf", libelle: vlT("vectorlab.tranches.pdf"), raster: false },
+  { id: "dxf", ext: "dxf", libelle: vlT("vectorlab.tranches.dxf"), raster: false },
 ];
 export const nom_sain = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").trim()
   .replace(/\s+/g, "-").replace(/[^A-Za-z0-9_-]/g, "");

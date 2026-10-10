@@ -1,0 +1,84 @@
+{
+  "titre": {
+    "fr": "Le coffre à clés",
+    "en": "The key vault"
+  },
+  "legende": {
+    "fr": "Réglages › Coffre : vos clés chiffrées par un mot de passe, et l'archive pour les emporter sur un autre poste.",
+    "en": "Settings › Vault: your keys encrypted with a password, and the archive to carry them to another computer."
+  },
+  "captures": [
+    {
+      "fr": "coffre.fr.webp",
+      "en": "coffre.en.webp"
+    }
+  ],
+  "taille": [
+    1208,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        775,
+        231,
+        143,
+        44
+      ],
+      "bulle": {
+        "fr": "Un mot de passe maître chiffre toutes vos clés",
+        "en": "A master password encrypts all your keys"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        525,
+        380,
+        140,
+        44
+      ],
+      "bulle": {
+        "fr": "L'archive .dzk les emporte, avec son propre mot de passe",
+        "en": "The .dzk archive carries them, with its own password"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        775,
+        231,
+        129,
+        44
+      ],
+      "bulle": {
+        "fr": "Un mot de passe maître chiffre toutes vos clés",
+        "en": "A master password encrypts all your keys"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        525,
+        380,
+        122,
+        44
+      ],
+      "bulle": {
+        "fr": "L'archive .dzk les emporte, avec son propre mot de passe",
+        "en": "The .dzk archive carries them, with its own password"
+      }
+    }
+  ],
+  "taille_en": [
+    1208,
+    900
+  ]
+}

@@ -36,48 +36,45 @@
 
   function shell() {
     HOST.innerHTML = ''
-      + '<details class="grp" open><summary>Table virtuelle — Tabletop Simulator, Tabletopia</summary>'
+      + '<details class="grp" open><summary>' + dzT("cartes.edition.table_virtuelle") + '</summary>'
       + '<div class="grp-body">'
       + '<div class="cf-edition-cibles" data-role="cibles"></div>'
-      + '<p class="hint">Chaque cible dit ce que son éditeur publie (relu le 04/10/2026) : '
-      + 'la carte est exportée telle que le Card Forge la rend, à la coupe.</p>'
+      + '<p class="hint">' + dzT("cartes.edition.cibles_hint") + '</p>'
       + '<div class="cf-edition-actions" data-role="tts">'
-      + '<button type="button" class="btn strong" data-act="tts" title="Planches 10 x 7 à la coupe (4096 px au plus) et objet sauvegardé qui pointe vers elles, sur ce PC — un ZIP de tout">' + ICO("dz-action-exporter", 16, "cf-ic") + 'Exporter pour Tabletop Simulator (.zip)</button>'
-      + '<button type="button" class="btn" data-act="tts-poser" title="Copier le dernier objet exporté dans Documents\\My Games\\Tabletop Simulator\\Saves\\Saved Objects\\Deepotus">' + ICO("dz-action-envoyer-vers", 16, "cf-ic") + 'Poser dans Tabletop Simulator</button>'
+      + '<button type="button" class="btn strong" data-act="tts" title="' + dzT("cartes.edition.tts_t") + '">' + ICO("dz-action-exporter", 16, "cf-ic") + dzT("cartes.edition.tts") + '</button>'
+      + '<button type="button" class="btn" data-act="tts-poser" title="' + dzT("cartes.edition.poser_t") + '">' + ICO("dz-action-envoyer-vers", 16, "cf-ic") + dzT("cartes.edition.poser") + '</button>'
       + '</div>'
       + '<p class="cf-edition-etat" data-role="tts-etat"></p>'
       + '<div class="cf-edition-actions" data-role="tabletopia">'
-      + '<button type="button" class="btn strong" data-act="tabletopia" title="Un JPEG par face à la coupe (2000 px au plus, jamais agrandi), un seul dos s’il est commun, et le manifeste — à charger dans l’éditeur de Tabletopia">' + ICO("dz-action-exporter", 16, "cf-ic") + 'Exporter pour Tabletopia (.zip)</button>'
+      + '<button type="button" class="btn strong" data-act="tabletopia" title="' + dzT("cartes.edition.tabletopia_t") + '">' + ICO("dz-action-exporter", 16, "cf-ic") + dzT("cartes.edition.tabletopia") + '</button>'
       + '</div>'
       + '</div></details>'
 
       /* LIVRET (tache #87 PR C, plan-cartes T18) : l'ecart est DIT ici, et dans l'en-tete du fichier. */
-      + '<details class="grp"><summary>Livret de règles (PDF)</summary><div class="grp-body">'
-      + '<input class="cf-edition-champ" data-k="livret_titre" placeholder="Titre (par défaut : le nom du jeu)" title="Titre de la première page">'
-      + '<textarea class="cf-edition-texte" data-k="livret_texte" rows="10" placeholder="# But du jeu&#10;Le texte des règles…" title="Le texte du livret ; une ligne qui commence par « # » est un intertitre"></textarea>'
+      + '<details class="grp"><summary>' + dzT("cartes.edition.livret_titre") + '</summary><div class="grp-body">'
+      + '<input class="cf-edition-champ" data-k="livret_titre" placeholder="' + dzT("cartes.edition.titre_ph") + '" title="' + dzT("cartes.edition.titre_page") + '">'
+      + '<textarea class="cf-edition-texte" data-k="livret_texte" rows="10" placeholder="' + dzT("cartes.edition.texte_ph") + '" title="' + dzT("cartes.edition.texte_t") + '"></textarea>'
       + '<div class="cf-edition-actions">'
-      + '<select data-k="livret_feuille" title="Format des pages du livret"><option value="a5">A5</option><option value="a4">A4</option><option value="carre">Carré 210 mm</option></select>'
-      + '<select data-k="livret_fonte" data-role="polices" title="Fonte du livret (les fontes servies par l’application)"></select>'
-      + '<label title="Une planche des cartes en fin de livret (rendues comme le Card Forge les montre)"><input type="checkbox" data-k="livret_planche"> planche des cartes</label>'
-      + '<button type="button" class="btn strong" data-act="livret" title="Composer le livret en PDF (pages à 300 DPI)">Livret PDF</button>'
+      + '<select data-k="livret_feuille" title="' + dzT("cartes.edition.feuille_t") + '"><option value="a5">A5</option><option value="a4">A4</option><option value="carre">' + dzT("cartes.edition.carre_210") + '</option></select>'
+      + '<select data-k="livret_fonte" data-role="polices" title="' + dzT("cartes.edition.fonte_t") + '"></select>'
+      + '<label title="' + dzT("cartes.edition.planche_t") + '"><input type="checkbox" data-k="livret_planche"> ' + dzT("cartes.edition.planche") + '</label>'
+      + '<button type="button" class="btn strong" data-act="livret" title="' + dzT("cartes.edition.livret_t") + '">' + dzT("cartes.edition.livret_pdf") + '</button>'
       + '</div>'
-      + '<p class="hint">Le livret est composé à <b>300 DPI</b> : le texte n’est pas sélectionnable dans le PDF '
-      + '(aucune police n’est embarquée par ce logiciel). Sans conséquence <b>pour l’impression</b> ; à savoir si le PDF est lu à l’écran.</p>'
+      + '<p class="hint">' + dzT("cartes.edition.livret_hint") + '</p>'
       + '<p class="cf-edition-etat" data-role="livret-etat"></p>'
       + '</div></details>'
 
       /* MOCKUP ET FICHE (tache #87 PR C, plan-cartes T19) */
-      + '<details class="grp"><summary>Mockup et fiche produit</summary><div class="grp-body">'
+      + '<details class="grp"><summary>' + dzT("cartes.edition.mockup_titre") + '</summary><div class="grp-body">'
       + '<div class="cf-edition-actions">'
-      + '<select data-k="mockup_cible" title="Format du visuel : carré, story (9:16) ou paysage (16:9)"><option value="carre">Carré 1080</option>'
-      + '<option value="story">Story 1080 x 1920</option><option value="paysage">Paysage 1600 x 900</option></select>'
-      + '<input class="cf-edition-champ" data-k="mockup_titre" placeholder="Titre (par défaut : le nom du jeu)" title="Titre du visuel">'
-      + '<input class="cf-edition-champ" data-k="mockup_sous_titre" placeholder="Sous-titre" title="Sous-titre du visuel">'
-      + '<button type="button" class="btn strong" data-act="mockup" title="Un éventail des cinq premières cartes, en PNG">Mockup PNG</button>'
-      + '<button type="button" class="btn" data-act="fiche" title="Les chiffres du jeu : format, dimensions, paquet, boîte, langues">Fiche produit</button>'
+      + '<select data-k="mockup_cible" title="' + dzT("cartes.edition.visuel_t") + '"><option value="carre">' + dzT("cartes.edition.carre_1080") + '</option>'
+      + '<option value="story">Story 1080 x 1920</option><option value="paysage">' + dzT("cartes.edition.paysage") + '</option></select>'
+      + '<input class="cf-edition-champ" data-k="mockup_titre" placeholder="' + dzT("cartes.edition.titre_ph") + '" title="' + dzT("cartes.edition.titre_visuel") + '">'
+      + '<input class="cf-edition-champ" data-k="mockup_sous_titre" placeholder="' + dzT("cartes.edition.sous_titre") + '" title="' + dzT("cartes.edition.sous_titre_t") + '">'
+      + '<button type="button" class="btn strong" data-act="mockup" title="' + dzT("cartes.edition.mockup_t") + '">Mockup PNG</button>'
+      + '<button type="button" class="btn" data-act="fiche" title="' + dzT("cartes.edition.fiche_t") + '">' + dzT("cartes.edition.fiche") + '</button>'
       + '</div>'
-      + '<p class="hint">Un éventail 2D des cartes déjà rendues (cinq au plus). La carte qui tourne en 3D, c’est la tournette '
-      + 'de la pièce 05 (Volume) ; le Forge 3D (pièce 09) construit les objets.</p>'
+      + '<p class="hint">' + dzT("cartes.edition.mockup_hint") + '</p>'
       + '<p class="cf-edition-etat" data-role="mockup-etat"></p>'
       + '<div data-role="fiche"></div>'
       + '</div></details>';
@@ -92,7 +89,7 @@
   function paintReglages() {
     const e = ed();
     const sel = HOST && HOST.querySelector('[data-role="polices"]');
-    if (sel) sel.innerHTML = '<option value="">fonte par défaut</option>'
+    if (sel) sel.innerHTML = '<option value="">' + dzT("cartes.edition.fonte_defaut") + '</option>'
       + POLICES.map((f) => '<option value="' + esc(f) + '"' + (f === e.livret_fonte ? " selected" : "") + ">"
         + esc(f.replace(/\.(ttf|otf)$/i, "")) + "</option>").join("");
     (HOST ? HOST.querySelectorAll("[data-k]") : []).forEach((el) => {
@@ -111,7 +108,7 @@
   async function livretPdf() {
     if (VERROU) return;
     const e = ed();
-    if (!String(e.livret_texte || "").trim()) { CF.toast("Écrivez d’abord le texte des règles", true); return; }
+    if (!String(e.livret_texte || "").trim()) { CF.toast(dzT("cartes.edition.texte_requis"), true); return; }
     VERROU = true;
     try {
       const fd = new FormData();
@@ -119,22 +116,21 @@
                                          feuille: e.livret_feuille, fonte: e.livret_fonte }));
       const cards = e.livret_planche ? CF.cards().slice(0, 120) : [];
       for (let i = 0; i < cards.length; i++) {
-        CF.busy(true, "rendu " + (i + 1) + " / " + cards.length + " pour la planche…");
+        CF.busy(true, dzT("cartes.edition.rendu_planche", { n: i + 1, total: cards.length }));
         fd.append("images", await CF.cardBlob(i, { face: "front" }), "c" + (i + 1) + ".png");
       }
-      CF.busy(true, "composition du livret…");
+      CF.busy(true, dzT("cartes.edition.composition"));
       const out = await M.api.blob("POST", "livret", fd);
       CF.download(out, slugJeu() + "_livret.pdf");
-      etatDe("livret-etat", "Livret composé (" + slugJeu() + "_livret.pdf)" + (cards.length ? " avec la planche de "
-        + cards.length + " carte(s)" : "") + " — texte en image à 300 DPI.");
+      etatDe("livret-etat", (cards.length ? dzT("cartes.edition.livret_ok_planche", { fichier: slugJeu() + "_livret.pdf", n: cards.length }) : dzT("cartes.edition.livret_ok", { fichier: slugJeu() + "_livret.pdf" })));
     } catch (er) {
-      CF.toast("Livret impossible : " + String((er && er.message) || er), true);
+      CF.toast(dzT("cartes.edition.livret_ko", { err: String((er && er.message) || er) }), true);
     } finally { CF.busy(false); VERROU = false; }
   }
   async function mockupPng() {
     if (VERROU) return;
     const cards = CF.cards();
-    if (!cards.length) { CF.toast("Aucune carte à montrer", true); return; }
+    if (!cards.length) { CF.toast(dzT("cartes.edition.rien_a_montrer"), true); return; }
     VERROU = true;
     try {
       const e = ed();
@@ -143,16 +139,16 @@
       fd.append("spec", JSON.stringify({ cible: e.mockup_cible, titre: e.mockup_titre || CF.doc().name || "",
                                          sous_titre: e.mockup_sous_titre, fonte: e.livret_fonte }));
       for (let i = 0; i < n; i++) {
-        CF.busy(true, "rendu " + (i + 1) + " / " + n + "…");
+        CF.busy(true, dzT("cartes.edition.rendu_n", { n: i + 1, total: n }));
         fd.append("images", await CF.cardBlob(i, { face: "front" }), "c" + (i + 1) + ".png");
       }
       CF.busy(true, "mockup…");
       const out = await M.api.blob("POST", "mockup", fd);
       CF.download(out, slugJeu() + "_mockup_" + e.mockup_cible + ".png");
-      etatDe("mockup-etat", "Mockup " + e.mockup_cible + " : " + n + " carte(s) en éventail"
-        + (cards.length > n ? " (les " + n + " premières sur " + cards.length + ")" : "") + ".");
+      etatDe("mockup-etat", dzT("cartes.edition.mockup_ok", { cible: e.mockup_cible, n: n })
+        + (cards.length > n ? dzT("cartes.edition.mockup_premieres", { n: n, total: cards.length }) : "") + ".");
     } catch (er) {
-      CF.toast("Mockup impossible : " + String((er && er.message) || er), true);
+      CF.toast(dzT("cartes.edition.mockup_ko", { err: String((er && er.message) || er) }), true);
     } finally { CF.busy(false); VERROU = false; }
   }
   async function ficheProduit() {
@@ -162,7 +158,7 @@
       FICHE = await M.api.post("fiche", { cartes: CF.cards().length || 1 });
       paintFiche();
     } catch (er) {
-      CF.toast("Fiche impossible : " + String((er && er.message) || er), true);
+      CF.toast(dzT("cartes.edition.fiche_ko", { err: String((er && er.message) || er) }), true);
     } finally { VERROU = false; }
   }
   function paintFiche() {
@@ -170,13 +166,13 @@
     if (!box || !FICHE) return;
     const f = FICHE, mm = (v) => String(v).replace(".", ",");
     box.innerHTML = '<table class="cf-edition-fiche"><tbody>'
-      + "<tr><th>Cartes</th><td>" + f.cartes + "</td></tr>"
+      + "<tr><th>" + dzT("cartes.edition.th_cartes") + "</th><td>" + f.cartes + "</td></tr>"
       + "<tr><th>Format</th><td>" + esc(f.format) + " — " + mm(f.dimensions_mm[0]) + " x " + mm(f.dimensions_mm[1]) + " mm</td></tr>"
-      + "<tr><th>Paquet</th><td>" + mm(f.epaisseur_deck_mm) + " mm (" + mm(f.epaisseur_carte_mm) + " mm par carte, pièce 05)</td></tr>"
-      + "<tr><th>Boîte</th><td>" + (f.boite_mm ? f.boite_mm.map(mm).join(" x ") + " mm" : "—") + "</td></tr>"
-      + "<tr><th>Langues</th><td>" + (f.langues.length ? esc(f.langues.join(", ")) : "non précisées (aucune colonne par langue)") + "</td></tr>"
+      + "<tr><th>" + dzT("cartes.edition.th_paquet") + "</th><td>" + mm(f.epaisseur_deck_mm) + " mm (" + mm(f.epaisseur_carte_mm) + " mm " + dzT("cartes.edition.par_carte") + ")</td></tr>"
+      + "<tr><th>" + dzT("cartes.edition.th_boite") + "</th><td>" + (f.boite_mm ? f.boite_mm.map(mm).join(" x ") + " mm" : "—") + "</td></tr>"
+      + "<tr><th>" + dzT("cartes.edition.th_langues") + "</th><td>" + (f.langues.length ? esc(f.langues.join(", ")) : dzT("cartes.edition.langues_absentes")) + "</td></tr>"
       + "</tbody></table>"
-      + '<textarea class="cf-edition-texte" rows="3" readonly title="Le texte de la fiche, à recopier">' + esc(f.texte) + "</textarea>";
+      + '<textarea class="cf-edition-texte" rows="3" readonly title="' + dzT("cartes.edition.fiche_texte_t") + '">' + esc(f.texte) + "</textarea>";
   }
 
   function paintCibles() {
@@ -185,8 +181,7 @@
     const cur = CF.doc().edition && CF.doc().edition.cible || DEFAULTS.cible;
     box.innerHTML = CIBLES.map((c) =>
       '<button type="button" class="cf-edition-cible' + (c.id === cur ? " on" : "")
-      + '" data-act="cible" data-v="' + esc(c.id) + '" title="' + esc("Exporter pour " + c.label
-        + " — relu le " + c.verifie) + '"><b>' + esc(c.label) + '</b><i>' + esc(c.note) + '</i></button>').join("");
+      + '" data-act="cible" data-v="' + esc(c.id) + '" title="' + esc(dzT("cartes.edition.cible_t", { cible: c.label, date: c.verifie })) + '"><b>' + esc(c.label) + '</b><i>' + esc(c.note) + '</i></button>').join("");
   }
 
   /* Le nom d'une carte, pour le surnom TTS. RECOPIE (regle 8) de mod-print.js,
@@ -220,51 +215,49 @@
   async function exporterTts() {
     if (VERROU) return;
     const cards = CF.cards();
-    if (!cards.length) { CF.toast("Aucune carte à exporter", true); return; }
+    if (!cards.length) { CF.toast(dzT("cartes.edition.rien_a_exporter"), true); return; }
     VERROU = true;
     try {
       const fd = new FormData();
       fd.append("spec", JSON.stringify({ noms: cards.map(cardName) }));
       for (let i = 0; i < cards.length; i++) {
-        CF.busy(true, "rendu " + (i + 1) + " / " + cards.length + " (recto + verso)…");
+        CF.busy(true, dzT("cartes.edition.rendu_rv", { n: i + 1, total: cards.length }));
         fd.append("fronts", await CF.cardBlob(i, { face: "front" }), "f" + (i + 1) + ".png");
         fd.append("backs", await CF.cardBlob(i, { face: "back" }), "b" + (i + 1) + ".png");
       }
-      CF.busy(true, "planches Tabletop Simulator…");
+      CF.busy(true, dzT("cartes.edition.planches_tts"));
       const out = await M.api.blob("POST", "tts", fd);
       const nom = slugJeu() + "_tts.zip";
       CF.download(out, nom);
       DERNIER = { cartes: cards.length, nom: nom };
-      etat(cards.length + " carte(s) exportée(s) : planches et objet écrits sur ce PC (" + nom + "). "
-        + "« Poser dans Tabletop Simulator » le range dans ses Saved Objects.");
-      CF.toast("Tabletop Simulator : " + cards.length + " carte(s)");
+      etat(dzT("cartes.edition.tts_ok", { n: cards.length, nom: nom }));
+      CF.toast(dzT("cartes.edition.tts_n", { n: cards.length }));
     } catch (e) {
-      CF.toast("Export Tabletop Simulator impossible : " + String((e && e.message) || e), true);
+      CF.toast(dzT("cartes.edition.tts_ko", { err: String((e && e.message) || e) }), true);
     } finally { CF.busy(false); VERROU = false; paintTts(); }
   }
   /* TABLETOPIA : meme rendu (recto + verso), un fichier par face cote backend. */
   async function exporterTabletopia() {
     if (VERROU) return;
     const cards = CF.cards();
-    if (!cards.length) { CF.toast("Aucune carte à exporter", true); return; }
+    if (!cards.length) { CF.toast(dzT("cartes.edition.rien_a_exporter"), true); return; }
     VERROU = true;
     try {
       const fd = new FormData();
       fd.append("spec", JSON.stringify({ noms: cards.map(cardName) }));
       for (let i = 0; i < cards.length; i++) {
-        CF.busy(true, "rendu " + (i + 1) + " / " + cards.length + " (recto + verso)…");
+        CF.busy(true, dzT("cartes.edition.rendu_rv", { n: i + 1, total: cards.length }));
         fd.append("fronts", await CF.cardBlob(i, { face: "front" }), "f" + (i + 1) + ".png");
         fd.append("backs", await CF.cardBlob(i, { face: "back" }), "b" + (i + 1) + ".png");
       }
-      CF.busy(true, "images Tabletopia…");
+      CF.busy(true, dzT("cartes.edition.images_tabletopia"));
       const out = await M.api.blob("POST", "tabletopia", fd);
       const nom = slugJeu() + "_tabletopia.zip";
       CF.download(out, nom);
-      etat(cards.length + " carte(s) exportée(s) pour Tabletopia (" + nom + ") : un fichier par face, à charger "
-        + "dans l’éditeur de Tabletopia — recto et verso séparés, comme il le demande.");
-      CF.toast("Tabletopia : " + cards.length + " carte(s)");
+      etat(dzT("cartes.edition.tabletopia_ok", { n: cards.length, nom: nom }));
+      CF.toast(dzT("cartes.edition.tabletopia_n", { n: cards.length }));
     } catch (e) {
-      CF.toast("Export Tabletopia impossible : " + String((e && e.message) || e), true);
+      CF.toast(dzT("cartes.edition.tabletopia_ko", { err: String((e && e.message) || e) }), true);
     } finally { CF.busy(false); VERROU = false; }
   }
   async function poserTts() {
@@ -272,8 +265,8 @@
     VERROU = true;
     try {
       const r = await M.api.post("tts/poser", {});
-      etat("Posé dans Tabletop Simulator : " + r.chemin + " — dans le jeu, Objects > Saved Objects > Deepotus.");
-      CF.toast("objet posé dans Tabletop Simulator");
+      etat(dzT("cartes.edition.pose", { chemin: r.chemin }));
+      CF.toast(dzT("cartes.edition.pose_court"));
     } catch (e) {
       etat(String((e && e.message) || e));
       CF.toast(String((e && e.message) || e), true);
@@ -300,7 +293,7 @@
 
   M = CF.register({
     id: "edition",
-    title: "Édition",
+    title: dzT("cartes.edition.titre"),
     icon: "dz-nav-cf-edition",
     order: 11,
 

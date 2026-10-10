@@ -1,0 +1,366 @@
+{
+  "dz-outil-photo-affiner-contour": {
+    "nom": {"fr": "Sélectionner et masquer", "en": "Select and Mask"},
+    "fonction": {"fr": "Affine le bord d'une sélection pour un détourage plus précis.", "en": "Refines the edge of a selection for a cleaner cutout."}
+  },
+  "dz-outil-photo-compteur": {
+    "nom": {"fr": "Compteur", "en": "Count"},
+    "fonction": {"fr": "Pose des repères numérotés sur l'image pour compter des éléments.", "en": "Places numbered marks on the image to count items."}
+  },
+  "dz-outil-photo-correcteur": {
+    "nom": {"fr": "Correcteur", "en": "Healing Brush"},
+    "fonction": {"fr": "Répare une zone avec une source choisie, en fondant sa texture.", "en": "Repairs an area from a chosen source, blending its texture in."}
+  },
+  "dz-outil-photo-correcteur-tache": {
+    "nom": {"fr": "Correcteur de tache", "en": "Spot Healing Brush"},
+    "fonction": {"fr": "Efface une petite tache d'un geste, sans choisir de source.", "en": "Removes a small blemish in one stroke, no source needed."}
+  },
+  "dz-outil-photo-densite-moins": {
+    "nom": {"fr": "Densité −", "en": "Dodge"},
+    "fonction": {"fr": "Éclaircit les pixels sur lesquels on passe le pinceau.", "en": "Lightens the pixels you brush over."}
+  },
+  "dz-outil-photo-densite-plus": {
+    "nom": {"fr": "Densité +", "en": "Burn"},
+    "fonction": {"fr": "Assombrit les pixels sur lesquels on passe le pinceau.", "en": "Darkens the pixels you brush over."}
+  },
+  "dz-outil-photo-deplacer": {
+    "nom": {"fr": "Déplacement", "en": "Move"},
+    "fonction": {"fr": "Déplace le calque ou la sélection quand on glisse dessus.", "en": "Moves the layer or selection as you drag it."}
+  },
+  "dz-outil-photo-doigt": {
+    "nom": {"fr": "Doigt", "en": "Smudge"},
+    "fonction": {"fr": "Étale les pixels comme un doigt dans de la peinture fraîche.", "en": "Smears pixels like a finger in wet paint."}
+  },
+  "dz-outil-photo-eponge": {
+    "nom": {"fr": "Éponge", "en": "Sponge"},
+    "fonction": {"fr": "Rend les couleurs plus vives ou plus ternes là où on passe.", "en": "Makes colors more vivid or duller where you brush."}
+  },
+  "dz-outil-photo-flou": {
+    "nom": {"fr": "Flou", "en": "Blur"},
+    "fonction": {"fr": "Adoucit localement les pixels sur lesquels on passe le pinceau.", "en": "Softens the pixels you brush over."}
+  },
+  "dz-outil-photo-nettete": {
+    "nom": {"fr": "Netteté", "en": "Sharpen"},
+    "fonction": {"fr": "Rend plus nets les détails des pixels sur lesquels on passe.", "en": "Makes details crisper where you brush."}
+  },
+  "dz-outil-photo-piece": {
+    "nom": {"fr": "Pièce", "en": "Patch"},
+    "fonction": {"fr": "Corrige une zone en la remplaçant par une autre qu'on déplace dessus.", "en": "Fixes an area by dragging another area over it."}
+  },
+  "dz-outil-photo-pinceau-historique": {
+    "nom": {"fr": "Pinceau d'historique", "en": "History Brush"},
+    "fonction": {"fr": "Repeint une zone telle qu'elle était à un état précédent.", "en": "Paints an area back to how it looked at an earlier step."}
+  },
+  "dz-outil-photo-recadrer": {
+    "nom": {"fr": "Recadrage", "en": "Crop"},
+    "fonction": {"fr": "Rogne l'image au cadre que l'on trace en glissant.", "en": "Trims the image to the frame you drag out."}
+  },
+  "dz-outil-photo-selection-ajouter": {
+    "nom": {"fr": "Ajouter", "en": "Add"},
+    "fonction": {"fr": "La nouvelle zone tracée s'ajoute à la sélection existante.", "en": "Each new area you draw is added to the selection."}
+  },
+  "dz-outil-photo-selection-intersection": {
+    "nom": {"fr": "Intersection", "en": "Intersect"},
+    "fonction": {"fr": "Garde seulement la partie commune à l'ancienne et à la nouvelle zone.", "en": "Keeps only the part shared by the old and new areas."}
+  },
+  "dz-outil-photo-selection-nouvelle": {
+    "nom": {"fr": "Nouvelle", "en": "New"},
+    "fonction": {"fr": "Chaque zone tracée remplace entièrement la sélection précédente.", "en": "Each area you draw replaces the previous selection."}
+  },
+  "dz-outil-photo-selection-objet": {
+    "nom": {"fr": "Sélection d'objet", "en": "Object Selection"},
+    "fonction": {"fr": "Sélectionne l'objet qui se trouve dans le cadre que l'on trace.", "en": "Selects the object inside the frame you draw."}
+  },
+  "dz-outil-photo-selection-soustraire": {
+    "nom": {"fr": "Soustraire", "en": "Subtract"},
+    "fonction": {"fr": "La nouvelle zone tracée est retirée de la sélection existante.", "en": "Each new area you draw is removed from the selection."}
+  },
+  "dz-outil-photo-selection-sujet": {
+    "nom": {"fr": "Sélectionner un sujet", "en": "Select subject"},
+    "fonction": {"fr": "Sélectionne automatiquement le sujet principal de l'image en un clic.", "en": "Automatically selects the main subject of the image in one click."}
+  },
+  "dz-outil-photo-selection-tranche": {
+    "nom": {"fr": "Sélection de tranche", "en": "Slice Select"},
+    "fonction": {"fr": "Choisit une tranche de l'image pour la régler ou l'exporter.", "en": "Picks a slice of the image to adjust or export it."}
+  },
+  "dz-outil-photo-tampon": {
+    "nom": {"fr": "Tampon de duplication", "en": "Clone Stamp"},
+    "fonction": {"fr": "Recopie une zone source, choisie par Alt+clic, là où l'on peint.", "en": "Copies a source area, picked with Alt+click, wherever you paint."}
+  },
+  "dz-outil-px-baguette": {
+    "nom": {"fr": "Baguette magique", "en": "Magic Wand"},
+    "fonction": {"fr": "Sélectionne d'un clic les pixels voisins de couleur proche.", "en": "Selects neighboring pixels of a similar color in one click."}
+  },
+  "dz-outil-px-crayon": {
+    "nom": {"fr": "Crayon", "en": "Pencil"},
+    "fonction": {"fr": "Dessine pixel par pixel avec un bord net, sans adoucissement.", "en": "Draws pixel by pixel with hard, unsmoothed edges."}
+  },
+  "dz-outil-px-degrade": {
+    "nom": {"fr": "Dégradé", "en": "Gradient"},
+    "fonction": {"fr": "Remplit la sélection d'un dégradé de couleurs en glissant.", "en": "Fills the selection with a color gradient as you drag."}
+  },
+  "dz-outil-px-gomme": {
+    "nom": {"fr": "Gomme", "en": "Eraser"},
+    "fonction": {"fr": "Rend transparents les pixels sur lesquels on passe.", "en": "Makes the pixels you brush over transparent."}
+  },
+  "dz-outil-px-gomme-fond": {
+    "nom": {"fr": "Gomme d'arrière-plan", "en": "Background Eraser"},
+    "fonction": {"fr": "Efface seulement la couleur prélevée sous le pinceau.", "en": "Erases only the color sampled under the brush."}
+  },
+  "dz-outil-px-gomme-magique": {
+    "nom": {"fr": "Gomme magique", "en": "Magic Eraser"},
+    "fonction": {"fr": "Efface d'un clic tous les pixels de couleur proche.", "en": "Erases all pixels of a similar color in one click."}
+  },
+  "dz-outil-px-lasso": {
+    "nom": {"fr": "Lasso", "en": "Lasso"},
+    "fonction": {"fr": "Sélectionne une zone en traçant son contour à main levée.", "en": "Selects an area by drawing its outline freehand."}
+  },
+  "dz-outil-px-lasso-polygonal": {
+    "nom": {"fr": "Lasso polygonal", "en": "Polygonal Lasso"},
+    "fonction": {"fr": "Sélectionne une zone en traçant son contour segment par segment.", "en": "Selects an area by drawing its outline in straight segments."}
+  },
+  "dz-outil-px-ligne": {
+    "nom": {"fr": "Ligne", "en": "Line"},
+    "fonction": {"fr": "Trace une droite nette d'un pixel de large, sans flou.", "en": "Draws a sharp straight line one pixel wide."}
+  },
+  "dz-outil-px-pinceau": {
+    "nom": {"fr": "Pinceau", "en": "Brush"},
+    "fonction": {"fr": "Peint des pixels avec la taille, la dureté et la couleur choisies.", "en": "Paints pixels with the chosen size, hardness and color."}
+  },
+  "dz-outil-px-pinceau-melangeur": {
+    "nom": {"fr": "Pinceau mélangeur", "en": "Mixer Brush"},
+    "fonction": {"fr": "Peint en mélangeant sa couleur avec celles déjà sur l'image.", "en": "Paints while mixing its color with those already on the image."}
+  },
+  "dz-outil-px-pot": {
+    "nom": {"fr": "Pot de peinture", "en": "Paint Bucket"},
+    "fonction": {"fr": "Remplit d'un clic une zone de couleur proche.", "en": "Fills an area of similar color in one click."}
+  },
+  "dz-outil-px-rectangle": {
+    "nom": {"fr": "Rectangle", "en": "Rectangle"},
+    "fonction": {"fr": "Trace le contour d'un rectangle d'un pixel de large.", "en": "Draws a rectangle outline one pixel wide."}
+  },
+  "dz-outil-px-selection": {
+    "nom": {"fr": "Sélection rectangulaire", "en": "Rectangular Marquee"},
+    "fonction": {"fr": "Sélectionne une zone rectangulaire de pixels en glissant.", "en": "Selects a rectangular area of pixels as you drag."}
+  },
+  "dz-outil-px-selection-ellipse": {
+    "nom": {"fr": "Sélection elliptique", "en": "Elliptical Marquee"},
+    "fonction": {"fr": "Sélectionne une zone ovale ou ronde de pixels en glissant.", "en": "Selects an oval or round area of pixels as you drag."}
+  },
+  "dz-outil-px-selection-rapide": {
+    "nom": {"fr": "Sélection rapide", "en": "Quick Selection"},
+    "fonction": {"fr": "Étend la sélection aux zones semblables sur lesquelles on peint.", "en": "Grows the selection over similar areas as you paint."}
+  },
+  "dz-outil-px-symetrie": {
+    "nom": {"fr": "Miroir iso", "en": "Iso Mirror"},
+    "fonction": {"fr": "Reproduit la peinture en miroir le long d'un bord du losange.", "en": "Mirrors your painting along one edge of the iso diamond."}
+  },
+  "dz-outil-vec-apparence": {
+    "nom": {"fr": "Apparence", "en": "Appearance"},
+    "fonction": {"fr": "Ouvre le menu du fond, du contour, de l'opacité et des effets.", "en": "Opens the menu for fill, stroke, opacity and effects."}
+  },
+  "dz-outil-vec-cadre-texte": {
+    "nom": {"fr": "Cadre de texte", "en": "Text Frame"},
+    "fonction": {"fr": "Trace un cadre dans lequel on écrit des paragraphes.", "en": "Draws a frame you then type paragraphs into."}
+  },
+  "dz-outil-vec-coin": {
+    "nom": {"fr": "Coin", "en": "Corner"},
+    "fonction": {"fr": "Arrondit les angles vifs de la forme sur laquelle on clique.", "en": "Rounds the sharp corners of the shape you click."}
+  },
+  "dz-outil-vec-constructeur": {
+    "nom": {"fr": "Shape Builder", "en": "Shape Builder"},
+    "fonction": {"fr": "Garde ou retire les régions cliquées pour bâtir une nouvelle forme.", "en": "Keeps or removes clicked regions to build a new shape."}
+  },
+  "dz-outil-vec-couteau": {
+    "nom": {"fr": "Couteau", "en": "Knife"},
+    "fonction": {"fr": "Coupe la sélection en deux le long d'une droite tracée.", "en": "Cuts the selection along a straight line you draw."}
+  },
+  "dz-outil-vec-crayon": {
+    "nom": {"fr": "Crayon", "en": "Pencil"},
+    "fonction": {"fr": "Trace à main levée un chemin vectoriel lissé automatiquement.", "en": "Draws a freehand vector path that is smoothed automatically."}
+  },
+  "dz-outil-vec-donut": {
+    "nom": {"fr": "Donut", "en": "Donut"},
+    "fonction": {"fr": "Choisit l'anneau comme forme à tracer avec l'outil Forme.", "en": "Picks a ring as the shape drawn by the Shape tool."}
+  },
+  "dz-outil-vec-ellipse": {
+    "nom": {"fr": "Ellipse", "en": "Ellipse"},
+    "fonction": {"fr": "Trace un ovale en glissant ; Maj donne un cercle parfait.", "en": "Draws an oval as you drag; Shift makes a perfect circle."}
+  },
+  "dz-outil-vec-engrenage": {
+    "nom": {"fr": "Engrenage", "en": "Gear"},
+    "fonction": {"fr": "Choisit la roue dentée comme forme à tracer avec l'outil Forme.", "en": "Picks a gear as the shape drawn by the Shape tool."}
+  },
+  "dz-outil-vec-etoile": {
+    "nom": {"fr": "Étoile", "en": "Star"},
+    "fonction": {"fr": "Choisit l'étoile comme forme à tracer avec l'outil Forme.", "en": "Picks a star as the shape drawn by the Shape tool."}
+  },
+  "dz-outil-vec-fermer-chemin": {
+    "nom": {"fr": "Fermer", "en": "Close"},
+    "fonction": {"fr": "Relie les deux bouts d'un chemin ouvert pour le fermer.", "en": "Joins the two ends of an open path to close it."}
+  },
+  "dz-outil-vec-fleche": {
+    "nom": {"fr": "Flèche", "en": "Arrow"},
+    "fonction": {"fr": "Trace une forme de flèche sur le canevas.", "en": "Draws an arrow shape on the canvas."}
+  },
+  "dz-outil-vec-forme": {
+    "nom": {"fr": "Forme", "en": "Shape"},
+    "fonction": {"fr": "Trace depuis le centre la forme choisie dans le panneau.", "en": "Draws the shape chosen in the panel, from its center."}
+  },
+  "dz-outil-vec-forme-perso": {
+    "nom": {"fr": "Forme personnalisée", "en": "Custom Shape"},
+    "fonction": {"fr": "Trace une forme toute prête choisie dans le panneau Formes.", "en": "Draws a ready-made shape picked from the Shapes panel."}
+  },
+  "dz-outil-vec-fractionner": {
+    "nom": {"fr": "Fractionner", "en": "Split"},
+    "fonction": {"fr": "Coupe le chemin en deux à l'ancre sélectionnée.", "en": "Splits the path in two at the selected anchor."}
+  },
+  "dz-outil-vec-gomme": {
+    "nom": {"fr": "Gomme vectorielle", "en": "Vector Eraser"},
+    "fonction": {"fr": "Efface des morceaux des formes vectorielles sur lesquelles on glisse.", "en": "Cuts away parts of the vector shapes you drag across."}
+  },
+  "dz-outil-vec-halo": {
+    "nom": {"fr": "Halo rayonnant", "en": "Radiant Halo"},
+    "fonction": {"fr": "Ajoute un ornement de vitrail en forme de halo rayonnant.", "en": "Adds a stained-glass ornament shaped like a radiant halo."}
+  },
+  "dz-outil-vec-hexagone": {
+    "nom": {"fr": "Hexagone", "en": "Hexagon"},
+    "fonction": {"fr": "Choisit l'hexagone comme forme à tracer avec l'outil Forme.", "en": "Picks a hexagon as the shape drawn by the Shape tool."}
+  },
+  "dz-outil-vec-iris": {
+    "nom": {"fr": "Iris stylisé", "en": "Stylized Iris"},
+    "fonction": {"fr": "Ajoute un ornement de vitrail en forme de fleur d'iris.", "en": "Adds a stained-glass ornament shaped like an iris flower."}
+  },
+  "dz-outil-vec-ligne": {
+    "nom": {"fr": "Ligne", "en": "Line"},
+    "fonction": {"fr": "Trace un segment droit ; Maj le bloque par pas de 45°.", "en": "Draws a straight segment; Shift snaps it to 45° steps."}
+  },
+  "dz-outil-vec-lisser": {
+    "nom": {"fr": "Courbe lisse", "en": "Smooth Curve"},
+    "fonction": {"fr": "Adoucit toutes les courbes du chemin sélectionné.", "en": "Smooths every curve of the selected path."}
+  },
+  "dz-outil-vec-loupe": {
+    "nom": {"fr": "Loupe", "en": "Zoom"},
+    "fonction": {"fr": "Zoome au clic, dézoome avec Alt+clic, cadre en glissant.", "en": "Zooms in on click, out with Alt+click, frames as you drag."}
+  },
+  "dz-outil-vec-main": {
+    "nom": {"fr": "Main", "en": "Hand"},
+    "fonction": {"fr": "Fait glisser la vue sans rien modifier au dessin.", "en": "Pans the view without changing the drawing."}
+  },
+  "dz-outil-vec-mesure": {
+    "nom": {"fr": "Mesure", "en": "Measure"},
+    "fonction": {"fr": "Affiche longueur et angle en glissant, sans rien créer.", "en": "Shows length and angle as you drag, without creating anything."}
+  },
+  "dz-outil-vec-noeud": {
+    "nom": {"fr": "Nœuds", "en": "Nodes"},
+    "fonction": {"fr": "Déplace, ajoute ou retire les ancres d'un chemin.", "en": "Moves, adds or removes the anchors of a path."}
+  },
+  "dz-outil-vec-noeud-intelligent": {
+    "nom": {"fr": "Intelligent", "en": "Smart"},
+    "fonction": {"fr": "Rend l'ancre intelligente : ses poignées se calculent toutes seules.", "en": "Makes the anchor smart: its handles are calculated automatically."}
+  },
+  "dz-outil-vec-noeud-lisse": {
+    "nom": {"fr": "Lisse", "en": "Smooth"},
+    "fonction": {"fr": "Rend l'ancre lisse, avec des poignées alignées et symétriques.", "en": "Makes the anchor smooth, with aligned, symmetric handles."}
+  },
+  "dz-outil-vec-noeud-vif": {
+    "nom": {"fr": "Vif", "en": "Sharp"},
+    "fonction": {"fr": "Rend l'ancre anguleuse, chaque poignée bougeant librement.", "en": "Makes the anchor a sharp corner, each handle moving freely."}
+  },
+  "dz-outil-vec-ouvrir-chemin": {
+    "nom": {"fr": "Ouvrir", "en": "Open"},
+    "fonction": {"fr": "Ouvre un chemin fermé pour séparer ses deux bouts.", "en": "Opens a closed path so its two ends come apart."}
+  },
+  "dz-outil-vec-pinceau": {
+    "nom": {"fr": "Pinceau vectoriel", "en": "Vector Brush"},
+    "fonction": {"fr": "Peint un trait qui devient une forme remplie, selon le profil choisi.", "en": "Paints a stroke that becomes a filled shape, using the chosen profile."}
+  },
+  "dz-outil-vec-pipette": {
+    "nom": {"fr": "Pipette", "en": "Eyedropper"},
+    "fonction": {"fr": "Prélève la couleur ou le style d'un objet cliqué.", "en": "Picks up the color or style of the object you click."}
+  },
+  "dz-outil-vec-plan-de-travail": {
+    "nom": {"fr": "Plan de travail", "en": "Artboard"},
+    "fonction": {"fr": "Pose une planche nommée sur la page en glissant.", "en": "Places a named board on the page as you drag."}
+  },
+  "dz-outil-vec-plume": {
+    "nom": {"fr": "Plume", "en": "Pen"},
+    "fonction": {"fr": "Trace des courbes précises ancre par ancre, en tirant des poignées.", "en": "Draws precise curves anchor by anchor, pulling out handles."}
+  },
+  "dz-outil-vec-polygone": {
+    "nom": {"fr": "Polygone", "en": "Polygon"},
+    "fonction": {"fr": "Trace une forme à plusieurs côtés égaux en glissant.", "en": "Draws a shape with several equal sides as you drag."}
+  },
+  "dz-outil-vec-profil-calligraphie": {
+    "nom": {"fr": "Calligraphie", "en": "Calligraphy"},
+    "fonction": {"fr": "Donne au pinceau vectoriel un trait de plume calligraphique.", "en": "Gives the vector brush a calligraphy pen stroke."}
+  },
+  "dz-outil-vec-profil-fuseau": {
+    "nom": {"fr": "Fuseau", "en": "Taper"},
+    "fonction": {"fr": "Donne au pinceau vectoriel un trait fin aux deux bouts.", "en": "Gives the vector brush a stroke that tapers at both ends."}
+  },
+  "dz-outil-vec-profil-plat": {
+    "nom": {"fr": "Plat", "en": "Flat"},
+    "fonction": {"fr": "Donne au pinceau vectoriel un trait de largeur constante.", "en": "Gives the vector brush a stroke of constant width."}
+  },
+  "dz-outil-vec-rayons": {
+    "nom": {"fr": "Rayons solaires géométriques", "en": "Geometric Sun Rays"},
+    "fonction": {"fr": "Ajoute un ornement de vitrail en rayons de soleil géométriques.", "en": "Adds a stained-glass ornament of geometric sun rays."}
+  },
+  "dz-outil-vec-rectangle": {
+    "nom": {"fr": "Rectangle", "en": "Rectangle"},
+    "fonction": {"fr": "Trace un rectangle en glissant ; Maj donne un carré.", "en": "Draws a rectangle as you drag; Shift makes a square."}
+  },
+  "dz-outil-vec-relier": {
+    "nom": {"fr": "Relier", "en": "Join"},
+    "fonction": {"fr": "Relie deux extrémités ou deux chemins ouverts en un seul.", "en": "Joins two endpoints or two open paths into one."}
+  },
+  "dz-outil-vec-selection": {
+    "nom": {"fr": "Sélection", "en": "Selection"},
+    "fonction": {"fr": "Choisit, déplace et redimensionne des objets entiers par leurs poignées.", "en": "Picks, moves and resizes whole objects by their handles."}
+  },
+  "dz-outil-vec-spirale": {
+    "nom": {"fr": "Spirale", "en": "Spiral"},
+    "fonction": {"fr": "Choisit la spirale comme forme à tracer avec l'outil Forme.", "en": "Picks a spiral as the shape drawn by the Shape tool."}
+  },
+  "dz-outil-vec-texte": {
+    "nom": {"fr": "Texte", "en": "Text"},
+    "fonction": {"fr": "Pose un texte à l'endroit où l'on clique.", "en": "Places a line of text where you click."}
+  },
+  "dz-outil-vec-texte-sur-chemin": {
+    "nom": {"fr": "Texte sur chemin", "en": "Text on Path"},
+    "fonction": {"fr": "Pose le texte sélectionné le long d'un chemin, qu'il suit ensuite.", "en": "Places the selected text along a path, which it then follows."}
+  },
+  "dz-outil-vec-tranche": {
+    "nom": {"fr": "Tranche", "en": "Slice"},
+    "fonction": {"fr": "Trace un rectangle qui délimite une zone à exporter.", "en": "Draws a rectangle marking an area to export."}
+  },
+  "dz-outil-vec-transparence": {
+    "nom": {"fr": "Transparence", "en": "Transparency"},
+    "fonction": {"fr": "Applique un fondu de l'opaque au transparent en glissant.", "en": "Applies a fade from opaque to transparent as you drag."}
+  },
+  "dz-outil-vec-triangle": {
+    "nom": {"fr": "Triangle", "en": "Triangle"},
+    "fonction": {"fr": "Trace une forme à trois côtés en glissant.", "en": "Draws a three-sided shape as you drag."}
+  },
+  "dz-outil-vec-tuiles": {
+    "nom": {"fr": "Pinceau de tuiles", "en": "Tile Brush"},
+    "fonction": {"fr": "Peint le terrain choisi et pose les tuiles qui vont avec.", "en": "Paints the chosen terrain and places the matching tiles."}
+  },
+  "dz-outil-vec-vitrail-arc": {
+    "nom": {"fr": "Baie à arc", "en": "Arched Window"},
+    "fonction": {"fr": "Remplit la zone glissée d'un vitrail en fenêtre à arc.", "en": "Fills the dragged area with an arched-window stained glass."}
+  },
+  "dz-outil-vec-vitrail-grille": {
+    "nom": {"fr": "Grille losangée", "en": "Diamond Lattice"},
+    "fonction": {"fr": "Remplit la zone glissée d'un vitrail en grille de losanges.", "en": "Fills the dragged area with a diamond-lattice stained glass."}
+  },
+  "dz-outil-vec-vitrail-plomb": {
+    "nom": {"fr": "Plomb libre", "en": "Free Leading"},
+    "fonction": {"fr": "Remplit la zone glissée d'un vitrail aux plombs irréguliers.", "en": "Fills the dragged area with irregular stained-glass leading."}
+  },
+  "dz-outil-vec-vitrail-rosette": {
+    "nom": {"fr": "Rosette", "en": "Rosette"},
+    "fonction": {"fr": "Remplit la zone glissée d'un vitrail en rosace ronde.", "en": "Fills the dragged area with a round rose-window stained glass."}
+  }
+}

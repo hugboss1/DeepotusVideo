@@ -6,6 +6,8 @@ revenir à « maison » RESTAURE ce qu'il y avait avant ; un format non vérifi�
 dit que PDF/X-1a n'est pas revendiqué.
 Témoin positif : la pièce 07 de la base (87ac0d2f) n'a pas de gabarit.
 Run (depuis backend/) : & $PY tests/test_cards_gabarits_ecran.py"""
+import sys as _sys_l7, pathlib as _pl_l7; _sys_l7.path.insert(0, str(_pl_l7.Path(__file__).resolve().parent))  # noqa: E401,E702
+import _cartes_avant_l7  # noqa: F401,E402  (t147 : la source du Card Forge d'avant la traduction L7)
 import json, pathlib, subprocess, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 _ICI = pathlib.Path(__file__).resolve().parent

@@ -1,0 +1,88 @@
+{
+  "titre": {
+    "fr": "Étalonner un plan",
+    "en": "Grade a shot"
+  },
+  "legende": {
+    "fr": "Inspecteur du plan, panneau Étalonnage : roues, courbes, masque, accord automatique.",
+    "en": "Clip inspector, Grading panel: wheels, curves, mask, automatic match."
+  },
+  "captures": [
+    {
+      "fr": "roues.fr.webp",
+      "en": "roues.en.webp"
+    },
+    {
+      "fr": "accord.fr.webp",
+      "en": "accord.en.webp"
+    }
+  ],
+  "taille": [
+    1208,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        930,
+        180,
+        120,
+        25
+      ],
+      "bulle": {
+        "fr": "Ombres, tons moyens, hautes lumières",
+        "en": "Shadows, midtones, highlights"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        1002,
+        250,
+        206,
+        33
+      ],
+      "bulle": {
+        "fr": "Accorder un plan sur le précédent",
+        "en": "Match a shot to the previous one"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        930,
+        180,
+        120,
+        25
+      ],
+      "bulle": {
+        "fr": "Ombres, tons moyens, hautes lumières",
+        "en": "Shadows, midtones, highlights"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        1050,
+        250,
+        158,
+        33
+      ],
+      "bulle": {
+        "fr": "Accorder un plan sur le précédent",
+        "en": "Match a shot to the previous one"
+      }
+    }
+  ],
+  "taille_en": [
+    1208,
+    900
+  ]
+}

@@ -1,0 +1,942 @@
+{
+  "dz-cat-3d": {
+    "nom": {
+      "fr": "3D",
+      "en": "3D"
+    },
+    "fonction": {
+      "fr": "Ouvre l'onglet 3D de Game Assets pour créer des objets en relief.",
+      "en": "Opens the Game Assets 3D tab to create objects in relief."
+    }
+  },
+  "dz-cat-ambiance": {
+    "nom": {
+      "fr": "Ambiance",
+      "en": "Ambience"
+    },
+    "fonction": {
+      "fr": "Ajoute une ambiance (lumière, météo, humeur) à la bible de l'Atelier.",
+      "en": "Adds an ambience (light, weather, mood) to the Workshop bible."
+    }
+  },
+  "dz-cat-animation": {
+    "nom": {
+      "fr": "Animations",
+      "en": "Animations"
+    },
+    "fonction": {
+      "fr": "Regroupe les nœuds du Studio qui animent une image ou un texte.",
+      "en": "Groups the Studio nodes that animate an image or text."
+    }
+  },
+  "dz-cat-assets-2d": {
+    "nom": {
+      "fr": "Assets 2D",
+      "en": "2D Assets"
+    },
+    "fonction": {
+      "fr": "Ouvre l'onglet des outils plats : sprites, tuiles, pixel et cartes.",
+      "en": "Opens the flat-art tab: sprites, tiles, pixel art and cards."
+    }
+  },
+  "dz-cat-audio": {
+    "nom": {
+      "fr": "Audio",
+      "en": "Audio"
+    },
+    "fonction": {
+      "fr": "Regroupe les nœuds du Studio pour la voix off, la musique et le mixage.",
+      "en": "Groups the Studio nodes for voiceover, music and mixing."
+    }
+  },
+  "dz-cat-cartes": {
+    "nom": {
+      "fr": "Cartes",
+      "en": "Cards"
+    },
+    "fonction": {
+      "fr": "Ouvre le Card Forge, l'atelier où l'on fabrique des cartes de jeu.",
+      "en": "Opens Card Forge, the workshop for making game cards."
+    }
+  },
+  "dz-cat-composition": {
+    "nom": {
+      "fr": "Composition",
+      "en": "Composition"
+    },
+    "fonction": {
+      "fr": "Place les éléments dans l'image : nœuds du Studio et mode de Quick.",
+      "en": "Arranges elements in the frame: Studio nodes and a Quick mode."
+    }
+  },
+  "dz-cat-date": {
+    "nom": {
+      "fr": "Date",
+      "en": "Date"
+    },
+    "fonction": {
+      "fr": "Ajoute une date ou une époque à la bible de l'Atelier.",
+      "en": "Adds a date or a period to the Workshop bible."
+    }
+  },
+  "dz-cat-decor": {
+    "nom": {
+      "fr": "Décor",
+      "en": "Set"
+    },
+    "fonction": {
+      "fr": "Ajoute un décor, l'arrière-plan d'une scène, à la bible de l'Atelier.",
+      "en": "Adds a set, the backdrop of a scene, to the Workshop bible."
+    }
+  },
+  "dz-cat-generateur": {
+    "nom": {
+      "fr": "Générateur",
+      "en": "Generator"
+    },
+    "fonction": {
+      "fr": "Regroupe les nœuds du Studio qui créent vidéos, avatars et images par IA.",
+      "en": "Groups the Studio nodes that create videos, avatars and images with AI."
+    }
+  },
+  "dz-cat-lieu": {
+    "nom": {
+      "fr": "Lieu",
+      "en": "Location"
+    },
+    "fonction": {
+      "fr": "Ajoute un lieu, un endroit précis de l'histoire, à la bible de l'Atelier.",
+      "en": "Adds a location, a precise place in the story, to the Workshop bible."
+    }
+  },
+  "dz-cat-maitre": {
+    "nom": {
+      "fr": "Maître",
+      "en": "Master"
+    },
+    "fonction": {
+      "fr": "Regroupe les nœuds du Studio qui finalisent le son et son volume global.",
+      "en": "Groups the Studio nodes that finish the sound and its overall loudness."
+    }
+  },
+  "dz-cat-matieres": {
+    "nom": {
+      "fr": "Matières",
+      "en": "Materials"
+    },
+    "fonction": {
+      "fr": "Ouvre Material Forge, l'atelier des matières à poser sur les objets 3D.",
+      "en": "Opens Material Forge, the workshop for surfaces applied to 3D objects."
+    }
+  },
+  "dz-cat-montage": {
+    "nom": {
+      "fr": "Montage",
+      "en": "Edit"
+    },
+    "fonction": {
+      "fr": "Regroupe les nœuds du Studio qui coupent, prolongent ou enchaînent des clips.",
+      "en": "Groups the Studio nodes that trim, extend or join clips."
+    }
+  },
+  "dz-cat-objet": {
+    "nom": {
+      "fr": "Objet",
+      "en": "Prop"
+    },
+    "fonction": {
+      "fr": "Ajoute un objet ou un accessoire à la bible de l'Atelier.",
+      "en": "Adds an object or a prop to the Workshop bible."
+    }
+  },
+  "dz-cat-personnage": {
+    "nom": {
+      "fr": "Personnage",
+      "en": "Character"
+    },
+    "fonction": {
+      "fr": "Ajoute un personnage de l'histoire à la bible de l'Atelier.",
+      "en": "Adds a story character to the Workshop bible."
+    }
+  },
+  "dz-cat-sortie": {
+    "nom": {
+      "fr": "Sortie",
+      "en": "Output"
+    },
+    "fonction": {
+      "fr": "Signale le nœud du Studio qui produit le rendu final.",
+      "en": "Marks the Studio node that produces the final render."
+    }
+  },
+  "dz-cat-source": {
+    "nom": {
+      "fr": "Source",
+      "en": "Source"
+    },
+    "fonction": {
+      "fr": "Regroupe les nœuds du Studio qui apportent une image, un fichier ou un rendu.",
+      "en": "Groups the Studio nodes that bring in an image, file or render."
+    }
+  },
+  "dz-cat-sprites": {
+    "nom": {
+      "fr": "Sprite Lab",
+      "en": "Sprite Lab"
+    },
+    "fonction": {
+      "fr": "Ouvre le Sprite Lab ou lui envoie une image pour l'animer.",
+      "en": "Opens Sprite Lab or sends it an image to animate."
+    }
+  },
+  "dz-cat-studio-3d": {
+    "nom": {
+      "fr": "3D Studio",
+      "en": "3D Studio"
+    },
+    "fonction": {
+      "fr": "Ouvre l'onglet 3D Studio pour monter une scène 3D complète.",
+      "en": "Opens the 3D Studio tab to build a complete 3D scene."
+    }
+  },
+  "dz-cat-tuiles": {
+    "nom": {
+      "fr": "Tile Lab",
+      "en": "Tile Lab"
+    },
+    "fonction": {
+      "fr": "Ouvre le Tile Lab ou lui envoie une image pour en faire des tuiles.",
+      "en": "Opens Tile Lab or sends it an image to make tiles."
+    }
+  },
+  "dz-media-ameliorer": {
+    "nom": {
+      "fr": "Améliorer",
+      "en": "Enhance"
+    },
+    "fonction": {
+      "fr": "Nettoie et égalise une voix pour qu'elle sonne claire, gratuitement.",
+      "en": "Cleans up and evens out a voice so it sounds clear, for free."
+    }
+  },
+  "dz-media-animatique": {
+    "nom": {
+      "fr": "Animatique",
+      "en": "Animatic"
+    },
+    "fonction": {
+      "fr": "Ouvre ou monte le storyboard animé, version brouillon de la vidéo.",
+      "en": "Opens or edits the animated storyboard, a rough draft of the video."
+    }
+  },
+  "dz-media-apparitions": {
+    "nom": {
+      "fr": "Apparitions",
+      "en": "Appearances"
+    },
+    "fonction": {
+      "fr": "Liste les passages du texte où ce personnage ou lieu apparaît.",
+      "en": "Lists the passages of the text where this character or place appears."
+    }
+  },
+  "dz-media-arret": {
+    "nom": {
+      "fr": "Arrêter",
+      "en": "Stop"
+    },
+    "fonction": {
+      "fr": "Arrête complètement la lecture, la dictée ou l'enregistrement en cours.",
+      "en": "Fully stops the current playback, dictation or recording."
+    }
+  },
+  "dz-media-article": {
+    "nom": {
+      "fr": "Article",
+      "en": "Article"
+    },
+    "fonction": {
+      "fr": "Signale l'article de News qui sert de base au visuel.",
+      "en": "Marks the News article the visual is based on."
+    }
+  },
+  "dz-media-assembler": {
+    "nom": {
+      "fr": "Assembler l'épisode",
+      "en": "Assemble episode"
+    },
+    "fonction": {
+      "fr": "Réunit toutes les scènes d'un épisode en une seule vidéo.",
+      "en": "Joins all the scenes of an episode into one video."
+    }
+  },
+  "dz-media-audio": {
+    "nom": {
+      "fr": "Audio",
+      "en": "Audio"
+    },
+    "fonction": {
+      "fr": "Signale un son : vignette, région audio ou élément de la corbeille.",
+      "en": "Marks a sound: thumbnail, audio region or item in the trash."
+    }
+  },
+  "dz-media-automation": {
+    "nom": {
+      "fr": "Automation",
+      "en": "Automation"
+    },
+    "fonction": {
+      "fr": "Dessine une courbe de volume par points directement sur le clip.",
+      "en": "Draws a volume curve with points directly on the clip."
+    }
+  },
+  "dz-media-avatar": {
+    "nom": {
+      "fr": "Avatar",
+      "en": "Avatar"
+    },
+    "fonction": {
+      "fr": "Désigne un avatar parlant, un présentateur virtuel qui lit votre texte.",
+      "en": "Stands for a talking avatar, a virtual presenter who reads your text."
+    }
+  },
+  "dz-media-badge-direct": {
+    "nom": {
+      "fr": "Badge LIVE",
+      "en": "LIVE badge"
+    },
+    "fonction": {
+      "fr": "Marque la zone « LIVE » d'un gabarit, comme en direct.",
+      "en": "Marks the \"LIVE\" area of a template, like a live broadcast."
+    }
+  },
+  "dz-media-badge-prix": {
+    "nom": {
+      "fr": "Badge de prix",
+      "en": "Price badge"
+    },
+    "fonction": {
+      "fr": "Marque la zone d'un gabarit où s'affiche un prix.",
+      "en": "Marks the area of a template where a price is shown."
+    }
+  },
+  "dz-media-chaine-du-jour": {
+    "nom": {
+      "fr": "Chaîne du jour",
+      "en": "Daily pipeline"
+    },
+    "fonction": {
+      "fr": "Prépare, polit et programme le lot de vidéos News du jour.",
+      "en": "Prepares, polishes and schedules the day's batch of News videos."
+    }
+  },
+  "dz-media-cloner-voix": {
+    "nom": {
+      "fr": "Cloner",
+      "en": "Clone"
+    },
+    "fonction": {
+      "fr": "Crée par IA une copie d'une voix pour la donner à un personnage.",
+      "en": "Uses AI to copy a voice and give it to a character."
+    }
+  },
+  "dz-media-coffre": {
+    "nom": {
+      "fr": "Coffre",
+      "en": "Vault"
+    },
+    "fonction": {
+      "fr": "Ouvre, ferme ou importe le coffre chiffré qui garde vos clés.",
+      "en": "Opens, closes or imports the encrypted vault that holds your keys."
+    }
+  },
+  "dz-media-creneaux": {
+    "nom": {
+      "fr": "Créneaux",
+      "en": "Time slots"
+    },
+    "fonction": {
+      "fr": "Règle les heures de publication habituelles de chaque réseau.",
+      "en": "Sets the usual posting times for each network."
+    }
+  },
+  "dz-media-dicter": {
+    "nom": {
+      "fr": "Dicter",
+      "en": "Dictate"
+    },
+    "fonction": {
+      "fr": "Écrit dans le champ ce que vous dites au micro.",
+      "en": "Types into the field what you say into the microphone."
+    }
+  },
+  "dz-media-duree": {
+    "nom": {
+      "fr": "Durée",
+      "en": "Duration"
+    },
+    "fonction": {
+      "fr": "Indique la durée d'un clip ou de la voix off.",
+      "en": "Shows the length of a clip or of the voiceover."
+    }
+  },
+  "dz-media-emoji": {
+    "nom": {
+      "fr": "Insérer un émoji",
+      "en": "Insert emoji"
+    },
+    "fonction": {
+      "fr": "Ouvre la liste des émojis pour en ajouter un au texte.",
+      "en": "Opens the emoji list to add one to the text."
+    }
+  },
+  "dz-media-emoji-auto": {
+    "nom": {
+      "fr": "Émojis auto",
+      "en": "Auto emoji"
+    },
+    "fonction": {
+      "fr": "Pose tout seul des émojis selon les mots des sous-titres.",
+      "en": "Places emojis automatically based on the words in the subtitles."
+    }
+  },
+  "dz-media-extraire-son": {
+    "nom": {
+      "fr": "Extraire le son",
+      "en": "Extract sound"
+    },
+    "fonction": {
+      "fr": "Sépare le son d'un plan vidéo et le pose sur une piste audio.",
+      "en": "Takes the sound out of a video shot onto an audio track."
+    }
+  },
+  "dz-media-extraits": {
+    "nom": {
+      "fr": "Auto-clips",
+      "en": "Auto-clips"
+    },
+    "fonction": {
+      "fr": "Propose des extraits de 15 à 60 secondes tirés d'un rendu.",
+      "en": "Suggests 15 to 60 second excerpts taken from a render."
+    }
+  },
+  "dz-media-feuille": {
+    "nom": {
+      "fr": "Feuille",
+      "en": "Sheet"
+    },
+    "fonction": {
+      "fr": "Ouvre une planche existante de sprites ou de tuiles pour la retravailler.",
+      "en": "Opens an existing sprite or tile sheet to rework it."
+    }
+  },
+  "dz-media-fichier": {
+    "nom": {
+      "fr": "Fichier",
+      "en": "File"
+    },
+    "fonction": {
+      "fr": "Indique le fichier d'où viennent les données d'un tableau.",
+      "en": "Shows the file a data table comes from."
+    }
+  },
+  "dz-media-film": {
+    "nom": {
+      "fr": "Film",
+      "en": "Film"
+    },
+    "fonction": {
+      "fr": "Signale un enchaînement de plans, vide tant qu'aucun clip n'est relié.",
+      "en": "Marks a sequence of shots, empty until a clip is connected."
+    }
+  },
+  "dz-media-flux-rss": {
+    "nom": {
+      "fr": "Flux RSS",
+      "en": "RSS feed"
+    },
+    "fonction": {
+      "fr": "Signale une source d'actualités suivie par News ou les Réglages.",
+      "en": "Marks a news source followed by News or Settings."
+    }
+  },
+  "dz-media-fond-carte": {
+    "nom": {
+      "fr": "Fond de carte",
+      "en": "Base map"
+    },
+    "fonction": {
+      "fr": "Pose une vraie carte géographique OpenStreetMap comme calque de fond.",
+      "en": "Places a real OpenStreetMap geographic map as a background layer."
+    }
+  },
+  "dz-media-forme-onde": {
+    "nom": {
+      "fr": "Forme d'onde",
+      "en": "Waveform"
+    },
+    "fonction": {
+      "fr": "Montre un son dessiné en vagues, sur sa vignette.",
+      "en": "Shows a sound drawn as waves on its thumbnail."
+    }
+  },
+  "dz-media-generer-image": {
+    "nom": {
+      "fr": "Générer une image",
+      "en": "Generate image"
+    },
+    "fonction": {
+      "fr": "Crée une image par IA à partir de votre description, payant.",
+      "en": "Creates an image with AI from your description, paid."
+    }
+  },
+  "dz-media-generer-script": {
+    "nom": {
+      "fr": "Script",
+      "en": "Script"
+    },
+    "fonction": {
+      "fr": "Rédige par IA le texte d'une vidéo à partir d'articles.",
+      "en": "Uses AI to write a video's text from articles."
+    }
+  },
+  "dz-media-generer-video": {
+    "nom": {
+      "fr": "Générer une vidéo",
+      "en": "Generate video"
+    },
+    "fonction": {
+      "fr": "Crée, anime ou prolonge une vidéo par IA, payant.",
+      "en": "Creates, animates or extends a video with AI, paid."
+    }
+  },
+  "dz-media-generer-voix": {
+    "nom": {
+      "fr": "Générer la voix",
+      "en": "Generate voice"
+    },
+    "fonction": {
+      "fr": "Fait lire votre texte par une voix de synthèse IA, payant.",
+      "en": "Has an AI voice read your text aloud, paid."
+    }
+  },
+  "dz-media-graphe-depart": {
+    "nom": {
+      "fr": "Graphes de départ",
+      "en": "Starter graphs"
+    },
+    "fonction": {
+      "fr": "Propose des graphes du Studio tout prêts pour démarrer vite.",
+      "en": "Offers ready-made Studio graphs to get started quickly."
+    }
+  },
+  "dz-media-image": {
+    "nom": {
+      "fr": "Image",
+      "en": "Image"
+    },
+    "fonction": {
+      "fr": "Signale une image : vignette, emplacement d'un gabarit ou source.",
+      "en": "Marks an image: thumbnail, template slot or source."
+    }
+  },
+  "dz-media-image-cle": {
+    "nom": {
+      "fr": "Image clé",
+      "en": "Keyframe"
+    },
+    "fonction": {
+      "fr": "Pose une image clé, un point de mouvement, à la tête de lecture.",
+      "en": "Sets a keyframe, a point of motion, at the playhead."
+    }
+  },
+  "dz-media-image-cle-retirer": {
+    "nom": {
+      "fr": "Retirer l'image clé",
+      "en": "Remove keyframe"
+    },
+    "fonction": {
+      "fr": "Supprime l'image clé sur laquelle se trouve la tête de lecture.",
+      "en": "Deletes the keyframe the playhead is currently on."
+    }
+  },
+  "dz-media-image-precedente": {
+    "nom": {
+      "fr": "Image précédente",
+      "en": "Previous frame"
+    },
+    "fonction": {
+      "fr": "Recule d'une seule image et met la lecture en pause.",
+      "en": "Steps back by a single frame and pauses playback."
+    }
+  },
+  "dz-media-image-suivante": {
+    "nom": {
+      "fr": "Image suivante",
+      "en": "Next frame"
+    },
+    "fonction": {
+      "fr": "Avance d'une seule image et met la lecture en pause.",
+      "en": "Steps forward by a single frame and pauses playback."
+    }
+  },
+  "dz-media-incrustation": {
+    "nom": {
+      "fr": "Incrustation",
+      "en": "Overlay"
+    },
+    "fonction": {
+      "fr": "Ajoute une piste pour placer une petite vidéo dans l'image.",
+      "en": "Adds a track to place a small video inside the picture."
+    }
+  },
+  "dz-media-inserer": {
+    "nom": {
+      "fr": "Insérer au playhead",
+      "en": "Insert at playhead"
+    },
+    "fonction": {
+      "fr": "Pose ce son à la tête de lecture, sur la bonne piste.",
+      "en": "Places this sound at the playhead, on the right track."
+    }
+  },
+  "dz-media-isoler-voix": {
+    "nom": {
+      "fr": "Isoler la voix",
+      "en": "Isolate voice"
+    },
+    "fonction": {
+      "fr": "Garde seulement la voix d'un son et retire le reste, payant.",
+      "en": "Keeps only the voice in a sound and removes the rest, paid."
+    }
+  },
+  "dz-media-lecture": {
+    "nom": {
+      "fr": "Lire",
+      "en": "Play"
+    },
+    "fonction": {
+      "fr": "Lance la lecture de la vidéo, du son ou de l'animation.",
+      "en": "Starts playing the video, sound or animation."
+    }
+  },
+  "dz-media-manuscrit": {
+    "nom": {
+      "fr": "Manuscrit",
+      "en": "Manuscript"
+    },
+    "fonction": {
+      "fr": "Lit un manuscrit entier pour en tirer chapitres et personnages.",
+      "en": "Reads a whole manuscript to pull out chapters and characters."
+    }
+  },
+  "dz-media-marqueur": {
+    "nom": {
+      "fr": "Marqueurs",
+      "en": "Markers"
+    },
+    "fonction": {
+      "fr": "Pose ou retire un repère à l'endroit de la tête de lecture.",
+      "en": "Adds or removes a marker at the playhead position."
+    }
+  },
+  "dz-media-mouvements-camera": {
+    "nom": {
+      "fr": "Mouvements de caméra",
+      "en": "Camera moves"
+    },
+    "fonction": {
+      "fr": "Ouvre la galerie des mouvements de caméra à appliquer à un plan.",
+      "en": "Opens the gallery of camera moves to apply to a shot."
+    }
+  },
+  "dz-media-muet": {
+    "nom": {
+      "fr": "Muet",
+      "en": "Mute"
+    },
+    "fonction": {
+      "fr": "Coupe le son de cette piste, ou le remet.",
+      "en": "Silences this track, or turns its sound back on."
+    }
+  },
+  "dz-media-pack-depart": {
+    "nom": {
+      "fr": "Packs de départ",
+      "en": "Starter packs"
+    },
+    "fonction": {
+      "fr": "Ouvre des contenus gratuits livrés pour démarrer : sprites ou matières.",
+      "en": "Opens free bundled content to get started: sprites or materials."
+    }
+  },
+  "dz-media-pause": {
+    "nom": {
+      "fr": "Pause",
+      "en": "Pause"
+    },
+    "fonction": {
+      "fr": "Met la lecture en pause ; elle reprendra au même endroit.",
+      "en": "Pauses playback; it will resume from the same spot."
+    }
+  },
+  "dz-media-persona": {
+    "nom": {
+      "fr": "Persona",
+      "en": "Persona"
+    },
+    "fonction": {
+      "fr": "Montre la persona active, la voix et l'avatar de votre marque.",
+      "en": "Shows the active persona, your brand's voice and avatar."
+    }
+  },
+  "dz-media-piste-audio": {
+    "nom": {
+      "fr": "Piste audio",
+      "en": "Audio track"
+    },
+    "fonction": {
+      "fr": "Ajoute une nouvelle piste son à la timeline.",
+      "en": "Adds a new sound track to the timeline."
+    }
+  },
+  "dz-media-piste-video": {
+    "nom": {
+      "fr": "Piste vidéo",
+      "en": "Video track"
+    },
+    "fonction": {
+      "fr": "Ajoute une nouvelle piste vidéo plein cadre à la timeline.",
+      "en": "Adds a new full-frame video track to the timeline."
+    }
+  },
+  "dz-media-police": {
+    "nom": {
+      "fr": "Polices",
+      "en": "Fonts"
+    },
+    "fonction": {
+      "fr": "Liste les polices de caractères installées sur cet ordinateur.",
+      "en": "Lists the fonts installed on this computer."
+    }
+  },
+  "dz-media-post": {
+    "nom": {
+      "fr": "Post",
+      "en": "Post"
+    },
+    "fonction": {
+      "fr": "Marque l'éditeur d'un post du Planificateur.",
+      "en": "Marks the editor of a Scheduler post."
+    }
+  },
+  "dz-media-precedent": {
+    "nom": {
+      "fr": "Précédent",
+      "en": "Previous"
+    },
+    "fonction": {
+      "fr": "Saute à la coupe ou à l'image clé précédente.",
+      "en": "Jumps to the previous cut or keyframe."
+    }
+  },
+  "dz-media-preecoute": {
+    "nom": {
+      "fr": "Pré-écoute au survol",
+      "en": "Preview on hover"
+    },
+    "fonction": {
+      "fr": "Fait entendre un son dès que la souris passe dessus.",
+      "en": "Plays a sound as soon as the mouse moves over it."
+    }
+  },
+  "dz-media-prompt": {
+    "nom": {
+      "fr": "Prompt",
+      "en": "Prompt"
+    },
+    "fonction": {
+      "fr": "Rédige la description d'une image, sans rien générer.",
+      "en": "Writes an image description without generating anything."
+    }
+  },
+  "dz-media-rec": {
+    "nom": {
+      "fr": "Enregistrer la voix",
+      "en": "Record voice"
+    },
+    "fonction": {
+      "fr": "Enregistre votre voix au micro pendant que la vidéo défile.",
+      "en": "Records your voice from the microphone while the video plays."
+    }
+  },
+  "dz-media-reel": {
+    "nom": {
+      "fr": "Reel",
+      "en": "Reel"
+    },
+    "fonction": {
+      "fr": "Crée une vidéo verticale courte, de 30 secondes au plus.",
+      "en": "Creates a short vertical video, 30 seconds at most."
+    }
+  },
+  "dz-media-rendre": {
+    "nom": {
+      "fr": "Rendre",
+      "en": "Render"
+    },
+    "fonction": {
+      "fr": "Ouvre le rendu final pour fabriquer la vidéo terminée.",
+      "en": "Opens the final render to produce the finished video."
+    }
+  },
+  "dz-media-routage": {
+    "nom": {
+      "fr": "Routage",
+      "en": "Routing"
+    },
+    "fonction": {
+      "fr": "Montre le chemin d'un post : rendu, légende, puis réseaux.",
+      "en": "Shows a post's path: render, caption, then networks."
+    }
+  },
+  "dz-media-solo": {
+    "nom": {
+      "fr": "Solo",
+      "en": "Solo"
+    },
+    "fonction": {
+      "fr": "Fait écouter cette piste seule en coupant les autres.",
+      "en": "Plays this track alone by muting the others."
+    }
+  },
+  "dz-media-sous-titres": {
+    "nom": {
+      "fr": "Sous-titres",
+      "en": "Subtitles"
+    },
+    "fonction": {
+      "fr": "Ouvre le panneau des sous-titres et du texte lu mot par mot.",
+      "en": "Opens the panel for subtitles and the word-by-word narration."
+    }
+  },
+  "dz-media-stems": {
+    "nom": {
+      "fr": "Séparer en stems",
+      "en": "Split into stems"
+    },
+    "fonction": {
+      "fr": "Sépare une musique en pistes par IA : voix, batterie, basse.",
+      "en": "Uses AI to split music into tracks: vocals, drums, bass."
+    }
+  },
+  "dz-media-sticker": {
+    "nom": {
+      "fr": "Sticker",
+      "en": "Sticker"
+    },
+    "fonction": {
+      "fr": "Signale un autocollant ou la zone d'un gabarit prévue pour lui.",
+      "en": "Marks a sticker or the template area meant for one."
+    }
+  },
+  "dz-media-suivant": {
+    "nom": {
+      "fr": "Suivant",
+      "en": "Next"
+    },
+    "fonction": {
+      "fr": "Saute à la coupe ou à l'image clé suivante.",
+      "en": "Jumps to the next cut or keyframe."
+    }
+  },
+  "dz-media-tete-lecture": {
+    "nom": {
+      "fr": "Caler sur la tête",
+      "en": "Snap to playhead"
+    },
+    "fonction": {
+      "fr": "Aligne le début ou la fin du clip sur la tête de lecture.",
+      "en": "Aligns the start or end of the clip with the playhead."
+    }
+  },
+  "dz-media-texte": {
+    "nom": {
+      "fr": "Texte",
+      "en": "Text"
+    },
+    "fonction": {
+      "fr": "Signale un élément texte : calque animé ou légende d'un post.",
+      "en": "Marks a text item: animated layer or post caption."
+    }
+  },
+  "dz-media-timeline-allonger": {
+    "nom": {
+      "fr": "Allonger la timeline",
+      "en": "Extend timeline"
+    },
+    "fonction": {
+      "fr": "Rallonge la timeline d'une graduation pour avoir plus de place.",
+      "en": "Lengthens the timeline by one tick to make more room."
+    }
+  },
+  "dz-media-timeline-raccourcir": {
+    "nom": {
+      "fr": "Raccourcir la timeline",
+      "en": "Shorten timeline"
+    },
+    "fonction": {
+      "fr": "Raccourcit la timeline d'une graduation, sans couper aucun clip.",
+      "en": "Shortens the timeline by one tick without cutting any clip."
+    }
+  },
+  "dz-media-titre": {
+    "nom": {
+      "fr": "Titre",
+      "en": "Title"
+    },
+    "fonction": {
+      "fr": "Pose un clip de titre à l'endroit de la tête de lecture.",
+      "en": "Places a title clip at the playhead position."
+    }
+  },
+  "dz-media-tuile-iso": {
+    "nom": {
+      "fr": "Formes",
+      "en": "Shapes"
+    },
+    "fonction": {
+      "fr": "Passe le Tile Lab en tuiles losange ou hexagonales.",
+      "en": "Switches Tile Lab to diamond or hexagonal tiles."
+    }
+  },
+  "dz-media-video": {
+    "nom": {
+      "fr": "Vidéo",
+      "en": "Video"
+    },
+    "fonction": {
+      "fr": "Signale une vidéo ou un rendu : vignette, zone ou source d'un post.",
+      "en": "Marks a video or render: thumbnail, area or post source."
+    }
+  },
+  "dz-media-vitesse": {
+    "nom": {
+      "fr": "Vitesse de lecture",
+      "en": "Playback speed"
+    },
+    "fonction": {
+      "fr": "Change la vitesse de lecture pour avancer plus vite ou plus lentement.",
+      "en": "Changes playback speed to move faster or slower."
+    }
+  },
+  "dz-media-voix": {
+    "nom": {
+      "fr": "Voix",
+      "en": "Voice"
+    },
+    "fonction": {
+      "fr": "Désigne une voix : voix off ou voix choisie pour un personnage.",
+      "en": "Stands for a voice: voiceover or the voice cast for a character."
+    }
+  }
+}

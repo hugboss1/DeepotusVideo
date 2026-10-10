@@ -1,0 +1,51 @@
+<p class="chapeau-chap">Vous saurez poser la clé d'un fournisseur d'IA, choisir quel moteur sert à quoi, et protéger vos clés par un mot de passe. Dix minutes, gratuit ; les clés se créent chez chaque fournisseur.</p>
+
+<h3>Avant de commencer</h3>
+<p>Une clé d'API est un code que le fournisseur vous donne sur son site, dans votre compte. Elle autorise l'application à travailler pour vous ; c'est lui qui facture. Une seule est indispensable pour démarrer : <strong>fal.ai</strong>.</p>
+
+<h3>Poser une clé</h3>
+<figure class="scene" data-scene="cles/cles"></figure>
+<ol class="etapes">
+<li>Ouvrez <span class="chemin"><b class="ui">Réglages</b> › <b class="ui">Clés d'API</b></span>. Chaque fournisseur a sa ligne et son état : <strong>manquante</strong> tant qu'aucune clé n'est posée.</li>
+<li>Cliquez <b class="ui">Guide</b> : il dit où créer la clé chez le fournisseur et comment elle est facturée.</li>
+<li>Collez la clé dans le champ, puis <b class="ui">Enregistrer</b>. Elle sert <strong>tout de suite</strong>, sans redémarrer.</li>
+<li>Cliquez <b class="ui">Tester</b> sur la ligne : le fournisseur dit s'il accepte la clé, sans rien dépenser.</li>
+</ol>
+<p>Pour poser plusieurs clés d'un coup, remplissez les champs puis <b class="ui">Enregistrer toutes les modifications</b>.</p>
+
+<h3>Quelle clé débloque quoi</h3>
+<div class="tableau"><table>
+<tr><th>Clé</th><th>Ce qu'elle débloque</th></tr>
+<tr><td>fal.ai</td><td>Images (FLUX) et clips vidéo (Seedance). La seule clé indispensable.</td></tr>
+<tr><td>HeyGen</td><td>Avatars qui parlent, seuls ou dans une composition.</td></tr>
+<tr><td>ElevenLabs</td><td>Voix off et narration.</td></tr>
+<tr><td>Anthropic, OpenAI ou Gemini</td><td>Résumés d'actualité, plans de posts, scripts et storyboards écrits par l'IA. Une seule suffit ; OpenAI fait aussi des images (GPT Image).</td></tr>
+<tr><td>Meshy</td><td>Image vers objet 3D haut de gamme (facultatif, abonnement Meshy).</td></tr>
+<tr><td>Figma</td><td>Importer des calques Figma dans la Bibliothèque et les Modèles.</td></tr>
+<tr><td>Ollama (sans clé)</td><td>Un modèle d'IA installé sur votre PC pour les plans de posts : gratuit, rien ne sort de chez vous.</td></tr>
+</table></div>
+<p>Les clés des réseaux (X, Telegram, YouTube, Instagram, TikTok) se posent dans <b class="ui">Comptes connectés</b> : voir <a href="#comptes">Connecter ses comptes</a>.</p>
+
+<h3>Choisir le moteur de chaque tâche</h3>
+<p>Dans <span class="chemin"><b class="ui">Réglages</b> › <b class="ui">Fournisseurs par défaut</b></span>, chaque rôle a son moteur : génération d'images, voix, image vers vidéo, avatar, voix off, résumé des News, planification des posts. Seules les clés réellement posées y sont proposées.</p>
+<div class="cartes">
+<article><i data-dz="dz-media-generer-video"></i><h4>Modèle vidéo par défaut</h4><p>Le modèle avec lequel naissent les nouveaux nœuds Seedance du Studio. Chaque nœud peut en changer.</p></article>
+<article><i data-dz="dz-media-voix"></i><h4>Modèle de voix par défaut</h4><p>Le modèle ElevenLabs des nouveaux nœuds de voix off.</p></article>
+<article><i data-dz="dz-etat-ia"></i><h4>IA locale avec Ollama</h4><p>Installez Ollama, téléchargez un modèle, puis indiquez son nom dans la carte <b class="ui">LLM local (Ollama)</b> des Clés d'API.</p></article>
+<article><i data-dz="dz-nav-reglages"></i><h4>Gemini : choisir la version</h4><p>Le champ « Gemini — modèle » vide suit toujours la dernière version Flash ; remplissez-le pour en figer une.</p></article>
+</div>
+
+<h3>Protéger vos clés dans le coffre</h3>
+<figure class="scene" data-scene="cles/coffre"></figure>
+<ol class="etapes">
+<li>Ouvrez <span class="chemin"><b class="ui">Réglages</b> › <b class="ui">Coffre</b></span>.</li>
+<li>Choisissez un mot de passe maître (8 caractères au moins), tapez-le deux fois, puis <b class="ui">Poser le coffre</b>. Vos clés sont chiffrées et quittent le fichier en clair.</li>
+<li><b class="ui">Fermer</b> retire les clés de la mémoire : plus rien de payant ne part. <b class="ui">Ouvrir</b> les rend actives avec le mot de passe.</li>
+<li><b class="ui">Retenir sur ce PC</b> ouvre le coffre tout seul au lancement, pour votre session Windows ; <b class="ui">Ne plus retenir</b> redemande le mot de passe.</li>
+</ol>
+<p>Sur chaque ligne de <b class="ui">Clés d'API</b>, une pastille dit où vit la clé : dans le fichier, dans le coffre, ou coffre fermé (un clic vous y mène).</p>
+
+<h3>Bon à savoir</h3>
+<aside class="attention"><i data-dz="dz-etat-avertissement"></i><p>Le mot de passe du coffre n'est stocké nulle part : perdu, il ne se retrouve pas. Notez-le, ou gardez une archive chiffrée.</p></aside>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p><b class="ui">Exporter l’archive</b> crée un fichier <code>.dzk</code> qui emporte vos clés, vos plafonds et vos tarifs vers un autre PC ou votre téléphone, protégé par son propre mot de passe. <b class="ui">Importer une archive…</b> les reprend.</p></aside>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p><span class="chemin"><b class="ui">Réglages</b> › <b class="ui">Diagnostic</b></span> montre l'état de toutes les clés d'un coup (jamais leur valeur) et les soldes des fournisseurs.</p></aside>

@@ -1,0 +1,116 @@
+{
+  "titre": {
+    "fr": "L'Atelier Chapitre",
+    "en": "The Chapter Workshop"
+  },
+  "legende": {
+    "fr": "Le texte du chapitre au centre, la bible à droite ; Script, Scénario et Storyboard en haut.",
+    "en": "The chapter text in the centre, the bible on the right; Script, Screenplay and Storyboard at the top."
+  },
+  "captures": [
+    {
+      "fr": "script.fr.webp",
+      "en": "script.en.webp"
+    },
+    {
+      "fr": "storyboard.fr.webp",
+      "en": "storyboard.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        8,
+        55,
+        67,
+        44
+      ],
+      "bulle": {
+        "fr": "Trois modes : script, scénario, storyboard",
+        "en": "Three modes: script, screenplay, storyboard"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        778,
+        65,
+        50,
+        25
+      ],
+      "bulle": {
+        "fr": "La bible : personnages, lieux, objets…",
+        "en": "The bible: characters, places, objects…"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "surligne": [
+        517,
+        106,
+        122,
+        42
+      ],
+      "bulle": {
+        "fr": "Le storyboard, puis l'animatique gratuite",
+        "en": "The storyboard, then the free animatic"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        8,
+        55,
+        67,
+        44
+      ],
+      "bulle": {
+        "fr": "Trois modes : script, scénario, storyboard",
+        "en": "Three modes: script, screenplay, storyboard"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        778,
+        65,
+        50,
+        25
+      ],
+      "bulle": {
+        "fr": "La bible : personnages, lieux, objets…",
+        "en": "The bible: characters, places, objects…"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "surligne": [
+        518,
+        106,
+        122,
+        42
+      ],
+      "bulle": {
+        "fr": "Le storyboard, puis l'animatique gratuite",
+        "en": "The storyboard, then the free animatic"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

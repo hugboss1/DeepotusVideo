@@ -1,0 +1,316 @@
+{
+ "base": "http://127.0.0.1:8809",
+ "preparation": "python scripts/guide/semer_videos.py http://127.0.0.1:8809 (trois plans de démonstration ; le Montage les pose sur V1 avec leur son en A1)",
+ "scenes": [
+  {
+   "scene": "montage/ecran",
+   "titre": {
+    "fr": "L'écran du Montage",
+    "en": "The editor screen"
+   },
+   "legende": {
+    "fr": "La timeline en bas (vidéo, son, sous-titres), le lecteur au centre, l'inspecteur à droite ; Preview, Rendre et Publier en haut.",
+    "en": "The timeline at the bottom (video, sound, subtitles), the viewer in the centre, the inspector on the right; Preview, Render and Publish at the top."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Montage",
+      "en": "texte:Edit"
+     },
+     "apres": 4000
+    }
+   ],
+   "captures": [
+    {
+     "nom": "ecran"
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": "css:.svm-clip",
+     "bulle": {
+      "fr": "Les plans sur V1, leur son sur A1 juste dessous",
+      "en": "Shots on V1, their sound on A1 right below"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "texte:Preview",
+     "bulle": {
+      "fr": "Preview : un aperçu 480p gratuit",
+      "en": "Preview: a free 480p preview"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": {
+      "fr": "texte:Livraison",
+      "en": "texte:Delivery"
+     },
+     "bulle": {
+      "fr": "Trois vues : Médias, Montage, Livraison",
+      "en": "Three views: Media, Edit, Delivery"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "montage/jonction",
+   "titre": {
+    "fr": "Une transition à la jonction",
+    "en": "A transition at the cut"
+   },
+   "legende": {
+    "fr": "Un clic sur le losange entre deux plans ouvre la galerie des transitions et le réglage image par image.",
+    "en": "A click on the diamond between two shots opens the transitions gallery and frame-by-frame trimming."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Montage",
+      "en": "texte:Edit"
+     },
+     "apres": 4000
+    }
+   ],
+   "captures": [
+    {
+     "nom": "avant"
+    },
+    {
+     "nom": "galerie",
+     "etapes": [
+      {
+       "clicxy": [
+        767,
+        637
+       ],
+       "apres": 1500
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.4,
+     "curseur": [
+      767,
+      637
+     ],
+     "clic": true,
+     "bulle": {
+      "fr": "Cliquez le losange entre deux plans",
+      "en": "Click the diamond between two shots"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 3.4,
+     "bulle": {
+      "fr": "Choisissez la transition et sa durée",
+      "en": "Pick the transition and its duration"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "montage/etalonnage",
+   "clip": "css:main",
+   "titre": {
+    "fr": "Étalonner un plan",
+    "en": "Grade a shot"
+   },
+   "legende": {
+    "fr": "Inspecteur du plan, panneau Étalonnage : roues, courbes, masque, accord automatique.",
+    "en": "Clip inspector, Grading panel: wheels, curves, mask, automatic match."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Montage",
+      "en": "texte:Edit"
+     },
+     "apres": 4000
+    },
+    {
+     "defiler": {
+      "fr": "texte:LIFT",
+      "en": "texte:LIFT"
+     }
+    }
+   ],
+   "captures": [
+    {
+     "nom": "roues"
+    },
+    {
+     "nom": "accord",
+     "etapes": [
+      {
+       "defiler": {
+        "fr": "texte:Accorder sur le plan précédent",
+        "en": "texte:Match to previous clip"
+       }
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": {
+      "fr": "texte:Roues",
+      "en": "texte:Wheels"
+     },
+     "bulle": {
+      "fr": "Ombres, tons moyens, hautes lumières",
+      "en": "Shadows, midtones, highlights"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.8,
+     "surligne": {
+      "fr": "texte:Accorder sur le plan précédent",
+      "en": "texte:Match to previous clip"
+     },
+     "bulle": {
+      "fr": "Accorder un plan sur le précédent",
+      "en": "Match a shot to the previous one"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "montage/rendu",
+   "titre": {
+    "fr": "Rendre la vidéo",
+    "en": "Render the video"
+   },
+   "legende": {
+    "fr": "Rendre… ouvre le panneau de rendu : preset de sortie, cadence, loudness, plage, file de rendus.",
+    "en": "Render… opens the render panel: output preset, frame rate, loudness, range, render queue."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Montage",
+      "en": "texte:Edit"
+     },
+     "apres": 4000
+    }
+   ],
+   "captures": [
+    {
+     "nom": "panneau",
+     "etapes": [
+      {
+       "clic": "css:button[title*='1080']",
+       "apres": 1800
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 3.4,
+     "bulle": {
+      "fr": "Choisissez le preset, puis rendez ou mettez en file",
+      "en": "Pick the preset, then render or queue"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "montage/menu",
+   "titre": {
+    "fr": "Le menu du Montage",
+    "en": "The editor menu"
+   },
+   "legende": {
+    "fr": "Le menu ☰ range toutes les actions en six rubriques, chacune avec son raccourci.",
+    "en": "The ☰ menu lists every action in six sections, each with its shortcut."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Montage",
+      "en": "texte:Edit"
+     },
+     "apres": 4000
+    }
+   ],
+   "captures": [
+    {
+     "nom": "menu",
+     "etapes": [
+      {
+       "clic": "css:button[title^='Menu']",
+       "apres": 1200
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 3.2,
+     "bulle": {
+      "fr": "Projet, Édition, Timeline, Marqueurs, Affichage, Aide",
+      "en": "Project, Edit, Timeline, Markers, View, Help"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "montage/scopes",
+   "titre": {
+    "fr": "Les scopes",
+    "en": "The scopes"
+   },
+   "legende": {
+    "fr": "Forme d'onde, vectorscope et histogramme de l'image étalonnée, dans une fenêtre qu'on déplace.",
+    "en": "Waveform, vectorscope and histogram of the graded picture, in a window you can move."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Montage",
+      "en": "texte:Edit"
+     },
+     "apres": 4000
+    }
+   ],
+   "captures": [
+    {
+     "nom": "scopes",
+     "etapes": [
+      {
+       "clic": "texte:Scopes",
+       "apres": 3000
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 3.2,
+     "surligne": "texte:Scopes",
+     "bulle": {
+      "fr": "Les scopes se calculent à l'arrêt",
+      "en": "Scopes are computed when playback stops"
+     }
+    }
+   ]
+  }
+ ]
+}

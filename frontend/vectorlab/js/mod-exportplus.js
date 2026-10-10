@@ -5,6 +5,7 @@
 // tranche, PDF par la route stdlib du backend, DXF par aplatir_objet.
 // Les rasters partent dans la Bibliothèque (route d'import existante, nom
 // `vector_…` = provenance vectorlab) ; SVG, PDF et DXF se téléchargent.
+import { T } from "./mod-i18n.js";
 import { MODES, FORMATS, tranches_de, resolutions_lire, plan_export, mm_px, cadre_saignee, marques_svg, marques_objets } from "./mod-tranches.js";
 import { dxf_de, polylignes_mm } from "./mod-dxf.js";
 import { bbox_objet } from "./mod-doc.js";
@@ -13,7 +14,7 @@ import { pdf_page, pdf_assembler, matrice_de, matrice_mul } from "./mod-pdf.js";
 import { dzi } from "./mod-icones.js";
 
 const SNS = "http://www.w3.org/2000/svg";
-export const HINTS4 = { tranche: "glisser un rectangle : une tranche à exporter · Échap efface les tranches dessinées" };
+export const HINTS4 = { tranche: T("vectorlab.export.hint_tranche") };
 const _num = (v, d) => { if (v === undefined || v === null || String(v).trim() === "") return d; const x = +String(v).replace(",", "."); return Number.isFinite(x) ? x : d; };
 
 export function reglages_lire(c = {}) {
@@ -78,7 +79,7 @@ export function anneaux_dxf(doc, glyphes = () => null) {
     try { an = aplatir_objet({ ...o, transform: undefined }); } catch (e) { saute(o.type); return; }
     for (const a of an) anneaux.push(a.map(([x, y]) => [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]]));
   };
-  const SANS = { image: "image", cadre: "cadre de texte", textechemin: "texte sur chemin" };
+  const SANS = { image: "image", cadre: T("vectorlab.export.raison_cadre"), textechemin: T("vectorlab.export.raison_textechemin") };
   const visiter = (objs, mParent) => {
     for (const o of objs || []) {
       if (SANS[o.type]) { saute(SANS[o.type]); continue; }
@@ -87,13 +88,13 @@ export function anneaux_dxf(doc, glyphes = () => null) {
       if (o.type === "instance") {
         if (doc.edition && doc.edition.instance === o.id) continue;      // t123 : son calque d'édition la montre
         const sym = (doc.symboles || {})[o.symbole];
-        if (!sym) { saute("symbole absent"); continue; }
+        if (!sym) { saute(T("vectorlab.export.raison_symbole")); continue; }
         visiter(sym.objets, matrice_mul(m, [o.sx === undefined ? 1 : +o.sx, 0, 0, o.sy === undefined ? 1 : +o.sy, +o.x || 0, +o.y || 0]));
         continue;
       }
       if (o.type === "texte") {
         const g = glyphes(o);
-        if (!g || g.raison) { saute((g && g.raison) || "texte (police non chargée)"); continue; }
+        if (!g || g.raison) { saute((g && g.raison) || T("vectorlab.export.raison_police")); continue; }
         for (const gl of g) aplatir({ type: "path", d: gl.d }, m);
         continue;
       }
@@ -105,13 +106,13 @@ export function anneaux_dxf(doc, glyphes = () => null) {
 }
 export function resume_pdf(st) {
   const r = Object.entries(st.raisons || {}).map(([k, n]) => (n > 1 ? `${k} ×${n}` : k)).join(", ");
-  return `PDF vectoriel : ${st.vectoriels} objet(s) en vecteurs, ${st.rasterises ? `${st.rasterises} rasterisé(s) (${r})` : "aucun rasterisé"}`;
+  return T("vectorlab.export.resume_pdf", { v: st.vectoriels, raster: st.rasterises ? T("vectorlab.export.resume_pdf_raster", { n: st.rasterises, r }) : T("vectorlab.export.resume_pdf_aucun") });
 }
 export function resume_plan(plan) {
-  if (!plan || !plan.length) return "rien à exporter (aucune tranche ou aucun format)";
+  if (!plan || !plan.length) return T("vectorlab.export.plan_vide");
   const raster = plan.filter((e) => (FORMATS.find((f) => f.id === e.format) || {}).raster).length;
   const autres = plan.length - raster;
-  return `${plan.length} fichier(s) : ${raster} raster(s) vers la Bibliothèque, ${autres} téléchargé(s) (SVG / PDF / DXF)`;
+  return T("vectorlab.export.resume_plan", { n: plan.length, raster, autres });
 }
 // pages PDF : la tranche en mm au dpi du DOCUMENT, saignée ajoutée de chaque
 // côté ; w_px / h_px à l'échelle k du rendu
@@ -137,7 +138,7 @@ export function initExportPlus(VL) {
   // l'outil tranche dans la barre (persona Export)
   {
     const b = document.createElement("button");
-    b.dataset.outil = "tranche"; b.title = "Tranche — glisser un rectangle à exporter (onglet Exporter)";   // l'icône : mod-barreoutils
+    b.dataset.outil = "tranche"; b.title = T("vectorlab.export.outil_tranche");   // l'icône : mod-barreoutils
     b.addEventListener("click", () => VL.setOutil("tranche"));
     $("#outils").appendChild(b);
   }
@@ -220,9 +221,9 @@ export function initExportPlus(VL) {
         if (format === "jpeg" || (!r.transparent && format !== "png")) { cx.fillStyle = etat.doc.fond || "#FFFFFF"; cx.fillRect(0, 0, cv.width, cv.height); }
         cx.drawImage(img, 0, 0, cv.width, cv.height);
         URL.revokeObjectURL(url);
-        cv.toBlob((b) => b ? res(b) : rej(new Error("rendu vide")), { png: "image/png", jpeg: "image/jpeg", webp: "image/webp" }[format], r.qualite);
+        cv.toBlob((b) => b ? res(b) : rej(new Error(T("vectorlab.export.rendu_vide"))), { png: "image/png", jpeg: "image/jpeg", webp: "image/webp" }[format], r.qualite);
       };
-      img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("SVG non décodable")); };
+      img.onerror = () => { URL.revokeObjectURL(url); rej(new Error(T("vectorlab.export.svg_non_decodable"))); };
       img.src = url;
     });
   }
@@ -239,7 +240,7 @@ export function initExportPlus(VL) {
         URL.revokeObjectURL(url);
         res({ data: cx.getImageData(0, 0, cv.width, cv.height).data, w: cv.width, h: cv.height });
       };
-      img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("SVG non décodable")); };
+      img.onerror = () => { URL.revokeObjectURL(url); rej(new Error(T("vectorlab.export.svg_non_decodable"))); };
       img.src = url;
     });
   }
@@ -266,7 +267,7 @@ export function initExportPlus(VL) {
       }
       const glyphes = new Map();
       for (const o of textes_de(doc)) {
-        try { glyphes.set(o.id, VL.glyphesTexte ? await VL.glyphesTexte(o) : null); } catch (err) { glyphes.set(o.id, { raison: `texte (${err.message})` }); }
+        try { glyphes.set(o.id, VL.glyphesTexte ? await VL.glyphesTexte(o) : null); } catch (err) { glyphes.set(o.id, { raison: T("vectorlab.export.raison_texte", { m: err.message }) }); }
       }
       const p = pdf_page(doc, cadre, { dpi: dpiDoc(), transparent: r.transparent, glyphes: (o) => glyphes.get(o.id) || null });
       p.images = {};
@@ -296,7 +297,7 @@ export function initExportPlus(VL) {
     const doc = docPour(t);
     const glyphes = new Map();
     for (const o of textes_de(doc)) {
-      try { glyphes.set(o.id, VL.glyphesTexte ? await VL.glyphesTexte(o) : null); } catch (err) { glyphes.set(o.id, { raison: `texte (${err.message})` }); }
+      try { glyphes.set(o.id, VL.glyphesTexte ? await VL.glyphesTexte(o) : null); } catch (err) { glyphes.set(o.id, { raison: T("vectorlab.export.raison_texte", { m: err.message }) }); }
     }
     const { anneaux, sautes } = anneaux_dxf(doc, (o) => glyphes.get(o.id) || null);
     for (const [k, n] of Object.entries(sautes)) ignores[k] = (ignores[k] || 0) + n;
@@ -319,7 +320,7 @@ export function initExportPlus(VL) {
   }
   async function exporterLot() {
     const r = reglages_lire(etat.exportPlus), p = plan();
-    if (!p.length) throw new Error("rien à exporter");
+    if (!p.length) throw new Error(T("vectorlab.export.rien"));
     const faits = [], sautes = [], ignores = {};
     let bilanPdf = "";
     for (const e of p) {
@@ -350,7 +351,7 @@ export function initExportPlus(VL) {
       if (e.format === "svg") { telecharger(new Blob([svg], { type: "image/svg+xml" }), e.nom); faits.push(e.nom); continue; }
       faits.push(await deposer(await rasteriser(svg, cadre, e.k, e.format, r), e.nom));
     }
-    VL.toast(`export lot : ${faits.length} fichier(s) — ${faits.slice(0, 3).join(", ")}${faits.length > 3 ? "…" : ""}${sautes.length ? ` · ${sautes.length} DXF vide(s) sauté(s)` : ""}${Object.keys(ignores).length ? ` · hors découpe : ${Object.entries(ignores).map(([k, n]) => (n > 1 ? `${k} ×${n}` : k)).join(", ")}` : ""}${bilanPdf ? ` · ${bilanPdf}` : ""}`);
+    VL.toast(`${T("vectorlab.export.toast_lot", { n: faits.length })}${faits.slice(0, 3).join(", ")}${faits.length > 3 ? "…" : ""}${sautes.length ? ` · ${T("vectorlab.export.toast_dxf_vides", { n: sautes.length })}` : ""}${Object.keys(ignores).length ? ` · ${T("vectorlab.export.toast_hors_decoupe")}${Object.entries(ignores).map(([k, n]) => (n > 1 ? `${k} ×${n}` : k)).join(", ")}` : ""}${bilanPdf ? ` · ${bilanPdf}` : ""}`);
     return faits;
   }
 
@@ -362,21 +363,21 @@ export function initExportPlus(VL) {
     let p = [], erreur = "";
     try { p = plan(); } catch (e) { erreur = e.message; }
     hote.innerHTML = `
-      <div class="ap-ligne"><span>Tranches</span><i class="px-note">${(MODES.find((m) => m.id === r.mode) || {}).libelle || r.mode} — menu du bouton Tranche</i></div>
-      <div class="ap-ligne"><span></span><i class="px-note">${etat.tranches.length} dessinée(s)</i><button id="exTrancheOutil" title="Dessiner une tranche sur la scène">${dzi("dz-outil-vec-tranche", 16)}dessiner</button><button id="exTrancheX" ${etat.tranches.length ? "" : "disabled"} title="Efface les tranches dessinées" aria-label="Efface les tranches dessinées">${dzi("dz-action-vider", 16)}</button></div>
-      <div class="ap-ligne"><span>Résol.</span><input type="text" id="exRes" value="${r.resolutions}" title="Résolutions raster, ex. 1, 2, 4 (suffixe @2x)" style="width:70px"/>
-        <label title="Sans le fond du document"><input type="checkbox" id="exTransp"${r.transparent ? " checked" : ""}/> transp.</label></div>
+      <div class="ap-ligne"><span>${T("vectorlab.export.tranches")}</span><i class="px-note">${(MODES.find((m) => m.id === r.mode) || {}).libelle || r.mode} — ${T("vectorlab.export.menu_tranche")}</i></div>
+      <div class="ap-ligne"><span></span><i class="px-note">${T("vectorlab.export.n_dessinees", { n: etat.tranches.length })}</i><button id="exTrancheOutil" title="${T("vectorlab.export.dessiner_titre")}">${dzi("dz-outil-vec-tranche", 16)}${T("vectorlab.export.dessiner")}</button><button id="exTrancheX" ${etat.tranches.length ? "" : "disabled"} title="${T("vectorlab.export.effacer_tranches")}" aria-label="${T("vectorlab.export.effacer_tranches")}">${dzi("dz-action-vider", 16)}</button></div>
+      <div class="ap-ligne"><span>${T("vectorlab.export.resol")}</span><input type="text" id="exRes" value="${r.resolutions}" title="${T("vectorlab.export.resol_titre")}" style="width:70px"/>
+        <label title="${T("vectorlab.export.transp_titre")}"><input type="checkbox" id="exTransp"${r.transparent ? " checked" : ""}/> ${T("vectorlab.export.transp")}</label></div>
       <div class="a2-champs">${FORMATS.map((f) => `<label><input type="checkbox" data-format="${f.id}"${r.formats.includes(f.id) ? " checked" : ""}/> ${f.libelle}</label>`).join("")}</div>
-      <details ${r.saignee || r.coupe || r.reperage ? "open" : ""}><summary class="px-tete">Impression</summary>
-        <div class="ap-ligne"><span>Saignée</span><input type="number" id="exSaignee" step="0.5" min="0" value="${r.saignee}" title="Fond perdu (mm) ajouté de chaque côté"/><span style="width:auto">mm</span>
-          <input type="number" id="exDpi" min="36" max="1200" value="${r.dpi}" title="dpi des rasters du PDF (et du PDF image)"/><span style="width:auto">dpi</span></div>
-        <div class="ap-ligne"><span>PDF</span><select id="exPdf" title="Vectoriel : les chemins, formes, textes (en contours), dégradés et motifs restent des vecteurs — seuls les effets, masques, images et textes sur chemin sont rasterisés, et le toast les compte. Image : une image par page (l'ancien PDF).">
-          <option value="vectoriel"${r.pdf === "vectoriel" ? " selected" : ""}>vectoriel</option><option value="image"${r.pdf === "image" ? " selected" : ""}>image</option></select></div>
-        <div class="ap-ligne"><label><input type="checkbox" id="exCoupe"${r.coupe ? " checked" : ""}/> traits de coupe</label><label><input type="checkbox" id="exRep"${r.reperage ? " checked" : ""}/> repérage</label></div>
-        <div class="ap-ligne"><span>Qualité</span><input type="range" id="exQual" min="0.3" max="1" step="0.01" value="${r.qualite}" title="JPEG / WebP"/><b id="exQualVal">${Math.round(r.qualite * 100)}</b></div>
+      <details ${r.saignee || r.coupe || r.reperage ? "open" : ""}><summary class="px-tete">${T("vectorlab.export.impression")}</summary>
+        <div class="ap-ligne"><span>${T("vectorlab.export.saignee")}</span><input type="number" id="exSaignee" step="0.5" min="0" value="${r.saignee}" title="${T("vectorlab.export.saignee_titre")}"/><span style="width:auto">mm</span>
+          <input type="number" id="exDpi" min="36" max="1200" value="${r.dpi}" title="${T("vectorlab.export.dpi_titre")}"/><span style="width:auto">dpi</span></div>
+        <div class="ap-ligne"><span>PDF</span><select id="exPdf" title="${T("vectorlab.export.pdf_titre")}">
+          <option value="vectoriel"${r.pdf === "vectoriel" ? " selected" : ""}>${T("vectorlab.export.opt_vectoriel")}</option><option value="image"${r.pdf === "image" ? " selected" : ""}>image</option></select></div>
+        <div class="ap-ligne"><label><input type="checkbox" id="exCoupe"${r.coupe ? " checked" : ""}/> ${T("vectorlab.export.traits_coupe")}</label><label><input type="checkbox" id="exRep"${r.reperage ? " checked" : ""}/> ${T("vectorlab.export.reperage")}</label></div>
+        <div class="ap-ligne"><span>${T("vectorlab.export.qualite")}</span><input type="range" id="exQual" min="0.3" max="1" step="0.01" value="${r.qualite}" title="JPEG / WebP"/><b id="exQualVal">${Math.round(r.qualite * 100)}</b></div>
       </details>
       <div class="ex-plan" id="exPlan">${erreur ? `<i class="px-note">${erreur}</i>` : p.map((e) => `<div title="${e.format}">${e.nom}</div>`).join("") || `<i class="px-note">${resume_plan([])}</i>`}</div>
-      <div class="ap-ligne"><button id="exLot" class="primaire" ${p.length ? "" : "disabled"} style="flex:1" title="${resume_plan(p)}">${dzi("dz-action-exporter", 16)}Exporter le lot (${p.length})</button></div>`;
+      <div class="ap-ligne"><button id="exLot" class="primaire" ${p.length ? "" : "disabled"} style="flex:1" title="${resume_plan(p)}">${dzi("dz-action-exporter", 16)}${T("vectorlab.export.exporter_lot", { n: p.length })}</button></div>`;
     const on = (id, ev, fn) => { const e = $("#" + id); if (e) e.addEventListener(ev, fn); };
     const maj = (patch) => { Object.assign(etat.exportPlus, patch); rendre(); };
     on("exTrancheOutil", "click", () => { VL.setPersona && etat.persona !== "export" && VL.setPersona("export"); VL.setOutil("tranche"); });

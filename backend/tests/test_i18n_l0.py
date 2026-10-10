@@ -91,6 +91,9 @@ R.surc_exact = I.traduire("Annuler");
 R.surc_espaces = I.traduire("  Annuler\n");
 R.surc_partiel = I.traduire("Annuler tout");
 R.surc_inconnu = I.traduire("Bonjour le monde");
+// t146 : un texte DÉJÀ anglais (sortie de dzT) qui est aussi le français d'une autre entrée ne se retraduit pas
+R.surc_deja_en = I.traduire("Contours");
+R.surc_deja_en2 = I.traduire("Relief");
 m.w.fetch("/api/health"); m.w.fetch("https://exemple.org/x"); m.w.fetch("/api/x", { headers: { "Accept-Language": "fr" } });
 R.entetes = m.entetes;
 m = monde({ dz_lang: "fr" }, "fr");
@@ -123,6 +126,8 @@ setTimeout(() => { R.premier = [m.magasin.dz_lang_install, m.recharge.length];
               R["surc_partiel"] is None and R["surc_inconnu"] is None, [R["surc_partiel"], R["surc_inconnu"]])
         check("1.10 en français : dzT rend le français, la surcouche ne fait rien", R["t_fr"] == "Annuler" and R["surc_fr"] is None,
               [R["t_fr"], R["surc_fr"]])
+        check("1.10b surcouche : un texte déjà anglais (« Contours », « Relief » rendus par dzT) n'est jamais retraduit",
+              R["surc_deja_en"] is None and R["surc_deja_en2"] is None, [R["surc_deja_en"], R["surc_deja_en2"]])
         e = {u: h for u, h in R["entetes"]}
         check("1.11 Accept-Language ajouté aux seules requêtes /api/, jamais imposé par-dessus un en-tête posé",
               (e.get("/api/health") or {}).get("Accept-Language") == "en" and not (e.get("https://exemple.org/x") or {}).get("Accept-Language")

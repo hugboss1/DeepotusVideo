@@ -45,6 +45,8 @@ l'imprimeur.
 
 Run : .\\scripts\\run-tests.ps1 -Filter cards
 """
+import sys as _sys_l7, pathlib as _pl_l7; _sys_l7.path.insert(0, str(_pl_l7.Path(__file__).resolve().parent))  # noqa: E401,E702
+import _cartes_avant_l7  # noqa: F401,E402  (t147 : la source du Card Forge d'avant la traduction L7)
 import asyncio
 import io
 import json

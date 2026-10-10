@@ -6,14 +6,17 @@
 // redistribuées par libellé vers Transformer et Trait APRÈS chaque rendu
 // (les écouteurs suivent les nœuds déplacés) ; Échantillons et Navigateur
 // sont rendus ici. `VL.ouvrirOnglet(id)` : les menus (R1) l'appellent.
+import { T } from "./mod-i18n.js";
 import { ONGLETS, onglets_de, onglet_de_section, actif_lire, actif_poser, actif_de, sections_ouvertes, actif_serialiser } from "./mod-onglets.js";
 import { echelle_vignette, cadre_vue, zoom_de_curseur, curseur_de_zoom } from "./mod-navigateur.js";
 import { histogramme, histogramme_chemins } from "./mod-histogramme.js";
 import { compilerSVG, op_style } from "./mod-doc.js";
 import { dzi } from "./mod-icones.js";
 
-const VERS_TRANSFORMER = ["X · Y", "L · H", "Incliner", "Puissance"];
-const VERS_TRAIT = ["Contour", "Trait", "Pointillés", "Joint", "Décaler"];
+const VERS_TRANSFORMER = ["X · Y", "L · H", "Incliner", "Puissance",
+  T("vectorlab.style.l_h"), T("vectorlab.style.incliner"), T("vectorlab.style.puissance")];
+const VERS_TRAIT = ["Contour", "Trait", "Pointillés", "Joint", "Décaler",
+  T("vectorlab.style.contour"), T("vectorlab.style.trait"), T("vectorlab.style.pointilles"), T("vectorlab.style.decaler")];
 const CLE = "dz_vl_onglets";
 
 export function initPile(VL) {
@@ -29,7 +32,7 @@ export function initPile(VL) {
   const groupes = [0, 1, 2].map((i) => {
     const g = document.createElement("div");
     g.className = "groupe"; g.dataset.g = i;
-    g.innerHTML = `<div class="onglets"></div><button class="groupe-repli" title="Replier / déplier ce groupe" aria-label="Replier / déplier ce groupe">${dzi("dz-action-deplier", 16)}</button><div class="groupe-corps"></div>`;
+    g.innerHTML = `<div class="onglets"></div><button class="groupe-repli" title="${T("vectorlab.pile.replier")}" aria-label="${T("vectorlab.pile.replier")}">${dzi("dz-action-deplier", 16)}</button><div class="groupe-corps"></div>`;
     g.querySelector(".groupe-repli").addEventListener("click", () => g.classList.toggle("replie"));
     pile.appendChild(g);
     return g;
@@ -84,8 +87,8 @@ export function initPile(VL) {
       if (VERS_TRANSFORMER.includes(l)) t.appendChild(ligne);
       else if (VERS_TRAIT.includes(l)) tr.appendChild(ligne);
     }
-    if (!t.children.length) t.innerHTML = `<p class="px-note">Sélectionner un objet : position, taille, inclinaison et duplication en puissance.</p>`;
-    if (!tr.children.length) tr.innerHTML = `<p class="px-note">Le contour de la sélection ou des prochains objets.</p>`;
+    if (!t.children.length) t.innerHTML = `<p class="px-note">${T("vectorlab.pile.transformer_vide")}</p>`;
+    if (!tr.children.length) tr.innerHTML = `<p class="px-note">${T("vectorlab.pile.trait_vide")}</p>`;
   }
 
   /* ── Échantillons : la palette du document ── */
@@ -94,8 +97,8 @@ export function initPile(VL) {
     if (!h) return;
     const pal = (etat.doc && etat.doc.palette) || [];
     h.innerHTML = pal.length
-      ? `<div class="ech-grille">${pal.map((c) => `<button class="ech-case" data-hex="${esc(c)}" style="background:${esc(c)}" title="${esc(c)} — clic : fond de la sélection · Maj+clic : contour"></button>`).join("")}</div><p class="px-note">La palette du document (bouton Ajouter du nuancier pour y ajouter).</p>`
-      : `<p class="px-note">Aucun échantillon — le nuancier (pastille Fond) ajoute une couleur à la palette du document.</p>`;
+      ? `<div class="ech-grille">${pal.map((c) => `<button class="ech-case" data-hex="${esc(c)}" style="background:${esc(c)}" title="${esc(c)} — ${T("vectorlab.pile.ech_case")}"></button>`).join("")}</div><p class="px-note">${T("vectorlab.pile.ech_note")}</p>`
+      : `<p class="px-note">${T("vectorlab.pile.ech_vide")}</p>`;
     h.querySelectorAll(".ech-case").forEach((b) => b.addEventListener("click", (ev) => {
       const patch = ev.shiftKey ? { contour: b.dataset.hex } : { fond: b.dataset.hex };
       if (etat.selection.length) VL.executer(op_style, etat.selection.slice(), patch);
@@ -108,10 +111,10 @@ export function initPile(VL) {
   function rendreNavigateur() {
     const h = $("#panneauNavigateur");
     if (!h) return;
-    if (!etat.doc) { h.innerHTML = `<p class="px-note">Aucun document.</p>`; return; }
+    if (!etat.doc) { h.innerHTML = `<p class="px-note">${T("vectorlab.pile.aucun_doc")}</p>`; return; }
     if (!h.querySelector(".nav-vignette")) {
       h.innerHTML = `<div class="nav-vignette" style="width:${NAV_W}px;height:${NAV_H}px"><div class="nav-page"></div><div class="nav-cadre"></div></div>
-        <div class="ap-ligne nav-zoom"><button id="navMoins" title="Zoom arrière" aria-label="Zoom arrière">${dzi("dz-action-zoom-arriere", 16)}</button><input id="navZoom" type="range" min="0" max="1000" value="500" title="Zoom"/><button id="navPlus" title="Zoom avant" aria-label="Zoom avant">${dzi("dz-action-zoom-avant", 16)}</button><b id="navPct">100 %</b></div>`;
+        <div class="ap-ligne nav-zoom"><button id="navMoins" title="${T("vectorlab.pile.zoom_arriere")}" aria-label="${T("vectorlab.pile.zoom_arriere")}">${dzi("dz-action-zoom-arriere", 16)}</button><input id="navZoom" type="range" min="0" max="1000" value="500" title="Zoom"/><button id="navPlus" title="${T("vectorlab.pile.zoom_avant")}" aria-label="${T("vectorlab.pile.zoom_avant")}">${dzi("dz-action-zoom-avant", 16)}</button><b id="navPct">100 %</b></div>`;
       const poser = (z) => { const r = $("#stage").getBoundingClientRect(); const cx = r.width / 2, cy = r.height / 2; etat.tx = cx - (cx - etat.tx) * (z / etat.zoom); etat.ty = cy - (cy - etat.ty) * (z / etat.zoom); etat.zoom = z; VL.appliquerVue(); };
       h.querySelector("#navZoom").addEventListener("input", (ev) => poser(zoom_de_curseur(ev.target.value)));
       h.querySelector("#navMoins").addEventListener("click", () => poser(Math.max(0.05, etat.zoom / 1.25)));
@@ -146,10 +149,10 @@ export function initPile(VL) {
     const h = $("#panneauHistogramme");
     if (!h) return;
     const t = etat.px && etat.px.tampon;
-    if (!t) { h.innerHTML = `<p class="px-note">Éditer les pixels d'une image (persona Pixel, « Éditer les pixels ») pour lire son histogramme.</p>`; return; }
+    if (!t) { h.innerHTML = `<p class="px-note">${T("vectorlab.pile.hist_vide")}</p>`; return; }
     const hi = histogramme(t), c = histogramme_chemins(hi, 256, 100);
-    h.innerHTML = `<svg class="hist-svg" viewBox="0 0 256 100" preserveAspectRatio="none" aria-label="Histogramme"><path d="${c.r}" fill="#e33" opacity=".8"/><path d="${c.g}" fill="#3d3" opacity=".8"/><path d="${c.b}" fill="#36f" opacity=".8"/><path d="${c.l}" fill="#bbb" opacity=".55"/></svg>
-      <div class="hist-stats"><span>Moyenne : ${hi.moyenne}</span><span>Écart-type : ${hi.ecartType}</span><span>Médiane : ${hi.mediane}</span><span>Pixels : ${hi.pixels}</span></div>`;
+    h.innerHTML = `<svg class="hist-svg" viewBox="0 0 256 100" preserveAspectRatio="none" aria-label="${T("vectorlab.pile.histogramme")}"><path d="${c.r}" fill="#e33" opacity=".8"/><path d="${c.g}" fill="#3d3" opacity=".8"/><path d="${c.b}" fill="#36f" opacity=".8"/><path d="${c.l}" fill="#bbb" opacity=".55"/></svg>
+      <div class="hist-stats"><span>${T("vectorlab.pile.hist_moyenne")} ${hi.moyenne}</span><span>${T("vectorlab.pile.hist_ecart")} ${hi.ecartType}</span><span>${T("vectorlab.pile.hist_mediane")} ${hi.mediane}</span><span>${T("vectorlab.pile.hist_pixels")} ${hi.pixels}</span></div>`;
   }
   VL.rendreHistogramme = rendreHistogramme;   // la preuve
   /* ── crochets : après TOUS les rendus des modules (initPile est le dernier) ── */

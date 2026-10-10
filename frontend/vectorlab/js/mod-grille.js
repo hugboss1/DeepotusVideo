@@ -3,6 +3,8 @@
 // ou plat), origine et échelle par axe, tracé borné à la page, aimantation
 // au réseau, mathématiques hexagonales axiales (D3). Module FEUILLE : aucun
 // import, aucun DOM — le banc node l'exerce tel quel.
+// t146 (traduction L6) : T(clé, vars) de cette feuille — dzT du runtime dans la page ; sous node, le français des dictionnaires (frontend/shared/i18n)
+const T = (cle, vars) => { const g = globalThis, w = g.window; if (w && typeof w.dzT === "function") return w.dzT(cle, vars); if (typeof g.dzT === "function") return g.dzT(cle, vars); if (!g.__vlFr && g.process && g.process.getBuiltinModule) { const fs = g.process.getBuiltinModule("fs"), u = new URL("../../shared/i18n/", import.meta.url); g.__vlFr = {}; for (const n of fs.readdirSync(u).filter((x) => x.endsWith(".json")).sort()) Object.assign(g.__vlFr, JSON.parse(fs.readFileSync(new URL(n, u), "utf8"))); } const e = g.__vlFr && g.__vlFr[cle]; if (!e) return cle; return vars ? e.fr.replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? String(vars[k]) : m)) : e.fr; };
 export const GRILLE_TYPES = ["carree", "iso", "tri", "hex"];
 const S3 = Math.sqrt(3);
 const nbc = (x) => String(Math.round(Number((x * 100).toPrecision(12))) / 100);
@@ -13,7 +15,7 @@ export function grille_normaliser(g) {
   if (!GRILLE_TYPES.includes(g.type)) {
     throw new Error(`grille: type ${g.type} inconnu (${GRILLE_TYPES.join("|")})`);
   }
-  if (!(+g.pas > 0)) throw new Error("grille: pas > 0 requis");
+  if (!(+g.pas > 0)) throw new Error(T("vectorlab.grille.err_pas"));
   const sous = g.sous === undefined ? 1 : +g.sous;
   if (!(Number.isInteger(sous) && sous >= 1)) throw new Error("grille: sous = entier ≥ 1");
   const orientation = g.orientation === undefined ? "pointe" : g.orientation;
@@ -74,7 +76,7 @@ export function grille_cellules(spec) {
   const out = [];
   if (spec.mode === "rayon") {
     const n = +spec.rayon;
-    if (!(Number.isInteger(n) && n >= 0 && n <= 60)) throw new Error("plateau: rayon entier 0..60");
+    if (!(Number.isInteger(n) && n >= 0 && n <= 60)) throw new Error(T("vectorlab.grille.err_rayon"));
     for (let q = -n; q <= n; q++) {
       for (let r = Math.max(-n, -q - n); r <= Math.min(n, -q + n); r++) out.push({ q, r });
     }
@@ -83,7 +85,7 @@ export function grille_cellules(spec) {
   if (spec.mode === "rect") {
     const c = +spec.colonnes, l = +spec.lignes;
     if (!(Number.isInteger(c) && c >= 1 && c <= 120 && Number.isInteger(l) && l >= 1 && l <= 120)) {
-      throw new Error("plateau: colonnes et lignes entières 1..120");
+      throw new Error(T("vectorlab.grille.err_rect"));
     }
     // décalage « odd-r » → axial : q = col − floor(row / 2)
     for (let row = 0; row < l; row++) {

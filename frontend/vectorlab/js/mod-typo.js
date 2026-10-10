@@ -5,6 +5,7 @@
 // nœuds), le contour ±, le texte sur chemin, le cadre, et « → Logo 3D » qui
 // enchaîne contours puis le dialogue Impression 3D en mode logo.
 // La partie haute est PURE (bancable node avec opentype et une vraie police).
+import { T as vlT } from "./mod-i18n.js";
 import { op_ajouter, op_supprimer, op_style, op_texte_vectoriser, op_texte_en_cadre, op_texte_sur_chemin } from "./mod-doc.js";
 import { op_contour } from "./mod-bool.js";
 import { POLICES, commandes_vers_d } from "./mod-texte3d.js";
@@ -88,17 +89,17 @@ export function initTypo(VL) {
   const policeDe = (id) => etat.typo.polices.find((p) => p.id === id) || null;
   const policeParFamille = (famille) => etat.typo.polices.find((p) => p.famille === famille) || null;
   async function fontDe(p) {
-    if (!p) throw new Error("police inconnue");
+    if (!p) throw new Error(vlT("vectorlab.typo.police_inconnue"));
     if (fonts.has(p.id)) return fonts.get(p.id);
     let buf;
     if (p.url) {
       const r = await fetch(p.url);
-      if (!r.ok) throw new Error(`police ${p.famille} introuvable (${r.status})`);
+      if (!r.ok) throw new Error(vlT("vectorlab.typo.police_introuvable", { famille: p.famille, status: r.status }));
       buf = await r.arrayBuffer();
     } else {
       const trouvees = await window.queryLocalFonts({ postscriptNames: undefined });
       const f = trouvees.find((x) => x.family === p.famille);
-      if (!f) throw new Error(`police système ${p.famille} indisponible`);
+      if (!f) throw new Error(vlT("vectorlab.typo.police_systeme_indispo", { famille: p.famille }));
       buf = await (await f.blob()).arrayBuffer();
     }
     const font = window.opentype.parse(buf);
@@ -118,7 +119,7 @@ export function initTypo(VL) {
     if (!contenu.trim()) { VL.executer(op_supprimer, [id]); return; }
     VL.executer((doc) => {
       const t = _profond(doc, id);
-      if (!t || (t.type !== "texte" && t.type !== "cadre")) throw new Error("texte introuvable");
+      if (!t || (t.type !== "texte" && t.type !== "cadre")) throw new Error(vlT("vectorlab.typo.texte_introuvable"));
       t.contenu = contenu;
     });
     if (neuf) VL.setOutil("select");           // le texte posé, on revient à la sélection (double-clic pour rééditer)
@@ -165,7 +166,7 @@ export function initTypo(VL) {
   /* ── contours, contour ±, logo 3D ── */
   async function vectoriser(id, parGlyphe) {
     const t = VL.objetDe(id);
-    if (!t || t.objet.type !== "texte") throw new Error("sélectionner un texte");
+    if (!t || t.objet.type !== "texte") throw new Error(vlT("vectorlab.typo.selectionner_texte"));
     const o = t.objet, s = o.style || {};
     const p = policeParFamille(s.police) || policeDe(etat.typo.courante);
     const font = await fontDe(p);
@@ -183,7 +184,7 @@ export function initTypo(VL) {
     } else {
       r = VL.executer(op_texte_vectoriser, id, texte_multi_d(font, lignes, corps, o.x, o.y, inter, +s.interligne || 1.2, s.ancre || "start"));
     }
-    if (r !== undefined) { VL.setSelection([id]); VL.toast(parGlyphe ? `${r.length} glyphe(s) en chemins — éditables aux nœuds (annulable)` : "texte vectorisé en un chemin (annulable)"); }
+    if (r !== undefined) { VL.setSelection([id]); VL.toast(parGlyphe ? vlT("vectorlab.typo.glyphes_chemins", { n: r.length }) : vlT("vectorlab.typo.texte_un_chemin")); }
     return r;
   }
   VL.vectoriserTexte = (id, _policeId, parGlyphe = false) => vectoriser(id, parGlyphe);
@@ -194,10 +195,10 @@ export function initTypo(VL) {
   VL.glyphesTexte = async (o) => {
     const s = o.style || {};
     if ((+s.graisse || 400) >= 600 || s.graisse === "bold" || s.italique === true || s.souligne === true) {
-      return { raison: "texte gras, italique ou souligné (synthétisé à l'écran)" };
+      return { raison: vlT("vectorlab.typo.raison_synthetise") };
     }
     const p = policeParFamille(s.police);
-    if (!p) return { raison: `texte (police ${s.police || "par défaut"} non chargée)` };
+    if (!p) return { raison: vlT("vectorlab.typo.raison_police", { police: s.police || vlT("vectorlab.typo.par_defaut") }) };
     const font = await fontDe(p);
     const corps = +s.corps || 16, inter = +s.interlettrage || 0, gl = [];
     lignes_de(o.contenu).forEach((l, i) => {
@@ -212,7 +213,7 @@ export function initTypo(VL) {
     const id = etat.selection[0];
     const t = id && VL.objetDe(id);
     if (t && t.objet.type === "texte") await vectoriser(id, false);
-    if (!VL.impression) throw new Error("impression 3D indisponible");
+    if (!VL.impression) throw new Error(vlT("vectorlab.typo.impression_indispo"));
     VL.impression("logo");
   }
   // à l'export : les textes en polices de bibliothèque deviennent des chemins
@@ -247,26 +248,26 @@ export function initTypo(VL) {
     const familleCourante = o ? s.police : (policeDe(etat.typo.courante) || {}).famille;
     const peutSystem = typeof window.queryLocalFonts === "function";
     hote.innerHTML = `
-      ${o ? `<textarea id="txContenu" rows="3" placeholder="Votre texte — Maj+Entrée : nouvelle ligne" title="Le contenu du texte (Entrée dans l'éditeur en place valide)">${esc(o.contenu || "")}</textarea>`
-          : `<p class="px-note">Outil Texte (T) : cliquer sur la scène pose un texte et l'édite en place. Double-clic sur un texte pour le rééditer.</p>`}
-      <div class="ap-ligne"><span>Police</span><i class="px-note" style="font-family:&quot;${esc(familleCourante || "Segoe UI")}&quot;;font-size:14px">${esc(familleCourante || "—")}</i></div>
-      <div class="ap-ligne"><span></span><i class="px-note">se choisit dans le menu du bouton Texte</i></div>
-      <div class="ap-ligne"><button id="txDeposer" title="Déposer un fichier TTF / OTF / WOFF : il rejoint la bibliothèque du poste">${dzi("dz-action-importer", 16)}Déposer une police…</button>
-        <button id="txSysteme" ${peutSystem ? "" : "disabled"} title="${peutSystem ? "Lister les polices installées sur ce poste (permission du navigateur)" : "Ce navigateur ne donne pas ses polices"}">${dzi("dz-media-police", 16)}Système…</button></div>
+      ${o ? `<textarea id="txContenu" rows="3" placeholder="${vlT("vectorlab.typo.contenu_ph")}" title="${vlT("vectorlab.typo.contenu_titre")}">${esc(o.contenu || "")}</textarea>`
+          : `<p class="px-note">${vlT("vectorlab.typo.note_outil")}</p>`}
+      <div class="ap-ligne"><span>${vlT("vectorlab.texte.police")}</span><i class="px-note" style="font-family:&quot;${esc(familleCourante || "Segoe UI")}&quot;;font-size:14px">${esc(familleCourante || "—")}</i></div>
+      <div class="ap-ligne"><span></span><i class="px-note">${vlT("vectorlab.typo.choisir_menu")}</i></div>
+      <div class="ap-ligne"><button id="txDeposer" title="${vlT("vectorlab.typo.deposer_titre")}">${dzi("dz-action-importer", 16)}${vlT("vectorlab.typo.deposer")}</button>
+        <button id="txSysteme" ${peutSystem ? "" : "disabled"} title="${peutSystem ? vlT("vectorlab.typo.systeme_titre") : vlT("vectorlab.typo.systeme_absent")}">${dzi("dz-media-police", 16)}${vlT("vectorlab.typo.systeme")}</button></div>
       <input type="file" id="txFichier" accept=".ttf,.otf,.woff,.woff2" hidden/>
       ${o ? `
-      <div class="ap-ligne"><span>Corps</span><input type="number" id="txCorps" min="4" max="600" value="${s.corps || 16}"/>
-        <select id="txGraisse" title="Graisse">${["normal", "bold", "300", "600", "800"].map((g) => `<option${(s.graisse || "normal") === g ? " selected" : ""}>${g}</option>`).join("")}</select></div>
-      <div class="ap-ligne"><span>Espace</span><input type="number" id="txInterlettrage" step="0.5" min="-20" max="60" value="${s.interlettrage || 0}" title="Interlettrage (px)"/>
-        <input type="number" id="txInterligne" step="0.05" min="0.5" max="4" value="${s.interligne || 1.2}" title="Interligne (× corps)"/></div>
-      <div class="ap-ligne"><span>Ancre</span>${[["start", "dz-edit-texte-aligner-gauche"], ["middle", "dz-edit-texte-aligner-centre"], ["end", "dz-edit-texte-aligner-droite"]].map(([a, ic]) => `<button data-ancre="${a}" class="${(s.ancre || "start") === a ? "actif" : ""}" title="Ancrage ${a === "start" ? "à gauche" : a === "middle" ? "au centre" : "à droite"} du point posé" aria-label="Ancrage ${a === "start" ? "à gauche" : a === "middle" ? "au centre" : "à droite"}">${dzi(ic, 16)}</button>`).join("")}</div>
-      <div class="ap-ligne"><label title="Chaque lettre devient un chemin séparé (déplaçable, éditable aux nœuds, booléen)"><input type="checkbox" id="txParGlyphe"${etat.typo.parGlyphe ? " checked" : ""}/> un chemin par glyphe</label></div>
-      <div class="ap-ligne"><button id="txContours" ${o.type === "texte" ? "" : "disabled"} title="Le texte devient ses contours : chemins éditables (outil Nœuds), épaississables, booléens — annulable">${dzi("dz-edit-convertir-en-chemin", 16)}Contours</button>
-        <button id="txLogo" title="Contours puis Impression 3D en mode logo (biseau, évidement, STL / 3MF)">${dzi("dz-lab3d-impression-3d", 16)}Logo 3D</button></div>
-      <div class="ap-ligne"><span>Épaissir</span><input type="number" id="txDecal" step="0.5" value="2" title="Décalage du contour (px) : + engraisse, − amaigrit — sur des contours vectorisés"/>
-        <button id="txEpaissir" title="Applique un contour ± à la sélection (des chemins)" aria-label="Épaissir la sélection">${dzi("dz-edit-epaissir", 16)}</button>
-        <button id="txCadre" ${o.type === "texte" ? "" : "disabled"} title="Cadre de texte à paragraphes">${dzi("dz-edit-convertir-en-cadre", 16)}cadre</button></div>` : ""}
-      ${etat.selection.length === 2 ? `<div class="ap-ligne"><button id="txSurChemin" title="Sélectionner le texte PUIS un chemin : le texte suit le chemin">${dzi("dz-outil-vec-texte-sur-chemin", 16)}Sur le chemin</button></div>` : ""}`;
+      <div class="ap-ligne"><span>${vlT("vectorlab.texte.corps")}</span><input type="number" id="txCorps" min="4" max="600" value="${s.corps || 16}"/>
+        <select id="txGraisse" title="${vlT("vectorlab.texte.graisse")}">${["normal", "bold", "300", "600", "800"].map((g) => `<option${(s.graisse || "normal") === g ? " selected" : ""}>${g}</option>`).join("")}</select></div>
+      <div class="ap-ligne"><span>${vlT("vectorlab.typo.espace")}</span><input type="number" id="txInterlettrage" step="0.5" min="-20" max="60" value="${s.interlettrage || 0}" title="${vlT("vectorlab.typo.interlettrage_titre")}"/>
+        <input type="number" id="txInterligne" step="0.05" min="0.5" max="4" value="${s.interligne || 1.2}" title="${vlT("vectorlab.typo.interligne_titre")}"/></div>
+      <div class="ap-ligne"><span>${vlT("vectorlab.typo.ancre")}</span>${[["start", "dz-edit-texte-aligner-gauche"], ["middle", "dz-edit-texte-aligner-centre"], ["end", "dz-edit-texte-aligner-droite"]].map(([a, ic]) => `<button data-ancre="${a}" class="${(s.ancre || "start") === a ? "actif" : ""}" title="${a === "start" ? vlT("vectorlab.typo.ancrage_gauche_titre") : a === "middle" ? vlT("vectorlab.typo.ancrage_centre_titre") : vlT("vectorlab.typo.ancrage_droite_titre")}" aria-label="${a === "start" ? vlT("vectorlab.typo.ancrage_gauche") : a === "middle" ? vlT("vectorlab.typo.ancrage_centre") : vlT("vectorlab.typo.ancrage_droite")}">${dzi(ic, 16)}</button>`).join("")}</div>
+      <div class="ap-ligne"><label title="${vlT("vectorlab.typo.par_glyphe_titre")}"><input type="checkbox" id="txParGlyphe"${etat.typo.parGlyphe ? " checked" : ""}/> ${vlT("vectorlab.typo.par_glyphe")}</label></div>
+      <div class="ap-ligne"><button id="txContours" ${o.type === "texte" ? "" : "disabled"} title="${vlT("vectorlab.typo.contours_titre")}">${dzi("dz-edit-convertir-en-chemin", 16)}${vlT("vectorlab.typo.contours")}</button>
+        <button id="txLogo" title="${vlT("vectorlab.typo.logo_titre")}">${dzi("dz-lab3d-impression-3d", 16)}${vlT("vectorlab.typo.logo")}</button></div>
+      <div class="ap-ligne"><span>${vlT("vectorlab.typo.epaissir")}</span><input type="number" id="txDecal" step="0.5" value="2" title="${vlT("vectorlab.typo.decal_titre")}"/>
+        <button id="txEpaissir" title="${vlT("vectorlab.typo.epaissir_titre")}" aria-label="${vlT("vectorlab.typo.epaissir_sel")}">${dzi("dz-edit-epaissir", 16)}</button>
+        <button id="txCadre" ${o.type === "texte" ? "" : "disabled"} title="${vlT("vectorlab.typo.cadre_titre")}">${dzi("dz-edit-convertir-en-cadre", 16)}${vlT("vectorlab.typo.cadre")}</button></div>` : ""}
+      ${etat.selection.length === 2 ? `<div class="ap-ligne"><button id="txSurChemin" title="${vlT("vectorlab.typo.sur_chemin_titre")}">${dzi("dz-outil-vec-texte-sur-chemin", 16)}${vlT("vectorlab.typo.sur_chemin")}</button></div>` : ""}`;
     lier(o);
   }
   function lier(o) {
@@ -280,12 +281,12 @@ export function initTypo(VL) {
     on("txFichier", "change", async (ev) => {
       const f = ev.target.files && ev.target.files[0];
       if (!f) return;
-      if (!police_fichier_valide(f.name.replace(/\s+/g, "-").replace(/[^A-Za-z0-9_.-]/g, ""), new Uint8Array(await f.slice(0, 12).arrayBuffer()))) { VL.toast("police : TTF / OTF / WOFF attendu", true); return; }
+      if (!police_fichier_valide(f.name.replace(/\s+/g, "-").replace(/[^A-Za-z0-9_.-]/g, ""), new Uint8Array(await f.slice(0, 12).arrayBuffer()))) { VL.toast(vlT("vectorlab.typo.police_format"), true); return; }
       const fd = new FormData(); fd.append("file", f, f.name);
       const r = await fetch("/api/fonts/upload", { method: "POST", body: fd });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) { VL.toast(d.detail || r.statusText, true); return; }
-      VL.toast(`police « ${d.famille} » déposée`);
+      VL.toast(vlT("vectorlab.typo.police_deposee", { famille: d.famille }));
       etat.typo.courante = "user:" + d.nom;
       await chargerBibliotheque();
       if (o) VL.executer(op_style, [o.id], { police: d.famille });
@@ -295,9 +296,9 @@ export function initTypo(VL) {
         const liste = await window.queryLocalFonts();
         etat.typo.systeme = [...new Set(liste.map((f) => f.family))].sort();
         etat.typo.polices = polices_toutes(POLICES, etat.typo.polices.filter((p) => p.source === "user").map((p) => ({ nom: p.fichier })), etat.typo.systeme);
-        VL.toast(`${etat.typo.systeme.length} police(s) du système`);
+        VL.toast(vlT("vectorlab.typo.polices_systeme", { n: etat.typo.systeme.length }));
         rendre();
-      } catch (e) { VL.toast("polices du système refusées : " + e.message, true); }
+      } catch (e) { VL.toast(vlT("vectorlab.typo.systeme_refuse", { msg: e.message }), true); }
     });
     if (!o) return;
     on("txContenu", "input", (ev) => {

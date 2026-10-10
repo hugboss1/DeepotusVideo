@@ -1,0 +1,50 @@
+<p class="chapeau-chap">Vous saurez sortir une vidéo verticale en quelques minutes : un clip animé à partir d'une image, un avatar qui dit votre texte, les deux ensemble, ou une voix off. Payant selon le fournisseur ; le coût s'affiche avant de cliquer.</p>
+
+<h3>Avant de commencer</h3>
+<p>Quick a quatre onglets : <b class="ui">Seedance</b> (clip animé), <b class="ui">HeyGen</b> (avatar qui parle), <b class="ui">Composition</b> (avatar et clip ensemble) et <b class="ui">Voix off</b>. Un onglet reste grisé tant que la clé de son fournisseur manque : fal.ai pour Seedance, HeyGen pour l'avatar (chapitre <a href="#cles">Brancher ses clés</a>). La voix off peut aussi tourner gratuitement sur votre PC avec Voicebox.</p>
+
+<h3>Animer une image en clip</h3>
+<figure class="scene" data-scene="quick/seedance"></figure>
+<ol class="etapes">
+<li>Ouvrez <b class="ui">Quick</b>, onglet <b class="ui">Seedance</b>.</li>
+<li>Choisissez l'<strong>image de départ</strong> : glissez-la sur la zone ou cliquez <b class="ui">Parcourir les vignettes…</b> pour la prendre dans la Bibliothèque. Une <strong>image de fin</strong> est facultative ; si le modèle choisi n'en accepte pas, le champ le dit et nomme les modèles qui l'acceptent.</li>
+<li>Écrivez ce qui doit bouger, ou partez d'un <strong>gabarit de prompt</strong>, ou cliquez <b class="ui">Ouvrir le générateur de prompts</b>.</li>
+<li>Dans <strong>Paramètres</strong>, réglez le modèle, la durée et le format (9:16 par défaut).</li>
+<li>Lisez le <strong>coût estimé</strong>, puis cliquez le bouton <strong>Générer</strong>. Le rendu passe par la file de rendus, en haut à droite, et arrive dans la Bibliothèque.</li>
+</ol>
+<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>Avec le modèle par défaut, Seedance 2.5 en 720p, une seconde coûte environ <span class="prix">0,47 $</span> : un clip de 10 s revient à environ <span class="prix">4,73 $</span>. Une durée plus courte ou un autre modèle coûte moins ; le coût estimé se met à jour à chaque réglage.</p></aside>
+
+<h3>Diriger la caméra</h3>
+<figure class="scene" data-scene="quick/camera"></figure>
+<ol class="etapes">
+<li>Dépliez <strong>Caméra (curseurs)</strong> : six curseurs (avancer, tourner, monter…) deviennent une phrase adaptée au modèle, ajoutée au prompt. Elle s'affiche avant le rendu.</li>
+<li>Pour choisir à l'œil, cliquez <b class="ui">Galerie</b> : onze mouvements de caméra en trois styles, en petites animations calculées sur votre PC. C'est un aide-mémoire, pas une promesse de ce que fera le modèle.</li>
+</ol>
+
+<h3>Faire parler un avatar</h3>
+<ol class="etapes">
+<li>Onglet <b class="ui">HeyGen</b> : choisissez un avatar et sa voix. Les listes s'affichent tout de suite, depuis une copie gardée sur votre PC et rafraîchie en fond.</li>
+<li>Pour un avatar à votre image, importez une photo : elle devient un avatar qui parle, choisi automatiquement.</li>
+<li>Écrivez le script, puis générez. Les pauses de votre texte sont respectées.</li>
+</ol>
+<p>Les vidéos passent par HeyGen et son moteur Avatar III, choisi selon l'avatar. Le solde HeyGen s'affiche en dollars. Comptez environ <span class="prix">0,24 $</span> la minute aux tarifs par défaut.</p>
+
+<h3>Composer et doubler</h3>
+<div class="cartes">
+<article><i data-dz="dz-cat-composition"></i><h4>Composition</h4><p>Un avatar et un clip dans la même vidéo, l'un après l'autre ou côte à côte (partage vertical ou horizontal).</p></article>
+<article><i data-dz="dz-media-voix"></i><h4>Voix off</h4><p>Choisissez le fournisseur à chaque génération : Voicebox, sur votre PC et gratuit, ou ElevenLabs. Un fournisseur absent est refusé, jamais remplacé en silence.</p></article>
+<article><i data-dz="dz-media-piste-audio"></i><h4>Musique sous la voix</h4><p>Quand un rendu a une voix et une musique, la musique baisse toute seule sous la voix.</p></article>
+<article><i data-dz="dz-media-sous-titres"></i><h4>Sous-titres gravés</h4><p><b class="ui">Sous-titrer le rendu</b> : caler un texte que vous fournissez est gratuit ; la transcription automatique est payante et ne part que si vous la cochez.</p></article>
+</div>
+
+<h3>Aller plus loin</h3>
+<div class="cartes">
+<article><i data-dz="dz-action-enregistrer-modele"></i><h4>Presets</h4><p>En tête de chaque onglet, enregistrez vos réglages sous un nom et réappliquez-les d'un clic.</p></article>
+<article><i data-dz="dz-media-avatar"></i><h4>Lip-sync</h4><p>Synchronise les lèvres du clip sur une voix off (Kling, payant) ; bornes et prix sont affichés avant.</p></article>
+<article><i data-dz="dz-action-rouvrir-quick"></i><h4>Rouvrir dans Quick</h4><p>Chaque rendu garde ses réglages : <b class="ui">Rouvrir dans Quick</b>, depuis la Bibliothèque ou la file de rendus, les remet tels quels.</p></article>
+<article><i data-dz="dz-media-timeline-allonger"></i><h4>Prolonger un clip</h4><p>Depuis <strong>Envoyer vers</strong>, <b class="ui">Prolonger</b> ajoute environ 7 s générées à un clip déjà rendu, avec ou sans son ; le prix est sur chaque bouton.</p></article>
+</div>
+
+<h3>Bon à savoir</h3>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Quitter Quick puis y revenir retrouve vos réglages en cours.</p></aside>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Pour une image fixe, passez par la Bibliothèque : <b class="ui">Créer l'image</b>, avec le <b class="ui">Gestionnaire de prompts</b>. Pour votre propre vidéo filmée, <b class="ui">Importer une vidéo</b> dans la Bibliothèque, puis le nœud Vidéo UGC du <a href="#studio">Studio</a>.</p></aside>

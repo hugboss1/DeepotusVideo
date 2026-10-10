@@ -4,83 +4,119 @@
     "titre": "Conique",
     "phrase": "La couleur tourne autour du milieu de ta forme, comme les rayons d'une roue.",
     "fichier": "apparence2.a2Conique.webp",
-    "version": 1
+    "version": 1,
+    "titre_en": "Conical",
+    "phrase_en": "The color spins around the middle of your shape, like the spokes of a wheel.",
+    "fichier_en": "apparence2.a2Conique.en.webp"
   },
   {
     "id": "a2EnCadre",
     "titre": "En cadre",
     "phrase": "Ta longue ligne de texte rentre dans une boîte et passe à la ligne toute seule, comme dans un livre.",
     "fichier": "apparence2.a2EnCadre.webp",
-    "version": 1
+    "version": 1,
+    "titre_en": "Frame",
+    "phrase_en": "Your long line of text fits into a box and wraps by itself, like in a book.",
+    "fichier_en": "apparence2.a2EnCadre.en.webp"
   },
   {
     "id": "a2Motif",
     "titre": "Motif",
     "phrase": "Ta forme se remplit de petits traits répétés, comme un tissu rayé.",
     "fichier": "apparence2.a2Motif.webp",
-    "version": 1
+    "version": 1,
+    "titre_en": "Pattern",
+    "phrase_en": "Your shape fills up with little repeated stripes, like striped fabric.",
+    "fichier_en": "apparence2.a2Motif.en.webp"
   },
   {
     "id": "a2SurChemin",
     "titre": "Sur chemin",
     "phrase": "Tes mots se couchent sur la ligne que tu as tracée et la suivent partout où elle va.",
     "fichier": "apparence2.a2SurChemin.webp",
-    "version": 1
+    "version": 1,
+    "titre_en": "On path",
+    "phrase_en": "Your words lie down on the line you drew and follow it wherever it goes.",
+    "fichier_en": "apparence2.a2SurChemin.en.webp"
   },
   {
     "id": "a2Transp",
     "titre": "Transparence",
     "phrase": "Ta forme s’efface doucement d’un côté à l’autre, comme si elle disparaissait dans le brouillard.",
     "fichier": "apparence2.a2Transp.webp",
-    "version": 1
+    "version": 1,
+    "titre_en": "Transparency",
+    "phrase_en": "Your shape slowly fades from one side to the other, as if it vanished into fog.",
+    "fichier_en": "apparence2.a2Transp.en.webp"
   },
   {
     "id": "carteCourbes",
     "titre": "Courbes",
     "phrase": "Des lignes relient les endroits de même hauteur sur ta carte, comme les marches d’une montagne.",
     "fichier": "carte.carteCourbes.webp",
-    "version": 1
+    "version": 1,
+    "titre_en": "Contours",
+    "phrase_en": "Lines join the places of the same height on your map, like the steps of a mountain.",
+    "fichier_en": "carte.carteCourbes.en.webp"
   },
   {
     "id": "carteTuiles",
     "titre": "Découper",
     "phrase": "Ta carte se change en cases à six côtés, colorées selon la hauteur : eau, prairie, forêt, montagne.",
     "fichier": "carte.carteTuiles.webp",
-    "version": 1
+    "version": 1,
+    "titre_en": "Slice",
+    "phrase_en": "Your map turns into six-sided tiles, colored by height: water, meadow, forest, mountain.",
+    "fichier_en": "carte.carteTuiles.en.webp"
   },
   {
     "id": "impDepouilleR",
     "titre": "Dépouille des flancs",
     "phrase": "Les côtés de ta pièce penchent : plus tu tournes, plus le bas devient large et le haut petit.",
     "fichier": "impression.impDepouille.webp",
-    "version": 1
+    "version": 1,
+    "titre_en": "Side draft",
+    "phrase_en": "The sides of your piece lean: the more you turn, the wider the bottom and the smaller the top.",
+    "fichier_en": "impression.impDepouille.en.webp"
   },
   {
     "id": "pxContour",
     "titre": "Contour sombre",
     "phrase": "Un trait sombre entoure ton dessin pour qu'il se détache bien du fond.",
     "fichier": "pixelui.pxContour.webp",
-    "version": 1
+    "version": 1,
+    "titre_en": "Dark outline",
+    "phrase_en": "A dark line goes around your drawing so it stands out from the background.",
+    "fichier_en": "pixelui.pxContour.en.webp"
   },
   {
     "id": "pxCreerCalque",
     "titre": "Créer le calque pixel",
     "phrase": "Une feuille transparente se pose sur ton image modèle : tu dessines dessus, case par case.",
     "fichier": "pixelui.pxCreerCalque.webp",
-    "version": 1
+    "version": 1,
+    "titre_en": "Create pixel layer",
+    "phrase_en": "A see-through sheet lies on your reference picture: you draw on it, square by square.",
+    "fichier_en": "pixelui.pxCreerCalque.en.webp"
   },
   {
     "id": "pxDesigner",
     "titre": "Désigner comme modèle",
     "phrase": "Ton image devient un modèle : elle pâlit, se fige, et une grille de cases se pose dessus pour te guider.",
     "fichier": "pixelui.pxDesigner.webp",
-    "version": 1
+    "version": 1,
+    "titre_en": "Set as reference",
+    "phrase_en": "Your picture becomes a reference: it fades, stays still, and a grid of squares lies on it to guide you.",
+    "fichier_en": "pixelui.pxDesigner.en.webp"
   },
   {
     "id": "pxPixeliser",
     "titre": "Pixeliser l'image",
     "phrase": "Ton image devient faite de gros carrés, comme des briques : autant de carrés que la taille de tuile.",
     "fichier": "pixelui.pxPixeliser.webp",
-    "version": 1
+    "version": 1,
+    "titre_en": "Pixelate image",
+    "phrase_en": "Your picture is now made of big squares, like bricks: as many squares as the tile size.",
+    "fichier_en": "pixelui.pxPixeliser.en.webp"
   }
 ]

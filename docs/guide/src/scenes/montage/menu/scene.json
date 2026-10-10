@@ -1,0 +1,30 @@
+{
+  "titre": {
+    "fr": "Le menu du Montage",
+    "en": "The editor menu"
+  },
+  "legende": {
+    "fr": "Le menu ☰ range toutes les actions en six rubriques, chacune avec son raccourci.",
+    "en": "The ☰ menu lists every action in six sections, each with its shortcut."
+  },
+  "captures": [
+    {
+      "fr": "menu.fr.webp",
+      "en": "menu.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 3.2,
+      "bulle": {
+        "fr": "Projet, Édition, Timeline, Marqueurs, Affichage, Aide",
+        "en": "Project, Edit, Timeline, Markers, View, Help"
+      }
+    }
+  ]
+}

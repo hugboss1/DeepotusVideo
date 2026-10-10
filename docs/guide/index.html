@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deepotus — Guide</title>
+<script>
+/* La langue du guide suit celle de l'application (dz_lang, puis dz_lang_install, puis le navigateur). */
+(function () {
+  var l = null;
+  try { l = localStorage.getItem("dz_lang") || localStorage.getItem("dz_lang_install"); } catch (e) {}
+  if (l !== "fr" && l !== "en") l = /^fr\b/i.test(navigator.language || "fr") ? "fr" : "en";
+  location.replace(l + ".html" + location.hash);
+})();
+</script>
+</head>
+<body style="background:#0a0a0c;color:#f2efe9;font-family:system-ui,sans-serif;padding:24px">
+<p><a href="fr.html" style="color:#f0b429">Guide en français</a> · <a href="en.html" style="color:#f0b429">English guide</a></p>
+</body>
+</html>

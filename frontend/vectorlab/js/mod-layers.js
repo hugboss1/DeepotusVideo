@@ -5,6 +5,7 @@
 // actif (mode de fusion de calque), rangée [chevron][vignette][nom][verrou][œil],
 // barre d'actions en bas (renommer, réglage, masque, calque pixel, FX |
 // groupe, nouveau, monter, descendre, supprimer). Les data-act restent.
+import { T } from "./mod-i18n.js";
 import { icone_rangee, dzi } from "./mod-icones.js";
 import { op_calque_ajouter, op_calque_renommer, op_calque_reordonner,
          op_calque_visible, op_calque_verrou, op_calque_supprimer,
@@ -31,7 +32,7 @@ export function vignette_calque_svg(doc, calqueId, w = 40, h = 28, image) {
   return svg.replace(/^<svg([^>]*) width="[^"]*" height="[^"]*">/, (m, attrs) => `<svg${attrs} width="${w}" height="${h}" preserveAspectRatio="xMidYMid meet">` + damier);
 }
 
-const LIB_FUSION = { normal: "Normal", multiply: "Produit", screen: "Superposition", overlay: "Incrustation", darken: "Obscurcir", lighten: "Éclaircir", "color-dodge": "Densité couleur −", "color-burn": "Densité couleur +", "hard-light": "Lumière crue", "soft-light": "Lumière tamisée", difference: "Différence", exclusion: "Exclusion", hue: "Teinte", saturation: "Saturation", color: "Couleur", luminosity: "Luminosité" };
+const LIB_FUSION = { normal: "Normal", multiply: T("vectorlab.calques.fusion_multiply"), screen: T("vectorlab.calques.fusion_screen"), overlay: T("vectorlab.calques.fusion_overlay"), darken: T("vectorlab.calques.fusion_darken"), lighten: T("vectorlab.calques.fusion_lighten"), "color-dodge": T("vectorlab.calques.fusion_color_dodge"), "color-burn": T("vectorlab.calques.fusion_color_burn"), "hard-light": T("vectorlab.calques.fusion_hard_light"), "soft-light": T("vectorlab.calques.fusion_soft_light"), difference: T("vectorlab.calques.fusion_difference"), exclusion: "Exclusion", hue: T("vectorlab.calques.fusion_hue"), saturation: "Saturation", color: T("vectorlab.calques.fusion_color"), luminosity: T("vectorlab.calques.fusion_luminosity") };
 
 
 /* ── 21/09 : l'ARBRE du panneau (pur) — Affinity montre sous chaque calque
@@ -48,10 +49,10 @@ export function arbre_calques(doc, calqueActif, plies) {
     const nom = nomForce || o.nom || `${o.type} · ${o.id}`;
     out.push({ niveau, genre, id: o.id, calque, nom, icone: genre === "ecretage" ? "ecretage" : icone_objet(o), type: o.type });
     if (genre === "ecretage") return;
-    if (o.style && o.style.masque) out.push({ niveau: niveau + 1, genre: "masque", id: o.id, calque, nom: "Masque de transparence", icone: "masque", type: o.type });
+    if (o.style && o.style.masque) out.push({ niveau: niveau + 1, genre: "masque", id: o.id, calque, nom: T("vectorlab.calques.masque_transparence"), icone: "masque", type: o.type });
     const fx = o.style && Array.isArray(o.style.effets) ? o.style.effets.length : 0;
-    if (fx) out.push({ niveau: niveau + 1, genre: "effet", id: o.id, calque, nom: `Effets (${fx})`, icone: "effet", type: o.type });
-    if (o.type === "groupe") for (const e of [...(o.enfants || [])].reverse()) objet(e, calque, niveau + 1, o.clip && e.id === o.clip ? "ecretage" : "objet", o.clip && e.id === o.clip ? "Masque d'écrêtage" : null);
+    if (fx) out.push({ niveau: niveau + 1, genre: "effet", id: o.id, calque, nom: T("vectorlab.calques.effets_n", { n: fx }), icone: "effet", type: o.type });
+    if (o.type === "groupe") for (const e of [...(o.enfants || [])].reverse()) objet(e, calque, niveau + 1, o.clip && e.id === o.clip ? "ecretage" : "objet", o.clip && e.id === o.clip ? T("vectorlab.calques.masque_ecretage") : null);
   };
   for (const c of [...doc.calques].reverse()) {
     const plie = P.has(c.id);
@@ -73,22 +74,22 @@ export function initCalques(VL) {
   if (section && !$("#calquesTete")) {
     const tete = document.createElement("div");
     tete.id = "calquesTete";
-    tete.innerHTML = `<span>Opacité</span><input type="number" id="calqueOpacite" min="0" max="100" value="100" title="Opacité du calque actif (%)"/><span>%</span>
-      <select id="calqueFusion" title="Mode de fusion du calque actif">${MODES_FUSION_CALQUE.map((m) => `<option value="${m}">${LIB_FUSION[m] || m}</option>`).join("")}</select>`;
+    tete.innerHTML = `<span>${T("vectorlab.calques.opacite")}</span><input type="number" id="calqueOpacite" min="0" max="100" value="100" title="${T("vectorlab.calques.opacite_titre")}"/><span>%</span>
+      <select id="calqueFusion" title="${T("vectorlab.calques.fusion_titre")}">${MODES_FUSION_CALQUE.map((m) => `<option value="${m}">${LIB_FUSION[m] || m}</option>`).join("")}</select>`;
     section.insertBefore(tete, liste);
     const actions = document.createElement("div");
     actions.id = "calquesActions";
-    actions.innerHTML = `<button data-act="renommer" title="Renommer le calque actif" aria-label="Renommer le calque actif">${dzi("dz-action-renommer", 16)}</button>
-      <button data-act="reglage" title="Calque de réglage : niveaux, courbes, HSL… (onglet Pixel)" aria-label="Calque de réglage">${dzi("dz-calque-reglage", 16)}</button>
-      <button data-act="masque" title="Masque de luminance de la sélection (Apparence)" aria-label="Masque de luminance de la sélection">${dzi("dz-calque-masque", 16)}</button>
-      <button data-act="pixel" title="Nouveau calque pixel : poser une image de la Bibliothèque" aria-label="Nouveau calque pixel">${dzi("dz-calque-pixel", 16)}</button>
-      <button data-act="fx" title="Effets de calque : ombre, lueur, biseau… (Apparence)" aria-label="Effets de calque">${dzi("dz-edit-effet", 16)}</button>
+    actions.innerHTML = `<button data-act="renommer" title="${T("vectorlab.calques.renommer_actif")}" aria-label="${T("vectorlab.calques.renommer_actif")}">${dzi("dz-action-renommer", 16)}</button>
+      <button data-act="reglage" title="${T("vectorlab.calques.reglage_titre")}" aria-label="${T("vectorlab.calques.reglage")}">${dzi("dz-calque-reglage", 16)}</button>
+      <button data-act="masque" title="${T("vectorlab.calques.masque_lum_titre")}" aria-label="${T("vectorlab.calques.masque_lum")}">${dzi("dz-calque-masque", 16)}</button>
+      <button data-act="pixel" title="${T("vectorlab.calques.pixel_titre")}" aria-label="${T("vectorlab.calques.pixel")}">${dzi("dz-calque-pixel", 16)}</button>
+      <button data-act="fx" title="${T("vectorlab.calques.fx_titre")}" aria-label="${T("vectorlab.calques.fx")}">${dzi("dz-edit-effet", 16)}</button>
       <span class="ca-sep"></span>
-      <button data-act="groupe" title="Grouper la sélection" aria-label="Grouper la sélection">${dzi("dz-edit-grouper", 16)}</button>
-      <button id="btnCalquePlus" title="Nouveau calque" aria-label="Nouveau calque">${dzi("dz-calque-nouveau", 16)}</button>
-      <button data-act="monter" title="Monter le calque actif d'un cran" aria-label="Monter le calque actif">${dzi("dz-edit-monter", 16)}</button>
-      <button data-act="descendre" title="Descendre le calque actif d'un cran" aria-label="Descendre le calque actif">${dzi("dz-edit-descendre", 16)}</button>
-      <button data-act="poubelle" title="Supprimer le calque actif et ses objets" aria-label="Supprimer le calque actif">${dzi("dz-action-supprimer", 16)}</button>`;
+      <button data-act="groupe" title="${T("vectorlab.calques.grouper")}" aria-label="${T("vectorlab.calques.grouper")}">${dzi("dz-edit-grouper", 16)}</button>
+      <button id="btnCalquePlus" title="${T("vectorlab.calques.nouveau")}" aria-label="${T("vectorlab.calques.nouveau")}">${dzi("dz-calque-nouveau", 16)}</button>
+      <button data-act="monter" title="${T("vectorlab.calques.monter_titre")}" aria-label="${T("vectorlab.calques.monter")}">${dzi("dz-edit-monter", 16)}</button>
+      <button data-act="descendre" title="${T("vectorlab.calques.descendre_titre")}" aria-label="${T("vectorlab.calques.descendre")}">${dzi("dz-edit-descendre", 16)}</button>
+      <button data-act="poubelle" title="${T("vectorlab.calques.supprimer_titre")}" aria-label="${T("vectorlab.calques.supprimer_actif")}">${dzi("dz-action-supprimer", 16)}</button>`;
     section.appendChild(actions);
     // l'ancien ＋ du summary (s'il existe encore) cède l'id au nouveau bouton
     const vieux = section.querySelector("summary #btnCalquePlus"); if (vieux) vieux.remove();
@@ -120,15 +121,15 @@ export function initCalques(VL) {
         return `
       <div class="calque${r.actif ? " actif" : ""}${r.plie ? " plie" : ""}"
            data-calque="${esc(r.id)}"
-           title="Clic : calque actif · double-clic sur le nom : renommer">
-        <span class="calque-chevron" title="${r.plie ? "Déplier" : "Replier"} les objets du calque (${nObj})">${nObj ? dzi("dz-action-deplier", 16) : ""}</span>
-        <span class="calque-vig" title="Le contenu de ce calque">${vignette_calque_svg(etat.doc, r.id, 28, 28, VL.imageUrl)}</span>
+           title="${T("vectorlab.calques.rangee_titre")}">
+        <span class="calque-chevron" title="${T(r.plie ? "vectorlab.calques.deplier" : "vectorlab.calques.replier", { n: nObj })}">${nObj ? dzi("dz-action-deplier", 16) : ""}</span>
+        <span class="calque-vig" title="${T("vectorlab.calques.vignette")}">${vignette_calque_svg(etat.doc, r.id, 28, 28, VL.imageUrl)}</span>
         <span class="nom">${esc(r.nom)}</span>
-        <button data-act="verrou" class="${r.verrou ? "" : "off"}" title="Verrou" aria-label="Verrou">${dzi("dz-etat-verrouille", 16)}</button>
-        <button data-act="oeil" class="${r.visible ? "" : "off"}" title="Visibilité" aria-label="Visibilité">${dzi("dz-etat-visible", 16)}</button>
+        <button data-act="verrou" class="${r.verrou ? "" : "off"}" title="${T("vectorlab.calques.verrou")}" aria-label="${T("vectorlab.calques.verrou")}">${dzi("dz-etat-verrouille", 16)}</button>
+        <button data-act="oeil" class="${r.visible ? "" : "off"}" title="${T("vectorlab.calques.visibilite")}" aria-label="${T("vectorlab.calques.visibilite")}">${dzi("dz-etat-visible", 16)}</button>
       </div>`;
       }
-      const titre = r.genre === "objet" ? "Clic : sélectionner l'objet (Maj : ajouter)" : r.genre === "ecretage" ? "L'enfant qui écrête le groupe (Apparence)" : r.genre === "masque" ? "Masque de transparence de l'objet (Apparence)" : "Effets de calque de l'objet (Apparence)";
+      const titre = r.genre === "objet" ? T("vectorlab.calques.objet_titre") : r.genre === "ecretage" ? T("vectorlab.calques.ecretage_titre") : r.genre === "masque" ? T("vectorlab.calques.masque_titre") : T("vectorlab.calques.effets_titre");
       return `
       <div class="calque-objet${sel.has(r.id) && r.genre === "objet" ? " selectionne" : ""}" data-objet="${esc(r.id)}" data-genre="${r.genre}" data-calque="${esc(r.calque)}" style="--niv:${r.niveau}" title="${titre}">
         <span class="co-ic">${icone_rangee(r.icone, 14)}</span><span class="nom">${esc(r.nom)}</span>
@@ -139,10 +140,9 @@ export function initCalques(VL) {
     // câblé par délégation plus bas).
     const vide = etat.doc.calques.every((c) => !c.objets.length);
     hote.innerHTML = lignes + (vide ? `
-      <div class="vl-amorce">Document vide. Choisir un motif dans le
-      panneau Vitrail, puis tracer la baie sur la page.</div>
+      <div class="vl-amorce">${T("vectorlab.calques.amorce")}</div>
       <button class="vl-amorce-btn" data-act="exemple"
-        title="Pose une baie à arc aux proportions de la démo — un seul geste, annulable">Poser une baie d'exemple</button>` : "");
+        title="${T("vectorlab.calques.exemple_titre")}">${T("vectorlab.calques.exemple")}</button>` : "");
     rendreTete();
   }
 
@@ -153,7 +153,7 @@ export function initCalques(VL) {
   });
   async function renommer(id) {
     const c = etat.doc.calques.find((x) => x.id === id);
-    const nom = await VL.dialogue.saisir("Nom du calque :", { valeur: c ? c.nom : "", titre: "Renommer le calque", valider: "Renommer" });
+    const nom = await VL.dialogue.saisir(T("vectorlab.calques.nom_saisie"), { valeur: c ? c.nom : "", titre: T("vectorlab.calques.renommer_titre"), valider: T("vectorlab.calques.renommer") });
     if (nom !== null) VL.executer(op_calque_renommer, id, nom);
   }
 
@@ -207,11 +207,11 @@ export function initCalques(VL) {
     else if (act === "reglage") VL.ouvrirOnglet && VL.ouvrirOnglet("pixel");
     else if (act === "masque" || act === "fx") VL.ouvrirOnglet && VL.ouvrirOnglet("apparence");
     else if (act === "pixel") { if (A.image && A.image.biblio) A.image.biblio(); else VL.ouvrirOnglet && VL.ouvrirOnglet("image"); }
-    else if (act === "groupe") { if (etat.selection.length >= 2 && A.selection) A.selection.grouper(); else VL.toast("grouper : sélectionner au moins deux objets", true); }
+    else if (act === "groupe") { if (etat.selection.length >= 2 && A.selection) A.selection.grouper(); else VL.toast(T("vectorlab.calques.grouper_deux"), true); }
     else if (act === "monter" && c) VL.executer(op_calque_reordonner, c.id, Math.min(etat.doc.calques.length - 1, i + 1));   // monter à l'écran = vers la fin
     else if (act === "descendre" && c) VL.executer(op_calque_reordonner, c.id, Math.max(0, i - 1));
     else if (act === "poubelle" && c) {
-      if (await VL.dialogue.confirmer(`Supprimer le calque « ${c.nom} » et ses objets ?`, { ok: "Supprimer", danger: true })) {
+      if (await VL.dialogue.confirmer(T("vectorlab.calques.supprimer_confirmer", { nom: c.nom }), { ok: T("vectorlab.calques.supprimer"), danger: true })) {
         VL.executer(op_calque_supprimer, c.id);
         if (!actif()) { etat.calqueActif = etat.doc.calques[etat.doc.calques.length - 1].id; rendreCalques(); }
       }

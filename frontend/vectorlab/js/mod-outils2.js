@@ -5,6 +5,7 @@
 // panneau Instantanés. Chaque geste = UNE commande via VL.executer. Les
 // listeners du cœur des outils (mod-tools) restent ; ce module écoute en
 // phase de CAPTURE et n'arrête la propagation que pour ses propres cibles.
+import { T } from "./mod-i18n.js";
 import { dzi } from "./mod-icones.js";
 import { op_ajouter, op_forme_param, op_forme_en_chemin, op_supprimer } from "./mod-doc.js";
 import { chemin_parser, chemin_serialiser, chemin_ancres } from "./mod-doc.js";
@@ -15,13 +16,14 @@ import { noeuds_deplacer_segs, op_noeuds_aligner, op_noeud_inserer, op_chemin_in
          op_chemins_joindre, op_coins_arrondir, ancres_dans_rect } from "./mod-noeuds.js";
 
 const SNS = "http://www.w3.org/2000/svg";
+const AL_ANCRES = { gauche: "vectorlab.outils2.al_gauche", centreH: "vectorlab.outils2.al_centreh", droite: "vectorlab.outils2.al_droite", haut: "vectorlab.outils2.al_haut", centreV: "vectorlab.outils2.al_centrev", bas: "vectorlab.outils2.al_bas" };
 export const HINTS2 = {
-  forme: "glisser depuis le centre : le rayon suit · la forme se choisit dans le panneau Forme",
-  crayon: "dessiner à main levée : le trait se lisse ; fin près du début = fermé",
-  couteau: "tirer une droite à travers la sélection (ou tout) : elle la coupe en deux",
-  gomme: "glisser sur les formes : le trait les entame (largeur dans le panneau)",
-  coin: "cliquer une forme aux angles vifs : ses coins s'arrondissent (rayon dans le panneau)",
-  constructeur: "cliquer les régions à garder (Entrée = fusionner, Alt+Entrée = retirer)",
+  forme: T("vectorlab.outils2.hint_forme"),
+  crayon: T("vectorlab.outils2.hint_crayon"),
+  couteau: T("vectorlab.outils2.hint_couteau"),
+  gomme: T("vectorlab.outils2.hint_gomme"),
+  coin: T("vectorlab.outils2.hint_coin"),
+  constructeur: T("vectorlab.outils2.hint_constructeur"),
 };
 
 export function initOutils2(VL) {
@@ -112,15 +114,15 @@ export function initOutils2(VL) {
       if (cible) {
         const id = VL.sommetDe(cible.dataset.objet) || cible.dataset.objet;
         const n = VL.executer(op_coins_arrondir, [id], etat.coinRayon);
-        if (n !== undefined) VL.toast(`${n} coin(s) arrondi(s) à ${etat.coinRayon} px`);
+        if (n !== undefined) VL.toast(T("vectorlab.outils2.coins_arrondis_px", { n, r: etat.coinRayon }));
       }
       ev.stopPropagation(); ev.preventDefault(); return;
     }
     if (etat.outil === "constructeur") {
-      if (etat.selection.length < 2) { VL.toast("constructeur : sélectionner deux formes au moins", true); ev.stopPropagation(); return; }
+      if (etat.selection.length < 2) { VL.toast(T("vectorlab.outils2.constructeur_deux"), true); ev.stopPropagation(); return; }
       etat.atomesChoisis.push({ x: dx, y: dy });
       VL.rendreOverlay();
-      VL.toast(`${etat.atomesChoisis.length} région(s) choisie(s) — Entrée fusionne, Alt+Entrée retire, Échap annule`);
+      VL.toast(T("vectorlab.outils2.regions_choisies", { n: etat.atomesChoisis.length }));
       ev.stopPropagation(); ev.preventDefault(); return;
     }
   }, true);
@@ -187,7 +189,7 @@ export function initOutils2(VL) {
     } else if (g.type === "couteau") {
       if (Math.hypot(g.x1 - g.x0, g.y1 - g.y0) < 2) return;
       const ids = VL.executer(op_couteau, cibles(), [g.x0, g.y0, g.x1, g.y1]);
-      if (ids) { VL.setSelection(ids); VL.toast(`${ids.length} morceau(x)`); }
+      if (ids) { VL.setSelection(ids); VL.toast(T("vectorlab.outils2.morceaux", { n: ids.length })); }
     } else if (g.type === "gomme") {
       const ids = VL.executer(op_gomme, cibles(), dEtat(g.points), etat.gommeLargeur);
       if (ids) VL.setSelection(ids);
@@ -208,7 +210,7 @@ export function initOutils2(VL) {
       if (fin && fin.d && fin.d !== g.d0) {
         VL.executer((doc) => {
           const o = doc.calques.flatMap((c) => c.objets).find((x) => x.id === g.id);
-          if (!o) throw new Error("chemin introuvable");
+          if (!o) throw new Error(T("vectorlab.outils2.chemin_introuvable"));
           o.d = fin.d;
         });
       } else VL.rendre();
@@ -285,14 +287,14 @@ export function initOutils2(VL) {
     const t = etat.selection.length === 1 ? VL.objetDe(etat.selection[0]) : null;
     const o = t && t.objet.type === "forme" ? t.objet : null;
     hF.innerHTML = `
-      <div class="ap-ligne"><span>Forme</span><i class="px-note">${(FORMES.find((f) => f.id === etat.formeCourante) || {}).nom || ""} — se choisit dans le menu du bouton Forme</i></div>
-      ${o ? `<div class="ap-ligne"><span>Rayon</span><input type="number" id="fmR" step="any" min="1" value="${o.r}"/>
-        <button id="fmCourbes" title="Fige la forme en chemin éditable (nœuds, booléens)">${dzi("dz-edit-convertir-en-chemin", 16)}courbes</button></div>
+      <div class="ap-ligne"><span>${T("vectorlab.outils2.forme")}</span><i class="px-note">${(FORMES.find((f) => f.id === etat.formeCourante) || {}).nom || ""} — ${T("vectorlab.outils2.forme_menu")}</i></div>
+      ${o ? `<div class="ap-ligne"><span>${T("vectorlab.outils2.rayon")}</span><input type="number" id="fmR" step="any" min="1" value="${o.r}"/>
+        <button id="fmCourbes" title="${T("vectorlab.outils2.courbes_aide")}">${dzi("dz-edit-convertir-en-chemin", 16)}${T("vectorlab.outils2.courbes")}</button></div>
       ${Object.entries(o.params).map(([k, v]) => `<div class="ap-ligne"><span>${k}</span>${k === "type"
         ? `<select data-fm="${k}"><option${v === "lineaire" ? " selected" : ""}>lineaire</option><option${v === "fibonacci" ? " selected" : ""}>fibonacci</option></select>`
         : `<input type="number" data-fm="${k}" step="${k === "ratio" ? 0.05 : 1}" value="${v}"/>`}</div>`).join("")}` : ""}
-      <div class="ap-ligne"><span>Gomme</span><input type="number" id="fmGomme" min="1" value="${etat.gommeLargeur}" title="Largeur de la gomme (px)"/>
-        <span>Coin</span><input type="number" id="fmCoin" min="1" value="${etat.coinRayon}" title="Rayon de l'outil Coin (px)"/></div>`;
+      <div class="ap-ligne"><span>${T("vectorlab.outils2.gomme")}</span><input type="number" id="fmGomme" min="1" value="${etat.gommeLargeur}" title="${T("vectorlab.outils2.gomme_largeur")}"/>
+        <span>${T("vectorlab.outils2.coin")}</span><input type="number" id="fmCoin" min="1" value="${etat.coinRayon}" title="${T("vectorlab.outils2.coin_rayon")}"/></div>`;
     $("#fmGomme").addEventListener("change", (e) => { etat.gommeLargeur = Math.max(1, +e.target.value || 12); });
     $("#fmCoin").addEventListener("change", (e) => { etat.coinRayon = Math.max(1, +e.target.value || 10); });
     if (o) {
@@ -310,31 +312,31 @@ export function initOutils2(VL) {
     const p = etat.outil === "noeuds" ? VL.pathSelectionne() : null;
     const deux = etat.selection.length === 2 && etat.selection.every((id) => { const t = VL.objetDe(id); return t && t.objet.type === "path"; });
     hN.innerHTML = `
-      <div class="ap-ligne"><span>${p ? `${etat.ancresSel.length || (etat.ancreSel !== null ? 1 : 0)} ancre(s)` : "Nœuds"}</span>
-        ${["gauche", "centreH", "droite", "haut", "centreV", "bas"].map((m) => `<button data-nal="${m}" ${p && etat.ancresSel.length > 1 ? "" : "disabled"} title="Aligner les ancres : ${m}" aria-label="Aligner les ancres : ${m}">${dzi({ gauche: "dz-edit-aligner-gauche", centreH: "dz-edit-aligner-centre-h", droite: "dz-edit-aligner-droite", haut: "dz-edit-aligner-haut", centreV: "dz-edit-aligner-centre-v", bas: "dz-edit-aligner-bas" }[m], 16)}</button>`).join("")}</div>
-      <div class="ap-ligne"><span></span><i class="px-note">diviser, inverser, joindre, coins : menu du bouton Nœuds</i></div>`;
+      <div class="ap-ligne"><span>${p ? T("vectorlab.outils2.ancres_n", { n: etat.ancresSel.length || (etat.ancreSel !== null ? 1 : 0) }) : T("vectorlab.outils2.noeuds")}</span>
+        ${["gauche", "centreH", "droite", "haut", "centreV", "bas"].map((m) => `<button data-nal="${m}" ${p && etat.ancresSel.length > 1 ? "" : "disabled"} title="${T(AL_ANCRES[m])}" aria-label="${T(AL_ANCRES[m])}">${dzi({ gauche: "dz-edit-aligner-gauche", centreH: "dz-edit-aligner-centre-h", droite: "dz-edit-aligner-droite", haut: "dz-edit-aligner-haut", centreV: "dz-edit-aligner-centre-v", bas: "dz-edit-aligner-bas" }[m], 16)}</button>`).join("")}</div>
+      <div class="ap-ligne"><span></span><i class="px-note">${T("vectorlab.outils2.noeuds_menu")}</i></div>`;
     hN.querySelectorAll("[data-nal]").forEach((b) => b.addEventListener("click", () => {
       if (p) VL.executer(op_noeuds_aligner, p.id, etat.ancresSel.slice(), b.dataset.nal);
     }));
   }
   VL.actions = VL.actions || {};
   VL.actions.noeuds = {
-    diviser: () => { const p = VL.pathSelectionne(); if (p && etat.ancreSel !== null && etat.ancreSel > 0) { const i = VL.executer(op_noeud_inserer, p.id, etat.ancreSel, 0.5); if (i !== undefined) { etat.ancreSel = i; etat.ancresSel = [i]; VL.rendreOverlay(); } } else VL.toast("choisir d'abord une ancre (outil Nœuds)", true); },
-    inverser: () => { const p = VL.pathSelectionne(); if (p) VL.executer(op_chemin_inverser, p.id); else VL.toast("sélectionner un chemin", true); },
-    joindre: () => { if (etat.selection.length !== 2) { VL.toast("sélectionner deux chemins ouverts", true); return; } const id = VL.executer(op_chemins_joindre, etat.selection[0], etat.selection[1]); if (id) VL.setSelection([id]); },
-    coins: () => { if (!etat.selection.length) return; const n = VL.executer(op_coins_arrondir, etat.selection.slice(), etat.coinRayon); if (n !== undefined) VL.toast(`${n} coin(s) arrondi(s)`); },
+    diviser: () => { const p = VL.pathSelectionne(); if (p && etat.ancreSel !== null && etat.ancreSel > 0) { const i = VL.executer(op_noeud_inserer, p.id, etat.ancreSel, 0.5); if (i !== undefined) { etat.ancreSel = i; etat.ancresSel = [i]; VL.rendreOverlay(); } } else VL.toast(T("vectorlab.outils2.ancre_dabord"), true); },
+    inverser: () => { const p = VL.pathSelectionne(); if (p) VL.executer(op_chemin_inverser, p.id); else VL.toast(T("vectorlab.outils2.sel_chemin"), true); },
+    joindre: () => { if (etat.selection.length !== 2) { VL.toast(T("vectorlab.outils2.sel_deux_chemins"), true); return; } const id = VL.executer(op_chemins_joindre, etat.selection[0], etat.selection[1]); if (id) VL.setSelection([id]); },
+    coins: () => { if (!etat.selection.length) return; const n = VL.executer(op_coins_arrondir, etat.selection.slice(), etat.coinRayon); if (n !== undefined) VL.toast(T("vectorlab.outils2.coins_arrondis", { n })); },
     peut: () => ({ chemin: !!VL.pathSelectionne(), ancre: VL.pathSelectionne() && etat.ancreSel !== null && etat.ancreSel > 0, deux: etat.selection.length === 2, sel: etat.selection.length > 0 }),
   };
   function rendreInstantanes() {
     if (!etat.doc) { hI.innerHTML = ""; return; }
     const noms = etat.histo.instantanes ? etat.histo.instantanes() : [];
-    hI.innerHTML = `<div class="ap-ligne"><input type="text" id="insNom" placeholder="nom de l'instantané" style="flex:1"/>
-        <button id="insPrendre" title="Garde l'état courant sous ce nom (session)">Prendre</button></div>
-      ${noms.map((n) => `<div class="ap-ligne inst-ligne"><span class="nom" title="${n}">${n}</span><button data-ins="${n}" title="Revenir à cet état (annulable)">Restaurer</button></div>`).join("")}
-      <p class="carte-attribution">historique : ${etat.histo._avant.length} pas (1 000 au plus)</p>`;
+    hI.innerHTML = `<div class="ap-ligne"><input type="text" id="insNom" placeholder="${T("vectorlab.outils2.inst_nom")}" style="flex:1"/>
+        <button id="insPrendre" title="${T("vectorlab.outils2.inst_prendre_aide")}">${T("vectorlab.outils2.inst_prendre")}</button></div>
+      ${noms.map((n) => `<div class="ap-ligne inst-ligne"><span class="nom" title="${n}">${n}</span><button data-ins="${n}" title="${T("vectorlab.outils2.inst_restaurer_aide")}">${T("vectorlab.outils2.inst_restaurer")}</button></div>`).join("")}
+      <p class="carte-attribution">${T("vectorlab.outils2.historique_pas", { n: etat.histo._avant.length })}</p>`;
     $("#insPrendre").addEventListener("click", () => {
-      const nom = $("#insNom").value.trim() || `état ${noms.length + 1}`;
-      try { etat.histo.instantane(nom, etat.doc); VL.toast(`instantané « ${nom} » pris`); rendreInstantanes(); } catch (e) { VL.toast(e.message, true); }
+      const nom = $("#insNom").value.trim() || T("vectorlab.outils2.etat_n", { n: noms.length + 1 });
+      try { etat.histo.instantane(nom, etat.doc); VL.toast(T("vectorlab.outils2.inst_pris", { nom })); rendreInstantanes(); } catch (e) { VL.toast(e.message, true); }
     });
     hI.querySelectorAll("[data-ins]").forEach((b) => b.addEventListener("click", () => {
       VL.executer((doc) => { const r = etat.histo.restaurer(b.dataset.ins); for (const k of Object.keys(doc)) delete doc[k]; Object.assign(doc, r); }); VL.surHistorique();   // t124 : les pixels de l'instantané reviennent aussi

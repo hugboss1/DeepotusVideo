@@ -4,6 +4,7 @@
 // version serveur, contenu différent) est proposé ; un Sauver réussi
 // l'efface. Le raster n'est jamais dedans (les href sont des noms). Les
 // timers d'un onglet caché sont throttlés : la période est un minimum.
+import { T } from "./mod-i18n.js";
 import { parserDoc } from "./mod-doc.js";
 
 /* ── pur ── */
@@ -20,7 +21,7 @@ export function brouillon_pertinent(b, meta, docServeur) {
 export function brouillon_libelle(b) {
   const d = new Date(b.t);
   const p = (n) => String(n).padStart(2, "0");
-  return `brouillon du ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+  return T("vectorlab.brouillon.libelle", { heure: `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}` });
 }
 
 /* ── DOM ── */
@@ -34,7 +35,7 @@ export function initBrouillon(VL) {
     const b = brouillon_faire(etat.docId, etat.meta.version, etat.doc);
     try { localStorage.setItem(brouillon_cle(etat.docId), JSON.stringify(b)); }
     catch (e) { return; }
-    $("#temoin").title = "État d'enregistrement · " + brouillon_libelle(b) + " (non sauvé au serveur)";
+    $("#temoin").title = T("vectorlab.brouillon.temoin_brouillon", { libelle: brouillon_libelle(b) });
   }
   setInterval(ecrire, BROUILLON_PERIODE_MS);
 
@@ -47,22 +48,21 @@ export function initBrouillon(VL) {
       if (b) effacer(k);                 // périmé : on ne le reproposera pas
       return;
     }
-    if (await VL.dialogue.confirmer(`Un ${brouillon_libelle(b)} de ce document n'a pas été sauvé.\n`
-                + `Repartir du serveur = version ${etat.meta.version} ; le brouillon est alors oublié.`,
-                { titre: "Brouillon non sauvé", ok: "Restaurer", annuler: "Repartir du serveur" })) {
+    if (await VL.dialogue.confirmer(T("vectorlab.brouillon.confirmer", { libelle: brouillon_libelle(b), version: etat.meta.version }),
+                { titre: T("vectorlab.brouillon.titre"), ok: T("vectorlab.brouillon.restaurer"), annuler: T("vectorlab.brouillon.repartir") })) {
       try { etat.doc = parserDoc(b.doc); }
-      catch (e) { VL.toast("brouillon illisible : " + e.message, true); effacer(k); return; }
+      catch (e) { VL.toast(T("vectorlab.brouillon.illisible", { err: e.message }), true); effacer(k); return; }
       etat.sale = true;
       etat.calqueActif = etat.doc.calques[etat.doc.calques.length - 1].id;
       VL.rendre();
-      VL.toast("brouillon restauré — Sauver pour l'écrire au serveur");
+      VL.toast(T("vectorlab.brouillon.restaure"));
     } else effacer(k);
   };
   const suivantSauve = VL.surSauve;
   VL.surSauve = () => {
     suivantSauve();
     effacer(brouillon_cle(etat.docId));
-    $("#temoin").title = "État d'enregistrement";
+    $("#temoin").title = T("vectorlab.brouillon.temoin");
   };
   VL.brouillonEcrire = ecrire;           // la preuve force un tic sans attendre 30 s
 }

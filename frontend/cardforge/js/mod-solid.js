@@ -74,25 +74,25 @@
   /* Des epaisseurs REELLES, mesurees sur des jeux du commerce : un chiffre
      seul ne dit rien, « carte a jouer » si. */
   const EPAISSEURS = [
-    { v: 0.24, l: "Fine", h: "carte promotionnelle" },
-    { v: 0.32, l: "Carte à jouer", h: "standard, cœur bleu 310 g" },
-    { v: 0.40, l: "Lin renforcé", h: "jeu de société" },
-    { v: 0.62, l: "Carton épais", h: "carte de collection premium" },
-    { v: 1.00, l: "Plaque", h: "carte métal / plastique" },
+    { v: 0.24, l: dzT("cartes.solid.ep_fine"), h: dzT("cartes.solid.ep_fine_h") },
+    { v: 0.32, l: dzT("cartes.solid.ep_jouer"), h: dzT("cartes.solid.ep_jouer_h") },
+    { v: 0.40, l: dzT("cartes.solid.ep_lin"), h: dzT("cartes.solid.ep_lin_h") },
+    { v: 0.62, l: dzT("cartes.solid.ep_carton"), h: dzT("cartes.solid.ep_carton_h") },
+    { v: 1.00, l: dzT("cartes.solid.ep_plaque"), h: dzT("cartes.solid.ep_plaque_h") },
   ];
   const VUES = [
-    { id: "matiere", l: "Matière", t: "Rendu éclairé, comme un tirage réel" },
-    { id: "base", l: "Encre", t: "Sans éclairage : l'impression telle quelle" },
-    { id: "normales", l: "Normales", t: "Orientation des faces (couleur = normale)" },
-    { id: "ilots", l: "Îlots UV", t: "Recto / verso / tranche : les 3 régions de l'atlas, dont le HUD mesure le recouvrement" },
+    { id: "matiere", l: dzT("cartes.solid.vue_matiere"), t: dzT("cartes.solid.vue_matiere_t") },
+    { id: "base", l: dzT("cartes.solid.vue_encre"), t: dzT("cartes.solid.vue_encre_t") },
+    { id: "normales", l: dzT("cartes.solid.vue_normales"), t: dzT("cartes.solid.vue_normales_t") },
+    { id: "ilots", l: dzT("cartes.solid.ilots"), t: dzT("cartes.solid.vue_ilots_t") },
   ];
   const ENVS = [
-    { id: "studio", l: "Studio" }, { id: "vitrine", l: "Vitrine" },
-    { id: "chaud", l: "Chaud" }, { id: "froid", l: "Froid" },
-    { id: "neutre", l: "Neutre" },
+    { id: "studio", l: "Studio" }, { id: "vitrine", l: dzT("cartes.solid.env_vitrine") },
+    { id: "chaud", l: dzT("cartes.solid.env_chaud") }, { id: "froid", l: dzT("cartes.solid.env_froid") },
+    { id: "neutre", l: dzT("cartes.solid.env_neutre") },
   ];
   const TRANCHES = [
-    { id: "plein", l: "Unie" }, { id: "metal", l: "Métal" }, { id: "sombre", l: "Sombre" },
+    { id: "plein", l: dzT("cartes.solid.tr_unie") }, { id: "metal", l: dzT("cartes.solid.tr_metal") }, { id: "sombre", l: dzT("cartes.solid.tr_sombre") },
   ];
   /* LE RELIEF D'ENCRE, ET SON PRIX. Le grief mesure : « carte de normales
      QUASI INERTE, ET CHERE — 2,22 deg d'inclinaison maximale pour 27 % du
@@ -101,23 +101,23 @@
      deux, et le panneau publie le POIDS MESURE de celle qui est choisie.
      `div` est le diviseur applique a l'atlas : 4 = quart, 2 = moitie. */
   const RELIEFS = [
-    { id: "aucun", l: "Aucun", div: 0, t: "Pas de carte de normales dans le fichier" },
-    { id: "leger", l: "Léger", div: 4, t: "Quart de l'atlas : le relief d'encre pour un quart des texels" },
-    { id: "detaille", l: "Détaillé", div: 2, t: "Moitié de l'atlas : le plus fin que la source permette" },
+    { id: "aucun", l: dzT("cartes.solid.rel_aucun"), div: 0, t: dzT("cartes.solid.rel_aucun_t") },
+    { id: "leger", l: dzT("cartes.solid.rel_leger"), div: 4, t: dzT("cartes.solid.rel_leger_t") },
+    { id: "detaille", l: dzT("cartes.solid.rel_detaille"), div: 2, t: dzT("cartes.solid.rel_detaille_t") },
   ];
   /* LES TROIS FACES DE L'OBJET, ATTEIGNABLES EN UN CLIC. `macro` demande une
      cible posee sur le BORD de la carte et un rayon de quelques millimetres :
      c'est la seule facon de voir 0,32 mm autrement qu'en 3 pixels. */
   const POSES = [
-    { id: "recto", l: "Recto", d: 0, fov: 26, t: "La face avant, de face" },
-    { id: "verso", l: "Verso", d: 180, fov: 26, t: "La face arrière, de face — sans miroir" },
+    { id: "recto", l: dzT("cartes.solid.recto"), d: 0, fov: 26, t: dzT("cartes.solid.pose_recto_t") },
+    { id: "verso", l: dzT("cartes.solid.verso"), d: 180, fov: 26, t: dzT("cartes.solid.pose_verso_t") },
     /* PAS DE PROFIL PUR, ET PAS AU MILIEU DU GRAND COTE : de profil la tranche
        remplit le cadre comme une bande verticale et plus rien ne dit que c'est
        une carte ; au milieu du cote, le cadre de 3 mm ne contient aucun bord
        reconnaissable. On vise le COIN ARRONDI : l'arc de 3 mm donne l'echelle,
        la tranche le traverse, et le chanfrein a 45 degres attrape la lumiere. */
-    { id: "tranche", l: "Tranche", d: 55, phi: 74, fov: 18, macro: 0.010,
-      t: "Macro sur le coin : rayon, chanfrein et épaisseur à l'échelle du millimètre" },
+    { id: "tranche", l: dzT("cartes.solid.tranche"), d: 55, phi: 74, fov: 18, macro: 0.010,
+      t: dzT("cartes.solid.pose_tranche_t") },
   ];
   const TAILLES = [540, 720, 1080, 1440];
   const ILOT_COULEUR = { front: [0.16, 0.72, 0.62], back: [0.55, 0.42, 0.86], edge: [0.95, 0.71, 0.24] };
@@ -244,7 +244,7 @@
         if (d && d.turntable && d.turntable.ffmpeg === false) {
           const b = q(".cf-solid-go");
           b.disabled = true;
-          b.textContent = "Tourne-disque indisponible — ffmpeg absent";
+          b.textContent = dzT("cartes.solid.tt_indispo");
         }
         /* La preuve du piege 9, ecrite : `gltf_builder` rend une SPHERE pour
            tout nom de maillage inconnu, sans un mot. Les deux comptes cote a
@@ -261,9 +261,7 @@
         const r = d && d.registered_mesh, s = d && d.sphere_mesh;
         if (r && s) {
           FFINFO = d;
-          q("#cf-solid-reg").innerHTML = 'Maillage <b>card</b> enregistré côté serveur : '
-            + r.triangles + ' faces / ' + r.vertices + ' sommets — la sphère de repli en compte '
-            + s.triangles + '. L\'export 3D ne peut donc pas livrer une boule à la place de la carte.';
+          q("#cf-solid-reg").innerHTML = dzT("cartes.solid.reg", { tri: r.triangles, som: r.vertices, sph: s.triangles });
         }
       }).catch(() => { /* domaine pas monte : le maillage de secours prend le relais */ });
     },
@@ -279,8 +277,8 @@
     + '  <section class="cf-solid-view">'
     + '    <div class="cf-solid-bar">'
     + '      <div class="cf-solid-seg" id="cf-solid-views"></div>'
-    + '      <button type="button" class="chip cf-solid-t" data-t="wire" title="Filaire (W)">' + ICO("dz-lab3d-filaire", 16, "cf-ic") + 'Filaire</button>'
-    + '      <button type="button" class="chip cf-solid-t" data-t="spin" title="Tourne-disque (R)">' + ICO("dz-lab3d-rotation", 16, "cf-ic") + 'Rotation</button>'
+    + '      <button type="button" class="chip cf-solid-t" data-t="wire" title="' + dzT("cartes.solid.filaire_w") + '">' + ICO("dz-lab3d-filaire", 16, "cf-ic") + dzT("cartes.solid.filaire_btn") + '</button>'
+    + '      <button type="button" class="chip cf-solid-t" data-t="spin" title="' + dzT("cartes.solid.tt_r") + '">' + ICO("dz-lab3d-rotation", 16, "cf-ic") + 'Rotation</button>'
     /* LES TROIS FACES, ATTEIGNABLES. Le grief : « le verso n'est visible nulle
        part a l'ecran ; il a fallu que j'ouvre le fichier et que je le rende
        moi-meme pour le lire — un utilisateur ne fera pas ca », et « la
@@ -293,29 +291,29 @@
        ne le DISAIT. Un inventaire de visionneuse se compte sur une image
        arretee. */
     + '      <div class="cf-solid-zoom">'
-    + '        <button type="button" class="btn sm cf-solid-z" data-z="-1" title="Zoom arrière (molette)" aria-label="Zoom arrière">' + ICO("dz-action-zoom-arriere", 16) + '</button>'
+    + '        <button type="button" class="btn sm cf-solid-z" data-z="-1" title="' + dzT("cartes.solid.zoom_arr_t") + '" aria-label="' + dzT("cartes.solid.zoom_arr") + '">' + ICO("dz-action-zoom-arriere", 16) + '</button>'
     + '        <b id="cf-solid-fov">26&deg;</b>'
-    + '        <button type="button" class="btn sm cf-solid-z" data-z="1" title="Zoom avant (molette)" aria-label="Zoom avant">' + ICO("dz-action-zoom-avant", 16) + '</button>'
-    + '        <i class="cf-solid-zh">glisser = tourner · clic droit = déplacer</i>'
+    + '        <button type="button" class="btn sm cf-solid-z" data-z="1" title="' + dzT("cartes.solid.zoom_av_t") + '" aria-label="' + dzT("cartes.solid.zoom_av") + '">' + ICO("dz-action-zoom-avant", 16) + '</button>'
+    + '        <i class="cf-solid-zh">' + dzT("cartes.solid.souris") + '</i>'
     + '      </div>'
-    + '      <label class="cf-solid-inline"><span class="lbl">Lumière</span><select id="cf-solid-env" class="cf-solid-sel"></select>'
+    + '      <label class="cf-solid-inline"><span class="lbl">' + dzT("cartes.solid.lumiere") + '</span><select id="cf-solid-env" class="cf-solid-sel"></select>'
     + '        <i class="cf-solid-envn" id="cf-solid-envn"></i></label>'
     /* IMPORT D'UN HDRI. Les cinq environnements fabriques ici sont en basse
        dynamique ; un vrai .hdr donne des reflets que rien d'autre ne donne, et
        c'est la seule chose que la reference savait faire et pas nous. */
-    + '      <label class="btn sm cf-solid-hdrib" title="Importer un environnement : .hdr, .exr ou une image">' + ICO("dz-lab3d-hdri", 16, "cf-ic") + 'HDRI…'
+    + '      <label class="btn sm cf-solid-hdrib" title="' + dzT("cartes.solid.hdri_t") + '">' + ICO("dz-lab3d-hdri", 16, "cf-ic") + 'HDRI…'
     + '        <input type="file" id="cf-solid-hdri" accept=".hdr,.exr,image/*" hidden></label>'
-    + '      <button type="button" class="btn sm cf-solid-fit" title="Recadrer la caméra (F)">' + ICO("dz-action-ajuster-vue", 16, "cf-ic") + 'Recadrer</button>'
+    + '      <button type="button" class="btn sm cf-solid-fit" title="' + dzT("cartes.solid.recadrer_t") + '">' + ICO("dz-action-ajuster-vue", 16, "cf-ic") + dzT("cartes.solid.recadrer") + '</button>'
     + '    </div>'
     + '    <div class="cf-solid-stage" id="cf-solid-stage">'
     + '      <model-viewer id="cf-solid-mv" class="cf-solid-mv" camera-controls enable-pan interaction-prompt="none"'
     + '        shadow-intensity="0.55" shadow-softness="0.9" exposure="1" environment-image="neutral"'
     + '        camera-orbit="-24deg 72deg auto" field-of-view="26deg" interpolation-decay="1"'
-    + '        min-field-of-view="8deg" max-field-of-view="55deg" alt="Aperçu en volume de la carte"></model-viewer>'
+    + '        min-field-of-view="8deg" max-field-of-view="55deg" alt="' + dzT("cartes.solid.mv_alt") + '"></model-viewer>'
     + '      <div class="cf-solid-hud" id="cf-solid-hud"></div>'
     + '      <div class="cf-solid-legend hidden" id="cf-solid-legend"></div>'
     + '      <div class="cf-solid-prog hidden" id="cf-solid-prog"><div class="cf-solid-progbar"><i></i></div><span></span>'
-    + '        <button type="button" class="lnk cf-solid-abort">annuler</button></div>'
+    + '        <button type="button" class="lnk cf-solid-abort">' + dzT("cartes.solid.annuler") + '</button></div>'
     + '    </div>'
     + '  </section>'
 
@@ -326,7 +324,7 @@
        d'epaisseur ne sont ecrites nulle part et les prereglages s'arretent a
        Plaque 1,00 alors que la plage utile monte a 1,20 mm ». Elles sortent de
        LIM, donc du meme endroit que le curseur. */
-    + '      <div class="cf-solid-gh"><b>Épaisseur</b><i class="cf-solid-bornes" id="cf-solid-bornes"></i>'
+    + '      <div class="cf-solid-gh"><b>' + dzT("cartes.solid.epaisseur") + '</b><i class="cf-solid-bornes" id="cf-solid-bornes"></i>'
     + '        <span class="cf-solid-gv" id="cf-solid-thr"></span></div>'
     + '      <div class="cf-solid-row">'
     + '        <input type="range" class="cf-solid-rg" data-k="thickness_mm" min="0.2" max="1.2" step="0.01">'
@@ -338,26 +336,26 @@
     + '    </div>'
 
     + '    <div class="cf-solid-grp">'
-    + '      <div class="cf-solid-gh"><b>Coins et tranche</b>'
-    + '        <label class="check tiny cf-solid-link"><input type="checkbox" id="cf-solid-link"> suivre le format</label></div>'
+    + '      <div class="cf-solid-gh"><b>' + dzT("cartes.solid.coins") + '</b>'
+    + '        <label class="check tiny cf-solid-link"><input type="checkbox" id="cf-solid-link"> ' + dzT("cartes.solid.suivre_format") + '</label></div>'
     + '      <div class="cf-solid-row">'
-    + '        <span class="lbl cf-solid-lb">Rayon</span>'
+    + '        <span class="lbl cf-solid-lb">' + dzT("cartes.solid.rayon") + '</span>'
     + '        <input type="range" class="cf-solid-rg" data-k="corner_mm" min="0" max="10" step="0.1">'
     + '        <input type="number" class="cf-solid-nb" data-k="corner_mm" min="0" max="10" step="0.1"><i class="cf-solid-u">mm</i>'
     + '      </div>'
     + '      <div class="cf-solid-row">'
-    + '        <span class="lbl cf-solid-lb">Finesse</span>'
+    + '        <span class="lbl cf-solid-lb">' + dzT("cartes.solid.finesse") + '</span>'
     + '        <input type="range" class="cf-solid-rg" data-k="segments" min="1" max="16" step="1">'
     + '        <input type="number" class="cf-solid-nb" data-k="segments" min="1" max="16" step="1"><i class="cf-solid-u">seg</i>'
     + '      </div>'
     + '      <div class="cf-solid-row">'
-    + '        <span class="lbl cf-solid-lb" title="Retrait du chanfrein : la même jambe en Z et en XY, donc une arête à 45°">Retrait</span>'
+    + '        <span class="lbl cf-solid-lb" title="' + dzT("cartes.solid.retrait_t") + '">' + dzT("cartes.solid.retrait") + '</span>'
     + '        <input type="range" class="cf-solid-rg" data-k="bevel_mm" min="0" max="0.3" step="0.01">'
     + '        <input type="number" class="cf-solid-nb" data-k="bevel_mm" min="0" max="0.3" step="0.01"><i class="cf-solid-u">mm</i>'
     + '      </div>'
     + '      <p class="hint cf-solid-bev" id="cf-solid-bev"></p>'
     + '      <div class="cf-solid-row cf-solid-edge">'
-    + '        <span class="lbl cf-solid-lb">Tranche</span>'
+    + '        <span class="lbl cf-solid-lb">' + dzT("cartes.solid.tranche") + '</span>'
     + '        <input type="color" class="cf-solid-col" id="cf-solid-edge">'
     + '        <div class="cf-solid-seg cf-solid-sm" id="cf-solid-edges"></div>'
     + '      </div>'
@@ -365,65 +363,65 @@
        Les deux branches sont ici, et le paragraphe du dessous pese celle qui
        est choisie sur les octets du fichier. */
     + '      <div class="cf-solid-row">'
-    + '        <span class="lbl cf-solid-lb" title="Carte de normales : le grain d\'encre. Son poids est mesuré ci-dessous.">Relief</span>'
+    + '        <span class="lbl cf-solid-lb" title="' + dzT("cartes.solid.relief_t") + '">Relief</span>'
     + '        <div class="cf-solid-seg cf-solid-sm" id="cf-solid-reliefs"></div>'
     + '      </div>'
     + '      <p class="hint cf-solid-maps" id="cf-solid-maps"></p>'
     + '    </div>'
 
     + '    <div class="cf-solid-grp">'
-    + '      <div class="cf-solid-gh"><b>Tourne-disque</b><span class="cf-solid-gv" id="cf-solid-ttr"></span></div>'
+    + '      <div class="cf-solid-gh"><b>' + dzT("cartes.solid.tt") + '</b><span class="cf-solid-gv" id="cf-solid-ttr"></span></div>'
     + '      <div class="grid2">'
-    + '        <label class="fld"><span class="lbl">Images</span><input type="number" class="cf-solid-nb w" data-k="tt_frames" min="24" max="600" step="1"></label>'
-    + '        <label class="fld"><span class="lbl">Images / s</span><input type="number" class="cf-solid-nb w" data-k="tt_fps" min="12" max="60" step="1"></label>'
+    + '        <label class="fld"><span class="lbl">' + dzT("cartes.solid.images") + '</span><input type="number" class="cf-solid-nb w" data-k="tt_frames" min="24" max="600" step="1"></label>'
+    + '        <label class="fld"><span class="lbl">' + dzT("cartes.solid.images_s") + '</span><input type="number" class="cf-solid-nb w" data-k="tt_fps" min="12" max="60" step="1"></label>'
     + '      </div>'
     + '      <div class="grid2">'
-    + '        <label class="fld"><span class="lbl">Définition</span><select class="cf-solid-sel" id="cf-solid-ttsize"></select></label>'
+    + '        <label class="fld"><span class="lbl">' + dzT("cartes.solid.definition") + '</span><select class="cf-solid-sel" id="cf-solid-ttsize"></select></label>'
     + '        <label class="fld"><span class="lbl">Format</span><select class="cf-solid-sel" id="cf-solid-ttfmt"><option value="mp4">MP4 (H.264)</option><option value="webm">WebM (VP9)</option></select></label>'
     + '      </div>'
     + '      <div class="cf-solid-row">'
-    + '        <span class="lbl cf-solid-lb">Élévation</span>'
+    + '        <span class="lbl cf-solid-lb">' + dzT("cartes.solid.elevation") + '</span>'
     + '        <input type="range" class="cf-solid-rg" data-k="tt_up" min="0" max="55" step="1">'
     + '        <input type="number" class="cf-solid-nb" data-k="tt_up" min="0" max="55" step="1"><i class="cf-solid-u">&deg;</i>'
     + '      </div>'
     + '      <p class="hint cf-solid-elev" id="cf-solid-elev"></p>'
-    + '      <button type="button" class="btn strong wide cf-solid-go">Rendre le tourne-disque &mdash; local, gratuit</button>'
+    + '      <button type="button" class="btn strong wide cf-solid-go">' + dzT("cartes.solid.tt_go") + '</button>'
     + '      <p class="hint cf-solid-out hidden" id="cf-solid-out"></p>'
     + '    </div>'
 
     + '    <details class="grp cf-solid-more">'
-    + '      <summary>Rendu et raccourcis</summary>'
+    + '      <summary>' + dzT("cartes.solid.rendu") + '</summary>'
     + '      <div class="grp-body">'
-    + '        <div class="cf-solid-row"><span class="lbl cf-solid-lb">Exposition</span>'
+    + '        <div class="cf-solid-row"><span class="lbl cf-solid-lb">' + dzT("cartes.solid.exposition") + '</span>'
     + '          <input type="range" class="cf-solid-rg" data-k="exposure" min="0.3" max="2" step="0.05">'
     + '          <input type="number" class="cf-solid-nb" data-k="exposure" min="0.3" max="2" step="0.05"><i class="cf-solid-u">&times;</i></div>'
-    + '        <div class="cf-solid-row"><span class="lbl cf-solid-lb">Ombre</span>'
+    + '        <div class="cf-solid-row"><span class="lbl cf-solid-lb">' + dzT("cartes.solid.ombre") + '</span>'
     + '          <input type="range" class="cf-solid-rg" data-k="shadow" min="0" max="1.5" step="0.05">'
     + '          <input type="number" class="cf-solid-nb" data-k="shadow" min="0" max="1.5" step="0.05"><i class="cf-solid-u">&times;</i></div>'
     + '        <div class="grid2">'
-    + '          <label class="fld"><span class="lbl">Plafond de l\'atlas</span>'
+    + '          <label class="fld"><span class="lbl">' + dzT("cartes.solid.plafond") + '</span>'
     + '            <select class="cf-solid-sel" id="cf-solid-atlas"></select></label>'
     /* TROIS CHOIX, PARCE QUE LA MESURE EN A TROUVE TROIS. L'encodeur de la
        toile sort du 4:2:0 a toutes les qualites SAUF 1,0, ou il passe en
        4:4:4 (mesure sur le marqueur SOF : 2x2 de 0,80 a 0,98, 1x1 a 1,00).
        Le grief « base couleur en JPEG 4:2:0 sous du texte de 6 points » a donc
        une reponse qui n'est pas « prenez un PNG de 3 Mo ». */
-    + '          <label class="fld"><span class="lbl">Image de base</span>'
+    + '          <label class="fld"><span class="lbl">' + dzT("cartes.solid.image_base") + '</span>'
     + '            <select class="cf-solid-sel" id="cf-solid-atlasfmt">'
-    + '              <option value="jpeg">JPEG — léger (4:2:0)</option>'
-    + '              <option value="jpeg444">JPEG — chroma pleine (4:4:4)</option>'
-    + '              <option value="png">PNG — sans perte</option></select></label>'
+    + '              <option value="jpeg">' + dzT("cartes.solid.fmt_jpeg") + '</option>'
+    + '              <option value="jpeg444">' + dzT("cartes.solid.fmt_jpeg444") + '</option>'
+    + '              <option value="png">' + dzT("cartes.solid.fmt_png") + '</option></select></label>'
     + '        </div>'
     + '        <div class="sep"></div>'
     + '        <dl class="cf-solid-keys">'
-    + '          <dt>+ &nbsp;&minus;</dt><dd>épaisseur &plusmn; 0,01 mm</dd>'
-    + '          <dt>[ &nbsp;]</dt><dd>rayon de coin &plusmn; 0,5 mm</dd>'
-    + '          <dt>1 &hellip; 4</dt><dd>vue (matière, encre, normales, îlots)</dd>'
-    + '          <dt>W</dt><dd>filaire</dd><dt>R</dt><dd>rotation</dd>'
-    + '          <dt>F</dt><dd>recadrer</dd><dt>T</dt><dd>tourne-disque</dd>'
-    + '          <dt>Ctrl+Z</dt><dd>annuler le dernier réglage</dd>'
+    + '          <dt>+ &nbsp;&minus;</dt><dd>' + dzT("cartes.solid.k_ep") + '</dd>'
+    + '          <dt>[ &nbsp;]</dt><dd>' + dzT("cartes.solid.k_rayon") + '</dd>'
+    + '          <dt>1 &hellip; 4</dt><dd>' + dzT("cartes.solid.k_vue") + '</dd>'
+    + '          <dt>W</dt><dd>' + dzT("cartes.solid.filaire") + '</dd><dt>R</dt><dd>rotation</dd>'
+    + '          <dt>F</dt><dd>' + dzT("cartes.solid.k_recadrer") + '</dd><dt>T</dt><dd>' + dzT("cartes.solid.k_tt") + '</dd>'
+    + '          <dt>Ctrl+Z</dt><dd>' + dzT("cartes.solid.k_undo") + '</dd>'
     + '        </dl>'
-    + '        <p class="hint">Les champs numériques se règlent aussi à la <b>molette</b> et au <b>glissé horizontal</b>.</p>'
+    + '        <p class="hint">' + dzT("cartes.solid.k_hint") + '</p>'
     + '        <p class="hint cf-solid-reg" id="cf-solid-reg"></p>'
     + '      </div>'
     + '    </details>'
@@ -487,9 +485,9 @@
   }
   function undo() {
     const u = UNDO.pop();
-    if (!u) { CF.toast("rien à annuler"); return; }
+    if (!u) { CF.toast(dzT("cartes.solid.rien_annuler")); return; }
     M.patch(u.before);
-    CF.toast("annulé : " + u.label);
+    CF.toast(dzT("cartes.solid.annule", { label: u.label }));
   }
 
   /* ═══════════════════════════════════════════════════════════════════════
@@ -514,7 +512,7 @@
     q("#cf-solid-ttsize").innerHTML = TAILLES.map((t) =>
       '<option value="' + t + '">' + t + " px</option>").join("");
     q("#cf-solid-atlas").innerHTML = ATLAS_CAPS.map((t) =>
-      '<option value="' + t + '">' + t + ' px maxi</option>').join("");
+      '<option value="' + t + '">' + dzT("cartes.solid.px_maxi", { t: t }) + '</option>').join("");
     /* Un menu replie ne prouve rien : le nombre d'environnements est COMPTE
        sur les options reellement posees dans le DOM, et il s'affiche a cote.
        Le seuil « au moins 4 » devient lisible sur une image arretee. */
@@ -527,15 +525,15 @@
   function wire() {
     HOST.addEventListener("click", (e) => {
       const v = e.target.closest(".cf-solid-v");
-      if (v) { put({ view: v.dataset.v }, "vue"); return; }
+      if (v) { put({ view: v.dataset.v }, dzT("cartes.solid.u_vue")); return; }
       const t = e.target.closest(".cf-solid-t");
-      if (t) { put({ [t.dataset.t]: !S(t.dataset.t, false) }, t.dataset.t === "wire" ? "filaire" : "rotation"); return; }
+      if (t) { put({ [t.dataset.t]: !S(t.dataset.t, false) }, t.dataset.t === "wire" ? dzT("cartes.solid.filaire") : "rotation"); return; }
       const ed = e.target.closest(".cf-solid-e");
-      if (ed) { put({ edge_style: ed.dataset.e }, "style de tranche"); return; }
+      if (ed) { put({ edge_style: ed.dataset.e }, dzT("cartes.solid.u_style")); return; }
       const rl = e.target.closest(".cf-solid-r");
-      if (rl) { put({ relief: rl.dataset.r }, "relief d'encre"); return; }
+      if (rl) { put({ relief: rl.dataset.r }, dzT("cartes.solid.u_relief")); return; }
       const p = e.target.closest(".cf-solid-p");
-      if (p) { put({ thickness_mm: Number(p.dataset.v) }, "épaisseur"); return; }
+      if (p) { put({ thickness_mm: Number(p.dataset.v) }, dzT("cartes.solid.u_ep")); return; }
       if (e.target.closest(".cf-solid-fit")) { fitCamera(); return; }
       const po = e.target.closest(".cf-solid-pose");
       if (po) { pose(po.dataset.pose); return; }
@@ -691,10 +689,10 @@
       const on = !!e.target.checked;
       const o = { corner_link: on };
       if (on) o.corner_mm = CF.geom().corner_mm;
-      put(o, "suivre le format");
+      put(o, dzT("cartes.solid.suivre_format"));
     });
-    q("#cf-solid-edge").addEventListener("change", (e) => put({ edge: e.target.value }, "couleur de tranche"));
-    q("#cf-solid-env").addEventListener("change", (e) => put({ env: e.target.value }, "lumière"));
+    q("#cf-solid-edge").addEventListener("change", (e) => put({ edge: e.target.value }, dzT("cartes.solid.u_couleur")));
+    q("#cf-solid-env").addEventListener("change", (e) => put({ env: e.target.value }, dzT("cartes.solid.u_lumiere")));
     /* Le fichier reste LOCAL : un objet-URL, aucun envoi, aucun reseau. Le
        compteur d'environnements est recompte sur les options POSEES — il ne
        peut donc pas annoncer un environnement qui n'existe pas. */
@@ -710,20 +708,20 @@
         sel.appendChild(op);
       }
       Array.prototype.forEach.call(sel.options, (o) => {
-        if (o.value === "perso") o.textContent = "HDRI : " + f.name.slice(0, 22);
+        if (o.value === "perso") o.textContent = dzT("cartes.solid.hdri_nom", { nom: f.name.slice(0, 22) });
       });
       q("#cf-solid-envn").textContent = sel.options.length + " env.";
       e.target.value = "";
-      put({ env: "perso" }, "HDRI importé");
-      CF.toast("environnement importé : " + f.name + " (" + fr(f.size / 1024, 0) + " Kio)");
+      put({ env: "perso" }, dzT("cartes.solid.u_hdri"));
+      CF.toast(dzT("cartes.solid.env_importe", { nom: f.name, kio: fr(f.size / 1024, 0) }));
     });
     q("#cf-solid-atlas").addEventListener("change", (e) => { ATLAS_DIRTY = true; put({ atlas: Number(e.target.value) }, "atlas"); });
     q("#cf-solid-atlasfmt").addEventListener("change", (e) => {
       const v = ["png", "jpeg444", "jpeg"].indexOf(e.target.value) >= 0 ? e.target.value : "jpeg";
-      put({ atlas_fmt: v }, "image de base");
+      put({ atlas_fmt: v }, dzT("cartes.solid.u_image"));
     });
-    q("#cf-solid-ttsize").addEventListener("change", (e) => put({ tt_size: Number(e.target.value) }, "définition"));
-    q("#cf-solid-ttfmt").addEventListener("change", (e) => put({ tt_fmt: e.target.value }, "format vidéo"));
+    q("#cf-solid-ttsize").addEventListener("change", (e) => put({ tt_size: Number(e.target.value) }, dzT("cartes.solid.u_definition")));
+    q("#cf-solid-ttfmt").addEventListener("change", (e) => put({ tt_fmt: e.target.value }, dzT("cartes.solid.u_fmt_video")));
   }
 
   /* LES BORNES, SEULES : extraites de setNum() pour que l'apercu du glisser
@@ -769,15 +767,15 @@
     }
     const th = S("thickness_mm", 0.32), cm = S("corner_mm", 3);
     if (e.key === "z" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); undo(); return; }
-    if (e.key === "+" || e.key === "=") { e.preventDefault(); put({ thickness_mm: clamp("thickness_mm", th + 0.01) }, "épaisseur"); }
-    else if (e.key === "-") { e.preventDefault(); put({ thickness_mm: clamp("thickness_mm", th - 0.01) }, "épaisseur"); }
-    else if (e.key === "[") { put({ corner_mm: clamp("corner_mm", cm - 0.5), corner_link: false }, "rayon"); }
-    else if (e.key === "]") { put({ corner_mm: clamp("corner_mm", cm + 0.5), corner_link: false }, "rayon"); }
-    else if (e.key === "w" || e.key === "W") { put({ wire: !S("wire", false) }, "filaire"); }
+    if (e.key === "+" || e.key === "=") { e.preventDefault(); put({ thickness_mm: clamp("thickness_mm", th + 0.01) }, dzT("cartes.solid.u_ep")); }
+    else if (e.key === "-") { e.preventDefault(); put({ thickness_mm: clamp("thickness_mm", th - 0.01) }, dzT("cartes.solid.u_ep")); }
+    else if (e.key === "[") { put({ corner_mm: clamp("corner_mm", cm - 0.5), corner_link: false }, dzT("cartes.solid.u_rayon")); }
+    else if (e.key === "]") { put({ corner_mm: clamp("corner_mm", cm + 0.5), corner_link: false }, dzT("cartes.solid.u_rayon")); }
+    else if (e.key === "w" || e.key === "W") { put({ wire: !S("wire", false) }, dzT("cartes.solid.filaire")); }
     else if (e.key === "r" || e.key === "R") { put({ spin: !S("spin", true) }, "rotation"); }
     else if (e.key === "f" || e.key === "F") { fitCamera(); }
     else if (e.key === "t" || e.key === "T") { turntable(); }
-    else if ("1234".indexOf(e.key) >= 0) { put({ view: VUES[Number(e.key) - 1].id }, "vue"); }
+    else if ("1234".indexOf(e.key) >= 0) { put({ view: VUES[Number(e.key) - 1].id }, dzT("cartes.solid.u_vue")); }
   }
 
   /* ═══════════════════════════════════════════════════════════════════════
@@ -813,13 +811,12 @@
        lectures de la meme grandeur. */
     q("#cf-solid-thr").innerHTML = '<b>' + fr(th, 2) + ' mm</b> · ' + fr(th / 25.4, 4) + ' in';
     const f = S("tt_frames", 90), fps = S("tt_fps", 30);
-    q("#cf-solid-ttr").innerHTML = '<b>' + fr(f / fps, 2) + ' s</b> · ' + f + ' images @ ' + fps + ' i/s';
+    q("#cf-solid-ttr").innerHTML = '<b>' + fr(f / fps, 2) + ' s</b> · ' + dzT("cartes.solid.images_fps", { n: f, fps: fps });
     const up = elev();
-    q("#cf-solid-elev").innerHTML = '<b>' + up + '&deg;</b> au-dessus de l\'horizon &mdash; angle polaire '
-      + fr(90 - up, 0) + '&deg; posé sur la visionneuse, et relu sur elle après le rendu.';
+    q("#cf-solid-elev").innerHTML = dzT("cartes.solid.elev_hint", { up: up, polaire: fr(90 - up, 0) });
     q("#cf-solid-legend").classList.toggle("hidden", S("view", "matiere") !== "ilots");
     q("#cf-solid-legend").innerHTML =
-      '<i style="background:#29b89e"></i>recto<i style="background:#8c6bdc"></i>verso<i style="background:#f2b53d"></i>tranche';
+      '<i style="background:#29b89e"></i>' + dzT("cartes.solid.l_recto") + '<i style="background:#8c6bdc"></i>' + dzT("cartes.solid.l_verso") + '<i style="background:#f2b53d"></i>' + dzT("cartes.solid.l_tranche");
     drawProfile();
     bevelHint();
     applyViewerAttrs();
@@ -911,8 +908,7 @@
        le contour de 1 px qui borde la bande faisait ensuite douter du chiffre.
        On ecrit donc l'echelle ET la cote — c'est la cote (le trait a gauche)
        qui vaut exactement ce nombre, le contour de la bande y ajoute 1 px. */
-    x.fillText("coupe · 1 mm = " + K + " px, cote " + fr(h, 1) + " px · retrait "
-      + fr(bv, 3) + " mm", 8, H - 7);
+    x.fillText(dzT("cartes.solid.coupe", { k: K, cote: fr(h, 1), retrait: fr(bv, 3) }), 8, H - 7);
   }
 
   /* LA CONVENTION EST ECRITE, EN TOUTES LETTRES ET SOUS LE CURSEUR.
@@ -926,14 +922,12 @@
     if (!el) return;
     const bv = bevelEff(), dem = S("bevel_mm", 0.1), th = S("thickness_mm", 0.32);
     if (bv <= 1e-9) {
-      el.innerHTML = 'Aucun chanfrein : l\'arête entre la face et la tranche est vive.';
+      el.innerHTML = dzT("cartes.solid.chanfrein_aucun");
       return;
     }
-    el.innerHTML = 'Chanfrein à <b>45°</b> : retrait <b>' + fr(bv, 3)
-      + ' mm</b> en Z <i>et</i> en XY, méplat ' + fr(bv * Math.SQRT2, 3) + ' mm.'
+    el.innerHTML = dzT("cartes.solid.chanfrein", { r: fr(bv, 3), m: fr(bv * Math.SQRT2, 3) })
       + ((dem - bv) > 5e-4
-        ? ' Demande ' + fr(dem, 2) + ' mm <b>bornée</b> par l\'épaisseur (0,225 × '
-        + fr(th, 2) + ' mm) : le fichier porte ' + fr(bv, 3) + ', pas ' + fr(dem, 2) + '.'
+        ? dzT("cartes.solid.chanfrein_borne", { dem: fr(dem, 2), th: fr(th, 2), r: fr(bv, 3) })
         : '');
   }
 
@@ -1532,7 +1526,7 @@
   function pngType(bytes) {
     const u = new Uint8Array(bytes);
     if (u.length < 26 || u[0] !== 137 || u[1] !== 80) return "?";
-    return { 0: "gris", 2: "RGB", 3: "palette", 4: "gris+A", 6: "RGBA" }[u[25]] || ("type " + u[25]);
+    return { 0: dzT("cartes.solid.png_gris"), 2: "RGB", 3: "palette", 4: dzT("cartes.solid.png_gris_a"), 6: "RGBA" }[u[25]] || ("type " + u[25]);
   }
 
   /* Une image de matiere : PNG ecrit ici si le navigateur sait deflater, sinon
@@ -1801,7 +1795,7 @@
         if (nc < 1) return "?";
         const hv = b[i + 11];
         const H = hv >> 4, V = hv & 15;
-        if (nc === 1) return "N&B";
+        if (nc === 1) return dzT("cartes.solid.nb");
         if (H === 1 && V === 1) return "4:4:4";
         if (H === 2 && V === 1) return "4:2:2";
         if (H === 2 && V === 2) return "4:2:0";
@@ -2407,7 +2401,7 @@
       if (view === "matiere" || view === "base") {
         img = fmt === "png" ? await toBytes(ATLAS, "image/png")
           : await toBytes(ATLAS, "image/jpeg", fmt === "jpeg444" ? 1 : 0.92);
-        chroma = fmt === "png" ? ("PNG " + pngType(img.bytes) + " sans perte")
+        chroma = fmt === "png" ? dzT("cartes.solid.png_sans_perte", { type: pngType(img.bytes) })
           : chromaJpeg(img.bytes);
       }
       const opt = {
@@ -2481,19 +2475,19 @@
        TANGENT » etait une chaine ecrite a la main : elle restait vraie par
        chance. Elle se compose maintenant du JSON serialise. */
     const maps = LAST.pbr
-      ? ((J && J.images ? J.images.length : 0) + ' images : base'
-        + (LAST.pbr.normal ? '+normales' : '') + '+ORM'
+      ? (dzT("cartes.solid.n_images_base", { n: J && J.images ? J.images.length : 0 })
+        + (LAST.pbr.normal ? dzT("cartes.solid.plus_normales") : '') + '+ORM'
         + (prim0 && prim0.attributes && prim0.attributes.TANGENT != null ? ' · TANGENT' : ''))
-      : (LAST.view === "base" ? 'base seule · non éclairé' : 'sommets colorés');
+      : (LAST.view === "base" ? dzT("cartes.solid.base_seule") : dzT("cartes.solid.sommets_colores"));
     /* LA DEFINITION DE COULEUR SORT DU PIRE DES DEUX AXES, ET LE DIT. Elle
        sortait de `P.dpi`, c'est-a-dire de la seule verticale : un
        sous-echantillonnage de chroma s'applique aux deux sens, on annonce donc
        le moins bon. */
     const dpiMin = Math.min(P.dpi, P.dpi_w == null ? P.dpi : P.dpi_w);
     const chroma = LAST.chroma === "4:2:0"
-      ? '4:2:0 — chroma ½ (' + Math.round(dpiMin / 2) + ' DPI de couleur au pire axe)'
+      ? dzT("cartes.solid.chroma420", { dpi: Math.round(dpiMin / 2) })
       : (LAST.chroma === "4:4:4"
-        ? '4:4:4 — chroma pleine (' + Math.round(dpiMin) + ' DPI de couleur)'
+        ? dzT("cartes.solid.chroma444", { dpi: Math.round(dpiMin) })
         : LAST.chroma);
     /* LE REECHANTILLONNAGE, AU CENTIEME DE POUR CENT ET DANS LES DEUX AXES.
        « +0,1 % en hauteur » etait calcule sur 1040 px arrondis ; l'ilot en
@@ -2503,9 +2497,9 @@
     const dh = Math.abs((P.ratio_source || 1) - 1) > 5e-5;
     const dw = Math.abs((P.ratio_source_w || 1) - 1) > 5e-5;
     const resample = (dh || dw)
-      ? ' · ' + (dh ? pct(P.ratio_source) + ' en hauteur' : '')
-      + (dh && dw ? ', ' : '') + (dw ? pct(P.ratio_source_w) + ' en largeur' : '')
-      : ' · échelle 1:1';
+      ? ' · ' + (dh ? dzT("cartes.solid.en_hauteur", { pct: pct(P.ratio_source) }) : '')
+      + (dh && dw ? ', ' : '') + (dw ? dzT("cartes.solid.en_largeur", { pct: pct(P.ratio_source_w) }) : '')
+      : dzT("cartes.solid.echelle_11");
     const fx = P.front_px_exact || P.front_px;
     /* Le perimetre vient du backend (contour arrondi reel : quatre segments
        droits plus un cercle entier). Sans lui, pas de DPI de tranche : on
@@ -2523,66 +2517,60 @@
        qui decident d'un tirage — la taille, l'echelle du fichier, le sens du
        verso — portent la classe `key` et sont ecrites plus gros. */
     el.innerHTML = ''
-      + '<div class="cf-solid-hl key"><span>Carte</span><b>' + fr(d[0], 0) + ' × ' + fr(d[1], 0)
+      + '<div class="cf-solid-hl key"><span>' + dzT("cartes.solid.hud_carte") + '</span><b>' + fr(d[0], 0) + ' × ' + fr(d[1], 0)
       + ' × ' + fr(d[2], 2) + ' mm</b><i>' + fr(d[0] / 25.4, 4) + ' × ' + fr(d[1] / 25.4, 4)
       + ' × ' + fr(d[2] / 25.4, 4) + ' in</i></div>'
       /* LA LIGNE QUI MANQUAIT. Le fichier livrait une carte de deux metres de
          haut pendant que la ligne du dessus affichait des millimetres. */
-      + '<div class="cf-solid-hl key"><span>Échelle</span><b>'
-      + (sc ? '×&nbsp;' + sc.toFixed(6).replace(".", ",") : 'ABSENTE') + '</b><i>'
-      + (sc ? 'node.scale mesuré sur les sommets — 1 unité glTF = 1 m : le fichier s\'ouvre'
-        + ' à la taille ci-dessus, pas à ' + fr(d[1] / (sc * 1000), 2) + ' m'
-        : 'le fichier ne porte pas sa taille réelle') + '</i></div>'
+      + '<div class="cf-solid-hl key"><span>' + dzT("cartes.solid.hud_echelle") + '</span><b>'
+      + (sc ? '×&nbsp;' + sc.toFixed(6).replace(".", ",") : dzT("cartes.solid.absente")) + '</b><i>'
+      + (sc ? dzT("cartes.solid.hud_echelle_ok", { m: fr(d[1] / (sc * 1000), 2) })
+        : dzT("cartes.solid.hud_echelle_ko")) + '</i></div>'
       /* Le bandeau reste un instrument, pas un mur : les lignes de tete
          d'abord, le detail dessous, et une hauteur bornee pour que la carte
          — l'objet meme du panneau — ne finisse jamais sous le texte. */
       /* LA LIGNE QUI DECIDE D'UN TIRAGE. Elle passe AVANT les comptes de
          triangles : un imprimeur veut d'abord la taille, puis « le verso est
          a l'endroit », et seulement ensuite le nombre de paires testees. */
-      + '<div class="cf-solid-hl key"><span>Verso</span><b>'
-      + (O.ok ? 'à l\'endroit' : 'MIROIR — À CORRIGER') + '</b><i>'
-      + O.verso.endroit + '/' + O.verso.tri + ' triangles orientés comme le recto'
-      + ' vu de son côté · îlot u[' + fr(O.u[0], 2) + ' ; ' + fr(O.u[1], 2) + ']'
+      + '<div class="cf-solid-hl key"><span>' + dzT("cartes.solid.verso") + '</span><b>'
+      + (O.ok ? dzT("cartes.solid.endroit") : dzT("cartes.solid.miroir_corriger")) + '</b><i>'
+      + dzT("cartes.solid.hud_verso", { ok: O.verso.endroit, tri: O.verso.tri, u0: fr(O.u[0], 2), u1: fr(O.u[1], 2) })
       + '</i></div>'
-      + '<div class="cf-solid-hl"><span>Faces</span><b>' + tri + '</b><i>sommets ' + vtx
-      + (MESH_LOCAL ? ' · maillage local' : '') + '</i></div>'
+      + '<div class="cf-solid-hl"><span>Faces</span><b>' + tri + '</b><i>' + dzT("cartes.solid.hud_sommets", { n: vtx })
+      + (MESH_LOCAL ? dzT("cartes.solid.maillage_local") : '') + '</i></div>'
       /* DEUX DECOMPTES POUR UN SEUL MOT. « 3 ilots » a ete attaque comme un
          arrondi charitable ; les deux definitions sont donc ecrites, avec ce
          qui les separe. */
-      + '<div class="cf-solid-hl"><span>Îlots UV</span><b>' + I.regions + '&nbsp;régions</b><i>'
-      + I.chevauche + ' recouvrement sur ' + I.paires + ' paires · '
-      + (det < 0 ? tri + '/' + tri + ' dét. < 0 · pire ' + det.toExponential(1).replace(".", ",")
-        : 'MIROIR DÉTECTÉ')
-      + ' · ' + I.composantes + ' composantes en comptant les sommets dupliqués à la couture'
+      + '<div class="cf-solid-hl"><span>' + dzT("cartes.solid.ilots") + '</span><b>' + dzT("cartes.solid.hud_regions", { n: I.regions }) + '</b><i>'
+      + dzT("cartes.solid.hud_recouv", { n: I.chevauche, p: I.paires })
+      + (det < 0 ? dzT("cartes.solid.hud_det", { tri: tri, pire: det.toExponential(1).replace(".", ",") })
+        : dzT("cartes.solid.miroir_detecte"))
+      + ' · ' + dzT("cartes.solid.hud_comp", { n: I.composantes })
       + '</i></div>'
       /* DEUX DEFINITIONS, PAS UNE. Les ilots UV sont geles par le contrat et
          l'atlas est dimensionne sur la hauteur de la source : la definition
          horizontale du recto n'est jamais exactement la verticale, et
          « 300,08 DPI » cachait 299,89 en largeur. */
-      + '<div class="cf-solid-hl"><span>Recto</span><b>' + fr(fx[0], 1) + ' × ' + fr(fx[1], 1)
+      + '<div class="cf-solid-hl"><span>' + dzT("cartes.solid.recto") + '</span><b>' + fr(fx[0], 1) + ' × ' + fr(fx[1], 1)
       + ' px</b><i>' + (P.dpi_w == null ? fr(P.dpi, 2) + ' DPI'
-        : fr(P.dpi_w, 2) + ' × ' + fr(P.dpi, 2) + ' DPI (largeur × hauteur)')
+        : fr(P.dpi_w, 2) + ' × ' + fr(P.dpi, 2) + dzT("cartes.solid.dpi_lh"))
       + ' · source ' + P.source_px[0] + ' × ' + P.source_px[1]
       + resample + '</i></div>'
       /* LA TRANCHE EST LE SUJET DE LA PIECE ET SA BANDE EST LA PLUS ETROITE DE
          L'ATLAS : son chiffre se dit aussi. Les ilots UV sont geles par le
          contrat, on ne peut pas lui donner plus de place — on peut dire
          combien elle en a. */
-      + (edgeDpi ? '<div class="cf-solid-hl"><span>Tranche</span><b>'
-        + fr(edgeDpi, 0) + ' DPI</b><i>le long du périmètre (' + fr(peri, 1) + ' mm)'
-        + (edgeCross ? ' · ' + fr(edgeCross, 0) + ' DPI en travers (' + fr(d[2], 2)
-          + ' mm)' : '')
-        + ' · bande ' + (P.edge_px_exact || P.edge_px)[0] + ' × '
-        + fr((P.edge_px_exact || P.edge_px)[1], 1) + ' px · îlots UV figés par le'
-        + ' contrat, le chiffre annoncé est le pire des deux axes'
+      + (edgeDpi ? '<div class="cf-solid-hl"><span>' + dzT("cartes.solid.tranche") + '</span><b>'
+        + fr(edgeDpi, 0) + ' DPI</b><i>' + dzT("cartes.solid.hud_perimetre", { mm: fr(peri, 1) })
+        + (edgeCross ? ' · ' + dzT("cartes.solid.hud_travers", { dpi: fr(edgeCross, 0), mm: fr(d[2], 2) }) : '')
+        + ' · ' + dzT("cartes.solid.hud_bande", { w: (P.edge_px_exact || P.edge_px)[0], h: fr((P.edge_px_exact || P.edge_px)[1], 1) })
         /* MESURER SANS CONSEILLER, C'ETAIT LE GRIEF. Le chiffre est donne, le
            verdict aussi, et le seul levier reel est nomme — avec l'etat
            courant de ce levier, pour qu'on voie s'il reste de la marge. */
-        + ' · ' + (edgeDpi >= 300 ? 'de quoi porter du texte'
-          : (edgeDpi >= 150 ? 'motif oui, texte non' : 'aplat ou dégradé, pas de motif fin'))
-        + ' · levier : la définition du document (atlas ' + P.h + ' px pour un plafond de '
-        + P.cap + ')</i></div>' : '')
-      + '<div class="cf-solid-hl"><span>Modèle</span><b>' + fr(kio, 0) + ' Kio</b><i>'
+        + ' · ' + (edgeDpi >= 300 ? dzT("cartes.solid.texte_ok")
+          : (edgeDpi >= 150 ? dzT("cartes.solid.motif_oui") : dzT("cartes.solid.aplat")))
+        + ' · ' + dzT("cartes.solid.hud_levier", { h: P.h, cap: P.cap }) + '</i></div>' : '')
+      + '<div class="cf-solid-hl"><span>' + dzT("cartes.solid.hud_modele") + '</span><b>' + fr(kio, 0) + ' Kio</b><i>'
       + maps + (chroma ? ' · ' + chroma : '') + '</i></div>';
     const mp = q("#cf-solid-maps");
     if (mp) mp.innerHTML = mapsText(smp, P);
@@ -2595,8 +2583,7 @@
      facteur de metal sont relus dans le JSON serialise. */
   function mapsText(smp, P) {
     if (!LAST.pbr) {
-      return 'Vue non éclairée : le fichier ne porte que l\'image de base '
-        + '(les cartes de matière n\'y serviraient à rien).';
+      return dzT("cartes.solid.mt_non_eclaire");
     }
     const ko = (b) => fr(b / 1024, 0) + ' Kio';
     const M = LAST.pbr.mesure;
@@ -2604,7 +2591,7 @@
     const npot = !!(LAST.img && P) && !(pot(P.w) && pot(P.h));
     const st = (TRANCHES.filter((t) => t.id === LAST.pbr.edge_style)[0] || TRANCHES[0]).l;
     const R2 = LAST.pbr.relief;
-    const part = (b) => fr(b / Math.max(1, LAST.bytes) * 100, 1) + ' % du fichier';
+    const part = (b) => dzT("cartes.solid.pct_fichier", { p: fr(b / Math.max(1, LAST.bytes) * 100, 1) });
     const NM = LAST.pbr.normal;
     const nb = NM ? NM.bytes.byteLength : 0;
     const I2 = islandRects();
@@ -2619,83 +2606,51 @@
     const nSlot = ["baseColorTexture", "metallicRoughnessTexture"]
       .filter((k) => mt.pbrMetallicRoughness && mt.pbrMetallicRoughness[k]).length
       + ["normalTexture", "occlusionTexture", "emissiveTexture"].filter((k) => mt[k]).length;
-    const MOTS = ["zéro", "une", "deux", "trois", "quatre", "cinq", "six"];
-    return '<b>' + (MOTS[nImg] || nImg) + ' image' + (nImg > 1 ? 's' : '') + '</b> pour '
-      + (MOTS[nSlot] || nSlot) + ' emplacement' + (nSlot > 1 ? 's' : '')
-      + ' de matière — comptées dans le JSON du GLB, pas annoncées : base '
+    const MOTS = [dzT("cartes.solid.mot_0"), dzT("cartes.solid.mot_1"), dzT("cartes.solid.mot_2"), dzT("cartes.solid.mot_3"), dzT("cartes.solid.mot_4"), dzT("cartes.solid.mot_5"), dzT("cartes.solid.mot_6")];
+    return dzT(nImg > 1 ? "cartes.solid.mt_images_plusieurs" : "cartes.solid.mt_images_un", { n: MOTS[nImg] || nImg })
+      + dzT(nSlot > 1 ? "cartes.solid.mt_slots_plusieurs" : "cartes.solid.mt_slots_un", { n: MOTS[nSlot] || nSlot })
+      + dzT("cartes.solid.mt_base")
       + (LAST.img ? ko(LAST.img.bytes.byteLength) : '—') + ' (' + esc(String(LAST.chroma))
-      + (LAST.chroma === "4:2:0" ? ', chrominance à demi-définition — c\'est une perte, pas'
-        + ' une option, et elle porte sur le dessin : <b>Rendu et raccourcis → Image de base'
-        + ' → chroma pleine</b> la supprime pour environ le double de poids'
+      + (LAST.chroma === "4:2:0" ? dzT("cartes.solid.mt_chroma420")
         : '') + ')'
-      + (NM ? ', normales ' + ko(nb) + ' en ' + LAST.pbr.normal_px.join('×') : '')
-      + ', ORM ' + ko(LAST.pbr.orm.bytes.byteLength) + ' en '
-      + LAST.pbr.orm_px.join('×') + ' — <b>lue deux fois</b> : rugosité (vert) + métal (bleu) et'
-      + ' occlusion (rouge).'
-      + (NM ? ' Plus l\'attribut TANGENT.'
-        : ' <b>Relief d\'encre : Aucun</b> — pas de carte de normales, donc pas'
-        + ' d\'attribut TANGENT non plus : il n\'aurait rien à orienter.')
+      + (NM ? dzT("cartes.solid.mt_normales", { ko: ko(nb), px: LAST.pbr.normal_px.join('×') }) : '')
+      + dzT("cartes.solid.mt_orm", { ko: ko(LAST.pbr.orm.bytes.byteLength), px: LAST.pbr.orm_px.join('×') })
+      + (NM ? dzT("cartes.solid.mt_tangent")
+        : dzT("cartes.solid.mt_sans_relief"))
       /* CE QUE LA CARTE DE NORMALES ACHETE, EN FACE DE CE QU'ELLE COUTE. On a
          longtemps affiche le poids sans jamais l'effet ; les deux vont
          ensemble ou aucun ne vaut rien. Le type de couleur est RELU dans
          l'en-tete du PNG produit. */
-      + (R2 && NM ? '<br>Relief d\'encre <b>' + esc(LAST.pbr.relief_l) + '</b> — ce que les'
-        + ' normales achètent, mesuré sur les octets écrits : <b>'
-        + fr(R2.max_deg, 2) + '°</b> d\'inclinaison au maximum, ' + fr(R2.rms_deg, 2)
-        + '° en moyenne quadratique, ' + fr(R2.sous1_pct, 1) + ' % des texels sous 1°.'
+      + (R2 && NM ? dzT("cartes.solid.mt_relief", { l: esc(LAST.pbr.relief_l), max: fr(R2.max_deg, 2), rms: fr(R2.rms_deg, 2), pct: fr(R2.sous1_pct, 1) })
         /* LA MARCHE D'ENCRE EST DEDUITE, PAS RECOPIEE. « relief de 6 µm » etait
            la consigne `INK_RELIEF_MM` presentee comme une mesure ; ici la
            pente sort des texels ecrits et le pas de texel de la geometrie. */
-        + ' La marche d\'encre s\'en déduit : pente maximale sur un axe '
-        + fr(R2.pente_max * 100, 2) + ' % × pas de texel ' + fr(R2.pas_mm, 4)
-        + ' mm = <b>' + fr(R2.relief_mesure_mm * 1000, 1) + ' µm</b> — la consigne partagée'
-        + ' avec le backend en demandait ' + fr(R2.relief_demande_mm * 1000, 0)
-        + '. C\'est une épaisseur d\'encre offset, pas une gravure — et elle coûte '
-        + part(nb) + '.'
+        + dzT("cartes.solid.mt_marche", { pente: fr(R2.pente_max * 100, 2), pas: fr(R2.pas_mm, 4), um: fr(R2.relief_mesure_mm * 1000, 1), dem: fr(R2.relief_demande_mm * 1000, 0), cout: part(nb) })
         + ' PNG <b>' + esc(pngType(NM.bytes)) + '</b> '
         + (NM.bits || 8) + ' bits/texel'
         + (NM.ecrit_ici
-          ? ' écrit ici (filtre choisi ligne par ligne) : pas de canal alpha constant à payer.'
-          : ' par la toile du navigateur.')
+          ? dzT("cartes.solid.mt_ecrit_ici")
+          : dzT("cartes.solid.mt_toile"))
         /* CE QUE LA PALETTE A REELLEMENT ECONOMISE, LES DEUX POIDS COTE A COTE.
            Le grief : « soit on encode ce relief de six microns dans un canal
            leger, soit on ne l'encode pas ». Les deux encodages sont produits
            et peses ; ce nombre est la difference. */
         + (NM.rgb_octets && NM.couleurs
-          ? ' <b>' + NM.couleurs + ' couleurs distinctes</b> comptées sur les'
-          + ' texels : ' + ko(nb) + ' en palette contre ' + ko(NM.rgb_octets)
-          + ' en RGB pour les <b>mêmes</b> texels (empreinte FNV de la source et de la'
-          + ' reconstruction comparées avant l\'écriture), soit '
-          + fr((1 - nb / NM.rgb_octets) * 100, 0) + ' % de moins.' : '')
+          ? dzT("cartes.solid.mt_palette", { n: NM.couleurs, pal: ko(nb), rgb: ko(NM.rgb_octets), gain: fr((1 - nb / NM.rgb_octets) * 100, 0) }) : '')
         /* CE QUE L'EN-TETE NE DIT PAS. Un badge de profondeur se verifie en
            COMPTANT les valeurs distinctes, pas en lisant l'IHDR. */
-        + (R2.distinctes ? ' Profondeur <b>utile</b> comptée sur les texels écrits : '
-          + R2.distinctes[0] + ' / ' + R2.distinctes[1] + ' / ' + R2.distinctes[2]
-          + ' valeurs distinctes sur 256 (X / Y / Z), soit ' + fr(R2.bits_utiles, 1)
-          + ' bits utiles sous un en-tête 8 bits — un en-tête n\'est pas une mesure.' : '')
+        + (R2.distinctes ? dzT("cartes.solid.mt_profondeur", { x: R2.distinctes[0], y: R2.distinctes[1], z: R2.distinctes[2], bits: fr(R2.bits_utiles, 1) }) : '')
         : '')
-      + '<br>Relu dans l\'ORM écrit : papier rugosité ' + pc(M.face_rough.moy)
-      + ' au recto et ' + pc(M.back_rough.moy) + ' au verso (' + pc(M.face_rough.min)
-      + ' sous l\'encre → ' + pc(M.face_rough.max)
-      + ' sur le papier nu), métal ' + pc(M.face_metal.max) + '. Tranche « ' + esc(st)
-      + ' » : rugosité ' + pc(M.edge_rough.moy) + ', métal ' + pc(M.edge_metal.max)
-      + ' (canal bleu : ' + LAST.pbr.metal_vals + ' valeur'
-      + (LAST.pbr.metal_vals > 1 ? 's' : '') + ' distincte'
-      + (LAST.pbr.metal_vals > 1 ? 's' : '') + ' sur 256).'
+      + dzT("cartes.solid.mt_orm_relu", { r: pc(M.face_rough.moy), rv: pc(M.back_rough.moy), rmin: pc(M.face_rough.min), rmax: pc(M.face_rough.max), m: pc(M.face_metal.max), st: esc(st), er: pc(M.edge_rough.moy), em: pc(M.edge_metal.max) })
+      + dzT(LAST.pbr.metal_vals > 1 ? "cartes.solid.mt_bleu_plusieurs" : "cartes.solid.mt_bleu_un", { n: LAST.pbr.metal_vals })
       /* L'OCCLUSION, DITE COMME ELLE EST. Elle etait mesuree et tue : sa
          plage tient dans un dixieme de sa dynamique, ce qui la rend a peine
          perceptible. On l'ecrit plutot que d'attendre qu'on la mesure. */
-      + (M.face_ao ? ' Occlusion (rouge) ' + pc(M.face_ao.min) + ' → ' + pc(M.face_ao.max)
-        + ' sur le recto (moyenne ' + pc(M.face_ao.moy) + '), ' + pc(M.edge_ao.min)
-        + ' → ' + pc(M.edge_ao.max) + ' sur la tranche : <b>'
-        + fr((M.face_ao.max - M.face_ao.min) * 100, 1) + ' %</b> de sa dynamique,'
-        + ' un contact d\'encre et un pincement de tranche — pas une cavité.' : '')
-      + '<br><b>metallicFactor ' + pc(LAST.pbr.metal_max) + '</b> : une visionneuse qui perd la'
-      + ' texture retombe sur '
-      + (LAST.pbr.metal_max < 0.02 ? 'du papier mat, pas sur un lingot de chrome.'
-        : 'la métallicité de la tranche, jamais au-dessus.')
-      + ' Le jeu <b>complet</b> du cahier des charges — huit PNG, hauteur et émission'
-      + ' comprises — est le livrable de l\'<b>Export 3D</b> ; ici c\'est l\'aperçu.'
+      + (M.face_ao ? dzT("cartes.solid.mt_occlusion", { a: pc(M.face_ao.min), b: pc(M.face_ao.max), moy: pc(M.face_ao.moy), c: pc(M.edge_ao.min), d: pc(M.edge_ao.max), p: fr((M.face_ao.max - M.face_ao.min) * 100, 1) }) : '')
+      + dzT("cartes.solid.mt_metal", { m: pc(LAST.pbr.metal_max) })
+      + (LAST.pbr.metal_max < 0.02 ? dzT("cartes.solid.mt_mat")
+        : dzT("cartes.solid.mt_metal_tranche"))
+      + dzT("cartes.solid.mt_complet")
       /* Les deux gouttieres sont CALCULEES sur les ilots et l'atlas courants,
          pas recopiees du format poker : elles changent avec la definition.
          Et la promesse n'est plus une promesse : on COMPTE ce qui reste de
@@ -2704,19 +2659,14 @@
          La dilatation vaut ceil(gouttiere / 2) : 16 px pour 30,4, donc 0,8 px
          DE PLUS que la moitie. Les deux nombres sont ecrits, et la relation
          avec eux — un « soit » qui ne se verifie pas est un chiffre faux. */
-      + ' Bords des trois îlots <b>dilatés de ' + PAD_EFF.u + ' px</b> en largeur et <b>'
-      + PAD_EFF.v + ' px</b> en hauteur, soit la moitié de chaque gouttière arrondie'
-      + ' au pixel supérieur (' + fr(gutU, 1) + ' px recto|verso → ' + fr(gutU / 2, 1)
-      + ', ' + fr(gutV, 1) + ' px faces|tranche → ' + fr(gutV / 2, 1) + ').'
-      + ' Reste-t-il du fond entre deux îlots ? <b>' + PAD_EFF.reste.blanc
-      + '</b> texel(s) encore au blanc pur sur ' + PAD_EFF.reste.total + ' — compté'
-      + ' sur la toile qui est encodée dans le fichier, pas promis'
+      + dzT("cartes.solid.mt_dilat", { u: PAD_EFF.u, v: PAD_EFF.v, gu: fr(gutU, 1), gu2: fr(gutU / 2, 1), gv: fr(gutV, 1), gv2: fr(gutV / 2, 1) })
+      + dzT("cartes.solid.mt_reste", { n: PAD_EFF.reste.blanc, t: PAD_EFF.reste.total })
       + (PAD_EFF.reste.blanc === 0
-        ? ' : rien à baver dans le bord de la carte, à aucun niveau de mip.'
-        : ' : le filtrage d\'un moteur peut encore les mêler au bord.')
-      + (smp ? ' Atlas ' + P.w + '×' + P.h + (npot ? ' (non puissance de deux) → filtre '
+        ? dzT("cartes.solid.mt_rien_baver")
+        : dzT("cartes.solid.mt_baver"))
+      + (smp ? ' Atlas ' + P.w + '×' + P.h + (npot ? dzT("cartes.solid.mt_npot")
         + (smp.minFilter === 9987 ? 'LINEAR_MIPMAP_LINEAR' : 'LINEAR')
-        + ', aucun mipmap demandé : aucun avertissement de validateur.'
+        + dzT("cartes.solid.mt_sans_mip")
         : ' → mipmaps.') : '');
   }
 
@@ -2858,14 +2808,14 @@
   }
 
   async function turntable() {
-    if (CAPTURING) { CF.toast("un rendu est déjà en cours", true); return; }
+    if (CAPTURING) { CF.toast(dzT("cartes.solid.tt_en_cours"), true); return; }
     const n = Math.max(24, Math.min(600, Math.round(S("tt_frames", 90))));
     const fps = Math.max(12, Math.min(60, Math.round(S("tt_fps", 30))));
     const size = Number(S("tt_size", 1080)) || 1080;
     const fmt = S("tt_fmt", "mp4") === "webm" ? "webm" : "mp4";
     const up = elev();                       /* ELEVATION au-dessus de l'horizon */
     const phi = 90 - up;                     /* angle polaire de <model-viewer> */
-    if (!MV || !MV.src) { CF.toast("aperçu pas encore prêt", true); return; }
+    if (!MV || !MV.src) { CF.toast(dzT("cartes.solid.tt_pas_pret"), true); return; }
     const job = randJob();
     CAPTURING = true; TT = { abort: false };
     const btn = q(".cf-solid-go");
@@ -2909,7 +2859,7 @@
       const lu = MV.getCameraOrbit ? MV.getCameraOrbit() : null;
       const upLu = lu ? (90 - lu.phi * 180 / Math.PI) : up;
       for (let i = 0; i < n; i++) {
-        if (TT.abort) throw new Error("rendu annulé");
+        if (TT.abort) throw new Error(dzT("cartes.solid.tt_annule"));
         const a = 360 * i / n;
         MV.setAttribute("orientation", "0deg 0deg " + a.toFixed(4) + "deg");
         await MV.updateComplete;
@@ -2928,11 +2878,11 @@
         if (bmp.close) bmp.close();
         const jpg = await new Promise((res) => shot.toBlob(res, "image/jpeg", 0.92));
         const r = await M.api.raw("POST", "turntable/frame?job=" + job + "&i=" + i, jpg);
-        if (!r.ok) throw new Error("image " + (i + 1) + " refusée (" + r.status + ")");
+        if (!r.ok) throw new Error(dzT("cartes.solid.tt_refusee", { i: i + 1, status: r.status }));
         sent++;
-        prog((i + 1) / (n + 6), "image " + (i + 1) + " / " + n);
+        prog((i + 1) / (n + 6), dzT("cartes.solid.tt_prog", { i: i + 1, n: n }));
       }
-      prog(n / (n + 6), "encodage ffmpeg…");
+      prog(n / (n + 6), dzT("cartes.solid.tt_encodage"));
       const rep = await M.api.post("turntable/encode",
         { job: job, fps: fps, format: fmt, w: size, h: size });
       const blob = await M.api.blob("GET", "turntable/file?job=" + job + "&name=" + encodeURIComponent(rep.file));
@@ -2942,19 +2892,9 @@
       const alb = albedoFront();
       const lum = lumN ? lumSum / lumN : null;
       q("#cf-solid-out").classList.remove("hidden");
-      q("#cf-solid-out").innerHTML = '<b>' + esc(nom) + '</b> — ' + rep.frames + ' images @ '
-        + rep.fps + ' i/s, ' + fr(rep.seconds, 2) + ' s, ' + size + '×' + size + ', '
-        + fr(mo, 2) + ' Mo ' + (rep.bytes < 8388608 ? '(seuil 8 Mo tenu)' : '(au-dessus de 8 Mo)')
-        + ' · élévation relue dans la visionneuse : ' + fr(upLu, 1) + '&deg; au-dessus de l\'horizon'
-        + ' (angle polaire ' + fr(90 - upLu, 1) + '&deg;)'
-        + (lum != null && alb ? ' · luminance moyenne de la <b>carte</b> dans les images'
-          + ' <b>livrées</b> : ' + fr(lum, 1)
-          + '/255 pour un albédo de recto de ' + fr(alb, 1) + '/255, soit '
-          + fr(lum / alb * 100, 0) + ' % (' + lumN + ' images échantillonnées ; la carte'
-          + ' = les pixels de l\'image composée plus clairs que le fond peint de plus de '
-          + LUM_SEUIL + '/255 — l\'ombre portée, plus sombre que le fond, en est exclue.'
-          + ' Sur la vidéo seule, le fond se retrouve par la médiane temporelle des '
-          + rep.frames + ' images)' : '')
+      q("#cf-solid-out").innerHTML = '<b>' + esc(nom) + '</b> — ' + dzT("cartes.solid.tt_out", { n: rep.frames, fps: rep.fps, s: fr(rep.seconds, 2), size: size, mo: fr(mo, 2) }) + (rep.bytes < 8388608 ? dzT("cartes.solid.tt_seuil_ok") : dzT("cartes.solid.tt_seuil_ko"))
+        + dzT("cartes.solid.tt_elev", { up: fr(upLu, 1), pol: fr(90 - upLu, 1) })
+        + (lum != null && alb ? dzT("cartes.solid.tt_lum", { lum: fr(lum, 1), alb: fr(alb, 1), pct: fr(lum / alb * 100, 0), n: lumN, seuil: LUM_SEUIL, total: rep.frames }) : '')
         /* LE FICHIER EST NU, ET C'EST UNE MESURE. Le grief : « le mp4 conserve
            TAG:encoder=Lavf, TAG:encoder=Lavc libx264 et, dans le flux, la
            chaine x264 "core 165 ... threads=34 ... crf=22.0" — une empreinte
@@ -2962,18 +2902,13 @@
            machine de prise de vue) ». Le backend relit le fichier ecrit et
            compte ces motifs : ce qui s'affiche ici est ce compte. */
         + (rep.empreintes ? ' · <b>' + (rep.empreintes.total === 0
-          ? 'aucune empreinte d\'outil ni de machine'
-          : rep.empreintes.total + ' empreinte(s) restantes') + '</b> : '
-          + rep.empreintes.versions + ' version d\'outil, '
-          + rep.empreintes.machine + ' « threads= » (le processeur de la machine), '
-          + rep.empreintes.outil + ' nom d\'encodeur — comptés dans les '
-          + rep.empreintes.octets + ' octets du fichier livré'
+          ? dzT("cartes.solid.tt_emp_aucune")
+          : dzT("cartes.solid.tt_emp_n", { n: rep.empreintes.total })) + '</b> : '
+          + dzT("cartes.solid.tt_emp_detail", { v: rep.empreintes.versions, m: rep.empreintes.machine, o: rep.empreintes.outil, b: rep.empreintes.octets })
           + (rep.empreintes.muxeur
-            ? '. Le conteneur ' + (rep.format === "webm" ? 'Matroska' : 'MP4')
-            + ' impose un champ d\'application de multiplexage : il porte « Lavf »,'
-            + ' sans version ni machine — c\'est le seul reste, et il est nommé.'
+            ? dzT("cartes.solid.tt_muxeur", { c: rep.format === "webm" ? 'Matroska' : 'MP4' })
             : '') : '');
-      CF.toast("tourne-disque : " + rep.frames + " images, " + fr(mo, 2) + " Mo");
+      CF.toast(dzT("cartes.solid.tt_toast", { n: rep.frames, mo: fr(mo, 2) }));
     } catch (e) {
       CF.toast(String(e && e.message || e), true);
       if (sent) { try { await M.api.del("turntable?job=" + job); } catch (err) { /* deja parti */ } }

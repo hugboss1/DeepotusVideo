@@ -1,0 +1,48 @@
+/* Lexique imprimable des icônes Deepotus Glyph — même tokens que le guide (guide.css est chargé avant). */
+.lx-top { position:sticky; top:0; z-index:20; display:flex; flex-wrap:wrap; align-items:center; gap:10px 12px; padding:12px 16px;
+  background:color-mix(in srgb,var(--panel) 92%,transparent); backdrop-filter:blur(12px); border-bottom:1px solid var(--stroke); }
+.lx-top h1 { font:700 19px/1.1 var(--f-display); color:var(--ink-strong); margin:0; display:flex; align-items:center; gap:10px; }
+.lx-top h1 small { font:500 12px var(--f-mono); color:var(--ink-soft); }
+.lx-top .g-cherche { flex:1 1 260px; margin-left:auto; }
+.lx-familles { display:flex; flex-wrap:wrap; gap:6px; padding:12px 16px 0; max-width:1400px; margin:0 auto; }
+.lx-familles button { font:600 13px var(--f-ui); padding:5px 11px; border-radius:999px; border:1px solid var(--stroke); background:var(--panel);
+  color:var(--ink); cursor:pointer; }
+.lx-familles button[aria-pressed="true"] { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
+.lx-corps { max-width:1400px; margin:0 auto; padding:8px 16px 64px; }
+.lx-intro { color:var(--ink-soft); max-width:48rem; margin:16px 0 4px; font-size:15.5px; }
+.lx-fam { margin-top:34px; }
+.lx-fam > h2 { font:700 24px/1.2 var(--f-display); display:flex; align-items:baseline; gap:10px; margin:0 0 4px; }
+.lx-fam > h2 small { font:500 13px var(--f-mono); color:var(--ink-soft); }
+.lx-fam > p { color:var(--ink-soft); margin:0 0 14px; font-size:15px; }
+.lx-grille { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:10px; }
+.lx-ic { display:grid; grid-template-columns:48px 1fr; gap:4px 12px; align-items:start; padding:12px; background:var(--panel);
+  border:1px solid var(--stroke); border-radius:var(--r); }
+.lx-ic .pic { grid-row:span 3; width:48px; height:48px; border-radius:12px; display:grid; place-items:center; background:var(--panel-2);
+  border:1px solid var(--stroke); color:var(--ink-strong); }
+.lx-ic .pic .dzi { width:28px; height:28px; }
+.lx-ic b { font:650 15px/1.25 var(--f-ui); color:var(--ink-strong); }
+.lx-ic p { margin:0; font-size:13.5px; line-height:1.4; color:var(--ink); }
+.lx-ic .meta { font-size:11.5px; color:var(--ink-soft); line-height:1.35; }
+.lx-ic .meta code { font-size:11px; padding:0 4px; }
+.lx-ic .ncf { color:var(--red); }
+.lx-ic[hidden], .lx-fam[hidden] { display:none; }
+.lx-vide { color:var(--ink-soft); padding:24px 0; }
+.lx-pied { margin-top:48px; font-size:12.5px; color:var(--ink-soft); border-top:1px solid var(--stroke); padding-top:14px; }
+
+@media print {
+  @page { size:A4; margin:11mm 11mm 13mm; }
+  .lx-top, .lx-familles, .lx-intro, .lx-vide { display:none !important; }
+  .lx-corps { padding:0; max-width:none; }
+  .lx-titre-imp { display:block !important; font:700 18pt var(--f-display); margin:0 0 4mm; }
+  .lx-fam { break-before:page; margin:0; }
+  .lx-fam:first-of-type { break-before:auto; }
+  .lx-fam > h2 { font-size:15pt; }
+  .lx-fam > p { font-size:9pt; margin-bottom:3mm; }
+  .lx-grille { grid-template-columns:repeat(3,1fr); gap:2.2mm; }
+  .lx-ic { break-inside:avoid; padding:2.2mm; grid-template-columns:11mm 1fr; gap:.6mm 2.5mm; border-color:#bbb; border-radius:2mm; }
+  .lx-ic .pic { width:11mm; height:11mm; border-radius:2mm; background:#fff; border-color:#999; color:#000; }
+  .lx-ic .pic .dzi { width:7mm; height:7mm; }
+  .lx-ic b { font-size:9pt; } .lx-ic p { font-size:8pt; } .lx-ic .meta { font-size:6.5pt; }
+  .lx-pied { font-size:7.5pt; }
+}
+.lx-titre-imp { display:none; }

@@ -4,6 +4,7 @@
 // écrêtage, couleurs globales et harmonies, styles d'objet, symboles,
 // texte + (cadre, alignement, texte sur chemin). Chaque geste = UNE
 // commande via VL.executer sur les ops pures de mod-doc.
+import { T } from "./mod-i18n.js";
 import { dzi } from "./mod-icones.js";
 import { op_style, op_degrade_creer, op_degrade_transparence, op_motif_creer, op_ecreter, op_desecreter,
          op_couleur_globale_definir, op_couleur_globale_supprimer, op_style_definir, op_style_appliquer,
@@ -18,20 +19,20 @@ import { simplifier } from "./mod-crayon.js";
 
 const SNS = "http://www.w3.org/2000/svg";
 export const OUTILS3 = [
-  { id: "pinceauv", touche: "j", titre: "Pinceau vectoriel à profil — largeur, profil et angle dans Apparence + (J)" },
+  { id: "pinceauv", touche: "j", titre: T("vectorlab.apparence.outil_pinceauv") },
 ];
 export const HINTS3 = {
-  pinceauv: "dessiner : le trait devient un chemin fermé rempli, à la largeur et au profil choisis (plat, fuseau, calligraphie)",
+  pinceauv: T("vectorlab.apparence.hint_pinceauv"),
 };
 const _num = (v, defaut) => { const x = +String(v ?? "").replace(",", "."); return Number.isFinite(x) ? x : defaut; };
 const _hex = (v, defaut) => (/^#[0-9A-Fa-f]{6}$/.test(String(v || "")) ? String(v).toUpperCase() : defaut);
 export const EFFET_CHAMPS = {
-  ombre: [{ cle: "dx", lib: "dx" }, { cle: "dy", lib: "dy" }, { cle: "flou", lib: "flou" }, { cle: "couleur", lib: "couleur" }, { cle: "opacite", lib: "opacité" }],
-  ombre_interne: [{ cle: "dx", lib: "dx" }, { cle: "dy", lib: "dy" }, { cle: "flou", lib: "flou" }, { cle: "couleur", lib: "couleur" }, { cle: "opacite", lib: "opacité" }],
-  lueur: [{ cle: "flou", lib: "flou" }, { cle: "couleur", lib: "couleur" }, { cle: "opacite", lib: "opacité" }],
-  biseau: [{ cle: "profondeur", lib: "profondeur" }, { cle: "flou", lib: "flou" }, { cle: "lumiere", lib: "lumière °" }, { cle: "opacite", lib: "opacité" }],
-  contour: [{ cle: "largeur", lib: "largeur" }, { cle: "couleur", lib: "couleur" }, { cle: "opacite", lib: "opacité" }],
-  incrustation: [{ cle: "couleur", lib: "couleur" }, { cle: "opacite", lib: "opacité" }],
+  ombre: [{ cle: "dx", lib: "dx" }, { cle: "dy", lib: "dy" }, { cle: "flou", lib: T("vectorlab.apparence.champ_flou") }, { cle: "couleur", lib: T("vectorlab.apparence.champ_couleur") }, { cle: "opacite", lib: T("vectorlab.apparence.champ_opacite") }],
+  ombre_interne: [{ cle: "dx", lib: "dx" }, { cle: "dy", lib: "dy" }, { cle: "flou", lib: T("vectorlab.apparence.champ_flou") }, { cle: "couleur", lib: T("vectorlab.apparence.champ_couleur") }, { cle: "opacite", lib: T("vectorlab.apparence.champ_opacite") }],
+  lueur: [{ cle: "flou", lib: T("vectorlab.apparence.champ_flou") }, { cle: "couleur", lib: T("vectorlab.apparence.champ_couleur") }, { cle: "opacite", lib: T("vectorlab.apparence.champ_opacite") }],
+  biseau: [{ cle: "profondeur", lib: T("vectorlab.apparence.champ_profondeur") }, { cle: "flou", lib: T("vectorlab.apparence.champ_flou") }, { cle: "lumiere", lib: T("vectorlab.apparence.champ_lumiere") }, { cle: "opacite", lib: T("vectorlab.apparence.champ_opacite") }],
+  contour: [{ cle: "largeur", lib: T("vectorlab.apparence.champ_largeur") }, { cle: "couleur", lib: T("vectorlab.apparence.champ_couleur") }, { cle: "opacite", lib: T("vectorlab.apparence.champ_opacite") }],
+  incrustation: [{ cle: "couleur", lib: T("vectorlab.apparence.champ_couleur") }, { cle: "opacite", lib: T("vectorlab.apparence.champ_opacite") }],
 };
 const _BORNES = { flou: [0, 200], dx: [-500, 500], dy: [-500, 500], opacite: [0, 1], largeur: [0.1, 100], profondeur: [0.1, 100], lumiere: [0, 360] };
 export function lire_effet(type, champs) {
@@ -50,7 +51,7 @@ export function libelle_effet(e) {
   const lib = (EFFETS.find((x) => x.id === e.type) || { libelle: e.type }).libelle;
   const p = [];
   if (e.dx !== undefined) p.push(`${e.dx},${e.dy}`);
-  if (e.flou !== undefined) p.push(`flou ${e.flou}`);
+  if (e.flou !== undefined) p.push(T("vectorlab.apparence.flou_n", { n: e.flou }));
   if (e.largeur !== undefined) p.push(`${e.largeur} px`);
   if (e.profondeur !== undefined) p.push(`${e.profondeur}`);
   return `${lib}${p.length ? " · " + p.join(" · ") : ""}`;
@@ -138,56 +139,56 @@ export function initApparence2(VL) {
     const nInst = (sid) => { let n = 0; const v = (objs) => { for (const x of objs || []) { if (x.type === "instance" && x.symbole === sid) n++; if (x.type === "groupe") v(x.enfants); } }; d.calques.forEach((c) => v(c.objets)); return n; };
     const ed = d.edition;
     hote.innerHTML = `
-      ${ed ? `<div class="ap-ligne a2-edition" title="Édition du symbole en place : ses objets sont dans le calque « ${esc((d.calques.find((c) => c.id === ed.calque) || {}).nom || "")} ». Terminer réécrit le symbole — toutes ses instances suivent."><b style="flex:1">✎ Symbole « ${esc((symboles[ed.sid] || {}).nom || ed.sid)} »</b>
-        <button id="a2SymFin" class="primaire" title="Réécrit le symbole depuis le calque d'édition (Échap, sélection vide)">Terminer</button><button id="a2SymAnnule" title="Jette les modifications du calque d'édition">Abandonner</button></div>` : ""}
-      <details open><summary class="px-tete">Effets${effets.length ? ` · ${effets.length}` : ""}</summary>
-        ${effets.map((e, i) => `<div class="a2-effet" data-i="${i}"><div class="ap-ligne"><b style="flex:1">${esc(libelle_effet(e))}</b><button data-fx-x="${i}" title="Retirer" aria-label="Retirer">${dzi("dz-action-supprimer", 16)}</button></div>
+      ${ed ? `<div class="ap-ligne a2-edition" title="${T("vectorlab.apparence.edition_titre", { calque: esc((d.calques.find((c) => c.id === ed.calque) || {}).nom || "") })}"><b style="flex:1">✎ ${T("vectorlab.apparence.edition_symbole", { nom: esc((symboles[ed.sid] || {}).nom || ed.sid) })}</b>
+        <button id="a2SymFin" class="primaire" title="${T("vectorlab.apparence.terminer_titre")}">${T("vectorlab.apparence.terminer")}</button><button id="a2SymAnnule" title="${T("vectorlab.apparence.abandonner_titre")}">${T("vectorlab.apparence.abandonner")}</button></div>` : ""}
+      <details open><summary class="px-tete">${T("vectorlab.apparence.effets")}${effets.length ? ` · ${effets.length}` : ""}</summary>
+        ${effets.map((e, i) => `<div class="a2-effet" data-i="${i}"><div class="ap-ligne"><b style="flex:1">${esc(libelle_effet(e))}</b><button data-fx-x="${i}" title="${T("vectorlab.apparence.retirer")}" aria-label="${T("vectorlab.apparence.retirer")}">${dzi("dz-action-supprimer", 16)}</button></div>
           <div class="a2-champs">${EFFET_CHAMPS[e.type].map(({ cle, lib }) => cle === "couleur"
-            ? pastille(`fxc${i}`, e.couleur || "#000000", "Couleur de l'effet")
+            ? pastille(`fxc${i}`, e.couleur || "#000000", T("vectorlab.apparence.couleur_effet"))
             : `<label title="${lib}"><i>${lib}</i><input type="number" step="any" data-fx="${i}" data-cle="${cle}" value="${e[cle] ?? ""}"/></label>`).join("")}</div></div>`).join("")}
         <div class="ap-ligne"><select id="a2FxType">${EFFETS.map((e) => `<option value="${e.id}">${e.libelle}</option>`).join("")}</select>
-          <button id="a2FxPlus" ${sel ? "" : "disabled"} title="Ajoute l'effet à la sélection" aria-label="Ajoute l'effet à la sélection">${dzi("dz-action-ajouter", 16)}</button></div>
+          <button id="a2FxPlus" ${sel ? "" : "disabled"} title="${T("vectorlab.apparence.fx_plus")}" aria-label="${T("vectorlab.apparence.fx_plus")}">${dzi("dz-action-ajouter", 16)}</button></div>
       </details>
-      <details><summary class="px-tete">Fusion &amp; contours</summary>
-        <div class="ap-ligne"><span>Fusion</span><select id="a2Fusion" ${sel ? "" : "disabled"}>${MODES_FUSION.map((m) => `<option${(s.fusion || "normal") === m ? " selected" : ""}>${m}</option>`).join("")}</select></div>
-        ${contours.map((c, i) => `<div class="ap-ligne"><span>${i + 1}</span>${pastille(`ctc${i}`, c.couleur, "Couleur du contour")}<input type="number" step="0.5" min="0.5" data-ct="${i}" value="${c.epaisseur}" title="Épaisseur"/><button data-ct-x="${i}" title="Retirer" aria-label="Retirer">${dzi("dz-action-supprimer", 16)}</button></div>`).join("")}
-        <div class="ap-ligne"><span></span><button id="a2CtPlus" ${sel ? "" : "disabled"} title="Ajoute un contour supplémentaire (derrière, plus large)">${dzi("dz-action-ajouter", 16)}contour</button></div>
+      <details><summary class="px-tete">${T("vectorlab.apparence.fusion_contours")}</summary>
+        <div class="ap-ligne"><span>${T("vectorlab.apparence.fusion")}</span><select id="a2Fusion" ${sel ? "" : "disabled"}>${MODES_FUSION.map((m) => `<option${(s.fusion || "normal") === m ? " selected" : ""}>${m}</option>`).join("")}</select></div>
+        ${contours.map((c, i) => `<div class="ap-ligne"><span>${i + 1}</span>${pastille(`ctc${i}`, c.couleur, T("vectorlab.apparence.couleur_contour"))}<input type="number" step="0.5" min="0.5" data-ct="${i}" value="${c.epaisseur}" title="${T("vectorlab.apparence.epaisseur")}"/><button data-ct-x="${i}" title="${T("vectorlab.apparence.retirer")}" aria-label="${T("vectorlab.apparence.retirer")}">${dzi("dz-action-supprimer", 16)}</button></div>`).join("")}
+        <div class="ap-ligne"><span></span><button id="a2CtPlus" ${sel ? "" : "disabled"} title="${T("vectorlab.apparence.contour_plus")}">${dzi("dz-action-ajouter", 16)}${T("vectorlab.apparence.contour_btn")}</button></div>
       </details>
-      <details><summary class="px-tete">Remplissage +</summary>
-        <div class="vl-rangee"><button id="a2Conique" ${sel === 1 ? "" : "disabled"} title="Dégradé conique centré sur l'objet">${dzi("dz-edit-degrade-conique", 16)}<span class="dzi-lib">Conique</span></button>
-          <button id="a2Transp" ${sel ? "" : "disabled"} title="Dégradé de transparence (masque de gauche à droite)">${dzi("dz-outil-vec-transparence", 16)}<span class="dzi-lib">Transparence</span></button>
-          <button id="a2MasqueX" ${s.masque ? "" : "disabled"} title="Retire le masque de transparence">${dzi("dz-action-supprimer", 16)}<span class="dzi-lib">masque</span></button></div>
+      <details><summary class="px-tete">${T("vectorlab.apparence.remplissage_plus")}</summary>
+        <div class="vl-rangee"><button id="a2Conique" ${sel === 1 ? "" : "disabled"} title="${T("vectorlab.apparence.conique_titre")}">${dzi("dz-edit-degrade-conique", 16)}<span class="dzi-lib">${T("vectorlab.apparence.conique")}</span></button>
+          <button id="a2Transp" ${sel ? "" : "disabled"} title="${T("vectorlab.apparence.transp_titre")}">${dzi("dz-outil-vec-transparence", 16)}<span class="dzi-lib">${T("vectorlab.apparence.transparence")}</span></button>
+          <button id="a2MasqueX" ${s.masque ? "" : "disabled"} title="${T("vectorlab.apparence.masque_x_titre")}">${dzi("dz-action-supprimer", 16)}<span class="dzi-lib">${T("vectorlab.apparence.masque")}</span></button></div>
         <div class="ap-ligne"><select id="a2MotifType">${MOTIFS.map((m) => `<option value="${m.id}">${m.libelle}</option>`).join("")}</select>
-          <input type="number" id="a2MotifPas" min="1" value="8" title="Pas (px)"/><input type="number" id="a2MotifAngle" step="15" value="45" title="Angle (°)"/>
-          <button id="a2Motif" ${sel ? "" : "disabled"} title="Remplit la sélection d'un motif (couleur du contour courant)">${dzi("dz-edit-motif", 16)}motif</button></div>
-        <div class="ap-ligne"><button id="a2Ecreter" ${sel >= 2 ? "" : "disabled"} title="Coller dans : le PREMIER objet sélectionné rogne les autres">${dzi("dz-calque-ecretage", 16)}coller dans</button>
-          <button id="a2Liberer" ${o && o.type === "groupe" && o.clip ? "" : "disabled"} title="Libère les objets rognés">libérer</button></div>
+          <input type="number" id="a2MotifPas" min="1" value="8" title="${T("vectorlab.apparence.motif_pas")}"/><input type="number" id="a2MotifAngle" step="15" value="45" title="Angle (°)"/>
+          <button id="a2Motif" ${sel ? "" : "disabled"} title="${T("vectorlab.apparence.motif_titre")}">${dzi("dz-edit-motif", 16)}${T("vectorlab.apparence.motif")}</button></div>
+        <div class="ap-ligne"><button id="a2Ecreter" ${sel >= 2 ? "" : "disabled"} title="${T("vectorlab.apparence.ecreter_titre")}">${dzi("dz-calque-ecretage", 16)}${T("vectorlab.apparence.coller_dans")}</button>
+          <button id="a2Liberer" ${o && o.type === "groupe" && o.clip ? "" : "disabled"} title="${T("vectorlab.apparence.liberer_titre")}">${T("vectorlab.apparence.liberer")}</button></div>
       </details>
-      <details ${Object.keys(globales).length ? "open" : ""}><summary class="px-tete">Couleurs globales</summary>
-        ${Object.entries(globales).map(([n, h]) => `<div class="ap-ligne">${pastille(`glob_${n}`, h, "Changer la teinte partout")}<b style="flex:1">${esc(n)}</b>
-          <button data-glob-fond="${n}" ${sel ? "" : "disabled"} title="Fond de la sélection = cette couleur globale">fond</button><button data-glob-contour="${n}" ${sel ? "" : "disabled"} title="Contour = cette couleur">contour</button><button data-glob-x="${n}" title="Supprimer (les références deviennent des hex)" aria-label="Supprimer la couleur globale">${dzi("dz-action-supprimer", 16)}</button></div>`).join("")}
-        <div class="ap-ligne"><input type="text" id="a2GlobNom" placeholder="nom" style="flex:1"/>${pastille("a2GlobHex", fondHex, "Couleur à enregistrer")}<button id="a2GlobPlus" title="Enregistre une couleur globale" aria-label="Enregistre une couleur globale">${dzi("dz-action-ajouter", 16)}</button></div>
-        <div class="ap-ligne"><select id="a2Harm">${HARMONIES.map((h) => `<option value="${h.id}"${etat.harmonie && etat.harmonie.type === h.id ? " selected" : ""}>${h.libelle}</option>`).join("")}</select><button id="a2HarmGen" title="Génère l'harmonie depuis la couleur de fond et l'ajoute à la palette du document">harmonie</button></div>
-        <div class="px-palette" id="a2HarmPal">${(etat.harmonie ? etat.harmonie.pal : []).map((c) => `<button class="px-pastille" data-couleur="${c}" style="background:${c}" title="${c} — clic : fond de la sélection"></button>`).join("")}</div>
+      <details ${Object.keys(globales).length ? "open" : ""}><summary class="px-tete">${T("vectorlab.apparence.globales")}</summary>
+        ${Object.entries(globales).map(([n, h]) => `<div class="ap-ligne">${pastille(`glob_${n}`, h, T("vectorlab.apparence.glob_teinte"))}<b style="flex:1">${esc(n)}</b>
+          <button data-glob-fond="${n}" ${sel ? "" : "disabled"} title="${T("vectorlab.apparence.glob_fond_titre")}">${T("vectorlab.apparence.glob_fond")}</button><button data-glob-contour="${n}" ${sel ? "" : "disabled"} title="${T("vectorlab.apparence.glob_contour_titre")}">${T("vectorlab.apparence.contour_btn")}</button><button data-glob-x="${n}" title="${T("vectorlab.apparence.glob_x_titre")}" aria-label="${T("vectorlab.apparence.glob_x")}">${dzi("dz-action-supprimer", 16)}</button></div>`).join("")}
+        <div class="ap-ligne"><input type="text" id="a2GlobNom" placeholder="${T("vectorlab.apparence.nom")}" style="flex:1"/>${pastille("a2GlobHex", fondHex, T("vectorlab.apparence.glob_hex"))}<button id="a2GlobPlus" title="${T("vectorlab.apparence.glob_plus")}" aria-label="${T("vectorlab.apparence.glob_plus")}">${dzi("dz-action-ajouter", 16)}</button></div>
+        <div class="ap-ligne"><select id="a2Harm">${HARMONIES.map((h) => `<option value="${h.id}"${etat.harmonie && etat.harmonie.type === h.id ? " selected" : ""}>${h.libelle}</option>`).join("")}</select><button id="a2HarmGen" title="${T("vectorlab.apparence.harmonie_titre")}">${T("vectorlab.apparence.harmonie")}</button></div>
+        <div class="px-palette" id="a2HarmPal">${(etat.harmonie ? etat.harmonie.pal : []).map((c) => `<button class="px-pastille" data-couleur="${c}" style="background:${c}" title="${T("vectorlab.apparence.harmonie_pastille", { c })}"></button>`).join("")}</div>
       </details>
-      <details ${Object.keys(styles).length ? "open" : ""}><summary class="px-tete">Styles d'objet</summary>
-        ${Object.keys(styles).map((n) => `<div class="ap-ligne"><b style="flex:1">${esc(n)}</b><button data-st-app="${n}" ${sel ? "" : "disabled"} title="Applique (copie) ce style à la sélection">appliquer</button><button data-st-x="${n}" title="Supprimer le style" aria-label="Supprimer le style">${dzi("dz-action-supprimer", 16)}</button></div>`).join("")}
-        <div class="ap-ligne"><input type="text" id="a2StNom" placeholder="nom du style" style="flex:1"/><button id="a2StPlus" ${sel ? "" : "disabled"} title="Enregistre l'apparence de la sélection sous ce nom" aria-label="Enregistre l'apparence de la sélection sous ce nom">${dzi("dz-action-ajouter", 16)}</button></div>
+      <details ${Object.keys(styles).length ? "open" : ""}><summary class="px-tete">${T("vectorlab.apparence.styles")}</summary>
+        ${Object.keys(styles).map((n) => `<div class="ap-ligne"><b style="flex:1">${esc(n)}</b><button data-st-app="${n}" ${sel ? "" : "disabled"} title="${T("vectorlab.apparence.st_app_titre")}">${T("vectorlab.apparence.appliquer")}</button><button data-st-x="${n}" title="${T("vectorlab.apparence.st_x")}" aria-label="${T("vectorlab.apparence.st_x")}">${dzi("dz-action-supprimer", 16)}</button></div>`).join("")}
+        <div class="ap-ligne"><input type="text" id="a2StNom" placeholder="${T("vectorlab.apparence.st_nom")}" style="flex:1"/><button id="a2StPlus" ${sel ? "" : "disabled"} title="${T("vectorlab.apparence.st_plus")}" aria-label="${T("vectorlab.apparence.st_plus")}">${dzi("dz-action-ajouter", 16)}</button></div>
       </details>
-      ${texteSel ? `<details open><summary class="px-tete">Texte +</summary>
-        ${o1.type === "texte" && sel === 1 ? `<div class="ap-ligne"><span>Cadre</span><input type="number" id="a2CadreW" min="1" value="200" title="Largeur"/><input type="number" id="a2CadreH" min="1" value="100" title="Hauteur"/><button id="a2EnCadre" title="Le texte devient un cadre à paragraphes">${dzi("dz-edit-convertir-en-cadre", 16)}cadre</button></div>` : ""}
-        ${o1.type === "cadre" && sel === 1 ? `<div class="ap-ligne"><span>Aligner</span><select id="a2Aligner">${["gauche", "centre", "droite", "justifie"].map((a) => `<option${(s.aligner || "gauche") === a ? " selected" : ""}>${a}</option>`).join("")}</select></div>
-        <div class="ap-ligne"><span>Interl.</span><input type="number" id="a2Interligne" step="0.05" min="0.5" value="${s.interligne || 1.25}" title="Interligne (× corps)"/><input type="number" id="a2Retrait" min="0" value="${s.retrait || 0}" title="Retrait de première ligne (px)"/></div>` : ""}
-        ${o1.type !== "textechemin" ? `<div class="ap-ligne"><button id="a2SurChemin" ${sel === 2 ? "" : "disabled"} title="Sélectionner le texte PUIS un chemin : le texte se pose sur le chemin et le SUIT quand il change">${dzi("dz-outil-vec-texte-sur-chemin", 16)}sur le chemin</button></div>` : ""}
-        ${o1.type === "textechemin" && sel === 1 && o1.chemin ? `<div class="ap-ligne"><i class="px-note" style="flex:1">suit le chemin ${esc(o1.chemin)}</i><button id="a2Detacher" title="Le texte ne suit plus son chemin : son tracé actuel est figé">${dzi("dz-edit-detacher", 16)}détacher</button></div>` : ""}
-        ${o1.type === "textechemin" && sel === 1 ? `<div class="ap-ligne"><span>Décalage</span><vl-curseur id="a2Decalage" min="0" max="100" step="1" value="${o1.decalage || 0}"></vl-curseur><b id="a2DecalageVal">${o1.decalage || 0} %</b></div>` : ""}
+      ${texteSel ? `<details open><summary class="px-tete">${T("vectorlab.apparence.texte_plus")}</summary>
+        ${o1.type === "texte" && sel === 1 ? `<div class="ap-ligne"><span>${T("vectorlab.apparence.cadre")}</span><input type="number" id="a2CadreW" min="1" value="200" title="${T("vectorlab.apparence.largeur")}"/><input type="number" id="a2CadreH" min="1" value="100" title="${T("vectorlab.apparence.hauteur")}"/><button id="a2EnCadre" title="${T("vectorlab.apparence.en_cadre_titre")}">${dzi("dz-edit-convertir-en-cadre", 16)}${T("vectorlab.apparence.cadre_btn")}</button></div>` : ""}
+        ${o1.type === "cadre" && sel === 1 ? `<div class="ap-ligne"><span>${T("vectorlab.apparence.aligner")}</span><select id="a2Aligner">${["gauche", "centre", "droite", "justifie"].map((a) => `<option value="${a}"${(s.aligner || "gauche") === a ? " selected" : ""}>${({ gauche: T("vectorlab.apparence.aligner_gauche"), centre: T("vectorlab.apparence.aligner_centre"), droite: T("vectorlab.apparence.aligner_droite"), justifie: T("vectorlab.apparence.aligner_justifie") })[a] || a}</option>`).join("")}</select></div>
+        <div class="ap-ligne"><span>${T("vectorlab.apparence.interl")}</span><input type="number" id="a2Interligne" step="0.05" min="0.5" value="${s.interligne || 1.25}" title="${T("vectorlab.apparence.interligne_titre")}"/><input type="number" id="a2Retrait" min="0" value="${s.retrait || 0}" title="${T("vectorlab.apparence.retrait_titre")}"/></div>` : ""}
+        ${o1.type !== "textechemin" ? `<div class="ap-ligne"><button id="a2SurChemin" ${sel === 2 ? "" : "disabled"} title="${T("vectorlab.apparence.sur_chemin_titre")}">${dzi("dz-outil-vec-texte-sur-chemin", 16)}${T("vectorlab.apparence.sur_chemin")}</button></div>` : ""}
+        ${o1.type === "textechemin" && sel === 1 && o1.chemin ? `<div class="ap-ligne"><i class="px-note" style="flex:1">${T("vectorlab.apparence.suit_chemin", { chemin: esc(o1.chemin) })}</i><button id="a2Detacher" title="${T("vectorlab.apparence.detacher_texte_titre")}">${dzi("dz-edit-detacher", 16)}${T("vectorlab.apparence.detacher")}</button></div>` : ""}
+        ${o1.type === "textechemin" && sel === 1 ? `<div class="ap-ligne"><span>${T("vectorlab.apparence.decalage")}</span><vl-curseur id="a2Decalage" min="0" max="100" step="1" value="${o1.decalage || 0}"></vl-curseur><b id="a2DecalageVal">${o1.decalage || 0} %</b></div>` : ""}
       </details>` : ""}
-      ${o1 && o1.derive && sel === 1 ? `<details open><summary class="px-tete">Contour vivant</summary>
-        <div class="ap-ligne"><i class="px-note" style="flex:1">${o1.derive.decalage > 0 ? "+" : ""}${esc(o1.derive.decalage)} px autour de ${esc(o1.derive.source)} — se recalcule quand la source change</i><button id="a2Detacher" title="Le contour ne suit plus sa source : il devient un chemin ordinaire">${dzi("dz-edit-detacher", 16)}détacher</button></div>
+      ${o1 && o1.derive && sel === 1 ? `<details open><summary class="px-tete">${T("vectorlab.apparence.vivant")}</summary>
+        <div class="ap-ligne"><i class="px-note" style="flex:1">${o1.derive.decalage > 0 ? "+" : ""}${T("vectorlab.apparence.vivant_note", { d: esc(o1.derive.decalage), source: esc(o1.derive.source) })}</i><button id="a2Detacher" title="${T("vectorlab.apparence.vivant_detacher_titre")}">${dzi("dz-edit-detacher", 16)}${T("vectorlab.apparence.detacher")}</button></div>
       </details>` : ""}
-      <details ${etat.outil === "pinceauv" ? "open" : ""}><summary class="px-tete">Pinceau vectoriel (J)</summary>
-        <div class="ap-ligne"><span>Largeur</span><input type="number" id="a2PvL" min="0.5" step="0.5" value="${etat.pinceauv.largeur}"/><select id="a2PvP">${PROFILS.map((p) => `<option value="${p.id}"${etat.pinceauv.profil === p.id ? " selected" : ""}>${p.libelle}</option>`).join("")}</select></div>
-        <div class="ap-ligne"><span>Angle</span><input type="number" id="a2PvA" step="5" value="${etat.pinceauv.angle}" title="Angle de la plume (calligraphie)"/></div>
+      <details ${etat.outil === "pinceauv" ? "open" : ""}><summary class="px-tete">${T("vectorlab.apparence.pinceauv")}</summary>
+        <div class="ap-ligne"><span>${T("vectorlab.apparence.largeur")}</span><input type="number" id="a2PvL" min="0.5" step="0.5" value="${etat.pinceauv.largeur}"/><select id="a2PvP">${PROFILS.map((p) => `<option value="${p.id}"${etat.pinceauv.profil === p.id ? " selected" : ""}>${p.libelle}</option>`).join("")}</select></div>
+        <div class="ap-ligne"><span>Angle</span><input type="number" id="a2PvA" step="5" value="${etat.pinceauv.angle}" title="${T("vectorlab.apparence.angle_plume")}"/></div>
       </details>`;
     lier();
   }
@@ -236,7 +237,7 @@ export function initApparence2(VL) {
     hote.querySelectorAll("[data-glob-contour]").forEach((b) => b.addEventListener("click", () => patch({ contour: `glob:${b.dataset.globContour}`, epaisseur: s.epaisseur || 2 })));
     hote.querySelectorAll("[data-glob-x]").forEach((b) => b.addEventListener("click", () => VL.executer(op_couleur_globale_supprimer, b.dataset.globX)));
     on("a2GlobHex", "click", (ev) => VL.ouvrirNuancier(ev.target.dataset.hex, (hex) => { ev.target.dataset.hex = hex; ev.target.style.background = hex; }, ev.target));
-    on("a2GlobPlus", "click", () => { const n = nom_valide($("#a2GlobNom").value); if (!n) { VL.toast("nom de couleur globale requis", true); return; } VL.executer(op_couleur_globale_definir, n, $("#a2GlobHex").dataset.hex); });
+    on("a2GlobPlus", "click", () => { const n = nom_valide($("#a2GlobNom").value); if (!n) { VL.toast(T("vectorlab.apparence.glob_nom_requis"), true); return; } VL.executer(op_couleur_globale_definir, n, $("#a2GlobHex").dataset.hex); });
     on("a2HarmGen", "click", () => {
       const base = typeof s.fond === "string" && /^#/.test(s.fond) ? s.fond : "#9DB4D6";
       const type = $("#a2Harm").value;                 // lu AVANT la commande : le panneau se re-rend
@@ -244,11 +245,11 @@ export function initApparence2(VL) {
       try { pal = palette_harmonique(base, type); } catch (e) { VL.toast(e.message, true); return; }
       etat.harmonie = { type, pal };                    // les pastilles survivent au re-rendu
       VL.executer((doc) => { for (const c of pal) { try { op_palette_ajouter(doc, c); } catch (e) { /* déjà présente */ } } });
-      VL.toast(`harmonie ${type} : ${pal.join(" ")}`);
+      VL.toast(T("vectorlab.apparence.harmonie_toast", { type, pal: pal.join(" ") }));
     });
     hote.querySelectorAll("#a2HarmPal [data-couleur]").forEach((b) => b.addEventListener("click", () => patch({ fond: b.dataset.couleur })));
     // styles
-    on("a2StPlus", "click", () => { const n = nom_valide($("#a2StNom").value); if (!n) { VL.toast("nom de style requis", true); return; } VL.executer(op_style_definir, n, style()); });
+    on("a2StPlus", "click", () => { const n = nom_valide($("#a2StNom").value); if (!n) { VL.toast(T("vectorlab.apparence.st_nom_requis"), true); return; } VL.executer(op_style_definir, n, style()); });
     hote.querySelectorAll("[data-st-app]").forEach((b) => b.addEventListener("click", () => VL.executer(op_style_appliquer, etat.selection.slice(), b.dataset.stApp)));
     hote.querySelectorAll("[data-st-x]").forEach((b) => b.addEventListener("click", () => VL.executer(op_style_supprimer, b.dataset.stX)));
     // symboles
@@ -287,7 +288,7 @@ export function initApparence2(VL) {
       etat.calqueActif = cid;
       const c = etat.doc.calques.find((x) => x.id === cid);
       VL.setSelection(c ? c.objets.map((o) => o.id) : []);
-      VL.toast("édition du symbole en place — modifier ses objets, puis Échap (sélection vide) ou « Terminer »");
+      VL.toast(T("vectorlab.apparence.edition_toast"));
     },
     terminer: () => {
       const ed = etat.doc && etat.doc.edition;
@@ -296,7 +297,7 @@ export function initApparence2(VL) {
       if (n === undefined) return;
       sortieEdition();
       VL.setSelection(ed.instance ? [ed.instance] : []);
-      VL.toast(`symbole réécrit (${n} objet(s)) — toutes ses instances suivent`);
+      VL.toast(T("vectorlab.apparence.symbole_reecrit", { n }));
     },
     abandonner: () => { if (VL.executer(op_symbole_abandonner) !== undefined) { sortieEdition(); VL.setSelection([]); } },
   };

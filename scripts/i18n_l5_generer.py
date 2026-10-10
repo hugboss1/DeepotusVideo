@@ -390,8 +390,10 @@ def main(args):
     paires, sources, dico, gardes, final, trace = construire(B)
     attendus = sorties(paires, sources, dico, gardes, trace)
     if "--check" in args:
+        # t146 : fins de ligne normalisées — une copie fraîche (git, core.autocrlf) porte des CRLF là où le générateur
+        # écrit des LF ; à contenu égal, rien n'est périmé
         perimes = [str(p.relative_to(RACINE)) for p, b in attendus.items()
-                   if not p.is_file() or p.read_bytes() != b]
+                   if not p.is_file() or p.read_bytes().replace(b"\r\n", b"\n") != b.replace(b"\r\n", b"\n")]
         print("à jour" if not perimes else "PÉRIMÉ : " + ", ".join(perimes) + " — relancer python scripts/i18n_l5_generer.py")
         return 0 if not perimes else 1
     for c, s in [("subs", final)] + list(sources.items()):

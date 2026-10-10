@@ -1,0 +1,1212 @@
+{
+  "dz-edit-aimanter": {
+    "nom": {
+      "fr": "Aimanter",
+      "en": "Snap"
+    },
+    "fonction": {
+      "fr": "Active ou coupe l'aimantation aux bords, centres et écarts des objets.",
+      "en": "Turns snapping to object edges, centers and spacing on or off."
+    }
+  },
+  "dz-edit-aligner-bas": {
+    "nom": {
+      "fr": "Aligner en bas",
+      "en": "Align bottom"
+    },
+    "fonction": {
+      "fr": "Aligne les objets sélectionnés sur leur bord du bas.",
+      "en": "Lines up the selected objects along their bottom edges."
+    }
+  },
+  "dz-edit-aligner-centre-h": {
+    "nom": {
+      "fr": "Centrer horizontalement",
+      "en": "Center horizontally"
+    },
+    "fonction": {
+      "fr": "Centre les objets sélectionnés sur un même axe vertical.",
+      "en": "Centers the selected objects on a shared vertical axis."
+    }
+  },
+  "dz-edit-aligner-centre-v": {
+    "nom": {
+      "fr": "Centrer verticalement",
+      "en": "Center vertically"
+    },
+    "fonction": {
+      "fr": "Centre les objets sélectionnés sur un même axe horizontal.",
+      "en": "Centers the selected objects on a shared horizontal axis."
+    }
+  },
+  "dz-edit-aligner-droite": {
+    "nom": {
+      "fr": "Aligner à droite",
+      "en": "Align right"
+    },
+    "fonction": {
+      "fr": "Aligne les objets sélectionnés sur leur bord droit.",
+      "en": "Lines up the selected objects along their right edges."
+    }
+  },
+  "dz-edit-aligner-gauche": {
+    "nom": {
+      "fr": "Aligner à gauche",
+      "en": "Align left"
+    },
+    "fonction": {
+      "fr": "Aligne les objets sélectionnés sur leur bord gauche.",
+      "en": "Lines up the selected objects along their left edges."
+    }
+  },
+  "dz-edit-aligner-haut": {
+    "nom": {
+      "fr": "Aligner en haut",
+      "en": "Align top"
+    },
+    "fonction": {
+      "fr": "Aligne les objets sélectionnés sur leur bord du haut.",
+      "en": "Lines up the selected objects along their top edges."
+    }
+  },
+  "dz-edit-anim-couleur": {
+    "nom": {
+      "fr": "Couleur",
+      "en": "Color"
+    },
+    "fonction": {
+      "fr": "Anime les mots des sous-titres karaoké par un changement de couleur.",
+      "en": "Animates karaoke subtitle words with a color change."
+    }
+  },
+  "dz-edit-anim-halo": {
+    "nom": {
+      "fr": "Halo",
+      "en": "Glow"
+    },
+    "fonction": {
+      "fr": "Anime les mots des sous-titres karaoké avec un halo lumineux.",
+      "en": "Animates karaoke subtitle words with a glowing halo."
+    }
+  },
+  "dz-edit-anim-rebond": {
+    "nom": {
+      "fr": "Rebond",
+      "en": "Bounce"
+    },
+    "fonction": {
+      "fr": "Anime les mots des sous-titres karaoké avec un petit rebond.",
+      "en": "Animates karaoke subtitle words with a small bounce."
+    }
+  },
+  "dz-edit-annotation": {
+    "nom": {
+      "fr": "Note",
+      "en": "Note"
+    },
+    "fonction": {
+      "fr": "Pose ou affiche une note attachée à un endroit du document.",
+      "en": "Adds or shows a note pinned to a spot in the document."
+    }
+  },
+  "dz-edit-arriere-plan": {
+    "nom": {
+      "fr": "Tout derrière",
+      "en": "Send to back"
+    },
+    "fonction": {
+      "fr": "Envoie l'élément tout derrière les autres, en une fois.",
+      "en": "Sends the element behind all the others in one go."
+    }
+  },
+  "dz-edit-autotuile": {
+    "nom": {
+      "fr": "Jeu",
+      "en": "Tile set"
+    },
+    "fonction": {
+      "fr": "Transforme deux matières en un jeu de tuiles qui se raccordent seules.",
+      "en": "Turns two materials into a set of tiles that join automatically."
+    }
+  },
+  "dz-edit-cadres-edition": {
+    "nom": {
+      "fr": "Cadres",
+      "en": "Frames"
+    },
+    "fonction": {
+      "fr": "Montre les cadres des blocs sur l'aperçu, jamais dans l'export.",
+      "en": "Shows block frames on the preview, never in the export."
+    }
+  },
+  "dz-edit-charger-selection": {
+    "nom": {
+      "fr": "Charger la sélection",
+      "en": "Load selection"
+    },
+    "fonction": {
+      "fr": "Transforme une couche ou un tracé en sélection.",
+      "en": "Turns a channel or a path into a selection."
+    }
+  },
+  "dz-edit-conserver-proportions": {
+    "nom": {
+      "fr": "Conserver les proportions",
+      "en": "Maintain aspect ratio"
+    },
+    "fonction": {
+      "fr": "Garde le même rapport entre largeur et hauteur quand on redimensionne.",
+      "en": "Keeps width and height in the same ratio when resizing."
+    }
+  },
+  "dz-edit-contour-trace": {
+    "nom": {
+      "fr": "Contour du tracé",
+      "en": "Stroke path"
+    },
+    "fonction": {
+      "fr": "Dessine au pinceau le long du tracé choisi.",
+      "en": "Paints along the chosen path with the brush."
+    }
+  },
+  "dz-edit-convertir-en-cadre": {
+    "nom": {
+      "fr": "Convertir en cadre",
+      "en": "Convert to frame"
+    },
+    "fonction": {
+      "fr": "Change un texte simple en cadre de texte à paragraphes.",
+      "en": "Turns plain text into a text frame with paragraphs."
+    }
+  },
+  "dz-edit-convertir-en-chemin": {
+    "nom": {
+      "fr": "Convertir en chemin",
+      "en": "Convert to path"
+    },
+    "fonction": {
+      "fr": "Change une forme ou un texte en contours modifiables point par point.",
+      "en": "Turns a shape or text into outlines you can edit point by point."
+    }
+  },
+  "dz-edit-couleur-contour": {
+    "nom": {
+      "fr": "Couleur de contour",
+      "en": "Stroke color"
+    },
+    "fonction": {
+      "fr": "Ouvre le nuancier pour choisir la couleur du contour.",
+      "en": "Opens the swatches to pick the stroke color."
+    }
+  },
+  "dz-edit-couleur-fond": {
+    "nom": {
+      "fr": "Couleur de fond",
+      "en": "Fill color"
+    },
+    "fonction": {
+      "fr": "Ouvre le nuancier pour choisir la couleur de remplissage.",
+      "en": "Opens the swatches to pick the fill color."
+    }
+  },
+  "dz-edit-couleurs-defaut": {
+    "nom": {
+      "fr": "Couleurs par défaut",
+      "en": "Default colors"
+    },
+    "fonction": {
+      "fr": "Remet le noir au premier plan et le blanc à l'arrière-plan.",
+      "en": "Resets to black foreground and white background."
+    }
+  },
+  "dz-edit-couper": {
+    "nom": {
+      "fr": "Couper",
+      "en": "Split"
+    },
+    "fonction": {
+      "fr": "Coupe le clip en deux à la tête de lecture.",
+      "en": "Splits the clip in two at the playhead."
+    }
+  },
+  "dz-edit-courbes-niveau": {
+    "nom": {
+      "fr": "Courbes de niveau",
+      "en": "Contour lines"
+    },
+    "fonction": {
+      "fr": "Trace les courbes de niveau d'un relief sous forme de chemins.",
+      "en": "Draws the contour lines of a terrain as paths."
+    }
+  },
+  "dz-edit-decaler-px": {
+    "nom": {
+      "fr": "Décaler d'un pixel",
+      "en": "Nudge one pixel"
+    },
+    "fonction": {
+      "fr": "Déplace l'image d'un pixel dans la direction de la flèche.",
+      "en": "Moves the frame one pixel in the arrow's direction."
+    }
+  },
+  "dz-edit-degrade-conique": {
+    "nom": {
+      "fr": "Dégradé conique",
+      "en": "Conic gradient"
+    },
+    "fonction": {
+      "fr": "Remplit l'objet d'un dégradé qui tourne autour de son centre.",
+      "en": "Fills the object with a gradient sweeping around its center."
+    }
+  },
+  "dz-edit-degrade-lineaire": {
+    "nom": {
+      "fr": "Dégradé linéaire",
+      "en": "Linear gradient"
+    },
+    "fonction": {
+      "fr": "Remplit la sélection d'un dégradé en ligne droite.",
+      "en": "Fills the selection with a straight-line gradient."
+    }
+  },
+  "dz-edit-degrade-radial": {
+    "nom": {
+      "fr": "Dégradé radial",
+      "en": "Radial gradient"
+    },
+    "fonction": {
+      "fr": "Remplit la sélection d'un dégradé en cercles depuis le centre.",
+      "en": "Fills the selection with a gradient spreading out in circles."
+    }
+  },
+  "dz-edit-degrouper": {
+    "nom": {
+      "fr": "Dégrouper",
+      "en": "Ungroup"
+    },
+    "fonction": {
+      "fr": "Sépare le groupe choisi pour retrouver ses objets un par un.",
+      "en": "Breaks the chosen group back into separate objects."
+    }
+  },
+  "dz-edit-descendre": {
+    "nom": {
+      "fr": "Descendre",
+      "en": "Move down"
+    },
+    "fonction": {
+      "fr": "Fait passer l'élément d'un seul rang vers l'arrière.",
+      "en": "Moves the element back by one step only."
+    }
+  },
+  "dz-edit-detacher": {
+    "nom": {
+      "fr": "Détacher",
+      "en": "Detach"
+    },
+    "fonction": {
+      "fr": "Libère une copie ou un texte : il ne suit plus sa source.",
+      "en": "Frees a copy or text so it no longer follows its source."
+    }
+  },
+  "dz-edit-directions": {
+    "nom": {
+      "fr": "Directions",
+      "en": "Directions"
+    },
+    "fonction": {
+      "fr": "Fabrique une planche d'un personnage vu dans 4 ou 8 directions.",
+      "en": "Builds a sheet of a character facing 4 or 8 directions."
+    }
+  },
+  "dz-edit-distribuer-h": {
+    "nom": {
+      "fr": "Distribuer horizontalement",
+      "en": "Distribute horizontally"
+    },
+    "fonction": {
+      "fr": "Espace régulièrement trois objets ou plus, de gauche à droite.",
+      "en": "Spaces three or more objects evenly from left to right."
+    }
+  },
+  "dz-edit-distribuer-v": {
+    "nom": {
+      "fr": "Distribuer verticalement",
+      "en": "Distribute vertically"
+    },
+    "fonction": {
+      "fr": "Espace régulièrement trois objets ou plus, de haut en bas.",
+      "en": "Spaces three or more objects evenly from top to bottom."
+    }
+  },
+  "dz-edit-division": {
+    "nom": {
+      "fr": "Division",
+      "en": "Divide"
+    },
+    "fonction": {
+      "fr": "Découpe les formes en morceaux partout où elles se chevauchent.",
+      "en": "Cuts the shapes into pieces wherever they overlap."
+    }
+  },
+  "dz-edit-echanger-couleurs": {
+    "nom": {
+      "fr": "Échanger les couleurs",
+      "en": "Swap colors"
+    },
+    "fonction": {
+      "fr": "Inverse la couleur de premier plan et celle d'arrière-plan.",
+      "en": "Swaps the foreground and background colors."
+    }
+  },
+  "dz-edit-effet": {
+    "nom": {
+      "fr": "Effet",
+      "en": "Effect"
+    },
+    "fonction": {
+      "fr": "Signale un effet posé sur un objet ou un clip, comme une ombre.",
+      "en": "Marks an effect on an object or clip, such as a shadow."
+    }
+  },
+  "dz-edit-energie": {
+    "nom": {
+      "fr": "Énergie",
+      "en": "Energy"
+    },
+    "fonction": {
+      "fr": "Règle le niveau d'énergie d'une scène de la vidéo.",
+      "en": "Sets the energy level of a scene in the video."
+    }
+  },
+  "dz-edit-enregistrer-selection": {
+    "nom": {
+      "fr": "Enregistrer la sélection",
+      "en": "Save selection"
+    },
+    "fonction": {
+      "fr": "Garde la sélection actuelle dans une nouvelle couche pour la réutiliser.",
+      "en": "Stores the current selection in a new channel for later."
+    }
+  },
+  "dz-edit-epaissir": {
+    "nom": {
+      "fr": "Épaissir",
+      "en": "Thicken"
+    },
+    "fonction": {
+      "fr": "Épaissit ou amincit les chemins sélectionnés.",
+      "en": "Makes the selected paths thicker or thinner."
+    }
+  },
+  "dz-edit-grille": {
+    "nom": {
+      "fr": "Grille",
+      "en": "Grid"
+    },
+    "fonction": {
+      "fr": "Affiche ou masque la grille qui aide à placer les objets.",
+      "en": "Shows or hides the grid that helps place objects."
+    }
+  },
+  "dz-edit-grille-hex": {
+    "nom": {
+      "fr": "Plateau hexagonal",
+      "en": "Hex board"
+    },
+    "fonction": {
+      "fr": "Pose une grille d'hexagones sur la zone pour créer un plateau.",
+      "en": "Lays a hexagon grid over the area to build a board."
+    }
+  },
+  "dz-edit-grouper": {
+    "nom": {
+      "fr": "Grouper",
+      "en": "Group"
+    },
+    "fonction": {
+      "fr": "Réunit les objets sélectionnés en un groupe qui bouge d'un bloc.",
+      "en": "Joins the selected objects into a group that moves together."
+    }
+  },
+  "dz-edit-incliner": {
+    "nom": {
+      "fr": "Incliner",
+      "en": "Skew"
+    },
+    "fonction": {
+      "fr": "Penche la sélection autour de son point de pivot.",
+      "en": "Slants the selection around its pivot point."
+    }
+  },
+  "dz-edit-intersection": {
+    "nom": {
+      "fr": "Intersection",
+      "en": "Intersect"
+    },
+    "fonction": {
+      "fr": "Ne garde que la partie commune aux formes sélectionnées.",
+      "en": "Keeps only the area the selected shapes share."
+    }
+  },
+  "dz-edit-inverser-sens": {
+    "nom": {
+      "fr": "Inverser",
+      "en": "Reverse"
+    },
+    "fonction": {
+      "fr": "Inverse le sens de parcours d'un chemin ou d'une ligne.",
+      "en": "Reverses the direction of a path or line."
+    }
+  },
+  "dz-edit-justifier": {
+    "nom": {
+      "fr": "Justifier",
+      "en": "Justify all"
+    },
+    "fonction": {
+      "fr": "Étire toutes les lignes du paragraphe, la dernière comprise, d'un bord à l'autre.",
+      "en": "Stretches every line, including the last, from edge to edge."
+    }
+  },
+  "dz-edit-justifier-centre": {
+    "nom": {
+      "fr": "Justifier au centre",
+      "en": "Justify last centered"
+    },
+    "fonction": {
+      "fr": "Justifie le paragraphe et centre sa dernière ligne.",
+      "en": "Justifies the paragraph and centers its last line."
+    }
+  },
+  "dz-edit-justifier-droite": {
+    "nom": {
+      "fr": "Justifier à droite",
+      "en": "Justify last right"
+    },
+    "fonction": {
+      "fr": "Justifie le paragraphe et cale sa dernière ligne à droite.",
+      "en": "Justifies the paragraph and aligns its last line right."
+    }
+  },
+  "dz-edit-justifier-gauche": {
+    "nom": {
+      "fr": "Justifier à gauche",
+      "en": "Justify last left"
+    },
+    "fonction": {
+      "fr": "Justifie le paragraphe et cale sa dernière ligne à gauche.",
+      "en": "Justifies the paragraph and aligns its last line left."
+    }
+  },
+  "dz-edit-lier": {
+    "nom": {
+      "fr": "Lier",
+      "en": "Link"
+    },
+    "fonction": {
+      "fr": "Relie deux éléments pour qu'ils restent attachés l'un à l'autre.",
+      "en": "Links two items so they stay tied together."
+    }
+  },
+  "dz-edit-meme-hauteur": {
+    "nom": {
+      "fr": "Même hauteur",
+      "en": "Same height"
+    },
+    "fonction": {
+      "fr": "Donne aux blocs la hauteur du premier bloc sélectionné.",
+      "en": "Gives the blocks the height of the first one selected."
+    }
+  },
+  "dz-edit-meme-largeur": {
+    "nom": {
+      "fr": "Même largeur",
+      "en": "Same width"
+    },
+    "fonction": {
+      "fr": "Donne aux blocs la largeur du premier bloc sélectionné.",
+      "en": "Gives the blocks the width of the first one selected."
+    }
+  },
+  "dz-edit-miroir-h": {
+    "nom": {
+      "fr": "Miroir horizontal",
+      "en": "Flip horizontal"
+    },
+    "fonction": {
+      "fr": "Retourne la sélection de gauche à droite, comme dans un miroir.",
+      "en": "Flips the selection left to right, like a mirror."
+    }
+  },
+  "dz-edit-miroir-v": {
+    "nom": {
+      "fr": "Miroir vertical",
+      "en": "Flip vertical"
+    },
+    "fonction": {
+      "fr": "Retourne la sélection de haut en bas, tête en bas.",
+      "en": "Flips the selection top to bottom, upside down."
+    }
+  },
+  "dz-edit-monter": {
+    "nom": {
+      "fr": "Monter",
+      "en": "Move up"
+    },
+    "fonction": {
+      "fr": "Fait passer l'élément d'un seul rang vers l'avant.",
+      "en": "Moves the element forward by one step only."
+    }
+  },
+  "dz-edit-motif": {
+    "nom": {
+      "fr": "Motif",
+      "en": "Pattern"
+    },
+    "fonction": {
+      "fr": "Remplit la sélection d'un motif répété.",
+      "en": "Fills the selection with a repeating pattern."
+    }
+  },
+  "dz-edit-orientation-texte": {
+    "nom": {
+      "fr": "Orientation du texte",
+      "en": "Text orientation"
+    },
+    "fonction": {
+      "fr": "Fait passer le texte de l'horizontale à la verticale, et inversement.",
+      "en": "Switches text between horizontal and vertical."
+    }
+  },
+  "dz-edit-paragraphes": {
+    "nom": {
+      "fr": "Paragraphes",
+      "en": "Paragraphs"
+    },
+    "fonction": {
+      "fr": "Découpe le texte en un plan par paragraphe, sans IA.",
+      "en": "Splits the text into one shot per paragraph, without AI."
+    }
+  },
+  "dz-edit-pivot": {
+    "nom": {
+      "fr": "Recentrer le pivot",
+      "en": "Center pivot"
+    },
+    "fonction": {
+      "fr": "Ramène le point de pivot au centre de la sélection.",
+      "en": "Moves the pivot point back to the selection's center."
+    }
+  },
+  "dz-edit-point-reference": {
+    "nom": {
+      "fr": "Point de référence",
+      "en": "Reference point"
+    },
+    "fonction": {
+      "fr": "Choisit le point d'appui d'une transformation sur une grille de neuf.",
+      "en": "Picks the anchor point of a transform on a nine-point grid."
+    }
+  },
+  "dz-edit-pointe-fleche": {
+    "nom": {
+      "fr": "Bout de flèche",
+      "en": "Arrowhead"
+    },
+    "fonction": {
+      "fr": "Ajoute ou retire la pointe au début ou à la fin d'une flèche.",
+      "en": "Adds or removes the head at the start or end of an arrow."
+    }
+  },
+  "dz-edit-position": {
+    "nom": {
+      "fr": "Position",
+      "en": "Position"
+    },
+    "fonction": {
+      "fr": "Fait retenir la position des calques dans une composition de calques.",
+      "en": "Makes a layer comp remember where the layers are."
+    }
+  },
+  "dz-edit-premier-plan": {
+    "nom": {
+      "fr": "Tout devant",
+      "en": "Bring to front"
+    },
+    "fonction": {
+      "fr": "Amène l'élément tout devant les autres, en une fois.",
+      "en": "Brings the element in front of all the others in one go."
+    }
+  },
+  "dz-edit-relatif": {
+    "nom": {
+      "fr": "Valeurs relatives",
+      "en": "Relative values"
+    },
+    "fonction": {
+      "fr": "Bascule entre valeurs absolues et valeurs mesurées depuis le point de départ.",
+      "en": "Switches between absolute values and values measured from the start."
+    }
+  },
+  "dz-edit-remplir-trace": {
+    "nom": {
+      "fr": "Remplir le tracé",
+      "en": "Fill path"
+    },
+    "fonction": {
+      "fr": "Remplit l'intérieur du tracé avec la couleur de premier plan.",
+      "en": "Fills the inside of the path with the foreground color."
+    }
+  },
+  "dz-edit-reperes": {
+    "nom": {
+      "fr": "Repères",
+      "en": "Guides"
+    },
+    "fonction": {
+      "fr": "Affiche ou masque les repères d'impression : fond perdu, coupe, zone sûre.",
+      "en": "Shows or hides print guides: bleed, trim line and safe zone."
+    }
+  },
+  "dz-edit-ripple": {
+    "nom": {
+      "fr": "Ripple",
+      "en": "Ripple"
+    },
+    "fonction": {
+      "fr": "Décale les clips suivants quand on raccourcit ou allonge un clip.",
+      "en": "Shifts the following clips when you shorten or lengthen one."
+    }
+  },
+  "dz-edit-sans-contour": {
+    "nom": {
+      "fr": "Sans contour",
+      "en": "No stroke"
+    },
+    "fonction": {
+      "fr": "Retire le contour de la sélection, le fond reste.",
+      "en": "Removes the selection's stroke; the fill stays."
+    }
+  },
+  "dz-edit-sans-couleur": {
+    "nom": {
+      "fr": "Sans fond",
+      "en": "No fill"
+    },
+    "fonction": {
+      "fr": "Retire le fond ou rend la couleur transparente.",
+      "en": "Removes the fill or makes the color transparent."
+    }
+  },
+  "dz-edit-seamless": {
+    "nom": {
+      "fr": "Seamless",
+      "en": "Seamless"
+    },
+    "fonction": {
+      "fr": "Rend une image raccordable : elle se répète sans couture visible.",
+      "en": "Makes an image tile so it repeats with no visible seam."
+    }
+  },
+  "dz-edit-selection-vers-trace": {
+    "nom": {
+      "fr": "Tracé depuis la sélection",
+      "en": "Path from selection"
+    },
+    "fonction": {
+      "fr": "Crée un tracé qui suit le bord de la sélection.",
+      "en": "Makes a path that follows the edge of the selection."
+    }
+  },
+  "dz-edit-soustraire": {
+    "nom": {
+      "fr": "Soustraction",
+      "en": "Subtract"
+    },
+    "fonction": {
+      "fr": "Retire la forme du dessus de celle du dessous.",
+      "en": "Cuts the top shape out of the one below."
+    }
+  },
+  "dz-edit-symbole": {
+    "nom": {
+      "fr": "Symboles",
+      "en": "Symbols"
+    },
+    "fonction": {
+      "fr": "Crée un symbole réutilisable ou en pose une copie liée.",
+      "en": "Creates a reusable symbol or places a linked copy of it."
+    }
+  },
+  "dz-edit-texte-aligner-centre": {
+    "nom": {
+      "fr": "Centrer",
+      "en": "Center"
+    },
+    "fonction": {
+      "fr": "Centre les lignes du paragraphe dans leur cadre.",
+      "en": "Centers the lines of the paragraph in its box."
+    }
+  },
+  "dz-edit-texte-aligner-droite": {
+    "nom": {
+      "fr": "Aligner à droite",
+      "en": "Right align"
+    },
+    "fonction": {
+      "fr": "Cale les lignes du paragraphe sur le bord droit.",
+      "en": "Lines up the paragraph's lines on the right edge."
+    }
+  },
+  "dz-edit-texte-aligner-gauche": {
+    "nom": {
+      "fr": "Aligner à gauche",
+      "en": "Left align"
+    },
+    "fonction": {
+      "fr": "Cale les lignes du paragraphe sur le bord gauche.",
+      "en": "Lines up the paragraph's lines on the left edge."
+    }
+  },
+  "dz-edit-texte-barre": {
+    "nom": {
+      "fr": "Barré",
+      "en": "Strikethrough"
+    },
+    "fonction": {
+      "fr": "Barre ou débarre le texte sélectionné d'un trait.",
+      "en": "Turns a line through the selected text on or off."
+    }
+  },
+  "dz-edit-texte-capitales": {
+    "nom": {
+      "fr": "Capitales",
+      "en": "All caps"
+    },
+    "fonction": {
+      "fr": "Met le texte sélectionné tout en majuscules, ou l'inverse.",
+      "en": "Turns all capitals on or off for the selected text."
+    }
+  },
+  "dz-edit-texte-gras": {
+    "nom": {
+      "fr": "Faux gras",
+      "en": "Faux bold"
+    },
+    "fonction": {
+      "fr": "Épaissit le texte sélectionné, ou lui rend son épaisseur normale.",
+      "en": "Makes the selected text bolder, or back to normal."
+    }
+  },
+  "dz-edit-texte-italique": {
+    "nom": {
+      "fr": "Faux italique",
+      "en": "Faux italic"
+    },
+    "fonction": {
+      "fr": "Penche le texte sélectionné, ou le remet droit.",
+      "en": "Slants the selected text, or sets it upright again."
+    }
+  },
+  "dz-edit-texte-petites-capitales": {
+    "nom": {
+      "fr": "Petites capitales",
+      "en": "Small caps"
+    },
+    "fonction": {
+      "fr": "Met le texte sélectionné en petites majuscules, ou l'inverse.",
+      "en": "Turns small capitals on or off for the selected text."
+    }
+  },
+  "dz-edit-texte-souligne": {
+    "nom": {
+      "fr": "Souligné",
+      "en": "Underline"
+    },
+    "fonction": {
+      "fr": "Souligne ou désouligne le texte sélectionné.",
+      "en": "Turns underlining on or off for the selected text."
+    }
+  },
+  "dz-edit-transformer": {
+    "nom": {
+      "fr": "Transformation",
+      "en": "Transform"
+    },
+    "fonction": {
+      "fr": "Déplace, tourne ou agrandit un objet dans la Forge 3D.",
+      "en": "Moves, rotates or scales an object in the 3D Forge."
+    }
+  },
+  "dz-edit-union": {
+    "nom": {
+      "fr": "Union",
+      "en": "Union"
+    },
+    "fonction": {
+      "fr": "Fusionne les formes sélectionnées en une seule forme.",
+      "en": "Merges the selected shapes into a single shape."
+    }
+  },
+  "dz-edit-vectoriser": {
+    "nom": {
+      "fr": "Vectoriser",
+      "en": "Vectorize"
+    },
+    "fonction": {
+      "fr": "Change une image en aplats de couleur, avec un aperçu avant validation.",
+      "en": "Turns an image into flat color shapes, with a preview first."
+    }
+  },
+  "dz-etat-acquitte": {
+    "nom": {
+      "fr": "Acquitté",
+      "en": "Acknowledged"
+    },
+    "fonction": {
+      "fr": "Signale un geste noté qui n'écrit rien et reste annulable.",
+      "en": "Marks a step that is noted, writes nothing and can be undone."
+    }
+  },
+  "dz-etat-actif": {
+    "nom": {
+      "fr": "Actif",
+      "en": "Active"
+    },
+    "fonction": {
+      "fr": "Signale un effet appliqué au rendu ; un clic le contourne.",
+      "en": "Marks an effect applied to the render; a click bypasses it."
+    }
+  },
+  "dz-etat-attente": {
+    "nom": {
+      "fr": "En cours",
+      "en": "In progress"
+    },
+    "fonction": {
+      "fr": "Signale une tâche en cours ou en attente, comme une génération.",
+      "en": "Marks a task running or waiting, such as a generation."
+    }
+  },
+  "dz-etat-avertissement": {
+    "nom": {
+      "fr": "Avertissement",
+      "en": "Warning"
+    },
+    "fonction": {
+      "fr": "Signale un point à vérifier qui n'empêche pas de continuer.",
+      "en": "Flags something to check that does not stop you."
+    }
+  },
+  "dz-etat-cache": {
+    "nom": {
+      "fr": "Masqué",
+      "en": "Hidden"
+    },
+    "fonction": {
+      "fr": "Signale un élément caché ; un clic le fait réapparaître.",
+      "en": "Marks a hidden item; a click shows it again."
+    }
+  },
+  "dz-etat-contourne": {
+    "nom": {
+      "fr": "Contourné",
+      "en": "Bypassed"
+    },
+    "fonction": {
+      "fr": "Signale un effet mis de côté sans être supprimé ; un clic le réactive.",
+      "en": "Marks an effect set aside, not deleted; a click re-enables it."
+    }
+  },
+  "dz-etat-derive": {
+    "nom": {
+      "fr": "Dérivé",
+      "en": "Derived"
+    },
+    "fonction": {
+      "fr": "Signale un élément fabriqué à partir d'un autre, son parent.",
+      "en": "Marks an item made from another one, its parent."
+    }
+  },
+  "dz-etat-enregistre": {
+    "nom": {
+      "fr": "Enregistré",
+      "en": "Saved"
+    },
+    "fonction": {
+      "fr": "Signale que tout est enregistré : rien à sauver.",
+      "en": "Shows everything is saved: nothing left to save."
+    }
+  },
+  "dz-etat-epingle": {
+    "nom": {
+      "fr": "Épinglé",
+      "en": "Pinned"
+    },
+    "fonction": {
+      "fr": "Signale un résultat gardé, réutilisé gratuitement au prochain rendu.",
+      "en": "Marks a kept result, reused for free on the next render."
+    }
+  },
+  "dz-etat-erreur": {
+    "nom": {
+      "fr": "Erreur",
+      "en": "Error"
+    },
+    "fonction": {
+      "fr": "Signale un échec qui bloque l'action en cours.",
+      "en": "Flags a failure that blocks the current action."
+    }
+  },
+  "dz-etat-exclu": {
+    "nom": {
+      "fr": "Exclu",
+      "en": "Excluded"
+    },
+    "fonction": {
+      "fr": "Signale un élément écarté, comme une image non gardée.",
+      "en": "Marks an item left out, such as a frame not kept."
+    }
+  },
+  "dz-etat-grave": {
+    "nom": {
+      "fr": "Gravé",
+      "en": "Written"
+    },
+    "fonction": {
+      "fr": "Signale un geste qui sera écrit dans le fichier livré.",
+      "en": "Marks a change that is written into the delivered file."
+    }
+  },
+  "dz-etat-ia": {
+    "nom": {
+      "fr": "IA",
+      "en": "AI"
+    },
+    "fonction": {
+      "fr": "Signale un champ rempli par génération IA.",
+      "en": "Marks a field filled in by AI generation."
+    }
+  },
+  "dz-etat-inconnu": {
+    "nom": {
+      "fr": "Inconnu",
+      "en": "Unknown"
+    },
+    "fonction": {
+      "fr": "Remplace l'icône d'un type ou d'un outil qui n'en a pas.",
+      "en": "Stands in for a type or tool that has no icon."
+    }
+  },
+  "dz-etat-information": {
+    "nom": {
+      "fr": "Information",
+      "en": "Information"
+    },
+    "fonction": {
+      "fr": "Donne une information neutre, comme l'état d'un projet.",
+      "en": "Gives neutral information, such as a project's status."
+    }
+  },
+  "dz-etat-libre": {
+    "nom": {
+      "fr": "Déverrouillé",
+      "en": "Unlocked"
+    },
+    "fonction": {
+      "fr": "Signale un élément libre de bouger ; un clic le verrouille.",
+      "en": "Marks an item free to change; a click locks it."
+    }
+  },
+  "dz-etat-meilleur": {
+    "nom": {
+      "fr": "Champion",
+      "en": "Winner"
+    },
+    "fonction": {
+      "fr": "Signale le gagnant d'un classement, comme le champion d'un duel.",
+      "en": "Marks the winner of a ranking, such as a duel champion."
+    }
+  },
+  "dz-etat-mobile": {
+    "nom": {
+      "fr": "Téléphone",
+      "en": "Phone"
+    },
+    "fonction": {
+      "fr": "Signale un élément venu du téléphone ou emporté par lui.",
+      "en": "Marks an item that came from or went to the phone."
+    }
+  },
+  "dz-etat-modifie": {
+    "nom": {
+      "fr": "Modifié",
+      "en": "Modified"
+    },
+    "fonction": {
+      "fr": "Signale des modifications pas encore enregistrées.",
+      "en": "Shows changes that are not saved yet."
+    }
+  },
+  "dz-etat-note": {
+    "nom": {
+      "fr": "Note",
+      "en": "Rating"
+    },
+    "fonction": {
+      "fr": "Montre la note de 1 à 5 étoiles d'un élément.",
+      "en": "Shows an item's rating from 1 to 5 stars."
+    }
+  },
+  "dz-etat-option-active": {
+    "nom": {
+      "fr": "Option active",
+      "en": "Selected option"
+    },
+    "fonction": {
+      "fr": "Marque l'option cochée dans un menu ou l'élément choisi.",
+      "en": "Marks the checked menu option or the chosen item."
+    }
+  },
+  "dz-etat-origine": {
+    "nom": {
+      "fr": "Origine",
+      "en": "Origin"
+    },
+    "fonction": {
+      "fr": "Indique d'où vient un document : autre chapitre ou bibliothèque générale.",
+      "en": "Shows where a document comes from: another chapter or the main library."
+    }
+  },
+  "dz-etat-plafond": {
+    "nom": {
+      "fr": "Plafond",
+      "en": "Spending cap"
+    },
+    "fonction": {
+      "fr": "Prévient qu'un plafond de dépense est presque atteint ou dépassé.",
+      "en": "Warns that a spending cap is nearly reached or exceeded."
+    }
+  },
+  "dz-etat-publie": {
+    "nom": {
+      "fr": "Publié",
+      "en": "Published"
+    },
+    "fonction": {
+      "fr": "Signale un post publié, confirmé sur le PC.",
+      "en": "Marks a post as published, confirmed on the PC."
+    }
+  },
+  "dz-etat-rappel": {
+    "nom": {
+      "fr": "Rappel",
+      "en": "Reminder"
+    },
+    "fonction": {
+      "fr": "Rappelle à l'heure prévue qu'un post est à publier.",
+      "en": "Reminds you at the set time that a post is due."
+    }
+  },
+  "dz-etat-sans-apercu": {
+    "nom": {
+      "fr": "Sans aperçu",
+      "en": "No preview"
+    },
+    "fonction": {
+      "fr": "Tient la place de la vignette d'un document jamais enregistré.",
+      "en": "Holds the place of a thumbnail for a never-saved document."
+    }
+  },
+  "dz-etat-selection-multiple": {
+    "nom": {
+      "fr": "Sélection multiple",
+      "en": "Multiple selection"
+    },
+    "fonction": {
+      "fr": "Signale que plusieurs éléments sont sélectionnés en même temps.",
+      "en": "Shows that several items are selected at once."
+    }
+  },
+  "dz-etat-succes": {
+    "nom": {
+      "fr": "Réussi",
+      "en": "Success"
+    },
+    "fonction": {
+      "fr": "Signale une opération réussie, un réglage fait ou une étape terminée.",
+      "en": "Marks a successful action, a completed setting or a finished step."
+    }
+  },
+  "dz-etat-verrou-pixels": {
+    "nom": {
+      "fr": "Verrouiller les pixels",
+      "en": "Lock pixels"
+    },
+    "fonction": {
+      "fr": "Empêche de peindre sur les pixels du calque.",
+      "en": "Stops painting on the layer's pixels."
+    }
+  },
+  "dz-etat-verrou-plan-travail": {
+    "nom": {
+      "fr": "Verrou plans de travail",
+      "en": "Artboard lock"
+    },
+    "fonction": {
+      "fr": "Empêche les objets d'entrer seuls dans un plan de travail.",
+      "en": "Stops objects from dropping into artboards on their own."
+    }
+  },
+  "dz-etat-verrou-position": {
+    "nom": {
+      "fr": "Verrouiller la position",
+      "en": "Lock position"
+    },
+    "fonction": {
+      "fr": "Empêche de déplacer le calque, mais on peut encore peindre.",
+      "en": "Stops the layer from moving, but you can still paint."
+    }
+  },
+  "dz-etat-verrou-transparence": {
+    "nom": {
+      "fr": "Verrouiller la transparence",
+      "en": "Lock transparency"
+    },
+    "fonction": {
+      "fr": "Protège les zones transparentes : on ne peint que sur l'existant.",
+      "en": "Protects transparent areas so you only paint existing pixels."
+    }
+  },
+  "dz-etat-verrouille": {
+    "nom": {
+      "fr": "Verrouillé",
+      "en": "Locked"
+    },
+    "fonction": {
+      "fr": "Signale un élément que rien ne peut bouger, changer ni supprimer.",
+      "en": "Marks an item nothing can move, change or delete."
+    }
+  },
+  "dz-etat-vide": {
+    "nom": {
+      "fr": "Vide",
+      "en": "Empty"
+    },
+    "fonction": {
+      "fr": "Signale une file, un projet ou une galerie encore vide.",
+      "en": "Marks a queue, project or gallery that is still empty."
+    }
+  },
+  "dz-etat-visible": {
+    "nom": {
+      "fr": "Visible",
+      "en": "Visible"
+    },
+    "fonction": {
+      "fr": "Signale un élément visible ; un clic le masque.",
+      "en": "Marks a visible item; a click hides it."
+    }
+  }
+}

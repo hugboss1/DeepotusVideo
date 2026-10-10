@@ -931,14 +931,22 @@ TERMES_LEXIQUE = ["assise", "surplomb", "support", "brim", "raft", "jupe", "remp
                   "drainage"]
 
 
+def _chapitre(h, ident):
+    """Guide v3 (t169) : un chapitre est une <section class="chapitre" id="…"> ; l'ancien numéro (c21) y reste en
+    alias, pour que les liens de l'application (aide de l'Établi, #c21) arrivent au même endroit."""
+    return h.split(f'<section class="chapitre" id="{ident}"', 1)[1].split("</section>", 1)[0]
+
+
 def test_le_chapitre_21_existe_dans_les_DEUX_langues_avec_son_entree_de_sommaire():
-    for nom, titre in (("fr.html", "Préparer avant le slicer"), ("en.html", "Prepare before slicing")):
+    for nom, titre in (("fr.html", "Préparer une pièce avant le slicer"), ("en.html", "Prepare a part before slicing")):
         h = (GUIDE / nom).read_text("utf-8")
-        assert '<h2 id="c21">' in h and titre in h
-        assert '<a href="#c21">' in h
-        # le chapitre 21 vient APRÈS le 20 dans le sommaire ET dans le corps, et AVANT le pied de page
-        assert h.index('<a href="#c20"') < h.index('<a href="#c21"')
-        assert h.index('<h2 id="c20"') < h.index('<h2 id="c21"') < h.index('<div class="footer">')
+        assert '<section class="chapitre" id="etabli"' in h and titre in h
+        assert 'id="c21"' in _chapitre(h, "etabli"), "l'ancien ancre #c21 doit mener au chapitre"
+        assert '<a href="#etabli"' in h
+        # v3 : on PRÉPARE (Établi) avant d'IMPRIMER (ancien c20) — même ordre dans le sommaire et dans le corps,
+        # et avant le pied de page
+        assert h.index('<a href="#etabli"') < h.index('<a href="#impression3d"')
+        assert h.index('id="etabli"') < h.index('id="impression3d"') < h.index('<div class="footer">')
 
 
 def test_le_lexique_a_ses_DIX_HUIT_termes_ancres_dans_les_deux_langues():
@@ -954,7 +962,7 @@ def test_chaque_ressource_du_guide_est_DATEE_et_pointe_un_domaine_verifie():
     jeux = []
     for nom in ("fr.html", "en.html"):
         h = (GUIDE / nom).read_text("utf-8")
-        bloc = h.split('<h2 id="c21"', 1)[1].split('<div class="footer">', 1)[0]
+        bloc = _chapitre(h, "etabli")
         liens = re.findall(r'<a href="(https?://[^"]+)"[^>]*>', bloc)
         assert len(liens) >= 12, (nom, len(liens))
         for u in liens:
@@ -983,7 +991,7 @@ def test_le_guide_ne_cite_QUE_des_libelles_qui_existent_dans_l_ecran():
         # « → Impression 3D » vit aussi dans un message de refus, qui survivait au renommage du bouton
         assert re.search(r">\s*" + re.escape(libelle) + r"\s*<", ecran) or f'"{libelle}"' in ecran, libelle
         for nom in ("fr.html", "en.html"):
-            h = (GUIDE / nom).read_text("utf-8").split('<h2 id="c21"', 1)[1]
+            h = _chapitre((GUIDE / nom).read_text("utf-8"), "etabli")
             assert libelle in h or libelle in ("Sur la plaque",) or nom == "en.html" and libelle in (
                 "taille cible", "écrire la version"), (nom, libelle)
 

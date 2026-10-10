@@ -1,0 +1,51 @@
+<p class="chapeau-chap">You will compose a video piece by piece by linking nodes, see it before paying, never pay twice for what is done, and reuse a graph like a recipe. Paid depending on the nodes; the graph's cost is shown before running.</p>
+
+<h3>The Studio screen</h3>
+<figure class="scene" data-scene="studio/graphe"></figure>
+<p>On the left, the <strong>nodes</strong> palette (<kbd>/</kbd> key) and the <strong>starter graphs</strong>. In the centre, the graph. On the right, the inspector of the selected node, which can be folded. At the top, the graph bar: <b class="ui">New</b>, <b class="ui">Save</b>, <b class="ui">Recipe</b>, <b class="ui">Import</b>, the format, <b class="ui">Preview</b>, the estimated cost and <b class="ui">Run</b>.</p>
+
+<h3>Compose a graph</h3>
+<ol class="etapes">
+<li>Start from a starter graph (<strong>Seedance solo</strong>, <strong>Avatar post</strong>, <strong>UGC + animation</strong>, <strong>News reel post</strong>, <strong>Timeline montage</strong>) or from a blank page with <b class="ui">New</b>.</li>
+<li>Drag nodes from the palette: sources (picture, text, your video), generators (Seedance, HeyGen avatar, pictures), audio, editing, composition, output.</li>
+<li>Link an output, on the right of a node, to an input, on the left of another. Click a node to set it in the inspector.</li>
+<li><b class="ui">Preview</b> computes the final composition for free: clips not generated yet are replaced by their picture.</li>
+<li>Read the estimated cost, then <b class="ui">Run</b>. That amount is sent as a cap: the render cannot cost more. <b class="ui">Save</b> keeps the graph under a name.</li>
+</ol>
+
+<h3>Never pay twice for what is done</h3>
+<p>The paid render of a Seedance or HeyGen node is <strong>pinned</strong> automatically: as long as its request does not change, it is reused for free, and the estimated cost says which nodes are.</p>
+<div class="cartes">
+<article><i data-dz="dz-etat-epingle"></i><h4>The last eight renders</h4><p>The inspector lists the node's last renders; <b class="ui">Use</b> picks the one that feeds the rest.</p></article>
+<article><i data-dz="dz-action-reessayer"></i><h4>Regenerate</h4><p>For a new paid take despite the pin, explicitly ask for the node to be regenerated.</p></article>
+</div>
+
+<h3>Reuse a graph as a recipe</h3>
+<ol class="etapes">
+<li><b class="ui">Recipe</b> freezes the graph: its pictures and texts become blanks to fill in.</li>
+<li>Run the recipe with new values: a quote is shown, you confirm. Unchanged nodes are reused for free.</li>
+<li>From a picture in the Library, <strong>Send to</strong> also offers to run a recipe on it.</li>
+</ol>
+
+<h3>Go further</h3>
+<div class="cartes">
+<article><i data-dz="dz-action-duel"></i><h4>Engine duel</h4><p>On a picture generation node, the same prompt goes to two models once you agree on the cost; you compare side by side and keep the winner.</p></article>
+<article><i data-dz="dz-calque-masque"></i><h4>Effects and masks</h4><p>The Effects / Mask node, plugged into the Render's fx input: grades, VHS, colorisation…, on the whole render or a single layer.</p></article>
+<article><i data-dz="dz-etat-ia"></i><h4>AI fields</h4><p>A field with a coloured edge is sent to an AI. Its badge shows the model and its price; its microphone dictates your text.</p></article>
+<article><i data-dz="dz-media-voix"></i><h4>Voice and mix</h4><p>The Voiceover node picks Voicebox or ElevenLabs; Audio mix dips the music under the voice (light, medium, strong).</p></article>
+<article><i data-dz="dz-action-importer"></i><h4>Import a graph</h4><p><b class="ui">Import</b> opens a JSON graph; missing sources are listed and nothing is saved without your consent.</p></article>
+<article><i data-dz="dz-media-image-suivante"></i><h4>Frame by frame</h4><p>The result drawer steps frame by frame with the <kbd>,</kbd> and <kbd>.</kbd> keys.</p></article>
+</div>
+
+<h3>Good to know</h3>
+<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>A video generation above the announced cost or your per-request cap is refused before any call. The generated length is capped in Settings; the rest is extended on your PC.</p></aside>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>New Seedance nodes start with Seedance 2.5; a saved graph keeps its model. The default model is changed in <span class="chemin"><b class="ui">Settings</b> › <b class="ui">Provider defaults</b></span>.</p></aside>
+<aside class="attention"><i data-dz="dz-etat-avertissement"></i><p>If the browser cannot dictate, the recording can be transcribed by the server: it is paid, a quote is shown and “No” is the default choice.</p></aside>
+
+<h3>Shortcuts</h3>
+<div class="tableau"><table>
+<tr><th>Key</th><th>Effect</th></tr>
+<tr><td><kbd>/</kbd></td><td>Opens the nodes palette</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Enter</kbd></td><td>Runs the graph</td></tr>
+<tr><td><kbd>,</kbd> <kbd>.</kbd></td><td>Previous frame, next frame in the result</td></tr>
+</table></div>

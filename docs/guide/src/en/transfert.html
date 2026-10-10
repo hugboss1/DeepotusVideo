@@ -1,0 +1,31 @@
+<p class="chapeau-chap">You will take all your work to another computer, check that nothing got damaged on the way, and get your keys back there. Fifteen minutes, free; the app must be installed on both machines.</p>
+
+<h3>What travels</h3>
+<p>The transfer takes everything the app created: the Library and the origin of every file, renders, the bible, communication plans, vector documents, card series and 3D models. Your API keys <strong>never</strong> go into the package.</p>
+
+<h3>Export from the old PC</h3>
+<figure class="scene" data-scene="transfert/export"></figure>
+<ol class="etapes">
+<li>Open <span class="chemin"><b class="ui">Settings</b> › <b class="ui">Machine transfer</b></span>: the number of files and the size to take are shown.</li>
+<li>Click <b class="ui">Export…</b>, then pick the destination: a drive, a USB stick, or a path.</li>
+<li>Tick the extras if you want them: <b class="ui">Logs</b> and <b class="ui">Discards — dated trash folders</b>. They are unchecked by default, with their size.</li>
+<li><b class="ui">Start export</b>: a dated folder is written at the destination, each file with its checksum. Do not close the app while it writes.</li>
+<li>Click <b class="ui">Check integrity</b>: every written file is read back and compared with its checksum.</li>
+</ol>
+
+<h3>Import on the new PC</h3>
+<ol class="etapes">
+<li>Install the app, then open <span class="chemin"><b class="ui">Settings</b> › <b class="ui">Machine transfer</b></span> and click <b class="ui">Import…</b>.</li>
+<li>Give the package folder, then <b class="ui">Check</b>: the app reads the package without writing anything and tells where it comes from (date, machine, version).</li>
+<li><b class="ui">Start import</b>. Import <strong>adds</strong>: nothing this PC already has is overwritten. A damaged file is left out and named.</li>
+</ol>
+
+<h3>Take your keys too</h3>
+<ol class="etapes">
+<li>On the old PC: <span class="chemin"><b class="ui">Settings</b> › <b class="ui">Vault</b></span> › <b class="ui">Export archive</b>, with a separate password.</li>
+<li>On the new PC: <b class="ui">Import an archive…</b> and that password. Your keys, caps and rates come back.</li>
+</ol>
+
+<h3>Good to know</h3>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Paths from the old machine are rewritten for the new one: your projects find their files without any setting.</p></aside>
+<aside class="attention"><i data-dz="dz-etat-avertissement"></i><p>Stopping an export leaves an incomplete package. If it happens, run the export again, then <b class="ui">Check integrity</b> before importing.</p></aside>

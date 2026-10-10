@@ -5,10 +5,11 @@
 // Le persona Export réunit les exports EXISTANTS (SVG, PNG, Bible,
 // Impression 3D) sans format nouveau : ses boutons délèguent au menu.
 
+import { T } from "./mod-i18n.js";
 import { dzi } from "./mod-icones.js";
 export const PERSONAS = [
-  { id: "vecteur", libelle: "Vecteur", icone: "dz-nav-espace-vecteur", titre: "Dessin vectoriel : formes, chemins, nœuds, booléens, texte" },
-  { id: "pixel", libelle: "Pixel", icone: "dz-nav-espace-pixel", titre: "Retouche des calques image au pixel et mode pixel-art vers le Tilelab" },
+  { id: "vecteur", libelle: T("vectorlab.persona.vecteur"), icone: "dz-nav-espace-vecteur", titre: T("vectorlab.persona.vecteur_titre") },
+  { id: "pixel", libelle: "Pixel", icone: "dz-nav-espace-pixel", titre: T("vectorlab.persona.pixel_titre") },
 ];
 export function persona_classe(id) {
   return `persona-${PERSONAS.some((p) => p.id === id) ? id : "vecteur"}`;
@@ -66,19 +67,19 @@ export function initPersona(VL) {
     if (!hote) return;
     if (!etat.doc) { hote.innerHTML = ""; return; }
     const lignes = [
-      ["expSvg", "SVG (serveur)", "Compile ici, stocké au serveur, servi sur export.svg"],
-      ["expPng1", "PNG 1×", "PNG taille du document → Library"],
-      ["expPng2", "PNG 2×", "PNG double → Library"],
-      ["expPng4", "PNG 4×", "PNG quadruple → Library"],
-      ["expBible", "Bible…", "Exporte en 2× vers les images d'inspiration d'une entité de la bible", "dz-nav-bible"],
-      ["expPrint3d", "Impression 3D…", "Calques en relief, plateau de tuiles, logo — STL + 3MF", "dz-lab3d-impression-3d"],
+      ["expSvg", T("vectorlab.persona.exp_svg"), T("vectorlab.persona.exp_svg_titre")],
+      ["expPng1", "PNG 1×", T("vectorlab.persona.exp_png1_titre")],
+      ["expPng2", "PNG 2×", T("vectorlab.persona.exp_png2_titre")],
+      ["expPng4", "PNG 4×", T("vectorlab.persona.exp_png4_titre")],
+      ["expBible", "Bible…", T("vectorlab.persona.exp_bible_titre"), "dz-nav-bible"],
+      ["expPrint3d", T("vectorlab.persona.exp_print3d"), T("vectorlab.persona.exp_print3d_titre"), "dz-lab3d-impression-3d"],
     ];
-    hote.innerHTML = `<div class="ap-ligne"><label title="Compile sans le fond du document"><input type="checkbox" id="pexTransparent"${$("#expTransparent")?.checked ? " checked" : ""}/> fond transparent</label></div>`
+    hote.innerHTML = `<div class="ap-ligne"><label title="${T("vectorlab.persona.transparent_titre")}"><input type="checkbox" id="pexTransparent"${$("#expTransparent")?.checked ? " checked" : ""}/> ${T("vectorlab.persona.transparent")}</label></div>`
       + lignes.map(([id, lib, titre, icone]) => `<div class="ap-ligne"><button data-delegue="${id}" title="${titre}" style="flex:1">${icone ? dzi(icone, 16) : ""}${lib}</button></div>`).join("")
-      + `<p class="px-note">Les planches s'exportent depuis leur panneau (persona Vecteur).</p>`;
+      + `<p class="px-note">${T("vectorlab.persona.planches_note")}</p>`;
     hote.querySelectorAll("[data-delegue]").forEach((b) => b.addEventListener("click", () => {
       const cible = $("#" + b.dataset.delegue);
-      if (cible) cible.click(); else VL.toast("export indisponible", true);
+      if (cible) cible.click(); else VL.toast(T("vectorlab.persona.export_indispo"), true);
     }));
     $("#pexTransparent").addEventListener("change", (ev) => { const t = $("#expTransparent"); if (t) t.checked = ev.target.checked; });
   }

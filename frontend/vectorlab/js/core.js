@@ -3,6 +3,7 @@
 // (zoom/pan), overlay (sélection, poignées, ancres, guides), règles,
 // raccourcis. Les outils et le panneau calques reçoivent ce cœur par
 // injection (initOutils/initCalques) — aucun cycle d'import.
+import { T } from "./mod-i18n.js";
 import { compilerSVG, chemin_parser, chemin_ancres, aimanter, Historique,
          sommetDe, op_dupliquer, reperes_guides, reperes_rects, planches_guides }
   from "./mod-doc.js";
@@ -352,10 +353,10 @@ function majBoutonGrille() {
   if (!b) return;
   b.classList.toggle("actif", etat.grille.active);
   b.innerHTML = dzi("dz-edit-grille", 16) + `<span>${grilleLibelle(grilleDoc(), etat.grille.pas)}</span>`;
-  b.title = "Grille d'aimantation et repère visuel (G) — "
-    + (grilleDoc() ? "grille du document (panneau Grille)" : "pas de " + etat.grille.pas + " px")
+  b.title = T("vectorlab.core.grille_titre")
+    + (grilleDoc() ? T("vectorlab.core.grille_document") : T("vectorlab.core.grille_pas", { pas: etat.grille.pas }))
     + (etat.grille.active && !grilleLisible()
-       ? " · trop serrée pour être tracée à ce zoom (aimantation active)"
+       ? T("vectorlab.core.grille_serree")
        : "");
 }
 
@@ -588,14 +589,14 @@ async function charger() {
     VL.poserEnvoi();                   // t139 : l'image envoyée (?img=) posée dans le document neuf
   } catch (e) {
     $("#docMeta").classList.add("erreur");
-    $("#docMeta").textContent = "erreur : " + e.message;
+    $("#docMeta").textContent = T("vectorlab.core.erreur", { message: e.message });
   }
 }
 function majTete() {
   $("#docTitle").textContent = etat.meta.name;
   $("#docMeta").classList.remove("erreur");
-  $("#docMeta").textContent = `${etat.meta.role} · v${etat.meta.version}`
-    + (etat.meta.chapter_id ? ` · chapitre ${etat.meta.chapter_id}` : "");
+  $("#docMeta").textContent = `${({ libre: T("vectorlab.page.role_libre"), decor: T("vectorlab.page.role_decor"), lumiere: T("vectorlab.page.role_lumiere"), personnage: T("vectorlab.page.role_personnage") })[etat.meta.role] || etat.meta.role} · v${etat.meta.version}`
+    + (etat.meta.chapter_id ? T("vectorlab.core.chapitre", { id: etat.meta.chapter_id }) : "");
 }
 async function sauver() {
   if (!etat.docId || !etat.doc) return;
@@ -611,7 +612,7 @@ async function sauver() {
     // phase 6 : la vignette suit la sauvegarde — jamais bloquante, son
     // échec ne casse pas un save
     if (VL.vignette) VL.vignette().catch(() => {});
-  } catch (e) { toast("sauvegarde : " + e.message, true); }
+  } catch (e) { toast(T("vectorlab.core.sauvegarde_echec", { message: e.message }), true); }
 }
 
 function toast(msg, erreur) {
@@ -661,7 +662,7 @@ function dupliquerSelection() {
 function copierSelection() {
   if (!etat.selection.length) return;
   etat.pressePapiers = { ids: etat.selection.slice(), n: 0 };
-  toast(etat.pressePapiers.ids.length + " objet(s) copié(s)");
+  toast(T(etat.pressePapiers.ids.length > 1 ? "vectorlab.core.copie_plusieurs" : "vectorlab.core.copie_un", { n: etat.pressePapiers.ids.length }));
 }
 function collerSelection() {
   const pp = etat.pressePapiers;
@@ -782,6 +783,8 @@ const VL = {
   surSelection: () => {}, surCharge: () => {}, surSauve: () => {},
   surOverlay: () => {}, surVue: () => {}, surHistorique: () => {},
 };
+// t146 : les <option> statiques de index.html (rôles…) — la surcouche n'entre pas dans un <select>
+for (const o of document.querySelectorAll("select option")) { const t = window.__dzI18n && window.__dzI18n.traduire(o.textContent); if (t) o.textContent = t; }
 initCalques(VL);
 initCouleur(VL);
 initStyle(VL);

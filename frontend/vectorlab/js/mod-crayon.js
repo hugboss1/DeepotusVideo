@@ -3,6 +3,8 @@
 // cubiques passant PAR les points) et se ferment d'eux-mêmes quand la fin
 // rejoint le début. Module FEUILLE : aucun import, aucun DOM ; le d sort
 // canonique (2 décimales).
+// t146 (traduction L6) : T(clé, vars) de cette feuille — dzT du runtime dans la page ; sous node, le français des dictionnaires (frontend/shared/i18n)
+const T = (cle, vars) => { const g = globalThis, w = g.window; if (w && typeof w.dzT === "function") return w.dzT(cle, vars); if (typeof g.dzT === "function") return g.dzT(cle, vars); if (!g.__vlFr && g.process && g.process.getBuiltinModule) { const fs = g.process.getBuiltinModule("fs"), u = new URL("../../shared/i18n/", import.meta.url); g.__vlFr = {}; for (const n of fs.readdirSync(u).filter((x) => x.endsWith(".json")).sort()) Object.assign(g.__vlFr, JSON.parse(fs.readFileSync(new URL(n, u), "utf8"))); } const e = g.__vlFr && g.__vlFr[cle]; if (!e) return cle; return vars ? e.fr.replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? String(vars[k]) : m)) : e.fr; };
 const nbc = (x) => String(Math.round(Number((x * 100).toPrecision(12))) / 100);
 
 function _distSeg(p, a, b) {
@@ -36,7 +38,7 @@ export function est_ferme(points, seuil) {
 
 export function lisser_vers_d(points, { tol = 1, fermer = false, tension = 1 } = {}) {
   let pts = simplifier(points || [], tol);
-  if (pts.length < 2) throw new Error("crayon : au moins deux points");
+  if (pts.length < 2) throw new Error(T("vectorlab.divers.err_crayon"));
   const seuilFerme = Math.max(4, 4 * tol);
   const clos = fermer && est_ferme(pts, seuilFerme);
   if (clos) pts = pts.slice(0, -1);              // la fin rejoint le début : absorbée

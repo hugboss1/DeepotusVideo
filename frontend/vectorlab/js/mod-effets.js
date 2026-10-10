@@ -5,19 +5,21 @@
 // <pattern>, et le dégradé CONIQUE — absent du SVG — rendu en <pattern> de
 // secteurs aux couleurs interpolées. Module FEUILLE.
 
+// t146 (traduction L6) : T(clé, vars) de cette feuille — dzT du runtime dans la page ; sous node, le français des dictionnaires (frontend/shared/i18n)
+const T = (cle, vars) => { const g = globalThis, w = g.window; if (w && typeof w.dzT === "function") return w.dzT(cle, vars); if (typeof g.dzT === "function") return g.dzT(cle, vars); if (!g.__vlFr && g.process && g.process.getBuiltinModule) { const fs = g.process.getBuiltinModule("fs"), u = new URL("../../shared/i18n/", import.meta.url); g.__vlFr = {}; for (const n of fs.readdirSync(u).filter((x) => x.endsWith(".json")).sort()) Object.assign(g.__vlFr, JSON.parse(fs.readFileSync(new URL(n, u), "utf8"))); } const e = g.__vlFr && g.__vlFr[cle]; if (!e) return cle; return vars ? e.fr.replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? String(vars[k]) : m)) : e.fr; };
 const _HEX = /^#[0-9A-Fa-f]{6}$/;
-const _hex = (v) => { if (!_HEX.test(String(v || ""))) throw new Error(`couleur #RRGGBB attendue : ${v}`); return String(v).toUpperCase(); };
-const _n = (v, min, max, ou) => { const x = +v; if (!Number.isFinite(x) || x < min || x > max) throw new Error(`${ou} : entre ${min} et ${max}`); return x; };
+const _hex = (v) => { if (!_HEX.test(String(v || ""))) throw new Error(T("vectorlab.effets.err_hex", { v })); return String(v).toUpperCase(); };
+const _n = (v, min, max, ou) => { const x = +v; if (!Number.isFinite(x) || x < min || x > max) throw new Error(T("vectorlab.effets.err_borne", { ou, min, max })); return x; };
 const esc = (v) => String(v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
 
 /* ── effets ── */
 export const EFFETS = [
-  { id: "ombre", libelle: "Ombre externe" },
-  { id: "ombre_interne", libelle: "Ombre interne" },
-  { id: "lueur", libelle: "Lueur externe" },
-  { id: "biseau", libelle: "Biseau" },
-  { id: "contour", libelle: "Contour" },
-  { id: "incrustation", libelle: "Incrustation couleur" },
+  { id: "ombre", libelle: T("vectorlab.effets.ombre") },
+  { id: "ombre_interne", libelle: T("vectorlab.effets.ombre_interne") },
+  { id: "lueur", libelle: T("vectorlab.effets.lueur") },
+  { id: "biseau", libelle: T("vectorlab.effets.biseau") },
+  { id: "contour", libelle: T("vectorlab.effets.contour") },
+  { id: "incrustation", libelle: T("vectorlab.effets.incrustation") },
 ];
 const _DEFAUTS = {
   ombre: { dx: 4, dy: 4, flou: 4, couleur: "#000000", opacite: 0.5 },
@@ -28,13 +30,13 @@ const _DEFAUTS = {
   incrustation: { couleur: "#9DB4D6", opacite: 1 },
 };
 export function effet_defaut(type) {
-  if (!_DEFAUTS[type]) throw new Error(`effet inconnu : ${type}`);
+  if (!_DEFAUTS[type]) throw new Error(T("vectorlab.effets.inconnu", { type }));
   return { type, ..._DEFAUTS[type] };
 }
 export function effets_valider(liste) {
-  if (!Array.isArray(liste)) throw new Error("effets : liste attendue");
+  if (!Array.isArray(liste)) throw new Error(T("vectorlab.effets.liste_attendue"));
   for (const e of liste) {
-    if (!e || !_DEFAUTS[e.type]) throw new Error(`effet inconnu : ${e && e.type}`);
+    if (!e || !_DEFAUTS[e.type]) throw new Error(T("vectorlab.effets.inconnu", { type: e && e.type }));
     if (e.flou !== undefined) _n(e.flou, 0, 200, "flou");
     if (e.dx !== undefined) _n(e.dx, -500, 500, "dx");
     if (e.dy !== undefined) _n(e.dy, -500, 500, "dy");
@@ -126,18 +128,18 @@ export const MODES_FUSION = ["normal", "multiply", "screen", "overlay", "darken"
 
 /* ── motifs ── */
 export const MOTIFS = [
-  { id: "hachures", libelle: "Hachures" },
-  { id: "points", libelle: "Points" },
-  { id: "damier", libelle: "Damier" },
-  { id: "grille", libelle: "Grille" },
+  { id: "hachures", libelle: T("vectorlab.effets.motif_hachures") },
+  { id: "points", libelle: T("vectorlab.effets.motif_points") },
+  { id: "damier", libelle: T("vectorlab.effets.motif_damier") },
+  { id: "grille", libelle: T("vectorlab.effets.motif_grille") },
 ];
 const _MOTIF_DEFAUT = { pas: 8, angle: 45, epaisseur: 1, couleur: "#1F1512" };
 export function motif_defaut(type) {
-  if (!MOTIFS.some((m) => m.id === type)) throw new Error(`motif inconnu : ${type}`);
+  if (!MOTIFS.some((m) => m.id === type)) throw new Error(T("vectorlab.effets.motif_inconnu", { type }));
   return { type, ..._MOTIF_DEFAUT, angle: type === "hachures" ? 45 : 0 };
 }
 export function motif_valider(m) {
-  if (!m || typeof m !== "object" || !MOTIFS.some((x) => x.id === m.type)) throw new Error(`motif inconnu : ${m && m.type}`);
+  if (!m || typeof m !== "object" || !MOTIFS.some((x) => x.id === m.type)) throw new Error(T("vectorlab.effets.motif_inconnu", { type: m && m.type }));
   if (m.pas !== undefined) _n(m.pas, 0.5, 1000, "pas");
   if (m.angle !== undefined) _n(m.angle, -360, 360, "angle");
   if (m.epaisseur !== undefined) _n(m.epaisseur, 0.1, 100, "epaisseur");
@@ -176,7 +178,7 @@ function _couleurA(stops, t) {
 }
 const _r = (v) => Math.round(v * 1000) / 1000;
 export function conique_secteurs(g, n = 72) {
-  if (!g || !Array.isArray(g.stops) || !g.stops.length) throw new Error("conique : stops requis");
+  if (!g || !Array.isArray(g.stops) || !g.stops.length) throw new Error(T("vectorlab.effets.conique_stops"));
   const cx = +g.cx, cy = +g.cy, r = +g.r * 1.5, a0 = (+g.angle || 0) * Math.PI / 180;   // ×1,5 : les secteurs couvrent le carré
   const out = [];
   for (let i = 0; i < n; i++) {

@@ -51,11 +51,11 @@
     back: [0.510, 0.000, 1.000, 0.940],
     edge: [0.000, 0.960, 1.000, 1.000],
   };
-  const ISLAND_LABEL = { front: "RECTO", back: "VERSO", edge: "TRANCHE" };
+  const ISLAND_LABEL = { front: dzT("cartes.gltf.ilot_recto"), back: dzT("cartes.gltf.ilot_verso"), edge: dzT("cartes.gltf.ilot_tranche") };
   const KIND_LABEL = {
-    glb: "GLB", gltf: "glTF", zip: "ZIP des maps", deck: "Jeu complet",
-    obj: "OBJ + MTL", stl: "STL", "3mf": "3MF couleur",
-    ply: "PLY couleur/sommet", dxf: "DXF 3DFACE", proof: "Planche de contrôle",
+    glb: "GLB", gltf: "glTF", zip: dzT("cartes.gltf.zip_des_maps"), deck: dzT("cartes.gltf.jeu_complet"),
+    obj: "OBJ + MTL", stl: "STL", "3mf": dzT("cartes.gltf.kind_3mf"),
+    ply: dzT("cartes.gltf.kind_ply"), dxf: "DXF 3DFACE", proof: dzT("cartes.gltf.planche"),
   };
   const RES_STEPS = [1024, 2048, 4096];
 
@@ -72,7 +72,7 @@
      ═══════════════════════════════════════════════════════════════════════ */
   const M = CF.register({
     id: "gltf",
-    title: "Export 3D",
+    title: dzT("cartes.gltf.titre"),
     icon: "dz-nav-cf-export-3d",
     order: 8,
 
@@ -118,16 +118,15 @@
       const tete = host.parentNode
         && host.parentNode.querySelector(".panel-head .hint");
       if (tete) {
-        tete.textContent = "GLB et glTF, archive des maps PNG et du maillage, "
-          + "manifeste, et les dimensions physiques relues dans le fichier.";
+        tete.textContent = dzT("cartes.gltf.tete");
       }
       host.innerHTML = shell();
       wire(host);
       watchShown(host);
       refresh(true);
-      CF.on("core:geom", () => { checkStale("format"); paintReadouts(); });
-      CF.on("core:cards", () => { checkStale("cartes"); paintReadouts(); });
-      CF.on("core:render", () => checkStale("carte"));
+      CF.on("core:geom", () => { checkStale(dzT("cartes.gltf.pourquoi_format")); paintReadouts(); });
+      CF.on("core:cards", () => { checkStale(dzT("cartes.gltf.pourquoi_cartes")); paintReadouts(); });
+      CF.on("core:render", () => checkStale(dzT("cartes.gltf.pourquoi_carte")));
       document.addEventListener("keydown", onKey, false);
     },
   });
@@ -173,16 +172,15 @@
      norme CEI 80000-13), et l'infobulle garde l'octet exact. */
   function weight(n) {
     const v = Number(n) || 0;
-    if (v < 1024) return v + " o";
-    if (v < 1024 * 1024) return (v / 1024).toFixed(v < 10240 ? 1 : 0) + " Kio";
-    return (v / 1048576).toFixed(2) + " Mio";
+    if (v < 1024) return dzT("cartes.gltf.poids_o", { v: v });
+    if (v < 1024 * 1024) return dzT("cartes.gltf.poids_kio", { v: (v / 1024).toFixed(v < 10240 ? 1 : 0) });
+    return dzT("cartes.gltf.poids_mio", { v: (v / 1048576).toFixed(2) });
   }
 
   /* Le meme poids en clair, octets compris : sert d'infobulle partout. */
   function weightTitle(n) {
     const v = Number(n) || 0;
-    return v.toLocaleString("fr-FR") + " octets — " + weight(v)
-      + " (binaire) = " + (v / 1e6).toFixed(2) + " Mo (SI, 10⁶)";
+    return dzT("cartes.gltf.poids_titre", { n: v.toLocaleString("fr-FR"), b: weight(v), si: (v / 1e6).toFixed(2) });
   }
 
   function get(k) { return CF.get("gltf." + k, M_STATE_DEFAULT[k]); }
@@ -216,10 +214,10 @@
 
   function undo() {
     const h = HIST.pop();
-    if (!h) { M.toast("rien à annuler"); return; }
+    if (!h) { M.toast(dzT("cartes.gltf.rien_a_annuler")); return; }
     M.patch(h.before);
     paintAll();
-    M.toast("annulé : " + h.label);
+    M.toast(dzT("cartes.gltf.annule", { label: h.label }));
   }
 
   function islands() {
@@ -273,16 +271,16 @@
       /* ── atlas ─────────────────────────────────────────────────────── */
       + '<section class="cf-gltf-card">'
       + '<header class="cf-gltf-h"><b>Atlas</b>'
-      + '<span class="cf-gltf-sub" id="cf-gltf-atlas-sub">un seul matériau</span>'
+      + '<span class="cf-gltf-sub" id="cf-gltf-atlas-sub">' + dzT("cartes.gltf.un_seul_materiau") + '</span>'
       + '<div class="seg sm" id="cf-gltf-view-seg"></div>'
       + '<button class="btn sm" id="cf-gltf-compose" type="button" '
-      + 'title="Recompose l\'atlas depuis le moteur de rendu (A)">Composer</button>'
+      + 'title="' + dzT("cartes.gltf.composer_titre") + '">' + dzT("cartes.gltf.composer") + '</button>'
       + '</header>'
       + '<div class="cf-gltf-atlas" id="cf-gltf-drop">'
       + '<canvas id="cf-gltf-atlas-cv" class="cf-gltf-atlas-cv" width="240" height="240"></canvas>'
       + '<div class="cf-gltf-atlas-side">'
       + '<div class="cf-gltf-kv" id="cf-gltf-atlas-kv"></div>'
-      + '<p class="hint">Glissez-déposez un PNG ici pour utiliser votre propre atlas.</p>'
+      + '<p class="hint">' + dzT("cartes.gltf.glisser_png") + '</p>'
       + '</div></div>'
       + '<p class="hint cf-gltf-note" id="cf-gltf-atlas-note"></p>'
       + '<div class="cf-gltf-stale hidden" id="cf-gltf-stale"></div>'
@@ -290,11 +288,11 @@
 
       /* ── reglages ──────────────────────────────────────────────────── */
       + '<section class="cf-gltf-card">'
-      + '<header class="cf-gltf-h"><b>Réglages</b>'
-      + '<button class="lnk" id="cf-gltf-undo" type="button" title="Ctrl+Z">' + ICO("dz-action-annuler", 16, "cf-ic") + 'annuler</button>'
+      + '<header class="cf-gltf-h"><b>' + dzT("cartes.gltf.reglages") + '</b>'
+      + '<button class="lnk" id="cf-gltf-undo" type="button" title="Ctrl+Z">' + ICO("dz-action-annuler", 16, "cf-ic") + dzT("cartes.gltf.annuler") + '</button>'
       + '</header>'
 
-      + '<div class="fld"><span class="lbl">Définition de l\'atlas</span>'
+      + '<div class="fld"><span class="lbl">' + dzT("cartes.gltf.def_atlas") + '</span>'
       + '<div class="cf-gltf-row">'
       + '<div class="seg sm" id="cf-gltf-res-seg"></div>'
       + '<label class="cf-gltf-num"><input type="number" id="cf-gltf-res" '
@@ -308,30 +306,30 @@
       + '</div>'
       + '<p class="hint" id="cf-gltf-res-read"></p></div>'
 
-      + '<div class="fld"><span class="lbl">Finition</span>'
+      + '<div class="fld"><span class="lbl">' + dzT("cartes.gltf.finition_lbl") + '</span>'
       + '<div class="chips" id="cf-gltf-finish"></div>'
       + '<p class="hint" id="cf-gltf-finish-read"></p></div>'
 
       /* LE QUATRIEME EMPLACEMENT DEVIENT UN GESTE. La doctrine « le papier
          n'emet pas » reste le defaut ; ce champ la surcharge sans changer la
          matiere : encre luminescente sur papier mat, ou dorure eteinte. */
-      + '<div class="fld"><span class="lbl">Émission</span>'
+      + '<div class="fld"><span class="lbl">' + dzT("cartes.gltf.emission_lbl") + '</span>'
       + '<div class="cf-gltf-row">'
       + '<label class="cf-gltf-num"><input type="number" id="cf-gltf-emi" '
       + 'min="0" max="1" step="0.05"><i>0..1</i></label>'
-      + '<button class="btn sm" id="cf-gltf-emi-fin" type="button">celle de la finition</button>'
+      + '<button class="btn sm" id="cf-gltf-emi-fin" type="button">' + dzT("cartes.gltf.celle_finition") + '</button>'
       + '</div>'
       + '<p class="hint" id="cf-gltf-emi-read"></p></div>'
 
-      + '<div class="fld"><span class="lbl">Épaisseur</span>'
+      + '<div class="fld"><span class="lbl">' + dzT("cartes.gltf.epaisseur_lbl") + '</span>'
       + '<div class="cf-gltf-row">'
       + '<label class="cf-gltf-num"><input type="number" id="cf-gltf-th" '
       + 'min="0.2" max="1.2" step="0.01"><i>mm</i></label>'
-      + '<button class="btn sm" id="cf-gltf-th-p5" type="button">reprendre la pièce 05</button>'
+      + '<button class="btn sm" id="cf-gltf-th-p5" type="button">' + dzT("cartes.gltf.reprendre_p5") + '</button>'
       + '</div>'
       + '<p class="hint" id="cf-gltf-th-read"></p></div>'
 
-      + '<div class="fld"><span class="lbl">Textures du GLB</span>'
+      + '<div class="fld"><span class="lbl">' + dzT("cartes.gltf.textures_glb") + '</span>'
       + '<div class="cf-gltf-row">'
       + '<div class="seg sm" id="cf-gltf-img"></div>'
       + '<label class="cf-gltf-num cf-gltf-q hidden" id="cf-gltf-q-wrap">'
@@ -345,7 +343,7 @@
 
       /* ── livrables ─────────────────────────────────────────────────── */
       + '<section class="cf-gltf-card">'
-      + '<header class="cf-gltf-h"><b>Livrables</b></header>'
+      + '<header class="cf-gltf-h"><b>' + dzT("cartes.gltf.livrables_lbl") + '</b></header>'
       + '<div class="cf-gltf-checks" id="cf-gltf-formats"></div>'
       + '<p class="hint" id="cf-gltf-missing"></p>'
       /* LE LIBELLÉ AFFIRMAIT CE QUE LA MESURE DOIT DIRE. « 16 bits réels …
@@ -353,16 +351,15 @@
          à plaider, elle demande. Le verdict — bits, niveaux, coût — s'affiche
          juste dessous, une fois les octets écrits et relus. */
       + '<label class="check tiny"><input type="checkbox" id="cf-gltf-bits16">'
-      + '<span><b>16 bits</b> sur height et normal dans le ZIP '
-      + '<i>(plus fin sur les dégradés, ZIP plus lourd)</i></span></label>'
+      + '<span>' + dzT("cartes.gltf.bits16_case") + '</span></label>'
       + '<p class="hint" id="cf-gltf-bits-read"></p>'
-      + '<div class="fld"><span class="lbl">Origine du pivot</span>'
+      + '<div class="fld"><span class="lbl">' + dzT("cartes.gltf.origine_pivot") + '</span>'
       + '<div class="seg sm" id="cf-gltf-pivot"></div>'
       + '<p class="hint" id="cf-gltf-pivot-read"></p></div>'
-      + '<div class="fld"><span class="lbl">Portée</span>'
+      + '<div class="fld"><span class="lbl">' + dzT("cartes.gltf.portee_lbl") + '</span>'
       + '<div class="seg sm" id="cf-gltf-scope"></div></div>'
       + '<button class="btn strong big wide" id="cf-gltf-build" type="button">'
-      + 'Construire l\'export</button>'
+      + dzT("cartes.gltf.construire") + '</button>'
       + '<p class="cf-gltf-free" id="cf-gltf-free"></p>'
       + '</section>'
 
@@ -372,8 +369,8 @@
 
       /* ── apercu 3D ─────────────────────────────────────────────────── */
       + '<section class="cf-gltf-card cf-gltf-grow">'
-      + '<header class="cf-gltf-h"><b>Le fichier livré</b>'
-      + '<span class="cf-gltf-sub">le .glb construit, ouvert ici</span>'
+      + '<header class="cf-gltf-h"><b>' + dzT("cartes.gltf.fichier_livre") + '</b>'
+      + '<span class="cf-gltf-sub">' + dzT("cartes.gltf.glb_ouvert") + '</span>'
       + '<label class="check tiny"><input type="checkbox" id="cf-gltf-spin">'
       + '<span>rotation</span></label>'
       + '</header>'
@@ -383,8 +380,8 @@
 
       /* ── bordereau ─────────────────────────────────────────────────── */
       + '<section class="cf-gltf-card">'
-      + '<header class="cf-gltf-h"><b>Bordereau</b>'
-      + '<button class="btn sm hidden" id="cf-gltf-all" type="button">' + ICO("dz-action-telecharger", 16, "cf-ic") + 'Tout télécharger</button>'
+      + '<header class="cf-gltf-h"><b>' + dzT("cartes.gltf.bordereau") + '</b>'
+      + '<button class="btn sm hidden" id="cf-gltf-all" type="button">' + ICO("dz-action-telecharger", 16, "cf-ic") + dzT("cartes.gltf.tout_telecharger") + '</button>'
       + '</header>'
       + '<div id="cf-gltf-slip"></div>'
       /* ── LE SEUL POINT QUE CET ÉCRAN PERDAIT ────────────────────────────
@@ -409,8 +406,8 @@
     $("#cf-gltf-build").addEventListener("click", () => build());
     $("#cf-gltf-undo").addEventListener("click", undo);
     $("#cf-gltf-th-p5").addEventListener("click", () => {
-      set({ thickness_mm: null }, "épaisseur");
-      paintAll(); markStale("épaisseur");
+      set({ thickness_mm: null }, dzT("cartes.gltf.lbl_epaisseur"));
+      paintAll(); markStale(dzT("cartes.gltf.lbl_epaisseur"));
     });
     $("#cf-gltf-spin").addEventListener("change", (e) => {
       set({ spin: !!e.target.checked }, "rotation");
@@ -422,25 +419,25 @@
     });
 
     numField("#cf-gltf-res", 256, 4096, (v) => {
-      set({ res: v }, "définition"); paintRes(); askDensity(v); markStale("définition");
+      set({ res: v }, dzT("cartes.gltf.lbl_definition")); paintRes(); askDensity(v); markStale(dzT("cartes.gltf.lbl_definition"));
     });
     $("#cf-gltf-res-fit").addEventListener("click", () => {
       const d = density(get("res"));
       const fit = d && d.res_fit;
       if (!fit) return;
-      set({ res: Number(fit) }, "définition juste");
-      paintRes(); askDensity(Number(fit)); markStale("définition");
-      M.toast("définition ajustée à la source : " + fit + " px");
+      set({ res: Number(fit) }, dzT("cartes.gltf.lbl_def_juste"));
+      paintRes(); askDensity(Number(fit)); markStale(dzT("cartes.gltf.lbl_definition"));
+      M.toast(dzT("cartes.gltf.def_ajustee", { fit: fit }));
     });
     numField("#cf-gltf-th", 0.2, 1.2, (v) => {
-      set({ thickness_mm: v }, "épaisseur"); paintTh(); markStale("épaisseur");
+      set({ thickness_mm: v }, dzT("cartes.gltf.lbl_epaisseur")); paintTh(); markStale(dzT("cartes.gltf.lbl_epaisseur"));
     });
-    numField("#cf-gltf-q", 60, 100, (v) => { set({ jpeg_q: v }, "qualité"); });
+    numField("#cf-gltf-q", 60, 100, (v) => { set({ jpeg_q: v }, dzT("cartes.gltf.lbl_qualite")); });
     numField("#cf-gltf-emi", 0, 1, (v) => {
-      set({ emissive: v }, "émission"); paintFinish(); paintEmissive();
+      set({ emissive: v }, dzT("cartes.gltf.lbl_emission")); paintFinish(); paintEmissive();
     });
     $("#cf-gltf-emi-fin").addEventListener("click", () => {
-      set({ emissive: null }, "émission");
+      set({ emissive: null }, dzT("cartes.gltf.lbl_emission"));
       paintFinish(); paintEmissive();
     });
 
@@ -496,7 +493,7 @@
     else if (k >= "1" && k <= "3") {
       e.preventDefault();
       const v = RES_STEPS[Number(k) - 1];
-      set({ res: v }, "définition"); paintRes(); askDensity(v); markStale("définition");
+      set({ res: v }, dzT("cartes.gltf.lbl_definition")); paintRes(); askDensity(v); markStale(dzT("cartes.gltf.lbl_definition"));
     }
   }
 
@@ -649,11 +646,11 @@
     const res = get("res");
     const i = CF.current ? CF.current() : 0;
     BUSY = true;
-    if (loud) M.busy(true, "composition de l'atlas…");
+    if (loud) M.busy(true, dzT("cartes.gltf.composition"));
     try {
       const cv = await composeCanvas(i, res);
       const blob = await new Promise((ok, ko) => cv.toBlob(
-        (b) => (b ? ok(b) : ko(new Error("encodage de l'atlas impossible"))),
+        (b) => (b ? ok(b) : ko(new Error(dzT("cartes.gltf.encodage_ko")))),
         "image/png"));
       if (ATLAS && ATLAS.url) URL.revokeObjectURL(ATLAS.url);
       ATLAS = { blob: blob, url: URL.createObjectURL(blob), res: res, i: i,
@@ -661,13 +658,13 @@
       drawAtlas(cv);
       if (!OFFLINE) {
         const r = await M.api.raw("POST", "atlas?i=" + i, blob);
-        if (!r.ok) throw new Error("dépôt de l'atlas refusé (" + r.status + ")");
+        if (!r.ok) throw new Error(dzT("cartes.gltf.depot_refuse", { status: r.status }));
         const d = await r.json();
         ATLAS.server = d.atlas;
       }
       clearStale();
       paintAtlas();
-      if (loud) M.toast("atlas " + res + " x " + res + " composé — " + weight(blob.size));
+      if (loud) M.toast(dzT("cartes.gltf.atlas_compose", { res: res, poids: weight(blob.size) }));
     } catch (e) {
       M.toast(String(e && e.message || e), true);
     } finally {
@@ -687,11 +684,10 @@
       M.busy(true, "atlas " + (i + 1) + " / " + n + "…");
       const cv = await composeCanvas(i, res);
       const blob = await new Promise((ok, ko) => cv.toBlob(
-        (b) => (b ? ok(b) : ko(new Error("encodage de l'atlas impossible"))),
+        (b) => (b ? ok(b) : ko(new Error(dzT("cartes.gltf.encodage_ko")))),
         "image/png"));
       const r = await M.api.raw("POST", "atlas?i=" + i, blob);
-      if (!r.ok) throw new Error("dépôt de l'atlas " + (i + 1) + " refusé ("
-        + r.status + ")");
+      if (!r.ok) throw new Error(dzT("cartes.gltf.depot_n_refuse", { n: i + 1, status: r.status }));
       if (i === (CF.current ? CF.current() : 0)) {
         if (ATLAS && ATLAS.url) URL.revokeObjectURL(ATLAS.url);
         ATLAS = { blob: blob, url: URL.createObjectURL(blob), res: res, i: i,
@@ -706,15 +702,15 @@
 
   async function importAtlas(file) {
     if (!/\.(png|jpe?g)$/i.test(file.name)) {
-      M.toast("un PNG ou un JPEG est attendu", true); return;
+      M.toast(dzT("cartes.gltf.png_attendu"), true); return;
     }
-    M.busy(true, "import de l'atlas…");
+    M.busy(true, dzT("cartes.gltf.import_atlas"));
     try {
       const i = CF.current ? CF.current() : 0;
       const r = await M.api.raw("POST", "atlas?i=" + i, file);
       if (!r.ok) {
         let d = null; try { d = await r.json(); } catch (err) { d = null; }
-        throw new Error((d && d.detail) || ("import refusé (" + r.status + ")"));
+        throw new Error((d && d.detail) || dzT("cartes.gltf.import_refuse", { status: r.status }));
       }
       const d = await r.json();
       if (ATLAS && ATLAS.url) URL.revokeObjectURL(ATLAS.url);
@@ -726,7 +722,7 @@
       img.src = ATLAS.url;
       clearStale();
       paintAtlas();
-      M.toast("atlas importé : " + file.name + " — " + d.atlas.res.join(" x "));
+      M.toast(dzT("cartes.gltf.atlas_importe", { nom: file.name, res: d.atlas.res.join(" x ") }));
     } catch (e) {
       M.toast(String(e && e.message || e), true);
     } finally { M.busy(false); }
@@ -738,11 +734,11 @@
      de coordonnee : le fil de fer UV vient de `GET info.uv_wire`, c'est-a-dire
      des triangles du maillage LIVRE, servis par le backend. */
   const VIEWS = [
-    { id: "atlas", label: "Atlas", title: "ce qui part dans le fichier" },
-    { id: "uv", label: "UV", title: "le fil de fer UV du maillage livré" },
-    { id: "ilots", label: "Îlots", title: "les rectangles de l'atlas" },
-    { id: "canaux", label: "Canaux",
-      title: "les maps côte à côte — cochez « Planche de contrôle » et construisez" },
+    { id: "atlas", label: "Atlas", title: dzT("cartes.gltf.vue_atlas") },
+    { id: "uv", label: "UV", title: dzT("cartes.gltf.vue_uv") },
+    { id: "ilots", label: dzT("cartes.gltf.ilots"), title: dzT("cartes.gltf.vue_ilots") },
+    { id: "canaux", label: dzT("cartes.gltf.canaux"),
+      title: dzT("cartes.gltf.vue_canaux") },
   ];
   let VIEW = "atlas";
   let ATLAS_SRC = null;
@@ -788,9 +784,9 @@
         const n = (INFO && INFO.maps && INFO.maps.count) || 0;
         ctx.fillStyle = tok("--ink-muted", "#8b93a7");
         ctx.font = "600 9px ui-monospace, monospace";
-        ctx.fillText("cochez « Planche de contrôle »", 12, S / 2 - 8);
-        ctx.fillText("puis construisez (E) :", 12, S / 2 + 6);
-        ctx.fillText((n ? n + " canaux" : "les canaux") + " seront ici.",
+        ctx.fillText(dzT("cartes.gltf.cochez_planche"), 12, S / 2 - 8);
+        ctx.fillText(dzT("cartes.gltf.puis_construisez"), 12, S / 2 + 6);
+        ctx.fillText(n ? dzT("cartes.gltf.n_canaux_ici", { n: n }) : dzT("cartes.gltf.canaux_ici"),
                      12, S / 2 + 20);
       }
       return;
@@ -820,8 +816,7 @@
       ctx.fillRect(2, S - 14, S - 4, 12);
       ctx.fillStyle = acc;
       ctx.font = "600 8px ui-monospace, monospace";
-      ctx.fillText(tris.length + " triangles UV · " + (me.uv_islands || "?")
-        + " îlots mesurés (" + (me.uv_islands_tri || []).join("+") + ")",
+      ctx.fillText(dzT("cartes.gltf.uv_bandeau", { tris: tris.length, ilots: (me.uv_islands || "?"), detail: (me.uv_islands_tri || []).join("+") }),
         5, S - 5);
       return;
     }
@@ -853,9 +848,7 @@
     const sub = $("#cf-gltf-atlas-sub");
     const me = (INFO && INFO.mesh) || {};
     if (sub) {
-      sub.innerHTML = "un seul matériau — <b>"
-        + (me.uv_islands != null ? me.uv_islands : "?")
-        + "</b> îlots UV mesurés sur le maillage livré";
+      sub.innerHTML = dzT("cartes.gltf.sous_titre_ilots", { n: (me.uv_islands != null ? me.uv_islands : "?") });
     }
   }
 
@@ -906,8 +899,7 @@
     const el = $("#cf-gltf-stale");
     if (!el) return;
     el.classList.remove("hidden");
-    el.innerHTML = "L'atlas déposé date d'avant « " + esc(why)
-      + " ». <button class=\"lnk\" data-act=\"compose\">recomposer</button>";
+    el.innerHTML = dzT("cartes.gltf.perime", { why: esc(why) });
   }
 
   function clearStale() {
@@ -921,9 +913,9 @@
      ═══════════════════════════════════════════════════════════════════════ */
   async function build() {
     if (BUSY) return;
-    if (OFFLINE) { M.toast("API cartes indisponible", true); return; }
+    if (OFFLINE) { M.toast(dzT("cartes.gltf.api_ko"), true); return; }
     const formats = get("formats");
-    if (!formats.length) { M.toast("cochez au moins un livrable", true); return; }
+    if (!formats.length) { M.toast(dzT("cartes.gltf.cochez_livrable"), true); return; }
     const deck = get("scope") === "deck";
     BUSY = true;
     const t0 = Date.now();
@@ -932,7 +924,7 @@
       else if (!ATLAS || ATLAS.stale) {
         BUSY = false; await compose(false); BUSY = true;
       }
-      M.busy(true, "construction — maps PBR, GLB, glTF, ZIP…");
+      M.busy(true, dzT("cartes.gltf.construction"));
       const body = {
         res: get("res"), formats: formats, finish: get("finish"),
         bits16: !!get("bits16"), img: get("img"), jpeg_q: get("jpeg_q"),
@@ -953,8 +945,7 @@
       showBuild(BUILD, false);
       askLocal();                 /* le dossier vient de changer : on recompte */
       M.emit("built", { files: BUILD.files.length, bytes: BUILD.total_bytes });
-      M.toast(BUILD.files.length + " fichier(s) · " + weight(BUILD.total_bytes)
-        + " · " + ((Date.now() - t0) / 1000).toFixed(1) + " s");
+      M.toast(dzT("cartes.gltf.toast_build", { n: BUILD.files.length, poids: weight(BUILD.total_bytes), s: ((Date.now() - t0) / 1000).toFixed(1) }));
     } catch (e) {
       M.toast(String(e && e.message || e), true);
     } finally { BUSY = false; M.busy(false); }
@@ -970,8 +961,8 @@
 
   async function grab(kind, name) {
     const f = name ? { name: name } : fileOf(kind);
-    if (!f) { M.toast("construisez l'export d'abord (E)", true); return; }
-    M.busy(true, "téléchargement…");
+    if (!f) { M.toast(dzT("cartes.gltf.construisez_dabord"), true); return; }
+    M.busy(true, dzT("cartes.gltf.telechargement"));
     try {
       const b = await M.api.blob("GET", "file/" + encodeURIComponent(f.name));
       M.download(b, f.name);
@@ -997,16 +988,16 @@
       const d = density(get("res"));
       const fit = d && d.res_fit;
       if (!fit) return;
-      set({ res: Number(fit) }, "définition juste");
-      paintRes(); askDensity(Number(fit)); markStale("définition");
-      M.toast("définition ajustée à la source : " + fit + " px");
+      set({ res: Number(fit) }, dzT("cartes.gltf.lbl_def_juste"));
+      paintRes(); askDensity(Number(fit)); markStale(dzT("cartes.gltf.lbl_definition"));
+      M.toast(dzT("cartes.gltf.def_ajustee", { fit: fit }));
     } else if (act === "slice") {
       e.preventDefault();
       const cur = get("formats").slice();
       ["stl", "3mf"].forEach((k) => { if (cur.indexOf(k) < 0) cur.push(k); });
-      set({ formats: cur }, "livrables");
-      paintFormats(); paintSlip(); markStale("livrables");
-      M.toast("STL et 3MF cochés — reconstruisez pour les obtenir");
+      set({ formats: cur }, dzT("cartes.gltf.lbl_livrables"));
+      paintFormats(); paintSlip(); markStale(dzT("cartes.gltf.lbl_livrables"));
+      M.toast(dzT("cartes.gltf.stl_coches"));
     }
   }
 
@@ -1027,9 +1018,7 @@
     const host = $("#cf-gltf-view");
     if (!host) return;
     if (typeof customElements === "undefined" || !customElements.get("model-viewer")) {
-      host.innerHTML = '<p class="empty-note sm">La visionneuse 3D '
-        + '(/assets/model-viewer.min.js) n\'est pas chargée. Le fichier, lui, '
-        + 'est construit et téléchargeable.</p>';
+      host.innerHTML = '<p class="empty-note sm">' + dzT("cartes.gltf.visionneuse_absente") + '</p>';
       return;
     }
     const url = M.api.url("file/" + encodeURIComponent(fname)) + "?t=" + Date.now();
@@ -1051,7 +1040,7 @@
       mv.setAttribute("max-camera-orbit", "auto auto 1m");
       mv.addEventListener("load", () => measure(mv));
       mv.addEventListener("error", () => {
-        $("#cf-gltf-mes").textContent = "la visionneuse n'a pas pu ouvrir le GLB";
+        $("#cf-gltf-mes").textContent = dzT("cartes.gltf.visionneuse_ko");
       });
       host.innerHTML = "";
       host.appendChild(mv);
@@ -1096,13 +1085,11 @@
        colonne. Posés l'un sous l'autre, alignés, deux nombres identiques SE
        VOIENT identiques : c'est tout ce que ce bloc a à montrer. */
     const ligneBuf = deuxieme
-      ? '<span><b>' + mm4(buf) + ' mm</b> — les float32 de POSITION relus '
-        + 'dans le chunk binaire du .glb, à l\'échelle du nœud</span>'
+      ? '<span>' + dzT("cartes.gltf.mes_buf", { mm: mm4(buf) }) + '</span>'
       : '';
     if (!d) {
       out.innerHTML = ligneBuf
-        + '<span>la visionneuse n\'a pas rendu de boîte englobante pour ce '
-        + 'fichier.</span>';
+        + '<span>' + dzT("cartes.gltf.mes_sans_boite") + '</span>';
       return;
     }
     /* Quatre décimales des deux côtés : le relevé sort en float32, il porte
@@ -1115,18 +1102,13 @@
       const um = Math.max.apply(null,
         mm.map((v, i) => Math.abs(v - buf[i]))) * 1000;
       accord = (mm4(mm) === mm4(buf))
-        ? '<span>un moteur 3D dans cette page d\'un côté, les octets du '
-          + 'fichier de l\'autre : deux chemins sans rien en commun, '
-          + '<b class="cf-gltf-ok">le même nombre</b>.</span>'
-        : '<span class="cf-gltf-ko">les deux lectures ne donnent pas le même '
-          + 'nombre : ' + um.toFixed(1) + ' µm d\'un relevé à l\'autre sur '
-          + 'l\'axe le plus large.</span>';
+        ? '<span>' + dzT("cartes.gltf.mes_accord") + '</span>'
+        : '<span class="cf-gltf-ko">' + dzT("cartes.gltf.mes_desaccord", { um: um.toFixed(1) }) + '</span>';
     }
     /* Chaque relevé dans son propre <span> : la feuille donne une rangée
        pleine à chaque ENFANT du bloc, et un texte nu deviendrait un élément
        anonyme que la règle ne peut pas atteindre. */
-    out.innerHTML = '<span><b>' + mm4(mm) + ' mm</b> — la boîte englobante '
-      + 'que la visionneuse a mesurée en ouvrant le .glb</span>'
+    out.innerHTML = '<span>' + dzT("cartes.gltf.mes_viewer", { mm: mm4(mm) }) + '</span>'
       + ligneBuf + accord;
   }
 
@@ -1156,8 +1138,8 @@
   function paintRes() {
     const cur = get("res");
     seg($("#cf-gltf-res-seg"), RES_STEPS.map((r, i) => (
-      { id: r, label: (r / 1024) + "k", title: "raccourci " + (i + 1) })), cur,
-      (v) => { set({ res: Number(v) }, "définition"); paintRes(); askDensity(Number(v)); markStale("définition"); });
+      { id: r, label: (r / 1024) + "k", title: dzT("cartes.gltf.raccourci_n", { n: i + 1 }) })), cur,
+      (v) => { set({ res: Number(v) }, dzT("cartes.gltf.lbl_definition")); paintRes(); askDensity(Number(v)); markStale(dzT("cartes.gltf.lbl_definition")); });
     const inp = $("#cf-gltf-res");
     if (inp && document.activeElement !== inp) inp.value = String(cur);
     const read = $("#cf-gltf-res-read");
@@ -1167,7 +1149,7 @@
        changement de definition proposerait un ajustement qui n'est plus le
        bon — donc un chiffre faux sur un bouton. */
     paintFit(dens);
-    if (!dens) { read.textContent = "définition libre de 256 à 4096 px."; return; }
+    if (!dens) { read.textContent = dzT("cartes.gltf.def_libre"); return; }
     const dpi = dens.dpi || [0, 0];
     /* TROIS NOMBRES, ET UN SEUL SE COMPARE A LA CIBLE.
        Cette ligne affichait « 404.8 x 555.6 DPI, au-dessus de l'impression
@@ -1183,8 +1165,7 @@
        que rien ne le porte. Sans valeur servie, la phrase ne se peint pas. */
     const cible = dens.dpi_target;
     if (eff == null) {
-      read.innerHTML = 'Face dans l\'atlas : <b>' + dens.front_px.join(" x ")
-        + ' px</b> — <b>' + dpi[0] + ' x ' + dpi[1] + ' DPI</b> de texels';
+      read.innerHTML = dzT("cartes.gltf.face_atlas", { px: dens.front_px.join(" x "), dx: dpi[0], dy: dpi[1] });
       return;
     }
     const ok = !!dens.print_ok;
@@ -1193,20 +1174,16 @@
        coupe, il la RÉDUIT — donc il jette de l'information avant même
        l'encodage. Le verbe suit maintenant le nombre, dans les deux sens. */
     const up = dens.upsample || [1, 1];
-    const verbe = (up[0] >= 1 && up[1] >= 1) ? 'l\'îlot l\'agrandit de'
-      : (up[0] <= 1 && up[1] <= 1) ? '<b class="cf-gltf-ko">l\'îlot la réduit</b> à'
-        : 'l\'îlot la met à l\'échelle';
+    const verbe = (up[0] >= 1 && up[1] >= 1) ? dzT("cartes.gltf.verbe_agrandit")
+      : (up[0] <= 1 && up[1] <= 1) ? dzT("cartes.gltf.verbe_reduit")
+        : dzT("cartes.gltf.verbe_echelle");
     /* CETTE LIGNE PARLAIT DE « PNG LIVRÉS » AVANT QU'IL EN EXISTE UN. Elle
        vit dans les réglages : elle décrit ce que la définition choisie VA
        produire, et le service de densité la sert dès qu'on bouge le curseur,
        construction ou pas. Le bordereau, lui, relit le chunk dans les octets
        écrits et l'affiche là-bas. Ici on annonce, là-bas on prouve. */
-    read.innerHTML = 'Face : <b>' + dens.front_px.join(" x ") + ' px</b>, texels '
-      + '<b>' + dpi[0] + ' x ' + dpi[1] + ' DPI</b> <i>(c\'est cette densité '
-      + 'qui partira dans le chunk pHYs de chaque PNG)</i><br>'
-      + 'Information réelle <b class="' + (ok ? "cf-gltf-ok" : "cf-gltf-ko") + '">'
-      + eff + ' DPI</b> — la source rognée fait ' + (dens.source_px || []).join(" x ")
-      + ' px, ' + verbe + ' <b>x' + up[0] + '</b> et <b>x' + up[1] + '</b>. '
+    read.innerHTML = dzT("cartes.gltf.face_texels", { px: dens.front_px.join(" x "), dx: dpi[0], dy: dpi[1] }) + '<br>'
+      + dzT("cartes.gltf.info_reelle", { cls: (ok ? "cf-gltf-ok" : "cf-gltf-ko"), eff: eff, src: (dens.source_px || []).join(" x "), verbe: verbe, ux: up[0], uy: up[1] }) + ' '
       /* « LA DÉFINITION DE LA CARTE (300 DPI) EST TENUE » est la phrase d'un
          correcteur qui coche une case. Le nombre, lui, reste : c'est la
          définition que l'utilisateur a posée dans la barre du document, et
@@ -1214,13 +1191,11 @@
          vient chercher. On lui dit ce que fait son export, pas la note. */
       + (cible == null ? '' : '<span class="'
         + (ok ? "cf-gltf-ok" : "cf-gltf-ko") + '">'
-        + (ok ? "l\'export garde les " : "l\'export descend sous les ")
-        + cible + " DPI posés dans la barre du document"
+        + (ok ? dzT("cartes.gltf.export_garde", { cible: cible }) : dzT("cartes.gltf.export_sous", { cible: cible }))
         + '</span> · ')
-      + 'texels non carrés : ' + dens.anisotropy + 'x'
+      + dzT("cartes.gltf.texels_non_carres", { a: dens.anisotropy })
       + (dens.useful_pct != null
-        ? ' · <b>' + dens.useful_pct + ' %</b> des texels de l\'îlot portent '
-          + 'de l\'information'
+        ? ' · ' + dzT("cartes.gltf.texels_utiles", { pct: dens.useful_pct })
         : '')
       + (dens.fit_note ? '<br>' + esc(dens.fit_note) : '');
     paintFit(dens);
@@ -1237,7 +1212,7 @@
     const cur = get("res");
     if (!fit || Number(fit) === Number(cur)) { b.classList.add("hidden"); return; }
     b.classList.remove("hidden");
-    b.textContent = "ajuster à la source (" + fit + " px)";
+    b.textContent = dzT("cartes.gltf.ajuster_source", { fit: fit });
     b.title = String(dens.fit_note || "");
   }
 
@@ -1253,15 +1228,15 @@
     const el = $("#cf-gltf-finish");
     if (!el) return;
     const list = (INFO && INFO.finishes) || [
-      { id: "mat", label: "Mat (papier)" }, { id: "satin", label: "Satiné" },
-      { id: "vernis", label: "Vernis sélectif" }, { id: "foil", label: "Dorure à chaud" },
-      { id: "holo", label: "Holographique" }];
+      { id: "mat", label: dzT("cartes.gltf.fin_mat") }, { id: "satin", label: dzT("cartes.gltf.fin_satin") },
+      { id: "vernis", label: dzT("cartes.gltf.fin_vernis") }, { id: "foil", label: dzT("cartes.gltf.fin_foil") },
+      { id: "holo", label: dzT("cartes.gltf.fin_holo") }];
     const cur = get("finish");
     el.innerHTML = list.map((f) => '<button class="chip'
       + (f.id === cur ? " active" : "") + '" type="button" data-v="' + esc(f.id)
       + '">' + esc(f.label) + '</button>').join("");
     $$("#cf-gltf-finish .chip").forEach((b) => b.addEventListener("click", () => {
-      set({ finish: b.getAttribute("data-v") }, "finition");
+      set({ finish: b.getAttribute("data-v") }, dzT("cartes.gltf.lbl_finition"));
       paintFinish(); paintEmissive();
     }));
     const read = $("#cf-gltf-finish-read");
@@ -1276,15 +1251,12 @@
       const ext = (f.extensions || []);
       const ov = get("emissive");
       const eff = emissiveEff();
-      read.innerHTML = 'rugosité <b>' + f.roughness + '</b> · métal <b>' + f.metallic
-        + '</b> · vernis <b>' + f.clearcoat + '</b> · émission <b'
-        + (eff ? '' : ' class="cf-gltf-ok"') + '>' + eff + '</b>'
-        + (ov != null ? ' <i>(réglage local — prime sur la finition)</i>'
-          : (eff ? '' : ' <i>(le papier n\'émet pas de lumière)</i>'))
-        + '<br>cuits dans les maps, facteurs glTF à 1.0 · extensions écrites : <b>'
-        + (ext.length ? esc(ext.join(", ")) : "aucune") + '</b>';
+      read.innerHTML = dzT("cartes.gltf.pbr_lecture", { r: f.roughness, m: f.metallic, v: f.clearcoat, cls: (eff ? '' : ' class="cf-gltf-ok"'), e: eff })
+        + (ov != null ? ' <i>(' + dzT("cartes.gltf.local_prime") + ')</i>'
+          : (eff ? '' : ' <i>(' + dzT("cartes.gltf.papier_sans_lumiere") + ')</i>'))
+        + '<br>' + dzT("cartes.gltf.cuits_ext", { ext: (ext.length ? esc(ext.join(", ")) : dzT("cartes.gltf.aucune")) });
     } else if (read) {
-      read.textContent = "les niveaux sont cuits dans les maps ; les facteurs glTF restent à 1.0";
+      read.textContent = dzT("cartes.gltf.niveaux_cuits");
     }
   }
 
@@ -1305,18 +1277,14 @@
     const read = $("#cf-gltf-emi-read");
     if (!read) return;
     if (ov == null) {
-      read.innerHTML = 'celle de la finition : <b>' + emissiveEff() + '</b>'
+      read.innerHTML = dzT("cartes.gltf.emi_finition", { e: emissiveEff() })
         + (emissiveEff() > 0
-          ? ' — la map émission part câblée (emissiveTexture + map_Ke)'
-          : ' — à 0, aucune map émission n\'est écrite. Posez une valeur pour '
-            + 'la câbler sans changer la matière (encre luminescente).');
+          ? ' — ' + dzT("cartes.gltf.emi_cablee")
+          : ' — ' + dzT("cartes.gltf.emi_zero"));
     } else if (ov > 0) {
-      read.innerHTML = 'réglage local <b>' + ov + '</b> — la map émission part '
-        + 'câblée des deux côtés (emissiveTexture dans le GLB, map_Ke dans le '
-        + 'MTL), le facteur du fichier vaudra [' + ov + ', ' + ov + ', ' + ov + ']';
+      read.innerHTML = dzT("cartes.gltf.emi_locale", { ov: ov });
     } else {
-      read.innerHTML = 'réglage local <b>0</b> — émission éteinte, la map '
-        + 'n\'est pas écrite (même sur dorure ou holographique)';
+      read.innerHTML = dzT("cartes.gltf.emi_eteinte");
     }
   }
 
@@ -1330,18 +1298,17 @@
     if (btn) btn.disabled = (src !== "gltf");
     if (!read) return;
     const g = CF.geom();
-    read.innerHTML = 'Carte finie : <b>' + g.trim_mm[0] + ' x ' + g.trim_mm[1]
-      + ' x ' + th + ' mm</b> · source : '
-      + (src === "solid" ? "<b>pièce 05</b>" : src === "gltf"
-        ? "réglage local" : "défaut carte à jouer") + ' · '
+    read.innerHTML = dzT("cartes.gltf.carte_finie", { w: g.trim_mm[0], h: g.trim_mm[1], th: th })
+      + (src === "solid" ? dzT("cartes.gltf.src_p5") : src === "gltf"
+        ? dzT("cartes.gltf.reglage_local") : dzT("cartes.gltf.defaut_carte")) + ' · '
       + (th / 25.4).toFixed(4) + ' in';
   }
 
   function paintImg() {
     const cur = get("img");
     seg($("#cf-gltf-img"), [
-      { id: "auto", label: "auto", title: "encode les deux et garde le plus léger" },
-      { id: "png", label: "PNG", title: "sans perte" },
+      { id: "auto", label: "auto", title: dzT("cartes.gltf.img_auto") },
+      { id: "png", label: "PNG", title: dzT("cartes.gltf.img_png") },
       { id: "jpeg", label: "JPEG", title: "photo" }], cur,
       (v) => { set({ img: v }, "textures"); paintImg(); });
     const q = $("#cf-gltf-q-wrap");
@@ -1351,9 +1318,9 @@
     const read = $("#cf-gltf-img-read");
     if (read) {
       read.innerHTML = cur === "auto"
-        ? "les deux codecs sont encodés et le plus léger est retenu, texture par texture ; le bordereau montre les deux poids. <b>normal</b> et <b>orm</b> restent toujours en PNG."
-        : (cur === "png" ? "sans perte partout — le plus sûr, pas toujours le plus lourd."
-          : "JPEG sur basecolor et emissive ; <b>normal</b> et <b>orm</b> restent en PNG (le JPEG déplacerait les canaux).");
+        ? dzT("cartes.gltf.img_auto_lecture")
+        : (cur === "png" ? dzT("cartes.gltf.img_png_lecture")
+          : dzT("cartes.gltf.img_jpeg_lecture"));
     }
   }
 
@@ -1372,15 +1339,15 @@
        liste, et c'est lui qui la sert (`INFO.maps.count`). Un chiffre juste
        par coïncidence reste un chiffre non prouvé. */
     const rows = (INFO && INFO.format_rows) || [
-      { id: "glb", label: "GLB", note: "géométrie + matériau + textures, un seul fichier" },
-      { id: "gltf", label: "glTF", note: "le même en JSON, buffer en data URI" },
-      { id: "zip", label: "ZIP des maps", note: "les PNG nommés + manifest.json + le maillage OBJ" },
-      { id: "obj", label: "OBJ + MTL", note: "le repli universel, en mm, avec ses maps" },
-      { id: "stl", label: "STL", note: "facettes nues en mm pour l'impression 3D" },
-      { id: "3mf", label: "3MF (couleur)", note: "norme ouverte ISO/ASTM 52915 : mm inscrits dans le fichier et couleur par facette" },
-      { id: "ply", label: "PLY (couleur/sommet)", note: "binaire, en mm, couleur par sommet + normales + UV" },
-      { id: "dxf", label: "DXF (3DFACE)", note: "R12, faces nues en mm ($INSUNITS = 4), pour la CAO et la découpe" },
-      { id: "proof", label: "Planche de contrôle", note: "les canaux côte à côte dans un PNG" },
+      { id: "glb", label: "GLB", note: dzT("cartes.gltf.fmt_glb") },
+      { id: "gltf", label: "glTF", note: dzT("cartes.gltf.fmt_gltf") },
+      { id: "zip", label: dzT("cartes.gltf.zip_des_maps"), note: dzT("cartes.gltf.fmt_zip") },
+      { id: "obj", label: "OBJ + MTL", note: dzT("cartes.gltf.fmt_obj") },
+      { id: "stl", label: "STL", note: dzT("cartes.gltf.fmt_stl") },
+      { id: "3mf", label: dzT("cartes.gltf.fmt_3mf_lbl"), note: dzT("cartes.gltf.fmt_3mf") },
+      { id: "ply", label: dzT("cartes.gltf.fmt_ply_lbl"), note: dzT("cartes.gltf.fmt_ply") },
+      { id: "dxf", label: "DXF (3DFACE)", note: dzT("cartes.gltf.fmt_dxf") },
+      { id: "proof", label: dzT("cartes.gltf.planche"), note: dzT("cartes.gltf.fmt_proof") },
     ];
     el.innerHTML = rows.map((r) => '<label class="check"><input type="checkbox" '
       + 'data-v="' + esc(r.id) + '"' + (cur.indexOf(r.id) >= 0 ? " checked" : "")
@@ -1388,8 +1355,8 @@
     $$("#cf-gltf-formats input").forEach((c) => c.addEventListener("change", () => {
       const next = $$("#cf-gltf-formats input").filter((x) => x.checked)
         .map((x) => x.getAttribute("data-v"));
-      if (!next.length) { c.checked = true; M.toast("au moins un livrable", true); return; }
-      set({ formats: next }, "livrables");
+      if (!next.length) { c.checked = true; M.toast(dzT("cartes.gltf.un_livrable"), true); return; }
+      set({ formats: next }, dzT("cartes.gltf.lbl_livrables"));
       /* La note de redondance et l'état vide décrivent la SÉLECTION : sans
          ce repeint, ils décriraient celle d'avant le clic. */
       paintFormats(); paintSlip();
@@ -1410,11 +1377,8 @@
          et les PNG. On annonce donc le GESTE, sans chiffre : le compte des
          entrées est relu dans l'archive et affiché au bordereau. */
       const dbl = (cur.indexOf("zip") >= 0 && cur.indexOf("obj") >= 0)
-        ? '<span>Ces deux cases ne produisent qu\'<b>une</b> archive : le '
-          + '<b>ZIP des maps</b> embarque déjà l\'OBJ, le MTL et les mêmes '
-          + 'PNG, l\'archive OBJ n\'en serait qu\'une seconde copie. Elle '
-          + 'n\'est pas écrite.</span><br>' : "";
-      miss.innerHTML = dbl + (!abs.length ? "" : "Pas encore écrits : "
+        ? '<span>' + dzT("cartes.gltf.zip_obj_une") + '</span><br>' : "";
+      miss.innerHTML = dbl + (!abs.length ? "" : dzT("cartes.gltf.pas_encore")
         + abs.map((a) => '<b>' + esc(String(a.id).toUpperCase()) + '</b> — '
           + esc(a.why)).join(" · "));
     }
@@ -1442,9 +1406,8 @@
     const force = !!get("bits16");
     if (!dep || !dep.height) {
       read.innerHTML = force
-        ? "Demandé. La profondeur obtenue s\'affiche ici après la construction."
-        : "Décoché : height et normal sortiront en <b>8 bits</b>, le ZIP sera "
-          + "d\'autant plus léger.";
+        ? dzT("cartes.gltf.b16_demande")
+        : dzT("cartes.gltf.b16_decoche");
       return;
     }
     const parts = ["height", "normal"].filter((k) => dep[k]).map((k) => {
@@ -1453,13 +1416,9 @@
       if (d.bits === 16 && d.real16) {
         const off = (d.samples && d.off_lattice != null)
           ? (100 * d.off_lattice / d.samples) : null;
-        s += '<span class="cf-gltf-ok">16 bits</span> · '
-          + d.levels.toLocaleString("fr-FR") + ' niveaux ('
-          + d.bits_effective + ' bits utiles) contre '
-          + (d.levels_8 != null ? d.levels_8 : "?") + ' en 8 bits';
+        s += dzT("cartes.gltf.b16_reel", { niv: d.levels.toLocaleString("fr-FR"), utiles: d.bits_effective, n8: (d.levels_8 != null ? d.levels_8 : "?") });
         if (off != null) {
-          s += ' · <b>' + off.toFixed(1) + ' %</b> des échantillons <b>hors</b> '
-            + 'du réseau k·257';
+          s += ' · ' + dzT("cartes.gltf.hors_reseau", { pct: off.toFixed(1) });
         }
         /* MEME IMAGE, PAS UNE AUTRE. Re-deriver, c'est risquer de livrer une
            map VOISINE au lieu de la map de l'utilisateur. On mesure donc
@@ -1469,23 +1428,16 @@
            Z de 31,9 niveaux au maximum quand x²+y² approche 1. */
         if (d.accord_8) {
           const pc = d.accord_8.par_canal || [];
-          s += ' · même image à ' + (pc.length > 1
-            ? pc.map((c) => c.moyen).join(" / ") + ' niveau (max '
-              + pc.map((c) => c.max).join(" / ") + ')'
-            : d.accord_8.ecart_moyen + ' niveau en moyenne (max '
-              + d.accord_8.ecart_max + ')');
+          s += ' · ' + (pc.length > 1
+            ? dzT("cartes.gltf.meme_image_canaux", { moy: pc.map((c) => c.moyen).join(" / "), max: pc.map((c) => c.max).join(" / ") })
+            : dzT("cartes.gltf.meme_image_moy", { moy: d.accord_8.ecart_moyen, max: d.accord_8.ecart_max }));
         }
-        s += ' · coût <b>+' + weight(d.cost_16) + '</b>';
+        s += ' · ' + dzT("cartes.gltf.cout16", { poids: weight(d.cost_16) });
       } else if (d.refused16) {
-        s += '<span class="cf-gltf-ko">16 bits refusés</span> · livré en '
-          + '<b>8 bits</b>, ' + d.levels + ' niveaux'
-          + (d.refused_bytes ? ' <i>(le conteneur aurait coûté +'
-            + weight(d.refused_bytes) + ' pour '
-            + (d.refused_levels != null ? d.refused_levels : "?")
-            + ' valeurs distinctes)</i>' : '');
+        s += dzT("cartes.gltf.b16_refuse", { niv: d.levels })
+          + (d.refused_bytes ? ' <i>' + dzT("cartes.gltf.conteneur_cout", { poids: weight(d.refused_bytes), n: (d.refused_levels != null ? d.refused_levels : "?") }) + '</i>' : '');
       } else {
-        s += '<span class="cf-gltf-ok">8 bits réels</span> · ' + d.levels
-          + ' niveaux (' + d.bits_effective + ' bits utiles)';
+        s += dzT("cartes.gltf.b8_reel", { niv: d.levels, utiles: d.bits_effective });
       }
       return s;
     });
@@ -1496,11 +1448,9 @@
        — les trois sont chronométrées au backend. */
     const ms = (row.ms && row.ms.deep16) || 0;
     const msd = (row.ms && row.ms.deep16_derive) || 0;
-    read.innerHTML = 'Relevé sur ' + esc(how || "les octets livrés") + ' : '
+    read.innerHTML = dzT("cartes.gltf.releve_sur", { how: esc(how || dzT("cartes.gltf.octets_livres")) })
       + parts.join('<br>')
-      + (ms ? '<br><i>Seize bits : <b>' + (ms / 1000).toFixed(1) + ' s</b> dont '
-        + (msd / 1000).toFixed(1) + ' s de dérivation. Décocher les rend, '
-        + 'et rend aussi le poids.</i>'
+      + (ms ? '<br><i>' + dzT("cartes.gltf.seize_bits_temps", { s: (ms / 1000).toFixed(1), d: (msd / 1000).toFixed(1) }) + '</i>'
         : '');
   }
 
@@ -1511,9 +1461,9 @@
      pivot a l'autre, et changer le pivot ne peut donc pas changer la carte. */
   function paintPivot() {
     const list = (INFO && INFO.pivots) || [
-      { id: "centre", label: "Centre", note: "origine au centre de la boîte" },
-      { id: "bas", label: "Posée debout", note: "le bas de la carte à y = 0" },
-      { id: "dos", label: "Couchée", note: "le dos à z = 0" }];
+      { id: "centre", label: dzT("cartes.gltf.piv_centre"), note: dzT("cartes.gltf.piv_centre_note") },
+      { id: "bas", label: dzT("cartes.gltf.piv_bas"), note: dzT("cartes.gltf.piv_bas_note") },
+      { id: "dos", label: dzT("cartes.gltf.piv_dos"), note: dzT("cartes.gltf.piv_dos_note") }];
     const cur = get("pivot");
     seg($("#cf-gltf-pivot"), list.map((p) => (
       { id: p.id, label: p.label, title: p.note })), cur,
@@ -1536,32 +1486,27 @@
         || { node: ["glb", "gltf"], baked: ["obj", "stl", "3mf", "ply", "dxf"] };
       const up = (a) => a.map((x) => x.toUpperCase()).join(", ");
       read.innerHTML = esc((f && f.note) || "")
-        + " — sur la <b>translation du nœud</b> en " + esc(up(pc.node))
-        + " (la géométrie ne bouge pas d\'un octet) et <b>cuit dans les "
-        + "positions</b> en " + esc(up(pc.baked)) + ", qui n\'ont pas de "
+        + " — " + dzT("cartes.gltf.pivot_lecture", { node: esc(up(pc.node)), baked: esc(up(pc.baked)), n: (pc.node.length + pc.baked.length) })
         /* « DANS LES 7 FICHIERS » comptait des FORMATS et les appelait des
            fichiers, sur un écran qui, à côté, en livre trois. Le nombre est
            juste, le nom ne l'était pas — et sur ce panneau un nom qui glisse
-           vaut un chiffre faux. */
-        + "nœud. <b>Une seule origine</b> dans les "
-        + (pc.node.length + pc.baked.length) + " formats, quel que soit le "
-        + "fichier qu\'on ouvre.";
+           vaut un chiffre faux. */;
     }
   }
 
   function paintScope() {
     const n = CF.cards().length;
     seg($("#cf-gltf-scope"), [
-      { id: "card", label: "Carte affichée" },
-      { id: "deck", label: "Jeu entier (" + n + ")" }], get("scope"),
-      (v) => { set({ scope: v }, "portée"); paintScope(); paintReadouts(); });
+      { id: "card", label: dzT("cartes.gltf.carte_affichee") },
+      { id: "deck", label: dzT("cartes.gltf.jeu_entier", { n: n }) }], get("scope"),
+      (v) => { set({ scope: v }, dzT("cartes.gltf.lbl_portee")); paintScope(); paintReadouts(); });
   }
 
   function paintAtlas() {
     const kv = $("#cf-gltf-atlas-kv");
     if (!kv) return;
     if (!ATLAS) {
-      kv.innerHTML = '<p class="hint">Aucun atlas encore composé.</p>';
+      kv.innerHTML = '<p class="hint">' + dzT("cartes.gltf.aucun_atlas") + '</p>';
       return;
     }
     const s = ATLAS.server || {};
@@ -1575,26 +1520,25 @@
     const nIsl = me.uv_islands;
     const tri = me.uv_islands_tri || [];
     const rows = [
-      ["Définition", (s.res || [ATLAS.res, ATLAS.res]).join(" x ") + " px"],
-      ["Poids", weight(s.bytes || (ATLAS.blob && ATLAS.blob.size) || 0)],
-      ["Îlots UV", (nIsl == null ? "—" : nIsl + (tri.length
-        ? " (" + tri.join("+") + " tri)" : "")) + " mesurés"],
+      [dzT("cartes.gltf.kv_definition"), (s.res || [ATLAS.res, ATLAS.res]).join(" x ") + " px"],
+      [dzT("cartes.gltf.kv_poids"), weight(s.bytes || (ATLAS.blob && ATLAS.blob.size) || 0)],
+      [dzT("cartes.gltf.kv_ilots_uv"), dzT("cartes.gltf.n_mesures", { n: (nIsl == null ? "—" : nIsl + (tri.length
+        ? " (" + tri.join("+") + " tri)" : "")) })],
       /* « 3 réservés » quand le backend n'a pas encore répondu était un
          chiffre écrit ici, pas une valeur reçue — exactement la faute que la
          ligne du dessus a déjà coûtée une fois. Sans réponse, un tiret. */
-      ["Rectangles", (me.atlas_rects != null ? me.atlas_rects + " réservés"
+      ["Rectangles", (me.atlas_rects != null ? dzT("cartes.gltf.n_reserves", { n: me.atlas_rects })
         : "—")],
-      ["Source", ATLAS.imported ? esc(ATLAS.imported) : "moteur de rendu (carte "
-        + ((ATLAS.i || 0) + 1) + ")"],
+      ["Source", ATLAS.imported ? esc(ATLAS.imported) : dzT("cartes.gltf.source_moteur", { n: ((ATLAS.i || 0) + 1) })],
     ];
     if (!ATLAS.imported) {
       /* Ce que l'ecran taisait : la carte 3D est la carte MASSICOTEE. */
-      rows.push(["Coupe", g.trim_px.join(" x ") + " px"]);
+      rows.push([dzT("cartes.gltf.kv_coupe"), g.trim_px.join(" x ") + " px"]);
     }
     if (s.density) {
       rows.push(["Texels", s.density.dpi.join(" x ") + " DPI"]);
       if (s.density.dpi_effective != null) {
-        rows.push(["Information", s.density.dpi_effective + " DPI"]);
+        rows.push([dzT("cartes.gltf.kv_information"), s.density.dpi_effective + " DPI"]);
       }
       /* UN pHYs POUR TROIS ILOTS. Le chunk porte la densite du RECTO ; l'ilot
          de tranche est a un autre ordre de grandeur, et un outil d'impression
@@ -1606,9 +1550,9 @@
            arrondis ; mesuré sur le contour du maillage, elle fait 296,80 mm —
            1,7 % de moins, et la densité annoncée était fausse d'autant. Le
            chiffre affiché vient maintenant du maillage, et il dit d'où. */
-        rows.push(["Tranche", s.density.edge_dpi.join(" x ") + " DPI"
+        rows.push([dzT("cartes.gltf.kv_tranche"), s.density.edge_dpi.join(" x ") + " DPI"
           + (s.density.edge_perim_mm != null
-            ? " · " + s.density.edge_perim_mm + " mm de contour" : "")]);
+            ? " · " + dzT("cartes.gltf.mm_contour", { mm: s.density.edge_perim_mm }) : "")]);
       }
     }
     kv.innerHTML = rows.map((r) => '<div><span>' + esc(r[0]) + '</span><b>'
@@ -1616,13 +1560,8 @@
     const note = $("#cf-gltf-atlas-note");
     if (note) {
       note.innerHTML = ATLAS.imported
-        ? "Atlas importé : il part tel quel dans les maps et dans le GLB."
-        : "Les îlots reçoivent la carte <b>massicotée</b> (" + g.trim_px.join(" x ")
-          + " px pris dans " + g.canvas_px.join(" x ") + ") : le fond perdu de <b>"
-          + g.bleed_mm + " mm</b> n'apparaît pas sur la carte 3D, comme sur une "
-          + "carte imprimée. Les gouttières reçoivent une dilatation des bords "
-          + "d'îlot, pas un aplat — sans quoi les niveaux de mip ramènent un halo "
-          + "clair sur le bord de la carte.";
+        ? dzT("cartes.gltf.atlas_importe_note")
+        : dzT("cartes.gltf.note_massicot", { trim: g.trim_px.join(" x "), canvas: g.canvas_px.join(" x "), bleed: g.bleed_mm });
     }
   }
 
@@ -1630,7 +1569,7 @@
     const b = $("#cf-gltf-undo");
     if (!b) return;
     b.disabled = !HIST.length;
-    b.innerHTML = ICO("dz-action-annuler", 16, "cf-ic") + esc(HIST.length ? "annuler " + HIST[HIST.length - 1].label : "annuler");
+    b.innerHTML = ICO("dz-action-annuler", 16, "cf-ic") + esc(HIST.length ? dzT("cartes.gltf.annuler_label", { label: HIST[HIST.length - 1].label }) : dzT("cartes.gltf.annuler"));
   }
 
   /* LE COUPLAGE AVEC LA PIECE 06, RENDU VISIBLE.
@@ -1646,14 +1585,9 @@
     const d = (INFO && INFO.derive) || null;
     if (!d) { el.innerHTML = ""; return; }
     const n = d.count || 0;
-    el.innerHTML = 'Dérivation PBR : <b class="' + (n ? "cf-gltf-ok" : "")
-      + '">' + n + '</b> réglage(s) repris de la <b>pièce 06</b>'
-      + (n ? ' (' + esc((d.keys || []).join(", ")) + ') — lus dans <code>'
-        + esc(d.source) + '</code>' : ' — aucun réglage enregistré, les défauts '
-        + 'du service s\'appliquent')
-      + (d.p6_bits16 ? '<br><span class="cf-gltf-ko">La pièce 06 a coché ses '
-        + 'propres 16 bits : c\'est un réglage HOMONYME et indépendant. Celui '
-        + 'qui commande ce ZIP est la case ci-dessous.</span>' : '')
+    el.innerHTML = dzT("cartes.gltf.derive_n", { cls: (n ? "cf-gltf-ok" : ""), n: n })
+      + (n ? ' ' + dzT("cartes.gltf.derive_lus", { cles: esc((d.keys || []).join(", ")), src: esc(d.source) }) : ' — ' + dzT("cartes.gltf.derive_aucun"))
+      + (d.p6_bits16 ? '<br><span class="cf-gltf-ko">' + dzT("cartes.gltf.p6_bits16") + '</span>' : '')
       /* L'AUTRE COUPLAGE, ET IL EST VOLONTAIREMENT NON REPRIS. Taire un
          reglage enregistre qu'on n'applique pas, c'est le defaut qu'on vient
          de reparer, a l'envers. On le nomme. */
@@ -1679,10 +1613,7 @@
   function paintReadouts() {
     const free = $("#cf-gltf-free");
     if (free) {
-      free.innerHTML = '<span>raccourcis : '
-        + '<kbd>E</kbd> construire · <kbd>A</kbd> atlas · <kbd>G</kbd> GLB · '
-        + '<kbd>T</kbd> glTF · <kbd>Z</kbd> ZIP · <kbd>1..3</kbd> définition · '
-        + '<kbd>Ctrl+Z</kbd> annuler</span>';
+      free.innerHTML = '<span>' + dzT("cartes.gltf.raccourcis") + '</span>';
     }
     const ou = $("#cf-gltf-where");
     if (ou) {
@@ -1692,16 +1623,13 @@
          compte — il partirait dans chaque capture d'écran. Le backend ne
          sert que la queue. */
       const dir = (m && m.dir)
-        ? 'dossier du jeu › <code>' + esc(m.dir) + '</code>' : 'dossier du jeu';
+        ? dzT("cartes.gltf.dossier_jeu_dir", { dir: esc(m.dir) }) : dzT("cartes.gltf.dossier_jeu");
       /* CE QUE LE BOUTON FAIT, EN UNE LIGNE : le fichier existe DÉJÀ ici,
          « Télécharger » en pose une copie de plus, et l'original ne bouge
          pas. Trois faits que l'utilisateur peut vérifier lui-même. */
-      const geste = '« Télécharger » en pose une copie dans le '
-        + 'dossier de téléchargements du navigateur ; celui d\'ici ne '
-        + 'bouge pas.';
+      const geste = dzT("cartes.gltf.geste");
       if (!m || !m.files) {
-        ou.innerHTML = '<span><b>Où vont les fichiers</b> — ' + dir
-          + '. Rien n\'y est encore écrit pour ce jeu. ' + geste + '</span>';
+        ou.innerHTML = '<span>' + dzT("cartes.gltf.ou_vide", { dir: dir, geste: geste }) + '</span>';
       } else {
         /* TOUT EST RELU SUR LE DOSSIER. Le nombre de fichiers, leur poids,
            ceux du dernier bordereau qui n'y sont plus, et l'âge du plus
@@ -1710,17 +1638,10 @@
            personne n'efface, et le jour où quelque chose disparaîtrait, la
            ligne « disparu(s) » le dirait en ambre. */
         const suivi = m.listed
-          ? ' — <b class="' + (m.missing ? "cf-gltf-ko" : "cf-gltf-ok") + '">'
-            + m.missing + '</b> disparu(s) sur les <b>' + m.listed
-            + '</b> du dernier bordereau'
+          ? ' — ' + dzT("cartes.gltf.disparus", { cls: (m.missing ? "cf-gltf-ko" : "cf-gltf-ok"), n: m.missing, total: m.listed })
           : '';
-        ou.innerHTML = '<span><b>Où vont les fichiers</b> — ' + dir + '. '
-          + geste + '</span>'
-          + '<span><b>' + m.files + ' fichier(s)</b> s\'y sont accumulés ('
-          + '<b title="' + esc(weightTitle(m.bytes)) + '">' + weight(m.bytes)
-          + '</b>)' + suivi + ', le plus ancien depuis <b>'
-          + Number(m.oldest_age_hours || 0).toFixed(2) + ' h</b> : ce qui est '
-          + 'écrit là y reste jusqu\'à ce que vous l\'effaciez.</span>';
+        ou.innerHTML = '<span>' + dzT("cartes.gltf.ou_plein", { dir: dir, geste: geste }) + '</span>'
+          + '<span>' + dzT("cartes.gltf.accumules", { n: m.files, titre: esc(weightTitle(m.bytes)), poids: weight(m.bytes), suivi: suivi, h: Number(m.oldest_age_hours || 0).toFixed(2) }) + '</span>';
       }
     }
     paintRes(); paintTh();
@@ -1749,19 +1670,18 @@
     const codecs = row.codecs || {};
     const maps = (row.maps && row.maps.maps) || {};
 
-    let html = '<table class="cf-gltf-tab"><thead><tr><th>Fichier</th><th>Contenu</th>'
-      + '<th class="num">Poids</th><th></th></tr></thead><tbody>';
+    let html = '<table class="cf-gltf-tab"><thead><tr><th>' + dzT("cartes.gltf.th_fichier") + '</th><th>' + dzT("cartes.gltf.th_contenu") + '</th>'
+      + '<th class="num">' + dzT("cartes.gltf.kv_poids") + '</th><th></th></tr></thead><tbody>';
     BUILD.files.forEach((f) => {
       html += '<tr><td class="mono">' + esc(f.name) + '</td>'
         + '<td><b>' + esc(KIND_LABEL[f.kind] || f.kind) + '</b><i>' + esc(f.label || "") + '</i></td>'
         + '<td class="num mono" title="' + esc(weightTitle(f.bytes)) + '">'
         + weight(f.bytes) + '</td>'
         + '<td><button class="btn sm" data-act="grab" data-name="' + esc(f.name)
-        + '">Télécharger</button></td></tr>';
+        + '">' + dzT("cartes.gltf.telecharger") + '</button></td></tr>';
     });
     html += '</tbody><tfoot><tr><td colspan="2">'
-      + BUILD.files.length + ' fichier(s) · construit en '
-      + (BUILD.ms / 1000).toFixed(1) + ' s</td>'
+      + dzT("cartes.gltf.pied_bordereau", { n: BUILD.files.length, s: (BUILD.ms / 1000).toFixed(1) }) + '</td>'
       + '<td class="num mono" title="' + esc(weightTitle(BUILD.total_bytes))
       + '"><b>' + weight(BUILD.total_bytes) + '</b></td><td></td>'
       + '</tr></tfoot></table>';
@@ -1780,20 +1700,11 @@
        dans les octets de l'archive. */
     const arc = row.archives || null;
     if (arc && arc.merged) {
-      html += '<p class="hint">Une seule archive écrite : <code>'
-        + esc(arc.kept) + '</code> porte <b>' + arc.count + '</b> entrées '
-        + 'relues dans ses octets — <b>' + (arc.png || []).length
-        + '</b> PNG, ' + esc((arc.mesh || []).join(" et ")) + ', le manifeste '
-        + 'et la notice. <code>' + esc(arc.dropped) + '</code> aurait '
-        + 'transporté exactement les mêmes : elle n\'a pas été écrite.</p>';
+      html += '<p class="hint">' + dzT("cartes.gltf.archive_unique", { kept: esc(arc.kept), n: arc.count, png: (arc.png || []).length, mesh: esc((arc.mesh || []).join(dzT("cartes.gltf.et_sep"))), dropped: esc(arc.dropped) }) + '</p>';
     }
     const red = (row.redundancy && row.redundancy.pairs) || [];
     if (red.length) {
-      html += '<p class="hint cf-gltf-warn">' + red.map((p) => 'Redondance mesurée : <b>'
-        + p.identiques + '</b> entrée(s) sur ' + p.entrees_a + ' et ' + p.entrees_b
-        + ' sont <b>identiques</b> (nom + CRC-32) entre <code>' + esc(p.a)
-        + '</code> et <code>' + esc(p.b) + '</code> — ' + weight(p.bytes_decompresses)
-        + ' décompressés livrés deux fois.').join('<br>') + '</p>';
+      html += '<p class="hint cf-gltf-warn">' + red.map((p) => dzT("cartes.gltf.redondance", { n: p.identiques, na: p.entrees_a, nb: p.entrees_b, a: esc(p.a), b: esc(p.b), poids: weight(p.bytes_decompresses) })).join('<br>') + '</p>';
     }
 
     /* CE BLOC N'AFFICHE QUE CE QUE `glb_report` A RELU DANS LE FICHIER.
@@ -1802,7 +1713,7 @@
        solide ferme livre en double face, une carte en papier mat auto-illuminee
        (emissiveFactor [1,1,1]) et un atlas echantillonne en REPEAT. */
     if (glb.textures) {
-      html += '<div class="cf-gltf-detail"><h4>Dans le GLB</h4><div class="cf-gltf-tex">';
+      html += '<div class="cf-gltf-detail"><h4>' + dzT("cartes.gltf.dans_glb") + '</h4><div class="cf-gltf-tex">';
       (glb.textures || []).forEach((t) => {
         const c = codecs[t] || {};
         /* LA DENSITE QUE LE JPEG PERDAIT. Les PNG du ZIP portent leur pHYs et
@@ -1825,39 +1736,31 @@
         .filter((f) => f.kind === "stl" || f.kind === "3mf");
       html += '</div><div class="cf-gltf-kv2">'
         + kv("metallicFactor", glb.metallicFactor, null,
-             "laissez-le tel quel : la métallicité est déjà cuite dans la "
-             + "map, la remultiplier la compterait deux fois")
+             dzT("cartes.gltf.why_metal"))
         + kv("roughnessFactor", glb.roughnessFactor, null,
-             "même chose pour la rugosité")
+             dzT("cartes.gltf.why_rough"))
         + kv("emissiveFactor", em.join(" "), null,
              glb.emits_light
-               ? "cette finition émet : la texture d'émission part avec le fichier"
-               : "cette finition n'émet pas — aucune texture d'émission "
-                 + "n'est embarquée, elle serait multipliée par zéro")
-        + kv("matériaux", glb.materials, null,
-             "un seul matériau pour toute la carte : un seul appel de rendu")
-        + kv("occlusion (AO)", glb.occlusion ? "branchée" : "absente", null,
-             glb.occlusion ? "l'ombre de contact est dans le fichier, "
-               + "pas à refaire à l'import" : "à brancher à la main si "
-               + "votre moteur l'attend")
-        + kv("attributs", (glb.attributes || []).join(" "), null,
+               ? dzT("cartes.gltf.why_emet")
+               : dzT("cartes.gltf.why_emet_pas"))
+        + kv(dzT("cartes.gltf.kv_materiaux"), glb.materials, null,
+             dzT("cartes.gltf.why_materiaux"))
+        + kv("occlusion (AO)", glb.occlusion ? dzT("cartes.gltf.ao_branchee") : dzT("cartes.gltf.ao_absente"), null,
+             glb.occlusion ? dzT("cartes.gltf.why_ao_oui") : dzT("cartes.gltf.why_ao_non"))
+        + kv(dzT("cartes.gltf.kv_attributs"), (glb.attributes || []).join(" "), null,
              (glb.attributes || []).indexOf("TANGENT") >= 0
-               ? "TANGENT est écrit : votre moteur n'a pas à recalculer "
-                 + "les tangentes, la normale rendra pareil partout"
-               : "sans TANGENT, chaque moteur recalcule les siennes et la "
-                 + "normale peut rendre différemment d'un moteur à l'autre")
-        + kv("échantillonnage", glb.wrap_label, null,
+               ? dzT("cartes.gltf.why_tangent")
+               : dzT("cartes.gltf.why_sans_tangent"))
+        + kv(dzT("cartes.gltf.kv_echant"), glb.wrap_label, null,
              glb.wrap_label === "CLAMP_TO_EDGE"
-               ? "sur un atlas c'est le seul réglage sûr : en REPEAT, le "
-                 + "filtrage du bord droit va chercher l'autre face"
-               : "sur un atlas, le filtrage du bord droit ira chercher "
-                 + "l'autre face de la carte")
-        + kv("triangles", me.triangles + " / " + me.vertices + " sommets", null,
-             "coins arrondis compris")
-        + kv("solide", me.closed ? "fermé — " + me.edges + " arêtes, 0 libre"
-             : me.free_edges + " arêtes libres", !!me.closed,
-             me.closed ? "aucun trou : le maillage se remplit"
-               : "un maillage ouvert ne se remplit pas")
+               ? dzT("cartes.gltf.why_clamp")
+               : dzT("cartes.gltf.why_repeat"))
+        + kv("triangles", dzT("cartes.gltf.tri_sommets", { t: me.triangles, v: me.vertices }), null,
+             dzT("cartes.gltf.coins_compris"))
+        + kv(dzT("cartes.gltf.kv_solide"), me.closed ? dzT("cartes.gltf.ferme", { n: me.edges })
+             : dzT("cartes.gltf.aretes_libres", { n: me.free_edges }), !!me.closed,
+             me.closed ? dzT("cartes.gltf.why_ferme")
+               : dzT("cartes.gltf.why_ouvert"))
         /* ── « IMPRIMABLE (STL/3MF) : OUI » SANS STL NI 3MF DANS LE LOT ──────
            Reproche mesuré, et il porte : ce panneau écrivait « imprimable
            (STL/3MF) : oui — volume 1769.968 mm³ » sur un bordereau de cinq
@@ -1869,34 +1772,29 @@
            la conséquence nomme les fichiers de CE lot qui se donnent à un
            trancheur, relus dans le bordereau. Quand il n'y en a aucun, la
            ligne le dit et le bouton juste dessous les ajoute. */
-        + kv("solide à trancher",
-             (me.printable ? "oui — volume " + (me.volume_mm3 != null ? me.volume_mm3 : "?")
-               + " mm³ (pavé plein " + (me.volume_box_mm3 != null ? me.volume_box_mm3 : "?")
-               + " mm³)"
-               : me.closed ? "non — normales retournées (volume signé négatif)"
-                 : "non — " + me.free_edges + " arêtes libres"),
+        + kv(dzT("cartes.gltf.kv_trancher"),
+             (me.printable ? dzT("cartes.gltf.oui_volume", { v: (me.volume_mm3 != null ? me.volume_mm3 : "?"), box: (me.volume_box_mm3 != null ? me.volume_box_mm3 : "?") })
+               : me.closed ? dzT("cartes.gltf.non_normales")
+                 : dzT("cartes.gltf.non_aretes", { n: me.free_edges })),
              !!me.printable,
              trancheurs.length
-               ? "dans ce lot : " + trancheurs.map((f) => f.name).join(", ")
-               : "aucun fichier de ce lot ne se donne à un trancheur")
+               ? dzT("cartes.gltf.dans_lot", { noms: trancheurs.map((f) => f.name).join(", ") })
+               : dzT("cartes.gltf.aucun_trancheur"))
         /* ACCESSOR_MIN_MISMATCH : le validateur glTF de reference refusait le
            fichier sur un arrondi a six decimales de accessor.min/max. Les
            bornes sont reecrites depuis le buffer, et RE-MESUREES ici. */
-        + kv("bornes d'accesseur",
-             (glb.accessors_bornes_exactes ? "exactes — " : "arrondies — ")
+        + kv(dzT("cartes.gltf.kv_bornes"),
+             (glb.accessors_bornes_exactes ? dzT("cartes.gltf.bornes_exactes") : dzT("cartes.gltf.bornes_arrondies"))
              + (glb.accessors_bornes != null ? glb.accessors_bornes : "?")
-             + " accesseur(s) relus dans le buffer",
+             + dzT("cartes.gltf.accesseurs_relus"),
              !!glb.accessors_bornes_exactes,
-             "arrondies, le validateur glTF de référence refuse le fichier "
-             + "(ACCESSOR_MIN_MISMATCH)")
+             dzT("cartes.gltf.why_bornes"))
         + kv("doubleSided", String(glb.double_sided),
              glb.double_sided === !me.closed,
-             me.closed ? "un solide fermé se rend en simple face : la face "
-               + "arrière n'est jamais vue, la dessiner double le coût"
-               : "surface ouverte : la double face évite les trous noirs")
-        + kv("extensions", (glb.extensions || []).join(", ") || "aucune", null,
-             "un moteur qui ne les connaît pas rend la carte sans elles, "
-             + "jamais en erreur : c'est la règle des extensions glTF")
+             me.closed ? dzT("cartes.gltf.why_simple_face")
+               : dzT("cartes.gltf.why_double_face"))
+        + kv("extensions", (glb.extensions || []).join(", ") || dzT("cartes.gltf.aucune"), null,
+             dzT("cartes.gltf.why_extensions"))
         /* CETTE LIGNE IMPRIMAIT LE RÉGLAGE AU MILIEU DES MESURES. `size_mm`
            est la taille DEMANDÉE — le format du document et l'épaisseur de la
            pièce 05 — recopiée telle quelle, en vert, entre deux nombres qui,
@@ -1905,22 +1803,20 @@
            même endroit, même unité, mais un chiffre qui se retrouve en
            ouvrant le .glb. Les quatre décimales sont là pour ça — un réglage
            tombe rond, un relevé porte ses derniers chiffres. */
-        + kv("boîte englobante",
+        + kv(dzT("cartes.gltf.kv_boite"),
              (glb.bbox_mm && glb.bbox_mm.length === 3)
                ? glb.bbox_mm.map((v) => Number(v).toFixed(4)).join(" x ") + " mm"
-               : "non relue dans le buffer",
+               : dzT("cartes.gltf.boite_non_relue"),
              !!(glb.bbox_mm && glb.bbox_mm.length === 3),
-             "relue dans les float32 de POSITION du chunk binaire, à "
-             + "l'échelle du nœud")
+             dzT("cartes.gltf.why_boite"))
         + '</div>';
       /* LA COMMANDE À CÔTÉ DU CONSTAT. Dire « aucun fichier de ce lot ne se
          donne à un trancheur » et laisser l'utilisateur retrouver deux cases
          trois cartes plus haut, c'est lui faire porter un découpage qu'on
          peut faire pour lui. */
       if (!trancheurs.length) {
-        html += '<p class="hint">Les deux formats qu\'un trancheur ouvre '
-          + 'directement ne sont pas dans ce lot. '
-          + '<button class="btn sm" data-act="slice">ajouter STL et 3MF</button></p>';
+        html += '<p class="hint">' + dzT("cartes.gltf.pas_trancheur") + ' '
+          + '<button class="btn sm" data-act="slice">' + dzT("cartes.gltf.ajouter_stl") + '</button></p>';
       }
       html += '</div>';
     }
@@ -1969,25 +1865,18 @@
          nombre de maps concernées est connu. On accorde. */
       const pl = (n, s) => (n > 1 ? s : "");
       let lg = '';
-      if (cst.length) lg += ' — ' + esc(cst.join(", ")) + ' : 1 seul niveau, '
-        + 'constante' + pl(cst.length, "s");
+      if (cst.length) lg += ' — ' + dzT(cst.length > 1 ? "cartes.gltf.constantes" : "cartes.gltf.constante", { noms: esc(cst.join(", ")) });
       /* « SOUS LE SEUIL D'UTILITÉ » nomme un seuil que l'écran n'affiche pas
          et que personne n'a réglé : c'est le vocabulaire d'un barème, pas
          celui d'un utilisateur. Le fait, lui, ne bouge pas — la map varie,
          mais trop peu pour changer quelque chose au rendu. */
-      if (faibles.length) lg += ' — ' + esc(faibles.join(", ")) + ' varie'
-        + pl(faibles.length, "nt") + ' trop peu pour se voir, sans être '
-        + 'constante' + pl(faibles.length, "s");
+      if (faibles.length) lg += ' — ' + dzT(faibles.length > 1 ? "cartes.gltf.faibles_plusieurs" : "cartes.gltf.faibles_un", { noms: esc(faibles.join(", ")) });
       /* LE NOM DE L'ARCHIVE VA DANS LE SOUS-TITRE, PAS DANS LE TITRE : la
          feuille met les h4 en capitales, et un nom de fichier hurlé au milieu
          d'un bordereau se lit plus mal qu'il n'informe. Le `<i>`, lui, garde
          sa casse (`text-transform: none`). */
-      html += '<div class="cf-gltf-detail"><h4>Les ' + names.length
-        + ' maps PNG livrées <i>dans '
-        + esc(porteurs.map((f) => f.name).join(" et ")) + ' — '
-        + (names.length - cst.length - faibles.length)
-        + ' portent une variation mesurable' + lg
-        + '</i></h4><div class="cf-gltf-maps">';
+      html += '<div class="cf-gltf-detail"><h4>' + dzT("cartes.gltf.maps_livrees", { n: names.length, dans: esc(porteurs.map((f) => f.name).join(dzT("cartes.gltf.et_sep"))), nv: (names.length - cst.length - faibles.length), lg: lg })
+        + '</h4><div class="cf-gltf-maps">';
       /* ── DEUX PASTILLES SUR HUIT AFFICHAIENT UN CHIFFRE IRREFAISABLE ──────
          Mesuré contre nous : la pastille basecolor annonçait « moy 0.32 » et
          qui recalcule la moyenne des trois canaux du PNG livré trouve 0.3348 ;
@@ -2008,19 +1897,16 @@
         const det = (d.mean_per_channel || []).map((v, i) => ((d.mean_bands
           || [])[i] || "?") + " " + Number(v).toFixed(4)).join(" · ");
         html += '<span class="cf-gltf-map ' + (ok ? "on" : "off") + '" title="'
-          + esc((moy != null ? "moyenne relue sur les "
-                 + (d.mean_measured_on || "") + " : " + det + " — tous canaux "
-                 + moy.toFixed(4) + ". " : "")
+          + esc((moy != null ? dzT("cartes.gltf.moy_titre", { sur: (d.mean_measured_on || ""), det: det, moy: moy.toFixed(4) }) + " " : "")
               /* « regarde LA canal V » : le libellé du canal vient du service
                  de dérivation et n'a pas toujours le même genre. On enlève
                  l'article au lieu d'en choisir un qui se trompe une fois sur
                  deux. */
-              + (m.channel ? "Le service de dérivation, lui, mesure : "
-                 + m.channel + ". " : "")
+              + (m.channel ? dzT("cartes.gltf.service_mesure", { canal: m.channel }) + " " : "")
               + (m.note || "") + " " + (d.note || ""))
-          + '"><b>' + esc(n) + '</b><i>moy '
+          + '"><b>' + esc(n) + '</b><i>' + dzT("cartes.gltf.moy_abbr") + ' '
           + (moy != null ? moy.toFixed(3) : "—")
-          + (d.bits ? ' · ' + d.bits + ' b · ' + d.levels + ' niv.' : '')
+          + (d.bits ? ' · ' + d.bits + ' b · ' + d.levels + ' ' + dzT("cartes.gltf.niv_abbr") : '')
           + '</i></span>';
       });
       /* ── UNE MAP LIVRÉE QUE RIEN NE POINTE ────────────────────────────────
@@ -2034,30 +1920,18 @@
       const w = row.wiring || null;
       const pointes = w ? Object.keys(w.wired || {}) : [];
       if (w && (pointes.length || (w.unwired || []).length)) {
-        html += '<p class="hint">Branchement relu dans <code>'
-          + esc(w.material || "") + '</code> : '
+        html += '<p class="hint">' + dzT("cartes.gltf.branchement", { mat: esc(w.material || "") })
           + (pointes.map((k) => '<b>' + esc(k) + '</b> '
             + esc((w.wired[k] || []).join("/"))).join(" · ")
-            || "aucune map pointée") + '.</p>';
+            || dzT("cartes.gltf.aucune_map")) + '.</p>';
         const orph = w.unwired || [];
         if (orph.length) {
           const glb = orph.filter((k) => (w.in_glb || []).indexOf(k) >= 0);
-          html += '<p class="hint cf-gltf-warn"><b>' + esc(orph.join(", "))
-            + '</b> : aucun matériau de cette archive ne les pointe — elles '
-            + 'partent comme images sources'
-            + (glb.length ? ' (<b>' + esc(glb.join(", ")) + '</b> '
-              + (glb.length > 1 ? 'sont branchées' : 'est branchée')
-              + ' dans le GLB)' : '') + '.</p>';
+          html += '<p class="hint cf-gltf-warn">' + dzT("cartes.gltf.orphelines", { noms: esc(orph.join(", ")) })
+            + (glb.length ? ' (' + dzT(glb.length > 1 ? "cartes.gltf.branchees_glb" : "cartes.gltf.branchee_glb", { noms: esc(glb.join(", ")) }) + ')' : '') + '.</p>';
         }
       }
-      html += '<p class="hint"><b>moy</b> — moyenne des échantillons du PNG '
-        + 'écrit, <b>tous canaux</b>, ramenée en 0..1 par la pleine échelle du '
-        + 'conteneur : c\'est le nombre que n\'importe quel décodeur refait sur '
-        + 'ces octets. Le détail par canal est dans l\'infobulle, avec le canal '
-        + 'que le service de dérivation regarde pour décider si la map porte '
-        + 'quelque chose — ce n\'est pas le même calcul, et les deux sont '
-        + 'nommés. Profondeur et niveaux sortent des mêmes octets. Une map à '
-        + '<b>un seul niveau</b> est dite constante.</p>'
+      html += '<p class="hint">' + dzT("cartes.gltf.legende_moy") + '</p>'
         /* CETTE PHRASE DISAIT « LE CHIFFRE ÉCRIT DANS LE CHUNK » EN AFFICHANT
            UN CALCUL. `density.dpi` sort de la géométrie de l'îlot ; le chunk
            pHYs, lui, est écrit en pixels par MÈTRE et arrondi à l'entier. Les
@@ -2068,15 +1942,12 @@
            était une soustraction faite ici ; ce sont maintenant les noms des
            maps où le chunk sRGB a été trouvé, et celles où il ne l'est pas. */
         + (phys && phys.dpi
-          ? '<p class="hint">Chunk <b>pHYs</b> relu dans les <b>' + phys.png
-            + '</b> PNG écrits : <b>' + phys.dpi.join(" x ") + ' DPI</b>'
-            + (phys.unanime ? '' : ' <b class="cf-gltf-ko">(les PNG ne portent '
-              + 'pas tous la même densité)</b>')
+          ? '<p class="hint">' + dzT("cartes.gltf.phys_relu", { n: phys.png, dpi: phys.dpi.join(" x ") })
+            + (phys.unanime ? '' : ' <b class="cf-gltf-ko">(' + dzT("cartes.gltf.phys_divers") + ')</b>')
             + (phys.srgb && phys.srgb.length
-              ? ' · chunk <b>sRGB</b> sur ' + esc(phys.srgb.join(", ")) : '')
+              ? ' · ' + dzT("cartes.gltf.srgb_sur", { noms: esc(phys.srgb.join(", ")) }) : '')
             + (phys.lineaire && phys.lineaire.length
-              ? ' · <b>linéaire</b> (gAMA 1.0) sur '
-                + esc(phys.lineaire.join(", ")) : '')
+              ? ' · ' + dzT("cartes.gltf.lineaire_sur", { noms: esc(phys.lineaire.join(", ")) }) : '')
             + '.</p>'
           : '')
         /* LA RESERVE QUE LE CHUNK NE PEUT PAS PORTER. Un PNG n'a qu'UNE
@@ -2085,15 +1956,7 @@
            pourtant a le prendre au pied de la lettre. Le chiffre exact part
            desormais dans un second chunk tEXt du PNG lui-meme. */
         + ((row.atlas && row.atlas.density && row.atlas.density.edge_dpi)
-          ? '<p class="hint cf-gltf-warn">Un <b>pHYs</b> pour <b>trois îlots</b> : '
-            + 'ce chiffre est celui du <b>recto</b>. L\'îlot de tranche sort à <b>'
-            + row.atlas.density.edge_dpi.join(" x ") + ' DPI</b> (rapport '
-            + row.atlas.density.edge_ratio + ':1) sur un contour de <b>'
-            + row.atlas.density.edge_perim_mm + ' mm</b> <i>mesuré sur le '
-            + esc(String(row.atlas.density.edge_perim_source || "")) + '</i>, '
-            + 'coins arrondis compris — un outil d\'impression qui '
-            + 'prend le pHYs au pied de la lettre se trompe sur cette zone. '
-            + 'La réserve voyage dans un chunk <code>tEXt</code> de chaque PNG.</p>'
+          ? '<p class="hint cf-gltf-warn">' + dzT("cartes.gltf.phys_reserve", { dpi: row.atlas.density.edge_dpi.join(" x "), ratio: row.atlas.density.edge_ratio, mm: row.atlas.density.edge_perim_mm, src: esc(String(row.atlas.density.edge_perim_source || "")) }) + '</p>'
           : '')
         /* ── UN DIAGNOSTIC POSÉ SANS AUCUNE COMMANDE POUR AGIR DESSUS ───────
            Reproche mesuré : ce panneau écrivait que 60 % des texels de son
@@ -2105,11 +1968,8 @@
            nombres qui les fondent. */
         + ((dens && dens.res_fit && Number(dens.res_fit) !== Number(get("res"))
             && dens.wasted_px)
-          ? '<p class="hint cf-gltf-warn"><b>' + dens.useful_pct + ' %</b> des '
-            + 'texels de l\'îlot recto portent de l\'information : <b>'
-            + dens.wasted_px + '</b> texels n\'en portent aucune. '
-            + '<button class="btn sm" data-act="fit">ramener l\'atlas à '
-            + dens.res_fit + ' px</button> ' + esc(dens.fit_note || '') + '</p>'
+          ? '<p class="hint cf-gltf-warn">' + dzT("cartes.gltf.gaspillage", { pct: dens.useful_pct, n: dens.wasted_px }) + ' '
+            + '<button class="btn sm" data-act="fit">' + dzT("cartes.gltf.ramener", { fit: dens.res_fit }) + '</button> ' + esc(dens.fit_note || '') + '</p>'
           : '')
         + '</div>';
     }
@@ -2129,9 +1989,7 @@
        qui annonce le résultat avant d'avoir ouvert le fichier n'a plus rien à
        prouver quand il l'ouvre. On annonce donc le geste, pas le nombre : le
        nombre arrive après la construction, et il sort du .glb. */
-    host.innerHTML = '<p class="empty-note sm">La visionneuse ouvrira le '
-      + '<b>.glb</b> une fois construit et mesurera sa boîte englobante. Le '
-      + 'nombre s\'affichera ici, relu dans le fichier livré.</p>';
+    host.innerHTML = '<p class="empty-note sm">' + dzT("cartes.gltf.visionneuse_attente") + '</p>';
     const mes = $("#cf-gltf-mes");
     if (mes) {
       /* « 1,43 x 2,00 m » ÉTAIT UN NOMBRE CODÉ EN DUR, donc faux dès qu'on
@@ -2142,10 +2000,8 @@
          au lieu de le recopier. */
       const sansEchelle = [2 * g.trim_mm[0] / g.trim_mm[1], 2,
                            2 * thicknessMM() / g.trim_mm[1]];
-      mes.innerHTML = '<span>1 unité glTF = 1 mètre : le nœud porte l\'échelle '
-        + 'physique, sinon un viewer annoncerait une carte de '
-        + sansEchelle.slice(0, 2).map((v) => v.toFixed(2).replace(".", ","))
-          .join(" x ") + ' m.</span>';
+      mes.innerHTML = '<span>' + dzT("cartes.gltf.echelle_noeud", { dim: sansEchelle.slice(0, 2).map((v) => v.toFixed(2).replace(".", ","))
+          .join(" x ") }) + '</span>';
     }
   }
 
@@ -2182,30 +2038,25 @@
        plus ici du tout ; c'est la REGLE qui est ecrite, et le bordereau
        comptera ce que le fichier porte. */
     const lignes = [];
-    if (f.indexOf("glb") >= 0) lignes.push("un <b>.glb</b> — géométrie, "
-      + "matériau, textures" + (emissiveEff() > 0 ? ""
-        : " (émission à zéro : aucune texture émissive, elle serait "
-          + "multipliée par zéro — voir le réglage Émission)"));
-    if (f.indexOf("gltf") >= 0) lignes.push("un <b>.gltf</b> autonome — buffer en data URI, aucun <i>.bin</i> à côté");
+    if (f.indexOf("glb") >= 0) lignes.push(dzT("cartes.gltf.vide_glb") + (emissiveEff() > 0 ? ""
+        : " (" + dzT("cartes.gltf.vide_glb_emi") + ")"));
+    if (f.indexOf("gltf") >= 0) lignes.push(dzT("cartes.gltf.vide_gltf"));
     /* « les 8 maps » était un 8 écrit ici ; il est ensuite venu du backend,
        ce qui le rendait juste mais toujours pas PROUVÉ : rien n'est écrit,
        donc rien ne se relit. Et depuis que la map d'émission n'est écrite que
        si un matériau peut la pointer, le compte dépend de la finition. Un
        nombre annoncé avant la construction n'est vérifiable sur aucun octet :
        il ne s'affiche plus qu'au bordereau, où il est compté sur l'archive. */
-    if (f.indexOf("zip") >= 0) lignes.push("un <b>.zip</b> — les maps PNG (une "
-      + "par canal dérivé, l\'émission seulement si elle est non nulle — "
-      + "finition ou réglage), le manifeste, le maillage OBJ et son MTL");
+    if (f.indexOf("zip") >= 0) lignes.push(dzT("cartes.gltf.vide_zip"));
     if (f.indexOf("obj") >= 0 && f.indexOf("zip") < 0)
-      lignes.push("un <b>OBJ + MTL</b> en millimètres, avec ses maps");
-    if (f.indexOf("stl") >= 0) lignes.push("un <b>.stl</b> binaire en millimètres");
-    if (f.indexOf("3mf") >= 0) lignes.push("un <b>.3mf</b> — norme ouverte d\'impression 3D, en millimètres, <b>avec la couleur</b>");
-    if (scope === "deck" && n > 1) lignes.push("plus un ZIP du <b>jeu entier</b> (" + n + " cartes)");
+      lignes.push(dzT("cartes.gltf.vide_obj"));
+    if (f.indexOf("stl") >= 0) lignes.push(dzT("cartes.gltf.vide_stl"));
+    if (f.indexOf("3mf") >= 0) lignes.push(dzT("cartes.gltf.vide_3mf"));
+    if (scope === "deck" && n > 1) lignes.push(dzT("cartes.gltf.vide_deck", { n: n }));
     return '<div class="cf-gltf-empty">'
-      + '<p>Rien n\'est encore construit. En <b>' + get("res") + ' px</b>, '
-      + 'la construction produira :</p><ul><li>' + lignes.join("</li><li>") + '</li></ul>'
-      + '<button class="btn strong" data-act="build">Construire maintenant</button>'
-      + '<p class="hint">Les poids s\'afficheront ici, fichier par fichier.</p>'
+      + '<p>' + dzT("cartes.gltf.vide_intro", { res: get("res") }) + '</p><ul><li>' + lignes.join("</li><li>") + '</li></ul>'
+      + '<button class="btn strong" data-act="build">' + dzT("cartes.gltf.construire_maintenant") + '</button>'
+      + '<p class="hint">' + dzT("cartes.gltf.poids_ici") + '</p>'
       + '</div>';
   }
 })();
