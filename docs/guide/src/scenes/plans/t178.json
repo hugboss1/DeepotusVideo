@@ -1,0 +1,389 @@
+{
+ "base": "http://127.0.0.1:8809",
+ "preparation": "python scripts/guide/semer_assets2d.py puis semer_bibliotheque.py http://127.0.0.1:8809 (textures, planche de sprites ; aucune clé, rien de payant)",
+ "scenes": [
+  {
+   "scene": "assets2d/hub",
+   "titre": {
+    "fr": "Le hub Game Assets",
+    "en": "The Game Assets hub"
+   },
+   "legende": {
+    "fr": "Un onglet par outil : 3D, 3D Studio, Assets 2D, Sprites, Tuiles, Matières, Cartes. Assets 2D rassemble les quatre labs 2D.",
+    "en": "One tab per tool: 3D, 3D Studio, 2D Assets, Sprites, Tiles, Materials, Cards. 2D Assets gathers the four 2D labs."
+   },
+   "avant": [
+    {
+     "clic": "texte:Game Assets",
+     "apres": 2500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "trois-d"
+    },
+    {
+     "nom": "assets2d",
+     "etapes": [
+      {
+       "clic": {
+        "fr": "texte:Assets 2D",
+        "en": "texte:Assets 2D"
+       },
+       "apres": 1500
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": {
+      "fr": "contient:Generate 3D",
+      "en": "contient:Generate 3D"
+     },
+     "bulle": {
+      "fr": "Image → modèle 3D : prix affiché avant",
+      "en": "Image → 3D model: price shown first"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.2,
+     "curseur": {
+      "fr": "texte:Assets 2D",
+      "en": "texte:Assets 2D"
+     },
+     "clic": true,
+     "bulle": {
+      "fr": "L'onglet Assets 2D",
+      "en": "The 2D Assets tab"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 3.0,
+     "surligne": {
+      "fr": "texte:Sprite Lab",
+      "en": "texte:Sprite Lab"
+     },
+     "bulle": {
+      "fr": "Quatre labs, chacun avec Ouvrir et Guide",
+      "en": "Four labs, each with Open and Guide"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "spritelab/demarrer",
+   "url": "/spritelab/",
+   "titre": {
+    "fr": "Un sprite en un clic",
+    "en": "A sprite in one click"
+   },
+   "legende": {
+    "fr": "L'onglet Démarrer livre douze effets de particules et des séquences : un clic produit la planche, le GIF et les exports, sans clé ni crédit.",
+    "en": "The Start tab ships twelve particle effects and sequences: one click produces the sheet, the GIF and the exports, no key, no credit."
+   },
+   "avant": [
+    {
+     "attente": 1500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "choix"
+    },
+    {
+     "nom": "previz",
+     "etapes": [
+      {
+       "clic": {"fr": "texte:Explosion", "en": "texte:Burst"},
+       "apres": 9000
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.2,
+     "curseur": {"fr": "texte:Explosion", "en": "texte:Burst"},
+     "clic": true,
+     "bulle": {
+      "fr": "Choisissez un effet",
+      "en": "Pick an effect"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.6,
+     "surligne": "css:#playBtn",
+     "bulle": {
+      "fr": "La préviz joue l'animation",
+      "en": "The preview plays the animation"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 3.0,
+     "surligne": "texte:Godot .tres",
+     "bulle": {
+      "fr": "Exports pour Unity, Godot, Phaser, Aseprite, Unreal",
+      "en": "Exports for Unity, Godot, Phaser, Aseprite, Unreal"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "spritelab/feuille",
+   "url": "/spritelab/",
+   "titre": {
+    "fr": "Ouvrir une planche existante",
+    "en": "Open an existing sheet"
+   },
+   "legende": {
+    "fr": "Onglet Feuille : la grille se détecte, les cases se choisissent, les frames s'alignent ; tout en local.",
+    "en": "Sheet tab: the grid is detected, cells are picked, frames are aligned; all local."
+   },
+   "avant": [
+    {
+     "attente": 1500
+    },
+    {
+     "clic": "css:[data-src=\"feuille\"]",
+     "apres": 1500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "liste"
+    },
+    {
+     "nom": "grille",
+     "etapes": [
+      {
+       "clic": "css:[data-fn=\"planche-heros.png\"]",
+       "apres": 3500
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.2,
+     "curseur": "css:[data-fn=\"planche-heros.png\"]",
+     "clic": true,
+     "bulle": {
+      "fr": "Une planche de la Bibliothèque",
+      "en": "A sheet from the Library"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.8,
+     "surligne": "css:#fDetect",
+     "bulle": {
+      "fr": "4 × 2 cases détectées seules",
+      "en": "4 × 2 cells detected automatically"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.8,
+     "surligne": "css:#playBtn",
+     "bulle": {
+      "fr": "Le héros sautille dans la préviz",
+      "en": "The hero hops in the preview"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "tilelab/seamless",
+   "url": "/tilelab/",
+   "titre": {
+    "fr": "Une tuile sans raccord",
+    "en": "A seamless tile"
+   },
+   "legende": {
+    "fr": "Mode Seamless : une image devient une tuile qui se répète sans couture, avec son pavage 3×3 et le score de raccord.",
+    "en": "Seamless mode: an image becomes a tile that repeats without seams, with its 3×3 tiling and seam score."
+   },
+   "avant": [
+    {
+     "attente": 1500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "source",
+     "etapes": [
+      {
+       "clic": "css:#imgGrid [data-fn=\"texture-herbe.png\"]",
+       "apres": 1200
+      }
+     ]
+    },
+    {
+     "nom": "tuile",
+     "etapes": [
+      {
+       "clic": "css:#runBtn",
+       "apres": 6000
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.2,
+     "curseur": "css:#runBtn",
+     "clic": true,
+     "bulle": {
+      "fr": "Rendre seamless : gratuit, local",
+      "en": "Make seamless: free, local"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 3.0,
+     "bulle": {
+      "fr": "La tuile et son pavage 3×3",
+      "en": "The tile and its 3×3 tiling"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "tilelab/jeu",
+   "url": "/tilelab/",
+   "titre": {
+    "fr": "Fabriquer un jeu de tuiles",
+    "en": "Build a tileset"
+   },
+   "legende": {
+    "fr": "Mode Jeu : une matière de terrain et une de fond deviennent un jeu blob 47 ou 16, auto-tuilable et exportable.",
+    "en": "Tileset mode: a terrain material and a background one become a blob 47 or 16 set, auto-tiling and exportable."
+   },
+   "avant": [
+    {
+     "attente": 1500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "atlas",
+     "etapes": [
+      {
+       "clic": "css:[data-m=\"jeu\"]",
+       "apres": 1500
+      },
+      {
+       "js": "document.querySelector('#jeuGrid img[title=\"texture-herbe.png\"]').click()",
+       "attente": 500
+      },
+      {
+       "js": "document.querySelector('#jeuGrid img[title=\"texture-sable.png\"]').click()",
+       "attente": 500
+      },
+      {
+       "clic": "css:#jeuRun",
+       "apres": 9000
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:#jeuSlotA",
+     "bulle": {
+      "fr": "A : terrain, B : fond",
+      "en": "A: terrain, B: background"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 3.0,
+     "surligne": "css:#jeuRun",
+     "bulle": {
+      "fr": "142 tuiles, raccord mesuré",
+      "en": "142 tiles, seams measured"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "tilelab/peintre",
+   "url": "/tilelab/",
+   "titre": {
+    "fr": "Peindre une carte",
+    "en": "Paint a map"
+   },
+   "legende": {
+    "fr": "Mode Peintre : vous peignez le terrain case par case, et la bonne tuile du jeu est posée selon les voisines.",
+    "en": "Painter mode: you paint terrain cell by cell, and the right tile of the set is placed from its neighbours."
+   },
+   "avant": [
+    {
+     "attente": 1500
+    },
+    {
+     "clic": "css:[data-m=\"jeu\"]",
+     "apres": 1500
+    },
+    {
+     "js": "document.querySelector('#jeuGrid img[title=\"texture-herbe.png\"]').click()",
+     "attente": 500
+    },
+    {
+     "js": "document.querySelector('#jeuGrid img[title=\"texture-sable.png\"]').click()",
+     "attente": 500
+    },
+    {
+     "clic": "css:#jeuRun",
+     "apres": 9000
+    }
+   ],
+   "captures": [
+    {
+     "nom": "carte",
+     "etapes": [
+      {
+       "clic": "css:[data-m=\"peintre\"]",
+       "apres": 1800
+      },
+      {
+       "js": "(async()=>{const g=document.querySelector('#peintreOut canvas');const r=g.getBoundingClientRect();const cw=r.width/12,ch=r.height/8;const ev=(t,x,y)=>g.dispatchEvent(new PointerEvent(t,{bubbles:true,clientX:r.x+x*cw+cw/2,clientY:r.y+y*ch+ch/2,button:0,buttons:t==='pointerup'?0:1,pointerId:1,isPrimary:true}));const p=[];for(let y=2;y<=5;y++)for(let x=3;x<=8;x++)p.push([x,y]);p.push([9,3],[9,4],[2,4],[5,6],[6,6],[6,1]);for(const [x,y] of p){ev('pointerdown',x,y);ev('pointerup',x,y);await new Promise(r=>setTimeout(r,120));}})()",
+       "attente": 4000
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:#peintreOut canvas",
+     "bulle": {
+      "fr": "Cliquer-glisser pour peindre",
+      "en": "Click and drag to paint"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 3.0,
+     "bulle": {
+      "fr": "La carte composée, prête pour le jeu",
+      "en": "The composed map, ready for the game"
+     }
+    }
+   ]
+  }
+ ]
+}

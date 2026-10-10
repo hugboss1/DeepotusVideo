@@ -1,0 +1,114 @@
+{
+  "titre": {
+    "fr": "Un sprite en un clic",
+    "en": "A sprite in one click"
+  },
+  "legende": {
+    "fr": "L'onglet Démarrer livre douze effets de particules et des séquences : un clic produit la planche, le GIF et les exports, sans clé ni crédit.",
+    "en": "The Start tab ships twelve particle effects and sequences: one click produces the sheet, the GIF and the exports, no key, no credit."
+  },
+  "captures": [
+    {
+      "fr": "choix.fr.webp",
+      "en": "choix.en.webp"
+    },
+    {
+      "fr": "previz.fr.webp",
+      "en": "previz.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.2,
+      "curseur": [
+        54,
+        423
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Choisissez un effet",
+        "en": "Pick an effect"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.6,
+      "surligne": [
+        1026,
+        529,
+        47,
+        39
+      ],
+      "bulle": {
+        "fr": "La préviz joue l'animation",
+        "en": "The preview plays the animation"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "surligne": [
+        1026,
+        647,
+        118,
+        42
+      ],
+      "bulle": {
+        "fr": "Exports pour Unity, Godot, Phaser, Aseprite, Unreal",
+        "en": "Exports for Unity, Godot, Phaser, Aseprite, Unreal"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.2,
+      "curseur": [
+        54,
+        389
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Choisissez un effet",
+        "en": "Pick an effect"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.6,
+      "surligne": [
+        1026,
+        529,
+        47,
+        39
+      ],
+      "bulle": {
+        "fr": "La préviz joue l'animation",
+        "en": "The preview plays the animation"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "surligne": [
+        1026,
+        647,
+        118,
+        42
+      ],
+      "bulle": {
+        "fr": "Exports pour Unity, Godot, Phaser, Aseprite, Unreal",
+        "en": "Exports for Unity, Godot, Phaser, Aseprite, Unreal"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

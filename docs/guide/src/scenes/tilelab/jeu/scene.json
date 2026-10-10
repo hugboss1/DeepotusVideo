@@ -1,0 +1,84 @@
+{
+  "titre": {
+    "fr": "Fabriquer un jeu de tuiles",
+    "en": "Build a tileset"
+  },
+  "legende": {
+    "fr": "Mode Jeu : une matière de terrain et une de fond deviennent un jeu blob 47 ou 16, auto-tuilable et exportable.",
+    "en": "Tileset mode: a terrain material and a background one become a blob 47 or 16 set, auto-tiling and exportable."
+  },
+  "captures": [
+    {
+      "fr": "atlas.fr.webp",
+      "en": "atlas.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        4,
+        97,
+        274,
+        126
+      ],
+      "bulle": {
+        "fr": "A : terrain, B : fond",
+        "en": "A: terrain, B: background"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 3,
+      "surligne": [
+        560,
+        213,
+        164,
+        50
+      ],
+      "bulle": {
+        "fr": "142 tuiles, raccord mesuré",
+        "en": "142 tiles, seams measured"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        4,
+        97,
+        274,
+        126
+      ],
+      "bulle": {
+        "fr": "A : terrain, B : fond",
+        "en": "A: terrain, B: background"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 3,
+      "surligne": [
+        560,
+        213,
+        162,
+        50
+      ],
+      "bulle": {
+        "fr": "142 tuiles, raccord mesuré",
+        "en": "142 tiles, seams measured"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}
