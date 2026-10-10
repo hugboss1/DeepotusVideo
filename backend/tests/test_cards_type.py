@@ -34,6 +34,8 @@ Ce que ce fichier verrouille, dans l'ordre des seuils de la spec (§4, pièce
 
 Run : <embedded python> backend/tests/test_cards_type.py
 """
+import sys as _sys_l7, pathlib as _pl_l7; _sys_l7.path.insert(0, str(_pl_l7.Path(__file__).resolve().parent))  # noqa: E401,E702
+import _cartes_avant_l7  # noqa: F401,E402  (t147 : la source du Card Forge d'avant la traduction L7)
 import asyncio
 import io
 import json
@@ -8306,6 +8308,10 @@ def _page_formes(tmp_path, slots: list) -> pathlib.Path:
         "on:function(){},renderCard:async function(){return null;},"
         "modules:function(){return[];}};"
         "</script>"
+        # t147 (traduction L7) : le module appelle dzT dès son chargement — la page charge, comme la vraie, le
+        # dictionnaire puis le runtime (langue par défaut : le français) AVANT le module
+        f"<script src=\"{(JS.parents[2] / 'shared' / 'dz-i18n-dico.js').as_uri()}\"></script>"
+        f"<script src=\"{(JS.parents[2] / 'shared' / 'dz-i18n.js').as_uri()}\"></script>"
         f"<script src=\"{JS.as_uri()}\"></script>"
         "</body>", encoding="utf-8")
     return page
@@ -10064,6 +10070,10 @@ def _page_gestes(tmp_path, slots: list) -> pathlib.Path:
         "on:function(){},renderCard:async function(){return null;},"
         "modules:function(){return[];}};"
         "</script>"
+        # t147 (traduction L7) : le module appelle dzT dès son chargement — la page charge, comme la vraie, le
+        # dictionnaire puis le runtime (langue par défaut : le français) AVANT le module
+        f"<script src=\"{(JS.parents[2] / 'shared' / 'dz-i18n-dico.js').as_uri()}\"></script>"
+        f"<script src=\"{(JS.parents[2] / 'shared' / 'dz-i18n.js').as_uri()}\"></script>"
         f"<script src=\"{JS.as_uri()}\"></script>"
         "</body>", encoding="utf-8")
     return page

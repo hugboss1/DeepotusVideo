@@ -100,7 +100,7 @@
   const AI_SIZES = [
     ["portrait_4_3", "Portrait 3:4"],
     ["portrait_16_9", "Portrait 9:16"],
-    ["square_hd", "Carré HD"],
+    ["square_hd", dzT("cartes.face.taille_carre_hd")],
   ];
 
   /* ═══════════════════════════════════════════════════════════════════════
@@ -190,6 +190,11 @@
   /* CF-FACE-SERIES-END */
 
   const PAL_BY = {}, SUB_BY = {}, COM_BY = {};
+  /* t147 : les noms du catalogue traduits À L'AFFICHAGE seulement (tables figées par les bancs miroir) — en
+     français, hors navigateur ou inconnus : tels quels ; une tuile se relit par ses ids */
+  const libF = (s) => (typeof window !== "undefined" && window.__dzI18n && window.__dzI18n.traduire(s)) || s;
+  const tuileLib = (c) => (c && SUB_BY[c.subject] && COM_BY[c.compo])
+    ? libF(SUB_BY[c.subject].label) + " — " + libF(COM_BY[c.compo].label) : libF(c && c.label);
   PALETTES.forEach((p) => { PAL_BY[p.id] = p; });
   SUBJECTS.forEach((s) => { SUB_BY[s.id] = s; });
   COMPOS.forEach((c) => { COM_BY[c.id] = c; });
@@ -1600,7 +1605,7 @@
       const url = URL.createObjectURL(blob);
       const im = new Image();
       im.onload = () => { res({ w: im.naturalWidth, h: im.naturalHeight, img: im, url: url }); };
-      im.onerror = () => { URL.revokeObjectURL(url); rej(new Error("fichier illisible comme image")); };
+      im.onerror = () => { URL.revokeObjectURL(url); rej(new Error(dzT("cartes.face.err_illisible"))); };
       im.src = url;
     });
   }
@@ -1618,9 +1623,9 @@
 
   async function importFiles(list) {
     const files = Array.prototype.slice.call(list || []).filter((f) => /^image\//.test(f.type || ""));
-    if (!files.length) { CF.toast("aucune image dans ce qui a été déposé", true); return []; }
+    if (!files.length) { CF.toast(dzT("cartes.face.rien_depose"), true); return []; }
     const added = [];
-    CF.busy(true, "import de " + files.length + " illustration(s)…");
+    CF.busy(true, dzT("cartes.face.import_n", { n: files.length }));
     try {
       for (let i = 0; i < files.length; i++) {
         const f = files[i];
@@ -1709,7 +1714,7 @@
        l'apercu de la carte. Le libelle d'une mire dit ce qu'elle est. */
     c.fillText("mire de contrôle", MIRE_W / 2, MIRE_H / 2 + 46);
     return new Promise((res, rej) => cv.toBlob((b) => {
-      if (b) res(b); else rej(new Error("le moteur n'a pas encodé la mire"));
+      if (b) res(b); else rej(new Error(dzT("cartes.face.err_mire")));
     }, "image/png"));
   }
 
@@ -1721,11 +1726,11 @@
         ? new File([blob], name, { type: "image/png" })
         : (function () { blob.name = name; return blob; }());
       const added = await importFiles([f]);
-      if (!added.length) throw new Error("l'import n'a rien retenu");
+      if (!added.length) throw new Error(dzT("cartes.face.import_rien"));
       /* le MEME chemin de retour qu'un depot : pile, panneau, pose */
-      afterImport(added, "de contrôle dans la pile");
+      afterImport(added, dzT("cartes.face.quoi_mire"));
     } catch (e) {
-      CF.toast("mire : " + String((e && e.message) || e), true);
+      CF.toast(dzT("cartes.face.err_mire_pref") + String((e && e.message) || e), true);
     }
   }
 
@@ -1791,13 +1796,13 @@
     const s = plain(l.sujet) ? l.sujet : null;
     if (s && String(s.file || "") === SUJET) {
       return { nom: SUJET, sujet: true, stamp: Number(s.stamp) || 0,
-        libelle: "Adopter le sujet détouré de la carte importée" };
+        libelle: dzT("cartes.face.adopter_sujet") };
     }
     const src = plain(c.sources) ? c.sources : {};
     if (!plain(src.recto)) return null;
     return { nom: "source_recto.png", sujet: false,
       stamp: Number(src.recto.stamp) || 0,
-      libelle: "Adopter le recto entier de la carte importée (recadrage art)" };
+      libelle: dzT("cartes.face.adopter_recto") };
   }
 
   /* Une <img> chargee -> des octets PNG. PAS DE FOND PEINT : la couche
@@ -1805,11 +1810,11 @@
      opaque — l'inverse exact de ce qu'on vient de payer. */
   function imageBlob(im) {
     const w = im.naturalWidth || im.width, h = im.naturalHeight || im.height;
-    if (!w || !h) return Promise.reject(new Error("image de capture illisible"));
+    if (!w || !h) return Promise.reject(new Error(dzT("cartes.face.err_capture")));
     const cv = newCanvas(w, h);
     cv.getContext("2d").drawImage(im, 0, 0);
     return new Promise((res, rej) => cv.toBlob((b) => {
-      if (b) res(b); else rej(new Error("le moteur n'a pas encodé l'image"));
+      if (b) res(b); else rej(new Error(dzT("cartes.face.err_encode")));
     }, "image/png"));
   }
 
@@ -1837,12 +1842,12 @@
   async function adopterCapture() {
     const a = adoptionCapture(CF.doc());
     if (!a) {
-      CF.toast("rien à adopter : reprenez d'abord une carte dans la pièce Import", true);
+      CF.toast(dzT("cartes.face.rien_adopter"), true);
       return;
     }
     const url = captureURL(a.nom);
     if (!url) {
-      CF.toast("la pièce Import annonce un fichier que sa liste blanche ne sert pas", true);
+      CF.toast(dzT("cartes.face.capture_hors_liste"), true);
       return;
     }
     try {
@@ -1869,13 +1874,13 @@
           : (function () { blob.name = nom; return blob; }());
         added = await importFiles([f]);
       }
-      if (!added.length) throw new Error("l'import n'a rien retenu");
+      if (!added.length) throw new Error(dzT("cartes.face.import_rien"));
       afterImport(added, deja
-        ? "déjà dans la pile — reposée plutôt que réimportée"
-        : (a.sujet ? "détourée de la carte importée"
-          : "reprise entière de la carte importée"));
+        ? dzT("cartes.face.quoi_deja")
+        : (a.sujet ? dzT("cartes.face.quoi_sujet")
+          : dzT("cartes.face.quoi_recto")));
     } catch (e) {
-      CF.toast("adoption : " + String((e && e.message) || e), true);
+      CF.toast(dzT("cartes.face.err_adoption") + String((e && e.message) || e), true);
     }
   }
 
@@ -1916,7 +1921,7 @@
       VECS = { deck: did, docs: await CF.vector.docs(did) };
     } catch (e) {
       VECS = { deck: did, docs: [] };
-      CF.toast("documents vectoriels : " + String((e && e.message) || e), true);
+      CF.toast(dzT("cartes.face.err_vecs") + String((e && e.message) || e), true);
     } finally { VEC_CHARGE = false; }
     if (CF.get("face.tab", "cat") === "vec") renderPanel();
   }
@@ -1944,7 +1949,7 @@
 
   async function creerVec() {
     const did = vecDeckId();
-    if (!did) { CF.toast("aucun jeu ouvert", true); return; }
+    if (!did) { CF.toast(dzT("cartes.face.aucun_jeu"), true); return; }
     const inp = q("#cf-face-vlab-nom");
     const nom = String((inp && inp.value) || "").trim()
       || "Illustration " + (VECS.docs.length + 1);
@@ -1958,7 +1963,7 @@
       d = await CF.vector.create({ name: nom, role: "libre", deck_id: did,
                                    doc: doc });
     } catch (e) {
-      CF.toast("création : " + String((e && e.message) || e), true);
+      CF.toast(dzT("cartes.face.err_creation") + String((e && e.message) || e), true);
       return;
     }
     window.open("/vectorlab/?doc=" + encodeURIComponent(d.id), "_blank");
@@ -1986,10 +1991,10 @@
 
   async function editerFaceVec() {
     const did = vecDeckId();
-    if (!did) { CF.toast("aucun jeu ouvert", true); return; }
+    if (!did) { CF.toast(dzT("cartes.face.aucun_jeu"), true); return; }
     const g = CF.geom();
     const nom = "Face " + (CF.current() + 1) + " — " + String(CF.doc().name || "carte").slice(0, 60);
-    CF.busy(true, "rendu de la face à " + g.canvas_px[0] + " x " + g.canvas_px[1] + " px…");
+    CF.busy(true, dzT("cartes.face.rendu_face", { w: g.canvas_px[0], h: g.canvas_px[1] }));
     try {
       const png = await CF.cardBlob(CF.current(), {});          /* LE moteur unique */
       const d = await CF.vector.create({ name: nom, role: "libre", deck_id: did,
@@ -2000,7 +2005,7 @@
       VECS = { deck: null, docs: [] };
       chargerVecs();
     } catch (e) {
-      CF.toast("éditer la face : " + String((e && e.message) || e), true);
+      CF.toast(dzT("cartes.face.err_editer") + String((e && e.message) || e), true);
     } finally { CF.busy(false); }
   }
 
@@ -2016,8 +2021,7 @@
        le TYPE qu'elle attend ; la sonde ne repond que present/absent. */
     const present = await CF.images.probe(nom, "image/png");
     if (!present) {
-      CF.toast("aucun export 2× encore : dans le Vectorlab, menu Exporter "
-        + "→ PNG 2×, puis « Poser 2× » à nouveau", true);
+      CF.toast(dzT("cartes.face.vec_pas_export"), true);
       return;
     }
     /* un re-export ECRASE le fichier sous le meme nom : purger le cache de
@@ -2027,12 +2031,11 @@
   }
 
   async function supprimerVec(id) {
-    if (!await window.__dzDialogue.confirmer("Supprimer ce document vectoriel ? Sa dernière version "
-                 + "reste archivée sur disque.")) return;
+    if (!await window.__dzDialogue.confirmer(dzT("cartes.face.vec_suppr_conf"))) return;
     try {
       await CF.vector.del(id);
     } catch (e) {
-      CF.toast("suppression : " + String((e && e.message) || e), true);
+      CF.toast(dzT("cartes.face.err_suppr") + String((e && e.message) || e), true);
       return;
     }
     VECS = { deck: null, docs: [] };
@@ -2041,11 +2044,10 @@
 
   function vecListeHTML() {
     const did = vecDeckId();
-    if (!did) return '<p class="empty-note sm">Aucun jeu ouvert.</p>';
-    if (VECS.deck !== did) return '<p class="empty-note sm">chargement…</p>';
+    if (!did) return '<p class="empty-note sm">' + dzT("cartes.face.aucun_jeu_p") + '</p>';
+    if (VECS.deck !== did) return '<p class="empty-note sm">' + dzT("cartes.face.chargement") + '</p>';
     if (!VECS.docs.length) {
-      return '<p class="empty-note sm">Aucun document vectoriel pour ce jeu '
-        + '— créez-en un ci-dessus.</p>';
+      return '<p class="empty-note sm">' + dzT("cartes.face.vec_aucun") + '</p>';
     }
     return VECS.docs.map((d) => {
       const id = esc(String(d.id));
@@ -2053,17 +2055,17 @@
         ? '<img src="/api/vector/docs/' + encodeURIComponent(d.id)
           + '/vignette.png?v=' + encodeURIComponent(d.version)
           + '" alt="" loading="lazy">'
-        : '<span class="cf-face-vlab-sans" title="la vignette naît au premier Sauver">' + ICO("dz-etat-sans-apercu", 16) + '</span>';
+        : '<span class="cf-face-vlab-sans" title="' + dzT("cartes.face.vig_naissance") + '">' + ICO("dz-etat-sans-apercu", 16) + '</span>';
       return '<div class="cf-face-vlab-ligne">'
         + '<span class="cf-face-vlab-vig">' + vig + '</span>'
         + '<span class="cf-face-vlab-nomcol"><b>' + esc(d.name) + '</b>'
         + '<i>' + esc(d.role) + ' · v' + esc(String(d.version)) + '</i></span>'
         + '<button class="btn sm" type="button" data-vec-open="' + id
-        + '" title="Ouvrir dans le Vectorlab (nouvel onglet)">Ouvrir</button>'
+        + '" title="' + dzT("cartes.face.vec_ouvrir_t") + '">' + dzT("cartes.face.ouvrir") + '</button>'
         + '<button class="btn sm" type="button" data-vec-pose="' + id
-        + '" title="Pose l\'export PNG 2× comme illustration de la carte">Poser 2×</button>'
+        + '" title="' + dzT("cartes.face.vec_poser_t") + '">' + dzT("cartes.face.vec_poser") + '</button>'
         + '<button class="btn sm" type="button" data-vec-del="' + id
-        + '" title="Supprimer (la dernière version reste archivée)" aria-label="Supprimer (la dernière version reste archivée)">' + ICO("dz-action-supprimer", 16) + '</button>'
+        + '" title="' + dzT("cartes.face.vec_suppr_t") + '" aria-label="' + dzT("cartes.face.vec_suppr_t") + '">' + ICO("dz-action-supprimer", 16) + '</button>'
         + '</div>';
     }).join("");
   }
@@ -2144,7 +2146,7 @@
       const rec = pileByKey(s.slice(6));
       if (!rec || !rec.url) return null;
       url = rec.url;
-      label = rec.name || "image importée";
+      label = rec.name || dzT("cartes.face.image_importee");
     } else if (s.indexOf("img:") === 0) {
       url = imgURL(s.slice(4));
       label = s.slice(4);
@@ -2181,11 +2183,11 @@
      (mode « auto »), et on ajoute quatre fenetres du domaine, calculees a
      partir de `CF.geom()` — jamais d'un pixel recalcule ici (spec §3). */
   const WIN_MODES = [
-    ["auto", "Auto — celle du cadre, sinon la toile entière"],
-    ["full", "Toile entière (fond perdu compris)"],
-    ["trim", "Coupe"],
-    ["safe", "Zone sûre"],
-    ["art34", "Fenêtre 3:4 haute"],
+    ["auto", dzT("cartes.face.win_auto")],
+    ["full", dzT("cartes.face.win_full")],
+    ["trim", dzT("cartes.face.win_trim")],
+    ["safe", dzT("cartes.face.win_safe")],
+    ["art34", dzT("cartes.face.win_art34")],
   ];
   function frameWindow(g) {
     const w = CF.get("frame.art_window", null) || CF.get("frame.window", null);
@@ -2334,9 +2336,7 @@
   /* « 300 DPI demandes -> 11811 px/m -> 299,9994 DPI dans le fichier ». */
   function physLine(dpi) {
     const ppm = dpiToPpm(dpi);
-    return ppm + ' px/m (unité mètre) = <b>' + ppmToDpi(ppm).toFixed(4)
-      + ' DPI</b> — pHYs ne stocke que des entiers de pixels par mètre, et '
-      + dpi + ' DPI en vaut ' + (dpi / PHYS_METRE).toFixed(3) + '.';
+    return dzT("cartes.face.phys_ligne", { ppm: ppm, dpif: ppmToDpi(ppm).toFixed(4), dpi: dpi, exact: (dpi / PHYS_METRE).toFixed(3) });
   }
 
   /* ═══════════════════════════════════════════════════════════════════════
@@ -2415,10 +2415,10 @@
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.font = "600 " + s + "px sans-serif";
-    ctx.fillText("Aucune illustration", bx + bw / 2, by + bh / 2 - s * 0.9);
+    ctx.fillText(dzT("cartes.face.ph_aucune"), bx + bw / 2, by + bh / 2 - s * 0.9);
     ctx.font = (s * 0.6) + "px sans-serif";
-    ctx.fillText("déposez une image ici,", bx + bw / 2, by + bh / 2 + s * 0.2);
-    ctx.fillText("piochez au catalogue ou générez-la", bx + bw / 2, by + bh / 2 + s * 1.1);
+    ctx.fillText(dzT("cartes.face.ph_deposez"), bx + bw / 2, by + bh / 2 + s * 0.2);
+    ctx.fillText(dzT("cartes.face.ph_piochez"), bx + bw / 2, by + bh / 2 + s * 1.1);
     ctx.restore();
   }
 
@@ -2571,22 +2571,22 @@
   }
   function applyState(s) { M.patch(s); }
   function undo() {
-    if (!UNDO.length) { CF.toast("rien à annuler"); return; }
+    if (!UNDO.length) { CF.toast(dzT("cartes.face.rien_annuler")); return; }
     REDO.push(snap());
     applyState(UNDO.pop());
-    CF.toast("annulé");
+    CF.toast(dzT("cartes.face.annule"));
   }
   function redo() {
-    if (!REDO.length) { CF.toast("rien à rétablir"); return; }
+    if (!REDO.length) { CF.toast(dzT("cartes.face.rien_retablir")); return; }
     UNDO.push(snap());
     applyState(REDO.pop());
-    CF.toast("rétabli");
+    CF.toast(dzT("cartes.face.retabli"));
   }
 
   function setArt(id, quiet) {
     pushUndo();
     M.patch({ src: id, default_art: id, seeded: true });
-    if (!quiet) CF.toast("illustration posée");
+    if (!quiet) CF.toast(dzT("cartes.face.posee"));
     refreshSel();
   }
   /* Un import CHANGE la pile et le compteur d'onglet : lui, redessine. */
@@ -2594,7 +2594,7 @@
     if (!added || !added.length) return;
     setArt("local:" + added[0].key, true);
     renderPanel();
-    CF.toast(added.length + " illustration(s) " + (quoi || "dans la pile") + " — la première est posée");
+    CF.toast(dzT("cartes.face.apres_import", { n: added.length, quoi: quoi || dzT("cartes.face.quoi_pile") }));
   }
   /* Poser une face ne REDESSINE PAS le panneau : la grille garderait sa
      position de defilement pour un simple changement de selection, et le
@@ -2768,14 +2768,12 @@
     if (!LAST.has || typeof LAST.vis !== "number") return "";
     const p = LAST.vis * 100;
     const dans = p >= 99.95
-      ? '<span class="mono">Fenêtre d\'illustration : la pose y tient entière, aucun recadrage.</span>'
-      : '<span class="cf-face-crop"><b>' + fmt1(p) + ' % de la pose tient dans la fenêtre '
-        + 'd\'illustration</b> — les ' + fmt1(100 - p) + ' % restants en sortent et sont '
-        + 'coupés. Passez en « Contenir » pour tout garder, ou déplacez la pose.'
+      ? '<span class="mono">' + dzT("cartes.face.crop_entiere") + '</span>'
+      : '<span class="cf-face-crop">' + dzT("cartes.face.crop_partiel", { p: fmt1(p), r: fmt1(100 - p) })
         /* le chiffre etait honnete, le geste manquait : la correction s'offre
            A COTE de la mesure, et seulement si elle changerait quelque chose. */
         + (poseCalee() ? '' : ' <button class="btn sm" type="button" '
-          + 'data-fix="window">Recadrer sur la fenêtre</button>')
+          + 'data-fix="window">' + dzT("cartes.face.recadrer_fenetre") + '</button>')
         + '</span>';
     return dans + maskLine();
   }
@@ -2795,22 +2793,17 @@
      change, c'est l'ordre de lecture. Mesure de l'effet dans les tests. */
   function maskLine() {
     const stale = !MASK || MASK.sig !== maskSignature();
-    if (stale) return '<span class="mono">Ce qui atteint le papier : mesure en cours…</span>';
+    if (stale) return '<span class="mono">' + dzT("cartes.face.papier_en_cours") + '</span>';
     if (MASK.temoin > 0) {
       /* L'hypothese de determinisme est FAUSSE : on ne publie pas un nombre
          qu'on vient soi-meme de contredire. */
-      return '<span class="cf-face-crop">Ce qui atteint le papier : <b>non mesurable</b> — '
-        + 'deux rendus identiques de cette carte diffèrent de '
-        + MASK.temoin.toLocaleString("fr-FR") + ' pixels, une couche du dessus n\'est pas '
-        + 'déterministe. Aucun pourcentage ne serait vérifiable ici.</span>';
+      return '<span class="cf-face-crop">' + dzT("cartes.face.papier_non_mesurable", { n: MASK.temoin.toLocaleString("fr-FR") }) + '</span>';
     }
     const pv = 100 * MASK.vis / MASK.pose;
     const pw = 100 * MASK.inWin / MASK.pose;
     const cls = pv >= 99.95 ? "mono" : "cf-face-crop";
-    return '<span class="' + cls + '">Sur la carte imprimée : <b>' + fmt1(pv)
-      + ' % de la pose atteint le papier</b>'
-      + (pv + 0.05 < pw ? ' — le cadre et les textes en masquent ' + fmt1(pw - pv)
-        + ' points de plus.' : '.')
+    return '<span class="' + cls + '">' + dzT("cartes.face.papier_pct", { p: fmt1(pv) })
+      + (pv + 0.05 < pw ? dzT("cartes.face.papier_masque", { d: fmt1(pw - pv) }) : '.')
       + '</span>';
   }
 
@@ -2825,14 +2818,11 @@
        memes trois nombres : les repeter deux fois n'ajoute rien et c'est
        precisement le genre de remplissage qu'on nous reproche. */
     const meme = px1(MASK.poseW) === MASK.W && px1(MASK.poseH) === MASK.H;
-    return '<span class="mono">Compté par le moteur : ' + MASK.vis.toLocaleString("fr-FR")
-      + ' px sur ' + (meme
-        ? 'une pose qui couvre la carte entière, ' + carte
-        : fmtPx(MASK.poseW) + ' × ' + fmtPx(MASK.poseH) + ' = ' + frac1(MASK.pose)
-          + ' px de pose, dans une carte de ' + carte)
-      + ' ; témoin de déterminisme ' + MASK.temoin + ' px'
-      + (ecart === null ? '' : ' ; fenêtre recomptée ' + MASK.inWin.toLocaleString("fr-FR")
-        + ' px contre ' + frac1(px1(MASK.predit)) + ' prédits (' + ecart.toFixed(2) + ' %)')
+    return '<span class="mono">' + dzT("cartes.face.compte_moteur", { n: MASK.vis.toLocaleString("fr-FR") }) + (meme
+        ? dzT("cartes.face.compte_pose_entiere", { carte: carte })
+        : dzT("cartes.face.compte_pose", { w: fmtPx(MASK.poseW), h: fmtPx(MASK.poseH), a: frac1(MASK.pose), carte: carte }))
+      + dzT("cartes.face.temoin", { n: MASK.temoin })
+      + (ecart === null ? '' : dzT("cartes.face.recompte", { n: MASK.inWin.toLocaleString("fr-FR"), p: frac1(px1(MASK.predit)), e: ecart.toFixed(2) }))
       + '.</span>';
   }
 
@@ -2843,7 +2833,7 @@
   function detailsBlock(rows) {
     const body = rows.filter(Boolean).join("");
     if (!body) return "";
-    return '<details class="cf-face-det"><summary>le détail, chiffre par chiffre</summary>'
+    return '<details class="cf-face-det"><summary>' + dzT("cartes.face.detail") + '</summary>'
       + body + '</details>';
   }
   function wireDetails(box) {
@@ -2877,9 +2867,7 @@
       const op = Number(CF.get("texture.over_opacity", 0));
       if (!(op > 0)) return "";
       const bl = String(CF.get("texture.over_blend", "") || "normal");
-      return '<span class="cf-face-crop">Couche de finition par-dessus l\'illustration : <b>'
-        + esc(String(ov)) + '</b>, opacité ' + Math.round(op * 100) + ' %, fusion ' + esc(bl)
-        + ' — <b>vos couleurs en sortent modifiées</b>. Réglage dans Matières.</span>';
+      return '<span class="cf-face-crop">' + dzT("cartes.face.finition", { ov: esc(String(ov)), op: Math.round(op * 100), bl: esc(bl) }) + '</span>';
     } catch (e) { return ""; }        /* piece 06 absente : rien a annoncer */
   }
 
@@ -2894,9 +2882,7 @@
     const r = pileByKey(s.slice(6));
     if (!r || typeof r.w0 !== "number" || typeof r.h0 !== "number") return "";
     if (r.w0 === r.w && r.h0 === r.h) return "";
-    return '<span class="mono">fichier déposé ' + r.w0 + ' × ' + r.h0
-      + ' px, ramené à ' + MAX_IMPORT_PX + ' px de côté à l\'import : c\'est la trame '
-      + 'ci-dessus qui est posée et mesurée.</span>';
+    return '<span class="mono">' + dzT("cartes.face.import_reduit", { w: r.w0, h: r.h0, max: MAX_IMPORT_PX }) + '</span>';
   }
 
   /* ── la jauge : LE chiffre, colle a la carte ───────────────────────────── */
@@ -2907,9 +2893,8 @@
     if (!LAST.has) {
       box.className = "cf-face-gauge cf-face-none";
       box.innerHTML = '<div class="cf-face-gnum">—</div>'
-        + '<div class="cf-face-gbody"><b>Aucune illustration posée</b>'
-        + '<span>Choisissez une face du catalogue, déposez une image ou générez-la. '
-        + 'La jauge affichera alors le DPI réel de l\'impression.</span></div>';
+        + '<div class="cf-face-gbody"><b>' + dzT("cartes.face.aucune_posee") + '</b>'
+        + '<span>' + dzT("cartes.face.jauge_vide") + '</span></div>';
       return;
     }
     if (LAST.vector) {
@@ -2931,7 +2916,7 @@
       const pctv = gaugeFill(rast, DPI_TARGET);
       box.innerHTML = '<div class="cf-face-gnum">' + Math.round(rast) + '<i>DPI</i></div>'
         + '<div class="cf-face-gbody">'
-        + '<b>' + (okv ? "Définition suffisante pour l\'impression" : "Définition insuffisante — sous " + DPI_TARGET + " DPI") + '</b>'
+        + '<b>' + (okv ? dzT("cartes.face.def_ok") : dzT("cartes.face.def_basse", { cible: DPI_TARGET })) + '</b>'
         + '<div class="cf-face-gbar"><span style="width:' + fmt1(pctv) + '%"></span>'
         + '<em style="left:50%">' + DPI_TARGET + '</em></div>'
         /* PAS DE TERME INTERMEDIAIRE ARRONDI. Une premiere redaction disait
@@ -2941,19 +2926,12 @@
            intermediaire arrondi devient un chiffre qu'on ne peut pas
            verifier. On donne donc la grandeur mesuree et le chemin qui l'a
            produite, sans etape a moitie ecrite. */
-        + '<span class="mono">face vectorielle : redessinée à ' + fmtPx(LAST.dw) + ' × '
-        + fmtPx(LAST.dh) + ' px, la trame même de la toile — sa définition suit celle-ci '
-        + 'et ne peut pas la dépasser.</span>'
+        + '<span class="mono">' + dzT("cartes.face.vec_redessinee", { w: fmtPx(LAST.dw), h: fmtPx(LAST.dh) }) + '</span>'
         + cropLine() + finishLine()
-        + (okv ? '' : '<span class="cf-face-need">Aucune source à agrandir ici : c\'est la '
-          + '<b>toile</b> qui est à ' + g.dpi + ' DPI.</span>')
+        + (okv ? '' : '<span class="cf-face-need">' + dzT("cartes.face.toile_basse", { dpi: g.dpi }) + '</span>')
         + detailsBlock([
-          '<span class="mono">Toile ' + g.canvas_px[0] + ' × ' + g.canvas_px[1]
-          + ' px pour ' + fmt1(g.px2mm(g.canvas_px[0])) + ' × ' + fmt1(g.px2mm(g.canvas_px[1]))
-          + ' mm, soit ' + Math.round(rast) + ' DPI · définitions offertes : '
-          + (CF.DPIS || []).join(" / ") + ' DPI</span>',
-          '<span class="mono">Barre : échelle 0 – ' + (2 * DPI_TARGET) + ' DPI, repère à '
-          + DPI_TARGET + ' (mi-barre) · remplissage ' + fmt1(pctv) + ' %</span>',
+          '<span class="mono">' + dzT("cartes.face.toile_detail", { w: g.canvas_px[0], h: g.canvas_px[1], wmm: fmt1(g.px2mm(g.canvas_px[0])), hmm: fmt1(g.px2mm(g.canvas_px[1])), dpi: Math.round(rast), offres: (CF.DPIS || []).join(" / ") }) + '</span>',
+          '<span class="mono">' + dzT("cartes.face.barre", { max: (2 * DPI_TARGET), cible: DPI_TARGET, p: fmt1(pctv) }) + '</span>',
           maskDetail(),
         ])
         + '</div>';
@@ -2962,11 +2940,7 @@
       if (wv) {
         wv.classList.toggle("hidden", okv);
         if (!okv) {
-          wv.innerHTML = '<b>Avant d\'imprimer</b><span>Cette face sortira à '
-            + Math.round(rast) + ' DPI, parce que la toile est à ' + g.dpi + ' DPI. '
-            + 'Le réglage n\'est pas dans ce panneau : la définition se choisit dans la '
-            + 'barre de format, en haut (' + (CF.DPIS || []).join(" / ")
-            + ' DPI).</span>';
+          wv.innerHTML = '<b>' + dzT("cartes.face.avant_imprimer") + '</b><span>' + dzT("cartes.face.avertir_vec", { dpi: Math.round(rast), toile: g.dpi, offres: (CF.DPIS || []).join(" / ") }) + '</span>';
         }
       }
       return;
@@ -2983,14 +2957,12 @@
     const pct = gaugeFill(LAST.eff, DPI_TARGET);
     box.innerHTML = '<div class="cf-face-gnum">' + Math.round(LAST.eff) + '<i>DPI</i></div>'
       + '<div class="cf-face-gbody">'
-      + '<b>' + (ok ? "Définition suffisante pour l\'impression" : "Définition insuffisante — sous " + DPI_TARGET + " DPI") + '</b>'
+      + '<b>' + (ok ? dzT("cartes.face.def_ok") : dzT("cartes.face.def_basse", { cible: DPI_TARGET })) + '</b>'
       + '<div class="cf-face-gbar"><span style="width:' + fmt1(pct) + '%"></span>'
       + '<em style="left:50%">' + DPI_TARGET + '</em></div>'
-      + '<span class="mono">source ' + LAST.sw + ' × ' + LAST.sh + ' px'
-      + ' · posée ' + fmtPx(LAST.dw) + ' × ' + fmtPx(LAST.dh) + ' px</span>'
+      + '<span class="mono">' + dzT("cartes.face.source_posee", { sw: LAST.sw, sh: LAST.sh, dw: fmtPx(LAST.dw), dh: fmtPx(LAST.dh) }) + '</span>'
       + importNote() + cropLine() + finishLine()
-      + (ok ? '' : '<span class="cf-face-need">Il faudrait une source de <b>'
-        + LAST.need + ' × ' + LAST.needH + ' px</b> à cette taille de pose.</span>')
+      + (ok ? '' : '<span class="cf-face-need">' + dzT("cartes.face.il_faudrait", { w: LAST.need, h: LAST.needH }) + '</span>')
       + detailsBlock([
         /* LA FORMULE, PAS UN RESUME, ET REFAITE SUR LES VALEURS PUBLIEES.
            Le DPI effectif est le PLUS PETIT des deux rapports (largeur et
@@ -2999,16 +2971,14 @@
            qu'on les deverrouille. Les deux divisions se refont a la main sur
            les nombres imprimes juste au-dessus — c'est la seule raison
            d'ecrire une formule. */
-        '<span class="mono">Toile ' + g.canvas_px[0] + ' × ' + g.canvas_px[1] + ' px à '
-        + g.dpi + ' DPI · DPI effectif = plus petit de ( ' + g.dpi + ' × ' + LAST.sw + ' / '
+        '<span class="mono">' + dzT("cartes.face.formule_debut", { w: g.canvas_px[0], h: g.canvas_px[1], dpi: g.dpi }) + ' ( ' + g.dpi + ' × ' + LAST.sw + ' / '
         + fmtPx(LAST.dw) + ' = ' + fmt1(g.dpi * LAST.sw / Math.max(1e-6, px1(LAST.dw)))
         + ' ; ' + g.dpi + ' × ' + LAST.sh + ' / ' + fmtPx(LAST.dh) + ' = '
         + fmt1(g.dpi * LAST.sh / Math.max(1e-6, px1(LAST.dh))) + ' ) = <b>'
         + fmt1(Math.min(g.dpi * LAST.sw / Math.max(1e-6, px1(LAST.dw)),
           g.dpi * LAST.sh / Math.max(1e-6, px1(LAST.dh))))
-        + ' DPI</b>, arrondi à ' + Math.round(LAST.eff) + ' — le nombre de la jauge</span>',
-        '<span class="mono">Barre : échelle 0 – ' + (2 * DPI_TARGET) + ' DPI, repère à '
-        + DPI_TARGET + ' (mi-barre) · remplissage ' + fmt1(pct) + ' %</span>',
+        + ' DPI</b>' + dzT("cartes.face.formule_fin", { n: Math.round(LAST.eff) }) + '</span>',
+        '<span class="mono">' + dzT("cartes.face.barre", { max: (2 * DPI_TARGET), cible: DPI_TARGET, p: fmt1(pct) }) + '</span>',
         maskDetail(),
       ])
       + '</div>';
@@ -3017,11 +2987,9 @@
     if (warn) {
       warn.classList.toggle("hidden", ok);
       if (!ok) {
-        warn.innerHTML = '<b>Avant d\'imprimer</b><span>L\'illustration sortira à '
-          + Math.round(LAST.eff) + ' DPI, pour ' + DPI_TARGET + ' DPI d\'impression. '
-          + 'Deux réglages la ramènent à ' + DPI_TARGET + ' :</span>'
-          + '<div class="btn-row"><button class="btn sm" type="button" data-fix="shrink">Réduire à 300 DPI exactement</button>'
-          + '<button class="btn sm" type="button" data-fix="contain">Passer en « Contenir »</button></div>';
+        warn.innerHTML = '<b>' + dzT("cartes.face.avant_imprimer") + '</b><span>' + dzT("cartes.face.avertir_bitmap", { dpi: Math.round(LAST.eff), cible: DPI_TARGET }) + '</span>'
+          + '<div class="btn-row"><button class="btn sm" type="button" data-fix="shrink">' + dzT("cartes.face.reduire_300") + '</button>'
+          + '<button class="btn sm" type="button" data-fix="contain">' + dzT("cartes.face.passer_contenir") + '</button></div>';
       }
     }
   }
@@ -3034,7 +3002,7 @@
     const g = CF.geom();
     pushUndo();
     M.patch({ fit: "free", scale: g.dpi / DPI_TARGET, scale_y: g.dpi / DPI_TARGET });
-    CF.toast("posée à " + DPI_TARGET + " DPI exactement");
+    CF.toast(dzT("cartes.face.posee_a", { cible: DPI_TARGET }));
     renderPanel();
   }
 
@@ -3051,7 +3019,7 @@
     if (!LAST.has) return;
     pushUndo();
     M.patch({ win: "auto", fit: "cover", x: 0, y: 0, scale: 1, scale_y: 1 });
-    CF.toast("pose recadrée sur la fenêtre d'illustration");
+    CF.toast(dzT("cartes.face.pose_recadree"));
     renderPanel();
   }
 
@@ -3113,18 +3081,17 @@
              (`data-ai`), donc la meme resolution `img:` — pas un quatrieme
              schema de source. */
           b.setAttribute("data-ai", f);
-          b.title = c.label + " — série « " + serieLabel() + " », image peinte";
+          b.title = dzT("cartes.face.tuile_serie", { label: tuileLib(c), serie: serieLabel() });
           const im = document.createElement("img");
           im.alt = "";
           im.src = imgURL(f);
           b.appendChild(im);
         } else {
-          b.title = c.label + " · palette " + (PAL_BY[c.palette] || {}).label
-            + " — vectoriel, redessiné à la taille de la pose";
+          b.title = dzT("cartes.face.tuile_vec", { label: tuileLib(c), pal: libF((PAL_BY[c.palette] || {}).label) });
           b.appendChild(thumbCanvas(c, 84, 118));
         }
         const s = document.createElement("span");
-        s.textContent = c.label;
+        s.textContent = tuileLib(c);
         b.appendChild(s);
         /* LA RETOMBEE, AVOUEE SUR LA VIGNETTE (D1). Sans cet insigne, une
            serie a moitie peinte se lit comme une serie complete dont la
@@ -3133,7 +3100,7 @@
         if (!f && serieActive()) {
           const v = document.createElement("em");
           v.className = "cf-face-retombee";
-          v.textContent = "vectoriel";
+          v.textContent = dzT("cartes.face.retombee");
           b.appendChild(v);
         }
         grid.appendChild(b);
@@ -3149,7 +3116,7 @@
          range dans NET_LINE ; « Recompter le catalogue » l'imprime. */
       const t1 = (typeof performance !== "undefined" && performance.now) ? performance.now() : 0;
       const all = netEntries();
-      if (!all) { NET_LINE = "Compteur réseau indisponible sur ce moteur."; return; }
+      if (!all) { NET_LINE = dzT("cartes.face.net_na"); return; }
       /* On ne dit PAS « 0 requête » : on dit ce que le compteur montre, y
          compris les requetes des AUTRES pieces qui passent pendant ce temps
          (l'enregistrement du document, par exemple). Ce qui prouve le
@@ -3159,10 +3126,9 @@
       const neuves = all.slice(net0);
       const imgs = neuves.filter(isImageEntry);
       const noms = neuves.slice(0, 4).map((e) => baseName(e.name));
-      NET_LINE = '<b>Mesuré à l\'instant</b> : ' + rows.length + ' vignettes peintes en '
-        + Math.round(t1 - t0) + ' ms — <b>' + imgs.length + ' image téléchargée</b>. '
-        + '<span class="mono">performance.getEntriesByType("resource")</span> : '
-        + net0 + ' entrées avant, ' + all.length + ' après'
+      NET_LINE = dzT("cartes.face.net_ligne", { n: rows.length, ms: Math.round(t1 - t0), img: imgs.length }) + ' '
+        + '<span class="mono">performance.getEntriesByType("resource")</span>'
+        + dzT("cartes.face.net_entrees", { avant: net0, apres: all.length })
         + (neuves.length ? ' (' + esc(noms.join(", ")) + (neuves.length > 4 ? ", …" : "") + ')' : '')
         + '.';
     };
@@ -3205,7 +3171,7 @@
     const el = q("#cf-face-proofout");
     const btn = q("#cf-face-proof");
     if (btn) btn.disabled = true;
-    if (el) el.textContent = "mesure en cours…";
+    if (el) el.textContent = dzT("cartes.face.mesure_en_cours");
     try {
       const t0 = performance.now();
       /* (a) 72 dessins, palette unique */
@@ -3271,25 +3237,17 @@
       }
       const ms = Math.round(performance.now() - t0);
       if (el) {
-        el.innerHTML = '<b>Recompté sur les octets rendus</b>, ' + ms + ' ms. '
-          + '(a) les ' + DRAWINGS + ' dessins peints dans la <b>même</b> palette (' + esc(PAL_BY[REF].label)
-          + ', ' + W + '×' + H + ' px) donnent <b>' + hset.size + ' / ' + DRAWINGS
-          + ' empreintes distinctes</b>. '
-          + 'Paire la plus <b>proche</b> : « ' + esc(names[bi]) + ' » et « ' + esc(names[bj])
-          + ' » — <b>' + pctDiff.toFixed(1) + ' % des ' + (W * H) + ' pixels</b> diffèrent, '
-          + 'de <b>' + Math.round(moyDiff) + ' niveaux</b> en moyenne sur ceux-là (maximum '
-          + mxd + '), soit ' + (Math.round(best * 10) / 10) + ' niveau(x)/canal ramené à '
-          + 'la vignette entière — fond commun compris. '
-          + '(b) les ' + n2 + ' combinaisons (' + w2 + '×' + h2 + ' px) donnent <b>'
-          + hset2.size + ' / ' + COMBINATIONS + ' empreintes distinctes</b>. '
-          + '<span class="mono">FNV-1a 32 bits sur getImageData, canaux R/V/B</span>.';
+        el.innerHTML = dzT("cartes.face.preuve_a", { ms: ms, n: DRAWINGS, pal: esc(PAL_BY[REF].label), w: W, h: H, d: hset.size }) + ' '
+          + dzT("cartes.face.preuve_paire", { a: esc(names[bi]), b: esc(names[bj]), pct: pctDiff.toFixed(1), px: (W * H), moy: Math.round(moyDiff), max: mxd, best: (Math.round(best * 10) / 10) }) + ' '
+          + dzT("cartes.face.preuve_b", { n: n2, w: w2, h: h2, d: hset2.size, total: COMBINATIONS }) + ' '
+          + '<span class="mono">' + dzT("cartes.face.preuve_hash") + '</span>.';
       }
       /* et le releve reseau du remplissage, pris a son heure, imprime a la
          demande — pas debout sous la grille en permanence */
       const nl = q("#cf-face-net");
       if (nl) nl.innerHTML = NET_LINE;
     } catch (e) {
-      if (el) el.textContent = "la mesure a échoué : " + String((e && e.message) || e);
+      if (el) el.textContent = dzT("cartes.face.mesure_echec") + String((e && e.message) || e);
     } finally {
       if (btn) btn.disabled = false;
     }
@@ -3301,9 +3259,7 @@
     const cur = CF.get("face.src", null);
     grid.classList.toggle("cf-face-gfill", PILE.length > 0);
     if (!PILE.length) {
-      grid.innerHTML = '<p class="empty-note sm">La pile est vide. Déposez plusieurs fichiers d\'un coup, '
-        + 'collez une image (Ctrl+V) ou piochez dans le catalogue — ' + DRAWINGS
-        + ' dessins vectoriels vous attendent.</p>';
+      grid.innerHTML = '<p class="empty-note sm">' + dzT("cartes.face.pile_vide", { n: DRAWINGS }) + '</p>';
       return;
     }
     grid.innerHTML = PILE.map((r) => {
@@ -3338,7 +3294,7 @@
         + '<span>' + esc(r.name) + '</span>'
         + '<em class="mono ' + (eff >= DPI_TARGET ? "cf-face-eok" : "cf-face-elow") + '">'
         + reduit + r.w + '×' + r.h + ' · ~' + eff + ' DPI</em>'
-        + '<button class="cf-face-del" type="button" data-del="' + esc(r.key) + '" title="Retirer de la pile" aria-label="Retirer de la pile">' + ICO("dz-action-retirer", 16) + '</button>'
+        + '<button class="cf-face-del" type="button" data-del="' + esc(r.key) + '" title="' + dzT("cartes.face.retirer_pile") + '" aria-label="' + dzT("cartes.face.retirer_pile") + '">' + ICO("dz-action-retirer", 16) + '</button>'
         + '</div>';
     }).join("");
   }
@@ -3348,7 +3304,7 @@
     if (!box) return;
     if (!AI_OUT.length) { box.innerHTML = ""; return; }
     const cur = CF.get("face.src", null);
-    box.innerHTML = '<div class="lbl">Dernière génération</div><div class="cf-face-grid cf-face-gfill">'
+    box.innerHTML = '<div class="lbl">' + dzT("cartes.face.derniere_gen") + '</div><div class="cf-face-grid cf-face-gfill">'
       + AI_OUT.map((f) => '<div class="cf-face-tile' + (cur === "img:" + f ? " on" : "") + '" data-ai="' + esc(f) + '">'
         + '<img alt="" src="' + esc(imgURL(f)) + '"><span>' + esc(f) + '</span></div>').join("")
       + '</div>';
@@ -3371,10 +3327,10 @@
       + '<div class="cf-face-warn hidden" id="cf-face-warn"></div>'
 
       + '<div class="seg sm cf-face-tabs" id="cf-face-tabs">'
-      + '<button class="seg-b' + (tab === "cat" ? " active" : "") + '" type="button" data-tab="cat">Catalogue ' + DRAWINGS + '</button>'
-      + '<button class="seg-b' + (tab === "imp" ? " active" : "") + '" type="button" data-tab="imp">Importées ' + PILE.length + '</button>'
-      + '<button class="seg-b' + (tab === "ai" ? " active" : "") + '" type="button" data-tab="ai">Générer par IA</button>'
-      + '<button class="seg-b' + (tab === "vec" ? " active" : "") + '" type="button" data-tab="vec" title="Documents vectoriels du jeu (Vectorlab)">Vectorlab'
+      + '<button class="seg-b' + (tab === "cat" ? " active" : "") + '" type="button" data-tab="cat">' + dzT("cartes.face.onglet_cat") + ' ' + DRAWINGS + '</button>'
+      + '<button class="seg-b' + (tab === "imp" ? " active" : "") + '" type="button" data-tab="imp">' + dzT("cartes.face.onglet_imp") + ' ' + PILE.length + '</button>'
+      + '<button class="seg-b' + (tab === "ai" ? " active" : "") + '" type="button" data-tab="ai">' + dzT("cartes.face.onglet_ai") + '</button>'
+      + '<button class="seg-b' + (tab === "vec" ? " active" : "") + '" type="button" data-tab="vec" title="' + dzT("cartes.face.onglet_vec_t") + '">Vectorlab'
       + (VECS.deck === vecDeckId() && VECS.deck ? " " + VECS.docs.length : "") + '</button>'
       + '</div>'
 
@@ -3394,22 +3350,22 @@
          du manifeste, pas d'une constante. */
       + '<div class="seg sm cf-face-series" id="cf-face-series">'
       + SERIES.map((s) => '<button class="seg-b' + (serie === s.id ? " active" : "")
-        + '" type="button" data-voie="' + esc(s.id) + '">' + esc(s.label)
+        + '" type="button" data-voie="' + esc(s.id) + '">' + esc(libF(s.label))
         + (s.id === "vectoriel" ? " " + DRAWINGS
           : " " + SERIE.faites + "/" + (SERIE.total || DRAWINGS)) + '</button>').join("")
       + '</div>'
       + '<div class="cf-face-row">'
-      + '<input class="search sm cf-face-search" id="cf-face-search" type="text" placeholder="filtrer (loup, blason, braise…)" value="' + esc(CATFILTER) + '">'
-      + '<select class="sm cf-face-sub" id="cf-face-subject" title="filtrer par sujet">'
-      + '<option value="">tous les sujets (' + SUBJECTS.length + ')</option>'
-      + SUBJECTS.map((s) => '<option value="' + esc(s.id) + '"' + (CATTAG === s.id ? " selected" : "") + '>' + esc(s.label) + '</option>').join("")
+      + '<input class="search sm cf-face-search" id="cf-face-search" type="text" placeholder="' + dzT("cartes.face.filtre_ph") + '" value="' + esc(CATFILTER) + '">'
+      + '<select class="sm cf-face-sub" id="cf-face-subject" title="' + dzT("cartes.face.filtre_sujet_t") + '">'
+      + '<option value="">' + dzT("cartes.face.tous_sujets", { n: SUBJECTS.length }) + '</option>'
+      + SUBJECTS.map((s) => '<option value="' + esc(s.id) + '"' + (CATTAG === s.id ? " selected" : "") + '>' + esc(libF(s.label)) + '</option>').join("")
       + '</select>'
       + '<span class="counter" id="cf-face-cat-count"></span>'
-      + '<button class="btn sm" type="button" id="cf-face-rand">Au hasard</button>'
+      + '<button class="btn sm" type="button" id="cf-face-rand">' + dzT("cartes.face.au_hasard") + '</button>'
       + '</div>'
       + '<div class="chips cf-face-tags" id="cf-face-compos">'
-      + '<button class="chip' + (CATCOMPO ? "" : " active") + '" type="button" data-compo="">toutes compositions</button>'
-      + COMPOS.map((c) => '<button class="chip' + (CATCOMPO === c.id ? " active" : "") + '" type="button" data-compo="' + esc(c.id) + '">' + esc(c.label) + '</button>').join("")
+      + '<button class="chip' + (CATCOMPO ? "" : " active") + '" type="button" data-compo="">' + dzT("cartes.face.toutes_compos") + '</button>'
+      + COMPOS.map((c) => '<button class="chip' + (CATCOMPO === c.id ? " active" : "") + '" type="button" data-compo="' + esc(c.id) + '">' + esc(libF(c.label)) + '</button>').join("")
       + '</div>'
       + '<div class="cf-face-grid" id="cf-face-cat-grid"></div>'
       /* CE QUI A CHANGE : l'etiquette disait « Catalogue 72 » et « 72 faces
@@ -3425,31 +3381,24 @@
          compteur reseau restait affichee en permanence, ce qui est une
          plaidoirie debout. Les NOMBRES restent — ils sont calcules depuis les
          tables — les commentaires descendent sous le bouton qui les prouve. */
-      + '<p class="hint cf-face-count">' + SUBJECTS.length + ' sujets × ' + COMPOS.length
-      + ' compositions = <b>' + DRAWINGS + ' dessins</b>. Chacun se recolore en '
-      + PALETTES.length + ' palettes : <b>' + COMBINATIONS + ' combinaisons</b> en tout.</p>'
+      + '<p class="hint cf-face-count">' + dzT("cartes.face.compte_cat", { s: SUBJECTS.length, c: COMPOS.length, d: DRAWINGS, p: PALETTES.length, t: COMBINATIONS }) + '</p>'
       /* L'AVEU CHIFFRE DE LA VOIE ACTIVE. Il n'apparait que quand une serie
          est choisie, et il dit les DEUX nombres : ce qui est peint, et ce qui
          reste le dessin. */
       + (serie === "vectoriel" ? ''
-        : '<p class="hint cf-face-serie-note" id="cf-face-serie-note">Série <b>'
-        + esc(serieLabel()) + '</b> : <b>' + SERIE.faites + '</b> case(s) peinte(s) sur '
-        + (SERIE.total || DRAWINGS) + '. Les autres restent le <b>dessin vectoriel</b>, '
-        + 'marqué comme tel sur la vignette'
-        + (SERIE.ok ? '' : ' — l\'état de la série n\'a pas pu être lu')
+        : '<p class="hint cf-face-serie-note" id="cf-face-serie-note">' + dzT("cartes.face.serie_note", { serie: esc(serieLabel()), f: SERIE.faites, t: (SERIE.total || DRAWINGS) })
+        + (SERIE.ok ? '' : dzT("cartes.face.serie_illisible"))
         /* LE COMPTEUR DE DEPENSE, AFFICHE (D2 : « le compteur s'affiche »).
            Il etait charge et jamais lu : une depense qu'on ne voit pas est
            une depense qu'on ne surveille pas, et le plafond doit etre
            lisible AVANT d'etre atteint. Derive pur de l'etat deja en
            memoire — aucun appel de plus. La campagne, elle, ne se lance PAS
            d'ici : cet ecran informe, il ne depense pas. */
-        + (SERIE.plafond ? '. Dépense de la série : <b>' + esc(usdFmt(SERIE.depense))
-          + '</b> sur une <b>enveloppe totale</b> de <b>' + esc(usdFmt(SERIE.plafond))
-          + '</b> — elle est CUMULATIVE : chaque campagne reprend le total déjà dépensé, elle ne repart jamais de zéro'
+        + (SERIE.plafond ? dzT("cartes.face.serie_depense", { d: esc(usdFmt(SERIE.depense)), p: esc(usdFmt(SERIE.plafond)) })
           : '')
         + '.</p>')
       + '<div class="cf-face-row">'
-      + '<button class="btn sm" type="button" id="cf-face-proof">Recompter le catalogue</button>'
+      + '<button class="btn sm" type="button" id="cf-face-proof">' + dzT("cartes.face.recompter") + '</button>'
       + '</div>'
       + '<p class="hint mono cf-face-net" id="cf-face-proofout"></p>'
       + '<p class="hint mono cf-face-net" id="cf-face-net"></p>'
@@ -3458,23 +3407,18 @@
       /* ── importées ── */
       + '<div class="cf-face-pane' + (tab === "imp" ? " on" : "") + '" id="cf-face-pane-imp">'
       + '<div class="drop cf-face-drop" id="cf-face-drop">'
-      + '<b>Glissez vos illustrations ici</b>'
-      + '<span class="hint">…ou cliquez pour choisir — <b>plusieurs fichiers d\'un coup</b> — ou collez avec <b>Ctrl+V</b>. '
-      + 'Chaque image rejoint la pile avec sa taille en pixels et le DPI qu\'elle donnerait '
-      + 'sur cette carte, écrits sous sa vignette. Au-delà de ' + MAX_IMPORT_PX
-      + ' px de côté, elle est ramenée à ' + MAX_IMPORT_PX + ' px et la vignette le dit.</span>'
+      + '<b>' + dzT("cartes.face.glissez") + '</b>'
+      + '<span class="hint">' + dzT("cartes.face.drop_aide", { max: MAX_IMPORT_PX }) + '</span>'
       + '<input type="file" id="cf-face-file" accept="image/*" multiple hidden>'
       + '</div>'
-      + (DB_OK ? '' : '<p class="hint cf-face-nodb">Le stockage local du navigateur est indisponible : la pile ne survivra pas au rechargement.</p>')
+      + (DB_OK ? '' : '<p class="hint cf-face-nodb">' + dzT("cartes.face.nodb") + '</p>')
       /* Une mire de controle est un outil de prepresse ordinaire — elle se
          range dans la pile et se retire comme n'importe quelle image. Son
          LIBELLE ne dit plus que ce qu'elle est et ce qu'elle mesure : sa
          taille reelle, ecrite sur elle et relue par la vignette. */
       + '<div class="cf-face-row"><button class="btn sm" type="button" id="cf-face-mire">'
-      + 'Mire de contrôle ' + MIRE_W + ' × ' + MIRE_H + ' px</button></div>'
-      + '<p class="hint">Un damier dessiné à la demande, rangé dans la pile comme une image '
-      + 'déposée : posez-le pour caler le cadrage et la fenêtre d\'illustration, retirez-le '
-      + 'd\'un clic. Sa vignette porte sa taille et son DPI comme les autres.</p>'
+      + dzT("cartes.face.mire_btn", { w: MIRE_W, h: MIRE_H }) + '</button></div>'
+      + '<p class="hint">' + dzT("cartes.face.mire_aide") + '</p>'
       /* ── ADOPTER UNE CARTE IMPORTEE (§7.1.5) ────────────────────────────
          DERIVE, jamais garde : le bloc n'existe QUE si `doc.capture` porte
          de quoi l'alimenter. Le libelle vient de `adoptionCapture` et dit
@@ -3483,61 +3427,55 @@
         ? '<div class="cf-face-row"><button class="btn sm" type="button" id="cf-face-adopt">'
           + esc(adopt.libelle) + '</button></div>'
           + '<p class="hint">' + (adopt.sujet
-            ? 'La pièce Import a isolé un sujet sur la carte reprise : il entre '
-              + 'dans la pile comme une image déposée, et se pose aussitôt.'
-            : 'Aucun sujet détouré pour l\'instant — c\'est le RECTO ENTIER qui '
-              + 'entrera dans la pile, à recadrer ensuite avec la fenêtre '
-              + 'd\'illustration. Pour n\'adopter que le sujet, détourez-le '
-              + 'd\'abord depuis la pièce Import.') + '</p>'
+            ? dzT("cartes.face.adopt_sujet_aide")
+            : dzT("cartes.face.adopt_recto_aide")) + '</p>'
         : '')
       + '<div class="cf-face-grid" id="cf-face-pile-grid"></div>'
       + '</div>'
 
       /* ── IA ── */
       + '<div class="cf-face-pane' + (tab === "ai" ? " on" : "") + '" id="cf-face-pane-ai">'
-      + '<div class="fld"><span class="lbl">Amorces d\'invite — cadrage de carte</span>'
+      + '<div class="fld"><span class="lbl">' + dzT("cartes.face.amorces") + '</span>'
       + '<div class="chips cf-face-seeds" id="cf-face-seeds">'
       + PROMPT_SEEDS.map((s, i) => '<button class="chip" type="button" data-seed="' + i + '">' + esc(s[0]) + '</button>').join("")
       + '</div></div>'
-      + '<div class="fld"><span class="lbl">Invite</span>'
-      + '<textarea id="cf-face-prompt" placeholder="décrivez la face de la carte…">' + esc(f.prompt || "") + '</textarea></div>'
+      + '<div class="fld"><span class="lbl">' + dzT("cartes.face.invite") + '</span>'
+      + '<textarea id="cf-face-prompt" placeholder="' + dzT("cartes.face.prompt_ph") + '">' + esc(f.prompt || "") + '</textarea></div>'
       + '<div class="grid2">'
-      + '<div class="fld"><span class="lbl">Modèle</span><select id="cf-face-model"></select></div>'
-      + '<div class="fld"><span class="lbl">Cadrage</span><select id="cf-face-size">'
+      + '<div class="fld"><span class="lbl">' + dzT("cartes.face.modele") + '</span><select id="cf-face-model"></select></div>'
+      + '<div class="fld"><span class="lbl">' + dzT("cartes.face.cadrage") + '</span><select id="cf-face-size">'
       + AI_SIZES.map((s) => '<option value="' + s[0] + '"' + ((f.size || "portrait_4_3") === s[0] ? " selected" : "") + '>' + esc(s[1]) + '</option>').join("")
       + '</select></div>'
-      + '<div class="fld"><span class="lbl">Nombre</span><input type="number" id="cf-face-n" min="1" max="4" step="1" value="' + (f.nimg || 1) + '"></div>'
-      + '<div class="fld"><span class="lbl">Graine (vide = aléatoire)</span><input type="number" id="cf-face-seed" step="1" placeholder="—"></div>'
+      + '<div class="fld"><span class="lbl">' + dzT("cartes.face.nombre") + '</span><input type="number" id="cf-face-n" min="1" max="4" step="1" value="' + (f.nimg || 1) + '"></div>'
+      + '<div class="fld"><span class="lbl">' + dzT("cartes.face.graine") + '</span><input type="number" id="cf-face-seed" step="1" placeholder="—"></div>'
       + '</div>'
       + '<p class="hint cf-face-cost" id="cf-face-cost"></p>'
-      + '<button class="btn primary wide" type="button" id="cf-face-gen">' + ICO("dz-media-generer-image", 16, "cf-ic") + 'Générer et poser sur la carte</button>'
+      + '<button class="btn primary wide" type="button" id="cf-face-gen">' + ICO("dz-media-generer-image", 16, "cf-ic") + dzT("cartes.face.generer") + '</button>'
       + '<div id="cf-face-ai-out"></div>'
       + '</div>'
 
       /* ── vectorlab (27/08) : les documents vectoriels du jeu ── */
       + '<div class="cf-face-pane' + (tab === "vec" ? " on" : "") + '" id="cf-face-pane-vec">'
       + '<div class="cf-face-row">'
-      + '<input class="search sm" id="cf-face-vlab-nom" type="text" placeholder="nom du nouveau document">'
-      + '<button class="btn sm" type="button" id="cf-face-vlab-new" title="Crée un document ancré à ce jeu (taille = fenêtre d\'illustration) et l\'ouvre dans le Vectorlab">+ Nouveau</button>'
-      + '<button class="btn sm" type="button" id="cf-face-vlab-refresh" title="Relit la liste (versions, vignettes, exports)">Rafraîchir</button>'
-      + '<button class="btn sm" type="button" id="cf-face-vlab-edit" title="Rend la face courante (le moteur, fond perdu compris), crée un document Vectorlab au format physique du jeu avec les repères de coupe et de zone sûre, la face en calque image verrouillé, et l\'ouvre — « Poser 2× » ramène le résultat">Éditer cette face dans le Vectorlab</button>'
+      + '<input class="search sm" id="cf-face-vlab-nom" type="text" placeholder="' + dzT("cartes.face.vec_nom_ph") + '">'
+      + '<button class="btn sm" type="button" id="cf-face-vlab-new" title="' + dzT("cartes.face.vec_new_t") + '">' + dzT("cartes.face.vec_new") + '</button>'
+      + '<button class="btn sm" type="button" id="cf-face-vlab-refresh" title="' + dzT("cartes.face.vec_refresh_t") + '">' + dzT("cartes.face.rafraichir") + '</button>'
+      + '<button class="btn sm" type="button" id="cf-face-vlab-edit" title="' + dzT("cartes.face.vec_edit_t") + '">' + dzT("cartes.face.vec_edit") + '</button>'
       + '</div>'
       + '<div id="cf-face-vlab-liste">' + vecListeHTML() + '</div>'
-      + '<p class="hint">Un document s\'édite dans le <b>Vectorlab</b> (nouvel onglet). « Poser 2× » pose son export PNG '
-      + '(menu Exporter → PNG 2× du Vectorlab) comme illustration de la carte ; rééditer puis ré-exporter met la carte à jour '
-      + '(même fichier, réécrit en place). Le même PNG sert aussi de source img: aux décors de la pièce Cadre.</p>'
+      + '<p class="hint">' + dzT("cartes.face.vec_aide") + '</p>'
       + '</div>'
 
       /* ── placement ── */
       + '<div class="sep"></div>'
       + '<div class="cf-face-place">'
-      + '<div class="cf-face-row"><span class="lbl">Ajustement</span>'
+      + '<div class="cf-face-row"><span class="lbl">' + dzT("cartes.face.ajustement") + '</span>'
       + '<div class="seg sm cf-face-fit" id="cf-face-fit">'
-      + '<button class="seg-b' + (f.fit === "cover" ? " active" : "") + '" type="button" data-fit="cover">Couvrir</button>'
-      + '<button class="seg-b' + (f.fit === "contain" ? " active" : "") + '" type="button" data-fit="contain">Contenir</button>'
-      + '<button class="seg-b' + (free ? " active" : "") + '" type="button" data-fit="free">Libre</button>'
+      + '<button class="seg-b' + (f.fit === "cover" ? " active" : "") + '" type="button" data-fit="cover">' + dzT("cartes.face.fit_cover") + '</button>'
+      + '<button class="seg-b' + (f.fit === "contain" ? " active" : "") + '" type="button" data-fit="contain">' + dzT("cartes.face.fit_contain") + '</button>'
+      + '<button class="seg-b' + (free ? " active" : "") + '" type="button" data-fit="free">' + dzT("cartes.face.fit_free") + '</button>'
       + '</div></div>'
-      + '<div class="cf-face-row"><span class="lbl">Fenêtre d\'illustration</span>'
+      + '<div class="cf-face-row"><span class="lbl">' + dzT("cartes.face.fenetre_art") + '</span>'
       + '<select id="cf-face-win">'
       + WIN_MODES.map((w) => '<option value="' + w[0] + '"'
         + ((f.win || "auto") === w[0] ? " selected" : "") + '>' + esc(w[1]) + '</option>').join("")
@@ -3545,32 +3483,29 @@
       + '<div class="cf-face-nums">'
       + '<label class="fld"><span class="lbl">X</span><input type="number" id="cf-face-x" step="0.5" value="' + fmt1(f.x) + '"><i>mm</i></label>'
       + '<label class="fld"><span class="lbl">Y</span><input type="number" id="cf-face-y" step="0.5" value="' + fmt1(f.y) + '"><i>mm</i></label>'
-      + '<label class="fld"><span class="lbl">Échelle</span><input type="number" id="cf-face-scale" step="1" min="5" max="1200" value="' + Math.round(f.scale * 100) + '"><i>%</i></label>'
+      + '<label class="fld"><span class="lbl">' + dzT("cartes.face.echelle") + '</span><input type="number" id="cf-face-scale" step="1" min="5" max="1200" value="' + Math.round(f.scale * 100) + '"><i>%</i></label>'
       /* Le verrou GRISE deja la hauteur (mesure : #cf-face-scaley.disabled ===
          true tant que lock). Ce qui manquait, c'est de DIRE laquelle commande
          l'autre : le libelle le dit maintenant, en toutes lettres. */
-      + '<label class="fld"><span class="lbl">' + (f.lock === false ? "Hauteur" : "Hauteur = Échelle") + '</span>'
+      + '<label class="fld"><span class="lbl">' + (f.lock === false ? dzT("cartes.face.hauteur") : dzT("cartes.face.hauteur_echelle")) + '</span>'
       + '<input type="number" id="cf-face-scaley" step="1" min="5" max="1200" value="'
       + Math.round((f.lock === false ? (f.scale_y || f.scale) : f.scale) * 100) + '"'
-      + (f.lock === false ? "" : ' disabled title="verrou de proportions actif : la hauteur recopie l\'échelle"') + '><i>%</i></label>'
+      + (f.lock === false ? "" : ' disabled title="' + dzT("cartes.face.verrou_t") + '"') + '><i>%</i></label>'
       + '<label class="fld"><span class="lbl">Rotation</span><input type="number" id="cf-face-rot" step="1" min="-180" max="180" value="' + fmt1(f.rot) + '"><i>°</i></label>'
-      + '<label class="fld cf-face-lockf"><span class="lbl">Proportions</span>'
-      + '<button class="btn sm wide" type="button" id="cf-face-lock">' + (f.lock === false ? "déverrouillées" : "verrouillées") + '</button></label>'
+      + '<label class="fld cf-face-lockf"><span class="lbl">' + dzT("cartes.face.proportions") + '</span>'
+      + '<button class="btn sm wide" type="button" id="cf-face-lock">' + (f.lock === false ? dzT("cartes.face.deverrouillees") : dzT("cartes.face.verrouillees")) + '</button></label>'
       + '</div>'
       + '<div class="btn-row cf-face-acts">'
-      + '<button class="btn sm" type="button" id="cf-face-center">Recentrer</button>'
+      + '<button class="btn sm" type="button" id="cf-face-center">' + dzT("cartes.face.recentrer") + '</button>'
       + '<button class="btn sm" type="button" id="cf-face-fitwin" '
-      + 'title="pose en « couvrir » au centre de la fenêtre d\'illustration">'
-      + 'Recadrer sur la fenêtre</button>'
-      + '<button class="btn sm" type="button" id="cf-face-reset">Réinitialiser</button>'
-      + '<button class="btn sm" type="button" id="cf-face-undo">Annuler</button>'
-      + '<button class="btn sm" type="button" id="cf-face-redo">Rétablir</button>'
-      + '<button class="btn sm" type="button" id="cf-face-clear">Retirer</button>'
+      + 'title="' + dzT("cartes.face.fitwin_t") + '">'
+      + dzT("cartes.face.recadrer_fenetre") + '</button>'
+      + '<button class="btn sm" type="button" id="cf-face-reset">' + dzT("cartes.face.reinitialiser") + '</button>'
+      + '<button class="btn sm" type="button" id="cf-face-undo">' + dzT("cartes.face.annuler") + '</button>'
+      + '<button class="btn sm" type="button" id="cf-face-redo">' + dzT("cartes.face.retablir") + '</button>'
+      + '<button class="btn sm" type="button" id="cf-face-clear">' + dzT("cartes.face.retirer") + '</button>'
       + '</div>'
-      + '<p class="hint cf-face-keys">Sur la carte : <b>glisser</b> = déplacer · <b>molette</b> = zoom sous le curseur · '
-      + '<b>Alt+glisser</b> = rotation · <b>double-clic</b> = recentrer.<br>'
-      + 'Au clavier : <b>flèches</b> 1 mm · <b>Maj+flèches</b> 0,1 mm · <b>+ / −</b> zoom · '
-      + '<b>[ ]</b> rotation · <b>0</b> recentrer · <b>F</b> ajustement · <b>Ctrl+Z / Ctrl+Y</b>.</p>'
+      + '<p class="hint cf-face-keys">' + dzT("cartes.face.raccourcis") + '</p>'
       + '<div id="cf-face-pals"></div>'
       + '<p class="hint mono cf-face-read" id="cf-face-read"></p>'
       + '</div>'
@@ -3585,12 +3520,10 @@
          est RELU dans les octets rendus, pas celui qu'on a demande. */
       + '<div class="sep"></div>'
       + '<div class="cf-face-out">'
-      + '<button class="btn sm wide" type="button" id="cf-face-fidbtn">Contrôle de fidélité de l\'illustration</button>'
+      + '<button class="btn sm wide" type="button" id="cf-face-fidbtn">' + dzT("cartes.face.fid_btn") + '</button>'
       + '<p class="hint mono" id="cf-face-fid"></p>'
-      + '<button class="btn strong wide" type="button" id="cf-face-png">' + ICO("dz-action-telecharger", 16, "cf-ic") + 'Télécharger la face — PNG 1:1 avec sa résolution physique</button>'
-      + '<p class="hint mono" id="cf-face-pngout">Le fichier emporte sa résolution physique '
-      + '(<b>pHYs</b>), son espace de couleur (<b>sRGB</b>) et le nom de la carte. Sans eux, une '
-      + 'mise en page ouvre le PNG à 72 DPI. À ' + g.dpi + ' DPI : ' + physLine(g.dpi) + '</p>'
+      + '<button class="btn strong wide" type="button" id="cf-face-png">' + ICO("dz-action-telecharger", 16, "cf-ic") + dzT("cartes.face.png_label") + '</button>'
+      + '<p class="hint mono" id="cf-face-pngout">' + dzT("cartes.face.png_aide", { dpi: g.dpi }) + physLine(g.dpi) + '</p>'
       + '</div>';
 
     wirePanel();
@@ -3613,11 +3546,11 @@
     const raw = cur.slice(4);
     const m = /^face_([a-z]+)_([a-z]+)_([a-z]+)$/.exec(raw) || [];
     if (!m.length) { box.innerHTML = ""; return; }
-    box.innerHTML = '<span class="lbl">Palette — le même dessin, ' + PALETTES.length + ' teintes</span>'
+    box.innerHTML = '<span class="lbl">' + dzT("cartes.face.palette_lbl", { n: PALETTES.length }) + '</span>'
       + '<div class="chips cf-face-pal" id="cf-face-palrow">'
       + PALETTES.map((p) => '<button class="chip' + (p.id === m[1] ? " active" : "")
         + '" type="button" data-pal="' + esc(p.id) + '"><i style="background:'
-        + esc(p.sky[1]) + ';border-color:' + esc(p.glow) + '"></i>' + esc(p.label) + '</button>').join("")
+        + esc(p.sky[1]) + ';border-color:' + esc(p.glow) + '"></i>' + esc(libF(p.label)) + '</button>').join("")
       + '</div>';
     const row = q("#cf-face-palrow");
     if (row) row.addEventListener("click", (e) => {
@@ -3642,7 +3575,7 @@
      surveiller » (le reproche, mot pour mot). Le second clic porte le chiffre
      reel : il ne se donne pas par distraction. */
   let ARMED = 0;
-  const PNG_LABEL = "Télécharger la face — PNG 1:1 avec sa résolution physique";
+  const PNG_LABEL = dzT("cartes.face.png_label");
 
   async function downloadPng() {
     const g = CF.geom();
@@ -3660,22 +3593,20 @@
     if (low && Date.now() - ARMED > 8000) {
       const vu = LAST.vector ? rast : LAST.eff;
       ARMED = Date.now();
-      if (btn) btn.textContent = "Confirmer l'export à " + Math.round(vu) + " DPI (sous " + DPI_TARGET + ")";
+      if (btn) btn.textContent = dzT("cartes.face.confirmer_export", { dpi: Math.round(vu), cible: DPI_TARGET });
       if (out) {
-        out.innerHTML = '<b>Rien n\'est parti.</b> L\'illustration sortirait à <b>'
-          + Math.round(vu) + ' DPI</b>, sous les ' + DPI_TARGET + ' DPI d\'impression : '
+        out.innerHTML = dzT("cartes.face.rien_parti", { dpi: Math.round(vu), cible: DPI_TARGET })
           + (LAST.vector
-            ? 'cette face est vectorielle, il n\'y a pas de source à agrandir — c\'est la '
-              + '<b>toile</b> qui est à ' + g.dpi + ' DPI, et cela se règle dans la barre de format. '
-            : 'il faudrait une source de <b>' + LAST.need + ' x ' + LAST.needH + ' px</b> à cette taille de pose. ')
-          + 'Cliquez une seconde fois pour exporter quand même.';
+            ? dzT("cartes.face.rien_parti_vec", { dpi: g.dpi })
+            : dzT("cartes.face.rien_parti_bmp", { w: LAST.need, h: LAST.needH }))
+          + dzT("cartes.face.cliquez_seconde");
       }
-      CF.toast("export sous " + DPI_TARGET + " DPI : confirmez", true);
+      CF.toast(dzT("cartes.face.export_sous", { cible: DPI_TARGET }), true);
       return;
     }
     ARMED = 0;
     if (btn) btn.textContent = PNG_LABEL;
-    CF.busy(true, "encodage de la carte à " + g.canvas_px[0] + " x " + g.canvas_px[1] + " px…");
+    CF.busy(true, dzT("cartes.face.encodage", { w: g.canvas_px[0], h: g.canvas_px[1] }));
     try {
       const raw = await CF.cardBlob(CF.current(), {});     /* LE moteur unique */
       const qs = "?title=" + encodeURIComponent(String(CF.doc().name || "").slice(0, 120))
@@ -3686,15 +3617,15 @@
       CF.download(stamped, (CF.doc().name || "carte").replace(/[^\w\-]+/g, "_")
         + "_" + (CF.current() + 1) + "_" + g.dpi + "dpi.png");
       if (out) out.innerHTML = pngReport(a, b, raw.size, stamped.size);
-      CF.toast("PNG livré : résolution, espace de couleur et métadonnées dans les octets");
+      CF.toast(dzT("cartes.face.png_livre"));
     } catch (e) {
       const msg = String((e && e.message) || e);
-      if (out) out.innerHTML = '<b>Échec</b> : ' + esc(msg);
-      CF.toast("export PNG : " + msg, true);
+      if (out) out.innerHTML = dzT("cartes.face.echec", { msg: esc(msg) });
+      CF.toast(dzT("cartes.face.err_png") + msg, true);
     } finally { CF.busy(false); }
   }
 
-  const COLOR_NAME = { 0: "gris", 2: "RVB", 3: "palette", 4: "gris+alpha", 6: "RVBA" };
+  const COLOR_NAME = { 0: dzT("cartes.face.coul_gris"), 2: dzT("cartes.face.coul_rvb"), 3: "palette", 4: dzT("cartes.face.coul_gris_alpha"), 6: dzT("cartes.face.coul_rvba") };
 
   /* « IDAT IDAT IDAT … » 230 fois n'apprend rien : on compte les repetitions.
      L'inventaire reste EXACT, il devient lisible. */
@@ -3712,30 +3643,23 @@
   function pngReport(a, b, nRaw, nOut) {
     const keys = Object.keys(a.texts);
     const alpha = (b.color === 6 && a.color === 2)
-      ? ' · <b>canal alpha retiré</b> (le serveur a mesuré ses extrema à 255/255 avant de convertir, '
-        + 'et vérifié que les trois canaux RVB survivent à l\'octet)'
-      : (a.color === 6 ? ' · canal alpha <b>conservé</b> : il porte de l\'information' : '');
-    return '<b>Fichier téléchargé.</b> En-tête relu dans les octets rendus :'
+      ? dzT("cartes.face.alpha_retire")
+      : (a.color === 6 ? dzT("cartes.face.alpha_garde") : '');
+    return dzT("cartes.face.fichier_dl")
       /* « 8 bits » tout court a deja ete un badge faux ailleurs : on nomme
          l'octet d'ou vient le nombre et la grandeur qu'il mesure. */
-      + '<br><b>' + a.w + ' x ' + a.h + ' px</b>, ' + a.depth
-      + ' bits par canal (IHDR, octet 9), type ' + a.color
-      + ' = <b>' + (COLOR_NAME[a.color] || "?") + '</b>'
-      + (a.phys ? ' · <b>pHYs</b> ' + a.phys.x + ' x ' + a.phys.y + ' px/m (unité ' + a.phys.unit
-        + ' = mètre) = <b>' + (a.phys.x * 0.0254).toFixed(4) + ' DPI</b>'
-        : ' · <b>aucun pHYs</b> — le fichier n\'annonce aucune résolution physique')
-      + (a.srgb === null ? ' · <b>aucun espace de couleur</b>'
-        : ' · <b>sRGB</b> intention ' + a.srgb + (a.gama ? ' + gAMA ' + a.gama : '')
+      + '<br>' + dzT("cartes.face.ihdr", { w: a.w, h: a.h, d: a.depth, t: a.color, nom: (COLOR_NAME[a.color] || "?") })
+      + (a.phys ? dzT("cartes.face.phys_relu", { x: a.phys.x, y: a.phys.y, u: a.phys.unit, dpi: (a.phys.x * 0.0254).toFixed(4) })
+        : dzT("cartes.face.phys_aucun"))
+      + (a.srgb === null ? dzT("cartes.face.srgb_aucun")
+        : dzT("cartes.face.srgb_intention") + a.srgb + (a.gama ? ' + gAMA ' + a.gama : '')
         + (a.chrm ? ' + cHRM' : ''))
       + alpha
-      + '<br><span class="mono">chunks : ' + esc(runs(a.chunks)) + '</span>'
-      + '<br>métadonnées relues : ' + (keys.length
+      + '<br><span class="mono">' + dzT("cartes.face.chunks") + esc(runs(a.chunks)) + '</span>'
+      + dzT("cartes.face.meta_relues") + (keys.length
         ? keys.map((k) => '<b>' + esc(k) + '</b> = ' + esc(a.texts[k])).join(' · ')
-        : '<b>aucune</b>')
-      + '<br>Avant écriture de l\'en-tête : ' + nRaw.toLocaleString("fr-FR")
-      + ' octets, type ' + b.color + ' (' + (COLOR_NAME[b.color] || "?") + '), chunks '
-      + esc(runs(b.chunks)) + '. Après : ' + nOut.toLocaleString("fr-FR") + ' octets ('
-      + (nOut <= nRaw ? '−' : '+') + Math.abs(Math.round(100 - nOut * 100 / nRaw)) + ' %).';
+        : dzT("cartes.face.aucune_b"))
+      + '<br>' + dzT("cartes.face.avant_apres", { n: nRaw.toLocaleString("fr-FR"), t: b.color, nom: (COLOR_NAME[b.color] || "?"), ch: esc(runs(b.chunks)), m: nOut.toLocaleString("fr-FR"), s: (nOut <= nRaw ? '−' : '+'), p: Math.abs(Math.round(100 - nOut * 100 / nRaw)) });
   }
 
   /* Lecture des chunks PNG — miroir de cards/face.py:png_chunks / png_phys /
@@ -3842,7 +3766,7 @@
     const el = q("#cf-face-fid");
     const btn = q("#cf-face-fidbtn");
     if (btn) btn.disabled = true;
-    if (el) el.textContent = "mesure en cours…";
+    if (el) el.textContent = dzT("cartes.face.mesure_en_cours");
     try {
       const g = CF.geom();
       const doc = CF.doc();
@@ -3906,9 +3830,7 @@
         plages = tops.map((c) => {
           const a = countColor(A, c.rgb, x0, y0, x1, y1, W);
           const b = countColor(B, c.rgb, x0, y0, x1, y1, W);
-          return '(' + c.rgb.join(",") + ') ' + c.pct.toFixed(1) + ' % de la source → <b>'
-            + a.toLocaleString("fr-FR") + '</b> px après la pose, <b>' + b.toLocaleString("fr-FR")
-            + '</b> px dans la carte livrée';
+          return dzT("cartes.face.plage", { rgb: c.rgb.join(","), p: c.pct.toFixed(1), a: a.toLocaleString("fr-FR"), b: b.toLocaleString("fr-FR") });
         }).join(" · ");
       }
 
@@ -3938,9 +3860,7 @@
           const op = Number(CF.get("texture.over_opacity", 0));
           const bl = String(CF.get("texture.over_blend", "") || "normal");
           if (op > 0) {
-            voile = 'Le voile de <b>Matières</b> est actif : motif « ' + esc(String(ov))
-              + ' », opacité <b>' + Math.round(op * 100) + ' %</b>, fusion <b>' + esc(bl)
-              + '</b> — c\'est lui qui teinte, et il s\'éteint dans ce panneau-là. ';
+            voile = dzT("cartes.face.voile", { ov: esc(String(ov)), op: Math.round(op * 100), bl: esc(bl) });
           }
         }
       } catch (e) { /* piece 06 absente : on ne dit rien plutot que d'inventer */ }
@@ -3951,10 +3871,9 @@
          garde donc la phrase « la pose conserve les plages de la source » que
          quand les chiffres qui la prouvent sont affiches juste a cote. */
       if (el && !src) {
-        el.innerHTML = '<b>Aucune illustration posée</b> — rien à contrôler. '
-          + 'Posez une face du catalogue ou déposez une image, puis relancez.';
+        el.innerHTML = dzT("cartes.face.fid_vide");
       } else if (el) {
-        const preuve = plages ? 'Plages plates de la source : ' + plages + '. ' : '';
+        const preuve = plages ? dzT("cartes.face.plages", { plages: plages }) + ' ' : '';
         /* CE QUI A CHANGE, ET POURQUOI. La redaction precedente concluait
            « au premier rang desquelles le grain de Matieres ». C'etait une
            ATTRIBUTION, pas une mesure : ce controle ne peut pas isoler une
@@ -3967,31 +3886,20 @@
            qu'on n'a pas pese est exactement ce que ce controle reproche aux
            autres. */
         const ici = plages
-          ? 'La pose conserve les plages de la source au pixel (colonne « après la pose » '
-            + 'ci-dessus) : la mise en place de l\'illustration ne change aucune couleur. '
-          : 'Cette face est <b>vectorielle</b> : elle est redessinée à la taille de la pose, il n\'y '
-            + 'a aucun octet source à retrouver. Déposez une image importée et relancez : '
-            + 'le contrôle retrouvera alors ses plages plates de couleur des deux côtés. ';
+          ? dzT("cartes.face.fid_conserve")
+          : dzT("cartes.face.fid_vec");
         el.innerHTML = diff === 0
-          ? preuve + '<b>Fidèle à l\'octet</b> : sur les ' + tot.toLocaleString("fr-FR")
-            + ' pixels de la fenêtre d\'illustration, <b>aucun</b> n\'est modifié entre la face '
-            + 'posée et la carte livrée.'
+          ? preuve + dzT("cartes.face.fid_octet", { n: tot.toLocaleString("fr-FR") })
           : preuve
-            + 'Sur les ' + tot.toLocaleString("fr-FR") + ' pixels de la fenêtre d\'illustration : '
-            + '<b>' + (100 * (tot - diff) / tot).toFixed(1) + ' % inchangés</b>, '
-            + '<b>' + (100 * teinte / tot).toFixed(1) + ' % teintés</b> (écart de 1 à ' + FID_TINT
-            + ' niveaux — une fusion) et <b>' + (100 * couvert / tot).toFixed(1) + ' % recouverts</b> '
-            + '(écart > ' + FID_TINT + ' — quelque chose d\'opaque est passé par-dessus). '
-            + (med < 0 ? 'Médiane indisponible. ' : 'Écart médian ' + med + ', ')
-            + 'maximum ' + mx + ' niveaux. '
+            + dzT("cartes.face.fid_ecarts", { n: tot.toLocaleString("fr-FR"), inch: (100 * (tot - diff) / tot).toFixed(1), te: (100 * teinte / tot).toFixed(1), seuil: FID_TINT, rec: (100 * couvert / tot).toFixed(1) }) + ' '
+            + (med < 0 ? dzT("cartes.face.fid_med_na") + ' ' : dzT("cartes.face.fid_med", { m: med }) + ', ')
+            + dzT("cartes.face.fid_max", { m: mx }) + ' '
             + ici
-            + 'Ce qui passe AU-DESSUS de la face, d\'après la table des z du moteur : <b>'
-            + esc(zs.join(", ")) + '</b>. ' + voile
-            + 'Ce contrôle ne pèse pas ces couches une par une : il mesure leur effet total, '
-            + 'et chacune se règle dans son propre panneau.';
+            + dzT("cartes.face.fid_dessus", { zs: esc(zs.join(", ")) }) + ' ' + voile
+            + dzT("cartes.face.fid_fin");
       }
     } catch (e) {
-      if (el) el.textContent = "le contrôle a échoué : " + String((e && e.message) || e);
+      if (el) el.textContent = dzT("cartes.face.fid_echec") + String((e && e.message) || e);
     } finally {
       if (btn) btn.disabled = false;
     }
@@ -4015,20 +3923,15 @@
     const mode = String(CF.get("face.win", "auto") || "auto");
     const lbl = (WIN_MODES.filter((m) => m[0] === mode)[0] || WIN_MODES[0])[1];
     const resolu = mode !== "auto" ? lbl
-      : (frameWindow(g) ? "Auto → fenêtre publiée par le cadre"
-        : "Auto → toile entière (le cadre n'en publie aucune)");
+      : (frameWindow(g) ? dzT("cartes.face.auto_cadre")
+        : dzT("cartes.face.auto_toile"));
     /* Le nom de la source, pas sa clef de rangement. « source
        local:fmspgoglyz9l7i » a ete releve tel quel dans un duel : un jeton
        interne n'apprend rien a l'utilisateur et sort du logiciel avec la
        capture. Le fichier a un nom, le dessin a un titre : on les affiche. */
-    const src = LAST.has && LAST.label ? LAST.label : (f.src ? "posée" : "aucune");
+    const src = LAST.has && LAST.label ? LAST.label : (f.src ? dzT("cartes.face.src_posee") : dzT("cartes.face.src_aucune"));
     el.textContent = resolu
-      + " · fenêtre " + Math.round(w[2]) + " x " + Math.round(w[3]) + " px"
-      + " (" + fmt1(g.px2mm(w[2])) + " x " + fmt1(g.px2mm(w[3])) + " mm, " + pct
-      + " % de la SURFACE de la toile)"
-      + " · origine " + fmt1(w[0]) + " / " + fmt1(w[1]) + " px"
-      + " · décalage " + fmt1(g.mm2px(f.x)) + " / " + fmt1(g.mm2px(f.y)) + " px"
-      + " · illustration : " + src;
+      + dzT("cartes.face.lecture", { w: Math.round(w[2]), h: Math.round(w[3]), wmm: fmt1(g.px2mm(w[2])), hmm: fmt1(g.px2mm(w[3])), pct: pct, ox: fmt1(w[0]), oy: fmt1(w[1]), dx: fmt1(g.mm2px(f.x)), dy: fmt1(g.mm2px(f.y)), src: src });
   }
 
   /* ── LE COUT, EN MONNAIE ────────────────────────────────────────────────
@@ -4055,22 +3958,16 @@
     const m = MODELS.filter((x) => x.id === id)[0];
     const n = Math.max(1, Math.min(4, Number((q("#cf-face-n") || {}).value) || 1));
     if (!MODELS.length) {
-      el.innerHTML = '<b>Aucun modèle d\'image disponible</b> — aucune clé FAL ni OpenAI '
-        + 'n\'est enregistrée dans les Réglages de l\'application, la génération échouerait. '
-        + 'Le catalogue vectoriel et l\'import, eux, ne demandent aucune clé.';
+      el.innerHTML = dzT("cartes.face.cout_aucun_modele");
       return;
     }
     const u = m && typeof m.usd_par_image === "number" ? m.usd_par_image : null;
     const qui = '<b>' + esc((m && m.provider) || "?") + '</b> — ' + esc((m && m.label) || id)
       + (m && m.note ? ' (' + esc(m.note) + ')' : '');
     el.innerHTML = (u === null
-      ? 'Coût de ce clic : <b>' + n + ' image' + (n > 1 ? 's' : '') + '</b> chez ' + qui
-        + '. <b>Tarif non tabulé</b> dans l\'application : aucun montant n\'est affiché ici, '
-        + 'plutôt qu\'un montant emprunté à un autre modèle.'
-      : 'Coût de ce clic : <b>' + n + ' × ' + usdFmt(u) + ' = ' + usdFmt(n * u) + '</b> chez ' + qui
-        + '. Tarif lu dans ' + esc(AI_META.tarif_source || "la table de tarifs de l'application")
-        + '.')
-      + ' C\'est la seule action de cet écran qui dépense.';
+      ? dzT(n > 1 ? "cartes.face.cout_sans_tarif_n" : "cartes.face.cout_sans_tarif_1", { n: n, qui: qui })
+      : dzT("cartes.face.cout_tarif", { n: n, u: usdFmt(u), t: usdFmt(n * u), qui: qui, src: esc(AI_META.tarif_source || dzT("cartes.face.table_tarifs")) }))
+      + ' ' + dzT("cartes.face.seule_depense");
   }
 
   /* ── cablage ──────────────────────────────────────────────────────────── */
@@ -4189,8 +4086,8 @@
     msel.innerHTML = MODELS.length
       ? MODELS.map((m) => '<option value="' + esc(m.id) + '">' + esc(m.label)
         + (typeof m.usd_par_image === "number" ? " — " + usdFmt(m.usd_par_image) + "/image"
-          : " — tarif non tabulé") + '</option>').join("")
-      : '<option value="">aucun modèle disponible</option>';
+          : dzT("cartes.face.tarif_non_tabule")) + '</option>').join("")
+      : '<option value="">' + dzT("cartes.face.aucun_modele") + '</option>';
     const want = CF.get("face.model", "");
     if (want && MODELS.some((m) => m.id === want)) msel.value = want;
     msel.addEventListener("change", () => { M.patch({ model: msel.value }); costLine(); });
@@ -4278,7 +4175,7 @@
   async function generate() {
     const ta = q("#cf-face-prompt");
     const prompt = String((ta && ta.value) || "").trim();
-    if (!prompt) { CF.toast("écrivez une invite (ou cliquez une amorce)", true); if (ta) ta.focus(); return; }
+    if (!prompt) { CF.toast(dzT("cartes.face.invite_vide"), true); if (ta) ta.focus(); return; }
     const model = (q("#cf-face-model") || {}).value || "";
     const size = (q("#cf-face-size") || {}).value || "portrait_4_3";
     const n = Math.max(1, Math.min(4, Number((q("#cf-face-n") || {}).value) || 1));
@@ -4286,11 +4183,11 @@
     const req = { prompt: prompt, n: n, size: size };
     if (model) req.model = model;
     if (isFinite(sd) && String((q("#cf-face-seed") || {}).value).trim() !== "") req.seed = sd;
-    CF.busy(true, "génération de l'illustration…");
+    CF.busy(true, dzT("cartes.face.gen_en_cours"));
     try {
       const d = await CF.images.generate(req);          /* UN SEUL appel */
       const files = (d && d.images) || [];
-      if (!files.length) throw new Error("le fournisseur n'a rendu aucune image");
+      if (!files.length) throw new Error(dzT("cartes.face.gen_vide"));
       AI_OUT = files.slice();
       M.patch({ prompt: prompt, model: model, size: size, nimg: n });
       setArt("img:" + files[0], true);                  /* posee, sans copier-coller */
@@ -4299,10 +4196,10 @@
          apres laisse l'utilisateur sans trace de sa depense. */
       const mm = MODELS.filter((x) => x.id === (model || (d && d.model)))[0];
       const u = mm && typeof mm.usd_par_image === "number" ? mm.usd_par_image : null;
-      CF.toast(files.length + " image(s) générée(s) — la première est posée sur la carte"
-        + (u === null ? "" : " · " + usdFmt(files.length * u) + " facturés chez " + mm.provider));
+      CF.toast(dzT("cartes.face.gen_ok", { n: files.length })
+        + (u === null ? "" : dzT("cartes.face.gen_facture", { usd: usdFmt(files.length * u), p: mm.provider })));
     } catch (e) {
-      CF.toast("génération : " + String((e && e.message) || e), true);
+      CF.toast(dzT("cartes.face.err_gen") + String((e && e.message) || e), true);
     } finally { CF.busy(false); }
   }
 
@@ -4466,7 +4363,7 @@
       e.preventDefault();
       wrap.classList.remove("cf-face-over");
       const a = await importFiles(e.dataTransfer && e.dataTransfer.files);
-      afterImport(a, "déposée(s) sur la carte");
+      afterImport(a, dzT("cartes.face.quoi_carte"));
     });
   }
   let wheelArmed = false, wheelTimer = null;
@@ -4521,7 +4418,7 @@
       if (!files.length) return;
       e.preventDefault();
       const a = await importFiles(files);
-      afterImport(a, "collée(s)");
+      afterImport(a, dzT("cartes.face.quoi_collee"));
     });
   }
   let keyArmed = false, keyTimer = null;

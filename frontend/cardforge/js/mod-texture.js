@@ -58,53 +58,53 @@
      ═══════════════════════════════════════════════════════════════════════ */
   /* ═══ CF-TEXTURE-CATALOG-BEGIN ═══ */
   const MATS = [
-    { id: "velin", label: "Vélin ivoire", cat: "papier", gen: "grain", rgb: [247, 243, 233], amp: 0.10, p: { fine: 1.0 }, mtl: 0, rgh: 0.92 },
-    { id: "offset", label: "Offset blanc", cat: "papier", gen: "grain", rgb: [252, 251, 249], amp: 0.055, p: { fine: 1.5 }, mtl: 0, rgh: 0.90 },
-    { id: "bristol", label: "Bristol lisse", cat: "papier", gen: "grain", rgb: [255, 254, 251], amp: 0.03, p: { fine: 2.2 }, mtl: 0, rgh: 0.78 },
-    { id: "verge", label: "Vergé crème", cat: "papier", gen: "laid", rgb: [243, 236, 219], amp: 0.11, p: { chain: 26, laid: 3 }, mtl: 0, rgh: 0.90 },
-    { id: "kraft", label: "Kraft brun", cat: "papier", gen: "speckle", rgb: [186, 148, 104], rgb2: [126, 92, 58], amp: 0.16, p: { dots: 900 }, mtl: 0, rgh: 0.95 },
-    { id: "recycle", label: "Recyclé gris", cat: "papier", gen: "speckle", rgb: [216, 210, 197], rgb2: [140, 132, 116], amp: 0.13, p: { dots: 1400 }, mtl: 0, rgh: 0.94 },
-    { id: "aquarelle", label: "Papier aquarelle", cat: "papier", gen: "crumple", rgb: [249, 246, 238], amp: 0.17, p: { ridge: 0.55, fine: 0.9 }, mtl: 0, rgh: 0.95 },
-    { id: "parchemin", label: "Parchemin", cat: "papier", gen: "crumple", rgb: [232, 217, 184], rgb2: [193, 168, 121], amp: 0.22, p: { ridge: 0.8, fine: 0.6 }, mtl: 0, rgh: 0.88 },
-    { id: "journal", label: "Papier journal", cat: "papier", gen: "grain", rgb: [231, 226, 208], rgb2: [196, 188, 164], amp: 0.14, p: { fine: 0.8 }, mtl: 0, rgh: 0.96 },
-    { id: "carton_noir", label: "Carton noir mat", cat: "papier", gen: "grain", rgb: [34, 32, 30], amp: 0.22, p: { fine: 1.1 }, mtl: 0, rgh: 0.97 },
-    { id: "lin", label: "Lin naturel", cat: "textile", gen: "fiber", rgb: [230, 221, 202], amp: 0.20, p: { dir: 0, tight: 5 }, mtl: 0, rgh: 0.94 },
-    { id: "toile", label: "Toile de coton", cat: "textile", gen: "weave", rgb: [236, 229, 214], amp: 0.20, p: { thread: 6 }, mtl: 0, rgh: 0.93 },
-    { id: "canvas", label: "Canvas peintre", cat: "textile", gen: "weave", rgb: [226, 214, 190], amp: 0.28, p: { thread: 11 }, mtl: 0, rgh: 0.95 },
-    { id: "jute", label: "Toile de jute", cat: "textile", gen: "weave", rgb: [201, 168, 112], amp: 0.34, p: { thread: 17 }, mtl: 0, rgh: 0.98 },
-    { id: "soie", label: "Soie sauvage", cat: "textile", gen: "fiber", rgb: [238, 232, 226], amp: 0.12, p: { dir: 1, tight: 9 }, mtl: 0, rgh: 0.42 },
+    { id: "velin", label: dzT("cartes.texture.mat_velin"), cat: "papier", gen: "grain", rgb: [247, 243, 233], amp: 0.10, p: { fine: 1.0 }, mtl: 0, rgh: 0.92 },
+    { id: "offset", label: dzT("cartes.texture.mat_offset"), cat: "papier", gen: "grain", rgb: [252, 251, 249], amp: 0.055, p: { fine: 1.5 }, mtl: 0, rgh: 0.90 },
+    { id: "bristol", label: dzT("cartes.texture.mat_bristol"), cat: "papier", gen: "grain", rgb: [255, 254, 251], amp: 0.03, p: { fine: 2.2 }, mtl: 0, rgh: 0.78 },
+    { id: "verge", label: dzT("cartes.texture.mat_verge"), cat: "papier", gen: "laid", rgb: [243, 236, 219], amp: 0.11, p: { chain: 26, laid: 3 }, mtl: 0, rgh: 0.90 },
+    { id: "kraft", label: dzT("cartes.texture.mat_kraft"), cat: "papier", gen: "speckle", rgb: [186, 148, 104], rgb2: [126, 92, 58], amp: 0.16, p: { dots: 900 }, mtl: 0, rgh: 0.95 },
+    { id: "recycle", label: dzT("cartes.texture.mat_recycle"), cat: "papier", gen: "speckle", rgb: [216, 210, 197], rgb2: [140, 132, 116], amp: 0.13, p: { dots: 1400 }, mtl: 0, rgh: 0.94 },
+    { id: "aquarelle", label: dzT("cartes.texture.mat_aquarelle"), cat: "papier", gen: "crumple", rgb: [249, 246, 238], amp: 0.17, p: { ridge: 0.55, fine: 0.9 }, mtl: 0, rgh: 0.95 },
+    { id: "parchemin", label: dzT("cartes.texture.mat_parchemin"), cat: "papier", gen: "crumple", rgb: [232, 217, 184], rgb2: [193, 168, 121], amp: 0.22, p: { ridge: 0.8, fine: 0.6 }, mtl: 0, rgh: 0.88 },
+    { id: "journal", label: dzT("cartes.texture.mat_journal"), cat: "papier", gen: "grain", rgb: [231, 226, 208], rgb2: [196, 188, 164], amp: 0.14, p: { fine: 0.8 }, mtl: 0, rgh: 0.96 },
+    { id: "carton_noir", label: dzT("cartes.texture.mat_carton_noir"), cat: "papier", gen: "grain", rgb: [34, 32, 30], amp: 0.22, p: { fine: 1.1 }, mtl: 0, rgh: 0.97 },
+    { id: "lin", label: dzT("cartes.texture.mat_lin"), cat: "textile", gen: "fiber", rgb: [230, 221, 202], amp: 0.20, p: { dir: 0, tight: 5 }, mtl: 0, rgh: 0.94 },
+    { id: "toile", label: dzT("cartes.texture.mat_toile"), cat: "textile", gen: "weave", rgb: [236, 229, 214], amp: 0.20, p: { thread: 6 }, mtl: 0, rgh: 0.93 },
+    { id: "canvas", label: dzT("cartes.texture.mat_canvas"), cat: "textile", gen: "weave", rgb: [226, 214, 190], amp: 0.28, p: { thread: 11 }, mtl: 0, rgh: 0.95 },
+    { id: "jute", label: dzT("cartes.texture.mat_jute"), cat: "textile", gen: "weave", rgb: [201, 168, 112], amp: 0.34, p: { thread: 17 }, mtl: 0, rgh: 0.98 },
+    { id: "soie", label: dzT("cartes.texture.mat_soie"), cat: "textile", gen: "fiber", rgb: [238, 232, 226], amp: 0.12, p: { dir: 1, tight: 9 }, mtl: 0, rgh: 0.42 },
     { id: "denim", label: "Denim", cat: "textile", gen: "twill", rgb: [58, 82, 120], rgb2: [206, 214, 226], amp: 0.26, p: { thread: 7 }, mtl: 0, rgh: 0.90 },
-    { id: "feutre", label: "Feutrine", cat: "textile", gen: "fiber", rgb: [150, 60, 62], amp: 0.24, p: { dir: 2, tight: 3 }, mtl: 0, rgh: 0.99 },
-    { id: "ardoise", label: "Ardoise", cat: "minéral", gen: "crumple", rgb: [66, 70, 76], rgb2: [40, 43, 47], amp: 0.26, p: { ridge: 0.7, fine: 1.4 }, mtl: 0, rgh: 0.86 },
-    { id: "marbre", label: "Marbre blanc", cat: "minéral", gen: "marble", rgb: [242, 240, 236], rgb2: [150, 150, 148], amp: 0.12, p: { veins: 3.0 }, mtl: 0, rgh: 0.28 },
+    { id: "feutre", label: dzT("cartes.texture.mat_feutre"), cat: "textile", gen: "fiber", rgb: [150, 60, 62], amp: 0.24, p: { dir: 2, tight: 3 }, mtl: 0, rgh: 0.99 },
+    { id: "ardoise", label: dzT("cartes.texture.mat_ardoise"), cat: "minéral", gen: "crumple", rgb: [66, 70, 76], rgb2: [40, 43, 47], amp: 0.26, p: { ridge: 0.7, fine: 1.4 }, mtl: 0, rgh: 0.86 },
+    { id: "marbre", label: dzT("cartes.texture.mat_marbre"), cat: "minéral", gen: "marble", rgb: [242, 240, 236], rgb2: [150, 150, 148], amp: 0.12, p: { veins: 3.0 }, mtl: 0, rgh: 0.28 },
     /* veins ENTIER — 4,5 donnait une demi-periode de decalage d'un bord a
        l'autre, mesure 9,92x la pire marche interne (voir RECIPES.marble). */
-    { id: "marbre_noir", label: "Marbre noir", cat: "minéral", gen: "marble", rgb: [30, 30, 33], rgb2: [176, 168, 140], amp: 0.16, p: { veins: 4 }, mtl: 0, rgh: 0.24 },
-    { id: "beton", label: "Béton ciré", cat: "minéral", gen: "concrete", rgb: [176, 174, 168], amp: 0.16, p: { pores: 1500 }, mtl: 0, rgh: 0.82 },
-    { id: "granit", label: "Granit moucheté", cat: "minéral", gen: "speckle", rgb: [148, 146, 150], rgb2: [58, 56, 60], amp: 0.20, p: { dots: 4200 }, mtl: 0, rgh: 0.62 },
-    { id: "or_brosse", label: "Or brossé", cat: "métal", gen: "brush", rgb: [206, 168, 78], rgb2: [255, 233, 168], amp: 0.20, p: { spec: 0.9 }, mtl: 1, rgh: 0.34 },
-    { id: "argent_brosse", label: "Argent brossé", cat: "métal", gen: "brush", rgb: [188, 190, 195], rgb2: [244, 246, 250], amp: 0.20, p: { spec: 1.0 }, mtl: 1, rgh: 0.28 },
-    { id: "cuivre", label: "Cuivre patiné", cat: "métal", gen: "brush", rgb: [172, 104, 66], rgb2: [96, 148, 128], amp: 0.26, p: { spec: 0.6, patina: 1 }, mtl: 1, rgh: 0.46 },
-    { id: "acier", label: "Acier peigné", cat: "métal", gen: "brush", rgb: [122, 126, 132], rgb2: [186, 192, 200], amp: 0.17, p: { spec: 0.8 }, mtl: 1, rgh: 0.32 },
-    { id: "carbone", label: "Fibre de carbone", cat: "métal", gen: "twill", rgb: [30, 31, 34], rgb2: [92, 96, 104], amp: 0.30, p: { thread: 9 }, mtl: 0, rgh: 0.38 },
-    { id: "cuir", label: "Cuir grainé", cat: "organique", gen: "leather", rgb: [104, 62, 40], rgb2: [58, 32, 20], amp: 0.24, p: { cell: 13 }, mtl: 0, rgh: 0.72 },
-    { id: "bois", label: "Bois clair", cat: "organique", gen: "wood", rgb: [199, 158, 106], rgb2: [150, 108, 62], amp: 0.18, p: { rings: 7 }, mtl: 0, rgh: 0.66 },
-    { id: "ebene", label: "Ébène", cat: "organique", gen: "wood", rgb: [58, 42, 33], rgb2: [26, 18, 14], amp: 0.20, p: { rings: 11 }, mtl: 0, rgh: 0.58 },
+    { id: "marbre_noir", label: dzT("cartes.texture.mat_marbre_noir"), cat: "minéral", gen: "marble", rgb: [30, 30, 33], rgb2: [176, 168, 140], amp: 0.16, p: { veins: 4 }, mtl: 0, rgh: 0.24 },
+    { id: "beton", label: dzT("cartes.texture.mat_beton"), cat: "minéral", gen: "concrete", rgb: [176, 174, 168], amp: 0.16, p: { pores: 1500 }, mtl: 0, rgh: 0.82 },
+    { id: "granit", label: dzT("cartes.texture.mat_granit"), cat: "minéral", gen: "speckle", rgb: [148, 146, 150], rgb2: [58, 56, 60], amp: 0.20, p: { dots: 4200 }, mtl: 0, rgh: 0.62 },
+    { id: "or_brosse", label: dzT("cartes.texture.mat_or_brosse"), cat: "métal", gen: "brush", rgb: [206, 168, 78], rgb2: [255, 233, 168], amp: 0.20, p: { spec: 0.9 }, mtl: 1, rgh: 0.34 },
+    { id: "argent_brosse", label: dzT("cartes.texture.mat_argent_brosse"), cat: "métal", gen: "brush", rgb: [188, 190, 195], rgb2: [244, 246, 250], amp: 0.20, p: { spec: 1.0 }, mtl: 1, rgh: 0.28 },
+    { id: "cuivre", label: dzT("cartes.texture.mat_cuivre"), cat: "métal", gen: "brush", rgb: [172, 104, 66], rgb2: [96, 148, 128], amp: 0.26, p: { spec: 0.6, patina: 1 }, mtl: 1, rgh: 0.46 },
+    { id: "acier", label: dzT("cartes.texture.mat_acier"), cat: "métal", gen: "brush", rgb: [122, 126, 132], rgb2: [186, 192, 200], amp: 0.17, p: { spec: 0.8 }, mtl: 1, rgh: 0.32 },
+    { id: "carbone", label: dzT("cartes.texture.mat_carbone"), cat: "métal", gen: "twill", rgb: [30, 31, 34], rgb2: [92, 96, 104], amp: 0.30, p: { thread: 9 }, mtl: 0, rgh: 0.38 },
+    { id: "cuir", label: dzT("cartes.texture.mat_cuir"), cat: "organique", gen: "leather", rgb: [104, 62, 40], rgb2: [58, 32, 20], amp: 0.24, p: { cell: 13 }, mtl: 0, rgh: 0.72 },
+    { id: "bois", label: dzT("cartes.texture.mat_bois"), cat: "organique", gen: "wood", rgb: [199, 158, 106], rgb2: [150, 108, 62], amp: 0.18, p: { rings: 7 }, mtl: 0, rgh: 0.66 },
+    { id: "ebene", label: dzT("cartes.texture.mat_ebene"), cat: "organique", gen: "wood", rgb: [58, 42, 33], rgb2: [26, 18, 14], amp: 0.20, p: { rings: 11 }, mtl: 0, rgh: 0.58 },
   ];
   /* ═══ CF-TEXTURE-CATALOG-END ═══ */
 
   /* effets de dessus (z=30). `k` = recette, `d` = mode de fusion conseille. */
   const OVERS = [
-    { id: "none", label: "Aucun", k: "none", d: "normal", o: 0 },
-    { id: "grain", label: "Grain de la matière", k: "grain", d: "soft-light", o: 0.5 },
-    { id: "toile30", label: "Trame toile", k: "weave", d: "multiply", o: 0.22 },
-    { id: "foil_or", label: "Foil or", k: "foil", d: "screen", o: 0.42, rgb: [255, 214, 122] },
-    { id: "foil_argent", label: "Foil argent", k: "foil", d: "screen", o: 0.38, rgb: [226, 236, 248] },
-    { id: "holo", label: "Holographique", k: "holo", d: "overlay", o: 0.46 },
-    { id: "irise", label: "Irisé", k: "iris", d: "overlay", o: 0.40 },
-    { id: "givre", label: "Givre", k: "frost", d: "screen", o: 0.30 },
-    { id: "poussiere", label: "Poussière & rayures", k: "dust", d: "screen", o: 0.35 },
-    { id: "vignette", label: "Vignettage", k: "vig", d: "multiply", o: 0.45 },
+    { id: "none", label: dzT("cartes.texture.aucun"), k: "none", d: "normal", o: 0 },
+    { id: "grain", label: dzT("cartes.texture.over_grain"), k: "grain", d: "soft-light", o: 0.5 },
+    { id: "toile30", label: dzT("cartes.texture.over_toile"), k: "weave", d: "multiply", o: 0.22 },
+    { id: "foil_or", label: dzT("cartes.texture.over_foil_or"), k: "foil", d: "screen", o: 0.42, rgb: [255, 214, 122] },
+    { id: "foil_argent", label: dzT("cartes.texture.over_foil_argent"), k: "foil", d: "screen", o: 0.38, rgb: [226, 236, 248] },
+    { id: "holo", label: dzT("cartes.texture.over_holo"), k: "holo", d: "overlay", o: 0.46 },
+    { id: "irise", label: dzT("cartes.texture.over_irise"), k: "iris", d: "overlay", o: 0.40 },
+    { id: "givre", label: dzT("cartes.texture.over_givre"), k: "frost", d: "screen", o: 0.30 },
+    { id: "poussiere", label: dzT("cartes.texture.over_poussiere"), k: "dust", d: "screen", o: 0.35 },
+    { id: "vignette", label: dzT("cartes.texture.over_vignette"), k: "vig", d: "multiply", o: 0.45 },
   ];
 
   const BLENDS = ["normal", "multiply", "screen", "overlay", "soft-light",
@@ -117,27 +117,33 @@
      SEULE (backend muet). `test_cards_texture.py` compare les deux : une
      derive silencieuse entre l'ecran et le service serait un curseur qui ment. */
   const DERIVE_UI = [
-    { k: "normal_strength", label: "Force de la normale", min: 0, max: 4, step: 0.05, def: 0.8 },
-    { k: "normal_invert_y", label: "Inverser Y (DirectX)", type: "bool", def: false },
-    { k: "height_detail", label: "Détail de la hauteur", min: 0, max: 1, step: 0.01, def: 0.5 },
-    { k: "roughness_source", label: "Source de rugosité", type: "enum", opts: ["micro", "albedo"], def: "micro" },
-    { k: "roughness_bias", label: "Biais de rugosité", min: 0, max: 1, step: 0.01, def: 0.5 },
-    { k: "roughness_contrast", label: "Contraste de rugosité", min: 0, max: 1, step: 0.01, def: 0.5 },
-    { k: "roughness_invert", label: "Inverser la rugosité", type: "bool", def: false },
-    { k: "ao_strength", label: "Force de l'occlusion", min: 0, max: 4, step: 0.05, def: 1.0 },
-    { k: "ao_radius", label: "Rayon d'occlusion", min: 0.5, max: 32, step: 0.5, def: 4.0, unit: "px" },
-    { k: "metallic_mode", label: "Mode métallique", type: "enum", opts: ["auto", "none", "luminance"], def: "auto" },
-    { k: "metallic_threshold", label: "Seuil métallique", min: 0, max: 1, step: 0.01, def: 0.5 },
-    { k: "emissive_threshold", label: "Seuil d'émission", min: 0, max: 1, step: 0.01, def: 0.85 },
+    { k: "normal_strength", label: dzT("cartes.texture.d_normal_strength"), min: 0, max: 4, step: 0.05, def: 0.8 },
+    { k: "normal_invert_y", label: dzT("cartes.texture.d_normal_invert_y"), type: "bool", def: false },
+    { k: "height_detail", label: dzT("cartes.texture.d_height_detail"), min: 0, max: 1, step: 0.01, def: 0.5 },
+    { k: "roughness_source", label: dzT("cartes.texture.d_roughness_source"), type: "enum", opts: ["micro", "albedo"], def: "micro" },
+    { k: "roughness_bias", label: dzT("cartes.texture.d_roughness_bias"), min: 0, max: 1, step: 0.01, def: 0.5 },
+    { k: "roughness_contrast", label: dzT("cartes.texture.d_roughness_contrast"), min: 0, max: 1, step: 0.01, def: 0.5 },
+    { k: "roughness_invert", label: dzT("cartes.texture.d_roughness_invert"), type: "bool", def: false },
+    { k: "ao_strength", label: dzT("cartes.texture.d_ao_strength"), min: 0, max: 4, step: 0.05, def: 1.0 },
+    { k: "ao_radius", label: dzT("cartes.texture.d_ao_radius"), min: 0.5, max: 32, step: 0.5, def: 4.0, unit: "px" },
+    { k: "metallic_mode", label: dzT("cartes.texture.d_metallic_mode"), type: "enum", opts: ["auto", "none", "luminance"], def: "auto" },
+    { k: "metallic_threshold", label: dzT("cartes.texture.d_metallic_threshold"), min: 0, max: 1, step: 0.01, def: 0.5 },
+    { k: "emissive_threshold", label: dzT("cartes.texture.d_emissive_threshold"), min: 0, max: 1, step: 0.01, def: 0.85 },
   ];
 
   const KINDS = ["basecolor", "normal", "roughness", "metallic", "ao", "height", "emissive", "orm"];
   const KIND_FR = {
-    basecolor: "Base color", normal: "Normale", roughness: "Rugosité",
-    metallic: "Métallique", ao: "Occlusion (AO)", height: "Hauteur",
-    emissive: "Émission", orm: "ORM (packée)",
+    basecolor: "Base color", normal: dzT("cartes.texture.normale"), roughness: dzT("cartes.texture.rugosite"),
+    metallic: dzT("cartes.texture.metallique"), ao: "Occlusion (AO)", height: dzT("cartes.texture.hauteur"),
+    emissive: dzT("cartes.texture.emission"), orm: dzT("cartes.texture.orm_packee"),
   };
   const RES_CHOICES = [1024, 2048, 4096];
+  /* t147 : la catégorie `cat` reste la valeur comparée par le filtre ; seul son libellé se traduit. */
+  const catLbl = (c) => ({
+    papier: dzT("cartes.texture.cat_papier"), textile: dzT("cartes.texture.cat_textile"),
+    "minéral": dzT("cartes.texture.cat_mineral"), "métal": dzT("cartes.texture.cat_metal"),
+    organique: dzT("cartes.texture.cat_organique"),
+  }[c] || c);
 
   /* ═══════════════════════════════════════════════════════════════════════
      2. L'ETAT — le schema declare a l'enregistrement.
@@ -909,10 +915,10 @@
      sombre. Aucun de ces nombres ne touche les maps ni les chiffres mesures :
      ce sont des reglages d'eclairage, et ils sont ecrits ici en clair. */
   const ENVS = [
-    { id: "rasant", label: "Rasant", el: 14, exp: 1.55, sun: [1.00, 0.957, 0.886], pw: 3.1, sky: [0.055, 0.062, 0.086], gnd: [0.030, 0.026, 0.022] },
+    { id: "rasant", label: dzT("cartes.texture.env_rasant"), el: 14, exp: 1.55, sun: [1.00, 0.957, 0.886], pw: 3.1, sky: [0.055, 0.062, 0.086], gnd: [0.030, 0.026, 0.022] },
     { id: "studio", label: "Studio", el: 52, exp: 1.00, sun: [1.00, 1.000, 1.000], pw: 2.6, sky: [0.170, 0.180, 0.200], gnd: [0.090, 0.088, 0.084] },
-    { id: "chaud", label: "Chaleureux", el: 32, exp: 1.25, sun: [1.00, 0.839, 0.620], pw: 2.9, sky: [0.130, 0.098, 0.072], gnd: [0.062, 0.045, 0.030] },
-    { id: "nuit", label: "Nuit", el: 24, exp: 1.15, sun: [0.808, 0.886, 1.000], pw: 2.2, sky: [0.022, 0.028, 0.048], gnd: [0.012, 0.014, 0.024] },
+    { id: "chaud", label: dzT("cartes.texture.env_chaud"), el: 32, exp: 1.25, sun: [1.00, 0.839, 0.620], pw: 2.9, sky: [0.130, 0.098, 0.072], gnd: [0.062, 0.045, 0.030] },
+    { id: "nuit", label: dzT("cartes.texture.env_nuit"), el: 24, exp: 1.15, sun: [0.808, 0.886, 1.000], pw: 2.2, sky: [0.022, 0.028, 0.048], gnd: [0.012, 0.014, 0.024] },
   ];
   /* Les trois surfaces d'essai. « Plat » montre la matiere en face,
      « Sphere » fait glisser la lumiere sur toutes les orientations d'un seul
@@ -920,9 +926,9 @@
      rugosite fausse), « Tuile » repete la matiere 2 x 2 pour montrer le
      raccord sous la meme lumiere. */
   const SHAPES = [
-    { id: "plat", label: "Plat" },
-    { id: "sphere", label: "Sphère" },
-    { id: "tuile", label: "Tuilé 2×2" },
+    { id: "plat", label: dzT("cartes.texture.forme_plat") },
+    { id: "sphere", label: dzT("cartes.texture.forme_sphere") },
+    { id: "tuile", label: dzT("cartes.texture.forme_tuile") },
   ];
   const LIT_PX = 640;                  /* plafond servi par /thumb?px= */
   const LIT = {
@@ -1140,13 +1146,12 @@
     const env = ENVS.filter((e) => e.id === LIT.env)[0] || ENVS[0];
     const tag = q("#cf-texture-litinfo");
     if (tag) {
-      tag.innerHTML = 'azimut <b>' + Math.round(LIT.az) + '°</b> · élévation <b>'
-        + Math.round(LIT.el) + '°</b> · ' + esc(env.label)
-        + ' · <span class="mono">' + W + '×' + H + ' px en ' + LIT.ms + ' ms</span>'
-        + (LIT.useN ? "" : ' · <b class="cf-tx-flat">normale coupée</b>')
-        + (LIT.useR ? "" : ' · <b class="cf-tx-flat">rugosité coupée</b>')
-        + (LIT.useM ? "" : ' · <b class="cf-tx-flat">métal coupé</b>')
-        + (LIT.useAO ? "" : ' · <b class="cf-tx-flat">occlusion coupée</b>');
+      tag.innerHTML = dzT("cartes.texture.lit_info", { az: Math.round(LIT.az), el: Math.round(LIT.el),
+          env: esc(env.label), w: W, h: H, ms: LIT.ms })
+        + (LIT.useN ? "" : dzT("cartes.texture.lit_n_coupee"))
+        + (LIT.useR ? "" : dzT("cartes.texture.lit_r_coupee"))
+        + (LIT.useM ? "" : dzT("cartes.texture.lit_m_coupe"))
+        + (LIT.useAO ? "" : dzT("cartes.texture.lit_ao_coupee"));
     }
   }
 
@@ -1265,15 +1270,15 @@
   const fx = (v, n) => Number(v).toFixed(n === undefined ? 2 : n);
   /** Des octets en Ko/Mo. Le seuil est 1024, pas 1000 : « 45 Mo » doit
       designer les 45 443 026 octets du fichier, pas 45,4 millions. */
-  const mo = (b) => (b >= 1048576 ? fx(b / 1048576, 1) + " Mo"
-    : Math.round(b / 1024) + " Ko");
+  const mo = (b) => (b >= 1048576 ? fx(b / 1048576, 1) + dzT("cartes.texture.u_mo")
+    : Math.round(b / 1024) + dzT("cartes.texture.u_ko"));
   /** Deux poids COMPARES : la meme unite des deux cotes, choisie sur le plus
       gros. « 1,0 Mo contre 884 Ko » oblige le lecteur a convertir de tete
       pour voir lequel gagne — c'est le contraire du but. */
   const mo2 = (a, b) => {
     const u = Math.max(a, b) >= 1048576 ? 1048576 : 1024;
     const n = u === 1048576 ? 2 : 0;
-    const nom = u === 1048576 ? " Mo" : " Ko";
+    const nom = u === 1048576 ? dzT("cartes.texture.u_mo") : dzT("cartes.texture.u_ko");
     return [fx(a / u, n) + nom, fx(b / u, n) + nom];
   };
   /** Une duree en secondes ou en minutes, selon ce qui se lit. « 0,1 min »
@@ -1354,7 +1359,7 @@
      ═══════════════════════════════════════════════════════════════════════ */
   const M = CF.register({
     id: "texture",
-    title: "Matières",
+    title: dzT("cartes.texture.titre"),
     icon: "dz-nav-cf-matieres",
     order: 6,
 
@@ -1378,13 +1383,13 @@
     syncUndo();
   }
   function restore(from, to) {
-    if (!from.length) { M.toast("rien à " + (from === UNDO ? "annuler" : "rétablir")); return; }
+    if (!from.length) { M.toast(from === UNDO ? dzT("cartes.texture.rien_annuler") : dzT("cartes.texture.rien_retablir")); return; }
     to.push(snap());
     const s = from.pop();
     applying = true;
     try { M.patch(s); } finally { applying = false; }
     render();
-    M.toast(from === UNDO ? "annulé" : "rétabli");
+    M.toast(from === UNDO ? dzT("cartes.texture.annule") : dzT("cartes.texture.retabli"));
   }
   function syncUndo() {
     const u = q("#cf-texture-undo"), r = q("#cf-texture-redo");
@@ -1430,13 +1435,13 @@
       if (MAT_BY_ID[ids[j]]) { pickMat(MAT_BY_ID[ids[j]]); return; }
       push({ paper: ids[j] });
       render();
-      M.toast("matière : aucune");
+      M.toast(dzT("cartes.texture.toast_aucune"));
     }
   }
   function resetAll() {
     push(clone(DEF));
     render();
-    M.toast("réglages de matière remis aux défauts");
+    M.toast(dzT("cartes.texture.toast_defauts"));
   }
 
   /* ── le panneau ────────────────────────────────────────────────────────── */
@@ -1450,17 +1455,17 @@
     const head = elm("div", "cf-tx-head");
     const mat = MAT_BY_ID[s.paper];
     head.innerHTML =
-      '<div class="cf-tx-hl"><b>' + esc(s.paper === "__import" ? "Matière importée" : (mat ? mat.label : "Aucune matière")) + '</b>'
+      '<div class="cf-tx-hl"><b>' + esc(s.paper === "__import" ? dzT("cartes.texture.matiere_importee") : (mat ? mat.label : dzT("cartes.texture.aucune_matiere"))) + '</b>'
       + '<span class="cf-tx-dot"></span><span>' + esc((OVER_BY_ID[s.over] || OVER_BY_ID.none).label) + '</span>'
       + '<span class="cf-tx-dot"></span><span class="mono">' + g.canvas_px.join(" x ") + ' px @ ' + g.dpi + ' DPI</span></div>';
     const acts = elm("div", "cf-tx-acts");
-    const bU = elm("button", "cf-tx-mini", ICO("dz-action-annuler", 16, "cf-ic") + "Annuler");
+    const bU = elm("button", "cf-tx-mini", ICO("dz-action-annuler", 16, "cf-ic") + dzT("cartes.texture.annuler"));
     bU.type = "button"; bU.id = "cf-texture-undo"; bU.title = "Alt+Z";
     bU.addEventListener("click", () => restore(UNDO, REDO));
-    const bR = elm("button", "cf-tx-mini", ICO("dz-action-retablir", 16, "cf-ic") + "Rétablir");
+    const bR = elm("button", "cf-tx-mini", ICO("dz-action-retablir", 16, "cf-ic") + dzT("cartes.texture.retablir"));
     bR.type = "button"; bR.id = "cf-texture-redo"; bR.title = "Alt+Y";
     bR.addEventListener("click", () => restore(REDO, UNDO));
-    const bZ = elm("button", "cf-tx-mini", "Défauts");
+    const bZ = elm("button", "cf-tx-mini", dzT("cartes.texture.defauts"));
     bZ.type = "button"; bZ.title = "Alt+0";
     bZ.addEventListener("click", resetAll);
     acts.appendChild(bU); acts.appendChild(bR); acts.appendChild(bZ);
@@ -1490,20 +1495,18 @@
        serait un chiffre affiche que le rendu ne garantit pas. La taille
        REELLEMENT rendue est comptee et publiee sous la toile, a chaque image
        (« 640 x 448 px en 38 ms »). */
-    box.appendChild(title("Table lumineuse", "vos 8 PNG rallumés — glissez dans l'image pour orienter la lampe",
-      "microfacettes GGX"));
+    box.appendChild(title(dzT("cartes.texture.lit_titre"), dzT("cartes.texture.lit_sous"),
+      dzT("cartes.texture.lit_badge")));
     if (!REPORT || !REPORT.maps || !REPORT.maps.length) {
       box.appendChild(elm("p", "cf-tx-note",
-        "Dérivez les maps : cet écran les rallume ensuite — <b>basecolor × normale × rugosité × métal × occlusion</b>, "
-        + "sur un plan, une sphère ou une tuile 2×2, lumière déplaçable à la souris, "
-        + "chaque map coupable pour voir ce qu'elle apporte."));
+        dzT("cartes.texture.lit_vide")));
       return box;
     }
     const wrap = elm("div", "cf-tx-lit");
     const cv = document.createElement("canvas");
     cv.id = "cf-texture-lit";
     cv.className = "cf-tx-litcv";
-    cv.title = "Glisser : déplacer la lumière";
+    cv.title = dzT("cartes.texture.lit_glisser");
     const move = (e) => {
       const r = cv.getBoundingClientRect();
       const x = (e.clientX - r.left) / Math.max(1, r.width) * 2 - 1;
@@ -1555,17 +1558,17 @@
       envs.appendChild(b);
     });
     side.appendChild(envs);
-    side.appendChild(slider("Azimut", Math.round(LIT.az), 0, 360, 1, "°",
+    side.appendChild(slider(dzT("cartes.texture.azimut"), Math.round(LIT.az), 0, 360, 1, "°",
       (v) => { LIT.az = v; litDraw(); }));
-    side.appendChild(slider("Élévation", Math.round(LIT.el), 4, 86, 1, "°",
+    side.appendChild(slider(dzT("cartes.texture.elevation"), Math.round(LIT.el), 4, 86, 1, "°",
       (v) => { LIT.el = v; litDraw(); }));
     const cuts = elm("div", "cf-tx-cuts");
-    [["useN", "Normale"], ["useR", "Rugosité"], ["useM", "Métal"],
+    [["useN", dzT("cartes.texture.normale")], ["useR", dzT("cartes.texture.rugosite")], ["useM", dzT("cartes.texture.metal")],
       ["useAO", "Occlusion"]].forEach((c) => {
       cuts.appendChild(checkBox(c[1], LIT[c[0]], (v) => { LIT[c[0]] = v; litDraw(); }));
     });
     side.appendChild(cuts);
-    const bs = elm("button", "cf-tx-mini" + (LIT.sweep ? " on" : ""), ICO("dz-lab3d-lumiere", 16, "cf-ic") + "Balayer la lumière");
+    const bs = elm("button", "cf-tx-mini" + (LIT.sweep ? " on" : ""), ICO("dz-lab3d-lumiere", 16, "cf-ic") + dzT("cartes.texture.balayer"));
     bs.type = "button"; bs.id = "cf-texture-sweep";
     bs.addEventListener("click", () => {
       litSweep(!LIT.sweep);
@@ -1578,36 +1581,18 @@
        font reellement a une surface. Les trois mesures sont conservees
        telles quelles ; c'est le mot « prouver » qui part, parce qu'on ne
        plaide pas devant quelqu'un qui fabrique une carte. */
-    const bb = elm("button", "cf-tx-mini", "Banc d'essai");
+    const bb = elm("button", "cf-tx-mini", dzT("cartes.texture.banc"));
     bb.type = "button"; bb.id = "cf-texture-bench";
-    bb.title = "Rend la même scène avec un seul réglage changé et mesure l'écart sur les pixels rendus";
+    bb.title = dzT("cartes.texture.banc_tip");
     bb.addEventListener("click", () => {
       const r = litBench();
       const out = q("#cf-texture-benchout");
       if (!r || !out) return;
-      out.innerHTML = '<p class="cf-tx-note"><b>Banc d\'essai — '
-        + r.px.toLocaleString("fr-FR") + ' pixels rendus à l\'instant, '
-        + 'un seul réglage changé à chaque fois.</b></p>'
-        + '<p class="cf-tx-note"><b>Réponse métallique</b> — même scène, lumière '
-        + 'à 35°, surface très rugueuse (spéculaire étalé) : luminance moyenne '
-        + '<span class="mono">' + fx(r.metal0, 4) + '</span> à métal 0 contre '
-        + '<span class="mono">' + fx(r.metal1, 4) + '</span> à métal 1, soit <b>−'
-        + fx(r.chute, 1) + ' %</b>. C\'est le diffus qui part — '
-        + '<span class="mono">kd = (1−F)(1−métal)</span> s\'annule ; ce qui reste '
-        + 'est le spéculaire et le reflet d\'environnement, teintés par l\'albédo.</p>'
-        + '<p class="cf-tx-note"><b>Fresnel</b> — sphère noire (albédo 0,02), '
-        + 'soleil éteint, normale coupée : il ne reste que le reflet de '
-        + 'l\'environnement. Luminance <span class="mono">' + fx(r.fIn, 4)
-        + '</span> au centre (incidence normale, F₀ = 0,04) contre '
-        + '<span class="mono">' + fx(r.fOut, 4) + '</span> sur la couronne du bord '
-        + '(incidence rasante), soit <b>×' + fx(r.fOut / (r.fIn || 1e-9), 1)
-        + '</b>. C\'est le terme de Schlick <span class="mono">F₀ + (1−F₀)(1−v·h)⁵</span> : '
-        + 'toute surface devient un miroir au ras.</p>'
-        + '<p class="cf-tx-note"><b>Rugosité</b> — largeur du lobe spéculaire, '
-        + 'part de la sphère au-dessus de la moitié du maximum : <b>'
-        + fx(r.lobe10, 1) + ' %</b> à rugosité 0,10 contre <b>' + fx(r.lobe60, 1)
-        + ' %</b> à 0,60. Le lobe s\'élargit, il ne change pas seulement '
-        + 'd\'intensité.</p>';
+      out.innerHTML = dzT("cartes.texture.banc_tete", { px: r.px.toLocaleString("fr-FR") })
+        + dzT("cartes.texture.banc_metal", { m0: fx(r.metal0, 4), m1: fx(r.metal1, 4), chute: fx(r.chute, 1) })
+        + dzT("cartes.texture.banc_fresnel", { fin: fx(r.fIn, 4), fout: fx(r.fOut, 4),
+          k: fx(r.fOut / (r.fIn || 1e-9), 1) })
+        + dzT("cartes.texture.banc_rugosite", { l10: fx(r.lobe10, 1), l60: fx(r.lobe60, 1) });
     });
     side.appendChild(bb);
     /* CE QUE CE RENDU EST, ET CE QU'IL N'EST PAS. La version d'avant etait un
@@ -1616,13 +1601,7 @@
        avait raison. Celle-ci est un vrai modele de microfacettes ; ce qui lui
        manque encore est ecrit ici, a la meme place. */
     side.appendChild(elm("p", "cf-tx-note",
-      "<b>Microfacettes GGX</b> (Trowbridge-Reitz) + <b>Smith</b> corrélé en hauteur + "
-      + "<b>Fresnel de Schlick</b>, en <b>espace linéaire</b> (la base color est décodée "
-      + "du sRGB avant d'entrer et ré-encodée en sortie), avec réponse métallique "
-      + "<span class=\"mono\">F0 = mélange(0,04 ; albédo ; métal)</span> et un environnement "
-      + "hémisphérique ciel/sol. Sans ombres portées, ni carte d'environnement réelle, "
-      + "ni réfraction. Calculé sur les <b>PNG écrits</b>, ramenés à " + LIT_PX
-      + " px au plus (jamais agrandis) — la taille rendue est comptée sous la toile."));
+      dzT("cartes.texture.lit_modele", { px: LIT_PX })));
     const bo = elm("div", "cf-tx-benchout");
     bo.id = "cf-texture-benchout";
     side.appendChild(bo);
@@ -1634,19 +1613,19 @@
   /* ── A. la matiere du support ─────────────────────────────────────────── */
   function sectionPaper(s) {
     const box = elm("section", "cf-tx-card");
-    box.appendChild(title("La matière de la carte", "calque z = 10 · peint en premier",
-      MATS.length + " matières procédurales"));
+    box.appendChild(title(dzT("cartes.texture.papier_titre"), dzT("cartes.texture.papier_sous"),
+      dzT("cartes.texture.n_matieres", { n: MATS.length })));
 
     const bar = elm("div", "cf-tx-bar");
     const cats = [""].concat(MATS.map((m) => m.cat).filter((c, i, a) => a.indexOf(c) === i));
     cats.forEach((c) => {
-      const b = elm("button", "cf-tx-chip" + (CAT_FILTER === c ? " on" : ""), esc(c || "tout"));
+      const b = elm("button", "cf-tx-chip" + (CAT_FILTER === c ? " on" : ""), esc(c ? catLbl(c) : dzT("cartes.texture.cat_tout")));
       b.type = "button";
       b.addEventListener("click", () => { CAT_FILTER = c; render(); });
       bar.appendChild(b);
     });
     const search = document.createElement("input");
-    search.type = "text"; search.className = "cf-tx-search"; search.placeholder = "chercher…";
+    search.type = "text"; search.className = "cf-tx-search"; search.placeholder = dzT("cartes.texture.chercher");
     search.value = CAT_SEARCH;
     search.addEventListener("input", () => {
       CAT_SEARCH = search.value.toLowerCase();
@@ -1662,7 +1641,7 @@
 
     /* glisser-deposer : la barre n'accepte AUCUNE image de l'utilisateur */
     const drop = elm("div", "cf-tx-drop",
-      '<b>Glisser une image ici</b><span>ou cliquer — elle devient la matière de la carte (JPEG/PNG/WebP)</span>');
+      dzT("cartes.texture.drop"));
     drop.id = "cf-texture-drop";
     const file = document.createElement("input");
     file.type = "file"; file.accept = "image/*"; file.className = "cf-tx-file";
@@ -1685,15 +1664,15 @@
     box.appendChild(seam);
 
     const ctl = elm("div", "cf-tx-ctl");
-    ctl.appendChild(slider("Opacité", pct(s.opacity), 0, 100, 1, "%",
+    ctl.appendChild(slider(dzT("cartes.texture.opacite"), pct(s.opacity), 0, 100, 1, "%",
       (v) => { push({ opacity: v / 100 }); }));
-    ctl.appendChild(selectBox("Fusion", BLENDS, s.blend, (v) => push({ blend: v })));
-    ctl.appendChild(slider("Échelle", pct(s.scale), 10, 400, 1, "%",
+    ctl.appendChild(selectBox(dzT("cartes.texture.fusion"), BLENDS, s.blend, (v) => push({ blend: v })));
+    ctl.appendChild(slider(dzT("cartes.texture.echelle"), pct(s.scale), 10, 400, 1, "%",
       (v) => push({ scale: v / 100 })));
     ctl.appendChild(slider("Rotation", s.angle, -180, 180, 1, "°", (v) => push({ angle: v })));
 
     const tintRow = elm("div", "cf-tx-row");
-    tintRow.appendChild(elm("span", "cf-tx-rl", "Teinte"));
+    tintRow.appendChild(elm("span", "cf-tx-rl", dzT("cartes.texture.teinte")));
     const col = document.createElement("input");
     col.type = "color"; col.value = s.tint; col.className = "cf-tx-color";
     const hex = document.createElement("input");
@@ -1704,7 +1683,7 @@
     });
     tintRow.appendChild(col); tintRow.appendChild(hex);
     const dice = elm("button", "cf-tx-mini", ICO("dz-action-aleatoire", 16, "cf-ic") + "Grain");
-    dice.type = "button"; dice.title = "Regénère le hasard du motif";
+    dice.type = "button"; dice.title = dzT("cartes.texture.grain_tip");
     dice.addEventListener("click", () => {
       push({ seed: 1 + Math.floor(Math.random() * 9999) });
       render();                       /* les vignettes portent la graine */
@@ -1734,8 +1713,7 @@
       prouve (mediane 0,00) est affiche juste en dessous, par axe. */
   function ratMed(r, brut) {
     if (r.ratio_median === null || r.ratio_median === undefined) {
-      return '<b>non défini</b><i class="cf-tx-def">marche médiane nulle : '
-        + 'plus d\'une colonne sur deux est identique à sa voisine</i>';
+      return dzT("cartes.texture.ratmed_nul");
     }
     return '<b>' + fx(r.ratio_median, brut ? 4 : 2) + '×</b>';
   }
@@ -1746,23 +1724,16 @@
     if (m) {
       const r = seamOf(m.id, s.seed);
       const line = elm("div", "cf-tx-seamline");
-      line.innerHTML = '<b>Répétition de la tuile</b>'
-        + '<span class="mono">jonction ÷ marche médiane ' + ratMed(r)
-        + ' · ÷ plus forte marche <b>' + fx(r.exces, 2) + '×</b>'
-        + '<i class="cf-tx-def">tuile ' + TILE + ' px</i></span>'
-        + '<span class="mono">H ' + fx(r.x.edge, 2) + ' / méd. ' + fx(r.x.med, 2)
-        + ' / max ' + fx(r.x.max, 2)
-        + ' · V ' + fx(r.y.edge, 2) + ' / méd. ' + fx(r.y.med, 2)
-        + ' / max ' + fx(r.y.max, 2)
-        + '<i class="cf-tx-def">marche de jonction / médiane / plus forte, par axe</i></span>'
+      line.innerHTML = dzT("cartes.texture.seam_ligne", { med: ratMed(r), ex: fx(r.exces, 2), tile: TILE,
+          he: fx(r.x.edge, 2), hm: fx(r.x.med, 2), hx: fx(r.x.max, 2),
+          ve: fx(r.y.edge, 2), vm: fx(r.y.med, 2), vx: fx(r.y.max, 2) })
         + (r.exces > SEAM_ALERT
           ? '<span class="cf-tx-alert">' + ICO("dz-etat-avertissement", 16, "cf-ic") + fx(r.exces, 2) + '×</span>' : '');
       host.appendChild(line);
     }
-    const b = elm("button", "cf-tx-mini", "Mesurer les " + MATS.length + " tuiles");
+    const b = elm("button", "cf-tx-mini", dzT("cartes.texture.mesurer_n", { n: MATS.length }));
     b.type = "button";
-    b.title = "Mesure les " + (2 * (TILE - 1)) + " paires de colonnes et de lignes de chaque tuile "
-      + "et publie les deux rapports (marche médiane, plus forte marche)";
+    b.title = dzT("cartes.texture.mesurer_tip", { n: 2 * (TILE - 1) });
     b.addEventListener("click", () => seamAll(host));
     host.appendChild(b);
     /* SORTIR LA TUILE. Un critique a ecrit, et il avait raison : « aucun
@@ -1771,9 +1742,9 @@
        et mouraient dans le navigateur. Le PNG part maintenant vers le backend,
        qui le RE-MESURE sur les octets recus et rend SES chiffres ; l'ecran
        affiche les deux et leur ecart. */
-    const e = elm("button", "cf-tx-mini", "Exporter la tuile (PNG mesuré)");
+    const e = elm("button", "cf-tx-mini", dzT("cartes.texture.tuile_export"));
     e.type = "button"; e.id = "cf-texture-tileout";
-    e.title = "Envoie la tuile 512 px au backend, qui la re-mesure sur les octets reçus et inscrit le résultat dans le fichier";
+    e.title = dzT("cartes.texture.tuile_export_tip");
     e.addEventListener("click", () => tileOut());
     host.appendChild(e);
     const chk = elm("div", "cf-tx-tilechk");
@@ -1789,7 +1760,7 @@
     const out = host.querySelector("#cf-texture-seamall");
     if (!out) return;
     out.innerHTML = "";
-    M.busy(true, "mesure des " + MATS.length + " tuiles…");
+    M.busy(true, dzT("cartes.texture.mesure_n", { n: MATS.length }));
     let pire = 0, pireId = "", n = 0;
     const lignes = [];
     for (let i = 0; i < MATS.length; i++) {
@@ -1801,26 +1772,13 @@
       if ((i % 4) === 3) await new Promise((res) => setTimeout(res, 0));
     }
     M.busy(false);
-    out.innerHTML = '<p class="cf-tx-note"><b>' + n + ' / ' + MATS.length
-      + '</b> tuiles dont la jonction reste sous la <b>plus forte</b> marche que la '
-      + 'matière porte déjà à l\'intérieur (≤ 1,00×) · plus haut rapport <b>'
-      + esc(pireId) + ' ' + fx(pire, 2) + '×</b>.</p>'
-      + '<p class="cf-tx-note"><b>Le calcul, en entier.</b> On fait la moyenne des écarts '
-      + 'entre la dernière colonne et la première (idem pour les lignes) : c\'est la '
-      + '<b>marche de jonction</b>. On la divise ensuite par deux repères pris à '
-      + 'l\'intérieur de la <i>même</i> tuile, sur ses <b>' + (TILE - 1) + '</b> paires de '
-      + 'colonnes voisines et ses <b>' + (TILE - 1) + '</b> paires de lignes voisines : la '
-      + 'marche <b>médiane</b>, et la <b>plus forte</b>. Les deux rapports sont publiés '
-      + 'ensemble parce qu\'ils ne répondent pas à la même question — la médiane dit '
-      + 'l\'ordinaire de la matière, la plus forte dit son pire — et un rapport divisé '
-      + 'par le pire ne peut presque pas dépasser 1. Luminance '
-      + '<span class="mono">0,299 R + 0,587 V + 0,114 B</span>, sans arrondi, tuile de '
-      + TILE + ' px. La colonne ci-dessous donne le rapport à la plus forte marche.</p>'
+    out.innerHTML = dzT("cartes.texture.seamall_compte", { n: n, total: MATS.length, pire: esc(pireId), ex: fx(pire, 2) })
+      + dzT("cartes.texture.seamall_calcul", { i: TILE - 1, tile: TILE })
       + '<div class="cf-tx-seamgrid">' + lignes.join("") + '</div>';
     /* le cache est plein : les vignettes peuvent maintenant porter leur mesure */
     const grid = q("#cf-texture-grid");
     if (grid) fillGrid(grid, s);
-    M.toast(n + "/" + MATS.length + " tuiles sous 1,00× — plus haut : " + pireId + " " + fx(pire, 2) + "×");
+    M.toast(dzT("cartes.texture.seamall_toast", { n: n, total: MATS.length, pire: pireId, ex: fx(pire, 2) }));
   }
 
   /** LA TUILE SORT, ET ELLE SORT MESUREE. Le backend refait le calcul sur les
@@ -1830,12 +1788,12 @@
     const s = st(CF.doc());
     const m = MAT_BY_ID[s.paper];
     const box = q("#cf-texture-tilechk");
-    if (!m) { M.toast("choisir une matière du catalogue avant d'exporter sa tuile", true); return; }
+    if (!m) { M.toast(dzT("cartes.texture.tuile_choisir"), true); return; }
     try {
-      M.busy(true, "export de la tuile " + m.label + "…");
+      M.busy(true, dzT("cartes.texture.tuile_busy", { mat: m.label }));
       const cv = tileOf(m.id, s.seed, TILE);
       const blob = await new Promise((res) => cv.toBlob(res, "image/png"));
-      if (!blob) throw new Error("le navigateur n'a pas produit de PNG");
+      if (!blob) throw new Error(dzT("cartes.texture.pas_de_png"));
       const ecran = seamOf(m.id, s.seed);
       const resp = await M.api.raw("POST",
         "tile?mat=" + encodeURIComponent(m.id) + "&seed=" + s.seed, blob);
@@ -1851,50 +1809,39 @@
            calculs divergeaient au troisieme chiffre. */
         const ecart = Math.abs(t.seam.exces_brut - ecran.exces_brut);
         box.innerHTML = '<p class="' + (ecart <= 0.001 ? "cf-tx-mu" : "cf-tx-mn") + '">'
-          + '<b>' + esc(m.label) + ' — recalculé sur le fichier reçu.</b> '
-          + 'Rapport à la plus forte marche : à l\'écran <span class="mono">'
-          + fx(ecran.exces_brut, 4) + '×</span> · dans le PNG <span class="mono">'
-          + fx(t.seam.exces_brut, 4) + '×</span> · écart '
-          + '<span class="mono">' + fx(ecart, 4) + '</span>'
-          + ' · rapport à la marche médiane <span class="mono">'
-          + ratMed(t.seam, true) + '</span>'
-          + '. H ' + fx(t.seam.x.edge, 2) + ' / méd. ' + fx(t.seam.x.med, 2)
-          + ' / max ' + fx(t.seam.x.max, 2)
-          + ' · V ' + fx(t.seam.y.edge, 2) + ' / méd. ' + fx(t.seam.y.med, 2)
-          + ' / max ' + fx(t.seam.y.max, 2)
-          + '. Fichier <span class="mono">' + t.w + ' × ' + t.h + ' px, '
-          + Math.round(t.bytes / 1024) + ' Ko</span>, chunks '
-          + '<span class="mono">' + esc((t.chunks || []).filter((c, i, a) => a.indexOf(c) === i).join(" ")) + '</span>'
-          + (t.dpi && t.dpi[0] ? ' · ' + dpiTxt(t.dpi) : '')
-          + '. Les mesures sont écrites dans ses chunks <span class="mono">tEXt</span>, '
-          + 'avec la formule qui les produit.</p>';
+          + dzT("cartes.texture.tuile_chk", { mat: esc(m.label), ecran: fx(ecran.exces_brut, 4),
+            png: fx(t.seam.exces_brut, 4), ecart: fx(ecart, 4), med: ratMed(t.seam, true),
+            he: fx(t.seam.x.edge, 2), hm: fx(t.seam.x.med, 2), hx: fx(t.seam.x.max, 2),
+            ve: fx(t.seam.y.edge, 2), vm: fx(t.seam.y.med, 2), vx: fx(t.seam.y.max, 2),
+            w: t.w, h: t.h, ko: Math.round(t.bytes / 1024),
+            chunks: esc((t.chunks || []).filter((c, i, a) => a.indexOf(c) === i).join(" ")),
+            dpi: (t.dpi && t.dpi[0] ? ' · ' + dpiTxt(t.dpi) : '') });
       }
-      M.toast("tuile exportée et recalculée sur le fichier : "
-        + fx(t && t.seam ? t.seam.exces_brut : 0, 4) + "× la plus forte marche");
+      M.toast(dzT("cartes.texture.tuile_toast", { v: fx(t && t.seam ? t.seam.exces_brut : 0, 4) }));
     } catch (e) {
       M.toast(e && e.missing
-        ? "backend absent : l'export de tuile exige /api/cards"
+        ? dzT("cartes.texture.tuile_sans_backend")
         : String(e && e.message || e), true);
     } finally { M.busy(false); }
   }
 
   function fillGrid(grid, s) {
     grid.innerHTML = "";
-    const none = matCell({ id: "none", label: "Aucune", cat: "", gen: "none", rgb: [255, 255, 255], amp: 0 }, s, true);
+    const none = matCell({ id: "none", label: dzT("cartes.texture.aucune"), cat: "", gen: "none", rgb: [255, 255, 255], amp: 0 }, s, true);
     grid.appendChild(none);
     MATS.forEach((m) => {
       if (CAT_FILTER && m.cat !== CAT_FILTER) return;
-      if (CAT_SEARCH && (m.label + " " + m.cat).toLowerCase().indexOf(CAT_SEARCH) < 0) return;
+      if (CAT_SEARCH && (m.label + " " + catLbl(m.cat)).toLowerCase().indexOf(CAT_SEARCH) < 0) return;
       grid.appendChild(matCell(m, s, false));
     });
     if (s.custom) {
-      grid.appendChild(matCell({ id: "__import", label: "Importée", cat: "", gen: "none", rgb: [200, 200, 200], amp: 0 }, s, true));
+      grid.appendChild(matCell({ id: "__import", label: dzT("cartes.texture.importee"), cat: "", gen: "none", rgb: [200, 200, 200], amp: 0 }, s, true));
     }
   }
   function matCell(m, s, plain) {
     const b = elm("button", "cf-tx-mat" + (s.paper === m.id ? " on" : ""));
     b.type = "button";
-    b.title = m.label + (m.cat ? " · " + m.cat : "");
+    b.title = m.label + (m.cat ? " · " + catLbl(m.cat) : "");
     const cv = mk(52, 52);
     const c = cv.getContext("2d");
     if (m.id === "none") {
@@ -1926,14 +1873,13 @@
        grille — et alors chaque vignette porte son chiffre. */
     const r = plain ? null : seamPeek(m.id, s.seed);
     if (r) {
-      b.title += " · jonction ÷ marche médiane "
-        + (r.ratio_median === null ? "non défini (médiane nulle)" : fx(r.ratio_median, 2) + "×")
-        + ", ÷ plus forte marche " + fx(r.exces, 2)
-        + "× — H " + fx(r.x.edge, 2) + " / méd. " + fx(r.x.med, 2) + " / max " + fx(r.x.max, 2)
-        + ", V " + fx(r.y.edge, 2) + " / méd. " + fx(r.y.med, 2) + " / max " + fx(r.y.max, 2);
+      b.title += dzT("cartes.texture.mat_tip", {
+          med: (r.ratio_median === null ? dzT("cartes.texture.non_defini") : fx(r.ratio_median, 2) + "×"),
+          ex: fx(r.exces, 2), he: fx(r.x.edge, 2), hm: fx(r.x.med, 2), hx: fx(r.x.max, 2),
+          ve: fx(r.y.edge, 2), vm: fx(r.y.med, 2), vx: fx(r.y.max, 2) });
       if (r.exces > SEAM_ALERT) {
         const w = elm("i", "cf-tx-matseam", ICO("dz-etat-avertissement", 16, "cf-ic") + fx(r.exces, 1) + "×");
-        w.title = "la jonction de cette tuile dépasse la plus forte marche qu'elle contient";
+        w.title = dzT("cartes.texture.mat_alerte");
         b.appendChild(w);
       }
     }
@@ -1960,15 +1906,14 @@
     push(part);
     render();
     if (m && m.mtl !== undefined) {
-      M.toast(m.label + " — niveaux alignés : métal " + fx(m.mtl, 2)
-        + ", rugosité " + fx(m.rgh, 2));
+      M.toast(dzT("cartes.texture.aligne_toast", { mat: m.label, m: fx(m.mtl, 2), r: fx(m.rgh, 2) }));
     }
   }
 
   async function upload(f) {
-    if (!f || !/^image\//.test(f.type)) { M.toast("ce fichier n'est pas une image", true); return; }
+    if (!f || !/^image\//.test(f.type)) { M.toast(dzT("cartes.texture.pas_image"), true); return; }
     try {
-      M.busy(true, "import de la matière…");
+      M.busy(true, dzT("cartes.texture.import_busy"));
       const resp = await M.api.raw("POST", "paper", f);
       if (resp.status === 404) { const x = new Error("route absente"); x.missing = true; throw x; }
       const d = await resp.json().catch(() => null);
@@ -1982,9 +1927,9 @@
       layerCache.clear();
       push({ custom: "paper.png", paper: "__import" });
       render();
-      M.toast("matière importée — " + ((d && d.paper) ? d.paper.w + " x " + d.paper.h + " px" : "OK"));
+      M.toast(dzT("cartes.texture.import_toast", { info: ((d && d.paper) ? d.paper.w + " x " + d.paper.h + " px" : "OK") }));
     } catch (e) {
-      M.toast(e && e.missing ? "backend absent : l'import exige /api/cards" : String(e && e.message || e), true);
+      M.toast(e && e.missing ? dzT("cartes.texture.import_sans_backend") : String(e && e.message || e), true);
     } finally { M.busy(false); }
   }
 
@@ -1993,8 +1938,8 @@
     const box = elm("section", "cf-tx-card");
     /* (OVERS.length - 1) : « Aucun » n'est pas un effet. Compter le contenant
        est exactement le péché qu'on reproche au badge « 16 bits ». */
-    box.appendChild(title("La finition", "calque z = 30 · peint en dernier",
-      (OVERS.length - 1) + " effets"));
+    box.appendChild(title(dzT("cartes.texture.over_titre"), dzT("cartes.texture.over_sous"),
+      dzT("cartes.texture.n_effets", { n: OVERS.length - 1 })));
     const chips = elm("div", "cf-tx-chips");
     OVERS.forEach((o) => {
       const b = elm("button", "cf-tx-chip" + (s.over === o.id ? " on" : ""), esc(o.label));
@@ -2007,18 +1952,17 @@
     });
     box.appendChild(chips);
     const ctl = elm("div", "cf-tx-ctl");
-    ctl.appendChild(slider("Opacité", pct(s.over_opacity), 0, 100, 1, "%",
+    ctl.appendChild(slider(dzT("cartes.texture.opacite"), pct(s.over_opacity), 0, 100, 1, "%",
       (v) => push({ over_opacity: v / 100 })));
-    ctl.appendChild(selectBox("Fusion", BLENDS, s.over_blend, (v) => push({ over_blend: v })));
-    ctl.appendChild(slider("Échelle", pct(s.over_scale), 10, 400, 1, "%",
+    ctl.appendChild(selectBox(dzT("cartes.texture.fusion"), BLENDS, s.over_blend, (v) => push({ over_blend: v })));
+    ctl.appendChild(slider(dzT("cartes.texture.echelle"), pct(s.over_scale), 10, 400, 1, "%",
       (v) => push({ over_scale: v / 100 })));
     ctl.appendChild(elm("div", "cf-tx-sep"));
-    ctl.appendChild(slider("Frottement", pct(s.wear), 0, 100, 1, "%", (v) => push({ wear: v / 100 })));
-    ctl.appendChild(slider("Éclat localisé", pct(s.varnish), 0, 100, 1, "%", (v) => push({ varnish: v / 100 })));
+    ctl.appendChild(slider(dzT("cartes.texture.frottement"), pct(s.wear), 0, 100, 1, "%", (v) => push({ wear: v / 100 })));
+    ctl.appendChild(slider(dzT("cartes.texture.eclat"), pct(s.varnish), 0, 100, 1, "%", (v) => push({ varnish: v / 100 })));
     box.appendChild(ctl);
     box.appendChild(elm("p", "cf-tx-note",
-      "Le frottement assombrit, l'éclat éclaircit : ils sont peints séparément, "
-      + "sinon l'éclat virerait au gris."));
+      dzT("cartes.texture.over_note")));
     return box;
   }
 
@@ -2028,7 +1972,7 @@
     /* la section porte un id parce qu'elle se REMPLACE en entier quand le
        rapport arrive : voir `refreshMaps`. */
     box.id = "cf-texture-pbr";
-    box.appendChild(title("Les 8 maps PBR", "dérivées de la carte rendue à l'échelle 1",
+    box.appendChild(title(dzT("cartes.texture.pbr_titre"), dzT("cartes.texture.pbr_sous"),
       "basecolor · normal · roughness · metallic · ao · height · emissive · orm"));
 
     if (!API_OK) {
@@ -2036,7 +1980,7 @@
     }
 
     const run = elm("div", "cf-tx-run");
-    const b = elm("button", "btn strong", ICO("dz-lab3d-deriver-maps", 16, "cf-ic") + "Dériver les 8 maps");
+    const b = elm("button", "btn strong", ICO("dz-lab3d-deriver-maps", 16, "cf-ic") + dzT("cartes.texture.deriver_8"));
     b.type = "button"; b.id = "cf-texture-derive"; b.title = "Alt+D";
     b.addEventListener("click", derive);
     run.appendChild(b);
@@ -2057,27 +2001,23 @@
        sous chaque vignette (et une map qui n'a rien à porter sur seize bits
        repart en huit, en le disant). L'adjectif annonçait donc un résultat au
        moment où l'on formule le souhait. */
-    run.appendChild(checkBox("16 bits (hauteur + normale) — maps de cet écran",
+    run.appendChild(checkBox(dzT("cartes.texture.bits16"),
       s.pbr.bits16, (v) => { patchPbr({ bits16: v }); render(); }));
-    run.appendChild(checkBox("carré (atlas)", s.pbr.square, (v) => { patchPbr({ square: v }); render(); }));
+    run.appendChild(checkBox(dzT("cartes.texture.carre"), s.pbr.square, (v) => { patchPbr({ square: v }); render(); }));
     box.appendChild(run);
 
     const dim = outPx(g, s.pbr.res, s.pbr.square);
     const dpi = outDpi(g, dim);
     const src = elm("p", "cf-tx-note",
-      "Source : la carte " + (CF.current() + 1) + " rendue par le moteur unique, "
-      + "<b>" + g.canvas_px.join(" x ") + " px</b> à " + g.dpi + " DPI. Sortie "
-      + "<b>" + dim.join(" x ") + " px</b>"
-      + (s.pbr.square ? " (atlas carré)" : " (format de la carte)")
-      + ", soit <b>" + dpiTxt(dpi) + "</b> "
-      + "inscrits dans le chunk <span class=\"mono\">pHYs</span> de chaque PNG — "
-      + "fond perdu compris"
+      dzT("cartes.texture.source", { n: CF.current() + 1, px: g.canvas_px.join(" x "), dpi: g.dpi,
+        out: dim.join(" x "),
+        fmt: (s.pbr.square ? dzT("cartes.texture.fmt_atlas") : dzT("cartes.texture.fmt_carte")),
+        dens: dpiTxt(dpi) })
       /* n'expliquer l'ecart QUE quand il vient de l'atlas carre : hors atlas,
          les deux axes peuvent differer d'un DPI par le seul arrondi de la
          toile au pixel, et parler d'atlas la serait faux. */
       + (s.pbr.square && Math.abs(dpi[0] - dpi[1]) > 1
-        ? " (l'atlas carré rend les pixels rectangulaires : la densité n'est "
-          + "pas la même en largeur et en hauteur)" : "")
+        ? dzT("cartes.texture.atlas_rect") : "")
       /* LA LIGNE NE SE VANTE PLUS DE CE QU'ELLE NE FAIT PAS. « Aucun credit,
          aucun compte, aucun envoi » etait une reponse a la question d'un
          controle, pas un renseignement pour celui qui fabrique une carte : ce
@@ -2109,18 +2049,13 @@
         || (REPORT.ms || 0) * k > 20000
         || jeu > 1024 * 1024 * 1024;
       box.appendChild(elm("p", lourd ? "cf-tx-warn" : "cf-tx-note",
-        "Coût : le dernier lot a pesé <b>" + mo(REPORT.bytes_total) + "</b> en <b>"
-        + fx((REPORT.ms || 0) / 1000, 1) + " s</b> pour " + fx(REPORT.out_mpx, 2)
-        + " Mpx (" + esc(REPORT.out_px || "") + "). Cette sélection en fait <b>"
-        + fx(k, 2) + " ×</b> — soit ≈ <b>" + mo(REPORT.bytes_total * k)
-        + "</b> et ≈ <b>" + dur((REPORT.ms || 0) * k) + "</b> par carte"
-        + (n > 1
-          ? ", et pour les <b>" + n + " cartes distinctes</b> de ce jeu ≈ <b>"
-          : ", et pour la <b>seule carte</b> de ce jeu ≈ <b>")
-        + (jeu >= 1073741824 ? fx(jeu / 1073741824, 2) + " Go" : mo(jeu))
-        + "</b> et ≈ <b>" + dur((REPORT.ms || 0) * k * n)
-        + "</b>. Les « ≈ » sont une règle de trois à coût par pixel constant, "
-        + "à partir du poids et du temps du dernier lot."));
+        dzT("cartes.texture.cout", { poids: mo(REPORT.bytes_total), s: fx((REPORT.ms || 0) / 1000, 1),
+          mpx: fx(REPORT.out_mpx, 2), outpx: esc(REPORT.out_px || ""), k: fx(k, 2),
+          pk: mo(REPORT.bytes_total * k), dk: dur((REPORT.ms || 0) * k) })
+        + dzT(n > 1 ? "cartes.texture.cout_jeu" : "cartes.texture.cout_seule", { n: n,
+          jeu: (jeu >= 1073741824 ? fx(jeu / 1073741824, 2) + dzT("cartes.texture.u_go") : mo(jeu)),
+          dj: dur((REPORT.ms || 0) * k * n) })
+        + dzT("cartes.texture.cout_regle")));
     }
     /* LE SEUIL DU CAHIER DES CHARGES, verifie a l'ecran, SUR LE PLUS PETIT DES
        DEUX AXES. Il se jugeait sur la seule largeur : un atlas carre 1024 sur
@@ -2128,7 +2063,7 @@
        377 x 277 dans les octets. Le taire coute un livrable non imprimable. */
     const bas = Math.min(dpi[0], dpi[1]);
     if (bas < 300) {
-      const axe = dpi[0] <= dpi[1] ? "largeur" : "hauteur";
+      const axe = dpi[0] <= dpi[1] ? dzT("cartes.texture.largeur") : dzT("cartes.texture.hauteur_min");
       /* NE PROPOSER QUE CE QUI TIENT LE PLANCHER. La version d'avant proposait
          « décochez carré (atlas) » sans vérifier : sur cette carte, 1k décoché
          donne 277 DPI sur les DEUX axes — un remède qui ne soigne rien. On
@@ -2139,18 +2074,17 @@
           if (r === s.pbr.res && sq === s.pbr.square) return;
           const d = outDpi(g, outPx(g, r, sq));
           if (Math.min(d[0], d[1]) >= 300) {
-            bons.push((r / 1024) + "k" + (sq ? " carré" : " au format de la carte")
+            bons.push((r / 1024) + "k" + (sq ? dzT("cartes.texture.res_carre") : dzT("cartes.texture.res_format"))
               + " (" + dpiTxt(d) + ")");
           }
         });
       });
       box.appendChild(elm("p", "cf-tx-warn",
-        "<b>" + bas + " DPI en " + axe + "</b> : sous les 300 DPI d'une impression "
-        + "pour une carte de " + fx(g.trim_mm[0] + 2 * g.bleed_mm, 1) + " × "
-        + fx(g.trim_mm[1] + 2 * g.bleed_mm, 1) + " mm fond perdu compris. "
+        dzT("cartes.texture.sous300_note", { dpi: bas, axe: axe, w: fx(g.trim_mm[0] + 2 * g.bleed_mm, 1),
+          h: fx(g.trim_mm[1] + 2 * g.bleed_mm, 1) })
         + (bons.length
-          ? "Passent les 300 DPI sur les deux axes : <b>" + bons.slice(0, 3).join("</b>, <b>") + "</b>."
-          : "Aucune définition proposée n'atteint 300 DPI sur ce format.")));
+          ? dzT("cartes.texture.sous300_bons", { liste: bons.slice(0, 3).join("</b>, <b>") })
+          : dzT("cartes.texture.sous300_aucun"))));
     }
 
     /* UN REGLAGE QUI NE PEUT RIEN ALLUMER LE DIT AVANT LE CLIC, PAS APRES.
@@ -2173,17 +2107,13 @@
       const cible = Math.max(0, Math.floor(
         Math.min(num(sl.p80, sl.p99), sl.max - 0.005) * 100) / 100);
       const w = elm("p", "cf-tx-warn",
-        "<b>Seuil d'émission " + fx(seuilEm, 2) + " &gt; " + fx(sl.max, 2)
-        + "</b> — la luminance de l'image dérivée ne dépasse jamais "
-        + fx(sl.max, 2) + " (sur " + (sl.px || 0).toLocaleString("fr-FR")
-        + " pixels au dernier calcul) : l'émission sortira <b>noire</b>. ");
+        dzT("cartes.texture.emission_noire", { seuil: fx(seuilEm, 2), max: fx(sl.max, 2),
+          px: (sl.px || 0).toLocaleString("fr-FR") }));
       if (cible > 0) {
         const fix = elm("button", "cf-tx-mini",
-          "Régler le seuil sur " + fx(cible, 2) + " (p80 mesuré)");
+          dzT("cartes.texture.seuil_fix", { v: fx(cible, 2) }));
         fix.type = "button";
-        fix.title = "Le centile 80 de la luminance de l'image dérivée : un "
-          + "pixel sur cinq passe alors le seuil. Ce que la map porte "
-          + "ensuite est mesuré sous sa vignette, comme le reste.";
+        fix.title = dzT("cartes.texture.seuil_fix_tip");
         fix.addEventListener("click", () => {
           patchDerive("emissive_threshold", cible);
           render();
@@ -2203,13 +2133,13 @@
     if (mm && mm.mtl !== undefined && (dMtl > 0.02 || dRgh > 0.02)) {
       const grave = dMtl > 0.02;
       const w = elm("p", grave ? "cf-tx-warn" : "cf-tx-note",
-        "<b>" + esc(mm.label) + "</b> : " + (mm.mtl >= 0.5 ? "métal" : "diélectrique")
-        + " " + fx(mm.mtl, 2) + " / rugosité " + fx(mm.rgh, 2)
-        + " — niveaux cuits actuels métal " + fx(s.pbr.levels.metallic, 2)
-        + ", rugosité " + fx(s.pbr.levels.roughness, 2)
+        dzT("cartes.texture.aligne_note", { mat: esc(mm.label),
+          type: (mm.mtl >= 0.5 ? dzT("cartes.texture.metal_min") : dzT("cartes.texture.dielectrique")),
+          m: fx(mm.mtl, 2), r: fx(mm.rgh, 2),
+          cm: fx(s.pbr.levels.metallic, 2), cr: fx(s.pbr.levels.roughness, 2) })
         + (grave && mm.mtl >= 0.5
-          ? ". Exporté tel quel, il sortira en <b>plastique doré</b>." : "."));
-      const fix = elm("button", "cf-tx-mini", "Aligner sur la matière");
+          ? dzT("cartes.texture.plastique") : "."));
+      const fix = elm("button", "cf-tx-mini", dzT("cartes.texture.aligner"));
       fix.type = "button";
       fix.addEventListener("click", () => {
         patchPbr({ levels: { metallic: mm.mtl, roughness: mm.rgh } });
@@ -2225,8 +2155,7 @@
     const sum = document.createElement("summary");
     /* le compte se LIT sur la liste qui sera dessinee juste en dessous : un
        « (12) » ecrit a la main survit a la disparition d'un reglage. */
-    sum.textContent = "Réglages de dérivation (" + DERIVE_UI.length
-      + ") et niveaux cuits (2)";
+    sum.textContent = dzT("cartes.texture.reglages_sum", { n: DERIVE_UI.length });
     det.appendChild(sum);
     const body = elm("div", "cf-tx-ctl");
     DERIVE_UI.forEach((d) => {
@@ -2239,9 +2168,9 @@
     /* les deux niveaux relisent l'etat COURANT : la fermeture de rendu est
        perimee des le premier patch, et regler la rugosite aurait remis le
        metal a sa valeur d'il y a trois secondes. */
-    body.appendChild(slider("Niveau métallique (cuit)", s.pbr.levels.metallic, 0, 1, 0.01, "",
+    body.appendChild(slider(dzT("cartes.texture.niveau_metal"), s.pbr.levels.metallic, 0, 1, 0.01, "",
       (v) => patchLevel("metallic", v)));
-    body.appendChild(slider("Niveau de rugosité (cuit)", s.pbr.levels.roughness, 0, 1, 0.01, "",
+    body.appendChild(slider(dzT("cartes.texture.niveau_rugosite"), s.pbr.levels.roughness, 0, 1, 0.01, "",
       (v) => patchLevel("roughness", v)));
     /* CE QUE CETTE PHRASE PROMETTAIT DE TROP. Elle disait « c'est ce que le
        moteur verra » — vrai d'un moteur qui charge LES FICHIERS DE CET ECRAN,
@@ -2253,12 +2182,7 @@
        octets) ; le même réglage ne change pas d'un octet la métallique du lot
        exporté par la pièce 08. */
     body.appendChild(elm("p", "cf-tx-note",
-      "Le niveau vit dans la MAP, pas dans un facteur : <b>moyenne mesurée = niveau réglé</b>, "
-      + "relue sur le PNG écrit (glTF : rugosité = facteur × canal V). "
-      + "<b>Portée :</b> ces deux niveaux sont cuits dans les maps de <i>cet</i> écran — "
-      + "celles que téléchargent « PNG », « Planche » et le manifeste. L'écran <b>Export 3D</b> "
-      + "cuit les siens depuis sa propre <b>finition</b> : il ne relit pas ces deux nombres. "
-      + "Les douze réglages de dérivation ci-dessus, eux, sont bien repris par lui."));
+      dzT("cartes.texture.niveaux_note")));
     det.appendChild(body);
     box.appendChild(det);
 
@@ -2307,10 +2231,8 @@
     wrap.id = "cf-texture-maps";
     if (!REPORT || !REPORT.maps || !REPORT.maps.length) {
       const e = elm("div", "cf-tx-empty",
-        "<b>Aucune map dérivée pour l'instant.</b>"
-        + "<span>La carte affichée porte déjà sa matière : un clic la transforme en 8 maps PBR "
-        + "mesurées — relief, rugosité, occlusion, hauteur.</span>");
-      const go = elm("button", "btn strong", "Dériver maintenant");
+        dzT("cartes.texture.maps_vide"));
+      const go = elm("button", "btn strong", dzT("cartes.texture.deriver_maint"));
       go.type = "button";
       go.addEventListener("click", derive);
       e.appendChild(go);
@@ -2326,31 +2248,31 @@
        les memes octets. */
     const plates = REPORT.total - REPORT.informative;
     head.innerHTML = '<b>' + REPORT.maps.length + ' maps</b>'
-      + (plates > 0 ? '<span class="cf-tx-flat">' + plates + ' constante'
-        + (plates > 1 ? 's' : '') + '</span>' : '')
-      + '<span class="mono">rugosité effective ' + fx(eff.roughness === undefined ? 0 : eff.roughness, 3)
-      + ' · métal ' + fx(eff.metallic === undefined ? 0 : eff.metallic, 3) + '</span>'
-      + '<span class="mono">' + esc(REPORT.out_px || "") + ' · dérivé à ' + esc(REPORT.work_px || "")
+      + (plates > 0 ? '<span class="cf-tx-flat">'
+        + dzT(plates > 1 ? "cartes.texture.constantes.plusieurs" : "cartes.texture.constantes.un", { n: plates }) + '</span>' : '')
+      + '<span class="mono">' + dzT("cartes.texture.effectifs", {
+        r: fx(eff.roughness === undefined ? 0 : eff.roughness, 3),
+        m: fx(eff.metallic === undefined ? 0 : eff.metallic, 3) }) + '</span>'
+      + '<span class="mono">' + esc(REPORT.out_px || "") + dzT("cartes.texture.derive_a") + esc(REPORT.work_px || "")
       + ' · ' + (REPORT.ms || 0) + ' ms</span>'
-      + (ph.ok ? '<span class="mono">pHYs ' + ph.dpi[0] + '×' + ph.dpi[1] + ' DPI · carte '
-        + ph.mm[0] + '×' + ph.mm[1] + ' mm (fond perdu ' + ph.bleed_mm
-        + ', zone sûre ' + ph.safe_mm + ')</span>'
+      + (ph.ok ? '<span class="mono">pHYs ' + ph.dpi[0] + '×' + ph.dpi[1] + ' DPI · ' + dzT("cartes.texture.phys_carte", { w: ph.mm[0], h: ph.mm[1], bleed: ph.bleed_mm,
+          safe: ph.safe_mm }) + '</span>'
         /* L'ALERTE QUAND LA DENSITE NE PASSE PAS, sur le plus petit des deux
            axes et sur les octets ecrits. Rien quand elle passe : la densite
            mesuree est deja affichee juste avant, et se feliciter a l'ecran
            n'apprend rien a personne. */
         + (Math.min(ph.dpi[0], ph.dpi[1]) >= 300 ? ''
-          : '<span class="cf-tx-flat">sous 300 DPI : '
-            + Math.min(ph.dpi[0], ph.dpi[1]) + " DPI en "
-            + (ph.dpi[0] <= ph.dpi[1] ? "largeur" : "hauteur") + '</span>') : '');
-    const dl = elm("button", "cf-tx-mini", "Planche PNG");
+          : '<span class="cf-tx-flat">' + dzT("cartes.texture.sous300", { dpi: Math.min(ph.dpi[0], ph.dpi[1]),
+            axe: (ph.dpi[0] <= ph.dpi[1] ? dzT("cartes.texture.largeur") : dzT("cartes.texture.hauteur_min")) })
+            + '</span>') : '');
+    const dl = elm("button", "cf-tx-mini", dzT("cartes.texture.planche"));
     dl.type = "button";
-    dl.title = "Les 8 maps sur une seule image, avec les mesures écrites dessous";
+    dl.title = dzT("cartes.texture.planche_tip");
     dl.addEventListener("click", sheet);
     head.appendChild(dl);
-    const mf = elm("button", "cf-tx-mini", "Manifeste JSON");
+    const mf = elm("button", "cf-tx-mini", dzT("cartes.texture.manifeste"));
     mf.type = "button";
-    mf.title = "Espaces colorimétriques, densité physique, conventions, SHA-256 de chaque fichier";
+    mf.title = dzT("cartes.texture.manifeste_tip");
     mf.addEventListener("click", manifest);
     head.appendChild(mf);
     wrap.appendChild(head);
@@ -2369,17 +2291,10 @@
     defs.className = "cf-tx-det";
     defs.id = "cf-texture-defs";
     const dsum = document.createElement("summary");
-    dsum.textContent = "Comment lire ces chiffres — les définitions exactes, arrondis compris";
+    dsum.textContent = dzT("cartes.texture.defs_sum");
     defs.appendChild(dsum);
     defs.appendChild(elm("p", "cf-tx-note",
-      "Les chiffres de cet écran sont <b>lus sur les octets des PNG écrits</b>, la profondeur "
-      + "comprise. <b>niveaux</b> = combien de valeurs différentes le canal mesuré contient "
-      + "réellement, sur ce que sa profondeur autorise (256 en 8 bits, 65 536 en 16) : c'est "
-      + "ce compte, et pas l'étiquette du fichier, qui décide si un dégradé sortira lisse ou "
-      + "en marches. Sur une map 16 bits, deux chiffres disent ce que le second octet "
-      + "apporte : la part des points <b>trop fins pour un octet</b>, et l'<b>information "
-      + "qu'il porte</b>, sur 8. Quand ces deux-là tombent à zéro, la map est écrite en "
-      + "8 bits, elle pèse moins, et l'étiquette le dit."));
+      dzT("cartes.texture.defs_octets")));
     /* LA DEFINITION VOYAGE AVEC LE NOMBRE. Rappel groupe, en plus de
        l'etiquette collee sous chaque chiffre : un acheteur qui recalcule doit
        pouvoir retrouver la formule EXACTE, arrondi compris. */
@@ -2391,19 +2306,7 @@
        est juste. La formule, elle, reste : c'est elle qui rend les chiffres du
        lot reproductibles. */
     defs.appendChild(elm("p", "cf-tx-note",
-      "<b>Ce que « moy », « ampl. » et « é.-t. » veulent dire</b> — et ce n'est pas la même "
-      + "chose d'une map à l'autre, d'où l'étiquette sous chaque chiffre. <b>moy</b> = moyenne "
-      + "du canal nommé ; sur la base color et l'émission c'est la <b>luminance Rec.601</b>, "
-      + "<span class=\"mono\">(R×19595 + V×38470 + B×7471 + 32768) &gt;&gt; 16</span>, "
-      + "<b>arrondie</b>. Sur une map 16 bits elle se lit sur seize bits, puis se ramène "
-      + "sur l'échelle 0-255. "
-      + "<b>ampl.</b> = <b>p95 − p5</b> du même canal, sur 255 — pas max moins min ; "
-      + "sur une map 16 bits, les centiles sont pris sur les <b>65 536 classes réelles</b> "
-      + "et ramenés sur l'échelle 0-255, et c'est un décimal. "
-      + "<b>é.-t.</b> = écart-type du même canal, sur la même échelle : c'est lui qui sépare "
-      + "une map qui varie partout d'une map constante sur 90 % de sa surface. "
-      + "Le manifeste porte ces définitions par ligne (<span class=\"mono\">canal_mesure</span>, "
-      + "<span class=\"mono\">amplitude_mesure</span>)."));
+      dzT("cartes.texture.defs_moy")));
     wrap.appendChild(defs);
     return wrap;
   }
@@ -2432,7 +2335,7 @@
     const prof = (m.bits === 16)
       ? '<i class="cf-tx-b16">16 bits</i>'
       : '<i' + (m.bits_asked === 16 ? ' class="cf-tx-warnb" title="' + esc(m.note16 || "") + '"' : '')
-        + '>8 bits' + (m.bits_asked === 16 ? ' (16 demandés)' : '') + '</i>';
+        + '>8 bits' + (m.bits_asked === 16 ? dzT("cartes.texture.b16_demandes") : '') + '</i>';
     t.innerHTML = '<b>' + esc(KIND_FR[m.kind] || m.kind) + '</b>' + prof;
     c.appendChild(t);
     const v = elm("div", "cf-tx-mv");
@@ -2467,24 +2370,24 @@
        qui ne contient que 66 valeurs distinctes se voit ici, pas ailleurs. */
     const niv = (m.niveaux === undefined || m.niveaux === null) ? 0 : m.niveaux;
     const nivMax = m.niveaux_max || 256;
-    v.innerHTML = '<span class="mono">moy <b>' + fx(m.mean, 3) + '</b>'
+    v.innerHTML = dzT("cartes.texture.v_moy") + fx(m.mean, 3) + '</b>'
       + (def ? '<i class="cf-tx-def">' + def + '</i>' : '') + '</span>'
-      + '<span class="mono">ampl. ' + amp + '/255'
+      + dzT("cartes.texture.v_ampl") + amp + '/255'
       + '<i class="cf-tx-def">' + esc(m.span_def || "p95 − p5") + '</i></span>'
-      + '<span class="mono">é.-t. ' + fx(m.sd === undefined ? 0 : m.sd, 2) + '/255'
-      + '<i class="cf-tx-def">écart-type du même canal</i></span>'
-      + (niv ? '<span class="mono">niveaux ' + niv.toLocaleString("fr-FR")
+      + dzT("cartes.texture.v_et") + fx(m.sd === undefined ? 0 : m.sd, 2) + '/255'
+      + dzT("cartes.texture.v_et_def")
+      + (niv ? dzT("cartes.texture.v_niveaux") + niv.toLocaleString("fr-FR")
         + '/' + nivMax.toLocaleString("fr-FR")
-        + '<i class="cf-tx-def">valeurs distinctes du même canal</i></span>' : '')
+        + dzT("cartes.texture.v_niveaux_def") : '')
       + (m.bits === 16
-        ? '<span class="mono">hors 8 bits ' + fx(m.sub === undefined ? 0 : m.sub, 1) + ' %'
-          + '<i class="cf-tx-def">points trop fins pour un octet'
-          + (m.ech ? ', sur ' + m.ech.toLocaleString("fr-FR") : '') + '</i></span>'
-          + '<span class="mono">second octet '
+        ? dzT("cartes.texture.v_hors8") + fx(m.sub === undefined ? 0 : m.sub, 1) + ' %'
+          + dzT("cartes.texture.v_hors8_def")
+          + (m.ech ? dzT("cartes.texture.v_sur") + m.ech.toLocaleString("fr-FR") : '') + '</i></span>'
+          + dzT("cartes.texture.v_octet2")
           + fx(m.low_bits === undefined ? 0 : m.low_bits, 2) + '/8'
-          + '<i class="cf-tx-def">information qu\'il porte</i></span>'
+          + dzT("cartes.texture.v_octet2_def")
         : '')
-      + (m.informative ? '' : '<span class="cf-tx-flat">constante</span>');
+      + (m.informative ? '' : dzT("cartes.texture.v_constante"));
     c.appendChild(v);
     /* LES DEUX AXES, comme dans le pHYs du fichier : « 377 DPI » seul cachait
        les 277 DPI verticaux d'un atlas carré.
@@ -2501,16 +2404,15 @@
     if (m.kind !== "basecolor" && m.informative
         && (Math.abs(m.corr_lum) > 0.01 || Math.abs(m.corr_full || 0) > 0.01)) {
       c.appendChild(elm("p", "cf-tx-mc",
-        "r = " + (m.corr_lum >= 0 ? "+" : "") + fx(m.corr_lum, 3) + " (blocs 192²) · "
+        "r = " + (m.corr_lum >= 0 ? "+" : "") + fx(m.corr_lum, 3) + dzT("cartes.texture.corr_blocs")
         + ((m.corr_full || 0) >= 0 ? "+" : "") + fx(m.corr_full || 0, 3)
-        + " (pleine résolution) avec la luminance de la base color"));
+        + dzT("cartes.texture.corr_pleine")));
     }
     if (m.kind === "normal" && REPORT.unit_normal && REPORT.unit_normal.px) {
       const u = REPORT.unit_normal;
       c.appendChild(elm("p", "cf-tx-mu",
-        "normale unitaire " + fx(u.unit_pct, 1) + " % · |n| moy " + fx(u.mean, 5)
-        + " (" + fx(u.min, 4) + " – " + fx(u.max, 4) + ") · " + u.zneg + " pixel(s) à z<0"
-        + " · décodé sur " + (u.bits || 8) + " bits"));
+        dzT("cartes.texture.normale_unit", { pct: fx(u.unit_pct, 1), moy: fx(u.mean, 5), min: fx(u.min, 4),
+          max: fx(u.max, 4), z: u.zneg, bits: u.bits || 8 })));
     }
     /* L'EMPAQUETAGE DE L'ORM, MESURE — pas annonce. Le panneau ECRIVAIT
        « R = AO, V = rugosite, B = metal » sans jamais le verifier : c'est un
@@ -2520,18 +2422,17 @@
        publie avec : l'ORM n'apporte aucune valeur nouvelle. */
     if (m.kind === "orm" && REPORT.orm_pack && REPORT.orm_pack.px) {
       const p = REPORT.orm_pack, e = p.ecarts || {};
-      const FR = { ao: "occlusion", roughness: "rugosité", metallic: "métal" };
+      const FR = { ao: "occlusion", roughness: dzT("cartes.texture.rugosite_min"), metallic: dzT("cartes.texture.metal_min") };
       const trois = ["ao", "roughness", "metallic"].map((k, i) =>
         "RVB".charAt(i) + " " + FR[k] + " "
-        + (e[k] === null || e[k] === undefined ? "non mesurable" : e[k]));
+        + (e[k] === null || e[k] === undefined ? dzT("cartes.texture.non_mesurable") : e[k]));
       /* CE QUI EST DIT ICI EST UNE MESURE, PAS UNE PROMESSE TENUE. La ligne
          annonçait la convention puis se félicitait de la respecter ; elle
          donne maintenant l'écart relevé composante par composante et laisse
          le lecteur en tirer ce qu'il veut. Les nombres sont les mêmes. */
       c.appendChild(elm("p", p.ok ? "cf-tx-mu" : "cf-tx-mn",
-        "écart maximum avec les trois maps séparées, sur "
-        + p.px.toLocaleString("fr-FR") + " pixels relus : " + trois.join(" · ")
-        + (p.octets ? " · " + Math.round(p.octets / 1024) + " Ko" : "")));
+        dzT("cartes.texture.orm_ecart", { px: p.px.toLocaleString("fr-FR"), liste: trois.join(" · ") })
+        + (p.octets ? " · " + Math.round(p.octets / 1024) + dzT("cartes.texture.u_ko") : "")));
       /* « SANS OPTION POUR LIVRER L'ORM A LA PLACE DES TROIS SEPAREES » — le
          reproche revient dans les deux duels, et il suppose que l'echange
          ferait maigrir le lot. On ne le suppose plus : on PESE les deux
@@ -2547,15 +2448,12 @@
         const d = p.octets - p.octets_trois;
         const deux = mo2(p.octets, p.octets_trois);
         c.appendChild(elm("p", "cf-tx-mc",
-          "livrer l'ORM <b>à la place</b> des trois séparées : "
-          + deux[0] + " contre " + deux[1]
-          + " — " + (d > 0
-            ? "le lot <b>grossirait</b> de " + mo(d)
-              + " (la déflate compresse trois plans corrélés côte à côte moins "
-              + "bien que trois gris séparés)"
-            : d < 0
-              ? "le lot maigrirait de " + mo(-d)
-              : "même poids") + ", mesuré sur les fichiers écrits"));
+          dzT("cartes.texture.orm_livrer", { a: deux[0], b: deux[1],
+            bilan: (d > 0
+              ? dzT("cartes.texture.orm_grossit", { p: mo(d) })
+              : d < 0
+                ? dzT("cartes.texture.orm_maigrit", { p: mo(-d) })
+                : dzT("cartes.texture.orm_meme")) })));
       }
     }
     if (m.note) c.appendChild(elm("p", "cf-tx-mn", esc(m.note)));
@@ -2568,7 +2466,7 @@
       c.appendChild(elm("p", "cf-tx-mn", esc(m.note16)));
     }
     const row = elm("div", "cf-tx-mrow");
-    const d = elm("button", "cf-tx-mini", "PNG " + Math.round(m.bytes / 1024) + " Ko");
+    const d = elm("button", "cf-tx-mini", "PNG " + Math.round(m.bytes / 1024) + dzT("cartes.texture.u_ko"));
     d.type = "button";
     d.addEventListener("click", () => grab(m.kind));
     row.appendChild(d);
@@ -2650,8 +2548,8 @@
     } catch (e) {
       API_OK = false;
       API_MSG = e && e.missing
-        ? "Backend /api/cards/…/texture absent : les deux couches 2D fonctionnent, la dérivation PBR non."
-        : "Backend : " + String(e && e.message || e);
+        ? dzT("cartes.texture.backend_absent")
+        : dzT("cartes.texture.backend_err") + String(e && e.message || e);
       render();
     }
   }
@@ -2685,11 +2583,11 @@
     const b = q("#cf-texture-derive");
     if (b) b.disabled = true;
     try {
-      M.busy(true, "rendu de la carte à l'échelle 1…");
+      M.busy(true, dzT("cartes.texture.busy_rendu"));
       const blob = await CF.cardBlob(CF.current(), {});
-      M.busy(true, "envoi de la source (" + Math.round(blob.size / 1024) + " Ko)…");
+      M.busy(true, dzT("cartes.texture.busy_envoi", { ko: Math.round(blob.size / 1024) }));
       await M.api.blob("POST", "source", blob);
-      M.busy(true, "dérivation des 8 maps " + (s.pbr.square ? s.pbr.res + " x " + s.pbr.res : "à " + s.pbr.res + " px") + "…");
+      M.busy(true, dzT("cartes.texture.busy_derive", { taille: (s.pbr.square ? s.pbr.res + " x " + s.pbr.res : dzT("cartes.texture.a_px", { n: s.pbr.res })) }));
       const t0 = Date.now();
       const r = await M.api.post("derive", {
         derive: s.pbr.derive, levels: s.pbr.levels,
@@ -2706,14 +2604,15 @@
       /* LE MEME COMPTE QUE L'EN-TETE, DIT DE LA MEME FACON : ce qui manque,
          pas la note qu'on se donne. */
       const plates = REPORT ? (REPORT.total - REPORT.informative) : 0;
-      M.toast((REPORT ? REPORT.maps.length : 0) + " maps dérivées en "
-        + ((Date.now() - t0) / 1000).toFixed(1) + " s"
-        + (plates > 0 ? " — " + plates + " constante" + (plates > 1 ? "s" : "") : ""));
+      M.toast(dzT("cartes.texture.derivees", { n: REPORT ? REPORT.maps.length : 0,
+          s: ((Date.now() - t0) / 1000).toFixed(1) })
+        + (plates > 0 ? " — " + dzT(plates > 1 ? "cartes.texture.constantes.plusieurs"
+          : "cartes.texture.constantes.un", { n: plates }) : ""));
     } catch (e) {
       API_OK = !(e && e.missing);
       API_MSG = e && e.missing
-        ? "Backend /api/cards/…/texture absent : les deux couches 2D fonctionnent, la dérivation PBR non."
-        : "Dérivation : " + String(e && e.message || e);
+        ? dzT("cartes.texture.backend_absent")
+        : dzT("cartes.texture.derivation_err") + String(e && e.message || e);
       M.toast(API_MSG, true);
       render();
     } finally {
@@ -2725,7 +2624,7 @@
 
   async function grab(kind) {
     try {
-      M.busy(true, "téléchargement de " + kind + "…");
+      M.busy(true, dzT("cartes.texture.busy_dl", { kind: kind }));
       const b = await M.api.blob("GET", "map/" + kind);
       M.download(b, kind + ".png");
     } catch (e) { M.toast(String(e && e.message || e), true); }
@@ -2733,7 +2632,7 @@
   }
   async function sheet() {
     try {
-      M.busy(true, "planche des 8 maps…");
+      M.busy(true, dzT("cartes.texture.busy_planche"));
       const b = await M.api.blob("GET", "sheet");
       M.download(b, "maps_8.png");
     } catch (e) { M.toast(String(e && e.message || e), true); }
@@ -2742,10 +2641,10 @@
   /** Le contrat du lot : sans lui, les noms de fichiers sont le seul contrat. */
   async function manifest() {
     try {
-      M.busy(true, "manifeste du lot…");
+      M.busy(true, dzT("cartes.texture.busy_manifeste"));
       const b = await M.api.blob("GET", "manifest");
       M.download(b, "manifest.json");
-      M.toast("manifeste : espaces colorimétriques, densité physique, conventions, SHA-256");
+      M.toast(dzT("cartes.texture.manifeste_toast"));
     } catch (e) { M.toast(String(e && e.message || e), true); }
     finally { M.busy(false); }
   }

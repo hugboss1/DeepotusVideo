@@ -58,12 +58,12 @@
   const sgn = (v) => (Number(v) > 0 ? "+" : Number(v) < 0 ? "−" : "")
     + Number(Math.abs(Number(v))).toFixed(1).replace(".", ",");
   function signedUm(xy, secours) {
-    if (!xy || xy.length < 2) return nfx(secours || 0, 1) + " µm (écart maximal)";
-    return sgn(xy[0]) + " / " + sgn(xy[1]) + " µm (largeur / hauteur)";
+    if (!xy || xy.length < 2) return nfx(secours || 0, 1) + dzT("cartes.print.ecart_maximal");
+    return sgn(xy[0]) + " / " + sgn(xy[1]) + dzT("cartes.print.ecart_lh");
   }
-  const ko = (b) => (b < 1024 ? b + " o"
-    : b < 1048576 ? (b / 1024).toFixed(1).replace(".", ",") + " Ko"
-      : (b / 1048576).toFixed(2).replace(".", ",") + " Mo");
+  const ko = (b) => (b < 1024 ? b + dzT("cartes.print.unite_o")
+    : b < 1048576 ? (b / 1024).toFixed(1).replace(".", ",") + dzT("cartes.print.unite_ko")
+      : (b / 1048576).toFixed(2).replace(".", ",") + dzT("cartes.print.unite_mo"));
 
   /* ══ etat local (hors document : rien de tout cela ne se sauvegarde) ═════ */
   let M = null, HOST = null, SHEETS = null, PLAN = null, BPLAN = null;
@@ -84,7 +84,7 @@
   const LOG = [];
   const UNDO = [];
   const ARTS = new Map();          /* nom de fichier -> {w,h} | null */
-  let VERIFY = { cls: "", txt: "plan non vérifié" };
+  let VERIFY = { cls: "", txt: dzT("cartes.print.plan_non_verifie") };
   let vtimer = null, drag = null, PROBE = null;
 
   /* Repli hors ligne des planches : la table de contract.SHEETS, et la meme
@@ -96,7 +96,7 @@
     { id: "a3", label: "A3 297 x 420 mm", size_mm: [297, 420] },
   ];
   const SHEET_CARD = { id: "card", label: "1 carte / page (boîtes exactes)" };
-  const MARK_LABEL = { none: "aucun", crop: "traits de coupe", cross: "croix", line: "lignes" };
+  const MARK_LABEL = { none: dzT("cartes.print.marques_aucun"), crop: dzT("cartes.print.marques_traits"), cross: dzT("cartes.print.marques_croix"), line: dzT("cartes.print.marques_lignes") };
 
   /* ══ LE PLAN D'IMPOSITION — miroir exact de build_plan() dans cards/print.py
      L'ecran ne peut pas attendre le reseau a chaque reglage : il calcule. Il
@@ -131,9 +131,7 @@
       if (!(cols >= 1) || !(rows >= 1)) {
         return { fail: true, sheet_px: [sw, sh], cell_px: [cw, ch], cols: 0, rows: 0,
           per_page: 0, pages: 0, out_pages: 0, warnings: [{ level: "err", kind: "trop_grande",
-            message: "La carte (" + cw + "x" + ch + " px de rogne) ne tient pas sur cette "
-              + "planche (" + sw + "x" + sh + " px) avec " + nf(st.margin_mm, 1)
-              + " mm de marge." }] };
+            message: dzT("cartes.print.w_trop_grande", { cw: cw, ch: ch, sw: sw, sh: sh, marge: nf(st.margin_mm, 1) }) }] };
       }
       const cwid = cols * cw + (cols - 1) * gut, chei = rows * ch + (rows - 1) * gut;
       ox = st.center ? (sw - cwid) / 2 : marge;
@@ -144,32 +142,25 @@
     const inner = cols > 1 ? Math.min(g.bleed_off_px[0], gut / 2) : g.bleed_off_px[0];
     if (st.sheet !== "card" && cols > 1 && gut < 2 * mmpx(g.bleed_mm, dpi) - 1e-9) {
       warn.push({ level: "warn", kind: "gouttiere_courte",
-        message: "Gouttière " + nf(st.gutter_mm, 2) + " mm pour un fond perdu de "
-          + nf(g.bleed_mm, 2) + " mm : il en faudrait " + nf(2 * g.bleed_mm, 2)
-          + ". Le fond perdu est rogné à " + nf(gut / 2 / dpi * 25.4, 2)
-          + " mm entre deux cartes (jamais superposé).",
+        message: dzT("cartes.print.w_gouttiere_courte", { g: nf(st.gutter_mm, 2), fp: nf(g.bleed_mm, 2), besoin: nf(2 * g.bleed_mm, 2), rogne: nf(gut / 2 / dpi * 25.4, 2) }),
         fix: { gutter_mm: Math.min(40, Math.round(2 * g.bleed_mm * 100) / 100),
-          label: "porter à " + nf(2 * g.bleed_mm, 2) + " mm" } });
+          label: dzT("cartes.print.fix_porter_a", { v: nf(2 * g.bleed_mm, 2) }) } });
     }
     if (st.sheet !== "card" && marge < mmpx(g.bleed_mm, dpi) - 1e-9) {
       warn.push({ level: "warn", kind: "marge_courte",
-        message: "Marge " + nf(st.margin_mm, 2) + " mm inférieure au fond perdu "
-          + nf(g.bleed_mm, 2) + " mm : le fond perdu des cartes de bord est rogné.",
-        fix: { margin_mm: Math.max(st.margin_mm, Math.ceil(g.bleed_mm)), label: "porter à "
-          + nf(Math.ceil(g.bleed_mm), 0) + " mm" } });
+        message: dzT("cartes.print.w_marge_courte", { m: nf(st.margin_mm, 2), fp: nf(g.bleed_mm, 2) }),
+        fix: { margin_mm: Math.max(st.margin_mm, Math.ceil(g.bleed_mm)), label: dzT("cartes.print.fix_porter_a", { v: nf(Math.ceil(g.bleed_mm), 0) }) } });
     }
     if (st.sheet !== "card" && st.marks === "crop"
         && st.mark_off_mm < g.bleed_mm - 1e-9) {
       warn.push({ level: "warn", kind: "reperes_dans_le_fond_perdu",
-        message: "Retrait des repères " + nf(st.mark_off_mm, 2) + " mm inférieur au fond "
-          + "perdu " + nf(g.bleed_mm, 2) + " mm : les traits mordent sur l'illustration si "
-          + "la coupe dérive.",
+        message: dzT("cartes.print.w_reperes_fp", { r: nf(st.mark_off_mm, 2), fp: nf(g.bleed_mm, 2) }),
         fix: { mark_off_mm: Math.round((g.bleed_mm + 0.5) * 100) / 100,
-          label: "retrait " + nf(g.bleed_mm + 0.5, 2) + " mm" } });
+          label: dzT("cartes.print.fix_retrait", { v: nf(g.bleed_mm + 0.5, 2) }) } });
     }
     if (n && per && (n % per)) {
       warn.push({ level: "info", kind: "derniere_page_incomplete",
-        message: "Dernière page : " + (n % per) + " carte(s) sur " + per + " emplacements." });
+        message: dzT("cartes.print.w_derniere_page", { n: n % per, per: per }) });
     }
     /* LA DERIVE TOLEREE : MESUREE, PLUS AFFIRMEE. Elle etait annoncee egale au
        fond perdu restant en gouttiere (« 2,00 mm »). Mesure sur la geometrie
@@ -190,29 +181,19 @@
         const bord = br[0] / dpi * 25.4, mmi = br[1] / dpi * 25.4;
         if (touche) {
           warn.push({ level: "err", kind: "reperes_sur_la_carte",
-            message: touche + " trait(s) de repère touchent la rogne d'une carte : "
-              + "dérive tolérée 0,00 mm. L'encre de repérage — 100 % sur les quatre "
-              + "plaques — se pose sur le produit fini au premier micron d'écart du "
-              + "massicot.",
+            message: dzT("cartes.print.w_reperes_touchent", { n: touche }),
             /* le correctif doit CORRIGER : porter la gouttiere a 6 mm laissait
                la distance a 0,0000 mm (mesure). */
             fix: (st.mark_safe === false
-              ? { mark_safe: true, label: "repères hors carte (retrait mesuré)" }
-              : { mark_off_mm: 1, label: "retrait des repères à 1 mm" }) });
+              ? { mark_safe: true, label: dzT("cartes.print.fix_reperes_hors_carte") }
+              : { mark_off_mm: 1, label: dzT("cartes.print.fix_retrait_1mm") }) });
         } else {
           warn.push({ level: "ok", kind: "reperes_hors_carte",
-            message: "repères à " + nf(clr / dpi * 25.4, 2) + " mm de la rogne au plus "
-              + "près (" + segs.length + " trait(s), dont "
-              + gutterMarks(pm, st) + " en gouttière) : la coupe peut dériver de "
-              + nf(clr / dpi * 25.4, 2) + " mm avant que l'encre de repérage n'atteigne "
-              + "la carte. Fond perdu posé " + nf(bord, 2) + " mm au bord de planche "
-              + "(papier nu au-delà)"
+            message: dzT("cartes.print.w_reperes_ok", { d: nf(clr / dpi * 25.4, 2), n: segs.length, g: gutterMarks(pm, st), bord: nf(bord, 2) })
               + (per < 2 ? "."
                 : mmi > 0.005
-                  ? " et " + nf(mmi, 2) + " mm entre deux cartes (l'illustration de la "
-                    + "voisine au-delà)."
-                  : ", et aucun entre deux cartes : elles se touchent, la voisine "
-                    + "commence à la ligne de coupe.") });
+                  ? dzT("cartes.print.w_reperes_ok_entre", { v: nf(mmi, 2) })
+                  : dzT("cartes.print.w_reperes_ok_aucun")) });
         }
       }
     }
@@ -220,20 +201,17 @@
        et le meme texte : c'est ce que le contrôle avant vol affichera. */
     if (st.intent === "none") {
       warn.push({ level: "warn", kind: "sans_intention_de_sortie",
-        message: "Aucune intention de sortie : le PDF ne dira pas dans quel espace il a "
-          + "été fabriqué et le RIP convertira avec un profil que personne n'aura choisi.",
-        fix: { intent: "srgb", label: "déclarer sRGB" } });
+        message: dzT("cartes.print.w_sans_intention"),
+        fix: { intent: "srgb", label: dzT("cartes.print.fix_declarer_srgb") } });
     }
     if (st.mark_space === "rgb" && st.marks !== "none") {
       warn.push({ level: "warn", kind: "reperes_hors_reperage",
-        message: "Repères en RVB : à la séparation ce rouge devient magenta + jaune et ne "
-          + "sort donc pas sur les quatre plaques. La couleur de repérage sort sur les 4.",
-        fix: { mark_space: "registration", label: "passer en repérage" } });
+        message: dzT("cartes.print.w_reperes_rvb"),
+        fix: { mark_space: "registration", label: dzT("cartes.print.fix_reperage") } });
     }
     if (st.color === "cmyk_device") {
       warn.push({ level: "warn", kind: "cmyk_sans_profil",
-        message: "CMYK d'appareil : conversion sans profil, sans retrait des sous-couleurs "
-          + "ni noir squelette. Acceptable en numérique, à éviter en offset." });
+        message: dzT("cartes.print.w_cmyk_appareil") });
     }
     /* CE QUE LES CALQUES COUTENT, DIT AVANT L'EXPORT. Le contenu optionnel
        est une construction PDF 1.5 ; PDF/X-3:2003 est bati sur PDF 1.4 et ne
@@ -241,10 +219,8 @@
        contraire. */
     if (st.layers && pdfxCapable(st)) {
       warn.push({ level: "warn", kind: "calques_contre_pdfx",
-        message: "Calques optionnels demandés : le contenu optionnel est une construction "
-          + "PDF 1.5 que PDF/X-3:2003 (bâti sur PDF 1.4) n'admet pas. Aucune conformité "
-          + "PDF/X n'est donc revendiquée sur ce fichier.",
-        fix: { layers: false, label: "sans calques, revendiquer PDF/X-3:2003" } });
+        message: dzT("cartes.print.w_calques_pdfx"),
+        fix: { layers: false, label: dzT("cartes.print.fix_sans_calques") } });
     }
     const p0 = {
       sheet: st.sheet, orient: st.orient, dpi: dpi, sheet_px: [sw, sh],
@@ -628,24 +604,24 @@
   /* Le libelle des intentions vient du backend (GET sheets) ; ceci n'est que
      le repli hors ligne, et il porte les MEMES identifiants de registre. */
   const INTENT_FALLBACK = [
-    { id: "none", label: "aucune (le RIP choisira seul)", space: null },
+    { id: "none", label: dzT("cartes.print.intent_aucune"), space: null },
     /* Le profil embarque est celui que littleCMS construit (588 o, tag desc
        « sRGB built-in ») : la colorimetrie est bien celle de sRGB, l'identite
        du fichier non. Il s'annoncait « sRGB IEC61966-2.1 » — reproche mesure
        et fonde. */
-    { id: "srgb", label: "sRGB - profil matriciel integre (588 o), source",
+    { id: "srgb", label: dzT("cartes.print.intent_srgb"),
       space: "RGB" },
-    { id: "fogra39", label: "FOGRA39L - offset couche brillant", space: "CMYK" },
-    { id: "fogra51", label: "FOGRA51L - offset couche PS1", space: "CMYK" },
-    { id: "fogra52", label: "FOGRA52L - offset non couche PS5", space: "CMYK" },
+    { id: "fogra39", label: dzT("cartes.print.intent_fogra39"), space: "CMYK" },
+    { id: "fogra51", label: dzT("cartes.print.intent_fogra51"), space: "CMYK" },
+    { id: "fogra52", label: dzT("cartes.print.intent_fogra52"), space: "CMYK" },
     { id: "gracol", label: "CGATS TR 006 - GRACoL 2006", space: "CMYK" },
     { id: "swop", label: "CGATS TR 003 - SWOP 2006", space: "CMYK" },
     { id: "japan", label: "JC200103 - Japan Color 2001", space: "CMYK" },
-    { id: "icc", label: "profil ICC de l'imprimeur (.icc)", space: "ICC" },
+    { id: "icc", label: dzT("cartes.print.intent_icc"), space: "ICC" },
   ];
   const MARK_SPACE_LABEL = {
-    registration: "repérage C+M+J+N 100 %", cmyk_black: "noir 100 %",
-    rgb: "RVB (ne repère pas)",
+    registration: dzT("cartes.print.encre_reperage"), cmyk_black: dzT("cartes.print.encre_noir"),
+    rgb: dzT("cartes.print.encre_rvb"),
   };
   /* La couleur MONTREE pour chaque encre. Le repérage (100 % des quatre
      encres) se voit comme un noir tres dense : le dire en RVB sur un apercu,
@@ -661,10 +637,10 @@
     M.patch(partial);
   }
   function undo() {
-    if (!UNDO.length) { CF.toast("rien à annuler"); return; }
+    if (!UNDO.length) { CF.toast(dzT("cartes.print.rien_a_annuler")); return; }
     const prev = UNDO.pop();
     M.patch(prev);
-    CF.toast("réglage d'impression annulé");
+    CF.toast(dzT("cartes.print.reglage_annule"));
   }
 
   /* ══ couleurs : les tokens, resolus par une sonde — le canvas ne sait pas
@@ -708,172 +684,150 @@
     const s = st();
     HOST.innerHTML = ''
       + '<div class="cf-print-top">'
-      + '<span class="cf-print-free">0 crédit — tout est calculé sur ce poste</span>'
-      + '<span class="cf-print-chk" data-role="verify">plan non vérifié</span>'
+      + '<span class="cf-print-free">' + dzT("cartes.print.gratuit") + '</span>'
+      + '<span class="cf-print-chk" data-role="verify">' + dzT("cartes.print.plan_non_verifie") + '</span>'
       + '<span class="tb-spacer"></span>'
-      + '<button class="btn sm" type="button" data-act="guides" title="Fond perdu / coupe / zone sûre par-dessus la carte (touche R)">' + ICO("dz-edit-reperes", 16, "cf-ic") + 'Repères</button>'
-      + '<button class="btn sm" type="button" data-act="undo" title="Annuler le dernier réglage (Ctrl+Z)" aria-label="Annuler le dernier réglage (Ctrl+Z)">' + ICO("dz-action-annuler", 16) + '</button>'
+      + '<button class="btn sm" type="button" data-act="guides" title="' + dzT("cartes.print.reperes_titre") + '">' + ICO("dz-edit-reperes", 16, "cf-ic") + dzT("cartes.print.reperes") + '</button>'
+      + '<button class="btn sm" type="button" data-act="undo" title="' + dzT("cartes.print.annuler_titre") + '" aria-label="' + dzT("cartes.print.annuler_titre") + '">' + ICO("dz-action-annuler", 16) + '</button>'
       + '</div>'
 
       /* ── GABARIT D'IMPRIMEUR (tache #83) : le choix qui regle tout le reste ── */
-      + '<details class="grp" open><summary>Gabarit d’imprimeur — maison, MakePlayingCards, The Game Crafter, DriveThruCards</summary><div class="grp-body">'
+      + '<details class="grp" open><summary>' + dzT("cartes.print.titre_gabarit") + '</summary><div class="grp-body">'
       + '<div class="cf-print-gabs" data-role="gabs"></div>'
       + '<p class="cf-print-ecart hidden" data-role="gab-ecart"></p>'
       + '<div class="btn-row">'
-      + '<button class="btn strong hidden" type="button" data-act="pack" title="Un PNG par face, nommés recto / verso, et le manifeste : ce que le portail de l’imprimeur attend">' + ICO("dz-action-telecharger", 16, "cf-ic") + 'Paquet imprimeur (.zip)</button>'
+      + '<button class="btn strong hidden" type="button" data-act="pack" title="' + dzT("cartes.print.paquet_titre") + '">' + ICO("dz-action-telecharger", 16, "cf-ic") + dzT("cartes.print.paquet") + '</button>'
       + '</div>'
-      + '<p class="hint">Choisir un imprimeur règle le <b>format du jeu</b> (fond perdu, zone sûre, DPI) '
-      + 'et l’impression qu’il impose ; revenir à « maison » rétablit ce qu’il y avait avant.</p>'
+      + '<p class="hint">' + dzT("cartes.print.aide_gabarit") + '</p>'
       + '</div></details>'
 
       /* ── 0. CONTROLE AVANT VOL — AU-DESSUS DE LA LIGNE DE FLOTTAISON.
             Il etait annonce dans un sous-titre et enterre a 44 % de
             defilement : « annonce, pas montre ». Il est maintenant le
             premier bloc, et il se lance tout seul. ────────────────────── */
-      + '<details class="grp" open><summary>Contrôle avant vol — cartes ET fichier</summary><div class="grp-body">'
+      + '<details class="grp" open><summary>' + dzT("cartes.print.titre_pf") + '</summary><div class="grp-body">'
       + '<div class="cf-print-pf" data-role="pf"></div>'
       + '<div class="btn-row">'
-      + '<button class="btn strong" type="button" data-act="pf">Re-contrôler <b>(V)</b></button>'
-      + '<button class="btn" type="button" data-act="bench" title="Mesure réelle : N rendus + imposition + PDF">Banc d\'essai 60 cartes</button>'
+      + '<button class="btn strong" type="button" data-act="pf">' + dzT("cartes.print.recontroler") + ' <b>(V)</b></button>'
+      + '<button class="btn" type="button" data-act="bench" title="' + dzT("cartes.print.banc_titre") + '">' + dzT("cartes.print.banc") + '</button>'
       + '</div>'
-      + '<p class="hint">Sur les cartes : <b>texte hors zone sûre</b> (en px et en mm), '
-      + '<b>illustration sous 300 DPI</b> effectifs, et — ce qui manquait — le '
-      + '<b>contenu</b> : une colonne du fichier importé qui n’alimente aucun bloc est '
-      + 'nommée <b>carte par carte, avec sa valeur</b>, et elle <b>bloque</b> l’export. Un '
-      + 'tirage dont la rareté n’est imprimée nulle part part à la benne. Sur le fichier : '
-      + '<b>intention de sortie</b>, <b>rogne écrite</b>, <b>densité inscrite</b>, '
-      + '<b>police incorporée</b>, <b>compression</b>, et la <b>dérive tolérée</b> des '
-      + 'repères — la distance mesurée entre leur encre et la carte la plus proche. '
+      + '<p class="hint">' + dzT("cartes.print.aide_pf1")
       /* CE QU'ON NE PEUT PAS REMESURER ICI, ON NE L'AFFICHE PLUS. Cette phrase
          comptait les occurrences d'un mot dans le manuel d'un autre produit :
          invérifiable depuis ce panneau, donc retirée. Un chiffre qu'on ne peut
          pas refaire vaut moins que pas de chiffre. */
-      + 'Chaque ligne porte un chiffre relu sur ce qui sera écrit, jamais sur le '
-      + 'réglage qui l’a demandé.</p>'
+      + dzT("cartes.print.aide_pf2") + '</p>'
       + '</div></details>'
 
       /* ── 1. FORMAT ─────────────────────────────────────────────────────── */
-      + '<details class="grp" open><summary>Format de carte — <b data-role="fmtn">12</b> formats, en mm, en pouces et en pixels</summary>'
+      + '<details class="grp" open><summary>' + dzT("cartes.print.titre_format", { n: '<b data-role="fmtn">12</b>' }) + '</summary>'
       + '<div class="grp-body">'
       + '<div class="cf-print-fmt"><div class="cf-print-head">'
-      + '<span>format</span><span title="format nominal">rogne mm</span><span>rogne in</span>'
-      + '<span title="ce qui part dans la /TrimBox — survoler une ligne pour l’écart au nominal">'
-      + 'rogne px</span><span>toile px</span><span class="cf-print-hide-sm">zone sûre</span>'
+      + '<span>format</span><span title="' + dzT("cartes.print.format_nominal") + '">' + dzT("cartes.print.col_rogne_mm") + '</span><span>' + dzT("cartes.print.col_rogne_in") + '</span>'
+      + '<span title="' + dzT("cartes.print.col_rogne_px_titre") + '">'
+      + dzT("cartes.print.col_rogne_px") + '</span><span>' + dzT("cartes.print.col_toile_px") + '</span><span class="cf-print-hide-sm">' + dzT("cartes.print.col_zone_sure") + '</span>'
       + '</div><div class="cf-print-fmt-scroll" data-role="fmts"></div></div>'
       + '<div class="grid2">'
-      + '<label class="fld"><span class="lbl">Définition</span>'
+      + '<label class="fld"><span class="lbl">' + dzT("cartes.print.definition") + '</span>'
       + segHTML("dpi", CF.DPIS.map((d) => [d, d + " DPI"]), CF.geom().dpi) + '</label>'
-      + numHTML("bleed_mm", "Fond perdu", 0, 10, 0.5, "mm")
+      + numHTML("bleed_mm", dzT("cartes.print.fond_perdu"), 0, 10, 0.5, "mm")
       + '</div><div class="grid2">'
-      + numHTML("safe_mm", "Zone sûre", 0, 10, 0.5, "mm")
-      + numHTML("corner_mm", "Rayon de coin", 0, 10, 0.5, "mm")
+      + numHTML("safe_mm", dzT("cartes.print.zone_sure"), 0, 10, 0.5, "mm")
+      + numHTML("corner_mm", dzT("cartes.print.rayon_coin"), 0, 10, 0.5, "mm")
       + '</div>'
-      + '<p class="hint">Le fond perdu par défaut suit le format : <b>3 mm</b> en métrique, '
-      + '<b>0,125 in</b> (3,175 mm) en impérial. La zone sûre le suit. '
+      + '<p class="hint">' + dzT("cartes.print.aide_fond_perdu")
       /* MESURE, PAS COMPARAISON : sur les 12 formats, 7 tombent sur des pixels
          entiers a 300 comme a 600 DPI (3 seulement a 150) — ce sont les
          imperiaux. Les 5 metriques laissent quelques microns, et l'infobulle
          de chaque ligne les chiffre au lieu de les taire. */
-      + 'Sur les 12 formats, <b>7 tombent sur des pixels entiers</b> à 300 comme à '
-      + '600 DPI ; les 5 métriques laissent quelques microns, chiffrés dans '
-      + 'l’infobulle de leur ligne.</p>'
+      + dzT("cartes.print.aide_formats") + '</p>'
       + '</div></details>'
 
       /* ── 2. PLANCHE ────────────────────────────────────────────────────── */
-      + '<details class="grp" open><summary>Planche imposée</summary><div class="grp-body">'
+      + '<details class="grp" open><summary>' + dzT("cartes.print.titre_planche") + '</summary><div class="grp-body">'
       + '<div class="grid2">'
-      + '<label class="fld"><span class="lbl">Planche</span>'
-      + segHTML("sheet", [["a4", "A4"], ["letter", "Letter"], ["a3", "A3"], ["card", "1 carte"]], s.sheet) + '</label>'
+      + '<label class="fld"><span class="lbl">' + dzT("cartes.print.planche") + '</span>'
+      + segHTML("sheet", [["a4", "A4"], ["letter", "Letter"], ["a3", "A3"], ["card", dzT("cartes.print.une_carte")]], s.sheet) + '</label>'
       + '<label class="fld"><span class="lbl">Orientation</span>'
-      + segHTML("orient", [["portrait", "Portrait"], ["paysage", "Paysage"]], s.orient) + '</label>'
+      + segHTML("orient", [["portrait", "Portrait"], ["paysage", dzT("cartes.print.paysage")]], s.orient) + '</label>'
       + '</div>'
-      + '<div class="grid2">' + numHTML("margin_mm", "Marge", 0, 60, 0.5, "mm")
-      + numHTML("gutter_mm", "Gouttière", 0, 40, 0.5, "mm") + '</div>'
+      + '<div class="grid2">' + numHTML("margin_mm", dzT("cartes.print.marge"), 0, 60, 0.5, "mm")
+      + numHTML("gutter_mm", dzT("cartes.print.gouttiere"), 0, 40, 0.5, "mm") + '</div>'
       + '<div class="cf-print-plan">'
       + '<canvas class="cf-print-canvas" data-role="plan" width="264" height="330"></canvas>'
       + '<div class="cf-print-side">'
       + '<dl class="cf-print-read" data-role="read"></dl>'
       + '<div class="cf-print-warns" data-role="warns"></div>'
       + '</div></div>'
-      + '<p class="hint">Glisser la <b>poignée de marge</b> ou celle de <b>gouttière</b> '
-      + 'directement sur le plan. Les chiffres restent modifiables au clavier.</p>'
+      + '<p class="hint">' + dzT("cartes.print.aide_poignees") + '</p>'
       + '<div class="sep"></div>'
       + '<div class="grid2">'
-      + '<label class="fld"><span class="lbl">Repères</span>'
-      + segHTML("marks", [["crop", "Traits"], ["cross", "Croix"], ["line", "Lignes"], ["none", "Aucun"]], s.marks) + '</label>'
-      + '<label class="fld"><span class="lbl" data-role="colorlbl">Couleur des repères</span>'
+      + '<label class="fld"><span class="lbl">' + dzT("cartes.print.reperes_marques") + '</span>'
+      + segHTML("marks", [["crop", dzT("cartes.print.seg_traits")], ["cross", dzT("cartes.print.seg_croix")], ["line", dzT("cartes.print.seg_lignes")], ["none", dzT("cartes.print.seg_aucun")]], s.marks) + '</label>'
+      + '<label class="fld"><span class="lbl" data-role="colorlbl">' + dzT("cartes.print.couleur_reperes") + '</span>'
       + '<input class="cf-print-color" type="color" data-color="mark_color"></label>'
       + '</div>'
-      + '<div class="cf-print-3">' + numHTML("mark_len_mm", "Longueur", 0, 20, 0.5, "mm")
-      + numHTML("mark_off_mm", "Retrait", 0, 20, 0.5, "mm")
-      + numHTML("mark_w_mm", "Épaisseur", 0.02, 2, 0.05, "mm") + '</div>'
-      + '<div class="grid2">' + checkHTML("center", "Centrer sur la planche")
-      + checkHTML("slug", "Cartouche vectoriel (format, DPI, page, date)") + '</div>'
+      + '<div class="cf-print-3">' + numHTML("mark_len_mm", dzT("cartes.print.longueur"), 0, 20, 0.5, "mm")
+      + numHTML("mark_off_mm", dzT("cartes.print.retrait"), 0, 20, 0.5, "mm")
+      + numHTML("mark_w_mm", dzT("cartes.print.epaisseur"), 0.02, 2, 0.05, "mm") + '</div>'
+      + '<div class="grid2">' + checkHTML("center", dzT("cartes.print.centrer"))
+      + checkHTML("slug", dzT("cartes.print.cartouche")) + '</div>'
       /* LE RETRAIT DES REPERES : un reglage, parce que le trait de gouttiere
          touchait la carte et que la derive toleree valait 0,00 mm pendant que
          l'ecran en annoncait 2,00. Decoche, le controle avant vol REFUSE. */
       + '<div class="grid2">'
-      + checkHTML("mark_safe", "Repères hors carte (retrait mesuré)") + '</div>'
+      + checkHTML("mark_safe", dzT("cartes.print.reperes_hors_carte")) + '</div>'
       + '<div class="sep"></div>'
 
       /* ── recto-verso, avec la PREUVE du miroir affichee ─────────────────── */
-      + '<div class="grid2">' + checkHTML("duplex", "Recto-verso")
-      + checkHTML("lossless", "Images sans perte (défaut)") + '</div>'
+      + '<div class="grid2">' + checkHTML("duplex", dzT("cartes.print.recto_verso"))
+      + checkHTML("lossless", dzT("cartes.print.sans_perte")) + '</div>'
       + '<div class="grid2">'
-      + '<label class="fld"><span class="lbl">Retournement</span>'
-      + segHTML("flip", [["long", "Bord long"], ["short", "Bord court"]], s.flip) + '</label>'
-      + '<label class="fld"><span class="lbl">Ordre des pages</span>'
-      + segHTML("duplex_order", [["interleave", "R/V alterné"], ["grouped", "Rectos puis versos"]], s.duplex_order) + '</label>'
+      + '<label class="fld"><span class="lbl">' + dzT("cartes.print.retournement") + '</span>'
+      + segHTML("flip", [["long", dzT("cartes.print.bord_long")], ["short", dzT("cartes.print.bord_court")]], s.flip) + '</label>'
+      + '<label class="fld"><span class="lbl">' + dzT("cartes.print.ordre_pages") + '</span>'
+      + segHTML("duplex_order", [["interleave", dzT("cartes.print.rv_alterne")], ["grouped", dzT("cartes.print.rectos_versos")]], s.duplex_order) + '</label>'
       + '</div>'
       + '<div class="cf-print-duplex" data-role="duplex"></div>'
       + '<div class="grid2">'
-      + '<label class="fld"><span class="lbl">TrimBox du PDF</span>'
-      + segHTML("trimbox", [["cards", "Emprise des cartes"], ["page", "Page entière"]], s.trimbox) + '</label>'
-      + '<label class="fld"><span class="lbl">ArtBox du PDF</span>'
-      + segHTML("artbox", [["safe", "Zone sûre"], ["trim", "= TrimBox"]], s.artbox) + '</label>'
+      + '<label class="fld"><span class="lbl">' + dzT("cartes.print.trimbox") + '</span>'
+      + segHTML("trimbox", [["cards", dzT("cartes.print.emprise_cartes")], ["page", dzT("cartes.print.page_entiere")]], s.trimbox) + '</label>'
+      + '<label class="fld"><span class="lbl">' + dzT("cartes.print.artbox") + '</span>'
+      + segHTML("artbox", [["safe", dzT("cartes.print.zone_sure")], ["trim", "= TrimBox"]], s.artbox) + '</label>'
       + '</div>'
       /* ── DEUX CHOIX QUE L'IMPRIMEUR RECLAMAIT, ET QUI SE MESURENT ─────── */
       + '<div class="grid2">'
-      + checkHTML("layers", "Calques optionnels (repères, cartouche)")
-      + checkHTML("page_iso", "Page au format nominal exact")
+      + checkHTML("layers", dzT("cartes.print.calques"))
+      + checkHTML("page_iso", dzT("cartes.print.page_iso"))
       + '</div>'
-      + '<p class="hint">Avec les <b>calques</b>, les repères et le cartouche partent dans '
-      + 'des groupes <b>/OCG</b> nommés : l’imprimeur les décoche au lieu d’éditer le flux. '
-      + 'C’est du <span class="mono">%PDF-1.5</span>, donc incompatible avec une '
-      + 'revendication PDF/X-3 — le contrôle avant vol le dit et propose de décocher. '
-      + 'La <b>page</b> suit par défaut la grille du raster (2480 px à 300 DPI = 595,2 pt) '
-      + 'pour que le PDF et la planche PNG décrivent la même feuille ; « format nominal » '
-      + 'écrit 595,2756 x 841,8898 pt et centre l’imposition dedans.</p>'
+      + '<p class="hint">' + dzT("cartes.print.aide_calques") + '</p>'
       + '<div class="btn-row">'
-      + '<button class="btn strong" type="button" data-act="png">Planche PNG <b>(P)</b></button>'
-      + '<button class="btn strong" type="button" data-act="pdf">PDF multipage <b>(D)</b></button>'
-      + '<button class="btn" type="button" data-act="mire" title="Deux pages à imprimer en recto-verso sur VOTRE imprimante : un vernier au dixième de millimètre mesure le décalage réel de la machine (le PDF, lui, est déjà miroir)">' + ICO("dz-action-telecharger", 16, "cf-ic") + 'Mire recto-verso (PDF)</button>'
+      + '<button class="btn strong" type="button" data-act="png">' + dzT("cartes.print.btn_planche_png") + ' <b>(P)</b></button>'
+      + '<button class="btn strong" type="button" data-act="pdf">' + dzT("cartes.print.btn_pdf") + ' <b>(D)</b></button>'
+      + '<button class="btn" type="button" data-act="mire" title="' + dzT("cartes.print.mire_titre") + '">' + ICO("dz-action-telecharger", 16, "cf-ic") + dzT("cartes.print.mire") + '</button>'
       + '</div>'
-      + '<p class="hint">Le PDF porte les <b>trois</b> cadres emboîtés sur chaque page — '
-      + '<b>/BleedBox</b> (fond perdu) &#8835; <b>/TrimBox</b> (coupe) &#8835; <b>/ArtBox</b> '
-      + '(zone sûre) — et des traits de coupe <b>vectoriels</b>, à une distance '
-      + '<b>mesurée</b> de la carte la plus proche.</p>'
+      + '<p class="hint">' + dzT("cartes.print.aide_cadres") + '</p>'
       + '</div></details>'
 
       /* ── 2 bis. PREPRESSE : COULEUR ────────────────────────────────────── */
-      + '<details class="grp" open><summary>Couleur et prépresse — intention de sortie, séparation, repérage</summary>'
+      + '<details class="grp" open><summary>' + dzT("cartes.print.titre_couleur") + '</summary>'
       + '<div class="grp-body">'
-      + '<label class="fld"><span class="lbl">Intention de sortie (/OutputIntents)</span>'
+      + '<label class="fld"><span class="lbl">' + dzT("cartes.print.intention") + '</span>'
       + '<select class="cf-print-sel" data-sel="intent"></select></label>'
       + '<p class="hint" data-role="intentread"></p>'
       + '<div class="grid2">'
-      + '<label class="fld"><span class="lbl">Espace des visuels</span>'
-      + segHTML("color", [["rgb", "RVB étiqueté"], ["cmyk_device", "CMYK d\'appareil"],
-        ["cmyk_icc", "CMYK par profil"]], s.color) + '</label>'
-      + '<label class="fld"><span class="lbl">Encre des repères</span>'
-      + segHTML("mark_space", [["registration", "Repérage"], ["cmyk_black", "Noir 100 %"],
-        ["rgb", "RVB"]], s.mark_space) + '</label>'
+      + '<label class="fld"><span class="lbl">' + dzT("cartes.print.espace_visuels") + '</span>'
+      + segHTML("color", [["rgb", dzT("cartes.print.rvb_etiquete")], ["cmyk_device", dzT("cartes.print.cmyk_appareil")],
+        ["cmyk_icc", dzT("cartes.print.cmyk_profil")]], s.color) + '</label>'
+      + '<label class="fld"><span class="lbl">' + dzT("cartes.print.encre_reperes") + '</span>'
+      + segHTML("mark_space", [["registration", dzT("cartes.print.seg_reperage")], ["cmyk_black", dzT("cartes.print.seg_noir")],
+        ["rgb", dzT("cartes.print.seg_rvb")]], s.mark_space) + '</label>'
       + '</div>'
       + '<div class="cf-print-icc" data-role="icc"></div>'
       + '<div class="btn-row">'
-      + '<label class="btn sm" for="cf-print-iccfile">Charger un profil .icc</label>'
+      + '<label class="btn sm" for="cf-print-iccfile">' + dzT("cartes.print.charger_icc") + '</label>'
       + '<input id="cf-print-iccfile" class="cf-print-file" type="file" accept=".icc,.icm">'
-      + '<button class="btn sm" type="button" data-act="iccdel">Retirer le profil</button>'
+      + '<button class="btn sm" type="button" data-act="iccdel">' + dzT("cartes.print.retirer_icc") + '</button>'
       + '</div>'
       /* ── L'AUDIT DES OCTETS. Le panneau n'a le droit d'afficher que ce
             qu'un fichier reellement ecrit porte : ce bloc est la preuve, et
@@ -881,28 +835,15 @@
       + '<div class="sep"></div>'
       + '<div class="cf-print-pf" data-role="audit"></div>'
       + '<div class="btn-row">'
-      + '<button class="btn" type="button" data-act="audit" title="Écrit un PDF témoin avec ces réglages et relit ses octets">Auditer le fichier écrit</button>'
+      + '<button class="btn" type="button" data-act="audit" title="' + dzT("cartes.print.audit_titre") + '">' + dzT("cartes.print.auditer") + '</button>'
       + '</div>'
-      + '<p class="hint">Un badge peut être faux alors que l’en-tête le confirme — il suffit '
-      + 'de s’arrêter à l’en-tête. Ce bouton écrit un <b>vrai PDF</b> avec ces réglages, le '
-      + 'relit <b>octet par octet</b> et affiche la mesure. <b>/S /GTS_PDFX</b> est le '
-      + 'sous-type <i>défini par PDF/X</i> : il n’est écrit qu’accompagné de /GTS_PDFXVersion, '
-      + 'du XMP <span class="mono">pdfxid</span>, de /Trapped et d’un en-tête %PDF-1.4 — et '
-      + 'seulement pour une <b>condition de presse</b>. sRGB est un profil d’<b>écran</b> '
-      + '(classe <span class="mono">mntr</span>) : il décrit la source, donc aucune '
-      + 'conformité PDF/X n’est revendiquée avec lui.</p>'
-      + '<p class="hint">La <b>couleur de repérage</b> est un espace <b>/Separation /All '
-      + '/DeviceCMYK</b> à 100 % : le seul trait qui sorte sur les <b>quatre</b> plaques. '
-      + 'Un rouge RVB se sépare en magenta + jaune et ne repère rien. Les conditions '
-      + 'normalisées (FOGRA, GRACoL, SWOP, Japan Color) sont désignées par leur nom du '
-      + 'registre ICC ; un profil chargé est <b>embarqué</b> en /DestOutputProfile et sert '
-      + 'à la séparation réelle. Windows en livre plusieurs dans '
+      + '<p class="hint">' + dzT("cartes.print.aide_audit") + '</p>'
+      + '<p class="hint">' + dzT("cartes.print.aide_reperage") + ' '
       /* « une vingtaine » etait un chiffre qu'aucun ecran ne peut verifier (le
          navigateur ne lit pas ce dossier) et qui depend du poste : releve du
          12/08 sur cette machine, 31 fichiers. Les TROIS noms cites, eux, sont
          verifiables un par un — on garde les noms, on retire le compte. */
-      + '<span class="mono">C:\\Windows\\System32\\spool\\drivers\\color</span> '
-      + '(CoatedFOGRA39.icc, CoatedGRACoL2006.icc, USWebCoatedSWOP.icc…).</p>'
+      + dzT("cartes.print.aide_windows_icc", { chemin: '<span class="mono">C:\\Windows\\System32\\spool\\drivers\\color</span>' }) + '</p>'
       + '</div></details>'
 
       /* ── 2 ter. MASQUE DE FOIL ─────────────────────────────────────────────
@@ -910,63 +851,45 @@
             tire que la plaque, et il DIT tout ce que le controle avant vol
             dirait — avant l'export, pas apres le refus. C'est le defaut de
             forme que la tache 1 a nomme : refuser sans donner la sortie. */
-      + '<details class="grp" open><summary>Masque de foil — le Sceau prismatique en portée impression</summary>'
+      + '<details class="grp" open><summary>' + dzT("cartes.print.titre_foil") + '</summary>'
       + '<div class="grp-body">'
       + '<div class="cf-print-pf" data-role="foil"></div>'
       + '<div class="grid2">'
-      + '<label class="fld"><span class="lbl">Définition du repli raster</span>'
+      + '<label class="fld"><span class="lbl">' + dzT("cartes.print.foil_definition") + '</span>'
       + segHTML("foil_dpi", [[600, "600 dpi"], [1200, "1200 dpi"]], FOILDPI) + '</label>'
       + '</div>'
       + '<div class="btn-row">'
-      + '<button class="btn strong" type="button" data-act="foilmask">Masque de foil (PNG 1 bit)</button>'
+      + '<button class="btn strong" type="button" data-act="foilmask">' + dzT("cartes.print.btn_foil") + '</button>'
       + '</div>'
-      + '<p class="hint">Le <b>Sceau prismatique</b> se règle dans le panneau <b>Cadre</b> ; '
-      + 'ce bloc n’en tire que la plaque. Le PDF porte une vraie encre d’appoint '
-      + '<span class="mono">/Separation « Foil »</span> en <b>surimpression</b>, dans un calque '
-      + 'optionnel que l’imprimeur décoche — les calques sont du <span class="mono">%PDF-1.5</span>, '
-      + 'donc <b>aucune revendication PDF/X</b> sur ce fichier (contrainte héritée des calques, '
-      + 'pas du foil). Le repli raster est un PNG <b>1 bit sans anticrénelage</b> à <b>600</b> ou '
-      + '1200 dpi, <b>noir</b> = dorure, toile coupe + fond perdu — le même pour toutes les '
-      + 'cartes, l’anneau ne dépendant que du cadre. La <b>planche PNG</b>, elle, ne porte '
-      + 'pas de plaque : c’est un raster de cartes, pas un jeu de plaques.</p>'
-      + '<p class="hint">Contraintes d’imprimeur (§6.2bis) : trait <b>≥ 0,2 mm</b> et distance au '
-      + 'trait de coupe <b>≥ 3,2 mm</b>. La troisième — espacement entre zones '
-      + '<b>≥ 0,25 mm</b> — est <b>sans objet</b> ici : le Sceau est <b>une zone unique</b>, '
-      + 'un anneau, et rien ne le côtoie. Le retrait de filet par défaut du cadre vaut <b>1,6 mm</b>, '
-      + 'donc le contrôle <b>avertit</b> au lieu de refuser : monter le retrait du filet '
-      + '(<span class="mono">edge_mm</span>, panneau Cadre) au-delà de 3,2 mm — ce qui déplace '
-      + 'AUSSI le filet extérieur — ou accepter la <b>variance de fabrication</b> de '
-      + '<b>1 à 2 mm</b> en le sachant. Le bandeau de rareté et la gemme se peignent '
-      + 'PAR-DESSUS l’anneau : là où ils le recouvrent, le métal passerait sous une encre '
-      + 'opaque. Enfin, chez certains imprimeurs le spot cold foil pur exclut la couleur sur la '
-      + 'même face ; le produit foil + <b>CMJN</b> existe, plus cher.</p>'
+      + '<p class="hint">' + dzT("cartes.print.aide_foil1") + '</p>'
+      + '<p class="hint">' + dzT("cartes.print.aide_foil2") + '</p>'
       + '</div></details>'
 
       /* ── 3. CARTE SEULE ────────────────────────────────────────────────── */
-      + '<details class="grp"><summary>Carte seule</summary><div class="grp-body">'
+      + '<details class="grp"><summary>' + dzT("cartes.print.titre_carte") + '</summary><div class="grp-body">'
       + '<div class="grid2">'
-      + '<label class="fld"><span class="lbl">Fichier</span>'
+      + '<label class="fld"><span class="lbl">' + dzT("cartes.print.fichier") + '</span>'
       + segHTML("card_fmt", [["png", "PNG"], ["jpeg", "JPEG q95"]], s.card_fmt) + '</label>'
-      + '<label class="fld"><span class="lbl">Profondeur</span>'
+      + '<label class="fld"><span class="lbl">' + dzT("cartes.print.profondeur") + '</span>'
       + segHTML("card_bits", [[8, "8 bits"], [16, "16 bits"]], s.card_bits) + '</label>'
       + '</div>'
-      + checkHTML("card_alpha", "Conserver la transparence (PNG)")
+      + checkHTML("card_alpha", dzT("cartes.print.transparence"))
       + '<div class="btn-row">'
-      + '<button class="btn strong" type="button" data-act="card">Exporter la carte affichée <b>(C)</b></button>'
-      + '<button class="btn strong" type="button" data-act="cards">Toutes les cartes</button>'
+      + '<button class="btn strong" type="button" data-act="card">' + dzT("cartes.print.exporter_carte") + ' <b>(C)</b></button>'
+      + '<button class="btn strong" type="button" data-act="cards">' + dzT("cartes.print.toutes_cartes") + '</button>'
       + '</div>'
       + '<p class="hint" data-role="cardread"></p>'
       + '</div></details>'
 
       /* ── 5. JOURNAL ────────────────────────────────────────────────────── */
-      + '<details class="grp"><summary>Derniers exports</summary><div class="grp-body">'
+      + '<details class="grp"><summary>' + dzT("cartes.print.titre_journal") + '</summary><div class="grp-body">'
       + '<div class="cf-print-log" data-role="log"></div></div></details>'
 
       + '<div class="cf-print-keys">'
-      + '<span><kbd>R</kbd> repères</span><span><kbd>P</kbd> planche PNG</span>'
-      + '<span><kbd>D</kbd> PDF</span><span><kbd>C</kbd> carte</span>'
-      + '<span><kbd>V</kbd> contrôle</span><span><kbd>&#8593;</kbd><kbd>&#8595;</kbd> format</span>'
-      + '<span><kbd>Ctrl</kbd>+<kbd>Z</kbd> annuler</span></div>';
+      + '<span><kbd>R</kbd> ' + dzT("cartes.print.k_reperes") + '</span><span><kbd>P</kbd> ' + dzT("cartes.print.k_planche") + '</span>'
+      + '<span><kbd>D</kbd> PDF</span><span><kbd>C</kbd> ' + dzT("cartes.print.k_carte") + '</span>'
+      + '<span><kbd>V</kbd> ' + dzT("cartes.print.k_controle") + '</span><span><kbd>&#8593;</kbd><kbd>&#8595;</kbd> format</span>'
+      + '<span><kbd>Ctrl</kbd>+<kbd>Z</kbd> ' + dzT("cartes.print.k_annuler") + '</span></div>';
   }
 
   /* ── le menu des intentions de sortie ──────────────────────────────────── */
@@ -998,9 +921,9 @@
          microns, et l'infobulle les chiffre au lieu de les taire. */
       const ew = g.trim_px[0] / cur.dpi * 25.4, eh = g.trim_px[1] / cur.dpi * 25.4;
       const dx = (ew - g.trim_mm[0]) * 1000, dy = (eh - g.trim_mm[1]) * 1000;
-      const tip = f.label + " — rogne écrite " + fx(ew, 4) + " x " + fx(eh, 4) + " mm"
-        + (Math.max(Math.abs(dx), Math.abs(dy)) < 0.05 ? " (nominal exact)"
-          : " (" + sgn(dx) + " / " + sgn(dy) + " µm du nominal)");
+      const tip = f.label + dzT("cartes.print.tip_rogne_ecrite", { w: fx(ew, 4), h: fx(eh, 4) })
+        + (Math.max(Math.abs(dx), Math.abs(dy)) < 0.05 ? dzT("cartes.print.tip_nominal_exact")
+          : dzT("cartes.print.tip_ecart", { dx: sgn(dx), dy: sgn(dy) }));
       return '<button class="cf-print-row' + (f.id === cur.fmt ? " on" : "") + '" type="button"'
         + ' data-fmt="' + esc(f.id) + '" title="' + esc(tip) + '">'
         + '<span class="cf-print-nm">' + esc(f.label.replace(/\s*\d.*$/, "")) + '</span>'
@@ -1018,7 +941,7 @@
     const p = PLAN, g = CF.geom(), s = st(), d = q('[data-role="read"]');
     if (!d) return;
     if (!p || p.fail) {
-      d.innerHTML = '<dt>plan</dt><dd class="big">impossible</dd>';
+      d.innerHTML = '<dt>' + dzT("cartes.print.dt_plan") + '</dt><dd class="big">' + dzT("cartes.print.impossible") + '</dd>';
     } else {
       const n = CF.cards().length;
       const bp = bleedSides(p, g, s, false), br = bleedSides(p, g, s, true);
@@ -1042,8 +965,8 @@
       });
       xs.sort((a, b) => a - b); ys.sort((a, b) => a - b);
       d.innerHTML = ''
-        + '<dt>grille</dt><dd class="big">' + p.cols + ' x ' + p.rows + ' = ' + p.per_page + ' /page</dd>'
-        + '<dt>planche</dt><dd>' + p.sheet_px[0] + ' x ' + p.sheet_px[1] + ' px</dd>'
+        + '<dt>' + dzT("cartes.print.dt_grille") + '</dt><dd class="big">' + p.cols + ' x ' + p.rows + ' = ' + p.per_page + ' /page</dd>'
+        + '<dt>' + dzT("cartes.print.dt_planche") + '</dt><dd>' + p.sheet_px[0] + ' x ' + p.sheet_px[1] + ' px</dd>'
         /* LA PAGE, ET SON ECART AU FORMAT NOMINAL — les deux controles ont
            releve que 595,2 pt n'est pas l'A4 de l'ISO (595,2756). L'ecart
            n'est plus subi en silence : il est chiffre, dans les deux sens. */
@@ -1051,64 +974,58 @@
            d'un axe sur deux : mesure sur les octets, la largeur est 26,7 µm
            EN DESSOUS et la hauteur 10,7 µm AU-DESSUS. Un maximum en valeur
            absolue cachait l'autre moitie de la mesure. */
-        + '<dt>page pdf</dt><dd>' + fx(p.page_pt[0], 4) + ' x ' + fx(p.page_pt[1], 4) + ' pt'
+        + '<dt>' + dzT("cartes.print.dt_page_pdf") + '</dt><dd>' + fx(p.page_pt[0], 4) + ' x ' + fx(p.page_pt[1], 4) + ' pt'
         + (s.sheet === "card" ? ''
           : p.iso_um < 0.05
-            ? ' · <b>format nominal exact</b>'
+            ? ' · <b>' + dzT("cartes.print.nominal_exact") + '</b>'
             : ' · <span class="dim">' + signedUm(p.iso_um_xy, p.iso_um)
-              + ' du format nominal (grille du raster)</span>') + '</dd>'
+              + dzT("cartes.print.du_nominal_raster") + '</span>') + '</dd>'
         /* LA ROGNE ECRITE, PAS LA ROGNE NOMINALE. La table affiche
            63,00 x 88,00 mm a cote de 744 x 1039 px : ces deux colonnes ne
            disent pas la meme chose, et l'ecart etait tu. */
-        + '<dt>rogne écrite</dt><dd>' + g.trim_px[0] + ' x ' + g.trim_px[1] + ' px = '
+        + '<dt>' + dzT("cartes.print.dt_rogne") + '</dt><dd>' + g.trim_px[0] + ' x ' + g.trim_px[1] + ' px = '
         + (p.trim_mm_written ? nfx(p.trim_mm_written[0], 3) + ' x '
           + nfx(p.trim_mm_written[1], 3) : '?') + ' mm'
         + (p.trim_um_xy && Math.max(Math.abs(p.trim_um_xy[0]), Math.abs(p.trim_um_xy[1])) >= 0.05
-          ? ' · <span class="dim">' + signedUm(p.trim_um_xy, 0) + ' du nominal '
+          ? ' · <span class="dim">' + signedUm(p.trim_um_xy, 0) + dzT("cartes.print.du_nominal_esp")
             + nf(g.trim_mm[0], 2) + ' x ' + nf(g.trim_mm[1], 2) + '</span>'
-          : ' · <b>format nominal exact</b>') + '</dd>'
-        + '<dt>gouttière</dt><dd>' + fx(p.gutter_pt, 2).replace(".", ",") + ' pt · '
+          : ' · <b>' + dzT("cartes.print.nominal_exact") + '</b>') + '</dd>'
+        + '<dt>' + dzT("cartes.print.dt_gouttiere") + '</dt><dd>' + fx(p.gutter_pt, 2).replace(".", ",") + ' pt · '
         + fx(p.gutter_px, 2).replace(".", ",") + ' px</dd>'
-        + '<dt>fond perdu</dt><dd>réglé ' + nf(g.bleed_mm, 2) + ' mm · <b>posé '
-        + mm(bp[0]) + ' bord / ' + mm(bp[1]) + ' gouttière</b> (PDF)</dd>'
-        + (memes ? '' : '<dt></dt><dd class="dim">planche PNG : ' + mm(br[0]) + ' / '
-          + mm(br[1]) + ' mm — le raster tombe au pixel</dd>')
+        + '<dt>' + dzT("cartes.print.dt_fond_perdu") + '</dt><dd>' + dzT("cartes.print.fp_regle_pose", { r: nf(g.bleed_mm, 2), bord: mm(bp[0]), gout: mm(bp[1]) }) + '</dd>'
+        + (memes ? '' : '<dt></dt><dd class="dim">' + dzT("cartes.print.fp_png", { a: mm(br[0]), b: mm(br[1]) }) + '</dd>')
         /* LA ZONE SURE ECRITE, PAS LA ZONE SURE REGLEE. Le meme traitement
            que la rogne juste au-dessus : « zone sure 3 mm » s'affichait a
            cote d'une /ArtBox qui pose 2,963 mm de retrait sur la hauteur —
            37 microns de marge annonces que le fichier ne porte pas. Le
            chiffre vient du BACKEND (le plan verifie), et il est signe. */
-        + '<dt>zone sûre</dt><dd>' + g.safe_px[0] + ' x ' + g.safe_px[1] + ' px'
+        + '<dt>' + dzT("cartes.print.col_zone_sure") + '</dt><dd>' + g.safe_px[0] + ' x ' + g.safe_px[1] + ' px'
         + (p.safe_mm_written ? ' = ' + nfx(p.safe_mm_written[0], 3) + ' x '
           + nfx(p.safe_mm_written[1], 3) + ' mm' : '')
-        + (s.artbox === "safe" ? ' · écrite en /ArtBox' : '') + '</dd>'
+        + (s.artbox === "safe" ? dzT("cartes.print.ecrite_artbox") : '') + '</dd>'
         + (p.safe_inset_mm
-          ? '<dt></dt><dd class="dim">retrait écrit depuis la coupe '
-            + nfx(p.safe_inset_mm[0], 3) + ' / ' + nfx(p.safe_inset_mm[1], 3)
-            + ' mm — réglé ' + nf(g.safe_mm, 2) + ' mm'
+          ? '<dt></dt><dd class="dim">' + dzT("cartes.print.zs_retrait", { a: nfx(p.safe_inset_mm[0], 3), b: nfx(p.safe_inset_mm[1], 3), r: nf(g.safe_mm, 2) })
             + (p.safe_um_xy && Math.max(Math.abs(p.safe_um_xy[0]), Math.abs(p.safe_um_xy[1])) >= 0.5
               ? ' · ' + signedUm(p.safe_um_xy, 0) : ' · <b>exact</b>') + '</dd>'
           : '')
-        + '<dt>cartes</dt><dd>' + n + ' &#8594; ' + p.pages + ' page(s)'
-        + (s.duplex ? ' x2 (R/V)' : '') + '</dd>'
-        + '<dt>coupe</dt><dd>' + MARK_LABEL[s.marks] + ' · ' + markSegs(p, s).length
-        + ' traits · ' + esc(MARK_SPACE_LABEL[s.mark_space]) + '</dd>'
+        + '<dt>' + dzT("cartes.print.dt_cartes") + '</dt><dd>' + dzT("cartes.print.cartes_pages", { n: n, p: p.pages })
+        + (s.duplex ? dzT("cartes.print.x2_rv") : '') + '</dd>'
+        + '<dt>' + dzT("cartes.print.dt_coupe") + '</dt><dd>' + MARK_LABEL[s.marks] + ' · ' + markSegs(p, s).length
+        + dzT("cartes.print.traits_sep") + esc(MARK_SPACE_LABEL[s.mark_space]) + '</dd>'
         /* LA DERIVE TOLEREE : DISTANCE MESUREE entre l'encre et la rogne la
            plus proche, sur les segments rendus — jamais la valeur d'un
            reglage. Elle etait annoncee egale au fond perdu restant (2 mm)
            alors qu'elle valait 0,0000 mm : le trait de gouttiere touchait la
            carte. Le chiffre est confronte au backend par verify(). */
         + (s.marks === "none" || clr < 0 ? ''
-          : '<dt>dérive tolérée</dt><dd>' + (clr < 1e-9
-            ? '<b class="cf-print-bad">0,00 mm — ' + markTouch(p, s)
-              + ' trait(s) touchent une carte</b>'
+          : '<dt>' + dzT("cartes.print.derive") + '</dt><dd>' + (clr < 1e-9
+            ? '<b class="cf-print-bad">' + dzT("cartes.print.derive_touche", { n: markTouch(p, s) }) + '</b>'
             : '<b>' + nfx(clr / p.dpi * 25.4, 2) + ' mm</b>'
-              + ' <span class="dim">avant que l’encre de repérage n’atteigne '
-              + 'la carte</span>')
+              + ' <span class="dim">' + dzT("cartes.print.derive_avant") + '</span>')
           + (bclr !== null && Math.abs(bclr - clr / p.dpi * 25.4) < 0.006
-            ? ' <span class="dim">· mesuré backend</span>' : '') + '</dd>')
-        + (xs.length ? '<dt>colonnes</dt><dd class="dim">' + cut(xs) + ' mm</dd>' : '')
-        + (ys.length ? '<dt>rangées</dt><dd class="dim">' + cut(ys) + ' mm</dd>' : '');
+            ? ' <span class="dim">· ' + dzT("cartes.print.mesure_backend") + '</span>' : '') + '</dd>')
+        + (xs.length ? '<dt>' + dzT("cartes.print.dt_colonnes") + '</dt><dd class="dim">' + cut(xs) + ' mm</dd>' : '')
+        + (ys.length ? '<dt>' + dzT("cartes.print.dt_rangees") + '</dt><dd class="dim">' + cut(ys) + ' mm</dd>' : '');
     }
     paintDuplex();
     paintIntentRead();
@@ -1120,7 +1037,7 @@
         + '<span>' + esc(x.message) + '</span>'
         + (x.fix ? '<button class="lnk cf-print-fix" type="button" data-fix="' + i + '">'
           + esc(x.fix.label) + '</button>' : '') + '</div>').join("")
-        : '<div class="cf-print-w info">Plan sain : fond perdu entier, repères hors zone d\'image.</div>';
+        : '<div class="cf-print-w info">' + dzT("cartes.print.plan_sain") + '</div>';
       w.querySelectorAll("[data-fix]").forEach((b) => b.addEventListener("click", () => {
         const fx2 = ws[Number(b.dataset.fix)].fix;
         const o = {}; Object.keys(fx2).forEach((k) => { if (k !== "label") o[k] = fx2[k]; });
@@ -1138,16 +1055,11 @@
          arrondi local. */
       const ppm = BPLAN ? BPLAN.phys_ppm : null;
       const pdpi = BPLAN ? BPLAN.phys_dpi : null;
-      cr.innerHTML = 'Rendu à <b>' + g.canvas_px[0] + ' x ' + g.canvas_px[1] + ' px</b> '
-        + '(toile, fond perdu compris) sur une grille de <b>' + g.dpi + ' px/pouce</b>. '
+      cr.innerHTML = dzT("cartes.print.cr_rendu", { w: g.canvas_px[0], h: g.canvas_px[1], dpi: g.dpi })
         + (ppm
-          ? 'Le fichier porte sa densité : PNG <b>pHYs = ' + ppm + ' px/m</b>, '
-            + 'soit <b>' + String(pdpi).replace(".", ",") + ' DPI</b> — la maille '
-            + 'entière la plus proche de ' + g.dpi + ', parce que l’unité du chunk '
-            + 'est le mètre. JPEG : densité JFIF. '
-          : 'Densité du fichier : <i>non vérifiée (backend absent)</i>. ')
-        + 'Espace : profil <b>sRGB embarqué</b> (chunk <b>iCCP</b> en PNG, '
-        + 'segment ICC_PROFILE en JPEG). '
+          ? dzT("cartes.print.cr_densite", { ppm: ppm, dpi: String(pdpi).replace(".", ","), cible: g.dpi })
+          : dzT("cartes.print.cr_densite_nv"))
+        + dzT("cartes.print.cr_espace")
         /* LE 16 BITS N'EST PLUS UNE PHRASE, C'EST UNE MESURE. Un audit a
            prouve ailleurs qu'un badge « 16 bits » peut etre faux alors que
            l'IHDR le confirme : les echantillons tombaient tous sur le reseau
@@ -1155,18 +1067,11 @@
            bouton d'audit encode la meme rampe de 256 niveaux en 8 et en 16
            bits, decompresse les deux fichiers et compte. */
         + (AUDIT && AUDIT.depth && AUDIT.depth["16"] && AUDIT.depth["16"].exact
-          ? '16 bits = <b>conteneur</b>, mesuré sur un <b>témoin écrit</b> avec ces '
-            + 'réglages (rampe de 256 niveaux, ' + AUDIT.depth["16"].bytes + ' octets) : '
-            + AUDIT.depth["16"].samples.toLocaleString("fr-FR") + ' échantillons, <b>'
-            + AUDIT.depth["16"].distinct + ' valeurs distinctes</b> = '
-            + nfx(AUDIT.depth["16"].useful_bits, 2) + ' bits utiles'
+          ? dzT("cartes.print.cr_16_mesure", { octets: AUDIT.depth["16"].bytes, ech: AUDIT.depth["16"].samples.toLocaleString("fr-FR"), dist: AUDIT.depth["16"].distinct, utiles: nfx(AUDIT.depth["16"].useful_bits, 2) })
             + (AUDIT.depth["16"].lattice_257
-              ? ', toutes multiples de <b>257</b> — donc une source 8 bits élargie, '
-                + 'exactement ce qui est annoncé.'
-              : ' — vraies valeurs 16 bits.')
-          : '16 bits = <b>conteneur</b> 16 bits par canal ; la source écran reste en 8 bits, '
-            + 'et rien ici ne prétend le contraire — <i>« Auditer le fichier écrit » '
-            + 'le mesure sur les octets</i>.');
+              ? dzT("cartes.print.cr_257")
+              : dzT("cartes.print.cr_vraies_16"))
+          : dzT("cartes.print.cr_16_conteneur"));
     }
     const v = q('[data-role="verify"]');
     if (v) { v.className = "cf-print-chk " + VERIFY.cls; v.textContent = VERIFY.txt; }
@@ -1199,20 +1104,17 @@
     const accord = bum !== null && Math.abs(bum - um) < 0.15;
     const bon = um < 1 && (bum === null || bum < 1);
     box.innerHTML = '<div class="cf-print-dx' + (bon ? '' : ' ko') + '"><b>'
-      + (bon ? 'Miroir mesuré' : 'MIROIR FAUX') + ' : écart ' + nfx(um, 1)
-      + ' µm</b> — retournement '
-      + (s.flip === "long" ? "bord long (la colonne s’inverse)"
-        : "bord court (la ligne s’inverse)") + ' : '
+      + (bon ? dzT("cartes.print.dx_ok", { um: nfx(um, 1) }) : dzT("cartes.print.dx_faux", { um: nfx(um, 1) })) + '</b> — ' + dzT("cartes.print.dx_retournement") + ' '
+      + (s.flip === "long" ? dzT("cartes.print.dx_long")
+        : dzT("cartes.print.dx_court")) + ' : '
       + m.slice(0, 6).map((x) => 'F' + x[0] + '&#8596;B(' + x[1] + ',' + x[2] + ')').join(" · ")
       + (m.length > 6 ? " …" : "") + '. '
       + (bon
-        ? 'Chaque verso tombe derrière son recto : écart mesuré case par case '
-          + 'entre sa position et la position miroir du recto'
-        : 'Le verso ne tombe PAS derrière son recto')
-      + (accord ? ' — <b>même mesure côté backend</b> (' + nfx(bum, 1) + ' µm), '
-        + 'sur la géométrie qu’il écrira.'
-        : bum === null ? ' (pas encore confirmé par le backend).'
-          : ' — backend : ' + nfx(bum, 1) + ' µm.')
+        ? dzT("cartes.print.dx_bon")
+        : dzT("cartes.print.dx_mauvais"))
+      + (accord ? dzT("cartes.print.dx_accord", { um: nfx(bum, 1) })
+        : bum === null ? dzT("cartes.print.dx_pas_confirme")
+          : dzT("cartes.print.dx_backend", { um: nfx(bum, 1) }))
       + '</div>';
   }
 
@@ -1241,17 +1143,12 @@
     if (!on || !pr) {
       box.innerHTML = '<div class="cf-print-pf-ok muted">'
         + (on
-          ? 'Sceau prismatique actif, mais <b>hors portée impression</b> : cocher '
-          + '« impression » dans le groupe « Sceau prismatique » du panneau <b>Cadre</b>. '
-          + 'Le PDF ne portera ni encre d’appoint, ni calque de foil.'
-          : 'Aucun <b>Sceau prismatique</b> sur ce jeu : rien à dorer. Le contour '
-          + 'holographique se coche dans le panneau <b>Cadre</b>.') + '</div>';
+          ? dzT("cartes.print.foil_hors_portee")
+          : dzT("cartes.print.foil_aucun")) + '</div>';
       return;
     }
     if (!f) {
-      box.innerHTML = '<div class="cf-print-pf-ok muted">Sceau en portée impression — '
-        + 'les millimètres tracés sont calculés par le backend, et le plan n’a pas '
-        + 'encore répondu.</div>';
+      box.innerHTML = '<div class="cf-print-pf-ok muted">' + dzT("cartes.print.foil_attente") + '</div>';
       return;
     }
     const rows = [];
@@ -1260,50 +1157,30 @@
        [0 ; 8]) et il ferait tomber la dorure sur la carte VOISINE. La plaque
        est ramenee au trait de coupe ; le document, lui, est nomme. */
     if (Number(f.edge_asked_mm) < 0) {
-      rows.push(["err", 'Le <b>retrait du filet est négatif</b> dans le document ('
-        + nfx(f.edge_asked_mm, 2) + ' mm) : l’anneau tomberait hors de la carte, et sur '
-        + 'une planche il traverserait le trait de coupe de la carte voisine. La plaque '
-        + 'a été ramenée au trait de coupe ; remettre <span class="mono">edge_mm</span> '
-        + 'entre 0 et 8 mm dans le panneau Cadre. <b>L’export est refusé</b> d’ici là.']);
+      rows.push(["err", dzT("cartes.print.foil_negatif", { v: nfx(f.edge_asked_mm, 2) })]);
     }
     if (!f.live) {
       /* DEUX CAUSES ETRANGERES l'une a l'autre, et deux remedes differents :
          la PLACE (fenetre trop pres du filet) ou la LARGEUR ECRITE dans le
          document. Les confondre faisait ecrire « il ne reste que 5,00 mm,
          sous le trait minimal de 0,2 mm » — un chiffre qui refute sa phrase. */
-      rows.push(["warn", 'Aucun anneau à dorer : '
+      rows.push(["warn", dzT("cartes.print.foil_pas_anneau")
         + (Number(f.cap_mm) < Number(f.min_mm)
-          ? 'entre le filet (posé à <b>' + nfx(f.edge_mm, 2) + ' mm</b> de la coupe) et '
-          + 'la fenêtre d’illustration il ne reste que <b>' + nfx(f.cap_mm, 2)
-          + ' mm</b>, sous le trait minimal de ' + nf(f.min_mm, 1) + ' mm. '
-          + '<b>Rapprocher le filet de la coupe ou reculer la fenêtre</b> (panneau Cadre).'
-          : 'la <b>largeur demandée</b> par le document vaut <b>' + nfx(f.asked_mm, 2)
-          + ' mm</b>, alors que la place n’y est pour rien (' + nfx(f.cap_mm, 2)
-          + ' mm disponibles). <b>Régler la largeur de bande du Sceau</b> dans le '
-          + 'panneau Cadre.')
-        + ' Le PDF partira sans masque de foil.']);
+          ? dzT("cartes.print.foil_place", { edge: nfx(f.edge_mm, 2), cap: nfx(f.cap_mm, 2), min: nf(f.min_mm, 1) })
+          : dzT("cartes.print.foil_largeur", { asked: nfx(f.asked_mm, 2), cap: nfx(f.cap_mm, 2) }))
+        + dzT("cartes.print.foil_sans_masque")]);
     } else {
       if (f.width_mm < f.min_mm) {
-        rows.push(["err", 'Trait de <b>' + nfx(f.width_mm, 2) + ' mm</b>, sous le minimum '
-          + 'd’un imprimeur foil (' + nf(f.min_mm, 1) + ' mm) : l’export sera refusé. '
-          + 'Aucun curseur ne descend là — cette largeur vient du document lui-même.']);
+        rows.push(["err", dzT("cartes.print.foil_trait_min", { w: nfx(f.width_mm, 2), min: nf(f.min_mm, 1) })]);
       }
       const proche = f.edge_mm < f.trim_mm;
-      rows.push([proche ? "warn" : "ok", 'Anneau <b>' + esc(f.kind) + '</b> de <b>'
-        + nfx(f.width_mm, 2) + ' mm</b>, posé à <b>' + nfx(f.edge_mm, 2) + ' mm</b> du '
-        + 'trait de coupe'
+      rows.push([proche ? "warn" : "ok", dzT("cartes.print.foil_anneau", { kind: esc(f.kind), w: nfx(f.width_mm, 2), edge: nfx(f.edge_mm, 2) })
         + (proche
-          ? ' — il en faut ' + nf(f.trim_mm, 1) + '. Monter le retrait du filet '
-          + '(<span class="mono">edge_mm</span>) au-delà de ' + nf(f.trim_mm, 1)
-          + ' mm dans le panneau Cadre, ce qui déplace aussi le filet extérieur, ou '
-          + 'accepter la variance de fabrication de ' + esc(f.variance) + '. '
-          + '<b>Avertissement, pas erreur</b> : l’export part quand même.'
-          : ' : au-delà des ' + nf(f.trim_mm, 1) + ' mm exigés.')]);
-      rows.push(["ok", 'Le PDF portera l’encre d’appoint <span class="mono">/Separation '
-        + '« Foil »</span> en surimpression, dans le calque « ' + esc(f.layer) + ' »'
-        + (st().layers ? '' : ' — mais la case <b>calques optionnels</b> est décochée : '
-          + 'la plaque reste lisible, l’imprimeur ne pourra pas l’isoler d’un clic')
-        + '. Repli raster : PNG 1 bit ' + FOILDPI + ' dpi, noir = dorure.']);
+          ? dzT("cartes.print.foil_proche", { t: nf(f.trim_mm, 1), variance: esc(f.variance) })
+          : dzT("cartes.print.foil_audela", { t: nf(f.trim_mm, 1) }))]);
+      rows.push(["ok", dzT("cartes.print.foil_pdf", { calque: esc(f.layer) })
+        + (st().layers ? '' : dzT("cartes.print.foil_sans_calques"))
+        + dzT("cartes.print.foil_repli", { dpi: FOILDPI })]);
     }
     box.innerHTML = rows.map((r) => '<div class="cf-print-pf-row ' + r[0] + '">'
       + '<span class="cf-print-c">foil</span>'
@@ -1319,8 +1196,7 @@
     const list = (CAT && CAT.intents) || INTENT_FALLBACK;
     const it = list.filter((x) => x.id === s.intent)[0];
     if (!it || !it.space) {
-      el.innerHTML = '<span class="cf-print-bad">Aucune intention : le fichier ne dira pas '
-        + 'dans quel espace il a été fabriqué.</span>';
+      el.innerHTML = '<span class="cf-print-bad">' + dzT("cartes.print.ir_aucune") + '</span>';
       return;
     }
     const bpf = (BPLAN && BPLAN.out_intent) || null;
@@ -1330,24 +1206,23 @@
        qu'on n'est pas — deux controles independants l'ont releve sur les
        octets. Le panneau annonce donc le sous-type REEL, et la revendication
        n'est affichee que lorsque la structure complete l'accompagne. */
-    el.innerHTML = 'Écrit dans le PDF : <b>/OutputIntents</b> · sous-type <b class="mono">'
-      + esc((bpf && bpf.subtype) || "?") + '</b> · identifiant <b>'
+    el.innerHTML = dzT("cartes.print.ir_ecrit") + '<b class="mono">'
+      + esc((bpf && bpf.subtype) || "?") + '</b> · ' + dzT("cartes.print.ir_identifiant") + ' <b>'
       + esc((bpf && bpf.id) || it.icc || it.label) + '</b>'
       + (bpf && bpf.profile_bytes
-        ? ' · profil ICC embarqué de <b>' + bpf.profile_bytes + ' octets</b>'
-          + (bpf.cls ? ' (classe <span class="mono">' + esc(bpf.cls) + '</span>)' : '')
-        : ' · condition normalisée du registre ICC (profil embarqué facultatif)')
+        ? dzT("cartes.print.ir_profil", { n: bpf.profile_bytes })
+          + (bpf.cls ? dzT("cartes.print.ir_classe", { cls: esc(bpf.cls) }) : '')
+        : dzT("cartes.print.ir_condition"))
       + (bpf
         ? (bpf.claim
-          ? ' · <b class="cf-print-good">conformité ' + esc(bpf.version) + '</b> '
-            + 'revendiquée (version + XMP pdfxid + /Trapped + en-tête %PDF-1.4)'
-          : ' · <b>aucune revendication PDF/X</b> — '
+          ? dzT("cartes.print.ir_claim", { v: esc(bpf.version) })
+          : dzT("cartes.print.ir_sans_claim")
             + (bpf.pdfx
-              ? 'les calques optionnels sont du PDF 1.5, que PDF/X-3 n’admet pas'
-              : bpf.press ? 'profil de sortie inexploitable'
-                : 'cette condition décrit la SOURCE, pas une presse')
-            + ' ; le fichier ne se présente pas comme ce qu’il n’est pas')
-        : ' <i>(non encore confirmé par le backend)</i>');
+              ? dzT("cartes.print.ir_calques")
+              : bpf.press ? dzT("cartes.print.ir_inexploitable")
+                : dzT("cartes.print.ir_source"))
+            + dzT("cartes.print.ir_honnete"))
+        : dzT("cartes.print.ir_non_confirme"));
   }
 
   /* ══ L'AUDIT DU FICHIER : LA SEULE SOURCE DES CHIFFRES AFFICHES ══════════
@@ -1357,7 +1232,7 @@
      cote de chaque affirmation. Rien ici ne vient d'un reglage. */
   async function runAudit() {
     const box = q('[data-role="audit"]');
-    if (box) box.innerHTML = '<div class="cf-print-pf-ok">écriture d’un PDF témoin, puis relecture des octets…</div>';
+    if (box) box.innerHTML = '<div class="cf-print-pf-ok">' + dzT("cartes.print.audit_en_cours") + '</div>';
     try {
       const r = await M.api.post("audit", specNow({}));
       AUDIT = (r && r.audit) || null;
@@ -1378,8 +1253,7 @@
     const box = q('[data-role="audit"]');
     if (!box) return;
     if (!AUDIT) {
-      box.innerHTML = '<div class="cf-print-pf-ok muted">Aucun audit lancé — '
-        + 'le bouton écrit un PDF témoin et relit ses octets.</div>';
+      box.innerHTML = '<div class="cf-print-pf-ok muted">' + dzT("cartes.print.audit_aucun") + '</div>';
       return;
     }
     const a = AUDIT;
@@ -1389,8 +1263,8 @@
       + '</span><span class="cf-print-v">' + (bon ? ICO("dz-etat-succes", 16) : "&#8212;")
       + '</span></div>';
     box.innerHTML = '<div class="cf-print-pf-sum"><b class="'
-      + (a.pdfx ? "ok" : "") + '">' + (a.pdfx || "aucune revendication PDF/X")
-      + '</b><span>' + a.bytes + ' octets relus</span></div>'
+      + (a.pdfx ? "ok" : "") + '">' + (a.pdfx || dzT("cartes.print.al_sans_claim"))
+      + '</b><span>' + a.bytes + ' ' + dzT("cartes.print.audit_octets") + '</span></div>'
       /* ── LES DEUX MESURES QUI JUGENT LES AUTRES, EN PREMIER ────────────
          Mesure du 12/08 : ajoutees en fin de boite, elles tombaient sous la
          ligne de flottaison (scrollHeight 450 px pour clientHeight 378 px) —
@@ -1398,77 +1272,70 @@
          (« annonce, pas montre »). La profondeur REELLE et le verdict ECRIT
          DANS LE FICHIER passent donc devant. */
       + (a.depth && a.depth["16"] && a.depth["16"].exact
-        ? ligne("profondeur",
-          "témoin, rampe de 256 niveaux — 8 bits : " + a.depth["8"].distinct + " valeurs = "
-          + nfx(a.depth["8"].useful_bits, 2) + " bits utiles · 16 bits : "
-          + a.depth["16"].distinct + " valeurs = "
-          + nfx(a.depth["16"].useful_bits, 2) + " bits utiles"
+        ? ligne(dzT("cartes.print.al_profondeur"),
+          dzT("cartes.print.al_profondeur_v", { d8: a.depth["8"].distinct, u8: nfx(a.depth["8"].useful_bits, 2), d16: a.depth["16"].distinct, u16: nfx(a.depth["16"].useful_bits, 2) })
           + (a.depth["16"].lattice_257
-            ? " — toutes multiples de 257 : conteneur 16 bits, contenu 8 bits"
-            : " — vraies valeurs 16 bits"),
+            ? dzT("cartes.print.al_257")
+            : dzT("cartes.print.al_vraies_16")),
           true)
         : "")
-      + ligne("contrôle écrit", a.control
+      + ligne(dzT("cartes.print.al_controle"), a.control
         ? (a.control.length > 150 ? a.control.slice(0, 150) + "…" : a.control)
-        : "aucun verdict dans le fichier",
+        : dzT("cartes.print.al_sans_verdict"),
         !!a.control && !a.control_forced
         && a.control.indexOf("controle avant vol") === 0)
       /* ── LES MESURES D'IMPRIMEUR ENSUITE, ET SANS DEFILER ──────────────
          Le miroir recto-verso et le format de page sont ce qu'un atelier
          regarde en premier ; ils etaient les trois dernieres lignes d'une
          boite qui n'en montrait que huit. */
-      + ligne("boîtes", a.pages_4_boites + "/" + a.pages + " pages portent "
-        + "MediaBox+TrimBox+BleedBox+ArtBox, " + a.pages_boites_emboitees
-        + " emboîtées", a.pages_4_boites === a.pages)
+      + ligne(dzT("cartes.print.al_boites"), dzT("cartes.print.al_boites_v", { n: a.pages_4_boites, total: a.pages, emb: a.pages_boites_emboitees }), a.pages_4_boites === a.pages)
       + ligne("page", (a.media_pt
         ? fx(a.media_pt[2] - a.media_pt[0], 4) + " x "
           + fx(a.media_pt[3] - a.media_pt[1], 4) + " pt" : "?")
         + (a.iso_um >= 0 ? " · " + signedUm(a.iso_um_xy, a.iso_um)
-          + " du format nominal" : " · format hors table"),
+          + dzT("cartes.print.du_nominal_fmt") : dzT("cartes.print.hors_table")),
         a.iso_um >= 0 && a.iso_um < 0.05)
       /* LA ROGNE, DEDUITE DES SEULS OCTETS : /TrimBox moins (n-1) pas de
          grille relus dans les matrices `cm` du flux. C'est la mesure qui
          repond a « la TrimBox declare 62,992 x 87,9687 mm, pas 63 x 88 ». */
-      + ligne("rogne", (a.trim_cell_mm && a.trim_cell_mm.length
+      + ligne(dzT("cartes.print.al_rogne"), (a.trim_cell_mm && a.trim_cell_mm.length
         ? nfx(a.trim_cell_mm[0], 4) + " x " + nfx(a.trim_cell_mm[1], 4) + " mm"
           + (a.trim_fmt ? " · " + esc(a.trim_fmt) : "")
           + (a.trim_um_xy && a.trim_um_xy.length
-            ? " · " + signedUm(a.trim_um_xy, 0) + " du nominal" : "")
-        : "/TrimBox = page entière : aucune cellule à déduire"),
+            ? " · " + signedUm(a.trim_um_xy, 0) + dzT("cartes.print.du_nominal") : "")
+        : dzT("cartes.print.al_trim_page")),
         !!(a.trim_um_xy && a.trim_um_xy.length
           && Math.abs(a.trim_um_xy[0]) < 0.05 && Math.abs(a.trim_um_xy[1]) < 0.05))
       /* LA DÉRIVE TOLÉRÉE, RELUE DANS LES OCTETS DU TÉMOIN — c'est le chiffre
          qui était AFFIRMÉ (2 mm, le fond perdu restant) là où le fichier en
          portait 0 : le trait de gouttière touchait la carte. */
-      + ligne("dérive tolérée", a.mark_clearance_mm >= 0
-        ? nfx(a.mark_clearance_mm, 2) + " mm entre l’encre des repères et la carte "
-          + "la plus proche · " + a.marks_n + " trait(s), " + a.mark_touch
-          + " qui touche(nt)"
-        : "aucun repère dans ce témoin",
+      + ligne(dzT("cartes.print.derive"), a.mark_clearance_mm >= 0
+        ? dzT("cartes.print.al_derive_v", { d: nfx(a.mark_clearance_mm, 2), n: a.marks_n, t: a.mark_touch })
+        : dzT("cartes.print.al_sans_reperes"),
         a.mark_clearance_mm < 0 ? true : (a.mark_touch === 0 && a.mark_clearance_mm > 0))
-      + ligne("miroir R/V", a.mirror_um >= 0
-        ? nfx(a.mirror_um, 1) + " µm entre chaque verso et le miroir de son recto"
-        : "sans objet (pas de recto-verso dans ce témoin)",
+      + ligne(dzT("cartes.print.al_miroir"), a.mirror_um >= 0
+        ? nfx(a.mirror_um, 1) + dzT("cartes.print.al_miroir_v")
+        : dzT("cartes.print.al_miroir_so"),
         a.mirror_um >= 0 ? a.mirror_um < 1 : true)
-      + ligne("calques", a.ocg_count
+      + ligne(dzT("cartes.print.al_calques"), a.ocg_count
         ? a.ocg_count + " /OCG : " + a.ocg_names.join(" · ")
-        : "aucun /OCProperties", a.ocg_count > 0)
-      + ligne("en-tête", a.header, a.header >= "%PDF-1.4")
-      + ligne("sous-type", a.intent_subtype + (a.intent_version
-        ? " · " + a.intent_version : " · sans revendication"), true)
+        : dzT("cartes.print.al_sans_ocp"), a.ocg_count > 0)
+      + ligne(dzT("cartes.print.al_entete"), a.header, a.header >= "%PDF-1.4")
+      + ligne(dzT("cartes.print.al_sous_type"), a.intent_subtype + (a.intent_version
+        ? " · " + a.intent_version : dzT("cartes.print.al_sans_rev")), true)
       + ligne("condition", a.intent_id + (a.profile_bytes
-        ? " · profil " + a.profile_bytes + " o classe " + a.profile_class
-        : " · registre " + (a.intent_registry || "—")), true)
-      + ligne("XMP", a.xmp_blocks + " bloc(s)" + (a.xmp_pdfx ? " · pdfxid" : ""),
+        ? dzT("cartes.print.al_profil", { n: a.profile_bytes, cls: a.profile_class })
+        : dzT("cartes.print.al_registre") + (a.intent_registry || "—")), true)
+      + ligne("XMP", a.xmp_blocks + dzT("cartes.print.al_blocs") + (a.xmp_pdfx ? " · pdfxid" : ""),
         a.xmp_blocks > 0)
       + ligne("/Trapped", a.trapped || "absent", !!a.trapped)
-      + ligne("polices", a.font_hits + " occurrence(s) de /Font ou /FontFile",
+      + ligne(dzT("cartes.print.al_polices"), a.font_hits + dzT("cartes.print.al_polices_v"),
         a.font_hits === 0)
-      + ligne("étiquetage", a.iccbased_hits + " /ICCBased · " + a.devicergb_hits
-        + " /DeviceRGB muet", a.devicergb_hits === 0)
-      + ligne("chiffrement", a.encrypted ? "oui" : "aucun", !a.encrypted)
+      + ligne(dzT("cartes.print.al_etiquetage"), a.iccbased_hits + " /ICCBased · " + a.devicergb_hits
+        + dzT("cartes.print.al_devicergb"), a.devicergb_hits === 0)
+      + ligne(dzT("cartes.print.al_chiffrement"), a.encrypted ? dzT("cartes.print.oui") : dzT("cartes.print.al_aucun"), !a.encrypted)
       + (a.pdfx_manques.length
-        ? '<div class="cf-print-pf-row err"><span class="cf-print-c">manques</span>'
+        ? '<div class="cf-print-pf-row err"><span class="cf-print-c">' + dzT("cartes.print.al_manques") + '</span>'
           + '<span class="cf-print-m">' + esc(a.pdfx_manques.join(" · "))
           + '</span><span class="cf-print-v">&#8212;</span></div>'
         : "");
@@ -1478,8 +1345,7 @@
     const box = q('[data-role="icc"]');
     if (!box) return;
     if (!ICC) {
-      box.innerHTML = '<div class="cf-print-iccl muted">Aucun profil chargé. '
-        + '« CMYK par profil » et l’intention « profil de l’imprimeur » en réclament un.</div>';
+      box.innerHTML = '<div class="cf-print-iccl muted">' + dzT("cartes.print.icc_aucun") + '</div>';
       return;
     }
     /* tout ce qui est affiche ici est LU SUR LES OCTETS du profil par le
@@ -1487,8 +1353,7 @@
        du fichier. */
     box.innerHTML = '<div class="cf-print-iccl"><b>'
       + esc(ICC.desc || ICC.name || "profil.icc") + '</b>'
-      + '<span>' + esc(ICC.space) + ' · ' + ICC.n + ' canaux · classe ' + esc(ICC.cls)
-      + ' · ' + ICC.bytes + ' octets</span></div>';
+      + '<span>' + esc(ICC.space) + dzT("cartes.print.icc_info", { n: ICC.n, cls: esc(ICC.cls), octets: ICC.bytes }) + '</span></div>';
   }
 
   /* ── le plan, dessine ──────────────────────────────────────────────────── */
@@ -1526,7 +1391,7 @@
         ctx.fillStyle = "rgba(200,40,40,.85)";
         ctx.font = "600 " + (p.sheet_px[0] / 16) + "px sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText("ne tient pas", p.sheet_px[0] / 2, p.sheet_px[1] / 2);
+        ctx.fillText(dzT("cartes.print.ne_tient_pas"), p.sheet_px[0] / 2, p.sheet_px[1] / 2);
         return;
       }
       /* marge */
@@ -1592,7 +1457,7 @@
         ctx.fillStyle = ink;
         ctx.font = "600 " + (p.sheet_px[0] / 22) + "px sans-serif";
         ctx.textAlign = "left"; ctx.textBaseline = "top";
-        ctx.fillText(side === "front" ? "recto" : "verso (miroir)",
+        ctx.fillText(side === "front" ? dzT("cartes.print.cv_recto") : dzT("cartes.print.cv_verso"),
           p.margin_px || 10, (p.margin_px || 10) * 0.25);
       }
     });
@@ -1683,7 +1548,7 @@
     try {
       r = await M.api.post("layout", specNow({ n_cards: CF.cards().length }));
     } catch (e) {
-      VERIFY = { cls: "", txt: e && e.missing ? "hors ligne — plan local" : "plan non vérifié" };
+      VERIFY = { cls: "", txt: e && e.missing ? dzT("cartes.print.hors_ligne") : dzT("cartes.print.plan_non_verifie") };
       BPLAN = null; paintRead(); return;
     }
     BPLAN = r && r.plan;
@@ -1691,22 +1556,22 @@
     const bad = [];
     [["cols"], ["rows"], ["per_page"], ["pages"], ["sheet_px"], ["cell_px"]].forEach((k) => {
       if (JSON.stringify(PLAN[k[0]]) !== JSON.stringify(BPLAN[k[0]]))
-        bad.push(k[0] + " écran=" + JSON.stringify(PLAN[k[0]]) + " backend=" + JSON.stringify(BPLAN[k[0]]));
+        bad.push(k[0] + dzT("cartes.print.ecran_egal") + JSON.stringify(PLAN[k[0]]) + " backend=" + JSON.stringify(BPLAN[k[0]]));
     });
     [["gutter_px"], ["margin_px"]].forEach((k) => {
       if (Math.abs(PLAN[k[0]] - BPLAN[k[0]]) > 0.001)
-        bad.push(k[0] + " écran=" + PLAN[k[0]] + " backend=" + BPLAN[k[0]]);
+        bad.push(k[0] + dzT("cartes.print.ecran_egal") + PLAN[k[0]] + " backend=" + BPLAN[k[0]]);
     });
     for (let i = 0; i < 2; i++) {
       if (Math.abs(PLAN.origin_px[i] - BPLAN.origin_px[i]) > 0.001)
-        bad.push("origin_px[" + i + "] écran=" + PLAN.origin_px[i] + " backend=" + BPLAN.origin_px[i]);
+        bad.push("origin_px[" + i + "]" + dzT("cartes.print.ecran_egal") + PLAN.origin_px[i] + " backend=" + BPLAN.origin_px[i]);
     }
     /* LE MIROIR ET LA PAGE SONT DES CHIFFRES AFFICHES : ils sont donc
        confrontes comme le reste. Un ecart ici veut dire que l'ecran promet un
        repérage recto-verso ou un format de page que le fichier n'aura pas. */
     if (typeof BPLAN.mirror_um === "number"
       && Math.abs((PLAN.mirror_um || 0) - BPLAN.mirror_um) > 0.15) {
-      bad.push("mirror_um écran=" + PLAN.mirror_um + " backend=" + BPLAN.mirror_um);
+      bad.push("mirror_um" + dzT("cartes.print.ecran_egal") + PLAN.mirror_um + " backend=" + BPLAN.mirror_um);
     }
     /* LE COMPTE DE TRAITS ET LA DERIVE TOLEREE SONT DES CHIFFRES AFFICHES :
        ils sont donc confrontes comme le reste. Sans cela, l'ecran pouvait
@@ -1715,23 +1580,23 @@
     const sNow = currentState();
     const nLoc = markSegs(PLAN, sNow).length;
     if (typeof BPLAN.marks_n === "number" && nLoc !== BPLAN.marks_n) {
-      bad.push("marks_n écran=" + nLoc + " backend=" + BPLAN.marks_n);
+      bad.push("marks_n" + dzT("cartes.print.ecran_egal") + nLoc + " backend=" + BPLAN.marks_n);
     }
     if (typeof BPLAN.mark_clearance_mm === "number" && BPLAN.mark_clearance_mm >= 0) {
       const cLoc = markClearance(PLAN, sNow) / PLAN.dpi * 25.4;
       if (Math.abs(cLoc - BPLAN.mark_clearance_mm) > 0.006) {
-        bad.push("mark_clearance_mm écran=" + cLoc.toFixed(4)
+        bad.push("mark_clearance_mm" + dzT("cartes.print.ecran_egal") + cLoc.toFixed(4)
           + " backend=" + BPLAN.mark_clearance_mm);
       }
     }
     if (typeof BPLAN.mark_touch === "number"
       && markTouch(PLAN, sNow) !== BPLAN.mark_touch) {
-      bad.push("mark_touch écran=" + markTouch(PLAN, sNow) + " backend=" + BPLAN.mark_touch);
+      bad.push("mark_touch" + dzT("cartes.print.ecran_egal") + markTouch(PLAN, sNow) + " backend=" + BPLAN.mark_touch);
     }
     if (BPLAN.page_pt && PLAN.page_pt
       && (Math.abs(PLAN.page_pt[0] - BPLAN.page_pt[0]) > 0.001
         || Math.abs(PLAN.page_pt[1] - BPLAN.page_pt[1]) > 0.001)) {
-      bad.push("page_pt écran=" + JSON.stringify(PLAN.page_pt)
+      bad.push("page_pt" + dzT("cartes.print.ecran_egal") + JSON.stringify(PLAN.page_pt)
         + " backend=" + JSON.stringify(BPLAN.page_pt));
     }
     /* LA ROGNE ET LA ZONE SURE ECRITES SONT AFFICHEES : elles sont donc
@@ -1745,19 +1610,17 @@
       if (!a || !b || a.length !== b.length) return;
       for (let i = 0; i < a.length; i++) {
         if (Math.abs(a[i] - b[i]) > k[1]) {
-          bad.push(k[0] + " écran=" + JSON.stringify(a) + " backend=" + JSON.stringify(b));
+          bad.push(k[0] + dzT("cartes.print.ecran_egal") + JSON.stringify(a) + " backend=" + JSON.stringify(b));
           return;
         }
       }
     });
     if (bad.length) {
-      VERIFY = { cls: "ko", txt: "plan divergent : " + bad[0] };
+      VERIFY = { cls: "ko", txt: dzT("cartes.print.plan_divergent", { d: bad[0] }) };
       console.error("cardforge/print: PLAN DIVERGENT", bad);
     } else {
-      VERIFY = { cls: "ok", txt: "plan vérifié backend · " + BPLAN.sheet_px[0] + "x"
-        + BPLAN.sheet_px[1] + " px · gouttière " + fx(BPLAN.gutter_pt, 2).replace(".", ",")
-        + " pt · toile " + g.canvas_px.join("x") + " px"
-        + (BPLAN.duplex ? " · miroir R/V " + nfx(BPLAN.mirror_um, 1) + " µm" : "") };
+      VERIFY = { cls: "ok", txt: dzT("cartes.print.plan_verifie", { w: BPLAN.sheet_px[0], h: BPLAN.sheet_px[1], g: fx(BPLAN.gutter_pt, 2).replace(".", ","), toile: g.canvas_px.join("x") })
+        + (BPLAN.duplex ? dzT("cartes.print.plan_verifie_miroir", { um: nfx(BPLAN.mirror_um, 1) }) : "") };
     }
     paintRead();
   }
@@ -1833,7 +1696,7 @@
     if (PFBUSY) return;
     PFBUSY = true;
     const box = q('[data-role="pf"]');
-    if (box) box.innerHTML = '<div class="cf-print-pf-ok">mesure en cours…</div>';
+    if (box) box.innerHTML = '<div class="cf-print-pf-ok">' + dzT("cartes.print.pf_en_cours") + '</div>';
     try {
       const cards = CF.cards();
       /* COUPLAGE EN LECTURE, ET TOLERANT A L'ABSENCE (spec 2.3) :
@@ -1882,8 +1745,7 @@
     const box = q('[data-role="pf"]');
     if (!box) return;
     if (!PF) {
-      box.innerHTML = '<div class="cf-print-pf-ok muted">Aucun contrôle lancé — '
-        + '<b>V</b> mesure les ' + CF.cards().length + ' carte(s).</div>';
+      box.innerHTML = '<div class="cf-print-pf-ok muted">' + dzT("cartes.print.pf_aucun", { n: CF.cards().length }) + '</div>';
       return;
     }
     if (PF.offline) {
@@ -1891,17 +1753,14 @@
       return;
     }
     if (!PF.rows.length) {
-      box.innerHTML = '<div class="cf-print-pf-ok">' + ICO("dz-etat-succes", 16, "cf-ic") + (PF.checked ? PF.checked.cards : 0)
-        + ' carte(s), ' + (PF.checked ? PF.checked.slots : 0) + ' slot(s) : rien à signaler. '
-        + 'Zone sûre ' + (PF.safe_px || []).join(" x ") + ' px.</div>';
+      box.innerHTML = '<div class="cf-print-pf-ok">' + ICO("dz-etat-succes", 16, "cf-ic") + dzT("cartes.print.pf_rien", { n: PF.checked ? PF.checked.cards : 0, s: PF.checked ? PF.checked.slots : 0, zs: (PF.safe_px || []).join(" x ") }) + '</div>';
       return;
     }
     const tete = '<div class="cf-print-pf-sum">'
-      + '<b class="' + (PF.errors ? "ko" : "ok") + '">' + PF.errors + ' erreur(s)</b>'
-      + '<span>' + PF.warnings + ' avertissement(s)</span>'
-      + '<span class="ok">' + (PF.passed || 0) + ' règle(s) tenue(s)</span>'
-      + '<span>' + ((PF.checked && PF.checked.cards) || 0) + ' carte(s) · '
-      + ((PF.checked && PF.checked.rules) || PF.rows.length) + ' ligne(s)</span></div>';
+      + '<b class="' + (PF.errors ? "ko" : "ok") + '">' + dzT("cartes.print.pf_erreurs", { n: PF.errors }) + '</b>'
+      + '<span>' + dzT("cartes.print.pf_avert", { n: PF.warnings }) + '</span>'
+      + '<span class="ok">' + dzT("cartes.print.pf_tenues", { n: PF.passed || 0 }) + '</span>'
+      + '<span>' + dzT("cartes.print.pf_compte", { n: (PF.checked && PF.checked.cards) || 0, l: (PF.checked && PF.checked.rules) || PF.rows.length }) + '</span></div>';
     box.innerHTML = tete
       + PF.rows.slice(0, 200).map((r) => '<div class="cf-print-pf-row ' + r.level + '">'
         + '<span class="cf-print-c">' + esc(r.card) + '</span>'
@@ -1912,8 +1771,7 @@
               : r.kind === "champ_sans_bloc" ? esc(r.slot)
                 : r.kind === "bloc_vide" ? r.value + "/" + r.limit
                   : r.level === "ok" ? ICO("dz-etat-succes", 16) : "&#8212;") + '</span></div>').join("")
-      + (PF.rows.length > 200 ? '<div class="cf-print-pf-ok muted">… et '
-        + (PF.rows.length - 200) + ' autres</div>' : "");
+      + (PF.rows.length > 200 ? '<div class="cf-print-pf-ok muted">' + dzT("cartes.print.pf_autres", { n: PF.rows.length - 200 }) + '</div>' : "");
   }
 
   /* ══ profil ICC de sortie ════════════════════════════════════════════════
@@ -1932,10 +1790,10 @@
     const fd = new FormData();
     fd.append("file", file, file.name || "profil.icc");
     try {
-      CF.busy(true, "lecture du profil ICC…");
+      CF.busy(true, dzT("cartes.print.lecture_icc"));
       const r = await M.api.post("icc", fd);
       ICC = (r && r.icc) || null;
-      CF.toast("profil " + (ICC ? ICC.space + " · " + ICC.bytes + " octets" : "") + " chargé");
+      CF.toast(dzT("cartes.print.icc_charge", { d: ICC ? dzT("cartes.print.icc_charge_d", { esp: ICC.space, n: ICC.bytes }) : "" }));
       if (ICC && ICC.space === "CMYK" && st().intent !== "icc") set({ intent: "icc" });
     } catch (e) {
       CF.toast(String((e && e.message) || e), true);
@@ -1967,7 +1825,7 @@
     const fronts = [], backs = [];
     const t0 = (typeof performance !== "undefined" ? performance.now() : Date.now());
     for (let i = 0; i < n; i++) {
-      CF.busy(true, "rendu " + (i + 1) + " / " + n + " à " + CF.geom().canvas_px.join(" x ") + " px…");
+      CF.busy(true, dzT("cartes.print.busy_rendu", { i: i + 1, n: n, px: CF.geom().canvas_px.join(" x ") }));
       const k = limit ? 0 : i;
       fronts.push(await CF.cardBlob(k, { face: "front" }));
       if (withBacks) backs.push(await CF.cardBlob(k, { face: "back" }));
@@ -2020,12 +1878,12 @@
     const lignes = PF.rows.filter((r) => r.level === "err").slice(0, 6)
       .map((r) => "  · " + r.card + " — " + r.message).join("\n");
     const ok = await window.__dzDialogue.confirmer(
-      "Contrôle avant vol : " + n + " erreur(s).\n\n" + lignes
-      + (n > 6 ? "\n  … et " + (n - 6) + " autre(s)" : "")
-      + "\n\nCe fichier partira chez l’imprimeur avec ces défauts.\n"
-      + "Exporter quand même " + quoi + " ?");
+      dzT("cartes.print.gate_titre", { n: n }) + "\n\n" + lignes
+      + (n > 6 ? "\n  " + dzT("cartes.print.gate_autres", { n: n - 6 }) : "")
+      + "\n\n" + dzT("cartes.print.gate_defauts") + "\n"
+      + dzT("cartes.print.gate_question", { quoi: quoi }));
     if (!ok) {
-      CF.toast("export refusé : " + n + " erreur(s) au contrôle avant vol", true);
+      CF.toast(dzT("cartes.print.gate_refuse", { n: n }), true);
       return false;
     }
     FORCE = true;
@@ -2034,12 +1892,12 @@
 
   async function exportCard(all) {
     const s = currentState();
-    if (!(await gate("la ou les cartes"))) return;
+    if (!(await gate(dzT("cartes.print.quoi_cartes")))) return;
     try {
       const idx = all ? null : CF.current();
       const list = all ? CF.cards().map((c) => c.i) : [idx];
       for (let k = 0; k < list.length; k++) {
-        CF.busy(true, "carte " + (k + 1) + " / " + list.length + "…");
+        CF.busy(true, dzT("cartes.print.busy_carte", { k: k + 1, n: list.length }));
         const blob = await CF.cardBlob(list[k], { face: "front" });
         const fd = new FormData();
         fd.append("spec", JSON.stringify(exportSpec({})));
@@ -2051,13 +1909,13 @@
         } catch (e) {
           if (!(e && e.missing)) throw e;
           out = blob; name = deckSlug() + "_" + (list[k] + 1) + ".png";
-          CF.toast("backend absent : PNG brut du moteur (sans pHYs)", true);
+          CF.toast(dzT("cartes.print.backend_absent"), true);
         }
         CF.download(out, name);
         logLine(name, out.size, CF.geom().canvas_px.join(" x ") + " px · "
           + (s.card_fmt === "jpeg" ? "JPEG q" + s.jpeg_quality : "PNG " + s.card_bits + " bits"));
       }
-      CF.toast(list.length + " carte(s) exportée(s) à " + CF.geom().canvas_px.join(" x ") + " px");
+      CF.toast(dzT("cartes.print.toast_cartes", { n: list.length, px: CF.geom().canvas_px.join(" x ") }));
     } catch (e) { CF.toast(String((e && e.message) || e), true); }
     finally { CF.busy(false); FORCE = false; }
   }
@@ -2070,19 +1928,18 @@
      desactive dans ces cas-la. */
   async function exportFoilMask() {
     try {
-      CF.busy(true, "masque de foil…");
+      CF.busy(true, dzT("cartes.print.busy_foil"));
       const out = await M.api.blob("GET", "foil-mask?dpi=" + FOILDPI);
       const name = deckSlug() + "_masque-foil_" + FOILDPI + "dpi_noir.png";
       CF.download(out, name);
       const f = (BPLAN && BPLAN.foil) || null;
-      logLine(name, out.size, "PNG 1 bit · " + FOILDPI + " dpi · noir = dorure"
-        + (f ? " · anneau " + nfx(f.width_mm, 2) + " mm à " + nfx(f.edge_mm, 2)
-          + " mm de la coupe" : ""));
-      CF.toast("masque de foil exporté — noir = dorure, le même pour toutes les cartes");
+      logLine(name, out.size, dzT("cartes.print.log_foil", { dpi: FOILDPI })
+        + (f ? dzT("cartes.print.log_foil_anneau", { w: nfx(f.width_mm, 2), e: nfx(f.edge_mm, 2) }) : ""));
+      CF.toast(dzT("cartes.print.toast_foil"));
     } catch (e) {
       const m = String((e && e.message) || e);
       CF.toast(/\b409\b/.test(m)
-        ? "aucun anneau à dorer : voir la ligne du bloc « Masque de foil »" : m, true);
+        ? dzT("cartes.print.foil_409") : m, true);
     } finally { CF.busy(false); }
   }
 
@@ -2094,40 +1951,40 @@
     MIREV = true;
     const s = st().sheet === "card" ? "a4" : st().sheet;
     try {
-      CF.busy(true, "mire recto-verso…");
+      CF.busy(true, dzT("cartes.print.busy_mire"));
       const out = await M.api.blob("GET", "mire?sheet=" + encodeURIComponent(s));
       const name = "mire_recto_verso_" + s + ".pdf";
       CF.download(out, name);
-      logLine(name, out.size, "2 pages · vernier 1 / 0,9 mm · lecture au dixième de millimètre");
-      CF.toast("mire " + s.toUpperCase() + " : imprimez-la en recto-verso, à 100 %");
-    } catch (e) { CF.toast("Mire impossible : " + String((e && e.message) || e), true); }
+      logLine(name, out.size, dzT("cartes.print.log_mire"));
+      CF.toast(dzT("cartes.print.toast_mire", { s: s.toUpperCase() }));
+    } catch (e) { CF.toast(dzT("cartes.print.err_mire", { e: String((e && e.message) || e) }), true); }
     finally { CF.busy(false); MIREV = false; }
   }
 
   async function exportSheet() {
-    if (!(await gate("la planche PNG"))) return;
+    if (!(await gate(dzT("cartes.print.quoi_planche")))) return;
     try {
       const r = await renderAll(false);
-      CF.busy(true, "imposition de la planche…");
+      CF.busy(true, dzT("cartes.print.busy_planche"));
       const fd = formData(exportSpec({ page: 0, side: "front" }), r.fronts, []);
       const out = await M.api.blob("POST", "sheet", fd);
       const name = deckSlug() + "_planche_1.png";
       CF.download(out, name);
       logLine(name, out.size, (PLAN ? PLAN.sheet_px.join(" x ") + " px · "
         + PLAN.cols + "x" + PLAN.rows : ""));
-      CF.toast("planche 1 exportée en " + (PLAN ? PLAN.sheet_px.join(" x ") : "?") + " px"
-        + (PLAN && PLAN.pages > 1 ? " — les " + PLAN.pages + " pages sont dans le PDF" : ""));
+      CF.toast(dzT("cartes.print.toast_planche", { px: PLAN ? PLAN.sheet_px.join(" x ") : "?" })
+        + (PLAN && PLAN.pages > 1 ? dzT("cartes.print.toast_planche_pages", { n: PLAN.pages }) : ""));
     } catch (e) { CF.toast(String((e && e.message) || e), true); }
     finally { CF.busy(false); FORCE = false; }
   }
 
   async function exportPdf(limit) {
     const s = currentState();
-    if (!(await gate(limit ? "le banc d’essai" : "le PDF multipage"))) return;
+    if (!(await gate(limit ? dzT("cartes.print.quoi_banc") : dzT("cartes.print.quoi_pdf")))) return;
     const t0 = (typeof performance !== "undefined" ? performance.now() : Date.now());
     try {
       const r = await renderAll(!!s.duplex, limit);
-      CF.busy(true, "imposition et écriture du PDF…");
+      CF.busy(true, dzT("cartes.print.busy_pdf"));
       const fd = formData(exportSpec({}), r.fronts, r.backs);
       const out = await M.api.blob("POST", "pdf", fd);
       const t1 = (typeof performance !== "undefined" ? performance.now() : Date.now());
@@ -2138,17 +1995,15 @@
          qu'une, et le journal annoncait « 1 page » pour un PDF de 10. */
       const pages = PLAN && PLAN.per_page
         ? Math.ceil(r.fronts.length / PLAN.per_page) * (s.duplex ? 2 : 1) : 0;
-      const note = r.fronts.length + " carte(s) · " + pages + " page(s)"
-        + (PLAN ? " · " + PLAN.cols + "x" + PLAN.rows + " · gouttière "
+      const note = dzT("cartes.print.log_pdf", { n: r.fronts.length, p: pages })
+        + (PLAN ? " · " + PLAN.cols + "x" + PLAN.rows + dzT("cartes.print.log_gouttiere")
           + fx(PLAN.gutter_pt, 2).replace(".", ",") + " pt" : "")
-        + " · rendu " + (r.ms / 1000).toFixed(1).replace(".", ",") + " s · total "
-        + ((t1 - t0) / 1000).toFixed(1).replace(".", ",") + " s"
+        + dzT("cartes.print.log_temps", { r: (r.ms / 1000).toFixed(1).replace(".", ","), t: ((t1 - t0) / 1000).toFixed(1).replace(".", ",") })
         /* le passage en force LAISSE UNE TRACE : « exporte malgre 6 erreurs »
            n'est pas la meme phrase que « exporte ». */
-        + (FORCE ? " · FORCE malgré " + ((PF && PF.errors) || 0) + " erreur(s)" : "");
+        + (FORCE ? dzT("cartes.print.log_force", { n: (PF && PF.errors) || 0 }) : "");
       logLine(name, out.size, note);
-      CF.toast("PDF : " + r.fronts.length + " carte(s) en "
-        + ((t1 - t0) / 1000).toFixed(1).replace(".", ",") + " s");
+      CF.toast(dzT("cartes.print.toast_pdf", { n: r.fronts.length, t: ((t1 - t0) / 1000).toFixed(1).replace(".", ",") }));
     } catch (e) { CF.toast(String((e && e.message) || e), true); }
     finally { CF.busy(false); FORCE = false; }
   }
@@ -2164,15 +2019,10 @@
      on repasse a « maison ». ══════════════════════════════════════════════ */
   let GAB = [], GABFMT = "";
   const GAB_NOTE = {
-    mpc: "Fond perdu 36 px, zone sûre à 72 px du bord. MakePlayingCards publie "
-       + "« 1/8 in » mais le portail contrôle les pixels : 1/8 in vaudrait "
-       + "37,5 px, donc 825 x 1125, et l’envoi serait refusé.",
-    tgc: "Coupe à 37,5 px du bord, zone sûre à 75 px : pour un poker US, c’est "
-       + "exactement la toile 825 x 1125 du Card Forge.",
-    dtc: "Page de 2,75 x 3,75 in (198 x 270 pt), une face par page, AUCUN trait "
-       + "de coupe, PDF/X-1a:2001 quand le profil de presse est chargé.",
-    maison: "Planches imposées A4 / Letter / A3, traits de coupe et cartouche : "
-          + "le comportement historique.",
+    mpc: dzT("cartes.print.gab_mpc"),
+    tgc: dzT("cartes.print.gab_tgc"),
+    dtc: dzT("cartes.print.gab_dtc"),
+    maison: dzT("cartes.print.gab_maison"),
   };
   /* Les reglages d'impression qu'un gabarit impose, et qu'il faut donc
      pouvoir rendre a l'identique en revenant a « maison ». */
@@ -2184,14 +2034,9 @@
   function ecartPdfx(g) {
     if (!g || g.pdfx !== "PDF/X-1a:2001") return "";
     if (ICC && ICC.space === "CMYK" && ICC.cls === "prtr") {
-      return "Profil de presse chargé (" + (ICC.desc || ICC.name || "profil .icc")
-        + ") : séparation par ce profil, images CMJN nues, conformité PDF/X-1a "
-        + "revendiquée et relue dans les octets du fichier.";
+      return dzT("cartes.print.ec_presse", { p: ICC.desc || ICC.name || dzT("cartes.print.profil_icc") });
     }
-    return "Dimensions DriveThruCards tenues, conformité PDF/X-1a non revendiquée : "
-      + "la conversion CMJN est celle de l’appareil, sans retrait des sous-couleurs "
-      + "ni noir squelette. Chargez le profil ICC de l’imprimeur (bloc Couleur et "
-      + "prépresse) pour que la revendication soit écrite.";
+    return dzT("cartes.print.ec_device");
   }
   function paintGabarits() {
     const box = q('[data-role="gabs"]');
@@ -2200,13 +2045,10 @@
     box.innerHTML = GAB.map((g) => {
       const on = g.id === cur, ko = !g.geom;
       const px = g.geom
-        ? g.geom.canvas_px[0] + " x " + g.geom.canvas_px[1] + " px · fond perdu "
-          + fx(g.geom.bleed_off_px[0], 1).replace(".", ",") + " px · zone sûre à "
-          + fx(g.geom.safe_off_px[0], 1).replace(".", ",") + " px du bord"
-        : "ne sert pas ce format (" + GABFMT + ") — servis : " + g.fmts.join(", ");
-      const titre = ko ? "Ce gabarit ne sert pas le format " + GABFMT
-          + " : ses pixels publiés ne collent pas (vérifié le 04/10/2026)"
-        : "Régler le jeu pour " + g.label + (g.verifie ? " — pixels vérifiés le " + g.verifie : "");
+        ? dzT("cartes.print.gab_px", { w: g.geom.canvas_px[0], h: g.geom.canvas_px[1], fp: fx(g.geom.bleed_off_px[0], 1).replace(".", ","), zs: fx(g.geom.safe_off_px[0], 1).replace(".", ",") })
+        : dzT("cartes.print.gab_ne_sert_pas", { fmt: GABFMT, servis: g.fmts.join(", ") });
+      const titre = ko ? dzT("cartes.print.gab_titre_ko", { fmt: GABFMT })
+        : dzT("cartes.print.gab_titre", { g: g.label }) + (g.verifie ? dzT("cartes.print.gab_verifie", { d: g.verifie }) : "");
       return '<button type="button" class="cf-print-gab' + (on ? " on" : "") + (ko ? " ko" : "")
         + '" data-act="profile" data-v="' + esc(g.id) + '" title="' + esc(titre) + '"'
         + (ko ? " disabled" : "") + '>'
@@ -2220,8 +2062,7 @@
     const w = q('[data-role="gab-ecart"]');
     if (w) {
       const txt = (g && !g.geom)
-        ? "Le gabarit choisi ne sert pas le format " + GABFMT + " : choisissez un format servi "
-          + "(" + g.fmts.join(", ") + ") ou revenez à « maison »."
+        ? dzT("cartes.print.gab_ecart", { fmt: GABFMT, servis: g.fmts.join(", ") })
         : ecartPdfx(g);
       w.textContent = txt;
       w.classList.toggle("hidden", !txt);
@@ -2262,7 +2103,7 @@
       if (av && av.print) GAB_CLES.forEach((k) => { if (k in av.print) rendu[k] = av.print[k]; });
       set(rendu);
       if (av && av.format) M.setFormat(av.format);
-      CF.toast("retour à l’imposition maison : format et réglages d’avant rétablis");
+      CF.toast(dzT("cartes.print.toast_maison"));
     } else {
       const o = { profile: id };
       /* on ne retient l'« avant » qu'en QUITTANT maison : passer de MPC a TGC
@@ -2284,7 +2125,7 @@
       }
       set(o);
       M.setFormat({ bleed_mm: g.geom.bleed_mm, safe_mm: g.geom.safe_mm, dpi: g.geom.dpi });
-      CF.toast("jeu réglé pour " + g.label + " : " + g.geom.canvas_px.join(" x ") + " px");
+      CF.toast(dzT("cartes.print.toast_gab", { g: g.label, px: g.geom.canvas_px.join(" x ") }));
     }
     paintGabarits(); refresh(); schedulePreflight();
   }
@@ -2292,20 +2133,18 @@
   async function exportPack() {
     const g = gabRow(gabCourant());
     if (!g || g.delivery !== "png_zip") return;
-    if (!CF.cards().length) { CF.toast("Aucune carte à empaqueter", true); return; }
-    if (!(await gate("le paquet " + g.label))) return;
+    if (!CF.cards().length) { CF.toast(dzT("cartes.print.aucune_carte_paquet"), true); return; }
+    if (!(await gate(dzT("cartes.print.quoi_paquet", { g: g.label })))) return;
     try {
       const r = await renderAll(true);
-      CF.busy(true, "écriture du paquet " + g.id.toUpperCase() + "…");
+      CF.busy(true, dzT("cartes.print.busy_paquet", { g: g.id.toUpperCase() }));
       const fd = formData(exportSpec({}), r.fronts, r.backs);
       const out = await M.api.blob("POST", "pack", fd);
       const name = deckSlug() + "_paquet_" + g.id + ".zip";
       CF.download(out, name);
-      logLine(name, out.size, r.fronts.length + " carte(s) recto + verso à "
-        + g.geom.canvas_px.join(" x ") + " px");
-      CF.toast("paquet " + g.id.toUpperCase() + " : " + r.fronts.length + " carte(s) à "
-        + g.geom.canvas_px.join(" x ") + " px");
-    } catch (e) { CF.toast("Paquet impossible : " + String((e && e.message) || e), true); }
+      logLine(name, out.size, dzT("cartes.print.log_paquet", { n: r.fronts.length, px: g.geom.canvas_px.join(" x ") }));
+      CF.toast(dzT("cartes.print.toast_paquet", { g: g.id.toUpperCase(), n: r.fronts.length, px: g.geom.canvas_px.join(" x ") }));
+    } catch (e) { CF.toast(dzT("cartes.print.err_paquet", { e: String((e && e.message) || e) }), true); }
     finally { CF.busy(false); FORCE = false; }
   }
 
@@ -2412,7 +2251,7 @@
   function guidesBtn() { return document.getElementById("guidesBtn"); }
   function toggleGuides() {
     const b = guidesBtn();
-    if (!b) { CF.toast("repères indisponibles", true); return; }
+    if (!b) { CF.toast(dzT("cartes.print.reperes_indispo"), true); return; }
     b.click();
     syncGuides();
   }
@@ -2421,7 +2260,7 @@
     if (!b || !mine) return;
     const on = b.classList.contains("active");
     mine.classList.toggle("strong", on);
-    mine.innerHTML = ICO("dz-edit-reperes", 16, "cf-ic") + "Repères" + (on ? "" : " (masqués)");
+    mine.innerHTML = ICO("dz-edit-reperes", 16, "cf-ic") + dzT("cartes.print.reperes") + (on ? "" : dzT("cartes.print.masques"));
   }
 
   function sync() {
@@ -2445,8 +2284,8 @@
     qa("[data-color]").forEach((i) => { i.disabled = !rvb; });
     const cl = q('[data-role="colorlbl"]');
     if (cl) {
-      cl.textContent = rvb ? "Couleur des repères"
-        : "Couleur des repères (inutilisée : " + MARK_SPACE_LABEL[s.mark_space] + ")";
+      cl.textContent = rvb ? dzT("cartes.print.couleur_reperes")
+        : dzT("cartes.print.couleur_inutilisee", { e: MARK_SPACE_LABEL[s.mark_space] });
     }
     qa("[data-seg]").forEach((sg) => {
       const k = sg.dataset.seg;
@@ -2463,7 +2302,7 @@
      ══════════════════════════════════════════════════════════════════════════ */
   M = CF.register({
     id: "print",
-    title: "Impression",
+    title: dzT("cartes.print.titre"),
     icon: "dz-nav-cf-impression",
     order: 7,
 
