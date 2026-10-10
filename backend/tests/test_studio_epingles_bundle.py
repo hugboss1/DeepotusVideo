@@ -196,7 +196,7 @@ check("W4 le panneau dans l'inspecteur des Seedance et HeyGen ; son bouton « Re
       BUN.count('(e.type==="Seedance"||e.type==="HeyGenAvatar")&&r.jsx(DzPinPanel,{node:e,graph:t,onUpdate:o})') == 1
       # t142 (09/10) : textes passes par dzT ; epingles par leur cle, le francais verifie par AIDE.fr
       and 'title:dzT("studio.epingle.regenerer_aide")' in BUN and AIDE.fr("studio.epingle.regenerer_aide").startswith("Retirer l'épingle")
-      and 'children:dzT("studio.epingle.sans_epingle")' in BUN
+      and 'children:__dzGlT("dz-etat-epingle",dzT("studio.epingle.sans_epingle"),"📌")' in BUN     # icônes G1
       and AIDE.fr("studio.epingle.sans_epingle").startswith("📌 Pas d'épingle ici : un Seedance seul (ou un HeyGen seul) part directement par /generate")
       and "onUpdate({pin:null,pinPerime:null})" in BUN)
 check("W5 le « ≈ $ » dit les noeuds reemployes", BUN.count('dzPinNb(graph)?dzT("studio.cout.reutilises",{n:dzPinNb(graph)}):""') == 1

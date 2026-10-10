@@ -6,9 +6,14 @@ Le bundle `frontend/dist/assets/index-BEOJX8L5.js` porte deux sortes de code :
   - les COUCHES rafraîchissables (montage, sonvfx, sfxstudio, vfxrack) : leur bloc /*__DZ_<TAG>_BEGIN__*/ … est, à
     l'octet, la source `frontend/patches/<x>.js` ; on les modifie dans la SOURCE, puis
     `python scripts/refresh_layer.py --layer <x> --force` les réinjecte (jamais en dur dans le bundle) ;
-  - tout le reste (dont les blocs SUBS, TRANSFERT, DIALOGUE, dont la source ne reconstruit plus le bloc et qu'aucun
+  - tout le reste (dont les blocs SUBS et DIALOGUE, dont la source ne reconstruit plus le bloc, et TRANSFERT, qu'aucun
     outil ne rafraîchit) : modifié par le maillon de queue `scripts/patch_bundle_dzglyph.py`, d'après la table
-    `scripts/dzglyph_paires.json` écrite ici.
+    `scripts/dzglyph_paires.json` écrite ici ; la source de TRANSFERT (marqueurs compris, test_transfert_bundle) reçoit
+    le miroir exact du bloc livré.
+  - la table garde aussi, couche par couche, les éditions faites dans les sources (positions de la source de BASE) :
+    backend/tests/_i18n_l1_aide.py (avant_dzglyph, couche_avant_dzglyph) les défait pour les bancs d'avant G1, et
+    appliquer_couche_g1 les rejoue pour les générateurs i18n (l1, l2, l4) qui réécrivent ces sources.
+  Toute couche réécrite après la BASE (nouvelle traduction, retouche) : relancer ce générateur sur une BASE à jour.
 
 SAISIE (positions toujours exprimées dans le bundle de la BASE, commit BASE ci-dessous = socle G0) :
   - `scripts/icones/g1_saisie_cles.json` : sites où une clé de la carte d'icônes `Sh` (« sparkle », « zap »…) est
@@ -36,6 +41,7 @@ SAISIE_CLES = REPO / "scripts" / "icones" / "g1_saisie_cles.json"
 SAISIE = REPO / "scripts" / "icones" / "g1_saisie.py"
 COUCHES = {"MONTAGE": "montage.js", "SONVFX": "son-vfx-montage.js", "SFXSTUDIO": "sfxstudio.js",
            "VFXRACK": "vfxrack.js"}
+MIROIRS = {"TRANSFERT": "transfert.js"}            # sources = bloc du bundle marqueurs compris, sans outil de rafraîchissement
 
 
 def git_show(rel: str) -> bytes:
@@ -196,15 +202,26 @@ def main():
     check = "--check" in sys.argv
     sources, table, final = generer()
     ecarts = []
+    # bloc TRANSFERT : sa source (marqueurs compris) EST le bloc du bundle (test_transfert_bundle) mais aucun outil ne
+    # le rafraîchit — le maillon l'édite dans le bundle, et la source en reçoit le miroir exact
+    for tag, nom in MIROIRS.items():
+        b, e = f"/*__DZ_{tag}_BEGIN__*/", f"/*__DZ_{tag}_END__*/"
+        i, j = final.index(b), final.index(e) + len(e)
+        p = REPO / "frontend/patches" / nom
+        neuf = (final[i:j] + "\r\n").encode("utf-8")
+        if p.read_bytes().replace(b"\r\n", b"\n") != neuf.replace(b"\r\n", b"\n"):
+            ecarts.append(str(p.relative_to(REPO)))
+            if not check:
+                p.write_bytes(neuf)
     for tag, src in sources.items():
         p = REPO / "frontend/patches" / COUCHES[tag]
         neuf = src.encode("utf-8")
-        if p.read_bytes() != neuf:
+        if p.read_bytes().replace(b"\r\n", b"\n") != neuf.replace(b"\r\n", b"\n"):
             ecarts.append(str(p.relative_to(REPO)))
             if not check:
                 p.write_bytes(neuf)
     tb = (json.dumps(table, ensure_ascii=False, indent=1) + "\n").encode("utf-8")
-    if not TABLE.exists() or TABLE.read_bytes() != tb:
+    if not TABLE.exists() or TABLE.read_bytes().replace(b"\r\n", b"\n") != tb:
         ecarts.append(str(TABLE.relative_to(REPO)))
         if not check:
             TABLE.write_bytes(tb)

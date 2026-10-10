@@ -126,7 +126,7 @@ if R:
     check("E5 AVANT / APRES en schema (le dessin de la galerie), titres avec les formats", R["schemas"] == ["1080x1920", "1920x1080"]
           and R["titres"] == ["Avant (9:16)", "Après (16:9)"] and R["titreA"] == "Réagencer « Dialogue » en 16:9", f"{R['schemas']} {R['titres']}")
     check("E6 les AVERTISSEMENTS du serveur sont affiches, un par ligne (avatar HeyGen : rendus repayes)",
-          R["avert"] == ["⚠ L'avatar « Avatar A » passe de 9:16 à 1:1 : ses rendus épinglés seront régénérés (payants)."], str(R["avert"]))
+          R["avert"] == ["⟦dz-etat-avertissement⟧ L'avatar « Avatar A » passe de 9:16 à 1:1 : ses rendus épinglés seront régénérés (payants)."], str(R["avert"]))
     check("E7 « Annuler » et « Enregistrer la copie » ont un title ; Annuler ferme SANS rien enregistrer",
           "sans rien enregistrer" in R["ab"][0] and "NOUVEAU gabarit" in R["ab"][1] and R["ferme"] == {"ap": None, "post": 0}, f"{R['ab']} {R['ferme']}")
     check("E8 « Enregistrer la copie » : POST {format}, la galerie recharge et selectionne la copie, l'apercu se ferme, message",

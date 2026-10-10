@@ -250,13 +250,14 @@ def avant_dzglyph(bundle: str) -> str:
     return s
 
 
-# icônes G1 sous node : les outils que le maillon dzglyph pose dans le bundle, rendus sans React. __dzGl rend un
-# élément {t:"dzi", p:{name, children:"⟦clé⟧"}} (par le r.jsx du harnais s'il existe) : le texte rendu d'un bouton dit
-# donc sa clé ; __dzGlT / __dzGlS / __dzGlD retirent le glyphe comme dans l'app ; __dzGlH rend un <svg data-dzi="clé"> vide. Inclus dans
+# icônes G1 sous node : les outils que le maillon dzglyph pose dans le bundle, rendus sans React et en TEXTE —
+# __dzGl(clé) rend « ⟦clé⟧ », __dzGlT(clé, texte, glyphe) le texte où le glyphe est devenu « ⟦clé⟧ » (mêmes espaces
+# que dans l'app), __dzGlS / __dzGlD comme dans l'app ; __dzGlH rend un <svg data-dzi="clé"> vide. Un banc qui
+# cherchait un bouton par son glyphe (« × ») le cherche donc par sa clé (« ⟦dz-action-fermer⟧ »). Inclus dans
 # PRELUDE_DZT.
 PRELUDE_DZGLYPH = r"""
-function __dzGl(e,t,n){var p={name:e,size:t==null?"1em":t,style:n,children:"⟦"+e+"⟧"};return (typeof r!=="undefined"&&r&&r.jsx)?r.jsx("dzi",p):{t:"dzi",p:p}}
-function __dzGlT(e,s,g,t){var i=__dzGl(e,t);if(typeof s!=="string")return s;var k=g?s.indexOf(g):-1;if(k<0)return s;var a=s.slice(0,k).replace(/\s+$/,""),b=s.slice(k+g.length).replace(/^\s+/,"");return a&&b?[a," ",i," ",b]:a?[a," ",i]:b?[i," ",b]:i}
+function __dzGl(e,t,n){return "⟦"+e+"⟧"}
+function __dzGlT(e,s,g,t){var i=__dzGl(e,t);if(typeof s!=="string")return s;var k=g?s.indexOf(g):-1;if(k<0)return s;var a=s.slice(0,k).replace(/\s+$/,""),b=s.slice(k+g.length).replace(/^\s+/,"");return a&&b?a+" "+i+" "+b:a?a+" "+i:b?i+" "+b:i}
 function __dzGlS(s,g){if(typeof s!=="string"||!g)return s;var k=s.indexOf(g);return k<0?s:(s.slice(0,k)+s.slice(k+g.length)).replace(/^\s+|\s+$/g,"").replace(/\s{2,}/g," ")}
 function __dzGlH(e,t){return '<svg class="dzi" data-dzi="'+e+'"></svg>'}
 function __dzGlD(el,e,s,g,t){var k=typeof s==="string"&&g?s.indexOf(g):0,f=k>0&&k>=s.length-g.length,x=__dzGlS(s,g)||"";el.textContent=f?x+" ⟦"+e+"⟧":"⟦"+e+"⟧ "+x;return el}

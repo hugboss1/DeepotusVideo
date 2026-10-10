@@ -190,7 +190,7 @@ R.sansTeinte=DzMetaChips({o:"Images",T:{Images:[{name:"z"}]},f:{tag:"",note:0},s
 check("O0 sous node : la barre et la teinte s'executent", R is not None)
 if R:
     check("O1 la barre : ses boutons (title) ; un clic OUVRE le panneau, l'autre bouton bascule, un second clic FERME",
-          [b[0] for b in R["bt"]] == ["🗑 Corbeille", "🧹 Nettoyage", "🔎 Recherche"] and all(b[1] for b in R["bt"]) and R["ouvert"] == 1 and R["nett"] == 1 and R["ferme"] == 0, str(R["bt"]))
+          [b[0] for b in R["bt"]] == ["⟦dz-nav-corbeille⟧ Corbeille", "⟦dz-action-nettoyer⟧ Nettoyage", "⟦dz-action-chercher⟧ Recherche"] and all(b[1] for b in R["bt"]) and R["ouvert"] == 1 and R["nett"] == 1 and R["ferme"] == 0, str(R["bt"]))
     check("O2 la TEINTE filtre la grille (et un filtre sans teinte ne filtre rien) ; comptes par teinte avec la pastille de la premiere couleur",
           R["filtre"] == ["a", "b"] and R["sans"] == 4 and R["comptes"] == [{"t": "bleu", "n": 2, "c": "#1040e0"}, {"t": "rouge", "n": 1, "c": "#e01010"}], str(R["comptes"]))
     check("O3 la puce pose la teinte en gardant tag et note ; « Effacer » remet tout a zero ; la puce montre la pastille ; pas de puce sans teinte",

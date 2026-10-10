@@ -290,7 +290,7 @@ function vfxNormCat(raw,src){
   if(hasOther){cats.push(["autres",dzT("vfx.commun.autres")]);lbl.autres=dzT("vfx.commun.autres")}
   /* « tous » et « ★ » ouvrent toujours la rangée d'onglets */
   return {src:src,by:by,list:list,
-    cats:[["tous",dzT("vfx.commun.tous")],["fav","★"]].concat(cats)}}
+    cats:[["tous",dzT("vfx.commun.tous")],["fav",__dzGl("dz-action-favori")]].concat(cats)}}
 /* ── santé du service d'effets — source unique, auto-réparation ───────────
    Le rack tient à deux routes : /api/effects/catalog (la liste, les bornes,
    les préréglages) et /api/effects/preview (les vignettes rendues sur VOTRE
@@ -647,7 +647,7 @@ const VfxPanel=(props)=>{
       return e.label.toLowerCase().indexOf(qn)>=0||
         e.type.toLowerCase().indexOf(qn)>=0||
         (e.hint&&e.hint.toLowerCase().indexOf(qn)>=0)})},[all,qn]);
-  var tabs=(cat&&cat.cats)||[["tous",dzT("vfx.commun.tous")],["fav","★"]];
+  var tabs=(cat&&cat.cats)||[["tous",dzT("vfx.commun.tous")],["fav",__dzGl("dz-action-favori")]];
   var counts=x.useMemo(function(){
     var c={tous:searched.length,fav:0};
     tabs.forEach(function(k){if(k[0]!=="tous"&&k[0]!=="fav")c[k[0]]=0});
@@ -683,7 +683,7 @@ const VfxPanel=(props)=>{
       ev.dataTransfer.setData("dz-vfx",JSON.stringify(Object.assign({label:e.label},eff)));
       ev.dataTransfer.effectAllowed="copy";
       var g=document.createElement("div");
-      g.textContent="✦ "+e.label;
+      __dzGlD(g,"dz-edit-effet","✦ "+e.label,"✦",12);
       g.setAttribute("style","position:fixed;top:-200px;left:-200px;z-index:9999;"+
         "padding:6px 10px;border-radius:8px;background:#1c1c21;color:#f2efe9;"+
         "border:1px solid #3d3b45;font:11px 'JetBrains Mono',Consolas,monospace;"+
@@ -731,7 +731,7 @@ const VfxPanel=(props)=>{
           title:on?dzT("vfx.tuile.retirer_fav"):dzT("vfx.tuile.ajouter_fav"),
           "aria-label":(on?dzT("vfx.tuile.retirer_fav_nom"):dzT("vfx.tuile.ajouter_fav_nom"))+e.label,
           onClick:function(ev){ev.stopPropagation();favToggle(e.type)},
-          children:on?"★":"☆"})]}),
+          children:on?__dzGl("dz-action-favori"):__dzGl("dz-action-favori")})]}),
       n?r.jsx("span",{className:"vfx-tilebadge",
         title:dzT("vfx.tuile.deja",{n:n}),children:"×"+n}):null]},e.type)}
 
@@ -748,7 +748,7 @@ const VfxPanel=(props)=>{
         qn?r.jsx("button",{className:"vfx-btn",onClick:function(){setQuery("")},
           children:dzT("vfx.panneau.effacer_recherche")})
         :tab==="fav"?r.jsx("div",{className:"vfx-emptyhint",
-          children:dzT("vfx.panneau.favori_aide")}):null]});
+          children:__dzGlT("dz-action-favori",dzT("vfx.panneau.favori_aide"),"★")}):null]});
     return r.jsx("div",{className:"vfx-grid",children:shown.map(tile)})}
 
   if(!open)return null;
@@ -765,7 +765,7 @@ const VfxPanel=(props)=>{
         children:dzT("vfx.panneau.sur_plan",{nom:clip.label})}):null,
       inline?null:r.jsx("button",{className:"vfx-iconbtn vfx-close",
         title:dzT("vfx.panneau.fermer"),"aria-label":dzT("vfx.panneau.fermer_aria"),
-        onClick:function(){if(props.onClose)props.onClose()},children:"✕"})]}),
+        onClick:function(){if(props.onClose)props.onClose()},children:__dzGl("dz-action-fermer")})]}),
     r.jsx(VfxAlert,{}),
     r.jsxs("div",{className:"vfx-searchrow",children:[
       r.jsx("input",{className:"vfx-search",ref:searchRef,type:"text",value:query,
@@ -1088,13 +1088,13 @@ const VfxStack=(props)=>{
               title:dzT("vfx.pile.actif",{t0:vfxSec(f.t0),t1:vfxSec(f.t1),resume:vfxSummary(f,d)}),
               children:vfxSec(f.t0)+" → "+vfxSec(f.t1)})
             :r.jsx("span",{className:"vfx-msum",children:vfxSummary(f,d)})]}),
-          r.jsx("span",{className:"vfx-mcaret","aria-hidden":!0,children:open?"▾":"▸"})]}),
+          r.jsx("span",{className:"vfx-mcaret","aria-hidden":!0,children:open?__dzGl("dz-action-deplier"):__dzGl("dz-action-deplier","1em",{transform:"rotate(-90deg)"})})]}),
         r.jsx("button",{className:"vfx-iconbtn",disabled:i===0,
           title:dzT("vfx.pile.monter"),"aria-label":dzT("vfx.pile.monter_nom",{nom:d.label}),
-          onClick:function(){moveAt(i,-1)},children:"▲"}),
+          onClick:function(){moveAt(i,-1)},children:__dzGl("dz-edit-monter")}),
         r.jsx("button",{className:"vfx-iconbtn",disabled:i===list.length-1,
           title:dzT("vfx.pile.descendre"),"aria-label":dzT("vfx.pile.descendre_nom",{nom:d.label}),
-          onClick:function(){moveAt(i,1)},children:"▼"}),
+          onClick:function(){moveAt(i,1)},children:__dzGl("dz-edit-descendre")}),
         /* T103 (D2b) : sur un plan détouré, chaque effet passe derrière le
            sujet (défaut) ou devant lui */
         clip&&clip.matte?r.jsx("button",{className:"vfx-tog","data-on":f.behind!==!1?"":void 0,
@@ -1108,10 +1108,10 @@ const VfxStack=(props)=>{
           title:off?dzT("vfx.pile.reactiver_aide")
             :dzT("vfx.pile.contourner_aide"),
           "aria-label":(off?dzT("vfx.pile.reactiver"):dzT("vfx.pile.contourner"))+d.label,
-          onClick:function(){bypassAt(i)},children:off?"◌":"◉"}),
+          onClick:function(){bypassAt(i)},children:off?__dzGl("dz-etat-contourne"):__dzGl("dz-etat-actif")}),
         r.jsx("button",{className:"vfx-iconbtn vfx-del",
           title:dzT("vfx.pile.retirer"),"aria-label":dzT("vfx.pile.retirer_nom",{nom:d.label}),
-          onClick:function(){removeAt(i)},children:"✕"})]}),
+          onClick:function(){removeAt(i)},children:__dzGl("dz-action-retirer")})]}),
       open?r.jsxs("div",{className:"vfx-mbody",children:[
         d.hint?r.jsx("div",{className:"vfx-mhint",children:d.hint}):null,
         presetRow(f,i,d),
@@ -1141,7 +1141,7 @@ const VfxStack=(props)=>{
         onClick:clearAll,children:dzT("vfx.pile.vider")}),
       props.onOpenPanel?r.jsx("button",{className:"vfx-btn vfx-add",
         title:dzT("vfx.pile.ouvrir_panneau"),
-        onClick:function(){props.onOpenPanel()},children:dzT("vfx.pile.ajouter")}):null]}),
+        onClick:function(){props.onOpenPanel()},children:__dzGlT("dz-action-ajouter",dzT("vfx.pile.ajouter"),"+")}):null]}),
     r.jsx(VfxAlert,{}),
     matteRow(),
     list.length?r.jsx("div",{className:"vfx-mods",children:list.map(row)})

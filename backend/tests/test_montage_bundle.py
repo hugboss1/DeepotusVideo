@@ -8352,9 +8352,9 @@ check("js_extract_oublie_un_verdict_non_mesure_et_garde_une_mesure",
 # video a source.
 check("js_extractBtn_nomme_la_piste_visee",
       d.get("eb_v1") == ["button", "dzmextr", "svm-secbtn dzm-extract",
-                         "Extraire le son → A1",
+                         "Extraire le son ⟦dz-media-extraire-son⟧ A1",
                          "Extraire le son de kapwing_sample vers A1"]
-      and d.get("eb_v2") == "Extraire le son → A1",
+      and d.get("eb_v2") == "Extraire le son ⟦dz-media-extraire-son⟧ A1",
       f'{d.get("eb_v1")} v2={d.get("eb_v2")!r}')
 check("js_extractBtn_sans_piste_de_dialogue_le_dit",
       d.get("eb_sans_piste") == "Extraire le son (aucune piste de dialogue)",
@@ -10916,7 +10916,7 @@ check("tb_l_onglet_montre_les_cinq_pastilles_puis_OUTILS_puis_le_chevron",
                                       for _g in ("pistes", "biblio", "mot",
                                                  "ajouts", "projets")]
       and d.get("tb_o_libelle") == "OUTILS"
-      and d.get("tb_o_chevrons") == ["▾", "▴"],
+      and d.get("tb_o_chevrons") == ["⟦dz-action-deplier⟧", "⟦dz-action-deplier⟧"],
       f'{d.get("tb_o_enfants")} {d.get("tb_o_pastilles")} '
       f'{d.get("tb_o_libelle")!r} {d.get("tb_o_chevrons")}')
 _OT = d.get("tb_o_titres")
@@ -10999,9 +10999,9 @@ check("tb_les_dix_boutons_sont_peints_avec_leur_etat",
 # decalage nul, ou il ne fait rien de visible.
 check("tb_les_deux_controles_de_fenetre_sont_vivants",
       d.get("tb_r_win") == [
-          ["dzm-tbwb dzm-tbrc", "⌖", "ABSENT",
+          ["dzm-tbwb dzm-tbrc", "⟦dz-action-recentrer⟧", "ABSENT",
            "Recentrer la barre d'outils"],
-          ["dzm-tbwb dzm-tbcl", "×", "ABSENT", "Replier la barre d'outils"]]
+          ["dzm-tbwb dzm-tbcl", "⟦dz-action-deplier⟧", "ABSENT", "Replier la barre d'outils"]]
       and d.get("tb_r_replier") == 1
       and d.get("tb_r_replier_sans_action") == "ok"
       and d.get("tb_r_recentrer") == 1
@@ -15551,7 +15551,7 @@ check("RT_la_couche_porte_retimeOf_rampe_les_exports_et_les_deux_rangees",
       src.count("function dzmRetimeOf(c){") == 1 and src.count("function dzmRampe(clips,id,t,spdL,spdR){") == 1
       and src.count("retimeOf:dzmRetimeOf,") == 1 and src.count("rampe:dzmRampe,") == 1
       and _RT_HOTE.count('row("Interpolation",') == 1 and _RT_HOTE.count('row("Rampe",') == 1
-      and _RT_HOTE.count('children:"Diviser à la tête →"') == 1
+      and _RT_HOTE.count('children:__dzGlT("dz-edit-couper","Diviser à la tête →","→")') == 1
       and _RT_HOTE.count("o.onRampe(head,spd,rampSpd)") == 1
       and _RT_HOTE.count('"Sans effet à 100 % — change d\'abord la vitesse"') == 1
       # L7-B D-40 (T4) : 1 -> 2, le second (analyse du mouvement en cours) vient juste apres celui de la rampe

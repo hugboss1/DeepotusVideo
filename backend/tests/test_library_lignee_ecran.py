@@ -115,8 +115,8 @@ if R:
     check("N5 sans mere ni filles : rien ; un rendu ou un son : rien, et AUCUNE requete ; une panne (404) : rien",
           R["seule"] is None and R["job"] is None and R["son"] is None and R["fetch2"] == 0 and R["panne"] is None and R["vue"] is None)
     check("N6 la mere VIDEO d'un rendu : 🎬, non cliquable, le title dit le rendu ; la boucle et la liste tronquee sont DITES",
-          "rendu.mp4 — sprite" in R["ext"] and "🎬" in R["ext"] and R["extImg"] == 0 and R["extBt"][0][1] is True and "rendu job-9" in R["extBt"][0][0]
-          and "↺ boucle dans la lignée" in R["ext"] and "(liste tronquée)" in R["ext"], R["ext"] + str(R["extBt"]))
+          "rendu.mp4 — sprite" in R["ext"] and "⟦dz-media-video⟧" in R["ext"] and R["extImg"] == 0 and R["extBt"][0][1] is True and "rendu job-9" in R["extBt"][0][0]
+          and "⟦dz-etat-avertissement⟧ boucle dans la lignée" in R["ext"] and "(liste tronquée)" in R["ext"], R["ext"] + str(R["extBt"]))
     check("N7 la racine elle-meme : ses filles, mais ni ligne « Racine » ni famille (rien a dire)", "Filles (1)" in R["rac"] and "Racine" not in R["rac"] and "descendant" not in R["rac"], R["rac"])
     # (mutant equivalent documente : sans le test R.ok, un corps d'erreur n'a ni mere ni filles -> rien n'est affiche non plus)
 

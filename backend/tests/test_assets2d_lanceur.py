@@ -131,7 +131,7 @@ cartes.forEach(function(c){var ns=tous(c);
   out.vignettes.push(ns.some(function(n){return n.p&&n.p.dangerouslySetInnerHTML&&/<svg/.test(n.p.dangerouslySetInnerHTML.__html)}));
   var o=ns.filter(function(n){return n.t===K&&n.p.children==="Ouvrir"})[0];
   var av=[GO.length,EV.length];o.p.onClick();out.ouvrir.push([GO.slice(av[0]),EV.slice(av[1]).map(function(e){return e.type+":"+(e.detail&&e.detail.view)})]);
-  var g=ns.filter(function(n){var c=n.p&&n.p.children;return n.t===K&&Array.isArray(c)&&c[0]==="Guide"&&c[2]&&c[2].p&&c[2].p.name==="dz-nav-guide"})[0],a=ns.filter(function(n){return n.t==="a"})[0];
+  var g=ns.filter(function(n){return n.t===K&&n.p.children==="Guide ⟦dz-nav-guide⟧"})[0],a=ns.filter(function(n){return n.t==="a"})[0];
   out.guides.push([!!g,!!(g&&g.p.disabled),a?a.p.href:null,g?String(g.p.title||""):"",g&&g.p.disabled?(g.p.style||{}).opacity:null]);
 });
 out.ls=LS;

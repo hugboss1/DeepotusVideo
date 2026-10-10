@@ -76,7 +76,7 @@ def main():
         except ValueError as e:
             check(f"2a [{c}] la couche d'avant L4 se reconstruit exactement", False, e)
         check(f"2b [{c}] la table consignée rejoue la couche : base + substitutions = couche du poste",
-              n(G.appliquer(c, BASES[c])) == n(COUCHES[c]))
+              n(G.appliquer(c, BASES[c])) == n(AIDE.couche_avant_dzglyph(COUCHES[c], c)))   # icônes G1 posées après L4
         b, e = f"/*__DZ_{TAGS[c]}_BEGIN__*/", f"/*__DZ_{TAGS[c]}_END__*/"
         bloc = BUN.split(b, 1)[1].split(e, 1)[0] if BUN.count(b) == 1 else ""
         check(f"2c [{c}] le bloc {TAGS[c]} du bundle EST la couche (rafraîchie)",

@@ -599,3 +599,407 @@ DEJA([
     'reglages.comptes-connectes.canal-x-701063',
     'reglages.comptes-connectes.canal-youtube-701063',
 ], "donnée repointée (g1_saisie_cles) : le site lit son nom d'icône dans la donnée")
+
+# ═══ S13 — couche SONVFX (Son & VFX, Montage historique) ═══════════════════════════════════════════════════════
+E("son-vfx.en-tete-de-l-ecran-dzsonvfx.theme",
+  'children:props.theme==="dark"?dzT("son.theme.clair"):dzT("son.theme.sombre")})}',
+  'children:props.theme==="dark"?dzT("son.theme.clair"):dzT("son.theme.sombre")}',
+  'children:[__dzGl("dz-action-theme")," ",props.theme==="dark"?dzT("son.theme.clair"):dzT("son.theme.sombre")]}')
+for _ids, _anc in (
+        (("son-vfx.onglet-audio-navigateur-de-sfx-svmsfxbro.sfx-pause", "son-vfx.onglet-audio-navigateur-de-sfx-svmsfxbro.sfx-ecouter"),
+         'onClick:function(){props.play(url)},children:on?"▮▮":"▶"}'),
+        (("son-vfx.onglet-audio-musique.musique-pause", "son-vfx.onglet-audio-musique.musique-ecouter"),
+         'onClick:function(){props.play(resUrl)},children:on?"▮▮":"▶"}'),
+        (("son-vfx.onglet-audio-voix.voix-pause", "son-vfx.onglet-audio-voix.voix-ecouter"),
+         'children:playingVoice===v.id?"▮▮":"▶"}'),
+        (("son-vfx.onglet-audio-editeur-30-s.editeur-pause", "son-vfx.onglet-audio-editeur-30-s.editeur-lecture"),
+         'dzT("son.commun.lecture"),children:playing?"▮▮":"▶"}'),
+        (("son-vfx.onglet-audio-sfx-generes.sfxgen-pause", "son-vfx.onglet-audio-sfx-generes.sfxgen-ecouter"),
+         'children:sfxPlay===it.url?"▮▮":"▶"}'),
+        (("montage.panneau-narration-bloc.narr-pause", "montage.panneau-narration-bloc.narr-ecouter"),
+         'children:narrPlayId===c.id?"▮▮":"▶"}'),
+        (("montage.barre-de-transport.pause", "montage.barre-de-transport.lecture"),
+         'setPlaying(!playing)},children:playing?"▮▮":"▶"}')):
+    GL(_ids[0], _anc, '"▮▮"', "dz-media-pause")
+    GL(_ids[1], _anc, '"▶"', "dz-media-lecture")
+T("son-vfx.onglet-audio-navigateur-de-sfx-svmsfxbro.sfx-biblio", 'children:busy===it.id?"…":dzT("son.sfx.ajouter")}',
+  'dzT("son.sfx.ajouter")', "dz-action-ajouter-bibliotheque", "+")
+T("son-vfx.onglet-vfx-particules.vfx-biblio", 'children:dzT("son.vfx.ouvrir_biblio")}', 'dzT("son.vfx.ouvrir_biblio")',
+  "dz-nav-bibliotheque", "→")
+T("son-vfx.onglet-audio-musique.musique-montage", 'children:dzT("son.musique.ouvrir_montage")}',
+  'dzT("son.musique.ouvrir_montage")', "dz-nav-montage", "→")
+T("son-vfx.onglet-audio-editeur-30-s.editeur-montage", 'children:dzT("son.editeur.envoyer_montage")}',
+  'dzT("son.editeur.envoyer_montage")', "dz-nav-montage", "→")
+T("son-vfx.onglet-audio-sfx-generes.sfxgen-montage", 'children:dzT("son.sfx.ouvrir_montage")}',
+  'dzT("son.sfx.ouvrir_montage")', "dz-nav-montage", "→")
+GL("son-vfx.onglet-audio-editeur-de-paroles-svmlyric.paroles-retirer", 'return j!==i}))},children:"✕"})]},i)})]})}', '"✕"',
+   "dz-action-supprimer")
+GL("son-vfx.onglet-audio-sfx-lignes-cibles.sfx-cible", 'fireNote(dzT("son.sfx.sans_backend"))},children:"▶"}', '"▶"',
+   "dz-media-lecture")
+# menu Affichage : la case cochée « ✓ » reste une donnée ; le menu la rend en icône
+E(["montage.menu-affichage.menu-coche-inspecteur", "montage.menu-affichage.menu-coche-medias",
+   "montage.menu-affichage.menu-coche-durees-sur-les-clips", "montage.menu-affichage.menu-coche-ancrer-la-barre-d-outils",
+   "montage.menu-contextuel-d-un-clip-vitesse.menu-vitesse"],
+  'r.jsx("span",{className:"svm-menukey",children:it.combo||""})', 'children:it.combo||""}',
+  'children:it.combo==="✓"?__dzGl("dz-etat-option-active"):it.combo||""}')
+GL("montage.inspecteur-overlay-trajectoire.trajectoire-retirer", 'svmMpRemove(sel.id,pi)},\r\n              children:"🗑︎"}',
+   '"🗑︎"', "dz-action-supprimer")
+GL("montage.inspecteur-clip-audio-automation.automation-retirer", 'svmVpRemove(sel.id,pi)},children:"🗑︎"}', '"🗑︎"',
+   "dz-action-supprimer")
+GL("montage.panneau-narration-bloc.narr-supprimer", 'delClipById(c.id)},\r\n          children:"🗑︎"}', '"🗑︎"',
+   "dz-action-supprimer")
+GL("montage.inspecteur-de-clip.clip-supprimer", 'onClick:delClip,children:"🗑︎"}', '"🗑︎"', "dz-action-supprimer")
+E("montage.inspecteur-jonction-a-b.ab-reculer", 'children:"◀ −1"}', '"◀ −1"', '__dzGlT("dz-media-image-precedente","◀ −1","◀")')
+E("montage.inspecteur-jonction-a-b.ab-avancer", 'children:"+1 ▶"}', '"+1 ▶"', '__dzGlT("dz-media-image-suivante","+1 ▶","▶")')
+E("montage.inspecteur-clip-audio.automation", 'children:"◇ automation"}', '"◇ automation"',
+  '__dzGlT("dz-media-automation","◇ automation","◇")')
+E("montage.inspecteur-clip-audio-vitesse.vitesse-reset", 'children:"×"+spdv.toFixed(2)}', '"×"+spdv.toFixed(2)',
+  '[__dzGl("dz-action-reinitialiser")," ","×"+spdv.toFixed(2)]')
+GL("montage.bandeau-du-haut.menu", 'y:b.bottom+4}))},children:"☰"}', '"☰"', "dz-action-menu")
+T("montage.bandeau-du-haut.rendre", 'children:dzT("montage.titre.rendre")}', 'dzT("montage.titre.rendre")', "dz-media-rendre", "→")
+E("montage.barre-de-transport.vitesse-jog", 'children:(spd<0?"◀ ×":"×")+Math.abs(spd)}', '(spd<0?"◀ ×":"×")+Math.abs(spd)',
+  'spd<0?[__dzGl("dz-media-vitesse")," ×"+Math.abs(spd)]:"×"+Math.abs(spd)')
+GL("montage.barre-de-transport.coupe-prec", 'onClick:function(){jump(-1)},children:"◀◀"}', '"◀◀"', "dz-media-precedent")
+GL("montage.barre-de-transport.image-prec", 'children:"|◀"}', '"|◀"', "dz-media-image-precedente")
+GL("montage.barre-de-transport.image-suiv", 'children:"▶|"}', '"▶|"', "dz-media-image-suivante")
+GL("montage.barre-de-transport.coupe-suiv", 'onClick:function(){jump(1)},children:"▶▶"}', '"▶▶"', "dz-media-suivant")
+GL("montage.barre-de-transport.annuler", 'onClick:undo,children:"↶"}', '"↶"', "dz-action-annuler")
+GL("montage.barre-de-transport.retablir", 'onClick:redo,children:"↷"}', '"↷"', "dz-action-retablir")
+W("montage.barre-d-outils-de-la-timeline.marqueurs", 'children:"◆ "+((proj.markers||[]).length)}',
+  '"◆ "+((proj.markers||[]).length)', "dz-media-marqueur", "◆")
+GL("montage.barre-d-outils-de-la-timeline.titre-ajouter", 'onClick:function(){dzTtAdd()},children:"T+"}', '"T+"', "dz-media-titre")
+GL("montage.barre-d-outils-de-la-timeline.ajustement-ajouter", 'onClick:function(){dzAjAdd()},children:"J+"}', '"J+"',
+   "dz-calque-reglage")
+GL("montage.bandeau-de-rappels-sous-la-timeline.rappels-masquer",
+   'try{localStorage.setItem("dz_hints_off","1")}catch(_e){}},\r\n            children:"×"}', '"×"', "dz-action-fermer")
+GL("montage.barre-de-transport.raccourcis", 'onClick:function(){setKbOn(!kbOn)},children:"?"}', '"?"', "dz-action-raccourcis")
+GL("montage.en-tete-de-piste.piste-ajouter", 'openPicker(tr.id)},children:"+"},"add")', '"+"', "dz-action-ajouter")
+GL("montage.en-tete-de-piste.piste-muet", 'onClick:function(){svmTrackMute(tr.id)},children:"M"}', '"M"', "dz-media-muet")
+GL("montage.en-tete-de-piste.piste-solo", 'svmTrackSolo(tr.id,e.shiftKey)},children:"S"}', '"S"', "dz-media-solo")
+GL("montage.en-tete-de-piste.piste-verrou", 'onClick:function(){svmTrackLock(tr.id)},children:"🔒︎"}', '"🔒︎"',
+   "dz-etat-verrouille")
+T("montage.inspecteur-overlay-trajectoire.trajectoire-poser", 'onClick:svmMpHere,children:dzT("montage.trajectoire.poser")}',
+  'dzT("montage.trajectoire.poser")', "dz-media-image-cle", "◇")
+
+# ═══ S14 — couche SFXSTUDIO (tiroir Sons) ══════════════════════════════════════════════════════════════════════
+GL("son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-fav-on", 'favToggle(it.name)},\r\n      children:on?"★":"☆"})}', '"★"',
+   "dz-action-favori")
+GL("son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-fav-off", 'favToggle(it.name)},\r\n      children:on?"★":"☆"})}', '"☆"',
+   "dz-action-favori")
+E("son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-fantome",
+  'g.textContent="♪ "+item.name+(item.dur?" · "+svmShort(item.dur):"");',
+  'g.textContent="♪ "+item.name+(item.dur?" · "+svmShort(item.dur):"");',
+  '__dzGlD(g,"dz-media-audio","♪ "+item.name+(item.dur?" · "+svmShort(item.dur):""),"♪",12);')
+E("son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-arme", 'children:armed?prix+" ✓":lbl}', 'prix+" ✓"',
+  '[prix," ",__dzGl("dz-action-valider")]')
+for _a, _sfx in (('prevToggle(it)},\r\n        children:playing?"▮▮":"▶"}),\r\n      r.jsxs("div",{className:"svx-ibody"', ""),
+                 ('prevToggle(it)},\r\n          children:playing?"▮▮":"▶"}),\r\n        ren?', "liste-")):
+    GL((_sfx and "son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-liste-arreter" or "son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-arreter"), _a, '"▮▮"', "dz-media-arret")
+    GL((_sfx and "son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-liste-ecouter" or "son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-ecouter"), _a, '"▶"', "dz-media-lecture")
+W("son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-derive",
+  'children:"← "+(it.parent.length>20?it.parent.slice(0,19)+"…":it.parent)}',
+  '"← "+(it.parent.length>20?it.parent.slice(0,19)+"…":it.parent)', "dz-etat-derive", "←")
+GL("son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-inserer", 'doInsert(it,"playhead")},\r\n          children:"⤵"}', '"⤵"',
+   "dz-media-inserer")
+GL("son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-supprimer", 'setConfirmDel(it.name)},\r\n          children:"✕"}', '"✕"',
+   "dz-action-supprimer")
+GL("son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-rafraichir", 'onClick:refresh,children:"⟳"}', '"⟳"', "dz-action-actualiser")
+GL("son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-importer", '"aria-hidden":!0}):"⤒"}', '"⤒"', "dz-action-importer")
+GL("son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-fermer", 'if(props.onClose)props.onClose()},children:"✕"})]}),\r\n    r.jsxs("div",{className:"svx-tabs"',
+   '"✕"', "dz-action-fermer")
+GL("son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-semantique", 'setNearOf(null)},children:"✧"}', '"✧"',
+   "dz-action-recherche-semantique")
+GL("son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-survol", 'setHoverPrev(!hoverPrev)},children:"👂"}', '"👂"',
+   "dz-media-preecoute")
+GL("son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-module-ouvert", 'className:"svx-mcaret","aria-hidden":!0,children:exp?"▾":"▸"}',
+   '"▾"', "dz-action-deplier")
+E("son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-module-ferme", 'className:"svx-mcaret","aria-hidden":!0,children:exp?"▾":"▸"}',
+  '"▸"', '__dzGl("dz-action-deplier","1em",{transform:"rotate(-90deg)"})')
+GL("son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-detail-fermer", 'onClick:function(){setPin(!1)},children:"✕"}', '"✕"',
+   "dz-action-fermer")
+T("son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-aide-fav", 'children:dzT("sfx.vide.aucun_favori_aide")}',
+  'dzT("sfx.vide.aucun_favori_aide")', "dz-action-favori", "★")
+T("son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-aide-indexer", 'fireNote(dzT("sfx.recherche.pas_indexe",{nom:it.name}))',
+  'dzT("sfx.recherche.pas_indexe",{nom:it.name})', "dz-action-recherche-semantique", "✧")
+GL("son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-stems", 'actBtn(it,"stems","≡",', '"≡"', "dz-media-stems")
+GL("son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-isoler", 'actBtn(it,"isolate","◌",', '"◌"', "dz-media-isoler-voix")
+GL("son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-ameliorer", 'actBtn(it,"enhance","✦",', '"✦"', "dz-media-ameliorer")
+T("son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-detail-stop", ':playing?dzT("sfx.rack.stop"):dzT("sfx.rack.ecouter")}',
+  'dzT("sfx.rack.stop")', "dz-media-arret", "▮▮")
+T("son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-detail-ecouter", ':playing?dzT("sfx.rack.stop"):dzT("sfx.rack.ecouter")}',
+  'dzT("sfx.rack.ecouter")', "dz-media-lecture", "▶")
+GL("son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-onglet-fav", 'var SVX_TABS=[["tous",dzT("sfx.onglet.tous")],["fav","★"]',
+   '"★"', "dz-action-favori")
+
+# ═══ S15 — couche VFXRACK (rack d'effets) ══════════════════════════════════════════════════════════════════════
+GL("son-vfx.rack-vfx-vfxrack-panneau-d-effets-du-cli.vfx-onglet-fav",
+   'cats:[["tous",dzT("vfx.commun.tous")],["fav","★"]].concat(cats)}}', '"★"', "dz-action-favori")
+GL("son-vfx.rack-vfx-vfxrack-panneau-d-effets-du-cli.vfx-onglet-fav",
+   'var tabs=(cat&&cat.cats)||[["tous",dzT("vfx.commun.tous")],["fav","★"]];', '"★"', "dz-action-favori")
+E("son-vfx.rack-vfx-vfxrack-panneau-d-effets-du-cli.vfx-fantome", 'g.textContent="✦ "+e.label;', 'g.textContent="✦ "+e.label;',
+  '__dzGlD(g,"dz-edit-effet","✦ "+e.label,"✦",12);')
+GL("son-vfx.rack-vfx-vfxrack-panneau-d-effets-du-cli.vfx-fav-on", 'favToggle(e.type)},\r\n          children:on?"★":"☆"}', '"★"',
+   "dz-action-favori")
+GL("son-vfx.rack-vfx-vfxrack-panneau-d-effets-du-cli.vfx-fav-off", 'favToggle(e.type)},\r\n          children:on?"★":"☆"}', '"☆"',
+   "dz-action-favori")
+GL("son-vfx.rack-vfx-vfxrack-panneau-d-effets-du-cli.vfx-fermer", 'if(props.onClose)props.onClose()},children:"✕"})]}),\r\n    r.jsx(VfxAlert,{})',
+   '"✕"', "dz-action-fermer")
+GL("son-vfx.rack-vfx-vfxrack-panneau-d-effets-du-cli.vfx-module-ouvert", 'className:"vfx-mcaret","aria-hidden":!0,children:open?"▾":"▸"}',
+   '"▾"', "dz-action-deplier")
+E("son-vfx.rack-vfx-vfxrack-panneau-d-effets-du-cli.vfx-module-ferme", 'className:"vfx-mcaret","aria-hidden":!0,children:open?"▾":"▸"}',
+  '"▸"', '__dzGl("dz-action-deplier","1em",{transform:"rotate(-90deg)"})')
+GL("son-vfx.rack-vfx-vfxrack-panneau-d-effets-du-cli.vfx-monter", 'onClick:function(){moveAt(i,-1)},children:"▲"}', '"▲"', "dz-edit-monter")
+GL("son-vfx.rack-vfx-vfxrack-panneau-d-effets-du-cli.vfx-descendre", 'onClick:function(){moveAt(i,1)},children:"▼"}', '"▼"',
+   "dz-edit-descendre")
+GL("son-vfx.rack-vfx-vfxrack-panneau-d-effets-du-cli.vfx-contourne", 'onClick:function(){bypassAt(i)},children:off?"◌":"◉"}', '"◌"',
+   "dz-etat-contourne")
+GL("son-vfx.rack-vfx-vfxrack-panneau-d-effets-du-cli.vfx-actif", 'onClick:function(){bypassAt(i)},children:off?"◌":"◉"}', '"◉"',
+   "dz-etat-actif")
+GL("son-vfx.rack-vfx-vfxrack-panneau-d-effets-du-cli.vfx-retirer", 'onClick:function(){removeAt(i)},children:"✕"}', '"✕"',
+   "dz-action-retirer")
+T("son-vfx.rack-vfx-vfxrack-panneau-d-effets-du-cli.vfx-aide-fav", 'children:dzT("vfx.panneau.favori_aide")}',
+  'dzT("vfx.panneau.favori_aide")', "dz-action-favori", "★")
+T("son-vfx.rack-vfx-vfxrack-panneau-d-effets-du-cli.vfx-ajouter", 'children:dzT("vfx.pile.ajouter")}', 'dzT("vfx.pile.ajouter")',
+  "dz-action-ajouter", "+")
+
+# ═══ S16 — couche MONTAGE (Montage, et composants Studio / Templates / Bibliothèque qui y vivent) ═══════════════
+for _lit in ('"+ piste vidéo"', '"+ piste audio"'):
+    E("montage.bandeau-du-haut.ajout-piste", 'children:' + _lit + '},', _lit, '__dzGlT("dz-action-ajouter",' + _lit + ',"+")')
+GL("montage.en-tete-de-piste.piste-grip", 'className:"dzm-grip","aria-hidden":!0,children:"⋮"}', '"⋮"', "dz-action-poignee")
+GL("montage.en-tete-de-piste.piste-monter", 'onClick:function(){mv(-1)},children:"▲"}', '"▲"', "dz-edit-monter")
+GL("montage.en-tete-de-piste.piste-descendre", 'onClick:function(){mv(1)},children:"▼"}', '"▼"', "dz-edit-descendre")
+GL("montage.en-tete-de-piste.piste-retirer", 'children:arm?String(n):"×"}', '"×"', "dz-action-supprimer")
+GL("montage.liste-des-projets-popover-projets.projet-vide", 'title:"montage vide",\r\n          children:"\\u2205"}', '"\\u2205"',
+   "dz-etat-vide")
+GL("montage.liste-des-projets-popover-projets.projet-comparer", 'props.onDiff(p)},children:"⇄"}', '"⇄"', "dz-action-comparer")
+GL("montage.liste-des-projets-popover-projets.projet-supprimer", 'children:xArm?"supprimer ?":"×"}', '"×"', "dz-action-supprimer")
+GL("montage.barre-de-duree-de-timeline-dzmdurbtn.duree-moins", 'dzmDurBtn("dzm-durm","−",', '"−"', "dz-media-timeline-raccourcir")
+GL("montage.barre-de-duree-de-timeline-dzmdurbtn.duree-plus", 'dzmDurBtn("dzm-durp","+",', '"+"', "dz-media-timeline-allonger")
+E("montage.inspecteur-plan.extraire-son", 'children:tr?"Extraire le son → "+TR:', '"Extraire le son → "+TR',
+  '__dzGlT("dz-media-extraire-son","Extraire le son → "+TR,"→")')
+GL("montage.barre-d-outils-flottante-onglet-outils.tb-onglet-ouvert", 'className:"dzm-tbchev","aria-hidden":!0,\r\n        children:open?"▾":"▴"}',
+   '"▾"', "dz-action-deplier")
+E("montage.barre-d-outils-flottante-onglet-outils.tb-onglet-ferme", 'className:"dzm-tbchev","aria-hidden":!0,\r\n        children:open?"▾":"▴"}',
+  '"▴"', '__dzGl("dz-action-deplier","1em",{transform:"rotate(180deg)"})')
+GL("montage.barre-d-outils-flottante.tb-recentrer", 'o.onRecentrer()},\r\n      children:"⌖"}', '"⌖"', "dz-action-recentrer")
+GL("montage.barre-d-outils-flottante.tb-replier", 'o.onClose()},\r\n      children:"×"},"cl")', '"×"', "dz-action-deplier")
+GL("montage.index-des-marqueurs-dzmmarkerindex.marqueur-retirer", 'o.onRemove(m.id)},\r\n          children:"\\u2716"}', '"\\u2716"',
+   "dz-action-supprimer")
+E("montage.inspecteur-plan-rampe-de-vitesse.rampe-diviser", 'children:"Diviser à la tête →"}', '"Diviser à la tête →"',
+  '__dzGlT("dz-edit-couper","Diviser à la tête →","→")')
+E("montage.tiroir-medias-dzmmediadrawer.medias-filtre-3", 'var DZM_NOTE_CHIPS=[[3,"★ 3+",', '"★ 3+"',
+  '__dzGlT("dz-etat-note","★ 3+","★")')
+E("montage.tiroir-medias-dzmmediadrawer.medias-filtre-5", '  [5,"★ 5","Ne montrer que les Good Take', '"★ 5"',
+  '__dzGlT("dz-etat-note","★ 5","★")')
+E("montage.tiroir-medias-dzmmediadrawer.medias-autoclips", 'children:"✂ auto-clips"}', '"✂ auto-clips"',
+  '__dzGlT("dz-media-extraits","✂ auto-clips","✂")')
+GL("montage.tiroir-medias-dzmmediadrawer.medias-noter", 'noter(j,i)},children:"★"}', '"★"', "dz-etat-note")
+E("montage.barre-du-lecteur-prise-de-voix-dzmvoicer.voixoff-stop", 'children:st==="prise"?"■ "+el:', '"■ "+el',
+  '__dzGlT("dz-media-arret","■ "+el,"■")')
+E("montage.barre-du-lecteur-prise-de-voix-dzmvoicer.voixoff-rec", ':st==="envoi"?"envoi…":"● voix off"}', '"● voix off"',
+  '__dzGlT("dz-media-rec","● voix off","●")')
+GL("montage.scopes-dzmscopes.scopes-fermer", '"aria-label":"Fermer les scopes",onClick:bascule,children:"×"}', '"×"', "dz-action-fermer")
+# Studio (composants de la couche)
+T("studio.inspecteur-epingle-du-noeud-dzpinpanel.pin-sans", 'children:dzT("studio.epingle.sans_epingle")}',
+  'dzT("studio.epingle.sans_epingle")', "dz-etat-epingle", "📌")
+T("studio.inspecteur-epingle-du-noeud-dzpinpanel.pin-pas-encore", 'children:dzT("studio.epingle.pas_encore")}',
+  'dzT("studio.epingle.pas_encore")', "dz-etat-epingle", "📌")
+T("studio.inspecteur-epingle-du-noeud-dzpinpanel.pin-epingle", 'children:dzT("studio.epingle.epingle")}',
+  'dzT("studio.epingle.epingle")', "dz-etat-epingle", "📌")
+T("studio.inspecteur-epingle-du-noeud-dzpinpanel.pin-regenerer", 'children:dzT("studio.epingle.regenerer")}',
+  'dzT("studio.epingle.regenerer")', "dz-action-regenerer", "↻")
+T("studio.panneau-duel-de-moteurs.duel-champion", 'children:dzT("studio.duel.champion",{nom:dzDuelLabel(mm,A)})}',
+  'dzT("studio.duel.champion",{nom:dzDuelLabel(mm,A)})', "dz-etat-meilleur", "⚔")
+GL("studio.tiroir-resultat-defileur-image-par-image.scrub-prec", 'onClick:function(){pas(-1)},children:"‹"}', '"‹"',
+   "dz-media-image-precedente")
+GL("studio.tiroir-resultat-defileur-image-par-image.scrub-suiv", 'onClick:function(){pas(1)},children:"›"}', '"›"',
+   "dz-media-image-suivante")
+# Templates
+E("templates.fenetre-reagencer-dzreflowbar.avertissement", 'return r.jsx("div",{children:"⚠ "+w},"w"+i)', '"⚠ "+w',
+  '__dzGlT("dz-etat-avertissement","⚠ "+w,"⚠")')
+GL("templates.inspecteur-masque-de-case-dzmaskeditor.masque-retirer", 'cursor:"pointer"},children:"✕"})]},"t"+i)', '"✕"',
+   "dz-action-retirer")
+T("templates.inspecteur-texte-en-arche-dztexteeditor.arche-deborde", 'children:dzT("templates.texte.arc_deborde",{n:rayonMin})}',
+  'dzT("templates.texte.arc_deborde",{n:rayonMin})', "dz-etat-avertissement", "⚠")
+T("templates.inspecteur-animation-de-region-dzanimedi.anim-rejouer", 'children:dzT("templates.anim.rejouer")}',
+  'dzT("templates.anim.rejouer")', "dz-media-lecture", "▶")
+T("templates.editeur-de-composant-dzcomposanteditor.composant-retablir", 'children:dzT("templates.composant.retablir")}',
+  'dzT("templates.composant.retablir")', "dz-action-reinitialiser", "↺")
+T("templates.export-figma-dzexportfigma.export-svg", 'children:dzT("templates.export.svg")}', 'dzT("templates.export.svg")',
+  "dz-action-exporter", "↓")
+# Bibliothèque
+W("bibliotheque.barre-de-filtres-dzmetachips.filtre-note", 'ch.push(puce("note",3,"★ 3+ ("+c.note3+")",f.note===3))',
+  '"★ 3+ ("+c.note3+")"', "dz-etat-note", "★")
+GL("bibliotheque.carte-d-element-grille.carte-fav-on", 'children:fav?"★":"☆"}', '"★"', "dz-action-favori")
+GL("bibliotheque.carte-d-element-grille.carte-fav-off", 'children:fav?"★":"☆"}', '"☆"', "dz-action-favori")
+E("bibliotheque.carte-d-element-grille.carte-note", 'children:"●".repeat(note)}', '"●".repeat(note)',
+  'Array.apply(null,Array(note)).map(function(){return __dzGl("dz-etat-note")})')
+GL("bibliotheque.fiche-editeur-de-meta-dzmetaeditor.meta-note-on", 'children:note>=n?"●":"○"}', '"●"', "dz-etat-note")
+E("bibliotheque.fiche-editeur-de-meta-dzmetaeditor.meta-note-off", 'children:note>=n?"●":"○"}', '"○"',
+  '__dzGl("dz-etat-note","1em",{opacity:.35})')
+GL("bibliotheque.fiche-editeur-de-meta-dzmetaeditor.meta-tag-retirer",
+   'color:"var(--ink-muted)",fontSize:11,padding:"0 2px"},children:"×"})]},"t"+g)', '"×"', "dz-action-retirer")
+GL("bibliotheque.fiche-lignee-dzlignee.lignee-externe", 'placeItems:"center",fontSize:16},children:"🎬"})', '"🎬"', "dz-media-video")
+T("bibliotheque.fiche-lignee-dzlignee.lignee-cycle", 'children:dzT("biblio.lignee.cycle")}', 'dzT("biblio.lignee.cycle")',
+  "dz-etat-avertissement", "↺")
+T("bibliotheque.fiche-licence-dzfiche.fiche-licence", 'children:dzT("biblio.fiche.licence_inconnue")}',
+  'dzT("biblio.fiche.licence_inconnue")', "dz-etat-avertissement", "⚠")
+E(["bibliotheque.corbeille-dzcorbeille.corbeille-image", "bibliotheque.corbeille-dzcorbeille.corbeille-son",
+   "bibliotheque.corbeille-dzcorbeille.corbeille-rendu", "bibliotheque.corbeille-dzcorbeille.corbeille-illisible"],
+  'var icone={image:"🖼",son:"🔊",rendu:"🎬",illisible:"⚠"};', 'var icone={image:"🖼",son:"🔊",rendu:"🎬",illisible:"⚠"};',
+  'var icone={image:__dzGl("dz-media-image"),son:__dzGl("dz-media-audio"),rendu:__dzGl("dz-media-video"),'
+  'illisible:__dzGl("dz-etat-avertissement")};')
+for _id, _k, _c, _g in (("outil-corbeille", "biblio.outils.corbeille", "dz-nav-corbeille", "🗑"),
+                        ("outil-nettoyage", "biblio.outils.nettoyage", "dz-action-nettoyer", "🧹"),
+                        ("outil-recherche", "biblio.outils.recherche", "dz-action-chercher", "🔎"),
+                        ("vue-grille", "biblio.outils.grille", "dz-action-vue-grille", "▦"),
+                        ("vue-liste", "biblio.outils.liste", "dz-action-vue-liste", "☰")):
+    T("bibliotheque.barre-d-outils-de-la-bibliotheque-dzouti." + _id, 'dzT("%s"),dzT("%s_aide")' % (_k, _k), 'dzT("%s")' % _k,
+      _c, _g)
+GL("bibliotheque.commentaires-dzcommentaires.commentaire-suppr",
+   'onClick:function(){supprimer(c)},style:{background:"none",border:0,cursor:"pointer",color:"var(--ink-muted)"},children:"×"}',
+   '"×"', "dz-action-supprimer")
+E("bibliotheque.vue-liste-dzliste.liste-tri-desc", 'children:c[1]+(on?(tri.desc?" ▾":" ▴"):"")}', 'c[1]+(on?(tri.desc?" ▾":" ▴"):"")',
+  'on?[c[1]," ",__dzGl("dz-action-trier","1em",tri.desc?void 0:{transform:"rotate(180deg)"})]:c[1]')
+DEJA("bibliotheque.vue-liste-dzliste.liste-tri-asc", "même site que liste-tri-desc : dz-action-trier, retourné pour l'ordre croissant")
+GL("bibliotheque.vue-liste-dzliste.liste-son", 'children:z.kind==="audio"?"🔊":z.kind==="render"?"🎬":"·"}', '"🔊"', "dz-media-audio")
+GL("bibliotheque.vue-liste-dzliste.liste-rendu", 'children:z.kind==="audio"?"🔊":z.kind==="render"?"🎬":"·"}', '"🎬"', "dz-media-video")
+E("bibliotheque.vue-liste-dzliste.liste-note", 'cell(z.note?"●".repeat(Math.min(5,z.note)):"","o")',
+  '"●".repeat(Math.min(5,z.note))',
+  'Array.apply(null,Array(Math.min(5,z.note))).map(function(){return __dzGl("dz-etat-note")})')
+GL("bibliotheque.vue-liste-dzliste.liste-fav", 'cell(z.fav?"★":"","f")', '"★"', "dz-action-favori")
+E(["bibliotheque.projets-etat-dzetatprojet.etat-rendu", "bibliotheque.projets-etat-dzetatprojet.etat-son"],
+  'children:(z.kind==="render"?"🎬 ":z.kind==="audio"?"🔊 ":"")+z.ref}', '(z.kind==="render"?"🎬 ":z.kind==="audio"?"🔊 ":"")+z.ref',
+  'z.kind==="render"?__dzGlT("dz-media-video","🎬 "+z.ref,"🎬"):z.kind==="audio"?__dzGlT("dz-media-audio","🔊 "+z.ref,"🔊"):z.ref')
+T("bibliotheque.fiche-images-semblables-dzsemblables.semblables-sans-clip", 'setMsg(R.status===503?dzT("biblio.semblables.sans_clip"):',
+  'dzT("biblio.semblables.sans_clip")', "dz-action-chercher", "🔎")
+E(["bibliotheque.menu-ranger-dans-un-projet.projet-dedans", "bibliotheque.menu-ranger-dans-un-projet.projet-ranger"],
+  'return{lbl:(on?"✓ ":"📁 ")+p.nom', 'return{lbl:', 'return{ic:on?"dz-etat-option-active":"dz-action-ranger",g:on?"✓":"📁",lbl:')
+E("bibliotheque.menu-envoyer-vers-dzsendto.envoyer-studio-nouveau-graph", '{lbl:dzT("biblio.envoyer.studio_rendu"),fn:',
+  '{lbl:', '{ic:"dz-nav-studio",g:"🎬",lbl:')
+E("bibliotheque.menu-envoyer-vers-dzsendto.envoyer-lancer-une-recette-d", '{lbl:dzT("biblio.envoyer.recette"),fn:',
+  '{lbl:', '{ic:"dz-action-lancer-recette",g:"🍳",lbl:')
+E("bibliotheque.menu-envoyer-vers-lancer-une-recette-cho.recette-choix", 'return{lbl:"🍳 "+g.name+" — "+g.recette+" source(s)",v:g.id}',
+  'return{lbl:', 'return{ic:"dz-action-lancer-recette",g:"🍳",lbl:')
+E([], 'return{lbl:o.lbl,fn:function(){fini=!0;res(o.v)}}', 'return{lbl:o.lbl,', 'return{ic:o.ic,g:o.g,lbl:o.lbl,')
+T("bibliotheque.barre-des-projets-dzprojetsbar.projets-auto-on", 'ch.push(bouton(ici?dzT("biblio.projets.auto_ici"):',
+  'dzT("biblio.projets.auto_ici")', "dz-action-rangement-auto", "●")
+T("bibliotheque.barre-des-projets-dzprojetsbar.projets-auto-off", 'ici?dzT("biblio.projets.auto_ici"):dzT("biblio.projets.auto_activer"),',
+  'dzT("biblio.projets.auto_activer")', "dz-action-rangement-auto", "○")
+T("bibliotheque.barre-des-projets-dzprojetsbar.projets-auto-actif", 'children:[dzT("biblio.projets.auto_actif",{nom:actif.nom}),',
+  'dzT("biblio.projets.auto_actif",{nom:actif.nom})', "dz-action-rangement-auto", "●")
+GL("bibliotheque.barre-des-projets-dzprojetsbar.projets-auto-stop", 'cursor:"pointer",color:"var(--ink-muted)",fontSize:11},children:"✕"})]}));',
+   '"✕"', "dz-action-rangement-auto")
+T("bibliotheque.barre-des-projets-dzprojetsbar.projets-epingle", 'ch.push(bouton(f.epingle?dzT("biblio.projets.epingle"):',
+  'dzT("biblio.projets.epingle")', "dz-action-epingler-mobile", "📱")
+T("bibliotheque.barre-des-projets-dzprojetsbar.projets-epingler", ':dzT("biblio.projets.epingler"),', 'dzT("biblio.projets.epingler")',
+  "dz-action-epingler-mobile", "📱")
+T("bibliotheque.barre-des-projets-dzprojetsbar.projets-renommer", 'ch.push(bouton(dzT("biblio.projets.renommer_bouton"),',
+  'dzT("biblio.projets.renommer_bouton")', "dz-action-renommer", "✎")
+T("bibliotheque.barre-des-projets-dzprojetsbar.projets-etat", 'ch.push(bouton(dzT("biblio.projets.etat_bouton"),',
+  'dzT("biblio.projets.etat_bouton")', "dz-etat-information", "▦")
+DEJA("bibliotheque.barre-des-projets-dzprojetsbar.projets-option-mobile",
+     "NON POSÉ : le 📱 vit dans le texte d'une <option> NATIVE (r.jsx(\"option\")) — aucune icône possible ; texte gardé")
+DEJA("bibliotheque.liste-tri-par-lignee.lignee-indent",
+     "NON POSÉ : « ↳ » est préfixé au NOM de l'élément (donnée name, chaîne) pour la vue triée par lignée — pas un site d'icône")
+# Réglages : choix de la langue (DzLangueUI)
+E("reglages.fournisseurs-par-defaut-langue-dzlangueu.langue", 'children:dzT("reglages.langue.titre")}', 'dzT("reglages.langue.titre")',
+  '[__dzGl("dz-action-langue")," ",dzT("reglages.langue.titre")]')
+# barre d'outils flottante du Montage (DzmTbIcon) : les tracés maison cèdent la place à la suite
+E(["montage.barre-outils.piste-video", "montage.barre-outils.piste-audio", "montage.barre-outils.bibliotheque",
+   "montage.barre-outils.couleur", "montage.barre-outils.rebond", "montage.barre-outils.glow", "montage.barre-outils.emoji",
+   "montage.barre-outils.texte", "montage.barre-outils.projets", "montage.barre-outils.poignee", "montage.barre-outils.piste-incrust",
+   "montage.barre-d-outils-flottante-dzmtoolbar.tb-piste-video", "montage.barre-d-outils-flottante-dzmtoolbar.tb-piste-audio",
+   "montage.barre-d-outils-flottante-dzmtoolbar.tb-bibliotheque", "montage.barre-d-outils-flottante-dzmtoolbar.tb-couleur",
+   "montage.barre-d-outils-flottante-dzmtoolbar.tb-rebond", "montage.barre-d-outils-flottante-dzmtoolbar.tb-glow",
+   "montage.barre-d-outils-flottante-dzmtoolbar.tb-emoji", "montage.barre-d-outils-flottante-dzmtoolbar.tb-texte",
+   "montage.barre-d-outils-flottante-dzmtoolbar.tb-projets", "montage.barre-d-outils-flottante-dzmtoolbar.tb-poignee",
+   "montage.barre-d-outils-flottante-dzmtoolbar.tb-piste-incrust"],
+  'var px=Number(o.size);if(!isFinite(px)||px<=0)px=DZM_TB_PX;\r\n  return r.jsx("svg",{className:"dzm-tbi",',
+  'var px=Number(o.size);if(!isFinite(px)||px<=0)px=DZM_TB_PX;\r\n',
+  'var px=Number(o.size);if(!isFinite(px)||px<=0)px=DZM_TB_PX;\r\n'
+  '  /* icônes G1 : la suite Deepotus Glyph d\'abord (window.DZ_ICONS), les tracés maison en repli */\r\n'
+  '  var gk=DZM_TB_GLYPHE[o.name],gs=gk&&typeof window!=="undefined"&&window.DZ_ICONS&&window.DZ_ICONS[gk],'
+  'gm=typeof gs==="string"&&/^<svg[^>]*>([\\s\\S]*)<\\/svg>$/.exec(gs);\r\n'
+  '  if(gm)return r.jsx("svg",{className:"dzm-tbi",viewBox:"0 0 24 24",fill:"currentColor",width:px,height:px,"aria-hidden":!0,\r\n'
+  '    focusable:"false","data-dzi":gk,dangerouslySetInnerHTML:{__html:gm[1]}},o.k||("tbi-"+o.name));\r\n')
+E([], 'function DzmTbIcon(o){', 'function DzmTbIcon(o){',
+  'var DZM_TB_GLYPHE={"piste-video":"dz-media-piste-video","piste-audio":"dz-media-piste-audio",'
+  '"bibliotheque":"dz-action-choisir-bibliotheque","couleur":"dz-edit-anim-couleur","rebond":"dz-edit-anim-rebond",'
+  '"glow":"dz-edit-anim-halo","emoji":"dz-media-emoji-auto","texte":"dz-media-sous-titres","projets":"dz-nav-projets",'
+  '"poignee":"dz-action-poignee","piste-incrust":"dz-media-incrustation"};\r\nfunction DzmTbIcon(o){')
+
+# ═══ S17 — bloc SUBS (tiroir sous-titres ; sa source ne reconstruit plus le bloc : édité par le maillon) ═══════
+E("montage.tiroir-sous-titres-subs.subs-fam-fix", '  fix:{glyph:"✎",dit:', '"✎"', '__dzGl("dz-etat-grave")')
+E("montage.tiroir-sous-titres-subs.subs-fam-ack", '  ack:{glyph:"✓",dit:', '"✓"', '__dzGl("dz-etat-acquitte")')
+for _id, _v, _g, _k in (("subs-ancre-gauche", '["left","gauche","⭰"]', "⭰", "dz-edit-aligner-gauche"),
+                        ("subs-ancre-centre", '["center","centré","≡"]', "≡", "dz-edit-aligner-centre-h"),
+                        ("subs-ancre-droite", '["right","droite","⭲"]', "⭲", "dz-edit-aligner-droite"),
+                        ("subs-ancre-haut", '["top","haut","⤒"]', "⤒", "dz-edit-aligner-haut"),
+                        ("subs-ancre-milieu", '["middle","milieu","⇔"]', "⇔", "dz-edit-aligner-centre-v"),
+                        ("subs-ancre-bas", '["bottom","bas","⤓"]', "⤓", "dz-edit-aligner-bas")):
+    E("montage.tiroir-sous-titres-subs-onglet-style." + _id, _v, '"%s"' % _g, '__dzGl("%s")' % _k)
+E("montage.tiroir-sous-titres-subs-onglet-style.subs-hors-zone", 'l\'ignore, l\'aperçu aussi.",\r\n      children:readout},"hud")',
+  'children:readout}', 'children:__dzGlT("dz-etat-avertissement",readout,"⚠")}')
+GL("montage.tiroir-sous-titres-subs.subs-module-ouvert", 'className:"sub-mcaret","aria-hidden":!0,children:open?"▾":"▸"}', '"▾"',
+   "dz-action-deplier")
+E("montage.tiroir-sous-titres-subs.subs-module-ferme", 'className:"sub-mcaret","aria-hidden":!0,children:open?"▾":"▸"}', '"▸"',
+  '__dzGl("dz-action-deplier","1em",{transform:"rotate(-90deg)"})')
+GL("montage.tiroir-sous-titres-subs.subs-caler", 'onClick:function(){setHere(s.id,which)},children:"⏱"}', '"⏱"',
+   "dz-media-tete-lecture")
+GL("montage.tiroir-sous-titres-subs.subs-replique-ouverte", 'toggleOpen(s.id)},\r\n        children:open?"▾":"▸"},"c")', '"▾"',
+   "dz-action-deplier")
+E("montage.tiroir-sous-titres-subs.subs-replique-fermee", 'toggleOpen(s.id)},\r\n        children:open?"▾":"▸"},"c")', '"▸"',
+  '__dzGl("dz-action-deplier","1em",{transform:"rotate(-90deg)"})')
+E("montage.tiroir-sous-titres-subs.subs-reafficher", 'children:s.hidden?"🚫":"👁"},"eye")', '"🚫"',
+  '__dzGl("dz-etat-visible","1em",{opacity:.4})')
+GL("montage.tiroir-sous-titres-subs.subs-masquer", 'children:s.hidden?"🚫":"👁"},"eye")', '"👁"', "dz-etat-visible")
+GL("montage.tiroir-sous-titres-subs.subs-supprimer", 'onClick:function(){delAt(s.id)},children:"✕"},"del")', '"✕"',
+   "dz-action-supprimer")
+E("montage.tiroir-sous-titres-subs.subs-calc-ack", 'r.jsx("b",{children:"✓ "},"g1")', '"✓ "', '[__dzGl("dz-etat-acquitte")," "]')
+E("montage.tiroir-sous-titres-subs.subs-calc-fix", 'r.jsx("b",{children:"✎ "},"g2")', '"✎ "', '[__dzGl("dz-etat-grave")," "]')
+GL("montage.tiroir-sous-titres-subs.subs-legende-fix", 'children:"✎"},"g"),\r\n          "écrit dans le fichier livré"', '"✎"',
+   "dz-etat-grave")
+GL("montage.tiroir-sous-titres-subs.subs-legende-ack", 'children:"✓"},"g"),\r\n          "acquitte : n\'écrit rien', '"✓"',
+   "dz-etat-acquitte")
+GL("montage.tiroir-sous-titres-subs.subs-trace", 'children:"✓"},"g"),\r\n        r.jsxs("span",{className:"sub-covigntxt"', '"✓"',
+   "dz-etat-acquitte")
+E("montage.tiroir-sous-titres-subs.subs-gestes-replier", 'children:covOpen?"replier les gestes ▾"', '"replier les gestes ▾"',
+  '__dzGlT("dz-action-deplier","replier les gestes ▾","▾")')
+E("montage.tiroir-sous-titres-subs.subs-gestes-deplier", ':"traiter "+subsPl(covBad.length,"plan")+" ▸"}',
+  '"traiter "+subsPl(covBad.length,"plan")+" ▸"',
+  '["traiter "+subsPl(covBad.length,"plan")," ",__dzGl("dz-action-deplier","1em",{transform:"rotate(-90deg)"})]')
+E(["montage.tiroir-sous-titres-subs.subs-seuils-replier", "montage.tiroir-sous-titres-subs.subs-seuils-regler"],
+  'children:nrmOn?"replier ▾":"régler ▸"}', 'nrmOn?"replier ▾":"régler ▸"',
+  'nrmOn?__dzGlT("dz-action-deplier","replier ▾","▾"):["régler ",__dzGl("dz-action-deplier","1em",{transform:"rotate(-90deg)"})]')
+E("montage.tiroir-sous-titres-subs.subs-redecouper", 'children:"redécouper toute la piste "+(cpsOn?"▾":"▸")}',
+  '"redécouper toute la piste "+(cpsOn?"▾":"▸")',
+  '["redécouper toute la piste ",__dzGl("dz-action-deplier","1em",cpsOn?void 0:{transform:"rotate(-90deg)"})]')
+GL("montage.tiroir-sous-titres-subs.subs-fermer", 'if(props.onClose)props.onClose()},children:"✕"})]}),\r\n    /* ── LA LIGNE DES COMPTES',
+   '"✕"', "dz-action-fermer")
+
+# ═══ S18 — bloc TRANSFERT (Réglages › Transfert entre machines) ════════════════════════════════════════════════
+E(["reglages.transfert-entre-machines.modal-titre", "reglages.transfert.modale-titre"], 'children: dztIcone(modal, 18) }, "i")',
+  'dztIcone(modal, 18)', '__dzGl("dz-nav-transfert", 18, { display: "block" })')
+E(["reglages.transfert-entre-machines.exporter", "reglages.transfert.exporter"], 'children: [dztIcone("export", 16),',
+  'dztIcone("export", 16)', '__dzGl("dz-action-exporter", 16, { display: "block" })')
+E(["reglages.transfert-entre-machines.importer", "reglages.transfert.importer"], 'children: [dztIcone("import", 16),',
+  'dztIcone("import", 16)', '__dzGl("dz-action-importer", 16, { display: "block" })')
+
+# ═══ divers ═══════════════════════════════════════════════════════════════════════════════════════════════════
+DEJA("coque.panneau-file-des-rendus-ligne-de-job.job-renommer", "littéral rename du bouton de la ligne -> dz-action-renommer (g1_saisie_cles)")
+DEJA("coque.file.vide-run", "même site que coque.panneau-file-des-rendus.file-vide-run")
+DEJA(["marque.favicon.dist", "marque.favicon.source", "marque.titre.emoji"],
+     "frontend/dist/index.html et frontend/index.html : favicon = /api/branding/logo (dz-marque-icone-app est une IMAGE, "
+     "décision utilisateur dd9e3307), titre sans 🐙 — édités directement (hors bundle)")
+
+# ═══ S19 — orientation du chevron : dz-action-deplier pointe vers le BAS (l'ancien caretR vers la droite, caret vers
+# la gauche) ; « chevron unique orienté par CSS » (lexique) — chaque rotation héritée est recalée
+E([], 'size:12,style:{transform:i?"rotate(90deg)":"none",transition:"transform var(--dur-1) var(--ease)"}}),r.jsx("span",{className:"upper"',
+  'transform:i?"rotate(90deg)":"none"', 'transform:i?"none":"rotate(-90deg)"')
+E([], 'style:{color:"var(--ink-soft)",transform:c?"rotate(90deg)":"none",transition:"transform var(--dur-1) var(--ease)"}})]}),c&&r.jsxs(',
+  'transform:c?"rotate(90deg)":"none"', 'transform:c?"none":"rotate(-90deg)"')
+E([], 'iconSize:11,onClick:()=>o(!0),title:dzT("coque.rail.replier")})', 'iconSize:11,onClick:()=>o(!0),',
+  'iconSize:11,style:{transform:"rotate(90deg)"},onClick:()=>o(!0),')
+E([], 'title:dzT("coque.rail.deplier"),children:r.jsx(X,{name:"caretR",size:14})})', 'size:14})',
+  'size:14,style:{transform:"rotate(-90deg)"}})')

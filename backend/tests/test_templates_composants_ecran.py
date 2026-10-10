@@ -134,7 +134,7 @@ if R:
           R["texte"] and R["sous"] == ["fond", "titre", "bd"] and R["valeurs"] == ["Titre", "ON AIR"] and R["couleurs"] == 4, str(R))
     check("E2 changer un texte ou une couleur ecrit overrides[sous-region][champ] sans toucher le reste ; « ↺ Rétablir » (avec title) rend la sous-region au composant",
           R["majs"][0] == {"overrides": {"bd": {"text": "ON AIR"}, "titre": {"text": "NOUVEAU"}}} and R["majs"][1] == {"overrides": {"bd": {"text": "ON AIR"}, "fond": {"color": "#123456"}}}
-          and R["ret"] == [["↺ Rétablir", True]] and R["majs"][2] == {"overrides": {}}, str(R["majs"]))
+          and R["ret"] == [["⟦dz-action-reinitialiser⟧ Rétablir", True]] and R["majs"][2] == {"overrides": {}}, str(R["majs"]))
     check("E3 un composant introuvable est signale dans l'inspecteur", "introuvable" in R["absent"], R["absent"])
 
 print("\n[B] la barre : poser, enregistrer")
