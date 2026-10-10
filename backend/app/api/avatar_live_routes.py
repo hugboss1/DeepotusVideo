@@ -33,6 +33,11 @@ async def _appareil(request: Request) -> str | None:
     return a["id"]
 
 
+def _pricing_estimate(op: dict) -> dict:
+    from app.services import pricing
+    return pricing.estimate(op)
+
+
 def _http(e: AL.Refus) -> HTTPException:
     return HTTPException(e.statut, e.message)
 
@@ -118,7 +123,9 @@ async def recast_modeles():
                             **({"note_prix": m["note_prix"]} if m.get("note_prix") else {})}
                         for k, m in RS.MODELES.items()},
             "prereglages": [{"id": p["id"], "label": p["label"]} for p in RS.PREREGLAGES],
-            "duree": {"min": int(RS.DUREE_MIN_S), "max": int(RS.DUREE_MAX_S)}}
+            "duree": {"min": int(RS.DUREE_MIN_S), "max": int(RS.DUREE_MAX_S)},
+            # G2 (t163) : voix -> voix (ElevenLabs), servi en $/s comme les modèles
+            "voix_usd_s": round(_pricing_estimate({"kind": "voix_sts", "duration_s": 60})["total_usd"] / 60.0, 6)}
 
 
 _DEPOT_MAX_OCTETS = 300 * 1024 * 1024
@@ -167,19 +174,9 @@ async def recast_lancer(body: dict | None = None):
     """{source: {job_id}|{depot}, personnage_id?, modele, resolution?, consigne?, prereglage?, orientation?}
     -> {job_id, devis_usd}. Tout ce qui ne coûte rien est vérifié, PUIS la garde des plafonds, PUIS fal."""
     import asyncio
-    from pathlib import Path
     from app.services import recast_service as RS, fal_video_tools as FV
-    from app.services.pipeline import Pipeline
     b = body if isinstance(body, dict) else {}
-    src_b = b.get("source") if isinstance(b.get("source"), dict) else {}
-    parent = None
-    if src_b.get("job_id"):
-        j = await Pipeline.get_job(str(src_b["job_id"]))
-        p = Path(j.final_video_path) if j is not None and j.final_video_path else None
-        src = p if p is not None and p.is_file() else None
-        parent = j.id if src is not None else None
-    else:
-        src = RS.chemin_depot(src_b.get("depot"))
+    src, parent = await _source_video(b.get("source") if isinstance(b.get("source"), dict) else {})
     if src is None:
         raise HTTPException(404, "Vidéo source introuvable (rendu sans vidéo, ou dépôt inconnu).")
     pid = b.get("personnage_id")
@@ -198,3 +195,56 @@ async def recast_lancer(body: dict | None = None):
     job_id = await RS.lancer_recast(prep, garde["lignes"], parent)
     return {"job_id": job_id, "devis_usd": garde["devis"]["total_usd"], "modele": prep["modele"],
             "resolution": prep["resolution"], "duree_s": prep["duree_s"]}
+
+
+# ── G2 (t163, 10/10/2026) : la voix du Personnage ──────────────────────────────────────────────────────────────────
+# Cloner = écriture sur un Personnage (boucle locale), inclus à l'abonnement ElevenLabs : pas de garde de plafond,
+# mais le consentement du Personnage (G0) en est la condition. Convertir = PAYANT (Voice Changer, ~1 000 car./min) :
+# garde AVANT ElevenLabs ; le rendu est un JOB comme le Recast.
+
+@router.post("/personnages/{pid}/voix")
+async def personnage_voix(pid: str, request: Request):
+    from app.services import avatar_voix as AV
+    form = await request.form()
+    fichiers = []
+    for f in form.getlist("echantillons"):
+        if hasattr(f, "read"):
+            fichiers.append((str(getattr(f, "filename", "") or "echantillon")[:80], await f.read()))
+    try:
+        return await AV.cloner(pid, fichiers, str(form.get("debruiter") or "").lower() in ("1", "true", "on"))
+    except AV.Refus as e:
+        raise HTTPException(e.statut, e.message)
+
+
+async def _source_video(src_b: dict):
+    """(chemin, parent_job_id) d'une source {job_id} ou {depot} ; (None, None) si introuvable."""
+    from pathlib import Path
+    from app.services import recast_service as RS
+    from app.services.pipeline import Pipeline
+    if src_b.get("job_id"):
+        j = await Pipeline.get_job(str(src_b["job_id"]))
+        p = Path(j.final_video_path) if j is not None and j.final_video_path else None
+        return (p, j.id) if p is not None and p.is_file() else (None, None)
+    return RS.chemin_depot(src_b.get("depot")), None
+
+
+@router.post("/voix")
+async def voix_convertir(body: dict | None = None):
+    """{source: {job_id}|{depot}, personnage_id?, voice_id?, debruiter?} -> {job_id, devis_usd}."""
+    import asyncio
+    from app.services import avatar_voix as AV, fal_video_tools as FV
+    b = body if isinstance(body, dict) else {}
+    src, parent = await _source_video(b.get("source") if isinstance(b.get("source"), dict) else {})
+    if src is None:
+        raise HTTPException(404, "Vidéo source introuvable (rendu sans vidéo, ou dépôt inconnu).")
+    perso = AL.lire_personnage(b.get("personnage_id")) if b.get("personnage_id") else None
+    if b.get("personnage_id") and perso is None:
+        raise HTTPException(404, "Personnage inconnu.")
+    info = await asyncio.to_thread(FV.probe, src)
+    try:
+        prep = AV.preparer(src, float(info.get("duration_s") or 0), perso, b.get("voice_id"))
+    except AV.Refus as e:
+        raise HTTPException(e.statut, e.message)
+    garde = await _PLAF.verifier(prep["op"], "studio", ref=f"voix:{src.name}")
+    job_id = await AV.lancer_voix(prep, garde["lignes"], parent, bool(b.get("debruiter")))
+    return {"job_id": job_id, "devis_usd": garde["devis"]["total_usd"], "voice_id": prep["voice_id"]}

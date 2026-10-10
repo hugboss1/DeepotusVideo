@@ -50,7 +50,9 @@ PUITS = {
     "convertir_par_meshy",   # T105 : fbx/usdz/blend par Meshy convert (1 crédit par tâche)
     "_run_manuscript_job", "_run_adapt_job", "_run_bible_model3d",
     "ouvrir_session_direct",   # t161 : le jeton client Decart (le Direct, facturé à la seconde)
-    "lancer_recast",   # t162 : le Recast différé (Wan Animate, Kling Motion Control, Lucy Edit — fal)
+    "lancer_recast",
+    "lancer_voix",   # t163 : voix -> voix (ElevenLabs Voice Changer)
+      # t162 : le Recast différé (Wan Animate, Kling Motion Control, Lucy Edit — fal)
 }
 GARDES = {"_plafond", "_PLAF.verifier"}   # `verifier` nu est ambigu (cards/face : `sw.verifier` de la fiche de style)
 

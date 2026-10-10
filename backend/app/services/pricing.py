@@ -139,6 +139,9 @@ DEFAULTS = {
     "demucs_usd_per_s": 0.0007,
     "birefnet_video_usd_per_s": 0.0,
     "elevenlabs_isolation_chars_per_min": 1000.0,
+    # Avatar live G2 (t163, 10/10/2026) : Voice Changer (voix -> voix), ~1 000 crédits par minute (relevé tiers
+    # du 07/2026 sur la liste officielle, même grille que l'isolation) — à confirmer sur elevenlabs.io/pricing.
+    "elevenlabs_sts_chars_per_min": 1000.0,
     "stt_usd_per_min": {
         "elevenlabs": 0.0067,   # Scribe v1, ≈ 0,40 $/h
         "openai": 0.006,        # whisper-1
@@ -535,6 +538,10 @@ def estimate(op: dict, p: dict | None = None) -> dict:
         taux = float(p.get("birefnet_video_usd_per_s", DEFAULTS["birefnet_video_usd_per_s"]))
         lines.append(_line("fal", "Détourage vidéo (BiRefNet)" + (" — prix à mesurer" if not taux else ""),
                            dur, "s", dur * taux))
+    elif kind == "voix_sts":
+        mins = max(0.0, float(op.get("duration_s", 0) or 0)) / 60.0
+        chars = mins * float(p.get("elevenlabs_sts_chars_per_min", DEFAULTS["elevenlabs_sts_chars_per_min"]))
+        lines.append(_line("elevenlabs", "Voix → voix (Voice Changer)", chars, "chars", chars * elevenlabs_rate(None, p)))
     elif kind == "isolate":
         mins = float(op.get("duration_s", 0)) / 60.0
         chars = mins * float(p.get("elevenlabs_isolation_chars_per_min",

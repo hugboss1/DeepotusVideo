@@ -61,6 +61,7 @@
       </div>
       <div class="liste">
         <h2>Mes Personnages</h2>
+        <input id="pVoixFichiers" type="file" accept="audio/*,video/*" multiple hidden>
         <div id="pListe" class="grille"></div>
       </div>
     </div>
@@ -102,9 +103,16 @@
           </label>
         </div>
 
+        <label class="consentement">
+          <input id="rVoix" type="checkbox">
+          <span>Avec la voix du Personnage : la voix de la prise est convertie dans la sienne, au même rythme (ElevenLabs).</span>
+        </label>
         <div class="actions">
           <button id="rLancer" type="button" class="btn plein" disabled>
             <svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-lancer"></use></svg>Lancer le Recast
+          </button>
+          <button id="rVoixSeule" type="button" class="btn" disabled title="Garde l'image, remplace seulement la voix">
+            <svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-cloner-voix"></use></svg>Changer seulement la voix
           </button>
           <span id="rDevis" class="devis"></span>
           <span id="rMsg" class="msg" aria-live="polite"></span>

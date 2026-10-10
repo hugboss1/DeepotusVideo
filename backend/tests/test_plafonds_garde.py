@@ -73,7 +73,8 @@ PAYANTES = {
     # `remove_bg: "api"` atteint le puits fal, et la garde est celle d'assets_sprite (gardée PAR la porte commune)
     ("routes", "POST", "/assets/sprite/from-board"),
     ("avatar_live", "POST", "/sessions"),
-    ("avatar_live", "POST", "/recast"),   # t162 : le Recast différé (fal), réservé sur la durée de la source   # t161 : une session du Direct (Decart Lucy 2.5, réservée entière)
+    ("avatar_live", "POST", "/recast"),
+    ("avatar_live", "POST", "/voix"),   # t163 : voix -> voix (ElevenLabs), réservée sur la durée de la source   # t162 : le Recast différé (fal), réservé sur la durée de la source   # t161 : une session du Direct (Decart Lucy 2.5, réservée entière)
 }
 
 

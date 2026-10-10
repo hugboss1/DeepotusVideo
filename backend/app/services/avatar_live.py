@@ -168,6 +168,19 @@ def chemin_image(pid: str, n) -> str | None:
     return str(p) if p.is_file() else None
 
 
+def poser_voix(pid: str, voix: dict) -> dict:
+    """G2 (t163) : rattache une voix (clonée ou choisie) au Personnage, en réécrivant fiche.json."""
+    d = _dossier(pid)
+    if d is None:
+        raise Refus(404, "Personnage inconnu.")
+    f = json.loads((d / "fiche.json").read_text(encoding="utf-8"))
+    f["voix"] = {k: v for k, v in (voix or {}).items() if k in ("fournisseur", "voice_id", "clonee", "le", "verification")}
+    tmp = d / "fiche.json.tmp"
+    tmp.write_text(json.dumps(f, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(d / "fiche.json")
+    return _publique(f)
+
+
 def supprimer_personnage(pid: str) -> bool:
     d = _dossier(pid)
     if d is None:

@@ -126,9 +126,19 @@ def preparer(corps: dict, src: Path, duree_s: float, personnage: dict | None) ->
                          f"{DUREE_MAX_S:.0f} s (comme Genjutsu). Coupez-la au Montage.")
     res = resolution(modele, corps.get("resolution"))
     orient = "image" if str(corps.get("orientation") or "") == "image" else "video"
+    op = {"kind": "recast", "modele": modele, "seconds": float(duree_s), "resolution": res}
+    voice_id = None
+    if corps.get("voix"):
+        # G2 (t163) : la voix du Personnage remplace celle de la prise, APRÈS fal (le devis porte les deux)
+        from app.services import avatar_voix as _av
+        voice_id = ((personnage or {}).get("voix") or {}).get("voice_id")
+        if not voice_id:
+            raise ValueError("« Avec la voix du Personnage » : ce Personnage n'a pas de voix (clonez-la d'abord).")
+        if not _av.cle():
+            raise ValueError("Clé ElevenLabs absente (Réglages → clés API) — rien n'a été lancé.")
+        op = {"kind": "campaign", "ops": [op, {"kind": "voix_sts", "duration_s": float(duree_s)}]}
     return {"modele": modele, "resolution": res, "consigne": consigne, "orientation": orient,
-            "duree_s": float(duree_s), "src": src, "personnage": personnage,
-            "op": {"kind": "recast", "modele": modele, "seconds": float(duree_s), "resolution": res}}
+            "duree_s": float(duree_s), "src": src, "personnage": personnage, "voice_id": voice_id, "op": op}
 
 
 async def _upload(path: Path) -> str:                               # seam
@@ -230,6 +240,12 @@ async def _executer(job_id: str, prep: dict, lignes: list) -> None:
         await _download(url, dest)
         if await asyncio.to_thread(reposer_son, Path(prep["src"]), dest):
             logger.info(f"recast {job_id} : son de la source recollé")
+        if prep.get("voice_id"):
+            from app.services import avatar_voix as _av
+            await maj(status=JobStatus.GENERATING_VOICEOVER.value, current_step="Voix du Personnage", progress=92)
+            tmpv = dest.with_name(dest.stem + ".voix.mp4")
+            await _av.convertir_fichier(dest, prep["voice_id"], False, tmpv)
+            tmpv.replace(dest)
         await maj(video_path=str(dest), final_video_path=str(dest), status=JobStatus.DONE.value,
                   current_step="Complete", progress=100, completed_at=datetime.utcnow())
         logger.info(f"recast {job_id} ({prep['modele']}) : {dest.name}")

@@ -101,8 +101,11 @@
           el("b", { text: p.nom }),
           el("small", { text: p.images + (p.images > 1 ? " photos" : " photo") + (p.voix && p.voix.voice_id ? " · voix " + p.voix.voice_id : "") }),
           el("small", { text: "Consentement du " + String(p.consentement.le || "").slice(0, 10).split("-").reverse().join("/") }),
-          el("button", { type: "button", class: "btn fin", onclick: function () { supprimer(p); } }, [
-            el("span", { text: "Supprimer" })])
+          el("div", { class: "ligne" }, [
+            el("button", { type: "button", class: "btn fin", title: "1 à 5 extraits de la voix seule, 30 s à 3 min au total",
+              onclick: function () { clonerVoix(p); } }, [el("span", { text: p.voix && p.voix.clonee ? "Recloner la voix" : "Cloner la voix" })]),
+            el("button", { type: "button", class: "btn fin", onclick: function () { supprimer(p); } }, [
+              el("span", { text: "Supprimer" })])])
         ])
       ]));
     });
@@ -112,6 +115,21 @@
     if (avant) s.value = avant; else if (etat.persos.length) s.value = etat.persos[etat.persos.length - 1].id;
     majRecast();
   }
+  var cible = null;
+  $("pVoixFichiers").addEventListener("change", async function () {
+    var fs = Array.from($("pVoixFichiers").files || []); $("pVoixFichiers").value = "";
+    if (!cible || !fs.length) return;
+    msg("pMsg", "Clonage de la voix de « " + cible.nom + " »…");
+    try {
+      var fd = new FormData(); fs.slice(0, 5).forEach(function (f) { fd.append("echantillons", f, f.name); });
+      fd.append("debruiter", "true");
+      await lire(await fetch(API + "/personnages/" + cible.id + "/voix", { method: "POST", body: fd }));
+      msg("pMsg", "Voix de « " + cible.nom + " » clonée.");
+    } catch (e) { msg("pMsg", e.message, true); }
+    chargerPersos();
+  });
+  function clonerVoix(p) { cible = p; $("pVoixFichiers").click(); }
+
   async function supprimer(p) {
     var D = window.__dzDialogue;
     var ok = D && D.confirmer ? await D.confirmer("Supprimer « " + p.nom + " » et ses photos de référence ?", { titre: "Supprimer le Personnage", ok: "Supprimer", annuler: "Annuler" }) : false;
@@ -150,15 +168,19 @@
     res.value = m.prix_usd_s[avant] != null ? avant : m.defaut;
     $("rOrientChamp").hidden = etat.modele.indexOf("mouvement") !== 0;
     $("rPerso").disabled = !m.personnage;
-    var prix = m.prix_usd_s[res.value] || 0;
+    var perso = etat.persos.filter(function (x) { return x.id === $("rPerso").value; })[0];
+    var aVoix = !!(perso && perso.voix && perso.voix.voice_id);
+    $("rVoix").disabled = !aVoix; if (!aVoix) $("rVoix").checked = false;
+    var prix = (m.prix_usd_s[res.value] || 0) + ($("rVoix").checked ? (cat.voix_usd_s || 0) : 0);
     var d = etat.source && etat.source.duree_s;
     $("rDevis").textContent = d ? "≈ " + usd(prix * d) + " (" + sec(d) + " × " + usdS(prix) + ")" : usdS(prix) + " de vidéo";
     var dureeOk = !d || (d >= cat.duree.min && d <= cat.duree.max);
     if (d && !dureeOk) $("rSourceInfo").textContent = "Cette vidéo fait " + sec(d) + " : le Recast prend de " + cat.duree.min + " à " + cat.duree.max + " s. Coupe-la au Montage.";
     var consigneOk = !(etat.modele === "objet" && !$("rConsigne").value.trim() && !etat.pre);
     $("rLancer").disabled = !(etat.source && dureeOk && consigneOk && (!m.personnage || $("rPerso").value));
+    $("rVoixSeule").disabled = !(etat.source && aVoix);
   }
-  ["rPerso", "rRes", "rConsigne", "rOrient"].forEach(function (id) { $(id).addEventListener("input", majRecast); });
+  ["rPerso", "rRes", "rConsigne", "rOrient", "rVoix"].forEach(function (id) { $(id).addEventListener("input", majRecast); });
 
   function construireRecast() {
     var cat = etat.cat.recast, box = $("rModeles"); box.textContent = "";
@@ -189,14 +211,27 @@
       var src = etat.source.job_id ? { job_id: etat.source.job_id } : { depot: etat.source.depot };
       var d = await lire(await fetch(API + "/recast", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ source: src, personnage_id: $("rPerso").value || null, modele: etat.modele,
-          resolution: $("rRes").value, consigne: $("rConsigne").value, prereglage: etat.pre, orientation: $("rOrient").value }) }));
+          resolution: $("rRes").value, consigne: $("rConsigne").value, prereglage: etat.pre, orientation: $("rOrient").value,
+          voix: $("rVoix").checked }) }));
       msg("rMsg", "Lancé : " + usd(d.devis_usd) + " réservés.");
       suivre(d.job_id);
     } catch (e) { msg("rMsg", e.message, true); }
     majRecast();
   });
 
-  var LIB = { queued: "En file", uploading_image: "Envoi", generating_video: "Rendu chez fal", downloading_video: "Téléchargement", done: "Terminé", failed: "Échec" };
+  $("rVoixSeule").addEventListener("click", async function () {
+    $("rVoixSeule").disabled = true; msg("rMsg", "Conversion de la voix…");
+    try {
+      var src = etat.source.job_id ? { job_id: etat.source.job_id } : { depot: etat.source.depot };
+      var d = await lire(await fetch(API + "/voix", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source: src, personnage_id: $("rPerso").value }) }));
+      msg("rMsg", "Lancé : " + usd(d.devis_usd) + " réservés.");
+      suivre(d.job_id);
+    } catch (e) { msg("rMsg", e.message, true); }
+    majRecast();
+  });
+
+  var LIB = { queued: "En file", uploading_image: "Envoi", generating_video: "Rendu chez fal", downloading_video: "Téléchargement", generating_voiceover: "Voix", done: "Terminé", failed: "Échec" };
   function carteJob(j) {
     var id = jid(j), box = etat.suivis[id];
     if (!box) {
