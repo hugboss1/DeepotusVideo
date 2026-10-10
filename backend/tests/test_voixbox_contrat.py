@@ -104,5 +104,17 @@ VD._GPU.update(t=0.0, v=None)
 e = asyncio.run(VD.etat())
 check("V7 éteint : l'état dit « local indisponible » sans planter", e["local"]["voixbox"] is False and e["local"]["disponible"] is False)
 
+print("\n[P] les scripts PowerShell de l'installation")
+import subprocess as _sp                                            # noqa: E402
+for ps1 in sorted((RACINE / "tools" / "voixbox").glob("*.ps1")):
+    brut = ps1.read_bytes()
+    # relevé le 10/10 : SANS BOM, Windows PowerShell 5.1 lit le fichier en ANSI ; « — » devient « â€” », dont le
+    # dernier caractère est un guillemet qui ferme la chaîne : le script ne s'analyse même pas
+    err = _sp.run(["powershell", "-NoProfile", "-Command",
+                   "$e=$null; [System.Management.Automation.Language.Parser]::ParseFile('%s', [ref]$null, [ref]$e) | Out-Null; $e.Count" % ps1],
+                  capture_output=True, text=True, timeout=60).stdout.strip()
+    check(f"P {ps1.name} : UTF-8 AVEC BOM et analysé sans erreur par Windows PowerShell 5.1",
+          brut.startswith(b"\xef\xbb\xbf") and err == "0", f"BOM={brut[:3]!r} erreurs={err!r}")
+
 print(f"\n{ok} ok, {fail} fail")
 sys.exit(1 if fail else 0)

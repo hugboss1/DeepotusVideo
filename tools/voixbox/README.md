@@ -90,7 +90,8 @@ La qualité de la voix clonée dépend presque tout entière de cet enregistreme
 
 6. Clique **Entraînement en un clic**. La WebUI enchaîne quatre étapes, affichées une à une : découpage des
    données, extraction de la hauteur et des caractéristiques, entraînement du modèle, index. Compte environ
-   **TEMPS_200** pour 200 époques sur une RTX 2080 Ti (mesuré : **TEMPS_40** pour 40 époques sur 10 min de voix).
+   **1 h 15** pour 200 époques sur une RTX 2080 Ti (mesuré le 10/10 : **18 minutes** pour 40 époques sur 10 min de
+   voix, soit 21 s par époque, plus environ 2 minutes de préparation et d'index).
 
 7. À la fin, le modèle est dans `tools\voixbox\rvc-webui\assets\weights\oli.pth` et son index dans
    `tools\voixbox\rvc-webui\logs\oli\added_….index`.
@@ -122,8 +123,12 @@ ou un enregistrement plus propre. Si elle est trop aiguë ou trop grave, règle 
 
 | Voie | Segment | Latence d'un segment | Retard de l'image |
 |---|---|---|---|
-| ElevenLabs (cloud) | 0,5 s | médiane 1 536 ms, max 1 757 ms | 2,6 s |
-| Voixbox RVC (RTX 2080 Ti) | 0,5 s | LATENCE_RVC | RETARD_RVC |
+| ElevenLabs (cloud) | 0,5 s | médiane 969 ms (920 à 1 330 ms ; 2,2 s au tout premier) | 2,1 s |
+| Voixbox RVC (RTX 2080 Ti) | 0,5 s | médiane 110 ms, max 120 ms | 0,75 s |
+
+La voie locale est donc presque **neuf fois plus rapide** que le cloud, et gratuite. Deux réglages de Voixbox ont été
+nécessaires pour y arriver (mesurés, dans `server.py`) : l'index de la voix est lu une seule fois au lieu de l'être à
+chaque segment (−220 ms), et la connexion reste ouverte entre deux segments.
 
 Le **retard de l'image** est voulu : la vidéo envoyée à Decart est retardée d'autant que la voix, pour que les
 lèvres et la voix arrivent ensemble.

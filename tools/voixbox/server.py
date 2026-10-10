@@ -68,6 +68,43 @@ def fichiers_modele(racine: Path, nom: str) -> tuple[Path, Path | None] | None:
     return pths[-1], (idx[-1] if idx else None)
 
 
+class _IndexReconstruit:
+    """Un index faiss DÉJÀ reconstruit : `reconstruct_n(0, ntotal)` rend les vecteurs gardés, le reste est délégué."""
+
+    def __init__(self, index, vecteurs):
+        self._index, self._vecteurs = index, vecteurs
+
+    def reconstruct_n(self, debut, n):
+        if debut == 0 and n == self._index.ntotal:
+            return self._vecteurs
+        return self._index.reconstruct_n(debut, n)
+
+    def __getattr__(self, nom):
+        return getattr(self._index, nom)
+
+
+def _index_en_cache():
+    """Mesuré le 10/10 (RTX 2080 Ti, voix de 10 min) : la WebUI relit ET reconstruit l'index (100 Mo) à CHAQUE appel
+    (infer/vc/pipeline.py : faiss.read_index puis reconstruct_n) — 220 ms sur 295 ms d'inférence. Pour le direct,
+    l'index est lu une fois par fichier (et par date de modification) et gardé reconstruit. Aucune ligne de la WebUI
+    n'est modifiée : seul `faiss.read_index` est enveloppé, dans CE processus."""
+    import faiss
+    origine = faiss.read_index
+    cache: dict = {}
+
+    def lire(chemin, *a):
+        if a:
+            return origine(chemin, *a)
+        cle = (os.path.abspath(chemin), os.path.getmtime(chemin))
+        if cle not in cache:
+            cache.clear()                                   # une voix à la fois en mémoire
+            idx = origine(chemin)
+            cache[cle] = _IndexReconstruit(idx, idx.reconstruct_n(0, idx.ntotal))
+        return cache[cle]
+
+    faiss.read_index = lire
+
+
 class MoteurRVC:
     """Le vrai moteur : le dépôt RVC WebUI (RVC-Project/Retrieval-based-Voice-Conversion-WebUI, MIT) — la MÊME
     installation sert à entraîner les voix (onglet « Train » de sa WebUI) et à les faire parler ici. Son API
@@ -81,6 +118,13 @@ class MoteurRVC:
             raise SystemExit(f"Voixbox : dépôt RVC WebUI introuvable ({self.depot}) — VOIXBOX_RVC_WEBUI, voir README.md")
         sys.path.insert(0, str(self.depot))
         os.chdir(self.depot)                                    # configs/ et assets/ sont lus en relatif
+        # les MÊMES chemins par défaut que la ligne de commande officielle (infer/cli.py) : sans rmvpe_root, le
+        # pipeline lève KeyError à la première extraction de hauteur (relevé le 10/10 sur la vraie installation)
+        os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+        os.environ.setdefault("weight_root", str(self.depot / "assets" / "weights"))
+        os.environ.setdefault("index_root", str(self.depot / "logs"))
+        os.environ.setdefault("outside_index_root", str(self.depot / "assets" / "indices"))
+        os.environ.setdefault("rmvpe_root", str(self.depot / "assets" / "rmvpe"))
         import numpy as np
         import torch
         from configs.config import Config
@@ -93,6 +137,7 @@ class MoteurRVC:
         self._np = np
         self.racine = racine
         self.vc = VC(cfg)
+        _index_en_cache()
         self.charge = None
         self.gpu = torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu"
         print(f"Voixbox : RVC WebUI {self.depot.name} sur {self.gpu} ; voix dans {racine}")
@@ -114,7 +159,7 @@ class MoteurRVC:
             statut, res = self.vc.vc_single(0, str(src), int(transpose), "rmvpe", str(idx) if idx else "",
                                             0.75 if idx else 0.0, 0, 1.0, 0.33)
         if not res or res[0] is None or res[1] is None:
-            raise RuntimeError(str(statut)[:200])
+            raise RuntimeError(str(statut).strip()[-300:])        # la CAUSE est à la fin du traceback de la WebUI
         tgt_sr, audio = int(res[0]), self._np.asarray(res[1])
         a = audio.astype(self._np.float32)
         if audio.dtype.kind in "iu" or (a.size and float(self._np.abs(a).max()) > 1.5):
@@ -131,6 +176,11 @@ def fabrique(moteur):
     verrou = threading.Lock()
 
     class Requete(BaseHTTPRequestHandler):
+        # TCP_NODELAY : mesuré le 10/10, sans lui ~450 ms s'ajoutaient à chaque segment (Nagle + ACK différé de Windows
+        # sur les petites écritures en-têtes/corps) pour 164 ms de conversion.
+        disable_nagle_algorithm = True
+        protocol_version = "HTTP/1.1"
+
         def log_message(self, *a):
             pass
 

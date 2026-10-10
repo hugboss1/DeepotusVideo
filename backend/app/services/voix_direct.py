@@ -11,8 +11,9 @@ Deux moteurs (décision de l'utilisateur du 10/10 : « les deux », puis RVC plu
   local  Voixbox (tools/voixbox, RVC sur le GPU de la machine), http://127.0.0.1:17495 par défaut (VOIXBOX_URL).
          Gratuit. Proposé seulement si un GPU NVIDIA est vu et que Voixbox répond.
 La clé ElevenLabs ne quitte jamais le serveur : le navigateur (et le téléphone) passent par ici.
-Mesures RÉELLES du 10/10 (ElevenLabs, 6 segments chacun) : segments d'1 s -> latence médiane 1 722 ms (max 2 346) ;
-segments de 0,5 s -> médiane 1 536 ms (max 1 757). Le navigateur envoie donc des segments de 0,5 s, jusqu'à 4 en vol.
+Mesures RÉELLES du 10/10 (segments de 0,5 s) : ElevenLabs médiane 969 ms (régime 920-1 330 ms, 2,2 s au premier
+segment) ; Voixbox RVC sur RTX 2080 Ti médiane 110 ms (max 120) — avec un client httpx GARDÉ (voir `_client`) : un client
+neuf à chaque segment ajoutait ~450 ms (1 536 ms et 735 ms mesurés avant). Le navigateur envoie des segments de 0,5 s.
 Seams : `_poster_eleven`, `_poster_voixbox`, `_nvidia_smi`."""
 from __future__ import annotations
 
@@ -34,6 +35,20 @@ class Refus(Exception):
     def __init__(self, statut: int, message: str):
         super().__init__(message)
         self.statut, self.message = statut, message
+
+
+_CLIENTS: dict = {}
+
+
+def _client(verify) -> httpx.AsyncClient:
+    """UN client httpx par boucle d'événements et par réglage TLS, gardé : mesuré le 10/10 sur la machine de référence,
+    CRÉER un AsyncClient coûte ~450 ms (contexte TLS, magasin de certificats) — plus que la conversion d'un segment
+    par Voixbox (118 ms d'aller-retour avec un client gardé, 555-738 ms avec un client neuf à chaque segment)."""
+    cle = (id(asyncio.get_running_loop()), bool(verify))
+    c = _CLIENTS.get(cle)
+    if c is None or c.is_closed:
+        c = _CLIENTS[cle] = httpx.AsyncClient(verify=verify, timeout=30)
+    return c
 
 
 def voixbox_url() -> str:
@@ -66,22 +81,22 @@ def gpu() -> dict | None:
 
 
 async def _poster_voixbox(chemin: str, params: dict | None = None, corps: bytes | None = None) -> tuple[int, bytes, dict]:   # seam
-    async with httpx.AsyncClient(timeout=30) as c:
-        if corps is None:
-            r = await c.get(voixbox_url() + chemin)
-        else:
-            r = await c.post(voixbox_url() + chemin, params=params, content=corps,
-                             headers={"Content-Type": "application/octet-stream"})
+    c = _client(True)
+    if corps is None:
+        r = await c.get(voixbox_url() + chemin)
+    else:
+        r = await c.post(voixbox_url() + chemin, params=params, content=corps,
+                         headers={"Content-Type": "application/octet-stream"})
     return r.status_code, r.content, dict(r.headers)
 
 
 async def _poster_eleven(voice_id: str, pcm: bytes) -> tuple[int, bytes]:   # seam
-    async with httpx.AsyncClient(verify=SSL_VERIFY, timeout=30) as c:
-        r = await c.post(f"https://api.elevenlabs.io/v1/speech-to-speech/{voice_id}",
-                         params={"output_format": "pcm_16000"},
-                         headers={"xi-api-key": (settings.ELEVENLABS_API_KEY or "").strip()},
-                         data={"model_id": "eleven_multilingual_sts_v2", "file_format": "pcm_s16le_16"},
-                         files={"audio": ("segment.pcm", pcm, "application/octet-stream")})
+    c = _client(SSL_VERIFY)
+    r = await c.post(f"https://api.elevenlabs.io/v1/speech-to-speech/{voice_id}",
+                     params={"output_format": "pcm_16000"},
+                     headers={"xi-api-key": (settings.ELEVENLABS_API_KEY or "").strip()},
+                     data={"model_id": "eleven_multilingual_sts_v2", "file_format": "pcm_s16le_16"},
+                     files={"audio": ("segment.pcm", pcm, "application/octet-stream")})
     return r.status_code, r.content
 
 

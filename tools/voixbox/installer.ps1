@@ -1,4 +1,4 @@
-# Voixbox — installation de la voix LOCALE (RVC) pour le Direct d'Avatar live (t166, 10/10/2026).
+﻿# Voixbox — installation de la voix LOCALE (RVC) pour le Direct d'Avatar live (t166, 10/10/2026).
 # Tout ce que ce script fait a été mesuré sur la machine de référence (RTX 2080 Ti 11 Go, Windows 11, Avast) :
 #   - Avast pose SSLKEYLOGFILE : le Python téléchargé par uv plante (« no OPENSSL_Applink ») -> la variable est
 #     retirée POUR CE SCRIPT SEULEMENT (aucun réglage du système n'est touché) ;

@@ -13,10 +13,11 @@
 import { createDecartClient, models } from "./vendor/decart-sdk-0.2.8.js";
 import { ouvrirVoixDirect, retardVideoPossible } from "./voix-direct.js";
 
-// G5 : retard appliqué à la vidéo envoyée pour rester calée sur la voix convertie (segment d'1 s + conversion +
-// marge de gigue). Valeurs fixées d'après les MESURES du 10/10 (voir tools/voixbox/README.md, « Latence »).
-// Cloud : segment 500 ms + latence max mesurée 1 757 ms + marge de gigue 350 ms.
-const RETARD_MS = { cloud: 2600, local: 1500 };
+// G5 : retard appliqué à la vidéo envoyée pour rester calée sur la voix convertie = segment (500 ms) + latence
+// de conversion + marge de gigue. MESURES du 10/10 avec le client httpx gardé (tools/voixbox/README.md, « Latence ») :
+//   cloud (ElevenLabs) : médiane 969 ms, régime 920-1 330 ms -> 500 + 1 330 + 270 = 2 100 ms
+//   local (Voixbox RVC, RTX 2080 Ti) : médiane 110 ms, max 120 ms -> 500 + 120 + 130 = 750 ms
+const RETARD_MS = { cloud: 2100, local: 750 };
 
 const API = "/api/avatar-live";
 const $ = (id) => document.getElementById(id);
@@ -76,6 +77,7 @@ async function demarrer() {
       const sid = st.sess.session_id;
       st.vd = await ouvrirVoixDirect({
         camera: st.local, micro: st.local, retardMs: RETARD_MS[st.sess.voix.moteur],
+        enVolMax: st.sess.voix.moteur === "local" ? 2 : 4,                // un seul GPU : inutile d'empiler
         convertir: async (buf) => {
           const r = await fetch(API + "/sessions/voix?session_id=" + encodeURIComponent(sid), { method: "POST", body: buf,
             headers: { "Content-Type": "application/octet-stream" } });
