@@ -1,0 +1,88 @@
+{
+  "titre": {
+    "fr": "Nettoyage et corbeille",
+    "en": "Cleanup and trash"
+  },
+  "legende": {
+    "fr": "Le Nettoyage montre le poids et les doublons exacts ; ce qu'on jette va à la corbeille, d'où on le restaure.",
+    "en": "Cleanup shows the weight and exact duplicates; what you discard goes to the trash, where you can restore it."
+  },
+  "captures": [
+    {
+      "fr": "nettoyage.fr.webp",
+      "en": "nettoyage.en.webp"
+    },
+    {
+      "fr": "corbeille.fr.webp",
+      "en": "corbeille.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        614,
+        256,
+        164,
+        38
+      ],
+      "bulle": {
+        "fr": "Un groupe de doublons exacts",
+        "en": "A group of exact duplicates"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.6,
+      "surligne": [
+        1268,
+        272,
+        84,
+        38
+      ],
+      "bulle": {
+        "fr": "Rien n'est perdu avant de vider",
+        "en": "Nothing is lost until you empty it"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        566,
+        256,
+        121,
+        38
+      ],
+      "bulle": {
+        "fr": "Un groupe de doublons exacts",
+        "en": "A group of exact duplicates"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.6,
+      "surligne": [
+        1282,
+        272,
+        73,
+        38
+      ],
+      "bulle": {
+        "fr": "Rien n'est perdu avant de vider",
+        "en": "Nothing is lost until you empty it"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

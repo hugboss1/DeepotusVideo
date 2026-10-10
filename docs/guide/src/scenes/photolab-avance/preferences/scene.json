@@ -1,0 +1,56 @@
+{
+  "titre": {
+    "fr": "Les préférences",
+    "en": "Preferences"
+  },
+  "legende": {
+    "fr": "Édition › Préférences : dix-huit sections, gardées dans le dossier de données de Deepotus.",
+    "en": "Edit › Preferences: eighteen sections, kept in the Deepotus data folder."
+  },
+  "captures": [
+    {
+      "fr": "dialogue.fr.webp",
+      "en": "dialogue.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 3,
+      "surligne": [
+        499,
+        253,
+        122,
+        46
+      ],
+      "bulle": {
+        "fr": "Une section par entrée du menu",
+        "en": "One section per menu entry"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 3,
+      "surligne": [
+        499,
+        257,
+        122,
+        29
+      ],
+      "bulle": {
+        "fr": "Une section par entrée du menu",
+        "en": "One section per menu entry"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

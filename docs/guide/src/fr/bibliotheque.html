@@ -1,0 +1,64 @@
+<p class="chapeau-chap">Vous saurez retrouver n'importe quelle image, son ou rendu, le ranger dans un projet, l'envoyer vers l'écran qui en a besoin et faire le ménage sans rien perdre. Tout est gratuit et reste sur votre PC, sauf les légendes par un modèle vision (payantes, devis affiché).</p>
+
+<h3>L'écran Bibliothèque</h3>
+<figure class="scene" data-scene="bibliotheque/ecran"></figure>
+<p>Ouvrez <b class="ui">Bibliothèque</b> dans le rail. En haut, un onglet par sorte : <b class="ui">Images</b>, <b class="ui">Rendus</b>, 3D, Sprites, Audio, <b class="ui">Favoris</b> et <b class="ui">Établi</b>, où les versions d'un modèle sont rangées dans l'ordre de leur lignée. Tout ce que produit l'application arrive ici : générateurs, Photolab, Vectorlab, imports, téléphone.</p>
+<ol class="etapes">
+<li>Les puces de <strong>source</strong> disent d'où vient chaque asset (Générateur, Matières, Imports, mobile…). Un clic filtre.</li>
+<li>Les puces de <strong>tags</strong> sont comptées ; « 3+ » garde les images notées trois et plus. Chaque image reçoit aussi sa couleur dominante : les puces de <strong>teinte</strong> (douze teintes et neutre) filtrent par couleur.</li>
+<li>Le tri <b class="ui">Plus récents</b> ou par taille, puis <b class="ui">Grille</b> ou liste : la liste a dix colonnes triables (nom, source, taille, date, dimensions, tags, note, favori, licence, teinte) et une ligne ouvre la fiche.</li>
+<li>Chaque vignette montre la taille et l'âge du fichier ; l'étoile pose le favori sans ouvrir la fiche, et les points rappellent la note.</li>
+</ol>
+
+<h3>La fiche d'une image</h3>
+<figure class="scene" data-scene="bibliotheque/fiche"></figure>
+<p>Un clic sur une vignette ouvre sa fiche. On y trouve, de haut en bas :</p>
+<div class="cartes">
+<article><i data-dz="dz-etat-note"></i><h4>Note et tags</h4><p>Une note de 0 à 5, distincte du favori, et des tags libres : tapez puis <b class="ui">Ajouter</b>. La recherche couvre les tags.</p></article>
+<article><i data-dz="dz-media-apparitions"></i><h4>Mère et filles</h4><p><b class="ui">Mère</b> montre l'image d'origine et la relation (recadrage, upscale, retouche…) ; les filles s'affichent en vignettes cliquables.</p></article>
+<article><i data-dz="dz-edit-texte-capitales"></i><h4>Droits</h4><p>Licence (proposée selon la source), auteur et lien, puis <b class="ui">Enregistrer</b>. Une licence inconnue est signalée en ambre : à vérifier avant de diffuser.</p></article>
+<article><i data-dz="dz-media-texte"></i><h4>Fichier, recette, usages</h4><p>Dimensions, poids, format, couleur dominante, source ; la recette du générateur (prompt, style, modèle, graine) ; et tous les usages : rendus, posts, bible, plans, projets.</p></article>
+<article><i data-dz="dz-etat-rappel"></i><h4>Commentaires de revue</h4><p>Écrivez puis <b class="ui">Commenter</b> (ou Entrée). Chaque commentaire a un statut cliquable : à revoir, validé, rejeté ; pour un son, l'instant mm:ss. Ils suivent l'asset renommé ou restauré.</p></article>
+<article><i data-dz="dz-action-recherche-semantique"></i><h4>Images semblables</h4><p><b class="ui">≈ Images semblables</b> montre les images visuellement proches, grâce au modèle CLIP installé sur votre PC.</p></article>
+</div>
+<p><b class="ui">Rejouer la recette</b> régénère une image générée avec sa recette d'origine, graine comprise. C'est payant : le prix s'affiche et vous confirmez avant le tir ; la nouvelle image arrive en tête de liste.</p>
+
+<h3>Envoyer vers un autre écran</h3>
+<figure class="scene" data-scene="bibliotheque/envoyer"></figure>
+<ol class="etapes">
+<li>Dans la fiche, cliquez <b class="ui">Envoyer vers…</b>.</li>
+<li>Choisissez l'écran : Studio, Quick (image de départ), Template, Chapitre ou Atelier, Montage, Cardforge, Sprite Lab, Scheduler… Trois cibles sont propres aux images : le <strong>Photolab</strong> pour la retoucher, le <strong>Vectorlab</strong> qui crée un document neuf à sa taille, et le <strong>Tile Lab</strong> qui en fait la source d'une tuile.</li>
+<li><b class="ui">Projet de la Bibliothèque…</b> range l'asset dans un projet : ceux qui le contiennent déjà sont cochés (un clic le retire), et <b class="ui">＋ Nouveau projet…</b> en crée un.</li>
+</ol>
+
+<h3>Ranger par projet</h3>
+<figure class="scene" data-scene="bibliotheque/projet"></figure>
+<p>La liste <strong>Projet</strong>, en tête de l'écran, regarde un seul projet : tous les onglets ne montrent plus que ses assets. <b class="ui">＋ Nouveau projet</b> en crée un ; un projet se renomme ou se supprime sans toucher à ses assets.</p>
+<div class="cartes">
+<article><i data-dz="dz-nav-projets"></i><h4>Projet actif</h4><p><b class="ui">Ranger ici automatiquement</b> : tout ce que vous produisez ensuite (images, rendus, 3D, sprites) s'y range. Le rappel reste affiché tant qu'il est actif, et un clic l'arrête.</p></article>
+<article><i data-dz="dz-action-epingler-mobile"></i><h4>Sur le téléphone</h4><p><b class="ui">Épingler sur le téléphone</b> : un seul projet est épinglé, et c'est lui que montre le <a href="#mobile">compagnon mobile</a>.</p></article>
+<article><i data-dz="dz-etat-selection-multiple"></i><h4>État du projet</h4><p>Le bouton <b class="ui">État</b> classe ses assets en monté, publié, imprimé ou inutilisé.</p></article>
+</div>
+
+<h3>Chercher</h3>
+<figure class="scene" data-scene="bibliotheque/recherche"></figure>
+<p>Le bouton <b class="ui">Recherche</b> ouvre la barre de recherche, avec trois moteurs :</p>
+<ol class="etapes">
+<li><strong>Texte</strong> : légendes, tags, prompts, recettes, commentaires et noms, sans tenir compte des accents ni des majuscules. Gratuit, immédiat.</li>
+<li><strong>Légendes</strong> : un modèle vision décrit les images qui n'en ont pas, pour mieux les retrouver. Payant : le devis s'affiche (les images sont envoyées à Google), le plafond est vérifié, puis le suivi compte les images faites.</li>
+<li><strong>CLIP</strong> : cherche par le sens (« un phare au coucher du soleil »). <b class="ui">Installer CLIP</b> télécharge une fois environ 177 Mo, puis l'index se fait et la recherche tourne sur votre PC, gratuitement, sans rien envoyer.</li>
+</ol>
+<p>L'onglet <b class="ui">Audio</b> monte le tiroir Sons (tags, filtres, tri, actions) au-dessus de l'import : voir <a href="#son-vfx">Son &amp; VFX</a>.</p>
+
+<h3>Faire le ménage sans rien perdre</h3>
+<figure class="scene" data-scene="bibliotheque/nettoyage"></figure>
+<ol class="etapes">
+<li>Supprimer une image, un son ou un rendu le met à la <b class="ui">Corbeille</b>, jamais plus loin.</li>
+<li><b class="ui">Nettoyage</b> montre le poids par sorte et les groupes de doublons exacts. <b class="ui">Cocher les copies en trop</b> garde la copie utilisée (ou la plus ancienne) ; les copies protégées (favori, usage, projet) restent grisées. Confirmez pour les mettre à la corbeille.</li>
+<li>La <b class="ui">Corbeille</b> compte les éléments et leur poids, et signale ceux de plus de 30 jours. <b class="ui">Restaurer</b> remet l'asset à sa place avec ses projets ; si son nom a été repris, il prend un nom voisin et le dit.</li>
+<li>Vider efface définitivement : les anciens, tout, ou un seul élément, toujours après confirmation.</li>
+</ol>
+
+<h3>Bon à savoir</h3>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Les favoris sont enregistrés par l'application, plus par le navigateur : ils vous suivent d'un écran à l'autre et lors d'un <a href="#transfert">transfert</a>. Les anciens favoris du navigateur ont été repris une fois.</p></aside>
+<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>Seuls <b class="ui">Rejouer la recette</b> et les légendes par modèle vision coûtent : prix affiché avant, plafonds de dépense vérifiés. Tri, recherche texte, CLIP, projets et nettoyage sont gratuits.</p></aside>

@@ -1,0 +1,112 @@
+{
+  "titre": {
+    "fr": "Regarder un projet",
+    "en": "Look at a project"
+  },
+  "legende": {
+    "fr": "Choisir un projet filtre tous les onglets ; sa barre le range, l'épingle au téléphone ou montre son état.",
+    "en": "Choosing a project filters every tab; its bar auto-files into it, pins it to the phone or shows its status."
+  },
+  "captures": [
+    {
+      "fr": "projet.fr.webp",
+      "en": "projet.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        281,
+        161,
+        192,
+        38
+      ],
+      "bulle": {
+        "fr": "Le phare du récif : 4 assets",
+        "en": "Le phare du récif: 4 assets"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        469,
+        162,
+        185,
+        36
+      ],
+      "bulle": {
+        "fr": "Tout ce qui sort s'y range",
+        "en": "Everything you make is filed here"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        651,
+        162,
+        169,
+        36
+      ],
+      "bulle": {
+        "fr": "Le projet du compagnon mobile",
+        "en": "The mobile companion's project"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        287,
+        161,
+        192,
+        38
+      ],
+      "bulle": {
+        "fr": "Le phare du récif : 4 assets",
+        "en": "Le phare du récif: 4 assets"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        475,
+        162,
+        114,
+        36
+      ],
+      "bulle": {
+        "fr": "Tout ce qui sort s'y range",
+        "en": "Everything you make is filed here"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        584,
+        162,
+        126,
+        36
+      ],
+      "bulle": {
+        "fr": "Le projet du compagnon mobile",
+        "en": "The mobile companion's project"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "titre": {
+    "fr": "Changer d'espace de travail",
+    "en": "Switch workspace"
+  },
+  "legende": {
+    "fr": "Fenêtre › Espace de travail range panneaux et outils pour une tâche ; la disposition est retenue par espace.",
+    "en": "Window › Workspace arranges panels and tools for a task; the layout is remembered per workspace."
+  },
+  "captures": [
+    {
+      "fr": "menu.fr.webp",
+      "en": "menu.en.webp"
+    },
+    {
+      "fr": "peinture.fr.webp",
+      "en": "peinture.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "curseur": [
+        863,
+        165
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Sept espaces fournis",
+        "en": "Seven built-in workspaces"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "surligne": [
+        1268,
+        0,
+        144,
+        36
+      ],
+      "bulle": {
+        "fr": "Peinture : pinceaux et couleurs devant",
+        "en": "Painting: brushes and colours up front"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "curseur": [
+        789,
+        165
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Sept espaces fournis",
+        "en": "Seven built-in workspaces"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "surligne": [
+        1272,
+        0,
+        140,
+        36
+      ],
+      "bulle": {
+        "fr": "Peinture : pinceaux et couleurs devant",
+        "en": "Painting: brushes and colours up front"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

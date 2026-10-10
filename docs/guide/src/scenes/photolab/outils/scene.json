@@ -1,0 +1,54 @@
+{
+  "titre": {
+    "fr": "Les outils",
+    "en": "The tools"
+  },
+  "legende": {
+    "fr": "Un emplacement marqué d'un coin regroupe plusieurs outils : clic droit ou appui long pour choisir.",
+    "en": "A slot marked with a corner holds several tools: right-click or long-press to choose."
+  },
+  "captures": [
+    {
+      "fr": "barre.fr.webp",
+      "en": "barre.en.webp"
+    },
+    {
+      "fr": "volant.fr.webp",
+      "en": "volant.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "surligne": [
+        30,
+        128,
+        44,
+        44
+      ],
+      "bulle": {
+        "fr": "Baguette magique (W)",
+        "en": "Magic Wand (W)"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        117,
+        195,
+        137,
+        29
+      ],
+      "bulle": {
+        "fr": "Les autres outils du groupe",
+        "en": "The other tools in the group"
+      }
+    }
+  ]
+}

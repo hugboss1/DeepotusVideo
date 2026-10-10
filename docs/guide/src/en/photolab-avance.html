@@ -1,0 +1,68 @@
+<p class="chapeau-chap">You will be able to work with non-destructive layers in Photolab: adjustments, masks, styles and smart objects, then arrange the screen your way with panels, workspaces, rulers and preferences. Everything is free and computed on your PC.</p>
+
+<h3>The Layers panel</h3>
+<p>Each layer has its eye, thumbnail and name; double-click the name to rename it. Click to pick, <kbd>Ctrl</kbd>+click to add, <kbd>Shift</kbd>+click for a range. Drag a row to place it above, below or inside a group. At the top of the panel: a field to filter by name, the blend mode (27 modes), opacity, fill and locks (transparent pixels, pixels, position, nesting, all).</p>
+<p>The panel footer creates a layer or a group, links layers, adds a mask, duplicates, merges down and deletes. The <b class="ui">Layer</b> menu goes further: new layer via copy (<kbd>Ctrl</kbd>+<kbd>J</kbd>), group, clipping mask (<kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>G</kbd>), arrange, align and distribute, merge (<kbd>Ctrl</kbd>+<kbd>E</kbd>) or flatten, rasterize, matting.</p>
+
+<h3>Add an adjustment layer</h3>
+<figure class="scene" data-scene="photolab-avance/calques"></figure>
+<ol class="etapes">
+<li>Open the <b class="ui">Adjustments</b> tab, next to <b class="ui">Properties</b>.</li>
+<li>Click an adjustment, for example <b class="ui">Black &amp; White</b>: an adjustment layer is added above the active layer. The image below is not touched.</li>
+<li>Its sliders appear in <b class="ui">Properties</b>; Curves and Levels have their own editor there. Come back at any time by picking the layer.</li>
+</ol>
+<p>Sixteen adjustments work this way (brightness, levels, curves, hue, colour balance, channel mixer, gradient map…), as well as fill layers: solid colour, gradient or pattern.</p>
+
+<h3>Masks, styles, smart objects</h3>
+<div class="cartes">
+<article><i data-dz="dz-calque-masque"></i><h4>Layer mask</h4><p>The mask button reveals the selection (or everything); <kbd>Alt</kbd> does the opposite. On the mask thumbnail: <kbd>Shift</kbd>+click disables it, <kbd>Alt</kbd>+click shows it alone, <kbd>Ctrl</kbd>+click loads it as a selection.</p></article>
+<article><i data-dz="dz-calque-vectoriel"></i><h4>Vector mask</h4><p>On a layer that already has a mask, the same button adds a vector mask, or Layer › Vector Mask from the active path.</p></article>
+<article><i data-dz="dz-outil-vec-apparence"></i><h4>Layer style</h4><p>Drop shadow, glows, bevel, stroke, satin, overlays: a dialog with preview. A style can be copied, pasted or cleared; the <b class="ui">Styles</b> panel offers ready ones (neon, chrome, gold…).</p></article>
+<article><i data-dz="dz-calque-objet-dynamique"></i><h4>Smart filters</h4><p>Filter › Convert for Smart Filters: every filter applied afterwards appears under the layer, with its eye; double-click to reopen its settings, drag to change the order.</p></article>
+</div>
+<p>A single layer can be exported: Layer › Export As… (PNG, JPG or WEBP, at the chosen scale, to download or the Library) or quick export as PNG.</p>
+<figure class="fiche" data-fiche="photolab/pl-aj-blackWhite"></figure>
+
+<h3>The panels</h3>
+<p>On the right, panels are arranged in tabbed groups; the rail's icon column collapses or reopens each group, and the <b class="ui">Window</b> menu ticks the visible ones.</p>
+<div class="cartes">
+<article><i data-dz="dz-nav-panneau-couleur"></i><h4>Colour and swatches</h4><p>Color (<kbd>F6</kbd>) with hex code, Swatches (personal groups kept by Deepotus), Gradients and Patterns.</p></article>
+<article><i data-dz="dz-nav-panneau-historique"></i><h4>History and info</h4><p>History: a click on a step goes back to it. Navigator, per-channel Histogram, Info (<kbd>F8</kbd>) under the pointer, Channels and their shortcuts (<kbd>Ctrl</kbd>+<kbd>2</kbd>, <kbd>Ctrl</kbd>+<kbd>3</kbd>…).</p></article>
+<article><i data-dz="dz-nav-panneau-pinceaux"></i><h4>Brushes</h4><p>Tips with search, Brush Settings (<kbd>F5</kbd>), Clone Source and Tool Presets (e.g. soft eraser 60 px).</p></article>
+<article><i data-dz="dz-nav-panneau-texte"></i><h4>Text and paths</h4><p>Character, Paragraph, Glyphs, character and paragraph styles; Paths, Shapes; Layer Comps to switch from one state to another.</p></article>
+</div>
+
+<h3>Choose a workspace</h3>
+<figure class="scene" data-scene="photolab-avance/espaces"></figure>
+<ol class="etapes">
+<li>Open <b class="ui">Window</b> › <b class="ui">Workspace</b>, or the list at the top right.</li>
+<li>Pick one of seven layouts: <b class="ui">Essentials</b> (default), Basic, Graphic and Web, Motion, <b class="ui">Painting</b>, <b class="ui">Photo</b>, <b class="ui">Pixel Art</b>. Panels and tools arrange for the task.</li>
+<li>What you move, collapse or hide is remembered for that workspace. Reset restores it; Lock Workspace stops remembering.</li>
+<li>New Workspace… saves your layout (up to twenty), kept in the Deepotus data folder.</li>
+</ol>
+<figure class="fiche" data-fiche="photolab/pl-espace"></figure>
+
+<h3>Rulers, grid and guides</h3>
+<figure class="scene" data-scene="photolab-avance/affichage"></figure>
+<p>In <b class="ui">View</b>: <b class="ui">Rulers</b> (<kbd>Ctrl</kbd>+<kbd>R</kbd>), Show › <b class="ui">Grid</b> (<kbd>Ctrl</kbd>+<kbd>'</kbd>) and <b class="ui">Guides</b> (<kbd>Ctrl</kbd>+<kbd>;</kbd>). Drag from a ruler to place a guide; the Move tool moves it, or removes it by dragging it out. Snap (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>;</kbd>) aligns selections and layers to guides, grid, layers or document edges. Extras (<kbd>Ctrl</kbd>+<kbd>H</kbd>) hides everything at once.</p>
+<p>The same menu offers zooms, horizontal flip of the view (the document does not change), pixel art preview with crisp pixels and screen modes: <kbd>F</kbd> goes to the next one, <kbd>Esc</kbd> back to standard mode.</p>
+
+<h3>Measure, annotate, slice</h3>
+<div class="cartes">
+<article><i data-dz="dz-outil-vec-mesure"></i><h4>Ruler (I)</h4><p>Drag to measure distance and angle; <kbd>Alt</kbd> from an end makes a protractor. Straighten Layer puts the line level.</p></article>
+<article><i data-dz="dz-outil-photo-compteur"></i><h4>Count (I)</h4><p>A click places a numbered mark, <kbd>Alt</kbd>+click removes it. Measurements are recorded in the log, exportable as CSV for a spreadsheet.</p></article>
+<article><i data-dz="dz-etat-note"></i><h4>Note (I)</h4><p>A note with author and colour, placed on the image; the Notes panel steps from one to the next. File › Import › Notes… copies them from another document.</p></article>
+<article><i data-dz="dz-outil-photo-selection-tranche"></i><h4>Slices (C)</h4><p>Cut the image for the web, or from guides; slice selection moves them, divides them and sets their options (link, alt text).</p></article>
+</div>
+
+<h3>Preferences and shortcuts</h3>
+<figure class="scene" data-scene="photolab-avance/preferences"></figure>
+<p><b class="ui">Edit</b> › <b class="ui">Preferences</b> opens eighteen sections, saved in the Deepotus data folder: interface (canvas colour, document border, tooltips), tools, file handling and quick export, cursors, transparency, units and rulers, guides and grid, text. Some sections simply say what Deepotus handles in their place (performance, scratch disks…). The reset button restores all defaults, after confirmation.</p>
+<div class="cartes">
+<article><i data-dz="dz-action-reglages"></i><h4>Keyboard shortcuts</h4><p>Change a command's shortcut or a tool's letter; a conflict is named and removed from the other command. Summarize… downloads the list as an HTML page.</p></article>
+<article><i data-dz="dz-action-trier"></i><h4>Menus and presets</h4><p>Hide or colour menu entries. The preset manager organises brushes, shapes and patterns; they export and re-import as .json.</p></article>
+<article><i data-dz="dz-etat-mobile"></i><h4>Touch screen</h4><p><b class="ui">Modifier Keys</b> shows <kbd>Shift</kbd>, <kbd>Ctrl</kbd> and <kbd>Alt</kbd> on screen: a click applies to the next gesture, a double click holds the key.</p></article>
+</div>
+
+<h3>Good to know</h3>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Workspaces, preferences, shortcuts and personal swatches are kept by Deepotus in its data folder: they follow you through a <a href="#transfert">transfer</a> to another PC.</p></aside>

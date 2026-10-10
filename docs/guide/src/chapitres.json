@@ -327,7 +327,8 @@
       "anciens": [],
       "ecrans": [
         "Bibliothèque (Library)"
-      ]
+      ],
+      "etat": "v3"
     },
     {
       "id": "photolab",
@@ -342,7 +343,8 @@
         "Photolab — Outils",
         "Photolab — Sélection, édition et transformation",
         "Photolab — Réglages, filtres et image"
-      ]
+      ],
+      "etat": "v3"
     },
     {
       "id": "photolab-avance",
@@ -358,7 +360,8 @@
         "Photolab — Affichage et espaces de travail",
         "Photolab — Mesure, notes et tranches",
         "Photolab — Préférences et personnalisation"
-      ]
+      ],
+      "etat": "v3"
     },
     {
       "id": "vectorlab",

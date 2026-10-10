@@ -1,0 +1,68 @@
+<p class="chapeau-chap">Vous saurez travailler en calques non destructifs dans le Photolab : réglages, masques, styles et objets dynamiques, puis ranger l'écran à votre main avec les panneaux, les espaces de travail, les règles et les préférences. Tout est gratuit et calculé sur votre PC.</p>
+
+<h3>Le panneau Calques</h3>
+<p>Chaque calque a son œil, sa vignette et son nom ; un double-clic sur le nom le renomme. Clic pour choisir, <kbd>Ctrl</kbd>+clic pour en ajouter, <kbd>Maj</kbd>+clic pour une plage. Glissez une ligne pour la placer au-dessus, en dessous ou dans un groupe. En haut du panneau : un champ pour filtrer par nom, le mode de fusion (27 modes), l'opacité, le fond et les verrous (pixels transparents, pixels, position, imbrication, tout).</p>
+<p>Le pied du panneau crée un calque ou un groupe, lie les calques, ajoute un masque, duplique, fusionne vers le bas et supprime. Le menu <b class="ui">Calque</b> va plus loin : nouveau calque par copie (<kbd>Ctrl</kbd>+<kbd>J</kbd>), grouper, masque d'écrêtage (<kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>G</kbd>), organiser, aligner et répartir, fusionner (<kbd>Ctrl</kbd>+<kbd>E</kbd>) ou aplatir, rastériser, détourage.</p>
+
+<h3>Poser un calque de réglage</h3>
+<figure class="scene" data-scene="photolab-avance/calques"></figure>
+<ol class="etapes">
+<li>Ouvrez l'onglet <b class="ui">Ajustements</b>, à côté de <b class="ui">Propriétés</b>.</li>
+<li>Cliquez un réglage, par exemple <b class="ui">Noir et blanc</b> : un calque de réglage se pose au-dessus du calque actif. L'image en dessous n'est pas touchée.</li>
+<li>Ses curseurs s'affichent dans <b class="ui">Propriétés</b> ; Courbes et Niveaux y ont leur propre éditeur. Revenez-y à tout moment en choisissant le calque.</li>
+</ol>
+<p>Seize réglages existent ainsi (luminosité, niveaux, courbes, teinte, balance des couleurs, mélangeur de couches, mappage de dégradé…), ainsi que les calques de remplissage : couleur unie, dégradé ou motif.</p>
+
+<h3>Masques, styles, objets dynamiques</h3>
+<div class="cartes">
+<article><i data-dz="dz-calque-masque"></i><h4>Masque de fusion</h4><p>Le bouton masque révèle la sélection (ou tout) ; <kbd>Alt</kbd> fait l'inverse. Sur la vignette du masque : <kbd>Maj</kbd>+clic le désactive, <kbd>Alt</kbd>+clic le montre seul, <kbd>Ctrl</kbd>+clic le charge en sélection.</p></article>
+<article><i data-dz="dz-calque-vectoriel"></i><h4>Masque vectoriel</h4><p>Sur un calque déjà masqué, le même bouton ajoute un masque vectoriel, ou Calque › Masque vectoriel d'après le tracé actif.</p></article>
+<article><i data-dz="dz-outil-vec-apparence"></i><h4>Style de calque</h4><p>Ombre portée, lueurs, biseau, contour, satin, incrustations : un dialogue avec aperçu. Le style se copie, se colle ou s'efface ; le panneau <b class="ui">Styles</b> en donne de prêts (néon, chrome, or…).</p></article>
+<article><i data-dz="dz-calque-objet-dynamique"></i><h4>Filtres dynamiques</h4><p>Filtre › Convertir pour les filtres dynamiques : chaque filtre appliqué ensuite apparaît sous le calque, avec son œil ; double-cliquez pour rouvrir ses réglages, glissez pour changer l'ordre.</p></article>
+</div>
+<p>Un calque seul s'exporte : Calque › Exporter sous… (PNG, JPG ou WEBP, à l'échelle choisie, vers le téléchargement ou la Bibliothèque) ou l'exportation rapide en PNG.</p>
+<figure class="fiche" data-fiche="photolab/pl-aj-blackWhite"></figure>
+
+<h3>Les panneaux</h3>
+<p>À droite, les panneaux sont rangés en groupes à onglets ; la colonne d'icônes du rail replie ou rouvre chaque groupe, et le menu <b class="ui">Fenêtre</b> coche ceux qui sont visibles.</p>
+<div class="cartes">
+<article><i data-dz="dz-nav-panneau-couleur"></i><h4>Couleur et nuances</h4><p>Couleur (<kbd>F6</kbd>) avec code hexadécimal, Nuancier (groupes personnels gardés par Deepotus), Dégradés et Motifs.</p></article>
+<article><i data-dz="dz-nav-panneau-historique"></i><h4>Historique et infos</h4><p>Historique : un clic sur une étape y revient. Navigation, Histogramme par canal, Infos (<kbd>F8</kbd>) sous le pointeur, Couches et leurs raccourcis (<kbd>Ctrl</kbd>+<kbd>2</kbd>, <kbd>Ctrl</kbd>+<kbd>3</kbd>…).</p></article>
+<article><i data-dz="dz-nav-panneau-pinceaux"></i><h4>Pinceaux</h4><p>Pointes avec recherche, Paramètres de pinceau (<kbd>F5</kbd>), Source de duplication et Outils prédéfinis (ex. gomme douce 60 px).</p></article>
+<article><i data-dz="dz-nav-panneau-texte"></i><h4>Texte et tracés</h4><p>Caractère, Paragraphe, Glyphes, styles de caractère et de paragraphe ; Tracés, Formes ; Compositions de calques pour passer d'un état à l'autre.</p></article>
+</div>
+
+<h3>Choisir un espace de travail</h3>
+<figure class="scene" data-scene="photolab-avance/espaces"></figure>
+<ol class="etapes">
+<li>Ouvrez <b class="ui">Fenêtre</b> › <b class="ui">Espace de travail</b>, ou la liste en haut à droite.</li>
+<li>Choisissez parmi sept dispositions : <b class="ui">Essentiel</b> (par défaut), Base, Graphisme et web, Mouvement, <b class="ui">Peinture</b>, <b class="ui">Photo</b>, <b class="ui">Pixel art</b>. Panneaux et outils se rangent pour la tâche.</li>
+<li>Ce que vous déplacez, repliez ou masquez est retenu pour cet espace. Réinitialiser le remet d'origine ; Verrouiller l'espace de travail arrête de mémoriser.</li>
+<li>Nouvel espace de travail… enregistre votre disposition (jusqu'à vingt), gardée dans le dossier de données de Deepotus.</li>
+</ol>
+<figure class="fiche" data-fiche="photolab/pl-espace"></figure>
+
+<h3>Règles, grille et repères</h3>
+<figure class="scene" data-scene="photolab-avance/affichage"></figure>
+<p>Dans <b class="ui">Affichage</b> : <b class="ui">Règles</b> (<kbd>Ctrl</kbd>+<kbd>R</kbd>), Afficher › <b class="ui">Grille</b> (<kbd>Ctrl</kbd>+<kbd>'</kbd>) et <b class="ui">Repères</b> (<kbd>Ctrl</kbd>+<kbd>;</kbd>). Glissez depuis une règle pour poser un repère ; l'outil Déplacement le bouge ou le retire en le sortant. Aimanter (<kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>;</kbd>) cale sélections et calques sur les repères, la grille, les calques ou les bords du document. Extras (<kbd>Ctrl</kbd>+<kbd>H</kbd>) masque tout d'un coup.</p>
+<p>Le même menu offre les zooms, la symétrie horizontale de la vue (le document ne change pas), l'aperçu pixel art aux pixels francs et les modes d'écran : <kbd>F</kbd> passe au suivant, <kbd>Échap</kbd> revient au mode standard.</p>
+
+<h3>Mesurer, annoter, découper</h3>
+<div class="cartes">
+<article><i data-dz="dz-outil-vec-mesure"></i><h4>Règle (I)</h4><p>Glissez pour mesurer distance et angle ; <kbd>Alt</kbd> depuis une extrémité fait un rapporteur. Redresser le calque met la ligne à l'horizontale.</p></article>
+<article><i data-dz="dz-outil-photo-compteur"></i><h4>Compteur (I)</h4><p>Un clic pose une marque numérotée, <kbd>Alt</kbd>+clic la retire. Les mesures s'enregistrent au journal, exportable en CSV pour un tableur.</p></article>
+<article><i data-dz="dz-etat-note"></i><h4>Note (I)</h4><p>Une note datée, avec auteur et couleur, posée sur l'image ; le panneau Notes passe de l'une à l'autre. Fichier › Importer › Notes… les copie d'un autre document.</p></article>
+<article><i data-dz="dz-outil-photo-selection-tranche"></i><h4>Tranches (C)</h4><p>Découpez l'image pour le web, ou d'après les repères ; la sélection de tranche les déplace, les divise et règle leurs options (lien, texte de remplacement).</p></article>
+</div>
+
+<h3>Préférences et raccourcis</h3>
+<figure class="scene" data-scene="photolab-avance/preferences"></figure>
+<p><b class="ui">Édition</b> › <b class="ui">Préférences</b> ouvre dix-huit sections, enregistrées dans le dossier de données de Deepotus : interface (fond de la toile, bordure du document, infobulles), outils, fichiers et exportation rapide, curseurs, transparence, unités et règles, repères et grille, texte. Quelques sections disent simplement ce que Deepotus gère à leur place (performances, disques de travail…). Le bouton de réinitialisation remet tout par défaut, après confirmation.</p>
+<div class="cartes">
+<article><i data-dz="dz-action-reglages"></i><h4>Raccourcis clavier</h4><p>Changez le raccourci d'une commande ou la lettre d'un outil ; un conflit est nommé et retiré à l'autre commande. Résumer… télécharge la liste en page HTML.</p></article>
+<article><i data-dz="dz-action-trier"></i><h4>Menus et préréglages</h4><p>Masquez ou colorez des entrées de menu. Le gestionnaire de préréglages range pinceaux, formes et motifs ; ils s'exportent et se réimportent en .json.</p></article>
+<article><i data-dz="dz-etat-mobile"></i><h4>Écran tactile</h4><p><b class="ui">Touches de modification</b> affiche <kbd>Maj</kbd>, <kbd>Ctrl</kbd> et <kbd>Alt</kbd> à l'écran : un clic vaut pour le geste suivant, un double clic tient la touche.</p></article>
+</div>
+
+<h3>Bon à savoir</h3>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Les espaces, préférences, raccourcis et nuances personnelles sont gardés par Deepotus dans son dossier de données : ils vous suivent lors d'un <a href="#transfert">transfert</a> vers un autre PC.</p></aside>

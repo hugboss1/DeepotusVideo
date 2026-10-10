@@ -1,0 +1,112 @@
+{
+  "titre": {
+    "fr": "Enregistrer et envoyer",
+    "en": "Save and send"
+  },
+  "legende": {
+    "fr": "Le menu Fichier : enregistrer dans la Bibliothèque (avec les calques), exporter, ou envoyer vers un autre écran.",
+    "en": "The File menu: save to the Library (with layers), export, or send to another screen."
+  },
+  "captures": [
+    {
+      "fr": "fichier.fr.webp",
+      "en": "fichier.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1,
+        189,
+        304,
+        36
+      ],
+      "bulle": {
+        "fr": "Dans la Bibliothèque, avec les calques",
+        "en": "To the Library, with layers"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        13,
+        288,
+        90,
+        29
+      ],
+      "bulle": {
+        "fr": "Vers le Vectorlab, le Tile Lab…",
+        "en": "To Vectorlab, Tile Lab…"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        13,
+        312,
+        148,
+        29
+      ],
+      "bulle": {
+        "fr": "Le repli : l'application native",
+        "en": "The fallback: the native app"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1,
+        189,
+        250,
+        36
+      ],
+      "bulle": {
+        "fr": "Dans la Bibliothèque, avec les calques",
+        "en": "To the Library, with layers"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        13,
+        288,
+        62,
+        29
+      ],
+      "bulle": {
+        "fr": "Vers le Vectorlab, le Tile Lab…",
+        "en": "To Vectorlab, Tile Lab…"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        13,
+        312,
+        142,
+        29
+      ],
+      "bulle": {
+        "fr": "Le repli : l'application native",
+        "en": "The fallback: the native app"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

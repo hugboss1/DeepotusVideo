@@ -1,0 +1,74 @@
+{
+  "titre": {
+    "fr": "Règles et grille",
+    "en": "Rulers and grid"
+  },
+  "legende": {
+    "fr": "Affichage › Règles (Ctrl+R) puis Afficher › Grille : glissez depuis une règle pour poser un repère.",
+    "en": "View › Rulers (Ctrl+R) then Show › Grid: drag from a ruler to place a guide."
+  },
+  "captures": [
+    {
+      "fr": "menu.fr.webp",
+      "en": "menu.en.webp"
+    },
+    {
+      "fr": "regles.fr.webp",
+      "en": "regles.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        566,
+        530
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Affichage › Règles",
+        "en": "View › Rulers"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "bulle": {
+        "fr": "Règles graduées et grille",
+        "en": "Graduated rulers and grid"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        459,
+        530
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Affichage › Règles",
+        "en": "View › Rulers"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "bulle": {
+        "fr": "Règles graduées et grille",
+        "en": "Graduated rulers and grid"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

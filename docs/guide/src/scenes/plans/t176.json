@@ -1,0 +1,1153 @@
+{
+ "base": "http://127.0.0.1:8809",
+ "preparation": "python scripts/guide/semer_bibliotheque.py http://127.0.0.1:8809 (images dessinées ici, tags, projet, lignée, doublon, corbeille ; aucune clé, rien de payant). Le backend de preuve prend le moteur photocraft de l'installation (serve_guide.py).",
+ "scenes": [
+  {
+   "scene": "bibliotheque/ecran",
+   "titre": {
+    "fr": "L'écran Bibliothèque",
+    "en": "The Library screen"
+   },
+   "legende": {
+    "fr": "Les onglets par sorte, le projet regardé, les puces de tags et de teinte, puis la grille.",
+    "en": "Tabs by kind, the project you are looking at, tag and hue chips, then the grid."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Bibliothèque",
+      "en": "texte:Library"
+     },
+     "apres": 3000
+    }
+   ],
+   "captures": [
+    {
+     "nom": "ecran"
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": {
+      "fr": "texte:Images 9",
+      "en": "texte:Images 9"
+     },
+     "bulle": {
+      "fr": "Un onglet par sorte de média",
+      "en": "One tab per kind of media"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:main select",
+     "bulle": {
+      "fr": "Regardez un seul projet",
+      "en": "Look at a single project"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": "texte:#épisode-1 (3)",
+     "bulle": {
+      "fr": "Un clic sur un tag filtre la grille",
+      "en": "One click on a tag filters the grid"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": {
+      "fr": "contient:Liste",
+      "en": "contient:List"
+     },
+     "bulle": {
+      "fr": "Grille ou liste triable",
+      "en": "Grid or sortable list"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "bibliotheque/fiche",
+   "titre": {
+    "fr": "La fiche d'une image",
+    "en": "An image's sheet"
+   },
+   "legende": {
+    "fr": "Un clic sur une vignette ouvre sa fiche : note, tags, lignée, droits, fichier, usages et commentaires.",
+    "en": "One click on a thumbnail opens its sheet: rating, tags, lineage, rights, file, uses and comments."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Bibliothèque",
+      "en": "texte:Library"
+     },
+     "apres": 3000
+    }
+   ],
+   "captures": [
+    {
+     "nom": "grille"
+    },
+    {
+     "nom": "fiche",
+     "etapes": [
+      {
+       "clic": "texte:phare-du-recif.png",
+       "apres": 2000
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.2,
+     "curseur": "texte:phare-du-recif.png",
+     "clic": true,
+     "bulle": {
+      "fr": "Ouvrez une image",
+      "en": "Open an image"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.6,
+     "surligne": "contient:phare-recadre.png",
+     "bulle": {
+      "fr": "Ses filles : recadrage, upscale…",
+      "en": "Its children: crop, upscale…"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.6,
+     "surligne": {
+      "fr": "texte:Droits",
+      "en": "texte:Rights"
+     },
+     "bulle": {
+      "fr": "Licence, auteur et lien",
+      "en": "Licence, author and link"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.8,
+     "surligne": {
+      "fr": "texte:Commenter",
+      "en": "texte:Comment"
+     },
+     "bulle": {
+      "fr": "Commentaires de revue",
+      "en": "Review comments"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "bibliotheque/envoyer",
+   "titre": {
+    "fr": "Envoyer vers un autre écran",
+    "en": "Send to another screen"
+   },
+   "legende": {
+    "fr": "Depuis la fiche, Envoyer vers… liste tous les écrans qui savent reprendre l'image, et les projets.",
+    "en": "From the sheet, Send to… lists every screen that can take the image, and projects."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Bibliothèque",
+      "en": "texte:Library"
+     },
+     "apres": 3000
+    },
+    {
+     "clic": "texte:phare-du-recif.png",
+     "apres": 2000
+    }
+   ],
+   "captures": [
+    {
+     "nom": "fiche"
+    },
+    {
+     "nom": "menu",
+     "etapes": [
+      {
+       "clic": {
+        "fr": "texte:Envoyer vers…",
+        "en": "texte:Send to…"
+       },
+       "apres": 1200
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.2,
+     "curseur": {
+      "fr": "texte:Envoyer vers…",
+      "en": "texte:Send to…"
+     },
+     "clic": true,
+     "bulle": {
+      "fr": "Envoyer vers…",
+      "en": "Send to…"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.8,
+     "surligne": {
+      "fr": "contient:Photolab — retoucher",
+      "en": "contient:Photolab — retouch"
+     },
+     "bulle": {
+      "fr": "Retoucher dans le Photolab",
+      "en": "Retouch it in Photolab"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.8,
+     "surligne": {
+      "fr": "contient:Projet de la Bibliothèque",
+      "en": "contient:Library project"
+     },
+     "bulle": {
+      "fr": "Ou la ranger dans un projet",
+      "en": "Or file it in a project"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "bibliotheque/projet",
+   "titre": {
+    "fr": "Regarder un projet",
+    "en": "Look at a project"
+   },
+   "legende": {
+    "fr": "Choisir un projet filtre tous les onglets ; sa barre le range, l'épingle au téléphone ou montre son état.",
+    "en": "Choosing a project filters every tab; its bar auto-files into it, pins it to the phone or shows its status."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Bibliothèque",
+      "en": "texte:Library"
+     },
+     "apres": 3000
+    },
+    {
+     "js": "(()=>{const s=document.querySelector('main select');const o=[...s.options].find(o=>/phare/.test(o.text));s.value=o.value;s.dispatchEvent(new Event('change',{bubbles:true}));})()",
+     "attente": 1500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "projet"
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:main select",
+     "bulle": {
+      "fr": "Le phare du récif : 4 assets",
+      "en": "Le phare du récif: 4 assets"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": {
+      "fr": "contient:Ranger ici automatiquement",
+      "en": "contient:Auto-file here"
+     },
+     "bulle": {
+      "fr": "Tout ce qui sort s'y range",
+      "en": "Everything you make is filed here"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": {
+      "fr": "contient:Épingler sur le téléphone",
+      "en": "contient:Pin to the phone"
+     },
+     "bulle": {
+      "fr": "Le projet du compagnon mobile",
+      "en": "The mobile companion's project"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "bibliotheque/nettoyage",
+   "titre": {
+    "fr": "Nettoyage et corbeille",
+    "en": "Cleanup and trash"
+   },
+   "legende": {
+    "fr": "Le Nettoyage montre le poids et les doublons exacts ; ce qu'on jette va à la corbeille, d'où on le restaure.",
+    "en": "Cleanup shows the weight and exact duplicates; what you discard goes to the trash, where you can restore it."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Bibliothèque",
+      "en": "texte:Library"
+     },
+     "apres": 3000
+    }
+   ],
+   "captures": [
+    {
+     "nom": "nettoyage",
+     "etapes": [
+      {
+       "clic": {
+        "fr": "contient:Nettoyage",
+        "en": "contient:Cleanup"
+       },
+       "apres": 1800
+      }
+     ]
+    },
+    {
+     "nom": "corbeille",
+     "etapes": [
+      {
+       "clic": {
+        "fr": "contient:Nettoyage",
+        "en": "contient:Cleanup"
+       },
+       "apres": 600
+      },
+      {
+       "clic": {
+        "fr": "contient:Corbeille",
+        "en": "contient:Trash"
+       },
+       "apres": 1800
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": {
+      "fr": "texte:Cocher les copies en trop",
+      "en": "texte:Tick extra copies"
+     },
+     "bulle": {
+      "fr": "Un groupe de doublons exacts",
+      "en": "A group of exact duplicates"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.6,
+     "surligne": {
+      "fr": "texte:Restaurer",
+      "en": "texte:Restore"
+     },
+     "bulle": {
+      "fr": "Rien n'est perdu avant de vider",
+      "en": "Nothing is lost until you empty it"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "bibliotheque/recherche",
+   "titre": {
+    "fr": "Chercher une image",
+    "en": "Search for an image"
+   },
+   "legende": {
+    "fr": "Recherche texte gratuite, légendes par un modèle vision (payant, devis affiché) ou CLIP local, par le sens.",
+    "en": "Free text search, captions by a vision model (paid, quote shown) or local CLIP, by meaning."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Bibliothèque",
+      "en": "texte:Library"
+     },
+     "apres": 3000
+    }
+   ],
+   "captures": [
+    {
+     "nom": "recherche",
+     "etapes": [
+      {
+       "clic": {
+        "fr": "contient:Recherche",
+        "en": "contient:Search"
+       },
+       "apres": 1800
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": {
+      "fr": "contient:Texte — légendes",
+      "en": "contient:Text — captions"
+     },
+     "bulle": {
+      "fr": "Légendes, tags, prompts, commentaires",
+      "en": "Captions, tags, prompts, comments"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": {
+      "fr": "contient:Légender (",
+      "en": "contient:Caption ("
+     },
+     "bulle": {
+      "fr": "Payant : le devis s'affiche avant",
+      "en": "Paid: the quote is shown first"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": {
+      "fr": "contient:Installer CLIP",
+      "en": "contient:Install CLIP"
+     },
+     "bulle": {
+      "fr": "CLIP : gratuit, sur votre PC",
+      "en": "CLIP: free, on your PC"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "photolab/accueil",
+   "titre": {
+    "fr": "Ouvrir une image dans le Photolab",
+    "en": "Open an image in Photolab"
+   },
+   "legende": {
+    "fr": "L'accueil propose un nouveau document ou une image de la Bibliothèque ; un dépôt de fichier marche aussi.",
+    "en": "The welcome screen offers a new document or a Library image; dropping a file works too."
+   },
+   "url": "/photolab/",
+   "avant": [
+    {
+     "js": "fetch('/api/photolab/espaces',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({version:1,actif:'essentiel',verrouille:false,modifs:{},perso:[]})}).then(r=>r.json())"
+    },
+    {
+     "js": "fetch('/api/photolab/executer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command:'file.closeAll',params:{}})}).then(r=>r.json())"
+    },
+    {
+     "aller": "/photolab/"
+    },
+    {
+     "attente": 1200
+    }
+   ],
+   "captures": [
+    {
+     "nom": "accueil"
+    },
+    {
+     "nom": "choix",
+     "etapes": [
+      {
+       "clic": {
+        "fr": "contient:Ouvrir depuis la Bibliothèque",
+        "en": "contient:Open from the Library"
+       },
+       "apres": 1800
+      }
+     ]
+    },
+    {
+     "nom": "document",
+     "etapes": [
+      {
+       "clic": "texte:phare-du-recif.png",
+       "apres": 4500
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.2,
+     "curseur": {
+      "fr": "contient:Ouvrir depuis la Bibliothèque",
+      "en": "contient:Open from the Library"
+     },
+     "clic": true,
+     "bulle": {
+      "fr": "Une image de la Bibliothèque",
+      "en": "An image from the Library"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.2,
+     "curseur": "texte:phare-du-recif.png",
+     "clic": true,
+     "bulle": {
+      "fr": "Choisissez-la",
+      "en": "Pick it"
+     }
+    },
+    {
+     "capture": 2,
+     "duree": 3.0,
+     "surligne": "css:#onglets",
+     "bulle": {
+      "fr": "Un onglet par document ouvert",
+      "en": "One tab per open document"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "photolab/outils",
+   "titre": {
+    "fr": "Les outils",
+    "en": "The tools"
+   },
+   "legende": {
+    "fr": "Un emplacement marqué d'un coin regroupe plusieurs outils : clic droit ou appui long pour choisir.",
+    "en": "A slot marked with a corner holds several tools: right-click or long-press to choose."
+   },
+   "url": "/photolab/",
+   "avant": [
+    {
+     "js": "fetch('/api/photolab/espaces',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({version:1,actif:'essentiel',verrouille:false,modifs:{},perso:[]})}).then(r=>r.json())"
+    },
+    {
+     "js": "fetch('/api/photolab/executer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command:'file.closeAll',params:{}})}).then(r=>r.json())"
+    },
+    {
+     "aller": "/photolab/"
+    },
+    {
+     "attente": 1200
+    },
+    {
+     "clic": {
+      "fr": "contient:Ouvrir depuis la Bibliothèque",
+      "en": "contient:Open from the Library"
+     },
+     "apres": 1800
+    },
+    {
+     "clic": "texte:phare-du-recif.png",
+     "apres": 4500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "barre"
+    },
+    {
+     "nom": "volant",
+     "etapes": [
+      {
+       "js": "(()=>{const b=document.querySelector('[data-emplacement=\"3\"]');const r=b.getBoundingClientRect();b.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,clientX:r.x+5,clientY:r.y+5,button:2}));})()",
+       "attente": 800
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.4,
+     "surligne": "css:[data-emplacement=\"3\"]",
+     "bulle": {
+      "fr": "Baguette magique (W)",
+      "en": "Magic Wand (W)"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.8,
+     "surligne": {
+      "fr": "contient:Sélection d'objet",
+      "en": "contient:Object Selection"
+     },
+     "bulle": {
+      "fr": "Les autres outils du groupe",
+      "en": "The other tools in the group"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "photolab/reglage",
+   "titre": {
+    "fr": "Un réglage avec aperçu",
+    "en": "An adjustment with preview"
+   },
+   "legende": {
+    "fr": "Image › Ajustements › Courbes… : chaque point déplacé est recalculé par le moteur sur une copie, jusqu'à OK.",
+    "en": "Image › Adjustments › Curves…: every point you move is recomputed by the engine on a copy, until OK."
+   },
+   "url": "/photolab/",
+   "avant": [
+    {
+     "js": "fetch('/api/photolab/espaces',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({version:1,actif:'essentiel',verrouille:false,modifs:{},perso:[]})}).then(r=>r.json())"
+    },
+    {
+     "js": "fetch('/api/photolab/executer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command:'file.closeAll',params:{}})}).then(r=>r.json())"
+    },
+    {
+     "aller": "/photolab/"
+    },
+    {
+     "attente": 1200
+    },
+    {
+     "clic": {
+      "fr": "contient:Ouvrir depuis la Bibliothèque",
+      "en": "contient:Open from the Library"
+     },
+     "apres": 1800
+    },
+    {
+     "clic": "texte:phare-du-recif.png",
+     "apres": 4500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "menu",
+     "etapes": [
+      {
+       "clic": "css:.menu-bouton[data-menu=\"2\"]",
+       "apres": 700
+      },
+      {
+       "js": "(()=>{const e=[...document.querySelectorAll('.menu-ligne')].filter(e=>e.offsetWidth).find(e=>/^(Ajustements|Adjustments)$/.test(e.querySelector('.menu-lib').textContent.trim()));e.click();})()",
+       "attente": 400
+      }
+     ]
+    },
+    {
+     "nom": "courbes",
+     "etapes": [
+      {
+       "js": "(()=>{const e=[...document.querySelectorAll('.menu-ligne')].filter(e=>e.offsetWidth).find(e=>/^(Courbes|Curves)…$/.test(e.querySelector('.menu-lib').textContent.trim()));e.click();})()",
+       "attente": 400
+      },
+      {
+       "attente": 2600
+      }
+     ]
+    },
+    {
+     "nom": "point",
+     "etapes": [
+      {
+       "clicxy": [
+        936,
+        270
+       ],
+       "apres": 3500
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.4,
+     "curseur": {
+      "fr": "contient:Courbes…",
+      "en": "contient:Curves…"
+     },
+     "clic": true,
+     "bulle": {
+      "fr": "Image › Ajustements › Courbes…",
+      "en": "Image › Adjustments › Curves…"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.2,
+     "curseur": [
+      936,
+      270
+     ],
+     "clic": true,
+     "bulle": {
+      "fr": "Cliquez pour poser un point",
+      "en": "Click to add a point"
+     }
+    },
+    {
+     "capture": 2,
+     "duree": 3.0,
+     "surligne": {
+      "fr": "texte:Aperçu",
+      "en": "texte:Preview"
+     },
+     "bulle": {
+      "fr": "L'aperçu suit chaque geste",
+      "en": "The preview follows every move"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "photolab/enregistrer",
+   "titre": {
+    "fr": "Enregistrer et envoyer",
+    "en": "Save and send"
+   },
+   "legende": {
+    "fr": "Le menu Fichier : enregistrer dans la Bibliothèque (avec les calques), exporter, ou envoyer vers un autre écran.",
+    "en": "The File menu: save to the Library (with layers), export, or send to another screen."
+   },
+   "url": "/photolab/",
+   "avant": [
+    {
+     "js": "fetch('/api/photolab/espaces',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({version:1,actif:'essentiel',verrouille:false,modifs:{},perso:[]})}).then(r=>r.json())"
+    },
+    {
+     "js": "fetch('/api/photolab/executer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command:'file.closeAll',params:{}})}).then(r=>r.json())"
+    },
+    {
+     "aller": "/photolab/"
+    },
+    {
+     "attente": 1200
+    },
+    {
+     "clic": {
+      "fr": "contient:Ouvrir depuis la Bibliothèque",
+      "en": "contient:Open from the Library"
+     },
+     "apres": 1800
+    },
+    {
+     "clic": "texte:phare-du-recif.png",
+     "apres": 4500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "fichier",
+     "etapes": [
+      {
+       "clic": "css:.menu-bouton[data-menu=\"0\"]",
+       "apres": 700
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": {
+      "fr": "contient:Enregistrer Ctrl+S",
+      "en": "contient:Save Ctrl+S"
+     },
+     "bulle": {
+      "fr": "Dans la Bibliothèque, avec les calques",
+      "en": "To the Library, with layers"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": {
+      "fr": "texte:Envoyer vers…",
+      "en": "texte:Send to…"
+     },
+     "bulle": {
+      "fr": "Vers le Vectorlab, le Tile Lab…",
+      "en": "To Vectorlab, Tile Lab…"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": {
+      "fr": "contient:Ouvrir dans l'app native",
+      "en": "contient:Open in the native app"
+     },
+     "bulle": {
+      "fr": "Le repli : l'application native",
+      "en": "The fallback: the native app"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "photolab-avance/calques",
+   "titre": {
+    "fr": "Un calque de réglage",
+    "en": "An adjustment layer"
+   },
+   "legende": {
+    "fr": "Onglet Ajustements : un clic pose un calque de réglage, modifiable à tout moment dans Propriétés.",
+    "en": "Adjustments tab: one click adds an adjustment layer, editable at any time in Properties."
+   },
+   "url": "/photolab/",
+   "avant": [
+    {
+     "js": "fetch('/api/photolab/espaces',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({version:1,actif:'essentiel',verrouille:false,modifs:{},perso:[]})}).then(r=>r.json())"
+    },
+    {
+     "js": "fetch('/api/photolab/executer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command:'file.closeAll',params:{}})}).then(r=>r.json())"
+    },
+    {
+     "aller": "/photolab/"
+    },
+    {
+     "attente": 1200
+    },
+    {
+     "clic": {
+      "fr": "contient:Ouvrir depuis la Bibliothèque",
+      "en": "contient:Open from the Library"
+     },
+     "apres": 1800
+    },
+    {
+     "clic": "texte:phare-du-recif.png",
+     "apres": 4500
+    },
+    {
+     "clic": "css:[data-onglet-pr=ajustements]",
+     "apres": 800
+    }
+   ],
+   "captures": [
+    {
+     "nom": "ajustements"
+    },
+    {
+     "nom": "calque",
+     "etapes": [
+      {
+       "clic": {
+        "fr": "texte:Noir et blanc",
+        "en": "texte:Black & White"
+       },
+       "apres": 3500
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.4,
+     "curseur": {
+      "fr": "texte:Noir et blanc",
+      "en": "texte:Black & White"
+     },
+     "clic": true,
+     "bulle": {
+      "fr": "Noir et blanc",
+      "en": "Black & White"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.6,
+     "surligne": "contient:Black & White 1",
+     "bulle": {
+      "fr": "Un calque de réglage, non destructif",
+      "en": "A non-destructive adjustment layer"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.8,
+     "surligne": {
+      "fr": "texte:Rouges",
+      "en": "texte:Reds"
+     },
+     "bulle": {
+      "fr": "Ses curseurs dans Propriétés",
+      "en": "Its sliders in Properties"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "photolab-avance/affichage",
+   "titre": {
+    "fr": "Règles et grille",
+    "en": "Rulers and grid"
+   },
+   "legende": {
+    "fr": "Affichage › Règles (Ctrl+R) puis Afficher › Grille : glissez depuis une règle pour poser un repère.",
+    "en": "View › Rulers (Ctrl+R) then Show › Grid: drag from a ruler to place a guide."
+   },
+   "url": "/photolab/",
+   "avant": [
+    {
+     "js": "fetch('/api/photolab/espaces',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({version:1,actif:'essentiel',verrouille:false,modifs:{},perso:[]})}).then(r=>r.json())"
+    },
+    {
+     "js": "fetch('/api/photolab/executer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command:'file.closeAll',params:{}})}).then(r=>r.json())"
+    },
+    {
+     "aller": "/photolab/"
+    },
+    {
+     "attente": 1200
+    },
+    {
+     "clic": {
+      "fr": "contient:Ouvrir depuis la Bibliothèque",
+      "en": "contient:Open from the Library"
+     },
+     "apres": 1800
+    },
+    {
+     "clic": "texte:phare-du-recif.png",
+     "apres": 4500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "menu",
+     "etapes": [
+      {
+       "clic": "css:.menu-bouton[data-menu=\"7\"]",
+       "apres": 700
+      }
+     ]
+    },
+    {
+     "nom": "regles",
+     "etapes": [
+      {
+       "js": "(()=>{const e=[...document.querySelectorAll('.menu-ligne')].filter(e=>e.offsetWidth).find(e=>/^(Règles|Rulers)$/.test(e.querySelector('.menu-lib').textContent.trim()));e.click();})()",
+       "attente": 400
+      },
+      {
+       "attente": 800
+      },
+      {
+       "clic": "css:.menu-bouton[data-menu=\"7\"]",
+       "apres": 700
+      },
+      {
+       "js": "(()=>{const e=[...document.querySelectorAll('.menu-ligne')].filter(e=>e.offsetWidth).find(e=>/^(Afficher|Show)$/.test(e.querySelector('.menu-lib').textContent.trim()));e.click();})()",
+       "attente": 400
+      },
+      {
+       "js": "(()=>{const e=[...document.querySelectorAll('.menu-ligne')].filter(e=>e.offsetWidth).find(e=>/^(Grille|Grid)$/.test(e.querySelector('.menu-lib').textContent.trim()));e.click();})()",
+       "attente": 400
+      },
+      {
+       "attente": 1200
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.4,
+     "curseur": {
+      "fr": "contient:Règles",
+      "en": "contient:Rulers"
+     },
+     "clic": true,
+     "bulle": {
+      "fr": "Affichage › Règles",
+      "en": "View › Rulers"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 3.0,
+     "bulle": {
+      "fr": "Règles graduées et grille",
+      "en": "Graduated rulers and grid"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "photolab-avance/preferences",
+   "titre": {
+    "fr": "Les préférences",
+    "en": "Preferences"
+   },
+   "legende": {
+    "fr": "Édition › Préférences : dix-huit sections, gardées dans le dossier de données de Deepotus.",
+    "en": "Edit › Preferences: eighteen sections, kept in the Deepotus data folder."
+   },
+   "url": "/photolab/",
+   "avant": [
+    {
+     "js": "fetch('/api/photolab/espaces',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({version:1,actif:'essentiel',verrouille:false,modifs:{},perso:[]})}).then(r=>r.json())"
+    },
+    {
+     "js": "fetch('/api/photolab/executer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command:'file.closeAll',params:{}})}).then(r=>r.json())"
+    },
+    {
+     "aller": "/photolab/"
+    },
+    {
+     "attente": 1200
+    }
+   ],
+   "captures": [
+    {
+     "nom": "dialogue",
+     "etapes": [
+      {
+       "clic": "css:.menu-bouton[data-menu=\"1\"]",
+       "apres": 700
+      },
+      {
+       "js": "(()=>{const e=[...document.querySelectorAll('.menu-ligne')].filter(e=>e.offsetWidth).find(e=>/^(Préférences|Preferences)$/.test(e.querySelector('.menu-lib').textContent.trim()));e.click();})()",
+       "attente": 400
+      },
+      {
+       "js": "(()=>{const e=[...document.querySelectorAll('.menu-ligne')].filter(e=>e.offsetWidth).find(e=>/^Interface…$/.test(e.querySelector('.menu-lib').textContent.trim()));e.click();})()",
+       "attente": 400
+      },
+      {
+       "attente": 1200
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 3.0,
+     "surligne": {
+      "fr": "contient:Couleur du fond",
+      "en": "texte:Canvas color"
+     },
+     "bulle": {
+      "fr": "Une section par entrée du menu",
+      "en": "One section per menu entry"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "photolab-avance/espaces",
+   "titre": {
+    "fr": "Changer d'espace de travail",
+    "en": "Switch workspace"
+   },
+   "legende": {
+    "fr": "Fenêtre › Espace de travail range panneaux et outils pour une tâche ; la disposition est retenue par espace.",
+    "en": "Window › Workspace arranges panels and tools for a task; the layout is remembered per workspace."
+   },
+   "url": "/photolab/",
+   "avant": [
+    {
+     "js": "fetch('/api/photolab/espaces',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({version:1,actif:'essentiel',verrouille:false,modifs:{},perso:[]})}).then(r=>r.json())"
+    },
+    {
+     "js": "fetch('/api/photolab/executer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command:'file.closeAll',params:{}})}).then(r=>r.json())"
+    },
+    {
+     "aller": "/photolab/"
+    },
+    {
+     "attente": 1200
+    },
+    {
+     "clic": {
+      "fr": "contient:Ouvrir depuis la Bibliothèque",
+      "en": "contient:Open from the Library"
+     },
+     "apres": 1800
+    },
+    {
+     "clic": "texte:phare-du-recif.png",
+     "apres": 4500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "menu",
+     "etapes": [
+      {
+       "clic": "css:.menu-bouton[data-menu=\"8\"]",
+       "apres": 700
+      },
+      {
+       "js": "(()=>{const e=[...document.querySelectorAll('.menu-ligne')].filter(e=>e.offsetWidth).find(e=>/^(Espace de travail|Workspace)$/.test(e.querySelector('.menu-lib').textContent.trim()));e.click();})()",
+       "attente": 400
+      }
+     ]
+    },
+    {
+     "nom": "peinture",
+     "etapes": [
+      {
+       "js": "(()=>{const e=[...document.querySelectorAll('.menu-ligne')].filter(e=>e.offsetWidth).find(e=>/^(Peinture|Painting)$/.test(e.querySelector('.menu-lib').textContent.trim()));e.click();})()",
+       "attente": 400
+      },
+      {
+       "attente": 2000
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "curseur": {
+      "fr": "texte:Peinture",
+      "en": "texte:Painting"
+     },
+     "clic": true,
+     "bulle": {
+      "fr": "Sept espaces fournis",
+      "en": "Seven built-in workspaces"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 3.0,
+     "surligne": "css:#pl-espace",
+     "bulle": {
+      "fr": "Peinture : pinceaux et couleurs devant",
+      "en": "Painting: brushes and colours up front"
+     }
+    }
+   ]
+  }
+ ]
+}

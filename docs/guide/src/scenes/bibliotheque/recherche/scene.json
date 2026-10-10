@@ -1,0 +1,112 @@
+{
+  "titre": {
+    "fr": "Chercher une image",
+    "en": "Search for an image"
+  },
+  "legende": {
+    "fr": "Recherche texte gratuite, légendes par un modèle vision (payant, devis affiché) ou CLIP local, par le sens.",
+    "en": "Free text search, captions by a vision model (paid, quote shown) or local CLIP, by meaning."
+  },
+  "captures": [
+    {
+      "fr": "recherche.fr.webp",
+      "en": "recherche.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1015,
+        231,
+        339,
+        38
+      ],
+      "bulle": {
+        "fr": "Légendes, tags, prompts, commentaires",
+        "en": "Captions, tags, prompts, comments"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        774,
+        272,
+        148,
+        38
+      ],
+      "bulle": {
+        "fr": "Payant : le devis s'affiche avant",
+        "en": "Paid: the quote is shown first"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        755,
+        313,
+        154,
+        38
+      ],
+      "bulle": {
+        "fr": "CLIP : gratuit, sur votre PC",
+        "en": "CLIP: free, on your PC"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1029,
+        231,
+        337,
+        38
+      ],
+      "bulle": {
+        "fr": "Légendes, tags, prompts, commentaires",
+        "en": "Captions, tags, prompts, comments"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        768,
+        272,
+        140,
+        38
+      ],
+      "bulle": {
+        "fr": "Payant : le devis s'affiche avant",
+        "en": "Paid: the quote is shown first"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        774,
+        313,
+        145,
+        38
+      ],
+      "bulle": {
+        "fr": "CLIP : gratuit, sur votre PC",
+        "en": "CLIP: free, on your PC"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}
