@@ -1,0 +1,88 @@
+{
+  "titre": {
+    "fr": "Les plafonds du mois",
+    "en": "Monthly caps"
+  },
+  "legende": {
+    "fr": "Réglages › Tarifs et budget : vos tarifs, puis un plafond par moteur et la barre du dépensé ce mois-ci.",
+    "en": "Settings › Pricing & budget: your rates, then one cap per engine and the bar of what you spent this month."
+  },
+  "captures": [
+    {
+      "fr": "tarifs.fr.webp",
+      "en": "tarifs.en.webp"
+    },
+    {
+      "fr": "plafonds.fr.webp",
+      "en": "plafonds.en.webp"
+    }
+  ],
+  "taille": [
+    1208,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        260,
+        535,
+        424,
+        31
+      ],
+      "bulle": {
+        "fr": "Un plafond pour chaque génération vidéo",
+        "en": "A cap for each video generation"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "surligne": [
+        260,
+        460,
+        162,
+        30
+      ],
+      "bulle": {
+        "fr": "Au-delà d'un plafond, l'app vous demande avant de dépenser",
+        "en": "Above a cap, the app asks you before spending"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        260,
+        517,
+        424,
+        31
+      ],
+      "bulle": {
+        "fr": "Un plafond pour chaque génération vidéo",
+        "en": "A cap for each video generation"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "surligne": [
+        260,
+        460,
+        162,
+        30
+      ],
+      "bulle": {
+        "fr": "Au-delà d'un plafond, l'app vous demande avant de dépenser",
+        "en": "Above a cap, the app asks you before spending"
+      }
+    }
+  ],
+  "taille_en": [
+    1208,
+    900
+  ]
+}

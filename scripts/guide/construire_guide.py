@@ -102,24 +102,31 @@ def copier(src, dst, sorties):
 
 # ── scènes et fiches ─────────────────────────────────────────────────────────
 def scene(ref, lang, sorties):
+    """Une scène : ses captures (une par langue quand capturer.js l'a prise dans les deux langues) et ses temps.
+    `temps_en` / `taille_en` existent quand les repères anglais ne tombent pas au même pixel que les français."""
     dossier = SRC / "scenes" / ref
     d = json.loads((dossier / "scene.json").read_text("utf-8"))
-    imgs = []
-    for k, cap in enumerate(d["captures"]):
+    temps, taille = d.get(f"temps_{lang}", d["temps"]), d.get(f"taille_{lang}", d["taille"])
+    noms = []
+    for cap in d["captures"]:
         src = dossier / (cap[lang] if isinstance(cap, dict) else cap)
         nom = f"img/scenes/{ref}/{src.name}"
         copier(src, GUIDE / nom, sorties)
-        cls = ["vu"] if k == 0 else []
-        if k == max(t["capture"] for t in d["temps"]):
-            cls.append("fin")
-        imgs.append(f'<img src="{nom}" alt="" loading="lazy" width="{d["taille"][0]}" height="{d["taille"][1]}"'
+        noms.append(nom)
+    derniere = max(t["capture"] for t in temps)
+    imgs = []
+    for k, nom in enumerate(noms):
+        cls = (["vu"] if k == 0 else []) + (["fin"] if k == derniere else [])
+        imgs.append(f'<img src="{nom}" alt="" loading="lazy" width="{taille[0]}" height="{taille[1]}"'
                     + (f' class="{" ".join(cls)}"' if cls else "") + ">")
-    barres = "".join(f'<button type="button" aria-label="{k + 1}"><i></i></button>' for k in range(len(d["temps"])))
-    trois = "".join(
-        f'<figure><img src="img/scenes/{ref}/{pathlib.Path(d["captures"][t["capture"]] if not isinstance(d["captures"][t["capture"]], dict) else d["captures"][t["capture"]][lang]).name}" alt="" loading="lazy">'
-        f'<figcaption>{k + 1}. {t["bulle"][lang] if t.get("bulle") else ""}</figcaption></figure>'
-        for k, t in enumerate(d["temps"]))
-    donnees = json.dumps({"taille": d["taille"], "temps": d["temps"]}, ensure_ascii=False).replace("</", "<\\/")
+    barres = "".join(f'<button type="button" aria-label="{k + 1}"><i></i></button>' for k in range(len(temps)))
+    # version FIXE (mouvement réduit, impression) : une image par capture, ses bulles numérotées en légende
+    groupes = {}
+    for k, t in enumerate(temps):
+        groupes.setdefault(t["capture"], []).append(f'{k + 1}. {t["bulle"][lang]}' if t.get("bulle") else "")
+    trois = "".join(f'<figure><img src="{noms[c]}" alt="" loading="lazy">'
+                    f'<figcaption>{" ".join(x for x in b if x)}</figcaption></figure>' for c, b in groupes.items())
+    donnees = json.dumps({"taille": taille, "temps": temps}, ensure_ascii=False).replace("</", "<\\/")
     leg = d.get("legende", d.get("titre", {})).get(lang, "")
     return (f'<figure class="scene" data-scene="{ref}"><div class="cadre">{"".join(imgs)}'
             f'<button type="button" class="g-btn pause" title="{TXT[lang]["pause"]}" aria-pressed="false">'

@@ -50,7 +50,7 @@
       "ecrans": [
         "Application (coque, comportements transversaux)"
       ],
-      "etat": "migre"
+      "etat": "v3"
     },
     {
       "id": "installer",
@@ -65,7 +65,7 @@
       "ecrans": [
         "Traduction FR/EN de l'interface"
       ],
-      "etat": "migre"
+      "etat": "v3"
     },
     {
       "id": "cles",
@@ -78,7 +78,7 @@
         "c11"
       ],
       "ecrans": [],
-      "etat": "migre"
+      "etat": "v3"
     },
     {
       "id": "budget",
@@ -88,7 +88,8 @@
       "fr": "Maîtriser ses dépenses",
       "en": "Keep spending under control",
       "anciens": [],
-      "ecrans": []
+      "ecrans": [],
+      "etat": "v3"
     },
     {
       "id": "reglages",
@@ -104,7 +105,7 @@
       "ecrans": [
         "Réglages (Settings)"
       ],
-      "etat": "migre"
+      "etat": "v3"
     },
     {
       "id": "transfert",
@@ -117,7 +118,7 @@
         "c16"
       ],
       "ecrans": [],
-      "etat": "migre"
+      "etat": "v3"
     },
     {
       "id": "mobile",
@@ -129,7 +130,8 @@
       "anciens": [],
       "ecrans": [
         "Compagnon mobile (téléphone + côté PC)"
-      ]
+      ],
+      "etat": "v3"
     },
     {
       "id": "quick",

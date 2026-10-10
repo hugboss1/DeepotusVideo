@@ -1,33 +1,44 @@
-<p>Double-cliquez l'icône <strong>Deepotus Video Gen</strong> sur le Bureau. L'application démarre en silencieux (aucune fenêtre noire), puis votre navigateur s'ouvre sur le studio. Au tout premier lancement, un assistant en 5 étapes vous guide : persona, fournisseurs, canaux. Vous pouvez le rejouer à tout moment (palette de commandes <span class="k">⌘K</span> → « Replay onboarding »).</p>
-<img class="shot" src="img/onboarding.png" alt="Assistant de premier lancement">
-<p class="cap">L'assistant de premier lancement. L'étape « Generators » liste vos fournisseurs, dont l'option <strong>Ollama (LLM local)</strong>.</p>
-<div class="step"><span class="n">1</span><div>L'application fonctionne en <strong>BYO keys</strong> (« apportez vos clés ») : vous utilisez vos propres comptes API. Une seule est <strong>obligatoire</strong> pour commencer — <strong>fal.ai</strong> (elle fait les images <em>et</em> les clips vidéo). Créez-la sur <code>fal.ai/dashboard/keys</code>.</div></div>
-<div class="step"><span class="n">2</span><div>Collez vos clés dans <strong>Settings → API keys</strong>, bouton <em>Save</em>, puis redémarrez l'app. Les pastilles en haut à droite (<code>fal</code> / <code>heygen</code> / <code>voice</code>) passent au <strong>vert</strong> quand une clé est active.</div></div>
-<img class="shot" src="img/settings-keys.png" alt="Settings - API keys">
-<p class="cap">Settings → API keys : chaque clé a un champ, un statut et un bouton Save. En bas, la carte <strong>Local LLM (Ollama)</strong> (chapitre 11).</p>
-<h3>Combien ça coûte ? (ordres de grandeur)</h3>
-<table>
-  <tr><th>Action</th><th>Service</th><th>Coût indicatif</th></tr>
-  <tr><td>Créer une image</td><td>fal.ai (FLUX)</td><td>≈ $0.003</td></tr>
-  <tr><td>Clip cinématique 10 s</td><td>fal.ai (Seedance)</td><td>≈ $0.30–0.60</td></tr>
-  <tr><td>Avatar parlant 1 min</td><td>HeyGen</td><td>≈ 6 crédits</td></tr>
-  <tr><td>Voix off / narration</td><td>ElevenLabs</td><td>≈ aux caractères · offre gratuite dispo</td></tr>
-  <tr><td>Uploader votre vidéo / son</td><td>—</td><td>gratuit</td></tr>
-  <tr><td>Résumé d'actu / plan marketing</td><td>Anthropic / OpenAI / Gemini / Ollama</td><td>≈ $0.01 / gratuit (Ollama)</td></tr>
-  <tr><td>Publication Telegram / X</td><td>—</td><td>gratuit / vos crédits X</td></tr>
-</table>
+<p class="chapeau-chap">Vous saurez lancer l'application pour la première fois, choisir sa langue, savoir ce que coûte chaque usage et la garder à jour. Dix minutes, gratuit.</p>
 
-<h3>Quelle clé débloque quoi ?</h3>
-<table>
-  <tr><th>Clé API</th><th>Requis ?</th><th>Ce qu'elle débloque</th></tr>
-  <tr><td><strong>fal.ai</strong></td><td><strong>Obligatoire</strong></td><td>Images (FLUX) <em>et</em> clips vidéo (Seedance) — la seule clé indispensable pour démarrer.</td></tr>
-  <tr><td><strong>HeyGen</strong></td><td>Optionnel</td><td>Avatars parlants (vidéo type ②) et compositions avatar + clip.</td></tr>
-  <tr><td><strong>ElevenLabs</strong></td><td>Optionnel</td><td>Voix off / narration — pour vos vidéos UGC <strong>et la fonction Épisodes</strong> (chapitre 7), enregistrée directement dans la bibliothèque audio.</td></tr>
-  <tr><td><strong>Anthropic, OpenAI ou Gemini</strong><br>(une seule suffit)</td><td>Optionnel</td><td>Résumés d'actu, plans marketing <strong>et scripts réellement écrits par IA</strong> (News, Studio &amp; storyboards d'Épisodes). Sans clé : version déterministe (gabarits de marque).</td></tr>
-  <tr><td><strong>Ollama</strong> (LLM local)</td><td>Optionnel</td><td>Mêmes usages IA que ci-dessus, <strong>100 % local et gratuit</strong> (chapitre 11).</td></tr>
-  <tr><td><strong>X</strong> (4 clés)</td><td>Optionnel</td><td>Publication automatique sur X/Twitter (chapitre 12).</td></tr>
-  <tr><td><strong>Telegram</strong> (bot token)</td><td>Optionnel</td><td>Publication automatique sur un canal Telegram.</td></tr>
-</table>
-<p class="cap">Astuce : commencez avec <strong>fal.ai</strong> seule, puis ajoutez des clés au fur et à mesure que vous explorez avatars, voix off, IA et publication.</p>
+<h3>Le premier lancement</h3>
+<ol class="etapes">
+<li>À l'installation, choisissez la langue : <strong>français</strong> ou <strong>anglais</strong>. Elle devient la langue de toute l'application.</li>
+<li>Double-cliquez l'icône <b class="ui">Deepotus Video Gen</b> du Bureau. L'application démarre sans fenêtre noire, puis votre navigateur s'ouvre sur le studio.</li>
+<li>Au tout premier lancement, un accueil en cinq étapes vous présente le studio, vous fait choisir un persona, vos fournisseurs de génération et les réseaux où vous publiez.</li>
+<li>Posez au moins une clé, celle de <strong>fal.ai</strong> : elle fait les images et les clips vidéo. Le chapitre <a href="#cles">Brancher ses clés</a> montre comment.</li>
+</ol>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>L'accueil se relance à tout moment depuis la commande rapide (<kbd>Ctrl</kbd>+<kbd>K</kbd>) : <b class="ui">Revoir l'accueil</b>.</p></aside>
 
-<div class="warn">Les coûts sont facturés par vos fournisseurs, pas par l'application. Surveillez vos crédits sur leurs tableaux de bord. Vos clés, vos fichiers et votre base restent <strong>sur votre machine</strong> (dossier <code>%LOCALAPPDATA%\DeepotusVideoGenData</code>) — ils survivent aux mises à jour et réinstallations.</div>
+<h3>Changer de langue</h3>
+<figure class="scene" data-scene="installer/langue"></figure>
+<ol class="etapes">
+<li>Ouvrez <span class="chemin"><b class="ui">Réglages</b> › <b class="ui">Fournisseurs par défaut</b></span>.</li>
+<li>Dans <b class="ui">Langue de l'interface</b>, choisissez <strong>Français</strong> ou <strong>English</strong>. La page se recharge dans la langue choisie.</li>
+</ol>
+<p>Sont traduits : la barre latérale, les Réglages, la Bibliothèque, Quick, News, le Planificateur, le Studio, les Modèles, les Épisodes, le Montage, Son &amp; VFX, les sous-titres, le transfert et toutes les fenêtres de confirmation. Les listes envoyées par le serveur (effets, transitions, préréglages) arrivent elles aussi dans la langue choisie. Les labs (Vectorlab, Photolab, Card Forge…) sont traduits un par un ; en attendant, leurs textes connus sont traduits à l'affichage. Vos propres saisies ne sont jamais traduites.</p>
+
+<h3>Ce que coûte chaque usage</h3>
+<p>L'application est gratuite. Seules les générations par IA coûtent, facturées par le fournisseur de la clé. Ordres de grandeur aux tarifs par défaut :</p>
+<div class="tableau"><table>
+<tr><th>Action</th><th>Fournisseur</th><th>Coût indicatif</th></tr>
+<tr><td>Créer une image</td><td>fal.ai (FLUX)</td><td><span class="prix">≈ 0,003 $</span></td></tr>
+<tr><td>Clip vidéo de 10 s</td><td>fal.ai (Seedance)</td><td><span class="prix">≈ 0,40 $</span></td></tr>
+<tr><td>Avatar parlant, 1 min</td><td>HeyGen</td><td><span class="prix">≈ 0,24 $</span></td></tr>
+<tr><td>Voix off</td><td>ElevenLabs</td><td>au caractère, offre gratuite disponible</td></tr>
+<tr><td>Résumé d'actualité, plan de posts</td><td>Anthropic, OpenAI, Gemini ou Ollama</td><td>quelques centimes, gratuit avec Ollama</td></tr>
+<tr><td>Importer vos vidéos, sons, images</td><td>aucun</td><td>gratuit</td></tr>
+</table></div>
+<p>Vos tarifs réels se saisissent dans <span class="chemin"><b class="ui">Réglages</b> › <b class="ui">Tarifs et budget</b></span> ; voir <a href="#budget">Maîtriser ses dépenses</a>.</p>
+
+<h3>Garder l'application à jour</h3>
+<figure class="scene" data-scene="installer/maj"></figure>
+<ol class="etapes">
+<li>Une fois par jour, l'application regarde si une nouvelle version est publiée. Cela ne bloque jamais rien.</li>
+<li>Quand il y en a une, une carte l'annonce : <b class="ui">Télécharger</b> récupère l'installeur et vous montre où il est rangé, <b class="ui">Plus tard</b> masque la carte pour cette version, <b class="ui">Notes</b> dit ce qui change.</li>
+<li>Pour vérifier tout de suite : <span class="chemin"><b class="ui">Réglages</b> › <b class="ui">Diagnostic</b></span>, bouton <b class="ui">Vérifier</b>.</li>
+<li>Fermez l'application, lancez l'installeur téléchargé : rien n'est installé tout seul.</li>
+</ol>
+
+<h3>Bon à savoir</h3>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Vos clés, vos fichiers et votre base vivent dans le dossier <code>%LOCALAPPDATA%\DeepotusVideoGenData</code>, à part du programme : ils survivent aux mises à jour et aux réinstallations.</p></aside>
+<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>Commencez avec la seule clé fal.ai, puis ajoutez avatars, voix et IA au fur et à mesure. Posez un plafond mensuel dès le début : voir <a href="#budget">Maîtriser ses dépenses</a>.</p></aside>

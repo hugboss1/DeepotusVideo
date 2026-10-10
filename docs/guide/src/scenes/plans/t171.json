@@ -1,0 +1,700 @@
+{
+ "base": "http://127.0.0.1:8799",
+ "scenes": [
+  {
+   "scene": "tour/coque",
+   "titre": {
+    "fr": "L'écran de l'application",
+    "en": "The app screen"
+   },
+   "legende": {
+    "fr": "Le rail des écrans à gauche, la barre du haut avec la commande rapide, le compteur de dépenses et l'état des clés.",
+    "en": "The screen rail on the left, the top bar with the quick command, the spending counter and the key status."
+   },
+   "captures": [
+    {
+     "nom": "coque"
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:aside",
+     "voile": true,
+     "ancre": {
+      "fr": "texte:Bibliothèque",
+      "en": "texte:Library"
+     },
+     "bulle": {
+      "fr": "Le rail : un écran par tâche",
+      "en": "The rail: one screen per task"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.4,
+     "curseur": {
+      "fr": "texte:Commande rapide…",
+      "en": "texte:Quick command…"
+     },
+     "surligne": {
+      "fr": "texte:Commande rapide…",
+      "en": "texte:Quick command…"
+     },
+     "bulle": {
+      "fr": "Ctrl+K : aller n'importe où au clavier",
+      "en": "Ctrl+K: go anywhere from the keyboard"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 3.0,
+     "surligne": "texte:$0",
+     "voile": true,
+     "bulle": {
+      "fr": "Dépenses du mois et état des clés, toujours visibles",
+      "en": "This month's spending and key status, always in sight"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "reglages/recherche",
+   "titre": {
+    "fr": "Chercher un réglage",
+    "en": "Search a setting"
+   },
+   "legende": {
+    "fr": "La recherche des Réglages trouve un réglage par son nom et ouvre directement la bonne section.",
+    "en": "Settings search finds a setting by its name and opens the right section directly."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Réglages",
+      "en": "texte:Settings"
+     },
+     "apres": 1500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "vide"
+    },
+    {
+     "nom": "frappe",
+     "etapes": [
+      {
+       "saisir": [
+        "css:input[placeholder]",
+        {
+         "fr": "plafond",
+         "en": "limit"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "nom": "ouvert",
+     "etapes": [
+      {
+       "touche": "Enter"
+      },
+      {
+       "attente": 1200
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.0,
+     "surligne": "css:input[placeholder]",
+     "bulle": {
+      "fr": "Tapez ce que vous cherchez",
+      "en": "Type what you are looking for"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.4,
+     "surligne": "css:input[placeholder]",
+     "ancre": "css:input[placeholder]",
+     "bulle": {
+      "fr": "Les sections qui en parlent s'affichent",
+      "en": "The matching sections show up"
+     }
+    },
+    {
+     "capture": 2,
+     "duree": 3.0,
+     "bulle": {
+      "fr": "Entrée ouvre la première",
+      "en": "Enter opens the first one"
+     }
+    }
+   ],
+   "clip": "css:main"
+  },
+  {
+   "scene": "tour/palette",
+   "titre": {
+    "fr": "La commande rapide",
+    "en": "The quick command"
+   },
+   "legende": {
+    "fr": "Ctrl+K ouvre la commande rapide : tapez quelques lettres pour aller à un écran ou lancer une action.",
+    "en": "Ctrl+K opens the quick command: type a few letters to go to a screen or start an action."
+   },
+   "captures": [
+    {
+     "nom": "palette",
+     "etapes": [
+      {
+       "clic": {
+        "fr": "texte:Commande rapide…",
+        "en": "texte:Quick command…"
+       },
+       "apres": 900
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 3.0,
+     "surligne": "css:input:focus",
+     "bulle": {
+      "fr": "Tapez, puis Entrée",
+      "en": "Type, then Enter"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "installer/langue",
+   "titre": {
+    "fr": "Changer de langue",
+    "en": "Switch language"
+   },
+   "legende": {
+    "fr": "Réglages › Fournisseurs par défaut › Langue de l'interface : la page se recharge dans la langue choisie.",
+    "en": "Settings › Provider defaults › Interface language: the page reloads in the chosen language."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Réglages",
+      "en": "texte:Settings"
+     },
+     "apres": 1300
+    },
+    {
+     "clic": {
+      "fr": "texte:Fournisseurs par défaut",
+      "en": "texte:Provider defaults"
+     },
+     "apres": 1300
+    },
+    {
+     "defiler": {
+      "fr": "texte:Langue de l'interface",
+      "en": "texte:Interface language"
+     }
+    }
+   ],
+   "captures": [
+    {
+     "nom": "langue"
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 3.2,
+     "surligne": {
+      "fr": "texte:Langue de l'interface",
+      "en": "texte:Interface language"
+     },
+     "voile": true,
+     "bulle": {
+      "fr": "Français ou anglais, pour toute l'application",
+      "en": "French or English, for the whole app"
+     }
+    }
+   ],
+   "clip": "css:main"
+  },
+  {
+   "scene": "installer/maj",
+   "titre": {
+    "fr": "Vérifier la version",
+    "en": "Check the version"
+   },
+   "legende": {
+    "fr": "Le bloc version du Diagnostic : la version installée, son état, et le bouton pour vérifier tout de suite.",
+    "en": "The version block in Diagnostics: the installed version, its status, and a button to check right now."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Réglages",
+      "en": "texte:Settings"
+     },
+     "apres": 1300
+    },
+    {
+     "clic": {
+      "fr": "texte:Diagnostic",
+      "en": "texte:Diagnostics"
+     },
+     "apres": 1300
+    },
+    {
+     "attente": 7000
+    }
+   ],
+   "captures": [
+    {
+     "nom": "diag"
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.4,
+     "surligne": {
+      "fr": "texte:à jour",
+      "en": "texte:up to date"
+     },
+     "bulle": {
+      "fr": "Votre version est à jour",
+      "en": "Your version is up to date"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "curseur": {
+      "fr": "texte:Vérifier",
+      "en": "texte:Check"
+     },
+     "clic": true,
+     "bulle": {
+      "fr": "Vérifier demande la dernière version publiée",
+      "en": "Check asks for the latest published version"
+     }
+    }
+   ],
+   "clip": "css:main"
+  },
+  {
+   "scene": "cles/cles",
+   "titre": {
+    "fr": "Poser une clé",
+    "en": "Add a key"
+   },
+   "legende": {
+    "fr": "Réglages › Clés d'API : chaque fournisseur a sa ligne, son état, son guide et son bouton Enregistrer.",
+    "en": "Settings › API keys: each provider has its row, its status, its guide and its Save button."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Réglages",
+      "en": "texte:Settings"
+     },
+     "apres": 1300
+    },
+    {
+     "clic": {
+      "fr": "texte:Clés d'API",
+      "en": "texte:API keys"
+     },
+     "apres": 1300
+    }
+   ],
+   "captures": [
+    {
+     "nom": "cles"
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.4,
+     "surligne": {
+      "fr": "texte:manquante",
+      "en": "texte:missing"
+     },
+     "bulle": {
+      "fr": "L'état de la clé",
+      "en": "The key's status"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.4,
+     "curseur": {
+      "fr": "texte:Guide",
+      "en": "texte:Guide"
+     },
+     "clic": true,
+     "bulle": {
+      "fr": "Guide : où créer la clé, et son prix",
+      "en": "Guide: where to create the key, and its price"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": {
+      "fr": "texte:Enregistrer",
+      "en": "texte:Save"
+     },
+     "bulle": {
+      "fr": "Collez la clé, Enregistrer : elle sert tout de suite",
+      "en": "Paste the key, Save: it works right away"
+     }
+    }
+   ],
+   "clip": "css:main"
+  },
+  {
+   "scene": "cles/coffre",
+   "titre": {
+    "fr": "Le coffre à clés",
+    "en": "The key vault"
+   },
+   "legende": {
+    "fr": "Réglages › Coffre : vos clés chiffrées par un mot de passe, et l'archive pour les emporter sur un autre poste.",
+    "en": "Settings › Vault: your keys encrypted with a password, and the archive to carry them to another computer."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Réglages",
+      "en": "texte:Settings"
+     },
+     "apres": 1300
+    },
+    {
+     "clic": {
+      "fr": "texte:Coffre",
+      "en": "texte:Vault"
+     },
+     "apres": 1300
+    }
+   ],
+   "captures": [
+    {
+     "nom": "coffre"
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": {
+      "fr": "texte:Poser le coffre",
+      "en": "texte:Set up vault"
+     },
+     "bulle": {
+      "fr": "Un mot de passe maître chiffre toutes vos clés",
+      "en": "A master password encrypts all your keys"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": {
+      "fr": "texte:Exporter l’archive",
+      "en": "texte:Export archive"
+     },
+     "bulle": {
+      "fr": "L'archive .dzk les emporte, avec son propre mot de passe",
+      "en": "The .dzk archive carries them, with its own password"
+     }
+    }
+   ],
+   "clip": "css:main"
+  },
+  {
+   "scene": "budget/plafonds",
+   "titre": {
+    "fr": "Les plafonds du mois",
+    "en": "Monthly caps"
+   },
+   "legende": {
+    "fr": "Réglages › Tarifs et budget : vos tarifs, puis un plafond par moteur et la barre du dépensé ce mois-ci.",
+    "en": "Settings › Pricing & budget: your rates, then one cap per engine and the bar of what you spent this month."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Réglages",
+      "en": "texte:Settings"
+     },
+     "apres": 1300
+    },
+    {
+     "clic": {
+      "fr": "texte:Tarifs et budget",
+      "en": "texte:Pricing & budget"
+     },
+     "apres": 1300
+    }
+   ],
+   "captures": [
+    {
+     "nom": "tarifs"
+    },
+    {
+     "nom": "plafonds",
+     "etapes": [
+      {
+       "defiler": {
+        "fr": "texte:Global",
+        "en": "texte:Master"
+       }
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": {
+      "fr": "contient:Plafond vidéo par requête",
+      "en": "contient:Video cap per request"
+     },
+     "bulle": {
+      "fr": "Un plafond pour chaque génération vidéo",
+      "en": "A cap for each video generation"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 3.0,
+     "surligne": {
+      "fr": "texte:Global",
+      "en": "texte:Master"
+     },
+     "bulle": {
+      "fr": "Au-delà d'un plafond, l'app vous demande avant de dépenser",
+      "en": "Above a cap, the app asks you before spending"
+     }
+    }
+   ],
+   "clip": "css:main"
+  },
+  {
+   "scene": "reglages/kits",
+   "titre": {
+    "fr": "Les kits de marque",
+    "en": "Brand kits"
+   },
+   "legende": {
+    "fr": "Réglages › Identité visuelle : plusieurs kits de marque, un seul actif, et ses champs juste dessous.",
+    "en": "Settings › Branding: several brand kits, a single active one, and its fields right below."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Réglages",
+      "en": "texte:Settings"
+     },
+     "apres": 1300
+    },
+    {
+     "clic": {
+      "fr": "texte:Identité visuelle",
+      "en": "texte:Branding"
+     },
+     "apres": 1300
+    }
+   ],
+   "captures": [
+    {
+     "nom": "kits"
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.4,
+     "curseur": {
+      "fr": "texte:Nouveau kit",
+      "en": "texte:New kit"
+     },
+     "clic": true,
+     "bulle": {
+      "fr": "Créer un kit",
+      "en": "Create a kit"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": {
+      "fr": "texte:actif",
+      "en": "texte:active"
+     },
+     "bulle": {
+      "fr": "Le kit actif habille toute l'application",
+      "en": "The active kit dresses the whole app"
+     }
+    }
+   ],
+   "clip": "css:main"
+  },
+  {
+   "scene": "transfert/export",
+   "titre": {
+    "fr": "Exporter vers une autre machine",
+    "en": "Export to another machine"
+   },
+   "legende": {
+    "fr": "Réglages › Transfert entre machines : un paquet daté, chaque fichier avec son empreinte ; les clés restent sur ce PC.",
+    "en": "Settings › Machine transfer: a dated package, each file with its checksum; keys stay on this PC."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Réglages",
+      "en": "texte:Settings"
+     },
+     "apres": 1300
+    },
+    {
+     "clic": {
+      "fr": "texte:Transfert entre machines",
+      "en": "texte:Machine transfer"
+     },
+     "apres": 1300
+    }
+   ],
+   "captures": [
+    {
+     "nom": "section"
+    },
+    {
+     "nom": "dialogue",
+     "etapes": [
+      {
+       "clic": {
+        "fr": "texte:Exporter…",
+        "en": "texte:Export…"
+       },
+       "apres": 1200
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.4,
+     "curseur": {
+      "fr": "texte:Exporter…",
+      "en": "texte:Export…"
+     },
+     "clic": true,
+     "bulle": {
+      "fr": "Ce qui part, et son poids",
+      "en": "What goes, and how much it weighs"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.8,
+     "surligne": {
+      "fr": "texte:Journaux",
+      "en": "texte:Logs"
+     },
+     "bulle": {
+      "fr": "En plus, à cocher : journaux et rebuts",
+      "en": "Extras to tick: logs and discards"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.8,
+     "surligne": {
+      "fr": "texte:Lancer l'export",
+      "en": "texte:Start export"
+     },
+     "bulle": {
+      "fr": "Un dossier daté s'écrit à la destination",
+      "en": "A dated folder is written at the destination"
+     }
+    }
+   ],
+   "clip": "css:main"
+  },
+  {
+   "scene": "mobile/appareils",
+   "titre": {
+    "fr": "Appairer un téléphone",
+    "en": "Pair a phone"
+   },
+   "legende": {
+    "fr": "Réglages › Appareils : l'état du réseau, la liste des appareils, et l'appairage par QR.",
+    "en": "Settings › Devices: the network status, the list of devices, and pairing by QR code."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Réglages",
+      "en": "texte:Settings"
+     },
+     "apres": 1300
+    },
+    {
+     "clic": {
+      "fr": "texte:Appareils",
+      "en": "texte:Devices"
+     },
+     "apres": 1300
+    }
+   ],
+   "captures": [
+    {
+     "nom": "appareils"
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 3.0,
+     "surligne": {
+      "fr": "texte:ce PC seulement",
+      "en": "texte:this PC only"
+     },
+     "bulle": {
+      "fr": "Par défaut, seul ce PC atteint l'application",
+      "en": "By default, only this PC can reach the app"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "curseur": {
+      "fr": "texte:Appairer un appareil",
+      "en": "texte:Pair a device"
+     },
+     "bulle": {
+      "fr": "Affiche un QR valable 5 minutes",
+      "en": "Shows a QR code valid for 5 minutes"
+     }
+    }
+   ],
+   "clip": "css:main"
+  }
+ ]
+}

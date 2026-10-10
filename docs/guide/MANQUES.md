@@ -10,24 +10,19 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 
 ## Démarrer
 
-### Faire le tour de l'application (`tour`, lot t171, reprend : nouveau) — 14 manques
+### Faire le tour de l'application (`tour`, lot t171, reprend : nouveau) — 9 manques
 
 **Application (coque, comportements transversaux)** — accès : Toute l'application : lanceur Windows, toutes les pages et tous les labs
 
-- [ ] **Adresse nommée deepotus.localhost** : Le lanceur ouvre l'application à l'adresse http://deepotus.localhost:8765 au lieu d'une adresse IP. — *Raccourci de lancement de l'app* (commits 1484969e, 81f42b75 · fusion 44cd1214)
-- [ ] **Dialogues maison partout** : Toutes les confirmations, alertes et saisies de l'Atelier, du Card Forge, du Studio 3D, du Vectorlab et de l'app principale passent par un même dialogue aux couleurs Deepotus, plus aucune boîte native du navigateur. — *Dialogue maison (confirmer / informer / saisir) ; au Vectorlab, brouillon proposé par « Restaurer » / « Repartir du serveur »* (commits 8815cba4, 0965ea6b, ec479987 · fusion 44cd1214)
-- [ ] **Titres d'onglets « Deepotus — <outil> »** : Chaque onglet du navigateur porte le nom de l'outil ouvert (ex. « Deepotus — Vectorlab »). (commit 1484969e · fusion 44cd1214)
-- [ ] **Studio sans fenêtre native** : Le bouton Save du Studio et les dix autres demandes de texte passent par le dialogue maison. — *Studio → Save → nom saisi dans le dialogue* (PR #36 · commits dc2f8501, 6d429b88)
-- [ ] **Clé absente = message clair (503)** : Quand une clé de fournisseur manque, l'app répond partout le même refus lisible (« non configurée », « configure la clé ») au lieu d'erreurs disparates. (PR #48 · commit 4bb39655 · P1 #11)
-- [ ] **Erreurs serveur lisibles** : Un refus qui n'est pas en JSON affiche « HTTP <code> : <texte du serveur> » au lieu d'un simple code. — *Bandeau d'erreur (ex. « Run failed: HTTP 500 : Internal Server Error »)* (PR #47 · commit fe5ae334 · P1 #10)
-- [ ] **HeyGen : avatar depuis une photo (v3)** **payant** : La création d'avatar à partir d'une photo passe par la v3 ; une image WebP mal nommée est reconnue et convertie. (PR #37 · commit 2975b6df)
-- [ ] **HeyGen : listes d'avatars et de voix en cache** : Les listes de looks et de voix HeyGen s'affichent tout de suite depuis un cache disque rafraîchi en fond (au lieu de plusieurs minutes). (PR #37 · commit 2975b6df)
-- [ ] **HeyGen : solde wallet en dollars** : Le solde HeyGen est lu dans le wallet et affiché en dollars (santé, soldes des coûts, Diagnostic). (PR #37 · commit 2975b6df)
-- [ ] **HeyGen API v3 : Avatar III par look** **payant** : Toutes les vidéos HeyGen passent par l'API v3 ; le moteur par défaut est Avatar III choisi selon le look de l'avatar, et les pauses du script sont gardées. (PR #37 · commit 2975b6df)
-- [ ] **Génération payante réservée au PC** : Les sept routes de génération payantes (vidéo, lots, HeyGen, images, composition) refusent tout client qui n'est pas ce PC. (PR #51 · commit 001e3295 · P1 #14)
-- [ ] **Écritures réservées à la machine locale** : Aucun autre appareil du réseau ne peut modifier, générer ou dépenser : toute écriture vers l'app depuis un autre hôte est refusée (« Écriture réservée à la machine locale »), les lectures restent ouvertes. (PR #51 · commits 001e3295, 838f9689 · P1 #14)
-- [ ] **Import d'images : homonymes conservés** : Une image du même nom qu'une existante n'écrase plus rien : elle devient nom-1, nom-2… (PR #96 · commit e3d06489)
-- [ ] **Import d'images : non-images refusées** : Un fichier qui n'est pas une vraie image (PNG, JPEG, WebP, GIF, BMP, AVIF) est refusé avec un message qui le nomme, et rien n'entre en Bibliothèque. — *Tout dépôt / upload d'image* (PR #96 · commit e3d06489)
+- [x] **Adresse nommée deepotus.localhost** : Le lanceur ouvre l'application à l'adresse http://deepotus.localhost:8765 au lieu d'une adresse IP. — *Raccourci de lancement de l'app* (commits 1484969e, 81f42b75 · fusion 44cd1214)
+- [x] **Dialogues maison partout** : Toutes les confirmations, alertes et saisies de l'Atelier, du Card Forge, du Studio 3D, du Vectorlab et de l'app principale passent par un même dialogue aux couleurs Deepotus, plus aucune boîte native du navigateur. — *Dialogue maison (confirmer / informer / saisir) ; au Vectorlab, brouillon proposé par « Restaurer » / « Repartir du serveur »* (commits 8815cba4, 0965ea6b, ec479987 · fusion 44cd1214)
+- [x] **Titres d'onglets « Deepotus — <outil> »** : Chaque onglet du navigateur porte le nom de l'outil ouvert (ex. « Deepotus — Vectorlab »). (commit 1484969e · fusion 44cd1214)
+- [x] **Clé absente = message clair (503)** : Quand une clé de fournisseur manque, l'app répond partout le même refus lisible (« non configurée », « configure la clé ») au lieu d'erreurs disparates. (PR #48 · commit 4bb39655 · P1 #11)
+- [x] **Erreurs serveur lisibles** : Un refus qui n'est pas en JSON affiche « HTTP <code> : <texte du serveur> » au lieu d'un simple code. — *Bandeau d'erreur (ex. « Run failed: HTTP 500 : Internal Server Error »)* (PR #47 · commit fe5ae334 · P1 #10)
+- [x] **Génération payante réservée au PC** : Les sept routes de génération payantes (vidéo, lots, HeyGen, images, composition) refusent tout client qui n'est pas ce PC. (PR #51 · commit 001e3295 · P1 #14)
+- [x] **Écritures réservées à la machine locale** : Aucun autre appareil du réseau ne peut modifier, générer ou dépenser : toute écriture vers l'app depuis un autre hôte est refusée (« Écriture réservée à la machine locale »), les lectures restent ouvertes. (PR #51 · commits 001e3295, 838f9689 · P1 #14)
+- [x] **Import d'images : homonymes conservés** : Une image du même nom qu'une existante n'écrase plus rien : elle devient nom-1, nom-2… (PR #96 · commit e3d06489)
+- [x] **Import d'images : non-images refusées** : Un fichier qui n'est pas une vraie image (PNG, JPEG, WebP, GIF, BMP, AVIF) est refusé avec un message qui le nomme, et rien n'entre en Bibliothèque. — *Tout dépôt / upload d'image* (PR #96 · commit e3d06489)
 
 ### Installer, choisir sa langue, mettre à jour (`installer`, lot t171, reprend : c0) — 21 manques
 
@@ -42,27 +37,27 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 
 **Traduction FR/EN de l'interface** — accès : Langue choisie à l'installation, puis Réglages → « Langue de l'interface »
 
-- [ ] **Choix de la langue à l'installation** : La langue choisie dans l'installeur (français ou anglais) devient la langue de l'interface, sans écraser un choix déjà fait. — *Installeur → écran de langue* (PR #262 · commit 368f29ea · t134 (L0))
-- [ ] **Traduction automatique des écrans pas encore migrés** : En anglais, les textes français connus sont traduits à l'affichage dans l'app et les huit labs (jamais vos saisies) ; le serveur reçoit aussi la langue choisie. (PR #262 · commit 368f29ea · t134 (L0))
-- [ ] **Bibliothèque traduite** : L'écran Bibliothèque est entièrement traduit. (PR #272 · commit c1addc0a · t141 (L1))
-- [ ] **Coque et navigation traduites** : Barre latérale, en-tête, accueil et navigation entièrement en français ou en anglais, dates relatives comprises. (PR #272 · commit c1addc0a · t141 (L1))
-- [ ] **Réglages traduits (14 onglets)** : Les 14 onglets des Réglages et la recherche des Réglages s'affichent dans la langue choisie. (PR #272 · commit c1addc0a · t141 (L1))
-- [ ] **Catalogues du serveur dans la langue choisie** : Les listes d'effets, transitions, préréglages de livraison et titres envoyées par le serveur arrivent traduites selon la langue de l'interface. (PR #279 · commit 5c5eb59f · t144 (L4))
-- [ ] **News traduit** : L'écran News est traduit. (PR #276 · commit f395cfdf · t142 (L2))
-- [ ] **Quick traduit** : L'écran Quick passe en anglais ou en français selon la langue. (PR #276 · commit f395cfdf · t142 (L2))
-- [ ] **Raccourcis clavier affichés dans la langue** : Les sections et noms de touches des raccourcis (Maj/Shift, Échap/Esc, Suppr/Del) s'affichent traduits. — *Liste des raccourcis du Montage / Son & VFX* (PR #279 · commits 5c5eb59f, 5938d724 · t144 (L4))
-- [ ] **Rack VFX traduit** : Le rack d'effets visuels est traduit. (PR #279 · commit 5c5eb59f · t144 (L4))
-- [ ] **SFX Studio traduit** : Le studio d'effets sonores est traduit. (PR #279 · commit 5c5eb59f · t144 (L4))
-- [ ] **Scheduler traduit** : Le Scheduler est traduit, dates, jours et vues Semaine / Mois compris selon la langue. (PR #276 · commit f395cfdf · t142 (L2))
-- [ ] **Son & VFX traduit** : L'écran Son & VFX et le panneau Son & VFX du Montage sont traduits. (PR #279 · commit 5c5eb59f · t144 (L4))
-- [ ] **Studio traduit** : Le Studio, son catalogue de nœuds et ses messages sont traduits. (PR #276 · commit f395cfdf · t142 (L2))
-- [ ] **Templates traduits** : L'écran Templates (dont les kits et les tables de gabarits) est traduit. (PR #276 · commit f395cfdf · t142 (L2))
-- [ ] **Épisodes traduit** : L'écran Épisodes est traduit. (PR #276 · commit f395cfdf · t142 (L2))
-- [ ] **Dialogues maison traduits** : Les boutons et textes des dialogues maison suivent la langue choisie. (PR #290 · commit c4306b8d · t145 (L5))
-- [ ] **Montage traduit** : L'écran Montage (728 libellés) s'affiche dans la langue choisie. (PR #289 · commit 68927356 · t143 (L3))
-- [ ] **Sous-titres traduits** : L'éditeur de sous-titres est traduit. (PR #290 · commit c4306b8d · t145 (L5))
-- [ ] **Transfert entre machines traduit** : L'écran de transfert (export, import, lots, intégrité) est traduit. (PR #290 · commit c4306b8d · t145 (L5))
-- [ ] **Étiquettes des plans en anglais** : Les petites étiquettes posées sur les plans (sans sous-titre, muet) s'affichent aussi en anglais. (PR #290 · commit b7e47469 · t145 (L5))
+- [x] **Choix de la langue à l'installation** : La langue choisie dans l'installeur (français ou anglais) devient la langue de l'interface, sans écraser un choix déjà fait. — *Installeur → écran de langue* (PR #262 · commit 368f29ea · t134 (L0))
+- [x] **Traduction automatique des écrans pas encore migrés** : En anglais, les textes français connus sont traduits à l'affichage dans l'app et les huit labs (jamais vos saisies) ; le serveur reçoit aussi la langue choisie. (PR #262 · commit 368f29ea · t134 (L0))
+- [x] **Bibliothèque traduite** : L'écran Bibliothèque est entièrement traduit. (PR #272 · commit c1addc0a · t141 (L1))
+- [x] **Coque et navigation traduites** : Barre latérale, en-tête, accueil et navigation entièrement en français ou en anglais, dates relatives comprises. (PR #272 · commit c1addc0a · t141 (L1))
+- [x] **Réglages traduits (14 onglets)** : Les 14 onglets des Réglages et la recherche des Réglages s'affichent dans la langue choisie. (PR #272 · commit c1addc0a · t141 (L1))
+- [x] **Catalogues du serveur dans la langue choisie** : Les listes d'effets, transitions, préréglages de livraison et titres envoyées par le serveur arrivent traduites selon la langue de l'interface. (PR #279 · commit 5c5eb59f · t144 (L4))
+- [x] **News traduit** : L'écran News est traduit. (PR #276 · commit f395cfdf · t142 (L2))
+- [x] **Quick traduit** : L'écran Quick passe en anglais ou en français selon la langue. (PR #276 · commit f395cfdf · t142 (L2))
+- [x] **Raccourcis clavier affichés dans la langue** : Les sections et noms de touches des raccourcis (Maj/Shift, Échap/Esc, Suppr/Del) s'affichent traduits. — *Liste des raccourcis du Montage / Son & VFX* (PR #279 · commits 5c5eb59f, 5938d724 · t144 (L4))
+- [x] **Rack VFX traduit** : Le rack d'effets visuels est traduit. (PR #279 · commit 5c5eb59f · t144 (L4))
+- [x] **SFX Studio traduit** : Le studio d'effets sonores est traduit. (PR #279 · commit 5c5eb59f · t144 (L4))
+- [x] **Scheduler traduit** : Le Scheduler est traduit, dates, jours et vues Semaine / Mois compris selon la langue. (PR #276 · commit f395cfdf · t142 (L2))
+- [x] **Son & VFX traduit** : L'écran Son & VFX et le panneau Son & VFX du Montage sont traduits. (PR #279 · commit 5c5eb59f · t144 (L4))
+- [x] **Studio traduit** : Le Studio, son catalogue de nœuds et ses messages sont traduits. (PR #276 · commit f395cfdf · t142 (L2))
+- [x] **Templates traduits** : L'écran Templates (dont les kits et les tables de gabarits) est traduit. (PR #276 · commit f395cfdf · t142 (L2))
+- [x] **Épisodes traduit** : L'écran Épisodes est traduit. (PR #276 · commit f395cfdf · t142 (L2))
+- [x] **Dialogues maison traduits** : Les boutons et textes des dialogues maison suivent la langue choisie. (PR #290 · commit c4306b8d · t145 (L5))
+- [x] **Montage traduit** : L'écran Montage (728 libellés) s'affiche dans la langue choisie. (PR #289 · commit 68927356 · t143 (L3))
+- [x] **Sous-titres traduits** : L'éditeur de sous-titres est traduit. (PR #290 · commit c4306b8d · t145 (L5))
+- [x] **Transfert entre machines traduit** : L'écran de transfert (export, import, lots, intégrité) est traduit. (PR #290 · commit c4306b8d · t145 (L5))
+- [x] **Étiquettes des plans en anglais** : Les petites étiquettes posées sur les plans (sans sous-titre, muet) s'affichent aussi en anglais. (PR #290 · commit b7e47469 · t145 (L5))
 
 ### Brancher ses clés et ses moteurs d'IA (`cles`, lot t171, reprend : c11) — 0 manques
 
@@ -88,42 +83,42 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 
 **Réglages (Settings)** — accès : Barre latérale → Settings (Réglages) ; 14 onglets : Clés d'API, Fournisseurs par défaut, Comptes connectés, Identité visuelle (Branding), Personas, News, Pack de sous-titres, Tarifs et budget, Diagnostic, Coffre, Appareils, Transfert entre machines, Chemins, Apparence ; URL directe ?section=diag pour le Diagnostic
 
-- [ ] **Clé Figma (FIGMA_TOKEN)** : Le jeton Figma, exigé par l'import Figma de la Bibliothèque et des Templates, s'enregistre maintenant depuis les Réglages. — *Réglages → Clés d'API → rangée « Figma (import de calques) » (en dernier)* (PR #38 · commit 904d917e · P1 #2)
-- [ ] **Plafond vidéo par requête et durée max par clip** : Deux champs de l'onglet Tarifs bornent le coût d'une génération vidéo et les secondes générées par clip ; le Studio envoie le coût affiché comme plafond et l'enregistrement des tarifs ne remplace plus vos valeurs posées à la main. — *Réglages → Tarifs et budget → « Plafond vidéo par requête » et « Secondes générées max par clip »* (PR #46 · commit cc0453f7 · P1 #9)
-- [ ] **Alerte au seuil de plafond** : Un bandeau prévient une fois par mois quand un plafond atteint le pourcentage choisi. — *Réglages → Tarifs et budget → Plafonds du mois → champ « Alerte à (% d'un plafond) »* (PR #54 · commit 17dae285 · tâche #16)
-- [ ] **Archive chiffrée des clés** : Un fichier .dzk qui emporte vos clés (coffre et .env), vos plafonds et votre grille de prix vers un second poste ou le téléphone, protégé par son propre mot de passe. — *Réglages → Coffre → Archive chiffrée → « Exporter l'archive » / « Importer une archive… »* (PR #58 · PR #59 · commits cac0c119, 11204441 · tâche #20)
-- [ ] **Bandeau « version disponible »** : Une carte annonce la nouvelle version ; Télécharger récupère l'installeur (pourcentage puis chemin du fichier, rien n'est lancé tout seul) ; Plus tard la masque pour cette version. — *Carte de mise à jour → « Télécharger » / « Plus tard » / « Notes »* (PR #56 · commit 9239fd20 · tâche #18)
-- [ ] **Bouton Tester par clé** : Chaque ligne de clé a un bouton Tester (appel sans dépense, clé relue côté serveur) ; la clé est aussi testée dans la foulée de l'enregistrement et le message du serveur est affiché. — *Réglages → Clés d'API → « Tester » sur la ligne* (PR #55 · commit d828268b · tâche #17)
-- [ ] **Clés appliquées à chaud** : Une clé enregistrée depuis l'interface sert tout de suite, sans redémarrer l'application (plus aucune promesse de redémarrage). — *Réglages → Clés d'API → saisir → Save* (PR #55 · commit d828268b · tâche #17)
-- [ ] **Coffre : changer le mot de passe** : Rechiffre le coffre avec un nouveau mot de passe (8 caractères au moins, saisi deux fois). — *Réglages → Coffre → « Changer le mot de passe » → « Changer »* (PR #59 · commit 11204441 · tâche #20)
-- [ ] **Coffre : ouvrir / fermer** : Ouvrir déchiffre le coffre et rend ses clés actives tout de suite ; Fermer les retire de la mémoire (écrire, tester ou importer une clé est alors refusé). — *Réglages → Coffre → « Ouvrir » / « Fermer »* (PR #59 · commit 11204441 · tâche #20)
-- [ ] **Coffre : retenir sur ce PC** : Le coffre s'ouvre seul au lancement pour cette session Windows (DPAPI) ; Ne plus retenir redemande le mot de passe. — *Réglages → Coffre → « Retenir sur ce PC » / « Ne plus retenir »* (PR #59 · commit 11204441 · tâche #20)
-- [ ] **Coffre à clés : poser le coffre** : Vos clés secrètes sont chiffrées par un mot de passe maître (AES-256-GCM) et quittent le fichier .env en clair. — *Réglages → Coffre → mot de passe saisi deux fois → « Poser le coffre » → confirmation* (PR #58 · PR #59 · commits cac0c119, 11204441 · tâche #20)
-- [ ] **Confirmation au dépassement de plafond (402)** *(coût variable)* : Quand un tir dépasserait un plafond, un dialogue maison s'ouvre partout dans l'app : on peut tirer quand même (la même requête repart) ou annuler avec un message lisible. — *Dialogue « Tirer quand même » / « Annuler »* (PR #54 · commit 17dae285 · tâche #16)
-- [ ] **Guides fournisseurs** : Chaque ligne de clé a un lien Guide qui ouvre la page du fournisseur où créer la clé, avec ses tarifs. — *Réglages → Clés d'API → « Guide »* (PR #55 · commit d828268b · tâche #17)
-- [ ] **Onglet Diagnostic** : Un écran qui montre d'un coup la version, le poids du dossier de données par catégorie, les dernières alertes du journal, l'état de chaque clé (définie / absente, jamais affichée) et les soldes des fournisseurs. — *Réglages → Diagnostic ; bouton « Rafraîchir » (relit clés, disque mesuré 5 min, journal et soldes)* (PR #52 · commit b4dedbc9 · tâche #15)
-- [ ] **Pastille de clé à trois états** : Chaque clé affiche où elle vit et si elle est utilisable : au .env, au coffre, ou coffre verrouillé (qui renvoie vers l'onglet Coffre). — *Réglages → Clés d'API (pastille de chaque ligne)* (PR #59 · commit 11204441 · tâche #20)
-- [ ] **Plafonds de dépense mensuels par moteur** : Fixez un plafond en dollars par mois pour chaque moteur payant ; au-delà, chaque tir payant demande confirmation avant de partir ; des barres montrent le dépensé (réel quand le fournisseur le dit, sinon le devis). — *Réglages → Tarifs et budget → « Plafonds du mois » (vide ou 0 = aucun) → « Enregistrer les plafonds » ; le plafond global reste le champ « Plafond de budget mensuel »* (PR #53 · PR #54 · commits 1948440f, 17dae285 · tâche #16)
-- [ ] **Recherche dans les Réglages** : Un champ cherche un réglage par son nom ou ses mots (sans accents ni casse) et un résultat ouvre directement la bonne section. — *Champ « Rechercher un réglage… » en tête des Réglages ; Entrée ouvre le premier résultat, Échap vide le champ* (PR #61 · commit 521ed045 · tâche #22)
-- [ ] **Tableau des dépenses réel contre estimé** : Une ligne par moteur et par écran avec son état (réel, réel partiel n/m, estimé, estimé non rapproché), le nombre de tirs et l'écart réel − estimé, pour le mois en cours. — *Réglages → Tarifs et budget (sous les plafonds) et en bas du Diagnostic : « Dépenses du mois — réel contre estimé »* (PR #60 · commit e7e552ff · tâche #21)
-- [ ] **Tester une clé (Diagnostic)** : Chaque clé du Diagnostic a un bouton qui fait un appel authentifié sans dépense pour dire si elle marche (HeyGen v3 : crédits et dollars restants). — *Réglages → Diagnostic → « Tester » sur la ligne de la clé* (PR #52 · commit b4dedbc9 · tâche #15)
-- [ ] **Transfert : empreintes et contrôle d'intégrité** : Chaque fichier exporté porte son empreinte sha256 ; un bouton relit tout le paquet après un export ou avant un import, et l'import écarte en le nommant un fichier abîmé. — *Réglages → Transfert entre machines → « Contrôler l'intégrité »* (PR #57 · commit 7e123bed · tâche #19)
-- [ ] **Transfert : lots optionnels cochables** : Cases pour emporter aussi les journaux et les rebuts (corbeilles datées), décochées par défaut, avec leur poids ; les clés ne voyagent jamais, le coffre non plus. — *Réglages → Transfert entre machines → cases « Journaux » et « Rebuts — corbeilles datées »* (PR #57 · commit 7e123bed · tâche #19)
-- [ ] **Vérification de mise à jour** : L'app demande une fois par jour à GitHub la dernière version publiée (jamais bloquant) et l'affiche dans un bloc version en tête du Diagnostic. — *Réglages → Diagnostic → bloc version → « Vérifier » pour forcer* (PR #56 · commit 9239fd20 · tâche #18)
-- [ ] **Comptes connectés : TikTok** : Quatre champs TikTok (client key, secret, refresh token, audité) ; sans audit les envois restent privés. — *Réglages → Comptes connectés → TikTok* (PR #67 · PR #71 · commits 29ab8dcf, 6bdd634a · tâches #28, #31)
-- [ ] **Comptes connectés : YouTube et Instagram** : YouTube et Instagram s'activent automatiquement dès que leurs clés sont saisies et se testent depuis l'écran. — *Réglages → Comptes connectés* (PR #67 · PR #71 · commits 29ab8dcf, 6bdd634a · tâches #28, #31)
-- [ ] **Connecter YouTube / TikTok (OAuth)** : Un bouton ouvre la page de consentement du réseau dans un onglet ; le jeton revient tout seul et se range au coffre (refusé si le coffre est fermé, raison affichée). — *Réglages → Comptes connectés → « Connecter »* (PR #67 · PR #71 · commits 29ab8dcf, 6bdd634a · tâches #28, #31)
-- [ ] **Appareil perdu : rotation des clés** : La page Appareils rappelle que révoquer ne suffit pas pour un téléphone perdu et donne les liens vers la console de chaque fournisseur pour régénérer les clés. — *Réglages → Appareils → bloc « Appareil perdu ? »* (PR #98 · commit 5d1671f9 · tâche #56)
-- [ ] **Liste et révocation des appareils** : La liste des appareils appairés (n / 5, date d'appairage) avec un bouton qui retire tout accès à l'un d'eux tout de suite ; ses posts et chapitres emportés reviennent au PC. — *Réglages → Appareils → « Révoquer » (confirmation)* (PR #98 · commit 5d1671f9 · tâche #56)
-- [ ] **Page Appareils : appairer un téléphone** : Affiche un QR valable 5 minutes pour un seul appareil ; il se ferme seul quand le téléphone l'a scanné ; cinq appareils au plus. — *Réglages → Appareils → « Appairer un appareil » → scanner avec l'application Deepotus du téléphone* (PR #98 · commit 5d1671f9 · tâche #56)
-- [ ] **État du réseau local** : La page Appareils dit si l'app n'écoute que ce PC ou si le réseau local est ouvert, et comment l'ouvrir au Wi-Fi (HOST dans le .env). — *Réglages → Appareils (mention « ce PC seulement » / « réseau local ouvert »)* (PR #97 · PR #98 · commits e000ef39, 5d1671f9 · tâche #56)
-- [ ] **Kit figé à l'envoi d'un rendu** : Un rendu de template garde le kit actif au moment de l'envoi, même si vous changez de kit pendant le rendu ; un jeton {{brand.x}} inconnu est refusé en le nommant. (PR #126 · commit dfdb0f55 · tâche #72)
-- [ ] **Kits de marque** : Plusieurs kits de marque (logo, nom, sous-titre, couleurs) ; les champs de Branding modifient le kit actif, dont le nom est indiqué en tête. — *Réglages → Identité visuelle (Branding) → liste des kits* (PR #126 · PR #127 · commits dfdb0f55, d563ac05 · tâche #72)
-- [ ] **Nouveau kit / Activer** : Créer un kit et choisir lequel est actif ; activer rafraîchit l'app et recharge les champs. — *Réglages → Branding → « Nouveau kit » ; « Activer » sur un kit (« actif » sinon)* (PR #127 · commit d563ac05 · tâche #72)
-- [ ] **Renommer, dupliquer, supprimer un kit** : Gérer chaque kit par le dialogue maison ; le kit actif et le dernier kit ne se suppriment pas (bouton grisé qui dit pourquoi). — *Réglages → Branding → « Renommer » / « Dupliquer » / « Supprimer »* (PR #127 · commit d563ac05 · tâche #72)
-- [ ] **Langue de l'interface** : Basculer l'interface entre français et anglais depuis les Réglages, appliqué à chaud. — *Réglages → rangée « Langue de l'interface »* (PR #262 · commit 368f29ea · t134)
-- [ ] **Modèle de voix (TTS) par défaut** : Choisir le modèle ElevenLabs avec lequel naissent les nouveaux nœuds Voiceover. — *Réglages → Fournisseurs par défaut → « Modèle de voix (TTS) par défaut »* (PR #260 · commit bfe667bb · t130)
-- [ ] **Modèle vidéo par défaut** : Choisir le modèle avec lequel naissent les nouveaux nœuds Seedance du Studio (les nœuds existants gardent le leur). — *Réglages → Fournisseurs par défaut → « Modèle vidéo par défaut »* (PR #260 · commit bfe667bb · t130)
+- [x] **Clé Figma (FIGMA_TOKEN)** : Le jeton Figma, exigé par l'import Figma de la Bibliothèque et des Templates, s'enregistre maintenant depuis les Réglages. — *Réglages → Clés d'API → rangée « Figma (import de calques) » (en dernier)* (PR #38 · commit 904d917e · P1 #2)
+- [x] **Plafond vidéo par requête et durée max par clip** : Deux champs de l'onglet Tarifs bornent le coût d'une génération vidéo et les secondes générées par clip ; le Studio envoie le coût affiché comme plafond et l'enregistrement des tarifs ne remplace plus vos valeurs posées à la main. — *Réglages → Tarifs et budget → « Plafond vidéo par requête » et « Secondes générées max par clip »* (PR #46 · commit cc0453f7 · P1 #9)
+- [x] **Alerte au seuil de plafond** : Un bandeau prévient une fois par mois quand un plafond atteint le pourcentage choisi. — *Réglages → Tarifs et budget → Plafonds du mois → champ « Alerte à (% d'un plafond) »* (PR #54 · commit 17dae285 · tâche #16)
+- [x] **Archive chiffrée des clés** : Un fichier .dzk qui emporte vos clés (coffre et .env), vos plafonds et votre grille de prix vers un second poste ou le téléphone, protégé par son propre mot de passe. — *Réglages → Coffre → Archive chiffrée → « Exporter l'archive » / « Importer une archive… »* (PR #58 · PR #59 · commits cac0c119, 11204441 · tâche #20)
+- [x] **Bandeau « version disponible »** : Une carte annonce la nouvelle version ; Télécharger récupère l'installeur (pourcentage puis chemin du fichier, rien n'est lancé tout seul) ; Plus tard la masque pour cette version. — *Carte de mise à jour → « Télécharger » / « Plus tard » / « Notes »* (PR #56 · commit 9239fd20 · tâche #18)
+- [x] **Bouton Tester par clé** : Chaque ligne de clé a un bouton Tester (appel sans dépense, clé relue côté serveur) ; la clé est aussi testée dans la foulée de l'enregistrement et le message du serveur est affiché. — *Réglages → Clés d'API → « Tester » sur la ligne* (PR #55 · commit d828268b · tâche #17)
+- [x] **Clés appliquées à chaud** : Une clé enregistrée depuis l'interface sert tout de suite, sans redémarrer l'application (plus aucune promesse de redémarrage). — *Réglages → Clés d'API → saisir → Save* (PR #55 · commit d828268b · tâche #17)
+- [x] **Coffre : changer le mot de passe** : Rechiffre le coffre avec un nouveau mot de passe (8 caractères au moins, saisi deux fois). — *Réglages → Coffre → « Changer le mot de passe » → « Changer »* (PR #59 · commit 11204441 · tâche #20)
+- [x] **Coffre : ouvrir / fermer** : Ouvrir déchiffre le coffre et rend ses clés actives tout de suite ; Fermer les retire de la mémoire (écrire, tester ou importer une clé est alors refusé). — *Réglages → Coffre → « Ouvrir » / « Fermer »* (PR #59 · commit 11204441 · tâche #20)
+- [x] **Coffre : retenir sur ce PC** : Le coffre s'ouvre seul au lancement pour cette session Windows (DPAPI) ; Ne plus retenir redemande le mot de passe. — *Réglages → Coffre → « Retenir sur ce PC » / « Ne plus retenir »* (PR #59 · commit 11204441 · tâche #20)
+- [x] **Coffre à clés : poser le coffre** : Vos clés secrètes sont chiffrées par un mot de passe maître (AES-256-GCM) et quittent le fichier .env en clair. — *Réglages → Coffre → mot de passe saisi deux fois → « Poser le coffre » → confirmation* (PR #58 · PR #59 · commits cac0c119, 11204441 · tâche #20)
+- [x] **Confirmation au dépassement de plafond (402)** *(coût variable)* : Quand un tir dépasserait un plafond, un dialogue maison s'ouvre partout dans l'app : on peut tirer quand même (la même requête repart) ou annuler avec un message lisible. — *Dialogue « Tirer quand même » / « Annuler »* (PR #54 · commit 17dae285 · tâche #16)
+- [x] **Guides fournisseurs** : Chaque ligne de clé a un lien Guide qui ouvre la page du fournisseur où créer la clé, avec ses tarifs. — *Réglages → Clés d'API → « Guide »* (PR #55 · commit d828268b · tâche #17)
+- [x] **Onglet Diagnostic** : Un écran qui montre d'un coup la version, le poids du dossier de données par catégorie, les dernières alertes du journal, l'état de chaque clé (définie / absente, jamais affichée) et les soldes des fournisseurs. — *Réglages → Diagnostic ; bouton « Rafraîchir » (relit clés, disque mesuré 5 min, journal et soldes)* (PR #52 · commit b4dedbc9 · tâche #15)
+- [x] **Pastille de clé à trois états** : Chaque clé affiche où elle vit et si elle est utilisable : au .env, au coffre, ou coffre verrouillé (qui renvoie vers l'onglet Coffre). — *Réglages → Clés d'API (pastille de chaque ligne)* (PR #59 · commit 11204441 · tâche #20)
+- [x] **Plafonds de dépense mensuels par moteur** : Fixez un plafond en dollars par mois pour chaque moteur payant ; au-delà, chaque tir payant demande confirmation avant de partir ; des barres montrent le dépensé (réel quand le fournisseur le dit, sinon le devis). — *Réglages → Tarifs et budget → « Plafonds du mois » (vide ou 0 = aucun) → « Enregistrer les plafonds » ; le plafond global reste le champ « Plafond de budget mensuel »* (PR #53 · PR #54 · commits 1948440f, 17dae285 · tâche #16)
+- [x] **Recherche dans les Réglages** : Un champ cherche un réglage par son nom ou ses mots (sans accents ni casse) et un résultat ouvre directement la bonne section. — *Champ « Rechercher un réglage… » en tête des Réglages ; Entrée ouvre le premier résultat, Échap vide le champ* (PR #61 · commit 521ed045 · tâche #22)
+- [x] **Tableau des dépenses réel contre estimé** : Une ligne par moteur et par écran avec son état (réel, réel partiel n/m, estimé, estimé non rapproché), le nombre de tirs et l'écart réel − estimé, pour le mois en cours. — *Réglages → Tarifs et budget (sous les plafonds) et en bas du Diagnostic : « Dépenses du mois — réel contre estimé »* (PR #60 · commit e7e552ff · tâche #21)
+- [x] **Tester une clé (Diagnostic)** : Chaque clé du Diagnostic a un bouton qui fait un appel authentifié sans dépense pour dire si elle marche (HeyGen v3 : crédits et dollars restants). — *Réglages → Diagnostic → « Tester » sur la ligne de la clé* (PR #52 · commit b4dedbc9 · tâche #15)
+- [x] **Transfert : empreintes et contrôle d'intégrité** : Chaque fichier exporté porte son empreinte sha256 ; un bouton relit tout le paquet après un export ou avant un import, et l'import écarte en le nommant un fichier abîmé. — *Réglages → Transfert entre machines → « Contrôler l'intégrité »* (PR #57 · commit 7e123bed · tâche #19)
+- [x] **Transfert : lots optionnels cochables** : Cases pour emporter aussi les journaux et les rebuts (corbeilles datées), décochées par défaut, avec leur poids ; les clés ne voyagent jamais, le coffre non plus. — *Réglages → Transfert entre machines → cases « Journaux » et « Rebuts — corbeilles datées »* (PR #57 · commit 7e123bed · tâche #19)
+- [x] **Vérification de mise à jour** : L'app demande une fois par jour à GitHub la dernière version publiée (jamais bloquant) et l'affiche dans un bloc version en tête du Diagnostic. — *Réglages → Diagnostic → bloc version → « Vérifier » pour forcer* (PR #56 · commit 9239fd20 · tâche #18)
+- [x] **Comptes connectés : TikTok** : Quatre champs TikTok (client key, secret, refresh token, audité) ; sans audit les envois restent privés. — *Réglages → Comptes connectés → TikTok* (PR #67 · PR #71 · commits 29ab8dcf, 6bdd634a · tâches #28, #31)
+- [x] **Comptes connectés : YouTube et Instagram** : YouTube et Instagram s'activent automatiquement dès que leurs clés sont saisies et se testent depuis l'écran. — *Réglages → Comptes connectés* (PR #67 · PR #71 · commits 29ab8dcf, 6bdd634a · tâches #28, #31)
+- [x] **Connecter YouTube / TikTok (OAuth)** : Un bouton ouvre la page de consentement du réseau dans un onglet ; le jeton revient tout seul et se range au coffre (refusé si le coffre est fermé, raison affichée). — *Réglages → Comptes connectés → « Connecter »* (PR #67 · PR #71 · commits 29ab8dcf, 6bdd634a · tâches #28, #31)
+- [x] **Appareil perdu : rotation des clés** : La page Appareils rappelle que révoquer ne suffit pas pour un téléphone perdu et donne les liens vers la console de chaque fournisseur pour régénérer les clés. — *Réglages → Appareils → bloc « Appareil perdu ? »* (PR #98 · commit 5d1671f9 · tâche #56)
+- [x] **Liste et révocation des appareils** : La liste des appareils appairés (n / 5, date d'appairage) avec un bouton qui retire tout accès à l'un d'eux tout de suite ; ses posts et chapitres emportés reviennent au PC. — *Réglages → Appareils → « Révoquer » (confirmation)* (PR #98 · commit 5d1671f9 · tâche #56)
+- [x] **Page Appareils : appairer un téléphone** : Affiche un QR valable 5 minutes pour un seul appareil ; il se ferme seul quand le téléphone l'a scanné ; cinq appareils au plus. — *Réglages → Appareils → « Appairer un appareil » → scanner avec l'application Deepotus du téléphone* (PR #98 · commit 5d1671f9 · tâche #56)
+- [x] **État du réseau local** : La page Appareils dit si l'app n'écoute que ce PC ou si le réseau local est ouvert, et comment l'ouvrir au Wi-Fi (HOST dans le .env). — *Réglages → Appareils (mention « ce PC seulement » / « réseau local ouvert »)* (PR #97 · PR #98 · commits e000ef39, 5d1671f9 · tâche #56)
+- [x] **Kit figé à l'envoi d'un rendu** : Un rendu de template garde le kit actif au moment de l'envoi, même si vous changez de kit pendant le rendu ; un jeton {{brand.x}} inconnu est refusé en le nommant. (PR #126 · commit dfdb0f55 · tâche #72)
+- [x] **Kits de marque** : Plusieurs kits de marque (logo, nom, sous-titre, couleurs) ; les champs de Branding modifient le kit actif, dont le nom est indiqué en tête. — *Réglages → Identité visuelle (Branding) → liste des kits* (PR #126 · PR #127 · commits dfdb0f55, d563ac05 · tâche #72)
+- [x] **Nouveau kit / Activer** : Créer un kit et choisir lequel est actif ; activer rafraîchit l'app et recharge les champs. — *Réglages → Branding → « Nouveau kit » ; « Activer » sur un kit (« actif » sinon)* (PR #127 · commit d563ac05 · tâche #72)
+- [x] **Renommer, dupliquer, supprimer un kit** : Gérer chaque kit par le dialogue maison ; le kit actif et le dernier kit ne se suppriment pas (bouton grisé qui dit pourquoi). — *Réglages → Branding → « Renommer » / « Dupliquer » / « Supprimer »* (PR #127 · commit d563ac05 · tâche #72)
+- [x] **Langue de l'interface** : Basculer l'interface entre français et anglais depuis les Réglages, appliqué à chaud. — *Réglages → rangée « Langue de l'interface »* (PR #262 · commit 368f29ea · t134)
+- [x] **Modèle de voix (TTS) par défaut** : Choisir le modèle ElevenLabs avec lequel naissent les nouveaux nœuds Voiceover. — *Réglages → Fournisseurs par défaut → « Modèle de voix (TTS) par défaut »* (PR #260 · commit bfe667bb · t130)
+- [x] **Modèle vidéo par défaut** : Choisir le modèle avec lequel naissent les nouveaux nœuds Seedance du Studio (les nœuds existants gardent le leur). — *Réglages → Fournisseurs par défaut → « Modèle vidéo par défaut »* (PR #260 · commit bfe667bb · t130)
 
 ### Changer d'ordinateur (`transfert`, lot t171, reprend : c16) — 0 manques
 
@@ -139,26 +134,26 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 
 **Compagnon mobile (téléphone + côté PC)** — accès : Application Deepotus du téléphone (Expo, dépôt séparé deepotus-mobile, à construire par EAS) appairée par Réglages → Appareils ; côté PC : Scheduler, Bibliothèque, Atelier → Chapitres
 
-- [ ] **Appairage par QR** : Le téléphone scanne le QR des Réglages et reçoit un jeton propre à lui ; un jeton n'ouvre que les lectures, jamais les dépenses ni les clés. — *Téléphone → Appairer → scanner le QR de Réglages → Appareils* (PR #95 · PR #97 · commits 9bd34768, dafebae2, 6960ec72 · tâche #56)
-- [ ] **Application téléphone (Expo)** : Une application compagnon iOS/Android en React Native / Expo, avec les écrans Accueil, Appairer, Archive, Le lot, Générer et Boîte de réception. (PR #94 · commit efaf3da2 · tâche #55)
-- [ ] **Archive des clés sur le téléphone** : Les clés arrivent au téléphone par l'archive chiffrée .dzk exportée du Coffre, avec son mot de passe. — *Téléphone → Archive ; PC : Réglages → Coffre → « Exporter l'archive »* (tâche #57 · mémoire mobile-appairage-56)
-- [ ] **Dépôt d'images du téléphone vers le PC** : Le téléphone dépose des images au PC (vérifiées, jamais de doublon, homonyme renommé) ; elles entrent dans la Bibliothèque avec la source « mobile ». (PR #101 · commit 1d597e18 · tâche #58)
-- [ ] **Le lot de la semaine dans la poche** : Le téléphone emporte les posts validés ; un post emporté est confié au téléphone et le PC ne le publie plus ; révoquer l'appareil rend les posts au PC. — *Téléphone → Le lot* (PR #99 · commit af5d4a4c · tâche #57)
-- [ ] **Ouvrir l'app au Wi-Fi (HOST)** : Par défaut l'app n'écoute que le PC ; mettre HOST=0.0.0.0 dans le .env du dossier de données l'ouvre au téléphone sur le Wi-Fi de la maison. — *Fichier .env : HOST=127.0.0.1 → HOST=0.0.0.0, puis relancer* (PR #97 · commit e000ef39 · tâche #56)
-- [ ] **Publier depuis le téléphone** : Le téléphone publie sur Telegram par l'API et sur X par la feuille de partage, puis l'état revient au PC. — *Téléphone → Le lot → publier ; pour X, « C'est publié » après le partage* (PR #99 · tâche #57 · mémoire mobile-appairage-56)
-- [ ] **Synchroniser avec le PC** : Le téléphone récupère l'index de la Bibliothèque (tailles, empreintes, provenance) et les images, avec reprise des téléchargements. — *Téléphone → « Synchroniser avec le PC »* (PR #101 · commit 1d597e18 · tâche #58)
-- [ ] **Boîte de réception des partages** : Ce qu'on partage vers l'app depuis le téléphone arrive dans une boîte : les images partent au PC avec leur destination notée, textes et liens restent sur le téléphone. — *Partager vers Deepotus → Téléphone → Boîte* (tâche #59 · mémoire mobile-generation-59)
-- [ ] **Chapitre emporté hors ligne** : Emporter un chapitre sur le téléphone, l'écrire et l'annoter sans réseau, puis le rendre au PC ; un conflit garde le texte du téléphone au journal. — *Téléphone → Chapitres → prendre / rendre* (PR #105 · commit d41b610a · tâche #59)
-- [ ] **Chapitre protégé sur le PC** : Pendant qu'il est emporté, le chapitre est en lecture seule sur le PC avec un bandeau, et peut être repris de force. — *Atelier → Chapitres → bandeau « Emporté par le téléphone » → « Reprendre sur le PC »* (PR #105 · commit d41b610a · tâche #59)
-- [ ] **Dépenses du téléphone comptées au PC** : Les tirs payants faits sur le téléphone entrent dans le registre des dépenses du PC (catégorie mobile), comptés une seule fois, dans les plafonds et le tableau réel/estimé. — *Téléphone : coût dit avant chaque tir, plafond du jour, journal* (PR #103 · commit 20da061e · tâche #58)
-- [ ] **Générer des images depuis le téléphone** **payant** : Génération et retouche d'images depuis le téléphone, au prix de la grille du PC mise en cache (refus si elle est trop vieille). — *Téléphone → Générer* (tâche #59 · mémoire mobile-generation-59)
-- [ ] **Journal des conflits de chapitre** : Les textes du téléphone écartés (conflit, ré-import du manuscrit) restent au journal, à copier ou à reprendre. — *Atelier → Chapitres → journal* (PR #105 · commit d41b610a · tâche #59)
-- [ ] **Notifications du téléphone** : Le téléphone est prévenu d'un rendu terminé ou échoué, d'un post publié, d'un post qui attend un geste, d'un échec de publication et d'un plafond approché ou dépassé, sans doublon. (PR #102 · commit 5178f8e3 · tâche #58)
-- [ ] **Projet épinglé sur le téléphone** : Un seul projet de la Bibliothèque est épinglé sur le téléphone et voyage en entier. — *Bibliothèque → projet « épinglé sur le téléphone »* (PR #144 · commit 0305bd6c · tâche #78)
+- [x] **Appairage par QR** : Le téléphone scanne le QR des Réglages et reçoit un jeton propre à lui ; un jeton n'ouvre que les lectures, jamais les dépenses ni les clés. — *Téléphone → Appairer → scanner le QR de Réglages → Appareils* (PR #95 · PR #97 · commits 9bd34768, dafebae2, 6960ec72 · tâche #56)
+- [x] **Application téléphone (Expo)** : Une application compagnon iOS/Android en React Native / Expo, avec les écrans Accueil, Appairer, Archive, Le lot, Générer et Boîte de réception. (PR #94 · commit efaf3da2 · tâche #55)
+- [x] **Archive des clés sur le téléphone** : Les clés arrivent au téléphone par l'archive chiffrée .dzk exportée du Coffre, avec son mot de passe. — *Téléphone → Archive ; PC : Réglages → Coffre → « Exporter l'archive »* (tâche #57 · mémoire mobile-appairage-56)
+- [x] **Dépôt d'images du téléphone vers le PC** : Le téléphone dépose des images au PC (vérifiées, jamais de doublon, homonyme renommé) ; elles entrent dans la Bibliothèque avec la source « mobile ». (PR #101 · commit 1d597e18 · tâche #58)
+- [x] **Le lot de la semaine dans la poche** : Le téléphone emporte les posts validés ; un post emporté est confié au téléphone et le PC ne le publie plus ; révoquer l'appareil rend les posts au PC. — *Téléphone → Le lot* (PR #99 · commit af5d4a4c · tâche #57)
+- [x] **Ouvrir l'app au Wi-Fi (HOST)** : Par défaut l'app n'écoute que le PC ; mettre HOST=0.0.0.0 dans le .env du dossier de données l'ouvre au téléphone sur le Wi-Fi de la maison. — *Fichier .env : HOST=127.0.0.1 → HOST=0.0.0.0, puis relancer* (PR #97 · commit e000ef39 · tâche #56)
+- [x] **Publier depuis le téléphone** : Le téléphone publie sur Telegram par l'API et sur X par la feuille de partage, puis l'état revient au PC. — *Téléphone → Le lot → publier ; pour X, « C'est publié » après le partage* (PR #99 · tâche #57 · mémoire mobile-appairage-56)
+- [x] **Synchroniser avec le PC** : Le téléphone récupère l'index de la Bibliothèque (tailles, empreintes, provenance) et les images, avec reprise des téléchargements. — *Téléphone → « Synchroniser avec le PC »* (PR #101 · commit 1d597e18 · tâche #58)
+- [x] **Boîte de réception des partages** : Ce qu'on partage vers l'app depuis le téléphone arrive dans une boîte : les images partent au PC avec leur destination notée, textes et liens restent sur le téléphone. — *Partager vers Deepotus → Téléphone → Boîte* (tâche #59 · mémoire mobile-generation-59)
+- [x] **Chapitre emporté hors ligne** : Emporter un chapitre sur le téléphone, l'écrire et l'annoter sans réseau, puis le rendre au PC ; un conflit garde le texte du téléphone au journal. — *Téléphone → Chapitres → prendre / rendre* (PR #105 · commit d41b610a · tâche #59)
+- [x] **Chapitre protégé sur le PC** : Pendant qu'il est emporté, le chapitre est en lecture seule sur le PC avec un bandeau, et peut être repris de force. — *Atelier → Chapitres → bandeau « Emporté par le téléphone » → « Reprendre sur le PC »* (PR #105 · commit d41b610a · tâche #59)
+- [x] **Dépenses du téléphone comptées au PC** : Les tirs payants faits sur le téléphone entrent dans le registre des dépenses du PC (catégorie mobile), comptés une seule fois, dans les plafonds et le tableau réel/estimé. — *Téléphone : coût dit avant chaque tir, plafond du jour, journal* (PR #103 · commit 20da061e · tâche #58)
+- [x] **Générer des images depuis le téléphone** **payant** : Génération et retouche d'images depuis le téléphone, au prix de la grille du PC mise en cache (refus si elle est trop vieille). — *Téléphone → Générer* (tâche #59 · mémoire mobile-generation-59)
+- [x] **Journal des conflits de chapitre** : Les textes du téléphone écartés (conflit, ré-import du manuscrit) restent au journal, à copier ou à reprendre. — *Atelier → Chapitres → journal* (PR #105 · commit d41b610a · tâche #59)
+- [x] **Notifications du téléphone** : Le téléphone est prévenu d'un rendu terminé ou échoué, d'un post publié, d'un post qui attend un geste, d'un échec de publication et d'un plafond approché ou dépassé, sans doublon. (PR #102 · commit 5178f8e3 · tâche #58)
+- [x] **Projet épinglé sur le téléphone** : Un seul projet de la Bibliothèque est épinglé sur le téléphone et voyage en entier. — *Bibliothèque → projet « épinglé sur le téléphone »* (PR #144 · commit 0305bd6c · tâche #78)
 
 ## Créer des vidéos
 
-### Sortir une vidéo en quelques minutes (Quick) (`quick`, lot t172, reprend : c2, c3, c4, c5, c6) — 17 manques
+### Sortir une vidéo en quelques minutes (Quick) (`quick`, lot t172, reprend : c2, c3, c4, c5, c6) — 21 manques
 
 À corriger dans l'ancien texte :
 
@@ -198,8 +193,14 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 - [ ] **Fournisseur de voix Voicebox / ElevenLabs** *(coût variable)* : Choix du fournisseur de voix off par génération (mémorisé) ; Voicebox (local, coût nul) masque modèle et réglage fin ; un fournisseur indisponible est refusé, jamais remplacé en silence. — *Sélecteur de fournisseur de voix* (PR #261 · commit a85913ca · t131)
 - [ ] **La saisie est gardée** : Quitter Quick puis y revenir retrouve les réglages en cours. (PR #259 · commit 84be3d26 · t129)
 - [ ] **Pré-écoute Voicebox** : Écoute une voix Voicebox avant de générer, mise en cache. (PR #261 · commit a85913ca · t131)
+**Application (coque, comportements transversaux)** — accès : Toute l'application : lanceur Windows, toutes les pages et tous les labs
 
-### Composer avec le Studio (`studio`, lot t172, reprend : c9, c15) — 30 manques
+- [ ] **HeyGen : avatar depuis une photo (v3)** **payant** : La création d'avatar à partir d'une photo passe par la v3 ; une image WebP mal nommée est reconnue et convertie. (PR #37 · commit 2975b6df)
+- [ ] **HeyGen : listes d'avatars et de voix en cache** : Les listes de looks et de voix HeyGen s'affichent tout de suite depuis un cache disque rafraîchi en fond (au lieu de plusieurs minutes). (PR #37 · commit 2975b6df)
+- [ ] **HeyGen : solde wallet en dollars** : Le solde HeyGen est lu dans le wallet et affiché en dollars (santé, soldes des coûts, Diagnostic). (PR #37 · commit 2975b6df)
+- [ ] **HeyGen API v3 : Avatar III par look** **payant** : Toutes les vidéos HeyGen passent par l'API v3 ; le moteur par défaut est Avatar III choisi selon le look de l'avatar, et les pauses du script sont gardées. (PR #37 · commit 2975b6df)
+
+### Composer avec le Studio (`studio`, lot t172, reprend : c9, c15) — 31 manques
 
 À corriger dans l'ancien texte :
 
@@ -242,6 +243,9 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 - [ ] **Ducking au Render** : Le réglage de ducking de l'AudioMix baisse la musique sous la voix au rendu (léger, moyen, fort). — *Nœud AudioMix → ducking* (PR #261 · commit a85913ca · t131)
 - [ ] **Fournisseur de voix du nœud Voiceover** *(coût variable)* : Le nœud Voiceover choisit Voicebox ou ElevenLabs par génération. — *Inspecteur du nœud Voiceover → fournisseur* (PR #261 · commit a85913ca · t131)
 - [ ] **Modèles vidéo et TTS par défaut** : Choix du modèle vidéo et du modèle de voix avec lesquels naissent les nouveaux nœuds Seedance et Voiceover ; les nœuds existants gardent le leur. — *Réglages → Provider defaults (deux rangées)* (PR #260 · commit bfe667bb · t130)
+**Application (coque, comportements transversaux)** — accès : Toute l'application : lanceur Windows, toutes les pages et tous les labs
+
+- [ ] **Studio sans fenêtre native** : Le bouton Save du Studio et les dix autres demandes de texte passent par le dialogue maison. — *Studio → Save → nom saisi dans le dialogue* (PR #36 · commits dc2f8501, 6d429b88)
 
 ### Réutiliser des modèles et des kits de marque (`modeles`, lot t172, reprend : c8) — 26 manques
 
@@ -1446,8 +1450,8 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 |---|---|---|
 | t168 | 0 | 0 |
 | t170 | 46 | 46 |
-| t171 | 87 | 0 |
-| t172 | 73 | 0 |
+| t171 | 82 | 82 |
+| t172 | 78 | 0 |
 | t173 | 41 | 0 |
 | t174 | 119 | 0 |
 | t175 | 32 | 0 |
