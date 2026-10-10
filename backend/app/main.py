@@ -330,7 +330,17 @@ from app.api.routes import _HOTES_LOCAUX
 # + plan mobile T14/T21 (tâche #59, décision du 02/10) : prendre / rendre un chapitre écrit hors ligne (l'id dans le corps)
 _ECRITURES_OUVERTES: frozenset = frozenset({("POST", "/api/pair/claim"), ("POST", "/api/sync/lot/etat"),
                                             ("POST", "/api/sync/depot"), ("POST", "/api/sync/depenses"),
-                                            ("POST", "/api/sync/chapitre/prendre"), ("POST", "/api/sync/chapitre/rendre")})
+                                            ("POST", "/api/sync/chapitre/prendre"), ("POST", "/api/sync/chapitre/rendre"),
+                                            # Avatar live G0 (t161, 10/10) : le téléphone lance et clôt SON Direct
+                                            # (garde du plafond identique ; l'appareil est celui du JETON)
+                                            ("POST", "/api/avatar-live/sessions"),
+                                            ("POST", "/api/avatar-live/sessions/fin"),
+                                            # t166 : un segment de voix en direct (imputé sur la réserve de SA session)
+                                            ("POST", "/api/avatar-live/sessions/voix"),
+                                            # t167 (G6, plan validé : « filmer 3-30 s -> job PC ») : le téléphone dépose
+                                            # sa prise et lance Recast, voix -> voix, décor ; il range l'enregistrement de
+                                            # SON direct. Mêmes contrôles et MÊME garde du plafond que sur le PC.
+                                            ("POST", "/api/avatar-live/recast/source"), ("POST", "/api/avatar-live/recast"), ("POST", "/api/avatar-live/voix"), ("POST", "/api/avatar-live/decor"), ("POST", "/api/avatar-live/direct/enregistrer")})
 
 
 @app.middleware("http")
@@ -418,6 +428,9 @@ app.include_router(dictation_router, prefix="/api")
 from app.api.photolab_routes import router as photolab_router
 app.include_router(photolab_router, prefix="/api/photolab")
 # __DZ_PHOTOLAB_ROUTER_END__
+# Avatar live G0 (t161, 10/10/2026) : /api/avatar-live — Personnages, sessions du Direct (Decart Lucy 2.5)
+from app.api.avatar_live_routes import router as avatar_live_router
+app.include_router(avatar_live_router, prefix="/api/avatar-live")
 
 # ── Guide: serve the illustrated getting-started guide (FR/EN HTML + PDF +
 # screenshots) at /guide. Linked from the sidebar footer.
@@ -485,6 +498,28 @@ if _vectorlab.is_dir():
         return RedirectResponse(url="/vectorlab/", status_code=307)
 
     logger.info(f"Serving vectorlab from {_vectorlab}")
+
+# ── Avatar live (t162, G1, 10/10/2026) : Personnages et Recast différé (puis le Direct, G4). Page statique
+# (frontend/avatar/), montée comme /photolab, sans cache (noms de fichiers stables).
+_avatar = Path(__file__).resolve().parent.parent.parent / "frontend" / "avatar"
+if _avatar.is_dir():
+    from fastapi.staticfiles import StaticFiles as _SFAv
+
+    class _AvatarStatic(_SFAv):
+        async def get_response(self, path, scope):
+            resp = await super().get_response(path, scope)
+            try:
+                resp.headers["Cache-Control"] = "no-cache, must-revalidate"
+            except Exception:
+                pass
+            return resp
+
+    app.mount("/avatar", _AvatarStatic(directory=str(_avatar), html=True), name="avatar")
+
+    @app.get("/avatar", include_in_schema=False)
+    async def _avatar_no_slash():
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/avatar/", status_code=307)
 
 # ── Photolab (t137, P2, 07/10/2026): l'écran de retouche d'image qui pilote le
 # moteur photocraft (/api/photolab). Page statique modulaire (frontend/photolab/),

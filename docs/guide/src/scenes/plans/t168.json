@@ -1,0 +1,177 @@
+{
+ "base": "http://127.0.0.1:8816",
+ "preparation": "backend de preuve scratchpad/preuve/serve_g4.py (worktree avatar-g2, données jetables, fal/Decart/ElevenLabs SIMULÉS) : Personnage « Otus (démo) » dessiné, rendu « Prise de vue de démonstration (6 s) »",
+ "scenes": [
+  {
+   "scene": "avatar-live/personnage",
+   "url": "/avatar/",
+   "taille": [
+    1100,
+    620
+   ],
+   "titre": {
+    "fr": "Créer un Personnage",
+    "en": "Create a Character"
+   },
+   "legende": {
+    "fr": "Avatar live › Personnages : des photos de référence, le consentement, puis la liste de vos Personnages.",
+    "en": "Avatar live › Characters: reference photos, consent, then the list of your Characters."
+   },
+   "avant": [
+    {
+     "attente": 800
+    }
+   ],
+   "captures": [
+    {
+     "nom": "personnages"
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:#pDepot",
+     "bulle": {
+      "fr": "Une à huit photos du même visage",
+      "en": "One to eight photos of the same face"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:#pConsentTexte",
+     "bulle": {
+      "fr": "Le consentement, daté, pour chaque Personnage",
+      "en": "Consent, dated, for every Character"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": "css:#pListe",
+     "bulle": {
+      "fr": "Vos Personnages, prêts pour le Recast et le Direct",
+      "en": "Your Characters, ready for Recast and Live"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "avatar-live/recast",
+   "url": "/avatar/",
+   "taille": [
+    1440,
+    1360
+   ],
+   "titre": {
+    "fr": "Rejouer une vidéo",
+    "en": "Replay a video"
+   },
+   "legende": {
+    "fr": "Recast : une vidéo source, un modèle et son prix, le Personnage, le décor ; le devis s'affiche avant de lancer.",
+    "en": "Recast: a source video, a model and its price, the Character, the setting; the quote shows before you start."
+   },
+   "avant": [
+    {
+     "clic": "css:[data-onglet=recast]",
+     "apres": 900
+    },
+    {
+     "js": "const s=document.querySelector('#rRendu'); const o=[...s.options].find(o=>o.value); if(o){s.value=o.value; s.dispatchEvent(new Event('change',{bubbles:true}));}",
+     "attente": 2500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "recast"
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:#rModeles",
+     "bulle": {
+      "fr": "Chaque modèle affiche son prix à la seconde",
+      "en": "Each model shows its price per second"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:#rPre",
+     "bulle": {
+      "fr": "Un décor tout prêt, ou votre consigne",
+      "en": "A ready-made setting, or your own instruction"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": "css:#rLancer",
+     "bulle": {
+      "fr": "Le devis d'abord, puis le lancement",
+      "en": "The quote first, then the launch"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "avatar-live/direct",
+   "url": "/avatar/",
+   "taille": [
+    1440,
+    1000
+   ],
+   "titre": {
+    "fr": "Le Direct",
+    "en": "Live"
+   },
+   "legende": {
+    "fr": "Direct : Personnage, décor, format, durée réservée et voix envoyée ; le prix réservé s'affiche avant de démarrer.",
+    "en": "Live: Character, setting, format, reserved duration and voice sent; the reserved price shows before you start."
+   },
+   "avant": [
+    {
+     "clic": "css:[data-onglet=direct]",
+     "apres": 1500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "direct"
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:#xPre",
+     "bulle": {
+      "fr": "Le décor, changeable en plein direct",
+      "en": "The setting, switchable mid-session"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:#xVoix",
+     "bulle": {
+      "fr": "Votre voix, celle du Personnage, ou une voix RVC locale",
+      "en": "Your voice, the Character's, or a local RVC voice"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": "css:#xGo",
+     "bulle": {
+      "fr": "Le prix réservé est dit avant de démarrer",
+      "en": "The reserved price is shown before you start"
+     }
+    }
+   ]
+  }
+ ]
+}

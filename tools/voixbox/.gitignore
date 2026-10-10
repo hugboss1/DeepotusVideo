@@ -1,0 +1,3 @@
+# Voixbox (t166) : installation locale de la RVC WebUI (~6 Go) et outil uv — jamais dans le dépôt
+rvc-webui/
+.uvtool/
