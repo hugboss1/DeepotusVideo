@@ -14,7 +14,8 @@ const nombre = (id, libelle, valeur, min, max, pas = 1) => ({ id, type: "number"
 const select = (id, libelle, valeur, options) => ({ id, type: "select", libelle, valeur, options });
 const MODES_PLUME = [{ id: "plume", nom: "Plume" }, { id: "intelligent", nom: "Intelligent" }, { id: "polygone", nom: "Polygone" }, { id: "ligne", nom: "Ligne" }];
 const ACTIONS_PLUME = [["vif", "Vif"], ["lisse", "Lisse"], ["intelligent", "Intelligent"], ["fractionner", "Fractionner"], ["ouvrir", "Ouvrir"], ["fermer", "Fermer"], ["lisserCourbe", "Courbe lisse"], ["relier", "Relier"], ["inverser", "Inverser"]];
-const ALIGN_NOEUDS = [["gauche", "⇤"], ["centreH", "⇔"], ["droite", "⇥"], ["haut", "⇧"], ["centreV", "⇕"], ["bas", "⇩"]];
+// G3 : le libellé (aria-label) est un mot, l'icône vient d'ICONES (al-*) — plus de glyphe flèche
+const ALIGN_NOEUDS = [["gauche", "Aligner à gauche"], ["centreH", "Centrer horizontalement"], ["droite", "Aligner à droite"], ["haut", "Aligner en haut"], ["centreV", "Centrer verticalement"], ["bas", "Aligner en bas"]];
 const MODES_TRANCHE = [{ id: "document", nom: "Document" }, { id: "objets", nom: "Par objet" }, { id: "planches", nom: "Par planche" }, { id: "calques", nom: "Par calque" }, { id: "dessinees", nom: "Dessinées" }];
 import { champs_texte, patch_texte } from "./mod-texte.js";
 import { champs_pipette, appliquer_pipette } from "./mod-pipette.js";

@@ -10,7 +10,7 @@ const ok = (nom, cond, detail = "") => {
 };
 {
   const f = flyout_formes(FORMES, "etoile");
-  ok("formes : une entrée par forme, id/libellé/glyphe, la courante marquée", f.length === FORMES.length && f.every((x) => x.id && x.libelle && x.glyphe) && f.find((x) => x.id === "etoile").actif === true && f.filter((x) => x.actif).length === 1, JSON.stringify(f[2]));
+  ok("formes : une entrée par forme, id/libellé/icône dz-outil-vec-<forme> (G3), la courante marquée", f.length === FORMES.length && f.every((x) => x.id && x.libelle && /^dz-outil-vec-[a-z]+$/.test(x.icone) && !("glyphe" in x)) && f.find((x) => x.id === "etoile").actif === true && f.filter((x) => x.actif).length === 1, JSON.stringify(f[2]));
   ok("courante inconnue : aucune marquée", flyout_formes(FORMES, "zz").every((x) => !x.actif));
   const s = flyout_symboles({ s1: { nom: "pion", objets: [1, 2] }, s2: { nom: "tour", objets: [1] } });
   ok("symboles : une entrée par symbole avec le nombre d'objets, puis « créer depuis la sélection »", s.length === 3 && s[0].id === "s1" && s[0].libelle.includes("pion") && s[0].detail === "2 objets" && s[2].action === "creer", JSON.stringify(s));
@@ -23,8 +23,8 @@ const ok = (nom, cond, detail = "") => {
 }
 /* ── les autres sections ── */
 {
-  const c = flyout_choix([{ id: "a", nom: "Alpha" }, { id: "b", nom: "Beta" }], "b", { glyphes: { a: "①" } });
-  ok("choix : une entrée par valeur, la courante marquée, glyphe optionnel", c.length === 2 && c[1].actif === true && c[0].glyphe === "①" && c[1].glyphe === "" && c[0].libelle === "Alpha" && c[0].id === "a", JSON.stringify(c));
+  const c = flyout_choix([{ id: "a", nom: "Alpha" }, { id: "b", nom: "Beta" }], "b", { icones: { a: "dz-action-ajouter" } });
+  ok("choix : une entrée par valeur, la courante marquée, icône optionnelle", c.length === 2 && c[1].actif === true && c[0].icone === "dz-action-ajouter" && c[1].icone === "" && c[0].libelle === "Alpha" && c[0].id === "a", JSON.stringify(c));
   const p = flyout_presets([4, 8, 16], 8, "px");
   ok("presets : valeurs avec unité, la courante marquée, ids numériques", p.length === 3 && p[1].actif === true && p[1].libelle === "8 px" && p[2].valeur === 16, JSON.stringify(p));
   ok("presets : courante hors liste → ajoutée en tête marquée", (() => { const q = flyout_presets([4, 8], 5, "px"); return q.length === 3 && q[0].valeur === 5 && q[0].actif; })());

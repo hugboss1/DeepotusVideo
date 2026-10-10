@@ -4,6 +4,7 @@
 // écrêtage, couleurs globales et harmonies, styles d'objet, symboles,
 // texte + (cadre, alignement, texte sur chemin). Chaque geste = UNE
 // commande via VL.executer sur les ops pures de mod-doc.
+import { dzi } from "./mod-icones.js";
 import { op_style, op_degrade_creer, op_degrade_transparence, op_motif_creer, op_ecreter, op_desecreter,
          op_couleur_globale_definir, op_couleur_globale_supprimer, op_style_definir, op_style_appliquer,
          op_style_supprimer, op_symbole_creer, op_instance_poser, op_symbole_detacher, op_symbole_supprimer,
@@ -70,7 +71,7 @@ export function initApparence2(VL) {
   // l'outil dans la barre (persona Vecteur)
   for (const o of OUTILS3) {
     const b = document.createElement("button");
-    b.dataset.outil = o.id; b.title = o.titre; b.textContent = "✒";
+    b.dataset.outil = o.id; b.title = o.titre;   // l'icône : mod-barreoutils (ICONES)
     b.addEventListener("click", () => VL.setOutil(o.id));
     $("#outils").appendChild(b);
   }
@@ -140,49 +141,49 @@ export function initApparence2(VL) {
       ${ed ? `<div class="ap-ligne a2-edition" title="Édition du symbole en place : ses objets sont dans le calque « ${esc((d.calques.find((c) => c.id === ed.calque) || {}).nom || "")} ». Terminer réécrit le symbole — toutes ses instances suivent."><b style="flex:1">✎ Symbole « ${esc((symboles[ed.sid] || {}).nom || ed.sid)} »</b>
         <button id="a2SymFin" class="primaire" title="Réécrit le symbole depuis le calque d'édition (Échap, sélection vide)">Terminer</button><button id="a2SymAnnule" title="Jette les modifications du calque d'édition">Abandonner</button></div>` : ""}
       <details open><summary class="px-tete">Effets${effets.length ? ` · ${effets.length}` : ""}</summary>
-        ${effets.map((e, i) => `<div class="a2-effet" data-i="${i}"><div class="ap-ligne"><b style="flex:1">${esc(libelle_effet(e))}</b><button data-fx-x="${i}" title="Retirer">✕</button></div>
+        ${effets.map((e, i) => `<div class="a2-effet" data-i="${i}"><div class="ap-ligne"><b style="flex:1">${esc(libelle_effet(e))}</b><button data-fx-x="${i}" title="Retirer" aria-label="Retirer">${dzi("dz-action-supprimer", 16)}</button></div>
           <div class="a2-champs">${EFFET_CHAMPS[e.type].map(({ cle, lib }) => cle === "couleur"
             ? pastille(`fxc${i}`, e.couleur || "#000000", "Couleur de l'effet")
             : `<label title="${lib}"><i>${lib}</i><input type="number" step="any" data-fx="${i}" data-cle="${cle}" value="${e[cle] ?? ""}"/></label>`).join("")}</div></div>`).join("")}
         <div class="ap-ligne"><select id="a2FxType">${EFFETS.map((e) => `<option value="${e.id}">${e.libelle}</option>`).join("")}</select>
-          <button id="a2FxPlus" ${sel ? "" : "disabled"} title="Ajoute l'effet à la sélection">＋</button></div>
+          <button id="a2FxPlus" ${sel ? "" : "disabled"} title="Ajoute l'effet à la sélection" aria-label="Ajoute l'effet à la sélection">${dzi("dz-action-ajouter", 16)}</button></div>
       </details>
       <details><summary class="px-tete">Fusion &amp; contours</summary>
         <div class="ap-ligne"><span>Fusion</span><select id="a2Fusion" ${sel ? "" : "disabled"}>${MODES_FUSION.map((m) => `<option${(s.fusion || "normal") === m ? " selected" : ""}>${m}</option>`).join("")}</select></div>
-        ${contours.map((c, i) => `<div class="ap-ligne"><span>${i + 1}</span>${pastille(`ctc${i}`, c.couleur, "Couleur du contour")}<input type="number" step="0.5" min="0.5" data-ct="${i}" value="${c.epaisseur}" title="Épaisseur"/><button data-ct-x="${i}" title="Retirer">✕</button></div>`).join("")}
-        <div class="ap-ligne"><span></span><button id="a2CtPlus" ${sel ? "" : "disabled"} title="Ajoute un contour supplémentaire (derrière, plus large)">＋ contour</button></div>
+        ${contours.map((c, i) => `<div class="ap-ligne"><span>${i + 1}</span>${pastille(`ctc${i}`, c.couleur, "Couleur du contour")}<input type="number" step="0.5" min="0.5" data-ct="${i}" value="${c.epaisseur}" title="Épaisseur"/><button data-ct-x="${i}" title="Retirer" aria-label="Retirer">${dzi("dz-action-supprimer", 16)}</button></div>`).join("")}
+        <div class="ap-ligne"><span></span><button id="a2CtPlus" ${sel ? "" : "disabled"} title="Ajoute un contour supplémentaire (derrière, plus large)">${dzi("dz-action-ajouter", 16)}contour</button></div>
       </details>
       <details><summary class="px-tete">Remplissage +</summary>
-        <div class="vl-rangee"><button id="a2Conique" ${sel === 1 ? "" : "disabled"} title="Dégradé conique centré sur l'objet">Conique</button>
-          <button id="a2Transp" ${sel ? "" : "disabled"} title="Dégradé de transparence (masque de gauche à droite)">Transparence</button>
-          <button id="a2MasqueX" ${s.masque ? "" : "disabled"} title="Retire le masque de transparence">✕ masque</button></div>
+        <div class="vl-rangee"><button id="a2Conique" ${sel === 1 ? "" : "disabled"} title="Dégradé conique centré sur l'objet">${dzi("dz-edit-degrade-conique", 16)}<span class="dzi-lib">Conique</span></button>
+          <button id="a2Transp" ${sel ? "" : "disabled"} title="Dégradé de transparence (masque de gauche à droite)">${dzi("dz-outil-vec-transparence", 16)}<span class="dzi-lib">Transparence</span></button>
+          <button id="a2MasqueX" ${s.masque ? "" : "disabled"} title="Retire le masque de transparence">${dzi("dz-action-supprimer", 16)}<span class="dzi-lib">masque</span></button></div>
         <div class="ap-ligne"><select id="a2MotifType">${MOTIFS.map((m) => `<option value="${m.id}">${m.libelle}</option>`).join("")}</select>
           <input type="number" id="a2MotifPas" min="1" value="8" title="Pas (px)"/><input type="number" id="a2MotifAngle" step="15" value="45" title="Angle (°)"/>
-          <button id="a2Motif" ${sel ? "" : "disabled"} title="Remplit la sélection d'un motif (couleur du contour courant)">motif</button></div>
-        <div class="ap-ligne"><button id="a2Ecreter" ${sel >= 2 ? "" : "disabled"} title="Coller dans : le PREMIER objet sélectionné rogne les autres">⊂ coller dans</button>
+          <button id="a2Motif" ${sel ? "" : "disabled"} title="Remplit la sélection d'un motif (couleur du contour courant)">${dzi("dz-edit-motif", 16)}motif</button></div>
+        <div class="ap-ligne"><button id="a2Ecreter" ${sel >= 2 ? "" : "disabled"} title="Coller dans : le PREMIER objet sélectionné rogne les autres">${dzi("dz-calque-ecretage", 16)}coller dans</button>
           <button id="a2Liberer" ${o && o.type === "groupe" && o.clip ? "" : "disabled"} title="Libère les objets rognés">libérer</button></div>
       </details>
       <details ${Object.keys(globales).length ? "open" : ""}><summary class="px-tete">Couleurs globales</summary>
         ${Object.entries(globales).map(([n, h]) => `<div class="ap-ligne">${pastille(`glob_${n}`, h, "Changer la teinte partout")}<b style="flex:1">${esc(n)}</b>
-          <button data-glob-fond="${n}" ${sel ? "" : "disabled"} title="Fond de la sélection = cette couleur globale">fond</button><button data-glob-contour="${n}" ${sel ? "" : "disabled"} title="Contour = cette couleur">contour</button><button data-glob-x="${n}" title="Supprimer (les références deviennent des hex)">✕</button></div>`).join("")}
-        <div class="ap-ligne"><input type="text" id="a2GlobNom" placeholder="nom" style="flex:1"/>${pastille("a2GlobHex", fondHex, "Couleur à enregistrer")}<button id="a2GlobPlus" title="Enregistre une couleur globale">＋</button></div>
+          <button data-glob-fond="${n}" ${sel ? "" : "disabled"} title="Fond de la sélection = cette couleur globale">fond</button><button data-glob-contour="${n}" ${sel ? "" : "disabled"} title="Contour = cette couleur">contour</button><button data-glob-x="${n}" title="Supprimer (les références deviennent des hex)" aria-label="Supprimer la couleur globale">${dzi("dz-action-supprimer", 16)}</button></div>`).join("")}
+        <div class="ap-ligne"><input type="text" id="a2GlobNom" placeholder="nom" style="flex:1"/>${pastille("a2GlobHex", fondHex, "Couleur à enregistrer")}<button id="a2GlobPlus" title="Enregistre une couleur globale" aria-label="Enregistre une couleur globale">${dzi("dz-action-ajouter", 16)}</button></div>
         <div class="ap-ligne"><select id="a2Harm">${HARMONIES.map((h) => `<option value="${h.id}"${etat.harmonie && etat.harmonie.type === h.id ? " selected" : ""}>${h.libelle}</option>`).join("")}</select><button id="a2HarmGen" title="Génère l'harmonie depuis la couleur de fond et l'ajoute à la palette du document">harmonie</button></div>
         <div class="px-palette" id="a2HarmPal">${(etat.harmonie ? etat.harmonie.pal : []).map((c) => `<button class="px-pastille" data-couleur="${c}" style="background:${c}" title="${c} — clic : fond de la sélection"></button>`).join("")}</div>
       </details>
       <details ${Object.keys(styles).length ? "open" : ""}><summary class="px-tete">Styles d'objet</summary>
-        ${Object.keys(styles).map((n) => `<div class="ap-ligne"><b style="flex:1">${esc(n)}</b><button data-st-app="${n}" ${sel ? "" : "disabled"} title="Applique (copie) ce style à la sélection">appliquer</button><button data-st-x="${n}" title="Supprimer le style">✕</button></div>`).join("")}
-        <div class="ap-ligne"><input type="text" id="a2StNom" placeholder="nom du style" style="flex:1"/><button id="a2StPlus" ${sel ? "" : "disabled"} title="Enregistre l'apparence de la sélection sous ce nom">＋</button></div>
+        ${Object.keys(styles).map((n) => `<div class="ap-ligne"><b style="flex:1">${esc(n)}</b><button data-st-app="${n}" ${sel ? "" : "disabled"} title="Applique (copie) ce style à la sélection">appliquer</button><button data-st-x="${n}" title="Supprimer le style" aria-label="Supprimer le style">${dzi("dz-action-supprimer", 16)}</button></div>`).join("")}
+        <div class="ap-ligne"><input type="text" id="a2StNom" placeholder="nom du style" style="flex:1"/><button id="a2StPlus" ${sel ? "" : "disabled"} title="Enregistre l'apparence de la sélection sous ce nom" aria-label="Enregistre l'apparence de la sélection sous ce nom">${dzi("dz-action-ajouter", 16)}</button></div>
       </details>
       ${texteSel ? `<details open><summary class="px-tete">Texte +</summary>
-        ${o1.type === "texte" && sel === 1 ? `<div class="ap-ligne"><span>Cadre</span><input type="number" id="a2CadreW" min="1" value="200" title="Largeur"/><input type="number" id="a2CadreH" min="1" value="100" title="Hauteur"/><button id="a2EnCadre" title="Le texte devient un cadre à paragraphes">→ cadre</button></div>` : ""}
+        ${o1.type === "texte" && sel === 1 ? `<div class="ap-ligne"><span>Cadre</span><input type="number" id="a2CadreW" min="1" value="200" title="Largeur"/><input type="number" id="a2CadreH" min="1" value="100" title="Hauteur"/><button id="a2EnCadre" title="Le texte devient un cadre à paragraphes">${dzi("dz-edit-convertir-en-cadre", 16)}cadre</button></div>` : ""}
         ${o1.type === "cadre" && sel === 1 ? `<div class="ap-ligne"><span>Aligner</span><select id="a2Aligner">${["gauche", "centre", "droite", "justifie"].map((a) => `<option${(s.aligner || "gauche") === a ? " selected" : ""}>${a}</option>`).join("")}</select></div>
         <div class="ap-ligne"><span>Interl.</span><input type="number" id="a2Interligne" step="0.05" min="0.5" value="${s.interligne || 1.25}" title="Interligne (× corps)"/><input type="number" id="a2Retrait" min="0" value="${s.retrait || 0}" title="Retrait de première ligne (px)"/></div>` : ""}
-        ${o1.type !== "textechemin" ? `<div class="ap-ligne"><button id="a2SurChemin" ${sel === 2 ? "" : "disabled"} title="Sélectionner le texte PUIS un chemin : le texte se pose sur le chemin et le SUIT quand il change">→ sur le chemin</button></div>` : ""}
-        ${o1.type === "textechemin" && sel === 1 && o1.chemin ? `<div class="ap-ligne"><i class="px-note" style="flex:1">suit le chemin ${esc(o1.chemin)}</i><button id="a2Detacher" title="Le texte ne suit plus son chemin : son tracé actuel est figé">détacher</button></div>` : ""}
+        ${o1.type !== "textechemin" ? `<div class="ap-ligne"><button id="a2SurChemin" ${sel === 2 ? "" : "disabled"} title="Sélectionner le texte PUIS un chemin : le texte se pose sur le chemin et le SUIT quand il change">${dzi("dz-outil-vec-texte-sur-chemin", 16)}sur le chemin</button></div>` : ""}
+        ${o1.type === "textechemin" && sel === 1 && o1.chemin ? `<div class="ap-ligne"><i class="px-note" style="flex:1">suit le chemin ${esc(o1.chemin)}</i><button id="a2Detacher" title="Le texte ne suit plus son chemin : son tracé actuel est figé">${dzi("dz-edit-detacher", 16)}détacher</button></div>` : ""}
         ${o1.type === "textechemin" && sel === 1 ? `<div class="ap-ligne"><span>Décalage</span><vl-curseur id="a2Decalage" min="0" max="100" step="1" value="${o1.decalage || 0}"></vl-curseur><b id="a2DecalageVal">${o1.decalage || 0} %</b></div>` : ""}
       </details>` : ""}
       ${o1 && o1.derive && sel === 1 ? `<details open><summary class="px-tete">Contour vivant</summary>
-        <div class="ap-ligne"><i class="px-note" style="flex:1">${o1.derive.decalage > 0 ? "+" : ""}${esc(o1.derive.decalage)} px autour de ${esc(o1.derive.source)} — se recalcule quand la source change</i><button id="a2Detacher" title="Le contour ne suit plus sa source : il devient un chemin ordinaire">détacher</button></div>
+        <div class="ap-ligne"><i class="px-note" style="flex:1">${o1.derive.decalage > 0 ? "+" : ""}${esc(o1.derive.decalage)} px autour de ${esc(o1.derive.source)} — se recalcule quand la source change</i><button id="a2Detacher" title="Le contour ne suit plus sa source : il devient un chemin ordinaire">${dzi("dz-edit-detacher", 16)}détacher</button></div>
       </details>` : ""}
       <details ${etat.outil === "pinceauv" ? "open" : ""}><summary class="px-tete">Pinceau vectoriel (J)</summary>
         <div class="ap-ligne"><span>Largeur</span><input type="number" id="a2PvL" min="0.5" step="0.5" value="${etat.pinceauv.largeur}"/><select id="a2PvP">${PROFILS.map((p) => `<option value="${p.id}"${etat.pinceauv.profil === p.id ? " selected" : ""}>${p.libelle}</option>`).join("")}</select></div>

@@ -6,6 +6,7 @@
 import { MENUS_BARRE, menus_construire, raccourci_de } from "./mod-menus.js";
 import { phrase_statut, statut_html, onglet_document, pagination } from "./mod-statut.js";
 import { op_calque_supprimer, op_calque_renommer, op_calque_verrou, op_calque_visible, op_supprimer } from "./mod-doc.js";
+import { dzi } from "./mod-icones.js";
 
 export function initCharpente(VL) {
   const { $, etat } = VL;
@@ -121,7 +122,7 @@ export function initCharpente(VL) {
     if (!dlg) { dlg = document.createElement("div"); dlg.id = "raccDlg"; dlg.className = "vl-dlg"; document.body.appendChild(dlg); }
     const lignes = MENUS_BARRE.flatMap((m) => m.entrees.filter((x) => x !== "-" && x.raccourci).map((x) => `<tr><td>${esc(m.titre)}</td><td>${esc(x.libelle)}</td><td><kbd>${esc(raccourci_de(x))}</kbd></td></tr>`)).join("");
     const outils = [["V", "Déplacer"], ["P", "Plume"], ["B", "Crayon"], ["J", "Pinceau vectoriel"], ["R", "Rectangle"], ["E", "Ellipse"], ["L", "Ligne"], ["F", "Forme"], ["N", "Nœuds"], ["C", "Coin"], ["X", "Couteau"], ["W", "Gomme"], ["S", "Shape Builder"], ["T", "Texte"], ["M", "Mesure"], ["I", "Pipette"], ["K", "Tuiles"], ["G", "Grille"], ["Espace", "Main (panoramique)"], ["Ctrl+0", "Zoom : ajuster"], ["Ctrl+1", "Zoom : 100 %"]].map(([k, l]) => `<tr><td>Outils</td><td>${l}</td><td><kbd>${k}</kbd></td></tr>`).join("");
-    dlg.innerHTML = `<div class="vl-dlg-boite racc-boite"><div class="vl-dlg-tete"><b>Raccourcis clavier</b><span class="spacer"></span><button id="raccFermer" title="Fermer">✕</button></div><div class="racc-corps"><table>${lignes}${outils}</table></div></div>`;
+    dlg.innerHTML = `<div class="vl-dlg-boite racc-boite"><div class="vl-dlg-tete"><b>Raccourcis clavier</b><span class="spacer"></span><button id="raccFermer" title="Fermer" aria-label="Fermer">${dzi("dz-action-fermer", 16)}</button></div><div class="racc-corps"><table>${lignes}${outils}</table></div></div>`;
     dlg.classList.remove("hidden");
     $("#raccFermer").addEventListener("click", () => dlg.classList.add("hidden"));
     dlg.addEventListener("click", (ev) => { if (ev.target === dlg) dlg.classList.add("hidden"); });
@@ -135,7 +136,7 @@ export function initCharpente(VL) {
     const d = etat.doc, pd = $("#pbDoc"), pc = $("#pbCotes"), sp = $("#sbPages");
     if (pd) { const u = VL.unites(); pd.textContent = d ? `${d.taille.w} × ${d.taille.h}px, ${(d.taille.w * d.taille.h / 1e6).toFixed(2)}MP, ${u.affichage} · ${u.dpi} dpi` : ""; }
     if (pc) { const b = d && etat.selection.length ? VL.bboxSelectionDoc() : null; pc.textContent = b ? VL.cote("rect", { w: b.w, h: b.h }) : "Pas de données"; }   /* libelle_mesure ne connaît que rect / ellipse / segment / delta */
-    if (sp) sp.textContent = `|◀ ◀ ${pagination(d ? d.planches : [], etat.plancheCourante)} ▶ ▶|`;
+    if (sp) sp.innerHTML = `${dzi("dz-action-element-precedent", 16)}<span>${pagination(d ? d.planches : [], etat.plancheCourante)}</span>${dzi("dz-action-element-suivant", 16)}`;
   }
   VL.majStatut = () => { const h = $("#hintOutil"); if (!h) return; h.innerHTML = statut_html(phrase_statut(etat.outil, etat.selection.length, VL.hints || {})); };
   const sRendu = VL.surRendu, sSel = VL.surSelection, sOutil = VL.surOutil, sVue = VL.surVue;

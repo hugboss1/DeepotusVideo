@@ -81,8 +81,10 @@ button:disabled { opacity: .4; cursor: default; }
 .panneau-calques > summary { flex: 0 0 auto; }
 .panneau-calques > #listeCalques { flex: 1 1 auto; min-height: 0; overflow-y: auto; scrollbar-width: thin; }
 .panneau-calques:not([open]) { max-height: none; }
-details[id] > summary.panneau-tete::before { content: "▸"; display: inline-block; width: 12px; color: var(--aff-muet); font-size: 11px; transition: transform .12s; }
-details[id][open] > summary.panneau-tete::before { transform: rotate(90deg); }
+/* G3 (10/10) : le chevron de section est l'icône de dépli posée par mod-panneaux, orientée par CSS */
+details[id] > summary.panneau-tete > .pt-chev { display: inline-flex; flex: 0 0 auto; color: var(--aff-muet); transform: rotate(-90deg); transition: transform .12s; }
+details[id] > summary.panneau-tete > .pt-chev .dzi { width: 12px; height: 12px; }
+details[id][open] > summary.panneau-tete > .pt-chev { transform: none; }
 details[id] > summary.panneau-tete { gap: 4px; justify-content: flex-start; }
 details[id] > summary.panneau-tete > button { margin-left: auto; }
 /* piège mesuré : la règle du navigateur qui cache le contenu d'un <details>
@@ -180,6 +182,7 @@ details[id] > summary.panneau-tete > button { margin-left: auto; }
   overflow: hidden; }
 .bib-vig img { max-width: 100%; max-height: 100%; }
 .bib-sans { font-size: 42px; color: var(--aff-bord); }
+.bib-sans .dzi { width: 42px; height: 42px; }
 .bib-nom { font-weight: 600; color: var(--aff-texte); overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap; }
 .bib-meta { color: var(--aff-muet); font-size: 12px; }
@@ -224,8 +227,6 @@ details[id] > summary.panneau-tete > button { margin-left: auto; }
 
 /* ── panneau Vitrail (phase 5) — un MODE replié par défaut (E9) ── */
 #vitrailDetails > summary { cursor: pointer; list-style: none; }
-#vitrailDetails > summary::before { content: "▸ "; color: var(--aff-muet); }
-#vitrailDetails[open] > summary::before { content: "▾ "; }
 #panneauVitrail { padding: 6px 10px; border-bottom: 1px solid var(--aff-bord);
   display: flex; flex-direction: column; gap: 6px; }
 .vit-palette { display: flex; gap: 5px; }
@@ -520,7 +521,7 @@ details[id] > summary.panneau-tete {
   padding: 11px var(--pan-x); font-size: 11.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
   color: var(--aff-texte); border-bottom: 0; line-height: 1.2;
 }
-details[id] > summary.panneau-tete::before { width: 14px; font-size: 12px; }
+details[id] > summary.panneau-tete > .pt-chev .dzi { width: 14px; height: 14px; }
 details[id] > summary.panneau-tete:hover { background: var(--aff-champ); }
 /* les contenus de section : marges égales, rythme régulier */
 #panneauStyle, #panneauApparence2, #panneauForme, #panneauNoeuds, #panneauInstantanes, #panneauPixel, #panneauExport,
@@ -620,7 +621,7 @@ details[id] > summary.panneau-tete:hover { background: var(--aff-champ); }
 .fo-item:hover { background: var(--aff-fond); border-color: var(--aff-bord); }
 .fo-item.actif { background: var(--aff-sel); border-color: #4a90e2; color: #fff; }
 .fo-item:disabled { opacity: .45; }
-.fo-glyphe { width: 18px; text-align: center; font-size: 15px; }
+.fo-glyphe { width: 18px; text-align: center; font-size: 15px; display: inline-flex; align-items: center; justify-content: center; color: var(--aff-muet); }
 .fo-pastille { width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--aff-bord); flex: 0 0 14px; }
 #flyout { max-height: 70vh; overflow-y: auto; scrollbar-width: thin; }
 /* mesuré : `display: flex` bat l'attribut hidden — un menu fermé restait une boîte vide de 14 px */
@@ -673,7 +674,8 @@ details[id] > summary.panneau-tete:hover { background: var(--aff-champ); }
 .dt { height: 26px; flex: 0 0 26px; display: flex; align-items: flex-end; background: var(--aff-barre); border-bottom: 1px solid var(--aff-bord); padding: 0 6px; }
 .dt-onglet { height: 24px; line-height: 22px; padding: 0 12px; background: var(--aff-fond); color: var(--aff-texte); font-size: 11.5px; border-radius: 4px 4px 0 0; border: 1px solid var(--aff-bord); border-bottom: 0; white-space: nowrap; }
 .sb { display: flex; align-items: center; height: 22px; flex: 0 0 22px; padding: 0 8px; gap: 12px; background: var(--aff-barre); border-top: 1px solid var(--aff-bord); font-size: 11px; color: var(--aff-muet); white-space: nowrap; overflow: hidden; }
-.sb-pages { font-variant-numeric: tabular-nums; letter-spacing: .04em; }
+.sb-pages { font-variant-numeric: tabular-nums; letter-spacing: .04em; display: inline-flex; align-items: center; gap: 4px; }
+.sb-pages .dzi { width: 12px; height: 12px; color: var(--aff-muet); }
 .sb-phrase { overflow: hidden; text-overflow: ellipsis; min-width: 0; } .sb-phrase b { color: var(--aff-texte); font-weight: 600; }
 .sb-msg { color: var(--aff-texte); overflow: hidden; text-overflow: ellipsis; max-width: 40%; } .sb-msg.erreur { color: #e08a8a; }
 .mode-biblio .cb, .mode-biblio .dt, .mode-biblio .sb, .mode-biblio .pb-cotes, .mode-biblio .pb-doc { display: none; }
@@ -734,7 +736,9 @@ details[id] > summary.panneau-tete:hover { background: var(--aff-champ); }
 #listeCalques .calque { display: grid; grid-template-columns: 12px 30px 1fr 22px 22px; grid-template-rows: 34px; gap: 0 6px; align-items: center; padding: 0 6px 0 4px; min-height: 34px; border-bottom: 1px solid #262626; cursor: pointer; color: var(--aff-texte); }
 #listeCalques .calque:hover { background: #333; }
 #listeCalques .calque.actif { background: var(--aff-sel); color: #fff; }
-#listeCalques .calque .calque-chevron { width: 12px; color: var(--aff-muet); font-size: 10px; text-align: center; }
+#listeCalques .calque .calque-chevron { width: 12px; color: var(--aff-muet); font-size: 10px; text-align: center; display: inline-flex; align-items: center; justify-content: center; }
+#listeCalques .calque .calque-chevron .dzi { width: 12px; height: 12px; transition: transform .12s; }
+#listeCalques .calque.plie .calque-chevron .dzi { transform: rotate(-90deg); }
 #listeCalques .calque .calque-vig { grid-column: 2; grid-row: 1; width: 28px; height: 28px; border: 1px solid #555; border-radius: 3px; background: #1a1a1a; overflow: hidden; display: block; }
 #listeCalques .calque .calque-vig svg { display: block; }
 #listeCalques .calque .nom { grid-column: 3; grid-row: 1; min-width: 0; font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -889,7 +893,8 @@ vl-bascule[disabled] { opacity: .5; pointer-events: none; }
 .vl-didact-anim { display: block; width: 320px; height: 200px; background: var(--aff-canevas); }
 .vl-didact-titre { font-weight: 700; font-size: 13px; padding: 8px 12px 2px; }
 .vl-didact-phrase { font-size: 13px; line-height: 1.45; color: var(--aff-texte); padding: 0 12px 10px; }
-.vl-didact-q { flex: 0 0 18px; width: 18px; height: 18px; min-width: 18px; max-width: 18px; padding: 0; border-radius: 50%; border: 1px solid var(--aff-bord); background: transparent; color: var(--aff-muet); font-size: 11px; line-height: 16px; cursor: help; margin-left: 2px; }
+.vl-didact-q { flex: 0 0 18px; width: 18px; height: 18px; min-width: 18px; max-width: 18px; padding: 0; border-radius: 50%; border: 0; background: transparent; color: var(--aff-muet); font-size: 11px; line-height: 16px; cursor: help; margin-left: 2px; display: inline-flex; align-items: center; justify-content: center; }
+.vl-didact-q .dzi { width: 16px; height: 16px; }
 .vl-didact-q:hover { color: var(--aff-texte); border-color: var(--aff-muet); }
 /* t126 : la légende d'un champ en colonne, qui porte le « ? » sur sa ligne */
 .vl-didact-legende { display: inline-flex; align-items: center; gap: 4px; }
@@ -909,3 +914,26 @@ vl-bascule[disabled] { opacity: .5; pointer-events: none; }
 .vl-loupe.hidden { display: none; }
 .vl-loupe canvas { display: block; width: 120px; height: 120px; border-radius: 50%; border: 2px solid var(--aff-texte); box-shadow: 0 4px 14px rgba(0, 0, 0, .5); background: var(--aff-canevas); image-rendering: pixelated; }
 .vl-loupe-val { display: inline-block; margin-top: 4px; font: 11px/1.4 ui-monospace, monospace; background: var(--aff-fond); color: var(--aff-texte); border: 1px solid var(--aff-bord); border-radius: 10px; padding: 1px 8px; white-space: nowrap; }
+
+/* ── G3 (10/10/2026) : la suite « Deepotus Glyph » (/shared/icons) — les icônes héritent de currentColor ── */
+.dzi { pointer-events: none; }                       /* un clic sur l'icône reste un clic sur son bouton (ev.target) */
+:where(button:not([hidden]):has(> svg.dzi)) { display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+.pb-icone .dzi { width: 18px; height: 18px; }
+#temoin { display: inline-flex; align-items: center; }
+.pb-export > .dzi { width: 14px; height: 14px; margin-left: -2px; }
+.exp-menu button > .dzi { flex: 0 0 auto; }
+.cb .dzi { width: 16px; height: 16px; }
+.personas button { display: inline-flex; align-items: center; gap: 5px; }
+.personas button .dzi { width: 14px; height: 14px; }
+.bib-meta .dzi { width: 13px; height: 13px; vertical-align: -2px; }
+#listeCalques .calque-objet .co-ic .dzi { width: 14px; height: 14px; }
+.groupe-repli { display: inline-flex; align-items: center; justify-content: center; }
+.groupe-repli .dzi { width: 14px; height: 14px; }
+#impGarde .dzi { width: 14px; height: 14px; vertical-align: -2px; margin-right: 4px; }
+.dzi-miroir { transform: scaleX(-1); }
+label > .dzi { vertical-align: -3px; }
+/* une rangée étroite : l'icône reste entière, le libellé s'abrège (title et aria gardent le sens complet) */
+button > .dzi-lib { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#panneauCalques .vl-rangee > button:has(> .dzi-lib) { gap: 3px; padding-left: 4px; padding-right: 4px; overflow: hidden; }
+/* la pastille « ? » de l'aide didactique garde ses 18 px même dans une rangée de panneau */
+#panneauCalques .ap-ligne > button.vl-didact-q, #panneauCalques .vl-rangee > button.vl-didact-q { flex: 0 0 18px; width: 18px; min-width: 18px; height: 18px; padding: 0; }

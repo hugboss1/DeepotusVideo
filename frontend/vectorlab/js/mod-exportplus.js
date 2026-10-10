@@ -10,6 +10,7 @@ import { dxf_de, polylignes_mm } from "./mod-dxf.js";
 import { bbox_objet } from "./mod-doc.js";
 import { aplatir_objet } from "./mod-bool.js";
 import { pdf_page, pdf_assembler, matrice_de, matrice_mul } from "./mod-pdf.js";
+import { dzi } from "./mod-icones.js";
 
 const SNS = "http://www.w3.org/2000/svg";
 export const HINTS4 = { tranche: "glisser un rectangle : une tranche à exporter · Échap efface les tranches dessinées" };
@@ -136,7 +137,7 @@ export function initExportPlus(VL) {
   // l'outil tranche dans la barre (persona Export)
   {
     const b = document.createElement("button");
-    b.dataset.outil = "tranche"; b.title = "Tranche — glisser un rectangle à exporter (onglet Exporter)"; b.textContent = "⧉";
+    b.dataset.outil = "tranche"; b.title = "Tranche — glisser un rectangle à exporter (onglet Exporter)";   // l'icône : mod-barreoutils
     b.addEventListener("click", () => VL.setOutil("tranche"));
     $("#outils").appendChild(b);
   }
@@ -362,7 +363,7 @@ export function initExportPlus(VL) {
     try { p = plan(); } catch (e) { erreur = e.message; }
     hote.innerHTML = `
       <div class="ap-ligne"><span>Tranches</span><i class="px-note">${(MODES.find((m) => m.id === r.mode) || {}).libelle || r.mode} — menu du bouton Tranche</i></div>
-      <div class="ap-ligne"><span></span><i class="px-note">${etat.tranches.length} dessinée(s)</i><button id="exTrancheOutil" title="Dessiner une tranche sur la scène">⧉ dessiner</button><button id="exTrancheX" ${etat.tranches.length ? "" : "disabled"} title="Efface les tranches dessinées">✕</button></div>
+      <div class="ap-ligne"><span></span><i class="px-note">${etat.tranches.length} dessinée(s)</i><button id="exTrancheOutil" title="Dessiner une tranche sur la scène">${dzi("dz-outil-vec-tranche", 16)}dessiner</button><button id="exTrancheX" ${etat.tranches.length ? "" : "disabled"} title="Efface les tranches dessinées" aria-label="Efface les tranches dessinées">${dzi("dz-action-vider", 16)}</button></div>
       <div class="ap-ligne"><span>Résol.</span><input type="text" id="exRes" value="${r.resolutions}" title="Résolutions raster, ex. 1, 2, 4 (suffixe @2x)" style="width:70px"/>
         <label title="Sans le fond du document"><input type="checkbox" id="exTransp"${r.transparent ? " checked" : ""}/> transp.</label></div>
       <div class="a2-champs">${FORMATS.map((f) => `<label><input type="checkbox" data-format="${f.id}"${r.formats.includes(f.id) ? " checked" : ""}/> ${f.libelle}</label>`).join("")}</div>
@@ -375,7 +376,7 @@ export function initExportPlus(VL) {
         <div class="ap-ligne"><span>Qualité</span><input type="range" id="exQual" min="0.3" max="1" step="0.01" value="${r.qualite}" title="JPEG / WebP"/><b id="exQualVal">${Math.round(r.qualite * 100)}</b></div>
       </details>
       <div class="ex-plan" id="exPlan">${erreur ? `<i class="px-note">${erreur}</i>` : p.map((e) => `<div title="${e.format}">${e.nom}</div>`).join("") || `<i class="px-note">${resume_plan([])}</i>`}</div>
-      <div class="ap-ligne"><button id="exLot" class="primaire" ${p.length ? "" : "disabled"} style="flex:1" title="${resume_plan(p)}">Exporter le lot (${p.length})</button></div>`;
+      <div class="ap-ligne"><button id="exLot" class="primaire" ${p.length ? "" : "disabled"} style="flex:1" title="${resume_plan(p)}">${dzi("dz-action-exporter", 16)}Exporter le lot (${p.length})</button></div>`;
     const on = (id, ev, fn) => { const e = $("#" + id); if (e) e.addEventListener(ev, fn); };
     const maj = (patch) => { Object.assign(etat.exportPlus, patch); rendre(); };
     on("exTrancheOutil", "click", () => { VL.setPersona && etat.persona !== "export" && VL.setPersona("export"); VL.setOutil("tranche"); });

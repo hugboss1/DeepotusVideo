@@ -5,6 +5,7 @@
 // (initCouleur) ne touche le document qu'à l'appel.
 
 /* ── pur : conversions ── */
+import { dzi } from "./mod-icones.js";
 export function hexVersRgb(hex) {
   const m = /^#([0-9A-Fa-f]{6})$/.exec(String(hex || ""));
   if (!m) throw new Error(`couleur attendue en #RRGGBB : ${hex}`);
@@ -193,7 +194,7 @@ export function initCouleur(VL) {
       </div>
       <div class="nu-tete">Palette du document
         <button id="nuPalPlus"
-          title="Ajouter la couleur courante à la palette du document (annulable, sauvée avec lui)">＋</button>
+          title="Ajouter la couleur courante à la palette du document (annulable, sauvée avec lui)" aria-label="Ajouter la couleur courante à la palette du document">${dzi("dz-action-ajouter", 16)}</button>
       </div>
       <div id="nuPalDoc" class="nu-sw"
            title="Clic : prendre — clic droit : retirer de la palette"></div>

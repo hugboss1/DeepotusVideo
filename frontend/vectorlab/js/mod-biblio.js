@@ -5,6 +5,7 @@
 // node) ; initBiblio ne touche le DOM qu'à l'appel.
 
 /* ── pur ── */
+import { dzi } from "./mod-icones.js";
 const esc = (s) => String(s == null ? "" : s)
   .replace(/&/g, "&amp;").replace(/</g, "&lt;")
   .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -59,9 +60,9 @@ export function formatVersDoc(id, tailleTexte) {
 }
 
 function badge(d) {
-  if (d.chapter_id) return "⚓ chapitre";
-  if (d.deck_id) return "🂠 cartes";
-  return "◇ bibliothèque";
+  if (d.chapter_id) return `${dzi("dz-nav-chapitres", 16)} chapitre`;
+  if (d.deck_id) return `${dzi("dz-cat-cartes", 16)} cartes`;
+  return `${dzi("dz-nav-bibliotheque", 16)} bibliothèque`;
 }
 
 export function bibLigne(d) {
@@ -69,7 +70,7 @@ export function bibLigne(d) {
   const vig = d.vignette
     ? `<img src="/api/vector/docs/${encodeURIComponent(d.id)}/vignette.png?v=${
         encodeURIComponent(d.version)}" alt="" loading="lazy"/>`
-    : `<span class="bib-sans" title="la vignette naît au premier Sauver">◧</span>`;
+    : `<span class="bib-sans" title="la vignette naît au premier Sauver">${dzi("dz-etat-sans-apercu", 24)}</span>`;
   return `<div class="bib-carte" data-bib-id="${id}">`
     + `<div class="bib-vig">${vig}</div>`
     + `<div class="bib-nom" title="${esc(d.name)}">${esc(d.name)}</div>`
@@ -191,7 +192,7 @@ export function initBiblio(VL) {
     if (ev.key === "Enter") $("#bibCreer").click();
   });
 
-  // le retour ⌂ depuis l'éditeur — confirm si le document est sale
+  // le retour à l'accueil (Bibliothèque des documents) depuis l'éditeur — confirm si le document est sale
   $("#btnBiblio").addEventListener("click", async () => {
     if (etat.sale && !await VL.dialogue.confirmer("Des modifications non sauvées seront perdues." + BS + "nRetourner à la bibliothèque ?", { ok: "Quitter sans sauver", danger: true, titre: "Modifications non sauvées" })) {
       return;

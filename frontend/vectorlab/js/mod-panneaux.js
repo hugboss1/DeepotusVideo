@@ -3,6 +3,7 @@
 // JSON (localStorage côté UI, clé dz_vl_panneaux), défauts sûrs, appliqué
 // à des objets {id, open} (les <details> du DOM). Module FEUILLE.
 
+import { dzi } from "./mod-icones.js";
 export const PANNEAUX_DEFAUT = Object.freeze({
   vitrailDetails: false, styleDetails: true, texteDetails: true, apparence2Details: true, formeDetails: true, noeudsDetails: false,
   instantanesDetails: false, pixelDetails: true, exportDetails: true, exportPlusDetails: true, imageDetails: true,
@@ -33,6 +34,11 @@ export function initPanneaux(VL) {
   let etat = PANNEAUX_DEFAUT;
   try { etat = etat_lire(localStorage.getItem(CLE)); } catch (e) { /* stockage indisponible */ }
   const tous = [...document.querySelectorAll("#panneauCalques details[id]")];
+  // G3 : le chevron de section (dz-action-deplier, orienté par CSS selon [open])
+  for (const d of tous) {
+    const s = d.querySelector(":scope > summary.panneau-tete");
+    if (s && !s.querySelector(":scope > .pt-chev")) s.insertAdjacentHTML("afterbegin", `<span class="pt-chev">${dzi("dz-action-deplier", 16)}</span>`);
+  }
   appliquer(etat, tous);
   for (const d of tous) {
     d.addEventListener("toggle", () => {

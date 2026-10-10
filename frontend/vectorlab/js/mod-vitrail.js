@@ -22,6 +22,7 @@
 // (la rangée du panneau suffit), l'outil mesure est CONSERVÉ, la
 // bibliothèque et le bandeau applicatif de la maquette ne sont pas repris
 // (ils existent, autrement, dans l'application).
+import { dzi } from "./mod-icones.js";
 import { op_ajouter, op_calque_ajouter, op_calque_reordonner,
          op_calque_renommer, op_redimensionner, idLibre, chemin_parser }
   from "./mod-doc.js";
@@ -212,6 +213,8 @@ export function generer_plomb_libre(b, o) {
   return out;
 }
 
+// G3 : l'icône de chaque motif de baie (suite Deepotus Glyph)
+const ICONES_MOTIFS = { arc: "dz-outil-vec-vitrail-arc", rosette: "dz-outil-vec-vitrail-rosette", grille: "dz-outil-vec-vitrail-grille", plomb: "dz-outil-vec-vitrail-plomb" };
 export const MOTIFS = {
   arc: { titre: "Baie à arc", libelles: ["travées", "registres"],
          gen: generer_arc },
@@ -609,8 +612,7 @@ export function initVitrail(VL) {
           <button class="vit-mbtn ${!g && regl.motif === k ? "actif" : ""}"
                   data-motif="${k}"
                   title="${m.titre} — choisir puis GLISSER une zone sur la page">
-            <svg viewBox="0 0 24 24" fill="currentColor"
-                 ><use href="#v-${k}"></use></svg></button>`).join("")}
+            ${dzi(ICONES_MOTIFS[k] || "dz-etat-inconnu", 18)}</button>`).join("")}
         </span></div>
       <div class="ap-ligne"><span>${lib[0]}</span>
         <span class="vit-step"><button data-pas="colonnes:-1">−</button
@@ -651,7 +653,7 @@ export function initVitrail(VL) {
         <div class="vit-slotTete">
           <span class="vit-prev" style="background:${hex}"></span>
           <span>teinte ${regl.slot + 1} · ${hex}</span>
-          <button id="vitSlotX" title="fermer">×</button></div>
+          <button id="vitSlotX" title="fermer" aria-label="fermer">${dzi("dz-action-fermer", 16)}</button></div>
         <div class="ap-ligne"><span>Teinte</span>
           <input class="vit-tsv" data-tsv="h" type="range" min="0" max="360"
                  step="1" value="${hsl.h}" style="${piste(
@@ -675,12 +677,12 @@ export function initVitrail(VL) {
       </div>`; })() : ""}
       ${g ? `<div class="ap-ligne">
         <button id="vitTirage" class="vit-large"
-          title="Rejoue la répartition des teintes avec une autre graine — même motif, mêmes réglages">Nouveau tirage du verre</button></div>` : ""}
+          title="Rejoue la répartition des teintes avec une autre graine — même motif, mêmes réglages">${dzi("dz-action-aleatoire", 16)}Nouveau tirage du verre</button></div>` : ""}
       <div class="ap-ligne"><span>IA</span>
         <input id="vitIaPrompt" type="text"
                placeholder="décrire une illustration…"/>
         <button id="vitIaGo" ${regl.iaBusy ? "disabled" : ""}
-          title="Illustration vectorielle par le modèle de langage configuré (Réglages) — APPEL PAYANT sur votre clé, quelques centièmes de centime ; pose des masses de verre en un groupe">${regl.iaBusy ? "…" : "IA"}</button></div>
+          title="Illustration vectorielle par le modèle de langage configuré (Réglages) — APPEL PAYANT sur votre clé, quelques centièmes de centime ; pose des masses de verre en un groupe">${dzi("dz-media-generer-image", 16)}${regl.iaBusy ? "…" : "IA"}</button></div>
       ${regl.iaMsg ? `<div class="vit-iamsg ${regl.iaErr ? "err" : ""}"
         >${regl.iaMsg}</div>` : ""}
       ${ancres.length ? `
@@ -693,9 +695,9 @@ export function initVitrail(VL) {
            style="background:${plombHex}"></button>
       </div>
       <div class="ap-ligne"><span>Motifs</span>
-        <button id="vitIris" title="Iris stylisé (groupe)">⚜</button>
-        <button id="vitRayons" title="Rayons solaires géométriques (groupe)">☀</button>
-        <button id="vitHalo" title="Halo rayonnant (groupe)">◎</button>
+        <button id="vitIris" title="Iris stylisé (groupe)" aria-label="Iris stylisé">${dzi("dz-outil-vec-iris", 16)}</button>
+        <button id="vitRayons" title="Rayons solaires géométriques (groupe)" aria-label="Rayons solaires géométriques">${dzi("dz-outil-vec-rayons", 16)}</button>
+        <button id="vitHalo" title="Halo rayonnant (groupe)" aria-label="Halo rayonnant">${dzi("dz-outil-vec-halo", 16)}</button>
       </div>` : ""}`;
 
     /* ── câblage ── */
