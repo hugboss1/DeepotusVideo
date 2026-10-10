@@ -120,6 +120,8 @@ async def recast_modeles():
     from app.services import recast_service as RS
     return {"modeles": {k: {"label": m["label"], "prix_usd_s": m["prix"], "defaut": m["defaut"],
                             "personnage": m["personnage"], "consigne": m["consigne"],
+                            # t168c : brouillon possible = le modèle prend une graine (Wan, Lucy ; pas Kling)
+                            "brouillon": RS.BROUILLON_RES if m.get("graine") else None,
                             **({"note_prix": m["note_prix"]} if m.get("note_prix") else {})}
                         for k, m in RS.MODELES.items()},
             "prereglages": [{"id": p["id"], "label": p["label"]} for p in RS.PREREGLAGES],
@@ -186,11 +188,51 @@ async def recast_source(request: Request):
 
 @router.post("/recast")
 async def recast_lancer(body: dict | None = None):
-    """{source: {job_id}|{depot}, personnage_id?, modele, resolution?, consigne?, prereglage?, orientation?}
-    -> {job_id, devis_usd}. Tout ce qui ne coûte rien est vérifié, PUIS la garde des plafonds, PUIS fal."""
+    """{source: {job_id}|{depot}, personnage_id?, modele, resolution?, consigne?, prereglage?, orientation?, voix?,
+    brouillon?, graine?} -> {job_id, devis_usd}. Tout ce qui ne coûte rien est vérifié, PUIS la garde des plafonds,
+    PUIS fal."""
+    return await _recast(body if isinstance(body, dict) else {})
+
+
+@router.get("/recast/brouillons")
+async def recast_brouillons():
+    """t168c : les brouillons qu'on peut finaliser, avec la résolution finale et son prix à la seconde."""
+    from app.services import recast_service as RS
+    out = {}
+    for jid, r in RS.brouillons().items():
+        m = RS.MODELES.get(r.get("modele"))
+        if m is None:
+            continue
+        out[jid] = {"modele": r["modele"], "duree_s": r.get("duree_s"), "graine": r.get("graine"),
+                    "resolution_finale": m["defaut"], "prix_usd_s": RS.prix_usd_s(r["modele"], m["defaut"]),
+                    "voix": bool(r.get("voix")), "finales": r.get("finales", [])}
+    return {"brouillons": out}
+
+
+@router.post("/recast/finaliser")
+async def recast_finaliser(body: dict | None = None):
+    """t168c : {job_id, resolution?} -> le MÊME Recast que le brouillon (source, Personnage, consigne, voix, graine),
+    à la résolution finale. Payant : même garde que /recast."""
+    from app.services import recast_service as RS
+    b = body if isinstance(body, dict) else {}
+    jid = str(b.get("job_id") or "")
+    r = RS.lire_recette(jid)
+    if r is None or not r.get("brouillon"):
+        raise HTTPException(404, "Ce rendu n'est pas un brouillon Recast (ou sa recette est introuvable).")
+    m = RS.MODELES.get(r.get("modele"))
+    res = str(b.get("resolution") or (m or {}).get("defaut") or "")
+    if m is None or res == RS.BROUILLON_RES or res not in m["prix"]:
+        raise HTTPException(400, f"Résolution finale invalide : {res!r}.")
+    corps = {k: r.get(k) for k in ("source", "personnage_id", "modele", "consigne", "prereglage", "orientation", "voix",
+                                   "graine")}
+    corps.update(resolution=res, brouillon=False, brouillon_de=jid)
+    return await _recast(corps)
+
+
+async def _recast(b: dict):
+    """Le Recast commun à /recast et /recast/finaliser : contrôles gratuits, garde des plafonds, puis fal."""
     import asyncio
     from app.services import recast_service as RS, fal_video_tools as FV
-    b = body if isinstance(body, dict) else {}
     src, parent = await _source_video(b.get("source") if isinstance(b.get("source"), dict) else {})
     if src is None:
         raise HTTPException(404, "Vidéo source introuvable (rendu sans vidéo, ou dépôt inconnu).")
@@ -207,9 +249,13 @@ async def recast_lancer(body: dict | None = None):
     except ValueError as e:
         raise HTTPException(400, str(e))
     garde = await _PLAF.verifier(prep["op"], "studio", ref=f"recast:{src.name}")
-    job_id = await RS.lancer_recast(prep, garde["lignes"], parent)
+    recette = {"source": b.get("source"), "personnage_id": b.get("personnage_id"), "consigne": b.get("consigne"),
+               "prereglage": b.get("prereglage"), "orientation": prep["orientation"], "voix": bool(b.get("voix")),
+               "brouillon_de": b.get("brouillon_de")}
+    job_id = await RS.lancer_recast(prep, garde["lignes"], parent, recette)
     return {"job_id": job_id, "devis_usd": garde["devis"]["total_usd"], "modele": prep["modele"],
-            "resolution": prep["resolution"], "duree_s": prep["duree_s"]}
+            "resolution": prep["resolution"], "duree_s": prep["duree_s"], "graine": prep.get("graine"),
+            "brouillon": prep.get("brouillon", False)}
 
 
 # ── G2 (t163, 10/10/2026) : la voix du Personnage ──────────────────────────────────────────────────────────────────

@@ -11,12 +11,20 @@ Modèles et prix RELEVÉS le 10/10/2026 (openapi de queue fal, 200 pour chaque i
   mouvement_pro  fal-ai/kling-video/v3/pro/motion-control        idem ; 0,168 $/s
   objet          decart/lucy-edit/pro                  prompt + video_url ; 720p 0,15 $/s, 480p 0,10 $/s (sans Personnage)
 
+t168c (10/10/2026) — brouillon puis rendu final : Wan (replace, move) et Lucy prennent `seed` (openapi relevé le
+10/10) ; Kling motion control n'en a pas. Ces modèles reçoivent TOUJOURS une graine (tirée si absente), gardée avec
+le job dans sa RECETTE (outputs/recast/recettes/<job>.json) ; « Brouillon » tire en 480p, « Finaliser » relance la
+même recette (source, Personnage, consigne, voix, graine) à la résolution finale. fal ne promet pas l'identité du
+rendu à graine égale (la résolution change le bruit initial) : l'écran le dit, sans le cacher.
+
 Le rendu est un JOB (JobRecord, provider « recast ») : il paraît dans les rendus, le Montage le lit par job_id, le
 téléphone le tire par /sync/media/{job_id}. Les appels réseau passent par trois seams (`_upload`, `_fal_subscribe`,
 `_download`) que les bancs remplacent. PAYANT : la route passe la garde des plafonds AVANT `lancer_recast`."""
 from __future__ import annotations
 
 import asyncio
+import json
+import random
 import re
 import subprocess
 from datetime import datetime
@@ -35,11 +43,12 @@ MODELES: dict[str, dict] = {
     "remplacer": {"fal": "fal-ai/wan/v2.2-14b/animate/replace", "famille": "wan",
                   "label": "Remplacer le personnage (garde le décor et le jeu)",
                   "prix": {"480p": 0.04, "580p": 0.06, "720p": 0.08}, "defaut": "720p", "personnage": True,
-                  "consigne": False},
+                  "consigne": False, "graine": True},
     "animer": {"fal": "fal-ai/wan/v2.2-14b/animate/move", "famille": "wan",
                "label": "Animer le personnage dans SON décor (mouvement de la vidéo)",
                "prix": {"480p": 0.04, "580p": 0.06, "720p": 0.08}, "defaut": "720p", "personnage": True,
-               "consigne": False, "note_prix": "prix de « remplacer » : fal n'affiche pas celui-ci à part (10/10)"},
+               "consigne": False, "graine": True,
+               "note_prix": "prix de « remplacer » : fal n'affiche pas celui-ci à part (10/10)"},
     "mouvement": {"fal": "fal-ai/kling-video/v3/standard/motion-control", "famille": "kling",
                   "label": "Transfert de mouvement (personnage et décor de l'image, son d'origine gardé)",
                   "prix": {"source": 0.126}, "defaut": "source", "personnage": True, "consigne": True},
@@ -48,7 +57,8 @@ MODELES: dict[str, dict] = {
                       "prix": {"source": 0.168}, "defaut": "source", "personnage": True, "consigne": True},
     "objet": {"fal": "decart/lucy-edit/pro", "famille": "lucy",
               "label": "Remplacer un élément par une consigne (tenue, objet, décor)",
-              "prix": {"480p": 0.10, "720p": 0.15}, "defaut": "720p", "personnage": False, "consigne": True},
+              "prix": {"480p": 0.10, "720p": 0.15}, "defaut": "720p", "personnage": False, "consigne": True,
+              "graine": True},
 }
 
 # Préréglages de décor/élément (consigne envoyée en anglais, libellé en français) — partagés avec G3 et G4.
@@ -68,6 +78,9 @@ PREREGLAGES: list[dict] = [
 ]
 _PRE = {p["id"]: p for p in PREREGLAGES}
 _SAFE_DEPOT = re.compile(r"^[a-f0-9]{24}\.(mp4|mov|webm)$")
+_SAFE_JOB = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+BROUILLON_RES = "480p"
+GRAINE_MAX = 2 ** 31 - 1
 _TACHES: set = set()
 
 
@@ -83,6 +96,49 @@ def chemin_depot(nom: str) -> Path | None:
         return None
     p = sources_dir() / n
     return p if p.is_file() else None
+
+
+def lire_graine(v) -> int | None:
+    """Une graine fal valide (entier 0..2^31-1), sinon None ; un booléen n'en est pas une."""
+    if isinstance(v, bool):
+        return None
+    try:
+        g = int(v)
+    except (TypeError, ValueError):
+        return None
+    return g if 0 <= g <= GRAINE_MAX else None
+
+
+def recettes_dir() -> Path:
+    p = Path(settings.outputs_path) / "recast" / "recettes"
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+
+def ecrire_recette(job_id: str, recette: dict) -> None:
+    (recettes_dir() / f"{job_id}.json").write_text(json.dumps(recette, ensure_ascii=False, indent=1), encoding="utf-8")
+
+
+def lire_recette(job_id: str) -> dict | None:
+    j = str(job_id or "")
+    if not _SAFE_JOB.match(j):
+        return None
+    p = recettes_dir() / f"{j}.json"
+    try:
+        return json.loads(p.read_text(encoding="utf-8")) if p.is_file() else None
+    except (OSError, ValueError):
+        return None
+
+
+def brouillons() -> dict:
+    """{job_id: recette} des brouillons dont la recette est lisible (pour proposer « Finaliser ») ; `finales` liste les
+    versions finales déjà tirées de chacun (l'écran le dit : refinaliser se paie une seconde fois)."""
+    toutes = {p.stem: lire_recette(p.stem) for p in sorted(recettes_dir().glob("*.json"))}
+    out = {j: dict(r, finales=[]) for j, r in toutes.items() if r and r.get("brouillon")}
+    for j, r in toutes.items():
+        if r and r.get("brouillon_de") in out:
+            out[r["brouillon_de"]]["finales"].append(j)
+    return out
 
 
 def resolution(modele: str, demandee) -> str:
@@ -124,7 +180,16 @@ def preparer(corps: dict, src: Path, duree_s: float, personnage: dict | None) ->
     if not DUREE_MIN_S <= duree_s <= DUREE_MAX_S:
         raise ValueError(f"La vidéo source fait {duree_s:.1f} s : le Recast prend de {DUREE_MIN_S:.0f} à "
                          f"{DUREE_MAX_S:.0f} s (comme Genjutsu). Coupez-la au Montage.")
-    res = resolution(modele, corps.get("resolution"))
+    brouillon = bool(corps.get("brouillon"))
+    if brouillon and not m.get("graine"):
+        raise ValueError(f"« {m['label']} » n'a pas de brouillon : fal ne prend pas de graine pour ce modèle, un "
+                         "second tir ne repartirait pas du même rendu.")
+    res = BROUILLON_RES if brouillon else resolution(modele, corps.get("resolution"))
+    graine = None
+    if m.get("graine"):
+        graine = lire_graine(corps.get("graine"))
+        if graine is None:
+            graine = random.randint(1, GRAINE_MAX)
     orient = "image" if str(corps.get("orientation") or "") == "image" else "video"
     op = {"kind": "recast", "modele": modele, "seconds": float(duree_s), "resolution": res}
     voice_id = None
@@ -138,7 +203,8 @@ def preparer(corps: dict, src: Path, duree_s: float, personnage: dict | None) ->
             raise ValueError("Clé ElevenLabs absente (Réglages → clés API) — rien n'a été lancé.")
         op = {"kind": "campaign", "ops": [op, {"kind": "voix_sts", "duration_s": float(duree_s)}]}
     return {"modele": modele, "resolution": res, "consigne": consigne, "orientation": orient,
-            "duree_s": float(duree_s), "src": src, "personnage": personnage, "voice_id": voice_id, "op": op}
+            "duree_s": float(duree_s), "src": src, "personnage": personnage, "voice_id": voice_id, "op": op,
+            "graine": graine, "brouillon": brouillon}
 
 
 async def _upload(path: Path) -> str:                               # seam
@@ -192,8 +258,11 @@ def arguments(prep: dict, video_url: str, images: list[str]) -> dict:
     """Le corps fal de chaque famille, d'après l'openapi relevé le 10/10."""
     m = MODELES[prep["modele"]]
     if m["famille"] == "wan":
-        return {"video_url": video_url, "image_url": images[0], "resolution": prep["resolution"],
-                "video_quality": "high"}
+        a = {"video_url": video_url, "image_url": images[0], "resolution": prep["resolution"],
+             "video_quality": "high"}
+        if prep.get("graine") is not None:
+            a["seed"] = prep["graine"]
+        return a
     if m["famille"] == "kling":
         a = {"video_url": video_url, "image_url": images[0], "character_orientation": prep["orientation"],
              "keep_original_sound": True}
@@ -201,7 +270,10 @@ def arguments(prep: dict, video_url: str, images: list[str]) -> dict:
             a["prompt"] = prep["consigne"]
         a["elements"] = [{"frontal_image_url": images[0], **({"reference_image_urls": images[1:4]} if len(images) > 1 else {})}]
         return a
-    return {"video_url": video_url, "prompt": prep["consigne"], "resolution": prep["resolution"]}
+    a = {"video_url": video_url, "prompt": prep["consigne"], "resolution": prep["resolution"]}
+    if prep.get("graine") is not None:
+        a["seed"] = prep["graine"]
+    return a
 
 
 async def _executer(job_id: str, prep: dict, lignes: list) -> None:
@@ -255,8 +327,9 @@ async def _executer(job_id: str, prep: dict, lignes: list) -> None:
                   completed_at=datetime.utcnow())
 
 
-async def lancer_recast(prep: dict, lignes: list, parent_job_id: str | None) -> str:
-    """Crée le job et lance le rendu en tâche de fond ; rend l'id du job. PAYANT (fal) : la garde est passée."""
+async def lancer_recast(prep: dict, lignes: list, parent_job_id: str | None, recette: dict | None = None) -> str:
+    """Crée le job et lance le rendu en tâche de fond ; rend l'id du job. PAYANT (fal) : la garde est passée.
+    `recette` (t168c) : ce qu'il faut pour refaire ce rendu (source, Personnage, réglages, graine), gardé à côté."""
     from app.models.schemas import JobStatus, Provider
     from app.services.storage import JobRecord, async_session_factory
     from app.services import fal_video_tools as FV
@@ -265,13 +338,17 @@ async def lancer_recast(prep: dict, lignes: list, parent_job_id: str | None) -> 
         info = await asyncio.to_thread(FV.probe, prep["src"])
     except Exception:  # noqa: BLE001
         info = {}
-    titre = "Recast — " + (prep["personnage"]["nom"] if prep["personnage"] else MODELES[prep["modele"]]["label"])
+    titre = ("Recast (brouillon 480p) — " if prep.get("brouillon") else "Recast — ") + \
+        (prep["personnage"]["nom"] if prep["personnage"] else MODELES[prep["modele"]]["label"])
     async with async_session_factory() as s:
         s.add(JobRecord(id=job_id, status=JobStatus.QUEUED.value, image_filename="",
                         provider=Provider.RECAST.value, parent_job_id=parent_job_id, video_model=prep["modele"],
                         aspect_ratio=info.get("ratio"), duration_s=int(round(prep["duree_s"])),
                         final_prompt=prep["consigne"] or None, title=titre[:200], created_at=datetime.utcnow()))
         await s.commit()
+    if recette is not None:
+        ecrire_recette(job_id, dict(recette, modele=prep["modele"], resolution=prep["resolution"], graine=prep.get("graine"),
+                                    brouillon=bool(prep.get("brouillon")), duree_s=prep["duree_s"]))
     t = asyncio.get_running_loop().create_task(_executer(job_id, prep, lignes))
     _TACHES.add(t)
     t.add_done_callback(_TACHES.discard)

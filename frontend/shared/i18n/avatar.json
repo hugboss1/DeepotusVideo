@@ -734,5 +734,41 @@
   "avatar.noeud.resume_voix": {
     "fr": "Voix → voix",
     "en": "Voice → voice"
+  },
+  "avatar.brouillon.bouton": {
+    "fr": "Brouillon 480p",
+    "en": "480p draft"
+  },
+  "avatar.brouillon.titre_bouton": {
+    "fr": "Le même Recast en 480p, moitié prix ; on finalise ensuite avec la même graine",
+    "en": "The same Recast in 480p, half price; you finalize afterwards with the same seed"
+  },
+  "avatar.brouillon.aide": {
+    "fr": "Le même Recast en 480p pour {total} ; si le brouillon vous plaît, finalisez-le en {res} avec la même graine.",
+    "en": "The same Recast in 480p for {total}; if you like the draft, finalize it in {res} with the same seed."
+  },
+  "avatar.brouillon.indispo": {
+    "fr": "Pas de brouillon pour ce modèle : fal n'y prend pas de graine, un second tir ne repartirait pas du même rendu.",
+    "en": "No draft for this model: fal takes no seed for it, a second run would not start from the same render."
+  },
+  "avatar.brouillon.lance": {
+    "fr": "Brouillon lancé : {usd} réservés.",
+    "en": "Draft started: {usd} reserved."
+  },
+  "avatar.brouillon.finale_lancee": {
+    "fr": "Version finale lancée : {usd} réservés.",
+    "en": "Final version started: {usd} reserved."
+  },
+  "avatar.brouillon.finaliser": {
+    "fr": "Finaliser en {res} · ≈ {total}",
+    "en": "Finalize in {res} · ≈ {total}"
+  },
+  "avatar.brouillon.note": {
+    "fr": "Même source, même Personnage, même graine : fal ne garantit pas une image identique, mais très proche.",
+    "en": "Same source, same Character, same seed: fal does not guarantee an identical picture, but a very close one."
+  },
+  "avatar.brouillon.refinaliser": {
+    "fr": "Déjà finalisé — refaire en {res} · ≈ {total}",
+    "en": "Already finalized — redo in {res} · ≈ {total}"
   }
 }
