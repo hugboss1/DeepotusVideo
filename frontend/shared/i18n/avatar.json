@@ -770,5 +770,13 @@
   "avatar.brouillon.refinaliser": {
     "fr": "Déjà finalisé — refaire en {res} · ≈ {total}",
     "en": "Already finalized — redo in {res} · ≈ {total}"
+  },
+  "avatar.noeud.brouillon_aide": {
+    "fr": "Moitié prix. Le rendu se finalise ensuite depuis Avatar live › Recast, avec la même graine.",
+    "en": "Half price. The render is finalized afterwards from Avatar live › Recast, with the same seed."
+  },
+  "avatar.noeud.resume_brouillon": {
+    "fr": "Recast — brouillon 480p",
+    "en": "Recast — 480p draft"
   }
 }

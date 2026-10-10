@@ -80,6 +80,12 @@ R.sans_perso = dzAvCompile(g4);
 const g5 = { nodes: [N("s", "ExistingRender", { jobId: "job9", durationS: 18.4 }), N("r", "Recast", { sourceDur: { job: "autre", s: 6 } })], edges: [E("s", "r")] };
 R.ops5 = dzStudioLike(g5);
 R.rien = dzAvCompile({ nodes: [N("o", "Render")], edges: [] });
+// t168c : le brouillon depuis le nœud — envoyé, devis en 480p ; refusé côté page pour un modèle sans graine (Kling)
+const g6 = { nodes: [N("s", "Upload", { jobId: "job6", durationS: 10 }), N("r", "Recast", { personnage: "p1", modele: "remplacer", resolution: "720p", brouillon: true }), N("o", "Render")], edges: [E("s", "r"), E("r", "o")] };
+dzAvCat = { m: { modeles: { remplacer: { brouillon: "480p" }, mouvement: { brouillon: null } } }, p: [] };
+c = dzAvCompile(g6); c.run(); R.br = appels.pop(); R.br_ops = dzStudioLike(g6); R.br_resume = c.summary;
+g6.nodes[1].props.modele = "mouvement";
+c = dzAvCompile(g6); c.run(); R.br_kling = appels.pop(); R.br_kling_ops = dzStudioLike(g6);
 function dzStudioLike(g) { const ops = []; g.nodes.forEach((n) => { if (n.type === "Recast" || n.type === "VoixVoix") ops.push.apply(ops, dzAvOps(g, n)); }); return ops; }
 process.stdout.write(JSON.stringify(R));
 """
@@ -106,6 +112,11 @@ if R:
     check("N7 durée inconnue (lue pour un AUTRE job) : 30 s, le maximum du Recast — jamais les 18,4 s factices",
           R["ops5"] == [{"kind": "recast", "modele": "remplacer", "seconds": 30}], str(R["ops5"]))
     check("N8 un graphe sans ces nœuds n'est pas touché (null : les autres branches compilent)", R["rien"] is None)
+    check("N9 interrupteur Brouillon : la route reçoit brouillon:true, le devis compte 480p (10 s), le résumé le dit",
+          R["br"][1].get("brouillon") is True and R["br_ops"] == [{"kind": "recast", "modele": "remplacer", "resolution": "480p", "seconds": 10}]
+          and R["br_resume"] == "avatar.noeud.resume_brouillon", str(R["br"]) + str(R["br_ops"]))
+    check("N10 modèle sans brouillon (Kling) : l'interrupteur resté coché n'est PAS envoyé, devis à la résolution normale",
+          "brouillon" not in R["br_kling"][1] and R["br_kling_ops"][0].get("resolution") == "720p", str(R["br_kling"]) + str(R["br_kling_ops"]))
 
 print("\n[S] le devis serveur des opérations du graphe")
 from app.services import pricing  # noqa: E402

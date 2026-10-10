@@ -340,7 +340,8 @@ _ECRITURES_OUVERTES: frozenset = frozenset({("POST", "/api/pair/claim"), ("POST"
                                             # t167 (G6, plan validé : « filmer 3-30 s -> job PC ») : le téléphone dépose
                                             # sa prise et lance Recast, voix -> voix, décor ; il range l'enregistrement de
                                             # SON direct. Mêmes contrôles et MÊME garde du plafond que sur le PC.
-                                            ("POST", "/api/avatar-live/recast/source"), ("POST", "/api/avatar-live/recast"), ("POST", "/api/avatar-live/voix"), ("POST", "/api/avatar-live/decor"), ("POST", "/api/avatar-live/direct/enregistrer")})
+                                            # t168c : il finalise SON brouillon (même recette, même garde).
+                                            ("POST", "/api/avatar-live/recast/source"), ("POST", "/api/avatar-live/recast"), ("POST", "/api/avatar-live/voix"), ("POST", "/api/avatar-live/decor"), ("POST", "/api/avatar-live/direct/enregistrer"), ("POST", "/api/avatar-live/recast/finaliser")})
 
 
 @app.middleware("http")
