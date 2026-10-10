@@ -5849,11 +5849,11 @@
   "ecran": "Rail gauche — Vues",
   "emplacement": "sous-titre et options de photo",
   "libelle": "📱 = déposées par le téléphone",
-  "source": "frontend/studio3d/index.html:83 ; vues.js:54",
+  "source": "frontend/studio3d/index.html:86",
   "cle_visuelle": "emoji 📱",
   "cle_finale": "dz-etat-mobile",
   "emoji_conserve": false,
-  "raison_finale": ""
+  "raison_finale": "Icône dz-etat-mobile dans la légende ; dans les listes, les photos du téléphone sont regroupées sous « Téléphone » (<optgroup>), le 📱 est retiré des options (10/10)."
  },
  {
   "id": "studio3d.vues.photos",
@@ -27115,9 +27115,9 @@
   "libelle": "◆ (nom) (bible)",
   "source": "frontend/plateau/plateau.js:217",
   "cle_visuelle": "glyphe ◆",
-  "cle_finale": "dz-nav-bible",
+  "cle_finale": "",
   "emoji_conserve": false,
-  "raison_finale": ""
+  "raison_finale": "Une <option> ne peut pas porter d'icône dessinée : les entités de la bible sont regroupées sous l'intitulé « Entités de la bible » (<optgroup>), le glyphe ◆ est retiré (10/10)."
  },
  {
   "id": "plateau.timeline.lecture",

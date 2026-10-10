@@ -47,11 +47,15 @@ export async function charger() {
   /* T107 (T11) : des photos réelles — celles du téléphone (source « mobile », déposées par la synchro) EN TÊTE ; la
      face est exigée, les autres vues sont facultatives ; recharger garde les choix */
   const toutes = im.images || [];   // pas V.images : il n'est rempli qu'après ce bloc (vu au banc)
-  const photos = [...toutes.filter((x) => x.source === "mobile"), ...toutes.filter((x) => x.source !== "mobile")];
+  /* icônes (10/10) : une <option> ne peut pas porter d'icône dessinée — l'origine « téléphone » est dite par un
+     groupe <optgroup> en tête (et par l'icône dz-etat-mobile de la légende), plus par un emoji collé au nom */
+  const tel = toutes.filter((x) => x.source === "mobile"), bib = toutes.filter((x) => x.source !== "mobile");
   for (const [id, facultatif] of [["photoFront", false], ["photoBack", true], ["photoLeft", true], ["photoRight", true]]) {
     const garde = $("#" + id).value;
-    $("#" + id).innerHTML = (facultatif ? `<option value="">—</option>` : "") + photos.map((x) =>
-      `<option value="${esc(x.filename)}"${x.filename === garde ? " selected" : ""}>${x.source === "mobile" ? "📱 " : ""}${esc(x.filename)}</option>`).join("");
+    const opt = (x) => `<option value="${esc(x.filename)}"${x.filename === garde ? " selected" : ""}>${esc(x.filename)}</option>`;
+    $("#" + id).innerHTML = (facultatif ? `<option value="">—</option>` : "")
+      + (tel.length ? `<optgroup label="Téléphone">${tel.map(opt).join("")}</optgroup>` : "")
+      + (tel.length && bib.length ? `<optgroup label="Bibliothèque">${bib.map(opt).join("")}</optgroup>` : bib.map(opt).join(""));
   }
   V.images = im.images || [];
   V.moteurs = en.engines || [];
