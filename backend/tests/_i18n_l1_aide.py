@@ -618,3 +618,38 @@ def source_avant_i18n_l8(texte: str, fichier: str) -> str:
     r = "".join(morceaux)
     r = r if crlf else r.replace("\r\n", "\n")
     return ("﻿" + r) if bom else r
+
+# t149 (traduction L9) — le Spritelab, le Tile Lab, le Studio3D, le Plateau et lib3d : même table réversible que L8 ;
+# le générateur écrit __dzT9("clé", "<fr>"…) et une déclaration de fonction en fin de fichier (édition à « avant » vide)
+_TABLE9 = RACINE / "scripts" / "i18n_l9_paires.json"
+_LABS9 = ("spritelab/", "tilelab/", "studio3d/", "plateau/", "lib3d/")
+
+
+def source_avant_i18n_l9(texte: str, fichier: str) -> str:
+    """t149 : un script de frontend/{spritelab,tilelab,studio3d,plateau,lib3d} (« tilelab/jeu.js », relatif à frontend/ ;
+    un chemin plus long finissant ainsi est accepté) d'avant la traduction L9, sans git. LF ou CRLF (BOM toléré) : on
+    rend la même forme. Un texte qui ne porte pas L9 est rendu tel quel."""
+    if not _TABLE9.is_file() or "__dzT9(" not in texte:
+        return texte
+    f = str(fichier).replace("\\", "/").split("frontend/")[-1]
+    if not f.startswith(_LABS9):
+        return texte
+    eds = json.loads(_TABLE9.read_bytes().decode("utf-8"))["fichiers"].get(f, [])
+    if not eds:
+        return texte
+    bom = texte[:1] == "\ufeff"
+    corps = texte[1:] if bom else texte
+    crlf = "\r\n" in corps
+    s = corps if crlf else corps.replace("\n", "\r\n")
+    decal, morceaux, k = 0, [], 0
+    for e in sorted(eds, key=lambda x: (x["pos"], x["avant"] != "")):
+        p = e["pos"] + decal
+        if s[p:p + len(e["apres"])] != e["apres"]:
+            raise ValueError(f"source L9 {f} : l'édition {e['groupe']}@{e['pos']} n'est pas à sa place ({s[p:p + 40]!r})")
+        morceaux.append(s[k:p] + e["avant"])
+        k = p + len(e["apres"])
+        decal += len(e["apres"]) - len(e["avant"])
+    morceaux.append(s[k:])
+    r = "".join(morceaux)
+    r = r if crlf else r.replace("\r\n", "\n")
+    return ("\ufeff" + r) if bom else r

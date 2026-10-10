@@ -23,23 +23,25 @@ export async function charger() {
   $("#falBanc").innerHTML = (d.engines || []).map((e) => {
     const b = e.banc;
     return `<div class="banc-ligne"><b>${esc(e.label || e.id)}</b> ${b
-      ? `<span>${b.sujets} sujet(s) · ${Number(b.tris_median).toLocaleString("fr-FR")} tris · `
-        + `${(b.bytes_median / 1048576).toFixed(1)} Mo · ${Number(b.usd_median).toFixed(2)} $ · étanche ${b.ferme_sur}/${b.mesures}</span>`
-      : `<span class="jamais">jamais mesuré chez nous</span>`}</div>`;
+      ? `<span>${__dzT9("studio3d.s3b_banc.sujets", "{n} sujet(s)", { n: b.sujets })} · ${Number(b.tris_median).toLocaleString("fr-FR")} tris · `
+        + `${(b.bytes_median / 1048576).toFixed(1)} ${__dzT9("studio3d.s3b.mo", "Mo")} · ${Number(b.usd_median).toFixed(2)} $ · ${__dzT9("studio3d.s3b_banc.etanche", "étanche {a}/{b}", { a: b.ferme_sur, b: b.mesures })}</span>`
+      : `<span class="jamais">${__dzT9("studio3d.s3b_banc.jamais", "jamais mesuré chez nous")}</span>`}</div>`;
   }).join("");
 }
 
 export async function ranger(toast) {
-  if (!F.job) { toast("choisis d'abord un job dans l'atelier ci-dessus"); return; }
+  if (!F.job) { toast(__dzT9("studio3d.s3b_banc.choisis_job", "choisis d'abord un job dans l'atelier ci-dessus")); return; }
   const sujet = $("#bancSujet").value;
   let r;
   try {
     r = await jpost("/api/assets3d/banc", { job: F.job, sujet });
   } catch (e) { toast(String(e.message || e)); return; }
-  toast(`rangé au banc : ${r.sujet} / ${r.moteur} · ${Number(r.tris).toLocaleString("fr-FR")} tris (gratuit)`);
+  toast(__dzT9("studio3d.s3b_banc.range", "rangé au banc : {sujet} / {moteur} · {tris} tris (gratuit)", { sujet: r.sujet, moteur: r.moteur, tris: Number(r.tris).toLocaleString("fr-FR") }));
   await charger();
 }
 
 export function brancher({ toast }) {
   $("#btnBanc").addEventListener("click", () => ranger(toast).catch((e) => toast(String(e.message || e))));
 }
+// t149 (traduction L9) : dzT dans la page, le français sous node (bancs)
+function __dzT9(k, fr, v) { return typeof globalThis.dzT === "function" ? globalThis.dzT(k, v) : String(fr).replace(/\{(\w+)\}/g, (m, n) => (v && v[n] != null ? String(v[n]) : m)); }

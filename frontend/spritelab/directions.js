@@ -41,7 +41,7 @@ export function hex8(alea = Math.random) {
    rendu déjà transparent, on n'y touche pas ; une seule vue opaque, la clé chroma locale (gratuite) passe. */
 export function corpsOrbites(noms, sansAlpha, o) {
   if (!Array.isArray(noms) || noms.length !== ORBITES.length)
-    throw new Error(`${ORBITES.length} vues attendues, ${Array.isArray(noms) ? noms.length : 0} reçues`);
+    throw new Error(__dzT9("sprites.sp2_dir.vues", "{n} vues attendues, {recu} reçues", { n: ORBITES.length, recu: Array.isArray(noms) ? noms.length : 0 }));
   const opts = o || {};
   const b = {
     source: { kind: "images", filenames: noms.slice() },
@@ -80,3 +80,5 @@ export function puces(persona) {
   return (p.vibe_keywords || []).slice(0, 12).map((m) => ({ v: String(m), libelle: String(m), couleur: false }))
     .concat(Object.values(p.brand_colors || {}).map((c) => ({ v: "palette accent " + c, libelle: String(c), couleur: true })));
 }
+// t149 (traduction L9) : dzT dans la page, le français sous node (bancs)
+function __dzT9(k, fr, v) { return typeof globalThis.dzT === "function" ? globalThis.dzT(k, v) : String(fr).replace(/\{(\w+)\}/g, (m, n) => (v && v[n] != null ? String(v[n]) : m)); }

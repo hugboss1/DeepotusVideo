@@ -4,41 +4,59 @@
     "titre": "Forme",
     "phrase": "Ta tuile change de forme : un losange pour un jeu vu de biais, ou un hexagone à six côtés.",
     "fichier": "tilelab.formeKind.webp",
-    "version": 1
+    "version": 1,
+    "titre_en": "Shape",
+    "phrase_en": "Your tile changes shape: a diamond for a game seen at an angle, or a six-sided hexagon.",
+    "fichier_en": "tilelab.formeKind.en.webp"
   },
   {
     "id": "jeuApercuBtn",
     "titre": "Nouvel aperçu",
     "phrase": "Une nouvelle carte se dessine au hasard avec tes tuiles, pour voir si elles vont bien ensemble.",
     "fichier": "tilelab.jeuApercuBtn.webp",
-    "version": 1
+    "version": 1,
+    "titre_en": "New preview",
+    "phrase_en": "A new map draws itself at random with your tiles, to see if they go well together.",
+    "fichier_en": "tilelab.jeuApercuBtn.en.webp"
   },
   {
     "id": "jeuKind",
     "titre": "Jeu",
     "phrase": "Tu choisis combien de morceaux faire : beaucoup pour des coins bien ronds, ou seize pour aller vite.",
     "fichier": "tilelab.jeuKind.webp",
-    "version": 1
+    "version": 1,
+    "titre_en": "Tileset",
+    "phrase_en": "You choose how many pieces to make: many for nicely rounded corners, or sixteen to go fast.",
+    "fichier_en": "tilelab.jeuKind.en.webp"
   },
   {
     "id": "method",
     "titre": "Méthode",
     "phrase": "Miroir plie ta texture comme une feuille pliée en quatre : les bords se touchent toujours parfaitement.",
     "fichier": "tilelab.method.webp",
-    "version": 1
+    "version": 1,
+    "titre_en": "Method",
+    "phrase_en": "Mirror folds your texture like a sheet folded in four: the edges always meet perfectly.",
+    "fichier_en": "tilelab.method.en.webp"
   },
   {
     "id": "runBtn",
     "titre": "Rendre seamless",
     "phrase": "Ta texture se raccorde : posée plein de fois côte à côte, on ne voit plus où chaque morceau finit.",
     "fichier": "tilelab.runBtn.webp",
-    "version": 1
+    "version": 1,
+    "titre_en": "Make seamless",
+    "phrase_en": "Your texture joins up: laid side by side many times, you can no longer see where each piece ends.",
+    "fichier_en": "tilelab.runBtn.en.webp"
   },
   {
     "id": "tlGrilleType",
     "titre": "Grille de placement",
     "phrase": "Tes cases deviennent des losanges, rangés en quinconce comme les dalles d'un jeu vu de biais.",
     "fichier": "tilelab.tlGrilleType.webp",
-    "version": 1
+    "version": 1,
+    "titre_en": "Placement grid",
+    "phrase_en": "Your cells become diamonds, staggered like the paving of a game seen at an angle.",
+    "fichier_en": "tilelab.tlGrilleType.en.webp"
   }
 ]

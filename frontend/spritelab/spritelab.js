@@ -6,6 +6,29 @@
 "use strict";
 
 const $ = (s) => document.querySelector(s);
+/* t149 (traduction L9) : passe unique au chargement, en anglais seulement — (1) les <option> fixes de la page
+   (la surcouche n'entre pas dans <select>) ; (2) les textes de la page saisis en « contexte » (sens propre au
+   lab, la surcouche les ignore) : texte exact d'un nœud ou d'un title/placeholder -> dzT(clé), clés de cette
+   page seulement. */
+(function () {
+  if (typeof document === "undefined" || typeof dzLang !== "function" || dzLang() !== "en") return;
+  const tr = window.__dzI18n && window.__dzI18n.traduire;
+  if (tr) for (const o of document.querySelectorAll("select option")) { const t = tr(o.textContent); if (t) o.textContent = t; }
+  if (tr) for (const im of document.querySelectorAll("img[alt]")) { const t = tr(im.alt); if (t) im.alt = t; }   // alt : hors surcouche
+  const D = window.DZ_I18N || {}, idx = {}, nrm = (s) => String(s).replace(/\s+/g, " ").trim();
+  for (const k in D) if (k.startsWith("sprites.sph_") && D[k] && D[k].contexte) idx[nrm(D[k].fr)] = k;
+  // la surcouche a pu passer AVANT : le texte qu'elle a posé (« Plateau » -> Board du Vectorlab) est reconnu aussi
+  if (tr) for (const f of Object.keys(idx)) { const e = tr(f); if (e && !idx[nrm(e)]) idx[nrm(e)] = idx[f]; }
+  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let x = w.nextNode(); x; x = w.nextNode()) {
+    const k = idx[nrm(x.nodeValue)];
+    if (k) x.nodeValue = x.nodeValue.match(/^\s*/)[0] + dzT(k) + x.nodeValue.match(/\s*$/)[0];
+  }
+  for (const el of document.querySelectorAll("[title],[placeholder]")) for (const a of ["title", "placeholder"]) {
+    const v = el.getAttribute(a), k = v && idx[nrm(v)];
+    if (k) el.setAttribute(a, dzT(k));
+  }
+})();
 const $$ = (s) => [...document.querySelectorAll(s)];
 const api = {
   async get(p) { const r = await fetch("/api" + p); if (!r.ok) throw new Error(await r.text()); return r.json(); },
@@ -74,7 +97,7 @@ async function pollJob(uuid, cb, timeoutMs) {
     const j = await api.get("/jobs/" + uuid);
     if (cb) cb(j);
     if (j.status === "done" || j.status === "failed") return j;
-    if (Date.now() - t0 > (timeoutMs || 15 * 60 * 1000)) throw new Error("délai dépassé");
+    if (Date.now() - t0 > (timeoutMs || 15 * 60 * 1000)) throw new Error(__dzT9("sprites.sp1_x.delai", "délai dépassé"));
     await new Promise(r => setTimeout(r, 1200));
   }
 }
@@ -120,7 +143,7 @@ async function loadPrefs() {
 function setSource(src) {
   source = src;
   const chip = $("#srcChip");
-  chip.textContent = src ? "Source : " + src.label : "aucune source";
+  chip.textContent = src ? __dzT9("sprites.sp1_src.source", "Source : {label}", { label: src.label }) : __dzT9("sprites.sp1_src.aucune", "aucune source");
   chip.classList.toggle("set", !!src);
   updateGenEnabled();
   if (src) extract();                     // sonde locale gratuite -> filmstrip
@@ -132,7 +155,7 @@ async function loadImages() {
     libImages = (await api.get("/images")).images || [];
     renderImgGrid(); renderFeuilleGrid();
   } catch (e) {
-    $("#imgGrid").innerHTML = `<div class="empty-note">Library indisponible : ${esc(e.message)}</div>`;
+    $("#imgGrid").innerHTML = `<div class="empty-note">${__dzT9("sprites.sp1_img.lib_indispo", "Library indisponible : {err}", { err: esc(e.message) })}</div>`;
   }
 }
 function renderImgGrid() {
@@ -143,7 +166,7 @@ function renderImgGrid() {
     `<img loading="lazy" data-fn="${esc(im.filename)}" title="${esc(im.filename)}"
           src="/api/images/${encodeURIComponent(im.filename)}"
           class="${im.filename === selImage ? "sel" : ""}">`).join("")
-    || `<div class="empty-note">Aucune image${q ? " pour « " + esc(q) + " »" : " dans la Library"}.</div>`;
+    || `<div class="empty-note">${q ? __dzT9("sprites.sp1_img.aucune_q", "Aucune image pour « {q} ».", { q: esc(q) }) : __dzT9("sprites.sp1_img.aucune_lib", "Aucune image dans la Library.")}</div>`;
   g.querySelectorAll("img").forEach(el => el.onclick = () => {
     selImage = el.dataset.fn;
     g.querySelectorAll("img").forEach(x => x.classList.toggle("sel", x === el));
@@ -152,13 +175,13 @@ function renderImgGrid() {
 
 async function animer() {
   if (busyAnim) return;
-  if (!selImage) return toast("Choisis d'abord une image de la Library.", true);
+  if (!selImage) return toast(__dzT9("sprites.sp1_anim.choisis_image", "Choisis d'abord une image de la Library."), true);
   const action = ($("#animPrompt").value || "").trim();
-  if (!action) return toast("Décris l'action à animer (ex : walks in place).", true);
+  if (!action) return toast(__dzT9("sprites.sp1_anim.decris", "Décris l'action à animer (ex : walks in place)."), true);
   busyAnim = true; $("#animerBtn").disabled = true;
   const st = $("#animStatus");
   try {
-    setStatus(st, "Lancement Seedance…", false, 3);
+    setStatus(st, __dzT9("sprites.sp1_anim.lancement", "Lancement Seedance…"), false, 3);
     const before = new Set((await api.get("/jobs?limit=15")).map(j => j.job_id));
     await api.send("POST", "/generate", {
       image_filename: selImage,
@@ -177,16 +200,16 @@ async function animer() {
       const fresh = js.filter(j => !before.has(j.job_id) && j.provider !== "sprite2d");
       job = fresh.find(j => j.image_filename === selImage) || fresh[0] || null;
     }
-    if (!job) throw new Error("job Seedance introuvable dans la file");
+    if (!job) throw new Error(__dzT9("sprites.sp1_anim.job_introuvable", "job Seedance introuvable dans la file"));
     const j = await pollJob(job.job_id, jj => setStatus(st,
-      `Seedance : ${jj.current_step || jj.status}…`, false, jj.progress || 5));
-    if (j.status !== "done") throw new Error(j.error || "génération échouée");
+      __dzT9("sprites.sp1_anim.etape", "Seedance : {etape}…", { etape: jj.current_step || jj.status }), false, jj.progress || 5));
+    if (j.status !== "done") throw new Error(j.error || __dzT9("sprites.sp1_x.gen_echouee", "génération échouée"));
     clearStatus(st);
-    toast("Animation prête — extraction des frames…");
+    toast(__dzT9("sprites.sp1_anim.prete", "Animation prête — extraction des frames…"));
     setSource({ kind: "job", job_id: j.job_id, label: j.title || ("render " + j.job_id.slice(0, 8)) });
   } catch (e) {
-    setStatus(st, "Échec : " + e.message, true);
-    toast("Animer a échoué : " + e.message, true);
+    setStatus(st, __dzT9("sprites.sp1_x.echec", "Échec : {err}", { err: e.message }), true);
+    toast(__dzT9("sprites.sp1_anim.echoue", "Animer a échoué : {err}", { err: e.message }), true);
   }
   busyAnim = false; $("#animerBtn").disabled = false;
 }
@@ -200,7 +223,7 @@ async function loadRenders() {
       && VIDEO_RE.test(j.final_video_path || j.video_path || ""));
     renderRenderList();
   } catch (e) {
-    $("#renderList").innerHTML = `<div class="empty-note">Renders indisponibles : ${esc(e.message)}</div>`;
+    $("#renderList").innerHTML = `<div class="empty-note">${__dzT9("sprites.sp1_rd.indispo", "Renders indisponibles : {err}", { err: esc(e.message) })}</div>`;
   }
 }
 function renderRenderList() {
@@ -213,7 +236,7 @@ function renderRenderList() {
       <div class="rt">${esc(j.title || j.image_filename || j.job_id.slice(0, 8))}</div>
       <div class="rm">${d}${j.duration_s ? " · " + j.duration_s + " s" : ""}${j.provider ? " · " + esc(j.provider) : ""}</div>
     </div>`;
-  }).join("") || `<div class="empty-note">Aucun render vidéo terminé.</div>`;
+  }).join("") || `<div class="empty-note">${__dzT9("sprites.sp1_rd.aucun", "Aucun render vidéo terminé.")}</div>`;
   $$("#renderList .render-item").forEach(el => el.onclick = () => {
     const j = renders.find(x => x.job_id === el.dataset.id);
     if (!j) return;
@@ -226,16 +249,16 @@ function renderRenderList() {
 async function uploadVideo(file) {
   const st = $("#upStatus");
   try {
-    setStatus(st, `Envoi de ${file.name}…`, false, 30);
+    setStatus(st, __dzT9("sprites.sp1_vid.envoi", "Envoi de {nom}…", { nom: file.name }), false, 30);
     const fd = new FormData(); fd.append("file", file);
     const r = await fetch("/api/videos/upload", { method: "POST", body: fd });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.detail || r.statusText);
-    setStatus(st, `Importée : ${d.filename} (${d.duration_s || "?"} s)`);
+    setStatus(st, __dzT9("sprites.sp1_vid.importee", "Importée : {nom} ({d} s)", { nom: d.filename, d: d.duration_s || "?" }));
     setSource({ kind: "job", job_id: d.job_id, label: d.filename });
   } catch (e) {
-    setStatus(st, "Échec : " + e.message, true);
-    toast("Upload échoué : " + e.message, true);
+    setStatus(st, __dzT9("sprites.sp1_x.echec", "Échec : {err}", { err: e.message }), true);
+    toast(__dzT9("sprites.sp1_vid.echoue", "Upload échoué : {err}", { err: e.message }), true);
   }
 }
 
@@ -253,7 +276,7 @@ async function extract() {
   if (!source || busyExtract) return;
   busyExtract = true; $("#extractBtn").disabled = true; updateGenEnabled();
   const { fps, max } = stripSettings();
-  $("#strip").innerHTML = `<div class="empty-note">Extraction des frames… (locale, gratuite)</div>`;
+  $("#strip").innerHTML = `<div class="empty-note">${__dzT9("sprites.sp1_strip.extraction", "Extraction des frames… (locale, gratuite)")}</div>`;
   $("#stripCount").textContent = "…";
   try {
     await SLD_PRET;
@@ -264,7 +287,7 @@ async function extract() {
       title: "Sprites · extraction " + (source.label || ""),
     });
     const j = await pollJob(d.job_id, null, 5 * 60 * 1000);
-    if (j.status !== "done") throw new Error(j.error || "extraction échouée");
+    if (j.status !== "done") throw new Error(j.error || __dzT9("sprites.sp1_strip.extr_echouee", "extraction échouée"));
     if (extractJob && extractJob !== d.job_id)      // la sonde précédente + ses
       api.send("DELETE", "/jobs/" + extractJob).catch(() => {}); // fichiers
     extractJob = d.job_id; extractShort = d.job_id.slice(0, 8);
@@ -274,16 +297,16 @@ async function extract() {
     stripState = m.frames.map(() => true); lastClicked = 0;
     renderStrip();
   } catch (e) {
-    $("#strip").innerHTML = `<div class="empty-note">Extraction échouée : ${esc(e.message)}</div>`;
+    $("#strip").innerHTML = `<div class="empty-note">${__dzT9("sprites.sp1_strip.echec_extr", "Extraction échouée : {err}", { err: esc(e.message) })}</div>`;
     $("#stripCount").textContent = "—";
-    toast("Extraction échouée : " + e.message, true);
+    toast(__dzT9("sprites.sp1_strip.echec_extr", "Extraction échouée : {err}", { err: e.message }), true);
   }
   busyExtract = false; $("#extractBtn").disabled = false; updateGenEnabled();
 }
 
 function renderStrip() {
   $("#strip").innerHTML = Array.from({ length: stripN }, (_, i) =>
-    `<div class="frame ${stripState[i] ? "" : "off"}" data-i="${i}" title="frame ${i} — clic : garder/enlever, Shift-clic : plage">
+    `<div class="frame ${stripState[i] ? "" : "off"}" data-i="${i}" title="${__dzT9("sprites.sp1_strip.frame_titre", "frame {i} — clic : garder/enlever, Shift-clic : plage", { i })}">
        <img loading="lazy" src="/api/assets/sprite/${extractShort}/frame/${i}"><span class="fno">${i}</span><span class="frame-x">${dzIcone("dz-etat-exclu", { taille: 24 })}</span>
      </div>`).join("");
   $$("#strip .frame").forEach(el => el.onclick = (ev) => {
@@ -301,7 +324,7 @@ function renderStrip() {
 }
 function keptIndices() { return stripState.flatMap((v, i) => v ? [i] : []); }
 function updateStripCount() {
-  $("#stripCount").textContent = stripN ? `${keptIndices().length}/${stripN} gardées` : "—";
+  $("#stripCount").textContent = stripN ? __dzT9("sprites.sp1_strip.gardees", "{n}/{total} gardées", { n: keptIndices().length, total: stripN }) : "—";
   updateCost(); updateGenEnabled();
 }
 
@@ -346,13 +369,13 @@ function renderTags() {
   const DIRS = ["forward", "reverse", "pingpong", "pingpong_reverse"];
   box.innerHTML = tagRows.map((t, i) => `
     <div class="tagrow" data-i="${i}">
-      <input class="tname" value="${escA(t.name)}" placeholder="idle" maxlength="32" title="Nom de l'animation (lettres, chiffres, espace, _ ou -)">
-      <input class="tfrom" type="number" min="0" max="63" value="${parseInt(t.from, 10) || 0}" title="Première frame gardée">
-      <input class="tto" type="number" min="0" max="63" value="${parseInt(t.to, 10) || 0}" title="Dernière frame gardée">
-      <select class="tdir" title="Sens de lecture">
+      <input class="tname" value="${escA(t.name)}" placeholder="idle" maxlength="32" title="${__dzT9("sprites.sp1_tag.nom", "Nom de l'animation (lettres, chiffres, espace, _ ou -)")}">
+      <input class="tfrom" type="number" min="0" max="63" value="${parseInt(t.from, 10) || 0}" title="${__dzT9("sprites.sp1_tag.premiere", "Première frame gardée")}">
+      <input class="tto" type="number" min="0" max="63" value="${parseInt(t.to, 10) || 0}" title="${__dzT9("sprites.sp1_tag.derniere", "Dernière frame gardée")}">
+      <select class="tdir" title="${__dzT9("sprites.sp1_tag.sens", "Sens de lecture")}">
         ${DIRS.map(d => `<option value="${d}"${d === t.direction ? " selected" : ""}>${d}</option>`).join("")}
       </select>
-      <button class="del" type="button" title="Retirer ce tag" aria-label="Retirer ce tag">${dzIcone("dz-action-retirer", { taille: 16 })}</button>
+      <button class="del" type="button" title="${__dzT9("sprites.sp1_tag.retirer", "Retirer ce tag")}" aria-label="${__dzT9("sprites.sp1_tag.retirer", "Retirer ce tag")}">${dzIcone("dz-action-retirer", { taille: 16 })}</button>
     </div>`).join("");
   box.querySelectorAll(".tagrow").forEach(row => {
     const i = parseInt(row.dataset.i, 10);
@@ -374,11 +397,11 @@ function animOpts(nFrames) {
 async function generate() {
   if (busyGen || !source || !extractShort) return;
   if (stripStale()) {
-    toast("Réglages fps/max modifiés — frames ré-extraites. Vérifie ta sélection puis relance.", true);
+    toast(__dzT9("sprites.sp1_gen.reextraites", "Réglages fps/max modifiés — frames ré-extraites. Vérifie ta sélection puis relance."), true);
     return extract();
   }
   const kept = keptIndices();
-  if (!kept.length) return toast("Garde au moins une frame dans le filmstrip.", true);
+  if (!kept.length) return toast(__dzT9("sprites.sp1_gen.au_moins_une", "Garde au moins une frame dans le filmstrip."), true);
   busyGen = true; updateGenEnabled();
   const st = $("#genStatus");
   try {
@@ -397,19 +420,19 @@ async function generate() {
     const px = pixelOpts(); if (px) body.pixel = px;
     const po = postOpts(); if (po) body.post = po;
 
-    setStatus(st, "Job lancé…", false, 3);
+    setStatus(st, __dzT9("sprites.sp1_gen.lance", "Job lancé…"), false, 3);
     const d = await api.send("POST", "/assets/sprite", body);
     const j = await pollJob(d.job_id, jj => setStatus(st,
       `${jj.current_step || jj.status}…`, false, jj.progress || 5));
-    if (j.status !== "done") throw new Error(j.error || "génération échouée");
+    if (j.status !== "done") throw new Error(j.error || __dzT9("sprites.sp1_x.gen_echouee", "génération échouée"));
     const short = d.job_id.slice(0, 8);
     const m = await api.get("/assets/sprite/" + short + "/manifest");
     clearStatus(st);
     showResult(short, m);
-    toastOk("Sprite sheet généré");
+    toastOk(__dzT9("sprites.sp1_gen.genere", "Sprite sheet généré"));
   } catch (e) {
-    setStatus(st, "Échec : " + e.message, true);
-    toast("Génération échouée : " + e.message, true);
+    setStatus(st, __dzT9("sprites.sp1_x.echec", "Échec : {err}", { err: e.message }), true);
+    toast(__dzT9("sprites.sp1_gen.echouee", "Génération échouée : {err}", { err: e.message }), true);
   }
   busyGen = false; updateGenEnabled();
 }
@@ -427,7 +450,7 @@ function showResult(short, m) {
   const g = m.grid || {};
   $("#outInfo").textContent =
     `${g.cols}×${g.rows} · ${g.cell_w}px · ${m.frames.length} frames` +
-    (m.pixel ? ` · ${m.pixel.palette || (m.pixel.colors + " coul.")}` : "");
+    (m.pixel ? ` · ${m.pixel.palette || __dzT9("sprites.sp1_out.coul", "{n} coul.", { n: m.pixel.colors })}` : "");
   $("#dlSheet").href = `/api/assets/sprite/${short}/sheet`;
   $("#dlSheet").setAttribute("download", `sprites_${short}.png`);
   $("#dlZip").href = `/api/assets/sprite/${short}/zip`;
@@ -467,16 +490,16 @@ let editOrder = [];
 function renderEditor() {
   if (!sheet) return;
   const short = sheet.short, n = editOrder.length;
-  $("#editInfo").textContent = n + " image(s)";
+  $("#editInfo").textContent = __dzT9("sprites.sp1_ed.images", "{n} image(s)", { n });
   $("#editStrip").innerHTML = editOrder.map((src, k) => `
     <div class="editcell" data-k="${k}">
       <img src="/api/assets/sprite/${short}/frame/${src}?r=${sheetRev}" alt="">
       <div class="no">${k} ← #${src}</div>
       <div class="ops">
-        <button data-op="left" title="Vers la gauche" aria-label="Vers la gauche"${k === 0 ? " disabled" : ""}>${dzIcone("dz-edit-monter", { taille: 16 })}</button>
-        <button data-op="dup" title="Dupliquer" aria-label="Dupliquer"${n >= 64 ? " disabled" : ""}>${dzIcone("dz-action-dupliquer", { taille: 16 })}</button>
-        <button data-op="del" title="Supprimer" aria-label="Supprimer"${n <= 1 ? " disabled" : ""}>${dzIcone("dz-action-retirer", { taille: 16 })}</button>
-        <button data-op="right" title="Vers la droite" aria-label="Vers la droite"${k === n - 1 ? " disabled" : ""}>${dzIcone("dz-edit-descendre", { taille: 16 })}</button>
+        <button data-op="left" title="${__dzT9("sprites.sp1_ed.gauche", "Vers la gauche")}" aria-label="${__dzT9("sprites.sp1_ed.gauche", "Vers la gauche")}"${k === 0 ? " disabled" : ""}>${dzIcone("dz-edit-monter", { taille: 16 })}</button>
+        <button data-op="dup" title="${__dzT9("sprites.sp1_ed.dupliquer", "Dupliquer")}" aria-label="${__dzT9("sprites.sp1_ed.dupliquer", "Dupliquer")}"${n >= 64 ? " disabled" : ""}>${dzIcone("dz-action-dupliquer", { taille: 16 })}</button>
+        <button data-op="del" title="${__dzT9("sprites.sp1_ed.supprimer", "Supprimer")}" aria-label="${__dzT9("sprites.sp1_ed.supprimer", "Supprimer")}"${n <= 1 ? " disabled" : ""}>${dzIcone("dz-action-retirer", { taille: 16 })}</button>
+        <button data-op="right" title="${__dzT9("sprites.sp1_ed.droite", "Vers la droite")}" aria-label="${__dzT9("sprites.sp1_ed.droite", "Vers la droite")}"${k === n - 1 ? " disabled" : ""}>${dzIcone("dz-edit-descendre", { taille: 16 })}</button>
       </div>
     </div>`).join("");
   $("#editStrip").querySelectorAll(".ops button").forEach(b => b.onclick = () => {
@@ -532,7 +555,7 @@ function hbDessiner(apercu) {
     x.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
   });
   const n = hb.rects.reduce((a, l) => a + l.length, 0);
-  $("#hbInfo").textContent = `frame ${hb.frame} · ${hb.rects[hb.frame].length} rect. · ${n} au total`;
+  $("#hbInfo").textContent = __dzT9("sprites.sp1_hb.info", "frame {f} · {r} rect. · {n} au total", { f: hb.frame, r: hb.rects[hb.frame].length, n });
   hbInspecteur();
 }
 
@@ -561,7 +584,7 @@ async function hbEnregistrer() {
   try {
     const r = await api.send("POST", `/assets/sprite/${short}/hitboxes`, window.SLH.corps(hb));
     if (hbShort === short) hb.sale = false;
-    setStatus($("#hbStatus"), `enregistré · ${r.rectangles} rectangle(s)`);
+    setStatus($("#hbStatus"), __dzT9("sprites.sp1_hb.enregistre", "enregistré · {n} rectangle(s)", { n: r.rectangles }));
   } catch (e) { setStatus($("#hbStatus"), e.message, true); }
 }
 
@@ -582,13 +605,13 @@ function hbWire() {
     if (!hb || !hbGlisse) return;
     const r = window.SLH.rectDepuisGlisser(hbGlisse, hbPoint(ev), hb.cw, hb.ch, $("#hbType").value);
     hbGlisse = null;
-    if (r && window.SLH.ajouter(hb, r) < 0) toast(`${window.SLH.MAX_PAR_FRAME} rectangles au plus par frame`, true);
+    if (r && window.SLH.ajouter(hb, r) < 0) toast(__dzT9("sprites.sp1_hb.max", "{n} rectangles au plus par frame", { n: window.SLH.MAX_PAR_FRAME }), true);
     hbChange();
   });
   $("#hbFrame").onchange = () => hbFrame(parseInt($("#hbFrame").value, 10) || 0);
   $("#hbPrev").onclick = () => hb && hbFrame(hb.frame - 1);
   $("#hbNext").onclick = () => hb && hbFrame(hb.frame + 1);
-  $("#hbCopy").onclick = () => { if (hb) toast(`${window.SLH.copier(hb)} rectangle(s) copié(s)`); };
+  $("#hbCopy").onclick = () => { if (hb) toast(__dzT9("sprites.sp1_hb.copies", "{n} rectangle(s) copié(s)", { n: window.SLH.copier(hb) })); };
   $("#hbPaste").onclick = () => { if (hb && window.SLH.coller(hb)) hbChange(); };
   $("#hbDel").onclick = () => { if (hb && window.SLH.supprimer(hb)) hbChange(); };
   for (const [id, k] of [["hbX", "x"], ["hbY", "y"], ["hbW", "w"], ["hbH", "h"]])
@@ -601,7 +624,7 @@ function hbWire() {
     if (!hb || !hbActif || $("#hitboxes").classList.contains("hidden")) return;
     if (/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || "")) return;
     const k = ev.key.toLowerCase();
-    if ((ev.ctrlKey || ev.metaKey) && k === "c") toast(`${window.SLH.copier(hb)} rectangle(s) copié(s)`);
+    if ((ev.ctrlKey || ev.metaKey) && k === "c") toast(__dzT9("sprites.sp1_hb.copies", "{n} rectangle(s) copié(s)", { n: window.SLH.copier(hb) }));
     else if ((ev.ctrlKey || ev.metaKey) && k === "v") { if (window.SLH.coller(hb)) hbChange(); }
     else if (k === "delete" || k === "backspace") { if (window.SLH.supprimer(hb)) hbChange(); }
     else return;
@@ -664,36 +687,36 @@ function skDessiner(apercu) {
                       Math.abs(apercu.b.x - apercu.a.x), Math.abs(apercu.b.y - apercu.a.y));
     x.setLineDash([]);
   }
-  $("#skInfo").textContent = `${sk.bones.length} os · ${sk.pieces.length} pièce(s)`;
+  $("#skInfo").textContent = __dzT9("sprites.sp1_sk.info", "{os} os · {pieces} pièce(s)", { os: sk.bones.length, pieces: sk.pieces.length });
   $("#skSave").disabled = !window.SLK.pret(sk);
   skListe();
 }
 
 function skListe() {
   const ligneOs = (b) => `<div class="sk-row${b.name === sk.sel ? " on" : ""}" data-os="${escA(b.name)}">
-      <span class="sk-ico" title="Choisir cet os : les prochains os et pièces s'y accrochent">${dzIcone("dz-lab3d-os", { taille: 16 })}</span>
-      <input class="sk-nom" value="${escA(b.name)}" maxlength="32" title="Nom de l'os (lettres, chiffres, _ ou -)">
+      <span class="sk-ico" title="${__dzT9("sprites.sp1_sk.choisir_os", "Choisir cet os : les prochains os et pièces s'y accrochent")}">${dzIcone("dz-lab3d-os", { taille: 16 })}</span>
+      <input class="sk-nom" value="${escA(b.name)}" maxlength="32" title="${__dzT9("sprites.sp1_sk.nom_os", "Nom de l'os (lettres, chiffres, _ ou -)")}">
       <span class="unit">← ${esc(b.parent)} · ${Math.round(b.rotation)}°</span>
-      <button class="sk-del" title="Supprimer cet os, ses enfants et leurs pièces" aria-label="Supprimer cet os, ses enfants et leurs pièces">${dzIcone("dz-action-supprimer", { taille: 16 })}</button></div>`;
+      <button class="sk-del" title="${__dzT9("sprites.sp1_sk.suppr_os", "Supprimer cet os, ses enfants et leurs pièces")}" aria-label="${__dzT9("sprites.sp1_sk.suppr_os", "Supprimer cet os, ses enfants et leurs pièces")}">${dzIcone("dz-action-supprimer", { taille: 16 })}</button></div>`;
   const lignePiece = (p) => `<div class="sk-row" data-piece="${escA(p.name)}">
       <span class="sk-ico">${dzIcone("dz-lab3d-piece", { taille: 16 })}</span>
-      <input class="sk-nom" value="${escA(p.name)}" maxlength="32" title="Nom de la pièce — c'est aussi le nom de son PNG">
+      <input class="sk-nom" value="${escA(p.name)}" maxlength="32" title="${__dzT9("sprites.sp1_sk.nom_piece", "Nom de la pièce — c'est aussi le nom de son PNG")}">
       <span class="unit">→ ${esc(p.bone)} · ${p.w}×${p.h}</span>
-      <button class="sk-del" title="Supprimer cette pièce" aria-label="Supprimer cette pièce">${dzIcone("dz-action-supprimer", { taille: 16 })}</button></div>`;
+      <button class="sk-del" title="${__dzT9("sprites.sp1_sk.suppr_piece", "Supprimer cette pièce")}" aria-label="${__dzT9("sprites.sp1_sk.suppr_piece", "Supprimer cette pièce")}">${dzIcone("dz-action-supprimer", { taille: 16 })}</button></div>`;
   $("#skList").innerHTML = (sk.bones.map(ligneOs).join("") + sk.pieces.map(lignePiece).join(""))
-    || `<div class="hint">aucun os — glisse sur la case avec l'outil ${dzIcone("dz-lab3d-os", { taille: 16 })} Os</div>`;
+    || `<div class="hint">${__dzT9("sprites.sp1_sk.aucun_os", "aucun os — glisse sur la case avec l'outil")} ${dzIcone("dz-lab3d-os", { taille: 16 })} ${__dzT9("sprites.sp1_sk.outil_os", "Os")}</div>`;
   $$("#skList .sk-row").forEach((row) => {
     const os = row.dataset.os, piece = row.dataset.piece;
     const champ = row.querySelector(".sk-nom");
     champ.onchange = () => {
       const fait = os ? window.SLK.renommerOs(sk, os, champ.value) : window.SLK.renommerPiece(sk, piece, champ.value);
-      if (!fait) toast("Nom refusé : 1 à 32 caractères (lettres, chiffres, _ ou -), unique" + (os ? ", et pas « root »" : ""), true);
+      if (!fait) toast((os ? __dzT9("sprites.sp1_sk.nom_refuse_os", "Nom refusé : 1 à 32 caractères (lettres, chiffres, _ ou -), unique, et pas « root »") : __dzT9("sprites.sp1_sk.nom_refuse", "Nom refusé : 1 à 32 caractères (lettres, chiffres, _ ou -), unique")), true);
       skDessiner();
     };
     row.querySelector(".sk-del").onclick = () => {
       if (os) {
         const r = window.SLK.supprimerOs(sk, os);
-        if (r.os > 1 || r.pieces) toast(`${r.os} os et ${r.pieces} pièce(s) retirés`);
+        if (r.os > 1 || r.pieces) toast(__dzT9("sprites.sp1_sk.retires", "{os} os et {pieces} pièce(s) retirés", { os: r.os, pieces: r.pieces }));
       } else window.SLK.supprimerPiece(sk, piece);
       skDessiner();
     };
@@ -712,14 +735,14 @@ async function skEcrire() {
   const st = $("#skStatus"), short = skShort;
   $("#skSave").disabled = true;
   try {
-    setStatus(st, "Découpe des pièces et écriture du rig…", false, 30);
+    setStatus(st, __dzT9("sprites.sp2_sk.ecriture", "Découpe des pièces et écriture du rig…"), false, 30);
     const d = await api.send("POST", `/assets/sprite/${short}/skeleton`, window.SLK.corps(sk));
     const m = await api.get("/assets/sprite/" + short + "/manifest");
     if (sheet && sheet.short === short) sheet.manifest = m;
     $("#dlSpine").classList.toggle("hidden", !(m.files && m.files.spine));
-    setStatus(st, `rig écrit · ${d.bones} os (racine comprise) · ${d.slots} pièce(s) · hash ${d.hash} — le ZIP emporte spine/`);
+    setStatus(st, __dzT9("sprites.sp2_sk.ecrit", "rig écrit · {os} os (racine comprise) · {pieces} pièce(s) · hash {hash} — le ZIP emporte spine/", { os: d.bones, pieces: d.slots, hash: d.hash }));
   } catch (e) {
-    setStatus(st, "Échec : " + e.message, true);
+    setStatus(st, __dzT9("sprites.sp2_com.echec", "Échec : ") + e.message, true);
   } finally {
     if (sk) $("#skSave").disabled = !window.SLK.pret(sk);
   }
@@ -736,7 +759,7 @@ function skWire() {
     skGlisse = null;
     try {
       if (sk.outil === "os") window.SLK.ajouterOs(sk, a, b);
-      else if (!window.SLK.ajouterPiece(sk, a, b)) toast("Boîte trop petite : glisse sur au moins 2 px", true);
+      else if (!window.SLK.ajouterPiece(sk, a, b)) toast(__dzT9("sprites.sp2_sk.boite_petite", "Boîte trop petite : glisse sur au moins 2 px"), true);
     } catch (e) { toast(e.message, true); }
     skDessiner();
   });
@@ -751,16 +774,16 @@ async function applyEditor() {
   const btn = $("#editApply");
   btn.disabled = true;
   try {
-    setStatus(st, "Réassemblage…", false, 20);
+    setStatus(st, __dzT9("sprites.sp2_ed.reassemblage", "Réassemblage…"), false, 20);
     await api.send("POST", `/assets/sprite/${sheet.short}/reassemble`,
       { order: editOrder,
         columns: $("#columns").value === "auto" ? "auto" : parseInt($("#columns").value, 10),
         anim: animOpts(editOrder.length) });
     const m = await api.get("/assets/sprite/" + sheet.short + "/manifest");
     showResult(sheet.short, m);
-    toastOk("Feuille réassemblée", " — local, gratuit");
+    toastOk(__dzT9("sprites.sp2_ed.reassemblee", "Feuille réassemblée"), __dzT9("sprites.sp2_com.local_gratuit", " — local, gratuit"));
   } catch (e) {
-    setStatus(st, "Échec : " + e.message, true);
+    setStatus(st, __dzT9("sprites.sp2_com.echec", "Échec : ") + e.message, true);
   } finally {
     btn.disabled = false;
   }
@@ -838,8 +861,8 @@ async function saveToLibrary() {
     const d = await api.send("POST", `/assets/sprite/${sheet.short}/save`);
     savedSheet = { short: sheet.short, filename: (d && d.filename) || null };
     updateStudioBtn();
-    toastOk(`Sheet copié dans la Library${d && d.filename ? " : " + d.filename : ""}`, " — réutilisable dans le Studio (nœud Image).");
-  } catch (e) { toast("Save to Library échoué : " + e.message, true); }
+    toastOk(`${__dzT9("sprites.sp2_lib.copie", "Sheet copié dans la Library")}${d && d.filename ? " : " + d.filename : ""}`, __dzT9("sprites.sp2_lib.reutilisable", " — réutilisable dans le Studio (nœud Image)."));
+  } catch (e) { toast(__dzT9("sprites.sp2_lib.save_echoue", "Save to Library échoué : ") + e.message, true); }
 }
 
 /* ───────── hand-off « → Studio » (9d) ─────────
@@ -866,7 +889,7 @@ function toStudio() {
     };
     p.dispatchEvent(new p.CustomEvent("deepotus:navigate",
                                       { detail: { view: "studio" } }));
-  } catch (e) { toast("Ouverture du Studio impossible : " + e.message, true); }
+  } catch (e) { toast(__dzT9("sprites.sp2_lib.studio_impossible", "Ouverture du Studio impossible : ") + e.message, true); }
 }
 
 /* ───────── hand-off entrant (Library → Sprite Lab, 9d) ───────── */
@@ -898,7 +921,7 @@ async function loadEntities() {
   await SLD_PRET;
   if (!entities) {
     try { entities = (await api.get("/bible/entities")).entities || []; }
-    catch (e) { $("#entList").innerHTML = `<div class="empty-note">Bible indisponible : ${esc(e.message)}</div>`; return; }
+    catch (e) { $("#entList").innerHTML = `<div class="empty-note">${__dzT9("sprites.sp2_bible.indispo", "Bible indisponible : {msg}", { msg: esc(e.message) })}</div>`; return; }
   }
   renderEntities();
 }
@@ -908,9 +931,9 @@ function renderEntities() {
   $("#entList").innerHTML = l.map((e) => `
     <div class="render-item${e.id === selEntity ? " sel" : ""}" data-id="${escA(e.id)}">
       <div class="rt">${esc(e.name)}</div>
-      <div class="rm">planche${e.model3d_job ? ' · <span class="ent-3d">modèle 3D</span>' : ""}</div>
+      <div class="rm">${__dzT9("sprites.sp2_bible.planche", "planche")}${e.model3d_job ? ' · <span class="ent-3d">' + __dzT9("sprites.sp2_bible.modele3d", "modèle 3D") + '</span>' : ""}</div>
     </div>`).join("")
-    || `<div class="empty-note">Aucun personnage avec une planche — génère-la dans l'Atelier (Planche).</div>`;
+    || `<div class="empty-note">${__dzT9("sprites.sp2_bible.aucun", "Aucun personnage avec une planche — génère-la dans l'Atelier (Planche).")}</div>`;
   $$("#entList .render-item").forEach((el) => el.onclick = () => { selEntity = el.dataset.id; renderEntities(); });
   majBible();
 }
@@ -919,14 +942,14 @@ function majBible() {
   $("#bibleCut").disabled = !e || busyBible;
   $("#bible3d").disabled = !e || !e.model3d_job || busyBible;
   $("#bible3d").title = e && !e.model3d_job
-    ? "Ce personnage n'a pas de modèle 3D — génère-le dans Assets 3D, ou découpe la planche (4 directions)"
-    : "Rend le modèle 3D sous 8 angles et en fait une feuille de 8 directions (local, gratuit)";
+    ? __dzT9("sprites.sp2_bible.pas_3d", "Ce personnage n'a pas de modèle 3D — génère-le dans Assets 3D, ou découpe la planche (4 directions)")
+    : __dzT9("sprites.sp2_bible.rend_3d", "Rend le modèle 3D sous 8 angles et en fait une feuille de 8 directions (local, gratuit)");
 }
 
 /* la feuille d'un job lancé : suivi, manifeste, préviz — commun à la planche et aux orbites */
 async function finirFeuille(jobId, st, msg) {
   const j = await pollJob(jobId, (jj) => setStatus(st, `${jj.current_step || jj.status}…`, false, jj.progress || 5));
-  if (j.status !== "done") throw new Error(j.error || "assemblage échoué");
+  if (j.status !== "done") throw new Error(j.error || __dzT9("sprites.sp2_bible.assemblage_echoue", "assemblage échoué"));
   const short = jobId.slice(0, 8);
   const m = await api.get("/assets/sprite/" + short + "/manifest");
   clearStatus(st);
@@ -940,14 +963,14 @@ async function cutFromBible() {
   busyBible = true; majBible();
   const st = $("#bibleStatus");
   try {
-    setStatus(st, "Découpe de la planche…", false, 5);
+    setStatus(st, __dzT9("sprites.sp2_bible.decoupe", "Découpe de la planche…"), false, 5);
     const body = { entity_id: e.id, cell: cellOpts(), trim: $("#trim").value };
     const px = pixelOpts(); if (px) body.pixel = px;
     const po = postOpts(); if (po) body.post = po;
     const d = await api.send("POST", "/assets/sprite/from-board", body);
-    await finirFeuille(d.job_id, st, ["4 directions depuis la planche", " — gratuit, local"]);
+    await finirFeuille(d.job_id, st, [__dzT9("sprites.sp2_bible.quatre_dir", "4 directions depuis la planche"), __dzT9("sprites.sp2_com.gratuit_local", " — gratuit, local")]);
   } catch (err) {
-    setStatus(st, "Échec : " + err.message, true);
+    setStatus(st, __dzT9("sprites.sp2_com.echec", "Échec : ") + err.message, true);
   }
   busyBible = false; majBible();
 }
@@ -957,8 +980,8 @@ function chargerModele(mv, url) {
   if (mv.getAttribute("src") === url && mv.loaded) return Promise.resolve();
   return new Promise((ok, ko) => {
     const fin = (f) => (ev) => { clearTimeout(t); mv.removeEventListener("load", bon); mv.removeEventListener("error", mal); f(ev); };
-    const bon = fin(() => ok()), mal = fin(() => ko(new Error("modèle 3D illisible")));
-    const t = setTimeout(fin(() => ko(new Error("délai dépassé au chargement du modèle 3D"))), 60000);
+    const bon = fin(() => ok()), mal = fin(() => ko(new Error(__dzT9("sprites.sp2_bible.illisible", "modèle 3D illisible"))));
+    const t = setTimeout(fin(() => ko(new Error(__dzT9("sprites.sp2_bible.delai", "délai dépassé au chargement du modèle 3D")))), 60000);
     mv.addEventListener("load", bon); mv.addEventListener("error", mal);
     mv.setAttribute("src", url);
   });
@@ -976,8 +999,8 @@ async function captureOrbites() {
   busyBible = true; majBible();
   const st = $("#bibleStatus"), mv = $("#mv3d"), prefix = window.SLD.hex8();
   try {
-    if (!window.customElements || !customElements.get("model-viewer")) throw new Error("model-viewer n'est pas chargé");
-    setStatus(st, "Chargement du modèle 3D…", false, 3);
+    if (!window.customElements || !customElements.get("model-viewer")) throw new Error(__dzT9("sprites.sp2_bible.mv_absent", "model-viewer n'est pas chargé"));
+    setStatus(st, __dzT9("sprites.sp2_bible.chargement", "Chargement du modèle 3D…"), false, 3);
     await chargerModele(mv, `/api/assets/3d/${encodeURIComponent(e.model3d_job)}/glb`);
     const noms = [], sansAlpha = [];
     for (let k = 0; k < window.SLD.ORBITES.length; k++) {
@@ -989,18 +1012,18 @@ async function captureOrbites() {
       const r = await fetch(`/api/assets/sprite/capture?dir=${nom}&prefix=${prefix}`,
         { method: "POST", headers: { "Content-Type": "image/png" }, body: blob });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d.detail || `vue ${nom} refusée (${r.status})`);
+      if (!r.ok) throw new Error(d.detail || __dzT9("sprites.sp2_bible.vue_refusee", "vue {nom} refusée ({statut})", { nom, statut: r.status }));
       noms.push(d.filename);
       if (!d.alpha) sansAlpha.push(nom);
-      setStatus(st, `Capture ${k + 1}/8 (${nom})…`, false, 8 + k * 10);
+      setStatus(st, __dzT9("sprites.sp2_bible.capture", "Capture {k}/8 ({nom})…", { k: k + 1, nom }), false, 8 + k * 10);
     }
     const body = window.SLD.corpsOrbites(noms, sansAlpha, { cell: cellOpts(), pixel: pixelOpts(), post: postOpts(), titre: e.name });
-    setStatus(st, "Assemblage de la feuille…", false, 90);
+    setStatus(st, __dzT9("sprites.sp2_bible.assemblage", "Assemblage de la feuille…"), false, 90);
     const d = await api.send("POST", "/assets/sprite", body);
     await finirFeuille(d.job_id, st, sansAlpha.length
-      ? ["8 directions", " — rendu opaque, clé chroma locale appliquée"] : ["8 directions", " — rendu déjà détouré"]);
+      ? [__dzT9("sprites.sp2_bible.huit_dir", "8 directions"), __dzT9("sprites.sp2_bible.opaque", " — rendu opaque, clé chroma locale appliquée")] : [__dzT9("sprites.sp2_bible.huit_dir", "8 directions"), __dzT9("sprites.sp2_bible.detoure", " — rendu déjà détouré")]);
   } catch (err) {
-    setStatus(st, "Échec : " + err.message, true);
+    setStatus(st, __dzT9("sprites.sp2_com.echec", "Échec : ") + err.message, true);
   }
   busyBible = false; majBible();
 }
@@ -1013,8 +1036,8 @@ async function loadPersona() {
   try { imageModel = ((await api.get("/atelier/settings")).settings || {}).image_model_default || ""; } catch (e) { imageModel = ""; }
   const coul = (c) => /^#[0-9a-f]{3,8}$/i.test(c) ? `<i style="background:${c}"></i>` : "";
   $("#pmChips").innerHTML = window.SLD.puces(persona).map((p) =>
-    `<button type="button" class="chip${p.couleur ? " col" : ""}" data-v="${escA(p.v)}" title="Ajouter « ${escA(p.v)} » au prompt">${p.couleur ? coul(p.libelle) : ""}${esc(p.libelle)}</button>`).join("")
-    || `<span class="hint">aucun mot-clé dans la persona</span>`;
+    `<button type="button" class="chip${p.couleur ? " col" : ""}" data-v="${escA(p.v)}" title="${__dzT9("sprites.sp2_pm.ajouter", "Ajouter « {v} » au prompt", { v: escA(p.v) })}">${p.couleur ? coul(p.libelle) : ""}${esc(p.libelle)}</button>`).join("")
+    || `<span class="hint">${__dzT9("sprites.sp2_pm.aucun_mot", "aucun mot-clé dans la persona")}</span>`;
   $$("#pmChips .chip").forEach((el) => el.onclick = () => {
     const v = el.dataset.v;
     if (pucesOn.has(v)) pucesOn.delete(v); else pucesOn.add(v);
@@ -1034,22 +1057,22 @@ async function majDevisPrompt() {
 async function generateFromPrompt() {
   if (busyPrompt) return;
   const sujet = ($("#pmPrompt").value || "").trim();
-  if (!sujet) return toast("Décris d'abord le sprite.", true);
+  if (!sujet) return toast(__dzT9("sprites.sp2_pm.decris", "Décris d'abord le sprite."), true);
   busyPrompt = true; $("#pmGen").disabled = true;
   const st = $("#pmStatus");
   try {
-    setStatus(st, "Génération des images…", false, 10);
+    setStatus(st, __dzT9("sprites.sp2_pm.generation", "Génération des images…"), false, 10);
     const d = await api.send("POST", "/images/generate", window.SLD.corpsPrompt(sujet, [...pucesOn], $("#pmN").value, $("#pmSize").value));
     const noms = (d && d.images) || [];
-    if (!noms.length) throw new Error("aucune image rendue");
+    if (!noms.length) throw new Error(__dzT9("sprites.sp2_pm.aucune_rendue", "aucune image rendue"));
     clearStatus(st);
     loadImages();                                   // la Library a changé
     // le suffixe demande un fond vert uni : la clé chroma locale (gratuite) le retire — jamais l'API payante par défaut
     if ($("#removeBg").value === "api") { $("#removeBg").value = "chroma"; savePrefs(); updateCost(); }
-    setSource({ kind: "images", filenames: noms, label: `${noms.length} image(s) du prompt` });
-    toastOk(`${noms.length} image(s) générée(s)`, " — détourage en clé chroma (local) ; choisis tes frames puis génère le sheet");
+    setSource({ kind: "images", filenames: noms, label: __dzT9("sprites.sp2_pm.images_prompt", "{n} image(s) du prompt", { n: noms.length }) });
+    toastOk(__dzT9("sprites.sp2_pm.generees", "{n} image(s) générée(s)", { n: noms.length }), __dzT9("sprites.sp2_pm.detourage", " — détourage en clé chroma (local) ; choisis tes frames puis génère le sheet"));
   } catch (e) {
-    setStatus(st, "Échec : " + e.message, true);
+    setStatus(st, __dzT9("sprites.sp2_com.echec", "Échec : ") + e.message, true);
   }
   busyPrompt = false; $("#pmGen").disabled = false;
 }
@@ -1095,14 +1118,14 @@ async function loadStarter() {
     starterData = await api.get("/particles/presets");
   } catch (e) {
     $("#starterGrid").innerHTML =
-      `<div class="empty-note">Catalogue indisponible : ${esc(e.message)}</div>`;
+      `<div class="empty-note">${__dzT9("sprites.sp2_st.indispo", "Catalogue indisponible : {msg}", { msg: esc(e.message) })}</div>`;
     return;
   }
   renderStarter();
 }
 
 function starterTile(item, kind) {
-  const sub = kind === "preset" ? item.type : item.frames + " images";
+  const sub = kind === "preset" ? item.type : __dzT9("sprites.sp2_st.n_images", "{n} images", { n: item.frames });
   return `<button class="starter-tile" data-kind="${kind}" data-id="${esc(item.id)}"
     title="${esc(item.desc || item.name)}">
     <span class="starter-thumb"${item.thumb ? ` style="background-image:url(${esc(item.thumb)})"` : ""}></span>
@@ -1113,11 +1136,10 @@ function starterTile(item, kind) {
 function renderStarter() {
   const d = starterData || { presets: [], anims: [] };
   if (!d.presets.length && !d.anims.length) {
-    $("#starterGrid").innerHTML = `<div class="empty-note">Catalogue de démarrage absent —
-      lance <code>python scripts/build_starter_catalog.py --fetch</code> puis relance l'app.</div>`;
+    $("#starterGrid").innerHTML = `<div class="empty-note">${__dzT9("sprites.sp2_st.absent", "Catalogue de démarrage absent — lance {cmd} puis relance l'app.", { cmd: "<code>python scripts/build_starter_catalog.py --fetch</code>" })}</div>`;
     return;
   }
-  $("#starterCount").textContent = d.presets.length + " effets";
+  $("#starterCount").textContent = __dzT9("sprites.sp2_st.n_effets", "{n} effets", { n: d.presets.length });
   $("#starterGrid").innerHTML = d.presets.map(p => starterTile(p, "preset")).join("");
   $("#starterAnims").innerHTML = d.anims.map(a => starterTile(a, "anim")).join("");
   $$("#srcStarter .starter-tile").forEach(b => {
@@ -1133,20 +1155,20 @@ async function runStarter(kind, id, btn) {
   try {
     const cell = parseInt($("#cellSize").value, 10) || 512;   // T108 : « native » -> NaN -> 512, les particules gardent leur canevas
     const body = kind === "anim" ? { anim: id, cell } : { preset: id };
-    setStatus(st, "Job lancé…", false, 3);
+    setStatus(st, __dzT9("sprites.sp2_st.lance", "Job lancé…"), false, 3);
     const path = kind === "anim" ? "/assets/starter-anim" : "/assets/particles";
     const d = await api.send("POST", path, body);
     const j = await pollJob(d.job_id, jj => setStatus(st,
       `${jj.current_step || jj.status}…`, false, jj.progress || 5));
-    if (j.status !== "done") throw new Error(j.error || "génération échouée");
+    if (j.status !== "done") throw new Error(j.error || __dzT9("sprites.sp2_com.gen_echouee", "génération échouée"));
     const short = d.job_id.slice(0, 8);
     const m = await api.get("/assets/sprite/" + short + "/manifest");
     clearStatus(st);
     showResult(short, m);
-    toastOk("Sprite prêt", " — gratuit, généré en local");
+    toastOk(__dzT9("sprites.sp2_st.pret", "Sprite prêt"), __dzT9("sprites.sp2_st.gratuit_local", " — gratuit, généré en local"));
   } catch (e) {
-    setStatus(st, "Échec : " + e.message, true);
-    toast("Génération échouée : " + e.message, true);
+    setStatus(st, __dzT9("sprites.sp2_com.echec", "Échec : ") + e.message, true);
+    toast(__dzT9("sprites.sp2_st.gen_echouee", "Génération échouée : ") + e.message, true);
   }
   busyStarter = false;
   $$("#srcStarter .starter-tile").forEach(b => b.classList.remove("busy"));
@@ -1242,10 +1264,10 @@ const fTampon = () => { const c = document.createElement("canvas"); c.width = F.
 async function feuilleOuvrir(src, filename) {
   const im = new Image(); im.crossOrigin = "anonymous";
   // onload plutôt que decode() : decode() reste SUSPENDU quand l'onglet est caché (mesuré au lot 5)
-  await new Promise((res, rej) => { im.onload = () => res(); im.onerror = () => rej(new Error("image illisible : " + String(src).slice(0, 60))); im.src = src; });
+  await new Promise((res, rej) => { im.onload = () => res(); im.onerror = () => rej(new Error(__dzT9("sprites.sp2_f.illisible", "image illisible : ") + String(src).slice(0, 60))); im.src = src; });
   F.img = im; F.filename = filename; F.tampon = fTampon(); F.off = []; F.sections = []; F.dernier = null; F.courant = 0;
   source = null;                                            // pas une source de génération : la chaîne Seedance reste à part
-  const chip = $("#srcChip"); chip.textContent = "Feuille : " + filename; chip.classList.add("set");
+  const chip = $("#srcChip"); chip.textContent = __dzT9("sprites.sp2_f.chip", "Feuille : ") + filename; chip.classList.add("set");
   switchSrcTab("feuille");
   feuilleDetect();
 }
@@ -1259,7 +1281,7 @@ function feuilleGrille() {
   F.g = { cols, rows, cell_w: Math.floor(F.tampon.w / cols), cell_h: Math.floor(F.tampon.h / rows) };
   F.occ = window.SLF.cases_occupees(F.tampon, F.g);
   F.sel = F.occ.slice(); F.off = F.occ.map(() => ({ dx: 0, dy: 0 })); F.sections = []; F.dernier = null; F.courant = 0;
-  $("#fDims").textContent = `${F.tampon.w}×${F.tampon.h} · cases ${F.g.cell_w}×${F.g.cell_h}`;
+  $("#fDims").textContent = `${F.tampon.w}×${F.tampon.h} · ${__dzT9("sprites.sp2_f.cases", "cases")} ${F.g.cell_w}×${F.g.cell_h}`;
   feuilleDessiner(); feuilleJoueur();
 }
 function feuilleDessiner() {
@@ -1274,7 +1296,7 @@ function feuilleDessiner() {
     x.fillStyle = "#9a9a9a"; x.font = "9px system-ui"; x.fillText(String(i), r.x + 2, r.y + 9);
   }
   const n = F.sel.filter(Boolean).length; $("#fCount").textContent = `${n}/${F.occ.filter(Boolean).length}`;
-  $("#fSections").innerHTML = F.sections.map((s) => `<div class="section-row"><span class="nom">${esc(s.nom)}</span><span>${s.debut}–${s.fin}</span><span>${esc(s.mode)}</span><button class="btn ghost fSecDel" data-nom="${esc(s.nom)}" title="Retirer" aria-label="Retirer">${dzIcone("dz-action-retirer", { taille: 16 })}</button></div>`).join("") || `<div class="hint">aucune section — sélectionne des cases puis « + depuis la sélection »</div>`;
+  $("#fSections").innerHTML = F.sections.map((s) => `<div class="section-row"><span class="nom">${esc(s.nom)}</span><span>${s.debut}–${s.fin}</span><span>${esc(s.mode)}</span><button class="btn ghost fSecDel" data-nom="${esc(s.nom)}" title="${__dzT9("sprites.sp2_f.retirer", "Retirer")}" aria-label="${__dzT9("sprites.sp2_f.retirer", "Retirer")}">${dzIcone("dz-action-retirer", { taille: 16 })}</button></div>`).join("") || `<div class="hint">${__dzT9("sprites.sp2_f.aucune_section", "aucune section — sélectionne des cases puis « + depuis la sélection »")}</div>`;
   $$(".fSecDel").forEach((b) => b.onclick = () => { F.sections = F.sections.filter((s) => s.nom !== b.dataset.nom); feuilleDessiner(); });
 }
 const fCaseDe = (ev) => { const cv = $("#fCanvas"), r = cv.getBoundingClientRect(); if (!r.width) return -1; const x = (ev.clientX - r.left) * cv.width / r.width, y = (ev.clientY - r.top) * cv.height / r.height; const c = Math.floor(x / F.g.cell_w), l = Math.floor(y / F.g.cell_h); return (c < 0 || l < 0 || c >= F.g.cols || l >= F.g.rows) ? -1 : l * F.g.cols + c; };
@@ -1318,12 +1340,12 @@ function feuilleWire() {
   $$(".fEvery").forEach((b) => b.onclick = () => { F.sel = window.SLF.selection_une_sur(F.occ, +b.dataset.n); feuilleDessiner(); feuilleJoueur(); });
   $("#fAlDeux").onclick = () => feuilleAligner("deux"); $("#fAlX").onclick = () => feuilleAligner("x"); $("#fAlPieds").onclick = () => feuilleAligner("pieds"); $("#fAlZero").onclick = () => feuilleAligner(null);
   $$(".fNudge").forEach((b) => b.onclick = () => { const o = F.off[F.courant]; if (!o) return; F.off = F.off.slice(); F.off[F.courant] = { dx: o.dx + +b.dataset.dx, dy: o.dy + +b.dataset.dy }; feuilleDessiner(); feuilleJoueur(); });
-  $("#fSecAdd").onclick = () => { const idx = F.sel.map((v, i) => v ? i : -1).filter((i) => i >= 0); if (!idx.length) return toast("sélectionne des cases d'abord", true);
+  $("#fSecAdd").onclick = () => { const idx = F.sel.map((v, i) => v ? i : -1).filter((i) => i >= 0); if (!idx.length) return toast(__dzT9("sprites.sp2_f.selectionne", "sélectionne des cases d'abord"), true);
     try { F.sections = window.SLF.section_definir(F.sections, { nom: $("#fSecNom").value, debut: 0, fin: idx.length - 1, mode: $("#fSecMode").value }, idx.length); $("#fSecNom").value = ""; feuilleDessiner(); } catch (e) { toast(e.message, true); } };
-  $("#fCopyJson").onclick = async () => { try { await navigator.clipboard.writeText(JSON.stringify(feuilleManifest(), null, 2)); toast("manifest copié"); } catch (e) { toast("presse-papiers refusé : " + e.message, true); } };
+  $("#fCopyJson").onclick = async () => { try { await navigator.clipboard.writeText(JSON.stringify(feuilleManifest(), null, 2)); toast(__dzT9("sprites.sp2_f.copie", "manifest copié")); } catch (e) { toast(__dzT9("sprites.sp2_f.presse_papiers", "presse-papiers refusé : ") + e.message, true); } };
   $("#fDlJson").onclick = () => fTelecharger(new Blob([JSON.stringify(feuilleManifest(), null, 2)], { type: "application/json" }), fBase() + ".json");
   $("#fDlPng").onclick = async () => fTelecharger(await feuillePngBlob(), fBase() + "_alignee.png");
-  $("#fSaveLib").onclick = async () => { try { const fd = new FormData(); fd.append("file", await feuillePngBlob(), `sprites_feuille_${Date.now()}.png`); const r = await fetch("/api/images/upload", { method: "POST", body: fd }); const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.detail || r.statusText); toast(`sauvé en Library : ${d.filename} — « Envoyer vers » le Vectorlab depuis la Library`); loadImages(); } catch (e) { toast(e.message, true); } };
+  $("#fSaveLib").onclick = async () => { try { const fd = new FormData(); fd.append("file", await feuillePngBlob(), `sprites_feuille_${Date.now()}.png`); const r = await fetch("/api/images/upload", { method: "POST", body: fd }); const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.detail || r.statusText); toast(__dzT9("sprites.sp2_f.sauve", "sauvé en Library : {f} — « Envoyer vers » le Vectorlab depuis la Library", { f: d.filename })); loadImages(); } catch (e) { toast(e.message, true); } };
   feuilleGestes();
 }
 function renderFeuilleGrid() {
@@ -1331,7 +1353,7 @@ function renderFeuilleGrid() {
   const list = libImages.filter((im) => !q || im.filename.toLowerCase().includes(q));
   const g = $("#feuilleGrid");
   g.innerHTML = list.slice(0, 120).map((im) => `<img loading="lazy" data-fn="${esc(im.filename)}" title="${esc(im.filename)}" src="/api/images/${encodeURIComponent(im.filename)}">`).join("")
-    || `<div class="empty-note">Aucune image${q ? " pour « " + esc(q) + " »" : " dans la Library"}.</div>`;
+    || `<div class="empty-note">${q ? __dzT9("sprites.sp2_f.aucune_q", "Aucune image pour « {q} ».", { q: esc(q) }) : __dzT9("sprites.sp2_f.aucune_lib", "Aucune image dans la Library.")}</div>`;
   g.querySelectorAll("img").forEach((el) => el.onclick = () => feuilleOuvrir(`/api/images/${encodeURIComponent(el.dataset.fn)}`, el.dataset.fn).catch((err) => toast(err.message, true)));
 }
 window.SL = Object.assign(window.SL || {}, { feuille: { ouvrir: feuilleOuvrir, etat: () => F, manifest: feuilleManifest, aligner: feuilleAligner } });   // la preuve
@@ -1371,14 +1393,14 @@ async function restoreLast() {
       const st = $("#genStatus");
       busyGen = true; updateGenEnabled();
       try {
-        setStatus(st, "Génération en cours retrouvée…", false, 5);
+        setStatus(st, __dzT9("sprites.sp2_rest.retrouvee", "Génération en cours retrouvée…"), false, 5);
         const j = await pollJob(run.job_id, jj => setStatus(st,
           `${jj.current_step || jj.status}…`, false, jj.progress || 5));
-        if (j.status !== "done") throw new Error(j.error || "génération échouée");
+        if (j.status !== "done") throw new Error(j.error || __dzT9("sprites.sp2_com.gen_echouee", "génération échouée"));
         clearStatus(st);
-        if (await showShort(run.job_id.slice(0, 8))) toastOk("Sprite sheet généré");
+        if (await showShort(run.job_id.slice(0, 8))) toastOk(__dzT9("sprites.sp2_rest.genere", "Sprite sheet généré"));
       } catch (e) {
-        setStatus(st, "Échec : " + e.message, true);
+        setStatus(st, __dzT9("sprites.sp2_com.echec", "Échec : ") + e.message, true);
       }
       busyGen = false; updateGenEnabled();
       return;
@@ -1387,7 +1409,7 @@ async function restoreLast() {
       .filter(j => j.status === "done" && j.final_video_path)
       .sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""))[0];
     if (done && await showShort(done.job_id.slice(0, 8)))
-      toastOk("Dernier sheet rechargé");
+      toastOk(__dzT9("sprites.sp2_rest.recharge", "Dernier sheet rechargé"));
   } catch (e) { /* réseau/API indisponible : placeholder d'origine */ }
 }
 
@@ -1414,3 +1436,5 @@ window.__sl = {
   loadImages(); loadRenders();
   restoreLast();               // préviz : survit au remontage de l'iframe
 })();
+// t149 (traduction L9) : dzT dans la page, le français sous node (bancs)
+function __dzT9(k, fr, v) { return typeof globalThis.dzT === "function" ? globalThis.dzT(k, v) : String(fr).replace(/\{(\w+)\}/g, (m, n) => (v && v[n] != null ? String(v[n]) : m)); }

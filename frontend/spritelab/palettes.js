@@ -31,6 +31,8 @@ export function palette_de(id) {
 const _esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
 export function options_palettes({ backendSeulement = false, courante = "" } = {}) {
   const liste = backendSeulement ? PALETTES.filter((p) => p.backend) : PALETTES;
-  return `<option value=""${courante === "" ? " selected" : ""}>Adaptative (N couleurs)</option>`
+  return `<option value=""${courante === "" ? " selected" : ""}>${__dzT9("sprites.sp2_pal.adaptative", "Adaptative (N couleurs)")}</option>`
     + liste.map((p) => `<option value="${p.id}"${p.id === courante ? " selected" : ""}>${_esc(p.nom)} (${p.couleurs.length})</option>`).join("");
 }
+// t149 (traduction L9) : dzT dans la page, le français sous node (bancs)
+function __dzT9(k, fr, v) { return typeof globalThis.dzT === "function" ? globalThis.dzT(k, v) : String(fr).replace(/\{(\w+)\}/g, (m, n) => (v && v[n] != null ? String(v[n]) : m)); }

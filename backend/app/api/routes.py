@@ -2894,14 +2894,15 @@ async def starter_import(body: dict):
 
 
 @router.get("/particles/presets")
-async def particles_presets():
+async def particles_presets(request: Request = None):
     """Presets de l'écran « VFX particules » : chacun est (texture CC0 +
-    réglages d'émetteur), donc directement exécutable."""
+    réglages d'émetteur), donc directement exécutable. Noms et descriptions dans la langue de la requête (t149)."""
     from app.services import particle_service as PS
     from app.services import starter_catalog as SC
+    from app.i18n import catalogues as CAT, langue_requete
     cat = SC.load()
     thumbs = {p["id"]: p.get("thumb") for p in cat.get("particles", [])}
-    return {
+    return CAT.particules({
         "available": cat.get("available", False),
         "presets": [{
             "id": p["id"], "name": p["name"], "type": p["type"],
@@ -2914,7 +2915,7 @@ async def particles_presets():
         "anims": [{"id": a["id"], "name": a["name"], "frames": a["frames"],
                    "thumb": f"/starter/{a['thumb']}"}
                   for a in cat.get("anims", [])],
-    }
+    }, langue_requete(request) if request is not None else "fr")
 
 
 def _sprite_job(title: str, step: str):

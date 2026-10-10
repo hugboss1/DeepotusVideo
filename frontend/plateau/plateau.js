@@ -16,6 +16,29 @@ import { ASPECTS, EASINGS, fovDeFocale, focaleDeFov, positionCamera, orbitDeCame
          preset, trianglesProxy } from "./calc.js";
 
 const $ = (s) => document.querySelector(s);
+/* t149 (traduction L9) : passe unique au chargement, en anglais seulement — (1) les <option> fixes de la page
+   (la surcouche n'entre pas dans <select>) ; (2) les textes de la page saisis en « contexte » (sens propre au
+   lab, la surcouche les ignore) : texte exact d'un nœud ou d'un title/placeholder -> dzT(clé), clés de cette
+   page seulement. */
+(function () {
+  if (typeof document === "undefined" || typeof dzLang !== "function" || dzLang() !== "en") return;
+  const tr = window.__dzI18n && window.__dzI18n.traduire;
+  if (tr) for (const o of document.querySelectorAll("select option")) { const t = tr(o.textContent); if (t) o.textContent = t; }
+  if (tr) for (const im of document.querySelectorAll("img[alt]")) { const t = tr(im.alt); if (t) im.alt = t; }   // alt : hors surcouche
+  const D = window.DZ_I18N || {}, idx = {}, nrm = (s) => String(s).replace(/\s+/g, " ").trim();
+  for (const k in D) if (k.startsWith("plateau.plh_") && D[k] && D[k].contexte) idx[nrm(D[k].fr)] = k;
+  // la surcouche a pu passer AVANT : le texte qu'elle a posé (« Plateau » -> Board du Vectorlab) est reconnu aussi
+  if (tr) for (const f of Object.keys(idx)) { const e = tr(f); if (e && !idx[nrm(e)]) idx[nrm(e)] = idx[f]; }
+  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let x = w.nextNode(); x; x = w.nextNode()) {
+    const k = idx[nrm(x.nodeValue)];
+    if (k) x.nodeValue = x.nodeValue.match(/^\s*/)[0] + dzT(k) + x.nodeValue.match(/\s*$/)[0];
+  }
+  for (const el of document.querySelectorAll("[title],[placeholder]")) for (const a of ["title", "placeholder"]) {
+    const v = el.getAttribute(a), k = v && idx[nrm(v)];
+    if (k) el.setAttribute(a, dzT(k));
+  }
+})();
 /* Deepotus Glyph (G6) : une icône de la suite, décorative — le sens est porté par le bouton (libellé, title, aria-label) */
 const ico = (cle, t = 16) => (typeof dzIcone === "function" ? dzIcone(cle, { taille: t, classe: "dzi--" + t }) : "");
 const API = "/api/scenes3d";
@@ -129,7 +152,7 @@ async function monterScène() {
   P.mesh.clear();
   for (const inst of P.scene.instances) {
     try { const o = await objetDe(inst); V.racine.add(o); P.mesh.set(inst.id, o); }
-    catch (e) { etat(`« ${inst.nom} » : ${e.message}`, true); }
+    catch (e) { etat(__dzT9("plateau.pl_err.instance", "« {nom} » : {msg}", { nom: inst.nom, msg: e.message }), true); }
   }
   majTris();
 }
@@ -145,13 +168,13 @@ function majTris() {
     if (i.source.kind === "proxy") n += trianglesProxy(i.source.forme);
     else n += i.niveau === "plein" ? (P.dims[i.id] ? P.dims[i.id].tris : 0) : Math.min(2500, P.dims[i.id] ? P.dims[i.id].tris : 2500);
   }
-  $("#tris").textContent = `${n.toLocaleString("fr-FR")} triangles dans la scène`;
+  $("#tris").textContent = __dzT9("plateau.pl_scene.tris", "{n} triangles dans la scène", { n: n.toLocaleString("fr-FR") });
 }
 
 function listeInstances() {
   $("#instances").innerHTML = P.scene.instances.map((i) => `<li data-id="${esc(i.id)}" aria-selected="${i.id === P.sel}">
     <span class="pastille" style="background:${i.role === "sujet" ? COUL_SUJET : esc(i.couleur)}"></span>${esc(i.nom)}
-    <span class="role ${i.role}">${i.role}${i.source.kind === "proxy" ? "" : " · " + i.niveau}</span></li>`).join("");
+    <span class="role ${i.role}">${({ sujet: __dzT9("plateau.pl_role.sujet", "sujet"), decor: __dzT9("plateau.pl_role.decor", "decor"), repere: __dzT9("plateau.pl_role.repere", "repere") })[i.role] || i.role}${i.source.kind === "proxy" ? "" : " · " + (({ allege: __dzT9("plateau.pl_niv.allege", "allege"), plein: __dzT9("plateau.pl_niv.plein", "plein") })[i.niveau] || i.niveau)}</span></li>`).join("");
   $("#instances").querySelectorAll("li").forEach((li) => li.addEventListener("click", () => { P.sel = li.dataset.id; listeInstances(); fiche(); }));
 }
 function fiche() {
@@ -159,20 +182,20 @@ function fiche() {
   if (!i) { f.innerHTML = ""; return; }
   const num = (k, j, v) => `<input class="champ num" type="number" step="0.05" data-k="${k}" data-j="${j}" value="${Number(v).toFixed(3)}">`;
   f.innerHTML = `
-    <div class="ligne"><input class="champ" data-k="nom" value="${esc(i.nom)}" aria-label="Nom de l'instance"></div>
-    <div class="ligne"><span>Rôle</span><select class="champ" data-k="role">${["sujet", "decor", "repere"].map((r) => `<option ${r === i.role ? "selected" : ""}>${r}</option>`).join("")}</select>
-      ${i.source.kind === "proxy" ? "" : `<select class="champ" data-k="niveau" title="allégé : 2 500 triangles (gltfpack) ; plein : le maillage tel quel">${["allege", "plein"].map((n) => `<option ${n === i.niveau ? "selected" : ""}>${n}</option>`).join("")}</select>`}</div>
+    <div class="ligne"><input class="champ" data-k="nom" value="${esc(i.nom)}" aria-label="${__dzT9("plateau.pl_fiche.nom", "Nom de l'instance")}"></div>
+    <div class="ligne"><span>${__dzT9("plateau.pl_fiche.role", "Rôle")}</span><select class="champ" data-k="role">${["sujet", "decor", "repere"].map((r) => `<option value="${r}" ${r === i.role ? "selected" : ""}>${({ sujet: __dzT9("plateau.pl_role.sujet", "sujet"), decor: __dzT9("plateau.pl_role.decor", "decor"), repere: __dzT9("plateau.pl_role.repere", "repere") })[r]}</option>`).join("")}</select>
+      ${i.source.kind === "proxy" ? "" : `<select class="champ" data-k="niveau" title="${__dzT9("plateau.pl_fiche.niveau_t", "allégé : 2 500 triangles (gltfpack) ; plein : le maillage tel quel")}">${["allege", "plein"].map((n) => `<option value="${n}" ${n === i.niveau ? "selected" : ""}>${({ allege: __dzT9("plateau.pl_niv.allege", "allege"), plein: __dzT9("plateau.pl_niv.plein", "plein") })[n]}</option>`).join("")}</select>`}</div>
     <div class="xyz"><span>pos m</span>${[0, 1, 2].map((j) => num("pos", j, i.transform.pos[j])).join("")}</div>
     <div class="xyz"><span>rot °</span>${[0, 1, 2].map((j) => num("rot", j, i.transform.rot[j])).join("")}</div>
-    <div class="xyz"><span>échelle</span>${num("scale", 0, i.transform.scale)}</div>
-    ${i.source.kind === "proxy" ? `<div class="xyz"><span>l h p</span>${[0, 1, 2].map((j) => num("dims", j, i.dims[j])).join("")}</div>`
-      : `<div class="sous">${i.dims ? i.dims.map(f2).join(" × ") + " m mesurés" : "dims mesurées à la pose"}</div>`}
-    <div class="ligne"><button class="btn" id="btnDup">Dupliquer</button><button class="btn" id="btnSuppr" title="Retirer l'instance (un second clic confirme)">Retirer</button></div>`;
+    <div class="xyz"><span>${__dzT9("plateau.pl_fiche.echelle", "échelle")}</span>${num("scale", 0, i.transform.scale)}</div>
+    ${i.source.kind === "proxy" ? `<div class="xyz"><span>${__dzT9("plateau.pl_fiche.lhp", "l h p")}</span>${[0, 1, 2].map((j) => num("dims", j, i.dims[j])).join("")}</div>`
+      : `<div class="sous">${i.dims ? i.dims.map(f2).join(" × ") + __dzT9("plateau.pl_fiche.m_mesures", " m mesurés") : __dzT9("plateau.pl_fiche.dims_pose", "dims mesurées à la pose")}</div>`}
+    <div class="ligne"><button class="btn" id="btnDup">${__dzT9("plateau.pl_fiche.dupliquer", "Dupliquer")}</button><button class="btn" id="btnSuppr" title="${__dzT9("plateau.pl_fiche.retirer_t", "Retirer l'instance (un second clic confirme)")}">${__dzT9("plateau.pl_fiche.retirer", "Retirer")}</button></div>`;
   f.querySelectorAll("[data-k]").forEach((el) => el.addEventListener("change", () => champ(i, el)));
   $("#btnDup").addEventListener("click", () => dupliquer(i));
   const sup = $("#btnSuppr");
   sup.addEventListener("click", () => {
-    if (sup.dataset.arm !== "1") { sup.dataset.arm = "1"; sup.textContent = "Retirer ?"; setTimeout(() => { sup.dataset.arm = ""; sup.textContent = "Retirer"; }, 4000); return; }
+    if (sup.dataset.arm !== "1") { sup.dataset.arm = "1"; sup.textContent = __dzT9("plateau.pl_fiche.retirer_arme", "Retirer ?"); setTimeout(() => { sup.dataset.arm = ""; sup.textContent = __dzT9("plateau.pl_fiche.retirer", "Retirer"); }, 4000); return; }
     P.scene.instances = P.scene.instances.filter((x) => x.id !== i.id);
     const o = P.mesh.get(i.id); if (o) V.racine.remove(o);
     P.sel = null; listeInstances(); fiche(); majTris(); sauver();
@@ -202,7 +225,7 @@ async function ajouter(inst) {
 }
 function dupliquer(i) {
   const c = JSON.parse(JSON.stringify(i));
-  c.id = idLibre(i.id); c.nom = i.nom + " (copie)"; c.role = c.role === "sujet" ? "decor" : c.role;
+  c.id = idLibre(i.id); c.nom = i.nom + __dzT9("plateau.pl_fiche.copie", " (copie)"); c.role = c.role === "sujet" ? "decor" : c.role;
   c.transform.pos[0] += 1;
   ajouter(c);
 }
@@ -221,10 +244,10 @@ async function chargerSources() {
     const ents = d.entites.map((e) => ({ v: `${e.job}|${e.file}|${e.id}`, l: `${e.nom} (bible)` }));
     const jobs = d.jobs.flatMap((j) => j.versions.map((v) => ({ v: `${j.job}|${v.file}|`, l: `${j.nom} · ${v.libelle || v.file}${v.triangles ? " · " + v.triangles + " tris" : ""}` })));
     const html = (L) => L.map((o) => `<option value="${esc(o.v)}">${esc(o.l)}</option>`).join("");
-    $("#selMaillage").innerHTML = `<option value="">maillage… (${ents.length + jobs.length})</option>`
-      + (ents.length ? `<optgroup label="Entités de la bible">${html(ents)}</optgroup>` : "")
-      + (ents.length && jobs.length ? `<optgroup label="Maillages 3D">${html(jobs)}</optgroup>` : html(jobs));
-  } catch (e) { etat(`maillages : ${e.message}`, true); }
+    $("#selMaillage").innerHTML = `<option value="">${__dzT9("plateau.pl_src.maillage_n", "maillage… ({n})", { n: ents.length + jobs.length })}</option>`
+      + (ents.length ? `<optgroup label="${__dzT9("plateau.pl_src.entites", "Entités de la bible")}">${html(ents)}</optgroup>` : "")
+      + (ents.length && jobs.length ? `<optgroup label="${__dzT9("plateau.pl_src.maillages3d", "Maillages 3D")}">${html(jobs)}</optgroup>` : html(jobs));
+  } catch (e) { etat(__dzT9("plateau.pl_err.maillages", "maillages : {msg}", { msg: e.message }), true); }
 }
 $("#btnMaillage").addEventListener("click", async () => {
   const v = $("#selMaillage").value; if (!v) return;
@@ -247,8 +270,8 @@ function sauver() {
     try {
       const d = await send(`${API}/${P.scene.id}`, "PUT", { nom: P.scene.nom, aspect: P.scene.aspect, focale_mm: P.scene.focale_mm,
         instances: P.scene.instances, camera: caméraCourante(), keyframes: P.scene.keyframes });
-      P.scene.camera = d.camera; P.dirty = false; etat("enregistré");
-    } catch (e) { etat(`enregistrement : ${e.message}`, true); }
+      P.scene.camera = d.camera; P.dirty = false; etat(__dzT9("plateau.pl_etat.enregistre", "enregistré"));
+    } catch (e) { etat(__dzT9("plateau.pl_err.enregistrement", "enregistrement : {msg}", { msg: e.message }), true); }
   }, 700);
 }
 
@@ -264,7 +287,7 @@ function majFocale(fromInput) {
 }
 $("#focale").addEventListener("change", () => { majFocale(true); sauver(); mesurerBientôt(); });
 $("#aspect").addEventListener("change", () => { P.scene.aspect = $("#aspect").value; majCadre(); sauver(); mesurerBientôt(); });
-$("#nomScene").addEventListener("change", () => { P.scene.nom = $("#nomScene").value.trim() || "scène"; sauver(); });
+$("#nomScene").addEventListener("change", () => { P.scene.nom = $("#nomScene").value.trim() || __dzT9("plateau.pl_scene.defaut", "scène"); sauver(); });
 
 let tMes = 0;
 function mesurerBientôt() { clearTimeout(tMes); tMes = setTimeout(mesurer, 180); }
@@ -274,10 +297,10 @@ async function mesurer() {
   try {
     const m = await send(`${API}/${P.scene.id}/mesure`, "POST", { camera: caméraCourante(), scene: sceneAffichée() });
     $("#lecture").innerHTML = `<span>distance <b>${f2(m.distance_m)} m</b></span><span>${Math.round(m.focale_mm)} mm · ${f2(m.fov)}°</span>
-      <span>h <b>${f2(m.h)}</b></span><span>plan <b>${esc(m.shot_type)}</b></span>${m.dans_cadre ? "" : '<span class="ko">sujet hors cadre</span>'}`;
-    $("#mesure").innerHTML = `<div><span class="k">mesuré</span> ${esc(m.shot_type)} (h = ${f2(m.h)})</div>
-      <div class="k">seuils : ${Object.entries(m.seuils).map(([k, v]) => `${k} &lt; ${String(v).replace(".", ",")}`).join(" · ")}</div>
-      ${m.plan ? `<div class="${m.plan.ecart ? "ecart" : ""}">plan écrit : ${esc(m.plan.shot_type)}${m.plan.ecart ? ` — le cadre donne ${esc(m.shot_type)}` : " " + ico("dz-etat-succes")}</div>` : ""}`;
+      <span>h <b>${f2(m.h)}</b></span><span>${__dzT9("plateau.pl_lect.plan", "plan")} <b>${esc(m.shot_type)}</b></span>${m.dans_cadre ? "" : '<span class="ko">' + __dzT9("plateau.pl_lect.hors_cadre", "sujet hors cadre") + '</span>'}`;
+    $("#mesure").innerHTML = `<div><span class="k">${__dzT9("plateau.pl_mes.mesure", "mesuré")}</span> ${esc(m.shot_type)} (h = ${f2(m.h)})</div>
+      <div class="k">${__dzT9("plateau.pl_mes.seuils", "seuils :")} ${Object.entries(m.seuils).map(([k, v]) => `${k} &lt; ${String(v).replace(".", ",")}`).join(" · ")}</div>
+      ${m.plan ? `<div class="${m.plan.ecart ? "ecart" : ""}">${__dzT9("plateau.pl_mes.plan_ecrit", "plan écrit : {v}", { v: esc(m.plan.shot_type) })}${m.plan.ecart ? __dzT9("plateau.pl_mes.cadre_donne", " — le cadre donne {v}", { v: esc(m.shot_type) }) : " " + ico("dz-etat-succes")}</div>` : ""}`;
   } catch (e) { $("#lecture").innerHTML = `<span class="ko">${esc(e.message)}</span>`; }
 }
 V.controls.addEventListener("change", () => { majFocale(false); majGuides(); if (!P.lecture) { mesurerBientôt(); sauverCaméraBientôt(); } });
@@ -293,8 +316,8 @@ function majTimeline() {
   $("#kfs").querySelectorAll(".losange").forEach((b) => b.addEventListener("click", () => allerA(P.scene.keyframes[+b.dataset.i].t)));
   $("#listeKf").innerHTML = P.scene.keyframes.map((k, i) => `<li><span class="t">${f2(k.t)} s</span>
     <span class="sous">r ${f2(k.orbit[2])} · θ ${Math.round(k.orbit[0])}° · φ ${Math.round(k.orbit[1])}°</span>
-    <select data-i="${i}" aria-label="easing du segment">${EASINGS.map((e) => `<option ${e === k.easing ? "selected" : ""}>${e}</option>`).join("")}</select>
-    <button class="btn" data-x="${i}" title="Retirer ce keyframe" aria-label="Retirer ce keyframe">${ico("dz-media-image-cle-retirer")}</button></li>`).join("");
+    <select data-i="${i}" aria-label="${__dzT9("plateau.pl_kf.easing", "easing du segment")}">${EASINGS.map((e) => `<option ${e === k.easing ? "selected" : ""}>${e}</option>`).join("")}</select>
+    <button class="btn" data-x="${i}" title="${__dzT9("plateau.pl_kf.retirer", "Retirer ce keyframe")}" aria-label="${__dzT9("plateau.pl_kf.retirer", "Retirer ce keyframe")}">${ico("dz-media-image-cle-retirer")}</button></li>`).join("");
   $("#listeKf").querySelectorAll("select").forEach((s) => s.addEventListener("change", () => { P.scene.keyframes[+s.dataset.i].easing = s.value; sauver(); analyser(); }));
   $("#listeKf").querySelectorAll("[data-x]").forEach((b) => b.addEventListener("click", () => { P.scene.keyframes.splice(+b.dataset.x, 1); majTimeline(); sauver(); analyser(); }));
 }
@@ -319,7 +342,7 @@ $("#preset").addEventListener("change", (e) => {
 });
 let rafLecture = 0, t0 = 0;
 function basculerLecture() {
-  if (P.scene.keyframes.length < 2) { etat("deux keyframes au moins pour lire un mouvement", true); return; }
+  if (P.scene.keyframes.length < 2) { etat(__dzT9("plateau.pl_kf.deux_min", "deux keyframes au moins pour lire un mouvement"), true); return; }
   P.lecture = !P.lecture;
   $("#btnPlay").innerHTML = ico(P.lecture ? "dz-media-pause" : "dz-media-lecture");
   if (P.lecture) {
@@ -344,23 +367,23 @@ async function analyser() {
   try {
     const m = await send(`${API}/${P.scene.id}/mouvement`, "POST", { keyframes: P.scene.keyframes, scene: sceneAffichée() });
     dernierMvt = m;
-    $("#mouvement").innerHTML = `<div><span class="k">mesuré</span> ${esc(m.camera_move)}</div>
-      ${m.attributs.length ? `<div class="k">attribut proposé : ${m.attributs.map(esc).join(", ")}</div>` : ""}
-      ${m.plan ? `<div class="${m.plan.ecart ? "ecart" : ""}">plan écrit : ${esc(m.plan.camera_move)}${m.plan.ecart ? " — écart" : " " + ico("dz-etat-succes")}</div>` : ""}
+    $("#mouvement").innerHTML = `<div><span class="k">${__dzT9("plateau.pl_mes.mesure", "mesuré")}</span> ${esc(m.camera_move)}</div>
+      ${m.attributs.length ? `<div class="k">${__dzT9("plateau.pl_mvt.attribut", "attribut proposé : {v}", { v: m.attributs.map(esc).join(", ") })}</div>` : ""}
+      ${m.plan ? `<div class="${m.plan.ecart ? "ecart" : ""}">${__dzT9("plateau.pl_mes.plan_ecrit", "plan écrit : {v}", { v: esc(m.plan.camera_move) })}${m.plan.ecart ? __dzT9("plateau.pl_mvt.ecart", " — écart") : " " + ico("dz-etat-succes")}</div>` : ""}
       <div class="prompt">${esc(m.motion_prompt)}</div>${m.avertissements.map((a) => `<div class="avert">${ico("dz-etat-avertissement")} ${esc(a)}</div>`).join("")}`;
   } catch (e) { $("#mouvement").innerHTML = `<div class="avert">${esc(e.message)}</div>`; }
 }
 
 /* ── sorties ────────────────────────────────────────────────────────────── */
 $("#btnCompose").addEventListener("click", async () => {
-  const b = $("#btnCompose"); b.disabled = true; etat("composition…");
+  const b = $("#btnCompose"); b.disabled = true; etat(__dzT9("plateau.pl_glb.encours", "composition…"));
   try {
     clearTimeout(tSave);
     await send(`${API}/${P.scene.id}`, "PUT", { instances: P.scene.instances, keyframes: P.scene.keyframes, camera: caméraCourante() });
     const d = await send(`${API}/${P.scene.id}/compose`, "POST", {});
     const l = $("#lienGlb"); l.href = `${API}/${P.scene.id}/scene.glb?v=${d.version}`; l.setAttribute("aria-disabled", "false");
-    etat(`GLB v${d.version} : ${d.rapport.tris_total.toLocaleString("fr-FR")} triangles, ${Math.round(d.bytes / 1024)} Ko`);
-  } catch (e) { etat(`composition : ${e.message}`, true); }
+    etat(__dzT9("plateau.pl_glb.fait", "GLB v{v} : {tris} triangles, {ko} Ko", { v: d.version, tris: d.rapport.tris_total.toLocaleString("fr-FR"), ko: Math.round(d.bytes / 1024) }));
+  } catch (e) { etat(__dzT9("plateau.pl_err.composition", "composition : {msg}", { msg: e.message }), true); }
   b.disabled = false;
 });
 /* La capture se rend à une taille FIXE (grand côté 1 280 px, au ratio du cadre) puis le canevas reprend la sienne :
@@ -389,14 +412,14 @@ async function capturer(quand, t) {
 }
 $("#btnCapture").addEventListener("click", async () => {
   const ks = P.scene.keyframes;
-  if (!ks.length) { etat("posez au moins un keyframe : la capture se fait au premier et au dernier", true); return; }
+  if (!ks.length) { etat(__dzT9("plateau.pl_cap.kf_min", "posez au moins un keyframe : la capture se fait au premier et au dernier"), true); return; }
   if (P.lecture) basculerLecture();
   try {
     const a = await capturer("debut", ks[0].t), z = await capturer("fin", ks[ks.length - 1].t);
-    $("#captures").innerHTML = `<div class="k">début</div><img src="/api/images/${encodeURIComponent(a)}" alt="cadre de début">
-      <div class="k">fin</div><img src="/api/images/${encodeURIComponent(z)}" alt="cadre de fin">`;
-    etat("cadres capturés dans la Bibliothèque (Plateau 3D)");
-  } catch (e) { etat(`capture : ${e.message}`, true); }
+    $("#captures").innerHTML = `<div class="k">${__dzT9("plateau.pl_cap.debut", "début")}</div><img src="/api/images/${encodeURIComponent(a)}" alt="${__dzT9("plateau.pl_cap.debut_alt", "cadre de début")}">
+      <div class="k">${__dzT9("plateau.pl_cap.fin", "fin")}</div><img src="/api/images/${encodeURIComponent(z)}" alt="${__dzT9("plateau.pl_cap.fin_alt", "cadre de fin")}">`;
+    etat(__dzT9("plateau.pl_cap.faits", "cadres capturés dans la Bibliothèque (Plateau 3D)"));
+  } catch (e) { etat(__dzT9("plateau.pl_err.capture", "capture : {msg}", { msg: e.message }), true); }
 });
 /* Le type de plan proposé est celui du cadrage d'OUVERTURE (premier keyframe) : un travelling avant qui finit en très
    gros plan reste, pour le storyboard, le plan qu'il ouvre — MESURÉ à l'écran (07/10) : lu sur la caméra courante,
@@ -419,19 +442,19 @@ async function propositions() {
 }
 $("#btnPlan").addEventListener("click", async () => {
   const z = $("#versPlan");
-  if (!P.plan) { z.innerHTML = `<div class="avert">Cette scène n'est liée à aucun plan : ouvrez-la depuis le storyboard (${ico("dz-nav-plateau")}).</div>`; return; }
+  if (!P.plan) { z.innerHTML = `<div class="avert">${__dzT9("plateau.pl_plan.non_lie", "Cette scène n'est liée à aucun plan : ouvrez-la depuis le storyboard ({ico}).", { ico: ico("dz-nav-plateau") })}</div>`; return; }
   const ap = await propositions();
-  if (!Object.keys(ap).length) { z.innerHTML = `<div class="avert">Rien à proposer : mesurez, posez des keyframes ou capturez d'abord.</div>`; return; }
+  if (!Object.keys(ap).length) { z.innerHTML = `<div class="avert">${__dzT9("plateau.pl_plan.rien", "Rien à proposer : mesurez, posez des keyframes ou capturez d'abord.")}</div>`; return; }
   try {
     const d = await send(`${API}/${P.scene.id}/vers-plan`, "POST", { appliquer: ap });
-    z.innerHTML = `<div class="k">${P.scene.keyframes.length ? "type de plan mesuré au premier keyframe (le cadrage d'ouverture)" : "type de plan mesuré sur le cadre courant"}</div>
+    z.innerHTML = `<div class="k">${P.scene.keyframes.length ? __dzT9("plateau.pl_plan.type_premier", "type de plan mesuré au premier keyframe (le cadrage d'ouverture)") : __dzT9("plateau.pl_plan.type_courant", "type de plan mesuré sur le cadre courant")}</div>
       <table>${Object.keys(ap).map((k) => `<tr class="${d.change.includes(k) ? "change" : ""}"><td>${k}</td><td>${esc(d.avant[k] ?? "—")}</td><td>${esc(d.apres[k])}</td></tr>`).join("")}</table>
-      ${d.change.length ? `<button class="btn primaire" id="btnConfirmer">Écrire ${d.change.length} champ${d.change.length > 1 ? "s" : ""} dans le plan</button>` : `<div class="k">le plan porte déjà ces valeurs</div>`}`;
+      ${d.change.length ? `<button class="btn primaire" id="btnConfirmer">${d.change.length > 1 ? __dzT9("plateau.pl_plan.ecrire_plusieurs", "Écrire {n} champs dans le plan", { n: d.change.length }) : __dzT9("plateau.pl_plan.ecrire_un", "Écrire {n} champ dans le plan", { n: d.change.length })}</button>` : `<div class="k">${__dzT9("plateau.pl_plan.deja", "le plan porte déjà ces valeurs")}</div>`}`;
     const c = $("#btnConfirmer");
     if (c) c.addEventListener("click", async () => {
       try {
         const r = await send(`${API}/${P.scene.id}/vers-plan`, "POST", { appliquer: ap, confirmer: true });
-        z.innerHTML = `<div>Plan mis à jour : ${r.change.join(", ")}.</div>`;
+        z.innerHTML = `<div>${__dzT9("plateau.pl_plan.maj", "Plan mis à jour : {champs}.", { champs: r.change.join(", ") })}</div>`;
         Object.assign(P.plan, Object.fromEntries(r.change.map((k) => [k, r.apres[k]])));
         majChipPlan(); mesurer(); analyser();
       } catch (e) { z.innerHTML = `<div class="avert">${esc(e.message)}</div>`; }
@@ -440,7 +463,7 @@ $("#btnPlan").addEventListener("click", async () => {
 });
 
 function majChipPlan() {
-  $("#chipPlan").textContent = P.plan ? `plan ${P.plan.idx + 1} · ${P.plan.shot_type} · ${f2(P.plan.duration_s)} s` : "aucun plan lié";
+  $("#chipPlan").textContent = P.plan ? __dzT9("plateau.pl_chip.plan", "plan {n} · {type} · {d} s", { n: P.plan.idx + 1, type: P.plan.shot_type, d: f2(P.plan.duration_s) }) : __dzT9("plateau.pl_chip.aucun", "aucun plan lié");
 }
 
 /* ── ouverture : ?scene=<id>, ?shot=<id> (la scène du plan, créée au besoin), ou une scène neuve ─────────── */
@@ -457,7 +480,7 @@ async function ouvrir() {
     if (q.get("scene") !== sid) history.replaceState(null, "", `?scene=${sid}`);
     P.scene = await req(`${API}/${sid}`);
     P.plan = P.scene.plan || null;
-  } catch (e) { etat(`ouverture : ${e.message}`, true); return; }
+  } catch (e) { etat(__dzT9("plateau.pl_err.ouverture", "ouverture : {msg}", { msg: e.message }), true); return; }
   $("#nomScene").value = P.scene.nom;
   $("#aspect").value = P.scene.aspect;
   majChipPlan();
@@ -468,7 +491,9 @@ async function ouvrir() {
   await monterScène();
   listeInstances(); fiche(); majTimeline(); allerA(0);
   mesurer(); analyser(); chargerSources();
-  etat("prêt");
+  etat(__dzT9("plateau.pl_etat.pret", "prêt"));
 }
 ouvrir();
 window.__plateau = P;   // inspection (bancs d'écran, preuve) — lecture seule par convention
+// t149 (traduction L9) : dzT dans la page, le français sous node (bancs)
+function __dzT9(k, fr, v) { return typeof globalThis.dzT === "function" ? globalThis.dzT(k, v) : String(fr).replace(/\{(\w+)\}/g, (m, n) => (v && v[n] != null ? String(v[n]) : m)); }
