@@ -1,0 +1,70 @@
+<p class="chapeau-chap">Vous saurez dessiner une affiche, un logo ou une planche en vectoriel dans le Vectorlab : formes, plume, texte, apparence, calques, symboles, puis l'envoyer vers les autres écrans. Gratuit, tout est calculé sur votre PC ; seule l'illustration par IA est payante, prix annoncé avant.</p>
+
+<h3>Ouvrir le Vectorlab</h3>
+<figure class="scene" data-scene="vectorlab/accueil"></figure>
+<ol class="etapes">
+<li>Ouvrez <b class="ui">Vectorlab</b> dans la barre des applications. L'accueil liste vos documents : un clic sur une carte l'ouvre. Choisissez un format (carré, 16:9, A4, carte à jouer…) puis <b class="ui">Créer</b> pour un document neuf.</li>
+<li>Un document arrive aussi d'ailleurs : <b class="ui">Envoyer vers…</b> › Vectorlab depuis la Bibliothèque ou le Photolab, « Éditer cette face dans le Vectorlab » depuis le <a href="#cardforge">Card Forge</a>, « Ouvrir dans le Vectorlab » depuis un gabarit de Templates.</li>
+<li>En haut à gauche, deux pastilles : <b class="ui">Vecteur</b> pour dessiner, <b class="ui">Pixel</b> pour retoucher des pixels (voir <a href="#vectorlab-pixel">le chapitre suivant</a>). Chacune a ses outils et ses panneaux.</li>
+</ol>
+<p>L'écran suit les codes d'Affinity : dix menus en haut (<b class="ui">Fichier</b>, <b class="ui">Edition</b>, Document, <b class="ui">Texte</b>, <b class="ui">Vecteur</b>, Pixel, <b class="ui">Calque</b>, <b class="ui">Affichage</b>, <b class="ui">Fenêtre</b>, <b class="ui">Aide</b>), une barre contextuelle qui montre la sélection et les réglages de l'outil courant, les outils à gauche, la pile de panneaux à onglets à droite et une barre d'état qui rappelle les gestes de l'outil. L'onglet du document affiche « nom @ zoom » et une étoile s'il n'est pas enregistré.</p>
+
+<h3>Choisir un outil</h3>
+<figure class="scene" data-scene="vectorlab/familles"></figure>
+<p>Les outils sont rangés en familles : seul l'outil courant de chaque famille est visible. Le triangle d'angle ou l'appui long ouvre la famille, le clic droit ouvre les réglages de l'outil, la lettre le choisit au clavier.</p>
+<div class="cartes">
+<article><i data-dz="dz-outil-vec-selection"></i><h4>Sélection (V)</h4><p>Le cadre ne prend que les objets entièrement inclus (<kbd>Alt</kbd> : ceux qu'il touche). <kbd>Maj</kbd> contraint, <kbd>Ctrl</kbd> redimensionne depuis le centre, <kbd>Alt</kbd>+glisser copie, <kbd>Ctrl</kbd>+clic atteint un objet dans un groupe, <kbd>Tab</kbd> passe au suivant.</p></article>
+<article><i data-dz="dz-outil-vec-plume"></i><h4>Plume (P) et Nœud (N)</h4><p>Clic = nœud vif, glisser = nœud lisse, clic sur le premier nœud pour fermer. Quatre modes : Plume, Intelligent, Polygone, Ligne. L'outil Nœud tire les poignées, déforme un segment, ajoute (double-clic) ou supprime des nœuds.</p></article>
+<article><i data-dz="dz-outil-vec-forme"></i><h4>Formes (R, E, L, F)</h4><p>Rectangle, ellipse, ligne et formes paramétriques (polygone, étoile, engrenage, flèche, donut, spirale) réglables par poignées. Un simple clic pose une forme ; l'outil Coin (C) arrondit un coin.</p></article>
+<article><i data-dz="dz-outil-vec-pinceau"></i><h4>Dessiner à main levée</h4><p>Crayon (B) lissé, pinceau vectoriel (J) à profil plat, fuseau ou calligraphie, gomme (W), couteau (X) et constructeur de formes (S) qui combine ou retire des zones par clics.</p></article>
+<article><i data-dz="dz-outil-vec-texte"></i><h4>Texte (T)</h4><p>Glisser = texte au corps de la hauteur tirée ; clic sur une courbe = texte sur ce chemin ; double-clic pour éditer sur place. Le cadre de texte fait couler le texte et signale un débordement en rouge.</p></article>
+<article><i data-dz="dz-outil-vec-pipette"></i><h4>Pipette, mesure, vue</h4><p>Pipette (I) avec loupe (<kbd>Ctrl</kbd> : tout le style), mesure (M), main (H), loupe (Z, <kbd>Alt</kbd> pour dézoomer). <kbd>Ctrl</kbd>+<kbd>0</kbd> ajuste la page, <kbd>Ctrl</kbd>+<kbd>1</kbd> affiche à 100 %.</p></article>
+</div>
+
+<h3>Régler l'apparence</h3>
+<figure class="scene" data-scene="vectorlab/apparence"></figure>
+<ol class="etapes">
+<li>Sélectionnez un objet. La barre contextuelle donne X, Y, L, H et l'opacité ; les champs acceptent des calculs (100/3).</li>
+<li>L'onglet <b class="ui">Apparence</b> règle le fond et le contour depuis le nuancier, sans fond ou sans contour, l'épaisseur, l'opacité. <b class="ui">Trait</b> et <b class="ui">Transformer</b> ont leurs onglets (inclinaison, pivot déplaçable).</li>
+<li><b class="ui">Apparence +</b> va plus loin : dégradés linéaire, radial et conique, transparence, motifs (hachures, points, damier), contours multiples, six effets, 16 modes de fusion, couleurs globales, harmonies, styles d'objet, coller dans une forme (masque d'écrêtage), texte en cadre ou sur chemin.</li>
+</ol>
+<div class="fiches">
+<figure class="fiche" data-fiche="vectorlab/a2Conique"></figure>
+<figure class="fiche" data-fiche="vectorlab/a2Transp"></figure>
+<figure class="fiche" data-fiche="vectorlab/a2Motif"></figure>
+<figure class="fiche" data-fiche="vectorlab/a2EnCadre"></figure>
+<figure class="fiche" data-fiche="vectorlab/a2SurChemin"></figure>
+</div>
+<p>Un contour décalé et un texte sur chemin restent <strong>vivants</strong> : ils se recalculent quand leur source change, jusqu'à ce que vous les détachiez.</p>
+
+<h3>Calques et symboles</h3>
+<figure class="scene" data-scene="vectorlab/calques"></figure>
+<p>L'onglet <b class="ui">Calques</b> montre en tête l'opacité et le mode de fusion du calque, puis chaque calque avec sa vignette, son verrou et son œil ; un triangle le déplie en arbre de ses objets, écrêtages, masques et effets. Le menu <b class="ui">Calque</b> crée, renomme, groupe (<kbd>Ctrl</kbd>+<kbd>G</kbd>), verrouille, masque et range dans l'ordre.</p>
+<p>Un <strong>symbole</strong> se crée par Vecteur › <b class="ui">Créer un symbole</b> ; ses instances suivent toutes ses modifications. Double-cliquez une instance pour l'éditer en place, puis <b class="ui">Terminer</b> ou <b class="ui">Abandonner</b>.</p>
+
+<h3>Le menu Vecteur</h3>
+<figure class="scene" data-scene="vectorlab/geometrie"></figure>
+<div class="cartes">
+<article><i data-dz="dz-edit-contour-trace"></i><h4>Géométrie</h4><p>Union, soustraction, intersection et division de formes ; relier, inverser, diviser au nœud ; <b class="ui">Arrondir les coins</b>.</p></article>
+<article><i data-dz="dz-media-texte"></i><h4>Convertir en courbes</h4><p>Un texte devient des chemins (<kbd>Ctrl</kbd>+<kbd>Entrée</kbd>), en un seul ou un chemin par glyphe.</p></article>
+<article><i data-dz="dz-media-image"></i><h4>Traçage d'image</h4><p><b class="ui">Traçage d'image…</b> vectorise une image posée (couleurs, lissage, seuil), avec aperçu, sur votre PC.</p></article>
+</div>
+
+<h3>Le document</h3>
+<p>Le menu Document regroupe la <b class="ui">Configuration…</b> (taille, résolution, unité, fond), les <b class="ui">Planches…</b> exportables séparément, les <b class="ui">Marges et fond perdu…</b> (repères jamais exportés), la <b class="ui">Grille du document…</b> (carrée, iso, triangulaire, hexagonale, aimantante), le <b class="ui">Plateau et terrains…</b> pour peindre des tuiles (K) et la <b class="ui">Carte réelle…</b>. Affichage › <b class="ui">Magnétisme aux objets</b> aimante aux bords, centres et écarts réguliers.</p>
+<p>Fichier › <b class="ui">Insérer une image…</b> ou <b class="ui">Insérer depuis la Bibliothèque…</b> pose une image ; l'onglet Stock montre la Bibliothèque avec recherche, un clic pose l'image. Une image se rogne, se verrouille et reçoit aussi les effets.</p>
+
+<h3>Bon à savoir</h3>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Le document est sauvegardé en brouillon toutes les 30 secondes : à la réouverture, une fenêtre propose de le restaurer ou de repartir du serveur. L'historique garde 1000 pas ; Edition › <b class="ui">Ajouter un instantané</b> marque un état à retrouver.</p></aside>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Survolez une option une seconde, ou cliquez le « ? » à côté, pour sa fiche animée. <kbd>F1</kbd> liste tous les raccourcis ; Edition › Paramètres (<kbd>Ctrl</kbd>+<kbd>,</kbd>) règle bulles, grille et aimantation.</p></aside>
+<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>L'illustration par IA (famille IA, ou Fichier › Nouveau traitement d'image) est payante : le prix s'affiche avant, sous vos plafonds. Tout le reste est gratuit.</p></aside>
+
+<h3>Raccourcis</h3>
+<div class="tableau"><table>
+<tr><th>Geste</th><th>Raccourci</th></tr>
+<tr><td>Annuler, rétablir</td><td><kbd>Ctrl</kbd>+<kbd>Z</kbd>, <kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>Z</kbd></td></tr>
+<tr><td>Dupliquer, grouper, dégrouper</td><td><kbd>Ctrl</kbd>+<kbd>D</kbd>, <kbd>Ctrl</kbd>+<kbd>G</kbd>, <kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>G</kbd></td></tr>
+<tr><td>Ajuster la page, 100 %, grille</td><td><kbd>Ctrl</kbd>+<kbd>0</kbd>, <kbd>Ctrl</kbd>+<kbd>1</kbd>, <kbd>G</kbd></td></tr>
+<tr><td>Accueil du Vectorlab</td><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>H</kbd></td></tr>
+<tr><td>Tous les raccourcis</td><td><kbd>F1</kbd></td></tr>
+</table></div>

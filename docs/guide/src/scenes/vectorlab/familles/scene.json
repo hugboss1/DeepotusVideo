@@ -1,0 +1,88 @@
+{
+  "titre": {
+    "fr": "Une famille d'outils",
+    "en": "A tool family"
+  },
+  "legende": {
+    "fr": "Le triangle d'angle ou l'appui long ouvre la famille ; la lettre de l'outil le choisit au clavier.",
+    "en": "The corner triangle or a long press opens the family; the tool's letter picks it from the keyboard."
+  },
+  "captures": [
+    {
+      "fr": "barre.fr.webp",
+      "en": "barre.en.webp"
+    },
+    {
+      "fr": "famille.fr.webp",
+      "en": "famille.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.2,
+      "surligne": [
+        1,
+        242,
+        42,
+        42
+      ],
+      "bulle": {
+        "fr": "La famille Formes",
+        "en": "The Shapes family"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "surligne": [
+        37,
+        242,
+        218,
+        164
+      ],
+      "bulle": {
+        "fr": "Rectangle, ellipse, ligne, forme paramétrique",
+        "en": "Rectangle, ellipse, line, parametric shape"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.2,
+      "surligne": [
+        1,
+        242,
+        42,
+        42
+      ],
+      "bulle": {
+        "fr": "La famille Formes",
+        "en": "The Shapes family"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "surligne": [
+        37,
+        242,
+        199,
+        164
+      ],
+      "bulle": {
+        "fr": "Rectangle, ellipse, ligne, forme paramétrique",
+        "en": "Rectangle, ellipse, line, parametric shape"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

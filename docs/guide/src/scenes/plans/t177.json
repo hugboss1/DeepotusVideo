@@ -1,0 +1,566 @@
+{
+ "base": "http://127.0.0.1:8809",
+ "preparation": "python scripts/guide/semer_vectorlab.py http://127.0.0.1:8809 (deux documents dessinés ici : affiche du phare, planche de tuiles ; aucune clé, rien de payant)",
+ "scenes": [
+  {
+   "scene": "vectorlab/accueil",
+   "url": "/vectorlab/",
+   "titre": {
+    "fr": "L'accueil du Vectorlab",
+    "en": "The Vectorlab home"
+   },
+   "legende": {
+    "fr": "L'accueil liste vos documents : un clic sur une carte l'ouvre ; Nouveau en crée un.",
+    "en": "The home lists your documents: one click on a card opens it; New creates one."
+   },
+   "avant": [
+    {
+     "attente": 1500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "accueil"
+    },
+    {
+     "nom": "document",
+     "etapes": [
+      {
+       "clic": "texte:Affiche du phare",
+       "apres": 3500
+      },
+      {
+       "clic": "css:.mb-titre[data-i=\"7\"]",
+       "apres": 400
+      },
+      {
+       "clic": "css:[data-id=\"zoomAjuster\"]",
+       "apres": 1200
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.4,
+     "curseur": "texte:Affiche du phare",
+     "clic": true,
+     "bulle": {
+      "fr": "Ouvrez un document",
+      "en": "Open a document"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.8,
+     "surligne": "css:[data-persona=\"vecteur\"]",
+     "bulle": {
+      "fr": "Deux personas : Vecteur et Pixel",
+      "en": "Two personas: Vector and Pixel"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.8,
+     "surligne": "css:#outils",
+     "bulle": {
+      "fr": "Les outils, rangés par familles",
+      "en": "Tools, grouped by family"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "vectorlab/familles",
+   "url": "/vectorlab/",
+   "titre": {
+    "fr": "Une famille d'outils",
+    "en": "A tool family"
+   },
+   "legende": {
+    "fr": "Le triangle d'angle ou l'appui long ouvre la famille ; la lettre de l'outil le choisit au clavier.",
+    "en": "The corner triangle or a long press opens the family; the tool's letter picks it from the keyboard."
+   },
+   "avant": [
+    {
+     "attente": 1200
+    },
+    {
+     "clic": "texte:Affiche du phare",
+     "apres": 3500
+    },
+    {
+     "clic": "css:.mb-titre[data-i=\"7\"]",
+     "apres": 400
+    },
+    {
+     "clic": "css:[data-id=\"zoomAjuster\"]",
+     "apres": 1200
+    }
+   ],
+   "captures": [
+    {
+     "nom": "barre"
+    },
+    {
+     "nom": "famille",
+     "etapes": [
+      {
+       "js": "VL.familleOuvrir(document.querySelector('[data-outil=\"rect\"]'))",
+       "attente": 600
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.2,
+     "surligne": "css:[data-outil=\"rect\"]",
+     "bulle": {
+      "fr": "La famille Formes",
+      "en": "The Shapes family"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 3.0,
+     "surligne": "css:#flyout",
+     "bulle": {
+      "fr": "Rectangle, ellipse, ligne, forme paramétrique",
+      "en": "Rectangle, ellipse, line, parametric shape"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "vectorlab/apparence",
+   "url": "/vectorlab/",
+   "titre": {
+    "fr": "Régler l'apparence",
+    "en": "Set the appearance"
+   },
+   "legende": {
+    "fr": "Sélectionnez un objet : la barre contextuelle et l'onglet Apparence montrent son fond, son contour et son opacité.",
+    "en": "Select an object: the context bar and the Appearance tab show its fill, stroke and opacity."
+   },
+   "avant": [
+    {
+     "attente": 1200
+    },
+    {
+     "clic": "texte:Affiche du phare",
+     "apres": 3500
+    },
+    {
+     "clic": "css:.mb-titre[data-i=\"7\"]",
+     "apres": 400
+    },
+    {
+     "clic": "css:[data-id=\"zoomAjuster\"]",
+     "apres": 1200
+    }
+   ],
+   "captures": [
+    {
+     "nom": "selection",
+     "etapes": [
+      {
+       "clic": "css:[data-objet=\"soleil\"]",
+       "apres": 900
+      }
+     ]
+    },
+    {
+     "nom": "apparence",
+     "etapes": [
+      {
+       "clic": "css:[data-onglet=\"apparence\"]",
+       "apres": 900
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.4,
+     "surligne": "css:[data-objet=\"soleil\"]",
+     "bulle": {
+      "fr": "Un clic sélectionne le soleil",
+      "en": "One click selects the sun"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 3.0,
+     "surligne": "css:[data-onglet=\"apparence\"]",
+     "bulle": {
+      "fr": "Fond, contour, dégradés, effets",
+      "en": "Fill, stroke, gradients, effects"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "vectorlab/calques",
+   "url": "/vectorlab/",
+   "titre": {
+    "fr": "Le panneau Calques",
+    "en": "The Layers panel"
+   },
+   "legende": {
+    "fr": "Chaque calque se déplie en arbre de ses objets, avec vignette, verrou, œil, opacité et mode de fusion.",
+    "en": "Each layer unfolds into a tree of its objects, with thumbnail, lock, eye, opacity and blend mode."
+   },
+   "avant": [
+    {
+     "attente": 1200
+    },
+    {
+     "clic": "texte:Affiche du phare",
+     "apres": 3500
+    },
+    {
+     "clic": "css:.mb-titre[data-i=\"7\"]",
+     "apres": 400
+    },
+    {
+     "clic": "css:[data-id=\"zoomAjuster\"]",
+     "apres": 1200
+    },
+    {
+     "clic": "css:[data-onglet=\"calques\"]",
+     "apres": 800
+    }
+   ],
+   "captures": [
+    {
+     "nom": "calques"
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 3.0,
+     "surligne": "css:[data-onglet=\"calques\"]",
+     "bulle": {
+      "fr": "Fond, Phare, Titre : trois calques",
+      "en": "Background, Lighthouse, Title: three layers"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "vectorlab/geometrie",
+   "url": "/vectorlab/",
+   "titre": {
+    "fr": "Le menu Vecteur",
+    "en": "The Vector menu"
+   },
+   "legende": {
+    "fr": "Géométrie (union, soustraction, intersection, division), courbes, symboles et traçage d'image.",
+    "en": "Geometry (union, subtract, intersect, divide), curves, symbols and image trace."
+   },
+   "avant": [
+    {
+     "attente": 1200
+    },
+    {
+     "clic": "texte:Affiche du phare",
+     "apres": 3500
+    },
+    {
+     "clic": "css:.mb-titre[data-i=\"7\"]",
+     "apres": 400
+    },
+    {
+     "clic": "css:[data-id=\"zoomAjuster\"]",
+     "apres": 1200
+    }
+   ],
+   "captures": [
+    {
+     "nom": "menu",
+     "etapes": [
+      {
+       "clic": "css:[data-objet=\"soleil\"]",
+       "apres": 700
+      },
+      {
+       "clic": "css:.mb-titre[data-i=\"4\"]",
+       "apres": 600
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:[data-id=\"boolUnion\"]",
+     "bulle": {
+      "fr": "Combiner des formes",
+      "en": "Combine shapes"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:[data-id=\"tracerImage\"]",
+     "bulle": {
+      "fr": "Vectoriser une image, en local",
+      "en": "Vectorise an image, locally"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "vectorlab-pixel/persona",
+   "url": "/vectorlab/",
+   "titre": {
+    "fr": "Le persona Pixel",
+    "en": "The Pixel persona"
+   },
+   "legende": {
+    "fr": "Même document, autres outils : sélections de pixels, pinceau, gomme, pot, crayon pixel, panneaux Pixel-art et Histogramme.",
+    "en": "Same document, other tools: pixel selections, brush, eraser, bucket, pixel pencil, Pixel-art and Histogram panels."
+   },
+   "avant": [
+    {
+     "attente": 1200
+    },
+    {
+     "clic": "texte:Affiche du phare",
+     "apres": 3500
+    },
+    {
+     "clic": "css:.mb-titre[data-i=\"7\"]",
+     "apres": 400
+    },
+    {
+     "clic": "css:[data-id=\"zoomAjuster\"]",
+     "apres": 1200
+    }
+   ],
+   "captures": [
+    {
+     "nom": "pixel",
+     "etapes": [
+      {
+       "clic": "css:[data-persona=\"pixel\"]",
+       "apres": 1500
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.4,
+     "surligne": "css:[data-persona=\"pixel\"]",
+     "bulle": {
+      "fr": "Pastille Pixel",
+      "en": "Pixel pill"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": "css:#outils",
+     "bulle": {
+      "fr": "Les outils de pixels",
+      "en": "The pixel tools"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "vectorlab-pixel/export",
+   "url": "/vectorlab/",
+   "titre": {
+    "fr": "L'onglet Exporter",
+    "en": "The Export tab"
+   },
+   "legende": {
+    "fr": "Commun aux deux personas : formats, résolutions, tranches et préréglages d'impression.",
+    "en": "Shared by both personas: formats, resolutions, slices and print presets."
+   },
+   "avant": [
+    {
+     "attente": 1200
+    },
+    {
+     "clic": "texte:Affiche du phare",
+     "apres": 3500
+    },
+    {
+     "clic": "css:.mb-titre[data-i=\"7\"]",
+     "apres": 400
+    },
+    {
+     "clic": "css:[data-id=\"zoomAjuster\"]",
+     "apres": 1200
+    }
+   ],
+   "captures": [
+    {
+     "nom": "export",
+     "etapes": [
+      {
+       "clic": "css:.mb-titre[data-i=\"8\"]",
+       "apres": 400
+      },
+      {
+       "clic": "css:[data-id=\"wExporter\"]",
+       "apres": 1200
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 3.0,
+     "surligne": "css:[data-onglet=\"exporter\"]",
+     "bulle": {
+      "fr": "PNG, JPEG, WebP, SVG, PDF, DXF",
+      "en": "PNG, JPEG, WebP, SVG, PDF, DXF"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "vectorlab-pixel/impression",
+   "url": "/vectorlab/",
+   "titre": {
+    "fr": "Imprimer en 3D",
+    "en": "Print in 3D"
+   },
+   "legende": {
+    "fr": "Fichier › Impression 3D… transforme le dessin en pièces : aperçu 3D, puis STL, 3MF ou un lot par pièce.",
+    "en": "File › 3D printing… turns the drawing into parts: 3D preview, then STL, 3MF or a batch per part."
+   },
+   "avant": [
+    {
+     "attente": 1200
+    },
+    {
+     "clic": "texte:Affiche du phare",
+     "apres": 3500
+    },
+    {
+     "clic": "css:.mb-titre[data-i=\"7\"]",
+     "apres": 400
+    },
+    {
+     "clic": "css:[data-id=\"zoomAjuster\"]",
+     "apres": 1200
+    }
+   ],
+   "captures": [
+    {
+     "nom": "dialogue",
+     "etapes": [
+      {
+       "clic": "css:[data-objet=\"tour\"]",
+       "apres": 700
+      },
+      {
+       "clic": "css:.mb-titre[data-i=\"0\"]",
+       "apres": 400
+      },
+      {
+       "clic": "css:[data-id=\"print3d\"]",
+       "apres": 6000
+      },
+      {
+       "js": "(()=>{const m=document.querySelector('#impMode');m.value='logo';m.dispatchEvent(new Event('change',{bubbles:true}));})()",
+       "attente": 800
+      },
+      {
+       "clic": "css:#impApercu",
+       "apres": 8000
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:#impMode",
+     "bulle": {
+      "fr": "Calques, tuiles, logo, relief ou pixel-art",
+      "en": "Layers, tiles, logo, relief or pixel art"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 3.0,
+     "surligne": "css:#impViewer",
+     "bulle": {
+      "fr": "L'aperçu 3D, en couleurs de pièces",
+      "en": "The 3D preview, in part colours"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "vectorlab-pixel/carte",
+   "url": "/vectorlab/",
+   "titre": {
+    "fr": "Une carte réelle",
+    "en": "A real map"
+   },
+   "legende": {
+    "fr": "Document › Carte réelle… : relief, courbes de niveau, fond OpenStreetMap et tracés GPX, sans clé ni coût.",
+    "en": "Document › Real map…: relief, contour lines, OpenStreetMap background and GPX tracks, no key, no cost."
+   },
+   "avant": [
+    {
+     "attente": 1200
+    },
+    {
+     "clic": "texte:Affiche du phare",
+     "apres": 3500
+    },
+    {
+     "clic": "css:.mb-titre[data-i=\"7\"]",
+     "apres": 400
+    },
+    {
+     "clic": "css:[data-id=\"zoomAjuster\"]",
+     "apres": 1200
+    }
+   ],
+   "captures": [
+    {
+     "nom": "panneau",
+     "etapes": [
+      {
+       "clic": "css:.mb-titre[data-i=\"2\"]",
+       "apres": 400
+      },
+      {
+       "clic": "css:[data-id=\"carte\"]",
+       "apres": 1500
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 3.0,
+     "surligne": "css:[data-onglet=\"carte\"]",
+     "bulle": {
+      "fr": "Le panneau Carte",
+      "en": "The Map panel"
+     }
+    }
+   ]
+  }
+ ]
+}

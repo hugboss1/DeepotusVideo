@@ -1,0 +1,84 @@
+{
+  "titre": {
+    "fr": "Le persona Pixel",
+    "en": "The Pixel persona"
+  },
+  "legende": {
+    "fr": "Même document, autres outils : sélections de pixels, pinceau, gomme, pot, crayon pixel, panneaux Pixel-art et Histogramme.",
+    "en": "Same document, other tools: pixel selections, brush, eraser, bucket, pixel pencil, Pixel-art and Histogram panels."
+  },
+  "captures": [
+    {
+      "fr": "pixel.fr.webp",
+      "en": "pixel.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "surligne": [
+        103,
+        34,
+        87,
+        38
+      ],
+      "bulle": {
+        "fr": "Pastille Pixel",
+        "en": "Pixel pill"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        0,
+        126,
+        56,
+        758
+      ],
+      "bulle": {
+        "fr": "Les outils de pixels",
+        "en": "The pixel tools"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "surligne": [
+        96,
+        34,
+        87,
+        38
+      ],
+      "bulle": {
+        "fr": "Pastille Pixel",
+        "en": "Pixel pill"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        0,
+        126,
+        56,
+        758
+      ],
+      "bulle": {
+        "fr": "Les outils de pixels",
+        "en": "The pixel tools"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

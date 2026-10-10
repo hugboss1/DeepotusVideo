@@ -1,0 +1,88 @@
+{
+  "titre": {
+    "fr": "Régler l'apparence",
+    "en": "Set the appearance"
+  },
+  "legende": {
+    "fr": "Sélectionnez un objet : la barre contextuelle et l'onglet Apparence montrent son fond, son contour et son opacité.",
+    "en": "Select an object: the context bar and the Appearance tab show its fill, stroke and opacity."
+  },
+  "captures": [
+    {
+      "fr": "selection.fr.webp",
+      "en": "selection.en.webp"
+    },
+    {
+      "fr": "apparence.fr.webp",
+      "en": "apparence.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "surligne": [
+        650,
+        424,
+        154,
+        154
+      ],
+      "bulle": {
+        "fr": "Un clic sélectionne le soleil",
+        "en": "One click selects the sun"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "surligne": [
+        1177,
+        154,
+        87,
+        34
+      ],
+      "bulle": {
+        "fr": "Fond, contour, dégradés, effets",
+        "en": "Fill, stroke, gradients, effects"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "surligne": [
+        650,
+        424,
+        154,
+        154
+      ],
+      "bulle": {
+        "fr": "Un clic sélectionne le soleil",
+        "en": "One click selects the sun"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "surligne": [
+        1177,
+        154,
+        94,
+        34
+      ],
+      "bulle": {
+        "fr": "Fond, contour, dégradés, effets",
+        "en": "Fill, stroke, gradients, effects"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

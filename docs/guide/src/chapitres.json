@@ -375,7 +375,8 @@
         "Vectorlab — interface Affinity",
         "Vectorlab — persona Vecteur",
         "Vectorlab — liens avec les autres écrans"
-      ]
+      ],
+      "etat": "v3"
     },
     {
       "id": "vectorlab-pixel",
@@ -390,7 +391,8 @@
         "Vectorlab — Export",
         "Vectorlab — Impression 3D",
         "Vectorlab — Cartes réelles"
-      ]
+      ],
+      "etat": "v3"
     },
     {
       "id": "assets2d",
