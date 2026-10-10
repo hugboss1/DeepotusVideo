@@ -57,6 +57,10 @@ DEFAULTS = {
     # plus qu'au coût HISTORIQUE des jobs d'avant la colonne `video_model`
     # (op `legacy: True`) : un modèle vide se résout au défaut du registre.
     "seedance_usd_per_s": 0.04,
+    # Avatar live G0 (t161, 10/10/2026) : Decart Lucy 2.5 en temps réel, à la seconde de génération active.
+    # Relevé le 10/10 sur docs.platform.decart.ai/getting-started/pricing : 0,02 $/s (720p), 0,04 $/s en
+    # mode rapide (x2). Via fal (decart/lucy-2-5/realtime) le tarif relevé est 0,04 $/s — chemin non retenu.
+    "decart_realtime_usd_per_s": 0.02,
     # Garde de coût serveur (retours-ia F3/F4, 27/09) : une requête vidéo
     # (/generate, /generate/batch, /generate/composition, rendu de layout)
     # dont l'estimation dépasse ce plafond est refusée en 402 AVANT toute
@@ -644,6 +648,21 @@ def estimate(op: dict, p: dict | None = None) -> dict:
                            cr, "credits",
                            cr * float(p.get("meshy_credit_usd",
                                             DEFAULTS["meshy_credit_usd"]))))
+    elif kind == "direct":
+        # Avatar live G0 (t161) : UNE session du Direct, réservée ENTIÈRE (Decart la coupe à cette borne,
+        # maxSessionDuration). Durée illisible -> la durée par défaut du Direct, jamais 0.
+        from app.services.avatar_live import borner_duree as _bd, DUREE_DEFAUT_S as _dd
+        raw = op.get("seconds")
+        try:
+            ok_ = raw is not None and float(raw) > 0
+        except (TypeError, ValueError):
+            ok_ = False
+        sec = _bd(raw) if ok_ else _dd
+        rate = float(p.get("decart_realtime_usd_per_s", DEFAULTS["decart_realtime_usd_per_s"]))
+        rapide = bool(op.get("rapide"))
+        rate *= 2 if rapide else 1
+        lines.append(_line("decart", "Decart Lucy 2.5 (direct" + (", rapide)" if rapide else ")"),
+                           sec, "s", sec * rate))
     elif kind == "sprite2d":
         # Game Assets 2D (Sprite Lab): ffmpeg extraction + PIL assembly are
         # local (free); the only billable part is the per-frame fal remove-bg.

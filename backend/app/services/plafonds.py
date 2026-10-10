@@ -33,7 +33,7 @@ DEFAUTS = {"global_usd": 0.0, "par_moteur": {}, "alerte_pct": 80}
 # Les écrans qui peuvent dépenser — le vocabulaire des catégories.
 CATEGORIES = ("quick", "studio", "chapitres", "son", "montage", "news", "scheduler", "bibliotheque", "sprites",
               "tuiles", "matieres", "cartes", "moteurs3d", "marketing", "atelier", "vectorlab", "reglages",
-              "dictee")
+              "dictee", "direct")
 
 CONFIRME: ContextVar[bool] = ContextVar("dz_plafond_confirme", default=False)
 

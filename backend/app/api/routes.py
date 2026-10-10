@@ -6630,6 +6630,8 @@ _ALLOWED_ENV_KEYS = {
     # plan scheduler T6 (tâche #28, 30/09) : TikTok Direct Post — client (Login Kit « Desktop »), refresh token écrit par
     # /oauth/tiktok/callback/, TIKTOK_AUDITED lève SELF_ONLY. Pas de TIKTOK_REDIRECT_URI : le rappel est loopback.
     "TIKTOK_CLIENT_KEY", "TIKTOK_CLIENT_SECRET", "TIKTOK_REFRESH_TOKEN", "TIKTOK_AUDITED",
+    # Avatar live G0 (t161, 10/10) : le Direct (Decart Lucy 2.5)
+    "DECART_API_KEY",
 }
 
 

@@ -80,6 +80,10 @@ class Settings(BaseSettings):
     # fal.ai (required)
     FAL_KEY: str = ""
 
+    # Decart (optional, Avatar live G0 / t161) — le Direct (Lucy 2.5 en temps réel). Jamais envoyée à une page :
+    # le backend frappe des jetons clients de 60 s bornés à la session.
+    DECART_API_KEY: str = ""
+
     # ElevenLabs (optional)
     ELEVENLABS_API_KEY: str = ""
     ELEVENLABS_VOICE_ID_EN: str = "nPczCjzI2devNBz1zQrb"

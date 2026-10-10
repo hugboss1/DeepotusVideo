@@ -72,6 +72,7 @@ PAYANTES = {
     # t111 (plan-sprites T9) : la feuille de directions passe par assets_sprite — chroma local par défaut, mais un
     # `remove_bg: "api"` atteint le puits fal, et la garde est celle d'assets_sprite (gardée PAR la porte commune)
     ("routes", "POST", "/assets/sprite/from-board"),
+    ("avatar_live", "POST", "/sessions"),   # t161 : une session du Direct (Decart Lucy 2.5, réservée entière)
 }
 
 
@@ -95,6 +96,9 @@ anciens = {"routes": _git_show("api/routes.py"), "dictation": _git_show("service
            "montage": _git_show("services/montage_service.py"), "face": _git_show("services/cards/face.py"),
            "capture": _git_show("services/cards/capture.py"), "forge3d": _git_show("services/cards/forge3d.py"),
            "data": _git_show("services/cards/data.py")}   # tâche #86 : le module de la traduction des cartes
+# t161 : le module du Direct n'existait pas en bfec23e — son témoin est le source ACTUEL privé de sa garde
+_av = (RP.MODULES["avatar_live"]).read_text(encoding="utf-8")
+anciens["avatar_live"] = _av.replace("_PLAF.verifier(", "_sans_garde(") if "_PLAF.verifier(" in _av else None
 if all(anciens.values()):
     rec0 = RP.recenser(anciens)
     gardees0 = [k for k in PAYANTES if k in rec0 and rec0[k]["garde"]]

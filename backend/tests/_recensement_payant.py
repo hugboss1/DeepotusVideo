@@ -19,6 +19,7 @@ MODULES = {
     "capture": RACINE / "services" / "cards" / "capture.py",
     "forge3d": RACINE / "services" / "cards" / "forge3d.py",
     "data": RACINE / "services" / "cards" / "data.py",   # tâche #86 : la traduction des cartes (LLM)
+    "avatar_live": RACINE / "api" / "avatar_live_routes.py",   # t161 : le Direct (Decart Lucy 2.5)
 }
 
 PUITS = {
@@ -48,6 +49,7 @@ PUITS = {
     "preparer_vues", "rejouer_vue", "detourer_vue", "tirer_vues",   # T106 : les vues avant le tir (Seedream, rembg, moteur)
     "convertir_par_meshy",   # T105 : fbx/usdz/blend par Meshy convert (1 crédit par tâche)
     "_run_manuscript_job", "_run_adapt_job", "_run_bible_model3d",
+    "ouvrir_session_direct",   # t161 : le jeton client Decart (le Direct, facturé à la seconde)
 }
 GARDES = {"_plafond", "_PLAF.verifier"}   # `verifier` nu est ambigu (cards/face : `sw.verifier` de la fiche de style)
 
