@@ -1115,9 +1115,15 @@
   "option": "refonte",
   "t": "2026-10-10T03:46:04.549Z"
  },
+ "dz-marque-icone-adaptative": {
+  "option": "actuel:logo-marque",
+  "t": "2026-10-10T07:00:00Z",
+  "note": "décision utilisateur du 10/10 : icône d application = logo réel (le glyphe se dégrade à 1024 px)"
+ },
  "dz-marque-icone-app": {
-  "option": "refonte",
-  "t": "2026-10-10T03:45:52.047Z"
+  "option": "actuel:logo-marque",
+  "t": "2026-10-10T07:00:00Z",
+  "note": "décision utilisateur du 10/10 : icône d application = logo réel (le glyphe se dégrade à 1024 px)"
  },
  "dz-marque-oracle": {
   "option": "refonte",
